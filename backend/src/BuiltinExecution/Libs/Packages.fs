@@ -206,7 +206,7 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
       returnType = TCustomType(Ok PT2DT.Search.SearchResults.typeName, [])
       description = "Search for packages based on the given query"
       fn =
-        (function
+        function
         | _, _, _, [ query as DRecord(_, _, _, _fields) ] ->
           uply {
             let searchQuery = PT2DT.Search.SearchQuery.fromDT query
@@ -248,7 +248,7 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
                 Map resultFields
               )
           }
-        | _ -> incorrectArgs ())
+        | _ -> incorrectArgs ()
       sqlSpec = NotQueryable
       previewable = Impure
       deprecated = NotDeprecated } ]

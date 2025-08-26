@@ -59,7 +59,8 @@ module Darklang =
                         LanguageTools.ProgramTypes.Search.EntityType.Fn
                         LanguageTools.ProgramTypes.Search.EntityType.Type
                         LanguageTools.ProgramTypes.Search.EntityType.Value
-                      ] }
+                      ]
+                      exactMatch = false }
 
                 let searchResults = LanguageTools.PackageManager.Search.search searchQuery
 

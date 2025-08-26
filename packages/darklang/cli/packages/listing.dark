@@ -1,0 +1,106 @@
+// LS command - list contents
+// CLEANUP could the impl here just be a `... --depth=1 --plain` call of 'tree'?
+module Darklang.Cli.Packages.Listing
+
+let listModule (location: PackageLocation) : Unit =
+  let modulePath =
+    match location with
+    | Module path -> path
+    | Type t -> Stdlib.List.append [t.owner] t.modules
+    | Value v -> Stdlib.List.append [v.owner] v.modules
+    | Function f -> Stdlib.List.append [f.owner] f.modules
+
+  // Search for contents at this location
+  let results = Search.searchContents modulePath
+
+  // Display module path
+  let locationStr = Packages.formatLocation location
+  Stdlib.printLine $"Contents of {locationStr}:"
+  Stdlib.printLine ""
+
+  // Display submodules
+  let currentPathLength = Stdlib.List.length modulePath
+  let directSubmodules = Search.getDirectSubmodules results currentPathLength
+
+  // Display in order: modules, types, values, functions
+  if Stdlib.Bool.not (Stdlib.List.isEmpty directSubmodules) then
+    Stdlib.printLine (Search.getSectionHeader "module")
+    directSubmodules
+    |> Stdlib.List.iter (fun name -> Stdlib.printLine $"  {name}/")
+    Stdlib.printLine ""
+
+  // Display types
+  if Stdlib.Bool.not (Stdlib.List.isEmpty results.types) then
+    Stdlib.printLine (Search.getSectionHeader "type")
+    results.types
+    |> Stdlib.List.iter (fun t -> Stdlib.printLine $"  {t.name.name}")
+    Stdlib.printLine ""
+
+  // Display values
+  if Stdlib.Bool.not (Stdlib.List.isEmpty results.values) then
+    Stdlib.printLine (Search.getSectionHeader "value")
+    results.values
+    |> Stdlib.List.iter (fun v -> Stdlib.printLine $"  {v.name.name}")
+    Stdlib.printLine ""
+
+  // Display functions
+  if Stdlib.Bool.not (Stdlib.List.isEmpty results.fns) then
+    Stdlib.printLine (Search.getSectionHeader "function")
+    results.fns
+    |> Stdlib.List.iter (fun f -> Stdlib.printLine $"  {f.name.name}")
+    Stdlib.printLine ""
+
+
+let execute (state: AppState) (args: List<String>) : AppState =
+  match args with
+  | [] ->
+    // No args - list current location
+    listModule state.packageData.currentLocation
+    state
+  | [pathArg] ->
+    // Navigate to the path and list
+    match Traversal.traverse state.packageData.currentLocation pathArg with
+    | Error errorMsg ->
+      Stdlib.printLine (Colors.error $"Cannot list: {errorMsg}")
+      state
+    | Ok newLocation ->
+      match newLocation with
+      | Module _ ->
+        listModule newLocation
+        state
+      | Type _ | Value _ | Function _ ->
+        let locationStr = Packages.formatLocation newLocation
+        Stdlib.printLine $"'{locationStr}' is not a module."
+        Stdlib.printLine "Use 'view' to see details of types, values, or functions."
+        state
+  | _ ->
+    help state
+    state
+
+
+
+
+let complete (state: AppState) (args: List<String>) : List<String> =
+  match args with
+  | [] ->
+    Traversal.completePartialPath state.packageData.currentLocation ""
+  | [partialPath] ->
+    Traversal.completePartialPath state.packageData.currentLocation partialPath
+  | _ -> []
+
+
+let help (_state: AppState) : Unit =
+  [
+    "Usage: ls [path]"
+    "List contents of the current location or specified path with icons."
+    ""
+    "Shows modules, types, values, and functions grouped by category."
+    ""
+    "Examples:"
+    "  ls                - List current location"
+    "  ls /              - List root packages"
+    "  ls Darklang       - List Darklang package contents"
+    "  ls ..             - List parent directory"
+    ""
+    "See also: `tree` for multi-level view, `view` for detailed view"
+  ] |> Stdlib.printLines

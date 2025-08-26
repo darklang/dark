@@ -552,14 +552,14 @@ let fns : List<BuiltInFn> =
       returnType = TList scriptType
       description = "List all stored scripts"
       fn =
-        (function
+        function
         | _, _, _, [ DUnit ] ->
           uply {
             let! scripts = Scripts.list ()
             let dvals = scripts |> List.map ScriptsToDT.toDT
             return Dval.list (KTCustomType(scriptTypeName, [])) dvals
           }
-        | _ -> incorrectArgs ())
+        | _ -> incorrectArgs ()
       sqlSpec = NotQueryable
       previewable = Impure
       deprecated = NotDeprecated }

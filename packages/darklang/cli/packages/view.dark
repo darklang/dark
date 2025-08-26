@@ -1,0 +1,143 @@
+module Darklang.Cli.Packages.View
+
+let viewEntity (location: PackageLocation) : Unit =
+  match location with
+  | Module path ->
+    // Display module contents (similar to list but with more detail)
+    let results = Search.searchContents path
+
+    let locationStr = Packages.formatLocation location
+    Stdlib.printLine locationStr
+    Stdlib.printLine (Stdlib.String.repeat "=" (Stdlib.String.length locationStr))
+    Stdlib.printLine ""
+
+    // Display submodules
+    let currentPathLength = Stdlib.List.length path
+    let directSubmodules = Search.getDirectSubmodules results currentPathLength
+
+    // Display in order: modules, types, values, functions
+    if Stdlib.Bool.not (Stdlib.List.isEmpty directSubmodules) then
+      Stdlib.printLine (Search.getSectionHeader "submodule")
+      directSubmodules
+      |> Stdlib.List.iter (fun name -> Stdlib.printLine $"  {name}/")
+      Stdlib.printLine ""
+
+    // Display types with pretty printing
+    if Stdlib.Bool.not (Stdlib.List.isEmpty results.types) then
+      Stdlib.printLine (Search.getSectionHeader "type")
+      results.types
+      |> Stdlib.List.iter (fun t ->
+        let prettyPrinted = Darklang.PrettyPrinter.ProgramTypes.packageType t
+        let highlighted = Darklang.Cli.SyntaxHighlighting.highlightCode prettyPrinted
+        Stdlib.printLine $"  {highlighted}"
+        Stdlib.printLine "")
+      Stdlib.printLine ""
+
+    // Display values with pretty printing
+    if Stdlib.Bool.not (Stdlib.List.isEmpty results.values) then
+      Stdlib.printLine (Search.getSectionHeader "value")
+      results.values
+      |> Stdlib.List.iter (fun v ->
+        let prettyPrinted = Darklang.PrettyPrinter.ProgramTypes.packageValue v
+        let highlighted = Darklang.Cli.SyntaxHighlighting.highlightCode prettyPrinted
+        Stdlib.printLine $"  {highlighted}"
+        Stdlib.printLine "")
+      Stdlib.printLine ""
+
+    // Display functions with pretty printing
+    if Stdlib.Bool.not (Stdlib.List.isEmpty results.fns) then
+      Stdlib.printLine (Search.getSectionHeader "function")
+      results.fns
+      |> Stdlib.List.iter (fun f ->
+        let prettyPrinted = Darklang.PrettyPrinter.ProgramTypes.packageFn f
+        let highlighted = Darklang.Cli.SyntaxHighlighting.highlightCode prettyPrinted
+        Stdlib.printLine $"  {highlighted}"
+        Stdlib.printLine "")
+      Stdlib.printLine ""
+
+  | Type name ->
+    // Find and display the specific type
+    let modulePath = Stdlib.List.append [name.owner] name.modules
+    let results = Search.searchEntity modulePath name.name
+
+    match Search.findTypeByName results name.name with
+    | Some typ ->
+      let prettyPrinted = Darklang.PrettyPrinter.ProgramTypes.packageType typ
+      let highlighted = Darklang.Cli.SyntaxHighlighting.highlightCode prettyPrinted
+      Stdlib.printLine highlighted
+    | None ->
+      let locationStr = Packages.formatLocation location
+      Stdlib.printLine $"Type '{locationStr}' not found."
+
+  | Function name ->
+    // Find and display the specific function
+    let modulePath = Stdlib.List.append [name.owner] name.modules
+    let results = Search.searchEntity modulePath name.name
+
+    match Search.findFnByName results name.name with
+    | Some fn ->
+      let prettyPrinted = Darklang.PrettyPrinter.ProgramTypes.packageFn fn
+      let highlighted = Darklang.Cli.SyntaxHighlighting.highlightCode prettyPrinted
+      Stdlib.printLine highlighted
+    | None ->
+      let locationStr = Packages.formatLocation location
+      Stdlib.printLine $"Function '{locationStr}' not found."
+
+  | Value name ->
+    // Find and display the specific value
+    let modulePath = Stdlib.List.append [name.owner] name.modules
+    let results = Search.searchEntity modulePath name.name
+
+    match Search.findValueByName results name.name with
+    | Some value ->
+      let prettyPrinted = Darklang.PrettyPrinter.ProgramTypes.packageValue value
+      let highlighted = Darklang.Cli.SyntaxHighlighting.highlightCode prettyPrinted
+      Stdlib.printLine highlighted
+    | None ->
+      let locationStr = Packages.formatLocation location
+      Stdlib.printLine $"Value '{locationStr}' not found."
+
+
+// VIEW command - view modules, functions, types, or constants
+let execute (state: AppState) (args: List<String>) : AppState =
+  match args with
+  | [] ->
+    // No args - view current location
+    viewEntity state.packageData.currentLocation
+    state
+  | [pathArg] ->
+    // Navigate to the path and view
+    match Traversal.traverse state.packageData.currentLocation pathArg with
+    | Error errorMsg ->
+      Stdlib.printLine (Colors.error $"Cannot view: {errorMsg}")
+      state
+    | Ok newLocation ->
+      viewEntity newLocation
+      state
+  | _ ->
+    help state
+    state
+
+let complete (state: AppState) (args: List<String>) : List<String> =
+  match args with
+  | [] ->
+    Traversal.completePartialPath state.packageData.currentLocation ""
+  | [partialPath] ->
+    Traversal.completePartialPath state.packageData.currentLocation partialPath
+  | _ -> []
+
+
+let help (_state: AppState) : Unit =
+  [
+    "Usage: view [path]"
+    "View detailed information about functions, types, values, or modules."
+    ""
+    "With path: View the specified entity with syntax highlighting."
+    "Without path: View current location."
+    ""
+    "Examples:"
+    "  view                    - View current location"
+    "  view List.head          - View the List.head function"
+    "  view Option             - View the Option type"
+    "  view Stdlib.List        - View contents of Stdlib.List module"
+  ] |> Stdlib.printLines

@@ -1,46 +1,72 @@
-module Darklang =
-  module Cli =
-    module Installation =
-      module Uninstall =
-        let removeDarklangDirectory
-          (host: Stdlib.Cli.Host.Host)
-          : Stdlib.Result.Result<Unit, String> =
-          match host.os with
-          | Windows ->
-            let homeDirectory =
-              match Stdlib.Cli.PowerShell.getHomeDirectory () with
-              | Ok homeDir -> homeDir
-              | Error e -> e
-
-            let darklangDir = $"{homeDirectory}\\.darklang"
-
-            Stdlib.Cli.PowerShell.removeFile darklangDir
-
-          | Linux | MacOS ->
-            let darklangDir = "$HOME/.darklang"
-            Stdlib.Cli.Unix.removeDirectory darklangDir
+module Darklang.Cli.Installation.Uninstall
 
 
-        let runUninstall
-          (host: Stdlib.Cli.Host.Host)
-          : Stdlib.Result.Result<Unit, String> =
-          match host.os with
-          | Windows ->
-            let result =
-              (Stdlib.Cli.PowerShell.deleteAlias "dark")
-              |> Stdlib.Result.andThen (fun _ -> removeDarklangDirectory host)
+let removeDarklangDirectory
+  (host: Stdlib.Cli.Host.Host)
+  : Stdlib.Result.Result<Unit, String> =
+  let darklangDir = Config.getDarklangHomeDir host
 
-            match result with
-            | Ok _ -> Stdlib.Result.Result.Ok()
-            | Error err ->
-              Stdlib.Result.Result.Error $"Error uninstalling darklang: {err}"
+  match host.os with
+  | Windows ->
+    Stdlib.Cli.PowerShell.removeFile darklangDir
+  | Linux | MacOS ->
+    Stdlib.Cli.Unix.removeDirectory darklangDir
 
-          | Linux | MacOS ->
-            let result =
-              (Stdlib.Cli.Unix.deleteAlias host.defaultShell "dark")
-              |> Stdlib.Result.andThen (fun _ -> removeDarklangDirectory host)
 
-            match result with
-            | Ok _ -> Stdlib.Result.Result.Ok()
-            | Error err ->
-              Stdlib.Result.Result.Error $"Error uninstalling darklang: {err}"
+let runUninstall
+  (host: Stdlib.Cli.Host.Host)
+  : Stdlib.Result.Result<Unit, String> =
+  match host.os with
+  | Windows ->
+    let result =
+      (Stdlib.Cli.PowerShell.deleteAlias "dark")
+      |> Stdlib.Result.andThen (fun _ -> removeDarklangDirectory host)
+
+    match result with
+    | Ok _ -> Stdlib.Result.Result.Ok()
+    | Error err ->
+      Stdlib.Result.Result.Error $"Error uninstalling dark: {err}"
+
+  | Linux | MacOS ->
+    let result =
+      (Stdlib.Cli.Unix.deleteAlias host.defaultShell "dark")
+      |> Stdlib.Result.andThen (fun _ -> removeDarklangDirectory host)
+
+    match result with
+    | Ok _ -> Stdlib.Result.Result.Ok()
+    | Error err ->
+      Stdlib.Result.Result.Error $"Error uninstalling dark: {err}"
+
+// CLI interface functions
+let execute (state: AppState) (args: List<String>) : AppState =
+  let currentMode = Installation.System.getInstallationMode ()
+  let host = (Stdlib.Cli.Host.getRuntimeHost ()) |> Builtin.unwrap
+
+  match currentMode with
+  | Installed ->
+    match Installation.System.uninstallWithConfirmation host with
+    | Ok message ->
+      Stdlib.printLine (View.formatSuccess message)
+      // Exit after successful uninstall since the executable is being removed
+      { state with isExiting = true }
+    | Error e ->
+      Stdlib.printLine (View.formatError e)
+      state
+  | Portable ->
+    Stdlib.printLine (View.formatError "Cannot uninstall - running in portable mode")
+    Stdlib.printLine "To remove this portable installation, simply delete the current directory"
+    state
+
+
+let complete (_state: AppState) (_args: List<String>) : List<String> =
+  []
+
+
+let help (state: AppState) : Unit =
+  [
+    "Usage: uninstall"
+    "Uninstall Darklang CLI from global installation."
+    ""
+    "Removes the CLI from ~/.darklang/ and cleans up shell configuration."
+    "Only available for global installations."
+  ] |> Stdlib.printLines

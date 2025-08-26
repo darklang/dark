@@ -255,15 +255,39 @@ let callStackString
   (callStack : RT.CallStack)
   : Ply<string> =
   uply {
-    return!
-      Ply.List.foldSequentially
-        (fun acc executionPoint ->
-          uply {
-            let! part = executionPointToString state executionPoint
-            return $"{acc}\n- {part}"
-          })
+    // First, convert all execution points to strings
+    let! stringParts =
+      Ply.List.mapSequentially (fun ep -> executionPointToString state ep) callStack
+
+    // Group consecutive identical entries with counts
+    let rec groupConsecutive acc current count remaining =
+      match remaining with
+      | [] ->
+        // Add the final group
+        let countStr = if count = 1 then "" else $" (×{count})"
+        List.rev ((current + countStr) :: acc)
+      | head :: tail ->
+        if head = current then
+          // Same as current, increment count
+          groupConsecutive acc current (count + 1) tail
+        else
+          // Different, add current group and start new one
+          let countStr = if count = 1 then "" else $" (×{count})"
+          groupConsecutive ((current + countStr) :: acc) head 1 tail
+
+    let groupedParts =
+      match stringParts with
+      | [] -> []
+      | head :: tail -> groupConsecutive [] head 1 tail
+
+    // Build the final string
+    let result =
+      groupedParts
+      |> List.fold
+        (fun acc part -> $"{acc}\n- {part}")
         "Call stack (last call at bottom):"
-        callStack
+
+    return result
   }
 
 

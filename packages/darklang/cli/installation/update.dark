@@ -1,0 +1,34 @@
+module Darklang.Cli.Installation.Update
+
+
+let execute (state: AppState) (args: List<String>) : AppState =
+  let currentVersion = Helpers.cliVersion ()
+  let currentMode = Installation.System.getInstallationMode ()
+  let host = (Stdlib.Cli.Host.getRuntimeHost ()) |> Builtin.unwrap
+
+  match currentMode with
+  | Installed ->
+    Stdlib.printLine $"Checking for updates from Darklang CLI {currentVersion}..."
+    match Installation.System.updateIfAvailable currentVersion host with
+    | Ok message ->
+      Stdlib.printLine (View.formatSuccess message)
+      state
+    | Error e ->
+      Stdlib.printLine (View.formatError e)
+      state
+  | Portable ->
+    let message = $"Running in portable mode from {Builtin.directoryCurrent ()}/.darklang\n\nTo update this portable executable, please download the latest release manually from:\nhttps://github.com/darklang/dark/releases\n\nFor automatic updates, consider running 'install' to set up global installation."
+    Stdlib.printLine (View.formatSuccess message)
+    state
+
+
+let complete (_state: AppState) (_args: List<String>) : List<String> =
+  []
+
+
+let help (state: AppState) : Unit =
+  Stdlib.printLine "Usage: update"
+  Stdlib.printLine "Update Darklang CLI to the latest version."
+  Stdlib.printLine ""
+  Stdlib.printLine "Checks GitHub for the latest release and updates the globally"
+  Stdlib.printLine "installed CLI. Only works for global installations."

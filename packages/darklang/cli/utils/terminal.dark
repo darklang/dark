@@ -1,0 +1,34 @@
+module Darklang.Cli.Terminal
+
+
+/// Display control constants
+module Display =
+  let clearScreen = "\x1b[2J\x1b[H"
+  let enterAltScreen = "\x1b[?1049h"
+  let exitAltScreen = "\x1b[?1049l"
+
+/// Gets terminal height
+let getHeight () : Int64 =
+  Builtin.cliGetTerminalHeight ()
+
+/// Gets terminal width
+let getWidth () : Int64 =
+  Builtin.cliGetTerminalWidth ()
+
+/// Calculates viewport height for scrollable content
+let getViewportHeight (reservedLines: Int64) : Int64 =
+  let terminalHeight = getHeight ()
+  let availableHeight = Stdlib.Int64.max 1L (terminalHeight - reservedLines)
+  availableHeight
+
+/// Calculate scroll offset bounds for safe scrolling
+let calculateScrollBounds (totalItems: Int64) (viewportHeight: Int64) : (Int64 * Int64) =
+  let maxOffset = Stdlib.Int64.max 0L (totalItems - viewportHeight)
+  (0L, maxOffset)
+
+/// Clamp scroll offset to safe bounds
+let clampScrollOffset (offset: Int64) (totalItems: Int64) (viewportHeight: Int64) : Int64 =
+  let (minOffset, maxOffset) = calculateScrollBounds totalItems viewportHeight
+  if offset < minOffset then minOffset
+  else if offset > maxOffset then maxOffset
+  else offset

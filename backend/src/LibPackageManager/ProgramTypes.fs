@@ -122,26 +122,64 @@ let search (query : PT.Search.SearchQuery) : Ply<PT.Search.SearchResults> =
     let currentModule = String.concat "." query.currentModule
 
     let! submodules =
-      """
+      let (submoduleCondition, sqlParams) =
+        if query.exactMatch then
+          // For exact search, we want direct children only
+          if System.String.IsNullOrEmpty query.text then
+            // Looking for entities IN currentModule (to check if module exists)
+            let parts = currentModule.Split('.') |> Array.toList
+            match parts with
+            | [ owner ] ->
+              // Top-level module like "Darklang" - look for entities owned by it
+              ("""(owner = @owner)""", [ "owner", Sql.string owner ])
+            | owner :: moduleParts ->
+              // Nested module - extract owner and modules parts
+              let modulesPath = String.concat "." moduleParts
+              ("""(owner = @owner AND modules = @modulesPath)""",
+               [ "owner", Sql.string owner; "modulesPath", Sql.string modulesPath ])
+            | [] ->
+              // Root - should not happen, but handle gracefully
+              ("""(1 = 1)""", [])
+          else
+            // Looking for a specific named submodule
+            ("""(modules = @currentModule || '.' || @searchText)
+               OR (owner || '.' || modules = @currentModule || '.' || @searchText)""",
+             [ "currentModule", Sql.string currentModule
+               "searchText", Sql.string query.text ])
+        else if
+          // Fuzzy logic - handle root case specially
+          System.String.IsNullOrEmpty currentModule
+        then
+          // At root - search for owners that match the text
+          ("""(owner LIKE '%' || @searchText || '%')""",
+           [ "searchText", Sql.string query.text ])
+        else
+          // Not at root - fuzzy logic with direct descendants only
+          // For OnlyDirectDescendants, we want modules that start with currentModule + "."
+          // but don't have any additional "." after that (i.e., direct children only)
+          let directChildPattern = currentModule + ".%"
+          ("""((modules LIKE @directChildPattern AND modules NOT LIKE @nestedPattern AND modules LIKE '%' || @searchText || '%')
+                OR (owner || '.' || modules LIKE @directChildPattern AND owner || '.' || modules NOT LIKE @nestedPattern AND owner || '.' || modules LIKE '%' || @searchText || '%'))""",
+           [ "currentModule", Sql.string currentModule
+             "directChildPattern", Sql.string directChildPattern
+             "nestedPattern", Sql.string (currentModule + ".%.%")
+             "searchText", Sql.string query.text ])
+
+      $"""
       SELECT DISTINCT owner, modules
       FROM (
         SELECT owner, modules FROM package_types_v0
-        WHERE (modules LIKE @currentModule || '%' AND modules LIKE '%' || @searchText || '%')
-           OR (owner || '.' || modules LIKE @currentModule || '%' AND owner || '.' || modules LIKE '%' || @searchText || '%')
+        WHERE {submoduleCondition}
         UNION ALL
         SELECT owner, modules FROM package_values_v0
-        WHERE (modules LIKE @currentModule || '%' AND modules LIKE '%' || @searchText || '%')
-           OR (owner || '.' || modules LIKE @currentModule || '%' AND owner || '.' || modules LIKE '%' || @searchText || '%')
+        WHERE {submoduleCondition}
         UNION ALL
         SELECT owner, modules FROM package_functions_v0
-        WHERE (modules LIKE @currentModule || '%' AND modules LIKE '%' || @searchText || '%')
-           OR (owner || '.' || modules LIKE @currentModule || '%' AND owner || '.' || modules LIKE '%' || @searchText || '%')
+        WHERE {submoduleCondition}
       ) AS filtered_modules
       """
       |> Sql.query
-      |> Sql.parameters
-        [ "currentModule", Sql.string currentModule
-          "searchText", Sql.string query.text ]
+      |> Sql.parameters sqlParams
       |> Sql.executeAsync (fun read ->
         let owner = read.string "owner"
         let modulesStr = read.string "modules"
@@ -152,10 +190,16 @@ let search (query : PT.Search.SearchQuery) : Ply<PT.Search.SearchResults> =
           owner :: moduleParts)
 
     let makeEntityQuery table deserializeFn =
+      let nameCondition =
+        if query.exactMatch then
+          "name = @searchText"
+        else
+          "name LIKE '%' || @searchText || '%'"
+
       "SELECT id, owner, modules, name, pt_def\n"
       + $"FROM {table}\n"
       + "WHERE ((modules = @modules) OR (owner || '.' || modules = @fqname))\n"
-      + "  AND name LIKE '%' || @searchText || '%'"
+      + $"  AND {nameCondition}"
       |> Sql.query
       |> Sql.parameters
         [ "modules", Sql.string currentModule

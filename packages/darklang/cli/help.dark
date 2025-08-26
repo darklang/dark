@@ -1,0 +1,53 @@
+module Darklang.Cli.Help
+
+
+let execute (state: AppState) (args: List<String>) : AppState =
+  match args with
+  | [] ->
+    Stdlib.printLine (Registry.getCommandList ())
+    updateCoreFields state state.isExiting state.mainPrompt state.needsFullRedraw
+  | [commandName] ->
+    Registry.executeCommandHelp commandName state
+  | _ ->
+    Stdlib.printLine (Colors.error "Usage: help [command]")
+    Stdlib.printLine "Too many arguments. Use 'help' for general help or 'help <command>' for specific help."
+
+    updateCoreFields state state.isExiting state.mainPrompt state.needsFullRedraw
+
+
+let complete (state: AppState) (args: List<String>) : List<String> =
+  Completion.commandNamesCompletion state args
+
+
+let help (state: AppState) : Unit =
+
+  // CLEANUP I wanted this somewhere but couldn't decide where.
+  [ Colors.purpleBg
+    Colors.magentaBg
+    Colors.lightPinkBg
+    Colors.pinkBg
+    Colors.blueBg
+    Colors.greenBg
+    Colors.yellowBg
+    Colors.brownBg
+    Colors.orangeBg
+    Colors.peachBg
+    Colors.salmonBg ]
+  |> Stdlib.List.map (fun color -> $"{color}  {Colors.reset}")
+  |> Stdlib.String.join ""
+  |> Stdlib.print
+
+
+  [
+    (Colors.info "Usage: " ++ Colors.command "help [command]")
+    "Show general help or help for a specific command."
+    ""
+    (Colors.info "Examples:")
+    ("  " ++ Colors.command "help" ++ "        - Show all available commands")
+    ("  " ++ Colors.command "help quit" ++ "   - Show help for the quit command")
+  ]
+  |> Stdlib.printLines
+
+
+// CLEANUP I think there's other `help` stuff we can move here
+// specifically, the commandNamesCompletino

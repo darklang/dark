@@ -1,0 +1,40 @@
+module Darklang.Cli.Installation.Status
+
+
+let execute (state: AppState) (args: List<String>) : AppState =
+  let host = (Stdlib.Cli.Host.getRuntimeHost ()) |> Builtin.unwrap
+  let currentMode = Installation.System.getInstallationMode ()
+
+  let version = Helpers.getVersionInfo ()
+
+  let installationStatus =
+    match currentMode with
+    | Installed ->
+      let homeDir = Config.getDarklangHomeDir host
+      Colors.success "Status: " ++ "Globally installed at " ++ homeDir ++ " and ready to use"
+    | Portable ->
+      let currentDir = Builtin.directoryCurrent ()
+      Colors.warning "Status: " ++ "Running in portable mode at " ++ currentDir ++ "/.darklang (run 'install' for global system-wide access)"
+
+  let statusText =
+    Colors.info "Version: " ++ version ++ "\n" ++
+    installationStatus ++ "\n\n" ++
+    "Type " ++ Colors.hint "'help'" ++ " for available commands"
+
+  Stdlib.printLine statusText
+  state
+
+
+let complete (_state: AppState) (_args: List<String>) : List<String> =
+  []
+
+
+let help (state: AppState) : Unit =
+  [
+    "Usage: status"
+    "Show current CLI installation status."
+    ""
+    "Displays whether CLI is running in portable or global mode"
+    "and shows installation location."
+  ]
+  |> Stdlib.printLines

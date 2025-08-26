@@ -111,7 +111,8 @@ module Darklang =
                   [ LanguageTools.ProgramTypes.Search.EntityType.Fn
                     LanguageTools.ProgramTypes.Search.EntityType.Value
                     LanguageTools.ProgramTypes.Search.EntityType.Type
-                    LanguageTools.ProgramTypes.Search.EntityType.Module ] }
+                    LanguageTools.ProgramTypes.Search.EntityType.Module ]
+                exactMatch = false }
 
           let searchResults =
             LanguageTools.PackageManager.Search.search query

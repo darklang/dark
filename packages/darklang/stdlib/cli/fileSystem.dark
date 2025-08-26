@@ -1,0 +1,45 @@
+module Darklang =
+  module Stdlib =
+    module Cli =
+      module FileSystem =
+        // Get files in a directory - returns just filenames
+        let getDirectoryContents (path: String) : List<String> =
+          let currentDir = Builtin.directoryCurrent ()
+
+          let fullPath =
+            if Stdlib.String.startsWith path "/" then
+              path
+            else
+              // Normalize path by removing leading "./" if present
+              let normalizedPath =
+                if Stdlib.String.startsWith path "./" then
+                  Stdlib.String.dropFirst path 2L
+                else
+                  path
+              $"{currentDir}/{normalizedPath}"
+
+          let files = Builtin.directoryList fullPath
+
+          files
+          |> Stdlib.List.map (fun fullFilePath ->
+            // Extract just the filename from the full path
+            match Stdlib.String.split fullFilePath "/" with
+            | [] -> fullFilePath
+            | parts ->
+              match Stdlib.List.last parts with
+              | Some filename -> filename
+              | None -> fullFilePath)
+
+        // Check if a path is a directory - expects full path
+        let isDirectoryAtPath (dirPath: String) (fileName: String) : Bool =
+          let currentDir = Builtin.directoryCurrent ()
+          let normalizedDirPath =
+            if Stdlib.String.startsWith dirPath "/" then
+              dirPath
+            else if Stdlib.String.startsWith dirPath "./" then
+              let withoutDot = Stdlib.String.dropFirst dirPath 2L
+              $"{currentDir}/{withoutDot}"
+            else
+              $"{currentDir}/{dirPath}"
+          let fullPath = $"{normalizedDirPath}/{fileName}"
+          Builtin.fileIsDirectory fullPath

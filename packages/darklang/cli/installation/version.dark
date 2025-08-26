@@ -1,0 +1,20 @@
+module Darklang.Cli.Installation.Version
+
+
+let execute (state: AppState) (args: List<String>) : AppState =
+  let versionInfo = Helpers.getVersionInfo ()
+  Stdlib.printLine versionInfo
+  state
+
+
+let complete (state: AppState) (args: List<String>) : List<String> =
+  []
+
+
+let help (_state: AppState) : Unit =
+  [
+    "Usage: version"
+    "Display CLI version and installation information."
+    ""
+    "Shows current version, installation mode, and location."
+  ] |> Stdlib.printLines

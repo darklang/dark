@@ -1,0 +1,155 @@
+module Darklang.Cli.Run
+
+
+// Run command - execute functions or scripts
+let execute (state: AppState) (args: List<String>) : AppState =
+  match args with
+  | [] ->
+    help state
+    state
+
+  | thingToRun :: args ->
+    if Stdlib.String.startsWith thingToRun "@" then
+      // Function execution
+      let fnName = Stdlib.String.dropFirst thingToRun 1L
+      executeFunction state fnName args
+    else
+      // Script execution
+      executeScript state thingToRun args
+
+
+// Helper function to execute a script
+let executeScript (state: AppState) (scriptPath: String) (args: List<String>) : AppState =
+  match Builtin.fileRead scriptPath with
+  | Ok script ->
+    let scriptSourceCode = Stdlib.String.fromBytesWithReplacement script
+    let result = Builtin.cliParseAndExecuteScript scriptPath scriptSourceCode args
+
+    match result with
+    | Ok exitCode ->
+      let message = $"Script executed with exit code: {Stdlib.Int64.toString exitCode}"
+      Stdlib.printLine message
+      state
+    | Error e ->
+      let prettyError = PrettyPrinter.RuntimeTypes.RuntimeError.toString e
+      Stdlib.printLine $"Script error: {prettyError}"
+      state
+  | Error e ->
+    Stdlib.printLine $"File error: {e}"
+    state
+
+
+// for when `run` is called w/ a fn name and args
+let executeFunction (state: AppState) (fnName: String) (args: List<String>) : AppState =
+  let onMissing = LanguageTools.NameResolver.OnMissing.Allow
+  let pm = LanguageTools.PackageManager.pm ()
+
+  let (parsedArgs, _unres) =
+    args
+    |> Stdlib.List.map (fun arg ->
+      arg
+      |> LanguageTools.Parser.parseToSimplifiedTree
+      |> LanguageTools.Parser.parseFromTree
+      |> Builtin.unwrap
+      |> fun parsedFile ->
+        match parsedFile with
+        | SourceFile source -> source.exprsToEval)
+    |> Stdlib.List.flatten
+    |> Stdlib.List.map (fun arg ->
+      LanguageTools.WrittenTypesToProgramTypes.Expr.toPT onMissing pm "" [] arg)
+    |> Stdlib.List.unzip
+
+  match Builtin.cliExecuteFunction fnName parsedArgs with
+  | Ok result ->
+    Stdlib.printLine result
+    state
+  | Error err ->
+    Stdlib.printLine $"Error: {err}"
+    state
+
+
+let complete (state: AppState) (args: List<String>) : List<String> =
+  match args with
+  | [] ->
+    // Complete with function prefix or show current directory contents
+    let currentDirFiles = Stdlib.Cli.FileSystem.getDirectoryContents "."
+    let currentDir = Builtin.directoryCurrent ()
+    let directories = currentDirFiles |> Stdlib.List.filter (fun file -> Stdlib.Cli.FileSystem.isDirectoryAtPath currentDir file)
+    let darkFiles = currentDirFiles |> Stdlib.List.filter (fun file -> Stdlib.String.endsWith file ".dark")
+    // Just show directories and .dark files - no hardcoded function prefixes
+    Stdlib.List.append directories darkFiles
+
+  | [partialArg] ->
+    if Stdlib.String.startsWith partialArg "@" then
+      // Complete function names - query actual package manager
+      let pm = LanguageTools.PackageManager.pm ()
+      let allFunctions = LanguageTools.PackageManager.allFunctions pm
+      allFunctions
+      |> Stdlib.List.map (fun fn -> $"@{fn.name}")
+      |> Stdlib.List.filter (fun name ->
+        Stdlib.String.startsWith name partialArg)
+    else if partialArg == "." then
+      // Special case: "." means show all files in current directory
+      let currentDir = Builtin.directoryCurrent ()
+      let files = Stdlib.Cli.FileSystem.getDirectoryContents "."
+      files
+      |> Stdlib.List.map (fun file ->
+        if Stdlib.Cli.FileSystem.isDirectoryAtPath currentDir file then
+          $"{file}/"
+        else
+          file)
+    else if partialArg == ".." then
+      // Special case: ".." means parent directory
+      ["../"]
+    else
+      // Complete filesystem paths
+      let currentDir = Builtin.directoryCurrent ()
+      if Stdlib.String.contains partialArg "/" then
+        // Has directory separator, get directory part
+        match Stdlib.String.lastIndexOf partialArg "/" with
+        | Some idx ->
+          let dirPart = Stdlib.String.slice partialArg 0L (idx + 1L)
+          let filePart = Stdlib.String.dropFirst partialArg (idx + 1L)
+          let fullDirPath =
+            if Stdlib.String.startsWith dirPart "/" then
+              dirPart
+            else
+              $"{currentDir}/{dirPart}"
+          let files = Stdlib.Cli.FileSystem.getDirectoryContents fullDirPath
+          files
+          |> Stdlib.List.filter (fun file ->
+            Stdlib.String.startsWith file filePart)
+          |> Stdlib.List.map (fun file ->
+            if Stdlib.Cli.FileSystem.isDirectoryAtPath fullDirPath file then
+              $"{dirPart}{file}/"
+            else
+              $"{dirPart}{file}")
+        | None -> []
+      else
+        // No directory separator, complete in current directory
+        let files = Stdlib.Cli.FileSystem.getDirectoryContents "."
+        files
+        |> Stdlib.List.filter (fun file ->
+          Stdlib.String.startsWith file partialArg)
+        |> Stdlib.List.map (fun file ->
+          if Stdlib.Cli.FileSystem.isDirectoryAtPath currentDir file then
+            $"{file}/"
+          else
+            file)
+  | _ -> []
+
+
+let help (state: AppState) : Unit =
+  [
+    "Usage: run @function_name [args...] | run script_path [args...]"
+    "Run a function from the package manager or execute a Dark script file."
+    ""
+    "Function execution:"
+    "  run @Stdlib.Int64.add 5L 3L      - Run a function with arguments"
+    "  run @Stdlib.Bool.and true false   - Another function example"
+    ""
+    "Script execution:"
+    "  run script.dark                  - Run a script file"
+    "  run script.dark arg1 arg2        - Run script with arguments"
+  ] |> Stdlib.printLines
+

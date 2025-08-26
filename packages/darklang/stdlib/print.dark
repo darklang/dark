@@ -1,0 +1,14 @@
+module Darklang.Stdlib
+
+
+let print (str: String): Unit =
+  Builtin.print str
+
+
+let printLine (str: String): Unit =
+  Builtin.printLine str
+
+
+let printLines (lines: List<String>): Unit =
+  lines
+  |> List.iter(fun l -> printLine l)

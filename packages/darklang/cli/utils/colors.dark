@@ -1,0 +1,98 @@
+module Darklang.Cli.Colors
+
+// Basic colors and formatting
+let reset = "\u001b[0m"
+let bold = "\u001b[1m"
+let dim = "\u001b[2m"
+let italic = "\u001b[3m"
+let underline = "\u001b[4m"
+
+// Cursor and line control
+let clearLine = "\u001b[K"
+let carriageReturn = "\r"
+let moveCursorToColumn (col: Int64) : String = $"\u001b[{col}G"
+
+// Standard colors
+let black = "\u001b[30m"
+let red = "\u001b[31m"
+let green = "\u001b[32m"
+let yellow = "\u001b[33m"
+let blue = "\u001b[34m"
+let magenta = "\u001b[35m"
+let cyan = "\u001b[36m"
+let white = "\u001b[37m"
+
+// Bright colors
+let brightBlack = "\u001b[90m"
+let brightRed = "\u001b[91m"
+let brightGreen = "\u001b[92m"
+let brightYellow = "\u001b[93m"
+let brightBlue = "\u001b[94m"
+let brightMagenta = "\u001b[95m"
+let brightCyan = "\u001b[96m"
+let brightWhite = "\u001b[97m"
+
+// Background colors
+let bgBlack = "\u001b[40m"
+let bgRed = "\u001b[41m"
+let bgGreen = "\u001b[42m"
+let bgYellow = "\u001b[43m"
+let bgBlue = "\u001b[44m"
+let bgMagenta = "\u001b[45m"
+let bgCyan = "\u001b[46m"
+let bgWhite = "\u001b[47m"
+
+// Background colors
+// (CLEANUP idk why we have 2 of these)
+let purpleBg = "\x1b[48;5;61m"
+let magentaBg = "\x1b[48;5;134m"
+let lightPinkBg = "\x1b[48;5;218m"
+let pinkBg = "\x1b[48;5;176m"
+let blueBg = "\x1b[48;5;38m"
+let greenBg = "\x1b[48;5;115m"
+let yellowBg = "\x1b[48;5;229m"
+let brownBg = "\x1b[48;5;180m"
+let orangeBg = "\x1b[48;5;222m"
+let peachBg = "\x1b[48;5;216m"
+let salmonBg = "\x1b[48;5;223m"
+
+// Semantic colors for CLI elements
+let commandColor = "\u001b[34m"
+let argumentColor = "\u001b[32m"
+let keywordColor = "\u001b[35m"
+let stringColor = "\u001b[33m"
+let numberColor = "\u001b[36m"
+let commentColor = "\u001b[90m"
+let errorColor = "\u001b[31m"
+let warningColor = "\u001b[33m"
+let successColor = "\u001b[32m"
+let infoColor = "\u001b[34m"
+let hintColor = "\u001b[2m"
+let promptColor = "\u001b[97m"
+let logoColor = "\u001b[90m"
+
+// Interactive viewing colors
+let primary = "\u001b[94m"       // bright blue for primary elements
+let muted = "\u001b[90m"         // dim gray for secondary text
+let accent = "\u001b[93m"        // bright yellow for highlights
+let selection = "\u001b[103;30m" // yellow background with black text for selection
+
+// Helper functions for applying colors
+let colorize (color: String) (text: String) : String =
+  $"{color}{text}{reset}"
+
+let boldText (text: String) : String = colorize bold text
+let dimText (text: String) : String = colorize dim text
+let command (text: String) : String = colorize commandColor text
+let argument (text: String) : String = colorize argumentColor text
+let keyword (text: String) : String = colorize keywordColor text
+let string (text: String) : String = colorize stringColor text
+let number (text: String) : String = colorize numberColor text
+let comment (text: String) : String = colorize commentColor text
+let error (text: String) : String = colorize errorColor text
+let warning (text: String) : String = colorize warningColor text
+let success (text: String) : String = colorize successColor text
+let info (text: String) : String = colorize infoColor text
+let hint (text: String) : String = colorize hintColor text
+let prompt (text: String) : String = colorize promptColor text
+let logo (text: String) : String = colorize logoColor text

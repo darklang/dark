@@ -95,6 +95,10 @@ module Darklang =
       let toFloat (a: Int64) : Float = Builtin.int64ToFloat a
 
 
+      /// Converts a <type Float> to an <type Int64>, rounding towards zero
+      let fromFloat (a: Float) : Int64 = Builtin.floatToInt64 a
+
+
       /// Returns the sum of all the ints in the list
       let sum (lst: List<Int64>) : Int64 =
         Stdlib.List.fold lst 0L (fun acc x -> acc + x)

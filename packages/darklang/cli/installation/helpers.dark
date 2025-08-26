@@ -1,0 +1,18 @@
+// CLEANUP this might as well be one dir up
+// or moved to the version namespace
+module Darklang.Cli.Installation.Helpers
+
+let cliVersion () : String =
+  let hash = Builtin.getBuildHash ()
+  "alpha-" ++ hash
+
+let getVersionInfo () : String =
+  let currentVersion = cliVersion ()
+  match GitHub.Releases.getLatestReleaseBuildHash () with
+  | Ok latestVersion ->
+    if currentVersion == latestVersion then
+      "Darklang CLI " ++ currentVersion ++ " (up to date)"
+    else
+      "Darklang CLI " ++ currentVersion ++ " (latest: " ++ latestVersion ++ " - update available!)"
+  | Error _ ->
+    "Darklang CLI " ++ currentVersion ++ " (unable to check for updates)"

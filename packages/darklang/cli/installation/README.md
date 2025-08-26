@@ -1,4 +1,4 @@
-Relates to locally installing the `darklang` CLI tool
+Relates to locally installing the `dark` CLI tool
 (as opposed to running it without any install).
 
 To run the CLI executable against the local package manager:
@@ -44,7 +44,7 @@ To run the CLI executable against the local package manager:
           Stdlib.Result.Result.Ok()
         // don't update _too_ often
         else if hasUpdatedInLastDay configPath then
-          Builtin.printLine
+          Stdlib.printLine
             "Skipping self-update because we've updated in the last 24 hours"
 
           Stdlib.Result.Result.Ok()
@@ -66,6 +66,6 @@ To run the CLI executable against the local package manager:
     match Installation.selfUpdateIfRelevant () with
     | Ok _ -> processNormally args
     | Error e ->
-      Builtin.printLine $"Failed to run self-update: {e}\nProceeding anyway."
+      Stdlib.printLine $"Failed to run self-update: {e}\nProceeding anyway."
       processNormally args
   ```
