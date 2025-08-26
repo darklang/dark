@@ -533,6 +533,8 @@ type Deprecation<'name> =
 //   nameParts |> String.concat "."
 
 
+type Hash = Hash of string
+
 module PackageType =
   type Name = { owner : string; modules : List<string>; name : string }
 
@@ -542,6 +544,7 @@ module PackageType =
 
   type PackageType =
     { id : uuid
+      hash : Hash
       name : Name
       declaration : TypeDeclaration.T
       description : string
@@ -556,6 +559,7 @@ module PackageValue =
 
   type PackageValue =
     { id : uuid
+      hash : Hash
       name : Name
       description : string
       deprecated : Deprecation<FQValueName.FQValueName>
@@ -572,6 +576,7 @@ module PackageFn =
 
   type PackageFn =
     { id : uuid
+      hash : Hash
       name : Name
       body : Expr
       typeParams : List<string>
@@ -641,6 +646,14 @@ type PackageManager =
     getValue : FQValueName.Package -> Ply<Option<PackageValue.PackageValue>>
     getFn : FQFnName.Package -> Ply<Option<PackageFn.PackageFn>>
 
+    findTypeByHash : Hash -> Ply<Option<FQTypeName.Package>>
+    findValueByHash : Hash -> Ply<Option<FQValueName.Package>>
+    findFnByHash : Hash -> Ply<Option<FQFnName.Package>>
+
+    getTypeByHash : Hash -> Ply<Option<PackageType.PackageType>>
+    getValueByHash : Hash -> Ply<Option<PackageValue.PackageValue>>
+    getFnByHash : Hash -> Ply<Option<PackageFn.PackageFn>>
+
     search : Search.SearchQuery -> Ply<Search.SearchResults>
 
     init : Ply<unit> }
@@ -653,6 +666,14 @@ type PackageManager =
       getType = fun _ -> Ply None
       getFn = fun _ -> Ply None
       getValue = fun _ -> Ply None
+
+      findTypeByHash = fun _ -> Ply None
+      findValueByHash = fun _ -> Ply None
+      findFnByHash = fun _ -> Ply None
+
+      getTypeByHash = fun _ -> Ply None
+      getValueByHash = fun _ -> Ply None
+      getFnByHash = fun _ -> Ply None
 
       search =
         fun _ ->
@@ -700,6 +721,38 @@ type PackageManager =
           match fns |> List.tryFind (fun f -> f.id = id) with
           | Some f -> Ply(Some f)
           | None -> pm.getFn id
+
+      findTypeByHash =
+        fun hash ->
+          match types |> List.tryFind (fun t -> t.hash = hash) with
+          | Some t -> Some t.id |> Ply
+          | None -> pm.findTypeByHash hash
+      findValueByHash =
+        fun hash ->
+          match values |> List.tryFind (fun v -> v.hash = hash) with
+          | Some v -> Some v.id |> Ply
+          | None -> pm.findValueByHash hash
+      findFnByHash =
+        fun hash ->
+          match fns |> List.tryFind (fun f -> f.hash = hash) with
+          | Some f -> Some f.id |> Ply
+          | None -> pm.findFnByHash hash
+
+      getTypeByHash =
+        fun hash ->
+          match types |> List.tryFind (fun t -> t.hash = hash) with
+          | Some t -> Ply(Some t)
+          | None -> pm.getTypeByHash hash
+      getValueByHash =
+        fun hash ->
+          match values |> List.tryFind (fun v -> v.hash = hash) with
+          | Some v -> Ply(Some v)
+          | None -> pm.getValueByHash hash
+      getFnByHash =
+        fun hash ->
+          match fns |> List.tryFind (fun f -> f.hash = hash) with
+          | Some f -> Ply(Some f)
+          | None -> pm.getFnByHash hash
 
       search = fun query -> pm.search query
 

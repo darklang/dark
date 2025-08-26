@@ -67,6 +67,7 @@ let t
 let tID = System.Guid.NewGuid()
 let person : PT.PackageType.PackageType =
   { id = tID
+    hash = PT.Hash "test-hash" // TODO: generate real hash
     name = { owner = "Tests"; modules = []; name = "Person" }
     description = ""
     deprecated = PT.NotDeprecated
@@ -83,6 +84,7 @@ let person : PT.PackageType.PackageType =
 
 let myString : PT.PackageType.PackageType =
   { id = tID
+    hash = PT.Hash "test-hash" // TODO: generate real hash
     name = { owner = "Tests"; modules = []; name = "MyString" }
     description = ""
     deprecated = PT.NotDeprecated
@@ -92,6 +94,7 @@ let myString : PT.PackageType.PackageType =
 
 let pet : PT.PackageType.PackageType =
   { id = tID
+    hash = PT.Hash "test-hash" // TODO: generate real hash
     name = { owner = "Tests"; modules = []; name = "Pet" }
     description = ""
     deprecated = PT.NotDeprecated
@@ -101,6 +104,7 @@ let pet : PT.PackageType.PackageType =
 
 let myEnum : PT.PackageType.PackageType =
   { id = tID
+    hash = PT.Hash "test-hash" // TODO: generate real hash
     name = { owner = "Tests"; modules = []; name = "MyEnum" }
     description = ""
     deprecated = PT.NotDeprecated

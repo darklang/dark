@@ -23,6 +23,21 @@ let inMemPackageManagerFromPackages (p : PT.Packages) : PT.PackageManager =
     getFn = fun id -> p.fns |> List.find (fun f -> f.id = id) |> Ply
     getValue = fun id -> p.values |> List.find (fun c -> c.id = id) |> Ply
 
+    findTypeByHash =
+      fun hash ->
+        p.types |> List.find (fun t -> t.hash = hash) |> Option.map _.id |> Ply
+    findFnByHash =
+      fun hash ->
+        p.fns |> List.find (fun f -> f.hash = hash) |> Option.map _.id |> Ply
+    findValueByHash =
+      fun hash ->
+        p.values |> List.find (fun v -> v.hash = hash) |> Option.map _.id |> Ply
+
+    getTypeByHash = fun hash -> p.types |> List.find (fun t -> t.hash = hash) |> Ply
+    getFnByHash = fun hash -> p.fns |> List.find (fun f -> f.hash = hash) |> Ply
+    getValueByHash =
+      fun hash -> p.values |> List.find (fun v -> v.hash = hash) |> Ply
+
     search =
       fun _ ->
         uply { return { submodules = [ [] ]; fns = []; types = []; values = [] } }

@@ -96,6 +96,7 @@ let testPackageFn
   (body : PT.Expr)
   : PT.PackageFn.PackageFn =
   { id = System.Guid.NewGuid()
+    hash = PT.Hash "test-hash" // TODO: generate real hash
     body = body
     description = ""
     name = PT.PackageFn.name owner [] name

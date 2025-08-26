@@ -709,6 +709,7 @@ module ProgramTypes =
 
   let packageFn : PackageFn.PackageFn =
     { id = uuid
+      hash = PT.Hash "test-hash" // TODO: generate real hash
       name =
         { owner = "dark"; modules = [ "stdlib"; "Int64"; "Int64" ]; name = "mod" }
       body = expr
@@ -724,6 +725,7 @@ module ProgramTypes =
 
   let packageType : PackageType.PackageType =
     { id = uuid
+      hash = PT.Hash "test-hash" // TODO: generate real hash
       name =
         { owner = "darklang"
           modules = [ "stdlib"; "Int64"; "Int64" ]
@@ -747,6 +749,7 @@ module ProgramTypes =
 
   let packageValue : PT.PackageValue.PackageValue =
     { id = uuid
+      hash = PT.Hash "test-hash" // TODO: generate real hash
       name = PT.PackageValue.name "dark" [ "stdlib"; "Int64"; "Int64" ] "testValue"
       body = constValue
       description = "test"

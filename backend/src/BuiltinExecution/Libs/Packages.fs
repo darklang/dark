@@ -196,6 +196,129 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
+    // Hash-based lookups
+    { name = fn "packageManagerFindTypeByHash" 0
+      typeParams = []
+      parameters = [ Param.make "hash" TString "" ]
+      returnType = TypeReference.option TUuid
+      description =
+        "Tries to find a package type by its content hash, and returns the ID if it exists"
+      fn =
+        let optType = KTUuid
+        (function
+        | _, _, _, [ DString hash ] ->
+          uply {
+            match! pm.findTypeByHash (PT.Hash hash) with
+            | Some id -> return DUuid id |> Dval.optionSome optType
+            | None -> return Dval.optionNone optType
+          }
+        | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Impure
+      deprecated = NotDeprecated }
+
+    { name = fn "packageManagerGetTypeByHash" 0
+      typeParams = []
+      parameters = [ Param.make "hash" TString "" ]
+      returnType =
+        TypeReference.option (TCustomType(Ok PT2DT.PackageType.typeName, []))
+      description = "Returns a package type by its content hash, if it exists"
+      fn =
+        let optType = KTCustomType(PT2DT.PackageType.typeName, [])
+        (function
+        | _, _, _, [ DString hash ] ->
+          uply {
+            match! pm.getTypeByHash (PT.Hash hash) with
+            | Some f -> return f |> PT2DT.PackageType.toDT |> Dval.optionSome optType
+            | None -> return Dval.optionNone optType
+          }
+        | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Impure
+      deprecated = NotDeprecated }
+
+    { name = fn "packageManagerFindValueByHash" 0
+      typeParams = []
+      parameters = [ Param.make "hash" TString "" ]
+      returnType = TypeReference.option TUuid
+      description =
+        "Tries to find a package value by its content hash, and returns the ID if it exists"
+      fn =
+        let optType = KTUuid
+        (function
+        | _, _, _, [ DString hash ] ->
+          uply {
+            match! pm.findValueByHash (PT.Hash hash) with
+            | Some id -> return DUuid id |> Dval.optionSome optType
+            | None -> return Dval.optionNone optType
+          }
+        | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Impure
+      deprecated = NotDeprecated }
+
+    { name = fn "packageManagerGetValueByHash" 0
+      typeParams = []
+      parameters = [ Param.make "hash" TString "" ]
+      returnType =
+        TypeReference.option (TCustomType(Ok PT2DT.PackageValue.typeName, []))
+      description = "Returns a package value by its content hash, if it exists"
+      fn =
+        let optType = KTCustomType(PT2DT.PackageValue.typeName, [])
+        (function
+        | _, _, _, [ DString hash ] ->
+          uply {
+            match! pm.getValueByHash (PT.Hash hash) with
+            | Some f ->
+              return f |> PT2DT.PackageValue.toDT |> Dval.optionSome optType
+            | None -> return Dval.optionNone optType
+          }
+        | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Impure
+      deprecated = NotDeprecated }
+
+    { name = fn "packageManagerFindFnByHash" 0
+      typeParams = []
+      parameters = [ Param.make "hash" TString "" ]
+      returnType = TypeReference.option TUuid
+      description =
+        "Tries to find a package function by its content hash, and returns the ID if it exists"
+      fn =
+        let optType = KTUuid
+        (function
+        | _, _, _, [ DString hash ] ->
+          uply {
+            match! pm.findFnByHash (PT.Hash hash) with
+            | Some id -> return DUuid id |> Dval.optionSome optType
+            | None -> return Dval.optionNone optType
+          }
+        | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Impure
+      deprecated = NotDeprecated }
+
+    { name = fn "packageManagerGetFnByHash" 0
+      typeParams = []
+      parameters = [ Param.make "hash" TString "" ]
+      returnType =
+        TypeReference.option (TCustomType(Ok PT2DT.PackageFn.typeName, []))
+      description = "Returns a package function by its content hash, if it exists"
+      fn =
+        let optType = KTCustomType(PT2DT.PackageFn.typeName, [])
+        (function
+        | _, _, _, [ DString hash ] ->
+          uply {
+            match! pm.getFnByHash (PT.Hash hash) with
+            | Some f -> return f |> PT2DT.PackageFn.toDT |> Dval.optionSome optType
+            | None -> return Dval.optionNone optType
+          }
+        | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Impure
+      deprecated = NotDeprecated }
+
+
     { name = fn "packageManagerSearch" 0
       typeParams = []
       parameters =

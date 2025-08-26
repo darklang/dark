@@ -38,13 +38,49 @@ module Type =
       return!
         Sql.query
           """
-          SELECT pt_def
+          SELECT pt_def, hash
           FROM package_types_v0
           WHERE id = @id
           """
         |> Sql.parameters [ "id", Sql.uuid id ]
-        |> Sql.executeRowOptionAsync (fun read -> read.bytes "pt_def")
-        |> Task.map (Option.map (BinarySerialization.PT.PackageType.deserialize id))
+        |> Sql.executeRowOptionAsync (fun read ->
+          let ptDef = read.bytes "pt_def"
+          let hashStr = read.string "hash"
+          let typ = BinarySerialization.PT.PackageType.deserialize id ptDef
+          { typ with hash = PT.Hash hashStr })
+    }
+
+  let findByHash (hash : PT.Hash) : Ply<Option<uuid>> =
+    uply {
+      let (PT.Hash hashStr) = hash
+      return!
+        Sql.query
+          """
+          SELECT id
+          FROM package_types_v0
+          WHERE hash = @hash
+          """
+        |> Sql.parameters [ "hash", Sql.string hashStr ]
+        |> Sql.executeRowOptionAsync (fun read -> read.uuid "id")
+    }
+
+  let getByHash (hash : PT.Hash) : Ply<Option<PT.PackageType.PackageType>> =
+    uply {
+      let (PT.Hash hashStr) = hash
+      return!
+        Sql.query
+          """
+          SELECT id, pt_def, hash
+          FROM package_types_v0
+          WHERE hash = @hash
+          """
+        |> Sql.parameters [ "hash", Sql.string hashStr ]
+        |> Sql.executeRowOptionAsync (fun read ->
+          let id = read.uuid "id"
+          let ptDef = read.bytes "pt_def"
+          let hash = read.string "hash"
+          let typ = BinarySerialization.PT.PackageType.deserialize id ptDef
+          { typ with hash = PT.Hash hash })
     }
 
 
@@ -72,13 +108,49 @@ module Value =
       return!
         Sql.query
           """
-          SELECT pt_def
+          SELECT pt_def, hash
           FROM package_values_v0
           WHERE id = @id
           """
         |> Sql.parameters [ "id", Sql.uuid id ]
-        |> Sql.executeRowOptionAsync (fun read -> read.bytes "pt_def")
-        |> Task.map (Option.map (BinarySerialization.PT.PackageValue.deserialize id))
+        |> Sql.executeRowOptionAsync (fun read ->
+          let ptDef = read.bytes "pt_def"
+          let hashStr = read.string "hash"
+          let value = BinarySerialization.PT.PackageValue.deserialize id ptDef
+          { value with hash = PT.Hash hashStr })
+    }
+
+  let findByHash (hash : PT.Hash) : Ply<Option<uuid>> =
+    uply {
+      let (PT.Hash hashStr) = hash
+      return!
+        Sql.query
+          """
+          SELECT id
+          FROM package_values_v0
+          WHERE hash = @hash
+          """
+        |> Sql.parameters [ "hash", Sql.string hashStr ]
+        |> Sql.executeRowOptionAsync (fun read -> read.uuid "id")
+    }
+
+  let getByHash (hash : PT.Hash) : Ply<Option<PT.PackageValue.PackageValue>> =
+    uply {
+      let (PT.Hash hashStr) = hash
+      return!
+        Sql.query
+          """
+          SELECT id, pt_def, hash
+          FROM package_values_v0
+          WHERE hash = @hash
+          """
+        |> Sql.parameters [ "hash", Sql.string hashStr ]
+        |> Sql.executeRowOptionAsync (fun read ->
+          let id = read.uuid "id"
+          let ptDef = read.bytes "pt_def"
+          let hash = read.string "hash"
+          let value = BinarySerialization.PT.PackageValue.deserialize id ptDef
+          { value with hash = PT.Hash hash })
     }
 
 
@@ -106,13 +178,49 @@ module Fn =
       return!
         Sql.query
           """
-          SELECT pt_def
+          SELECT pt_def, hash
           FROM package_functions_v0
           WHERE id = @id
           """
         |> Sql.parameters [ "id", Sql.uuid id ]
-        |> Sql.executeRowOptionAsync (fun read -> read.bytes "pt_def")
-        |> Task.map (Option.map (BinarySerialization.PT.PackageFn.deserialize id))
+        |> Sql.executeRowOptionAsync (fun read ->
+          let ptDef = read.bytes "pt_def"
+          let hashStr = read.string "hash"
+          let fn = BinarySerialization.PT.PackageFn.deserialize id ptDef
+          { fn with hash = PT.Hash hashStr })
+    }
+
+  let findByHash (hash : PT.Hash) : Ply<Option<uuid>> =
+    uply {
+      let (PT.Hash hashStr) = hash
+      return!
+        Sql.query
+          """
+          SELECT id
+          FROM package_functions_v0
+          WHERE hash = @hash
+          """
+        |> Sql.parameters [ "hash", Sql.string hashStr ]
+        |> Sql.executeRowOptionAsync (fun read -> read.uuid "id")
+    }
+
+  let getByHash (hash : PT.Hash) : Ply<Option<PT.PackageFn.PackageFn>> =
+    uply {
+      let (PT.Hash hashStr) = hash
+      return!
+        Sql.query
+          """
+          SELECT id, pt_def, hash
+          FROM package_functions_v0
+          WHERE hash = @hash
+          """
+        |> Sql.parameters [ "hash", Sql.string hashStr ]
+        |> Sql.executeRowOptionAsync (fun read ->
+          let id = read.uuid "id"
+          let ptDef = read.bytes "pt_def"
+          let hashStr = read.string "hash"
+          let fn = BinarySerialization.PT.PackageFn.deserialize id ptDef
+          { fn with hash = PT.Hash hashStr })
     }
 
 

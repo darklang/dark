@@ -102,6 +102,7 @@ module TypeDeclaration =
 
 let write (w : BinaryWriter) (t : PackageType.PackageType) : unit =
   Guid.write w t.id
+  LibBinarySerialization.Serializers.Common.Hash.write w t.hash
   Name.write w t.name
   TypeDeclaration.write w t.declaration
   String.write w t.description
@@ -109,11 +110,13 @@ let write (w : BinaryWriter) (t : PackageType.PackageType) : unit =
 
 let read (r : BinaryReader) : PackageType.PackageType =
   let id = Guid.read r
+  let hash = LibBinarySerialization.Serializers.Common.Hash.read r
   let name = Name.read r
   let declaration = TypeDeclaration.read r
   let description = String.read r
   let deprecated = Deprecation.read r FQTypeName.read
   { id = id
+    hash = hash
     name = name
     declaration = declaration
     description = description
