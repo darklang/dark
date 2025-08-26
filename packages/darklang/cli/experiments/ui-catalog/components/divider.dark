@@ -1,0 +1,38 @@
+module Darklang.Cli.Experiments.UICatalog.Components.Divider
+
+type DividerModel =
+  { character: String
+    color: Core.Types.Color
+    length: Int64 }
+
+let createDivider (character: String) (length: Int64) (color: Core.Types.Color) : Core.Types.Component<DividerModel> =
+  let model = DividerModel { character = character; color = color; length = length }
+  let bounds = Core.Types.Bounds { position = Core.Types.Position { x = 0L; y = 0L }; dimensions = Core.Types.Dimensions { width = length; height = 1L } }
+  Core.Types.Component
+    { id = "divider"
+      model = model
+      state = Core.Types.ComponentState.Normal
+      bounds = bounds
+      visible = true
+      focusable = false }
+
+let renderDivider (component: Core.Types.Component<DividerModel>) (context: Core.Types.RenderContext) : List<String> =
+  let model = component.model
+  let line = Stdlib.String.repeat model.character model.length
+  let coloredLine = Core.Rendering.colorize model.color line
+  [ coloredLine ]
+
+let setDividerCharacter (component: Core.Types.Component<DividerModel>) (character: String) : Core.Types.Component<DividerModel> =
+  let model = component.model
+  { component with model = { model with character = character } }
+
+let setDividerLength (component: Core.Types.Component<DividerModel>) (length: Int64) : Core.Types.Component<DividerModel> =
+  let model = component.model
+  let newBounds = Core.Types.Bounds { position = component.bounds.position; dimensions = Core.Types.Dimensions { width = length; height = 1L } }
+  { component with
+      model = { model with length = length }
+      bounds = newBounds }
+
+let setDividerColor (component: Core.Types.Component<DividerModel>) (color: Core.Types.Color) : Core.Types.Component<DividerModel> =
+  let model = component.model
+  { component with model = { model with color = color } }

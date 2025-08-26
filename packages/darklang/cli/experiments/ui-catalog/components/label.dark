@@ -1,0 +1,38 @@
+module Darklang.Cli.Experiments.UICatalog.Components.Label
+
+type LabelModel =
+  { text: String
+    color: Core.Types.Color
+    size: Core.Types.Size
+    bold: Bool }
+
+let createLabel (text: String) (color: Core.Types.Color) : Core.Types.Component<LabelModel> =
+  let model = LabelModel { text = text; color = color; size = Core.Types.Size.Normal; bold = false }
+  let textLength = Stdlib.String.length text
+  let bounds = Core.Types.Bounds { position = Core.Types.Position { x = 0L; y = 0L }; dimensions = Core.Types.Dimensions { width = textLength; height = 1L } }
+  Core.Types.Component
+    { id = "label-" ++ text
+      model = model
+      state = Core.Types.ComponentState.Normal
+      bounds = bounds
+      visible = true
+      focusable = false }
+
+let renderLabel (component: Core.Types.Component<LabelModel>) (context: Core.Types.RenderContext) : List<String> =
+  let model = component.model
+  let styledText =
+    if model.bold then
+      Core.Rendering.bold model.text
+    else
+      model.text
+
+  let coloredText = Core.Rendering.colorize model.color styledText
+  [ coloredText ]
+
+let setLabelText (component: Core.Types.Component<LabelModel>) (text: String) : Core.Types.Component<LabelModel> =
+  let model = component.model
+  let textLength = Stdlib.String.length text
+  let newBounds = Core.Types.Bounds { position = component.bounds.position; dimensions = Core.Types.Dimensions { width = textLength; height = 1L } }
+  { component with
+      model = { model with text = text }
+      bounds = newBounds }

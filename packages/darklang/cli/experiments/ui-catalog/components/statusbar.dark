@@ -1,0 +1,72 @@
+// StatusBar Components - Bottom status display
+module Darklang.Cli.Experiments.UICatalog.Components.StatusBar
+
+
+// StatusBar Component
+type StatusBarModel =
+  { leftText: String
+    rightText: String
+    centerText: String
+    width: Int64
+    backgroundColor: Core.Types.Color }
+
+let createStatusBar (leftText: String) (rightText: String) (width: Int64) : Core.Types.Component<StatusBarModel> =
+  let model = StatusBarModel { leftText = leftText; rightText = rightText; centerText = ""; width = width; backgroundColor = Core.Types.Color.Dark }
+  let bounds = Core.Types.Bounds { position = Core.Types.Position { x = 0L; y = 0L }; dimensions = Core.Types.Dimensions { width = width; height = 1L } }
+  Core.Types.Component
+    { id = "statusbar"
+      model = model
+      state = Core.Types.ComponentState.Normal
+      bounds = bounds
+      visible = true
+      focusable = false }
+
+let renderStatusBar (component: Core.Types.Component<StatusBarModel>) (context: Core.Types.RenderContext) : List<String> =
+  let model = component.model
+
+  let leftLen = Stdlib.String.length model.leftText
+  let rightLen = Stdlib.String.length model.rightText
+  let centerLen = Stdlib.String.length model.centerText
+
+  let line =
+    if Stdlib.String.isEmpty model.centerText then
+      let paddingSpace = model.width - leftLen - rightLen
+      let padding =
+        if paddingSpace > 0L then
+          Stdlib.String.repeat " " paddingSpace
+        else
+          ""
+      model.leftText ++ padding ++ model.rightText
+    else
+      let totalContentLen = leftLen + centerLen + rightLen
+      if totalContentLen >= model.width then
+        Stdlib.String.slice (model.leftText ++ model.centerText ++ model.rightText) 0L model.width
+      else
+        let leftPadding = (model.width - centerLen) / 2L - leftLen
+        let rightPadding = model.width - leftLen - centerLen - leftPadding
+        let leftPad =
+          if leftPadding > 0L then
+            Stdlib.String.repeat " " leftPadding
+          else
+            ""
+        let rightPad =
+          if rightPadding > 0L then
+            Stdlib.String.repeat " " rightPadding
+          else
+            ""
+        model.leftText ++ leftPad ++ model.centerText ++ rightPad
+
+  let styledLine = Core.Rendering.colorize model.backgroundColor line
+  [styledLine]
+
+let setLeftText (component: Core.Types.Component<StatusBarModel>) (text: String) : Core.Types.Component<StatusBarModel> =
+  let model = component.model
+  { component with model = { model with leftText = text } }
+
+let setRightText (component: Core.Types.Component<StatusBarModel>) (text: String) : Core.Types.Component<StatusBarModel> =
+  let model = component.model
+  { component with model = { model with rightText = text } }
+
+let setCenterText (component: Core.Types.Component<StatusBarModel>) (text: String) : Core.Types.Component<StatusBarModel> =
+  let model = component.model
+  { component with model = { model with centerText = text } }

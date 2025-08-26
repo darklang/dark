@@ -1,0 +1,92 @@
+module Darklang.Cli.Experiments.UICatalog.Components.Scrollbar
+
+
+// Scrollbar Component
+type ScrollbarModel =
+  { position: Int64
+    total: Int64
+    visible: Int64
+    height: Int64
+    orientation: ScrollOrientation }
+
+type ScrollOrientation =
+  | Vertical
+  | Horizontal
+
+let createScrollbar (position: Int64) (total: Int64) (visible: Int64) (height: Int64) : Core.Types.Component<ScrollbarModel> =
+  let model = ScrollbarModel { position = position; total = total; visible = visible; height = height; orientation = ScrollOrientation.Vertical }
+  let bounds = Core.Types.Bounds { position = Core.Types.Position { x = 0L; y = 0L }; dimensions = Core.Types.Dimensions { width = 1L; height = height } }
+  Core.Types.Component
+    { id = "scrollbar"
+      model = model
+      state = Core.Types.ComponentState.Normal
+      bounds = bounds
+      visible = true
+      focusable = false }
+
+let renderScrollbar (component: Core.Types.Component<ScrollbarModel>) (context: Core.Types.RenderContext) : List<String> =
+  let model = component.model
+
+  if model.total <= model.visible then
+    let maxIndex = model.height - 1L
+    (Stdlib.List.range 0L maxIndex)
+    |> Stdlib.List.map (fun _ -> "│")
+  else
+    let thumbSize = Stdlib.Int64.max 1L (Stdlib.Int64.divide (model.visible * model.height) model.total)
+    let remainingSpace = model.total - model.visible
+    let thumbPos =
+      if remainingSpace <= 0L then
+        0L
+      else
+        let heightOffset = model.height - thumbSize
+        Stdlib.Int64.divide (model.position * heightOffset) remainingSpace
+
+    let maxIndex = model.height - 1L
+    (Stdlib.List.range 0L maxIndex)
+    |> Stdlib.List.map (fun i ->
+        if i >= thumbPos && i < (thumbPos + thumbSize) then
+          "█"
+        else
+          "░")
+
+let createHorizontalScrollbar (position: Int64) (total: Int64) (visible: Int64) (width: Int64) : Core.Types.Component<ScrollbarModel> =
+  let model = ScrollbarModel { position = position; total = total; visible = visible; height = width; orientation = ScrollOrientation.Horizontal }
+  let bounds = Core.Types.Bounds { position = Core.Types.Position { x = 0L; y = 0L }; dimensions = Core.Types.Dimensions { width = width; height = 1L } }
+  Core.Types.Component
+    { id = "scrollbar-horizontal"
+      model = model
+      state = Core.Types.ComponentState.Normal
+      bounds = bounds
+      visible = true
+      focusable = false }
+
+let renderHorizontalScrollbar (component: Core.Types.Component<ScrollbarModel>) (context: Core.Types.RenderContext) : List<String> =
+  let model = component.model
+
+  if model.total <= model.visible then
+    [Stdlib.String.repeat "─" model.height]
+  else
+    let thumbSize = Stdlib.Int64.max 1L (Stdlib.Int64.divide (model.visible * model.height) model.total)
+    let remainingSpace = model.total - model.visible
+    let thumbPos =
+      if remainingSpace <= 0L then
+        0L
+      else
+        Stdlib.Int64.divide (model.position * (model.height - thumbSize)) remainingSpace
+
+    let maxIndex = model.height - 1L
+    let scrollLine =
+      (Stdlib.List.range 0L maxIndex)
+      |> Stdlib.List.map (fun i ->
+          if i >= thumbPos && i < (thumbPos + thumbSize) then
+            "█"
+          else
+            "░")
+      |> Stdlib.String.join ""
+
+    [scrollLine]
+
+let updateScrollPosition (component: Core.Types.Component<ScrollbarModel>) (newPosition: Int64) : Core.Types.Component<ScrollbarModel> =
+  let model = component.model
+  let clampedPosition = Stdlib.Int64.max 0L (Stdlib.Int64.min newPosition (model.total - model.visible))
+  { component with model = { model with position = clampedPosition } }

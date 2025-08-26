@@ -1,0 +1,60 @@
+module Darklang.Cli.Experiments.UICatalog.Components.Button
+
+type ButtonModel =
+  { text: String
+    color: Core.Types.Color
+    size: Core.Types.Size
+    disabled: Bool
+    action: (Unit -> Unit) }
+
+let createButton (text: String) (color: Core.Types.Color) (action: Unit -> Unit) : Core.Types.Component<ButtonModel> =
+  let model = ButtonModel { text = text; color = color; size = Core.Types.Size.Normal; disabled = false; action = action }
+  let bounds = Core.Types.Bounds { position = Core.Types.Position { x = 0L; y = 0L }; dimensions = Core.Types.Dimensions { width = 12L; height = 3L } }
+  Core.Types.Component
+    { id = "button-" ++ text
+      model = model
+      state = Core.Types.ComponentState.Normal
+      bounds = bounds
+      visible = true
+      focusable = true }
+
+let renderButton (component: Core.Types.Component<ButtonModel>) (context: Core.Types.RenderContext) : List<String> =
+  let model = component.model
+  let hasFocus = context.hasFocus && component.state == Core.Types.ComponentState.Focused
+
+  let buttonText =
+    if model.disabled then
+      Core.Rendering.dim model.text
+    else if hasFocus then
+      Core.Rendering.bold model.text
+    else
+      model.text
+
+  let coloredText =
+    if model.disabled then
+      buttonText
+    else
+      Core.Rendering.colorize model.color buttonText
+
+  let paddedText = Core.Rendering.padText coloredText component.bounds.dimensions.width Core.Types.Alignment.Center
+  let focusIndicator = if hasFocus then "► " else "  "
+
+  [ focusIndicator ++ "┌" ++ Stdlib.String.repeat "─" (component.bounds.dimensions.width - 2L) ++ "┐"
+    focusIndicator ++ "│" ++ paddedText ++ "│"
+    focusIndicator ++ "└" ++ Stdlib.String.repeat "─" (component.bounds.dimensions.width - 2L) ++ "┘" ]
+
+let setButtonText (component: Core.Types.Component<ButtonModel>) (text: String) : Core.Types.Component<ButtonModel> =
+  let model = component.model
+  { component with model = { model with text = text } }
+
+let setButtonColor (component: Core.Types.Component<ButtonModel>) (color: Core.Types.Color) : Core.Types.Component<ButtonModel> =
+  let model = component.model
+  { component with model = { model with color = color } }
+
+let disableButton (component: Core.Types.Component<ButtonModel>) : Core.Types.Component<ButtonModel> =
+  let model = component.model
+  { component with model = { model with disabled = true } }
+
+let enableButton (component: Core.Types.Component<ButtonModel>) : Core.Types.Component<ButtonModel> =
+  let model = component.model
+  { component with model = { model with disabled = false } }

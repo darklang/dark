@@ -1,0 +1,441 @@
+module Darklang.Cli.UIComponents
+
+// Terminal dimensions (assuming standard 80x24)
+let terminalWidth : Int64 = 80L
+let terminalHeight : Int64 = 24L
+
+// ---------- Core Components ----------
+module Box =
+  type Style = | Single | Double | Rounded | Heavy | Dashed
+
+  let borderChars (style: Style) : (String * String * String * String * String * String * String * String) =
+    match style with
+    | Single -> ("┌", "─", "┐", "│", "│", "└", "─", "┘")
+    | Double -> ("╔", "═", "╗", "║", "║", "╚", "═", "╝")
+    | Rounded -> ("╭", "─", "╮", "│", "│", "╰", "─", "╯")
+    | Heavy -> ("┏", "━", "┓", "┃", "┃", "┗", "━", "┛")
+    | Dashed -> ("┌", "┈", "┐", "┊", "┊", "└", "┈", "┘")
+
+  let create (width: Int64) (height: Int64) (style: Style) (content: List<String>) : String =
+    let (tl, top, tr, left, right, bl, bottom, br) = borderChars style
+    let innerWidth = width - 2L
+
+    let topLine = tl ++ Stdlib.String.repeat top innerWidth ++ tr
+    let bottomLine = bl ++ Stdlib.String.repeat bottom innerWidth ++ br
+
+    let paddedContent =
+      content
+      |> Stdlib.List.take (height - 2L)
+      |> Stdlib.List.map (fun line ->
+        let truncated =
+          if Stdlib.String.length line > innerWidth then
+            Stdlib.String.slice line 0L innerWidth
+          else
+            line
+        let padding = Stdlib.String.repeat " " (innerWidth - Stdlib.String.length truncated)
+        left ++ truncated ++ padding ++ right)
+
+    let emptyLines =
+      let needed = height - 2L - Stdlib.List.length paddedContent
+      if needed > 0L then
+        (Stdlib.List.range 0L (needed - 1L))
+        |> Stdlib.List.map (fun i -> left ++ Stdlib.String.repeat " " innerWidth ++ right)
+      else
+        []
+
+    ([topLine] |> Stdlib.List.append paddedContent |> Stdlib.List.append emptyLines |> Stdlib.List.append [bottomLine])
+    |> Stdlib.String.join "\n"
+
+
+module Progress =
+  let bar (current: Int64) (total: Int64) (width: Int64) : String =
+    let percentage =
+      if total == 0L then
+        0L
+      else
+        Stdlib.Int64.divide (current * 100L) total
+
+    let filled =
+      if total == 0L then
+        0L
+      else
+        Stdlib.Int64.divide (current * width) total
+    let empty = width - filled
+
+    let bar =
+      Stdlib.String.repeat "█" filled ++
+      Stdlib.String.repeat "░" empty
+
+    let color =
+      if percentage < 30L then Colors.error
+      else if percentage < 70L then Colors.warning
+      else Colors.success
+
+    $"[{color bar}] {Stdlib.Int64.toString percentage}%"
+
+module Menu =
+  type Item = { label: String; value: String; enabled: Bool }
+
+  let create (title: String) (items: List<Item>) (selectedIndex: Int64) : String =
+    let header = Colors.boldText $"═══ {title} ═══"
+
+    let menuItems =
+      items
+      |> Stdlib.List.indexedMap (fun index item ->
+        let marker =
+          if index == selectedIndex then "▶ "
+          else "  "
+
+        let text =
+          if Stdlib.Bool.not item.enabled then
+            Colors.dimText item.label
+          else if index == selectedIndex then
+            Colors.boldText (Colors.info item.label)
+          else
+            item.label
+
+        marker ++ text)
+      |> Stdlib.String.join "\n"
+
+    header ++ "\n\n" ++ menuItems
+
+module Input =
+  let field (label: String) (value: String) (focused: Bool) : String =
+    let border = if focused then Colors.info else Colors.dimText
+    let labelText = Colors.boldText (label ++ ":")
+    let inputBox = border "[" ++ value ++ border "]"
+
+    labelText ++ " " ++ inputBox
+
+  let password (label: String) (value: String) (focused: Bool) : String =
+    let masked = Stdlib.String.repeat "•" (Stdlib.String.length value)
+    field label masked focused
+
+module Table =
+  let formatRow (colWidths: List<Int64>) (cells: List<String>) : String =
+    cells
+    |> Stdlib.List.indexedMap (fun i cell ->
+      match Stdlib.List.getAt colWidths i with
+      | Some width ->
+          let padding = width - Stdlib.String.length cell
+          cell ++ Stdlib.String.repeat " " padding
+      | None -> cell)
+    |> Stdlib.String.join "│"
+
+  let create (headers: List<String>) (rows: List<List<String>>) : String =
+    let colWidths =
+      headers
+      |> Stdlib.List.indexedMap (fun i header ->
+        let headerLen = Stdlib.String.length header
+        let maxRowLen =
+          rows
+          |> Stdlib.List.map (fun row ->
+            match Stdlib.List.getAt row i with
+            | Some cell -> Stdlib.String.length cell
+            | None -> 0L)
+          |> Stdlib.List.fold 0L (fun acc len -> Stdlib.Int64.max acc len)
+        Stdlib.Int64.max headerLen maxRowLen + 2L)
+
+    let headerRow = "│ " ++ formatRow colWidths headers ++ " │"
+    let separator =
+      colWidths
+      |> Stdlib.List.map (fun w -> Stdlib.String.repeat "─" w)
+      |> Stdlib.String.join "┼"
+    let separatorLine = "├─" ++ separator ++ "─┤"
+
+    let dataRows =
+      rows
+      |> Stdlib.List.map (fun row -> "│ " ++ formatRow colWidths row ++ " │")
+      |> Stdlib.String.join "\n"
+
+    let topBorder = "┌─" ++ (colWidths |> Stdlib.List.map (fun w -> Stdlib.String.repeat "─" w) |> Stdlib.String.join "┬") ++ "─┐"
+    let bottomBorder = "└─" ++ (colWidths |> Stdlib.List.map (fun w -> Stdlib.String.repeat "─" w) |> Stdlib.String.join "┴") ++ "─┘"
+
+    topBorder ++ "\n" ++ headerRow ++ "\n" ++ separatorLine ++ "\n" ++ dataRows ++ "\n" ++ bottomBorder
+
+module Notification =
+  type Type = | Info | Success | Warning | Error
+
+  let create (msgType: Type) (title: String) (message: String) : String =
+    let (icon, colorFn) =
+      match msgType with
+      | Info -> ("ℹ", Colors.info)
+      | Success -> ("✓", Colors.success)
+      | Warning -> ("⚠", Colors.warning)
+      | Error -> ("✗", Colors.error)
+
+    let header = colorFn $"{icon} {title}"
+    let body = "  " ++ message
+
+    Box.create 60L 5L Box.Style.Rounded [header; ""; body]
+
+module Tag =
+  let create (text: String) (color: String -> String) : String =
+    color $"[{text}]"
+
+  let multiple (tags: List<String>) : String =
+    tags
+    |> Stdlib.List.map (fun tag -> create tag Colors.hint)
+    |> Stdlib.String.join " "
+
+module Tabs =
+  let create (tabs: List<String>) (activeIndex: Int64) : String =
+    tabs
+    |> Stdlib.List.indexedMap (fun i tab ->
+      if i == activeIndex then
+        Colors.boldText $"┤ {tab} ├"
+      else
+        $" {tab} ")
+    |> Stdlib.String.join "──"
+
+module Modal =
+  let create (title: String) (content: List<String>) (buttons: List<String>) : String =
+    let width = 60L
+    let contentHeight = Stdlib.List.length content + 6L
+
+    let titleBar = Colors.boldText $"── {title} ──"
+    let centeredTitle =
+      let padding = Stdlib.Int64.divide (width - 4L - Stdlib.String.length titleBar) 2L
+      Stdlib.String.repeat " " padding ++ titleBar
+
+    let buttonRow =
+      buttons
+      |> Stdlib.List.map (fun b -> "( " ++ Colors.info (" " ++ b ++ " ") ++ " )")
+      |> Stdlib.String.join "  "
+
+    let centeredButtons =
+      let padding = Stdlib.Int64.divide (width - 4L - Stdlib.String.length buttonRow) 2L
+      Stdlib.String.repeat " " padding ++ buttonRow
+
+    Box.create width contentHeight Box.Style.Double
+      ([centeredTitle; ""] |> Stdlib.List.append content |> Stdlib.List.append [""; centeredButtons])
+
+
+// ==========================================
+// Demo Screens
+// ==========================================
+
+let demo1MainMenu () : String =
+  let logo =
+    [ "╔════════════════════════════════════════╗"
+      "║         DARKLANG CLI v2.0              ║"
+      "║      Terminal User Interface           ║"
+      "╚════════════════════════════════════════╝" ]
+    |> Stdlib.String.join "\n"
+
+  let menuItems =
+    [ Menu.Item { label = "New Project"; value = "new"; enabled = true }
+      Menu.Item { label = "Open Project"; value = "open"; enabled = true }
+      Menu.Item { label = "Recent Projects"; value = "recent"; enabled = true }
+      Menu.Item { label = "Settings"; value = "settings"; enabled = true }
+      Menu.Item { label = "Documentation"; value = "docs"; enabled = false }
+      Menu.Item { label = "Exit"; value = "exit"; enabled = true } ]
+
+  let menu = Menu.create "Main Menu" menuItems 0L
+
+  logo ++ "\n\n" ++ menu ++ "\n\n" ++ Colors.hint "Use ↑/↓ to navigate, Enter to select"
+
+let demo2Dashboard () : String =
+  let header = Tabs.create ["Overview"; "Functions"; "Types"; "Tests"] 0L
+
+  let stats =
+    Table.create
+      ["Metric"; "Value"; "Change"]
+      [ ["Functions"; "42"; Colors.success "+3"]
+        ["Types"; "18"; Colors.success "+1"]
+        ["Tests"; "128"; Colors.warning "0"]
+        ["Coverage"; "87%"; Colors.success "+2%"] ]
+
+  let progress =
+    "\n" ++ Colors.boldText "Build Progress:" ++ "\n" ++
+    Progress.bar 75L 100L 40L
+
+  header ++ "\n\n" ++ stats ++ progress
+
+let demo3FormInput () : String =
+  let title = Colors.boldText "═══ Create New Function ═══"
+
+  let fields =
+    [ Input.field "Function Name" "processUserData" true
+      Input.field "Module" "UserManagement" false
+      Input.field "Return Type" "Result<User, String>" false
+      Input.password "API Key" "secretkey123" false ]
+    |> Stdlib.String.join "\n\n"
+
+  let buttons =
+    "\n\n" ++
+    "[ " ++ Colors.boldText (Colors.success " Create ") ++ " ]" ++ "  " ++
+    "( " ++ Colors.boldText " Cancel " ++ " )"
+
+  title ++ "\n\n" ++ fields ++ buttons
+
+let demo4Notifications () : String =
+  let notifications =
+    [ Notification.create Notification.Type.Success "Build Complete" "All tests passed (128/128)"
+      "\n"
+      Notification.create Notification.Type.Warning "Deprecation Notice" "Function 'oldProcess' will be removed in v3.0"
+      "\n"
+      Notification.create Notification.Type.Error "Connection Failed" "Unable to connect to package registry" ]
+    |> Stdlib.String.join ""
+
+  notifications
+
+let demo5FileExplorer () : String =
+  let tree =
+    [ "📁 packages/"
+      "  📁 darklang/"
+      "    📁 cli/"
+      "      📄 core.dark"
+      "      📄 commands.dark"
+      "    📁 stdlib/"
+      "      📄 list.dark"
+      "      📄 string.dark"
+      "  📁 tests/"
+      "    📄 cli_test.dark" ]
+
+  let content =
+    tree
+    |> Stdlib.List.indexedMap (fun i line ->
+      if i == 3L then
+        Colors.boldText (Colors.info line)
+      else
+        line)
+
+  Box.create 50L 15L Box.Style.Single content
+
+let demo6CommandPalette () : String =
+  let searchBox = Input.field "Command" "> package install" true
+
+  let suggestions =
+    [ "package install <name>     Install a package"
+      "package update <name>      Update a package"
+      "package list               List installed packages"
+      "package search <query>     Search packages" ]
+    |> Stdlib.List.map (fun s -> "  " ++ s)
+
+  let modal = Modal.create "Command Palette" ([searchBox; ""] |> Stdlib.List.append suggestions) ["Execute"; "Cancel"]
+
+  modal
+
+let demo7TestRunner () : String =
+  let header = Colors.boldText "═══ Test Runner ═══"
+
+  let tests =
+    [ ("✓", Colors.success "test_user_creation", "2ms")
+      ("✓", Colors.success "test_data_validation", "5ms")
+      ("✗", Colors.error "test_api_integration", "timeout")
+      ("○", Colors.dimText "test_performance", "pending")
+      ("✓", Colors.success "test_error_handling", "3ms") ]
+    |> Stdlib.List.map (fun (icon, name, time) ->
+      $"  {icon} {name} ({time})")
+    |> Stdlib.String.join "\n"
+
+  let summary =
+    "\n" ++ Box.create 40L 4L Box.Style.Dashed
+      [ Colors.boldText "Summary"
+        $"Passed: {Colors.success "3"} | Failed: {Colors.error "1"} | Pending: 1" ]
+
+  header ++ "\n\n" ++ tests ++ summary
+
+let demo8LogViewer () : String =
+  let tabs = Tabs.create ["All"; "Errors"; "Warnings"; "Info"] 1L
+
+  let logs =
+    [ $"[{Colors.error "ERROR"}] Failed to connect to database"
+      $"[{Colors.error "ERROR"}] Invalid configuration file"
+      $"[{Colors.warning "WARN"}] Deprecated API usage detected"
+      $"[{Colors.info "INFO"}] Server started on port 8080"
+      $"[{Colors.error "ERROR"}] Authentication failed for user" ]
+
+  let logBox = Box.create 70L 10L Box.Style.Single logs
+
+  let tags = Tag.multiple ["database"; "config"; "auth"; "api"]
+
+  tabs ++ "\n\n" ++ logBox ++ "\n\nFilters: " ++ tags
+
+let demo9Settings () : String =
+  let sections =
+    [ Colors.boldText "Editor Settings"
+      "  " ++ Input.field "Theme" "Dark" false
+      "  " ++ Input.field "Font Size" "14" false
+      ""
+      Colors.boldText "Build Settings"
+      "  " ++ Input.field "Output Directory" "./build" false
+      "  " ++ Input.field "Optimization Level" "2" false
+      ""
+      Colors.boldText "Network Settings"
+      "  " ++ Input.field "Package Registry" "https://packages.darklang.com" false ]
+
+  Box.create 70L 15L Box.Style.Double sections
+
+let demo10HelpScreen () : String =
+  let shortcuts =
+    Table.create
+      ["Key"; "Action"; "Context"]
+      [ ["Ctrl+P"; "Command Palette"; "Global"]
+        ["Ctrl+S"; "Save"; "Editor"]
+        ["Ctrl+B"; "Build"; "Global"]
+        ["Ctrl+T"; "Run Tests"; "Global"]
+        ["Tab"; "Autocomplete"; "Editor"]
+        ["F1"; "Help"; "Global"] ]
+
+  let description =
+    Box.create 70L 5L Box.Style.Rounded
+      [ Colors.boldText "Darklang CLI Help"
+        ""
+        "A modern terminal interface for Darklang development" ]
+
+  description ++ "\n\n" ++ shortcuts
+
+// Helper function for demo runner - processes a single demo
+let processDemo (name: String) (demoFn: Unit -> String) (index: Int64) (total: Int64) : Bool =
+  Stdlib.print "\u001b[2J\u001b[H"
+  Stdlib.printLine $"Demo {Stdlib.Int64.toString index}/{Stdlib.Int64.toString total}: {Colors.boldText name}"
+  Stdlib.printLine (Stdlib.String.repeat "=" 80L)
+  Stdlib.printLine ""
+  Stdlib.printLine (demoFn ())
+  Stdlib.printLine ""
+  Stdlib.printLine (Stdlib.String.repeat "=" 80L)
+  Stdlib.printLine (Colors.hint "Press Enter for next demo, 'q' to quit")
+
+  let key = Stdlib.Cli.Stdin.readKey ()
+  if key.keyChar == "q" then
+    false
+  else
+    true
+
+// Process a list of demos recursively
+let processDemoList (demoList: List<(String * (Unit -> String))>) (idx: Int64) (total: Int64) : Int64 =
+  match demoList with
+  | [] ->
+      Stdlib.print "\u001b[2J\u001b[H"
+      Stdlib.printLine "All demos completed!"
+      0L
+  | (name, demoFn) :: rest ->
+      let shouldContinue = processDemo name demoFn idx total
+      if shouldContinue then
+        processDemoList rest (idx + 1L) total
+      else
+        Stdlib.print "\u001b[2J\u001b[H"
+        0L
+
+// Demo runner that iterates through demos
+let showDemos (demos: List<(String * (Unit -> String))>) (startIndex: Int64) : Int64 =
+  let total = Stdlib.List.length demos
+  processDemoList demos (startIndex + 1L) total
+
+// Demo runner
+let runUIDemoComponents (unit: Unit) : Int64 =
+  let demos =
+    [ ("Main Menu", fun () -> demo1MainMenu ())
+      ("Dashboard", fun () -> demo2Dashboard ())
+      ("Form Input", fun () -> demo3FormInput ())
+      ("Notifications", fun () -> demo4Notifications ())
+      ("File Explorer", fun () -> demo5FileExplorer ())
+      ("Command Palette", fun () -> demo6CommandPalette ())
+      ("Test Runner", fun () -> demo7TestRunner ())
+      ("Log Viewer", fun () -> demo8LogViewer ())
+      ("Settings", fun () -> demo9Settings ())
+      ("Help Screen", fun () -> demo10HelpScreen ()) ]
+
+  showDemos demos 0L

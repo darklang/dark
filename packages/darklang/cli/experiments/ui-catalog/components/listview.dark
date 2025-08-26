@@ -1,0 +1,77 @@
+module Darklang.Cli.Experiments.UICatalog.Components.ListView
+
+// ListView Components - Data display with selection
+
+// ListView Item Type
+type ListItem =
+  { text: String
+    enabled: Bool
+    data: String }
+
+// ListView Component
+type ListViewModel =
+  { items: List<ListItem>
+    selectedIndex: Int64
+    width: Int64
+    height: Int64
+    scrollOffset: Int64 }
+
+let createListView (items: List<ListItem>) (width: Int64) (height: Int64) : Core.Types.Component<ListViewModel> =
+  let model = ListViewModel { items = items; selectedIndex = 0L; width = width; height = height; scrollOffset = 0L }
+  let bounds = Core.Types.Bounds { position = Core.Types.Position { x = 0L; y = 0L }; dimensions = Core.Types.Dimensions { width = width; height = height } }
+  Core.Types.Component
+    { id = "listview"
+      model = model
+      state = Core.Types.ComponentState.Normal
+      bounds = bounds
+      visible = true
+      focusable = true }
+
+let renderListView (component: Core.Types.Component<ListViewModel>) (context: Core.Types.RenderContext) : List<String> =
+  let model = component.model
+  let hasFocus = context.hasFocus && component.state == Core.Types.ComponentState.Focused
+
+  let visibleItems =
+    model.items
+    |> Stdlib.List.drop model.scrollOffset
+    |> Stdlib.List.take (model.height - 2L)
+
+  let content =
+    visibleItems
+    |> Stdlib.List.indexedMap (fun i item ->
+        let globalIndex = model.scrollOffset + i
+        let marker = if globalIndex == model.selectedIndex then "▶ " else "  "
+        let itemText =
+          if item.enabled then
+            item.text
+          else
+            Core.Rendering.dim item.text
+        let styledText =
+          if globalIndex == model.selectedIndex && hasFocus then
+            Core.Rendering.colorize Core.Types.Color.Primary (Core.Rendering.bold (marker ++ itemText))
+          else if globalIndex == model.selectedIndex then
+            Core.Rendering.bold (marker ++ itemText)
+          else
+            marker ++ itemText
+        Core.Rendering.padText styledText (model.width - 4L) Core.Types.Alignment.Left)
+
+  let topBorder = "┌" ++ Stdlib.String.repeat "─" (model.width - 2L) ++ "┐"
+  let bottomBorder = "└" ++ Stdlib.String.repeat "─" (model.width - 2L) ++ "┘"
+  let contentLines =
+    content
+    |> Stdlib.List.map (fun line -> "│ " ++ line ++ " │")
+
+  [topBorder]
+  |> Stdlib.List.append contentLines
+  |> Stdlib.List.append [bottomBorder]
+
+let selectItem (component: Core.Types.Component<ListViewModel>) (index: Int64) : Core.Types.Component<ListViewModel> =
+  let model = component.model
+  let clampedIndex = Stdlib.Int64.max 0L (Stdlib.Int64.min index (Stdlib.List.length model.items - 1L))
+  { component with model = { model with selectedIndex = clampedIndex } }
+
+let getSelectedItem (component: Core.Types.Component<ListViewModel>) : ListItem =
+  let model = component.model
+  match Stdlib.List.getAt model.items model.selectedIndex with
+  | Some item -> item
+  | None -> ListItem { text = ""; enabled = false; data = "" }

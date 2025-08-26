@@ -1,0 +1,352 @@
+module Darklang.Cli.Experiments.UICatalog.Components.Forms
+
+
+// Text Input Component
+type TextInputModel =
+  { value: String
+    placeholder: String
+    maxLength: Int64
+    disabled: Bool
+    password: Bool
+    cursorPosition: Int64 }
+
+let createTextInput (placeholder: String) (maxLength: Int64) : Core.Types.Component<TextInputModel> =
+  let model = TextInputModel { value = ""; placeholder = placeholder; maxLength = maxLength; disabled = false; password = false; cursorPosition = 0L }
+  let bounds = Core.Types.Bounds { position = Core.Types.Position { x = 0L; y = 0L }; dimensions = Core.Types.Dimensions { width = maxLength + 4L; height = 3L } }
+  Core.Types.Component
+    { id = "textinput"
+      model = model
+      state = Core.Types.ComponentState.Normal
+      bounds = bounds
+      visible = true
+      focusable = true }
+
+let renderTextInput (component: Core.Types.Component<TextInputModel>) (context: Core.Types.RenderContext) : List<String> =
+  let model = component.model
+  let hasFocus = context.hasFocus && component.state == Core.Types.ComponentState.Focused
+
+  let displayValue =
+    if model.password then
+      Stdlib.String.repeat "*" (Stdlib.String.length model.value)
+    else if Stdlib.String.isEmpty model.value then
+      Core.Rendering.dim model.placeholder
+    else
+      model.value
+
+  let paddedValue = Core.Rendering.padText displayValue (component.bounds.dimensions.width - 4L) Core.Types.Alignment.Left
+  let cursor = if hasFocus then "│" else " "
+  let focusIndicator = if hasFocus then "► " else "  "
+
+  [ focusIndicator ++ "┌" ++ Stdlib.String.repeat "─" (component.bounds.dimensions.width - 2L) ++ "┐"
+    focusIndicator ++ "│ " ++ paddedValue ++ cursor ++ " │"
+    focusIndicator ++ "└" ++ Stdlib.String.repeat "─" (component.bounds.dimensions.width - 2L) ++ "┘" ]
+
+let updateTextInput (component: Core.Types.Component<TextInputModel>) (event: Core.Types.ComponentEvent) : Core.Types.Component<TextInputModel> =
+  match event with
+  | Key keyEvent ->
+      let model = component.model
+      (match keyEvent with
+      | Character char ->
+          if Stdlib.String.length model.value < model.maxLength then
+            let newValue = model.value ++ char
+            { component with model = { model with value = newValue; cursorPosition = model.cursorPosition + 1L } }
+          else
+            component
+      | Backspace ->
+          if model.cursorPosition > 0L then
+            let newValue = Stdlib.String.slice model.value 0L (model.cursorPosition - 1L)
+            { component with model = { model with value = newValue; cursorPosition = model.cursorPosition - 1L } }
+          else
+            component
+      | Left ->
+          let newPos = if model.cursorPosition > 0L then model.cursorPosition - 1L else 0L
+          { component with model = { model with cursorPosition = newPos } }
+      | Right ->
+          let maxPos = Stdlib.String.length model.value
+          let newPos = if model.cursorPosition < maxPos then model.cursorPosition + 1L else maxPos
+          { component with model = { model with cursorPosition = newPos } }
+      | _ -> component)
+  | _ -> component
+
+
+// Checkbox Component
+type CheckboxModel =
+  { checked: Bool
+    label: String
+    disabled: Bool }
+
+let createCheckbox (label: String) (checked: Bool) : Core.Types.Component<CheckboxModel> =
+  let model = CheckboxModel { checked = checked; label = label; disabled = false }
+  let labelLength = Stdlib.String.length label
+  let bounds = Core.Types.Bounds { position = Core.Types.Position { x = 0L; y = 0L }; dimensions = Core.Types.Dimensions { width = labelLength + 6L; height = 1L } }
+  Core.Types.Component
+    { id = "checkbox-" ++ label
+      model = model
+      state = Core.Types.ComponentState.Normal
+      bounds = bounds
+      visible = true
+      focusable = true }
+
+let renderCheckbox (component: Core.Types.Component<CheckboxModel>) (context: Core.Types.RenderContext) : List<String> =
+  let model = component.model
+  let hasFocus = context.hasFocus && component.state == Core.Types.ComponentState.Focused
+
+  let checkSymbol = if model.checked then "✓" else " "
+  let boxColor = if model.disabled then Core.Types.Color.Dark else Core.Types.Color.Primary
+  let labelColor = if model.disabled then Core.Types.Color.Dark else Core.Types.Color.Default
+
+  let styledBox = Core.Rendering.colorize boxColor ("[" ++ checkSymbol ++ "]")
+  let styledLabel = Core.Rendering.colorize labelColor model.label
+  let focusIndicator = if hasFocus then "► " else "  "
+
+  [ focusIndicator ++ styledBox ++ " " ++ styledLabel ]
+
+let toggleCheckbox (component: Core.Types.Component<CheckboxModel>) : Core.Types.Component<CheckboxModel> =
+  let model = component.model
+  if model.disabled then
+    component
+  else
+    { component with model = { model with checked = Stdlib.Bool.not model.checked } }
+
+
+// Radio Button Group Component
+type RadioModel =
+  { options: List<String>
+    selectedIndex: Int64
+    disabled: Bool }
+
+let createRadioGroup (options: List<String>) (selectedIndex: Int64) : Core.Types.Component<RadioModel> =
+  let model = RadioModel { options = options; selectedIndex = selectedIndex; disabled = false }
+  let maxWidth =
+    options
+    |> Stdlib.List.map (fun opt -> Stdlib.String.length opt + 6L)
+    |> Stdlib.List.fold 20L (fun acc len -> if len > acc then len else acc)
+  let height = Stdlib.List.length options
+  let bounds = Core.Types.Bounds { position = Core.Types.Position { x = 0L; y = 0L }; dimensions = Core.Types.Dimensions { width = maxWidth; height = height } }
+  Core.Types.Component
+    { id = "radiogroup"
+      model = model
+      state = Core.Types.ComponentState.Normal
+      bounds = bounds
+      visible = true
+      focusable = true }
+
+let renderRadioGroup (component: Core.Types.Component<RadioModel>) (context: Core.Types.RenderContext) : List<String> =
+  let model = component.model
+  let hasFocus = context.hasFocus && component.state == Core.Types.ComponentState.Focused
+
+  model.options
+  |> Stdlib.List.indexedMap (fun i option ->
+      let isSelected = i == model.selectedIndex
+      let radioSymbol = if isSelected then "●" else "○"
+      let boxColor = if model.disabled then Core.Types.Color.Dark else Core.Types.Color.Primary
+      let labelColor = if model.disabled then Core.Types.Color.Dark else Core.Types.Color.Default
+
+      let styledRadio = Core.Rendering.colorize boxColor ("(" ++ radioSymbol ++ ")")
+      let styledLabel = Core.Rendering.colorize labelColor option
+      let focusIndicator = if hasFocus && i == model.selectedIndex then "► " else "  "
+
+      focusIndicator ++ styledRadio ++ " " ++ styledLabel)
+
+let selectRadioOption (component: Core.Types.Component<RadioModel>) (index: Int64) : Core.Types.Component<RadioModel> =
+  let model = component.model
+  if model.disabled || index < 0L || index >= Stdlib.List.length model.options then
+    component
+  else
+    { component with model = { model with selectedIndex = index } }
+
+
+// Select Dropdown Component
+type SelectModel =
+  { options: List<String>
+    selectedIndex: Int64
+    isOpen: Bool
+    disabled: Bool }
+
+let createSelect (options: List<String>) (selectedIndex: Int64) : Core.Types.Component<SelectModel> =
+  let model = SelectModel { options = options; selectedIndex = selectedIndex; isOpen = false; disabled = false }
+  let maxWidth =
+    options
+    |> Stdlib.List.map Stdlib.String.length
+    |> Stdlib.List.fold 10L (fun acc len -> if len > acc then len else acc)
+  let baseHeight = if model.isOpen then Stdlib.List.length options + 2L else 1L
+  let bounds = Core.Types.Bounds { position = Core.Types.Position { x = 0L; y = 0L }; dimensions = Core.Types.Dimensions { width = maxWidth + 4L; height = baseHeight } }
+  Core.Types.Component
+    { id = "select"
+      model = model
+      state = Core.Types.ComponentState.Normal
+      bounds = bounds
+      visible = true
+      focusable = true }
+
+let renderSelect (component: Core.Types.Component<SelectModel>) (context: Core.Types.RenderContext) : List<String> =
+  let model = component.model
+  let hasFocus = context.hasFocus && component.state == Core.Types.ComponentState.Focused
+
+  let selectedOption =
+    match Stdlib.List.getAt model.options model.selectedIndex with
+    | Some opt -> opt
+    | None -> ""
+
+  let paddedOption = Core.Rendering.padText selectedOption (component.bounds.dimensions.width - 4L) Core.Types.Alignment.Left
+  let arrow = if model.isOpen then "▲" else "▼"
+  let focusIndicator = if hasFocus then "► " else "  "
+
+  let mainLine = focusIndicator ++ "┌" ++ paddedOption ++ " " ++ arrow ++ "┐"
+
+  if model.isOpen then
+    let optionLines =
+      model.options
+      |> Stdlib.List.indexedMap (fun i option ->
+          let isSelected = i == model.selectedIndex
+          let prefix = if isSelected then "►" else " "
+          let styledOption =
+            if isSelected then
+              Core.Rendering.colorize Core.Types.Color.Primary (prefix ++ " " ++ option)
+            else
+              prefix ++ " " ++ option
+          "  │" ++ Core.Rendering.padText styledOption (component.bounds.dimensions.width - 4L) Core.Types.Alignment.Left ++ "│")
+
+    let bottomLine = "  └" ++ Stdlib.String.repeat "─" (component.bounds.dimensions.width - 2L) ++ "┘"
+    [mainLine]
+    |> Stdlib.List.append optionLines
+    |> Stdlib.List.append [bottomLine]
+  else
+    [mainLine]
+
+
+// Slider Component
+type SliderModel =
+  { value: Float
+    min: Float
+    max: Float
+    step: Float
+    label: String
+    width: Int64
+    disabled: Bool }
+
+let createSlider (label: String) (min: Float) (max: Float) (value: Float) (width: Int64) : Core.Types.Component<SliderModel> =
+  let model =
+    SliderModel
+      { value = value
+      ; min = min
+      ; max = max
+      ; step = 1.0
+      ; label = label
+      ; width = width
+      ; disabled = false }
+  let bounds = Core.Types.Bounds { position = Core.Types.Position { x = 0L; y = 0L }; dimensions = Core.Types.Dimensions { width = width + 4L; height = 3L } }
+  Core.Types.Component
+    { id = "slider-" ++ label
+      model = model
+      state = Core.Types.ComponentState.Normal
+      bounds = bounds
+      visible = true
+      focusable = true }
+
+let renderSlider (component: Core.Types.Component<SliderModel>) (context: Core.Types.RenderContext) : List<String> =
+  let model = component.model
+  let hasFocus = context.hasFocus && component.state == Core.Types.ComponentState.Focused
+
+  let percentage =
+    (Stdlib.Float.subtract model.value model.min)
+    |> fun diff -> Stdlib.Float.divide diff (Stdlib.Float.subtract model.max model.min)
+  let filledWidth =
+    (Stdlib.Float.multiply (Stdlib.Int64.toFloat model.width) percentage)
+    |> Stdlib.Float.round
+  let emptyWidth = Stdlib.Int64.subtract model.width filledWidth
+
+  let track = Stdlib.String.repeat "═" filledWidth ++ Stdlib.String.repeat "─" emptyWidth
+  let handle = "●"
+  let valueText = "Value: " ++ Stdlib.Float.toString model.value
+  let focusIndicator = if hasFocus then "► " else "  "
+
+  [ focusIndicator ++ model.label ++ " (" ++ valueText ++ ")"
+    focusIndicator ++ "├" ++ track ++ "┤"
+    focusIndicator ++ Stdlib.String.repeat " " filledWidth ++ handle ]
+
+let updateSlider (component: Core.Types.Component<SliderModel>) (direction: String) : Core.Types.Component<SliderModel> =
+  let model = component.model
+  if model.disabled then
+    component
+  else
+    let newValue =
+      if direction == "left" then
+        if model.value - model.step >= model.min then model.value - model.step else model.min
+      else if direction == "right" then
+        if model.value + model.step <= model.max then model.value + model.step else model.max
+      else
+        model.value
+    { component with model = { model with value = newValue } }
+
+
+// DateField Component
+type DateFieldModel =
+  { day: Int64
+    month: Int64
+    year: Int64
+    placeholder: String
+    disabled: Bool
+    focused: String } // "day", "month", "year", or ""
+
+let createDateField (placeholder: String) : Core.Types.Component<DateFieldModel> =
+  let model =
+    DateFieldModel
+      { day = 1L
+      ; month = 1L
+      ; year = 2024L
+      ; placeholder = placeholder
+      ; disabled = false
+      ; focused = "" }
+  let bounds = Core.Types.Bounds { position = Core.Types.Position { x = 0L; y = 0L }; dimensions = Core.Types.Dimensions { width = 20L; height = 3L } }
+  Core.Types.Component
+    { id = "datefield"
+      model = model
+      state = Core.Types.ComponentState.Normal
+      bounds = bounds
+      visible = true
+      focusable = true }
+
+let renderDateField (component: Core.Types.Component<DateFieldModel>) (context: Core.Types.RenderContext) : List<String> =
+  let model = component.model
+  let hasFocus = context.hasFocus && component.state == Core.Types.ComponentState.Focused
+
+  let dayStr = if model.day < 10L then "0" ++ Stdlib.Int64.toString model.day else Stdlib.Int64.toString model.day
+  let monthStr = if model.month < 10L then "0" ++ Stdlib.Int64.toString model.month else Stdlib.Int64.toString model.month
+  let yearStr = Stdlib.Int64.toString model.year
+
+  let dayPart = if model.focused == "day" && hasFocus then "[" ++ dayStr ++ "]" else dayStr
+  let monthPart = if model.focused == "month" && hasFocus then "[" ++ monthStr ++ "]" else monthStr
+  let yearPart = if model.focused == "year" && hasFocus then "[" ++ yearStr ++ "]" else yearStr
+
+  let dateValue = dayPart ++ "/" ++ monthPart ++ "/" ++ yearPart
+  let focusIndicator = if hasFocus then "► " else "  "
+
+  [ focusIndicator ++ model.placeholder
+    focusIndicator ++ "┌──────────────────┐"
+    focusIndicator ++ "│ " ++ Core.Rendering.padText dateValue 16L Core.Types.Alignment.Center ++ " │"
+    focusIndicator ++ "└──────────────────┘" ]
+
+let updateDateField (component: Core.Types.Component<DateFieldModel>) (field: String) (increment: Bool) : Core.Types.Component<DateFieldModel> =
+  let model = component.model
+  if model.disabled then
+    component
+  else
+    let (newDay, newMonth, newYear) =
+      if field == "day" then
+        let newDay = if increment then model.day + 1L else model.day - 1L
+        let clampedDay = if newDay > 31L then 1L else if newDay < 1L then 31L else newDay
+        (clampedDay, model.month, model.year)
+      else if field == "month" then
+        let newMonth = if increment then model.month + 1L else model.month - 1L
+        let clampedMonth = if newMonth > 12L then 1L else if newMonth < 1L then 12L else newMonth
+        (model.day, clampedMonth, model.year)
+      else if field == "year" then
+        let newYear = if increment then model.year + 1L else model.year - 1L
+        let clampedYear = if newYear < 1900L then 1900L else if newYear > 2100L then 2100L else newYear
+        (model.day, model.month, clampedYear)
+      else
+        (model.day, model.month, model.year)
+
+    { component with model = { model with day = newDay; month = newMonth; year = newYear; focused = field } }
+

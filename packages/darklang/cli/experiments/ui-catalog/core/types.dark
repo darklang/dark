@@ -1,0 +1,82 @@
+module Darklang.Cli.Experiments.UICatalog.Core.Types
+
+// Base UI Element Types
+type Color =
+  | Default
+  | Primary
+  | Secondary
+  | Success
+  | Warning
+  | Error
+  | Info
+  | Light
+  | Dark
+
+type Size =
+  | Small
+  | Normal
+  | Medium
+  | Large
+
+type Alignment =
+  | Left
+  | Center
+  | Right
+  | Justify
+
+// Layout Types
+type Position = { x: Int64; y: Int64 }
+type Dimensions = { width: Int64; height: Int64 }
+type Bounds = { position: Position; dimensions: Dimensions }
+
+// Event Types
+type KeyEvent =
+  | Enter
+  | Escape
+  | Tab
+  | BackTab
+  | Backspace
+  | Delete
+  | Up
+  | Down
+  | Left
+  | Right
+  | Home
+  | End
+  | PageUp
+  | PageDown
+  | Character of String
+
+type FocusEvent =
+  | Focused
+  | Unfocused
+
+type ComponentEvent =
+  | Key of KeyEvent
+  | Focus of FocusEvent
+  | Click
+  | Change of String
+
+// Component State
+type ComponentState =
+  | Normal
+  | Focused
+  | Active
+  | Disabled
+  | Loading
+
+// Base Component Interface
+type Component<'TModel> =
+  { id: String
+    model: 'TModel
+    state: ComponentState
+    bounds: Bounds
+    visible: Bool
+    focusable: Bool }
+
+// Rendering Context
+type RenderContext =
+  { availableWidth: Int64
+    availableHeight: Int64
+    hasFocus: Bool
+    theme: String }

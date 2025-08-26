@@ -1,0 +1,175 @@
+module Darklang.Cli.Experiments.UICatalog.Components.Layout
+
+// Container Component
+type ContainerModel<'TChild> =
+  { children: List<'TChild>
+    padding: Int64
+    border: Bool
+    title: String }
+
+let createContainer (children: List<'TChild>) (title: String) (border: Bool) : Core.Types.Component<ContainerModel<'TChild>> =
+  let model = ContainerModel { children = children; padding = 1L; border = border; title = title }
+  // Calculate container size based on children (simplified)
+  let bounds = Core.Types.Bounds { position = Core.Types.Position { x = 0L; y = 0L }; dimensions = Core.Types.Dimensions { width = 40L; height = 20L } }
+  Core.Types.Component
+    { id = "container-" ++ title
+      model = model
+      state = Core.Types.ComponentState.Normal
+      bounds = bounds
+      visible = true
+      focusable = false }
+
+let renderContainer (component: Core.Types.Component<ContainerModel<'TChild>>) (context: Core.Types.RenderContext) (renderChild: 'TChild -> Core.Types.RenderContext -> List<String>) : List<String> =
+  let model = component.model
+
+  if model.border then
+    let contentLines =
+      model.children
+      |> Stdlib.List.map (fun child -> renderChild child context)
+      |> Stdlib.List.flatten
+
+    Core.Rendering.drawBox component.bounds model.title contentLines
+  else
+    model.children
+    |> Stdlib.List.map (fun child -> renderChild child context)
+    |> Stdlib.List.flatten
+
+// Panel Component
+type PanelModel =
+  { content: List<String>
+    title: String
+    color: Core.Types.Color
+    collapsible: Bool
+    collapsed: Bool }
+
+let createPanel (title: String) (content: List<String>) (color: Core.Types.Color) : Core.Types.Component<PanelModel> =
+  let model = PanelModel { content = content; title = title; color = color; collapsible = false; collapsed = false }
+  let contentHeight = if model.collapsed then 1L else Stdlib.List.length content + 2L
+  let maxWidth =
+    (Stdlib.List.push content title)
+    |> Stdlib.List.map Stdlib.String.length
+    |> Stdlib.List.fold 20L (fun acc len -> if len > acc then len else acc)
+  let bounds = Core.Types.Bounds { position = Core.Types.Position { x = 0L; y = 0L }; dimensions = Core.Types.Dimensions { width = maxWidth + 4L; height = contentHeight } }
+  Core.Types.Component
+    { id = "panel-" ++ title
+      model = model
+      state = Core.Types.ComponentState.Normal
+      bounds = bounds
+      visible = true
+      focusable = true }
+
+let renderPanel (component: Core.Types.Component<PanelModel>) (context: Core.Types.RenderContext) : List<String> =
+  let model = component.model
+  let hasFocus = context.hasFocus && component.state == Core.Types.ComponentState.Focused
+
+  let titleColor = if hasFocus then Core.Types.Color.Primary else model.color
+  let coloredTitle = Core.Rendering.colorize titleColor model.title
+  let collapseIndicator = if model.collapsible then (if model.collapsed then " ▼" else " ▲") else ""
+  let fullTitle = coloredTitle ++ collapseIndicator
+
+  if model.collapsed then
+    let focusIndicator = if hasFocus then "► " else "  "
+    [ focusIndicator ++ "┌─ " ++ fullTitle ++ " ─┐" ]
+  else
+    Core.Rendering.drawBox component.bounds fullTitle model.content
+
+let togglePanel (component: Core.Types.Component<PanelModel>) : Core.Types.Component<PanelModel> =
+  let model = component.model
+  if model.collapsible then
+    { component with model = { model with collapsed = Stdlib.Bool.not model.collapsed } }
+  else
+    component
+
+// Grid Layout Component
+type GridModel<'TItem> =
+  { items: List<'TItem>
+    columns: Int64
+    spacing: Int64
+    itemWidth: Int64
+    itemHeight: Int64 }
+
+let createGrid (items: List<'TItem>) (columns: Int64) (itemWidth: Int64) (itemHeight: Int64) : Core.Types.Component<GridModel<'TItem>> =
+  let model = GridModel { items = items; columns = columns; spacing = 1L; itemWidth = itemWidth; itemHeight = itemHeight }
+  let rows = Stdlib.Int64.divide (Stdlib.List.length items + columns - 1L) columns
+  let totalWidth = columns * itemWidth + (columns - 1L) * model.spacing
+  let totalHeight = rows * itemHeight + (rows - 1L) * model.spacing
+  let bounds = Core.Types.Bounds { position = Core.Types.Position { x = 0L; y = 0L }; dimensions = Core.Types.Dimensions { width = totalWidth; height = totalHeight } }
+  Core.Types.Component
+    { id = "grid"
+      model = model
+      state = Core.Types.ComponentState.Normal
+      bounds = bounds
+      visible = true
+      focusable = true }
+
+let renderGrid (component: Core.Types.Component<GridModel<'TItem>>) (context: Core.Types.RenderContext) (renderItem: 'TItem -> Int64 -> Core.Types.RenderContext -> List<String>) : List<String> =
+  let model = component.model
+  // Simplified grid rendering - just render items in a vertical list for now
+  model.items
+  |> Stdlib.List.indexedMap (fun index item ->
+      let renderedItem = renderItem item index context
+      renderedItem)
+  |> Stdlib.List.flatten
+
+// Horizontal Stack Component
+type HStackModel<'TItem> =
+  { items: List<'TItem>
+    spacing: Int64
+    alignment: Core.Types.Alignment }
+
+let createHStack (items: List<'TItem>) (spacing: Int64) (alignment: Core.Types.Alignment) : Core.Types.Component<HStackModel<'TItem>> =
+  let model = HStackModel { items = items; spacing = spacing; alignment = alignment }
+  // Calculate size based on items (simplified)
+  let bounds = Core.Types.Bounds { position = Core.Types.Position { x = 0L; y = 0L }; dimensions = Core.Types.Dimensions { width = 60L; height = 5L } }
+  Core.Types.Component
+    { id = "hstack"
+      model = model
+      state = Core.Types.ComponentState.Normal
+      bounds = bounds
+      visible = true
+      focusable = false }
+
+let renderHStack (component: Core.Types.Component<HStackModel<'TItem>>) (context: Core.Types.RenderContext) (renderItem: 'TItem -> Core.Types.RenderContext -> List<String>) : List<String> =
+  let model = component.model
+  let itemRenderings = model.items |> Stdlib.List.map (fun item -> renderItem item context)
+
+  // Find max height among all items
+  let maxHeight =
+    itemRenderings
+    |> Stdlib.List.map Stdlib.List.length
+    |> Stdlib.List.fold 1L (fun acc len -> if len > acc then len else acc)
+
+  // Combine items horizontally line by line
+  (Stdlib.List.range 0L (maxHeight - 1L))
+  |> Stdlib.List.map (fun lineIndex ->
+      itemRenderings
+      |> Stdlib.List.map (fun itemLines ->
+          match Stdlib.List.getAt itemLines lineIndex with
+          | Some line -> line
+          | None -> "")
+      |> Stdlib.String.join (Stdlib.String.repeat " " model.spacing))
+
+// Vertical Stack Component
+type VStackModel<'TItem> =
+  { items: List<'TItem>
+    spacing: Int64 }
+
+let createVStack (items: List<'TItem>) (spacing: Int64) : Core.Types.Component<VStackModel<'TItem>> =
+  let model = VStackModel { items = items; spacing = spacing }
+  let bounds = Core.Types.Bounds { position = Core.Types.Position { x = 0L; y = 0L }; dimensions = Core.Types.Dimensions { width = 40L; height = 20L } }
+  Core.Types.Component
+    { id = "vstack"
+      model = model
+      state = Core.Types.ComponentState.Normal
+      bounds = bounds
+      visible = true
+      focusable = false }
+
+let renderVStack (component: Core.Types.Component<VStackModel<'TItem>>) (context: Core.Types.RenderContext) (renderItem: 'TItem -> Core.Types.RenderContext -> List<String>) : List<String> =
+  let model = component.model
+  let spacingLines = (Stdlib.List.range 0L (model.spacing - 1L)) |> Stdlib.List.map (fun _ -> "")
+
+  model.items
+  |> Stdlib.List.map (fun item -> renderItem item context)
+  |> Stdlib.List.interpose spacingLines
+  |> Stdlib.List.flatten

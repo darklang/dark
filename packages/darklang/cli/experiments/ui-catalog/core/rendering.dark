@@ -1,0 +1,112 @@
+module Darklang.Cli.Experiments.UICatalog.Core.Rendering
+
+// Text styling functions
+let colorize (color: Types.Color) (text: String) : String =
+  match color with
+  | Primary -> "\u001b[34m" ++ text ++ "\u001b[0m"    // Blue
+  | Secondary -> "\u001b[90m" ++ text ++ "\u001b[0m" // Gray
+  | Success -> "\u001b[32m" ++ text ++ "\u001b[0m"   // Green
+  | Warning -> "\u001b[33m" ++ text ++ "\u001b[0m"   // Yellow
+  | Error -> "\u001b[31m" ++ text ++ "\u001b[0m"     // Red
+  | Info -> "\u001b[36m" ++ text ++ "\u001b[0m"      // Cyan
+  | Light -> "\u001b[97m" ++ text ++ "\u001b[0m"     // White
+  | Dark -> "\u001b[30m" ++ text ++ "\u001b[0m"      // Black
+  | Default -> text
+
+let bold (text: String) : String =
+  "\u001b[1m" ++ text ++ "\u001b[0m"
+
+let italic (text: String) : String =
+  "\u001b[3m" ++ text ++ "\u001b[0m"
+
+let underline (text: String) : String =
+  "\u001b[4m" ++ text ++ "\u001b[0m"
+
+let dim (text: String) : String =
+  "\u001b[2m" ++ text ++ "\u001b[0m"
+
+// Box drawing characters
+module BoxChars =
+  let horizontal = "─"
+  let vertical = "│"
+  let topLeft = "┌"
+  let topRight = "┐"
+  let bottomLeft = "└"
+  let bottomRight = "┘"
+  let cross = "┼"
+  let teeUp = "┴"
+  let teeDown = "┬"
+  let teeLeft = "┤"
+  let teeRight = "├"
+
+  // Double line variants
+  let doubleHorizontal = "═"
+  let doubleVertical = "║"
+  let doubleTopLeft = "╔"
+  let doubleTopRight = "╗"
+  let doubleBottomLeft = "╚"
+  let doubleBottomRight = "╝"
+
+// Drawing utilities
+let drawBox (bounds: Types.Bounds) (title: String) (content: List<String>) : List<String> =
+  let width = bounds.dimensions.width
+  let height = bounds.dimensions.height
+
+  let topBorder = BoxChars.topLeft ++ Stdlib.String.repeat BoxChars.horizontal (width - 2L) ++ BoxChars.topRight
+  let bottomBorder = BoxChars.bottomLeft ++ Stdlib.String.repeat BoxChars.horizontal (width - 2L) ++ BoxChars.bottomRight
+
+  let titleLine =
+    if Stdlib.String.isEmpty title then
+      []
+    else
+      let paddedTitle = " " ++ title ++ " "
+      let titleWidth = Stdlib.String.length paddedTitle
+      let leftPadding = Stdlib.Int64.divide (width - titleWidth) 2L
+      let rightPadding = width - titleWidth - leftPadding
+      [BoxChars.vertical ++ Stdlib.String.repeat " " leftPadding ++ bold paddedTitle ++ Stdlib.String.repeat " " rightPadding ++ BoxChars.vertical]
+
+  let contentLines =
+    content
+    |> Stdlib.List.map (fun line ->
+      let lineLength = Stdlib.String.length line
+      let padding = if lineLength < width - 2L then Stdlib.String.repeat " " (width - 2L - lineLength) else ""
+      BoxChars.vertical ++ " " ++ line ++ padding ++ BoxChars.vertical)
+
+  [topBorder]
+  |> Stdlib.List.append titleLine
+  |> Stdlib.List.append contentLines
+  |> Stdlib.List.append [bottomBorder]
+
+let padText (text: String) (width: Int64) (alignment: Types.Alignment) : String =
+  let textLength = Stdlib.String.length text
+  if textLength >= width then
+    Stdlib.String.slice text 0L width
+  else
+    let padding = width - textLength
+    match alignment with
+    | Left -> text ++ Stdlib.String.repeat " " padding
+    | Right -> Stdlib.String.repeat " " padding ++ text
+    | Center ->
+        let leftPad = Stdlib.Int64.divide padding 2L
+        let rightPad = padding - leftPad
+        Stdlib.String.repeat " " leftPad ++ text ++ Stdlib.String.repeat " " rightPad
+    | Justify -> text ++ Stdlib.String.repeat " " padding
+
+let truncateText (text: String) (maxWidth: Int64) : String =
+  if Stdlib.String.length text <= maxWidth then
+    text
+  else
+    Stdlib.String.slice text 0L (maxWidth - 3L) ++ "..."
+
+// Focus indicators
+let addFocusIndicator (text: String) (hasFocus: Bool) : String =
+  if hasFocus then
+    "► " ++ text
+  else
+    "  " ++ text
+
+let highlightIfFocused (text: String) (hasFocus: Bool) : String =
+  if hasFocus then
+    "\u001b[7m" ++ text ++ "\u001b[0m"  // Reverse video
+  else
+    text

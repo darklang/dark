@@ -1,0 +1,187 @@
+// Modal Components - Overlay dialogs and popups
+module Darklang.Cli.Experiments.UICatalog.Components.Modal
+
+
+// Modal Component
+type ModalModel =
+  { title: String
+    content: List<String>
+    isVisible: Bool
+    hasCloseButton: Bool
+    width: Int64
+    height: Int64
+    backgroundColor: Core.Types.Color }
+
+let createModal (title: String) (content: List<String>) (width: Int64) (height: Int64) : Core.Types.Component<ModalModel> =
+  let model = ModalModel { title = title; content = content; isVisible = false; hasCloseButton = true; width = width; height = height; backgroundColor = Core.Types.Color.Light }
+  let bounds = Core.Types.Bounds { position = Core.Types.Position { x = 0L; y = 0L }; dimensions = Core.Types.Dimensions { width = width; height = height } }
+  Core.Types.Component
+    { id = "modal-" ++ title
+      model = model
+      state = Core.Types.ComponentState.Normal
+      bounds = bounds
+      visible = model.isVisible
+      focusable = true }
+
+
+let renderModal (component: Core.Types.Component<ModalModel>) (context: Core.Types.RenderContext) : List<String> =
+  let model = component.model
+  if Stdlib.Bool.not model.isVisible then
+    []
+  else
+    let hasFocus = context.hasFocus && component.state == Core.Types.ComponentState.Focused
+
+    // Create backdrop
+    let backdropWidth = 60L
+    let backdropHeight = 20L
+    let backdrop =
+      Stdlib.List.repeat backdropHeight (Core.Rendering.dim (Stdlib.String.repeat "░" backdropWidth))
+
+    // Calculate modal position (centered)
+    let modalX = Stdlib.Int64.divide (backdropWidth - model.width) 2L
+    let modalY = Stdlib.Int64.divide (backdropHeight - model.height) 2L
+
+    // Create modal box
+    let topBorder = "╔" ++ Stdlib.String.repeat "═" (model.width - 2L) ++ "╗"
+    let bottomBorder = "╚" ++ Stdlib.String.repeat "═" (model.width - 2L) ++ "╝"
+
+    let titleLine =
+      let closeButton = if model.hasCloseButton then " ✕" else ""
+      let availableWidth = model.width - 4L - Stdlib.String.length closeButton
+      let paddedTitle = Core.Rendering.padText model.title availableWidth Core.Types.Alignment.Center
+      let titleColor = if hasFocus then Core.Types.Color.Primary else Core.Types.Color.Default
+      "║ " ++ Core.Rendering.colorize titleColor (Core.Rendering.bold paddedTitle) ++ closeButton ++ " ║"
+
+    let separatorLine = "╠" ++ Stdlib.String.repeat "═" (model.width - 2L) ++ "╣"
+
+    let contentLines =
+      model.content
+      |> Stdlib.List.map (fun line ->
+          let paddedLine = Core.Rendering.padText line (model.width - 4L) Core.Types.Alignment.Left
+          "║ " ++ paddedLine ++ " ║")
+
+    // Fill remaining space if content is shorter than modal height
+    let remainingHeight = model.height - 4L - Stdlib.List.length contentLines
+    let fillerLines =
+      if remainingHeight > 0L then
+        Stdlib.List.repeat remainingHeight ("║" ++ Stdlib.String.repeat " " (model.width - 2L) ++ "║")
+      else
+        []
+
+    let modalContent =
+      [topBorder; titleLine; separatorLine]
+      |> Stdlib.List.append contentLines
+      |> Stdlib.List.append fillerLines
+      |> Stdlib.List.append [bottomBorder]
+
+    // Overlay modal on backdrop
+    let result =
+      backdrop
+      |> Stdlib.List.indexedMap (fun i backdropLine ->
+          if i >= modalY && i < modalY + Stdlib.List.length modalContent then
+            let modalLineIndex = i - modalY
+            match Stdlib.List.getAt modalContent modalLineIndex with
+            | Some modalLine ->
+                let beforeModal = Stdlib.String.repeat " " modalX
+                let afterModal = Stdlib.String.repeat " " (backdropWidth - modalX - model.width)
+                beforeModal ++ modalLine ++ afterModal
+            | None -> backdropLine
+          else
+            backdropLine)
+
+    result
+
+let showModal (component: Core.Types.Component<ModalModel>) : Core.Types.Component<ModalModel> =
+  let model = component.model
+  { component with model = { model with isVisible = true }; visible = true }
+
+let hideModal (component: Core.Types.Component<ModalModel>) : Core.Types.Component<ModalModel> =
+  let model = component.model
+  { component with model = { model with isVisible = false }; visible = false }
+
+let toggleModal (component: Core.Types.Component<ModalModel>) : Core.Types.Component<ModalModel> =
+  let model = component.model
+  if model.isVisible then
+    hideModal component
+  else
+    showModal component
+
+
+// Confirmation Dialog Component
+type ConfirmDialogModel =
+  { title: String
+    message: String
+    confirmText: String
+    cancelText: String
+    isVisible: Bool
+    selectedButton: Int64 }
+
+let createConfirmDialog (title: String) (message: String) (confirmText: String) (cancelText: String) : Core.Types.Component<ConfirmDialogModel> =
+  let model = ConfirmDialogModel { title = title; message = message; confirmText = confirmText; cancelText = cancelText; isVisible = false; selectedButton = 0L }
+  let width = 40L
+  let height = 8L
+  let bounds = Core.Types.Bounds { position = Core.Types.Position { x = 0L; y = 0L }; dimensions = Core.Types.Dimensions { width = width; height = height } }
+  Core.Types.Component
+    { id = "confirm-dialog"
+      model = model
+      state = Core.Types.ComponentState.Normal
+      bounds = bounds
+      visible = model.isVisible
+      focusable = true }
+
+let renderConfirmDialog (component: Core.Types.Component<ConfirmDialogModel>) (context: Core.Types.RenderContext) : List<String> =
+  let model = component.model
+  if Stdlib.Bool.not model.isVisible then
+    []
+  else
+    let hasFocus = context.hasFocus && component.state == Core.Types.ComponentState.Focused
+
+    let topBorder = "┌" ++ Stdlib.String.repeat "─" (component.bounds.dimensions.width - 2L) ++ "┐"
+    let bottomBorder = "└" ++ Stdlib.String.repeat "─" (component.bounds.dimensions.width - 2L) ++ "┘"
+
+    let titleLine =
+      let paddedTitle = Core.Rendering.padText model.title (component.bounds.dimensions.width - 4L) Core.Types.Alignment.Center
+      let titleColor = if hasFocus then Core.Types.Color.Warning else Core.Types.Color.Default
+      "│ " ++ Core.Rendering.colorize titleColor (Core.Rendering.bold paddedTitle) ++ " │"
+
+    let separatorLine = "├" ++ Stdlib.String.repeat "─" (component.bounds.dimensions.width - 2L) ++ "┤"
+
+    let messageLine =
+      let paddedMessage = Core.Rendering.padText model.message (component.bounds.dimensions.width - 4L) Core.Types.Alignment.Center
+      "│ " ++ paddedMessage ++ " │"
+
+    let emptyLine = "│" ++ Stdlib.String.repeat " " (component.bounds.dimensions.width - 2L) ++ "│"
+
+    let buttonLine =
+      let confirmButton =
+        if model.selectedButton == 0L then
+          Core.Rendering.colorize Core.Types.Color.Success ("[ " ++ model.confirmText ++ " ]")
+        else
+          "[ " ++ model.confirmText ++ " ]"
+
+      let cancelButton =
+        if model.selectedButton == 1L then
+          Core.Rendering.colorize Core.Types.Color.Error ("[ " ++ model.cancelText ++ " ]")
+        else
+          "[ " ++ model.cancelText ++ " ]"
+
+      let buttons = confirmButton ++ "  " ++ cancelButton
+      let paddedButtons = Core.Rendering.padText buttons (component.bounds.dimensions.width - 4L) Core.Types.Alignment.Center
+      "│ " ++ paddedButtons ++ " │"
+
+    [topBorder; titleLine; separatorLine; messageLine; emptyLine; buttonLine; bottomBorder]
+
+let selectConfirmButton (component: Core.Types.Component<ConfirmDialogModel>) (buttonIndex: Int64) : Core.Types.Component<ConfirmDialogModel> =
+  let model = component.model
+  if buttonIndex >= 0L && buttonIndex <= 1L then
+    { component with model = { model with selectedButton = buttonIndex } }
+  else
+    component
+
+let showConfirmDialog (component: Core.Types.Component<ConfirmDialogModel>) : Core.Types.Component<ConfirmDialogModel> =
+  let model = component.model
+  { component with model = { model with isVisible = true }; visible = true }
+
+let hideConfirmDialog (component: Core.Types.Component<ConfirmDialogModel>) : Core.Types.Component<ConfirmDialogModel> =
+  let model = component.model
+  { component with model = { model with isVisible = false }; visible = false }
