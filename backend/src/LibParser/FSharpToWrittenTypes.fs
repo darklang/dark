@@ -12,8 +12,6 @@ module PT = LibExecution.ProgramTypes
 
 open Utils
 
-let (|LongIdentPat|_|) (names : List<string>) (input : LongIdent) =
-  if longIdentToList input = names then Some() else None
 
 let (|SynExprLongIdentPat|_|) (names : List<string>) (input : SynExpr) =
   match input with

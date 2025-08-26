@@ -1,72 +1,71 @@
-module Darklang =
-  module Internal =
-    module Test =
-      type WTTest =
-        { name: String
-          lineNumber: Int64
-          actual: LanguageTools.WrittenTypes.Expr
-          expected: LanguageTools.WrittenTypes.Expr }
+module Darklang.Internal.Test
 
-      type PTTest =
-        { name: String
-          lineNumber: Int64
-          actual: LanguageTools.ProgramTypes.Expr
-          expected: LanguageTools.ProgramTypes.Expr }
+type WTTest =
+  { name: String
+    lineNumber: Int64
+    actual: LanguageTools.WrittenTypes.Expr
+    expected: LanguageTools.WrittenTypes.Expr }
 
-      let parseTest
-        (pf: LanguageTools.WrittenTypes.ParsedFile)
-        : Stdlib.Result.Result<WTTest, String> =
-        let exprsToEval =
-          match pf with
-          | SourceFile s -> s.exprsToEval
-          | _ -> []
+type PTTest =
+  { name: String
+    lineNumber: Int64
+    actual: LanguageTools.ProgramTypes.Expr
+    expected: LanguageTools.ProgramTypes.Expr }
 
-        match exprsToEval with
-        | [] -> Stdlib.Result.Result.Error "no exprs to eval"
-        | [ e ] ->
-          match e with
-          | EInfix(r, _, actual, expected) ->
-            (WTTest
-              { name = "test"
-                lineNumber = r.start.row
-                actual = actual
-                expected = expected })
-            |> Stdlib.Result.Result.Ok
+let parseTest
+  (pf: LanguageTools.WrittenTypes.ParsedFile)
+  : Stdlib.Result.Result<WTTest, String> =
+  let exprsToEval =
+    match pf with
+    | SourceFile s -> s.exprsToEval
+    | _ -> []
 
-          | _ -> Stdlib.Result.Result.Error "expected x = y format"
+  match exprsToEval with
+  | [] -> Stdlib.Result.Result.Error "no exprs to eval"
+  | [ e ] ->
+    match e with
+    | EInfix(r, _, actual, expected) ->
+      (WTTest
+        { name = "test"
+          lineNumber = r.start.row
+          actual = actual
+          expected = expected })
+      |> Stdlib.Result.Result.Ok
 
-      let parseSingleTestFromFile
-        (filename: String)
-        (testSource: String)
-        : Stdlib.Result.Result<PTTest, String> =
-        match testSource |> LanguageTools.Parser.TestParsing.initialParse with
-        | Error e -> Stdlib.Result.Result.Error e
-        | Ok parsedFile ->
-          match Test.parseTest parsedFile with
-          | Error e -> Stdlib.Result.Result.Error e
-          | Ok wtTest ->
-            let lineNumber = wtTest.lineNumber
-            let pm = LanguageTools.PackageManager.pm ()
+    | _ -> Stdlib.Result.Result.Error "expected x = y format"
 
-            let (actual, _unres) =
-              LanguageTools.WrittenTypesToProgramTypes.Expr.toPT
-                LanguageTools.NameResolver.OnMissing.ThrowError
-                pm
-                ""
-                []
-                wtTest.actual
+let parseSingleTestFromFile
+  (filename: String)
+  (testSource: String)
+  : Stdlib.Result.Result<PTTest, String> =
+  match testSource |> LanguageTools.Parser.TestParsing.initialParse with
+  | Error e -> Stdlib.Result.Result.Error e
+  | Ok parsedFile ->
+    match Test.parseTest parsedFile with
+    | Error e -> Stdlib.Result.Result.Error e
+    | Ok wtTest ->
+      let lineNumber = wtTest.lineNumber
+      let pm = LanguageTools.PackageManager.pm ()
 
-            let (expected, _unres) =
-              LanguageTools.WrittenTypesToProgramTypes.Expr.toPT
-                LanguageTools.NameResolver.OnMissing.ThrowError
-                pm
-                ""
-                []
-                wtTest.expected
+      let (actual, _unres) =
+        LanguageTools.WrittenTypesToProgramTypes.Expr.toPT
+          LanguageTools.NameResolver.OnMissing.ThrowError
+          pm
+          ""
+          []
+          wtTest.actual
 
-            (PTTest
-              { name = "test"
-                lineNumber = lineNumber
-                actual = actual
-                expected = expected })
-            |> Stdlib.Result.Result.Ok
+      let (expected, _unres) =
+        LanguageTools.WrittenTypesToProgramTypes.Expr.toPT
+          LanguageTools.NameResolver.OnMissing.ThrowError
+          pm
+          ""
+          []
+          wtTest.expected
+
+      (PTTest
+        { name = "test"
+          lineNumber = lineNumber
+          actual = actual
+          expected = expected })
+      |> Stdlib.Result.Result.Ok
