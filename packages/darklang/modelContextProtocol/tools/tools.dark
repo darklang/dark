@@ -1,0 +1,161 @@
+// Tool-related functionality for the Model Context Protocol
+// Enables LLMs to perform actions through the server (expose executable functions that can be invoked by the client)
+
+module Darklang =
+  module ModelContextProtocol =
+    module Tools =
+      // <aliases>
+      type Json = Stdlib.AltJson.Json
+      type ToolDescription = Darklang.ModelContextProtocol.ToolDescription
+      type ToolAnnotations = Darklang.ModelContextProtocol.ToolAnnotations
+      type ToolId = Darklang.ModelContextProtocol.ToolId
+      // </aliases>
+      /// Schema for the listTools request
+      module ListToolsRequest =
+        type ListToolsParams = {
+          cursor: Stdlib.Option.Option<String>
+        }
+
+        let fromJson (json: Json) : Stdlib.Result.Result<ListToolsParams, String> =
+          match json with
+          | Object fields ->
+            let cursorResult =
+              match Stdlib.List.findFirst fields (fun (k, _) -> k == "cursor") with
+              | Some ((_, String cursor)) -> Stdlib.Result.Result.OK (Stdlib.Option.Option.Some cursor)
+              | Some ((_, Null)) -> Stdlib.Result.Result.Ok Stdlib.Option.Option.None
+              | Some ((_, _)) -> Stdlib.Result.Result.Error "cursor must be a string or null"
+              | None -> Stdlib.Result.Result.Ok Stdlib.Option.Option.None
+
+            cursorResult |> Stdlib.Result.map (fun cursor -> ListToolsParams { cursor = cursor })
+          | _ ->
+            Stdlib.Result.Result.Error "params must be an object"
+
+
+      module ListToolsResponse =
+        type ListToolsResponse = {
+          tools: List<ToolDescription>
+          nextCursor: Stdlib.Option.Option<String>
+        }
+
+        module ToolAnnotations =
+          let toJson (annotations: ToolAnnotations) : Json =
+            let titleJson =
+              Stdlib.Option.mapWithDefault annotations.title Json.Null (fun s -> Json.String s)
+
+            let readOnlyHintJson =
+              Stdlib.Option.mapWithDefault annotations.readOnlyHint Json.Null (fun b -> Json.Bool b)
+
+            let destructiveHintJson =
+              Stdlib.Option.mapWithDefault annotations.destructiveHint Json.Null (fun b -> Json.Bool b)
+
+            let idempotentHintJson =
+              Stdlib.Option.mapWithDefault annotations.idempotentHint Json.Null (fun b -> Json.Bool b)
+
+            let openWorldHintJson =
+              Stdlib.Option.mapWithDefault annotations.openWorldHint Json.Null (fun b -> Json.Bool b)
+
+            Json.Object [
+              ("title", titleJson);
+              ("readOnlyHint", readOnlyHintJson);
+              ("destructiveHint", destructiveHintJson);
+              ("idempotentHint", idempotentHintJson);
+              ("openWorldHint", openWorldHintJson)
+            ]
+
+        let toJson (response: ListToolsResponse) : Json =
+          let toolsJson =
+            response.tools
+            |> Stdlib.List.map (fun tool ->
+              let fields = [
+                ("name", Json.String tool.name);
+                ("description", Json.String tool.description);
+                ("inputSchema", tool.inputSchema)
+              ]
+
+              let fieldsWithOutputSchema =
+                match tool.outputSchema with
+                | Some schema ->
+                    Stdlib.List.append fields [("outputSchema", schema)]
+                | None ->
+                    fields
+
+              let fieldsWithAnnotations =
+                match tool.annotations with
+                | Some annotations ->
+                    Stdlib.List.append
+                      fieldsWithOutputSchema
+                      [("annotations", ToolAnnotations.toJson annotations)]
+                | None ->
+                    fieldsWithOutputSchema
+
+              Json.Object fieldsWithAnnotations
+            )
+
+          let nextCursorJson =
+            match response.nextCursor with
+            | Some cursor -> Json.String cursor
+            | None -> Json.Null
+
+          Json.Object [
+            ("tools", Json.Array toolsJson);
+            ("nextCursor", nextCursorJson)
+          ]
+
+
+      module CallToolRequest =
+        type CallToolParams = {
+          name: ToolId
+          arguments: Json // JSON object with tool-specific arguments
+        }
+
+        let fromJson (json: Json) : Stdlib.Result.Result<CallToolParams, String> =
+          match json with
+          | Object fields ->
+            let nameResult =
+              match Stdlib.List.findFirst fields (fun (k, _) -> k == "name") with
+              | Some ((_, String name)) -> Stdlib.Result.Result.Ok name
+              | Some ((_, _)) -> Stdlib.Result.Result.Error "name must be a string"
+              | None -> Stdlib.Result.Result.Error "name is required"
+
+            let argumentsResult =
+              match Stdlib.List.findFirst fields (fun (k, _) -> k == "arguments") with
+              | Some ((_, obj)) when Stdlib.AltJson.isObject obj -> Stdlib.Result.Result.Ok obj
+              | Some ((_, _)) -> Stdlib.Result.Result.Error "arguments must be an object"
+              | None -> Stdlib.Result.Result.Error "arguments is required"
+
+            match (nameResult, argumentsResult) with
+            | (Ok name, Ok arguments) ->
+                Stdlib.Result.Result.Ok (CallToolParams { name = name; arguments = arguments })
+            | (Error e, _) -> Stdlib.Result.Result.Error e
+            | (_, Error e) -> Stdlib.Result.Result.Error e
+          | _ ->
+            Stdlib.Result.Result.Error "params must be an object"
+
+
+      module CallToolResponse =
+        type ContentItem =
+          | TextContent of String
+          // | ImageContent
+          // | AudioContent
+          // | EmbeddedResource
+
+        type CallToolResult = {
+          content: List<ContentItem>
+          isError: Bool
+        }
+
+        let toJson (result: CallToolResult) : Json =
+          let contentJson =
+            result.content
+            |> Stdlib.List.map ( fun item ->
+              match item with
+              | TextContent text -> Json.Object [("type", Json.String "text"); ("text", Json.String text)]
+              | _ ->
+                Json.Object [("type", Json.String "todo"); ("text", Json.String "Unsupported content type")]
+            )
+
+          Json.Object [
+            ("content", Json.Array contentJson);
+            ("isError", Json.Bool result.isError)
+          ]
+
