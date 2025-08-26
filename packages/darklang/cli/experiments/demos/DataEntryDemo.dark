@@ -1,0 +1,392 @@
+module Darklang.Cli.DataEntryDemo
+
+type Pos =
+  | Absolute of Int64
+  | Percent of Int64
+  | Center
+  | Fill
+  | Combine of Pos * Pos
+
+type Size =
+  | Fixed of Int64
+  | Percent of Int64
+  | Fill
+  | Content
+
+type Layout =
+  { x: Pos
+    y: Pos
+    width: Size
+    height: Size }
+
+type Bounds =
+  { x: Int64
+    y: Int64
+    width: Int64
+    height: Int64 }
+
+// ---------- Layout Calculation Functions ----------
+let calculatePos (pos: Pos) (parentSize: Int64) (contentSize: Int64) : Int64 =
+  match pos with
+  | Absolute offset -> offset
+  | Percent pct -> Stdlib.Int64.divide (parentSize * pct) 100L
+  | Center -> Stdlib.Int64.divide (parentSize - contentSize) 2L
+  | Fill -> 0L
+  | Combine (pos1, pos2) ->
+      let val1 = calculatePos pos1 parentSize contentSize
+      let val2 = calculatePos pos2 parentSize contentSize
+      val1 + val2
+
+let calculateSize (size: Size) (parentSize: Int64) (contentSize: Int64) : Int64 =
+  match size with
+  | Fixed s -> s
+  | Percent pct -> Stdlib.Int64.divide (parentSize * pct) 100L
+  | Fill -> parentSize
+  | Content -> contentSize
+
+let calculateBounds (layout: Layout) (parentBounds: Bounds) (contentSize: (Int64 * Int64)) : Bounds =
+  let (contentWidth, contentHeight) = contentSize
+  let width = calculateSize layout.width parentBounds.width contentWidth
+  let height = calculateSize layout.height parentBounds.height contentHeight
+  let x = parentBounds.x + calculatePos layout.x parentBounds.width width
+  let y = parentBounds.y + calculatePos layout.y parentBounds.height height
+  Bounds { x = x; y = y; width = width; height = height }
+
+// ---------- Task Management Model ----------
+type Task =
+  { id: Int64
+    title: String
+    description: String
+    priority: String
+    status: String
+    assignee: String }
+
+type FilterBy = | All | High | Medium | Low | Completed | Pending
+
+type FormField = | Title | Description | Priority | Status | Assignee
+
+type TaskModel =
+  { tasks: List<Task>
+    selectedTaskIndex: Int64
+    nextId: Int64
+    filter: FilterBy
+    showForm: Bool
+    formTask: Task
+    selectedFormField: FormField
+    viewMode: String }
+
+// ---------- Task Messages ----------
+type TaskMsg =
+  | AddTask of Task
+  | UpdateTask of Int64 * Task
+  | DeleteTask of Int64
+  | SelectTask of Int64
+  | SetFilter of FilterBy
+  | ShowAddForm
+  | ShowEditForm of Int64
+  | HideForm
+  | UpdateFormField of FormField * String
+  | SubmitForm
+  | CancelForm
+  | SelectFormField of FormField
+  | ToggleViewMode
+  | NextTask
+  | PreviousTask
+
+// ---------- Model Functions ----------
+let initTask (id: Int64) : Task =
+  Task { id = id; title = ""; description = ""; priority = "Medium"; status = "Pending"; assignee = "" }
+
+let initTaskModel () : TaskModel =
+  let sampleTasks =
+    [ Task { id = 1L; title = "Setup CI/CD"; description = "Configure GitHub Actions"; priority = "High"; status = "Pending"; assignee = "Alice" }
+    ; Task { id = 2L; title = "Write Tests"; description = "Add unit tests for core modules"; priority = "Medium"; status = "In Progress"; assignee = "Bob" }
+    ; Task { id = 3L; title = "Update Docs"; description = "Refresh API documentation"; priority = "Low"; status = "Completed"; assignee = "Carol" } ]
+
+  TaskModel
+    { tasks = sampleTasks
+      selectedTaskIndex = 0L
+      nextId = 4L
+      filter = FilterBy.All
+      showForm = false
+      formTask = initTask 0L
+      selectedFormField = FormField.Title
+      viewMode = "list" }
+
+// ---------- Update Functions ----------
+let updateTaskModel (model: TaskModel) (msg: TaskMsg) : TaskModel =
+  match msg with
+  | AddTask task ->
+      let newTask = { task with id = model.nextId }
+      { model with
+          tasks = Stdlib.List.append model.tasks [newTask]
+          nextId = model.nextId + 1L
+          showForm = false
+          formTask = initTask 0L }
+
+  | UpdateTask (id, updatedTask) ->
+      let newTasks =
+        model.tasks
+        |> Stdlib.List.map (fun t ->
+          if t.id == id then updatedTask
+          else t)
+      { model with
+          tasks = newTasks
+          showForm = false
+          formTask = initTask 0L }
+
+  | DeleteTask id ->
+      let newTasks =
+        model.tasks
+        |> Stdlib.List.filter (fun t -> t.id != id)
+      let newIndex =
+        if model.selectedTaskIndex >= Stdlib.List.length newTasks then
+          Stdlib.Int64.max 0L (Stdlib.List.length newTasks - 1L)
+        else
+          model.selectedTaskIndex
+      { model with
+          tasks = newTasks
+          selectedTaskIndex = newIndex }
+
+  | SelectTask index ->
+      { model with selectedTaskIndex = index }
+
+  | SetFilter filter ->
+      { model with filter = filter; selectedTaskIndex = 0L }
+
+  | ShowAddForm ->
+      { model with
+          showForm = true
+          formTask = initTask 0L
+          selectedFormField = FormField.Title }
+
+  | ShowEditForm id ->
+      match Stdlib.List.findFirst model.tasks (fun t -> t.id == id) with
+      | Some task ->
+          { model with
+              showForm = true
+              formTask = task
+              selectedFormField = FormField.Title }
+      | None -> model
+
+  | HideForm ->
+      { model with
+          showForm = false
+          formTask = initTask 0L }
+
+  | UpdateFormField (field, value) ->
+      let updatedTask =
+        match field with
+        | Title -> { model.formTask with title = value }
+        | Description -> { model.formTask with description = value }
+        | Priority -> { model.formTask with priority = value }
+        | Status -> { model.formTask with status = value }
+        | Assignee -> { model.formTask with assignee = value }
+      { model with formTask = updatedTask }
+
+  | SubmitForm ->
+      if model.formTask.id == 0L then
+        updateTaskModel model (TaskMsg.AddTask model.formTask)
+      else
+        updateTaskModel model (TaskMsg.UpdateTask (model.formTask.id, model.formTask))
+
+  | CancelForm ->
+      updateTaskModel model TaskMsg.HideForm
+
+  | SelectFormField field ->
+      { model with selectedFormField = field }
+
+  | ToggleViewMode ->
+      let newMode = if model.viewMode == "list" then "table" else "list"
+      { model with viewMode = newMode }
+
+  | NextTask ->
+      let maxIndex = Stdlib.List.length (getFilteredTasks model) - 1L
+      let newIndex =
+        if model.selectedTaskIndex < maxIndex then
+          model.selectedTaskIndex + 1L
+        else
+          0L
+      { model with selectedTaskIndex = newIndex }
+
+  | PreviousTask ->
+      let maxIndex = Stdlib.List.length (getFilteredTasks model) - 1L
+      let newIndex =
+        if model.selectedTaskIndex > 0L then
+          model.selectedTaskIndex - 1L
+        else
+          maxIndex
+      { model with selectedTaskIndex = newIndex }
+
+// ---------- View Helper Functions ----------
+let getFilteredTasks (model: TaskModel) : List<Task> =
+  match model.filter with
+  | All -> model.tasks
+  | High -> model.tasks |> Stdlib.List.filter (fun t -> t.priority == "High")
+  | Medium -> model.tasks |> Stdlib.List.filter (fun t -> t.priority == "Medium")
+  | Low -> model.tasks |> Stdlib.List.filter (fun t -> t.priority == "Low")
+  | Completed -> model.tasks |> Stdlib.List.filter (fun t -> t.status == "Completed")
+  | Pending -> model.tasks |> Stdlib.List.filter (fun t -> t.status == "Pending")
+
+let formatTaskForList (task: Task) (isSelected: Bool) : String =
+  let selector =
+    if isSelected then
+      (Colors.boldText "> ")
+    else
+      "  "
+  let priorityColor =
+    match task.priority with
+    | "High" -> Colors.error
+    | "Medium" -> Colors.warning
+    | "Low" -> Colors.info
+    | _ -> fun x -> x
+  let statusColor =
+    match task.status with
+    | "Completed" -> Colors.success
+    | "In Progress" -> Colors.warning
+    | _ -> Colors.dimText
+
+  let title =
+    if Stdlib.String.length task.title > 20L then
+      Stdlib.String.slice task.title 0L 17L ++ "..."
+    else
+      task.title
+
+  selector ++ priorityColor $"[{task.priority}]" ++ " " ++
+  statusColor title ++ " " ++
+  Colors.hint $"({task.assignee})"
+
+// ---------- View Functions ----------
+let viewTaskForm (model: TaskModel) : String =
+  let title = if model.formTask.id == 0L then "Add New Task" else "Edit Task"
+
+  let fields =
+    [ UIComponents.Input.field "Title" model.formTask.title (model.selectedFormField == FormField.Title)
+    ; UIComponents.Input.field "Description" model.formTask.description (model.selectedFormField == FormField.Description)
+    ; UIComponents.Input.field "Priority" model.formTask.priority (model.selectedFormField == FormField.Priority)
+    ; UIComponents.Input.field "Status" model.formTask.status (model.selectedFormField == FormField.Status)
+    ; UIComponents.Input.field "Assignee" model.formTask.assignee (model.selectedFormField == FormField.Assignee) ]
+
+  let buttons =
+    "[ " ++ Colors.boldText (Colors.success " Save ") ++ " ]" ++ "  " ++
+    "( " ++ Colors.boldText " Cancel " ++ " )"
+
+  UIComponents.Modal.create title (fields |> Stdlib.List.append [buttons]) []
+
+let viewTaskList (model: TaskModel) : String =
+  let filteredTasks = getFilteredTasks model
+
+  let header = UIComponents.Tabs.create ["All"; "High"; "Medium"; "Low"; "Completed"] 0L
+
+  let taskItems =
+    filteredTasks
+    |> Stdlib.List.indexedMap (fun index task ->
+      formatTaskForList task (index == model.selectedTaskIndex))
+    |> Stdlib.String.join "\n"
+
+  let stats =
+    let total = Stdlib.List.length model.tasks
+    let completed = model.tasks |> Stdlib.List.filter (fun t -> t.status == "Completed") |> Stdlib.List.length
+    let progress = if total == 0L then 0L else Stdlib.Int64.divide (completed * 100L) total
+    "\n" ++ UIComponents.Progress.bar completed total 30L
+
+  header ++ "\n\n" ++ taskItems ++ stats
+
+let viewTaskTable (model: TaskModel) : String =
+  let filteredTasks = getFilteredTasks model
+
+  let headers = ["ID"; "Title"; "Priority"; "Status"; "Assignee"]
+  let rows =
+    filteredTasks
+    |> Stdlib.List.map (fun task ->
+      [ Stdlib.Int64.toString task.id
+      ; task.title
+      ; task.priority
+      ; task.status
+      ; task.assignee ])
+
+  UIComponents.Table.create headers rows
+
+let viewTaskModel (model: TaskModel) : String =
+  if model.showForm then
+    viewTaskForm model
+  else
+    let mainView =
+      if model.viewMode == "table" then
+        viewTaskTable model
+      else
+        viewTaskList model
+
+    let controls =
+      "\n\n" ++ Colors.hint "Controls:" ++
+      "\n  ↑/↓: Navigate | A: Add | E: Edit | D: Delete" ++
+      "\n  F: Filter | V: View Mode | Q: Quit"
+
+    Colors.boldText "=== Task Manager ===" ++ "\n\n" ++ mainView ++ controls
+
+
+// ---------- Main MVU Loop ----------
+let mvuLoop (model: TaskModel) : Int64 =
+  // Clear screen and render
+  Stdlib.print "\u001b[2J\u001b[H"
+  Stdlib.printLine (viewTaskModel model)
+
+  // Read input
+  let keyInput = Stdlib.Cli.Stdin.readKey ()
+
+  // Process input
+  let newModel =
+    if model.showForm then
+      // Form navigation
+      match keyInput.key with
+      | UpArrow ->
+          let newField =
+            match model.selectedFormField with
+            | Description -> FormField.Title
+            | Priority -> FormField.Description
+            | Status -> FormField.Priority
+            | Assignee -> FormField.Status
+            | Title -> FormField.Assignee
+          updateTaskModel model (TaskMsg.SelectFormField newField)
+      | DownArrow ->
+          let newField =
+            match model.selectedFormField with
+            | Title -> FormField.Description
+            | Description -> FormField.Priority
+            | Priority -> FormField.Status
+            | Status -> FormField.Assignee
+            | Assignee -> FormField.Title
+          updateTaskModel model (TaskMsg.SelectFormField newField)
+      | Enter -> updateTaskModel model TaskMsg.SubmitForm
+      | Escape -> updateTaskModel model TaskMsg.CancelForm
+      | _ -> model
+    else
+      // Main navigation
+      match keyInput.key with
+      | UpArrow -> updateTaskModel model TaskMsg.PreviousTask
+      | DownArrow -> updateTaskModel model TaskMsg.NextTask
+      | A -> updateTaskModel model TaskMsg.ShowAddForm
+      | E ->
+          let filteredTasks = getFilteredTasks model
+          match Stdlib.List.getAt filteredTasks model.selectedTaskIndex with
+          | Some task -> updateTaskModel model (TaskMsg.ShowEditForm task.id)
+          | None -> model
+      | D ->
+          let filteredTasks = getFilteredTasks model
+          match Stdlib.List.getAt filteredTasks model.selectedTaskIndex with
+          | Some task -> updateTaskModel model (TaskMsg.DeleteTask task.id)
+          | None -> model
+      | V -> updateTaskModel model TaskMsg.ToggleViewMode
+      | Q -> model
+      | _ -> model
+
+  match keyInput.key with
+  | Q ->
+      Stdlib.print "\u001b[2J\u001b[H"
+      Stdlib.printLine "Exiting Task Manager..."
+      0L
+  | _ -> mvuLoop newModel
+
+let runDataEntryDemo (unit: Unit) : Int64 =
+  let initialModel = initTaskModel ()
+  mvuLoop initialModel

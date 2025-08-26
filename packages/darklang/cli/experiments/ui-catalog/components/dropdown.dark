@@ -1,0 +1,267 @@
+module Darklang.Cli.Experiments.UICatalog.Components.Dropdown
+
+// Dropdown Item Type
+type DropdownItem =
+  { id: String
+    label: String
+    value: String
+    disabled: Bool
+    separator: Bool }
+
+// Simple Dropdown Component
+type DropdownModel =
+  { items: List<DropdownItem>
+    selectedIndex: Int64
+    isOpen: Bool
+    placeholder: String
+    disabled: Bool
+    maxHeight: Int64 }
+
+let createDropdown (placeholder: String) (items: List<DropdownItem>) : Core.Types.Component<DropdownModel> =
+  let model = DropdownModel { items = items; selectedIndex = -1L; isOpen = false; placeholder = placeholder; disabled = false; maxHeight = 8L }
+  let maxWidth =
+    items
+    |> Stdlib.List.map (fun item -> Stdlib.String.length item.label)
+    |> Stdlib.List.append [Stdlib.String.length placeholder]
+    |> Stdlib.List.fold 20L (fun acc len -> if len > acc then len else acc)
+  let height = if model.isOpen then Stdlib.Int64.min model.maxHeight (Stdlib.List.length items + 2L) else 1L
+  let bounds = Core.Types.Bounds { position = Core.Types.Position { x = 0L; y = 0L }; dimensions = Core.Types.Dimensions { width = maxWidth + 4L; height = height } }
+  Core.Types.Component
+    { id = "dropdown"
+      model = model
+      state = Core.Types.ComponentState.Normal
+      bounds = bounds
+      visible = true
+      focusable = true }
+
+let renderDropdown (component: Core.Types.Component<DropdownModel>) (context: Core.Types.RenderContext) : List<String> =
+  let model = component.model
+  let hasFocus = context.hasFocus && component.state == Core.Types.ComponentState.Focused
+
+  let displayText =
+    if model.selectedIndex >= 0L then
+      match Stdlib.List.getAt model.items model.selectedIndex with
+      | Some item -> item.label
+      | None -> model.placeholder
+    else
+      model.placeholder
+
+  let paddedText = Core.Rendering.padText displayText (component.bounds.dimensions.width - 6L) Core.Types.Alignment.Left
+  let arrow = if model.isOpen then "▲" else "▼"
+  let focusIndicator = if hasFocus then "► " else "  "
+  let borderColor = if model.disabled then Core.Types.Color.Dark else Core.Types.Color.Default
+
+  let mainLine =
+    let border = Core.Rendering.colorize borderColor ("┌─" ++ paddedText ++ "─" ++ arrow ++ "─┐")
+    focusIndicator ++ border
+
+  if model.isOpen then
+    let visibleItems =
+      model.items
+      |> Stdlib.List.take model.maxHeight
+      |> Stdlib.List.indexedMap (fun i item ->
+          if item.separator then
+            "  ├" ++ Stdlib.String.repeat "─" (component.bounds.dimensions.width - 4L) ++ "┤"
+          else
+            let isSelected = i == model.selectedIndex
+            let isHovered = hasFocus && i == model.selectedIndex
+            let prefix = if isSelected then "●" else " "
+
+            let itemColor =
+              if item.disabled then Core.Types.Color.Dark
+              else if isHovered then Core.Types.Color.Primary
+              else Core.Types.Color.Default
+
+            let styledLabel = Core.Rendering.colorize itemColor (prefix ++ " " ++ item.label)
+            let paddedLabel = Core.Rendering.padText styledLabel (component.bounds.dimensions.width - 4L) Core.Types.Alignment.Left
+            "  │ " ++ paddedLabel ++ " │")
+
+    let bottomBorder = "  └" ++ Stdlib.String.repeat "─" (component.bounds.dimensions.width - 4L) ++ "┘"
+    [mainLine]
+    |> Stdlib.List.append visibleItems
+    |> Stdlib.List.append [bottomBorder]
+  else
+    [mainLine]
+
+let selectDropdownItem (component: Core.Types.Component<DropdownModel>) (index: Int64) : Core.Types.Component<DropdownModel> =
+  let model = component.model
+  if index >= 0L && index < Stdlib.List.length model.items then
+    match Stdlib.List.getAt model.items index with
+    | Some item ->
+        if item.disabled || item.separator then
+          component
+        else
+          { component with model = { model with selectedIndex = index; isOpen = false } }
+    | None -> component
+  else
+    component
+
+let toggleDropdown (component: Core.Types.Component<DropdownModel>) : Core.Types.Component<DropdownModel> =
+  let model = component.model
+  if model.disabled then
+    component
+  else
+    { component with model = { model with isOpen = Stdlib.Bool.not model.isOpen } }
+
+let openDropdown (component: Core.Types.Component<DropdownModel>) : Core.Types.Component<DropdownModel> =
+  let model = component.model
+  { component with model = { model with isOpen = true } }
+
+let closeDropdown (component: Core.Types.Component<DropdownModel>) : Core.Types.Component<DropdownModel> =
+  let model = component.model
+  { component with model = { model with isOpen = false } }
+
+// Multi-Select Dropdown Component
+type MultiSelectModel =
+  { items: List<DropdownItem>
+    selectedIndices: List<Int64>
+    isOpen: Bool
+    placeholder: String
+    disabled: Bool
+    maxHeight: Int64
+    maxSelections: Int64 }
+
+let createMultiSelect (placeholder: String) (items: List<DropdownItem>) (maxSelections: Int64) : Core.Types.Component<MultiSelectModel> =
+  let model = MultiSelectModel { items = items; selectedIndices = []; isOpen = false; placeholder = placeholder; disabled = false; maxHeight = 8L; maxSelections = maxSelections }
+  let maxWidth =
+    items
+    |> Stdlib.List.map (fun item -> Stdlib.String.length item.label)
+    |> Stdlib.List.append [Stdlib.String.length placeholder]
+    |> Stdlib.List.fold 25L (fun acc len -> if len > acc then len else acc)
+  let height = if model.isOpen then Stdlib.Int64.min model.maxHeight (Stdlib.List.length items + 2L) else 1L
+  let bounds = Core.Types.Bounds { position = Core.Types.Position { x = 0L; y = 0L }; dimensions = Core.Types.Dimensions { width = maxWidth + 4L; height = height } }
+  Core.Types.Component
+    { id = "multiselect"
+      model = model
+      state = Core.Types.ComponentState.Normal
+      bounds = bounds
+      visible = true
+      focusable = true }
+
+let renderMultiSelect (component: Core.Types.Component<MultiSelectModel>) (context: Core.Types.RenderContext) : List<String> =
+  let model = component.model
+  let hasFocus = context.hasFocus && component.state == Core.Types.ComponentState.Focused
+
+  let displayText =
+    if Stdlib.List.isEmpty model.selectedIndices then
+      model.placeholder
+    else
+      let selectedCount = Stdlib.List.length model.selectedIndices
+      Stdlib.Int64.toString selectedCount ++ " selected"
+
+  let paddedText = Core.Rendering.padText displayText (component.bounds.dimensions.width - 6L) Core.Types.Alignment.Left
+  let arrow = if model.isOpen then "▲" else "▼"
+  let focusIndicator = if hasFocus then "► " else "  "
+  let borderColor = if model.disabled then Core.Types.Color.Dark else Core.Types.Color.Default
+
+  let mainLine =
+    let border = Core.Rendering.colorize borderColor ("┌─" ++ paddedText ++ "─" ++ arrow ++ "─┐")
+    focusIndicator ++ border
+
+  if model.isOpen then
+    let visibleItems =
+      model.items
+      |> Stdlib.List.take model.maxHeight
+      |> Stdlib.List.indexedMap (fun i item ->
+          if item.separator then
+            "  ├" ++ Stdlib.String.repeat "─" (component.bounds.dimensions.width - 4L) ++ "┤"
+          else
+            let isSelected = Stdlib.List.``member`` model.selectedIndices i
+            let checkMark = if isSelected then "☑" else "☐"
+
+            let itemColor =
+              if item.disabled then Core.Types.Color.Dark
+              else if isSelected then Core.Types.Color.Success
+              else Core.Types.Color.Default
+
+            let styledLabel = Core.Rendering.colorize itemColor (checkMark ++ " " ++ item.label)
+            let paddedLabel = Core.Rendering.padText styledLabel (component.bounds.dimensions.width - 4L) Core.Types.Alignment.Left
+            "  │ " ++ paddedLabel ++ " │")
+
+    let bottomBorder = "  └" ++ Stdlib.String.repeat "─" (component.bounds.dimensions.width - 4L) ++ "┘"
+    [mainLine]
+    |> Stdlib.List.append visibleItems
+    |> Stdlib.List.append [bottomBorder]
+  else
+    [mainLine]
+
+let toggleMultiSelectItem (component: Core.Types.Component<MultiSelectModel>) (index: Int64) : Core.Types.Component<MultiSelectModel> =
+  let model = component.model
+  if index >= 0L && index < Stdlib.List.length model.items then
+    match Stdlib.List.getAt model.items index with
+    | Some item ->
+        if item.disabled || item.separator then
+          component
+        else
+          let isSelected = Stdlib.List.``member`` model.selectedIndices index
+          let newSelectedIndices =
+            if isSelected then
+              Stdlib.List.filter model.selectedIndices (fun i -> i != index)
+            else
+              if Stdlib.List.length model.selectedIndices < model.maxSelections then
+                model.selectedIndices
+                |> Stdlib.List.append [index]
+              else
+                model.selectedIndices
+          { component with model = { model with selectedIndices = newSelectedIndices } }
+    | None -> component
+  else
+    component
+
+// Context Menu Component
+type ContextMenuModel =
+  { items: List<DropdownItem>
+    isVisible: Bool
+    position: Core.Types.Position }
+
+let createContextMenu (items: List<DropdownItem>) : Core.Types.Component<ContextMenuModel> =
+  let model = ContextMenuModel { items = items; isVisible = false; position = Core.Types.Position { x = 0L; y = 0L } }
+  let maxWidth =
+    items
+    |> Stdlib.List.map (fun item -> Stdlib.String.length item.label + 4L)
+    |> Stdlib.List.fold 15L (fun acc len -> if len > acc then len else acc)
+  let height = Stdlib.List.length items + 2L
+  let bounds = Core.Types.Bounds { position = model.position; dimensions = Core.Types.Dimensions { width = maxWidth; height = height } }
+  Core.Types.Component
+    { id = "contextmenu"
+      model = model
+      state = Core.Types.ComponentState.Normal
+      bounds = bounds
+      visible = model.isVisible
+      focusable = true }
+
+let renderContextMenu (component: Core.Types.Component<ContextMenuModel>) (context: Core.Types.RenderContext) : List<String> =
+  let model = component.model
+  if Stdlib.Bool.not model.isVisible then
+    []
+  else
+    let hasFocus = context.hasFocus && component.state == Core.Types.ComponentState.Focused
+
+    let topBorder = "┌" ++ Stdlib.String.repeat "─" (component.bounds.dimensions.width - 2L) ++ "┐"
+    let bottomBorder = "└" ++ Stdlib.String.repeat "─" (component.bounds.dimensions.width - 2L) ++ "┘"
+
+    let menuItems =
+      model.items
+      |> Stdlib.List.map (fun item ->
+          if item.separator then
+            "├" ++ Stdlib.String.repeat "─" (component.bounds.dimensions.width - 2L) ++ "┤"
+          else
+            let itemColor = if item.disabled then Core.Types.Color.Dark else Core.Types.Color.Default
+            let paddedLabel = Core.Rendering.padText item.label (component.bounds.dimensions.width - 4L) Core.Types.Alignment.Left
+            let styledLabel = Core.Rendering.colorize itemColor paddedLabel
+            "│ " ++ styledLabel ++ " │")
+
+    [topBorder]
+    |> Stdlib.List.append menuItems
+    |> Stdlib.List.append [bottomBorder]
+
+let showContextMenu (component: Core.Types.Component<ContextMenuModel>) (position: Core.Types.Position) : Core.Types.Component<ContextMenuModel> =
+  let model = component.model
+  { component with
+      model = { model with isVisible = true; position = position }
+      bounds = { component.bounds with position = position }
+      visible = true }
+
+let hideContextMenu (component: Core.Types.Component<ContextMenuModel>) : Core.Types.Component<ContextMenuModel> =
+  let model = component.model
+  { component with model = { model with isVisible = false }; visible = false }

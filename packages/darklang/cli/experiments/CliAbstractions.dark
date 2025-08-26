@@ -1,0 +1,333 @@
+module Darklang.Cli.Experiments
+
+
+module Abstractions =
+// ==========================================
+// Enhanced CLI Abstractions and Utilities
+// ==========================================
+
+
+module Screen =
+  let clear () : Unit =
+    Stdlib.print "\u001b[2J\u001b[H"
+
+  let clearLine () : Unit =
+    Stdlib.print "\u001b[2K\r"
+
+  let moveCursor (x: Int64) (y: Int64) : Unit =
+    Stdlib.print ("\u001b[" ++ Stdlib.Int64.toString y ++ ";" ++ Stdlib.Int64.toString x ++ "H")
+
+  let saveCursor () : Unit =
+    Stdlib.print "\u001b[s"
+
+  let restoreCursor () : Unit =
+    Stdlib.print "\u001b[u"
+
+  let hideCursor () : Unit =
+    Stdlib.print "\u001b[?25l"
+
+  let showCursor () : Unit =
+    Stdlib.print "\u001b[?25h"
+
+  let getSize () : (Int64 * Int64) =
+    // Default to 80x24 if unable to detect
+    (80L, 24L)
+
+
+module Input =
+  type InputResult = { text: String; cancelled: Bool }
+
+  let readLineLoop (current: String) : InputResult =
+    let key = Stdlib.Cli.Stdin.readKey ()
+    match key.key with
+    | Enter -> InputResult { text = current; cancelled = false }
+    | Escape -> InputResult { text = ""; cancelled = true }
+    | Backspace ->
+        if Stdlib.String.length current > 0L then
+          let newText = Stdlib.String.slice current 0L (Stdlib.String.length current - 1L)
+          Stdlib.print "\b \b"
+          readLineLoop newText
+        else
+          readLineLoop current
+    | _ ->
+        if key.keyChar != "" then
+          Stdlib.print key.keyChar
+          readLineLoop (current ++ key.keyChar)
+        else
+          readLineLoop current
+
+  let readLine (prompt: String) : InputResult =
+    Stdlib.print prompt
+    readLineLoop ""
+
+  let readPasswordLoop (current: String) : InputResult =
+    let key = Stdlib.Cli.Stdin.readKey ()
+    match key.key with
+    | Enter -> InputResult { text = current; cancelled = false }
+    | Escape -> InputResult { text = ""; cancelled = true }
+    | Backspace ->
+        if Stdlib.String.length current > 0L then
+          let newText = Stdlib.String.slice current 0L (Stdlib.String.length current - 1L)
+          Stdlib.print "\b \b"
+          readPasswordLoop newText
+        else
+          readPasswordLoop current
+    | _ ->
+        if key.keyChar != "" then
+          Stdlib.print "*"
+          readPasswordLoop (current ++ key.keyChar)
+        else
+          readPasswordLoop current
+
+  let readPassword (prompt: String) : InputResult =
+    Stdlib.print prompt
+    readPasswordLoop ""
+
+  let confirm (message: String) : Bool =
+    Stdlib.print (message ++ " (y/N): ")
+    let key = Stdlib.Cli.Stdin.readKey ()
+    if key.keyChar == "y" || key.keyChar == "Y" then
+      Stdlib.printLine "y"
+      true
+    else
+      Stdlib.printLine "n"
+      false
+
+
+module Progress =
+  type ProgressBar = { current: Int64; total: Int64; width: Int64; message: String }
+
+  let create (total: Int64) (width: Int64) (message: String) : ProgressBar =
+    ProgressBar { current = 0L; total = total; width = width; message = message }
+
+  let update (bar: ProgressBar) (current: Int64) : ProgressBar =
+    ProgressBar { bar with current = current }
+
+  let render (bar: ProgressBar) : Unit =
+    let percentage = if bar.total == 0L then 0L else Stdlib.Int64.divide (bar.current * 100L) bar.total
+    let filled = if bar.total == 0L then 0L else Stdlib.Int64.divide (bar.current * bar.width) bar.total
+    let empty = bar.width - filled
+
+    let progressStr = "[" ++ Stdlib.String.repeat "█" filled ++ Stdlib.String.repeat "░" empty ++ "]"
+    let statusStr = " " ++ Stdlib.Int64.toString bar.current ++ "/" ++ Stdlib.Int64.toString bar.total ++ " (" ++ Stdlib.Int64.toString percentage ++ "%)"
+
+    Screen.clearLine ()
+    Stdlib.print (bar.message ++ " " ++ progressStr ++ statusStr)
+
+  let finish (bar: ProgressBar) : Unit =
+    render (update bar bar.total)
+    Stdlib.printLine ""
+
+
+module Spinner =
+  type Spinner = { frames: List<String>; current: Int64; message: String }
+
+  let create (message: String) : Spinner =
+    Spinner { frames = ["⠋"; "⠙"; "⠹"; "⠸"; "⠼"; "⠴"; "⠦"; "⠧"; "⠇"; "⠏"]; current = 0L; message = message }
+
+  let next (spinner: Spinner) : Spinner =
+    let newCurrent = (spinner.current + 1L) % Stdlib.List.length spinner.frames
+    Spinner { spinner with current = newCurrent }
+
+  let render (spinner: Spinner) : Unit =
+    match Stdlib.List.getAt spinner.frames spinner.current with
+    | Some frame ->
+        Screen.clearLine ()
+        Stdlib.print (frame ++ " " ++ spinner.message)
+    | None -> ()
+
+  let stop (spinner: Spinner) (finalMessage: String) : Unit =
+    Screen.clearLine ()
+    Stdlib.printLine ("✓ " ++ finalMessage)
+
+
+module Menu =
+  type MenuItem = { label: String; value: String; enabled: Bool }
+  type MenuResult = { selectedValue: String; cancelled: Bool }
+
+  let menuLoop (title: String) (items: List<MenuItem>) (selectedIndex: Int64) : MenuResult =
+    Screen.clear ()
+    Stdlib.printLine (Colors.boldText title)
+    Stdlib.printLine ""
+
+    items
+    |> Stdlib.List.indexedMap (fun i item ->
+      let marker = if i == selectedIndex then "▶ " else "  "
+      let text = if item.enabled then item.label else Colors.dimText item.label
+      let display = if i == selectedIndex then Colors.boldText (Colors.info text) else text
+      Stdlib.printLine (marker ++ display))
+
+    Stdlib.printLine ""
+    Stdlib.printLine (Colors.hint "Use ↑/↓ to navigate, Enter to select, Esc to cancel")
+
+    let key = Stdlib.Cli.Stdin.readKey ()
+    match key.key with
+    | UpArrow ->
+        let newIndex = if selectedIndex > 0L then selectedIndex - 1L else Stdlib.List.length items - 1L
+        menuLoop title items newIndex
+    | DownArrow ->
+        let newIndex = if selectedIndex < Stdlib.List.length items - 1L then selectedIndex + 1L else 0L
+        menuLoop title items newIndex
+    | Enter ->
+        match Stdlib.List.getAt items selectedIndex with
+        | Some item when item.enabled -> MenuResult { selectedValue = item.value; cancelled = false }
+        | _ -> menuLoop title items selectedIndex
+    | Escape ->
+        MenuResult { selectedValue = ""; cancelled = true }
+    | _ -> menuLoop title items selectedIndex
+
+  let show (title: String) (items: List<MenuItem>) : MenuResult =
+    menuLoop title items 0L
+
+
+module Table =
+  type TableColumn = { header: String; width: Int64; align: String }
+  type TableData = List<List<String>>
+
+  let display (columns: List<TableColumn>) (data: TableData) : Unit =
+    // Print header
+    let headerLine =
+      columns
+      |> Stdlib.List.map (fun col ->
+        let padding = col.width - Stdlib.String.length col.header
+        col.header ++ Stdlib.String.repeat " " padding)
+      |> Stdlib.String.join " │ "
+
+    Stdlib.printLine ("│ " ++ headerLine ++ " │")
+
+    // Print separator
+    let separator =
+      columns
+      |> Stdlib.List.map (fun col -> Stdlib.String.repeat "─" col.width)
+      |> Stdlib.String.join "─┼─"
+
+    Stdlib.printLine ("├─" ++ separator ++ "─┤")
+
+    // Print data rows
+    data
+    |> Stdlib.List.iter (fun row ->
+      let rowLine =
+        row
+        |> Stdlib.List.indexedMap (fun i cell ->
+          match Stdlib.List.getAt columns i with
+          | Some col ->
+              let truncated =
+                if Stdlib.String.length cell > col.width then
+                  Stdlib.String.slice cell 0L (col.width - 3L) ++ "..."
+                else
+                  cell
+              let padding = col.width - Stdlib.String.length truncated
+              truncated ++ Stdlib.String.repeat " " padding
+          | None -> cell)
+        |> Stdlib.String.join " │ "
+
+      Stdlib.printLine ("│ " ++ rowLine ++ " │"))
+
+
+module Form =
+  type FieldType = | Text | Password | Number | Email | Choice of List<String>
+  type FormField = { name: String; label: String; fieldType: FieldType; required: Bool; value: String }
+  type FormResult = { values: List<(String * String)>; cancelled: Bool }
+
+  let createField (name: String) (label: String) (fieldType: FieldType) (required: Bool) : FormField =
+    FormField { name = name; label = label; fieldType = fieldType; required = required; value = "" }
+
+  let show (title: String) (fields: List<FormField>) : FormResult =
+    Screen.clear ()
+    Stdlib.printLine (Colors.boldText title)
+    Stdlib.printLine ""
+
+    let (results, cancelled) =
+      fields
+      |> Stdlib.List.fold ([], false) (fun (acc, wasCancelled) field ->
+        if wasCancelled then
+          (acc, true)
+        else
+          let prompt = field.label ++ (if field.required then " *" else "") ++ ": "
+          let result =
+            match field.fieldType with
+            | Text -> Input.readLine prompt
+            | Password -> Input.readPassword prompt
+            | Number -> Input.readLine prompt
+            | Email -> Input.readLine prompt
+            | Choice options ->
+                let menuItems = options |> Stdlib.List.map (fun opt -> Menu.MenuItem { label = opt; value = opt; enabled = true })
+                let menuResult = Menu.show ("Select " ++ field.label) menuItems
+                Input.InputResult { text = menuResult.selectedValue; cancelled = menuResult.cancelled }
+
+          if result.cancelled then
+            (acc, true)
+          else
+            (acc ++ [(field.name, result.text)], false))
+
+    FormResult { values = results; cancelled = cancelled }
+
+
+module Notifications =
+  type NotificationType = | Info | Success | Warning | Error
+  type Notification = { message: String; notificationType: NotificationType; timestamp: String }
+
+  let show (notification: Notification) : Unit =
+    let icon =
+      match notification.notificationType with
+      | Info -> "ℹ"
+      | Success -> "✓"
+      | Warning -> "⚠"
+      | Error -> "✗"
+
+    let color =
+      match notification.notificationType with
+      | Info -> Colors.info
+      | Success -> Colors.success
+      | Warning -> Colors.warning
+      | Error -> Colors.error
+
+    Stdlib.printLine (color (icon ++ " " ++ notification.message))
+
+  let showToast (message: String) (notificationType: NotificationType) (durationMs: Int64) : Unit =
+    let notification = Notification { message = message; notificationType = notificationType; timestamp = "now" }
+    show notification
+    // In a real implementation, this would use a timer to hide the toast
+    // For demo purposes, we'll just show it immediately
+
+
+module Args =
+  type ArgValue = | StringValue of String | IntValue of Int64 | BoolValue of Bool
+  type ParsedArgs = List<(String * ArgValue)>
+
+  let parseArgsLoop (remaining: List<String>) (result: ParsedArgs) : ParsedArgs =
+    match remaining with
+    | [] -> result
+    | flag :: value :: rest when Stdlib.String.startsWith flag "--" ->
+        let key = Stdlib.String.dropFirst flag 2L
+        let parsedValue =
+          if value == "true" then BoolValue true
+          else if value == "false" then BoolValue false
+          else
+            match Stdlib.Int64.parse value with
+            | Ok intVal -> IntValue intVal
+            | Error _ -> StringValue value
+        parseArgsLoop rest (result ++ [(key, parsedValue)])
+    | flag :: rest when Stdlib.String.startsWith flag "--" ->
+        let key = Stdlib.String.dropFirst flag 2L
+        parseArgsLoop rest (result ++ [(key, BoolValue true)])
+    | _ :: rest ->
+        parseArgsLoop rest result
+
+  let parseArgs (args: List<String>) : ParsedArgs =
+    parseArgsLoop args []
+
+  let getStringArg (args: ParsedArgs) (key: String) (defaultValue: String) : String =
+    match Stdlib.List.findFirst args (fun (k, _) -> k == key) with
+    | Some (_, StringValue value) -> value
+    | _ -> defaultValue
+
+  let getIntArg (args: ParsedArgs) (key: String) (defaultValue: Int64) : Int64 =
+    match Stdlib.List.findFirst args (fun (k, _) -> k == key) with
+    | Some (_, IntValue value) -> value
+    | _ -> defaultValue
+
+  let getBoolArg (args: ParsedArgs) (key: String) (defaultValue: Bool) : Bool =
+    match Stdlib.List.findFirst args (fun (k, _) -> k == key) with
+    | Some (_, BoolValue value) -> value
+    | _ -> defaultValue

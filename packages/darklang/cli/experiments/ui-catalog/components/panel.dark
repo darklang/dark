@@ -1,0 +1,284 @@
+module Darklang.Cli.Experiments.UICatalog.Components.Panel
+
+// Panel Item Type
+type PanelItem =
+  { id: String
+    label: String
+    icon: String
+    isActive: Bool
+    isDisabled: Bool
+    itemType: PanelItemType }
+
+type PanelItemType =
+  | Action
+  | Tab
+  | Filter
+  | Separator
+
+// Panel Component
+type PanelModel =
+  { title: String
+    items: List<PanelItem>
+    selectedIndex: Int64
+    width: Int64
+    showHeader: Bool
+    headerColor: Core.Types.Color
+    borderColor: Core.Types.Color }
+
+let createPanel (title: String) (width: Int64) : Core.Types.Component<PanelModel> =
+  let model = PanelModel { title = title; items = []; selectedIndex = -1L; width = width; showHeader = true; headerColor = Core.Types.Color.Primary; borderColor = Core.Types.Color.Default }
+  let height = 3L
+  let bounds = Core.Types.Bounds { position = Core.Types.Position { x = 0L; y = 0L }; dimensions = Core.Types.Dimensions { width = width; height = height } }
+  Core.Types.Component
+    { id = "panel-" ++ title
+      model = model
+      state = Core.Types.ComponentState.Normal
+      bounds = bounds
+      visible = true
+      focusable = true }
+
+let addPanelItem (component: Core.Types.Component<PanelModel>) (item: PanelItem) : Core.Types.Component<PanelModel> =
+  let model = component.model
+  let newItems = model.items |> Stdlib.List.append [item]
+  let newHeight = if model.showHeader then Stdlib.List.length newItems + 3L else Stdlib.List.length newItems + 2L
+  let newBounds = Core.Types.Bounds { position = component.bounds.position; dimensions = Core.Types.Dimensions { width = model.width; height = newHeight } }
+  { component with
+      model = { model with items = newItems }
+      bounds = newBounds }
+
+let renderPanel (component: Core.Types.Component<PanelModel>) (context: Core.Types.RenderContext) : List<String> =
+  let model = component.model
+  let hasFocus = context.hasFocus && component.state == Core.Types.ComponentState.Focused
+
+  let topBorder = "┌" ++ (Stdlib.String.repeat "─" (model.width - 2L)) ++ "┐"
+  let bottomBorder = "└" ++ (Stdlib.String.repeat "─" (model.width - 2L)) ++ "┘"
+
+  let headerLines =
+    if model.showHeader then
+      let styledTitle = Core.Rendering.colorize model.headerColor (Core.Rendering.bold model.title)
+      let paddedTitle = Core.Rendering.padText styledTitle (model.width - 4L) Core.Types.Alignment.Center
+      let titleLine = "│ " ++ paddedTitle ++ " │"
+      let separatorLine = "├" ++ (Stdlib.String.repeat "─" (model.width - 2L)) ++ "┤"
+      [titleLine; separatorLine]
+    else
+      []
+
+  let itemLines =
+    model.items
+    |> Stdlib.List.indexedMap (fun i item ->
+        if item.itemType == PanelItemType.Separator then
+          "├" ++ (Stdlib.String.repeat "─" (model.width - 2L)) ++ "┤"
+        else
+          let isSelected = i == model.selectedIndex
+          let isHovered = hasFocus && i == model.selectedIndex
+
+          let prefix =
+            if item.isDisabled then " "
+            else if isSelected then "●"
+            else if isHovered then "►"
+            else " "
+
+          let icon = if Stdlib.String.isEmpty item.icon then "" else item.icon ++ " "
+          let labelText = icon ++ item.label
+
+          let itemColor =
+            if item.isDisabled then Core.Types.Color.Dark
+            else if isSelected then Core.Types.Color.Primary
+            else if isHovered then Core.Types.Color.Secondary
+            else Core.Types.Color.Default
+
+          let styledLabel = Core.Rendering.colorize itemColor labelText
+          let paddedLabel = Core.Rendering.padText (prefix ++ " " ++ styledLabel) (model.width - 4L) Core.Types.Alignment.Left
+          "│ " ++ paddedLabel ++ " │")
+
+  [topBorder]
+  |> Stdlib.List.append headerLines
+  |> Stdlib.List.append itemLines
+  |> Stdlib.List.append [bottomBorder]
+
+let selectPanelItem (component: Core.Types.Component<PanelModel>) (index: Int64) : Core.Types.Component<PanelModel> =
+  let model = component.model
+  if index >= 0L && index < Stdlib.List.length model.items then
+    match Stdlib.List.getAt model.items index with
+    | Some item ->
+        if item.isDisabled || item.itemType == PanelItemType.Separator then
+          component
+        else
+          { component with model = { model with selectedIndex = index } }
+    | None -> component
+  else
+    component
+
+let setPanelTitle (component: Core.Types.Component<PanelModel>) (title: String) : Core.Types.Component<PanelModel> =
+  let model = component.model
+  { component with model = { model with title = title } }
+
+let setPanelColors (component: Core.Types.Component<PanelModel>) (headerColor: Core.Types.Color) (borderColor: Core.Types.Color) : Core.Types.Component<PanelModel> =
+  let model = component.model
+  { component with model = { model with headerColor = headerColor; borderColor = borderColor } }
+
+let hideHeader (component: Core.Types.Component<PanelModel>) : Core.Types.Component<PanelModel> =
+  let model = component.model
+  let newHeight = Stdlib.List.length model.items + 2L
+  let newBounds = Core.Types.Bounds { position = component.bounds.position; dimensions = Core.Types.Dimensions { width = model.width; height = newHeight } }
+  { component with
+      model = { model with showHeader = false }
+      bounds = newBounds }
+
+// Tab Panel Component (specialized panel for tabs)
+type TabPanelModel =
+  { tabs: List<PanelItem>
+    activeTabIndex: Int64
+    width: Int64
+    tabStyle: TabStyle }
+
+type TabStyle =
+  | Boxed
+  | Toggle
+  | Pills
+
+let createTabPanel (width: Int64) (style: TabStyle) : Core.Types.Component<TabPanelModel> =
+  let model = TabPanelModel { tabs = []; activeTabIndex = 0L; width = width; tabStyle = style }
+  let height = 3L
+  let bounds = Core.Types.Bounds { position = Core.Types.Position { x = 0L; y = 0L }; dimensions = Core.Types.Dimensions { width = width; height = height } }
+  Core.Types.Component
+    { id = "tabpanel"
+      model = model
+      state = Core.Types.ComponentState.Normal
+      bounds = bounds
+      visible = true
+      focusable = true }
+
+let addTab (component: Core.Types.Component<TabPanelModel>) (tab: PanelItem) : Core.Types.Component<TabPanelModel> =
+  let model = component.model
+  let newTabs = model.tabs |> Stdlib.List.append [tab]
+  { component with model = { model with tabs = newTabs } }
+
+let renderTabPanel (component: Core.Types.Component<TabPanelModel>) (context: Core.Types.RenderContext) : List<String> =
+  let model = component.model
+  let hasFocus = context.hasFocus && component.state == Core.Types.ComponentState.Focused
+
+  match model.tabStyle with
+  | Boxed ->
+      let topBorder = "┌" ++ (Stdlib.String.repeat "─" (model.width - 2L)) ++ "┐"
+      let bottomBorder = "└" ++ (Stdlib.String.repeat "─" (model.width - 2L)) ++ "┘"
+
+      let tabLine =
+        let tabTexts =
+          model.tabs
+          |> Stdlib.List.indexedMap (fun i tab ->
+              let isActive = i == model.activeTabIndex
+              let tabColor = if isActive then Core.Types.Color.Primary else Core.Types.Color.Default
+              let styledTab = Core.Rendering.colorize tabColor tab.label
+              if isActive then "[" ++ styledTab ++ "]" else " " ++ styledTab ++ " ")
+
+        let combinedTabs = Stdlib.String.join tabTexts " "
+        let paddedTabs = Core.Rendering.padText combinedTabs (model.width - 4L) Core.Types.Alignment.Center
+        "│ " ++ paddedTabs ++ " │"
+
+      [topBorder; tabLine; bottomBorder]
+
+  | Toggle ->
+      let toggleLine =
+        let tabTexts =
+          model.tabs
+          |> Stdlib.List.indexedMap (fun i tab ->
+              let isActive = i == model.activeTabIndex
+              if isActive then "●" ++ tab.label else "○" ++ tab.label)
+
+        let combinedTabs = Stdlib.String.join tabTexts " │ "
+        let paddedTabs = Core.Rendering.padText combinedTabs model.width Core.Types.Alignment.Center
+        paddedTabs
+
+      [toggleLine]
+
+  | Pills ->
+      let pillLine =
+        let tabTexts =
+          model.tabs
+          |> Stdlib.List.indexedMap (fun i tab ->
+              let isActive = i == model.activeTabIndex
+              let tabColor = if isActive then Core.Types.Color.Primary else Core.Types.Color.Secondary
+              let styledTab = Core.Rendering.colorize tabColor tab.label
+              if isActive then "(" ++ styledTab ++ ")" else " " ++ styledTab ++ " ")
+
+        let combinedTabs = Stdlib.String.join tabTexts "  "
+        let paddedTabs = Core.Rendering.padText combinedTabs model.width Core.Types.Alignment.Center
+        paddedTabs
+
+      [pillLine]
+
+let setActiveTab (component: Core.Types.Component<TabPanelModel>) (index: Int64) : Core.Types.Component<TabPanelModel> =
+  let model = component.model
+  if index >= 0L && index < Stdlib.List.length model.tabs then
+    { component with model = { model with activeTabIndex = index } }
+  else
+    component
+
+// Filter Panel Component (specialized panel for filters)
+type FilterPanelModel =
+  { filters: List<PanelItem>
+    appliedFilters: List<Int64>
+    width: Int64
+    title: String }
+
+let createFilterPanel (title: String) (width: Int64) : Core.Types.Component<FilterPanelModel> =
+  let model = FilterPanelModel { filters = []; appliedFilters = []; width = width; title = title }
+  let height = 3L
+  let bounds = Core.Types.Bounds { position = Core.Types.Position { x = 0L; y = 0L }; dimensions = Core.Types.Dimensions { width = width; height = height } }
+  Core.Types.Component
+    { id = "filterpanel-" ++ title
+      model = model
+      state = Core.Types.ComponentState.Normal
+      bounds = bounds
+      visible = true
+      focusable = true }
+
+let addFilter (component: Core.Types.Component<FilterPanelModel>) (filter: PanelItem) : Core.Types.Component<FilterPanelModel> =
+  let model = component.model
+  let newFilters = model.filters |> Stdlib.List.append [filter]
+  let newHeight = Stdlib.List.length newFilters + 3L
+  let newBounds = Core.Types.Bounds { position = component.bounds.position; dimensions = Core.Types.Dimensions { width = model.width; height = newHeight } }
+  { component with
+      model = { model with filters = newFilters }
+      bounds = newBounds }
+
+let renderFilterPanel (component: Core.Types.Component<FilterPanelModel>) (context: Core.Types.RenderContext) : List<String> =
+  let model = component.model
+
+  let topBorder = "┌" ++ (Stdlib.String.repeat "─" (model.width - 2L)) ++ "┐"
+  let bottomBorder = "└" ++ (Stdlib.String.repeat "─" (model.width - 2L)) ++ "┘"
+
+  let titleLine =
+    let styledTitle = Core.Rendering.colorize Core.Types.Color.Primary (Core.Rendering.bold model.title)
+    let paddedTitle = Core.Rendering.padText styledTitle (model.width - 4L) Core.Types.Alignment.Left
+    "│ " ++ paddedTitle ++ " │"
+
+  let separatorLine = "├" ++ (Stdlib.String.repeat "─" (model.width - 2L)) ++ "┤"
+
+  let filterLines =
+    model.filters
+    |> Stdlib.List.indexedMap (fun i filter ->
+        let isApplied = Stdlib.List.``member`` model.appliedFilters i
+        let checkbox = if isApplied then "☑" else "☐"
+        let filterColor = if isApplied then Core.Types.Color.Success else Core.Types.Color.Default
+        let styledLabel = Core.Rendering.colorize filterColor (checkbox ++ " " ++ filter.label)
+        let paddedLabel = Core.Rendering.padText styledLabel (model.width - 4L) Core.Types.Alignment.Left
+        "│ " ++ paddedLabel ++ " │")
+
+  [topBorder; titleLine; separatorLine]
+  |> Stdlib.List.append filterLines
+  |> Stdlib.List.append [bottomBorder]
+
+let toggleFilter (component: Core.Types.Component<FilterPanelModel>) (index: Int64) : Core.Types.Component<FilterPanelModel> =
+  let model = component.model
+  if index >= 0L && index < Stdlib.List.length model.filters then
+    let isApplied = Stdlib.List.``member`` model.appliedFilters index
+    let newAppliedFilters =
+      if isApplied then
+        Stdlib.List.filter model.appliedFilters (fun i -> i != index)
+      else
+        model.appliedFilters |> Stdlib.List.append [index]
+    { component with model = { model with appliedFilters = newAppliedFilters } }
+  else
+    component

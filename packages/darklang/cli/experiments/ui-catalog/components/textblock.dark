@@ -1,0 +1,60 @@
+// TextBlock Component - Multi-line text
+module Darklang.Cli.Experiments.UICatalog.Components.TextBlock
+
+
+type TextBlockModel =
+  { lines: List<String>
+    color: Core.Types.Color
+    alignment: Core.Types.Alignment
+    wordWrap: Bool }
+
+let createTextBlock (lines: List<String>) (color: Core.Types.Color) (alignment: Core.Types.Alignment) : Core.Types.Component<TextBlockModel> =
+  let model = TextBlockModel { lines = lines; color = color; alignment = alignment; wordWrap = false }
+  let maxWidth =
+    lines
+    |> Stdlib.List.map Stdlib.String.length
+    |> Stdlib.List.fold 0L (fun acc len -> if len > acc then len else acc)
+  let height = Stdlib.List.length lines
+  let bounds = Core.Types.Bounds { position = Core.Types.Position { x = 0L; y = 0L }; dimensions = Core.Types.Dimensions { width = maxWidth; height = height } }
+  Core.Types.Component
+    { id = "textblock"
+      model = model
+      state = Core.Types.ComponentState.Normal
+      bounds = bounds
+      visible = true
+      focusable = false }
+
+let renderTextBlock (component: Core.Types.Component<TextBlockModel>) (context: Core.Types.RenderContext) : List<String> =
+  let model = component.model
+  model.lines
+  |> Stdlib.List.map (fun line ->
+      let paddedLine = Core.Rendering.padText line component.bounds.dimensions.width model.alignment
+      Core.Rendering.colorize model.color paddedLine)
+
+let setTextBlockLines (component: Core.Types.Component<TextBlockModel>) (lines: List<String>) : Core.Types.Component<TextBlockModel> =
+  let model = component.model
+  let maxWidth =
+    lines
+    |> Stdlib.List.map Stdlib.String.length
+    |> Stdlib.List.fold 0L (fun acc len -> if len > acc then len else acc)
+  let height = Stdlib.List.length lines
+  let newBounds = Core.Types.Bounds { position = component.bounds.position; dimensions = Core.Types.Dimensions { width = maxWidth; height = height } }
+  { component with
+      model = { model with lines = lines }
+      bounds = newBounds }
+
+let setTextBlockColor (component: Core.Types.Component<TextBlockModel>) (color: Core.Types.Color) : Core.Types.Component<TextBlockModel> =
+  let model = component.model
+  { component with model = { model with color = color } }
+
+let setTextBlockAlignment (component: Core.Types.Component<TextBlockModel>) (alignment: Core.Types.Alignment) : Core.Types.Component<TextBlockModel> =
+  let model = component.model
+  { component with model = { model with alignment = alignment } }
+
+let enableWordWrap (component: Core.Types.Component<TextBlockModel>) : Core.Types.Component<TextBlockModel> =
+  let model = component.model
+  { component with model = { model with wordWrap = true } }
+
+let disableWordWrap (component: Core.Types.Component<TextBlockModel>) : Core.Types.Component<TextBlockModel> =
+  let model = component.model
+  { component with model = { model with wordWrap = false } }

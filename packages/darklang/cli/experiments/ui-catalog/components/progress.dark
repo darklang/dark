@@ -1,0 +1,66 @@
+module Darklang.Cli.Experiments.UICatalog.Components.Progress
+
+type ProgressModel =
+  { value: Int64
+    min: Int64
+    max: Int64
+    color: Core.Types.Color
+    showPercentage: Bool }
+
+let createProgressBar (value: Int64) (min: Int64) (max: Int64) (color: Core.Types.Color) : Core.Types.Component<ProgressModel> =
+  let model = ProgressModel { value = value; min = min; max = max; color = color; showPercentage = true }
+  let bounds = Core.Types.Bounds { position = Core.Types.Position { x = 0L; y = 0L }; dimensions = Core.Types.Dimensions { width = 20L; height = 1L } }
+  Core.Types.Component
+    { id = "progress"
+      model = model
+      state = Core.Types.ComponentState.Normal
+      bounds = bounds
+      visible = true
+      focusable = false }
+
+let renderProgressBar (component: Core.Types.Component<ProgressModel>) (context: Core.Types.RenderContext) : List<String> =
+  let model = component.model
+  let range = model.max - model.min
+  let progress = model.value - model.min
+  let availableWidth = component.bounds.dimensions.width - 2L
+  let filledWidth = if range == 0L then 0L else Stdlib.Int64.divide (progress * availableWidth) range
+  let filled = Stdlib.String.repeat "█" filledWidth
+  let empty = Stdlib.String.repeat "░" (component.bounds.dimensions.width - 2L - filledWidth)
+
+  let progressText = "[" ++ filled ++ empty ++ "]"
+  let coloredProgress = Core.Rendering.colorize model.color progressText
+
+  if model.showPercentage then
+    let percentValue = if range == 0L then 0L else Stdlib.Int64.divide (progress * 100L) range
+    let percentText = " " ++ Stdlib.Int64.toString percentValue ++ "%"
+    [ coloredProgress ++ percentText ]
+  else
+    [ coloredProgress ]
+
+let updateProgressValue (component: Core.Types.Component<ProgressModel>) (value: Int64) : Core.Types.Component<ProgressModel> =
+  let model = component.model
+  let clampedValue =
+    if value < model.min then model.min
+    else if value > model.max then model.max
+    else value
+  { component with model = { model with value = clampedValue } }
+
+let setProgressRange (component: Core.Types.Component<ProgressModel>) (min: Int64) (max: Int64) : Core.Types.Component<ProgressModel> =
+  let model = component.model
+  let clampedValue =
+    if model.value < min then min
+    else if model.value > max then max
+    else model.value
+  { component with model = { model with min = min; max = max; value = clampedValue } }
+
+let setProgressColor (component: Core.Types.Component<ProgressModel>) (color: Core.Types.Color) : Core.Types.Component<ProgressModel> =
+  let model = component.model
+  { component with model = { model with color = color } }
+
+let showProgressPercentage (component: Core.Types.Component<ProgressModel>) : Core.Types.Component<ProgressModel> =
+  let model = component.model
+  { component with model = { model with showPercentage = true } }
+
+let hideProgressPercentage (component: Core.Types.Component<ProgressModel>) : Core.Types.Component<ProgressModel> =
+  let model = component.model
+  { component with model = { model with showPercentage = false } }

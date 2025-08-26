@@ -1,0 +1,159 @@
+// Message Components - Colored notification blocks
+module Darklang.Cli.Experiments.UICatalog.Components.Message
+
+// Message Component
+type MessageModel =
+  { title: String
+    content: String
+    messageType: Core.Types.Color
+    isDismissible: Bool
+    isVisible: Bool
+    width: Int64 }
+
+let createMessage (title: String) (content: String) (messageType: Core.Types.Color) (width: Int64) : Core.Types.Component<MessageModel> =
+  let model = MessageModel { title = title; content = content; messageType = messageType; isDismissible = true; isVisible = true; width = width }
+  let height = 4L
+  let bounds = Core.Types.Bounds { position = Core.Types.Position { x = 0L; y = 0L }; dimensions = Core.Types.Dimensions { width = width; height = height } }
+  Core.Types.Component
+    { id = "message-" ++ title
+      model = model
+      state = Core.Types.ComponentState.Normal
+      bounds = bounds
+      visible = model.isVisible
+      focusable = false }
+
+let renderMessage (component: Core.Types.Component<MessageModel>) (context: Core.Types.RenderContext) : List<String> =
+  let model = component.model
+  if Stdlib.Bool.not model.isVisible then
+    []
+  else
+    let typeIcon =
+      match model.messageType with
+      | Success -> "✓"
+      | Warning -> "⚠"
+      | Error -> "✗"
+      | Info -> "ℹ"
+      | _ -> "•"
+
+    let topBorder = "┌" ++ Stdlib.String.repeat "─" (model.width - 2L) ++ "┐"
+    let bottomBorder = "└" ++ Stdlib.String.repeat "─" (model.width - 2L) ++ "┘"
+
+    let titleLine =
+      let dismissButton = if model.isDismissible then " ✕" else ""
+      let availableWidth = model.width - 6L - Stdlib.String.length dismissButton
+      let styledTitle = Core.Rendering.colorize model.messageType (Core.Rendering.bold (typeIcon ++ " " ++ model.title))
+      let paddedTitle = Core.Rendering.padText styledTitle availableWidth Core.Types.Alignment.Left
+      "│ " ++ paddedTitle ++ dismissButton ++ " │"
+
+    let contentLine =
+      let paddedContent = Core.Rendering.padText model.content (model.width - 4L) Core.Types.Alignment.Left
+      "│ " ++ paddedContent ++ " │"
+
+    [topBorder; titleLine; contentLine; bottomBorder]
+
+let showMessage (component: Core.Types.Component<MessageModel>) : Core.Types.Component<MessageModel> =
+  let model = component.model
+  { component with model = { model with isVisible = true }; visible = true }
+
+let hideMessage (component: Core.Types.Component<MessageModel>) : Core.Types.Component<MessageModel> =
+  let model = component.model
+  { component with model = { model with isVisible = false }; visible = false }
+
+let dismissMessage (component: Core.Types.Component<MessageModel>) : Core.Types.Component<MessageModel> =
+  if component.model.isDismissible then
+    hideMessage component
+  else
+    component
+
+// Notification Toast Component
+type ToastModel =
+  { message: String
+    toastType: Core.Types.Color
+    duration: Int64
+    isVisible: Bool
+    position: Core.Types.Position }
+
+let createToast (message: String) (toastType: Core.Types.Color) (duration: Int64) : Core.Types.Component<ToastModel> =
+  let model = ToastModel { message = message; toastType = toastType; duration = duration; isVisible = true; position = Core.Types.Position { x = 0L; y = 0L } }
+  let width = Stdlib.String.length message + 8L
+  let height = 3L
+  let bounds = Core.Types.Bounds { position = model.position; dimensions = Core.Types.Dimensions { width = width; height = height } }
+  Core.Types.Component
+    { id = "toast"
+      model = model
+      state = Core.Types.ComponentState.Normal
+      bounds = bounds
+      visible = model.isVisible
+      focusable = false }
+
+let renderToast (component: Core.Types.Component<ToastModel>) (context: Core.Types.RenderContext) : List<String> =
+  let model = component.model
+  if Stdlib.Bool.not model.isVisible then
+    []
+  else
+    let typeIcon =
+      match model.toastType with
+      | Success -> "✓"
+      | Warning -> "⚠"
+      | Error -> "✗"
+      | Info -> "ℹ"
+      | _ -> "•"
+
+    let styledMessage = Core.Rendering.colorize model.toastType (typeIcon ++ " " ++ model.message)
+    let topBorder = "╭" ++ Stdlib.String.repeat "─" (component.bounds.dimensions.width - 2L) ++ "╮"
+    let contentLine = "│ " ++ Core.Rendering.padText styledMessage (component.bounds.dimensions.width - 4L) Core.Types.Alignment.Left ++ " │"
+    let bottomBorder = "╰" ++ Stdlib.String.repeat "─" (component.bounds.dimensions.width - 2L) ++ "╯"
+
+    [topBorder; contentLine; bottomBorder]
+
+let showToast (component: Core.Types.Component<ToastModel>) : Core.Types.Component<ToastModel> =
+  let model = component.model
+  { component with model = { model with isVisible = true }; visible = true }
+
+let hideToast (component: Core.Types.Component<ToastModel>) : Core.Types.Component<ToastModel> =
+  let model = component.model
+  { component with model = { model with isVisible = false }; visible = false }
+
+// Alert Banner Component
+type AlertModel =
+  { message: String
+    alertType: Core.Types.Color
+    isVisible: Bool
+    width: Int64 }
+
+let createAlert (message: String) (alertType: Core.Types.Color) (width: Int64) : Core.Types.Component<AlertModel> =
+  let model = AlertModel { message = message; alertType = alertType; isVisible = true; width = width }
+  let height = 1L
+  let bounds = Core.Types.Bounds { position = Core.Types.Position { x = 0L; y = 0L }; dimensions = Core.Types.Dimensions { width = width; height = height } }
+  Core.Types.Component
+    { id = "alert"
+      model = model
+      state = Core.Types.ComponentState.Normal
+      bounds = bounds
+      visible = model.isVisible
+      focusable = false }
+
+let renderAlert (component: Core.Types.Component<AlertModel>) (context: Core.Types.RenderContext) : List<String> =
+  let model = component.model
+  if Stdlib.Bool.not model.isVisible then
+    []
+  else
+    let typeIcon =
+      match model.alertType with
+      | Success -> "✓"
+      | Warning -> "⚠"
+      | Error -> "✗"
+      | Info -> "ℹ"
+      | _ -> "•"
+
+    let styledMessage = Core.Rendering.colorize model.alertType (typeIcon ++ " " ++ model.message)
+    let paddedMessage = Core.Rendering.padText styledMessage model.width Core.Types.Alignment.Center
+    [paddedMessage]
+
+let showAlert (component: Core.Types.Component<AlertModel>) : Core.Types.Component<AlertModel> =
+  let model = component.model
+  { component with model = { model with isVisible = true }; visible = true }
+
+let hideAlert (component: Core.Types.Component<AlertModel>) : Core.Types.Component<AlertModel> =
+  let model = component.model
+  { component with model = { model with isVisible = false }; visible = false }

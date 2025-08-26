@@ -1,0 +1,339 @@
+module Darklang.Cli.Experiments.UICatalog.Components.Pagination
+
+// Pagination Component
+type PaginationModel =
+  { currentPage: Int64
+    totalPages: Int64
+    pageSize: Int64
+    totalItems: Int64
+    showInfo: Bool
+    showJumper: Bool
+    maxVisiblePages: Int64
+    style: PaginationStyle }
+
+type PaginationStyle =
+  | Standard
+  | Rounded
+  | Simple
+
+let createPagination (totalItems: Int64) (pageSize: Int64) : Core.Types.Component<PaginationModel> =
+  let totalPages = if pageSize > 0L then Stdlib.Int64.divide (totalItems + pageSize - 1L) pageSize else 1L
+  let model = PaginationModel { currentPage = 1L; totalPages = totalPages; pageSize = pageSize; totalItems = totalItems; showInfo = true; showJumper = false; maxVisiblePages = 7L; style = PaginationStyle.Standard }
+  let width = 50L
+  let height = if model.showInfo then 3L else 1L
+  let bounds = Core.Types.Bounds { position = Core.Types.Position { x = 0L; y = 0L }; dimensions = Core.Types.Dimensions { width = width; height = height } }
+  Core.Types.Component
+    { id = "pagination"
+      model = model
+      state = Core.Types.ComponentState.Normal
+      bounds = bounds
+      visible = true
+      focusable = true }
+
+let renderPageButton (style: PaginationStyle) (pageNum: Int64) (isCurrent: Bool) (isDisabled: Bool) : String =
+  let pageText = Stdlib.Int64.toString pageNum
+  match style with
+  | Rounded ->
+      if isCurrent then
+        Core.Rendering.colorize Core.Types.Color.Primary ("(" ++ pageText ++ ")")
+      else if isDisabled then
+        Core.Rendering.colorize Core.Types.Color.Dark ("(" ++ pageText ++ ")")
+      else
+        "(" ++ pageText ++ ")"
+  | Simple ->
+      if isCurrent then
+        Core.Rendering.colorize Core.Types.Color.Primary pageText
+      else if isDisabled then
+        Core.Rendering.colorize Core.Types.Color.Dark pageText
+      else
+        pageText
+  | Standard ->
+      if isCurrent then
+        Core.Rendering.colorize Core.Types.Color.Primary ("[" ++ pageText ++ "]")
+      else if isDisabled then
+        Core.Rendering.colorize Core.Types.Color.Dark ("[" ++ pageText ++ "]")
+      else
+        "[" ++ pageText ++ "]"
+
+let renderPagination (component: Core.Types.Component<PaginationModel>) (context: Core.Types.RenderContext) : List<String> =
+  let model = component.model
+  let hasFocus = context.hasFocus && component.state == Core.Types.ComponentState.Focused
+
+  let generatePageNumbers : List<String> =
+    let halfVisible = Stdlib.Int64.divide model.maxVisiblePages 2L
+    let startPage = Stdlib.Int64.max 1L (model.currentPage - halfVisible)
+    let endPage = Stdlib.Int64.min model.totalPages (startPage + model.maxVisiblePages - 1L)
+    let adjustedStartPage = Stdlib.Int64.max 1L (endPage - model.maxVisiblePages + 1L)
+
+    let pages = Stdlib.List.range adjustedStartPage endPage
+    let pageButtons =
+      pages
+      |> Stdlib.List.map (fun page ->
+          let isCurrent = page == model.currentPage
+          renderPageButton model.style page isCurrent false)
+
+    let prevButton =
+      if model.currentPage > 1L then
+        [if model.style == PaginationStyle.Simple then "◀" else "◀ Prev"]
+      else
+        [Core.Rendering.colorize Core.Types.Color.Dark (if model.style == PaginationStyle.Simple then "◀" else "◀ Prev")]
+
+    let nextButton =
+      if model.currentPage < model.totalPages then
+        [if model.style == PaginationStyle.Simple then "▶" else "Next ▶"]
+      else
+        [Core.Rendering.colorize Core.Types.Color.Dark (if model.style == PaginationStyle.Simple then "▶" else "Next ▶")]
+
+    let ellipsisLeft = if adjustedStartPage > 1L then ["..."] else []
+    let ellipsisRight = if endPage < model.totalPages then ["..."] else []
+    let firstPage = if adjustedStartPage > 1L then [renderPageButton model.style 1L false false] else []
+    let lastPage = if endPage < model.totalPages then [renderPageButton model.style model.totalPages false false] else []
+
+    prevButton
+    |> Stdlib.List.append firstPage
+    |> Stdlib.List.append ellipsisLeft
+    |> Stdlib.List.append pageButtons
+    |> Stdlib.List.append ellipsisRight
+    |> Stdlib.List.append lastPage
+    |> Stdlib.List.append nextButton
+
+  let paginationLine =
+    let spacing = if model.style == PaginationStyle.Simple then " " else " "
+    let combinedPages = Stdlib.String.join generatePageNumbers spacing
+    let focusIndicator = if hasFocus then "► " else ""
+    let paddedPages = Core.Rendering.padText (focusIndicator ++ combinedPages) component.bounds.dimensions.width Core.Types.Alignment.Center
+    paddedPages
+
+  let infoLine =
+    if model.showInfo then
+      let startItem = ((model.currentPage - 1L) * model.pageSize) + 1L
+      let endItem = Stdlib.Int64.min (model.currentPage * model.pageSize) model.totalItems
+      let infoText = "Showing " ++ Stdlib.Int64.toString startItem ++ "-" ++ Stdlib.Int64.toString endItem ++ " of " ++ Stdlib.Int64.toString model.totalItems
+      let paddedInfo = Core.Rendering.padText infoText component.bounds.dimensions.width Core.Types.Alignment.Center
+      [paddedInfo]
+    else
+      []
+
+  [paginationLine]
+  |> Stdlib.List.append infoLine
+
+let goToPage (component: Core.Types.Component<PaginationModel>) (page: Int64) : Core.Types.Component<PaginationModel> =
+  let model = component.model
+  if page >= 1L && page <= model.totalPages then
+    { component with model = { model with currentPage = page } }
+  else
+    component
+
+let nextPage (component: Core.Types.Component<PaginationModel>) : Core.Types.Component<PaginationModel> =
+  let model = component.model
+  if model.currentPage < model.totalPages then
+    { component with model = { model with currentPage = model.currentPage + 1L } }
+  else
+    component
+
+let prevPage (component: Core.Types.Component<PaginationModel>) : Core.Types.Component<PaginationModel> =
+  let model = component.model
+  if model.currentPage > 1L then
+    { component with model = { model with currentPage = model.currentPage - 1L } }
+  else
+    component
+
+let firstPage (component: Core.Types.Component<PaginationModel>) : Core.Types.Component<PaginationModel> =
+  let model = component.model
+  { component with model = { model with currentPage = 1L } }
+
+let lastPage (component: Core.Types.Component<PaginationModel>) : Core.Types.Component<PaginationModel> =
+  let model = component.model
+  { component with model = { model with currentPage = model.totalPages } }
+
+let setPaginationStyle (component: Core.Types.Component<PaginationModel>) (style: PaginationStyle) : Core.Types.Component<PaginationModel> =
+  let model = component.model
+  { component with model = { model with style = style } }
+
+let showPaginationInfo (component: Core.Types.Component<PaginationModel>) : Core.Types.Component<PaginationModel> =
+  let model = component.model
+  let newHeight = if model.showInfo then component.bounds.dimensions.height else component.bounds.dimensions.height + 1L
+  let newBounds = Core.Types.Bounds { position = component.bounds.position; dimensions = Core.Types.Dimensions { width = component.bounds.dimensions.width; height = newHeight } }
+  { component with
+      model = { model with showInfo = true }
+      bounds = newBounds }
+
+let hidePaginationInfo (component: Core.Types.Component<PaginationModel>) : Core.Types.Component<PaginationModel> =
+  let model = component.model
+  let newHeight = if model.showInfo then component.bounds.dimensions.height - 1L else component.bounds.dimensions.height
+  let newBounds = Core.Types.Bounds { position = component.bounds.position; dimensions = Core.Types.Dimensions { width = component.bounds.dimensions.width; height = newHeight } }
+  { component with
+      model = { model with showInfo = false }
+      bounds = newBounds }
+
+// Step Navigation Component (for wizards/forms)
+type StepModel =
+  { id: String
+    title: String
+    isCompleted: Bool
+    isActive: Bool
+    isDisabled: Bool }
+
+type StepNavigationModel =
+  { steps: List<StepModel>
+    currentStep: Int64
+    width: Int64
+    showNumbers: Bool
+    style: StepStyle }
+
+type StepStyle =
+  | Horizontal
+  | Vertical
+  | Dots
+
+let createStepNavigation (width: Int64) (style: StepStyle) : Core.Types.Component<StepNavigationModel> =
+  let model = StepNavigationModel { steps = []; currentStep = 0L; width = width; showNumbers = true; style = style }
+  let height = match style with | Vertical -> 5L | _ -> 3L
+  let bounds = Core.Types.Bounds { position = Core.Types.Position { x = 0L; y = 0L }; dimensions = Core.Types.Dimensions { width = width; height = height } }
+  Core.Types.Component
+    { id = "stepnav"
+      model = model
+      state = Core.Types.ComponentState.Normal
+      bounds = bounds
+      visible = true
+      focusable = true }
+
+let addStep (component: Core.Types.Component<StepNavigationModel>) (step: StepModel) : Core.Types.Component<StepNavigationModel> =
+  let model = component.model
+  let newSteps = model.steps |> Stdlib.List.append [step]
+  let newHeight =
+    match model.style with
+    | Vertical -> (Stdlib.List.length newSteps * 2L) + 1L
+    | _ -> 3L
+  let newBounds = Core.Types.Bounds { position = component.bounds.position; dimensions = Core.Types.Dimensions { width = model.width; height = newHeight } }
+  { component with
+      model = { model with steps = newSteps }
+      bounds = newBounds }
+
+let renderStepNavigation (component: Core.Types.Component<StepNavigationModel>) (context: Core.Types.RenderContext) : List<String> =
+  let model = component.model
+
+  match model.style with
+  | Horizontal ->
+      let stepTexts =
+        model.steps
+        |> Stdlib.List.indexedMap (fun i step ->
+            let stepNumber = Stdlib.Int64.toString (i + 1L)
+            let isActive = i == model.currentStep
+            let stepText = if model.showNumbers then stepNumber ++ "." ++ step.title else step.title
+
+            let stepColor =
+              if step.isCompleted then Core.Types.Color.Success
+              else if isActive then Core.Types.Color.Primary
+              else if step.isDisabled then Core.Types.Color.Dark
+              else Core.Types.Color.Default
+
+            let styledStep = Core.Rendering.colorize stepColor stepText
+            if isActive then "[" ++ styledStep ++ "]" else " " ++ styledStep ++ " ")
+
+      let separator = " → "
+      let combinedSteps = Stdlib.String.join stepTexts separator
+      let paddedSteps = Core.Rendering.padText combinedSteps model.width Core.Types.Alignment.Center
+
+      let topBorder = "┌" ++ (Stdlib.String.repeat "─" (model.width - 2L)) ++ "┐"
+      let bottomBorder = "└" ++ (Stdlib.String.repeat "─" (model.width - 2L)) ++ "┘"
+      let stepLine = "│ " ++ paddedSteps ++ " │"
+
+      [topBorder; stepLine; bottomBorder]
+
+  | Vertical ->
+      let topBorder = "┌" ++ (Stdlib.String.repeat "─" (model.width - 2L)) ++ "┐"
+      let bottomBorder = "└" ++ (Stdlib.String.repeat "─" (model.width - 2L)) ++ "┘"
+
+      let stepLines =
+        model.steps
+        |> Stdlib.List.indexedMap (fun i step ->
+            let stepNumber = Stdlib.Int64.toString (i + 1L)
+            let isActive = i == model.currentStep
+            let stepText = if model.showNumbers then stepNumber ++ ". " ++ step.title else step.title
+
+            let stepColor =
+              if step.isCompleted then Core.Types.Color.Success
+              else if isActive then Core.Types.Color.Primary
+              else if step.isDisabled then Core.Types.Color.Dark
+              else Core.Types.Color.Default
+
+            let prefix =
+              if step.isCompleted then "✓"
+              else if isActive then "►"
+              else " "
+
+            let styledStep = Core.Rendering.colorize stepColor (prefix ++ " " ++ stepText)
+            let paddedStep = Core.Rendering.padText styledStep (model.width - 4L) Core.Types.Alignment.Left
+            let stepLine = "│ " ++ paddedStep ++ " │"
+
+            if i < Stdlib.List.length model.steps - 1L then
+              [stepLine; "│" ++ (Stdlib.String.repeat " " (model.width - 2L)) ++ "│"]
+            else
+              [stepLine])
+        |> Stdlib.List.fold [] Stdlib.List.append
+
+      [topBorder]
+      |> Stdlib.List.append stepLines
+      |> Stdlib.List.append [bottomBorder]
+
+  | Dots ->
+      let dotTexts =
+        model.steps
+        |> Stdlib.List.indexedMap (fun i step ->
+            let isActive = i == model.currentStep
+            let dot =
+              if step.isCompleted then "●"
+              else if isActive then "◉"
+              else "○"
+
+            let stepColor =
+              if step.isCompleted then Core.Types.Color.Success
+              else if isActive then Core.Types.Color.Primary
+              else if step.isDisabled then Core.Types.Color.Dark
+              else Core.Types.Color.Default
+
+            Core.Rendering.colorize stepColor dot)
+
+      let combinedDots = Stdlib.String.join dotTexts " "
+      let paddedDots = Core.Rendering.padText combinedDots model.width Core.Types.Alignment.Center
+
+      [paddedDots]
+
+let goToStep (component: Core.Types.Component<StepNavigationModel>) (stepIndex: Int64) : Core.Types.Component<StepNavigationModel> =
+  let model = component.model
+  if stepIndex >= 0L && stepIndex < Stdlib.List.length model.steps then
+    match Stdlib.List.getAt model.steps stepIndex with
+    | Some step ->
+        if step.isDisabled then
+          component
+        else
+          { component with model = { model with currentStep = stepIndex } }
+    | None -> component
+  else
+    component
+
+let nextStep (component: Core.Types.Component<StepNavigationModel>) : Core.Types.Component<StepNavigationModel> =
+  let model = component.model
+  if model.currentStep < Stdlib.List.length model.steps - 1L then
+    { component with model = { model with currentStep = model.currentStep + 1L } }
+  else
+    component
+
+let prevStep (component: Core.Types.Component<StepNavigationModel>) : Core.Types.Component<StepNavigationModel> =
+  let model = component.model
+  if model.currentStep > 0L then
+    { component with model = { model with currentStep = model.currentStep - 1L } }
+  else
+    component
+
+let completeCurrentStep (component: Core.Types.Component<StepNavigationModel>) : Core.Types.Component<StepNavigationModel> =
+  let model = component.model
+  let updatedSteps =
+    model.steps
+    |> Stdlib.List.indexedMap (fun i step ->
+        if i == model.currentStep then
+          { step with isCompleted = true }
+        else
+          step)
+  { component with model = { model with steps = updatedSteps } }

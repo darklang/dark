@@ -1,0 +1,115 @@
+module Darklang.Cli.Experiments.Launcher
+
+
+type Experiment =
+  { name: String
+    description: String
+    launcher: (Unit -> Int64) }
+
+type State =
+  { experiments: List<Experiment>
+    selectedIndex: Int64
+    isRunning: Bool }
+
+let init () : State =
+  let experiments =
+    [ Experiment
+        { name = "counter-demo"
+          description = "Counter list MVU demo"
+          launcher = Demo.runMVUDemo }
+      Experiment
+        { name = "ui-catalog"
+          description = "Terminal.Gui style UI Catalog with MVU components"
+          launcher = Experiments.UICatalog.Catalog.runUICatalogDemo }
+      Experiment
+        { name = "data-entry-demo"
+          description = "Task management and data entry demo"
+          launcher = DataEntryDemo.runDataEntryDemo }
+      Experiment
+        { name = "ui-components"
+          description = "UI component showcase and examples"
+          launcher = UIComponents.runUIDemoComponents }
+    ]
+
+  State
+    { experiments = experiments
+      selectedIndex = 0L
+      isRunning = true }
+
+
+let showExperimentsMenu () : Unit =
+  Stdlib.printLine "=== Darklang CLI Experiments ==="
+  Stdlib.printLine ""
+  Stdlib.printLine "Available experiments:"
+
+  let experiments = availableExperiments ()
+  experiments
+  |> Stdlib.List.indexedMap (fun i exp ->
+      let indexStr = Stdlib.Int64.toString (i + 1L)
+      Stdlib.printLine ($"{indexStr}. {exp.name} - {exp.description}")
+  )
+  |> Stdlib.List.length
+  |> fun _ -> ()
+
+
+let view (state: State) : Unit =
+  // Clear screen and move cursor to top
+  Stdlib.print "\u001b[2J\u001b[H"
+
+  Stdlib.printLine "=== Darklang CLI Experiments ==="
+  Stdlib.printLine ""
+  Stdlib.printLine "Use ↑/↓ to navigate, Enter to select, Q to quit"
+  Stdlib.printLine ""
+
+  state.experiments
+  // CLEANUP List.iteri
+  |> Stdlib.List.indexedMap (fun i exp ->
+    let symbol = if i == state.selectedIndex then "►" else " "
+    Stdlib.printLine $"{symbol} {exp.name} - {exp.description}"
+  )
+  |> fun _ -> ()
+
+
+let handleKey (state: State) (keyInput: Stdlib.Cli.Stdin.KeyRead.KeyRead) : State =
+  match keyInput.key with
+  | UpArrow ->
+    let newIndex = if state.selectedIndex > 0L then state.selectedIndex - 1L else 0L
+    { state with selectedIndex = newIndex }
+
+  | DownArrow ->
+    let maxIndex = Stdlib.List.length state.experiments - 1L
+    let newIndex = if state.selectedIndex < maxIndex then state.selectedIndex + 1L else maxIndex
+    { state with selectedIndex = newIndex }
+
+  | Enter ->
+    // Launch selected experiment
+    match Stdlib.List.getAt state.experiments state.selectedIndex with
+    | Some exp ->
+        // Clear screen before launching
+        Stdlib.print "\u001b[2J\u001b[H"
+        Stdlib.printLine ($"Launching {exp.name}...")
+        Stdlib.printLine ""
+        let launcherFn = exp.launcher
+        let _ = launcherFn ()
+        { state with isRunning = false }
+    | None -> state
+
+  | Q ->
+    { state with isRunning = false }
+
+  | _ ->
+    state
+
+
+let loop (state: State) : Int64 =
+  if Stdlib.Bool.not state.isRunning then
+    0L
+  else
+    view state
+    let keyInput = Stdlib.Cli.Stdin.readKey ()
+    let newState = handleKey state keyInput
+    loop newState
+
+
+let experiments () : Int64 =
+  loop (init())

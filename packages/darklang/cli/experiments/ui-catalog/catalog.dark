@@ -1,0 +1,645 @@
+module Darklang.Cli.Experiments.UICatalog.Catalog
+
+type CatalogPage =
+  | BasicComponents
+  | FormComponents
+  | LayoutComponents
+  | NavigationComponents
+  | CardsAndPanels
+  | MessagesAndAlerts
+  | PaginationAndSteps
+
+type CatalogModel =
+  { currentPage: CatalogPage
+    selectedComponent: Int64
+    navigationMenu: Core.Types.Component<Components.Navigation.TabModel>
+    isRunning: Bool }
+
+let pageNames = [ "Basic"; "Forms"; "Layout"; "Navigation"; "Cards"; "Messages"; "Pagination" ]
+
+let initCatalogModel () : CatalogModel =
+  let tabsComponent = Components.Navigation.createTabs pageNames 0L
+  CatalogModel
+    { currentPage = CatalogPage.BasicComponents
+      selectedComponent = 0L
+      navigationMenu = tabsComponent
+      isRunning = true }
+
+// Basic Components Demo Page
+let renderBasicComponentsPage (model: CatalogModel) : List<String> =
+  let context = Core.Types.RenderContext { availableWidth = 80L; availableHeight = 24L; hasFocus = true; theme = "default" }
+
+  let titleLabel = Components.Label.createLabel "Basic UI Components Demo (6 Types)" Core.Types.Color.Primary
+
+  // 1. Button components
+  let button1 = Components.Button.createButton "Primary" Core.Types.Color.Primary (fun () -> ())
+  let button2 = Components.Button.createButton "Success" Core.Types.Color.Success (fun () -> ())
+  let button3 = Components.Button.createButton "Warning" Core.Types.Color.Warning (fun () -> ())
+
+  // 2. Label component
+  let infoLabel = Components.Label.createLabel "ℹ️ Information Label" Core.Types.Color.Info
+
+  // 3. TextBlock component
+  let textBlock =
+    Components.TextBlock.createTextBlock
+      [ "This is a multi-line text block component.";
+        "It supports color styling and text alignment.";
+        "Perfect for displaying descriptive text." ]
+      Core.Types.Color.Info
+      Core.Types.Alignment.Left
+
+  // 4. Divider components
+  let divider1 = Components.Divider.createDivider "─" 50L Core.Types.Color.Dark
+  let divider2 = Components.Divider.createDivider "═" 50L Core.Types.Color.Primary
+
+  // 5. Progress bars
+  let progressBar1 = Components.Progress.createProgressBar 65L 0L 100L Core.Types.Color.Success
+  let progressBar2 = Components.Progress.createProgressBar 30L 0L 100L Core.Types.Color.Warning
+  let progressBar3 = Components.Progress.createProgressBar 85L 0L 100L Core.Types.Color.Info
+
+  // 6. StatusBar component
+  let statusBar = Components.StatusBar.createStatusBar "Application Ready" "Memory: 45% | CPU: 12%" 60L
+
+  // Render all components
+  let titleLines = Components.Label.renderLabel titleLabel context
+  let button1Lines = Components.Button.renderButton button1 context
+  let button2Lines = Components.Button.renderButton button2 context
+  let button3Lines = Components.Button.renderButton button3 context
+  let labelLines = Components.Label.renderLabel infoLabel context
+  let textLines = Components.TextBlock.renderTextBlock textBlock context
+  let divider1Lines = Components.Divider.renderDivider divider1 context
+  let divider2Lines = Components.Divider.renderDivider divider2 context
+  let progress1Lines = Components.Progress.renderProgressBar progressBar1 context
+  let progress2Lines = Components.Progress.renderProgressBar progressBar2 context
+  let progress3Lines = Components.Progress.renderProgressBar progressBar3 context
+  let statusBarLines = Components.StatusBar.renderStatusBar statusBar context
+
+  // Combine all rendered content
+  titleLines
+  |> Stdlib.List.append [""]
+  |> Stdlib.List.append ["1. Buttons:"]
+  |> Stdlib.List.append button1Lines
+  |> Stdlib.List.append button2Lines
+  |> Stdlib.List.append button3Lines
+  |> Stdlib.List.append [""]
+  |> Stdlib.List.append ["2. Labels:"]
+  |> Stdlib.List.append labelLines
+  |> Stdlib.List.append [""]
+  |> Stdlib.List.append ["3. Text Blocks:"]
+  |> Stdlib.List.append textLines
+  |> Stdlib.List.append [""]
+  |> Stdlib.List.append ["4. Dividers:"]
+  |> Stdlib.List.append divider1Lines
+  |> Stdlib.List.append divider2Lines
+  |> Stdlib.List.append [""]
+  |> Stdlib.List.append ["5. Progress Bars:"]
+  |> Stdlib.List.append progress1Lines
+  |> Stdlib.List.append progress2Lines
+  |> Stdlib.List.append progress3Lines
+  |> Stdlib.List.append [""]
+  |> Stdlib.List.append ["6. Status Bar:"]
+  |> Stdlib.List.append statusBarLines
+
+// Form Components Demo Page
+let renderFormComponentsPage (model: CatalogModel) : List<String> =
+  let context = Core.Types.RenderContext { availableWidth = 80L; availableHeight = 24L; hasFocus = true; theme = "default" }
+
+  let titleLabel = Components.Label.createLabel "Form Components Demo (7 Types)" Core.Types.Color.Primary
+
+  // Basic form inputs
+  let textInput = Components.Forms.createTextInput "Enter your name..." 25L
+  let checkbox1 = Components.Forms.createCheckbox "Enable notifications" true
+  let checkbox2 = Components.Forms.createCheckbox "Remember me" false
+
+  // Selection components
+  let radioGroup =
+    Components.Forms.createRadioGroup
+      [ "Small"; "Medium"; "Large"; "Extra Large" ]
+      1L
+
+  let selectComponent =
+    Components.Forms.createSelect
+      [ "Option 1"; "Option 2"; "Option 3"; "Option 4" ]
+      0L
+
+  // Advanced form components
+  let slider = Components.Forms.createSlider "Volume Level" 0.0 100.0 65.0 30L
+  let dateField = Components.Forms.createDateField "Enter date (YYYY-MM-DD)"
+
+  // MultiSelect dropdown
+  let multiSelect =
+    Components.Dropdown.createMultiSelect
+      "Select multiple options..."
+      [ Components.Dropdown.DropdownItem { id = "opt1"; label = "Option 1"; value = "opt1"; disabled = false; separator = false }
+        Components.Dropdown.DropdownItem { id = "opt2"; label = "Option 2"; value = "opt2"; disabled = false; separator = false }
+        Components.Dropdown.DropdownItem { id = "opt3"; label = "Option 3"; value = "opt3"; disabled = false; separator = false } ]
+      3L
+
+  // Render components
+  let titleLines = Components.Label.renderLabel titleLabel context
+  let inputLines = Components.Forms.renderTextInput textInput context
+  let check1Lines = Components.Forms.renderCheckbox checkbox1 context
+  let check2Lines = Components.Forms.renderCheckbox checkbox2 context
+  let radioLines = Components.Forms.renderRadioGroup radioGroup context
+  let selectLines = Components.Forms.renderSelect selectComponent context
+  let sliderLines = Components.Forms.renderSlider slider context
+  let dateLines = Components.Forms.renderDateField dateField context
+  let multiSelectLines = Components.Dropdown.renderMultiSelect multiSelect context
+
+  titleLines
+  |> Stdlib.List.append [""]
+  |> Stdlib.List.append ["1. Text Input:"]
+  |> Stdlib.List.append inputLines
+  |> Stdlib.List.append [""]
+  |> Stdlib.List.append ["2. Checkboxes:"]
+  |> Stdlib.List.append check1Lines
+  |> Stdlib.List.append check2Lines
+  |> Stdlib.List.append [""]
+  |> Stdlib.List.append ["3. Radio Group (Size Selection):"]
+  |> Stdlib.List.append radioLines
+  |> Stdlib.List.append [""]
+  |> Stdlib.List.append ["4. Single Select Dropdown:"]
+  |> Stdlib.List.append selectLines
+  |> Stdlib.List.append [""]
+  |> Stdlib.List.append ["5. Slider Component:"]
+  |> Stdlib.List.append sliderLines
+  |> Stdlib.List.append [""]
+  |> Stdlib.List.append ["6. Date Field:"]
+  |> Stdlib.List.append dateLines
+  |> Stdlib.List.append [""]
+  |> Stdlib.List.append ["7. Multi-Select Dropdown:"]
+  |> Stdlib.List.append multiSelectLines
+
+// Layout Components Demo Page
+let renderLayoutComponentsPage (model: CatalogModel) : List<String> =
+  let context = Core.Types.RenderContext { availableWidth = 80L; availableHeight = 24L; hasFocus = true; theme = "default" }
+
+  let titleLabel = Components.Label.createLabel "Layout Components Demo (8 Types)" Core.Types.Color.Primary
+
+  // 1. Layout panels
+  let panel1 =
+    Components.Layout.createPanel
+      "Information Panel"
+      [ "This is a sample panel with information.";
+        "Panels can contain multiple lines of content." ]
+      Core.Types.Color.Info
+
+  // 2. Container with components
+  let containerItems = [ "Component A"; "Component B"; "Component C" ]
+  let container = Components.Layout.createContainer containerItems "Sample Container" true
+
+  // 3. Grid layout
+  let gridItems = [ "Item 1"; "Item 2"; "Item 3"; "Item 4" ]
+  let grid = Components.Layout.createGrid gridItems 2L 12L 2L
+
+  // 4. ListView component for data display
+  let listItems =
+    [ Components.ListView.ListItem { text = "📄 Document 1.pdf"; enabled = true; data = "Modified: Today" }
+      Components.ListView.ListItem { text = "🖼️ Image_banner.png"; enabled = true; data = "Size: 2.3 MB" }
+      Components.ListView.ListItem { text = "📊 Report_Q3.xlsx"; enabled = true; data = "Modified: Yesterday" }
+      Components.ListView.ListItem { text = "📝 Notes.txt"; enabled = false; data = "Size: 1.2 KB" } ]
+  let listView = Components.ListView.createListView listItems 35L 6L
+
+  // 5. StatusBar for status display
+  let statusBar = Components.StatusBar.createStatusBar "Ready" "Line 42, Col 15" 50L
+
+  // 6. Vertical scrollbar
+  let scrollbar = Components.Scrollbar.createScrollbar 10L 100L 20L 8L
+
+  // 7. Horizontal Stack layout
+  let hStackItems = [ "Left"; "Center"; "Right" ]
+  let hStack = Components.Layout.createHStack hStackItems 3L Core.Types.Alignment.Center
+
+  // 8. Vertical Stack layout
+  let vStackItems = [ "Top"; "Middle"; "Bottom" ]
+  let vStack = Components.Layout.createVStack vStackItems 1L
+
+  // Render components
+  let titleLines = Components.Label.renderLabel titleLabel context
+  let panel1Lines = Components.Layout.renderPanel panel1 context
+  let containerLines =
+    Components.Layout.renderContainer container context (fun item ctx ->
+      let itemLabel = Components.Label.createLabel item Core.Types.Color.Secondary
+      Components.Label.renderLabel itemLabel ctx)
+  let gridLines = Components.Layout.renderGrid grid context (fun item index ctx ->
+    let itemBox = Components.Label.createLabel item Core.Types.Color.Default
+    Components.Label.renderLabel itemBox ctx)
+  let listViewLines = Components.ListView.renderListView listView context
+  let statusBarLines = Components.StatusBar.renderStatusBar statusBar context
+  let scrollbarLines = Components.Scrollbar.renderScrollbar scrollbar context
+  let hStackLines = Components.Layout.renderHStack hStack context (fun item ctx ->
+    let stackItem = Components.Label.createLabel item Core.Types.Color.Primary
+    Components.Label.renderLabel stackItem ctx)
+  let vStackLines = Components.Layout.renderVStack vStack context (fun item ctx ->
+    let stackItem = Components.Label.createLabel item Core.Types.Color.Info
+    Components.Label.renderLabel stackItem ctx)
+
+  titleLines
+  |> Stdlib.List.append [""]
+  |> Stdlib.List.append ["1. Panel Layout:"]
+  |> Stdlib.List.append panel1Lines
+  |> Stdlib.List.append [""]
+  |> Stdlib.List.append ["2. Container:"]
+  |> Stdlib.List.append containerLines
+  |> Stdlib.List.append [""]
+  |> Stdlib.List.append ["3. Grid Layout:"]
+  |> Stdlib.List.append gridLines
+  |> Stdlib.List.append [""]
+  |> Stdlib.List.append ["4. ListView:"]
+  |> Stdlib.List.append listViewLines
+  |> Stdlib.List.append [""]
+  |> Stdlib.List.append ["5. Status Bar:"]
+  |> Stdlib.List.append statusBarLines
+  |> Stdlib.List.append [""]
+  |> Stdlib.List.append ["6. Scrollbar:"]
+  |> Stdlib.List.append scrollbarLines
+  |> Stdlib.List.append [""]
+  |> Stdlib.List.append ["7. HStack:"]
+  |> Stdlib.List.append hStackLines
+  |> Stdlib.List.append [""]
+  |> Stdlib.List.append ["8. VStack:"]
+  |> Stdlib.List.append vStackLines
+
+
+// Navigation Components Demo Page
+let renderNavigationComponentsPage (model: CatalogModel) : List<String> =
+  let context = Core.Types.RenderContext { availableWidth = 80L; availableHeight = 24L; hasFocus = true; theme = "default" }
+
+  let titleLabel = Components.Label.createLabel "Navigation Components Demo" Core.Types.Color.Primary
+
+  // Create menu items
+  let menuItems =
+    [ Components.Navigation.MenuItem { id = "file"; label = "File"; shortcut = "F"; action = (fun () -> ()); enabled = true; submenu = [] }
+      Components.Navigation.MenuItem { id = "edit"; label = "Edit"; shortcut = "E"; action = (fun () -> ()); enabled = true; submenu = [] }
+      Components.Navigation.MenuItem { id = "view"; label = "View"; shortcut = "V"; action = (fun () -> ()); enabled = true; submenu = [] }
+      Components.Navigation.MenuItem { id = "help"; label = "Help"; shortcut = "H"; action = (fun () -> ()); enabled = true; submenu = [] } ]
+
+  let menu = Components.Navigation.createMenu "Main Menu" menuItems
+  let openMenu = Components.Navigation.toggleMenu menu
+
+  let tabs = Components.Navigation.createTabs [ "Home"; "Profile"; "Settings"; "About" ] 1L
+
+  let breadcrumb =
+    Components.Navigation.createBreadcrumb
+      [ "Home"; "Experiments"; "UI Catalog"; "Navigation" ]
+      " > "
+
+  let navItems =
+    [ Components.Navigation.MenuItem { id = "home"; label = "Home"; shortcut = ""; action = (fun () -> ()); enabled = true; submenu = [] }
+      Components.Navigation.MenuItem { id = "about"; label = "About"; shortcut = ""; action = (fun () -> ()); enabled = true; submenu = [] }
+      Components.Navigation.MenuItem { id = "contact"; label = "Contact"; shortcut = ""; action = (fun () -> ()); enabled = true; submenu = [] } ]
+
+  let navbar = Components.Navigation.createNavBar "MyApp" navItems
+
+  // Render components
+  let titleLines = Components.Label.renderLabel titleLabel context
+  let menuLines = Components.Navigation.renderMenu openMenu context
+  let tabsLines = Components.Navigation.renderTabs tabs context
+  let breadcrumbLines = Components.Navigation.renderBreadcrumb breadcrumb context
+  let navbarLines = Components.Navigation.renderNavBar navbar context
+
+  titleLines
+  |> Stdlib.List.append [""]
+  |> Stdlib.List.append ["Menu Component:"]
+  |> Stdlib.List.append menuLines
+  |> Stdlib.List.append [""]
+  |> Stdlib.List.append ["Tab Component:"]
+  |> Stdlib.List.append tabsLines
+  |> Stdlib.List.append [""]
+  |> Stdlib.List.append ["Breadcrumb:"]
+  |> Stdlib.List.append breadcrumbLines
+  |> Stdlib.List.append [""]
+  |> Stdlib.List.append ["Navigation Bar:"]
+  |> Stdlib.List.append navbarLines
+
+// Cards and Panels Demo Page
+let renderCardsAndPanelsPage (model: CatalogModel) : List<String> =
+  let context = Core.Types.RenderContext { availableWidth = 80L; availableHeight = 24L; hasFocus = true; theme = "default" }
+
+  let titleLabel = Components.Label.createLabel "Cards & Panels Demo (4 Types)" Core.Types.Color.Primary
+
+  // 1. Create standard card component
+  let card =
+    Components.Card.createCard
+      "Standard Card"
+      [ "This is a standard card component."; "Cards can contain multiple lines of content."; "Perfect for showcasing information." ]
+      35L
+      6L
+  let cardWithSubtitle = Components.Card.setCardSubtitle card "Basic card container"
+
+  // 2. Create info card with enhanced styling
+  let infoCard =
+    Components.Card.createCard
+      "Information Card"
+      [ "Cards are perfect for terminal UIs."; "They organize content in bordered containers."; "Great for status displays and data." ]
+      35L
+      6L
+  let styledInfoCard =
+    infoCard
+    |> Components.Card.setCardColors Core.Types.Color.Info Core.Types.Color.Primary
+    |> Components.Card.enableCardShadow
+
+  // 3. Create interactive panel
+  let panel = Components.Panel.createPanel "Control Panel" 30L
+  let panelWithItems =
+    panel
+    |> Components.Panel.addPanelItem (Components.Panel.PanelItem { id = "option1"; label = "Option 1"; icon = "▸"; isActive = true; isDisabled = false; itemType = Components.Panel.PanelItemType.Action })
+    |> Components.Panel.addPanelItem (Components.Panel.PanelItem { id = "option2"; label = "Option 2"; icon = "▸"; isActive = false; isDisabled = false; itemType = Components.Panel.PanelItemType.Action })
+    |> Components.Panel.addPanelItem (Components.Panel.PanelItem { id = "separator"; label = ""; icon = ""; isActive = false; isDisabled = false; itemType = Components.Panel.PanelItemType.Separator })
+    |> Components.Panel.addPanelItem (Components.Panel.PanelItem { id = "option3"; label = "Option 3"; icon = "▸"; isActive = false; isDisabled = true; itemType = Components.Panel.PanelItemType.Action })
+
+  // 4. Create tab panel
+  let tabPanel = Components.Panel.createTabPanel 35L Components.Panel.TabStyle.Boxed
+  let tabPanelWithTabs =
+    tabPanel
+    |> Components.Panel.addTab (Components.Panel.PanelItem { id = "tab1"; label = "General"; icon = ""; isActive = true; isDisabled = false; itemType = Components.Panel.PanelItemType.Tab })
+    |> Components.Panel.addTab (Components.Panel.PanelItem { id = "tab2"; label = "Advanced"; icon = ""; isActive = false; isDisabled = false; itemType = Components.Panel.PanelItemType.Tab })
+    |> Components.Panel.addTab (Components.Panel.PanelItem { id = "tab3"; label = "Security"; icon = ""; isActive = false; isDisabled = false; itemType = Components.Panel.PanelItemType.Tab })
+
+  // 5. Create filter panel
+  let filterPanel = Components.Panel.createFilterPanel "Filters" 30L
+  let filterPanelWithFilters =
+    filterPanel
+    |> Components.Panel.addFilter (Components.Panel.PanelItem { id = "status"; label = "Status: Active"; icon = "✓"; isActive = true; isDisabled = false; itemType = Components.Panel.PanelItemType.Filter })
+    |> Components.Panel.addFilter (Components.Panel.PanelItem { id = "type"; label = "Type: All"; icon = "◇"; isActive = false; isDisabled = false; itemType = Components.Panel.PanelItemType.Filter })
+    |> Components.Panel.addFilter (Components.Panel.PanelItem { id = "date"; label = "Date: Today"; icon = "📅"; isActive = true; isDisabled = false; itemType = Components.Panel.PanelItemType.Filter })
+
+  // Render components
+  let titleLines = Components.Label.renderLabel titleLabel context
+  let cardLines = Components.Card.renderCard cardWithSubtitle context
+  let infoCardLines = Components.Card.renderCard styledInfoCard context
+  let panelLines = Components.Panel.renderPanel panelWithItems context
+  let tabPanelLines = Components.Panel.renderTabPanel tabPanelWithTabs context
+  let filterPanelLines = Components.Panel.renderFilterPanel filterPanelWithFilters context
+
+  titleLines
+  |> Stdlib.List.append [""]
+  |> Stdlib.List.append ["1. Standard Card:"]
+  |> Stdlib.List.append cardLines
+  |> Stdlib.List.append [""]
+  |> Stdlib.List.append ["2. Styled Info Card:"]
+  |> Stdlib.List.append infoCardLines
+  |> Stdlib.List.append [""]
+  |> Stdlib.List.append ["3. Interactive Panel:"]
+  |> Stdlib.List.append panelLines
+  |> Stdlib.List.append [""]
+  |> Stdlib.List.append ["4. Filter Panel:"]
+  |> Stdlib.List.append filterPanelLines
+
+// Messages and Alerts Demo Page
+let renderMessagesAndAlertsPage (model: CatalogModel) : List<String> =
+  let context = Core.Types.RenderContext { availableWidth = 80L; availableHeight = 24L; hasFocus = true; theme = "default" }
+
+  let titleLabel = Components.Label.createLabel "Messages & Alerts Demo (5 Types)" Core.Types.Color.Primary
+
+  // 1. Standard message components
+  let infoMessage =
+    Components.Message.createMessage
+      "Information"
+      "This is an informational message to help users understand something."
+      Core.Types.Color.Info
+      45L
+
+  let warningMessage =
+    Components.Message.createMessage
+      "Warning"
+      "Please be careful! This action might have consequences."
+      Core.Types.Color.Warning
+      45L
+
+  // 2. Toast notifications
+  let toastSuccess =
+    Components.Message.createToast
+      "File saved successfully!"
+      Core.Types.Color.Success
+      3000L
+
+  let toastError =
+    Components.Message.createToast
+      "Connection lost. Retrying..."
+      Core.Types.Color.Error
+      5000L
+
+  // 3. Alert components
+  let criticalAlert =
+    Components.Message.createAlert
+      "⚠️ Critical system alert: Low disk space detected"
+      Core.Types.Color.Error
+      60L
+
+  let infoAlert =
+    Components.Message.createAlert
+      "ℹ️ New features available - check the updates panel"
+      Core.Types.Color.Info
+      60L
+
+  // 4. Context menu
+  let contextMenuItems =
+    [ Components.Dropdown.DropdownItem { id = "copy"; label = "Copy"; value = "copy"; disabled = false; separator = false }
+      Components.Dropdown.DropdownItem { id = "paste"; label = "Paste"; value = "paste"; disabled = false; separator = false }
+      Components.Dropdown.DropdownItem { id = "delete"; label = "Delete"; value = "delete"; disabled = true; separator = false } ]
+  let contextMenu = Components.Dropdown.createContextMenu contextMenuItems
+
+  // 5. Standard dropdown (corrected)
+  let dropdownItems =
+    [ Components.Dropdown.DropdownItem { id = "opt1"; label = "Option A"; value = "opt1"; disabled = false; separator = false }
+      Components.Dropdown.DropdownItem { id = "opt2"; label = "Option B"; value = "opt2"; disabled = false; separator = false }
+      Components.Dropdown.DropdownItem { id = "opt3"; label = "Option C"; value = "opt3"; disabled = false; separator = false } ]
+  let dropdown = Components.Dropdown.createDropdown "Select an option..." dropdownItems
+  let openDropdown = Components.Dropdown.toggleDropdown dropdown
+
+  // Render components
+  let titleLines = Components.Label.renderLabel titleLabel context
+  let infoLines = Components.Message.renderMessage infoMessage context
+  let warningLines = Components.Message.renderMessage warningMessage context
+  let toastSuccessLines = Components.Message.renderToast toastSuccess context
+  let toastErrorLines = Components.Message.renderToast toastError context
+  let criticalAlertLines = Components.Message.renderAlert criticalAlert context
+  let infoAlertLines = Components.Message.renderAlert infoAlert context
+  let contextMenuLines = Components.Dropdown.renderContextMenu contextMenu context
+  let dropdownLines = Components.Dropdown.renderDropdown openDropdown context
+
+  titleLines
+  |> Stdlib.List.append [""]
+  |> Stdlib.List.append ["1. Standard Messages:"]
+  |> Stdlib.List.append infoLines
+  |> Stdlib.List.append [""]
+  |> Stdlib.List.append warningLines
+  |> Stdlib.List.append [""]
+  |> Stdlib.List.append ["2. Toast Notifications:"]
+  |> Stdlib.List.append toastSuccessLines
+  |> Stdlib.List.append toastErrorLines
+  |> Stdlib.List.append [""]
+  |> Stdlib.List.append ["3. Alert Components:"]
+  |> Stdlib.List.append criticalAlertLines
+  |> Stdlib.List.append [""]
+  |> Stdlib.List.append infoAlertLines
+  |> Stdlib.List.append [""]
+  |> Stdlib.List.append ["4. Context Menu:"]
+  |> Stdlib.List.append contextMenuLines
+  |> Stdlib.List.append [""]
+  |> Stdlib.List.append ["5. Dropdown Component:"]
+  |> Stdlib.List.append dropdownLines
+
+// Pagination and Steps Demo Page
+let renderPaginationAndStepsPage (model: CatalogModel) : List<String> =
+  let context = Core.Types.RenderContext { availableWidth = 80L; availableHeight = 24L; hasFocus = true; theme = "default" }
+
+  let titleLabel = Components.Label.createLabel "Pagination & Steps Demo" Core.Types.Color.Primary
+
+  // Create pagination component
+  let pagination = Components.Pagination.createPagination 150L 10L
+  let paginationOnPage3 =
+    pagination
+    |> Components.Pagination.goToPage 3L
+
+  // Create step navigation
+  let stepNav = Components.Pagination.createStepNavigation 60L Components.Pagination.StepStyle.Horizontal
+  let stepNavWithSteps =
+    stepNav
+    |> Components.Pagination.addStep (Components.Pagination.StepModel { id = "step1"; title = "Setup"; isCompleted = true; isActive = false; isDisabled = false })
+    |> Components.Pagination.addStep (Components.Pagination.StepModel { id = "step2"; title = "Configure"; isCompleted = true; isActive = false; isDisabled = false })
+    |> Components.Pagination.addStep (Components.Pagination.StepModel { id = "step3"; title = "Review"; isCompleted = false; isActive = true; isDisabled = false })
+    |> Components.Pagination.addStep (Components.Pagination.StepModel { id = "step4"; title = "Deploy"; isCompleted = false; isActive = false; isDisabled = true })
+    |> Components.Pagination.goToStep 2L
+
+  // Render components
+  let titleLines = Components.Label.renderLabel titleLabel context
+  let paginationLines = Components.Pagination.renderPagination paginationOnPage3 context
+  let stepNavLines = Components.Pagination.renderStepNavigation stepNavWithSteps context
+
+  titleLines
+  |> Stdlib.List.append [""]
+  |> Stdlib.List.append ["Pagination Component:"]
+  |> Stdlib.List.append paginationLines
+  |> Stdlib.List.append [""]
+  |> Stdlib.List.append ["Step Navigation:"]
+  |> Stdlib.List.append stepNavLines
+
+// Main Render Function
+let renderCatalog (model: CatalogModel) : List<String> =
+  let context = Core.Types.RenderContext { availableWidth = 80L; availableHeight = 24L; hasFocus = true; theme = "default" }
+
+  // Render navigation tabs
+  let tabsLines = Components.Navigation.renderTabs model.navigationMenu context
+  let divider = Components.Divider.createDivider "═" 80L Core.Types.Color.Primary
+  let dividerLines = Components.Divider.renderDivider divider context
+
+  // Render current page content
+  let pageContent =
+    match model.currentPage with
+    | BasicComponents -> renderBasicComponentsPage model
+    | FormComponents -> renderFormComponentsPage model
+    | LayoutComponents -> renderLayoutComponentsPage model
+    | NavigationComponents -> renderNavigationComponentsPage model
+    | CardsAndPanels -> renderCardsAndPanelsPage model
+    | MessagesAndAlerts -> renderMessagesAndAlertsPage model
+    | PaginationAndSteps -> renderPaginationAndStepsPage model
+
+  let instructions =
+    [ "Controls: ← → to switch pages, Q to quit";
+      "This demo showcases various UI components in Terminal.Gui style" ]
+
+  instructions
+  |> Stdlib.List.append [""]
+  |> Stdlib.List.append tabsLines
+  |> Stdlib.List.append dividerLines
+  |> Stdlib.List.append [""]
+  |> Stdlib.List.append pageContent
+
+// Event Handling
+let handleKeyEvent (model: CatalogModel) (keyEvent: Core.Types.KeyEvent) : CatalogModel =
+  match keyEvent with
+  | Left ->
+      let currentIndex =
+        match model.currentPage with
+        | BasicComponents -> 0L
+        | FormComponents -> 1L
+        | LayoutComponents -> 2L
+        | NavigationComponents -> 3L
+        | CardsAndPanels -> 4L
+        | MessagesAndAlerts -> 5L
+        | PaginationAndSteps -> 6L
+
+      let newIndex = if currentIndex > 0L then currentIndex - 1L else 6L
+      let newPage =
+        match newIndex with
+        | 0L -> CatalogPage.BasicComponents
+        | 1L -> CatalogPage.FormComponents
+        | 2L -> CatalogPage.LayoutComponents
+        | 3L -> CatalogPage.NavigationComponents
+        | 4L -> CatalogPage.CardsAndPanels
+        | 5L -> CatalogPage.MessagesAndAlerts
+        | 6L -> CatalogPage.PaginationAndSteps
+        | _ -> CatalogPage.BasicComponents
+
+      let updatedTabs = Components.Navigation.selectTab model.navigationMenu newIndex
+      { model with currentPage = newPage; navigationMenu = updatedTabs }
+
+  | Right ->
+      let currentIndex =
+        match model.currentPage with
+        | BasicComponents -> 0L
+        | FormComponents -> 1L
+        | LayoutComponents -> 2L
+        | NavigationComponents -> 3L
+        | CardsAndPanels -> 4L
+        | MessagesAndAlerts -> 5L
+        | PaginationAndSteps -> 6L
+
+      let newIndex = if currentIndex < 6L then currentIndex + 1L else 0L
+      let newPage =
+        match newIndex with
+        | 0L -> CatalogPage.BasicComponents
+        | 1L -> CatalogPage.FormComponents
+        | 2L -> CatalogPage.LayoutComponents
+        | 3L -> CatalogPage.NavigationComponents
+        | 4L -> CatalogPage.CardsAndPanels
+        | 5L -> CatalogPage.MessagesAndAlerts
+        | 6L -> CatalogPage.PaginationAndSteps
+        | _ -> CatalogPage.BasicComponents
+
+      let updatedTabs = Components.Navigation.selectTab model.navigationMenu newIndex
+      { model with currentPage = newPage; navigationMenu = updatedTabs }
+
+  | _ -> model
+
+// Main Application Loop
+let runCatalogDemo (model: CatalogModel) : Int64 =
+  if Stdlib.Bool.not model.isRunning then
+    0L
+  else
+    // Clear screen and render
+    Stdlib.print "\u001b[2J\u001b[H"
+
+    let renderedLines = renderCatalog model
+    renderedLines
+    |> Stdlib.List.iter (fun line -> Stdlib.printLine line)
+
+    // Read user input
+    let keyInput = Stdlib.Cli.Stdin.readKey ()
+
+    // Handle quit
+    if keyInput.keyChar == "q" || keyInput.keyChar == "Q" then
+      0L
+    else
+      // Handle key events
+      let keyEvent =
+        match keyInput.key with
+        | LeftArrow -> Stdlib.Option.Option.Some Core.Types.KeyEvent.Left
+        | RightArrow -> Stdlib.Option.Option.Some Core.Types.KeyEvent.Right
+        | Enter -> Stdlib.Option.Option.Some Core.Types.KeyEvent.Enter
+        | Escape -> Stdlib.Option.Option.Some Core.Types.KeyEvent.Escape
+        | _ -> Stdlib.Option.Option.None
+
+      let updatedModel =
+        match keyEvent with
+        | Some event -> handleKeyEvent model event
+        | None -> model
+
+      runCatalogDemo updatedModel
+
+// Main Entry Point
+let runUICatalogDemo () : Int64 =
+  let initialModel = initCatalogModel ()
+  runCatalogDemo initialModel
