@@ -1,106 +1,106 @@
-module Darklang =
-  module Stdlib =
-    module DateTime =
-      /// Parses a string representing a date and time in the ISO 8601 format exactly {{" + ISO8601Format+ "}}
-      /// (for example: 2019-09-07T22:44:25Z) and returns the {{Date}} wrapped in a {{Result}}.
-      let parse (s: String) : Stdlib.Result.Result<DateTime, String> =
-        Builtin.dateTimeParse s
+module Darklang.Stdlib.DateTime
 
 
-      /// Stringify <param date> to the ISO 8601 format {{YYYY-MM-DD'T'hh:mm:ss'Z'}}
-      let toString (date: DateTime) : String = Builtin.dateTimeToString date
+/// Parses a string representing a date and time in the ISO 8601 format exactly {{" + ISO8601Format+ "}}
+/// (for example: 2019-09-07T22:44:25Z) and returns the {{Date}} wrapped in a {{Result}}.
+let parse (s: String) : Stdlib.Result.Result<DateTime, String> =
+  Builtin.dateTimeParse s
 
 
-      /// Stringify <param date> to the ISO 8601 basic format {{YYYYMMDD'T'hhmmss'Z'}}
-      let toStringISO8601BasicDateTime (date: DateTime) : String =
-        Builtin.dateTimeToStringISO8601BasicDateTime date
+/// Stringify <param date> to the ISO 8601 format {{YYYY-MM-DD'T'hh:mm:ss'Z'}}
+let toString (date: DateTime) : String = Builtin.dateTimeToString date
 
 
-      /// Stringify <param date> to the ISO 8601 basic format YYYYMMDD
-      let toStringISO8601BasicDate (date: DateTime) : String =
-        Builtin.dateTimeToStringISO8601BasicDate date
+/// Stringify <param date> to the ISO 8601 basic format {{YYYYMMDD'T'hhmmss'Z'}}
+let toStringISO8601BasicDateTime (date: DateTime) : String =
+  Builtin.dateTimeToStringISO8601BasicDateTime date
 
 
-      /// Returns the current time
-      let now () : DateTime = Builtin.dateTimeNow ()
+/// Stringify <param date> to the ISO 8601 basic format YYYYMMDD
+let toStringISO8601BasicDate (date: DateTime) : String =
+  Builtin.dateTimeToStringISO8601BasicDate date
 
 
-      /// Returns the <type DateTime> with the time set to midnight
-      let today () : DateTime = Builtin.dateTimeToday ()
+/// Returns the current time
+let now () : DateTime = Builtin.dateTimeNow ()
 
 
-      /// Returns a <type DateTime> <param seconds> seconds after <param d>
-      let addSeconds (d: DateTime) (seconds: Int64) : DateTime =
-        Builtin.dateTimeAddSeconds d seconds
+/// Returns the <type DateTime> with the time set to midnight
+let today () : DateTime = Builtin.dateTimeToday ()
 
 
-      /// Returns a <type DateTime> <param seconds> seconds before <param d>
-      let subtractSeconds (d: DateTime) (seconds: Int64) : DateTime =
-        Builtin.dateTimeSubtractSeconds d seconds
+/// Returns a <type DateTime> <param seconds> seconds after <param d>
+let addSeconds (d: DateTime) (seconds: Int64) : DateTime =
+  Builtin.dateTimeAddSeconds d seconds
 
 
-      /// Returns whether {{<param d1> > <param d2>}}
-      let greaterThan (d1: DateTime) (d2: DateTime) : Bool =
-        Builtin.dateTimeGreaterThan d1 d2
+/// Returns a <type DateTime> <param seconds> seconds before <param d>
+let subtractSeconds (d: DateTime) (seconds: Int64) : DateTime =
+  Builtin.dateTimeSubtractSeconds d seconds
 
 
-      /// Returns whether {{<param d1> < <param d2>}}
-      let lessThan (d1: DateTime) (d2: DateTime) : Bool =
-        Builtin.dateTimeLessThan d1 d2
+/// Returns whether {{<param d1> > <param d2>}}
+let greaterThan (d1: DateTime) (d2: DateTime) : Bool =
+  Builtin.dateTimeGreaterThan d1 d2
 
 
-      /// Returns whether {{<param d1> >= <param d2>}}
-      let greaterThanOrEqualTo (d1: DateTime) (d2: DateTime) : Bool =
-        Builtin.dateTimeGreaterThanOrEqualTo d1 d2
+/// Returns whether {{<param d1> < <param d2>}}
+let lessThan (d1: DateTime) (d2: DateTime) : Bool =
+  Builtin.dateTimeLessThan d1 d2
 
 
-      /// Returns whether {{<param d1> <= <param d2>}}
-      let lessThanOrEqualTo (d1: DateTime) (d2: DateTime) : Bool =
-        Builtin.dateTimeLessThanOrEqualTo d1 d2
+/// Returns whether {{<param d1> >= <param d2>}}
+let greaterThanOrEqualTo (d1: DateTime) (d2: DateTime) : Bool =
+  Builtin.dateTimeGreaterThanOrEqualTo d1 d2
 
 
-      /// Converts <param date> to an <type Int64> representing seconds since the Unix epoch
-      let toSeconds (date: DateTime) : Int64 = Builtin.dateTimeToSeconds date
+/// Returns whether {{<param d1> <= <param d2>}}
+let lessThanOrEqualTo (d1: DateTime) (d2: DateTime) : Bool =
+  Builtin.dateTimeLessThanOrEqualTo d1 d2
 
 
-      /// Converts an <type Int64> representing seconds since the Unix epoch into a <type DateTime>
-      let fromSeconds (seconds: Int64) : DateTime =
-        Builtin.dateTimeFromSeconds seconds
+/// Converts <param date> to an <type Int64> representing seconds since the Unix epoch
+let toSeconds (date: DateTime) : Int64 = Builtin.dateTimeToSeconds date
 
 
-      /// Returns the year portion of <param date> as an <type Int64>
-      let year (date: DateTime) : Int64 = Builtin.dateTimeYear date
+/// Converts an <type Int64> representing seconds since the Unix epoch into a <type DateTime>
+let fromSeconds (seconds: Int64) : DateTime =
+  Builtin.dateTimeFromSeconds seconds
 
 
-      /// Returns the month portion of <param date> as an <type Int64> between {{1}} and {{12}}
-      let month (date: DateTime) : Int64 = Builtin.dateTimeMonth date
+/// Returns the year portion of <param date> as an <type Int64>
+let year (date: DateTime) : Int64 = Builtin.dateTimeYear date
 
 
-      /// Returns the day portion of <param date> as an <type Int64>
-      let day (date: DateTime) : Int64 = Builtin.dateTimeDay date
+/// Returns the month portion of <param date> as an <type Int64> between {{1}} and {{12}}
+let month (date: DateTime) : Int64 = Builtin.dateTimeMonth date
 
 
-      /// Returns the weekday of <param date> as an <type Int64>. Monday = {{1}}, Tuesday = {{2}}, ... Sunday = {{7}} (in accordance with ISO 8601
-      let weekday (date: DateTime) : Int64 = Builtin.dateTimeWeekday date
+/// Returns the day portion of <param date> as an <type Int64>
+let day (date: DateTime) : Int64 = Builtin.dateTimeDay date
 
 
-      /// Returns the hour portion of <param date> as an <type Int64>
-      let hour (date: DateTime) : Int64 = Builtin.dateTimeHour date
+/// Returns the weekday of <param date> as an <type Int64>. Monday = {{1}}, Tuesday = {{2}}, ... Sunday = {{7}} (in accordance with ISO 8601
+let weekday (date: DateTime) : Int64 = Builtin.dateTimeWeekday date
 
 
-      /// Returns the minute portion of <param date> as an <type Int64>
-      let minute (date: DateTime) : Int64 = Builtin.dateTimeMinute date
+/// Returns the hour portion of <param date> as an <type Int64>
+let hour (date: DateTime) : Int64 = Builtin.dateTimeHour date
 
 
-      /// Returns the second portion of <param date> as an <type Int64>
-      let second (date: DateTime) : Int64 = Builtin.dateTimeSecond date
+/// Returns the minute portion of <param date> as an <type Int64>
+let minute (date: DateTime) : Int64 = Builtin.dateTimeMinute date
 
 
-      /// Returns <type date> with the time set to midnight
-      let atStartOfDay (date: DateTime) : DateTime =
-        Builtin.dateTimeAtStartOfDay date
+/// Returns the second portion of <param date> as an <type Int64>
+let second (date: DateTime) : Int64 = Builtin.dateTimeSecond date
 
 
-      /// Returns the difference of the two dates, in seconds
-      let subtract (d1: DateTime) (d2: DateTime) : Int64 =
-        Builtin.dateTimeSubtract d1 d2
+/// Returns <type date> with the time set to midnight
+let atStartOfDay (date: DateTime) : DateTime =
+  Builtin.dateTimeAtStartOfDay date
+
+
+/// Returns the difference of the two dates, in seconds
+let subtract (d1: DateTime) (d2: DateTime) : Int64 =
+  Builtin.dateTimeSubtract d1 d2

@@ -137,7 +137,7 @@ module Interactive =
     Stdlib.print "\u001b[2J\u001b[H"
 
     let locationStr = Packages.formatLocation navState.currentLocation
-    Stdlib.printLine (Colors.boldText $"📁 {locationStr} (interactive navigation)")
+    Stdlib.printLine (Colors.boldText $"📁 {locationStr}")
     Stdlib.printLine (Stdlib.String.repeat "─" 60L)
 
     // Calculate viewport

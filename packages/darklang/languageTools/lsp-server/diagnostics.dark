@@ -1,29 +1,28 @@
-module Darklang =
-  module LanguageTools =
-    module LspServer =
-      module Diagnostics =
-        let gatherAndReportDiagnostics
-          (requestUri: String)
-          (parsedText: WrittenTypes.SourceFile.SourceFile)
-          (unresolvedNames: List<Parser.Range * ProgramTypes.NameResolutionError>)
-          : Unit =
-          let warningDiagnostics =
-            unresolvedNames
-            |> Stdlib.List.map (fun (range, error) ->
-              createWarningDiagnostic
-                range
-                (PrettyPrinter.ProgramTypes.NameResolutionError.error error))
+module Darklang.LanguageTools.LspServer.Diagnostics
 
-          let errorDiagnostics =
-            parsedText.unparseableStuff
-            |> Stdlib.List.map (fun unparseable ->
-              createErrorDiagnostic
-                unparseable.source.range
-                "Couldn't parse this part of the file")
 
-          let diagnostics = Stdlib.List.append warningDiagnostics errorDiagnostics
+let gatherAndReportDiagnostics
+  (requestUri: String)
+  (parsedText: WrittenTypes.SourceFile.SourceFile)
+  (unresolvedNames: List<Parser.Range * ProgramTypes.NameResolutionError>)
+  : Unit =
+  let warningDiagnostics =
+    unresolvedNames
+    |> Stdlib.List.map (fun (range, error) ->
+      createWarningDiagnostic
+        range
+        (PrettyPrinter.ProgramTypes.NameResolutionError.error error))
 
-          sendDiagnostic requestUri diagnostics
+  let errorDiagnostics =
+    parsedText.unparseableStuff
+    |> Stdlib.List.map (fun unparseable ->
+      createErrorDiagnostic
+        unparseable.source.range
+        "Couldn't parse this part of the file")
+
+  let diagnostics = Stdlib.List.append warningDiagnostics errorDiagnostics
+
+  sendDiagnostic requestUri diagnostics
 
 
 

@@ -1,183 +1,180 @@
-module Darklang =
-  module LanguageTools =
-    module RuntimeTypes =
-      module RuntimeError =
+module Darklang.LanguageTools.RuntimeTypes.RuntimeError
 
-        module TypeChecking =
-          type TypeCheckPathPart =
-            | ListType
-            | DictValueType
-            | TupleLength of expected : Int32 * actual : Int32
-            | TupleAtIndex of Int32
-            | TypeArg of typeName: FQTypeName.FQTypeName * index : Int32 * expected : TypeReference * actual: ValueType * typeArgCount: Int32
+module TypeChecking =
+  type TypeCheckPathPart =
+    | ListType
+    | DictValueType
+    | TupleLength of expected : Int32 * actual : Int32
+    | TupleAtIndex of Int32
+    | TypeArg of typeName: FQTypeName.FQTypeName * index : Int32 * expected : TypeReference * actual: ValueType * typeArgCount: Int32
 
-          type ReverseTypeCheckPath = List<TypeCheckPathPart>
+  type ReverseTypeCheckPath = List<TypeCheckPathPart>
 
-        module Bools =
-          type Error =
-            | AndOnlySupportsBooleans of gotLeft: ValueType * gotRight: ValueType
-            | OrOnlySupportsBooleans of gotLeft: ValueType * gotRight: ValueType
-            | ConditionRequiresBool of actualValueType: ValueType * actualValue: Dval
+module Bools =
+  type Error =
+    | AndOnlySupportsBooleans of gotLeft: ValueType * gotRight: ValueType
+    | OrOnlySupportsBooleans of gotLeft: ValueType * gotRight: ValueType
+    | ConditionRequiresBool of actualValueType: ValueType * actualValue: Dval
 
-        module Ints =
-          type Error =
-            | DivideByZeroError
-            | OutOfRange
-            | NegativeExponent
-            | NegativeModulus
-            | ZeroModulus
+module Ints =
+  type Error =
+    | DivideByZeroError
+    | OutOfRange
+    | NegativeExponent
+    | NegativeModulus
+    | ZeroModulus
 
-        module Strings =
-          type Error =
-            | NonStringInInterpolation of vt: ValueType * dv: Dval
+module Strings =
+  type Error =
+    | NonStringInInterpolation of vt: ValueType * dv: Dval
 
-        module Lists =
-          type Error =
-            | TriedToAddMismatchedData of
-              index: Int32 *
-              expectedType: ValueType *
-              actualType: ValueType *
-              actualValue: Dval
+module Lists =
+  type Error =
+    | TriedToAddMismatchedData of
+      index: Int32 *
+      expectedType: ValueType *
+      actualType: ValueType *
+      actualValue: Dval
 
-        module Dicts =
-          type Error =
-            | TriedToAddKeyAfterAlreadyPresent of key: String
+module Dicts =
+  type Error =
+    | TriedToAddKeyAfterAlreadyPresent of key: String
 
-            | TriedToAddMismatchedData of
-              key: String *
-              expectedType: ValueType *
-              actualType: ValueType *
-              actualValue: Dval
+    | TriedToAddMismatchedData of
+      key: String *
+      expectedType: ValueType *
+      actualType: ValueType *
+      actualValue: Dval
 
-        module Lets =
-          type Error =
-            | PatternDoesNotMatch of dval: Dval * pat: LetPattern
+module Lets =
+  type Error =
+    | PatternDoesNotMatch of dval: Dval * pat: LetPattern
 
-        module Matches =
-          type Error =
-            | MatchUnmatched of unmatchedValue: Dval
+module Matches =
+  type Error =
+    | MatchUnmatched of unmatchedValue: Dval
 
-        module Enums =
-          type Error =
-            | ConstructionWrongNumberOfFields of
-              typeName: FQTypeName.FQTypeName *
-              caseName: String *
-              expectedFieldCount: Int64 *
-              actualFieldCount: Int64
+module Enums =
+  type Error =
+    | ConstructionWrongNumberOfFields of
+      typeName: FQTypeName.FQTypeName *
+      caseName: String *
+      expectedFieldCount: Int64 *
+      actualFieldCount: Int64
 
-            | ConstructionCaseNotFound of
-              typeName: FQTypeName.FQTypeName *
-              caseName: String
+    | ConstructionCaseNotFound of
+      typeName: FQTypeName.FQTypeName *
+      caseName: String
 
-            | ConstructionFieldOfWrongType of
-              caseName: String *
-              fieldIndex: Int64 *
-              expectedType: ValueType *
-              actualType: ValueType *
-              actualValue: Dval
+    | ConstructionFieldOfWrongType of
+      caseName: String *
+      fieldIndex: Int64 *
+      expectedType: ValueType *
+      actualType: ValueType *
+      actualValue: Dval
 
-        module Records =
-          type Error =
-            // -- Creation --
-            | CreationTypeNotRecord of name: FQTypeName.FQTypeName
-            | CreationEmptyKey
-            | CreationMissingField of fieldName: String
-            | CreationDuplicateField of fieldName: String
-            | CreationFieldNotExpected of fieldName: String
-            | CreationFieldOfWrongType of
-              fieldName: String *
-              expectedType: ValueType *
-              actualType: ValueType *
-              actualValue: Dval
+module Records =
+  type Error =
+    // -- Creation --
+    | CreationTypeNotRecord of name: FQTypeName.FQTypeName
+    | CreationEmptyKey
+    | CreationMissingField of fieldName: String
+    | CreationDuplicateField of fieldName: String
+    | CreationFieldNotExpected of fieldName: String
+    | CreationFieldOfWrongType of
+      fieldName: String *
+      expectedType: ValueType *
+      actualType: ValueType *
+      actualValue: Dval
 
-            // -- Update --
-            | UpdateNotRecord of actualType: ValueType
-            | UpdateEmptyKey
-            | UpdateDuplicateField of fieldName: String
-            | UpdateFieldNotExpected of fieldName: String
-            | UpdateFieldOfWrongType of
-              fieldName: String *
-              expectedType: ValueType *
-              actualType: ValueType *
-              actualValue : Dval
+    // -- Update --
+    | UpdateNotRecord of actualType: ValueType
+    | UpdateEmptyKey
+    | UpdateDuplicateField of fieldName: String
+    | UpdateFieldNotExpected of fieldName: String
+    | UpdateFieldOfWrongType of
+      fieldName: String *
+      expectedType: ValueType *
+      actualType: ValueType *
+      actualValue : Dval
 
-            // -- Field Access --
-            | FieldAccessEmptyFieldName
-            | FieldAccessFieldNotFound of fieldName: String
-            | FieldAccessNotRecord of actualType: ValueType
+    // -- Field Access --
+    | FieldAccessEmptyFieldName
+    | FieldAccessFieldNotFound of fieldName: String
+    | FieldAccessNotRecord of actualType: ValueType
 
-        module Applications =
-          type Error =
-            | ExpectedApplicableButNot of actualType: ValueType * actualValue: Dval
+module Applications =
+  type Error =
+    | ExpectedApplicableButNot of actualType: ValueType * actualValue: Dval
 
-            | WrongNumberOfTypeArgsForFn of fn: FQFnName.FQFnName * expected: Int64 * actual: Int64
-            | CannotApplyTypeArgsMoreThanOnce
-            | TooManyArgsForFn of fn: FQFnName.FQFnName * expected: Int64 * actual: Int64
-            | FnParameterNotExpectedType of fnName : FQFnName.FQFnName * paramIndex: Int64 * paramName : String * expectedType : ValueType * actualType : ValueType * actualValue : Dval
-            | FnResultNotExpectedType of fnName : FQFnName.FQFnName * expectedType : ValueType * actualType : ValueType * actualValue : Dval
+    | WrongNumberOfTypeArgsForFn of fn: FQFnName.FQFnName * expected: Int64 * actual: Int64
+    | CannotApplyTypeArgsMoreThanOnce
+    | TooManyArgsForFn of fn: FQFnName.FQFnName * expected: Int64 * actual: Int64
+    | FnParameterNotExpectedType of fnName : FQFnName.FQFnName * paramIndex: Int64 * paramName : String * expectedType : ValueType * actualType : ValueType * actualValue : Dval
+    | FnResultNotExpectedType of fnName : FQFnName.FQFnName * expectedType : ValueType * actualType : ValueType * actualValue : Dval
 
-            | CannotApplyTypeArgsToLambda
-            | TooManyArgsForLambda of lambdaExprId: ID * expected: Int64 * actual: Int64
+    | CannotApplyTypeArgsToLambda
+    | TooManyArgsForLambda of lambdaExprId: ID * expected: Int64 * actual: Int64
 
-        module Statements =
-          type Error =
-            | FirstExpressionMustBeUnit of expectedType: ValueType * actualType: ValueType * actualValue: Dval
+module Statements =
+  type Error =
+    | FirstExpressionMustBeUnit of expectedType: ValueType * actualType: ValueType * actualValue: Dval
 
-        module Unwraps =
-          type Error =
-            | GotNone
-            | GotError of err: Dval
-            | NonOptionOrResult of actual: Dval
-            | MultipleArgs of args: List<Dval>
+module Unwraps =
+  type Error =
+    | GotNone
+    | GotError of err: Dval
+    | NonOptionOrResult of actual: Dval
+    | MultipleArgs of args: List<Dval>
 
-        module Jsons =
-          type Error =
-            | UnsupportedType of TypeReference
-            | CannotSerializeValue of Dval
+module Jsons =
+  type Error =
+    | UnsupportedType of TypeReference
+    | CannotSerializeValue of Dval
 
-        module CLIs =
-          type Error =
-            | NoExpressionsToExecute
-            | NonIntReturned of actuallyReturned: Dval
+module CLIs =
+  type Error =
+    | NoExpressionsToExecute
+    | NonIntReturned of actuallyReturned: Dval
 
-        type Error =
-          | Bool of Bools.Error
-          | Int of Ints.Error
-          | String of Strings.Error
+type Error =
+  | Bool of Bools.Error
+  | Int of Ints.Error
+  | String of Strings.Error
 
-          | List of Lists.Error
-          | Dict of Dicts.Error
+  | List of Lists.Error
+  | Dict of Dicts.Error
 
-          | Let of Lets.Error
-          | VariableNotFound of attemptedVarName: String
+  | Let of Lets.Error
+  | VariableNotFound of attemptedVarName: String
 
-          | EqualityCheckOnIncompatibleTypes of left: ValueType * right: ValueType
+  | EqualityCheckOnIncompatibleTypes of left: ValueType * right: ValueType
 
-          | IfConditionNotBool of actualValue: Dval * actualValueType: ValueType
+  | IfConditionNotBool of actualValue: Dval * actualValueType: ValueType
 
-          | Match of Matches.Error
+  | Match of Matches.Error
 
-          | ParseTimeNameResolution of NameResolutionError
+  | ParseTimeNameResolution of NameResolutionError
 
-          | TypeNotFound of name: FQTypeName.FQTypeName
-          | FnNotFound of name: FQFnName.FQFnName
-          | ValNotFound of name: FQValueName.FQValueName
+  | TypeNotFound of name: FQTypeName.FQTypeName
+  | FnNotFound of name: FQFnName.FQFnName
+  | ValNotFound of name: FQValueName.FQValueName
 
-          | WrongNumberOfTypeArgsForType of fn: FQTypeName.FQTypeName * expected: Int64 * actual: Int64
+  | WrongNumberOfTypeArgsForType of fn: FQTypeName.FQTypeName * expected: Int64 * actual: Int64
 
-          | Record of Records.Error
-          | Enum of Enums.Error
+  | Record of Records.Error
+  | Enum of Enums.Error
 
-          | Apply of Applications.Error
+  | Apply of Applications.Error
 
-          | Statement of Statements.Error
+  | Statement of Statements.Error
 
-          | Unwrap of Unwraps.Error
+  | Unwrap of Unwraps.Error
 
-          | Json of Jsons.Error
+  | Json of Jsons.Error
 
-          | CLI of CLIs.Error
+  | CLI of CLIs.Error
 
-          | DBSetOfWrongType of expected: TypeReference * actual: ValueType
+  | DBSetOfWrongType of expected: TypeReference * actual: ValueType
 
-          | UncaughtException of msg : String * metadata : List<(String * Dval)>
+  | UncaughtException of msg : String * metadata : List<(String * Dval)>

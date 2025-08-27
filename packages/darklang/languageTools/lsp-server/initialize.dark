@@ -1,58 +1,58 @@
-module Darklang =
-  module LanguageTools =
-    module LspServer =
-      let handleInitializeRequest
-        // TODO: (LanguageServerProtocol.Lifecycle.InitializeRequest.InitializeParams.InitializeParams)
-        ()
-        : LspState =
-        let hardcodedInitializeResult =
-          LanguageServerProtocol.Lifecycle.InitializeRequest.InitializeResult.InitializeResult
-            { serverInfo = Stdlib.Option.Option.None // TODO
-
-              capabilities =
-                LanguageServerProtocol.Lifecycle.InitializeRequest.ServerCapabilities.ServerCapabilities
-                  { textDocumentSync =
-                      Stdlib.Option.Option.Some(
-                        DocSync.hardcodedServerCapabilities ()
-                      )
-
-                    completionProvider =
-                      Stdlib.Option.Option.Some(
-                        Completions.hardcodedServerCapabilities ()
-                      )
-
-                    semanticTokensProvider =
-                      Stdlib.Option.Option.Some(
-                        SemanticTokens.hardcodedServerCapabilities ()
-                      )
-
-                    hoverProvider = Stdlib.Option.Option.Some true
-
-                  // diagnosticProvider =
-                  //   Stdlib.Option.Option.Some(
-                  //     LanguageServerProtocol.PublishDiagnosticsClientCapabilities.PublishDiagnosticsClientCapabilities
-                  //       { relatedInformation = Stdlib.Option.Option.Some true
-                  //         tagSupport = Stdlib.Option.Option.None
-                  //         versionSupport = Stdlib.Option.Option.Some true
-                  //         codeDescriptionSupport = Stdlib.Option.Option.Some true
-                  //         dataSupport = Stdlib.Option.Option.Some true }
-                  //   )
-                  } }
+module Darklang.LanguageTools.LspServer
 
 
-        let initializeResponse =
-          hardcodedInitializeResult
-          |> LanguageServerProtocol.Lifecycle.InitializeRequest.InitializeResult.toJson
-          |> (fun r ->
-            JsonRPC.Response.Ok.make
-              (Stdlib.Option.Option.Some(JsonRPC.RequestId.Int 0L))
-              r)
-          |> Stdlib.AltJson.format
+let handleInitializeRequest
+  // TODO: (LanguageServerProtocol.Lifecycle.InitializeRequest.InitializeParams.InitializeParams)
+  ()
+  : LspState =
+  let hardcodedInitializeResult =
+    LanguageServerProtocol.Lifecycle.InitializeRequest.InitializeResult.InitializeResult
+      { serverInfo = Stdlib.Option.Option.None // TODO
 
-        logAndSendToClient initializeResponse
+        capabilities =
+          LanguageServerProtocol.Lifecycle.InitializeRequest.ServerCapabilities.ServerCapabilities
+            { textDocumentSync =
+                Stdlib.Option.Option.Some(
+                  DocSync.hardcodedServerCapabilities ()
+                )
+
+              completionProvider =
+                Stdlib.Option.Option.Some(
+                  Completions.hardcodedServerCapabilities ()
+                )
+
+              semanticTokensProvider =
+                Stdlib.Option.Option.Some(
+                  SemanticTokens.hardcodedServerCapabilities ()
+                )
+
+              hoverProvider = Stdlib.Option.Option.Some true
+
+            // diagnosticProvider =
+            //   Stdlib.Option.Option.Some(
+            //     LanguageServerProtocol.PublishDiagnosticsClientCapabilities.PublishDiagnosticsClientCapabilities
+            //       { relatedInformation = Stdlib.Option.Option.Some true
+            //         tagSupport = Stdlib.Option.Option.None
+            //         versionSupport = Stdlib.Option.Option.Some true
+            //         codeDescriptionSupport = Stdlib.Option.Option.Some true
+            //         dataSupport = Stdlib.Option.Option.Some true }
+            //   )
+            } }
 
 
-        LspState
-          { initialized = true
-            shouldShutdown = false
-            documentsInScope = Dict { } }
+  let initializeResponse =
+    hardcodedInitializeResult
+    |> LanguageServerProtocol.Lifecycle.InitializeRequest.InitializeResult.toJson
+    |> (fun r ->
+      JsonRPC.Response.Ok.make
+        (Stdlib.Option.Option.Some(JsonRPC.RequestId.Int 0L))
+        r)
+    |> Stdlib.AltJson.format
+
+  logAndSendToClient initializeResponse
+
+
+  LspState
+    { initialized = true
+      shouldShutdown = false
+      documentsInScope = Dict { } }

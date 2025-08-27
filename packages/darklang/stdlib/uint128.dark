@@ -1,122 +1,121 @@
-module Darklang =
-  module Stdlib =
-    module UInt128 =
-
-      type ParseError =
-        | BadFormat
-        | OutOfRange
+module Darklang.Stdlib.UInt128
 
 
-      /// Returns the result of wrapping <param a> around so that {{0 <= res < b}}.
-      /// The modulus <param b> must be greater than 0.
-      /// Use <fn UInt128.remainder> if you want the remainder after division, which has
-      /// a different behavior for negative numbers.
-      let ``mod`` (a: UInt128) (b: UInt128) : UInt128 = Builtin.uint128Mod a b
+type ParseError =
+  | BadFormat
+  | OutOfRange
 
 
-      /// Adds two 128-bit unsigned integers together
-      let add (a: UInt128) (b: UInt128) : UInt128 = Builtin.uint128Add a b
+/// Returns the result of wrapping <param a> around so that {{0 <= res < b}}.
+/// The modulus <param b> must be greater than 0.
+/// Use <fn UInt128.remainder> if you want the remainder after division, which has
+/// a different behavior for negative numbers.
+let ``mod`` (a: UInt128) (b: UInt128) : UInt128 = Builtin.uint128Mod a b
 
 
-      /// Subtracts two 128-bit unsigned integers
-      let subtract (a: UInt128) (b: UInt128) : UInt128 = Builtin.uint128Subtract a b
+/// Adds two 128-bit unsigned integers together
+let add (a: UInt128) (b: UInt128) : UInt128 = Builtin.uint128Add a b
 
 
-      /// Multiplies two 128-bit unsigned integers
-      let multiply (a: UInt128) (b: UInt128) : UInt128 = Builtin.uint128Multiply a b
+/// Subtracts two 128-bit unsigned integers
+let subtract (a: UInt128) (b: UInt128) : UInt128 = Builtin.uint128Subtract a b
 
 
-      /// Divides two 128-bit unsigned integers
-      let divide (a: UInt128) (b: UInt128) : UInt128 = Builtin.uint128Divide a b
+/// Multiplies two 128-bit unsigned integers
+let multiply (a: UInt128) (b: UInt128) : UInt128 = Builtin.uint128Multiply a b
 
 
-      /// Returns {{true}} if <param a> is greater than <param b>
-      let greaterThan (a: UInt128) (b: UInt128) : Bool =
-        Builtin.uint128GreaterThan a b
+/// Divides two 128-bit unsigned integers
+let divide (a: UInt128) (b: UInt128) : UInt128 = Builtin.uint128Divide a b
 
 
-      /// Returns {{true}} if <param a> is greater than or equal to <param b>
-      let greaterThanOrEqualTo (a: UInt128) (b: UInt128) : Bool =
-        Builtin.uint128GreaterThanOrEqualTo a b
+/// Returns {{true}} if <param a> is greater than <param b>
+let greaterThan (a: UInt128) (b: UInt128) : Bool =
+  Builtin.uint128GreaterThan a b
 
 
-      /// Returns {{true}} if <param a> is less than <param b>
-      let lessThan (a: UInt128) (b: UInt128) : Bool = Builtin.uint128LessThan a b
+/// Returns {{true}} if <param a> is greater than or equal to <param b>
+let greaterThanOrEqualTo (a: UInt128) (b: UInt128) : Bool =
+  Builtin.uint128GreaterThanOrEqualTo a b
 
 
-      /// Returns {{true}} if <param a> is less than or equal to <param b>
-      let lessThanOrEqualTo (a: UInt128) (b: UInt128) : Bool =
-        Builtin.uint128LessThanOrEqualTo a b
+/// Returns {{true}} if <param a> is less than <param b>
+let lessThan (a: UInt128) (b: UInt128) : Bool = Builtin.uint128LessThan a b
 
 
-      /// Get the square root of an <type UInt128>
-      let sqrt (a: UInt128) : Float = Builtin.uint128Sqrt a
+/// Returns {{true}} if <param a> is less than or equal to <param b>
+let lessThanOrEqualTo (a: UInt128) (b: UInt128) : Bool =
+  Builtin.uint128LessThanOrEqualTo a b
 
 
-      /// Converts a <type UInt128> to a <type Float>
-      let toFloat (a: UInt128) : Float = Builtin.uint128ToFloat a
+/// Get the square root of an <type UInt128>
+let sqrt (a: UInt128) : Float = Builtin.uint128Sqrt a
 
 
-      /// Returns the sum of all the ints in the list
-      let sum (lst: List<UInt128>) : UInt128 =
-        Stdlib.List.fold lst 0Z (fun acc x -> acc + x)
+/// Converts a <type UInt128> to a <type Float>
+let toFloat (a: UInt128) : Float = Builtin.uint128ToFloat a
 
 
-      /// Returns the higher of <param a> and <param b>
-      let max (a: UInt128) (b: UInt128) : UInt128 =
-        if (Stdlib.UInt128.greaterThan a b) then a else b
+/// Returns the sum of all the ints in the list
+let sum (lst: List<UInt128>) : UInt128 =
+  Stdlib.List.fold lst 0Z (fun acc x -> acc + x)
 
 
-      /// Returns the lower of <param a> and <param b>
-      let min (a: UInt128) (b: UInt128) : UInt128 =
-        if (Stdlib.UInt128.lessThan a b) then a else b
+/// Returns the higher of <param a> and <param b>
+let max (a: UInt128) (b: UInt128) : UInt128 =
+  if (Stdlib.UInt128.greaterThan a b) then a else b
 
 
-      /// If <param value> is within the range given by <param limitA> and <param
-      /// limitB>, returns <param value>.
-      /// If <param value> is outside the range, returns <param limitA> or <param
-      /// limitB>, whichever is closer to <param value>.
-      /// <param limitA> and <param limitB> can be provided in any order.
-      let clamp (value: UInt128) (limitA: UInt128) (limitB: UInt128) : UInt128 =
-        let min =
-          if (Stdlib.UInt128.lessThan limitA limitB) then
-            limitA
-          else
-            limitB
-
-        let max =
-          if (Stdlib.UInt128.greaterThan limitA limitB) then
-            limitA
-          else
-            limitB
-
-        if (Stdlib.UInt128.lessThan value min) then min
-        else if (Stdlib.UInt128.greaterThan value max) then max
-        else value
+/// Returns the lower of <param a> and <param b>
+let min (a: UInt128) (b: UInt128) : UInt128 =
+  if (Stdlib.UInt128.lessThan a b) then a else b
 
 
-      /// Stringify <param uint128>
-      let toString (uint128: UInt128) : String = Builtin.uint128ToString uint128
+/// If <param value> is within the range given by <param limitA> and <param
+/// limitB>, returns <param value>.
+/// If <param value> is outside the range, returns <param limitA> or <param
+/// limitB>, whichever is closer to <param value>.
+/// <param limitA> and <param limitB> can be provided in any order.
+let clamp (value: UInt128) (limitA: UInt128) (limitB: UInt128) : UInt128 =
+  let min =
+    if (Stdlib.UInt128.lessThan limitA limitB) then
+      limitA
+    else
+      limitB
+
+  let max =
+    if (Stdlib.UInt128.greaterThan limitA limitB) then
+      limitA
+    else
+      limitB
+
+  if (Stdlib.UInt128.lessThan value min) then min
+  else if (Stdlib.UInt128.greaterThan value max) then max
+  else value
 
 
-      /// Returns the <type UInt128> value of a <type String>
-      let parse
-        (s: String)
-        : Stdlib.Result.Result<UInt128, Stdlib.UInt128.ParseError> =
-        Builtin.uint128Parse s
+/// Stringify <param uint128>
+let toString (uint128: UInt128) : String = Builtin.uint128ToString uint128
 
 
-      /// Converts a <type UInt8> to an <type UInt128>.
-      let fromUInt8 (i: UInt8) : UInt128 = Builtin.uint128FromUInt8 i
+/// Returns the <type UInt128> value of a <type String>
+let parse
+  (s: String)
+  : Stdlib.Result.Result<UInt128, Stdlib.UInt128.ParseError> =
+  Builtin.uint128Parse s
 
 
-      /// Converts a <type UInt16> to an <type UInt128>.
-      let fromUInt16 (i: UInt16) : UInt128 = Builtin.uint128FromUInt16 i
+/// Converts a <type UInt8> to an <type UInt128>.
+let fromUInt8 (i: UInt8) : UInt128 = Builtin.uint128FromUInt8 i
 
 
-      /// Converts a <type UInt32> to an <type UInt128>.
-      let fromUInt32 (i: UInt32) : UInt128 = Builtin.uint128FromUInt32 i
+/// Converts a <type UInt16> to an <type UInt128>.
+let fromUInt16 (i: UInt16) : UInt128 = Builtin.uint128FromUInt16 i
 
 
-      /// Converts a <type UInt64> to an <type UInt128>.
-      let fromUInt64 (i: UInt64) : UInt128 = Builtin.uint128FromUInt64 i
+/// Converts a <type UInt32> to an <type UInt128>.
+let fromUInt32 (i: UInt32) : UInt128 = Builtin.uint128FromUInt32 i
+
+
+/// Converts a <type UInt64> to an <type UInt128>.
+let fromUInt64 (i: UInt64) : UInt128 = Builtin.uint128FromUInt64 i

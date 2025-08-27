@@ -1,265 +1,264 @@
-module Darklang =
-  module Stdlib =
-    module Result =
-
-      type Result<'Ok, 'Err> =
-        | Ok of 'Ok
-        | Error of 'Err
+module Darklang.Stdlib.Result
 
 
-      /// If <param result> is {{Ok <var value>}}, returns {{Ok (fn <var value>)}}.
-      /// The lambda <param fn> is applied to <var value> and the result is wrapped in
-      /// {{Ok}}. If <param result> is {{Error <var msg>}}, returns <param result>
-      /// unchanged.
-      let map
-        (result: Stdlib.Result.Result<'t, 'e>)
-        (fn: 't -> 'u)
-        : Stdlib.Result.Result<'u, 'e> =
-        match result with
-        | Ok value -> Stdlib.Result.Result.Ok(fn value)
-        | Error msg -> Stdlib.Result.Result.Error msg
+type Result<'Ok, 'Err> =
+  | Ok of 'Ok
+  | Error of 'Err
 
 
-      /// If both <param result1> is {{Ok <var v1>}} and <param result2> is {{Ok <var
-      /// v2>}}, returns {{Ok (fn <var v1> <var v2>)}} -- the lambda <param fn> is
-      /// applied to <var v1> and <var v2>, and the result is wrapped in {{Ok}}.
-      /// Otherwise, returns the first of <param result1> and <param result2> that is
-      /// an error.
-      let map2
-        (result1: Stdlib.Result.Result<'a, 'e>)
-        (result2: Stdlib.Result.Result<'b, 'e>)
-        (fn: 'a -> 'b -> 'c)
-        : Stdlib.Result.Result<'c, 'e> =
-        match (result1, result2) with
-        | (Ok v1, Ok v2) -> Stdlib.Result.Result.Ok(fn v1 v2)
-        | (Error e1, _) -> Stdlib.Result.Result.Error e1
-        | (_, Error e2) -> Stdlib.Result.Result.Error e2
+/// If <param result> is {{Ok <var value>}}, returns {{Ok (fn <var value>)}}.
+/// The lambda <param fn> is applied to <var value> and the result is wrapped in
+/// {{Ok}}. If <param result> is {{Error <var msg>}}, returns <param result>
+/// unchanged.
+let map
+  (result: Stdlib.Result.Result<'t, 'e>)
+  (fn: 't -> 'u)
+  : Stdlib.Result.Result<'u, 'e> =
+  match result with
+  | Ok value -> Stdlib.Result.Result.Ok(fn value)
+  | Error msg -> Stdlib.Result.Result.Error msg
 
 
-      /// If all three of <param result1>, <param result2>, and <param result3> are
-      /// {{Ok <var v1>}}, {{Ok <var v2>}}, and {{Ok <var v3>}}, returns
-      /// {{Ok (fn <var v1> <var v2> <var v3>)}} -- the lambda <param fn> is applied
-      /// to <var v1>, <var v2>, and <var v3>, and the result is wrapped in {{Ok}}.
-      /// Otherwise, returns the first of <param result1>, <param result2>, and
-      /// <param result3> that is an error.
-      let map3
-        (result1: Stdlib.Result.Result<'a, 'e>)
-        (result2: Stdlib.Result.Result<'b, 'e>)
-        (result3: Stdlib.Result.Result<'c, 'e>)
-        (fn: 'a -> 'b -> 'c -> 'd)
-        : Stdlib.Result.Result<'d, 'e> =
-        match (result1, result2, result3) with
-        | (Ok v1, Ok v2, Ok v3) -> Stdlib.Result.Result.Ok(fn v1 v2 v3)
-        | (Error e1, _, _) -> Stdlib.Result.Result.Error e1
-        | (_, Error e2, _) -> Stdlib.Result.Result.Error e2
-        | (_, _, Error e3) -> Stdlib.Result.Result.Error e3
+/// If both <param result1> is {{Ok <var v1>}} and <param result2> is {{Ok <var
+/// v2>}}, returns {{Ok (fn <var v1> <var v2>)}} -- the lambda <param fn> is
+/// applied to <var v1> and <var v2>, and the result is wrapped in {{Ok}}.
+/// Otherwise, returns the first of <param result1> and <param result2> that is
+/// an error.
+let map2
+  (result1: Stdlib.Result.Result<'a, 'e>)
+  (result2: Stdlib.Result.Result<'b, 'e>)
+  (fn: 'a -> 'b -> 'c)
+  : Stdlib.Result.Result<'c, 'e> =
+  match (result1, result2) with
+  | (Ok v1, Ok v2) -> Stdlib.Result.Result.Ok(fn v1 v2)
+  | (Error e1, _) -> Stdlib.Result.Result.Error e1
+  | (_, Error e2) -> Stdlib.Result.Result.Error e2
 
 
-      /// If all four of <param result1>, <param result2>, <param result3>, and
-      /// <param result4> are {{Ok <var v1>}}, {{Ok <var v2>}}, {{Ok <var v3>}}, and
-      /// {{Ok <var v4>}}, returns {{Ok (fn <var v1> <var v2> <var v3> <var v4>)}}
-      /// the lambda <param fn> is applied to <var v1>, <var v2>, <var v3>, and <var v4>,
-      /// and the result is wrapped in {{Ok}}. Otherwise, returns the first of <param
-      /// result1>, <param result2>, <param result3>, and <param result4> that is an
-      /// error.
-      let map4
-        (result1: Stdlib.Result.Result<'a, 'e>)
-        (result2: Stdlib.Result.Result<'b, 'e>)
-        (result3: Stdlib.Result.Result<'c, 'e>)
-        (result4: Stdlib.Result.Result<'d, 'e>)
-        (fn: 'a -> 'b -> 'c -> 'd -> 'f)
-        : Stdlib.Result.Result<'f, 'e> =
-        match (result1, result2, result3, result4) with
-        | (Ok v1, Ok v2, Ok v3, Ok v4) -> Stdlib.Result.Result.Ok(fn v1 v2 v3 v4)
-        | (Error e1, _, _, _) -> Stdlib.Result.Result.Error e1
-        | (_, Error e2, _, _) -> Stdlib.Result.Result.Error e2
-        | (_, _, Error e3, _) -> Stdlib.Result.Result.Error e3
-        | (_, _, _, Error e4) -> Stdlib.Result.Result.Error e4
+/// If all three of <param result1>, <param result2>, and <param result3> are
+/// {{Ok <var v1>}}, {{Ok <var v2>}}, and {{Ok <var v3>}}, returns
+/// {{Ok (fn <var v1> <var v2> <var v3>)}} -- the lambda <param fn> is applied
+/// to <var v1>, <var v2>, and <var v3>, and the result is wrapped in {{Ok}}.
+/// Otherwise, returns the first of <param result1>, <param result2>, and
+/// <param result3> that is an error.
+let map3
+  (result1: Stdlib.Result.Result<'a, 'e>)
+  (result2: Stdlib.Result.Result<'b, 'e>)
+  (result3: Stdlib.Result.Result<'c, 'e>)
+  (fn: 'a -> 'b -> 'c -> 'd)
+  : Stdlib.Result.Result<'d, 'e> =
+  match (result1, result2, result3) with
+  | (Ok v1, Ok v2, Ok v3) -> Stdlib.Result.Result.Ok(fn v1 v2 v3)
+  | (Error e1, _, _) -> Stdlib.Result.Result.Error e1
+  | (_, Error e2, _) -> Stdlib.Result.Result.Error e2
+  | (_, _, Error e3) -> Stdlib.Result.Result.Error e3
 
 
-      /// If all five of <param result1>, <param result2>, <param result3>, <param
-      /// result4>, and <param result5> are {{Ok <var v1>}}, {{Ok <var v2>}}, {{Ok
-      /// <var v3>}}, {{Ok <var v4>}}, and {{Ok <var v5>}}, returns {{Ok (fn <var v1>
-      /// <var v2> <var v3> <var v4> <var v5>)}} the lambda <param fn> is applied to
-      /// <var v1>, <var v2>, <var v3>, <var v4>, and <var v5>, and the result is
-      /// wrapped in {{Ok}}. Otherwise, returns the first of <param result1>, <param
-      /// result2>, <param result3>, <param result4>, and <param result5> that is an error.
-      let map5
-        (result1: Stdlib.Result.Result<'a, 'e>)
-        (result2: Stdlib.Result.Result<'b, 'e>)
-        (result3: Stdlib.Result.Result<'c, 'e>)
-        (result4: Stdlib.Result.Result<'d, 'e>)
-        (result5: Stdlib.Result.Result<'f, 'e>)
-        (fn: 'a -> 'b -> 'c -> 'd -> 'f -> 'g)
-        : Stdlib.Result.Result<'g, 'e> =
-        match (result1, result2, result3, result4, result5) with
-        | (Ok v1, Ok v2, Ok v3, Ok v4, Ok v5) ->
-          Stdlib.Result.Result.Ok(fn v1 v2 v3 v4 v5)
-        | (Error e1, _, _, _, _) -> Stdlib.Result.Result.Error e1
-        | (_, Error e2, _, _, _) -> Stdlib.Result.Result.Error e2
-        | (_, _, Error e3, _, _) -> Stdlib.Result.Result.Error e3
-        | (_, _, _, Error e4, _) -> Stdlib.Result.Result.Error e4
-        | (_, _, _, _, Error e5) -> Stdlib.Result.Result.Error e5
+/// If all four of <param result1>, <param result2>, <param result3>, and
+/// <param result4> are {{Ok <var v1>}}, {{Ok <var v2>}}, {{Ok <var v3>}}, and
+/// {{Ok <var v4>}}, returns {{Ok (fn <var v1> <var v2> <var v3> <var v4>)}}
+/// the lambda <param fn> is applied to <var v1>, <var v2>, <var v3>, and <var v4>,
+/// and the result is wrapped in {{Ok}}. Otherwise, returns the first of <param
+/// result1>, <param result2>, <param result3>, and <param result4> that is an
+/// error.
+let map4
+  (result1: Stdlib.Result.Result<'a, 'e>)
+  (result2: Stdlib.Result.Result<'b, 'e>)
+  (result3: Stdlib.Result.Result<'c, 'e>)
+  (result4: Stdlib.Result.Result<'d, 'e>)
+  (fn: 'a -> 'b -> 'c -> 'd -> 'f)
+  : Stdlib.Result.Result<'f, 'e> =
+  match (result1, result2, result3, result4) with
+  | (Ok v1, Ok v2, Ok v3, Ok v4) -> Stdlib.Result.Result.Ok(fn v1 v2 v3 v4)
+  | (Error e1, _, _, _) -> Stdlib.Result.Result.Error e1
+  | (_, Error e2, _, _) -> Stdlib.Result.Result.Error e2
+  | (_, _, Error e3, _) -> Stdlib.Result.Result.Error e3
+  | (_, _, _, Error e4) -> Stdlib.Result.Result.Error e4
 
 
-      /// Applies the function <param fn> to the value inside the {{Ok <var value>}} variant of <param result>
-      /// if it exists. If <param result> is an {{Error _}}, returns the provided <param default_>.
-      let mapWithDefault
-        (result: Stdlib.Result.Result<'t, 'e>)
-        (default_: 'u)
-        (fn: 't -> 'u)
-        : 'u =
-        match result with
-        | Ok value -> fn value
-        | Error _ -> default_
+/// If all five of <param result1>, <param result2>, <param result3>, <param
+/// result4>, and <param result5> are {{Ok <var v1>}}, {{Ok <var v2>}}, {{Ok
+/// <var v3>}}, {{Ok <var v4>}}, and {{Ok <var v5>}}, returns {{Ok (fn <var v1>
+/// <var v2> <var v3> <var v4> <var v5>)}} the lambda <param fn> is applied to
+/// <var v1>, <var v2>, <var v3>, <var v4>, and <var v5>, and the result is
+/// wrapped in {{Ok}}. Otherwise, returns the first of <param result1>, <param
+/// result2>, <param result3>, <param result4>, and <param result5> that is an error.
+let map5
+  (result1: Stdlib.Result.Result<'a, 'e>)
+  (result2: Stdlib.Result.Result<'b, 'e>)
+  (result3: Stdlib.Result.Result<'c, 'e>)
+  (result4: Stdlib.Result.Result<'d, 'e>)
+  (result5: Stdlib.Result.Result<'f, 'e>)
+  (fn: 'a -> 'b -> 'c -> 'd -> 'f -> 'g)
+  : Stdlib.Result.Result<'g, 'e> =
+  match (result1, result2, result3, result4, result5) with
+  | (Ok v1, Ok v2, Ok v3, Ok v4, Ok v5) ->
+    Stdlib.Result.Result.Ok(fn v1 v2 v3 v4 v5)
+  | (Error e1, _, _, _, _) -> Stdlib.Result.Result.Error e1
+  | (_, Error e2, _, _, _) -> Stdlib.Result.Result.Error e2
+  | (_, _, Error e3, _, _) -> Stdlib.Result.Result.Error e3
+  | (_, _, _, Error e4, _) -> Stdlib.Result.Result.Error e4
+  | (_, _, _, _, Error e5) -> Stdlib.Result.Result.Error e5
 
 
-      /// If <param result> is {{Error <var msg>}}, returns {{Error (fn <var msg>)}}.
-      /// The lambda <param fn> is applied to <var msg> and the result is wrapped in
-      /// {{Error}}. If <param result> is {{Ok <var value>}}, returns <param result>
-      /// unchanged.
-      let mapError
-        (result: Stdlib.Result.Result<'t, 'e>)
-        (fn: 'e -> 'u)
-        : Stdlib.Result.Result<'t, 'u> =
-        match result with
-        | Ok value -> Stdlib.Result.Result.Ok value
-        | Error value -> Stdlib.Result.Result.Error(fn value)
+/// Applies the function <param fn> to the value inside the {{Ok <var value>}} variant of <param result>
+/// if it exists. If <param result> is an {{Error _}}, returns the provided <param default_>.
+let mapWithDefault
+  (result: Stdlib.Result.Result<'t, 'e>)
+  (default_: 'u)
+  (fn: 't -> 'u)
+  : 'u =
+  match result with
+  | Ok value -> fn value
+  | Error _ -> default_
 
 
-      /// If <param result> is {{Ok <var value>}}, returns {{fn <var value>}}. The
-      /// lambda <param fn> is applied to <var value> and must return {{Error <var
-      /// msg>}} or {{Ok <var newValue>}}. If <param result> is {{Error <var msg>}},
-      /// returns <param result> unchanged."
-      let andThen
-        (result: Stdlib.Result.Result<'t, 'e>)
-        (fn: 't -> Stdlib.Result.Result<'u, 'e>)
-        : Stdlib.Result.Result<'u, 'e> =
-        match result with
-        | Ok value -> fn value
-        | Error msg -> Stdlib.Result.Result.Error msg
+/// If <param result> is {{Error <var msg>}}, returns {{Error (fn <var msg>)}}.
+/// The lambda <param fn> is applied to <var msg> and the result is wrapped in
+/// {{Error}}. If <param result> is {{Ok <var value>}}, returns <param result>
+/// unchanged.
+let mapError
+  (result: Stdlib.Result.Result<'t, 'e>)
+  (fn: 'e -> 'u)
+  : Stdlib.Result.Result<'t, 'u> =
+  match result with
+  | Ok value -> Stdlib.Result.Result.Ok value
+  | Error value -> Stdlib.Result.Result.Error(fn value)
 
 
-      /// If <param result> is {{Ok <var value>}}, returns <var value>. If <param
-      /// result> is {{Error <var msg>}}, returns <param default>.
-      let withDefault (result: Stdlib.Result.Result<'t, 'e>) (default_: 't) : 't =
-        match result with
-        | Ok value -> value
-        | Error _ -> default_
+/// If <param result> is {{Ok <var value>}}, returns {{fn <var value>}}. The
+/// lambda <param fn> is applied to <var value> and must return {{Error <var
+/// msg>}} or {{Ok <var newValue>}}. If <param result> is {{Error <var msg>}},
+/// returns <param result> unchanged."
+let andThen
+  (result: Stdlib.Result.Result<'t, 'e>)
+  (fn: 't -> Stdlib.Result.Result<'u, 'e>)
+  : Stdlib.Result.Result<'u, 'e> =
+  match result with
+  | Ok value -> fn value
+  | Error msg -> Stdlib.Result.Result.Error msg
 
 
-      /// Turn an option into a result, using <param error> as the error message for Error. Specifically, if <param option> is {{Some <var value>}}, returns {{Ok <var value>}}. Returns {{Error <var error>}} otherwise.
-      let fromOption
-        (option: Stdlib.Option.Option<'t>)
-        (error: 'e)
-        : Stdlib.Result.Result<'t, 'e> =
-        match option with
-        | Some value -> Stdlib.Result.Result.Ok value
-        | None -> Stdlib.Result.Result.Error error
+/// If <param result> is {{Ok <var value>}}, returns <var value>. If <param
+/// result> is {{Error <var msg>}}, returns <param default>.
+let withDefault (result: Stdlib.Result.Result<'t, 'e>) (default_: 't) : 't =
+  match result with
+  | Ok value -> value
+  | Error _ -> default_
 
 
-      /// Turn a <type Result> into an <type Option>
-      let toOption
-        (result: Stdlib.Result.Result<'t, 'e>)
-        : Stdlib.Option.Option<'t> =
-        match result with
-        | Ok value -> Stdlib.Option.Option.Some value
-        | Error _ -> Stdlib.Option.Option.None
+/// Turn an option into a result, using <param error> as the error message for Error. Specifically, if <param option> is {{Some <var value>}}, returns {{Ok <var value>}}. Returns {{Error <var error>}} otherwise.
+let fromOption
+  (option: Stdlib.Option.Option<'t>)
+  (error: 'e)
+  : Stdlib.Result.Result<'t, 'e> =
+  match option with
+  | Some value -> Stdlib.Result.Result.Ok value
+  | None -> Stdlib.Result.Result.Error error
 
 
-      /// Collect a list of results into a single result. If any of the results
-      /// are an error, return the first error. Otherwise, return a list of all
-      /// the Ok values.
-      let collect
-        (results: List<Stdlib.Result.Result<'t, 'e>>)
-        : Stdlib.Result.Result<List<'t>, 'e> =
-        results
-        |> Stdlib.List.fold (Stdlib.Result.Result.Ok []) (fun acc result ->
-          match (acc, result) with
-          | (Ok acc, Ok result) ->
-            Stdlib.Result.Result.Ok(Stdlib.List.pushBack acc result)
-          | (Ok _, Error err) -> Stdlib.Result.Result.Error err
-          | (Error err, _) -> Stdlib.Result.Result.Error err)
+/// Turn a <type Result> into an <type Option>
+let toOption
+  (result: Stdlib.Result.Result<'t, 'e>)
+  : Stdlib.Option.Option<'t> =
+  match result with
+  | Ok value -> Stdlib.Option.Option.Some value
+  | Error _ -> Stdlib.Option.Option.None
 
 
-      /// If <param result> is {{Ok <var value>}}, returns true. Otherwise, returns false.
-      let isOk (result: Stdlib.Result.Result<'t, 'e>) : Bool =
-        match result with
-        | Ok _ -> true
-        | Error _ -> false
+/// Collect a list of results into a single result. If any of the results
+/// are an error, return the first error. Otherwise, return a list of all
+/// the Ok values.
+let collect
+  (results: List<Stdlib.Result.Result<'t, 'e>>)
+  : Stdlib.Result.Result<List<'t>, 'e> =
+  results
+  |> Stdlib.List.fold (Stdlib.Result.Result.Ok []) (fun acc result ->
+    match (acc, result) with
+    | (Ok acc, Ok result) ->
+      Stdlib.Result.Result.Ok(Stdlib.List.pushBack acc result)
+    | (Ok _, Error err) -> Stdlib.Result.Result.Error err
+    | (Error err, _) -> Stdlib.Result.Result.Error err)
 
 
-      /// If <param result> is {{Error <var msg>}}, returns true. Otherwise, returns false.
-      let isError (result: Stdlib.Result.Result<'t, 'e>) : Bool =
-        match result with
-        | Ok _ -> false
-        | Error _ -> true
-
-      /// Returns <param result2> if <param result1> is {{Ok <var value>}}. Otherwise, returns <param result1>.
-      let ``and``
-        (result1: Stdlib.Result.Result<'t, 'e>)
-        (result2: Stdlib.Result.Result<'t, 'e>)
-        : Stdlib.Result.Result<'t, 'e> =
-        match result1 with
-        | Ok _ -> result2
-        | Error _ -> result1
+/// If <param result> is {{Ok <var value>}}, returns true. Otherwise, returns false.
+let isOk (result: Stdlib.Result.Result<'t, 'e>) : Bool =
+  match result with
+  | Ok _ -> true
+  | Error _ -> false
 
 
-      /// Returns <param result1> if it is {{Ok _}}. Otherwise, returns <param result2>.
-      let ``or``
-        (result1: Stdlib.Result.Result<'t, 'e>)
-        (result2: Stdlib.Result.Result<'t, 'e>)
-        : Stdlib.Result.Result<'t, 'e> =
-        match result1 with
-        | Ok _ -> result1
-        | Error _ -> result2
+/// If <param result> is {{Error <var msg>}}, returns true. Otherwise, returns false.
+let isError (result: Stdlib.Result.Result<'t, 'e>) : Bool =
+  match result with
+  | Ok _ -> false
+  | Error _ -> true
+
+/// Returns <param result2> if <param result1> is {{Ok <var value>}}. Otherwise, returns <param result1>.
+let ``and``
+  (result1: Stdlib.Result.Result<'t, 'e>)
+  (result2: Stdlib.Result.Result<'t, 'e>)
+  : Stdlib.Result.Result<'t, 'e> =
+  match result1 with
+  | Ok _ -> result2
+  | Error _ -> result1
 
 
-      /// Returns a list containing <param value> if <param result> is {{Ok <var value>}}. Otherwise, returns an empty list.
-      let toList (result: Stdlib.Result.Result<'t, 'e>) : List<'t> =
-        match result with
-        | Ok value -> [ value ]
-        | Error _ -> []
+/// Returns <param result1> if it is {{Ok _}}. Otherwise, returns <param result2>.
+let ``or``
+  (result1: Stdlib.Result.Result<'t, 'e>)
+  (result2: Stdlib.Result.Result<'t, 'e>)
+  : Stdlib.Result.Result<'t, 'e> =
+  match result1 with
+  | Ok _ -> result1
+  | Error _ -> result2
 
 
-      /// Flattens a nested result. If <param result> is {{Ok (Ok <var value>)}},
-      /// returns {{Ok <var value>}}. If <param result> is {{Ok (Error <var msg>)}}, returns {{Error <var msg>}}.
-      /// If <param result> is {{Error <var msg>}}, returns {{Error <var msg>}}.
-      let join
-        (result: Stdlib.Result.Result<Stdlib.Result.Result<'t, 'e>, 'e>)
-        : Stdlib.Result.Result<'t, 'e> =
-        match result with
-        | Ok value -> value
-        | Error _ -> result
+/// Returns a list containing <param value> if <param result> is {{Ok <var value>}}. Otherwise, returns an empty list.
+let toList (result: Stdlib.Result.Result<'t, 'e>) : List<'t> =
+  match result with
+  | Ok value -> [ value ]
+  | Error _ -> []
 
 
-      /// Combines a list of results into a single list of unwrapped values.
-      /// If all of the results are {{Ok <var value>}}, returns {{Ok <list of unwrapped values>}}.
-      /// If any of the results are {{Error <var msg>}}, returns {{Error <var msg>}}.
-      let combine
-        (results: List<Stdlib.Result.Result<'t, 'e>>)
-        : Stdlib.Result.Result<List<'t>, 'e> =
-        results
-        |> Stdlib.List.fold (Stdlib.Result.Result.Ok []) (fun acc result ->
-          match (acc, result) with
-          | (Ok acc, Ok result) ->
-            Stdlib.Result.Result.Ok(Stdlib.List.pushBack acc result)
-          | (Ok _, Error err) | (Error err, _) -> Stdlib.Result.Result.Error err)
+/// Flattens a nested result. If <param result> is {{Ok (Ok <var value>)}},
+/// returns {{Ok <var value>}}. If <param result> is {{Ok (Error <var msg>)}}, returns {{Error <var msg>}}.
+/// If <param result> is {{Error <var msg>}}, returns {{Error <var msg>}}.
+let join
+  (result: Stdlib.Result.Result<Stdlib.Result.Result<'t, 'e>, 'e>)
+  : Stdlib.Result.Result<'t, 'e> =
+  match result with
+  | Ok value -> value
+  | Error _ -> result
 
 
-      /// Returns a list of all the values that are {{Ok <var value>}}, and ignores any values that are {{Error <var msg>}}.
-      let values
-        (results: List<Stdlib.Result.Result<'t, 'e>>)
-        : Stdlib.Result.Result<List<'t>, 'e> =
-        let folded =
-          results
-          |> Stdlib.List.fold (Stdlib.Result.Result.Ok []) (fun acc result ->
-            match (acc, result) with
-            | (Ok acc, Ok result) ->
-              Stdlib.Result.Result.Ok(Stdlib.List.push acc result)
-            | (Ok _, Error _) -> acc
-            | (Error err, _) -> Stdlib.Result.Result.Error err)
+/// Combines a list of results into a single list of unwrapped values.
+/// If all of the results are {{Ok <var value>}}, returns {{Ok <list of unwrapped values>}}.
+/// If any of the results are {{Error <var msg>}}, returns {{Error <var msg>}}.
+let combine
+  (results: List<Stdlib.Result.Result<'t, 'e>>)
+  : Stdlib.Result.Result<List<'t>, 'e> =
+  results
+  |> Stdlib.List.fold (Stdlib.Result.Result.Ok []) (fun acc result ->
+    match (acc, result) with
+    | (Ok acc, Ok result) ->
+      Stdlib.Result.Result.Ok(Stdlib.List.pushBack acc result)
+    | (Ok _, Error err) | (Error err, _) -> Stdlib.Result.Result.Error err)
 
-        match folded with
-        | Ok list -> Stdlib.Result.Result.Ok(Stdlib.List.reverse list)
-        | Error err -> Stdlib.Result.Result.Error err
+
+/// Returns a list of all the values that are {{Ok <var value>}}, and ignores any values that are {{Error <var msg>}}.
+let values
+  (results: List<Stdlib.Result.Result<'t, 'e>>)
+  : Stdlib.Result.Result<List<'t>, 'e> =
+  let folded =
+    results
+    |> Stdlib.List.fold (Stdlib.Result.Result.Ok []) (fun acc result ->
+      match (acc, result) with
+      | (Ok acc, Ok result) ->
+        Stdlib.Result.Result.Ok(Stdlib.List.push acc result)
+      | (Ok _, Error _) -> acc
+      | (Error err, _) -> Stdlib.Result.Result.Error err)
+
+  match folded with
+  | Ok list -> Stdlib.Result.Result.Ok(Stdlib.List.reverse list)
+  | Error err -> Stdlib.Result.Result.Error err

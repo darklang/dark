@@ -1,162 +1,161 @@
-module Darklang =
-  module Stdlib =
-    module UInt8 =
-
-      type ParseError =
-        | BadFormat
-        | OutOfRange
+module Darklang.Stdlib.UInt8
 
 
-      /// Returns the result of wrapping <param a> around so that {{0 <= res < b}}.
-      /// The modulus <param b> must be greater than 0.
-      /// Use <fn UInt8.remainder> if you want the remainder after division, which has
-      /// a different behavior for negative numbers.
-      let ``mod`` (a: UInt8) (b: UInt8) : UInt8 = Builtin.uint8Mod a b
+type ParseError =
+  | BadFormat
+  | OutOfRange
 
 
-      /// Adds two 8-bit unsigned integers together
-      let add (a: UInt8) (b: UInt8) : UInt8 = Builtin.uint8Add a b
+/// Returns the result of wrapping <param a> around so that {{0 <= res < b}}.
+/// The modulus <param b> must be greater than 0.
+/// Use <fn UInt8.remainder> if you want the remainder after division, which has
+/// a different behavior for negative numbers.
+let ``mod`` (a: UInt8) (b: UInt8) : UInt8 = Builtin.uint8Mod a b
 
 
-      /// Subtracts two 8-bit unsigned  integers
-      let subtract (a: UInt8) (b: UInt8) : UInt8 = Builtin.uint8Subtract a b
+/// Adds two 8-bit unsigned integers together
+let add (a: UInt8) (b: UInt8) : UInt8 = Builtin.uint8Add a b
 
 
-      /// Multiplies two 8-bit unsigned  integers
-      let multiply (a: UInt8) (b: UInt8) : UInt8 = Builtin.uint8Multiply a b
+/// Subtracts two 8-bit unsigned  integers
+let subtract (a: UInt8) (b: UInt8) : UInt8 = Builtin.uint8Subtract a b
 
 
-      /// Raise <param base> to the power of <param exponent>.
-      /// <param exponent> must to be positive.
-      /// Return value wrapped in a {{Result}}
-      let power (``base``: UInt8) (exponent: UInt8) : UInt8 =
-        if ``base`` == 0uy && exponent == 0uy then 1uy
-        else if ``base`` == 0uy then 0uy
-        else if ``base`` == 1uy then 1uy
-        else Builtin.uint8Power ``base`` exponent
+/// Multiplies two 8-bit unsigned  integers
+let multiply (a: UInt8) (b: UInt8) : UInt8 = Builtin.uint8Multiply a b
 
 
-      /// Divides two 8-bit unsigned  integers
-      let divide (a: UInt8) (b: UInt8) : UInt8 = Builtin.uint8Divide a b
+/// Raise <param base> to the power of <param exponent>.
+/// <param exponent> must to be positive.
+/// Return value wrapped in a {{Result}}
+let power (``base``: UInt8) (exponent: UInt8) : UInt8 =
+  if ``base`` == 0uy && exponent == 0uy then 1uy
+  else if ``base`` == 0uy then 0uy
+  else if ``base`` == 1uy then 1uy
+  else Builtin.uint8Power ``base`` exponent
 
 
-      /// Returns {{true}} if <param a> is greater than <param b>
-      let greaterThan (a: UInt8) (b: UInt8) : Bool = Builtin.uint8GreaterThan a b
+/// Divides two 8-bit unsigned  integers
+let divide (a: UInt8) (b: UInt8) : UInt8 = Builtin.uint8Divide a b
 
 
-      /// Returns {{true}} if <param a> is greater than or equal to <param b>
-      let greaterThanOrEqualTo (a: UInt8) (b: UInt8) : Bool =
-        Builtin.uint8GreaterThanOrEqualTo a b
+/// Returns {{true}} if <param a> is greater than <param b>
+let greaterThan (a: UInt8) (b: UInt8) : Bool = Builtin.uint8GreaterThan a b
 
 
-      /// Returns {{true}} if <param a> is less than <param b>
-      let lessThan (a: UInt8) (b: UInt8) : Bool = Builtin.uint8LessThan a b
+/// Returns {{true}} if <param a> is greater than or equal to <param b>
+let greaterThanOrEqualTo (a: UInt8) (b: UInt8) : Bool =
+  Builtin.uint8GreaterThanOrEqualTo a b
 
 
-      /// Returns {{true}} if <param a> is less than or equal to <param b>
-      let lessThanOrEqualTo (a: UInt8) (b: UInt8) : Bool =
-        Builtin.uint8LessThanOrEqualTo a b
+/// Returns {{true}} if <param a> is less than <param b>
+let lessThan (a: UInt8) (b: UInt8) : Bool = Builtin.uint8LessThan a b
 
 
-      /// Returns a random 8 bit unsigned integer between <param start> and <param end> (inclusive)
-      let random (start: UInt8) (``end``: UInt8) : UInt8 =
-        Builtin.uint8Random start ``end``
+/// Returns {{true}} if <param a> is less than or equal to <param b>
+let lessThanOrEqualTo (a: UInt8) (b: UInt8) : Bool =
+  Builtin.uint8LessThanOrEqualTo a b
 
 
-      /// Get the square root of an <type UInt8>
-      let sqrt (a: UInt8) : Float = Builtin.uint8Sqrt a
+/// Returns a random 8 bit unsigned integer between <param start> and <param end> (inclusive)
+let random (start: UInt8) (``end``: UInt8) : UInt8 =
+  Builtin.uint8Random start ``end``
 
 
-      /// Converts a <type UInt8> to a <type Float>
-      let toFloat (a: UInt8) : Float = Builtin.uint8ToFloat a
+/// Get the square root of an <type UInt8>
+let sqrt (a: UInt8) : Float = Builtin.uint8Sqrt a
 
 
-      /// Returns the sum of all the ints in the list
-      let sum (lst: List<UInt8>) : UInt8 =
-        Stdlib.List.fold lst 0uy (fun acc x -> Stdlib.UInt8.add acc x)
+/// Converts a <type UInt8> to a <type Float>
+let toFloat (a: UInt8) : Float = Builtin.uint8ToFloat a
 
 
-      /// Returns the higher of <param a> and <param b>
-      let max (a: UInt8) (b: UInt8) : UInt8 =
-        if (Stdlib.UInt8.greaterThan a b) then a else b
+/// Returns the sum of all the ints in the list
+let sum (lst: List<UInt8>) : UInt8 =
+  Stdlib.List.fold lst 0uy (fun acc x -> Stdlib.UInt8.add acc x)
 
 
-      /// Returns the lower of <param a> and <param b>
-      let min (a: UInt8) (b: UInt8) : UInt8 =
-        if (Stdlib.UInt8.lessThan a b) then a else b
+/// Returns the higher of <param a> and <param b>
+let max (a: UInt8) (b: UInt8) : UInt8 =
+  if (Stdlib.UInt8.greaterThan a b) then a else b
 
 
-      /// If <param value> is within the range given by <param limitA> and <param
-      /// limitB>, returns <param value>.
-      /// If <param value> is outside the range, returns <param limitA> or <param
-      /// limitB>, whichever is closer to <param value>.
-      /// <param limitA> and <param limitB> can be provided in any order.
-      let clamp (value: UInt8) (limitA: UInt8) (limitB: UInt8) : UInt8 =
-        let min =
-          if (Stdlib.UInt8.lessThan limitA limitB) then
-            limitA
-          else
-            limitB
-
-        let max =
-          if (Stdlib.UInt8.greaterThan limitA limitB) then
-            limitA
-          else
-            limitB
-
-        if (Stdlib.UInt8.lessThan value min) then min
-        else if (Stdlib.UInt8.greaterThan value max) then max
-        else value
+/// Returns the lower of <param a> and <param b>
+let min (a: UInt8) (b: UInt8) : UInt8 =
+  if (Stdlib.UInt8.lessThan a b) then a else b
 
 
-      /// Returns the <type UInt8> value of a <type String>
-      let parse (s: String) : Stdlib.Result.Result<UInt8, Stdlib.UInt8.ParseError> =
-        Builtin.uint8Parse s
+/// If <param value> is within the range given by <param limitA> and <param
+/// limitB>, returns <param value>.
+/// If <param value> is outside the range, returns <param limitA> or <param
+/// limitB>, whichever is closer to <param value>.
+/// <param limitA> and <param limitB> can be provided in any order.
+let clamp (value: UInt8) (limitA: UInt8) (limitB: UInt8) : UInt8 =
+  let min =
+    if (Stdlib.UInt8.lessThan limitA limitB) then
+      limitA
+    else
+      limitB
+
+  let max =
+    if (Stdlib.UInt8.greaterThan limitA limitB) then
+      limitA
+    else
+      limitB
+
+  if (Stdlib.UInt8.lessThan value min) then min
+  else if (Stdlib.UInt8.greaterThan value max) then max
+  else value
 
 
-      /// Stringify <param Uint8>
-      let toString (uint8: UInt8) : String = Builtin.uint8ToString uint8
+/// Returns the <type UInt8> value of a <type String>
+let parse (s: String) : Stdlib.Result.Result<UInt8, Stdlib.UInt8.ParseError> =
+  Builtin.uint8Parse s
 
 
-      /// Converts an <type Int8> to a <type UInt8>. Returns {{None}} if the value is less than 0.
-      let fromInt8 (i: Int8) : Stdlib.Option.Option<UInt8> = Builtin.uint8FromInt8 i
+/// Stringify <param Uint8>
+let toString (uint8: UInt8) : String = Builtin.uint8ToString uint8
 
 
-      /// Converts an <type Int16> to a <type UInt8>. Returns {{None}} if the value is less than 0 or greater than 255.
-      let fromInt16 (i: Int16) : Stdlib.Option.Option<UInt8> =
-        Builtin.uint8FromInt16 i
+/// Converts an <type Int8> to a <type UInt8>. Returns {{None}} if the value is less than 0.
+let fromInt8 (i: Int8) : Stdlib.Option.Option<UInt8> = Builtin.uint8FromInt8 i
 
 
-      /// Converts a <type UInt16> to a <type UInt8>. Returns {{None}} if the value is greater than 255.
-      let fromUInt16 (i: UInt16) : Stdlib.Option.Option<UInt8> =
-        Builtin.uint8FromUInt16 i
+/// Converts an <type Int16> to a <type UInt8>. Returns {{None}} if the value is less than 0 or greater than 255.
+let fromInt16 (i: Int16) : Stdlib.Option.Option<UInt8> =
+  Builtin.uint8FromInt16 i
 
 
-      /// Converts an <type Int32> to a <type UInt8>. Returns {{None}} if the value is less than 0 or greater than 255.
-      let fromInt32 (i: Int32) : Stdlib.Option.Option<UInt8> =
-        Builtin.uint8FromInt32 i
+/// Converts a <type UInt16> to a <type UInt8>. Returns {{None}} if the value is greater than 255.
+let fromUInt16 (i: UInt16) : Stdlib.Option.Option<UInt8> =
+  Builtin.uint8FromUInt16 i
 
 
-      /// Converts a <type UInt32> to a <type UInt8>. Returns {{None}} if the value is greater than 255.
-      let fromUInt32 (i: UInt32) : Stdlib.Option.Option<UInt8> =
-        Builtin.uint8FromUInt32 i
+/// Converts an <type Int32> to a <type UInt8>. Returns {{None}} if the value is less than 0 or greater than 255.
+let fromInt32 (i: Int32) : Stdlib.Option.Option<UInt8> =
+  Builtin.uint8FromInt32 i
 
 
-      /// Converts an <type Int64> to a <type UInt8>. Returns {{None}} if the value is less than 0 or greater than 255.
-      let fromInt64 (i: Int64) : Stdlib.Option.Option<UInt8> =
-        Builtin.uint8FromInt64 i
+/// Converts a <type UInt32> to a <type UInt8>. Returns {{None}} if the value is greater than 255.
+let fromUInt32 (i: UInt32) : Stdlib.Option.Option<UInt8> =
+  Builtin.uint8FromUInt32 i
 
 
-      /// Converts a <type UInt64> to a <type UInt8>. Returns {{None}} if the value is greater than 255.
-      let fromUInt64 (i: UInt64) : Stdlib.Option.Option<UInt8> =
-        Builtin.uint8FromUInt64 i
+/// Converts an <type Int64> to a <type UInt8>. Returns {{None}} if the value is less than 0 or greater than 255.
+let fromInt64 (i: Int64) : Stdlib.Option.Option<UInt8> =
+  Builtin.uint8FromInt64 i
 
 
-      /// Converts an <type Int128> to a <type UInt8>. Returns {{None}} if the value is less than 0 or greater than 255.
-      let fromInt128 (i: Int128) : Stdlib.Option.Option<UInt8> =
-        Builtin.uint8FromInt128 i
+/// Converts a <type UInt64> to a <type UInt8>. Returns {{None}} if the value is greater than 255.
+let fromUInt64 (i: UInt64) : Stdlib.Option.Option<UInt8> =
+  Builtin.uint8FromUInt64 i
 
 
-      /// Converts a <type UInt128> to a <type UInt8>. Returns {{None}} if the value is greater than 255.
-      let fromUInt128 (i: UInt128) : Stdlib.Option.Option<UInt8> =
-        Builtin.uint8FromUInt128 i
+/// Converts an <type Int128> to a <type UInt8>. Returns {{None}} if the value is less than 0 or greater than 255.
+let fromInt128 (i: Int128) : Stdlib.Option.Option<UInt8> =
+  Builtin.uint8FromInt128 i
+
+
+/// Converts a <type UInt128> to a <type UInt8>. Returns {{None}} if the value is greater than 255.
+let fromUInt128 (i: UInt128) : Stdlib.Option.Option<UInt8> =
+  Builtin.uint8FromUInt128 i

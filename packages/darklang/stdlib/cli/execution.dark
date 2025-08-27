@@ -1,42 +1,42 @@
-module Darklang =
-  module Stdlib =
-    module Cli =
-      /// The result of running a command in the CLI, typically with `Cli.execute`
-      type ExecutionOutcome =
-        { exitCode: Int64
-
-          // TODO bytes, not strings -- see internal note in Process.fs
-          stdout: String
-          stderr: String }
+module Darklang.Stdlib.Cli
 
 
-      /// Execute a command in the CLI (i.e. `Cli.execute "ls ."`)
-      let execute (command: String) : ExecutionOutcome = Builtin.cliExecute command
+/// The result of running a command in the CLI, typically with `Cli.execute`
+type ExecutionOutcome =
+  { exitCode: Int64
+
+    // TODO bytes, not strings -- see internal note in Process.fs
+    stdout: String
+    stderr: String }
 
 
-      /// Execute a command in the CLI,
-      /// returning `Unit` if exit code 0
-      /// , or a `String` of stderr if not
-      let executeWithUnitOrStdErr
-        (command: String)
-        : Stdlib.Result.Result<Unit, String> =
-        let result = execute command
-
-        if result.exitCode == 0L then
-          Stdlib.Result.Result.Ok()
-        else
-          Stdlib.Result.Result.Error result.stderr
+/// Execute a command in the CLI (i.e. `Cli.execute "ls ."`)
+let execute (command: String) : ExecutionOutcome = Builtin.cliExecute command
 
 
-      /// Execute a command in the CLI,
-      /// returning `String` of stdout if exit code 0
-      /// or `String` of stderr if not
-      let executeWithStdOutOrStdErr
-        (command: String)
-        : Stdlib.Result.Result<String, String> =
-        let result = execute command
+/// Execute a command in the CLI,
+/// returning `Unit` if exit code 0
+/// , or a `String` of stderr if not
+let executeWithUnitOrStdErr
+  (command: String)
+  : Stdlib.Result.Result<Unit, String> =
+  let result = execute command
 
-        if result.exitCode == 0L then
-          Stdlib.Result.Result.Ok result.stdout
-        else
-          Stdlib.Result.Result.Error result.stderr
+  if result.exitCode == 0L then
+    Stdlib.Result.Result.Ok()
+  else
+    Stdlib.Result.Result.Error result.stderr
+
+
+/// Execute a command in the CLI,
+/// returning `String` of stdout if exit code 0
+/// or `String` of stderr if not
+let executeWithStdOutOrStdErr
+  (command: String)
+  : Stdlib.Result.Result<String, String> =
+  let result = execute command
+
+  if result.exitCode == 0L then
+    Stdlib.Result.Result.Ok result.stdout
+  else
+    Stdlib.Result.Result.Error result.stderr

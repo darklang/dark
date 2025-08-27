@@ -1,28 +1,28 @@
-module Darklang =
-  module LanguageTools =
-    module LspServer =
-      let logFilePath = "/home/dark/app/rundir/logs/lsp-server.log"
-
-      let log (input: String) : Unit =
-        // returns Result -- ignored
-        let _logged = Builtin.fileAppendText logFilePath (input ++ "\n")
-
-        ()
+module Darklang.LanguageTools.LspServer
 
 
-      let logIncomingRequest (request: String) : Unit = log $"From client: {request}"
+let logFilePath = "/home/dark/app/rundir/logs/lsp-server.log"
+
+let log (input: String) : Unit =
+  // returns Result -- ignored
+  let _logged = Builtin.fileAppendText logFilePath (input ++ "\n")
+
+  ()
 
 
-      let logAndSendToClient (response: String) : Unit =
-        log $"To client: {response}"
+let logIncomingRequest (request: String) : Unit = log $"From client: {request}"
 
-        let contentLengthInBytes =
-          response
-          |> Stdlib.String.toBytes_v0
-          |> Stdlib.List.length
-          |> Stdlib.Int64.toString
 
-        Builtin.print $"Content-Length: {contentLengthInBytes}\r\n\r\n{response}"
+let logAndSendToClient (response: String) : Unit =
+  log $"To client: {response}"
+
+  let contentLengthInBytes =
+    response
+    |> Stdlib.String.toBytes_v0
+    |> Stdlib.List.length
+    |> Stdlib.Int64.toString
+
+  Builtin.print $"Content-Length: {contentLengthInBytes}\r\n\r\n{response}"
 
 (*
   // These are (basically) the only things we're allowed to do before

@@ -1,500 +1,499 @@
-module Darklang =
-  module Stdlib =
-    module Cli =
-      module Stdin =
-        module Key =
-          type Key =
-            | None
+module Darklang.Stdlib.Cli.Stdin
 
-            /// The BACKSPACE key.
-            | Backspace
 
-            /// The TAB key.
-            | Tab
+module Key =
+  type Key =
+    | None
 
-            /// The CLEAR key.
-            | Clear
+    /// The BACKSPACE key.
+    | Backspace
 
-            /// The ENTER key.
-            | Enter
+    /// The TAB key.
+    | Tab
 
-            /// The PAUSE key.
-            | Pause
+    /// The CLEAR key.
+    | Clear
 
-            /// The ESC (ESCAPE) key.
-            | Escape
+    /// The ENTER key.
+    | Enter
 
-            /// The SPACEBAR key.
-            | Spacebar
+    /// The PAUSE key.
+    | Pause
 
-            /// The PAGE UP key.
-            | PageUp
+    /// The ESC (ESCAPE) key.
+    | Escape
 
-            /// The PAGE DOWN key.
-            | PageDown
+    /// The SPACEBAR key.
+    | Spacebar
 
-            /// The END key.
-            | End
+    /// The PAGE UP key.
+    | PageUp
 
-            /// The HOME key.
-            | Home
+    /// The PAGE DOWN key.
+    | PageDown
 
-            /// The LEFT ARROW key.
-            | LeftArrow
+    /// The END key.
+    | End
 
-            /// The UP ARROW key.
-            | UpArrow
+    /// The HOME key.
+    | Home
 
-            /// The RIGHT ARROW key.
-            | RightArrow
+    /// The LEFT ARROW key.
+    | LeftArrow
 
-            /// The DOWN ARROW key.
-            | DownArrow
+    /// The UP ARROW key.
+    | UpArrow
 
-            /// The SELECT key.
-            | Select
+    /// The RIGHT ARROW key.
+    | RightArrow
 
-            /// The PRINT key.
-            | Print
+    /// The DOWN ARROW key.
+    | DownArrow
 
-            /// The EXECUTE key.
-            | Execute
+    /// The SELECT key.
+    | Select
 
-            /// The PRINT SCREEN key.
-            | PrintScreen
+    /// The PRINT key.
+    | Print
 
-            /// The INS (INSERT) key.
-            | Insert
+    /// The EXECUTE key.
+    | Execute
 
-            /// The DEL (DELETE) key.
-            | Delete
+    /// The PRINT SCREEN key.
+    | PrintScreen
 
-            /// The HELP key.
-            | Help
+    /// The INS (INSERT) key.
+    | Insert
 
-            /// The 0 key.
-            | D0
+    /// The DEL (DELETE) key.
+    | Delete
 
-            /// The 1 key.
-            | D1
+    /// The HELP key.
+    | Help
 
-            /// The 2 key.
-            | D2
+    /// The 0 key.
+    | D0
 
-            /// The 3 key.
-            | D3
+    /// The 1 key.
+    | D1
 
-            /// The 4 key.
-            | D4
+    /// The 2 key.
+    | D2
 
-            /// The 5 key.
-            | D5
+    /// The 3 key.
+    | D3
 
-            /// The 6 key.
-            | D6
+    /// The 4 key.
+    | D4
 
-            /// The 7 key.
-            | D7
+    /// The 5 key.
+    | D5
 
-            /// The 8 key.
-            | D8
+    /// The 6 key.
+    | D6
 
-            /// The 9 key.
-            | D9
+    /// The 7 key.
+    | D7
 
-            /// The A key.
-            | A
+    /// The 8 key.
+    | D8
 
-            /// The B key.
-            | B
+    /// The 9 key.
+    | D9
 
-            /// The C key.
-            | C
+    /// The A key.
+    | A
 
-            /// The D key.
-            | D
+    /// The B key.
+    | B
 
-            /// The E key.
-            | E
+    /// The C key.
+    | C
 
-            /// The F key.
-            | F
+    /// The D key.
+    | D
 
-            /// The G key.
-            | G
+    /// The E key.
+    | E
 
-            /// The H key.
-            | H
+    /// The F key.
+    | F
 
-            /// The I key.
-            | I
+    /// The G key.
+    | G
 
-            /// The J key.
-            | J
+    /// The H key.
+    | H
 
-            /// The K key.
-            | K
+    /// The I key.
+    | I
 
-            /// The L key.
-            | L
+    /// The J key.
+    | J
 
-            /// The M key.
-            | M
+    /// The K key.
+    | K
 
-            /// The N key.
-            | N
+    /// The L key.
+    | L
 
-            /// The O key.
-            | O
+    /// The M key.
+    | M
 
-            /// The P key.
-            | P
+    /// The N key.
+    | N
 
-            /// The Q key.
-            | Q
+    /// The O key.
+    | O
 
-            /// The R key.
-            | R
+    /// The P key.
+    | P
 
-            /// The S key.
-            | S
+    /// The Q key.
+    | Q
 
-            /// The T key.
-            | T
+    /// The R key.
+    | R
 
-            /// The U key.
-            | U
+    /// The S key.
+    | S
 
-            /// The V key.
-            | V
+    /// The T key.
+    | T
 
-            /// The W key.
-            | W
+    /// The U key.
+    | U
 
-            /// The X key.
-            | X
+    /// The V key.
+    | V
 
-            /// The Y key.
-            | Y
+    /// The W key.
+    | W
 
-            /// The Z key.
-            | Z
+    /// The X key.
+    | X
 
-            /// The left Windows logo key (Microsoft Natural Keyboard).
-            | LeftWindows
+    /// The Y key.
+    | Y
 
-            /// The right Windows logo key (Microsoft Natural Keyboard).
-            | RightWindows
+    /// The Z key.
+    | Z
 
-            /// The Application key (Microsoft Natural Keyboard).
-            | Applications
+    /// The left Windows logo key (Microsoft Natural Keyboard).
+    | LeftWindows
 
-            /// The Computer Sleep key.
-            | Sleep
+    /// The right Windows logo key (Microsoft Natural Keyboard).
+    | RightWindows
 
-            /// The 0 key on the numeric keypad.
-            | NumPad0
+    /// The Application key (Microsoft Natural Keyboard).
+    | Applications
 
-            /// The 1 key on the numeric keypad.
-            | NumPad1
+    /// The Computer Sleep key.
+    | Sleep
 
-            /// The 2 key on the numeric keypad.
-            | NumPad2
+    /// The 0 key on the numeric keypad.
+    | NumPad0
 
-            /// The 3 key on the numeric keypad.
-            | NumPad3
+    /// The 1 key on the numeric keypad.
+    | NumPad1
 
-            /// The 4 key on the numeric keypad.
-            | NumPad4
+    /// The 2 key on the numeric keypad.
+    | NumPad2
 
-            /// The 5 key on the numeric keypad.
-            | NumPad5
+    /// The 3 key on the numeric keypad.
+    | NumPad3
 
-            /// The 6 key on the numeric keypad.
-            | NumPad6
+    /// The 4 key on the numeric keypad.
+    | NumPad4
 
-            /// The 7 key on the numeric keypad.
-            | NumPad7
+    /// The 5 key on the numeric keypad.
+    | NumPad5
 
-            /// The 8 key on the numeric keypad.
-            | NumPad8
+    /// The 6 key on the numeric keypad.
+    | NumPad6
 
-            /// The 9 key on the numeric keypad.
-            | NumPad9
+    /// The 7 key on the numeric keypad.
+    | NumPad7
 
-            /// The Multiply key (the multiplication key on the numeric keypad).
-            | Multiply
+    /// The 8 key on the numeric keypad.
+    | NumPad8
 
-            /// The Add key (the addition key on the numeric keypad).
-            | Add
+    /// The 9 key on the numeric keypad.
+    | NumPad9
 
-            /// The Separator key.
-            | Separator
+    /// The Multiply key (the multiplication key on the numeric keypad).
+    | Multiply
 
-            /// The Subtract key (the subtraction key on the numeric keypad).
-            | Subtract
+    /// The Add key (the addition key on the numeric keypad).
+    | Add
 
-            /// The Decimal key (the decimal key on the numeric keypad).
-            | Decimal
+    /// The Separator key.
+    | Separator
 
-            /// The Divide key (the division key on the numeric keypad).
-            | Divide
+    /// The Subtract key (the subtraction key on the numeric keypad).
+    | Subtract
 
-            /// The F1 key.
-            | F1
+    /// The Decimal key (the decimal key on the numeric keypad).
+    | Decimal
 
-            /// The F2 key.
-            | F2
+    /// The Divide key (the division key on the numeric keypad).
+    | Divide
 
-            /// The F3 key.
-            | F3
+    /// The F1 key.
+    | F1
 
-            /// The F4 key.
-            | F4
+    /// The F2 key.
+    | F2
 
-            /// The F5 key.
-            | F5
+    /// The F3 key.
+    | F3
 
-            /// The F6 key.
-            | F6
+    /// The F4 key.
+    | F4
 
-            /// The F7 key.
-            | F7
+    /// The F5 key.
+    | F5
 
-            /// The F8 key.
-            | F8
+    /// The F6 key.
+    | F6
 
-            /// The F9 key.
-            | F9
+    /// The F7 key.
+    | F7
 
-            /// The F10 key.
-            | F10
+    /// The F8 key.
+    | F8
 
-            /// The F11 key.
-            | F11
+    /// The F9 key.
+    | F9
 
-            /// The F12 key.
-            | F12
+    /// The F10 key.
+    | F10
 
-            /// The F13 key.
-            | F13
+    /// The F11 key.
+    | F11
 
-            /// The F14 key.
-            | F14
+    /// The F12 key.
+    | F12
 
-            /// The F15 key.
-            | F15
+    /// The F13 key.
+    | F13
 
-            /// The F16 key.
-            | F16
+    /// The F14 key.
+    | F14
 
-            /// The F17 key.
-            | F17
+    /// The F15 key.
+    | F15
 
-            /// The F18 key.
-            | F18
+    /// The F16 key.
+    | F16
 
-            /// The F19 key.
-            | F19
+    /// The F17 key.
+    | F17
 
-            /// The F20 key.
-            | F20
+    /// The F18 key.
+    | F18
 
-            /// The F21 key.
-            | F21
+    /// The F19 key.
+    | F19
 
-            /// The F22 key.
-            | F22
+    /// The F20 key.
+    | F20
 
-            /// The F23 key.
-            | F23
+    /// The F21 key.
+    | F21
 
-            /// The F24 key.
-            | F24
+    /// The F22 key.
+    | F22
 
-            /// The Browser Back key.
-            | BrowserBack
+    /// The F23 key.
+    | F23
 
-            /// The Browser Forward key.
-            | BrowserForward
+    /// The F24 key.
+    | F24
 
-            /// The Browser Refresh key.
-            | BrowserRefresh
+    /// The Browser Back key.
+    | BrowserBack
 
-            /// The Browser Stop key.
-            | BrowserStop
+    /// The Browser Forward key.
+    | BrowserForward
 
-            /// The Browser Search key.
-            | BrowserSearch
+    /// The Browser Refresh key.
+    | BrowserRefresh
 
-            /// The Browser Favorites key.
-            | BrowserFavorites
+    /// The Browser Stop key.
+    | BrowserStop
 
-            /// The Browser Home key.
-            | BrowserHome
+    /// The Browser Search key.
+    | BrowserSearch
 
-            /// The Volume Mute key (Microsoft Natural Keyboard).
-            | VolumeMute
+    /// The Browser Favorites key.
+    | BrowserFavorites
 
-            /// The Volume Down key (Microsoft Natural Keyboard).
-            | VolumeDown
+    /// The Browser Home key.
+    | BrowserHome
 
-            /// The Volume Up key (Microsoft Natural Keyboard).
-            | VolumeUp
+    /// The Volume Mute key (Microsoft Natural Keyboard).
+    | VolumeMute
 
-            /// The Media Next Track key.
-            | MediaNext
+    /// The Volume Down key (Microsoft Natural Keyboard).
+    | VolumeDown
 
-            /// The Media Previous Track key.
-            | MediaPrevious
+    /// The Volume Up key (Microsoft Natural Keyboard).
+    | VolumeUp
 
-            /// The Media Stop key.
-            | MediaStop
+    /// The Media Next Track key.
+    | MediaNext
 
-            /// The Media Play/Pause key.
-            | MediaPlay
+    /// The Media Previous Track key.
+    | MediaPrevious
 
-            /// The Start Mail key (Microsoft Natural Keyboard).
-            | LaunchMail
+    /// The Media Stop key.
+    | MediaStop
 
-            /// The Select Media key (Microsoft Natural Keyboard).
-            | LaunchMediaSelect
+    /// The Media Play/Pause key.
+    | MediaPlay
 
-            /// The Start Application 1 key (Microsoft Natural Keyboard).
-            | LaunchApp1
+    /// The Start Mail key (Microsoft Natural Keyboard).
+    | LaunchMail
 
-            /// The Start Application 2 key (Microsoft Natural Keyboard).
-            | LaunchApp2
+    /// The Select Media key (Microsoft Natural Keyboard).
+    | LaunchMediaSelect
 
-            /// The OEM 1 key (OEM specific).
-            | Oem1
+    /// The Start Application 1 key (Microsoft Natural Keyboard).
+    | LaunchApp1
 
-            /// The OEM Plus key on any country/region keyboard.
-            | OemPlus
+    /// The Start Application 2 key (Microsoft Natural Keyboard).
+    | LaunchApp2
 
-            /// The OEM Comma key on any country/region keyboard.
-            | OemComma
+    /// The OEM 1 key (OEM specific).
+    | Oem1
 
-            /// The OEM Minus key on any country/region keyboard.
-            | OemMinus
+    /// The OEM Plus key on any country/region keyboard.
+    | OemPlus
 
-            /// The OEM Period key on any country/region keyboard.
-            | OemPeriod
+    /// The OEM Comma key on any country/region keyboard.
+    | OemComma
 
-            /// The OEM 2 key (OEM specific).
-            | Oem2
+    /// The OEM Minus key on any country/region keyboard.
+    | OemMinus
 
-            /// The OEM 3 key (OEM specific).
-            | Oem3
+    /// The OEM Period key on any country/region keyboard.
+    | OemPeriod
 
-            /// The OEM 4 key (OEM specific).
-            | Oem4
+    /// The OEM 2 key (OEM specific).
+    | Oem2
 
-            /// The OEM 5 (OEM specific).
-            | Oem5
+    /// The OEM 3 key (OEM specific).
+    | Oem3
 
-            /// The OEM 6 key (OEM specific).
-            | Oem6
+    /// The OEM 4 key (OEM specific).
+    | Oem4
 
-            /// The OEM 7 key (OEM specific).
-            | Oem7
+    /// The OEM 5 (OEM specific).
+    | Oem5
 
-            /// The OEM 8 key (OEM specific).
-            | Oem8
+    /// The OEM 6 key (OEM specific).
+    | Oem6
 
-            /// The OEM 102 key (OEM specific).
-            | Oem102
+    /// The OEM 7 key (OEM specific).
+    | Oem7
 
-            /// The IME PROCESS key.
-            | Process
+    /// The OEM 8 key (OEM specific).
+    | Oem8
 
-            /// The PACKET key (used to pass Unicode characters with keystrokes).
-            | Packet
+    /// The OEM 102 key (OEM specific).
+    | Oem102
 
-            /// The ATTN key.
-            | Attention
+    /// The IME PROCESS key.
+    | Process
 
-            /// The CRSEL (CURSOR SELECT) key.
-            | CrSel
+    /// The PACKET key (used to pass Unicode characters with keystrokes).
+    | Packet
 
-            /// The EXSEL (EXTEND SELECTION) key.
-            | ExSel
+    /// The ATTN key.
+    | Attention
 
-            /// The ERASE EOF key.
-            | EraseEndOfFile
+    /// The CRSEL (CURSOR SELECT) key.
+    | CrSel
 
-            /// The PLAY key.
-            | Play
+    /// The EXSEL (EXTEND SELECTION) key.
+    | ExSel
 
-            /// The ZOOM key.
-            | Zoom
+    /// The ERASE EOF key.
+    | EraseEndOfFile
 
-            /// A constant reserved for future use.
-            | NoName
+    /// The PLAY key.
+    | Play
 
-            /// The PA1 key.
-            | Pa1
+    /// The ZOOM key.
+    | Zoom
 
-            /// The CLEAR key (OEM specific).
-            | OemClear
+    /// A constant reserved for future use.
+    | NoName
 
+    /// The PA1 key.
+    | Pa1
 
-          /// Returns true if the key represents a textual input (letters, numbers, etc.)
-          let isTextual (k: Key): Bool =
-            match k with
-            | A | B | C | D | E | F | G | H | I | J | K | L | M
-            | N | O | P | Q | R | S | T | U | V | W | X | Y | Z
-            | D0 | D1 | D2 | D3 | D4 | D5 | D6 | D7 | D8 | D9
-            | Spacebar | OemComma | OemPeriod | OemMinus | OemPlus
-            | Oem1 | Oem2 | Oem3 | Oem4 | Oem5 | Oem6 | Oem7 | Oem8 -> true
-            | _ -> false
+    /// The CLEAR key (OEM specific).
+    | OemClear
 
-          /// Returns true if the key represents a control key (navigation, function keys, etc.)
-          let isControl (k: Key): Bool =
-            match k with
-            | Enter | Escape | Backspace | Tab
-            | LeftArrow | RightArrow | UpArrow | DownArrow
-            | Home | End | PageUp | PageDown
-            | F1 | F2 | F3 | F4 | F5 | F6 | F7 | F8 | F9 | F10 | F11 | F12
-            | Delete | Insert -> true
-            | _ -> false
 
+  /// Returns true if the key represents a textual input (letters, numbers, etc.)
+  let isTextual (k: Key): Bool =
+    match k with
+    | A | B | C | D | E | F | G | H | I | J | K | L | M
+    | N | O | P | Q | R | S | T | U | V | W | X | Y | Z
+    | D0 | D1 | D2 | D3 | D4 | D5 | D6 | D7 | D8 | D9
+    | Spacebar | OemComma | OemPeriod | OemMinus | OemPlus
+    | Oem1 | Oem2 | Oem3 | Oem4 | Oem5 | Oem6 | Oem7 | Oem8 -> true
+    | _ -> false
 
-        module Modifiers =
-          type Modifiers =
-            { alt: Bool; ctrl: Bool; shift: Bool }
+  /// Returns true if the key represents a control key (navigation, function keys, etc.)
+  let isControl (k: Key): Bool =
+    match k with
+    | Enter | Escape | Backspace | Tab
+    | LeftArrow | RightArrow | UpArrow | DownArrow
+    | Home | End | PageUp | PageDown
+    | F1 | F2 | F3 | F4 | F5 | F6 | F7 | F8 | F9 | F10 | F11 | F12
+    | Delete | Insert -> true
+    | _ -> false
 
-          let toString (m: Modifiers): String =
-            let altPart =
-              match m.alt with
-              | true -> "ALT+"
-              | false ->  ""
 
-            let ctrlPart =
-              match m.ctrl with
-              | true -> "CTRL+"
-              | false ->  ""
+module Modifiers =
+  type Modifiers =
+    { alt: Bool; ctrl: Bool; shift: Bool }
 
-            let shiftPart =
-              match m.shift with
-              | true -> "SHIFT+"
-              | false ->  ""
+  let toString (m: Modifiers): String =
+    let altPart =
+      match m.alt with
+      | true -> "ALT+"
+      | false ->  ""
 
-            altPart ++ ctrlPart ++ shiftPart
+    let ctrlPart =
+      match m.ctrl with
+      | true -> "CTRL+"
+      | false ->  ""
 
+    let shiftPart =
+      match m.shift with
+      | true -> "SHIFT+"
+      | false ->  ""
 
-        module KeyRead =
-          // The result of Stdin.readKey()
-          type KeyRead =
-            { /// The non-modifier key pressed
-              key: Key.Key
+    altPart ++ ctrlPart ++ shiftPart
 
-              /// Any modifiers held when they key was pressed
-              modifiers: Modifiers.Modifiers
-              keyChar: String}
 
-          let toString (k: KeyRead): String =
-            (Modifiers.toString k.modifiers) ++ (Key.toString k.key)
+module KeyRead =
+  // The result of Stdin.readKey()
+  type KeyRead =
+    { /// The non-modifier key pressed
+      key: Key.Key
 
-        let readKey () : KeyRead.KeyRead =
-          Builtin.stdinReadKey ()
+      /// Any modifiers held when they key was pressed
+      modifiers: Modifiers.Modifiers
+      keyChar: String}
+
+  let toString (k: KeyRead): String =
+    (Modifiers.toString k.modifiers) ++ (Key.toString k.key)
+
+let readKey () : KeyRead.KeyRead =
+  Builtin.stdinReadKey ()

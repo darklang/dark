@@ -1,345 +1,345 @@
-module Darklang =
-  module PrettyPrinter =
-    module Packages =
-
-      type Module =
-        { name: String
-          types: List<LanguageTools.ProgramTypes.PackageType.PackageType>
-          fns: List<LanguageTools.ProgramTypes.PackageFn.PackageFn>
-          values: List<LanguageTools.ProgramTypes.PackageValue.PackageValue>
-          submodules: List<Module> }
-
-      let withType
-        (ms: List<Module>)
-        (t: LanguageTools.ProgramTypes.PackageType.PackageType)
-        : List<Module> =
-        match t.name.modules with
-        | [] ->
-          [ Module
-              { name =
-                  (t.name
-                   |> PrettyPrinter.ProgramTypes.FQTypeName.Package.fullForReference)
-                  ++ "has no modules"
-                types = []
-                fns = []
-                values = []
-                submodules = [] } ]
-
-        | firstModuleNamePart :: submoduleNames ->
-          // TODO: check if firstModuleNamePart is already in m
-          let (foundModuleMaybe, otherModules) =
-            ms |> Stdlib.List.partition (fun m -> m.name == firstModuleNamePart)
-
-          match (foundModuleMaybe, submoduleNames) with
-          | [], [] ->
-            let newModule =
-              Module
-                { name = firstModuleNamePart
-                  types =
-                    [ { t with
-                          name = { t.name with modules = [] } } ]
-                  fns = []
-                  values = []
-                  submodules = [] }
-
-            Stdlib.List.append otherModules [ newModule ]
-
-          | [], submoduleNames ->
-            let typeWithoutFirstModuleNamePartOfModule =
-              { t with
-                  name = { t.name with modules = submoduleNames } }
-
-            let newModuleWithSubmodule =
-              Module
-                { name = firstModuleNamePart
-                  types = []
-                  fns = []
-                  values = []
-                  submodules = withType [] typeWithoutFirstModuleNamePartOfModule }
-
-            Stdlib.List.append otherModules [ newModuleWithSubmodule ]
-
-          | [ foundModule ], [] ->
-            let updatedModule =
-              { foundModule with
-                  types =
-                    Stdlib.List.append
-                      foundModule.types
-                      [ { t with
-                            name = { t.name with modules = [] } } ] }
-
-            Stdlib.List.append otherModules [ updatedModule ]
-
-          | [ foundModule ], submoduleNames ->
-            let typeWithoutFirstModuleNamePartOfModule =
-              { t with
-                  name = { t.name with modules = submoduleNames } }
-
-            let updatedModule =
-              { foundModule with
-                  submodules =
-                    withType
-                      foundModule.submodules
-                      typeWithoutFirstModuleNamePartOfModule }
-
-            Stdlib.List.append otherModules [ updatedModule ]
+module Darklang.PrettyPrinter
 
 
-      let withFn
-        (ms: List<Module>)
-        (f: LanguageTools.ProgramTypes.PackageFn.PackageFn)
-        : List<Module> =
-        match f.name.modules with
-        | [] ->
-          [ Module
-              { name =
-                  (f.name
-                   |> PrettyPrinter.ProgramTypes.FQTypeName.Package.fullForReference)
-                  ++ "has no modules"
-                types = []
-                fns = []
-                values = []
-                submodules = [] } ]
+module Packages =
+  type Module =
+    { name: String
+      types: List<LanguageTools.ProgramTypes.PackageType.PackageType>
+      fns: List<LanguageTools.ProgramTypes.PackageFn.PackageFn>
+      values: List<LanguageTools.ProgramTypes.PackageValue.PackageValue>
+      submodules: List<Module> }
 
-        | firstModuleNamePart :: submoduleNames ->
-          let (foundModuleMaybe, otherModules) =
-            ms |> Stdlib.List.partition (fun m -> m.name == firstModuleNamePart)
+  let withType
+    (ms: List<Module>)
+    (t: LanguageTools.ProgramTypes.PackageType.PackageType)
+    : List<Module> =
+    match t.name.modules with
+    | [] ->
+      [ Module
+          { name =
+              (t.name
+                |> PrettyPrinter.ProgramTypes.FQTypeName.Package.fullForReference)
+              ++ "has no modules"
+            types = []
+            fns = []
+            values = []
+            submodules = [] } ]
 
-          match (foundModuleMaybe, submoduleNames) with
-          | [], [] ->
-            let newModule =
-              Module
-                { name = firstModuleNamePart
-                  types = []
-                  fns =
-                    [ { f with
-                          name = { f.name with modules = [] } } ]
-                  values = []
-                  submodules = [] }
+    | firstModuleNamePart :: submoduleNames ->
+      // TODO: check if firstModuleNamePart is already in m
+      let (foundModuleMaybe, otherModules) =
+        ms |> Stdlib.List.partition (fun m -> m.name == firstModuleNamePart)
 
-            Stdlib.List.append otherModules [ newModule ]
+      match (foundModuleMaybe, submoduleNames) with
+      | [], [] ->
+        let newModule =
+          Module
+            { name = firstModuleNamePart
+              types =
+                [ { t with
+                      name = { t.name with modules = [] } } ]
+              fns = []
+              values = []
+              submodules = [] }
 
-          | [], submoduleNames ->
-            let fnWithoutFirstModuleNamePartOfModule =
-              { f with
-                  name = { f.name with modules = submoduleNames } }
+        Stdlib.List.append otherModules [ newModule ]
 
-            let newModuleWithSubmodule =
-              Module
-                { name = firstModuleNamePart
-                  types = []
-                  fns = []
-                  values = []
-                  submodules = withFn [] fnWithoutFirstModuleNamePartOfModule }
+      | [], submoduleNames ->
+        let typeWithoutFirstModuleNamePartOfModule =
+          { t with
+              name = { t.name with modules = submoduleNames } }
 
-            Stdlib.List.append otherModules [ newModuleWithSubmodule ]
+        let newModuleWithSubmodule =
+          Module
+            { name = firstModuleNamePart
+              types = []
+              fns = []
+              values = []
+              submodules = withType [] typeWithoutFirstModuleNamePartOfModule }
 
-          | [ foundModule ], [] ->
-            let updatedModule =
-              { foundModule with
-                  fns =
-                    Stdlib.List.append
-                      foundModule.fns
-                      [ { f with
-                            name = { f.name with modules = [] } } ] }
+        Stdlib.List.append otherModules [ newModuleWithSubmodule ]
 
-            Stdlib.List.append otherModules [ updatedModule ]
+      | [ foundModule ], [] ->
+        let updatedModule =
+          { foundModule with
+              types =
+                Stdlib.List.append
+                  foundModule.types
+                  [ { t with
+                        name = { t.name with modules = [] } } ] }
 
-          | [ foundModule ], submoduleNames ->
-            let fnWithoutFirstModuleNamePartOfModule =
-              { f with
-                  name = { f.name with modules = submoduleNames } }
+        Stdlib.List.append otherModules [ updatedModule ]
 
-            let updatedModule =
-              { foundModule with
-                  submodules =
-                    withFn
-                      foundModule.submodules
-                      fnWithoutFirstModuleNamePartOfModule }
+      | [ foundModule ], submoduleNames ->
+        let typeWithoutFirstModuleNamePartOfModule =
+          { t with
+              name = { t.name with modules = submoduleNames } }
 
-            Stdlib.List.append otherModules [ updatedModule ]
+        let updatedModule =
+          { foundModule with
+              submodules =
+                withType
+                  foundModule.submodules
+                  typeWithoutFirstModuleNamePartOfModule }
 
-      let withValue
-        (ms: List<Module>)
-        (v: LanguageTools.ProgramTypes.PackageValue.PackageValue)
-        : List<Module> =
-        match v.name.modules with
-        | [] ->
-          [ Module
-              { name =
-                  (v.name
-                   |> PrettyPrinter.ProgramTypes.FQTypeName.Package.fullForReference)
-                  ++ "has no modules"
-                types = []
-                fns = []
-                values = []
-                submodules = [] } ]
-
-        | firstModuleNamePart :: submoduleNames ->
-          let (foundModuleMaybe, otherModules) =
-            ms |> Stdlib.List.partition (fun m -> m.name == firstModuleNamePart)
-
-          match (foundModuleMaybe, submoduleNames) with
-          | [], [] ->
-            let newModule =
-              Module
-                { name = firstModuleNamePart
-                  types = []
-                  fns = []
-                  values =
-                    [ { v with
-                          name = { v.name with modules = [] } } ]
-                  submodules = [] }
-
-            Stdlib.List.append otherModules [ newModule ]
-
-          | [], submoduleNames ->
-            let valueWithoutFirstModuleNamePartOfModule =
-              { v with
-                  name = { v.name with modules = submoduleNames } }
-
-            let newModuleWithSubmodule =
-              Module
-                { name = firstModuleNamePart
-                  types = []
-                  fns = []
-                  values = []
-                  submodules =
-                    withValue [] valueWithoutFirstModuleNamePartOfModule }
-
-            Stdlib.List.append otherModules [ newModuleWithSubmodule ]
-
-          | [ foundModule ], [] ->
-            let updatedModule =
-              { foundModule with
-                  values =
-                    Stdlib.List.append
-                      foundModule.values
-                      [ { v with
-                            name = { v.name with modules = [] } } ] }
-
-            Stdlib.List.append otherModules [ updatedModule ]
-
-          | [ foundModule ], submoduleNames ->
-            let valueWithoutFirstModuleNamePartOfModule =
-              { v with
-                  name = { v.name with modules = submoduleNames } }
-
-            let updatedModule =
-              { foundModule with
-                  submodules =
-                    withValue
-                      foundModule.submodules
-                      valueWithoutFirstModuleNamePartOfModule }
-
-            Stdlib.List.append otherModules [ updatedModule ]
+        Stdlib.List.append otherModules [ updatedModule ]
 
 
+  let withFn
+    (ms: List<Module>)
+    (f: LanguageTools.ProgramTypes.PackageFn.PackageFn)
+    : List<Module> =
+    match f.name.modules with
+    | [] ->
+      [ Module
+          { name =
+              (f.name
+                |> PrettyPrinter.ProgramTypes.FQTypeName.Package.fullForReference)
+              ++ "has no modules"
+            types = []
+            fns = []
+            values = []
+            submodules = [] } ]
 
-      let toModules (p: LanguageTools.ProgramTypes.Packages) : List<Module> =
-        let empty = []
+    | firstModuleNamePart :: submoduleNames ->
+      let (foundModuleMaybe, otherModules) =
+        ms |> Stdlib.List.partition (fun m -> m.name == firstModuleNamePart)
 
-        let modulesAfterTypes =
-          Stdlib.List.fold p.types empty (fun modules t -> withType modules t)
+      match (foundModuleMaybe, submoduleNames) with
+      | [], [] ->
+        let newModule =
+          Module
+            { name = firstModuleNamePart
+              types = []
+              fns =
+                [ { f with
+                      name = { f.name with modules = [] } } ]
+              values = []
+              submodules = [] }
 
-        let modulesWithTypesAndFns =
-          Stdlib.List.fold p.fns modulesAfterTypes (fun modules f ->
-            withFn modules f)
+        Stdlib.List.append otherModules [ newModule ]
 
-        let modulesWithTypesAndFnsAndValues =
-          Stdlib.List.fold p.values modulesWithTypesAndFns (fun modules v ->
-            withValue modules v)
+      | [], submoduleNames ->
+        let fnWithoutFirstModuleNamePartOfModule =
+          { f with
+              name = { f.name with modules = submoduleNames } }
 
-        modulesWithTypesAndFnsAndValues
+        let newModuleWithSubmodule =
+          Module
+            { name = firstModuleNamePart
+              types = []
+              fns = []
+              values = []
+              submodules = withFn [] fnWithoutFirstModuleNamePartOfModule }
+
+        Stdlib.List.append otherModules [ newModuleWithSubmodule ]
+
+      | [ foundModule ], [] ->
+        let updatedModule =
+          { foundModule with
+              fns =
+                Stdlib.List.append
+                  foundModule.fns
+                  [ { f with
+                        name = { f.name with modules = [] } } ] }
+
+        Stdlib.List.append otherModules [ updatedModule ]
+
+      | [ foundModule ], submoduleNames ->
+        let fnWithoutFirstModuleNamePartOfModule =
+          { f with
+              name = { f.name with modules = submoduleNames } }
+
+        let updatedModule =
+          { foundModule with
+              submodules =
+                withFn
+                  foundModule.submodules
+                  fnWithoutFirstModuleNamePartOfModule }
+
+        Stdlib.List.append otherModules [ updatedModule ]
+
+  let withValue
+    (ms: List<Module>)
+    (v: LanguageTools.ProgramTypes.PackageValue.PackageValue)
+    : List<Module> =
+    match v.name.modules with
+    | [] ->
+      [ Module
+          { name =
+              (v.name
+                |> PrettyPrinter.ProgramTypes.FQTypeName.Package.fullForReference)
+              ++ "has no modules"
+            types = []
+            fns = []
+            values = []
+            submodules = [] } ]
+
+    | firstModuleNamePart :: submoduleNames ->
+      let (foundModuleMaybe, otherModules) =
+        ms |> Stdlib.List.partition (fun m -> m.name == firstModuleNamePart)
+
+      match (foundModuleMaybe, submoduleNames) with
+      | [], [] ->
+        let newModule =
+          Module
+            { name = firstModuleNamePart
+              types = []
+              fns = []
+              values =
+                [ { v with
+                      name = { v.name with modules = [] } } ]
+              submodules = [] }
+
+        Stdlib.List.append otherModules [ newModule ]
+
+      | [], submoduleNames ->
+        let valueWithoutFirstModuleNamePartOfModule =
+          { v with
+              name = { v.name with modules = submoduleNames } }
+
+        let newModuleWithSubmodule =
+          Module
+            { name = firstModuleNamePart
+              types = []
+              fns = []
+              values = []
+              submodules =
+                withValue [] valueWithoutFirstModuleNamePartOfModule }
+
+        Stdlib.List.append otherModules [ newModuleWithSubmodule ]
+
+      | [ foundModule ], [] ->
+        let updatedModule =
+          { foundModule with
+              values =
+                Stdlib.List.append
+                  foundModule.values
+                  [ { v with
+                        name = { v.name with modules = [] } } ] }
+
+        Stdlib.List.append otherModules [ updatedModule ]
+
+      | [ foundModule ], submoduleNames ->
+        let valueWithoutFirstModuleNamePartOfModule =
+          { v with
+              name = { v.name with modules = submoduleNames } }
+
+        let updatedModule =
+          { foundModule with
+              submodules =
+                withValue
+                  foundModule.submodules
+                  valueWithoutFirstModuleNamePartOfModule }
+
+        Stdlib.List.append otherModules [ updatedModule ]
 
 
-    let packageModule (m: Packages.Module) : String =
-      let headerPart = $"module {m.name} =\n"
 
-      let typesPart =
-        match m.types with
-        | [] -> Stdlib.Option.Option.None
-        | types ->
-          m.types
-          |> Stdlib.List.map (fun t -> PrettyPrinter.ProgramTypes.packageType t)
-          |> Stdlib.String.join "\n\n"
-          |> Stdlib.Option.Option.Some
+  let toModules (p: LanguageTools.ProgramTypes.Packages) : List<Module> =
+    let empty = []
 
-      let fnsPart =
-        match m.fns with
-        | [] -> Stdlib.Option.Option.None
-        | fns ->
-          m.fns
-          |> Stdlib.List.map (fun f -> PrettyPrinter.ProgramTypes.packageFn f)
-          |> Stdlib.String.join "\n\n"
-          |> Stdlib.Option.Option.Some
+    let modulesAfterTypes =
+      Stdlib.List.fold p.types empty (fun modules t -> withType modules t)
 
-      let valuesPart =
-        match m.values with
-        | [] -> Stdlib.Option.Option.None
-        | values ->
-          m.values
-          |> Stdlib.List.map (fun v -> PrettyPrinter.ProgramTypes.packageValue v)
-          |> Stdlib.String.join "\n\n"
-          |> Stdlib.Option.Option.Some
+    let modulesWithTypesAndFns =
+      Stdlib.List.fold p.fns modulesAfterTypes (fun modules f ->
+        withFn modules f)
 
-      let submodulesPart =
-        match m.submodules with
-        | [] -> Stdlib.Option.Option.None
-        | submodules ->
-          submodules
-          |> Stdlib.List.map (fun m -> PrettyPrinter.packageModule m)
-          |> Stdlib.String.join "\n\n"
-          |> Stdlib.Option.Option.Some
+    let modulesWithTypesAndFnsAndValues =
+      Stdlib.List.fold p.values modulesWithTypesAndFns (fun modules v ->
+        withValue modules v)
 
-      let parts =
-        [ typesPart; fnsPart; valuesPart; submodulesPart ]
-        |> Stdlib.List.filterMap (fun s -> s)
+    modulesWithTypesAndFnsAndValues
 
-      match parts with
-      | [] ->
-        // CLEANUP: actually error
-        "Error - module defined somehow without parts"
-      | parts ->
-        let bodyPart = (Stdlib.String.join parts "\n\n") |> PrettyPrinter.indent
 
-        $"module {m.name} =\n{bodyPart}"
+let packageModule (m: Packages.Module) : String =
+  let headerPart = $"module {m.name} =\n"
 
-    let packages (p: LanguageTools.ProgramTypes.Packages) : String =
-      let withOwnerStuffRepresentedAsRootLevelModule =
-        LanguageTools.ProgramTypes.Packages
-          { types =
-              p.types
-              |> Stdlib.List.map (fun t ->
-                { t with
-                    name =
-                      { t.name with
-                          modules =
-                            Stdlib.List.append [ t.name.owner ] t.name.modules
-                          owner = "(redacted)" } })
-            fns =
-              p.fns
-              |> Stdlib.List.map (fun f ->
-                { f with
-                    name =
-                      { f.name with
-                          modules =
-                            Stdlib.List.append [ f.name.owner ] f.name.modules
-                          owner = "(redacted)" } })
+  let typesPart =
+    match m.types with
+    | [] -> Stdlib.Option.Option.None
+    | types ->
+      m.types
+      |> Stdlib.List.map (fun t -> PrettyPrinter.ProgramTypes.packageType t)
+      |> Stdlib.String.join "\n\n"
+      |> Stdlib.Option.Option.Some
 
-            values =
-              p.values
-              |> Stdlib.List.map (fun v ->
-                { v with
-                    name =
-                      { v.name with
-                          modules =
-                            Stdlib.List.append [ v.name.owner ] v.name.modules
-                          owner = "(redacted)" } }) }
+  let fnsPart =
+    match m.fns with
+    | [] -> Stdlib.Option.Option.None
+    | fns ->
+      m.fns
+      |> Stdlib.List.map (fun f -> PrettyPrinter.ProgramTypes.packageFn f)
+      |> Stdlib.String.join "\n\n"
+      |> Stdlib.Option.Option.Some
 
-      let modules = Packages.toModules withOwnerStuffRepresentedAsRootLevelModule
+  let valuesPart =
+    match m.values with
+    | [] -> Stdlib.Option.Option.None
+    | values ->
+      m.values
+      |> Stdlib.List.map (fun v -> PrettyPrinter.ProgramTypes.packageValue v)
+      |> Stdlib.String.join "\n\n"
+      |> Stdlib.Option.Option.Some
 
-      // CLEANUP make ordering 'better' in some way
-      modules
+  let submodulesPart =
+    match m.submodules with
+    | [] -> Stdlib.Option.Option.None
+    | submodules ->
+      submodules
       |> Stdlib.List.map (fun m -> PrettyPrinter.packageModule m)
       |> Stdlib.String.join "\n\n"
+      |> Stdlib.Option.Option.Some
+
+  let parts =
+    [ typesPart; fnsPart; valuesPart; submodulesPart ]
+    |> Stdlib.List.filterMap (fun s -> s)
+
+  match parts with
+  | [] ->
+    // CLEANUP: actually error
+    "Error - module defined somehow without parts"
+  | parts ->
+    let bodyPart = (Stdlib.String.join parts "\n\n") |> PrettyPrinter.indent
+
+    $"module {m.name} =\n{bodyPart}"
+
+let packages (p: LanguageTools.ProgramTypes.Packages) : String =
+  let withOwnerStuffRepresentedAsRootLevelModule =
+    LanguageTools.ProgramTypes.Packages
+      { types =
+          p.types
+          |> Stdlib.List.map (fun t ->
+            { t with
+                name =
+                  { t.name with
+                      modules =
+                        Stdlib.List.append [ t.name.owner ] t.name.modules
+                      owner = "(redacted)" } })
+        fns =
+          p.fns
+          |> Stdlib.List.map (fun f ->
+            { f with
+                name =
+                  { f.name with
+                      modules =
+                        Stdlib.List.append [ f.name.owner ] f.name.modules
+                      owner = "(redacted)" } })
+
+        values =
+          p.values
+          |> Stdlib.List.map (fun v ->
+            { v with
+                name =
+                  { v.name with
+                      modules =
+                        Stdlib.List.append [ v.name.owner ] v.name.modules
+                      owner = "(redacted)" } }) }
+
+  let modules = Packages.toModules withOwnerStuffRepresentedAsRootLevelModule
+
+  // CLEANUP make ordering 'better' in some way
+  modules
+  |> Stdlib.List.map (fun m -> PrettyPrinter.packageModule m)
+  |> Stdlib.String.join "\n\n"

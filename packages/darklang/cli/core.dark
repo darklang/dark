@@ -564,7 +564,9 @@ let runInteractiveLoop (state: AppState) : Int64 =
         Stdlib.printLine (View.formatPrompt ())
       else
         // For all interactive editing: clear line and reprint to avoid artifacts
-        Stdlib.print (Colors.carriageReturn ++ Colors.clearLine)
+        // CLEANUP: this might interfere with terminal scrollback
+        // Stdlib.print (Colors.carriageReturn ++ Colors.clearLine)
+        Stdlib.print "\r"
 
       Stdlib.print (View.formatPromptWithInput state)
     | Experiments ->

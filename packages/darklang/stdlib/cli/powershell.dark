@@ -1,81 +1,80 @@
-module Darklang =
-  module Stdlib =
-    module Cli =
-      module PowerShell =
-        /// Gets the home directory of the current user. If successful, returns {{Ok <var dir>}}. Otherwise, returns an {{Error <var stderr>}}
-        let getHomeDirectory () : Result.Result<String, String> =
-          let dir = Cli.execute "powershell.exe -Command \"echo $env:USERPROFILE\""
-
-          if dir.exitCode == 0L then
-            let dir = dir.stdout |> String.trim
-            Stdlib.Result.Result.Ok dir
-          else
-            Stdlib.Result.Result.Error dir.stderr
+module Darklang.Stdlib.Cli.PowerShell
 
 
-        /// Ensures that the directory at the specified path exists. If successful, returns {{Ok ()}}. Otherwise, returns an {{Error <var stderr>}}
-        let ensureDirectoryExists (path: String) : Result.Result<Unit, String> =
-          Cli.executeWithUnitOrStdErr
-            $"powershell.exe -Command \"if (-not (Test-Path -Path '{path}')) {{ New-Item -Path '{path}' -ItemType Directory }}\""
+/// Gets the home directory of the current user. If successful, returns {{Ok <var dir>}}. Otherwise, returns an {{Error <var stderr>}}
+let getHomeDirectory () : Result.Result<String, String> =
+  let dir = Cli.execute "powershell.exe -Command \"echo $env:USERPROFILE\""
+
+  if dir.exitCode == 0L then
+    let dir = dir.stdout |> String.trim
+    Stdlib.Result.Result.Ok dir
+  else
+    Stdlib.Result.Result.Error dir.stderr
 
 
-        /// Creates a file at the specified path. If successful, returns {{Ok ()}}. Otherwise, returns an {{Error <var stderr>}}
-        let createFile (path: String) : Result.Result<Unit, String> =
-          Cli.executeWithUnitOrStdErr
-            $"powershell.exe -Command \"New-Item -Path '{path}' -ItemType File -Force\""
+/// Ensures that the directory at the specified path exists. If successful, returns {{Ok ()}}. Otherwise, returns an {{Error <var stderr>}}
+let ensureDirectoryExists (path: String) : Result.Result<Unit, String> =
+  Cli.executeWithUnitOrStdErr
+    $"powershell.exe -Command \"if (-not (Test-Path -Path '{path}')) {{ New-Item -Path '{path}' -ItemType Directory }}\""
 
 
-        /// Removes the file at the specified path. If successful, returns {{Ok ()}}. Otherwise, returns an {{Error <var stderr>}}
-        let removeFile (path: String) : Result.Result<Unit, String> =
-          Cli.executeWithUnitOrStdErr
-            $"powershell.exe -Command \"Remove-Item -Path '{path}' -Recurse -Force\""
-
-        /// Copies a file from source to destination path
-        let copyFile (sourcePath: String) (destPath: String) : Result.Result<Unit, String> =
-          Cli.executeWithUnitOrStdErr
-            $"powershell.exe -Command \"Copy-Item -Path '{sourcePath}' -Destination '{destPath}' -Force\""
-
-        /// Checks if a file exists
-        let fileExists (path: String) : Bool =
-          let result = Cli.execute $"powershell.exe -Command \"Test-Path -Path '{path}'\""
-          result.exitCode == 0L && String.trim result.stdout == "True"
+/// Creates a file at the specified path. If successful, returns {{Ok ()}}. Otherwise, returns an {{Error <var stderr>}}
+let createFile (path: String) : Result.Result<Unit, String> =
+  Cli.executeWithUnitOrStdErr
+    $"powershell.exe -Command \"New-Item -Path '{path}' -ItemType File -Force\""
 
 
-        /// Grants execute permissions to the specified file. (chmod +x <param path>)
-        /// If successful, returns {{Ok ()}}. Otherwise, returns an {{Error <var stderr>}}
-        let grantExecutePermission (path: String) : Result.Result<Unit, String> =
-          let path = Stdlib.String.replaceAll path "/" "\\"
+/// Removes the file at the specified path. If successful, returns {{Ok ()}}. Otherwise, returns an {{Error <var stderr>}}
+let removeFile (path: String) : Result.Result<Unit, String> =
+  Cli.executeWithUnitOrStdErr
+    $"powershell.exe -Command \"Remove-Item -Path '{path}' -Recurse -Force\""
 
-          Cli.executeWithUnitOrStdErr
-            $"powershell.exe -Command \"& icacls '{path}' /grant 'Everyone:RX'\""
+/// Copies a file from source to destination path
+let copyFile (sourcePath: String) (destPath: String) : Result.Result<Unit, String> =
+  Cli.executeWithUnitOrStdErr
+    $"powershell.exe -Command \"Copy-Item -Path '{sourcePath}' -Destination '{destPath}' -Force\""
 
-
-        /// Adds an alias to the user's profile. If successful, returns {{Ok ()}}. Otherwise, returns an {{Error <var stderr>}}
-        let addAlias
-          (alias: String)
-          (command: String)
-          : Result.Result<Unit, String> =
-          let addAliasCommand =
-            $"""powershell.exe -Command "Set-Alias -Name {alias} -Value {command}; Add-Content -Path $PROFILE -Value 'Set-Alias -Name {alias} -Value {command}'; . $PROFILE" """
-
-          Cli.executeWithUnitOrStdErr addAliasCommand
+/// Checks if a file exists
+let fileExists (path: String) : Bool =
+  let result = Cli.execute $"powershell.exe -Command \"Test-Path -Path '{path}'\""
+  result.exitCode == 0L && String.trim result.stdout == "True"
 
 
-        /// Deletes an alias from the user's profile. If successful, returns {{Ok ()}}. Otherwise, returns an {{Error <var stderr>}}
-        let deleteAlias (alias: String) : Result.Result<Unit, String> =
-          let deleteAliasCommand =
-            $"""powershell.exe -Command "(Get-Content $PROFILE) -replace 'Set-Alias -Name {alias}.*', '' | Set-Content $PROFILE" """
+/// Grants execute permissions to the specified file. (chmod +x <param path>)
+/// If successful, returns {{Ok ()}}. Otherwise, returns an {{Error <var stderr>}}
+let grantExecutePermission (path: String) : Result.Result<Unit, String> =
+  let path = Stdlib.String.replaceAll path "/" "\\"
 
-          Cli.executeWithUnitOrStdErr deleteAliasCommand
+  Cli.executeWithUnitOrStdErr
+    $"powershell.exe -Command \"& icacls '{path}' /grant 'Everyone:RX'\""
 
 
-        module Gzip =
-          /// Unzip a file to a specified destination path
-          let unzipToFile
-            (inputFilePath: String)
-            (outputFilePath: String)
-            : Stdlib.Result.Result<Unit, String> =
-            let decompressCommand =
-              $"""powershell.exe -Command "$inp = [System.IO.File]::OpenRead('{inputFilePath}'); $out = [System.IO.File]::Create('{outputFilePath}'); $gzipStream = New-Object System.IO.Compression.GZipStream($inp, [IO.Compression.CompressionMode]::Decompress); $gzipStream.CopyTo($out); $gzipStream.Close(); $out.Close(); $inp.Close()" """
+/// Adds an alias to the user's profile. If successful, returns {{Ok ()}}. Otherwise, returns an {{Error <var stderr>}}
+let addAlias
+  (alias: String)
+  (command: String)
+  : Result.Result<Unit, String> =
+  let addAliasCommand =
+    $"""powershell.exe -Command "Set-Alias -Name {alias} -Value {command}; Add-Content -Path $PROFILE -Value 'Set-Alias -Name {alias} -Value {command}'; . $PROFILE" """
 
-            Stdlib.Cli.executeWithUnitOrStdErr decompressCommand
+  Cli.executeWithUnitOrStdErr addAliasCommand
+
+
+/// Deletes an alias from the user's profile. If successful, returns {{Ok ()}}. Otherwise, returns an {{Error <var stderr>}}
+let deleteAlias (alias: String) : Result.Result<Unit, String> =
+  let deleteAliasCommand =
+    $"""powershell.exe -Command "(Get-Content $PROFILE) -replace 'Set-Alias -Name {alias}.*', '' | Set-Content $PROFILE" """
+
+  Cli.executeWithUnitOrStdErr deleteAliasCommand
+
+
+module Gzip =
+  /// Unzip a file to a specified destination path
+  let unzipToFile
+    (inputFilePath: String)
+    (outputFilePath: String)
+    : Stdlib.Result.Result<Unit, String> =
+    let decompressCommand =
+      $"""powershell.exe -Command "$inp = [System.IO.File]::OpenRead('{inputFilePath}'); $out = [System.IO.File]::Create('{outputFilePath}'); $gzipStream = New-Object System.IO.Compression.GZipStream($inp, [IO.Compression.CompressionMode]::Decompress); $gzipStream.CopyTo($out); $gzipStream.Close(); $out.Close(); $inp.Close()" """
+
+    Stdlib.Cli.executeWithUnitOrStdErr decompressCommand

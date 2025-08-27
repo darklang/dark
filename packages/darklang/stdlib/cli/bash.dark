@@ -1,53 +1,52 @@
-module Darklang =
-  module Stdlib =
-    module Cli =
-      module Bash =
-        /// Read the content of .bashrc file
-        let readBashrc () : Result.Result<String, String> =
-          (Builtin.fileRead "$HOME/.bashrc")
-          |> Result.map (fun content -> String.fromBytesWithReplacement content)
-
-        /// Apply changes to .bashrc
-        let applyBashConfigChanges () : Result.Result<Unit, String> =
-          Cli.executeWithUnitOrStdErr "source $HOME/.bashrc"
+module Darklang.Stdlib.Cli.Bash
 
 
-        /// Write content to .bashrc file
-        let overwriteBashrc (content: String) : Result.Result<Unit, String> =
-          (Builtin.fileWrite (String.toBytes content) "$HOME/.bashrc")
-          |> Result.map (fun _ -> ())
+/// Read the content of .bashrc file
+let readBashrc () : Result.Result<String, String> =
+  (Builtin.fileRead "$HOME/.bashrc")
+  |> Result.map (fun content -> String.fromBytesWithReplacement content)
+
+/// Apply changes to .bashrc
+let applyBashConfigChanges () : Result.Result<Unit, String> =
+  Cli.executeWithUnitOrStdErr "source $HOME/.bashrc"
 
 
-        /// Delete an alias from .bashrc
-        let deleteAlias (alias: String) : Result.Result<Unit, String> =
-          (readBashrc ())
-          |> Result.andThen (fun content ->
-            let updatedContent =
-              content
-              |> String.split "\n"
-              |> List.filter (fun line ->
-                Bool.not (String.contains line $"alias {alias}="))
-              |> String.join "\n"
-
-            overwriteBashrc updatedContent)
+/// Write content to .bashrc file
+let overwriteBashrc (content: String) : Result.Result<Unit, String> =
+  (Builtin.fileWrite (String.toBytes content) "$HOME/.bashrc")
+  |> Result.map (fun _ -> ())
 
 
-        /// Add an alias to .bashrc
-        let addAlias
-          (alias: String)
-          (command: String)
-          : Result.Result<Unit, String> =
-          let aliasDefinition = $"alias {alias}='{command}'"
+/// Delete an alias from .bashrc
+let deleteAlias (alias: String) : Result.Result<Unit, String> =
+  (readBashrc ())
+  |> Result.andThen (fun content ->
+    let updatedContent =
+      content
+      |> String.split "\n"
+      |> List.filter (fun line ->
+        Bool.not (String.contains line $"alias {alias}="))
+      |> String.join "\n"
 
-          match readBashrc () with
-          | Ok content ->
-            let updatedContent = content ++ "\n" ++ aliasDefinition
-            overwriteBashrc updatedContent // TODO: match on this
+    overwriteBashrc updatedContent)
 
-            // CLEANUP: in bash `source ~/.bashrc` doesn't work from a subprocess, This is why we need to print a message to the user to run the command manually
-            // one workaround is adding `[[ -f ~/.bashrc ]] && . ~/.bashrc` which makes sure .bashrc exists and sources it, applying it configuration to the current shell session.
-            Builtin.printLine
-              "Changes have been made to your .bashrc file. \nTo apply these changes to your current terminal session, please run the following command:\nsource ~/.bashrc\n\n "
 
-            applyBashConfigChanges ()
-          | Error e -> Result.Result.Error e
+/// Add an alias to .bashrc
+let addAlias
+  (alias: String)
+  (command: String)
+  : Result.Result<Unit, String> =
+  let aliasDefinition = $"alias {alias}='{command}'"
+
+  match readBashrc () with
+  | Ok content ->
+    let updatedContent = content ++ "\n" ++ aliasDefinition
+    overwriteBashrc updatedContent // TODO: match on this
+
+    // CLEANUP: in bash `source ~/.bashrc` doesn't work from a subprocess, This is why we need to print a message to the user to run the command manually
+    // one workaround is adding `[[ -f ~/.bashrc ]] && . ~/.bashrc` which makes sure .bashrc exists and sources it, applying it configuration to the current shell session.
+    Builtin.printLine
+      "Changes have been made to your .bashrc file. \nTo apply these changes to your current terminal session, please run the following command:\nsource ~/.bashrc\n\n "
+
+    applyBashConfigChanges ()
+  | Error e -> Result.Result.Error e

@@ -1,411 +1,409 @@
-module Darklang =
-  module Stdlib =
-    module String =
+module Darklang.Stdlib.String
 
-      /// Returns a string containing a single '\n'
-      let newline = "\n"
 
+/// Returns a string containing a single '\n'
+let newline = "\n"
 
-      /// Truncates the string <param s> to the specified <param length> and appends an ellipsis ("...")
-      /// to it if the original string exceeds the given length. Otherwise, returns the original string.
-      let ellipsis (s: String) (length: Int64) : String =
-        if Stdlib.String.length s > length then
-          (Stdlib.String.slice_v0 s 0L length) ++ "..."
-        else
-          s
 
+/// Truncates the string <param s> to the specified <param length> and appends an ellipsis ("...")
+/// to it if the original string exceeds the given length. Otherwise, returns the original string.
+let ellipsis (s: String) (length: Int64) : String =
+  if String.length s > length then
+    (String.slice_v0 s 0L length) ++ "..."
+  else
+    s
 
-      /// Returns 'a' or 'an' (the indefinite article) for a string, based on
-      /// whether it begins with a vowel
-      let articleFor (nextWord: String) : String =
-        let vowels = [ 'A'; 'E'; 'I'; 'O'; 'U'; 'a'; 'e'; 'i'; 'o'; 'u' ]
 
-        match Stdlib.String.head nextWord with
-        | None -> ""
-        | Some c ->
-          if
-            Stdlib.String.length nextWord > 1L
-            && (Stdlib.Bool.not (Stdlib.Char.isASCIILetter c))
-          then
-            articleFor (Stdlib.String.dropFirst nextWord 1L)
-          else if Stdlib.List.``member`` vowels c then
-            "an"
-          else
-            "a"
+/// Returns 'a' or 'an' (the indefinite article) for a string, based on
+/// whether it begins with a vowel
+let articleFor (nextWord: String) : String =
+  let vowels = [ 'A'; 'E'; 'I'; 'O'; 'U'; 'a'; 'e'; 'i'; 'o'; 'u' ]
 
+  match String.head nextWord with
+  | None -> ""
+  | Some c ->
+    if
+      String.length nextWord > 1L
+      && (Bool.not (Char.isASCIILetter c))
+    then
+      articleFor (String.dropFirst nextWord 1L)
+    else if List.``member`` vowels c then
+      "an"
+    else
+      "a"
 
-      /// Returns {{true}} if <param s> is the empty string {{\"\"}
-      let isEmpty (s: String) : Bool = s == ""
 
+/// Returns {{true}} if <param s> is the empty string {{\"\"}
+let isEmpty (s: String) : Bool = s == ""
 
-      /// Iterate over each Char (EGC, not byte) in the string, performing the
-      /// operation in <param fn> on each one.
-      let map (s: String) (fn: Char -> Char) : String =
-        s |> String.toList |> List.map fn |> String.fromList
 
+/// Iterate over each Char (EGC, not byte) in the string, performing the
+/// operation in <param fn> on each one.
+let map (s: String) (fn: Char -> Char) : String =
+  s |> String.toList |> List.map fn |> String.fromList
 
-      /// Returns the list of Characters (EGC, not byte) in the string
-      let toList (s: String) : List<Char> = Builtin.stringToList s
 
+/// Returns the list of Characters (EGC, not byte) in the string
+let toList (s: String) : List<Char> = Builtin.stringToList s
 
-      /// Replace all instances on <param searchFor> in <param s> with <param replaceWith>
-      let replaceAll (s: String) (searchFor: String) (replaceWith: String) : String =
-        Builtin.stringReplaceAll s searchFor replaceWith
 
+/// Replace all instances on <param searchFor> in <param s> with <param replaceWith>
+let replaceAll (s: String) (searchFor: String) (replaceWith: String) : String =
+  Builtin.stringReplaceAll s searchFor replaceWith
 
-      /// Returns the string, uppercased
-      let toUppercase (s: String) : String = Builtin.stringToUppercase s
 
+/// Returns the string, uppercased
+let toUppercase (s: String) : String = Builtin.stringToUppercase s
 
-      /// Returns the string, lowercased
-      let toLowercase (s: String) : String = Builtin.stringToLowercase s
 
+/// Returns the string, lowercased
+let toLowercase (s: String) : String = Builtin.stringToLowercase s
 
-      // TODO: UInt?
-      /// Returns the length of the string
-      let length (s: String) : Int64 = Builtin.stringLength s
 
+// TODO: UInt?
+/// Returns the length of the string
+let length (s: String) : Int64 = Builtin.stringLength s
 
-      /// Concatenates the two strings by appending <param s2> to <param s1> and returns the joined string.
-      let append (s1: String) (s2: String) : String = $"{s1}{s2}"
 
+/// Concatenates the two strings by appending <param s2> to <param s1> and returns the joined string.
+let append (s1: String) (s2: String) : String = $"{s1}{s2}"
 
-      /// Concatenates the two strings by prepending <param s2> to <param s1> and
-      /// returns the joined string
-      let prepend (s1: String) (s2: String) : String = s2 ++ s1
 
+/// Concatenates the two strings by prepending <param s2> to <param s1> and
+/// returns the joined string
+let prepend (s1: String) (s2: String) : String = s2 ++ s1
 
-      //TODO: write the dark version of this function once we have regex
-      /// Turns a string into a prettified slug, including only lowercased
-      /// alphanumeric characters, joined by hyphens
-      // let slugify (s: String) : String =
-      //   Builtin.stringSlugify s
 
+//TODO: write the dark version of this function once we have regex
+/// Turns a string into a prettified slug, including only lowercased
+/// alphanumeric characters, joined by hyphens
+// let slugify (s: String) : String =
+//   Builtin.stringSlugify s
 
-      /// Reverses <param string>
-      let reverse (string: String) : String = Builtin.stringReverse string
 
+/// Reverses <param string>
+let reverse (string: String) : String = Builtin.stringReverse string
 
-      /// Splits a string at the separator, returning a list of strings without the separator.
-      /// If the separator is not present, returns a list containing only the initial string.
-      let split (string: String) (separator: String) : List<String> =
-        Builtin.stringSplit string separator
 
+/// Splits a string at the separator, returning a list of strings without the separator.
+/// If the separator is not present, returns a list containing only the initial string.
+let split (string: String) (separator: String) : List<String> =
+  Builtin.stringSplit string separator
 
-      /// Combines a list of strings with the provided separator
-      let join (l: List<String>) (separator: String) : String =
-        Builtin.stringJoin l separator
 
+/// Combines a list of strings with the provided separator
+let join (l: List<String>) (separator: String) : String =
+  Builtin.stringJoin l separator
 
-      /// Returns the list of characters as a string
-      let fromList (lst: List<Char>) : String =
-        (Stdlib.List.map lst (fun c -> Stdlib.Char.toString c))
-        |> Builtin.stringJoin ""
-
-
-      /// Converts a <type Char> to a <type String>
-      let fromChar (c: Char) : String = Stdlib.Char.toString c
-
-
-      /// URLBase64 encodes a string without padding. Uses URL-safe encoding with
-      /// {{-}} and {{_}} instead of {{+}} and {{/}}, as defined in
-      /// [RFC 4648 section 5](https://www.rfc-editor.org/rfc/rfc4648.html#section-5)
-      let base64UrlEncode (s: String) : String =
-        let encoded = s |> Stdlib.String.toBytes |> Stdlib.Base64.urlEncode
-
-        Stdlib.String.replaceAll encoded "=" ""
-
-      /// Base64 encodes a string. Uses {{-}} and {{_}} instead of {{+}} and {{/}}, as defined in
-      /// [RFC 4648 section 4](https://www.rfc-editor.org/rfc/rfc4648.html#section-4) with padding.
-      let base64Encode (s: String) : String =
-        s |> Stdlib.String.toBytes |> Stdlib.Base64.encode
-
-
-      /// Base64 decodes a string. The returned value is wrapped in {{Result}}.
-      /// Works with both the URL-safe and standard Base64
-      /// alphabets defined in [RFC 4648
-      /// sections](https://www.rfc-editor.org/rfc/rfc4648.html)
-      /// [4](https://www.rfc-editor.org/rfc/rfc4648.html#section-4) and
-      /// [5](https://www.rfc-editor.org/rfc/rfc4648.html#section-5).
-      let base64Decode (s: String) : Stdlib.Result.Result<String, String> =
-        match Stdlib.Base64.decode s with
-        | Ok bytes ->
-          match Stdlib.String.fromBytes bytes with
-          | Some str -> Stdlib.Result.Result.Ok str
-          | None -> Stdlib.Result.Result.Error "Invalid UTF-8 string"
-        | Error err -> Stdlib.Result.Result.Error err
-
-
-      /// Take a string and hash it to a cryptographically-secure digest.
-      /// Don't rely on either the size or the algorithm.
-      let digest (s: String) : String =
-        let sha384Hash = Stdlib.Crypto.sha384_v0 (Stdlib.String.toBytes_v0 s)
-
-        sha384Hash |> Stdlib.Base64.urlEncode
-
-
-      /// Generate a <type String> of length <param length> from random characters
-      let random (length: Int64) : Stdlib.Result.Result<String, String> =
-        if length < 0L then
-          Stdlib.Result.Result.Error
-            $"Expected `length` to be positive, but it was `{length |> Stdlib.Int64.toString}`"
-        else
-          let characters =
-            "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
-
-          let randomChar =
-            fun _ ->
-              (let index =
-                Stdlib.Int64.random 0L ((Stdlib.String.length characters) - 1L)
-
-               Stdlib.String.slice_v0 characters index (index + 1L))
-
-          let result =
-            (Stdlib.List.range 0L (length - 1L))
-            |> Stdlib.List.map (fun _ -> randomChar ())
-            |> Stdlib.String.join ""
-
-          Stdlib.Result.Result.Ok result
-
-
-      /// Escape an untrusted string in order to include it safely in HTML output
-      let htmlEscape (html: String) : String =
-        html
-        |> Stdlib.String.toList
-        |> Stdlib.List.map (fun c ->
-          match c with
-          | '<' -> "&lt;"
-          | '>' -> "&gt;"
-          | '&' -> "&amp;"
-          // include these for html-attribute-escaping
-          // even though they're not strictly necessary
-          // for html-escaping proper.
-          | '"' -> "&quot;"
-          // &apos; doesn't work in IE....
-          | ''' -> "&#x27;"
-          | _ -> Stdlib.String.fromChar c)
-        |> Stdlib.String.join ""
-
-
-      /// Checks if <param lookingIn> contains <param searchingFor>
-      let contains (lookingIn: String) (searchingFor: String) : Bool =
-        Builtin.stringIndexOf lookingIn searchingFor != -1L
-
-
-      /// Returns the substring of <param string> between the <param from> and <param to> indices.
-      /// Negative indices start counting from the end of <param string>.
-      let slice (string: String) (from: Int64) (``to``: Int64) : String =
-        let len = Stdlib.String.length string
-
-        let normalize =
-          (fun i ->
-            (if i < 0L then len + i else i)
-            |> Stdlib.Int64.min len
-            |> Stdlib.Int64.max 0L)
-
-        let f = normalize from
-        let l = normalize ``to``
-        let l = if f > l then f else l
-
-        string |> Builtin.stringSlice f l
-
-
-      /// Returns the first <param characterCount> characters of <param string>, as a Builtin.String.
-      /// If <param characterCount> is longer than <param string>, returns <param string>.
-      /// If <param characterCount> is negative, returns the empty string."
-      let first (string: String) (characterCount: Int64) : String =
-        if characterCount < 0L then
-          ""
-        else if characterCount > Stdlib.String.length string then
-          string
-        else
-          Stdlib.String.slice_v0 string 0L characterCount
-
-
-      /// Returns the last <param characterCount> characters of <param string>, as a Builtin.String.
-      /// If <param characterCount> is longer than <param string>, returns <param string>.
-      /// If <param characterCount> is negative, returns the empty string.
-      let last (string: String) (characterCount: Int64) : String =
-        if characterCount < 0L then
-          ""
-        else if characterCount > Stdlib.String.length string then
-          string
-        else
-          Stdlib.String.slice_v0
-            string
-            (Stdlib.String.length string - characterCount)
-            (Stdlib.String.length string)
-
-
-      /// Returns all but the last <param characterCount> characters of <param string>, as a Builtin.String.
-      /// If <param characterCount> is longer than <param string>, returns the empty string.
-      /// If <param characterCount> is negative, returns <param string>.
-      let dropLast (string: String) (characterCount: Int64) : String =
-        if characterCount < 0L then
-          string
-        else if characterCount > Stdlib.String.length string then
-          ""
-        else
-          Stdlib.String.slice_v0
-            string
-            0L
-            (Stdlib.String.length string - characterCount)
-
-
-      /// Returns all but the first <param characterCount> characters of <param string>, as a <type String>.
-      /// If <param characterCount> is longer than <param string>, returns the empty string.
-      /// If <param characterCount> is negative, returns <param string>.
-      let dropFirst (string: String) (characterCount: Int64) : String =
-        if characterCount < 0L then
-          string
-        else if characterCount > Stdlib.String.length string then
-          ""
-        else
-          Stdlib.String.slice_v0 string characterCount (Stdlib.String.length string)
-
-
-      /// If <param string> is shorter than <param goalLength> characters, returns a
-      /// copy of <param string> starting with enough copies of <param padWith> for the
-      /// result have <param goalLength>. A returning value is wrapped in a {{Result}}.
-      /// If the <param string> is longer than <param goalLength>, returns an unchanged copy of <param string>
-      let padStart
-        (string: String)
-        (padWith: String)
-        (goalLength: Int64)
-        : Stdlib.Result.Result<String, String> =
-        if Stdlib.String.length padWith != 1L then
-          Stdlib.Result.Result.Error
-            $"Expected `padWith` to be 1 character long, but it was `\"{padWith}\"`"
-        else if Stdlib.String.length string >= goalLength then
-          Stdlib.Result.Result.Ok string
-        else
-          let padCount = goalLength - Stdlib.String.length string
-          let pad = Stdlib.String.repeat padWith padCount
-          Stdlib.Result.Result.Ok(pad ++ string)
-
-
-      /// If <param string> is shorter than <param goalLength> characters, returns a
-      /// copy of <param string> ending with enough copies of <param padWith> for the
-      /// result have <param goalLength>. A returning value is wrapped in a {{Result}}.
-      /// If the <param string> is longer than <param goalLength>, returns an unchanged copy of <param string>.
-      let padEnd
-        (string: String)
-        (padWith: String)
-        (goalLength: Int64)
-        : Stdlib.Result.Result<String, String> =
-        if Stdlib.String.length padWith != 1L then
-          Stdlib.Result.Result.Error
-            $"Expected `padWith` to be 1 character long, but it was `\"{padWith}\"`"
-        else if Stdlib.String.length string >= goalLength then
-          Stdlib.Result.Result.Ok string
-        else
-          let padCount = goalLength - Stdlib.String.length string
-          let pad = Stdlib.String.repeat padWith padCount
-          Stdlib.Result.Result.Ok(string ++ pad)
-
-
-      // TODO: re-write in dark
-      /// Returns a copy of <param str> with all leading and trailing whitespace
-      /// removed. 'whitespace' here means all Unicode characters with the
-      /// {{White_Space}} property, which includes {{\" \"}}, {{\"\\t\"}} and
-      /// {{\"\\n\"}}
-      let trim (str: String) : String = Builtin.stringTrim str
-
-
-      // TODO: re-write in dark
-      /// Returns a copy of <param str> with all leading whitespace removed. 'whitespace'
-      /// here means all Unicode characters with the {{White_Space}} property, which
-      /// includes {{\" \"}}, {{\"\\t\"}} and {{\"\\n\"}}
-      let trimStart (str: String) : String = Builtin.stringTrimStart str
-
-
-      // TODO: re-write in dark
-      /// Returns a copy of <param str> with all trailing whitespace removed.
-      /// 'whitespace' here means all Unicode characters with the {{White_Space}}
-      /// property, which includes {{\" \"}}, {{\"\\t\"}} and {{\"\\n\"}}.
-      let trimEnd (str: String) : String = Builtin.stringTrimEnd str
-
-
-      /// Converts the given unicode string to a UTF8-encoded byte sequence.
-      let toBytes (str: String) : List<UInt8> = Builtin.stringToBytes str
-
-
-      /// Converts the UTF8-encoded byte sequence into a string. Errors will be ignored by replacing invalid characters
-      let fromBytesWithReplacement (bytes: List<UInt8>) : String =
-        Builtin.stringFromBytesWithReplacement bytes
-
-
-      /// Converts the UTF8-encoded byte sequence into a string
-      let fromBytes (bytes: List<UInt8>) : Stdlib.Option.Option<String> =
-        Builtin.stringFromBytes bytes
-
-
-      /// Checks if <param subject> starts with <param prefix>
-      let startsWith (subject: String) (prefix: String) : Bool =
-        Stdlib.String.slice_v0 subject 0L (Stdlib.String.length prefix) == prefix
-
-
-      /// Checks if <param subject> ends with <param suffix>
-      let endsWith (subject: String) (suffix: String) : Bool =
-        Stdlib.String.slice_v0
-          subject
-          (Stdlib.String.length subject - Stdlib.String.length suffix)
-          (Stdlib.String.length subject)
-        == suffix
-
-
-      /// Returns {{Just index}} of the first occurrence of <param searchFor> in <param str>, or returns {{Nothing}} if <param searchFor> does not occur.
-      let indexOf (str: String) (searchFor: String) : Stdlib.Option.Option<Int64> =
-        if (Builtin.stringIndexOf str searchFor) == -1L then
-          Stdlib.Option.Option.None
-        else
-          Stdlib.Option.Option.Some(Builtin.stringIndexOf str searchFor)
-
-
-      /// Returns {{Just index}} of the last occurrence of <param searchFor> in <param str>,
-      /// or returns {{Nothing}} if <param searchFor> does not occur.
-      let lastIndexOf
-        (str: String)
-        (searchFor: String)
-        : Stdlib.Option.Option<Int64> =
-        let lastIndex = Builtin.stringLastIndexOf str searchFor
-
-        if lastIndex == -1L then
-          Stdlib.Option.Option.None
-        else
-          Stdlib.Option.Option.Some(lastIndex)
-
-
-      /// Returns the <param string> repeated for a specified <param count> times.
-      /// If <param count> is less than or equal to 0, returns an empty string.
-      let repeat (string: String) (count: Int64) : String =
-        if count <= 0L then
-          ""
-        else
-          Stdlib.String.join ((Stdlib.List.repeat count string) |> Builtin.unwrap) ""
-
-
-      /// Converts an integer <param n> to its ordinal representation as a string.
-      let toOrdinal (n: Int64) : String =
-        let suffix =
-          match n % 10L with
-          | 1L -> "st"
-          | 2L -> "nd"
-          | 3L -> "rd"
-          | _ -> "th"
-
-        (Stdlib.Int64.toString n) ++ suffix
-
-
-      /// Splits the given <param str> at each newline character and returns a list of substrings.
-      /// If the <param str> is empty, it returns an empty list.
-      let splitOnNewline (str: String) : List<String> =
-        if str == "" then [] else Stdlib.String.split str "\n"
-
-
-      /// Returns {{Some char}} of the first character of <param str>, or returns {{None}} if <param str> is empty.
-      let head (str: String) : Stdlib.Option.Option<Char> =
-        if str == "" then
-          Stdlib.Option.Option.None
-        else
-          str |> Stdlib.String.toList |> Stdlib.List.head
+
+/// Returns the list of characters as a string
+let fromList (lst: List<Char>) : String =
+  (List.map lst (fun c -> Char.toString c))
+  |> Builtin.stringJoin ""
+
+
+/// Converts a <type Char> to a <type String>
+let fromChar (c: Char) : String = Char.toString c
+
+
+/// URLBase64 encodes a string without padding. Uses URL-safe encoding with
+/// {{-}} and {{_}} instead of {{+}} and {{/}}, as defined in
+/// [RFC 4648 section 5](https://www.rfc-editor.org/rfc/rfc4648.html#section-5)
+let base64UrlEncode (s: String) : String =
+  let encoded = s |> String.toBytes |> Base64.urlEncode
+
+  String.replaceAll encoded "=" ""
+
+/// Base64 encodes a string. Uses {{-}} and {{_}} instead of {{+}} and {{/}}, as defined in
+/// [RFC 4648 section 4](https://www.rfc-editor.org/rfc/rfc4648.html#section-4) with padding.
+let base64Encode (s: String) : String =
+  s |> String.toBytes |> Base64.encode
+
+
+/// Base64 decodes a string. The returned value is wrapped in {{Result}}.
+/// Works with both the URL-safe and standard Base64
+/// alphabets defined in [RFC 4648
+/// sections](https://www.rfc-editor.org/rfc/rfc4648.html)
+/// [4](https://www.rfc-editor.org/rfc/rfc4648.html#section-4) and
+/// [5](https://www.rfc-editor.org/rfc/rfc4648.html#section-5).
+let base64Decode (s: String) : Result.Result<String, String> =
+  match Base64.decode s with
+  | Ok bytes ->
+    match String.fromBytes bytes with
+    | Some str -> Result.Result.Ok str
+    | None -> Result.Result.Error "Invalid UTF-8 string"
+  | Error err -> Result.Result.Error err
+
+
+/// Take a string and hash it to a cryptographically-secure digest.
+/// Don't rely on either the size or the algorithm.
+let digest (s: String) : String =
+  let sha384Hash = Crypto.sha384_v0 (String.toBytes_v0 s)
+
+  sha384Hash |> Base64.urlEncode
+
+
+/// Generate a <type String> of length <param length> from random characters
+let random (length: Int64) : Result.Result<String, String> =
+  if length < 0L then
+    Result.Result.Error
+      $"Expected `length` to be positive, but it was `{length |> Int64.toString}`"
+  else
+    let characters =
+      "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
+
+    let randomChar =
+      fun _ ->
+        (let index =
+          Int64.random 0L ((String.length characters) - 1L)
+         String.slice characters index (index + 1L))
+
+    let result =
+      (List.range 0L (length - 1L))
+      |> List.map (fun _ -> randomChar ())
+      |> String.join ""
+
+    Result.Result.Ok result
+
+
+/// Escape an untrusted string in order to include it safely in HTML output
+let htmlEscape (html: String) : String =
+  html
+  |> String.toList
+  |> List.map (fun c ->
+    match c with
+    | '<' -> "&lt;"
+    | '>' -> "&gt;"
+    | '&' -> "&amp;"
+    // include these for html-attribute-escaping
+    // even though they're not strictly necessary
+    // for html-escaping proper.
+    | '"' -> "&quot;"
+    // &apos; doesn't work in IE....
+    | ''' -> "&#x27;"
+    | _ -> String.fromChar c)
+  |> String.join ""
+
+
+/// Checks if <param lookingIn> contains <param searchingFor>
+let contains (lookingIn: String) (searchingFor: String) : Bool =
+  Builtin.stringIndexOf lookingIn searchingFor != -1L
+
+
+/// Returns the substring of <param string> between the <param from> and <param to> indices.
+/// Negative indices start counting from the end of <param string>.
+let slice (string: String) (from: Int64) (``to``: Int64) : String =
+  let len = String.length string
+
+  let normalize =
+    (fun i ->
+      (if i < 0L then len + i else i)
+      |> Int64.min len
+      |> Int64.max 0L)
+
+  let f = normalize from
+  let l = normalize ``to``
+  let l = if f > l then f else l
+
+  string |> Builtin.stringSlice f l
+
+
+/// Returns the first <param characterCount> characters of <param string>, as a Builtin.String.
+/// If <param characterCount> is longer than <param string>, returns <param string>.
+/// If <param characterCount> is negative, returns the empty string."
+let first (string: String) (characterCount: Int64) : String =
+  if characterCount < 0L then
+    ""
+  else if characterCount > String.length string then
+    string
+  else
+    String.slice_v0 string 0L characterCount
+
+
+/// Returns the last <param characterCount> characters of <param string>, as a Builtin.String.
+/// If <param characterCount> is longer than <param string>, returns <param string>.
+/// If <param characterCount> is negative, returns the empty string.
+let last (string: String) (characterCount: Int64) : String =
+  if characterCount < 0L then
+    ""
+  else if characterCount > String.length string then
+    string
+  else
+    String.slice_v0
+      string
+      (String.length string - characterCount)
+      (String.length string)
+
+
+/// Returns all but the last <param characterCount> characters of <param string>, as a Builtin.String.
+/// If <param characterCount> is longer than <param string>, returns the empty string.
+/// If <param characterCount> is negative, returns <param string>.
+let dropLast (string: String) (characterCount: Int64) : String =
+  if characterCount < 0L then
+    string
+  else if characterCount > String.length string then
+    ""
+  else
+    String.slice_v0
+      string
+      0L
+      (String.length string - characterCount)
+
+
+/// Returns all but the first <param characterCount> characters of <param string>, as a <type String>.
+/// If <param characterCount> is longer than <param string>, returns the empty string.
+/// If <param characterCount> is negative, returns <param string>.
+let dropFirst (string: String) (characterCount: Int64) : String =
+  if characterCount < 0L then
+    string
+  else if characterCount > String.length string then
+    ""
+  else
+    String.slice_v0 string characterCount (String.length string)
+
+
+/// If <param string> is shorter than <param goalLength> characters, returns a
+/// copy of <param string> starting with enough copies of <param padWith> for the
+/// result have <param goalLength>. A returning value is wrapped in a {{Result}}.
+/// If the <param string> is longer than <param goalLength>, returns an unchanged copy of <param string>
+let padStart
+  (string: String)
+  (padWith: String)
+  (goalLength: Int64)
+  : Result.Result<String, String> =
+  if String.length padWith != 1L then
+    Result.Result.Error
+      $"Expected `padWith` to be 1 character long, but it was `\"{padWith}\"`"
+  else if String.length string >= goalLength then
+    Result.Result.Ok string
+  else
+    let padCount = goalLength - String.length string
+    let pad = String.repeat padWith padCount
+    Result.Result.Ok(pad ++ string)
+
+
+/// If <param string> is shorter than <param goalLength> characters, returns a
+/// copy of <param string> ending with enough copies of <param padWith> for the
+/// result have <param goalLength>. A returning value is wrapped in a {{Result}}.
+/// If the <param string> is longer than <param goalLength>, returns an unchanged copy of <param string>.
+let padEnd
+  (string: String)
+  (padWith: String)
+  (goalLength: Int64)
+  : Result.Result<String, String> =
+  if String.length padWith != 1L then
+    Result.Result.Error
+      $"Expected `padWith` to be 1 character long, but it was `\"{padWith}\"`"
+  else if String.length string >= goalLength then
+    Result.Result.Ok string
+  else
+    let padCount = goalLength - String.length string
+    let pad = String.repeat padWith padCount
+    Result.Result.Ok(string ++ pad)
+
+
+// TODO: re-write in dark
+/// Returns a copy of <param str> with all leading and trailing whitespace
+/// removed. 'whitespace' here means all Unicode characters with the
+/// {{White_Space}} property, which includes {{\" \"}}, {{\"\\t\"}} and
+/// {{\"\\n\"}}
+let trim (str: String) : String = Builtin.stringTrim str
+
+
+// TODO: re-write in dark
+/// Returns a copy of <param str> with all leading whitespace removed. 'whitespace'
+/// here means all Unicode characters with the {{White_Space}} property, which
+/// includes {{\" \"}}, {{\"\\t\"}} and {{\"\\n\"}}
+let trimStart (str: String) : String = Builtin.stringTrimStart str
+
+
+// TODO: re-write in dark
+/// Returns a copy of <param str> with all trailing whitespace removed.
+/// 'whitespace' here means all Unicode characters with the {{White_Space}}
+/// property, which includes {{\" \"}}, {{\"\\t\"}} and {{\"\\n\"}}.
+let trimEnd (str: String) : String = Builtin.stringTrimEnd str
+
+
+/// Converts the given unicode string to a UTF8-encoded byte sequence.
+let toBytes (str: String) : List<UInt8> = Builtin.stringToBytes str
+
+
+/// Converts the UTF8-encoded byte sequence into a string. Errors will be ignored by replacing invalid characters
+let fromBytesWithReplacement (bytes: List<UInt8>) : String =
+  Builtin.stringFromBytesWithReplacement bytes
+
+
+/// Converts the UTF8-encoded byte sequence into a string
+let fromBytes (bytes: List<UInt8>) : Option.Option<String> =
+  Builtin.stringFromBytes bytes
+
+
+/// Checks if <param subject> starts with <param prefix>
+let startsWith (subject: String) (prefix: String) : Bool =
+  String.slice_v0 subject 0L (String.length prefix) == prefix
+
+
+/// Checks if <param subject> ends with <param suffix>
+let endsWith (subject: String) (suffix: String) : Bool =
+  String.slice_v0
+    subject
+    (String.length subject - String.length suffix)
+    (String.length subject)
+  == suffix
+
+
+/// Returns {{Just index}} of the first occurrence of <param searchFor> in <param str>, or returns {{Nothing}} if <param searchFor> does not occur.
+let indexOf (str: String) (searchFor: String) : Option.Option<Int64> =
+  if (Builtin.stringIndexOf str searchFor) == -1L then
+    Option.Option.None
+  else
+    Option.Option.Some(Builtin.stringIndexOf str searchFor)
+
+
+/// Returns {{Just index}} of the last occurrence of <param searchFor> in <param str>,
+/// or returns {{Nothing}} if <param searchFor> does not occur.
+let lastIndexOf
+  (str: String)
+  (searchFor: String)
+  : Option.Option<Int64> =
+  let lastIndex = Builtin.stringLastIndexOf str searchFor
+
+  if lastIndex == -1L then
+    Option.Option.None
+  else
+    Option.Option.Some(lastIndex)
+
+
+/// Returns the <param string> repeated for a specified <param count> times.
+/// If <param count> is less than or equal to 0, returns an empty string.
+let repeat (string: String) (count: Int64) : String =
+  if count <= 0L then
+    ""
+  else
+    String.join ((List.repeat count string) |> Builtin.unwrap) ""
+
+
+/// Converts an integer <param n> to its ordinal representation as a string.
+let toOrdinal (n: Int64) : String =
+  let suffix =
+    match n % 10L with
+    | 1L -> "st"
+    | 2L -> "nd"
+    | 3L -> "rd"
+    | _ -> "th"
+
+  (Int64.toString n) ++ suffix
+
+
+/// Splits the given <param str> at each newline character and returns a list of substrings.
+/// If the <param str> is empty, it returns an empty list.
+let splitOnNewline (str: String) : List<String> =
+  if str == "" then [] else String.split str "\n"
+
+
+/// Returns {{Some char}} of the first character of <param str>, or returns {{None}} if <param str> is empty.
+let head (str: String) : Option.Option<Char> =
+  if str == "" then
+    Option.Option.None
+  else
+    str |> String.toList |> List.head

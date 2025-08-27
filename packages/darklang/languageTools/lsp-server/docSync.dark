@@ -1,167 +1,166 @@
-module Darklang =
-  module LanguageTools =
-    module LspServer =
-      module DocSync =
-        let hardcodedServerCapabilities
-          ()
-          : LanguageServerProtocol.Lifecycle.InitializeRequest.TextDocumentSyncServerCapabilities.TextDocumentSyncServerCapabilities =
-          LanguageServerProtocol
-            .Lifecycle
-            .InitializeRequest
-            .TextDocumentSyncServerCapabilities
-            .TextDocumentSyncServerCapabilities
-            .TextDocumentSyncOptions(
-              LanguageServerProtocol.DocumentSync.TextDocument.TextDocumentSyncOptions.TextDocumentSyncOptions
-                { openClose = Stdlib.Option.Option.Some true
-                  change =
-                    Stdlib.Option.Option.Some
-                      LanguageServerProtocol.DocumentSync.TextDocument.TextDocumentSyncKind.TextDocumentSyncKind.Full
-                  save =
-                    Stdlib.Option.Option.Some(
-                      LanguageServerProtocol
-                        .DocumentSync
-                        .TextDocument
-                        .TextDocumentSyncOptions
-                        .SaveOptionsOrBool
-                        .SaveOptionsOrBool
-                        .SaveOptions(
-                          LanguageServerProtocol.DocumentSync.TextDocument.SaveOptions.SaveOptions
-                            { includeText = Stdlib.Option.Option.Some true }
-                        )
-                    ) }
-            )
+module Darklang.LanguageTools.LspServer.DocSync
 
-        let parseAndReportDiagnostics
-          (requestUri: String)
-          (requestText: String)
-          : Stdlib.Result.Result<WrittenTypes.ParsedFile, String> =
-          let onMissing = LanguageTools.NameResolver.OnMissing.Allow
-          let pm = LanguageTools.PackageManager.pm ()
 
-          let parsed =
-            requestText |> Parser.parseToSimplifiedTree |> Parser.parseFromTree
+let hardcodedServerCapabilities
+  ()
+  : LanguageServerProtocol.Lifecycle.InitializeRequest.TextDocumentSyncServerCapabilities.TextDocumentSyncServerCapabilities =
+  LanguageServerProtocol
+    .Lifecycle
+    .InitializeRequest
+    .TextDocumentSyncServerCapabilities
+    .TextDocumentSyncServerCapabilities
+    .TextDocumentSyncOptions(
+      LanguageServerProtocol.DocumentSync.TextDocument.TextDocumentSyncOptions.TextDocumentSyncOptions
+        { openClose = Stdlib.Option.Option.Some true
+          change =
+            Stdlib.Option.Option.Some
+              LanguageServerProtocol.DocumentSync.TextDocument.TextDocumentSyncKind.TextDocumentSyncKind.Full
+          save =
+            Stdlib.Option.Option.Some(
+              LanguageServerProtocol
+                .DocumentSync
+                .TextDocument
+                .TextDocumentSyncOptions
+                .SaveOptionsOrBool
+                .SaveOptionsOrBool
+                .SaveOptions(
+                  LanguageServerProtocol.DocumentSync.TextDocument.SaveOptions.SaveOptions
+                    { includeText = Stdlib.Option.Option.Some true }
+                )
+            ) }
+    )
 
-          match parsed with
-          | Ok (SourceFile sf) ->
-            let unresolvedNames =
-              match Parser.CliScript.parse "LSP" "scriptName" onMissing pm "fileName" requestText with
-              | Ok ((_ptCliScriptModule, unresolvedNames)) -> unresolvedNames
-              | Error err ->
-                log $"Parse error: {err}"
-                []
+let parseAndReportDiagnostics
+  (requestUri: String)
+  (requestText: String)
+  : Stdlib.Result.Result<WrittenTypes.ParsedFile, String> =
+  let onMissing = LanguageTools.NameResolver.OnMissing.Allow
+  let pm = LanguageTools.PackageManager.pm ()
 
-            Diagnostics.gatherAndReportDiagnostics
-              requestUri
-              sf
-              unresolvedNames
+  let parsed =
+    requestText |> Parser.parseToSimplifiedTree |> Parser.parseFromTree
 
-            parsed
-          | Error err ->
-            log $"Parse error: {err}"
-            Stdlib.Result.Result.Error err
+  match parsed with
+  | Ok (SourceFile sf) ->
+    let unresolvedNames =
+      match Parser.CliScript.parse "LSP" "scriptName" onMissing pm "fileName" requestText with
+      | Ok ((_ptCliScriptModule, unresolvedNames)) -> unresolvedNames
+      | Error err ->
+        log $"Parse error: {err}"
+        []
 
-        // -- message-handling
+    Diagnostics.gatherAndReportDiagnostics
+      requestUri
+      sf
+      unresolvedNames
 
-        let handleTextDocumentDidOpen
-          (state: LspState)
-          (request:
-            LanguageServerProtocol.DocumentSync.TextDocument.DidOpenTextDocumentNotification.DidOpenTextDocumentParams.DidOpenTextDocumentParams)
-          : LspState =
-          let parsed = parseAndReportDiagnostics request.textDocument.uri request.textDocument.text
+    parsed
+  | Error err ->
+    log $"Parse error: {err}"
+    Stdlib.Result.Result.Error err
 
-          let parsedToPT =
-            match parsed with
-            | Ok parsedFile ->
-              (WrittenTypesToProgramTypes.parsedFileAsSourceFile parsedFile)
-              |> Stdlib.Tuple2.first
-              |> Stdlib.Option.Option.Some
+// -- message-handling
 
-            | _ -> Stdlib.Option.Option.None
+let handleTextDocumentDidOpen
+  (state: LspState)
+  (request:
+    LanguageServerProtocol.DocumentSync.TextDocument.DidOpenTextDocumentNotification.DidOpenTextDocumentParams.DidOpenTextDocumentParams)
+  : LspState =
+  let parsed = parseAndReportDiagnostics request.textDocument.uri request.textDocument.text
 
-          { state with
-              documentsInScope =
-                Stdlib.Dict.set
-                  state.documentsInScope
+  let parsedToPT =
+    match parsed with
+    | Ok parsedFile ->
+      (WrittenTypesToProgramTypes.parsedFileAsSourceFile parsedFile)
+      |> Stdlib.Tuple2.first
+      |> Stdlib.Option.Option.Some
+
+    | _ -> Stdlib.Option.Option.None
+
+  { state with
+      documentsInScope =
+        Stdlib.Dict.set
+          state.documentsInScope
+          request.textDocument.uri
+          (LanguageTools.LspServer.DocumentInScope
+            { uri = request.textDocument.uri
+              text = request.textDocument.text
+              parsed = parsed
+              parsedToPT = parsedToPT }) }
+
+
+let handleTextDocumentDidChange
+  (state: LspState)
+  (request:
+    LanguageServerProtocol.DocumentSync.TextDocument.DidChangeTextDocumentNotification.DidChangeTextDocumentParams.DidChangeTextDocumentParams)
+  : LspState =
+  match request.contentChanges |> Stdlib.List.head with
+  | None ->
+    log "no content changes in didChange request"
+    state
+  | Some text ->
+    match Stdlib.Dict.get state.documentsInScope request.textDocument.uri with
+    | None ->
+      log $"document not found in scope: {request.textDocument.uri}"
+      state
+    | Some existingDoc ->
+      { state with
+          documentsInScope =
+            state.documentsInScope
+            |> Stdlib.Dict.setOverridingDuplicates
                   request.textDocument.uri
                   (LanguageTools.LspServer.DocumentInScope
                     { uri = request.textDocument.uri
-                      text = request.textDocument.text
-                      parsed = parsed
-                      parsedToPT = parsedToPT }) }
+                      text = text.text
+                      // don't re-parse the text, just use the existing parsed value
+                      // TODO maybe we should re-parse, currently it breaks the LSP server
+                      parsed = existingDoc.parsed
+                      parsedToPT = existingDoc.parsedToPT }) }
 
 
-        let handleTextDocumentDidChange
-          (state: LspState)
-          (request:
-            LanguageServerProtocol.DocumentSync.TextDocument.DidChangeTextDocumentNotification.DidChangeTextDocumentParams.DidChangeTextDocumentParams)
-          : LspState =
-          match request.contentChanges |> Stdlib.List.head with
-          | None ->
-            log "no content changes in didChange request"
-            state
-          | Some text ->
-            match Stdlib.Dict.get state.documentsInScope request.textDocument.uri with
-            | None ->
-              log $"document not found in scope: {request.textDocument.uri}"
-              state
-            | Some existingDoc ->
-              { state with
-                  documentsInScope =
-                    state.documentsInScope
-                    |> Stdlib.Dict.setOverridingDuplicates
-                          request.textDocument.uri
-                          (LanguageTools.LspServer.DocumentInScope
-                            { uri = request.textDocument.uri
-                              text = text.text
-                              // don't re-parse the text, just use the existing parsed value
-                              // TODO maybe we should re-parse, currently it breaks the LSP server
-                              parsed = existingDoc.parsed
-                              parsedToPT = existingDoc.parsedToPT }) }
+let handleTextDocumentDidSave
+  (state: LspState)
+  (request:
+    LanguageServerProtocol.DocumentSync.TextDocument.DidSaveTextDocumentNotification.DidSaveTextDocumentParams.DidSaveTextDocumentParams)
+  : LspState =
+  match request.text with
+  | None ->
+    log
+      "WARNING: no text in didSave, even though we configured to include text in these requests, in the `initialize` handshake"
+
+    state
+
+  | Some text ->
+    let parsed = parseAndReportDiagnostics request.textDocument.uri text
+
+    let parsedToPT =
+      match parsed with
+      | Ok parsedFile ->
+        (WrittenTypesToProgramTypes.parsedFileAsSourceFile parsedFile)
+        |> Stdlib.Tuple2.first
+        |> Stdlib.Option.Option.Some
+
+      | _ -> Stdlib.Option.Option.None
+
+    { state with
+        documentsInScope =
+          state.documentsInScope
+          |> Stdlib.Dict.setOverridingDuplicates
+                request.textDocument.uri
+                (LanguageTools.LspServer.DocumentInScope
+                  { uri = request.textDocument.uri
+                    text = text
+                    parsed = parsed
+                    parsedToPT = parsedToPT }) }
 
 
-        let handleTextDocumentDidSave
-          (state: LspState)
-          (request:
-            LanguageServerProtocol.DocumentSync.TextDocument.DidSaveTextDocumentNotification.DidSaveTextDocumentParams.DidSaveTextDocumentParams)
-          : LspState =
-          match request.text with
-          | None ->
-            log
-              "WARNING: no text in didSave, even though we configured to include text in these requests, in the `initialize` handshake"
-
-            state
-
-          | Some text ->
-            let parsed = parseAndReportDiagnostics request.textDocument.uri text
-
-            let parsedToPT =
-              match parsed with
-              | Ok parsedFile ->
-                (WrittenTypesToProgramTypes.parsedFileAsSourceFile parsedFile)
-                |> Stdlib.Tuple2.first
-                |> Stdlib.Option.Option.Some
-
-              | _ -> Stdlib.Option.Option.None
-
-            { state with
-                documentsInScope =
-                  state.documentsInScope
-                  |> Stdlib.Dict.setOverridingDuplicates
-                        request.textDocument.uri
-                        (LanguageTools.LspServer.DocumentInScope
-                          { uri = request.textDocument.uri
-                            text = text
-                            parsed = parsed
-                            parsedToPT = parsedToPT }) }
-
-
-        let handleTextDocumentDidClose
-          (state: LspState)
-          (requestParams:
-            LanguageServerProtocol.DocumentSync.TextDocument.DidCloseTextDocumentNotification.DidCloseTextDocumentParams.DidCloseTextDocumentParams)
-          : LspState =
-          { state with
-              documentsInScope =
-                Stdlib.Dict.remove
-                  state.documentsInScope
-                  requestParams.textDocument.uri }
+let handleTextDocumentDidClose
+  (state: LspState)
+  (requestParams:
+    LanguageServerProtocol.DocumentSync.TextDocument.DidCloseTextDocumentNotification.DidCloseTextDocumentParams.DidCloseTextDocumentParams)
+  : LspState =
+  { state with
+      documentsInScope =
+        Stdlib.Dict.remove
+          state.documentsInScope
+          requestParams.textDocument.uri }

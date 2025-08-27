@@ -1,63 +1,64 @@
-module Darklang =
-  module Test =
-    let stringFn (key: String) : String = key ++ " appended string"
+module Darklang.Test
 
-    let fnWithTypeArgAndOneParam<'a> (arg: 'a) : 'a = Builtin.jsonParse<'a> arg
 
-    let twoStringFn (str1: String) (str2: String) : String =
-      str1 ++ " appended " ++ str2
+let stringFn (key: String) : String = key ++ " appended string"
 
-    let returnsInt () : Int64 = 5L
+let fnWithTypeArgAndOneParam<'a> (arg: 'a) : 'a = Builtin.jsonParse<'a> arg
 
-    let returnsString () : String = "string"
+let twoStringFn (str1: String) (str2: String) : String =
+  str1 ++ " appended " ++ str2
 
-    let returnsOptionSome () : Stdlib.Option.Option<Int64> =
-      Stdlib.Option.Option.Some 5L
+let returnsInt () : Int64 = 5L
 
-    let returnsOptionNone () : Stdlib.Option.Option<'a> = Stdlib.Option.Option.None
+let returnsString () : String = "string"
 
-    let returnsResultOk () : Stdlib.Result.Result<Int64, String> =
-      Stdlib.Result.Result.Ok 5L
+let returnsOptionSome () : Stdlib.Option.Option<Int64> =
+  Stdlib.Option.Option.Some 5L
 
-    let returnsResultError () : Stdlib.Result.Result<Char, Bool> =
-      Stdlib.Result.Result.Error false
+let returnsOptionNone () : Stdlib.Option.Option<'a> = Stdlib.Option.Option.None
 
-    let throwsException () : DateTime =
-      Builtin.testRaiseException "throwsException message"
+let returnsResultOk () : Stdlib.Result.Result<Int64, String> =
+  Stdlib.Result.Result.Ok 5L
 
-    let derrorFn (msg: String) : String =
-      msg ++ (Builtin.testRuntimeError msg)
+let returnsResultError () : Stdlib.Result.Result<Char, Bool> =
+  Stdlib.Result.Result.Error false
 
-    type X<'a> =
-      | A of Int64
-      | B of 'a
+let throwsException () : DateTime =
+  Builtin.testRaiseException "throwsException message"
 
-    let polyFn (a: X<'a>) : X<'a> = a
-    let strFn (a: X<String>) : X<String> = a
-    let definedPolyFn<'a> (a: X<'a>) : X<'a> = a
+let derrorFn (msg: String) : String =
+  msg ++ (Builtin.testRuntimeError msg)
 
-    module Values =
-      let stringValue = "test"
-      let int128Value = 5Q
-      let uint128Value = 5Z
-      let intValue = 5L
-      let uint64Value = 5UL
-      let int32Value = 5l
-      let uint32Value = 5ul
-      let int16Value = 5s
-      let uint16Value = 5us
-      let int8Value = 5y
-      let uint8Value = 5uy
-      let floatValue = 5.6
-      let boolValue = true
-      let tupleValue = (1L, 2L, 3L)
-      let charValue = 'c'
-      let unitValue = ()
-      let enumValue = Stdlib.Option.Option.Some 5L
-      let listValue = [ 1L; 2L; 3L ]
-      let dictValue = Dict { a = 1L; b = 2L; c = 3L }
-      let recordValue = Stdlib.Cli.Host.Host {
-        os = Stdlib.Cli.OS.OS.Linux
-        architecture = Stdlib.Cli.Architecture.Architecture.X86_64
-        defaultShell = Stdlib.Cli.Shell.Shell.Bash
-      }
+type X<'a> =
+  | A of Int64
+  | B of 'a
+
+let polyFn (a: X<'a>) : X<'a> = a
+let strFn (a: X<String>) : X<String> = a
+let definedPolyFn<'a> (a: X<'a>) : X<'a> = a
+
+module Values =
+  let stringValue = "test"
+  let int128Value = 5Q
+  let uint128Value = 5Z
+  let intValue = 5L
+  let uint64Value = 5UL
+  let int32Value = 5l
+  let uint32Value = 5ul
+  let int16Value = 5s
+  let uint16Value = 5us
+  let int8Value = 5y
+  let uint8Value = 5uy
+  let floatValue = 5.6
+  let boolValue = true
+  let tupleValue = (1L, 2L, 3L)
+  let charValue = 'c'
+  let unitValue = ()
+  let enumValue = Stdlib.Option.Option.Some 5L
+  let listValue = [ 1L; 2L; 3L ]
+  let dictValue = Dict { a = 1L; b = 2L; c = 3L }
+  let recordValue = Stdlib.Cli.Host.Host {
+    os = Stdlib.Cli.OS.OS.Linux
+    architecture = Stdlib.Cli.Architecture.Architecture.X86_64
+    defaultShell = Stdlib.Cli.Shell.Shell.Bash
+  }

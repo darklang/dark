@@ -1,23 +1,23 @@
-module Darklang =
-  module Stdlib =
-    module Crypto =
-      /// Computes the SHA-256 digest of the given <param data>
-      let sha256 (data: List<UInt8>) : List<UInt8> = Builtin.cryptoSha256 data
+module Darklang.Stdlib.Crypto
 
 
-      /// Computes the SHA-384 digest of the given <param data>
-      let sha384 (data: List<UInt8>) : List<UInt8> = Builtin.cryptoSha384 data
+/// Computes the SHA-256 digest of the given <param data>
+let sha256 (data: List<UInt8>) : List<UInt8> = Builtin.cryptoSha256 data
 
 
-      /// Computes the md5 digest of the given <param data>. NOTE: There are multiple security problems with md5, see https://en.wikipedia.org/wiki/MD5#Security
-      let md5 (data: List<UInt8>) : List<UInt8> = Builtin.cryptoMd5 data
+/// Computes the SHA-384 digest of the given <param data>
+let sha384 (data: List<UInt8>) : List<UInt8> = Builtin.cryptoSha384 data
 
 
-      /// Computes the SHA-256 HMAC (hash-based message authentication code) digest of the given <param key> and <param data>.
-      let sha256hmac (key: List<UInt8>) (data: List<UInt8>) : List<UInt8> =
-        Builtin.cryptoSha256hmac key data
+/// Computes the md5 digest of the given <param data>. NOTE: There are multiple security problems with md5, see https://en.wikipedia.org/wiki/MD5#Security
+let md5 (data: List<UInt8>) : List<UInt8> = Builtin.cryptoMd5 data
 
 
-      /// Computes the SHA1-HMAC (hash-based message authentication code) digest of the given <param key> and <param data>.
-      let sha1hmac (key: List<UInt8>) (data: List<UInt8>) : List<UInt8> =
-        Builtin.cryptoSha1hmac key data
+/// Computes the SHA-256 HMAC (hash-based message authentication code) digest of the given <param key> and <param data>.
+let sha256hmac (key: List<UInt8>) (data: List<UInt8>) : List<UInt8> =
+  Builtin.cryptoSha256hmac key data
+
+
+/// Computes the SHA1-HMAC (hash-based message authentication code) digest of the given <param key> and <param data>.
+let sha1hmac (key: List<UInt8>) (data: List<UInt8>) : List<UInt8> =
+  Builtin.cryptoSha1hmac key data

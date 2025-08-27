@@ -1,242 +1,242 @@
-module Darklang =
-  module LspExtension =
-    module FileSystemProvider =
-      type Json = Stdlib.AltJson.Json
-
-      type FileType =
-        | File
-        | Directory
-        | SymbolicLink
-
-      type FileSystemErrorType =
-        | FileNotFound
-        | FileExists
-        | FileNotADirectory
-        | FileIsADirectory
-        | NoPermissions
-        | Unavailable
-        | Other
-
-      type FileSystemProviderClientCapabilities = { queryable: Bool }
-
-      type URI = String
-
-      module FileSystemProviderOptions =
-        type FileSystemProviderOptions =
-          { scheme: String
-            caseSensitive: Bool
-            readonly: Bool }
-
-        let toJson (options: FileSystemProviderOptions) : Json =
-          [ Stdlib.Option.Option.Some(("scheme", Json.String options.scheme))
-            Stdlib.Option.Option.Some(
-              ("caseSensitive", Json.Bool options.caseSensitive)
-            )
-            Stdlib.Option.Option.Some(("readonly", Json.Bool options.readonly)) ]
-          |> Stdlib.Option.values
-          |> Json.Object
+module Darklang.LspExtension.FileSystemProvider
 
 
-      module ReadFile =
-        let method = "fileSystem/read"
+type Json = Stdlib.AltJson.Json
 
-        module ReadFileParams =
-          type ReadFileParams = { uri: URI }
+type FileType =
+  | File
+  | Directory
+  | SymbolicLink
 
-          let fromJson (json: Json) : Stdlib.Result.Result<ReadFileParams, String> =
-            match json with
-            | Object fields ->
-              match Stdlib.List.findFirst fields (fun (key, _) -> key == "uri") with
-              | Some((_, String uri)) ->
-                (ReadFileParams { uri = uri }) |> Stdlib.Result.Result.Ok
-              | _ -> Stdlib.Result.Result.Error "Expected uri"
-            | _ -> Stdlib.Result.Result.Error "Expected object"
+type FileSystemErrorType =
+  | FileNotFound
+  | FileExists
+  | FileNotADirectory
+  | FileIsADirectory
+  | NoPermissions
+  | Unavailable
+  | Other
 
+type FileSystemProviderClientCapabilities = { queryable: Bool }
 
-        module ReadFileResponse =
-          type ReadFileResponse = { content: String }
+type URI = String
 
-          let toJson (r: ReadFileResponse) : Json =
-            [ Stdlib.Option.Option.Some(("content", Json.String r.content)) ]
-            |> Stdlib.Option.values
-            |> Json.Object
+module FileSystemProviderOptions =
+  type FileSystemProviderOptions =
+    { scheme: String
+      caseSensitive: Bool
+      readonly: Bool }
 
-
-      module WriteFile =
-        let method = "fileSystem/write"
-
-        module WriteFileOptions =
-          type WriteFileOptions =
-            {
-              // If a new file should be created
-              create: Bool
-              // If a pre-existing file should be overwritten
-              overwrite: Bool }
-
-        module WriteFileParams =
-          type WriteFileParams =
-            {
-              // The existing file
-              uri: URI
-              // The new content of the file `base64` encoded
-              content: String
-              // Options to define if missing files should or must be created
-              options: WriteFileOptions.WriteFileOptions }
+  let toJson (options: FileSystemProviderOptions) : Json =
+    [ Stdlib.Option.Option.Some(("scheme", Json.String options.scheme))
+      Stdlib.Option.Option.Some(
+        ("caseSensitive", Json.Bool options.caseSensitive)
+      )
+      Stdlib.Option.Option.Some(("readonly", Json.Bool options.readonly)) ]
+    |> Stdlib.Option.values
+    |> Json.Object
 
 
-          let fromJson (json: Json) : Stdlib.Result.Result<WriteFileParams, String> =
-            match json with
-            | Object fields ->
-              let uri =
-                match
-                  Stdlib.List.findFirst fields (fun (key, _) -> key == "uri")
-                with
-                | Some((_, String uri)) -> Stdlib.Result.Result.Ok uri
-                | _ -> Stdlib.Result.Result.Error "Expected uri"
+module ReadFile =
+  let method = "fileSystem/read"
 
-              let content =
-                match
-                  Stdlib.List.findFirst fields (fun (key, _) -> key == "content")
-                with
-                | Some((_, String content)) -> Stdlib.Result.Result.Ok content
-                | _ -> Stdlib.Result.Result.Error "Expected content"
+  module ReadFileParams =
+    type ReadFileParams = { uri: URI }
 
-              let options =
-                match
-                  Stdlib.List.findFirst fields (fun (key, _) -> key == "options")
-                with
-                | Some((_, Object options)) ->
-                  let create =
-                    match
-                      Stdlib.List.findFirst options (fun (key, _) -> key == "create")
-                    with
-                    | Some((_, Bool create)) -> Stdlib.Result.Result.Ok create
-                    | _ -> Stdlib.Result.Result.Error "Expected create option"
-
-                  let overwrite =
-                    match
-                      Stdlib.List.findFirst options (fun (key, _) ->
-                        key == "overwrite")
-                    with
-                    | Some((_, Bool overwrite)) -> Stdlib.Result.Result.Ok overwrite
-                    | _ -> Stdlib.Result.Result.Error "Expected overwrite option"
-
-                  match (create, overwrite) with
-                  | (Ok create, Ok overwrite) ->
-                    (WriteFileOptions.WriteFileOptions
-                      { create = create
-                        overwrite = overwrite })
-                    |> Stdlib.Result.Result.Ok
-                  | _ -> Stdlib.Result.Result.Error "Invalid options"
-                | _ -> Stdlib.Result.Result.Error "Expected options object"
-
-              match (uri, content, options) with
-              | (Ok uri, Ok content, Ok options) ->
-                (WriteFileParams
-                  { uri = uri
-                    content = content
-                    options = options })
-                |> Stdlib.Result.Result.Ok
-              | _ -> Stdlib.Result.Result.Error "Invalid params"
-            | _ -> Stdlib.Result.Result.Error "Expected object"
+    let fromJson (json: Json) : Stdlib.Result.Result<ReadFileParams, String> =
+      match json with
+      | Object fields ->
+        match Stdlib.List.findFirst fields (fun (key, _) -> key == "uri") with
+        | Some((_, String uri)) ->
+          (ReadFileParams { uri = uri }) |> Stdlib.Result.Result.Ok
+        | _ -> Stdlib.Result.Result.Error "Expected uri"
+      | _ -> Stdlib.Result.Result.Error "Expected object"
 
 
-      module FileChange =
-        type DidChangeFileParams = { changes: List<FileChangeEvent> }
+  module ReadFileResponse =
+    type ReadFileResponse = { content: String }
 
-        type FileChangeType =
-          | Changed
-          | Created
-          | Deleted
-
-        let encodeFileChangeType (t: FileChangeType) : Int64 =
-          match t with
-          | Changed -> 1L
-          | Created -> 2L
-          | Deleted -> 3L
-
-        type FileChangeEvent = { uri: URI; typ: FileChangeType }
+    let toJson (r: ReadFileResponse) : Json =
+      [ Stdlib.Option.Option.Some(("content", Json.String r.content)) ]
+      |> Stdlib.Option.values
+      |> Json.Object
 
 
-      module Delete =
-        let method = "fileSystem/delete"
+module WriteFile =
+  let method = "fileSystem/write"
 
-        module DeleteFileOptions =
-          type DeleteFileOptions =
-            {
-              /// Delete the content recursively if a folder is denoted
-              recursive: Bool
-            }
+  module WriteFileOptions =
+    type WriteFileOptions =
+      {
+        // If a new file should be created
+        create: Bool
+        // If a pre-existing file should be overwritten
+        overwrite: Bool }
 
-        module DeleteFileParams =
-          type DeleteFileParams =
-            {
-              /// The uri of the file or folder to delete
-              uri: URI
-              /// Defines if deletion of folders is recursive
-              options: DeleteFileOptions.DeleteFileOptions
-            }
-
-          let fromJson
-            (json: Json)
-            : Stdlib.Result.Result<DeleteFileParams, String> =
-            match json with
-            | Object fields ->
-              let uri =
-                match
-                  Stdlib.List.findFirst fields (fun (key, _) -> key == "uri")
-                with
-                | Some((_, String uri)) -> Stdlib.Result.Result.Ok uri
-                | _ -> Stdlib.Result.Result.Error "Expected uri"
-
-              let options =
-                match
-                  Stdlib.List.findFirst fields (fun (key, _) -> key == "options")
-                with
-                | Some((_, Object options)) ->
-                  let recursive =
-                    match
-                      Stdlib.List.findFirst options (fun (key, _) ->
-                        key == "recursive")
-                    with
-                    | Some((_, Bool recursive)) -> Stdlib.Result.Result.Ok recursive
-                    | _ -> Stdlib.Result.Result.Error "Expected recursive option"
-
-                  match recursive with
-                  | Ok recursive ->
-                    (DeleteFileOptions.DeleteFileOptions { recursive = recursive })
-                    |> Stdlib.Result.Result.Ok
-                  | _ -> Stdlib.Result.Result.Error "Invalid options"
-                | _ -> Stdlib.Result.Result.Error "Expected options object"
-
-              match (uri, options) with
-              | (Ok uri, Ok options) ->
-                (DeleteFileParams { uri = uri, options = options })
-                |> Stdlib.Result.Result.Ok
-              | _ -> Stdlib.Result.Result.Error "Invalid params"
-            | _ -> Stdlib.Result.Result.Error "Expected object"
+  module WriteFileParams =
+    type WriteFileParams =
+      {
+        // The existing file
+        uri: URI
+        // The new content of the file `base64` encoded
+        content: String
+        // Options to define if missing files should or must be created
+        options: WriteFileOptions.WriteFileOptions }
 
 
-      module Rename =
-        let method = "fileSystem/rename"
+    let fromJson (json: Json) : Stdlib.Result.Result<WriteFileParams, String> =
+      match json with
+      | Object fields ->
+        let uri =
+          match
+            Stdlib.List.findFirst fields (fun (key, _) -> key == "uri")
+          with
+          | Some((_, String uri)) -> Stdlib.Result.Result.Ok uri
+          | _ -> Stdlib.Result.Result.Error "Expected uri"
 
-        module RenameFileOptions =
-          type RenameFileOptions =
-            {
-              /// Overwrite the file if it does exist
-              overwrite: Bool
-            }
+        let content =
+          match
+            Stdlib.List.findFirst fields (fun (key, _) -> key == "content")
+          with
+          | Some((_, String content)) -> Stdlib.Result.Result.Ok content
+          | _ -> Stdlib.Result.Result.Error "Expected content"
 
-        module RenameFileParams =
-          type RenameFileParams =
-            {
-              /// The existing file
-              oldUri: URI
-              /// The new location
-              newUri: URI
-              /// Defines if existing files should be overwritten
-              options: RenameFileOptions.RenameFileOptions
-            }
+        let options =
+          match
+            Stdlib.List.findFirst fields (fun (key, _) -> key == "options")
+          with
+          | Some((_, Object options)) ->
+            let create =
+              match
+                Stdlib.List.findFirst options (fun (key, _) -> key == "create")
+              with
+              | Some((_, Bool create)) -> Stdlib.Result.Result.Ok create
+              | _ -> Stdlib.Result.Result.Error "Expected create option"
+
+            let overwrite =
+              match
+                Stdlib.List.findFirst options (fun (key, _) ->
+                  key == "overwrite")
+              with
+              | Some((_, Bool overwrite)) -> Stdlib.Result.Result.Ok overwrite
+              | _ -> Stdlib.Result.Result.Error "Expected overwrite option"
+
+            match (create, overwrite) with
+            | (Ok create, Ok overwrite) ->
+              (WriteFileOptions.WriteFileOptions
+                { create = create
+                  overwrite = overwrite })
+              |> Stdlib.Result.Result.Ok
+            | _ -> Stdlib.Result.Result.Error "Invalid options"
+          | _ -> Stdlib.Result.Result.Error "Expected options object"
+
+        match (uri, content, options) with
+        | (Ok uri, Ok content, Ok options) ->
+          (WriteFileParams
+            { uri = uri
+              content = content
+              options = options })
+          |> Stdlib.Result.Result.Ok
+        | _ -> Stdlib.Result.Result.Error "Invalid params"
+      | _ -> Stdlib.Result.Result.Error "Expected object"
+
+
+module FileChange =
+  type DidChangeFileParams = { changes: List<FileChangeEvent> }
+
+  type FileChangeType =
+    | Changed
+    | Created
+    | Deleted
+
+  let encodeFileChangeType (t: FileChangeType) : Int64 =
+    match t with
+    | Changed -> 1L
+    | Created -> 2L
+    | Deleted -> 3L
+
+  type FileChangeEvent = { uri: URI; typ: FileChangeType }
+
+
+module Delete =
+  let method = "fileSystem/delete"
+
+  module DeleteFileOptions =
+    type DeleteFileOptions =
+      {
+        /// Delete the content recursively if a folder is denoted
+        recursive: Bool
+      }
+
+  module DeleteFileParams =
+    type DeleteFileParams =
+      {
+        /// The uri of the file or folder to delete
+        uri: URI
+        /// Defines if deletion of folders is recursive
+        options: DeleteFileOptions.DeleteFileOptions
+      }
+
+    let fromJson
+      (json: Json)
+      : Stdlib.Result.Result<DeleteFileParams, String> =
+      match json with
+      | Object fields ->
+        let uri =
+          match
+            Stdlib.List.findFirst fields (fun (key, _) -> key == "uri")
+          with
+          | Some((_, String uri)) -> Stdlib.Result.Result.Ok uri
+          | _ -> Stdlib.Result.Result.Error "Expected uri"
+
+        let options =
+          match
+            Stdlib.List.findFirst fields (fun (key, _) -> key == "options")
+          with
+          | Some((_, Object options)) ->
+            let recursive =
+              match
+                Stdlib.List.findFirst options (fun (key, _) ->
+                  key == "recursive")
+              with
+              | Some((_, Bool recursive)) -> Stdlib.Result.Result.Ok recursive
+              | _ -> Stdlib.Result.Result.Error "Expected recursive option"
+
+            match recursive with
+            | Ok recursive ->
+              (DeleteFileOptions.DeleteFileOptions { recursive = recursive })
+              |> Stdlib.Result.Result.Ok
+            | _ -> Stdlib.Result.Result.Error "Invalid options"
+          | _ -> Stdlib.Result.Result.Error "Expected options object"
+
+        match (uri, options) with
+        | (Ok uri, Ok options) ->
+          (DeleteFileParams { uri = uri, options = options })
+          |> Stdlib.Result.Result.Ok
+        | _ -> Stdlib.Result.Result.Error "Invalid params"
+      | _ -> Stdlib.Result.Result.Error "Expected object"
+
+
+module Rename =
+  let method = "fileSystem/rename"
+
+  module RenameFileOptions =
+    type RenameFileOptions =
+      {
+        /// Overwrite the file if it does exist
+        overwrite: Bool
+      }
+
+  module RenameFileParams =
+    type RenameFileParams =
+      {
+        /// The existing file
+        oldUri: URI
+        /// The new location
+        newUri: URI
+        /// Defines if existing files should be overwritten
+        options: RenameFileOptions.RenameFileOptions
+      }
 
 
 

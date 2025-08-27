@@ -1,25 +1,24 @@
 // Server->Client request to show a message (as a little popup) in the UI,
 // along with a number of options to choose from, as a prompt for the user.
 
-module Darklang =
-  module LanguageServerProtocol =
-    module Window =
-      module ShowMessageRequest =
-        /// @proposed
-        type ClientShowMessageActionItemOptions =
-          {
-            /// Whether the client supports additional attributes which are
-            /// preserved and send back to the server in the request's response.
-            additionalPropertiesSupport: Stdlib.Option.Option<Bool>
-          }
+module Darklang.LanguageServerProtocol.Window.ShowMessageRequest
 
-        /// Show message request client capabilities
-        type ShowMessageRequestClientCapabilities =
-          {
-            /// Capabilities specific to the `MessageActionItem` type.
-            messageActionItem:
-              Stdlib.Option.Option<ClientShowMessageActionItemOptions>
-          }
+
+/// @proposed
+type ClientShowMessageActionItemOptions =
+  {
+    /// Whether the client supports additional attributes which are
+    /// preserved and send back to the server in the request's response.
+    additionalPropertiesSupport: Stdlib.Option.Option<Bool>
+  }
+
+/// Show message request client capabilities
+type ShowMessageRequestClientCapabilities =
+  {
+    /// Capabilities specific to the `MessageActionItem` type.
+    messageActionItem:
+      Stdlib.Option.Option<ClientShowMessageActionItemOptions>
+  }
 
 (*
 

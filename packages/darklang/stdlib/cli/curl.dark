@@ -1,9 +1,7 @@
-module Darklang =
-  module Stdlib =
-    module Cli =
-      module Curl =
-        let downloadFileToPath
-          (url: String)
-          (downloadTo: String)
-          : Stdlib.Result.Result<Unit, String> =
-          Stdlib.Cli.executeWithUnitOrStdErr $"curl -s -L -o \"{downloadTo}\" {url}"
+module Darklang.Stdlib.Cli.Curl
+
+let downloadFileToPath
+  (url: String)
+  (downloadTo: String)
+  : Stdlib.Result.Result<Unit, String> =
+  Stdlib.Cli.executeWithUnitOrStdErr $"curl -s -L -o \"{downloadTo}\" {url}"

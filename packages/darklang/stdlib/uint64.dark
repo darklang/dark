@@ -1,163 +1,162 @@
-module Darklang =
-  module Stdlib =
-    module UInt64 =
-
-      type ParseError =
-        | BadFormat
-        | OutOfRange
+module Darklang.Stdlib.UInt64
 
 
-      /// Returns the result of wrapping <param a> around so that {{0 <= res < b}}.
-      /// The modulus <param b> must be greater than 0
-      let ``mod`` (a: UInt64) (b: UInt64) : UInt64 = Builtin.uint64Mod a b
+type ParseError =
+  | BadFormat
+  | OutOfRange
 
 
-      /// Adds 64-bit unsigned integers together
-      let add (a: UInt64) (b: UInt64) : UInt64 = Builtin.uint64Add a b
+/// Returns the result of wrapping <param a> around so that {{0 <= res < b}}.
+/// The modulus <param b> must be greater than 0
+let ``mod`` (a: UInt64) (b: UInt64) : UInt64 = Builtin.uint64Mod a b
 
 
-      /// Subtracts 64-bit unsigned integers
-      let subtract (a: UInt64) (b: UInt64) : UInt64 = Builtin.uint64Subtract a b
+/// Adds 64-bit unsigned integers together
+let add (a: UInt64) (b: UInt64) : UInt64 = Builtin.uint64Add a b
 
 
-      /// Multiplies 64-bit unsigned integers
-      let multiply (a: UInt64) (b: UInt64) : UInt64 = Builtin.uint64Multiply a b
+/// Subtracts 64-bit unsigned integers
+let subtract (a: UInt64) (b: UInt64) : UInt64 = Builtin.uint64Subtract a b
 
 
-      /// Divides 64-bit unsigned integers
-      let divide (a: UInt64) (b: UInt64) : UInt64 = Builtin.uint64Divide a b
+/// Multiplies 64-bit unsigned integers
+let multiply (a: UInt64) (b: UInt64) : UInt64 = Builtin.uint64Multiply a b
 
 
-      /// Raise <param base> to the power of <param exponent>.
-      /// <param exponent> must to be positive.
-      /// Return value wrapped in a {{Result}}
-      let power (``base``: UInt64) (exponent: UInt64) : UInt64 =
-        if ``base`` == 0UL && exponent == 0UL then 1UL
-        else if ``base`` == 0UL then 0UL
-        else if ``base`` == 1UL then 1UL
-        else Builtin.uint64Power ``base`` exponent
+/// Divides 64-bit unsigned integers
+let divide (a: UInt64) (b: UInt64) : UInt64 = Builtin.uint64Divide a b
 
 
-      /// Returns {{true}} if <param a> is greater than <param b>
-      let greaterThan (a: UInt64) (b: UInt64) : Bool = Builtin.uint64GreaterThan a b
+/// Raise <param base> to the power of <param exponent>.
+/// <param exponent> must to be positive.
+/// Return value wrapped in a {{Result}}
+let power (``base``: UInt64) (exponent: UInt64) : UInt64 =
+  if ``base`` == 0UL && exponent == 0UL then 1UL
+  else if ``base`` == 0UL then 0UL
+  else if ``base`` == 1UL then 1UL
+  else Builtin.uint64Power ``base`` exponent
 
 
-      /// Returns {{true}} if <param a> is greater than or equal to <param b>
-      let greaterThanOrEqualTo (a: UInt64) (b: UInt64) : Bool =
-        Builtin.uint64GreaterThanOrEqualTo a b
+/// Returns {{true}} if <param a> is greater than <param b>
+let greaterThan (a: UInt64) (b: UInt64) : Bool = Builtin.uint64GreaterThan a b
 
 
-      /// Returns {{true}} if <param a> is less than <param b>
-      let lessThan (a: UInt64) (b: UInt64) : Bool = Builtin.uint64LessThan a b
-
-      /// Returns {{true}} if <param a> is less than or equal to <param b>
-      let lessThanOrEqualTo (a: UInt64) (b: UInt64) : Bool =
-        Builtin.uint64LessThanOrEqualTo a b
+/// Returns {{true}} if <param a> is greater than or equal to <param b>
+let greaterThanOrEqualTo (a: UInt64) (b: UInt64) : Bool =
+  Builtin.uint64GreaterThanOrEqualTo a b
 
 
-      /// Returns a random integer between <param start> and <param end> (inclusive)
-      let random (start: UInt64) (``end``: UInt64) : UInt64 =
-        Builtin.uint64Random start ``end``
+/// Returns {{true}} if <param a> is less than <param b>
+let lessThan (a: UInt64) (b: UInt64) : Bool = Builtin.uint64LessThan a b
+
+/// Returns {{true}} if <param a> is less than or equal to <param b>
+let lessThanOrEqualTo (a: UInt64) (b: UInt64) : Bool =
+  Builtin.uint64LessThanOrEqualTo a b
 
 
-      /// Get the square root of an <type UInt64>
-      let sqrt (a: UInt64) : Float = Builtin.uint64Sqrt a
+/// Returns a random integer between <param start> and <param end> (inclusive)
+let random (start: UInt64) (``end``: UInt64) : UInt64 =
+  Builtin.uint64Random start ``end``
 
 
-      /// Converts an <type UInt64> to a <type Float>
-      let toFloat (a: UInt64) : Float = Builtin.uint64ToFloat a
-
-      /// Converts a <type Float> to an <type UInt64>
-      let fromFloat (a: Float) : Stdlib.Option.Option<UInt64> =
-        a |> Float.round |> fromInt64
+/// Get the square root of an <type UInt64>
+let sqrt (a: UInt64) : Float = Builtin.uint64Sqrt a
 
 
-      /// Returns the sum of all the ints in the list
-      let sum (lst: List<UInt64>) : UInt64 =
-        Stdlib.List.fold lst 0UL (fun acc x -> Builtin.uint64Add acc x)
+/// Converts an <type UInt64> to a <type Float>
+let toFloat (a: UInt64) : Float = Builtin.uint64ToFloat a
+
+/// Converts a <type Float> to an <type UInt64>
+let fromFloat (a: Float) : Stdlib.Option.Option<UInt64> =
+  a |> Float.round |> fromInt64
 
 
-      /// Returns the higher of <param a> and <param b>
-      let max (a: UInt64) (b: UInt64) : UInt64 =
-        if Builtin.uint64GreaterThan a b then a else b
+/// Returns the sum of all the ints in the list
+let sum (lst: List<UInt64>) : UInt64 =
+  Stdlib.List.fold lst 0UL (fun acc x -> Builtin.uint64Add acc x)
 
 
-      /// Returns the lower of <param a> and <param b>
-      let min (a: UInt64) (b: UInt64) : UInt64 =
-        if Builtin.uint64LessThan a b then a else b
+/// Returns the higher of <param a> and <param b>
+let max (a: UInt64) (b: UInt64) : UInt64 =
+  if Builtin.uint64GreaterThan a b then a else b
 
 
-      /// If <param value> is within the range given by <param limitA> and <param
-      /// limitB>, returns <param value>.
-      /// If <param value> is outside the range, returns <param limitA> or <param
-      /// limitB>, whichever is closer to <param value>.
-      /// <param limitA> and <param limitB> can be provided in any order.
-      let clamp (value: UInt64) (limitA: UInt64) (limitB: UInt64) : UInt64 =
-        let min =
-          if Builtin.uint64LessThan limitA limitB then
-            limitA
-          else
-            limitB
-
-        let max =
-          if Builtin.uint64GreaterThan limitA limitB then
-            limitA
-          else
-            limitB
-
-        if Builtin.uint64LessThan value min then min
-        else if Builtin.uint64GreaterThan value max then max
-        else value
+/// Returns the lower of <param a> and <param b>
+let min (a: UInt64) (b: UInt64) : UInt64 =
+  if Builtin.uint64LessThan a b then a else b
 
 
-      /// Returns the <type UInt64> value of a <type String>
-      let parse
-        (s: String)
-        : Stdlib.Result.Result<UInt64, Stdlib.UInt64.ParseError> =
-        Builtin.uint64Parse s
+/// If <param value> is within the range given by <param limitA> and <param
+/// limitB>, returns <param value>.
+/// If <param value> is outside the range, returns <param limitA> or <param
+/// limitB>, whichever is closer to <param value>.
+/// <param limitA> and <param limitB> can be provided in any order.
+let clamp (value: UInt64) (limitA: UInt64) (limitB: UInt64) : UInt64 =
+  let min =
+    if Builtin.uint64LessThan limitA limitB then
+      limitA
+    else
+      limitB
+
+  let max =
+    if Builtin.uint64GreaterThan limitA limitB then
+      limitA
+    else
+      limitB
+
+  if Builtin.uint64LessThan value min then min
+  else if Builtin.uint64GreaterThan value max then max
+  else value
 
 
-      /// Stringify <param int>
-      let toString (uint64: UInt64) : String = Builtin.uint64ToString uint64
+/// Returns the <type UInt64> value of a <type String>
+let parse
+  (s: String)
+  : Stdlib.Result.Result<UInt64, Stdlib.UInt64.ParseError> =
+  Builtin.uint64Parse s
 
 
-      /// Converts an <type Int8> to an <type UInt64>. Returns {{None}} if the value is less than 0
-      let fromInt8 (i: Int8) : Stdlib.Option.Option<UInt64> =
-        Builtin.uint64FromInt8 i
+/// Stringify <param int>
+let toString (uint64: UInt64) : String = Builtin.uint64ToString uint64
 
 
-      /// Converts a <type UInt8> to an <type UInt64>.
-      let fromUInt8 (i: UInt8) : UInt64 = Builtin.uint64FromUInt8 i
+/// Converts an <type Int8> to an <type UInt64>. Returns {{None}} if the value is less than 0
+let fromInt8 (i: Int8) : Stdlib.Option.Option<UInt64> =
+  Builtin.uint64FromInt8 i
 
 
-      /// Converts an <type Int16> to an <type UInt64>. Returns {{None}} if the value is less than 0
-      let fromInt16 (i: Int16) : Stdlib.Option.Option<UInt64> =
-        Builtin.uint64FromInt16 i
+/// Converts a <type UInt8> to an <type UInt64>.
+let fromUInt8 (i: UInt8) : UInt64 = Builtin.uint64FromUInt8 i
 
 
-      /// Converts a <type UInt16> to an <type UInt64>
-      let fromUInt16 (i: UInt16) : UInt64 = Builtin.uint64FromUInt16 i
+/// Converts an <type Int16> to an <type UInt64>. Returns {{None}} if the value is less than 0
+let fromInt16 (i: Int16) : Stdlib.Option.Option<UInt64> =
+  Builtin.uint64FromInt16 i
 
 
-      /// Converts an <type Int32> to an <type UInt64>. Returns {{None}} if the value is less than 0
-      let fromInt32 (i: Int32) : Stdlib.Option.Option<UInt64> =
-        Builtin.uint64FromInt32 i
+/// Converts a <type UInt16> to an <type UInt64>
+let fromUInt16 (i: UInt16) : UInt64 = Builtin.uint64FromUInt16 i
 
 
-      /// Converts a <type UInt32> to an <type UInt64>.
-      let fromUInt32 (i: UInt32) : UInt64 = Builtin.uint64FromUInt32 i
+/// Converts an <type Int32> to an <type UInt64>. Returns {{None}} if the value is less than 0
+let fromInt32 (i: Int32) : Stdlib.Option.Option<UInt64> =
+  Builtin.uint64FromInt32 i
 
 
-      /// Converts an <type Int64> to an <type UInt64>. Returns {{None}} if the value is less than 0
-      let fromInt64 (i: Int64) : Stdlib.Option.Option<UInt64> =
-        Builtin.uint64FromInt64 i
+/// Converts a <type UInt32> to an <type UInt64>.
+let fromUInt32 (i: UInt32) : UInt64 = Builtin.uint64FromUInt32 i
 
 
-      /// Converts an <type Int128> to an <type UInt64>. Returns {{None}} if the value is less than 0 or greater than 18446744073709551615
-      let fromInt128 (i: Int128) : Stdlib.Option.Option<UInt64> =
-        Builtin.uint64FromInt128 i
+/// Converts an <type Int64> to an <type UInt64>. Returns {{None}} if the value is less than 0
+let fromInt64 (i: Int64) : Stdlib.Option.Option<UInt64> =
+  Builtin.uint64FromInt64 i
 
 
-      /// Converts a <type UInt128> to an <type UInt64>. Returns {{None}} if the value is greater than 18446744073709551615
-      let fromUInt128 (i: UInt128) : Stdlib.Option.Option<UInt64> =
-        Builtin.uint64FromUInt128 i
+/// Converts an <type Int128> to an <type UInt64>. Returns {{None}} if the value is less than 0 or greater than 18446744073709551615
+let fromInt128 (i: Int128) : Stdlib.Option.Option<UInt64> =
+  Builtin.uint64FromInt128 i
+
+
+/// Converts a <type UInt128> to an <type UInt64>. Returns {{None}} if the value is greater than 18446744073709551615
+let fromUInt128 (i: UInt128) : Stdlib.Option.Option<UInt64> =
+  Builtin.uint64FromUInt128 i

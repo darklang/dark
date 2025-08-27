@@ -2,9 +2,9 @@
 //alias PT = LanguageTools.ProgramTypes
 //alias RT = Stdlib.RuntimeTypes
 
-module Darklang =
-  module PrettyPrinter =
-    let canvas (c: Canvas.Program) : String =
-      // need to look at the names of all types and functions,
-      // and figure out module tree before actually printing stuff
-      "TODO"
+module Darklang.PrettyPrinter
+
+let canvas (c: Canvas.Program) : String =
+  // need to look at the names of all types and functions,
+  // and figure out module tree before actually printing stuff
+  "TODO"

@@ -1,138 +1,138 @@
-module Darklang =
-  module Stdlib =
-    module Cli =
-      module OS =
-        type OS =
-          | Linux
-          | MacOS
-          | Windows
-
-        let getOS () : Stdlib.Result.Result<OS, String> = Builtin.cliGetOS ()
+module Darklang.Stdlib.Cli
 
 
-      module Architecture =
-        type Architecture =
-          | X86_64
-          | Aarch64
-          | Arm
-          | Arm64
-          | Armv7l
+module OS =
+  type OS =
+    | Linux
+    | MacOS
+    | Windows
 
-        let getArchitecture () : Stdlib.Result.Result<Architecture, String> =
-          match OS.getOS () with
-          | Ok Linux ->
-            let arch = Stdlib.Cli.execute "uname -m"
-
-            if arch.exitCode == 0L then
-              let arch = arch.stdout |> Stdlib.String.trim
-
-              match arch with
-              | "x86_64" -> Stdlib.Result.Result.Ok Architecture.X86_64
-              | "aarch64" -> Stdlib.Result.Result.Ok Architecture.Aarch64
-              | "arm" -> Stdlib.Result.Result.Ok Architecture.Arm
-              | "arm64" -> Stdlib.Result.Result.Ok Architecture.Arm64
-              | "armv7l" -> Stdlib.Result.Result.Ok Architecture.Armv7l
-              | _ -> Stdlib.Result.Result.Error "Unsupported architecture"
-
-          | Ok MacOS ->
-            let arch = Stdlib.Cli.execute "uname -m"
-
-            if arch.exitCode == 0L then
-              let arch = arch.stdout |> Stdlib.String.trim
-
-              match arch with
-              | "x86_64" -> Stdlib.Result.Result.Ok Architecture.X86_64
-              | "aarch64" -> Stdlib.Result.Result.Ok Architecture.Aarch64
-              | "arm64" -> Stdlib.Result.Result.Ok Architecture.Arm64
-              | _ -> Stdlib.Result.Result.Error "Unsupported architecture"
-            else
-              Stdlib.Result.Result.Error arch.stderr
-
-          | Ok Windows ->
-            let arch =
-              Stdlib.Cli.execute
-                "powershell.exe -Command \"$env:PROCESSOR_ARCHITECTURE\""
-
-            if arch.exitCode == 0L then
-              let arch = arch.stdout |> Stdlib.String.trim
-
-              match arch with
-              | "AMD64" -> Stdlib.Result.Result.Ok Architecture.Aarch64
-              | "x86" -> Stdlib.Result.Result.Ok Architecture.X86_64
-              | "ARM64" -> Stdlib.Result.Result.Ok Architecture.Arm64
-              | _ -> Stdlib.Result.Result.Error "Unsupported architecture"
-            else
-              Stdlib.Result.Result.Error arch.stderr
+  let getOS () : Stdlib.Result.Result<OS, String> = Builtin.cliGetOS ()
 
 
-      module Shell =
-        type Shell =
-          | Bash
-          | Zsh
-          | PowerShell
+module Architecture =
+  type Architecture =
+    | X86_64
+    | Aarch64
+    | Arm
+    | Arm64
+    | Armv7l
 
-        /// Determines the default shell used by the current user.
-        /// Returns  {{Ok <Shell>}} if successful, or {{Error}} with a message if the shell is unsupported or an error occurs.
-        let getDefaultShell () : Stdlib.Result.Result<Shell, String> =
-          match OS.getOS () with
-          | Ok Linux ->
-            (Stdlib.Cli.executeWithStdOutOrStdErr "echo $SHELL")
-            |> Stdlib.Result.andThen (fun shell ->
-              match Stdlib.String.trim shell with
-              | "/bin/bash" -> Stdlib.Result.Result.Ok Shell.Bash
-              | "/bin/zsh" -> Stdlib.Result.Result.Ok Shell.Zsh
-              | _ ->
-                Stdlib.Result.Result.Error
-                  "Unsupported shell, if you are on Linux please use Bash or Zsh")
+  let getArchitecture () : Stdlib.Result.Result<Architecture, String> =
+    match OS.getOS () with
+    | Ok Linux ->
+      let arch = Stdlib.Cli.execute "uname -m"
 
-          | Ok MacOS ->
-            (Stdlib.Cli.executeWithStdOutOrStdErr "echo $SHELL")
-            |> Stdlib.Result.andThen (fun shell ->
-              match Stdlib.String.trim shell with
-              | "/bin/zsh" -> Stdlib.Result.Result.Ok Shell.Zsh
-              // `echo $SHELL` could return `/opt/homebrew/bin/bash` it is specifically the path for bash when installed through Homebrew on macOS
-              | shell when shell |> Stdlib.String.contains "/bin/bash" ->
-                Stdlib.Result.Result.Ok Shell.Bash
-              | _ ->
-                Stdlib.Result.Result.Error
-                  "Unsupported shell, if you are on MacOS please use Bash or Zsh")
+      if arch.exitCode == 0L then
+        let arch = arch.stdout |> Stdlib.String.trim
 
-          | Ok Windows ->
-            // TODO: Add support for Command Prompt
-            Stdlib.Result.Result.Ok Shell.PowerShell
+        match arch with
+        | "x86_64" -> Stdlib.Result.Result.Ok Architecture.X86_64
+        | "aarch64" -> Stdlib.Result.Result.Ok Architecture.Aarch64
+        | "arm" -> Stdlib.Result.Result.Ok Architecture.Arm
+        | "arm64" -> Stdlib.Result.Result.Ok Architecture.Arm64
+        | "armv7l" -> Stdlib.Result.Result.Ok Architecture.Armv7l
+        | _ -> Stdlib.Result.Result.Error "Unsupported architecture"
 
-          | Error _ ->
-            Stdlib.Result.Result.Error
-              "Unsupported OS, couldn't determine default shell"
+    | Ok MacOS ->
+      let arch = Stdlib.Cli.execute "uname -m"
+
+      if arch.exitCode == 0L then
+        let arch = arch.stdout |> Stdlib.String.trim
+
+        match arch with
+        | "x86_64" -> Stdlib.Result.Result.Ok Architecture.X86_64
+        | "aarch64" -> Stdlib.Result.Result.Ok Architecture.Aarch64
+        | "arm64" -> Stdlib.Result.Result.Ok Architecture.Arm64
+        | _ -> Stdlib.Result.Result.Error "Unsupported architecture"
+      else
+        Stdlib.Result.Result.Error arch.stderr
+
+    | Ok Windows ->
+      let arch =
+        Stdlib.Cli.execute
+          "powershell.exe -Command \"$env:PROCESSOR_ARCHITECTURE\""
+
+      if arch.exitCode == 0L then
+        let arch = arch.stdout |> Stdlib.String.trim
+
+        match arch with
+        | "AMD64" -> Stdlib.Result.Result.Ok Architecture.Aarch64
+        | "x86" -> Stdlib.Result.Result.Ok Architecture.X86_64
+        | "ARM64" -> Stdlib.Result.Result.Ok Architecture.Arm64
+        | _ -> Stdlib.Result.Result.Error "Unsupported architecture"
+      else
+        Stdlib.Result.Result.Error arch.stderr
 
 
-      module Host =
-        type Host =
-          { os: OS.OS
-            arch: Architecture.Architecture
-            defaultShell: Shell.Shell }
+module Shell =
+  type Shell =
+    | Bash
+    | Zsh
+    | PowerShell
 
-        /// Identifies and returns the operating system and architecture of the runtime host.
-        /// Returns {{Ok <Host>}} on success, or an {{Error}} with combined stderr if it fails
-        let getRuntimeHost () : Stdlib.Result.Result<Host.Host, String> =
-          let os = OS.getOS ()
-          let arch = Architecture.getArchitecture ()
-          let defaultShell = Shell.getDefaultShell ()
+  /// Determines the default shell used by the current user.
+  /// Returns  {{Ok <Shell>}} if successful, or {{Error}} with a message if the shell is unsupported or an error occurs.
+  let getDefaultShell () : Stdlib.Result.Result<Shell, String> =
+    match OS.getOS () with
+    | Ok Linux ->
+      (Stdlib.Cli.executeWithStdOutOrStdErr "echo $SHELL")
+      |> Stdlib.Result.andThen (fun shell ->
+        match Stdlib.String.trim shell with
+        | "/bin/bash" -> Stdlib.Result.Result.Ok Shell.Bash
+        | "/bin/zsh" -> Stdlib.Result.Result.Ok Shell.Zsh
+        | _ ->
+          Stdlib.Result.Result.Error
+            "Unsupported shell, if you are on Linux please use Bash or Zsh")
 
-          match os, arch, defaultShell with
-          | Ok os, Ok arch, Ok defaultShell ->
-            Stdlib.Result.Result.Ok(
-              Host
-                { os = os
-                  arch = arch
-                  defaultShell = defaultShell }
-            )
+    | Ok MacOS ->
+      (Stdlib.Cli.executeWithStdOutOrStdErr "echo $SHELL")
+      |> Stdlib.Result.andThen (fun shell ->
+        match Stdlib.String.trim shell with
+        | "/bin/zsh" -> Stdlib.Result.Result.Ok Shell.Zsh
+        // `echo $SHELL` could return `/opt/homebrew/bin/bash` it is specifically the path for bash when installed through Homebrew on macOS
+        | shell when shell |> Stdlib.String.contains "/bin/bash" ->
+          Stdlib.Result.Result.Ok Shell.Bash
+        | _ ->
+          Stdlib.Result.Result.Error
+            "Unsupported shell, if you are on MacOS please use Bash or Zsh")
 
-          | Error os, _, _ ->
-            Stdlib.Result.Result.Error $"Couldn't determine host OS: ${os}"
-          | _, Error arch, _ ->
-            Stdlib.Result.Result.Error
-              $"Couldn't determine host architecture: ${arch}"
-          | _, _, Error defaultShell ->
-            Stdlib.Result.Result.Error
-              $"Couldn't determine host default shell ${defaultShell}"
+    | Ok Windows ->
+      // TODO: Add support for Command Prompt
+      Stdlib.Result.Result.Ok Shell.PowerShell
+
+    | Error _ ->
+      Stdlib.Result.Result.Error
+        "Unsupported OS, couldn't determine default shell"
+
+
+module Host =
+  type Host =
+    { os: OS.OS
+      arch: Architecture.Architecture
+      defaultShell: Shell.Shell }
+
+  /// Identifies and returns the operating system and architecture of the runtime host.
+  /// Returns {{Ok <Host>}} on success, or an {{Error}} with combined stderr if it fails
+  let getRuntimeHost () : Stdlib.Result.Result<Host.Host, String> =
+    let os = OS.getOS ()
+    let arch = Architecture.getArchitecture ()
+    let defaultShell = Shell.getDefaultShell ()
+
+    match os, arch, defaultShell with
+    | Ok os, Ok arch, Ok defaultShell ->
+      Stdlib.Result.Result.Ok(
+        Host
+          { os = os
+            arch = arch
+            defaultShell = defaultShell }
+      )
+
+    | Error os, _, _ ->
+      Stdlib.Result.Result.Error $"Couldn't determine host OS: ${os}"
+    | _, Error arch, _ ->
+      Stdlib.Result.Result.Error
+        $"Couldn't determine host architecture: ${arch}"
+    | _, _, Error defaultShell ->
+      Stdlib.Result.Result.Error
+        $"Couldn't determine host default shell ${defaultShell}"

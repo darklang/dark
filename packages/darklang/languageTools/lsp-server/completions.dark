@@ -1,219 +1,218 @@
-module Darklang =
-  module LanguageTools =
-    module LspServer =
-      module Completions =
-        let hardcodedServerCapabilities
-          ()
-          : LanguageServerProtocol.Completions.CompletionOptions.CompletionOptions =
-          LanguageServerProtocol.Completions.CompletionOptions.CompletionOptions
-            { triggerCharacters = Stdlib.Option.Option.Some [ "." ]
-              allCommitCharacters = Stdlib.Option.Option.Some [ "\t" ]
-              resolveProvider = Stdlib.Option.Option.Some false // just return all info at once
-              completionItem = Stdlib.Option.Option.None }
-
-        let createCompletionItem
-          (label: String)
-          (kind:
-            LanguageServerProtocol.Completions.CompletionItem.CompletionItemKind.CompletionItemKind)
-          (detail: String)
-          (insertText: String)
-          : LanguageServerProtocol.Completions.CompletionItem.CompletionItem =
-          LanguageServerProtocol.Completions.CompletionItem.CompletionItem
-            { label = label
-              kind = Stdlib.Option.Option.Some kind
-              detail = Stdlib.Option.Option.Some detail
-              preselect = Stdlib.Option.Option.Some true
-              sortText = Stdlib.Option.Option.Some label
-              filterText = Stdlib.Option.Option.Some label
-              insertText = Stdlib.Option.Option.Some insertText
-              insertTextFormat =
-                Stdlib.Option.Option.Some
-                  LanguageServerProtocol.Completions.InsertTextFormat.InsertTextFormat.PlainText
-              insertTextMode = Stdlib.Option.Option.None
-              // textEdit = Stdlib.Option.Option.None
-              textEditText = Stdlib.Option.Option.None
-              commitCharacters = Stdlib.Option.Option.Some [ " " ]
-              data = Stdlib.Option.Option.None }
+module Darklang.LanguageTools.LspServer.Completions
 
 
-         // Helper function to create completion items for search results
-        let getCompletionText (name: String) (currentPrefix: String) : String =
-          let prefixLength = Stdlib.String.length currentPrefix
-          let nameLength = Stdlib.String.length name
-          if prefixLength == 0L then
-            name
-          // if the completion string starts exactly with the prefix typed by the user, we just return the remaining part
-          else if Stdlib.String.startsWith name currentPrefix then
-            Stdlib.String.slice name prefixLength nameLength
-          else
-            match Stdlib.String.indexOf name currentPrefix with
-            | Some index ->
-                let start = index + Stdlib.String.length currentPrefix
-                Stdlib.String.slice name start nameLength
-            | None ->
-                match Stdlib.String.split name "." with
-                | _owner :: rest -> Stdlib.String.join rest "."
-              | [] -> name
+let hardcodedServerCapabilities
+  ()
+  : LanguageServerProtocol.Completions.CompletionOptions.CompletionOptions =
+  LanguageServerProtocol.Completions.CompletionOptions.CompletionOptions
+    { triggerCharacters = Stdlib.Option.Option.Some [ "." ]
+      allCommitCharacters = Stdlib.Option.Option.Some [ "\t" ]
+      resolveProvider = Stdlib.Option.Option.Some false // just return all info at once
+      completionItem = Stdlib.Option.Option.None }
 
-        let processSearchResults (names: List<String>) (kind: LanguageServerProtocol.Completions.CompletionItem.CompletionItemKind.CompletionItemKind) (description: String) (currentPrefix: String): List<LanguageServerProtocol.Completions.CompletionItem.CompletionItem> =
-          names
-          |> Stdlib.List.map (fun name ->
-            let insertText = getCompletionText name currentPrefix
-
-            createCompletionItem
-              name
-              kind
-              description
-              insertText)
-
-
-        let createCompletions
-          (wordUnderCursor: String)
-          : List<LanguageServerProtocol.Completions.CompletionItem.CompletionItem> =
-          let keywords =
-            [ "module"
-              "type"
-              "val"
-              "let"
-              "if"
-              "then"
-              "else"
-              "match"
-              "with"
-              "fun" ]
-            |> Stdlib.List.map (fun k ->
-              createCompletionItem
-                k
-                LanguageServerProtocol.Completions.CompletionItem.CompletionItemKind.CompletionItemKind.Keyword
-                "keyword"
-                k)
-
-          let (modulePath, searchText) =
-            match wordUnderCursor |> Stdlib.String.lastIndexOf "." with
-            | Some i ->
-              let moduleString = Stdlib.String.slice wordUnderCursor 0L i
-              let modules = if moduleString == "" then [] else Stdlib.String.split moduleString "."
-              let searchStr =
-                wordUnderCursor |> Stdlib.String.dropFirst (i + 1L)
-
-              (modules, searchStr)
-
-            | None ->
-              ([], wordUnderCursor)
-
-          let query =
-            LanguageTools.ProgramTypes.Search.SearchQuery
-              { currentModule = modulePath
-                text = searchText
-                searchDepth =
-                  LanguageTools.ProgramTypes.Search.SearchDepth.OnlyDirectDescendants
-                entityTypes =
-                  [ LanguageTools.ProgramTypes.Search.EntityType.Fn
-                    LanguageTools.ProgramTypes.Search.EntityType.Value
-                    LanguageTools.ProgramTypes.Search.EntityType.Type
-                    LanguageTools.ProgramTypes.Search.EntityType.Module ]
-                exactMatch = false }
-
-          let searchResults =
-            LanguageTools.PackageManager.Search.search query
-
-          let currentPrefix =
-            match wordUnderCursor |> Stdlib.String.lastIndexOf "." with
-            | Some i -> Stdlib.String.slice wordUnderCursor 0L (i + 1L)
-            | None -> ""
-
-          let functions =
-            searchResults.fns
-            |> Stdlib.List.map (fun fn -> LanguageTools.ProgramTypes.PackageFn.nameToString fn.name)
-            |> processSearchResults
-                LanguageServerProtocol.Completions.CompletionItem.CompletionItemKind.CompletionItemKind.Function
-                "function"
-                currentPrefix
-
-          let types =
-            searchResults.types
-            |> Stdlib.List.map (fun t -> LanguageTools.ProgramTypes.PackageType.nameToString t.name)
-            |> processSearchResults
-                LanguageServerProtocol.Completions.CompletionItem.CompletionItemKind.CompletionItemKind.Class
-                "type"
-                currentPrefix
-
-          let values =
-            searchResults.values
-            |> Stdlib.List.map (fun v -> LanguageTools.ProgramTypes.PackageValue.nameToString v.name)
-            |> processSearchResults
-                LanguageServerProtocol.Completions.CompletionItem.CompletionItemKind.CompletionItemKind.Value
-                "value"
-                currentPrefix
-
-          let submodules =
-            searchResults.submodules
-            |> Stdlib.List.map (fun m -> m |> Stdlib.List.map (fun s -> s |> Stdlib.String.join "."))
-            |> Stdlib.List.flatten
-            |> processSearchResults
-                LanguageServerProtocol.Completions.CompletionItem.CompletionItemKind.CompletionItemKind.Module
-                "module"
-                currentPrefix
+let createCompletionItem
+  (label: String)
+  (kind:
+    LanguageServerProtocol.Completions.CompletionItem.CompletionItemKind.CompletionItemKind)
+  (detail: String)
+  (insertText: String)
+  : LanguageServerProtocol.Completions.CompletionItem.CompletionItem =
+  LanguageServerProtocol.Completions.CompletionItem.CompletionItem
+    { label = label
+      kind = Stdlib.Option.Option.Some kind
+      detail = Stdlib.Option.Option.Some detail
+      preselect = Stdlib.Option.Option.Some true
+      sortText = Stdlib.Option.Option.Some label
+      filterText = Stdlib.Option.Option.Some label
+      insertText = Stdlib.Option.Option.Some insertText
+      insertTextFormat =
+        Stdlib.Option.Option.Some
+          LanguageServerProtocol.Completions.InsertTextFormat.InsertTextFormat.PlainText
+      insertTextMode = Stdlib.Option.Option.None
+      // textEdit = Stdlib.Option.Option.None
+      textEditText = Stdlib.Option.Option.None
+      commitCharacters = Stdlib.Option.Option.Some [ " " ]
+      data = Stdlib.Option.Option.None }
 
 
-          let completions = Stdlib.List.flatten [ keywords; functions; types; values ; submodules ]
+  // Helper function to create completion items for search results
+let getCompletionText (name: String) (currentPrefix: String) : String =
+  let prefixLength = Stdlib.String.length currentPrefix
+  let nameLength = Stdlib.String.length name
+  if prefixLength == 0L then
+    name
+  // if the completion string starts exactly with the prefix typed by the user, we just return the remaining part
+  else if Stdlib.String.startsWith name currentPrefix then
+    Stdlib.String.slice name prefixLength nameLength
+  else
+    match Stdlib.String.indexOf name currentPrefix with
+    | Some index ->
+        let start = index + Stdlib.String.length currentPrefix
+        Stdlib.String.slice name start nameLength
+    | None ->
+        match Stdlib.String.split name "." with
+        | _owner :: rest -> Stdlib.String.join rest "."
+      | [] -> name
 
-          completions
+let processSearchResults (names: List<String>) (kind: LanguageServerProtocol.Completions.CompletionItem.CompletionItemKind.CompletionItemKind) (description: String) (currentPrefix: String): List<LanguageServerProtocol.Completions.CompletionItem.CompletionItem> =
+  names
+  |> Stdlib.List.map (fun name ->
+    let insertText = getCompletionText name currentPrefix
+
+    createCompletionItem
+      name
+      kind
+      description
+      insertText)
 
 
-        /// handles `textDocument/completion` requests
-        let handleCompletionRequest
-          (state: LspState)
-          (requestId: JsonRPC.RequestId)
-          (requestParams:
-            LanguageServerProtocol.Completions.CompletionRequest.CompletionParams.CompletionParams)
-          : LspState =
-          match state.documentsInScope |> Stdlib.Dict.get requestParams.textDocument.uri with
-          | Some content ->
-            let wordUnderCursor =
-              CursorPosition.wordUnderCursor content.text requestParams.position
+let createCompletions
+  (wordUnderCursor: String)
+  : List<LanguageServerProtocol.Completions.CompletionItem.CompletionItem> =
+  let keywords =
+    [ "module"
+      "type"
+      "val"
+      "let"
+      "if"
+      "then"
+      "else"
+      "match"
+      "with"
+      "fun" ]
+    |> Stdlib.List.map (fun k ->
+      createCompletionItem
+        k
+        LanguageServerProtocol.Completions.CompletionItem.CompletionItemKind.CompletionItemKind.Keyword
+        "keyword"
+        k)
 
-            let completions =
-              (createCompletions wordUnderCursor)
-              |> Stdlib.List.filter (fun c ->
-                // handle both formats (with and without owner, e.g., "Darklang.Stdlib.List" and "Stdlib.List")
-                if Stdlib.String.contains wordUnderCursor "." then
-                  Stdlib.String.contains c.label wordUnderCursor
-                else
-                  c.label |> Stdlib.String.startsWith wordUnderCursor)
+  let (modulePath, searchText) =
+    match wordUnderCursor |> Stdlib.String.lastIndexOf "." with
+    | Some i ->
+      let moduleString = Stdlib.String.slice wordUnderCursor 0L i
+      let modules = if moduleString == "" then [] else Stdlib.String.split moduleString "."
+      let searchStr =
+        wordUnderCursor |> Stdlib.String.dropFirst (i + 1L)
+
+      (modules, searchStr)
+
+    | None ->
+      ([], wordUnderCursor)
+
+  let query =
+    LanguageTools.ProgramTypes.Search.SearchQuery
+      { currentModule = modulePath
+        text = searchText
+        searchDepth =
+          LanguageTools.ProgramTypes.Search.SearchDepth.OnlyDirectDescendants
+        entityTypes =
+          [ LanguageTools.ProgramTypes.Search.EntityType.Fn
+            LanguageTools.ProgramTypes.Search.EntityType.Value
+            LanguageTools.ProgramTypes.Search.EntityType.Type
+            LanguageTools.ProgramTypes.Search.EntityType.Module ]
+        exactMatch = false }
+
+  let searchResults =
+    LanguageTools.PackageManager.Search.search query
+
+  let currentPrefix =
+    match wordUnderCursor |> Stdlib.String.lastIndexOf "." with
+    | Some i -> Stdlib.String.slice wordUnderCursor 0L (i + 1L)
+    | None -> ""
+
+  let functions =
+    searchResults.fns
+    |> Stdlib.List.map (fun fn -> LanguageTools.ProgramTypes.PackageFn.nameToString fn.name)
+    |> processSearchResults
+        LanguageServerProtocol.Completions.CompletionItem.CompletionItemKind.CompletionItemKind.Function
+        "function"
+        currentPrefix
+
+  let types =
+    searchResults.types
+    |> Stdlib.List.map (fun t -> LanguageTools.ProgramTypes.PackageType.nameToString t.name)
+    |> processSearchResults
+        LanguageServerProtocol.Completions.CompletionItem.CompletionItemKind.CompletionItemKind.Class
+        "type"
+        currentPrefix
+
+  let values =
+    searchResults.values
+    |> Stdlib.List.map (fun v -> LanguageTools.ProgramTypes.PackageValue.nameToString v.name)
+    |> processSearchResults
+        LanguageServerProtocol.Completions.CompletionItem.CompletionItemKind.CompletionItemKind.Value
+        "value"
+        currentPrefix
+
+  let submodules =
+    searchResults.submodules
+    |> Stdlib.List.map (fun m -> m |> Stdlib.List.map (fun s -> s |> Stdlib.String.join "."))
+    |> Stdlib.List.flatten
+    |> processSearchResults
+        LanguageServerProtocol.Completions.CompletionItem.CompletionItemKind.CompletionItemKind.Module
+        "module"
+        currentPrefix
 
 
-            let response =
-              LanguageServerProtocol.Completions.CompletionList.CompletionList
-                { isIncomplete = true
-                  itemDefaults = Stdlib.Option.Option.None
-                  items = completions }
+  let completions = Stdlib.List.flatten [ keywords; functions; types; values ; submodules ]
 
-            let responseJson =
-              response
-              |> LanguageServerProtocol.Completions.CompletionList.toJson
-              |> (fun r ->
-                JsonRPC.Response.Ok.make (Stdlib.Option.Option.Some requestId) r)
-              |> Stdlib.AltJson.format
+  completions
 
-            logAndSendToClient responseJson
 
-            state
-          | None ->
-            // Document not found, return empty completions
-            let response =
-              LanguageServerProtocol.Completions.CompletionList.CompletionList
-                { isIncomplete = false
-                  itemDefaults = Stdlib.Option.Option.None
-                  items = [] }
+/// handles `textDocument/completion` requests
+let handleCompletionRequest
+  (state: LspState)
+  (requestId: JsonRPC.RequestId)
+  (requestParams:
+    LanguageServerProtocol.Completions.CompletionRequest.CompletionParams.CompletionParams)
+  : LspState =
+  match state.documentsInScope |> Stdlib.Dict.get requestParams.textDocument.uri with
+  | Some content ->
+    let wordUnderCursor =
+      CursorPosition.wordUnderCursor content.text requestParams.position
 
-            let responseJson =
-              response
-              |> LanguageServerProtocol.Completions.CompletionList.toJson
-              |> (fun r ->
-                JsonRPC.Response.Ok.make (Stdlib.Option.Option.Some requestId) r)
-              |> Stdlib.AltJson.format
+    let completions =
+      (createCompletions wordUnderCursor)
+      |> Stdlib.List.filter (fun c ->
+        // handle both formats (with and without owner, e.g., "Darklang.Stdlib.List" and "Stdlib.List")
+        if Stdlib.String.contains wordUnderCursor "." then
+          Stdlib.String.contains c.label wordUnderCursor
+        else
+          c.label |> Stdlib.String.startsWith wordUnderCursor)
 
-            logAndSendToClient responseJson
 
-            state
+    let response =
+      LanguageServerProtocol.Completions.CompletionList.CompletionList
+        { isIncomplete = true
+          itemDefaults = Stdlib.Option.Option.None
+          items = completions }
+
+    let responseJson =
+      response
+      |> LanguageServerProtocol.Completions.CompletionList.toJson
+      |> (fun r ->
+        JsonRPC.Response.Ok.make (Stdlib.Option.Option.Some requestId) r)
+      |> Stdlib.AltJson.format
+
+    logAndSendToClient responseJson
+
+    state
+  | None ->
+    // Document not found, return empty completions
+    let response =
+      LanguageServerProtocol.Completions.CompletionList.CompletionList
+        { isIncomplete = false
+          itemDefaults = Stdlib.Option.Option.None
+          items = [] }
+
+    let responseJson =
+      response
+      |> LanguageServerProtocol.Completions.CompletionList.toJson
+      |> (fun r ->
+        JsonRPC.Response.Ok.make (Stdlib.Option.Option.Some requestId) r)
+      |> Stdlib.AltJson.format
+
+    logAndSendToClient responseJson
+
+    state

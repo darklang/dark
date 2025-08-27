@@ -1,4 +1,4 @@
-module Darklang =
-  module Stdlib =
-    module Fun =
-      let identity (value: 'a) : 'a = value
+module Darklang.Stdlib.Fun
+
+
+let identity (value: 'a) : 'a = value

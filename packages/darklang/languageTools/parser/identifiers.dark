@@ -1,165 +1,164 @@
-module Darklang =
-  module LanguageTools =
-    module Parser =
-      module Identifiers =
-        let extractModuleIdentifiersHelper
-          (modulesSoFarInReverse:
-            List<(WrittenTypes.ModuleIdentifier * WrittenTypes.Range)>)
-          (nodes: List<ParsedNode>)
-          : Stdlib.Result.Result<(List<(WrittenTypes.ModuleIdentifier *
-            WrittenTypes.Range)> *
-            ParsedNode), String>
-          =
-          match nodes with
-          | modulePart :: symbolPart :: otherParts ->
-            if modulePart.typ != "module_identifier" then
-              $"Unexpected - modulePart should be a module_identifier but is {modulePart.typ}"
-              |> Stdlib.Result.Result.Error
-            elif symbolPart.typ != "symbol" then
-              $"Unexpected - symbolPart should be a symbol but is {symbolPart.typ}"
-              |> Stdlib.Result.Result.Error
-            else
-              let moduleIdentifier =
-                WrittenTypes.ModuleIdentifier
-                  { range = modulePart.range
-                    name = modulePart.text }
-
-              let updatedModules =
-                Stdlib.List.push
-                  modulesSoFarInReverse
-                  ((moduleIdentifier, symbolPart.range))
-
-              extractModuleIdentifiersHelper updatedModules otherParts
-
-          | [ lastPart ] ->
-            (modulesSoFarInReverse, lastPart) |> Stdlib.Result.Result.Ok
-
-          | [] ->
-            "Unexpected - there should be an odd number of parts to a qualified name"
-            |> Stdlib.Result.Result.Error
-
-        /// Qualified names (type, fn, etc) come in the form of `module1.module2.module3.name`,
-        /// and we need to parse out the `module1.module2.module3.` part,
-        /// ensuring that we take note of the `.` source ranges after each module name
-        let extractModuleIdentifiers
-          (nodes: List<ParsedNode>)
-          : Stdlib.Result.Result<(List<(WrittenTypes.ModuleIdentifier *
-            WrittenTypes.Range)> *
-            ParsedNode), String>
-          =
-          match extractModuleIdentifiersHelper [] nodes with
-          | Ok((modulesInReverse, lastNode)) ->
-            (Stdlib.List.reverse modulesInReverse, lastNode)
-            |> Stdlib.Result.Result.Ok
-          | Error e -> Stdlib.Result.Result.Error e
+module Darklang.LanguageTools.Parser.Identifiers
 
 
-        let parseVariable (n: ParsedNode) : WrittenTypes.VariableIdentifier =
-          WrittenTypes.VariableIdentifier { range = n.range; name = n.text }
+let extractModuleIdentifiersHelper
+  (modulesSoFarInReverse:
+    List<(WrittenTypes.ModuleIdentifier * WrittenTypes.Range)>)
+  (nodes: List<ParsedNode>)
+  : Stdlib.Result.Result<(List<(WrittenTypes.ModuleIdentifier *
+    WrittenTypes.Range)> *
+    ParsedNode), String>
+  =
+  match nodes with
+  | modulePart :: symbolPart :: otherParts ->
+    if modulePart.typ != "module_identifier" then
+      $"Unexpected - modulePart should be a module_identifier but is {modulePart.typ}"
+      |> Stdlib.Result.Result.Error
+    elif symbolPart.typ != "symbol" then
+      $"Unexpected - symbolPart should be a symbol but is {symbolPart.typ}"
+      |> Stdlib.Result.Result.Error
+    else
+      let moduleIdentifier =
+        WrittenTypes.ModuleIdentifier
+          { range = modulePart.range
+            name = modulePart.text }
 
-        let parseType (n: ParsedNode) : WrittenTypes.TypeIdentifier =
-          WrittenTypes.TypeIdentifier { range = n.range; name = n.text }
+      let updatedModules =
+        Stdlib.List.push
+          modulesSoFarInReverse
+          ((moduleIdentifier, symbolPart.range))
 
-        let parseFn (n: ParsedNode) : WrittenTypes.FnIdentifier =
-          WrittenTypes.FnIdentifier { range = n.range; name = n.text }
+      extractModuleIdentifiersHelper updatedModules otherParts
 
-        let parseValue (n: ParsedNode) : WrittenTypes.ValueIdentifier =
-          WrittenTypes.ValueIdentifier { range = n.range; name = n.text }
+  | [ lastPart ] ->
+    (modulesSoFarInReverse, lastPart) |> Stdlib.Result.Result.Ok
 
-        let parseValueOrFn (n: ParsedNode) : WrittenTypes.ValueOrFnIdentifier =
-          WrittenTypes.ValueOrFnIdentifier { range = n.range; name = n.text }
+  | [] ->
+    "Unexpected - there should be an odd number of parts to a qualified name"
+    |> Stdlib.Result.Result.Error
 
-        let extractTypeArgs
-          (node: ParsedNode)
-          : Stdlib.Result.Result<List<WrittenTypes.TypeReference.TypeReference>, WrittenTypes.Unparseable> =
-          match findNodeByFieldName node "type_args" with
-          | None -> [] |> Stdlib.Result.Result.Ok
-          | Some typeArgs ->
-            match findNodeByFieldName typeArgs "type_args_items" with
-            | None -> [] |> Stdlib.Result.Result.Ok
-            | Some typeArgsNode ->
-              match typeArgsNode.children |> Stdlib.List.chunkBySize 2L with
-              | Ok pairs ->
-                pairs
-                |> Stdlib.List.map (fun typeArgSeparatorPair ->
-                  match typeArgSeparatorPair with
-                  | [ typeArg; _sep ]
-                  | [ typeArg ] -> TypeReference.parse typeArg
-                  | _ -> createUnparseableError typeArgsNode)
-                |> Stdlib.Result.collect
-              | Error _ -> createUnparseableError typeArgsNode
-
-
-        let parseQualifiedType
-          (node: ParsedNode)
-          : Stdlib.Result.Result<WrittenTypes.QualifiedTypeIdentifier, String> =
-          if node.typ == "qualified_type_name" then
-            let filteredChildren =
-              node.children |> Stdlib.List.filter (fun n -> n.typ != "type_args")
-
-            match extractModuleIdentifiers filteredChildren with
-            | Ok((modules, typeIdentifierNode)) ->
-              let typeArgs = extractTypeArgs node
-
-              match typeArgs with
-              | Ok typeArgs ->
-                (WrittenTypes.QualifiedTypeIdentifier
-                  { range = node.range
-                    modules = modules
-                    typ = parseType typeIdentifierNode
-                    typeArgs = typeArgs })
-                |> Stdlib.Result.Result.Ok
-              | Error _ -> createUnparseableError node
-
-            | Error _ -> createUnparseableError node
-
-          else
-            Stdlib.Result.Result.Error
-              $"Can't parse qualified_type_name from {node.typ}"
+/// Qualified names (type, fn, etc) come in the form of `module1.module2.module3.name`,
+/// and we need to parse out the `module1.module2.module3.` part,
+/// ensuring that we take note of the `.` source ranges after each module name
+let extractModuleIdentifiers
+  (nodes: List<ParsedNode>)
+  : Stdlib.Result.Result<(List<(WrittenTypes.ModuleIdentifier *
+    WrittenTypes.Range)> *
+    ParsedNode), String>
+  =
+  match extractModuleIdentifiersHelper [] nodes with
+  | Ok((modulesInReverse, lastNode)) ->
+    (Stdlib.List.reverse modulesInReverse, lastNode)
+    |> Stdlib.Result.Result.Ok
+  | Error e -> Stdlib.Result.Result.Error e
 
 
-        let parseQualifiedFunction
-          (node: ParsedNode)
-          : Stdlib.Result.Result<WrittenTypes.QualifiedFnIdentifier, String> =
-          let filteredChildren =
-            node.children |> Stdlib.List.filter (fun n -> n.typ != "type_args")
+let parseVariable (n: ParsedNode) : WrittenTypes.VariableIdentifier =
+  WrittenTypes.VariableIdentifier { range = n.range; name = n.text }
 
-          if node.typ == "qualified_fn_name" then
-            match extractModuleIdentifiers filteredChildren with
-            | Ok((modules, fnIdentifierNode)) ->
-              let typeArgs = extractTypeArgs node
+let parseType (n: ParsedNode) : WrittenTypes.TypeIdentifier =
+  WrittenTypes.TypeIdentifier { range = n.range; name = n.text }
 
-              match typeArgs with
-              | Ok typeArgs ->
-                (WrittenTypes.QualifiedFnIdentifier
-                  { range = node.range
-                    modules = modules
-                    fn = parseFn fnIdentifierNode
-                    typeArgs = typeArgs })
-                |> Stdlib.Result.Result.Ok
-              | Error _ -> createUnparseableError node
+let parseFn (n: ParsedNode) : WrittenTypes.FnIdentifier =
+  WrittenTypes.FnIdentifier { range = n.range; name = n.text }
 
-            | Error _ -> createUnparseableError node
+let parseValue (n: ParsedNode) : WrittenTypes.ValueIdentifier =
+  WrittenTypes.ValueIdentifier { range = n.range; name = n.text }
 
-          else
-            Stdlib.Result.Result.Error
-              $"Can't parse qualified_fn_name from {node.typ}"
+let parseValueOrFn (n: ParsedNode) : WrittenTypes.ValueOrFnIdentifier =
+  WrittenTypes.ValueOrFnIdentifier { range = n.range; name = n.text }
+
+let extractTypeArgs
+  (node: ParsedNode)
+  : Stdlib.Result.Result<List<WrittenTypes.TypeReference.TypeReference>, WrittenTypes.Unparseable> =
+  match findNodeByFieldName node "type_args" with
+  | None -> [] |> Stdlib.Result.Result.Ok
+  | Some typeArgs ->
+    match findNodeByFieldName typeArgs "type_args_items" with
+    | None -> [] |> Stdlib.Result.Result.Ok
+    | Some typeArgsNode ->
+      match typeArgsNode.children |> Stdlib.List.chunkBySize 2L with
+      | Ok pairs ->
+        pairs
+        |> Stdlib.List.map (fun typeArgSeparatorPair ->
+          match typeArgSeparatorPair with
+          | [ typeArg; _sep ]
+          | [ typeArg ] -> TypeReference.parse typeArg
+          | _ -> createUnparseableError typeArgsNode)
+        |> Stdlib.Result.collect
+      | Error _ -> createUnparseableError typeArgsNode
 
 
-        let parseQualifiedValueOrFnName
-          (node: ParsedNode)
-          : Stdlib.Result.Result<WrittenTypes.QualifiedValueOrFnIdentifier, String> =
-          if node.typ == "qualified_val_or_fn_name" then
-            match extractModuleIdentifiers node.children with
-            | Ok((modules, identifierNode)) ->
-              (WrittenTypes.QualifiedValueOrFnIdentifier
-                { range = node.range
-                  modules = modules
-                  valueOrFn = parseValueOrFn identifierNode })
-              |> Stdlib.Result.Result.Ok
+let parseQualifiedType
+  (node: ParsedNode)
+  : Stdlib.Result.Result<WrittenTypes.QualifiedTypeIdentifier, String> =
+  if node.typ == "qualified_type_name" then
+    let filteredChildren =
+      node.children |> Stdlib.List.filter (fun n -> n.typ != "type_args")
 
-            | Error _ -> createUnparseableError node
+    match extractModuleIdentifiers filteredChildren with
+    | Ok((modules, typeIdentifierNode)) ->
+      let typeArgs = extractTypeArgs node
 
-          else
-            Stdlib.Result.Result.Error
-              $"Can't parse qualified_val_or_fn_name from {node.typ}"
+      match typeArgs with
+      | Ok typeArgs ->
+        (WrittenTypes.QualifiedTypeIdentifier
+          { range = node.range
+            modules = modules
+            typ = parseType typeIdentifierNode
+            typeArgs = typeArgs })
+        |> Stdlib.Result.Result.Ok
+      | Error _ -> createUnparseableError node
+
+    | Error _ -> createUnparseableError node
+
+  else
+    Stdlib.Result.Result.Error
+      $"Can't parse qualified_type_name from {node.typ}"
+
+
+let parseQualifiedFunction
+  (node: ParsedNode)
+  : Stdlib.Result.Result<WrittenTypes.QualifiedFnIdentifier, String> =
+  let filteredChildren =
+    node.children |> Stdlib.List.filter (fun n -> n.typ != "type_args")
+
+  if node.typ == "qualified_fn_name" then
+    match extractModuleIdentifiers filteredChildren with
+    | Ok((modules, fnIdentifierNode)) ->
+      let typeArgs = extractTypeArgs node
+
+      match typeArgs with
+      | Ok typeArgs ->
+        (WrittenTypes.QualifiedFnIdentifier
+          { range = node.range
+            modules = modules
+            fn = parseFn fnIdentifierNode
+            typeArgs = typeArgs })
+        |> Stdlib.Result.Result.Ok
+      | Error _ -> createUnparseableError node
+
+    | Error _ -> createUnparseableError node
+
+  else
+    Stdlib.Result.Result.Error
+      $"Can't parse qualified_fn_name from {node.typ}"
+
+
+let parseQualifiedValueOrFnName
+  (node: ParsedNode)
+  : Stdlib.Result.Result<WrittenTypes.QualifiedValueOrFnIdentifier, String> =
+  if node.typ == "qualified_val_or_fn_name" then
+    match extractModuleIdentifiers node.children with
+    | Ok((modules, identifierNode)) ->
+      (WrittenTypes.QualifiedValueOrFnIdentifier
+        { range = node.range
+          modules = modules
+          valueOrFn = parseValueOrFn identifierNode })
+      |> Stdlib.Result.Result.Ok
+
+    | Error _ -> createUnparseableError node
+
+  else
+    Stdlib.Result.Result.Error
+      $"Can't parse qualified_val_or_fn_name from {node.typ}"

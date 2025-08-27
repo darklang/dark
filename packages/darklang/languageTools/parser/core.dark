@@ -1,334 +1,334 @@
-module Darklang =
-  module LanguageTools =
-    /// Maps `TreeSitter.ParsedNode`s to structures defined in `WrittenTypes`
-    module Parser =
-      // TODO: these should be UInts of some size
-      // (UInt8 might even be enough - how many lines are over 255chars?)
-      type Point = { row: Int64; column: Int64 }
-
-      type Range = { start: Point; end_: Point }
-
-      type ParsedNode =
-        {
-          // e.g., a node of `typ` `let_expression` has a child node with a `body` field name
-          fieldName: Stdlib.Option.Option<String>
-
-          /// e.g. `source_file`, `fn_decl`, `expression`, `let_expression`
-          typ: String
-
-          /// The text of this node as it was in the unparsed source code
-          text: String
-
-          /// Where in the source code is this node written/contained
-          /// i.e. Line 1, Column 2 to Line 1, Column 5
-          range: Range
-
-          children: List<ParsedNode>
-        }
+/// Maps `TreeSitter.ParsedNode`s to structures defined in `WrittenTypes`
+module Darklang.LanguageTools.Parser
 
 
-      let parseToSimplifiedTree (text: String) : ParsedNode =
-        Builtin.parserParseToSimplifiedTree text
+// TODO: these should be UInts of some size
+// (UInt8 might even be enough - how many lines are over 255chars?)
+type Point = { row: Int64; column: Int64 }
 
-      let parseName (fnName: String) : Stdlib.Result.Result<String> =
-        if Stdlib.String.contains fnName "_v" then
-          // Todo : check if the name is valid
-          Stdlib.Result.Result.Ok fnName
-        else
-          Stdlib.Result.Result.Ok(fnName ++ "_v0")
+type Range = { start: Point; end_: Point }
 
+type ParsedNode =
+  {
+    // e.g., a node of `typ` `let_expression` has a child node with a `body` field name
+    fieldName: Stdlib.Option.Option<String>
 
-      // --------------------
-      // Helper functions
-      // --------------------
+    /// e.g. `source_file`, `fn_decl`, `expression`, `let_expression`
+    typ: String
 
-      let getText (node: ParsedNode) : String = node.text
-      let getRange (node: ParsedNode) : Range = node.range
+    /// The text of this node as it was in the unparsed source code
+    text: String
 
-      let emptyVar = "___"
-      let nameOrBlank (v: String) : String = if v == emptyVar then "" else v
+    /// Where in the source code is this node written/contained
+    /// i.e. Line 1, Column 2 to Line 1, Column 5
+    range: Range
 
-      let findNodeByFieldName
-        (node: ParsedNode)
-        (fieldName: String)
-        : Stdlib.Option.Option<ParsedNode> =
-        let filteredChildren =
-          node.children
-          |> Stdlib.List.filter (fun c ->
-            match c.fieldName with
-            | Some fName -> fName == fieldName
-            | None -> false)
-
-        match filteredChildren with
-        | [ c ] -> Stdlib.Option.Option.Some c
-        | [] -> Stdlib.Option.Option.None
-        | _ -> Stdlib.Option.Option.None // TODO: this should error, there are multiple matches
+    children: List<ParsedNode>
+  }
 
 
-      let createUnparseableError
-        (node: ParsedNode)
-        : Stdlib.Result.Result<'a, WrittenTypes.Unparseable> =
-        (WrittenTypes.Unparseable
-          { source = node
-            note = Stdlib.Option.Option.None })
-        |> Stdlib.Result.Result.Error
+let parseToSimplifiedTree (text: String) : ParsedNode =
+  Builtin.parserParseToSimplifiedTree text
 
-      let createUnparseableErrorMsg
-        (node: ParsedNode)
-        (msg: String)
-        : Stdlib.Result.Result<'a, WrittenTypes.Unparseable> =
-        (WrittenTypes.Unparseable
-          { source = node
-            note = Stdlib.Option.Option.Some msg })
-        |> Stdlib.Result.Result.Error
-
-      /// Used for fields that don't need to be parsed, i.e. symbols, keywords, etc
-      let findField
-        (node: ParsedNode)
-        (fieldName: String)
-        : Stdlib.Result.Result<ParsedNode, String> =
-        (findNodeByFieldName node fieldName)
-        |> Stdlib.Option.toResult $"No {fieldName} node found in {node.typ}"
-
-      /// Used for optional fields eg. else clauses
-      let findAndParseOptional
-        (node: ParsedNode)
-        (fieldName: String)
-        (parserFn: ParsedNode -> Stdlib.Result.Result<'a, String>)
-        : Stdlib.Option.Option<'a> =
-        match findNodeByFieldName node fieldName with
-        | Some nd -> (parserFn nd) |> Stdlib.Result.toOption
-        | None -> Stdlib.Option.Option.None
-
-      /// Used for required fields
-      let findAndParseRequired
-        (node: ParsedNode)
-        (fieldName: String)
-        (parserFn: ParsedNode -> Stdlib.Result.Result<'a, WrittenTypes.Unparseable>)
-        : Stdlib.Result.Result<'a, WrittenTypes.Unparseable> =
-        match findNodeByFieldName node fieldName with
-        | Some nd -> parserFn nd
-        | None ->
-          (WrittenTypes.Unparseable
-            { source = node
-              note = Stdlib.Option.Option.Some $"No {fieldName} node found in {node.typ}" })
-          |> Stdlib.Result.Result.Error
+let parseName (fnName: String) : Stdlib.Result.Result<String> =
+  if Stdlib.String.contains fnName "_v" then
+    // Todo : check if the name is valid
+    Stdlib.Result.Result.Ok fnName
+  else
+    Stdlib.Result.Result.Ok(fnName ++ "_v0")
 
 
-      let baseParseList
-        (parseFn: ParsedNode -> Stdlib.Result.Result<'a, WrittenTypes.Unparseable>)
-        (node: ParsedNode)
-        (ctor: (Range * List<'a * Stdlib.Option.Option<Range>> * Range * Range) -> 'a)
-        : Stdlib.Result.Result<'a, WrittenTypes.Unparseable> =
-        let openBracketNode = findField node "symbol_open_bracket"
-        let closeBracketNode = findField node "symbol_close_bracket"
+// --------------------
+// Helper functions
+// --------------------
 
-        let listContents =
-          node
-          |> findNodeByFieldName "content"
-          |> Stdlib.Option.map (fun contentsNode ->
-            contentsNode.children
-            |> Stdlib.List.filter (fun c ->
-                c.typ != "indent" && c.typ != "dedent")
-            |> Stdlib.List.chunkBySize 2L
-            |> (fun chunkedResult ->
-              match chunkedResult with
-              | Ok pairs ->
-                pairs
-                |> Stdlib.List.map (fun contentSymbolPair ->
-                  match contentSymbolPair with
-                  | [ contentNode; symbol ] ->
-                    match parseFn contentNode with
-                    | Ok e ->
-                      (e, Stdlib.Option.Option.Some symbol.range)
-                      |> Stdlib.Result.Result.Ok
-                    | Error _ -> createUnparseableError contentsNode
+let getText (node: ParsedNode) : String = node.text
+let getRange (node: ParsedNode) : Range = node.range
 
-                  | [ contentNode ] ->
-                    match parseFn contentNode with
-                    | Ok e -> (e, Stdlib.Option.Option.None) |> Stdlib.Result.Result.Ok
-                    | Error _ -> createUnparseableError contentNode
+let emptyVar = "___"
+let nameOrBlank (v: String) : String = if v == emptyVar then "" else v
 
-                  | _ -> createUnparseableError contentsNode)
-                |> Stdlib.Result.collect
-              | Error _ ->
-                createUnparseableError contentsNode))
+let findNodeByFieldName
+  (node: ParsedNode)
+  (fieldName: String)
+  : Stdlib.Option.Option<ParsedNode> =
+  let filteredChildren =
+    node.children
+    |> Stdlib.List.filter (fun c ->
+      match c.fieldName with
+      | Some fName -> fName == fieldName
+      | None -> false)
 
-          |> Stdlib.Option.withDefault (Stdlib.Result.Result.Ok [])
-
-        match openBracketNode, listContents, closeBracketNode with
-        | Ok openBracket, Ok listContents, Ok closeBracket ->
-          ctor (node.range, listContents, openBracket.range, closeBracket.range)
-        | _ -> createUnparseableError node
+  match filteredChildren with
+  | [ c ] -> Stdlib.Option.Option.Some c
+  | [] -> Stdlib.Option.Option.None
+  | _ -> Stdlib.Option.Option.None // TODO: this should error, there are multiple matches
 
 
-      let baseParseTuple
-        (parseFn: ParsedNode -> Stdlib.Result.Result<'a, WrittenTypes.Unparseable>)
-        (node: ParsedNode)
-        (ctor:
-          (Range *
-          'a *
-          Range *
-          'a *
-          List<Stdlib.Option.Option<Range> * 'a> *
-          Range *
-          Range)
-            -> 'a)
-        : Stdlib.Result.Result<'a, WrittenTypes.Unparseable> =
-        let openParenNode = findField node "symbol_left_paren"
-        let first = findAndParseRequired node "first" parseFn
-        let second = findAndParseRequired node "second" parseFn
+let createUnparseableError
+  (node: ParsedNode)
+  : Stdlib.Result.Result<'a, WrittenTypes.Unparseable> =
+  (WrittenTypes.Unparseable
+    { source = node
+      note = Stdlib.Option.Option.None })
+  |> Stdlib.Result.Result.Error
 
-        let rest =
-          (findNodeByFieldName node "rest")
-          |> Stdlib.Option.map (fun restNode ->
-            restNode.children
-            |> Stdlib.List.chunkBySize 2L
-            |> (fun chunkedResult ->
-              match chunkedResult with
-              | Ok pairs ->
-                pairs
-                |> Stdlib.List.map (fun symbolRestPair ->
-                  match symbolRestPair with
-                  | [ symbol; restNode ] ->
-                    match parseFn restNode with
-                    | Ok rest -> (symbol.range, rest) |> Stdlib.Result.Result.Ok
-                    | Error _ -> createUnparseableError restNode
+let createUnparseableErrorMsg
+  (node: ParsedNode)
+  (msg: String)
+  : Stdlib.Result.Result<'a, WrittenTypes.Unparseable> =
+  (WrittenTypes.Unparseable
+    { source = node
+      note = Stdlib.Option.Option.Some msg })
+  |> Stdlib.Result.Result.Error
 
-                  | [ restNode ] ->
-                    match parseFn restNode with
-                    | Ok rest ->
-                      (Stdlib.Option.Option.None, rest) |> Stdlib.Result.Result.Ok
-                    | Error _ -> createUnparseableError restNode
-                  | _ -> createUnparseableError restNode)
-                |> Stdlib.Result.collect
-              | Error _ ->
-                createUnparseableError restNode))
+/// Used for fields that don't need to be parsed, i.e. symbols, keywords, etc
+let findField
+  (node: ParsedNode)
+  (fieldName: String)
+  : Stdlib.Result.Result<ParsedNode, String> =
+  (findNodeByFieldName node fieldName)
+  |> Stdlib.Option.toResult $"No {fieldName} node found in {node.typ}"
 
-          |> Stdlib.Option.withDefault (Stdlib.Result.Result.Ok [])
+/// Used for optional fields eg. else clauses
+let findAndParseOptional
+  (node: ParsedNode)
+  (fieldName: String)
+  (parserFn: ParsedNode -> Stdlib.Result.Result<'a, String>)
+  : Stdlib.Option.Option<'a> =
+  match findNodeByFieldName node fieldName with
+  | Some nd -> (parserFn nd) |> Stdlib.Result.toOption
+  | None -> Stdlib.Option.Option.None
 
-        let commaSymbol = findField node "symbol_comma"
-        let closeParenNode = findField node "symbol_right_paren"
-
-        match openParenNode, first, commaSymbol, second, rest, closeParenNode with
-        | Ok openParen, Ok first, Ok symComma, Ok second, Ok rest, Ok closeParen ->
-          ctor (
-            node.range,
-            first,
-            symComma.range,
-            second,
-            rest,
-            openParen.range,
-            closeParen.range
-          )
-        | _ -> createUnparseableError node
+/// Used for required fields
+let findAndParseRequired
+  (node: ParsedNode)
+  (fieldName: String)
+  (parserFn: ParsedNode -> Stdlib.Result.Result<'a, WrittenTypes.Unparseable>)
+  : Stdlib.Result.Result<'a, WrittenTypes.Unparseable> =
+  match findNodeByFieldName node fieldName with
+  | Some nd -> parserFn nd
+  | None ->
+    (WrittenTypes.Unparseable
+      { source = node
+        note = Stdlib.Option.Option.Some $"No {fieldName} node found in {node.typ}" })
+    |> Stdlib.Result.Result.Error
 
 
-      let baseParseDict
-        (parseFn: ParsedNode -> Stdlib.Result.Result<'a, WrittenTypes.Unparseable>)
-        (node: ParsedNode)
-        (ctor: (Range * List<Range * String * 'a> * Range * Range * Range) -> 'a)
-        : Stdlib.Result.Result<'a, WrittenTypes.Unparseable> =
-        let keywordDictNode = findField node "keyword_dict"
-        let openBraceNode = findField node "symbol_open_brace"
+let baseParseList
+  (parseFn: ParsedNode -> Stdlib.Result.Result<'a, WrittenTypes.Unparseable>)
+  (node: ParsedNode)
+  (ctor: (Range * List<'a * Stdlib.Option.Option<Range>> * Range * Range) -> 'a)
+  : Stdlib.Result.Result<'a, WrittenTypes.Unparseable> =
+  let openBracketNode = findField node "symbol_open_bracket"
+  let closeBracketNode = findField node "symbol_close_bracket"
 
-        let dictContents =
-          node
-          |> findNodeByFieldName "content"
-          |> Stdlib.Option.map (fun contentsNode ->
-            contentsNode.children
-            |> Stdlib.List.chunkBySize 2L
-            |> (fun chunkedResult ->
-              match chunkedResult with
-              | Ok pairs ->
-                pairs
-                |> Stdlib.List.map (fun dictSeparatorPair ->
-                  match dictSeparatorPair with
-                  | [ dictPairNode; _separator ] | [ dictPairNode ] ->
-                    // Note: `_separator` here is the `;` between key-value pairs
-                    let keyNode =
-                      findAndParseRequired dictPairNode "key" (fun node ->
-                        match node.typ with
-                        | "double_backtick_identifier" ->
-                          let key = node.text |> Stdlib.String.slice 2L -2L
-                          (node.range, key) |> Stdlib.Result.Result.Ok
-                        | _ ->
-                          (node.range, nameOrBlank (Parser.getText node))
-                          |> Stdlib.Result.Result.Ok)
+  let listContents =
+    node
+    |> findNodeByFieldName "content"
+    |> Stdlib.Option.map (fun contentsNode ->
+      contentsNode.children
+      |> Stdlib.List.filter (fun c ->
+          c.typ != "indent" && c.typ != "dedent")
+      |> Stdlib.List.chunkBySize 2L
+      |> (fun chunkedResult ->
+        match chunkedResult with
+        | Ok pairs ->
+          pairs
+          |> Stdlib.List.map (fun contentSymbolPair ->
+            match contentSymbolPair with
+            | [ contentNode; symbol ] ->
+              match parseFn contentNode with
+              | Ok e ->
+                (e, Stdlib.Option.Option.Some symbol.range)
+                |> Stdlib.Result.Result.Ok
+              | Error _ -> createUnparseableError contentsNode
 
-                    let symbolEqualsNode = findField dictPairNode "symbol_equals"
+            | [ contentNode ] ->
+              match parseFn contentNode with
+              | Ok e -> (e, Stdlib.Option.Option.None) |> Stdlib.Result.Result.Ok
+              | Error _ -> createUnparseableError contentNode
 
-                    let valueNode = findAndParseRequired dictPairNode "value" parseFn
+            | _ -> createUnparseableError contentsNode)
+          |> Stdlib.Result.collect
+        | Error _ ->
+          createUnparseableError contentsNode))
 
-                    match (keyNode, symbolEqualsNode, valueNode) with
-                    | (Ok key, Ok symbolEquals, Ok value) ->
-                      (symbolEquals.range, key, value) |> Stdlib.Result.Result.Ok
-                    | _ -> createUnparseableError dictPairNode
+    |> Stdlib.Option.withDefault (Stdlib.Result.Result.Ok [])
 
-                  | _ -> createUnparseableError contentsNode)
-                |> Stdlib.Result.collect
-              | Error _ ->
-                createUnparseableError contentsNode))
-
-          |> Stdlib.Option.withDefault (Stdlib.Result.Result.Ok [])
-
-        let closeBraceNode = findField node "symbol_close_brace"
-
-        match keywordDictNode, openBraceNode, dictContents, closeBraceNode with
-        | Ok keywordDict, Ok openBrace, Ok dictContents, Ok closeBrace ->
-          ctor (
-            node.range,
-            dictContents,
-            keywordDict.range,
-            openBrace.range,
-            closeBrace.range
-          )
-
-        | _ -> createUnparseableError node
+  match openBracketNode, listContents, closeBracketNode with
+  | Ok openBracket, Ok listContents, Ok closeBracket ->
+    ctor (node.range, listContents, openBracket.range, closeBracket.range)
+  | _ -> createUnparseableError node
 
 
-      let baseParseEnum
-        (parseFn: ParsedNode -> Stdlib.Result.Result<'a, WrittenTypes.Unparseable>)
-        (node: ParsedNode)
-        (ctor:
-          (Range * (Range * List<String>) * (Range * String) * List<'a> * Range)
-            -> 'a)
-        : Stdlib.Result.Result<'a, WrittenTypes.Unparseable> =
-        let typeNameNode =
-          findAndParseRequired node "type_name" Identifiers.parseQualifiedType
+let baseParseTuple
+  (parseFn: ParsedNode -> Stdlib.Result.Result<'a, WrittenTypes.Unparseable>)
+  (node: ParsedNode)
+  (ctor:
+    (Range *
+    'a *
+    Range *
+    'a *
+    List<Stdlib.Option.Option<Range> * 'a> *
+    Range *
+    Range)
+      -> 'a)
+  : Stdlib.Result.Result<'a, WrittenTypes.Unparseable> =
+  let openParenNode = findField node "symbol_left_paren"
+  let first = findAndParseRequired node "first" parseFn
+  let second = findAndParseRequired node "second" parseFn
 
-        let symbolDotNode = findField node "symbol_dot"
-        let caseNameNode = findField node "case_name"
+  let rest =
+    (findNodeByFieldName node "rest")
+    |> Stdlib.Option.map (fun restNode ->
+      restNode.children
+      |> Stdlib.List.chunkBySize 2L
+      |> (fun chunkedResult ->
+        match chunkedResult with
+        | Ok pairs ->
+          pairs
+          |> Stdlib.List.map (fun symbolRestPair ->
+            match symbolRestPair with
+            | [ symbol; restNode ] ->
+              match parseFn restNode with
+              | Ok rest -> (symbol.range, rest) |> Stdlib.Result.Result.Ok
+              | Error _ -> createUnparseableError restNode
 
-        let enumFieldsNode =
-          (findNodeByFieldName node "enum_fields")
-          |> Stdlib.Option.map (fun enumFieldsNode ->
-            enumFieldsNode.children
-            |> Stdlib.List.filter (fun c ->
-              c.typ != "indent" && c.typ != "dedent")
-            |> Stdlib.List.chunkBySize 2L
-            |> (fun chunkedResult ->
-              match chunkedResult with
-              | Ok pairs ->
-                pairs
-                |> Stdlib.List.map (fun contentSymbolPair ->
-                  match contentSymbolPair with
-                  | [ contentNode; symbol ] | [ contentNode ] -> parseFn contentNode)
-                |> Stdlib.Result.collect
-              | Error _ ->
-                createUnparseableError enumFieldsNode))
+            | [ restNode ] ->
+              match parseFn restNode with
+              | Ok rest ->
+                (Stdlib.Option.Option.None, rest) |> Stdlib.Result.Result.Ok
+              | Error _ -> createUnparseableError restNode
+            | _ -> createUnparseableError restNode)
+          |> Stdlib.Result.collect
+        | Error _ ->
+          createUnparseableError restNode))
 
-          |> Stdlib.Option.withDefault (Stdlib.Result.Result.Ok [])
+    |> Stdlib.Option.withDefault (Stdlib.Result.Result.Ok [])
 
-        match typeNameNode, symbolDotNode, caseNameNode, enumFieldsNode with
-        | Ok typeNameNode, Ok symbolDotNode, Ok caseNameNode, Ok enumFieldsNode ->
+  let commaSymbol = findField node "symbol_comma"
+  let closeParenNode = findField node "symbol_right_paren"
 
-          ctor (
-            node.range,
-            typeNameNode,
-            (caseNameNode.range, caseNameNode.text),
-            enumFieldsNode,
-            symbolDotNode.range
-          )
+  match openParenNode, first, commaSymbol, second, rest, closeParenNode with
+  | Ok openParen, Ok first, Ok symComma, Ok second, Ok rest, Ok closeParen ->
+    ctor (
+      node.range,
+      first,
+      symComma.range,
+      second,
+      rest,
+      openParen.range,
+      closeParen.range
+    )
+  | _ -> createUnparseableError node
 
-        | _ -> createUnparseableError node
+
+let baseParseDict
+  (parseFn: ParsedNode -> Stdlib.Result.Result<'a, WrittenTypes.Unparseable>)
+  (node: ParsedNode)
+  (ctor: (Range * List<Range * String * 'a> * Range * Range * Range) -> 'a)
+  : Stdlib.Result.Result<'a, WrittenTypes.Unparseable> =
+  let keywordDictNode = findField node "keyword_dict"
+  let openBraceNode = findField node "symbol_open_brace"
+
+  let dictContents =
+    node
+    |> findNodeByFieldName "content"
+    |> Stdlib.Option.map (fun contentsNode ->
+      contentsNode.children
+      |> Stdlib.List.chunkBySize 2L
+      |> (fun chunkedResult ->
+        match chunkedResult with
+        | Ok pairs ->
+          pairs
+          |> Stdlib.List.map (fun dictSeparatorPair ->
+            match dictSeparatorPair with
+            | [ dictPairNode; _separator ] | [ dictPairNode ] ->
+              // Note: `_separator` here is the `;` between key-value pairs
+              let keyNode =
+                findAndParseRequired dictPairNode "key" (fun node ->
+                  match node.typ with
+                  | "double_backtick_identifier" ->
+                    let key = node.text |> Stdlib.String.slice 2L -2L
+                    (node.range, key) |> Stdlib.Result.Result.Ok
+                  | _ ->
+                    (node.range, nameOrBlank (Parser.getText node))
+                    |> Stdlib.Result.Result.Ok)
+
+              let symbolEqualsNode = findField dictPairNode "symbol_equals"
+
+              let valueNode = findAndParseRequired dictPairNode "value" parseFn
+
+              match (keyNode, symbolEqualsNode, valueNode) with
+              | (Ok key, Ok symbolEquals, Ok value) ->
+                (symbolEquals.range, key, value) |> Stdlib.Result.Result.Ok
+              | _ -> createUnparseableError dictPairNode
+
+            | _ -> createUnparseableError contentsNode)
+          |> Stdlib.Result.collect
+        | Error _ ->
+          createUnparseableError contentsNode))
+
+    |> Stdlib.Option.withDefault (Stdlib.Result.Result.Ok [])
+
+  let closeBraceNode = findField node "symbol_close_brace"
+
+  match keywordDictNode, openBraceNode, dictContents, closeBraceNode with
+  | Ok keywordDict, Ok openBrace, Ok dictContents, Ok closeBrace ->
+    ctor (
+      node.range,
+      dictContents,
+      keywordDict.range,
+      openBrace.range,
+      closeBrace.range
+    )
+
+  | _ -> createUnparseableError node
+
+
+let baseParseEnum
+  (parseFn: ParsedNode -> Stdlib.Result.Result<'a, WrittenTypes.Unparseable>)
+  (node: ParsedNode)
+  (ctor:
+    (Range * (Range * List<String>) * (Range * String) * List<'a> * Range)
+      -> 'a)
+  : Stdlib.Result.Result<'a, WrittenTypes.Unparseable> =
+  let typeNameNode =
+    findAndParseRequired node "type_name" Identifiers.parseQualifiedType
+
+  let symbolDotNode = findField node "symbol_dot"
+  let caseNameNode = findField node "case_name"
+
+  let enumFieldsNode =
+    (findNodeByFieldName node "enum_fields")
+    |> Stdlib.Option.map (fun enumFieldsNode ->
+      enumFieldsNode.children
+      |> Stdlib.List.filter (fun c ->
+        c.typ != "indent" && c.typ != "dedent")
+      |> Stdlib.List.chunkBySize 2L
+      |> (fun chunkedResult ->
+        match chunkedResult with
+        | Ok pairs ->
+          pairs
+          |> Stdlib.List.map (fun contentSymbolPair ->
+            match contentSymbolPair with
+            | [ contentNode; symbol ] | [ contentNode ] -> parseFn contentNode)
+          |> Stdlib.Result.collect
+        | Error _ ->
+          createUnparseableError enumFieldsNode))
+
+    |> Stdlib.Option.withDefault (Stdlib.Result.Result.Ok [])
+
+  match typeNameNode, symbolDotNode, caseNameNode, enumFieldsNode with
+  | Ok typeNameNode, Ok symbolDotNode, Ok caseNameNode, Ok enumFieldsNode ->
+
+    ctor (
+      node.range,
+      typeNameNode,
+      (caseNameNode.range, caseNameNode.text),
+      enumFieldsNode,
+      symbolDotNode.range
+    )
+
+  | _ -> createUnparseableError node
