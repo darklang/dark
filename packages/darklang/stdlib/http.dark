@@ -1,164 +1,164 @@
-module Darklang =
-  module Stdlib =
-    module Http =
-      type Request =
-        { url: String
-          headers: List<String * String>
-          body: List<UInt8> }
-
-      module Request =
-        let queryParams (req: Stdlib.Http.Request) : List<String * String> =
-          match req.url |> Stdlib.String.split "?" with
-          | [] -> []
-          | _ :: queryParts ->
-            (Stdlib.String.join queryParts "")
-            |> Stdlib.String.split "&"
-            |> Stdlib.List.map (fun param ->
-              match Stdlib.String.split param "=" with
-              | [ key; value ] -> (key, value)
-              | _ -> (param, ""))
-
-        let queryParam
-          (req: Stdlib.Http.Request)
-          (key: String)
-          : Stdlib.Option.Option<String> =
-          let found =
-            (Stdlib.Http.Request.queryParams req)
-            |> Stdlib.List.filterMap (fun pair ->
-              match pair with
-              | (k, v) ->
-                if k == key then
-                  Stdlib.Option.Option.Some v
-                else
-                  Stdlib.Option.Option.None
-              | _ -> Stdlib.Option.Option.None)
-
-          match found with
-          | [] -> Stdlib.Option.Option.None
-          | [ v ] -> Stdlib.Option.Option.Some v
-          // TODO: something else?
-          | items -> Stdlib.Option.Option.Some(Stdlib.String.join items ",")
+module Darklang.Stdlib.Http
 
 
-      type Response =
-        { statusCode: Int64
-          headers: List<String * String>
-          body: List<UInt8> }
+type Request =
+  { url: String
+    headers: List<String * String>
+    body: List<UInt8> }
 
-      /// Returns a <type Response> that can be returned from an HTTP handler to
-      /// respond with HTTP status <param code> and <param response> body.
-      let response (body: List<UInt8>) (statusCode: Int64) : Stdlib.Http.Response =
-        Stdlib.Http.Response
-          { statusCode = statusCode
-            headers = []
-            body = body }
+module Request =
+  let queryParams (req: Stdlib.Http.Request) : List<String * String> =
+    match req.url |> Stdlib.String.split "?" with
+    | [] -> []
+    | _ :: queryParts ->
+      (Stdlib.String.join queryParts "")
+      |> Stdlib.String.split "&"
+      |> Stdlib.List.map (fun param ->
+        match Stdlib.String.split param "=" with
+        | [ key; value ] -> (key, value)
+        | _ -> (param, ""))
 
-      /// Returns a <type Response> that can be returned from an HTTP handler to
-      /// respond with HTTP status <param code>, <param response> body and
-      /// <param headers>.
-      let responseWithHeaders
-        (body: List<UInt8>)
-        (headers: List<String * String>)
-        (statusCode: Int64)
-        : Stdlib.Http.Response =
-        Stdlib.Http.Response
-          { statusCode = statusCode
-            headers = headers
-            body = body }
+  let queryParam
+    (req: Stdlib.Http.Request)
+    (key: String)
+    : Stdlib.Option.Option<String> =
+    let found =
+      (Stdlib.Http.Request.queryParams req)
+      |> Stdlib.List.filterMap (fun pair ->
+        match pair with
+        | (k, v) ->
+          if k == key then
+            Stdlib.Option.Option.Some v
+          else
+            Stdlib.Option.Option.None
+        | _ -> Stdlib.Option.Option.None)
 
-      /// Returns a <type Response> that can be returned from an HTTP handler to
-      /// respond with HTTP status 200 and <param response> body.
-      let success (body: List<UInt8>) : Stdlib.Http.Response =
-        Stdlib.Http.Response
-          { statusCode = 200L
-            headers = []
-            body = body }
-
-      /// Returns a <type Response> that can be returned from an HTTP handler to
-      /// respond with HTTP status 200, <param response> body, with the
-      /// Content-Type header set to "text/html; charset=utf-8".
-      let responseWithHtml
-        (body: String)
-        (statusCode: Int64)
-        : Stdlib.Http.Response =
-        Stdlib.Http.Response
-          { statusCode = statusCode
-            headers = [ ("Content-Type", "text/html; charset=utf-8") ]
-            body = body |> Stdlib.String.toBytes }
+    match found with
+    | [] -> Stdlib.Option.Option.None
+    | [ v ] -> Stdlib.Option.Option.Some v
+    // TODO: something else?
+    | items -> Stdlib.Option.Option.Some(Stdlib.String.join items ",")
 
 
-      /// Returns a <type Response> that can be returned from an HTTP handler to
-      /// respond with HTTP status 200, <param response> body, with the
-      /// Content-Type header set to "text/plain; charset=utf-8".
-      let responseWithText
-        (text: String)
-        (statusCode: Int64)
-        : Stdlib.Http.Response =
-        Stdlib.Http.Response
-          { statusCode = statusCode
-            headers = [ ("Content-Type", "text/plain; charset=utf-8") ]
-            body = Stdlib.String.toBytes text }
+type Response =
+  { statusCode: Int64
+    headers: List<String * String>
+    body: List<UInt8> }
 
-      /// Returns a <type Response> that can be returned from an HTTP handler to
-      /// respond with HTTP status 200, <param response> body, with the
-      /// Content-Type header set to "application/json".
-      let responseWithJson
-        (json: String)
-        (statusCode: Int64)
-        : Stdlib.Http.Response =
-        Stdlib.Http.Response
-          { statusCode = statusCode
-            headers = [ ("Content-Type", "application/json") ]
-            body = Stdlib.String.toBytes json }
+/// Returns a <type Response> that can be returned from an HTTP handler to
+/// respond with HTTP status <param code> and <param response> body.
+let response (body: List<UInt8>) (statusCode: Int64) : Stdlib.Http.Response =
+  Stdlib.Http.Response
+    { statusCode = statusCode
+      headers = []
+      body = body }
 
-      /// Returns a <type Response> that can be returned from an HTTP handler to
-      /// respond with {{302}} status code and redirect to <param url>.
-      let redirectTo (url: String) : Stdlib.Http.Response =
-        Stdlib.Http.Response
-          { statusCode = 302L
-            headers = [ ("Location", url) ]
-            body = [] }
+/// Returns a <type Response> that can be returned from an HTTP handler to
+/// respond with HTTP status <param code>, <param response> body and
+/// <param headers>.
+let responseWithHeaders
+  (body: List<UInt8>)
+  (headers: List<String * String>)
+  (statusCode: Int64)
+  : Stdlib.Http.Response =
+  Stdlib.Http.Response
+    { statusCode = statusCode
+      headers = headers
+      body = body }
 
-      /// Returns a <type Response> that can be returned from an HTTP handler to
-      /// respond with {{400}} status code and <param response> body.
-      let badRequest (error: String) : Stdlib.Http.Response =
-        Stdlib.Http.Response
-          { statusCode = 400L
-            headers = []
-            body = Stdlib.String.toBytes error }
+/// Returns a <type Response> that can be returned from an HTTP handler to
+/// respond with HTTP status 200 and <param response> body.
+let success (body: List<UInt8>) : Stdlib.Http.Response =
+  Stdlib.Http.Response
+    { statusCode = 200L
+      headers = []
+      body = body }
 
-      /// Returns a <type Response> that can be returned from an HTTP handler to
-      /// respond with {{404}} status code.
-      let notFound () : Stdlib.Http.Response =
-        Stdlib.Http.Response
-          { statusCode = 404L
-            headers = []
-            body = [] }
+/// Returns a <type Response> that can be returned from an HTTP handler to
+/// respond with HTTP status 200, <param response> body, with the
+/// Content-Type header set to "text/html; charset=utf-8".
+let responseWithHtml
+  (body: String)
+  (statusCode: Int64)
+  : Stdlib.Http.Response =
+  Stdlib.Http.Response
+    { statusCode = statusCode
+      headers = [ ("Content-Type", "text/html; charset=utf-8") ]
+      body = body |> Stdlib.String.toBytes }
 
-      /// Returns a <type Response> that can be returned from an HTTP handler to
-      /// respond with {{401}} status code.
-      let unauthorized () : Stdlib.Http.Response =
-        Stdlib.Http.Response
-          { statusCode = 401L
-            headers = []
-            body = [] }
 
-      /// Returns a <type Response> that can be returned from an HTTP handler to
-      /// respond with {{403}} status code.
-      let forbidden () : Stdlib.Http.Response =
-        Stdlib.Http.Response
-          { statusCode = 403L
-            headers = []
-            body = [] }
+/// Returns a <type Response> that can be returned from an HTTP handler to
+/// respond with HTTP status 200, <param response> body, with the
+/// Content-Type header set to "text/plain; charset=utf-8".
+let responseWithText
+  (text: String)
+  (statusCode: Int64)
+  : Stdlib.Http.Response =
+  Stdlib.Http.Response
+    { statusCode = statusCode
+      headers = [ ("Content-Type", "text/plain; charset=utf-8") ]
+      body = Stdlib.String.toBytes text }
 
-      type Cookie =
-        { expires: DateTime
-          maxAge: Int64
-          domain: String
-          path: String
-          secure: Bool
-          httpOnly: Bool
-          sameSite: String }
+/// Returns a <type Response> that can be returned from an HTTP handler to
+/// respond with HTTP status 200, <param response> body, with the
+/// Content-Type header set to "application/json".
+let responseWithJson
+  (json: String)
+  (statusCode: Int64)
+  : Stdlib.Http.Response =
+  Stdlib.Http.Response
+    { statusCode = statusCode
+      headers = [ ("Content-Type", "application/json") ]
+      body = Stdlib.String.toBytes json }
+
+/// Returns a <type Response> that can be returned from an HTTP handler to
+/// respond with {{302}} status code and redirect to <param url>.
+let redirectTo (url: String) : Stdlib.Http.Response =
+  Stdlib.Http.Response
+    { statusCode = 302L
+      headers = [ ("Location", url) ]
+      body = [] }
+
+/// Returns a <type Response> that can be returned from an HTTP handler to
+/// respond with {{400}} status code and <param response> body.
+let badRequest (error: String) : Stdlib.Http.Response =
+  Stdlib.Http.Response
+    { statusCode = 400L
+      headers = []
+      body = Stdlib.String.toBytes error }
+
+/// Returns a <type Response> that can be returned from an HTTP handler to
+/// respond with {{404}} status code.
+let notFound () : Stdlib.Http.Response =
+  Stdlib.Http.Response
+    { statusCode = 404L
+      headers = []
+      body = [] }
+
+/// Returns a <type Response> that can be returned from an HTTP handler to
+/// respond with {{401}} status code.
+let unauthorized () : Stdlib.Http.Response =
+  Stdlib.Http.Response
+    { statusCode = 401L
+      headers = []
+      body = [] }
+
+/// Returns a <type Response> that can be returned from an HTTP handler to
+/// respond with {{403}} status code.
+let forbidden () : Stdlib.Http.Response =
+  Stdlib.Http.Response
+    { statusCode = 403L
+      headers = []
+      body = [] }
+
+type Cookie =
+  { expires: DateTime
+    maxAge: Int64
+    domain: String
+    path: String
+    secure: Bool
+    httpOnly: Bool
+    sameSite: String }
 
 // TODO: this references several things that don't actually exist
 // (e.g. Stdlib.DateTime.dayOfWeek)

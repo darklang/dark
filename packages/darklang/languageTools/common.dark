@@ -1,27 +1,28 @@
-module Darklang =
-  module LanguageTools =
-    // TODO: should this be UInt64?
-    type ID = Int64
+module Darklang.LanguageTools
 
-    type TLID = UInt64
 
-    type Sign =
-      | Positive
-      | Negative
+// TODO: should this be UInt64?
+type ID = Int64
 
-    type BuiltinFunctionParameter =
-      { name: String
-        ``type``: RuntimeTypes.TypeReference }
+type TLID = UInt64
 
-    /// A Darklang builtin function
-    type BuiltinFunction =
-      { name: RuntimeTypes.FQFnName.Builtin
-        description: String
-        parameters: List<BuiltinFunctionParameter>
-        returnType: RuntimeTypes.TypeReference }
+type Sign =
+  | Positive
+  | Negative
 
-    /// A Darklang builtin value
-    type BuiltinValue =
-      { name: RuntimeTypes.FQValueName.Builtin
-        description: String
-        ``type``: RuntimeTypes.TypeReference }
+type BuiltinFunctionParameter =
+  { name: String
+    ``type``: RuntimeTypes.TypeReference }
+
+/// A Darklang builtin function
+type BuiltinFunction =
+  { name: RuntimeTypes.FQFnName.Builtin
+    description: String
+    parameters: List<BuiltinFunctionParameter>
+    returnType: RuntimeTypes.TypeReference }
+
+/// A Darklang builtin value
+type BuiltinValue =
+  { name: RuntimeTypes.FQValueName.Builtin
+    description: String
+    ``type``: RuntimeTypes.TypeReference }

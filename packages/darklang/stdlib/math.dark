@@ -1,93 +1,92 @@
-module Darklang =
-  module Stdlib =
-    module Math =
-
-      /// Returns an approximation for the mathematical constant {{π}},
-      /// the ratio of a circle's circumference to its diameter.
-      let pi = 3.141592653589793
+module Darklang.Stdlib.Math
 
 
-      /// Returns an approximation for the mathematical constant {{τ}}, the number of
-      /// radians in one turn. Equivalent to {{Float.multiply Stdlib.Math.pi 2}}.
-      let tau = 6.283185307179586
+/// Returns an approximation for the mathematical constant {{π}},
+/// the ratio of a circle's circumference to its diameter.
+let pi = 3.141592653589793
 
 
-      /// Returns the equivalent of <param angleInDegrees> in radians, the unit used
-      /// by all of Dark's trigonometry functions.
-      let degrees (angleInDegrees: Float) : Float =
-        (Stdlib.Float.multiply angleInDegrees Stdlib.Math.pi)
-        |> Stdlib.Float.divide 180.0
+/// Returns an approximation for the mathematical constant {{τ}}, the number of
+/// radians in one turn. Equivalent to {{Float.multiply Stdlib.Math.pi 2}}.
+let tau = 6.283185307179586
 
 
-      /// Returns the equivalent of <param angleInTurns> in radians, the unit used by all of
-      /// Dark's trigonometry functions.
-      let turns (angleInTurns: Float) : Float =
-        Stdlib.Float.multiply Stdlib.Math.tau angleInTurns
+/// Returns the equivalent of <param angleInDegrees> in radians, the unit used
+/// by all of Dark's trigonometry functions.
+let degrees (angleInDegrees: Float) : Float =
+  (Stdlib.Float.multiply angleInDegrees Stdlib.Math.pi)
+  |> Stdlib.Float.divide 180.0
 
 
-      /// Returns <param angleInRadians> in radians, the unit used by all of Dark's
-      /// trigonometry functions.
-      /// There are {{Float.multiply 2 Math.pi}} radians in a circle.
-      let radians (angleInRadians: Float) : Float = angleInRadians
+/// Returns the equivalent of <param angleInTurns> in radians, the unit used by all of
+/// Dark's trigonometry functions.
+let turns (angleInTurns: Float) : Float =
+  Stdlib.Float.multiply Stdlib.Math.tau angleInTurns
 
 
-      /// Returns the cosine of the given <param angleInRadians>.
-      /// One interpretation of the result relates to a right triangle: the cosine is
-      /// the ratio of the lengths of the side adjacent to the angle and the hypotenuse.
-      let cos (angleInRadians: Float) : Float = Builtin.mathCos angleInRadians
+/// Returns <param angleInRadians> in radians, the unit used by all of Dark's
+/// trigonometry functions.
+/// There are {{Float.multiply 2 Math.pi}} radians in a circle.
+let radians (angleInRadians: Float) : Float = angleInRadians
 
 
-      /// Returns the sine of the given <param angleInRadians>.
-      /// One interpretation of the result relates to a right triangle: the sine is
-      /// the ratio of the lengths of the side opposite the angle and the hypotenuse
-      let sin (angleInRadians: Float) : Float = Builtin.mathSin angleInRadians
+/// Returns the cosine of the given <param angleInRadians>.
+/// One interpretation of the result relates to a right triangle: the cosine is
+/// the ratio of the lengths of the side adjacent to the angle and the hypotenuse.
+let cos (angleInRadians: Float) : Float = Builtin.mathCos angleInRadians
 
 
-      /// Returns the tangent of the given <param angleInRadians>.
-      /// One interpretation of the result relates to a right triangle: the tangent is
-      /// the ratio of the lengths of the side opposite the angle and the side
-      /// adjacent to the angle.
-      let tan (angleInRadians: Float) : Float = Builtin.mathTan angleInRadians
+/// Returns the sine of the given <param angleInRadians>.
+/// One interpretation of the result relates to a right triangle: the sine is
+/// the ratio of the lengths of the side opposite the angle and the hypotenuse
+let sin (angleInRadians: Float) : Float = Builtin.mathSin angleInRadians
 
 
-      /// Returns the arc cosine of <param ratio>, as an <type Option>.
-      /// If <param ratio> is in the inclusive range {{[-1.0, 1.0]}}, returns {{Just
-      /// result}} where <var result> is in radians and is between {{0.0}} and <fn
-      /// Math.pi>. Otherwise, returns {{Nothing}}.
-      /// This function is the inverse of <fn Math.cos>.
-      let acos (ratio: Float) : Stdlib.Option.Option<Float> = Builtin.mathAcos ratio
+/// Returns the tangent of the given <param angleInRadians>.
+/// One interpretation of the result relates to a right triangle: the tangent is
+/// the ratio of the lengths of the side opposite the angle and the side
+/// adjacent to the angle.
+let tan (angleInRadians: Float) : Float = Builtin.mathTan angleInRadians
 
 
-      /// Returns the arc sine of <param ratio>, as an <type Option>.
-      /// If <param ratio> is in the inclusive range {{[-1.0, 1.0]}}, returns {{Just
-      /// result}} where <var result> is in radians and is between {{-Math.pi/2}} and
-      /// {{Math.pi/2}}. Otherwise, returns {{Nothing}}.
-      /// This function is the inverse of <fn Math.sin>.
-      let asin (ratio: Float) : Stdlib.Option.Option<Float> = Builtin.mathAsin ratio
+/// Returns the arc cosine of <param ratio>, as an <type Option>.
+/// If <param ratio> is in the inclusive range {{[-1.0, 1.0]}}, returns {{Just
+/// result}} where <var result> is in radians and is between {{0.0}} and <fn
+/// Math.pi>. Otherwise, returns {{Nothing}}.
+/// This function is the inverse of <fn Math.cos>.
+let acos (ratio: Float) : Stdlib.Option.Option<Float> = Builtin.mathAcos ratio
 
 
-      /// Returns the arc tangent of <param ratio>. The result is in radians and is between
-      /// {{-Math.pi/2}} and {{Math.pi/2}}.
-      /// This function is the inverse of <fn Math.tan>. Use <fn Math.atan2> to expand the
-      /// output range, if you know the numerator and denominator of <param ratio>.
-      let atan (ratio: Float) : Float = Builtin.mathAtan ratio
+/// Returns the arc sine of <param ratio>, as an <type Option>.
+/// If <param ratio> is in the inclusive range {{[-1.0, 1.0]}}, returns {{Just
+/// result}} where <var result> is in radians and is between {{-Math.pi/2}} and
+/// {{Math.pi/2}}. Otherwise, returns {{Nothing}}.
+/// This function is the inverse of <fn Math.sin>.
+let asin (ratio: Float) : Stdlib.Option.Option<Float> = Builtin.mathAsin ratio
 
 
-      /// Returns the arc tangent of {{y / x}}, using the signs of <param y> and
-      /// <param x> to determine the quadrant of the result.
-      /// The result is in radians and is between {{-Math.pi}} and {{Math.pi}}.
-      /// Consider <fn Math.atan> if you know the value of {{y / x}} but not the
-      /// individual values <param x> and <param y>.
-      let atan2 (y: Float) (x: Float) : Float = Builtin.mathAtan2 y x
+/// Returns the arc tangent of <param ratio>. The result is in radians and is between
+/// {{-Math.pi/2}} and {{Math.pi/2}}.
+/// This function is the inverse of <fn Math.tan>. Use <fn Math.atan2> to expand the
+/// output range, if you know the numerator and denominator of <param ratio>.
+let atan (ratio: Float) : Float = Builtin.mathAtan ratio
 
 
-      /// Returns the hyperbolic cosine of <param angleInRadians>
-      let cosh (angleInRadians: Float) : Float = Builtin.mathCosh angleInRadians
+/// Returns the arc tangent of {{y / x}}, using the signs of <param y> and
+/// <param x> to determine the quadrant of the result.
+/// The result is in radians and is between {{-Math.pi}} and {{Math.pi}}.
+/// Consider <fn Math.atan> if you know the value of {{y / x}} but not the
+/// individual values <param x> and <param y>.
+let atan2 (y: Float) (x: Float) : Float = Builtin.mathAtan2 y x
 
 
-      /// Returns the hyperbolic sine of <param angleInRadians>
-      let sinh (angleInRadians: Float) : Float = Builtin.mathSinh angleInRadians
+/// Returns the hyperbolic cosine of <param angleInRadians>
+let cosh (angleInRadians: Float) : Float = Builtin.mathCosh angleInRadians
 
 
-      /// Returns the hyperbolic tangent of <param angleInRadians>
-      let tanh (angleInRadians: Float) : Float = Builtin.mathTanh angleInRadians
+/// Returns the hyperbolic sine of <param angleInRadians>
+let sinh (angleInRadians: Float) : Float = Builtin.mathSinh angleInRadians
+
+
+/// Returns the hyperbolic tangent of <param angleInRadians>
+let tanh (angleInRadians: Float) : Float = Builtin.mathTanh angleInRadians

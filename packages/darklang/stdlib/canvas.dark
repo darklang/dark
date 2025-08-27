@@ -1,5 +1,6 @@
-module Darklang =
-  module Canvas =
-    type Program =
-      { dbs: List<LanguageTools.ProgramTypes.DB>
-        handlers: List<LanguageTools.ProgramTypes.Handler.Handler> }
+module Darklang.Canvas
+
+
+type Program =
+  { dbs: List<LanguageTools.ProgramTypes.DB>
+    handlers: List<LanguageTools.ProgramTypes.Handler.Handler> }

@@ -1,54 +1,53 @@
-module Darklang =
-  /// Only for internal Darklang use, to keep everything running
-  module Internal =
+/// Only for internal Darklang use, to keep everything running
+module Darklang.Internal
 
-    module Canvas =
-      type Secret =
-        { name: String
-          value: String
-          version: Int32 }
+module Canvas =
+  type Secret =
+    { name: String
+      value: String
+      version: Int32 }
 
-      /// 404 record
-      type F404 =
-        { space: String
-          path: String
-          modifier: String
-          timestamp: DateTime
-          traceID: Uuid }
+  /// 404 record
+  type F404 =
+    { space: String
+      path: String
+      modifier: String
+      timestamp: DateTime
+      traceID: Uuid }
 
-      /// A program on a canvas
-      type Program =
-        { id: Uuid
+  /// A program on a canvas
+  type Program =
+    { id: Uuid
 
-        // TODO:
-        //dbs: List<LanguageTools.ProgramTypes.DB>
-        //httpHandlers: List<LanguageTools.ProgramTypes.Handler.Handler>
-        }
-
-
-    module Infra =
-      /// Size info for our internal SQL tables
-      type TableSize =
-        {
-          /// Number of bytes on disk
-          disk: Int64
-
-          /// Number of rows
-          rows: Int64
-
-          /// Disk space, in human-readable form
-          diskHuman: String
-
-          /// Number of rows, in human-readable form
-          rowsHuman: String
-        }
+    // TODO:
+    //dbs: List<LanguageTools.ProgramTypes.DB>
+    //httpHandlers: List<LanguageTools.ProgramTypes.Handler.Handler>
+    }
 
 
-    module Worker =
-      /// A scheduling rule for a worker
-      type SchedulingRule =
-        { id: Uuid
-          ruleType: String
-          canvasID: Uuid
-          handlerName: String
-          createdAt: DateTime }
+module Infra =
+  /// Size info for our internal SQL tables
+  type TableSize =
+    {
+      /// Number of bytes on disk
+      disk: Int64
+
+      /// Number of rows
+      rows: Int64
+
+      /// Disk space, in human-readable form
+      diskHuman: String
+
+      /// Number of rows, in human-readable form
+      rowsHuman: String
+    }
+
+
+module Worker =
+  /// A scheduling rule for a worker
+  type SchedulingRule =
+    { id: Uuid
+      ruleType: String
+      canvasID: Uuid
+      handlerName: String
+      createdAt: DateTime }

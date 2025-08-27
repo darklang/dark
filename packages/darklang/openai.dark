@@ -1,274 +1,273 @@
-module Darklang =
-  module OpenAI =
-    module Config =
+module Darklang.OpenAI
 
-      // TODO: This should be a secret `Secret<String>`
-      let getHeaders (apiKey: String) : List<(String * String)> =
-        [ ("authorization", "Bearer " ++ apiKey)
-          ("content-type", "application/json") ]
+module Config =
+  // TODO: This should be a secret `Secret<String>`
+  let getHeaders (apiKey: String) : List<(String * String)> =
+    [ ("authorization", "Bearer " ++ apiKey)
+      ("content-type", "application/json") ]
 
-    module Completion =
-      type Request =
-        { model: String
-          prompt: String
-          max_tokens: Int64
-          temperature: Float }
+module Completion =
+  type Request =
+    { model: String
+      prompt: String
+      max_tokens: Int64
+      temperature: Float }
 
-      type ResponseChoice = { text: String }
+  type ResponseChoice = { text: String }
 
-      type Response =
-        { id: String
-          object: String
-          created: Int64
-          model: String
-          choices: List<ResponseChoice> }
-
-
-      let simple
-        (apiKey: String)
-        (prompt: String)
-        : Stdlib.Result.Result<String, String> =
-        let openAIRequest =
-          Request
-            { model = "gpt-3.5-turbo-0125"
-              prompt = prompt
-              max_tokens = 700L
-              temperature = 0.7 }
-
-        let reqBody = Builtin.jsonSerialize<Request> openAIRequest
-
-        let headers = Config.getHeaders apiKey
-
-        let openAIResponse =
-          Stdlib.HttpClient.request
-            "POST"
-            "https://api.openai.com/v1/completions"
-            headers
-            (Stdlib.String.toBytes reqBody)
-
-        match openAIResponse with
-        | Ok r ->
-          match
-            Builtin.jsonParse<Response> (
-              Stdlib.String.fromBytesWithReplacement r.body
-            )
-          with
-          | Ok r ->
-            match Stdlib.List.head r.choices with
-            | Some c -> Stdlib.Result.Result.Ok c.text
-            | None -> Stdlib.Result.Result.Error "No choices returned"
-        | Error err ->
-          Stdlib.Result.Result.Error(
-            "Couldn't parse OpenAI completion response - " ++ err
-          )
+  type Response =
+    { id: String
+      object: String
+      created: Int64
+      model: String
+      choices: List<ResponseChoice> }
 
 
-    module ChatCompletion =
-      type RequestMessage = { role: String; content: String }
+  let simple
+    (apiKey: String)
+    (prompt: String)
+    : Stdlib.Result.Result<String, String> =
+    let openAIRequest =
+      Request
+        { model = "gpt-3.5-turbo-0125"
+          prompt = prompt
+          max_tokens = 700L
+          temperature = 0.7 }
 
-      type Request =
-        { model: String
-          max_tokens: Int64
-          temperature: Float
-          messages: List<RequestMessage> }
+    let reqBody = Builtin.jsonSerialize<Request> openAIRequest
 
-      type ResponseChoiceMessage = { content: String }
-      type ResponseChoice = { message: ResponseChoiceMessage }
-      type Response = { choices: List<ResponseChoice> }
+    let headers = Config.getHeaders apiKey
 
+    let openAIResponse =
+      Stdlib.HttpClient.request
+        "POST"
+        "https://api.openai.com/v1/completions"
+        headers
+        (Stdlib.String.toBytes reqBody)
 
-      type CompletionOptions =
-        { model: String
-          messages: List<RequestMessage>
-          temperature: Float
-          max_tokens: Int64
-          top_p: Float
-          n: Int64
-          stream: Bool }
-
-      let completionOptionsDefault () : CompletionOptions =
-        CompletionOptions
-          { model = "gpt-3.5-turbo-0125"
-            messages = [ RequestMessage { role = "user"; content = "test" } ]
-            temperature = 0.7
-            max_tokens = 700L
-            top_p = 1.0
-            n = 1L
-            stream = false }
-
-
-      let completionWithOption
-        (apiKey: String)
-        (prompt: String)
-        (options: Stdlib.Option.Option<CompletionOptions>)
-        : Stdlib.Result.Result<String, String> =
-        let options =
-          match options with
-          | Some o ->
-            { o with
-                messages = [ RequestMessage { role = "user"; content = prompt } ] }
-          | None ->
-            { (completionOptionsDefault ()) with
-                messages = [ RequestMessage { role = "user"; content = prompt } ] }
-
-        let openAIRequest = options
-
-        let reqBody = Builtin.jsonSerialize<CompletionOptions> openAIRequest
-
-        let headers = Config.getHeaders apiKey
-
-        let openAIResponse =
-          Stdlib.HttpClient.request
-            "POST"
-            "https://api.openai.com/v1/chat/completions"
-            headers
-            (Stdlib.String.toBytes reqBody)
-
-        match openAIResponse with
-        | Ok r ->
-          match
-            Builtin.jsonParse<Response> (
-              Stdlib.String.fromBytesWithReplacement r.body
-            )
-          with
-          | Ok r ->
-            match Stdlib.List.head r.choices with
-            | Some c -> Stdlib.Result.Result.Ok c.message.content
-            | None -> Stdlib.Result.Result.Error "No choices returned"
-          | Error err ->
-            Stdlib.Result.Result.Error(
-              "Couldn't parse OpenAI completion response - " ++ err
-            )
-        | Error e -> Stdlib.Result.Result.Error("OpenAI API request failed\n" ++ e)
+    match openAIResponse with
+    | Ok r ->
+      match
+        Builtin.jsonParse<Response> (
+          Stdlib.String.fromBytesWithReplacement r.body
+        )
+      with
+      | Ok r ->
+        match Stdlib.List.head r.choices with
+        | Some c -> Stdlib.Result.Result.Ok c.text
+        | None -> Stdlib.Result.Result.Error "No choices returned"
+    | Error err ->
+      Stdlib.Result.Result.Error(
+        "Couldn't parse OpenAI completion response - " ++ err
+      )
 
 
+module ChatCompletion =
+  type RequestMessage = { role: String; content: String }
 
-      let completion
-        (apiKey: String)
-        (prompt: String)
-        : Stdlib.Result.Result<String, String> =
-        let openAIRequest =
-          Request
-            { model = "gpt-3.5-turbo"
-              max_tokens = 700L
-              temperature = 0.7
-              messages = [ RequestMessage { role = "user"; content = prompt } ] }
+  type Request =
+    { model: String
+      max_tokens: Int64
+      temperature: Float
+      messages: List<RequestMessage> }
 
-        let reqBody = Builtin.jsonSerialize<Request> openAIRequest
-
-        let headers = Darklang.OpenAI.Config.getHeaders apiKey
-
-        let openAIResponse =
-          Stdlib.HttpClient.request
-            "POST"
-            "https://api.openai.com/v1/chat/completions"
-            headers
-            (Stdlib.String.toBytes reqBody)
-
-        match openAIResponse with
-        | Ok r ->
-          match
-            Builtin.jsonParse<Response> (
-              Stdlib.String.fromBytesWithReplacement r.body
-            )
-          with
-          | Ok r ->
-            match Stdlib.List.head r.choices with
-            | Some c -> Stdlib.Result.Result.Ok c.message.content
-            | None -> Stdlib.Result.Result.Error "No choices returned"
-          | Error err ->
-            Stdlib.Result.Result.Error(
-              "Couldn't parse OpenAI completion response - " ++ err
-            )
-        | Error e -> Stdlib.Result.Result.Error("OpenAI API request failed\n" ++ e)
+  type ResponseChoiceMessage = { content: String }
+  type ResponseChoice = { message: ResponseChoiceMessage }
+  type Response = { choices: List<ResponseChoice> }
 
 
-    module ImageGeneration =
-      type Request = { prompt: String; size: String }
+  type CompletionOptions =
+    { model: String
+      messages: List<RequestMessage>
+      temperature: Float
+      max_tokens: Int64
+      top_p: Float
+      n: Int64
+      stream: Bool }
 
-      type ResponseData = { url: String }
-      type Response = { data: List<ResponseData> }
-
-      /// Returns a url to the image
-      ///
-      /// CLEANUP should it return the image itself instead?
-      let imageGeneration
-        (apiKey: String)
-        (prompt: String)
-        : Stdlib.Result.Result<String, String> =
-
-        let openAIRequest = Request { prompt = prompt; size = "256x256" }
-
-        let reqBody = Builtin.jsonSerialize<Request> openAIRequest
-
-        let headers = Config.getHeaders apiKey
-
-        let openAIResponse =
-          Stdlib.HttpClient.request
-            "POST"
-            "https://api.openai.com/v1/images/generations"
-            headers
-            (Stdlib.String.toBytes reqBody)
-
-        match openAIResponse with
-        | Ok r ->
-          match
-            Builtin.jsonParse<Response> (
-              Stdlib.String.fromBytesWithReplacement r.body
-            )
-          with
-          | Ok r ->
-            match Stdlib.List.head r.data with
-            | Some d -> Stdlib.Result.Result.Ok d.url
-            | None -> Stdlib.Result.Result.Error "No data returned"
-          | Error err ->
-            Stdlib.Result.Result.Error(
-              "Couldn't parse open ai image generation response - " ++ err
-            )
-        | Error e -> Stdlib.Result.Result.Error("OpenAI API request failed\n" ++ e)
+  let completionOptionsDefault () : CompletionOptions =
+    CompletionOptions
+      { model = "gpt-3.5-turbo-0125"
+        messages = [ RequestMessage { role = "user"; content = "test" } ]
+        temperature = 0.7
+        max_tokens = 700L
+        top_p = 1.0
+        n = 1L
+        stream = false }
 
 
-    module Model =
-      type Request = { model: String }
+  let completionWithOption
+    (apiKey: String)
+    (prompt: String)
+    (options: Stdlib.Option.Option<CompletionOptions>)
+    : Stdlib.Result.Result<String, String> =
+    let options =
+      match options with
+      | Some o ->
+        { o with
+            messages = [ RequestMessage { role = "user"; content = prompt } ] }
+      | None ->
+        { (completionOptionsDefault ()) with
+            messages = [ RequestMessage { role = "user"; content = prompt } ] }
 
-      type Response =
-        { id: String
-          object: String
-          created: Int64
-          model: String }
+    let openAIRequest = options
+
+    let reqBody = Builtin.jsonSerialize<CompletionOptions> openAIRequest
+
+    let headers = Config.getHeaders apiKey
+
+    let openAIResponse =
+      Stdlib.HttpClient.request
+        "POST"
+        "https://api.openai.com/v1/chat/completions"
+        headers
+        (Stdlib.String.toBytes reqBody)
+
+    match openAIResponse with
+    | Ok r ->
+      match
+        Builtin.jsonParse<Response> (
+          Stdlib.String.fromBytesWithReplacement r.body
+        )
+      with
+      | Ok r ->
+        match Stdlib.List.head r.choices with
+        | Some c -> Stdlib.Result.Result.Ok c.message.content
+        | None -> Stdlib.Result.Result.Error "No choices returned"
+      | Error err ->
+        Stdlib.Result.Result.Error(
+          "Couldn't parse OpenAI completion response - " ++ err
+        )
+    | Error e -> Stdlib.Result.Result.Error("OpenAI API request failed\n" ++ e)
 
 
-      let retrieveModel
-        (apiKey: String)
-        (model: String)
-        : Stdlib.Result.Result<String, String> =
 
-        let headers = Config.getHeaders apiKey
+  let completion
+    (apiKey: String)
+    (prompt: String)
+    : Stdlib.Result.Result<String, String> =
+    let openAIRequest =
+      Request
+        { model = "gpt-3.5-turbo"
+          max_tokens = 700L
+          temperature = 0.7
+          messages = [ RequestMessage { role = "user"; content = prompt } ] }
 
-        let modelResponse =
-          Stdlib.HttpClient.request
-            "GET"
-            $"https://api.openai.com/v1/models/{model}"
-            headers
-            []
+    let reqBody = Builtin.jsonSerialize<Request> openAIRequest
 
-        match modelResponse with
-        | Ok r ->
-          r.body |> Stdlib.String.fromBytesWithReplacement |> Stdlib.Result.Result.Ok
-        | Error e -> Stdlib.Result.Result.Error("OpenAI API request failed\n" ++ e)
+    let headers = Darklang.OpenAI.Config.getHeaders apiKey
+
+    let openAIResponse =
+      Stdlib.HttpClient.request
+        "POST"
+        "https://api.openai.com/v1/chat/completions"
+        headers
+        (Stdlib.String.toBytes reqBody)
+
+    match openAIResponse with
+    | Ok r ->
+      match
+        Builtin.jsonParse<Response> (
+          Stdlib.String.fromBytesWithReplacement r.body
+        )
+      with
+      | Ok r ->
+        match Stdlib.List.head r.choices with
+        | Some c -> Stdlib.Result.Result.Ok c.message.content
+        | None -> Stdlib.Result.Result.Error "No choices returned"
+      | Error err ->
+        Stdlib.Result.Result.Error(
+          "Couldn't parse OpenAI completion response - " ++ err
+        )
+    | Error e -> Stdlib.Result.Result.Error("OpenAI API request failed\n" ++ e)
 
 
-      let getListOfModels
-        (apiKey: String)
-        : Stdlib.Result.Result<List<String>, String> =
-        let modelResponse =
-          Stdlib.HttpClient.request
-            "GET"
-            "https://api.openai.com/v1/models"
-            (Config.getHeaders apiKey)
-            []
+module ImageGeneration =
+  type Request = { prompt: String; size: String }
 
-        match modelResponse with
-        | Ok r ->
-          r.body |> Stdlib.String.fromBytesWithReplacement |> Stdlib.Result.Result.Ok
-        | Error e -> Stdlib.Result.Result.Error("OpenAI API request failed\n" ++ e)
+  type ResponseData = { url: String }
+  type Response = { data: List<ResponseData> }
+
+  /// Returns a url to the image
+  ///
+  /// CLEANUP should it return the image itself instead?
+  let imageGeneration
+    (apiKey: String)
+    (prompt: String)
+    : Stdlib.Result.Result<String, String> =
+
+    let openAIRequest = Request { prompt = prompt; size = "256x256" }
+
+    let reqBody = Builtin.jsonSerialize<Request> openAIRequest
+
+    let headers = Config.getHeaders apiKey
+
+    let openAIResponse =
+      Stdlib.HttpClient.request
+        "POST"
+        "https://api.openai.com/v1/images/generations"
+        headers
+        (Stdlib.String.toBytes reqBody)
+
+    match openAIResponse with
+    | Ok r ->
+      match
+        Builtin.jsonParse<Response> (
+          Stdlib.String.fromBytesWithReplacement r.body
+        )
+      with
+      | Ok r ->
+        match Stdlib.List.head r.data with
+        | Some d -> Stdlib.Result.Result.Ok d.url
+        | None -> Stdlib.Result.Result.Error "No data returned"
+      | Error err ->
+        Stdlib.Result.Result.Error(
+          "Couldn't parse open ai image generation response - " ++ err
+        )
+    | Error e -> Stdlib.Result.Result.Error("OpenAI API request failed\n" ++ e)
+
+
+module Model =
+  type Request = { model: String }
+
+  type Response =
+    { id: String
+      object: String
+      created: Int64
+      model: String }
+
+
+  let retrieveModel
+    (apiKey: String)
+    (model: String)
+    : Stdlib.Result.Result<String, String> =
+
+    let headers = Config.getHeaders apiKey
+
+    let modelResponse =
+      Stdlib.HttpClient.request
+        "GET"
+        $"https://api.openai.com/v1/models/{model}"
+        headers
+        []
+
+    match modelResponse with
+    | Ok r ->
+      r.body |> Stdlib.String.fromBytesWithReplacement |> Stdlib.Result.Result.Ok
+    | Error e -> Stdlib.Result.Result.Error("OpenAI API request failed\n" ++ e)
+
+
+  let getListOfModels
+    (apiKey: String)
+    : Stdlib.Result.Result<List<String>, String> =
+    let modelResponse =
+      Stdlib.HttpClient.request
+        "GET"
+        "https://api.openai.com/v1/models"
+        (Config.getHeaders apiKey)
+        []
+
+    match modelResponse with
+    | Ok r ->
+      r.body |> Stdlib.String.fromBytesWithReplacement |> Stdlib.Result.Result.Ok
+    | Error e -> Stdlib.Result.Result.Error("OpenAI API request failed\n" ++ e)

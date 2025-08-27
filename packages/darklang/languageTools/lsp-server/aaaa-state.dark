@@ -1,20 +1,20 @@
-module Darklang =
-  module LanguageTools =
-    module LspServer =
-      type DocumentInScope =
-        { uri: String
-          text: String
-          parsed: Stdlib.Result.Result<WrittenTypes.ParsedFile, String>
-          parsedToPT: Stdlib.Option.Option<ProgramTypes.SourceFile.SourceFile> }
+module Darklang.LanguageTools.LspServer
 
-      type LspState =
-        {
-          initialized: Bool
 
-          shouldShutdown: Bool
+type DocumentInScope =
+  { uri: String
+    text: String
+    parsed: Stdlib.Result.Result<WrittenTypes.ParsedFile, String>
+    parsedToPT: Stdlib.Option.Option<ProgramTypes.SourceFile.SourceFile> }
 
-          /// Documents that are currently open in the editor
-          /// (i.e. have been `textDocument/didOpen`ed, and not yet `textDocument/didClose`d)
-          /// note: the string key here is the URI
-          documentsInScope: Dict<DocumentInScope>
-        }
+type LspState =
+  {
+    initialized: Bool
+
+    shouldShutdown: Bool
+
+    /// Documents that are currently open in the editor
+    /// (i.e. have been `textDocument/didOpen`ed, and not yet `textDocument/didClose`d)
+    /// note: the string key here is the URI
+    documentsInScope: Dict<DocumentInScope>
+  }

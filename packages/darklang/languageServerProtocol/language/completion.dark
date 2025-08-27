@@ -1,779 +1,644 @@
 // Supports "completions," generally known as "autocomplete" or "intellisense."
-
-module Darklang =
-  module LanguageServerProtocol =
-    module Completions =
-      module InsertTextFormat =
-        /// Defines whether the insert text in a completion item should be interpreted as
-        /// plain text or a snippet.
-        type InsertTextFormat =
-          /// The primary text to be inserted is treated as a plain string.
-          | PlainText
-
-          /// The primary text to be inserted is treated as a snippet.
-          ///
-          /// A snippet can define tab stops and placeholders with `$1`, `$2` and `${3:foo}`.
-          /// `$0` defines the final tab stop, it defaults to the end of the snippet.
-          /// Placeholders with equal identifiers are linked, that is typing in one will update others too.
-          ///
-          /// See also: https://microsoft.github.io/language-server-protocol/specifications/specification-current/#snippet_syntax
-          | Snippet
-
-        let toJson (format: InsertTextFormat) : Json =
-          match format with
-          | PlainText -> Json.Number 1.0
-          | Snippet -> Json.Number 2.0
-
-
-      module InsertTextMode =
-        /// How whitespace and indentation is handled during completion item insertion.
-        type InsertTextMode =
-          /// The insertion or replace strings is taken as it is.
-          ///
-          /// If the value is multi-line, the lines below the cursor will be
-          /// inserted using the indentation defined in the string value.
-          /// The client will not apply any kind of adjustments to the string.
-          | AsIs
-
-          /// The editor adjusts leading whitespace of new lines so that
-          /// they match the indentation up to the cursor of the line for
-          /// which the item is accepted.
-          ///
-          /// Consider a line like this: `<2tabs><cursor><3tabs>foo.`
-          ///
-          /// Accepting a multi-line completion item is indented using 2 tabs and all
-          /// following lines inserted will be indented using 2 tabs as well.
-          | AdjustIndentation
-
-        let toJson (mode: InsertTextMode) : Json =
-          match mode with
-          | AsIs -> Json.Number 1.0
-          | AdjustIndentation -> Json.Number 2.0
-
-
-      module CompletionItem =
-        module CompletionItemKind =
-          /// The kind of a completion entry.
-          type CompletionItemKind =
-            | Text
-            | Method
-            | Function
-            | Constructor
-            | Field
-            | Variable
-            | Class
-            | Interface
-            | Module
-            | Property
-            | Unit
-            | Value
-            | Enum
-            | Keyword
-            | Snippet
-            | Color
-            | File
-            | Reference
-            | Folder
-            | EnumMember
-            | Constant
-            | Struct
-            | Event
-            | Operator
-            | TypeParameter
-
-          let toJson (kind: CompletionItemKind) : Json =
-            match kind with
-            | Text -> Json.Number 1.0
-            | Method -> Json.Number 2.0
-            | Function -> Json.Number 3.0
-            | Constructor -> Json.Number 4.0
-            | Field -> Json.Number 5.0
-            | Variable -> Json.Number 6.0
-            | Class -> Json.Number 7.0
-            | Interface -> Json.Number 8.0
-            | Module -> Json.Number 9.0
-            | Property -> Json.Number 10.0
-            | Unit -> Json.Number 11.0
-            | Value -> Json.Number 12.0
-            | Enum -> Json.Number 13.0
-            | Keyword -> Json.Number 14.0
-            | Snippet -> Json.Number 15.0
-            | Color -> Json.Number 16.0
-            | File -> Json.Number 17.0
-            | Reference -> Json.Number 18.0
-            | Folder -> Json.Number 19.0
-            | EnumMember -> Json.Number 20.0
-            | Constant -> Json.Number 21.0
-            | Struct -> Json.Number 22.0
-            | Event -> Json.Number 23.0
-            | Operator -> Json.Number 24.0
-            | TypeParameter -> Json.Number 25.0
-
-        /// A completion item represents a text snippet that is
-        /// proposed to complete text that is being typed.
-        type CompletionItem =
-          {
-            /// The label of this completion item.
-            ///
-            /// The label property is also by default the text that
-            /// is inserted when selecting this completion.
-            ///
-            /// If label details are provided the label itself should
-            /// be an unqualified name of the completion item.
-            label: String
-
-            // /// Additional details for the label
-            // labelDetails?: CompletionItemLabelDetails;
-
-            /// The kind of this completion item. Based of the kind
-            /// an icon is chosen by the editor.
-            kind: Stdlib.Option.Option<CompletionItemKind.CompletionItemKind>
-
-            // /// Tags for this completion item.
-            // tags?: CompletionItemTag[];
-
-            /// A human-readable string with additional information
-            /// about this item, like type or symbol information.
-            detail: Stdlib.Option.Option<String>
-
-            // /// A human-readable string that represents a doc-comment.
-            // documentation?: string | MarkupContent;
-
-            // /// Select this item when showing.
-            // ///
-            // /// Note that only one completion item can be selected and that the
-            // /// tool / client decides which item that is. The rule is that the *first*
-            // /// item of those that match best is selected.
-            preselect: Stdlib.Option.Option<Bool>
-
-            /// A string that should be used when comparing this item
-            /// with other items. When `falsy` the {@link CompletionItem.label label}
-            /// is used.
-            sortText: Stdlib.Option.Option<String>
-
-            /// A string that should be used when filtering a set of
-            /// completion items. When `falsy` the {@link CompletionItem.label label}
-            /// is used.
-            filterText: Stdlib.Option.Option<String>
-
-            /// A string that should be inserted into a document when selecting
-            /// this completion. When `falsy` the {@link CompletionItem.label label}
-            /// is used.
-            ///
-            /// The `insertText` is subject to interpretation by the client side.
-            /// Some tools might not take the string literally. For example
-            /// VS Code when code complete is requested in this example
-            /// `con<cursor position>` and a completion item with an `insertText` of
-            /// `console` is provided it will only insert `sole`. Therefore it is
-            /// recommended to use `textEdit` instead since it avoids additional client
-            /// side interpretation.
-            insertText: Stdlib.Option.Option<String>
-
-            /// The format of the insert text. The format applies to both the
-            /// `insertText` property and the `newText` property of a provided
-            /// `textEdit`. If omitted defaults to `InsertTextFormat.PlainText`.
-            ///
-            /// Please note that the insertTextFormat doesn't apply to
-            /// `additionalTextEdits`.
-            insertTextFormat: Stdlib.Option.Option<InsertTextFormat.InsertTextFormat>
-
-            /// How whitespace and indentation is handled during completion
-            /// item insertion. If not provided the clients default value depends on
-            /// the `textDocument.completion.insertTextMode` client capability.
-            insertTextMode: Stdlib.Option.Option<InsertTextMode.InsertTextMode>
-
-            // /// An {@link TextEdit edit} which is applied to a document when selecting
-            // /// this completion. When an edit is provided the value of
-            // /// {@link CompletionItem.insertText insertText} is ignored.
-            // ///
-            // /// Most editors support two different operations when accepting a completion
-            // /// item. One is to insert a completion text and the other is to replace an
-            // /// existing text with a completion text. Since this can usually not be
-            // /// predetermined by a server it can report both ranges. Clients need to
-            // /// signal support for `InsertReplaceEdits` via the
-            // /// `textDocument.completion.insertReplaceSupport` client capability
-            // /// property.
-            // ///
-            // /// *Note 1:* The text edit's range as well as both ranges from an insert
-            // /// replace edit must be a [single line] and they must contain the position
-            // /// at which completion has been requested.
-            // /// *Note 2:* If an `InsertReplaceEdit` is returned the edit's insert range
-            // /// must be a prefix of the edit's replace range, that means it must be
-            // /// contained and starting at the same position.
-            // textEdit: Stdlib.Option.Option<TextEdit>
-            // textEdit?: TextEdit | InsertReplaceEdit;
-
-            /// The edit text used if the completion item is part of a CompletionList and
-            /// CompletionList defines an item default for the text edit range.
-            ///
-            /// Clients will only honor this property if they opt into completion list
-            /// item defaults using the capability `completionList.itemDefaults`.
-            ///
-            /// If not provided and a list's default range is provided the label
-            /// property is used as a text.
-            textEditText: Stdlib.Option.Option<String>
-
-            // /// An optional array of additional {@link TextEdit text edits} that are applied when
-            // /// selecting this completion. Edits must not overlap (including the same insert position)
-            // /// with the main {@link CompletionItem.textEdit edit} nor with themselves.
-            // ///
-            // /// Additional text edits should be used to change text unrelated to the current cursor position
-            // /// (for example adding an import statement at the top of the file if the completion item will
-            // /// insert an unqualified type).
-            // additionalTextEdits?: TextEdit[];
-
-            /// An optional set of characters that when pressed while this completion is active will accept it first and
-            /// then type that character. Note that all commit characters should have `length=1` and that superfluous
-            /// characters will be ignored.
-            commitCharacters: Stdlib.Option.Option<List<String>>
-
-            // /// An optional {@link Command command} that is executed *after* inserting this completion. Note that
-            // /// additional modifications to the current document should be described with the
-            // /// {@link CompletionItem.additionalTextEdits additionalTextEdits}-property.
-            // command?: Command;
-
-            /// A data entry field that is preserved on a completion item between a
-            /// {@link CompletionRequest} and a {@link CompletionResolveRequest}.
-            data: Stdlib.Option.Option<Json>
-          }
-
-        let toJson (item: CompletionItem) : Json =
-          [ Stdlib.Option.Option.Some(("label", Json.String item.label))
-
-            item.kind
-            |> Stdlib.Option.map (fun k -> ("kind", CompletionItemKind.toJson k))
-
-            item.detail |> Stdlib.Option.map (fun d -> ("detail", Json.String d))
-
-            item.preselect |> Stdlib.Option.map (fun p -> ("preselect", Json.Bool p))
-
-            item.sortText |> Stdlib.Option.map (fun t -> ("sortText", Json.String t))
-
-            item.filterText
-            |> Stdlib.Option.map (fun f -> ("filterText", Json.String f))
-
-            item.insertText
-            |> Stdlib.Option.map (fun t -> ("insertText", Json.String t))
-
-            item.insertTextFormat
-            |> Stdlib.Option.map (fun f ->
-              ("insertTextFormat", InsertTextFormat.toJson f))
-
-            item.insertTextMode
-            |> Stdlib.Option.map (fun m ->
-              ("insertTextMode", InsertTextMode.toJson m))
-
-            item.textEditText
-            |> Stdlib.Option.map (fun t -> ("textEditText", Json.String t))
-
-            item.commitCharacters
-            |> Stdlib.Option.map (fun chars ->
-              ("commitCharacters",
-               chars |> Stdlib.List.map (fun c -> Json.String c) |> Json.Array))
-
-            item.data |> Stdlib.Option.map (fun d -> ("data", d)) ]
-
-          |> Stdlib.Option.values
-          |> Json.Object
-
-
-      module CompletionItemDefaults =
-        /// In many cases the items of an actual completion result share the same
-        /// value for properties like `commitCharacters` or the range of a text
-        /// edit. A completion list can therefore define item defaults which will
-        /// be used if a completion item itself doesn't specify the value.
-        ///
-        /// If a completion list specifies a default value and a completion item
-        /// also specifies a corresponding value the one from the item is used.
-        ///
-        /// Servers are only allowed to return default values if the client
-        /// signals support for this via the `completionList.itemDefaults`
-        /// capability.
-        type CompletionItemDefaults =
-          {
-            /// A default commit character set.
-            commitCharacters: Stdlib.Option.Option<List<String>>
-
-            /// A default edit range.
-            editRange: Stdlib.Option.Option<Range.Range>
-
-            /// A default insert text format.
-            insertTextFormat: Stdlib.Option.Option<InsertTextFormat.InsertTextFormat>
-
-            /// A default insert text mode.
-            insertTextMode: Stdlib.Option.Option<InsertTextMode.InsertTextMode>
-
-            /// A default data value.
-            data: Stdlib.Option.Option<Json>
-          }
-
-        let toJson (d: CompletionItemDefaults) : Json =
-          [ d.commitCharacters
-            |> Stdlib.Option.map (fun chars ->
-              ("commitCharacters",
-               chars |> Stdlib.List.map (fun c -> Json.String c) |> Json.Array))
-
-            d.editRange |> Stdlib.Option.map (fun r -> ("editRange", Range.toJson r))
-
-            d.insertTextFormat
-            |> Stdlib.Option.map (fun f ->
-              ("insertTextFormat", InsertTextFormat.toJson f))
-
-            d.insertTextMode
-            |> Stdlib.Option.map (fun m ->
-              ("insertTextMode", InsertTextMode.toJson m))
-
-            d.data |> Stdlib.Option.map (fun d -> ("data", d)) ]
-
-          |> Stdlib.Option.values
-          |> Json.Object
-
-
-
-      module CompletionList =
-        /// Represents a collection of {@link CompletionItem completion items} to be presented
-        /// in the editor.
-        type CompletionList =
-          {
-            /// This list it not complete. Further typing results in recomputing this list.
-            ///
-            /// Recomputed lists have all their items replaced (not appended) in the
-            /// incomplete completion sessions.
-            isIncomplete: Bool
-
-            /// In many cases the items of an actual completion result share the same
-            /// value for properties like `commitCharacters` or the range of a text
-            /// edit. A completion list can therefore define item defaults which will
-            /// be used if a completion item itself doesn't specify the value.
-            ///
-            /// If a completion list specifies a default value and a completion item
-            /// also specifies a corresponding value the one from the item is used.
-            ///
-            /// Servers are only allowed to return default values if the client
-            /// signals support for this via the `completionList.itemDefaults`
-            /// capability.
-            itemDefaults:
-              Stdlib.Option.Option<CompletionItemDefaults.CompletionItemDefaults>
-
-            /// The completion items.
-            items: List<CompletionItem.CompletionItem>
-          }
-
-        let toJson (list: CompletionList) : Json =
-          [ Stdlib.Option.Option.Some(("isIncomplete", Json.Bool list.isIncomplete))
-
-            (list.itemDefaults
-             |> Stdlib.Option.map (fun d ->
-               ("itemDefaults", CompletionItemDefaults.toJson d)))
-
-            Stdlib.Option.Option.Some(
-              ("items",
-               list.items
-               |> Stdlib.List.map (fun item -> CompletionItem.toJson item)
-               |> Json.Array)
-            ) ]
-
-          |> Stdlib.Option.values
-          |> Json.Object
-
-
-      /// @proposed
-      module ServerCompletionItemOptions =
-        type ServerCompletionItemOptions =
-          {
-            /// The server has support for completion item label
-            /// details (see also `CompletionItemLabelDetails`) when
-            /// receiving a completion item in a resolve call.
-            labelDetailsSupport: Stdlib.Option.Option<Bool>
-          }
-
-        let toJson (o: ServerCompletionItemOptions) : Json =
-          [ o.labelDetailsSupport
-            |> Stdlib.Option.map (fun b -> ("labelDetailsSupport", Json.Bool b)) ]
-
-          |> Stdlib.Option.values
-          |> Json.Object
-
-
-      module CompletionOptions =
-        /// Completion options, used for configuration of the completion feature.
-        ///
-        /// TODO: `extends WorkDoneProgressOptions`
-        type CompletionOptions =
-          {
-            /// Most tools trigger completion request automatically without explicitly requesting
-            /// it using a keyboard shortcut (e.g. Ctrl+Space). Typically they do so when the user
-            /// starts to type an identifier. For example if the user types `c` in a JavaScript file
-            /// code complete will automatically pop up present `console` besides others as a
-            /// completion item. Characters that make up identifiers don't need to be listed here.
-            /// If code complete should automatically be trigger on characters not being valid inside
-            /// an identifier (for example `.` in JavaScript) list them in `triggerCharacters`.
-            triggerCharacters: Stdlib.Option.Option<List<String>>
-
-            /// The list of all possible characters that commit a completion. This field can be used
-            /// if clients don't support individual commit characters per completion item. See
-            /// `ClientCapabilities.textDocument.completion.completionItem.commitCharactersSupport`
-            /// If a server provides both `allCommitCharacters` and commit characters on an individual
-            /// completion item the ones on the completion item win.
-            allCommitCharacters: Stdlib.Option.Option<List<String>>
-
-            /// The server provides support to resolve additional
-            /// information for a completion item.
-            resolveProvider: Stdlib.Option.Option<Bool>
-
-            /// The server supports the following `CompletionItem`-specific capabilities.
-            completionItem:
-              Stdlib.Option.Option<ServerCompletionItemOptions.ServerCompletionItemOptions>
-          }
-
-
-        let toJson (o: CompletionOptions) : Json =
-          [ o.triggerCharacters
-            |> Stdlib.Option.map (fun chars ->
-              ("triggerCharacters",
-               chars |> Stdlib.List.map (fun c -> Json.String c) |> Json.Array))
-
-            o.allCommitCharacters
-            |> Stdlib.Option.map (fun chars ->
-              ("allCommitCharacters",
-               chars |> Stdlib.List.map (fun c -> Json.String c) |> Json.Array))
-
-            o.resolveProvider
-            |> Stdlib.Option.map (fun p -> ("resolveProvider", Json.Bool p))
-
-            o.completionItem
-            |> Stdlib.Option.map (fun item ->
-              ("completionItem", ServerCompletionItemOptions.toJson item)) ]
-
-          |> Stdlib.Option.values
-          |> Json.Object
-
-
-      /// Request to request completion at a given text document position.
+module Darklang.LanguageServerProtocol.Completions
+
+
+module InsertTextFormat =
+  /// Defines whether the insert text in a completion item should be interpreted as
+  /// plain text or a snippet.
+  type InsertTextFormat =
+    /// The primary text to be inserted is treated as a plain string.
+    | PlainText
+
+    /// The primary text to be inserted is treated as a snippet.
+    ///
+    /// A snippet can define tab stops and placeholders with `$1`, `$2` and `${3:foo}`.
+    /// `$0` defines the final tab stop, it defaults to the end of the snippet.
+    /// Placeholders with equal identifiers are linked, that is typing in one will update others too.
+    ///
+    /// See also: https://microsoft.github.io/language-server-protocol/specifications/specification-current/#snippet_syntax
+    | Snippet
+
+  let toJson (format: InsertTextFormat) : Json =
+    match format with
+    | PlainText -> Json.Number 1.0
+    | Snippet -> Json.Number 2.0
+
+
+module InsertTextMode =
+  /// How whitespace and indentation is handled during completion item insertion.
+  type InsertTextMode =
+    /// The insertion or replace strings is taken as it is.
+    ///
+    /// If the value is multi-line, the lines below the cursor will be
+    /// inserted using the indentation defined in the string value.
+    /// The client will not apply any kind of adjustments to the string.
+    | AsIs
+
+    /// The editor adjusts leading whitespace of new lines so that
+    /// they match the indentation up to the cursor of the line for
+    /// which the item is accepted.
+    ///
+    /// Consider a line like this: `<2tabs><cursor><3tabs>foo.`
+    ///
+    /// Accepting a multi-line completion item is indented using 2 tabs and all
+    /// following lines inserted will be indented using 2 tabs as well.
+    | AdjustIndentation
+
+  let toJson (mode: InsertTextMode) : Json =
+    match mode with
+    | AsIs -> Json.Number 1.0
+    | AdjustIndentation -> Json.Number 2.0
+
+
+module CompletionItem =
+  module CompletionItemKind =
+    /// The kind of a completion entry.
+    type CompletionItemKind =
+      | Text
+      | Method
+      | Function
+      | Constructor
+      | Field
+      | Variable
+      | Class
+      | Interface
+      | Module
+      | Property
+      | Unit
+      | Value
+      | Enum
+      | Keyword
+      | Snippet
+      | Color
+      | File
+      | Reference
+      | Folder
+      | EnumMember
+      | Constant
+      | Struct
+      | Event
+      | Operator
+      | TypeParameter
+
+    let toJson (kind: CompletionItemKind) : Json =
+      match kind with
+      | Text -> Json.Number 1.0
+      | Method -> Json.Number 2.0
+      | Function -> Json.Number 3.0
+      | Constructor -> Json.Number 4.0
+      | Field -> Json.Number 5.0
+      | Variable -> Json.Number 6.0
+      | Class -> Json.Number 7.0
+      | Interface -> Json.Number 8.0
+      | Module -> Json.Number 9.0
+      | Property -> Json.Number 10.0
+      | Unit -> Json.Number 11.0
+      | Value -> Json.Number 12.0
+      | Enum -> Json.Number 13.0
+      | Keyword -> Json.Number 14.0
+      | Snippet -> Json.Number 15.0
+      | Color -> Json.Number 16.0
+      | File -> Json.Number 17.0
+      | Reference -> Json.Number 18.0
+      | Folder -> Json.Number 19.0
+      | EnumMember -> Json.Number 20.0
+      | Constant -> Json.Number 21.0
+      | Struct -> Json.Number 22.0
+      | Event -> Json.Number 23.0
+      | Operator -> Json.Number 24.0
+      | TypeParameter -> Json.Number 25.0
+
+  /// A completion item represents a text snippet that is
+  /// proposed to complete text that is being typed.
+  type CompletionItem =
+    {
+      /// The label of this completion item.
       ///
-      /// The request's parameter is of type {@link TextDocumentPosition}.
+      /// The label property is also by default the text that
+      /// is inserted when selecting this completion.
       ///
-      /// The response may be of type {@link CompletionItem CompletionItem[]} or {@link CompletionList}
-      /// or a Thenable that resolves to such.
+      /// If label details are provided the label itself should
+      /// be an unqualified name of the completion item.
+      label: String
+
+      // /// Additional details for the label
+      // labelDetails?: CompletionItemLabelDetails;
+
+      /// The kind of this completion item. Based of the kind
+      /// an icon is chosen by the editor.
+      kind: Stdlib.Option.Option<CompletionItemKind.CompletionItemKind>
+
+      // /// Tags for this completion item.
+      // tags?: CompletionItemTag[];
+
+      /// A human-readable string with additional information
+      /// about this item, like type or symbol information.
+      detail: Stdlib.Option.Option<String>
+
+      // /// A human-readable string that represents a doc-comment.
+      // documentation?: string | MarkupContent;
+
+      // /// Select this item when showing.
+      // ///
+      // /// Note that only one completion item can be selected and that the
+      // /// tool / client decides which item that is. The rule is that the *first*
+      // /// item of those that match best is selected.
+      preselect: Stdlib.Option.Option<Bool>
+
+      /// A string that should be used when comparing this item
+      /// with other items. When `falsy` the {@link CompletionItem.label label}
+      /// is used.
+      sortText: Stdlib.Option.Option<String>
+
+      /// A string that should be used when filtering a set of
+      /// completion items. When `falsy` the {@link CompletionItem.label label}
+      /// is used.
+      filterText: Stdlib.Option.Option<String>
+
+      /// A string that should be inserted into a document when selecting
+      /// this completion. When `falsy` the {@link CompletionItem.label label}
+      /// is used.
       ///
-      /// The request can delay the computation of the {@link CompletionItem.detail `detail`}
-      /// and {@link CompletionItem.documentation `documentation`} properties to the `completionItem/resolve`
-      /// request. However, properties that are needed for the initial sorting and filtering, like `sortText`,
-      /// `filterText`, `insertText`, and `textEdit`, must not be changed during resolve.
-      module CompletionRequest =
-        let method = "textDocument/completion"
-        // let messageDirection = MessageDirection.ClientToServer
-        // params: CompletionParams
-        // result: CompletionItem[] | CompletionList | null
-        // registrationOptions: CompletionRegistrationOptions
+      /// The `insertText` is subject to interpretation by the client side.
+      /// Some tools might not take the string literally. For example
+      /// VS Code when code complete is requested in this example
+      /// `con<cursor position>` and a completion item with an `insertText` of
+      /// `console` is provided it will only insert `sole`. Therefore it is
+      /// recommended to use `textEdit` instead since it avoids additional client
+      /// side interpretation.
+      insertText: Stdlib.Option.Option<String>
+
+      /// The format of the insert text. The format applies to both the
+      /// `insertText` property and the `newText` property of a provided
+      /// `textEdit`. If omitted defaults to `InsertTextFormat.PlainText`.
+      ///
+      /// Please note that the insertTextFormat doesn't apply to
+      /// `additionalTextEdits`.
+      insertTextFormat: Stdlib.Option.Option<InsertTextFormat.InsertTextFormat>
+
+      /// How whitespace and indentation is handled during completion
+      /// item insertion. If not provided the clients default value depends on
+      /// the `textDocument.completion.insertTextMode` client capability.
+      insertTextMode: Stdlib.Option.Option<InsertTextMode.InsertTextMode>
+
+      // /// An {@link TextEdit edit} which is applied to a document when selecting
+      // /// this completion. When an edit is provided the value of
+      // /// {@link CompletionItem.insertText insertText} is ignored.
+      // ///
+      // /// Most editors support two different operations when accepting a completion
+      // /// item. One is to insert a completion text and the other is to replace an
+      // /// existing text with a completion text. Since this can usually not be
+      // /// predetermined by a server it can report both ranges. Clients need to
+      // /// signal support for `InsertReplaceEdits` via the
+      // /// `textDocument.completion.insertReplaceSupport` client capability
+      // /// property.
+      // ///
+      // /// *Note 1:* The text edit's range as well as both ranges from an insert
+      // /// replace edit must be a [single line] and they must contain the position
+      // /// at which completion has been requested.
+      // /// *Note 2:* If an `InsertReplaceEdit` is returned the edit's insert range
+      // /// must be a prefix of the edit's replace range, that means it must be
+      // /// contained and starting at the same position.
+      // textEdit: Stdlib.Option.Option<TextEdit>
+      // textEdit?: TextEdit | InsertReplaceEdit;
+
+      /// The edit text used if the completion item is part of a CompletionList and
+      /// CompletionList defines an item default for the text edit range.
+      ///
+      /// Clients will only honor this property if they opt into completion list
+      /// item defaults using the capability `completionList.itemDefaults`.
+      ///
+      /// If not provided and a list's default range is provided the label
+      /// property is used as a text.
+      textEditText: Stdlib.Option.Option<String>
+
+      // /// An optional array of additional {@link TextEdit text edits} that are applied when
+      // /// selecting this completion. Edits must not overlap (including the same insert position)
+      // /// with the main {@link CompletionItem.textEdit edit} nor with themselves.
+      // ///
+      // /// Additional text edits should be used to change text unrelated to the current cursor position
+      // /// (for example adding an import statement at the top of the file if the completion item will
+      // /// insert an unqualified type).
+      // additionalTextEdits?: TextEdit[];
+
+      /// An optional set of characters that when pressed while this completion is active will accept it first and
+      /// then type that character. Note that all commit characters should have `length=1` and that superfluous
+      /// characters will be ignored.
+      commitCharacters: Stdlib.Option.Option<List<String>>
+
+      // /// An optional {@link Command command} that is executed *after* inserting this completion. Note that
+      // /// additional modifications to the current document should be described with the
+      // /// {@link CompletionItem.additionalTextEdits additionalTextEdits}-property.
+      // command?: Command;
+
+      /// A data entry field that is preserved on a completion item between a
+      /// {@link CompletionRequest} and a {@link CompletionResolveRequest}.
+      data: Stdlib.Option.Option<Json>
+    }
+
+  let toJson (item: CompletionItem) : Json =
+    [ Stdlib.Option.Option.Some(("label", Json.String item.label))
+
+      item.kind
+      |> Stdlib.Option.map (fun k -> ("kind", CompletionItemKind.toJson k))
+
+      item.detail |> Stdlib.Option.map (fun d -> ("detail", Json.String d))
+
+      item.preselect |> Stdlib.Option.map (fun p -> ("preselect", Json.Bool p))
+
+      item.sortText |> Stdlib.Option.map (fun t -> ("sortText", Json.String t))
+
+      item.filterText
+      |> Stdlib.Option.map (fun f -> ("filterText", Json.String f))
+
+      item.insertText
+      |> Stdlib.Option.map (fun t -> ("insertText", Json.String t))
+
+      item.insertTextFormat
+      |> Stdlib.Option.map (fun f ->
+        ("insertTextFormat", InsertTextFormat.toJson f))
+
+      item.insertTextMode
+      |> Stdlib.Option.map (fun m ->
+        ("insertTextMode", InsertTextMode.toJson m))
+
+      item.textEditText
+      |> Stdlib.Option.map (fun t -> ("textEditText", Json.String t))
+
+      item.commitCharacters
+      |> Stdlib.Option.map (fun chars ->
+        ("commitCharacters",
+          chars |> Stdlib.List.map (fun c -> Json.String c) |> Json.Array))
+
+      item.data |> Stdlib.Option.map (fun d -> ("data", d)) ]
+
+    |> Stdlib.Option.values
+    |> Json.Object
 
 
-        module CompletionTriggerKind =
-          /// How a completion was triggered
-          type CompletionTriggerKind =
-            /// Completion was triggered by:
-            /// - typing an identifier (24x7 code complete)
-            /// - manual invocation (e.g Ctrl+Space)
-            /// - , or via API. (TODO: not sure what this means)
-            | Invoked
+module CompletionItemDefaults =
+  /// In many cases the items of an actual completion result share the same
+  /// value for properties like `commitCharacters` or the range of a text
+  /// edit. A completion list can therefore define item defaults which will
+  /// be used if a completion item itself doesn't specify the value.
+  ///
+  /// If a completion list specifies a default value and a completion item
+  /// also specifies a corresponding value the one from the item is used.
+  ///
+  /// Servers are only allowed to return default values if the client
+  /// signals support for this via the `completionList.itemDefaults`
+  /// capability.
+  type CompletionItemDefaults =
+    {
+      /// A default commit character set.
+      commitCharacters: Stdlib.Option.Option<List<String>>
 
-            /// Completion was triggered by a trigger character specified by
-            /// the `triggerCharacters` properties of the `CompletionRegistrationOptions`.
-            | TriggerCharacter
+      /// A default edit range.
+      editRange: Stdlib.Option.Option<Range.Range>
 
-            /// Completion was re-triggered as current completion list is incomplete
-            | TriggerForIncompleteCompletions
+      /// A default insert text format.
+      insertTextFormat: Stdlib.Option.Option<InsertTextFormat.InsertTextFormat>
 
-          let fromJson
-            (json: Json)
-            : Stdlib.Result.Result<CompletionTriggerKind, Unit> =
-            match json with
-            | Number 1.0 -> Stdlib.Result.Result.Ok CompletionTriggerKind.Invoked
-            | Number 2.0 ->
-              Stdlib.Result.Result.Ok CompletionTriggerKind.TriggerCharacter
-            | Number 3.0 ->
-              Stdlib.Result.Result.Ok
-                CompletionTriggerKind.TriggerForIncompleteCompletions
-            | _ -> Stdlib.Result.Result.Error()
+      /// A default insert text mode.
+      insertTextMode: Stdlib.Option.Option<InsertTextMode.InsertTextMode>
 
+      /// A default data value.
+      data: Stdlib.Option.Option<Json>
+    }
 
-        /// Contains additional information about the context in which a completion request is triggered.
-        module CompletionContext =
-          type CompletionContext =
-            {
-              /// How the completion was triggered.
-              triggerKind: CompletionTriggerKind.CompletionTriggerKind
+  let toJson (d: CompletionItemDefaults) : Json =
+    [ d.commitCharacters
+      |> Stdlib.Option.map (fun chars ->
+        ("commitCharacters",
+          chars |> Stdlib.List.map (fun c -> Json.String c) |> Json.Array))
 
-              /// The trigger character (a single character) that has trigger code complete.
-              /// Is undefined if `triggerKind !== CompletionTriggerKind.TriggerCharacter`
-              triggerCharacter: Stdlib.Option.Option<String>
-            }
+      d.editRange |> Stdlib.Option.map (fun r -> ("editRange", Range.toJson r))
 
-          let fromJson (json: Json) : Stdlib.Result.Result<CompletionContext, Unit> =
-            match json with
-            | Object fields ->
-              let triggerKind = // Result<CompletionTriggerKind, Unit>
-                match
-                  Stdlib.List.findFirst fields (fun (key, _) -> key == "triggerKind")
-                with
-                | Some((_, tk)) -> CompletionTriggerKind.fromJson tk
-                | _ -> Stdlib.Result.Result.Error()
+      d.insertTextFormat
+      |> Stdlib.Option.map (fun f ->
+        ("insertTextFormat", InsertTextFormat.toJson f))
 
-              let triggerCharacter = // Option<String>
-                match
-                  Stdlib.List.findFirst fields (fun (key, _) ->
-                    key == "triggerCharacter")
-                with
-                | Some((_, String triggerCharacter)) ->
-                  Stdlib.Option.Option.Some triggerCharacter
-                | _ -> Stdlib.Option.Option.None
+      d.insertTextMode
+      |> Stdlib.Option.map (fun m ->
+        ("insertTextMode", InsertTextMode.toJson m))
 
-              match (triggerKind, triggerCharacter) with
-              | (Ok triggerKind, triggerCharacter) ->
-                (CompletionContext
-                  { triggerKind = triggerKind
-                    triggerCharacter = triggerCharacter })
-                |> Stdlib.Result.Result.Ok
+      d.data |> Stdlib.Option.map (fun d -> ("data", d)) ]
 
-            | _ -> Stdlib.Result.Result.Error()
+    |> Stdlib.Option.values
+    |> Json.Object
 
 
-        module CompletionParams =
-          /// Completion parameters
-          ///
-          /// TODO:
-          /// - extends WorkDoneProgressParams
-          /// - extends PartialResultParams
-          type CompletionParams =
-            {
-              /// The completion context. This is only available it the client specifies
-              /// to send this using the client capability `textDocument.completion.contextSupport === true`
-              context: Stdlib.Option.Option<CompletionContext.CompletionContext>
 
-              // <extends TextDocumentPositionParams>
-              /// The text document.
-              textDocument: TextDocumentIdentifier.TextDocumentIdentifier
+module CompletionList =
+  /// Represents a collection of {@link CompletionItem completion items} to be presented
+  /// in the editor.
+  type CompletionList =
+    {
+      /// This list it not complete. Further typing results in recomputing this list.
+      ///
+      /// Recomputed lists have all their items replaced (not appended) in the
+      /// incomplete completion sessions.
+      isIncomplete: Bool
 
-              /// The position inside the text document.
-              position: Position.Position
-            }
+      /// In many cases the items of an actual completion result share the same
+      /// value for properties like `commitCharacters` or the range of a text
+      /// edit. A completion list can therefore define item defaults which will
+      /// be used if a completion item itself doesn't specify the value.
+      ///
+      /// If a completion list specifies a default value and a completion item
+      /// also specifies a corresponding value the one from the item is used.
+      ///
+      /// Servers are only allowed to return default values if the client
+      /// signals support for this via the `completionList.itemDefaults`
+      /// capability.
+      itemDefaults:
+        Stdlib.Option.Option<CompletionItemDefaults.CompletionItemDefaults>
 
-          let fromJson (json: Json) : Stdlib.Result.Result<CompletionParams, Unit> =
-            match json with
-            | Object fields ->
-              let context = // Option<Result<CompletionContext, Unit>>
-                match
-                  Stdlib.List.findFirst fields (fun (key, _) -> key == "context")
-                with
-                | None -> Stdlib.Option.Option.None
-                | Some((_, context)) ->
-                  (CompletionContext.fromJson context) |> Stdlib.Option.Option.Some
+      /// The completion items.
+      items: List<CompletionItem.CompletionItem>
+    }
 
-              let textDocument = // Result<TextDocumentIdentifier, Unit>
-                match
-                  Stdlib.List.findFirst fields (fun (k, _) -> k == "textDocument")
-                with
-                | Some((_, textDocument)) ->
-                  TextDocumentIdentifier.fromJson textDocument
-                | None -> Stdlib.Result.Result.Error()
+  let toJson (list: CompletionList) : Json =
+    [ Stdlib.Option.Option.Some(("isIncomplete", Json.Bool list.isIncomplete))
 
-              let position = // Result<Position, Unit>
-                match
-                  Stdlib.List.findFirst fields (fun (k, _) -> k == "position")
-                with
-                | Some((_, position)) -> Position.fromJson position
-                | None -> Stdlib.Result.Result.Error()
+      (list.itemDefaults
+        |> Stdlib.Option.map (fun d ->
+          ("itemDefaults", CompletionItemDefaults.toJson d)))
 
-              match context, textDocument, position with
-              | None, Ok textDocument, Ok position ->
-                (CompletionParams
-                  { context = Stdlib.Option.Option.None
-                    textDocument = textDocument
-                    position = position })
-                |> Stdlib.Result.Result.Ok
+      Stdlib.Option.Option.Some(
+        ("items",
+          list.items
+          |> Stdlib.List.map (fun item -> CompletionItem.toJson item)
+          |> Json.Array)
+      ) ]
 
-              | Some(Ok context), Ok textDocument, Ok position ->
-                (CompletionParams
-                  { context = Stdlib.Option.Option.Some context
-                    textDocument = textDocument
-                    position = position })
-                |> Stdlib.Result.Result.Ok
-
-              | _ -> Stdlib.Result.Result.Error()
-            | _ -> Stdlib.Result.Result.Error()
+    |> Stdlib.Option.values
+    |> Json.Object
 
 
-        module CompletionResult =
-          type CompletionResult =
-            | Null
-            | SimpleList of List<CompletionItem.CompletionItem>
-            | CompletionList of CompletionList.CompletionList
+/// @proposed
+module ServerCompletionItemOptions =
+  type ServerCompletionItemOptions =
+    {
+      /// The server has support for completion item label
+      /// details (see also `CompletionItemLabelDetails`) when
+      /// receiving a completion item in a resolve call.
+      labelDetailsSupport: Stdlib.Option.Option<Bool>
+    }
 
-          let toJson (result: CompletionResult) : Json =
-            match result with
-            | Null -> Json.Null
-            | SimpleList items ->
-              items
-              |> Stdlib.List.map (fun item -> CompletionItem.toJson item)
-              |> Json.Array
-            | CompletionList list -> CompletionList.toJson list
+  let toJson (o: ServerCompletionItemOptions) : Json =
+    [ o.labelDetailsSupport
+      |> Stdlib.Option.map (fun b -> ("labelDetailsSupport", Json.Bool b)) ]
+
+    |> Stdlib.Option.values
+    |> Json.Object
+
+
+module CompletionOptions =
+  /// Completion options, used for configuration of the completion feature.
+  ///
+  /// TODO: `extends WorkDoneProgressOptions`
+  type CompletionOptions =
+    {
+      /// Most tools trigger completion request automatically without explicitly requesting
+      /// it using a keyboard shortcut (e.g. Ctrl+Space). Typically they do so when the user
+      /// starts to type an identifier. For example if the user types `c` in a JavaScript file
+      /// code complete will automatically pop up present `console` besides others as a
+      /// completion item. Characters that make up identifiers don't need to be listed here.
+      /// If code complete should automatically be trigger on characters not being valid inside
+      /// an identifier (for example `.` in JavaScript) list them in `triggerCharacters`.
+      triggerCharacters: Stdlib.Option.Option<List<String>>
+
+      /// The list of all possible characters that commit a completion. This field can be used
+      /// if clients don't support individual commit characters per completion item. See
+      /// `ClientCapabilities.textDocument.completion.completionItem.commitCharactersSupport`
+      /// If a server provides both `allCommitCharacters` and commit characters on an individual
+      /// completion item the ones on the completion item win.
+      allCommitCharacters: Stdlib.Option.Option<List<String>>
+
+      /// The server provides support to resolve additional
+      /// information for a completion item.
+      resolveProvider: Stdlib.Option.Option<Bool>
+
+      /// The server supports the following `CompletionItem`-specific capabilities.
+      completionItem:
+        Stdlib.Option.Option<ServerCompletionItemOptions.ServerCompletionItemOptions>
+    }
+
+
+  let toJson (o: CompletionOptions) : Json =
+    [ o.triggerCharacters
+      |> Stdlib.Option.map (fun chars ->
+        ("triggerCharacters",
+          chars |> Stdlib.List.map (fun c -> Json.String c) |> Json.Array))
+
+      o.allCommitCharacters
+      |> Stdlib.Option.map (fun chars ->
+        ("allCommitCharacters",
+          chars |> Stdlib.List.map (fun c -> Json.String c) |> Json.Array))
+
+      o.resolveProvider
+      |> Stdlib.Option.map (fun p -> ("resolveProvider", Json.Bool p))
+
+      o.completionItem
+      |> Stdlib.Option.map (fun item ->
+        ("completionItem", ServerCompletionItemOptions.toJson item)) ]
+
+    |> Stdlib.Option.values
+    |> Json.Object
+
+
+/// Request to request completion at a given text document position.
+///
+/// The request's parameter is of type {@link TextDocumentPosition}.
+///
+/// The response may be of type {@link CompletionItem CompletionItem[]} or {@link CompletionList}
+/// or a Thenable that resolves to such.
+///
+/// The request can delay the computation of the {@link CompletionItem.detail `detail`}
+/// and {@link CompletionItem.documentation `documentation`} properties to the `completionItem/resolve`
+/// request. However, properties that are needed for the initial sorting and filtering, like `sortText`,
+/// `filterText`, `insertText`, and `textEdit`, must not be changed during resolve.
+module CompletionRequest =
+  let method = "textDocument/completion"
+  // let messageDirection = MessageDirection.ClientToServer
+  // params: CompletionParams
+  // result: CompletionItem[] | CompletionList | null
+  // registrationOptions: CompletionRegistrationOptions
+
+
+  module CompletionTriggerKind =
+    /// How a completion was triggered
+    type CompletionTriggerKind =
+      /// Completion was triggered by:
+      /// - typing an identifier (24x7 code complete)
+      /// - manual invocation (e.g Ctrl+Space)
+      /// - , or via API. (TODO: not sure what this means)
+      | Invoked
+
+      /// Completion was triggered by a trigger character specified by
+      /// the `triggerCharacters` properties of the `CompletionRegistrationOptions`.
+      | TriggerCharacter
+
+      /// Completion was re-triggered as current completion list is incomplete
+      | TriggerForIncompleteCompletions
+
+    let fromJson
+      (json: Json)
+      : Stdlib.Result.Result<CompletionTriggerKind, Unit> =
+      match json with
+      | Number 1.0 -> Stdlib.Result.Result.Ok CompletionTriggerKind.Invoked
+      | Number 2.0 ->
+        Stdlib.Result.Result.Ok CompletionTriggerKind.TriggerCharacter
+      | Number 3.0 ->
+        Stdlib.Result.Result.Ok
+          CompletionTriggerKind.TriggerForIncompleteCompletions
+      | _ -> Stdlib.Result.Result.Error()
+
+
+  /// Contains additional information about the context in which a completion request is triggered.
+  module CompletionContext =
+    type CompletionContext =
+      {
+        /// How the completion was triggered.
+        triggerKind: CompletionTriggerKind.CompletionTriggerKind
+
+        /// The trigger character (a single character) that has trigger code complete.
+        /// Is undefined if `triggerKind !== CompletionTriggerKind.TriggerCharacter`
+        triggerCharacter: Stdlib.Option.Option<String>
+      }
+
+    let fromJson (json: Json) : Stdlib.Result.Result<CompletionContext, Unit> =
+      match json with
+      | Object fields ->
+        let triggerKind = // Result<CompletionTriggerKind, Unit>
+          match
+            Stdlib.List.findFirst fields (fun (key, _) -> key == "triggerKind")
+          with
+          | Some((_, tk)) -> CompletionTriggerKind.fromJson tk
+          | _ -> Stdlib.Result.Result.Error()
+
+        let triggerCharacter = // Option<String>
+          match
+            Stdlib.List.findFirst fields (fun (key, _) ->
+              key == "triggerCharacter")
+          with
+          | Some((_, String triggerCharacter)) ->
+            Stdlib.Option.Option.Some triggerCharacter
+          | _ -> Stdlib.Option.Option.None
+
+        match (triggerKind, triggerCharacter) with
+        | (Ok triggerKind, triggerCharacter) ->
+          (CompletionContext
+            { triggerKind = triggerKind
+              triggerCharacter = triggerCharacter })
+          |> Stdlib.Result.Result.Ok
+
+      | _ -> Stdlib.Result.Result.Error()
+
+
+  module CompletionParams =
+    /// Completion parameters
+    ///
+    /// TODO:
+    /// - extends WorkDoneProgressParams
+    /// - extends PartialResultParams
+    type CompletionParams =
+      {
+        /// The completion context. This is only available it the client specifies
+        /// to send this using the client capability `textDocument.completion.contextSupport === true`
+        context: Stdlib.Option.Option<CompletionContext.CompletionContext>
+
+        // <extends TextDocumentPositionParams>
+        /// The text document.
+        textDocument: TextDocumentIdentifier.TextDocumentIdentifier
+
+        /// The position inside the text document.
+        position: Position.Position
+      }
+
+    let fromJson (json: Json) : Stdlib.Result.Result<CompletionParams, Unit> =
+      match json with
+      | Object fields ->
+        let context = // Option<Result<CompletionContext, Unit>>
+          match
+            Stdlib.List.findFirst fields (fun (key, _) -> key == "context")
+          with
+          | None -> Stdlib.Option.Option.None
+          | Some((_, context)) ->
+            (CompletionContext.fromJson context) |> Stdlib.Option.Option.Some
+
+        let textDocument = // Result<TextDocumentIdentifier, Unit>
+          match
+            Stdlib.List.findFirst fields (fun (k, _) -> k == "textDocument")
+          with
+          | Some((_, textDocument)) ->
+            TextDocumentIdentifier.fromJson textDocument
+          | None -> Stdlib.Result.Result.Error()
+
+        let position = // Result<Position, Unit>
+          match
+            Stdlib.List.findFirst fields (fun (k, _) -> k == "position")
+          with
+          | Some((_, position)) -> Position.fromJson position
+          | None -> Stdlib.Result.Result.Error()
+
+        match context, textDocument, position with
+        | None, Ok textDocument, Ok position ->
+          (CompletionParams
+            { context = Stdlib.Option.Option.None
+              textDocument = textDocument
+              position = position })
+          |> Stdlib.Result.Result.Ok
+
+        | Some(Ok context), Ok textDocument, Ok position ->
+          (CompletionParams
+            { context = Stdlib.Option.Option.Some context
+              textDocument = textDocument
+              position = position })
+          |> Stdlib.Result.Result.Ok
+
+        | _ -> Stdlib.Result.Result.Error()
+      | _ -> Stdlib.Result.Result.Error()
+
+
+  module CompletionResult =
+    type CompletionResult =
+      | Null
+      | SimpleList of List<CompletionItem.CompletionItem>
+      | CompletionList of CompletionList.CompletionList
+
+    let toJson (result: CompletionResult) : Json =
+      match result with
+      | Null -> Json.Null
+      | SimpleList items ->
+        items
+        |> Stdlib.List.map (fun item -> CompletionItem.toJson item)
+        |> Json.Array
+      | CompletionList list -> CompletionList.toJson list
 (*
 
 
 
-  /// Completion item tags are extra annotations that tweak the rendering of a completion item.
-  export namespace CompletionItemTag {
-    /// Render a completion as obsolete, usually using a strike-out.
-    export const Deprecated = 1;
-  }
-  export type CompletionItemTag = 1;
+/// Completion item tags are extra annotations that tweak the rendering of a completion item.
+export namespace CompletionItemTag {
+/// Render a completion as obsolete, usually using a strike-out.
+export const Deprecated = 1;
+}
+export type CompletionItemTag = 1;
 
 
-  /// A special text edit to provide an insert and a replace operation.
-  export interface InsertReplaceEdit {
-    /// The string to be inserted.
-    newText: string;
+/// A special text edit to provide an insert and a replace operation.
+export interface InsertReplaceEdit {
+/// The string to be inserted.
+newText: string;
 
-    /// The range if the insert is requested
-    insert: Range;
+/// The range if the insert is requested
+insert: Range;
 
-    /// The range if the replace is requested.
-    replace: Range;
-  }
-
-
-
-
-
-
-
-
-
-  /// Additional details for a completion item label.
-  export interface CompletionItemLabelDetails {
-    /// An optional string which is rendered less prominently directly after {@link CompletionItem.label label},
-    /// without any spacing. Should be used for function signatures and type annotations.
-    detail?: string;
-
-    /// An optional string which is rendered less prominently after {@link CompletionItem.detail}. Should be used
-    /// for fully qualified names and file paths.
-    description?: string;
-  }
-
-
-
-  /// The client supports the following `CompletionList` specific capabilities.
-  export interface CompletionListCapabilities {
-    /// The client supports the following itemDefaults on a completion list.
-    ///
-    /// The value lists the supported property names of the
-    /// `CompletionList.itemDefaults` object.
-    ///
-    /// If omitted, no properties are supported.
-    itemDefaults?: string[];
-  }
-
-
-  /// @proposed
-  export interface CompletionItemTagOptions {
-    /// The tags supported by the client.
-    valueSet: CompletionItemTag[];
-  }
-
-  /// @proposed
-  export interface ClientCompletionItemResolveOptions {
-    /// The properties that a client can resolve lazily.
-    properties: string[];
-  }
-
-  /// @proposed
-  export interface ClientCompletionItemInsertTextModeOptions {
-    valueSet: InsertTextMode[];
-  }
-
-  /// @proposed
-  export interface ClientCompletionItemOptions {
-    /// Client supports snippets as insert text.
-    /// A snippet can define tab stops and placeholders with `$1`, `$2`
-    /// and `${3:foo}`. `$0` defines the final tab stop, it defaults to
-    /// the end of the snippet. Placeholders with equal identifiers are linked,
-    /// that is typing in one will update others too.
-    snippetSupport?: boolean;
-
-    /// Client supports commit characters on a completion item.
-    commitCharactersSupport?: boolean;
-
-    /// Client supports the following content formats for the documentation
-    /// property. The order describes the preferred format of the client.
-    documentationFormat?: MarkupKind[];
-
-    /// Client supports the deprecated property on a completion item.
-    deprecatedSupport?: boolean;
-
-    /// Client supports the preselect property on a completion item.
-    preselectSupport?: boolean;
-
-    /// Client supports the tag property on a completion item. Clients supporting
-    /// tags have to handle unknown tags gracefully. Clients especially need to
-    /// preserve unknown tags when sending a completion item back to the server in
-    /// a resolve call.
-    tagSupport?: CompletionItemTagOptions;
-
-    /// Client support insert replace edit to control different behavior if a
-    /// completion item is inserted in the text or should replace text.
-    insertReplaceSupport?: boolean;
-
-    /// Indicates which properties a client can resolve lazily on a completion
-    /// item. Before version 3.16.0 only the predefined properties `documentation`
-    /// and `details` could be resolved lazily.
-    resolveSupport?: ClientCompletionItemResolveOptions;
-
-    /// The client supports the `insertTextMode` property on
-    /// a completion item to override the whitespace handling mode
-    /// as defined by the client (see `insertTextMode`).
-    insertTextModeSupport?: ClientCompletionItemInsertTextModeOptions;
-
-    /// The client has support for completion item label
-    /// details (see also `CompletionItemLabelDetails`).
-    labelDetailsSupport?: boolean;
-  }
-
-  /// @proposed
-  export interface ClientCompletionItemOptionsKind {
-    /// The completion item kind values the client supports. When this
-    /// property exists the client also guarantees that it will
-    /// handle values outside its set gracefully and falls back
-    /// to a default value when unknown.
-    /// If this property is not present the client only supports
-    /// the completion items kinds from `Text` to `Reference` as defined in
-    /// the initial version of the protocol.
-    valueSet?: CompletionItemKind[];
-  }
-
-  /// Completion client capabilities
-  export interface CompletionClientCapabilities {
-    /// Whether completion supports dynamic registration.
-    dynamicRegistration?: boolean;
-
-    /// The client supports the following `CompletionItem` specific
-    /// capabilities.
-    completionItem?: ClientCompletionItemOptions;
-
-    completionItemKind?: ClientCompletionItemOptionsKind;
-
-    /// Defines how the client handles whitespace and indentation
-    /// when accepting a completion item that uses multi line
-    /// text in either `insertText` or `textEdit`.
-    insertTextMode?: InsertTextMode;
-
-    /// The client supports to send additional context information for a
-    /// `textDocument/completion` request.
-    contextSupport?: boolean;
-
-    /// The client supports the following `CompletionList` specific
-    /// capabilities.
-    completionList?: CompletionListCapabilities;
-  }
+/// The range if the replace is requested.
+replace: Range;
+}
 
 
 
@@ -783,21 +648,155 @@ module Darklang =
 
 
 
-  /// Registration options for a {@link CompletionRequest}.
-  export interface CompletionRegistrationOptions
-    extends
-      TextDocumentRegistrationOptions,
-      CompletionOptions {
-  }
+/// Additional details for a completion item label.
+export interface CompletionItemLabelDetails {
+/// An optional string which is rendered less prominently directly after {@link CompletionItem.label label},
+/// without any spacing. Should be used for function signatures and type annotations.
+detail?: string;
+
+/// An optional string which is rendered less prominently after {@link CompletionItem.detail}. Should be used
+/// for fully qualified names and file paths.
+description?: string;
+}
 
 
 
-  /// Request to resolve additional information for a given completion item.The request's
-  /// parameter is of type {@link CompletionItem} the response
-  /// is of type {@link CompletionItem} or a Thenable that resolves to such.
-  export namespace CompletionResolveRequest {
-    export const method: 'completionItem/resolve' = 'completionItem/resolve';
-    export const messageDirection: MessageDirection = MessageDirection.clientToServer;
-    export const type = new ProtocolRequestType<CompletionItem, CompletionItem, never, void, void>(method);
-  }
+/// The client supports the following `CompletionList` specific capabilities.
+export interface CompletionListCapabilities {
+/// The client supports the following itemDefaults on a completion list.
+///
+/// The value lists the supported property names of the
+/// `CompletionList.itemDefaults` object.
+///
+/// If omitted, no properties are supported.
+itemDefaults?: string[];
+}
+
+
+/// @proposed
+export interface CompletionItemTagOptions {
+/// The tags supported by the client.
+valueSet: CompletionItemTag[];
+}
+
+/// @proposed
+export interface ClientCompletionItemResolveOptions {
+/// The properties that a client can resolve lazily.
+properties: string[];
+}
+
+/// @proposed
+export interface ClientCompletionItemInsertTextModeOptions {
+valueSet: InsertTextMode[];
+}
+
+/// @proposed
+export interface ClientCompletionItemOptions {
+/// Client supports snippets as insert text.
+/// A snippet can define tab stops and placeholders with `$1`, `$2`
+/// and `${3:foo}`. `$0` defines the final tab stop, it defaults to
+/// the end of the snippet. Placeholders with equal identifiers are linked,
+/// that is typing in one will update others too.
+snippetSupport?: boolean;
+
+/// Client supports commit characters on a completion item.
+commitCharactersSupport?: boolean;
+
+/// Client supports the following content formats for the documentation
+/// property. The order describes the preferred format of the client.
+documentationFormat?: MarkupKind[];
+
+/// Client supports the deprecated property on a completion item.
+deprecatedSupport?: boolean;
+
+/// Client supports the preselect property on a completion item.
+preselectSupport?: boolean;
+
+/// Client supports the tag property on a completion item. Clients supporting
+/// tags have to handle unknown tags gracefully. Clients especially need to
+/// preserve unknown tags when sending a completion item back to the server in
+/// a resolve call.
+tagSupport?: CompletionItemTagOptions;
+
+/// Client support insert replace edit to control different behavior if a
+/// completion item is inserted in the text or should replace text.
+insertReplaceSupport?: boolean;
+
+/// Indicates which properties a client can resolve lazily on a completion
+/// item. Before version 3.16.0 only the predefined properties `documentation`
+/// and `details` could be resolved lazily.
+resolveSupport?: ClientCompletionItemResolveOptions;
+
+/// The client supports the `insertTextMode` property on
+/// a completion item to override the whitespace handling mode
+/// as defined by the client (see `insertTextMode`).
+insertTextModeSupport?: ClientCompletionItemInsertTextModeOptions;
+
+/// The client has support for completion item label
+/// details (see also `CompletionItemLabelDetails`).
+labelDetailsSupport?: boolean;
+}
+
+/// @proposed
+export interface ClientCompletionItemOptionsKind {
+/// The completion item kind values the client supports. When this
+/// property exists the client also guarantees that it will
+/// handle values outside its set gracefully and falls back
+/// to a default value when unknown.
+/// If this property is not present the client only supports
+/// the completion items kinds from `Text` to `Reference` as defined in
+/// the initial version of the protocol.
+valueSet?: CompletionItemKind[];
+}
+
+/// Completion client capabilities
+export interface CompletionClientCapabilities {
+/// Whether completion supports dynamic registration.
+dynamicRegistration?: boolean;
+
+/// The client supports the following `CompletionItem` specific
+/// capabilities.
+completionItem?: ClientCompletionItemOptions;
+
+completionItemKind?: ClientCompletionItemOptionsKind;
+
+/// Defines how the client handles whitespace and indentation
+/// when accepting a completion item that uses multi line
+/// text in either `insertText` or `textEdit`.
+insertTextMode?: InsertTextMode;
+
+/// The client supports to send additional context information for a
+/// `textDocument/completion` request.
+contextSupport?: boolean;
+
+/// The client supports the following `CompletionList` specific
+/// capabilities.
+completionList?: CompletionListCapabilities;
+}
+
+
+
+
+
+
+
+
+
+/// Registration options for a {@link CompletionRequest}.
+export interface CompletionRegistrationOptions
+extends
+TextDocumentRegistrationOptions,
+CompletionOptions {
+}
+
+
+
+/// Request to resolve additional information for a given completion item.The request's
+/// parameter is of type {@link CompletionItem} the response
+/// is of type {@link CompletionItem} or a Thenable that resolves to such.
+export namespace CompletionResolveRequest {
+export const method: 'completionItem/resolve' = 'completionItem/resolve';
+export const messageDirection: MessageDirection = MessageDirection.clientToServer;
+export const type = new ProtocolRequestType<CompletionItem, CompletionItem, never, void, void>(method);
+}
 *)

@@ -1,96 +1,95 @@
-module Darklang =
-  module Stdlib =
-    module Cli =
-      module Unix =
-        let removeFile (path: String) : Result.Result<Unit, String> =
-          Cli.executeWithUnitOrStdErr $"rm {path}"
-
-        let removeDirectory (path: String) : Result.Result<Unit, String> =
-          Cli.executeWithUnitOrStdErr $"rm -rf {path}"
-
-        let ensureDirectoryExists (path: String) : Result.Result<Unit, String> =
-          Cli.executeWithUnitOrStdErr $"mkdir -p {path}"
-
-        /// Grants execute permissions to the specified file. (chmod +x <param path>)
-        /// If successful, returns {{Ok ()}}. Otherwise, returns an {{Error <var stderr>}}
-        let grantExecutePermission (path: String) : Result.Result<Unit, String> =
-          Cli.executeWithUnitOrStdErr $"chmod +x {path}"
-
-        /// Executes a command in the given directory and redirects output to a file.
-        let executeInDirectoryAndRedirectToFile (directory: String) (command: String) (outputFile: String) : Result.Result<Unit, String> =
-          Cli.executeWithUnitOrStdErr $"cd {directory} && {command} > {outputFile} 2>&1"
-
-        /// Executes a command in the specified directory and captures the full execution result.
-        /// Returns the complete execution outcome including stdout, stderr, and exit code.
-        let executeInDirectoryWithOutput
-          (directory: String)
-          (command: String)
-          : Stdlib.Cli.ExecutionOutcome =
-          Cli.execute $"cd {directory} && {command}"
-
-        /// Checks if two files are identical.
-        let areFilesIdentical (file1: String) (file2: String) : Bool =
-          match Cli.executeWithUnitOrStdErr $"diff -q {file1} {file2}" with
-          | Ok _ -> true
-          | Error _ -> false
-
-        /// Shows a unified, colored diff between two files.
-        let showDiff (expectedFile: String) (actualFile: String) : Stdlib.Cli.ExecutionOutcome =
-          Cli.execute $"diff --unified=3 --color=always {expectedFile} {actualFile}"
-
-        /// Checks if a command-line tool is available in PATH.
-        let isCommandAvailable (tool: String) : Bool =
-          match Cli.executeWithUnitOrStdErr $"command -v {tool}" with
-          | Ok _ -> true
-          | Error _ -> false
-
-        /// Finds the full path of a command using `which`.
-        let findCommandPath (tool: String) : Stdlib.Cli.ExecutionOutcome =
-          Cli.execute $"which {tool}"
-
-        /// Copies a file from source to destination path
-        let copyFile (sourcePath: String) (destPath: String) : Result.Result<Unit, String> =
-          Cli.executeWithUnitOrStdErr $"cp '{sourcePath}' '{destPath}'"
-
-        /// Checks if a file exists at the given path.
-        let fileExists (filePath: String) : Bool =
-          match Cli.executeWithUnitOrStdErr $"test -f {filePath}" with
-          | Ok _ -> true
-          | Error _ -> false
-
-        /// Resolves a relative path to an absolute path.
-        let getAbsolutePath (relativePath: String) : Stdlib.Cli.ExecutionOutcome =
-          Cli.execute $"realpath {relativePath}"
-
-        /// Adds an alias to the user's default shell configuration file.
-        /// The alias will be available in new shell sessions.
-        let addAlias
-          (shell: Shell.Shell)
-          (alias: String)
-          (command: String)
-          : Result.Result<Unit, String> =
-          match shell with
-          | Bash -> Bash.addAlias alias command
-          | Zsh -> Zsh.addAlias alias command
-          | _ -> Result.Result.Error "Unsupported shell"
+module Darklang.Stdlib.Cli.Unix
 
 
-        /// Deletes an alias from the user's default shell configuration file.
-        let deleteAlias
-          (shell: Shell.Shell)
-          (alias: String)
-          : Result.Result<Unit, String> =
-          match shell with
-          | Bash -> Bash.deleteAlias alias
-          | Zsh -> Zsh.deleteAlias alias
-          | _ -> Result.Result.Error "Unsupported OS or shell"
+let removeFile (path: String) : Result.Result<Unit, String> =
+  Cli.executeWithUnitOrStdErr $"rm {path}"
+
+let removeDirectory (path: String) : Result.Result<Unit, String> =
+  Cli.executeWithUnitOrStdErr $"rm -rf {path}"
+
+let ensureDirectoryExists (path: String) : Result.Result<Unit, String> =
+  Cli.executeWithUnitOrStdErr $"mkdir -p {path}"
+
+/// Grants execute permissions to the specified file. (chmod +x <param path>)
+/// If successful, returns {{Ok ()}}. Otherwise, returns an {{Error <var stderr>}}
+let grantExecutePermission (path: String) : Result.Result<Unit, String> =
+  Cli.executeWithUnitOrStdErr $"chmod +x {path}"
+
+/// Executes a command in the given directory and redirects output to a file.
+let executeInDirectoryAndRedirectToFile (directory: String) (command: String) (outputFile: String) : Result.Result<Unit, String> =
+  Cli.executeWithUnitOrStdErr $"cd {directory} && {command} > {outputFile} 2>&1"
+
+/// Executes a command in the specified directory and captures the full execution result.
+/// Returns the complete execution outcome including stdout, stderr, and exit code.
+let executeInDirectoryWithOutput
+  (directory: String)
+  (command: String)
+  : Stdlib.Cli.ExecutionOutcome =
+  Cli.execute $"cd {directory} && {command}"
+
+/// Checks if two files are identical.
+let areFilesIdentical (file1: String) (file2: String) : Bool =
+  match Cli.executeWithUnitOrStdErr $"diff -q {file1} {file2}" with
+  | Ok _ -> true
+  | Error _ -> false
+
+/// Shows a unified, colored diff between two files.
+let showDiff (expectedFile: String) (actualFile: String) : Stdlib.Cli.ExecutionOutcome =
+  Cli.execute $"diff --unified=3 --color=always {expectedFile} {actualFile}"
+
+/// Checks if a command-line tool is available in PATH.
+let isCommandAvailable (tool: String) : Bool =
+  match Cli.executeWithUnitOrStdErr $"command -v {tool}" with
+  | Ok _ -> true
+  | Error _ -> false
+
+/// Finds the full path of a command using `which`.
+let findCommandPath (tool: String) : Stdlib.Cli.ExecutionOutcome =
+  Cli.execute $"which {tool}"
+
+/// Copies a file from source to destination path
+let copyFile (sourcePath: String) (destPath: String) : Result.Result<Unit, String> =
+  Cli.executeWithUnitOrStdErr $"cp '{sourcePath}' '{destPath}'"
+
+/// Checks if a file exists at the given path.
+let fileExists (filePath: String) : Bool =
+  match Cli.executeWithUnitOrStdErr $"test -f {filePath}" with
+  | Ok _ -> true
+  | Error _ -> false
+
+/// Resolves a relative path to an absolute path.
+let getAbsolutePath (relativePath: String) : Stdlib.Cli.ExecutionOutcome =
+  Cli.execute $"realpath {relativePath}"
+
+/// Adds an alias to the user's default shell configuration file.
+/// The alias will be available in new shell sessions.
+let addAlias
+  (shell: Shell.Shell)
+  (alias: String)
+  (command: String)
+  : Result.Result<Unit, String> =
+  match shell with
+  | Bash -> Bash.addAlias alias command
+  | Zsh -> Zsh.addAlias alias command
+  | _ -> Result.Result.Error "Unsupported shell"
 
 
-        /// Gets the home directory of the current user using $HOME environment variable.
-        let getHomeDirectory () : Result.Result<String, String> =
-          let dir = Cli.execute "echo $HOME"
-          if dir.exitCode == 0L then
-            let dir = dir.stdout |> String.trim
-            Result.Result.Ok dir
-          else
-            Result.Result.Error dir.stderr
+/// Deletes an alias from the user's default shell configuration file.
+let deleteAlias
+  (shell: Shell.Shell)
+  (alias: String)
+  : Result.Result<Unit, String> =
+  match shell with
+  | Bash -> Bash.deleteAlias alias
+  | Zsh -> Zsh.deleteAlias alias
+  | _ -> Result.Result.Error "Unsupported OS or shell"
+
+
+/// Gets the home directory of the current user using $HOME environment variable.
+let getHomeDirectory () : Result.Result<String, String> =
+  let dir = Cli.execute "echo $HOME"
+  if dir.exitCode == 0L then
+    let dir = dir.stdout |> String.trim
+    Result.Result.Ok dir
+  else
+    Result.Result.Error dir.stderr

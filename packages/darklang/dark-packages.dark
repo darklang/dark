@@ -1,7 +1,7 @@
-module Darklang =
-  /// some types that correspond to the `dark-packages` canvas
-  module DarkPackages =
-    type Stats =
-      { types: Int64
-        values: Int64
-        fns: Int64 }
+/// some types that correspond to the `dark-packages` canvas
+module Darklang.DarkPackages
+
+type Stats =
+  { types: Int64
+    values: Int64
+    fns: Int64 }

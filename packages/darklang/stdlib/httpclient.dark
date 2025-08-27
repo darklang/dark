@@ -1,130 +1,129 @@
-module Darklang =
-  module Stdlib =
-    module HttpClient =
-
-      type BadHeader =
-        // Occurs whrn a header key is empty. eg. [ ("", "") ]
-        | EmptyKey
-        | InvalidContentType
-
-      type BadUrlDetails =
-        /// Occurs when the URI scheme is not allowed. eg. "ftp://darklang.com"
-        | UnsupportedProtocol
-        /// Occurs when the host is not allowed. eg. "http://0"
-        | InvalidHost
-        /// Occurs when the URI does not conform to the format specified by RFC 2396. eg. "{ ] nonsense ^#( :"
-        | InvalidUri
-        /// Occurs when the request contains invalid headers. eg.A request to "http://google.com" with [("Metadata-Flavor", "Google")] header
-        | InvalidRequest
-
-      type RequestError =
-        | BadUrl of BadUrlDetails
-        /// Occurs when the request is cancelled due to a timeout
-        | Timeout
-        | BadHeader of BadHeader
-        /// Occurs when there's an issue connecting to the endpoint or an I/O error. eg. network error, DNS failure, certifivate validation error, etc.
-        | NetworkError
-        /// Occurs when the request method is not invalid.
-        | BadMethod
-
-      // TODO: move this into a RequestError module, along with the type
-      let toString (e: RequestError) : String =
-        match e with
-        | BadUrl details ->
-          match details with
-          | UnsupportedProtocol -> "Unsupported protocol"
-          | InvalidHost -> "Invalid host"
-          | InvalidUri -> "Invalid URI"
-          | InvalidRequest -> "Invalid request"
-        | Timeout -> "Timeout"
-        | BadHeader details ->
-          match details with
-          | EmptyKey -> "Empty key"
-          | InvalidContentType -> "Invalid content-type header"
-        | NetworkError -> "Network Error"
-        | BadMethod -> "Bad Method"
+module Darklang.Stdlib.HttpClient
 
 
-      /// The response from a HTTP request
-      type Response =
-        { statusCode: Int64
-          headers: List<(String * String)>
-          body: List<UInt8> }
+type BadHeader =
+  // Occurs whrn a header key is empty. eg. [ ("", "") ]
+  | EmptyKey
+  | InvalidContentType
+
+type BadUrlDetails =
+  /// Occurs when the URI scheme is not allowed. eg. "ftp://darklang.com"
+  | UnsupportedProtocol
+  /// Occurs when the host is not allowed. eg. "http://0"
+  | InvalidHost
+  /// Occurs when the URI does not conform to the format specified by RFC 2396. eg. "{ ] nonsense ^#( :"
+  | InvalidUri
+  /// Occurs when the request contains invalid headers. eg.A request to "http://google.com" with [("Metadata-Flavor", "Google")] header
+  | InvalidRequest
+
+type RequestError =
+  | BadUrl of BadUrlDetails
+  /// Occurs when the request is cancelled due to a timeout
+  | Timeout
+  | BadHeader of BadHeader
+  /// Occurs when there's an issue connecting to the endpoint or an I/O error. eg. network error, DNS failure, certifivate validation error, etc.
+  | NetworkError
+  /// Occurs when the request method is not invalid.
+  | BadMethod
+
+// TODO: move this into a RequestError module, along with the type
+let toString (e: RequestError) : String =
+  match e with
+  | BadUrl details ->
+    match details with
+    | UnsupportedProtocol -> "Unsupported protocol"
+    | InvalidHost -> "Invalid host"
+    | InvalidUri -> "Invalid URI"
+    | InvalidRequest -> "Invalid request"
+  | Timeout -> "Timeout"
+  | BadHeader details ->
+    match details with
+    | EmptyKey -> "Empty key"
+    | InvalidContentType -> "Invalid content-type header"
+  | NetworkError -> "Network Error"
+  | BadMethod -> "Bad Method"
 
 
-      /// Make blocking HTTP call to <param uri>. Returns a <type Result> where
-      /// the response is wrapped in {{ Ok }} if a response was successfully
-      /// received and parsed, and is wrapped in {{ Error }} otherwise
-      let request
-        (method: String)
-        (uri: String)
-        (headers: List<(String * String)>)
-        (body: List<UInt8>)
-        : Stdlib.Result.Result<Response, RequestError> =
-        Builtin.httpClientRequest method uri headers body
+/// The response from a HTTP request
+type Response =
+  { statusCode: Int64
+    headers: List<(String * String)>
+    body: List<UInt8> }
 
 
-      let get
-        (uri: String)
-        (headers: List<(String * String)>)
-        : Stdlib.Result.Result<Response, RequestError> =
-        request "GET" uri headers []
+/// Make blocking HTTP call to <param uri>. Returns a <type Result> where
+/// the response is wrapped in {{ Ok }} if a response was successfully
+/// received and parsed, and is wrapped in {{ Error }} otherwise
+let request
+  (method: String)
+  (uri: String)
+  (headers: List<(String * String)>)
+  (body: List<UInt8>)
+  : Stdlib.Result.Result<Response, RequestError> =
+  Builtin.httpClientRequest method uri headers body
 
 
-      let post
-        (uri: String)
-        (headers: List<(String * String)>)
-        (body: List<UInt8>)
-        : Stdlib.Result.Result<Response, RequestError> =
-        request "POST" uri headers body
+let get
+  (uri: String)
+  (headers: List<(String * String)>)
+  : Stdlib.Result.Result<Response, RequestError> =
+  request "GET" uri headers []
 
 
-      let put
-        (uri: String)
-        (headers: List<(String * String)>)
-        (body: List<UInt8>)
-        : Stdlib.Result.Result<Response, RequestError> =
-        request "PUT" uri headers body
+let post
+  (uri: String)
+  (headers: List<(String * String)>)
+  (body: List<UInt8>)
+  : Stdlib.Result.Result<Response, RequestError> =
+  request "POST" uri headers body
 
 
-      let options (uri: String) : Stdlib.Result.Result<Response, RequestError> =
-        request "OPTIONS" uri [] []
+let put
+  (uri: String)
+  (headers: List<(String * String)>)
+  (body: List<UInt8>)
+  : Stdlib.Result.Result<Response, RequestError> =
+  request "PUT" uri headers body
 
 
-      let delete (uri: String) : Stdlib.Result.Result<Response, RequestError> =
-        request "DELETE" uri [] []
+let options (uri: String) : Stdlib.Result.Result<Response, RequestError> =
+  request "OPTIONS" uri [] []
 
 
-      let head (uri: String) : Stdlib.Result.Result<Response, RequestError> =
-        request "HEAD" uri [] []
+let delete (uri: String) : Stdlib.Result.Result<Response, RequestError> =
+  request "DELETE" uri [] []
 
 
-      /// Returns a header <type (String*String))> with {{'authorization'}} created using HTTP basic auth
-      let basicAuth
-        (username: String)
-        (password: String)
-        : Stdlib.Result.Result<(String * String), String> =
-        if Stdlib.String.contains username "-" then
-          Stdlib.Result.Result.Error "Username cannot contain a hyphen"
-        else
-          let encoded = Stdlib.String.base64Encode $"{username}:{password}"
-
-          Stdlib.Result.Result.Ok(("authorization", $"basic {encoded}"))
-
-      /// Returns a header <type (String*String))> with {{'authorization'}} set to <param token>
-      let bearerToken (token: String) : (String * String) =
-        ("authorization", ("bearer " ++ token))
+let head (uri: String) : Stdlib.Result.Result<Response, RequestError> =
+  request "HEAD" uri [] []
 
 
-      module ContentType =
-        /// A header <type (String*String))> with {{content-type}} set for HTML form requests or responses
-        let form = ("content-type", "application/x-www-form-urlencoded")
+/// Returns a header <type (String*String))> with {{'authorization'}} created using HTTP basic auth
+let basicAuth
+  (username: String)
+  (password: String)
+  : Stdlib.Result.Result<(String * String), String> =
+  if Stdlib.String.contains username "-" then
+    Stdlib.Result.Result.Error "Username cannot contain a hyphen"
+  else
+    let encoded = Stdlib.String.base64Encode $"{username}:{password}"
 
-        /// A header <type (String*String))> with {{content-type}} set for JSON requests or responses
-        let json = ("content-type", "application/json")
+    Stdlib.Result.Result.Ok(("authorization", $"basic {encoded}"))
 
-        /// A header <type (String*String))> with {{'content-type'}} set for plain text requests or responses
-        let plainText = ("content-type", "text/plain; charset=utf-8")
+/// Returns a header <type (String*String))> with {{'authorization'}} set to <param token>
+let bearerToken (token: String) : (String * String) =
+  ("authorization", ("bearer " ++ token))
 
-        /// A header <type (String*String))> with {{'content-type'}} set for html requests
-        let html = ("content-type", "text/html; charset=utf-8")
+
+module ContentType =
+  /// A header <type (String*String))> with {{content-type}} set for HTML form requests or responses
+  let form = ("content-type", "application/x-www-form-urlencoded")
+
+  /// A header <type (String*String))> with {{content-type}} set for JSON requests or responses
+  let json = ("content-type", "application/json")
+
+  /// A header <type (String*String))> with {{'content-type'}} set for plain text requests or responses
+  let plainText = ("content-type", "text/plain; charset=utf-8")
+
+  /// A header <type (String*String))> with {{'content-type'}} set for html requests
+  let html = ("content-type", "text/html; charset=utf-8")

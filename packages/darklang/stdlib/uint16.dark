@@ -1,164 +1,163 @@
-module Darklang =
-  module Stdlib =
-    module UInt16 =
-
-      type ParseError =
-        | BadFormat
-        | OutOfRange
+module Darklang.Stdlib.UInt16
 
 
-      /// Returns the result of wrapping <param a> around so that {{0 <= res < b}}.
-      /// The modulus <param b> must be greater than 0.
-      /// Use <fn UInt16.remainder> if you want the remainder after division, which has
-      /// a different behavior for negative numbers.
-      let ``mod`` (a: UInt16) (b: UInt16) : UInt16 = Builtin.uint16Mod a b
+type ParseError =
+  | BadFormat
+  | OutOfRange
 
 
-      /// Adds two 16-bit unsigned integers together
-      let add (a: UInt16) (b: UInt16) : UInt16 = Builtin.uint16Add a b
+/// Returns the result of wrapping <param a> around so that {{0 <= res < b}}.
+/// The modulus <param b> must be greater than 0.
+/// Use <fn UInt16.remainder> if you want the remainder after division, which has
+/// a different behavior for negative numbers.
+let ``mod`` (a: UInt16) (b: UInt16) : UInt16 = Builtin.uint16Mod a b
 
 
-      /// Subtracts two 16-bit unsigned  integers
-      let subtract (a: UInt16) (b: UInt16) : UInt16 = Builtin.uint16Subtract a b
+/// Adds two 16-bit unsigned integers together
+let add (a: UInt16) (b: UInt16) : UInt16 = Builtin.uint16Add a b
 
 
-      /// Multiplies two 16-bit unsigned  integers
-      let multiply (a: UInt16) (b: UInt16) : UInt16 = Builtin.uint16Multiply a b
+/// Subtracts two 16-bit unsigned  integers
+let subtract (a: UInt16) (b: UInt16) : UInt16 = Builtin.uint16Subtract a b
 
 
-      /// Raise <param base> to the power of <param exponent>.
-      /// <param exponent> must to be positive.
-      /// Return value wrapped in a {{Result}}
-      let power (``base``: UInt16) (exponent: UInt16) : UInt16 =
-        if ``base`` == 0us && exponent == 0us then 1us
-        else if ``base`` == 0us then 0us
-        else if ``base`` == 1us then 1us
-        else Builtin.uint16Power ``base`` exponent
+/// Multiplies two 16-bit unsigned  integers
+let multiply (a: UInt16) (b: UInt16) : UInt16 = Builtin.uint16Multiply a b
 
 
-      /// Divides two 16-bit unsigned integers
-      let divide (a: UInt16) (b: UInt16) : UInt16 = Builtin.uint16Divide a b
+/// Raise <param base> to the power of <param exponent>.
+/// <param exponent> must to be positive.
+/// Return value wrapped in a {{Result}}
+let power (``base``: UInt16) (exponent: UInt16) : UInt16 =
+  if ``base`` == 0us && exponent == 0us then 1us
+  else if ``base`` == 0us then 0us
+  else if ``base`` == 1us then 1us
+  else Builtin.uint16Power ``base`` exponent
 
 
-      /// Returns {{true}} if <param a> is greater than <param b>
-      let greaterThan (a: UInt16) (b: UInt16) : Bool = Builtin.uint16GreaterThan a b
+/// Divides two 16-bit unsigned integers
+let divide (a: UInt16) (b: UInt16) : UInt16 = Builtin.uint16Divide a b
 
 
-      /// Returns {{true}} if <param a> is greater than or equal to <param b>
-      let greaterThanOrEqualTo (a: UInt16) (b: UInt16) : Bool =
-        Builtin.uint16GreaterThanOrEqualTo a b
+/// Returns {{true}} if <param a> is greater than <param b>
+let greaterThan (a: UInt16) (b: UInt16) : Bool = Builtin.uint16GreaterThan a b
 
 
-      /// Returns {{true}} if <param a> is less than <param b>
-      let lessThan (a: UInt16) (b: UInt16) : Bool = Builtin.uint16LessThan a b
+/// Returns {{true}} if <param a> is greater than or equal to <param b>
+let greaterThanOrEqualTo (a: UInt16) (b: UInt16) : Bool =
+  Builtin.uint16GreaterThanOrEqualTo a b
 
 
-      /// Returns {{true}} if <param a> is less than or equal to <param b>
-      let lessThanOrEqualTo (a: UInt16) (b: UInt16) : Bool =
-        Builtin.uint16LessThanOrEqualTo a b
+/// Returns {{true}} if <param a> is less than <param b>
+let lessThan (a: UInt16) (b: UInt16) : Bool = Builtin.uint16LessThan a b
 
 
-      /// Returns a random 16-bit unsigned integer between <param start> and <param end> (inclusive)
-      let random (start: UInt16) (``end``: UInt16) : UInt16 =
-        Builtin.uint16Random start ``end``
+/// Returns {{true}} if <param a> is less than or equal to <param b>
+let lessThanOrEqualTo (a: UInt16) (b: UInt16) : Bool =
+  Builtin.uint16LessThanOrEqualTo a b
 
 
-      /// Get the square root of an <type UInt16>
-      let sqrt (a: UInt16) : Float = Builtin.uint16Sqrt a
+/// Returns a random 16-bit unsigned integer between <param start> and <param end> (inclusive)
+let random (start: UInt16) (``end``: UInt16) : UInt16 =
+  Builtin.uint16Random start ``end``
 
 
-      /// Converts an <type UInt16> to a <type Float>
-      let toFloat (a: UInt16) : Float = Builtin.uint16ToFloat a
+/// Get the square root of an <type UInt16>
+let sqrt (a: UInt16) : Float = Builtin.uint16Sqrt a
 
 
-      /// Returns the sum of all the ints in the list
-      let sum (lst: List<UInt16>) : UInt16 =
-        Stdlib.List.fold lst 0us (fun acc x -> Stdlib.UInt16.add acc x)
+/// Converts an <type UInt16> to a <type Float>
+let toFloat (a: UInt16) : Float = Builtin.uint16ToFloat a
 
 
-      /// Returns the higher of <param a> and <param b>
-      let max (a: UInt16) (b: UInt16) : UInt16 =
-        if (Stdlib.UInt16.greaterThan a b) then a else b
+/// Returns the sum of all the ints in the list
+let sum (lst: List<UInt16>) : UInt16 =
+  Stdlib.List.fold lst 0us (fun acc x -> Stdlib.UInt16.add acc x)
 
 
-      /// Returns the lower of <param a> and <param b>
-      let min (a: UInt16) (b: UInt16) : UInt16 =
-        if (Stdlib.UInt16.lessThan a b) then a else b
+/// Returns the higher of <param a> and <param b>
+let max (a: UInt16) (b: UInt16) : UInt16 =
+  if (Stdlib.UInt16.greaterThan a b) then a else b
 
 
-      /// If <param value> is within the range given by <param limitA> and <param
-      /// limitB>, returns <param value>.
-      /// If <param value> is outside the range, returns <param limitA> or <param
-      /// limitB>, whichever is closer to <param value>.
-      /// <param limitA> and <param limitB> can be provided in any order.
-      let clamp (value: UInt16) (limitA: UInt16) (limitB: UInt16) : UInt16 =
-        let min =
-          if (Stdlib.UInt16.lessThan limitA limitB) then
-            limitA
-          else
-            limitB
-
-        let max =
-          if (Stdlib.UInt16.greaterThan limitA limitB) then
-            limitA
-          else
-            limitB
-
-        if (Stdlib.UInt16.lessThan value min) then min
-        else if (Stdlib.UInt16.greaterThan value max) then max
-        else value
+/// Returns the lower of <param a> and <param b>
+let min (a: UInt16) (b: UInt16) : UInt16 =
+  if (Stdlib.UInt16.lessThan a b) then a else b
 
 
-      /// Returns the <type UInt16> value of a <type String>
-      let parse
-        (s: String)
-        : Stdlib.Result.Result<UInt16, Stdlib.UInt16.ParseError> =
-        Builtin.uint16Parse s
+/// If <param value> is within the range given by <param limitA> and <param
+/// limitB>, returns <param value>.
+/// If <param value> is outside the range, returns <param limitA> or <param
+/// limitB>, whichever is closer to <param value>.
+/// <param limitA> and <param limitB> can be provided in any order.
+let clamp (value: UInt16) (limitA: UInt16) (limitB: UInt16) : UInt16 =
+  let min =
+    if (Stdlib.UInt16.lessThan limitA limitB) then
+      limitA
+    else
+      limitB
+
+  let max =
+    if (Stdlib.UInt16.greaterThan limitA limitB) then
+      limitA
+    else
+      limitB
+
+  if (Stdlib.UInt16.lessThan value min) then min
+  else if (Stdlib.UInt16.greaterThan value max) then max
+  else value
 
 
-      /// Stringify <param uint16>
-      let toString (uint16: UInt16) : String = Builtin.uint16ToString uint16
+/// Returns the <type UInt16> value of a <type String>
+let parse
+  (s: String)
+  : Stdlib.Result.Result<UInt16, Stdlib.UInt16.ParseError> =
+  Builtin.uint16Parse s
 
 
-      /// Converts an <type Int8> to a <type UInt16>. Returns {{None}} if the value is less than 0.
-      let fromInt8 (i: Int8) : Stdlib.Option.Option<UInt16> =
-        Builtin.uint16FromInt8 i
+/// Stringify <param uint16>
+let toString (uint16: UInt16) : String = Builtin.uint16ToString uint16
 
 
-      /// Converts a <type UInt8> to a <type UInt16>.
-      let fromUInt8 (i: UInt8) : UInt16 = Builtin.uint16FromUInt8 i
+/// Converts an <type Int8> to a <type UInt16>. Returns {{None}} if the value is less than 0.
+let fromInt8 (i: Int8) : Stdlib.Option.Option<UInt16> =
+  Builtin.uint16FromInt8 i
 
 
-      /// Converts an <type Int16> to a <type UInt16>. Returns {{None}} if the value is less than 0.
-      let fromInt16 (i: Int16) : Stdlib.Option.Option<UInt16> =
-        Builtin.uint16FromInt16 i
+/// Converts a <type UInt8> to a <type UInt16>.
+let fromUInt8 (i: UInt8) : UInt16 = Builtin.uint16FromUInt8 i
 
 
-      /// Converts an <type Int32> to a <type UInt16>. Returns {{None}} if the value is less than 0 or greater than 65535.
-      let fromInt32 (i: Int32) : Stdlib.Option.Option<UInt16> =
-        Builtin.uint16FromInt32 i
+/// Converts an <type Int16> to a <type UInt16>. Returns {{None}} if the value is less than 0.
+let fromInt16 (i: Int16) : Stdlib.Option.Option<UInt16> =
+  Builtin.uint16FromInt16 i
 
 
-      /// Converts a <type UInt32> to a <type UInt16>. Returns {{None}} if the value is greater than 65535.
-      let fromUInt32 (i: UInt32) : Stdlib.Option.Option<UInt16> =
-        Builtin.uint16FromUInt32 i
+/// Converts an <type Int32> to a <type UInt16>. Returns {{None}} if the value is less than 0 or greater than 65535.
+let fromInt32 (i: Int32) : Stdlib.Option.Option<UInt16> =
+  Builtin.uint16FromInt32 i
 
 
-      /// Converts an <type Int64> to a <type UInt16>. Returns {{None}} if the value is less than 0 or greater than 65535.
-      let fromInt64 (i: Int64) : Stdlib.Option.Option<UInt16> =
-        Builtin.uint16FromInt64 i
+/// Converts a <type UInt32> to a <type UInt16>. Returns {{None}} if the value is greater than 65535.
+let fromUInt32 (i: UInt32) : Stdlib.Option.Option<UInt16> =
+  Builtin.uint16FromUInt32 i
 
 
-      /// Converts a <type UInt64> to a <type UInt16>. Returns {{None}} if the value is greater than 65535.
-      let fromUInt64 (i: UInt64) : Stdlib.Option.Option<UInt16> =
-        Builtin.uint16FromUInt64 i
+/// Converts an <type Int64> to a <type UInt16>. Returns {{None}} if the value is less than 0 or greater than 65535.
+let fromInt64 (i: Int64) : Stdlib.Option.Option<UInt16> =
+  Builtin.uint16FromInt64 i
 
 
-      /// Converts an <type Int128> to a <type UInt16>. Returns {{None}} if the value is less than 0 or greater than 65535.
-      let fromInt128 (i: Int128) : Stdlib.Option.Option<UInt16> =
-        Builtin.uint16FromInt128 i
+/// Converts a <type UInt64> to a <type UInt16>. Returns {{None}} if the value is greater than 65535.
+let fromUInt64 (i: UInt64) : Stdlib.Option.Option<UInt16> =
+  Builtin.uint16FromUInt64 i
 
 
-      /// Converts a <type UInt128> to a <type UInt16>. Returns {{None}} if the value is greater than 65535.
-      let fromUInt128 (i: UInt128) : Stdlib.Option.Option<UInt16> =
-        Builtin.uint16FromUInt128 i
+/// Converts an <type Int128> to a <type UInt16>. Returns {{None}} if the value is less than 0 or greater than 65535.
+let fromInt128 (i: Int128) : Stdlib.Option.Option<UInt16> =
+  Builtin.uint16FromInt128 i
+
+
+/// Converts a <type UInt128> to a <type UInt16>. Returns {{None}} if the value is greater than 65535.
+let fromUInt128 (i: UInt128) : Stdlib.Option.Option<UInt16> =
+  Builtin.uint16FromUInt128 i

@@ -1,174 +1,173 @@
-module Darklang =
-  module Stdlib =
-    module Int64 =
+module Darklang.Stdlib.Int64
 
-      type ParseError =
-        | BadFormat
-        | OutOfRange
 
+type ParseError =
+  | BadFormat
+  | OutOfRange
 
-      /// Returns the result of wrapping <param a> around so that {{0 <= res < b}}.
-      /// The modulus <param b> must be greater than 0
-      /// Use <fn Int64.remainder> if you want the remainder after division, which has
-      /// a different behavior for negative numbers.
-      let ``mod`` (a: Int64) (b: Int64) : Int64 = a % b
 
+/// Returns the result of wrapping <param a> around so that {{0 <= res < b}}.
+/// The modulus <param b> must be greater than 0
+/// Use <fn Int64.remainder> if you want the remainder after division, which has
+/// a different behavior for negative numbers.
+let ``mod`` (a: Int64) (b: Int64) : Int64 = a % b
 
-      /// Returns the integer remainder left over after dividing <param value> by
-      /// <param divisor>, as a <type Result>.
-      /// For example, {{Int64.remainder 15 6 == Ok 3}}. The remainder will be
-      /// negative only if {{<var value> < 0}}.
-      /// The sign of <param divisor> doesn't influence the outcome.
-      /// Returns an {{Error}} if <param divisor> is {{0}}.
-      let remainder
-        (value: Int64)
-        (divisor: Int64)
-        : Stdlib.Result.Result<Int64, String> =
-        Builtin.int64Remainder value divisor
 
+/// Returns the integer remainder left over after dividing <param value> by
+/// <param divisor>, as a <type Result>.
+/// For example, {{Int64.remainder 15 6 == Ok 3}}. The remainder will be
+/// negative only if {{<var value> < 0}}.
+/// The sign of <param divisor> doesn't influence the outcome.
+/// Returns an {{Error}} if <param divisor> is {{0}}.
+let remainder
+  (value: Int64)
+  (divisor: Int64)
+  : Stdlib.Result.Result<Int64, String> =
+  Builtin.int64Remainder value divisor
 
-      /// Adds two integers together
-      let add (a: Int64) (b: Int64) : Int64 = a + b
 
+/// Adds two integers together
+let add (a: Int64) (b: Int64) : Int64 = a + b
 
-      /// Subtracts two integers
-      let subtract (a: Int64) (b: Int64) : Int64 = a - b
 
+/// Subtracts two integers
+let subtract (a: Int64) (b: Int64) : Int64 = a - b
 
-      /// Multiplies two integers
-      let multiply (a: Int64) (b: Int64) : Int64 = a * b
 
+/// Multiplies two integers
+let multiply (a: Int64) (b: Int64) : Int64 = a * b
 
-      /// Divides two integers
-      let divide (a: Int64) (b: Int64) : Int64 = Builtin.int64Divide a b
 
+/// Divides two integers
+let divide (a: Int64) (b: Int64) : Int64 = Builtin.int64Divide a b
 
-      /// Raise <param base> to the power of <param exponent>.
-      /// <param exponent> must to be positive.
-      /// Return value wrapped in a {{Result}}
-      let power (``base``: Int64) (exponent: Int64) : Int64 =
-        // Handle some edge cases around 1. We want to make this match
-        // OCaml, so we have to support an exponent above int32, but
-        // below int63. This only matters for 1 or -1, and otherwise a
-        // number raised to an int63 exponent wouldn't fit in an int63
-        if ``base`` == 0L && exponent == 0L then 1L
-        else if ``base`` == 0L then 0L
-        else if ``base`` == 1L then 1L
-        else if ``base`` == -1L && exponent % 2L == 0L then 1L
-        else if ``base`` == -1L then -1L
-        else ``base`` ^ exponent
 
+/// Raise <param base> to the power of <param exponent>.
+/// <param exponent> must to be positive.
+/// Return value wrapped in a {{Result}}
+let power (``base``: Int64) (exponent: Int64) : Int64 =
+  // Handle some edge cases around 1. We want to make this match
+  // OCaml, so we have to support an exponent above int32, but
+  // below int63. This only matters for 1 or -1, and otherwise a
+  // number raised to an int63 exponent wouldn't fit in an int63
+  if ``base`` == 0L && exponent == 0L then 1L
+  else if ``base`` == 0L then 0L
+  else if ``base`` == 1L then 1L
+  else if ``base`` == -1L && exponent % 2L == 0L then 1L
+  else if ``base`` == -1L then -1L
+  else ``base`` ^ exponent
 
-      /// Returns the absolute value of <param a> (turning negative inputs into positive outputs)
-      let absoluteValue (a: Int64) : Int64 = if a < 0L then -a else a
 
+/// Returns the absolute value of <param a> (turning negative inputs into positive outputs)
+let absoluteValue (a: Int64) : Int64 = if a < 0L then -a else a
 
-      /// Returns the negation of <param a>, {{-a}}
-      let negate (a: Int64) : Int64 = -a
 
+/// Returns the negation of <param a>, {{-a}}
+let negate (a: Int64) : Int64 = -a
 
-      /// Returns {{true}} if <param a> is greater than <param b>
-      let greaterThan (a: Int64) (b: Int64) : Bool = a > b
 
+/// Returns {{true}} if <param a> is greater than <param b>
+let greaterThan (a: Int64) (b: Int64) : Bool = a > b
 
-      /// Returns {{true}} if <param a> is greater than or equal to <param b>
-      let greaterThanOrEqualTo (a: Int64) (b: Int64) : Bool = a >= b
 
+/// Returns {{true}} if <param a> is greater than or equal to <param b>
+let greaterThanOrEqualTo (a: Int64) (b: Int64) : Bool = a >= b
 
-      /// Returns {{true}} if <param a> is less than <param b>
-      let lessThan (a: Int64) (b: Int64) : Bool = a < b
 
-      /// Returns {{true}} if <param a> is less than or equal to <param b>
-      let lessThanOrEqualTo (a: Int64) (b: Int64) : Bool = a <= b
+/// Returns {{true}} if <param a> is less than <param b>
+let lessThan (a: Int64) (b: Int64) : Bool = a < b
 
+/// Returns {{true}} if <param a> is less than or equal to <param b>
+let lessThanOrEqualTo (a: Int64) (b: Int64) : Bool = a <= b
 
-      /// Returns a random integer between <param start> and <param end> (inclusive)
-      let random (start: Int64) (``end``: Int64) : Int64 =
-        Builtin.int64Random start ``end``
 
+/// Returns a random integer between <param start> and <param end> (inclusive)
+let random (start: Int64) (``end``: Int64) : Int64 =
+  Builtin.int64Random start ``end``
 
-      /// Get the square root of an <type Int64>
-      let sqrt (a: Int64) : Float = Builtin.int64Sqrt a
 
+/// Get the square root of an <type Int64>
+let sqrt (a: Int64) : Float = Builtin.int64Sqrt a
 
-      /// Converts an <type Int64> to a <type Float>
-      let toFloat (a: Int64) : Float = Builtin.int64ToFloat a
 
+/// Converts an <type Int64> to a <type Float>
+let toFloat (a: Int64) : Float = Builtin.int64ToFloat a
 
-      /// Converts a <type Float> to an <type Int64>, rounding towards zero
-      let fromFloat (a: Float) : Int64 = Builtin.floatToInt64 a
 
+/// Converts a <type Float> to an <type Int64>, rounding towards zero
+let fromFloat (a: Float) : Int64 = Builtin.floatToInt64 a
 
-      /// Returns the sum of all the ints in the list
-      let sum (lst: List<Int64>) : Int64 =
-        Stdlib.List.fold lst 0L (fun acc x -> acc + x)
 
+/// Returns the sum of all the ints in the list
+let sum (lst: List<Int64>) : Int64 =
+  Stdlib.List.fold lst 0L (fun acc x -> acc + x)
 
-      /// Returns the higher of <param a> and <param b>
-      let max (a: Int64) (b: Int64) : Int64 = if a > b then a else b
 
+/// Returns the higher of <param a> and <param b>
+let max (a: Int64) (b: Int64) : Int64 = if a > b then a else b
 
-      /// Returns the lower of <param a> and <param b>
-      let min (a: Int64) (b: Int64) : Int64 = if a < b then a else b
 
+/// Returns the lower of <param a> and <param b>
+let min (a: Int64) (b: Int64) : Int64 = if a < b then a else b
 
-      /// If <param value> is within the range given by <param limitA> and <param
-      /// limitB>, returns <param value>.
-      /// If <param value> is outside the range, returns <param limitA> or <param
-      /// limitB>, whichever is closer to <param value>.
-      /// <param limitA> and <param limitB> can be provided in any order.
-      let clamp (value: Int64) (limitA: Int64) (limitB: Int64) : Int64 =
-        let min = if limitA < limitB then limitA else limitB
-        let max = if limitA > limitB then limitA else limitB
 
-        if value < min then min
-        else if value > max then max
-        else value
+/// If <param value> is within the range given by <param limitA> and <param
+/// limitB>, returns <param value>.
+/// If <param value> is outside the range, returns <param limitA> or <param
+/// limitB>, whichever is closer to <param value>.
+/// <param limitA> and <param limitB> can be provided in any order.
+let clamp (value: Int64) (limitA: Int64) (limitB: Int64) : Int64 =
+  let min = if limitA < limitB then limitA else limitB
+  let max = if limitA > limitB then limitA else limitB
 
+  if value < min then min
+  else if value > max then max
+  else value
 
-      /// Returns the <type Int64> value of a <type String>
-      let parse (s: String) : Stdlib.Result.Result<Int64, Stdlib.Int64.ParseError> =
-        Builtin.int64Parse s
 
+/// Returns the <type Int64> value of a <type String>
+let parse (s: String) : Stdlib.Result.Result<Int64, Stdlib.Int64.ParseError> =
+  Builtin.int64Parse s
 
-      /// Stringify <param int>
-      let toString (int: Int64) : String = Builtin.int64ToString int
 
+/// Stringify <param int>
+let toString (int: Int64) : String = Builtin.int64ToString int
 
-      /// Converts an <type Int8> to an <type Int64>.
-      let fromInt8 (i: Int8) : Int64 = Builtin.int64FromInt8 i
 
+/// Converts an <type Int8> to an <type Int64>.
+let fromInt8 (i: Int8) : Int64 = Builtin.int64FromInt8 i
 
-      /// Converts a <type UInt8> to an <type Int64>.
-      let fromUInt8 (i: UInt8) : Int64 = Builtin.int64FromUInt8 i
 
+/// Converts a <type UInt8> to an <type Int64>.
+let fromUInt8 (i: UInt8) : Int64 = Builtin.int64FromUInt8 i
 
-      /// Converts an <type Int16> to an <type Int64>.
-      let fromInt16 (i: Int16) : Int64 = Builtin.int64FromInt16 i
 
+/// Converts an <type Int16> to an <type Int64>.
+let fromInt16 (i: Int16) : Int64 = Builtin.int64FromInt16 i
 
-      /// Converts a <type UInt16> to an <type Int64>.
-      let fromUInt16 (i: UInt16) : Int64 = Builtin.int64FromUInt16 i
 
+/// Converts a <type UInt16> to an <type Int64>.
+let fromUInt16 (i: UInt16) : Int64 = Builtin.int64FromUInt16 i
 
-      /// Converts an <type Int32> to an <type Int64>.
-      let fromInt32 (i: Int32) : Int64 = Builtin.int64FromInt32 i
 
+/// Converts an <type Int32> to an <type Int64>.
+let fromInt32 (i: Int32) : Int64 = Builtin.int64FromInt32 i
 
-      /// Converts a <type UInt32> to an <type Int64>.
-      let fromUInt32 (i: UInt32) : Int64 = Builtin.int64FromUInt32 i
 
+/// Converts a <type UInt32> to an <type Int64>.
+let fromUInt32 (i: UInt32) : Int64 = Builtin.int64FromUInt32 i
 
-      /// Converts a <type UInt64> to an <type Int64>. Returns {{None}} if the value is greater than 9223372036854775807
-      let fromUInt64 (i: UInt64) : Stdlib.Option.Option<Int64> =
-        Builtin.int64FromUInt64 i
 
+/// Converts a <type UInt64> to an <type Int64>. Returns {{None}} if the value is greater than 9223372036854775807
+let fromUInt64 (i: UInt64) : Stdlib.Option.Option<Int64> =
+  Builtin.int64FromUInt64 i
 
-      /// Converts an <type Int128> to an <type Int64>. Returns {{None}} if the value is less than -9223372036854775808 or greater than 9223372036854775807
-      let fromInt128 (i: Int128) : Stdlib.Option.Option<Int64> =
-        Builtin.int64FromInt128 i
 
+/// Converts an <type Int128> to an <type Int64>. Returns {{None}} if the value is less than -9223372036854775808 or greater than 9223372036854775807
+let fromInt128 (i: Int128) : Stdlib.Option.Option<Int64> =
+  Builtin.int64FromInt128 i
 
-      /// Converts a <type UInt128> to an <type Int64>. Returns {{None}} if the value is greater than 9223372036854775807
-      let fromUInt128 (i: UInt128) : Stdlib.Option.Option<Int64> =
-        Builtin.int64FromUInt128 i
+
+/// Converts a <type UInt128> to an <type Int64>. Returns {{None}} if the value is greater than 9223372036854775807
+let fromUInt128 (i: UInt128) : Stdlib.Option.Option<Int64> =
+  Builtin.int64FromUInt128 i

@@ -1,322 +1,321 @@
-module Darklang =
-  module LanguageTools =
-    module Parser =
-      module CliScript =
-        type WTCliScriptModule =
-          { owner: String
-            name: String
-            types: List<LanguageTools.WrittenTypes.TypeDeclaration.TypeDeclaration>
-            values:
-              List<LanguageTools.WrittenTypes.ValueDeclaration.ValueDeclaration>
-            fns: List<LanguageTools.WrittenTypes.FnDeclaration.FnDeclaration>
-            submodules:
-              List<LanguageTools.WrittenTypes.ModuleDeclaration.ModuleDeclaration>
-            exprs: List<LanguageTools.WrittenTypes.Expr> }
-
-        type PTCliScriptModule =
-          { types: List<LanguageTools.ProgramTypes.PackageType.PackageType>
-            values:
-              List<LanguageTools.ProgramTypes.PackageValue.PackageValue>
-            fns: List<LanguageTools.ProgramTypes.PackageFn.PackageFn>
-            submodules: List<LanguageTools.ProgramTypes.Definitions>
-            exprs: List<LanguageTools.ProgramTypes.Expr> }
-
-        let parseDecls
-          (owner: String)
-          (scriptName: String)
-          (source: LanguageTools.WrittenTypes.ParsedFile)
-          : Stdlib.Result.Result<WTCliScriptModule, String> =
-          match source with
-          | SourceFile source ->
-            let types =
-              source.declarations
-              |> Stdlib.List.filterMap (fun decl ->
-                match decl with
-                | Type t -> Stdlib.Option.Option.Some t
-                | _ -> Stdlib.Option.Option.None)
-
-            let values =
-              source.declarations
-              |> Stdlib.List.filterMap (fun decl ->
-                match decl with
-                | Value v -> Stdlib.Option.Option.Some v
-                | _ -> Stdlib.Option.Option.None)
-
-            let fns =
-              source.declarations
-              |> Stdlib.List.filterMap (fun decl ->
-                match decl with
-                | Function f -> Stdlib.Option.Option.Some f
-                | _ -> Stdlib.Option.Option.None)
-
-            let submodules =
-              source.declarations
-              |> Stdlib.List.filterMap (fun decl ->
-                match decl with
-                | Module m -> Stdlib.Option.Option.Some m
-                | _ -> Stdlib.Option.Option.None)
-
-            let exprs = source.exprsToEval
-
-            Stdlib.Result.Result.Ok(
-              WTCliScriptModule
-                { owner = owner
-                  name = scriptName
-                  types = types
-                  values = values
-                  fns = fns
-                  submodules = submodules
-                  exprs = exprs }
-            )
-
-          | _ -> Stdlib.Result.Result.Error "Invalid source file"
+module Darklang.LanguageTools.Parser.CliScript
 
 
-        let toPT
-          (onMissing: NameResolver.OnMissing)
-          (pm: ProgramTypes.PackageManager.PackageManager)
-          (wt: WTCliScriptModule)
-          : (PTCliScriptModule * List<Parser.Range * ProgramTypes.NameResolutionError>)
-          =
-          let modules = if wt.name == "" then [] else [ wt.name ]
+type WTCliScriptModule =
+  { owner: String
+    name: String
+    types: List<LanguageTools.WrittenTypes.TypeDeclaration.TypeDeclaration>
+    values:
+      List<LanguageTools.WrittenTypes.ValueDeclaration.ValueDeclaration>
+    fns: List<LanguageTools.WrittenTypes.FnDeclaration.FnDeclaration>
+    submodules:
+      List<LanguageTools.WrittenTypes.ModuleDeclaration.ModuleDeclaration>
+    exprs: List<LanguageTools.WrittenTypes.Expr> }
 
-          let (types, unresolvedNamesInTypes) =
-            wt.types
-            |> Stdlib.List.map (fun t ->
-              LanguageTools.WrittenTypesToProgramTypes.TypeDeclaration.toPackageTypePT
-                onMissing
-                pm
-                wt.owner
-                modules
-                t)
-            |> Stdlib.List.unzip
+type PTCliScriptModule =
+  { types: List<LanguageTools.ProgramTypes.PackageType.PackageType>
+    values:
+      List<LanguageTools.ProgramTypes.PackageValue.PackageValue>
+    fns: List<LanguageTools.ProgramTypes.PackageFn.PackageFn>
+    submodules: List<LanguageTools.ProgramTypes.Definitions>
+    exprs: List<LanguageTools.ProgramTypes.Expr> }
 
-          let (values, unresolvedNamesInValues) =
-            wt.values
-            |> Stdlib.List.map (fun c ->
-              WrittenTypesToProgramTypes.ValueDeclaration.toPackageValuePT
-                onMissing
-                pm
-                wt.owner
-                [ wt.name ]
-                c)
-            |> Stdlib.List.unzip
+let parseDecls
+  (owner: String)
+  (scriptName: String)
+  (source: LanguageTools.WrittenTypes.ParsedFile)
+  : Stdlib.Result.Result<WTCliScriptModule, String> =
+  match source with
+  | SourceFile source ->
+    let types =
+      source.declarations
+      |> Stdlib.List.filterMap (fun decl ->
+        match decl with
+        | Type t -> Stdlib.Option.Option.Some t
+        | _ -> Stdlib.Option.Option.None)
 
-          let (fns, unresolvedNamesInFns) =
-            wt.fns
-            |> Stdlib.List.map (fun f ->
-              WrittenTypesToProgramTypes.FunctionDeclaration.toPackageFnPT
-                onMissing
-                pm
-                wt.owner
-                modules
-                f)
-            |> Stdlib.List.unzip
+    let values =
+      source.declarations
+      |> Stdlib.List.filterMap (fun decl ->
+        match decl with
+        | Value v -> Stdlib.Option.Option.Some v
+        | _ -> Stdlib.Option.Option.None)
 
-          let (submodules, unresolvedNamesInSubModules) =
-            wt.submodules
-            |> Stdlib.List.map (fun m ->
-              WrittenTypesToProgramTypes.ModuleDeclaration.submoduleToPT
-                onMissing
-                pm
-                wt.owner
-                modules
-                m)
-            |> Stdlib.List.unzip
-          let unresolvedNamesInSubModules = Stdlib.List.flatten unresolvedNamesInSubModules
+    let fns =
+      source.declarations
+      |> Stdlib.List.filterMap (fun decl ->
+        match decl with
+        | Function f -> Stdlib.Option.Option.Some f
+        | _ -> Stdlib.Option.Option.None)
 
-          let (exprs, unresolvedNamesInExprs) =
-            wt.exprs
-            |> Stdlib.List.map (fun e ->
-              LanguageTools.WrittenTypesToProgramTypes.Expr.toPT
-                onMissing
-                pm
-                wt.owner
-                modules
-                e)
-            |> Stdlib.List.unzip
-          let unresolvedNamesInExprs = Stdlib.List.flatten unresolvedNamesInExprs
+    let submodules =
+      source.declarations
+      |> Stdlib.List.filterMap (fun decl ->
+        match decl with
+        | Module m -> Stdlib.Option.Option.Some m
+        | _ -> Stdlib.Option.Option.None)
 
-          let unresolvedNames =
-            Stdlib.List.flatten
-              [ unresolvedNamesInTypes |> Stdlib.List.flatten
-                unresolvedNamesInValues |> Stdlib.List.flatten
-                unresolvedNamesInFns |> Stdlib.List.flatten
-                unresolvedNamesInSubModules
-                unresolvedNamesInExprs ]
+    let exprs = source.exprsToEval
 
-          (PTCliScriptModule
-            { types = types
-              values = values
-              fns = fns
-              submodules = submodules
-              exprs = exprs },
-           unresolvedNames)
+    Stdlib.Result.Result.Ok(
+      WTCliScriptModule
+        { owner = owner
+          name = scriptName
+          types = types
+          values = values
+          fns = fns
+          submodules = submodules
+          exprs = exprs }
+    )
+
+  | _ -> Stdlib.Result.Result.Error "Invalid source file"
 
 
-        let parse
-          (owner: String)
-          (scriptName: String)
-          (onMissing: NameResolver.OnMissing)
-          (pm: ProgramTypes.PackageManager.PackageManager)
-          (filename: String)
-          (source: String)
-          : Stdlib.Result.Result<(PTCliScriptModule * List<Parser.Range * ProgramTypes.NameResolutionError>), String> =
-          match source |> LanguageTools.Parser.TestParsing.initialParse with
-          | Error e -> Stdlib.Result.Result.Error e
-          | Ok parsedFile ->
-            match parseDecls owner scriptName parsedFile with
-            | Error e -> Stdlib.Result.Result.Error e
-            | Ok moduleWT ->
-              let (initialParse, _) = toPT onMissing pm moduleWT
+let toPT
+  (onMissing: NameResolver.OnMissing)
+  (pm: ProgramTypes.PackageManager.PackageManager)
+  (wt: WTCliScriptModule)
+  : (PTCliScriptModule * List<Parser.Range * ProgramTypes.NameResolutionError>)
+  =
+  let modules = if wt.name == "" then [] else [ wt.name ]
 
-              let types =
-                Stdlib.List.append
-                  initialParse.types
-                  (initialParse.submodules
-                   |> Stdlib.List.map (fun m -> m.types)
-                   |> Stdlib.List.flatten)
+  let (types, unresolvedNamesInTypes) =
+    wt.types
+    |> Stdlib.List.map (fun t ->
+      LanguageTools.WrittenTypesToProgramTypes.TypeDeclaration.toPackageTypePT
+        onMissing
+        pm
+        wt.owner
+        modules
+        t)
+    |> Stdlib.List.unzip
 
-              let values =
-                Stdlib.List.append
-                  initialParse.values
-                  (initialParse.submodules
-                  |> Stdlib.List.map (fun m -> m.values)
-                  |> Stdlib.List.flatten)
+  let (values, unresolvedNamesInValues) =
+    wt.values
+    |> Stdlib.List.map (fun c ->
+      WrittenTypesToProgramTypes.ValueDeclaration.toPackageValuePT
+        onMissing
+        pm
+        wt.owner
+        [ wt.name ]
+        c)
+    |> Stdlib.List.unzip
 
-              let fns =
-                Stdlib.List.append
-                  initialParse.fns
-                  (initialParse.submodules
-                   |> Stdlib.List.map (fun m -> m.fns)
-                   |> Stdlib.List.flatten)
+  let (fns, unresolvedNamesInFns) =
+    wt.fns
+    |> Stdlib.List.map (fun f ->
+      WrittenTypesToProgramTypes.FunctionDeclaration.toPackageFnPT
+        onMissing
+        pm
+        wt.owner
+        modules
+        f)
+    |> Stdlib.List.unzip
 
-              let pm = ProgramTypes.PackageManager.withExtras pm types values fns
+  let (submodules, unresolvedNamesInSubModules) =
+    wt.submodules
+    |> Stdlib.List.map (fun m ->
+      WrittenTypesToProgramTypes.ModuleDeclaration.submoduleToPT
+        onMissing
+        pm
+        wt.owner
+        modules
+        m)
+    |> Stdlib.List.unzip
+  let unresolvedNamesInSubModules = Stdlib.List.flatten unresolvedNamesInSubModules
 
-              let (result, unresolvedNames) = toPT onMissing pm moduleWT
+  let (exprs, unresolvedNamesInExprs) =
+    wt.exprs
+    |> Stdlib.List.map (fun e ->
+      LanguageTools.WrittenTypesToProgramTypes.Expr.toPT
+        onMissing
+        pm
+        wt.owner
+        modules
+        e)
+    |> Stdlib.List.unzip
+  let unresolvedNamesInExprs = Stdlib.List.flatten unresolvedNamesInExprs
 
-              let adjusted =
-                PTCliScriptModule
-                  { types =
-                      result.types
+  let unresolvedNames =
+    Stdlib.List.flatten
+      [ unresolvedNamesInTypes |> Stdlib.List.flatten
+        unresolvedNamesInValues |> Stdlib.List.flatten
+        unresolvedNamesInFns |> Stdlib.List.flatten
+        unresolvedNamesInSubModules
+        unresolvedNamesInExprs ]
+
+  (PTCliScriptModule
+    { types = types
+      values = values
+      fns = fns
+      submodules = submodules
+      exprs = exprs },
+    unresolvedNames)
+
+
+let parse
+  (owner: String)
+  (scriptName: String)
+  (onMissing: NameResolver.OnMissing)
+  (pm: ProgramTypes.PackageManager.PackageManager)
+  (filename: String)
+  (source: String)
+  : Stdlib.Result.Result<(PTCliScriptModule * List<Parser.Range * ProgramTypes.NameResolutionError>), String> =
+  match source |> LanguageTools.Parser.TestParsing.initialParse with
+  | Error e -> Stdlib.Result.Result.Error e
+  | Ok parsedFile ->
+    match parseDecls owner scriptName parsedFile with
+    | Error e -> Stdlib.Result.Result.Error e
+    | Ok moduleWT ->
+      let (initialParse, _) = toPT onMissing pm moduleWT
+
+      let types =
+        Stdlib.List.append
+          initialParse.types
+          (initialParse.submodules
+            |> Stdlib.List.map (fun m -> m.types)
+            |> Stdlib.List.flatten)
+
+      let values =
+        Stdlib.List.append
+          initialParse.values
+          (initialParse.submodules
+          |> Stdlib.List.map (fun m -> m.values)
+          |> Stdlib.List.flatten)
+
+      let fns =
+        Stdlib.List.append
+          initialParse.fns
+          (initialParse.submodules
+            |> Stdlib.List.map (fun m -> m.fns)
+            |> Stdlib.List.flatten)
+
+      let pm = ProgramTypes.PackageManager.withExtras pm types values fns
+
+      let (result, unresolvedNames) = toPT onMissing pm moduleWT
+
+      let adjusted =
+        PTCliScriptModule
+          { types =
+              result.types
+              |> Stdlib.List.map (fun t ->
+                { t with
+                    id =
+                      initialParse.types
+                      |> Stdlib.List.findFirst (fun original ->
+                        original.name == t.name)
+                      |> Stdlib.Option.mapWithDefault t.id (fun original ->
+                        original.id) })
+
+            values =
+              result.values
+              |> Stdlib.List.map (fun v ->
+                { v with
+                    id =
+                      initialParse.values
+                      |> Stdlib.List.findFirst (fun original ->
+                        original.name == v.name)
+                      |> Stdlib.Option.mapWithDefault v.id (fun original ->
+                        original.id) })
+
+            fns =
+              result.fns
+              |> Stdlib.List.map (fun f ->
+                { f with
+                    id =
+                      initialParse.fns
+                      |> Stdlib.List.findFirst (fun original ->
+                        original.name == f.name)
+                      |> Stdlib.Option.mapWithDefault f.id (fun original ->
+                        original.id) })
+
+            submodules =
+              result.submodules
+              |> Stdlib.List.map (fun submodule ->
+                { submodule with
+                    types =
+                      submodule.types
                       |> Stdlib.List.map (fun t ->
                         { t with
                             id =
-                              initialParse.types
+                              initialParse.submodules
+                              |> Stdlib.List.map (fun m -> m.types)
+                              |> Stdlib.List.flatten
                               |> Stdlib.List.findFirst (fun original ->
                                 original.name == t.name)
-                              |> Stdlib.Option.mapWithDefault t.id (fun original ->
-                                original.id) })
+                              |> Stdlib.Option.mapWithDefault
+                                t.id
+                                (fun original -> original.id) })
 
                     values =
-                      result.values
+                      submodule.values
                       |> Stdlib.List.map (fun v ->
                         { v with
                             id =
-                              initialParse.values
+                              initialParse.submodules
+                              |> Stdlib.List.map (fun m -> m.values)
+                              |> Stdlib.List.flatten
                               |> Stdlib.List.findFirst (fun original ->
                                 original.name == v.name)
-                              |> Stdlib.Option.mapWithDefault v.id (fun original ->
-                                original.id) })
+                              |> Stdlib.Option.mapWithDefault
+                                v.id
+                                (fun original -> original.id) })
 
                     fns =
-                      result.fns
+                      submodule.fns
                       |> Stdlib.List.map (fun f ->
                         { f with
                             id =
-                              initialParse.fns
+                              initialParse.submodules
+                              |> Stdlib.List.map (fun m -> m.fns)
+                              |> Stdlib.List.flatten
                               |> Stdlib.List.findFirst (fun original ->
                                 original.name == f.name)
-                              |> Stdlib.Option.mapWithDefault f.id (fun original ->
-                                original.id) })
+                              |> Stdlib.Option.mapWithDefault
+                                f.id
+                                (fun original -> original.id) }) })
 
-                    submodules =
-                      result.submodules
-                      |> Stdlib.List.map (fun submodule ->
-                        { submodule with
-                            types =
-                              submodule.types
-                              |> Stdlib.List.map (fun t ->
-                                { t with
-                                    id =
-                                      initialParse.submodules
-                                      |> Stdlib.List.map (fun m -> m.types)
-                                      |> Stdlib.List.flatten
-                                      |> Stdlib.List.findFirst (fun original ->
-                                        original.name == t.name)
-                                      |> Stdlib.Option.mapWithDefault
-                                        t.id
-                                        (fun original -> original.id) })
+            exprs = result.exprs }
 
-                            values =
-                              submodule.values
-                              |> Stdlib.List.map (fun v ->
-                                { v with
-                                    id =
-                                      initialParse.submodules
-                                      |> Stdlib.List.map (fun m -> m.values)
-                                      |> Stdlib.List.flatten
-                                      |> Stdlib.List.findFirst (fun original ->
-                                        original.name == v.name)
-                                      |> Stdlib.Option.mapWithDefault
-                                        v.id
-                                        (fun original -> original.id) })
-
-                            fns =
-                              submodule.fns
-                              |> Stdlib.List.map (fun f ->
-                                { f with
-                                    id =
-                                      initialParse.submodules
-                                      |> Stdlib.List.map (fun m -> m.fns)
-                                      |> Stdlib.List.flatten
-                                      |> Stdlib.List.findFirst (fun original ->
-                                        original.name == f.name)
-                                      |> Stdlib.Option.mapWithDefault
-                                        f.id
-                                        (fun original -> original.id) }) })
-
-                    exprs = result.exprs }
-
-              Stdlib.Result.Result.Ok ((adjusted, unresolvedNames))
+      Stdlib.Result.Result.Ok ((adjusted, unresolvedNames))
 
 
-        let pmWithExtras
-          (owner: String)
-          (scriptName: String)
-          (onMissing: NameResolver.OnMissing)
-          (pm: ProgramTypes.PackageManager.PackageManager)
-          (filename: String)
-          (source: String)
-          : Stdlib.Result.Result<ProgramTypes.PackageManager.PackageManager, String> =
-          match source |> LanguageTools.Parser.TestParsing.initialParse with
-          | Error e -> Stdlib.Result.Result.Error e
-          | Ok parsedFile ->
-            match parseDecls owner scriptName parsedFile with
-            | Error e -> Stdlib.Result.Result.Error e
-            | Ok moduleWT ->
-              let (initialParse, _) = toPT onMissing pm moduleWT
+let pmWithExtras
+  (owner: String)
+  (scriptName: String)
+  (onMissing: NameResolver.OnMissing)
+  (pm: ProgramTypes.PackageManager.PackageManager)
+  (filename: String)
+  (source: String)
+  : Stdlib.Result.Result<ProgramTypes.PackageManager.PackageManager, String> =
+  match source |> LanguageTools.Parser.TestParsing.initialParse with
+  | Error e -> Stdlib.Result.Result.Error e
+  | Ok parsedFile ->
+    match parseDecls owner scriptName parsedFile with
+    | Error e -> Stdlib.Result.Result.Error e
+    | Ok moduleWT ->
+      let (initialParse, _) = toPT onMissing pm moduleWT
 
-              let types =
-                Stdlib.List.append
-                  initialParse.types
-                  (initialParse.submodules
-                   |> Stdlib.List.map (fun m -> m.types)
-                   |> Stdlib.List.flatten)
+      let types =
+        Stdlib.List.append
+          initialParse.types
+          (initialParse.submodules
+            |> Stdlib.List.map (fun m -> m.types)
+            |> Stdlib.List.flatten)
 
-              let values =
-                Stdlib.List.append
-                  initialParse.values
-                  (initialParse.submodules
-                  |> Stdlib.List.map (fun m -> m.values)
-                  |> Stdlib.List.flatten)
+      let values =
+        Stdlib.List.append
+          initialParse.values
+          (initialParse.submodules
+          |> Stdlib.List.map (fun m -> m.values)
+          |> Stdlib.List.flatten)
 
-              let fns =
-                Stdlib.List.append
-                  initialParse.fns
-                  (initialParse.submodules
-                   |> Stdlib.List.map (fun m -> m.fns)
-                   |> Stdlib.List.flatten)
+      let fns =
+        Stdlib.List.append
+          initialParse.fns
+          (initialParse.submodules
+            |> Stdlib.List.map (fun m -> m.fns)
+            |> Stdlib.List.flatten)
 
-              (ProgramTypes.PackageManager.withExtras pm types values fns)
-              |> Stdlib.Result.Result.Ok
+      (ProgramTypes.PackageManager.withExtras pm types values fns)
+      |> Stdlib.Result.Result.Ok

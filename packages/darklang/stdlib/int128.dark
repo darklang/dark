@@ -1,160 +1,159 @@
-module Darklang =
-  module Stdlib =
-    module Int128 =
-
-      type ParseError =
-        | BadFormat
-        | OutOfRange
+module Darklang.Stdlib.Int128
 
 
-      /// Returns the result of wrapping <param a> around so that {{0 <= res < b}}.
-      /// The modulus <param b> must be greater than 0.
-      /// Use <fn Int128.remainder> if you want the remainder after division, which has
-      /// a different behavior for negative numbers.
-      let ``mod`` (a: Int128) (b: Int128) : Int128 = Builtin.int128Mod a b
+type ParseError =
+  | BadFormat
+  | OutOfRange
 
 
-      /// Returns the integer remainder left over after dividing <param value> by
-      /// <param divisor>, as a <type Result>.
-      /// For example, {{Int128.remainder 15 6 == Ok 3}}. The remainder will be
-      /// negative only if {{<var value> < 0}}.
-      /// The sign of <param divisor> doesn't influence the outcome.
-      /// Returns an {{Error}} if <param divisor> is {{0}}.
-      let remainder
-        (value: Int128)
-        (divisor: Int128)
-        : Stdlib.Result.Result<Int128, String> =
-        Builtin.int128Remainder value divisor
+/// Returns the result of wrapping <param a> around so that {{0 <= res < b}}.
+/// The modulus <param b> must be greater than 0.
+/// Use <fn Int128.remainder> if you want the remainder after division, which has
+/// a different behavior for negative numbers.
+let ``mod`` (a: Int128) (b: Int128) : Int128 = Builtin.int128Mod a b
 
 
-      /// Adds two 128-bit signed integers together
-      let add (a: Int128) (b: Int128) : Int128 = Builtin.int128Add a b
+/// Returns the integer remainder left over after dividing <param value> by
+/// <param divisor>, as a <type Result>.
+/// For example, {{Int128.remainder 15 6 == Ok 3}}. The remainder will be
+/// negative only if {{<var value> < 0}}.
+/// The sign of <param divisor> doesn't influence the outcome.
+/// Returns an {{Error}} if <param divisor> is {{0}}.
+let remainder
+  (value: Int128)
+  (divisor: Int128)
+  : Stdlib.Result.Result<Int128, String> =
+  Builtin.int128Remainder value divisor
 
 
-      /// Subtracts two 128-bit signed integers
-      let subtract (a: Int128) (b: Int128) : Int128 = Builtin.int128Subtract a b
+/// Adds two 128-bit signed integers together
+let add (a: Int128) (b: Int128) : Int128 = Builtin.int128Add a b
 
 
-      /// Multiplies two 128-bit signed integers
-      let multiply (a: Int128) (b: Int128) : Int128 = Builtin.int128Multiply a b
+/// Subtracts two 128-bit signed integers
+let subtract (a: Int128) (b: Int128) : Int128 = Builtin.int128Subtract a b
 
 
-      /// Divides two 128-bit signed integers
-      let divide (a: Int128) (b: Int128) : Int128 = Builtin.int128Divide a b
+/// Multiplies two 128-bit signed integers
+let multiply (a: Int128) (b: Int128) : Int128 = Builtin.int128Multiply a b
 
 
-      /// Returns the absolute value of <param a> (turning negative inputs into positive outputs)
-      let absoluteValue (a: Int128) : Int128 =
-        if (Builtin.int128LessThan a 0Q) then
-          Builtin.int128Negate a
-        else
-          a
-
-      /// Returns the negation of <param a>, {{-a}}
-      let negate (a: Int128) : Int128 = Builtin.int128Negate a
+/// Divides two 128-bit signed integers
+let divide (a: Int128) (b: Int128) : Int128 = Builtin.int128Divide a b
 
 
-      /// Returns {{true}} if <param a> is greater than <param b>
-      let greaterThan (a: Int128) (b: Int128) : Bool = Builtin.int128GreaterThan a b
+/// Returns the absolute value of <param a> (turning negative inputs into positive outputs)
+let absoluteValue (a: Int128) : Int128 =
+  if (Builtin.int128LessThan a 0Q) then
+    Builtin.int128Negate a
+  else
+    a
+
+/// Returns the negation of <param a>, {{-a}}
+let negate (a: Int128) : Int128 = Builtin.int128Negate a
 
 
-      /// Returns {{true}} if <param a> is greater than or equal to <param b>
-      let greaterThanOrEqualTo (a: Int128) (b: Int128) : Bool =
-        Builtin.int128GreaterThanOrEqualTo a b
+/// Returns {{true}} if <param a> is greater than <param b>
+let greaterThan (a: Int128) (b: Int128) : Bool = Builtin.int128GreaterThan a b
 
 
-      /// Returns {{true}} if <param a> is less than <param b>
-      let lessThan (a: Int128) (b: Int128) : Bool = Builtin.int128LessThan a b
-
-      /// Returns {{true}} if <param a> is less than or equal to <param b>
-      let lessThanOrEqualTo (a: Int128) (b: Int128) : Bool =
-        Builtin.int128LessThanOrEqualTo a b
+/// Returns {{true}} if <param a> is greater than or equal to <param b>
+let greaterThanOrEqualTo (a: Int128) (b: Int128) : Bool =
+  Builtin.int128GreaterThanOrEqualTo a b
 
 
-      /// Get the square root of an <type Int128>
-      let sqrt (a: Int128) : Float = Builtin.int128Sqrt a
+/// Returns {{true}} if <param a> is less than <param b>
+let lessThan (a: Int128) (b: Int128) : Bool = Builtin.int128LessThan a b
+
+/// Returns {{true}} if <param a> is less than or equal to <param b>
+let lessThanOrEqualTo (a: Int128) (b: Int128) : Bool =
+  Builtin.int128LessThanOrEqualTo a b
 
 
-      /// Converts an <type Int128> to a <type Float>
-      let toFloat (a: Int128) : Float = Builtin.int128ToFloat a
+/// Get the square root of an <type Int128>
+let sqrt (a: Int128) : Float = Builtin.int128Sqrt a
 
 
-      /// Returns the sum of all the ints in the list
-      let sum (lst: List<Int128>) : Int128 =
-        Stdlib.List.fold lst 0Q (fun acc x -> acc + x)
+/// Converts an <type Int128> to a <type Float>
+let toFloat (a: Int128) : Float = Builtin.int128ToFloat a
 
 
-      /// Returns the higher of <param a> and <param b>
-      let max (a: Int128) (b: Int128) : Int128 =
-        if (Stdlib.Int128.greaterThan a b) then a else b
+/// Returns the sum of all the ints in the list
+let sum (lst: List<Int128>) : Int128 =
+  Stdlib.List.fold lst 0Q (fun acc x -> acc + x)
 
 
-      /// Returns the lower of <param a> and <param b>
-      let min (a: Int128) (b: Int128) : Int128 =
-        if (Stdlib.Int128.lessThan a b) then a else b
+/// Returns the higher of <param a> and <param b>
+let max (a: Int128) (b: Int128) : Int128 =
+  if (Stdlib.Int128.greaterThan a b) then a else b
 
 
-      /// If <param value> is within the range given by <param limitA> and <param
-      /// limitB>, returns <param value>.
-      /// If <param value> is outside the range, returns <param limitA> or <param
-      /// limitB>, whichever is closer to <param value>.
-      /// <param limitA> and <param limitB> can be provided in any order.
-      let clamp (value: Int128) (limitA: Int128) (limitB: Int128) : Int128 =
-        let min =
-          if (Stdlib.Int128.lessThan limitA limitB) then
-            limitA
-          else
-            limitB
-
-        let max =
-          if (Stdlib.Int128.greaterThan limitA limitB) then
-            limitA
-          else
-            limitB
-
-        if (Stdlib.Int128.lessThan value min) then min
-        else if (Stdlib.Int128.greaterThan value max) then max
-        else value
+/// Returns the lower of <param a> and <param b>
+let min (a: Int128) (b: Int128) : Int128 =
+  if (Stdlib.Int128.lessThan a b) then a else b
 
 
-      /// Stringify <param int128>
-      let toString (int128: Int128) : String = Builtin.int128ToString int128
+/// If <param value> is within the range given by <param limitA> and <param
+/// limitB>, returns <param value>.
+/// If <param value> is outside the range, returns <param limitA> or <param
+/// limitB>, whichever is closer to <param value>.
+/// <param limitA> and <param limitB> can be provided in any order.
+let clamp (value: Int128) (limitA: Int128) (limitB: Int128) : Int128 =
+  let min =
+    if (Stdlib.Int128.lessThan limitA limitB) then
+      limitA
+    else
+      limitB
+
+  let max =
+    if (Stdlib.Int128.greaterThan limitA limitB) then
+      limitA
+    else
+      limitB
+
+  if (Stdlib.Int128.lessThan value min) then min
+  else if (Stdlib.Int128.greaterThan value max) then max
+  else value
 
 
-      /// Returns the <type Int128> value of a <type String>
-      let parse
-        (s: String)
-        : Stdlib.Result.Result<Int128, Stdlib.Int128.ParseError> =
-        Builtin.int128Parse s
+/// Stringify <param int128>
+let toString (int128: Int128) : String = Builtin.int128ToString int128
 
 
-      /// Converts an <type Int8> to an <type Int128>.
-      let fromInt8 (i: Int8) : Int128 = Builtin.int128FromInt8 i
+/// Returns the <type Int128> value of a <type String>
+let parse
+  (s: String)
+  : Stdlib.Result.Result<Int128, Stdlib.Int128.ParseError> =
+  Builtin.int128Parse s
 
 
-      /// Converts a <type UInt8> to an <type Int128>.
-      let fromUInt8 (i: UInt8) : Int128 = Builtin.int128FromUInt8 i
+/// Converts an <type Int8> to an <type Int128>.
+let fromInt8 (i: Int8) : Int128 = Builtin.int128FromInt8 i
 
 
-      /// Converts an <type Int16> to an <type Int128>.
-      let fromInt16 (i: Int16) : Int128 = Builtin.int128FromInt16 i
+/// Converts a <type UInt8> to an <type Int128>.
+let fromUInt8 (i: UInt8) : Int128 = Builtin.int128FromUInt8 i
 
 
-      /// Converts a <type UInt16> to an <type Int128>.
-      let fromUInt16 (i: UInt16) : Int128 = Builtin.int128FromUInt16 i
+/// Converts an <type Int16> to an <type Int128>.
+let fromInt16 (i: Int16) : Int128 = Builtin.int128FromInt16 i
 
 
-      /// Converts an <type Int32> to an <type Int128>.
-      let fromInt32 (i: Int32) : Int128 = Builtin.int128FromInt32 i
+/// Converts a <type UInt16> to an <type Int128>.
+let fromUInt16 (i: UInt16) : Int128 = Builtin.int128FromUInt16 i
 
 
-      /// Converts a <type UInt32> to an <type Int128>.
-      let fromUInt32 (i: UInt32) : Int128 = Builtin.int128FromUInt32 i
+/// Converts an <type Int32> to an <type Int128>.
+let fromInt32 (i: Int32) : Int128 = Builtin.int128FromInt32 i
 
 
-      /// Converts an <type Int64> to an <type Int128>.
-      let fromInt64 (i: Int64) : Int128 = Builtin.int128FromInt64 i
+/// Converts a <type UInt32> to an <type Int128>.
+let fromUInt32 (i: UInt32) : Int128 = Builtin.int128FromUInt32 i
 
 
-      /// Converts a <type UInt64> to an <type Int128>.
-      let fromUInt64 (i: UInt64) : Int128 = Builtin.int128FromUInt64 i
+/// Converts an <type Int64> to an <type Int128>.
+let fromInt64 (i: Int64) : Int128 = Builtin.int128FromInt64 i
+
+
+/// Converts a <type UInt64> to an <type Int128>.
+let fromUInt64 (i: UInt64) : Int128 = Builtin.int128FromUInt64 i

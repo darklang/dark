@@ -1,80 +1,79 @@
 // What happens when you 'hover' on something in the editor?
+module Darklang.LanguageServerProtocol.Hover
 
-module Darklang =
-  module LanguageServerProtocol =
-    module Hover =
-      type HoverContentKind = MarkupContent of MarkupContent
-      // | MarkedString
-      // | MarkedStringList
 
-      /// The result of a hover request
-      type Hover =
-        {
-          /// The hover's content
-          contents: MarkupContent
-          /// An optional range inside the text document that is used to
-          /// visualize the hover, e.g. by changing the background color.
-          range: Stdlib.Option.Option<LanguageServerProtocol.Range.Range>
-        }
+type HoverContentKind = MarkupContent of MarkupContent
+// | MarkedString
+// | MarkedStringList
 
-      let toJson (hover: Hover) : Json =
-        let kindJson =
-          match hover.contents.kind with
-          | PlainText -> "plaintext" |> Json.String
-          | Markdown -> "markdown" |> Json.String
+/// The result of a hover request
+type Hover =
+  {
+    /// The hover's content
+    contents: MarkupContent
+    /// An optional range inside the text document that is used to
+    /// visualize the hover, e.g. by changing the background color.
+    range: Stdlib.Option.Option<LanguageServerProtocol.Range.Range>
+  }
 
-        let contentsJson =
-          Json.Object
-            [ ("kind", kindJson); ("value", hover.contents.value |> Json.String) ]
+let toJson (hover: Hover) : Json =
+  let kindJson =
+    match hover.contents.kind with
+    | PlainText -> "plaintext" |> Json.String
+    | Markdown -> "markdown" |> Json.String
 
-        let fields =
-          [ ("contents", contentsJson)
-            ("range",
-             match hover.range with
-             | Some range -> Range.toJson range
-             | None -> Json.Null) ]
+  let contentsJson =
+    Json.Object
+      [ ("kind", kindJson); ("value", hover.contents.value |> Json.String) ]
 
-        Json.Object fields
+  let fields =
+    [ ("contents", contentsJson)
+      ("range",
+        match hover.range with
+        | Some range -> Range.toJson range
+        | None -> Json.Null) ]
 
-      module HoverRequest =
-        let method = "textDocument/hover"
+  Json.Object fields
 
-        module HoverParams =
-          type HoverParams =
-            {
-              /// The text document
-              textDocument: TextDocumentIdentifier.TextDocumentIdentifier
-              /// The position inside the text document
-              position: Position.Position
-            }
+module HoverRequest =
+  let method = "textDocument/hover"
 
-          let fromJson (json: Json) : Stdlib.Result.Result<HoverParams, string> =
-            match json with
-            | Object fields ->
-              let textDocument =
-                match
-                  Stdlib.List.findFirst fields (fun (k, _) -> k == "textDocument")
-                with
-                | Some((_, textDocument)) ->
-                  TextDocumentIdentifier.fromJson textDocument
-                | None -> Stdlib.Result.Result.Error()
+  module HoverParams =
+    type HoverParams =
+      {
+        /// The text document
+        textDocument: TextDocumentIdentifier.TextDocumentIdentifier
+        /// The position inside the text document
+        position: Position.Position
+      }
 
-              let position =
-                match
-                  Stdlib.List.findFirst fields (fun (k, _) -> k == "position")
-                with
-                | Some((_, position)) -> Position.fromJson position
-                | None -> Stdlib.Result.Result.Error()
+    let fromJson (json: Json) : Stdlib.Result.Result<HoverParams, string> =
+      match json with
+      | Object fields ->
+        let textDocument =
+          match
+            Stdlib.List.findFirst fields (fun (k, _) -> k == "textDocument")
+          with
+          | Some((_, textDocument)) ->
+            TextDocumentIdentifier.fromJson textDocument
+          | None -> Stdlib.Result.Result.Error()
 
-              match textDocument, position with
-              | Ok textDocument, Ok position ->
-                (HoverParams
-                  { textDocument = textDocument
-                    position = position })
-                |> Stdlib.Result.Result.Ok
+        let position =
+          match
+            Stdlib.List.findFirst fields (fun (k, _) -> k == "position")
+          with
+          | Some((_, position)) -> Position.fromJson position
+          | None -> Stdlib.Result.Result.Error()
 
-              | _ -> Stdlib.Result.Result.Error()
-            | _ -> Stdlib.Result.Result.Error()
+        match textDocument, position with
+        | Ok textDocument, Ok position ->
+          (HoverParams
+            { textDocument = textDocument
+              position = position })
+          |> Stdlib.Result.Result.Ok
+
+        | _ -> Stdlib.Result.Result.Error()
+      | _ -> Stdlib.Result.Result.Error()
 
 
 

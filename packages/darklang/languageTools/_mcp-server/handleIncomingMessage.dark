@@ -1,82 +1,188 @@
-module Darklang =
-  module LanguageTools =
-    module McpServer =
-      /// This is how we handle incoming requests from the client.
-      ///
-      /// (this is the core of Darklang's MCP server)
-      let handleIncomingMessage
-        (state: McpState)
-        (r: JsonRPC.Request.Request)
-        : McpState =
-        let currentState =
-          match ModelContextProtocol.parseIncomingMessage r with
-          | InitializeRequest requestId ->
-            log "TODO: fail - we shouldn't be seeing a second one of these"
-            { state with initialized = true }
+module Darklang.LanguageTools.McpServer
 
-          | Initialized -> // notification
-            log "(ignore)"
-            state
+/// This is how we handle incoming requests from the client.
+///
+/// (this is the core of Darklang's MCP server)
+let handleIncomingMessage
+  (state: McpState)
+  (r: JsonRPC.Request.Request)
+  : McpState =
+  let currentState =
+    match ModelContextProtocol.parseIncomingMessage r with
+    | InitializeRequest requestId ->
+      log "TODO: fail - we shouldn't be seeing a second one of these"
+      { state with initialized = true }
 
-          // asks the server to shut down but not exit
-          | Shutdown requestId -> // request
-            log "shutting down"
+    | Initialized -> // notification
+      log "(ignore)"
+      state
 
-            let response =
-              (JsonRPC.Response.Ok.make (Some requestId) Json.Null)
-              |> Stdlib.AltJson.format
+    // asks the server to shut down but not exit
+    | Shutdown requestId -> // request
+      log "shutting down"
 
-            logAndSendToClient response
-            { state with shouldShutdown = true }
+      let response =
+        (JsonRPC.Response.Ok.make (Some requestId) Json.Null)
+        |> Stdlib.AltJson.format
 
-
-          // -- Resources
-          | ListResourcesRequest requestId ->
-            log "handling listResources request"
-            handleListResourcesRequest state requestId
-
-          | ListResourceTemplatesRequest requestId ->
-            log "handling listResourceTemplates request"
-            handleListResourceTemplatesRequest state requestId
-
-          | ReadResourceRequest(requestId, params) ->
-            log $"handling readResource request for {params.uri}"
-            handleReadResourceRequest state requestId params
+      logAndSendToClient response
+      { state with shouldShutdown = true }
 
 
-          // -- Tools
-          | ListToolsRequest requestId ->
-            log "handling listTools request"
-            handleListToolsRequest state requestId
+    // -- Resources
+    | ListResourcesRequest requestId ->
+      log "handling listResources request"
+      handleListResourcesRequest state requestId
 
-          | CallToolRequest(requestId, params) ->
-            log $"handling callTool request for {params.name}"
-            handleCallToolRequest state requestId params
+    | ListResourceTemplatesRequest requestId ->
+      log "handling listResourceTemplates request"
+      handleListResourceTemplatesRequest state requestId
+
+    | ReadResourceRequest(requestId, params) ->
+      log $"handling readResource request for {params.uri}"
+      handleReadResourceRequest state requestId params
 
 
-          // -- Other
-          | Other jsonRpcRequest ->
-            log $"TODO: we don't yet support this method: {jsonRpcRequest.method}"
-            state
+    // -- Tools
+    | ListToolsRequest requestId ->
+      log "handling listTools request"
+      handleListToolsRequest state requestId
 
-        currentState
+    | CallToolRequest(requestId, params) ->
+      log $"handling callTool request for {params.name}"
+      handleCallToolRequest state requestId params
 
-      /// Handle a listResources request
-      let handleListResourcesRequest
-        (state: McpState)
-        (requestId: JsonRPC.RequestId)
-        : McpState =
-        // Convert the resources dictionary to a list
-        let resources =
-          state.resources
-          |> Stdlib.Dict.toList
-          |> Stdlib.List.map (fun (_, resource) -> resource)
 
+    // -- Other
+    | Other jsonRpcRequest ->
+      log $"TODO: we don't yet support this method: {jsonRpcRequest.method}"
+      state
+
+  currentState
+
+/// Handle a listResources request
+let handleListResourcesRequest
+  (state: McpState)
+  (requestId: JsonRPC.RequestId)
+  : McpState =
+  // Convert the resources dictionary to a list
+  let resources =
+    state.resources
+    |> Stdlib.Dict.toList
+    |> Stdlib.List.map (fun (_, resource) -> resource)
+
+  // Create the response
+  let response =
+    (ModelContextProtocol.ResourceRequest.ListResourcesResponse.ListResourcesResponse
+      { resources = resources })
+    |> ModelContextProtocol.ResourceRequest.ListResourcesResponse.toJson
+    |> (fun r ->
+      JsonRPC.Response.Ok.make
+        (Stdlib.Option.Option.Some requestId)
+        r)
+    |> Stdlib.AltJson.format
+
+  logAndSendToClient response
+  state
+
+/// Handle a listResourceTemplates request
+let handleListResourceTemplatesRequest
+  (state: McpState)
+  (requestId: JsonRPC.RequestId)
+  : McpState =
+  // Convert the resource templates dictionary to a list
+  let resourceTemplates =
+    state.resourceTemplates
+    |> Stdlib.Dict.toList
+    |> Stdlib.List.map (fun (_, template) -> template)
+
+  // Create the response
+  let response =
+    (ModelContextProtocol.ResourceRequest.ListResourceTemplatesResponse.ListResourceTemplatesResponse
+      { resourceTemplates = resourceTemplates })
+    |> ModelContextProtocol.ResourceRequest.ListResourceTemplatesResponse.toJson
+    |> (fun r ->
+      JsonRPC.Response.Ok.make
+        (Stdlib.Option.Option.Some requestId)
+        r)
+    |> Stdlib.AltJson.format
+
+  logAndSendToClient response
+  state
+
+/// Handle a readResource request
+let handleReadResourceRequest
+  (state: McpState)
+  (requestId: JsonRPC.RequestId)
+  (params: ModelContextProtocol.ResourceRequest.ReadResourceParams.ReadResourceParams)
+  : McpState =
+  // Check if the resource exists directly
+  let directResource = Stdlib.Dict.get state.resources params.uri
+
+  match directResource with
+  | Some resource ->
+    // Resource exists directly, return it
+    let content = getResourceContent resource.uri
+
+    match content with
+    | Some text ->
+      // Create the response
+      let response =
+        (ModelContextProtocol.ResourceRequest.ReadResourceResponse.ReadResourceResponse
+          { contents =
+              [ ModelContextProtocol.ResourceContent
+                  { uri = resource.uri
+                    mimeType = resource.mimeType |> Stdlib.Option.withDefault "text/plain"
+                    text = text } ] })
+        |> ModelContextProtocol.ResourceRequest.ReadResourceResponse.toJson
+        |> (fun r ->
+          JsonRPC.Response.Ok.make
+            (Stdlib.Option.Option.Some requestId)
+            r)
+        |> Stdlib.AltJson.format
+
+      logAndSendToClient response
+      state
+    | None ->
+      // Resource exists but content couldn't be retrieved
+      let errorResponse =
+        (JsonRPC.Response.Error.make
+          (Stdlib.Option.Option.Some requestId)
+          ModelContextProtocol.ErrorCodes.resourceNotFound
+          $"Resource content not found: {params.uri}"
+          Stdlib.Option.Option.None)
+        |> Stdlib.AltJson.format
+
+      logAndSendToClient errorResponse
+      state
+  | None ->
+    // Check if the resource matches any template
+    let matchingTemplate =
+      state.resourceTemplates
+      |> Stdlib.Dict.toList
+      |> Stdlib.List.findFirst (fun (templateUri, _) ->
+        ModelContextProtocol.Resources.Helpers.uriMatchesTemplate params.uri templateUri)
+
+    match matchingTemplate with
+    | Some (templateUri, template) ->
+      // Extract variables from the URI
+      let variables =
+        ModelContextProtocol.Resources.Helpers.extractUriVariables params.uri templateUri
+
+      // Get the content using the template and variables
+      let content = getResourceContentFromTemplate template.uriTemplate params.uri variables
+
+      match content with
+      | Some text ->
         // Create the response
         let response =
-          (ModelContextProtocol.ResourceRequest.ListResourcesResponse.ListResourcesResponse
-            { resources = resources })
-          |> ModelContextProtocol.ResourceRequest.ListResourcesResponse.toJson
+          (ModelContextProtocol.ResourceRequest.ReadResourceResponse.ReadResourceResponse
+            { contents =
+                [ ModelContextProtocol.ResourceContent
+                    { uri = params.uri
+                      mimeType = template.mimeType |> Stdlib.Option.withDefault "text/plain"
+                      text = text } ] })
+          |> ModelContextProtocol.ResourceRequest.ReadResourceResponse.toJson
           |> (fun r ->
             JsonRPC.Response.Ok.make
               (Stdlib.Option.Option.Some requestId)
@@ -85,23 +191,82 @@ module Darklang =
 
         logAndSendToClient response
         state
+      | None ->
+        // Template exists but content couldn't be retrieved
+        let errorResponse =
+          (JsonRPC.Response.Error.make
+            (Stdlib.Option.Option.Some requestId)
+            ModelContextProtocol.ErrorCodes.resourceNotFound
+            $"Resource content not found for template: {params.uri}"
+            Stdlib.Option.Option.None)
+          |> Stdlib.AltJson.format
 
-      /// Handle a listResourceTemplates request
-      let handleListResourceTemplatesRequest
-        (state: McpState)
-        (requestId: JsonRPC.RequestId)
-        : McpState =
-        // Convert the resource templates dictionary to a list
-        let resourceTemplates =
-          state.resourceTemplates
-          |> Stdlib.Dict.toList
-          |> Stdlib.List.map (fun (_, template) -> template)
+        logAndSendToClient errorResponse
+        state
+    | None ->
+      // Resource doesn't exist and doesn't match any template
+      let errorResponse =
+        (JsonRPC.Response.Error.make
+          (Stdlib.Option.Option.Some requestId)
+          ModelContextProtocol.ErrorCodes.resourceNotFound
+          $"Resource not found: {params.uri}"
+          Stdlib.Option.Option.None)
+        |> Stdlib.AltJson.format
 
-        // Create the response
+      logAndSendToClient errorResponse
+      state
+
+/// Handle a listTools request
+let handleListToolsRequest
+  (state: McpState)
+  (requestId: JsonRPC.RequestId)
+  : McpState =
+  // Convert the tools dictionary to a list
+  let tools =
+    state.tools
+    |> Stdlib.Dict.toList
+    |> Stdlib.List.map (fun (_, tool) -> tool)
+
+  // Create the response
+  let response =
+    (ModelContextProtocol.ToolRequest.ListToolsResponse.ListToolsResponse
+      { tools = tools })
+    |> ModelContextProtocol.ToolRequest.ListToolsResponse.toJson
+    |> (fun r ->
+      JsonRPC.Response.Ok.make
+        (Stdlib.Option.Option.Some requestId)
+        r)
+    |> Stdlib.AltJson.format
+
+  logAndSendToClient response
+  state
+
+/// Handle a callTool request
+let handleCallToolRequest
+  (state: McpState)
+  (requestId: JsonRPC.RequestId)
+  (params: ModelContextProtocol.ToolRequest.CallToolParams.CallToolParams)
+  : McpState =
+  // Check if the tool exists
+  let tool = Stdlib.Dict.get state.tools params.name
+
+  match tool with
+  | Some toolDesc ->
+    // Validate the arguments against the tool's input schema
+    let validationResult =
+      ModelContextProtocol.Tools.Helpers.validateArguments toolDesc.inputSchema params.arguments
+
+    match validationResult with
+    | Ok () ->
+      // Execute the tool
+      let result = executeTool params.name params.arguments
+
+      match result with
+      | Ok content ->
+        // Create the success response
         let response =
-          (ModelContextProtocol.ResourceRequest.ListResourceTemplatesResponse.ListResourceTemplatesResponse
-            { resourceTemplates = resourceTemplates })
-          |> ModelContextProtocol.ResourceRequest.ListResourceTemplatesResponse.toJson
+          (ModelContextProtocol.Tools.Helpers.createSuccessResponse content)
+          |> ModelContextProtocol.ToolRequest.CallToolResponse.toJson
           |> (fun r ->
             JsonRPC.Response.Ok.make
               (Stdlib.Option.Option.Some requestId)
@@ -110,129 +275,11 @@ module Darklang =
 
         logAndSendToClient response
         state
-
-      /// Handle a readResource request
-      let handleReadResourceRequest
-        (state: McpState)
-        (requestId: JsonRPC.RequestId)
-        (params: ModelContextProtocol.ResourceRequest.ReadResourceParams.ReadResourceParams)
-        : McpState =
-        // Check if the resource exists directly
-        let directResource = Stdlib.Dict.get state.resources params.uri
-
-        match directResource with
-        | Some resource ->
-          // Resource exists directly, return it
-          let content = getResourceContent resource.uri
-
-          match content with
-          | Some text ->
-            // Create the response
-            let response =
-              (ModelContextProtocol.ResourceRequest.ReadResourceResponse.ReadResourceResponse
-                { contents =
-                    [ ModelContextProtocol.ResourceContent
-                        { uri = resource.uri
-                          mimeType = resource.mimeType |> Stdlib.Option.withDefault "text/plain"
-                          text = text } ] })
-              |> ModelContextProtocol.ResourceRequest.ReadResourceResponse.toJson
-              |> (fun r ->
-                JsonRPC.Response.Ok.make
-                  (Stdlib.Option.Option.Some requestId)
-                  r)
-              |> Stdlib.AltJson.format
-
-            logAndSendToClient response
-            state
-          | None ->
-            // Resource exists but content couldn't be retrieved
-            let errorResponse =
-              (JsonRPC.Response.Error.make
-                (Stdlib.Option.Option.Some requestId)
-                ModelContextProtocol.ErrorCodes.resourceNotFound
-                $"Resource content not found: {params.uri}"
-                Stdlib.Option.Option.None)
-              |> Stdlib.AltJson.format
-
-            logAndSendToClient errorResponse
-            state
-        | None ->
-          // Check if the resource matches any template
-          let matchingTemplate =
-            state.resourceTemplates
-            |> Stdlib.Dict.toList
-            |> Stdlib.List.findFirst (fun (templateUri, _) ->
-              ModelContextProtocol.Resources.Helpers.uriMatchesTemplate params.uri templateUri)
-
-          match matchingTemplate with
-          | Some (templateUri, template) ->
-            // Extract variables from the URI
-            let variables =
-              ModelContextProtocol.Resources.Helpers.extractUriVariables params.uri templateUri
-
-            // Get the content using the template and variables
-            let content = getResourceContentFromTemplate template.uriTemplate params.uri variables
-
-            match content with
-            | Some text ->
-              // Create the response
-              let response =
-                (ModelContextProtocol.ResourceRequest.ReadResourceResponse.ReadResourceResponse
-                  { contents =
-                      [ ModelContextProtocol.ResourceContent
-                          { uri = params.uri
-                            mimeType = template.mimeType |> Stdlib.Option.withDefault "text/plain"
-                            text = text } ] })
-                |> ModelContextProtocol.ResourceRequest.ReadResourceResponse.toJson
-                |> (fun r ->
-                  JsonRPC.Response.Ok.make
-                    (Stdlib.Option.Option.Some requestId)
-                    r)
-                |> Stdlib.AltJson.format
-
-              logAndSendToClient response
-              state
-            | None ->
-              // Template exists but content couldn't be retrieved
-              let errorResponse =
-                (JsonRPC.Response.Error.make
-                  (Stdlib.Option.Option.Some requestId)
-                  ModelContextProtocol.ErrorCodes.resourceNotFound
-                  $"Resource content not found for template: {params.uri}"
-                  Stdlib.Option.Option.None)
-                |> Stdlib.AltJson.format
-
-              logAndSendToClient errorResponse
-              state
-          | None ->
-            // Resource doesn't exist and doesn't match any template
-            let errorResponse =
-              (JsonRPC.Response.Error.make
-                (Stdlib.Option.Option.Some requestId)
-                ModelContextProtocol.ErrorCodes.resourceNotFound
-                $"Resource not found: {params.uri}"
-                Stdlib.Option.Option.None)
-              |> Stdlib.AltJson.format
-
-            logAndSendToClient errorResponse
-            state
-
-      /// Handle a listTools request
-      let handleListToolsRequest
-        (state: McpState)
-        (requestId: JsonRPC.RequestId)
-        : McpState =
-        // Convert the tools dictionary to a list
-        let tools =
-          state.tools
-          |> Stdlib.Dict.toList
-          |> Stdlib.List.map (fun (_, tool) -> tool)
-
-        // Create the response
+      | Error errorMsg ->
+        // Create the error response
         let response =
-          (ModelContextProtocol.ToolRequest.ListToolsResponse.ListToolsResponse
-            { tools = tools })
-          |> ModelContextProtocol.ToolRequest.ListToolsResponse.toJson
+          (ModelContextProtocol.Tools.Helpers.createErrorResponse errorMsg)
+          |> ModelContextProtocol.ToolRequest.CallToolResponse.toJson
           |> (fun r ->
             JsonRPC.Response.Ok.make
               (Stdlib.Option.Option.Some requestId)
@@ -241,103 +288,55 @@ module Darklang =
 
         logAndSendToClient response
         state
+    | Error validationError ->
+      // Arguments are invalid
+      let errorResponse =
+        (JsonRPC.Response.Error.make
+          (Stdlib.Option.Option.Some requestId)
+          ModelContextProtocol.ErrorCodes.invalidParams
+          $"Invalid arguments: {validationError}"
+          Stdlib.Option.Option.None)
+        |> Stdlib.AltJson.format
 
-      /// Handle a callTool request
-      let handleCallToolRequest
-        (state: McpState)
-        (requestId: JsonRPC.RequestId)
-        (params: ModelContextProtocol.ToolRequest.CallToolParams.CallToolParams)
-        : McpState =
-        // Check if the tool exists
-        let tool = Stdlib.Dict.get state.tools params.name
+      logAndSendToClient errorResponse
+      state
+  | None ->
+    // Tool doesn't exist
+    let errorResponse =
+      (JsonRPC.Response.Error.make
+        (Stdlib.Option.Option.Some requestId)
+        ModelContextProtocol.ErrorCodes.methodNotFound
+        $"Tool not found: {params.name}"
+        Stdlib.Option.Option.None)
+      |> Stdlib.AltJson.format
 
-        match tool with
-        | Some toolDesc ->
-          // Validate the arguments against the tool's input schema
-          let validationResult =
-            ModelContextProtocol.Tools.Helpers.validateArguments toolDesc.inputSchema params.arguments
+    logAndSendToClient errorResponse
+    state
 
-          match validationResult with
-          | Ok () ->
-            // Execute the tool
-            let result = executeTool params.name params.arguments
+/// Get the content of a resource
+let getResourceContent (uri: String) : Stdlib.Option.Option<String> =
+  // This is a placeholder implementation
+  // In a real implementation, this would retrieve the content from a file, database, API, etc.
+  Stdlib.Option.Option.Some $"Content for resource: {uri}"
 
-            match result with
-            | Ok content ->
-              // Create the success response
-              let response =
-                (ModelContextProtocol.Tools.Helpers.createSuccessResponse content)
-                |> ModelContextProtocol.ToolRequest.CallToolResponse.toJson
-                |> (fun r ->
-                  JsonRPC.Response.Ok.make
-                    (Stdlib.Option.Option.Some requestId)
-                    r)
-                |> Stdlib.AltJson.format
+/// Get the content of a resource using a template and variables
+let getResourceContentFromTemplate
+  (template: String)
+  (uri: String)
+  (variables: Stdlib.Option.Option<Dict<String>>)
+  : Stdlib.Option.Option<String> =
+  // This is a placeholder implementation
+  // In a real implementation, this would use the variables to retrieve the content
+  Stdlib.Option.Option.Some $"Content for template: {template}, URI: {uri}"
 
-              logAndSendToClient response
-              state
-            | Error errorMsg ->
-              // Create the error response
-              let response =
-                (ModelContextProtocol.Tools.Helpers.createErrorResponse errorMsg)
-                |> ModelContextProtocol.ToolRequest.CallToolResponse.toJson
-                |> (fun r ->
-                  JsonRPC.Response.Ok.make
-                    (Stdlib.Option.Option.Some requestId)
-                    r)
-                |> Stdlib.AltJson.format
-
-              logAndSendToClient response
-              state
-          | Error validationError ->
-            // Arguments are invalid
-            let errorResponse =
-              (JsonRPC.Response.Error.make
-                (Stdlib.Option.Option.Some requestId)
-                ModelContextProtocol.ErrorCodes.invalidParams
-                $"Invalid arguments: {validationError}"
-                Stdlib.Option.Option.None)
-              |> Stdlib.AltJson.format
-
-            logAndSendToClient errorResponse
-            state
-        | None ->
-          // Tool doesn't exist
-          let errorResponse =
-            (JsonRPC.Response.Error.make
-              (Stdlib.Option.Option.Some requestId)
-              ModelContextProtocol.ErrorCodes.methodNotFound
-              $"Tool not found: {params.name}"
-              Stdlib.Option.Option.None)
-            |> Stdlib.AltJson.format
-
-          logAndSendToClient errorResponse
-          state
-
-      /// Get the content of a resource
-      let getResourceContent (uri: String) : Stdlib.Option.Option<String> =
-        // This is a placeholder implementation
-        // In a real implementation, this would retrieve the content from a file, database, API, etc.
-        Stdlib.Option.Option.Some $"Content for resource: {uri}"
-
-      /// Get the content of a resource using a template and variables
-      let getResourceContentFromTemplate
-        (template: String)
-        (uri: String)
-        (variables: Stdlib.Option.Option<Dict<String>>)
-        : Stdlib.Option.Option<String> =
-        // This is a placeholder implementation
-        // In a real implementation, this would use the variables to retrieve the content
-        Stdlib.Option.Option.Some $"Content for template: {template}, URI: {uri}"
-
-      /// Execute a tool
-      let executeTool
-        (name: String)
-        (arguments: Json)
-        : Stdlib.Result.Result<List<ModelContextProtocol.Tools.CallToolResponse.ContentItem>, String> =
-        // This is a placeholder implementation
-        // In a real implementation, this would execute the tool with the given arguments
-        Stdlib.Result.Result.Ok [
-          (ModelContextProtocol.Tools.CallToolResponse.ContentItem
-            { type_ = "text"; text = $"Result of executing tool: {name}" })
-        ]
+/// Execute a tool
+let executeTool
+  (name: String)
+  (arguments: Json)
+  : Stdlib.Result.Result<List<ModelContextProtocol.Tools.CallToolResponse.ContentItem>, String> =
+  // This is a placeholder implementation
+  // In a real implementation, this would execute the tool with the given arguments
+  Stdlib.Result.Result.Ok [
+    (ModelContextProtocol.Tools.CallToolResponse.ContentItem
+      { type_ = "text"; text = $"Result of executing tool: {name}" })
+  ]

@@ -1,113 +1,113 @@
-module Darklang =
-  module Stdlib =
-    module Json =
-      module ParseError =
-        module JsonPath =
-          module Part =
-            type Part =
-              | Root
-              | Index of Int64
-              | Field of String
-
-            let toString (part: Part) : String =
-              match part with
-              | Root -> "root"
-              | Field name -> "." ++ name
-              | Index index -> "[" ++ Int64.toString index ++ "]"
-
-          type JsonPath = List<Part.Part>
-
-          let toString (path: JsonPath) : String =
-            path |> List.reverse |> List.map Part.toString |> String.join ""
+module Darklang.Stdlib.Json
 
 
-        type ParseError =
-          /// The json string can't be parsed as the given type.
-          | CantMatchWithType of
-            LanguageTools.RuntimeTypes.TypeReference *
-            String *
-            JsonPath.JsonPath
-          | EnumExtraField of rawJson: String * JsonPath.JsonPath
-          | EnumMissingField of
-            LanguageTools.RuntimeTypes.TypeReference *
-            index: Int64 *
-            JsonPath.JsonPath
-          | EnumInvalidCasename of
-            LanguageTools.RuntimeTypes.TypeReference *
-            caseName: String *
-            JsonPath.JsonPath
-          | EnumTooManyCases of
-            LanguageTools.RuntimeTypes.TypeReference *
-            cases: List<String> *
-            JsonPath.JsonPath
-          | RecordDuplicateField of fieldName: String * JsonPath.JsonPath
-          | RecordMissingField of fieldName: String * JsonPath.JsonPath
-          | NotJson
+module ParseError =
+  module JsonPath =
+    module Part =
+      type Part =
+        | Root
+        | Index of Int64
+        | Field of String
 
-        let toString (e: ParseError) : String =
-          match e with
-          | CantMatchWithType(typ, json, path) ->
-            "Can't parse JSON `"
-            ++ json
-            ++ "` as type `"
-            ++ PrettyPrinter.RuntimeTypes.typeReference typ
-            ++ "` at path: `"
-            ++ JsonPath.toString path
-            ++ "`"
+      let toString (part: Part) : String =
+        match part with
+        | Root -> "root"
+        | Field name -> "." ++ name
+        | Index index -> "[" ++ Int64.toString index ++ "]"
 
-          // Can't parse JSON due to an extra argument `2.0` at path: `root.Enh[2]`
-          | EnumExtraField(rawJson, path) ->
-            "Can't parse JSON due to an extra argument `"
-            ++ rawJson
-            ++ "` at path: `"
-            ++ JsonPath.toString path
-            ++ "`"
+    type JsonPath = List<Part.Part>
 
-          // Can't parse JSON because argument 4 (`Int64`) is missing at path: `root.Enh`
-          | EnumMissingField(typ, index, path) ->
-            "Can't parse JSON because argument "
-            ++ Int64.toString index
-            ++ " (`"
-            ++ PrettyPrinter.RuntimeTypes.typeReference typ
-            ++ "`) is missing at path: `"
-            ++ JsonPath.toString path
-            ++ "`"
-
-          // Can't parse JSON as `Wrong` is not a known case of type `PrettyLikely` at path: `root`
-          | EnumInvalidCasename(typ, caseName, path) ->
-            "Can't parse JSON as `"
-            ++ caseName
-            ++ "` is not a known case of type `"
-            ++ PrettyPrinter.RuntimeTypes.typeReference typ
-            ++ "` at path: `"
-            ++ JsonPath.toString path
-            ++ "`"
-
-          // Can't parse JSON with multiple fields (`Enh` and `Extra`) as type `PrettyLikely` at path: `root`
-          | EnumTooManyCases(typ, cases, path) ->
-            let cases = cases |> List.map (fun c -> $"`{c}`") |> String.join ", "
-
-            $"Can't parse JSON with multiple fields ({cases}) as type `"
-            ++ PrettyPrinter.RuntimeTypes.typeReference typ
-            ++ "` at path: `"
-            ++ JsonPath.toString path
-            ++ "`"
-
-          // Can't parse JSON because `Name` field is not provided at path: `root`
-          | RecordMissingField(fieldName, path) ->
-            "Can't parse JSON because `"
-            ++ fieldName
-            ++ "` field is not provided at path: `"
-            ++ JsonPath.toString path
-            ++ "`"
+    let toString (path: JsonPath) : String =
+      path |> List.reverse |> List.map Part.toString |> String.join ""
 
 
-          // Can't parse JSON because `Age` is defined more than once at path: `root`
-          | RecordDuplicateField(fieldName, path) ->
-            "Can't parse JSON because `"
-            ++ fieldName
-            ++ "` is defined more than once at path: `"
-            ++ JsonPath.toString path
-            ++ "`"
+  type ParseError =
+    /// The json string can't be parsed as the given type.
+    | CantMatchWithType of
+      LanguageTools.RuntimeTypes.TypeReference *
+      String *
+      JsonPath.JsonPath
+    | EnumExtraField of rawJson: String * JsonPath.JsonPath
+    | EnumMissingField of
+      LanguageTools.RuntimeTypes.TypeReference *
+      index: Int64 *
+      JsonPath.JsonPath
+    | EnumInvalidCasename of
+      LanguageTools.RuntimeTypes.TypeReference *
+      caseName: String *
+      JsonPath.JsonPath
+    | EnumTooManyCases of
+      LanguageTools.RuntimeTypes.TypeReference *
+      cases: List<String> *
+      JsonPath.JsonPath
+    | RecordDuplicateField of fieldName: String * JsonPath.JsonPath
+    | RecordMissingField of fieldName: String * JsonPath.JsonPath
+    | NotJson
 
-          | NotJson -> "Not JSON"
+  let toString (e: ParseError) : String =
+    match e with
+    | CantMatchWithType(typ, json, path) ->
+      "Can't parse JSON `"
+      ++ json
+      ++ "` as type `"
+      ++ PrettyPrinter.RuntimeTypes.typeReference typ
+      ++ "` at path: `"
+      ++ JsonPath.toString path
+      ++ "`"
+
+    // Can't parse JSON due to an extra argument `2.0` at path: `root.Enh[2]`
+    | EnumExtraField(rawJson, path) ->
+      "Can't parse JSON due to an extra argument `"
+      ++ rawJson
+      ++ "` at path: `"
+      ++ JsonPath.toString path
+      ++ "`"
+
+    // Can't parse JSON because argument 4 (`Int64`) is missing at path: `root.Enh`
+    | EnumMissingField(typ, index, path) ->
+      "Can't parse JSON because argument "
+      ++ Int64.toString index
+      ++ " (`"
+      ++ PrettyPrinter.RuntimeTypes.typeReference typ
+      ++ "`) is missing at path: `"
+      ++ JsonPath.toString path
+      ++ "`"
+
+    // Can't parse JSON as `Wrong` is not a known case of type `PrettyLikely` at path: `root`
+    | EnumInvalidCasename(typ, caseName, path) ->
+      "Can't parse JSON as `"
+      ++ caseName
+      ++ "` is not a known case of type `"
+      ++ PrettyPrinter.RuntimeTypes.typeReference typ
+      ++ "` at path: `"
+      ++ JsonPath.toString path
+      ++ "`"
+
+    // Can't parse JSON with multiple fields (`Enh` and `Extra`) as type `PrettyLikely` at path: `root`
+    | EnumTooManyCases(typ, cases, path) ->
+      let cases = cases |> List.map (fun c -> $"`{c}`") |> String.join ", "
+
+      $"Can't parse JSON with multiple fields ({cases}) as type `"
+      ++ PrettyPrinter.RuntimeTypes.typeReference typ
+      ++ "` at path: `"
+      ++ JsonPath.toString path
+      ++ "`"
+
+    // Can't parse JSON because `Name` field is not provided at path: `root`
+    | RecordMissingField(fieldName, path) ->
+      "Can't parse JSON because `"
+      ++ fieldName
+      ++ "` field is not provided at path: `"
+      ++ JsonPath.toString path
+      ++ "`"
+
+
+    // Can't parse JSON because `Age` is defined more than once at path: `root`
+    | RecordDuplicateField(fieldName, path) ->
+      "Can't parse JSON because `"
+      ++ fieldName
+      ++ "` is defined more than once at path: `"
+      ++ JsonPath.toString path
+      ++ "`"
+
+    | NotJson -> "Not JSON"

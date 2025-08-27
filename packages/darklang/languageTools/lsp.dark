@@ -1,88 +1,88 @@
-module Darklang =
-  module LanguageTools =
-    // this module could be forked into something usable to build _other_ language servers,
-    // but that feels like a premature optimization at this point - let's see how this pans out.
-    //
-    // some of these types are somewaht general to the LSP spec,
-    // others are specific to our implementation
-    //
-    // Note: this was written as a backend to support a middle-man Node LSP server. This
-    // should all be migrated elsewhere shortly, as we remove that server in favor of
-    // one written in Darklang. TODO
-    module LanguageServerProtocol =
-      /// A tagging type for string properties that are actually document URIs.
-      type DocumentUri = String
+// this module could be forked into something usable to build _other_ language servers,
+// but that feels like a premature optimization at this point - let's see how this pans out.
+//
+// some of these types are somewaht general to the LSP spec,
+// others are specific to our implementation
+//
+// Note: this was written as a backend to support a middle-man Node LSP server. This
+// should all be migrated elsewhere shortly, as we remove that server in favor of
+// one written in Darklang. TODO
+module Darklang.LanguageTools.LanguageServerProtocol
 
-      /// A tagging type for string properties that are actually URIs
-      type URI = String
 
-      type Position = { line: Int64; character: Int64 }
+/// A tagging type for string properties that are actually document URIs.
+type DocumentUri = String
 
-      type Range = { start: Position; end_: Position }
+/// A tagging type for string properties that are actually URIs
+type URI = String
 
-      /// Represents a location inside a resource, such as a line inside a text file
-      type Location = { uri: DocumentUri; range: Range }
+type Position = { line: Int64; character: Int64 }
 
-      // -- done with base types --
+type Range = { start: Position; end_: Position }
 
-      type ScriptParseError =
-        | FailedToParse of msg: String * range: Stdlib.Option.Option<Range>
-        | Other of msg: String
+/// Represents a location inside a resource, such as a line inside a text file
+type Location = { uri: DocumentUri; range: Range }
 
-      // <Diagnostics>
+// -- done with base types --
 
-      /// "Warning" | "Error"
-      type DiagnosticSeverity = String
+type ScriptParseError =
+  | FailedToParse of msg: String * range: Stdlib.Option.Option<Range>
+  | Other of msg: String
 
-      type Diagnostic =
-        { severity: DiagnosticSeverity
-          range: Range
-          message: String }
+// <Diagnostics>
 
-      type ComputeDiagnosticsOutput = { diagnostics: List<Diagnostic> }
+/// "Warning" | "Error"
+type DiagnosticSeverity = String
 
-      let getDiagnostics (uri: String) (text: String) : String =
-        // CLEANUP: languageToolsParseCliScript doesn't exist
-        match Builtin.languageToolsParseCliScript text with
-        | Ok() ->
-          (ComputeDiagnosticsOutput { diagnostics = [] })
-          |> Builtin.jsonSerialize<ComputeDiagnosticsOutput>
+type Diagnostic =
+  { severity: DiagnosticSeverity
+    range: Range
+    message: String }
 
-        | Error parseError ->
-          // to be used when the range is otherwise unknown
-          let rangeOfAll =
-            let start = Position { line = 0L; character = 0L }
+type ComputeDiagnosticsOutput = { diagnostics: List<Diagnostic> }
 
-            let end' =
-              let lines = text |> Stdlib.String.split "\n"
+let getDiagnostics (uri: String) (text: String) : String =
+  // CLEANUP: languageToolsParseCliScript doesn't exist
+  match Builtin.languageToolsParseCliScript text with
+  | Ok() ->
+    (ComputeDiagnosticsOutput { diagnostics = [] })
+    |> Builtin.jsonSerialize<ComputeDiagnosticsOutput>
 
-              let lastLineLength =
-                match lines |> Stdlib.List.last with
-                | Some lastLine -> Stdlib.String.length lastLine
-                | None -> 0L
+  | Error parseError ->
+    // to be used when the range is otherwise unknown
+    let rangeOfAll =
+      let start = Position { line = 0L; character = 0L }
 
-              Position
-                { line = (Stdlib.List.length lines) - 1L
-                  character = lastLineLength }
+      let end' =
+        let lines = text |> Stdlib.String.split "\n"
 
-            Range { start = start; end_ = end' }
+        let lastLineLength =
+          match lines |> Stdlib.List.last with
+          | Some lastLine -> Stdlib.String.length lastLine
+          | None -> 0L
 
-          let diagnostics =
-            match parseError with
-            | FailedToParse(msg, range) ->
-              [ Diagnostic
-                  { severity = "Error"
-                    range = Stdlib.Option.withDefault range rangeOfAll
-                    message = $"Can't parse -- {msg}" } ]
+        Position
+          { line = (Stdlib.List.length lines) - 1L
+            character = lastLineLength }
 
-            | Other msg ->
-              [ Diagnostic
-                  { severity = "Error"
-                    range = rangeOfAll
-                    message = $"Can't parse -- {msg}" } ]
+      Range { start = start; end_ = end' }
 
-          (ComputeDiagnosticsOutput { diagnostics = diagnostics })
-          |> Builtin.jsonSerialize<ComputeDiagnosticsOutput>
+    let diagnostics =
+      match parseError with
+      | FailedToParse(msg, range) ->
+        [ Diagnostic
+            { severity = "Error"
+              range = Stdlib.Option.withDefault range rangeOfAll
+              message = $"Can't parse -- {msg}" } ]
+
+      | Other msg ->
+        [ Diagnostic
+            { severity = "Error"
+              range = rangeOfAll
+              message = $"Can't parse -- {msg}" } ]
+
+    (ComputeDiagnosticsOutput { diagnostics = diagnostics })
+    |> Builtin.jsonSerialize<ComputeDiagnosticsOutput>
 
 
 // </Diagnostics>

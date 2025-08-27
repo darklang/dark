@@ -1,24 +1,24 @@
-module Darklang =
-  module Stdlib =
-    module AltJson =
-      type Json =
-        | Null
-        | Bool of Bool
-        | Number of Float
-        | String of String
-        | Array of List<Json>
-        | Object of List<(String * Json)>
+module Darklang.Stdlib.AltJson
 
 
-      module ParseError =
-        type ParseError = | NotJson
+type Json =
+  | Null
+  | Bool of Bool
+  | Number of Float
+  | String of String
+  | Array of List<Json>
+  | Object of List<(String * Json)>
 
-        let toString (e: ParseError) : String =
-          match e with
-          | NotJson -> "Not JSON"
+
+module ParseError =
+  type ParseError = | NotJson
+
+  let toString (e: ParseError) : String =
+    match e with
+    | NotJson -> "Not JSON"
 
 
-      let format (j: Json) : String = Builtin.altJsonFormat j
+let format (j: Json) : String = Builtin.altJsonFormat j
 
-      let parse (jsonString: String) : Result.Result<Json, ParseError.ParseError> =
-        Builtin.altJsonParse jsonString
+let parse (jsonString: String) : Result.Result<Json, ParseError.ParseError> =
+  Builtin.altJsonParse jsonString

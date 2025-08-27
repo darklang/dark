@@ -1,1335 +1,1335 @@
-module Darklang =
-  module LanguageTools =
-    module WrittenTypesToProgramTypes =
-      let gid () : Int64 =
-        // TODO: fix upper range here
-        Stdlib.Int64.random 0L 922337203685477580L
-
-      let gtlid () : UInt64 =
-        Stdlib.UInt64.random 0UL 9223372036854775807UL
-
-
-      module Identifiers =
-        module Type =
-          let toPT (typ: WrittenTypes.TypeIdentifier) : String = typ.name
-
-        module QualifiedType =
-          let toPT
-            (onMissing: NameResolver.OnMissing)
-            (pm: ProgramTypes.PackageManager.PackageManager)
-            (owner: String)
-            (currentModule: List<String>)
-            (i: WrittenTypes.QualifiedTypeIdentifier)
-            : (ProgramTypes.NameResolution<ProgramTypes.FQTypeName.FQTypeName> *
-              List<ProgramTypes.TypeReference> *
-              List<Parser.Range * ProgramTypes.NameResolutionError>)
-            =
-            let (typeArgs, typeArgsUnresolvedNames) =
-              i.typeArgs
-              |> Stdlib.List.map (fun t ->
-                TypeReference.toPT onMissing pm owner currentModule t)
-              |> Stdlib.List.unzip
-
-            let nameToResolve =
-              Stdlib.List.append
-                (Stdlib.List.map i.modules (fun (m, _) -> m.name))
-                [ i.typ |> Type.toPT ]
-
-            let typeName =
-              NameResolver.TypeName.resolve
-                onMissing
-                pm
-                owner
-                currentModule
-                (WrittenTypes.Name.Unresolved(i.range, nameToResolve))
-
-            match typeName with
-            | Error e ->
-              let unresolvedNames =
-                Stdlib.List.flatten
-                  [ typeArgsUnresolvedNames |> Stdlib.List.flatten
-                    [ (i.range, e) ] ]
-
-              (typeName, typeArgs, unresolvedNames)
-
-            | _ ->
-              (typeName, typeArgs, typeArgsUnresolvedNames |> Stdlib.List.flatten)
-
-        module Value =
-          let toPT (v: WrittenTypes.ValueIdentifier) : String = v.name
-
-        module ValueOrFn =
-          let toPT (v: WrittenTypes.ValueOrFnIdentifier) : String = v.name
-
-
-        module QualifiedValueOrFn =
-          type ValueOrFn =
-            | Value of
-              ProgramTypes.NameResolution<ProgramTypes.FQValueName.FQValueName>
-            | Fn of ProgramTypes.NameResolution<ProgramTypes.FQFnName.FQFnName>
-
-          // CLEANUP: why do we return a Result here? NameResolution already is a Result type
-          let toPT
-            (onMissing: NameResolver.OnMissing)
-            (pm: ProgramTypes.PackageManager.PackageManager)
-            (owner: String)
-            (currentModule: List<String>)
-            (v: WrittenTypes.QualifiedValueOrFnIdentifier)
-            : (Stdlib.Result.Result<ValueOrFn, ProgramTypes.NameResolution<ProgramTypes.FQValueName.FQValueName>> *
-              List<Parser.Range * ProgramTypes.NameResolutionError>)
-            =
-            let nameToResolve =
-              Stdlib.List.append
-                (Stdlib.List.map v.modules (fun (id, _) -> id.name))
-                [ v.valueOrFn |> ValueOrFn.toPT ]
-
-            let isValue =
-              NameResolver.ValueName.resolve
-                onMissing
-                pm
-                owner
-                currentModule
-                (WrittenTypes.Name.Unresolved(v.range, nameToResolve))
-
-            let isFn =
-              NameResolver.FnName.resolve
-                onMissing
-                pm
-                owner
-                currentModule
-                (WrittenTypes.Name.Unresolved(v.range, nameToResolve))
-
-            match isFn with
-            | Ok _ ->
-              let isFn = isFn |> ValueOrFn.Fn |> Stdlib.Result.Result.Ok
-              (isFn, [])
-            | Error _ ->
-              match isValue with
-              | Ok _ ->
-                let isValue =
-                  isValue |> ValueOrFn.Value |> Stdlib.Result.Result.Ok
-
-                (isValue, [])
-              | Error e -> (Stdlib.Result.Result.Error isValue, [ (v.range, e) ])
-
-        module Fn =
-          let toPT (fn: WrittenTypes.FnIdentifier) : String = fn.name
-
-        module QualifiedFn =
-          let toPT
-            (onMissing: NameResolver.OnMissing)
-            (pm: ProgramTypes.PackageManager.PackageManager)
-            (owner: String)
-            (currentModule: List<String>)
-            (i: WrittenTypes.QualifiedFnIdentifier)
-            : (ProgramTypes.NameResolution<ProgramTypes.FQFnName.FQFnName> *
-              List<Parser.Range * ProgramTypes.NameResolutionError>)
-            =
-            let nameToResolve =
-              Stdlib.List.append
-                (Stdlib.List.map i.modules (fun (m, _) -> m.name))
-                [ i.fn.name ]
-
-            let fnName =
-              NameResolver.FnName.resolve
-                onMissing
-                pm
-                owner
-                currentModule
-                (WrittenTypes.Name.Unresolved(i.range, nameToResolve))
-
-            match fnName with
-            | Error e -> (fnName, [ (i.range, e) ])
-            | _ -> (fnName, [])
-
-
-      module TypeReference =
-        module Builtin =
-          let toPT
-            (onMissing: NameResolver.OnMissing)
-            (pm: ProgramTypes.PackageManager.PackageManager)
-            (owner: String)
-            (currentModule: List<String>)
-            (t: WrittenTypes.TypeReference.Builtin)
-            : (ProgramTypes.TypeReference *
-              List<Parser.Range * ProgramTypes.NameResolutionError>)
-            =
-            match t with
-            | TUnit _range -> (ProgramTypes.TypeReference.TUnit, [])
-            | TBool _range -> (ProgramTypes.TypeReference.TBool, [])
-            | TInt8 _range -> (ProgramTypes.TypeReference.TInt8, [])
-            | TUInt8 _range -> (ProgramTypes.TypeReference.TUInt8, [])
-            | TInt16 _range -> (ProgramTypes.TypeReference.TInt16, [])
-            | TUInt16 _range -> (ProgramTypes.TypeReference.TUInt16, [])
-            | TInt32 _range -> (ProgramTypes.TypeReference.TInt32, [])
-            | TUInt32 _range -> (ProgramTypes.TypeReference.TUInt32, [])
-            | TInt64 _range -> (ProgramTypes.TypeReference.TInt64, [])
-            | TUInt64 _range -> (ProgramTypes.TypeReference.TUInt64, [])
-            | TInt128 _range -> (ProgramTypes.TypeReference.TInt128, [])
-            | TUInt128 _range -> (ProgramTypes.TypeReference.TUInt128, [])
-            | TFloat _range -> (ProgramTypes.TypeReference.TFloat, [])
-            | TChar _range -> (ProgramTypes.TypeReference.TChar, [])
-            | TString _range -> (ProgramTypes.TypeReference.TString, [])
-            | TDateTime _range -> (ProgramTypes.TypeReference.TDateTime, [])
-            | TUuid _range -> (ProgramTypes.TypeReference.TUuid, [])
-
-            | TList(_range, _, _, typ, _) ->
-              let (typ, unresolvedNames) =
-                TypeReference.toPT onMissing pm owner currentModule typ
-
-              (ProgramTypes.TypeReference.TList(typ), unresolvedNames)
-
-            | TDict(_range, _, _, valueType, _) ->
-              let (valueType, unresolvedNames) =
-                TypeReference.toPT onMissing pm owner currentModule valueType
-
-              (ProgramTypes.TypeReference.TDict valueType, unresolvedNames)
-
-            | TTuple(_range, first, _, second, theRest, _, _) ->
-              let (first, firstUnresolvedNames) = TypeReference.toPT onMissing pm owner currentModule first
-              let (second, secondUnresolvedNames) = TypeReference.toPT onMissing pm owner currentModule second
-              let (theRest, restUresolvedNames) =
-                theRest
-                |> Stdlib.List.map (fun (_, t) -> TypeReference.toPT onMissing pm owner currentModule t)
-                |> Stdlib.List.unzip
-
-              let unresolvedNames =
-                [ firstUnresolvedNames; secondUnresolvedNames; (restUresolvedNames |> Stdlib.List.flatten) ]
-                |> Stdlib.List.flatten
-
-              (ProgramTypes.TypeReference.TTuple(first, second, theRest),
-               unresolvedNames)
-
-            | TFn(_range, args, returnType) ->
-              let (args, argsUnresolvedNames) =
-                args
-                |> Stdlib.List.map (fun (t, _) ->
-                  TypeReference.toPT onMissing pm owner currentModule t)
-                |> Stdlib.List.unzip
-
-              let (returnType, retUnresolvedNames) =
-                TypeReference.toPT onMissing pm owner currentModule returnType
-
-              let unresolvedNames =
-                Stdlib.List.flatten
-                  [ argsUnresolvedNames |> Stdlib.List.flatten; retUnresolvedNames ]
-
-              (ProgramTypes.TypeReference.TFn(args, returnType), unresolvedNames)
-
-            | TDB(_range, _, _, typ, _) ->
-              let (typ, unresolvedNames) =
-                TypeReference.toPT onMissing pm owner currentModule typ
-
-              (ProgramTypes.TypeReference.TDB typ, unresolvedNames)
-
-            | TVariable(_range, _, (_, name)) ->
-              (ProgramTypes.TypeReference.TVariable name, [])
-
-
-        let toPT
-          (onMissing: NameResolver.OnMissing)
-          (pm: ProgramTypes.PackageManager.PackageManager)
-          (owner: String)
-          (currentModule: List<String>)
-          (t: WrittenTypes.TypeReference.TypeReference)
-          : (ProgramTypes.TypeReference *
-            List<Parser.Range * ProgramTypes.NameResolutionError>)
-          =
-          match t with
-          | Builtin b -> Builtin.toPT onMissing pm owner currentModule b
-          | QualifiedName qn ->
-            let (typeName, typeArgs, unresolvedNames) =
-              Identifiers.QualifiedType.toPT onMissing pm owner currentModule qn
-
-            (ProgramTypes.TypeReference.TCustomType(typeName, typeArgs),
-             unresolvedNames)
-
-
-      module InfixFnName =
-        let toPT (infix: WrittenTypes.InfixFnName) : ProgramTypes.InfixFnName =
-          match infix with
-          | ArithmeticPlus -> ProgramTypes.InfixFnName.ArithmeticPlus
-          | ArithmeticMinus -> ProgramTypes.InfixFnName.ArithmeticMinus
-          | ArithmeticMultiply -> ProgramTypes.InfixFnName.ArithmeticMultiply
-          | ArithmeticDivide -> ProgramTypes.InfixFnName.ArithmeticDivide
-          | ArithmeticModulo -> ProgramTypes.InfixFnName.ArithmeticModulo
-          | ArithmeticPower -> ProgramTypes.InfixFnName.ArithmeticPower
-          | ComparisonGreaterThan -> ProgramTypes.InfixFnName.ComparisonGreaterThan
-          | ComparisonGreaterThanOrEqual ->
-            ProgramTypes.InfixFnName.ComparisonGreaterThanOrEqual
-          | ComparisonLessThan -> ProgramTypes.InfixFnName.ComparisonLessThan
-          | ComparisonLessThanOrEqual ->
-            ProgramTypes.InfixFnName.ComparisonLessThanOrEqual
-          | ComparisonEquals -> ProgramTypes.InfixFnName.ComparisonEquals
-          | ComparisonNotEquals -> ProgramTypes.InfixFnName.ComparisonNotEquals
-          | StringConcat -> ProgramTypes.InfixFnName.StringConcat
-
-      module BinaryOperation =
-        let toPT
-          (binop: WrittenTypes.BinaryOperation)
-          : ProgramTypes.BinaryOperation =
-          match binop with
-          | BinOpAnd -> ProgramTypes.BinaryOperation.BinOpAnd
-          | BinOpOr -> ProgramTypes.BinaryOperation.BinOpOr
-
-      module Infix =
-        let toPT (infix: WrittenTypes.Infix) : ProgramTypes.Infix =
-          match infix with
-          | InfixFnCall op -> ProgramTypes.Infix.InfixFnCall(InfixFnName.toPT op)
-          | BinOp op -> ProgramTypes.Infix.BinOp(BinaryOperation.toPT op)
-
-
-      module Expr =
-        module LetPattern =
-          let toPT (p: WrittenTypes.LetPattern) : ProgramTypes.LetPattern =
-            match p with
-            | LPUnit _ -> ProgramTypes.LetPattern.LPUnit(gid ())
-            | LPVariable(_, name) -> ProgramTypes.LetPattern.LPVariable(gid (), name)
-            | LPTuple(_, first, _, second, rest, _, _) ->
-              let first = toPT first
-              let second = toPT second
-              let rest = Stdlib.List.map rest (fun (_, p) -> toPT p)
-
-              ProgramTypes.LetPattern.LPTuple(gid (), first, second, rest)
-
-        module MatchPattern =
-          let toPT
-            (onMissing: NameResolver.OnMissing)
-            (p: WrittenTypes.MatchPattern)
-            : ProgramTypes.MatchPattern =
-            match p with
-            | MPUnit _ -> ProgramTypes.MatchPattern.MPUnit(gid ())
-            | MPBool(_, b) -> ProgramTypes.MatchPattern.MPBool(gid (), b)
-            | MPInt8(_, (_, i), _) -> ProgramTypes.MatchPattern.MPInt8(gid (), i)
-            | MPUInt8(_, (_, i), _) -> ProgramTypes.MatchPattern.MPUInt8(gid (), i)
-            | MPInt16(_, (_, i), _) -> ProgramTypes.MatchPattern.MPInt16(gid (), i)
-            | MPUInt16(_, (_, i), _) -> ProgramTypes.MatchPattern.MPUInt16(gid (), i)
-            | MPInt32(_, (_, i), _) -> ProgramTypes.MatchPattern.MPInt32(gid (), i)
-            | MPUInt32(_, (_, i), _) -> ProgramTypes.MatchPattern.MPUInt32(gid (), i)
-            | MPInt64(_, (_, i), _) -> ProgramTypes.MatchPattern.MPInt64(gid (), i)
-            | MPUInt64(_, (_, i), _) -> ProgramTypes.MatchPattern.MPUInt64(gid (), i)
-            | MPInt128(_, (_, i), _) -> ProgramTypes.MatchPattern.MPInt128(gid (), i)
-            | MPUInt128(_, (_, i), _) ->
-              ProgramTypes.MatchPattern.MPUInt128(gid (), i)
-            | MPFloat(_, s, w, f) ->
-              ProgramTypes.MatchPattern.MPFloat(gid (), s, w, f)
-            | MPString(_, contents, _, _) ->
-              match contents with
-              | None -> ProgramTypes.MatchPattern.MPString(gid (), "")
-              | Some((_, s)) -> ProgramTypes.MatchPattern.MPString(gid (), s)
-            | MPChar(_, c, _, _) ->
-              match c with
-              | None -> ProgramTypes.MatchPattern.MPChar(gid (), "")
-              | Some((_, c)) -> ProgramTypes.MatchPattern.MPChar(gid (), c)
-
-            | MPList(_, contents, _, _) ->
-              ProgramTypes.MatchPattern.MPList(
-                gid (),
-                Stdlib.List.map contents (fun (p, _) -> toPT onMissing p)
-              )
-            | MPListCons(_, head, tail, _) ->
-              ProgramTypes.MatchPattern.MPListCons(
-                gid (),
-                toPT onMissing head,
-                toPT onMissing tail
-              )
-            | MPTuple(_, first, _, second, rest, _, _) ->
-              ProgramTypes.MatchPattern.MPTuple(
-                gid (),
-                toPT onMissing first,
-                toPT onMissing second,
-                Stdlib.List.map rest (fun (_, p) -> toPT onMissing p)
-              )
-            | MPEnum(_, caseName, fields) ->
-              let caseName = caseName |> Stdlib.Tuple2.second
-              let fields = Stdlib.List.map fields (fun p -> toPT onMissing p)
-
-              ProgramTypes.MatchPattern.MPEnum(gid (), caseName, fields)
-
-            | MPVariable(_, name) ->
-              ProgramTypes.MatchPattern.MPVariable(gid (), name)
-
-            | MPOr(_, patterns) ->
-              ProgramTypes.MatchPattern.MPOr(
-                gid (),
-                Stdlib.List.map patterns (fun p -> toPT onMissing p)
-              )
-
-        module PipeExpr =
-          let toPT
-            (onMissing: NameResolver.OnMissing)
-            (pm: ProgramTypes.PackageManager.PackageManager)
-            (owner: String)
-            (currentModule: List<String>)
-            (pipeExpr: WrittenTypes.PipeExpr)
-            : (ProgramTypes.PipeExpr *
-              List<Parser.Range * ProgramTypes.NameResolutionError>)
-            =
-            match pipeExpr with
-            | EPipeInfix(_, (_, infix), right) ->
-              let (right, unresolvedNames) =
-                Expr.toPT onMissing pm owner currentModule right
-
-              (ProgramTypes.PipeExpr.EPipeInfix(gid (), Infix.toPT infix, right),
-               unresolvedNames)
-
-            | EPipeLambda(_, pats, body, _, _) ->
-              let (body, unresolvedNames) =
-                Expr.toPT onMissing pm owner currentModule body
-
-              let pats = Stdlib.List.map pats (fun p -> LetPattern.toPT p)
-
-              (ProgramTypes.PipeExpr.EPipeLambda(gid (), pats, body), unresolvedNames)
-
-            | EPipeEnum(_, typeName, (_, caseName), fields, _) ->
-              let (typeName, typeArgs, typeNameUnresolvedNames) =
-                Identifiers.QualifiedType.toPT
-                  onMissing
-                  pm
-                  owner
-                  currentModule
-                  typeName
-
-              let (fields, fieldsUnresolvedNames) =
-                fields
-                |> Stdlib.List.map (fun e ->
-                  Expr.toPT onMissing pm owner currentModule e)
-                |> Stdlib.List.unzip
-
-              let unresolvedNames =
-                Stdlib.List.flatten
-                  [ typeNameUnresolvedNames
-                    fieldsUnresolvedNames |> Stdlib.List.flatten ]
-
-              (ProgramTypes.PipeExpr.EPipeEnum(gid (), typeName, caseName, fields),
-               unresolvedNames)
-
-            // TODO: rename to EPipeVariableOrFnCall
-            | EPipeFnCall(_, fn, args) ->
-              let (fnName, _fnUnresolvedNames) =
-                Identifiers.QualifiedFn.toPT onMissing pm owner currentModule fn
-
-              let (typeArgs, tpUnresolvedNames) =
-                fn.typeArgs
-                |> Stdlib.List.map (fun t ->
-                  TypeReference.toPT onMissing pm owner currentModule t)
-                |> Stdlib.List.unzip
-
-              let (args, argsUnresolvedNames) =
-                args
-                |> Stdlib.List.map (fun a ->
-                  Expr.toPT onMissing pm owner currentModule a)
-                |> Stdlib.List.unzip
-
-              let unresolvedNames =
-                Stdlib.List.flatten
-                  [ tpUnresolvedNames |> Stdlib.List.flatten
-                    argsUnresolvedNames |> Stdlib.List.flatten ]
-
-              match fnName with
-              | Ok _ ->
-                (ProgramTypes.PipeExpr.EPipeFnCall(gid (), fnName, typeArgs, args),
-                 unresolvedNames)
-
-              | Error e ->
-                if fn.modules |> Stdlib.List.isEmpty then
-                  (ProgramTypes.PipeExpr.EPipeVariable(gid (), fn.fn.name, args),
-                   unresolvedNames)
-                else
-                  let unresolvedNames =
-                    Stdlib.List.append unresolvedNames [ (fn.range, e) ]
-
-                  (ProgramTypes.PipeExpr.EPipeFnCall(gid (), fnName, typeArgs, args),
-                   unresolvedNames)
-
-        let toPT
-          (onMissing: NameResolver.OnMissing)
-          (pm: ProgramTypes.PackageManager.PackageManager)
-          (owner: String)
-          (currentModule: List<String>)
-          (e: WrittenTypes.Expr)
-          : (ProgramTypes.Expr *
-            List<Parser.Range * ProgramTypes.NameResolutionError>)
-          =
-          match e with
-          // simple
-          | EUnit _ -> (ProgramTypes.Expr.EUnit(gid ()), [])
-
-          | EBool(_, b) -> (ProgramTypes.Expr.EBool(gid (), b), [])
-          | EInt8(_, (_, i), _) -> (ProgramTypes.Expr.EInt8(gid (), i), [])
-          | EUInt8(_, (_, i), _) -> (ProgramTypes.Expr.EUInt8(gid (), i), [])
-          | EInt16(_, (_, i), _) -> (ProgramTypes.Expr.EInt16(gid (), i), [])
-          | EUInt16(_, (_, i), _) -> (ProgramTypes.Expr.EUInt16(gid (), i), [])
-          | EInt32(_, (_, i), _) -> (ProgramTypes.Expr.EInt32(gid (), i), [])
-          | EUInt32(_, (_, i), _) -> (ProgramTypes.Expr.EUInt32(gid (), i), [])
-          | EInt64(_, (_, i), _) -> (ProgramTypes.Expr.EInt64(gid (), i), [])
-          | EUInt64(_, (_, i), _) -> (ProgramTypes.Expr.EUInt64(gid (), i), [])
-          | EInt128(_, (_, i), _) -> (ProgramTypes.Expr.EInt128(gid (), i), [])
-          | EUInt128(_, (_, i), _) -> (ProgramTypes.Expr.EUInt128(gid (), i), [])
-          | EFloat(_, s, w, f) -> (ProgramTypes.Expr.EFloat(gid (), s, w, f), [])
-          | EString(_, _, contents, _, _) ->
-            let (segment, unresolvedNames) =
-              contents
-              |> Stdlib.List.map (fun s ->
-                match s with
-                | StringText(_, s) -> (ProgramTypes.StringSegment.StringText s, [])
-                | StringInterpolation(_, expr, _, _) ->
-                  let (expr, unresolvedNames) =
-                    Expr.toPT onMissing pm owner currentModule expr
-
-                  (ProgramTypes.StringSegment.StringInterpolation(expr),
-                   unresolvedNames))
-              |> Stdlib.List.unzip
-
-            (ProgramTypes.Expr.EString(gid (), segment),
-             unresolvedNames |> Stdlib.List.flatten)
-
-          | EChar(_, c, _, _) ->
-            match c with
-            | None -> (ProgramTypes.Expr.EChar(gid (), ""), [])
-            | Some((_, c)) -> (ProgramTypes.Expr.EChar(gid (), c), [])
-
-          | EList(_, contents, _, _) ->
-            let (contents, unresolvedNames) =
-              (Stdlib.List.map contents (fun (expr, _) ->
-                toPT onMissing pm owner currentModule expr))
-              |> Stdlib.List.unzip
-
-            (ProgramTypes.Expr.EList(gid (), contents),
-             unresolvedNames |> Stdlib.List.flatten)
-
-          | EDict(_, contents, _, _, _) ->
-            let (contents, unresolvedNames) =
-              (Stdlib.List.map contents (fun (_, k, v) ->
-                let (_, k) = k
-                let (v, unresolvedNames) = toPT onMissing pm owner currentModule v
-                ((k, v), unresolvedNames)))
-              |> Stdlib.List.unzip
-
-            (ProgramTypes.Expr.EDict(gid (), contents),
-             unresolvedNames |> Stdlib.List.flatten)
-
-          | ETuple(_, first, _, second, rest, _, _) ->
-            let (first, fstUnresolvedNames) =
-              toPT onMissing pm owner currentModule first
-
-            let (second, sndUnresolvedNames) =
-              toPT onMissing pm owner currentModule second
-
-            let (rest, restUnresolvedNames) =
-              rest
-              |> Stdlib.List.map (fun (_, e) ->
-                toPT onMissing pm owner currentModule e)
-              |> Stdlib.List.unzip
-
+module Darklang.LanguageTools.WrittenTypesToProgramTypes
+
+
+let gid () : Int64 =
+  // TODO: fix upper range here
+  Stdlib.Int64.random 0L 922337203685477580L
+
+let gtlid () : UInt64 =
+  Stdlib.UInt64.random 0UL 9223372036854775807UL
+
+
+module Identifiers =
+  module Type =
+    let toPT (typ: WrittenTypes.TypeIdentifier) : String = typ.name
+
+  module QualifiedType =
+    let toPT
+      (onMissing: NameResolver.OnMissing)
+      (pm: ProgramTypes.PackageManager.PackageManager)
+      (owner: String)
+      (currentModule: List<String>)
+      (i: WrittenTypes.QualifiedTypeIdentifier)
+      : (ProgramTypes.NameResolution<ProgramTypes.FQTypeName.FQTypeName> *
+        List<ProgramTypes.TypeReference> *
+        List<Parser.Range * ProgramTypes.NameResolutionError>)
+      =
+      let (typeArgs, typeArgsUnresolvedNames) =
+        i.typeArgs
+        |> Stdlib.List.map (fun t ->
+          TypeReference.toPT onMissing pm owner currentModule t)
+        |> Stdlib.List.unzip
+
+      let nameToResolve =
+        Stdlib.List.append
+          (Stdlib.List.map i.modules (fun (m, _) -> m.name))
+          [ i.typ |> Type.toPT ]
+
+      let typeName =
+        NameResolver.TypeName.resolve
+          onMissing
+          pm
+          owner
+          currentModule
+          (WrittenTypes.Name.Unresolved(i.range, nameToResolve))
+
+      match typeName with
+      | Error e ->
+        let unresolvedNames =
+          Stdlib.List.flatten
+            [ typeArgsUnresolvedNames |> Stdlib.List.flatten
+              [ (i.range, e) ] ]
+
+        (typeName, typeArgs, unresolvedNames)
+
+      | _ ->
+        (typeName, typeArgs, typeArgsUnresolvedNames |> Stdlib.List.flatten)
+
+  module Value =
+    let toPT (v: WrittenTypes.ValueIdentifier) : String = v.name
+
+  module ValueOrFn =
+    let toPT (v: WrittenTypes.ValueOrFnIdentifier) : String = v.name
+
+
+  module QualifiedValueOrFn =
+    type ValueOrFn =
+      | Value of
+        ProgramTypes.NameResolution<ProgramTypes.FQValueName.FQValueName>
+      | Fn of ProgramTypes.NameResolution<ProgramTypes.FQFnName.FQFnName>
+
+    // CLEANUP: why do we return a Result here? NameResolution already is a Result type
+    let toPT
+      (onMissing: NameResolver.OnMissing)
+      (pm: ProgramTypes.PackageManager.PackageManager)
+      (owner: String)
+      (currentModule: List<String>)
+      (v: WrittenTypes.QualifiedValueOrFnIdentifier)
+      : (Stdlib.Result.Result<ValueOrFn, ProgramTypes.NameResolution<ProgramTypes.FQValueName.FQValueName>> *
+        List<Parser.Range * ProgramTypes.NameResolutionError>)
+      =
+      let nameToResolve =
+        Stdlib.List.append
+          (Stdlib.List.map v.modules (fun (id, _) -> id.name))
+          [ v.valueOrFn |> ValueOrFn.toPT ]
+
+      let isValue =
+        NameResolver.ValueName.resolve
+          onMissing
+          pm
+          owner
+          currentModule
+          (WrittenTypes.Name.Unresolved(v.range, nameToResolve))
+
+      let isFn =
+        NameResolver.FnName.resolve
+          onMissing
+          pm
+          owner
+          currentModule
+          (WrittenTypes.Name.Unresolved(v.range, nameToResolve))
+
+      match isFn with
+      | Ok _ ->
+        let isFn = isFn |> ValueOrFn.Fn |> Stdlib.Result.Result.Ok
+        (isFn, [])
+      | Error _ ->
+        match isValue with
+        | Ok _ ->
+          let isValue =
+            isValue |> ValueOrFn.Value |> Stdlib.Result.Result.Ok
+
+          (isValue, [])
+        | Error e -> (Stdlib.Result.Result.Error isValue, [ (v.range, e) ])
+
+  module Fn =
+    let toPT (fn: WrittenTypes.FnIdentifier) : String = fn.name
+
+  module QualifiedFn =
+    let toPT
+      (onMissing: NameResolver.OnMissing)
+      (pm: ProgramTypes.PackageManager.PackageManager)
+      (owner: String)
+      (currentModule: List<String>)
+      (i: WrittenTypes.QualifiedFnIdentifier)
+      : (ProgramTypes.NameResolution<ProgramTypes.FQFnName.FQFnName> *
+        List<Parser.Range * ProgramTypes.NameResolutionError>)
+      =
+      let nameToResolve =
+        Stdlib.List.append
+          (Stdlib.List.map i.modules (fun (m, _) -> m.name))
+          [ i.fn.name ]
+
+      let fnName =
+        NameResolver.FnName.resolve
+          onMissing
+          pm
+          owner
+          currentModule
+          (WrittenTypes.Name.Unresolved(i.range, nameToResolve))
+
+      match fnName with
+      | Error e -> (fnName, [ (i.range, e) ])
+      | _ -> (fnName, [])
+
+
+module TypeReference =
+  module Builtin =
+    let toPT
+      (onMissing: NameResolver.OnMissing)
+      (pm: ProgramTypes.PackageManager.PackageManager)
+      (owner: String)
+      (currentModule: List<String>)
+      (t: WrittenTypes.TypeReference.Builtin)
+      : (ProgramTypes.TypeReference *
+        List<Parser.Range * ProgramTypes.NameResolutionError>)
+      =
+      match t with
+      | TUnit _range -> (ProgramTypes.TypeReference.TUnit, [])
+      | TBool _range -> (ProgramTypes.TypeReference.TBool, [])
+      | TInt8 _range -> (ProgramTypes.TypeReference.TInt8, [])
+      | TUInt8 _range -> (ProgramTypes.TypeReference.TUInt8, [])
+      | TInt16 _range -> (ProgramTypes.TypeReference.TInt16, [])
+      | TUInt16 _range -> (ProgramTypes.TypeReference.TUInt16, [])
+      | TInt32 _range -> (ProgramTypes.TypeReference.TInt32, [])
+      | TUInt32 _range -> (ProgramTypes.TypeReference.TUInt32, [])
+      | TInt64 _range -> (ProgramTypes.TypeReference.TInt64, [])
+      | TUInt64 _range -> (ProgramTypes.TypeReference.TUInt64, [])
+      | TInt128 _range -> (ProgramTypes.TypeReference.TInt128, [])
+      | TUInt128 _range -> (ProgramTypes.TypeReference.TUInt128, [])
+      | TFloat _range -> (ProgramTypes.TypeReference.TFloat, [])
+      | TChar _range -> (ProgramTypes.TypeReference.TChar, [])
+      | TString _range -> (ProgramTypes.TypeReference.TString, [])
+      | TDateTime _range -> (ProgramTypes.TypeReference.TDateTime, [])
+      | TUuid _range -> (ProgramTypes.TypeReference.TUuid, [])
+
+      | TList(_range, _, _, typ, _) ->
+        let (typ, unresolvedNames) =
+          TypeReference.toPT onMissing pm owner currentModule typ
+
+        (ProgramTypes.TypeReference.TList(typ), unresolvedNames)
+
+      | TDict(_range, _, _, valueType, _) ->
+        let (valueType, unresolvedNames) =
+          TypeReference.toPT onMissing pm owner currentModule valueType
+
+        (ProgramTypes.TypeReference.TDict valueType, unresolvedNames)
+
+      | TTuple(_range, first, _, second, theRest, _, _) ->
+        let (first, firstUnresolvedNames) = TypeReference.toPT onMissing pm owner currentModule first
+        let (second, secondUnresolvedNames) = TypeReference.toPT onMissing pm owner currentModule second
+        let (theRest, restUresolvedNames) =
+          theRest
+          |> Stdlib.List.map (fun (_, t) -> TypeReference.toPT onMissing pm owner currentModule t)
+          |> Stdlib.List.unzip
+
+        let unresolvedNames =
+          [ firstUnresolvedNames; secondUnresolvedNames; (restUresolvedNames |> Stdlib.List.flatten) ]
+          |> Stdlib.List.flatten
+
+        (ProgramTypes.TypeReference.TTuple(first, second, theRest),
+          unresolvedNames)
+
+      | TFn(_range, args, returnType) ->
+        let (args, argsUnresolvedNames) =
+          args
+          |> Stdlib.List.map (fun (t, _) ->
+            TypeReference.toPT onMissing pm owner currentModule t)
+          |> Stdlib.List.unzip
+
+        let (returnType, retUnresolvedNames) =
+          TypeReference.toPT onMissing pm owner currentModule returnType
+
+        let unresolvedNames =
+          Stdlib.List.flatten
+            [ argsUnresolvedNames |> Stdlib.List.flatten; retUnresolvedNames ]
+
+        (ProgramTypes.TypeReference.TFn(args, returnType), unresolvedNames)
+
+      | TDB(_range, _, _, typ, _) ->
+        let (typ, unresolvedNames) =
+          TypeReference.toPT onMissing pm owner currentModule typ
+
+        (ProgramTypes.TypeReference.TDB typ, unresolvedNames)
+
+      | TVariable(_range, _, (_, name)) ->
+        (ProgramTypes.TypeReference.TVariable name, [])
+
+
+  let toPT
+    (onMissing: NameResolver.OnMissing)
+    (pm: ProgramTypes.PackageManager.PackageManager)
+    (owner: String)
+    (currentModule: List<String>)
+    (t: WrittenTypes.TypeReference.TypeReference)
+    : (ProgramTypes.TypeReference *
+      List<Parser.Range * ProgramTypes.NameResolutionError>)
+    =
+    match t with
+    | Builtin b -> Builtin.toPT onMissing pm owner currentModule b
+    | QualifiedName qn ->
+      let (typeName, typeArgs, unresolvedNames) =
+        Identifiers.QualifiedType.toPT onMissing pm owner currentModule qn
+
+      (ProgramTypes.TypeReference.TCustomType(typeName, typeArgs),
+        unresolvedNames)
+
+
+module InfixFnName =
+  let toPT (infix: WrittenTypes.InfixFnName) : ProgramTypes.InfixFnName =
+    match infix with
+    | ArithmeticPlus -> ProgramTypes.InfixFnName.ArithmeticPlus
+    | ArithmeticMinus -> ProgramTypes.InfixFnName.ArithmeticMinus
+    | ArithmeticMultiply -> ProgramTypes.InfixFnName.ArithmeticMultiply
+    | ArithmeticDivide -> ProgramTypes.InfixFnName.ArithmeticDivide
+    | ArithmeticModulo -> ProgramTypes.InfixFnName.ArithmeticModulo
+    | ArithmeticPower -> ProgramTypes.InfixFnName.ArithmeticPower
+    | ComparisonGreaterThan -> ProgramTypes.InfixFnName.ComparisonGreaterThan
+    | ComparisonGreaterThanOrEqual ->
+      ProgramTypes.InfixFnName.ComparisonGreaterThanOrEqual
+    | ComparisonLessThan -> ProgramTypes.InfixFnName.ComparisonLessThan
+    | ComparisonLessThanOrEqual ->
+      ProgramTypes.InfixFnName.ComparisonLessThanOrEqual
+    | ComparisonEquals -> ProgramTypes.InfixFnName.ComparisonEquals
+    | ComparisonNotEquals -> ProgramTypes.InfixFnName.ComparisonNotEquals
+    | StringConcat -> ProgramTypes.InfixFnName.StringConcat
+
+module BinaryOperation =
+  let toPT
+    (binop: WrittenTypes.BinaryOperation)
+    : ProgramTypes.BinaryOperation =
+    match binop with
+    | BinOpAnd -> ProgramTypes.BinaryOperation.BinOpAnd
+    | BinOpOr -> ProgramTypes.BinaryOperation.BinOpOr
+
+module Infix =
+  let toPT (infix: WrittenTypes.Infix) : ProgramTypes.Infix =
+    match infix with
+    | InfixFnCall op -> ProgramTypes.Infix.InfixFnCall(InfixFnName.toPT op)
+    | BinOp op -> ProgramTypes.Infix.BinOp(BinaryOperation.toPT op)
+
+
+module Expr =
+  module LetPattern =
+    let toPT (p: WrittenTypes.LetPattern) : ProgramTypes.LetPattern =
+      match p with
+      | LPUnit _ -> ProgramTypes.LetPattern.LPUnit(gid ())
+      | LPVariable(_, name) -> ProgramTypes.LetPattern.LPVariable(gid (), name)
+      | LPTuple(_, first, _, second, rest, _, _) ->
+        let first = toPT first
+        let second = toPT second
+        let rest = Stdlib.List.map rest (fun (_, p) -> toPT p)
+
+        ProgramTypes.LetPattern.LPTuple(gid (), first, second, rest)
+
+  module MatchPattern =
+    let toPT
+      (onMissing: NameResolver.OnMissing)
+      (p: WrittenTypes.MatchPattern)
+      : ProgramTypes.MatchPattern =
+      match p with
+      | MPUnit _ -> ProgramTypes.MatchPattern.MPUnit(gid ())
+      | MPBool(_, b) -> ProgramTypes.MatchPattern.MPBool(gid (), b)
+      | MPInt8(_, (_, i), _) -> ProgramTypes.MatchPattern.MPInt8(gid (), i)
+      | MPUInt8(_, (_, i), _) -> ProgramTypes.MatchPattern.MPUInt8(gid (), i)
+      | MPInt16(_, (_, i), _) -> ProgramTypes.MatchPattern.MPInt16(gid (), i)
+      | MPUInt16(_, (_, i), _) -> ProgramTypes.MatchPattern.MPUInt16(gid (), i)
+      | MPInt32(_, (_, i), _) -> ProgramTypes.MatchPattern.MPInt32(gid (), i)
+      | MPUInt32(_, (_, i), _) -> ProgramTypes.MatchPattern.MPUInt32(gid (), i)
+      | MPInt64(_, (_, i), _) -> ProgramTypes.MatchPattern.MPInt64(gid (), i)
+      | MPUInt64(_, (_, i), _) -> ProgramTypes.MatchPattern.MPUInt64(gid (), i)
+      | MPInt128(_, (_, i), _) -> ProgramTypes.MatchPattern.MPInt128(gid (), i)
+      | MPUInt128(_, (_, i), _) ->
+        ProgramTypes.MatchPattern.MPUInt128(gid (), i)
+      | MPFloat(_, s, w, f) ->
+        ProgramTypes.MatchPattern.MPFloat(gid (), s, w, f)
+      | MPString(_, contents, _, _) ->
+        match contents with
+        | None -> ProgramTypes.MatchPattern.MPString(gid (), "")
+        | Some((_, s)) -> ProgramTypes.MatchPattern.MPString(gid (), s)
+      | MPChar(_, c, _, _) ->
+        match c with
+        | None -> ProgramTypes.MatchPattern.MPChar(gid (), "")
+        | Some((_, c)) -> ProgramTypes.MatchPattern.MPChar(gid (), c)
+
+      | MPList(_, contents, _, _) ->
+        ProgramTypes.MatchPattern.MPList(
+          gid (),
+          Stdlib.List.map contents (fun (p, _) -> toPT onMissing p)
+        )
+      | MPListCons(_, head, tail, _) ->
+        ProgramTypes.MatchPattern.MPListCons(
+          gid (),
+          toPT onMissing head,
+          toPT onMissing tail
+        )
+      | MPTuple(_, first, _, second, rest, _, _) ->
+        ProgramTypes.MatchPattern.MPTuple(
+          gid (),
+          toPT onMissing first,
+          toPT onMissing second,
+          Stdlib.List.map rest (fun (_, p) -> toPT onMissing p)
+        )
+      | MPEnum(_, caseName, fields) ->
+        let caseName = caseName |> Stdlib.Tuple2.second
+        let fields = Stdlib.List.map fields (fun p -> toPT onMissing p)
+
+        ProgramTypes.MatchPattern.MPEnum(gid (), caseName, fields)
+
+      | MPVariable(_, name) ->
+        ProgramTypes.MatchPattern.MPVariable(gid (), name)
+
+      | MPOr(_, patterns) ->
+        ProgramTypes.MatchPattern.MPOr(
+          gid (),
+          Stdlib.List.map patterns (fun p -> toPT onMissing p)
+        )
+
+  module PipeExpr =
+    let toPT
+      (onMissing: NameResolver.OnMissing)
+      (pm: ProgramTypes.PackageManager.PackageManager)
+      (owner: String)
+      (currentModule: List<String>)
+      (pipeExpr: WrittenTypes.PipeExpr)
+      : (ProgramTypes.PipeExpr *
+        List<Parser.Range * ProgramTypes.NameResolutionError>)
+      =
+      match pipeExpr with
+      | EPipeInfix(_, (_, infix), right) ->
+        let (right, unresolvedNames) =
+          Expr.toPT onMissing pm owner currentModule right
+
+        (ProgramTypes.PipeExpr.EPipeInfix(gid (), Infix.toPT infix, right),
+          unresolvedNames)
+
+      | EPipeLambda(_, pats, body, _, _) ->
+        let (body, unresolvedNames) =
+          Expr.toPT onMissing pm owner currentModule body
+
+        let pats = Stdlib.List.map pats (fun p -> LetPattern.toPT p)
+
+        (ProgramTypes.PipeExpr.EPipeLambda(gid (), pats, body), unresolvedNames)
+
+      | EPipeEnum(_, typeName, (_, caseName), fields, _) ->
+        let (typeName, typeArgs, typeNameUnresolvedNames) =
+          Identifiers.QualifiedType.toPT
+            onMissing
+            pm
+            owner
+            currentModule
+            typeName
+
+        let (fields, fieldsUnresolvedNames) =
+          fields
+          |> Stdlib.List.map (fun e ->
+            Expr.toPT onMissing pm owner currentModule e)
+          |> Stdlib.List.unzip
+
+        let unresolvedNames =
+          Stdlib.List.flatten
+            [ typeNameUnresolvedNames
+              fieldsUnresolvedNames |> Stdlib.List.flatten ]
+
+        (ProgramTypes.PipeExpr.EPipeEnum(gid (), typeName, caseName, fields),
+          unresolvedNames)
+
+      // TODO: rename to EPipeVariableOrFnCall
+      | EPipeFnCall(_, fn, args) ->
+        let (fnName, _fnUnresolvedNames) =
+          Identifiers.QualifiedFn.toPT onMissing pm owner currentModule fn
+
+        let (typeArgs, tpUnresolvedNames) =
+          fn.typeArgs
+          |> Stdlib.List.map (fun t ->
+            TypeReference.toPT onMissing pm owner currentModule t)
+          |> Stdlib.List.unzip
+
+        let (args, argsUnresolvedNames) =
+          args
+          |> Stdlib.List.map (fun a ->
+            Expr.toPT onMissing pm owner currentModule a)
+          |> Stdlib.List.unzip
+
+        let unresolvedNames =
+          Stdlib.List.flatten
+            [ tpUnresolvedNames |> Stdlib.List.flatten
+              argsUnresolvedNames |> Stdlib.List.flatten ]
+
+        match fnName with
+        | Ok _ ->
+          (ProgramTypes.PipeExpr.EPipeFnCall(gid (), fnName, typeArgs, args),
+            unresolvedNames)
+
+        | Error e ->
+          if fn.modules |> Stdlib.List.isEmpty then
+            (ProgramTypes.PipeExpr.EPipeVariable(gid (), fn.fn.name, args),
+              unresolvedNames)
+          else
             let unresolvedNames =
-              Stdlib.List.flatten
-                [ fstUnresolvedNames
-                  sndUnresolvedNames
-                  restUnresolvedNames |> Stdlib.List.flatten ]
-
-            (ProgramTypes.Expr.ETuple(gid (), first, second, rest), unresolvedNames)
-
-          | ERecord(_, typeName, fields, _, _) ->
-            let (typeName, typeArgs, typeNameUnresolvedNames) =
-              Identifiers.QualifiedType.toPT
-                onMissing
-                pm
-                owner
-                currentModule
-                typeName
-
-            let (fields, unresolvedNames) =
-              fields
-              |> Stdlib.List.map (fun (_, name, typeName) ->
-                let fieldName = name |> Stdlib.Tuple2.second
-
-                let (typeName, unresolvedNames) =
-                  toPT onMissing pm owner currentModule typeName
-
-                ((fieldName, typeName), unresolvedNames))
-              |> Stdlib.List.unzip
-
-            let unresolvedNames =
-              Stdlib.List.flatten
-                [ typeNameUnresolvedNames
-                  unresolvedNames |> Stdlib.List.flatten ]
-
-            (ProgramTypes.Expr.ERecord(gid (), typeName, typeArgs, fields),
-             unresolvedNames)
-
-          | ERecordUpdate(_, record, updates, _, _, _) ->
-            let (record, recUnresolvedNames) =
-              toPT onMissing pm owner currentModule record
-
-            let (updates, updUnresolvedNames) =
-              updates
-              |> Stdlib.List.map (fun (name, _, expr) ->
-                let name = name |> Stdlib.Tuple2.second
-
-                let (expr, unresolvedNames) =
-                  toPT onMissing pm owner currentModule expr
-
-                ((name, expr), unresolvedNames))
-              |> Stdlib.List.unzip
-
-            let unresolvedNames =
-              Stdlib.List.flatten
-                [ recUnresolvedNames; updUnresolvedNames |> Stdlib.List.flatten ]
-
-            (ProgramTypes.Expr.ERecordUpdate(gid (), record, updates),
-             unresolvedNames)
-
-          | EEnum(_, typeName, (_, caseName), fields, _) ->
-            let (typeName, typeArgs, typeNameUnresolvedNames) =
-              Identifiers.QualifiedType.toPT
-                onMissing
-                pm
-                owner
-                currentModule
-                typeName
-
-            let (fields, fieldsUnresolvedNames) =
-              fields
-              |> Stdlib.List.map (fun expr ->
-                toPT onMissing pm owner currentModule expr)
-              |> Stdlib.List.unzip
-
-            let unresolvedNames =
-              Stdlib.List.flatten
-                [ typeNameUnresolvedNames
-                  fieldsUnresolvedNames |> Stdlib.List.flatten ]
-
-            (ProgramTypes.Expr.EEnum(gid (), typeName, typeArgs, caseName, fields),
-             unresolvedNames)
-
-          // declaring and accessing variables
-          | ELet(_, pat, rhs, body, _, _) ->
-            let (rhs, rhsUnresolvedNames) = toPT onMissing pm owner currentModule rhs
-
-            let (body, bodyUnresolvedNames) =
-              toPT onMissing pm owner currentModule body
-
-            let unresolvedNames =
-              Stdlib.List.flatten [ rhsUnresolvedNames; bodyUnresolvedNames ]
-
-            (ProgramTypes.Expr.ELet(gid (), LetPattern.toPT pat, rhs, body),
-             unresolvedNames)
-
-          | EVariable(range, var) ->
-            let unresolved = WrittenTypes.Name.Unresolved(range, [ var ])
-
-            let value =
-              NameResolver.ValueName.resolve
-                onMissing
-                pm
-                owner
-                currentModule
-                unresolved
+              Stdlib.List.append unresolvedNames [ (fn.range, e) ]
+
+            (ProgramTypes.PipeExpr.EPipeFnCall(gid (), fnName, typeArgs, args),
+              unresolvedNames)
+
+  let toPT
+    (onMissing: NameResolver.OnMissing)
+    (pm: ProgramTypes.PackageManager.PackageManager)
+    (owner: String)
+    (currentModule: List<String>)
+    (e: WrittenTypes.Expr)
+    : (ProgramTypes.Expr *
+      List<Parser.Range * ProgramTypes.NameResolutionError>)
+    =
+    match e with
+    // simple
+    | EUnit _ -> (ProgramTypes.Expr.EUnit(gid ()), [])
+
+    | EBool(_, b) -> (ProgramTypes.Expr.EBool(gid (), b), [])
+    | EInt8(_, (_, i), _) -> (ProgramTypes.Expr.EInt8(gid (), i), [])
+    | EUInt8(_, (_, i), _) -> (ProgramTypes.Expr.EUInt8(gid (), i), [])
+    | EInt16(_, (_, i), _) -> (ProgramTypes.Expr.EInt16(gid (), i), [])
+    | EUInt16(_, (_, i), _) -> (ProgramTypes.Expr.EUInt16(gid (), i), [])
+    | EInt32(_, (_, i), _) -> (ProgramTypes.Expr.EInt32(gid (), i), [])
+    | EUInt32(_, (_, i), _) -> (ProgramTypes.Expr.EUInt32(gid (), i), [])
+    | EInt64(_, (_, i), _) -> (ProgramTypes.Expr.EInt64(gid (), i), [])
+    | EUInt64(_, (_, i), _) -> (ProgramTypes.Expr.EUInt64(gid (), i), [])
+    | EInt128(_, (_, i), _) -> (ProgramTypes.Expr.EInt128(gid (), i), [])
+    | EUInt128(_, (_, i), _) -> (ProgramTypes.Expr.EUInt128(gid (), i), [])
+    | EFloat(_, s, w, f) -> (ProgramTypes.Expr.EFloat(gid (), s, w, f), [])
+    | EString(_, _, contents, _, _) ->
+      let (segment, unresolvedNames) =
+        contents
+        |> Stdlib.List.map (fun s ->
+          match s with
+          | StringText(_, s) -> (ProgramTypes.StringSegment.StringText s, [])
+          | StringInterpolation(_, expr, _, _) ->
+            let (expr, unresolvedNames) =
+              Expr.toPT onMissing pm owner currentModule expr
+
+            (ProgramTypes.StringSegment.StringInterpolation(expr),
+              unresolvedNames))
+        |> Stdlib.List.unzip
+
+      (ProgramTypes.Expr.EString(gid (), segment),
+        unresolvedNames |> Stdlib.List.flatten)
+
+    | EChar(_, c, _, _) ->
+      match c with
+      | None -> (ProgramTypes.Expr.EChar(gid (), ""), [])
+      | Some((_, c)) -> (ProgramTypes.Expr.EChar(gid (), c), [])
+
+    | EList(_, contents, _, _) ->
+      let (contents, unresolvedNames) =
+        (Stdlib.List.map contents (fun (expr, _) ->
+          toPT onMissing pm owner currentModule expr))
+        |> Stdlib.List.unzip
+
+      (ProgramTypes.Expr.EList(gid (), contents),
+        unresolvedNames |> Stdlib.List.flatten)
+
+    | EDict(_, contents, _, _, _) ->
+      let (contents, unresolvedNames) =
+        (Stdlib.List.map contents (fun (_, k, v) ->
+          let (_, k) = k
+          let (v, unresolvedNames) = toPT onMissing pm owner currentModule v
+          ((k, v), unresolvedNames)))
+        |> Stdlib.List.unzip
+
+      (ProgramTypes.Expr.EDict(gid (), contents),
+        unresolvedNames |> Stdlib.List.flatten)
+
+    | ETuple(_, first, _, second, rest, _, _) ->
+      let (first, fstUnresolvedNames) =
+        toPT onMissing pm owner currentModule first
+
+      let (second, sndUnresolvedNames) =
+        toPT onMissing pm owner currentModule second
+
+      let (rest, restUnresolvedNames) =
+        rest
+        |> Stdlib.List.map (fun (_, e) ->
+          toPT onMissing pm owner currentModule e)
+        |> Stdlib.List.unzip
+
+      let unresolvedNames =
+        Stdlib.List.flatten
+          [ fstUnresolvedNames
+            sndUnresolvedNames
+            restUnresolvedNames |> Stdlib.List.flatten ]
+
+      (ProgramTypes.Expr.ETuple(gid (), first, second, rest), unresolvedNames)
+
+    | ERecord(_, typeName, fields, _, _) ->
+      let (typeName, typeArgs, typeNameUnresolvedNames) =
+        Identifiers.QualifiedType.toPT
+          onMissing
+          pm
+          owner
+          currentModule
+          typeName
+
+      let (fields, unresolvedNames) =
+        fields
+        |> Stdlib.List.map (fun (_, name, typeName) ->
+          let fieldName = name |> Stdlib.Tuple2.second
+
+          let (typeName, unresolvedNames) =
+            toPT onMissing pm owner currentModule typeName
+
+          ((fieldName, typeName), unresolvedNames))
+        |> Stdlib.List.unzip
+
+      let unresolvedNames =
+        Stdlib.List.flatten
+          [ typeNameUnresolvedNames
+            unresolvedNames |> Stdlib.List.flatten ]
+
+      (ProgramTypes.Expr.ERecord(gid (), typeName, typeArgs, fields),
+        unresolvedNames)
+
+    | ERecordUpdate(_, record, updates, _, _, _) ->
+      let (record, recUnresolvedNames) =
+        toPT onMissing pm owner currentModule record
+
+      let (updates, updUnresolvedNames) =
+        updates
+        |> Stdlib.List.map (fun (name, _, expr) ->
+          let name = name |> Stdlib.Tuple2.second
+
+          let (expr, unresolvedNames) =
+            toPT onMissing pm owner currentModule expr
+
+          ((name, expr), unresolvedNames))
+        |> Stdlib.List.unzip
+
+      let unresolvedNames =
+        Stdlib.List.flatten
+          [ recUnresolvedNames; updUnresolvedNames |> Stdlib.List.flatten ]
+
+      (ProgramTypes.Expr.ERecordUpdate(gid (), record, updates),
+        unresolvedNames)
+
+    | EEnum(_, typeName, (_, caseName), fields, _) ->
+      let (typeName, typeArgs, typeNameUnresolvedNames) =
+        Identifiers.QualifiedType.toPT
+          onMissing
+          pm
+          owner
+          currentModule
+          typeName
+
+      let (fields, fieldsUnresolvedNames) =
+        fields
+        |> Stdlib.List.map (fun expr ->
+          toPT onMissing pm owner currentModule expr)
+        |> Stdlib.List.unzip
+
+      let unresolvedNames =
+        Stdlib.List.flatten
+          [ typeNameUnresolvedNames
+            fieldsUnresolvedNames |> Stdlib.List.flatten ]
+
+      (ProgramTypes.Expr.EEnum(gid (), typeName, typeArgs, caseName, fields),
+        unresolvedNames)
+
+    // declaring and accessing variables
+    | ELet(_, pat, rhs, body, _, _) ->
+      let (rhs, rhsUnresolvedNames) = toPT onMissing pm owner currentModule rhs
+
+      let (body, bodyUnresolvedNames) =
+        toPT onMissing pm owner currentModule body
+
+      let unresolvedNames =
+        Stdlib.List.flatten [ rhsUnresolvedNames; bodyUnresolvedNames ]
+
+      (ProgramTypes.Expr.ELet(gid (), LetPattern.toPT pat, rhs, body),
+        unresolvedNames)
+
+    | EVariable(range, var) ->
+      let unresolved = WrittenTypes.Name.Unresolved(range, [ var ])
+
+      let value =
+        NameResolver.ValueName.resolve
+          onMissing
+          pm
+          owner
+          currentModule
+          unresolved
+
+      match value with
+      | Ok _ -> (ProgramTypes.Expr.EValue(gid (), value), [])
+      | Error _ -> (ProgramTypes.Expr.EVariable (gid ()) var, [])
+
+    // TODO: rethink this
+    | EValueOrFn(_, id) ->
+      let (valueOrFn, unresolvedNames) =
+        Identifiers.QualifiedValueOrFn.toPT onMissing pm owner currentModule id
+
+      match valueOrFn with
+      | Ok(Value v) ->
+        (ProgramTypes.Expr.EValue(gid (), v), unresolvedNames)
+      | Ok(Fn f) -> (ProgramTypes.Expr.EFnName(gid (), f), unresolvedNames)
+      | Error _ ->
+        // CLEANUP: Rethink this solution. It was added to allow failure during the first pass of parsing, where names aren't yet resolved
+        (ProgramTypes.Expr.EVariable (gid ()) id.valueOrFn.name,
+          unresolvedNames)
 
-            match value with
-            | Ok _ -> (ProgramTypes.Expr.EValue(gid (), value), [])
-            | Error _ -> (ProgramTypes.Expr.EVariable (gid ()) var, [])
+    | ERecordFieldAccess(_, expr, (_, fieldName), _) ->
+      let (expr, unresolvedNames) = toPT onMissing pm owner currentModule expr
 
-          // TODO: rethink this
-          | EValueOrFn(_, id) ->
-            let (valueOrFn, unresolvedNames) =
-              Identifiers.QualifiedValueOrFn.toPT onMissing pm owner currentModule id
+      (ProgramTypes.Expr.ERecordFieldAccess(gid (), expr, fieldName), unresolvedNames)
 
-            match valueOrFn with
-            | Ok(Value v) ->
-              (ProgramTypes.Expr.EValue(gid (), v), unresolvedNames)
-            | Ok(Fn f) -> (ProgramTypes.Expr.EFnName(gid (), f), unresolvedNames)
-            | Error _ ->
-              // CLEANUP: Rethink this solution. It was added to allow failure during the first pass of parsing, where names aren't yet resolved
-              (ProgramTypes.Expr.EVariable (gid ()) id.valueOrFn.name,
-               unresolvedNames)
+    | EIf(_, cond, thenExpr, elseExpr, _, _, _) ->
+      let (cond, condUnresolvedNames) =
+        toPT onMissing pm owner currentModule cond
 
-          | ERecordFieldAccess(_, expr, (_, fieldName), _) ->
-            let (expr, unresolvedNames) = toPT onMissing pm owner currentModule expr
+      let (thenExpr, thenUnresolvedNames) =
+        toPT onMissing pm owner currentModule thenExpr
 
-            (ProgramTypes.Expr.ERecordFieldAccess(gid (), expr, fieldName), unresolvedNames)
+      let (elseExpr, elseUnresolvedNames) =
+        match elseExpr with
+        | None -> (Stdlib.Option.Option.None, [])
+        | Some e ->
+          let (e, unresolvedNames) = toPT onMissing pm owner currentModule e
 
-          | EIf(_, cond, thenExpr, elseExpr, _, _, _) ->
-            let (cond, condUnresolvedNames) =
-              toPT onMissing pm owner currentModule cond
+          (Stdlib.Option.Option.Some e, unresolvedNames)
 
-            let (thenExpr, thenUnresolvedNames) =
-              toPT onMissing pm owner currentModule thenExpr
+      let unresolvedNames =
+        Stdlib.List.flatten
+          [ condUnresolvedNames; thenUnresolvedNames; elseUnresolvedNames ]
 
-            let (elseExpr, elseUnresolvedNames) =
-              match elseExpr with
-              | None -> (Stdlib.Option.Option.None, [])
-              | Some e ->
-                let (e, unresolvedNames) = toPT onMissing pm owner currentModule e
+      (ProgramTypes.Expr.EIf(gid (), cond, thenExpr, elseExpr), unresolvedNames)
 
-                (Stdlib.Option.Option.Some e, unresolvedNames)
+    | EMatch(_, expr, cases, _, _) ->
+      let (cases, casesUnresolvedNames) =
+        (Stdlib.List.map cases (fun case ->
+          let pat =
+            MatchPattern.toPT onMissing (Stdlib.Tuple3.second case.pat)
 
-            let unresolvedNames =
-              Stdlib.List.flatten
-                [ condUnresolvedNames; thenUnresolvedNames; elseUnresolvedNames ]
+          let (whenCondition, whenUnresolvedNames) =
+            match case.whenCondition with
+            | None -> (Stdlib.Option.Option.None, [])
+            | Some e ->
+              let (_, e) = e
 
-            (ProgramTypes.Expr.EIf(gid (), cond, thenExpr, elseExpr), unresolvedNames)
+              let (e, unresolvedNames) =
+                toPT onMissing pm owner currentModule e
 
-          | EMatch(_, expr, cases, _, _) ->
-            let (cases, casesUnresolvedNames) =
-              (Stdlib.List.map cases (fun case ->
-                let pat =
-                  MatchPattern.toPT onMissing (Stdlib.Tuple3.second case.pat)
+              (Stdlib.Option.Option.Some e, unresolvedNames)
 
-                let (whenCondition, whenUnresolvedNames) =
-                  match case.whenCondition with
-                  | None -> (Stdlib.Option.Option.None, [])
-                  | Some e ->
-                    let (_, e) = e
+          let (rhs, rhsUnresolvedNames) =
+            toPT onMissing pm owner currentModule case.rhs
 
-                    let (e, unresolvedNames) =
-                      toPT onMissing pm owner currentModule e
+          let matchCasesUnresolvedNames =
+            Stdlib.List.flatten [ whenUnresolvedNames; rhsUnresolvedNames ]
 
-                    (Stdlib.Option.Option.Some e, unresolvedNames)
+          (ProgramTypes.MatchCase
+            { pat = pat
+              whenCondition = whenCondition
+              rhs = rhs },
+            matchCasesUnresolvedNames)))
+        |> Stdlib.List.unzip
 
-                let (rhs, rhsUnresolvedNames) =
-                  toPT onMissing pm owner currentModule case.rhs
+      let (expr, exprUnresolvedNames) =
+        toPT onMissing pm owner currentModule expr
 
-                let matchCasesUnresolvedNames =
-                  Stdlib.List.flatten [ whenUnresolvedNames; rhsUnresolvedNames ]
+      let unresolvedNames =
+        Stdlib.List.flatten
+          [ casesUnresolvedNames |> Stdlib.List.flatten; exprUnresolvedNames ]
 
-                (ProgramTypes.MatchCase
-                  { pat = pat
-                    whenCondition = whenCondition
-                    rhs = rhs },
-                 matchCasesUnresolvedNames)))
-              |> Stdlib.List.unzip
+      (ProgramTypes.Expr.EMatch(gid (), expr, cases), unresolvedNames)
 
-            let (expr, exprUnresolvedNames) =
-              toPT onMissing pm owner currentModule expr
+    | EPipe(_, expr, pipeExpr) ->
+      let (pipeExpr, pExprUnresolvedNames) =
+        pipeExpr
+        |> Stdlib.List.map (fun (_, e) ->
+          PipeExpr.toPT onMissing pm owner currentModule e)
+        |> Stdlib.List.unzip
 
-            let unresolvedNames =
-              Stdlib.List.flatten
-                [ casesUnresolvedNames |> Stdlib.List.flatten; exprUnresolvedNames ]
+      let (expr, exprUnresolvedNames) =
+        toPT onMissing pm owner currentModule expr
 
-            (ProgramTypes.Expr.EMatch(gid (), expr, cases), unresolvedNames)
+      let unresolvedNames =
+        Stdlib.List.flatten
+          [ pExprUnresolvedNames |> Stdlib.List.flatten; exprUnresolvedNames ]
 
-          | EPipe(_, expr, pipeExpr) ->
-            let (pipeExpr, pExprUnresolvedNames) =
-              pipeExpr
-              |> Stdlib.List.map (fun (_, e) ->
-                PipeExpr.toPT onMissing pm owner currentModule e)
-              |> Stdlib.List.unzip
+      (ProgramTypes.Expr.EPipe(gid (), expr, pipeExpr), unresolvedNames)
 
-            let (expr, exprUnresolvedNames) =
-              toPT onMissing pm owner currentModule expr
+    // fn calls
+    | EInfix(_, (_, op), left, right) ->
+      let infix = Infix.toPT op
 
-            let unresolvedNames =
-              Stdlib.List.flatten
-                [ pExprUnresolvedNames |> Stdlib.List.flatten; exprUnresolvedNames ]
+      let (left, lefstUnresolvedNames) =
+        toPT onMissing pm owner currentModule left
 
-            (ProgramTypes.Expr.EPipe(gid (), expr, pipeExpr), unresolvedNames)
+      let (right, rightUnresolvedNames) =
+        toPT onMissing pm owner currentModule right
 
-          // fn calls
-          | EInfix(_, (_, op), left, right) ->
-            let infix = Infix.toPT op
+      let unresolvedNames =
+        Stdlib.List.flatten [ lefstUnresolvedNames; rightUnresolvedNames ]
 
-            let (left, lefstUnresolvedNames) =
-              toPT onMissing pm owner currentModule left
-
-            let (right, rightUnresolvedNames) =
-              toPT onMissing pm owner currentModule right
+      (ProgramTypes.Expr.EInfix(gid (), infix, left, right), unresolvedNames)
 
-            let unresolvedNames =
-              Stdlib.List.flatten [ lefstUnresolvedNames; rightUnresolvedNames ]
-
-            (ProgramTypes.Expr.EInfix(gid (), infix, left, right), unresolvedNames)
-
-          | ELambda(_, pats, body, _, _) ->
-            let pats = Stdlib.List.map pats (fun p -> LetPattern.toPT p)
-
-            let (body, unresolvedNames) =
-              Expr.toPT onMissing pm owner currentModule body
-
-            (ProgramTypes.Expr.ELambda(gid (), pats, body), unresolvedNames)
-
-          | EFnName(_, fnName) ->
-            let (fnName, unresolvedNames) =
-              Identifiers.QualifiedFn.toPT onMissing pm owner currentModule fnName
-
-            (ProgramTypes.Expr.EFnName(gid (), fnName), unresolvedNames)
-
-          | EApply(_, fn, typeArgs, args) ->
-            let (fn, fnUnresolvedNames) = toPT onMissing pm owner currentModule fn
-
-            let (typeArgs, tpUnresolvedNames) =
-              typeArgs
-              |> Stdlib.List.map (fun t ->
-                TypeReference.toPT onMissing pm owner currentModule t)
-              |> Stdlib.List.unzip
-
-            let (args, argsUnresolvedNames) =
-              args
-              |> Stdlib.List.map (fun a -> toPT onMissing pm owner currentModule a)
-              |> Stdlib.List.unzip
-
-            let unresolvedNames =
-              Stdlib.List.flatten
-                [ tpUnresolvedNames |> Stdlib.List.flatten
-                  argsUnresolvedNames |> Stdlib.List.flatten
-                  fnUnresolvedNames ]
-
-            (ProgramTypes.Expr.EApply(gid (), fn, typeArgs, args), unresolvedNames)
-
-          | EStatement (_, first, next) ->
-            let (first, firstUnresolvedNames) = toPT onMissing pm owner currentModule first
-
-            let (next, nextUnresolvedNames) = toPT onMissing pm owner currentModule next
-
-            let unresolvedNames =
-              Stdlib.List.flatten [ firstUnresolvedNames; nextUnresolvedNames ]
-
-            (ProgramTypes.Expr.EStatement(gid (), first, next), unresolvedNames)
-
-
-
-
-      module ModuleDeclaration =
-        let combineSubmodules
-          (submodules: List<ProgramTypes.Definitions>)
-          : ProgramTypes.Definitions =
-          let init =
-            ProgramTypes.Definitions
-              { types = []
-                values = []
-                fns = []
-                exprs = [] }
-
-          submodules
-          |> Stdlib.List.fold init (fun acc m ->
-            ProgramTypes.Definitions
-              { types = acc.types |> Stdlib.List.append m.types
-                values = acc.values |> Stdlib.List.append m.values
-                fns = acc.fns |> Stdlib.List.append m.fns
-                exprs = acc.exprs |> Stdlib.List.append m.exprs })
-
-        let submoduleToPT
-          (onMissing: NameResolver.OnMissing)
-          (pm: ProgramTypes.PackageManager.PackageManager)
-          (owner: String)
-          (modules: List<String>)
-          (submodule: WrittenTypes.ModuleDeclaration.ModuleDeclaration)
-          : (ProgramTypes.Definitions *
-            List<Parser.Range * ProgramTypes.NameResolutionError>)
-          =
-          let (_, m) = submodule.name
-          let modules = Stdlib.List.append modules [ m ]
-
-          let (types, typesUnresolvedNames) =
-            submodule.declarations
-            |> Stdlib.List.filterMap (fun d ->
-              match d with
-              | Type t ->
-                let (t, unresolvedNames) =
-                  TypeDeclaration.toPackageTypePT onMissing pm owner modules t
-
-                Stdlib.Option.Option.Some((t, unresolvedNames))
-              | _ -> Stdlib.Option.Option.None)
-            |> Stdlib.List.unzip
-
-          let (fns, fnUnresolvedNames) =
-            submodule.declarations
-            |> Stdlib.List.filterMap (fun d ->
-              match d with
-              | Function f ->
-                let (f, unresolvedNames) =
-                  FunctionDeclaration.toPackageFnPT onMissing pm owner modules f
-
-                Stdlib.Option.Option.Some((f, unresolvedNames))
-              | _ -> Stdlib.Option.Option.None)
-            |> Stdlib.List.unzip
-
-          let (values, valueUnresolvedNames) =
-            submodule.declarations
-            |> Stdlib.List.filterMap (fun d ->
-              match d with
-              | Value v ->
-                let (v, unresolvedNames) =
-                  ValueDeclaration.toPackageValuePT onMissing pm owner modules v
-
-                Stdlib.Option.Option.Some((v, unresolvedNames))
-              | _ -> Stdlib.Option.Option.None)
-            |> Stdlib.List.unzip
-
-          let (exprs, exprUnresolvedNames) =
-            submodule.declarations
-            |> Stdlib.List.filterMap (fun d ->
-              match d with
-              | Expr e ->
-                let (expr, exprUnresolvedNames) =
-                  Expr.toPT onMissing pm owner modules e
-
-                let modules = Stdlib.List.push modules owner
-                Stdlib.Option.Option.Some(((expr, modules), exprUnresolvedNames))
-              | _ -> Stdlib.Option.Option.None)
-            |> Stdlib.List.unzip
-
-          let (submodules, subModUnresolvedNames) =
-            submodule.declarations
-            |> Stdlib.List.filterMap (fun d ->
-              match d with
-              | SubModule m ->
-                Stdlib.Option.Option.Some(
-                  submoduleToPT onMissing pm owner modules m
-                )
-              | _ -> Stdlib.Option.Option.None)
-            |> Stdlib.List.unzip
-
-          let submodules = combineSubmodules submodules
-
-          let unresolvedNames =
-            Stdlib.List.flatten
-              [ typesUnresolvedNames |> Stdlib.List.flatten
-                fnUnresolvedNames |> Stdlib.List.flatten
-                valueUnresolvedNames |> Stdlib.List.flatten
-                exprUnresolvedNames |> Stdlib.List.flatten
-                subModUnresolvedNames |> Stdlib.List.flatten ]
-
-          (ProgramTypes.Definitions
-            { types = types |> Stdlib.List.append submodules.types
-              values = values |> Stdlib.List.append submodules.values
-              fns = fns |> Stdlib.List.append submodules.fns
-              exprs = exprs |> Stdlib.List.append submodules.exprs },
-           unresolvedNames)
-
-
-        let toPT
-          (onMissing: NameResolver.OnMissing)
-          (pm: ProgramTypes.PackageManager.PackageManager)
-          (currentModule: List<String>)
-          (d: WrittenTypes.ModuleDeclaration.ModuleDeclaration)
-          : (ProgramTypes.Definitions *
-            List<Parser.Range * ProgramTypes.NameResolutionError>)
-          =
-          let (_, owner) = d.name
-
-          let (types, typesUnresolvedNames) =
-            d.declarations
-            |> Stdlib.List.filterMap (fun d ->
-              match d with
-              | Type t ->
-                let (t, unresolvedNames) =
-                  TypeDeclaration.toPackageTypePT onMissing pm owner currentModule t
-
-                Stdlib.Option.Option.Some((t, unresolvedNames))
-              | _ -> Stdlib.Option.Option.None)
-            |> Stdlib.List.unzip
-
-          let (fns, fnUnresolvedNames) =
-            d.declarations
-            |> Stdlib.List.filterMap (fun d ->
-              match d with
-              | Function f ->
-                let (f, unresolvedNames) =
-                  FunctionDeclaration.toPackageFnPT
-                    onMissing
-                    pm
-                    owner
-                    currentModule
-                    f
-
-                Stdlib.Option.Option.Some((f, unresolvedNames))
-              | _ -> Stdlib.Option.Option.None)
-            |> Stdlib.List.unzip
-
-          let (values, valueUnresolvedNames) =
-            d.declarations
-            |> Stdlib.List.filterMap (fun d ->
-              match d with
-              | Value v ->
-                let (v, unresolvedNames) =
-                  ValueDeclaration.toPackageValuePT
-                    onMissing
-                    pm
-                    owner
-                    currentModule
-                    v
-
-                Stdlib.Option.Option.Some((v, unresolvedNames))
-              | _ -> Stdlib.Option.Option.None)
-            |> Stdlib.List.unzip
-
-          let (exprs, exprUnresolvedNames) =
-            d.declarations
-            |> Stdlib.List.filterMap (fun d ->
-              match d with
-              | Expr e ->
-                let (expr, unresolvedNames) =
-                  Expr.toPT onMissing pm owner currentModule e
-
-                Stdlib.Option.Option.Some(((expr, [ owner ]), unresolvedNames))
-              | _ -> Stdlib.Option.Option.None)
-            |> Stdlib.List.unzip
-
-          let moduleUnresolvedNames =
-            Stdlib.List.flatten
-              [ typesUnresolvedNames |> Stdlib.List.flatten
-                fnUnresolvedNames |> Stdlib.List.flatten
-                valueUnresolvedNames |> Stdlib.List.flatten
-                exprUnresolvedNames |> Stdlib.List.flatten ]
-
-          let init =
-            ProgramTypes.Definitions
-              { types = []
-                values = []
-                fns = []
-                exprs = [] }
-
-          let (submodules, subModUnresolvedNames) =
-            d.declarations
-            |> Stdlib.List.filterMap (fun d ->
-              match d with
-              | SubModule m ->
-                Stdlib.Option.Option.Some(
-                  submoduleToPT onMissing pm owner currentModule m
-                )
-              | _ -> Stdlib.Option.Option.Some((init, [])))
-            |> Stdlib.List.unzip
-
-          let submodules = ModuleDeclaration.combineSubmodules submodules
-
-          let unresolvedNames =
-            Stdlib.List.flatten
-              [ moduleUnresolvedNames; subModUnresolvedNames |> Stdlib.List.flatten ]
-
-          (ProgramTypes.Definitions
-            { types = types |> Stdlib.List.append submodules.types
-              values = values |> Stdlib.List.append submodules.values
-              fns = fns |> Stdlib.List.append submodules.fns
-              exprs = exprs |> Stdlib.List.append submodules.exprs },
-           unresolvedNames)
-
-
-      module TypeDeclaration =
-        module RecordField =
-          let toPT
-            (onMissing: NameResolver.OnMissing)
-            (pm: ProgramTypes.PackageManager.PackageManager)
-            (owner: String)
-            (currentModule: List<String>)
-            (f: WrittenTypes.TypeDeclaration.RecordField)
-            : (ProgramTypes.TypeDeclaration.RecordField *
-              List<Parser.Range * ProgramTypes.NameResolutionError>)
-            =
-            let (_, name) = f.name
-
-            let (typ, unresolvedNames) =
-              TypeReference.toPT onMissing pm owner currentModule f.typ
-
-            (ProgramTypes.TypeDeclaration.RecordField
-              { name = name
-                typ = typ
-                description = "" },
-             unresolvedNames)
-
-
-        module EnumField =
-          let toPT
-            (onMissing: NameResolver.OnMissing)
-            (pm: ProgramTypes.PackageManager.PackageManager)
-            (owner: String)
-            (currentModule: List<String>)
-            (f: WrittenTypes.TypeDeclaration.EnumField)
-            : (ProgramTypes.TypeDeclaration.EnumField *
-              List<Parser.Range * ProgramTypes.NameResolutionError>)
-            =
-            let label = f.label |> Stdlib.Option.map Stdlib.Tuple2.second
-
-            let (typ, unresolvedNames) =
-              TypeReference.toPT onMissing pm owner currentModule f.typ
-
-            (ProgramTypes.TypeDeclaration.EnumField
-              { typ = typ
-                label = label
-                description = "" },
-             unresolvedNames)
-
-        module EnumCase =
-          let toPT
-            (onMissing: NameResolver.OnMissing)
-            (pm: ProgramTypes.PackageManager.PackageManager)
-            (owner: String)
-            (currentModule: List<String>)
-            (c: WrittenTypes.TypeDeclaration.EnumCase)
-            : (ProgramTypes.TypeDeclaration.EnumCase *
-              List<Parser.Range * ProgramTypes.NameResolutionError>)
-            =
-            let (_, name) = c.name
-
-            let (fields, unresolvedNames) =
-              (Stdlib.List.map c.fields (fun f ->
-                EnumField.toPT onMissing pm owner currentModule f))
-              |> Stdlib.List.unzip
-
-            (ProgramTypes.TypeDeclaration.EnumCase
-              { name = name
-                fields = fields
-                description = "" },
-             unresolvedNames |> Stdlib.List.flatten)
-
-        module Definition =
-          let toPT
-            (onMissing: NameResolver.OnMissing)
-            (pm: ProgramTypes.PackageManager.PackageManager)
-            (owner: String)
-            (currentModule: List<String>)
-            (d: WrittenTypes.TypeDeclaration.Definition)
-            : (ProgramTypes.TypeDeclaration.Definition *
-              List<Parser.Range * ProgramTypes.NameResolutionError>)
-            =
-            match d with
-            | Alias typ ->
-              let (typ, unresolvedNames) =
-                TypeReference.toPT onMissing pm owner currentModule typ
-
-              (ProgramTypes.TypeDeclaration.Definition.Alias typ, unresolvedNames)
-
-            | Record fields ->
-              let (fields, unresolvedNames) =
-                (Stdlib.List.map fields (fun (f, _) ->
-                  RecordField.toPT onMissing pm owner currentModule f))
-                |> Stdlib.List.unzip
-
-              (ProgramTypes.TypeDeclaration.Definition.Record fields,
-               unresolvedNames |> Stdlib.List.flatten)
-
-            | Enum cases ->
-              let (cases, unresolvedNames) =
-                cases
-                |> Stdlib.List.map (fun (_, c) ->
-                  EnumCase.toPT onMissing pm owner currentModule c)
-                |> Stdlib.List.unzip
-
-              (ProgramTypes.TypeDeclaration.Definition.Enum cases,
-               unresolvedNames |> Stdlib.List.flatten)
-
-        let toPT
-          (onMissing: NameResolver.OnMissing)
-          (pm: ProgramTypes.PackageManager.PackageManager)
-          (owner: String)
-          (currentModule: List<String>)
-          (d: WrittenTypes.TypeDeclaration.TypeDeclaration)
-          : (ProgramTypes.TypeDeclaration.TypeDeclaration *
-            List<Parser.Range * ProgramTypes.NameResolutionError>)
-          =
-          let (def, unresolvedNames) =
-            Definition.toPT onMissing pm owner currentModule d.definition
-
-          (ProgramTypes.TypeDeclaration.TypeDeclaration
-            { typeParams =
-                d.typeParams |> Stdlib.List.map (fun p -> p |> Stdlib.Tuple2.second)
-              definition = def },
-           unresolvedNames)
-
-
-        let toPackageTypePT
-          (onMissing: NameResolver.OnMissing)
-          (pm: ProgramTypes.PackageManager.PackageManager)
-          (owner: String)
-          (modules: List<String>)
-          (d: WrittenTypes.TypeDeclaration.TypeDeclaration)
-          : (ProgramTypes.PackageType.PackageType *
-            List<Parser.Range * ProgramTypes.NameResolutionError>)
-          =
-          let (declaration, unresolvedNames) = toPT onMissing pm owner modules d
-
-          (ProgramTypes.PackageType.PackageType
-            // TODO: when relevant, use PackageIDs defined in F# land
-            { id = Stdlib.Uuid.generate ()
-              name =
-                ProgramTypes.PackageType.Name
-                  { owner = owner
-                    modules = modules
-                    name = d.name.name }
-              description = ""
-              declaration = declaration
-              deprecated = ProgramTypes.Deprecation.NotDeprecated },
-           unresolvedNames)
-
-
-      module ValueDeclaration =
-        let toPackageValuePT
-          (onMissing: NameResolver.OnMissing)
-          (pm: ProgramTypes.PackageManager.PackageManager)
-          (owner: String)
-          (modules: List<String>)
-          (d: WrittenTypes.ValueDeclaration.ValueDeclaration)
-          : (ProgramTypes.PackageValue.PackageValue *
-            List<Parser.Range * ProgramTypes.NameResolutionError>)
-          =
-          let (body, unresolvedNames) = Expr.toPT onMissing pm owner modules d.body
-
-          (ProgramTypes.PackageValue.PackageValue
-            { id = Stdlib.Uuid.generate ()
-              name =
-                ProgramTypes.PackageValue.Name
-                  { owner = owner
-                    modules = modules
-                    name = d.name.name }
-              body = body
-              description = ""
-              deprecated = ProgramTypes.Deprecation.NotDeprecated },
-           unresolvedNames)
-
-
-      module FunctionDeclaration =
-        module Parameter =
-          let toPackageFnParamPT
-            (onMissing: NameResolver.OnMissing)
-            (pm: ProgramTypes.PackageManager.PackageManager)
-            (owner: String)
-            (currentModule: List<String>)
-            (p: WrittenTypes.FnDeclaration.Parameter)
-            : (ProgramTypes.PackageFn.Parameter *
-              List<Parser.Range * ProgramTypes.NameResolutionError>)
-            =
-            match p with
-            | Unit p ->
-              (ProgramTypes.PackageFn.Parameter
-                { name = "_" // TODO ok?
-                  typ = ProgramTypes.TypeReference.TUnit
-                  description = "" },
-               [])
-
-            | Normal p ->
-              let (typ, unresolvedNames) =
-                TypeReference.toPT onMissing pm owner currentModule p.typ
-
-              (ProgramTypes.PackageFn.Parameter
-                { name = p.name.name
-                  typ = typ
-                  description = "" },
-               unresolvedNames)
-
-        let toPackageFnPT
-          (onMissing: NameResolver.OnMissing)
-          (pm: ProgramTypes.PackageManager.PackageManager)
-          (owner: String)
-          (modules: List<String>)
-          (fn: WrittenTypes.FnDeclaration.FnDeclaration)
-          : (ProgramTypes.PackageFn.PackageFn *
-            List<Parser.Range * ProgramTypes.NameResolutionError>)
-          =
-          let typeParams =
-            fn.typeParams |> Stdlib.List.map (fun p -> p |> Stdlib.Tuple2.second)
-
-          let (params, prUnresolvedNames) =
-            fn.parameters
-            |> Stdlib.List.map (fun p ->
-              Parameter.toPackageFnParamPT onMissing pm owner modules p)
-            |> Stdlib.List.unzip
-
-          let (rtyp, rtUnresolvedNames) =
-            TypeReference.toPT onMissing pm owner modules fn.returnType
-
-          let (body, bdUnresolvedNames) =
-            Expr.toPT onMissing pm owner modules fn.body
-
-          let unresolvedNames =
-            Stdlib.List.flatten
-              [ prUnresolvedNames |> Stdlib.List.flatten
-                rtUnresolvedNames
-                bdUnresolvedNames ]
-
-          (ProgramTypes.PackageFn.PackageFn
-            // TODO: when relevant, use PacakgeIDs defined in F# land
-            { id = Stdlib.Uuid.generate ()
-              name =
-                ProgramTypes.PackageFn.Name
-                  { owner = owner
-                    modules = modules
-                    name = fn.name.name }
-              typeParams = typeParams
-              parameters = params
-              returnType = rtyp
-              description = ""
-              deprecated = ProgramTypes.Deprecation.NotDeprecated
-              body = body },
-           unresolvedNames)
-
-      let declarationsToPT
-        (pm: ProgramTypes.PackageManager.PackageManager)
-        (d: WrittenTypes.SourceFile.SourceFileDeclaration)
-        : (ProgramTypes.SourceFile.Declaration *
-          List<Parser.Range * ProgramTypes.NameResolutionError>)
-        =
+    | ELambda(_, pats, body, _, _) ->
+      let pats = Stdlib.List.map pats (fun p -> LetPattern.toPT p)
+
+      let (body, unresolvedNames) =
+        Expr.toPT onMissing pm owner currentModule body
+
+      (ProgramTypes.Expr.ELambda(gid (), pats, body), unresolvedNames)
+
+    | EFnName(_, fnName) ->
+      let (fnName, unresolvedNames) =
+        Identifiers.QualifiedFn.toPT onMissing pm owner currentModule fnName
+
+      (ProgramTypes.Expr.EFnName(gid (), fnName), unresolvedNames)
+
+    | EApply(_, fn, typeArgs, args) ->
+      let (fn, fnUnresolvedNames) = toPT onMissing pm owner currentModule fn
+
+      let (typeArgs, tpUnresolvedNames) =
+        typeArgs
+        |> Stdlib.List.map (fun t ->
+          TypeReference.toPT onMissing pm owner currentModule t)
+        |> Stdlib.List.unzip
+
+      let (args, argsUnresolvedNames) =
+        args
+        |> Stdlib.List.map (fun a -> toPT onMissing pm owner currentModule a)
+        |> Stdlib.List.unzip
+
+      let unresolvedNames =
+        Stdlib.List.flatten
+          [ tpUnresolvedNames |> Stdlib.List.flatten
+            argsUnresolvedNames |> Stdlib.List.flatten
+            fnUnresolvedNames ]
+
+      (ProgramTypes.Expr.EApply(gid (), fn, typeArgs, args), unresolvedNames)
+
+    | EStatement (_, first, next) ->
+      let (first, firstUnresolvedNames) = toPT onMissing pm owner currentModule first
+
+      let (next, nextUnresolvedNames) = toPT onMissing pm owner currentModule next
+
+      let unresolvedNames =
+        Stdlib.List.flatten [ firstUnresolvedNames; nextUnresolvedNames ]
+
+      (ProgramTypes.Expr.EStatement(gid (), first, next), unresolvedNames)
+
+
+
+
+module ModuleDeclaration =
+  let combineSubmodules
+    (submodules: List<ProgramTypes.Definitions>)
+    : ProgramTypes.Definitions =
+    let init =
+      ProgramTypes.Definitions
+        { types = []
+          values = []
+          fns = []
+          exprs = [] }
+
+    submodules
+    |> Stdlib.List.fold init (fun acc m ->
+      ProgramTypes.Definitions
+        { types = acc.types |> Stdlib.List.append m.types
+          values = acc.values |> Stdlib.List.append m.values
+          fns = acc.fns |> Stdlib.List.append m.fns
+          exprs = acc.exprs |> Stdlib.List.append m.exprs })
+
+  let submoduleToPT
+    (onMissing: NameResolver.OnMissing)
+    (pm: ProgramTypes.PackageManager.PackageManager)
+    (owner: String)
+    (modules: List<String>)
+    (submodule: WrittenTypes.ModuleDeclaration.ModuleDeclaration)
+    : (ProgramTypes.Definitions *
+      List<Parser.Range * ProgramTypes.NameResolutionError>)
+    =
+    let (_, m) = submodule.name
+    let modules = Stdlib.List.append modules [ m ]
+
+    let (types, typesUnresolvedNames) =
+      submodule.declarations
+      |> Stdlib.List.filterMap (fun d ->
         match d with
         | Type t ->
           let (t, unresolvedNames) =
-            TypeDeclaration.toPackageTypePT
-              NameResolver.OnMissing.Allow
-              pm
-              "Tests"
-              []
-              t
+            TypeDeclaration.toPackageTypePT onMissing pm owner modules t
 
-          (ProgramTypes.SourceFile.Declaration.Type t, unresolvedNames)
+          Stdlib.Option.Option.Some((t, unresolvedNames))
+        | _ -> Stdlib.Option.Option.None)
+      |> Stdlib.List.unzip
 
+    let (fns, fnUnresolvedNames) =
+      submodule.declarations
+      |> Stdlib.List.filterMap (fun d ->
+        match d with
+        | Function f ->
+          let (f, unresolvedNames) =
+            FunctionDeclaration.toPackageFnPT onMissing pm owner modules f
+
+          Stdlib.Option.Option.Some((f, unresolvedNames))
+        | _ -> Stdlib.Option.Option.None)
+      |> Stdlib.List.unzip
+
+    let (values, valueUnresolvedNames) =
+      submodule.declarations
+      |> Stdlib.List.filterMap (fun d ->
+        match d with
         | Value v ->
           let (v, unresolvedNames) =
-            ValueDeclaration.toPackageValuePT
-              NameResolver.OnMissing.Allow
-              pm
-              "Tests"
-              []
-              v
+            ValueDeclaration.toPackageValuePT onMissing pm owner modules v
 
-          (ProgramTypes.SourceFile.Declaration.Value v, unresolvedNames)
+          Stdlib.Option.Option.Some((v, unresolvedNames))
+        | _ -> Stdlib.Option.Option.None)
+      |> Stdlib.List.unzip
+
+    let (exprs, exprUnresolvedNames) =
+      submodule.declarations
+      |> Stdlib.List.filterMap (fun d ->
+        match d with
+        | Expr e ->
+          let (expr, exprUnresolvedNames) =
+            Expr.toPT onMissing pm owner modules e
+
+          let modules = Stdlib.List.push modules owner
+          Stdlib.Option.Option.Some(((expr, modules), exprUnresolvedNames))
+        | _ -> Stdlib.Option.Option.None)
+      |> Stdlib.List.unzip
+
+    let (submodules, subModUnresolvedNames) =
+      submodule.declarations
+      |> Stdlib.List.filterMap (fun d ->
+        match d with
+        | SubModule m ->
+          Stdlib.Option.Option.Some(
+            submoduleToPT onMissing pm owner modules m
+          )
+        | _ -> Stdlib.Option.Option.None)
+      |> Stdlib.List.unzip
+
+    let submodules = combineSubmodules submodules
+
+    let unresolvedNames =
+      Stdlib.List.flatten
+        [ typesUnresolvedNames |> Stdlib.List.flatten
+          fnUnresolvedNames |> Stdlib.List.flatten
+          valueUnresolvedNames |> Stdlib.List.flatten
+          exprUnresolvedNames |> Stdlib.List.flatten
+          subModUnresolvedNames |> Stdlib.List.flatten ]
+
+    (ProgramTypes.Definitions
+      { types = types |> Stdlib.List.append submodules.types
+        values = values |> Stdlib.List.append submodules.values
+        fns = fns |> Stdlib.List.append submodules.fns
+        exprs = exprs |> Stdlib.List.append submodules.exprs },
+      unresolvedNames)
 
 
+  let toPT
+    (onMissing: NameResolver.OnMissing)
+    (pm: ProgramTypes.PackageManager.PackageManager)
+    (currentModule: List<String>)
+    (d: WrittenTypes.ModuleDeclaration.ModuleDeclaration)
+    : (ProgramTypes.Definitions *
+      List<Parser.Range * ProgramTypes.NameResolutionError>)
+    =
+    let (_, owner) = d.name
+
+    let (types, typesUnresolvedNames) =
+      d.declarations
+      |> Stdlib.List.filterMap (fun d ->
+        match d with
+        | Type t ->
+          let (t, unresolvedNames) =
+            TypeDeclaration.toPackageTypePT onMissing pm owner currentModule t
+
+          Stdlib.Option.Option.Some((t, unresolvedNames))
+        | _ -> Stdlib.Option.Option.None)
+      |> Stdlib.List.unzip
+
+    let (fns, fnUnresolvedNames) =
+      d.declarations
+      |> Stdlib.List.filterMap (fun d ->
+        match d with
         | Function f ->
           let (f, unresolvedNames) =
             FunctionDeclaration.toPackageFnPT
-              NameResolver.OnMissing.Allow
+              onMissing
               pm
-              "Tests"
-              []
+              owner
+              currentModule
               f
 
-          (ProgramTypes.SourceFile.Declaration.Function f, unresolvedNames)
+          Stdlib.Option.Option.Some((f, unresolvedNames))
+        | _ -> Stdlib.Option.Option.None)
+      |> Stdlib.List.unzip
 
-        | Module m ->
-          // TODO: should owner be added to ModuleDeclaration.toPT?
-          let (m, unresolvedNames) =
-            ModuleDeclaration.toPT NameResolver.OnMissing.Allow pm [] m
+    let (values, valueUnresolvedNames) =
+      d.declarations
+      |> Stdlib.List.filterMap (fun d ->
+        match d with
+        | Value v ->
+          let (v, unresolvedNames) =
+            ValueDeclaration.toPackageValuePT
+              onMissing
+              pm
+              owner
+              currentModule
+              v
 
-          (ProgramTypes.SourceFile.Declaration.Module m, unresolvedNames)
+          Stdlib.Option.Option.Some((v, unresolvedNames))
+        | _ -> Stdlib.Option.Option.None)
+      |> Stdlib.List.unzip
+
+    let (exprs, exprUnresolvedNames) =
+      d.declarations
+      |> Stdlib.List.filterMap (fun d ->
+        match d with
+        | Expr e ->
+          let (expr, unresolvedNames) =
+            Expr.toPT onMissing pm owner currentModule e
+
+          Stdlib.Option.Option.Some(((expr, [ owner ]), unresolvedNames))
+        | _ -> Stdlib.Option.Option.None)
+      |> Stdlib.List.unzip
+
+    let moduleUnresolvedNames =
+      Stdlib.List.flatten
+        [ typesUnresolvedNames |> Stdlib.List.flatten
+          fnUnresolvedNames |> Stdlib.List.flatten
+          valueUnresolvedNames |> Stdlib.List.flatten
+          exprUnresolvedNames |> Stdlib.List.flatten ]
+
+    let init =
+      ProgramTypes.Definitions
+        { types = []
+          values = []
+          fns = []
+          exprs = [] }
+
+    let (submodules, subModUnresolvedNames) =
+      d.declarations
+      |> Stdlib.List.filterMap (fun d ->
+        match d with
+        | SubModule m ->
+          Stdlib.Option.Option.Some(
+            submoduleToPT onMissing pm owner currentModule m
+          )
+        | _ -> Stdlib.Option.Option.Some((init, [])))
+      |> Stdlib.List.unzip
+
+    let submodules = ModuleDeclaration.combineSubmodules submodules
+
+    let unresolvedNames =
+      Stdlib.List.flatten
+        [ moduleUnresolvedNames; subModUnresolvedNames |> Stdlib.List.flatten ]
+
+    (ProgramTypes.Definitions
+      { types = types |> Stdlib.List.append submodules.types
+        values = values |> Stdlib.List.append submodules.values
+        fns = fns |> Stdlib.List.append submodules.fns
+        exprs = exprs |> Stdlib.List.append submodules.exprs },
+      unresolvedNames)
 
 
-      let parsedFileAsSourceFile
-        (parsedFile: WrittenTypes.ParsedFile)
-        : (ProgramTypes.SourceFile.SourceFile *
-          List<Parser.Range * ProgramTypes.NameResolutionError>)
-        =
-        let pm = LanguageTools.PackageManager.pm ()
-        // CLEANUP potentially complain about unparsable stuff?
-        match parsedFile with
-        | SourceFile source ->
-          let (declarations, declarationsUnresolvedNames) =
-            source.declarations
-            |> Stdlib.List.map (WrittenTypesToProgramTypes.declarationsToPT pm)
-            |> Stdlib.List.unzip
+module TypeDeclaration =
+  module RecordField =
+    let toPT
+      (onMissing: NameResolver.OnMissing)
+      (pm: ProgramTypes.PackageManager.PackageManager)
+      (owner: String)
+      (currentModule: List<String>)
+      (f: WrittenTypes.TypeDeclaration.RecordField)
+      : (ProgramTypes.TypeDeclaration.RecordField *
+        List<Parser.Range * ProgramTypes.NameResolutionError>)
+      =
+      let (_, name) = f.name
 
-          let (exprsToEval, exprsToEvalUnresolvedNames) =
-            source.exprsToEval
-            |> Stdlib.List.map (fun e ->
-              Expr.toPT NameResolver.OnMissing.Allow pm "" [] e)
-            |> Stdlib.List.unzip
+      let (typ, unresolvedNames) =
+        TypeReference.toPT onMissing pm owner currentModule f.typ
 
-          let unresolvedNames =
-            Stdlib.List.flatten
-              [ declarationsUnresolvedNames |> Stdlib.List.flatten
-                exprsToEvalUnresolvedNames |> Stdlib.List.flatten ]
+      (ProgramTypes.TypeDeclaration.RecordField
+        { name = name
+          typ = typ
+          description = "" },
+        unresolvedNames)
 
-          let sourceFile =
-            ProgramTypes.SourceFile.SourceFile
-              { declarations = declarations
-                exprsToEval = exprsToEval }
 
-          (sourceFile, unresolvedNames)
+  module EnumField =
+    let toPT
+      (onMissing: NameResolver.OnMissing)
+      (pm: ProgramTypes.PackageManager.PackageManager)
+      (owner: String)
+      (currentModule: List<String>)
+      (f: WrittenTypes.TypeDeclaration.EnumField)
+      : (ProgramTypes.TypeDeclaration.EnumField *
+        List<Parser.Range * ProgramTypes.NameResolutionError>)
+      =
+      let label = f.label |> Stdlib.Option.map Stdlib.Tuple2.second
+
+      let (typ, unresolvedNames) =
+        TypeReference.toPT onMissing pm owner currentModule f.typ
+
+      (ProgramTypes.TypeDeclaration.EnumField
+        { typ = typ
+          label = label
+          description = "" },
+        unresolvedNames)
+
+  module EnumCase =
+    let toPT
+      (onMissing: NameResolver.OnMissing)
+      (pm: ProgramTypes.PackageManager.PackageManager)
+      (owner: String)
+      (currentModule: List<String>)
+      (c: WrittenTypes.TypeDeclaration.EnumCase)
+      : (ProgramTypes.TypeDeclaration.EnumCase *
+        List<Parser.Range * ProgramTypes.NameResolutionError>)
+      =
+      let (_, name) = c.name
+
+      let (fields, unresolvedNames) =
+        (Stdlib.List.map c.fields (fun f ->
+          EnumField.toPT onMissing pm owner currentModule f))
+        |> Stdlib.List.unzip
+
+      (ProgramTypes.TypeDeclaration.EnumCase
+        { name = name
+          fields = fields
+          description = "" },
+        unresolvedNames |> Stdlib.List.flatten)
+
+  module Definition =
+    let toPT
+      (onMissing: NameResolver.OnMissing)
+      (pm: ProgramTypes.PackageManager.PackageManager)
+      (owner: String)
+      (currentModule: List<String>)
+      (d: WrittenTypes.TypeDeclaration.Definition)
+      : (ProgramTypes.TypeDeclaration.Definition *
+        List<Parser.Range * ProgramTypes.NameResolutionError>)
+      =
+      match d with
+      | Alias typ ->
+        let (typ, unresolvedNames) =
+          TypeReference.toPT onMissing pm owner currentModule typ
+
+        (ProgramTypes.TypeDeclaration.Definition.Alias typ, unresolvedNames)
+
+      | Record fields ->
+        let (fields, unresolvedNames) =
+          (Stdlib.List.map fields (fun (f, _) ->
+            RecordField.toPT onMissing pm owner currentModule f))
+          |> Stdlib.List.unzip
+
+        (ProgramTypes.TypeDeclaration.Definition.Record fields,
+          unresolvedNames |> Stdlib.List.flatten)
+
+      | Enum cases ->
+        let (cases, unresolvedNames) =
+          cases
+          |> Stdlib.List.map (fun (_, c) ->
+            EnumCase.toPT onMissing pm owner currentModule c)
+          |> Stdlib.List.unzip
+
+        (ProgramTypes.TypeDeclaration.Definition.Enum cases,
+          unresolvedNames |> Stdlib.List.flatten)
+
+  let toPT
+    (onMissing: NameResolver.OnMissing)
+    (pm: ProgramTypes.PackageManager.PackageManager)
+    (owner: String)
+    (currentModule: List<String>)
+    (d: WrittenTypes.TypeDeclaration.TypeDeclaration)
+    : (ProgramTypes.TypeDeclaration.TypeDeclaration *
+      List<Parser.Range * ProgramTypes.NameResolutionError>)
+    =
+    let (def, unresolvedNames) =
+      Definition.toPT onMissing pm owner currentModule d.definition
+
+    (ProgramTypes.TypeDeclaration.TypeDeclaration
+      { typeParams =
+          d.typeParams |> Stdlib.List.map (fun p -> p |> Stdlib.Tuple2.second)
+        definition = def },
+      unresolvedNames)
+
+
+  let toPackageTypePT
+    (onMissing: NameResolver.OnMissing)
+    (pm: ProgramTypes.PackageManager.PackageManager)
+    (owner: String)
+    (modules: List<String>)
+    (d: WrittenTypes.TypeDeclaration.TypeDeclaration)
+    : (ProgramTypes.PackageType.PackageType *
+      List<Parser.Range * ProgramTypes.NameResolutionError>)
+    =
+    let (declaration, unresolvedNames) = toPT onMissing pm owner modules d
+
+    (ProgramTypes.PackageType.PackageType
+      // TODO: when relevant, use PackageIDs defined in F# land
+      { id = Stdlib.Uuid.generate ()
+        name =
+          ProgramTypes.PackageType.Name
+            { owner = owner
+              modules = modules
+              name = d.name.name }
+        description = ""
+        declaration = declaration
+        deprecated = ProgramTypes.Deprecation.NotDeprecated },
+      unresolvedNames)
+
+
+module ValueDeclaration =
+  let toPackageValuePT
+    (onMissing: NameResolver.OnMissing)
+    (pm: ProgramTypes.PackageManager.PackageManager)
+    (owner: String)
+    (modules: List<String>)
+    (d: WrittenTypes.ValueDeclaration.ValueDeclaration)
+    : (ProgramTypes.PackageValue.PackageValue *
+      List<Parser.Range * ProgramTypes.NameResolutionError>)
+    =
+    let (body, unresolvedNames) = Expr.toPT onMissing pm owner modules d.body
+
+    (ProgramTypes.PackageValue.PackageValue
+      { id = Stdlib.Uuid.generate ()
+        name =
+          ProgramTypes.PackageValue.Name
+            { owner = owner
+              modules = modules
+              name = d.name.name }
+        body = body
+        description = ""
+        deprecated = ProgramTypes.Deprecation.NotDeprecated },
+      unresolvedNames)
+
+
+module FunctionDeclaration =
+  module Parameter =
+    let toPackageFnParamPT
+      (onMissing: NameResolver.OnMissing)
+      (pm: ProgramTypes.PackageManager.PackageManager)
+      (owner: String)
+      (currentModule: List<String>)
+      (p: WrittenTypes.FnDeclaration.Parameter)
+      : (ProgramTypes.PackageFn.Parameter *
+        List<Parser.Range * ProgramTypes.NameResolutionError>)
+      =
+      match p with
+      | Unit p ->
+        (ProgramTypes.PackageFn.Parameter
+          { name = "_" // TODO ok?
+            typ = ProgramTypes.TypeReference.TUnit
+            description = "" },
+          [])
+
+      | Normal p ->
+        let (typ, unresolvedNames) =
+          TypeReference.toPT onMissing pm owner currentModule p.typ
+
+        (ProgramTypes.PackageFn.Parameter
+          { name = p.name.name
+            typ = typ
+            description = "" },
+          unresolvedNames)
+
+  let toPackageFnPT
+    (onMissing: NameResolver.OnMissing)
+    (pm: ProgramTypes.PackageManager.PackageManager)
+    (owner: String)
+    (modules: List<String>)
+    (fn: WrittenTypes.FnDeclaration.FnDeclaration)
+    : (ProgramTypes.PackageFn.PackageFn *
+      List<Parser.Range * ProgramTypes.NameResolutionError>)
+    =
+    let typeParams =
+      fn.typeParams |> Stdlib.List.map (fun p -> p |> Stdlib.Tuple2.second)
+
+    let (params, prUnresolvedNames) =
+      fn.parameters
+      |> Stdlib.List.map (fun p ->
+        Parameter.toPackageFnParamPT onMissing pm owner modules p)
+      |> Stdlib.List.unzip
+
+    let (rtyp, rtUnresolvedNames) =
+      TypeReference.toPT onMissing pm owner modules fn.returnType
+
+    let (body, bdUnresolvedNames) =
+      Expr.toPT onMissing pm owner modules fn.body
+
+    let unresolvedNames =
+      Stdlib.List.flatten
+        [ prUnresolvedNames |> Stdlib.List.flatten
+          rtUnresolvedNames
+          bdUnresolvedNames ]
+
+    (ProgramTypes.PackageFn.PackageFn
+      // TODO: when relevant, use PacakgeIDs defined in F# land
+      { id = Stdlib.Uuid.generate ()
+        name =
+          ProgramTypes.PackageFn.Name
+            { owner = owner
+              modules = modules
+              name = fn.name.name }
+        typeParams = typeParams
+        parameters = params
+        returnType = rtyp
+        description = ""
+        deprecated = ProgramTypes.Deprecation.NotDeprecated
+        body = body },
+      unresolvedNames)
+
+let declarationsToPT
+  (pm: ProgramTypes.PackageManager.PackageManager)
+  (d: WrittenTypes.SourceFile.SourceFileDeclaration)
+  : (ProgramTypes.SourceFile.Declaration *
+    List<Parser.Range * ProgramTypes.NameResolutionError>)
+  =
+  match d with
+  | Type t ->
+    let (t, unresolvedNames) =
+      TypeDeclaration.toPackageTypePT
+        NameResolver.OnMissing.Allow
+        pm
+        "Tests"
+        []
+        t
+
+    (ProgramTypes.SourceFile.Declaration.Type t, unresolvedNames)
+
+  | Value v ->
+    let (v, unresolvedNames) =
+      ValueDeclaration.toPackageValuePT
+        NameResolver.OnMissing.Allow
+        pm
+        "Tests"
+        []
+        v
+
+    (ProgramTypes.SourceFile.Declaration.Value v, unresolvedNames)
+
+
+  | Function f ->
+    let (f, unresolvedNames) =
+      FunctionDeclaration.toPackageFnPT
+        NameResolver.OnMissing.Allow
+        pm
+        "Tests"
+        []
+        f
+
+    (ProgramTypes.SourceFile.Declaration.Function f, unresolvedNames)
+
+  | Module m ->
+    // TODO: should owner be added to ModuleDeclaration.toPT?
+    let (m, unresolvedNames) =
+      ModuleDeclaration.toPT NameResolver.OnMissing.Allow pm [] m
+
+    (ProgramTypes.SourceFile.Declaration.Module m, unresolvedNames)
+
+
+let parsedFileAsSourceFile
+  (parsedFile: WrittenTypes.ParsedFile)
+  : (ProgramTypes.SourceFile.SourceFile *
+    List<Parser.Range * ProgramTypes.NameResolutionError>)
+  =
+  let pm = LanguageTools.PackageManager.pm ()
+  // CLEANUP potentially complain about unparsable stuff?
+  match parsedFile with
+  | SourceFile source ->
+    let (declarations, declarationsUnresolvedNames) =
+      source.declarations
+      |> Stdlib.List.map (WrittenTypesToProgramTypes.declarationsToPT pm)
+      |> Stdlib.List.unzip
+
+    let (exprsToEval, exprsToEvalUnresolvedNames) =
+      source.exprsToEval
+      |> Stdlib.List.map (fun e ->
+        Expr.toPT NameResolver.OnMissing.Allow pm "" [] e)
+      |> Stdlib.List.unzip
+
+    let unresolvedNames =
+      Stdlib.List.flatten
+        [ declarationsUnresolvedNames |> Stdlib.List.flatten
+          exprsToEvalUnresolvedNames |> Stdlib.List.flatten ]
+
+    let sourceFile =
+      ProgramTypes.SourceFile.SourceFile
+        { declarations = declarations
+          exprsToEval = exprsToEval }
+
+    (sourceFile, unresolvedNames)

@@ -1,268 +1,268 @@
-module Darklang =
-  module LanguageTools =
-    module LspServer =
-      let convertParserRangeToLspRange
-        (range: Parser.Range)
-        : LanguageServerProtocol.Range.Range =
-        let lineStart =
-          range.start.row
-          |> Stdlib.UInt64.fromInt64
-          |> Stdlib.Option.withDefault 0UL
-
-        let characterStart =
-          range.start.column
-          |> Stdlib.UInt64.fromInt64
-          |> Stdlib.Option.withDefault 0UL
-
-        let lineEnd =
-          range.end_.row
-          |> Stdlib.UInt64.fromInt64
-          |> Stdlib.Option.withDefault 0UL
-
-        let characterEnd =
-          range.end_.column
-          |> Stdlib.UInt64.fromInt64
-          |> Stdlib.Option.withDefault 0UL
-
-        LanguageServerProtocol.Range.Range
-          { start =
-              LanguageServerProtocol.Position.Position
-                { line = lineStart
-                  character = characterStart }
-            end_ =
-              LanguageServerProtocol.Position.Position
-                { line = lineEnd
-                  character = characterEnd } }
+module Darklang.LanguageTools.LspServer
 
 
-      let createDiagnostic
-        (severity: LanguageServerProtocol.DiagnosticSeverity.DiagnosticSeverity)
-        (range: Parser.Range)
-        (message: String)
-        : LanguageServerProtocol.Diagnostic.Diagnostic =
-        LanguageServerProtocol.Diagnostic.Diagnostic
-          { range = convertParserRangeToLspRange range
-            severity = Stdlib.Option.Option.Some severity
-            code = Stdlib.Option.Option.None
-            codeDescription = Stdlib.Option.Option.None
-            source = Stdlib.Option.Option.None
-            message = message
-            tags = Stdlib.Option.Option.None
-            relatedInformation = Stdlib.Option.Option.None
-            data = Stdlib.Option.Option.None }
+let convertParserRangeToLspRange
+  (range: Parser.Range)
+  : LanguageServerProtocol.Range.Range =
+  let lineStart =
+    range.start.row
+    |> Stdlib.UInt64.fromInt64
+    |> Stdlib.Option.withDefault 0UL
 
-      let createWarningDiagnostic
-        (range: Parser.Range)
-        (message: String)
-        : LanguageServerProtocol.Diagnostic.Diagnostic =
-        createDiagnostic
-          LanguageServerProtocol.DiagnosticSeverity.DiagnosticSeverity.Warning
-          range
-          message
+  let characterStart =
+    range.start.column
+    |> Stdlib.UInt64.fromInt64
+    |> Stdlib.Option.withDefault 0UL
 
-      let createErrorDiagnostic
-        (range: Parser.Range)
-        (message: String)
-        : LanguageServerProtocol.Diagnostic.Diagnostic =
-        createDiagnostic
-          LanguageServerProtocol.DiagnosticSeverity.DiagnosticSeverity.Error
-          range
-          message
+  let lineEnd =
+    range.end_.row
+    |> Stdlib.UInt64.fromInt64
+    |> Stdlib.Option.withDefault 0UL
 
-      let createInfoDiagnostic
-        (range: Parser.Range)
-        (message: String)
-        : LanguageServerProtocol.Diagnostic.Diagnostic =
-        createDiagnostic
-          LanguageServerProtocol.DiagnosticSeverity.DiagnosticSeverity.Information
-          range
-          message
+  let characterEnd =
+    range.end_.column
+    |> Stdlib.UInt64.fromInt64
+    |> Stdlib.Option.withDefault 0UL
 
-      let createHintDiagnostic
-        (range: Parser.Range)
-        (message: String)
-        : LanguageServerProtocol.Diagnostic.Diagnostic =
-        createDiagnostic
-          LanguageServerProtocol.DiagnosticSeverity.DiagnosticSeverity.Hint
-          range
-          message
+  LanguageServerProtocol.Range.Range
+    { start =
+        LanguageServerProtocol.Position.Position
+          { line = lineStart
+            character = characterStart }
+      end_ =
+        LanguageServerProtocol.Position.Position
+          { line = lineEnd
+            character = characterEnd } }
 
 
-      let sendDiagnostic
-        (uri: LanguageServerProtocol.DocumentUri)
-        (diagnostic:
-          List<LanguageServerProtocol.Diagnostic.Diagnostic>)
-        : Unit =
-        let diagnosticsJson =
-          LanguageServerProtocol
-            .Messages
-            .PublishDiagnostics
-            .PublishDiagnosticsParams
-            .toJson (
-              LanguageServerProtocol.Messages.PublishDiagnostics.PublishDiagnosticsParams.PublishDiagnosticsParams
-                { uri = uri
-                  version = Stdlib.Option.Option.None
-                  diagnostics = diagnostic }
-            )
+let createDiagnostic
+  (severity: LanguageServerProtocol.DiagnosticSeverity.DiagnosticSeverity)
+  (range: Parser.Range)
+  (message: String)
+  : LanguageServerProtocol.Diagnostic.Diagnostic =
+  LanguageServerProtocol.Diagnostic.Diagnostic
+    { range = convertParserRangeToLspRange range
+      severity = Stdlib.Option.Option.Some severity
+      code = Stdlib.Option.Option.None
+      codeDescription = Stdlib.Option.Option.None
+      source = Stdlib.Option.Option.None
+      message = message
+      tags = Stdlib.Option.Option.None
+      relatedInformation = Stdlib.Option.Option.None
+      data = Stdlib.Option.Option.None }
 
-        let diagnosticsJson =
-          JsonRPC.Request.RequestParams.Array [ diagnosticsJson ]
+let createWarningDiagnostic
+  (range: Parser.Range)
+  (message: String)
+  : LanguageServerProtocol.Diagnostic.Diagnostic =
+  createDiagnostic
+    LanguageServerProtocol.DiagnosticSeverity.DiagnosticSeverity.Warning
+    range
+    message
 
-        (JsonRPC.Request.makeNotificationString
-          "textDocument/publishDiagnostics"
-          (diagnosticsJson |> Stdlib.Option.Option.Some))
-        |> logAndSendToClient
+let createErrorDiagnostic
+  (range: Parser.Range)
+  (message: String)
+  : LanguageServerProtocol.Diagnostic.Diagnostic =
+  createDiagnostic
+    LanguageServerProtocol.DiagnosticSeverity.DiagnosticSeverity.Error
+    range
+    message
 
-      /// This is how we handle incoming requests from the client.
-      ///
-      /// (this is the core of Darklang's LSP server)
-      let handleIncomingMessage
-        (state: LspState)
-        (r: JsonRPC.Request.Request)
-        : LspState =
-        let currentState =
-          match LanguageServerProtocol.parseIncomingMessage r with
-          | InitializeRequest ->
-            log "TODO: fail - we shouldn't be seeing a second one of these"
-            { state with initialized = true }
+let createInfoDiagnostic
+  (range: Parser.Range)
+  (message: String)
+  : LanguageServerProtocol.Diagnostic.Diagnostic =
+  createDiagnostic
+    LanguageServerProtocol.DiagnosticSeverity.DiagnosticSeverity.Information
+    range
+    message
 
-          | Initialized -> // notification
-            log "(ignore)"
+let createHintDiagnostic
+  (range: Parser.Range)
+  (message: String)
+  : LanguageServerProtocol.Diagnostic.Diagnostic =
+  createDiagnostic
+    LanguageServerProtocol.DiagnosticSeverity.DiagnosticSeverity.Hint
+    range
+    message
+
+
+let sendDiagnostic
+  (uri: LanguageServerProtocol.DocumentUri)
+  (diagnostic:
+    List<LanguageServerProtocol.Diagnostic.Diagnostic>)
+  : Unit =
+  let diagnosticsJson =
+    LanguageServerProtocol
+      .Messages
+      .PublishDiagnostics
+      .PublishDiagnosticsParams
+      .toJson (
+        LanguageServerProtocol.Messages.PublishDiagnostics.PublishDiagnosticsParams.PublishDiagnosticsParams
+          { uri = uri
+            version = Stdlib.Option.Option.None
+            diagnostics = diagnostic }
+      )
+
+  let diagnosticsJson =
+    JsonRPC.Request.RequestParams.Array [ diagnosticsJson ]
+
+  (JsonRPC.Request.makeNotificationString
+    "textDocument/publishDiagnostics"
+    (diagnosticsJson |> Stdlib.Option.Option.Some))
+  |> logAndSendToClient
+
+/// This is how we handle incoming requests from the client.
+///
+/// (this is the core of Darklang's LSP server)
+let handleIncomingMessage
+  (state: LspState)
+  (r: JsonRPC.Request.Request)
+  : LspState =
+  let currentState =
+    match LanguageServerProtocol.parseIncomingMessage r with
+    | InitializeRequest ->
+      log "TODO: fail - we shouldn't be seeing a second one of these"
+      { state with initialized = true }
+
+    | Initialized -> // notification
+      log "(ignore)"
+      state
+
+    | SetTrace -> // notification
+      log "TODO we should do something with this"
+      state
+
+    // asks the server to shut down but not exit
+    | Shutdown -> // request
+      log "shutting down"
+
+      let response =
+        (JsonRPC.Response.Ok.make (Some r.id) Json.Null)
+        |> Stdlib.AltJson.format
+
+      logAndSendToClient response
+      { state with shouldShutdown = true }
+
+
+    // -- textDocument synchronization
+    | TextDocumentDidOpenNotification requestParams ->
+      log $"adding/setting document {requestParams.textDocument.uri}"
+      DocSync.handleTextDocumentDidOpen state requestParams
+
+    | TextDocumentDidSaveNotification requestParams ->
+      DocSync.handleTextDocumentDidSave state requestParams
+
+    | TextDocumentDidChangeNotification requestParams ->
+      log $"updating document {requestParams.textDocument.uri}"
+      DocSync.handleTextDocumentDidChange state requestParams
+
+    | TextDocumentDidCloseNotification requestParams ->
+      log $"removing document from documentsInScope"
+      DocSync.handleTextDocumentDidClose state requestParams
+
+
+    // -- completion (autocomplete)
+    | TextDocumentCompletionRequest(requestId, requestParams) ->
+      log $"got completion request for {requestParams.textDocument.uri}"
+      Completions.handleCompletionRequest state requestId requestParams
+
+
+    // -- semantic tokens (which provides syntax highlighting)
+    | TextDocumentSemanticTokensRequest(requestId, requestParams) ->
+      log $"got semanticTokens request for {requestParams.textDocument.uri}"
+      SemanticTokens.handleSemanticTokensRequest state requestId requestParams
+
+    // -- hover
+    | TextDocumentHoverRequest(requestId, requestParams) ->
+      log $"got hover request for {requestParams.textDocument.uri}"
+      Hover.handleHoverRequest state requestId requestParams
+
+    // // -- The server should exit with success code 0 if the shutdown request has been received before; otherwise with error code 1
+    // | Exit ->
+    //   log "Exit notification received"
+    //   if state.shouldShutdown then
+    //     log "Exiting with success code 0 (shutdown request received)"
+    //     //TODO
+    //   else
+    //     log "Exiting with error code 1 (shutdown request not received)"
+    //     //TODO
+    //   state
+
+    // | _ when state.shouldShutdown ->
+    //   log "Request received after shutdown, responding with InvalidRequest"
+    //   let response =
+    //     (JsonRPC.Response.Error.make
+    //       (Stdlib.Option.Option.Some r.id)
+    //       JsonRPC.Response.Error.KnownErrorCodes.invalidRequest
+    //       "Invalid request: server is shutting down"
+    //       Stdlib.Option.Option.None)
+    //     |> Stdlib.AltJson.format
+
+    //   logAndSendToClient response
+    //   state
+
+    // -- other
+    | Other jsonRpcRequest ->
+      match
+        (jsonRpcRequest.method, jsonRpcRequest.id, jsonRpcRequest.params)
+      with
+      | ("fileSystem/read", Some requestId, Some(Object p)) ->
+        log "Handling fileSystem/read request"
+
+        match
+          LspExtension.FileSystemProvider.ReadFile.ReadFileParams.fromJson (
+            Stdlib.AltJson.Json.Object p
+          )
+        with
+        | Ok params ->
+          FileSystemProvider.ReadFile.handleReadFileRequest
             state
+            requestId
+            params
 
-          | SetTrace -> // notification
-            log "TODO we should do something with this"
+        | Error err ->
+          log "Error parsing fileSystem/read params"
+          state
+
+      | ("fileSystem/write", Some requestId, Some(Object p)) ->
+        log "Handling fileSystem/write request"
+
+        match
+          LspExtension.FileSystemProvider.WriteFile.WriteFileParams.fromJson (
+            Stdlib.AltJson.Json.Object p
+          )
+        with
+        | Ok params ->
+          FileSystemProvider.WriteFile.handleWriteFileRequest
             state
+            requestId
+            params
 
-          // asks the server to shut down but not exit
-          | Shutdown -> // request
-            log "shutting down"
+        | Error err ->
+          log "Error parsing fileSystem/write params"
+          state
 
-            let response =
-              (JsonRPC.Response.Ok.make (Some r.id) Json.Null)
-              |> Stdlib.AltJson.format
+      | _ ->
+        let r = jsonRpcRequest
 
-            logAndSendToClient response
-            { state with shouldShutdown = true }
+        match (r.method, r.id, r.params) with
+        | ("darklang/getRootNodes", Some requestId, None) ->
+          TreeView.handleGetRootNodesRequest state requestId
 
+        | ("darklang/getChildNodes",
+          Some requestId,
+          Some(Object [ ("nodeId", String nodeId) ])) ->
+          TreeView.handleGetChildNodesRequest state requestId nodeId
 
-          // -- textDocument synchronization
-          | TextDocumentDidOpenNotification requestParams ->
-            log $"adding/setting document {requestParams.textDocument.uri}"
-            DocSync.handleTextDocumentDidOpen state requestParams
+        | other ->
+          log $"TODO: we don't yet support this method: {r.method}"
+          state
 
-          | TextDocumentDidSaveNotification requestParams ->
-            DocSync.handleTextDocumentDidSave state requestParams
+    | _ ->
+      log $"TODO: we don't yet support this method: {jsonRpcRequest.method}"
+      // TODO: log more than just the method
+      state
 
-          | TextDocumentDidChangeNotification requestParams ->
-            log $"updating document {requestParams.textDocument.uri}"
-            DocSync.handleTextDocumentDidChange state requestParams
-
-          | TextDocumentDidCloseNotification requestParams ->
-            log $"removing document from documentsInScope"
-            DocSync.handleTextDocumentDidClose state requestParams
-
-
-          // -- completion (autocomplete)
-          | TextDocumentCompletionRequest(requestId, requestParams) ->
-            log $"got completion request for {requestParams.textDocument.uri}"
-            Completions.handleCompletionRequest state requestId requestParams
-
-
-          // -- semantic tokens (which provides syntax highlighting)
-          | TextDocumentSemanticTokensRequest(requestId, requestParams) ->
-            log $"got semanticTokens request for {requestParams.textDocument.uri}"
-            SemanticTokens.handleSemanticTokensRequest state requestId requestParams
-
-          // -- hover
-          | TextDocumentHoverRequest(requestId, requestParams) ->
-            log $"got hover request for {requestParams.textDocument.uri}"
-            Hover.handleHoverRequest state requestId requestParams
-
-          // // -- The server should exit with success code 0 if the shutdown request has been received before; otherwise with error code 1
-          // | Exit ->
-          //   log "Exit notification received"
-          //   if state.shouldShutdown then
-          //     log "Exiting with success code 0 (shutdown request received)"
-          //     //TODO
-          //   else
-          //     log "Exiting with error code 1 (shutdown request not received)"
-          //     //TODO
-          //   state
-
-          // | _ when state.shouldShutdown ->
-          //   log "Request received after shutdown, responding with InvalidRequest"
-          //   let response =
-          //     (JsonRPC.Response.Error.make
-          //       (Stdlib.Option.Option.Some r.id)
-          //       JsonRPC.Response.Error.KnownErrorCodes.invalidRequest
-          //       "Invalid request: server is shutting down"
-          //       Stdlib.Option.Option.None)
-          //     |> Stdlib.AltJson.format
-
-          //   logAndSendToClient response
-          //   state
-
-          // -- other
-          | Other jsonRpcRequest ->
-            match
-              (jsonRpcRequest.method, jsonRpcRequest.id, jsonRpcRequest.params)
-            with
-            | ("fileSystem/read", Some requestId, Some(Object p)) ->
-              log "Handling fileSystem/read request"
-
-              match
-                LspExtension.FileSystemProvider.ReadFile.ReadFileParams.fromJson (
-                  Stdlib.AltJson.Json.Object p
-                )
-              with
-              | Ok params ->
-                FileSystemProvider.ReadFile.handleReadFileRequest
-                  state
-                  requestId
-                  params
-
-              | Error err ->
-                log "Error parsing fileSystem/read params"
-                state
-
-            | ("fileSystem/write", Some requestId, Some(Object p)) ->
-              log "Handling fileSystem/write request"
-
-              match
-                LspExtension.FileSystemProvider.WriteFile.WriteFileParams.fromJson (
-                  Stdlib.AltJson.Json.Object p
-                )
-              with
-              | Ok params ->
-                FileSystemProvider.WriteFile.handleWriteFileRequest
-                  state
-                  requestId
-                  params
-
-              | Error err ->
-                log "Error parsing fileSystem/write params"
-                state
-
-            | _ ->
-              let r = jsonRpcRequest
-
-              match (r.method, r.id, r.params) with
-              | ("darklang/getRootNodes", Some requestId, None) ->
-                TreeView.handleGetRootNodesRequest state requestId
-
-              | ("darklang/getChildNodes",
-                Some requestId,
-                Some(Object [ ("nodeId", String nodeId) ])) ->
-                TreeView.handleGetChildNodesRequest state requestId nodeId
-
-              | other ->
-                log $"TODO: we don't yet support this method: {r.method}"
-                state
-
-          | _ ->
-            log $"TODO: we don't yet support this method: {jsonRpcRequest.method}"
-            // TODO: log more than just the method
-            state
-
-        currentState
+  currentState

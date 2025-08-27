@@ -1,147 +1,146 @@
-module Darklang =
-  module Stdlib =
-    module Float =
-
-      type ParseError = | BadFormat
-
-      /// Round up to an integer value
-      let ceiling (a: Float) : Int64 = Builtin.floatCeiling a
+module Darklang.Stdlib.Float
 
 
-      /// Round up to an integer value
-      let roundUp (a: Float) : Int64 = Builtin.floatRoundUp a
+type ParseError = | BadFormat
 
-      /// Round down to an integer value.
-      /// Consider <fn Float.truncate> if your goal
-      /// is to discard the fractional part of a number: {{Float.floor -1.9 == -2.0}}
-      /// but {{Float.truncate -1.9 == -1.0}}
-      let floor (a: Float) : Int64 = Builtin.floatFloor a
+/// Round up to an integer value
+let ceiling (a: Float) : Int64 = Builtin.floatCeiling a
 
 
-      /// Round down to an integer value.
-      /// Consider <fn Float.truncate> if your goal is to discard the fractional part
-      /// of a number: {{Float.floor -1.9 == -2.0}} but {{Float.truncate -1.9 ==
-      /// -1.0}}
-      let roundDown (a: Float) : Int64 = Builtin.floatRoundDown a
+/// Round up to an integer value
+let roundUp (a: Float) : Int64 = Builtin.floatRoundUp a
+
+/// Round down to an integer value.
+/// Consider <fn Float.truncate> if your goal
+/// is to discard the fractional part of a number: {{Float.floor -1.9 == -2.0}}
+/// but {{Float.truncate -1.9 == -1.0}}
+let floor (a: Float) : Int64 = Builtin.floatFloor a
 
 
-      /// Round to the nearest integer value
-      let round (a: Float) : Int64 = Builtin.floatRound a
+/// Round down to an integer value.
+/// Consider <fn Float.truncate> if your goal is to discard the fractional part
+/// of a number: {{Float.floor -1.9 == -2.0}} but {{Float.truncate -1.9 ==
+/// -1.0}}
+let roundDown (a: Float) : Int64 = Builtin.floatRoundDown a
 
 
-      /// Returns the <type Float> value wrapped in a {{Result}} of the <type String>
-      let roundTowardsZero (a: Float) : Int64 = Builtin.floatRoundTowardsZero a
+/// Round to the nearest integer value
+let round (a: Float) : Int64 = Builtin.floatRound a
 
 
-      /// Discard the fractional portion of the float, rounding towards zero
-      let truncate (a: Float) : Int64 = Builtin.floatTruncate a
+/// Returns the <type Float> value wrapped in a {{Result}} of the <type String>
+let roundTowardsZero (a: Float) : Int64 = Builtin.floatRoundTowardsZero a
 
 
-      /// Returns the absolute value of <param a> (turning negative inputs into positive outputs)
-      let absoluteValue (a: Float) : Float =
-        if (Stdlib.Float.lessThan a 0.0) then
-          Stdlib.Float.multiply a -1.0
-        else
-          a
+/// Discard the fractional portion of the float, rounding towards zero
+let truncate (a: Float) : Int64 = Builtin.floatTruncate a
 
 
-      /// Returns the negation of <param a>, {{-a}}
-      let negate (a: Float) : Float = Stdlib.Float.multiply a -1.0
+/// Returns the absolute value of <param a> (turning negative inputs into positive outputs)
+let absoluteValue (a: Float) : Float =
+  if (Stdlib.Float.lessThan a 0.0) then
+    Stdlib.Float.multiply a -1.0
+  else
+    a
 
 
-      /// Returns the sum of all the floats in the list
-      let sum (a: List<Float>) : Float =
-        Stdlib.List.fold a 0.0 (fun acc next -> Stdlib.Float.add acc next)
+/// Returns the negation of <param a>, {{-a}}
+let negate (a: Float) : Float = Stdlib.Float.multiply a -1.0
 
 
-      /// Get the square root of a float
-      let sqrt (a: Float) : Float = Builtin.floatSqrt a
+/// Returns the sum of all the floats in the list
+let sum (a: List<Float>) : Float =
+  Stdlib.List.fold a 0.0 (fun acc next -> Stdlib.Float.add acc next)
 
 
-      /// Add <type Float> <param a> to <type Float> <param b>
-      let add (a: Float) (b: Float) : Float = Builtin.floatAdd a b
+/// Get the square root of a float
+let sqrt (a: Float) : Float = Builtin.floatSqrt a
 
 
-      /// Subtract <type Float> <param b> from <type Float> <param a>
-      let subtract (a: Float) (b: Float) : Float = Builtin.floatSubtract a b
+/// Add <type Float> <param a> to <type Float> <param b>
+let add (a: Float) (b: Float) : Float = Builtin.floatAdd a b
 
 
-      /// Multiply <type Float> <param a> by <type Float> <param b>
-      let multiply (a: Float) (b: Float) : Float = Builtin.floatMultiply a b
+/// Subtract <type Float> <param b> from <type Float> <param a>
+let subtract (a: Float) (b: Float) : Float = Builtin.floatSubtract a b
 
 
-      /// Returns <param base> raised to the power of <param exponent>
-      let power (``base``: Float) (exponent: Float) : Float =
-        Builtin.floatPower ``base`` exponent
+/// Multiply <type Float> <param a> by <type Float> <param b>
+let multiply (a: Float) (b: Float) : Float = Builtin.floatMultiply a b
 
 
-      /// Divide <type Float> <param a> by <type Float> <param b>
-      let divide (a: Float) (b: Float) : Float = Builtin.floatDivide a b
+/// Returns <param base> raised to the power of <param exponent>
+let power (``base``: Float) (exponent: Float) : Float =
+  Builtin.floatPower ``base`` exponent
 
 
-      /// Returns true if a is greater than b
-      let greaterThan (a: Float) (b: Float) : Bool = Builtin.floatGreaterThan a b
-
-      /// Returns true if a is greater than or equal to b
-      let greaterThanOrEqualTo (a: Float) (b: Float) : Bool =
-        Builtin.floatGreaterThanOrEqualTo a b
+/// Divide <type Float> <param a> by <type Float> <param b>
+let divide (a: Float) (b: Float) : Float = Builtin.floatDivide a b
 
 
-      /// Returns true if a is less than b
-      let lessThan (a: Float) (b: Float) : Bool = Builtin.floatLessThan a b
+/// Returns true if a is greater than b
+let greaterThan (a: Float) (b: Float) : Bool = Builtin.floatGreaterThan a b
+
+/// Returns true if a is greater than or equal to b
+let greaterThanOrEqualTo (a: Float) (b: Float) : Bool =
+  Builtin.floatGreaterThanOrEqualTo a b
 
 
-      /// Returns true if a is less than or equal to b
-      let lessThanOrEqualTo (a: Float) (b: Float) : Bool =
-        Builtin.floatLessThanOrEqualTo a b
+/// Returns true if a is less than b
+let lessThan (a: Float) (b: Float) : Bool = Builtin.floatLessThan a b
 
 
-      /// Returns the lesser of <type Float> <param a> and <type Float> <param b>
-      let min (a: Float) (b: Float) : Float =
-        if (Stdlib.Float.lessThan a b) then a else b
+/// Returns true if a is less than or equal to b
+let lessThanOrEqualTo (a: Float) (b: Float) : Bool =
+  Builtin.floatLessThanOrEqualTo a b
 
 
-      /// Returns the greater of <type Float> <param a> and <type Float> <param b>
-      let max (a: Float) (b: Float) : Float =
-        if (Stdlib.Float.greaterThan a b) then a else b
+/// Returns the lesser of <type Float> <param a> and <type Float> <param b>
+let min (a: Float) (b: Float) : Float =
+  if (Stdlib.Float.lessThan a b) then a else b
 
 
-      /// If <param value> is within the range given by <param limitA> and <param
-      /// limitB>, returns <param value>.
-      /// If <param value> is outside the range, returns <param limitA> or <param
-      /// limitB>, whichever is closer to <param value>.
-      /// Returns <param value> wrapped in a {{Result}}.
-      /// <param limitA> and <param limitB> can be provided in any order.
-      let clamp
-        (value: Float)
-        (limitA: Float)
-        (limitB: Float)
-        : Stdlib.Result.Result<Float, String> =
-        if Stdlib.Float.isNaN limitA || Stdlib.Float.isNaN limitB then
-          Stdlib.Result.Result.Error "clamp requires arguments to be valid numbers"
-        else
-          let (lower, upper) =
-            if Stdlib.Float.lessThan limitA limitB then
-              (limitA, limitB)
-            else
-              (limitB, limitA)
-
-          if Stdlib.Float.lessThan value lower then
-            Stdlib.Result.Result.Ok lower
-          else if Stdlib.Float.greaterThan value upper then
-            Stdlib.Result.Result.Ok upper
-          else
-            Stdlib.Result.Result.Ok value
+/// Returns the greater of <type Float> <param a> and <type Float> <param b>
+let max (a: Float) (b: Float) : Float =
+  if (Stdlib.Float.greaterThan a b) then a else b
 
 
-      /// Returns the <type Float> value wrapped in a {{Result}} of the <type String>
-      let parse (s: String) : Stdlib.Result.Result<Float, ParseError> =
-        Builtin.floatParse s
+/// If <param value> is within the range given by <param limitA> and <param
+/// limitB>, returns <param value>.
+/// If <param value> is outside the range, returns <param limitA> or <param
+/// limitB>, whichever is closer to <param value>.
+/// Returns <param value> wrapped in a {{Result}}.
+/// <param limitA> and <param limitB> can be provided in any order.
+let clamp
+  (value: Float)
+  (limitA: Float)
+  (limitB: Float)
+  : Stdlib.Result.Result<Float, String> =
+  if Stdlib.Float.isNaN limitA || Stdlib.Float.isNaN limitB then
+    Stdlib.Result.Result.Error "clamp requires arguments to be valid numbers"
+  else
+    let (lower, upper) =
+      if Stdlib.Float.lessThan limitA limitB then
+        (limitA, limitB)
+      else
+        (limitB, limitA)
+
+    if Stdlib.Float.lessThan value lower then
+      Stdlib.Result.Result.Ok lower
+    else if Stdlib.Float.greaterThan value upper then
+      Stdlib.Result.Result.Ok upper
+    else
+      Stdlib.Result.Result.Ok value
 
 
-      /// Stringify <param float>
-      let toString (a: Float) : String = Builtin.floatToString a
+/// Returns the <type Float> value wrapped in a {{Result}} of the <type String>
+let parse (s: String) : Stdlib.Result.Result<Float, ParseError> =
+  Builtin.floatParse s
 
 
-      /// Returns true if <param f> is NaN
-      let isNaN (f: Float) : Bool = Builtin.floatIsNaN f
+/// Stringify <param float>
+let toString (a: Float) : String = Builtin.floatToString a
+
+
+/// Returns true if <param f> is NaN
+let isNaN (f: Float) : Bool = Builtin.floatIsNaN f

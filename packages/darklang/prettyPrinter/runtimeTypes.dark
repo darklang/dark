@@ -1,462 +1,461 @@
-module Darklang =
-  module PrettyPrinter =
-    module RuntimeTypes =
-      let nameResolutionError
-        (nre: LanguageTools.RuntimeTypes.NameResolutionError)
-        : String =
-        match nre with
-        | NotFound names -> (Stdlib.String.join names ".") ++ " not found"
-        | InvalidName names -> (Stdlib.String.join names ".") ++ " is not a valid name"
-
-      let nameResolution<'a>
-        (nr: LanguageTools.RuntimeTypes.NameResolution<'a>)
-        (f: 'a -> String)
-        : String =
-        match nr with
-        | Ok a -> f a
-        | Error e -> nameResolutionError e
-
-
-      let packageName
-        (owner: String)
-        (modules: List<String>)
-        (name: String)
-        : String =
-        let modulesPart =
-          match modules with
-          | [] -> ""
-          | modules ->
-            let modules = Stdlib.String.join modules "."
-            $"{modules}."
-
-        match owner with
-        | "Tests" -> $"{modulesPart}{name}"
-        | _ -> $"PACKAGE.{owner}.{modulesPart}{name}"
-
-
-      module FQTypeName =
-        let package (id: LanguageTools.RuntimeTypes.FQTypeName.Package) : String =
-          match LanguageTools.PackageManager.Type.get id with
-          | Some p -> packageName p.name.owner p.name.modules p.name.name
-          | None -> Stdlib.Uuid.toString id
-
-      // TODO rename to fqtypeName?
-      let typeName (t: LanguageTools.RuntimeTypes.FQTypeName.FQTypeName) : String =
-        match t with
-        | Package p -> FQTypeName.package p
-
-
-      module FQValueName =
-        let builtIn (t: LanguageTools.RuntimeTypes.FQValueName.Builtin) : String =
-          let namePart = t.name
-
-          let versionPart =
-            if t.version == 0 then
-              ""
-            else
-              $"_v{Stdlib.Int32.toString t.version}"
-
-          $"{namePart}{versionPart}"
-
-        let package
-          (id: LanguageTools.RuntimeTypes.FQValueName.Package)
-          : String =
-          match LanguageTools.PackageManager.Value.get id with
-          | Some p -> packageName p.name.owner p.name.modules p.name.name
-          | None -> Stdlib.Uuid.toString id
-
-      // TODO rename to fqvalueName?
-      let valueName
-        (t: LanguageTools.RuntimeTypes.FQValueName.FQValueName)
-        : String =
-        match t with
-        | Builtin b -> FQValueName.builtIn b
-        | Package p -> FQValueName.package p
-
-
-      module FQFnName =
-        let builtIn (t: LanguageTools.RuntimeTypes.FQFnName.Builtin) : String =
-          let namePart = t.name
-
-          let versionPart =
-            if t.version == 0 then
-              ""
-            else
-              $"_v{Stdlib.Int32.toString t.version}"
-
-          $"Builtin.{namePart}{versionPart}"
-
-        let package (id: LanguageTools.RuntimeTypes.FQFnName.Package) : String =
-          match LanguageTools.PackageManager.Function.get id with
-          | Some p -> packageName p.name.owner p.name.modules p.name.name
-          | None -> Stdlib.Uuid.toString id
-
-
-      // TODO rename to fqfnName?
-      let fnName (t: LanguageTools.RuntimeTypes.FQFnName.FQFnName) : String =
-        match t with
-        | Builtin b -> FQFnName.builtIn b
-        | Package p -> FQFnName.package p
-
-
+module Darklang.PrettyPrinter.RuntimeTypes
+
+let nameResolutionError
+  (nre: LanguageTools.RuntimeTypes.NameResolutionError)
+  : String =
+  match nre with
+  | NotFound names -> (Stdlib.String.join names ".") ++ " not found"
+  | InvalidName names -> (Stdlib.String.join names ".") ++ " is not a valid name"
+
+let nameResolution<'a>
+  (nr: LanguageTools.RuntimeTypes.NameResolution<'a>)
+  (f: 'a -> String)
+  : String =
+  match nr with
+  | Ok a -> f a
+  | Error e -> nameResolutionError e
+
+
+let packageName
+  (owner: String)
+  (modules: List<String>)
+  (name: String)
+  : String =
+  let modulesPart =
+    match modules with
+    | [] -> ""
+    | modules ->
+      let modules = Stdlib.String.join modules "."
+      $"{modules}."
+
+  match owner with
+  | "Tests" -> $"{modulesPart}{name}"
+  | _ -> $"PACKAGE.{owner}.{modulesPart}{name}"
+
+
+module FQTypeName =
+  let package (id: LanguageTools.RuntimeTypes.FQTypeName.Package) : String =
+    match LanguageTools.PackageManager.Type.get id with
+    | Some p -> packageName p.name.owner p.name.modules p.name.name
+    | None -> Stdlib.Uuid.toString id
+
+// TODO rename to fqtypeName?
+let typeName (t: LanguageTools.RuntimeTypes.FQTypeName.FQTypeName) : String =
+  match t with
+  | Package p -> FQTypeName.package p
+
+
+module FQValueName =
+  let builtIn (t: LanguageTools.RuntimeTypes.FQValueName.Builtin) : String =
+    let namePart = t.name
+
+    let versionPart =
+      if t.version == 0 then
+        ""
+      else
+        $"_v{Stdlib.Int32.toString t.version}"
+
+    $"{namePart}{versionPart}"
+
+  let package
+    (id: LanguageTools.RuntimeTypes.FQValueName.Package)
+    : String =
+    match LanguageTools.PackageManager.Value.get id with
+    | Some p -> packageName p.name.owner p.name.modules p.name.name
+    | None -> Stdlib.Uuid.toString id
+
+// TODO rename to fqvalueName?
+let valueName
+  (t: LanguageTools.RuntimeTypes.FQValueName.FQValueName)
+  : String =
+  match t with
+  | Builtin b -> FQValueName.builtIn b
+  | Package p -> FQValueName.package p
+
 
-      let typeReference (t: LanguageTools.RuntimeTypes.TypeReference) : String =
-        match t with
-        | TUnit -> "Unit"
-        | TBool -> "Bool"
+module FQFnName =
+  let builtIn (t: LanguageTools.RuntimeTypes.FQFnName.Builtin) : String =
+    let namePart = t.name
+
+    let versionPart =
+      if t.version == 0 then
+        ""
+      else
+        $"_v{Stdlib.Int32.toString t.version}"
+
+    $"Builtin.{namePart}{versionPart}"
+
+  let package (id: LanguageTools.RuntimeTypes.FQFnName.Package) : String =
+    match LanguageTools.PackageManager.Function.get id with
+    | Some p -> packageName p.name.owner p.name.modules p.name.name
+    | None -> Stdlib.Uuid.toString id
+
+
+// TODO rename to fqfnName?
+let fnName (t: LanguageTools.RuntimeTypes.FQFnName.FQFnName) : String =
+  match t with
+  | Builtin b -> FQFnName.builtIn b
+  | Package p -> FQFnName.package p
+
+
+
+let typeReference (t: LanguageTools.RuntimeTypes.TypeReference) : String =
+  match t with
+  | TUnit -> "Unit"
+  | TBool -> "Bool"
+
+  | TInt8 -> "Int8"
+  | TUInt8 -> "UInt8"
+  | TInt16 -> "Int16"
+  | TUInt16 -> "UInt16"
+  | TInt32 -> "Int32"
+  | TUInt32 -> "UInt32"
+  | TInt64 -> "Int64"
+  | TUInt64 -> "UInt64"
+  | TInt128 -> "Int128"
+  | TUInt128 -> "UInt128"
+
+  | TFloat -> "Float"
+
+  | TChar -> "Char"
+  | TString -> "String"
 
-        | TInt8 -> "Int8"
-        | TUInt8 -> "UInt8"
-        | TInt16 -> "Int16"
-        | TUInt16 -> "UInt16"
-        | TInt32 -> "Int32"
-        | TUInt32 -> "UInt32"
-        | TInt64 -> "Int64"
-        | TUInt64 -> "UInt64"
-        | TInt128 -> "Int128"
-        | TUInt128 -> "UInt128"
-
-        | TFloat -> "Float"
+  | TUuid -> "Uuid"
 
-        | TChar -> "Char"
-        | TString -> "String"
-
-        | TUuid -> "Uuid"
-
-        | TDateTime -> "DateTime"
-
-        | TTuple(first, second, theRest) ->
-          (Stdlib.List.append [ first; second ] theRest)
-          |> Stdlib.List.map (fun item -> typeReference item)
-          |> Stdlib.String.join " * "
-          |> fun parts -> "(" ++ parts ++ ")"
-
-        | TList inner -> $"List<{typeReference inner}>"
-
-        | TDict inner -> $"Dict<{typeReference inner}>"
-
-        | TCustomType(typ, args) ->
-          let argsPart =
-            match args with
-            | [] -> ""
-            | args ->
-              args
-              |> Stdlib.List.map (fun arg -> typeReference arg)
-              |> Stdlib.String.join ", "
-              |> fun parts -> $"<{parts}>"
-
-          let typeNamePart =
-            match typ with
-            | Ok name -> typeName name
-            | Error e -> nameResolutionError e
-
-          $"{typeNamePart}{argsPart}"
-
-
-        | TFn(args, ret) ->
-          let argPart =
-            args
-            |> Stdlib.List.map (fun arg -> typeReference arg)
-            |> Stdlib.String.join ", "
-            |> fun parts -> "(" ++ parts ++ ")"
-
-          $"{argPart} -> {typeReference ret}"
-
-
-        | TDB inner -> $"DB<{typeReference inner}>"
-
-        | TVariable varName -> "'" ++ varName
-
-
-      let knownType (t: LanguageTools.RuntimeTypes.KnownType) : String =
-        match t with
-        | KTUnit -> "Unit"
-        | KTBool -> "Bool"
-
-        | KTInt8 -> "Int8"
-        | KTUInt8 -> "UInt8"
-        | KTInt16 -> "Int16"
-        | KTUInt16 -> "UInt16"
-        | KTInt32 -> "Int32"
-        | KTUInt32 -> "UInt32"
-        | KTInt64 -> "Int64"
-        | KTUInt64 -> "UInt64"
-        | KTInt128 -> "Int128"
-        | KTUInt128 -> "UInt128"
-
-        | KTFloat -> "Float"
-
-        | KTChar -> "Char"
-        | KTString -> "String"
-
-        | KTDateTime -> "DateTime"
-        | KTUuid -> "Uuid"
-
-        | KTTuple(t1, t2, trest) ->
-          (Stdlib.List.append [ t1; t2 ] trest)
-          |> Stdlib.List.map (fun item -> valueType item)
-          |> Stdlib.String.join " * "
-          |> fun s -> $"({s})"
-        | KTList typ -> $"List<{valueType typ}>"
-        | KTDict typ -> $"Dict<{valueType typ}>"
-
-        | KTFn(argTypes, retType) ->
-          (Stdlib.List.push argTypes retType)
-          |> Stdlib.List.map (fun vt -> valueType vt)
-          |> Stdlib.String.join " -> "
-
-        | KTCustomType(name, typeArgs) ->
-          let typeArgsPortion =
-            match typeArgs with
-            | [] -> ""
-            | args ->
-              args
-              |> Stdlib.List.map (fun t -> valueType t)
-              |> Stdlib.String.join ", "
-              |> fun betweenBrackets -> "<" ++ betweenBrackets ++ ">"
-
-          (typeName name) ++ typeArgsPortion
-
-        | KTDB typ -> $"Datastore<{valueType typ}>"
-
-
-      let valueType (vt: LanguageTools.RuntimeTypes.ValueType) : String =
-        match vt with
-        | Known kt -> knownType kt
-        | Unknown -> "_"
-
-      let letPattern (pat: LanguageTools.RuntimeTypes.LetPattern) : String =
-        match pat with
-        | LPVariable _reg ->
-          // TODO clearly this is not ideal.
-          "[variable]"
-        | LPUnit -> "()"
-        | LPTuple(first, second, theRest) ->
-          let parts = Stdlib.List.append [ first; second ] theRest
-          let parts = Stdlib.List.map parts (fun p -> letPattern p)
-          let parts = Stdlib.String.join parts ", "
-          $"({parts})"
-
-
-      module Dval =
-        let valueTypeName (dv: LanguageTools.RuntimeTypes.Dval) : String =
-          // TODO: When a builtin for Dval.toValueType is available, use:
-          // dv |> LanguageTools.RuntimeTypes.Dval.toValueType |> valueType
-          // This mirrors DvalReprDeveloper.toTypeName
-          // If a builtin is ever exposed, we could simplify to: Builtin.dvalToTypeName dv
-          match dv with
-          | DUnit -> "Unit"
-          | DBool _ -> "Bool"
-          | DInt8 _ -> "Int8"
-          | DUInt8 _ -> "UInt8"
-          | DInt16 _ -> "Int16"
-          | DUInt16 _ -> "UInt16"
-          | DInt32 _ -> "Int32"
-          | DUInt32 _ -> "UInt32"
-          | DInt64 _ -> "Int64"
-          | DUInt64 _ -> "UInt64"
-          | DInt128 _ -> "Int128"
-          | DUInt128 _ -> "UInt128"
-          | DFloat _ -> "Float"
-          | DChar _ -> "Char"
-          | DString _ -> "String"
-          | DDateTime _ -> "DateTime"
-          | DUuid _ -> "Uuid"
-          | DTuple(first, second, theRest) ->
-            let types = Stdlib.List.append [ first; second ] theRest
-            types
-            |> Stdlib.List.map (fun item -> valueTypeName item)
-            |> Stdlib.String.join " * "
-            |> fun parts -> "(" ++ parts ++ ")"
-          | DList (vt, _) -> $"List<{valueType vt}>"
-          | DDict (vt, _) -> $"Dict<{valueType vt}>"
-          | DRecord (_, typeName, typeArgs, _) ->
-            let typeArgsPart =
-              match typeArgs with
-              | [] -> ""
-              | args ->
-                args
-                |> Stdlib.List.map (fun t -> valueType t)
-                |> Stdlib.String.join ", "
-                |> fun parts -> $"<{parts}>"
-            (typeName typeName) ++ typeArgsPart
-          | DEnum (_, typeName, typeArgs, _, _) ->
-            let typeArgsPart =
-              match typeArgs with
-              | [] -> ""
-              | args ->
-                args
-                |> Stdlib.List.map (fun t -> valueType t)
-                |> Stdlib.String.join ", "
-                |> fun parts -> $"<{parts}>"
-            (typeName typeName) ++ typeArgsPart
-          | DDB _ -> "Datastore"
-          | DApplicable (AppNamedFn _) -> "Function"
-          | DApplicable (AppLambda _) -> "Lambda"
-
-        let makeSpaces (len: Int64) : String =
-          match Stdlib.List.repeat len " " with
-          | Ok spaces -> spaces |> Stdlib.String.join ""
-          | Error _ -> ""
-
-        let withIndent
-          (indent: Int64)
-          (dv: LanguageTools.RuntimeTypes.Dval)
-          : String =
-          let nl = "\n" ++ (makeSpaces indent)
-          let inl = "\n" ++ (makeSpaces (indent + 2L))
-          let indent = indent + 2L
-
-          let valueTypeName = valueTypeName dv
-
-          match dv with
-          | DUnit -> "()"
-
-          | DBool true -> "true"
-          | DBool false -> "false"
-
-          | DChar c ->
-            let c = Stdlib.Char.toString c
-            $"'{c}'"
-          | DString s -> $"\"{s}\""
-
-          | DInt8 i -> Builtin.int8ToString i
-          | DUInt8 i -> Builtin.uint8ToString i
-          | DInt16 i -> Builtin.int16ToString i
-          | DUInt16 i -> Builtin.uint16ToString i
-          | DInt32 i -> Builtin.int32ToString i
-          | DUInt32 i -> Builtin.uint32ToString i
-          | DInt64 i -> Builtin.int64ToString i
-          | DUInt64 i -> Builtin.uint64ToString i
-          | DInt128 i -> Builtin.int128ToString i
-          | DUInt128 i -> Builtin.uint128ToString i
-
-          | DFloat f -> Stdlib.Float.toString f // CLEANUP: deal with Infinity, NegativeInfinity, and NaN
-
-          | DDateTime d -> $"<{valueTypeName}: {Stdlib.DateTime.toString d}>"
-
-          | DUuid uuid -> $"<{valueTypeName}: {Stdlib.Uuid.toString uuid}>"
-
-
-          | DTuple(first, second, theRest) ->
-            let l = Stdlib.List.append [ first; second ] theRest
-
-            let parts = Stdlib.List.map l (fun item -> withIndent indent item)
-
-            let short = Stdlib.String.join parts ", "
-
-            if Stdlib.String.length short <= 80L then
-              $"({short})"
-            else
-              let long = Stdlib.String.join parts $"{inl}, "
-
-              $"({inl}{long}{nl})"
-
-
-          | DList(vt, l) ->
-            if Stdlib.List.isEmpty l then
-              $"{valueTypeName} []"
-            else
-              let elems =
-                Stdlib.String.join
-                  (Stdlib.List.map l (fun item -> withIndent indent item))
-                  ", "
-
-              $"[{inl}{elems}{nl}]"
-
-
-          | DDict(_, d) ->
-            if d == Stdlib.Dict.empty then
-              "{}"
-            else
-              let strs =
-                d
-                |> Stdlib.Dict.toList
-                |> Stdlib.List.map (fun pair ->
-                  let (key, value) = pair
-                  $"{key}: {withIndent indent value}")
-
-              let elems = Stdlib.String.join strs $",{inl}"
-              "{" ++ inl ++ elems ++ nl ++ "}"
-
-
-          | DEnum(_, typeName, typeArgs, caseName, fields) ->
-            let typeArgsPart =
-              match typeArgs with
-              | [] -> ""
-              | typeArgs ->
-                typeArgs
-                |> Stdlib.List.map (fun typeArg -> valueType typeArg)
-                |> Stdlib.String.join ", "
-                |> fun parts -> $"<{parts}>"
-
-            let short =
-              let fieldStr =
-                fields
-                |> Stdlib.List.map (fun value -> withIndent indent value)
-                |> Stdlib.String.join ", "
-
-              let fieldStr = if fieldStr == "" then "" else $"({fieldStr})"
-
-              let typeStr = typeName typeName
-              $"{typeStr}{typeArgsPart}.{caseName}{fieldStr}"
-
-            if Stdlib.String.length short <= 80L then
-              short
-            else
-              let fieldStr =
-                fields
-                |> Stdlib.List.map (fun value -> withIndent indent value)
-                |> Stdlib.String.join $",{inl}"
-
-              let fieldStr = if fieldStr == "" then "" else $"({inl}{fieldStr}{nl})"
-
-              let typeStr = typeName typeName
-              $"{typeStr}{typeArgsPart}.{caseName}{fieldStr}"
-
-
-          | DRecord(_, typeName, typeArgs, o) ->
-            let strs =
-              o
-              |> Stdlib.Dict.toList
-              |> Stdlib.List.map (fun pair ->
-                let (key, value) = pair
-                $"{key}: {withIndent indent value}")
-
-            let elems = Stdlib.String.join strs $",{inl}"
-            let typeStr = typeName typeName
-
-            let typeArgsPart =
-              match typeArgs with
-              | [] -> ""
-              | args ->
-                args
-                |> Stdlib.List.map (fun t -> valueTypeName t)
-                |> Stdlib.String.join ", "
-                |> fun betweenBrackets -> "<" + betweenBrackets + ">"
-
-            typeStr ++ typeArgsPart ++ " {" ++ inl ++ elems ++ nl ++ "}"
-
-
-          | DApplicable(AppNamedFn namedFn) ->
-            PrettyPrinter.RuntimeTypes.fnName namedFn.name
-
-          | DApplicable(AppLambda _lambda) ->
-            // // Note: this use case is safe (RE docs/dblock-serialization.md)
-            // let ps =
-            //   impl.parameters
-            //   |> Stdlib.List.map Stdlib.Tuple2.second
-            //   |> Stdlib.String.join ", "
-
-            // // TODO
-            // // let body = impl.body |> RuntimeTypes.Expr.toString
-            // $"\\ {ps} {{ ... }}"
-            "(lambda)"
-
-
-          | DDB name -> $"<{valueTypeName}: {name}>"
-
-
-
-      let dval (dv: LanguageTools.RuntimeTypes.Dval) : String =
-        Dval.withIndent 0L dv
+  | TDateTime -> "DateTime"
+
+  | TTuple(first, second, theRest) ->
+    (Stdlib.List.append [ first; second ] theRest)
+    |> Stdlib.List.map (fun item -> typeReference item)
+    |> Stdlib.String.join " * "
+    |> fun parts -> "(" ++ parts ++ ")"
+
+  | TList inner -> $"List<{typeReference inner}>"
+
+  | TDict inner -> $"Dict<{typeReference inner}>"
+
+  | TCustomType(typ, args) ->
+    let argsPart =
+      match args with
+      | [] -> ""
+      | args ->
+        args
+        |> Stdlib.List.map (fun arg -> typeReference arg)
+        |> Stdlib.String.join ", "
+        |> fun parts -> $"<{parts}>"
+
+    let typeNamePart =
+      match typ with
+      | Ok name -> typeName name
+      | Error e -> nameResolutionError e
+
+    $"{typeNamePart}{argsPart}"
+
+
+  | TFn(args, ret) ->
+    let argPart =
+      args
+      |> Stdlib.List.map (fun arg -> typeReference arg)
+      |> Stdlib.String.join ", "
+      |> fun parts -> "(" ++ parts ++ ")"
+
+    $"{argPart} -> {typeReference ret}"
+
+
+  | TDB inner -> $"DB<{typeReference inner}>"
+
+  | TVariable varName -> "'" ++ varName
+
+
+let knownType (t: LanguageTools.RuntimeTypes.KnownType) : String =
+  match t with
+  | KTUnit -> "Unit"
+  | KTBool -> "Bool"
+
+  | KTInt8 -> "Int8"
+  | KTUInt8 -> "UInt8"
+  | KTInt16 -> "Int16"
+  | KTUInt16 -> "UInt16"
+  | KTInt32 -> "Int32"
+  | KTUInt32 -> "UInt32"
+  | KTInt64 -> "Int64"
+  | KTUInt64 -> "UInt64"
+  | KTInt128 -> "Int128"
+  | KTUInt128 -> "UInt128"
+
+  | KTFloat -> "Float"
+
+  | KTChar -> "Char"
+  | KTString -> "String"
+
+  | KTDateTime -> "DateTime"
+  | KTUuid -> "Uuid"
+
+  | KTTuple(t1, t2, trest) ->
+    (Stdlib.List.append [ t1; t2 ] trest)
+    |> Stdlib.List.map (fun item -> valueType item)
+    |> Stdlib.String.join " * "
+    |> fun s -> $"({s})"
+  | KTList typ -> $"List<{valueType typ}>"
+  | KTDict typ -> $"Dict<{valueType typ}>"
+
+  | KTFn(argTypes, retType) ->
+    (Stdlib.List.push argTypes retType)
+    |> Stdlib.List.map (fun vt -> valueType vt)
+    |> Stdlib.String.join " -> "
+
+  | KTCustomType(name, typeArgs) ->
+    let typeArgsPortion =
+      match typeArgs with
+      | [] -> ""
+      | args ->
+        args
+        |> Stdlib.List.map (fun t -> valueType t)
+        |> Stdlib.String.join ", "
+        |> fun betweenBrackets -> "<" ++ betweenBrackets ++ ">"
+
+    (typeName name) ++ typeArgsPortion
+
+  | KTDB typ -> $"Datastore<{valueType typ}>"
+
+
+let valueType (vt: LanguageTools.RuntimeTypes.ValueType) : String =
+  match vt with
+  | Known kt -> knownType kt
+  | Unknown -> "_"
+
+let letPattern (pat: LanguageTools.RuntimeTypes.LetPattern) : String =
+  match pat with
+  | LPVariable _reg ->
+    // TODO clearly this is not ideal.
+    "[variable]"
+  | LPUnit -> "()"
+  | LPTuple(first, second, theRest) ->
+    let parts = Stdlib.List.append [ first; second ] theRest
+    let parts = Stdlib.List.map parts (fun p -> letPattern p)
+    let parts = Stdlib.String.join parts ", "
+    $"({parts})"
+
+
+module Dval =
+  let valueTypeName (dv: LanguageTools.RuntimeTypes.Dval) : String =
+    // TODO: When a builtin for Dval.toValueType is available, use:
+    // dv |> LanguageTools.RuntimeTypes.Dval.toValueType |> valueType
+    // This mirrors DvalReprDeveloper.toTypeName
+    // If a builtin is ever exposed, we could simplify to: Builtin.dvalToTypeName dv
+    match dv with
+    | DUnit -> "Unit"
+    | DBool _ -> "Bool"
+    | DInt8 _ -> "Int8"
+    | DUInt8 _ -> "UInt8"
+    | DInt16 _ -> "Int16"
+    | DUInt16 _ -> "UInt16"
+    | DInt32 _ -> "Int32"
+    | DUInt32 _ -> "UInt32"
+    | DInt64 _ -> "Int64"
+    | DUInt64 _ -> "UInt64"
+    | DInt128 _ -> "Int128"
+    | DUInt128 _ -> "UInt128"
+    | DFloat _ -> "Float"
+    | DChar _ -> "Char"
+    | DString _ -> "String"
+    | DDateTime _ -> "DateTime"
+    | DUuid _ -> "Uuid"
+    | DTuple(first, second, theRest) ->
+      let types = Stdlib.List.append [ first; second ] theRest
+      types
+      |> Stdlib.List.map (fun item -> valueTypeName item)
+      |> Stdlib.String.join " * "
+      |> fun parts -> "(" ++ parts ++ ")"
+    | DList (vt, _) -> $"List<{valueType vt}>"
+    | DDict (vt, _) -> $"Dict<{valueType vt}>"
+    | DRecord (_, typeName, typeArgs, _) ->
+      let typeArgsPart =
+        match typeArgs with
+        | [] -> ""
+        | args ->
+          args
+          |> Stdlib.List.map (fun t -> valueType t)
+          |> Stdlib.String.join ", "
+          |> fun parts -> $"<{parts}>"
+      (typeName typeName) ++ typeArgsPart
+    | DEnum (_, typeName, typeArgs, _, _) ->
+      let typeArgsPart =
+        match typeArgs with
+        | [] -> ""
+        | args ->
+          args
+          |> Stdlib.List.map (fun t -> valueType t)
+          |> Stdlib.String.join ", "
+          |> fun parts -> $"<{parts}>"
+      (typeName typeName) ++ typeArgsPart
+    | DDB _ -> "Datastore"
+    | DApplicable (AppNamedFn _) -> "Function"
+    | DApplicable (AppLambda _) -> "Lambda"
+
+  let makeSpaces (len: Int64) : String =
+    match Stdlib.List.repeat len " " with
+    | Ok spaces -> spaces |> Stdlib.String.join ""
+    | Error _ -> ""
+
+  let withIndent
+    (indent: Int64)
+    (dv: LanguageTools.RuntimeTypes.Dval)
+    : String =
+    let nl = "\n" ++ (makeSpaces indent)
+    let inl = "\n" ++ (makeSpaces (indent + 2L))
+    let indent = indent + 2L
+
+    let valueTypeName = valueTypeName dv
+
+    match dv with
+    | DUnit -> "()"
+
+    | DBool true -> "true"
+    | DBool false -> "false"
+
+    | DChar c ->
+      let c = Stdlib.Char.toString c
+      $"'{c}'"
+    | DString s -> $"\"{s}\""
+
+    | DInt8 i -> Builtin.int8ToString i
+    | DUInt8 i -> Builtin.uint8ToString i
+    | DInt16 i -> Builtin.int16ToString i
+    | DUInt16 i -> Builtin.uint16ToString i
+    | DInt32 i -> Builtin.int32ToString i
+    | DUInt32 i -> Builtin.uint32ToString i
+    | DInt64 i -> Builtin.int64ToString i
+    | DUInt64 i -> Builtin.uint64ToString i
+    | DInt128 i -> Builtin.int128ToString i
+    | DUInt128 i -> Builtin.uint128ToString i
+
+    | DFloat f -> Stdlib.Float.toString f // CLEANUP: deal with Infinity, NegativeInfinity, and NaN
+
+    | DDateTime d -> $"<{valueTypeName}: {Stdlib.DateTime.toString d}>"
+
+    | DUuid uuid -> $"<{valueTypeName}: {Stdlib.Uuid.toString uuid}>"
+
+
+    | DTuple(first, second, theRest) ->
+      let l = Stdlib.List.append [ first; second ] theRest
+
+      let parts = Stdlib.List.map l (fun item -> withIndent indent item)
+
+      let short = Stdlib.String.join parts ", "
+
+      if Stdlib.String.length short <= 80L then
+        $"({short})"
+      else
+        let long = Stdlib.String.join parts $"{inl}, "
+
+        $"({inl}{long}{nl})"
+
+
+    | DList(vt, l) ->
+      if Stdlib.List.isEmpty l then
+        $"{valueTypeName} []"
+      else
+        let elems =
+          Stdlib.String.join
+            (Stdlib.List.map l (fun item -> withIndent indent item))
+            ", "
+
+        $"[{inl}{elems}{nl}]"
+
+
+    | DDict(_, d) ->
+      if d == Stdlib.Dict.empty then
+        "{}"
+      else
+        let strs =
+          d
+          |> Stdlib.Dict.toList
+          |> Stdlib.List.map (fun pair ->
+            let (key, value) = pair
+            $"{key}: {withIndent indent value}")
+
+        let elems = Stdlib.String.join strs $",{inl}"
+        "{" ++ inl ++ elems ++ nl ++ "}"
+
+
+    | DEnum(_, typeName, typeArgs, caseName, fields) ->
+      let typeArgsPart =
+        match typeArgs with
+        | [] -> ""
+        | typeArgs ->
+          typeArgs
+          |> Stdlib.List.map (fun typeArg -> valueType typeArg)
+          |> Stdlib.String.join ", "
+          |> fun parts -> $"<{parts}>"
+
+      let short =
+        let fieldStr =
+          fields
+          |> Stdlib.List.map (fun value -> withIndent indent value)
+          |> Stdlib.String.join ", "
+
+        let fieldStr = if fieldStr == "" then "" else $"({fieldStr})"
+
+        let typeStr = typeName typeName
+        $"{typeStr}{typeArgsPart}.{caseName}{fieldStr}"
+
+      if Stdlib.String.length short <= 80L then
+        short
+      else
+        let fieldStr =
+          fields
+          |> Stdlib.List.map (fun value -> withIndent indent value)
+          |> Stdlib.String.join $",{inl}"
+
+        let fieldStr = if fieldStr == "" then "" else $"({inl}{fieldStr}{nl})"
+
+        let typeStr = typeName typeName
+        $"{typeStr}{typeArgsPart}.{caseName}{fieldStr}"
+
+
+    | DRecord(_, typeName, typeArgs, o) ->
+      let strs =
+        o
+        |> Stdlib.Dict.toList
+        |> Stdlib.List.map (fun pair ->
+          let (key, value) = pair
+          $"{key}: {withIndent indent value}")
+
+      let elems = Stdlib.String.join strs $",{inl}"
+      let typeStr = typeName typeName
+
+      let typeArgsPart =
+        match typeArgs with
+        | [] -> ""
+        | args ->
+          args
+          |> Stdlib.List.map (fun t -> valueTypeName t)
+          |> Stdlib.String.join ", "
+          |> fun betweenBrackets -> "<" + betweenBrackets + ">"
+
+      typeStr ++ typeArgsPart ++ " {" ++ inl ++ elems ++ nl ++ "}"
+
+
+    | DApplicable(AppNamedFn namedFn) ->
+      PrettyPrinter.RuntimeTypes.fnName namedFn.name
+
+    | DApplicable(AppLambda _lambda) ->
+      // // Note: this use case is safe (RE docs/dblock-serialization.md)
+      // let ps =
+      //   impl.parameters
+      //   |> Stdlib.List.map Stdlib.Tuple2.second
+      //   |> Stdlib.String.join ", "
+
+      // // TODO
+      // // let body = impl.body |> RuntimeTypes.Expr.toString
+      // $"\\ {ps} {{ ... }}"
+      "(lambda)"
+
+
+    | DDB name -> $"<{valueTypeName}: {name}>"
+
+
+
+let dval (dv: LanguageTools.RuntimeTypes.Dval) : String =
+  Dval.withIndent 0L dv

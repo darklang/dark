@@ -1,124 +1,122 @@
 // Server->Client request to show a document (by URI)
-module Darklang =
-  module LanguageServerProtocol =
-    module Window =
-      module ShowDocument =
-        /// Client capabilities for the showDocument request.
-        type ShowDocumentClientCapabilities = { support: Bool }
+module Darklang.LanguageServerProtocol.Window.ShowDocument
 
-        module ShowDocumentRequest =
-          let method = "window/showDocument"
-          // let messageDirection = MessageDirection.ServerToClient
+/// Client capabilities for the showDocument request.
+type ShowDocumentClientCapabilities = { support: Bool }
 
-          module ShowDocumentParams =
-            type ShowDocumentParams =
-              {
-                /// The uri to show
-                uri: String
-                /// Indicates to show the resource in an external program (i.e. web browser)
-                external: Stdlib.Option.Option<Bool>
-                /// An optional property to indicate whether the editor showing the document should take focus or not.
-                /// Clients might ignore this property if an external program is started.
-                takeFocus: Stdlib.Option.Option<Bool>
-                /// An optional selection range if the document is a text document.
-                /// Clients might ignore the property if an external program is started or the file is not a text file.
-                selection: Stdlib.Option.Option<LanguageServerProtocol.Range.Range>
-              }
+module ShowDocumentRequest =
+  let method = "window/showDocument"
+  // let messageDirection = MessageDirection.ServerToClient
 
-            let fromJson
-              (json: Json)
-              : Stdlib.Result.Result<ShowDocumentParams, Unit> =
-              match json with
-              | Object fields ->
-                let uri =
-                  match
-                    Stdlib.List.findFirst fields (fun (key, _) -> key == "uri")
-                  with
-                  | Some((_, String uri)) -> Stdlib.Result.Result.Ok uri
-                  | _ -> Stdlib.Result.Result.Error()
+  module ShowDocumentParams =
+    type ShowDocumentParams =
+      {
+        /// The uri to show
+        uri: String
+        /// Indicates to show the resource in an external program (i.e. web browser)
+        external: Stdlib.Option.Option<Bool>
+        /// An optional property to indicate whether the editor showing the document should take focus or not.
+        /// Clients might ignore this property if an external program is started.
+        takeFocus: Stdlib.Option.Option<Bool>
+        /// An optional selection range if the document is a text document.
+        /// Clients might ignore the property if an external program is started or the file is not a text file.
+        selection: Stdlib.Option.Option<LanguageServerProtocol.Range.Range>
+      }
 
-                let external =
-                  match
-                    Stdlib.List.findFirst fields (fun (key, _) -> key == "external")
-                  with
-                  | Some((_, Bool external)) -> Stdlib.Option.Option.Some external
-                  | _ -> Stdlib.Option.Option.None
+    let fromJson
+      (json: Json)
+      : Stdlib.Result.Result<ShowDocumentParams, Unit> =
+      match json with
+      | Object fields ->
+        let uri =
+          match
+            Stdlib.List.findFirst fields (fun (key, _) -> key == "uri")
+          with
+          | Some((_, String uri)) -> Stdlib.Result.Result.Ok uri
+          | _ -> Stdlib.Result.Result.Error()
 
-                let takeFocus =
-                  match
-                    Stdlib.List.findFirst fields (fun (key, _) -> key == "takeFocus")
-                  with
-                  | Some((_, Bool takeFocus)) -> Stdlib.Option.Option.Some takeFocus
-                  | _ -> Stdlib.Option.Option.None
+        let external =
+          match
+            Stdlib.List.findFirst fields (fun (key, _) -> key == "external")
+          with
+          | Some((_, Bool external)) -> Stdlib.Option.Option.Some external
+          | _ -> Stdlib.Option.Option.None
 
-                let selection =
-                  match
-                    Stdlib.List.findFirst fields (fun (key, _) -> key == "selection")
-                  with
-                  | Some((_, selection)) -> Range.fromJson selection
-                  | _ -> Stdlib.Option.Option.None
+        let takeFocus =
+          match
+            Stdlib.List.findFirst fields (fun (key, _) -> key == "takeFocus")
+          with
+          | Some((_, Bool takeFocus)) -> Stdlib.Option.Option.Some takeFocus
+          | _ -> Stdlib.Option.Option.None
 
-                match uri with
-                | Ok uri ->
-                  (ShowDocumentParams
-                    { uri = uri
-                      external = external
-                      takeFocus = takeFocus
-                      selection = selection })
-                  |> Stdlib.Result.Result.Ok
+        let selection =
+          match
+            Stdlib.List.findFirst fields (fun (key, _) -> key == "selection")
+          with
+          | Some((_, selection)) -> Range.fromJson selection
+          | _ -> Stdlib.Option.Option.None
 
-                | _ -> Stdlib.Result.Result.Error()
+        match uri with
+        | Ok uri ->
+          (ShowDocumentParams
+            { uri = uri
+              external = external
+              takeFocus = takeFocus
+              selection = selection })
+          |> Stdlib.Result.Result.Ok
+
+        | _ -> Stdlib.Result.Result.Error()
 
 
-            let toJson (params: ShowDocumentParams) : Json =
-              let fields =
-                [ params.uri
-                  |> (fun uri -> ("uri", uri |> Json.String))
-                  |> Stdlib.Option.Option.Some
+    let toJson (params: ShowDocumentParams) : Json =
+      let fields =
+        [ params.uri
+          |> (fun uri -> ("uri", uri |> Json.String))
+          |> Stdlib.Option.Option.Some
 
-                  params.external
-                  |> Stdlib.Option.map (fun external ->
-                    ("external", external |> Json.Bool))
+          params.external
+          |> Stdlib.Option.map (fun external ->
+            ("external", external |> Json.Bool))
 
-                  params.takeFocus
-                  |> Stdlib.Option.map (fun takeFocus ->
-                    ("takeFocus", takeFocus |> Json.Bool))
+          params.takeFocus
+          |> Stdlib.Option.map (fun takeFocus ->
+            ("takeFocus", takeFocus |> Json.Bool))
 
-                  params.selection
-                  |> Stdlib.Option.map (fun selection ->
-                    ("selection", Range.toJson selection)) ]
-                |> Stdlib.Option.values
+          params.selection
+          |> Stdlib.Option.map (fun selection ->
+            ("selection", Range.toJson selection)) ]
+        |> Stdlib.Option.values
 
-              Json.Object fields
+      Json.Object fields
 
 
-        module ShowDocumentResult =
-          type ShowDocumentResult =
-            {
-              /// A boolean indicating if the show was successful.
-              success: Bool
-            }
+module ShowDocumentResult =
+  type ShowDocumentResult =
+    {
+      /// A boolean indicating if the show was successful.
+      success: Bool
+    }
 
-          let toJson (result: ShowDocumentResult) : Json =
-            Json.Object [ ("success", result.success |> Json.Bool) ]
+  let toJson (result: ShowDocumentResult) : Json =
+    Json.Object [ ("success", result.success |> Json.Bool) ]
 
-          let fromJson
-            (json: Json)
-            : Stdlib.Result.Result<ShowDocumentResult, Unit> =
-            match json with
-            | Object fields ->
-              let success =
-                match
-                  Stdlib.List.findFirst fields (fun (key, _) -> key == "success")
-                with
-                | Some((_, Bool success)) -> Stdlib.Result.Result.Ok success
-                | _ -> Stdlib.Result.Result.Error()
+  let fromJson
+    (json: Json)
+    : Stdlib.Result.Result<ShowDocumentResult, Unit> =
+    match json with
+    | Object fields ->
+      let success =
+        match
+          Stdlib.List.findFirst fields (fun (key, _) -> key == "success")
+        with
+        | Some((_, Bool success)) -> Stdlib.Result.Result.Ok success
+        | _ -> Stdlib.Result.Result.Error()
 
-              match success with
-              | Ok success ->
-                (ShowDocumentResult { success = success }) |> Stdlib.Result.Result.Ok
+      match success with
+      | Ok success ->
+        (ShowDocumentResult { success = success }) |> Stdlib.Result.Result.Ok
 
-              | _ -> Stdlib.Result.Result.Error()
+      | _ -> Stdlib.Result.Result.Error()
 
 (*
   /// A request to show a document in the UI

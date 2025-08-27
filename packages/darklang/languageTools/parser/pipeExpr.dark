@@ -1,162 +1,161 @@
-module Darklang =
-  module LanguageTools =
-    module Parser =
-      module PipeExpr =
-        let parsePipeInfix
-          (node: ParsedNode)
-          : Stdlib.Result.Result<WrittenTypes.PipeExpr, WrittenTypes.Unparseable> =
-          let operatorNode = findField node "operator"
-
-          let operator =
-            match operatorNode with
-            | Ok op ->
-              match getText op with
-              | "+" ->
-                WrittenTypes.Infix.InfixFnCall
-                  WrittenTypes.InfixFnName.ArithmeticPlus
-              | "-" ->
-                WrittenTypes.Infix.InfixFnCall
-                  WrittenTypes.InfixFnName.ArithmeticMinus
-              | "*" ->
-                WrittenTypes.Infix.InfixFnCall
-                  WrittenTypes.InfixFnName.ArithmeticMultiply
-              | "/" ->
-                WrittenTypes.Infix.InfixFnCall
-                  WrittenTypes.InfixFnName.ArithmeticDivide
-              | "%" ->
-                WrittenTypes.Infix.InfixFnCall
-                  WrittenTypes.InfixFnName.ArithmeticModulo
-              | "^" ->
-                WrittenTypes.Infix.InfixFnCall
-                  WrittenTypes.InfixFnName.ArithmeticPower
-              | ">" ->
-                WrittenTypes.Infix.InfixFnCall
-                  WrittenTypes.InfixFnName.ComparisonGreaterThan
-              | ">=" ->
-                WrittenTypes.Infix.InfixFnCall
-                  WrittenTypes.InfixFnName.ComparisonGreaterThanOrEqual
-              | "<" ->
-                WrittenTypes.Infix.InfixFnCall
-                  WrittenTypes.InfixFnName.ComparisonLessThan
-              | "<=" ->
-                WrittenTypes.Infix.InfixFnCall
-                  WrittenTypes.InfixFnName.ComparisonLessThanOrEqual
-              | "==" ->
-                WrittenTypes.Infix.InfixFnCall
-                  WrittenTypes.InfixFnName.ComparisonEquals
-              | "!=" ->
-                WrittenTypes.Infix.InfixFnCall
-                  WrittenTypes.InfixFnName.ComparisonNotEquals
-              | "&&" ->
-                WrittenTypes.Infix.BinOp WrittenTypes.BinaryOperation.BinOpAnd
-              | "||" -> WrittenTypes.Infix.BinOp WrittenTypes.BinaryOperation.BinOpOr
-              | "++" ->
-                WrittenTypes.Infix.InfixFnCall WrittenTypes.InfixFnName.StringConcat
-              | op -> createUnparseableError node
-
-            | _ -> createUnparseableError node
-
-          let rightArg = findAndParseRequired node "right" Expr.parse
-
-          match (rightArg, operatorNode) with
-          | Ok rightArg, Ok operatorNode ->
-            (WrittenTypes.PipeExpr.EPipeInfix(
-              node.range,
-              (operatorNode.range, operator),
-              rightArg
-            ))
-            |> Stdlib.Result.Result.Ok
-
-          | _ -> createUnparseableError node
-
-        let parsePipeLambda
-          (node: ParsedNode)
-          : Stdlib.Result.Result<WrittenTypes.PipeExpr, WrittenTypes.Unparseable> =
-          if node.typ == "pipe_lambda" then
-            match findField node "pipe_lambda" with
-            | Ok node ->
-              let keywordFun = findField node "keyword_fun"
-
-              let patsNode =
-                match findField node "pats" with
-                | Ok paramsNode ->
-                  paramsNode.children
-                  |> Stdlib.List.map (fun pat -> Expr.parseLetPattern pat)
-                  |> Stdlib.Result.collect
-
-                | _ -> createUnparseableError node
-
-              let arrowNode = findField node "symbol_arrow"
-              let bodyNode = findAndParseRequired node "body" Expr.parse
-
-              match (patsNode, bodyNode, keywordFun, arrowNode) with
-              | Ok pats, Ok body, Ok keywordFun, Ok arrowNode ->
-                (WrittenTypes.PipeExpr.EPipeLambda(
-                  node.range,
-                  pats,
-                  body,
-                  keywordFun.range,
-                  arrowNode.range
-                ))
-                |> Stdlib.Result.Result.Ok
-
-              | _ -> createUnparseableError node
-            | Error _ -> createUnparseableError node
+module Darklang.LanguageTools.Parser.PipeExpr
 
 
-        let parsePipeEnum
-          (node: ParsedNode)
-          : Stdlib.Result.Result<WrittenTypes.PipeExpr, WrittenTypes.Unparseable> =
-          baseParseEnum
-            Expr.parse
-            node
-            (fun (range, typeName, caseName, enumFields, symbolDot) ->
-              (WrittenTypes.PipeExpr.EPipeEnum(
-                range,
-                typeName,
-                caseName,
-                enumFields,
-                symbolDot
-              ))
-              |> Stdlib.Result.Result.Ok)
+let parsePipeInfix
+  (node: ParsedNode)
+  : Stdlib.Result.Result<WrittenTypes.PipeExpr, WrittenTypes.Unparseable> =
+  let operatorNode = findField node "operator"
+
+  let operator =
+    match operatorNode with
+    | Ok op ->
+      match getText op with
+      | "+" ->
+        WrittenTypes.Infix.InfixFnCall
+          WrittenTypes.InfixFnName.ArithmeticPlus
+      | "-" ->
+        WrittenTypes.Infix.InfixFnCall
+          WrittenTypes.InfixFnName.ArithmeticMinus
+      | "*" ->
+        WrittenTypes.Infix.InfixFnCall
+          WrittenTypes.InfixFnName.ArithmeticMultiply
+      | "/" ->
+        WrittenTypes.Infix.InfixFnCall
+          WrittenTypes.InfixFnName.ArithmeticDivide
+      | "%" ->
+        WrittenTypes.Infix.InfixFnCall
+          WrittenTypes.InfixFnName.ArithmeticModulo
+      | "^" ->
+        WrittenTypes.Infix.InfixFnCall
+          WrittenTypes.InfixFnName.ArithmeticPower
+      | ">" ->
+        WrittenTypes.Infix.InfixFnCall
+          WrittenTypes.InfixFnName.ComparisonGreaterThan
+      | ">=" ->
+        WrittenTypes.Infix.InfixFnCall
+          WrittenTypes.InfixFnName.ComparisonGreaterThanOrEqual
+      | "<" ->
+        WrittenTypes.Infix.InfixFnCall
+          WrittenTypes.InfixFnName.ComparisonLessThan
+      | "<=" ->
+        WrittenTypes.Infix.InfixFnCall
+          WrittenTypes.InfixFnName.ComparisonLessThanOrEqual
+      | "==" ->
+        WrittenTypes.Infix.InfixFnCall
+          WrittenTypes.InfixFnName.ComparisonEquals
+      | "!=" ->
+        WrittenTypes.Infix.InfixFnCall
+          WrittenTypes.InfixFnName.ComparisonNotEquals
+      | "&&" ->
+        WrittenTypes.Infix.BinOp WrittenTypes.BinaryOperation.BinOpAnd
+      | "||" -> WrittenTypes.Infix.BinOp WrittenTypes.BinaryOperation.BinOpOr
+      | "++" ->
+        WrittenTypes.Infix.InfixFnCall WrittenTypes.InfixFnName.StringConcat
+      | op -> createUnparseableError node
+
+    | _ -> createUnparseableError node
+
+  let rightArg = findAndParseRequired node "right" Expr.parse
+
+  match (rightArg, operatorNode) with
+  | Ok rightArg, Ok operatorNode ->
+    (WrittenTypes.PipeExpr.EPipeInfix(
+      node.range,
+      (operatorNode.range, operator),
+      rightArg
+    ))
+    |> Stdlib.Result.Result.Ok
+
+  | _ -> createUnparseableError node
+
+let parsePipeLambda
+  (node: ParsedNode)
+  : Stdlib.Result.Result<WrittenTypes.PipeExpr, WrittenTypes.Unparseable> =
+  if node.typ == "pipe_lambda" then
+    match findField node "pipe_lambda" with
+    | Ok node ->
+      let keywordFun = findField node "keyword_fun"
+
+      let patsNode =
+        match findField node "pats" with
+        | Ok paramsNode ->
+          paramsNode.children
+          |> Stdlib.List.map (fun pat -> Expr.parseLetPattern pat)
+          |> Stdlib.Result.collect
+
+        | _ -> createUnparseableError node
+
+      let arrowNode = findField node "symbol_arrow"
+      let bodyNode = findAndParseRequired node "body" Expr.parse
+
+      match (patsNode, bodyNode, keywordFun, arrowNode) with
+      | Ok pats, Ok body, Ok keywordFun, Ok arrowNode ->
+        (WrittenTypes.PipeExpr.EPipeLambda(
+          node.range,
+          pats,
+          body,
+          keywordFun.range,
+          arrowNode.range
+        ))
+        |> Stdlib.Result.Result.Ok
+
+      | _ -> createUnparseableError node
+    | Error _ -> createUnparseableError node
 
 
-        let parsePipeFnCall
-          (node: ParsedNode)
-          : Stdlib.Result.Result<WrittenTypes.PipeExpr, WrittenTypes.Unparseable> =
-          let fnNameNode =
-            findAndParseRequired node "fn" Identifiers.parseQualifiedFunction
-
-          let args =
-            node.children
-            |> Stdlib.List.filter (fun c ->
-              match c.fieldName with
-              | Some fName -> fName == "args"
-              | None -> false)
-            |> Stdlib.List.map Expr.parse
-            |> Stdlib.Result.collect
-
-          match (fnNameNode, args) with
-          | Ok fnName, Ok args ->
-            (WrittenTypes.PipeExpr.EPipeFnCall(node.range, fnName, args))
-            |> Stdlib.Result.Result.Ok
-
-          | _ -> createUnparseableError node
+let parsePipeEnum
+  (node: ParsedNode)
+  : Stdlib.Result.Result<WrittenTypes.PipeExpr, WrittenTypes.Unparseable> =
+  baseParseEnum
+    Expr.parse
+    node
+    (fun (range, typeName, caseName, enumFields, symbolDot) ->
+      (WrittenTypes.PipeExpr.EPipeEnum(
+        range,
+        typeName,
+        caseName,
+        enumFields,
+        symbolDot
+      ))
+      |> Stdlib.Result.Result.Ok)
 
 
-        let parse
-          (node: ParsedNode)
-          : Stdlib.Result.Result<WrittenTypes.PipeExpr, WrittenTypes.Unparseable> =
-          if node.typ == "pipe_expr" then
-            match node.children with
-            | [] -> createUnparseableError node
-            | [ child ] ->
-              match child.typ with
-              | "pipe_infix" -> parsePipeInfix child
-              | "pipe_lambda" -> parsePipeLambda child
-              | "pipe_enum" -> parsePipeEnum child
-              | "pipe_fn_call" -> parsePipeFnCall child
-            | _ -> createUnparseableError node
+let parsePipeFnCall
+  (node: ParsedNode)
+  : Stdlib.Result.Result<WrittenTypes.PipeExpr, WrittenTypes.Unparseable> =
+  let fnNameNode =
+    findAndParseRequired node "fn" Identifiers.parseQualifiedFunction
 
-          else
-            createUnparseableErrorMsg node $"Expected pipe_expr, got {node.typ}"
+  let args =
+    node.children
+    |> Stdlib.List.filter (fun c ->
+      match c.fieldName with
+      | Some fName -> fName == "args"
+      | None -> false)
+    |> Stdlib.List.map Expr.parse
+    |> Stdlib.Result.collect
+
+  match (fnNameNode, args) with
+  | Ok fnName, Ok args ->
+    (WrittenTypes.PipeExpr.EPipeFnCall(node.range, fnName, args))
+    |> Stdlib.Result.Result.Ok
+
+  | _ -> createUnparseableError node
+
+
+let parse
+  (node: ParsedNode)
+  : Stdlib.Result.Result<WrittenTypes.PipeExpr, WrittenTypes.Unparseable> =
+  if node.typ == "pipe_expr" then
+    match node.children with
+    | [] -> createUnparseableError node
+    | [ child ] ->
+      match child.typ with
+      | "pipe_infix" -> parsePipeInfix child
+      | "pipe_lambda" -> parsePipeLambda child
+      | "pipe_enum" -> parsePipeEnum child
+      | "pipe_fn_call" -> parsePipeFnCall child
+    | _ -> createUnparseableError node
+
+  else
+    createUnparseableErrorMsg node $"Expected pipe_expr, got {node.typ}"

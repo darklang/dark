@@ -1,33 +1,32 @@
-module Darklang =
-  module PrettyPrinter =
-    module ProgramTypes =
-      let sourceFile
-        (source: LanguageTools.ProgramTypes.SourceFile.SourceFile)
-        : String =
-        let declsPart =
-          (Stdlib.List.fold source.declarations [] (fun acc decl ->
-            match decl with
-            | Module moduleDecl ->
-              let prettyPrinted = PrettyPrinter.definitions moduleDecl
-              acc |> Stdlib.List.push prettyPrinted
+module Darklang.PrettyPrinter.ProgramTypes
 
-            | Type typeDecl ->
-              let prettyPrinted = PrettyPrinter.ProgramTypes.packageType typeDecl
-              acc |> Stdlib.List.push prettyPrinted
+let sourceFile
+  (source: LanguageTools.ProgramTypes.SourceFile.SourceFile)
+  : String =
+  let declsPart =
+    (Stdlib.List.fold source.declarations [] (fun acc decl ->
+      match decl with
+      | Module moduleDecl ->
+        let prettyPrinted = PrettyPrinter.definitions moduleDecl
+        acc |> Stdlib.List.push prettyPrinted
 
-            | Value valDecl ->
-              let prettyPrinted = PrettyPrinter.ProgramTypes.packageValue valDecl
-              acc |> Stdlib.List.push prettyPrinted
+      | Type typeDecl ->
+        let prettyPrinted = PrettyPrinter.ProgramTypes.packageType typeDecl
+        acc |> Stdlib.List.push prettyPrinted
 
-            | Function fnDecl ->
-              let prettyPrinted = PrettyPrinter.ProgramTypes.packageFn fnDecl
-              acc |> Stdlib.List.push prettyPrinted))
-          |> Stdlib.List.reverse
+      | Value valDecl ->
+        let prettyPrinted = PrettyPrinter.ProgramTypes.packageValue valDecl
+        acc |> Stdlib.List.push prettyPrinted
 
-        let exprsPart =
-          (Stdlib.List.fold source.exprsToEval [] (fun acc expr ->
-            let prettyPrinted = PrettyPrinter.ProgramTypes.expr expr
-            acc |> Stdlib.List.push prettyPrinted))
-          |> Stdlib.List.reverse
+      | Function fnDecl ->
+        let prettyPrinted = PrettyPrinter.ProgramTypes.packageFn fnDecl
+        acc |> Stdlib.List.push prettyPrinted))
+    |> Stdlib.List.reverse
 
-        [ declsPart; exprsPart ] |> Stdlib.List.flatten |> Stdlib.String.join "\n\n"
+  let exprsPart =
+    (Stdlib.List.fold source.exprsToEval [] (fun acc expr ->
+      let prettyPrinted = PrettyPrinter.ProgramTypes.expr expr
+      acc |> Stdlib.List.push prettyPrinted))
+    |> Stdlib.List.reverse
+
+  [ declsPart; exprsPart ] |> Stdlib.List.flatten |> Stdlib.String.join "\n\n"

@@ -1,612 +1,611 @@
-module Darklang =
-  module LanguageTools =
-    module ProgramTypes =
-
-      /// Used to name where type/function/etc lives, eg a User module, or a Package module.
-      module FQTypeName =
-        type Package = Uuid
-        type FQTypeName = Package of Package
-
-      module FQValueName =
-        type Builtin = { name: String; version: Int32 }
-        type Package = Uuid
-
-        type FQValueName =
-          | Builtin of Builtin
-          | Package of Package
-
-      module FQFnName =
-        type Builtin = { name: String; version: Int32 }
-        type Package = Uuid
-
-        type FQFnName =
-          | Builtin of Builtin
-          | Package of Package
-
-
-      type NameResolutionError =
-        | NotFound of List<String>
-        | InvalidName of List<String>
-
-      type NameResolution<'a> = Stdlib.Result.Result<'a, NameResolutionError>
-
-
-      /// Darklang's available types (int, List<T>, user-defined types, etc.)
-      type TypeReference =
-        // A named variable, eg `a` in `List<a>`, matches anything
-        | TVariable of String
-
-        | TUnit
-        | TBool
-        | TInt8
-        | TUInt8
-        | TInt16
-        | TUInt16
-        | TInt32
-        | TUInt32
-        | TInt64
-        | TUInt64
-        | TInt128
-        | TUInt128
-        | TFloat
-        | TChar
-        | TString
-        | TDateTime
-        | TUuid
-
-        | TList of TypeReference
-        | TTuple of TypeReference * TypeReference * List<TypeReference>
-        | TDict of TypeReference
-
-        | TCustomType of
-          NameResolution<FQTypeName.FQTypeName> *
-          typeArgs: List<TypeReference>
-
-        | TDB of TypeReference
-
-        // TODO: this should be an NEList
-        | TFn of List<TypeReference> * TypeReference
+module Darklang.LanguageTools.ProgramTypes
+
+
+/// Used to name where type/function/etc lives, eg a User module, or a Package module.
+module FQTypeName =
+  type Package = Uuid
+  type FQTypeName = Package of Package
+
+module FQValueName =
+  type Builtin = { name: String; version: Int32 }
+  type Package = Uuid
+
+  type FQValueName =
+    | Builtin of Builtin
+    | Package of Package
 
-
-
-      type LetPattern =
-        | LPUnit of ID
-        | LPVariable of ID * name: String
-        | LPTuple of
-          ID *
-          first: LetPattern *
-          second: LetPattern *
-          theRest: List<LetPattern>
+module FQFnName =
+  type Builtin = { name: String; version: Int32 }
+  type Package = Uuid
+
+  type FQFnName =
+    | Builtin of Builtin
+    | Package of Package
+
+
+type NameResolutionError =
+  | NotFound of List<String>
+  | InvalidName of List<String>
+
+type NameResolution<'a> = Stdlib.Result.Result<'a, NameResolutionError>
+
+
+/// Darklang's available types (int, List<T>, user-defined types, etc.)
+type TypeReference =
+  // A named variable, eg `a` in `List<a>`, matches anything
+  | TVariable of String
+
+  | TUnit
+  | TBool
+  | TInt8
+  | TUInt8
+  | TInt16
+  | TUInt16
+  | TInt32
+  | TUInt32
+  | TInt64
+  | TUInt64
+  | TInt128
+  | TUInt128
+  | TFloat
+  | TChar
+  | TString
+  | TDateTime
+  | TUuid
+
+  | TList of TypeReference
+  | TTuple of TypeReference * TypeReference * List<TypeReference>
+  | TDict of TypeReference
+
+  | TCustomType of
+    NameResolution<FQTypeName.FQTypeName> *
+    typeArgs: List<TypeReference>
+
+  | TDB of TypeReference
 
+  // TODO: this should be an NEList
+  | TFn of List<TypeReference> * TypeReference
 
-      /// Used for pattern matching in a match statement
-      type MatchPattern =
-        | MPVariable of ID * String
-
-        | MPUnit of ID
-        | MPBool of ID * Bool
-        | MPInt8 of ID * Int8
-        | MPUInt8 of ID * UInt8
-        | MPInt16 of ID * Int16
-        | MPUInt16 of ID * UInt16
-        | MPInt32 of ID * Int32
-        | MPUInt32 of ID * UInt32
-        | MPInt64 of ID * Int64
-        | MPUInt64 of ID * UInt64
-        | MPInt128 of ID * Int128
-        | MPUInt128 of ID * UInt128
-        | MPFloat of ID * Sign * String * String
-        | MPChar of ID * String
-        | MPString of ID * String
 
-        | MPList of ID * List<MatchPattern>
-        | MPListCons of ID * head: MatchPattern * tail: MatchPattern
 
-        | MPTuple of ID * MatchPattern * MatchPattern * List<MatchPattern>
+type LetPattern =
+  | LPUnit of ID
+  | LPVariable of ID * name: String
+  | LPTuple of
+    ID *
+    first: LetPattern *
+    second: LetPattern *
+    theRest: List<LetPattern>
 
-        | MPEnum of ID * caseName: String * fieldPats: List<MatchPattern>
 
-        | MPOr of ID * List<MatchPattern>
+/// Used for pattern matching in a match statement
+type MatchPattern =
+  | MPVariable of ID * String
 
-      type BinaryOperation =
-        | BinOpAnd
-        | BinOpOr
+  | MPUnit of ID
+  | MPBool of ID * Bool
+  | MPInt8 of ID * Int8
+  | MPUInt8 of ID * UInt8
+  | MPInt16 of ID * Int16
+  | MPUInt16 of ID * UInt16
+  | MPInt32 of ID * Int32
+  | MPUInt32 of ID * UInt32
+  | MPInt64 of ID * Int64
+  | MPUInt64 of ID * UInt64
+  | MPInt128 of ID * Int128
+  | MPUInt128 of ID * UInt128
+  | MPFloat of ID * Sign * String * String
+  | MPChar of ID * String
+  | MPString of ID * String
 
+  | MPList of ID * List<MatchPattern>
+  | MPListCons of ID * head: MatchPattern * tail: MatchPattern
 
-      type InfixFnName =
-        | ArithmeticPlus
-        | ArithmeticMinus
-        | ArithmeticMultiply
-        | ArithmeticDivide
-        | ArithmeticModulo
-        | ArithmeticPower
-        | ComparisonGreaterThan
-        | ComparisonGreaterThanOrEqual
-        | ComparisonLessThan
-        | ComparisonLessThanOrEqual
-        | ComparisonEquals
-        | ComparisonNotEquals
-        | StringConcat
+  | MPTuple of ID * MatchPattern * MatchPattern * List<MatchPattern>
 
-      type Infix =
-        | InfixFnCall of InfixFnName
-        | BinOp of BinaryOperation
+  | MPEnum of ID * caseName: String * fieldPats: List<MatchPattern>
 
+  | MPOr of ID * List<MatchPattern>
 
-      type StringSegment =
-        | StringText of String
-        | StringInterpolation of Expr
+type BinaryOperation =
+  | BinOpAnd
+  | BinOpOr
 
 
-      type PipeExpr =
-        | EPipeVariable of ID * String * List<Expr>
+type InfixFnName =
+  | ArithmeticPlus
+  | ArithmeticMinus
+  | ArithmeticMultiply
+  | ArithmeticDivide
+  | ArithmeticModulo
+  | ArithmeticPower
+  | ComparisonGreaterThan
+  | ComparisonGreaterThanOrEqual
+  | ComparisonLessThan
+  | ComparisonLessThanOrEqual
+  | ComparisonEquals
+  | ComparisonNotEquals
+  | StringConcat
 
-        | EPipeLambda of ID * List<LetPattern> * Expr
+type Infix =
+  | InfixFnCall of InfixFnName
+  | BinOp of BinaryOperation
 
-        | EPipeInfix of ID * Infix * Expr
 
-        | EPipeFnCall of
-          ID *
-          NameResolution<FQFnName.FQFnName> *
-          typeArgs: List<TypeReference> *
-          args: List<Expr>
+type StringSegment =
+  | StringText of String
+  | StringInterpolation of Expr
 
-        | EPipeEnum of
-          ID *
-          typeName: NameResolution<FQTypeName.FQTypeName> *
-          caseName: String *
-          fields: List<Expr>
 
+type PipeExpr =
+  | EPipeVariable of ID * String * List<Expr>
 
-      type MatchCase =
-        { pat: MatchPattern
-          whenCondition: Stdlib.Option.Option<Expr>
-          rhs: Expr }
+  | EPipeLambda of ID * List<LetPattern> * Expr
 
+  | EPipeInfix of ID * Infix * Expr
 
+  | EPipeFnCall of
+    ID *
+    NameResolution<FQFnName.FQFnName> *
+    typeArgs: List<TypeReference> *
+    args: List<Expr>
 
-      /// Expressions - the main part of the language.
-      type Expr =
-        | EUnit of ID
+  | EPipeEnum of
+    ID *
+    typeName: NameResolution<FQTypeName.FQTypeName> *
+    caseName: String *
+    fields: List<Expr>
 
-        // simple data
 
-        | EBool of ID * Bool
+type MatchCase =
+  { pat: MatchPattern
+    whenCondition: Stdlib.Option.Option<Expr>
+    rhs: Expr }
 
-        | EInt8 of ID * Int8
-        | EUInt8 of ID * UInt8
-        | EInt16 of ID * Int16
-        | EUInt16 of ID * UInt16
-        | EInt32 of ID * Int32
-        | EUInt32 of ID * UInt32
-        | EInt64 of ID * Int64
-        | EUInt64 of ID * UInt64
-        | EInt128 of ID * Int128
-        | EUInt128 of ID * UInt128
-
-        // Allow the user to have arbitrarily big numbers, even if they don't make sense as
-        // floats. The float is split as we want to preserve what the user entered.
-        // Strings are used as numbers lose the leading zeros (eg 7.00007)
-        | EFloat of ID * Sign * String * String
-
-        /// A character is an Extended Grapheme Cluster (hence why we use a String). This
-        /// is equivalent to one screen-visible "character" in Unicode.
-        | EChar of ID * String
-
-        | EString of ID * List<StringSegment>
 
-
-        // structures of data
-        | EList of ID * List<Expr>
 
-        | EDict of ID * List<String * Expr>
+/// Expressions - the main part of the language.
+type Expr =
+  | EUnit of ID
 
-        | ETuple of ID * Expr * Expr * List<Expr>
+  // simple data
 
-        | ERecord of
-          ID *
-          typeName: NameResolution<FQTypeName.FQTypeName> *
-          typeArgs: List<TypeReference> *
-          fields: List<String * Expr>
+  | EBool of ID * Bool
 
-        | EEnum of
-          ID *
-          typeName: NameResolution<FQTypeName.FQTypeName> *
-          typeArgs : List<TypeReference> *
-          caseName: String *
-          fields: List<Expr>
-
-        // declaring and accessing variables
-        | ELet of ID * LetPattern * Expr * Expr
-        | ERecordFieldAccess of ID * Expr * String
-        | EVariable of ID * String
-        | EValue of ID * NameResolution<FQValueName.FQValueName>
-
-        // control flow
-        | EIf of
-          ID *
-          cond: Expr *
-          thenExpr: Expr *
-          elseExpr: Stdlib.Option.Option<Expr>
+  | EInt8 of ID * Int8
+  | EUInt8 of ID * UInt8
+  | EInt16 of ID * Int16
+  | EUInt16 of ID * UInt16
+  | EInt32 of ID * Int32
+  | EUInt32 of ID * UInt32
+  | EInt64 of ID * Int64
+  | EUInt64 of ID * UInt64
+  | EInt128 of ID * Int128
+  | EUInt128 of ID * UInt128
+
+  // Allow the user to have arbitrarily big numbers, even if they don't make sense as
+  // floats. The float is split as we want to preserve what the user entered.
+  // Strings are used as numbers lose the leading zeros (eg 7.00007)
+  | EFloat of ID * Sign * String * String
+
+  /// A character is an Extended Grapheme Cluster (hence why we use a String). This
+  /// is equivalent to one screen-visible "character" in Unicode.
+  | EChar of ID * String
+
+  | EString of ID * List<StringSegment>
+
+
+  // structures of data
+  | EList of ID * List<Expr>
+
+  | EDict of ID * List<String * Expr>
 
-        | EMatch of ID * arg: Expr * cases: List<MatchCase>
+  | ETuple of ID * Expr * Expr * List<Expr>
 
-        | EPipe of ID * Expr * List<PipeExpr>
+  | ERecord of
+    ID *
+    typeName: NameResolution<FQTypeName.FQTypeName> *
+    typeArgs: List<TypeReference> *
+    fields: List<String * Expr>
+
+  | EEnum of
+    ID *
+    typeName: NameResolution<FQTypeName.FQTypeName> *
+    typeArgs : List<TypeReference> *
+    caseName: String *
+    fields: List<Expr>
+
+  // declaring and accessing variables
+  | ELet of ID * LetPattern * Expr * Expr
+  | ERecordFieldAccess of ID * Expr * String
+  | EVariable of ID * String
+  | EValue of ID * NameResolution<FQValueName.FQValueName>
+
+  // control flow
+  | EIf of
+    ID *
+    cond: Expr *
+    thenExpr: Expr *
+    elseExpr: Stdlib.Option.Option<Expr>
 
+  | EMatch of ID * arg: Expr * cases: List<MatchCase>
 
-        // function calls
-        | EInfix of ID * Infix * Expr * Expr
+  | EPipe of ID * Expr * List<PipeExpr>
 
-        | ELambda of ID * List<LetPattern> * Expr
 
-        // TODO do typeArgs actually apply here?
-        // they definitely don't _always_ make sense.
-        | EApply of ID * Expr * typeArgs: List<TypeReference> * args: List<Expr>
+  // function calls
+  | EInfix of ID * Infix * Expr * Expr
 
-        | EFnName of ID * NameResolution<FQFnName.FQFnName>
+  | ELambda of ID * List<LetPattern> * Expr
 
-        | ERecordUpdate of ID * record: Expr * updates: List<String * Expr>
+  // TODO do typeArgs actually apply here?
+  // they definitely don't _always_ make sense.
+  | EApply of ID * Expr * typeArgs: List<TypeReference> * args: List<Expr>
+
+  | EFnName of ID * NameResolution<FQFnName.FQFnName>
+
+  | ERecordUpdate of ID * record: Expr * updates: List<String * Expr>
 
-        | EStatement of ID * first: Expr * next: Expr
-
-      module Expr =
-        let toID (expr: Expr) : ID =
-          match expr with
-          | EUnit id
-          | EBool(id, _)
-          | EInt8(id, _)
-          | EUInt8(id, _)
-          | EInt16(id, _)
-          | EUInt16(id, _)
-          | EInt32(id, _)
-          | EUInt32(id, _)
-          | EInt64(id, _)
-          | EUInt64(id, _)
-          | EInt128(id, _)
-          | EUInt128(id, _)
-          | EFloat(id, _, _, _)
-          | EChar(id, _)
-          | EString(id, _)
-          | ELet(id, _, _, _)
-          | EIf(id, _, _, _)
-          | EInfix(id, _, _, _)
-          | ELambda(id, _, _)
-          | ERecordFieldAccess(id, _, _)
-          | EVariable(id, _)
-          | EApply(id, _, _, _)
-          | EList(id, _)
-          | EDict(id, _)
-          | ETuple(id, _, _, _)
-          | EPipe(id, _, _)
-          | ERecord(id, _, _, _)
-          | EEnum(id, _, _, _, _)
-          | EMatch(id, _, _)
-          | ERecordUpdate(id, _, _)
-          | EStatement(id, _, _) -> id
-
-
-      // Used to mark whether a function/type has been deprecated, and if so,
-      // details about possible replacements/alternatives, and reasoning
-      type Deprecation<'name> =
-        | NotDeprecated
-
-        /// The exact same thing is available under a new, preferred name
-        | RenamedTo of 'name
-
-        /// This has been deprecated and has a replacement we can suggest
-        | ReplacedBy of 'name
-
-        /// This has been deprecated and not replaced, provide a message for the user
-        | DeprecatedBecause of String
-
-
-      /// A stdlib-, user-, or package- defined type (an alias, record, or enum)
-      module TypeDeclaration =
-        type RecordField =
-          { name: String
-            typ: TypeReference
-            description: String }
-
-        type EnumField =
-          { typ: TypeReference
-            label: Stdlib.Option.Option<String>
-            description: String }
-
-        type EnumCase =
-          { name: String
-            fields: List<EnumField>
-            description: String }
-
-        type Definition =
-          | Alias of TypeReference
-          | Record of List<RecordField>
-          | Enum of List<EnumCase>
-
-        type TypeDeclaration =
-          { typeParams: List<String>
-            definition: Definition }
-
-
-
-
-      // Package space
-      module PackageType =
-        type Name =
-          { owner: String
-            modules: List<String>
-            name: String }
-
-        type PackageType =
-          { id: Uuid
-            name: Name
-            declaration: TypeDeclaration.TypeDeclaration
-            description: String
-            deprecated: Deprecation<FQTypeName.FQTypeName> }
-
-        let nameToString (typeName: Name) : String =
-          let owner = if typeName.owner == "" then "" else typeName.owner ++ "."
-
-          let modules =
-            match typeName.modules with
-            | [] -> ""
-            | modules -> (modules |> Stdlib.String.join ".") ++ "."
-
-          let name = typeName.name
-          owner ++ modules ++ name
-
-      module PackageValue =
-        type Name =
-          { owner: String
-            modules: List<String>
-            name: String }
-
-        type PackageValue =
-          { id: Uuid
-            name: Name
-            body: Expr
-            description: String
-            deprecated: Deprecation<FQFnName.FQFnName> }
-
-        let nameToString (valueName: Name) : String =
-          let owner = if valueName.owner == "" then "" else valueName.owner ++ "."
-
-          let modules =
-            match valueName.modules with
-            | [] -> ""
-            | modules -> (modules |> Stdlib.String.join ".") ++ "."
-
-          let name = valueName.name
-          owner ++ modules ++ name
-
-      module PackageFn =
-        type Name =
-          { owner: String
-            modules: List<String>
-            name: String }
-
-        type Parameter =
-          { name: String
-            typ: TypeReference
-            description: String }
-
-        type PackageFn =
-          { id: Uuid
-            name: Name
-            body: Expr
-            typeParams: List<String>
-            parameters: List<Parameter>
-            returnType: TypeReference
-            description: String
-            deprecated: Deprecation<FQFnName.FQFnName> }
-
-        let nameToString (fnName: Name) : String =
-          let owner = if fnName.owner == "" then "" else fnName.owner ++ "."
-
-          let modules =
-            match fnName.modules with
-            | [] -> ""
-            | modules -> (modules |> Stdlib.String.join ".") ++ "."
-
-          let name = fnName.name
-          owner ++ modules ++ name
-
-      type Packages =
-        { types: List<PackageType.PackageType>
-          values: List<PackageValue.PackageValue>
-          fns: List<PackageFn.PackageFn> }
-
-
-      module Search =
-        /// The type of entity to search for
-        type EntityType =
-          | Type
-          | Module
-          | Fn
-          | Value
-
-        /// How deep to search in the module hierarchy
-        type SearchDepth =
-          | OnlyDirectDescendants
-          // TODO: support this. | AllDescendants
-
-        /// Query parameters for searching packages
-        type SearchQuery =
-          {
-            /// i.e. "Darklang.Stdlib"
-            currentModule: List<String>
-
-            /// i.e. "List" or "map"
-            text: String
-
-            searchDepth: SearchDepth
-
-            /// empty list implies 'any'
-            entityTypes: List<EntityType>
-            
-            /// if true, require exact matches for names and modules instead of fuzzy matching
-            exactMatch: Bool
-          }
-
-        /// Results from a package search
-        type SearchResults =
-          { submodules: List<List<String>> // [ [ "List"]; ["String"; "List"] ]
-            types : List<ProgramTypes.PackageType.PackageType>
-            values : List<ProgramTypes.PackageValue.PackageValue>
-            fns : List<ProgramTypes.PackageFn.PackageFn> }
-
-
-
-
-      /// Functionality written in Dark stored and managed outside of user space
-      ///
-      /// Note: It may be tempting to think the `getX` fns shouldn't return Options,
-      /// but there's a chance of Local <-> Cloud not being fully in sync,
-      /// for whatever reasons.
-      module PackageManager =
-        type PackageManager =
-          { findType: String -> Stdlib.Option.Option<FQTypeName.Package>
-            findValue: String -> Stdlib.Option.Option<FQValueName.Package>
-            findFn: String -> Stdlib.Option.Option<FQFnName.Package>
-
-            getType:
-              FQTypeName.Package -> Stdlib.Option.Option<PackageType.PackageType>
-            getValue:
-              FQValueName.Package
-                -> Stdlib.Option.Option<PackageValue.PackageValue>
-            getFn: FQFnName.Package -> Stdlib.Option.Option<PackageFn.PackageFn>
-
-            search: Search.SearchQuery -> Search.SearchResults }
-
-
-        /// Allows you to side-load a few 'extras' in-memory, along
-        /// the normal fetching functionality. (Mostly helpful for tests)
-        let withExtras
-          (pm: PackageManager.PackageManager)
-          (types: List<PackageType.PackageType>)
-          (values: List<PackageValue.PackageValue>)
-          (fns: List<PackageFn.PackageFn>)
-          : PackageManager.PackageManager =
-          PackageManager.PackageManager
-            { findType =
-                fun name ->
-                  match
-                    types
-                    |> Stdlib.List.findFirst (fun t ->
-                      let typeName = PackageType.nameToString t.name
-                      typeName == name)
-                  with
-                  | Some t -> Stdlib.Option.Option.Some t.id
-                  | None ->
-                    // CLEANUP: use `pm.findType name` directly once the parser/interpreter is fixed
-                    let findType = pm.findType
-                    findType name
-              findValue =
-                fun name ->
-                  match
-                    values
-                    |> Stdlib.List.findFirst (fun v ->
-                      let valueName = PackageValue.nameToString v.name
-                      valueName == name)
-                  with
-                  | Some v -> Stdlib.Option.Option.Some v.id
-                  | None ->
-                    let findValue = pm.findValue
-                    findValue name
-              findFn =
-                fun name ->
-                  match
-                    fns
-                    |> Stdlib.List.findFirst (fun f ->
-                      let fnName = PackageFn.nameToString f.name
-                      fnName == name)
-                  with
-                  | Some f -> Stdlib.Option.Option.Some f.id
-                  | None ->
-                    let findFn = pm.findFn
-                    findFn name
-
-              getType =
-                fun id ->
-                  match types |> Stdlib.List.findFirst (fun t -> t.id == id) with
-                  | Some t -> Stdlib.Option.Option.Some t
-                  | None ->
-                    let getType = pm.getType
-                    getType id
-              getValue =
-                fun id ->
-                  match values |> Stdlib.List.findFirst (fun v -> v.id == id) with
-                  | Some v -> Stdlib.Option.Option.Some v
-                  | None ->
-                    let getValue = pm.getValue
-                    getValue id
-              getFn =
-                fun id ->
-                  match fns |> Stdlib.List.findFirst (fun f -> f.id == id) with
-                  | Some f -> Stdlib.Option.Option.Some f
-                  | None ->
-                    let getFn = pm.getFn
-                    getFn id
-
-              search = pm.search }
-
-
-      type Definitions =
-        { types: List<PackageType.PackageType>
-          values: List<PackageValue.PackageValue>
-          fns: List<PackageFn.PackageFn>
-          // TODO db and handlers
-          exprs: List<Expr * List<String>> }
-
-      // User/Canvas space
-      type DB =
-        { tlid: TLID
-          name: String
-          version: Int32
-          typ: TypeReference }
-
-
-      type Secret =
-        { name: String
-          value: String
-          version: Int32 }
-
-
-      module Handler =
-        type CronInterval =
-          | EveryDay
-          | EveryWeek
-          | EveryFortnight
-          | EveryHour
-          | Every12Hours
-          | EveryMinute
-
-        type Spec =
-          | HTTP of route: String * method: String
-          | Worker of name: String
-          | Cron of name: String * interval: CronInterval
-          | REPL of name: String
-
-        type Handler = { tlid: TLID; ast: Expr; spec: Spec }
-
-
-      // module Toplevel =
-      //   type T =
-      //     | TLDB of DB
-      //     | TLHandler of Handler.Handler
-
-      //   let toTLID (tl : T) : tlid =
-      //     match tl with
-      //     | TLDB db -> db.tlid
-      //     | TLHandler h -> h.tlid
-
-      module SourceFile =
-        type Declaration =
-          | Type of PackageType.PackageType
-          | Value of PackageValue.PackageValue
-          | Function of PackageFn.PackageFn
-          // db and handlers
-          | Module of Definitions // re-evaluate if this makes sense to be here
-
-        type SourceFile =
-          { declarations: List<Declaration>
-            exprsToEval: List<Expr> }
+  | EStatement of ID * first: Expr * next: Expr
+
+module Expr =
+  let toID (expr: Expr) : ID =
+    match expr with
+    | EUnit id
+    | EBool(id, _)
+    | EInt8(id, _)
+    | EUInt8(id, _)
+    | EInt16(id, _)
+    | EUInt16(id, _)
+    | EInt32(id, _)
+    | EUInt32(id, _)
+    | EInt64(id, _)
+    | EUInt64(id, _)
+    | EInt128(id, _)
+    | EUInt128(id, _)
+    | EFloat(id, _, _, _)
+    | EChar(id, _)
+    | EString(id, _)
+    | ELet(id, _, _, _)
+    | EIf(id, _, _, _)
+    | EInfix(id, _, _, _)
+    | ELambda(id, _, _)
+    | ERecordFieldAccess(id, _, _)
+    | EVariable(id, _)
+    | EApply(id, _, _, _)
+    | EList(id, _)
+    | EDict(id, _)
+    | ETuple(id, _, _, _)
+    | EPipe(id, _, _)
+    | ERecord(id, _, _, _)
+    | EEnum(id, _, _, _, _)
+    | EMatch(id, _, _)
+    | ERecordUpdate(id, _, _)
+    | EStatement(id, _, _) -> id
+
+
+// Used to mark whether a function/type has been deprecated, and if so,
+// details about possible replacements/alternatives, and reasoning
+type Deprecation<'name> =
+  | NotDeprecated
+
+  /// The exact same thing is available under a new, preferred name
+  | RenamedTo of 'name
+
+  /// This has been deprecated and has a replacement we can suggest
+  | ReplacedBy of 'name
+
+  /// This has been deprecated and not replaced, provide a message for the user
+  | DeprecatedBecause of String
+
+
+/// A stdlib-, user-, or package- defined type (an alias, record, or enum)
+module TypeDeclaration =
+  type RecordField =
+    { name: String
+      typ: TypeReference
+      description: String }
+
+  type EnumField =
+    { typ: TypeReference
+      label: Stdlib.Option.Option<String>
+      description: String }
+
+  type EnumCase =
+    { name: String
+      fields: List<EnumField>
+      description: String }
+
+  type Definition =
+    | Alias of TypeReference
+    | Record of List<RecordField>
+    | Enum of List<EnumCase>
+
+  type TypeDeclaration =
+    { typeParams: List<String>
+      definition: Definition }
+
+
+
+
+// Package space
+module PackageType =
+  type Name =
+    { owner: String
+      modules: List<String>
+      name: String }
+
+  type PackageType =
+    { id: Uuid
+      name: Name
+      declaration: TypeDeclaration.TypeDeclaration
+      description: String
+      deprecated: Deprecation<FQTypeName.FQTypeName> }
+
+  let nameToString (typeName: Name) : String =
+    let owner = if typeName.owner == "" then "" else typeName.owner ++ "."
+
+    let modules =
+      match typeName.modules with
+      | [] -> ""
+      | modules -> (modules |> Stdlib.String.join ".") ++ "."
+
+    let name = typeName.name
+    owner ++ modules ++ name
+
+module PackageValue =
+  type Name =
+    { owner: String
+      modules: List<String>
+      name: String }
+
+  type PackageValue =
+    { id: Uuid
+      name: Name
+      body: Expr
+      description: String
+      deprecated: Deprecation<FQFnName.FQFnName> }
+
+  let nameToString (valueName: Name) : String =
+    let owner = if valueName.owner == "" then "" else valueName.owner ++ "."
+
+    let modules =
+      match valueName.modules with
+      | [] -> ""
+      | modules -> (modules |> Stdlib.String.join ".") ++ "."
+
+    let name = valueName.name
+    owner ++ modules ++ name
+
+module PackageFn =
+  type Name =
+    { owner: String
+      modules: List<String>
+      name: String }
+
+  type Parameter =
+    { name: String
+      typ: TypeReference
+      description: String }
+
+  type PackageFn =
+    { id: Uuid
+      name: Name
+      body: Expr
+      typeParams: List<String>
+      parameters: List<Parameter>
+      returnType: TypeReference
+      description: String
+      deprecated: Deprecation<FQFnName.FQFnName> }
+
+  let nameToString (fnName: Name) : String =
+    let owner = if fnName.owner == "" then "" else fnName.owner ++ "."
+
+    let modules =
+      match fnName.modules with
+      | [] -> ""
+      | modules -> (modules |> Stdlib.String.join ".") ++ "."
+
+    let name = fnName.name
+    owner ++ modules ++ name
+
+type Packages =
+  { types: List<PackageType.PackageType>
+    values: List<PackageValue.PackageValue>
+    fns: List<PackageFn.PackageFn> }
+
+
+module Search =
+  /// The type of entity to search for
+  type EntityType =
+    | Type
+    | Module
+    | Fn
+    | Value
+
+  /// How deep to search in the module hierarchy
+  type SearchDepth =
+    | OnlyDirectDescendants
+    // TODO: support this. | AllDescendants
+
+  /// Query parameters for searching packages
+  type SearchQuery =
+    {
+      /// i.e. "Darklang.Stdlib"
+      currentModule: List<String>
+
+      /// i.e. "List" or "map"
+      text: String
+
+      searchDepth: SearchDepth
+
+      /// empty list implies 'any'
+      entityTypes: List<EntityType>
+
+      /// if true, require exact matches for names and modules instead of fuzzy matching
+      exactMatch: Bool
+    }
+
+  /// Results from a package search
+  type SearchResults =
+    { submodules: List<List<String>> // [ [ "List"]; ["String"; "List"] ]
+      types : List<ProgramTypes.PackageType.PackageType>
+      values : List<ProgramTypes.PackageValue.PackageValue>
+      fns : List<ProgramTypes.PackageFn.PackageFn> }
+
+
+
+
+/// Functionality written in Dark stored and managed outside of user space
+///
+/// Note: It may be tempting to think the `getX` fns shouldn't return Options,
+/// but there's a chance of Local <-> Cloud not being fully in sync,
+/// for whatever reasons.
+module PackageManager =
+  type PackageManager =
+    { findType: String -> Stdlib.Option.Option<FQTypeName.Package>
+      findValue: String -> Stdlib.Option.Option<FQValueName.Package>
+      findFn: String -> Stdlib.Option.Option<FQFnName.Package>
+
+      getType:
+        FQTypeName.Package -> Stdlib.Option.Option<PackageType.PackageType>
+      getValue:
+        FQValueName.Package
+          -> Stdlib.Option.Option<PackageValue.PackageValue>
+      getFn: FQFnName.Package -> Stdlib.Option.Option<PackageFn.PackageFn>
+
+      search: Search.SearchQuery -> Search.SearchResults }
+
+
+  /// Allows you to side-load a few 'extras' in-memory, along
+  /// the normal fetching functionality. (Mostly helpful for tests)
+  let withExtras
+    (pm: PackageManager.PackageManager)
+    (types: List<PackageType.PackageType>)
+    (values: List<PackageValue.PackageValue>)
+    (fns: List<PackageFn.PackageFn>)
+    : PackageManager.PackageManager =
+    PackageManager.PackageManager
+      { findType =
+          fun name ->
+            match
+              types
+              |> Stdlib.List.findFirst (fun t ->
+                let typeName = PackageType.nameToString t.name
+                typeName == name)
+            with
+            | Some t -> Stdlib.Option.Option.Some t.id
+            | None ->
+              // CLEANUP: use `pm.findType name` directly once the parser/interpreter is fixed
+              let findType = pm.findType
+              findType name
+        findValue =
+          fun name ->
+            match
+              values
+              |> Stdlib.List.findFirst (fun v ->
+                let valueName = PackageValue.nameToString v.name
+                valueName == name)
+            with
+            | Some v -> Stdlib.Option.Option.Some v.id
+            | None ->
+              let findValue = pm.findValue
+              findValue name
+        findFn =
+          fun name ->
+            match
+              fns
+              |> Stdlib.List.findFirst (fun f ->
+                let fnName = PackageFn.nameToString f.name
+                fnName == name)
+            with
+            | Some f -> Stdlib.Option.Option.Some f.id
+            | None ->
+              let findFn = pm.findFn
+              findFn name
+
+        getType =
+          fun id ->
+            match types |> Stdlib.List.findFirst (fun t -> t.id == id) with
+            | Some t -> Stdlib.Option.Option.Some t
+            | None ->
+              let getType = pm.getType
+              getType id
+        getValue =
+          fun id ->
+            match values |> Stdlib.List.findFirst (fun v -> v.id == id) with
+            | Some v -> Stdlib.Option.Option.Some v
+            | None ->
+              let getValue = pm.getValue
+              getValue id
+        getFn =
+          fun id ->
+            match fns |> Stdlib.List.findFirst (fun f -> f.id == id) with
+            | Some f -> Stdlib.Option.Option.Some f
+            | None ->
+              let getFn = pm.getFn
+              getFn id
+
+        search = pm.search }
+
+
+type Definitions =
+  { types: List<PackageType.PackageType>
+    values: List<PackageValue.PackageValue>
+    fns: List<PackageFn.PackageFn>
+    // TODO db and handlers
+    exprs: List<Expr * List<String>> }
+
+// User/Canvas space
+type DB =
+  { tlid: TLID
+    name: String
+    version: Int32
+    typ: TypeReference }
+
+
+type Secret =
+  { name: String
+    value: String
+    version: Int32 }
+
+
+module Handler =
+  type CronInterval =
+    | EveryDay
+    | EveryWeek
+    | EveryFortnight
+    | EveryHour
+    | Every12Hours
+    | EveryMinute
+
+  type Spec =
+    | HTTP of route: String * method: String
+    | Worker of name: String
+    | Cron of name: String * interval: CronInterval
+    | REPL of name: String
+
+  type Handler = { tlid: TLID; ast: Expr; spec: Spec }
+
+
+// module Toplevel =
+//   type T =
+//     | TLDB of DB
+//     | TLHandler of Handler.Handler
+
+//   let toTLID (tl : T) : tlid =
+//     match tl with
+//     | TLDB db -> db.tlid
+//     | TLHandler h -> h.tlid
+
+module SourceFile =
+  type Declaration =
+    | Type of PackageType.PackageType
+    | Value of PackageValue.PackageValue
+    | Function of PackageFn.PackageFn
+    // db and handlers
+    | Module of Definitions // re-evaluate if this makes sense to be here
+
+  type SourceFile =
+    { declarations: List<Declaration>
+      exprsToEval: List<Expr> }

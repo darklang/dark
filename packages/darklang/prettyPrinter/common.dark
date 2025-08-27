@@ -2,31 +2,32 @@
 //alias PT = LanguageTools.ProgramTypes
 //alias RT = Stdlib.RuntimeTypes
 
-module Darklang =
-  module PrettyPrinter =
-    let indent (s: String) : String =
-      s
-      |> Stdlib.String.split "\n"
-      |> Stdlib.List.map (fun line ->
-        match line with
-        | "" -> ""
-        | line -> "  " ++ line)
-      |> Stdlib.String.join "\n"
+module Darklang.PrettyPrinter
 
-    let sign (s: LanguageTools.Sign) : String =
-      match s with
-      | Positive -> ""
-      | Negative -> "-"
 
-    let escapeSpecialCharacters (s: String) : String =
-      s
-      |> Stdlib.String.replaceAll "\n" "\\n"
-      |> Stdlib.String.replaceAll "\t" "\\t"
-      |> Stdlib.String.replaceAll "\r" "\\r"
+let indent (s: String) : String =
+  s
+  |> Stdlib.String.split "\n"
+  |> Stdlib.List.map (fun line ->
+    match line with
+    | "" -> ""
+    | line -> "  " ++ line)
+  |> Stdlib.String.join "\n"
 
-    let processRemainder (remainder: String) : String =
-      match $".{remainder}" |> Stdlib.Float.parse with
-      | Ok floatValue -> 
-        floatValue |> Stdlib.Float.toString |> Stdlib.String.dropFirst 2L
-      | Error _ -> 
-        remainder
+let sign (s: LanguageTools.Sign) : String =
+  match s with
+  | Positive -> ""
+  | Negative -> "-"
+
+let escapeSpecialCharacters (s: String) : String =
+  s
+  |> Stdlib.String.replaceAll "\n" "\\n"
+  |> Stdlib.String.replaceAll "\t" "\\t"
+  |> Stdlib.String.replaceAll "\r" "\\r"
+
+let processRemainder (remainder: String) : String =
+  match $".{remainder}" |> Stdlib.Float.parse with
+  | Ok floatValue ->
+    floatValue |> Stdlib.Float.toString |> Stdlib.String.dropFirst 2L
+  | Error _ ->
+    remainder

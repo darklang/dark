@@ -1,74 +1,73 @@
 // Tracing and logging utilities for the Model Context Protocol
+module Darklang.ModelContextProtocol
 
-module Darklang =
-  module ModelContextProtocol =
-    /// Trace levels for MCP server logging
-    type TraceLevel =
-      | Off
-      | Messages
-      | Verbose
+/// Trace levels for MCP server logging
+type TraceLevel =
+  | Off
+  | Messages
+  | Verbose
 
-    /// Trace notification parameters
-    module TraceNotification =
-      type TraceNotificationParams =
-        { value: TraceLevel }
+/// Trace notification parameters
+module TraceNotification =
+  type TraceNotificationParams =
+    { value: TraceLevel }
 
-      let fromJson (json: Json) : Stdlib.Result.Result<TraceNotificationParams, String> =
-        match json with
-        | Object fields ->
-          match Stdlib.List.findFirst fields (fun (k, _) -> k == "value") with
-          | Some (_, String "off") ->
-              Stdlib.Result.Result.Ok { value = TraceLevel.Off }
-          | Some (_, String "messages") ->
-              Stdlib.Result.Result.Ok { value = TraceLevel.Messages }
-          | Some (_, String "verbose") ->
-              Stdlib.Result.Result.Ok { value = TraceLevel.Verbose }
-          | Some (_, _) ->
-              Stdlib.Result.Result.Error "value must be one of: 'off', 'messages', 'verbose'"
-          | None ->
-              Stdlib.Result.Result.Error "value is required"
-        | _ ->
-            Stdlib.Result.Result.Error "params must be an object"
+  let fromJson (json: Json) : Stdlib.Result.Result<TraceNotificationParams, String> =
+    match json with
+    | Object fields ->
+      match Stdlib.List.findFirst fields (fun (k, _) -> k == "value") with
+      | Some (_, String "off") ->
+          Stdlib.Result.Result.Ok { value = TraceLevel.Off }
+      | Some (_, String "messages") ->
+          Stdlib.Result.Result.Ok { value = TraceLevel.Messages }
+      | Some (_, String "verbose") ->
+          Stdlib.Result.Result.Ok { value = TraceLevel.Verbose }
+      | Some (_, _) ->
+          Stdlib.Result.Result.Error "value must be one of: 'off', 'messages', 'verbose'"
+      | None ->
+          Stdlib.Result.Result.Error "value is required"
+    | _ ->
+        Stdlib.Result.Result.Error "params must be an object"
 
-      let toJson (params: TraceNotificationParams) : Json =
-        let valueStr =
-          match params.value with
-          | Off -> "off"
-          | Messages -> "messages"
-          | Verbose -> "verbose"
+  let toJson (params: TraceNotificationParams) : Json =
+    let valueStr =
+      match params.value with
+      | Off -> "off"
+      | Messages -> "messages"
+      | Verbose -> "verbose"
 
-        Json.Object [
-          ("value", Json.String valueStr)
-        ]
+    Json.Object [
+      ("value", Json.String valueStr)
+    ]
 
-    /// Log message notification parameters
-    module LogMessageNotification =
-      /// Message types for log messages
-      type MessageType =
-        | Error
-        | Warning
-        | Info
-        | Debug
+/// Log message notification parameters
+module LogMessageNotification =
+  /// Message types for log messages
+  type MessageType =
+    | Error
+    | Warning
+    | Info
+    | Debug
 
-      type LogMessageParams =
-        { type_: MessageType
-          message: String }
+  type LogMessageParams =
+    { type_: MessageType
+      message: String }
 
-      let toJson (params: LogMessageParams) : Json =
-        let typeNum =
-          match params.type_ with
-          | Error -> 1
-          | Warning -> 2
-          | Info -> 3
-          | Debug -> 4
+  let toJson (params: LogMessageParams) : Json =
+    let typeNum =
+      match params.type_ with
+      | Error -> 1
+      | Warning -> 2
+      | Info -> 3
+      | Debug -> 4
 
-        Json.Object [
-          ("type", Json.Number (Stdlib.Int64.toFloat typeNum));
-          ("message", Json.String params.message)
-        ]
+    Json.Object [
+      ("type", Json.Number (Stdlib.Int64.toFloat typeNum));
+      ("message", Json.String params.message)
+    ]
 
-    /// Telemetry notification parameters
-    module TelemetryNotification =
-      type TelemetryEventParams = Json
+/// Telemetry notification parameters
+module TelemetryNotification =
+  type TelemetryEventParams = Json
 
-      let toJson (params: TelemetryEventParams) : Json = params
+  let toJson (params: TelemetryEventParams) : Json = params

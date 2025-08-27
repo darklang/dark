@@ -1,184 +1,183 @@
-module Darklang =
-  module LanguageTools =
-    module Parser =
-      module Canvas =
-        type WTCanvasModule =
-          { owner: String
-            name: List<String>
-            types: List<LanguageTools.WrittenTypes.TypeReference.TypeReference>
-            values:
-              List<LanguageTools.WrittenTypes.ValueDeclaration.ValueDeclaration>
-            fns: List<LanguageTools.WrittenTypes.FnDeclaration.FnDeclaration>
-            // dbs, handlers
-            exprs: List<LanguageTools.WrittenTypes.Expr> }
-
-        type PTCanvasModule =
-          { types: List<LanguageTools.ProgramTypes.PackageType.PackageType>
-            values:
-              List<LanguageTools.ProgramTypes.PackageValue.PackageValue>
-            fns: List<LanguageTools.ProgramTypes.PackageFn.PackageFn>
-            // dbs, handlers
-            exprs: List<LanguageTools.ProgramTypes.Expr> }
-
-        let parseDecls
-          (owner: String)
-          (canvasName: String)
-          (source: LanguageTools.WrittenTypes.ParsedFile)
-          : Stdlib.Result.Result<WTCanvasModule, String> =
-          match source with
-          | SourceFile source ->
-            let types =
-              source.declarations
-              |> Stdlib.List.filterMap (fun decl ->
-                match decl with
-                | Type t -> Stdlib.Option.Option.Some t
-                | _ -> Stdlib.Option.Option.None)
-
-            let values =
-              source.declarations
-              |> Stdlib.List.filterMap (fun decl ->
-                match decl with
-                | Value v -> Stdlib.Option.Option.Some v
-                | _ -> Stdlib.Option.Option.None)
-
-            let fns =
-              source.declarations
-              |> Stdlib.List.filterMap (fun decl ->
-                match decl with
-                | Function f -> Stdlib.Option.Option.Some f
-                | _ -> Stdlib.Option.Option.None)
-
-            let exprs = source.exprsToEval
-
-            Stdlib.Result.Result.Ok(
-              WTCanvasModule
-                { owner = owner
-                  name = [ canvasName ]
-                  types = types
-                  values = values
-                  fns = fns
-                  exprs = exprs }
-            )
-
-          | _ -> Stdlib.Result.Result.Error "Invalid source file"
+module Darklang.LanguageTools.Parser.Canvas
 
 
-        let toPT
-          (onMissing: NameResolver.OnMissing)
-          (pm: ProgramTypes.PackageManager.PackageManager)
-          (wt: WTCanvasModule)
-          : PTCanvasModule =
-          let (types, _) =
-            wt.types
-            |> Stdlib.List.map (fun t ->
-              LanguageTools.WrittenTypesToProgramTypes.TypeDeclaration.toPackageTypePT
-                onMissing
-                pm
-                wt.owner
-                []
-                t)
-            |> Stdlib.List.unzip
+type WTCanvasModule =
+  { owner: String
+    name: List<String>
+    types: List<LanguageTools.WrittenTypes.TypeReference.TypeReference>
+    values:
+      List<LanguageTools.WrittenTypes.ValueDeclaration.ValueDeclaration>
+    fns: List<LanguageTools.WrittenTypes.FnDeclaration.FnDeclaration>
+    // dbs, handlers
+    exprs: List<LanguageTools.WrittenTypes.Expr> }
 
-          let (values, _) =
-            wt.values
-            |> Stdlib.List.map (fun v ->
-              WrittenTypesToProgramTypes.ValueDeclaration.toPackageValuePT
-                onMissing
-                pm
-                wt.owner
-                []
-                v)
-            |> Stdlib.List.unzip
+type PTCanvasModule =
+  { types: List<LanguageTools.ProgramTypes.PackageType.PackageType>
+    values:
+      List<LanguageTools.ProgramTypes.PackageValue.PackageValue>
+    fns: List<LanguageTools.ProgramTypes.PackageFn.PackageFn>
+    // dbs, handlers
+    exprs: List<LanguageTools.ProgramTypes.Expr> }
 
-          let (fns, _) =
-            wt.fns
-            |> Stdlib.List.map (fun f ->
-              WrittenTypesToProgramTypes.FunctionDeclaration.toPackageFnPT
-                onMissing
-                pm
-                wt.owner
-                []
-                f)
-            |> Stdlib.List.unzip
+let parseDecls
+  (owner: String)
+  (canvasName: String)
+  (source: LanguageTools.WrittenTypes.ParsedFile)
+  : Stdlib.Result.Result<WTCanvasModule, String> =
+  match source with
+  | SourceFile source ->
+    let types =
+      source.declarations
+      |> Stdlib.List.filterMap (fun decl ->
+        match decl with
+        | Type t -> Stdlib.Option.Option.Some t
+        | _ -> Stdlib.Option.Option.None)
 
-          let (exprs, _) =
-            wt.exprs
-            |> Stdlib.List.map (fun e ->
-              LanguageTools.WrittenTypesToProgramTypes.Expr.toPT
-                onMissing
-                pm
-                wt.owner
-                []
-                e)
-            |> Stdlib.List.unzip
+    let values =
+      source.declarations
+      |> Stdlib.List.filterMap (fun decl ->
+        match decl with
+        | Value v -> Stdlib.Option.Option.Some v
+        | _ -> Stdlib.Option.Option.None)
 
-          PTCanvasModule
-            { types = types
-              values = values
-              fns = fns
-              exprs = exprs }
+    let fns =
+      source.declarations
+      |> Stdlib.List.filterMap (fun decl ->
+        match decl with
+        | Function f -> Stdlib.Option.Option.Some f
+        | _ -> Stdlib.Option.Option.None)
+
+    let exprs = source.exprsToEval
+
+    Stdlib.Result.Result.Ok(
+      WTCanvasModule
+        { owner = owner
+          name = [ canvasName ]
+          types = types
+          values = values
+          fns = fns
+          exprs = exprs }
+    )
+
+  | _ -> Stdlib.Result.Result.Error "Invalid source file"
 
 
-        let parse
-          (owner: String)
-          (canvasName: String)
-          (onMissing: NameResolver.OnMissing)
-          (pm: ProgramTypes.PackageManager.PackageManager)
-          (filename: String)
-          (source: String)
-          : Stdlib.Result.Result<PTCanvasModule, String> =
-          match source |> LanguageTools.Parser.TestParsing.initialParse with
-          | Error e -> Stdlib.Result.Result.Error e
-          | Ok parsedFile ->
-            match parseDecls owner canvasName parsedFile with
-            | Error e -> Stdlib.Result.Result.Error e
-            | Ok moduleWT ->
-              let initialParse = toPT onMissing pm moduleWT
+let toPT
+  (onMissing: NameResolver.OnMissing)
+  (pm: ProgramTypes.PackageManager.PackageManager)
+  (wt: WTCanvasModule)
+  : PTCanvasModule =
+  let (types, _) =
+    wt.types
+    |> Stdlib.List.map (fun t ->
+      LanguageTools.WrittenTypesToProgramTypes.TypeDeclaration.toPackageTypePT
+        onMissing
+        pm
+        wt.owner
+        []
+        t)
+    |> Stdlib.List.unzip
 
-              let pm =
-                ProgramTypes.PackageManager.withExtras
-                  pm
-                  initialParse.types
-                  initialParse.values
-                  initialParse.fns
+  let (values, _) =
+    wt.values
+    |> Stdlib.List.map (fun v ->
+      WrittenTypesToProgramTypes.ValueDeclaration.toPackageValuePT
+        onMissing
+        pm
+        wt.owner
+        []
+        v)
+    |> Stdlib.List.unzip
 
-              let result = toPT onMissing pm moduleWT
+  let (fns, _) =
+    wt.fns
+    |> Stdlib.List.map (fun f ->
+      WrittenTypesToProgramTypes.FunctionDeclaration.toPackageFnPT
+        onMissing
+        pm
+        wt.owner
+        []
+        f)
+    |> Stdlib.List.unzip
 
-              let adjusted =
-                PTCanvasModule
-                  { types =
-                      result.types
-                      |> Stdlib.List.map (fun t ->
-                        { t with
-                            id =
-                              initialParse.types
-                              |> Stdlib.List.findFirst (fun original ->
-                                original.name == t.name)
-                              |> Stdlib.Option.mapWithDefault t.id (fun original ->
-                                original.id) })
+  let (exprs, _) =
+    wt.exprs
+    |> Stdlib.List.map (fun e ->
+      LanguageTools.WrittenTypesToProgramTypes.Expr.toPT
+        onMissing
+        pm
+        wt.owner
+        []
+        e)
+    |> Stdlib.List.unzip
 
-                    values =
-                      result.values
-                      |> Stdlib.List.map (fun v ->
-                        { v with
-                            id =
-                              initialParse.values
-                              |> Stdlib.List.findFirst (fun original ->
-                                original.name == v.name)
-                              |> Stdlib.Option.mapWithDefault v.id (fun original ->
-                                original.id) })
+  PTCanvasModule
+    { types = types
+      values = values
+      fns = fns
+      exprs = exprs }
 
-                    fns =
-                      result.fns
-                      |> Stdlib.List.map (fun f ->
-                        { f with
-                            id =
-                              initialParse.fns
-                              |> Stdlib.List.findFirst (fun original ->
-                                original.name == f.name)
-                              |> Stdlib.Option.mapWithDefault f.id (fun original ->
-                                original.id) })
 
-                    exprs = result.exprs }
+let parse
+  (owner: String)
+  (canvasName: String)
+  (onMissing: NameResolver.OnMissing)
+  (pm: ProgramTypes.PackageManager.PackageManager)
+  (filename: String)
+  (source: String)
+  : Stdlib.Result.Result<PTCanvasModule, String> =
+  match source |> LanguageTools.Parser.TestParsing.initialParse with
+  | Error e -> Stdlib.Result.Result.Error e
+  | Ok parsedFile ->
+    match parseDecls owner canvasName parsedFile with
+    | Error e -> Stdlib.Result.Result.Error e
+    | Ok moduleWT ->
+      let initialParse = toPT onMissing pm moduleWT
 
-              Stdlib.Result.Result.Ok adjusted
+      let pm =
+        ProgramTypes.PackageManager.withExtras
+          pm
+          initialParse.types
+          initialParse.values
+          initialParse.fns
+
+      let result = toPT onMissing pm moduleWT
+
+      let adjusted =
+        PTCanvasModule
+          { types =
+              result.types
+              |> Stdlib.List.map (fun t ->
+                { t with
+                    id =
+                      initialParse.types
+                      |> Stdlib.List.findFirst (fun original ->
+                        original.name == t.name)
+                      |> Stdlib.Option.mapWithDefault t.id (fun original ->
+                        original.id) })
+
+            values =
+              result.values
+              |> Stdlib.List.map (fun v ->
+                { v with
+                    id =
+                      initialParse.values
+                      |> Stdlib.List.findFirst (fun original ->
+                        original.name == v.name)
+                      |> Stdlib.Option.mapWithDefault v.id (fun original ->
+                        original.id) })
+
+            fns =
+              result.fns
+              |> Stdlib.List.map (fun f ->
+                { f with
+                    id =
+                      initialParse.fns
+                      |> Stdlib.List.findFirst (fun original ->
+                        original.name == f.name)
+                      |> Stdlib.Option.mapWithDefault f.id (fun original ->
+                        original.id) })
+
+            exprs = result.exprs }
+
+      Stdlib.Result.Result.Ok adjusted
