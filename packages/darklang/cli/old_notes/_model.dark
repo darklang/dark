@@ -1,0 +1,159 @@
+module Darklang.Cli
+
+
+// aka. Url
+type Page =
+  | Root
+  //| Meta
+
+  //| ConfigHome
+
+  // | Account
+  // | OtherUser of username: String
+
+  // Matter
+  | Module of owner: String * submodulePath: List<String>
+  | Type of name: LanguageTools.ProgramTypes.PackageType.Name
+  | Fn of name: LanguageTools.ProgramTypes.PackageFn.Name
+  | Value of name: LanguageTools.ProgramTypes.PackageValue.Name
+
+  // app
+  //| App of Uuid
+  //| HttpHandler of name: FQName // hmm
+  // | Script of name: FQName
+  // | KV of name
+  // | Sql of name
+
+  // TODO: | "InTheMiddleOfALet" or things like that
+
+
+// type App =
+//   | Cli of
+//   | Cloud of // http and stuff all in here? hmmm, do the details _need_ to be h
+
+  // type AppMetadata =
+  //   { name: String
+  //     owner: String
+  //     created: DateTime
+  //     lastEdited: DateTime
+  //     // accessibility: public/private
+  //   }
+
+  // type App =
+  //   { id: UUID
+  //     metadata: AppMetadata
+  //     scripts: ...
+  //     handlers: ...
+  //     dbs: ...
+  //     // secrets: ...
+  //     // traces: ...
+  //     // 404s: ...
+  //     }
+
+
+  /// The result of a command execution
+  type CommandResult =
+    | None
+    | Success of message: String
+    | Info of message: String
+    | Error of message: String
+
+  /// The CLI interaction mode
+  type InteractionMode =
+    | NonInteractive
+    | RefreshScreen
+    | Regular
+
+  /// The state of completion
+  type CompletionState =
+    { /// Current completion suggestions
+      suggestions: List<String>
+      /// Index of currently selected suggestion (-1 = no selection)
+      selectedIndex: Int64
+      /// The original text that was being completed
+      originalText: String
+      /// The prefix that matched to generate these suggestions
+      completionPrefix: String
+    }
+
+  /// Categories of entities that can be displayed in viewing mode
+  type EntityCategory =
+    | Functions
+    | Types
+    | Values
+    | Submodules
+
+  /// Entity definition with cached content for scrolling
+  type EntityDefinition =
+    { name: String
+      lines: List<String> //  content split into lines for scrolling
+      scrollPosition: Int64 }
+
+  /// Content types
+  type ViewContent =
+    | ModuleView of EntityCategory * List<String> * Int64  // category, items, selectedIndex
+    | EntityDefinitionView of EntityDefinition
+
+  /// Viewing mode state
+  type ViewingState =
+    { moduleContent: LanguageTools.ProgramTypes.Search.SearchResults
+      entityName: String
+      selectedCategory: EntityCategory
+      selectedItemIndex: Int64
+      expandedCategories: List<EntityCategory>
+      entityDefinition: Stdlib.Option.Option<EntityDefinition>
+      /// Cache for entity definitions to avoid re-computing them
+      entityCache: List<(String * EntityDefinition)>
+      /// Viewport scroll position for the module view (how many lines scrolled from top)
+      viewportScrollPosition: Int64 }
+
+  type State =
+    { /// The current page/view the user is on
+      currentPage: Page
+
+      /// History of pages for navigation (most recent at the head)
+      pageHistory: List<Page>
+
+      /// The current input in the prompt
+      mainPrompt: String
+
+      /// Position of the cursor within the prompt
+      cursorPosition: Int64
+
+      /// Command history
+      commandHistory: List<String>
+
+      /// Current position in command history (-1 = typing (not navigating), 0 = most recent, 1 = second most recent, etc.)
+      historyPosition: Int64
+
+      /// What we were typing before we started navigating history
+      draftPrompt: String
+
+      /// The result of the last command's execution
+      commandResult: CommandResult
+
+      /// The current interaction mode
+      interactionMode: InteractionMode
+
+      /// Flag to indicate if a full screen redraw is needed
+      /// Set to true for initial render, after command execution, or navigation
+      needsFullRedraw: Bool
+
+      /// Flag to indicate if the application should exit
+      isExiting: Bool
+
+      /// The current state of tab completion
+      completionState: Stdlib.Option.Option<CompletionState>
+
+      /// Viewing mode state - None when not in viewing mode
+      viewingState: Stdlib.Option.Option<ViewingState>
+
+      //accounts: [("stachu", "uhcats"); ("ocean": "oak"); ("paul", "biggar")]
+      //currentAccount: "stachu"
+
+      //cloudApps: ["darklang.com"; "stachu.net"; "dark-cli"]
+      //httpHandlers: List<HttpHandler>
+      //cliApps = []
+      //scripts: []
+      //crons: []
+    }
