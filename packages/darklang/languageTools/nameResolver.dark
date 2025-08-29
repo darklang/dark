@@ -48,9 +48,6 @@ let namesToTry
     | "Stdlib" :: _ ->
       [ { given with
             modules = Stdlib.List.append [ "Darklang" ] given.modules } ]
-    | "PACKAGE" :: owner :: modules ->
-      [ { given with
-            modules = Stdlib.List.append [ owner ] modules } ]
     | _ -> []
 
   let currentModule = Stdlib.List.append [ owner ] currentModule

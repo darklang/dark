@@ -26,14 +26,8 @@ module NameResolutionError =
 type Context =
   { currentModule: Stdlib.Option.Option<String> }
 
-let defaultContext = Context { currentModule = Stdlib.Option.Option.None }
-
-let packageName
-  (owner: String)
-  (modules: List<String>)
-  (name: String)
-  : String =
-  packageNameWithContext defaultContext owner modules name
+let defaultContext =
+  Context { currentModule = Stdlib.Option.Option.None }
 
 let packageNameWithContext
   (ctx: Context)
@@ -68,9 +62,16 @@ let packageNameWithContext
     match owner with
     | "Tests" -> $"{modulesPart}{name}"
     | "Darklang" ->
-      // For Darklang packages, just show module path without PACKAGE prefix
+      // For Darklang packages, just show module path
       $"{modulesPart}{name}"
-    | _ -> $"PACKAGE.{owner}.{modulesPart}{name}"
+    | _ -> $"{owner}.{modulesPart}{name}"
+
+let packageName
+  (owner: String)
+  (modules: List<String>)
+  (name: String)
+  : String =
+  packageNameWithContext defaultContext owner modules name
 
 
 module FQTypeName =
@@ -80,14 +81,14 @@ module FQTypeName =
       : String =
       match LanguageTools.PackageManager.Type.get id with
       | Some p -> p.name.name
-      | None -> Stdlib.Uuid.toString p
+      | None -> Stdlib.Uuid.toString id
 
     let fullForReference
       (id: LanguageTools.ProgramTypes.FQTypeName.Package)
       : String =
       match LanguageTools.PackageManager.Type.get id with
       | Some p -> packageName p.name.owner p.name.modules p.name.name
-      | None -> Stdlib.Uuid.toString p
+      | None -> Stdlib.Uuid.toString id
 
 
   let atDefinition
@@ -126,14 +127,14 @@ module FQValueName =
       : String =
       match LanguageTools.PackageManager.Value.get id with
       | Some p -> p.name.name
-      | None -> Stdlib.Uuid.toString p
+      | None -> Stdlib.Uuid.toString id
 
     let fullForReference
       (id: LanguageTools.ProgramTypes.FQValueName.Package)
       : String =
       match LanguageTools.PackageManager.Value.get id with
       | Some p -> packageName p.name.owner p.name.modules p.name.name
-      | None -> Stdlib.Uuid.toString p
+      | None -> Stdlib.Uuid.toString id
 
 
 
@@ -178,14 +179,14 @@ module FQFnName =
       : String =
       match LanguageTools.PackageManager.Function.get id with
       | Some p -> p.name.name
-      | None -> Stdlib.Uuid.toString p
+      | None -> Stdlib.Uuid.toString id
 
     let fullForReference
       (id: LanguageTools.ProgramTypes.FQFnName.Package)
       : String =
       match LanguageTools.PackageManager.Function.get id with
       | Some p -> packageName p.name.owner p.name.modules p.name.name
-      | None -> Stdlib.Uuid.toString p
+      | None -> Stdlib.Uuid.toString id
 
 
   let atDefinition (t: LanguageTools.ProgramTypes.FQFnName.FQFnName) : String =

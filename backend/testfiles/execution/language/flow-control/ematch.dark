@@ -1012,7 +1012,7 @@ module PatternGrouping =
   //  | Some "hello" -> "fail"
   //  | _ -> "fail") = Builtin.testDerrorMessage
   //   // TODO bad error message
-  //   "Cannot match PACKAGE.Darklang.Stdlib.Option.Option value PACKAGE.Da... with a String pattern"
+  //   "Cannot match Darklang.Stdlib.Option.Option value Da... with a String pattern"
 
     // (match "" with
     //  | head :: rest -> "fail") = Builtin.testDerrorMessage
@@ -1052,4 +1052,4 @@ module PatternGrouping =
   //  | "failure" -> "fail"
   //  | Error "failure" -> "fail"
   //  | _ -> "fail") = Builtin.testDerrorMessage
-  //   "Cannot match PACKAGE.Darklang.Stdlib.Result.Result value PACKAGE.Da... with a String pattern"
+  //   "Cannot match Darklang.Stdlib.Result.Result value Da... with a String pattern"

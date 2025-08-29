@@ -8,8 +8,8 @@ module Documentation =
    |> Stdlib.List.findFirst (fun f -> f.name.name == "int64Add")
    |> Builtin.unwrap
    |> (fun f -> f.parameters)) =
-     [ PACKAGE.Darklang.LanguageTools.BuiltinFunctionParameter { name = "a"; ``type`` = PACKAGE.Darklang.LanguageTools.RuntimeTypes.TypeReference.TInt64 }
-       PACKAGE.Darklang.LanguageTools.BuiltinFunctionParameter { name = "b"; ``type`` = PACKAGE.Darklang.LanguageTools.RuntimeTypes.TypeReference.TInt64 } ]
+     [ Darklang.LanguageTools.BuiltinFunctionParameter { name = "a"; ``type`` = Darklang.LanguageTools.RuntimeTypes.TypeReference.TInt64 }
+       Darklang.LanguageTools.BuiltinFunctionParameter { name = "b"; ``type`` = Darklang.LanguageTools.RuntimeTypes.TypeReference.TInt64 } ]
 
 
 module Infra =
@@ -61,7 +61,7 @@ module Secrets =
   // insert
   (let _ = (Builtin.testGetCanvasID ()) |> Builtin.darkInternalCanvasSecretInsert "SECRET" "VALUE" 0
    (Builtin.testGetCanvasID ()) |> Builtin.darkInternalCanvasSecretGetAll) =
-     [ PACKAGE.Darklang.Internal.Canvas.Secret
+     [ Darklang.Internal.Canvas.Secret
          { name = "SECRET"; value = "VALUE"; version = 0 } ]
 
   // insert twice

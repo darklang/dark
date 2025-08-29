@@ -15,6 +15,6 @@ Content-Length: LENGTH
 
 [test]
 (let reqHeaders = [("Content-Type", "just an invalid string")]
- let response = PACKAGE.Darklang.Stdlib.HttpClient.request "get" "http://URL" reqHeaders []
+ let response = Darklang.Stdlib.HttpClient.request "get" "http://URL" reqHeaders []
  response) ==
    Builtin.Test.runtimeError "Invalid content-type header"

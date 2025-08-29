@@ -68,11 +68,10 @@ let namesToTry
       let newNameToTry = { given with modules = modulesToPrepend @ given.modules }
       newNameToTry :: loop allButLast
 
-  // handle explicit PACKAGE.etc and Stdlib.etc shortcut
+  // handle explicit Stdlib.etc shortcut
   let addl =
     match given.modules with
     | "Stdlib" :: _ -> [ { given with modules = "Darklang" :: given.modules } ]
-    | "PACKAGE" :: owner :: modules -> [ { given with modules = owner :: modules } ]
     | _ -> []
 
   (loop currentModule) @ addl

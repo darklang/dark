@@ -83,7 +83,7 @@ Stdlib.List.filter [ 1L; 2L; 3L ] (fun item ->
   match item with
   | 1L -> Stdlib.Option.Option.None
   | 2L -> false
-  | 3L -> true) = Builtin.testDerrorMessage "Encountered a condition that must be a Bool, but got a PACKAGE.Darklang.Stdlib.Option.Option<_> (PACKAGE.Darklang.Stdlib.Option.Option<_>.None)"
+  | 3L -> true) = Builtin.testDerrorMessage "Encountered a condition that must be a Bool, but got a Darklang.Stdlib.Option.Option<_> (Darklang.Stdlib.Option.Option<_>.None)"
 
 Stdlib.List.filter [ true; false; true ] (fun item -> "a") =
   Builtin.testDerrorMessage "Encountered a condition that must be a Bool, but got a String (\"a\")"
@@ -117,7 +117,7 @@ module Flatten =
   Stdlib.List.flatten_v0 [ [ 1L ]; [ 2L ]; [ 3L ] ] = [ 1L; 2L; 3L ]
 
   Stdlib.List.flatten_v0 [ 1; 2; 3 ] =
-    Builtin.testDerrorMessage "PACKAGE.Darklang.Stdlib.List.flatten's 1st parameter `list` expects List<List<_>>, but got List<Int32> ([\n  1, 2, 3\n])"
+    Builtin.testDerrorMessage "Darklang.Stdlib.List.flatten's 1st parameter `list` expects List<List<_>>, but got List<Int32> ([\n  1, 2, 3\n])"
 
   Stdlib.List.flatten_v0 [ [ 1L ]; [ [ 2L; 3L ] ] ] =
    Builtin.testDerrorMessage "Cannot add a List<List<Int64>> ([\n  [\n    2, 3\n  ]\n]) to a list of List<Int64>. Failed at index 1."
@@ -168,7 +168,7 @@ module Interleave =
   Stdlib.List.interleave_v0 [] [] = []
 
   Stdlib.List.interleave_v0 [ "a"; "b"; "c" ] [ 0L ] =
-    Builtin.testDerrorMessage "PACKAGE.Darklang.Stdlib.List.interleave's 2nd parameter `lB` expects List<String>, but got List<Int64> ([\n  0\n])"
+    Builtin.testDerrorMessage "Darklang.Stdlib.List.interleave's 2nd parameter `lB` expects List<String>, but got List<Int64> ([\n  0\n])"
 
 module Interpose =
   Stdlib.List.interpose_v0 [ 1L; 2L; 3L ] 5L = [ 1L; 5L; 2L; 5L; 3L ]
@@ -176,7 +176,7 @@ module Interpose =
   Stdlib.List.interpose_v0 [] 5L = []
 
   Stdlib.List.interpose_v0 [ "a"; "b"; "c" ] 0L =
-    Builtin.testDerrorMessage "PACKAGE.Darklang.Stdlib.List.interpose's 2nd parameter `sep` expects String, but got Int64 (0)"
+    Builtin.testDerrorMessage "Darklang.Stdlib.List.interpose's 2nd parameter `sep` expects String, but got Int64 (0)"
 
 
 module Last =
@@ -231,7 +231,7 @@ module Partition =
     match item with
     | 1L -> Stdlib.Option.Option.None
     | 2L -> false
-    | 3L -> true) = Builtin.testDerrorMessage "Encountered a condition that must be a Bool, but got a PACKAGE.Darklang.Stdlib.Option.Option<_> (PACKAGE.Darklang.Stdlib.Option.Option<_>.None)"
+    | 3L -> true) = Builtin.testDerrorMessage "Encountered a condition that must be a Bool, but got a Darklang.Stdlib.Option.Option<_> (Darklang.Stdlib.Option.Option<_>.None)"
 
 Stdlib.List.pushBack_v0 [ 2L; 3L ] 1L = [ 2L; 3L; 1L ]
 Stdlib.List.pushBack_v0 [] 1L = [ 1L ]

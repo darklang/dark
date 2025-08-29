@@ -193,7 +193,7 @@ open TestUtils.TestUtils
 //     let! expr =
 //       parse
 //         []
-//         "let x = true\n(let y = false\n(PACKAGE.Darklang.Stdlib.Bool.and x y))"
+//         "let x = true\n(let y = false\n(Darklang.Stdlib.Bool.and x y))"
 
 //     let! expected = parse [] "true && false"
 //     let! result = (C.inline' fns "value" Map.empty expr) |> Ply.toTask
@@ -210,7 +210,7 @@ open TestUtils.TestUtils
 //         []
 //         """let x = "package"
 // (let y = "e"
-// (PACKAGE.Darklang.Stdlib.String.replaceAll x y "es"))"""
+// (Darklang.Stdlib.String.replaceAll x y "es"))"""
 
 //     let! expected = parse [] """Builtin.stringReplaceAll "package" "e" "es" """
 //     let! result = (C.inline' fns "value" Map.empty expr) |> Ply.toTask

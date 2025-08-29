@@ -135,7 +135,7 @@ module Map =
 
   //   // CLEANUP: it should be a type error on the function not returning a Char
   //   Stdlib.String.map "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷" (fun x -> 5L) = Builtin.testDerrorMessage
-  //     """PACKAGE.Darklang.Stdlib.String.fromList's 1st argument (`lst`) should be a List<Char>. However, a List<Int64> ([  5, 5, ...) was passed instead.
+  //     """Darklang.Stdlib.String.fromList's 1st argument (`lst`) should be a List<Char>. However, a List<Int64> ([  5, 5, ...) was passed instead.
 
   // Expected: (lst: List<Char>)
   // Actual: a List<Int64>: [
@@ -380,7 +380,7 @@ module FromList =
   Stdlib.String.fromList [ c "👩‍👩‍👧‍👦"; c "🏳️‍⚧️‍️"; c "👱🏾"; c "Z̤͔ͧ̑̓" ] = "👩‍👩‍👧‍👦🏳️‍⚧️‍️👱🏾Z̤͔ͧ̑̓"
 
   Stdlib.String.fromList [ "a" ] =
-    Builtin.testDerrorMessage "PACKAGE.Darklang.Stdlib.String.fromList's 1st parameter `lst` expects List<Char>, but got List<String> ([\n  \"a\"\n])"
+    Builtin.testDerrorMessage "Darklang.Stdlib.String.fromList's 1st parameter `lst` expects List<Char>, but got List<String> ([\n  \"a\"\n])"
 
 
 module ToList =

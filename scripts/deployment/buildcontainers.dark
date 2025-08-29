@@ -6,7 +6,7 @@ type DirectoryContents = { files: List<String> }
 
 type DockerBuildResponse = { id: String }
 
-let unwrap (result: PACKAGE.Darklang.Stdlib.Result.Result<String, 'a>) : String =
+let unwrap (result: Darklang.Stdlib.Result.Result<String, 'a>) : String =
   match result with
   | Ok value -> value
   | Error error -> ()
@@ -15,15 +15,15 @@ let main () : Int64 =
 
   let dockerfiles =
     (Builtin.directoryList "containers")
-    |> PACKAGE.Darklang.Stdlib.List.map (fun directory ->
+    |> Darklang.Stdlib.List.map (fun directory ->
       Builtin.directoryList directory)
-    |> PACKAGE.Darklang.Stdlib.List.flatten
-    |> PACKAGE.Darklang.Stdlib.List.filter (fun filePath ->
-      PACKAGE.Darklang.Stdlib.String.endsWith filePath "Dockerfile")
+    |> Darklang.Stdlib.List.flatten
+    |> Darklang.Stdlib.List.filter (fun filePath ->
+      Darklang.Stdlib.String.endsWith filePath "Dockerfile")
 
   let imageIds =
     dockerfiles
-    |> PACKAGE.Darklang.Stdlib.List.map (fun dockerfile ->
+    |> Darklang.Stdlib.List.map (fun dockerfile ->
       let buildCommand = $"docker build -q -f {dockerfile} ."
       let response = Posix.runCommandWithOutput buildCommand
       let parsedResponse = Builtin.jsonParse<DockerBuildResponse> (response)
@@ -33,7 +33,7 @@ let main () : Int64 =
 
   let _ =
     Builtin.fileWrite
-      (PACKAGE.Darklang.Stdlib.String.toBytes jsonImageIds)
+      (Darklang.Stdlib.String.toBytes jsonImageIds)
       "ids.json"
 
   let _ = Builtin.printLine "done"

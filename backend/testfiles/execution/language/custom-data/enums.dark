@@ -16,10 +16,10 @@ Stdlib.Result.Result.Error(Builtin.testRuntimeError "err") =
 module Errors =
   module Builtins =
     Stdlib.Option.Option.None 5 =
-      (Builtin.testDerrorMessage "Expected 0 fields in PACKAGE.Darklang.Stdlib.Option.Option.`None`, but got 1")
+      (Builtin.testDerrorMessage "Expected 0 fields in Darklang.Stdlib.Option.Option.`None`, but got 1")
 
     Stdlib.Option.Option.Some(5, 6) =
-      (Builtin.testDerrorMessage "Expected 1 fields in PACKAGE.Darklang.Stdlib.Option.Option.`Some`, but got 2")
+      (Builtin.testDerrorMessage "Expected 1 fields in Darklang.Stdlib.Option.Option.`Some`, but got 2")
 
   module User =
     type MyEnum = | A | B | C of String
@@ -92,7 +92,7 @@ module MixedCases =
   match Stdlib.List.getAt values 3L with
   | Some z -> Stdlib.Result.Result.Ok z
   | None -> Stdlib.Result.Result.Error "Failure") =
-    PACKAGE.Darklang.Stdlib.Result.Result.Ok(EnumOfMixedCases.Z("testZ", 2L))
+    Darklang.Stdlib.Result.Result.Ok(EnumOfMixedCases.Z("testZ", 2L))
 
   ([ EnumOfMixedCases.W
      EnumOfMixedCases.X "testX"

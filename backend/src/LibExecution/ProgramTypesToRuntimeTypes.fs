@@ -1132,6 +1132,21 @@ module PackageValue =
         caseName,
         fieldValues
       )
+    | PT.ERecord(_, typeName, typeArgs, fields) ->
+      let resolvedTypeName =
+        match typeName with
+        | Ok name -> FQTypeName.toRT name
+        | Error _ ->
+          Exception.raiseInternal
+            "Cannot resolve record type name in package constant"
+            []
+      let fieldValues =
+        fields
+        |> List.map (fun (fieldName, fieldExpr) ->
+          (fieldName, evalConstantExpr fieldExpr))
+        |> Map.ofList
+      let convertedTypeArgs = List.map TypeReference.toValueType typeArgs
+      RT.DRecord(resolvedTypeName, resolvedTypeName, convertedTypeArgs, fieldValues)
     | _ ->
       // For more complex expressions, return Unit as fallback
       RT.DUnit

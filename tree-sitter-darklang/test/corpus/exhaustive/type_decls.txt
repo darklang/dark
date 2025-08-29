@@ -22,7 +22,7 @@ type ID = Int64
 type decl alias of package type
 ==================
 
-type MyID = PACKAGE.Darklang.LanguageTools.Test
+type MyID = Darklang.LanguageTools.Test
 
 ---
 
@@ -35,8 +35,6 @@ type MyID = PACKAGE.Darklang.LanguageTools.Test
       (type_decl_def_alias
         (type_reference
           (qualified_type_name
-            (module_identifier)
-            (symbol)
             (module_identifier)
             (symbol)
             (module_identifier)
@@ -76,7 +74,7 @@ type def alias with indent
 ==================
 
 type Json =
-  PACKAGE.Darklang.Stdlib.AltJson.Json
+  Darklang.Stdlib.AltJson.Json
 
 ---
 
@@ -90,7 +88,7 @@ type Json =
         (indent)
         (type_reference
           (qualified_type_name
-            (module_identifier) (symbol) (module_identifier) (symbol) (module_identifier) (symbol) (module_identifier) (symbol) (type_identifier)
+            (module_identifier) (symbol) (module_identifier) (symbol) (module_identifier) (symbol) (type_identifier)
           )
         )
         (dedent)
@@ -133,7 +131,7 @@ type Cols2 = { col1: Int64; col2: Int64 }
 type def Record with package type
 ==================
 
-type Cols2 = { col1: PACKAGE.Darklang.LanguageTools.Test; col2: Int64 }
+type Cols2 = { col1: Darklang.LanguageTools.Test; col2: Int64 }
 
 ---
 
@@ -146,7 +144,7 @@ type Cols2 = { col1: PACKAGE.Darklang.LanguageTools.Test; col2: Int64 }
             (type_decl_def_record_field
               (variable_identifier) (symbol) (type_reference
                 (qualified_type_name
-                  (module_identifier) (symbol) (module_identifier) (symbol) (module_identifier) (symbol) (type_identifier)
+                  (module_identifier) (symbol) (module_identifier) (symbol) (type_identifier)
                 )
               )
             )

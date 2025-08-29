@@ -105,7 +105,7 @@ let exprRTs =
       // // in PackageIDs to support this test. Fix that.
       // t
       //   "pipe without expr"
-      //   "(let x = 5L\nx |> PACKAGE.Darklang.Stdlib.List.map 5L)"
+      //   "(let x = 5L\nx |> Darklang.Stdlib.List.map 5L)"
       //   (PT.ELet(
       //     id,
       //     PT.LPVariable(id, "x"),

@@ -30,7 +30,7 @@ let packageName
 
   match owner with
   | "Tests" -> $"{modulesPart}{name}"
-  | _ -> $"PACKAGE.{owner}.{modulesPart}{name}"
+  | _ -> $"{owner}.{modulesPart}{name}"
 
 
 module FQTypeName =

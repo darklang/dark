@@ -1,15 +1,15 @@
 // TODO: Add additional tests to cover all cases
-type TokenType = PACKAGE.Darklang.LanguageTools.SemanticTokens.TokenType
+type TokenType = Darklang.LanguageTools.SemanticTokens.TokenType
 
 let tokenize
   (text: String)
-  : List<(PACKAGE.Darklang.LanguageTools.SemanticTokens.TokenType * (Int64 * Int64) * (Int64 * Int64))>
+  : List<(Darklang.LanguageTools.SemanticTokens.TokenType * (Int64 * Int64) * (Int64 * Int64))>
   =
   text
-  |> PACKAGE.Darklang.LanguageTools.Parser.parseToSimplifiedTree
-  |> PACKAGE.Darklang.LanguageTools.Parser.parseFromTree
+  |> Darklang.LanguageTools.Parser.parseToSimplifiedTree
+  |> Darklang.LanguageTools.Parser.parseFromTree
   |> Builtin.unwrap
-  |> PACKAGE.Darklang.LanguageTools.SemanticTokens.ParsedFile.tokenize
+  |> Darklang.LanguageTools.SemanticTokens.ParsedFile.tokenize
   |> Stdlib.List.map (fun token ->
     let rangeStart = (token.range.start.row, token.range.start.column)
     let rangeEnd = (token.range.end_.row, token.range.end_.column)

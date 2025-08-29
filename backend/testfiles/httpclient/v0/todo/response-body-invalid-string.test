@@ -14,10 +14,10 @@ RANDOM_BYTES
 
 [test]
 // RANDOM_BYTES filled in by the test suite
-(let response = (PACKAGE.Darklang.Stdlib.HttpClient.request "get" "http://URL" [] []) |> Builtin.unwrap
- let respHeaders = response.headers |> PACKAGE.Darklang.Stdlib.List.filter (fun h -> PACKAGE.Darklang.Stdlib.Tuple2.first h != "date")
+(let response = (Darklang.Stdlib.HttpClient.request "get" "http://URL" [] []) |> Builtin.unwrap
+ let respHeaders = response.headers |> Darklang.Stdlib.List.filter (fun h -> Darklang.Stdlib.Tuple2.first h != "date")
  {response with headers = respHeaders}) =
-   PACKAGE.Darklang.Stdlib.HttpClient.Response
+   Darklang.Stdlib.HttpClient.Response
     { body = "utf-8 decoding error"
       statusCode = 200L
       headers =

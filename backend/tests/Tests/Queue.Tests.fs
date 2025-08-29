@@ -28,7 +28,7 @@ let initializeCanvas (name : string) : Task<CanvasID * tlid> =
   task {
     // set up handler
     let! canvasID = initializeTestCanvas name
-    let! e = parsePTExpr "let data = PACKAGE.Darklang.Stdlib.DateTime.now ()\n 123"
+    let! e = parsePTExpr "let data = Darklang.Stdlib.DateTime.now ()\n 123"
     let h = testWorker "test" e
 
     do! Canvas.saveTLIDs canvasID [ (PT.Toplevel.TLHandler h, Serialize.NotDeleted) ]

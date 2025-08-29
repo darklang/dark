@@ -16,10 +16,10 @@ Content-Length: LENGTH
 
 [test]
 (let query = { "[]()`~*&^%$#@!:"<>?,./;'-=_+" = "control" }
- let response = (PACKAGE.Darklang.Stdlib.HttpClient.request "get" "http://URL" query [HttpClient.ContentType.json_v0]) |> Builtin.unwrap
- let respHeaders = response.headers |> PACKAGE.Darklang.Stdlib.List.filter (fun h -> PACKAGE.Darklang.Stdlib.Tuple2.first h != "date")
+ let response = (Darklang.Stdlib.HttpClient.request "get" "http://URL" query [HttpClient.ContentType.json_v0]) |> Builtin.unwrap
+ let respHeaders = response.headers |> Darklang.Stdlib.List.filter (fun h -> Darklang.Stdlib.Tuple2.first h != "date")
  {response with headers = respHeaders}) =
-   PACKAGE.Darklang.Stdlib.HttpClient.Response
+   Darklang.Stdlib.HttpClient.Response
     { body = "\"Hello back\""
       statusCode = 200L
       headers =

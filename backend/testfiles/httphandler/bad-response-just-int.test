@@ -1,5 +1,5 @@
 [http-handler POST /]
-request.body |> PACKAGE.Darklang.Stdlib.List.length
+request.body |> Darklang.Stdlib.List.length
 
 [request]
 POST / HTTP/1.1
@@ -23,7 +23,7 @@ type Int64:
   13
 
 HTTP handlers should return results in the form:
-  PACKAGE.Darklang.Stdlib.Http.Response {
+  Darklang.Stdlib.Http.Response {
     statusCode : Int64
     headers : List<String*String>
     body : Bytes

@@ -60,19 +60,19 @@ let insertValues (values : List<PT.PackageValue.PackageValue>) : Task<unit> =
           VALUES
             (@id, @owner, @modules, @name, @pt_def, @rt_dval)"
 
-      let ptDef = BinarySerialization.PT.PackageValue.serialize v.id v
-      let rtDval =
-        v
-        |> PT2RT.PackageValue.toRT
-        |> BinarySerialization.RT.PackageValue.serialize v.id
+      let dval = PT2RT.PackageValue.toRT v
+
+      let ptBits = BinarySerialization.PT.PackageValue.serialize v.id v
+      let rtBits = dval |> BinarySerialization.RT.PackageValue.serialize v.id
+
 
       let parameters =
         [ "id", Sql.uuid v.id
           "owner", Sql.string v.name.owner
           "modules", Sql.string (String.concat "." v.name.modules)
           "name", Sql.string v.name.name
-          "pt_def", Sql.bytes ptDef
-          "rt_dval", Sql.bytes rtDval ]
+          "pt_def", Sql.bytes ptBits
+          "rt_dval", Sql.bytes rtBits ]
 
       (sql, [ parameters ]))
     |> Sql.executeTransactionSync

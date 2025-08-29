@@ -137,10 +137,10 @@ module InvalidFnCalls =
 // specifically, that if `'x` is resolved in one place, it won't be used in another unless appropriate
 module GenericTypeArgsAreOK =
   (let segments =
-    [ (PACKAGE.Darklang.PrettyPrinter.RuntimeTypes.RuntimeError.ErrorSegment.String "a")
-      (PACKAGE.Darklang.PrettyPrinter.RuntimeTypes.RuntimeError.ErrorSegment.String "b") ]
+    [ (Darklang.PrettyPrinter.RuntimeTypes.RuntimeError.ErrorSegment.String "a")
+      (Darklang.PrettyPrinter.RuntimeTypes.RuntimeError.ErrorSegment.String "b") ]
 
-  PACKAGE.Darklang.PrettyPrinter.RuntimeTypes.RuntimeError.segmentsToString segments
+  Darklang.PrettyPrinter.RuntimeTypes.RuntimeError.segmentsToString segments
   ) = "ab"
 
 

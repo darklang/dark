@@ -113,7 +113,7 @@ type ID = Test
 multi-part qualified type identifier
 ==================
 
-type ID = PACKAGE.Darklang.Stdlib.Option.Option
+type ID = Darklang.Stdlib.Option.Option
 
 ---
 
@@ -126,8 +126,6 @@ type ID = PACKAGE.Darklang.Stdlib.Option.Option
       (type_decl_def_alias
         (type_reference
           (qualified_type_name
-            (module_identifier)
-            (symbol)
             (module_identifier)
             (symbol)
             (module_identifier)

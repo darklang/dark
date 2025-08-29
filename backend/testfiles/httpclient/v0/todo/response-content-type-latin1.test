@@ -14,6 +14,6 @@ Content-Length: 5
 à æ ç
 
 [test]
-(let response = (PACKAGE.Darklang.Stdlib.HttpClient.request "get" "http://URL" [] []) |> Builtin.unwrap
+(let response = (Darklang.Stdlib.HttpClient.request "get" "http://URL" [] []) |> Builtin.unwrap
  response.body) =
    "à æ ç"

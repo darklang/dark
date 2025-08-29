@@ -28,7 +28,7 @@ module FilterMap =
   //       false
   //     else
   //       Stdlib.Option.Option.Some(key ++ value))
-  // ) = Builtin.testDerrorMessage "PACKAGE.Darklang.Stdlib.Option.map's 1st argument (`option`) should be a PACKAGE.Darklang.Stdlib.Option.Option<'a>. However, a Bool (false) was passed instead."
+  // ) = Builtin.testDerrorMessage "Darklang.Stdlib.Option.map's 1st argument (`option`) should be a Darklang.Stdlib.Option.Option<'a>. However, a Bool (false) was passed instead."
 
 
 
@@ -61,10 +61,10 @@ module FromListOverwritingDuplicates =
   // CLEANUP improve the error message to:
   //   In Dict.fromListOverwritingDuplicates's 1st argument (`entries`), the nested value `entries[1]` should be a (String, 'b). However, an Int64 (2) was passed instead.
   Stdlib.Dict.fromListOverwritingDuplicates_v0 [ (1L, 2L) ] =
-    Builtin.testDerrorMessage "PACKAGE.Darklang.Stdlib.Dict.fromListOverwritingDuplicates's 1st parameter `entries` expects List<(String * _)>, but got List<(Int64 * Int64)> ([\n  (1, 2)\n])"
+    Builtin.testDerrorMessage "Darklang.Stdlib.Dict.fromListOverwritingDuplicates's 1st parameter `entries` expects List<(String * _)>, but got List<(Int64 * Int64)> ([\n  (1, 2)\n])"
 
   Stdlib.Dict.fromListOverwritingDuplicates_v0 [ 1L ] =
-    Builtin.testDerrorMessage "PACKAGE.Darklang.Stdlib.Dict.fromListOverwritingDuplicates's 1st parameter `entries` expects List<(String * _)>, but got List<Int64> ([\n  1\n])"
+    Builtin.testDerrorMessage "Darklang.Stdlib.Dict.fromListOverwritingDuplicates's 1st parameter `entries` expects List<(String * _)>, but got List<Int64> ([\n  1\n])"
 
 
 module FromList =
@@ -85,7 +85,7 @@ module FromList =
   // CLEANUP improve the error message to
   //  "In Dict.fromList's 1st argument (`entries`), the nested value `entries[0][0]` should be a String. However, an Int64 (1) was passed instead.\n\nExpected: String\nActual: an Int64: 1"
   Stdlib.Dict.fromList_v0 [ (1L, 1L) ] =
-    Builtin.testDerrorMessage "PACKAGE.Darklang.Stdlib.Dict.fromList's 1st parameter `entries` expects List<(String * _)>, but got List<(Int64 * Int64)> ([\n  (1, 1)\n])"
+    Builtin.testDerrorMessage "Darklang.Stdlib.Dict.fromList's 1st parameter `entries` expects List<(String * _)>, but got List<(Int64 * Int64)> ([\n  (1, 1)\n])"
 
 
 module Get =
@@ -153,7 +153,7 @@ module Set =
     Builtin.testDerrorMessage "Cannot add an Int64 (2) to a dict of String. Failed at key `key2`."
 
   Stdlib.Dict.set_v0 (Dict { key1 = "val1" }) "key2" 2L =
-    Builtin.testDerrorMessage "PACKAGE.Darklang.Stdlib.Dict.set's 3rd parameter `val` expects String, but got Int64 (2)"
+    Builtin.testDerrorMessage "Darklang.Stdlib.Dict.set's 3rd parameter `val` expects String, but got Int64 (2)"
 
   Stdlib.Dict.set_v0 (Dict { }) "key1" "val1" =
     (Dict { key1 = "val1" })
@@ -167,7 +167,7 @@ module SetOverridingDuplicates =
     (Dict { key1 = "val1"; key2 = "val2" })
 
   Stdlib.Dict.setOverridingDuplicates_v0 (Dict { key1 = "val1" }) "key2" 2L =
-    Builtin.testDerrorMessage "PACKAGE.Darklang.Stdlib.Dict.setOverridingDuplicates's 3rd parameter `val` expects String, but got Int64 (2)"
+    Builtin.testDerrorMessage "Darklang.Stdlib.Dict.setOverridingDuplicates's 3rd parameter `val` expects String, but got Int64 (2)"
 
   // (where this differs from .set)
   Stdlib.Dict.setOverridingDuplicates_v0 (Dict { key1 = "val1before" }) "key1" "val1after" =
