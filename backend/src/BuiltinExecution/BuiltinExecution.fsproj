@@ -53,6 +53,8 @@
     <Compile Include="Libs/Crypto.fs" />
     <Compile Include="Libs/X509.fs" />
 
+    <Compile Include="Libs/Reflection.fs" />
+
     <Compile Include="Libs/Packages.fs" />
 
     <Compile Include="Builtin.fs" />

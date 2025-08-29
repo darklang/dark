@@ -58,5 +58,7 @@ let builtins
       Libs.Crypto.builtins
       Libs.X509.builtins
 
+      Libs.Reflection.builtins
+
       Libs.Packages.builtins pm ]
     fnRenames
