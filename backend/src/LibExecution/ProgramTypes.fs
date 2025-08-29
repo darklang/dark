@@ -529,7 +529,6 @@ type Deprecation<'name> =
 //   let nameParts =
 //     match owner with
 //     | "Tests" -> modules @ [ name ]
-//     | _ -> "PACKAGE" :: owner :: modules @ [ name ]
 //   nameParts |> String.concat "."
 
 

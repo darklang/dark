@@ -1067,13 +1067,13 @@ module Option =
   module Errors =
     // TODO: these might make good candidates for more ergonmic parsing
     (Builtin.jsonParse<Option<Int64>> "null") |> err = Result.Error
-      "Can't parse JSON `null` as type `PACKAGE.Darklang.Stdlib.Option.Option<Int64>` at path: `root`"
+      "Can't parse JSON `null` as type `Darklang.Stdlib.Option.Option<Int64>` at path: `root`"
 
     (Builtin.jsonParse<Option<Int64>> "1") |> err = Result.Error
-      "Can't parse JSON `1` as type `PACKAGE.Darklang.Stdlib.Option.Option<Int64>` at path: `root`"
+      "Can't parse JSON `1` as type `Darklang.Stdlib.Option.Option<Int64>` at path: `root`"
 
     (Builtin.jsonParse<Option<List<String>>> "[1,2,3]") |> err = Result.Error
-      "Can't parse JSON `[1,2,3]` as type `PACKAGE.Darklang.Stdlib.Option.Option<List<String>>` at path: `root`"
+      "Can't parse JSON `[1,2,3]` as type `Darklang.Stdlib.Option.Option<List<String>>` at path: `root`"
 
 
 
@@ -1354,7 +1354,7 @@ module UserDefinedAliases =
   // This test currently slips by the typechecker, and so we get an internal exception
   Builtin.jsonSerialize<StringResult<Int64>> (Result.Error 1L) =
     Builtin.testDerrorMessage
-      "Builtin.jsonSerialize's 1st parameter `arg` expects PACKAGE.Darklang.Stdlib.Result.Result<Int64, String>, but got PACKAGE.Darklang.Stdlib.Result.Result<_, Int64> (PACKAGE.Darklang.Stdlib.Result.Result<_, Int64>.Error(1))"
+      "Builtin.jsonSerialize's 1st parameter `arg` expects Darklang.Stdlib.Result.Result<Int64, String>, but got Darklang.Stdlib.Result.Result<_, Int64> (Darklang.Stdlib.Result.Result<_, Int64>.Error(1))"
 
 
 module Package =
@@ -1371,37 +1371,37 @@ module Package =
   Builtin.jsonParse<Result<Int64, String>> "{\"Error\":[\"err message\"]}" = Result
     .Ok(Result.Error "err message")
 
-  Builtin.jsonSerialize<PACKAGE.Darklang.LanguageTools.ID> 42L = "42"
-  Builtin.jsonParse<PACKAGE.Darklang.LanguageTools.ID> "42" = Result.Ok 42L
+  Builtin.jsonSerialize<Darklang.LanguageTools.ID> 42L = "42"
+  Builtin.jsonParse<Darklang.LanguageTools.ID> "42" = Result.Ok 42L
 
-  Builtin.jsonSerialize<PACKAGE.Darklang.LanguageTools.Sign>
-    PACKAGE.Darklang.LanguageTools.Sign.Positive = "{\"Positive\":[]}"
+  Builtin.jsonSerialize<Darklang.LanguageTools.Sign>
+    Darklang.LanguageTools.Sign.Positive = "{\"Positive\":[]}"
 
-  Builtin.jsonParse<PACKAGE.Darklang.LanguageTools.Sign> "{\"Positive\":[]}" = Result.Ok
-    PACKAGE.Darklang.LanguageTools.Sign.Positive
+  Builtin.jsonParse<Darklang.LanguageTools.Sign> "{\"Positive\":[]}" = Result.Ok
+    Darklang.LanguageTools.Sign.Positive
 
 
-  Builtin.jsonSerialize<PACKAGE.Darklang.OpenAI.Completion.ResponseChoice> (
-    PACKAGE.Darklang.OpenAI.Completion.ResponseChoice { text = "hello" }
+  Builtin.jsonSerialize<Darklang.OpenAI.Completion.ResponseChoice> (
+    Darklang.OpenAI.Completion.ResponseChoice { text = "hello" }
   ) = "{\"text\":\"hello\"}"
 
-  Builtin.jsonParse<PACKAGE.Darklang.OpenAI.Completion.ResponseChoice>
+  Builtin.jsonParse<Darklang.OpenAI.Completion.ResponseChoice>
     "{\"text\":\"hello\"}" = Result.Ok(
-    PACKAGE.Darklang.OpenAI.Completion.ResponseChoice { text = "hello" }
+    Darklang.OpenAI.Completion.ResponseChoice { text = "hello" }
   )
 
-  Builtin.jsonSerialize<PACKAGE.Darklang.OpenAI.Completion.Request> (
-    PACKAGE.Darklang.OpenAI.Completion.Request
+  Builtin.jsonSerialize<Darklang.OpenAI.Completion.Request> (
+    Darklang.OpenAI.Completion.Request
       { model = "davinci"
         prompt = "test"
         max_tokens = 5L
         temperature = 0.7 }
   ) = "{\"max_tokens\":5,\"model\":\"davinci\",\"prompt\":\"test\",\"temperature\":0.7}"
 
-  Builtin.jsonParse<PACKAGE.Darklang.OpenAI.Completion.Request>
+  Builtin.jsonParse<Darklang.OpenAI.Completion.Request>
     "{\"max_tokens\":5,\"model\":\"davinci\",\"prompt\":\"test\",\"temperature\":0.7}" = Result
     .Ok(
-      PACKAGE.Darklang.OpenAI.Completion.Request
+      Darklang.OpenAI.Completion.Request
         { model = "davinci"
           prompt = "test"
           max_tokens = 5L
@@ -1409,33 +1409,33 @@ module Package =
     )
 
   // TODO use types that actually still dexist
-  // Builtin.jsonSerialize<PACKAGE.Darklang.LanguageTools.RuntimeErrors.NameResolution.ErrorType> (
-  //   PACKAGE.Darklang.LanguageTools.RuntimeErrors.NameResolution.ErrorType.InvalidPackageName
+  // Builtin.jsonSerialize<Darklang.LanguageTools.RuntimeErrors.NameResolution.ErrorType> (
+  //   Darklang.LanguageTools.RuntimeErrors.NameResolution.ErrorType.InvalidPackageName
   //     [ "NamePart" ]
   // ) = "{\"InvalidPackageName\":[[\"NamePart\"]]}"
 
-  // Builtin.jsonParse<PACKAGE.Darklang.LanguageTools.RuntimeErrors.NameResolution.ErrorType>
+  // Builtin.jsonParse<Darklang.LanguageTools.RuntimeErrors.NameResolution.ErrorType>
   //   "{\"NotFound\":[[\"NamePart\"]]}" = Result.Ok(
-  //   PACKAGE.Darklang.LanguageTools.RuntimeErrors.NameResolution.ErrorType.NotFound
+  //   Darklang.LanguageTools.RuntimeErrors.NameResolution.ErrorType.NotFound
   //     [ "NamePart" ]
   // )
 
-  // Builtin.jsonSerialize<List<PACKAGE.Darklang.LanguageTools.RuntimeErrors.NameResolution.ErrorType>>
-  //   [ (PACKAGE.Darklang.LanguageTools.RuntimeErrors.NameResolution.ErrorType.InvalidPackageName
+  // Builtin.jsonSerialize<List<Darklang.LanguageTools.RuntimeErrors.NameResolution.ErrorType>>
+  //   [ (Darklang.LanguageTools.RuntimeErrors.NameResolution.ErrorType.InvalidPackageName
   //       [ "NamePart" ])
-  //     (PACKAGE.Darklang.LanguageTools.RuntimeErrors.NameResolution.ErrorType.MissingEnumModuleName
+  //     (Darklang.LanguageTools.RuntimeErrors.NameResolution.ErrorType.MissingEnumModuleName
   //       "Ok")
-  //     (PACKAGE.Darklang.LanguageTools.RuntimeErrors.NameResolution.ErrorType.NotFound
+  //     (Darklang.LanguageTools.RuntimeErrors.NameResolution.ErrorType.NotFound
   //       [ "NamePart" ]) ] = "[{\"InvalidPackageName\":[[\"NamePart\"]]},{\"MissingEnumModuleName\":[\"Ok\"]},{\"NotFound\":[[\"NamePart\"]]}]"
 
-  // Builtin.jsonParse<List<PACKAGE.Darklang.LanguageTools.RuntimeErrors.NameResolution.ErrorType>>
+  // Builtin.jsonParse<List<Darklang.LanguageTools.RuntimeErrors.NameResolution.ErrorType>>
   //   "[{\"InvalidPackageName\":[[\"NamePart\"]]},{\"MissingEnumModuleName\":[\"Ok\"]},{\"NotFound\":[[\"NamePart\"]]}]" = Result
   //   .Ok(
-  //     [ (PACKAGE.Darklang.LanguageTools.RuntimeErrors.NameResolution.ErrorType.InvalidPackageName
+  //     [ (Darklang.LanguageTools.RuntimeErrors.NameResolution.ErrorType.InvalidPackageName
   //         [ "NamePart" ])
-  //       (PACKAGE.Darklang.LanguageTools.RuntimeErrors.NameResolution.ErrorType.MissingEnumModuleName
+  //       (Darklang.LanguageTools.RuntimeErrors.NameResolution.ErrorType.MissingEnumModuleName
   //         "Ok")
-  //       (PACKAGE.Darklang.LanguageTools.RuntimeErrors.NameResolution.ErrorType.NotFound
+  //       (Darklang.LanguageTools.RuntimeErrors.NameResolution.ErrorType.NotFound
   //         [ "NamePart" ]) ]
   //   )
 

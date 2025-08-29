@@ -28,7 +28,7 @@ export function activate(context: ExtensionContext) {
     args: [
       isDebugMode ? "./scripts/run-cli" : "darklang",
       "run",
-      "@PACKAGE.Darklang.LanguageTools.LspServer.runServerCli",
+      "@Darklang.LanguageTools.LspServer.runServerCli",
       "()", // 'parses' to () - TODO clean this up once we switch over to new parser
     ],
     transport: TransportKind.stdio,

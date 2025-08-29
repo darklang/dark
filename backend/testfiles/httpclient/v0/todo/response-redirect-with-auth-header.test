@@ -15,10 +15,10 @@ Location: /v0/response-redirect-dest-with-auth-header
 
 [test]
 (let reqHeaders = { Authorization = "Basic: bWU6b3BlbnNlc2FtZQ==" }
- let response = (PACKAGE.Darklang.Stdlib.HttpClient.request "get" "http://URL" {} reqHeaders) |> Builtin.unwrap
- let respHeaders = response.headers |> PACKAGE.Darklang.Stdlib.List.filter (fun h -> PACKAGE.Darklang.Stdlib.Tuple2.first h != "date")
+ let response = (Darklang.Stdlib.HttpClient.request "get" "http://URL" {} reqHeaders) |> Builtin.unwrap
+ let respHeaders = response.headers |> Darklang.Stdlib.List.filter (fun h -> Darklang.Stdlib.Tuple2.first h != "date")
  {response with headers = respHeaders}) =
-   PACKAGE.Darklang.Stdlib.HttpClient.Response
+   Darklang.Stdlib.HttpClient.Response
     { body = "Redirect destination reached with auth"
       statusCode = 200L
       headers =

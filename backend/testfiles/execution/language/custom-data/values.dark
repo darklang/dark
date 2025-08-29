@@ -64,54 +64,54 @@ module UserDefined =
 
 
 module Package =
-  PACKAGE.Darklang.Test.Values.stringValue = "test"
-  "test" = PACKAGE.Darklang.Test.Values.stringValue
-  PACKAGE.Darklang.Test.Values.stringValue = "test"
+  Darklang.Test.Values.stringValue = "test"
+  "test" = Darklang.Test.Values.stringValue
+  Darklang.Test.Values.stringValue = "test"
 
-  PACKAGE.Darklang.Test.Values.int128Value = 5Q
-  PACKAGE.Darklang.Test.Values.int128Value = 5Q
+  Darklang.Test.Values.int128Value = 5Q
+  Darklang.Test.Values.int128Value = 5Q
 
-  PACKAGE.Darklang.Test.Values.uint128Value = 5Z
-  PACKAGE.Darklang.Test.Values.uint128Value = 5Z
+  Darklang.Test.Values.uint128Value = 5Z
+  Darklang.Test.Values.uint128Value = 5Z
 
-  PACKAGE.Darklang.Test.Values.intValue = 5L
-  PACKAGE.Darklang.Test.Values.intValue = 5L
+  Darklang.Test.Values.intValue = 5L
+  Darklang.Test.Values.intValue = 5L
 
-  PACKAGE.Darklang.Test.Values.uint64Value = 5UL
-  PACKAGE.Darklang.Test.Values.uint64Value = 5UL
+  Darklang.Test.Values.uint64Value = 5UL
+  Darklang.Test.Values.uint64Value = 5UL
 
-  PACKAGE.Darklang.Test.Values.int32Value = 5l
-  PACKAGE.Darklang.Test.Values.int32Value = 5l
+  Darklang.Test.Values.int32Value = 5l
+  Darklang.Test.Values.int32Value = 5l
 
-  PACKAGE.Darklang.Test.Values.uint32Value = 5ul
-  PACKAGE.Darklang.Test.Values.uint32Value = 5ul
+  Darklang.Test.Values.uint32Value = 5ul
+  Darklang.Test.Values.uint32Value = 5ul
 
-  PACKAGE.Darklang.Test.Values.int16Value = 5s
-  PACKAGE.Darklang.Test.Values.int16Value = 5s
+  Darklang.Test.Values.int16Value = 5s
+  Darklang.Test.Values.int16Value = 5s
 
-  PACKAGE.Darklang.Test.Values.uint16Value = 5us
-  PACKAGE.Darklang.Test.Values.uint16Value = 5us
+  Darklang.Test.Values.uint16Value = 5us
+  Darklang.Test.Values.uint16Value = 5us
 
-  PACKAGE.Darklang.Test.Values.int8Value = 5y
-  PACKAGE.Darklang.Test.Values.int8Value = 5y
+  Darklang.Test.Values.int8Value = 5y
+  Darklang.Test.Values.int8Value = 5y
 
-  PACKAGE.Darklang.Test.Values.uint8Value = 5uy
-  PACKAGE.Darklang.Test.Values.uint8Value = 5uy
+  Darklang.Test.Values.uint8Value = 5uy
+  Darklang.Test.Values.uint8Value = 5uy
 
-  PACKAGE.Darklang.Test.Values.floatValue = 5.6
-  PACKAGE.Darklang.Test.Values.floatValue = 5.6
+  Darklang.Test.Values.floatValue = 5.6
+  Darklang.Test.Values.floatValue = 5.6
 
-  PACKAGE.Darklang.Test.Values.boolValue = true
-  PACKAGE.Darklang.Test.Values.boolValue = true
+  Darklang.Test.Values.boolValue = true
+  Darklang.Test.Values.boolValue = true
 
-  PACKAGE.Darklang.Test.Values.tupleValue = (1L, 2L, 3L)
-  PACKAGE.Darklang.Test.Values.tupleValue = (1L, 2L, 3L)
+  Darklang.Test.Values.tupleValue = (1L, 2L, 3L)
+  Darklang.Test.Values.tupleValue = (1L, 2L, 3L)
 
-  PACKAGE.Darklang.Test.Values.charValue = 'c'
-  PACKAGE.Darklang.Test.Values.charValue = 'c'
+  Darklang.Test.Values.charValue = 'c'
+  Darklang.Test.Values.charValue = 'c'
 
-  PACKAGE.Darklang.Test.Values.unitValue = ()
-  PACKAGE.Darklang.Test.Values.unitValue = ()
+  Darklang.Test.Values.unitValue = ()
+  Darklang.Test.Values.unitValue = ()
 
-  PACKAGE.Darklang.Test.Values.enumValue = Stdlib.Option.Option.Some 5L
-  PACKAGE.Darklang.Test.Values.enumValue = Stdlib.Option.Option.Some 5L
+  Darklang.Test.Values.enumValue = Stdlib.Option.Option.Some 5L
+  Darklang.Test.Values.enumValue = Stdlib.Option.Option.Some 5L

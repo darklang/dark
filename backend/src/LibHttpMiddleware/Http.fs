@@ -101,7 +101,7 @@ module Response =
               $"type {typeName}:"
               $"  {DvalReprDeveloper.toRepr result}"
               "\nHTTP handlers should return results in the form:"
-              "  PACKAGE.Darklang.Stdlib.Http.Response {"
+              "  Darklang.Stdlib.Http.Response {"
               "    statusCode : Int64"
               "    headers : List<String*String>"
               "    body : Bytes"

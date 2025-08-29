@@ -1,7 +1,7 @@
 // aliases and helper fns
-type Point = PACKAGE.Darklang.LanguageTools.Parser.Point
-type Range = PACKAGE.Darklang.LanguageTools.Parser.Range
-type ParsedNode = PACKAGE.Darklang.LanguageTools.Parser.ParsedNode
+type Point = Darklang.LanguageTools.Parser.Point
+type Range = Darklang.LanguageTools.Parser.Range
+type ParsedNode = Darklang.LanguageTools.Parser.ParsedNode
 
 let range (s: Int64 * Int64) (e: Int64 * Int64) : Range =
   let (startRow, startColumn) = s
@@ -104,24 +104,24 @@ module ParseToSimplifiedTree =
 /// TODO: make that one test much more comprehensive
 module ParseNodeToWrittenTypes =
   ("type MyID = Int64"
-   |> PACKAGE.Darklang.LanguageTools.Parser.parseToSimplifiedTree
-   |> PACKAGE.Darklang.LanguageTools.Parser.parseFromTree
+   |> Darklang.LanguageTools.Parser.parseToSimplifiedTree
+   |> Darklang.LanguageTools.Parser.parseFromTree
    |> Builtin.unwrap) =
-    PACKAGE.Darklang.LanguageTools.WrittenTypes.ParsedFile.SourceFile(
-      PACKAGE.Darklang.LanguageTools.WrittenTypes.SourceFile.SourceFile
+    Darklang.LanguageTools.WrittenTypes.ParsedFile.SourceFile(
+      Darklang.LanguageTools.WrittenTypes.SourceFile.SourceFile
         { range = range (0L, 0L) (0L, 17L)
           declarations =
-            [ PACKAGE.Darklang.LanguageTools.WrittenTypes.SourceFile.SourceFileDeclaration.Type(
-                PACKAGE.Darklang.LanguageTools.WrittenTypes.TypeDeclaration.TypeDeclaration
+            [ Darklang.LanguageTools.WrittenTypes.SourceFile.SourceFileDeclaration.Type(
+                Darklang.LanguageTools.WrittenTypes.TypeDeclaration.TypeDeclaration
                   { range = range (0L, 0L) (0L, 17L)
                     name =
-                      PACKAGE.Darklang.LanguageTools.WrittenTypes.TypeIdentifier
+                      Darklang.LanguageTools.WrittenTypes.TypeIdentifier
                         { range = range (0L, 5L) (0L, 9L); name = "MyID" }
                     typeParams = []
                     definition =
-                      PACKAGE.Darklang.LanguageTools.WrittenTypes.TypeDeclaration.Definition.Alias(
-                        PACKAGE.Darklang.LanguageTools.WrittenTypes.TypeReference.TypeReference.Builtin(
-                          PACKAGE.Darklang.LanguageTools.WrittenTypes.TypeReference.Builtin.TInt64(range (0L, 12L) (0L, 17L))
+                      Darklang.LanguageTools.WrittenTypes.TypeDeclaration.Definition.Alias(
+                        Darklang.LanguageTools.WrittenTypes.TypeReference.TypeReference.Builtin(
+                          Darklang.LanguageTools.WrittenTypes.TypeReference.Builtin.TInt64(range (0L, 12L) (0L, 17L))
                         )
                       )
                     keywordType = range (0L, 0L) (0L, 4L)

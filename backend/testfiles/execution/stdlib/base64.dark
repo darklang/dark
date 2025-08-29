@@ -33,8 +33,8 @@ Stdlib.Base64.decode "Zm9vYE==" = Stdlib.Result.Result.Ok(Stdlib.String.toBytes_
 Stdlib.Base64.decode "Zm9vYmC=" = Stdlib.Result.Result.Ok(Stdlib.String.toBytes_v0 "foob`")
 
 // longer tests
-Stdlib.Base64.decode "ZnJvbT0wNi8wNy8yMDEzIHF1ZXJ5PSLOms6xzrvPjs-CIM6_z4HOr8-DzrHPhM61Ig" = PACKAGE.Darklang.Stdlib.Result.Result.Ok(Stdlib.String.toBytes_v0 "from=06/07/2013 query=\"Καλώς ορίσατε\"")
-Stdlib.Base64.decode "8J-RsfCfkbHwn4-78J-RsfCfj7zwn5Gx8J-PvfCfkbHwn4--8J-RsfCfj78" = PACKAGE.Darklang.Stdlib.Result.Result.Ok(Stdlib.String.toBytes_v0 "👱👱🏻👱🏼👱🏽👱🏾👱🏿")
+Stdlib.Base64.decode "ZnJvbT0wNi8wNy8yMDEzIHF1ZXJ5PSLOms6xzrvPjs-CIM6_z4HOr8-DzrHPhM61Ig" = Darklang.Stdlib.Result.Result.Ok(Stdlib.String.toBytes_v0 "from=06/07/2013 query=\"Καλώς ορίσατε\"")
+Stdlib.Base64.decode "8J-RsfCfkbHwn4-78J-RsfCfj7zwn5Gx8J-PvfCfkbHwn4--8J-RsfCfj78" = Darklang.Stdlib.Result.Result.Ok(Stdlib.String.toBytes_v0 "👱👱🏻👱🏼👱🏽👱🏾👱🏿")
 
 // These produce strings of bytes which are technically legal it seems
 Stdlib.Base64.decode "-p" = Stdlib.Result.Result.Ok([ 250uy ])

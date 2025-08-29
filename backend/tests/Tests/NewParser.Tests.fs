@@ -321,8 +321,8 @@ let typeReferences =
       false
     t
       "fn with generics"
-      "type MyFn = PACKAGE.Darklang.LanguageTools.ID -> 'a -> 'b"
-      "type MyFn =\n  PACKAGE.Darklang.LanguageTools.ID -> 'a -> 'b"
+      "type MyFn = LanguageTools.ID -> 'a -> 'b"
+      "type MyFn =\n  LanguageTools.ID -> 'a -> 'b"
       []
       []
       []
@@ -371,8 +371,8 @@ let typeReferences =
     // fully-qualified package name (multi-part)
     t
       "option alias, shortcut name"
-      "type MyOption = PACKAGE.Darklang.Stdlib.Option.Option"
-      "type MyOption =\n  PACKAGE.Darklang.Stdlib.Option.Option"
+      "type MyOption = Stdlib.Option.Option"
+      "type MyOption =\n  Stdlib.Option.Option"
       []
       []
       []
@@ -380,7 +380,7 @@ let typeReferences =
     t
       "option alias, unapplied"
       "type MyOption = Stdlib.Option.Option"
-      "type MyOption =\n  PACKAGE.Darklang.Stdlib.Option.Option"
+      "type MyOption =\n  Stdlib.Option.Option"
       []
       []
       []
@@ -388,7 +388,7 @@ let typeReferences =
     t
       "option alias, applied"
       "type MyOption = Stdlib.Option.Option<Int64>"
-      "type MyOption =\n  PACKAGE.Darklang.Stdlib.Option.Option<Int64>"
+      "type MyOption =\n  Stdlib.Option.Option<Int64>"
       []
       []
       []
@@ -396,8 +396,8 @@ let typeReferences =
 
     t
       "json alias"
-      "type Json =\n  PACKAGE.Darklang.Stdlib.AltJson.Json"
-      "type Json =\n  PACKAGE.Darklang.Stdlib.AltJson.Json"
+      "type Json =\n  Stdlib.AltJson.Json"
+      "type Json =\n  Stdlib.AltJson.Json"
       []
       []
       []
@@ -687,7 +687,7 @@ let exprs =
   Stdlib.Int64.add 1L 2L
   Stdlib.List.head [1L; 2L]
 ]"""
-      "[PACKAGE.Darklang.Stdlib.Tuple2.second (4L, 5L); PACKAGE.Darklang.Stdlib.Int64.add 1L 2L; PACKAGE.Darklang.Stdlib.List.head [1L; 2L]]"
+      "[Stdlib.Tuple2.second (4L, 5L); Stdlib.Int64.add 1L 2L; Stdlib.List.head [1L; 2L]]"
       []
       []
       []
@@ -702,7 +702,7 @@ let exprs =
     2L)
   Stdlib.List.head [1L; 2L]
 ]"""
-      "[PACKAGE.Darklang.Stdlib.Tuple2.second (4L, 5L); PACKAGE.Darklang.Stdlib.Int64.add 1L 2L; PACKAGE.Darklang.Stdlib.List.head [1L; 2L]]"
+      "[Stdlib.Tuple2.second (4L, 5L); Stdlib.Int64.add 1L 2L; Stdlib.List.head [1L; 2L]]"
       []
       []
       []
@@ -847,23 +847,23 @@ let exprs =
     t
       "option none, short"
       "Stdlib.Option.Option.None"
-      "PACKAGE.Darklang.Stdlib.Option.Option.None"
+      "Stdlib.Option.Option.None"
       []
       []
       []
       false
     t
       "option none, long"
-      "PACKAGE.Darklang.Stdlib.Option.Option.None"
-      "PACKAGE.Darklang.Stdlib.Option.Option.None"
+      "Stdlib.Option.Option.None"
+      "Stdlib.Option.Option.None"
       []
       []
       []
       false
     t
       "option some"
-      "PACKAGE.Darklang.Stdlib.Option.Option.Some 1L"
-      "PACKAGE.Darklang.Stdlib.Option.Option.Some(1L)"
+      "Stdlib.Option.Option.Some 1L"
+      "Stdlib.Option.Option.Some(1L)"
       []
       []
       []
@@ -901,7 +901,7 @@ let exprs =
       "enum with indented field"
       """Stdlib.Result.Result.Error
   Stdlib.List.ChunkBySizeError.SizeMustBeGreaterThanZero"""
-      """PACKAGE.Darklang.Stdlib.Result.Result.Error(PACKAGE.Darklang.Stdlib.List.ChunkBySizeError.SizeMustBeGreaterThanZero)"""
+      """Stdlib.Result.Result.Error(Stdlib.List.ChunkBySizeError.SizeMustBeGreaterThanZero)"""
       []
       []
       []
@@ -909,14 +909,7 @@ let exprs =
 
 
     // qualified value
-    t
-      "qualified value"
-      "Stdlib.List.empty"
-      "PACKAGE.Darklang.Stdlib.List.empty"
-      []
-      []
-      []
-      false
+    t "qualified value" "Stdlib.List.empty" "Stdlib.List.empty" [] [] [] false
 
     // variables and let bindings
     t
@@ -991,7 +984,7 @@ let exprs =
     t
       "lambda with notable body"
       "fun var -> (Stdlib.String.toUppercase (Stdlib.String.fromChar var))"
-      "(fun var ->\n  PACKAGE.Darklang.Stdlib.String.toUppercase (PACKAGE.Darklang.Stdlib.String.fromChar var))"
+      "(fun var ->\n  Stdlib.String.toUppercase (Stdlib.String.fromChar var))"
       []
       []
       []
@@ -1328,7 +1321,7 @@ else
     t
       "match, enum"
       "match Stdlib.Result.Result.Ok 5L with\n| Ok(5L) -> true\n| Error(e) -> false"
-      "match PACKAGE.Darklang.Stdlib.Result.Result.Ok(5L) with\n| Ok(5L) ->\n  true\n| Error(e) ->\n  false"
+      "match Stdlib.Result.Result.Ok(5L) with\n| Ok(5L) ->\n  true\n| Error(e) ->\n  false"
       []
       []
       []
@@ -1336,7 +1329,7 @@ else
     t
       "match, enum no parens with one arg"
       "match Stdlib.Result.Result.Ok 5L with\n| Ok 5L -> true\n| Error e  -> false"
-      "match PACKAGE.Darklang.Stdlib.Result.Result.Ok(5L) with\n| Ok(5L) ->\n  true\n| Error(e) ->\n  false"
+      "match Stdlib.Result.Result.Ok(5L) with\n| Ok(5L) ->\n  true\n| Error(e) ->\n  false"
       []
       []
       []
@@ -1352,7 +1345,7 @@ else
     t
       "match, enum no parens with 1 tuple arg"
       "match Stdlib.Result.Result.Ok((5L, 3L)) with\n| Ok((5L, 3L)) -> true\n| Error e  -> false"
-      "match PACKAGE.Darklang.Stdlib.Result.Result.Ok((5L, 3L)) with\n| Ok((5L, 3L)) ->\n  true\n| Error(e) ->\n  false"
+      "match Stdlib.Result.Result.Ok((5L, 3L)) with\n| Ok((5L, 3L)) ->\n  true\n| Error(e) ->\n  false"
       []
       []
       []
@@ -1422,7 +1415,7 @@ else
     t
       "pipe, into enum"
       "3L |> Stdlib.Result.Result.Ok"
-      "3L\n|> PACKAGE.Darklang.Stdlib.Result.Result.Ok"
+      "3L\n|> Stdlib.Result.Result.Ok"
       []
       []
       []
@@ -1438,7 +1431,7 @@ else
     t
       "pipe, into fn call"
       "1L |> Stdlib.Int64.add 2L"
-      "1L\n|> PACKAGE.Darklang.Stdlib.Int64.add 2L"
+      "1L\n|> Stdlib.Int64.add 2L"
       []
       []
       []
@@ -1446,7 +1439,7 @@ else
     t
       "pipe, into fn call 2"
       "1L |> Stdlib.Int64.toString"
-      "1L\n|> PACKAGE.Darklang.Stdlib.Int64.toString"
+      "1L\n|> Stdlib.Int64.toString"
       []
       []
       []
@@ -1462,7 +1455,7 @@ else
     t
       "pipe, into fn call 4"
       "Stdlib.Int64.add 1L 2L |> Stdlib.Int64.add 1L"
-      "PACKAGE.Darklang.Stdlib.Int64.add 1L 2L\n|> PACKAGE.Darklang.Stdlib.Int64.add 1L"
+      "Stdlib.Int64.add 1L 2L\n|> Stdlib.Int64.add 1L"
       []
       []
       []
@@ -1470,7 +1463,7 @@ else
     t
       "pipe, into fn call 5"
       "[1L; 2L] |> Stdlib.List.last |> Builtin.unwrap"
-      "[1L; 2L]\n|> PACKAGE.Darklang.Stdlib.List.last\n|> Builtin.unwrap"
+      "[1L; 2L]\n|> Stdlib.List.last\n|> Builtin.unwrap"
       []
       []
       []
@@ -1502,7 +1495,7 @@ else
     t
       "fn call, and longer"
       "Stdlib.Bool.and true false"
-      "PACKAGE.Darklang.Stdlib.Bool.and true false"
+      "Stdlib.Bool.and true false"
       []
       []
       []
@@ -1510,7 +1503,7 @@ else
     t
       "fn call, and longest"
       "Darklang.Stdlib.Bool.and true false"
-      "PACKAGE.Darklang.Stdlib.Bool.and true false"
+      "Stdlib.Bool.and true false"
       []
       []
       []
@@ -1518,7 +1511,7 @@ else
     t
       "fn call, and stdlib shortcut"
       "Stdlib.Bool.and true false"
-      "PACKAGE.Darklang.Stdlib.Bool.and true false"
+      "Stdlib.Bool.and true false"
       []
       []
       []
@@ -1547,10 +1540,10 @@ else
   (fun x -> Stdlib.String.toUppercase x)
   ("one", 2L, "pi")
 """
-      """PACKAGE.Darklang.Stdlib.Tuple3.mapAllThree (fun x ->
-  PACKAGE.Darklang.Stdlib.String.toUppercase x) (fun x ->
+      """Stdlib.Tuple3.mapAllThree (fun x ->
+  Stdlib.String.toUppercase x) (fun x ->
   (x) - (2L)) (fun x ->
-  PACKAGE.Darklang.Stdlib.String.toUppercase x) ("one", 2L, "pi")"""
+  Stdlib.String.toUppercase x) ("one", 2L, "pi")"""
       []
       []
       []
@@ -1558,7 +1551,7 @@ else
     t
       "fn call with db reference"
       """Stdlib.DB.set Tests.Person { name = "John"; age = 30L; hasPet = true } "key" TestDB"""
-      """PACKAGE.Darklang.Stdlib.DB.set Person { name = "John"; age = 30L; hasPet = true } "key" TestDB"""
+      """Stdlib.DB.set Person { name = "John"; age = 30L; hasPet = true } "key" TestDB"""
       [ person ]
       []
       []
@@ -1711,7 +1704,7 @@ let valueDeclarations =
     t
       "option, none"
       "val none = Stdlib.Option.Option.None"
-      "val none = PACKAGE.Darklang.Stdlib.Option.Option.None"
+      "val none = Stdlib.Option.Option.None"
       []
       []
       []
@@ -1719,7 +1712,7 @@ let valueDeclarations =
     t
       "option, some 1"
       "val some = Stdlib.Option.Option.Some(1L)"
-      "val some = PACKAGE.Darklang.Stdlib.Option.Option.Some(1L)"
+      "val some = Stdlib.Option.Option.Some(1L)"
       []
       []
       []
@@ -1754,8 +1747,8 @@ let functionDeclarations =
 
     t
       "single package param"
-      "let double2 (i: PACKAGE.Darklang.LanguageTools.ID) : Int64 = (i + i)"
-      "let double2 (i: PACKAGE.Darklang.LanguageTools.ID): Int64 =\n  (i) + (i)"
+      "let double2 (i: LanguageTools.ID) : Int64 = (i + i)"
+      "let double2 (i: LanguageTools.ID): Int64 =\n  (i) + (i)"
       []
       []
       []
@@ -1773,7 +1766,7 @@ let functionDeclarations =
     t
       "multiple param"
       "let isHigher (a: Int64) (b: Int64) : Bool =\n  Stdlib.Int64.greaterThan a b"
-      "let isHigher (a: Int64) (b: Int64): Bool =\n  PACKAGE.Darklang.Stdlib.Int64.greaterThan a b"
+      "let isHigher (a: Int64) (b: Int64): Bool =\n  Stdlib.Int64.greaterThan a b"
       []
       []
       []
@@ -1799,8 +1792,8 @@ let functionDeclarations =
 
     t
       "package fn call"
-      "let sum (a : Int64) (b : Int64) : Int64 =\n  PACKAGE.Darklang.Stdlib.Int64.add a b"
-      "let sum (a: Int64) (b: Int64): Int64 =\n  PACKAGE.Darklang.Stdlib.Int64.add a b"
+      "let sum (a : Int64) (b : Int64) : Int64 =\n  Stdlib.Int64.add a b"
+      "let sum (a: Int64) (b: Int64): Int64 =\n  Stdlib.Int64.add a b"
       []
       []
       []

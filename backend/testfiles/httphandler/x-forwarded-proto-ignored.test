@@ -1,5 +1,5 @@
 [http-handler GET /a]
-PACKAGE.Darklang.Stdlib.Http.response (PACKAGE.Darklang.Stdlib.String.toBytes request.url) 200L
+Darklang.Stdlib.Http.response (Darklang.Stdlib.String.toBytes request.url) 200L
 
 
 [domain forwarded.myspecialdomain.com]
