@@ -1,0 +1,172 @@
+
+// Note: eventually, some commands might be things _besides_ user prompts
+// (based on a timer, or async activity happening, or file system watcher, etc.)
+module Command =
+  // type Argument =
+  //   { name: String
+  //     type: string
+  //     required: Bool
+  //     defaultValue: Option<String> }
+
+  // // which to use -- above or below?
+
+  // type Argument =
+  //   | Positional of name: String * description: String
+  //   | Named of short: String * long: String * description: String * isFlag: Bool
+
+
+  // type Example =
+  //   { usage: String; description: String }
+
+
+  type CommandDetails =
+    { name: String
+      description: String
+      aliases: List<String>
+      // Arguments that this command accepts
+      arguments: List<String>
+      // Execute the command with the given arguments
+      execute: State -> String -> (State * List<Msg>)
+      //arguments: List<Argument>
+      //help: String
+      //parent: Uuid
+      //subcommands: List<Command> // or parent() and children() ?
+      //example: List<Example>
+      //parse: String ->
+      // TODO: parse...
+      // TODO: execute: 'Args -> List<Msg> // ?
+      //execute: List<String> -> Unit
+      }
+
+
+  type GeneralCommand =
+    | Status // if in the middle of something, will tell you
+    | Quit
+
+  // // available when in an 'app'
+  // type AppCommand =
+  //   | GoToApp of appID: Uuid
+  //   | GoToHttpHandlers of appID: Uuid
+  //   | GoToKVs of appID: Uuid
+
+
+
+  // type AICommand =
+  //   | Prompt
+  //   | Chat
+  //   | Assist // chat w/ bot that knows dark, available commands, and _helps you_
+  //   | Listen
+  //     //`listen` command -> listen to audio until you [stop somehow]
+  //     //(say "stop listening"; hit some button"; etc)
+
+  // type NavCommand =
+  //   | GoToApp of appID: Uuid
+  //   | ChangeDirectory
+  //   | ListStuff
+  //   | GoBack
+  //   | Tree // alias 'matter'
+
+  // type AccountCommand =
+  //   | ShowAccountStatus
+  //   | StartLogin
+  //   | EnterUsernameAndPassword // TODO: collect
+  //   | LogOut
+
+  // type InstallationCommand =
+  //   | ShowInstallInfo
+  //   | Install // aliases "init", "setup"
+  //   | Config
+  //   | Uninstall
+
+  // type ConfigCommand =
+  //   | GoToConfig
+  //   // TODO: show specific config values, adjust them, etc
+
+  // type MatterCommand =
+  //   | ShowDependencies
+  //     // | `dependencies` and the other-direction equivalent (`usages`) should be available for types, fns, etc.
+  //   | ShowUsages
+  //   | Let
+  //     // - let x = 1 places it in current context, but it can be moved _easily_ before commit
+  //     //		in the REPL, if you type `let x =` without the RHS, it opens a dialog for you to fill in after?
+  //     //or `let x = [1]`, and you step through the different 'fillable' boxes like that?
+  //     //(you _could_ just type `let`, and have an interactive thing collect the name/LHS, in addition to the RHS)
+
+
+  // type DevToolsCommand =
+  //   | LanguageServer // "lang-server", alias ["lsp]. could accept a name/id
+
+
+  type Command =
+    | General of GeneralCommand
+    //| Config of ConfigCommand
+    //| Matter of MatterCommand
+    //| App of AppCommand
+    //| DevTools of DevToolsCommand
+
+
+
+      // Status command
+      CommandDetails
+        { name = "status"
+          description = "Show system status"
+          aliases = []
+          arguments = []
+          execute = fun state _args ->
+            //- logo
+            //- version
+            //- overview of local (and cached) data
+            //- login status, account, access
+            //- alerts
+            //- running processes, servers, etc.
+            // Generate status information
+            let version = getVersionInfo ()
+            let location =
+              // TODO this isn't what I was expecting... this always says we're at the CLI namespace...
+              PrettyPrinter.ProgramTypes.packageName "Darklang" [] "CLI"
+
+            // Get the current location using the getPathDisplay function from navigation.dark
+            let currentLocation = getPathDisplay state.currentPage
+
+            // Format the interaction mode for display
+            let modeDisplay =
+              match state.interactionMode with
+              | NonInteractive -> "Non-interactive"
+              | RefreshScreen -> "Refresh screen"
+              | Regular -> "Regular"
+
+            let currentMode = Installation.getInstallationMode ()
+
+            let installationStatus =
+              match currentMode with
+              | Installed ->
+                let host = (Stdlib.Cli.Host.getRuntimeHost ()) |> Builtin.unwrap
+                let homeDir =
+                  match host.os with
+                  | Windows ->
+                    match Stdlib.Cli.PowerShell.getHomeDirectory () with
+                    | Ok dir -> $"{dir}\\.darklang"
+                    | Error _ -> "~/.darklang"
+                  | _ ->
+                    match Stdlib.Cli.Unix.getHomeDirectory () with
+                    | Ok dir -> $"{dir}/.darklang"
+                    | Error _ -> "~/.darklang"
+                $"{Colors.green}Status:{Colors.reset} Globally installed at {homeDir} and ready to use"
+              | Portable ->
+                let currentDir = Builtin.directoryCurrent ()
+                $"{Colors.yellow}Status:{Colors.reset} Running in portable mode at {currentDir}/.darklang (run 'install' for global system-wide access)"
+
+            let textContent =
+              [
+                $"{Colors.magenta}Version:{Colors.reset} {version}"
+                $"{Colors.magenta}Location:{Colors.reset} {currentLocation}"
+                $"{Colors.magenta}Mode:{Colors.reset} {modeDisplay}"
+                installationStatus
+                ""
+                $"Type {Colors.gray}'help'{Colors.reset} for available commands"
+              ] |> Stdlib.String.join "\n"
+            //let statusInfo = combineLogoAndText logo textContent Colors.purple
+
+            let newState = { state with commandResult = CommandResult.Info textContent }
+            (newState, [])
+        }

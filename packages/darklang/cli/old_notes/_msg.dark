@@ -1,0 +1,31 @@
+module Darklang.Cli
+
+type Msg =
+  // -- Account, Auth.
+  // | ShowAccountStatus
+  // | StartLogin
+  // `dark login --username=stachu --password=yolo`
+  // | Login of username: String * password: String
+  // | StartSignup
+    //- email and username is required
+    //- full name is optional
+    //- contact links etc are optional
+    //- (email verification)
+  // | SubmitSignup of username: String * password: String
+  // TODO: change password
+  // TODO: auth should eventually include oauth, etc
+  // | LogOut
+
+  // -- Matter
+  // | AddFunction of ...
+  // | AddType of ...
+
+  // -- App
+  //| AddHandler of ...
+  //| AddDB of ...
+  //| EditDefinition of  ...
+  //| EditHandler of ...
+  //| UpdateExpr of old: Expr * new: Expr
+  //| UpdateDBSchema of ...
+  //| EditSecret of ...
+  //| DeleteSecret of ...
