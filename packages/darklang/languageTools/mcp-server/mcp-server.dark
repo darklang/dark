@@ -1,0 +1,223 @@
+/// Main entry point for the Darklang MCP Server
+/// This server implements the Model Context Protocol to allow AI models
+/// to interact with Darklang code, packages, and development tools.
+module Darklang.LanguageTools.McpServer
+
+
+// <aliases>
+// Json type alias removed to prevent UNIQUE constraint conflicts - use shared aliases.dark
+// </aliases>
+
+
+/// Main server loop to handle ongoing messages
+let runServerCliLoop (state: McpState) : Int64 =
+  log "---"
+
+  let incomingMessageRaw = readMessageFromClient ()
+  logIncomingRequest incomingMessageRaw
+
+  // Handle empty messages (client disconnected)
+  if incomingMessageRaw == "" then
+    log "Received empty message, client disconnected"
+    0L
+  else
+    let updatedState =
+      // parse a json-rpc message from stdin, and call `handleIncomingMessage` on it when relevant
+      match JsonRPC.IncomingMessage.parse incomingMessageRaw with
+      // The json-rpc spec says to just ignore any incoming messages of `[]`
+      | EmptyBatch ->
+          log "Received empty batch, continuing"
+          state
+
+      // # Things we want/expect
+      | SingleRequest(Ok jsonRpcRequest) ->
+          log $"Parsed incoming message as single JSON-RPC request"
+          handleIncomingMessage state jsonRpcRequest
+
+      | BatchOfRequests items ->
+          // Handle batch requests by processing each one in sequence
+          let len = (Stdlib.List.length items) |> Stdlib.Int64.toString
+          log $"Got batch request with {len} items"
+
+          let processedState =
+            items
+            |> Stdlib.List.fold state (fun acc item ->
+              match item with
+              | Ok request ->
+                  handleIncomingMessage acc request
+              | Error err ->
+                  log $"Error in batch request item: {err}"
+                  acc
+            )
+
+          processedState
+
+      // # Errors
+
+      // was an object {} but not a valid json-rpc 2.0 _request_
+      // (note: could have been a valid _response_ though - we don't yet have good support for that)
+      | SingleRequest(Error singleRequestParseError) ->
+          match singleRequestParseError with
+          | NotObject json ->
+              let error = Stdlib.AltJson.format json
+
+              log
+                $"Error parsing incoming message as json-rpc:\n{incomingMessageRaw}\nError: it must be an object, but was: {error}"
+
+              sendErrorResponse
+                Stdlib.Option.Option.None
+                ModelContextProtocol.ErrorCodes.parseError
+                "Parse error: Request must be an object"
+
+              state
+
+          | MissingJsonRpcField ->
+              log
+                $"Error parsing incoming message as json-rpc:\n{incomingMessageRaw}\nError: it must have a 'jsonrpc' field"
+
+              sendErrorResponse
+                Stdlib.Option.Option.None
+                ModelContextProtocol.ErrorCodes.parseError
+                "Parse error: Missing 'jsonrpc' field"
+
+              state
+
+          | InvalidIdField json ->
+              let error = Stdlib.AltJson.format json
+
+              log
+                $"Error parsing incoming message as json-rpc:\n{incomingMessageRaw}\nError: 'id' field must be Null, a Number or a String, but was: {error}"
+
+              sendErrorResponse
+                Stdlib.Option.Option.None
+                ModelContextProtocol.ErrorCodes.parseError
+                "Parse error: Invalid 'id' field"
+
+              state
+
+          | MissingMethodField id ->
+              log
+                $"Error parsing incoming message as json-rpc:\n{incomingMessageRaw}\nError: 'method' field must be provided"
+
+              sendErrorResponse
+                id
+                ModelContextProtocol.ErrorCodes.invalidRequest
+                "Invalid request: Missing 'method' field"
+
+              state
+
+          | InvalidMethodField(id, actual) ->
+              let error = Stdlib.AltJson.format actual
+
+              log
+                $"Error parsing incoming message as json-rpc:\n{incomingMessageRaw}\nError: 'method' field must be a string, but was: {error}"
+
+              sendErrorResponse
+                id
+                ModelContextProtocol.ErrorCodes.invalidRequest
+                "Invalid request: 'method' must be a string"
+
+              state
+
+          | InvalidParamsField(id, actual) ->
+              let error = Stdlib.AltJson.format actual
+
+              log
+                $"Error parsing incoming message as json-rpc:\n{incomingMessageRaw}\nError: 'params' field must be an Array or an Object, but was: {error}"
+
+              sendErrorResponse
+                id
+                ModelContextProtocol.ErrorCodes.invalidRequest
+                "Invalid request: 'params' must be an array or object"
+
+              state
+
+          | _ ->
+              log
+                $"Error parsing incoming message as json-rpc:\n{incomingMessageRaw}"
+
+              sendErrorResponse
+                Stdlib.Option.Option.None
+                ModelContextProtocol.ErrorCodes.parseError
+                "Parse error"
+
+              state
+
+      | NotJson err ->
+          log
+            $"Error parsing incoming message as json:\n{incomingMessageRaw}\nError: {err}"
+
+          sendErrorResponse
+            Stdlib.Option.Option.None
+            ModelContextProtocol.ErrorCodes.parseError
+            "Parse error: Invalid JSON"
+
+          state
+
+      | NotObjectOrArray ->
+          log $"Error parsing incoming message as json-rpc:\n{incomingMessageRaw}"
+
+          sendErrorResponse
+            Stdlib.Option.Option.None
+            ModelContextProtocol.ErrorCodes.invalidRequest
+            "Invalid Request: Must be an object or array"
+
+          state
+
+    // shut down if instructed, or listen for the next message
+    if updatedState.shouldShutdown then
+      log "Server shutting down"
+      0L
+    else
+      runServerCliLoop updatedState
+
+
+/// This is the main entrypoint for the Darklang MCP server.
+///
+/// It reads incoming messages from stdin, and writes responses to stdout,
+/// following the MCP spec. It also logs all incoming and outgoing messages
+/// to `rundir/logs/mcp-server.log`, for local debugging.
+///
+/// The server provides access to:
+/// - Darklang code execution and type checking
+/// - Package management and discovery
+/// - Function search and documentation
+/// - Code review and refactoring assistance
+/// - Testing utilities
+let runServerCli (u: Unit) : Int64 =
+  // clear `mcp-server.log`, and write a timestamp of the start-up
+  let _deleted = Builtin.fileDelete logFilePath
+
+  (Stdlib.DateTime.now_v0 ())
+  |> Stdlib.DateTime.toString
+  |> fun nowStr -> log $"Running Darklang MCP Server {nowStr}"
+
+  log "MCP Server Features:"
+  log "  - Tools: execute code, search functions, type check, manage packages"
+  log "  - Resources: builtins, stdlib, packages, types, config, logs, examples"
+  log "  - Prompts: code review, documentation, debugging, refactoring, testing"
+  log "  - Protocol version: 2025-06-18"
+
+  // The first thing we get is the `initialize` request,
+  // where the client tells us what capabilities it has,
+  // and we tell the client what capabilities we have,
+  // so the client knows which requests it can make.
+  let initializeReq = readMessageFromClient ()
+  logIncomingRequest initializeReq
+
+  // Parse and handle the initialize request
+  let initialState =
+    match JsonRPC.IncomingMessage.parse initializeReq with
+    | SingleRequest(Ok jsonRpcRequest) ->
+        match ModelContextProtocol.parseIncomingMessage jsonRpcRequest with
+        | InitializeRequest(requestId, params) ->
+            handleInitializeRequest requestId params
+        | _ ->
+            log "First message must be initialize request"
+            initialState ()
+    | _ ->
+        log "Failed to parse initialize request"
+        initialState ()
+
+  // now that initialization is complete, we can start responding to normal requests
+  runServerCliLoop initialState

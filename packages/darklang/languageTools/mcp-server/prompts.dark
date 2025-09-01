@@ -1,0 +1,78 @@
+/// Prompt collection for the MCP server
+module Darklang.LanguageTools.McpServer.Prompts
+
+
+// <aliases>
+// Json type alias removed to prevent UNIQUE constraint conflicts - use shared aliases.dark
+// </aliases>
+
+
+/// Get all available prompts for the Darklang MCP server
+let getAllPrompts () : Dict<ModelContextProtocol.PromptDescription> =
+  let prompts = [
+    Prompts.CodeReview.getPromptDescription ();
+    Prompts.DocumentFunction.getPromptDescription ();
+    Prompts.ConvertTypes.getPromptDescription ();
+    Prompts.DebugHelper.getPromptDescription ();
+    Prompts.PatternMatch.getPromptDescription ();
+  ]
+  
+  prompts
+  |> Stdlib.List.fold Stdlib.Dict.empty (fun acc prompt ->
+    Stdlib.Dict.set acc prompt.name prompt
+  )
+
+/// Generate prompt content for a specific prompt by name
+let generatePromptContent (name: String) (arguments: Json) : List<ModelContextProtocol.PromptMessage> =
+  match name with
+  | "code_review" ->
+      let code = extractStringArg arguments "code" ""
+      let focus = extractOptionalStringArg arguments "focus"
+      Prompts.CodeReview.generatePrompt code focus
+      
+  | "document_function" ->
+      let functionName = extractStringArg arguments "function_name" ""
+      let functionCode = extractStringArg arguments "function_code" ""
+      Prompts.DocumentFunction.generatePrompt functionName functionCode
+      
+  | "convert_types" ->
+      let fromType = extractStringArg arguments "from_type" ""
+      let toType = extractStringArg arguments "to_type" ""
+      let value = extractOptionalStringArg arguments "value"
+      Prompts.ConvertTypes.generatePrompt fromType toType value
+      
+  | "debug_helper" ->
+      let errorMessage = extractStringArg arguments "error_message" ""
+      let codeContext = extractOptionalStringArg arguments "code_context"
+      Prompts.DebugHelper.generatePrompt errorMessage codeContext
+      
+  | "pattern_match" ->
+      let typeDefinition = extractStringArg arguments "type_definition" ""
+      let context = extractOptionalStringArg arguments "context"
+      Prompts.PatternMatch.generatePrompt typeDefinition context
+      
+  | _ ->
+      [
+        ModelContextProtocol.PromptMessage {
+          role = ModelContextProtocol.MessageRole.System
+          content = ModelContextProtocol.PromptContent.Text $"Error: Unknown prompt '{name}'"
+        }
+      ]
+
+/// Extract a string argument from JSON arguments
+let extractStringArg (arguments: Json) (key: String) (defaultValue: String) : String =
+  match arguments with
+  | Object fields ->
+      match Stdlib.List.findFirst fields (fun (k, _) -> k == key) with
+      | Some (_, String value) -> value
+      | _ -> defaultValue
+  | _ -> defaultValue
+
+/// Extract an optional string argument from JSON arguments  
+let extractOptionalStringArg (arguments: Json) (key: String) : Stdlib.Option.Option<String> =
+  match arguments with
+  | Object fields ->
+      match Stdlib.List.findFirst fields (fun (k, _) -> k == key) with
+      | Some (_, String value) -> Stdlib.Option.Option.Some value
+      | _ -> Stdlib.Option.Option.None
+  | _ -> Stdlib.Option.Option.None

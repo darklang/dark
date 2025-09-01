@@ -1,0 +1,53 @@
+/// Resource handlers for the MCP server
+module Darklang.LanguageTools.McpServer.ResourceHandlers
+
+
+// <aliases>
+type Json = Stdlib.AltJson.Json
+// </aliases>
+
+
+
+/// Handle a resources/list request
+let handleListResourcesRequest
+  (state: McpState)
+  (requestId: JsonRPC.RequestId)
+  : McpState =
+  log "Handling resources/list request"
+  
+  let resourcesList = state.resources |> Stdlib.Dict.values
+  
+  let response = Json.Object [
+    ("resources", Json.Array (resourcesList |> Stdlib.List.map (fun resource ->
+      Json.Object [
+        ("uri", Json.String resource.uri);
+        ("name", Json.String resource.name);
+        ("description", Stdlib.Option.mapWithDefault resource.description Json.Null (fun s -> Json.String s));
+        ("mimeType", Stdlib.Option.mapWithDefault resource.mimeType Json.Null (fun s -> Json.String s))
+      ]
+    )));
+    ("nextCursor", Json.String "")
+  ]
+
+  sendSuccessResponse (Stdlib.Option.Option.Some requestId) response
+  state
+
+/// Handle a resources/read request
+let handleReadResourceRequest
+  (state: McpState)
+  (requestId: JsonRPC.RequestId)
+  (params: ModelContextProtocol.Resources.ReadResourceParams.ReadResourceParams)
+  : McpState =
+  log $"Handling resources/read request for: {params.uri}"
+  
+  let content = Resources.getResourceContent params.uri
+
+  let response = 
+    (ModelContextProtocol.Resources.ReadResourceResponse.ReadResourceResponse {
+      contents = [content]
+    })
+    |> ModelContextProtocol.Resources.ReadResourceResponse.toJson
+
+  sendSuccessResponse (Stdlib.Option.Option.Some requestId) response
+  state
+

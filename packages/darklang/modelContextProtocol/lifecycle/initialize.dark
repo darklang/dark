@@ -3,16 +3,14 @@ module Darklang.ModelContextProtocol.LifeCycle.InitializeRequest
 
 /// Client capabilities for the Model Context Protocol
 type ClientCapabilities =
-  { resources: Stdlib.Option.Option<ResourceClientCapabilities>
-    tools: Stdlib.Option.Option<ToolClientCapabilities> }
+  { elicitation: Stdlib.Option.Option<Json>
+    experimental: Stdlib.Option.Option<Dict<Json>>
+    roots: Stdlib.Option.Option<RootsClientCapabilities>
+    sampling: Stdlib.Option.Option<Json> }
 
-/// Resource client capabilities
-type ResourceClientCapabilities =
-  { contentFormat: Stdlib.Option.Option<List<String>> }
-
-/// Tool client capabilities
-type ToolClientCapabilities =
-  { contentFormat: Stdlib.Option.Option<List<String>> }
+/// Roots client capabilities  
+type RootsClientCapabilities =
+  { listChanged: Stdlib.Option.Option<Bool> }
 
 /// Parameters for the initialize request
 type InitializeParams =
@@ -31,72 +29,84 @@ let fromJson (json: Json) : Stdlib.Result.Result<InitializeParams, String> =
     // Parse clientInfo if present
     let clientInfoResult =
       match Stdlib.List.findFirst fields (fun (k, _) -> k == "clientInfo") with
-      | Some (_, Object clientInfoFields) ->
-        match Stdlib.List.findFirst clientInfoFields (fun (k, _) -> k == "name") with
-        | Some (_, String name) ->
-          let version =
-            match Stdlib.List.findFirst clientInfoFields (fun (k, _) -> k == "version") with
-            | Some (_, String v) -> Stdlib.Option.Option.Some v
-            | _ -> Stdlib.Option.Option.None
+      | Some clientInfoEntry ->
+        match clientInfoEntry with
+        | (_, Object clientInfoFields) ->
+          match Stdlib.List.findFirst clientInfoFields (fun (k, _) -> k == "name") with
+          | Some nameEntry ->
+            match nameEntry with
+            | (_, String name) ->
+              let version =
+                match Stdlib.List.findFirst clientInfoFields (fun (k, _) -> k == "version") with
+                | Some versionEntry ->
+                  match versionEntry with
+                  | (_, String v) -> Stdlib.Option.Option.Some v
+                  | _ -> Stdlib.Option.Option.None
+                | None -> Stdlib.Option.Option.None
 
-          Stdlib.Result.Result.Ok (Stdlib.Option.Option.Some (ClientInfo { name = name; version = version }))
-        | _ -> Stdlib.Result.Result.Error "clientInfo.name must be a string"
-      | Some (_, _) -> Stdlib.Result.Result.Error "clientInfo must be an object"
+              Stdlib.Result.Result.Ok (Stdlib.Option.Option.Some (ClientInfo { name = name; version = version }))
+            | _ -> Stdlib.Result.Result.Error "clientInfo.name must be a string"
+          | None -> Stdlib.Result.Result.Error "clientInfo.name is required"
+        | (_, _) -> Stdlib.Result.Result.Error "clientInfo must be an object"
       | None -> Stdlib.Result.Result.Ok Stdlib.Option.Option.None
 
     // Parse capabilities (required)
     let capabilitiesResult =
       match Stdlib.List.findFirst fields (fun (k, _) -> k == "capabilities") with
-      | Some (_, Object capFields) ->
-        // Parse resource capabilities
-        let resourceCapabilities =
-          match Stdlib.List.findFirst capFields (fun (k, _) -> k == "resources") with
-          | Some (_, Object resourceFields) ->
-            let contentFormat =
-              match Stdlib.List.findFirst resourceFields (fun (k, _) -> k == "contentFormat") with
-              | Some (_, Array formats) ->
-                let stringFormats =
-                  formats
-                  |> Stdlib.List.filterMap (fun f ->
-                    match f with
-                    | String s -> Stdlib.Option.Option.Some s
-                    | _ -> Stdlib.Option.Option.None)
-                Stdlib.Option.Option.Some stringFormats
-              | _ -> Stdlib.Option.Option.None
+      | Some capEntry ->
+        match capEntry with
+        | (_, Object capFields) ->
+          // Parse elicitation
+          let elicitation =
+            match Stdlib.List.findFirst capFields (fun (k, _) -> k == "elicitation") with
+            | Some (_, json) -> Stdlib.Option.Option.Some json
+            | None -> Stdlib.Option.Option.None
 
-            Stdlib.Option.Option.Some (ResourceClientCapabilities { contentFormat = contentFormat })
-          | _ -> Stdlib.Option.Option.None
+          // Parse experimental
+          let experimental =
+            match Stdlib.List.findFirst capFields (fun (k, _) -> k == "experimental") with
+            | Some (_, Object expFields) -> 
+              let dict = Stdlib.List.fold Stdlib.Dict.empty expFields (fun acc (key, value) ->
+                Stdlib.Dict.set acc key value
+              )
+              Stdlib.Option.Option.Some dict
+            | _ -> Stdlib.Option.Option.None
 
-        // Parse tool capabilities
-        let toolCapabilities =
-          match Stdlib.List.findFirst capFields (fun (k, _) -> k == "tools") with
-          | Some (_, Object toolFields) ->
-            let contentFormat =
-              match Stdlib.List.findFirst toolFields (fun (k, _) -> k == "contentFormat") with
-              | Some (_, Array formats) ->
-                let stringFormats =
-                  formats
-                  |> Stdlib.List.filterMap (fun f ->
-                    match f with
-                    | String s -> Stdlib.Option.Option.Some s
-                    | _ -> Stdlib.Option.Option.None)
-                Stdlib.Option.Option.Some stringFormats
-              | _ -> Stdlib.Option.Option.None
+          // Parse roots
+          let roots =
+            match Stdlib.List.findFirst capFields (fun (k, _) -> k == "roots") with
+            | Some (_, Object rootFields) ->
+              let listChanged =
+                match Stdlib.List.findFirst rootFields (fun (k, _) -> k == "listChanged") with
+                | Some (_, Bool b) -> Stdlib.Option.Option.Some b
+                | _ -> Stdlib.Option.Option.None
+              Stdlib.Option.Option.Some (RootsClientCapabilities { listChanged = listChanged })
+            | _ -> Stdlib.Option.Option.None
 
-            Stdlib.Option.Option.Some (ToolClientCapabilities { contentFormat = contentFormat })
-          | _ -> Stdlib.Option.Option.None
+          // Parse sampling  
+          let sampling =
+            match Stdlib.List.findFirst capFields (fun (k, _) -> k == "sampling") with
+            | Some (_, json) -> Stdlib.Option.Option.Some json
+            | None -> Stdlib.Option.Option.None
 
-        Stdlib.Result.Result.Ok (ClientCapabilities { resources = resourceCapabilities; tools = toolCapabilities })
-      | Some (_, _) -> Stdlib.Result.Result.Error "capabilities must be an object"
+          Stdlib.Result.Result.Ok (ClientCapabilities { 
+            elicitation = elicitation;
+            experimental = experimental;
+            roots = roots;
+            sampling = sampling
+          })
+        | (_, _) -> Stdlib.Result.Result.Error "capabilities must be an object"
       | None -> Stdlib.Result.Result.Error "capabilities is required"
 
     // Parse trace if present
     let traceResult =
       match Stdlib.List.findFirst fields (fun (k, _) -> k == "trace") with
-      | Some (_, String "off") -> Stdlib.Result.Result.Ok (Stdlib.Option.Option.Some TraceLevel.Off)
-      | Some (_, String "messages") -> Stdlib.Result.Result.Ok (Stdlib.Option.Option.Some TraceLevel.Messages)
-      | Some (_, String "verbose") -> Stdlib.Result.Result.Ok (Stdlib.Option.Option.Some TraceLevel.Verbose)
-      | Some (_, _) -> Stdlib.Result.Result.Error "trace must be one of: 'off', 'messages', 'verbose'"
+      | Some traceEntry ->
+        match traceEntry with
+        | (_, String "off") -> Stdlib.Result.Result.Ok (Stdlib.Option.Option.Some TraceLevel.Off)
+        | (_, String "messages") -> Stdlib.Result.Result.Ok (Stdlib.Option.Option.Some TraceLevel.Messages)
+        | (_, String "verbose") -> Stdlib.Result.Result.Ok (Stdlib.Option.Option.Some TraceLevel.Verbose)
+        | (_, _) -> Stdlib.Result.Result.Error "trace must be one of: 'off', 'messages', 'verbose'"
       | None -> Stdlib.Result.Result.Ok Stdlib.Option.Option.None
 
     // Combine all results
@@ -124,26 +134,26 @@ let toJson (params: InitializeParams) : Json =
     match params.capabilities.resources with
     | Some res ->
       let fields = []
-      let fieldsWithContentFormat =
-        match res.contentFormat with
-        | Some formats ->
-          let formatsJson = formats |> Stdlib.List.map (fun f -> Json.String f)
-          fields @ [("contentFormat", Json.Array formatsJson)]
+      let fieldsWithListChanged =
+        match res.listChanged with
+        | Some b -> fields @ [("listChanged", Json.Bool b)]
         | None -> fields
-      Stdlib.Option.Option.Some ("resources", Json.Object fieldsWithContentFormat)
+      let fieldsWithSubscribe =
+        match res.subscribe with
+        | Some b -> fieldsWithListChanged @ [("subscribe", Json.Bool b)]
+        | None -> fieldsWithListChanged
+      Stdlib.Option.Option.Some ("resources", Json.Object fieldsWithSubscribe)
     | None -> Stdlib.Option.Option.None
 
   let toolCapabilitiesJson =
     match params.capabilities.tools with
     | Some tools ->
       let fields = []
-      let fieldsWithContentFormat =
-        match tools.contentFormat with
-        | Some formats ->
-          let formatsJson = formats |> Stdlib.List.map (fun f -> Json.String f)
-          fields @ [("contentFormat", Json.Array formatsJson)]
+      let fieldsWithListChanged =
+        match tools.listChanged with
+        | Some b -> fields @ [("listChanged", Json.Bool b)]
         | None -> fields
-      Stdlib.Option.Option.Some ("tools", Json.Object fieldsWithContentFormat)
+      Stdlib.Option.Option.Some ("tools", Json.Object fieldsWithListChanged)
     | None -> Stdlib.Option.Option.None
 
   let capabilitiesFields =

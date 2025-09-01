@@ -1,0 +1,58 @@
+// Completion functionality for the Model Context Protocol
+module Darklang.ModelContextProtocol
+
+// <aliases>
+// Json type alias removed to prevent UNIQUE constraint conflicts
+// </aliases>
+
+/// Parameters for completion requests
+type CompletionParams =
+  { ref: Json  // Reference object (could be argument, resource, etc.)
+    argument: Stdlib.Option.Option<Json> }
+
+/// Completion result
+type CompletionResult = 
+  { values: List<String>
+    total: Stdlib.Option.Option<Int64>
+    hasMore: Stdlib.Option.Option<Bool> }
+
+/// Parse completion params from JSON
+let parseCompletionParams (json: Json) : Stdlib.Result.Result<CompletionParams, String> =
+  match json with
+  | Object fields ->
+      let refResult =
+        match Stdlib.List.findFirst fields (fun (k, _) -> k == "ref") with
+        | Some (_, ref) -> Stdlib.Result.Result.Ok ref
+        | None -> Stdlib.Result.Result.Error "ref is required"
+
+      let argument =
+        match Stdlib.List.findFirst fields (fun (k, _) -> k == "argument") with
+        | Some (_, arg) -> Stdlib.Option.Option.Some arg
+        | None -> Stdlib.Option.Option.None
+
+      match refResult with
+      | Ok ref ->
+          Stdlib.Result.Result.Ok (CompletionParams { ref = ref; argument = argument })
+      | Error e -> Stdlib.Result.Result.Error e
+  | _ ->
+      Stdlib.Result.Result.Error "params must be an object"
+
+/// Convert completion result to JSON
+let completionResultToJson (result: CompletionResult) : Json =
+  let fields = [
+    ("values", Json.Array (result.values |> Stdlib.List.map (fun s -> Json.String s)))
+  ]
+
+  let fieldsWithTotal =
+    match result.total with
+    | Some total ->
+        fields @ [("total", Json.Number (Stdlib.Int64.toFloat total))]
+    | None -> fields
+
+  let fieldsWithHasMore =
+    match result.hasMore with
+    | Some hasMore ->
+        fieldsWithTotal @ [("hasMore", Json.Bool hasMore)]
+    | None -> fieldsWithTotal
+
+  Json.Object fieldsWithHasMore

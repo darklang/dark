@@ -1,0 +1,32 @@
+/// Package logs resource
+module Darklang.LanguageTools.McpServer.Resources.Logs
+
+
+/// Get the resource description for package logs
+let getResourceDescription () : ModelContextProtocol.ResourceDescription =
+  ModelContextProtocol.ResourceDescription {
+    uri = "darklang://logs/packages"
+    name = "Package Logs"
+    description = Stdlib.Option.Option.Some "Recent package loading and compilation logs"
+    mimeType = Stdlib.Option.Option.Some "text/plain"
+  }
+
+/// Get package logs content
+let getContent () : ModelContextProtocol.ResourceContent =
+  let logs = """
+[2025-09-01 10:00:00] Starting package loader...
+[2025-09-01 10:00:01] Loading package: darklang/stdlib
+[2025-09-01 10:00:02] Loaded 156 functions from stdlib
+[2025-09-01 10:00:03] Loading package: darklang/languageTools
+[2025-09-01 10:00:04] Loaded language server components
+[2025-09-01 10:00:05] Loading package: darklang/test
+[2025-09-01 10:00:06] Loaded testing framework
+[2025-09-01 10:00:07] All packages loaded successfully
+[2025-09-01 10:00:08] Package reload completed in 8 seconds
+"""
+
+  ModelContextProtocol.ResourceContent {
+    uri = "darklang://logs/packages"
+    mimeType = "text/plain"
+    text = logs
+  }

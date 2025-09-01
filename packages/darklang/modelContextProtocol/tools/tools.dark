@@ -70,16 +70,20 @@ module Darklang =
             |> Stdlib.List.map (fun tool ->
               let fields = [
                 ("name", Json.String tool.name);
-                ("description", Json.String tool.description);
                 ("inputSchema", tool.inputSchema)
               ]
+              
+              let fieldsWithDescription = 
+                match tool.description with
+                | Some desc -> Stdlib.List.append fields [("description", Json.String desc)]
+                | None -> fields
 
               let fieldsWithOutputSchema =
                 match tool.outputSchema with
                 | Some schema ->
-                    Stdlib.List.append fields [("outputSchema", schema)]
+                    Stdlib.List.append fieldsWithDescription [("outputSchema", schema)]
                 | None ->
-                    fields
+                    fieldsWithDescription
 
               let fieldsWithAnnotations =
                 match tool.annotations with
@@ -96,7 +100,7 @@ module Darklang =
           let nextCursorJson =
             match response.nextCursor with
             | Some cursor -> Json.String cursor
-            | None -> Json.Null
+            | None -> Json.String ""
 
           Json.Object [
             ("tools", Json.Array toolsJson);
@@ -137,9 +141,9 @@ module Darklang =
       module CallToolResponse =
         type ContentItem =
           | TextContent of String
-          // | ImageContent
-          // | AudioContent
-          // | EmbeddedResource
+          | ImageContent of ImageContent
+          | AudioContent of AudioContent
+          | ResourceContent of ResourceContent
 
         type CallToolResult = {
           content: List<ContentItem>
@@ -151,9 +155,27 @@ module Darklang =
             result.content
             |> Stdlib.List.map ( fun item ->
               match item with
-              | TextContent text -> Json.Object [("type", Json.String "text"); ("text", Json.String text)]
-              | _ ->
-                Json.Object [("type", Json.String "todo"); ("text", Json.String "Unsupported content type")]
+              | TextContent text -> 
+                  Json.Object [("type", Json.String "text"); ("text", Json.String text)]
+              | ImageContent img ->
+                  Json.Object [
+                    ("type", Json.String "image"); 
+                    ("data", Json.String img.data);
+                    ("mimeType", Json.String img.mimeType)
+                  ]
+              | AudioContent audio ->
+                  Json.Object [
+                    ("type", Json.String "audio"); 
+                    ("data", Json.String audio.data);
+                    ("mimeType", Json.String audio.mimeType)
+                  ]
+              | ResourceContent resource ->
+                  Json.Object [
+                    ("type", Json.String "resource");
+                    ("uri", Json.String resource.uri);
+                    ("mimeType", Json.String resource.mimeType);
+                    ("text", Json.String resource.text)
+                  ]
             )
 
           Json.Object [

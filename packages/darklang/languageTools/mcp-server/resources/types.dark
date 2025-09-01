@@ -1,0 +1,75 @@
+/// Type definitions resource
+module Darklang.LanguageTools.McpServer.Resources.Types
+
+
+/// Get the resource description for types
+let getResourceDescription () : ModelContextProtocol.ResourceDescription =
+  ModelContextProtocol.ResourceDescription {
+    uri = "darklang://types"
+    name = "Type Definitions"
+    description = Stdlib.Option.Option.Some "All available type definitions in the current context"
+    mimeType = Stdlib.Option.Option.Some "application/json"
+  }
+
+/// Get types content
+let getContent () : ModelContextProtocol.ResourceContent =
+  let types = """
+{
+  "types": [
+    {
+      "name": "String",
+      "kind": "primitive",
+      "description": "UTF-8 encoded text"
+    },
+    {
+      "name": "Int64",
+      "kind": "primitive",
+      "description": "64-bit signed integer"
+    },
+    {
+      "name": "Float",
+      "kind": "primitive",
+      "description": "64-bit floating point number"
+    },
+    {
+      "name": "Bool",
+      "kind": "primitive",
+      "description": "Boolean value (true or false)"
+    },
+    {
+      "name": "Unit",
+      "kind": "primitive",
+      "description": "Unit type with single value ()"
+    },
+    {
+      "name": "List",
+      "kind": "generic",
+      "typeParams": ["'a"],
+      "description": "Immutable list of values"
+    },
+    {
+      "name": "Dict",
+      "kind": "generic",
+      "typeParams": ["'v"],
+      "description": "Dictionary with string keys"
+    },
+    {
+      "name": "Result",
+      "kind": "generic",
+      "typeParams": ["'ok", "'err"],
+      "description": "Result type for error handling"
+    },
+    {
+      "name": "Option",
+      "kind": "generic",
+      "typeParams": ["'a"],
+      "description": "Optional value type"
+    }
+  ]
+}"""
+
+  ModelContextProtocol.ResourceContent {
+    uri = "darklang://types"
+    mimeType = "application/json"
+    text = types
+  }

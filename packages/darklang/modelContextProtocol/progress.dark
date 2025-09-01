@@ -1,0 +1,91 @@
+// Progress tracking for the Model Context Protocol
+module Darklang.ModelContextProtocol
+
+
+// <aliases>
+// Json type alias removed to prevent UNIQUE constraint conflicts
+// </aliases>
+
+
+/// Progress token used to track progress of long-running operations
+type ProgressToken = 
+  | Int of Int64
+  | String of String
+
+/// Convert a progress token to JSON
+let progressTokenToJson (token: ProgressToken) : Json =
+  match token with
+  | Int i -> Json.Number (Stdlib.Int64.toFloat i)
+  | String s -> Json.String s
+
+/// Parse a progress token from JSON
+let progressTokenFromJson (json: Json) : Stdlib.Result.Result<ProgressToken, String> =
+  match json with
+  | Number n -> 
+      Stdlib.Result.Result.Ok (ProgressToken.Int (Stdlib.Float.toInt64 n))
+  | String s -> 
+      Stdlib.Result.Result.Ok (ProgressToken.String s)
+  | _ -> 
+      Stdlib.Result.Result.Error "Progress token must be a number or string"
+
+/// Progress notification parameters
+module ProgressNotification =
+  type ProgressNotificationParams =
+    { progressToken: ProgressToken
+      progress: Int64
+      total: Stdlib.Option.Option<Int64> }
+
+  let toJson (params: ProgressNotificationParams) : Json =
+    let fields = [
+      ("progressToken", progressTokenToJson params.progressToken);
+      ("progress", Json.Number (Stdlib.Int64.toFloat params.progress))
+    ]
+
+    let fieldsWithTotal =
+      match params.total with
+      | Some total ->
+          fields @ [("total", Json.Number (Stdlib.Int64.toFloat total))]
+      | None ->
+          fields
+
+    Json.Object fieldsWithTotal
+
+  let fromJson (json: Json) : Stdlib.Result.Result<ProgressNotificationParams, String> =
+    match json with
+    | Object fields ->
+        let tokenResult =
+          match Stdlib.List.findFirst fields (fun (k, _) -> k == "progressToken") with
+          | Some (_, token) -> progressTokenFromJson token
+          | None -> Stdlib.Result.Result.Error "progressToken is required"
+
+        let progressResult =
+          match Stdlib.List.findFirst fields (fun (k, _) -> k == "progress") with
+          | Some (_, Number n) -> 
+              Stdlib.Result.Result.Ok (Stdlib.Float.toInt64 n)
+          | Some (_, _) -> 
+              Stdlib.Result.Result.Error "progress must be a number"
+          | None -> 
+              Stdlib.Result.Result.Error "progress is required"
+
+        let totalResult =
+          match Stdlib.List.findFirst fields (fun (k, _) -> k == "total") with
+          | Some (_, Number n) -> 
+              Stdlib.Result.Result.Ok (Stdlib.Option.Option.Some (Stdlib.Float.toInt64 n))
+          | Some (_, _) -> 
+              Stdlib.Result.Result.Error "total must be a number"
+          | None -> 
+              Stdlib.Result.Result.Ok Stdlib.Option.Option.None
+
+        match (tokenResult, progressResult, totalResult) with
+        | (Ok token, Ok progress, Ok total) ->
+            Stdlib.Result.Result.Ok
+              (ProgressNotificationParams {
+                progressToken = token
+                progress = progress
+                total = total
+              })
+        | (Error e, _, _) -> Stdlib.Result.Result.Error e
+        | (_, Error e, _) -> Stdlib.Result.Result.Error e
+        | (_, _, Error e) -> Stdlib.Result.Result.Error e
+    | _ ->
+        Stdlib.Result.Result.Error "params must be an object"

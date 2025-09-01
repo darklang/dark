@@ -1,0 +1,58 @@
+/// Standard library resource
+module Darklang.LanguageTools.McpServer.Resources.Stdlib
+
+
+/// Get the resource description for stdlib
+let getResourceDescription () : ModelContextProtocol.ResourceDescription =
+  ModelContextProtocol.ResourceDescription {
+    uri = "darklang://stdlib"
+    name = "Standard Library"
+    description = Stdlib.Option.Option.Some "Complete Darklang standard library documentation"
+    mimeType = Stdlib.Option.Option.Some "application/json"
+  }
+
+/// Get standard library content
+let getContent () : ModelContextProtocol.ResourceContent =
+  let stdlib = """
+{
+  "modules": [
+    {
+      "name": "Stdlib.List",
+      "functions": ["map", "filter", "fold", "length", "head", "tail", "reverse", "sort", "unique"]
+    },
+    {
+      "name": "Stdlib.String",
+      "functions": ["split", "join", "contains", "replace", "trim", "toLowercase", "toUppercase", "length"]
+    },
+    {
+      "name": "Stdlib.Dict",
+      "functions": ["empty", "fromList", "get", "set", "remove", "keys", "values", "size"]
+    },
+    {
+      "name": "Stdlib.Result",
+      "functions": ["Ok", "Error", "map", "mapError", "withDefault", "toOption"]
+    },
+    {
+      "name": "Stdlib.Option",
+      "functions": ["Some", "None", "map", "withDefault", "isSome", "isNone"]
+    },
+    {
+      "name": "Stdlib.DateTime",
+      "functions": ["now", "toString", "parse", "addDays", "addHours", "diff"]
+    },
+    {
+      "name": "Stdlib.Http",
+      "functions": ["get", "post", "put", "delete", "request"]
+    },
+    {
+      "name": "Stdlib.AltJson",
+      "functions": ["parse", "format", "Object", "Array", "String", "Number", "Bool", "Null"]
+    }
+  ]
+}"""
+
+  ModelContextProtocol.ResourceContent {
+    uri = "darklang://stdlib"
+    mimeType = "application/json"
+    text = stdlib
+  }

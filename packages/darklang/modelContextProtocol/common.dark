@@ -3,11 +3,11 @@ module Darklang.ModelContextProtocol
 
 
 // <aliases>
-type Json = Stdlib.AltJson.Json
+// Json type alias removed to prevent UNIQUE constraint conflicts
 // </aliases>
 
 /// The version of the Model Context Protocol implemented
-let protocolVersion = "1.0.0"
+let protocolVersion = "2025-06-18"
 
 /// A URI identifying a resource
 type ResourceUri = String
@@ -89,7 +89,19 @@ type MessageRole =
 /// Content types for prompt messages
 type PromptContent =
   | Text of String
+  | Image of ImageContent
+  | Audio of AudioContent
   | Resource of ResourceContent
+
+/// Image content for messages
+type ImageContent =
+  { data: String  // Base64 encoded image data
+    mimeType: String }
+
+/// Audio content for messages  
+type AudioContent =
+  { data: String  // Base64 encoded audio data
+    mimeType: String }
 
 /// A message in a prompt
 type PromptMessage =
@@ -115,7 +127,9 @@ type ServerInfo =
 type ServerCapabilities =
   { resources: Stdlib.Option.Option<ResourceCapabilities>
     tools: Stdlib.Option.Option<ToolCapabilities>
-    prompts: Stdlib.Option.Option<PromptCapabilities> }
+    prompts: Stdlib.Option.Option<PromptCapabilities>
+    logging: Stdlib.Option.Option<LoggingCapabilities>
+    completion: Stdlib.Option.Option<CompletionCapabilities> }
 
 /// Resource capabilities
 type ResourceCapabilities =
@@ -125,6 +139,14 @@ type ResourceCapabilities =
 /// Tool capabilities
 type ToolCapabilities =
   { listChanged: Stdlib.Option.Option<Bool> }
+
+/// Logging capabilities
+type LoggingCapabilities = 
+  { level: Stdlib.Option.Option<LoggingLevel> }
+
+/// Completion capabilities  
+type CompletionCapabilities =
+  { supportsCompletion: Bool }
 
 /// Error codes for the Model Context Protocol
 module ErrorCodes =

@@ -1,0 +1,47 @@
+/// Resource collection for the MCP server
+module Darklang.LanguageTools.McpServer.Resources
+
+
+/// Get all available resources for the Darklang MCP server
+let getAllResources () : Dict<ModelContextProtocol.ResourceDescription> =
+  let resources = [
+    Resources.Examples.getResourceDescription ();
+    Resources.Builtins.getResourceDescription ();
+    Resources.Stdlib.getResourceDescription ();
+    Resources.Packages.getResourceDescription ();
+    Resources.Types.getResourceDescription ();
+    Resources.Config.getResourceDescription ();
+    Resources.Logs.getResourceDescription ();
+    Resources.Syntax.getResourceDescription ();
+  ]
+  
+  resources
+  |> Stdlib.List.fold Stdlib.Dict.empty (fun acc resource ->
+    Stdlib.Dict.set acc resource.uri resource
+  )
+
+/// Get content for a specific resource by URI
+let getResourceContent (uri: String) : ModelContextProtocol.ResourceContent =
+  match uri with
+  | "darklang://builtins" ->
+      Resources.Builtins.getContent ()
+  | "darklang://stdlib" ->
+      Resources.Stdlib.getContent ()
+  | "darklang://packages/manifest" ->
+      Resources.Packages.getContent ()
+  | "darklang://types" ->
+      Resources.Types.getContent ()
+  | "darklang://config" ->
+      Resources.Config.getContent ()
+  | "darklang://logs/packages" ->
+      Resources.Logs.getContent ()
+  | "darklang://examples" ->
+      Resources.Examples.getContent ()
+  | "darklang://reference/syntax" ->
+      Resources.Syntax.getContent ()
+  | _ ->
+      ModelContextProtocol.ResourceContent {
+        uri = "darklang://error"
+        mimeType = "text/plain"
+        text = $"Error: Unknown resource: {uri}"
+      }
