@@ -64,7 +64,8 @@ let executeFunction (state: AppState) (fnName: String) (args: List<String>) : Ap
     Stdlib.printLine result
     state
   | Error err ->
-    Stdlib.printLine $"Error: {err}"
+    let errStr = ExecutionError.toString err
+    Stdlib.printLine $"Error: {errStr}"
     state
 
 

@@ -1,0 +1,440 @@
+/// This supports a Model Context Protocol Server for Darklang,
+/// matching the MCP spec.
+///
+/// This MCP server allows AI models to access external data, execute code,
+/// and interact with various services through Darklang.
+module Darklang.McpServer
+
+
+// <aliases>
+type Json = Stdlib.AltJson.Json
+// </aliases>
+
+
+/// State for the MCP server
+type McpState =
+  { initialized: Bool
+    shouldShutdown: Bool
+    traceLevel: ModelContextProtocol.TraceLevel
+    resources: Dict<ModelContextProtocol.ResourceDescription>
+    resourceTemplates: Dict<ModelContextProtocol.ResourceTemplateDescription>
+    tools: Dict<ModelContextProtocol.ToolDescription> }
+
+/// Log file path for the MCP server
+let logFilePath = "rundir/logs/mcp-server.log"
+
+/// Log a message to the log file
+let log (message: String) : Unit =
+  let timestamp = (Stdlib.DateTime.now_v0 ()) |> Stdlib.DateTime.toString
+  let logMessage = $"[{timestamp}] {message}\n"
+  Builtin.fileAppendText logFilePath logMessage
+  ()
+
+/// Log an incoming request
+let logIncomingRequest (message: String) : Unit =
+  log $"Incoming request: {message}"
+
+let logAndSendToClient (message: String) : Unit =
+  log $"Sending to client: {message}"
+  Builtin.printLine message
+
+
+/// Read a message from the client using line-based stdio
+let readMessageFromClient () : String =
+  let message = Builtin.stdinReadLine ()
+  log $"Got message from stdin, length: {(Stdlib.String.length message) |> Stdlib.Int64.toString}"
+
+  if message == "" then
+    log "Message is empty"
+    ""
+  else
+    // log "Message received successfully"
+    Stdlib.String.trim message
+
+
+/// Handle the MCP initialize request and return initial server state
+/// Takes the already-read initialize message as a parameter
+let handleInitializeRequest (initializeRequest: String) : McpState =
+  logIncomingRequest initializeRequest
+
+  // TODO get the correct 'id' dynamically
+  // (even though it _is_ usually 0)
+
+  // Send our server capabilities response with matching ID
+  let serverCapabilities = """{"jsonrpc":"2.0","id":0,"result":{"protocolVersion":"2025-06-18","capabilities":{"resources":{"subscribe":false,"listChanged":false},"tools":{"listChanged":false},"prompts":{"listChanged":false}},"serverInfo":{"name":"Darklang MCP Server","version":"1.0.0"}}}"""
+
+  logAndSendToClient serverCapabilities
+
+  // Wait for the initialized notification from the client
+  // Return initial server state
+  McpState
+    { initialized = true
+      shouldShutdown = false
+      traceLevel = ModelContextProtocol.TraceLevel.Off
+      resources = Stdlib.Dict.empty
+      resourceTemplates = Stdlib.Dict.empty
+      tools = Stdlib.Dict.empty }
+
+/// Handle incoming MCP messages and return updated state
+let handleIncomingMessage
+  (state: McpState)
+  (request: JsonRPC.Request.Request)
+  : McpState =
+  log request.method
+  // Use proper MCP message parsing
+  match ModelContextProtocol.parseIncomingMessage request with
+  | InitializeRequest requestId ->
+    log "Handling initialize request (should not happen in main loop)"
+    state
+
+  | Initialized ->
+    log "Received initialized notification"
+    McpState { state with initialized = true }
+
+  | Shutdown requestId ->
+    log "Handling shutdown request"
+    // Send shutdown response
+    let response =
+      (JsonRPC.Response.Ok.make (Stdlib.Option.Option.Some requestId) Json.Null)
+      |> Stdlib.AltJson.format
+    logAndSendToClient response
+    McpState { state with shouldShutdown = true }
+
+  // Tools
+  | ListToolsRequest requestId ->
+    log "Handling tools/list request"
+    handleListToolsRequest state requestId
+  | CallToolRequest(requestId, params) ->
+    log $"Handling tools/call request"
+    // Log the params for debugging
+    log $"Tool name: {params.name}"
+    log $"Tool arguments: {Stdlib.AltJson.format params.arguments}"
+    handleCallToolRequest state requestId params
+
+  // Resources
+  | ListResourcesRequest requestId ->
+    log "Handling resources/list request"
+    handleListResourcesRequest state requestId
+  | ReadResourceRequest(requestId, params) ->
+    log $"Handling resources/read request for {params.uri}"
+    handleReadResourceRequest state requestId params
+
+  // Prompts
+  | ListPromptsRequest requestId ->
+    log "Handling prompts/list request"
+    handleListPromptsRequest state requestId
+
+  // Other
+  | Other jsonRpcRequest ->
+    log $"Ignoring unknown method: {jsonRpcRequest.method}"
+    state
+
+
+/// Main server loop to handle ongoing messages
+let runServerCliLoop (state: McpState) : Int64 =
+  log "---"
+
+  let incomingMessageRaw = readMessageFromClient ()
+  logIncomingRequest incomingMessageRaw
+
+  // Handle empty messages (client disconnected)
+  if incomingMessageRaw == "" then
+    log "Received empty message, client disconnected"
+    0L
+  else
+    let updatedState =
+      // parse a json-rpc message from stdin, and call `handleIncomingMessage` on it when relevant
+      match JsonRPC.IncomingMessage.parse incomingMessageRaw with
+      // The json-rpc spec says to just ignore any incoming messages of `[]`
+      | EmptyBatch ->
+        log "Received empty batch, continuing"
+        state
+
+      // # Things we want/expect
+      | SingleRequest(Ok jsonRpcRequest) ->
+        log $"Parsed incoming message as single JSON-RPC request"
+        handleIncomingMessage state jsonRpcRequest
+
+      | BatchOfRequests items ->
+        // TODO: need to reply in a batch as well
+        log "TODO - Got batch request; not yet set to handle these"
+        state
+
+      // # Errors
+
+      // was an object {} but not a valid json-rpc 2.0 _request_
+      // (note: could have been a valid _response_ though - we don't yet have good support for that)
+      | SingleRequest(Error singleRequestParseError) ->
+        match singleRequestParseError with
+        | NotObject json ->
+          let error = Stdlib.AltJson.format json
+
+          log
+            $"Error parsing incoming message as json-rpc:\n{incomingMessageRaw}\nError: it must be an object, but was: {error}"
+
+          logAndSendToClient
+          """{"jsonrpc": "2.0", "error": {"code": -32700, "message": "Parse error"}, "id": null}"""
+
+          state
+
+        | MissingJsonRpcField ->
+          log
+            $"Error parsing incoming message as json-rpc:\n{incomingMessageRaw}\nError: it must have a 'jsonrpc' field"
+
+          logAndSendToClient
+          """{"jsonrpc": "2.0", "error": {"code": -32700, "message": "Parse error"}, "id": null}"""
+
+          state
+
+        | InvalidIdField json ->
+          let error = Stdlib.AltJson.format json
+
+          log
+            $"Error parsing incoming message as json-rpc:\n{incomingMessageRaw}\nError: 'id' field must be Null, a Number or a String, but was: {error}"
+
+          logAndSendToClient
+            """{"jsonrpc": "2.0", "error": {"code": -32700, "message": "Parse error"}, "id": null}"""
+
+          state
+
+        | MissingMethodField id ->
+          log
+            $"Error parsing incoming message as json-rpc:\n{incomingMessageRaw}\nError: 'method' field must be provided"
+
+          logAndSendToClient
+            """{"jsonrpc": "2.0", "error": {"code": -32700, "message": "Parse error"}, "id": null}"""
+
+          state
+
+        | InvalidMethodField(id, actual) ->
+          let error = Stdlib.AltJson.format actual
+
+          log
+            $"Error parsing incoming message as json-rpc:\n{incomingMessageRaw}\nError: 'method' field must be a string, but was: {error}"
+
+          logAndSendToClient
+            """{"jsonrpc": "2.0", "error": {"code": -32700, "message": "Parse error"}, "id": null}"""
+
+          state
+
+        | InvalidParamsField(id, actual) ->
+          let error = Stdlib.AltJson.format actual
+
+          log
+            $"Error parsing incoming message as json-rpc:\n{incomingMessageRaw}\nError: 'params' field must be an Array or an Object, but was: {error}"
+
+          logAndSendToClient
+            """{"jsonrpc": "2.0", "error": {"code": -32700, "message": "Parse error"}, "id": null}"""
+
+          state
+
+        | _ ->
+          log
+            $"Error parsing incoming message as json-rpc:\n{incomingMessageRaw}"
+
+          logAndSendToClient
+            """{"jsonrpc": "2.0", "error": {"code": -32700, "message": "Parse error"}, "id": null}"""
+
+          state
+
+      | NotJson err ->
+        log
+          $"Error parsing incoming message as json:\n{incomingMessageRaw}\nError: {err}"
+
+        logAndSendToClient
+          """{"jsonrpc": "2.0", "error": {"code": -32700, "message": "Parse error"}, "id": null}"""
+
+        state
+
+      | NotObjectOrArray ->
+        log $"Error parsing incoming message as json-rpc:\n{incomingMessageRaw}"
+
+        logAndSendToClient
+          """{"jsonrpc": "2.0", "error": {"code": -32600, "message": "Invalid Request"}, "id": null}"""
+
+        state
+
+    // shut down if instructed, or listen for the next message
+    if updatedState.shouldShutdown then
+      0L
+    else
+      runServerCliLoop updatedState
+
+
+/// This is the main entrypoint for the Darklang MCP server.
+///
+/// It reads incoming messages from stdin, and writes responses to stdout,
+/// following the MCP spec. It also logs all incoming and outgoing messages
+/// to `rundir/logs/mcp-server.log`, for local debugging.
+let runServerCli (u: Unit) : Int64 =
+  // clear `mcp-server.log`, and write a timestamp of the start-up
+  let _deleted = Builtin.fileDelete logFilePath
+
+  (Stdlib.DateTime.now_v0 ())
+  |> Stdlib.DateTime.toString
+  |> fun nowStr -> log $"Running Darklang MCP Server {nowStr}"
+
+  // The first thing we get is the `initialize` request,
+  // where the client tells us what capabilities it has,
+  // and we tell the client what capabilities we have,
+  // so the client knows which requests it can make.
+  let initializeReq = readMessageFromClient ()
+
+  // Pass the already-read message to handleInitializeRequest
+  let initialState = handleInitializeRequest initializeReq
+
+  // now that _that_ is out of the way, we can start responding to normal requests
+  runServerCliLoop initialState
+
+
+// The rest of this file handles (bogus) functionality of our MCP server
+
+/// Handle a tools/list request
+let handleListToolsRequest
+  (state: McpState)
+  (requestId: JsonRPC.RequestId)
+  : McpState =
+  // Create response with proper request ID
+  let idStr =
+    match requestId with
+    | Int id -> Stdlib.Int64.toString id
+    | String id -> $"\"{id}\""
+    | Null -> "null"
+
+  // Example tools for demonstration - must be single line for stdio transport
+  let toolsJson = """[{"name": "get_weather","description": "Get current weather for a location","inputSchema": {"type": "object","properties": {"location": {"type": "string","description": "City name or coordinates"}},"required": ["location"]}}]"""
+
+  let response = $"{{\"jsonrpc\":\"2.0\",\"id\":{idStr},\"result\":{{\"tools\":{toolsJson}}}}}"
+  logAndSendToClient response
+  state
+
+
+/// Handle a tools/call request
+let handleCallToolRequest
+  (state: McpState)
+  (requestId: JsonRPC.RequestId)
+  (params: ModelContextProtocol.ToolRequest.CallToolParams.CallToolParams)
+  : McpState =
+  log $"Tool '{params.name}' called with arguments: {Stdlib.AltJson.format params.arguments}"
+
+  // Generate dynamic fake responses based on tool name and arguments
+  let responseText =
+    match params.name with
+    | "get_weather" ->
+      // Extract location from arguments
+      let location =
+        match params.arguments with
+        | Object fields ->
+          match Stdlib.List.findFirst fields (fun (k, _) -> k == "location") with
+          | Some (_, String loc) -> loc
+          | _ -> "Unknown Location"
+        | _ -> "Unknown Location"
+
+      // Generate fake but realistic weather data
+      let temp = ((Stdlib.String.length location) * 3) % 30 + 50 // 50-80°F range
+      let tempC = (temp - 32) * 5 / 9
+      let conditions =
+        if (Stdlib.String.length location) % 3 == 0 then "sunny"
+        else if (Stdlib.String.length location) % 3 == 1 then "partly cloudy"
+        else "overcast"
+      let humidity = ((Stdlib.String.length location) * 7) % 40 + 40 // 40-80% range
+
+      $"Weather in {location}: {Stdlib.Int64.toString temp}°F ({Stdlib.Int64.toString tempC}°C), {conditions}. Humidity: {Stdlib.Int64.toString humidity}%. Wind: 8 mph NW. UV index: 5 (moderate)."
+
+    | _ ->
+      $"Tool '{params.name}' executed successfully with provided arguments: {Stdlib.AltJson.format params.arguments}"
+
+  let contentItem =
+    ModelContextProtocol.ToolRequest.CallToolResponse.ContentItem {
+      type_ = "text"
+      text = responseText
+    }
+
+  let callResponse =
+    ModelContextProtocol.ToolRequest.CallToolResponse.CallToolResponse {
+      content = [contentItem]
+      isError = Stdlib.Option.Option.Some false
+    }
+
+  let response =
+    callResponse
+    |> ModelContextProtocol.ToolRequest.CallToolResponse.toJson
+    |> (fun r -> JsonRPC.Response.Ok.make (Stdlib.Option.Option.Some requestId) r)
+    |> Stdlib.AltJson.format
+
+  logAndSendToClient response
+  state
+
+
+/// Handle a resources/list request
+let handleListResourcesRequest
+  (state: McpState)
+  (requestId: JsonRPC.RequestId)
+  : McpState =
+  // Create response with proper request ID
+  let idStr =
+    match requestId with
+    | Int id -> Stdlib.Int64.toString id
+    | String id -> $"\"{id}\""
+    | Null -> "null"
+
+  // Example resources for demonstration - must be single line for stdio transport
+  let resourcesJson = """[{"uri":"file:///example/readme.md","name":"Project README","description":"Main project documentation","mimeType":"text/markdown"},{"uri":"file:///example/config.json","name":"Configuration","description":"Application configuration settings","mimeType":"application/json"},{"uri":"https://api.example.com/data","name":"API Data","description":"Live data from the example API","mimeType":"application/json"},{"uri":"db://users/table","name":"Users Database","description":"User information from the database","mimeType":"application/json"},{"uri":"log:///var/log/app.log","name":"Application Logs","description":"Recent application log entries","mimeType":"text/plain"}]"""
+
+  let response = $"{{\"jsonrpc\":\"2.0\",\"id\":{idStr},\"result\":{{\"resources\":{resourcesJson}}}}}"
+  logAndSendToClient response
+  state
+
+/// Handle a resources/read request
+let handleReadResourceRequest
+  (state: McpState)
+  (requestId: JsonRPC.RequestId)
+  (params: ModelContextProtocol.ResourceRequest.ReadResourceParams.ReadResourceParams)
+  : McpState =
+  log $"Resource '{params.uri}' requested"
+
+  // Generate example content based on the resource URI
+  let (mimeType, content) =
+    if Stdlib.String.contains params.uri "config" then
+      ("application/json", """{"server": {  "port": 3000,  "host": "localhost",  "debug": true},"database": {  "url": "postgresql://localhost/example",  "poolSize": 10},"features": {  "authentication": true,  "caching": true,  "logging": "verbose"}}""")
+    else if Stdlib.String.contains params.uri "api" then
+      ("application/json", """{  "users": [{"id": 1, "name": "Alice", "role": "admin"},{"id": 2, "name": "Bob", "role": "user"},{"id": 3, "name": "Charlie", "role": "user"}  ],  "timestamp": "2025-08-30T14:30:00Z",  "status": "healthy"}""")
+    else if Stdlib.String.contains params.uri "users" then
+      ("application/json", """[  {"id": 1, "username": "alice", "email": "alice@example.com", "created": "2024-01-15"},  {"id": 2, "username": "bob", "email": "bob@example.com", "created": "2024-02-20"},  {"id": 3, "username": "charlie", "email": "charlie@example.com", "created": "2024-03-10"},  {"id": 4, "username": "diana", "email": "diana@example.com", "created": "2024-04-05"},  {"id": 5, "username": "eve", "email": "eve@example.com", "created": "2024-05-12"}]""")
+    else
+      ("text/plain", $"Example content for resource: {params.uri}\n\nThis is placeholder content that would normally come from the actual resource.")
+
+  let response =
+    (ModelContextProtocol.ResourceRequest.ReadResourceResponse.ReadResourceResponse {
+      contents = [
+        ModelContextProtocol.ResourceContent {
+          uri = params.uri
+          mimeType = mimeType
+          text = content
+        }
+      ]
+    })
+    |> ModelContextProtocol.ResourceRequest.ReadResourceResponse.toJson
+    |> (fun r -> JsonRPC.Response.Ok.make (Stdlib.Option.Option.Some requestId) r)
+    |> Stdlib.AltJson.format
+  logAndSendToClient response
+  state
+
+/// Handle a prompts/list request
+let handleListPromptsRequest
+  (state: McpState)
+  (requestId: JsonRPC.RequestId)
+  : McpState =
+  // Create response with proper request ID
+  let idStr =
+    match requestId with
+    | Int id -> Stdlib.Int64.toString id
+    | String id -> $"\"{id}\""
+    | Null -> "null"
+
+  // Example prompts for demonstration - must be single line for stdio transport
+  let promptsJson = """[{"name":"code_review","description":"Review code for best practices and potential improvements","arguments":[{"name":"code","description":"The code to review","required":true},{"name":"language","description":"Programming language of the code","required":false}]},{"name":"explain_concept","description":"Explain a technical concept in simple terms","arguments":[{"name":"concept","description":"The concept to explain","required":true},{"name":"level","description":"Expertise level (beginner, intermediate, advanced)","required":false}]},{"name":"generate_tests","description":"Generate unit tests for given code","arguments":[{"name":"code","description":"The code to generate tests for","required":true},{"name":"framework","description":"Testing framework to use","required":false}]}]"""
+
+  let response = $"{{\"jsonrpc\":\"2.0\",\"id\":{idStr},\"result\":{{\"prompts\":{promptsJson}}}}}"
+  logAndSendToClient response
+  state

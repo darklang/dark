@@ -273,6 +273,7 @@ let fns : List<BuiltInFn> =
                 [],
                 Map fields
               )
+              |> resultError
 
             let exnError (e : exn) : Dval =
               let msg = Exception.getMessages e |> String.concat "\n"

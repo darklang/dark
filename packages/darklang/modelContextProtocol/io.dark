@@ -22,6 +22,9 @@ type IncomingMessage =
       requestId: JsonRPC.RequestId *
       ToolRequest.CallToolParams.CallToolParams
 
+  // Prompts
+  | ListPromptsRequest of requestId: JsonRPC.RequestId
+
   // Other
   | Other of JsonRPC.Request.Request
 
@@ -37,24 +40,28 @@ let parseIncomingMessage (r: JsonRPC.Request.Request) : IncomingMessage =
       IncomingMessage.Shutdown requestId
 
   // Resources
-  | ("listResources", Some requestId, _) ->
+  | ("resources/list", Some requestId, _) ->
       IncomingMessage.ListResourcesRequest requestId
-  | ("listResourceTemplates", Some requestId, _) ->
+  | ("resources/templates/list", Some requestId, _) ->
       IncomingMessage.ListResourceTemplatesRequest requestId
-  | ("readResource", Some requestId, Some(Object p)) ->
+  | ("resources/read", Some requestId, Some(Object p)) ->
       (Stdlib.AltJson.Json.Object p)
       |> ResourceRequest.ReadResourceParams.fromJson
       |> Builtin.unwrap
       |> fun p -> IncomingMessage.ReadResourceRequest(requestId, p)
 
   // Tools
-  | ("listTools", Some requestId, _) ->
+  | ("tools/list", Some requestId, _) ->
       IncomingMessage.ListToolsRequest requestId
-  | ("callTool", Some requestId, Some(Object p)) ->
+  | ("tools/call", Some requestId, Some(Object p)) ->
       (Stdlib.AltJson.Json.Object p)
       |> ToolRequest.CallToolParams.fromJson
       |> Builtin.unwrap
       |> fun p -> IncomingMessage.CallToolRequest(requestId, p)
+
+  // Prompts
+  | ("prompts/list", Some requestId, _) ->
+      IncomingMessage.ListPromptsRequest requestId
 
   // Other
   | _ -> IncomingMessage.Other r
@@ -71,7 +78,7 @@ module ResourceRequest =
       | Object fields ->
         match Stdlib.List.findFirst fields (fun (k, _) -> k == "uri") with
         | Some (_, String uri) ->
-            Stdlib.Result.Result.Ok { uri = uri }
+            Stdlib.Result.Result.Ok (ReadResourceParams { uri = uri })
         | Some (_, _) ->
             Stdlib.Result.Result.Error "uri must be a string"
         | None ->
@@ -198,7 +205,7 @@ module ToolRequest =
 
         match (nameResult, argsResult) with
         | (Ok name, Ok args) ->
-            Stdlib.Result.Result.Ok { name = name; arguments = args }
+            Stdlib.Result.Result.Ok (CallToolParams { name = name; arguments = args })
         | (Error e, _) -> Stdlib.Result.Result.Error e
         | (_, Error e) -> Stdlib.Result.Result.Error e
       | _ ->
@@ -246,10 +253,10 @@ module ToolRequest =
         text: String }
 
     type CallToolResponse =
-      { content: List<ContentItem>
+      { content: List<CallToolResponse.ContentItem>
         isError: Stdlib.Option.Option<Bool> }
 
-    let toJson (response: CallToolResponse) : Json =
+    let toJson (response: CallToolResponse.CallToolResponse) : Json =
       let contentJson =
         response.content
         |> Stdlib.List.map (fun item ->

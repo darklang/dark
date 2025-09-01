@@ -18,16 +18,16 @@ module BuiltinCliHostConfig = BuiltinCliHost.Libs.Cli.Config
 // Dual logging (console + cli.log file)
 let private logError (message : string) : unit =
   // Always write to stderr for immediate feedback
-  System.Console.Error.WriteLine(message)
+  System.Console.Error.WriteLine message
 
   // Also try to log to file (best effort - don't fail if we can't)
   try
     let logPath = System.IO.Path.Combine(LibConfig.Config.logDir, "cli.log")
     let logDir = System.IO.Path.GetDirectoryName(logPath)
-    if not (System.IO.Directory.Exists(logDir)) then
-      System.IO.Directory.CreateDirectory(logDir) |> ignore<System.IO.DirectoryInfo>
+    if not (IO.Directory.Exists logDir) then
+      System.IO.Directory.CreateDirectory logDir |> ignore<IO.DirectoryInfo>
 
-    let timestamp = System.DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss")
+    let timestamp = System.DateTime.Now.ToString "yyyy-MM-dd HH:mm:ss"
     let logEntry = $"[{timestamp}] {message}\n"
     System.IO.File.AppendAllText(logPath, logEntry)
   with _ ->
@@ -144,7 +144,7 @@ let main (args : string[]) =
         logError
           $"Encountered a Runtime Error, stringified it, but somehow a non-string was returned.\nRuntime Error: {rte}\n'Stringified':\n{otherVal}\n{errorCallStackStr}"
 
-      | Error(newErr) ->
+      | Error newErr ->
         logError
           $"Encountered a Runtime Error, tried to stringify it, and then _that_ failed.\nOriginal Error: {rte}\n{errorCallStackStr}\n\nError encountered when trying to stringify:\n{newErr}"
 
