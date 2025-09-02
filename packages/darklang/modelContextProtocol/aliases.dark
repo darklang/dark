@@ -1,0 +1,6 @@
+// Common type aliases for Model Context Protocol modules
+module Darklang.ModelContextProtocol
+
+// <aliases>
+type Json = Stdlib.AltJson.Json
+// </aliases>

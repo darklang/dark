@@ -1,0 +1,44 @@
+/// Code review prompt
+module Darklang.LanguageTools.McpServer.Prompts.CodeReview
+
+
+/// Get the prompt description for code review
+let getPromptDescription () : ModelContextProtocol.PromptDescription =
+  ModelContextProtocol.PromptDescription {
+    name = "code_review"
+    description = Stdlib.Option.Option.Some "Review Darklang code for best practices and improvements"
+    arguments = Stdlib.Option.Option.Some [
+      ModelContextProtocol.PromptArgument {
+        name = "code"
+        description = Stdlib.Option.Option.Some "The Darklang code to review"
+        required = Stdlib.Option.Option.Some true
+      };
+      ModelContextProtocol.PromptArgument {
+        name = "focus"
+        description = Stdlib.Option.Option.Some "Specific aspect to focus on (performance, readability, etc.)"
+        required = Stdlib.Option.Option.Some false
+      }
+    ]
+  }
+
+/// Generate the code review prompt content
+let generatePrompt (code: String) (focus: Stdlib.Option.Option<String>) : List<ModelContextProtocol.PromptMessage> =
+  let focusText = 
+    match focus with
+    | Some f -> $" with focus on {f}"
+    | None -> ""
+
+  let systemPrompt = $"You are a Darklang code reviewer. Review the following code{focusText} and provide constructive feedback on best practices, potential improvements, and any issues you notice."
+
+  let userPrompt = $"Please review this Darklang code:\n\n```darklang\n{code}\n```"
+
+  [
+    ModelContextProtocol.PromptMessage {
+      role = ModelContextProtocol.MessageRole.System
+      content = ModelContextProtocol.PromptContent.Text systemPrompt
+    };
+    ModelContextProtocol.PromptMessage {
+      role = ModelContextProtocol.MessageRole.User  
+      content = ModelContextProtocol.PromptContent.Text userPrompt
+    }
+  ]

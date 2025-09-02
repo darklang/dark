@@ -1,0 +1,88 @@
+/// Syntax reference resource
+module Darklang.LanguageTools.McpServer.Resources.Syntax
+
+
+/// Get the resource description for syntax reference
+let getResourceDescription () : ModelContextProtocol.ResourceDescription =
+  ModelContextProtocol.ResourceDescription {
+    uri = "darklang://reference/syntax"
+    name = "Syntax Reference"
+    description = Stdlib.Option.Option.Some "Darklang syntax and language reference"
+    mimeType = Stdlib.Option.Option.Some "text/markdown"
+  }
+
+/// Get syntax reference content
+let getContent () : ModelContextProtocol.ResourceContent =
+  let reference = """
+# Darklang Syntax Reference
+
+## Basic Types
+- `String` - UTF-8 text: `"hello"`
+- `Int64` - 64-bit integer: `42L`
+- `Float` - 64-bit float: `3.14`
+- `Bool` - Boolean: `true`, `false`
+- `Unit` - Unit type: `()`
+
+## Collections
+- `List<'a>` - Immutable list: `[1L; 2L; 3L]`
+- `Dict<'v>` - String-keyed dictionary: `Stdlib.Dict.fromList [("key", "value")]`
+
+## Functions
+```darklang
+let functionName (param1: Type1) (param2: Type2) : ReturnType =
+  // function body
+  expression
+```
+
+## Pattern Matching
+```darklang
+match expression with
+| Pattern1 -> result1
+| Pattern2 -> result2
+| _ -> defaultResult
+```
+
+## Pipe Operator
+```darklang
+value
+|> function1
+|> function2 arg
+|> function3
+```
+
+## Records
+```darklang
+type Person =
+  { name: String
+    age: Int64 }
+
+let person = Person { name = "Alice"; age = 30L }
+```
+
+## Enums (Algebraic Data Types)
+```darklang
+type Option<'a> =
+  | Some of 'a
+  | None
+```
+
+## Modules
+```darklang
+module MyModule =
+  let myFunction () : Unit = 
+    ()
+```
+
+## Important Notes
+- Darklang is whitespace-sensitive
+- Lists use `;` as separator
+- String concatenation uses `++`
+- No nested function definitions
+- Use `Stdlib.Int64.divide` for integer division
+"""
+
+  ModelContextProtocol.ResourceContent {
+    uri = "darklang://reference/syntax"
+    mimeType = "text/markdown"
+    text = reference
+  }

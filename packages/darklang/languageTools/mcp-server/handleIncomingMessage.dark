@@ -1,0 +1,213 @@
+/// Message handling for the MCP server
+module Darklang.LanguageTools.McpServer
+
+
+// <aliases>
+// Json type alias removed to prevent UNIQUE constraint conflicts - use shared aliases.dark
+// </aliases>
+
+
+/// Handle incoming MCP messages and return updated state
+let handleIncomingMessage
+  (state: McpState)
+  (request: JsonRPC.Request.Request)
+  : McpState =
+  log $"Handling message: {request.method}"
+  
+  // Parse the incoming message
+  match ModelContextProtocol.parseIncomingMessage request with
+  | InitializeRequest(requestId, params) ->
+      handleInitializeRequest requestId params
+  
+  | Initialized ->
+      handleInitializedNotification state
+  
+  | Shutdown requestId ->
+      handleShutdownRequest state requestId
+  
+  // Tools
+  | ListToolsRequest requestId ->
+      ToolHandlers.handleListToolsRequest state requestId
+  
+  | CallToolRequest(requestId, params) ->
+      ToolHandlers.handleCallToolRequest state requestId params
+  
+  // Resources
+  | ListResourcesRequest requestId ->
+      ResourceHandlers.handleListResourcesRequest state requestId
+  
+  | ListResourceTemplatesRequest requestId ->
+      handleListResourceTemplatesRequest state requestId
+  
+  | ReadResourceRequest(requestId, params) ->
+      ResourceHandlers.handleReadResourceRequest state requestId params
+  
+  // Prompts
+  | ListPromptsRequest requestId ->
+      PromptHandlers.handleListPromptsRequest state requestId
+  
+  | GetPromptRequest(requestId, name, arguments) ->
+      PromptHandlers.handleGetPromptRequest state requestId name arguments
+
+  // Logging
+  | SetLoggingLevelRequest(requestId, params) ->
+      handleSetLoggingLevelRequest state requestId params
+
+  // Progress
+  | ProgressNotification params ->
+      handleProgressNotificationRequest state params
+
+  // Roots
+  | ListRootsRequest requestId ->
+      handleListRootsRequest state requestId
+
+  // Sampling
+  | CreateMessageRequest(requestId, params) ->
+      handleCreateMessageRequest state requestId params
+  
+  // Other
+  | Other jsonRpcRequest ->
+      handleOtherRequest state jsonRpcRequest
+
+/// Handle shutdown request
+let handleShutdownRequest
+  (state: McpState)
+  (requestId: JsonRPC.RequestId)
+  : McpState =
+  log "Handling shutdown request"
+  
+  // Send shutdown response
+  sendSuccessResponse (Stdlib.Option.Option.Some requestId) Json.Null
+  
+  // Update state to shutdown
+  McpState { state with shouldShutdown = true }
+
+/// Handle list resource templates request
+let handleListResourceTemplatesRequest
+  (state: McpState)
+  (requestId: JsonRPC.RequestId)
+  : McpState =
+  log "Handling resources/templates/list request"
+  
+  let templatesList = state.resourceTemplates |> Stdlib.Dict.values
+  let result = ModelContextProtocol.Resources.ListResourceTemplatesResponse.ListResourceTemplatesResponse {
+    resourceTemplates = templatesList
+  }
+  let templates = ModelContextProtocol.Resources.ListResourceTemplatesResponse.toJson result
+
+  sendSuccessResponse (Stdlib.Option.Option.Some requestId) templates
+  state
+
+/// Handle other/unknown requests
+let handleOtherRequest
+  (state: McpState)
+  (request: JsonRPC.Request.Request)
+  : McpState =
+  log $"Ignoring unknown method: {request.method}"
+  
+  // Send method not found error if it has an ID (is a request, not notification)
+  match request.id with
+  | Some requestId ->
+      sendErrorResponse 
+        (Stdlib.Option.Option.Some requestId)
+        ModelContextProtocol.ErrorCodes.methodNotFound
+        $"Method not found: {request.method}"
+  | None ->
+      ()
+  
+  state
+
+/// Handle set logging level request
+let handleSetLoggingLevelRequest
+  (state: McpState)
+  (requestId: Stdlib.Option.Option<JsonRPC.RequestId>)
+  (params: ModelContextProtocol.SetLoggingLevel.SetLoggingLevelParams)
+  : McpState =
+  log $"Setting logging level to: {ModelContextProtocol.loggingLevelToString params.level}"
+  
+  // Send success response if it's a request
+  match requestId with
+  | Some id ->
+      sendSuccessResponse (Stdlib.Option.Option.Some id) Json.Null
+  | None ->
+      ()
+  
+  // Update state with new logging level
+  McpState { state with loggingLevel = params.level }
+
+/// Handle progress notification
+let handleProgressNotificationRequest
+  (state: McpState)
+  (params: ModelContextProtocol.ProgressNotification.ProgressNotificationParams)
+  : McpState =
+  let tokenStr = 
+    match params.progressToken with
+    | Int i -> Stdlib.Int64.toString i
+    | String s -> s
+  
+  let totalStr = 
+    match params.total with
+    | Some t -> $" of {Stdlib.Int64.toString t}"
+    | None -> ""
+  
+  log $"Progress [{tokenStr}]: {Stdlib.Int64.toString params.progress}{totalStr}"
+  
+  // Progress notifications don't change state
+  state
+
+/// Handle list roots request
+let handleListRootsRequest
+  (state: McpState)
+  (requestId: Stdlib.Option.Option<JsonRPC.RequestId>)
+  : McpState =
+  log "Handling roots/list request"
+  
+  let roots = 
+    if Stdlib.List.isEmpty state.roots then
+      // Default roots if none configured
+      [
+        ModelContextProtocol.Root {
+          uri = "file:///home/dark/app"
+          name = Stdlib.Option.Option.Some "Darklang Application"
+        };
+        ModelContextProtocol.Root {
+          uri = "file:///home/dark/app/packages"
+          name = Stdlib.Option.Option.Some "Packages"
+        }
+      ]
+    else
+      state.roots
+  
+  let result = 
+    (ModelContextProtocol.ListRoots.ListRootsResult { roots = roots })
+    |> ModelContextProtocol.ListRoots.listRootsResultToJson
+  
+  match requestId with
+  | Some id ->
+      sendSuccessResponse (Stdlib.Option.Option.Some id) result
+  | None ->
+      log "roots/list requires a request ID"
+  
+  state
+
+/// Handle create message (sampling) request
+let handleCreateMessageRequest
+  (state: McpState)
+  (requestId: JsonRPC.RequestId)
+  (params: ModelContextProtocol.Sampling.CreateMessageParams)
+  : McpState =
+  log "Handling sampling/createMessage request"
+  
+  // For now, return a mock response
+  let result = 
+    (ModelContextProtocol.Sampling.CreateMessageResult {
+      role = ModelContextProtocol.MessageRole.Assistant
+      content = ModelContextProtocol.Sampling.SamplingContent.Text 
+        "This is a mock response from the Darklang MCP server sampling endpoint."
+      model = "darklang-mock-model"
+      stopReason = Stdlib.Option.Option.Some "end_turn"
+    })
+    |> ModelContextProtocol.Sampling.createMessageResultToJson
+  
+  sendSuccessResponse (Stdlib.Option.Option.Some requestId) result
+  state

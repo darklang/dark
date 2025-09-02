@@ -1,0 +1,6 @@
+// Common type aliases for MCP Server modules
+module Darklang.LanguageTools.McpServer
+
+// <aliases>
+type Json = Stdlib.AltJson.Json
+// </aliases>

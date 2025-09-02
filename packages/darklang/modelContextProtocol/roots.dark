@@ -1,0 +1,74 @@
+// Roots and filesystem support for the Model Context Protocol
+module Darklang.ModelContextProtocol
+
+
+// <aliases>
+// Json type alias removed to prevent UNIQUE constraint conflicts
+// </aliases>
+
+
+/// Root represents a directory or location that the server can operate on
+type Root =
+  { uri: String  // File URI for the root
+    name: Stdlib.Option.Option<String> }  // Display name for the root
+
+/// Roots list changed notification parameters
+module RootsListChanged =
+  type RootsListChangedParams = Unit  // Empty params
+
+  let toJson (_params: RootsListChangedParams) : Json =
+    Json.Object []
+
+/// List roots request/response
+module ListRoots =
+  type ListRootsParams = Unit  // Empty params
+
+  type ListRootsResult =
+    { roots: List<Root> }
+
+  let rootToJson (root: Root) : Json =
+    let fields = [("uri", Json.String root.uri)]
+    
+    let fieldsWithName =
+      match root.name with
+      | Some name ->
+          fields @ [("name", Json.String name)]
+      | None ->
+          fields
+
+    Json.Object fieldsWithName
+
+  let listRootsResultToJson (result: ListRootsResult) : Json =
+    let rootsJson = 
+      result.roots
+      |> Stdlib.List.map rootToJson
+
+    Json.Object [
+      ("roots", Json.Array rootsJson)
+    ]
+
+  let rootFromJson (json: Json) : Stdlib.Result.Result<Root, String> =
+    match json with
+    | Object fields ->
+        let uriResult =
+          match Stdlib.List.findFirst fields (fun (k, _) -> k == "uri") with
+          | Some (_, String uri) -> Stdlib.Result.Result.Ok uri
+          | Some (_, _) -> Stdlib.Result.Result.Error "uri must be a string"
+          | None -> Stdlib.Result.Result.Error "uri is required"
+
+        let nameResult =
+          match Stdlib.List.findFirst fields (fun (k, _) -> k == "name") with
+          | Some (_, String name) -> 
+              Stdlib.Result.Result.Ok (Stdlib.Option.Option.Some name)
+          | Some (_, _) -> 
+              Stdlib.Result.Result.Error "name must be a string"
+          | None -> 
+              Stdlib.Result.Result.Ok Stdlib.Option.Option.None
+
+        match (uriResult, nameResult) with
+        | (Ok uri, Ok name) ->
+            Stdlib.Result.Result.Ok (Root { uri = uri; name = name })
+        | (Error e, _) -> Stdlib.Result.Result.Error e
+        | (_, Error e) -> Stdlib.Result.Result.Error e
+    | _ ->
+        Stdlib.Result.Result.Error "root must be an object"

@@ -1,0 +1,145 @@
+// Communication with clients for the Model Context Protocol
+module Darklang.ModelContextProtocol
+
+
+/// Types of messages that can be received from clients
+type IncomingMessage =
+  // Lifecycle
+  | InitializeRequest of
+      requestId: JsonRPC.RequestId *
+      LifeCycle.InitializeRequest.InitializeParams
+  | Initialized
+  | Shutdown of requestId: JsonRPC.RequestId
+
+  // Resources
+  | ListResourcesRequest of requestId: JsonRPC.RequestId
+  | ListResourceTemplatesRequest of requestId: JsonRPC.RequestId
+  | ReadResourceRequest of
+      requestId: JsonRPC.RequestId *
+      Resources.ReadResourceParams.ReadResourceParams
+
+  // Tools
+  | ListToolsRequest of requestId: JsonRPC.RequestId
+  | CallToolRequest of
+      requestId: JsonRPC.RequestId *
+      Tools.CallToolRequest.CallToolParams
+
+  // Prompts
+  | ListPromptsRequest of requestId: JsonRPC.RequestId
+  | GetPromptRequest of
+      requestId: JsonRPC.RequestId * 
+      name: String *
+      arguments: Stdlib.AltJson.Json
+
+  // Logging
+  | SetLoggingLevelRequest of 
+      requestId: Stdlib.Option.Option<JsonRPC.RequestId> *
+      SetLoggingLevel.SetLoggingLevelParams
+
+  // Progress
+  | ProgressNotification of ProgressNotification.ProgressNotificationParams
+
+  // Notifications
+  | CancelNotification of requestId: JsonRPC.RequestId
+
+  // Roots
+  | ListRootsRequest of requestId: JsonRPC.RequestId
+
+  // Sampling
+  | CreateMessageRequest of
+      requestId: JsonRPC.RequestId *
+      Sampling.CreateMessageParams
+
+  // Completion  
+  | CompleteRequest of
+      requestId: JsonRPC.RequestId *
+      CompletionParams
+
+  // Other
+  | Other of JsonRPC.Request.Request
+
+/// Parse an incoming JSON-RPC message into an MCP message
+let parseIncomingMessage (r: JsonRPC.Request.Request) : IncomingMessage =
+  match (r.method, r.id, r.params) with
+  // Lifecycle
+  | ("initialize", Some requestId, Some(Object fields)) ->
+      (Stdlib.AltJson.Json.Object fields)
+      |> LifeCycle.InitializeRequest.fromJson
+      |> Stdlib.Result.map (fun params -> IncomingMessage.InitializeRequest(requestId, params))
+      |> Stdlib.Result.withDefault (IncomingMessage.Other r)
+  | ("initialized", None, _) ->
+      IncomingMessage.Initialized
+  | ("shutdown", Some requestId, _) ->
+      IncomingMessage.Shutdown requestId
+
+  // Resources
+  | ("resources/list", Some requestId, _) ->
+      IncomingMessage.ListResourcesRequest requestId
+  | ("resources/templates/list", Some requestId, _) ->
+      IncomingMessage.ListResourceTemplatesRequest requestId
+  | ("resources/read", Some requestId, Some(Object p)) ->
+      (Stdlib.AltJson.Json.Object p)
+      |> Resources.ReadResourceParams.fromJson
+      |> Stdlib.Result.map (fun params -> IncomingMessage.ReadResourceRequest(requestId, params))
+      |> Stdlib.Result.withDefault (IncomingMessage.Other r)
+
+  // Tools
+  | ("tools/list", Some requestId, _) ->
+      IncomingMessage.ListToolsRequest requestId
+  | ("tools/call", Some requestId, Some(Object p)) ->
+      (Stdlib.AltJson.Json.Object p)
+      |> Tools.CallToolRequest.fromJson
+      |> Builtin.unwrap
+      |> fun p -> IncomingMessage.CallToolRequest(requestId, p)
+
+  // Prompts
+  | ("prompts/list", Some requestId, _) ->
+      IncomingMessage.ListPromptsRequest requestId
+  | ("prompts/get", Some requestId, Some(Object fields)) ->
+      let name = 
+        match Stdlib.List.findFirst fields (fun (k, _) -> k == "name") with
+        | Some (_, String n) -> n
+        | _ -> ""
+      let arguments = 
+        match Stdlib.List.findFirst fields (fun (k, _) -> k == "arguments") with
+        | Some (_, args) -> args
+        | _ -> Stdlib.AltJson.Json.Object []
+      IncomingMessage.GetPromptRequest(requestId, name, arguments)
+
+  // Logging
+  | ("logging/setLevel", requestId, Some json) ->
+      (SetLoggingLevel.fromJson json)
+      |> Stdlib.Result.map (fun params -> IncomingMessage.SetLoggingLevelRequest(requestId, params))
+      |> Stdlib.Result.withDefault (IncomingMessage.Other r)
+
+  // Progress
+  | ("$/progress", None, Some json) ->
+      (ProgressNotification.fromJson json)
+      |> Stdlib.Result.map (fun params -> IncomingMessage.ProgressNotification params)
+      |> Stdlib.Result.withDefault (IncomingMessage.Other r)
+
+  // Notifications
+  | ("notifications/cancel", None, Some(Object fields)) ->
+      match Stdlib.List.findFirst fields (fun (k, _) -> k == "requestId") with
+      | Some (_, String id) -> IncomingMessage.CancelNotification id
+      | Some (_, Number id) -> IncomingMessage.CancelNotification (Stdlib.Int64.toString (Stdlib.Int64.fromFloat id))
+      | _ -> IncomingMessage.Other r
+
+  // Roots
+  | ("roots/list", Some requestId, _) ->
+      IncomingMessage.ListRootsRequest requestId
+
+  // Sampling
+  | ("sampling/createMessage", Some requestId, Some json) ->
+      (Sampling.CreateMessageParams.fromJson json)
+      |> Stdlib.Result.map (fun params -> IncomingMessage.CreateMessageRequest(requestId, params))
+      |> Stdlib.Result.withDefault (IncomingMessage.Other r)
+
+  // Completion
+  | ("completion/complete", Some requestId, Some json) ->
+      (parseCompletionParams json)
+      |> Stdlib.Result.map (fun params -> IncomingMessage.CompleteRequest(requestId, params))
+      |> Stdlib.Result.withDefault (IncomingMessage.Other r)
+
+  // Other
+  | _ -> IncomingMessage.Other r

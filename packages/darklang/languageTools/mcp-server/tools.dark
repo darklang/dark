@@ -1,0 +1,40 @@
+/// Tool collection for the MCP server
+module Darklang.LanguageTools.McpServer.Tools
+
+
+// <aliases>
+// </aliases>
+
+
+/// Get all available tools for the Darklang MCP server
+let getAllTools () : Dict<ModelContextProtocol.ToolDescription> =
+  let tools = [
+    Tools.ExecuteDarklang.getToolDescription ();
+    Tools.SearchFunctions.getToolDescription ();
+    Tools.Typecheck.getToolDescription ();
+    Tools.ListPackages.getToolDescription ();
+  ]
+  
+  tools
+  |> Stdlib.List.fold Stdlib.Dict.empty (fun acc tool ->
+    Stdlib.Dict.set acc tool.name tool
+  )
+
+/// Handle a tool call by dispatching to the appropriate handler
+let handleToolCall (name: String) (args: Stdlib.AltJson.Json) : Stdlib.AltJson.Json =
+  match name with
+  | "search_functions" ->
+      Tools.SearchFunctions.handleToolCall args
+  | "typecheck" ->
+      Tools.Typecheck.handleToolCall args
+  | "execute_darklang" ->
+      Tools.ExecuteDarklang.handleToolCall args
+  | _ ->
+      // Return error for unknown tool
+      (ModelContextProtocol.Tools.CallToolResponse.CallToolResult {
+        content = [
+          ModelContextProtocol.Tools.CallToolResponse.ContentItem.TextContent $"Unknown tool: {name}"
+        ]
+        isError = true
+      })
+      |> ModelContextProtocol.Tools.CallToolResponse.toJson

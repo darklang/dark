@@ -3,7 +3,7 @@ module Darklang.LanguageTools.LspServer
 
 let handleInitializeRequest
   // TODO: (LanguageServerProtocol.Lifecycle.InitializeRequest.InitializeParams.InitializeParams)
-  ()
+  (requestId: JsonRPC.RequestId)
   : LspState =
   let hardcodedInitializeResult =
     LanguageServerProtocol.Lifecycle.InitializeRequest.InitializeResult.InitializeResult
@@ -45,7 +45,7 @@ let handleInitializeRequest
     |> LanguageServerProtocol.Lifecycle.InitializeRequest.InitializeResult.toJson
     |> (fun r ->
       JsonRPC.Response.Ok.make
-        (Stdlib.Option.Option.Some(JsonRPC.RequestId.Int 0L))
+        (Stdlib.Option.Option.Some requestId)
         r)
     |> Stdlib.AltJson.format
 

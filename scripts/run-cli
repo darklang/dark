@@ -19,7 +19,7 @@ if [[ -n "$FLAGS" ]]; then
 fi
 
 LOGS="${DARK_CONFIG_RUNDIR}/logs"
-CLI_LOG="$LOGS/cli.log"
+# CLI_LOG="$LOGS/cli.log"
 PACKAGES_LOG="$LOGS/packages-canvas.log"
 
 if [[ "$PUBLISHED" == "true" ]]; then
@@ -61,4 +61,9 @@ fi
 
 GIT_COMMIT=$(git rev-parse --short HEAD)
 export GIT_COMMIT
-"${EXE}" "$@" 2>&1 | tee "${CLI_LOG}"
+
+# 'tee' was screwing up our MCP server running through this script
+# "${EXE}" "$@" 2>&1 | tee "${CLI_LOG}"
+# CLEANUP It'd be great to come up with a solution that allos us to still log to that cli.log file.
+"${EXE}" "$@"
+

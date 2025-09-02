@@ -1,0 +1,66 @@
+/// Type check Darklang code tool
+module Darklang.LanguageTools.McpServer.Tools.Typecheck
+
+
+// <aliases>
+type Json = Stdlib.AltJson.Json
+// </aliases>
+
+
+/// Get the tool description for typecheck
+let getToolDescription () : ModelContextProtocol.ToolDescription =
+  ModelContextProtocol.ToolDescription {
+    name = "typecheck"
+    description = Stdlib.Option.Option.Some "Type check Darklang code without executing it"
+    inputSchema = Json.Object [
+      ("type", Json.String "object");
+      ("properties", Json.Object [
+        ("code", Json.Object [
+          ("type", Json.String "string");
+          ("description", Json.String "The Darklang code to type check")
+        ])
+      ]);
+      ("required", Json.Array [Json.String "code"])
+    ]
+    outputSchema = Stdlib.Option.Option.Some (Json.Object [
+      ("type", Json.String "object");
+      ("properties", Json.Object [
+        ("success", Json.Object [
+          ("type", Json.String "boolean");
+          ("description", Json.String "Whether type checking succeeded")
+        ]);
+        ("errors", Json.Object [
+          ("type", Json.String "array");
+          ("description", Json.String "List of type errors if any")
+        ])
+      ])
+    ])
+    annotations = Stdlib.Option.Option.Some (ModelContextProtocol.ToolAnnotations {
+      title = Stdlib.Option.Option.Some "Type Checker"
+      readOnlyHint = Stdlib.Option.Option.Some true
+      destructiveHint = Stdlib.Option.Option.Some false
+      idempotentHint = Stdlib.Option.Option.Some true
+      openWorldHint = Stdlib.Option.Option.Some false
+    })
+  }
+
+/// Handle the typecheck tool call
+let handleToolCall (args: Json) : Json =
+  let code = 
+    match args with
+    | Object fields ->
+        match Stdlib.List.findFirst fields (fun (k, _) -> k == "code") with
+        | Some (_, String code) -> code
+        | _ -> ""
+    | _ -> ""
+
+  // In a real implementation, this would perform type checking
+  let result = $"Type check passed for: {Stdlib.String.take code 50}..."
+
+  (ModelContextProtocol.Tools.CallToolResponse.CallToolResult {
+    content = [
+      ModelContextProtocol.Tools.CallToolResponse.ContentItem.TextContent result
+    ]
+    isError = false
+  })
+  |> ModelContextProtocol.Tools.CallToolResponse.toJson

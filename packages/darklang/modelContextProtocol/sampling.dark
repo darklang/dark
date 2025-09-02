@@ -1,0 +1,258 @@
+// Sampling and completion types for the Model Context Protocol
+module Darklang.ModelContextProtocol
+
+
+// <aliases>
+// Json type alias removed to prevent UNIQUE constraint conflicts
+// </aliases>
+
+
+/// Sampling message for requesting LLM completions through the client
+module Sampling =
+  /// Model preferences for sampling
+  type ModelPreferences =
+    { hints: Stdlib.Option.Option<List<ModelHint>>
+      costPriority: Stdlib.Option.Option<Float>
+      speedPriority: Stdlib.Option.Option<Float>
+      intelligencePriority: Stdlib.Option.Option<Float> }
+
+  /// Model hint for sampling preferences
+  type ModelHint =
+    { name: Stdlib.Option.Option<String> }
+
+  /// Sampling message content types
+  type SamplingContent =
+    | Text of String
+    | Image of ImageContent
+    | Resource of ResourceContent
+
+  /// Image content for sampling
+  type ImageContent =
+    { data: String  // Base64 encoded image data
+      mimeType: String }
+
+  /// Sampling message with role and content
+  type SamplingMessage =
+    { role: MessageRole
+      content: SamplingContent }
+
+  /// Create message request parameters
+  type CreateMessageParams =
+    { messages: List<SamplingMessage>
+      modelPreferences: Stdlib.Option.Option<ModelPreferences>
+      systemPrompt: Stdlib.Option.Option<String>
+      includeContext: Stdlib.Option.Option<IncludeContext>
+      temperature: Stdlib.Option.Option<Float>
+      maxTokens: Stdlib.Option.Option<Int64>
+      stopSequences: Stdlib.Option.Option<List<String>>
+      metadata: Stdlib.Option.Option<Json> }
+
+  /// Context inclusion strategy for sampling
+  type IncludeContext =
+    | None
+    | ThisServerOnly
+    | AllServers
+
+  /// Result of a create message request
+  type CreateMessageResult =
+    { role: MessageRole
+      content: SamplingContent
+      model: String
+      stopReason: Stdlib.Option.Option<String> }
+
+  /// Convert model preferences to JSON
+  let modelPreferencesToJson (prefs: ModelPreferences) : Json =
+    let fields = []
+
+    let fieldsWithHints =
+      match prefs.hints with
+      | Some hints ->
+          let hintsJson = 
+            hints
+            |> Stdlib.List.map (fun hint ->
+              match hint.name with
+              | Some name -> Json.Object [("name", Json.String name)]
+              | None -> Json.Object []
+            )
+          fields @ [("hints", Json.Array hintsJson)]
+      | None -> fields
+
+    let fieldsWithCost =
+      match prefs.costPriority with
+      | Some cost ->
+          fieldsWithHints @ [("costPriority", Json.Number cost)]
+      | None -> fieldsWithHints
+
+    let fieldsWithSpeed =
+      match prefs.speedPriority with
+      | Some speed ->
+          fieldsWithCost @ [("speedPriority", Json.Number speed)]
+      | None -> fieldsWithCost
+
+    let fieldsWithIntelligence =
+      match prefs.intelligencePriority with
+      | Some intel ->
+          fieldsWithSpeed @ [("intelligencePriority", Json.Number intel)]
+      | None -> fieldsWithSpeed
+
+    Json.Object fieldsWithIntelligence
+
+  /// Convert sampling content to JSON
+  let samplingContentToJson (content: SamplingContent) : Json =
+    match content with
+    | Text text ->
+        Json.Object [
+          ("type", Json.String "text");
+          ("text", Json.String text)
+        ]
+    | Image img ->
+        Json.Object [
+          ("type", Json.String "image");
+          ("data", Json.String img.data);
+          ("mimeType", Json.String img.mimeType)
+        ]
+    | Resource res ->
+        Json.Object [
+          ("type", Json.String "resource");
+          ("uri", Json.String res.uri);
+          ("mimeType", Json.String res.mimeType);
+          ("text", Json.String res.text)
+        ]
+
+  /// Convert sampling message to JSON
+  let samplingMessageToJson (msg: SamplingMessage) : Json =
+    let roleStr = 
+      match msg.role with
+      | User -> "user"
+      | Assistant -> "assistant"
+
+    Json.Object [
+      ("role", Json.String roleStr);
+      ("content", samplingContentToJson msg.content)
+    ]
+
+  /// Convert include context to string
+  let includeContextToString (ctx: IncludeContext) : String =
+    match ctx with
+    | None -> "none"
+    | ThisServerOnly -> "thisServer"
+    | AllServers -> "allServers"
+
+  /// Convert create message params to JSON
+  let createMessageParamsToJson (params: CreateMessageParams) : Json =
+    let fields = [
+      ("messages", Json.Array (Stdlib.List.map samplingMessageToJson params.messages))
+    ]
+
+    let fieldsWithModelPrefs =
+      match params.modelPreferences with
+      | Some prefs ->
+          fields @ [("modelPreferences", modelPreferencesToJson prefs)]
+      | None -> fields
+
+    let fieldsWithSystemPrompt =
+      match params.systemPrompt with
+      | Some prompt ->
+          fieldsWithModelPrefs @ [("systemPrompt", Json.String prompt)]
+      | None -> fieldsWithModelPrefs
+
+    let fieldsWithIncludeContext =
+      match params.includeContext with
+      | Some ctx ->
+          fieldsWithSystemPrompt @ [("includeContext", Json.String (includeContextToString ctx))]
+      | None -> fieldsWithSystemPrompt
+
+    let fieldsWithTemperature =
+      match params.temperature with
+      | Some temp ->
+          fieldsWithIncludeContext @ [("temperature", Json.Number temp)]
+      | None -> fieldsWithIncludeContext
+
+    let fieldsWithMaxTokens =
+      match params.maxTokens with
+      | Some tokens ->
+          fieldsWithTemperature @ [("maxTokens", Json.Number (Stdlib.Int64.toFloat tokens))]
+      | None -> fieldsWithTemperature
+
+    let fieldsWithStopSequences =
+      match params.stopSequences with
+      | Some sequences ->
+          let seqJson = Stdlib.List.map (fun s -> Json.String s) sequences
+          fieldsWithMaxTokens @ [("stopSequences", Json.Array seqJson)]
+      | None -> fieldsWithMaxTokens
+
+    let fieldsWithMetadata =
+      match params.metadata with
+      | Some metadata ->
+          fieldsWithStopSequences @ [("metadata", metadata)]
+      | None -> fieldsWithStopSequences
+
+    Json.Object fieldsWithMetadata
+
+  /// Convert create message result to JSON
+  let createMessageResultToJson (result: CreateMessageResult) : Json =
+    let roleStr = 
+      match result.role with
+      | User -> "user"
+      | Assistant -> "assistant"
+
+    let fields = [
+      ("role", Json.String roleStr);
+      ("content", samplingContentToJson result.content);
+      ("model", Json.String result.model)
+    ]
+
+    let fieldsWithStopReason =
+      match result.stopReason with
+      | Some reason ->
+          fields @ [("stopReason", Json.String reason)]
+      | None -> fields
+
+    Json.Object fieldsWithStopReason
+
+/// CreateMessageParams parsing
+module CreateMessageParamsParser =
+  /// Parse create message params from JSON  
+  let fromJson (json: Json) : Stdlib.Result.Result<Sampling.CreateMessageParams, String> =
+    match json with
+    | Object fields ->
+        // Parse messages (required)
+        let messagesResult =
+          match Stdlib.List.findFirst fields (fun (k, _) -> k == "messages") with
+          | Some (_, Array messageList) ->
+              // For now, parse as empty list - proper message parsing would be complex
+              Stdlib.Result.Result.Ok []
+          | Some (_, _) -> Stdlib.Result.Result.Error "messages must be an array"
+          | None -> Stdlib.Result.Result.Error "messages is required"
+
+        // Parse optional fields
+        let systemPrompt =
+          match Stdlib.List.findFirst fields (fun (k, _) -> k == "systemPrompt") with
+          | Some (_, String prompt) -> Stdlib.Option.Option.Some prompt
+          | _ -> Stdlib.Option.Option.None
+
+        let temperature =
+          match Stdlib.List.findFirst fields (fun (k, _) -> k == "temperature") with
+          | Some (_, Number temp) -> Stdlib.Option.Option.Some temp
+          | _ -> Stdlib.Option.Option.None
+
+        let maxTokens =
+          match Stdlib.List.findFirst fields (fun (k, _) -> k == "maxTokens") with
+          | Some (_, Number tokens) -> Stdlib.Option.Option.Some (Stdlib.Int64.fromFloat tokens)
+          | _ -> Stdlib.Option.Option.None
+
+        match messagesResult with
+        | Ok messages ->
+            Stdlib.Result.Result.Ok (Sampling.CreateMessageParams {
+              messages = messages
+              modelPreferences = Stdlib.Option.Option.None
+              systemPrompt = systemPrompt
+              includeContext = Stdlib.Option.Option.None
+              temperature = temperature
+              maxTokens = maxTokens
+              stopSequences = Stdlib.Option.Option.None
+              metadata = Stdlib.Option.Option.None
+            })
+        | Error e -> Stdlib.Result.Result.Error e
+    | _ ->
+        Stdlib.Result.Result.Error "Invalid JSON for CreateMessageParams"

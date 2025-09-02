@@ -1,0 +1,44 @@
+/// Debug helper prompt
+module Darklang.LanguageTools.McpServer.Prompts.DebugHelper
+
+
+/// Get the prompt description for debug helper
+let getPromptDescription () : ModelContextProtocol.PromptDescription =
+  ModelContextProtocol.PromptDescription {
+    name = "debug_helper"
+    description = Stdlib.Option.Option.Some "Help debug Darklang code issues"
+    arguments = Stdlib.Option.Option.Some [
+      ModelContextProtocol.PromptArgument {
+        name = "error_message"
+        description = Stdlib.Option.Option.Some "The error message or issue description"
+        required = Stdlib.Option.Option.Some true
+      };
+      ModelContextProtocol.PromptArgument {
+        name = "code_context"
+        description = Stdlib.Option.Option.Some "Relevant code context"
+        required = Stdlib.Option.Option.Some false
+      }
+    ]
+  }
+
+/// Generate the debug helper prompt content
+let generatePrompt (errorMessage: String) (codeContext: Stdlib.Option.Option<String>) : List<ModelContextProtocol.PromptMessage> =
+  let contextText = 
+    match codeContext with
+    | Some context -> $"\n\nCode context:\n```darklang\n{context}\n```"
+    | None -> ""
+
+  let systemPrompt = "You are a Darklang debugging assistant. Help diagnose and fix code issues by analyzing error messages and code context. Provide clear explanations and specific solutions."
+
+  let userPrompt = $"I'm encountering this error/issue:\n\n{errorMessage}{contextText}\n\nPlease help me:\n1. Understand what's causing this issue\n2. Provide a specific solution or fix\n3. Explain why this error occurs\n4. Suggest ways to prevent similar issues in the future"
+
+  [
+    ModelContextProtocol.PromptMessage {
+      role = ModelContextProtocol.MessageRole.System
+      content = ModelContextProtocol.PromptContent.Text systemPrompt
+    };
+    ModelContextProtocol.PromptMessage {
+      role = ModelContextProtocol.MessageRole.User  
+      content = ModelContextProtocol.PromptContent.Text userPrompt
+    }
+  ]

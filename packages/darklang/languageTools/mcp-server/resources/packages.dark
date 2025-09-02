@@ -1,0 +1,56 @@
+/// Package manifest resource
+module Darklang.LanguageTools.McpServer.Resources.Packages
+
+
+/// Get the resource description for package manifest
+let getResourceDescription () : ModelContextProtocol.ResourceDescription =
+  ModelContextProtocol.ResourceDescription {
+    uri = "darklang://packages/manifest"
+    name = "Package Manifest"
+    description = Stdlib.Option.Option.Some "List of all installed Darklang packages with versions"
+    mimeType = Stdlib.Option.Option.Some "application/json"
+  }
+
+/// Get package manifest content
+let getContent () : ModelContextProtocol.ResourceContent =
+  let manifest = """
+{
+  "packages": [
+    {
+      "name": "darklang/stdlib",
+      "version": "1.0.0",
+      "description": "Darklang standard library",
+      "loaded": true
+    },
+    {
+      "name": "darklang/languageTools",
+      "version": "1.0.0",
+      "description": "Language server and development tools",
+      "loaded": true
+    },
+    {
+      "name": "darklang/test",
+      "version": "1.0.0",
+      "description": "Testing framework for Darklang",
+      "loaded": true
+    },
+    {
+      "name": "darklang/cli",
+      "version": "1.0.0",
+      "description": "Command-line interface tools",
+      "loaded": true
+    },
+    {
+      "name": "darklang/modelContextProtocol",
+      "version": "1.0.0",
+      "description": "Model Context Protocol implementation",
+      "loaded": true
+    }
+  ]
+}"""
+
+  ModelContextProtocol.ResourceContent {
+    uri = "darklang://packages/manifest"
+    mimeType = "application/json"
+    text = manifest
+  }

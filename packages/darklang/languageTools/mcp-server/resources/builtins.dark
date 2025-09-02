@@ -1,0 +1,51 @@
+/// Builtin functions resource
+module Darklang.LanguageTools.McpServer.Resources.Builtins
+
+
+/// Get the resource description for builtins
+let getResourceDescription () : ModelContextProtocol.ResourceDescription =
+  ModelContextProtocol.ResourceDescription {
+    uri = "darklang://builtins"
+    name = "Builtin Functions"
+    description = Stdlib.Option.Option.Some "List of all available builtin functions in Darklang"
+    mimeType = Stdlib.Option.Option.Some "application/json"
+  }
+
+/// Get builtin functions content
+let getContent () : ModelContextProtocol.ResourceContent =
+  let builtins = """
+{
+  "builtins": [
+    {
+      "name": "Builtin.printLine",
+      "signature": "String -> Unit",
+      "description": "Print a line to stdout"
+    },
+    {
+      "name": "Builtin.stdinReadLine",
+      "signature": "Unit -> String",
+      "description": "Read a line from stdin"
+    },
+    {
+      "name": "Builtin.fileAppendText",
+      "signature": "String -> String -> Unit",
+      "description": "Append text to a file"
+    },
+    {
+      "name": "Builtin.fileDelete",
+      "signature": "String -> Bool",
+      "description": "Delete a file"
+    },
+    {
+      "name": "Builtin.unwrap",
+      "signature": "Result<'a, 'e> -> 'a",
+      "description": "Unwrap a Result, panicking on Error"
+    }
+  ]
+}"""
+
+  ModelContextProtocol.ResourceContent {
+    uri = "darklang://builtins"
+    mimeType = "application/json"
+    text = builtins
+  }

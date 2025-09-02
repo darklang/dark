@@ -1,0 +1,148 @@
+// Logging types and functions for the Model Context Protocol
+module Darklang.ModelContextProtocol
+
+
+// <aliases>
+// Json type alias removed to prevent UNIQUE constraint conflicts
+// </aliases>
+
+
+/// Logging levels for MCP
+type LoggingLevel =
+  | Debug
+  | Info 
+  | Notice
+  | Warning
+  | Error
+  | Critical
+  | Alert
+  | Emergency
+
+/// Convert logging level to string
+let loggingLevelToString (level: LoggingLevel) : String =
+  match level with
+  | Debug -> "debug"
+  | Info -> "info"
+  | Notice -> "notice"
+  | Warning -> "warning"
+  | Error -> "error"
+  | Critical -> "critical"
+  | Alert -> "alert"
+  | Emergency -> "emergency"
+
+/// Parse logging level from string
+let loggingLevelFromString (s: String) : Stdlib.Result.Result<LoggingLevel, String> =
+  match Stdlib.String.toLowercase s with
+  | "debug" -> Stdlib.Result.Result.Ok LoggingLevel.Debug
+  | "info" -> Stdlib.Result.Result.Ok LoggingLevel.Info
+  | "notice" -> Stdlib.Result.Result.Ok LoggingLevel.Notice
+  | "warning" -> Stdlib.Result.Result.Ok LoggingLevel.Warning
+  | "error" -> Stdlib.Result.Result.Ok LoggingLevel.Error
+  | "critical" -> Stdlib.Result.Result.Ok LoggingLevel.Critical
+  | "alert" -> Stdlib.Result.Result.Ok LoggingLevel.Alert
+  | "emergency" -> Stdlib.Result.Result.Ok LoggingLevel.Emergency
+  | _ -> Stdlib.Result.Result.Error $"Invalid logging level: {s}"
+
+/// Log message notification
+module LogMessage =
+  type LogMessageParams =
+    { level: LoggingLevel
+      logger: Stdlib.Option.Option<String>
+      message: String
+      data: Stdlib.Option.Option<Json> }
+
+  let toJson (params: LogMessageParams) : Json =
+    let fields = [
+      ("level", Json.String (loggingLevelToString params.level));
+      ("message", Json.String params.message)
+    ]
+
+    let fieldsWithLogger =
+      match params.logger with
+      | Some logger ->
+          fields @ [("logger", Json.String logger)]
+      | None ->
+          fields
+
+    let fieldsWithData =
+      match params.data with
+      | Some data ->
+          fieldsWithLogger @ [("data", data)]
+      | None ->
+          fieldsWithLogger
+
+    Json.Object fieldsWithData
+
+  let fromJson (json: Json) : Stdlib.Result.Result<LogMessageParams, String> =
+    match json with
+    | Object fields ->
+        let levelResult =
+          match Stdlib.List.findFirst fields (fun (k, _) -> k == "level") with
+          | Some (_, String level) -> loggingLevelFromString level
+          | Some (_, _) -> Stdlib.Result.Result.Error "level must be a string"
+          | None -> Stdlib.Result.Result.Error "level is required"
+
+        let messageResult =
+          match Stdlib.List.findFirst fields (fun (k, _) -> k == "message") with
+          | Some (_, String msg) -> Stdlib.Result.Result.Ok msg
+          | Some (_, _) -> Stdlib.Result.Result.Error "message must be a string"
+          | None -> Stdlib.Result.Result.Error "message is required"
+
+        let loggerResult =
+          match Stdlib.List.findFirst fields (fun (k, _) -> k == "logger") with
+          | Some (_, String logger) -> 
+              Stdlib.Result.Result.Ok (Stdlib.Option.Option.Some logger)
+          | Some (_, _) -> 
+              Stdlib.Result.Result.Error "logger must be a string"
+          | None -> 
+              Stdlib.Result.Result.Ok Stdlib.Option.Option.None
+
+        let dataResult =
+          match Stdlib.List.findFirst fields (fun (k, _) -> k == "data") with
+          | Some (_, data) -> 
+              Stdlib.Result.Result.Ok (Stdlib.Option.Option.Some data)
+          | None -> 
+              Stdlib.Result.Result.Ok Stdlib.Option.Option.None
+
+        match (levelResult, messageResult, loggerResult, dataResult) with
+        | (Ok level, Ok message, Ok logger, Ok data) ->
+            Stdlib.Result.Result.Ok
+              (LogMessageParams {
+                level = level
+                logger = logger
+                message = message
+                data = data
+              })
+        | (Error e, _, _, _) -> Stdlib.Result.Result.Error e
+        | (_, Error e, _, _) -> Stdlib.Result.Result.Error e
+        | (_, _, Error e, _) -> Stdlib.Result.Result.Error e
+        | (_, _, _, Error e) -> Stdlib.Result.Result.Error e
+    | _ ->
+        Stdlib.Result.Result.Error "params must be an object"
+
+/// Set logging level request
+module SetLoggingLevel =
+  type SetLoggingLevelParams =
+    { level: LoggingLevel }
+
+  let fromJson (json: Json) : Stdlib.Result.Result<SetLoggingLevelParams, String> =
+    match json with
+    | Object fields ->
+        match Stdlib.List.findFirst fields (fun (k, _) -> k == "level") with
+        | Some (_, String level) ->
+            match loggingLevelFromString level with
+            | Ok lvl -> 
+                Stdlib.Result.Result.Ok (SetLoggingLevelParams { level = lvl })
+            | Error e -> 
+                Stdlib.Result.Result.Error e
+        | Some (_, _) ->
+            Stdlib.Result.Result.Error "level must be a string"
+        | None ->
+            Stdlib.Result.Result.Error "level is required"
+    | _ ->
+        Stdlib.Result.Result.Error "params must be an object"
+
+  let toJson (params: SetLoggingLevelParams) : Json =
+    Json.Object [
+      ("level", Json.String (loggingLevelToString params.level))
+    ]

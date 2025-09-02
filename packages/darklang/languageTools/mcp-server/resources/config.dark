@@ -1,0 +1,36 @@
+/// Configuration resource
+module Darklang.LanguageTools.McpServer.Resources.Config
+
+
+/// Get the resource description for config
+let getResourceDescription () : ModelContextProtocol.ResourceDescription =
+  ModelContextProtocol.ResourceDescription {
+    uri = "darklang://config"
+    name = "Darklang Configuration"
+    description = Stdlib.Option.Option.Some "Current Darklang configuration and settings"
+    mimeType = Stdlib.Option.Option.Some "application/json"
+  }
+
+/// Get configuration content
+let getContent () : ModelContextProtocol.ResourceContent =
+  let config = """
+{
+  "configuration": {
+    "workingDirectory": "/home/dark/app",
+    "packagesPath": "packages/darklang",
+    "logDirectory": "rundir/logs",
+    "buildMode": "development",
+    "autoReload": true,
+    "typeCheckOnSave": true,
+    "formatOnSave": false,
+    "maxConcurrency": 4,
+    "cacheEnabled": true,
+    "telemetryEnabled": false
+  }
+}"""
+
+  ModelContextProtocol.ResourceContent {
+    uri = "darklang://config"
+    mimeType = "application/json"
+    text = config
+  }

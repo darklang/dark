@@ -273,6 +273,7 @@ let fns : List<BuiltInFn> =
                 [],
                 Map fields
               )
+              |> resultError
 
             let exnError (e : exn) : Dval =
               let msg = Exception.getMessages e |> String.concat "\n"
@@ -377,7 +378,7 @@ let fns : List<BuiltInFn> =
                       [ "fn", fn ]
 
                 match fn with
-                | None -> return resultError (DString "Function not found")
+                | None -> return err "Function not found" [ "fn", fnName.ToString() ]
                 | Some f ->
                   let newArgs =
                     args
@@ -400,14 +401,14 @@ let fns : List<BuiltInFn> =
                     // TODO we should probably return the error here as-is, and handle by calling the
                     // toSegments on the error within the CLI
                     match! Exe.runtimeErrorToString exeState rte with
-                    | Ok(DString s) -> return s |> DString |> resultError
+                    | Ok(DString s) -> return err s []
                     | _ ->
                       let rte =
                         rte |> RT2DT.RuntimeError.toDT |> DvalReprDeveloper.toRepr
                       return
-                        $"An error occured trying to print a runtime error:\n\noriginal error:\n{rte}"
-                        |> DString
-                        |> resultError
+                        err
+                          $"An error occured trying to print a runtime error:\n\noriginal error:\n{rte}"
+                          []
 
                   | Ok value ->
                     match value with
@@ -415,7 +416,7 @@ let fns : List<BuiltInFn> =
                     | _ ->
                       let asString = DvalReprDeveloper.toRepr value
                       return resultOk (DString asString)
-              | Error errMsg -> return resultError (DString errMsg)
+              | Error errMsg -> return err errMsg []
             with e ->
               return exnError e
           }
