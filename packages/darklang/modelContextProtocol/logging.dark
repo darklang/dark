@@ -18,30 +18,30 @@ type LoggingLevel =
   | Alert
   | Emergency
 
-/// Convert logging level to string
-let loggingLevelToString (level: LoggingLevel) : String =
-  match level with
-  | Debug -> "debug"
-  | Info -> "info"
-  | Notice -> "notice"
-  | Warning -> "warning"
-  | Error -> "error"
-  | Critical -> "critical"
-  | Alert -> "alert"
-  | Emergency -> "emergency"
+/// LoggingLevel conversion utilities
+module LoggingLevel =
+  let toString (level: LoggingLevel) : String =
+    match level with
+    | Debug -> "debug"
+    | Info -> "info"
+    | Notice -> "notice"
+    | Warning -> "warning"
+    | Error -> "error"
+    | Critical -> "critical"
+    | Alert -> "alert"
+    | Emergency -> "emergency"
 
-/// Parse logging level from string
-let loggingLevelFromString (s: String) : Stdlib.Result.Result<LoggingLevel, String> =
-  match Stdlib.String.toLowercase s with
-  | "debug" -> Stdlib.Result.Result.Ok LoggingLevel.Debug
-  | "info" -> Stdlib.Result.Result.Ok LoggingLevel.Info
-  | "notice" -> Stdlib.Result.Result.Ok LoggingLevel.Notice
-  | "warning" -> Stdlib.Result.Result.Ok LoggingLevel.Warning
-  | "error" -> Stdlib.Result.Result.Ok LoggingLevel.Error
-  | "critical" -> Stdlib.Result.Result.Ok LoggingLevel.Critical
-  | "alert" -> Stdlib.Result.Result.Ok LoggingLevel.Alert
-  | "emergency" -> Stdlib.Result.Result.Ok LoggingLevel.Emergency
-  | _ -> Stdlib.Result.Result.Error $"Invalid logging level: {s}"
+  let fromString (s: String) : Stdlib.Result.Result<LoggingLevel, String> =
+    match Stdlib.String.toLowercase s with
+    | "debug" -> Stdlib.Result.Result.Ok LoggingLevel.Debug
+    | "info" -> Stdlib.Result.Result.Ok LoggingLevel.Info
+    | "notice" -> Stdlib.Result.Result.Ok LoggingLevel.Notice
+    | "warning" -> Stdlib.Result.Result.Ok LoggingLevel.Warning
+    | "error" -> Stdlib.Result.Result.Ok LoggingLevel.Error
+    | "critical" -> Stdlib.Result.Result.Ok LoggingLevel.Critical
+    | "alert" -> Stdlib.Result.Result.Ok LoggingLevel.Alert
+    | "emergency" -> Stdlib.Result.Result.Ok LoggingLevel.Emergency
+    | _ -> Stdlib.Result.Result.Error $"Invalid logging level: {s}"
 
 /// Log message notification
 module LogMessage =
@@ -53,7 +53,7 @@ module LogMessage =
 
   let toJson (params: LogMessageParams) : Json =
     let fields = [
-      ("level", Json.String (loggingLevelToString params.level));
+      ("level", Json.String (LoggingLevel.toString params.level));
       ("message", Json.String params.message)
     ]
 
@@ -78,7 +78,7 @@ module LogMessage =
     | Object fields ->
         let levelResult =
           match Stdlib.List.findFirst fields (fun (k, _) -> k == "level") with
-          | Some (_, String level) -> loggingLevelFromString level
+          | Some (_, String level) -> LoggingLevel.fromString level
           | Some (_, _) -> Stdlib.Result.Result.Error "level must be a string"
           | None -> Stdlib.Result.Result.Error "level is required"
 
@@ -130,7 +130,7 @@ module SetLoggingLevel =
     | Object fields ->
         match Stdlib.List.findFirst fields (fun (k, _) -> k == "level") with
         | Some (_, String level) ->
-            match loggingLevelFromString level with
+            match LoggingLevel.fromString level with
             | Ok lvl -> 
                 Stdlib.Result.Result.Ok (SetLoggingLevelParams { level = lvl })
             | Error e -> 
@@ -144,5 +144,5 @@ module SetLoggingLevel =
 
   let toJson (params: SetLoggingLevelParams) : Json =
     Json.Object [
-      ("level", Json.String (loggingLevelToString params.level))
+      ("level", Json.String (LoggingLevel.toString params.level))
     ]

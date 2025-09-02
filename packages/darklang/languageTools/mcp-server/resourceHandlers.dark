@@ -17,19 +17,25 @@ let handleListResourcesRequest
   
   let resourcesList = state.resources |> Stdlib.Dict.values
   
-  let response = Json.Object [
-    ("resources", Json.Array (resourcesList |> Stdlib.List.map (fun resource ->
-      Json.Object [
-        ("uri", Json.String resource.uri);
-        ("name", Json.String resource.name);
-        ("description", Stdlib.Option.mapWithDefault resource.description Json.Null (fun s -> Json.String s));
-        ("mimeType", Stdlib.Option.mapWithDefault resource.mimeType Json.Null (fun s -> Json.String s))
-      ]
-    )));
-    ("nextCursor", Json.String "")
-  ]
+  // Convert internal resource format to MCP ResourceDescription
+  let mcpResources = resourcesList |> Stdlib.List.map (fun resource ->
+    ModelContextProtocol.Resources.ListResourcesResponse.ResourceDescription {
+      uri = resource.uri;
+      name = resource.name;
+      description = resource.description;
+      mimeType = resource.mimeType
+    }
+  )
+  
+  let listResponse = 
+    ModelContextProtocol.Resources.ListResourcesResponse.ListResourcesResponse {
+      resources = mcpResources;
+      nextCursor = Stdlib.Option.Option.None
+    }
+  
+  let responseJson = ModelContextProtocol.Resources.ListResourcesResponse.toJson listResponse
 
-  sendSuccessResponse (Stdlib.Option.Option.Some requestId) response
+  sendSuccessResponse (Stdlib.Option.Option.Some requestId) responseJson
   state
 
 /// Handle a resources/read request

@@ -14,40 +14,43 @@ let handleInitializeRequest
   : McpState =
   log "Handling initialize request"
 
-  // Build server capabilities
+  // Build server capabilities using proper types
   let serverCapabilities = 
-    Json.Object [
-      ("resources", Json.Object [
-        ("subscribe", Json.Bool false);
-        ("listChanged", Json.Bool true)
-      ]);
-      ("tools", Json.Object [
-        ("listChanged", Json.Bool true)
-      ]);
-      ("prompts", Json.Object [
-        ("listChanged", Json.Bool true)
-      ]);
-      ("logging", Json.Object []);
-      ("roots", Json.Object [
-        ("listChanged", Json.Bool true)
-      ])
-    ]
+    ModelContextProtocol.ServerCapabilities {
+      resources = Stdlib.Option.Option.Some (ModelContextProtocol.ResourceCapabilities {
+        listChanged = Stdlib.Option.Option.Some true;
+        subscribe = Stdlib.Option.Option.Some false
+      });
+      tools = Stdlib.Option.Option.Some (ModelContextProtocol.ToolCapabilities {
+        listChanged = Stdlib.Option.Option.Some true
+      });
+      prompts = Stdlib.Option.Option.Some (ModelContextProtocol.PromptCapabilities {
+        listChanged = Stdlib.Option.Option.Some true
+      });
+      logging = Stdlib.Option.Option.Some (Json.Object []);
+      completions = Stdlib.Option.Option.None;
+      experimental = Stdlib.Option.Option.None
+    }
 
   let serverInfo = 
-    Json.Object [
-      ("name", Json.String "Darklang MCP Server");
-      ("version", Json.String "1.0.0")
-    ]
+    ModelContextProtocol.ServerInfo {
+      name = "Darklang MCP Server";
+      version = "1.0.0"
+    }
 
-  let result = 
-    Json.Object [
-      ("protocolVersion", Json.String "2025-06-18");
-      ("capabilities", serverCapabilities);
-      ("serverInfo", serverInfo)
-    ]
+  let initializeResult = 
+    ModelContextProtocol.LifeCycle.InitializeRequest.InitializeResult.InitializeResult {
+      protocolVersion = ModelContextProtocol.protocolVersion;
+      serverInfo = serverInfo;
+      capabilities = serverCapabilities;
+      instructions = Stdlib.Option.Option.None
+    }
+
+  // Convert to JSON using the typed approach
+  let resultJson = ModelContextProtocol.LifeCycle.InitializeRequest.InitializeResult.toJson initializeResult
 
   // Send the response
-  sendSuccessResponse (Stdlib.Option.Option.Some requestId) result
+  sendSuccessResponse (Stdlib.Option.Option.Some requestId) resultJson
 
   // Return initialized state with all capabilities loaded
   let state = initialState ()

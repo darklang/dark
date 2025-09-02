@@ -97,15 +97,10 @@ module Darklang =
               Json.Object fieldsWithAnnotations
             )
 
-          let nextCursorJson =
-            match response.nextCursor with
-            | Some cursor -> Json.String cursor
-            | None -> Json.String ""
-
-          Json.Object [
-            ("tools", Json.Array toolsJson);
-            ("nextCursor", nextCursorJson)
-          ]
+          [ Stdlib.Option.Option.Some(("tools", Json.Array toolsJson))
+            response.nextCursor |> Stdlib.Option.map (fun c -> ("nextCursor", Json.String c)) ]
+          |> Stdlib.Option.values
+          |> Json.Object
 
 
       module CallToolRequest =

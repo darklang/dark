@@ -65,15 +65,10 @@ module ListResourcesResponse =
         Json.Object fieldsWithMimeType
       )
 
-    let nextCursorJson =
-      match response.nextCursor with
-      | Some cursor -> Json.String cursor
-      | None -> Json.Null
-
-    Json.Object [
-      ("resources", Json.Array resourcesJson);
-      ("nextCursor", nextCursorJson)
-    ]
+    [ Stdlib.Option.Option.Some(("resources", Json.Array resourcesJson))
+      response.nextCursor |> Stdlib.Option.map (fun c -> ("nextCursor", Json.String c)) ]
+    |> Stdlib.Option.values
+    |> Json.Object
 
 
 /// Schema for the readResource request

@@ -21,48 +21,53 @@ module ListPromptsRequest =
       Stdlib.Result.Result.Error "params must be an object"
 
 
-module ListPromptsResponse =
+module PromptArgument =
   type PromptArgument = {
     name: String
     description: Stdlib.Option.Option<String>
     required: Stdlib.Option.Option<Bool>
   }
 
+  let toJson (arg: PromptArgument) : Json =
+    [ Stdlib.Option.Option.Some(("name", Json.String arg.name))
+      arg.description |> Stdlib.Option.map (fun d -> ("description", Json.String d))
+      arg.required |> Stdlib.Option.map (fun r -> ("required", Json.Bool r)) ]
+    |> Stdlib.Option.values
+    |> Json.Object
+
+module PromptDescription =
   type PromptDescription = {
     name: String
     description: Stdlib.Option.Option<String>
-    arguments: Stdlib.Option.Option<List<PromptArgument>>
+    arguments: Stdlib.Option.Option<List<PromptArgument.PromptArgument>>
   }
 
+  let toJson (prompt: PromptDescription) : Json =
+    let argsJson =
+      match prompt.arguments with
+      | Some args ->
+          Json.Array (args |> Stdlib.List.map PromptArgument.toJson)
+      | None -> Json.Array []
+
+    [ Stdlib.Option.Option.Some(("name", Json.String prompt.name))
+      prompt.description |> Stdlib.Option.map (fun d -> ("description", Json.String d))
+      Stdlib.Option.Option.Some(("arguments", argsJson)) ]
+    |> Stdlib.Option.values
+    |> Json.Object
+
+module ListPromptsResponse =
   type ListPromptsResult = {
-    prompts: List<PromptDescription>
+    prompts: List<PromptDescription.PromptDescription>
     nextCursor: Stdlib.Option.Option<String>
   }
 
   let toJson (result: ListPromptsResult) : Json =
-    let promptsJson =
-      result.prompts |> Stdlib.List.map (fun prompt ->
-        let argsJson =
-          match prompt.arguments with
-          | Some args ->
-              Json.Array (args |> Stdlib.List.map (fun arg ->
-                Json.Object [
-                  ("name", Json.String arg.name);
-                  ("description", Stdlib.Option.mapToJson arg.description);
-                  ("required", Stdlib.Option.mapToJson arg.required)
-                ]))
-          | None -> Json.Array []
+    let promptsJson = result.prompts |> Stdlib.List.map PromptDescription.toJson
 
-        Json.Object [
-          ("name", Json.String prompt.name);
-          ("description", Stdlib.Option.mapToJson prompt.description);
-          ("arguments", argsJson)
-        ])
-
-    Json.Object [
-      ("prompts", Json.Array promptsJson);
-      ("nextCursor", Stdlib.Option.mapToJson result.nextCursor)
-    ]
+    [ Stdlib.Option.Option.Some(("prompts", Json.Array promptsJson))
+      result.nextCursor |> Stdlib.Option.map (fun c -> ("nextCursor", Json.String c)) ]
+    |> Stdlib.Option.values
+    |> Json.Object
 
 
 module GetPromptRequest =
@@ -131,7 +136,7 @@ module GetPromptResponse =
           ("content", contentJson)
         ])
 
-    Json.Object [
-      ("description", Stdlib.Option.mapToJson result.description);
-      ("messages", Json.Array messagesJson)
-    ]
+    [ result.description |> Stdlib.Option.map (fun d -> ("description", Json.String d))
+      Stdlib.Option.Option.Some(("messages", Json.Array messagesJson)) ]
+    |> Stdlib.Option.values
+    |> Json.Object

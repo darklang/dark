@@ -8,7 +8,7 @@ type ClientCapabilities =
     roots: Stdlib.Option.Option<RootsClientCapabilities>
     sampling: Stdlib.Option.Option<Json> }
 
-/// Roots client capabilities  
+/// Roots client capabilities
 type RootsClientCapabilities =
   { listChanged: Stdlib.Option.Option<Bool> }
 
@@ -65,7 +65,7 @@ let fromJson (json: Json) : Stdlib.Result.Result<InitializeParams, String> =
           // Parse experimental
           let experimental =
             match Stdlib.List.findFirst capFields (fun (k, _) -> k == "experimental") with
-            | Some (_, Object expFields) -> 
+            | Some (_, Object expFields) ->
               let dict = Stdlib.List.fold Stdlib.Dict.empty expFields (fun acc (key, value) ->
                 Stdlib.Dict.set acc key value
               )
@@ -83,13 +83,13 @@ let fromJson (json: Json) : Stdlib.Result.Result<InitializeParams, String> =
               Stdlib.Option.Option.Some (RootsClientCapabilities { listChanged = listChanged })
             | _ -> Stdlib.Option.Option.None
 
-          // Parse sampling  
+          // Parse sampling
           let sampling =
             match Stdlib.List.findFirst capFields (fun (k, _) -> k == "sampling") with
             | Some (_, json) -> Stdlib.Option.Option.Some json
             | None -> Stdlib.Option.Option.None
 
-          Stdlib.Result.Result.Ok (ClientCapabilities { 
+          Stdlib.Result.Result.Ok (ClientCapabilities {
             elicitation = elicitation;
             experimental = experimental;
             roots = roots;
@@ -101,12 +101,11 @@ let fromJson (json: Json) : Stdlib.Result.Result<InitializeParams, String> =
     // Parse trace if present
     let traceResult =
       match Stdlib.List.findFirst fields (fun (k, _) -> k == "trace") with
-      | Some traceEntry ->
-        match traceEntry with
-        | (_, String "off") -> Stdlib.Result.Result.Ok (Stdlib.Option.Option.Some TraceLevel.Off)
-        | (_, String "messages") -> Stdlib.Result.Result.Ok (Stdlib.Option.Option.Some TraceLevel.Messages)
-        | (_, String "verbose") -> Stdlib.Result.Result.Ok (Stdlib.Option.Option.Some TraceLevel.Verbose)
-        | (_, _) -> Stdlib.Result.Result.Error "trace must be one of: 'off', 'messages', 'verbose'"
+      | Some (_, String s) ->
+        match TraceLevel.fromString s with
+        | Ok level -> Stdlib.Result.Result.Ok (Stdlib.Option.Option.Some level)
+        | Error e -> Stdlib.Result.Result.Error e
+      | Some _ -> Stdlib.Result.Result.Error "trace must be a string"
       | None -> Stdlib.Result.Result.Ok Stdlib.Option.Option.None
 
     // Combine all results
@@ -119,108 +118,87 @@ let fromJson (json: Json) : Stdlib.Result.Result<InitializeParams, String> =
   | _ -> Stdlib.Result.Result.Error "params must be an object"
 
 let toJson (params: InitializeParams) : Json =
-  let clientInfoJson =
-    match params.clientInfo with
-    | Some info ->
-      let fields = [("name", Json.String info.name)]
-      let fieldsWithVersion =
-        match info.version with
-        | Some v -> fields @ [("version", Json.String v)]
-        | None -> fields
-      Stdlib.Option.Option.Some ("clientInfo", Json.Object fieldsWithVersion)
-    | None -> Stdlib.Option.Option.None
-
-  let resourceCapabilitiesJson =
-    match params.capabilities.resources with
-    | Some res ->
-      let fields = []
-      let fieldsWithListChanged =
-        match res.listChanged with
-        | Some b -> fields @ [("listChanged", Json.Bool b)]
-        | None -> fields
-      let fieldsWithSubscribe =
-        match res.subscribe with
-        | Some b -> fieldsWithListChanged @ [("subscribe", Json.Bool b)]
-        | None -> fieldsWithListChanged
-      Stdlib.Option.Option.Some ("resources", Json.Object fieldsWithSubscribe)
-    | None -> Stdlib.Option.Option.None
-
-  let toolCapabilitiesJson =
-    match params.capabilities.tools with
-    | Some tools ->
-      let fields = []
-      let fieldsWithListChanged =
-        match tools.listChanged with
-        | Some b -> fields @ [("listChanged", Json.Bool b)]
-        | None -> fields
-      Stdlib.Option.Option.Some ("tools", Json.Object fieldsWithListChanged)
-    | None -> Stdlib.Option.Option.None
-
+  // Build capabilities object
   let capabilitiesFields =
-    [resourceCapabilitiesJson; toolCapabilitiesJson]
+    [ params.capabilities.elicitation |> Stdlib.Option.map (fun e -> ("elicitation", e))
+
+      params.capabilities.experimental |> Stdlib.Option.map (fun exp ->
+        ("experimental", (Stdlib.Dict.toList exp) |> Json.Object))
+
+      params.capabilities.roots |> Stdlib.Option.map (fun roots ->
+        let rootsFields =
+          [ roots.listChanged |> Stdlib.Option.map (fun lc -> ("listChanged", Json.Bool lc)) ]
+          |> Stdlib.Option.values
+        ("roots", Json.Object rootsFields))
+
+      params.capabilities.sampling |> Stdlib.Option.map (fun s -> ("sampling", s)) ]
     |> Stdlib.Option.values
 
-  let traceJson =
-    match params.trace with
-    | Some Off -> Stdlib.Option.Option.Some ("trace", Json.String "off")
-    | Some Messages -> Stdlib.Option.Option.Some ("trace", Json.String "messages")
-    | Some Verbose -> Stdlib.Option.Option.Some ("trace", Json.String "verbose")
-    | None -> Stdlib.Option.Option.None
+  // Build all top-level fields
+  [ params.clientInfo |> Stdlib.Option.map (fun info ->
+      let infoFields =
+        [ Stdlib.Option.Option.Some(("name", Json.String info.name))
+          info.version |> Stdlib.Option.map (fun v -> ("version", Json.String v)) ]
+        |> Stdlib.Option.values
+      ("clientInfo", Json.Object infoFields))
 
-  let fields =
-    [clientInfoJson; Stdlib.Option.Option.Some ("capabilities", Json.Object capabilitiesFields); traceJson]
-    |> Stdlib.Option.values
+    Stdlib.Option.Option.Some(("capabilities", Json.Object capabilitiesFields))
 
-  Json.Object fields
+    params.trace |> Stdlib.Option.map (fun t ->
+      ("trace", Json.String (TraceLevel.toString t))) ]
+  |> Stdlib.Option.values
+  |> Json.Object
 
 /// Result of the initialize request
 module InitializeResult =
   type InitializeResult =
-    { serverInfo: Stdlib.Option.Option<ServerInfo>
-      capabilities: ServerCapabilities }
+    { protocolVersion: String
+      serverInfo: ServerInfo
+      capabilities: ServerCapabilities
+      instructions: Stdlib.Option.Option<String> }
 
   let toJson (result: InitializeResult) : Json =
-    let serverInfoJson =
-      match result.serverInfo with
-      | Some info ->
-        Stdlib.Option.Option.Some ((
-          "serverInfo",
-          Json.Object [
-            ("name", Json.String info.name);
-            ("version", Json.String info.version)
-          ]
-        ))
-      | None -> Stdlib.Option.Option.None
-
-    let resourceCapabilitiesJson =
-      match result.capabilities.resources with
-      | Some res ->
-        Stdlib.Option.Option.Some ((
-          "resources",
-          Json.Object [
-            ("supportsResourceListing", Json.Bool res.supportsResourceListing);
-            ("supportsResourceTemplates", Json.Bool res.supportsResourceTemplates)
-          ]
-        ))
-      | None -> Stdlib.Option.Option.None
-
-    let toolCapabilitiesJson =
-      match result.capabilities.tools with
-      | Some tools ->
-        Stdlib.Option.Option.Some ((
-          "tools",
-          Json.Object [
-            ("supportsToolListing", Json.Bool tools.supportsToolListing)
-          ]
-        ))
-      | None -> Stdlib.Option.Option.None
-
+    // Build capabilities object
     let capabilitiesFields =
-      [resourceCapabilitiesJson; toolCapabilitiesJson]
+      [ result.capabilities.resources |> Stdlib.Option.map (fun res ->
+          let resFields =
+            [ res.listChanged |> Stdlib.Option.map (fun lc -> ("listChanged", Json.Bool lc))
+              res.subscribe |> Stdlib.Option.map (fun s -> ("subscribe", Json.Bool s)) ]
+            |> Stdlib.Option.values
+          ("resources", Json.Object resFields))
+        
+        result.capabilities.tools |> Stdlib.Option.map (fun tools ->
+          let toolFields =
+            [ tools.listChanged |> Stdlib.Option.map (fun lc -> ("listChanged", Json.Bool lc)) ]
+            |> Stdlib.Option.values
+          ("tools", Json.Object toolFields))
+        
+        result.capabilities.prompts |> Stdlib.Option.map (fun prompts ->
+          let promptFields =
+            [ prompts.listChanged |> Stdlib.Option.map (fun lc -> ("listChanged", Json.Bool lc)) ]
+            |> Stdlib.Option.values
+          ("prompts", Json.Object promptFields))
+        
+        result.capabilities.logging |> Stdlib.Option.map (fun logging ->
+          ("logging", logging))
+        
+        result.capabilities.completions |> Stdlib.Option.map (fun completions ->
+          ("completions", completions))
+        
+        result.capabilities.experimental |> Stdlib.Option.map (fun exp ->
+          ("experimental", (Stdlib.Dict.toList exp) |> Json.Object)) ]
       |> Stdlib.Option.values
 
-    let fields =
-      [serverInfoJson; Stdlib.Option.Option.Some (("capabilities", Json.Object capabilitiesFields))]
-      |> Stdlib.Option.values
-
-    Json.Object fields
+    // Build all fields
+    [ Stdlib.Option.Option.Some(("protocolVersion", Json.String result.protocolVersion))
+      
+      Stdlib.Option.Option.Some(("serverInfo", Json.Object [
+        ("name", Json.String result.serverInfo.name);
+        ("version", Json.String result.serverInfo.version)
+      ]))
+      
+      Stdlib.Option.Option.Some(("capabilities", Json.Object capabilitiesFields))
+      
+      result.instructions |> Stdlib.Option.map (fun i -> ("instructions", Json.String i)) ]
+    |> Stdlib.Option.values
+    |> Json.Object
