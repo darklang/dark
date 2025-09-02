@@ -7,6 +7,21 @@ type TraceLevel =
   | Messages
   | Verbose
 
+/// TraceLevel conversion utilities
+module TraceLevel =
+  let toString (level: TraceLevel) : String =
+    match level with
+    | Off -> "off"
+    | Messages -> "messages"
+    | Verbose -> "verbose"
+  
+  let fromString (s: String) : Stdlib.Result.Result<TraceLevel, String> =
+    match s with
+    | "off" -> Stdlib.Result.Result.Ok TraceLevel.Off
+    | "messages" -> Stdlib.Result.Result.Ok TraceLevel.Messages
+    | "verbose" -> Stdlib.Result.Result.Ok TraceLevel.Verbose
+    | _ -> Stdlib.Result.Result.Error $"Invalid trace level: {s}"
+
 /// Trace notification parameters
 module TraceNotification =
   type TraceNotificationParams =
@@ -16,28 +31,20 @@ module TraceNotification =
     match json with
     | Object fields ->
       match Stdlib.List.findFirst fields (fun (k, _) -> k == "value") with
-      | Some (_, String "off") ->
-          Stdlib.Result.Result.Ok  (TraceNotificationParams  { value = TraceLevel.Off })
-      | Some (_, String "messages") ->
-          Stdlib.Result.Result.Ok  (TraceNotificationParams  { value = TraceLevel.Messages })
-      | Some (_, String "verbose") ->
-          Stdlib.Result.Result.Ok  (TraceNotificationParams  { value = TraceLevel.Verbose })
+      | Some (_, String s) ->
+          match TraceLevel.fromString s with
+          | Ok level -> Stdlib.Result.Result.Ok (TraceNotificationParams { value = level })
+          | Error e -> Stdlib.Result.Result.Error e
       | Some (_, _) ->
-          Stdlib.Result.Result.Error "value must be one of: 'off', 'messages', 'verbose'"
+          Stdlib.Result.Result.Error "value must be a string"
       | None ->
           Stdlib.Result.Result.Error "value is required"
     | _ ->
         Stdlib.Result.Result.Error "params must be an object"
 
   let toJson (params: TraceNotificationParams) : Json =
-    let valueStr =
-      match params.value with
-      | Off -> "off"
-      | Messages -> "messages"
-      | Verbose -> "verbose"
-
     Json.Object [
-      ("value", Json.String valueStr)
+      ("value", Json.String (TraceLevel.toString params.value))
     ]
 
 /// Log message notification parameters
