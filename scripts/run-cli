@@ -19,7 +19,7 @@ if [[ -n "$FLAGS" ]]; then
 fi
 
 LOGS="${DARK_CONFIG_RUNDIR}/logs"
-CLI_LOG="$LOGS/cli.log"
+# CLI_LOG="$LOGS/cli.log"
 PACKAGES_LOG="$LOGS/packages-canvas.log"
 
 if [[ "$PUBLISHED" == "true" ]]; then
