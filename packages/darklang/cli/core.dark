@@ -191,7 +191,7 @@ module Registry =
 
   let allCommands () : List<CommandHandler> =
     [
-      ("quit", "Exit the CLI", ["exit"], Quit.execute, Quit.help, Quit.complete)
+      ("quit", "Exit the CLI", ["exit"; "q"], Quit.execute, Quit.help, Quit.complete)
       ("help", "Show help for commands", ["commands"; "?"], Help.execute, Help.help, Help.complete)
       ("install", "Install CLI globally", [], Installation.Install.execute, Installation.Install.help, Installation.Install.complete)
       ("update", "Update CLI to latest version", ["upgrade"], Installation.Update.execute, Installation.Update.help, Installation.Update.complete)
