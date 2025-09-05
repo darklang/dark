@@ -11,6 +11,9 @@ let parsePath (pathStr: String) : List<PathSegment> =
   if pathStr == "/" then
     [PathSegment.Root]
   else
+    // Check if path ends with a dot - this means user wants to complete within that location
+    let endsWithDot = Stdlib.String.endsWith pathStr "."
+
     // Split on / first, then handle each part separately
     let parts =
       pathStr
@@ -25,8 +28,11 @@ let parsePath (pathStr: String) : List<PathSegment> =
       |> Stdlib.List.flatten
       |> Stdlib.List.filter (fun p -> Stdlib.Bool.not (Stdlib.String.isEmpty p))
 
+    // If path ended with dot, add empty string to indicate completion at that level
+    let finalParts = if endsWithDot then Stdlib.List.append parts [""] else parts
+
     let segments =
-      parts
+      finalParts
       |> Stdlib.List.map (fun part ->
         match part with
         | "." -> PathSegment.Here
@@ -118,6 +124,16 @@ let applyPath (start: PackageLocation) (segments: List<PathSegment>) : Stdlib.Re
   )
 
 
+// Search for module names under Darklang owner (fallback search)
+let searchDarklangModules (prefixText: String) : List<String> =
+  let darklangResults = Search.searchContents ["Darklang"]
+  let currentPathLength = 1L
+  let moduleNames = Search.getDirectSubmodules darklangResults currentPathLength
+
+  moduleNames
+  |> Stdlib.List.filter (fun name -> Stdlib.String.startsWith name prefixText)
+  |> Stdlib.List.map (fun name -> "Darklang." ++ name) // Return fully qualified names
+
 // Get all available names at a location for completion
 let getAvailableNames (location: PackageLocation) (prefixText: String) : List<String> =
   let currentPath = getCurrentModulePath location
@@ -138,11 +154,25 @@ let getAvailableNames (location: PackageLocation) (prefixText: String) : List<St
     |> Stdlib.List.unique
     |> Stdlib.List.sort
 
-  // Filter by prefix if we have search text
-  if Stdlib.String.isEmpty prefixText then
-    allNames
-  else
-    allNames |> Stdlib.List.filter (fun name -> Stdlib.String.startsWith name prefixText)
+  // Primary results: filter by prefix if we have search text
+  let primaryResults =
+    if Stdlib.String.isEmpty prefixText then
+      allNames
+    else
+      allNames |> Stdlib.List.filter (fun name -> Stdlib.String.startsWith name prefixText)
+
+  // At root level: prioritize owners, then add fallback
+  match location with
+  | Module [] when Stdlib.Bool.not (Stdlib.String.isEmpty prefixText) ->
+    let ownerMatches = primaryResults |> Stdlib.List.filter (fun result -> Stdlib.Bool.not (Stdlib.String.contains result "."))
+
+    if Stdlib.Bool.not (Stdlib.List.isEmpty ownerMatches) then
+      ownerMatches
+    else
+      let fallbackResults = searchDarklangModules prefixText
+      primaryResults |> Stdlib.List.append fallbackResults |> Stdlib.List.unique |> Stdlib.List.sort
+  | _ ->
+    primaryResults
 
 // Simple completion: traverse exact path, then fuzzy search the last part
 let completePartialPath (start: PackageLocation) (partialPath: String) : List<String> =
