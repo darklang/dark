@@ -13,7 +13,8 @@ type AppState =
     packageData: Packages.State
     currentPage: Page
     commandHistory: List<String>
-    historyIndex: Int64 }
+    historyIndex: Int64
+    savedPrompt: String }
 
 let initState () : AppState =
   AppState
@@ -24,7 +25,8 @@ let initState () : AppState =
       packageData = Packages.initState()
       currentPage = Page.MainPrompt  // Default to main prompt page
       commandHistory = []
-      historyIndex = -1L }
+      historyIndex = -1L
+      savedPrompt = "" }
 
 // Helper to update core state fields while preserving package navigation fields
 let updateCoreFields (state: AppState) (isExiting: Bool) (mainPrompt: String) (needsFullRedraw: Bool) : AppState =
@@ -455,11 +457,17 @@ let handleKeyInput (state: AppState) (key: Stdlib.Cli.Stdin.Key.Key) (modifiers:
         match Stdlib.List.getAt state.commandHistory newIndex with
         | Some command ->
           let commandLength = Stdlib.String.length command
+          let newSavedPrompt =
+            if state.historyIndex == -1L then
+              state.mainPrompt
+            else
+              state.savedPrompt
           { state with
               mainPrompt = command
               cursorPosition = commandLength
               historyIndex = newIndex
-              needsFullRedraw = false }
+              needsFullRedraw = false
+              savedPrompt = newSavedPrompt }
         | None ->
           state
       else
@@ -473,9 +481,10 @@ let handleKeyInput (state: AppState) (key: Stdlib.Cli.Stdin.Key.Key) (modifiers:
           else
             -1L  // Go back to empty prompt
         if newIndex == -1L then
+          let restoredPromptLength = Stdlib.String.length state.savedPrompt
           { state with
-              mainPrompt = ""
-              cursorPosition = 0L
+              mainPrompt = state.savedPrompt
+              cursorPosition = restoredPromptLength
               historyIndex = newIndex
               needsFullRedraw = false }
         else
@@ -518,7 +527,8 @@ let handleKeyInput (state: AppState) (key: Stdlib.Cli.Stdin.Key.Key) (modifiers:
             mainPrompt = newPrompt
             cursorPosition = state.cursorPosition + (Stdlib.String.length char)
             historyIndex = -1L
-            needsFullRedraw = false }
+            needsFullRedraw = false
+            savedPrompt = "" }
       | None ->
         state
   | Experiments ->
