@@ -119,31 +119,30 @@ let applyPath (start: PackageLocation) (segments: List<PathSegment>) : Stdlib.Re
 
 
 // Get all available names at a location for completion
-let getAvailableNames (location: PackageLocation) (fuzzyText: String) : List<String> =
-  // Performance: Skip search entirely for single-char fuzzy text (too broad)
-  if Stdlib.String.length fuzzyText == 1L then
-    []
-  else
-    let currentPath = getCurrentModulePath location
-    let results = Search.searchFuzzy currentPath fuzzyText
+let getAvailableNames (location: PackageLocation) (prefixText: String) : List<String> =
+  let currentPath = getCurrentModulePath location
+  // Get all available entities in this module
+  let allResults = Search.searchContents currentPath
 
-    // Extract module names
-    let currentPathLength = Stdlib.List.length currentPath
-    let moduleNames = Search.getDirectSubmodules results currentPathLength
+  let currentPathLength = Stdlib.List.length currentPath
+  let moduleNames = Search.getDirectSubmodules allResults currentPathLength
+  let typeNames = allResults.types |> Stdlib.List.map (fun t -> t.name.name)
+  let fnNames = allResults.fns |> Stdlib.List.map (fun f -> f.name.name)
+  let valueNames = allResults.values |> Stdlib.List.map (fun v -> v.name.name)
 
-    // Build result list without intermediate lists
-    // Concatenate directly rather than creating lists of lists
-    let typeNames = results.types |> Stdlib.List.map (fun t -> t.name.name)
-    let fnNames = results.fns |> Stdlib.List.map (fun f -> f.name.name)
-    let valueNames = results.values |> Stdlib.List.map (fun v -> v.name.name)
-
-    // Combine all names efficiently
-    typeNames
+  let allNames =
+    moduleNames
+    |> Stdlib.List.append typeNames
     |> Stdlib.List.append fnNames
     |> Stdlib.List.append valueNames
-    |> Stdlib.List.append moduleNames
     |> Stdlib.List.unique
     |> Stdlib.List.sort
+
+  // Filter by prefix if we have search text
+  if Stdlib.String.isEmpty prefixText then
+    allNames
+  else
+    allNames |> Stdlib.List.filter (fun name -> Stdlib.String.startsWith name prefixText)
 
 // Simple completion: traverse exact path, then fuzzy search the last part
 let completePartialPath (start: PackageLocation) (partialPath: String) : List<String> =
