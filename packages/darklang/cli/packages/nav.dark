@@ -134,7 +134,7 @@ module Interactive =
   // Display the interactive navigation interface
   let display (navState: State) : Unit =
     // Clear alternate screen and show header (main screen is preserved)
-    Stdlib.print "\u001b[2J\u001b[H"
+    Stdlib.print "\u001b[?25l\u001b[2J\u001b[H"
 
     let locationStr = Packages.formatLocation navState.currentLocation
     Stdlib.printLine (Colors.boldText $"📁 {locationStr}")
