@@ -10,6 +10,8 @@ let execute (state: AppState) (args: List<String>) : AppState =
 
     { state with
         needsFullRedraw = true
+        mainPrompt = ""
+        cursorPosition = 0L
         packageData =
           { state.packageData with
               currentLocation = previousLocation

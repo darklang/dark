@@ -298,26 +298,34 @@ module Interactive =
           Stdlib.printLine (Colors.success $"Selected: {locationStr}")
           { newState with
               currentPage = Page.MainPrompt
-              needsFullRedraw = true }
+              needsFullRedraw = true
+              mainPrompt = ""
+              cursorPosition = 0L }
         | None ->
           // Exit without selection
           Interactive.exitAlternateScreen ()
           { state with
               currentPage = Page.MainPrompt
-              needsFullRedraw = true }
+              needsFullRedraw = true
+              mainPrompt = ""
+              cursorPosition = 0L }
       else
         // Exit without selection
         Interactive.exitAlternateScreen ()
         { state with
             currentPage = Page.MainPrompt
-            needsFullRedraw = true }
+            needsFullRedraw = true
+            mainPrompt = ""
+            cursorPosition = 0L }
 
     | Escape ->
       // Exit interactive navigation without making changes
       Interactive.exitAlternateScreen ()
       { state with
           currentPage = Page.MainPrompt
-          needsFullRedraw = true }
+          needsFullRedraw = true
+          mainPrompt = ""
+          cursorPosition = 0L }
 
     | V ->
       // Toggle inline view display
@@ -340,6 +348,8 @@ let navTo (state: AppState) (location: PackageLocation): AppState =
     // Update state with new location and history
     { state with
         needsFullRedraw = true
+        mainPrompt = ""
+        cursorPosition = 0L
         packageData =
           { state.packageData with
               currentLocation = location
@@ -355,7 +365,9 @@ let execute (state: AppState) (args: List<String>) : AppState =
     let navState = Interactive.buildState state.packageData.currentLocation
     { state with
         currentPage = Page.InteractiveNav navState
-        needsFullRedraw = true }
+        needsFullRedraw = true
+        mainPrompt = ""
+        cursorPosition = 0L }
 
   | [pathArg] ->
     // Use traverse to handle the path navigation

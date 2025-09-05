@@ -401,7 +401,7 @@ let handleKeyInput (state: AppState) (key: Stdlib.Cli.Stdin.Key.Key) (modifiers:
         { newState with
             mainPrompt = ""
             cursorPosition = 0L
-            needsFullRedraw = false
+            needsFullRedraw = true
             commandHistory = updatedHistory
             historyIndex = -1L }
     | Backspace ->
@@ -560,15 +560,29 @@ let runInteractiveLoop (state: AppState) : Int64 =
     // Display current page
     match state.currentPage with
     | MainPrompt ->
-      if state.needsFullRedraw then
-        Stdlib.printLine (View.formatPrompt ())
-      else
-        // For all interactive editing: clear line and reprint to avoid artifacts
-        // CLEANUP: this might interfere with terminal scrollback
-        // Stdlib.print (Colors.carriageReturn ++ Colors.clearLine)
-        Stdlib.print "\r"
+      // Determine where user input starts (path + "> ")
+      let currentPath = Packages.formatLocation state.packageData.currentLocation
+      let visiblePromptLength = (Stdlib.String.length currentPath) + 2L  // "> "
+      let inputStartColumn = visiblePromptLength + 1L
 
-      Stdlib.print (View.formatPromptWithInput state)
+      if state.needsFullRedraw then
+        // Redraw entire prompt line (used after commands that change state)
+        let promptText = View.formatPromptWithInput state
+        Stdlib.print promptText
+      else
+        // Update only the input portion (used during typing)
+        Stdlib.print "\u001b[?25l" // Hide cursor during redraw
+        Stdlib.print (Colors.moveCursorToColumn inputStartColumn)
+        Stdlib.print Colors.clearLine
+        Stdlib.print state.mainPrompt
+        let hint = Registry.getCompletionHint state state.mainPrompt
+        if Stdlib.Bool.not (Stdlib.String.isEmpty hint) then
+          Stdlib.print (Colors.hint hint)
+        Stdlib.print "\u001b[?25h" // Show cursor again
+
+      // Position cursor at correct location within user input
+      let cursorColumn = visiblePromptLength + state.cursorPosition + 1L
+      Stdlib.print (Colors.moveCursorToColumn cursorColumn)
     | Experiments ->
       if state.needsFullRedraw then
         Stdlib.printLine "🧪 Experiments Mode"
