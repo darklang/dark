@@ -134,7 +134,7 @@ module Interactive =
   // Display the interactive navigation interface
   let display (navState: State) : Unit =
     // Clear alternate screen and show header (main screen is preserved)
-    Stdlib.print "\u001b[2J\u001b[H"
+    Stdlib.print "\u001b[?25l\u001b[2J\u001b[H"
 
     let locationStr = Packages.formatLocation navState.currentLocation
     Stdlib.printLine (Colors.boldText $"📁 {locationStr}")
@@ -298,26 +298,34 @@ module Interactive =
           Stdlib.printLine (Colors.success $"Selected: {locationStr}")
           { newState with
               currentPage = Page.MainPrompt
-              needsFullRedraw = true }
+              needsFullRedraw = true
+              mainPrompt = ""
+              cursorPosition = 0L }
         | None ->
           // Exit without selection
           Interactive.exitAlternateScreen ()
           { state with
               currentPage = Page.MainPrompt
-              needsFullRedraw = true }
+              needsFullRedraw = true
+              mainPrompt = ""
+              cursorPosition = 0L }
       else
         // Exit without selection
         Interactive.exitAlternateScreen ()
         { state with
             currentPage = Page.MainPrompt
-            needsFullRedraw = true }
+            needsFullRedraw = true
+            mainPrompt = ""
+            cursorPosition = 0L }
 
     | Escape ->
       // Exit interactive navigation without making changes
       Interactive.exitAlternateScreen ()
       { state with
           currentPage = Page.MainPrompt
-          needsFullRedraw = true }
+          needsFullRedraw = true
+          mainPrompt = ""
+          cursorPosition = 0L }
 
     | V ->
       // Toggle inline view display
@@ -340,6 +348,8 @@ let navTo (state: AppState) (location: PackageLocation): AppState =
     // Update state with new location and history
     { state with
         needsFullRedraw = true
+        mainPrompt = ""
+        cursorPosition = 0L
         packageData =
           { state.packageData with
               currentLocation = location
@@ -355,7 +365,9 @@ let execute (state: AppState) (args: List<String>) : AppState =
     let navState = Interactive.buildState state.packageData.currentLocation
     { state with
         currentPage = Page.InteractiveNav navState
-        needsFullRedraw = true }
+        needsFullRedraw = true
+        mainPrompt = ""
+        cursorPosition = 0L }
 
   | [pathArg] ->
     // Use traverse to handle the path navigation
@@ -379,34 +391,7 @@ let complete (state: AppState) (args: List<String>) : List<String> =
     // No args - complete from current location
     Traversal.completePartialPath state.packageData.currentLocation ""
   | [partialPath] ->
-    // Performance optimization: Only compute completions when it's worth it
-    // For long paths like "Darklang.Stdlib.Option", skip completions for single chars
-    let shouldComplete =
-      // Check how many chars after last separator
-      let lastSepIndex =
-        let dotIndex =
-          match Stdlib.String.lastIndexOf partialPath "." with
-          | Some i -> i
-          | None -> -1L
-        let slashIndex =
-          match Stdlib.String.lastIndexOf partialPath "/" with
-          | Some i -> i
-          | None -> -1L
-        Stdlib.Int64.max dotIndex slashIndex
-
-      let charsAfterSep =
-        if lastSepIndex == -1L then
-          Stdlib.String.length partialPath
-        else
-          Stdlib.String.length partialPath - lastSepIndex - 1L
-
-      // Complete if we have 0 chars (just typed separator) or 2+ chars after separator
-      charsAfterSep == 0L || charsAfterSep >= 2L
-
-    if shouldComplete then
-      Traversal.completePartialPath state.packageData.currentLocation partialPath
-    else
-      []
+    Traversal.completePartialPath state.packageData.currentLocation partialPath
   | _ ->
     // Too many arguments
     []

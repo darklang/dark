@@ -10,7 +10,7 @@ let underline = "\u001b[4m"
 // Cursor and line control
 let clearLine = "\u001b[K"
 let carriageReturn = "\r"
-let moveCursorToColumn (col: Int64) : String = $"\u001b[{col}G"
+let moveCursorToColumn (col: Int64) : String = $"\u001b[{Stdlib.Int64.toString col}G"
 
 // Standard colors
 let black = "\u001b[30m"
