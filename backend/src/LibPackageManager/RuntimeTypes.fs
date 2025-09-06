@@ -11,48 +11,57 @@ module BinarySerialization = LibBinarySerialization.BinarySerialization
 
 
 module Type =
-  let get (id : uuid) : Ply<Option<RT.PackageType.PackageType>> =
+  let get (hash : Hash) : Ply<Option<RT.PackageType.PackageType>> =
     uply {
+      let (Hash hashStr) = hash
       return!
         Sql.query
           """
-          SELECT rt_def
+          SELECT hash, rt_def
           FROM package_types_v0
-          WHERE id = @id
+          WHERE hash = @hash
           """
-        |> Sql.parameters [ "id", Sql.uuid id ]
-        |> Sql.executeRowOptionAsync (fun read -> read.bytes "rt_def")
-        |> Task.map (Option.map (BinarySerialization.RT.PackageType.deserialize id))
+        |> Sql.parameters [ "hash", Sql.string hashStr ]
+        |> Sql.executeRowOptionAsync (fun read ->
+          let hash = read.string "hash"
+          let rtDef = read.bytes "rt_def"
+          BinarySerialization.RT.PackageType.deserialize hash rtDef)
     }
 
 
 module Value =
-  let get (id : uuid) : Ply<Option<RT.PackageValue.PackageValue>> =
+  let get (hash : Hash) : Ply<Option<RT.PackageValue.PackageValue>> =
     uply {
+      let (Hash hashStr) = hash
       return!
         Sql.query
           """
-          SELECT rt_dval
+          SELECT hash, rt_dval
           FROM package_values_v0
-          WHERE id = @id
+          WHERE hash = @hash
           """
-        |> Sql.parameters [ "id", Sql.uuid id ]
-        |> Sql.executeRowOptionAsync (fun read -> read.bytes "rt_dval")
-        |> Task.map (Option.map (BinarySerialization.RT.PackageValue.deserialize id))
+        |> Sql.parameters [ "hash", Sql.string hashStr ]
+        |> Sql.executeRowOptionAsync (fun read ->
+          let hash = read.string "hash"
+          let rtDval = read.bytes "rt_dval"
+          BinarySerialization.RT.PackageValue.deserialize hash rtDval)
     }
 
 
 module Fn =
-  let get (id : uuid) : Ply<Option<RT.PackageFn.PackageFn>> =
+  let get (hash : Hash) : Ply<Option<RT.PackageFn.PackageFn>> =
     uply {
+      let (Hash hashStr) = hash
       return!
         Sql.query
           """
-          SELECT rt_instrs
+          SELECT hash, rt_instrs
           FROM package_functions_v0
-          WHERE id = @id
+          WHERE hash = @hash
           """
-        |> Sql.parameters [ "id", Sql.uuid id ]
-        |> Sql.executeRowOptionAsync (fun read -> read.bytes "rt_instrs")
-        |> Task.map (Option.map (BinarySerialization.RT.PackageFn.deserialize id))
+        |> Sql.parameters [ "hash", Sql.string hashStr ]
+        |> Sql.executeRowOptionAsync (fun read ->
+          let hash = read.string "hash"
+          let rtInstrs = read.bytes "rt_instrs"
+          BinarySerialization.RT.PackageFn.deserialize hash rtInstrs)
     }

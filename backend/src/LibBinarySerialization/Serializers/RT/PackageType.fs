@@ -6,6 +6,8 @@ open Prelude
 
 open LibExecution.RuntimeTypes
 
+module PackageIDs = LibExecution.PackageIDs
+
 open LibBinarySerialization.BinaryFormat
 open LibBinarySerialization.Serializers.Common
 open LibBinarySerialization.Serializers.RT.Common
@@ -71,10 +73,10 @@ module TypeDeclaration =
 
 
 let write (w : BinaryWriter) (t : PackageType.PackageType) =
-  Guid.write w t.id
+  LibBinarySerialization.Serializers.Common.Hash.write w t.hash
   TypeDeclaration.write w t.declaration
 
 let read (r : BinaryReader) : PackageType.PackageType =
-  let id = Guid.read r
+  let hash = LibBinarySerialization.Serializers.Common.Hash.read r
   let declaration = TypeDeclaration.read r
-  { id = id; declaration = declaration }
+  { hash = hash; declaration = declaration }

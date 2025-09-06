@@ -25,19 +25,19 @@ module Name =
 
 
 let write (w : BinaryWriter) (v : PackageValue.PackageValue) : unit =
-  Guid.write w v.id
+  LibBinarySerialization.Serializers.Common.Hash.write w v.hash
   Name.write w v.name
   LibBinarySerialization.Serializers.PT.Expr.Expr.write w v.body
   String.write w v.description
   Deprecation.write w FQValueName.write v.deprecated
 
 let read (r : BinaryReader) : PackageValue.PackageValue =
-  let id = Guid.read r
+  let hash = LibBinarySerialization.Serializers.Common.Hash.read r
   let name = Name.read r
   let body = LibBinarySerialization.Serializers.PT.Expr.Expr.read r
   let description = String.read r
   let deprecated = Deprecation.read r FQValueName.read
-  { id = id
+  { hash = hash
     name = name
     body = body
     description = description

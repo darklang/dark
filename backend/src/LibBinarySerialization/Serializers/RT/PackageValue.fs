@@ -6,15 +6,17 @@ open Prelude
 
 open LibExecution.RuntimeTypes
 
+module PackageIDs = LibExecution.PackageIDs
+
 open LibBinarySerialization.BinaryFormat
 open LibBinarySerialization.Serializers.Common
 open LibBinarySerialization.Serializers.RT.Common
 
 let write (w : BinaryWriter) (c : PackageValue.PackageValue) : unit =
-  Guid.write w c.id
+  LibBinarySerialization.Serializers.Common.Hash.write w c.hash
   Dval.write w c.body
 
 let read (r : BinaryReader) : PackageValue.PackageValue =
-  let id = Guid.read r
+  let hash = LibBinarySerialization.Serializers.Common.Hash.read r
   let body = Dval.read r
-  { id = id; body = body }
+  { hash = hash; body = body }

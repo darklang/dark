@@ -72,6 +72,16 @@ module String =
       Encoding.UTF8.GetString bytes
 
 
+module Hash =
+  let write (w : BinaryWriter) (value : Hash) =
+    let (Hash hashStr) = value
+    String.write w hashStr
+
+  let read (r : BinaryReader) : Hash =
+    let hashStr = String.read r
+    Hash hashStr
+
+
 module Bool =
   let write (w : BinaryWriter) (value : bool) = w.Write(value)
   let read (r : BinaryReader) : bool = r.ReadBoolean()

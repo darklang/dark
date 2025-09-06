@@ -199,10 +199,7 @@ export function activate(context: ExtensionContext) {
           preserveFocus: false,
         });
       } catch (error) {
-        console.error(
-          `Failed to open full module:`,
-          error,
-        );
+        console.error(`Failed to open full module:`, error);
         window.showErrorMessage(
           `Failed to open module: ${
             error instanceof Error ? error.message : "Unknown error"
