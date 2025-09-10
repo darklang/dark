@@ -3,7 +3,7 @@ module Darklang.ModelContextProtocol.Resources
 
 
 // <aliases>
-// Json type alias removed to prevent UNIQUE constraint conflicts
+type Json = Stdlib.AltJson.Json
 // </aliases>
 
 
@@ -85,9 +85,9 @@ module ReadResourceParams =
     match json with
     | Object fields ->
       match Stdlib.List.findFirst fields (fun (k, _) -> k == "uri") with
-      | Some (_, String uri) ->
+      | Some ((_, String uri)) ->
           Stdlib.Result.Result.Ok (ReadResourceParams { uri = uri })
-      | Some (_, _) ->
+      | Some ((_, _)) ->
           Stdlib.Result.Result.Error "uri must be a string"
       | None ->
           Stdlib.Result.Result.Error "uri is required"
