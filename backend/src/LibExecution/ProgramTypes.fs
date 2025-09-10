@@ -396,6 +396,78 @@ type Expr =
 
   | EStatement of id * first : Expr * next : Expr
 
+  | EDB
+  | ESecret
+
+
+
+  | EDB of name: string // can't be in a Value/Constant
+
+
+
+  | ESelf // so the fact that this is 'illegal' outside of a fn is a weird argument
+
+  // maybe EParam? steal from unison for inspo
+  | EArg of index: int
+
+
+
+
+
+
+let add (x: int) (y: int) =
+  x + y
+  // EFn(add, [EArg 0, EArg 1])
+
+
+let log2Things (x: int) (y: string) =
+  log x
+  log y
+  // EStatement(EFn(log, [EArg 0]), EFn(log, [EArg 1]))
+
+
+let log2Things (y: string) (x: int): Unit =
+  log x
+  log y
+  // EStatement(EFn(log, [EArg 1]), EFn(log, [EArg 0]))
+
+
+// a7cb
+let incr (y: int) (z: int): int =
+  // as we parse the body of a fn, we assign these
+  // - selfName: Option.Some "incr"
+  // - argMap: [(x: arg 0)]
+
+  // if we reference the 'self' name
+  incr y // use ESelf
+
+  // if we reference one of the names in the argMap thing
+
+
+  let y = 2 // remove 'y' from argMap
+
+
+  let incr = \x -> x + 2 // set selfName = None
+
+
+  incr alksdjf  // this should not result in an ESelf, it should result in EVariable
+  y
+
+
+  // argMap: [] // x is now a var so I guess we remove it from that arg map?
+  // vars: [x]
+  x + 1
+
+
+// a7cb
+let incr (y: int) : int =
+  // EVariable "x" has a diff hash than EVariable "y"
+  // EArg 0 is the same hash as... EArg 0
+  y + 1
+
+
+
+
 and MatchCase = { pat : MatchPattern; whenCondition : Option<Expr>; rhs : Expr }
 
 and StringSegment =

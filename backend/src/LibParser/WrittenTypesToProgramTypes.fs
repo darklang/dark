@@ -530,7 +530,8 @@ module PackageType =
       let! declaration =
         TypeDeclaration.toPT pm onMissing currentModule pt.declaration
       return
-        { id = PackageIDs.Type.idForName pt.name.owner pt.name.modules pt.name.name
+        { //id = PackageIDs.Type.idForName pt.name.owner pt.name.modules pt.name.name
+          hash = Hashing.TypeDeclaration.hash declaration
           name = Name.toPT pt.name
           description = pt.description
           declaration = declaration
