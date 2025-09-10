@@ -1,12 +1,13 @@
 module Darklang.LanguageTools.Parser.FunctionDeclaration
 
+type ArgMapEntry = | Entry of name: String * index: int
 
 /// Parses a package function declaration parameter
 ///
 /// i.e. in `let foo (x: Int): ...`, this parses `(x: Int)`
 let parseFnDeclParam
   (node: ParsedNode)
-  : Stdlib.Result.Result<WrittenTypes.FnDeclaration.Parameter, WrittenTypes.Unparseable> =
+  : Stdlib.Result.Result<WrittenTypes.FnDeclaration.Parameter * ArgMapEntry, WrittenTypes.Unparseable> =
   if node.typ == "unit" then
     (WrittenTypes.FnDeclaration.UnitParameter { range = node.range })
     |> WrittenTypes.FnDeclaration.Parameter.Unit
@@ -44,15 +45,18 @@ let parseFnDeclParam
 /// Parses a package function definition's parameters
 let parseParams
   (node: ParsedNode)
-  : Stdlib.Result.Result<List<WrittenTypes.FnDeclaration.Parameter>, WrittenTypes.Unparseable> =
+  : Stdlib.Result.Result<List<WrittenTypes.FnDeclaration.Parameter>, ArgMap, WrittenTypes.Unparseable> =
   if node.typ == "fn_decl_params" then
     let defs =
-      Stdlib.List.fold
+      Stdlib.List.fold // change to foldi
         node.children
         (Stdlib.Result.Result.Ok [])
-        (fun defs param ->
+        (fun defs param i ->
           match defs, parseFnDeclParam param with
           | Ok defs, Ok fnDeclParam ->
+            // oh it parsed OK
+            // the index is 'i'
+            // add (fnDeclParam.name, i) to the argMapThing
             (Stdlib.List.push defs fnDeclParam) |> Stdlib.Result.Result.Ok
 
           | _ -> createUnparseableError node)
@@ -80,6 +84,8 @@ let parse
     let nameNode =
       findAndParseRequired node "name" (fun node ->
         (Identifiers.parseFn node) |> Stdlib.Result.Result.Ok)
+
+    let selfName = Option.Some nameNode.something
 
     let typeParams =
       match findNodeByFieldName node "type_params" with
@@ -111,13 +117,15 @@ let parse
       | Some typeParams -> typeParams |> Stdlib.Result.collect
       | None -> [] |> Stdlib.Result.Result.Ok
 
-    let paramsNode =
+    let paramsNode, argMap =
       findAndParseRequired node "params" FunctionDeclaration.parseParams
 
     let returnTypeNode =
       findAndParseRequired node "return_type" TypeReference.parse
 
-    let bodyNode = findAndParseRequired node "body" Expr.parse
+    let exprParsingContext = { selfName = selfName; argMap = argMap }
+
+    let bodyNode = findAndParseRequired node "body" Expr.parse exprParsingContext
     let keywordLetNode = findField node "keyword_let"
     let symColonNode = findField node "symbol_colon"
     let symEqualsNode = findField node "symbol_equals"
