@@ -1,0 +1,41 @@
+/// Darklang Internal MCP Server
+/// This server provides internal development tools, resources, and prompts
+/// for Darklang development using the ServerBuilder pattern.
+module Darklang.LanguageTools.DarklangInternalMcpServer
+
+
+// <aliases>
+// </aliases>
+
+
+/// Main entry point for the Darklang Internal MCP Server
+let main () : Int64 =
+  let server =
+    Darklang.ModelContextProtocol.ServerBuilder.create "darklang_internal_server" [] [] []
+  
+  let completeServer =
+    server
+    // Add tools
+    |> Darklang.ModelContextProtocol.ServerBuilder.addTool (Tools.executeDarklang ())
+    |> Darklang.ModelContextProtocol.ServerBuilder.addTool (Tools.searchFunctions ())
+    |> Darklang.ModelContextProtocol.ServerBuilder.addTool (Tools.typecheck ())
+    |> Darklang.ModelContextProtocol.ServerBuilder.addTool (Tools.listPackages ())
+    
+    // Add resources  
+    |> Darklang.ModelContextProtocol.ServerBuilder.addResource (Resources.builtins ())
+    |> Darklang.ModelContextProtocol.ServerBuilder.addResource (Resources.stdlib ())
+    |> Darklang.ModelContextProtocol.ServerBuilder.addResource (Resources.packages ())
+    |> Darklang.ModelContextProtocol.ServerBuilder.addResource (Resources.types ())
+    |> Darklang.ModelContextProtocol.ServerBuilder.addResource (Resources.config ())
+    |> Darklang.ModelContextProtocol.ServerBuilder.addResource (Resources.logs ())
+    |> Darklang.ModelContextProtocol.ServerBuilder.addResource (Resources.examples ())
+    |> Darklang.ModelContextProtocol.ServerBuilder.addResource (Resources.syntax ())
+    
+    // Add prompts
+    |> Darklang.ModelContextProtocol.ServerBuilder.addPrompt (Prompts.codeReview ())
+    |> Darklang.ModelContextProtocol.ServerBuilder.addPrompt (Prompts.documentFunction ())
+    |> Darklang.ModelContextProtocol.ServerBuilder.addPrompt (Prompts.convertTypes ())
+    |> Darklang.ModelContextProtocol.ServerBuilder.addPrompt (Prompts.debugHelper ())
+    |> Darklang.ModelContextProtocol.ServerBuilder.addPrompt (Prompts.patternMatch ())
+    
+  Darklang.ModelContextProtocol.ServerBuilder.Server.run completeServer

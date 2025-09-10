@@ -1,0 +1,66 @@
+/// Tools collection for the Darklang Internal MCP server
+module Darklang.LanguageTools.DarklangInternalMcpServer.Tools
+
+/// Execute Darklang code and return the result
+let executeDarklang () : Darklang.ModelContextProtocol.ServerBuilder.Tool =
+  Darklang.ModelContextProtocol.ServerBuilder.Common.Tool {
+    name = "execute_darklang"
+    description = "Execute Darklang code and return the result"
+    handler =
+      fun code ->
+        match Builtin.cliEvaluateExpression code with
+        | Ok result -> $"Result: {result}"
+        | Error err ->
+            let prettyError = PrettyPrinter.RuntimeTypes.RuntimeError.toString err
+            $"Error: {prettyError}"
+  }
+
+
+/// Search for Darklang functions by name or description
+let searchFunctions () : Darklang.ModelContextProtocol.ServerBuilder.Tool =
+  Darklang.ModelContextProtocol.ServerBuilder.Common.Tool {
+    name = "search_functions"
+    description = "Search for Darklang functions by name or description"
+    handler =
+      fun query ->
+        let results = Darklang.LanguageTools.FunctionSearch.search query
+        let resultCount = (Stdlib.List.length results) |> Stdlib.Int64.toString
+        let formattedResults =
+          results
+          |> Stdlib.List.map (fun fn -> $"- {fn.name}: {fn.description}")
+          |> Stdlib.String.join "\n"
+        $"Found {resultCount} functions:\n{formattedResults}"
+  }
+
+
+/// Type check Darklang code without executing it
+let typecheck () : Darklang.ModelContextProtocol.ServerBuilder.Tool =
+  Darklang.ModelContextProtocol.ServerBuilder.Common.Tool {
+    name = "typecheck"
+    description = "Type check Darklang code without executing it"
+    handler = fun code ->
+      match Darklang.LanguageTools.TypeChecker.checkCode code with
+      | Ok typeInfo -> $"Type check passed: {typeInfo}"
+      | Error errors ->
+          let errorList =
+            errors
+            |> Stdlib.List.map (fun err -> $"- {err}")
+            |> Stdlib.String.join "\n"
+          $"Type errors found:\n{errorList}"
+  }
+
+
+/// List all available Darklang packages
+let listPackages () : Darklang.ModelContextProtocol.ServerBuilder.Tool =
+  Darklang.ModelContextProtocol.ServerBuilder.Common.Tool {
+    name = "list_packages"
+    description = "List all available Darklang packages"
+    handler = fun filter ->
+      let packages = Darklang.LanguageTools.PackageManager.listPackages filter
+      let packageCount = (Stdlib.List.length packages) |> Stdlib.Int64.toString
+      let formattedPackages =
+        packages
+        |> Stdlib.List.map (fun pkg -> $"- {pkg.name} (v{pkg.version}): {pkg.description}")
+        |> Stdlib.String.join "\n"
+      $"Found {packageCount} packages:\n{formattedPackages}"
+  }
