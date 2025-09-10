@@ -1,13 +1,13 @@
-module Darklang.ModelContextProtocol.ServerBuilder.IO
+module Darklang.ModelContextProtocol.ServerBuilder
 
 
 /// Read a message from the client using line-based stdio
 let readMessageFromClientWithPath (logFilePath: String) : String =
   let message = Builtin.stdinReadLine ()
-  Logging.logWithPath logFilePath $"Got message from stdin, length: {(Stdlib.String.length message) |> Stdlib.Int64.toString}"
+  logWithPath logFilePath $"Got message from stdin, length: {(Stdlib.String.length message) |> Stdlib.Int64.toString}"
 
   if message == "" then
-    Logging.logWithPath logFilePath "Message is empty"
+    logWithPath logFilePath "Message is empty"
     ""
   else
     Stdlib.String.trim message
@@ -15,7 +15,7 @@ let readMessageFromClientWithPath (logFilePath: String) : String =
 /// Send a JSON response to the client
 let sendJsonResponseWithPath (logFilePath: String) (response: Darklang.ModelContextProtocol.Json) : Unit =
   let responseStr = Stdlib.AltJson.format response
-  Logging.logAndSendToClientWithPath logFilePath responseStr
+  logAndSendToClientWithPath logFilePath responseStr
 
 /// Send a successful response with result
 let sendSuccessResponseWithPath

@@ -1,4 +1,4 @@
-module Darklang.ModelContextProtocol.ServerBuilder.Common
+module Darklang.ModelContextProtocol.ServerBuilder
 
 // Simple tool record for user-facing API
 type Tool =

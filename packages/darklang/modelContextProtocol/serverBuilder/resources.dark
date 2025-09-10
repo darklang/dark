@@ -1,5 +1,16 @@
 module Darklang.ModelContextProtocol.ServerBuilder.Resources
 
+// Get all resource descriptions from the builder
+let getResourceDescriptions (server: McpServerBuilder) : Dict<ModelContextProtocol.Resources.ListResourcesResponse.ResourceDescription> =
+  server.resources
+  |> Stdlib.Dict.map (fun _key resourceDef ->
+    let desc = resourceDef.description
+    ModelContextProtocol.Resources.ListResourcesResponse.ResourceDescription {
+      uri = desc.uri
+      name = desc.name
+      description = desc.description
+      mimeType = desc.mimeType
+    })
 
 // Handle a resource request by looking up the registered handler
 let handleResourceRequest (server: McpServerBuilder) (uri: String) : ModelContextProtocol.ResourceContent =
@@ -23,7 +34,7 @@ let handleResourceRequest (server: McpServerBuilder) (uri: String) : ModelContex
 
 
 // Add a resource from a simple record
-let addResource (server: McpServerBuilder) (resource: Common.Resource) : McpServerBuilder =
+let addResource (server: McpServerBuilder) (resource: Resource) : McpServerBuilder =
   let resourceDescription = ModelContextProtocol.ResourceDescription {
     uri = resource.uri
     name = resource.name
@@ -40,7 +51,7 @@ let addResource (server: McpServerBuilder) (resource: Common.Resource) : McpServ
       text = content
     }
 
-  let resourceDef = Common.ResourceDefinition {
+  let resourceDef = ResourceDefinition {
     description = resourceDescription
     handler = resourceHandler
   }
@@ -76,7 +87,7 @@ let resource
       text = content
     }
 
-  let resourceDef = Common.ResourceDefinition {
+  let resourceDef = ResourceDefinition {
     description = resourceDescription
     handler = resourceHandler
   }

@@ -4,9 +4,6 @@ module Darklang.ModelContextProtocol.ServerBuilder.State
 type Json = Stdlib.AltJson.Json
 type TraceLevel = Darklang.ModelContextProtocol.TraceLevel
 type LoggingLevel = Darklang.ModelContextProtocol.LoggingLevel
-type ToolDefinition = Common.ToolDefinition
-type ResourceDefinition = Common.ResourceDefinition
-type PromptDefinition = Common.PromptDefinition
 // </aliases>
 
 

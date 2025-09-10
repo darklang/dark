@@ -1,5 +1,9 @@
 module Darklang.ModelContextProtocol.ServerBuilder.Tools
 
+// Get all tool descriptions from the builder
+let getToolDescriptions (server: McpServerBuilder) : Dict<ModelContextProtocol.ToolDescription> =
+  server.tools
+  |> Stdlib.Dict.map (fun _key toolDef -> toolDef.description)
 
 // Handle a tool call by looking up the registered handler
 let handleToolCall (server: McpServerBuilder) (name: String) (args: Json) : Json =
@@ -20,7 +24,7 @@ let handleToolCall (server: McpServerBuilder) (name: String) (args: Json) : Json
 
 
 // Add a tool from a simple Tool record
-let addTool (server: McpServerBuilder) (tool: Common.Tool) : McpServerBuilder =
+let addTool (server: McpServerBuilder) (tool: Tool) : McpServerBuilder =
   let toolDescription = ModelContextProtocol.ToolDescription {
     name = tool.name
     description = Stdlib.Option.Option.Some tool.description
@@ -82,7 +86,7 @@ let addTool (server: McpServerBuilder) (tool: Common.Tool) : McpServerBuilder =
           })
           |> ModelContextProtocol.Tools.CallToolResponse.toJson
 
-  let toolDef = Common.ToolDefinition {
+  let toolDef = ToolDefinition {
     description = toolDescription
     handler = jsonHandler
   }

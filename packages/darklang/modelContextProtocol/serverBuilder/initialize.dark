@@ -1,4 +1,4 @@
-module Darklang.ModelContextProtocol.ServerBuilder.Lifecycle
+module Darklang.ModelContextProtocol.ServerBuilder
 
 
 // Handle initialize request for builder server
@@ -8,7 +8,7 @@ let handleInitializeRequest
   (requestId: JsonRPC.RequestId)
   (params: LifeCycle.InitializeRequest.InitializeParams)
   : State.BuilderServerState =
-  Logging.logWithPath logFilePath $"Handling initialize request for server: {server.name}"
+  logWithPath logFilePath $"Handling initialize request for server: {server.name}"
 
   // Build response using manual JSON construction like the working server
   let serverCapabilities =
@@ -39,9 +39,9 @@ let handleInitializeRequest
       ("serverInfo", serverInfo)
     ]
 
-  ServerBuilder.IO.sendSuccessResponseWithPath logFilePath (Stdlib.Option.Option.Some requestId) result
+  sendSuccessResponseWithPath logFilePath (Stdlib.Option.Option.Some requestId) result
 
-  Logging.logWithPath logFilePath "Initialize response sent successfully"
+  logWithPath logFilePath "Initialize response sent successfully"
 
   State.BuilderServerState {
     initialized = false
@@ -57,7 +57,7 @@ let handleInitializeRequest
 
 // Handle initialized notification
 let handleInitializedNotification (state: State.BuilderServerState) : State.BuilderServerState =
-  Logging.logWithPath state.logFilePath "Handling initialized notification"
+  logWithPath state.logFilePath "Handling initialized notification"
   State.BuilderServerState {
     initialized = true
     shouldShutdown = state.shouldShutdown

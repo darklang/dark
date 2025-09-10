@@ -3,7 +3,7 @@ module Darklang.LanguageTools.DarklangInternalMcpServer.Tools
 
 /// Execute Darklang code and return the result
 let executeDarklang () : Darklang.ModelContextProtocol.ServerBuilder.Tool =
-  Darklang.ModelContextProtocol.ServerBuilder.Common.Tool {
+  Darklang.ModelContextProtocol.ServerBuilder.Tool {
     name = "execute_darklang"
     description = "Execute Darklang code and return the result"
     handler =
@@ -18,7 +18,7 @@ let executeDarklang () : Darklang.ModelContextProtocol.ServerBuilder.Tool =
 
 /// Search for Darklang functions by name or description
 let searchFunctions () : Darklang.ModelContextProtocol.ServerBuilder.Tool =
-  Darklang.ModelContextProtocol.ServerBuilder.Common.Tool {
+  Darklang.ModelContextProtocol.ServerBuilder.Tool {
     name = "search_functions"
     description = "Search for Darklang functions by name or description"
     handler =
@@ -35,7 +35,7 @@ let searchFunctions () : Darklang.ModelContextProtocol.ServerBuilder.Tool =
 
 /// Type check Darklang code without executing it
 let typecheck () : Darklang.ModelContextProtocol.ServerBuilder.Tool =
-  Darklang.ModelContextProtocol.ServerBuilder.Common.Tool {
+  Darklang.ModelContextProtocol.ServerBuilder.Tool {
     name = "typecheck"
     description = "Type check Darklang code without executing it"
     handler = fun code ->
@@ -52,7 +52,7 @@ let typecheck () : Darklang.ModelContextProtocol.ServerBuilder.Tool =
 
 /// List all available Darklang packages
 let listPackages () : Darklang.ModelContextProtocol.ServerBuilder.Tool =
-  Darklang.ModelContextProtocol.ServerBuilder.Common.Tool {
+  Darklang.ModelContextProtocol.ServerBuilder.Tool {
     name = "list_packages"
     description = "List all available Darklang packages"
     handler = fun filter ->

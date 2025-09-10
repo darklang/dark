@@ -1,4 +1,4 @@
-module Darklang.ModelContextProtocol.ServerBuilder.Logging
+module Darklang.ModelContextProtocol.ServerBuilder
 // Logging functions
 let getLogFilePath (serverName: String) : String =
   $"rundir/logs/mcp-server-{serverName}.log"
