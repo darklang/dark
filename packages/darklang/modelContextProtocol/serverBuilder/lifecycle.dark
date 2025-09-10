@@ -1,0 +1,70 @@
+module Darklang.ModelContextProtocol.ServerBuilder.Lifecycle
+
+
+// Handle initialize request for builder server
+let handleInitializeRequest
+  (server: McpServerBuilder)
+  (logFilePath: String)
+  (requestId: JsonRPC.RequestId)
+  (params: LifeCycle.InitializeRequest.InitializeParams)
+  : State.BuilderServerState =
+  Logging.logWithPath logFilePath $"Handling initialize request for server: {server.name}"
+
+  // Build response using manual JSON construction like the working server
+  let serverCapabilities =
+    Json.Object [
+      ("resources", Json.Object [
+        ("subscribe", Json.Bool false);
+        ("listChanged", Json.Bool false)
+      ]);
+      ("tools", Json.Object [
+        ("listChanged", Json.Bool false)
+      ]);
+      ("prompts", Json.Object [
+        ("listChanged", Json.Bool false)
+      ]);
+      ("logging", Json.Object [])
+    ]
+
+  let serverInfo =
+    Json.Object [
+      ("name", Json.String server.name);
+      ("version", Json.String "1.0.0")
+    ]
+
+  let result =
+    Json.Object [
+      ("protocolVersion", Json.String "2025-06-18");
+      ("capabilities", serverCapabilities);
+      ("serverInfo", serverInfo)
+    ]
+
+  ServerBuilder.IO.sendSuccessResponseWithPath logFilePath (Stdlib.Option.Option.Some requestId) result
+
+  Logging.logWithPath logFilePath "Initialize response sent successfully"
+
+  State.BuilderServerState {
+    initialized = false
+    shouldShutdown = false
+    server = server
+    traceLevel = TraceLevel.Off
+    loggingLevel = LoggingLevel.Info
+    logFilePath = logFilePath
+    resourceTemplates = Stdlib.Dict.empty
+    roots = []
+  }
+
+
+// Handle initialized notification
+let handleInitializedNotification (state: State.BuilderServerState) : State.BuilderServerState =
+  Logging.logWithPath state.logFilePath "Handling initialized notification"
+  State.BuilderServerState {
+    initialized = true
+    shouldShutdown = state.shouldShutdown
+    server = state.server
+    traceLevel = state.traceLevel
+    loggingLevel = state.loggingLevel
+    logFilePath = state.logFilePath
+    resourceTemplates = state.resourceTemplates
+    roots = state.roots
+  }

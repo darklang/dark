@@ -1,0 +1,16 @@
+// Common type aliases for ServerBuilder modules
+module Darklang.ModelContextProtocol.ServerBuilder
+
+// <aliases>
+type Json = Stdlib.AltJson.Json
+type Tool = Common.Tool
+type Resource = Common.Resource
+type Prompt = Common.Prompt
+type ToolDefinition = Common.ToolDefinition
+type ResourceDefinition = Common.ResourceDefinition
+type PromptDefinition = Common.PromptDefinition
+type McpServerBuilder = Darklang.ModelContextProtocol.ServerBuilder.State.McpServerBuilder
+type BuilderServerState = Darklang.ModelContextProtocol.ServerBuilder.State.BuilderServerState
+type Logging = Darklang.ModelContextProtocol.ServerBuilder.Logging
+type Common = Darklang.ModelContextProtocol.ServerBuilder.Common
+// </aliases>

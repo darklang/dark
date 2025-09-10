@@ -1,0 +1,189 @@
+module Darklang.ModelContextProtocol.ServerBuilder
+
+// Core functions
+
+// Create a new server builder with initial tools, resources, and prompts
+let create (name: String) (tools: List<Common.ToolDefinition>) (resources: List<Common.ResourceDefinition>) (prompts: List<Common.PromptDefinition>) : McpServerBuilder =
+  let toolsDict =
+    tools
+    |> Stdlib.List.map (fun toolDef -> (toolDef.description.name, toolDef))
+    |> Stdlib.Dict.fromList
+    |> Stdlib.Option.withDefault Stdlib.Dict.empty
+
+  let resourcesDict =
+    resources
+    |> Stdlib.List.map (fun resourceDef -> (resourceDef.description.uri, resourceDef))
+    |> Stdlib.Dict.fromList
+    |> Stdlib.Option.withDefault Stdlib.Dict.empty
+
+  let promptsDict =
+    prompts
+    |> Stdlib.List.map (fun promptDef -> (promptDef.description.name, promptDef))
+    |> Stdlib.Dict.fromList
+    |> Stdlib.Option.withDefault Stdlib.Dict.empty
+
+  McpServerBuilder {
+    name = name
+    tools = toolsDict
+    resources = resourcesDict
+    prompts = promptsDict
+  }
+
+let getToolDescriptions = Core.getToolDescriptions
+let getResourceDescriptions = Core.getResourceDescriptions
+let getPromptDescriptions = Core.getPromptDescriptions
+
+
+// Tool functions
+let handleToolCall = Tools.handleToolCall
+
+// Add a tool from a simple Tool record
+let addTool (server: McpServerBuilder) (tool: Tool) : McpServerBuilder =
+  let toolDescription = ModelContextProtocol.ToolDescription {
+    name = tool.name
+    description = Stdlib.Option.Option.Some tool.description
+    inputSchema = Json.Object [
+      ("type", Json.String "object");
+      ("properties", Json.Object [
+        ("input", Json.Object [
+          ("type", Json.String "string");
+          ("description", Json.String "Input parameter")
+        ])
+      ]);
+      ("required", Json.Array [ Json.String "input" ])
+    ]
+    outputSchema = Stdlib.Option.Option.None
+    annotations = Stdlib.Option.Option.None
+  }
+
+  // Create a JSON handler that extracts the input string and calls the user handler
+  let jsonHandler =
+    fun args ->
+      match args with
+      | Object fields ->
+          let foundField = Stdlib.List.findFirst fields (fun field ->
+            let key = Stdlib.Tuple2.first field
+            key == "input"
+          )
+          match foundField with
+          | Some field ->
+              let foundKey = Stdlib.Tuple2.first field
+              let value = Stdlib.Tuple2.second field
+              // Try to extract string value directly from JSON
+              let inputString =
+                match value with
+                | String s -> s
+                | _ -> Stdlib.AltJson.format value  // Use JSON representation if not a string
+              let handler = tool.handler
+              let result = handler inputString
+              (ModelContextProtocol.Tools.CallToolResponse.CallToolResult {
+                content = [
+                  ModelContextProtocol.Tools.CallToolResponse.ContentItem.TextContent result
+                ]
+                isError = false
+              })
+              |> ModelContextProtocol.Tools.CallToolResponse.toJson
+          | None ->
+              (ModelContextProtocol.Tools.CallToolResponse.CallToolResult {
+                content = [
+                  ModelContextProtocol.Tools.CallToolResponse.ContentItem.TextContent "Error: Missing 'input' parameter"
+                ]
+                isError = true
+              })
+              |> ModelContextProtocol.Tools.CallToolResponse.toJson
+      | _ ->
+          (ModelContextProtocol.Tools.CallToolResponse.CallToolResult {
+            content = [
+              ModelContextProtocol.Tools.CallToolResponse.ContentItem.TextContent "Error: Arguments must be an object"
+            ]
+            isError = true
+          })
+          |> ModelContextProtocol.Tools.CallToolResponse.toJson
+
+  let toolDef = ToolDefinition {
+    description = toolDescription
+    handler = jsonHandler
+  }
+
+  McpServerBuilder {
+    name = server.name
+    tools = Stdlib.Dict.set server.tools tool.name toolDef
+    resources = server.resources
+    prompts = server.prompts
+  }
+
+
+// Resource functions
+let handleResourceRequest = Resources.handleResourceRequest
+
+// Add a resource from a simple Resource record
+let addResource (server: McpServerBuilder) (resource: Resource) : McpServerBuilder =
+  let resourceDescription = ModelContextProtocol.ResourceDescription {
+    uri = resource.uri
+    name = resource.name
+    description = Stdlib.Option.Option.Some resource.description
+    mimeType = Stdlib.Option.Option.Some "text/plain"
+  }
+
+  let resourceHandler = fun uri ->
+    let handler = resource.handler
+    let content = handler uri
+    ModelContextProtocol.ResourceContent {
+      uri = uri
+      mimeType = "text/plain"
+      text = content
+    }
+
+  let resourceDef = ResourceDefinition {
+    description = resourceDescription
+    handler = resourceHandler
+  }
+
+  McpServerBuilder {
+    name = server.name
+    tools = server.tools
+    resources = Stdlib.Dict.set server.resources resource.uri resourceDef
+    prompts = server.prompts
+  }
+
+let resourceWithTemplate = Resources.resource
+let handleResourceRequestWithTemplates = Resources.handleResourceRequestWithTemplates
+let uriMatchesTemplate = Resources.uriMatchesTemplate
+
+
+// Prompt functions
+let handlePromptRequest = Prompts.handlePromptRequest
+
+// Add a prompt from a simple record
+let addPrompt (server: McpServerBuilder) (prompt: Prompt) : McpServerBuilder =
+  let promptDescription = ModelContextProtocol.PromptDescription {
+    name = prompt.name
+    description = Stdlib.Option.Option.Some prompt.description
+    arguments = Stdlib.Option.Option.None
+  }
+
+  let promptHandler = fun args ->
+    let handler = prompt.handler
+    let content = handler args
+    [
+      ModelContextProtocol.PromptMessage {
+        role = ModelContextProtocol.MessageRole.System
+        content = ModelContextProtocol.PromptContent.Text content
+      }
+    ]
+
+  let promptDef = PromptDefinition {
+    description = promptDescription
+    handler = promptHandler
+  }
+
+  McpServerBuilder {
+    name = server.name
+    tools = server.tools
+    resources = server.resources
+    prompts = Stdlib.Dict.set server.prompts prompt.name promptDef
+  }
+
+
+// Server functions
+let run = Server.run

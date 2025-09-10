@@ -1,0 +1,95 @@
+module Darklang.ModelContextProtocol.ServerBuilder.Tools
+
+
+// Handle a tool call by looking up the registered handler
+let handleToolCall (server: McpServerBuilder) (name: String) (args: Json) : Json =
+  match Stdlib.Dict.get server.tools name with
+  | Some toolDef ->
+    let handler = toolDef.handler
+    let result = handler args
+    result
+  | None ->
+      // Return error response for unknown tool
+      (ModelContextProtocol.Tools.CallToolResponse.CallToolResult {
+        content = [
+          ModelContextProtocol.Tools.CallToolResponse.ContentItem.TextContent $"Unknown tool: {name}"
+        ]
+        isError = true
+      })
+      |> ModelContextProtocol.Tools.CallToolResponse.toJson
+
+
+// Add a tool from a simple Tool record
+let addTool (server: McpServerBuilder) (tool: Common.Tool) : McpServerBuilder =
+  let toolDescription = ModelContextProtocol.ToolDescription {
+    name = tool.name
+    description = Stdlib.Option.Option.Some tool.description
+    inputSchema = Json.Object [
+      ("type", Json.String "object");
+      ("properties", Json.Object [
+        ("input", Json.Object [
+          ("type", Json.String "string");
+          ("description", Json.String "Input parameter")
+        ])
+      ]);
+      ("required", Json.Array [ Json.String "input" ])
+    ]
+    outputSchema = Stdlib.Option.Option.None
+    annotations = Stdlib.Option.Option.None
+  }
+
+  // Create a JSON handler that extracts the input string and calls the user handler
+  let jsonHandler =
+    fun args ->
+      match args with
+      | Object fields ->
+          let foundField = Stdlib.List.findFirst fields (fun field ->
+            let key = Stdlib.Tuple2.first field
+            key == "input"
+          )
+          match foundField with
+          | Some field ->
+              let foundKey = Stdlib.Tuple2.first field
+              let value = Stdlib.Tuple2.second field
+              // Try to extract string value directly from JSON
+              let inputString =
+                match value with
+                | String s -> s
+                | _ -> Stdlib.AltJson.format value  // Use JSON representation if not a string
+              let handler = tool.handler
+              let result = handler inputString
+              (ModelContextProtocol.Tools.CallToolResponse.CallToolResult {
+                content = [
+                  ModelContextProtocol.Tools.CallToolResponse.ContentItem.TextContent result
+                ]
+                isError = false
+              })
+              |> ModelContextProtocol.Tools.CallToolResponse.toJson
+          | None ->
+              (ModelContextProtocol.Tools.CallToolResponse.CallToolResult {
+                content = [
+                  ModelContextProtocol.Tools.CallToolResponse.ContentItem.TextContent "Error: Missing 'input' parameter"
+                ]
+                isError = true
+              })
+              |> ModelContextProtocol.Tools.CallToolResponse.toJson
+      | _ ->
+          (ModelContextProtocol.Tools.CallToolResponse.CallToolResult {
+            content = [
+              ModelContextProtocol.Tools.CallToolResponse.ContentItem.TextContent "Error: Arguments must be an object"
+            ]
+            isError = true
+          })
+          |> ModelContextProtocol.Tools.CallToolResponse.toJson
+
+  let toolDef = Common.ToolDefinition {
+    description = toolDescription
+    handler = jsonHandler
+  }
+
+  McpServerBuilder {
+    name = server.name
+    tools = Stdlib.Dict.set server.tools tool.name toolDef
+    resources = server.resources
+    prompts = server.prompts
+  }

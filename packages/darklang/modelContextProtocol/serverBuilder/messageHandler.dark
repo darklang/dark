@@ -1,0 +1,153 @@
+module Darklang.ModelContextProtocol.ServerBuilder.MessageHandler
+
+
+// Handle incoming messages for builder server
+let handleIncomingMessage
+  (state: State.BuilderServerState)
+  (request: JsonRPC.Request.Request)
+  : State.BuilderServerState =
+  Logging.logWithPath state.logFilePath $"Handling message: {request.method}"
+
+  Logging.logWithPath state.logFilePath $"About to parse incoming message: {request.method}"
+  let parsedMessage = ModelContextProtocol.parseIncomingMessage request
+  Logging.logWithPath state.logFilePath $"Parsed message successfully"
+  match parsedMessage with
+  | InitializeRequest(requestId, params) ->
+      Lifecycle.handleInitializeRequest state.server state.logFilePath requestId params
+
+  | Initialized ->
+      Logging.logWithPath state.logFilePath "Initialization completed successfully"
+      Lifecycle.handleInitializedNotification state
+
+  | Shutdown requestId ->
+      Logging.logWithPath state.logFilePath "Handling shutdown request"
+      IO.sendSuccessResponseWithPath state.logFilePath (Stdlib.Option.Option.Some requestId) Null
+      State.BuilderServerState {
+        initialized = state.initialized
+        shouldShutdown = true
+        server = state.server
+        traceLevel = state.traceLevel
+        loggingLevel = state.loggingLevel
+        logFilePath = state.logFilePath
+        resourceTemplates = state.resourceTemplates
+        roots = state.roots
+      }
+
+  // Tools
+  | ListToolsRequest requestId ->
+      Logging.logWithPath state.logFilePath "Handling list tools request"
+      let toolsList =
+        (Core.getToolDescriptions state.server)
+        |> Stdlib.Dict.values
+
+      let toolsResponse =
+        Darklang.ModelContextProtocol.Tools.ListToolsResponse.ListToolsResponse {
+          tools = toolsList
+          nextCursor = Stdlib.Option.Option.None
+        }
+
+      IO.sendSuccessResponseWithPath
+        state.logFilePath
+        (Stdlib.Option.Option.Some requestId)
+        (Darklang.ModelContextProtocol.Tools.ListToolsResponse.toJson toolsResponse)
+      state
+
+  | CallToolRequest(requestId, params) ->
+      let result = Tools.handleToolCall state.server params.name params.arguments
+      IO.sendSuccessResponseWithPath state.logFilePath (Stdlib.Option.Option.Some requestId) result
+      Logging.logWithPath state.logFilePath $"Sent success response"
+      state
+
+  // Resources
+  | ListResourcesRequest requestId ->
+      Logging.logWithPath state.logFilePath "Handling list resources request"
+      let resourcesList =
+        (Core.getResourceDescriptions state.server)
+        |> Stdlib.Dict.values
+
+      let resourcesResponse = ModelContextProtocol.Resources.ListResourcesResponse.ListResourcesResponse {
+        resources = resourcesList
+        nextCursor = Stdlib.Option.Option.None
+      }
+
+      IO.sendSuccessResponseWithPath
+        state.logFilePath
+        (Stdlib.Option.Option.Some requestId)
+        (ModelContextProtocol.Resources.ListResourcesResponse.toJson resourcesResponse)
+      state
+
+  | ReadResourceRequest(requestId, params) ->
+      Logging.logWithPath state.logFilePath $"Handling read resource request: {params.uri}"
+      let content = Resources.handleResourceRequestWithTemplates state.server params.uri
+      Logging.logWithPath state.logFilePath $"Got content from resource handler: {content.uri}"
+      Logging.logWithPath state.logFilePath "About to create response object"
+      let responseContent = Darklang.ModelContextProtocol.Resources.ReadResourceResponse.ResourceContent {
+        uri = content.uri
+        mimeType = content.mimeType
+        text = content.text
+      }
+      let response =
+        Darklang.ModelContextProtocol.Resources.ReadResourceResponse.ReadResourceResponse {
+          contents = [ responseContent ]
+        }
+      Logging.logWithPath state.logFilePath "Created response object"
+      IO.sendSuccessResponseWithPath
+        state.logFilePath
+        (Stdlib.Option.Option.Some requestId)
+        (Darklang.ModelContextProtocol.Resources.ReadResourceResponse.toJson response)
+      state
+
+  // Prompts
+  | ListPromptsRequest requestId ->
+      Logging.logWithPath state.logFilePath "Handling list prompts request"
+      let promptsList =
+        (Core.getPromptDescriptions state.server)
+        |> Stdlib.Dict.values
+        |> Stdlib.List.map (fun promptDesc ->
+          Darklang.ModelContextProtocol.Prompts.ListPromptsResponse.PromptDescription {
+            name = promptDesc.name
+            description = promptDesc.description
+            arguments = Stdlib.Option.Option.None
+          })
+
+      let promptsResponse = Darklang.ModelContextProtocol.Prompts.ListPromptsResponse.ListPromptsResult {
+        prompts = promptsList
+        nextCursor = Stdlib.Option.Option.None
+      }
+
+      IO.sendSuccessResponseWithPath
+        state.logFilePath
+        (Stdlib.Option.Option.Some requestId)
+        (Darklang.ModelContextProtocol.Prompts.ListPromptsResponse.toJson promptsResponse)
+      state
+
+  | GetPromptRequest(requestId, name, arguments) ->
+      Logging.logWithPath state.logFilePath $"Handling get prompt request: {name}"
+      let messages = Prompts.handlePromptRequest state.server name arguments
+      let response = ModelContextProtocol.Prompts.GetPromptResponse.GetPromptResult {
+        description = $"Generated prompt: {name}"
+        messages = messages
+      }
+      IO.sendSuccessResponseWithPath
+        state.logFilePath
+        (Stdlib.Option.Option.Some requestId)
+        (ModelContextProtocol.Prompts.GetPromptResponse.toJson response)
+      state
+
+  | Other jsonRpcRequest ->
+      Logging.logWithPath state.logFilePath $"Got Other message type: {jsonRpcRequest.method}"
+      IO.sendErrorResponseWithPath
+        state.logFilePath
+        (Stdlib.Option.Option.Some jsonRpcRequest.id)
+        ModelContextProtocol.ErrorCodes.methodNotFound
+        $"Method not found: {jsonRpcRequest.method}"
+      state
+
+  | _ ->
+      Logging.logWithPath state.logFilePath $"Unhandled message type: {request.method}"
+      IO.sendErrorResponseWithPath
+        state.logFilePath
+        (Stdlib.Option.Option.Some request.id)
+        ModelContextProtocol.ErrorCodes.methodNotFound
+        $"Method not found: {request.method}"
+      state

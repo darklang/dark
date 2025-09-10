@@ -1,0 +1,17 @@
+module Darklang.ModelContextProtocol.ServerBuilder.Logging
+// Logging functions
+let getLogFilePath (serverName: String) : String =
+  $"rundir/logs/mcp-server-{serverName}.log"
+
+let logWithPath (logFilePath: String) (message: String) : Unit =
+  let timestamp = (Stdlib.DateTime.now_v0 ()) |> Stdlib.DateTime.toString
+  let logMessage = $"[{timestamp}] {message}\n"
+  Builtin.fileAppendText logFilePath logMessage
+  ()
+
+let logIncomingRequestWithPath (logFilePath: String) (message: String) : Unit =
+  logWithPath logFilePath $"Incoming request: {message}"
+
+let logAndSendToClientWithPath (logFilePath: String) (message: String) : Unit =
+  logWithPath logFilePath $"Sending to client: {message}"
+  Builtin.printLine message

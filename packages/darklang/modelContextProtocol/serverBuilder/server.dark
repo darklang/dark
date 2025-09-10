@@ -1,0 +1,255 @@
+/// Main entry point for the Darklang MCP Server
+/// This server implements the Model Context Protocol to allow AI models
+/// to interact with Darklang code, packages, and development tools.
+module Darklang.ModelContextProtocol.ServerBuilder.Server
+
+// <aliases>
+// Json type alias removed to prevent UNIQUE constraint conflicts - use shared aliases.dark
+// </aliases>
+
+/// Main server loop to handle ongoing messages
+let runServerCliLoop (state: State.BuilderServerState) : Int64 =
+  Logging.logWithPath state.logFilePath "---"
+
+  let incomingMessageRaw = IO.readMessageFromClientWithPath state.logFilePath
+  Logging.logIncomingRequestWithPath state.logFilePath incomingMessageRaw
+
+  // Handle empty messages (client disconnected)
+  if incomingMessageRaw == "" then
+    Logging.logWithPath state.logFilePath "Received empty message, client disconnected"
+    0L
+  else
+    let updatedState =
+      // parse a json-rpc message from stdin, and call `handleIncomingMessage` on it when relevant
+      match JsonRPC.IncomingMessage.parse incomingMessageRaw with
+      // The json-rpc spec says to just ignore any incoming messages of `[]`
+      | EmptyBatch ->
+          Logging.logWithPath state.logFilePath "Received empty batch, continuing"
+          state
+
+      // # Things we want/expect
+      | SingleRequest(Ok jsonRpcRequest) ->
+          Logging.logWithPath state.logFilePath $"Parsed incoming message as single JSON-RPC request"
+          MessageHandler.handleIncomingMessage state jsonRpcRequest
+
+      | BatchOfRequests items ->
+          // Handle batch requests by processing each one in sequence
+          let len = (Stdlib.List.length items) |> Stdlib.Int64.toString
+          Logging.logWithPath state.logFilePath $"Got batch request with {len} items"
+
+          let processedState =
+            items
+            |> Stdlib.List.fold state (fun acc item ->
+              match item with
+              | Ok request ->
+                  MessageHandler.handleIncomingMessage acc request
+              | Error err ->
+                  Logging.logWithPath state.logFilePath $"Error in batch request item: {err}"
+                  acc
+            )
+
+          processedState
+
+      // # Errors
+
+      // was an object {} but not a valid json-rpc 2.0 _request_
+      // (note: could have been a valid _response_ though - we don't yet have good support for that)
+      | SingleRequest(Error singleRequestParseError) ->
+          match singleRequestParseError with
+          | NotObject json ->
+              let error = Stdlib.AltJson.format json
+
+              Logging.logWithPath state.logFilePath
+                $"Error parsing incoming message as json-rpc:\n{incomingMessageRaw}\nError: it must be an object, but was: {error}"
+
+              IO.sendErrorResponseWithPath
+                state.logFilePath
+                Stdlib.Option.Option.None
+                ModelContextProtocol.ErrorCodes.parseError
+                "Parse error: Request must be an object"
+
+              state
+
+          | MissingJsonRpcField ->
+              Logging.logWithPath state.logFilePath
+                $"Error parsing incoming message as json-rpc:\n{incomingMessageRaw}\nError: it must have a 'jsonrpc' field"
+
+              IO.sendErrorResponseWithPath
+                state.logFilePath
+                Stdlib.Option.Option.None
+                ModelContextProtocol.ErrorCodes.parseError
+                "Parse error: Missing 'jsonrpc' field"
+
+              state
+
+          | InvalidIdField json ->
+              let error = Stdlib.AltJson.format json
+
+              Logging.logWithPath state.logFilePath
+                $"Error parsing incoming message as json-rpc:\n{incomingMessageRaw}\nError: 'id' field must be Null, a Number or a String, but was: {error}"
+
+              IO.sendErrorResponseWithPath
+                state.logFilePath
+                Stdlib.Option.Option.None
+                ModelContextProtocol.ErrorCodes.parseError
+                "Parse error: Invalid 'id' field"
+
+              state
+
+          | MissingMethodField id ->
+              Logging.logWithPath state.logFilePath
+                $"Error parsing incoming message as json-rpc:\n{incomingMessageRaw}\nError: 'method' field must be provided"
+
+              IO.sendErrorResponseWithPath
+                state.logFilePath
+                id
+                ModelContextProtocol.ErrorCodes.invalidRequest
+                "Invalid request: Missing 'method' field"
+
+              state
+
+          | InvalidMethodField(id, actual) ->
+              let error = Stdlib.AltJson.format actual
+
+              Logging.logWithPath state.logFilePath
+                $"Error parsing incoming message as json-rpc:\n{incomingMessageRaw}\nError: 'method' field must be a string, but was: {error}"
+
+              IO.sendErrorResponseWithPath
+                state.logFilePath
+                id
+                ModelContextProtocol.ErrorCodes.invalidRequest
+                "Invalid request: 'method' must be a string"
+
+              state
+
+          | InvalidParamsField(id, actual) ->
+              let error = Stdlib.AltJson.format actual
+
+              Logging.logWithPath state.logFilePath
+                $"Error parsing incoming message as json-rpc:\n{incomingMessageRaw}\nError: 'params' field must be an Array or an Object, but was: {error}"
+
+              IO.sendErrorResponseWithPath
+                state.logFilePath
+                id
+                ModelContextProtocol.ErrorCodes.invalidRequest
+                "Invalid request: 'params' must be an array or object"
+
+              state
+
+          | _ ->
+              Logging.logWithPath state.logFilePath
+                $"Error parsing incoming message as json-rpc:\n{incomingMessageRaw}"
+
+              IO.sendErrorResponseWithPath
+                state.logFilePath
+                Stdlib.Option.Option.None
+                ModelContextProtocol.ErrorCodes.parseError
+                "Parse error"
+
+              state
+
+      | NotJson err ->
+          Logging.logWithPath state.logFilePath
+            $"Error parsing incoming message as json:\n{incomingMessageRaw}\nError: {err}"
+
+          IO.sendErrorResponseWithPath
+            state.logFilePath
+            Stdlib.Option.Option.None
+            ModelContextProtocol.ErrorCodes.parseError
+            "Parse error: Invalid JSON"
+
+          state
+
+      | NotObjectOrArray ->
+          Logging.logWithPath state.logFilePath $"Error parsing incoming message as json-rpc:\n{incomingMessageRaw}"
+
+          IO.sendErrorResponseWithPath
+            state.logFilePath
+            Stdlib.Option.Option.None
+            ModelContextProtocol.ErrorCodes.invalidRequest
+            "Invalid Request: Must be an object or array"
+
+          state
+
+    // shut down if instructed, or listen for the next message
+    if updatedState.shouldShutdown then
+      Logging.logWithPath updatedState.logFilePath "Server shutting down"
+      0L
+    else
+      runServerCliLoop updatedState
+
+
+/// This is the main entrypoint for the Darklang MCP server.
+///
+/// It reads incoming messages from stdin, and writes responses to stdout,
+/// following the MCP spec. It also logs all incoming and outgoing messages
+/// to `rundir/logs/mcp-server.log`, for local debugging.
+///
+/// The server provides access to:
+/// - Darklang code execution and type checking
+/// - Package management and discovery
+/// - Function search and documentation
+/// - Code review and refactoring assistance
+/// - Testing utilities
+let run (server: McpServerBuilder) : Int64 =
+  // Get server-specific log file path
+  let logFilePath = Logging.getLogFilePath server.name
+
+  // clear log file and write a timestamp of the start-up
+  let _deleted = Builtin.fileDelete logFilePath
+
+  (Stdlib.DateTime.now_v0 ())
+  |> Stdlib.DateTime.toString
+  |> fun nowStr -> Logging.logWithPath logFilePath $"Running {server.name} MCP Server {nowStr}"
+
+  let toolCount = (Stdlib.Dict.size server.tools) |> Stdlib.Int64.toString
+  let resourceCount = (Stdlib.Dict.size server.resources) |> Stdlib.Int64.toString
+  let promptCount = (Stdlib.Dict.size server.prompts) |> Stdlib.Int64.toString
+
+  Logging.logWithPath logFilePath $"Server '{server.name}' features:"
+  Logging.logWithPath logFilePath $"  - Tools: {toolCount} registered"
+  Logging.logWithPath logFilePath $"  - Resources: {resourceCount} registered"
+  Logging.logWithPath logFilePath $"  - Prompts: {promptCount} registered"
+  Logging.logWithPath logFilePath "  - Protocol version: 2025-06-18"
+
+  // The first thing we get is the `initialize` request,
+  // where the client tells us what capabilities it has,
+  // and we tell the client what capabilities we have,
+  // so the client knows which requests it can make.
+  let initializeReq = IO.readMessageFromClientWithPath logFilePath
+  Logging.logIncomingRequestWithPath logFilePath initializeReq
+
+  // Parse and handle the initialize request
+  let initialState =
+    match JsonRPC.IncomingMessage.parse initializeReq with
+    | SingleRequest(Ok jsonRpcRequest) ->
+        match ModelContextProtocol.parseIncomingMessage jsonRpcRequest with
+        | InitializeRequest(requestId, params) ->
+            Lifecycle.handleInitializeRequest server logFilePath requestId params
+        | _ ->
+            Logging.logWithPath logFilePath "First message must be initialize request"
+            State.BuilderServerState {
+              initialized = false
+              shouldShutdown = false
+              server = server
+              traceLevel = TraceLevel.Off
+              loggingLevel = LoggingLevel.Info
+              logFilePath = logFilePath
+              resourceTemplates = Stdlib.Dict.empty
+              roots = []
+            }
+    | _ ->
+        Logging.logWithPath logFilePath "Failed to parse initialize request"
+        State.BuilderServerState {
+          initialized = false
+          shouldShutdown = false
+          server = server
+          traceLevel = TraceLevel.Off
+          loggingLevel = LoggingLevel.Info
+          logFilePath = logFilePath
+          resourceTemplates = Stdlib.Dict.empty
+          roots = []
+        }
+
+  // now that initialization is complete, we can start responding to normal requests
+  runServerCliLoop initialState
