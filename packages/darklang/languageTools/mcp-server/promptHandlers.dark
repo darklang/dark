@@ -15,28 +15,47 @@ let handleListPromptsRequest
   log "Handling prompts/list request"
 
   let promptsList = state.prompts |> Stdlib.Dict.values
-  let result = Json.Object [
-    ("prompts", Json.Array (promptsList |> Stdlib.List.map (fun prompt ->
-      Json.Object [
-        ("name", Json.String prompt.name);
-        ("description", Stdlib.Option.mapWithDefault prompt.description Json.Null (fun s -> Json.String s));
-        ("arguments", 
-          match prompt.arguments with
-          | Some args ->
-              Json.Array (args |> Stdlib.List.map (fun arg ->
-                Json.Object [
-                  ("name", Json.String arg.name);
-                  ("description", Stdlib.Option.mapWithDefault arg.description Json.Null (fun s -> Json.String s));
-                  ("required", Stdlib.Option.mapWithDefault arg.required Json.Null (fun b -> Json.Bool b))
-                ]))
-          | None -> Json.Array []
-        )
-      ]
-    )));
-    ("nextCursor", Json.String "")
-  ]
 
-  sendSuccessResponse (Stdlib.Option.Option.Some requestId) result
+  log "A"
+
+  // Convert internal prompt format to MCP PromptDescription
+  let mcpPrompts = promptsList |> Stdlib.List.map (fun prompt ->
+    let mcpArguments =
+      match prompt.arguments with
+      | Some args ->
+        let convertedArgs = args |> Stdlib.List.map (fun arg ->
+          ModelContextProtocol.Prompts.PromptArgument.PromptArgument {
+            name = arg.name;
+            description = arg.description;
+            required = arg.required
+          }
+        )
+        Stdlib.Option.Option.Some convertedArgs
+      | None -> Stdlib.Option.Option.None
+
+    ModelContextProtocol.Prompts.PromptDescription.PromptDescription {
+      name = prompt.name;
+      description = prompt.description;
+      arguments = mcpArguments
+    }
+  )
+  log "B"
+
+  let listResult =
+    ModelContextProtocol.Prompts.ListPromptsResponse.ListPromptsResult {
+      prompts = mcpPrompts;
+      nextCursor = Stdlib.Option.Option.None
+    }
+
+  log "C"
+  Builtin.debug "c" listResult
+
+
+  let resultJson = ModelContextProtocol.Prompts.ListPromptsResponse.toJson listResult
+
+  log "D"
+
+  sendSuccessResponse (Stdlib.Option.Option.Some requestId) resultJson
   state
 
 /// Handle a prompts/get request

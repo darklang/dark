@@ -115,8 +115,7 @@ type GetPromptResult =
 
 /// Prompt capabilities
 type PromptCapabilities =
-  { supportsPromptListing: Bool
-    listChanged: Stdlib.Option.Option<Bool> }
+  { listChanged: Stdlib.Option.Option<Bool> }
 
 /// Server information
 type ServerInfo =
@@ -128,25 +127,18 @@ type ServerCapabilities =
   { resources: Stdlib.Option.Option<ResourceCapabilities>
     tools: Stdlib.Option.Option<ToolCapabilities>
     prompts: Stdlib.Option.Option<PromptCapabilities>
-    logging: Stdlib.Option.Option<LoggingCapabilities>
-    completion: Stdlib.Option.Option<CompletionCapabilities> }
+    logging: Stdlib.Option.Option<Json>
+    completions: Stdlib.Option.Option<Json>
+    experimental: Stdlib.Option.Option<Dict<Json>> }
 
 /// Resource capabilities
 type ResourceCapabilities =
-  { supportsResourceListing: Bool
-    supportsResourceTemplates: Bool }
+  { listChanged: Stdlib.Option.Option<Bool>
+    subscribe: Stdlib.Option.Option<Bool> }
 
 /// Tool capabilities
 type ToolCapabilities =
   { listChanged: Stdlib.Option.Option<Bool> }
-
-/// Logging capabilities
-type LoggingCapabilities = 
-  { level: Stdlib.Option.Option<LoggingLevel> }
-
-/// Completion capabilities  
-type CompletionCapabilities =
-  { supportsCompletion: Bool }
 
 /// Error codes for the Model Context Protocol
 module ErrorCodes =

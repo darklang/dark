@@ -54,16 +54,8 @@ let handleToolCall (args: Json) : Json =
         | _ -> ""
     | _ -> ""
 
-  // In a real implementation, this would search actual functions
-  let results = [
-    "Stdlib.List.map - Transform each element of a list";
-    "Stdlib.String.split - Split a string by delimiter";
-    "Stdlib.Dict.get - Get a value from a dictionary";
-    "Builtin.printLine - Print a line to stdout"
-  ]
-
-  let resultsText = 
-    $"Search results for '{query}':\n{Stdlib.String.join results "\n"}"
+  // Simple hardcoded results for now
+  let resultsText = $"Found 4 functions matching '{query}'"
 
   (ModelContextProtocol.Tools.CallToolResponse.CallToolResult {
     content = [
