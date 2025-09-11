@@ -11,17 +11,17 @@ module PT2RT = LibExecution.ProgramTypesToRuntimeTypes
 let inMemPackageManagerFromPackages (p : PT.Packages) : PT.PackageManager =
   { findType =
       fun name ->
-        p.types |> List.find (fun t -> t.name = name) |> Option.map _.id |> Ply
+        p.types |> List.find (fun t -> t.name = name) |> Option.map _.hash |> Ply
     findFn =
       fun name ->
-        p.fns |> List.find (fun f -> f.name = name) |> Option.map _.id |> Ply
+        p.fns |> List.find (fun f -> f.name = name) |> Option.map _.hash |> Ply
     findValue =
       fun name ->
-        p.values |> List.find (fun c -> c.name = name) |> Option.map _.id |> Ply
+        p.values |> List.find (fun c -> c.name = name) |> Option.map _.hash |> Ply
 
-    getType = fun id -> p.types |> List.find (fun t -> t.id = id) |> Ply
-    getFn = fun id -> p.fns |> List.find (fun f -> f.id = id) |> Ply
-    getValue = fun id -> p.values |> List.find (fun c -> c.id = id) |> Ply
+    getType = fun hash -> p.types |> List.find (fun t -> t.hash = hash) |> Ply
+    getFn = fun hash -> p.fns |> List.find (fun f -> f.hash = hash) |> Ply
+    getValue = fun hash -> p.values |> List.find (fun v -> v.hash = hash) |> Ply
 
     search =
       fun _ ->

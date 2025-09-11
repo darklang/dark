@@ -6,6 +6,8 @@ open Prelude
 
 open LibExecution.RuntimeTypes
 
+module PackageIDs = LibExecution.PackageIDs
+
 open LibBinarySerialization.BinaryFormat
 open LibBinarySerialization.Serializers.Common
 open LibBinarySerialization.Serializers.RT.Common
@@ -23,19 +25,19 @@ module Parameter =
 
 
 let write (w : BinaryWriter) (fn : PackageFn.PackageFn) =
-  Guid.write w fn.id
+  LibBinarySerialization.Serializers.Common.Hash.write w fn.hash
   List.write w String.write fn.typeParams
   NEList.write Parameter.write w fn.parameters
   TypeReference.write w fn.returnType
   Instructions.write w fn.body
 
 let read (r : BinaryReader) : PackageFn.PackageFn =
-  let id = Guid.read r
+  let hash = LibBinarySerialization.Serializers.Common.Hash.read r
   let typeParams = List.read r String.read
   let parameters = NEList.read Parameter.read r
   let returnType = TypeReference.read r
   let body = Instructions.read r
-  { id = id
+  { hash = hash
     typeParams = typeParams
     parameters = parameters
     returnType = returnType

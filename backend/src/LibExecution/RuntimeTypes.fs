@@ -26,14 +26,14 @@ let assertBuiltin
 ///
 /// Used to reference a type defined in a Package
 module FQTypeName =
-  /// The id of a type in the package manager
-  type Package = uuid
+  /// The hash of a type in the package manager
+  type Package = Hash
 
   type FQTypeName = Package of Package
 
-  let package (id : uuid) : Package = id
+  let package (hash : Hash) : Package = hash
 
-  let fqPackage (id : uuid) : FQTypeName = Package id
+  let fqPackage (hash : Hash) : FQTypeName = Package hash
 
 
 /// A Fully-Qualified Value Name
@@ -43,8 +43,8 @@ module FQValueName =
   /// A value built into the runtime
   type Builtin = { name : string; version : int }
 
-  /// The id of a value in the package manager
-  type Package = uuid
+  /// The hash of a value in the package manager
+  type Package = Hash
 
   type FQValueName =
     | Builtin of Builtin
@@ -57,9 +57,9 @@ module FQValueName =
     assertBuiltin name version assertValueName
     { name = name; version = version }
 
-  let package (id : uuid) : Package = id
+  let package (hash : Hash) : Package = hash
 
-  let fqPackage (id : uuid) : FQValueName = Package id
+  let fqPackage (hash : Hash) : FQValueName = Package hash
 
 
 /// A Fully-Qualified Function Name
@@ -69,7 +69,7 @@ module FQFnName =
   /// A function built into the runtime
   type Builtin = { name : string; version : int }
 
-  type Package = uuid
+  type Package = Hash
 
   type FQFnName =
     | Builtin of Builtin
@@ -82,12 +82,12 @@ module FQFnName =
     assertBuiltin name version assertBuiltinFnName
     { name = name; version = version }
 
-  let package (id : uuid) = id
+  let package (hash : Hash) = hash
 
   let fqBuiltin (name : string) (version : int) : FQFnName =
     Builtin { name = name; version = version }
 
-  let fqPackage (id : uuid) : FQFnName = Package id
+  let fqPackage (hash : Hash) : FQFnName = Package hash
 
 
   let isInternalFn (fnName : Builtin) : bool = fnName.name.Contains "darkInternal"
@@ -1047,18 +1047,17 @@ module Dval =
 // ------------
 // Package-Space
 // ------------
-// TODO reference things by hash, not ID
 module PackageType =
-  type PackageType = { id : uuid; declaration : TypeDeclaration.T }
+  type PackageType = { hash : Hash; declaration : TypeDeclaration.T }
 
 module PackageValue =
-  type PackageValue = { id : uuid; body : Dval }
+  type PackageValue = { hash : Hash; body : Dval }
 
 module PackageFn =
   type Parameter = { name : string; typ : TypeReference }
 
   type PackageFn =
-    { id : uuid
+    { hash : Hash
       typeParams : List<string>
       parameters : NEList<Parameter>
       returnType : TypeReference
@@ -1097,20 +1096,20 @@ type PackageManager =
     (pm : PackageManager)
     : PackageManager =
     { getType =
-        fun id ->
-          match types |> List.tryFind (fun t -> t.id = id) with
+        fun hash ->
+          match types |> List.tryFind (fun t -> t.hash = hash) with
           | Some t -> Some t |> Ply
-          | None -> pm.getType id
+          | None -> pm.getType hash
       getValue =
-        fun id ->
-          match values |> List.tryFind (fun v -> v.id = id) with
+        fun hash ->
+          match values |> List.tryFind (fun v -> v.hash = hash) with
           | Some v -> Some v |> Ply
-          | None -> pm.getValue id
+          | None -> pm.getValue hash
       getFn =
-        fun id ->
-          match fns |> List.tryFind (fun f -> f.id = id) with
+        fun hash ->
+          match fns |> List.tryFind (fun f -> f.hash = hash) with
           | Some f -> Some f |> Ply
-          | None -> pm.getFn id
+          | None -> pm.getFn hash
       init = pm.init }
 
 

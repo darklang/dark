@@ -6,12 +6,20 @@
         "DRecord": [
           {
             "Package": [
-              "31d72f73-0f99-5a9b-949c-b95705ae7c4d"
+              {
+                "Hash": [
+                  "test-hash"
+                ]
+              }
             ]
           },
           {
             "Package": [
-              "31d72f73-0f99-5a9b-949c-b95705ae7c4d"
+              {
+                "Hash": [
+                  "test-hash"
+                ]
+              }
             ]
           },
           [],
@@ -3637,12 +3645,20 @@
               "DEnum": [
                 {
                   "Package": [
-                    "d80a6028-92e8-4da2-89b3-1cfc5d275024"
+                    {
+                      "Hash": [
+                        "98bcd29921b522613c44499f277de319f9ece4ad8330e2ec71952ce578d9cfca"
+                      ]
+                    }
                   ]
                 },
                 {
                   "Package": [
-                    "d80a6028-92e8-4da2-89b3-1cfc5d275024"
+                    {
+                      "Hash": [
+                        "98bcd29921b522613c44499f277de319f9ece4ad8330e2ec71952ce578d9cfca"
+                      ]
+                    }
                   ]
                 },
                 [],
@@ -7123,12 +7139,20 @@
               "DEnum": [
                 {
                   "Package": [
-                    "9ce3b596-968f-44c9-bcd4-511007cd9225"
+                    {
+                      "Hash": [
+                        "daf8ab700bbabf454fa57efd2242a8a856b5423b53359e45fc8fc5b44ce288d2"
+                      ]
+                    }
                   ]
                 },
                 {
                   "Package": [
-                    "9ce3b596-968f-44c9-bcd4-511007cd9225"
+                    {
+                      "Hash": [
+                        "daf8ab700bbabf454fa57efd2242a8a856b5423b53359e45fc8fc5b44ce288d2"
+                      ]
+                    }
                   ]
                 },
                 [
@@ -7148,12 +7172,20 @@
               "DEnum": [
                 {
                   "Package": [
-                    "9ce3b596-968f-44c9-bcd4-511007cd9225"
+                    {
+                      "Hash": [
+                        "daf8ab700bbabf454fa57efd2242a8a856b5423b53359e45fc8fc5b44ce288d2"
+                      ]
+                    }
                   ]
                 },
                 {
                   "Package": [
-                    "9ce3b596-968f-44c9-bcd4-511007cd9225"
+                    {
+                      "Hash": [
+                        "daf8ab700bbabf454fa57efd2242a8a856b5423b53359e45fc8fc5b44ce288d2"
+                      ]
+                    }
                   ]
                 },
                 [
@@ -7179,12 +7211,20 @@
               "DEnum": [
                 {
                   "Package": [
-                    "9ce3b596-968f-44c9-bcd4-511007cd9225"
+                    {
+                      "Hash": [
+                        "daf8ab700bbabf454fa57efd2242a8a856b5423b53359e45fc8fc5b44ce288d2"
+                      ]
+                    }
                   ]
                 },
                 {
                   "Package": [
-                    "9ce3b596-968f-44c9-bcd4-511007cd9225"
+                    {
+                      "Hash": [
+                        "daf8ab700bbabf454fa57efd2242a8a856b5423b53359e45fc8fc5b44ce288d2"
+                      ]
+                    }
                   ]
                 },
                 [
@@ -7210,12 +7250,20 @@
               "DEnum": [
                 {
                   "Package": [
-                    "9ce3b596-968f-44c9-bcd4-511007cd9225"
+                    {
+                      "Hash": [
+                        "daf8ab700bbabf454fa57efd2242a8a856b5423b53359e45fc8fc5b44ce288d2"
+                      ]
+                    }
                   ]
                 },
                 {
                   "Package": [
-                    "9ce3b596-968f-44c9-bcd4-511007cd9225"
+                    {
+                      "Hash": [
+                        "daf8ab700bbabf454fa57efd2242a8a856b5423b53359e45fc8fc5b44ce288d2"
+                      ]
+                    }
                   ]
                 },
                 [
@@ -7241,12 +7289,20 @@
               "DEnum": [
                 {
                   "Package": [
-                    "9ce3b596-968f-44c9-bcd4-511007cd9225"
+                    {
+                      "Hash": [
+                        "daf8ab700bbabf454fa57efd2242a8a856b5423b53359e45fc8fc5b44ce288d2"
+                      ]
+                    }
                   ]
                 },
                 {
                   "Package": [
-                    "9ce3b596-968f-44c9-bcd4-511007cd9225"
+                    {
+                      "Hash": [
+                        "daf8ab700bbabf454fa57efd2242a8a856b5423b53359e45fc8fc5b44ce288d2"
+                      ]
+                    }
                   ]
                 },
                 [
@@ -7272,12 +7328,20 @@
               "DEnum": [
                 {
                   "Package": [
-                    "9ce3b596-968f-44c9-bcd4-511007cd9225"
+                    {
+                      "Hash": [
+                        "daf8ab700bbabf454fa57efd2242a8a856b5423b53359e45fc8fc5b44ce288d2"
+                      ]
+                    }
                   ]
                 },
                 {
                   "Package": [
-                    "9ce3b596-968f-44c9-bcd4-511007cd9225"
+                    {
+                      "Hash": [
+                        "daf8ab700bbabf454fa57efd2242a8a856b5423b53359e45fc8fc5b44ce288d2"
+                      ]
+                    }
                   ]
                 },
                 [
@@ -7303,12 +7367,20 @@
               "DEnum": [
                 {
                   "Package": [
-                    "9ce3b596-968f-44c9-bcd4-511007cd9225"
+                    {
+                      "Hash": [
+                        "daf8ab700bbabf454fa57efd2242a8a856b5423b53359e45fc8fc5b44ce288d2"
+                      ]
+                    }
                   ]
                 },
                 {
                   "Package": [
-                    "9ce3b596-968f-44c9-bcd4-511007cd9225"
+                    {
+                      "Hash": [
+                        "daf8ab700bbabf454fa57efd2242a8a856b5423b53359e45fc8fc5b44ce288d2"
+                      ]
+                    }
                   ]
                 },
                 [
@@ -7334,12 +7406,20 @@
               "DEnum": [
                 {
                   "Package": [
-                    "9ce3b596-968f-44c9-bcd4-511007cd9225"
+                    {
+                      "Hash": [
+                        "daf8ab700bbabf454fa57efd2242a8a856b5423b53359e45fc8fc5b44ce288d2"
+                      ]
+                    }
                   ]
                 },
                 {
                   "Package": [
-                    "9ce3b596-968f-44c9-bcd4-511007cd9225"
+                    {
+                      "Hash": [
+                        "daf8ab700bbabf454fa57efd2242a8a856b5423b53359e45fc8fc5b44ce288d2"
+                      ]
+                    }
                   ]
                 },
                 [
@@ -7365,12 +7445,20 @@
               "DEnum": [
                 {
                   "Package": [
-                    "9ce3b596-968f-44c9-bcd4-511007cd9225"
+                    {
+                      "Hash": [
+                        "daf8ab700bbabf454fa57efd2242a8a856b5423b53359e45fc8fc5b44ce288d2"
+                      ]
+                    }
                   ]
                 },
                 {
                   "Package": [
-                    "9ce3b596-968f-44c9-bcd4-511007cd9225"
+                    {
+                      "Hash": [
+                        "daf8ab700bbabf454fa57efd2242a8a856b5423b53359e45fc8fc5b44ce288d2"
+                      ]
+                    }
                   ]
                 },
                 [
@@ -7396,12 +7484,20 @@
               "DEnum": [
                 {
                   "Package": [
-                    "9ce3b596-968f-44c9-bcd4-511007cd9225"
+                    {
+                      "Hash": [
+                        "daf8ab700bbabf454fa57efd2242a8a856b5423b53359e45fc8fc5b44ce288d2"
+                      ]
+                    }
                   ]
                 },
                 {
                   "Package": [
-                    "9ce3b596-968f-44c9-bcd4-511007cd9225"
+                    {
+                      "Hash": [
+                        "daf8ab700bbabf454fa57efd2242a8a856b5423b53359e45fc8fc5b44ce288d2"
+                      ]
+                    }
                   ]
                 },
                 [
@@ -7427,12 +7523,20 @@
               "DEnum": [
                 {
                   "Package": [
-                    "9ce3b596-968f-44c9-bcd4-511007cd9225"
+                    {
+                      "Hash": [
+                        "daf8ab700bbabf454fa57efd2242a8a856b5423b53359e45fc8fc5b44ce288d2"
+                      ]
+                    }
                   ]
                 },
                 {
                   "Package": [
-                    "9ce3b596-968f-44c9-bcd4-511007cd9225"
+                    {
+                      "Hash": [
+                        "daf8ab700bbabf454fa57efd2242a8a856b5423b53359e45fc8fc5b44ce288d2"
+                      ]
+                    }
                   ]
                 },
                 [
@@ -7458,12 +7562,20 @@
               "DEnum": [
                 {
                   "Package": [
-                    "9ce3b596-968f-44c9-bcd4-511007cd9225"
+                    {
+                      "Hash": [
+                        "daf8ab700bbabf454fa57efd2242a8a856b5423b53359e45fc8fc5b44ce288d2"
+                      ]
+                    }
                   ]
                 },
                 {
                   "Package": [
-                    "9ce3b596-968f-44c9-bcd4-511007cd9225"
+                    {
+                      "Hash": [
+                        "daf8ab700bbabf454fa57efd2242a8a856b5423b53359e45fc8fc5b44ce288d2"
+                      ]
+                    }
                   ]
                 },
                 [
@@ -7499,12 +7611,20 @@
               "DRecord": [
                 {
                   "Package": [
-                    "dca045b1-e2af-41d8-ad1b-35261b25a426"
+                    {
+                      "Hash": [
+                        "test-hash"
+                      ]
+                    }
                   ]
                 },
                 {
                   "Package": [
-                    "dca045b1-e2af-41d8-ad1b-35261b25a426"
+                    {
+                      "Hash": [
+                        "test-hash"
+                      ]
+                    }
                   ]
                 },
                 [],
@@ -7561,12 +7681,20 @@
               "DRecord": [
                 {
                   "Package": [
-                    "dca045b1-e2af-41d8-ad1b-35261b25a426"
+                    {
+                      "Hash": [
+                        "test-hash"
+                      ]
+                    }
                   ]
                 },
                 {
                   "Package": [
-                    "dca045b1-e2af-41d8-ad1b-35261b25a426"
+                    {
+                      "Hash": [
+                        "test-hash"
+                      ]
+                    }
                   ]
                 },
                 [
@@ -7597,12 +7725,20 @@
               "DRecord": [
                 {
                   "Package": [
-                    "dca045b1-e2af-41d8-ad1b-35261b25a426"
+                    {
+                      "Hash": [
+                        "test-hash"
+                      ]
+                    }
                   ]
                 },
                 {
                   "Package": [
-                    "dca045b1-e2af-41d8-ad1b-35261b25a426"
+                    {
+                      "Hash": [
+                        "test-hash"
+                      ]
+                    }
                   ]
                 },
                 [],
@@ -7624,12 +7760,20 @@
               "DRecord": [
                 {
                   "Package": [
-                    "dca045b1-e2af-41d8-ad1b-35261b25a426"
+                    {
+                      "Hash": [
+                        "test-hash"
+                      ]
+                    }
                   ]
                 },
                 {
                   "Package": [
-                    "dca045b1-e2af-41d8-ad1b-35261b25a426"
+                    {
+                      "Hash": [
+                        "test-hash"
+                      ]
+                    }
                   ]
                 },
                 [
@@ -7653,7 +7797,11 @@
                         "KTCustomType": [
                           {
                             "Package": [
-                              "dca045b1-e2af-41d8-ad1b-35261b25a426"
+                              {
+                                "Hash": [
+                                  "test-hash"
+                                ]
+                              }
                             ]
                           },
                           []
@@ -7675,12 +7823,20 @@
               "DRecord": [
                 {
                   "Package": [
-                    "dca045b1-e2af-41d8-ad1b-35261b25a426"
+                    {
+                      "Hash": [
+                        "test-hash"
+                      ]
+                    }
                   ]
                 },
                 {
                   "Package": [
-                    "dca045b1-e2af-41d8-ad1b-35261b25a426"
+                    {
+                      "Hash": [
+                        "test-hash"
+                      ]
+                    }
                   ]
                 },
                 [],
@@ -7765,12 +7921,20 @@
                   "DEnum": [
                     {
                       "Package": [
-                        "c1cb018c-8264-4080-be7f-b06b8a0e1729"
+                        {
+                          "Hash": [
+                            "2e3af0033cfbc86c0e261bdd33ed0058330f3bc647a933c0c28dbb7beb454d7d"
+                          ]
+                        }
                       ]
                     },
                     {
                       "Package": [
-                        "c1cb018c-8264-4080-be7f-b06b8a0e1729"
+                        {
+                          "Hash": [
+                            "2e3af0033cfbc86c0e261bdd33ed0058330f3bc647a933c0c28dbb7beb454d7d"
+                          ]
+                        }
                       ]
                     },
                     [
@@ -7895,12 +8059,20 @@
         "DRecord": [
           {
             "Package": [
-              "31d72f73-0f99-5a9b-949c-b95705ae7c4d"
+              {
+                "Hash": [
+                  "test-hash"
+                ]
+              }
             ]
           },
           {
             "Package": [
-              "31d72f73-0f99-5a9b-949c-b95705ae7c4d"
+              {
+                "Hash": [
+                  "test-hash"
+                ]
+              }
             ]
           },
           [],
@@ -11526,12 +11698,20 @@
               "DEnum": [
                 {
                   "Package": [
-                    "d80a6028-92e8-4da2-89b3-1cfc5d275024"
+                    {
+                      "Hash": [
+                        "98bcd29921b522613c44499f277de319f9ece4ad8330e2ec71952ce578d9cfca"
+                      ]
+                    }
                   ]
                 },
                 {
                   "Package": [
-                    "d80a6028-92e8-4da2-89b3-1cfc5d275024"
+                    {
+                      "Hash": [
+                        "98bcd29921b522613c44499f277de319f9ece4ad8330e2ec71952ce578d9cfca"
+                      ]
+                    }
                   ]
                 },
                 [],
@@ -15012,12 +15192,20 @@
               "DEnum": [
                 {
                   "Package": [
-                    "9ce3b596-968f-44c9-bcd4-511007cd9225"
+                    {
+                      "Hash": [
+                        "daf8ab700bbabf454fa57efd2242a8a856b5423b53359e45fc8fc5b44ce288d2"
+                      ]
+                    }
                   ]
                 },
                 {
                   "Package": [
-                    "9ce3b596-968f-44c9-bcd4-511007cd9225"
+                    {
+                      "Hash": [
+                        "daf8ab700bbabf454fa57efd2242a8a856b5423b53359e45fc8fc5b44ce288d2"
+                      ]
+                    }
                   ]
                 },
                 [
@@ -15037,12 +15225,20 @@
               "DEnum": [
                 {
                   "Package": [
-                    "9ce3b596-968f-44c9-bcd4-511007cd9225"
+                    {
+                      "Hash": [
+                        "daf8ab700bbabf454fa57efd2242a8a856b5423b53359e45fc8fc5b44ce288d2"
+                      ]
+                    }
                   ]
                 },
                 {
                   "Package": [
-                    "9ce3b596-968f-44c9-bcd4-511007cd9225"
+                    {
+                      "Hash": [
+                        "daf8ab700bbabf454fa57efd2242a8a856b5423b53359e45fc8fc5b44ce288d2"
+                      ]
+                    }
                   ]
                 },
                 [
@@ -15068,12 +15264,20 @@
               "DEnum": [
                 {
                   "Package": [
-                    "9ce3b596-968f-44c9-bcd4-511007cd9225"
+                    {
+                      "Hash": [
+                        "daf8ab700bbabf454fa57efd2242a8a856b5423b53359e45fc8fc5b44ce288d2"
+                      ]
+                    }
                   ]
                 },
                 {
                   "Package": [
-                    "9ce3b596-968f-44c9-bcd4-511007cd9225"
+                    {
+                      "Hash": [
+                        "daf8ab700bbabf454fa57efd2242a8a856b5423b53359e45fc8fc5b44ce288d2"
+                      ]
+                    }
                   ]
                 },
                 [
@@ -15099,12 +15303,20 @@
               "DEnum": [
                 {
                   "Package": [
-                    "9ce3b596-968f-44c9-bcd4-511007cd9225"
+                    {
+                      "Hash": [
+                        "daf8ab700bbabf454fa57efd2242a8a856b5423b53359e45fc8fc5b44ce288d2"
+                      ]
+                    }
                   ]
                 },
                 {
                   "Package": [
-                    "9ce3b596-968f-44c9-bcd4-511007cd9225"
+                    {
+                      "Hash": [
+                        "daf8ab700bbabf454fa57efd2242a8a856b5423b53359e45fc8fc5b44ce288d2"
+                      ]
+                    }
                   ]
                 },
                 [
@@ -15130,12 +15342,20 @@
               "DEnum": [
                 {
                   "Package": [
-                    "9ce3b596-968f-44c9-bcd4-511007cd9225"
+                    {
+                      "Hash": [
+                        "daf8ab700bbabf454fa57efd2242a8a856b5423b53359e45fc8fc5b44ce288d2"
+                      ]
+                    }
                   ]
                 },
                 {
                   "Package": [
-                    "9ce3b596-968f-44c9-bcd4-511007cd9225"
+                    {
+                      "Hash": [
+                        "daf8ab700bbabf454fa57efd2242a8a856b5423b53359e45fc8fc5b44ce288d2"
+                      ]
+                    }
                   ]
                 },
                 [
@@ -15161,12 +15381,20 @@
               "DEnum": [
                 {
                   "Package": [
-                    "9ce3b596-968f-44c9-bcd4-511007cd9225"
+                    {
+                      "Hash": [
+                        "daf8ab700bbabf454fa57efd2242a8a856b5423b53359e45fc8fc5b44ce288d2"
+                      ]
+                    }
                   ]
                 },
                 {
                   "Package": [
-                    "9ce3b596-968f-44c9-bcd4-511007cd9225"
+                    {
+                      "Hash": [
+                        "daf8ab700bbabf454fa57efd2242a8a856b5423b53359e45fc8fc5b44ce288d2"
+                      ]
+                    }
                   ]
                 },
                 [
@@ -15192,12 +15420,20 @@
               "DEnum": [
                 {
                   "Package": [
-                    "9ce3b596-968f-44c9-bcd4-511007cd9225"
+                    {
+                      "Hash": [
+                        "daf8ab700bbabf454fa57efd2242a8a856b5423b53359e45fc8fc5b44ce288d2"
+                      ]
+                    }
                   ]
                 },
                 {
                   "Package": [
-                    "9ce3b596-968f-44c9-bcd4-511007cd9225"
+                    {
+                      "Hash": [
+                        "daf8ab700bbabf454fa57efd2242a8a856b5423b53359e45fc8fc5b44ce288d2"
+                      ]
+                    }
                   ]
                 },
                 [
@@ -15223,12 +15459,20 @@
               "DEnum": [
                 {
                   "Package": [
-                    "9ce3b596-968f-44c9-bcd4-511007cd9225"
+                    {
+                      "Hash": [
+                        "daf8ab700bbabf454fa57efd2242a8a856b5423b53359e45fc8fc5b44ce288d2"
+                      ]
+                    }
                   ]
                 },
                 {
                   "Package": [
-                    "9ce3b596-968f-44c9-bcd4-511007cd9225"
+                    {
+                      "Hash": [
+                        "daf8ab700bbabf454fa57efd2242a8a856b5423b53359e45fc8fc5b44ce288d2"
+                      ]
+                    }
                   ]
                 },
                 [
@@ -15254,12 +15498,20 @@
               "DEnum": [
                 {
                   "Package": [
-                    "9ce3b596-968f-44c9-bcd4-511007cd9225"
+                    {
+                      "Hash": [
+                        "daf8ab700bbabf454fa57efd2242a8a856b5423b53359e45fc8fc5b44ce288d2"
+                      ]
+                    }
                   ]
                 },
                 {
                   "Package": [
-                    "9ce3b596-968f-44c9-bcd4-511007cd9225"
+                    {
+                      "Hash": [
+                        "daf8ab700bbabf454fa57efd2242a8a856b5423b53359e45fc8fc5b44ce288d2"
+                      ]
+                    }
                   ]
                 },
                 [
@@ -15285,12 +15537,20 @@
               "DEnum": [
                 {
                   "Package": [
-                    "9ce3b596-968f-44c9-bcd4-511007cd9225"
+                    {
+                      "Hash": [
+                        "daf8ab700bbabf454fa57efd2242a8a856b5423b53359e45fc8fc5b44ce288d2"
+                      ]
+                    }
                   ]
                 },
                 {
                   "Package": [
-                    "9ce3b596-968f-44c9-bcd4-511007cd9225"
+                    {
+                      "Hash": [
+                        "daf8ab700bbabf454fa57efd2242a8a856b5423b53359e45fc8fc5b44ce288d2"
+                      ]
+                    }
                   ]
                 },
                 [
@@ -15316,12 +15576,20 @@
               "DEnum": [
                 {
                   "Package": [
-                    "9ce3b596-968f-44c9-bcd4-511007cd9225"
+                    {
+                      "Hash": [
+                        "daf8ab700bbabf454fa57efd2242a8a856b5423b53359e45fc8fc5b44ce288d2"
+                      ]
+                    }
                   ]
                 },
                 {
                   "Package": [
-                    "9ce3b596-968f-44c9-bcd4-511007cd9225"
+                    {
+                      "Hash": [
+                        "daf8ab700bbabf454fa57efd2242a8a856b5423b53359e45fc8fc5b44ce288d2"
+                      ]
+                    }
                   ]
                 },
                 [
@@ -15347,12 +15615,20 @@
               "DEnum": [
                 {
                   "Package": [
-                    "9ce3b596-968f-44c9-bcd4-511007cd9225"
+                    {
+                      "Hash": [
+                        "daf8ab700bbabf454fa57efd2242a8a856b5423b53359e45fc8fc5b44ce288d2"
+                      ]
+                    }
                   ]
                 },
                 {
                   "Package": [
-                    "9ce3b596-968f-44c9-bcd4-511007cd9225"
+                    {
+                      "Hash": [
+                        "daf8ab700bbabf454fa57efd2242a8a856b5423b53359e45fc8fc5b44ce288d2"
+                      ]
+                    }
                   ]
                 },
                 [
@@ -15388,12 +15664,20 @@
               "DRecord": [
                 {
                   "Package": [
-                    "dca045b1-e2af-41d8-ad1b-35261b25a426"
+                    {
+                      "Hash": [
+                        "test-hash"
+                      ]
+                    }
                   ]
                 },
                 {
                   "Package": [
-                    "dca045b1-e2af-41d8-ad1b-35261b25a426"
+                    {
+                      "Hash": [
+                        "test-hash"
+                      ]
+                    }
                   ]
                 },
                 [],
@@ -15450,12 +15734,20 @@
               "DRecord": [
                 {
                   "Package": [
-                    "dca045b1-e2af-41d8-ad1b-35261b25a426"
+                    {
+                      "Hash": [
+                        "test-hash"
+                      ]
+                    }
                   ]
                 },
                 {
                   "Package": [
-                    "dca045b1-e2af-41d8-ad1b-35261b25a426"
+                    {
+                      "Hash": [
+                        "test-hash"
+                      ]
+                    }
                   ]
                 },
                 [
@@ -15486,12 +15778,20 @@
               "DRecord": [
                 {
                   "Package": [
-                    "dca045b1-e2af-41d8-ad1b-35261b25a426"
+                    {
+                      "Hash": [
+                        "test-hash"
+                      ]
+                    }
                   ]
                 },
                 {
                   "Package": [
-                    "dca045b1-e2af-41d8-ad1b-35261b25a426"
+                    {
+                      "Hash": [
+                        "test-hash"
+                      ]
+                    }
                   ]
                 },
                 [],
@@ -15513,12 +15813,20 @@
               "DRecord": [
                 {
                   "Package": [
-                    "dca045b1-e2af-41d8-ad1b-35261b25a426"
+                    {
+                      "Hash": [
+                        "test-hash"
+                      ]
+                    }
                   ]
                 },
                 {
                   "Package": [
-                    "dca045b1-e2af-41d8-ad1b-35261b25a426"
+                    {
+                      "Hash": [
+                        "test-hash"
+                      ]
+                    }
                   ]
                 },
                 [
@@ -15542,7 +15850,11 @@
                         "KTCustomType": [
                           {
                             "Package": [
-                              "dca045b1-e2af-41d8-ad1b-35261b25a426"
+                              {
+                                "Hash": [
+                                  "test-hash"
+                                ]
+                              }
                             ]
                           },
                           []
@@ -15564,12 +15876,20 @@
               "DRecord": [
                 {
                   "Package": [
-                    "dca045b1-e2af-41d8-ad1b-35261b25a426"
+                    {
+                      "Hash": [
+                        "test-hash"
+                      ]
+                    }
                   ]
                 },
                 {
                   "Package": [
-                    "dca045b1-e2af-41d8-ad1b-35261b25a426"
+                    {
+                      "Hash": [
+                        "test-hash"
+                      ]
+                    }
                   ]
                 },
                 [],
@@ -15654,12 +15974,20 @@
                   "DEnum": [
                     {
                       "Package": [
-                        "c1cb018c-8264-4080-be7f-b06b8a0e1729"
+                        {
+                          "Hash": [
+                            "2e3af0033cfbc86c0e261bdd33ed0058330f3bc647a933c0c28dbb7beb454d7d"
+                          ]
+                        }
                       ]
                     },
                     {
                       "Package": [
-                        "c1cb018c-8264-4080-be7f-b06b8a0e1729"
+                        {
+                          "Hash": [
+                            "2e3af0033cfbc86c0e261bdd33ed0058330f3bc647a933c0c28dbb7beb454d7d"
+                          ]
+                        }
                       ]
                     },
                     [

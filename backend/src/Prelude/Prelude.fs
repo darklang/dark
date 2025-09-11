@@ -393,6 +393,8 @@ let gid () : uint64 =
 
 let guuid () : uuid = System.Guid.NewGuid()
 
+type Hash = Hash of string
+
 let randomString (length : int) : string =
   let result =
     Array.init length (fun _ -> char (RNG.GetInt32(int32 'A', int32 'Z')))

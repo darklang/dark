@@ -77,18 +77,18 @@ let packageName
 module FQTypeName =
   module Package =
     let atDefinition
-      (id: LanguageTools.ProgramTypes.FQTypeName.Package)
+      (hash: LanguageTools.ProgramTypes.FQTypeName.Package)
       : String =
-      match LanguageTools.PackageManager.Type.get id with
+      match LanguageTools.PackageManager.Type.get hash with
       | Some p -> p.name.name
-      | None -> Stdlib.Uuid.toString id
+      | None -> hash
 
     let fullForReference
-      (id: LanguageTools.ProgramTypes.FQTypeName.Package)
+      (hash: LanguageTools.ProgramTypes.FQTypeName.Package)
       : String =
-      match LanguageTools.PackageManager.Type.get id with
+      match LanguageTools.PackageManager.Type.get hash with
       | Some p -> packageName p.name.owner p.name.modules p.name.name
-      | None -> Stdlib.Uuid.toString id
+      | None -> hash
 
 
   let atDefinition
@@ -123,18 +123,18 @@ module FQValueName =
 
   module Package =
     let atDefinition
-      (id: LanguageTools.ProgramTypes.FQValueName.Package)
+      (hash: LanguageTools.ProgramTypes.FQValueName.Package)
       : String =
-      match LanguageTools.PackageManager.Value.get id with
+      match LanguageTools.PackageManager.Value.get hash with
       | Some p -> p.name.name
-      | None -> Stdlib.Uuid.toString id
+      | None -> hash
 
     let fullForReference
-      (id: LanguageTools.ProgramTypes.FQValueName.Package)
+      (hash: LanguageTools.ProgramTypes.FQValueName.Package)
       : String =
-      match LanguageTools.PackageManager.Value.get id with
+      match LanguageTools.PackageManager.Value.get hash with
       | Some p -> packageName p.name.owner p.name.modules p.name.name
-      | None -> Stdlib.Uuid.toString id
+      | None -> hash
 
 
 
@@ -175,18 +175,18 @@ module FQFnName =
 
   module Package =
     let atDefinition
-      (id: LanguageTools.ProgramTypes.FQFnName.Package)
+      (hash: LanguageTools.ProgramTypes.FQFnName.Package)
       : String =
-      match LanguageTools.PackageManager.Function.get id with
+      match LanguageTools.PackageManager.Function.get hash with
       | Some p -> p.name.name
-      | None -> Stdlib.Uuid.toString id
+      | None -> hash
 
     let fullForReference
-      (id: LanguageTools.ProgramTypes.FQFnName.Package)
+      (hash: LanguageTools.ProgramTypes.FQFnName.Package)
       : String =
-      match LanguageTools.PackageManager.Function.get id with
+      match LanguageTools.PackageManager.Function.get hash with
       | Some p -> packageName p.name.owner p.name.modules p.name.name
-      | None -> Stdlib.Uuid.toString id
+      | None -> hash
 
 
   let atDefinition (t: LanguageTools.ProgramTypes.FQFnName.FQFnName) : String =
