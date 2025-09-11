@@ -391,7 +391,7 @@ let fns : List<BuiltInFn> =
                   let! result =
                     Exe.executeFunction
                       exeState
-                      (FQFnName.Package f.id)
+                      (FQFnName.Package f.hash)
                       []
                       (NEList.ofList newArgs.Head newArgs.Tail)
 

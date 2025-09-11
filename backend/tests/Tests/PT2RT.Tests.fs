@@ -544,7 +544,7 @@ module Expr =
          [ RT.LoadVal(2, RT.DInt64 1L)
            RT.CreateEnum(
              1,
-             RT.FQTypeName.fqPackage PM.Types.Enums.resultId,
+             RT.FQTypeName.fqPackage PM.Types.Enums.resultIdHash,
              [],
              "Ok",
              [ 2 ]
@@ -552,7 +552,7 @@ module Expr =
            RT.LoadVal(4, RT.DString "error")
            RT.CreateEnum(
              3,
-             RT.FQTypeName.fqPackage PM.Types.Enums.resultId,
+             RT.FQTypeName.fqPackage PM.Types.Enums.resultIdHash,
              [],
              "Error",
              [ 4 ]
@@ -779,7 +779,7 @@ module Expr =
         (1,
          [ RT.CreateEnum(
              0,
-             RT.FQTypeName.fqPackage PM.Types.Enums.withoutFields,
+             RT.FQTypeName.fqPackage PM.Types.Enums.withoutFieldsHash,
              [],
              "Blue",
              []
@@ -794,7 +794,7 @@ module Expr =
          [ RT.LoadVal(1, RT.DInt64 1L)
            RT.CreateEnum(
              0,
-             RT.FQTypeName.fqPackage PM.Types.Enums.withFields,
+             RT.FQTypeName.fqPackage PM.Types.Enums.withFieldsHash,
              [],
              "Some",
              [ 1 ]
@@ -813,7 +813,7 @@ module Expr =
          [ RT.LoadVal(1, RT.DBool true)
            RT.CreateRecord(
              0,
-             RT.FQTypeName.fqPackage PM.Types.Records.singleField,
+             RT.FQTypeName.fqPackage PM.Types.Records.singleFieldHash,
              [],
              [ ("key", 1) ]
            ) ],
@@ -829,7 +829,7 @@ module Expr =
            // inner record
            RT.CreateRecord(
              1,
-             RT.FQTypeName.fqPackage PM.Types.Records.singleField,
+             RT.FQTypeName.fqPackage PM.Types.Records.singleFieldHash,
              [],
              [ ("key", 2) ]
            )
@@ -837,7 +837,7 @@ module Expr =
            // outer record
            RT.CreateRecord(
              0,
-             RT.FQTypeName.fqPackage PM.Types.Records.nested,
+             RT.FQTypeName.fqPackage PM.Types.Records.nestedHash,
              [],
              [ ("outer", 1) ]
            ) ],
@@ -855,7 +855,7 @@ module Expr =
          [ RT.LoadVal(1, RT.DBool true)
            RT.CreateRecord(
              0,
-             RT.FQTypeName.fqPackage PM.Types.Records.singleField,
+             RT.FQTypeName.fqPackage PM.Types.Records.singleFieldHash,
              [],
              [ ("key", 1) ]
            )
@@ -876,7 +876,7 @@ module Expr =
          [ RT.LoadVal(1, RT.DBool true)
            RT.CreateRecord(
              0,
-             RT.FQTypeName.fqPackage PM.Types.Records.singleField,
+             RT.FQTypeName.fqPackage PM.Types.Records.singleFieldHash,
              [],
              [ ("key", 1) ]
            )
@@ -891,14 +891,14 @@ module Expr =
          [ RT.LoadVal(2, RT.DBool true)
            RT.CreateRecord(
              1,
-             RT.FQTypeName.fqPackage PM.Types.Records.singleField,
+             RT.FQTypeName.fqPackage PM.Types.Records.singleFieldHash,
              [],
              [ ("key", 2) ]
            )
 
            RT.CreateRecord(
              0,
-             RT.FQTypeName.fqPackage PM.Types.Records.nested,
+             RT.FQTypeName.fqPackage PM.Types.Records.nestedHash,
              [],
              [ ("outer", 1) ]
            )
@@ -921,7 +921,7 @@ module Expr =
          [ RT.LoadVal(1, RT.DBool true)
            RT.CreateRecord(
              0,
-             RT.FQTypeName.fqPackage PM.Types.Records.singleField,
+             RT.FQTypeName.fqPackage PM.Types.Records.singleFieldHash,
              [],
              [ ("key", 1) ]
            )
@@ -945,7 +945,7 @@ module Expr =
          [ RT.LoadVal(1, RT.DBool true)
            RT.CreateRecord(
              0,
-             RT.FQTypeName.fqPackage PM.Types.Records.singleField,
+             RT.FQTypeName.fqPackage PM.Types.Records.singleFieldHash,
              [],
              [ ("key", 1) ]
            )
@@ -960,7 +960,7 @@ module Expr =
          [ RT.LoadVal(1, RT.DBool true)
            RT.CreateRecord(
              0,
-             RT.FQTypeName.fqPackage PM.Types.Records.singleField,
+             RT.FQTypeName.fqPackage PM.Types.Records.singleFieldHash,
              [],
              [ ("key", 1) ]
            )
@@ -1022,7 +1022,7 @@ module Expr =
           (1,
            [ RT.LoadValue(
                0,
-               RT.FQValueName.Package E.Values.Package.MySpecialNumber.id
+               RT.FQValueName.Package E.Values.Package.MySpecialNumber.hash
              ) ],
            0)
       let tests = testList "Package" [ mySpecialNumber ]
@@ -1439,7 +1439,7 @@ module Expr =
                  0,
                  RT.DApplicable(
                    RT.AppNamedFn
-                     { name = RT.FQFnName.fqPackage E.Fns.Package.MyAdd.id
+                     { name = RT.FQFnName.fqPackage E.Fns.Package.MyAdd.hash
                        typeSymbolTable = Map.empty
                        typeArgs = []
                        argsSoFar = [] }
@@ -1457,7 +1457,7 @@ module Expr =
                  1,
                  RT.DApplicable(
                    RT.AppNamedFn
-                     { name = RT.FQFnName.fqPackage E.Fns.Package.MyAdd.id
+                     { name = RT.FQFnName.fqPackage E.Fns.Package.MyAdd.hash
                        typeSymbolTable = Map.empty
                        typeArgs = []
                        argsSoFar = [] }
@@ -1477,7 +1477,7 @@ module Expr =
                  2,
                  RT.DApplicable(
                    RT.AppNamedFn
-                     { name = RT.FQFnName.fqPackage E.Fns.Package.MyAdd.id
+                     { name = RT.FQFnName.fqPackage E.Fns.Package.MyAdd.hash
                        typeSymbolTable = Map.empty
                        typeArgs = []
                        argsSoFar = [] }
@@ -1524,7 +1524,8 @@ module Expr =
                  RT.DApplicable(
                    RT.AppNamedFn
                      { name =
-                         RT.FQFnName.fqPackage E.Fns.Package.MyFnThatTakesALambda.id
+                         RT.FQFnName.fqPackage
+                           E.Fns.Package.MyFnThatTakesALambda.hash
                        typeSymbolTable = Map.empty
                        typeArgs = []
                        argsSoFar = [] }
@@ -1547,7 +1548,7 @@ module Expr =
                  2,
                  RT.DApplicable(
                    RT.AppNamedFn
-                     { name = RT.FQFnName.fqPackage E.Fns.Package.Outer.id
+                     { name = RT.FQFnName.fqPackage E.Fns.Package.Outer.hash
                        typeSymbolTable = Map.empty
                        typeArgs = []
                        argsSoFar = [] }
@@ -1624,7 +1625,7 @@ module PackageFn =
   let t name fnName typeParams params' returnType expr expected =
     testTask name {
       let fn : PT.PackageFn.PackageFn =
-        { id = guuid ()
+        { hash = Hash "test-hash" // TODO: generate real hash
           name = { owner = "Test"; modules = []; name = fnName }
           body = expr
           typeParams = typeParams

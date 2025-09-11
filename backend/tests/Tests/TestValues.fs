@@ -14,43 +14,44 @@ open TestUtils.PTShortcuts
 
 module PM =
   module Types =
-    let make id name definition : PT.PackageType.PackageType =
-      { id = id
+    let make hash name definition : PT.PackageType.PackageType =
+      { hash = hash
         name = name
         declaration = { typeParams = []; definition = definition }
         description = "TODO"
         deprecated = PT.NotDeprecated }
 
     module Records =
-      let make id name fields =
-        make id name (PT.TypeDeclaration.Record(NEList.ofListUnsafe "" [] fields))
+      let make (hash : Hash) name fields =
+        make hash name (PT.TypeDeclaration.Record(NEList.ofListUnsafe "" [] fields))
 
-      let singleField = System.Guid.NewGuid()
-      let nested = System.Guid.NewGuid()
+      let singleFieldId = System.Guid.NewGuid()
+      let singleFieldHash = Hash "single-field"
+      let nestedHash = Hash "nested"
 
       let all : List<PT.PackageType.PackageType> =
         [ make
-            singleField
+            singleFieldHash
             (PT.PackageType.name "Test" [] "Test")
             [ { name = "key"; typ = PT.TBool; description = "TODO" } ]
 
           make
-            nested
+            nestedHash
             (PT.PackageType.name "Test" [] "Test2")
             [ { name = "outer"
-                typ = PT.TCustomType(Ok(PT.FQTypeName.fqPackage singleField), [])
+                typ = PT.TCustomType(Ok(PT.FQTypeName.fqPackage singleFieldHash), [])
                 description = "TODO" } ] ]
 
     module Enums =
-      let withoutFields = guuid ()
-      let withFields = guuid ()
-      let resultId = guuid ()
-      let make id name cases =
-        make id name (PT.TypeDeclaration.Enum(NEList.ofListUnsafe "" [] cases))
+      let withoutFieldsHash = Hash "without-fields"
+      let withFieldsHash = Hash "with-fields"
+      let resultIdHash = Hash "result-id"
+      let make hash name cases =
+        make hash name (PT.TypeDeclaration.Enum(NEList.ofListUnsafe "" [] cases))
 
       let colorEnum =
         make
-          withoutFields
+          withoutFieldsHash
           (PT.PackageType.name "Test" [] "ColorEnum")
           [ { name = "Red"; fields = []; description = "TODO" }
             { name = "Green"; fields = []; description = "TODO" }
@@ -58,7 +59,7 @@ module PM =
 
       let MyOption =
         make
-          withFields
+          withFieldsHash
           (PT.PackageType.name "Test" [] "MyOption")
           [ { name = "None"; fields = []; description = "TODO" }
             { name = "Some"
@@ -67,7 +68,7 @@ module PM =
 
       let MyResult =
         make
-          resultId
+          resultIdHash
           (PT.PackageType.name "Test" [] "MyResult")
           [ { name = "Ok"
               fields = [ { typ = PT.TInt64; label = None; description = "TODO" } ]
@@ -380,9 +381,9 @@ module Expressions =
     let combinedPatSameVarDifferentPos =
       eMatch
         (eTuple
-          (eEnum (typeNamePkg PM.Types.Enums.resultId) [] "Ok" [ eInt64 1 ])
+          (eEnum (typeNamePkg PM.Types.Enums.resultIdHash) [] "Ok" [ eInt64 1 ])
           (eEnum
-            (typeNamePkg PM.Types.Enums.resultId)
+            (typeNamePkg PM.Types.Enums.resultIdHash)
             []
             "Error"
             [ eStr [ strText "error" ] ])
@@ -466,9 +467,10 @@ module Expressions =
 
   module Records =
     let simple =
-      eRecord (typeNamePkg PM.Types.Records.singleField) [] [ "key", eBool true ]
+      eRecord (typeNamePkg PM.Types.Records.singleFieldHash) [] [ "key", eBool true ]
 
-    let nested = eRecord (typeNamePkg PM.Types.Records.nested) [] [ "outer", simple ]
+    let nested =
+      eRecord (typeNamePkg PM.Types.Records.nestedHash) [] [ "outer", simple ]
 
   module RecordFieldAccess =
     let simple = eFieldAccess Records.simple "key"
@@ -486,9 +488,9 @@ module Expressions =
 
 
   module Enums =
-    let simple = eEnum (typeNamePkg PM.Types.Enums.withoutFields) [] "Blue" []
+    let simple = eEnum (typeNamePkg PM.Types.Enums.withoutFieldsHash) [] "Blue" []
     let withFields =
-      eEnum (typeNamePkg PM.Types.Enums.withFields) [] "Some" [ eInt64 1 ]
+      eEnum (typeNamePkg PM.Types.Enums.withFieldsHash) [] "Some" [ eInt64 1 ]
 
   module Values =
     // CLEANUP we don't really have builtin values, so not bothering to test for now
@@ -499,7 +501,8 @@ module Expressions =
       module MySpecialNumber =
         // 17
         let id = System.Guid.Parse "1823ae7e-cc59-4843-a884-18591398abb0"
-        let usage = ePackageValue id
+        let hash = Hash "test-hash" // TODO: generate real hash
+        let usage = ePackageValue hash
 
 
   module Infix =
@@ -593,21 +596,21 @@ module Expressions =
 
     module Package =
       module MyAdd =
-        let id = System.Guid.Parse "a180ed3b-e8ee-42e5-b3c6-9e7ca32ee273"
+        let hash = Hash "myadd-hash" // TODO: generate real hash
 
-        let unapplied = ePackageFn id
+        let unapplied = ePackageFn hash
         let partiallyApplied = eApply unapplied [] [ eInt64 1 ]
         let fullyApplied = eApply unapplied [] [ eInt64 1; eInt64 2 ]
 
       module Inner =
-        let id = System.Guid.Parse "f38c8f89-7472-436f-8d38-2093e2e83fb7"
+        let hash = Hash "inner-hash" // TODO: generate real hash
 
-        let unapplied = ePackageFn id
+        let unapplied = ePackageFn hash
       //let applied = eApply unapplied [] [ eInt64 1 ]
 
       module Outer =
-        let id = System.Guid.Parse "6732ba1d-fae1-4a7e-91ea-d9f0eab6f3c7"
-        let unapplied = ePackageFn id
+        let hash = Hash "outer-hash" // TODO: generate real hash
+        let unapplied = ePackageFn hash
         let applied =
           eApply
             unapplied
@@ -616,21 +619,21 @@ module Expressions =
 
 
       module Fact =
-        let id = System.Guid.Parse "34c0c7bb-2bfa-4dc3-85f9-b965ba3c7880"
-        let unapplied = ePackageFn id
+        let hash = Hash "fact-hash" // TODO: generate real hash
+        let unapplied = ePackageFn hash
         let appliedWith2 = eApply unapplied [] [ eInt64 2 ]
         let appliedWith20 = eApply unapplied [] [ eInt64 20 ]
 
       module Recursion =
-        let id = System.Guid.Parse "02036aff-7ae5-4e7c-8f95-f42936044542"
-        let unapplied = ePackageFn id
+        let hash = Hash "recursion-hash" // TODO: generate real hash
+        let unapplied = ePackageFn hash
         let applied = eApply unapplied [] [ eInt64 30000 ]
 
 
       module MyFnThatTakesALambda =
         let lambdaID = gid ()
-        let id = System.Guid.Parse "25179761-0259-4d52-a505-d75f0738e45c"
-        let unapplied = ePackageFn id
+        let hash = Hash "myfn-hash" // TODO: generate real hash
+        let unapplied = ePackageFn hash
 
         let fullyApplied =
           let list = eList [ eInt64 1L; eInt64 2L ]
@@ -652,8 +655,8 @@ module Expressions =
           eApply unapplied [] [ eInt64 4L; lambda ]
 
       module MyFnThatReturnsUnit =
-        let id = System.Guid.Parse "6a47744f-7390-48f6-9822-7a76b9ee174b"
-        let applied = eApply (ePackageFn id) [] [ (eUnit ()) ]
+        let hash = Hash "myfnthatreturnsunit-hash" // TODO: generate real hash
+        let applied = eApply (ePackageFn hash) [] [ (eUnit ()) ]
 
   module Statements =
     let simple = eStatement (eUnit ()) (eInt64 1)
@@ -680,14 +683,14 @@ let pm : PT.PackageManager =
     PM.Types.all
 
     // values
-    [ { id = Expressions.Values.Package.MySpecialNumber.id
+    [ { hash = Expressions.Values.Package.MySpecialNumber.hash
         name = PT.PackageValue.name "Test" [] "seventeen"
         description = "TODO"
         deprecated = PT.NotDeprecated
         body = PT.EInt64(gid (), 17L) } ]
 
     // fns
-    [ { id = Expressions.Fns.Package.Inner.id
+    [ { hash = Expressions.Fns.Package.Inner.hash
         name = PT.PackageFn.name "Test" [] "inner"
         typeParams = [ "x"; "y" ]
         parameters =
@@ -699,7 +702,7 @@ let pm : PT.PackageManager =
         description = "TODO"
         deprecated = PT.NotDeprecated }
 
-      { id = Expressions.Fns.Package.Outer.id
+      { hash = Expressions.Fns.Package.Outer.hash
         name = PT.PackageFn.name "Test" [] "outer"
         typeParams = [ "x"; "y" ]
         parameters =
@@ -711,14 +714,14 @@ let pm : PT.PackageManager =
           eLet
             (lpVar "ignored")
             (eApply
-              (ePackageFn Expressions.Fns.Package.Inner.id)
+              (ePackageFn Expressions.Fns.Package.Inner.hash)
               [ PT.TString; PT.TBool ]
               [ eStr [ strText "hi" ]; eBool true ])
             (eVar "x")
         description = "TODO"
         deprecated = PT.NotDeprecated }
 
-      { id = Expressions.Fns.Package.MyAdd.id
+      { hash = Expressions.Fns.Package.MyAdd.hash
         name = PT.PackageFn.name "Test" [] "add"
         typeParams = []
         parameters =
@@ -730,7 +733,7 @@ let pm : PT.PackageManager =
         description = "TODO"
         deprecated = PT.NotDeprecated }
 
-      { id = Expressions.Fns.Package.Fact.id
+      { hash = Expressions.Fns.Package.Fact.hash
         name = PT.PackageFn.name "Test" [] "fact"
         typeParams = []
         parameters =
@@ -746,7 +749,7 @@ let pm : PT.PackageManager =
                 []
                 [ eVar "a"
                   (eApply
-                    (ePackageFn Expressions.Fns.Package.Fact.id)
+                    (ePackageFn Expressions.Fns.Package.Fact.hash)
                     []
                     [ eApply (eBuiltinFn "int64Subtract" 0) [] [ eVar "a"; eInt64 1 ] ]) ]
             ))
@@ -757,7 +760,7 @@ let pm : PT.PackageManager =
       // let addUpTO (n : Int64) : Int64 =
       //   if n <= 0 then 0
       //   else 1 + addUpTo (n - 1)
-      { id = Expressions.Fns.Package.Recursion.id
+      { hash = Expressions.Fns.Package.Recursion.hash
         name = PT.PackageFn.name "Test" [] "addUpTo"
         typeParams = []
         parameters =
@@ -776,7 +779,7 @@ let pm : PT.PackageManager =
                 []
                 [ eInt64 1L
                   (eApply
-                    (ePackageFn Expressions.Fns.Package.Recursion.id)
+                    (ePackageFn Expressions.Fns.Package.Recursion.hash)
                     []
                     [ eApply
                         (eBuiltinFn "int64Subtract" 0)
@@ -786,7 +789,7 @@ let pm : PT.PackageManager =
         description = "TODO"
         deprecated = PT.NotDeprecated }
 
-      { id = Expressions.Fns.Package.MyFnThatTakesALambda.id
+      { hash = Expressions.Fns.Package.MyFnThatTakesALambda.hash
         name = PT.PackageFn.name "Test" [] "myFnThatTakesALambda"
         typeParams = []
         parameters =
@@ -801,7 +804,7 @@ let pm : PT.PackageManager =
         description = "TODO"
         deprecated = PT.NotDeprecated }
 
-      { id = Expressions.Fns.Package.Fact.id
+      { hash = Expressions.Fns.Package.Fact.hash
         name = PT.PackageFn.name "Test" [] "fact"
         typeParams = []
         parameters =
@@ -817,7 +820,7 @@ let pm : PT.PackageManager =
                 []
                 [ eVar "a"
                   (eApply
-                    (ePackageFn Expressions.Fns.Package.Fact.id)
+                    (ePackageFn Expressions.Fns.Package.Fact.hash)
                     []
                     [ eApply (eBuiltinFn "int64Subtract" 0) [] [ eVar "a"; eInt64 1 ] ]) ]
             ))
@@ -825,7 +828,7 @@ let pm : PT.PackageManager =
         description = "TODO"
         deprecated = PT.NotDeprecated }
 
-      { id = Expressions.Fns.Package.MyFnThatReturnsUnit.id
+      { hash = Expressions.Fns.Package.MyFnThatReturnsUnit.hash
         name = PT.PackageFn.name "Test" [] "myFnThatReturnsUnit"
         typeParams = []
         parameters =

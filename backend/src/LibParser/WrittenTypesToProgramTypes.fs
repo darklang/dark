@@ -530,7 +530,8 @@ module PackageType =
       let! declaration =
         TypeDeclaration.toPT pm onMissing currentModule pt.declaration
       return
-        { id = PackageIDs.Type.idForName pt.name.owner pt.name.modules pt.name.name
+        { hash =
+            PackageIDs.Type.hashForName pt.name.owner pt.name.modules pt.name.name
           name = Name.toPT pt.name
           description = pt.description
           declaration = declaration
@@ -551,12 +552,13 @@ module PackageValue =
     : Ply<PT.PackageValue.PackageValue> =
     uply {
       let! body = Expr.toPT builtins pm onMissing currentModule c.body
-      return
-        { id = PackageIDs.Value.idForName c.name.owner c.name.modules c.name.name
+      let packageValue : PT.PackageValue.PackageValue =
+        { hash = PackageIDs.Value.hashForName c.name.owner c.name.modules c.name.name
           name = Name.toPT c.name
           description = c.description
           deprecated = PT.NotDeprecated
           body = body }
+      return packageValue
     }
 
 
@@ -593,7 +595,7 @@ module PackageFn =
       let! body = Expr.toPT builtins pm onMissing currentModule fn.body
 
       return
-        { id = PackageIDs.Fn.idForName fn.name.owner fn.name.modules fn.name.name
+        { hash = PackageIDs.Fn.hashForName fn.name.owner fn.name.modules fn.name.name
           name = Name.toPT fn.name
           parameters = parameters
           returnType = returnType

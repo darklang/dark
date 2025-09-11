@@ -27,14 +27,14 @@ let assertBuiltin
 ///
 /// Used to reference a type defined in a Package or by a User
 module FQTypeName =
-  /// The id of a type in the package manager
-  type Package = uuid
+  /// The hash of a type in the package manager
+  type Package = Hash
 
   type FQTypeName = Package of Package
 
-  let package (id : uuid) : Package = id
+  let package (hash : Hash) : Package = hash
 
-  let fqPackage (id : uuid) : FQTypeName = Package id
+  let fqPackage (hash : Hash) : FQTypeName = Package hash
 
 
 
@@ -45,8 +45,8 @@ module FQValueName =
   /// A value built into the runtime
   type Builtin = { name : string; version : int }
 
-  /// The id of a value in the package manager
-  type Package = uuid
+  /// The hash of a value in the package manager
+  type Package = Hash
 
   type FQValueName =
     | Builtin of Builtin
@@ -63,9 +63,9 @@ module FQValueName =
   let fqBuiltIn (name : string) (version : int) : FQValueName =
     Builtin(builtIn name version)
 
-  let package (id : uuid) : Package = id
+  let package (hash : Hash) : Package = hash
 
-  let fqPackage (id : uuid) : FQValueName = Package id
+  let fqPackage (hash : Hash) : FQValueName = Package hash
 
 
 
@@ -77,8 +77,8 @@ module FQFnName =
   /// A function built into the runtime
   type Builtin = { name : string; version : int }
 
-  /// The id of a function in the package manager
-  type Package = uuid
+  /// The hash of a function in the package manager
+  type Package = Hash
 
   type FQFnName =
     | Builtin of Builtin
@@ -94,9 +94,9 @@ module FQFnName =
   let fqBuiltIn (name : string) (version : int) : FQFnName =
     Builtin(builtIn name version)
 
-  let package (id : uuid) : Package = id
+  let package (hash : Hash) : Package = hash
 
-  let fqPackage (id : uuid) : FQFnName = Package id
+  let fqPackage (hash : Hash) : FQFnName = Package hash
 
 
 // In ProgramTypes, names (FnNames, TypeNames, ValueNames) have already been
@@ -540,7 +540,7 @@ module PackageType =
     { owner = owner; modules = modules; name = name }
 
   type PackageType =
-    { id : uuid
+    { hash : Hash
       name : Name
       declaration : TypeDeclaration.T
       description : string
@@ -554,7 +554,7 @@ module PackageValue =
     { owner = owner; modules = modules; name = name }
 
   type PackageValue =
-    { id : uuid
+    { hash : Hash
       name : Name
       description : string
       deprecated : Deprecation<FQValueName.FQValueName>
@@ -570,7 +570,7 @@ module PackageFn =
   type Parameter = { name : string; typ : TypeReference; description : string }
 
   type PackageFn =
-    { id : uuid
+    { hash : Hash
       name : Name
       body : Expr
       typeParams : List<string>
@@ -646,12 +646,12 @@ type PackageManager =
 
   static member empty =
     { findType = fun _ -> Ply None
-      findFn = fun _ -> Ply None
       findValue = fun _ -> Ply None
+      findFn = fun _ -> Ply None
 
       getType = fun _ -> Ply None
-      getFn = fun _ -> Ply None
       getValue = fun _ -> Ply None
+      getFn = fun _ -> Ply None
 
       search =
         fun _ ->
@@ -671,34 +671,34 @@ type PackageManager =
     { findType =
         fun name ->
           match types |> List.tryFind (fun t -> t.name = name) with
-          | Some t -> Some t.id |> Ply
+          | Some t -> Some t.hash |> Ply
           | None -> pm.findType name
       findValue =
         fun name ->
           match values |> List.tryFind (fun v -> v.name = name) with
-          | Some v -> Some v.id |> Ply
+          | Some v -> Some v.hash |> Ply
           | None -> pm.findValue name
       findFn =
         fun name ->
           match fns |> List.tryFind (fun f -> f.name = name) with
-          | Some f -> Some f.id |> Ply
+          | Some f -> Some f.hash |> Ply
           | None -> pm.findFn name
 
       getType =
-        fun id ->
-          match types |> List.tryFind (fun t -> t.id = id) with
+        fun hash ->
+          match types |> List.tryFind (fun t -> t.hash = hash) with
           | Some t -> Ply(Some t)
-          | None -> pm.getType id
+          | None -> pm.getType hash
       getValue =
-        fun id ->
-          match values |> List.tryFind (fun v -> v.id = id) with
+        fun hash ->
+          match values |> List.tryFind (fun v -> v.hash = hash) with
           | Some v -> Ply(Some v)
-          | None -> pm.getValue id
+          | None -> pm.getValue hash
       getFn =
-        fun id ->
-          match fns |> List.tryFind (fun f -> f.id = id) with
+        fun hash ->
+          match fns |> List.tryFind (fun f -> f.hash = hash) with
           | Some f -> Ply(Some f)
-          | None -> pm.getFn id
+          | None -> pm.getFn hash
 
       search = fun query -> pm.search query
 

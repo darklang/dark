@@ -8,7 +8,7 @@
 ///
 /// Some tests exist to ensure each of these IDs is unique.
 ///
-/// If you need to generate some UUIDs, https://www.uuidgenerator.net is useful.
+/// Package items are now identified by their content hashes instead of UUIDs.
 ///
 /// Note: all of these types are assumed to be owned by the Darklang user
 module LibExecution.PackageIDs
@@ -23,52 +23,120 @@ open Prelude
 
 module Type =
   let mutable private _lookup = Map []
-  let private p modules name (id : string) : System.Guid =
-    let id = System.Guid.Parse id
-    _lookup <- _lookup |> Map.add (modules, name) id
-    id
+  let private p modules name (hashStr : string) : Hash =
+    let hash = Hash hashStr
+    _lookup <- _lookup |> Map.add (modules, name) hash
+    hash
 
   module Stdlib =
     let private p addl = p ("Stdlib" :: addl)
 
-    let result = p [ "Result" ] "Result" "c1cb018c-8264-4080-be7f-b06b8a0e1729"
-    let option = p [ "Option" ] "Option" "9ce3b596-968f-44c9-bcd4-511007cd9225"
+    let result =
+      p
+        [ "Result" ]
+        "Result"
+        "2e3af0033cfbc86c0e261bdd33ed0058330f3bc647a933c0c28dbb7beb454d7d"
+    let option =
+      p
+        [ "Option" ]
+        "Option"
+        "daf8ab700bbabf454fa57efd2242a8a856b5423b53359e45fc8fc5b44ce288d2"
 
     let int8ParseError =
-      p [ "Int8" ] "ParseError" "0a8a9ce5-3a3a-4146-8297-c7076dd37c53"
+      p
+        [ "Int8" ]
+        "ParseError"
+        "2e46958e373dce147263544a76f932ffb7e107a0af503dafb1778133c91b8a0d"
     let uint8ParseError =
-      p [ "UInt8" ] "ParseError" "f836299f-d97c-4b27-ae8f-924a442bd3ce"
+      p
+        [ "UInt8" ]
+        "ParseError"
+        "0bb44cc98b846f65db8f25ce107fb57f10280af908a4e22475eb14928e944bee"
     let int16ParseError =
-      p [ "Int16" ] "ParseError" "1c4e3ff7-bc2b-48c7-adf3-5131aefa2fad"
+      p
+        [ "Int16" ]
+        "ParseError"
+        "a95c7babccc84af5b539ff04d60d5c5eb3987b7ab8c6e365791fb663412575cf"
     let uint16ParseError =
-      p [ "UInt16" ] "ParseError" "c894f8be-09ed-4268-b2f9-5837c45c5dca"
+      p
+        [ "UInt16" ]
+        "ParseError"
+        "17c5cac7912748307a7fffc0df14c05312acc10c973b286c7ab4159b7a699dda"
     let int32ParseError =
-      p [ "Int32" ] "ParseError" "9650cfbc-9433-45c2-9c3d-1b8daf6724e2"
+      p
+        [ "Int32" ]
+        "ParseError"
+        "6e8159e7555752e260a003f2da0e97f95eb2b2e213d0e92346be8a2ac1203b8e"
     let uint32ParseError =
-      p [ "UInt32" ] "ParseError" "29cd7b48-9627-4f0f-a7dc-58d6c441b498"
+      p
+        [ "UInt32" ]
+        "ParseError"
+        "e7b35446e5f951db8475ddde3106f7cfa25c29eaf4ae6d62c5f53c9e437bbd24"
     let int64ParseError =
-      p [ "Int64" ] "ParseError" "ce40066f-b791-4912-96fb-d52d733c3d9b"
+      p
+        [ "Int64" ]
+        "ParseError"
+        "fe57c19fa8852f7c5a75bc7352e5e79f2e819a97eba2954da21a69ff2b0eb492"
     let uint64ParseError =
-      p [ "UInt64" ] "ParseError" "ef7e9d82-e575-48e4-b8e1-b8f3be6f4760"
+      p
+        [ "UInt64" ]
+        "ParseError"
+        "db3ea47e9e8724b0a257ebf10c51e6cfbf3c351ca5bd65397a0c2594b7c3e240"
     let int128ParseError =
-      p [ "Int128" ] "ParseError" "42e1e0ba-67e2-46b0-8baf-06f86266d3ad"
+      p
+        [ "Int128" ]
+        "ParseError"
+        "0c3417a5c77a077dfef7070c9d631f1fe692a16f28e32e665ed76896928ba35d"
     let uint128ParseError =
-      p [ "UInt128" ] "ParseError" "688d57a6-0182-4c32-a3dc-24b5b5140055"
+      p
+        [ "UInt128" ]
+        "ParseError"
+        "5b81e8526282465fbf209cab17dce4b3d436574dfb60520784abc000ef5c99c1"
     let floatParseError =
-      p [ "Float" ] "ParseError" "a537b642-d02b-48b8-8ce3-46a99fbfe6fd"
+      p
+        [ "Float" ]
+        "ParseError"
+        "dc0890261dd008abc6eaf962bf2677a68e57637e620b704d98538f1fa09829b9"
     let uuidParseError =
-      p [ "Uuid" ] "ParseError" "3d3dd7bd-0a4e-4816-95e6-70bfafa3fb75"
+      p
+        [ "Uuid" ]
+        "ParseError"
+        "ba534998448a1e2ba411d80b2e195f93ba903a8a4d8d9ff1cbd7e7b02db1b6d4"
 
     module Http =
-      let request = p [ "Http" ] "Request" "926dcb16-4708-451a-9fff-d0f19166c3c8"
-      let response = p [ "Http" ] "Response" "875ece77-ff5d-46c4-b68e-7d88685ead6f"
+      let request =
+        p
+          [ "Http" ]
+          "Request"
+          "aa3ead7085e100cd1be6a6c19e7109482bef15ff7e77d67ef248cfea722f4cba"
+      let response =
+        p
+          [ "Http" ]
+          "Response"
+          "0af69f8d88bfe21b84b43b84942b608f909ac4122ea15893c3eaff650d6313ea"
 
     module HttpClient =
       let private p addl = p ("HttpClient" :: addl)
-      let badHeader = p [] "BadHeader" "8d92aa0f-cce8-4556-846f-3183abfaa631"
-      let badUrlDetails = p [] "BadUrlDetails" "31c0dd4a-6461-425b-84db-21064eb62235"
-      let requestError = p [] "RequestError" "1f765ab5-7b59-45e6-a970-ee9f9d28c379"
-      let response = p [] "Response" "973d78f8-6591-4cc3-8c81-19d58dc2fca7"
+      let badHeader =
+        p
+          []
+          "BadHeader"
+          "a2bba4ca7dfa9ddf3fbcea04a689a30db600f15bd1c5959ae2d08bbe14b08492"
+      let badUrlDetails =
+        p
+          []
+          "BadUrlDetails"
+          "a6796f85d4ae43b64f50409e776ea9c7894f88d4bca8aa4b56cb345eccff95a6"
+      let requestError =
+        p
+          []
+          "RequestError"
+          "e75e626f743ec3b1c3e693f6385b601b6bda050e012834bc4c2e7d08a101d223"
+      let response =
+        p
+          []
+          "Response"
+          "03f0e1b2dac46b61da2c39744579e674ae1b1ab5182382647e7ce64dac25a30d"
 
     module Json =
       module ParseError =
@@ -76,246 +144,625 @@ module Type =
 
         module JsonPath =
           let part =
-            p [ "JsonPath"; "Part" ] "Part" "705ae7c9-e726-4072-b154-7c1a33dcb386"
-        let jsonPath = p [] "JsonPath" "e6d38cec-6d64-4fd9-8d20-b793a35831fb"
-        let parseError = p [] "ParseError" "7b0a5338-a64a-446c-913c-6aaf15617053"
+            p
+              [ "JsonPath"; "Part" ]
+              "Part"
+              "40c32a77a8e9c8848a670d2dc4985804915c660d7750a34daa8a6daac410892a"
+        let jsonPath =
+          p
+            []
+            "JsonPath"
+            "55297e9f433f35383c4272e5ef83a312fc7911cde74634daea26e02c518da341"
+        let parseError =
+          p
+            []
+            "ParseError"
+            "832b943038d7181b9c7ed3ea1cea2773d708e0e7e678e0415d5497206e38ecc7"
 
     module AltJson =
       let private p addl = p ("AltJson" :: addl)
       let parseError =
-        p [ "ParseError" ] "ParseError" "c990825c-ef78-49a6-b5dd-f69a430722e1"
-      let json = p [] "Json" "d80a6028-92e8-4da2-89b3-1cfc5d275024"
+        p
+          [ "ParseError" ]
+          "ParseError"
+          "c9c3abe3f6d38cad10f0f5c902367706cdde4cc0d94a1c7fd3513b1a1e30cc05"
+      let json =
+        p
+          []
+          "Json"
+          "98bcd29921b522613c44499f277de319f9ece4ad8330e2ec71952ce578d9cfca"
 
     module Cli =
       let private p addl = p ("Cli" :: addl)
       let executionOutcome =
-        p [] "ExecutionOutcome" "754e11ce-8842-4961-8b40-cdce2cd0d7c8"
+        p
+          []
+          "ExecutionOutcome"
+          "ef9493927cdcf5e0e5a57206223371bdd71ebc5e73906bfddfd12e20b6318a80"
 
       module OS =
         let private p addl = p ("OS" :: addl)
-        let os = p [] "OS" "88f1ded5-e860-4f8e-8848-da7abac5824c"
+        let os =
+          p
+            []
+            "OS"
+            "4788c4345c88eb606c9511cd4069fd19f5457060d9583a0de23f9646b2936f58"
 
       module Stdin =
         let private p addl = p ("Stdin" :: addl)
         let modifiers =
-          p [ "Modifiers" ] "Modifiers" "75e354e3-28a8-4086-bad8-8cea633d3358"
-        let key = p [ "Key" ] "Key" "c871205d-d08d-4bfe-afa5-4b207f07182b"
+          p
+            [ "Modifiers" ]
+            "Modifiers"
+            "783430d6509dc86cd741b156abf0eab25232953c890ce1dc1475ca775599de1f"
+        let key =
+          p
+            [ "Key" ]
+            "Key"
+            "e6c3106cced222720e235bcaf5f1ec5bd9ddae230270359b4201042bd5b66945"
         let keyRead =
-          p [ "KeyRead" ] "KeyRead" "14ae96ae-a1cf-4275-aa7e-01437bf5e822"
+          p
+            [ "Key" ]
+            "KeyRead"
+            "e7d5f7708985bd9a74ea134a88d4493a1a6bd65aa22ac63b1b27aad700333598"
 
   module LanguageTools =
     let private p addl = p ("LanguageTools" :: addl)
-    let sign = p [] "Sign" "7f0c6dba-6439-4a6c-b689-838cbbd66692"
+    let sign =
+      p [] "Sign" "4ecce1451b44ff77dfef69450500a2299338024370bbfb92f71b2b5a3f057d9e"
 
     // TODO: where do these actually belong? are they used, even?
-    let builtinValue = p [] "BuiltinValue" "b68d3b0a-d139-4933-9127-1d06712e1514"
+    let builtinValue =
+      p
+        []
+        "BuiltinValue"
+        "d4d24c92788aa583c3c995381a8a466a9415e321008057906ef974ed0ba1234c"
     let builtinFnParam =
-      p [] "BuiltinFunctionParameter" "8dec56ad-3b32-4f53-83d6-c86200a1d39f"
-    let builtinFn = p [] "BuiltinFunction" "fd899262-dc09-46cf-a025-95f31841718c"
+      p
+        []
+        "BuiltinFunctionParameter"
+        "5a1aef167cf50ffcf4a64e3da15c298216ec59893862d7006cae433299a40e83"
+    let builtinFn =
+      p
+        []
+        "BuiltinFunction"
+        "f01a3888da2dc38b49473fa485e2bbceeb20be1bfa9a3166181522a22d599129"
 
 
     module Parser =
       let private p addl = p ("Parser" :: addl)
-      let point = p [] "Point" "f4d649a4-740b-4a0a-863f-4c74c4503fad"
-      let range = p [] "Range" "e194e06f-a765-483d-b6a5-16856ed547f0"
-      let parsedNode = p [] "ParsedNode" "3612c001-663c-4695-9b1c-d3a1582a8057"
+      let point =
+        p
+          []
+          "Point"
+          "43c7e325d72f8c4c0e057025d5cfb675d7424f22e17416868ee5ed8c8bc6821a"
+      let range =
+        p
+          []
+          "Range"
+          "eba3e5dc13be2a3c5952498ed7aed0744218a19beed0b1bbd506922420fb09a0"
+      let parsedNode =
+        p
+          []
+          "ParsedNode"
+          "03d32c1cd92c315c53a095c9f2603a7d6da5948240d36ba4be146f35114005f2"
 
       module CliScript =
         let private p addl = p ("CliScript" :: addl)
         let pTCliScriptModule =
-          p [] "PTCliScriptModule" "4b7dcac5-03ee-4a15-8e97-7ce0ccc110fe"
+          p
+            []
+            "PTCliScriptModule"
+            "55551b19c31739a686aa5cdc4c51d94b9e1e986e37e8b410667607be922e002b"
 
 
     module NameResolver =
       let private p addl = p ("NameResolver" :: addl)
       let nameResolverOnMissing =
-        p [] "OnMissing" "3c6057e7-143b-4af8-96c4-c193c1ccfeb3"
+        p
+          []
+          "OnMissing"
+          "01c794cfd8d981827c028f0f344a3d88b15ff2ecc00c412361665762c293d24c"
 
 
     module WrittenTypes =
       let private p addl = p ("WrittenTypes" :: addl)
-      let name = p [] "Name" "8381f3b9-2311-4eb3-b040-b4c144afa6f1"
-      let range = p [] "Range" "1f00b6b2-e29a-4eca-a14f-cc7a56d6ec89"
+      let name =
+        p
+          []
+          "Name"
+          "151a213da1a76c6de1bf44d41291808487e1a407ed288cd1c9f512b6ceaa3f23"
+      let range =
+        p
+          []
+          "Range"
+          "571d3f56758ccbf02552e3a329d4a5e67f74da03c2f9722bc07a6ef4c1f411b3"
 
 
     module RuntimeTypes =
       let private p addl = p ("RuntimeTypes" :: addl)
       module FQTypeName =
         let private p addl = p ("FQTypeName" :: addl)
-        let package = p [] "Package" "ac7f7a1e-f81b-4940-9a21-323078751059"
+        let package =
+          p
+            []
+            "Package"
+            "b11b1e0c18e8cb137f4c7781c98542dd492f18b9e443606f3d95bcff968d59ad"
         let builtin = p [] "Builtin" "67c7c385-91e9-4f37-91c8-117a0d6a1ace"
-        let fqTypeName = p [] "FQTypeName" "690be187-31be-4cef-914a-397d6bd27ac3"
+        let fqTypeName =
+          p
+            []
+            "FQTypeName"
+            "8b91304e4b5af8439370070a1dc0a0a93a348e5b402f8e023b0af55ae8031103"
 
       module FQValueName =
         let private p addl = p ("FQValueName" :: addl)
-        let package = p [] "Package" "594f972b-1461-459a-9b27-04fbd8332ce8"
-        let builtin = p [] "Builtin" "e32ad5e3-156d-4c36-ab58-04528cbd9885"
-        let fqValueName = p [] "FQValueName" "9998a7ea-c1c5-4246-89a4-9167bfbbd7f6"
+        let package =
+          p
+            []
+            "Package"
+            "9106bcaffaa5393302c51d5a392cc3d16f6d7b6e819b230fdbc7ccdeaeec9103"
+        let builtin =
+          p
+            []
+            "Builtin"
+            "d15ec46e1362a2f051ef1a484f92669da90df8bd18e9779a6a8431cec350e825"
+        let fqValueName =
+          p
+            []
+            "FQValueName"
+            "8496398d43991b1d8ca0593d1e3b10a5959ba16d1c4ab8ca74a823286624def6"
 
       module FQFnName =
         let private p addl = p ("FQFnName" :: addl)
-        let package = p [] "Package" "bf2a5c81-0d4d-4ee8-b50f-5491bc5724c4"
-        let builtin = p [] "Builtin" "ad2bbc2a-aee5-42bf-86ef-2c9b626bb699"
-        let fqFnName = p [] "FQFnName" "7defa320-7dd9-4eaa-8e55-152cb6ef9f5d"
+        let package =
+          p
+            []
+            "Package"
+            "055685be7d03fa5a4b24b8dd039f98b71c77fc0434cfc0dfc28b56947ed5f20b"
+        let builtin =
+          p
+            []
+            "Builtin"
+            "c42eda1a3f071071536f16a3447ba1d2e37194934905cf3fd0b1401ccdea4f4d"
+        let fqFnName =
+          p
+            []
+            "FQFnName"
+            "efcd5d239b04f28bc0d9ec83043c2ae65dd1bd4a65a7da79cb0e7485f8384026"
 
       let nameResolutionError =
-        p [] "NameResolutionError" "ada30799-1227-4902-b580-76bca80c9e92"
+        p
+          []
+          "NameResolutionError"
+          "35194b2d29ce57a2d68c8bdc1e7b948b437eed5d2a7f653cbed62f9715df49e1"
       let nameResolution =
-        p [] "NameResolution" "aafe54e1-d970-4ce0-81a1-1569af86671f"
+        p
+          []
+          "NameResolution"
+          "214bc85454dc2fb432c6dad6266b2cca29caf15b149733921718b6ed82d980e8"
 
-      let typeReference = p [] "TypeReference" "691c34cb-16c0-4013-9aed-f431ec34d36e"
-      let param = p [] "Param" "dcfb5f50-2de5-4b13-aa7a-579c8338c360"
-      let letPattern = p [] "LetPattern" "5ca5d251-0703-49ce-a40d-28c2e4575431"
-      let matchPattern = p [] "MatchPattern" "003c6684-4f9d-4085-bdba-a7f3bea7f587"
-      let matchCase = p [] "MatchCase" "5fb0f282-5f7c-4fb8-b107-b63429080e69"
-      let stringSegment = p [] "StringSegment" "ccadbf5b-1802-4db7-a30b-7b9073db78cd"
+      let typeReference =
+        p
+          []
+          "TypeReference"
+          "f0d0918a6656812e3093eb262557e0d93a86439b6a101bc703324b54d586e328"
+      let param = // does this exist anywhere?
+        p
+          []
+          "Param"
+          "4c13515d44037b288f15fffa62873ea37a8241dc12993a82b8b6c88d73a9d79e"
+      let letPattern =
+        p
+          []
+          "LetPattern"
+          "bb866778a86041d98385435b4b0ba13316b9497fbac9a441f55808e0a267e572"
+      let matchPattern =
+        p
+          []
+          "MatchPattern"
+          "23ab809340b295fd84ab55121fc5475ba83d1c57203c99ca0eca4f95e96a6497"
+      let matchCase = // does this exist anywhere?
+        p
+          []
+          "MatchCase"
+          "4491b4b6b69a986377a30896d05c47f2745ecedd2956b0bd148bbb646fb1b787"
+      let stringSegment = // does this exist anywhere?
+        p
+          []
+          "StringSegment"
+          "019a62c69924d1029ab602d5c796b058bd61f356fa8a4257dcfee4ae186f1d42"
 
-      let dval = p [] "Dval" "528b682c-a249-4a50-bd93-85e1e8cb529e"
-      let knownType = p [] "KnownType" "50940368-5c6b-4f0b-9966-48b9e9443f5d"
-      let valueType = p [] "ValueType" "eeb27326-120b-4a71-bd13-a6dc545e5ade"
+      let dval =
+        p
+          []
+          "Dval"
+          "7a42777dd1fb3aae43be6f9c9aad995ff3992a64c5fa623f96dd7c114afcb9a3"
+      let knownType =
+        p
+          []
+          "KnownType"
+          "b881d41531634a682d6247fee7474f1bad518b2113fb2ce512c14b67d5115f5d"
+      let valueType =
+        p
+          []
+          "ValueType"
+          "c6a6e0bc2d9d78c28f7b4473493722c522660f59967d44d628e8fe56ca0fe20f"
 
       let applicableNamedFn =
-        p [] "ApplicableNamedFn" "5cbd8499-14f8-4eab-8e40-f88776e64cd3"
+        p
+          []
+          "ApplicableNamedFn"
+          "f1adf47552773555f08729632c9849ff4525e35f25c2f32952c217ac5596b925"
       let applicableLambda =
-        p [] "ApplicableLambda" "ee577e2c-3e66-42f4-8600-fbe1075adba7"
-      let applicable = p [] "Applicable" "b152337b-e794-4a02-9c53-e0c4b19cb479"
+        p
+          []
+          "ApplicableLambda"
+          "bb9883490f8130985379cd436d2069cd2a2d105bdb2b776825d27d651a4e3a5b"
+      let applicable =
+        p
+          []
+          "Applicable"
+          "5f1634486ebd6f1c8581144a528f72162e59a3e9b1967c5d5b4635f267fbbccc"
 
 
       module RuntimeError =
         let private p addl = p ("RuntimeError" :: addl)
 
-        module TypeCheckers =
-          let private p addl = p ("TypeCheckers" :: addl)
-          let pathPart = p [] "PathPart" "96cebb20-4dcf-4848-80c7-55b31d91d572"
-          let path = p [] "Path" "d8dd84df-c0cb-4128-a858-d2e342ca89f6"
-          let error = p [] "Error" "c5dbd3b4-38d4-40e7-8147-48e3ec64b028"
+        module TypeChecking =
+          let private p addl = p ("TypeChecking" :: addl)
+          let typeCheckPathPart =
+            p
+              []
+              "TypeCheckPathPart"
+              "1966c94432bfedffeec98e505736a518a0e8b391e10fd979c7104ae26c2d2e67"
+          let reverseTypeCheckPath =
+            p
+              []
+              "ReverseTypeCheckPath"
+              "c4f4f6c122c1cbd9a29a9cf3a0b6f585e5f28bb1b21d7a9ce0517a090283860f"
 
         module Bools =
-          let error = p [ "Bools" ] "Error" "1afb20b6-4d3f-4566-b5aa-6b2898eaa2ae"
+          let error =
+            p
+              [ "Bools" ]
+              "Error"
+              "2e996e5e2b2ab3e7ba69455816ea3a5c599cc2ea7bf3cda45cfbbc3e756ae58c"
 
         module Ints =
-          let error = p [ "Ints" ] "Error" "8f753bfe-9e35-4a9e-a47e-c1dbb5f83037"
+          let error =
+            p
+              [ "Ints" ]
+              "Error"
+              "9e764c84a1047fa4e9cd6a70ed72eff743f75af8b6764456055f6ab1f268246b"
 
         module Strings =
-          let error = p [ "Strings" ] "Error" "3883b503-4f5b-437b-96b3-72029ed7dc81"
+          let error =
+            p
+              [ "Strings" ]
+              "Error"
+              "8e80cdb02ad0aebaaf36537a8b07c02f9f1beaed74e5278668ab80db2f556a48"
 
         module Lists =
           let private p addl = p ("Lists" :: addl)
-          let error = p [] "Error" "f327ad98-ec15-4cfe-bcfe-6f0f5a444349"
+          let error =
+            p
+              []
+              "Error"
+              "8bb541612507cf602a5cfefc2069ee54a36ae3ea410a94fca5990c7aa6c71561"
 
         module Dicts =
-          let error = p [ "Dicts" ] "Error" "0c4bfb7f-14d3-4d25-a9c0-f8638fd52acf"
+          let error =
+            p
+              [ "Dicts" ]
+              "Error"
+              "e6c74a394f2bfd76e9a6f4445d56cae5d5605a798b2f5149b1991283ebd0352d"
 
         module Lets =
-          let error = p [ "Lets" ] "Error" "a0fb3f52-2acd-4f07-9f10-2dfad642387d"
+          let error =
+            p
+              [ "Lets" ]
+              "Error"
+              "070ced804587215a8385d1718713f2e689ef043fcb13fbc87fb5875c686dd4b9"
 
         module Matches =
-          let error = p [ "Matches" ] "Error" "59f0d63a-c9a1-424e-9da2-a16a88a1f518"
+          let error =
+            p
+              [ "Matches" ]
+              "Error"
+              "41ad583a0d6dd90c226fa142523a6f424eac87d3b9ff11ebbe5410c2cff909af"
 
         module Enums =
-          let error = p [ "Enums" ] "Error" "9f6119bb-4423-4ba7-98e6-87fafa37a584"
+          let error =
+            p
+              [ "Enums" ]
+              "Error"
+              "ec4aa114e9c678c04d83e8a4da59622c6dc4f4bf0e681f515fb75b907a007af0"
 
         module Records =
-          let error = p [ "Records" ] "Error" "5b53bb20-7a3e-4f96-bd1c-5a090b491d8d"
+          let error =
+            p
+              [ "Records" ]
+              "Error"
+              "8e448c4578a1b658dae9344a00c2127408895628d8aef98cdfa0345c9b83f246"
 
         module Applications =
           let error =
-            p [ "Applications" ] "Error" "8eda2125-db3e-4ef8-b185-80c202f3e1e3"
+            p
+              [ "Applications" ]
+              "Error"
+              "22fba83a2b39e78e9e6222c950d0ba4c585da2ae82ad8cdfabf7bd6fc700fc39"
 
         module Statements =
           let error =
-            p [ "Statements" ] "Error" "b945ee85-01ca-4d82-b4a8-041cc74c389b"
+            p
+              [ "Statements" ]
+              "Error"
+              "70419c7ec277b4a8996e1dbbc3a158c75bec432d4ab4f2b59e716a24f015fe64"
 
         module Unwraps =
-          let error = p [ "Unwraps" ] "Error" "a69d2c00-2839-449e-9d19-c4d3b5b27550"
+          let error =
+            p
+              [ "Unwraps" ]
+              "Error"
+              "4c3f10121944a3b12e2cea93ba4245f5303c0f63ead79b31358adaedb9289a5f"
 
         module Jsons =
-          let error = p [ "Jsons" ] "Error" "595907db-ab8d-4fe5-b9cf-d1bd8041e9bb"
+          let error =
+            p
+              [ "Jsons" ]
+              "Error"
+              "3bb7d1e509d325e9dd8bb5ba7943e8565266e1af615777b36b4a6a8f6b623c58"
 
         module CLIs =
-          let error = p [ "CLIs" ] "Error" "6756f735-2a6a-41ac-a6a8-6e0b7354ca1b"
+          let error =
+            p
+              [ "CLIs" ]
+              "Error"
+              "2a4259e2939acf1b3f18e3a231b7097c631a47a9899c1ebb127de0db2a288325"
 
-        let error = p [] "Error" "722cd3b3-d6af-4d28-96f2-87afd44c3898"
+        let error =
+          p
+            []
+            "Error"
+            "dbf3368afcd62d8c06f10490fe10829731a18e3f287fcf2a9513f48c81bcc62b"
 
     module ProgramTypes =
       let private p addl = p ("ProgramTypes" :: addl)
 
       let nameResolutionError =
-        p [] "NameResolutionError" "de779c1d-bebc-43d9-bb3d-4c160cca62eb"
+        p
+          []
+          "NameResolutionError"
+          "6b7f125f28101601f11bd6c82f0b8d435ef3b241ab6277645c6742ab01249fc5"
 
       module FQTypeName =
         let private p addl = p ("FQTypeName" :: addl)
-        let package = p [] "Package" "ad2b1288-5005-4943-a03b-caa8056a2aee"
-        let fqTypeName = p [] "FQTypeName" "fa606ff4-1daf-4194-b684-62a0b1215953"
+        let package =
+          p
+            []
+            "Package"
+            "6b56851992e45b58146529762d7ba18a9e131bdf524d1e5fa458b460de1b3628"
+        let fqTypeName =
+          p
+            []
+            "FQTypeName"
+            "74a250b1814ba9a3f7c0d11636b1db15c4c30a786003d4294aa490c7e0f2911e"
 
       module FQValueName =
         let private p addl = p ("FQValueName" :: addl)
-        let builtin = p [] "Builtin" "2d751fa5-042d-4c63-8c81-8c97ab0f630c"
-        let package = p [] "Package" "26810c53-0af7-400d-8755-f6c1c9a61ca7"
-        let fqValueName = p [] "FQValueName" "e72942a3-48dd-4f00-b451-aff4903114ba"
+        let builtin =
+          p
+            []
+            "Builtin"
+            "27eb1ab8f827ccf2b47019300af46ce6067a56f91a612aff441246a943cd5250"
+        let package =
+          p
+            []
+            "Package"
+            "027644714f38c9fb8e71845470e39c38b1a2c0e0626c6747d6dc9ff6624b4a7b"
+        let fqValueName =
+          p
+            []
+            "FQValueName"
+            "1cbf38826e5f4fa0f1164d84dedefeec82d960f88c7baaf401b666017676703f"
 
       module FQFnName =
         let private p addl = p ("FQFnName" :: addl)
-        let builtin = p [] "Builtin" "b6f429d0-da28-4612-b4b1-06ff1cfc19d8"
-        let package = p [] "Package" "e86c8979-6412-4051-9eff-1e868c170f33"
-        let fqFnName = p [] "FQFnName" "13bb2d41-3a99-4a5e-8f25-1e3bcb010263"
+        let builtin =
+          p
+            []
+            "Builtin"
+            "8f4996154c9fd0acdb467718cc0c7fcb4f36a5c0fc3b96d792e0249cb7101e69"
+        let package =
+          p
+            []
+            "Package"
+            "5366b04fc6123e9ed318d992338730e2cb1e105349f6519c6485da2a2745b45e"
+        let fqFnName =
+          p
+            []
+            "FQFnName"
+            "aaaf999e90e61d59d6c7f71dfcc5eb52cffd65b26d743551f9202be899afb488"
 
-      let typeReference = p [] "TypeReference" "eae9e2f3-6b17-40b1-8f9d-ef6a9aa70473"
+      let typeReference =
+        p
+          []
+          "TypeReference"
+          "106676a5a5605c8a63f74f506431b7174ec150fc0ae46d20667b9b111218d328"
 
-      let letPattern = p [] "LetPattern" "ae02dd2f-c10b-4b26-9c83-de1715254eef"
-      let matchPattern = p [] "MatchPattern" "a8acadfe-8a57-4206-adc6-47e04590e6f5"
-      let matchCase = p [] "MatchCase" "1383f092-844d-433d-aa9d-cb89e5dae0ab"
-      let stringSegment = p [] "StringSegment" "0fb605e0-a278-4711-82f7-9bd8eb42d605"
+      let letPattern =
+        p
+          []
+          "LetPattern"
+          "aea6efe319b3550fc478261cb8baa5b7e94fdd96412e93f1606258715994f058"
+      let matchPattern =
+        p
+          []
+          "MatchPattern"
+          "809284630038fe7393faebd58cf67e552656df995da45be6fb1913619e7a7459"
+      let matchCase =
+        p
+          []
+          "MatchCase"
+          "12817d338fc6ece80c5a347f7d2af45e17058e360c67b10192657dee882fd31e"
+      let stringSegment =
+        p
+          []
+          "StringSegment"
+          "cf953571a709bde5cc5382752358ef76450b64a79954bda6260d1c4cf9bc467a"
       let binaryOperation =
-        p [] "BinaryOperation" "dde84462-2cc6-48e1-8a08-2db584167219"
-      let infixFnName = p [] "InfixFnName" "0e3b1195-74ed-43f5-9103-e10e79001c34"
-      let infix = p [] "Infix" "a6045143-ecfc-4f9b-95c7-62565b86a1c5"
-      let pipeExpr = p [] "PipeExpr" "580bc173-e5ef-4f3e-8d12-e88e99fc980a"
-      let expr = p [] "Expr" "138c055e-34c3-47f2-a067-7d78d84fe638"
+        p
+          []
+          "BinaryOperation"
+          "358192ad3a174b19c0ccf997ad3b57990d3fda4d6de33412f68f94082f1364b3"
+      let infixFnName =
+        p
+          []
+          "InfixFnName"
+          "129b4cd90cda8330f739ce14433716f6d6076b962a908670e818cb2ccbd9fa73"
+      let infix =
+        p
+          []
+          "Infix"
+          "f5244cf1b6dcdf3246e14ba81a7993916c0615229a45e3ab611d1167f7d9474b"
+      let pipeExpr =
+        p
+          []
+          "PipeExpr"
+          "6563f7c04a77ae9869ab7d18505eee4b5fb8ce2217a120c5c5a4dd92104bd92c"
+      let expr =
+        p
+          []
+          "Expr"
+          "645263384a25f889119957050d3d8f1b32a9bddd1650303222ddf3e2dd888df9"
 
-      let deprecation = p [] "Deprecation" "e6ac931d-eac0-42df-a197-a9bcf1094b09"
+      let deprecation =
+        p
+          []
+          "Deprecation"
+          "0a1d48aba47e7ba24c4d7e80d692c40c6b3272b6c61150914e0d5b4a0e620a07"
 
       module TypeDeclaration =
         let private p addl = p ("TypeDeclaration" :: addl)
-        let recordField = p [] "RecordField" "148003cf-828c-4645-8a7a-f0fbc3fc5c81"
-        let enumField = p [] "EnumField" "7f309b94-16e0-4f88-947c-a3c3254c639e"
-        let enumCase = p [] "EnumCase" "1e3331c7-9d24-412d-a8cc-cd07bcd1381a"
-        let definition = p [] "Definition" "7cdaa047-6395-41a3-b97a-01776c3fb476"
+        let recordField =
+          p
+            []
+            "RecordField"
+            "5d20db7615c5c99b8f2e7176f1e215bc4899fb0ad835338ff657c57e2f5d008e"
+        let enumField =
+          p
+            []
+            "EnumField"
+            "4443586cd013fa8f09ac89f834099605d62bfd12b2b04aec1c66c3909c28ec35"
+        let enumCase =
+          p
+            []
+            "EnumCase"
+            "e10a26a2050bdaab5438f9b2200edf53bebaf2d1fab6d03b72715fb83cf047b1"
+        let definition =
+          p
+            []
+            "Definition"
+            "06cf50ff0a5bac3e5bcb5e2eddc6f7a05cf2ba1c24a72b11b08c96bef6f3ad97"
         let typeDeclaration =
-          p [] "TypeDeclaration" "13e258cf-12ac-4a2d-ab7b-16897941812c"
+          p
+            []
+            "TypeDeclaration"
+            "44c728d5a2d7dc01f28e652e4ec2d24e38faa7e9a1f54709d8a65ccb8c7c871d"
 
       module PackageType =
         let private p addl = p ("PackageType" :: addl)
-        let name = p [] "Name" "5207810f-879c-4e2a-84b5-73b0401213cb"
-        let packageType = p [] "PackageType" "27e3390c-137a-4df2-97db-7403442835d1"
+        let name =
+          p
+            []
+            "Name"
+            "9f0d7b8821fda85a708a1e541446e15aa500d3b5157ba527b7c939ebf6aadba3"
+        let packageType =
+          p
+            []
+            "PackageType"
+            "0d87bdb83d33dccb7fb7bc9fc04a629c09b1fbf240ad66d31750eab0c497e390"
 
       module PackageValue =
         let private p addl = p ("PackageValue" :: addl)
-        let name = p [] "Name" "f48ac737-360c-4c85-a5fb-8916c0ba4b3f"
-        let packageValue = p [] "PackageValue" "e5190f19-b9de-406c-ba3e-b2f9d83998dd"
+        let name =
+          p
+            []
+            "Name"
+            "cf6a194493c37781d28460c0a21f8757c4249a03ac1b7a12b89fd382b3f5f9cc"
+        let packageValue =
+          p
+            []
+            "PackageValue"
+            "0b076aad5df43ca1c1797885716a51d4832a83612aded04b3cb2e61fa3959524"
 
       module PackageFn =
         let private p addl = p ("PackageFn" :: addl)
-        let name = p [] "Name" "2503f569-76cc-4e47-afb3-c47058654b48"
-        let parameter = p [] "Parameter" "208d5c13-071e-4e83-994e-d71c5f40aa2e"
-        let packageFn = p [] "PackageFn" "2b363281-c5e8-4223-abf3-5e5d6db27f8c"
+        let name =
+          p
+            []
+            "Name"
+            "d956ce5cdbaa26545cd7c5bfac18b1c00275f9095e958d815ad9eb4b99cfcff7"
+        let parameter =
+          p
+            []
+            "Parameter"
+            "4e7750a6e01f60c5f988607af461f2c7fbf30a3ae75dba0eb70f3161890ab313"
+        let packageFn =
+          p
+            []
+            "PackageFn"
+            "9893171d1dd87e840c5d34b16e79b6bef2ea1915fbcce2e554c83c56c8e6d75f"
 
       module Search =
         let private p addl = p ("Search" :: addl)
-        let entityType = p [] "EntityType" "6c481427-3909-4417-b3f2-4df40b64bfcc"
-        let searchDepth = p [] "SearchDepth" "138313e7-a9de-481d-a717-f8e11d730694"
-        let searchQuery = p [] "SearchQuery" "3937be09-aa05-40d6-b42d-3146e9774c82"
+        let entityType =
+          p
+            []
+            "EntityType"
+            "1dd1eac217ed7d765b418c8496025805408e8ed8a4023d5aab146c661183fad8"
+        let searchDepth =
+          p
+            []
+            "SearchDepth"
+            "fa10141e8a87f0f1677f2164fee4a086ca5e713ab90c011659a335ef2424c350"
+        let searchQuery =
+          p
+            []
+            "SearchQuery"
+            "30161e1968462dc458d1bc253c68850e8fb2c545608727cc7407f237e7375478"
         let searchResults =
-          p [] "SearchResults" "0660f9dc-a816-4185-9e5c-f936325f83d5"
+          p
+            []
+            "SearchResults"
+            "7a3996dc9916a6266eca81e405cf2d9ee4a85a0eda16478a31e68a5d8e5932f5"
 
-      let secret = p [] "Secret" "37427120-d71d-41f2-b094-68757570bc41"
-      let db = p [] "DB" "7f219668-f8ac-4b17-a404-1171985dadf9"
+      let secret =
+        p
+          []
+          "Secret"
+          "f5bf9bac6f842bbaa498b0ef0cfa95f902889437d471ef7e2a393cf485db8bde"
+      let db =
+        p [] "DB" "cd1ffbe29ac38a520958b6e5d41af1e4ff8f5cacb95d78537718ba59dd5c3627"
 
       module Handler =
         let private p addl = p ("Handler" :: addl)
-        let cronInterval = p [] "CronInterval" "54c7e81e-d0c0-46c3-b74c-f0205dc3febd"
-        let spec = p [] "Spec" "21f6bc66-5118-433d-a654-ce81f130a45f"
-        let handler = p [] "Handler" "7fb42e37-cd74-439f-8870-d6d21133f69e"
+        let cronInterval =
+          p
+            []
+            "CronInterval"
+            "8a8f092db263f0de2d05da87a48fbd74e994d68d1650ff39266e9a90802e7c08"
+        let spec =
+          p
+            []
+            "Spec"
+            "da02512bc78bdc9ed5c3a1797319d9746a056b37e7e1d1397a808c14fec17b1d"
+        let handler =
+          p
+            []
+            "Handler"
+            "d9e98ef3b27cfdd305dc70272af96e9f882c5a40eb36efd8ead70db04661f4a5"
 
   module PrettyPrinter =
     let private p addl = p ("PrettyPrinter" :: addl)
@@ -323,21 +770,32 @@ module Type =
       let private p addl = p ("RuntimeTypes" :: addl)
       module RuntimeError =
         let private p addl = p ("RuntimeError" :: addl)
-        let errorMessage = p [] "ErrorMessage" "9f7f9a1f-8240-4562-9023-8699f5f3aa2c"
+        let errorMessage =
+          p
+            []
+            "ErrorMessage"
+            "74428304ac84f1eabc79bb1450464b78bee7f77b1901c83a01b6fcc828351f95"
 
   module Cli =
     let executionError =
       p
         [ "Cli"; "ExecutionError" ]
         "ExecutionError"
-        "1ca71c83-7a12-43ae-a973-b4fb09c3e4bc"
+        "f375a4fc5ed0c29ed1c5de4ca551272ba0ec13f11126263df7886cd58e4d8efd"
 
     let script =
-      p [ "Cli"; "Scripts" ] "Script" "de1629b6-cdfa-46b1-84c0-e0c60048d93b"
+      p
+        [ "Cli"; "Scripts" ]
+        "Script"
+        "bbe14271ce9848d14e37ebcca8c164bf9a12d818b0fb6b7a9da3f7833314621f"
 
 
   module DarkPackages =
-    let stats = p [ "DarkPackages" ] "Stats" "0fcd5847-701c-4da7-9f24-adbe8b5eb397"
+    let stats =
+      p
+        [ "DarkPackages" ]
+        "Stats"
+        "95ab7357ffe77fcf63da44a6ca0dcf2cd7e16fe22c0f89ce53495333b0d2a582"
 
 
 
@@ -345,64 +803,85 @@ module Type =
     let private p addl = p ("Internal" :: addl)
     module Canvas =
       let private p addl = p ("Canvas" :: addl)
-      let program = p [] "Program" "9494c8ca-457c-4cb3-8b10-0f29009f16c7"
-      let secret = p [] "Secret" "704688f7-092d-4786-a054-233dfa630f1b"
+      let program =
+        p
+          []
+          "Program"
+          "700a1b2de5502deeae8c53c60cae9cfc90dab02ede423106093985740464fef9"
+      let secret =
+        p
+          []
+          "Secret"
+          "e9700db9cea11363c90e919f88274a6ce79c5078f9cac4920d484c5251414b4c"
 
     module Infra =
       let tableSize =
-        p [ "Infra" ] "TableSize" "041736ae-9aa1-40b8-b9ea-7d593c5d0368"
+        p
+          [ "Infra" ]
+          "TableSize"
+          "30c94656822c95710d431fa5c46e880f48e851ce05e0f63d1db565f184660f1e"
 
     module Worker =
       let scheduleRule =
-        p [ "Worker" ] "ScheduleRule" "0669d155-6352-4851-8968-ef676b18d8ad"
+        p
+          [ "Worker" ]
+          "SchedulingRule"
+          "dd7b810d8db47e4bb78d7bdd31e8d2c15425821c2992d9e05cdf2e6e3584d84b"
 
     module Test =
       let private p addl = p ("Test" :: addl)
-      let ptTest = p [] "PTTest" "e6fc7686-68f9-4fbe-a6cb-b615dd41ee7e"
+      let ptTest =
+        p
+          []
+          "PTTest"
+          "e93d58403910af3345858b76898c9345a37dbdbdb79950da03a2e44fa0acd838"
 
   // what we expose to the outside world
-  let idForName
-    (owner : string)
-    (modules : List<string>)
-    (name : string)
-    : System.Guid =
+  let hashForName (owner : string) (modules : List<string>) (name : string) : Hash =
     match owner with
     | "Darklang" ->
       match Map.get (modules, name) _lookup with
-      | Some id -> id
-      | None -> System.Guid.NewGuid()
-    | _ -> System.Guid.NewGuid()
+      | Some hash -> hash
+      | None -> Hash "unknown-type"
+    | _ -> Hash "external-type"
 
 
 module Value =
   // There are no referenced Values at this point,
   // but we may be thankful later for hooking this up in the meantime.
-  let idForName
+  let hashForName
     (_owner : string)
     (_modules : List<string>)
     (_name : string)
-    : System.Guid =
-    System.Guid.NewGuid()
+    : Hash =
+    Hash "external-value"
 
 
 
 module Fn =
   let mutable private _lookup = Map []
 
-  let private p modules name (id : string) : System.Guid =
-    let id = System.Guid.Parse id
-    _lookup <- _lookup |> Map.add (modules, name) id
-    id
+  let private p modules name (hashStr : string) : Hash =
+    let hash = Hash hashStr
+    _lookup <- _lookup |> Map.add (modules, name) hash
+    hash
 
   module Stdlib =
     let private p addl = p ("Stdlib" :: addl)
 
     module List =
-      let map = p [ "List" ] "map" "3da8ef47-9817-4d1e-be1b-b9921ccf797f"
+      let map =
+        p
+          [ "List" ]
+          "map"
+          "fd12037bb415b46cbbe0d2f4da31030321dc1cf96746a5e3aa51afa26c61a973"
 
     module HttpClient =
       let request =
-        p [ "HttpClient" ] "request" "fa4a4756-cb6b-4575-b192-ec8f02f13f40"
+        p
+          [ "HttpClient" ]
+          "request"
+          "fc0ae3d6c1709bd0186a98da1841827b6198ff2c1006370b8481b5bb2331755e"
 
 
   module LanguageTools =
@@ -411,68 +890,118 @@ module Fn =
       let private p addl = p ("NameResolver" :: addl)
       module FnName =
         let private p addl = p ("FnName" :: addl)
-        let resolve = p [] "resolve" "7532eda4-f3cf-44e5-a4d6-52fed5aa63f0"
+        let resolve =
+          p
+            []
+            "resolve"
+            "8dd81543c21759a2ee62611d840d461ef9ef959f9306e46ffc32095a522a9536"
 
 
 
     module Parser =
       let private p addl = p ("Parser" :: addl)
       let parsePTExpr =
-        p [ "TestParsing" ] "parsePTExpr" "d96d3e6b-6c0d-4559-ae36-353eaf738fa9"
+        p
+          [ "TestParsing" ]
+          "parsePTExpr"
+          "36d5ea8d231f869717405d10fbe00ddb5f2194e54b341af7d7604f5f66073087"
 
       let parseAndPrettyPrint =
         p
           [ "TestParsing" ]
           "parseAndPrettyPrint"
-          "361fb7f2-523b-4b50-8f29-cc99d5f03e3a"
+          "a5923111527c9d8675dbb94b5f21b874b20b6fd4cdd0c2b4fa7bd42202b14f8d"
 
       module CliScript =
         let private p addl = p ("CliScript" :: addl)
-        let parseCliScript = p [] "parse" "e7574db7-f7e6-4263-adc2-a05b14309cbc"
+        let parseCliScript =
+          p
+            []
+            "parse"
+            "80d1c351943ca1373189f3461b367b9ff8d9d4d7113749628c7d64dc79fbd3b4"
 
     module PackageManager =
       let private p addl = p ("PackageManager" :: addl)
-      let pm = p [] "pm" "591fa719-7986-40b8-a57f-6b78a1d0cd66"
+      let pm =
+        p [] "pm" "2ca2fa862cd74111dd4ea6ea0dfd2a746f37d026db0fce373789c1e3a8910e4c"
 
   module PrettyPrinter =
     let private p addl = p ("PrettyPrinter" :: addl)
     module RuntimeTypes =
       let private p addl = p ("RuntimeTypes" :: addl)
-      let expr = p [] "expr" "be111b49-95f6-4022-ad68-a64de172f3ee"
 
       module RuntimeError =
         let private p addl = p ("RuntimeError" :: addl)
-        let toString = p [] "toString" "75debdd5-1e4f-4437-8124-38d7afaea931"
+        let toString =
+          p
+            []
+            "toString"
+            "2b77ebe969f7de844efefb7dd2d24191c3a9289572e9a85caf03ad20bf9da834"
         let toErrorMessage =
-          p [] "toErrorMessage" "d861d9c4-45da-4789-8f41-b0e481422190"
+          p
+            []
+            "toErrorMessage"
+            "2ae9c7533d45cf7ac9cb71e91eac5604e9f03da60794f9cae20f32923c173cee"
 
     module ProgramTypes =
       let private p addl = p ("ProgramTypes" :: addl)
+      let expr =
+        p
+          []
+          "expr"
+          "09c274ec906b3ebdf45b153344c90ccd0e267bb6d223ef4d3f207ba1598ad701"
+
       module FQFnName =
         let private p addl = p ("FQFnName" :: addl)
         let fullForReference =
-          p [] "fullForReference" "ed6bacaa-4fa6-444b-9f6b-0e323e233a5d"
+          p
+            []
+            "fullForReference"
+            "ac886b31ae1060f1ed73b285a807a74123e8e5f4ca34df8cd7c86781d83b240a"
 
   module Cli =
     let executeCliCommand =
-      p [ "Cli" ] "executeCliCommand" "9b4aa7ca-82f4-4fc5-be9c-bdfb97ad4ac2"
+      p
+        [ "Cli" ]
+        "executeCliCommand"
+        "7f6cfac064365af380aa69a93f1181872e672bf817501cafee5e73b8362ba925"
 
   module Internal =
     let private p addl = p ("Internal" :: addl)
     module Test =
       let private p addl = p ("Test" :: addl)
       let parseSingleTestFromFile =
-        p [] "parseSingleTestFromFile" "53f3fbc6-25fd-427a-ab0d-ba0559543c99"
+        p
+          []
+          "parseSingleTestFromFile"
+          "594fb3496f67541e2d537cccc42b4a454cb5fbd6e0c3ab253ca1ce71d5fcbbcc"
 
   // what we expose to the outside world
-  let idForName
-    (owner : string)
-    (modules : List<string>)
-    (name : string)
-    : System.Guid =
+  let hashForName (owner : string) (modules : List<string>) (name : string) : Hash =
     match owner with
     | "Darklang" ->
       match Map.get (modules, name) _lookup with
-      | Some id -> id
-      | None -> System.Guid.NewGuid()
-    | _ -> System.Guid.NewGuid()
+      | Some hash -> hash
+      | None ->
+        // Generate a unique hash based on the function name for consistency
+        let fullName = $"""{owner}.{String.concat "." modules}.{name}"""
+        let hashBytes = System.Text.Encoding.UTF8.GetBytes(fullName)
+        use sha256 = System.Security.Cryptography.SHA256.Create()
+        let computedHash = sha256.ComputeHash(hashBytes)
+        let hashString =
+          System.BitConverter
+            .ToString(computedHash)
+            .Replace("-", "")
+            .ToLowerInvariant()
+        Hash hashString
+    | _ ->
+      let fullName = $"""{owner}.{String.concat "." modules}.{name}"""
+      let hashBytes = System.Text.Encoding.UTF8.GetBytes(fullName)
+      use sha256 = System.Security.Cryptography.SHA256.Create()
+      let computedHash = sha256.ComputeHash(hashBytes)
+      let hashString =
+        System.BitConverter
+          .ToString(computedHash)
+          .Replace("-", "")
+          .ToLowerInvariant()
+      Hash hashString

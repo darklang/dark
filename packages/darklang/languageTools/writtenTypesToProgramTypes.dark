@@ -1141,7 +1141,7 @@ module TypeDeclaration =
 
     (ProgramTypes.PackageType.PackageType
       // TODO: when relevant, use PackageIDs defined in F# land
-      { id = Stdlib.Uuid.generate ()
+      { hash = Hash $"TODO{owner}{d.name.name}"
         name =
           ProgramTypes.PackageType.Name
             { owner = owner
@@ -1166,7 +1166,7 @@ module ValueDeclaration =
     let (body, unresolvedNames) = Expr.toPT onMissing pm owner modules d.body
 
     (ProgramTypes.PackageValue.PackageValue
-      { id = Stdlib.Uuid.generate ()
+      { hash = Hash $"TODO{owner}{d.name.name}"
         name =
           ProgramTypes.PackageValue.Name
             { owner = owner
@@ -1239,7 +1239,7 @@ module FunctionDeclaration =
 
     (ProgramTypes.PackageFn.PackageFn
       // TODO: when relevant, use PacakgeIDs defined in F# land
-      { id = Stdlib.Uuid.generate ()
+      { hash = Hash $"TODO{owner}{d.name.name}"
         name =
           ProgramTypes.PackageFn.Name
             { owner = owner

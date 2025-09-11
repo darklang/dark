@@ -369,7 +369,8 @@ module Commands =
     let trimmed = Stdlib.String.trim input
     let parts = Stdlib.String.split trimmed " "
     match parts with
-    | [] -> state
+    | [] ->
+      state
     | commandName :: args ->
       Registry.executeCommand commandName state args
 

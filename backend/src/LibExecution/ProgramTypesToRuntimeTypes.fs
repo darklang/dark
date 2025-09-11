@@ -8,6 +8,8 @@ module RT = RuntimeTypes
 module VT = ValueType
 module PT = ProgramTypes
 
+// No hash conversion needed - all use Hash now
+
 module FQTypeName =
   module Package =
     let toRT (p : PT.FQTypeName.Package) : RT.FQTypeName.Package = p
@@ -1046,7 +1048,7 @@ module TypeDeclaration =
 // --
 module PackageType =
   let toRT (t : PT.PackageType.PackageType) : RT.PackageType.PackageType =
-    { id = t.id; declaration = TypeDeclaration.toRT t.declaration }
+    { hash = t.hash; declaration = TypeDeclaration.toRT t.declaration }
 
 module PackageValue =
   // TODO: do a proper eval (Execution.execute)
@@ -1153,7 +1155,7 @@ module PackageValue =
 
   let toRT (c : PT.PackageValue.PackageValue) : RT.PackageValue.PackageValue =
     let body = evalConstantExpr c.body
-    { id = c.id; body = body }
+    { hash = c.hash; body = body }
 
 module PackageFn =
   module Parameter =
@@ -1161,7 +1163,7 @@ module PackageFn =
       { name = p.name; typ = TypeReference.toRT p.typ }
 
   let toRT (f : PT.PackageFn.PackageFn) : RT.PackageFn.PackageFn =
-    { id = f.id
+    { hash = f.hash
       body =
         let (rcAfterParams, symbols) : (int * Map<string, int>) =
           f.parameters
@@ -1178,9 +1180,10 @@ module PackageFn =
 
 module PackageManager =
   let toRT (pm : PT.PackageManager) : RT.PackageManager =
-    { getType = fun id -> pm.getType id |> Ply.map (Option.map PackageType.toRT)
-      getValue = fun id -> pm.getValue id |> Ply.map (Option.map PackageValue.toRT)
-      getFn = fun id -> pm.getFn id |> Ply.map (Option.map PackageFn.toRT)
+    { getType = fun hash -> pm.getType hash |> Ply.map (Option.map PackageType.toRT)
+      getValue =
+        fun hash -> pm.getValue hash |> Ply.map (Option.map PackageValue.toRT)
+      getFn = fun hash -> pm.getFn hash |> Ply.map (Option.map PackageFn.toRT)
 
       init = pm.init }
 

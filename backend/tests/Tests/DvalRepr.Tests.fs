@@ -33,17 +33,17 @@ let queryableRoundtripsSuccessfullyInRecord
   ) : Task<bool> =
 
   task {
-    let typeID = System.Guid.Parse "82ac8d1c-86ef-45d4-be66-052050739a38"
-    let typeName = RT.FQTypeName.Package typeID
+    let typeHash = Hash "test-type-hash"
+    let typeName = RT.FQTypeName.Package typeHash
     let record = RT.DRecord(typeName, typeName, [], Map.ofList [ "field", dv ])
     let typeRef = RT.TCustomType(Ok typeName, [])
 
     let types : RT.Types =
       { package =
-          fun id ->
-            if id = typeID then
+          fun hash ->
+            if hash = typeHash then
               let packageType : RT.PackageType.PackageType =
-                { id = typeID
+                { hash = typeHash
                   declaration =
                     { typeParams = []
                       definition =
@@ -52,7 +52,7 @@ let queryableRoundtripsSuccessfullyInRecord
                         ) } }
               packageType |> Some |> Ply
             else
-              pmRT.getType id }
+              pmRT.getType hash }
 
     let! roundtripped =
       record

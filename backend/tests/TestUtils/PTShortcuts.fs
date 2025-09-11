@@ -84,12 +84,13 @@ let eInfix (op : Infix) (left : Expr) (right : Expr) : Expr =
 let eBuiltinValue (name : string) (version : int) : Expr =
   EValue(gid (), Ok(FQValueName.fqBuiltIn name version))
 
-let ePackageValue (id : uuid) : Expr = EValue(gid (), Ok(FQValueName.fqPackage id))
+let ePackageValue (hash : Hash) : Expr =
+  EValue(gid (), Ok(FQValueName.fqPackage hash))
 
 let eBuiltinFn (name : string) (version : int) : Expr =
   EFnName(gid (), Ok(FQFnName.fqBuiltIn name version))
 
-let ePackageFn (id : uuid) : Expr = EFnName(gid (), Ok(FQFnName.fqPackage id))
+let ePackageFn (hash : Hash) : Expr = EFnName(gid (), Ok(FQFnName.fqPackage hash))
 
 let eLambda id (pats : List<LetPattern>) (body : Expr) : Expr =
   let pats = NEList.ofListUnsafe "eLambda" [] pats

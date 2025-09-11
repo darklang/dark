@@ -14,6 +14,7 @@ module RT = LibExecution.RuntimeTypes
 module PT = LibExecution.ProgramTypes
 module PT2RT = LibExecution.ProgramTypesToRuntimeTypes
 module BinarySerialization = LibBinarySerialization.BinarySerialization
+module Hashing = LibPackageManager.Hashing
 
 
 let insertTypes (types : List<PT.PackageType.PackageType>) : Task<unit> =
@@ -24,18 +25,19 @@ let insertTypes (types : List<PT.PackageType.PackageType>) : Task<unit> =
     |> List.map (fun typ ->
       let sql =
         @"INSERT INTO package_types_v0
-            (id, owner, modules, name, pt_def, rt_def)
+            (hash, owner, modules, name, pt_def, rt_def)
           VALUES
-            (@id, @owner, @modules, @name, @pt_def, @rt_def)"
+            (@hash, @owner, @modules, @name, @pt_def, @rt_def)"
 
-      let ptDef = BinarySerialization.PT.PackageType.serialize typ.id typ
+      let (Hash hashStr) = Hashing.hashPackageType typ
+      let ptDef = BinarySerialization.PT.PackageType.serialize hashStr typ
       let rtDef =
         typ
         |> PT2RT.PackageType.toRT
-        |> BinarySerialization.RT.PackageType.serialize typ.id
+        |> BinarySerialization.RT.PackageType.serialize hashStr
 
       let parameters =
-        [ "id", Sql.uuid typ.id
+        [ "hash", Sql.string hashStr
           "owner", Sql.string typ.name.owner
           "modules", Sql.string (String.concat "." typ.name.modules)
           "name", Sql.string typ.name.name
@@ -56,18 +58,18 @@ let insertValues (values : List<PT.PackageValue.PackageValue>) : Task<unit> =
     |> List.map (fun v ->
       let sql =
         @"INSERT INTO package_values_v0
-            (id, owner, modules, name, pt_def, rt_dval)
+            (hash, owner, modules, name, pt_def, rt_dval)
           VALUES
-            (@id, @owner, @modules, @name, @pt_def, @rt_dval)"
+            (@hash, @owner, @modules, @name, @pt_def, @rt_dval)"
 
+      let (Hash hashStr) = Hashing.hashPackageValue v
       let dval = PT2RT.PackageValue.toRT v
 
-      let ptBits = BinarySerialization.PT.PackageValue.serialize v.id v
-      let rtBits = dval |> BinarySerialization.RT.PackageValue.serialize v.id
-
+      let ptBits = BinarySerialization.PT.PackageValue.serialize hashStr v
+      let rtBits = dval |> BinarySerialization.RT.PackageValue.serialize hashStr
 
       let parameters =
-        [ "id", Sql.uuid v.id
+        [ "hash", Sql.string hashStr
           "owner", Sql.string v.name.owner
           "modules", Sql.string (String.concat "." v.name.modules)
           "name", Sql.string v.name.name
@@ -87,18 +89,19 @@ let insertFns (fns : List<PT.PackageFn.PackageFn>) : Task<unit> =
     |> List.map (fun fn ->
       let sql =
         @"INSERT INTO package_functions_v0
-            (id, owner, modules, name, pt_def, rt_instrs)
+            (hash, owner, modules, name, pt_def, rt_instrs)
           VALUES
-            (@id, @owner, @modules, @name, @pt_def, @rt_instrs)"
+            (@hash, @owner, @modules, @name, @pt_def, @rt_instrs)"
 
-      let ptDef = BinarySerialization.PT.PackageFn.serialize fn.id fn
+      let (Hash hashStr) = Hashing.hashPackageFn fn
+      let ptDef = BinarySerialization.PT.PackageFn.serialize hashStr fn
       let rtInstrs =
         fn
         |> PT2RT.PackageFn.toRT
-        |> BinarySerialization.RT.PackageFn.serialize fn.id
+        |> BinarySerialization.RT.PackageFn.serialize hashStr
 
       let parameters =
-        [ "id", Sql.uuid fn.id
+        [ "hash", Sql.string hashStr
           "owner", Sql.string fn.name.owner
           "modules", Sql.string (String.concat "." fn.name.modules)
           "name", Sql.string fn.name.name

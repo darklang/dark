@@ -200,34 +200,34 @@ let parse
               result.types
               |> Stdlib.List.map (fun t ->
                 { t with
-                    id =
+                    hash =
                       initialParse.types
                       |> Stdlib.List.findFirst (fun original ->
                         original.name == t.name)
-                      |> Stdlib.Option.mapWithDefault t.id (fun original ->
-                        original.id) })
+                      |> Stdlib.Option.mapWithDefault t.hash (fun original ->
+                        original.hash) })
 
             values =
               result.values
               |> Stdlib.List.map (fun v ->
                 { v with
-                    id =
+                    hash =
                       initialParse.values
                       |> Stdlib.List.findFirst (fun original ->
                         original.name == v.name)
-                      |> Stdlib.Option.mapWithDefault v.id (fun original ->
-                        original.id) })
+                      |> Stdlib.Option.mapWithDefault v.hash (fun original ->
+                        original.hash) })
 
             fns =
               result.fns
               |> Stdlib.List.map (fun f ->
                 { f with
-                    id =
+                    hash =
                       initialParse.fns
                       |> Stdlib.List.findFirst (fun original ->
                         original.name == f.name)
-                      |> Stdlib.Option.mapWithDefault f.id (fun original ->
-                        original.id) })
+                      |> Stdlib.Option.mapWithDefault f.hash (fun original ->
+                        original.hash) })
 
             submodules =
               result.submodules
@@ -237,43 +237,43 @@ let parse
                       submodule.types
                       |> Stdlib.List.map (fun t ->
                         { t with
-                            id =
+                            hash =
                               initialParse.submodules
                               |> Stdlib.List.map (fun m -> m.types)
                               |> Stdlib.List.flatten
                               |> Stdlib.List.findFirst (fun original ->
                                 original.name == t.name)
                               |> Stdlib.Option.mapWithDefault
-                                t.id
-                                (fun original -> original.id) })
+                                t.hash
+                                (fun original -> original.hash) })
 
                     values =
                       submodule.values
                       |> Stdlib.List.map (fun v ->
                         { v with
-                            id =
+                            hash =
                               initialParse.submodules
                               |> Stdlib.List.map (fun m -> m.values)
                               |> Stdlib.List.flatten
                               |> Stdlib.List.findFirst (fun original ->
                                 original.name == v.name)
                               |> Stdlib.Option.mapWithDefault
-                                v.id
-                                (fun original -> original.id) })
+                                v.hash
+                                (fun original -> original.hash) })
 
                     fns =
                       submodule.fns
                       |> Stdlib.List.map (fun f ->
                         { f with
-                            id =
+                            hash =
                               initialParse.submodules
                               |> Stdlib.List.map (fun m -> m.fns)
                               |> Stdlib.List.flatten
                               |> Stdlib.List.findFirst (fun original ->
                                 original.name == f.name)
                               |> Stdlib.Option.mapWithDefault
-                                f.id
-                                (fun original -> original.id) }) })
+                                f.hash
+                                (fun original -> original.hash) }) })
 
             exprs = result.exprs }
 

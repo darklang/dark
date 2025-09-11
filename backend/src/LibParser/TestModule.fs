@@ -283,29 +283,29 @@ let parseTestFile
               m.types
               |> List.map (fun typ ->
                 { typ with
-                    id =
+                    hash =
                       originalModule.types
                       |> List.find (fun original -> original.name = typ.name)
-                      |> Option.map _.id
-                      |> Option.defaultValue typ.id })
+                      |> Option.map _.hash
+                      |> Option.defaultValue typ.hash })
             values =
               m.values
               |> List.map (fun c ->
                 { c with
-                    id =
+                    hash =
                       originalModule.values
                       |> List.find (fun original -> original.name = c.name)
-                      |> Option.map _.id
-                      |> Option.defaultValue c.id })
+                      |> Option.map _.hash
+                      |> Option.defaultValue c.hash })
             fns =
               m.fns
               |> List.map (fun fn ->
                 { fn with
-                    id =
+                    hash =
                       originalModule.fns
                       |> List.find (fun original -> original.name = fn.name)
-                      |> Option.map _.id
-                      |> Option.defaultValue fn.id }) })
+                      |> Option.map _.hash
+                      |> Option.defaultValue fn.hash }) })
 
     return adjusted
   }

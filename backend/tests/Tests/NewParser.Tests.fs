@@ -66,7 +66,7 @@ let t
 
 let tID = System.Guid.NewGuid()
 let person : PT.PackageType.PackageType =
-  { id = tID
+  { hash = Hash "person-test-hash"
     name = { owner = "Tests"; modules = []; name = "Person" }
     description = ""
     deprecated = PT.NotDeprecated
@@ -82,7 +82,7 @@ let person : PT.PackageType.PackageType =
           ) } }
 
 let myString : PT.PackageType.PackageType =
-  { id = tID
+  { hash = Hash "mystring-test-hash"
     name = { owner = "Tests"; modules = []; name = "MyString" }
     description = ""
     deprecated = PT.NotDeprecated
@@ -91,7 +91,7 @@ let myString : PT.PackageType.PackageType =
         definition = PT.TypeDeclaration.Alias PT.TypeReference.TString } }
 
 let pet : PT.PackageType.PackageType =
-  { id = tID
+  { hash = Hash "pet-test-hash"
     name = { owner = "Tests"; modules = []; name = "Pet" }
     description = ""
     deprecated = PT.NotDeprecated
@@ -100,7 +100,7 @@ let pet : PT.PackageType.PackageType =
         definition = PT.TypeDeclaration.Alias PT.TypeReference.TString } }
 
 let myEnum : PT.PackageType.PackageType =
-  { id = tID
+  { hash = Hash "myenum-test-hash"
     name = { owner = "Tests"; modules = []; name = "MyEnum" }
     description = ""
     deprecated = PT.NotDeprecated

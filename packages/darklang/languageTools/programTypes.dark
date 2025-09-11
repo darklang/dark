@@ -3,12 +3,12 @@ module Darklang.LanguageTools.ProgramTypes
 
 /// Used to name where type/function/etc lives, eg a User module, or a Package module.
 module FQTypeName =
-  type Package = Uuid
+  type Package = Hash
   type FQTypeName = Package of Package
 
 module FQValueName =
   type Builtin = { name: String; version: Int32 }
-  type Package = Uuid
+  type Package = Hash
 
   type FQValueName =
     | Builtin of Builtin
@@ -16,7 +16,7 @@ module FQValueName =
 
 module FQFnName =
   type Builtin = { name: String; version: Int32 }
-  type Package = Uuid
+  type Package = Hash
 
   type FQFnName =
     | Builtin of Builtin
@@ -326,8 +326,6 @@ module TypeDeclaration =
       definition: Definition }
 
 
-
-
 // Package space
 module PackageType =
   type Name =
@@ -336,7 +334,7 @@ module PackageType =
       name: String }
 
   type PackageType =
-    { id: Uuid
+    { hash: Hash
       name: Name
       declaration: TypeDeclaration.TypeDeclaration
       description: String
@@ -356,11 +354,12 @@ module PackageType =
 module PackageValue =
   type Name =
     { owner: String
+      hash: Hash
       modules: List<String>
       name: String }
 
   type PackageValue =
-    { id: Uuid
+    { hash: Hash
       name: Name
       body: Expr
       description: String
@@ -389,7 +388,7 @@ module PackageFn =
       description: String }
 
   type PackageFn =
-    { id: Uuid
+    { hash: Hash
       name: Name
       body: Expr
       typeParams: List<String>
@@ -467,12 +466,9 @@ module PackageManager =
       findValue: String -> Stdlib.Option.Option<FQValueName.Package>
       findFn: String -> Stdlib.Option.Option<FQFnName.Package>
 
-      getType:
-        FQTypeName.Package -> Stdlib.Option.Option<PackageType.PackageType>
-      getValue:
-        FQValueName.Package
-          -> Stdlib.Option.Option<PackageValue.PackageValue>
-      getFn: FQFnName.Package -> Stdlib.Option.Option<PackageFn.PackageFn>
+      getType: Hash -> Stdlib.Option.Option<PackageType.PackageType>
+      getValue: Hash -> Stdlib.Option.Option<PackageValue.PackageValue>
+      getFn: Hash -> Stdlib.Option.Option<PackageFn.PackageFn>
 
       search: Search.SearchQuery -> Search.SearchResults }
 
@@ -494,7 +490,7 @@ module PackageManager =
                 let typeName = PackageType.nameToString t.name
                 typeName == name)
             with
-            | Some t -> Stdlib.Option.Option.Some t.id
+            | Some t -> Stdlib.Option.Option.Some t.hash
             | None ->
               // CLEANUP: use `pm.findType name` directly once the parser/interpreter is fixed
               let findType = pm.findType
@@ -507,7 +503,7 @@ module PackageManager =
                 let valueName = PackageValue.nameToString v.name
                 valueName == name)
             with
-            | Some v -> Stdlib.Option.Option.Some v.id
+            | Some v -> Stdlib.Option.Option.Some v.hash
             | None ->
               let findValue = pm.findValue
               findValue name
@@ -519,32 +515,32 @@ module PackageManager =
                 let fnName = PackageFn.nameToString f.name
                 fnName == name)
             with
-            | Some f -> Stdlib.Option.Option.Some f.id
+            | Some f -> Stdlib.Option.Option.Some f.hash
             | None ->
               let findFn = pm.findFn
               findFn name
 
         getType =
-          fun id ->
-            match types |> Stdlib.List.findFirst (fun t -> t.id == id) with
+          fun hash ->
+            match types |> Stdlib.List.findFirst (fun t -> t.hash == hash) with
             | Some t -> Stdlib.Option.Option.Some t
             | None ->
               let getType = pm.getType
-              getType id
+              getType hash
         getValue =
-          fun id ->
-            match values |> Stdlib.List.findFirst (fun v -> v.id == id) with
+          fun hash ->
+            match values |> Stdlib.List.findFirst (fun v -> v.hash == hash) with
             | Some v -> Stdlib.Option.Option.Some v
             | None ->
               let getValue = pm.getValue
-              getValue id
+              getValue hash
         getFn =
-          fun id ->
-            match fns |> Stdlib.List.findFirst (fun f -> f.id == id) with
+          fun hash ->
+            match fns |> Stdlib.List.findFirst (fun f -> f.hash == hash) with
             | Some f -> Stdlib.Option.Option.Some f
             | None ->
               let getFn = pm.getFn
-              getFn id
+              getFn hash
 
         search = pm.search }
 

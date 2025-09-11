@@ -7,31 +7,33 @@ module Darklang.LanguageTools.PackageManager
 
 
 module Type =
-  let find (typeName: String) : Stdlib.Option.Option<Uuid> =
+  let find (typeName: String) : Stdlib.Option.Option<Hash> =
     Builtin.packageManagerFindType typeName
 
   let get
-    (id: Uuid)
+    (hash: Hash)
     : Stdlib.Option.Option<ProgramTypes.PackageType.PackageType> =
-    Builtin.packageManagerGetType id
+    Builtin.packageManagerGetType hash
 
 
 module Value =
-  let find (name: String) : Stdlib.Option.Option<Uuid> =
+  let find (name: String) : Stdlib.Option.Option<Hash> =
     Builtin.packageManagerFindValue name
 
   let get
-    (id: Uuid)
+    (hash: Hash)
     : Stdlib.Option.Option<ProgramTypes.PackageValue.PackageValue> =
-    Builtin.packageManagerGetValue id
+    Builtin.packageManagerGetValue hash
 
 
 module Function =
-  let find (name: String) : Stdlib.Option.Option<Uuid> =
+  let find (name: String) : Stdlib.Option.Option<Hash> =
     Builtin.packageManagerFindFn name
 
-  let get (id: Uuid) : Stdlib.Option.Option<ProgramTypes.PackageFn.PackageFn> =
-    Builtin.packageManagerGetFn id
+  let get
+    (hash: Hash)
+    : Stdlib.Option.Option<ProgramTypes.PackageFn.PackageFn> =
+    Builtin.packageManagerGetFn hash
 
 
 module Search =

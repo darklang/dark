@@ -8,6 +8,7 @@ module VT = ValueType
 module D = DvalDecoder
 module C2DT = LibExecution.CommonToDarkTypes
 
+// No hash conversion needed - all use Hash now
 
 let ownerField m = m |> D.field "owner" |> D.string
 let modulesField m = m |> D.field "modules" |> D.list D.string
@@ -26,11 +27,13 @@ module FQTypeName =
       FQTypeName.Package
         PackageIDs.Type.LanguageTools.RuntimeTypes.FQTypeName.package
 
-    let toDT (u : FQTypeName.Package) : Dval = DUuid u
+    let toDT (h : FQTypeName.Package) : Dval =
+      let (Hash hashStr) = h
+      DString hashStr
 
     let fromDT (d : Dval) : FQTypeName.Package =
       match d with
-      | DUuid u -> u
+      | DString hashStr -> Hash hashStr
       | _ -> Exception.raiseInternal "Invalid FQTypeName.Package" []
 
 
@@ -67,11 +70,13 @@ module FQValueName =
       | _ -> Exception.raiseInternal "Invalid FQValueName.Builtin" []
 
   module Package =
-    let toDT (u : FQValueName.Package) : Dval = DUuid u
+    let toDT (h : FQValueName.Package) : Dval =
+      let (Hash hashStr) = h
+      DString hashStr
 
     let fromDT (d : Dval) : FQValueName.Package =
       match d with
-      | DUuid id -> id
+      | DString hashStr -> Hash hashStr
       | _ -> Exception.raiseInternal "Invalid FQValueName.Package" []
 
   let toDT (u : FQValueName.FQValueName) : Dval =
@@ -108,11 +113,13 @@ module FQFnName =
       | _ -> Exception.raiseInternal "Invalid FQFnName.Builtin" []
 
   module Package =
-    let toDT (u : FQFnName.Package) : Dval = DUuid u
+    let toDT (h : FQFnName.Package) : Dval =
+      let (Hash hashStr) = h
+      DString hashStr
 
     let fromDT (d : Dval) : FQFnName.Package =
       match d with
-      | DUuid u -> u
+      | DString hashStr -> Hash hashStr
       | _ -> Exception.raiseInternal "Invalid FQFnName.Package" []
 
 

@@ -30,8 +30,8 @@ let pt : PT.PackageManager =
     findFn = withCache PMPT.Fn.find
 
     getType = withCache PMPT.Type.get
-    getFn = withCache PMPT.Fn.get
     getValue = withCache PMPT.Value.get
+    getFn = withCache PMPT.Fn.get
 
     search = LibPackageManager.ProgramTypes.search
 

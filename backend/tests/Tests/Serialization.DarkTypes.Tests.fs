@@ -84,7 +84,7 @@ module RoundtripTests =
 
 
   module ProgramTypes =
-    let pkg (id : uuid) = RT.FQTypeName.fqPackage id
+    let pkg (hash : Hash) = RT.FQTypeName.fqPackage hash
 
     let tests =
       [ testRoundtripList
@@ -136,7 +136,7 @@ module RoundtripTests =
           None ]
 
   module RuntimeTypes =
-    let pkg (id : uuid) = RT.FQTypeName.fqPackage id
+    let pkg (hash : Hash) = RT.FQTypeName.fqPackage hash
 
     let tests =
       // CLEANUP backfill with more things from RT
