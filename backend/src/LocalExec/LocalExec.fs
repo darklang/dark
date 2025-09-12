@@ -14,6 +14,16 @@ module PM = LibPackageManager.PackageManager
 open Utils
 
 module HandleCommand =
+  let reloadDarkPackagesCanvas () : Ply<Result<unit, string>> =
+    uply {
+      let! (canvasId, toplevels) =
+        Canvas.loadFromDisk LibPackageManager.PackageManager.pt "dark-packages"
+
+      print $"Loaded canvas {canvasId} with {List.length toplevels} toplevels"
+
+      return Ok()
+    }
+
   let reloadPackages () : Ply<Result<unit, string>> =
     uply {
       // first, load the packages from disk, ensuring all parse well
@@ -68,20 +78,12 @@ module HandleCommand =
 
       //do! PM.flushCheckpoint ()
 
+      // Reload dark-packages canvas after package reload
+      print "Reloading dark-packages canvas..."
+      let! _ = reloadDarkPackagesCanvas ()
+
       return Ok()
     }
-
-
-  // not currently used, but we'll do _something_ like this again before too long
-  // let reloadDarkPackagesCanvas () : Ply<Result<unit, string>> =
-  //   uply {
-  //     let! (canvasId, toplevels) =
-  //       Canvas.loadFromDisk LibPackageManager.PackageManager.pt "dark-packages"
-
-  //     print $"Loaded canvas {canvasId} with {List.length toplevels} toplevels"
-
-  //     return Ok()
-  //   }
 
   let runMigrations () : Ply<Result<unit, string>> =
     uply {
@@ -157,10 +159,16 @@ let main (args : string[]) : int =
     | [ "migrations"; "list" ] ->
       handleCommand "listing available migrations" (HandleCommand.listMigrations ())
 
+    | [ "reload-dark-packages-canvas" ] ->
+      handleCommand
+        "loading dark-packages canvas from disk"
+        (HandleCommand.reloadDarkPackagesCanvas ())
+
     | _ ->
       print "Invalid arguments"
       print "Available commands:"
       print "  reload-packages"
+      print "  reload-dark-packages-canvas"
       print "  migrations run"
       print "  migrations list"
       NonBlockingConsole.wait ()
