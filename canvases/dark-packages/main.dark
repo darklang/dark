@@ -162,13 +162,34 @@ let _handler _req =
 
     |> Stdlib.List.unique
 
+  let exactMatch =
+    (Stdlib.Http.Request.queryParams request)
+    |> Stdlib.List.filterMap (fun pair ->
+      match pair with
+      | (k, v) ->
+        if k == "exactMatch" then
+          Stdlib.Option.Option.Some v
+        else
+          Stdlib.Option.Option.None
+      | _ -> Stdlib.Option.Option.None)
+    |> Stdlib.List.head
+    |> fun em ->
+      match em with
+      | None -> false
+      | Some em ->
+        match em with
+        | "true" -> true
+        | "false" -> false
+        | _ -> false
+
 
   let query =
     LanguageTools.ProgramTypes.Search.SearchQuery
       { currentModule = currentModule
         text = text
         searchDepth = searchDepth
-        entityTypes = entityTypes }
+        entityTypes = entityTypes
+        exactMatch = exactMatch }
 
 
   let results = Builtin.packageManagerSearch query

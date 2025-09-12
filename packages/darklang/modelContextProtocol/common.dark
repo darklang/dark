@@ -98,7 +98,7 @@ type ImageContent =
   { data: String  // Base64 encoded image data
     mimeType: String }
 
-/// Audio content for messages  
+/// Audio content for messages
 type AudioContent =
   { data: String  // Base64 encoded audio data
     mimeType: String }
@@ -141,10 +141,10 @@ type ToolCapabilities =
   { listChanged: Stdlib.Option.Option<Bool> }
 
 /// Logging capabilities
-type LoggingCapabilities = 
+type LoggingCapabilities =
   { level: Stdlib.Option.Option<LoggingLevel> }
 
-/// Completion capabilities  
+/// Completion capabilities
 type CompletionCapabilities =
   { supportsCompletion: Bool }
 
