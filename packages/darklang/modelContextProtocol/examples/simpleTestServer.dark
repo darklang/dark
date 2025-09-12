@@ -1,0 +1,41 @@
+module Darklang.Examples.SimpleTestServer
+let echoTool () : Darklang.ModelContextProtocol.ServerBuilder.Tool =
+  Darklang.ModelContextProtocol.ServerBuilder.Tool {
+    name = "echo"
+    description = "Echo back the input text"
+    handler = fun input -> "Echo: " ++ input
+  }
+
+let uppercaseTool () : Darklang.ModelContextProtocol.ServerBuilder.Tool =
+  Darklang.ModelContextProtocol.ServerBuilder.Tool {
+    name = "uppercase"
+    description = "Convert input text to uppercase"
+    handler = fun input -> Stdlib.String.toUppercase input
+}
+
+let greetingResource () : Darklang.ModelContextProtocol.ServerBuilder.Resource =
+  Darklang.ModelContextProtocol.ServerBuilder.Resource {
+    uri = "echo://greeting"
+    name = "greeting"
+    description = "A simple greeting message"
+    handler = fun _uri -> "Hello from the Echo MCP Server!"
+  }
+
+let welcomePrompt () : Darklang.ModelContextProtocol.ServerBuilder.Prompt =
+  Darklang.ModelContextProtocol.ServerBuilder.Prompt {
+    name = "welcome"
+    description = "A welcome prompt for new users"
+    handler = fun _args -> "Welcome to the Echo MCP Server! How can I help you today?"
+  }
+
+
+let main () : Int64 =
+  let server =
+    Darklang.ModelContextProtocol.ServerBuilder.create "simple_echo_server" [] [] []
+  let serverWithAll =
+    server
+    |> Darklang.ModelContextProtocol.ServerBuilder.Tools.addTool (echoTool ())
+    |> Darklang.ModelContextProtocol.ServerBuilder.Tools.addTool (uppercaseTool ())
+    |> Darklang.ModelContextProtocol.ServerBuilder.Resources.addResource (greetingResource ())
+    |> Darklang.ModelContextProtocol.ServerBuilder.Prompts.addPrompt (welcomePrompt ())
+  Darklang.ModelContextProtocol.ServerBuilder.run serverWithAll

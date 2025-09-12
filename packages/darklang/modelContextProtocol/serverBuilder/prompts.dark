@@ -1,0 +1,51 @@
+module Darklang.ModelContextProtocol.ServerBuilder.Prompts
+
+// Get all prompt descriptions from the builder
+let getPromptDescriptions (server: McpServerBuilder) : Dict<ModelContextProtocol.PromptDescription> =
+  server.prompts
+  |> Stdlib.Dict.map (fun _key promptDef -> promptDef.description)
+
+// Handle a prompt request by looking up the registered handler
+let handlePromptRequest (server: McpServerBuilder) (name: String) (args: Darklang.ModelContextProtocol.Json) : List<ModelContextProtocol.PromptMessage> =
+  match Stdlib.Dict.get server.prompts name with
+  | Some promptDef ->
+      let handler = promptDef.handler
+      handler args
+  | None ->
+      [
+        ModelContextProtocol.PromptMessage {
+          role = ModelContextProtocol.MessageRole.System
+          content = ModelContextProtocol.PromptContent.Text $"Error: Unknown prompt '{name}'"
+        }
+      ]
+
+
+// Add a prompt from a simple record
+let addPrompt (server: McpServerBuilder) (prompt: Prompt) : McpServerBuilder =
+  let promptDescription = ModelContextProtocol.PromptDescription {
+    name = prompt.name
+    description = Stdlib.Option.Option.Some prompt.description
+    arguments = Stdlib.Option.Option.None
+  }
+
+  let promptHandler = fun args ->
+    let handler = prompt.handler
+    let content = handler args
+    [
+      ModelContextProtocol.PromptMessage {
+        role = ModelContextProtocol.MessageRole.System
+        content = ModelContextProtocol.PromptContent.Text content
+      }
+    ]
+
+  let promptDef = PromptDefinition {
+    description = promptDescription
+    handler = promptHandler
+  }
+
+  McpServerBuilder {
+    name = server.name
+    tools = server.tools
+    resources = server.resources
+    prompts = Stdlib.Dict.set server.prompts prompt.name promptDef
+  }

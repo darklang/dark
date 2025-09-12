@@ -1,0 +1,27 @@
+module Darklang.ModelContextProtocol.ServerBuilder.State
+
+// <aliases>
+type Json = Stdlib.AltJson.Json
+type TraceLevel = Darklang.ModelContextProtocol.TraceLevel
+type LoggingLevel = Darklang.ModelContextProtocol.LoggingLevel
+// </aliases>
+
+
+// Main builder type that accumulates server configuration
+type McpServerBuilder =
+  { name: String
+    tools: Dict<ToolDefinition>
+    resources: Dict<ResourceDefinition>
+    prompts: Dict<PromptDefinition> }
+
+
+// Server state for the builder-based server
+type BuilderServerState =
+  { initialized: Bool
+    shouldShutdown: Bool
+    server: McpServerBuilder
+    traceLevel: TraceLevel
+    loggingLevel: LoggingLevel
+    logFilePath: String
+    resourceTemplates: Dict<ModelContextProtocol.ResourceTemplateDescription>
+    roots: List<ModelContextProtocol.Root> }

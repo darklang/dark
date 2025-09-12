@@ -22,12 +22,12 @@ let parseCompletionParams (json: Json) : Stdlib.Result.Result<CompletionParams, 
   | Object fields ->
       let refResult =
         match Stdlib.List.findFirst fields (fun (k, _) -> k == "ref") with
-        | Some (_, ref) -> Stdlib.Result.Result.Ok ref
+        | Some ((_, ref)) -> Stdlib.Result.Result.Ok ref
         | None -> Stdlib.Result.Result.Error "ref is required"
 
       let argument =
         match Stdlib.List.findFirst fields (fun (k, _) -> k == "argument") with
-        | Some (_, arg) -> Stdlib.Option.Option.Some arg
+        | Some ((_, arg)) -> Stdlib.Option.Option.Some arg
         | None -> Stdlib.Option.Option.None
 
       match refResult with

@@ -125,8 +125,7 @@ module Darklang =
 
             let argumentsResult =
               match Stdlib.List.findFirst fields (fun (k, _) -> k == "arguments") with
-              | Some ((_, obj)) when Stdlib.AltJson.isObject obj -> Stdlib.Result.Result.Ok obj
-              | Some ((_, _)) -> Stdlib.Result.Result.Error "arguments must be an object"
+              | Some ((_, obj)) -> Stdlib.Result.Result.Ok obj
               | None -> Stdlib.Result.Result.Error "arguments is required"
 
             match (nameResult, argumentsResult) with

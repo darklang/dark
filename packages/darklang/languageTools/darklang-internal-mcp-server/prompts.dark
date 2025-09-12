@@ -1,0 +1,114 @@
+/// Prompts collection for the Darklang Internal MCP server
+module Darklang.LanguageTools.DarklangInternalMcpServer.Prompts
+
+
+// <aliases>
+type Json = Stdlib.AltJson.Json
+// </aliases>
+
+
+/// Code review assistant for Darklang code
+let codeReview () : Darklang.ModelContextProtocol.ServerBuilder.Prompt =
+  Darklang.ModelContextProtocol.ServerBuilder.Prompt {
+    name = "code_review"
+    description = "Review Darklang code for best practices, potential issues, and improvements"
+    handler = fun args ->
+      let code = extractStringFromArgs args "code"
+      let focus = extractOptionalStringFromArgs args "focus"
+
+      let focusText =
+        match focus with
+        | Some f -> $" Focus on: {f}."
+        | None -> ""
+
+      $"Please review this Darklang code for:\n- Correctness and type safety\n- Performance considerations\n- Code style and best practices\n- Potential bugs or edge cases\n- Readability and maintainability{focusText}\n\nCode to review:\n```darklang\n{code}\n```\n\nProvide specific feedback with examples of improvements where applicable."
+  }
+
+
+/// Function documentation generator
+let documentFunction () : Darklang.ModelContextProtocol.ServerBuilder.Prompt =
+  Darklang.ModelContextProtocol.ServerBuilder.Prompt {
+    name = "document_function"
+    description = "Generate comprehensive documentation for a Darklang function"
+    handler = fun args ->
+      let functionName = extractStringFromArgs args "function_name"
+      let functionCode = extractStringFromArgs args "function_code"
+
+      $"Generate comprehensive documentation for this Darklang function:\n\nFunction: {functionName}\n```darklang\n{functionCode}\n```\n\nPlease provide:\n1. A clear description of what the function does\n2. Parameter descriptions with types and purposes\n3. Return value description\n4. Usage examples\n5. Any preconditions or constraints\n6. Potential error conditions\n7. Related functions or alternatives\n\nFormat the documentation in Markdown with proper code blocks."
+  }
+
+
+/// Type conversion helper
+let convertTypes () : Darklang.ModelContextProtocol.ServerBuilder.Prompt =
+  Darklang.ModelContextProtocol.ServerBuilder.Prompt {
+    name = "convert_types"
+    description = "Help convert between Darklang types safely and correctly"
+    handler = fun args ->
+      let fromType = extractStringFromArgs args "from_type"
+      let toType = extractStringFromArgs args "to_type"
+      let value = extractOptionalStringFromArgs args "value"
+
+      let valueText =
+        match value with
+        | Some v -> $" for the value: {v}"
+        | None -> ""
+
+      $"Help me convert from {fromType} to {toType} in Darklang{valueText}.\n\nPlease provide:\n1. The safest conversion approach\n2. Relevant standard library functions to use\n3. Error handling considerations\n4. Code examples showing the conversion\n5. Any potential data loss or precision issues\n6. Alternative conversion strategies if applicable\n\nInclude proper error handling using Result or Option types where appropriate."
+  }
+
+
+/// Debug assistance for Darklang errors
+let debugHelper () : Darklang.ModelContextProtocol.ServerBuilder.Prompt =
+  Darklang.ModelContextProtocol.ServerBuilder.Prompt {
+    name = "debug_helper"
+    description = "Help debug Darklang errors and issues"
+    handler = fun args ->
+      let errorMessage = extractStringFromArgs args "error_message"
+      let codeContext = extractOptionalStringFromArgs args "code_context"
+
+      let contextText =
+        match codeContext with
+        | Some context -> $"\n\nCode context:\n```darklang\n{context}\n```"
+        | None -> ""
+
+      $"Help me debug this Darklang error:\n\nError: {errorMessage}{contextText}\n\nPlease provide:\n1. Explanation of what the error means\n2. Most likely causes of this error\n3. Step-by-step debugging approach\n4. Code examples showing how to fix it\n5. Prevention strategies for the future\n6. Related common errors and their solutions\n\nFocus on practical, actionable solutions with clear examples."
+  }
+
+
+/// Pattern matching assistant
+let patternMatch () : Darklang.ModelContextProtocol.ServerBuilder.Prompt =
+  Darklang.ModelContextProtocol.ServerBuilder.Prompt {
+    name = "pattern_match"
+    description = "Help create comprehensive pattern matching for Darklang types"
+    handler = fun args ->
+      let typeDefinition = extractStringFromArgs args "type_definition"
+      let context = extractOptionalStringFromArgs args "context"
+
+      let contextText =
+        match context with
+        | Some ctx -> $"\n\nContext: {ctx}"
+        | None -> ""
+
+      $"Help me create comprehensive pattern matching for this Darklang type:\n\n```darklang\n{typeDefinition}\n```{contextText}\n\nPlease provide:\n1. Complete match expression covering all cases\n2. Explanation of each pattern\n3. Best practices for this type of matching\n4. Common pitfalls to avoid\n5. Examples of practical usage\n6. Suggestions for handling edge cases\n\nEnsure the pattern matching is exhaustive and handles all possible cases correctly."
+  }
+
+
+/// Extract a string value from JSON arguments
+let extractStringFromArgs (args: Json) (key: String) : String =
+  match args with
+  | Object fields ->
+      match Stdlib.List.findFirst fields (fun (k, _v) -> k == key) with
+      | Some (_k, String value) -> value
+      | Some (_k, other) -> Stdlib.AltJson.format other
+      | None -> ""
+  | _ -> ""
+
+
+/// Extract an optional string value from JSON arguments
+let extractOptionalStringFromArgs (args: Json) (key: String) : Stdlib.Option.Option<String> =
+  match args with
+  | Object fields ->
+      match Stdlib.List.findFirst fields (fun (k, _v) -> k == key) with
+      | Some (_k, String value) -> Stdlib.Option.Option.Some value
+      | _ -> Stdlib.Option.Option.None
+  | _ -> Stdlib.Option.Option.None
