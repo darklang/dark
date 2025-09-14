@@ -1,0 +1,40 @@
+module Darklang.ModelContextProtocol.ServerBuilder
+
+// Simple tool record for user-facing API
+type Tool =
+  { name: String
+    description: String
+    handler: String -> String }
+
+
+// Simple resource record for user-facing API
+type Resource =
+  { uri: String
+    name: String
+    description: String
+    handler: String -> String }
+
+
+// Simple prompt record for user-facing API
+type Prompt =
+  { name: String
+    description: String
+    handler: Json -> String }
+
+
+// Tool definition that combines description with handler
+type ToolDefinition =
+  { description: ModelContextProtocol.ToolDescription
+    handler: Json -> Json }
+
+
+// Resource definition that combines description with handler
+type ResourceDefinition =
+  { description: ModelContextProtocol.ResourceDescription
+    handler: String -> ModelContextProtocol.ResourceContent }
+
+
+// Prompt definition that combines description with handler
+type PromptDefinition =
+  { description: ModelContextProtocol.PromptDescription
+    handler: Json -> List<ModelContextProtocol.PromptMessage> }

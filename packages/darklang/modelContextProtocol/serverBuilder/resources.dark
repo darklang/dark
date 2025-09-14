@@ -1,0 +1,136 @@
+module Darklang.ModelContextProtocol.ServerBuilder.Resources
+
+// Get all resource descriptions from the builder
+let getResourceDescriptions (server: McpServerBuilder) : Dict<ModelContextProtocol.Resources.ListResourcesResponse.ResourceDescription> =
+  server.resources
+  |> Stdlib.Dict.map (fun _key resourceDef ->
+    let desc = resourceDef.description
+    ModelContextProtocol.Resources.ListResourcesResponse.ResourceDescription {
+      uri = desc.uri
+      name = desc.name
+      description = desc.description
+      mimeType = desc.mimeType
+    })
+
+// Handle a resource request by looking up the registered handler
+let handleResourceRequest (server: McpServerBuilder) (uri: String) : ModelContextProtocol.ResourceContent =
+  // Find matching resource by URI
+  let foundResource =
+    server.resources
+    |> Stdlib.Dict.toList
+    |> Stdlib.List.findFirst (fun (_key, resourceDef) ->
+        resourceDef.description.uri == uri)
+
+  match foundResource with
+  | Some ((_key, resourceDef)) ->
+      let handler = resourceDef.handler
+      handler uri
+  | None ->
+      ModelContextProtocol.ResourceContent {
+        uri = uri
+        mimeType = "text/plain"
+        text = $"Error: Unknown resource: {uri}"
+      }
+
+
+// Add a resource from a simple record
+let addResource (server: McpServerBuilder) (resource: Resource) : McpServerBuilder =
+  let resourceDescription = ModelContextProtocol.ResourceDescription {
+    uri = resource.uri
+    name = resource.name
+    description = Stdlib.Option.Option.Some resource.description
+    mimeType = Stdlib.Option.Option.Some "text/plain"
+  }
+
+  let resourceHandler = fun uri ->
+    let handler = resource.handler
+    let content = handler uri
+    ModelContextProtocol.ResourceContent {
+      uri = uri
+      mimeType = "text/plain"
+      text = content
+    }
+
+  let resourceDef = ResourceDefinition {
+    description = resourceDescription
+    handler = resourceHandler
+  }
+
+  McpServerBuilder {
+    name = server.name
+    tools = server.tools
+    resources = Stdlib.Dict.set server.resources resource.uri resourceDef
+    prompts = server.prompts
+  }
+
+
+// Register a resource with URI template matching
+let resource
+  (uriTemplate: String)  // e.g. "accounts://{name}"
+  (description: String)
+  (handler: String -> String)  // Takes URI, returns content
+  (server: McpServerBuilder) : McpServerBuilder =
+
+  let resourceDescription = ModelContextProtocol.ResourceDescription {
+    uri = uriTemplate
+    name = uriTemplate
+    description = Stdlib.Option.Option.Some description
+    mimeType = Stdlib.Option.Option.Some "text/plain"
+  }
+
+  // Create a handler that wraps the user function in ModelContextProtocol.ResourceContent
+  let resourceHandler = fun uri ->
+    let content = handler uri
+    ModelContextProtocol.ResourceContent {
+      uri = uri
+      mimeType = "text/plain"
+      text = content
+    }
+
+  let resourceDef = ResourceDefinition {
+    description = resourceDescription
+    handler = resourceHandler
+  }
+
+  McpServerBuilder {
+    name = server.name
+    tools = server.tools
+    resources = Stdlib.Dict.set server.resources uriTemplate resourceDef
+    prompts = server.prompts
+  }
+
+
+// Enhanced resource handler that can match URI templates with parameters
+let handleResourceRequestWithTemplates (server: McpServerBuilder) (uri: String) : ModelContextProtocol.ResourceContent =
+  // First try exact match
+  match Stdlib.Dict.get server.resources uri with
+  | Some resourceDef ->
+      let handler = resourceDef.handler
+      handler uri
+  | None ->
+      // Try template matching - find resource where URI matches template pattern
+      let matchedTemplate =
+        server.resources
+        |> Stdlib.Dict.toList
+        |> Stdlib.List.findFirst (fun (template, _resourceDef) ->
+            // Simple template matching - check if template pattern matches URI
+            // For now, just check if template contains {param} and URI has value in that position
+            uriMatchesTemplate uri template)
+
+      match matchedTemplate with
+      | Some (_template, resourceDef) ->
+          let handler = resourceDef.handler
+          handler uri
+      | None ->
+          ModelContextProtocol.ResourceContent {
+            uri = uri
+            mimeType = "text/plain"
+            text = $"Error: Unknown resource: {uri}"
+          }
+
+
+// Helper function to check if a URI matches a template pattern
+let uriMatchesTemplate (uri: String) (template: String) : Bool =
+  // Simple implementation - just checks if the URI starts with the template
+  // A more sophisticated implementation would handle URI template variables
+  Stdlib.String.startsWith uri template

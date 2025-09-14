@@ -1,0 +1,9 @@
+// Common type aliases for ServerBuilder modules
+module Darklang.ModelContextProtocol.ServerBuilder
+
+// <aliases>
+type Json = Stdlib.AltJson.Json
+type McpServerBuilder = Darklang.ModelContextProtocol.ServerBuilder.State.McpServerBuilder
+type BuilderServerState = Darklang.ModelContextProtocol.ServerBuilder.State.BuilderServerState
+type Logging = Darklang.ModelContextProtocol.ServerBuilder.Logging
+// </aliases>
