@@ -1163,6 +1163,13 @@ module PackageFn =
   let toRT (f : PT.PackageFn.PackageFn) : RT.PackageFn.PackageFn =
     { id = f.id
       body =
+
+        // maybe we need a step here to 'normalize' the expression,
+        // replacing any EArg and ESelf with EVar? idk.
+        //
+        // OR, we extend 'symbols' a bit:
+        // Context { plainSymbols: Map<String, string>; selfName; argMap }
+
         let (rcAfterParams, symbols) : (int * Map<string, int>) =
           f.parameters
           |> NEList.toList

@@ -104,7 +104,11 @@ let parseFloatLiteral
   | Error _ -> createUnparseableError node
 
 
+type ExprParsingContext
+
 let parseStringLiteral
+  (selfName: Option<String>)
+  (argMap: )
   (node: ParsedNode)
   : Stdlib.Result.Result<WrittenTypes.Expr, WrittenTypes.Unparseable> =
   match node.children |> Stdlib.List.head with
@@ -217,6 +221,8 @@ let parseCharLiteral
 
 
 let parseListLiteral
+  ()
+  ()
   (node: ParsedNode)
   : Stdlib.Result.Result<WrittenTypes.Expr, WrittenTypes.Unparseable> =
   baseParseList
@@ -816,8 +822,17 @@ let parseCase
   | "enum_literal" -> parseEnumLiteral node
 
   // assigning and accessing variables
-  | "let_expression" -> parseLetExpr node
+  | "let_expression" ->
+    parseLetExpr node
+    // (this _might_ set selfName = None
+    // , or remove 0+ entries from argMap)
+
+
   | "variable_identifier" ->
+    // is the named thing:
+    // - the same as selfName? If so, use ESelf rather than EVariable
+    // - some arg
+
     (WrittenTypes.Expr.EVariable(node.range, getText node))
     |> Stdlib.Result.Result.Ok
 

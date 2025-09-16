@@ -21,7 +21,7 @@ module ParseError =
       | BadFormat -> "BadFormat", []
       | OutOfRange -> "OutOfRange", []
 
-    let typeName = FQTypeName.fqPackage PackageIDs.Type.Stdlib.int8ParseError
+    let typeName = FQTypeName.fqPackage (PackageIDs.Type.Stdlib.int8ParseError ())
     DEnum(typeName, typeName, [], caseName, fields)
 
 

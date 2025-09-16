@@ -21,43 +21,55 @@ open Prelude
 // much, but it seems kinda reasonable.
 
 
+// maybe this goes in LibPM
+
 module Type =
-  let mutable private _lookup = Map []
-  let private p modules name (id : string) : System.Guid =
-    let id = System.Guid.Parse id
-    _lookup <- _lookup |> Map.add (modules, name) id
-    id
+  // let mutable private _lookup = Map []
+  // let private p modules name : System.Guid =
+  //   let id = System.Guid.empty //System.Guid.Parse id
+
+  //   _lookup <- _lookup |> Map.add (modules, name) id
+  //   id
+
+  // Once we have a stable DB, this Unit -> Hash can be simplified
+  // because we can, while starting up LibPM, just get the hash eagerly
+  //
+  // In the meantime, we could improve perf by using Lazy<Hash> instead of Unit -> Hash
+  let private p modules name : (Unit -> Hash) =
+    // get hash from name, directly from DB
+    // magic lol
+    fun () -> "yolo"
+
 
   module Stdlib =
     let private p addl = p ("Stdlib" :: addl)
 
-    let result = p [ "Result" ] "Result" "c1cb018c-8264-4080-be7f-b06b8a0e1729"
-    let option = p [ "Option" ] "Option" "9ce3b596-968f-44c9-bcd4-511007cd9225"
+    let result = p [ "Result" ] "Result"
+    let option = p [ "Option" ] "Option"
 
-    let int8ParseError =
-      p [ "Int8" ] "ParseError" "0a8a9ce5-3a3a-4146-8297-c7076dd37c53"
-    let uint8ParseError =
-      p [ "UInt8" ] "ParseError" "f836299f-d97c-4b27-ae8f-924a442bd3ce"
-    let int16ParseError =
-      p [ "Int16" ] "ParseError" "1c4e3ff7-bc2b-48c7-adf3-5131aefa2fad"
-    let uint16ParseError =
-      p [ "UInt16" ] "ParseError" "c894f8be-09ed-4268-b2f9-5837c45c5dca"
+    let int8ParseError (): Hash = p [ "Int8" ] "ParseError"
+
+
+    // even if we have long hashes
+    // we can be lazy and print the first 6 characters for debugging
+
+
+    // how many IDs might be contained in the (AST) body of some function definition
+    // there might be ~50 references to package items in a fn decl
+    // 50 * (hash length) can add up.
+
+    let uint8ParseError = p [ "UInt8" ] "ParseError"
+    let int16ParseError = p [ "Int16" ] "ParseError"
+    let uint16ParseError = p [ "UInt16" ] "ParseError"
     let int32ParseError =
-      p [ "Int32" ] "ParseError" "9650cfbc-9433-45c2-9c3d-1b8daf6724e2"
-    let uint32ParseError =
-      p [ "UInt32" ] "ParseError" "29cd7b48-9627-4f0f-a7dc-58d6c441b498"
-    let int64ParseError =
-      p [ "Int64" ] "ParseError" "ce40066f-b791-4912-96fb-d52d733c3d9b"
-    let uint64ParseError =
-      p [ "UInt64" ] "ParseError" "ef7e9d82-e575-48e4-b8e1-b8f3be6f4760"
-    let int128ParseError =
-      p [ "Int128" ] "ParseError" "42e1e0ba-67e2-46b0-8baf-06f86266d3ad"
-    let uint128ParseError =
-      p [ "UInt128" ] "ParseError" "688d57a6-0182-4c32-a3dc-24b5b5140055"
-    let floatParseError =
-      p [ "Float" ] "ParseError" "a537b642-d02b-48b8-8ce3-46a99fbfe6fd"
-    let uuidParseError =
-      p [ "Uuid" ] "ParseError" "3d3dd7bd-0a4e-4816-95e6-70bfafa3fb75"
+      p [ "Int32" ] "ParseError"
+    let uint32ParseError = p [ "UInt32" ] "ParseError"
+    let int64ParseError = p [ "Int64" ] "ParseError"
+    let uint64ParseError = p [ "UInt64" ] "ParseError"
+    let int128ParseError = p [ "Int128" ] "ParseError"
+    let uint128ParseError = p [ "UInt128" ] "ParseError"
+    let floatParseError = p [ "Float" ] "ParseError"
+    let uuidParseError = p [ "Uuid" ] "ParseError"
 
     module Http =
       let request = p [ "Http" ] "Request" "926dcb16-4708-451a-9fff-d0f19166c3c8"
