@@ -100,7 +100,7 @@ let t
 
         $"\n\n{lhs}\n\n{rhs}\n\nTest location: {bold}{underline}{filename}:{lineNumber}{reset}"
 
-      let expected = expected |> PT2RT.Expr.toRT Map.empty 0
+      let expected = expected |> PT2RT.Expr.toRT Map.empty 0 None
       let! expected = Exe.executeExpr state expected
 
       // Initialize
@@ -115,7 +115,7 @@ let t
           state
 
       // Run the actual program (left-hand-side of the =)
-      let actual = actual |> PT2RT.Expr.toRT Map.empty 0
+      let actual = actual |> PT2RT.Expr.toRT Map.empty 0 None
       let! (actual : RT.ExecutionResult) = Exe.executeExpr state actual
 
       if System.Environment.GetEnvironmentVariable "DEBUG" <> null then

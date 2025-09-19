@@ -216,7 +216,10 @@ let toPT
       m.tests
       |> Ply.List.mapSequentially (fun test ->
         uply {
-          let exprToPT = WT2PT.Expr.toPT builtins pm onMissing currentModule
+          let context =
+            { WT2PT.Context.selfQualifiedName = None
+              WT2PT.Context.isInFunction = false }
+          let exprToPT = WT2PT.Expr.toPT builtins pm onMissing currentModule context
           let! actual = exprToPT test.actual
           let! expected = exprToPT test.expected
           return

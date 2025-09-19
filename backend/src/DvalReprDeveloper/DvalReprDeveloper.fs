@@ -291,7 +291,10 @@ let toRepr (dv : Dval) : string =
       // TODO we can do better here.
       match app with
       | AppLambda _impl -> "<lambda>"
-      | AppNamedFn name -> $"<named fn {name.name}>"
+      | AppNamedFn name ->
+        match name.name with
+        | FQFnName.Builtin builtin -> $"<named fn {builtin.name}>"
+        | FQFnName.Package id -> $"<named fn Package {id}>"
 
 
     | DDB name -> wrap name

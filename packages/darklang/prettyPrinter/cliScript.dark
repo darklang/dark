@@ -25,7 +25,7 @@ let sourceFile
 
   let exprsPart =
     (Stdlib.List.fold source.exprsToEval [] (fun acc expr ->
-      let prettyPrinted = PrettyPrinter.ProgramTypes.expr expr
+      let prettyPrinted = PrettyPrinter.ProgramTypes.expr PrettyPrinter.ProgramTypes.defaultContext expr
       acc |> Stdlib.List.push prettyPrinted))
     |> Stdlib.List.reverse
 
