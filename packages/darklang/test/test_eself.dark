@@ -1,0 +1,25 @@
+module Darklang =
+  module Test =
+    // Test 1: Basic factorial recursion
+    let factorial (n: Int64): Int64 =
+      if Stdlib.Int64.lessThanOrEqualTo n 1L then
+        1L
+      else
+      Stdlib.Int64.multiply n (Test.factorial (Stdlib.Int64.subtract n 1L))
+
+    // Test 2: Variable reassignment test
+    let incr (y: Int64) (z: Int64): Int64 =
+      if Stdlib.Int64.lessThanOrEqualTo z 0L then
+        y
+      else
+        let result =
+          incr y (Stdlib.Int64.subtract z 1L)
+
+        let incr =
+          (fun x -> Stdlib.Int64.add x 2L)
+
+        Stdlib.Int64.add result (incr z)
+
+match (Darklang.Test.factorial 5L, Darklang.Test.incr 3L 5L) with
+| (120L, 28L) -> 0L
+| _ -> 1L

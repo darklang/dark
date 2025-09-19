@@ -20,7 +20,7 @@ let tCheckVM
   =
   testTask name {
     let vmState =
-      ptExpr |> PT2RT.Expr.toRT Map.empty 0 |> RT.VMState.createWithoutTLID
+      ptExpr |> PT2RT.Expr.toRT Map.empty 0 None |> RT.VMState.createWithoutTLID
 
     let! exeState =
       executionStateFor TestValues.pm (System.Guid.NewGuid()) false false Map.empty
@@ -38,7 +38,7 @@ let t name ptExpr expectedInsts =
 
 let tFail name ptExpr expectedRte =
   testTask name {
-    let instructions = ptExpr |> PT2RT.Expr.toRT Map.empty 0
+    let instructions = ptExpr |> PT2RT.Expr.toRT Map.empty 0 None
 
     let! exeState =
       executionStateFor TestValues.pm (System.Guid.NewGuid()) false false Map.empty

@@ -263,14 +263,21 @@ let toPT
       |> Ply.List.mapSequentially (fun (spec, expr) ->
         uply {
           let spec = WT2PT.Handler.Spec.toPT spec
-          let! expr = WT2PT.Expr.toPT builtins pm onMissing (m.owner :: m.name) expr
+          let context =
+            { WT2PT.Context.selfQualifiedName = None
+              WT2PT.Context.isInFunction = false }
+          let! expr =
+            WT2PT.Expr.toPT builtins pm onMissing (m.owner :: m.name) context expr
           return (spec, expr)
         })
 
     let! exprs =
       m.exprs
       |> Ply.List.mapSequentially (
-        WT2PT.Expr.toPT builtins pm onMissing (m.owner :: m.name)
+        let context =
+          { WT2PT.Context.selfQualifiedName = None
+            WT2PT.Context.isInFunction = false }
+        WT2PT.Expr.toPT builtins pm onMissing (m.owner :: m.name) context
       )
 
     return

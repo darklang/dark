@@ -412,6 +412,7 @@ module Expr =
   let rec toRT
     (symbols : Map<string, RT.Register>)
     (rc : int)
+    (currentFnName : Option<PT.FQFnName.FQFnName>)
     (e : PT.Expr)
     : RT.Instructions =
     let justLoadDval dv : RT.Instructions =
@@ -458,7 +459,7 @@ module Expr =
                 (rc, instrs, segments @ [ RT.StringSegment.Text text ])
 
               | PT.StringInterpolation expr ->
-                let exprInstrs = toRT symbols rc expr
+                let exprInstrs = toRT symbols rc currentFnName expr
 
                 (exprInstrs.registerCount,
                  instrs @ exprInstrs.instructions,
@@ -479,7 +480,7 @@ module Expr =
         items
         |> List.fold
           (fun (rc, instrs, itemResultRegs) item ->
-            let itemInstrs = toRT symbols rc item
+            let itemInstrs = toRT symbols rc currentFnName item
             (itemInstrs.registerCount,
              instrs @ itemInstrs.instructions,
              itemResultRegs @ [ itemInstrs.resultIn ]))
@@ -498,7 +499,7 @@ module Expr =
         items
         |> List.fold
           (fun (rc, instrs, entryPairs) (key, value) ->
-            let itemInstrs = toRT symbols rc value
+            let itemInstrs = toRT symbols rc currentFnName value
             (itemInstrs.registerCount,
              instrs @ itemInstrs.instructions,
              entryPairs @ [ (key, itemInstrs.resultIn) ]))
@@ -513,13 +514,13 @@ module Expr =
       // reserve the 'first' register for the result
       let tupleReg, rc = rc, rc + 1
 
-      let first = toRT symbols rc first
-      let second = toRT symbols first.registerCount second
+      let first = toRT symbols rc currentFnName first
+      let second = toRT symbols first.registerCount currentFnName second
       let (rcAfterAll, theRestInstrs, theRestRegs) =
         theRest
         |> List.fold
           (fun (rc, instrs, resultRegs) item ->
-            let itemInstrs = toRT symbols rc item
+            let itemInstrs = toRT symbols rc currentFnName item
             (itemInstrs.registerCount,
              instrs @ itemInstrs.instructions,
              resultRegs @ [ itemInstrs.resultIn ]))
@@ -536,11 +537,11 @@ module Expr =
 
     // let x = 1
     | PT.ELet(_id, pat, expr, body) ->
-      let exprInstrs = toRT symbols rc expr
+      let exprInstrs = toRT symbols rc currentFnName expr
       let patInstr, newSymbols, rcAfterPat =
         LetPattern.toInstr exprInstrs.resultIn exprInstrs.registerCount pat
       let symbols = Map.mergeFavoringRight symbols newSymbols
-      let bodyInstrs = toRT symbols rcAfterPat body
+      let bodyInstrs = toRT symbols rcAfterPat currentFnName body
       { registerCount = bodyInstrs.registerCount
         instructions =
           exprInstrs.instructions @ [ patInstr ] @ bodyInstrs.instructions
@@ -557,16 +558,38 @@ module Expr =
           instructions = [ RT.VarNotFound(rc, varName) ]
           resultIn = rc }
 
+    | PT.ESelf(_id) ->
+      match currentFnName with
+      | Some fnName ->
+        // Create a named function reference to the current function
+        let namedFn : RT.ApplicableNamedFn =
+          { name = FQFnName.toRT fnName
+            typeSymbolTable = Map.empty
+            typeArgs = []
+            argsSoFar = [] }
+
+        let applicable = RT.Applicable.AppNamedFn namedFn
+
+        { registerCount = rc + 1
+          instructions = [ RT.LoadVal(rc, RT.DApplicable applicable) ]
+          resultIn = rc }
+      | None ->
+        // No current function context - this shouldn't happen in well-formed code
+        { registerCount = rc + 1
+          instructions =
+            [ RT.VarNotFound(rc, "ESelf used outside function context") ]
+          resultIn = rc }
+
 
     | PT.EIf(_id, cond, thenExpr, elseExpr) ->
       // We need a consistent result register,
       // so we'll create this, and copy to it at the end of each branch
       let resultReg, rc = rc, rc + 1
 
-      let cond = toRT symbols rc cond
+      let cond = toRT symbols rc currentFnName cond
       let jumpIfCondFalse jumpBy = [ RT.JumpByIfFalse(jumpBy, cond.resultIn) ]
 
-      let thenInstrs = toRT symbols cond.registerCount thenExpr
+      let thenInstrs = toRT symbols cond.registerCount currentFnName thenExpr
       let copyThenToResultInstr = [ RT.CopyVal(resultReg, thenInstrs.resultIn) ]
 
       match elseExpr with
@@ -589,7 +612,7 @@ module Expr =
           resultIn = resultReg }
 
       | Some elseExpr ->
-        let elseInstrs = toRT symbols thenInstrs.registerCount elseExpr
+        let elseInstrs = toRT symbols thenInstrs.registerCount currentFnName elseExpr
         let copyToResultInstr = [ RT.CopyVal(resultReg, elseInstrs.resultIn) ]
 
         let instrs =
@@ -619,7 +642,7 @@ module Expr =
       // unwrap the first 'part' of the pipeline,
       // and punt the other work for later
       match parts with
-      | [] -> toRT symbols rc lhs
+      | [] -> toRT symbols rc currentFnName lhs
       | first :: parts ->
         let newLHS =
           match first with
@@ -643,11 +666,11 @@ module Expr =
           | PT.EPipeVariable(id, varName, args) ->
             PT.EApply(id, PT.EVariable(id, varName), [], NEList.ofList lhs args)
 
-        toRT symbols rc (PT.EPipe(id, newLHS, parts))
+        toRT symbols rc currentFnName (PT.EPipe(id, newLHS, parts))
 
     | PT.EInfix(_, PT.BinOp op, left, right) ->
-      let left = toRT symbols rc left
-      let right = toRT symbols left.registerCount right
+      let left = toRT symbols rc currentFnName left
+      let right = toRT symbols left.registerCount currentFnName right
 
       let resultReg, rcAfterResult = right.registerCount, right.registerCount + 1
 
@@ -663,8 +686,8 @@ module Expr =
 
 
     | PT.EInfix(_, PT.InfixFnCall infix, left, right) ->
-      let left = toRT symbols rc left
-      let right = toRT symbols left.registerCount right
+      let left = toRT symbols rc currentFnName left
+      let right = toRT symbols left.registerCount currentFnName right
 
       let infixInstr, infixRc, rcAfterInfix =
         RT.LoadVal(
@@ -735,13 +758,13 @@ module Expr =
         args
         |> NEList.fold
           (fun (rc, instrs, argResultRegs) arg ->
-            let newInstrs = toRT symbols rc arg
+            let newInstrs = toRT symbols rc currentFnName arg
             (newInstrs.registerCount,
              instrs @ newInstrs.instructions,
              argResultRegs @ [ newInstrs.resultIn ]))
           (rc, [], [])
 
-      let thingToApply = toRT symbols rcAfterArgs thingToApplyExpr
+      let thingToApply = toRT symbols rcAfterArgs currentFnName thingToApplyExpr
 
       let putResultIn = thingToApply.registerCount
 
@@ -763,7 +786,7 @@ module Expr =
       // We do this in multiple phases, and have a helper type to assist.
 
       // First, the easy part - compile the expression we're `match`ing against.
-      let expr = toRT symbols rc expr
+      let expr = toRT symbols rc currentFnName expr
 
       // Shortly, we'll compile each of the cases.
       // We'll use this `resultReg` to store the final result of the match
@@ -790,13 +813,13 @@ module Expr =
             match c.whenCondition with
             | None -> (rcAfterPat, [], None)
             | Some whenCond ->
-              let whenCond = toRT mergedSymbols rcAfterPat whenCond
+              let whenCond = toRT mergedSymbols rcAfterPat currentFnName whenCond
               (whenCond.registerCount,
                whenCond.instructions,
                Some(fun jumpBy -> RT.JumpByIfFalse(jumpBy, whenCond.resultIn)))
 
           // compile the `rhs` of the case
-          let rhs = toRT mergedSymbols rcAfterWhenCond c.rhs
+          let rhs = toRT mergedSymbols rcAfterWhenCond currentFnName c.rhs
 
           // return the intermediate results, as far along as they are
           { matchValueInstrFn =
@@ -876,7 +899,7 @@ module Expr =
         fields
         |> List.fold
           (fun (rc, instrs, fieldRegs) (fieldName, fieldExpr) ->
-            let field = toRT symbols rc fieldExpr
+            let field = toRT symbols rc currentFnName fieldExpr
             (field.registerCount,
              instrs @ field.instructions,
              fieldRegs @ [ (fieldName, field.resultIn) ]))
@@ -895,13 +918,13 @@ module Expr =
 
 
     | PT.ERecordUpdate(_id, expr, updates) ->
-      let expr = toRT symbols rc expr
+      let expr = toRT symbols rc currentFnName expr
 
       let (rcAfterUpdates, updatesInstrs, updates) =
         updates
         |> NEList.fold
           (fun (rc, instrs, regs) (fieldName, fieldExpr) ->
-            let update = toRT symbols rc fieldExpr
+            let update = toRT symbols rc currentFnName fieldExpr
             (update.registerCount,
              instrs @ update.instructions,
              regs @ [ (fieldName, update.resultIn) ]))
@@ -917,7 +940,7 @@ module Expr =
 
 
     | PT.ERecordFieldAccess(_id, expr, fieldName) ->
-      let expr = toRT symbols rc expr
+      let expr = toRT symbols rc currentFnName expr
 
       { registerCount = expr.registerCount + 1
         instructions =
@@ -940,7 +963,7 @@ module Expr =
         fields
         |> List.fold
           (fun (rc, instrs, fieldRegs) fieldExpr ->
-            let afterField = toRT symbols rc fieldExpr
+            let afterField = toRT symbols rc currentFnName fieldExpr
             (afterField.registerCount,
              instrs @ afterField.instructions,
              fieldRegs @ [ afterField.resultIn ]))
@@ -994,15 +1017,19 @@ module Expr =
           patterns = pats |> NEList.ofListUnsafe "" []
           registersToCloseOver = registersToCloseOver
           instructions =
-            toRT symbolsOfNewFrameAfterOnesOnlyUsedInBody rcOfNewFrame body }
+            toRT
+              symbolsOfNewFrameAfterOnesOnlyUsedInBody
+              rcOfNewFrame
+              currentFnName
+              body }
 
       { registerCount = rc + 1
         instructions = [ RT.CreateLambda(rc, impl) ]
         resultIn = rc }
 
     | PT.EStatement(_id, expr, next) ->
-      let firstExpr = toRT symbols rc expr
-      let nextExpr = toRT symbols firstExpr.registerCount next
+      let firstExpr = toRT symbols rc currentFnName expr
+      let nextExpr = toRT symbols firstExpr.registerCount currentFnName next
 
       let checkIfFirstIsUnit = [ RT.CheckIfFirstExprIsUnit(firstExpr.resultIn) ]
 
@@ -1170,7 +1197,8 @@ module PackageFn =
             (fun (rc, symbols) p -> (rc + 1, Map.add p.name rc symbols))
             (0, Map.empty)
 
-        Expr.toRT symbols rcAfterParams f.body
+        let fnName = PT.FQFnName.Package f.id
+        Expr.toRT symbols rcAfterParams (Some fnName) f.body
       typeParams = f.typeParams
       parameters = f.parameters |> NEList.map Parameter.toRT
       returnType = f.returnType |> TypeReference.toRT }
@@ -1215,7 +1243,7 @@ module Handler =
           (instrs, rc + 1, Map.add inputVarName rc symbols))
         ([], 0, Map.empty)
 
-    let exprInstrs = Expr.toRT symbols rcAfterInputVars expr
+    let exprInstrs = Expr.toRT symbols rcAfterInputVars None expr
 
     { registerCount = exprInstrs.registerCount
       instructions = initialInstrs @ exprInstrs.instructions

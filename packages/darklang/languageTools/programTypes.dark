@@ -248,6 +248,8 @@ type Expr =
 
   | EStatement of ID * first: Expr * next: Expr
 
+  | ESelf of ID
+
 module Expr =
   let toID (expr: Expr) : ID =
     match expr with

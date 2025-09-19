@@ -396,6 +396,8 @@ type Expr =
 
   | EStatement of id * first : Expr * next : Expr
 
+  | ESelf of id
+
 and MatchCase = { pat : MatchPattern; whenCondition : Option<Expr>; rhs : Expr }
 
 and StringSegment =
@@ -467,6 +469,7 @@ module Expr =
     | EEnum(id, _, _, _, _)
     | EMatch(id, _, _)
     | EStatement(id, _, _) -> id
+    | ESelf id -> id
 
 
 

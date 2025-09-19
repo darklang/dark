@@ -950,6 +950,8 @@ module Expect =
         eq ("first" :: path) f f'
         eq ("next" :: path) n n'
 
+      | ESelf _, ESelf _ -> ()
+
       // | EMatch(_, e, branches), EMatch(_, e', branches') ->
       //   eq ("matchCond" :: path) e e'
 
@@ -1006,7 +1008,8 @@ module Expect =
       | EInfix _, _
       | EPipe _, _ // TODO: make case above
       | EMatch _, _
-      | EStatement _, _ -> check path actual expected
+      | EStatement _, _
+      | ESelf _, _ -> check path actual expected
 
 
     let rec equalExprIgnoringIDs (actual : Expr) (expected : Expr) : unit =

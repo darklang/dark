@@ -219,7 +219,7 @@ let makeTest versionName filename =
       // Note: this will update the corresponding value in `testCases` with the
       // actual request received
       let! actual =
-        let instrs = test.actual |> PT2RT.Expr.toRT Map.empty 0
+        let instrs = test.actual |> PT2RT.Expr.toRT Map.empty 0 None
         Exe.executeExpr exeState instrs
 
       // First check: expected HTTP request matches actual HTTP request
@@ -236,7 +236,7 @@ let makeTest versionName filename =
       let actual = Result.map normalizeDvalResult actual
 
       let! expected =
-        let instrs = test.expected |> PT2RT.Expr.toRT Map.empty 0
+        let instrs = test.expected |> PT2RT.Expr.toRT Map.empty 0 None
         Exe.executeExpr exeState instrs
 
       match actual, expected with

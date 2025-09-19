@@ -1,0 +1,71 @@
+// Tests for ESelf (recursive function calls)
+
+module ESelfTests =
+  // Simple factorial function using ESelf for recursion
+  let factorial (n: Int64): Int64 =
+    if Stdlib.Int64.lessThanOrEqualTo n 1L then
+      1L
+    else
+      Stdlib.Int64.multiply n (factorial (Stdlib.Int64.subtract n 1L))
+
+  // Fibonacci function using ESelf
+  let fibonacci (n: Int64): Int64 =
+    if Stdlib.Int64.lessThanOrEqualTo n 1L then
+      n
+    else
+      Stdlib.Int64.add
+        (ESelfTests.fibonacci (Stdlib.Int64.subtract n 1L))
+        (ESelfTests.fibonacci (Stdlib.Int64.subtract n 2L))
+
+  // Sum from 1 to n using ESelf
+  let sumUpTo (n: Int64): Int64 =
+    if Stdlib.Int64.lessThanOrEqualTo n 0L then
+      0L
+    else
+      Stdlib.Int64.add n (ESelfTests.sumUpTo (Stdlib.Int64.subtract n 1L))
+
+// Basic factorial tests
+ESelfTests.factorial 0L = 1L
+ESelfTests.factorial 1L = 1L
+ESelfTests.factorial 5L = 120L
+ESelfTests.factorial 10L = 3628800L
+
+// Basic fibonacci tests
+ESelfTests.fibonacci 0L = 0L
+ESelfTests.fibonacci 1L = 1L
+ESelfTests.fibonacci 5L = 5L
+ESelfTests.fibonacci 10L = 55L
+
+// Sum tests
+ESelfTests.sumUpTo 0L = 0L
+ESelfTests.sumUpTo 1L = 1L
+ESelfTests.sumUpTo 5L = 15L
+ESelfTests.sumUpTo 10L = 55L
+
+// Test variable shadowing with ESelf - this is a critical test
+// The inner 'factorial' should NOT interfere with recursive calls
+module ShadowingTest =
+  let factorial (n: Int64): Int64 =
+    if Stdlib.Int64.lessThanOrEqualTo n 1L then
+      1L
+    else
+      let factorial = "shadowed"  // This should not break recursion
+      Stdlib.Int64.multiply n (ShadowingTest.factorial (Stdlib.Int64.subtract n 1L))
+
+  // Test proper scoping: ESelf vs EVariable behavior
+  let incr (y: Int64) (z: Int64): Int64 =
+    if Stdlib.Int64.lessThanOrEqualTo z 0L then
+      y
+    else
+      let result = incr y (Stdlib.Int64.subtract z 1L)
+      let incr = (fun x -> Stdlib.Int64.add x 2L)
+      let lambdaResult = incr z
+      Stdlib.Int64.add result lambdaResult
+
+ShadowingTest.factorial 5L = 120L
+// Test the scoping behavior
+// incr 3 1 should:
+// 1. Call incr 3 0 (using ESelf) which returns 3
+// 2. Then use the shadowed lambda: incr 1 which adds 2, so 1 + 2 = 3
+// 3. Final result: 3 + 3 = 6
+ShadowingTest.incr 3L 1L = 6L

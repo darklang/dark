@@ -27,7 +27,11 @@ let parsePTExpr
   (filename : string)
   (code : string)
   : Ply<PT.Expr> =
-  code |> initialParse filename |> WT2PT.Expr.toPT builtins pm onMissing []
+  let context =
+    { WT2PT.Context.selfQualifiedName = None; WT2PT.Context.isInFunction = false }
+  code
+  |> initialParse filename
+  |> WT2PT.Expr.toPT builtins pm onMissing [] context
 
 
 let parseSimple
