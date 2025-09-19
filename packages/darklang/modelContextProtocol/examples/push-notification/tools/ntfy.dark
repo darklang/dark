@@ -1,0 +1,32 @@
+module Darklang.Examples.PushNotification.Tools.Ntfy
+
+let sendNotification (topic: String) (message: String) (title: String) : String =
+  let url = "https://ntfy.sh/" ++ topic
+  let headers = 
+    if title == "" then
+      []
+    else
+      [ ("Title", title) ]
+  
+  let body = Stdlib.String.toBytes message
+  
+  match Stdlib.HttpClient.post url headers body with
+  | Ok response ->
+    if response.statusCode == 200L then
+      "Notification sent successfully to topic: " ++ topic
+    else
+      "Failed to send notification. Status: " ++ (Stdlib.Int64.toString response.statusCode)
+  | Error err ->
+    "Error sending notification: " ++ (Stdlib.HttpClient.toString err)
+
+let ntfyTool () : Darklang.ModelContextProtocol.ServerBuilder.Tool =
+  Darklang.ModelContextProtocol.ServerBuilder.Tool {
+    name = "send_ntfy_notification"
+    description = "Send push notification via ntfy.sh service. Requires topic name and message. Optional title parameter."
+    handler = fun input ->
+      let parts = Stdlib.String.split input "|"
+      match parts with
+      | [ topic; message ] -> sendNotification topic message ""
+      | [ topic; message; title ] -> sendNotification topic message title
+      | _ -> "Invalid input format. Use: topic|message or topic|message|title"
+  }
