@@ -1,5 +1,5 @@
 /// Resources collection for the Darklang Internal MCP server
-module Darklang.LanguageTools.DarklangInternalMcpServer.Resources
+module Darklang.Internal.DarklangInternalMcpServer.Resources
 
 /// Darklang built-in functions and types
 let builtins () : ModelContextProtocol.ServerBuilder.Resource =

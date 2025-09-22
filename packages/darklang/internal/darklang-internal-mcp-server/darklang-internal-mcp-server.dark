@@ -1,7 +1,7 @@
 /// Darklang Internal MCP Server
 /// This server provides internal development tools, resources, and prompts
 /// for Darklang development using the ServerBuilder pattern.
-module Darklang.LanguageTools.DarklangInternalMcpServer
+module Darklang.Internal.DarklangInternalMcpServer
 
 
 // <aliases>

@@ -1,5 +1,5 @@
 /// Prompts collection for the Darklang Internal MCP server
-module Darklang.LanguageTools.DarklangInternalMcpServer.Prompts
+module Darklang.Internal.DarklangInternalMcpServer.Prompts
 
 
 // <aliases>

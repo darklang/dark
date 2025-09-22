@@ -1,5 +1,5 @@
 /// Tools collection for the Darklang Internal MCP server
-module Darklang.LanguageTools.DarklangInternalMcpServer.Tools
+module Darklang.Internal.DarklangInternalMcpServer.Tools
 
 /// Execute Darklang code and return the result
 let executeDarklang () : ModelContextProtocol.ServerBuilder.Tool =
