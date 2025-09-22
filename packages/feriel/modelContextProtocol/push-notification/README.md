@@ -14,7 +14,7 @@ This is an MCP server that provides push notification capabilities through multi
 To add this MCP server run:
 
 ```bash
-claude mcp add push-notifications ./scripts/run-cli run @Darklang.ModelContextProtocol.Examples.PushNotification.Server.main --env PUSHOVER_USER_KEY=your_pushover_user_key --env PUSHOVER_APP_TOKEN=your_pushover_app_token
+claude mcp add push-notifications ./scripts/run-cli run @Feriel.ModelContextProtocol.PushNotification.Server.main --env PUSHOVER_USER_KEY=your_pushover_user_key --env PUSHOVER_APP_TOKEN=your_pushover_app_token
 ```
 
 ### Environment Variables

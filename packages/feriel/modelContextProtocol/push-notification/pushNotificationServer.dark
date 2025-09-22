@@ -1,7 +1,7 @@
-module Darklang.ModelContextProtocol.Examples.PushNotification.Server
+module Feriel.ModelContextProtocol.PushNotification.Server
 
-let helpPrompt () : ServerBuilder.Prompt =
-  ServerBuilder.Prompt {
+let helpPrompt () : Darklang.ModelContextProtocol.ServerBuilder.Prompt =
+  Darklang.ModelContextProtocol.ServerBuilder.Prompt {
     name = "notification_help"
     description = "Get help with setting up push notifications"
     handler = fun _args ->
@@ -27,8 +27,8 @@ let helpPrompt () : ServerBuilder.Prompt =
       "   export PUSHOVER_USER_KEY=your_user_key\n" ++
       "   export PUSHOVER_APP_TOKEN=your_app_token"  }
 
-let statusResource () : ServerBuilder.Resource =
-  ServerBuilder.Resource {
+let statusResource () : Darklang.ModelContextProtocol.ServerBuilder.Resource =
+  Darklang.ModelContextProtocol.ServerBuilder.Resource {
     uri = "push://status"
     name = "notification_status"
     description = "Check status of notification services"
@@ -40,11 +40,11 @@ let statusResource () : ServerBuilder.Resource =
 
 let main () : Int64 =
   let server =
-    ServerBuilder.create "push-notifications" [] [] []
+    Darklang.ModelContextProtocol.ServerBuilder.create "push-notifications" [] [] []
   let serverWithAll =
     server
-    |> ServerBuilder.Tools.addTool (PushNotification.Tools.Ntfy.ntfyTool ())
-    |> ServerBuilder.Tools.addTool (PushNotification.Tools.Pushover.pushoverTool ())
-    |> ServerBuilder.Resources.addResource (statusResource ())
-    |> ServerBuilder.Prompts.addPrompt (helpPrompt ())
-  ServerBuilder.run serverWithAll
+    |> Darklang.ModelContextProtocol.ServerBuilder.Tools.addTool (PushNotification.Tools.Ntfy.ntfyTool ())
+    |> Darklang.ModelContextProtocol.ServerBuilder.Tools.addTool (PushNotification.Tools.Pushover.pushoverTool ())
+    |> Darklang.ModelContextProtocol.ServerBuilder.Resources.addResource (statusResource ())
+    |> Darklang.ModelContextProtocol.ServerBuilder.Prompts.addPrompt (helpPrompt ())
+  Darklang.ModelContextProtocol.ServerBuilder.run serverWithAll
