@@ -1,7 +1,7 @@
-module Darklang.Examples.PushNotification.Server
+module Darklang.ModelContextProtocol.Examples.PushNotification.Server
 
-let helpPrompt () : Darklang.ModelContextProtocol.ServerBuilder.Prompt =
-  Darklang.ModelContextProtocol.ServerBuilder.Prompt {
+let helpPrompt () : ServerBuilder.Prompt =
+  ServerBuilder.Prompt {
     name = "notification_help"
     description = "Get help with setting up push notifications"
     handler = fun _args ->
@@ -27,8 +27,8 @@ let helpPrompt () : Darklang.ModelContextProtocol.ServerBuilder.Prompt =
       "   export PUSHOVER_USER_KEY=your_user_key\n" ++
       "   export PUSHOVER_APP_TOKEN=your_app_token"  }
 
-let statusResource () : Darklang.ModelContextProtocol.ServerBuilder.Resource =
-  Darklang.ModelContextProtocol.ServerBuilder.Resource {
+let statusResource () : ServerBuilder.Resource =
+  ServerBuilder.Resource {
     uri = "push://status"
     name = "notification_status"
     description = "Check status of notification services"
@@ -40,11 +40,11 @@ let statusResource () : Darklang.ModelContextProtocol.ServerBuilder.Resource =
 
 let main () : Int64 =
   let server =
-    Darklang.ModelContextProtocol.ServerBuilder.create "push-notifications" [] [] []
+    ServerBuilder.create "push-notifications" [] [] []
   let serverWithAll =
     server
-    |> Darklang.ModelContextProtocol.ServerBuilder.Tools.addTool (Darklang.Examples.PushNotification.Tools.Ntfy.ntfyTool ())
-    |> Darklang.ModelContextProtocol.ServerBuilder.Tools.addTool (Darklang.Examples.PushNotification.Tools.Pushover.pushoverTool ())
-    |> Darklang.ModelContextProtocol.ServerBuilder.Resources.addResource (statusResource ())
-    |> Darklang.ModelContextProtocol.ServerBuilder.Prompts.addPrompt (helpPrompt ())
-  Darklang.ModelContextProtocol.ServerBuilder.run serverWithAll
+    |> ServerBuilder.Tools.addTool (PushNotification.Tools.Ntfy.ntfyTool ())
+    |> ServerBuilder.Tools.addTool (PushNotification.Tools.Pushover.pushoverTool ())
+    |> ServerBuilder.Resources.addResource (statusResource ())
+    |> ServerBuilder.Prompts.addPrompt (helpPrompt ())
+  ServerBuilder.run serverWithAll

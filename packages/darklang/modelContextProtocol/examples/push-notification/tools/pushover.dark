@@ -1,4 +1,4 @@
-module Darklang.Examples.PushNotification.Tools.Pushover
+module Darklang.ModelContextProtocol.Examples.PushNotification.Tools.Pushover
 
 let sendNotification (message: String) (title: String) : String =
   match Builtin.environmentGet "PUSHOVER_USER_KEY" with
