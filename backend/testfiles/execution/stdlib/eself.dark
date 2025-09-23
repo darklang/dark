@@ -34,6 +34,14 @@ module ShadowingTest =
       let result = Stdlib.Int64.multiply n ((ShadowingTest.factorialShadow (Stdlib.Int64.subtract n 1L)) |> Stdlib.Tuple2.second)
       (factorialShadow , result)
 
+  let factorialShadowError (n: Int64): (String * Int64) =
+    if Stdlib.Int64.lessThanOrEqualTo n 1L then
+      ("base_case", 1L)
+    else
+      let factorialShadowError = "shadowed"
+      let result = Stdlib.Int64.multiply n ((factorialShadowError (Stdlib.Int64.subtract n 1L)) |> Stdlib.Tuple2.second)
+      (factorialShadowError , result)
+
 
   let incr (y: Int64) (z: Int64): Int64 =
     if Stdlib.Int64.lessThanOrEqualTo z 0L then
@@ -95,6 +103,15 @@ module ShadowingTest =
     | myFnPipe -> x |> Stdlib.Int64.add myFnPipe
 
 
+  let myFnValue = 120L
+  let myFnValue (x: Int64) : Int64 =
+    if x <= 0L then
+      10L
+    else if x == 1L then
+      (myFnValue 0L) + 1L
+    else
+      let result = myFnValue + 1L
+      (myFnValue (x - 1L)) + result
 
 
 ESelfTests.factorial 0L = 1L
@@ -117,6 +134,7 @@ ESelfTests.sumUpTo 10L = 55L
 
 
 ShadowingTest.factorialShadow 5L = ("shadowed", 120L)
+ShadowingTest.factorialShadowError 5L = Builtin.testDerrorMessage """Expected something we could apply to, such as a lambda or function, but got a String ("shadowed")"""
 ShadowingTest.incr 3L 1L = 6L
 
 ShadowingTest.myFnMatch 0L = 0L
@@ -144,3 +162,7 @@ ShadowingTest.myFnPipe 0L = 0L
 ShadowingTest.myFnPipe 1L = 0L
 ShadowingTest.myFnPipe 2L = 12L
 ShadowingTest.myFnPipe 5L = 10L
+
+ShadowingTest.myFnValue 0L = 10L
+ShadowingTest.myFnValue 1L = 11L
+ShadowingTest.myFnValue 5L = 495L

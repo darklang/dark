@@ -1,7 +1,7 @@
 module Darklang.LanguageTools.WrittenTypesToProgramTypes
 
 // Context for expression parsing, used for ESelf handling
-type Context = { selfQualifiedName: Stdlib.Option.Option<List<String>> }
+type Context = { currentFnName: Stdlib.Option.Option<List<String>> }
 
 let gid () : Int64 =
   // TODO: fix upper range here
@@ -291,16 +291,16 @@ module Expr =
       | LPUnit _ -> (context, ProgramTypes.LetPattern.LPUnit(gid ()))
       | LPVariable(_, name) ->
         let shadowsFunctionName =
-          match context.selfQualifiedName with
-          | Some selfQualifiedName ->
-            match Stdlib.List.last selfQualifiedName with
+          match context.currentFnName with
+          | Some currentFnName ->
+            match Stdlib.List.last currentFnName with
             | Some functionName -> name == functionName
             | None -> false
           | None -> false
 
         let newContext =
           if shadowsFunctionName then
-            Context { selfQualifiedName = Stdlib.Option.Option.None }
+            Context { currentFnName = Stdlib.Option.Option.None }
           else
             context
 
@@ -454,9 +454,9 @@ module Expr =
         // Check if this is an unqualified identifier
         if fn.modules |> Stdlib.List.isEmpty then
           // Check if this matches the current function name (self-reference)
-          match context.selfQualifiedName with
-          | Some selfQualifiedName ->
-            let functionName = Stdlib.List.last selfQualifiedName
+          match context.currentFnName with
+          | Some currentFnName ->
+            let functionName = Stdlib.List.last currentFnName
             match functionName with
             | Some fnName when fn.fn.name == fnName ->
               // This is a recursive call - resolve as function
@@ -676,7 +676,19 @@ module Expr =
         unresolvedNames)
 
     | EVariable(range, var) ->
-      (ProgramTypes.Expr.EVariable (gid ()) var, [])
+      let unresolved = WrittenTypes.Name.Unresolved(range, [ var ])
+
+      let value =
+        NameResolver.ValueName.resolve
+          onMissing
+          pm
+          owner
+          currentModule
+          unresolved
+
+      match value with
+      | Ok _ -> (ProgramTypes.Expr.EValue(gid (), value), [])
+      | Error _ -> (ProgramTypes.Expr.EVariable (gid ()) var, [])
 
     // TODO: rethink this
     | EValueOrFn(_, id) ->
@@ -809,9 +821,9 @@ module Expr =
     | EApply(_, fn, typeArgs, args) ->
       match fn with
       | EVariable(_, varName) ->
-        match context.selfQualifiedName with
-        | Some selfQualifiedName ->
-          let functionName = Stdlib.List.last selfQualifiedName
+        match context.currentFnName with
+        | Some currentFnName ->
+          let functionName = Stdlib.List.last currentFnName
           match functionName with
           | Some fnName when varName == fnName ->
             let (typeArgs, tpUnresolvedNames) =
@@ -875,8 +887,8 @@ module Expr =
 
           (ProgramTypes.Expr.EApply(gid (), fn, typeArgs, args), unresolvedNames)
       | EFnName(_, fnName) ->
-        match context.selfQualifiedName with
-        | Some selfQualifiedName ->
+        match context.currentFnName with
+        | Some currentFnName ->
           // Check if this qualified function name matches the self function
           let qualifiedName =
             Stdlib.List.append
@@ -896,7 +908,7 @@ module Expr =
               | _ ->
                 Stdlib.List.append currentModule qualifiedName
 
-          if fullQualifiedName == selfQualifiedName then
+          if fullQualifiedName == currentFnName then
             let (typeArgs, tpUnresolvedNames) =
               typeArgs
               |> Stdlib.List.map (fun t ->
@@ -977,15 +989,15 @@ module Expr =
 
             (ProgramTypes.Expr.EApply(gid (), fn, typeArgs, args), unresolvedNames)
       | EValueOrFn(_, id) ->
-        match context.selfQualifiedName with
-        | Some selfQualifiedName ->
+        match context.currentFnName with
+        | Some currentFnName ->
           let qualifiedName =
             Stdlib.List.append
               (Stdlib.List.map id.modules (fun (m, _) -> m.name))
               [ id.valueOrFn.name ]
           let fullQualifiedName = Stdlib.List.append currentModule qualifiedName
 
-          if fullQualifiedName == selfQualifiedName then
+          if fullQualifiedName == currentFnName then
             let (typeArgs, tpUnresolvedNames) =
               typeArgs
               |> Stdlib.List.map (fun t ->
@@ -1153,7 +1165,7 @@ module ModuleDeclaration =
         match d with
         | Expr e ->
           let (expr, exprUnresolvedNames) =
-            Expr.toPT onMissing pm owner modules (Context { selfQualifiedName = Stdlib.Option.Option.None }) e
+            Expr.toPT onMissing pm owner modules (Context { currentFnName = Stdlib.Option.Option.None }) e
 
           let modules = Stdlib.List.push modules owner
           Stdlib.Option.Option.Some(((expr, modules), exprUnresolvedNames))
@@ -1251,7 +1263,7 @@ module ModuleDeclaration =
         match d with
         | Expr e ->
           let (expr, unresolvedNames) =
-            Expr.toPT onMissing pm owner currentModule (Context { selfQualifiedName = Stdlib.Option.Option.None }) e
+            Expr.toPT onMissing pm owner currentModule (Context { currentFnName = Stdlib.Option.Option.None }) e
 
           Stdlib.Option.Option.Some(((expr, [ owner ]), unresolvedNames))
         | _ -> Stdlib.Option.Option.None)
@@ -1453,7 +1465,7 @@ module ValueDeclaration =
     : (ProgramTypes.PackageValue.PackageValue *
       List<Parser.Range * ProgramTypes.NameResolutionError>)
     =
-    let (body, unresolvedNames) = Expr.toPT onMissing pm owner modules (Context { selfQualifiedName = Stdlib.Option.Option.None }) d.body
+    let (body, unresolvedNames) = Expr.toPT onMissing pm owner modules (Context { currentFnName = Stdlib.Option.Option.None }) d.body
 
     (ProgramTypes.PackageValue.PackageValue
       { id = Stdlib.Uuid.generate ()
@@ -1519,7 +1531,7 @@ module FunctionDeclaration =
       TypeReference.toPT onMissing pm owner modules fn.returnType
 
     let (body, bdUnresolvedNames) =
-      let functionContext = Context { selfQualifiedName = Stdlib.Option.Option.Some (Stdlib.List.append modules [ fn.name.name ]) }
+      let functionContext = Context { currentFnName = Stdlib.Option.Option.Some (Stdlib.List.append modules [ fn.name.name ]) }
       Expr.toPT onMissing pm owner modules functionContext fn.body
 
     let unresolvedNames =
@@ -1610,7 +1622,7 @@ let parsedFileAsSourceFile
     let (exprsToEval, exprsToEvalUnresolvedNames) =
       source.exprsToEval
       |> Stdlib.List.map (fun e ->
-        Expr.toPT NameResolver.OnMissing.Allow pm "" [] (Context { selfQualifiedName = Stdlib.Option.Option.None }) e)
+        Expr.toPT NameResolver.OnMissing.Allow pm "" [] (Context { currentFnName = Stdlib.Option.Option.None }) e)
       |> Stdlib.List.unzip
 
     let unresolvedNames =

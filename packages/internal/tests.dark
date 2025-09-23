@@ -49,7 +49,7 @@ let parseSingleTestFromFile
 
       let context =
         LanguageTools.WrittenTypesToProgramTypes.Context
-          { selfQualifiedName = Stdlib.Option.Option.None }
+          { currentFnName = Stdlib.Option.Option.None }
 
       let (actual, _unres) =
         LanguageTools.WrittenTypesToProgramTypes.Expr.toPT

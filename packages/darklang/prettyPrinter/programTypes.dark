@@ -713,6 +713,8 @@ let expr (ctx: Context) (e: LanguageTools.ProgramTypes.Expr) : String =
   | ESelf _id ->
     match ctx.currentFunction with
     | Some functionName -> functionName
+    // This should never happen - ESelf should only appear within a function body
+    // CLEANUP: consider making this a runtime error instead
     | None -> "ESelf"
 
   // CLEANUP: remove this case before shipping to users

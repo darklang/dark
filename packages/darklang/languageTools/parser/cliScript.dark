@@ -132,7 +132,7 @@ let toPT
         pm
         wt.owner
         modules
-        (LanguageTools.WrittenTypesToProgramTypes.Context { selfQualifiedName = Stdlib.Option.Option.None })
+        (LanguageTools.WrittenTypesToProgramTypes.Context { currentFnName = Stdlib.Option.Option.None })
         e)
     |> Stdlib.List.unzip
   let unresolvedNamesInExprs = Stdlib.List.flatten unresolvedNamesInExprs

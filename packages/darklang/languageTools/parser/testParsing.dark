@@ -31,7 +31,7 @@ let parsePTExpr
           ""
           []
           (WrittenTypesToProgramTypes.Context
-            { selfQualifiedName = Stdlib.Option.Option.None })
+            { currentFnName = Stdlib.Option.Option.None })
           expr
 
       expr |> Stdlib.Result.Result.Ok

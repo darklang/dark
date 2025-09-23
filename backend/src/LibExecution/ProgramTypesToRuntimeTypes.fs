@@ -574,11 +574,8 @@ module Expr =
           instructions = [ RT.LoadVal(rc, RT.DApplicable applicable) ]
           resultIn = rc }
       | None ->
-        // No current function context - this shouldn't happen in well-formed code
-        { registerCount = rc + 1
-          instructions =
-            [ RT.VarNotFound(rc, "ESelf used outside function context") ]
-          resultIn = rc }
+        // No current function context - this should never happen
+        Exception.raiseInternal "ESelf used outside function context" []
 
 
     | PT.EIf(_id, cond, thenExpr, elseExpr) ->

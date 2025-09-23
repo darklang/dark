@@ -217,7 +217,7 @@ let toPT
       |> Ply.List.mapSequentially (fun test ->
         uply {
           let context =
-            { WT2PT.Context.selfQualifiedName = None
+            { WT2PT.Context.currentFnName = None
               WT2PT.Context.isInFunction = false }
           let exprToPT = WT2PT.Expr.toPT builtins pm onMissing currentModule context
           let! actual = exprToPT test.actual
