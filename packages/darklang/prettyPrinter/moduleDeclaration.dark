@@ -372,7 +372,7 @@ let moduleDeclaration (m: ModuleDeclaration.Module) : String =
     | [] -> Stdlib.Option.Option.None
     | exprs ->
       m.exprs
-      |> Stdlib.List.map (fun (e, _) -> PrettyPrinter.ProgramTypes.expr e)
+      |> Stdlib.List.map (fun (e, _) -> PrettyPrinter.ProgramTypes.expr PrettyPrinter.ProgramTypes.defaultContext e)
       |> Stdlib.String.join "\n\n"
       |> Stdlib.Option.Option.Some
 

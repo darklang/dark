@@ -1,0 +1,144 @@
+module Darklang =
+  module Test =
+    let factorial (n: Int64): Int64 =
+      if Stdlib.Int64.lessThanOrEqualTo n 1L then
+        1L
+      else
+      Stdlib.Int64.multiply n (Test.factorial (Stdlib.Int64.subtract n 1L))
+
+
+    let fibonacci (n: Int64): Int64 =
+      if Stdlib.Int64.lessThanOrEqualTo n 1L then
+        n
+      else
+        Stdlib.Int64.add
+          (Test.fibonacci (Stdlib.Int64.subtract n 1L))
+          (Test.fibonacci (Stdlib.Int64.subtract n 2L))
+
+
+    let sumUpTo (n: Int64): Int64 =
+      if Stdlib.Int64.lessThanOrEqualTo n 0L then
+        0L
+      else
+        Stdlib.Int64.add n (Test.sumUpTo (Stdlib.Int64.subtract n 1L))
+
+
+    let incr (y: Int64) (z: Int64): Int64 =
+      if Stdlib.Int64.lessThanOrEqualTo z 0L then
+        y
+      else
+        let result =
+          incr y (Stdlib.Int64.subtract z 1L)
+
+        let incr =
+          (fun x -> Stdlib.Int64.add x 2L)
+
+        Stdlib.Int64.add result (incr z)
+
+
+  module ShadowingTest =
+    let factorialShadow (n: Int64): (String * Int64) =
+      if Stdlib.Int64.lessThanOrEqualTo n 1L then
+        ("base_case", 1L)
+      else
+        let factorialShadow = "shadowed"
+        let result = Stdlib.Int64.multiply n ((ShadowingTest.factorialShadow (Stdlib.Int64.subtract n 1L)) |> Stdlib.Tuple2.second)
+        (factorialShadow , result)
+
+    let myFnMatch (x: Int64) : Int64 =
+      match x with
+      | 0L -> 0L
+      | 1L -> myFnMatch 0L
+      | 2L ->
+        let myFnMatch = (fun v -> v * 4L)
+        myFnMatch 2L
+      | myFnMatch -> myFnMatch + 1L
+
+    let myFnTuple (x: (Int64 * Int64)) : Int64 =
+      match x with
+      | (0L, _) -> 0L
+      | (1L, n) -> myFnTuple ((0L, n))
+      | (2L, v) ->
+          let myFnTuple = (fun x -> x * 10L)
+          myFnTuple v
+      | (a, myFnTuple) -> a + myFnTuple
+
+    let myFn (x: Int64) : List<Int64> =
+      let myFn = (fun v -> v * 3L)
+      let myFn = [ 10L; myFn x ]
+      let myFn = Stdlib.List.reverse myFn
+      myFn
+
+    let myFnCond (x: Int64) : Int64 =
+      if x <= 0L then
+        0L
+      else if x < 3L then
+        let myFnCond = (fun v w -> v * 5L + w)
+        myFnCond x 2L
+      else if x < 5L then
+        let myFnCond = (fun v -> v * 3L)
+        myFnCond x
+      else
+        x + (myFnCond (x - 1L))
+
+    let myFnPipe (x: Int64) : Int64 =
+      match x with
+      | 0L -> 0L
+      | 1L -> 0L |> myFnPipe
+      | 2L ->
+        let myFnPipe = (fun v -> v * 6L)
+        x |> myFnPipe
+      | myFnPipe -> x |> Stdlib.Int64.add myFnPipe
+
+
+let test1 = (Darklang.Test.factorial 0L) == 1L
+let test2 = (Darklang.Test.factorial 1L) == 1L
+let test3 = (Darklang.Test.factorial 5L) == 120L
+let test4 = (Darklang.Test.factorial 10L) == 3628800L
+
+
+let test5 = (Darklang.Test.fibonacci 0L) == 0L
+let test6 = (Darklang.Test.fibonacci 1L) == 1L
+let test7 = (Darklang.Test.fibonacci 5L) == 5L
+let test8 = (Darklang.Test.fibonacci 10L) == 55L
+
+
+let test9 = (Darklang.Test.sumUpTo 0L) == 0L
+let test10 = (Darklang.Test.sumUpTo 1L) == 1L
+let test11 = (Darklang.Test.sumUpTo 5L) == 15L
+let test12 = (Darklang.Test.sumUpTo 10L) == 55L
+
+
+let test13 = (Darklang.Test.incr 3L 5L) == 28L
+
+
+let test14 = (Darklang.ShadowingTest.factorialShadow 5L) == ("shadowed", 120L)
+let test15 = (Darklang.ShadowingTest.myFnMatch 0L) == 0L
+let test16 = (Darklang.ShadowingTest.myFnMatch 1L) == 0L
+let test17 = (Darklang.ShadowingTest.myFnMatch 2L) == 8L
+let test18 = (Darklang.ShadowingTest.myFnMatch 5L) == 6L
+
+let test19 = (Darklang.ShadowingTest.myFnTuple (0L, 10L)) == 0L
+let test20 = (Darklang.ShadowingTest.myFnTuple (1L, 20L)) == 0L
+let test21 = (Darklang.ShadowingTest.myFnTuple (2L, 3L)) == 30L
+let test22 = (Darklang.ShadowingTest.myFnTuple (4L, 5L)) == 9L
+
+let test23 = (Darklang.ShadowingTest.myFn 4L) == [12L; 10L]
+let test24 = (Darklang.ShadowingTest.myFn 5L) == [15L; 10L]
+
+let test25 = (Darklang.ShadowingTest.myFnCond 0L) == 0L
+let test26 = (Darklang.ShadowingTest.myFnCond 1L) == 7L
+let test27 = (Darklang.ShadowingTest.myFnCond 2L) == 12L
+let test28 = (Darklang.ShadowingTest.myFnCond 3L) == 9L
+let test29 = (Darklang.ShadowingTest.myFnCond 4L) == 12L
+let test30 = (Darklang.ShadowingTest.myFnCond 5L) == 17L
+let test31 = (Darklang.ShadowingTest.myFnCond 6L) == 23L
+
+let test32 = (Darklang.ShadowingTest.myFnPipe 0L) == 0L
+let test33 = (Darklang.ShadowingTest.myFnPipe 1L) == 0L
+let test34 = (Darklang.ShadowingTest.myFnPipe 2L) == 12L
+let test35 = (Darklang.ShadowingTest.myFnPipe 5L) == 10L
+
+match (test1 && test2 && test3 && test4 && test5 && test6 && test7 && test8 && test9 && test10 && test11 && test12 && test13 && test14 && test15 && test16 && test17 && test18 && test19 && test20 && test21 && test22 && test23 && test24 && test25 && test26 && test27 && test28 && test29 && test30 && test31 && test32 && test35) with
+| true -> 0L
+| _ -> 1L

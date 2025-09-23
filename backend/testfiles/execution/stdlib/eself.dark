@@ -1,0 +1,146 @@
+// Tests for ESelf (recursive function calls)
+
+module ESelfTests =
+  let factorial (n: Int64): Int64 =
+    if Stdlib.Int64.lessThanOrEqualTo n 1L then
+      1L
+    else
+      Stdlib.Int64.multiply n (factorial (Stdlib.Int64.subtract n 1L))
+
+
+  let fibonacci (n: Int64): Int64 =
+    if Stdlib.Int64.lessThanOrEqualTo n 1L then
+      n
+    else
+      Stdlib.Int64.add
+        (ESelfTests.fibonacci (Stdlib.Int64.subtract n 1L))
+        (ESelfTests.fibonacci (Stdlib.Int64.subtract n 2L))
+
+
+  let sumUpTo (n: Int64): Int64 =
+    if Stdlib.Int64.lessThanOrEqualTo n 0L then
+      0L
+    else
+      Stdlib.Int64.add n (ESelfTests.sumUpTo (Stdlib.Int64.subtract n 1L))
+
+
+
+module ShadowingTest =
+  let factorialShadow (n: Int64): (String * Int64) =
+    if Stdlib.Int64.lessThanOrEqualTo n 1L then
+      ("base_case", 1L)
+    else
+      let factorialShadow = "shadowed"
+      let result = Stdlib.Int64.multiply n ((ShadowingTest.factorialShadow (Stdlib.Int64.subtract n 1L)) |> Stdlib.Tuple2.second)
+      (factorialShadow , result)
+
+
+  let incr (y: Int64) (z: Int64): Int64 =
+    if Stdlib.Int64.lessThanOrEqualTo z 0L then
+      y
+    else
+      let result = incr y (Stdlib.Int64.subtract z 1L)
+      let incr = (fun x -> Stdlib.Int64.add x 2L)
+      let lambdaResult = incr z
+      Stdlib.Int64.add result lambdaResult
+
+
+  let myFnMatch (x: Int64) : Int64 =
+    match x with
+    | 0L -> 0L
+    | 1L -> myFnMatch 0L
+    | 2L ->
+      let myFnMatch = (fun v -> v * 4L)
+      myFnMatch 2L
+    | myFnMatch -> myFnMatch + 1L
+
+
+  let myFnTuple (x: Int64 * Int64) : Int64 =
+    match x with
+    | (0L, _) -> 0L
+    | (1L, n) -> myFnTuple (0L, n)
+    | (2L, v) ->
+        let myFnTuple = (fun x -> x * 10L)
+        myFnTuple v
+    | (a, myFnTuple) -> a + myFnTuple
+
+
+  let myFn (x: Int64) : List<Int64> =
+    let myFn = (fun v -> v * 3L)
+    let myFn = [ 10L; myFn x ]
+    let myFn = Stdlib.List.reverse myFn
+    myFn
+
+
+  let myFnCond (x: Int64) : Int64 =
+    if x <= 0L then
+      0L
+    elif x < 3L then
+      let myFnCond = (fun v w -> v * 5L + w)
+      myFnCond x 2L
+    elif x < 5L then
+      let myFnCond = (fun v -> v * 3L)
+      myFnCond x
+    else
+      x + myFnCond (x - 1L)
+
+
+  let myFnPipe (x: Int64) : Int64 =
+    match x with
+    | 0L -> 0L
+    | 1L -> 0L |> myFnPipe
+    | 2L ->
+      let myFnPipe = (fun v -> v * 6L)
+      x |> myFnPipe
+    | myFnPipe -> x |> Stdlib.Int64.add myFnPipe
+
+
+
+
+ESelfTests.factorial 0L = 1L
+ESelfTests.factorial 1L = 1L
+ESelfTests.factorial 5L = 120L
+ESelfTests.factorial 10L = 3628800L
+
+
+ESelfTests.fibonacci 0L = 0L
+ESelfTests.fibonacci 1L = 1L
+ESelfTests.fibonacci 5L = 5L
+ESelfTests.fibonacci 10L = 55L
+
+
+ESelfTests.sumUpTo 0L = 0L
+ESelfTests.sumUpTo 1L = 1L
+ESelfTests.sumUpTo 5L = 15L
+ESelfTests.sumUpTo 10L = 55L
+
+
+
+ShadowingTest.factorialShadow 5L = ("shadowed", 120L)
+ShadowingTest.incr 3L 1L = 6L
+
+ShadowingTest.myFnMatch 0L = 0L
+ShadowingTest.myFnMatch 1L = 0L
+ShadowingTest.myFnMatch 2L = 8L
+ShadowingTest.myFnMatch 5L = 6L
+
+ShadowingTest.myFnTuple (0L, 10L) = 0L
+ShadowingTest.myFnTuple (1L, 20L) = 0L
+ShadowingTest.myFnTuple (2L, 3L) = 30L
+ShadowingTest.myFnTuple (4L, 5L) = 9L
+
+ShadowingTest.myFn 4L = [12L; 10L]
+ShadowingTest.myFn 5L = [15L; 10L]
+
+ShadowingTest.myFnCond 0L = 0L
+ShadowingTest.myFnCond 1L = 7L
+ShadowingTest.myFnCond 2L = 12L
+ShadowingTest.myFnCond 3L = 9L
+ShadowingTest.myFnCond 4L = 12L
+ShadowingTest.myFnCond 5L = 17L
+ShadowingTest.myFnCond 6L = 23L
+
+ShadowingTest.myFnPipe 0L = 0L
+ShadowingTest.myFnPipe 1L = 0L
+ShadowingTest.myFnPipe 2L = 12L
+ShadowingTest.myFnPipe 5L = 10L

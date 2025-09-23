@@ -47,12 +47,17 @@ let parseSingleTestFromFile
       let lineNumber = wtTest.lineNumber
       let pm = LanguageTools.PackageManager.pm ()
 
+      let context =
+        LanguageTools.WrittenTypesToProgramTypes.Context
+          { selfQualifiedName = Stdlib.Option.Option.None }
+
       let (actual, _unres) =
         LanguageTools.WrittenTypesToProgramTypes.Expr.toPT
           LanguageTools.NameResolver.OnMissing.ThrowError
           pm
           ""
           []
+          context
           wtTest.actual
 
       let (expected, _unres) =
@@ -61,6 +66,7 @@ let parseSingleTestFromFile
           pm
           ""
           []
+          context
           wtTest.expected
 
       (PTTest

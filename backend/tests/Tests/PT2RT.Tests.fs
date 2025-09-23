@@ -19,7 +19,7 @@ open TestUtils.PTShortcuts
 module Expr =
   let t name expr expected =
     testTask name {
-      let actual = PT2RT.Expr.toRT Map.empty 0 expr
+      let actual = PT2RT.Expr.toRT Map.empty 0 None expr
       let actual = (actual.registerCount, actual.instructions, actual.resultIn)
       return Expect.equal actual expected ""
     }
@@ -1562,6 +1562,7 @@ module Expr =
         testList "Package" [ MyAdd.tests; MyFnThatTakesALambda.tests; Outer.tests ]
 
     let tests = testList "Fns" [ Builtin.tests; Package.tests ]
+
 
   module Statement =
     let simple =

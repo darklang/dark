@@ -96,6 +96,7 @@ let rec symbolsUsedInExpr (expr : Expr) : Set<string> =
       [ r thingToApply; args |> NEList.toList |> List.map r |> Set.unionMany ]
 
   | EStatement(_, expr, next) -> Set.union (r expr) (r next)
+  | ESelf _ -> Set.empty
 
 and symbolsUsedInPipeExpr (pipeExpr : PipeExpr) : Set<string> =
   let r = symbolsUsedInExpr
