@@ -23,82 +23,88 @@ module Darklang =
         Stdlib.Int64.add n (Test.sumUpTo (Stdlib.Int64.subtract n 1L))
 
 
-    let incr (y: Int64) (z: Int64): Int64 =
+  module ShadowingTest =
+    let incrementWithShadowing (y: Int64) (z: Int64): Int64 =
       if Stdlib.Int64.lessThanOrEqualTo z 0L then
         y
       else
         let result =
-          incr y (Stdlib.Int64.subtract z 1L)
+          incrementWithShadowing y (Stdlib.Int64.subtract z 1L)
 
-        let incr =
+        let incrementWithShadowing =
           (fun x -> Stdlib.Int64.add x 2L)
 
-        Stdlib.Int64.add result (incr z)
+        Stdlib.Int64.add result (incrementWithShadowing z)
 
 
-  module ShadowingTest =
-    let factorialShadow (n: Int64): (String * Int64) =
+    let factorialWithShadowing (n: Int64): (String * Int64) =
       if Stdlib.Int64.lessThanOrEqualTo n 1L then
         ("base_case", 1L)
       else
-        let factorialShadow = "shadowed"
-        let result = Stdlib.Int64.multiply n ((ShadowingTest.factorialShadow (Stdlib.Int64.subtract n 1L)) |> Stdlib.Tuple2.second)
-        (factorialShadow , result)
+        let factorialWithShadowing = "shadowed"
+        let result = Stdlib.Int64.multiply n ((Darklang.ShadowingTest.factorialWithShadowing (Stdlib.Int64.subtract n 1L)) |> Stdlib.Tuple2.second)
+        (factorialWithShadowing , result)
 
-    let myFnMatch (x: Int64) : Int64 =
+
+    let matchWithShadowing (x: Int64) : Int64 =
       match x with
       | 0L -> 0L
-      | 1L -> myFnMatch 0L
+      | 1L -> matchWithShadowing 0L
       | 2L ->
-        let myFnMatch = (fun v -> v * 4L)
-        myFnMatch 2L
-      | myFnMatch -> myFnMatch + 1L
+        let matchWithShadowing = (fun v -> v * 4L)
+        matchWithShadowing 2L
+      | matchWithShadowing -> matchWithShadowing + 1L
 
-    let myFnTuple (x: (Int64 * Int64)) : Int64 =
+
+    let tupleMatchWithShadowing (x: (Int64 * Int64)) : Int64 =
       match x with
       | (0L, _) -> 0L
-      | (1L, n) -> myFnTuple ((0L, n))
+      | (1L, n) -> tupleMatchWithShadowing ((0L, n))
       | (2L, v) ->
-          let myFnTuple = (fun x -> x * 10L)
-          myFnTuple v
-      | (a, myFnTuple) -> a + myFnTuple
+          let tupleMatchWithShadowing = (fun x -> x * 10L)
+          tupleMatchWithShadowing v
+      | (a, tupleMatchWithShadowing) -> a + tupleMatchWithShadowing
 
-    let myFn (x: Int64) : List<Int64> =
-      let myFn = (fun v -> v * 3L)
-      let myFn = [ 10L; myFn x ]
-      let myFn = Stdlib.List.reverse myFn
-      myFn
 
-    let myFnCond (x: Int64) : Int64 =
+    let letBindingShadowing (x: Int64) : List<Int64> =
+      let letBindingShadowing = (fun v -> v * 3L)
+      let letBindingShadowing = [ 10L; letBindingShadowing x ]
+      let letBindingShadowing = Stdlib.List.reverse letBindingShadowing
+      letBindingShadowing
+
+
+    let conditionalShadowing (x: Int64) : Int64 =
       if x <= 0L then
         0L
       else if x < 3L then
-        let myFnCond = (fun v w -> v * 5L + w)
-        myFnCond x 2L
+        let conditionalShadowing = (fun v w -> v * 5L + w)
+        conditionalShadowing x 2L
       else if x < 5L then
-        let myFnCond = (fun v -> v * 3L)
-        myFnCond x
+        let conditionalShadowing = (fun v -> v * 3L)
+        conditionalShadowing x
       else
-        x + (myFnCond (x - 1L))
+        x + (conditionalShadowing (x - 1L))
 
-    let myFnPipe (x: Int64) : Int64 =
+
+    let pipeWithShadowing (x: Int64) : Int64 =
       match x with
       | 0L -> 0L
-      | 1L -> 0L |> myFnPipe
+      | 1L -> 0L |> pipeWithShadowing
       | 2L ->
-        let myFnPipe = (fun v -> v * 6L)
-        x |> myFnPipe
-      | myFnPipe -> x |> Stdlib.Int64.add myFnPipe
+        let pipeWithShadowing = (fun v -> v * 6L)
+        x |> pipeWithShadowing
+      | pipeWithShadowing -> x |> Stdlib.Int64.add pipeWithShadowing
 
-    val myFnValue = 120L
-    let myFnValue (x: Int64) : Int64 =
+
+    val valueShadowing = 120L
+    let valueShadowing (x: Int64) : Int64 =
       if x <= 0L then
         10L
       else if x == 1L then
-        (myFnValue 0L) + 1L
+        (valueShadowing 0L) + 1L
       else
-        let result = myFnValue + 1L
-        (myFnValue (x - 1L)) + result
+        let result = valueShadowing + 1L
+        (valueShadowing (x - 1L)) + result
 
 
 let test1 = (Darklang.Test.factorial 0L) == 1L
@@ -119,39 +125,37 @@ let test11 = (Darklang.Test.sumUpTo 5L) == 15L
 let test12 = (Darklang.Test.sumUpTo 10L) == 55L
 
 
-let test13 = (Darklang.Test.incr 3L 5L) == 28L
+let test13 = (Darklang.ShadowingTest.incrementWithShadowing 3L 5L) == 28L
+let test14 = (Darklang.ShadowingTest.factorialWithShadowing 5L) == ("shadowed", 120L)
+let test15 = (Darklang.ShadowingTest.matchWithShadowing 0L) == 0L
+let test16 = (Darklang.ShadowingTest.matchWithShadowing 1L) == 0L
+let test17 = (Darklang.ShadowingTest.matchWithShadowing 2L) == 8L
+let test18 = (Darklang.ShadowingTest.matchWithShadowing 5L) == 6L
 
+let test19 = (Darklang.ShadowingTest.tupleMatchWithShadowing (0L, 10L)) == 0L
+let test20 = (Darklang.ShadowingTest.tupleMatchWithShadowing (1L, 20L)) == 0L
+let test21 = (Darklang.ShadowingTest.tupleMatchWithShadowing (2L, 3L)) == 30L
+let test22 = (Darklang.ShadowingTest.tupleMatchWithShadowing (4L, 5L)) == 9L
 
-let test14 = (Darklang.ShadowingTest.factorialShadow 5L) == ("shadowed", 120L)
-let test15 = (Darklang.ShadowingTest.myFnMatch 0L) == 0L
-let test16 = (Darklang.ShadowingTest.myFnMatch 1L) == 0L
-let test17 = (Darklang.ShadowingTest.myFnMatch 2L) == 8L
-let test18 = (Darklang.ShadowingTest.myFnMatch 5L) == 6L
+let test23 = (Darklang.ShadowingTest.letBindingShadowing 4L) == [12L; 10L]
+let test24 = (Darklang.ShadowingTest.letBindingShadowing 5L) == [15L; 10L]
 
-let test19 = (Darklang.ShadowingTest.myFnTuple (0L, 10L)) == 0L
-let test20 = (Darklang.ShadowingTest.myFnTuple (1L, 20L)) == 0L
-let test21 = (Darklang.ShadowingTest.myFnTuple (2L, 3L)) == 30L
-let test22 = (Darklang.ShadowingTest.myFnTuple (4L, 5L)) == 9L
+let test25 = (Darklang.ShadowingTest.conditionalShadowing 0L) == 0L
+let test26 = (Darklang.ShadowingTest.conditionalShadowing 1L) == 7L
+let test27 = (Darklang.ShadowingTest.conditionalShadowing 2L) == 12L
+let test28 = (Darklang.ShadowingTest.conditionalShadowing 3L) == 9L
+let test29 = (Darklang.ShadowingTest.conditionalShadowing 4L) == 12L
+let test30 = (Darklang.ShadowingTest.conditionalShadowing 5L) == 17L
+let test31 = (Darklang.ShadowingTest.conditionalShadowing 6L) == 23L
 
-let test23 = (Darklang.ShadowingTest.myFn 4L) == [12L; 10L]
-let test24 = (Darklang.ShadowingTest.myFn 5L) == [15L; 10L]
+let test32 = (Darklang.ShadowingTest.pipeWithShadowing 0L) == 0L
+let test33 = (Darklang.ShadowingTest.pipeWithShadowing 1L) == 0L
+let test34 = (Darklang.ShadowingTest.pipeWithShadowing 2L) == 12L
+let test35 = (Darklang.ShadowingTest.pipeWithShadowing 5L) == 10L
 
-let test25 = (Darklang.ShadowingTest.myFnCond 0L) == 0L
-let test26 = (Darklang.ShadowingTest.myFnCond 1L) == 7L
-let test27 = (Darklang.ShadowingTest.myFnCond 2L) == 12L
-let test28 = (Darklang.ShadowingTest.myFnCond 3L) == 9L
-let test29 = (Darklang.ShadowingTest.myFnCond 4L) == 12L
-let test30 = (Darklang.ShadowingTest.myFnCond 5L) == 17L
-let test31 = (Darklang.ShadowingTest.myFnCond 6L) == 23L
-
-let test32 = (Darklang.ShadowingTest.myFnPipe 0L) == 0L
-let test33 = (Darklang.ShadowingTest.myFnPipe 1L) == 0L
-let test34 = (Darklang.ShadowingTest.myFnPipe 2L) == 12L
-let test35 = (Darklang.ShadowingTest.myFnPipe 5L) == 10L
-
-let test36 = (Darklang.ShadowingTest.myFnValue 0L) == 10L
-let test37 = (Darklang.ShadowingTest.myFnValue 1L) == 11L
-let test38 = (Darklang.ShadowingTest.myFnValue 5L) == 495L
+let test36 = (Darklang.ShadowingTest.valueShadowing 0L) == 10L
+let test37 = (Darklang.ShadowingTest.valueShadowing 1L) == 11L
+let test38 = (Darklang.ShadowingTest.valueShadowing 5L) == 495L
 
 let testList = [ test1; test2; test3; test4; test5; test6; test7; test8; test9; test10; test11; test12; test13; test14; test15; test16; test17; test18; test19; test20; test21; test22; test23; test24; test25; test26; test27; test28; test29; test30; test31; test32; test33; test34; test35; test36; test37; test38]
 
