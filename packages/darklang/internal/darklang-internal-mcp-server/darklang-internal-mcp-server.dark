@@ -1,0 +1,41 @@
+/// Darklang Internal MCP Server
+/// This server provides internal development tools, resources, and prompts
+/// for Darklang development using the ServerBuilder pattern.
+module Darklang.Internal.DarklangInternalMcpServer
+
+
+// <aliases>
+// </aliases>
+
+
+/// Main entry point for the Darklang Internal MCP Server
+let main () : Int64 =
+  let server =
+    ModelContextProtocol.ServerBuilder.create "darklang_internal_server" [] [] []
+
+  let completeServer =
+    server
+    // Add tools
+    |> ModelContextProtocol.ServerBuilder.Tools.addTool (Tools.executeDarklang ())
+    |> ModelContextProtocol.ServerBuilder.Tools.addTool (Tools.searchFunctions ())
+    |> ModelContextProtocol.ServerBuilder.Tools.addTool (Tools.typecheck ())
+    |> ModelContextProtocol.ServerBuilder.Tools.addTool (Tools.listPackages ())
+
+    // Add resources
+    |> ModelContextProtocol.ServerBuilder.Resources.addResource (Resources.builtins ())
+    |> ModelContextProtocol.ServerBuilder.Resources.addResource (Resources.stdlib ())
+    |> ModelContextProtocol.ServerBuilder.Resources.addResource (Resources.packages ())
+    |> ModelContextProtocol.ServerBuilder.Resources.addResource (Resources.types ())
+    |> ModelContextProtocol.ServerBuilder.Resources.addResource (Resources.config ())
+    |> ModelContextProtocol.ServerBuilder.Resources.addResource (Resources.logs ())
+    |> ModelContextProtocol.ServerBuilder.Resources.addResource (Resources.examples ())
+    |> ModelContextProtocol.ServerBuilder.Resources.addResource (Resources.syntax ())
+
+    // Add prompts
+    |> ModelContextProtocol.ServerBuilder.Prompts.addPrompt (Prompts.codeReview ())
+    |> ModelContextProtocol.ServerBuilder.Prompts.addPrompt (Prompts.documentFunction ())
+    |> ModelContextProtocol.ServerBuilder.Prompts.addPrompt (Prompts.convertTypes ())
+    |> ModelContextProtocol.ServerBuilder.Prompts.addPrompt (Prompts.debugHelper ())
+    |> ModelContextProtocol.ServerBuilder.Prompts.addPrompt (Prompts.patternMatch ())
+
+  ModelContextProtocol.ServerBuilder.run completeServer

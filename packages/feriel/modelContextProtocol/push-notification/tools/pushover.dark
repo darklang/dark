@@ -1,0 +1,42 @@
+module Feriel.ModelContextProtocol.PushNotification.Tools.Pushover
+
+let sendNotification (message: String) (title: String) : String =
+  match Builtin.environmentGet "PUSHOVER_USER_KEY" with
+  | Some userKey ->
+    (match Builtin.environmentGet "PUSHOVER_APP_TOKEN" with
+    | Some appToken ->
+      let url = "https://api.pushover.net/1/messages.json"
+      let headers = [ ("Content-Type", "application/x-www-form-urlencoded") ]
+
+      let formData =
+        "token=" ++ appToken ++
+        "&user=" ++ userKey ++
+        "&message=" ++ message ++
+        (if title == "" then "" else "&title=" ++ title)
+
+      let body = Darklang.Stdlib.String.toBytes formData
+
+      (match Darklang.Stdlib.HttpClient.post url headers body with
+      | Ok response ->
+        if response.statusCode == 200L then
+          "Pushover notification sent successfully"
+        else
+          "Failed to send Pushover notification. Status: " ++ (Darklang.Stdlib.Int64.toString response.statusCode)
+      | Error err ->
+        "Error sending Pushover notification: " ++ (Darklang.Stdlib.HttpClient.toString err))
+    | None ->
+      "PUSHOVER_APP_TOKEN environment variable not set. Please set your Pushover application token.")
+  | None ->
+    "PUSHOVER_USER_KEY environment variable not set. Please set your Pushover user key."
+
+let pushoverTool () : Darklang.ModelContextProtocol.ServerBuilder.Tool =
+  Darklang.ModelContextProtocol.ServerBuilder.Tool {
+    name = "send_pushover_notification"
+    description = "Send push notification via Pushover service. Requires PUSHOVER_USER_KEY and PUSHOVER_APP_TOKEN environment variables. Takes message and optional title."
+    handler = fun input ->
+      let parts = Darklang.Stdlib.String.split input "|"
+      match parts with
+      | [ message ] -> sendNotification message ""
+      | [ message; title ] -> sendNotification message title
+      | _ -> "Invalid input format. Use: message or message|title"
+  }

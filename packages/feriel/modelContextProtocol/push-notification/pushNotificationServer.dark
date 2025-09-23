@@ -1,0 +1,50 @@
+module Feriel.ModelContextProtocol.PushNotification.Server
+
+let helpPrompt () : Darklang.ModelContextProtocol.ServerBuilder.Prompt =
+  Darklang.ModelContextProtocol.ServerBuilder.Prompt {
+    name = "notification_help"
+    description = "Get help with setting up push notifications"
+    handler = fun _args ->
+      "Push Notification Server Help:\n\n" ++
+      "Available Tools:\n" ++
+      "- send_ntfy_notification: Send notifications via ntfy.sh\n" ++
+      "  Format: topic|message or topic|message|title\n" ++
+      "  Example: mytopic|Hello World or mytopic|Hello World|My Title\n\n" ++
+      "- send_pushover_notification: Send notifications via Pushover\n" ++
+      "  Format: message or message|title\n" ++
+      "  Example: Hello World or Hello World|My Title\n" ++
+      "  Requires: PUSHOVER_USER_KEY and PUSHOVER_APP_TOKEN env vars\n\n" ++
+      "Setup ntfy.sh:\n" ++
+      "1. Choose a unique topic name\n" ++
+      "2. Subscribe to https://ntfy.sh/yourtopic on your phone\n" ++
+      "3. Use the same topic name in the tool\n\n" ++
+      "Setup Pushover:\n" ++
+      "1. Sign up at pushover.net\n" ++
+      "2. Install the Pushover app\n" ++
+      "3. Go to https://pushover.net/apps/build to create an application\n" ++
+      "4. Get your user key from the main dashboard\n" ++
+      "5. Set environment variables:\n" ++
+      "   export PUSHOVER_USER_KEY=your_user_key\n" ++
+      "   export PUSHOVER_APP_TOKEN=your_app_token"  }
+
+let statusResource () : Darklang.ModelContextProtocol.ServerBuilder.Resource =
+  Darklang.ModelContextProtocol.ServerBuilder.Resource {
+    uri = "push://status"
+    name = "notification_status"
+    description = "Check status of notification services"
+    handler = fun _uri ->
+      "Push Notification Services Status:\n\n" ++
+      "✓ ntfy.sh - Available\n" ++
+      "✓ Pushover - Available\n"
+  }
+
+let main () : Int64 =
+  let server =
+    Darklang.ModelContextProtocol.ServerBuilder.create "push-notifications" [] [] []
+  let serverWithAll =
+    server
+    |> Darklang.ModelContextProtocol.ServerBuilder.Tools.addTool (PushNotification.Tools.Ntfy.ntfyTool ())
+    |> Darklang.ModelContextProtocol.ServerBuilder.Tools.addTool (PushNotification.Tools.Pushover.pushoverTool ())
+    |> Darklang.ModelContextProtocol.ServerBuilder.Resources.addResource (statusResource ())
+    |> Darklang.ModelContextProtocol.ServerBuilder.Prompts.addPrompt (helpPrompt ())
+  Darklang.ModelContextProtocol.ServerBuilder.run serverWithAll

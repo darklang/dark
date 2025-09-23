@@ -1,9 +1,9 @@
 /// Resources collection for the Darklang Internal MCP server
-module Darklang.LanguageTools.DarklangInternalMcpServer.Resources
+module Darklang.Internal.DarklangInternalMcpServer.Resources
 
 /// Darklang built-in functions and types
-let builtins () : Darklang.ModelContextProtocol.ServerBuilder.Resource =
-  Darklang.ModelContextProtocol.ServerBuilder.Resource {
+let builtins () : ModelContextProtocol.ServerBuilder.Resource =
+  ModelContextProtocol.ServerBuilder.Resource {
     uri = "darklang://builtins"
     name = "Darklang Builtins"
     description = "Documentation for Darklang built-in functions and types"
@@ -13,8 +13,8 @@ let builtins () : Darklang.ModelContextProtocol.ServerBuilder.Resource =
 
 
 /// Darklang standard library functions
-let stdlib () : Darklang.ModelContextProtocol.ServerBuilder.Resource =
-  Darklang.ModelContextProtocol.ServerBuilder.Resource {
+let stdlib () : ModelContextProtocol.ServerBuilder.Resource =
+  ModelContextProtocol.ServerBuilder.Resource {
     uri = "darklang://stdlib"
     name = "Darklang Standard Library"
     description = "Documentation for Darklang standard library functions"
@@ -24,8 +24,8 @@ let stdlib () : Darklang.ModelContextProtocol.ServerBuilder.Resource =
 
 
 /// Available Darklang packages
-let packages () : Darklang.ModelContextProtocol.ServerBuilder.Resource =
-  Darklang.ModelContextProtocol.ServerBuilder.Resource {
+let packages () : ModelContextProtocol.ServerBuilder.Resource =
+  ModelContextProtocol.ServerBuilder.Resource {
     uri = "darklang://packages/manifest"
     name = "Package Manifest"
     description = "List of available Darklang packages and their capabilities"
@@ -40,8 +40,8 @@ let packages () : Darklang.ModelContextProtocol.ServerBuilder.Resource =
 
 
 /// Darklang type system documentation
-let types () : Darklang.ModelContextProtocol.ServerBuilder.Resource =
-  Darklang.ModelContextProtocol.ServerBuilder.Resource {
+let types () : ModelContextProtocol.ServerBuilder.Resource =
+  ModelContextProtocol.ServerBuilder.Resource {
     uri = "darklang://types"
     name = "Type System"
     description = "Documentation for Darklang's type system"
@@ -51,8 +51,8 @@ let types () : Darklang.ModelContextProtocol.ServerBuilder.Resource =
 
 
 /// Darklang configuration and settings
-let config () : Darklang.ModelContextProtocol.ServerBuilder.Resource =
-  Darklang.ModelContextProtocol.ServerBuilder.Resource {
+let config () : ModelContextProtocol.ServerBuilder.Resource =
+  ModelContextProtocol.ServerBuilder.Resource {
     uri = "darklang://config"
     name = "Configuration"
     description = "Current Darklang configuration and settings"
@@ -62,8 +62,8 @@ let config () : Darklang.ModelContextProtocol.ServerBuilder.Resource =
 
 
 /// Development logs and debugging information
-let logs () : Darklang.ModelContextProtocol.ServerBuilder.Resource =
-  Darklang.ModelContextProtocol.ServerBuilder.Resource {
+let logs () : ModelContextProtocol.ServerBuilder.Resource =
+  ModelContextProtocol.ServerBuilder.Resource {
     uri = "darklang://logs/packages"
     name = "Package Logs"
     description = "Recent package loading and compilation logs"
@@ -80,8 +80,8 @@ let logs () : Darklang.ModelContextProtocol.ServerBuilder.Resource =
 
 
 /// Code examples and snippets
-let examples () : Darklang.ModelContextProtocol.ServerBuilder.Resource =
-  Darklang.ModelContextProtocol.ServerBuilder.Resource {
+let examples () : ModelContextProtocol.ServerBuilder.Resource =
+  ModelContextProtocol.ServerBuilder.Resource {
     uri = "darklang://examples"
     name = "Code Examples"
     description = "Common Darklang code patterns and examples"
@@ -91,8 +91,8 @@ let examples () : Darklang.ModelContextProtocol.ServerBuilder.Resource =
 
 
 /// Darklang syntax reference
-let syntax () : Darklang.ModelContextProtocol.ServerBuilder.Resource =
-  Darklang.ModelContextProtocol.ServerBuilder.Resource {
+let syntax () : ModelContextProtocol.ServerBuilder.Resource =
+  ModelContextProtocol.ServerBuilder.Resource {
     uri = "darklang://reference/syntax"
     name = "Syntax Reference"
     description = "Complete Darklang syntax reference and grammar"

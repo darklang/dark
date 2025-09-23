@@ -1,9 +1,9 @@
 /// Tools collection for the Darklang Internal MCP server
-module Darklang.LanguageTools.DarklangInternalMcpServer.Tools
+module Darklang.Internal.DarklangInternalMcpServer.Tools
 
 /// Execute Darklang code and return the result
-let executeDarklang () : Darklang.ModelContextProtocol.ServerBuilder.Tool =
-  Darklang.ModelContextProtocol.ServerBuilder.Tool {
+let executeDarklang () : ModelContextProtocol.ServerBuilder.Tool =
+  ModelContextProtocol.ServerBuilder.Tool {
     name = "execute_darklang"
     description = "Execute Darklang code and return the result"
     handler =
@@ -17,13 +17,13 @@ let executeDarklang () : Darklang.ModelContextProtocol.ServerBuilder.Tool =
 
 
 /// Search for Darklang functions by name or description
-let searchFunctions () : Darklang.ModelContextProtocol.ServerBuilder.Tool =
-  Darklang.ModelContextProtocol.ServerBuilder.Tool {
+let searchFunctions () : ModelContextProtocol.ServerBuilder.Tool =
+  ModelContextProtocol.ServerBuilder.Tool {
     name = "search_functions"
     description = "Search for Darklang functions by name or description"
     handler =
       fun query ->
-        let results = Darklang.LanguageTools.FunctionSearch.search query
+        let results = LanguageTools.FunctionSearch.search query
         let resultCount = (Stdlib.List.length results) |> Stdlib.Int64.toString
         let formattedResults =
           results
@@ -34,12 +34,12 @@ let searchFunctions () : Darklang.ModelContextProtocol.ServerBuilder.Tool =
 
 
 /// Type check Darklang code without executing it
-let typecheck () : Darklang.ModelContextProtocol.ServerBuilder.Tool =
-  Darklang.ModelContextProtocol.ServerBuilder.Tool {
+let typecheck () : ModelContextProtocol.ServerBuilder.Tool =
+  ModelContextProtocol.ServerBuilder.Tool {
     name = "typecheck"
     description = "Type check Darklang code without executing it"
     handler = fun code ->
-      match Darklang.LanguageTools.TypeChecker.checkCode code with
+      match LanguageTools.TypeChecker.checkCode code with
       | Ok typeInfo -> $"Type check passed: {typeInfo}"
       | Error errors ->
           let errorList =
@@ -51,12 +51,12 @@ let typecheck () : Darklang.ModelContextProtocol.ServerBuilder.Tool =
 
 
 /// List all available Darklang packages
-let listPackages () : Darklang.ModelContextProtocol.ServerBuilder.Tool =
-  Darklang.ModelContextProtocol.ServerBuilder.Tool {
+let listPackages () : ModelContextProtocol.ServerBuilder.Tool =
+  ModelContextProtocol.ServerBuilder.Tool {
     name = "list_packages"
     description = "List all available Darklang packages"
     handler = fun filter ->
-      let packages = Darklang.LanguageTools.PackageManager.listPackages filter
+      let packages = LanguageTools.PackageManager.listPackages filter
       let packageCount = (Stdlib.List.length packages) |> Stdlib.Int64.toString
       let formattedPackages =
         packages

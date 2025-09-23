@@ -1,5 +1,5 @@
 /// Prompts collection for the Darklang Internal MCP server
-module Darklang.LanguageTools.DarklangInternalMcpServer.Prompts
+module Darklang.Internal.DarklangInternalMcpServer.Prompts
 
 
 // <aliases>
@@ -8,8 +8,8 @@ type Json = Stdlib.AltJson.Json
 
 
 /// Code review assistant for Darklang code
-let codeReview () : Darklang.ModelContextProtocol.ServerBuilder.Prompt =
-  Darklang.ModelContextProtocol.ServerBuilder.Prompt {
+let codeReview () : ModelContextProtocol.ServerBuilder.Prompt =
+  ModelContextProtocol.ServerBuilder.Prompt {
     name = "code_review"
     description = "Review Darklang code for best practices, potential issues, and improvements"
     handler = fun args ->
@@ -26,8 +26,8 @@ let codeReview () : Darklang.ModelContextProtocol.ServerBuilder.Prompt =
 
 
 /// Function documentation generator
-let documentFunction () : Darklang.ModelContextProtocol.ServerBuilder.Prompt =
-  Darklang.ModelContextProtocol.ServerBuilder.Prompt {
+let documentFunction () : ModelContextProtocol.ServerBuilder.Prompt =
+  ModelContextProtocol.ServerBuilder.Prompt {
     name = "document_function"
     description = "Generate comprehensive documentation for a Darklang function"
     handler = fun args ->
@@ -39,8 +39,8 @@ let documentFunction () : Darklang.ModelContextProtocol.ServerBuilder.Prompt =
 
 
 /// Type conversion helper
-let convertTypes () : Darklang.ModelContextProtocol.ServerBuilder.Prompt =
-  Darklang.ModelContextProtocol.ServerBuilder.Prompt {
+let convertTypes () : ModelContextProtocol.ServerBuilder.Prompt =
+  ModelContextProtocol.ServerBuilder.Prompt {
     name = "convert_types"
     description = "Help convert between Darklang types safely and correctly"
     handler = fun args ->
@@ -58,8 +58,8 @@ let convertTypes () : Darklang.ModelContextProtocol.ServerBuilder.Prompt =
 
 
 /// Debug assistance for Darklang errors
-let debugHelper () : Darklang.ModelContextProtocol.ServerBuilder.Prompt =
-  Darklang.ModelContextProtocol.ServerBuilder.Prompt {
+let debugHelper () : ModelContextProtocol.ServerBuilder.Prompt =
+  ModelContextProtocol.ServerBuilder.Prompt {
     name = "debug_helper"
     description = "Help debug Darklang errors and issues"
     handler = fun args ->
@@ -76,8 +76,8 @@ let debugHelper () : Darklang.ModelContextProtocol.ServerBuilder.Prompt =
 
 
 /// Pattern matching assistant
-let patternMatch () : Darklang.ModelContextProtocol.ServerBuilder.Prompt =
-  Darklang.ModelContextProtocol.ServerBuilder.Prompt {
+let patternMatch () : ModelContextProtocol.ServerBuilder.Prompt =
+  ModelContextProtocol.ServerBuilder.Prompt {
     name = "pattern_match"
     description = "Help create comprehensive pattern matching for Darklang types"
     handler = fun args ->
