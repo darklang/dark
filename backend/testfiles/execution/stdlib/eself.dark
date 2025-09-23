@@ -1,0 +1,167 @@
+// Tests for ESelf (recursive function calls)
+
+module ESelfTests =
+  let factorial (n: Int64): Int64 =
+    if Stdlib.Int64.lessThanOrEqualTo n 1L then
+      1L
+    else
+      Stdlib.Int64.multiply n (factorial (Stdlib.Int64.subtract n 1L))
+
+
+  let fibonacci (n: Int64): Int64 =
+    if Stdlib.Int64.lessThanOrEqualTo n 1L then
+      n
+    else
+      Stdlib.Int64.add
+        (ESelfTests.fibonacci (Stdlib.Int64.subtract n 1L))
+        (ESelfTests.fibonacci (Stdlib.Int64.subtract n 2L))
+
+
+  let sumUpTo (n: Int64): Int64 =
+    if Stdlib.Int64.lessThanOrEqualTo n 0L then
+      0L
+    else
+      Stdlib.Int64.add n (ESelfTests.sumUpTo (Stdlib.Int64.subtract n 1L))
+
+
+module ShadowingTest =
+  let factorialWithShadowing (n: Int64): (String * Int64) =
+    if Stdlib.Int64.lessThanOrEqualTo n 1L then
+      ("base_case", 1L)
+    else
+      let factorialWithShadowing = "shadowed"
+      let result = Stdlib.Int64.multiply n ((ShadowingTest.factorialWithShadowing (Stdlib.Int64.subtract n 1L)) |> Stdlib.Tuple2.second)
+      (factorialWithShadowing , result)
+
+  let factorialWithShadowingError (n: Int64): (String * Int64) =
+    if Stdlib.Int64.lessThanOrEqualTo n 1L then
+      ("base_case", 1L)
+    else
+      let factorialWithShadowingError = "shadowed"
+      let result = Stdlib.Int64.multiply n ((factorialWithShadowingError (Stdlib.Int64.subtract n 1L)) |> Stdlib.Tuple2.second)
+      (factorialWithShadowingError , result)
+
+
+  let incrementWithShadowing (y: Int64) (z: Int64): Int64 =
+    if Stdlib.Int64.lessThanOrEqualTo z 0L then
+      y
+    else
+      let result = incrementWithShadowing y (Stdlib.Int64.subtract z 1L)
+      let incrementWithShadowing = (fun x -> Stdlib.Int64.add x 2L)
+      let lambdaResult = incrementWithShadowing z
+      Stdlib.Int64.add result lambdaResult
+
+
+  let matchWithShadowing (x: Int64) : Int64 =
+    match x with
+    | 0L -> 0L
+    | 1L -> matchWithShadowing 0L
+    | 2L ->
+      let matchWithShadowing = (fun v -> v * 4L)
+      matchWithShadowing 2L
+    | matchWithShadowing -> matchWithShadowing + 1L
+
+
+  let tupleMatchWithShadowing (x: Int64 * Int64) : Int64 =
+    match x with
+    | (0L, _) -> 0L
+    | (1L, n) -> tupleMatchWithShadowing (0L, n)
+    | (2L, v) ->
+        let tupleMatchWithShadowing = (fun x -> x * 10L)
+        tupleMatchWithShadowing v
+    | (a, tupleMatchWithShadowing) -> a + tupleMatchWithShadowing
+
+
+  let letBindingShadowing (x: Int64) : List<Int64> =
+    let letBindingShadowing = (fun v -> v * 3L)
+    let letBindingShadowing = [ 10L; letBindingShadowing x ]
+    let letBindingShadowing = Stdlib.List.reverse letBindingShadowing
+    letBindingShadowing
+
+
+  let conditionalShadowing (x: Int64) : Int64 =
+    if x <= 0L then
+      0L
+    elif x < 3L then
+      let conditionalShadowing = (fun v w -> v * 5L + w)
+      conditionalShadowing x 2L
+    elif x < 5L then
+      let conditionalShadowing = (fun v -> v * 3L)
+      conditionalShadowing x
+    else
+      x + conditionalShadowing (x - 1L)
+
+
+  let pipeWithShadowing (x: Int64) : Int64 =
+    match x with
+    | 0L -> 0L
+    | 1L -> 0L |> pipeWithShadowing
+    | 2L ->
+      let pipeWithShadowing = (fun v -> v * 6L)
+      x |> pipeWithShadowing
+    | pipeWithShadowing -> x |> Stdlib.Int64.add pipeWithShadowing
+
+
+  let valueShadowing = 120L
+  let valueShadowing (x: Int64) : Int64 =
+    if x <= 0L then
+      10L
+    else if x == 1L then
+      (valueShadowing 0L) + 1L
+    else
+      let result = valueShadowing + 1L
+      (valueShadowing (x - 1L)) + result
+
+
+ESelfTests.factorial 0L = 1L
+ESelfTests.factorial 1L = 1L
+ESelfTests.factorial 5L = 120L
+ESelfTests.factorial 10L = 3628800L
+
+
+ESelfTests.fibonacci 0L = 0L
+ESelfTests.fibonacci 1L = 1L
+ESelfTests.fibonacci 5L = 5L
+ESelfTests.fibonacci 10L = 55L
+
+
+ESelfTests.sumUpTo 0L = 0L
+ESelfTests.sumUpTo 1L = 1L
+ESelfTests.sumUpTo 5L = 15L
+ESelfTests.sumUpTo 10L = 55L
+
+
+
+ShadowingTest.factorialWithShadowing 5L = ("shadowed", 120L)
+ShadowingTest.factorialWithShadowingError 5L = Builtin.testDerrorMessage """Expected something we could apply to, such as a lambda or function, but got a String ("shadowed")"""
+ShadowingTest.incrementWithShadowing 3L 1L = 6L
+
+ShadowingTest.matchWithShadowing 0L = 0L
+ShadowingTest.matchWithShadowing 1L = 0L
+ShadowingTest.matchWithShadowing 2L = 8L
+ShadowingTest.matchWithShadowing 5L = 6L
+
+ShadowingTest.tupleMatchWithShadowing (0L, 10L) = 0L
+ShadowingTest.tupleMatchWithShadowing (1L, 20L) = 0L
+ShadowingTest.tupleMatchWithShadowing (2L, 3L) = 30L
+ShadowingTest.tupleMatchWithShadowing (4L, 5L) = 9L
+
+ShadowingTest.letBindingShadowing 4L = [12L; 10L]
+ShadowingTest.letBindingShadowing 5L = [15L; 10L]
+
+ShadowingTest.conditionalShadowing 0L = 0L
+ShadowingTest.conditionalShadowing 1L = 7L
+ShadowingTest.conditionalShadowing 2L = 12L
+ShadowingTest.conditionalShadowing 3L = 9L
+ShadowingTest.conditionalShadowing 4L = 12L
+ShadowingTest.conditionalShadowing 5L = 17L
+ShadowingTest.conditionalShadowing 6L = 23L
+
+ShadowingTest.pipeWithShadowing 0L = 0L
+ShadowingTest.pipeWithShadowing 1L = 0L
+ShadowingTest.pipeWithShadowing 2L = 12L
+ShadowingTest.pipeWithShadowing 5L = 10L
+
+ShadowingTest.valueShadowing 0L = 10L
+ShadowingTest.valueShadowing 1L = 11L
+ShadowingTest.valueShadowing 5L = 495L

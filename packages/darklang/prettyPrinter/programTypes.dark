@@ -24,10 +24,11 @@ module NameResolutionError =
 // Context for relative name resolution - when we know what module we're currently in,
 // we can shorten names that share the same prefix
 type Context =
-  { currentModule: Stdlib.Option.Option<String> }
+  { currentModule: Stdlib.Option.Option<String>
+    currentFunction: Stdlib.Option.Option<String> }
 
 let defaultContext =
-  Context { currentModule = Stdlib.Option.Option.None }
+  Context { currentModule = Stdlib.Option.Option.None; currentFunction = Stdlib.Option.Option.None }
 
 let packageNameWithContext
   (ctx: Context)
@@ -369,17 +370,17 @@ let infix (i: LanguageTools.ProgramTypes.Infix) : String =
   | InfixFnCall i -> PrettyPrinter.ProgramTypes.infixFnName i
   | BinOp b -> PrettyPrinter.ProgramTypes.binaryOperation b
 
-let stringSegment (s: LanguageTools.ProgramTypes.StringSegment) : String =
+let stringSegment (ctx: Context) (s: LanguageTools.ProgramTypes.StringSegment) : String =
   match s with
   | StringText text -> text
-  | StringInterpolation expr -> $"{{{PrettyPrinter.ProgramTypes.expr expr}}}"
+  | StringInterpolation expr -> $"{{{PrettyPrinter.ProgramTypes.expr ctx expr}}}"
 
-let pipeExpr (p: LanguageTools.ProgramTypes.PipeExpr) : String =
+let pipeExpr (ctx: Context) (p: LanguageTools.ProgramTypes.PipeExpr) : String =
   match p with
   | EPipeVariable(_id, varName, exprs) ->
     let exprs =
       exprs
-      |> Stdlib.List.map PrettyPrinter.ProgramTypes.expr
+      |> Stdlib.List.map (PrettyPrinter.ProgramTypes.expr ctx)
       |> Stdlib.String.join " "
     if exprs == "" then varName else $"({varName} {exprs})"
 
@@ -388,11 +389,11 @@ let pipeExpr (p: LanguageTools.ProgramTypes.PipeExpr) : String =
       pats
       |> Stdlib.List.map (fun lp -> letPattern lp)
       |> Stdlib.String.join " "
-    $"fun {argsPart} -> {expr body}"
+    $"fun {argsPart} -> {expr ctx body}"
 
   | EPipeInfix(_id, infix, expr) ->
     let infixPart = PrettyPrinter.ProgramTypes.infix infix
-    let exprPart = PrettyPrinter.ProgramTypes.expr expr
+    let exprPart = PrettyPrinter.ProgramTypes.expr ctx expr
     $"({infixPart}) {exprPart}"
 
   | EPipeFnCall(_id, fnName, typeArgs, args) ->
@@ -413,7 +414,7 @@ let pipeExpr (p: LanguageTools.ProgramTypes.PipeExpr) : String =
 
     let argsPart =
       args
-      |> Stdlib.List.map (fun arg -> PrettyPrinter.ProgramTypes.expr arg)
+      |> Stdlib.List.map (fun arg -> PrettyPrinter.ProgramTypes.expr ctx arg)
       |> Stdlib.List.map (fun arg -> $"{arg}")
       |> Stdlib.String.join " "
 
@@ -437,13 +438,13 @@ let pipeExpr (p: LanguageTools.ProgramTypes.PipeExpr) : String =
     | fields ->
       let fieldPart =
         fields
-        |> Stdlib.List.map (fun field -> PrettyPrinter.ProgramTypes.expr field)
+        |> Stdlib.List.map (fun field -> PrettyPrinter.ProgramTypes.expr ctx field)
         |> Stdlib.List.map (fun field -> $"({field})")
         |> Stdlib.String.join " "
 
       $"{typeNamePart}.{caseName}{fieldPart}"
 
-let expr (e: LanguageTools.ProgramTypes.Expr) : String =
+let expr (ctx: Context) (e: LanguageTools.ProgramTypes.Expr) : String =
   match e with
   | EUnit _id -> "()"
 
@@ -474,7 +475,7 @@ let expr (e: LanguageTools.ProgramTypes.Expr) : String =
     | segments ->
       let inner =
         segments
-        |> Stdlib.List.map (fun segment -> PrettyPrinter.ProgramTypes.stringSegment segment)
+        |> Stdlib.List.map (fun segment -> PrettyPrinter.ProgramTypes.stringSegment ctx segment)
         |> Stdlib.String.join ""
       $"$\"{inner}\""
 
@@ -482,7 +483,7 @@ let expr (e: LanguageTools.ProgramTypes.Expr) : String =
   // structures of data
   | EList(_id, items) ->
     items
-    |> Stdlib.List.map (fun item -> PrettyPrinter.ProgramTypes.expr item)
+    |> Stdlib.List.map (fun item -> PrettyPrinter.ProgramTypes.expr ctx item)
     |> Stdlib.String.join "; "
     |> fun parts -> "[" ++ parts ++ "]"
 
@@ -491,7 +492,7 @@ let expr (e: LanguageTools.ProgramTypes.Expr) : String =
       pairs
       |> Stdlib.List.map (fun pair ->
         let (key, value) = pair
-        $"{key} = {PrettyPrinter.ProgramTypes.expr value}")
+        $"{key} = {PrettyPrinter.ProgramTypes.expr ctx value}")
       |> Stdlib.String.join "; "
       |> fun parts -> "{ " ++ parts ++ " }"
 
@@ -500,7 +501,7 @@ let expr (e: LanguageTools.ProgramTypes.Expr) : String =
 
   | ETuple(_id, first, second, theRest) ->
     (Stdlib.List.append [ first; second ] theRest)
-    |> Stdlib.List.map (fun item -> PrettyPrinter.ProgramTypes.expr item)
+    |> Stdlib.List.map (fun item -> PrettyPrinter.ProgramTypes.expr ctx item)
     |> Stdlib.String.join ", "
     |> fun parts -> "(" ++ parts ++ ")"
 
@@ -524,7 +525,7 @@ let expr (e: LanguageTools.ProgramTypes.Expr) : String =
       fields
       |> Stdlib.List.map (fun pair ->
         let (name, expr) = pair
-        $"{name} = {PrettyPrinter.ProgramTypes.expr expr}")
+        $"{name} = {PrettyPrinter.ProgramTypes.expr ctx expr}")
       |> Stdlib.String.join "; "
       |> fun parts -> "{ " ++ parts ++ " }"
 
@@ -551,7 +552,7 @@ let expr (e: LanguageTools.ProgramTypes.Expr) : String =
     | fields ->
       let fieldPart =
         fields
-        |> Stdlib.List.map (fun field -> PrettyPrinter.ProgramTypes.expr field)
+        |> Stdlib.List.map (fun field -> PrettyPrinter.ProgramTypes.expr ctx field)
         |> Stdlib.String.join ", "
       $"{typeNamePart}{typeArgsPart}.{caseName}({fieldPart})"
 
@@ -559,12 +560,12 @@ let expr (e: LanguageTools.ProgramTypes.Expr) : String =
   // declaring and accessing variables
   | ELet(_id, pattern, rhs, body) ->
     let patternPart = PrettyPrinter.ProgramTypes.letPattern pattern
-    let rhsPart = PrettyPrinter.ProgramTypes.expr rhs
-    let bodyPart = PrettyPrinter.ProgramTypes.expr body
+    let rhsPart = PrettyPrinter.ProgramTypes.expr ctx rhs
+    let bodyPart = PrettyPrinter.ProgramTypes.expr ctx body
     $"let {patternPart} =\n{PrettyPrinter.indent rhsPart}\n{bodyPart}"
 
   | ERecordFieldAccess(_id, expr, fieldName) ->
-    let exprPart = PrettyPrinter.ProgramTypes.expr expr
+    let exprPart = PrettyPrinter.ProgramTypes.expr ctx expr
 
     // TODO: only sometimes need to wrap exprPart in parens
     match expr with
@@ -577,21 +578,21 @@ let expr (e: LanguageTools.ProgramTypes.Expr) : String =
 
   // control flow
   | EIf(_id, cond, thenBranch, elseBranch) ->
-    let condPart = PrettyPrinter.ProgramTypes.expr cond
+    let condPart = PrettyPrinter.ProgramTypes.expr ctx cond
 
     let thenPart =
-      (PrettyPrinter.ProgramTypes.expr thenBranch) |> PrettyPrinter.indent
+      (PrettyPrinter.ProgramTypes.expr ctx thenBranch) |> PrettyPrinter.indent
 
     match elseBranch with
     | None -> $"if {condPart} then\n{thenPart}"
     | Some elseBranch ->
       match elseBranch with
       | EIf(_, _, _, _) ->
-        let elsePart = (PrettyPrinter.ProgramTypes.expr elseBranch)
+        let elsePart = (PrettyPrinter.ProgramTypes.expr ctx elseBranch)
         $"if {condPart} then\n{thenPart}\nelse {elsePart}"
 
       | _ ->
-        let elsePart = (PrettyPrinter.ProgramTypes.expr elseBranch) |> PrettyPrinter.indent
+        let elsePart = (PrettyPrinter.ProgramTypes.expr ctx elseBranch) |> PrettyPrinter.indent
         $"if {condPart} then\n{thenPart}\nelse\n{elsePart}"
 
   | EMatch(_id, arg, cases) ->
@@ -603,18 +604,18 @@ let expr (e: LanguageTools.ProgramTypes.Expr) : String =
         let whenPart =
           match case.whenCondition with
           | Some cond ->
-            let whenCondition = PrettyPrinter.ProgramTypes.expr cond
+            let whenCondition = PrettyPrinter.ProgramTypes.expr ctx cond
             $" when {whenCondition}"
           | None -> ""
 
         let rhsPart =
-          (PrettyPrinter.ProgramTypes.expr case.rhs) |> PrettyPrinter.indent
+          (PrettyPrinter.ProgramTypes.expr ctx case.rhs) |> PrettyPrinter.indent
 
         $"| {patternPart}{whenPart} ->\n{rhsPart}")
 
     let casesPart = Stdlib.String.join cases "\n"
 
-    let argPart = PrettyPrinter.ProgramTypes.expr arg
+    let argPart = PrettyPrinter.ProgramTypes.expr ctx arg
 
     $"match {argPart} with\n{casesPart}"
 
@@ -623,12 +624,12 @@ let expr (e: LanguageTools.ProgramTypes.Expr) : String =
     // LanguageTools.ID *
     // LanguageTools.ProgramTypes.Expr *
     // List<LanguageTools.ProgramTypes.PipeExpr>
-    let exprPart = PrettyPrinter.ProgramTypes.expr expr
+    let exprPart = PrettyPrinter.ProgramTypes.expr ctx expr
 
     let pipeParts =
       pipeExprs
       |> Stdlib.List.map (fun pipeExpr ->
-        PrettyPrinter.ProgramTypes.pipeExpr pipeExpr)
+        PrettyPrinter.ProgramTypes.pipeExpr ctx pipeExpr)
       |> Stdlib.String.join "\n|> "
 
     $"{exprPart}\n|> {pipeParts}"
@@ -639,8 +640,8 @@ let expr (e: LanguageTools.ProgramTypes.Expr) : String =
 
   | EInfix(_id, infix, left, right) ->
     let infixPart = PrettyPrinter.ProgramTypes.infix infix
-    let leftPart = PrettyPrinter.ProgramTypes.expr left
-    let rightPart = PrettyPrinter.ProgramTypes.expr right
+    let leftPart = PrettyPrinter.ProgramTypes.expr ctx left
+    let rightPart = PrettyPrinter.ProgramTypes.expr ctx right
     // TODO: might need to wrap in parens
     $"({leftPart}) {infixPart} ({rightPart})"
 
@@ -650,19 +651,19 @@ let expr (e: LanguageTools.ProgramTypes.Expr) : String =
       |> Stdlib.List.map (fun pat -> letPattern pat)
       |> Stdlib.String.join " "
 
-    let bodyPart = PrettyPrinter.ProgramTypes.expr body
+    let bodyPart = PrettyPrinter.ProgramTypes.expr ctx body
 
     $"(fun {patsPart} ->\n{PrettyPrinter.indent bodyPart})"
 
   | EApply(_id, fnName, typeArgs, args) ->
-    let fnNamePart = PrettyPrinter.ProgramTypes.expr fnName
+    let fnNamePart = PrettyPrinter.ProgramTypes.expr ctx fnName
 
     let argsPart =
       args
       |> Stdlib.List.map (fun arg ->
         match arg with
-        | EApply(_, _, _, _) -> $"({PrettyPrinter.ProgramTypes.expr arg})"
-        | _ -> PrettyPrinter.ProgramTypes.expr arg)
+        | EApply(_, _, _, _) -> $"({PrettyPrinter.ProgramTypes.expr ctx arg})"
+        | _ -> PrettyPrinter.ProgramTypes.expr ctx arg)
       |> Stdlib.String.join " "
 
     match typeArgs with
@@ -685,13 +686,13 @@ let expr (e: LanguageTools.ProgramTypes.Expr) : String =
   // record: LanguageTools.ProgramTypes.Expr *
   // updates: List<String * LanguageTools.ProgramTypes.Expr>
   | ERecordUpdate(_id, record, updates) ->
-    let recordPart = PrettyPrinter.ProgramTypes.expr record
+    let recordPart = PrettyPrinter.ProgramTypes.expr ctx record
 
     let updatePart =
       updates
       |> Stdlib.List.map (fun pair ->
         let (fieldName, expr) = pair
-        $"{fieldName} = {PrettyPrinter.ProgramTypes.expr expr}")
+        $"{fieldName} = {PrettyPrinter.ProgramTypes.expr ctx expr}")
       |> Stdlib.String.join "; "
 
     // TODO: don't always need the parens
@@ -705,9 +706,16 @@ let expr (e: LanguageTools.ProgramTypes.Expr) : String =
     | Error e -> PrettyPrinter.ProgramTypes.NameResolutionError.source e
 
   | EStatement (_id, first, next) ->
-    let firstPart = PrettyPrinter.ProgramTypes.expr first
-    let nextPart = PrettyPrinter.ProgramTypes.expr next
+    let firstPart = PrettyPrinter.ProgramTypes.expr ctx first
+    let nextPart = PrettyPrinter.ProgramTypes.expr ctx next
     $"{firstPart}\n{nextPart}"
+
+  | ESelf _id ->
+    match ctx.currentFunction with
+    | Some functionName -> functionName
+    // This should never happen - ESelf should only appear within a function body
+    // CLEANUP: consider making this a runtime error instead
+    | None -> "ESelf"
 
   // CLEANUP: remove this case before shipping to users
   | expr ->
@@ -803,7 +811,7 @@ module Handler =
 let handler (h: LanguageTools.ProgramTypes.Handler.Handler) : String =
   let specPart = PrettyPrinter.ProgramTypes.Handler.spec h.spec
 
-  $"{specPart}\nlet _handler _ignored =\n  {PrettyPrinter.ProgramTypes.expr h.ast}"
+  $"{specPart}\nlet _handler _ignored =\n  {PrettyPrinter.ProgramTypes.expr defaultContext h.ast}"
 
 
 let db (db: LanguageTools.ProgramTypes.DB) : String =
@@ -848,7 +856,7 @@ let packageType
 let packageValue
   (p: LanguageTools.ProgramTypes.PackageValue.PackageValue)
   : String =
-  let bodyPart = PrettyPrinter.ProgramTypes.expr p.body
+  let bodyPart = PrettyPrinter.ProgramTypes.expr defaultContext p.body
   $"val {p.name.name} = {bodyPart}"
 
 
@@ -889,7 +897,8 @@ let packageFn (p: LanguageTools.ProgramTypes.PackageFn.PackageFn) : String =
 
   let retPart = PrettyPrinter.ProgramTypes.typeReference p.returnType
 
-  let bodyPart = PrettyPrinter.ProgramTypes.expr p.body
+  let context = Context { currentModule = defaultContext.currentModule; currentFunction = Stdlib.Option.Option.Some p.name.name }
+  let bodyPart = PrettyPrinter.ProgramTypes.expr context p.body
 
   $"let {p.name.name}{typeParamPart} {paramPart}: {retPart} =\n{PrettyPrinter.indent bodyPart}"
 

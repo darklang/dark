@@ -97,7 +97,7 @@ let execute
         |> RuntimeError.CLI
         |> raiseUntargetedRTE
     | exprs ->
-      let exprInsrts = exprs |> List.map (PT2RT.Expr.toRT Map.empty 0)
+      let exprInsrts = exprs |> List.map (PT2RT.Expr.toRT Map.empty 0 None)
       let results = exprInsrts |> List.map (Exe.executeExpr state)
       match List.tryLast results with
       | Some lastResult -> return! lastResult

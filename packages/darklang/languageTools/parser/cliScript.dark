@@ -132,6 +132,7 @@ let toPT
         pm
         wt.owner
         modules
+        (LanguageTools.WrittenTypesToProgramTypes.Context { currentFnName = Stdlib.Option.Option.None })
         e)
     |> Stdlib.List.unzip
   let unresolvedNamesInExprs = Stdlib.List.flatten unresolvedNamesInExprs
@@ -162,10 +163,12 @@ let parse
   (source: String)
   : Stdlib.Result.Result<(PTCliScriptModule * List<Parser.Range * ProgramTypes.NameResolutionError>), String> =
   match source |> LanguageTools.Parser.TestParsing.initialParse with
-  | Error e -> Stdlib.Result.Result.Error e
+  | Error e ->
+    Stdlib.Result.Result.Error e
   | Ok parsedFile ->
     match parseDecls owner scriptName parsedFile with
-    | Error e -> Stdlib.Result.Result.Error e
+    | Error e ->
+      Stdlib.Result.Result.Error e
     | Ok moduleWT ->
       let (initialParse, _) = toPT onMissing pm moduleWT
 

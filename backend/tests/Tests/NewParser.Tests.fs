@@ -1818,6 +1818,45 @@ let functionDeclarations =
       []
       []
       []
+      false
+
+    t
+      "self reference recursive call"
+      """let factorial (n: Int64): Int64 =
+  if n <= 1L then
+    1L
+  else
+    n * (factorial (n - 1L))"""
+      "let factorial (n: Int64): Int64 =\n  if (n) <= (1L) then\n    1L\n  else\n    (n) * (factorial (n) - (1L))"
+      []
+      []
+      []
+      false
+    t
+      "self reference, shadowed name"
+      """let incr (y: Int64) (z: Int64): Int64 =
+  if Stdlib.Int64.lessThanOrEqualTo z 0L then
+    y
+  else
+    let result = incr y (Stdlib.Int64.subtract z 1L)
+    let incr = (fun x -> Stdlib.Int64.add x 2L)
+    let lambdaResult = incr z
+    Stdlib.Int64.add result lambdaResult"""
+      """let incr (y: Int64) (z: Int64): Int64 =
+  if Stdlib.Int64.lessThanOrEqualTo z 0L then
+    y
+  else
+    let result =
+      incr y (Stdlib.Int64.subtract z 1L)
+    let incr =
+      (fun x ->
+        Stdlib.Int64.add x 2L)
+    let lambdaResult =
+      incr z
+    Stdlib.Int64.add result lambdaResult"""
+      []
+      []
+      []
       false ]
   |> testList "function declarations"
 
