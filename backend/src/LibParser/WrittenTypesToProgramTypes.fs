@@ -243,8 +243,7 @@ module Expr =
           Ply.List.mapSequentially
             (TypeReference.toPT pm onMissing currentModule)
             typeArgs
-        let! processedArgs =
-          Ply.NEList.mapSequentially (toPT context) args
+        let! processedArgs = Ply.NEList.mapSequentially (toPT context) args
 
         // Handle function calls with arguments, check for variable shadowing first
         match name with
@@ -351,8 +350,7 @@ module Expr =
       | WT.ETuple(id, first, second, theRest) ->
         let! first = toPT context first
         let! second = toPT context second
-        let! theRest =
-          Ply.List.mapSequentially (toPT context) theRest
+        let! theRest = Ply.List.mapSequentially (toPT context) theRest
         return PT.ETuple(id, first, second, theRest)
       | WT.ERecord(id, typeName, fields) ->
         let! typeName = NR.resolveTypeName pm onMissing currentModule typeName
@@ -567,8 +565,7 @@ module Expr =
 
       | WT.EPipeEnum(id, typeName, caseName, fields) ->
         let! typeName = resolveTypeName pm onMissing currentModule typeName caseName
-        let! fields =
-          Ply.List.mapSequentially (toPT context) fields
+        let! fields = Ply.List.mapSequentially (toPT context) fields
         return PT.EPipeEnum(id, typeName, caseName, fields)
     }
 

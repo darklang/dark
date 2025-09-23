@@ -275,8 +275,7 @@ let toPT
       m.exprs
       |> Ply.List.mapSequentially (
         let context =
-          { WT2PT.Context.currentFnName = None
-            WT2PT.Context.isInFunction = false }
+          { WT2PT.Context.currentFnName = None; WT2PT.Context.isInFunction = false }
         WT2PT.Expr.toPT builtins pm onMissing (m.owner :: m.name) context
       )
 
