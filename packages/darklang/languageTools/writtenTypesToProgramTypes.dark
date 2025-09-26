@@ -1,7 +1,9 @@
 module Darklang.LanguageTools.WrittenTypesToProgramTypes
 
-// Context for expression parsing, used for ESelf handling
-type Context = { currentFnName: Stdlib.Option.Option<List<String>> }
+// Context for expression parsing, used for ESelf handling and EArg conversion
+type Context =
+  { currentFnName: Stdlib.Option.Option<List<String>>
+    argMap: Dict<Int64> }
 
 let gid () : Int64 =
   // TODO: fix upper range here
@@ -300,9 +302,14 @@ module Expr =
 
         let newContext =
           if shadowsFunctionName then
-            Context { currentFnName = Stdlib.Option.Option.None }
+            Context { currentFnName = Stdlib.Option.Option.None; argMap = Stdlib.Dict.empty }
           else
-            context
+            // Remove this variable from argMap only if it was a function argument
+            let newArgMap =
+              match Stdlib.Dict.get context.argMap name with
+              | Some _ -> Stdlib.Dict.remove context.argMap name
+              | None -> context.argMap
+            Context { currentFnName = context.currentFnName; argMap = newArgMap }
 
         (newContext, ProgramTypes.LetPattern.LPVariable(gid (), name))
       | LPTuple(_, first, _, second, rest, _, _) ->
@@ -400,11 +407,13 @@ module Expr =
           unresolvedNames)
 
       | EPipeLambda(_, pats, body, _, _) ->
+        // Start with a clean argMap to prevent lambda params from being converted to EArg
+        let lambdaContext = Context { currentFnName = context.currentFnName; argMap = Stdlib.Dict.empty }
         let (body, unresolvedNames) =
-          Expr.toPT onMissing pm owner currentModule context body
+          Expr.toPT onMissing pm owner currentModule lambdaContext body
 
         let pats = Stdlib.List.map pats (fun p ->
-          let (_, pat) = LetPattern.toPT context p
+          let (_, pat) = LetPattern.toPT lambdaContext p
           pat)
 
         (ProgramTypes.PipeExpr.EPipeLambda(gid (), pats, body), unresolvedNames)
@@ -676,19 +685,23 @@ module Expr =
         unresolvedNames)
 
     | EVariable(range, var) ->
-      let unresolved = WrittenTypes.Name.Unresolved(range, [ var ])
+      // Check if this variable is a function argument first
+      match Stdlib.Dict.get context.argMap var with
+      | Some index -> (ProgramTypes.Expr.EArg(gid (), index), [])
+      | None ->
+        let unresolved = WrittenTypes.Name.Unresolved(range, [ var ])
 
-      let value =
-        NameResolver.ValueName.resolve
-          onMissing
-          pm
-          owner
-          currentModule
-          unresolved
+        let value =
+          NameResolver.ValueName.resolve
+            onMissing
+            pm
+            owner
+            currentModule
+            unresolved
 
-      match value with
-      | Ok _ -> (ProgramTypes.Expr.EValue(gid (), value), [])
-      | Error _ -> (ProgramTypes.Expr.EVariable (gid ()) var, [])
+        match value with
+        | Ok _ -> (ProgramTypes.Expr.EValue(gid (), value), [])
+        | Error _ -> (ProgramTypes.Expr.EVariable (gid ()) var, [])
 
     // TODO: rethink this
     | EValueOrFn(_, id) ->
@@ -736,6 +749,13 @@ module Expr =
           let pat =
             MatchPattern.toPT onMissing (Stdlib.Tuple3.second case.pat)
 
+          // Match patterns introduce a new scope where function arguments
+          // should not be converted to EArg, so clear the argMap
+          let matchContext =
+            Context
+              { currentFnName = context.currentFnName
+                argMap = Stdlib.Dict.empty }
+
           let (whenCondition, whenUnresolvedNames) =
             match case.whenCondition with
             | None -> (Stdlib.Option.Option.None, [])
@@ -743,12 +763,12 @@ module Expr =
               let (_, e) = e
 
               let (e, unresolvedNames) =
-                toPT onMissing pm owner currentModule context e
+                toPT onMissing pm owner currentModule matchContext e
 
               (Stdlib.Option.Option.Some e, unresolvedNames)
 
           let (rhs, rhsUnresolvedNames) =
-            toPT onMissing pm owner currentModule context case.rhs
+            toPT onMissing pm owner currentModule matchContext case.rhs
 
           let matchCasesUnresolvedNames =
             Stdlib.List.flatten [ whenUnresolvedNames; rhsUnresolvedNames ]
@@ -801,9 +821,11 @@ module Expr =
       (ProgramTypes.Expr.EInfix(gid (), infix, left, right), unresolvedNames)
 
     | ELambda(_, pats, body, _, _) ->
+      // Start with a clean argMap to prevent lambda params from being converted to EArg
+      let lambdaContext = Context { currentFnName = context.currentFnName; argMap = Stdlib.Dict.empty }
       let (finalContext, pats) =
         pats
-        |> Stdlib.List.fold (context, []) (fun (ctx, acc) p ->
+        |> Stdlib.List.fold (lambdaContext, []) (fun (ctx, acc) p ->
           let (newCtx, ptPattern) = LetPattern.toPT ctx p
           (newCtx, Stdlib.List.append acc [ ptPattern ]))
 
@@ -1165,7 +1187,7 @@ module ModuleDeclaration =
         match d with
         | Expr e ->
           let (expr, exprUnresolvedNames) =
-            Expr.toPT onMissing pm owner modules (Context { currentFnName = Stdlib.Option.Option.None }) e
+            Expr.toPT onMissing pm owner modules (Context { currentFnName = Stdlib.Option.Option.None; argMap = Stdlib.Dict.empty }) e
 
           let modules = Stdlib.List.push modules owner
           Stdlib.Option.Option.Some(((expr, modules), exprUnresolvedNames))
@@ -1263,7 +1285,7 @@ module ModuleDeclaration =
         match d with
         | Expr e ->
           let (expr, unresolvedNames) =
-            Expr.toPT onMissing pm owner currentModule (Context { currentFnName = Stdlib.Option.Option.None }) e
+            Expr.toPT onMissing pm owner currentModule (Context { currentFnName = Stdlib.Option.Option.None; argMap = Stdlib.Dict.empty }) e
 
           Stdlib.Option.Option.Some(((expr, [ owner ]), unresolvedNames))
         | _ -> Stdlib.Option.Option.None)
@@ -1465,7 +1487,7 @@ module ValueDeclaration =
     : (ProgramTypes.PackageValue.PackageValue *
       List<Parser.Range * ProgramTypes.NameResolutionError>)
     =
-    let (body, unresolvedNames) = Expr.toPT onMissing pm owner modules (Context { currentFnName = Stdlib.Option.Option.None }) d.body
+    let (body, unresolvedNames) = Expr.toPT onMissing pm owner modules (Context { currentFnName = Stdlib.Option.Option.None; argMap = Stdlib.Dict.empty }) d.body
 
     (ProgramTypes.PackageValue.PackageValue
       { id = Stdlib.Uuid.generate ()
@@ -1531,7 +1553,13 @@ module FunctionDeclaration =
       TypeReference.toPT onMissing pm owner modules fn.returnType
 
     let (body, bdUnresolvedNames) =
-      let functionContext = Context { currentFnName = Stdlib.Option.Option.Some (Stdlib.List.append modules [ fn.name.name ]) }
+      // Build argument mapping from parameter names to indices
+      let argMap =
+        params
+        |> Stdlib.List.indexedMap (fun i param -> (param.name, i))
+        |> Stdlib.List.fold Stdlib.Dict.empty (fun acc (name, idx) ->
+          Stdlib.Dict.set acc name idx)
+      let functionContext = Context { currentFnName = Stdlib.Option.Option.Some (Stdlib.List.append modules [ fn.name.name ]); argMap = argMap }
       Expr.toPT onMissing pm owner modules functionContext fn.body
 
     let unresolvedNames =
@@ -1622,7 +1650,7 @@ let parsedFileAsSourceFile
     let (exprsToEval, exprsToEvalUnresolvedNames) =
       source.exprsToEval
       |> Stdlib.List.map (fun e ->
-        Expr.toPT NameResolver.OnMissing.Allow pm "" [] (Context { currentFnName = Stdlib.Option.Option.None }) e)
+        Expr.toPT NameResolver.OnMissing.Allow pm "" [] (Context { currentFnName = Stdlib.Option.Option.None; argMap = Stdlib.Dict.empty }) e)
       |> Stdlib.List.unzip
 
     let unresolvedNames =

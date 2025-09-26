@@ -327,6 +327,12 @@ type Expr =
   // i.e. after a `let binding = value`, any use of `binding`
   | EVariable of id * string
 
+  // Reference a function argument by its position index
+  //
+  // i.e. in `let fn (x: Int64) (y: String) = ...`,
+  // references to `x` become `EArg(id, 0)` and `y` becomes `EArg(id, 1)`
+  | EArg of id * index : int
+
 
   // -- Basic structures --
   | EList of id * List<Expr>
@@ -458,6 +464,7 @@ module Expr =
     | ELambda(id, _, _)
     | EFnName(id, _)
     | EVariable(id, _)
+    | EArg(id, _)
     | EApply(id, _, _, _)
     | EList(id, _)
     | EDict(id, _)

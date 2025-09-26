@@ -558,6 +558,11 @@ module Expr =
           instructions = [ RT.VarNotFound(rc, varName) ]
           resultIn = rc }
 
+    | PT.EArg(_id, index) ->
+      // Look up argument by index from the current call frame
+      let argReg : RT.Register = index
+      { registerCount = rc; instructions = []; resultIn = argReg }
+
     | PT.ESelf(_id) ->
       match currentFnName with
       | Some fnName ->

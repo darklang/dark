@@ -265,7 +265,8 @@ let toPT
           let spec = WT2PT.Handler.Spec.toPT spec
           let context =
             { WT2PT.Context.currentFnName = None
-              WT2PT.Context.isInFunction = false }
+              WT2PT.Context.isInFunction = false
+              WT2PT.Context.argMap = Map.empty }
           let! expr =
             WT2PT.Expr.toPT builtins pm onMissing (m.owner :: m.name) context expr
           return (spec, expr)
@@ -275,7 +276,9 @@ let toPT
       m.exprs
       |> Ply.List.mapSequentially (
         let context =
-          { WT2PT.Context.currentFnName = None; WT2PT.Context.isInFunction = false }
+          { WT2PT.Context.currentFnName = None
+            WT2PT.Context.isInFunction = false
+            WT2PT.Context.argMap = Map.empty }
         WT2PT.Expr.toPT builtins pm onMissing (m.owner :: m.name) context
       )
 

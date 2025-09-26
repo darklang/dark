@@ -1,0 +1,75 @@
+// Test EArg functionality - package function parameters should be converted to EArg
+
+module Test =
+  let addTwo (earg1: Int64) (earg2: Int64): Int64 =
+    Stdlib.Int64.add earg1 earg2
+
+  let shadowTest (shadowedEarg: Int64): Int64 =
+    let shadowedEarg = 42L
+    shadowedEarg  // This should be EVariable, not EArg after shadowing
+
+  let argAndLocalVar (mixedEarg: Int64): Int64 =
+    let localVarNotEarg = 10L
+    Stdlib.Int64.add mixedEarg localVarNotEarg  // mixedEarg=EArg(0), localVarNotEarg=EVariable("localVarNotEarg")
+
+  let nestedShadowing (eargOne: Int64) (eargTwo: Int64): Int64 =
+    let a =
+      let eargOne = 100L
+      Stdlib.Int64.add eargOne eargTwo
+    Stdlib.Int64.add a eargOne
+
+  let lambdaTest (eargX: Int64) : Int64 =
+    let addX = (fun eargX -> Stdlib.Int64.add eargX 1L)
+    let result = eargX + (addX eargX)
+    result
+
+  let matchArgName (value: Int64) : Int64 =
+    match value with
+    | 0L -> 100L
+    | value -> value * 2L
+
+  let matchWithNestedShadowing (x: Int64) (y: Int64) : Int64 =
+    match x with
+    | 0L -> y
+    | x -> // This 'x' shadows the parameter
+      let y = x * 3L  // This 'y' shadows the second parameter
+      match y with
+      | 6L -> 600L
+      | y -> y + 10L  // This 'y' shadows both parameter and let binding
+
+  let matchWithNestedShadowing2 (x: Int64) (y: Int64) : Int64 =
+    match y with
+    | 0L -> y
+    | x -> x * 3L  // This 'x' shadows the first parameter
+
+
+  let tupleMatchWithArgShadowing (data: (Int64 * String)) : String =
+    match data with
+    | (0L, result) -> result
+    | (1L, data) -> data ++ "_modified"  // 'data' shadows the parameter
+    | (data, text) -> Stdlib.Int64.toString data ++ "_" ++ text  // 'data' shadows parameter
+
+
+Test.addTwo 3L 4L = 7L
+
+Test.shadowTest 999L = 42L  // Should return 42L, not 999L (parameter is shadowed)
+
+Test.argAndLocalVar 5L = 15L     // 5 + 10 = 15
+
+Test.nestedShadowing 1L 2L = 103L // (100 + 2) + 1 = 103
+
+Test.lambdaTest 10L = 21L    // 10 + (10 + 1) = 21
+
+Test.matchArgName 0L = 100L  // First case: returns 100L
+Test.matchArgName 5L = 10L   // Second case: 5 * 2 = 10L
+
+Test.matchWithNestedShadowing 0L 42L = 42L  // First case: returns y parameter
+Test.matchWithNestedShadowing 2L 99L = 600L  // Second case: x=2 (shadows param), y=2*3=6 (shadows param), match y: 6L -> 600L
+Test.matchWithNestedShadowing 3L 99L = 19L  // x=3, y=3*3=9, match y: 9L -> 9+10=19L
+Test.matchWithNestedShadowing2 5L 0L = 0L  // First case: returns y parameter
+Test.matchWithNestedShadowing2 5L 4L = 12L  // Second case: x=4 (shadows param) -> 4*3=12L
+
+
+Test.tupleMatchWithArgShadowing (0L, "hello") = "hello"  // First case
+Test.tupleMatchWithArgShadowing (1L, "test") = "test_modified"  // Second case
+Test.tupleMatchWithArgShadowing (5L, "world") = "5_world"  // Third case: data=5L, text="world"

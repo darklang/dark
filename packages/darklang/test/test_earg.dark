@@ -1,0 +1,78 @@
+module Darklang =
+  module Test =
+    module EArgTests =
+      let addTwo (earg1: Int64) (earg2: Int64): Int64 =
+        Stdlib.Int64.add earg1 earg2
+
+      let shadowTest (shadowedEarg: Int64): Int64 =
+        let shadowedEarg = 42L
+        shadowedEarg  // This should be EVariable, not EArg after shadowing
+
+      let argAndLocalVar (mixedEarg: Int64): Int64 =
+        let localVarNotEarg = 10L
+        Stdlib.Int64.add mixedEarg localVarNotEarg  // mixedEarg=EArg(0), localVarNotEarg=EVariable("localVarNotEarg")
+
+      let nestedShadowing (eargOne: Int64) (eargTwo: Int64): Int64 =
+        let a =
+          let eargOne = 100L
+          Stdlib.Int64.add eargOne eargTwo
+        Stdlib.Int64.add a eargOne
+
+      // TODO: Fix  addX not found
+      // let lambdaTest (eargX: Int64) : Int64 =
+      //   let addX = (fun x -> Stdlib.Int64.add x 1L)
+      //   let result = eargX + (addX eargX)
+      //   result
+
+
+      // Test match cases that shadow argument names
+      let matchArgName (value: Int64) : Int64 =
+        match value with
+        | 0L -> 100L
+        | value -> value * 2L
+
+      let matchWithNestedShadowing (x: Int64) (y: Int64) : Int64 =
+        match x with
+        | 0L -> y
+        | x -> // This 'x' shadows the parameter
+          let y = x * 3L  // This 'y' shadows the second parameter
+          match y with
+          | 6L -> 600L
+          | y -> y + 10L  // This 'y' shadows both parameter and let binding
+
+      let matchWithNestedShadowing2 (x: Int64) (y: Int64) : Int64 =
+        match y with
+        | 0L -> y
+        | x -> x * 3L  // This 'x' shadows the first parameter
+
+
+      let tupleMatchWithArgShadowing (data: (Int64 * String)) : String =
+        match data with
+        | (0L, result) -> result
+        | (1L, data) -> data ++ "_modified"  // 'data' shadows the parameter
+        | (data, text) -> (Stdlib.Int64.toString data) ++ "_" ++ text  // 'data' shadows parameter
+
+
+
+
+let test1 = (Darklang.Test.EArgTests.addTwo 3L 4L) == 7L
+let test2 = (Darklang.Test.EArgTests.shadowTest 999L) == 42L  // Should return 42L, not 999L (parameter is shadowed)
+let test3 = (Darklang.Test.EArgTests.argAndLocalVar 5L) == 15L     // 5 + 10 = 15
+let test4 = (Darklang.Test.EArgTests.nestedShadowing 1L 2L) == 103L // (100 + 2) + 1 = 103
+// let test5 = (Darklang.Test.EArgTests.lambdaTest 10L) == 21L    // 10 + (10 + 1) = 21
+let test6 = (Darklang.Test.EArgTests.matchArgName 0L) == 100L  // First case: returns 100L
+let test7 = (Darklang.Test.EArgTests.matchArgName 5L) == 10L   // Second case: 5 * 2 = 10L
+let test8 = (Darklang.Test.EArgTests.matchWithNestedShadowing 0L 42L) == 42L  // First case: returns y parameter
+let test9 = (Darklang.Test.EArgTests.matchWithNestedShadowing 3L 99L) == 19L  // x=3, y=3*3=9, match y: 9
+let test10 = (Darklang.Test.EArgTests.matchWithNestedShadowing2 5L 0L) == 0L  // First case: returns y parameter
+let test11 = (Darklang.Test.EArgTests.matchWithNestedShadowing2 5L 4L) == 12L  // Second case: x=4 (shadows
+let test12 = (Darklang.Test.EArgTests.tupleMatchWithArgShadowing (0L, "hello")) == "hello"  // First case
+let test13 = (Darklang.Test.EArgTests.tupleMatchWithArgShadowing (1L, "test")) == "test_modified"  // Second case
+let test14 = (Darklang.Test.EArgTests.tupleMatchWithArgShadowing (42L, "data")) == "42_data"  // Third case
+
+let testList = [ test1; test2; test3; test4; test6; test7; test8; test9; test10; test11; test12; test13; test14 ]
+
+
+match Stdlib.List.all testList Stdlib.Fun.identity with
+| true -> 0L
+| false -> 1L

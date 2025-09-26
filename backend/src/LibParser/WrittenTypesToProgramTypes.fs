@@ -17,7 +17,10 @@ type Context =
     currentFnName : List<string> option
     // Whether we're currently inside a function body during parsing
     // Used to determine when variable shadowing of function names should reset the context
-    isInFunction : bool }
+    isInFunction : bool
+    // Maps parameter names to their indices within the current function
+    // Used to convert EVariable references to EArg when they refer to function parameters
+    argMap : Map<string, int> }
 
 module InfixFnName =
   let toPT (name : WT.InfixFnName) : PT.InfixFnName =
@@ -115,7 +118,9 @@ module LetPattern =
                 match List.rev qualifiedName with
                 | lastName :: _ when lastName = varName -> None
                 | _ -> context.currentFnName
-              | None -> None }
+              | None -> None
+            // Remove this variable from argMap as it's now shadowed by the let binding
+            argMap = Map.remove varName context.argMap }
       (newContext, PT.LPVariable(id, varName))
     | WT.LPTuple(id, first, second, theRest) ->
       let (context1, first') = toPT context first
@@ -132,31 +137,89 @@ module LetPattern =
     | WT.LPUnit id -> (context, PT.LPUnit id)
 
 module MatchPattern =
-  let rec toPT (p : WT.MatchPattern) : PT.MatchPattern =
+  let rec toPT
+    (context : Context)
+    (p : WT.MatchPattern)
+    : (Context * PT.MatchPattern) =
     match p with
-    | WT.MPVariable(id, str) -> PT.MPVariable(id, str)
+    | WT.MPVariable(id, varName) ->
+      let newContext =
+        { context with
+            // If this variable shadows the self function name, clear it
+            currentFnName =
+              match context.currentFnName with
+              | Some qualifiedName ->
+                // Only clear if the variable name matches the last part of the qualified name
+                match List.rev qualifiedName with
+                | lastName :: _ when lastName = varName -> None
+                | _ -> context.currentFnName
+              | None -> None
+            // Remove this variable from argMap as it's now shadowed by the match pattern
+            argMap = Map.remove varName context.argMap }
+      (newContext, PT.MPVariable(id, varName))
     | WT.MPEnum(id, caseName, fieldPats) ->
-      PT.MPEnum(id, caseName, List.map toPT fieldPats)
-    | WT.MPInt64(id, i) -> PT.MPInt64(id, i)
-    | WT.MPUInt64(id, i) -> PT.MPUInt64(id, i)
-    | WT.MPInt8(id, i) -> PT.MPInt8(id, i)
-    | WT.MPUInt8(id, i) -> PT.MPUInt8(id, i)
-    | WT.MPInt16(id, i) -> PT.MPInt16(id, i)
-    | WT.MPUInt16(id, i) -> PT.MPUInt16(id, i)
-    | WT.MPInt32(id, i) -> PT.MPInt32(id, i)
-    | WT.MPUInt32(id, i) -> PT.MPUInt32(id, i)
-    | WT.MPInt128(id, i) -> PT.MPInt128(id, i)
-    | WT.MPUInt128(id, i) -> PT.MPUInt128(id, i)
-    | WT.MPBool(id, b) -> PT.MPBool(id, b)
-    | WT.MPChar(id, c) -> PT.MPChar(id, c)
-    | WT.MPString(id, s) -> PT.MPString(id, s)
-    | WT.MPFloat(id, s, w, f) -> PT.MPFloat(id, s, w, f)
-    | WT.MPUnit id -> PT.MPUnit id
+      let (finalContext, convertedPats) =
+        fieldPats
+        |> List.fold
+          (fun (ctx, acc) pat ->
+            let (newCtx, pat') = toPT ctx pat
+            (newCtx, pat' :: acc))
+          (context, [])
+        |> fun (ctx, acc) -> (ctx, List.rev acc)
+      (finalContext, PT.MPEnum(id, caseName, convertedPats))
+    | WT.MPInt64(id, i) -> (context, PT.MPInt64(id, i))
+    | WT.MPUInt64(id, i) -> (context, PT.MPUInt64(id, i))
+    | WT.MPInt8(id, i) -> (context, PT.MPInt8(id, i))
+    | WT.MPUInt8(id, i) -> (context, PT.MPUInt8(id, i))
+    | WT.MPInt16(id, i) -> (context, PT.MPInt16(id, i))
+    | WT.MPUInt16(id, i) -> (context, PT.MPUInt16(id, i))
+    | WT.MPInt32(id, i) -> (context, PT.MPInt32(id, i))
+    | WT.MPUInt32(id, i) -> (context, PT.MPUInt32(id, i))
+    | WT.MPInt128(id, i) -> (context, PT.MPInt128(id, i))
+    | WT.MPUInt128(id, i) -> (context, PT.MPUInt128(id, i))
+    | WT.MPBool(id, b) -> (context, PT.MPBool(id, b))
+    | WT.MPChar(id, c) -> (context, PT.MPChar(id, c))
+    | WT.MPString(id, s) -> (context, PT.MPString(id, s))
+    | WT.MPFloat(id, s, w, f) -> (context, PT.MPFloat(id, s, w, f))
+    | WT.MPUnit id -> (context, PT.MPUnit id)
     | WT.MPTuple(id, first, second, theRest) ->
-      PT.MPTuple(id, toPT first, toPT second, List.map toPT theRest)
-    | WT.MPList(id, pats) -> PT.MPList(id, List.map toPT pats)
-    | WT.MPListCons(id, head, tail) -> PT.MPListCons(id, toPT head, toPT tail)
-    | WT.MPOr(id, pats) -> PT.MPOr(id, NEList.map toPT pats)
+      let (context1, first') = toPT context first
+      let (context2, second') = toPT context1 second
+      let (finalContext, theRest') =
+        theRest
+        |> List.fold
+          (fun (ctx, acc) pat ->
+            let (newCtx, pat') = toPT ctx pat
+            (newCtx, pat' :: acc))
+          (context2, [])
+        |> fun (ctx, acc) -> (ctx, List.rev acc)
+      (finalContext, PT.MPTuple(id, first', second', theRest'))
+    | WT.MPList(id, pats) ->
+      let (finalContext, convertedPats) =
+        pats
+        |> List.fold
+          (fun (ctx, acc) pat ->
+            let (newCtx, pat') = toPT ctx pat
+            (newCtx, pat' :: acc))
+          (context, [])
+        |> fun (ctx, acc) -> (ctx, List.rev acc)
+      (finalContext, PT.MPList(id, convertedPats))
+    | WT.MPListCons(id, head, tail) ->
+      let (context1, head') = toPT context head
+      let (finalContext, tail') = toPT context1 tail
+      (finalContext, PT.MPListCons(id, head', tail'))
+    | WT.MPOr(id, pats) ->
+      let (finalContext, convertedPats) =
+        pats
+        |> NEList.toList
+        |> List.fold
+          (fun (ctx, acc) pat ->
+            let (newCtx, pat') = toPT ctx pat
+            (newCtx, pat' :: acc))
+          (context, [])
+        |> fun (ctx, acc) -> (ctx, List.rev acc)
+      (finalContext,
+       PT.MPOr(id, NEList.ofListUnsafe "MatchPattern.toPT" [] convertedPats))
 
 
 module Expr =
@@ -206,16 +269,20 @@ module Expr =
       | WT.EBool(id, b) -> return PT.EBool(id, b)
       | WT.EUnit id -> return PT.EUnit id
       | WT.EVariable(id, var) ->
-        let! value =
-          NR.resolveValueName
-            (builtins.values |> Map.keys |> Set)
-            pm
-            NR.OnMissing.Allow
-            currentModule
-            (WT.Unresolved(NEList.singleton var))
-        match value with
-        | Ok _ as name -> return PT.EValue(id, name)
-        | Error _ -> return PT.EVariable(id, var)
+        // Check if this variable is a function argument first
+        match Map.tryFind var context.argMap with
+        | Some index -> return PT.EArg(id, index)
+        | None ->
+          let! value =
+            NR.resolveValueName
+              (builtins.values |> Map.keys |> Set)
+              pm
+              NR.OnMissing.Allow
+              currentModule
+              (WT.Unresolved(NEList.singleton var))
+          match value with
+          | Ok _ as name -> return PT.EValue(id, name)
+          | Error _ -> return PT.EVariable(id, var)
       | WT.ERecordFieldAccess(id, obj, fieldname) ->
         let! obj = toPT context obj
         return PT.ERecordFieldAccess(id, obj, fieldname)
@@ -264,17 +331,18 @@ module Expr =
               let expr =
                 match fnName with
                 | Ok resolvedName -> PT.EFnName(id, Ok resolvedName)
-                | Error _ -> PT.EVariable(id, varName)
+                | Error _ ->
+                  match Map.tryFind varName context.argMap with
+                  | Some index -> PT.EArg(id, index)
+                  | None -> PT.EVariable(id, varName)
               return PT.EApply(id, expr, processedTypeArgs, processedArgs)
           | None when context.isInFunction ->
             // Inside a function, prioritize variables for unqualified calls (allows shadowing)
-            return
-              PT.EApply(
-                id,
-                PT.EVariable(id, varName),
-                processedTypeArgs,
-                processedArgs
-              )
+            let varExpr =
+              match Map.tryFind varName context.argMap with
+              | Some index -> PT.EArg(id, index)
+              | None -> PT.EVariable(id, varName)
+            return PT.EApply(id, varExpr, processedTypeArgs, processedArgs)
           | None ->
             // Global context, try to resolve as function name first, fall back to variable
             let! fnName =
@@ -287,7 +355,10 @@ module Expr =
             let expr =
               match fnName with
               | Ok resolvedName -> PT.EFnName(id, Ok resolvedName)
-              | Error _ -> PT.EVariable(id, varName)
+              | Error _ ->
+                match Map.tryFind varName context.argMap with
+                | Some index -> PT.EArg(id, index)
+                | None -> PT.EVariable(id, varName)
             return PT.EApply(id, expr, processedTypeArgs, processedArgs)
         | _ ->
           // For qualified names, process as normal function name
@@ -312,6 +383,8 @@ module Expr =
             name
         return PT.EFnName(id, fnName)
       | WT.ELambda(id, pats, body) ->
+        // Start with a clean argMap to prevent lambda params from being converted to EArg
+        let lambdaContext = { context with argMap = Map.empty }
         let (finalContext, ptPats) =
           pats
           |> NEList.toList
@@ -319,7 +392,7 @@ module Expr =
             (fun (ctx, acc) pat ->
               let (newCtx, ptPat) = LetPattern.toPT ctx pat
               (newCtx, acc @ [ ptPat ]))
-            (context, [])
+            (lambdaContext, [])
         let! body = toPT finalContext body
         return
           PT.ELambda(
@@ -392,16 +465,16 @@ module Expr =
           Ply.List.mapSequentially
             (fun (case : WT.MatchCase) ->
               uply {
-                let mp = MatchPattern.toPT case.pat
+                let (patternContext, mp) = MatchPattern.toPT context case.pat
                 let! whenCondition =
                   uply {
                     match case.whenCondition with
                     | Some whenExpr ->
-                      let! whenExpr = toPT context whenExpr
+                      let! whenExpr = toPT patternContext whenExpr
                       return Some whenExpr
                     | None -> return None
                   }
-                let! expr = toPT context case.rhs
+                let! expr = toPT patternContext case.rhs
                 let result : PT.MatchCase =
                   { pat = mp; whenCondition = whenCondition; rhs = expr }
                 return result
@@ -510,6 +583,8 @@ module Expr =
             | Error _ -> PT.EPipeVariable(id, name, [])
 
       | WT.EPipeLambda(id, pats, body) ->
+        // Start with a clean argMap to prevent lambda params from being converted to EArg
+        let lambdaContext = { context with argMap = Map.empty }
         let (finalContext, ptPats) =
           pats
           |> NEList.toList
@@ -517,7 +592,7 @@ module Expr =
             (fun (ctx, acc) pat ->
               let (newCtx, ptPat) = LetPattern.toPT ctx pat
               (newCtx, acc @ [ ptPat ]))
-            (context, [])
+            (lambdaContext, [])
         let! body = toPT finalContext body
         return
           PT.EPipeLambda(
@@ -693,7 +768,8 @@ module PackageValue =
     (c : WT.PackageValue.PackageValue)
     : Ply<PT.PackageValue.PackageValue> =
     uply {
-      let context = { currentFnName = None; isInFunction = false }
+      let context =
+        { currentFnName = None; isInFunction = false; argMap = Map.empty }
       let! body = Expr.toPT builtins pm onMissing currentModule context c.body
       return
         { id = PackageIDs.Value.idForName c.name.owner c.name.modules c.name.name
@@ -734,9 +810,15 @@ module PackageFn =
           (Parameter.toPT pm onMissing currentModule)
           fn.parameters
       let! returnType = TypeReference.toPT pm onMissing currentModule fn.returnType
+      let argMap =
+        fn.parameters
+        |> NEList.toList
+        |> List.mapi (fun i param -> param.name, i)
+        |> Map.ofList
       let context =
         { currentFnName = Some(currentModule @ [ fn.name.name ])
-          isInFunction = true }
+          isInFunction = true
+          argMap = argMap }
       let! body = Expr.toPT builtins pm onMissing currentModule context fn.body
 
       return
@@ -794,7 +876,8 @@ module Handler =
     (h : WT.Handler.T)
     : Ply<PT.Handler.T> =
     uply {
-      let context = { currentFnName = None; isInFunction = false }
+      let context =
+        { currentFnName = None; isInFunction = false; argMap = Map.empty }
       let! ast = Expr.toPT builtins pm onMissing currentModule context h.ast
       return { tlid = gid (); ast = ast; spec = Spec.toPT h.spec }
     }

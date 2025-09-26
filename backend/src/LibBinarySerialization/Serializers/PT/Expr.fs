@@ -573,6 +573,10 @@ module Expr =
     | ESelf id ->
       w.Write 33uy
       w.Write id
+    | EArg(id, index) ->
+      w.Write 34uy
+      w.Write id
+      w.Write index
 
   let rec read (r : BinaryReader) : Expr =
     match r.ReadByte() with
@@ -747,4 +751,8 @@ module Expr =
     | 33uy ->
       let id = r.ReadUInt64()
       ESelf id
+    | 34uy ->
+      let id = r.ReadUInt64()
+      let index = r.ReadInt32()
+      EArg(id, index)
     | b -> raise (BinaryFormatException(CorruptedData $"Invalid Expr tag: {b}"))

@@ -218,7 +218,8 @@ let toPT
         uply {
           let context =
             { WT2PT.Context.currentFnName = None
-              WT2PT.Context.isInFunction = false }
+              WT2PT.Context.isInFunction = false
+              WT2PT.Context.argMap = Map.empty }
           let exprToPT = WT2PT.Expr.toPT builtins pm onMissing currentModule context
           let! actual = exprToPT test.actual
           let! expected = exprToPT test.expected
