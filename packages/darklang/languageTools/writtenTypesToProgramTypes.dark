@@ -835,10 +835,16 @@ module Expr =
       (ProgramTypes.Expr.ELambda(gid (), pats, body), unresolvedNames)
 
     | EFnName(_, fnName) ->
-      let (fnName, unresolvedNames) =
+      let (resolvedFnName, unresolvedNames) =
         Identifiers.QualifiedFn.toPT onMissing pm owner currentModule fnName
 
-      (ProgramTypes.Expr.EFnName(gid (), fnName), unresolvedNames)
+      match resolvedFnName with
+      | Error _ when Stdlib.List.isEmpty fnName.modules ->
+        // If function resolution failed and it's an unqualified name, treat as variable
+        (ProgramTypes.Expr.EVariable(gid (), fnName.fn.name), [])
+      | _ ->
+        // Function resolution succeeded or it's a qualified name, keep as EFnName
+        (ProgramTypes.Expr.EFnName(gid (), resolvedFnName), unresolvedNames)
 
     | EApply(_, fn, typeArgs, args) ->
       match fn with
