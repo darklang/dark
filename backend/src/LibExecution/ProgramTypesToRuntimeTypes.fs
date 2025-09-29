@@ -560,8 +560,7 @@ module Expr =
 
     | PT.EArg(_id, index) ->
       // Look up argument by index from the current call frame
-      let argReg : RT.Register = index
-      { registerCount = rc; instructions = []; resultIn = argReg }
+      { registerCount = rc; instructions = []; resultIn = index }
 
     | PT.ESelf(_id) ->
       match currentFnName with

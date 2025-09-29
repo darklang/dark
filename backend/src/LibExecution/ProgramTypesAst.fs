@@ -44,7 +44,7 @@ let rec symbolsUsedInExpr (expr : Expr) : Set<string> =
 
   // variables
   | EVariable(_, var) -> Set.singleton var
-  | EArg(_, _) -> Set.empty // Arguments don't contribute to symbols used
+  | EArg(_, _) -> Set.empty
 
   | ELet(_, _, rhs, next) -> Set.union (r rhs) (r next)
 

@@ -1,5 +1,3 @@
-// Test EArg functionality - package function parameters should be converted to EArg
-
 module Test =
   let addTwo (earg1: Int64) (earg2: Int64): Int64 =
     Stdlib.Int64.add earg1 earg2

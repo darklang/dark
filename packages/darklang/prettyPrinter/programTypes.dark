@@ -907,8 +907,7 @@ let packageFn (p: LanguageTools.ProgramTypes.PackageFn.PackageFn) : String =
 
   let argMap =
     p.parameters
-    |> Stdlib.List.map (fun param -> param.name)
-    |> Stdlib.List.indexedMap (fun i name -> (name, i))
+    |> Stdlib.List.indexedMap (fun i param -> (param.name, i))
     |> Stdlib.List.fold Stdlib.Dict.empty (fun acc (name, idx) ->
       Stdlib.Dict.set acc name idx)
 
