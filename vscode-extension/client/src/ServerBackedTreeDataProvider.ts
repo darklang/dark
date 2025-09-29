@@ -91,17 +91,19 @@ export class ServerBackedTreeDataProvider
   implements vscode.TreeDataProvider<Node>
 {
   private _client: LanguageClient;
-  private _onDidChangeTreeData: vscode.EventEmitter<Node | undefined | null | void> = new vscode.EventEmitter<Node | undefined | null | void>();
-  readonly onDidChangeTreeData: vscode.Event<Node | undefined | null | void> = this._onDidChangeTreeData.event;
+  private _onDidChangeTreeData: vscode.EventEmitter<
+    Node | undefined | null | void
+  > = new vscode.EventEmitter<Node | undefined | null | void>();
+  readonly onDidChangeTreeData: vscode.Event<Node | undefined | null | void> =
+    this._onDidChangeTreeData.event;
   private _isServerReady: boolean = false;
   private _rootNodesCache: Node[] | null = null;
 
   constructor(client: LanguageClient) {
     this._client = client;
-    
+
     // Wait for server to be ready, then refresh the tree
     this._client.onReady().then(() => {
-      this._isServerReady = true;
       this._onDidChangeTreeData.fire();
     });
   }
@@ -131,7 +133,9 @@ export class ServerBackedTreeDataProvider
 
     // If contextValue has a type prefix, extract the actual path
     if (item.contextValue) {
-      const prefixMatch = item.contextValue.match(/^(fn:|type:|const:|value:)(.+)$/);
+      const prefixMatch = item.contextValue.match(
+        /^(fn:|type:|const:|value:)(.+)$/,
+      );
       if (prefixMatch) {
         contextValue = item.contextValue; // Keep the full value with prefix for icon detection
         packagePath = prefixMatch[2]; // Extract the path without prefix for the command
@@ -189,11 +193,6 @@ export class ServerBackedTreeDataProvider
         ];
       }
       return this._rootNodesCache;
-    }
-
-    // For child nodes, only fetch if server is ready
-    if (!this._isServerReady) {
-      return [];
     }
 
     try {

@@ -123,12 +123,15 @@ let handleIncomingMessage
   let currentState =
     match LanguageServerProtocol.parseIncomingMessage r with
     | InitializeRequest ->
-      log "TODO: fail - we shouldn't be seeing a second one of these"
-      { state with initialized = true }
+      match r.id with
+      | Some requestId -> handleInitializeRequest requestId
+      | None ->
+        log "Error: initialize request missing ID"
+        { state with initialized = false; shouldShutdown = true }
 
     | Initialized -> // notification
-      log "(ignore)"
-      state
+      log "Received 'initialized' notification from client - server is now fully ready"
+      { state with initialized = true }
 
     | SetTrace -> // notification
       log "TODO we should do something with this"
