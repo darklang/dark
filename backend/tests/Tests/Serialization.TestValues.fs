@@ -350,8 +350,8 @@ module ProgramTypes =
                               EInfix(
                                 id,
                                 InfixFnCall(ArithmeticPlus),
-                                EInt64(id, 2L),
-                                EVariable(id, "y")
+                                EVariable(id, "y"),
+                                EArg(id, 0)
                               )
                             )
                           )

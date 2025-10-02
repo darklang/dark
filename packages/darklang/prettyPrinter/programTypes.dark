@@ -25,10 +25,11 @@ module NameResolutionError =
 // we can shorten names that share the same prefix
 type Context =
   { currentModule: Stdlib.Option.Option<String>
-    currentFunction: Stdlib.Option.Option<String> }
+    currentFunction: Stdlib.Option.Option<String>
+    argMap: Dict<Int64> }
 
 let defaultContext =
-  Context { currentModule = Stdlib.Option.Option.None; currentFunction = Stdlib.Option.Option.None }
+  Context { currentModule = Stdlib.Option.Option.None; currentFunction = Stdlib.Option.Option.None; argMap = Stdlib.Dict.empty }
 
 let packageNameWithContext
   (ctx: Context)
@@ -575,6 +576,13 @@ let expr (ctx: Context) (e: LanguageTools.ProgramTypes.Expr) : String =
 
   | EVariable(_id, name) -> name
 
+  | EArg(_id, index) ->
+    // Find the parameter name that corresponds to this index
+    ctx.argMap
+    |> Stdlib.Dict.toList
+    |> Stdlib.List.findFirst (fun (name, idx) -> idx == index)
+    |> Stdlib.Option.map (fun (name, _) -> name)
+    |> Stdlib.Option.withDefault $"earg{Stdlib.Int64.toString index}"
 
   // control flow
   | EIf(_id, cond, thenBranch, elseBranch) ->
@@ -897,7 +905,13 @@ let packageFn (p: LanguageTools.ProgramTypes.PackageFn.PackageFn) : String =
 
   let retPart = PrettyPrinter.ProgramTypes.typeReference p.returnType
 
-  let context = Context { currentModule = defaultContext.currentModule; currentFunction = Stdlib.Option.Option.Some p.name.name }
+  let argMap =
+    p.parameters
+    |> Stdlib.List.indexedMap (fun i param -> (param.name, i))
+    |> Stdlib.List.fold Stdlib.Dict.empty (fun acc (name, idx) ->
+      Stdlib.Dict.set acc name idx)
+
+  let context = Context { currentModule = defaultContext.currentModule; currentFunction = Stdlib.Option.Option.Some p.name.name; argMap = argMap }
   let bodyPart = PrettyPrinter.ProgramTypes.expr context p.body
 
   $"let {p.name.name}{typeParamPart} {paramPart}: {retPart} =\n{PrettyPrinter.indent bodyPart}"

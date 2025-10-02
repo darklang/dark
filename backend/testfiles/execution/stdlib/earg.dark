@@ -1,0 +1,72 @@
+module Test =
+  let addTwo (earg1: Int64) (earg2: Int64): Int64 =
+    Stdlib.Int64.add earg1 earg2
+
+  let shadowTest (shadowedEarg: Int64): Int64 =
+    let shadowedEarg = 42L
+    shadowedEarg  // This should be EVariable, not EArg after shadowing
+
+  let argAndLocalVar (mixedEarg: Int64): Int64 =
+    let localVarNotEarg = 10L
+    Stdlib.Int64.add mixedEarg localVarNotEarg  // mixedEarg=EArg(0), localVarNotEarg=EVariable("localVarNotEarg")
+
+  let nestedShadowing (eargOne: Int64) (eargTwo: Int64): Int64 =
+    let a =
+      let eargOne = 100L
+      Stdlib.Int64.add eargOne eargTwo
+    Stdlib.Int64.add a eargOne
+
+  let lambdaTest (eargX: Int64) : Int64 =
+    let addX = (fun eargX -> Stdlib.Int64.add eargX 1L)
+    let result = eargX + (addX eargX)
+    result
+
+  let matchArgName (value: Int64) : Int64 =
+    match value with
+    | 0L -> 100L
+    | value -> value * 2L
+
+  let matchWithNestedShadowing (x: Int64) (y: Int64) : Int64 =
+    match x with
+    | 0L -> y
+    | x -> // This 'x' shadows the parameter
+      let y = x * 3L  // This 'y' shadows the second parameter
+      match y with
+      | 6L -> 600L
+      | y -> y + 10L  // This 'y' shadows both parameter and let binding
+
+  let matchWithNestedShadowing2 (x: Int64) (y: Int64) : Int64 =
+    match y with
+    | 0L -> y
+    | x -> x * 3L  // This 'x' shadows the first parameter
+
+
+  let tupleMatchWithArgShadowing (data: (Int64 * String)) : String =
+    match data with
+    | (0L, result) -> result
+    | (1L, data) -> data ++ "_modified"  // 'data' shadows the parameter
+    | (data, text) -> Stdlib.Int64.toString data ++ "_" ++ text  // 'data' shadows parameter
+
+
+Test.addTwo 3L 4L = 7L
+
+Test.shadowTest 999L = 42L
+
+Test.argAndLocalVar 5L = 15L
+
+Test.nestedShadowing 1L 2L = 103L
+
+Test.lambdaTest 10L = 21L
+
+Test.matchArgName 0L = 100L
+Test.matchArgName 5L = 10L
+
+Test.matchWithNestedShadowing 0L 42L = 42L
+Test.matchWithNestedShadowing 2L 99L = 600L
+Test.matchWithNestedShadowing 3L 99L = 19L
+Test.matchWithNestedShadowing2 5L 0L = 0L
+Test.matchWithNestedShadowing2 5L 4L = 12L
+
+Test.tupleMatchWithArgShadowing (0L, "hello") = "hello"
+Test.tupleMatchWithArgShadowing (1L, "test") = "test_modified"
+Test.tupleMatchWithArgShadowing (5L, "world") = "5_world"

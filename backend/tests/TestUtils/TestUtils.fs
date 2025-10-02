@@ -866,6 +866,7 @@ module Expect =
 
       | EChar(_, v), EChar(_, v')
       | EVariable(_, v), EVariable(_, v') -> check path v v'
+      | EArg(_, v), EArg(_, v') -> check path v v'
       | EValue(_, name), EValue(_, name') -> check path name name'
       | ELet(_, pat, rhs, body), ELet(_, pat', rhs', body') ->
         letPatternEqualityBaseFn checkIDs path pat pat' errorFn
@@ -990,6 +991,7 @@ module Expect =
       | EString _, _
       | EChar _, _
       | EVariable _, _
+      | EArg _, _
       | EValue _, _
       | EBool _, _
       | EFloat _, _

@@ -30,8 +30,7 @@ let parsePTExpr
           pm
           ""
           []
-          (WrittenTypesToProgramTypes.Context
-            { currentFnName = Stdlib.Option.Option.None })
+          (WrittenTypesToProgramTypes.Context { currentFnName = Stdlib.Option.Option.None; argMap = Stdlib.Dict.empty })
           expr
 
       expr |> Stdlib.Result.Result.Ok

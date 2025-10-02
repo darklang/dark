@@ -219,6 +219,7 @@ type Expr =
   | ELet of ID * LetPattern * Expr * Expr
   | ERecordFieldAccess of ID * Expr * String
   | EVariable of ID * String
+  | EArg of ID * Int64
   | EValue of ID * NameResolution<FQValueName.FQValueName>
 
   // control flow
@@ -274,6 +275,7 @@ module Expr =
     | ELambda(id, _, _)
     | ERecordFieldAccess(id, _, _)
     | EVariable(id, _)
+    | EArg(id, _)
     | EApply(id, _, _, _)
     | EList(id, _)
     | EDict(id, _)

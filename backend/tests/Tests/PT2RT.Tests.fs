@@ -1651,6 +1651,17 @@ module PackageFn =
         (eVar "b")
         (2, [], 1)
 
+    let eargTest =
+      t
+        "EArg functionality test"
+        "eargTest"
+        []
+        [ { name = "x"; typ = PT.TInt64; description = "TODO" }
+          { name = "y"; typ = PT.TInt64; description = "TODO" } ]
+        PT.TInt64
+        (PT.EArg(gid (), 1)) // Direct EArg(1) for parameter "y"
+        (2, [], 1)
+
     let ignoresParamsAndReturnsStr =
       t
         "ignoresParamsAndReturnsStr"
@@ -1663,7 +1674,9 @@ module PackageFn =
         (3, [ RT.LoadVal(2, RT.DString "hello") ], 2)
 
     let tests =
-      testList "PackageFn" [ returnSecondParam; ignoresParamsAndReturnsStr ]
+      testList
+        "PackageFn"
+        [ returnSecondParam; eargTest; ignoresParamsAndReturnsStr ]
 
 
   let tests = testList "PackageFn" [ Basic.tests ]

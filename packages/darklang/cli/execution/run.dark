@@ -56,7 +56,7 @@ let executeFunction (state: AppState) (fnName: String) (args: List<String>) : Ap
         | SourceFile source -> source.exprsToEval)
     |> Stdlib.List.flatten
     |> Stdlib.List.map (fun arg ->
-      LanguageTools.WrittenTypesToProgramTypes.Expr.toPT onMissing pm "" [] arg)
+      LanguageTools.WrittenTypesToProgramTypes.Expr.toPT onMissing pm "" [] (LanguageTools.WrittenTypesToProgramTypes.Context { currentFnName = Stdlib.Option.Option.None; argMap = Stdlib.Dict.empty }) arg)
     |> Stdlib.List.unzip
 
   match Builtin.cliExecuteFunction fnName parsedArgs with

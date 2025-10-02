@@ -49,6 +49,7 @@ let lpTuple
 let eLet (pat : LetPattern) (value : Expr) (body : Expr) : Expr =
   ELet(gid (), pat, value, body)
 let eVar (name : string) : Expr = EVariable(gid (), name)
+let eArg (index : int) : Expr = EArg(gid (), index)
 
 let eIf (cond : Expr) (thenBranch : Expr) (elseBranch : Option<Expr>) : Expr =
   EIf(gid (), cond, thenBranch, elseBranch)
