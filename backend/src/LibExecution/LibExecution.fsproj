@@ -28,6 +28,7 @@
     <Compile Include="AnalysisTypes.fs" />
     <!-- Dev-time, Language Design, Mental Model /-->
     <Compile Include="ProgramTypes.fs" />
+    <Compile Include="Hashing.fs" />
     <Compile Include="ProgramTypesAst.fs" />
     <Compile Include="ProgramTypesToRuntimeTypes.fs" />
     <Compile Include="ProgramTypesParser.fs" />

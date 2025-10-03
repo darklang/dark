@@ -38,15 +38,15 @@ let private fqTypeNameToString (typeName : FQTypeName.FQTypeName) : string =
   let result =
     async {
       match typeName with
-      | FQTypeName.Package id ->
-        let! typeOption = PM.pt.getType id |> Ply.toTask |> Async.AwaitTask
+      | FQTypeName.Package hash ->
+        let! typeOption = PM.pt.getType hash |> Ply.toTask |> Async.AwaitTask
 
         match typeOption with
         | Some packageType ->
           match PT2DT.PackageType.toDT packageType with
           | DRecord(_, _, _, fields) -> return getFQName fields
-          | _ -> return $"Package {id}"
-        | None -> return $"Package {id}"
+          | _ -> return $"Package {hash}"
+        | None -> return $"Package {hash}"
     }
   Async.RunSynchronously result
 
@@ -294,7 +294,7 @@ let toRepr (dv : Dval) : string =
       | AppNamedFn name ->
         match name.name with
         | FQFnName.Builtin builtin -> $"<named fn {builtin.name}>"
-        | FQFnName.Package id -> $"<named fn Package {id}>"
+        | FQFnName.Package hash -> $"<named fn Package {hash}>"
 
 
     | DDB name -> wrap name

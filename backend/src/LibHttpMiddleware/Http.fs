@@ -47,8 +47,8 @@ module Response =
   let toHttpResponse (result : RT.Dval) : HttpResponse =
     match result with
     // Expected user response
-    | RT.DRecord(RT.FQTypeName.Package id, _, [], fields) when
-      id = PackageIDs.Type.Stdlib.Http.response
+    | RT.DRecord(RT.FQTypeName.Package hash, _, [], fields) when
+      hash = PackageIDs.Type.Stdlib.Http.response
       ->
       Telemetry.addTags [ "response-type", "httpResponse response" ]
 

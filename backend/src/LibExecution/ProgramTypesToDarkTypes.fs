@@ -48,11 +48,13 @@ module FQTypeName =
       FQTypeName.fqPackage
         PackageIDs.Type.LanguageTools.ProgramTypes.FQTypeName.package
 
-    let toDT (u : PT.FQTypeName.Package) : Dval = DUuid u
+    let toDT (h : PT.FQTypeName.Package) : Dval =
+      let (Hash hashStr) = h
+      DString hashStr
 
     let fromDT (d : Dval) : PT.FQTypeName.Package =
       match d with
-      | DUuid u -> u
+      | DString hashStr -> Hash hashStr
       | _ -> Exception.raiseInternal "Invalid FQTypeName.Package" []
 
 
@@ -89,11 +91,13 @@ module FQFnName =
       | _ -> Exception.raiseInternal "Invalid FQFnName.Builtin" []
 
   module Package =
-    let toDT (u : PT.FQFnName.Package) : Dval = DUuid u
+    let toDT (h : PT.FQFnName.Package) : Dval =
+      let (Hash hashStr) = h
+      DString hashStr
 
     let fromDT (d : Dval) : PT.FQFnName.Package =
       match d with
-      | DUuid u -> u
+      | DString hashStr -> Hash hashStr
       | _ -> Exception.raiseInternal "Invalid FQFnName.Package" []
 
 
@@ -132,11 +136,13 @@ module FQValueName =
       | _ -> Exception.raiseInternal "Invalid FQValueName.Builtin" []
 
   module Package =
-    let toDT (u : PT.FQValueName.Package) : Dval = DUuid u
+    let toDT (h : PT.FQValueName.Package) : Dval =
+      let (Hash hashStr) = h
+      DString hashStr
 
     let fromDT (d : Dval) : PT.FQValueName.Package =
       match d with
-      | DUuid u -> u
+      | DString hashStr -> Hash hashStr
       | _ -> Exception.raiseInternal "Invalid FQValueName.Package" []
 
   let toDT (u : PT.FQValueName.FQValueName) : Dval =
@@ -1208,8 +1214,9 @@ module PackageType =
       PackageIDs.Type.LanguageTools.ProgramTypes.PackageType.packageType
 
   let toDT (p : PT.PackageType.PackageType) : Dval =
+    let (Hash hashStr) = p.hash
     let fields =
-      [ "id", DUuid p.id
+      [ "hash", DString hashStr
         "name", Name.toDT p.name
         "declaration", TypeDeclaration.toDT p.declaration
         "description", DString p.description
@@ -1221,7 +1228,7 @@ module PackageType =
   let fromDT (d : Dval) : PT.PackageType.PackageType =
     match d with
     | DRecord(_, _, _, fields) ->
-      { id = fields |> D.field "id" |> D.uuid
+      { hash = Hash(fields |> D.field "hash" |> D.string)
         name = fields |> D.field "name" |> Name.fromDT
         declaration = fields |> D.field "declaration" |> TypeDeclaration.fromDT
         description = fields |> D.field "description" |> D.string
@@ -1257,8 +1264,9 @@ module PackageValue =
       PackageIDs.Type.LanguageTools.ProgramTypes.PackageValue.packageValue
 
   let toDT (p : PT.PackageValue.PackageValue) : Dval =
+    let (Hash hashStr) = p.hash
     let fields =
-      [ "id", DUuid p.id
+      [ "hash", DString hashStr
         "name", Name.toDT p.name
         "body", Expr.toDT p.body
         "description", DString p.description
@@ -1269,7 +1277,7 @@ module PackageValue =
   let fromDT (d : Dval) : PT.PackageValue.PackageValue =
     match d with
     | DRecord(_, _, _, fields) ->
-      { id = fields |> D.field "id" |> D.uuid
+      { hash = Hash(fields |> D.field "hash" |> D.string)
         name = fields |> D.field "name" |> Name.fromDT
         body = fields |> D.field "body" |> Expr.fromDT
         description = fields |> D.field "description" |> D.string
@@ -1328,8 +1336,9 @@ module PackageFn =
       PackageIDs.Type.LanguageTools.ProgramTypes.PackageFn.packageFn
 
   let toDT (p : PT.PackageFn.PackageFn) : Dval =
+    let (Hash hashStr) = p.hash
     let fields =
-      [ ("id", DUuid p.id)
+      [ ("hash", DString hashStr)
         ("name", Name.toDT p.name)
         ("body", Expr.toDT p.body)
         ("typeParams", DList(VT.string, List.map DString p.typeParams))
@@ -1348,7 +1357,7 @@ module PackageFn =
   let fromDT (d : Dval) : PT.PackageFn.PackageFn =
     match d with
     | DRecord(_, _, _, fields) ->
-      { id = fields |> D.field "id" |> D.uuid
+      { hash = Hash(fields |> D.field "hash" |> D.string)
         name = fields |> D.field "name" |> Name.fromDT
         body = fields |> D.field "body" |> Expr.fromDT
         typeParams = fields |> D.field "typeParams" |> D.list D.string

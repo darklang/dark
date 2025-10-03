@@ -34,10 +34,10 @@ let packageName
 
 
 module FQTypeName =
-  let package (id: LanguageTools.RuntimeTypes.FQTypeName.Package) : String =
-    match LanguageTools.PackageManager.Type.get id with
+  let package (hash: LanguageTools.RuntimeTypes.FQTypeName.Package) : String =
+    match LanguageTools.PackageManager.Type.get hash with
     | Some p -> packageName p.name.owner p.name.modules p.name.name
-    | None -> Stdlib.Uuid.toString id
+    | None -> hash
 
 // TODO rename to fqtypeName?
 let typeName (t: LanguageTools.RuntimeTypes.FQTypeName.FQTypeName) : String =
@@ -58,11 +58,11 @@ module FQValueName =
     $"{namePart}{versionPart}"
 
   let package
-    (id: LanguageTools.RuntimeTypes.FQValueName.Package)
+    (hash: LanguageTools.RuntimeTypes.FQValueName.Package)
     : String =
-    match LanguageTools.PackageManager.Value.get id with
+    match LanguageTools.PackageManager.Value.get hash with
     | Some p -> packageName p.name.owner p.name.modules p.name.name
-    | None -> Stdlib.Uuid.toString id
+    | None -> hash
 
 // TODO rename to fqvalueName?
 let valueName
@@ -85,10 +85,10 @@ module FQFnName =
 
     $"Builtin.{namePart}{versionPart}"
 
-  let package (id: LanguageTools.RuntimeTypes.FQFnName.Package) : String =
-    match LanguageTools.PackageManager.Function.get id with
+  let package (hash: LanguageTools.RuntimeTypes.FQFnName.Package) : String =
+    match LanguageTools.PackageManager.Function.get hash with
     | Some p -> packageName p.name.owner p.name.modules p.name.name
-    | None -> Stdlib.Uuid.toString id
+    | None -> hash
 
 
 // TODO rename to fqfnName?
