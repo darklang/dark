@@ -1,5 +1,9 @@
 {
-  "id": "31d72f73-0f99-5a9b-949c-b95705ae7c4d",
+  "hash": {
+    "Hash": [
+      "75ffeb0cc9436a9af08e370b0dc25453385007c6c3aeee3483fe2ed65af3285a"
+    ]
+  },
   "name": {
     "owner": "dark",
     "modules": [

@@ -1,5 +1,9 @@
 {
-  "id": "31d72f73-0f99-5a9b-949c-b95705ae7c4d",
+  "hash": {
+    "Hash": [
+      "78e58f1747e107797fcbd780c88c2fcd6cde9bb0301136f45315d2c0f2e0b410"
+    ]
+  },
   "name": {
     "owner": "dark",
     "modules": [
@@ -311,7 +315,11 @@
                                                             "Ok": [
                                                               {
                                                                 "Package": [
-                                                                  "31d72f73-0f99-5a9b-949c-b95705ae7c4d"
+                                                                  {
+                                                                    "Hash": [
+                                                                      "b60a9ff7cfa63bb6eb31c9038a1e87a0efd6dc9b98a925bcc8eb58ea9dfbf5b7"
+                                                                    ]
+                                                                  }
                                                                 ]
                                                               }
                                                             ]
@@ -329,7 +337,11 @@
                                                             "Ok": [
                                                               {
                                                                 "Package": [
-                                                                  "31d72f73-0f99-5a9b-949c-b95705ae7c4d"
+                                                                  {
+                                                                    "Hash": [
+                                                                      "b60a9ff7cfa63bb6eb31c9038a1e87a0efd6dc9b98a925bcc8eb58ea9dfbf5b7"
+                                                                    ]
+                                                                  }
                                                                 ]
                                                               }
                                                             ]
@@ -447,15 +459,15 @@
                                                             ]
                                                           },
                                                           {
-                                                            "EVariable": [
+                                                            "EInt64": [
                                                               123,
-                                                              "y"
+                                                              2
                                                             ]
                                                           },
                                                           {
-                                                            "EArg": [
+                                                            "EVariable": [
                                                               123,
-                                                              0
+                                                              "y"
                                                             ]
                                                           }
                                                         ]
@@ -586,7 +598,11 @@
                                                 "Ok": [
                                                   {
                                                     "Package": [
-                                                      "31d72f73-0f99-5a9b-949c-b95705ae7c4d"
+                                                      {
+                                                        "Hash": [
+                                                          "b60a9ff7cfa63bb6eb31c9038a1e87a0efd6dc9b98a925bcc8eb58ea9dfbf5b7"
+                                                        ]
+                                                      }
                                                     ]
                                                   }
                                                 ]
@@ -723,7 +739,11 @@
                                                         "Ok": [
                                                           {
                                                             "Package": [
-                                                              "31d72f73-0f99-5a9b-949c-b95705ae7c4d"
+                                                              {
+                                                                "Hash": [
+                                                                  "b60a9ff7cfa63bb6eb31c9038a1e87a0efd6dc9b98a925bcc8eb58ea9dfbf5b7"
+                                                                ]
+                                                              }
                                                             ]
                                                           }
                                                         ]
@@ -1628,7 +1648,11 @@
                   "Ok": [
                     {
                       "Package": [
-                        "31d72f73-0f99-5a9b-949c-b95705ae7c4d"
+                        {
+                          "Hash": [
+                            "b60a9ff7cfa63bb6eb31c9038a1e87a0efd6dc9b98a925bcc8eb58ea9dfbf5b7"
+                          ]
+                        }
                       ]
                     }
                   ]
@@ -1646,7 +1670,11 @@
                   "Ok": [
                     {
                       "Package": [
-                        "31d72f73-0f99-5a9b-949c-b95705ae7c4d"
+                        {
+                          "Hash": [
+                            "b60a9ff7cfa63bb6eb31c9038a1e87a0efd6dc9b98a925bcc8eb58ea9dfbf5b7"
+                          ]
+                        }
                       ]
                     }
                   ]
@@ -1768,7 +1796,11 @@
               "Ok": [
                 {
                   "Package": [
-                    "31d72f73-0f99-5a9b-949c-b95705ae7c4d"
+                    {
+                      "Hash": [
+                        "b60a9ff7cfa63bb6eb31c9038a1e87a0efd6dc9b98a925bcc8eb58ea9dfbf5b7"
+                      ]
+                    }
                   ]
                 }
               ]
@@ -1786,7 +1818,11 @@
               "Ok": [
                 {
                   "Package": [
-                    "31d72f73-0f99-5a9b-949c-b95705ae7c4d"
+                    {
+                      "Hash": [
+                        "b60a9ff7cfa63bb6eb31c9038a1e87a0efd6dc9b98a925bcc8eb58ea9dfbf5b7"
+                      ]
+                    }
                   ]
                 }
               ]

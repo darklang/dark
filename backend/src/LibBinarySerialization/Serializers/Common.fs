@@ -261,3 +261,12 @@ module DarkDateTime =
   let read (r : BinaryReader) : LibExecution.DarkDateTime.T =
     let instant = DateTime.read r
     instant.InUtc().LocalDateTime
+
+module Hash =
+  let write (w : BinaryWriter) (value : Hash) =
+    let (Hash hashStr) = value
+    String.write w hashStr
+
+  let read (r : BinaryReader) : Hash =
+    let hashStr = String.read r
+    Hash hashStr

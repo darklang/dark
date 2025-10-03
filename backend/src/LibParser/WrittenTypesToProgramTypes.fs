@@ -6,6 +6,7 @@ open Prelude
 module WT = WrittenTypes
 module PT = LibExecution.ProgramTypes
 module RT = LibExecution.RuntimeTypes
+module Hashing = LibExecution.Hashing
 module FS2WT = FSharpToWrittenTypes
 type NRE = PT.NameResolutionError
 module NR = NameResolver
@@ -748,7 +749,7 @@ module PackageType =
       let! declaration =
         TypeDeclaration.toPT pm onMissing currentModule pt.declaration
       return
-        { id = PackageIDs.Type.idForName pt.name.owner pt.name.modules pt.name.name
+        { hash = Hashing.TypeDeclaration.hash declaration
           name = Name.toPT pt.name
           description = pt.description
           declaration = declaration
@@ -772,7 +773,7 @@ module PackageValue =
         { currentFnName = None; isInFunction = false; argMap = Map.empty }
       let! body = Expr.toPT builtins pm onMissing currentModule context c.body
       return
-        { id = PackageIDs.Value.idForName c.name.owner c.name.modules c.name.name
+        { hash = Hashing.PackageValue.hash body
           name = Name.toPT c.name
           description = c.description
           deprecated = PT.NotDeprecated
@@ -822,7 +823,7 @@ module PackageFn =
       let! body = Expr.toPT builtins pm onMissing currentModule context fn.body
 
       return
-        { id = PackageIDs.Fn.idForName fn.name.owner fn.name.modules fn.name.name
+        { hash = Hashing.PackageFn.hash (parameters, returnType, body) // TODO
           name = Name.toPT fn.name
           parameters = parameters
           returnType = returnType
