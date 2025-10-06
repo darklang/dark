@@ -16,7 +16,7 @@ let fns : List<BuiltInFn> =
         TCustomType(
           Ok(
             FQTypeName.fqPackage
-              LibExecution.PackageIDs.Type.LanguageTools.RuntimeTypes.dval
+              LibExecution.PackageHashes.Type.LanguageTools.RuntimeTypes.dval
           ),
           []
         )

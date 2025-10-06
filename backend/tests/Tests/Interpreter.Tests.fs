@@ -286,15 +286,15 @@ module Pipes =
 
 module Records =
   let simple =
-    let typeName = RT.FQTypeName.fqPackage PM.Types.Records.singleField
+    let typeName = RT.FQTypeName.fqPackage PM.Types.Records.singleFieldHash
     t
       "Test.Test { key = true }"
       E.Records.simple
       (RT.DRecord(typeName, typeName, [], Map [ "key", RT.DBool true ]))
 
   let nested =
-    let outerTypeName = RT.FQTypeName.fqPackage PM.Types.Records.nested
-    let innerTypeName = RT.FQTypeName.fqPackage PM.Types.Records.singleField
+    let outerTypeName = RT.FQTypeName.fqPackage PM.Types.Records.nestedHash
+    let innerTypeName = RT.FQTypeName.fqPackage PM.Types.Records.singleFieldHash
     t
       "Test.Test2 { outer = (Test.Test { key = true }) }"
       E.Records.nested
@@ -346,8 +346,8 @@ module RecordUpdate =
       "let r = Test.Test { key = true }\nlet r2 = { r | key = false }"
       E.RecordUpdate.simple
       (RT.DRecord(
-        RT.FQTypeName.fqPackage PM.Types.Records.singleField,
-        RT.FQTypeName.fqPackage PM.Types.Records.singleField,
+        RT.FQTypeName.fqPackage PM.Types.Records.singleFieldHash,
+        RT.FQTypeName.fqPackage PM.Types.Records.singleFieldHash,
         [],
         Map [ "key", RT.DBool false ]
       ))
@@ -380,14 +380,14 @@ module RecordUpdate =
 // TODO: add more tests
 module Enum =
   let simple =
-    let typeName = RT.FQTypeName.fqPackage PM.Types.Enums.withoutFields
+    let typeName = RT.FQTypeName.fqPackage PM.Types.Enums.withoutFieldsHash
     t
       "Test.ColorEnum.Blue"
       E.Enums.simple
       (RT.DEnum(typeName, typeName, [], "Blue", []))
 
   let withFields =
-    let typeName = RT.FQTypeName.fqPackage PM.Types.Enums.withFields
+    let typeName = RT.FQTypeName.fqPackage PM.Types.Enums.withFieldsHash
     t
       "Test.MyOption.Some 1"
       E.Enums.withFields
@@ -581,7 +581,7 @@ module Fns =
           E.Fns.Package.MyAdd.unapplied
           (RT.DApplicable(
             RT.AppNamedFn
-              { name = RT.FQFnName.fqPackage E.Fns.Package.MyAdd.id
+              { name = RT.FQFnName.fqPackage E.Fns.Package.MyAdd.hash
                 typeSymbolTable = Map.empty
                 typeArgs = []
                 argsSoFar = [] }
@@ -593,7 +593,7 @@ module Fns =
           E.Fns.Package.MyAdd.partiallyApplied
           (RT.DApplicable(
             RT.AppNamedFn
-              { name = RT.FQFnName.fqPackage E.Fns.Package.MyAdd.id
+              { name = RT.FQFnName.fqPackage E.Fns.Package.MyAdd.hash
                 typeSymbolTable = Map.empty
                 typeArgs = []
                 argsSoFar = [ RT.DInt64 1 ] }
@@ -613,7 +613,7 @@ module Fns =
           E.Fns.Package.Fact.unapplied
           (RT.DApplicable(
             RT.AppNamedFn
-              { name = RT.FQFnName.fqPackage E.Fns.Package.Fact.id
+              { name = RT.FQFnName.fqPackage E.Fns.Package.Fact.hash
                 typeSymbolTable = Map.empty
                 typeArgs = []
                 argsSoFar = [] }

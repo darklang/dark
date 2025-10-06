@@ -14,7 +14,7 @@ module VT = LibExecution.ValueType
 module PT = LibExecution.ProgramTypes
 module Dval = LibExecution.Dval
 module PT2RT = LibExecution.ProgramTypesToRuntimeTypes
-module PackageIDs = LibExecution.PackageIDs
+module PackageHashes = LibExecution.PackageHashes
 
 open Fumble
 open LibDB.Db
@@ -51,7 +51,7 @@ let fns : List<BuiltInFn> =
         TCustomType(
           Ok(
             FQTypeName.Package
-              PackageIDs.Type.PrettyPrinter.RuntimeTypes.RuntimeError.errorMessage
+              PackageHashes.Type.PrettyPrinter.RuntimeTypes.RuntimeError.errorMessage
           ),
           []
         )
@@ -61,7 +61,7 @@ let fns : List<BuiltInFn> =
         | _, _, _, [ DString error ] ->
           let typeName =
             FQTypeName.Package
-              PackageIDs.Type.PrettyPrinter.RuntimeTypes.RuntimeError.errorMessage
+              PackageHashes.Type.PrettyPrinter.RuntimeTypes.RuntimeError.errorMessage
           DEnum(typeName, typeName, [], "ErrorString", [ DString error ]) |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
@@ -90,7 +90,7 @@ let fns : List<BuiltInFn> =
     //     TCustomType(
     //       Ok(
     //         FQTypeName.Package
-    //           PackageIDs.Type.LanguageTools.RuntimeError.Error.errorMessage
+    //           PackageHashes.Type.LanguageTools.RuntimeError.Error.errorMessage
     //       ),
     //       []
     //     )
@@ -101,7 +101,7 @@ let fns : List<BuiltInFn> =
     //       let msg = LibCloud.SqlCompiler.errorTemplate + errorString
     //       let typeName =
     //         FQTypeName.Package
-    //           PackageIDs.Type.LanguageTools.RuntimeError.Error.errorMessage
+    //           PackageHashes.Type.LanguageTools.RuntimeError.Error.errorMessage
     //       DEnum(typeName, typeName, [], "ErrorString", [ DString msg ]) |> Ply
     //     | _ -> incorrectArgs ())
     //   sqlSpec = NotQueryable

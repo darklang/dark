@@ -13,7 +13,7 @@ module RT = LibExecution.RuntimeTypes
 module Cron = LibCloud.Cron
 module Canvas = LibCloud.Canvas
 module Serialize = LibCloud.Serialize
-module PackageIDs = LibExecution.PackageIDs
+module PackageHashes = LibExecution.PackageHashes
 module PT2DT = LibExecution.ProgramTypesToDarkTypes
 module C2DT = LibExecution.CommonToDarkTypes
 
@@ -24,7 +24,7 @@ let p (code : string) : Task<PT.Expr> =
       executionStateFor pmPT canvasID false false Map.empty
 
     let name =
-      RT.FQFnName.FQFnName.Package PackageIDs.Fn.LanguageTools.Parser.parsePTExpr
+      RT.FQFnName.FQFnName.Package PackageHashes.Fn.LanguageTools.Parser.parsePTExpr
 
     let args = NEList.singleton (RT.DString code)
     let! execResult = LibExecution.Execution.executeFunction state name [] args

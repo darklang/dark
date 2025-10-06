@@ -20,7 +20,7 @@ open TestUtils.TestUtils
 module PT = LibExecution.ProgramTypes
 module RT = LibExecution.RuntimeTypes
 module Dval = LibExecution.Dval
-module PackageIDs = LibExecution.PackageIDs
+module PackageHashes = LibExecution.PackageHashes
 
 
 let t
@@ -34,7 +34,7 @@ let t
   =
   let fnname =
     RT.FQFnName.FQFnName.Package
-      PackageIDs.Fn.LanguageTools.Parser.parseAndPrettyPrint
+      PackageHashes.Fn.LanguageTools.Parser.parseAndPrettyPrint
 
   testTask name {
     let pm =
@@ -64,9 +64,9 @@ let t
   }
 
 
-let tID = System.Guid.NewGuid()
+let hash = Hash "a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11" // TODO
 let person : PT.PackageType.PackageType =
-  { id = tID
+  { hash = hash
     name = { owner = "Tests"; modules = []; name = "Person" }
     description = ""
     deprecated = PT.NotDeprecated
@@ -82,7 +82,7 @@ let person : PT.PackageType.PackageType =
           ) } }
 
 let myString : PT.PackageType.PackageType =
-  { id = tID
+  { hash = hash
     name = { owner = "Tests"; modules = []; name = "MyString" }
     description = ""
     deprecated = PT.NotDeprecated
@@ -91,7 +91,7 @@ let myString : PT.PackageType.PackageType =
         definition = PT.TypeDeclaration.Alias PT.TypeReference.TString } }
 
 let pet : PT.PackageType.PackageType =
-  { id = tID
+  { hash = hash
     name = { owner = "Tests"; modules = []; name = "Pet" }
     description = ""
     deprecated = PT.NotDeprecated
@@ -100,7 +100,7 @@ let pet : PT.PackageType.PackageType =
         definition = PT.TypeDeclaration.Alias PT.TypeReference.TString } }
 
 let myEnum : PT.PackageType.PackageType =
-  { id = tID
+  { hash = hash
     name = { owner = "Tests"; modules = []; name = "MyEnum" }
     description = ""
     deprecated = PT.NotDeprecated

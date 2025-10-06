@@ -14,7 +14,7 @@ module RT = LibExecution.RuntimeTypes
 
 module PT2DT = LibExecution.ProgramTypesToDarkTypes
 module RT2DT = LibExecution.RuntimeTypesToDarkTypes
-module PackageIDs = LibExecution.PackageIDs
+module PackageHashes = LibExecution.PackageHashes
 
 
 module V = SerializationTestValues
@@ -84,12 +84,12 @@ module RoundtripTests =
 
 
   module ProgramTypes =
-    let pkg (id : uuid) = RT.FQTypeName.fqPackage id
+    let pkg (hash : Hash) = RT.FQTypeName.fqPackage hash
 
     let tests =
       [ testRoundtripList
           "PT.PackageType"
-          (pkg PackageIDs.Type.LanguageTools.ProgramTypes.PackageType.packageType)
+          (pkg PackageHashes.Type.LanguageTools.ProgramTypes.PackageType.packageType)
           V.ProgramTypes.packageTypes
           PT2DT.PackageType.toDT
           PT2DT.PackageType.fromDT
@@ -97,7 +97,8 @@ module RoundtripTests =
 
         testRoundtripList
           "PT.PackageValue"
-          (pkg PackageIDs.Type.LanguageTools.ProgramTypes.PackageValue.packageValue)
+          (pkg
+            PackageHashes.Type.LanguageTools.ProgramTypes.PackageValue.packageValue)
           V.ProgramTypes.packageValues
           PT2DT.PackageValue.toDT
           PT2DT.PackageValue.fromDT
@@ -105,7 +106,7 @@ module RoundtripTests =
 
         testRoundtripList
           "PT.PackageFn"
-          (pkg PackageIDs.Type.LanguageTools.ProgramTypes.PackageFn.packageFn)
+          (pkg PackageHashes.Type.LanguageTools.ProgramTypes.PackageFn.packageFn)
           V.ProgramTypes.packageFns
           PT2DT.PackageFn.toDT
           PT2DT.PackageFn.fromDT
@@ -113,7 +114,7 @@ module RoundtripTests =
 
         testRoundtripList
           "PT.Secret"
-          (pkg PackageIDs.Type.LanguageTools.ProgramTypes.secret)
+          (pkg PackageHashes.Type.LanguageTools.ProgramTypes.secret)
           V.ProgramTypes.userSecrets
           PT2DT.Secret.toDT
           PT2DT.Secret.fromDT
@@ -121,7 +122,7 @@ module RoundtripTests =
 
         testRoundtripList
           "PT.DB"
-          (pkg PackageIDs.Type.LanguageTools.ProgramTypes.db)
+          (pkg PackageHashes.Type.LanguageTools.ProgramTypes.db)
           V.ProgramTypes.userDBs
           PT2DT.DB.toDT
           PT2DT.DB.fromDT
@@ -129,20 +130,20 @@ module RoundtripTests =
 
         testRoundtripList
           "PT.Handler"
-          (pkg PackageIDs.Type.LanguageTools.ProgramTypes.Handler.handler)
+          (pkg PackageHashes.Type.LanguageTools.ProgramTypes.Handler.handler)
           V.ProgramTypes.Handler.handlers
           PT2DT.Handler.toDT
           PT2DT.Handler.fromDT
           None ]
 
   module RuntimeTypes =
-    let pkg (id : uuid) = RT.FQTypeName.fqPackage id
+    let pkg (hash : Hash) = RT.FQTypeName.fqPackage hash
 
     let tests =
       // CLEANUP backfill with more things from RT
       [ testRoundtripList
           "RT.FQTypeName"
-          (pkg PackageIDs.Type.LanguageTools.RuntimeTypes.FQTypeName.fqTypeName)
+          (pkg PackageHashes.Type.LanguageTools.RuntimeTypes.FQTypeName.fqTypeName)
           V.RuntimeTypes.fqTypeNames
           RT2DT.FQTypeName.toDT
           RT2DT.FQTypeName.fromDT
@@ -150,7 +151,7 @@ module RoundtripTests =
 
         testRoundtripList
           "RT.FQValueName"
-          (pkg PackageIDs.Type.LanguageTools.RuntimeTypes.FQValueName.fqValueName)
+          (pkg PackageHashes.Type.LanguageTools.RuntimeTypes.FQValueName.fqValueName)
           V.RuntimeTypes.fqValueNames
           RT2DT.FQValueName.toDT
           RT2DT.FQValueName.fromDT
@@ -158,7 +159,7 @@ module RoundtripTests =
 
         testRoundtripList
           "RT.FQFnName"
-          (pkg PackageIDs.Type.LanguageTools.RuntimeTypes.FQFnName.fqFnName)
+          (pkg PackageHashes.Type.LanguageTools.RuntimeTypes.FQFnName.fqFnName)
           V.RuntimeTypes.fqFnNames
           RT2DT.FQFnName.toDT
           RT2DT.FQFnName.fromDT
@@ -166,7 +167,7 @@ module RoundtripTests =
 
         testRoundtripList
           "RT.TypeReference"
-          (pkg PackageIDs.Type.LanguageTools.RuntimeTypes.typeReference)
+          (pkg PackageHashes.Type.LanguageTools.RuntimeTypes.typeReference)
           V.RuntimeTypes.typeReferences
           RT2DT.TypeReference.toDT
           RT2DT.TypeReference.fromDT
@@ -174,7 +175,7 @@ module RoundtripTests =
 
         testRoundtripList
           "RT.ValueType"
-          (pkg PackageIDs.Type.LanguageTools.RuntimeTypes.valueType)
+          (pkg PackageHashes.Type.LanguageTools.RuntimeTypes.valueType)
           V.RuntimeTypes.valueTypes
           RT2DT.ValueType.toDT
           RT2DT.ValueType.fromDT
@@ -182,7 +183,7 @@ module RoundtripTests =
 
         testRoundtripList
           "RT.Dval"
-          (pkg PackageIDs.Type.LanguageTools.RuntimeTypes.dval)
+          (pkg PackageHashes.Type.LanguageTools.RuntimeTypes.dval)
           V.RuntimeTypes.dvals
           RT2DT.Dval.toDT
           RT2DT.Dval.fromDT

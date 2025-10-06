@@ -10,7 +10,7 @@ open LibExecution.Builtin.Shortcuts
 
 module Dval = LibExecution.Dval
 module DarkDateTime = LibExecution.DarkDateTime
-module PackageIDs = LibExecution.PackageIDs
+module PackageHashes = LibExecution.PackageHashes
 module SchedulingRules = LibCloud.QueueSchedulingRules
 module Pusher = LibCloud.Pusher
 module Queue = LibCloud.Queue
@@ -35,7 +35,7 @@ let modifySchedule (fn : CanvasID -> string -> Task<unit>) =
 
 
 let schedulingRuleTypeName =
-  FQTypeName.Package PackageIDs.Type.Internal.Worker.scheduleRule
+  FQTypeName.Package PackageHashes.Type.Internal.Worker.scheduleRule
 
 let schedulingRuleTypeRef = TCustomType(Ok schedulingRuleTypeName, [])
 

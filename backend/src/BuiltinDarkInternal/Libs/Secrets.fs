@@ -9,7 +9,7 @@ open LibExecution.Builtin.Shortcuts
 
 module VT = LibExecution.ValueType
 module Dval = LibExecution.Dval
-module PackageIDs = LibExecution.PackageIDs
+module PackageHashes = LibExecution.PackageHashes
 module Secret = LibCloud.Secret
 
 
@@ -19,7 +19,7 @@ let fns : List<BuiltInFn> =
       parameters = [ Param.make "canvasID" TUuid "" ]
       returnType =
         TCustomType(
-          Ok(FQTypeName.Package PackageIDs.Type.Internal.Canvas.secret),
+          Ok(FQTypeName.Package PackageHashes.Type.Internal.Canvas.secret),
           []
         )
         |> TList
@@ -29,7 +29,8 @@ let fns : List<BuiltInFn> =
         | _, _, _, [ DUuid canvasID ] ->
           uply {
             let! secrets = Secret.getCanvasSecrets canvasID
-            let typeName = FQTypeName.Package PackageIDs.Type.Internal.Canvas.secret
+            let typeName =
+              FQTypeName.Package PackageHashes.Type.Internal.Canvas.secret
 
             return
               secrets

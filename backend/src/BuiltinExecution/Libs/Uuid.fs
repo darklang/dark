@@ -5,7 +5,7 @@ open Prelude
 open LibExecution.Builtin.Shortcuts
 module VT = LibExecution.ValueType
 module Dval = LibExecution.Dval
-module PackageIDs = LibExecution.PackageIDs
+module PackageHashes = LibExecution.PackageHashes
 
 
 module ParseError =
@@ -16,7 +16,7 @@ module ParseError =
       match e with
       | BadFormat -> "BadFormat", []
 
-    let typeName = FQTypeName.fqPackage PackageIDs.Type.Stdlib.uuidParseError
+    let typeName = FQTypeName.fqPackage PackageHashes.Type.Stdlib.uuidParseError
     DEnum(typeName, typeName, [], caseName, fields)
 
 
@@ -45,13 +45,13 @@ let fns : List<BuiltInFn> =
         TypeReference.result
           TUuid
           (TCustomType(
-            Ok(FQTypeName.fqPackage PackageIDs.Type.Stdlib.uuidParseError),
+            Ok(FQTypeName.fqPackage PackageHashes.Type.Stdlib.uuidParseError),
             []
           ))
       description =
         "Parse a <type Uuid> of form {{XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX}}"
       fn =
-        let typeName = FQTypeName.fqPackage PackageIDs.Type.Stdlib.uuidParseError
+        let typeName = FQTypeName.fqPackage PackageHashes.Type.Stdlib.uuidParseError
         let resultOk = Dval.resultOk KTUuid (KTCustomType(typeName, []))
         let resultError = Dval.resultError KTUuid (KTCustomType(typeName, []))
         (function

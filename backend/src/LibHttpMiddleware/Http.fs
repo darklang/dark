@@ -11,14 +11,14 @@ module Dval = LibExecution.Dval
 module RT = LibExecution.RuntimeTypes
 module VT = LibExecution.ValueType
 module Telemetry = LibService.Telemetry
-module PackageIDs = LibExecution.PackageIDs
+module PackageHashes = LibExecution.PackageHashes
 
 
 let lowercaseHeaderKeys (headers : List<string * string>) : List<string * string> =
   headers |> List.map (fun (k, v) -> (String.toLowercase k, v))
 
 module Request =
-  let typ = RT.FQTypeName.fqPackage PackageIDs.Type.Stdlib.Http.request
+  let typ = RT.FQTypeName.fqPackage PackageHashes.Type.Stdlib.Http.request
 
   let fromRequest
     (uri : string)
@@ -47,8 +47,8 @@ module Response =
   let toHttpResponse (result : RT.Dval) : HttpResponse =
     match result with
     // Expected user response
-    | RT.DRecord(RT.FQTypeName.Package id, _, [], fields) when
-      id = PackageIDs.Type.Stdlib.Http.response
+    | RT.DRecord(RT.FQTypeName.Package hash, _, [], fields) when
+      hash = PackageHashes.Type.Stdlib.Http.response
       ->
       Telemetry.addTags [ "response-type", "httpResponse response" ]
 

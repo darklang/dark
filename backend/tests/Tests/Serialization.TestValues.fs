@@ -11,26 +11,33 @@ open TestUtils.TestUtils
 module PT = LibExecution.ProgramTypes
 module Dval = LibExecution.Dval
 module RT = LibExecution.RuntimeTypes
+module PackageHashes = LibExecution.PackageHashes
 
 module BinarySerialization = LibBinarySerialization.BinarySerialization
 
 let instant = NodaTime.Instant.parse "2022-07-04T17:46:57Z"
 
 let uuid = System.Guid.Parse "31d72f73-0f99-5a9b-949c-b95705ae7c4d"
+// Use real package hashes that exist in the test DB
+let typeHash = PackageHashes.Type.Stdlib.option
+let fnHash = PackageHashes.Fn.Stdlib.List.map
+let valueHash =
+  Hash "75ffeb0cc9436a9af08e370b0dc25453385007c6c3aeee3483fe2ed65af3285a" // Cli.Colors.accent
 
 let id : id = 123UL
 let tlid : tlid = 777777928475UL
 let tlids : List<tlid> = [ 1UL; 0UL; uint64 -1L ]
 
 module RuntimeTypes =
-  let fqTypeNames : List<RT.FQTypeName.FQTypeName> = [ RT.FQTypeName.Package uuid ]
+  let fqTypeNames : List<RT.FQTypeName.FQTypeName> =
+    [ RT.FQTypeName.Package typeHash ]
 
   let fqFnNames : List<RT.FQFnName.FQFnName> =
-    [ RT.FQFnName.Builtin { name = "aB"; version = 1 }; RT.FQFnName.Package uuid ]
+    [ RT.FQFnName.Builtin { name = "aB"; version = 1 }; RT.FQFnName.Package fnHash ]
 
   let fqValueNames : List<RT.FQValueName.FQValueName> =
     [ RT.FQValueName.Builtin { name = "aB"; version = 1 }
-      RT.FQValueName.Package uuid ]
+      RT.FQValueName.Package valueHash ]
 
   let typeReferences : List<RT.TypeReference> =
     [ RT.TUnit
@@ -57,7 +64,7 @@ module RuntimeTypes =
 
       RT.TFn(NEList.singleton RT.TBool, RT.TBool)
 
-      RT.TCustomType(Ok(RT.FQTypeName.Package uuid), [ RT.TBool ])
+      RT.TCustomType(Ok(RT.FQTypeName.Package typeHash), [ RT.TBool ])
 
       RT.TDB RT.TBool
 
@@ -103,7 +110,7 @@ module RuntimeTypes =
     sampleDvals |> List.map (fun (_, (dv, _)) -> dv)
 
   let dval : RT.Dval =
-    let typeName = RT.FQTypeName.Package uuid
+    let typeName = RT.FQTypeName.Package typeHash
     sampleDvals
     |> List.map (fun (name, (dv, _)) -> name, dv)
     |> fun fields -> RT.DRecord(typeName, typeName, [], Map fields)
@@ -134,16 +141,13 @@ module RuntimeTypes =
 
   // RT test values for binary serialization
   let packageTypes : List<RT.PackageType.PackageType> =
-    [ { id = uuid; declaration = typeDeclarations[0] }
-      { id = System.Guid.Parse "42d72f73-0f99-5a9b-949c-b95705ae7c4d"
-        declaration = typeDeclarations[1] } ]
+    [ { hash = typeHash; declaration = typeDeclarations[0] }
+      { hash = Hash "another-test-type-hash"; declaration = typeDeclarations[1] } ]
 
   let packageValues : List<RT.PackageValue.PackageValue> =
-    [ { id = uuid; body = RT.DString "Hello RT PackageValue" }
-      { id = System.Guid.Parse "52d72f73-0f99-5a9b-949c-b95705ae7c4d"
-        body = RT.DInt64 42L }
-      { id = System.Guid.Parse "62d72f73-0f99-5a9b-949c-b95705ae7c4d"
-        body = RT.DBool true } ]
+    [ { hash = valueHash; body = RT.DString "Hello RT PackageValue" }
+      { hash = Hash "another-test-value-hash"; body = RT.DInt64 42L }
+      { hash = Hash "yet-another-test-value-hash"; body = RT.DBool true } ]
 
   let instructions : List<RT.Instructions> =
     [ { registerCount = 1; instructions = [ RT.CopyVal(0, 1) ]; resultIn = 0 }
@@ -155,12 +159,12 @@ module RuntimeTypes =
         resultIn = 1 } ]
 
   let packageFns : List<RT.PackageFn.PackageFn> =
-    [ { id = uuid
+    [ { hash = fnHash
         typeParams = []
         parameters = NEList.singleton { name = "x"; typ = RT.TInt64 }
         returnType = RT.TInt64
         body = instructions[0] }
-      { id = System.Guid.Parse "72d72f73-0f99-5a9b-949c-b95705ae7c4d"
+      { hash = Hash "another-test-fn-hash"
         typeParams = [ "T" ]
         parameters =
           NEList.ofList
@@ -199,7 +203,7 @@ module ProgramTypes =
 
   let fqFnNames : List<FQFnName.FQFnName> =
     [ FQFnName.Builtin { name = "int64Increment"; version = 1 }
-      FQFnName.Package uuid ]
+      FQFnName.Package fnHash ]
 
 
   let letPatterns : List<LetPattern> =
@@ -261,8 +265,8 @@ module ProgramTypes =
         TTuple(TBool, TBool, [ TBool ])
         TDict TBool
         TDB TBool
-        TCustomType(Ok(FQTypeName.Package uuid), [ TBool ])
-        TCustomType(Ok(FQTypeName.Package uuid), [ TBool ])
+        TCustomType(Ok(FQTypeName.Package typeHash), [ TBool ])
+        TCustomType(Ok(FQTypeName.Package typeHash), [ TBool ])
         TVariable "test"
         TFn(NEList.singleton TBool, TBool) ]
     )
@@ -350,8 +354,8 @@ module ProgramTypes =
                               EInfix(
                                 id,
                                 InfixFnCall(ArithmeticPlus),
-                                EVariable(id, "y"),
-                                EArg(id, 0)
+                                EInt64(id, 2L),
+                                EVariable(id, "y")
                               )
                             )
                           )
@@ -389,7 +393,7 @@ module ProgramTypes =
                         LPVariable(id, "r"),
                         ERecord(
                           id,
-                          Ok(FQTypeName.Package uuid),
+                          Ok(FQTypeName.Package typeHash),
                           [ TUnit ],
                           [ ("field",
                              EPipe(
@@ -424,7 +428,7 @@ module ProgramTypes =
                             ("enum",
                              EEnum(
                                id,
-                               Ok(FQTypeName.Package uuid),
+                               Ok(FQTypeName.Package typeHash),
                                [ TUnit ],
                                "Error",
                                []
@@ -708,7 +712,7 @@ module ProgramTypes =
   // (also make sure we roundtrip test them)
 
   let packageFn : PackageFn.PackageFn =
-    { id = uuid
+    { hash = fnHash
       name =
         { owner = "dark"; modules = [ "stdlib"; "Int64"; "Int64" ]; name = "mod" }
       body = expr
@@ -723,7 +727,7 @@ module ProgramTypes =
   let packageFns = [ packageFn ]
 
   let packageType : PackageType.PackageType =
-    { id = uuid
+    { hash = typeHash
       name =
         { owner = "darklang"
           modules = [ "stdlib"; "Int64"; "Int64" ]
@@ -746,7 +750,7 @@ module ProgramTypes =
   let packageTypes = [ packageType ]
 
   let packageValue : PT.PackageValue.PackageValue =
-    { id = uuid
+    { hash = valueHash
       name = PT.PackageValue.name "dark" [ "stdlib"; "Int64"; "Int64" ] "testValue"
       body = constValue
       description = "test"

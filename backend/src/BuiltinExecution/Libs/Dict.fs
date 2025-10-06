@@ -9,7 +9,7 @@ module VT = LibExecution.ValueType
 module RTE = RuntimeError
 module Dval = LibExecution.Dval
 module Interpreter = LibExecution.Interpreter
-module PackageIDs = LibExecution.PackageIDs
+module PackageHashes = LibExecution.PackageHashes
 
 let varA = TVariable "a"
 let varB = TVariable "b"
