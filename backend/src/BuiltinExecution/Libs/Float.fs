@@ -6,7 +6,7 @@ open LibExecution.Builtin.Shortcuts
 
 module VT = LibExecution.ValueType
 module Dval = LibExecution.Dval
-module PackageIDs = LibExecution.PackageIDs
+module PackageHashes = LibExecution.PackageHashes
 
 
 module ParseError =
@@ -17,7 +17,7 @@ module ParseError =
       match e with
       | BadFormat -> "BadFormat", []
 
-    let typeName = FQTypeName.fqPackage PackageIDs.Type.Stdlib.floatParseError
+    let typeName = FQTypeName.fqPackage PackageHashes.Type.Stdlib.floatParseError
     DEnum(typeName, typeName, [], caseName, fields)
 
 
@@ -282,13 +282,13 @@ let fns : List<BuiltInFn> =
         TypeReference.result
           TFloat
           (TCustomType(
-            Ok(FQTypeName.fqPackage PackageIDs.Type.Stdlib.floatParseError),
+            Ok(FQTypeName.fqPackage PackageHashes.Type.Stdlib.floatParseError),
             []
           ))
       description =
         "Returns the <type Float> value wrapped in a {{Result}} of the <type String>"
       fn =
-        let typeName = FQTypeName.fqPackage PackageIDs.Type.Stdlib.floatParseError
+        let typeName = FQTypeName.fqPackage PackageHashes.Type.Stdlib.floatParseError
         let resultOk = Dval.resultOk KTFloat (KTCustomType(typeName, []))
         let resultError = Dval.resultError KTFloat (KTCustomType(typeName, []))
         (function

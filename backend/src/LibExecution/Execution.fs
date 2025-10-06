@@ -149,7 +149,7 @@ let runtimeErrorToString
   task {
     let fnName =
       RT.FQFnName.fqPackage
-        PackageIDs.Fn.PrettyPrinter.RuntimeTypes.RuntimeError.toString
+        PackageHashes.Fn.PrettyPrinter.RuntimeTypes.RuntimeError.toString
     let args = NEList.singleton (RT2DT.RuntimeError.toDT rte)
     return! executeFunction state fnName [] args
   }
@@ -157,21 +157,22 @@ let runtimeErrorToString
 // CLEANUP not ideal, but useful
 let getPackageFnName
   (state : RT.ExecutionState)
-  (id : RT.FQFnName.Package)
+  (hash : RT.FQFnName.Package)
   : Ply<string> =
   uply {
     let fnName =
       RT.FQFnName.fqPackage
-        PackageIDs.Fn.PrettyPrinter.ProgramTypes.FQFnName.fullForReference
+        PackageHashes.Fn.PrettyPrinter.ProgramTypes.FQFnName.fullForReference
     let typeName =
       RT.FQTypeName.fqPackage
-        PackageIDs.Type.LanguageTools.ProgramTypes.FQFnName.fqFnName
-    let dval = RT.DEnum(typeName, typeName, [], "Package", [ RT.DUuid id ])
+        PackageHashes.Type.LanguageTools.ProgramTypes.FQFnName.fqFnName
+    let (Hash hashStr) = hash
+    let dval = RT.DEnum(typeName, typeName, [], "Package", [ RT.DString hashStr ])
     let args = NEList.singleton dval
     let! result = executeFunction state fnName [] args
     match result with
     | Ok(RT.DString s) -> return s
-    | _ -> return $"{id}"
+    | _ -> return $"{hash}"
   }
 
 
@@ -202,7 +203,7 @@ let getPackageFnName
 //     let prettyPrint (expr : RT.Expr) : Ply<string> =
 //       uply {
 //         let fnName =
-//           RT.FQFnName.fqPackage PackageIDs.Fn.PrettyPrinter.RuntimeTypes.expr
+//           RT.FQFnName.fqPackage PackageHashes.Fn.PrettyPrinter.RuntimeTypes.expr
 //         let args = NEList.singleton (RuntimeTypesToDarkTypes.Expr.toDT expr)
 
 //         match! executeFunction state fnName [] args with
@@ -237,8 +238,8 @@ let executionPointToString
 
     match ep with
     | RT.Source -> return "Source"
-    | RT.Function(RT.FQFnName.Package id) ->
-      let! name = getPackageFnName state id
+    | RT.Function(RT.FQFnName.Package hash) ->
+      let! name = getPackageFnName state hash
       return $"Package Function {name}"
     | RT.Function(RT.FQFnName.Builtin fnName) ->
       return $"Builtin Function {fnName.name}" // TODO actually fetch the fn, etc
@@ -323,7 +324,7 @@ let rec rteToString
   uply {
     let errorMessageFn =
       RT.FQFnName.fqPackage
-        PackageIDs.Fn.PrettyPrinter.RuntimeTypes.RuntimeError.toErrorMessage
+        PackageHashes.Fn.PrettyPrinter.RuntimeTypes.RuntimeError.toErrorMessage
 
     let rteDval = rteToDval rte
 

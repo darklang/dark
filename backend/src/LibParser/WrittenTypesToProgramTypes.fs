@@ -6,6 +6,7 @@ open Prelude
 module WT = WrittenTypes
 module PT = LibExecution.ProgramTypes
 module RT = LibExecution.RuntimeTypes
+module Hashing = LibExecution.Hashing
 module FS2WT = FSharpToWrittenTypes
 type NRE = PT.NameResolutionError
 module NR = NameResolver
@@ -731,7 +732,7 @@ module TypeDeclaration =
 //
 // CLEANUP: expose the equivalent of this via some Builtin for the Darklang WT2PT stuff?
 // I suppose that's only really needed when we do the switch-over.
-module PackageIDs = LibExecution.PackageIDs
+module PackageHashes = LibExecution.PackageHashes
 
 module PackageType =
   module Name =
@@ -747,9 +748,10 @@ module PackageType =
     uply {
       let! declaration =
         TypeDeclaration.toPT pm onMissing currentModule pt.declaration
+      let ptName = Name.toPT pt.name
       return
-        { id = PackageIDs.Type.idForName pt.name.owner pt.name.modules pt.name.name
-          name = Name.toPT pt.name
+        { hash = Hashing.TypeDeclaration.hashWithName ptName declaration
+          name = ptName
           description = pt.description
           declaration = declaration
           deprecated = PT.NotDeprecated }
@@ -772,7 +774,7 @@ module PackageValue =
         { currentFnName = None; isInFunction = false; argMap = Map.empty }
       let! body = Expr.toPT builtins pm onMissing currentModule context c.body
       return
-        { id = PackageIDs.Value.idForName c.name.owner c.name.modules c.name.name
+        { hash = Hashing.PackageValue.hash body
           name = Name.toPT c.name
           description = c.description
           deprecated = PT.NotDeprecated
@@ -822,7 +824,7 @@ module PackageFn =
       let! body = Expr.toPT builtins pm onMissing currentModule context fn.body
 
       return
-        { id = PackageIDs.Fn.idForName fn.name.owner fn.name.modules fn.name.name
+        { hash = Hashing.PackageFn.hash (parameters, returnType, body)
           name = Name.toPT fn.name
           parameters = parameters
           returnType = returnType

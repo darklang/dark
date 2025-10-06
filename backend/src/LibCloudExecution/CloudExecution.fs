@@ -15,7 +15,7 @@ module PT = LibExecution.ProgramTypes
 module PT2RT = LibExecution.ProgramTypesToRuntimeTypes
 module AT = LibExecution.AnalysisTypes
 module Exe = LibExecution.Execution
-module PackageIDs = LibExecution.PackageIDs
+module PackageHashes = LibExecution.PackageHashes
 
 open LibCloud
 
@@ -128,7 +128,7 @@ let executeHandler
     let callStackString = Exe.callStackString state
 
     let error (msg : string) : RT.Dval =
-      let typeName = RT.FQTypeName.fqPackage PackageIDs.Type.Stdlib.Http.response
+      let typeName = RT.FQTypeName.fqPackage PackageHashes.Type.Stdlib.Http.response
 
       let fields =
         [ ("statusCode", RT.DInt64 500)

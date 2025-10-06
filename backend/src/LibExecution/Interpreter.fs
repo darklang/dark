@@ -184,7 +184,7 @@ let execute (exeState : ExecutionState) (vm : VMState) : Ply<Dval> =
                   { instructions = List.toArray fn.body.instructions
                     resultReg = fn.body.resultIn }
                 vm.packageFnInstrCache <-
-                  Map.add fn.id instrData vm.packageFnInstrCache
+                  Map.add fn.hash instrData vm.packageFnInstrCache
                 return instrData
 
               | None -> return raiseRTE (RTE.FnNotFound(FQFnName.Package fn))
@@ -723,7 +723,7 @@ let execute (exeState : ExecutionState) (vm : VMState) : Ply<Dval> =
                         allArgs |> List.iteri (fun i arg -> r[i] <- arg)
                         r
                       typeSymbolTable = currentFrame.typeSymbolTable // copy. probably also need to _extend_ here.
-                      executionPoint = Function(FQFnName.Package fn.id) }
+                      executionPoint = Function(FQFnName.Package fn.hash) }
                     |> Some
 
         | RaiseNRE nre -> raiseRTE (RTE.ParseTimeNameResolution nre)
@@ -771,9 +771,9 @@ let execute (exeState : ExecutionState) (vm : VMState) : Ply<Dval> =
           | Function fnName ->
             let! expectedReturnType =
               match fnName with
-              | FQFnName.Package id ->
+              | FQFnName.Package hash ->
                 uply {
-                  let! fn = exeState.fns.package id
+                  let! fn = exeState.fns.package hash
                   match fn with
                   | None -> return RTE.FnNotFound fnName |> raiseRTE
                   | Some fn -> return fn.returnType

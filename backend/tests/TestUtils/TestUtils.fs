@@ -19,13 +19,13 @@ module AT = LibExecution.AnalysisTypes
 module PT2RT = LibExecution.ProgramTypesToRuntimeTypes
 module RT2DT = LibExecution.RuntimeTypesToDarkTypes
 module D = LibExecution.DvalDecoder
-module PackageIDs = LibExecution.PackageIDs
+module PackageHashes = LibExecution.PackageHashes
 module Exe = LibExecution.Execution
+module Hashing = LibExecution.Hashing
 
 module Account = LibCloud.Account
 module Canvas = LibCloud.Canvas
 
-module PackageIDs = LibExecution.PackageIDs
 module C2DT = LibExecution.CommonToDarkTypes
 module PT2DT = LibExecution.ProgramTypesToDarkTypes
 
@@ -95,16 +95,19 @@ let testPackageFn
   (returnType : PT.TypeReference)
   (body : PT.Expr)
   : PT.PackageFn.PackageFn =
-  { id = System.Guid.NewGuid()
+  let paramList : NEList<PT.PackageFn.Parameter> =
+    NEList.map
+      (fun p ->
+        { name = p; typ = PT.TVariable "b"; description = "test" }
+        : PT.PackageFn.Parameter)
+      parameters
+  { hash = Hashing.PackageFn.hash (paramList, returnType, body)
     body = body
     description = ""
     name = PT.PackageFn.name owner [] name
     typeParams = typeParams
     deprecated = PT.NotDeprecated
-    parameters =
-      NEList.map
-        (fun p -> { name = p; typ = PT.TVariable "b"; description = "test" })
-        parameters
+    parameters = paramList
     returnType = returnType }
 
 
@@ -1168,7 +1171,7 @@ let naughtyStrings : List<string * string> =
 
 
 let interestingDvals : List<string * RT.Dval * RT.TypeReference> =
-  let uuid = System.Guid.Parse "dca045b1-e2af-41d8-ad1b-35261b25a426"
+  let hash = Hash "a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11" // TODO
 
   [ ("float", DFloat 7.2, TFloat)
     ("float2", DFloat -7.2, TFloat)
@@ -1199,60 +1202,60 @@ let interestingDvals : List<string * RT.Dval * RT.TypeReference> =
 
     ("record",
      DRecord(
-       FQTypeName.Package uuid,
-       FQTypeName.Package uuid,
+       FQTypeName.Package hash,
+       FQTypeName.Package hash,
        [],
        Map.ofList
          [ "url", DString "https://darklang.com"
            "headers", Dval.list (KTTuple(VT.string, VT.string, [])) []
            "body", Dval.list KTUInt8 [] ]
      ),
-     TCustomType(Ok(FQTypeName.Package uuid), []))
+     TCustomType(Ok(FQTypeName.Package hash), []))
 
     ("enum",
      DEnum(
-       FQTypeName.Package PackageIDs.Type.Stdlib.AltJson.json,
-       FQTypeName.Package PackageIDs.Type.Stdlib.AltJson.json,
+       FQTypeName.Package PackageHashes.Type.Stdlib.AltJson.json,
+       FQTypeName.Package PackageHashes.Type.Stdlib.AltJson.json,
        [],
        "String",
        [ DString "test" ]
      ),
-     TCustomType(Ok(FQTypeName.Package PackageIDs.Type.Stdlib.AltJson.json), []))
+     TCustomType(Ok(FQTypeName.Package PackageHashes.Type.Stdlib.AltJson.json), []))
 
     // TODO: extract what's useful in here, and create smaller tests for each
     ("record2",
      DRecord(
-       FQTypeName.Package uuid,
-       FQTypeName.Package uuid,
+       FQTypeName.Package hash,
+       FQTypeName.Package hash,
        [ VT.unknown; VT.bool ],
        Map.ofList [ ("type", DString "weird"); ("value", DUnit) ]
      ),
-     TCustomType(Ok(FQTypeName.Package uuid), []))
+     TCustomType(Ok(FQTypeName.Package hash), []))
     ("record3",
      DRecord(
-       FQTypeName.Package uuid,
-       FQTypeName.Package uuid,
+       FQTypeName.Package hash,
+       FQTypeName.Package hash,
        [],
        Map.ofList [ ("type", DString "weird"); ("value", DString "x") ]
      ),
-     TCustomType(Ok(FQTypeName.Package uuid), []))
+     TCustomType(Ok(FQTypeName.Package hash), []))
     // More Json.NET tests
     ("record4",
      DRecord(
-       FQTypeName.Package uuid,
-       FQTypeName.Package uuid,
-       [ VT.bool; VT.char; (VT.customType (FQTypeName.Package uuid)) [] ],
+       FQTypeName.Package hash,
+       FQTypeName.Package hash,
+       [ VT.bool; VT.char; (VT.customType (FQTypeName.Package hash)) [] ],
        Map.ofList [ "foo\\\\bar", Dval.int64 5 ]
      ),
-     TCustomType(Ok(FQTypeName.Package uuid), []))
+     TCustomType(Ok(FQTypeName.Package hash), []))
     ("record5",
      DRecord(
-       FQTypeName.Package uuid,
-       FQTypeName.Package uuid,
+       FQTypeName.Package hash,
+       FQTypeName.Package hash,
        [],
        Map.ofList [ "$type", Dval.int64 5 ]
      ),
-     TCustomType(Ok(FQTypeName.Package uuid), []))
+     TCustomType(Ok(FQTypeName.Package hash), []))
     ("dict", DDict(VT.unknown, Map [ "foo", Dval.int64 5 ]), TDict TInt64)
     ("dict3",
      DDict(VT.unknown, Map [ ("type", DString "weird"); ("value", DString "x") ]),
@@ -1552,7 +1555,7 @@ let unwrapExecutionResult
     | Error(rte, callStack) ->
       let errorMessageFn =
         RT.FQFnName.fqPackage
-          PackageIDs.Fn.PrettyPrinter.RuntimeTypes.RuntimeError.toString
+          PackageHashes.Fn.PrettyPrinter.RuntimeTypes.RuntimeError.toString
 
       let rte = RT2DT.RuntimeError.toDT rte
 
@@ -1577,7 +1580,7 @@ let parsePTExpr (code : string) : Task<PT.Expr> =
       executionStateFor pmPT canvasID false false Map.empty
 
     let name =
-      RT.FQFnName.FQFnName.Package PackageIDs.Fn.LanguageTools.Parser.parsePTExpr
+      RT.FQFnName.FQFnName.Package PackageHashes.Fn.LanguageTools.Parser.parsePTExpr
 
     let args = NEList.singleton (RT.DString code)
     let! execResult = LibExecution.Execution.executeFunction state name [] args

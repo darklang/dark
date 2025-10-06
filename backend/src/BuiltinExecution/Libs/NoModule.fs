@@ -4,7 +4,7 @@ open Prelude
 
 open LibExecution.RuntimeTypes
 open LibExecution.Builtin.Shortcuts
-module PackageIDs = LibExecution.PackageIDs
+module PackageHashes = LibExecution.PackageHashes
 module Dval = LibExecution.Dval
 module ValueType = LibExecution.ValueType
 module RTE = RuntimeError
@@ -193,19 +193,19 @@ let fns : List<BuiltInFn> =
 
           // Success: extract `Some` out of an Option
           | DEnum(FQTypeName.Package id, _, _, "Some", [ value ]) when
-            id = PackageIDs.Type.Stdlib.option
+            id = PackageHashes.Type.Stdlib.option
             ->
             Ply value
 
           // Success: extract `Ok` out of a Result
           | DEnum(FQTypeName.Package id, _, _, "Ok", [ value ]) when
-            id = PackageIDs.Type.Stdlib.result
+            id = PackageHashes.Type.Stdlib.result
             ->
             Ply value
 
           // Error: expected Some, got None
           | DEnum(FQTypeName.Package id, _, _, "None", []) when
-            id = PackageIDs.Type.Stdlib.option
+            id = PackageHashes.Type.Stdlib.option
             ->
             RuntimeError.Unwraps.GotNone
             |> RuntimeError.Unwrap
@@ -213,7 +213,7 @@ let fns : List<BuiltInFn> =
 
           // Error: expected Ok, got Error
           | DEnum(FQTypeName.Package id, _, _, "Error", [ value ]) when
-            id = PackageIDs.Type.Stdlib.result
+            id = PackageHashes.Type.Stdlib.result
             ->
             RuntimeError.Unwraps.GotError value
             |> RuntimeError.Unwrap

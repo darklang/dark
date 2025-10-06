@@ -6,7 +6,7 @@ open LibExecution.Builtin.Shortcuts
 
 module VT = LibExecution.ValueType
 module Dval = LibExecution.Dval
-module PackageIDs = LibExecution.PackageIDs
+module PackageHashes = LibExecution.PackageHashes
 module RTE = RuntimeError
 
 
@@ -21,7 +21,7 @@ module ParseError =
       | BadFormat -> "BadFormat", []
       | OutOfRange -> "OutOfRange", []
 
-    let typeName = FQTypeName.fqPackage PackageIDs.Type.Stdlib.uint64ParseError
+    let typeName = FQTypeName.fqPackage PackageHashes.Type.Stdlib.uint64ParseError
     DEnum(typeName, typeName, [], caseName, fields)
 
 
@@ -276,12 +276,13 @@ let fns : List<BuiltInFn> =
         TypeReference.result
           TUInt64
           (TCustomType(
-            Ok(FQTypeName.fqPackage PackageIDs.Type.Stdlib.uint64ParseError),
+            Ok(FQTypeName.fqPackage PackageHashes.Type.Stdlib.uint64ParseError),
             []
           ))
       description = "Returns the <type UInt64> value of a <type String>"
       fn =
-        let typeName = FQTypeName.fqPackage PackageIDs.Type.Stdlib.uint64ParseError
+        let typeName =
+          FQTypeName.fqPackage PackageHashes.Type.Stdlib.uint64ParseError
         let resultOk = Dval.resultOk KTUInt64 (KTCustomType(typeName, []))
         let resultError = Dval.resultError KTUInt64 (KTCustomType(typeName, []))
         (function

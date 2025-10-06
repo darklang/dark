@@ -30,7 +30,7 @@ module PT = LibExecution.ProgramTypes
 module PT2RT = LibExecution.ProgramTypesToRuntimeTypes
 module RT2DT = LibExecution.RuntimeTypesToDarkTypes
 module Exe = LibExecution.Execution
-module PackageIDs = LibExecution.PackageIDs
+module PackageHashes = LibExecution.PackageHashes
 module C2DT = LibExecution.CommonToDarkTypes
 
 open TestUtils.TestUtils
@@ -117,7 +117,7 @@ let parseSingleTestFromFile
 
     let name =
       RT.FQFnName.FQFnName.Package
-        PackageIDs.Fn.Internal.Test.parseSingleTestFromFile
+        PackageHashes.Fn.Internal.Test.parseSingleTestFromFile
 
     let args = NEList.ofList (RT.DString filename) [ RT.DString test ]
     let! execResult = LibExecution.Execution.executeFunction state name [] args

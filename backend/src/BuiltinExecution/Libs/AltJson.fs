@@ -8,7 +8,7 @@ open LibExecution.Builtin.Shortcuts
 
 module VT = LibExecution.ValueType
 module Dval = LibExecution.Dval
-module PackageIDs = LibExecution.PackageIDs
+module PackageHashes = LibExecution.PackageHashes
 
 
 module Json =
@@ -20,7 +20,7 @@ module Json =
     | Array of List<Json>
     | Object of List<string * Json>
 
-  let typeName = FQTypeName.fqPackage PackageIDs.Type.Stdlib.AltJson.json
+  let typeName = FQTypeName.fqPackage PackageHashes.Type.Stdlib.AltJson.json
   let typeRef = TCustomType(Ok typeName, [])
   let knownType = KTCustomType(typeName, [])
 
@@ -67,7 +67,7 @@ module Json =
 
 
 module ParseError =
-  let typeName = FQTypeName.fqPackage PackageIDs.Type.Stdlib.AltJson.parseError
+  let typeName = FQTypeName.fqPackage PackageHashes.Type.Stdlib.AltJson.parseError
   let typeRef = TCustomType(Ok typeName, [])
   let knownType = KTCustomType(typeName, [])
 

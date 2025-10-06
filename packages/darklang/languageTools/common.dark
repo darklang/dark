@@ -3,6 +3,7 @@ module Darklang.LanguageTools
 
 // TODO: should this be UInt64?
 type ID = Int64
+type Hash = String
 
 type TLID = UInt64
 

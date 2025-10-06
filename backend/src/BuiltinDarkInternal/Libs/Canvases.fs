@@ -13,7 +13,7 @@ module Dval = LibExecution.Dval
 module PT = LibExecution.ProgramTypes
 module Canvas = LibCloud.Canvas
 module PT2DT = LibExecution.ProgramTypesToDarkTypes
-module PackageIDs = LibExecution.PackageIDs
+module PackageHashes = LibExecution.PackageHashes
 
 
 let fns : List<BuiltInFn> =
@@ -112,7 +112,7 @@ let fns : List<BuiltInFn> =
       returnType =
         TypeReference.result
           (TCustomType(
-            Ok(FQTypeName.Package PackageIDs.Type.Internal.Canvas.program),
+            Ok(FQTypeName.Package PackageHashes.Type.Internal.Canvas.program),
             []
           ))
           TString
@@ -148,7 +148,8 @@ let fns : List<BuiltInFn> =
             //       |> Some)
             //   |> Dval.list VT.unknownTODO
 
-            let typeName = FQTypeName.Package PackageIDs.Type.Internal.Canvas.program
+            let typeName =
+              FQTypeName.Package PackageHashes.Type.Internal.Canvas.program
             return
               DRecord(typeName, typeName, [], Map [])
               |> Dval.resultOk (KTCustomType(typeName, [])) KTString

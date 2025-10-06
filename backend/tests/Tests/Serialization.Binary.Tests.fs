@@ -29,8 +29,8 @@ module PT =
       "packageTypes"
       (fun typ ->
         typ
-        |> BinarySerialization.PT.PackageType.serialize typ.id
-        |> BinarySerialization.PT.PackageType.deserialize typ.id)
+        |> BinarySerialization.PT.PackageType.serialize typ.hash
+        |> BinarySerialization.PT.PackageType.deserialize typ.hash)
       Values.ProgramTypes.packageTypes
 
   let packageFnTests =
@@ -38,8 +38,8 @@ module PT =
       "packageFns"
       (fun fn ->
         fn
-        |> BinarySerialization.PT.PackageFn.serialize fn.id
-        |> BinarySerialization.PT.PackageFn.deserialize fn.id)
+        |> BinarySerialization.PT.PackageFn.serialize fn.hash
+        |> BinarySerialization.PT.PackageFn.deserialize fn.hash)
       Values.ProgramTypes.packageFns
 
   let packageValTests =
@@ -47,8 +47,8 @@ module PT =
       "packageVals"
       (fun c ->
         c
-        |> BinarySerialization.PT.PackageValue.serialize c.id
-        |> BinarySerialization.PT.PackageValue.deserialize c.id)
+        |> BinarySerialization.PT.PackageValue.serialize c.hash
+        |> BinarySerialization.PT.PackageValue.deserialize c.hash)
       Values.ProgramTypes.packageValues
 
   let toplevelTests =
@@ -68,8 +68,8 @@ module RT =
       "packageTypes"
       (fun t ->
         t
-        |> BinarySerialization.RT.PackageType.serialize t.id
-        |> BinarySerialization.RT.PackageType.deserialize t.id)
+        |> BinarySerialization.RT.PackageType.serialize t.hash
+        |> BinarySerialization.RT.PackageType.deserialize t.hash)
       Values.RuntimeTypes.packageTypes
 
   let packageValueTests =
@@ -77,8 +77,8 @@ module RT =
       "packageValues"
       (fun c ->
         c
-        |> BinarySerialization.RT.PackageValue.serialize c.id
-        |> BinarySerialization.RT.PackageValue.deserialize c.id)
+        |> BinarySerialization.RT.PackageValue.serialize c.hash
+        |> BinarySerialization.RT.PackageValue.deserialize c.hash)
       Values.RuntimeTypes.packageValues
 
   let packageFnTests =
@@ -86,8 +86,8 @@ module RT =
       "packageFns"
       (fun fn ->
         fn
-        |> BinarySerialization.RT.PackageFn.serialize fn.id
-        |> BinarySerialization.RT.PackageFn.deserialize fn.id)
+        |> BinarySerialization.RT.PackageFn.serialize fn.hash
+        |> BinarySerialization.RT.PackageFn.deserialize fn.hash)
       Values.RuntimeTypes.packageFns
 
   let dvalTests =

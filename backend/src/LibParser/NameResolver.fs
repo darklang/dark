@@ -97,7 +97,7 @@ let resolveTypeName
       // TODO: also do this in the Dark equivalent
       uply {
         match! packageManager.findType name with
-        | Some id -> return Ok(PT.FQTypeName.FQTypeName.Package id)
+        | Some hash -> return Ok(PT.FQTypeName.FQTypeName.Package hash)
         | None -> return notFoundError
       }
 
@@ -160,7 +160,7 @@ let resolveValueName
       : Ply<PT.NameResolution<PT.FQValueName.FQValueName>> =
       uply {
         match! packageManager.findValue name with
-        | Some id -> return Ok(PT.FQValueName.FQValueName.Package id)
+        | Some hash -> return Ok(PT.FQValueName.FQValueName.Package hash)
         | None -> return notFoundError
       }
 
@@ -230,7 +230,7 @@ let resolveFnName
       : Ply<PT.NameResolution<PT.FQFnName.FQFnName>> =
       uply {
         match! packageManager.findFn name with
-        | Some id -> return Ok(PT.FQFnName.FQFnName.Package id)
+        | Some hash -> return Ok(PT.FQFnName.FQFnName.Package hash)
         | None -> return notFoundError
       }
 

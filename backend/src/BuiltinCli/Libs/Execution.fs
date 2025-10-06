@@ -13,13 +13,13 @@ open LibExecution.RuntimeTypes
 module VT = LibExecution.ValueType
 module Dval = LibExecution.Dval
 module Builtin = LibExecution.Builtin
-module PackageIDs = LibExecution.PackageIDs
+module PackageHashes = LibExecution.PackageHashes
 open Builtin.Shortcuts
 open System.Runtime.InteropServices
 
 
 let executionOutcomeTypeName =
-  FQTypeName.fqPackage PackageIDs.Type.Stdlib.Cli.executionOutcome
+  FQTypeName.fqPackage PackageHashes.Type.Stdlib.Cli.executionOutcome
 
 // Process management for interactive processes
 type ProcessInfo =
@@ -138,7 +138,7 @@ module OS =
     | OSX
     | Windows
 
-  let osTypeName = FQTypeName.fqPackage PackageIDs.Type.Stdlib.Cli.OS.os
+  let osTypeName = FQTypeName.fqPackage PackageHashes.Type.Stdlib.Cli.OS.os
 
   let toDT (os : OS) : Dval =
     let (caseName, fields) =
@@ -267,7 +267,7 @@ let fns : List<BuiltInFn> =
           Param.make "input" TString "The input to send (empty string to just read)" ]
       returnType =
         let typeName =
-          FQTypeName.fqPackage PackageIDs.Type.Stdlib.Cli.executionOutcome
+          FQTypeName.fqPackage PackageHashes.Type.Stdlib.Cli.executionOutcome
         TCustomType(Ok typeName, [])
       fn =
         function
@@ -371,7 +371,7 @@ let fns : List<BuiltInFn> =
       parameters = [ Param.make "processId" TInt64 "The process handle ID" ]
       returnType =
         let typeName =
-          FQTypeName.fqPackage PackageIDs.Type.Stdlib.Cli.executionOutcome
+          FQTypeName.fqPackage PackageHashes.Type.Stdlib.Cli.executionOutcome
         TCustomType(Ok typeName, [])
       fn =
         function

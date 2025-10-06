@@ -15,7 +15,7 @@ open TestUtils.TestUtils
 // module PT2RT = LibExecution.ProgramTypesToRuntimeTypes
 // module PT2DT = LibExecution.ProgramTypesToDarkTypes
 // module C2DT = LibExecution.CommonToDarkTypes
-// module PackageIDs = LibExecution.PackageIDs
+// module PackageHashes = LibExecution.PackageHashes
 
 // let pmPT = LibCloud.PackageManager.pt
 
@@ -27,7 +27,7 @@ open TestUtils.TestUtils
 //       executionStateFor pm canvasID false false Map.empty
 
 //     let name =
-//       FQFnName.FQFnName.Package PackageIDs.Fn.LanguageTools.Parser.parsePTExpr
+//       FQFnName.FQFnName.Package PackageHashes.Fn.LanguageTools.Parser.parsePTExpr
 
 //     let args = NEList.singleton (DString code)
 //     let! execResult = LibExecution.Execution.executeFunction state name [] args

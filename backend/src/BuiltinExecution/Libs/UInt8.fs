@@ -6,7 +6,7 @@ open LibExecution.Builtin.Shortcuts
 
 module VT = LibExecution.ValueType
 module Dval = LibExecution.Dval
-module PackageIDs = LibExecution.PackageIDs
+module PackageHashes = LibExecution.PackageHashes
 module RTE = RuntimeError
 
 
@@ -21,7 +21,7 @@ module ParseError =
       | BadFormat -> "BadFormat", []
       | OutOfRange -> "OutOfRange", []
 
-    let typeName = FQTypeName.fqPackage PackageIDs.Type.Stdlib.uint8ParseError
+    let typeName = FQTypeName.fqPackage PackageHashes.Type.Stdlib.uint8ParseError
     DEnum(typeName, typeName, [], caseName, fields)
 
 
@@ -281,11 +281,12 @@ let fns : List<BuiltInFn> =
       typeParams = []
       parameters = [ Param.make "s" TString "" ]
       returnType =
-        let errorType = FQTypeName.fqPackage PackageIDs.Type.Stdlib.uint8ParseError
+        let errorType =
+          FQTypeName.fqPackage PackageHashes.Type.Stdlib.uint8ParseError
         TypeReference.result TUInt8 (TCustomType(Ok errorType, []))
       description = "Returns the <type UInt8> value of a <type String>"
       fn =
-        let typeName = FQTypeName.fqPackage PackageIDs.Type.Stdlib.uint8ParseError
+        let typeName = FQTypeName.fqPackage PackageHashes.Type.Stdlib.uint8ParseError
         let resultOk = Dval.resultOk KTUInt8 (KTCustomType(typeName, []))
         let resultError = Dval.resultError KTUInt8 (KTCustomType(typeName, []))
         (function

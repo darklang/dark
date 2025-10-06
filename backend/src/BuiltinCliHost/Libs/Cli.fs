@@ -18,7 +18,7 @@ module PT2RT = LibExecution.ProgramTypesToRuntimeTypes
 module RT2DT = LibExecution.RuntimeTypesToDarkTypes
 module PT2DT = LibExecution.ProgramTypesToDarkTypes
 module Exe = LibExecution.Execution
-module PackageIDs = LibExecution.PackageIDs
+module PackageHashes = LibExecution.PackageHashes
 module Json = BuiltinExecution.Libs.Json
 module C2DT = LibExecution.CommonToDarkTypes
 module Scripts = LibPackageManager.Scripts
@@ -28,7 +28,7 @@ module Utils = BuiltinCliHost.Utils
 
 
 module ExecutionError =
-  let fqTypeName = FQTypeName.fqPackage PackageIDs.Type.Cli.executionError
+  let fqTypeName = FQTypeName.fqPackage PackageHashes.Type.Cli.executionError
   let typeRef = TCustomType(Ok fqTypeName, [])
 
 // Script type definitions
@@ -138,11 +138,11 @@ let fns : List<BuiltInFn> =
 
             let onMissingType =
               FQTypeName.Package
-                PackageIDs.Type.LanguageTools.NameResolver.nameResolverOnMissing
+                PackageHashes.Type.LanguageTools.NameResolver.nameResolverOnMissing
             let onMissingAllow = DEnum(onMissingType, onMissingType, [], "Allow", [])
 
             let getPmFnName =
-              FQFnName.Package PackageIDs.Fn.LanguageTools.PackageManager.pm
+              FQFnName.Package PackageHashes.Fn.LanguageTools.PackageManager.pm
 
             let! execResult =
               Exe.executeFunction exeState getPmFnName [] (NEList.singleton DUnit)
@@ -177,7 +177,7 @@ let fns : List<BuiltInFn> =
 
             let parseCliScriptFnName =
               FQFnName.Package
-                PackageIDs.Fn.LanguageTools.Parser.CliScript.parseCliScript
+                PackageHashes.Fn.LanguageTools.Parser.CliScript.parseCliScript
 
             let! execResult =
               Exe.executeFunction exeState parseCliScriptFnName [] args
@@ -284,18 +284,18 @@ let fns : List<BuiltInFn> =
             try
               let resolveFn =
                 FQFnName.Package
-                  PackageIDs.Fn.LanguageTools.NameResolver.FnName.resolve
+                  PackageHashes.Fn.LanguageTools.NameResolver.FnName.resolve
 
               let onMissingType =
                 FQTypeName.Package
-                  PackageIDs.Type.LanguageTools.NameResolver.nameResolverOnMissing
+                  PackageHashes.Type.LanguageTools.NameResolver.nameResolverOnMissing
               let onMissingAllow =
                 DEnum(onMissingType, onMissingType, [], "Allow", [])
 
               let parserRangeType =
-                FQTypeName.Package PackageIDs.Type.LanguageTools.Parser.range
+                FQTypeName.Package PackageHashes.Type.LanguageTools.Parser.range
               let pointType =
-                FQTypeName.Package PackageIDs.Type.LanguageTools.Parser.point
+                FQTypeName.Package PackageHashes.Type.LanguageTools.Parser.point
               let pointFields = [ ("row", DInt64 0); ("column", DInt64 0) ]
               let fields =
                 [ ("start", DRecord(pointType, pointType, [], Map pointFields))
@@ -304,7 +304,7 @@ let fns : List<BuiltInFn> =
               let rangeParser =
                 DRecord(parserRangeType, parserRangeType, [], Map fields)
               let writtenTypesNameType =
-                FQTypeName.Package PackageIDs.Type.LanguageTools.WrittenTypes.name
+                FQTypeName.Package PackageHashes.Type.LanguageTools.WrittenTypes.name
 
               let parts = functionName.Split('.') |> List.ofArray
               let currentModule = DList(VT.string, [])
@@ -317,7 +317,8 @@ let fns : List<BuiltInFn> =
                   [ rangeParser; DList(VT.string, parts |> List.map DString) ]
                 )
 
-              let pm = FQFnName.Package PackageIDs.Fn.LanguageTools.PackageManager.pm
+              let pm =
+                FQFnName.Package PackageHashes.Fn.LanguageTools.PackageManager.pm
               let! execResult =
                 Exe.executeFunction exeState pm [] (NEList.singleton RT.Dval.DUnit)
               let! pm =
@@ -392,7 +393,7 @@ let fns : List<BuiltInFn> =
                   let! result =
                     Exe.executeFunction
                       exeState
-                      (FQFnName.Package f.id)
+                      (FQFnName.Package f.hash)
                       []
                       (NEList.ofList newArgs.Head newArgs.Tail)
 
@@ -447,11 +448,11 @@ let fns : List<BuiltInFn> =
 
             let onMissingType =
               FQTypeName.Package
-                PackageIDs.Type.LanguageTools.NameResolver.nameResolverOnMissing
+                PackageHashes.Type.LanguageTools.NameResolver.nameResolverOnMissing
             let onMissingAllow = DEnum(onMissingType, onMissingType, [], "Allow", [])
 
             let getPmFnName =
-              FQFnName.Package PackageIDs.Fn.LanguageTools.PackageManager.pm
+              FQFnName.Package PackageHashes.Fn.LanguageTools.PackageManager.pm
 
             let! execResult =
               Exe.executeFunction exeState getPmFnName [] (NEList.singleton DUnit)
@@ -486,7 +487,7 @@ let fns : List<BuiltInFn> =
 
             let parseCliScriptFnName =
               FQFnName.Package
-                PackageIDs.Fn.LanguageTools.Parser.CliScript.parseCliScript
+                PackageHashes.Fn.LanguageTools.Parser.CliScript.parseCliScript
 
             let! execResult =
               Exe.executeFunction exeState parseCliScriptFnName [] args

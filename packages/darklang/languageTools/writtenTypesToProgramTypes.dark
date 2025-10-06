@@ -12,6 +12,11 @@ let gid () : Int64 =
 let gtlid () : UInt64 =
   Stdlib.UInt64.random 0UL 9223372036854775807UL
 
+let ghash () : Hash =
+  // Generate a random hash for testing
+  let randomInt = Stdlib.Int64.random 0L 922337203685477580L
+  Stdlib.Int64.toString randomInt
+
 
 module Identifiers =
   module Type =
@@ -712,10 +717,10 @@ module Expr =
       | Ok(Value v) ->
         (ProgramTypes.Expr.EValue(gid (), v), unresolvedNames)
       | Ok(Fn f) -> (ProgramTypes.Expr.EFnName(gid (), f), unresolvedNames)
-      | Error _ ->
-        // CLEANUP: Rethink this solution. It was added to allow failure during the first pass of parsing, where names aren't yet resolved
-        (ProgramTypes.Expr.EVariable (gid ()) id.valueOrFn.name,
-          unresolvedNames)
+      | Error valueResolution ->
+        // When both value and function resolution fail, keep it as EValue with Error
+        // to preserve the full qualified name for pretty-printing
+        (ProgramTypes.Expr.EValue(gid (), valueResolution), unresolvedNames)
 
     | ERecordFieldAccess(_, expr, (_, fieldName), _) ->
       let (expr, unresolvedNames) = toPT onMissing pm owner currentModule context expr
@@ -1470,8 +1475,8 @@ module TypeDeclaration =
     let (declaration, unresolvedNames) = toPT onMissing pm owner modules d
 
     (ProgramTypes.PackageType.PackageType
-      // TODO: when relevant, use PackageIDs defined in F# land
-      { id = Stdlib.Uuid.generate ()
+      // TODO: when relevant, use PackageHashes defined in F# land
+      { hash = ghash ()
         name =
           ProgramTypes.PackageType.Name
             { owner = owner
@@ -1496,7 +1501,7 @@ module ValueDeclaration =
     let (body, unresolvedNames) = Expr.toPT onMissing pm owner modules (Context { currentFnName = Stdlib.Option.Option.None; argMap = Stdlib.Dict.empty }) d.body
 
     (ProgramTypes.PackageValue.PackageValue
-      { id = Stdlib.Uuid.generate ()
+      { hash = ghash ()
         name =
           ProgramTypes.PackageValue.Name
             { owner = owner
@@ -1576,7 +1581,7 @@ module FunctionDeclaration =
 
     (ProgramTypes.PackageFn.PackageFn
       // TODO: when relevant, use PacakgeIDs defined in F# land
-      { id = Stdlib.Uuid.generate ()
+      { hash = ghash ()
         name =
           ProgramTypes.PackageFn.Name
             { owner = owner
