@@ -1,0 +1,529 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>How Darklang Handles Code Editing and Source Control</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js@4.5.0/dist/reset.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js@4.5.0/dist/reveal.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js@4.5.0/dist/theme/white.css">
+    <style>
+        :root {
+            --darklang-purple: #9b7fc9;
+            --darklang-dark: #2d2d2d;
+            --background-light: #f5f3ed;
+        }
+
+        .reveal {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, sans-serif;
+            background-color: var(--background-light);
+        }
+
+        .reveal h1, .reveal h2, .reveal h3 {
+            text-transform: none;
+            font-weight: 900;
+        }
+
+        .reveal h1 {
+            font-size: 3.5em;
+            line-height: 1.1;
+            letter-spacing: -0.02em;
+        }
+
+        .reveal .script-title {
+            font-family: 'Brush Script MT', cursive;
+            color: var(--darklang-purple);
+            font-size: 2em;
+            font-weight: normal;
+            margin-bottom: 0;
+            text-transform: none;
+        }
+
+        .reveal ul {
+            list-style: none;
+        }
+
+        .reveal li::before {
+            content: "• ";
+            color: var(--darklang-purple);
+            font-weight: bold;
+            display: inline-block;
+            width: 1em;
+        }
+
+        .reveal .numbered-list {
+            counter-reset: item;
+            list-style: none;
+        }
+
+        .reveal .numbered-list li {
+            counter-increment: item;
+        }
+
+        .reveal .numbered-list li::before {
+            content: counter(item, decimal-leading-zero);
+            color: var(--darklang-purple);
+            font-weight: bold;
+            font-size: 1.5em;
+            display: block;
+            margin-bottom: 0.5em;
+        }
+
+        .reveal .term-title {
+            color: var(--darklang-purple);
+            font-weight: bold;
+            margin-bottom: 0.3em;
+        }
+
+        .reveal code {
+            background: #2d2d2d;
+            color: #a9dc76;
+            padding: 0.2em 0.4em;
+            border-radius: 3px;
+        }
+
+        .reveal pre {
+            background: #2d2d2d;
+            padding: 1em;
+            border-radius: 5px;
+        }
+
+        .reveal pre code {
+            background: transparent;
+            padding: 0;
+        }
+
+        .reveal .flow-diagram {
+            font-size: 0.8em;
+            line-height: 2;
+        }
+
+        .reveal .sidebar-example {
+            background: #2d2d2d;
+            color: #ccc;
+            padding: 1em;
+            border-radius: 5px;
+            text-align: left;
+            font-family: monospace;
+        }
+
+        .reveal .operation-section {
+            background: #e8e3f3;
+            padding: 2em;
+            border-radius: 10px;
+            margin: 1em 0;
+        }
+
+        .reveal .two-column {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 2em;
+            align-items: start;
+        }
+
+        .reveal .left-align {
+            text-align: left;
+        }
+
+        .reveal .small-text {
+            font-size: 0.8em;
+        }
+
+        .reveal .vscode-screenshot {
+            background: #1e1e1e;
+            color: #ccc;
+            padding: 1.5em;
+            border-radius: 5px;
+            font-family: 'Consolas', 'Monaco', monospace;
+            font-size: 0.6em;
+            text-align: left;
+        }
+
+        .reveal .branch-selector {
+            background: #2d2d2d;
+            color: #ccc;
+            padding: 1.5em;
+            border-radius: 5px;
+            font-family: monospace;
+            text-align: left;
+        }
+    </style>
+</head>
+<body>
+    <div class="reveal">
+        <div class="slides">
+            <!-- Slide 1: Title -->
+            <section>
+                <p class="script-title">Editing and Version Control</p>
+                <h1>HOW DARKLANG HANDLES<br>CODE EDITING AND SOURCE<br>CONTROL</h1>
+            </section>
+
+            <!-- Slide 2: Blank/Transition -->
+            <section data-background-color="#f5f3ed">
+            </section>
+
+            <!-- Slide 3: The Big Idea -->
+            <section>
+                <h1>THE BIG IDEA</h1>
+                <div class="left-align">
+                    <p><strong>Darklang treats code as structured data, not text files</strong></p>
+                    <ul>
+                        <li>Track semantic operations (AddFunction, MoveItem, DeprecateFn), not text diffs</li>
+                        <li>Conflict detection happens at the semantic level, not text level</li>
+                    </ul>
+
+                    <div class="flow-diagram" style="margin-top: 2em;">
+                        User edits code in VS Code<br>
+                        ↓<br>
+                        Changes become Operations (AddFunction, MoveItem, etc.)<br>
+                        ↓<br>
+                        Operations group into Patches<br>
+                        ↓<br>
+                        Patches live in Branches<br>
+                        ↓<br>
+                        Branches merge to Instance<br>
+                        ↓<br>
+                        Everyone (with the right access) sees the changes
+                    </div>
+                </div>
+            </section>
+
+            <!-- Slide 4: ID | Location Separation -->
+            <section>
+                <h1>ID | LOCATION<br>SEPARATION</h1>
+                <div class="two-column">
+                    <div class="left-align">
+                        <p><strong>Package items have a UUID for identity, locations map to UUIDs</strong></p>
+                        <p>- Rename a function? Just update the location mapping</p>
+                        <p>- Move a function? Just change the location, UUID stays the same</p>
+                    </div>
+                    <div style="border: 3px solid #2d2d2d; min-height: 300px; border-radius: 10px;">
+                        <!-- Placeholder for diagram -->
+                    </div>
+                </div>
+            </section>
+
+            <!-- Slide 5: New Terminology -->
+            <section>
+                <h1>NEW<br>TERMINOLOGY</h1>
+                <div class="two-column small-text">
+                    <div>
+                        <ul class="numbered-list">
+                            <li>
+                                <div class="term-title">Branch</div>
+                                isolated workspace (like git branch)
+                            </li>
+                            <li>
+                                <div class="term-title">Patch</div>
+                                editable group of operations
+                            </li>
+                        </ul>
+                    </div>
+                    <div>
+                        <ul class="numbered-list" style="counter-reset: item 2;">
+                            <li>
+                                <div class="term-title">Instance</div>
+                                Running environment (local or remote),<br>Where merged code lives
+                            </li>
+                            <li>
+                                <div class="term-title">Operations</div>
+                                Semantic change (AddFunction, MoveItem, etc.)
+                            </li>
+                            <li>
+                                <div class="term-title">Location</div>
+                                Namespace path (Darklang.Stdlib.List.map) -<br>Human-readable name, can change
+                            </li>
+                        </ul>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Slide 6: Branch -->
+            <section>
+                <h1>BRANCH</h1>
+            </section>
+
+            <!-- Slide 7: Patch -->
+            <section>
+                <h1>PATCH</h1>
+            </section>
+
+            <!-- Slide 8: Instance -->
+            <section>
+                <h1>INSTANCE</h1>
+            </section>
+
+            <!-- Slide 9: Operations - Package Ops -->
+            <section>
+                <div class="two-column">
+                    <div class="left-align">
+                        <h1>OPERATIONS</h1>
+                        <div class="term-title" style="font-size: 1.5em; margin-top: 1em;">Operation Types</div>
+                        <ul style="margin-top: 1em;">
+                            <li style="color: var(--darklang-purple);"><strong>Package Ops</strong></li>
+                            <li>Branch Ops</li>
+                            <li>Patch Ops</li>
+                        </ul>
+                    </div>
+                    <div class="operation-section left-align small-text">
+                        <div class="term-title">Package Ops</div>
+
+                        <p><strong>Creation:</strong></p>
+                        <p>- AddFunction - New function at a location</p>
+                        <p>- AddType - New type definition</p>
+                        <p>- AddValue - New constant/value</p>
+
+                        <p style="margin-top: 1em;"><strong>Organization:</strong></p>
+                        <p>- MoveItem - Relocate to different namespace</p>
+
+                        <p style="margin-top: 1em;"><strong>Deprecation:</strong></p>
+                        <p>- DeprecateFn - Mark function location as deprecated (timestamp-based)</p>
+                        <p>- DeprecateType - Mark type as deprecated</p>
+                        <p>- DeprecateValue - Mark value as deprecated</p>
+
+                        <p style="margin-top: 1em; font-style: italic;">No UpdateX - Updates are: DeprecateX(oldID) + AddX(newID)</p>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Slide 10: Operations - Branch Ops -->
+            <section>
+                <div class="two-column">
+                    <div class="left-align">
+                        <h1>OPERATIONS</h1>
+                        <div class="term-title" style="font-size: 1.5em; margin-top: 1em;">Operation Types</div>
+                        <ul style="margin-top: 1em;">
+                            <li>Package Ops</li>
+                            <li style="color: var(--darklang-purple);"><strong>Branch Ops</strong></li>
+                            <li>Patch Ops</li>
+                        </ul>
+                    </div>
+                    <div class="operation-section left-align small-text">
+                        <div class="term-title">Branch Ops</div>
+                        <p>TODO</p>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Slide 11: Operations - Patch Ops -->
+            <section>
+                <div class="two-column">
+                    <div class="left-align">
+                        <h1>OPERATIONS</h1>
+                        <div class="term-title" style="font-size: 1.5em; margin-top: 1em;">Operation Types</div>
+                        <ul style="margin-top: 1em;">
+                            <li>Package Ops</li>
+                            <li>Branch Ops</li>
+                            <li style="color: var(--darklang-purple);"><strong>Patch Ops</strong></li>
+                        </ul>
+                    </div>
+                    <div class="operation-section left-align small-text">
+                        <div class="term-title">Patch Ops</div>
+                        <p>TODO</p>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Slide 12: Developer Experience - Editing Code -->
+            <section>
+                <p class="script-title">Developer</p>
+                <h1>EXPERIENCE</h1>
+                <div class="term-title" style="font-size: 1.5em; margin-top: 1em;">Editing Code</div>
+                <p><strong>example: creating a new Stdlib function</strong></p>
+            </section>
+
+            <!-- Slide 13: Open VS Code -->
+            <section>
+                <div class="two-column">
+                    <div>
+                        <p class="script-title">Developer</p>
+                        <h1>EXPERIENCE</h1>
+                        <h2 style="margin-top: 2em;">Open VS Code</h2>
+                    </div>
+                    <div class="vscode-screenshot">
+                        <div>📁 DARKLANG</div>
+                        <div style="margin-top: 1em;">✓ CURRENT  Local (/home/...)</div>
+                        <div style="margin-left: 2em;">Current</div>
+                        <div style="margin-left: 4em;">🏠 Home</div>
+                        <div style="margin-top: 1em; margin-left: 2em;">Instance: Local</div>
+                        <div style="margin-left: 2em;">Branch: default</div>
+                        <div style="margin-top: 1em;">📁 BRANCH: DEFAULT</div>
+                        <div style="margin-left: 2em;">➕ Create New Patch</div>
+                        <div style="margin-left: 2em;">No patches in this b...</div>
+                        <div style="margin-top: 1em;">📦 PACKAGES</div>
+                        <div style="margin-left: 2em;">{} Darklang.Stdlib</div>
+                        <div style="margin-left: 2em;">{} MyApp</div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Slide 14: By default on branch -->
+            <section>
+                <div class="two-column">
+                    <div>
+                        <p class="script-title">Developer</p>
+                        <h1>EXPERIENCE</h1>
+                        <h2 style="margin-top: 2em;">By default we are on a<br>default/main branch</h2>
+                    </div>
+                    <div class="branch-selector">
+                        <div><strong>Branch:</strong> <u>default</u></div>
+                        <div style="margin-top: 0.5em;">Switch to:</div>
+                        <div style="margin-top: 0.5em;">-- Select --</div>
+                        <div style="margin-top: 1em;">📋 Manage All Branches</div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Slide 15: Find module -->
+            <section>
+                <p class="script-title">Developer</p>
+                <h1>EXPERIENCE</h1>
+                <h2 style="margin-top: 2em;">First, find the module where you<br>intend to add the new function</h2>
+            </section>
+
+            <!-- Slide 16: Write function -->
+            <section>
+                <div class="two-column">
+                    <div>
+                        <p class="script-title">Developer</p>
+                        <h1>EXPERIENCE</h1>
+                        <h2 style="margin-top: 2em;">Write the new function</h2>
+                    </div>
+                    <div>
+                        <pre><code class="language-darklang">module Darklang.Stdlib.List
+
+/// Returns an empty list
+let empty = []
+
+/// Returns a one-element list containing the given &lt;param val&gt;
+let singleton (value: 'a) : List&lt;'a&gt; =
+  [ value ]
+
+/// Returns a two-element list containing the given &lt;param a&gt; and &lt;param b&gt;
+let doubleton (a: 'a) (b: 'a) : List&lt;'a&gt; =
+  [ a; b ]</code></pre>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Slide 17: Hit save -->
+            <section>
+                <p class="script-title">Developer</p>
+                <h1>EXPERIENCE</h1>
+                <div class="left-align" style="margin-top: 2em; font-size: 1.2em;">
+                    <p>Hit save</p>
+                    <p>↓</p>
+                    <p>✓ Parse successful</p>
+                    <p>✓ Generate AddFunction op</p>
+                    <p>✓ No current patch → create "default-patch"</p>
+                    <p>✓ Add op to patch</p>
+                </div>
+            </section>
+
+            <!-- Slide 18: Sidebar updates -->
+            <section>
+                <p class="script-title">Developer</p>
+                <h1>EXPERIENCE</h1>
+                <div class="left-align" style="margin-top: 2em;">
+                    <h2>SIDEBAR UPDATES</h2>
+                    <div class="sidebar-example" style="margin-top: 1em;">
+                        📁 default-branch<br>
+                        &nbsp;&nbsp;└─ 📄 default-patch *
+                    </div>
+                    <p style="margin-top: 2em;">Click patch → opens as editable document</p>
+                </div>
+            </section>
+
+            <!-- Slide 19: Patch document view -->
+            <section>
+                <p class="script-title">Developer</p>
+                <h1>EXPERIENCE</h1>
+                <div class="left-align" style="margin-top: 2em;">
+                    <h2>PATCH DOCUMENT VIEW</h2>
+                    <pre style="margin-top: 1em;"><code>module Stdlib.List =
+  let doubleton = ....</code></pre>
+                </div>
+            </section>
+
+            <!-- Slide 20: Push Code -->
+            <section>
+                <p class="script-title">Developer</p>
+                <h1>EXPERIENCE</h1>
+                <div class="term-title" style="font-size: 1.5em; margin-top: 1em;">Push Code</div>
+                <p><strong>example: creating a new Stdlib function</strong></p>
+                <div class="left-align small-text" style="margin-top: 2em;">
+                    <p><strong>todo</strong></p>
+                    <p>open toggle &gt; add mini tree of packages that got affected</p>
+                    <p style="margin-top: 1em;">right click on a patch → see menu</p>
+                    <ul style="margin-left: 2em;">
+                        <li>view ops</li>
+                        <li>delete patch</li>
+                        <li>push upstream</li>
+                        <li>move to another branch</li>
+                        <li>...</li>
+                    </ul>
+                    <p style="margin-top: 1em;">push / left click</p>
+                    <ul style="margin-left: 2em;">
+                        <li>push</li>
+                        <li>see ops</li>
+                        <li>send to upstream</li>
+                        <li>get link</li>
+                        <li>button to review and merge</li>
+                        <li>merge update upstream</li>
+                    </ul>
+                </div>
+            </section>
+
+            <!-- Slide 21: Share Code -->
+            <section>
+                <p class="script-title">Developer</p>
+                <h1>EXPERIENCE</h1>
+                <div class="term-title" style="font-size: 1.5em; margin-top: 1em;">Share Code</div>
+                <p><strong>example: creating a new Stdlib function</strong></p>
+            </section>
+
+            <!-- Slide 22: Review Code -->
+            <section>
+                <p class="script-title">Developer</p>
+                <h1>EXPERIENCE</h1>
+                <div class="term-title" style="font-size: 1.5em; margin-top: 1em;">Review Code</div>
+                <p><strong>example: creating a new Stdlib function</strong></p>
+            </section>
+
+            <!-- Slide 23: Merge Code -->
+            <section>
+                <p class="script-title">Developer</p>
+                <h1>EXPERIENCE</h1>
+                <div class="term-title" style="font-size: 1.5em; margin-top: 1em;">Merge Code</div>
+                <p><strong>example: creating a new Stdlib function</strong></p>
+            </section>
+
+            <!-- Slide 24: Sync Code -->
+            <section>
+                <p class="script-title">Developer</p>
+                <h1>EXPERIENCE</h1>
+                <div class="term-title" style="font-size: 1.5em; margin-top: 1em;">Sync Code</div>
+                <p><strong>example: creating a new Stdlib function</strong></p>
+            </section>
+
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/reveal.js@4.5.0/dist/reveal.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/reveal.js@4.5.0/plugin/notes/notes.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/reveal.js@4.5.0/plugin/highlight/highlight.js"></script>
+    <script>
+        Reveal.initialize({
+            hash: true,
+            transition: 'slide',
+            backgroundTransition: 'fade',
+            plugins: [ RevealNotes, RevealHighlight ],
+            width: 1920,
+            height: 1080,
+            margin: 0.1,
+            minScale: 0.2,
+            maxScale: 2.0
+        });
+    </script>
+</body>
+</html>

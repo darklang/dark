@@ -16,9 +16,12 @@
       "Bash(sqlite3:*)",
       "Bash(/dev/null)",
       "Bash(done)",
-      "Bash(/home/stachu/code/dark/scripts/build/build-release-cli-exes.sh:*)",
       "Bash(scripts/run-backend-tests:*)",
-      "Bash(timeout:*)"
+      "Bash(timeout:*)",
+      "Bash(pandoc:*)",
+      "WebSearch",
+      "Bash(npm run compile:*)",
+      "Bash(awk:*)",
     ],
     "deny": []
   }

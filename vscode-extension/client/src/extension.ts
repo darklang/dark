@@ -10,16 +10,34 @@ import {
   TransportKind,
 } from "vscode-languageclient/node";
 
-import { ServerBackedTreeDataProvider } from "./ServerBackedTreeDataProvider";
-import { DarkFS } from "./fileSystemProvider";
+import { ServerBackedTreeDataProvider } from "./providers/treeviews/ServerBackedTreeDataProvider";
+import { ComprehensiveDarkContentProvider } from "./providers/comprehensiveDarkContentProvider";
+import { StatusBarManager } from "./ui/statusbar/statusBarManager";
+import { PackagesTreeDataProvider } from "./providers/treeviews/packagesTreeDataProvider";
+import { WorkspaceTreeDataProvider } from "./providers/treeviews/workspaceTreeDataProvider";
+import { BranchesManagerPanel } from "./panels";
+import {
+  BranchCommands,
+  PackageCommands,
+  InstanceCommands
+} from "./commands";
+import { BranchStateManager } from "./data/branchStateManager";
+import { DarklangFileDecorationProvider } from "./providers/fileDecorationProvider";
 
 let client: LanguageClient;
+let statusBarManager: StatusBarManager;
+let workspaceProvider: WorkspaceTreeDataProvider;
+let packagesProvider: PackagesTreeDataProvider;
+let contentProvider: ComprehensiveDarkContentProvider;
+let fileDecorationProvider: DarklangFileDecorationProvider;
 
 interface LSPFileResponse {
   content: string;
 }
 
 export function activate(context: ExtensionContext) {
+  console.log('🚀 Darklang VS Code extension is activating...');
+
   const isDebugMode = () => process.env.VSCODE_DEBUG_MODE === "true";
 
   const sharedServerOptions = {
@@ -41,7 +59,7 @@ export function activate(context: ExtensionContext) {
   const clientOptions: LanguageClientOptions = {
     documentSelector: [
       { scheme: "file", language: "darklang" },
-      { scheme: "darkfs", language: "darklang" },
+      { scheme: "dark", language: "darklang" },
     ],
     synchronize: {
       fileEvents: workspace.createFileSystemWatcher("**/*.dark"),
@@ -61,208 +79,110 @@ export function activate(context: ExtensionContext) {
     },
   };
 
-  // start the LSP client -- note: this will also launch the server
-  client = new LanguageClient(
-    "darklangLsp",
-    "Darklang LSP - Server",
-    serverOptions,
-    clientOptions,
-  );
+  // DISABLED: LSP client to avoid crashes during UI development
+  // client = new LanguageClient(
+  //   "darklangLsp",
+  //   "Darklang LSP - Server",
+  //   serverOptions,
+  //   clientOptions,
+  // );
+  // client.registerFeature(new SemanticTokensFeature(client));
+  // client.trace = Trace.Verbose;
 
-  client.registerFeature(new SemanticTokensFeature(client));
-  client.trace = Trace.Verbose;
+  // Initialize status bar manager
+  statusBarManager = new StatusBarManager();
+  context.subscriptions.push(statusBarManager);
 
-  // Create tree view immediately with static root nodes
-  const treeDataProvider = new ServerBackedTreeDataProvider(client);
-  let view = vscode.window.createTreeView(`darklangTreeView`, {
-    treeDataProvider: treeDataProvider,
-    showCollapseAll: true,
-  });
-  context.subscriptions.push(view);
+  // Initialize content provider for dark:// URLs
+  contentProvider = new ComprehensiveDarkContentProvider();
+  const contentProviderRegistration = workspace.registerTextDocumentContentProvider("dark", contentProvider);
+  context.subscriptions.push(contentProviderRegistration);
 
-  // Register refresh command
+  // Initialize file decoration provider for badges
+  fileDecorationProvider = new DarklangFileDecorationProvider();
+  const decorationProviderRegistration = vscode.window.registerFileDecorationProvider(fileDecorationProvider);
+  context.subscriptions.push(decorationProviderRegistration);
+
+
+  // // Register webview panel serializer for home page
+  // if (vscode.window.registerWebviewPanelSerializer) {
+  //   vscode.window.registerWebviewPanelSerializer(DarklangHomePanel.viewType, {
+  //     async deserializeWebviewPanel(webviewPanel: vscode.WebviewPanel, state: any) {
+  //       DarklangHomePanel.revive(webviewPanel, context.extensionUri);
+  //     }
+  //   });
+  // }
+
+  // Register branches manager command
   context.subscriptions.push(
-    commands.registerCommand('darklang.refreshTreeView', () => {
-      treeDataProvider.refresh();
+    vscode.commands.registerCommand('darklang.branches.manageAll', () => {
+      BranchesManagerPanel.createOrShow(context.extensionUri);
     })
   );
 
-  client.start();
-
-  let disposable = commands.registerCommand("darklang.runScript", async () => {
-    const editor = window.activeTextEditor;
-    const uri = editor.document.uri;
-    let scriptPath: string;
-
-    if (uri.scheme === "darkfs") {
-      // For virtual files, get the temp file path
-      const content = editor.document.getText();
-      const contentBytes = new TextEncoder().encode(content);
-
-      // Write/update the file content which will create a temp file
-      await provider.writeFile(uri, contentBytes, {
-        create: true,
-        overwrite: true,
-      });
-
-      // Get the temp file path
-      const tempPath = DarkFS.getTempFilePath(uri);
-      if (!tempPath) {
-        window.showErrorMessage(
-          "Failed to create temporary file for script execution",
-        );
-        return;
+  // Register webview panel serializer for branches manager
+  if (vscode.window.registerWebviewPanelSerializer) {
+    vscode.window.registerWebviewPanelSerializer(BranchesManagerPanel.viewType, {
+      async deserializeWebviewPanel(webviewPanel: vscode.WebviewPanel, state: any) {
+        BranchesManagerPanel.revive(webviewPanel, context.extensionUri);
       }
-      scriptPath = tempPath;
-    } else {
-      // For regular files, use the actual path
-      scriptPath = uri.fsPath;
-    }
+    });
+  }
 
-    let terminal = window.terminals.find(t => t.name === "darklang-terminal");
+  // Initialize branch state manager first (needed by tree views)
+  const branchStateManager = BranchStateManager.getInstance();
 
-    if (!terminal) {
-      terminal = window.createTerminal(`darklang-terminal`);
-    }
+  // Initialize tree data providers
+  packagesProvider = new PackagesTreeDataProvider();
+  workspaceProvider = new WorkspaceTreeDataProvider();
 
-    terminal.show(true);
+  // Create tree views
+  console.log('📊 Creating tree views...');
 
-    if (isDebugMode()) {
-      let scriptCommand = `cd /home/dark/app && { TIMEFORMAT=$'Script executed in: %3lR'; time ./scripts/run-cli "${scriptPath}" --skip-self-update; }`;
+  // Workspace tree view (unified view: Instance + Branch + Patches)
+  const workspaceView = vscode.window.createTreeView("darklangWorkspace", {
+    treeDataProvider: workspaceProvider,
+    showCollapseAll: false,
+  });
+  workspaceView.title = "Workspace";
 
-      terminal.sendText(scriptCommand, true);
-    } else {
-      let scriptCommand = `cd ${os.homedir()} && { TIMEFORMAT=$'Script executed in: %3lR'; time darklang "${scriptPath}" --skip-self-update; }`;
-      terminal.sendText(scriptCommand, true);
-    }
+  const packagesView = vscode.window.createTreeView("darklangPackages", {
+    treeDataProvider: packagesProvider,
+    showCollapseAll: true,
   });
 
-  let lookUpToplevelCommand = commands.registerCommand(
-    "darklang.lookUpToplevel",
-    async () => {
-      try {
-        const input = await window.showInputBox({
-          prompt: "Enter the package element name",
-          placeHolder: "e.g. Darklang.Stdlib.Option.Option",
-        });
+  console.log('✅ Tree views created successfully');
 
-        if (!input) return;
-        const virtualUri = Uri.parse(`darkfs:/${input}.dark`);
-        const doc = await workspace.openTextDocument(virtualUri);
+  context.subscriptions.push(workspaceView, packagesView);
 
-        await window.showTextDocument(doc, {
-          preview: false, // open in a new tab instead of preview mode
-          preserveFocus: false, // give focus to the new tab
-        });
-      } catch (error) {
-        window.showErrorMessage(`Failed to read remote file: ${error}`);
-      }
-    },
+  // DISABLED: LSP client start
+  // client.start();
+
+  // Initialize command handlers
+  const packageCommands = new PackageCommands();
+  const branchCommands = new BranchCommands(statusBarManager, workspaceProvider);
+  const instanceCommands = new InstanceCommands(statusBarManager, workspaceProvider);
+
+  // Register all commands
+  const allBranchCommands = branchCommands.register();
+  const allInstanceCommands = instanceCommands.register();
+  const allPackageCommands = packageCommands.register();
+
+  // Register all commands with context
+  context.subscriptions.push(
+    ...allPackageCommands,
+    ...allBranchCommands,
+    ...allInstanceCommands,
   );
 
-  let openPackageDefinitionCommand = commands.registerCommand(
-    "darklang.openPackageDefinition",
-    async (packagePath: string) => {
-      try {
-        const virtualUri = Uri.parse(`darkfs:/${packagePath}.dark`);
-        const doc = await workspace.openTextDocument(virtualUri);
-
-        await window.showTextDocument(doc, {
-          preview: false,
-          preserveFocus: false,
-        });
-      } catch (error) {
-        console.error(
-          `Failed to open package definition for ${packagePath}:`,
-          error,
-        );
-        window.showErrorMessage(
-          `Failed to open ${packagePath}: ${
-            error instanceof Error ? error.message : "Unknown error"
-          }`,
-        );
-      }
-    },
-  );
-
-  let openFullModuleCommand = commands.registerCommand(
-    "darklang.openFullModule",
-    async (node: any) => {
-      try {
-        // Get the module path from the node
-        const modulePath = node?.id || "";
-        const virtualUri = Uri.parse(`darkfs:/module/${modulePath}.dark`);
-        const doc = await workspace.openTextDocument(virtualUri);
-
-        await window.showTextDocument(doc, {
-          preview: false,
-          preserveFocus: false,
-        });
-      } catch (error) {
-        console.error(
-          `Failed to open full module:`,
-          error,
-        );
-        window.showErrorMessage(
-          `Failed to open module: ${
-            error instanceof Error ? error.message : "Unknown error"
-          }`,
-        );
-      }
-    },
-  );
-
-  const provider = new DarkFS(client);
-  const registration = workspace.registerFileSystemProvider(
-    "darkfs",
-    provider,
-    {
-      isCaseSensitive: true,
-      isReadonly: false,
-    },
-  );
-
-  let initWorkspace = commands.registerCommand("darklang.init", async () => {
-    try {
-      // Create the sample folder URI
-      const folderUri = Uri.parse("darkfs:/DarkFS-Sample");
-      const fileUri = Uri.parse("darkfs:/DarkFS-Sample/edit.dark");
-
-      try {
-        await provider.createDirectory(folderUri);
-      } catch (error) {
-        console.log("Error creating directory:", error);
-      }
-
-      const content = new TextEncoder().encode("");
-
-      // Write the file
-      await provider.writeFile(fileUri, content, {
-        create: true,
-        overwrite: true,
-      });
-
-      // Open the file in the editor
-      const document = await workspace.openTextDocument(fileUri);
-      await window.showTextDocument(document);
-
-      window.showInformationMessage("edit file created successfully!");
-    } catch (error) {
-      window.showErrorMessage(`Failed to create file: ${error}`);
-    }
-  });
-
-  context.subscriptions.push(initWorkspace);
-  context.subscriptions.push(registration);
-  context.subscriptions.push(lookUpToplevelCommand);
-  context.subscriptions.push(openPackageDefinitionCommand);
-  context.subscriptions.push(openFullModuleCommand);
-  context.subscriptions.push(disposable);
+  console.log('🎉 Darklang VS Code extension fully activated!');
 }
 
 export function deactivate(): Thenable<void> | undefined {
-  if (!client) {
-    return undefined;
-  }
-  return client.stop();
+  // DISABLED: LSP client deactivation
+  // if (!client) {
+  //   return undefined;
+  // }
+  // return client.stop();
+  return undefined;
 }

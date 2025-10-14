@@ -14,7 +14,10 @@ type AppState =
     currentPage: Page
     commandHistory: List<String>
     historyIndex: Int64
-    savedPrompt: String }
+    savedPrompt: String
+
+    instanceName: String
+    currentBranchId: Stdlib.Option.Option<String> }
 
 let initState () : AppState =
   AppState
@@ -26,7 +29,10 @@ let initState () : AppState =
       currentPage = Page.MainPrompt  // Default to main prompt page
       commandHistory = []
       historyIndex = -1L
-      savedPrompt = "" }
+      savedPrompt = ""
+
+      instanceName = "local"
+      currentBranchId = Stdlib.Option.None }
 
 // Helper to update core state fields while preserving package navigation fields
 let updateCoreFields (state: AppState) (isExiting: Bool) (mainPrompt: String) (needsFullRedraw: Bool) : AppState =
@@ -168,13 +174,22 @@ module View =
     "> "
 
   let formatPromptWithInput (state: AppState) : String =
-    let currentPathStr = Colors.info (Packages.formatLocation state.packageData.currentLocation)
+    let branches = Matter.State.fakeBranches ()
+    let currentBranch = Matter.State.findBranch branches state.currentBranchId
+    let branchName =
+      match currentBranch with
+      | Some branch -> branch.title
+      | None -> "unknown"
+
+    let instanceStr = Colors.mutedText $"[{state.instanceName}]"
+    let branchStr = Colors.info $"[{branchName}]"
+    let contextStr = instanceStr ++ " " ++ branchStr
 
     let hint = Registry.getCompletionHint state state.mainPrompt
     if Stdlib.String.isEmpty hint then
-      currentPathStr ++ "> " ++ state.mainPrompt
+      contextStr ++ " > " ++ state.mainPrompt
     else
-      currentPathStr ++ "> " ++ state.mainPrompt ++ (Colors.hint hint)
+      contextStr ++ " > " ++ state.mainPrompt ++ (Colors.hint hint)
 
 
   let formatWelcome () : String =
@@ -195,6 +210,7 @@ module Registry =
     [
       ("quit", "Exit the CLI", ["exit"; "q"], Quit.execute, Quit.help, Quit.complete)
       ("help", "Show help for commands", ["commands"; "?"], Help.execute, Help.help, Help.complete)
+      ("branch", "Manage development branches", [], Matter.Branch.execute, Matter.Branch.help, Matter.Branch.complete)
       ("install", "Install CLI globally", [], Installation.Install.execute, Installation.Install.help, Installation.Install.complete)
       ("update", "Update CLI to latest version", ["upgrade"], Installation.Update.execute, Installation.Update.help, Installation.Update.complete)
       ("uninstall", "Remove CLI installation", [], Installation.Uninstall.execute, Installation.Uninstall.help, Installation.Uninstall.complete)
@@ -298,19 +314,22 @@ module Registry =
     let commands = allCommands ()
 
     // Group commands by category
+    let scmCommands = ["branch"] // maybe 'instance'
     let packageCommands = ["nav"; "ls"; "view"; "tree"; "back"]
+                          // TODO mv, rm, let, type
     let executionCommands = ["run"; "eval"; "scripts"]
     let installCommands = ["install"; "update"; "uninstall"; "status"; "version"]
     let utilityCommands = ["clear"; "help"; "quit"; "experiments"]
 
     // Format command groups
     let packageGroup = formatCommandGroup "Packages" packageCommands commands
+    let scmGroup = formatCommandGroup "Source Control" scmCommands commands
     let executionGroup = formatCommandGroup "Execution" executionCommands commands
     let installGroup = formatCommandGroup "Installation" installCommands commands
     let utilityGroup = formatCommandGroup "Utilities" utilityCommands commands
 
     // Find any ungrouped commands
-    let allGroupedCommands = Stdlib.List.append (Stdlib.List.append (Stdlib.List.append packageCommands executionCommands) installCommands) utilityCommands
+    let allGroupedCommands = Stdlib.List.append (Stdlib.List.append (Stdlib.List.append (Stdlib.List.append scmCommands packageCommands) executionCommands) installCommands) utilityCommands
     let ungroupedCommands =
       commands
       |> Stdlib.List.filter (fun cmd ->
@@ -324,7 +343,7 @@ module Registry =
           let aliasText = Stdlib.String.join aliases ", "
           $"  {cmd.name} ({aliasText}) - {cmd.description}")
 
-    let allGroups = [packageGroup; executionGroup; installGroup; utilityGroup]
+    let allGroups = [packageGroup; scmGroup; executionGroup; installGroup; utilityGroup]
     let finalGroups =
       if Stdlib.List.isEmpty ungroupedCommands then
         allGroups
@@ -570,10 +589,19 @@ let runInteractiveLoop (state: AppState) : Int64 =
     // Display current page
     match state.currentPage with
     | MainPrompt ->
-      // Determine where user input starts (path + "> ")
-      let currentPath = Packages.formatLocation state.packageData.currentLocation
-      let visiblePromptLength = (Stdlib.String.length currentPath) + 2L  // "> "
-      let inputStartColumn = visiblePromptLength + 1L
+      // Determine where user input starts (instance + branch + " > ")
+      let branches = Matter.State.fakeBranches ()
+      let currentBranch = Matter.State.findBranch branches state.currentBranchId
+      let branchName =
+        match currentBranch with
+        | Some branch -> branch.title
+        | None -> "unknown"
+
+      let contextLength =
+        (Stdlib.String.length state.instanceName) +
+        (Stdlib.String.length branchName) +
+        10L  // brackets, spaces, " > "
+      let inputStartColumn = contextLength + 1L
 
       if state.needsFullRedraw then
         // Redraw entire prompt line (used after commands that change state)
@@ -591,7 +619,7 @@ let runInteractiveLoop (state: AppState) : Int64 =
         Stdlib.print "\u001b[?25h" // Show cursor again
 
       // Position cursor at correct location within user input
-      let cursorColumn = visiblePromptLength + state.cursorPosition + 1L
+      let cursorColumn = inputStartColumn + state.cursorPosition
       Stdlib.print (Colors.moveCursorToColumn cursorColumn)
     | Experiments ->
       if state.needsFullRedraw then
