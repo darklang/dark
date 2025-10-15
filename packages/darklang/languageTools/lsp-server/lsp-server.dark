@@ -29,8 +29,28 @@ let runServerCli (u: Unit) : Int64 =
   // and we tell the client what capabilities we have,
   // so the client knows which requests it can make.
   let incomingMessageRaw = readMessageFromClient ()
-  logIncomingRequest incomingMessageRaw // TODO: parse, etc
-  let initialState = handleInitializeRequest ()
+  logIncomingRequest incomingMessageRaw
+
+  let initialState =
+    match JsonRPC.IncomingMessage.parse incomingMessageRaw with
+    | SingleRequest(Ok jsonRpcRequest) ->
+      match jsonRpcRequest.id with
+      | Some requestId -> handleInitializeRequest requestId
+      | None ->
+        log "Error: initialize request must have an id"
+
+        LspState
+          { initialized = false
+            shouldShutdown = false
+            documentsInScope = Dict { } }
+
+    | _ ->
+      log "Error: expected initialize request as first message"
+
+      LspState
+        { initialized = false
+          shouldShutdown = false
+          documentsInScope = Dict { } }
 
 
   // now that _that_ is out of the way, we can start responding to normal requests

@@ -34,10 +34,13 @@ export class UrlMetadataSystem {
       case 'package':
         return {
           title: this.getPackageTitle(parsed),
-          badge: '📦',
-          tooltip: `Package: ${parsed.target || 'Unknown'}`,
-          themeColor: new vscode.ThemeColor('charts.purple'),
-          contentProvider: 'package'
+          badge: parsed.view === "module" ? "🗂️" : "📦",
+          tooltip:
+            parsed.view === "module"
+              ? `Module: ${parsed.target || "Unknown"}`
+              : `Package: ${parsed.target || "Unknown"}`,
+          themeColor: new vscode.ThemeColor("charts.purple"),
+          contentProvider: "package",
         };
 
       case 'instance':
@@ -68,8 +71,15 @@ export class UrlMetadataSystem {
 
   private static getPackageTitle(parsed: ParsedUrl): string {
     const target = parsed.target || 'unknown';
-    const lastPart = target.split('.').pop() || target;
-    return `Package: ${lastPart}`;
+
+    if (parsed.view === 'module') {
+      // For module view, show just the module path
+      return target;
+    } else {
+      // For regular package items (functions, types, etc.), show just the last part
+      const lastPart = target.split('.').pop() || target;
+      return `${lastPart}`;
+    }
   }
 
   private static getInstanceTitle(parsed: ParsedUrl): string {

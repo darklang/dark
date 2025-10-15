@@ -12,7 +12,10 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
     branches
     |> Stdlib.List.filter (fun b -> b.active)
     |> Stdlib.List.iter (fun b ->
-      let marker = if b.id == state.currentBranchId then "* " else "  "
+      let marker =
+        match state.currentBranchId with
+        | Some currentId -> if b.id == currentId then "* " else "  "
+        | None -> "  "
       Stdlib.printLine $"{marker}{b.title}")
     Stdlib.printLine ""
     state
@@ -36,7 +39,10 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
 
   | ["status"] ->
     let branches = State.fakeBranches ()
-    let currentBranch = State.findBranch branches state.currentBranchId
+    let currentBranch =
+      match state.currentBranchId with
+      | Some branchId -> State.findBranch branches branchId
+      | None -> Stdlib.Option.Option.None
 
     match currentBranch with
     | Some branch ->

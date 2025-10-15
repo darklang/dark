@@ -12,18 +12,18 @@ type Branch =
 
 let fakeBranches () : List<Branch> =
   [ Branch
-      { id = Stdlib.Uuid.parse "0dd5bb87-06c8-4b3c-a895-e1fb6b29db4f"
+      { id = (Stdlib.Uuid.parse "0dd5bb87-06c8-4b3c-a895-e1fb6b29db4f") |> Builtin.unwrap
         name = "feature-auth"
         active = true }
     Branch
-      { id = Stdlib.Uuid.parse "6e264327-e040-4f19-9a94-cb5f37592737"
+      { id = (Stdlib.Uuid.parse "6e264327-e040-4f19-9a94-cb5f37592737") |> Builtin.unwrap
         name = "refactor-db"
         active = true }
     Branch
-      { id = Stdlib.Uuid.parse "70fea999-20a8-4a2c-b4bf-fd85dc861def"
+      { id = (Stdlib.Uuid.parse "70fea999-20a8-4a2c-b4bf-fd85dc861def") |> Builtin.unwrap
         name = "experiment-cli"
         active = true } ]
 
 
-let findBranch (branches: List<Branch>) (branchId: String) : Stdlib.Option.Option<Branch> =
+let findBranch (branches: List<Branch>) (branchId: Uuid) : Stdlib.Option.Option<Branch> =
   Stdlib.List.findFirst branches (fun b -> b.id == branchId)

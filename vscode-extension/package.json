@@ -139,6 +139,11 @@
 			],
 			"view/item/context": [
         {
+					"command": "darklang.openFullModule",
+					"when": "view == darklangPackages && viewItem == module",
+					"group": "navigation"
+				},
+        {
 					"command": "darklang.branch.rename",
 					"when": "view == darklangWorkspace && viewItem == workspace-branch-root",
 					"group": "inline@1"

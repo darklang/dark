@@ -32,7 +32,7 @@ let initState () : AppState =
       savedPrompt = ""
 
       instanceName = "local"
-      currentBranchId = Stdlib.Option.None }
+      currentBranchId = Stdlib.Option.Option.None }
 
 // Helper to update core state fields while preserving package navigation fields
 let updateCoreFields (state: AppState) (isExiting: Bool) (mainPrompt: String) (needsFullRedraw: Bool) : AppState =
@@ -175,10 +175,13 @@ module View =
 
   let formatPromptWithInput (state: AppState) : String =
     let branches = Matter.State.fakeBranches ()
-    let currentBranch = Matter.State.findBranch branches state.currentBranchId
+    let currentBranch =
+      match state.currentBranchId with
+      | Some branchId -> Matter.State.findBranch branches branchId
+      | None -> Stdlib.Option.Option.None
     let branchName =
       match currentBranch with
-      | Some branch -> branch.title
+      | Some branch -> branch.name
       | None -> "unknown"
 
     let instanceStr = Colors.mutedText $"[{state.instanceName}]"
@@ -591,10 +594,13 @@ let runInteractiveLoop (state: AppState) : Int64 =
     | MainPrompt ->
       // Determine where user input starts (instance + branch + " > ")
       let branches = Matter.State.fakeBranches ()
-      let currentBranch = Matter.State.findBranch branches state.currentBranchId
+      let currentBranch =
+        match state.currentBranchId with
+        | Some branchId -> Matter.State.findBranch branches branchId
+        | None -> Stdlib.Option.Option.None
       let branchName =
         match currentBranch with
-        | Some branch -> branch.title
+        | Some branch -> branch.name
         | None -> "unknown"
 
       let contextLength =

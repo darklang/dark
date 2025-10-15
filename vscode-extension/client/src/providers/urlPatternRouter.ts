@@ -46,7 +46,7 @@ export class UrlPatternRouter {
           result = this.parsePackageUrl(pathParts, queryParams);
           break;
 
-          case 'branch':
+        case 'branch':
           result = this.parseBranchUrl(pathParts, queryParams);
           break;
 
@@ -67,15 +67,30 @@ export class UrlPatternRouter {
    * Parse package URLs: dark://package/Name.Space.item[?view=type]
    */
   private static parsePackageUrl(pathParts: string[], queryParams: Record<string, string>): ParsedUrl {
-    let target: string;
+    // pathParts: ['package', 'module', 'Darklang.Stdlib.Bool']
+    // or: ['package', 'Darklang.Stdlib.Bool']
 
-    target = pathParts.slice(1).join('/');
+    const secondPart = pathParts[1];
+    const knownViews = ['module', 'source'];
+
+    let target: string;
+    let view: string;
+
+    if (knownViews.includes(secondPart)) {
+      // Second part is a view specifier: ['package', 'module', 'Darklang.Stdlib.Bool']
+      view = secondPart;
+      target = pathParts.slice(2).join('.');
+    } else {
+      // No view specified: ['package', 'Darklang.Stdlib.Bool']
+      view = queryParams.view || 'source';
+      target = pathParts.slice(1).join('.');
+    }
 
     return {
       scheme: 'dark',
       mode: 'package',
       target: target,
-      view: queryParams.view || 'source',
+      view: view,
       queryParams
     };
   }

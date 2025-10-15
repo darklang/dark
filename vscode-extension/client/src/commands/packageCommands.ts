@@ -26,9 +26,11 @@ export class PackageCommands {
 
       vscode.commands.registerCommand("darklang.openPackageDefinition", async (packagePath: string) => {
         try {
-          const packageName = packagePath.split('.').pop() || packagePath.split('/').pop() || 'package';
-          const virtualUri = vscode.Uri.parse(`dark:///package/${packagePath}/${packageName}.darklang`);
+          const virtualUri = vscode.Uri.parse(`dark:///package/${packagePath}`);
           const doc = await vscode.workspace.openTextDocument(virtualUri);
+
+          // Set the language to darklang for syntax highlighting
+          await vscode.languages.setTextDocumentLanguage(doc, 'darklang');
 
           await vscode.window.showTextDocument(doc, {
             preview: false,
@@ -43,8 +45,10 @@ export class PackageCommands {
       vscode.commands.registerCommand("darklang.openFullModule", async (node: any) => {
         try {
           const modulePath = node?.id || "";
-          const virtualUri = vscode.Uri.parse(`dark:///package/${modulePath}`);
+          const virtualUri = vscode.Uri.parse(`dark:///package/module/${modulePath}`);
           const doc = await vscode.workspace.openTextDocument(virtualUri);
+
+          await vscode.languages.setTextDocumentLanguage(doc, 'darklang');
 
           await vscode.window.showTextDocument(doc, {
             preview: false,

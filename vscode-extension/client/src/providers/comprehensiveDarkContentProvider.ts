@@ -1,16 +1,23 @@
 import * as vscode from "vscode";
 import { UrlPatternRouter, ParsedUrl } from "./urlPatternRouter";
 import { PackageContentProvider } from "./content/packageContentProvider";
+import { LanguageClient } from "vscode-languageclient/node";
 
 export class ComprehensiveDarkContentProvider implements vscode.TextDocumentContentProvider {
   private _onDidChange = new vscode.EventEmitter<vscode.Uri>();
   readonly onDidChange = this._onDidChange.event;
+  private client: LanguageClient | null = null;
 
   constructor() {
     console.log('ComprehensiveDarkContentProvider initialized with support for all URL patterns');
   }
 
-  provideTextDocumentContent(uri: vscode.Uri): string {
+  setClient(client: LanguageClient): void {
+    this.client = client;
+    PackageContentProvider.setClient(client);
+  }
+
+  async provideTextDocumentContent(uri: vscode.Uri): Promise<string> {
     try {
       const url = uri.toString();
       console.log(`Providing content for: ${url}`);
@@ -21,7 +28,7 @@ export class ComprehensiveDarkContentProvider implements vscode.TextDocumentCont
         return this.getErrorContent(url, "Invalid URL format");
       }
 
-      return this.getContentForParsedUrl(parsedUrl);
+      return await this.getContentForParsedUrl(parsedUrl);
 
     } catch (error) {
       console.error('Error providing content:', error);
@@ -32,10 +39,10 @@ export class ComprehensiveDarkContentProvider implements vscode.TextDocumentCont
   /**
    * Route parsed URL to appropriate content provider
    */
-  private getContentForParsedUrl(parsedUrl: ParsedUrl): string {
+  private async getContentForParsedUrl(parsedUrl: ParsedUrl): Promise<string> {
     switch (parsedUrl.mode) {
       case 'package':
-        return PackageContentProvider.getContent(parsedUrl);
+        return await PackageContentProvider.getContentAsync(parsedUrl);
 
       case 'branch':
         return this.getBranchContent(parsedUrl);

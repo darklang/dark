@@ -13,7 +13,6 @@ import {
 import { ServerBackedTreeDataProvider } from "./providers/treeviews/ServerBackedTreeDataProvider";
 import { ComprehensiveDarkContentProvider } from "./providers/comprehensiveDarkContentProvider";
 import { StatusBarManager } from "./ui/statusbar/statusBarManager";
-import { PackagesTreeDataProvider } from "./providers/treeviews/packagesTreeDataProvider";
 import { WorkspaceTreeDataProvider } from "./providers/treeviews/workspaceTreeDataProvider";
 import { BranchesManagerPanel } from "./panels";
 import {
@@ -27,7 +26,7 @@ import { DarklangFileDecorationProvider } from "./providers/fileDecorationProvid
 let client: LanguageClient;
 let statusBarManager: StatusBarManager;
 let workspaceProvider: WorkspaceTreeDataProvider;
-let packagesProvider: PackagesTreeDataProvider;
+let packagesProvider: ServerBackedTreeDataProvider;
 let contentProvider: ComprehensiveDarkContentProvider;
 let fileDecorationProvider: DarklangFileDecorationProvider;
 
@@ -79,15 +78,15 @@ export function activate(context: ExtensionContext) {
     },
   };
 
-  // DISABLED: LSP client to avoid crashes during UI development
-  // client = new LanguageClient(
-  //   "darklangLsp",
-  //   "Darklang LSP - Server",
-  //   serverOptions,
-  //   clientOptions,
-  // );
-  // client.registerFeature(new SemanticTokensFeature(client));
-  // client.trace = Trace.Verbose;
+  // Initialize LSP client
+  client = new LanguageClient(
+    "darklangLsp",
+    "Darklang LSP - Server",
+    serverOptions,
+    clientOptions,
+  );
+  client.registerFeature(new SemanticTokensFeature(client));
+  client.trace = Trace.Verbose;
 
   // Initialize status bar manager
   statusBarManager = new StatusBarManager();
@@ -97,6 +96,11 @@ export function activate(context: ExtensionContext) {
   contentProvider = new ComprehensiveDarkContentProvider();
   const contentProviderRegistration = workspace.registerTextDocumentContentProvider("dark", contentProvider);
   context.subscriptions.push(contentProviderRegistration);
+
+  // Pass the LSP client to the content provider once it's ready
+  client.onReady().then(() => {
+    contentProvider.setClient(client);
+  });
 
   // Initialize file decoration provider for badges
   fileDecorationProvider = new DarklangFileDecorationProvider();
@@ -133,7 +137,17 @@ export function activate(context: ExtensionContext) {
   const branchStateManager = BranchStateManager.getInstance();
 
   // Initialize tree data providers
-  packagesProvider = new PackagesTreeDataProvider();
+  // Wait for LSP client to be ready before initializing tree provider
+  client.onReady().then(() => {
+    packagesProvider = new ServerBackedTreeDataProvider(client);
+    const packagesView = vscode.window.createTreeView("darklangPackages", {
+      treeDataProvider: packagesProvider,
+      showCollapseAll: true,
+    });
+
+    context.subscriptions.push(packagesView);
+  });
+
   workspaceProvider = new WorkspaceTreeDataProvider();
 
   // Create tree views
@@ -146,17 +160,12 @@ export function activate(context: ExtensionContext) {
   });
   workspaceView.title = "Workspace";
 
-  const packagesView = vscode.window.createTreeView("darklangPackages", {
-    treeDataProvider: packagesProvider,
-    showCollapseAll: true,
-  });
-
   console.log('✅ Tree views created successfully');
 
-  context.subscriptions.push(workspaceView, packagesView);
+  context.subscriptions.push(workspaceView);
 
-  // DISABLED: LSP client start
-  // client.start();
+  // Start LSP client
+  client.start();
 
   // Initialize command handlers
   const packageCommands = new PackageCommands();
@@ -179,10 +188,8 @@ export function activate(context: ExtensionContext) {
 }
 
 export function deactivate(): Thenable<void> | undefined {
-  // DISABLED: LSP client deactivation
-  // if (!client) {
-  //   return undefined;
-  // }
-  // return client.stop();
-  return undefined;
+  if (!client) {
+    return undefined;
+  }
+  return client.stop();
 }
