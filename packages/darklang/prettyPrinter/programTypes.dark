@@ -79,15 +79,19 @@ module FQTypeName =
     let atDefinition
       (id: LanguageTools.ProgramTypes.FQTypeName.Package)
       : String =
-      match LanguageTools.PackageManager.Type.get id with
-      | Some p -> p.name.name
+      match Builtin.packageManagerGetLocationByTypeId id with
+      | Some location -> location.name
       | None -> Stdlib.Uuid.toString id
 
     let fullForReference
       (id: LanguageTools.ProgramTypes.FQTypeName.Package)
       : String =
-      match LanguageTools.PackageManager.Type.get id with
-      | Some p -> packageName p.name.owner p.name.modules p.name.name
+      match Builtin.packageManagerGetLocationByTypeId id with
+      | Some location ->
+        PrettyPrinter.ProgramTypes.packageName
+          location.owner
+          location.modules
+          location.name
       | None -> Stdlib.Uuid.toString id
 
 
@@ -125,15 +129,19 @@ module FQValueName =
     let atDefinition
       (id: LanguageTools.ProgramTypes.FQValueName.Package)
       : String =
-      match LanguageTools.PackageManager.Value.get id with
-      | Some p -> p.name.name
+      match Builtin.packageManagerGetLocationByValueId id with
+      | Some location -> location.name
       | None -> Stdlib.Uuid.toString id
 
     let fullForReference
       (id: LanguageTools.ProgramTypes.FQValueName.Package)
       : String =
-      match LanguageTools.PackageManager.Value.get id with
-      | Some p -> packageName p.name.owner p.name.modules p.name.name
+      match Builtin.packageManagerGetLocationByValueId id with
+      | Some location ->
+        PrettyPrinter.ProgramTypes.packageName
+          location.owner
+          location.modules
+          location.name
       | None -> Stdlib.Uuid.toString id
 
 
@@ -177,15 +185,19 @@ module FQFnName =
     let atDefinition
       (id: LanguageTools.ProgramTypes.FQFnName.Package)
       : String =
-      match LanguageTools.PackageManager.Function.get id with
-      | Some p -> p.name.name
+      match Builtin.packageManagerGetLocationByFnId id with
+      | Some location -> location.name
       | None -> Stdlib.Uuid.toString id
 
     let fullForReference
       (id: LanguageTools.ProgramTypes.FQFnName.Package)
       : String =
-      match LanguageTools.PackageManager.Function.get id with
-      | Some p -> packageName p.name.owner p.name.modules p.name.name
+      match Builtin.packageManagerGetLocationByFnId id with
+      | Some location ->
+        PrettyPrinter.ProgramTypes.packageName
+          location.owner
+          location.modules
+          location.name
       | None -> Stdlib.Uuid.toString id
 
 
@@ -829,6 +841,8 @@ let packageType
   (p: LanguageTools.ProgramTypes.PackageType.PackageType)
   : String =
   // TODO: take care of deprecated and description
+  let namePart = PrettyPrinter.ProgramTypes.FQTypeName.Package.atDefinition p.id
+
   let typeParamPart =
     match p.declaration.typeParams with
     | [] -> ""
@@ -842,14 +856,15 @@ let packageType
     (PrettyPrinter.ProgramTypes.customType p.declaration)
     |> PrettyPrinter.indent
 
-  $"type {p.name.name}{typeParamPart} =\n{defPart}"
+  $"type {namePart}{typeParamPart} =\n{defPart}"
 
 
 let packageValue
   (p: LanguageTools.ProgramTypes.PackageValue.PackageValue)
   : String =
+  let namePart = PrettyPrinter.ProgramTypes.FQValueName.Package.atDefinition p.id
   let bodyPart = PrettyPrinter.ProgramTypes.expr p.body
-  $"val {p.name.name} = {bodyPart}"
+  $"val {namePart} = {bodyPart}"
 
 
 module PackageFn =
@@ -872,6 +887,8 @@ module PackageFn =
 
 let packageFn (p: LanguageTools.ProgramTypes.PackageFn.PackageFn) : String =
   // TODO: handle `deprecated`, `description`
+  let namePart = PrettyPrinter.ProgramTypes.FQFnName.Package.atDefinition p.id
+
   let typeParamPart =
     match p.typeParams with
     | [] -> ""
@@ -891,7 +908,7 @@ let packageFn (p: LanguageTools.ProgramTypes.PackageFn.PackageFn) : String =
 
   let bodyPart = PrettyPrinter.ProgramTypes.expr p.body
 
-  $"let {p.name.name}{typeParamPart} {paramPart}: {retPart} =\n{PrettyPrinter.indent bodyPart}"
+  $"let {namePart}{typeParamPart} {paramPart}: {retPart} =\n{PrettyPrinter.indent bodyPart}"
 
 
 module BuiltinFn =

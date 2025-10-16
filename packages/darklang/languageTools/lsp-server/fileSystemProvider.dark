@@ -65,17 +65,20 @@ module ReadFile =
 
         let functions =
           searchResults.fns
-          |> Stdlib.List.map (fun fn -> fn |> PrettyPrinter.ProgramTypes.packageFn)
+          |> Stdlib.List.map (fun locatedFn ->
+            locatedFn.entity |> PrettyPrinter.ProgramTypes.packageFn)
           |> Stdlib.String.join "\n\n"
 
         let types =
           searchResults.types
-          |> Stdlib.List.map (fun typ -> typ |> PrettyPrinter.ProgramTypes.packageType)
+          |> Stdlib.List.map (fun locatedType ->
+            locatedType.entity |> PrettyPrinter.ProgramTypes.packageType)
           |> Stdlib.String.join "\n\n"
 
         let values =
           searchResults.values
-          |> Stdlib.List.map (fun v -> v |> PrettyPrinter.ProgramTypes.packageValue)
+          |> Stdlib.List.map (fun locatedValue ->
+            locatedValue.entity |> PrettyPrinter.ProgramTypes.packageValue)
           |> Stdlib.String.join "\n\n"
 
         let allDefinitions =

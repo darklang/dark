@@ -251,6 +251,71 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
         | _ -> incorrectArgs ()
       sqlSpec = NotQueryable
       previewable = Impure
+      deprecated = NotDeprecated }
+
+
+    // Location lookups
+    { name = fn "packageManagerGetLocationByTypeId" 0
+      typeParams = []
+      parameters = [ Param.make "id" TUuid "" ]
+      returnType =
+        TypeReference.option (TCustomType(Ok PT2DT.PackageLocation.typeName, []))
+      description = "Returns the location of a package type by its ID, if it exists"
+      fn =
+        let optType = KTCustomType(PT2DT.PackageLocation.typeName, [])
+        (function
+        | _, _, _, [ DUuid id ] ->
+          uply {
+            match! LibPackageManager.ProgramTypes.Type.getLocation(None, id) with
+            | Some location ->
+              return location |> PT2DT.PackageLocation.toDT |> Dval.optionSome optType
+            | None -> return Dval.optionNone optType
+          }
+        | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Impure
+      deprecated = NotDeprecated }
+
+    { name = fn "packageManagerGetLocationByValueId" 0
+      typeParams = []
+      parameters = [ Param.make "id" TUuid "" ]
+      returnType =
+        TypeReference.option (TCustomType(Ok PT2DT.PackageLocation.typeName, []))
+      description = "Returns the location of a package value by its ID, if it exists"
+      fn =
+        let optType = KTCustomType(PT2DT.PackageLocation.typeName, [])
+        (function
+        | _, _, _, [ DUuid id ] ->
+          uply {
+            match! LibPackageManager.ProgramTypes.Value.getLocation(None, id) with
+            | Some location ->
+              return location |> PT2DT.PackageLocation.toDT |> Dval.optionSome optType
+            | None -> return Dval.optionNone optType
+          }
+        | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Impure
+      deprecated = NotDeprecated }
+
+    { name = fn "packageManagerGetLocationByFnId" 0
+      typeParams = []
+      parameters = [ Param.make "id" TUuid "" ]
+      returnType =
+        TypeReference.option (TCustomType(Ok PT2DT.PackageLocation.typeName, []))
+      description = "Returns the location of a package function by its ID, if it exists"
+      fn =
+        let optType = KTCustomType(PT2DT.PackageLocation.typeName, [])
+        (function
+        | _, _, _, [ DUuid id ] ->
+          uply {
+            match! LibPackageManager.ProgramTypes.Fn.getLocation(None, id) with
+            | Some location ->
+              return location |> PT2DT.PackageLocation.toDT |> Dval.optionSome optType
+            | None -> return Dval.optionNone optType
+          }
+        | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Impure
       deprecated = NotDeprecated } ]
 
 let builtins ptPM = LibExecution.Builtin.make [] (fns ptPM)

@@ -167,117 +167,13 @@ let parse
     match parseDecls owner scriptName parsedFile with
     | Error e -> Stdlib.Result.Result.Error e
     | Ok moduleWT ->
-      let (initialParse, _) = toPT onMissing pm moduleWT
-
-      let types =
-        Stdlib.List.append
-          initialParse.types
-          (initialParse.submodules
-            |> Stdlib.List.map (fun m -> m.types)
-            |> Stdlib.List.flatten)
-
-      let values =
-        Stdlib.List.append
-          initialParse.values
-          (initialParse.submodules
-          |> Stdlib.List.map (fun m -> m.values)
-          |> Stdlib.List.flatten)
-
-      let fns =
-        Stdlib.List.append
-          initialParse.fns
-          (initialParse.submodules
-            |> Stdlib.List.map (fun m -> m.fns)
-            |> Stdlib.List.flatten)
-
-      let pm = ProgramTypes.PackageManager.withExtras pm types values fns
-
       let (result, unresolvedNames) = toPT onMissing pm moduleWT
 
-      let adjusted =
-        PTCliScriptModule
-          { types =
-              result.types
-              |> Stdlib.List.map (fun t ->
-                { t with
-                    id =
-                      initialParse.types
-                      |> Stdlib.List.findFirst (fun original ->
-                        original.name == t.name)
-                      |> Stdlib.Option.mapWithDefault t.id (fun original ->
-                        original.id) })
-
-            values =
-              result.values
-              |> Stdlib.List.map (fun v ->
-                { v with
-                    id =
-                      initialParse.values
-                      |> Stdlib.List.findFirst (fun original ->
-                        original.name == v.name)
-                      |> Stdlib.Option.mapWithDefault v.id (fun original ->
-                        original.id) })
-
-            fns =
-              result.fns
-              |> Stdlib.List.map (fun f ->
-                { f with
-                    id =
-                      initialParse.fns
-                      |> Stdlib.List.findFirst (fun original ->
-                        original.name == f.name)
-                      |> Stdlib.Option.mapWithDefault f.id (fun original ->
-                        original.id) })
-
-            submodules =
-              result.submodules
-              |> Stdlib.List.map (fun submodule ->
-                { submodule with
-                    types =
-                      submodule.types
-                      |> Stdlib.List.map (fun t ->
-                        { t with
-                            id =
-                              initialParse.submodules
-                              |> Stdlib.List.map (fun m -> m.types)
-                              |> Stdlib.List.flatten
-                              |> Stdlib.List.findFirst (fun original ->
-                                original.name == t.name)
-                              |> Stdlib.Option.mapWithDefault
-                                t.id
-                                (fun original -> original.id) })
-
-                    values =
-                      submodule.values
-                      |> Stdlib.List.map (fun v ->
-                        { v with
-                            id =
-                              initialParse.submodules
-                              |> Stdlib.List.map (fun m -> m.values)
-                              |> Stdlib.List.flatten
-                              |> Stdlib.List.findFirst (fun original ->
-                                original.name == v.name)
-                              |> Stdlib.Option.mapWithDefault
-                                v.id
-                                (fun original -> original.id) })
-
-                    fns =
-                      submodule.fns
-                      |> Stdlib.List.map (fun f ->
-                        { f with
-                            id =
-                              initialParse.submodules
-                              |> Stdlib.List.map (fun m -> m.fns)
-                              |> Stdlib.List.flatten
-                              |> Stdlib.List.findFirst (fun original ->
-                                original.name == f.name)
-                              |> Stdlib.Option.mapWithDefault
-                                f.id
-                                (fun original -> original.id) }) })
-
-            exprs = result.exprs }
-
-      Stdlib.Result.Result.Ok ((adjusted, unresolvedNames))
+      // Note: We only do a single pass of toPT now.
+      // The old code did two passes to preserve IDs, but that relied on
+      // .name fields that no longer exist. Since CLI scripts are temporary
+      // and not persisted to the database, fresh IDs are fine.
+      Stdlib.Result.Result.Ok ((result, unresolvedNames))
 
 
 let pmWithExtras
@@ -317,5 +213,43 @@ let pmWithExtras
             |> Stdlib.List.map (fun m -> m.fns)
             |> Stdlib.List.flatten)
 
-      (ProgramTypes.PackageManager.withExtras pm types values fns)
+      // Wrap entities with dummy locations for withExtras
+      let typesWithLocations =
+        types
+        |> Stdlib.List.map (fun t ->
+          ProgramTypes.LocatedItem
+            { entity = t
+              location =
+                ProgramTypes.PackageLocation
+                  { owner = owner
+                    modules = if scriptName == "" then [] else [ scriptName ]
+                    name = Stdlib.Uuid.toString t.id } })
+
+      let valuesWithLocations =
+        values
+        |> Stdlib.List.map (fun v ->
+          ProgramTypes.LocatedItem
+            { entity = v
+              location =
+                ProgramTypes.PackageLocation
+                  { owner = owner
+                    modules = if scriptName == "" then [] else [ scriptName ]
+                    name = Stdlib.Uuid.toString v.id } })
+
+      let fnsWithLocations =
+        fns
+        |> Stdlib.List.map (fun f ->
+          ProgramTypes.LocatedItem
+            { entity = f
+              location =
+                ProgramTypes.PackageLocation
+                  { owner = owner
+                    modules = if scriptName == "" then [] else [ scriptName ]
+                    name = Stdlib.Uuid.toString f.id } })
+
+      (ProgramTypes.PackageManager.withExtras
+        pm
+        typesWithLocations
+        valuesWithLocations
+        fnsWithLocations)
       |> Stdlib.Result.Result.Ok

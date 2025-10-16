@@ -102,7 +102,7 @@ let buildTreeItems
   let fnItems =
     searchResults.fns
     |> Stdlib.List.filter (fun fn ->
-      let modules = Stdlib.List.push fn.location.modules item.location.owner
+      let modules = Stdlib.List.push fn.location.modules fn.location.owner
       modules == currentPath)
     |> Stdlib.List.map (fun fn ->
       let id = fn.location.owner ++ "." ++ (Stdlib.String.join fn.location.modules ".") ++ "." ++ fn.location.name

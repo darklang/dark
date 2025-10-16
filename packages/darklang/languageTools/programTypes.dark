@@ -448,76 +448,78 @@ module PackageManager =
           -> Search.SearchResults }
 
 
-  // CLEANUP: withExtras commented out - needs to be updated for new PackageManager signatures
-  // /// Allows you to side-load a few 'extras' in-memory, along
-  // /// the normal fetching functionality. (Mostly helpful for tests)
-  // let withExtras
-  //   (pm: PackageManager.PackageManager)
-  //   (types: List<PackageType.PackageType>)
-  //   (values: List<PackageValue.PackageValue>)
-  //   (fns: List<PackageFn.PackageFn>)
-  //   : PackageManager.PackageManager =
-  //   PackageManager.PackageManager
-  //     { findType =
-  //         fun name ->
-  //           match
-  //             types
-  //             |> Stdlib.List.findFirst (fun t ->
-  //               let typeName = PackageType.nameToString t.name
-  //               typeName == name)
-  //           with
-  //           | Some t -> Stdlib.Option.Option.Some t.id
-  //           | None ->
-  //             let findType = pm.findType
-  //             findType name
-  //       findValue =
-  //         fun name ->
-  //           match
-  //             values
-  //             |> Stdlib.List.findFirst (fun v ->
-  //               let valueName = PackageValue.nameToString v.name
-  //               valueName == name)
-  //           with
-  //           | Some v -> Stdlib.Option.Option.Some v.id
-  //           | None ->
-  //             let findValue = pm.findValue
-  //             findValue name
-  //       findFn =
-  //         fun name ->
-  //           match
-  //             fns
-  //             |> Stdlib.List.findFirst (fun f ->
-  //               let fnName = PackageFn.nameToString f.name
-  //               fnName == name)
-  //           with
-  //           | Some f -> Stdlib.Option.Option.Some f.id
-  //           | None ->
-  //             let findFn = pm.findFn
-  //             findFn name
-  //
-  //       getType =
-  //         fun id ->
-  //           match types |> Stdlib.List.findFirst (fun t -> t.id == id) with
-  //           | Some t -> Stdlib.Option.Option.Some t
-  //           | None ->
-  //             let getType = pm.getType
-  //             getType id
-  //       getValue =
-  //         fun id ->
-  //           match values |> Stdlib.List.findFirst (fun v -> v.id == id) with
-  //           | Some v -> Stdlib.Option.Option.Some v
-  //           | None ->
-  //             let getValue = pm.getValue
-  //             getValue id
-  //       getFn =
-  //         fun id ->
-  //           match fns |> Stdlib.List.findFirst (fun f -> f.id == id) with
-  //           | Some f -> Stdlib.Option.Option.Some f
-  //           | None ->
-  //             let getFn = pm.getFn
-  //             getFn id
-  //
-  //       search = pm.search }
+  /// Allows you to side-load a few 'extras' in-memory, along
+  /// the normal fetching functionality. (Mostly helpful for tests)
+  let withExtras
+    (pm: PackageManager.PackageManager)
+    (types: List<LocatedItem<PackageType.PackageType>>)
+    (values: List<LocatedItem<PackageValue.PackageValue>>)
+    (fns: List<LocatedItem<PackageFn.PackageFn>>)
+    : PackageManager.PackageManager =
+    PackageManager.PackageManager
+      { findType =
+          fun (branchId, location) ->
+            match
+              types
+              |> Stdlib.List.findFirst (fun t ->
+                t.location.owner == location.owner
+                && t.location.modules == location.modules
+                && t.location.name == location.name)
+            with
+            | Some t -> Stdlib.Option.Option.Some t.entity.id
+            | None ->
+              let findType = pm.findType
+              findType (branchId, location)
+        findValue =
+          fun (branchId, location) ->
+            match
+              values
+              |> Stdlib.List.findFirst (fun v ->
+                v.location.owner == location.owner
+                && v.location.modules == location.modules
+                && v.location.name == location.name)
+            with
+            | Some v -> Stdlib.Option.Option.Some v.entity.id
+            | None ->
+              let findValue = pm.findValue
+              findValue (branchId, location)
+        findFn =
+          fun (branchId, location) ->
+            match
+              fns
+              |> Stdlib.List.findFirst (fun f ->
+                f.location.owner == location.owner
+                && f.location.modules == location.modules
+                && f.location.name == location.name)
+            with
+            | Some f -> Stdlib.Option.Option.Some f.entity.id
+            | None ->
+              let findFn = pm.findFn
+              findFn (branchId, location)
+
+        getType =
+          fun id ->
+            match types |> Stdlib.List.findFirst (fun t -> t.entity.id == id) with
+            | Some t -> Stdlib.Option.Option.Some t.entity
+            | None ->
+              let getType = pm.getType
+              getType id
+        getValue =
+          fun id ->
+            match values |> Stdlib.List.findFirst (fun v -> v.entity.id == id) with
+            | Some v -> Stdlib.Option.Option.Some v.entity
+            | None ->
+              let getValue = pm.getValue
+              getValue id
+        getFn =
+          fun id ->
+            match fns |> Stdlib.List.findFirst (fun f -> f.entity.id == id) with
+            | Some f -> Stdlib.Option.Option.Some f.entity
+            | None ->
+              let getFn = pm.getFn
+              getFn id
+
+        search = pm.search }
 
 
 type Definitions =

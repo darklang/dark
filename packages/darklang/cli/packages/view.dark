@@ -57,7 +57,20 @@ let viewEntity (location: PackageLocation) : Unit =
       let locationStr = Packages.formatLocation location
       Stdlib.printLine $"Type '{locationStr}' not found."
     | item :: _ ->
-      Stdlib.printLine $"Found type: {item.location.name}"
+      let typeParamPart =
+        match item.entity.declaration.typeParams with
+        | [] -> ""
+        | _ ->
+          item.entity.declaration.typeParams
+          |> Stdlib.List.map (fun typeParam -> $"'{typeParam}")
+          |> Stdlib.String.join ", "
+          |> fun parts -> $"<{parts}>"
+
+      let defPart = Darklang.PrettyPrinter.ProgramTypes.customType item.entity.declaration
+
+      let prettyPrinted = $"type {item.location.name}{typeParamPart} =\n  {defPart}"
+      let highlighted = Darklang.Cli.SyntaxHighlighting.highlightCode prettyPrinted
+      Stdlib.printLine highlighted
 
   | Function name ->
     // Find and display the specific function
@@ -70,7 +83,27 @@ let viewEntity (location: PackageLocation) : Unit =
       let locationStr = Packages.formatLocation location
       Stdlib.printLine $"Function '{locationStr}' not found."
     | item :: _ ->
-      Stdlib.printLine $"Found function: {item.location.name}"
+      let typeParamPart =
+        match item.entity.typeParams with
+        | [] -> ""
+        | _ ->
+          item.entity.typeParams
+          |> Stdlib.List.map (fun typeParam -> $"'{typeParam}")
+          |> Stdlib.String.join ", "
+          |> fun parts -> $"<{parts}>"
+
+      let paramPart =
+        item.entity.parameters
+        |> Stdlib.List.map (fun param ->
+          $"({param.name}: {Darklang.PrettyPrinter.ProgramTypes.typeReference param.typ})")
+        |> Stdlib.String.join " "
+
+      let retPart = Darklang.PrettyPrinter.ProgramTypes.typeReference item.entity.returnType
+      let bodyPart = Darklang.PrettyPrinter.ProgramTypes.expr item.entity.body
+
+      let prettyPrinted = $"let {item.location.name}{typeParamPart} {paramPart}: {retPart} =\n  {bodyPart}"
+      let highlighted = Darklang.Cli.SyntaxHighlighting.highlightCode prettyPrinted
+      Stdlib.printLine highlighted
 
   | Value name ->
     // Find and display the specific value
@@ -83,7 +116,10 @@ let viewEntity (location: PackageLocation) : Unit =
       let locationStr = Packages.formatLocation location
       Stdlib.printLine $"Value '{locationStr}' not found."
     | item :: _ ->
-      Stdlib.printLine $"Found value: {item.location.name}"
+      let bodyPart = Darklang.PrettyPrinter.ProgramTypes.expr item.entity.body
+      let prettyPrinted = $"val {item.location.name} = {bodyPart}"
+      let highlighted = Darklang.Cli.SyntaxHighlighting.highlightCode prettyPrinted
+      Stdlib.printLine highlighted
 
 
 // VIEW command - view modules, functions, types, or constants

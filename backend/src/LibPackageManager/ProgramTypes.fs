@@ -57,6 +57,32 @@ module Type =
         |> Task.map (Option.map (BinarySerialization.PT.PackageType.deserialize id))
     }
 
+  let getLocation
+    ((branchId, id) : Option<PT.BranchID> * uuid)
+    : Ply<Option<PT.PackageLocation>> =
+    uply {
+      return!
+        Sql.query
+          """
+          SELECT owner, modules, name
+          FROM locations
+          WHERE id = @id
+            AND item_type = 'type'
+            AND deprecated_at IS NULL
+            AND (branch_id = @branch_id OR (branch_id IS NULL AND @branch_id IS NULL))
+          ORDER BY created_at DESC
+          LIMIT 1
+          """
+        |> Sql.parameters
+          [ "id", Sql.uuid id
+            "branch_id", (match branchId with | Some id -> Sql.uuid id | None -> Sql.dbnull) ]
+        |> Sql.executeRowOptionAsync (fun read ->
+          let modulesStr = read.string "modules"
+          { owner = read.string "owner"
+            modules = modulesStr.Split('.') |> Array.toList
+            name = read.string "name" })
+    }
+
 
 module Value =
   let find
@@ -101,6 +127,32 @@ module Value =
         |> Task.map (Option.map (BinarySerialization.PT.PackageValue.deserialize id))
     }
 
+  let getLocation
+    ((branchId, id) : Option<PT.BranchID> * uuid)
+    : Ply<Option<PT.PackageLocation>> =
+    uply {
+      return!
+        Sql.query
+          """
+          SELECT owner, modules, name
+          FROM locations
+          WHERE id = @id
+            AND item_type = 'value'
+            AND deprecated_at IS NULL
+            AND (branch_id = @branch_id OR (branch_id IS NULL AND @branch_id IS NULL))
+          ORDER BY created_at DESC
+          LIMIT 1
+          """
+        |> Sql.parameters
+          [ "id", Sql.uuid id
+            "branch_id", (match branchId with | Some id -> Sql.uuid id | None -> Sql.dbnull) ]
+        |> Sql.executeRowOptionAsync (fun read ->
+          let modulesStr = read.string "modules"
+          { owner = read.string "owner"
+            modules = modulesStr.Split('.') |> Array.toList
+            name = read.string "name" })
+    }
+
 
 module Fn =
   let find
@@ -143,6 +195,32 @@ module Fn =
         |> Sql.parameters [ "id", Sql.uuid id ]
         |> Sql.executeRowOptionAsync (fun read -> read.bytes "pt_def")
         |> Task.map (Option.map (BinarySerialization.PT.PackageFn.deserialize id))
+    }
+
+  let getLocation
+    ((branchId, id) : Option<PT.BranchID> * uuid)
+    : Ply<Option<PT.PackageLocation>> =
+    uply {
+      return!
+        Sql.query
+          """
+          SELECT owner, modules, name
+          FROM locations
+          WHERE id = @id
+            AND item_type = 'fn'
+            AND deprecated_at IS NULL
+            AND (branch_id = @branch_id OR (branch_id IS NULL AND @branch_id IS NULL))
+          ORDER BY created_at DESC
+          LIMIT 1
+          """
+        |> Sql.parameters
+          [ "id", Sql.uuid id
+            "branch_id", (match branchId with | Some id -> Sql.uuid id | None -> Sql.dbnull) ]
+        |> Sql.executeRowOptionAsync (fun read ->
+          let modulesStr = read.string "modules"
+          { owner = read.string "owner"
+            modules = modulesStr.Split('.') |> Array.toList
+            name = read.string "name" })
     }
 
 
