@@ -12,10 +12,20 @@ open LibDB.Db
 
 let purge () : Task<unit> =
   task {
-    [ "DELETE FROM package_types_v0"
-      "DELETE FROM package_values_v0"
-      "DELETE FROM package_functions_v0" ]
-    |> List.map (fun sql -> (sql, [ [] ]))
-    |> Sql.executeTransactionSync
-    |> ignore<List<int>>
+    // Helper to check if a table exists
+    let tableExists (tableName : string) : bool =
+      Sql.query
+        "SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = @tableName"
+      |> Sql.parameters [ "tableName", Sql.string tableName ]
+      |> Sql.executeExistsSync
+
+    // Delete from projection tables and source-of-truth ops table
+    // Only delete if tables exist (handles case where migrations haven't run yet)
+    let tablesToPurge =
+      [ "locations"; "package_types"; "package_values"; "package_functions"; "package_ops" ]
+      |> List.filter tableExists
+      |> List.map (fun table -> ($"DELETE FROM {table}", [ [] ]))
+
+    if not (List.isEmpty tablesToPurge) then
+      tablesToPurge |> Sql.executeTransactionSync |> ignore<List<int>>
   }

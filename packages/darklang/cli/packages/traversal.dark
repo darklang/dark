@@ -99,20 +99,16 @@ let resolveEntity (basePath: List<String>) (name: String) : Stdlib.Result.Result
   else
     let entityResults = Search.searchEntity basePath name
 
-    // Look for exact matches
-    let matchingType = Search.findTypeByName entityResults name
-    let matchingValue = Search.findValueByName entityResults name
-    let matchingFn = Search.findFnByName entityResults name
-
-    match matchingType with
-    | Some t -> Stdlib.Result.Result.Ok (PackageLocation.Type t.name)
-    | None ->
-      match matchingFn with
-      | Some f -> Stdlib.Result.Result.Ok (PackageLocation.Function f.name)
-      | None ->
-        match matchingValue with
-        | Some v -> Stdlib.Result.Result.Ok (PackageLocation.Value v.name)
-        | None -> Stdlib.Result.Result.Error "Not found"
+    // Access lists directly to avoid type parameter loss
+    match entityResults.types with
+    | item :: _ -> Stdlib.Result.Result.Ok (PackageLocation.Type item.location)
+    | [] ->
+      match entityResults.fns with
+      | item :: _ -> Stdlib.Result.Result.Ok (PackageLocation.Function item.location)
+      | [] ->
+        match entityResults.values with
+        | item :: _ -> Stdlib.Result.Result.Ok (PackageLocation.Value item.location)
+        | [] -> Stdlib.Result.Result.Error "Not found"
 
 
 let applyPath (start: PackageLocation) (segments: List<PathSegment>) : Stdlib.Result.Result<PackageLocation, String> =
@@ -142,9 +138,9 @@ let getAvailableNames (location: PackageLocation) (prefixText: String) : List<St
 
   let currentPathLength = Stdlib.List.length currentPath
   let moduleNames = Search.getDirectSubmodules allResults currentPathLength
-  let typeNames = allResults.types |> Stdlib.List.map (fun t -> t.name.name)
-  let fnNames = allResults.fns |> Stdlib.List.map (fun f -> f.name.name)
-  let valueNames = allResults.values |> Stdlib.List.map (fun v -> v.name.name)
+  let typeNames = allResults.types |> Stdlib.List.map (fun item -> item.location.name)
+  let fnNames = allResults.fns |> Stdlib.List.map (fun item -> item.location.name)
+  let valueNames = allResults.values |> Stdlib.List.map (fun item -> item.location.name)
 
   let allNames =
     moduleNames

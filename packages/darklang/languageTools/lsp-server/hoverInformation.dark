@@ -2250,6 +2250,104 @@ let collectExpressionHoverInfoAtPos
 // ---------------------------
 // Source File Hover Info
 // ---------------------------
+
+/// Helper function to collect hover info from module declarations
+let collectModuleDeclHoverInfoAtPos
+  (decls: List<WrittenTypes.ModuleDeclaration.Declaration>)
+  (position: LanguageServerProtocol.Position.Position)
+  (pm: ProgramTypes.PackageManager.PackageManager)
+  (owner: String)
+  (currentModules: List<String>)
+  : Stdlib.Option.Option<Info> =
+  let node =
+    decls
+    |> Stdlib.List.filterMap (fun decl ->
+      match decl with
+      | Type t ->
+        // Check if position is within type range for early escape
+        if CursorPosition.isLineNumberInRange position t.range then
+          collectTypeHoverInfoAtPosition t position pm owner currentModules
+        else
+          Stdlib.Option.Option.None
+
+      | Value v ->
+        // Check if position is within value range for early escape
+        if CursorPosition.isLineNumberInRange position v.range then
+          collectValueHoverInfoAtPos v position pm owner currentModules
+        else
+          Stdlib.Option.Option.None
+
+      | Function f ->
+        // Check if position is within function range for early escape
+        if CursorPosition.isLineNumberInRange position f.range then
+          collectFnHoverInfoAtPos f position pm owner currentModules
+        else
+          Stdlib.Option.Option.None
+
+      | SubModule m ->
+        // Check if position is within submodule range for early escape
+        if CursorPosition.isLineNumberInRange position m.range then
+          match
+            CursorPosition.checkIfPositionWithinRange
+              position
+              m.keywordModule
+          with
+          | Some r ->
+            let thingAtPosition =
+              CursorPosition.ThingAtPosition.Keyword("module")
+
+            (hoverInfoForThingAtPosition thingAtPosition r)
+            |> Stdlib.Option.Option.Some
+
+          | None ->
+            let (nameRange, subModuleName) = m.name
+
+            match
+              CursorPosition.checkIfPositionWithinRange position nameRange
+            with
+            | Some r ->
+              let fqName =
+                (Stdlib.String.join currentModules ".")
+                |> (fun currentModules ->
+                  if currentModules == "" then
+                    subModuleName
+                  else
+                    currentModules ++ "." ++ subModuleName)
+
+              let description =
+                Stdlib.Option.Option.Some(
+                  "TODO: add description when /// comments are supported"
+                )
+
+              let thingAtPosition =
+                CursorPosition.ThingAtPosition.SubModuleName(
+                  fqName,
+                  description
+                )
+
+              (hoverInfoForThingAtPosition thingAtPosition r)
+              |> Stdlib.Option.Option.Some
+
+            | None ->
+              let currentModules =
+                Stdlib.List.append currentModules [ subModuleName ]
+
+              m.declarations
+              |> collectModuleDeclHoverInfoAtPos
+                position
+                pm
+                owner
+                currentModules
+
+
+        else
+          Stdlib.Option.Option.None
+
+      | _ -> Stdlib.Option.Option.None)
+
+  node |> Stdlib.List.head
+
+
 let collectNodeHoverInfoAtPos
   (decls: List<WrittenTypes.SourceFile.SourceFileDeclaration>)
   (position: LanguageServerProtocol.Position.Position)
@@ -2323,7 +2421,11 @@ let collectNodeHoverInfoAtPos
                 Stdlib.List.append currentModules [ name ]
 
               m.declarations
-              |> collectNodeHoverInfoAtPos position pm owner currentModules
+              |> collectModuleDeclHoverInfoAtPos
+                position
+                pm
+                owner
+                currentModules
 
         else
           Stdlib.Option.Option.None
@@ -2377,7 +2479,11 @@ let collectNodeHoverInfoAtPos
                 Stdlib.List.append currentModules [ subModuleName ]
 
               m.declarations
-              |> collectNodeHoverInfoAtPos position pm owner currentModules
+              |> collectModuleDeclHoverInfoAtPos
+                position
+                pm
+                owner
+                currentModules
 
 
         else

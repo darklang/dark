@@ -315,51 +315,9 @@ let parse
 
     let moduleWT = parseDecls owner canvasName decls
 
-    // Initial pass, so we can re-parse with all names in context
-    let! initialResult = toPT builtins pm onMissing moduleWT
-
-    let pm =
-      pm
-      |> PT.PackageManager.withExtras
-        initialResult.types
-        initialResult.values
-        initialResult.fns
-
-    // Now, parse again, but with the names in context (so fewer are marked as unresolved)
+    // TODO: Two-phase parsing with ID stabilization was disabled during package schema rewrite
+    // This needs to be updated to use the new ops-based approach similar to LoadPackagesFromDisk.fs
+    // For now, just do a single pass (IDs will be regenerated on each parse)
     let! result = toPT builtins pm onMissing moduleWT
-
-    let adjusted =
-      { types =
-          result.types
-          |> List.map (fun typ ->
-            { typ with
-                id =
-                  initialResult.types
-                  |> List.find (fun original -> original.name = typ.name)
-                  |> Option.map _.id
-                  |> Option.defaultValue typ.id })
-        values =
-          result.values
-          |> List.map (fun c ->
-            { c with
-                id =
-                  initialResult.values
-                  |> List.find (fun original -> original.name = c.name)
-                  |> Option.map _.id
-                  |> Option.defaultValue c.id })
-        fns =
-          result.fns
-          |> List.map (fun fn ->
-            { fn with
-                id =
-                  initialResult.fns
-                  |> List.find (fun original -> original.name = fn.name)
-                  |> Option.map _.id
-                  |> Option.defaultValue fn.id })
-
-        dbs = result.dbs
-        handlers = result.handlers
-        exprs = result.exprs }
-
-    return adjusted
+    return result
   }

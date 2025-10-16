@@ -254,58 +254,9 @@ let parseTestFile
       |> parseAsFSharpSourceFile filename
       |> parseFile owner
 
-    // Initial pass, so we can re-parse with all names in context
-    let! (afterFirstPass : List<PTModule>) =
-      modulesWT |> Ply.List.mapSequentially (toPT owner builtins pm onMissing)
-
-    // Now, parse again, but with the names in context (so fewer are marked as unresolved)
-    let pm =
-      pm
-      |> PT.PackageManager.withExtras
-        (afterFirstPass |> List.collect _.types)
-        (afterFirstPass |> List.collect _.values)
-        (afterFirstPass |> List.collect _.fns)
-
-    let! (afterSecondPass : List<PTModule>) =
-      modulesWT |> Ply.List.mapSequentially (toPT owner builtins pm onMissing)
-
-    // The IDs that weren't locked-in have changed - let's fix that now.
-    let adjusted : List<PTModule> =
-      afterSecondPass
-      |> List.map (fun m ->
-        let originalModule =
-          afterFirstPass
-          |> List.find (fun original -> original.name = m.name)
-          |> Option.unwrap m
-
-        { m with
-            types =
-              m.types
-              |> List.map (fun typ ->
-                { typ with
-                    id =
-                      originalModule.types
-                      |> List.find (fun original -> original.name = typ.name)
-                      |> Option.map _.id
-                      |> Option.defaultValue typ.id })
-            values =
-              m.values
-              |> List.map (fun c ->
-                { c with
-                    id =
-                      originalModule.values
-                      |> List.find (fun original -> original.name = c.name)
-                      |> Option.map _.id
-                      |> Option.defaultValue c.id })
-            fns =
-              m.fns
-              |> List.map (fun fn ->
-                { fn with
-                    id =
-                      originalModule.fns
-                      |> List.find (fun original -> original.name = fn.name)
-                      |> Option.map _.id
-                      |> Option.defaultValue fn.id }) })
-
-    return adjusted
+    // TODO: Two-phase parsing with ID stabilization was disabled during package schema rewrite
+    // This needs to be updated to use the new ops-based approach similar to LoadPackagesFromDisk.fs
+    // For now, just do a single pass (IDs will be regenerated on each parse)
+    let! modules = modulesWT |> Ply.List.mapSequentially (toPT owner builtins pm onMissing)
+    return modules
   }

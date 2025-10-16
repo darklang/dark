@@ -15,21 +15,31 @@ module BinarySerialization = LibBinarySerialization.BinarySerialization
 
 
 module Type =
-  let find (name : PT.PackageType.Name) : Ply<Option<PT.FQTypeName.Package>> =
+  let find
+    ((branchId, location) : Option<PT.BranchID> * PT.PackageLocation)
+    : Ply<Option<PT.FQTypeName.Package>> =
     uply {
+      let modulesStr = String.concat "." location.modules
+
       return!
         Sql.query
           """
           SELECT id
-          FROM package_types_v0
+          FROM locations
           WHERE owner = @owner
             AND modules = @modules
             AND name = @name
+            AND item_type = 'type'
+            AND deprecated_at IS NULL
+            AND (branch_id = @branch_id OR (branch_id IS NULL AND @branch_id IS NULL))
+          ORDER BY created_at DESC
+          LIMIT 1
           """
         |> Sql.parameters
-          [ "owner", Sql.string name.owner
-            "modules", Sql.string (String.concat "." name.modules)
-            "name", Sql.string name.name ]
+          [ "owner", Sql.string location.owner
+            "modules", Sql.string modulesStr
+            "name", Sql.string location.name
+            "branch_id", (match branchId with | Some id -> Sql.uuid id | None -> Sql.dbnull) ]
         |> Sql.executeRowOptionAsync (fun read -> read.uuid "id")
     }
 
@@ -39,7 +49,7 @@ module Type =
         Sql.query
           """
           SELECT pt_def
-          FROM package_types_v0
+          FROM package_types
           WHERE id = @id
           """
         |> Sql.parameters [ "id", Sql.uuid id ]
@@ -49,21 +59,31 @@ module Type =
 
 
 module Value =
-  let find (name : PT.PackageValue.Name) : Ply<Option<PT.FQValueName.Package>> =
+  let find
+    ((branchId, location) : Option<PT.BranchID> * PT.PackageLocation)
+    : Ply<Option<PT.FQValueName.Package>> =
     uply {
+      let modulesStr = String.concat "." location.modules
+
       return!
         Sql.query
           """
           SELECT id
-          FROM package_values_v0
+          FROM locations
           WHERE owner = @owner
             AND modules = @modules
             AND name = @name
+            AND item_type = 'value'
+            AND deprecated_at IS NULL
+            AND (branch_id = @branch_id OR (branch_id IS NULL AND @branch_id IS NULL))
+          ORDER BY created_at DESC
+          LIMIT 1
           """
         |> Sql.parameters
-          [ "owner", Sql.string name.owner
-            "modules", Sql.string (String.concat "." name.modules)
-            "name", Sql.string name.name ]
+          [ "owner", Sql.string location.owner
+            "modules", Sql.string modulesStr
+            "name", Sql.string location.name
+            "branch_id", (match branchId with | Some id -> Sql.uuid id | None -> Sql.dbnull) ]
         |> Sql.executeRowOptionAsync (fun read -> read.uuid "id")
     }
 
@@ -73,7 +93,7 @@ module Value =
         Sql.query
           """
           SELECT pt_def
-          FROM package_values_v0
+          FROM package_values
           WHERE id = @id
           """
         |> Sql.parameters [ "id", Sql.uuid id ]
@@ -83,21 +103,31 @@ module Value =
 
 
 module Fn =
-  let find (name : PT.PackageFn.Name) : Ply<Option<PT.FQFnName.Package>> =
+  let find
+    ((branchId, location) : Option<PT.BranchID> * PT.PackageLocation)
+    : Ply<Option<PT.FQFnName.Package>> =
     uply {
+      let modulesStr = String.concat "." location.modules
+
       return!
         Sql.query
           """
           SELECT id
-          FROM package_functions_v0
+          FROM locations
           WHERE owner = @owner
             AND modules = @modules
             AND name = @name
+            AND item_type = 'fn'
+            AND deprecated_at IS NULL
+            AND (branch_id = @branch_id OR (branch_id IS NULL AND @branch_id IS NULL))
+          ORDER BY created_at DESC
+          LIMIT 1
           """
         |> Sql.parameters
-          [ "owner", Sql.string name.owner
-            "modules", Sql.string (String.concat "." name.modules)
-            "name", Sql.string name.name ]
+          [ "owner", Sql.string location.owner
+            "modules", Sql.string modulesStr
+            "name", Sql.string location.name
+            "branch_id", (match branchId with | Some id -> Sql.uuid id | None -> Sql.dbnull) ]
         |> Sql.executeRowOptionAsync (fun read -> read.uuid "id")
     }
 
@@ -107,7 +137,7 @@ module Fn =
         Sql.query
           """
           SELECT pt_def
-          FROM package_functions_v0
+          FROM package_functions
           WHERE id = @id
           """
         |> Sql.parameters [ "id", Sql.uuid id ]
@@ -117,7 +147,10 @@ module Fn =
 
 
 
-let search (query : PT.Search.SearchQuery) : Ply<PT.Search.SearchResults> =
+let search
+  ((_branchId, query) : Option<PT.BranchID> * PT.Search.SearchQuery)
+  : Ply<PT.Search.SearchResults> =
+  // TODO: use _branchId when implementing branch-aware search
   uply {
     let currentModule = String.concat "." query.currentModule
 
@@ -167,16 +200,9 @@ let search (query : PT.Search.SearchQuery) : Ply<PT.Search.SearchResults> =
 
       $"""
       SELECT DISTINCT owner, modules
-      FROM (
-        SELECT owner, modules FROM package_types_v0
-        WHERE {submoduleCondition}
-        UNION ALL
-        SELECT owner, modules FROM package_values_v0
-        WHERE {submoduleCondition}
-        UNION ALL
-        SELECT owner, modules FROM package_functions_v0
-        WHERE {submoduleCondition}
-      ) AS filtered_modules
+      FROM locations
+      WHERE deprecated_at IS NULL
+        AND {submoduleCondition}
       """
       |> Sql.query
       |> Sql.parameters sqlParams
@@ -189,16 +215,19 @@ let search (query : PT.Search.SearchQuery) : Ply<PT.Search.SearchResults> =
         else
           owner :: moduleParts)
 
-    let makeEntityQuery table deserializeFn =
+    let makeEntityQuery (itemType : string) (contentTable : string) deserializeFn =
       let nameCondition =
         if query.exactMatch then
-          "name = @searchText"
+          "l.name = @searchText"
         else
-          "name LIKE '%' || @searchText || '%'"
+          "l.name LIKE '%' || @searchText || '%'"
 
-      "SELECT id, owner, modules, name, pt_def\n"
-      + $"FROM {table}\n"
-      + "WHERE ((modules = @modules) OR (owner || '.' || modules = @fqname))\n"
+      $"SELECT c.id, c.pt_def, l.owner, l.modules, l.name\n"
+      + $"FROM locations l\n"
+      + $"JOIN {contentTable} c ON l.id = c.id\n"
+      + "WHERE l.deprecated_at IS NULL\n"
+      + $"  AND l.item_type = '{itemType}'\n"
+      + "  AND ((l.modules = @modules) OR (l.owner || '.' || l.modules = @fqname))\n"
       + $"  AND {nameCondition}"
       |> Sql.query
       |> Sql.parameters
@@ -208,34 +237,39 @@ let search (query : PT.Search.SearchQuery) : Ply<PT.Search.SearchResults> =
       |> Sql.executeAsync (fun read ->
         let id = read.uuid "id"
         let definition = read.bytes "pt_def"
-        deserializeFn id definition)
+        let owner = read.string "owner"
+        let modulesStr = read.string "modules"
+        let name = read.string "name"
+        let entity = deserializeFn id definition
+        let location : PT.PackageLocation =
+          { owner = owner
+            modules = modulesStr.Split('.') |> Array.toList
+            name = name }
+        ({ entity = entity; location = location } : PT.LocatedItem<_>))
 
     let isEntityRequested entity =
       query.entityTypes.IsEmpty || List.contains entity query.entityTypes
 
     let! types =
       if isEntityRequested PT.Search.EntityType.Type then
-        makeEntityQuery
-          "package_types_v0"
-          BinarySerialization.PT.PackageType.deserialize
+        makeEntityQuery "type" "package_types" BinarySerialization.PT.PackageType.deserialize
       else
-        Task.FromResult []
+        Task.FromResult<List<PT.LocatedItem<PT.PackageType.PackageType>>> []
 
     let! values =
       if isEntityRequested PT.Search.EntityType.Value then
         makeEntityQuery
-          "package_values_v0"
+          "value"
+          "package_values"
           BinarySerialization.PT.PackageValue.deserialize
       else
-        Task.FromResult []
+        Task.FromResult<List<PT.LocatedItem<PT.PackageValue.PackageValue>>> []
 
     let! fns =
       if isEntityRequested PT.Search.EntityType.Fn then
-        makeEntityQuery
-          "package_functions_v0"
-          BinarySerialization.PT.PackageFn.deserialize
+        makeEntityQuery "fn" "package_functions" BinarySerialization.PT.PackageFn.deserialize
       else
-        Task.FromResult []
+        Task.FromResult<List<PT.LocatedItem<PT.PackageFn.PackageFn>>> []
 
     return { submodules = submodules; types = types; values = values; fns = fns }
   }

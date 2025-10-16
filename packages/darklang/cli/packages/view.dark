@@ -22,37 +22,28 @@ let viewEntity (location: PackageLocation) : Unit =
       |> Stdlib.List.iter (fun name -> Stdlib.printLine $"  {name}/")
       Stdlib.printLine ""
 
-    // Display types with pretty printing
+    // Display types (temporarily without pretty printing to test LocatedItem fix)
     if Stdlib.Bool.not (Stdlib.List.isEmpty results.types) then
       Stdlib.printLine (Search.getSectionHeader "type")
       results.types
-      |> Stdlib.List.iter (fun t ->
-        let prettyPrinted = Darklang.PrettyPrinter.ProgramTypes.packageType t
-        let highlighted = Darklang.Cli.SyntaxHighlighting.highlightCode prettyPrinted
-        Stdlib.printLine $"  {highlighted}"
-        Stdlib.printLine "")
+      |> Stdlib.List.iter (fun item ->
+        Stdlib.printLine $"  {item.location.name}")
       Stdlib.printLine ""
 
-    // Display values with pretty printing
+    // Display values (temporarily without pretty printing to test LocatedItem fix)
     if Stdlib.Bool.not (Stdlib.List.isEmpty results.values) then
       Stdlib.printLine (Search.getSectionHeader "value")
       results.values
-      |> Stdlib.List.iter (fun v ->
-        let prettyPrinted = Darklang.PrettyPrinter.ProgramTypes.packageValue v
-        let highlighted = Darklang.Cli.SyntaxHighlighting.highlightCode prettyPrinted
-        Stdlib.printLine $"  {highlighted}"
-        Stdlib.printLine "")
+      |> Stdlib.List.iter (fun item ->
+        Stdlib.printLine $"  {item.location.name}")
       Stdlib.printLine ""
 
-    // Display functions with pretty printing
+    // Display functions (temporarily without pretty printing to test LocatedItem fix)
     if Stdlib.Bool.not (Stdlib.List.isEmpty results.fns) then
       Stdlib.printLine (Search.getSectionHeader "function")
       results.fns
-      |> Stdlib.List.iter (fun f ->
-        let prettyPrinted = Darklang.PrettyPrinter.ProgramTypes.packageFn f
-        let highlighted = Darklang.Cli.SyntaxHighlighting.highlightCode prettyPrinted
-        Stdlib.printLine $"  {highlighted}"
-        Stdlib.printLine "")
+      |> Stdlib.List.iter (fun item ->
+        Stdlib.printLine $"  {item.location.name}")
       Stdlib.printLine ""
 
   | Type name ->
@@ -60,42 +51,39 @@ let viewEntity (location: PackageLocation) : Unit =
     let modulePath = Stdlib.List.append [name.owner] name.modules
     let results = Search.searchEntity modulePath name.name
 
-    match Search.findTypeByName results name.name with
-    | Some typ ->
-      let prettyPrinted = Darklang.PrettyPrinter.ProgramTypes.packageType typ
-      let highlighted = Darklang.Cli.SyntaxHighlighting.highlightCode prettyPrinted
-      Stdlib.printLine highlighted
-    | None ->
+    // Access the first type directly from results.types
+    match results.types with
+    | [] ->
       let locationStr = Packages.formatLocation location
       Stdlib.printLine $"Type '{locationStr}' not found."
+    | item :: _ ->
+      Stdlib.printLine $"Found type: {item.location.name}"
 
   | Function name ->
     // Find and display the specific function
     let modulePath = Stdlib.List.append [name.owner] name.modules
     let results = Search.searchEntity modulePath name.name
 
-    match Search.findFnByName results name.name with
-    | Some fn ->
-      let prettyPrinted = Darklang.PrettyPrinter.ProgramTypes.packageFn fn
-      let highlighted = Darklang.Cli.SyntaxHighlighting.highlightCode prettyPrinted
-      Stdlib.printLine highlighted
-    | None ->
+    // Access the first function directly from results.fns
+    match results.fns with
+    | [] ->
       let locationStr = Packages.formatLocation location
       Stdlib.printLine $"Function '{locationStr}' not found."
+    | item :: _ ->
+      Stdlib.printLine $"Found function: {item.location.name}"
 
   | Value name ->
     // Find and display the specific value
     let modulePath = Stdlib.List.append [name.owner] name.modules
     let results = Search.searchEntity modulePath name.name
 
-    match Search.findValueByName results name.name with
-    | Some value ->
-      let prettyPrinted = Darklang.PrettyPrinter.ProgramTypes.packageValue value
-      let highlighted = Darklang.Cli.SyntaxHighlighting.highlightCode prettyPrinted
-      Stdlib.printLine highlighted
-    | None ->
+    // Access the first value directly from results.values
+    match results.values with
+    | [] ->
       let locationStr = Packages.formatLocation location
       Stdlib.printLine $"Value '{locationStr}' not found."
+    | item :: _ ->
+      Stdlib.printLine $"Found value: {item.location.name}"
 
 
 // VIEW command - view modules, functions, types, or constants

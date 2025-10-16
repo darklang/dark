@@ -516,10 +516,6 @@ module TypeDeclaration =
 module PackageIDs = LibExecution.PackageIDs
 
 module PackageType =
-  module Name =
-    let toPT (n : WT.PackageType.Name) : PT.PackageType.Name =
-      { owner = n.owner; modules = n.modules; name = n.name }
-
   let toPT
     (pm : PT.PackageManager)
     (onMissing : NR.OnMissing)
@@ -531,17 +527,12 @@ module PackageType =
         TypeDeclaration.toPT pm onMissing currentModule pt.declaration
       return
         { id = PackageIDs.Type.idForName pt.name.owner pt.name.modules pt.name.name
-          name = Name.toPT pt.name
           description = pt.description
           declaration = declaration
           deprecated = PT.NotDeprecated }
     }
 
 module PackageValue =
-  module Name =
-    let toPT (n : WT.PackageValue.Name) : PT.PackageValue.Name =
-      { owner = n.owner; modules = n.modules; name = n.name }
-
   let toPT
     (builtins : RT.Builtins)
     (pm : PT.PackageManager)
@@ -553,7 +544,6 @@ module PackageValue =
       let! body = Expr.toPT builtins pm onMissing currentModule c.body
       return
         { id = PackageIDs.Value.idForName c.name.owner c.name.modules c.name.name
-          name = Name.toPT c.name
           description = c.description
           deprecated = PT.NotDeprecated
           body = body }
@@ -561,10 +551,6 @@ module PackageValue =
 
 
 module PackageFn =
-  module Name =
-    let toPT (n : WT.PackageFn.Name) : PT.PackageFn.Name =
-      { owner = n.owner; modules = n.modules; name = n.name }
-
   module Parameter =
     let toPT
       (pm : PT.PackageManager)
@@ -594,7 +580,6 @@ module PackageFn =
 
       return
         { id = PackageIDs.Fn.idForName fn.name.owner fn.name.modules fn.name.name
-          name = Name.toPT fn.name
           parameters = parameters
           returnType = returnType
           description = fn.description

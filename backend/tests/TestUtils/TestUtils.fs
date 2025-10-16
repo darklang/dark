@@ -88,8 +88,8 @@ let testWorker (name : string) (ast : PT.Expr) : PT.Handler.T =
   { tlid = gid (); ast = ast; spec = PT.Handler.Worker name }
 
 let testPackageFn
-  (owner : string)
-  (name : string)
+  (_owner : string)
+  (_name : string)
   (typeParams : List<string>)
   (parameters : NEList<string>)
   (returnType : PT.TypeReference)
@@ -98,7 +98,6 @@ let testPackageFn
   { id = System.Guid.NewGuid()
     body = body
     description = ""
-    name = PT.PackageFn.name owner [] name
     typeParams = typeParams
     deprecated = PT.NotDeprecated
     parameters =
