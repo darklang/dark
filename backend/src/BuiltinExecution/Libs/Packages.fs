@@ -76,8 +76,8 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
         | _, _, _, [ DString name ] ->
           uply {
             let n = parseGenericName name
-            let name = PT.PackageType.name n.owner n.modules n.name
-            match! pm.findType name with
+            let location : PT.PackageLocation = { owner = n.owner; modules = n.modules; name = n.name }
+            match! pm.findType(None, location) with
             | Some id -> return DUuid id |> Dval.optionSome optType
             | None -> return Dval.optionNone optType
           }
@@ -120,8 +120,8 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
         | _, _, _, [ DString name ] ->
           uply {
             let n = parseGenericName name
-            let name = PT.PackageValue.name n.owner n.modules n.name
-            match! pm.findValue name with
+            let location : PT.PackageLocation = { owner = n.owner; modules = n.modules; name = n.name }
+            match! pm.findValue(None, location) with
             | Some id -> return DUuid id |> Dval.optionSome optType
             | None -> return Dval.optionNone optType
           }
@@ -165,8 +165,8 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
         | _, _, _, [ DString name ] ->
           uply {
             let n = parseGenericName name
-            let name = PT.PackageFn.name n.owner n.modules n.name
-            match! pm.findFn name with
+            let location : PT.PackageLocation = { owner = n.owner; modules = n.modules; name = n.name }
+            match! pm.findFn(None, location) with
             | Some id -> return DUuid id |> Dval.optionSome optType
             | None -> return Dval.optionNone optType
           }
@@ -211,7 +211,7 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
           uply {
             let searchQuery = PT2DT.Search.SearchQuery.fromDT query
 
-            let! results = pm.search searchQuery
+            let! results = pm.search(None, searchQuery)
 
             let submodules =
               results.submodules
@@ -221,18 +221,18 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
 
             let types =
               results.types
-              |> List.map PT2DT.PackageType.toDT
-              |> Dval.list (KTCustomType(PT2DT.PackageType.typeName, []))
+              |> List.map (PT2DT.LocatedItem.toDT PT2DT.PackageType.toDT)
+              |> Dval.list (PT2DT.LocatedItem.knownType (KTCustomType(PT2DT.PackageType.typeName, [])))
 
             let values =
               results.values
-              |> List.map PT2DT.PackageValue.toDT
-              |> Dval.list (KTCustomType(PT2DT.PackageValue.typeName, []))
+              |> List.map (PT2DT.LocatedItem.toDT PT2DT.PackageValue.toDT)
+              |> Dval.list (PT2DT.LocatedItem.knownType (KTCustomType(PT2DT.PackageValue.typeName, [])))
 
             let fns =
               results.fns
-              |> List.map PT2DT.PackageFn.toDT
-              |> Dval.list (KTCustomType(PT2DT.PackageFn.typeName, []))
+              |> List.map (PT2DT.LocatedItem.toDT PT2DT.PackageFn.toDT)
+              |> Dval.list (PT2DT.LocatedItem.knownType (KTCustomType(PT2DT.PackageFn.typeName, [])))
 
             let resultFields =
               [ "submodules", submodules

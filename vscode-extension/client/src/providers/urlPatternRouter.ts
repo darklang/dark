@@ -1,7 +1,7 @@
-/**
- * URL Pattern Router for Darklang VS Code Extension
- */
+/** URL Pattern Router */
 
+// uh this should all be in Darklang
+// and should be modeled as a Page, maybe? or Document
 export interface ParsedUrl {
   scheme: string;
   mode: UrlMode;
@@ -19,46 +19,34 @@ export type UrlMode =
 export class UrlPatternRouter {
   static parseUrl(url: string): ParsedUrl | null {
     try {
-      console.log('UrlPatternRouter: Parsing URL:', url);
       const urlObj = new URL(url);
 
       if (urlObj.protocol !== 'dark:') {
-        console.log('UrlPatternRouter: Invalid protocol:', urlObj.protocol);
         return null;
       }
 
       const pathParts = urlObj.pathname.split('/').filter(p => p);
       const queryParams = this.parseQueryParams(urlObj.search);
-      console.log('UrlPatternRouter: Path parts:', pathParts);
-      console.log('UrlPatternRouter: Query params:', queryParams);
 
       if (pathParts.length === 0) {
         console.log('UrlPatternRouter: No path parts found');
+        // CLEANUP what _should_ we do here? `dark://` -- maybe some 'home' page?
         return null;
       }
 
       const mode = pathParts[0] as UrlMode;
-      console.log('UrlPatternRouter: Mode:', mode);
 
-      let result = null;
       switch (mode) {
         case 'package':
-          result = this.parsePackageUrl(pathParts, queryParams);
-          break;
+          return this.parsePackageUrl(pathParts, queryParams);
 
         case 'branch':
-          result = this.parseBranchUrl(pathParts, queryParams);
-          break;
+          return this.parseBranchUrl(pathParts, queryParams);
 
         default:
-          console.log('UrlPatternRouter: Unknown mode:', mode);
           return null;
       }
-
-      console.log('UrlPatternRouter: Parsed result:', result);
-      return result;
     } catch (error) {
-      console.error('UrlPatternRouter: Failed to parse URL:', url, error);
       return null;
     }
   }

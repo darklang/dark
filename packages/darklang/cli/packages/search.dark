@@ -36,19 +36,22 @@ let searchFuzzy (modulePath: List<String>) (partialText: String) : LanguageTools
   LanguageTools.PackageManager.Search.search query
 
 
-/// Find a specific type by name in the search results
-let findTypeByName (results: LanguageTools.ProgramTypes.Search.SearchResults) (name: String) : Stdlib.Option.Option<LanguageTools.ProgramTypes.PackageType.PackageType> =
-  results.types |> Stdlib.List.findFirst (fun t -> t.name.name == name)
+/// Find types by name in the search results
+let findTypesByName (results: LanguageTools.ProgramTypes.Search.SearchResults) (name: String) : List<LanguageTools.ProgramTypes.LocatedItem<LanguageTools.ProgramTypes.PackageType.PackageType>> =
+  results.types
+  |> Stdlib.List.filter (fun item -> item.location.name == name)
 
 
-/// Find a specific function by name in the search results
-let findFnByName (results: LanguageTools.ProgramTypes.Search.SearchResults) (name: String) : Stdlib.Option.Option<LanguageTools.ProgramTypes.PackageFn.PackageFn> =
-  results.fns |> Stdlib.List.findFirst (fun f -> f.name.name == name)
+/// Find functions by name in the search results
+let findFnsByName (results: LanguageTools.ProgramTypes.Search.SearchResults) (name: String) : List<LanguageTools.ProgramTypes.LocatedItem<LanguageTools.ProgramTypes.PackageFn.PackageFn>> =
+  results.fns
+  |> Stdlib.List.filter (fun item -> item.location.name == name)
 
 
-/// Find a specific value by name in the search results
-let findValueByName (results: LanguageTools.ProgramTypes.Search.SearchResults) (name: String) : Stdlib.Option.Option<LanguageTools.ProgramTypes.PackageValue.PackageValue> =
-  results.values |> Stdlib.List.findFirst (fun v -> v.name.name == name)
+/// Find values by name in the search results
+let findValuesByName (results: LanguageTools.ProgramTypes.Search.SearchResults) (name: String) : List<LanguageTools.ProgramTypes.LocatedItem<LanguageTools.ProgramTypes.PackageValue.PackageValue>> =
+  results.values
+  |> Stdlib.List.filter (fun item -> item.location.name == name)
 
 
 /// Check if search results contain any content

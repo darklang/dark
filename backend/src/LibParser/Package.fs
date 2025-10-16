@@ -111,7 +111,7 @@ let parse
   (onMissing : NR.OnMissing)
   (filename : string)
   (contents : string)
-  : Ply<PTPackageModule> =
+  : Ply<List<PT.PackageOp>> =
   uply {
     match parseAsFSharpSourceFile filename contents with
     | ParsedImplFileInput(_,
@@ -138,6 +138,14 @@ let parse
 
       let modul : WTPackageModule = parseDecls filename baseModule decls
 
+
+      // Generic helper to convert any WT Name to PT PackageLocation
+      let typeNameToLocation (name : WT.PackageType.Name) : PT.PackageLocation =
+        { owner = name.owner; modules = name.modules; name = name.name }
+      let valueNameToLocation (name : WT.PackageValue.Name) : PT.PackageLocation =
+        { owner = name.owner; modules = name.modules; name = name.name }
+      let fnNameToLocation (name : WT.PackageFn.Name) : PT.PackageLocation =
+        { owner = name.owner; modules = name.modules; name = name.name }
 
       let typeNameToModules (p : WT.PackageType.Name) : List<string> =
         p.owner :: p.modules
@@ -168,7 +176,24 @@ let parse
             (valueNameToModules value.name)
             value)
 
-      return { fns = fns; types = types; values = values }
+      // Generate PackageOps from parsed items
+      let ops : List<PT.PackageOp> =
+        [ // Add all types and their locations
+          for (wtType, ptType) in List.zip modul.types types do
+            yield PT.PackageOp.AddType ptType
+            yield PT.PackageOp.SetTypeName(ptType.id, typeNameToLocation wtType.name)
+
+          // Add all values and their locations
+          for (wtValue, ptValue) in List.zip modul.values values do
+            yield PT.PackageOp.AddValue ptValue
+            yield PT.PackageOp.SetValueName(ptValue.id, valueNameToLocation wtValue.name)
+
+          // Add all functions and their locations
+          for (wtFn, ptFn) in List.zip modul.fns fns do
+            yield PT.PackageOp.AddFn ptFn
+            yield PT.PackageOp.SetFnName(ptFn.id, fnNameToLocation wtFn.name) ]
+
+      return ops
 
     // in the parsed package, types are being read as user, as opposed to the package that's right there
     | decl ->

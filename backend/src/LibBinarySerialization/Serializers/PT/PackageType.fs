@@ -11,19 +11,6 @@ open LibBinarySerialization.Serializers.Common
 open LibBinarySerialization.Serializers.PT.Common
 
 
-module Name =
-  let write (w : BinaryWriter) (n : PackageType.Name) : unit =
-    String.write w n.owner
-    List.write w String.write n.modules
-    String.write w n.name
-
-  let read (r : BinaryReader) : PackageType.Name =
-    let owner = String.read r
-    let modules = List.read r String.read
-    let name = String.read r
-    { owner = owner; modules = modules; name = name }
-
-
 module TypeDeclaration =
   module RecordField =
     let write (w : BinaryWriter) (f : TypeDeclaration.RecordField) : unit =
@@ -102,19 +89,16 @@ module TypeDeclaration =
 
 let write (w : BinaryWriter) (t : PackageType.PackageType) : unit =
   Guid.write w t.id
-  Name.write w t.name
   TypeDeclaration.write w t.declaration
   String.write w t.description
   Deprecation.write w FQTypeName.write t.deprecated
 
 let read (r : BinaryReader) : PackageType.PackageType =
   let id = Guid.read r
-  let name = Name.read r
   let declaration = TypeDeclaration.read r
   let description = String.read r
   let deprecated = Deprecation.read r FQTypeName.read
   { id = id
-    name = name
     declaration = declaration
     description = description
     deprecated = deprecated }

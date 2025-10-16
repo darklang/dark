@@ -3,7 +3,10 @@
 # Launch VS Code extension in pure host environment
 # Run this from the HOST machine, not from inside devcontainer
 
-EXT_PATH="/home/stachu/code/dark/vscode-extension"
+# Detect workspace root from script location (script is in workspace/scripts/)
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+WORKSPACE_ROOT="$(dirname "$SCRIPT_DIR")"
+EXT_PATH="$WORKSPACE_ROOT/vscode-extension"
 USER_DATA_DIR="/tmp/vscode-extension-dev-$(date +%s)"
 
 echo "Launching extension development host..."
@@ -54,7 +57,9 @@ cat > "$USER_DATA_DIR/User/globalStorage/storage.json" <<EOF
 EOF
 
 # Launch VS Code with extension
-code \
+# Return to workspace root and open it as the workspace
+cd "$WORKSPACE_ROOT"
+VSCODE_DEBUG_MODE=true code \
   --extensionDevelopmentPath="$EXT_PATH" \
   --disable-extensions \
   --disable-extension github.copilot \
@@ -62,7 +67,8 @@ code \
   --user-data-dir="$USER_DATA_DIR" \
   --no-sandbox \
   --disable-workspace-trust \
-  --verbose
+  --verbose \
+  "$WORKSPACE_ROOT"
 
 echo ""
 echo "Extension development host launched!"

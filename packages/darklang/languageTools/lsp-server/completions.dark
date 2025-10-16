@@ -121,17 +121,9 @@ let createCompletions
     | Some i -> Stdlib.String.slice wordUnderCursor 0L (i + 1L)
     | None -> ""
 
-  let functions =
-    searchResults.fns
-    |> Stdlib.List.map (fun fn -> LanguageTools.ProgramTypes.PackageFn.nameToString fn.name)
-    |> processSearchResults
-        LanguageServerProtocol.Completions.CompletionItem.CompletionItemKind.CompletionItemKind.Function
-        "function"
-        currentPrefix
-
   let types =
     searchResults.types
-    |> Stdlib.List.map (fun t -> LanguageTools.ProgramTypes.PackageType.nameToString t.name)
+    |> Stdlib.List.map (fun t -> t.location.owner ++ "." ++ (Stdlib.String.join item.location.modules ".") ++ "." ++ item.location.name)
     |> processSearchResults
         LanguageServerProtocol.Completions.CompletionItem.CompletionItemKind.CompletionItemKind.Class
         "type"
@@ -139,10 +131,18 @@ let createCompletions
 
   let values =
     searchResults.values
-    |> Stdlib.List.map (fun v -> LanguageTools.ProgramTypes.PackageValue.nameToString v.name)
+    |> Stdlib.List.map (fun v -> v.location.owner ++ "." ++ (Stdlib.String.join item.location.modules ".") ++ "." ++ item.location.name)
     |> processSearchResults
         LanguageServerProtocol.Completions.CompletionItem.CompletionItemKind.CompletionItemKind.Value
         "value"
+        currentPrefix
+
+  let functions =
+    searchResults.fns
+    |> Stdlib.List.map (fun fn -> fn.location.owner ++ "." ++ (Stdlib.String.join item.location.modules ".") ++ "." ++ item.location.name)
+    |> processSearchResults
+        LanguageServerProtocol.Completions.CompletionItem.CompletionItemKind.CompletionItemKind.Function
+        "function"
         currentPrefix
 
   let submodules =

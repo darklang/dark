@@ -1174,27 +1174,6 @@ module TypeDeclaration =
 // -- Package stuff -- //
 
 module PackageType =
-  module Name =
-    let typeName =
-      FQTypeName.fqPackage
-        PackageIDs.Type.LanguageTools.ProgramTypes.PackageType.name
-
-    let toDT (n : PT.PackageType.Name) : Dval =
-      let fields =
-        [ "owner", DString n.owner
-          "modules", DList(VT.string, List.map DString n.modules)
-          "name", DString n.name ]
-      DRecord(typeName, typeName, [], Map fields)
-
-    let fromDT (d : Dval) : PT.PackageType.Name =
-      match d with
-      | DRecord(_, _, _, fields) ->
-        { owner = fields |> D.field "owner" |> D.string
-          modules = fields |> D.field "modules" |> D.list D.string
-          name = fields |> D.field "name" |> D.string }
-      | _ -> Exception.raiseInternal "Invalid PackageType.Name" []
-
-
   let typeName =
     FQTypeName.fqPackage
       PackageIDs.Type.LanguageTools.ProgramTypes.PackageType.packageType
@@ -1202,7 +1181,6 @@ module PackageType =
   let toDT (p : PT.PackageType.PackageType) : Dval =
     let fields =
       [ "id", DUuid p.id
-        "name", Name.toDT p.name
         "declaration", TypeDeclaration.toDT p.declaration
         "description", DString p.description
         "deprecated",
@@ -1214,7 +1192,6 @@ module PackageType =
     match d with
     | DRecord(_, _, _, fields) ->
       { id = fields |> D.field "id" |> D.uuid
-        name = fields |> D.field "name" |> Name.fromDT
         declaration = fields |> D.field "declaration" |> TypeDeclaration.fromDT
         description = fields |> D.field "description" |> D.string
         deprecated =
@@ -1223,27 +1200,6 @@ module PackageType =
 
 
 module PackageValue =
-  module Name =
-    let typeName =
-      FQTypeName.fqPackage
-        PackageIDs.Type.LanguageTools.ProgramTypes.PackageValue.name
-
-    let toDT (n : PT.PackageValue.Name) : Dval =
-      let fields =
-        [ "owner", DString n.owner
-          "modules", DList(VT.string, List.map DString n.modules)
-          "name", DString n.name ]
-      DRecord(typeName, typeName, [], Map fields)
-
-    let fromDT (d : Dval) : PT.PackageValue.Name =
-      match d with
-      | DRecord(_, _, _, fields) ->
-        { owner = fields |> D.field "owner" |> D.string
-          modules = fields |> D.field "modules" |> D.list D.string
-          name = fields |> D.field "name" |> D.string }
-      | _ -> Exception.raiseInternal "Invalid PackageValue.Name" []
-
-
   let typeName =
     FQTypeName.fqPackage
       PackageIDs.Type.LanguageTools.ProgramTypes.PackageValue.packageValue
@@ -1251,7 +1207,6 @@ module PackageValue =
   let toDT (p : PT.PackageValue.PackageValue) : Dval =
     let fields =
       [ "id", DUuid p.id
-        "name", Name.toDT p.name
         "body", Expr.toDT p.body
         "description", DString p.description
         "deprecated",
@@ -1262,7 +1217,6 @@ module PackageValue =
     match d with
     | DRecord(_, _, _, fields) ->
       { id = fields |> D.field "id" |> D.uuid
-        name = fields |> D.field "name" |> Name.fromDT
         body = fields |> D.field "body" |> Expr.fromDT
         description = fields |> D.field "description" |> D.string
         deprecated =
@@ -1271,26 +1225,6 @@ module PackageValue =
 
 
 module PackageFn =
-  module Name =
-    let typeName =
-      FQTypeName.fqPackage PackageIDs.Type.LanguageTools.ProgramTypes.PackageFn.name
-
-    let toDT (n : PT.PackageFn.Name) : Dval =
-      let fields =
-        [ "owner", DString n.owner
-          "modules", DList(VT.string, List.map DString n.modules)
-          "name", DString n.name ]
-      DRecord(typeName, typeName, [], Map fields)
-
-    let fromDT (d : Dval) : PT.PackageFn.Name =
-      match d with
-      | DRecord(_, _, _, fields) ->
-        { owner = fields |> D.field "owner" |> D.string
-          modules = fields |> D.field "modules" |> D.list D.string
-          name = fields |> D.field "name" |> D.string }
-      | _ -> Exception.raiseInternal "Invalid PackageFn.Name" []
-
-
   module Parameter =
     let typeName =
       FQTypeName.fqPackage
@@ -1322,7 +1256,6 @@ module PackageFn =
   let toDT (p : PT.PackageFn.PackageFn) : Dval =
     let fields =
       [ ("id", DUuid p.id)
-        ("name", Name.toDT p.name)
         ("body", Expr.toDT p.body)
         ("typeParams", DList(VT.string, List.map DString p.typeParams))
         ("parameters",
@@ -1341,7 +1274,6 @@ module PackageFn =
     match d with
     | DRecord(_, _, _, fields) ->
       { id = fields |> D.field "id" |> D.uuid
-        name = fields |> D.field "name" |> Name.fromDT
         body = fields |> D.field "body" |> Expr.fromDT
         typeParams = fields |> D.field "typeParams" |> D.list D.string
         parameters =
@@ -1355,6 +1287,48 @@ module PackageFn =
           fields |> D.field "deprecated" |> Deprecation.fromDT FQFnName.fromDT }
     | _ -> Exception.raiseInternal "Invalid PackageFn" []
 
+
+
+module PackageLocation =
+  let typeName =
+    FQTypeName.fqPackage
+      PackageIDs.Type.LanguageTools.ProgramTypes.packageLocation
+  let knownType = KTCustomType(typeName, [])
+
+  let toDT (loc : PT.PackageLocation) : Dval =
+    let fields =
+      [ "owner", DString loc.owner
+        "modules", DList(VT.string, List.map DString loc.modules)
+        "name", DString loc.name ]
+    DRecord(typeName, typeName, [], Map fields)
+
+  let fromDT (d : Dval) : PT.PackageLocation =
+    match d with
+    | DRecord(_, _, _, fields) ->
+      { owner = ownerField fields
+        modules = modulesField fields
+        name = nameField fields }
+    | _ -> Exception.raiseInternal "Invalid PackageLocation" []
+
+
+module LocatedItem =
+  let typeName =
+    FQTypeName.fqPackage
+      PackageIDs.Type.LanguageTools.ProgramTypes.locatedItem
+  let knownType (entityKT : KnownType) = KTCustomType(typeName, [ VT.known entityKT ])
+
+  let toDT (entityToDT : 'T -> Dval) (i : PT.LocatedItem<'T>) : Dval =
+    let fields =
+      [ "entity", entityToDT i.entity
+        "location", PackageLocation.toDT i.location ]
+    DRecord(typeName, typeName, [], Map fields)
+
+  let fromDT (entityFromDT : Dval -> 'T) (d : Dval) : PT.LocatedItem<'T> =
+    match d with
+    | DRecord(_, _, _, fields) ->
+      { entity = fields |> D.field "entity" |> entityFromDT
+        location = fields |> D.field "location" |> PackageLocation.fromDT }
+    | _ -> Exception.raiseInternal "Invalid LocatedItem" []
 
 
 module Search =
@@ -1443,25 +1417,34 @@ module Search =
           |> Dval.list (KTList VT.string)
           "types",
           sr.types
-          |> List.map PackageType.toDT
-          |> Dval.list (KTCustomType(PackageType.typeName, []))
+          |> List.map (LocatedItem.toDT PackageType.toDT)
+          |> Dval.list (LocatedItem.knownType (KTCustomType(PackageType.typeName, [])))
           "values",
           sr.values
-          |> List.map PackageValue.toDT
-          |> Dval.list (KTCustomType(PackageValue.typeName, []))
+          |> List.map (LocatedItem.toDT PackageValue.toDT)
+          |> Dval.list (LocatedItem.knownType (KTCustomType(PackageValue.typeName, [])))
           "fns",
           sr.fns
-          |> List.map PackageFn.toDT
-          |> Dval.list (KTCustomType(PackageFn.typeName, [])) ]
+          |> List.map (LocatedItem.toDT PackageFn.toDT)
+          |> Dval.list (LocatedItem.knownType (KTCustomType(PackageFn.typeName, []))) ]
       DRecord(typeName, typeName, [], Map fields)
 
     let fromDT (d : Dval) : PT.Search.SearchResults =
       match d with
       | DRecord(_, _, _, fields) ->
         { submodules = fields |> D.field "submodules" |> D.list (D.list D.string)
-          types = fields |> D.field "types" |> D.list PackageType.fromDT
-          values = fields |> D.field "values" |> D.list PackageValue.fromDT
-          fns = fields |> D.field "fns" |> D.list PackageFn.fromDT }
+          types =
+            fields
+            |> D.field "types"
+            |> D.list (LocatedItem.fromDT PackageType.fromDT)
+          values =
+            fields
+            |> D.field "values"
+            |> D.list (LocatedItem.fromDT PackageValue.fromDT)
+          fns =
+            fields
+            |> D.field "fns"
+            |> D.list (LocatedItem.fromDT PackageFn.fromDT) }
       | _ -> Exception.raiseInternal "Invalid SearchResults" []
 
 

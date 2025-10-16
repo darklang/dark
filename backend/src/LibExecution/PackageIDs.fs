@@ -275,6 +275,10 @@ module Type =
 
       let deprecation = p [] "Deprecation" "e6ac931d-eac0-42df-a197-a9bcf1094b09"
 
+      let packageLocation = p [] "PackageLocation" "a8e4f2b1-3c5d-4e6f-8a9b-1c2d3e4f5a6b"
+      let branchID = p [] "BranchID" "c1d2e3f4-5a6b-7c8d-9e0f-1a2b3c4d5e6f"
+      let locatedItem = p [] "LocatedItem" "4869d6bc-f934-4341-8cab-4c42968c7790"
+
       module TypeDeclaration =
         let private p addl = p ("TypeDeclaration" :: addl)
         let recordField = p [] "RecordField" "148003cf-828c-4645-8a7a-f0fbc3fc5c81"

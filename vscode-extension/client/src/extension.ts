@@ -1,40 +1,39 @@
-import { workspace, ExtensionContext, commands, window, Uri } from "vscode";
 import * as os from "os";
+
 import * as vscode from "vscode";
 import { SemanticTokensFeature } from "vscode-languageclient/lib/common/semanticTokens";
-import {
-  LanguageClient,
-  LanguageClientOptions,
-  ServerOptions,
-  Trace,
-  TransportKind,
-} from "vscode-languageclient/node";
+import { LanguageClient, LanguageClientOptions, ServerOptions, Trace, TransportKind } from "vscode-languageclient/node";
 
-import { ServerBackedTreeDataProvider } from "./providers/treeviews/ServerBackedTreeDataProvider";
-import { ComprehensiveDarkContentProvider } from "./providers/comprehensiveDarkContentProvider";
-import { StatusBarManager } from "./ui/statusbar/statusBarManager";
+import { PackagesTreeDataProvider } from "./providers/treeviews/packagesTreeDataProvider";
 import { WorkspaceTreeDataProvider } from "./providers/treeviews/workspaceTreeDataProvider";
-import { BranchesManagerPanel } from "./panels";
-import {
-  BranchCommands,
-  PackageCommands,
-  InstanceCommands
-} from "./commands";
-import { BranchStateManager } from "./data/branchStateManager";
+
+import { BranchesManagerPanel } from "./panels/branchManagerPanel";
+
+import { BranchCommands } from "./commands/branchCommands";
+import { PackageCommands } from "./commands/packageCommands";
+import { InstanceCommands } from "./commands/instanceCommands";
+
+import { StatusBarManager } from "./ui/statusbar/statusBarManager";
+
+import { DarkContentProvider } from "./providers/darkContentProvider";
 import { DarklangFileDecorationProvider } from "./providers/fileDecorationProvider";
 
+
 let client: LanguageClient;
+
 let statusBarManager: StatusBarManager;
+
 let workspaceProvider: WorkspaceTreeDataProvider;
-let packagesProvider: ServerBackedTreeDataProvider;
-let contentProvider: ComprehensiveDarkContentProvider;
+let packagesProvider: PackagesTreeDataProvider;
+
+let contentProvider: DarkContentProvider;
 let fileDecorationProvider: DarklangFileDecorationProvider;
 
 interface LSPFileResponse {
   content: string;
 }
 
-export function activate(context: ExtensionContext) {
+export function activate(context: vscode.ExtensionContext) {
   console.log('🚀 Darklang VS Code extension is activating...');
 
   const isDebugMode = () => process.env.VSCODE_DEBUG_MODE === "true";
@@ -55,13 +54,14 @@ export function activate(context: ExtensionContext) {
     debug: sharedServerOptions,
   };
 
+
   const clientOptions: LanguageClientOptions = {
     documentSelector: [
       { scheme: "file", language: "darklang" },
       { scheme: "dark", language: "darklang" },
     ],
     synchronize: {
-      fileEvents: workspace.createFileSystemWatcher("**/*.dark"),
+      fileEvents: vscode.workspace.createFileSystemWatcher("**/*.dark"),
     },
 
     // in the window that has the extension loaded, go to the Output tab,
@@ -93,8 +93,8 @@ export function activate(context: ExtensionContext) {
   context.subscriptions.push(statusBarManager);
 
   // Initialize content provider for dark:// URLs
-  contentProvider = new ComprehensiveDarkContentProvider();
-  const contentProviderRegistration = workspace.registerTextDocumentContentProvider("dark", contentProvider);
+  contentProvider = new DarkContentProvider();
+  const contentProviderRegistration = vscode.workspace.registerTextDocumentContentProvider("dark", contentProvider);
   context.subscriptions.push(contentProviderRegistration);
 
   // Pass the LSP client to the content provider once it's ready
@@ -108,19 +108,53 @@ export function activate(context: ExtensionContext) {
   context.subscriptions.push(decorationProviderRegistration);
 
 
-  // // Register webview panel serializer for home page
-  // if (vscode.window.registerWebviewPanelSerializer) {
-  //   vscode.window.registerWebviewPanelSerializer(DarklangHomePanel.viewType, {
-  //     async deserializeWebviewPanel(webviewPanel: vscode.WebviewPanel, state: any) {
-  //       DarklangHomePanel.revive(webviewPanel, context.extensionUri);
-  //     }
-  //   });
-  // }
+  // Per-URI view mode tracking
+  type ViewMode = 'source' | 'ast';
+  const viewModeByUri = new Map<string, ViewMode>();
+
+  function getModeFor(uri?: vscode.Uri): ViewMode {
+    if (!uri) return 'source';
+    return viewModeByUri.get(uri.toString()) ?? 'source';
+  }
+
+  async function updateContextForActiveEditor() {
+    const uri = vscode.window.activeTextEditor?.document?.uri;
+    await vscode.commands.executeCommand('setContext', 'darklang.viewMode', getModeFor(uri));
+  }
+
+  // Inject mode getter into content provider
+  contentProvider.getModeForUri = (uri) => getModeFor(uri);
+
+  // Initialize context and keep it in sync when tabs/editors change
+  updateContextForActiveEditor();
+  context.subscriptions.push(
+    vscode.window.onDidChangeActiveTextEditor(updateContextForActiveEditor),
+    vscode.window.tabGroups.onDidChangeTabs(updateContextForActiveEditor),
+    vscode.workspace.onDidCloseTextDocument(doc => {
+      if (doc.uri.scheme === 'dark') {
+        viewModeByUri.delete(doc.uri.toString());
+      }
+    })
+  );
 
   // Register branches manager command
   context.subscriptions.push(
     vscode.commands.registerCommand('darklang.branches.manageAll', () => {
       BranchesManagerPanel.createOrShow(context.extensionUri);
+    }),
+    vscode.commands.registerCommand('darklang.switchToAST', async () => {
+      const uri = vscode.window.activeTextEditor?.document?.uri;
+      if (!uri || uri.scheme !== 'dark') return;
+      viewModeByUri.set(uri.toString(), 'ast');
+      await updateContextForActiveEditor();
+      contentProvider.bump(uri);
+    }),
+    vscode.commands.registerCommand('darklang.switchToSource', async () => {
+      const uri = vscode.window.activeTextEditor?.document?.uri;
+      if (!uri || uri.scheme !== 'dark') return;
+      viewModeByUri.set(uri.toString(), 'source');
+      await updateContextForActiveEditor();
+      contentProvider.bump(uri);
     })
   );
 
@@ -133,13 +167,10 @@ export function activate(context: ExtensionContext) {
     });
   }
 
-  // Initialize branch state manager first (needed by tree views)
-  const branchStateManager = BranchStateManager.getInstance();
-
   // Initialize tree data providers
   // Wait for LSP client to be ready before initializing tree provider
   client.onReady().then(() => {
-    packagesProvider = new ServerBackedTreeDataProvider(client);
+    packagesProvider = new PackagesTreeDataProvider(client);
     const packagesView = vscode.window.createTreeView("darklangPackages", {
       treeDataProvider: packagesProvider,
       showCollapseAll: true,

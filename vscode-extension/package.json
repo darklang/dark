@@ -128,6 +128,18 @@
         "command": "darklang.branches.manageAll",
         "title": "Manage All Branches",
         "icon": "$(list-flat)"
+      },
+      {
+        "command": "darklang.switchToAST",
+        "title": "AST Mode",
+        "category": "Darklang",
+        "icon": "$(list-tree)"
+      },
+      {
+        "command": "darklang.switchToSource",
+        "title": "Source Mode",
+        "category": "Darklang",
+        "icon": "$(code)"
       }
     ],
     "menus": {
@@ -158,7 +170,19 @@
 					"when": "view == darklangWorkspace && viewItem == branch",
 					"group": "basic@1"
 				}
-			]
+			],
+      "editor/title": [
+        {
+          "command": "darklang.switchToAST",
+          "when": "resourceLangId == darklang && darklang.viewMode != 'ast'",
+          "group": "navigation@2"
+        },
+        {
+          "command": "darklang.switchToSource",
+          "when": "resourceLangId == darklang && darklang.viewMode == 'ast'",
+          "group": "navigation@2"
+        }
+      ]
 		},
     "viewsContainers": {
       "activitybar": [

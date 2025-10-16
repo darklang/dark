@@ -1142,11 +1142,6 @@ module TypeDeclaration =
     (ProgramTypes.PackageType.PackageType
       // TODO: when relevant, use PackageIDs defined in F# land
       { id = Stdlib.Uuid.generate ()
-        name =
-          ProgramTypes.PackageType.Name
-            { owner = owner
-              modules = modules
-              name = d.name.name }
         description = ""
         declaration = declaration
         deprecated = ProgramTypes.Deprecation.NotDeprecated },
@@ -1167,11 +1162,6 @@ module ValueDeclaration =
 
     (ProgramTypes.PackageValue.PackageValue
       { id = Stdlib.Uuid.generate ()
-        name =
-          ProgramTypes.PackageValue.Name
-            { owner = owner
-              modules = modules
-              name = d.name.name }
         body = body
         description = ""
         deprecated = ProgramTypes.Deprecation.NotDeprecated },
@@ -1238,13 +1228,8 @@ module FunctionDeclaration =
           bdUnresolvedNames ]
 
     (ProgramTypes.PackageFn.PackageFn
-      // TODO: when relevant, use PacakgeIDs defined in F# land
+      // TODO: when relevant, use PackageIDs defined in F# land
       { id = Stdlib.Uuid.generate ()
-        name =
-          ProgramTypes.PackageFn.Name
-            { owner = owner
-              modules = modules
-              name = fn.name.name }
         typeParams = typeParams
         parameters = params
         returnType = rtyp

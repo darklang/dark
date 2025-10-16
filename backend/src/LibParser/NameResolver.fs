@@ -91,12 +91,12 @@ let resolveTypeName
     let notFoundError = Error(NRE.NotFound(NEList.toList given))
 
     let tryPackageName
-      (name : PT.PackageType.Name)
+      (location : PT.PackageLocation)
       : Ply<PT.NameResolution<PT.FQTypeName.FQTypeName>> =
       // TODO: error if type version is somehow non-0 (here and other package stuff in this file)
       // TODO: also do this in the Dark equivalent
       uply {
-        match! packageManager.findType name with
+        match! packageManager.findType(None, location) with
         | Some id -> return Ok(PT.FQTypeName.FQTypeName.Package id)
         | None -> return notFoundError
       }
@@ -108,8 +108,9 @@ let resolveTypeName
         match name.modules with
         | [] -> return Error()
         | owner :: modules ->
-          let name = PT.PackageType.name owner modules name.name
-          let! packageName = tryPackageName name
+          let location : PT.PackageLocation =
+            { owner = owner; modules = modules; name = name.name }
+          let! packageName = tryPackageName location
           return packageName |> Result.mapError (fun _ -> ())
       }
 
@@ -156,10 +157,10 @@ let resolveValueName
     let notFoundError = Error(NRE.NotFound(NEList.toList given))
 
     let tryPackageName
-      (name : PT.PackageValue.Name)
+      (location : PT.PackageLocation)
       : Ply<PT.NameResolution<PT.FQValueName.FQValueName>> =
       uply {
-        match! packageManager.findValue name with
+        match! packageManager.findValue(None, location) with
         | Some id -> return Ok(PT.FQValueName.FQValueName.Package id)
         | None -> return notFoundError
       }
@@ -182,8 +183,9 @@ let resolveValueName
             else
               return Error()
           else
-            let name = PT.PackageValue.name owner modules name.name
-            let! packageName = tryPackageName name
+            let location : PT.PackageLocation =
+              { owner = owner; modules = modules; name = name.name }
+            let! packageName = tryPackageName location
             return packageName |> Result.mapError (fun _ -> ())
       }
 
@@ -226,10 +228,10 @@ let resolveFnName
     let notFoundError = Error(NRE.NotFound(NEList.toList given))
 
     let tryPackageName
-      (name : PT.PackageFn.Name)
+      (location : PT.PackageLocation)
       : Ply<PT.NameResolution<PT.FQFnName.FQFnName>> =
       uply {
-        match! packageManager.findFn name with
+        match! packageManager.findFn(None, location) with
         | Some id -> return Ok(PT.FQFnName.FQFnName.Package id)
         | None -> return notFoundError
       }
@@ -251,8 +253,9 @@ let resolveFnName
               return Error()
 
           else
-            let name = PT.PackageFn.name owner modules name.name
-            let! packageName = tryPackageName name
+            let location : PT.PackageLocation =
+              { owner = owner; modules = modules; name = name.name }
+            let! packageName = tryPackageName location
             return packageName |> Result.mapError (fun _ -> ())
       }
 

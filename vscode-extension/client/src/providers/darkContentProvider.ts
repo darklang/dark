@@ -3,13 +3,16 @@ import { UrlPatternRouter, ParsedUrl } from "./urlPatternRouter";
 import { PackageContentProvider } from "./content/packageContentProvider";
 import { LanguageClient } from "vscode-languageclient/node";
 
-export class ComprehensiveDarkContentProvider implements vscode.TextDocumentContentProvider {
+export class DarkContentProvider implements vscode.TextDocumentContentProvider {
   private _onDidChange = new vscode.EventEmitter<vscode.Uri>();
   readonly onDidChange = this._onDidChange.event;
   private client: LanguageClient | null = null;
 
+  // Injected by activate() to get view mode for a given URI
+  getModeForUri?: (uri: vscode.Uri) => 'source' | 'ast';
+
   constructor() {
-    console.log('ComprehensiveDarkContentProvider initialized with support for all URL patterns');
+    console.log('DarkContentProvider initialized with support for all URL patterns');
   }
 
   setClient(client: LanguageClient): void {
@@ -17,23 +20,112 @@ export class ComprehensiveDarkContentProvider implements vscode.TextDocumentCont
     PackageContentProvider.setClient(client);
   }
 
+  /**
+   * Refresh a specific URI by firing the onDidChange event
+   */
+  bump(uri: vscode.Uri): void {
+    this._onDidChange.fire(uri);
+  }
+
   async provideTextDocumentContent(uri: vscode.Uri): Promise<string> {
     try {
       const url = uri.toString();
       console.log(`Providing content for: ${url}`);
 
-      const parsedUrl = UrlPatternRouter.parseUrl(url);
+      // Check view mode and delegate accordingly
+      const mode = this.getModeForUri ? this.getModeForUri(uri) : 'source';
 
-      if (!parsedUrl) {
-        return this.getErrorContent(url, "Invalid URL format");
+      if (mode === 'ast') {
+        return await this.renderAstFor(uri);
+      } else {
+        return await this.renderSourceFor(uri);
       }
-
-      return await this.getContentForParsedUrl(parsedUrl);
 
     } catch (error) {
       console.error('Error providing content:', error);
       return this.getErrorContent(uri.toString(), `Error: ${error}`);
     }
+  }
+
+  /**
+   * Render the source view for a URI
+   */
+  private async renderSourceFor(uri: vscode.Uri): Promise<string> {
+    const url = uri.toString();
+    const parsedUrl = UrlPatternRouter.parseUrl(url);
+
+    if (!parsedUrl) {
+      return this.getErrorContent(url, "Invalid URL format");
+    }
+
+    return await this.getContentForParsedUrl(parsedUrl);
+  }
+
+  /**
+   * Render the AST view for a URI
+   */
+  private async renderAstFor(uri: vscode.Uri): Promise<string> {
+    const url = uri.toString();
+    const parsedUrl = UrlPatternRouter.parseUrl(url);
+
+    if (!parsedUrl) {
+      return this.getErrorContent(url, "Invalid URL format - cannot render AST");
+    }
+
+    // For now, we'll request AST rendering from the LSP
+    // TODO: implement proper LSP request for AST
+    if (!this.client) {
+      return this.getErrorContent(url, "LSP client not ready - cannot render AST");
+    }
+
+    try {
+      // Request AST from LSP server
+      const result = await this.client.sendRequest<{ ast: string }>('darklang/ast', {
+        uri: url,
+        parsedUrl: parsedUrl
+      });
+
+      if (result && result.ast) {
+        return result.ast;
+      }
+
+      // Fallback: render a placeholder AST view
+      return this.getPlaceholderAstContent(parsedUrl);
+
+    } catch (error) {
+      console.error('Error fetching AST from LSP:', error);
+      // Fallback to placeholder
+      return this.getPlaceholderAstContent(parsedUrl);
+    }
+  }
+
+  /**
+   * Generate a placeholder AST view (used when LSP doesn't support AST yet)
+   */
+  private getPlaceholderAstContent(parsedUrl: ParsedUrl): string {
+    return `# AST View (Preview)
+
+**Mode:** ${parsedUrl.mode}
+**Context:** ${parsedUrl.context || 'N/A'}
+**Target:** ${parsedUrl.target || 'N/A'}
+**View:** ${parsedUrl.view || 'N/A'}
+
+---
+
+## Abstract Syntax Tree
+
+\`\`\`
+AST rendering is currently in development.
+The LSP server will provide structured AST data here.
+
+Parsed URL structure:
+${JSON.stringify(parsedUrl, null, 2)}
+\`\`\`
+
+---
+
+*Switch back to Source mode to see the rendered content.*
+`;
   }
 
   /**

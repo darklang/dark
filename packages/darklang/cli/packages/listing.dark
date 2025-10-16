@@ -33,21 +33,21 @@ let listModule (location: PackageLocation) : Unit =
   if Stdlib.Bool.not (Stdlib.List.isEmpty results.types) then
     Stdlib.printLine (Search.getSectionHeader "type")
     results.types
-    |> Stdlib.List.iter (fun t -> Stdlib.printLine $"  {t.name.name}")
+    |> Stdlib.List.iter (fun t -> Stdlib.printLine $"  {t.location.name}")
     Stdlib.printLine ""
 
   // Display values
   if Stdlib.Bool.not (Stdlib.List.isEmpty results.values) then
     Stdlib.printLine (Search.getSectionHeader "value")
     results.values
-    |> Stdlib.List.iter (fun v -> Stdlib.printLine $"  {v.name.name}")
+    |> Stdlib.List.iter (fun v -> Stdlib.printLine $"  {v.location.name}")
     Stdlib.printLine ""
 
   // Display functions
   if Stdlib.Bool.not (Stdlib.List.isEmpty results.fns) then
     Stdlib.printLine (Search.getSectionHeader "function")
     results.fns
-    |> Stdlib.List.iter (fun f -> Stdlib.printLine $"  {f.name.name}")
+    |> Stdlib.List.iter (fun fn -> Stdlib.printLine $"  {fn.location.name}")
     Stdlib.printLine ""
 
 

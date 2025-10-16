@@ -90,6 +90,10 @@ module PT =
     let serialize id value = makeSerializer PT.PackageFn.write id value
     let deserialize id data = makeDeserializer PT.PackageFn.read id data
 
+  module PackageOp =
+    let serialize id value = makeSerializer PT.PackageOp.write id value
+    let deserialize id data = makeDeserializer PT.PackageOp.read id data
+
   module Toplevel =
     let serialize id value = makeSerializer PT.Toplevel.write id value
     let deserialize id data = makeDeserializer PT.Toplevel.read id data

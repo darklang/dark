@@ -49,25 +49,25 @@ module Interactive =
       results.types
       |> Stdlib.List.map (fun t ->
         NavItem
-          { name = t.name.name
+          { name = t.location.name
             entityType = "type"
-            location = PackageLocation.Type t.name })
+            location = PackageLocation.Type t.location })
 
     let valueItems =
       results.values
       |> Stdlib.List.map (fun v ->
         NavItem
-          { name = v.name.name
+          { name = v.location.name
             entityType = "value"
-            location = PackageLocation.Value v.name })
+            location = PackageLocation.Value v.location })
 
     let functionItems =
       results.fns
-      |> Stdlib.List.map (fun f ->
+      |> Stdlib.List.map (fun fn ->
         NavItem
-          { name = f.name.name
+          { name = fn.location.name
             entityType = "function"
-            location = PackageLocation.Function f.name })
+            location = PackageLocation.Function fn.location })
 
     // Combine in standard order: modules, types, values, functions
     let allItems =
@@ -121,7 +121,7 @@ module Interactive =
         if Stdlib.Bool.not (Stdlib.List.isEmpty results.types) && itemsPerRemaining > 0L then
           Stdlib.printLine (Search.getSectionHeader "type")
           let typesToShow = Stdlib.List.take results.types itemsPerRemaining
-          typesToShow |> Stdlib.List.iter (fun t -> Stdlib.printLine $"  {t.name.name}")
+          typesToShow |> Stdlib.List.iter (fun t -> Stdlib.printLine $"  {t.location.name}")
 
           let remaining = (Stdlib.List.length results.types) - itemsPerRemaining
           if remaining > 0L then

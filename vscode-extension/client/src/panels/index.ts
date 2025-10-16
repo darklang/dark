@@ -1,1 +1,0 @@
-export { BranchesManagerPanel } from './branchManagerPanel';
