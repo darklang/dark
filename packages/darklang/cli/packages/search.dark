@@ -1,7 +1,10 @@
 module Darklang.Cli.Packages.Search
 
 /// Search for all contents (modules, types, values, functions) in a given module path
-let searchContents (modulePath: List<String>) : LanguageTools.ProgramTypes.Search.SearchResults =
+let searchContents
+  (branchId: Stdlib.Option.Option<Uuid>)
+  (modulePath: List<String>)
+  : LanguageTools.ProgramTypes.Search.SearchResults =
   let query =
     LanguageTools.ProgramTypes.Search.SearchQuery
       { currentModule = modulePath
@@ -9,11 +12,16 @@ let searchContents (modulePath: List<String>) : LanguageTools.ProgramTypes.Searc
         searchDepth = LanguageTools.ProgramTypes.Search.SearchDepth.OnlyDirectDescendants
         entityTypes = []
         exactMatch = false }
-  LanguageTools.PackageManager.Search.search query
+
+  LanguageTools.PackageManager.Search.search branchId query
 
 
 /// Search for a specific entity by name in a given module path (exact match)
-let searchEntity (modulePath: List<String>) (entityName: String) : LanguageTools.ProgramTypes.Search.SearchResults =
+let searchEntity
+  (branchId: Stdlib.Option.Option<Uuid>)
+  (modulePath: List<String>)
+  (entityName: String)
+  : LanguageTools.ProgramTypes.Search.SearchResults =
   let query =
     LanguageTools.ProgramTypes.Search.SearchQuery
       { currentModule = modulePath
@@ -21,11 +29,16 @@ let searchEntity (modulePath: List<String>) (entityName: String) : LanguageTools
         searchDepth = LanguageTools.ProgramTypes.Search.SearchDepth.OnlyDirectDescendants
         entityTypes = []
         exactMatch = true }
-  LanguageTools.PackageManager.Search.search query
+
+  LanguageTools.PackageManager.Search.search branchId query
 
 
 /// Search for entities matching a partial string (fuzzy search for completions)
-let searchFuzzy (modulePath: List<String>) (partialText: String) : LanguageTools.ProgramTypes.Search.SearchResults =
+let searchFuzzy
+  (branchId: Stdlib.Option.Option<Uuid>)
+  (modulePath: List<String>)
+  (partialText: String)
+  : LanguageTools.ProgramTypes.Search.SearchResults =
   let query =
     LanguageTools.ProgramTypes.Search.SearchQuery
       { currentModule = modulePath
@@ -33,7 +46,8 @@ let searchFuzzy (modulePath: List<String>) (partialText: String) : LanguageTools
         searchDepth = LanguageTools.ProgramTypes.Search.SearchDepth.OnlyDirectDescendants
         entityTypes = []
         exactMatch = false }
-  LanguageTools.PackageManager.Search.search query
+
+  LanguageTools.PackageManager.Search.search branchId query
 
 
 /// Find types by name in the search results

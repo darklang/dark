@@ -17,7 +17,7 @@ type AppState =
     savedPrompt: String
 
     instanceName: String
-    currentBranchId: Stdlib.Option.Option<String> }
+    currentBranchId: Stdlib.Option.Option<Uuid> }
 
 let initState () : AppState =
   AppState

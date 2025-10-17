@@ -29,9 +29,7 @@ module PM =
       let nested = System.Guid.NewGuid()
 
       let all : List<PT.PackageType.PackageType> =
-        [ make
-            singleField
-            [ { name = "key"; typ = PT.TBool; description = "TODO" } ]
+        [ make singleField [ { name = "key"; typ = PT.TBool; description = "TODO" } ]
 
           make
             nested
@@ -667,26 +665,21 @@ module Expressions =
     let shouldError = eStatement (eInt64 1) (eBool true)
 
 
-// TODO: Temporarily commented out - needs to be rewritten for new package schema (no names, uses PackageOp instead)
-// Also, PackageManager.withExtras was commented out
-(*
-//CLEANUP: Migrate this to the top
+// Build a PM with test packages using the new schema
 let pm : PT.PackageManager =
-  PT.PackageManager.empty
-  |> PT.PackageManager.withExtras
-    // Types
-    PM.Types.all
+  let typeMap = PM.Types.all |> List.map (fun t -> t.id, t) |> Map.ofList
 
-    // values
-    [ { id = Expressions.Values.Package.MySpecialNumber.id
-        name = PT.PackageValue.name "Test" [] "seventeen"
+  let valueMap =
+    let value : PT.PackageValue.PackageValue =
+      { id = Expressions.Values.Package.MySpecialNumber.id
         description = "TODO"
         deprecated = PT.NotDeprecated
-        body = PT.EInt64(gid (), 17L) } ]
+        body = PT.EInt64(gid (), 17L) }
+    [ value ] |> List.map (fun v -> v.id, v) |> Map.ofList
 
-    // fns
-    [ { id = Expressions.Fns.Package.Inner.id
-        name = PT.PackageFn.name "Test" [] "inner"
+  let fnMap =
+    let inner : PT.PackageFn.PackageFn =
+      { id = Expressions.Fns.Package.Inner.id
         typeParams = [ "x"; "y" ]
         parameters =
           NEList.ofList
@@ -697,8 +690,8 @@ let pm : PT.PackageManager =
         description = "TODO"
         deprecated = PT.NotDeprecated }
 
+    let outer : PT.PackageFn.PackageFn =
       { id = Expressions.Fns.Package.Outer.id
-        name = PT.PackageFn.name "Test" [] "outer"
         typeParams = [ "x"; "y" ]
         parameters =
           NEList.ofList
@@ -716,8 +709,8 @@ let pm : PT.PackageManager =
         description = "TODO"
         deprecated = PT.NotDeprecated }
 
+    let myAdd : PT.PackageFn.PackageFn =
       { id = Expressions.Fns.Package.MyAdd.id
-        name = PT.PackageFn.name "Test" [] "add"
         typeParams = []
         parameters =
           NEList.ofList
@@ -728,8 +721,8 @@ let pm : PT.PackageManager =
         description = "TODO"
         deprecated = PT.NotDeprecated }
 
+    let fact : PT.PackageFn.PackageFn =
       { id = Expressions.Fns.Package.Fact.id
-        name = PT.PackageFn.name "Test" [] "fact"
         typeParams = []
         parameters =
           NEList.ofList { name = "a"; typ = PT.TInt64; description = "TODO" } []
@@ -752,11 +745,11 @@ let pm : PT.PackageManager =
         description = "TODO"
         deprecated = PT.NotDeprecated }
 
-      // let addUpTO (n : Int64) : Int64 =
-      //   if n <= 0 then 0
-      //   else 1 + addUpTo (n - 1)
+    // let addUpTO (n : Int64) : Int64 =
+    //   if n <= 0 then 0
+    //   else 1 + addUpTo (n - 1)
+    let recursion : PT.PackageFn.PackageFn =
       { id = Expressions.Fns.Package.Recursion.id
-        name = PT.PackageFn.name "Test" [] "addUpTo"
         typeParams = []
         parameters =
           NEList.ofList { name = "n"; typ = PT.TInt64; description = "TODO" } []
@@ -784,8 +777,8 @@ let pm : PT.PackageManager =
         description = "TODO"
         deprecated = PT.NotDeprecated }
 
+    let myFnThatTakesALambda : PT.PackageFn.PackageFn =
       { id = Expressions.Fns.Package.MyFnThatTakesALambda.id
-        name = PT.PackageFn.name "Test" [] "myFnThatTakesALambda"
         typeParams = []
         parameters =
           NEList.ofList
@@ -799,40 +792,27 @@ let pm : PT.PackageManager =
         description = "TODO"
         deprecated = PT.NotDeprecated }
 
-      { id = Expressions.Fns.Package.Fact.id
-        name = PT.PackageFn.name "Test" [] "fact"
-        typeParams = []
-        parameters =
-          NEList.ofList { name = "a"; typ = PT.TInt64; description = "TODO" } []
-        returnType = PT.TInt64
-        body =
-          eIf
-            (eApply (eBuiltinFn "equals" 0) [] [ eVar "a"; eInt64 1 ])
-            (eInt64 1)
-            (Some(
-              eApply
-                (eBuiltinFn "int64Multiply" 0)
-                []
-                [ eVar "a"
-                  (eApply
-                    (ePackageFn Expressions.Fns.Package.Fact.id)
-                    []
-                    [ eApply (eBuiltinFn "int64Subtract" 0) [] [ eVar "a"; eInt64 1 ] ]) ]
-            ))
-
-        description = "TODO"
-        deprecated = PT.NotDeprecated }
-
+    let myFnThatReturnsUnit : PT.PackageFn.PackageFn =
       { id = Expressions.Fns.Package.MyFnThatReturnsUnit.id
-        name = PT.PackageFn.name "Test" [] "myFnThatReturnsUnit"
         typeParams = []
         parameters =
           NEList.ofList { name = "unit"; typ = PT.TUnit; description = "TODO" } []
         returnType = PT.TUnit
         body = eUnit ()
         description = "TODO"
-        deprecated = PT.NotDeprecated } ]
-*)
+        deprecated = PT.NotDeprecated }
 
-// Placeholder empty pm for now - tests that depend on this will need to be rewritten
-let pm : PT.PackageManager = PT.PackageManager.empty
+    [ inner
+      outer
+      myAdd
+      fact
+      recursion
+      myFnThatTakesALambda
+      myFnThatReturnsUnit ]
+    |> List.map (fun f -> f.id, f)
+    |> Map.ofList
+
+  { PT.PackageManager.empty with
+      getType = fun id -> Ply(Map.tryFind id typeMap)
+      getValue = fun id -> Ply(Map.tryFind id valueMap)
+      getFn = fun id -> Ply(Map.tryFind id fnMap) }

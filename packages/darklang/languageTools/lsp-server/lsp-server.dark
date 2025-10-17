@@ -42,6 +42,7 @@ let runServerCli (u: Unit) : Int64 =
         LspState
           { initialized = false
             shouldShutdown = false
+            branchId = Stdlib.Option.Option.None
             documentsInScope = Dict { } }
 
     | _ ->
@@ -50,6 +51,7 @@ let runServerCli (u: Unit) : Int64 =
       LspState
         { initialized = false
           shouldShutdown = false
+          branchId = Stdlib.Option.Option.None
           documentsInScope = Dict { } }
 
 

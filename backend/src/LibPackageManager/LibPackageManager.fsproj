@@ -24,6 +24,7 @@
     <Compile Include="Purge.fs" />
     <Compile Include="PackageOpPlayback.fs" />
     <Compile Include="Inserts.fs" />
+    <Compile Include="Stats.fs" />
     <Compile Include="ProgramTypes.fs" />
     <Compile Include="RuntimeTypes.fs" />
     <Compile Include="PackageManager.fs" />

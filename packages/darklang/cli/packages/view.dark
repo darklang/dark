@@ -1,10 +1,13 @@
 module Darklang.Cli.Packages.View
 
-let viewEntity (location: PackageLocation) : Unit =
+let viewEntity
+  (branchId: Stdlib.Option.Option<Uuid>)
+  (location: PackageLocation)
+  : Unit =
   match location with
   | Module path ->
     // Display module contents (similar to list but with more detail)
-    let results = Search.searchContents path
+    let results = Search.searchContents branchId path
 
     let locationStr = Packages.formatLocation location
     Stdlib.printLine locationStr
@@ -49,7 +52,7 @@ let viewEntity (location: PackageLocation) : Unit =
   | Type name ->
     // Find and display the specific type
     let modulePath = Stdlib.List.append [name.owner] name.modules
-    let results = Search.searchEntity modulePath name.name
+    let results = Search.searchEntity branchId modulePath name.name
 
     // Access the first type directly from results.types
     match results.types with
@@ -75,7 +78,7 @@ let viewEntity (location: PackageLocation) : Unit =
   | Function name ->
     // Find and display the specific function
     let modulePath = Stdlib.List.append [name.owner] name.modules
-    let results = Search.searchEntity modulePath name.name
+    let results = Search.searchEntity branchId modulePath name.name
 
     // Access the first function directly from results.fns
     match results.fns with
@@ -108,7 +111,7 @@ let viewEntity (location: PackageLocation) : Unit =
   | Value name ->
     // Find and display the specific value
     let modulePath = Stdlib.List.append [name.owner] name.modules
-    let results = Search.searchEntity modulePath name.name
+    let results = Search.searchEntity branchId modulePath name.name
 
     // Access the first value directly from results.values
     match results.values with
@@ -127,16 +130,16 @@ let execute (state: AppState) (args: List<String>) : AppState =
   match args with
   | [] ->
     // No args - view current location
-    viewEntity state.packageData.currentLocation
+    viewEntity state.currentBranchId state.packageData.currentLocation
     state
   | [pathArg] ->
     // Navigate to the path and view
-    match Traversal.traverse state.packageData.currentLocation pathArg with
+    match Traversal.traverse state.currentBranchId state.packageData.currentLocation pathArg with
     | Error errorMsg ->
       Stdlib.printLine (Colors.error $"Cannot view: {errorMsg}")
       state
     | Ok newLocation ->
-      viewEntity newLocation
+      viewEntity state.currentBranchId newLocation
       state
   | _ ->
     help state
@@ -145,9 +148,9 @@ let execute (state: AppState) (args: List<String>) : AppState =
 let complete (state: AppState) (args: List<String>) : List<String> =
   match args with
   | [] ->
-    Traversal.completePartialPath state.packageData.currentLocation ""
+    Traversal.completePartialPath state.currentBranchId state.packageData.currentLocation ""
   | [partialPath] ->
-    Traversal.completePartialPath state.packageData.currentLocation partialPath
+    Traversal.completePartialPath state.currentBranchId state.packageData.currentLocation partialPath
   | _ -> []
 
 

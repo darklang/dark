@@ -1448,6 +1448,37 @@ module Search =
       | _ -> Exception.raiseInternal "Invalid SearchResults" []
 
 
+module PackageOp =
+  let typeName =
+    FQTypeName.fqPackage PackageIDs.Type.LanguageTools.ProgramTypes.packageOp
+
+  let toDT (op : PT.PackageOp) : Dval =
+    let (caseName, fields) =
+      match op with
+      | PT.PackageOp.AddType t -> "AddType", [ PackageType.toDT t ]
+      | PT.PackageOp.AddValue v -> "AddValue", [ PackageValue.toDT v ]
+      | PT.PackageOp.AddFn f -> "AddFn", [ PackageFn.toDT f ]
+      | PT.PackageOp.SetTypeName(id, loc) ->
+        "SetTypeName", [ DUuid id; PackageLocation.toDT loc ]
+      | PT.PackageOp.SetValueName(id, loc) ->
+        "SetValueName", [ DUuid id; PackageLocation.toDT loc ]
+      | PT.PackageOp.SetFnName(id, loc) ->
+        "SetFnName", [ DUuid id; PackageLocation.toDT loc ]
+    DEnum(typeName, typeName, [], caseName, fields)
+
+  let fromDT (d : Dval) : PT.PackageOp option =
+    match d with
+    | DEnum(_, _, [], "AddType", [ t ]) -> Some(PT.PackageOp.AddType(PackageType.fromDT t))
+    | DEnum(_, _, [], "AddValue", [ v ]) -> Some(PT.PackageOp.AddValue(PackageValue.fromDT v))
+    | DEnum(_, _, [], "AddFn", [ f ]) -> Some(PT.PackageOp.AddFn(PackageFn.fromDT f))
+    | DEnum(_, _, [], "SetTypeName", [ DUuid id; loc ]) ->
+      Some(PT.PackageOp.SetTypeName(id, PackageLocation.fromDT loc))
+    | DEnum(_, _, [], "SetValueName", [ DUuid id; loc ]) ->
+      Some(PT.PackageOp.SetValueName(id, PackageLocation.fromDT loc))
+    | DEnum(_, _, [], "SetFnName", [ DUuid id; loc ]) ->
+      Some(PT.PackageOp.SetFnName(id, PackageLocation.fromDT loc))
+    | _ -> None
+
 
 // -- User stuff -- //
 

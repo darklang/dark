@@ -800,6 +800,14 @@ type PackageManager =
     getValue : FQValueName.Package -> Ply<Option<PackageValue.PackageValue>>
     getFn : FQFnName.Package -> Ply<Option<PackageFn.PackageFn>>
 
+    // Reverse lookups for pretty-printing and other tooling
+    // TODO: These currently return Option<PackageLocation> but theoretically there
+    // could be multiple locations for a single ID (e.g., across branches, deprecations).
+    // We may need to revisit this to return List<PackageLocation> or add branch filtering.
+    getTypeLocation : Option<BranchID> * FQTypeName.Package -> Ply<Option<PackageLocation>>
+    getValueLocation : Option<BranchID> * FQValueName.Package -> Ply<Option<PackageLocation>>
+    getFnLocation : Option<BranchID> * FQFnName.Package -> Ply<Option<PackageLocation>>
+
     init : Ply<unit> }
 
 
@@ -816,52 +824,92 @@ type PackageManager =
       getFn = fun _ -> Ply None
       getValue = fun _ -> Ply None
 
+      getTypeLocation = fun _ -> Ply None
+      getValueLocation = fun _ -> Ply None
+      getFnLocation = fun _ -> Ply None
+
       init = uply { return () } }
 
 
-  // /// Allows you to side-load a few 'extras' in-memory, along
-  // /// the normal fetching functionality. (Mostly helpful for tests)
-  // static member withExtras
-  //   (types : List<PackageType.PackageType>)
-  //   (values : List<PackageValue.PackageValue>)
-  //   (fns : List<PackageFn.PackageFn>)
-  //   (pm : PackageManager)
-  //   : PackageManager =
-  //   { findType =
-  //       fun name ->
-  //         match types |> List.tryFind (fun t -> t.name = name) with
-  //         | Some t -> Some t.id |> Ply
-  //         | None -> pm.findType name
-  //     findValue =
-  //       fun name ->
-  //         match values |> List.tryFind (fun v -> v.name = name) with
-  //         | Some v -> Some v.id |> Ply
-  //         | None -> pm.findValue name
-  //     findFn =
-  //       fun name ->
-  //         match fns |> List.tryFind (fun f -> f.name = name) with
-  //         | Some f -> Some f.id |> Ply
-  //         | None -> pm.findFn name
+  /// Allows you to side-load a few 'extras' in-memory, along
+  /// the normal fetching functionality. (Mostly helpful for tests)
+  static member withExtras
+    (types : List<PackageType.PackageType * PackageLocation>)
+    (values : List<PackageValue.PackageValue * PackageLocation>)
+    (fns : List<PackageFn.PackageFn * PackageLocation>)
+    (pm : PackageManager)
+    : PackageManager =
 
-  //     getType =
-  //       fun id ->
-  //         match types |> List.tryFind (fun t -> t.id = id) with
-  //         | Some t -> Ply(Some t)
-  //         | None -> pm.getType id
-  //     getValue =
-  //       fun id ->
-  //         match values |> List.tryFind (fun v -> v.id = id) with
-  //         | Some v -> Ply(Some v)
-  //         | None -> pm.getValue id
-  //     getFn =
-  //       fun id ->
-  //         match fns |> List.tryFind (fun f -> f.id = id) with
-  //         | Some f -> Ply(Some f)
-  //         | None -> pm.getFn id
+    // Build lookup maps for bidirectional access
+    let typeLocationToId = types |> List.map (fun (t, loc) -> loc, t.id) |> Map.ofList
+    let typeIdToLocation = types |> List.map (fun (t, loc) -> t.id, loc) |> Map.ofList
+    let typeIdToType = types |> List.map (fun (t, _) -> t.id, t) |> Map.ofList
 
-  //     search = fun query -> pm.search query
+    let valueLocationToId = values |> List.map (fun (v, loc) -> loc, v.id) |> Map.ofList
+    let valueIdToLocation = values |> List.map (fun (v, loc) -> v.id, loc) |> Map.ofList
+    let valueIdToValue = values |> List.map (fun (v, _) -> v.id, v) |> Map.ofList
 
-  //     init = pm.init }
+    let fnLocationToId = fns |> List.map (fun (f, loc) -> loc, f.id) |> Map.ofList
+    let fnIdToLocation = fns |> List.map (fun (f, loc) -> f.id, loc) |> Map.ofList
+    let fnIdToFn = fns |> List.map (fun (f, _) -> f.id, f) |> Map.ofList
+
+    { findType =
+        fun (branchId, location) ->
+          match Map.tryFind location typeLocationToId with
+          | Some id -> Ply (Some id)
+          | None -> pm.findType (branchId, location)
+
+      findValue =
+        fun (branchId, location) ->
+          match Map.tryFind location valueLocationToId with
+          | Some id -> Ply (Some id)
+          | None -> pm.findValue (branchId, location)
+
+      findFn =
+        fun (branchId, location) ->
+          match Map.tryFind location fnLocationToId with
+          | Some id -> Ply (Some id)
+          | None -> pm.findFn (branchId, location)
+
+      search = pm.search
+
+      getType =
+        fun id ->
+          match Map.tryFind id typeIdToType with
+          | Some t -> Ply (Some t)
+          | None -> pm.getType id
+
+      getValue =
+        fun id ->
+          match Map.tryFind id valueIdToValue with
+          | Some v -> Ply (Some v)
+          | None -> pm.getValue id
+
+      getFn =
+        fun id ->
+          match Map.tryFind id fnIdToFn with
+          | Some f -> Ply (Some f)
+          | None -> pm.getFn id
+
+      getTypeLocation =
+        fun (branchId, id) ->
+          match Map.tryFind id typeIdToLocation with
+          | Some location -> Ply (Some location)
+          | None -> pm.getTypeLocation (branchId, id)
+
+      getValueLocation =
+        fun (branchId, id) ->
+          match Map.tryFind id valueIdToLocation with
+          | Some location -> Ply (Some location)
+          | None -> pm.getValueLocation (branchId, id)
+
+      getFnLocation =
+        fun (branchId, id) ->
+          match Map.tryFind id fnIdToLocation with
+          | Some location -> Ply (Some location)
+          | None -> pm.getFnLocation (branchId, id)
+
+      init = pm.init }
 
 
 

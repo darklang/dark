@@ -378,6 +378,15 @@ module PackageFn =
 //     fns: List<PackageFn.PackageFn> }
 
 
+type PackageOp =
+  | AddType of PackageType.PackageType
+  | AddValue of PackageValue.PackageValue
+  | AddFn of PackageFn.PackageFn
+  | SetTypeName of FQTypeName.Package * PackageLocation
+  | SetValueName of FQValueName.Package * PackageLocation
+  | SetFnName of FQFnName.Package * PackageLocation
+
+
 module Search =
   /// The type of entity to search for
   type EntityType =

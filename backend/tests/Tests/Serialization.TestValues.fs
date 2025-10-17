@@ -709,8 +709,6 @@ module ProgramTypes =
 
   let packageFn : PackageFn.PackageFn =
     { id = uuid
-      name =
-        { owner = "dark"; modules = [ "stdlib"; "Int64"; "Int64" ]; name = "mod" }
       body = expr
       typeParams = [ "a" ]
       parameters =
@@ -724,10 +722,6 @@ module ProgramTypes =
 
   let packageType : PackageType.PackageType =
     { id = uuid
-      name =
-        { owner = "darklang"
-          modules = [ "stdlib"; "Int64"; "Int64" ]
-          name = "Int64" }
       declaration =
         { typeParams = [ "a" ]
           definition =
@@ -747,12 +741,19 @@ module ProgramTypes =
 
   let packageValue : PT.PackageValue.PackageValue =
     { id = uuid
-      name = PT.PackageValue.name "dark" [ "stdlib"; "Int64"; "Int64" ] "testValue"
       body = constValue
       description = "test"
       deprecated = PT.NotDeprecated }
 
   let packageValues = [ packageValue ]
+
+  let packageLocation : PackageLocation =
+    { owner = "Darklang"; modules = [ "Stdlib"; "List" ]; name = "map" }
+
+  let packageLocations : List<PackageLocation> =
+    [ packageLocation
+      { owner = "MyOrg"; modules = []; name = "helper" }
+      { owner = "Test"; modules = [ "Nested"; "Module" ]; name = "value" } ]
 
   let toplevels : List<Toplevel.T> =
     [ List.map Toplevel.TLHandler Handler.handlers

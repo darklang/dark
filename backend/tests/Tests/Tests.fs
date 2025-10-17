@@ -35,15 +35,23 @@ let main (args : string array) : int =
       [ // core
         Tests.Prelude.tests
         Tests.TreeSitter.tests
-        // Tests.ProgramTypesToRuntimeTypes.tests // DISABLED: needs schema update
+        Tests.ProgramTypesToRuntimeTypes.tests
         Tests.Interpreter.tests
         Tests.AnalysisTypes.tests
         Tests.Execution.tests
         Tests.Builtin.tests
         Tests.DvalRepr.tests
         Tests.LibParser.tests
-        // Tests.NewParser.tests // DISABLED: needs schema update
+        Tests.NewParser.tests
         Tests.HttpClient.tests
+
+
+        (*tests to possibly backfill
+        - op playback
+        - package search
+        - soon: branch-specific stuff
+        - account/access stuff
+        *)
 
         // cloud
         Tests.BwdServer.tests
@@ -52,13 +60,13 @@ let main (args : string array) : int =
         Tests.QueueSchedulingRules.tests
         // TODO: bring back Tests.Queue.tests
         Tests.Routing.tests
-        // Tests.BinarySerialization.tests // DISABLED: depends on SerializationTestValues
-        // Tests.VanillaSerialization.tests // DISABLED: depends on SerializationTestValues
-        // Tests.DarkTypesSerialization.tests // DISABLED: depends on SerializationTestValues
+        Tests.BinarySerialization.tests
+        Tests.VanillaSerialization.tests
+        Tests.DarkTypesSerialization.tests
         Tests.SqlCompiler.tests
 
         // cross-cutting
-        // Tests.LibExecution.tests.Force() // DISABLED: needs schema update
+        Tests.LibExecution.tests.Force()
         ]
 
     let cancelationTokenSource = new System.Threading.CancellationTokenSource()
@@ -68,7 +76,7 @@ let main (args : string array) : int =
 
     // Generate this so that we can see if the format has changed in a git diff
     // BinarySerialization.generateTestFiles () // DISABLED: test module commented out
-    // VanillaSerialization.PersistedSerializations.generateTestFiles () // DISABLED: test module commented out
+    VanillaSerialization.PersistedSerializations.generateTestFiles ()
 
     // this does async stuff within it, so do not run it from a task/async
     // context or it may hang

@@ -40,8 +40,23 @@ let parsePTSourceFile
   | Ok parsedFile ->
     parsedFile
     |> WrittenTypesToProgramTypes.parsedFileAsSourceFile
-    |> Stdlib.Tuple2.first
+    |> Stdlib.Tuple3.first
     |> Stdlib.Result.Result.Ok
+  | Error e -> Stdlib.Result.Result.Error e
+
+let parsePTSourceFileWithOps
+  (code: String)
+  : Stdlib.Result.Result<
+    (ProgramTypes.SourceFile.SourceFile *
+      List<ProgramTypes.PackageOp>),
+    String
+  > =
+  match code |> TestParsing.initialParse with
+  | Ok parsedFile ->
+    let (sourceFile, ops, _unresolvedNames) =
+      parsedFile |> WrittenTypesToProgramTypes.parsedFileAsSourceFile
+
+    (sourceFile, ops) |> Stdlib.Result.Result.Ok
   | Error e -> Stdlib.Result.Result.Error e
 
 let parseAndPrettyPrint

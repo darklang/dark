@@ -251,15 +251,12 @@ let fileTests () : Test =
         testList $"skipped - {testName}" []
       else
         try
-          let modules =
-            $"{dir}/{filename}" |> parseTestFile |> (fun ply -> ply.Result)
+          let filePath = $"{dir}/{filename}"
+          let modules = filePath |> parseTestFile |> (fun ply -> ply.Result)
 
-          let pm =
-            pmPT
-            |> PT.PackageManager.withExtras
-              (modules |> List.collect _.types)
-              (modules |> List.collect _.values)
-              (modules |> List.collect _.fns)
+          let allOps = modules |> List.collect _.ops
+
+          let pm = LibPackageManager.PackageManager.withExtraOps pmPT allOps
 
           let tests =
             modules

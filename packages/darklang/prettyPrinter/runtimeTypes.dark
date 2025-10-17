@@ -35,8 +35,11 @@ let packageName
 
 module FQTypeName =
   let package (id: LanguageTools.RuntimeTypes.FQTypeName.Package) : String =
-    match LanguageTools.PackageManager.Type.get id with
-    | Some p -> packageName p.name.owner p.name.modules p.name.name
+    // TODO: Consider accepting branchId as parameter when pretty-printing branch-specific code
+    let branchId = Stdlib.Option.Option.None
+
+    match Builtin.pmGetLocationByType branchId id with
+    | Some l -> packageName l.owner l.modules l.name
     | None -> Stdlib.Uuid.toString id
 
 // TODO rename to fqtypeName?
@@ -60,8 +63,11 @@ module FQValueName =
   let package
     (id: LanguageTools.RuntimeTypes.FQValueName.Package)
     : String =
-    match LanguageTools.PackageManager.Value.get id with
-    | Some p -> packageName p.name.owner p.name.modules p.name.name
+    // TODO: Consider accepting branchId as parameter when pretty-printing branch-specific code
+    let branchId = Stdlib.Option.Option.None
+
+    match Builtin.pmGetLocationByValue branchId id with
+    | Some l -> packageName l.owner l.modules l.name
     | None -> Stdlib.Uuid.toString id
 
 // TODO rename to fqvalueName?
@@ -86,8 +92,11 @@ module FQFnName =
     $"Builtin.{namePart}{versionPart}"
 
   let package (id: LanguageTools.RuntimeTypes.FQFnName.Package) : String =
-    match LanguageTools.PackageManager.Function.get id with
-    | Some p -> packageName p.name.owner p.name.modules p.name.name
+    // TODO: Consider accepting branchId as parameter when pretty-printing branch-specific code
+    let branchId = Stdlib.Option.Option.None
+
+    match Builtin.pmGetLocationByFn branchId id with
+    | Some l -> packageName l.owner l.modules l.name
     | None -> Stdlib.Uuid.toString id
 
 

@@ -55,7 +55,11 @@ let getCurrentModulePath (location: PackageLocation) : List<String> =
   | Function f -> Stdlib.List.append [f.owner] f.modules
 
 
-let applySegment (location: PackageLocation) (segment: PathSegment) : Stdlib.Result.Result<PackageLocation, String> =
+let applySegment
+  (branchId: Stdlib.Option.Option<Uuid>)
+  (location: PackageLocation)
+  (segment: PathSegment)
+  : Stdlib.Result.Result<PackageLocation, String> =
   match segment with
   | Root ->
     Stdlib.Result.Result.Ok (PackageLocation.Module [])
@@ -82,14 +86,18 @@ let applySegment (location: PackageLocation) (segment: PathSegment) : Stdlib.Res
 
   | Into name ->
     let currentPath = getCurrentModulePath location
-    resolveEntity currentPath name
+    resolveEntity branchId currentPath name
 
 
 // Resolve a name to an actual entity (module, type, fn, or value)
-let resolveEntity (basePath: List<String>) (name: String) : Stdlib.Result.Result<PackageLocation, String> =
+let resolveEntity
+  (branchId: Stdlib.Option.Option<Uuid>)
+  (basePath: List<String>)
+  (name: String)
+  : Stdlib.Result.Result<PackageLocation, String> =
   // First see if it's a module
   let modulePath = Stdlib.List.append basePath [name]
-  let moduleResults = Search.searchContents modulePath
+  let moduleResults = Search.searchContents branchId modulePath
 
   let isAModule = Search.hasContent moduleResults
 
@@ -97,7 +105,7 @@ let resolveEntity (basePath: List<String>) (name: String) : Stdlib.Result.Result
     Stdlib.Result.Result.Ok (PackageLocation.Module modulePath)
   // Not a module -- check if it's a type/value/fn
   else
-    let entityResults = Search.searchEntity basePath name
+    let entityResults = Search.searchEntity branchId basePath name
 
     // Access lists directly to avoid type parameter loss
     match entityResults.types with
@@ -111,18 +119,25 @@ let resolveEntity (basePath: List<String>) (name: String) : Stdlib.Result.Result
         | [] -> Stdlib.Result.Result.Error "Not found"
 
 
-let applyPath (start: PackageLocation) (segments: List<PathSegment>) : Stdlib.Result.Result<PackageLocation, String> =
+let applyPath
+  (branchId: Stdlib.Option.Option<Uuid>)
+  (start: PackageLocation)
+  (segments: List<PathSegment>)
+  : Stdlib.Result.Result<PackageLocation, String> =
   segments
   |> Stdlib.List.fold (Stdlib.Result.Result.Ok start) (fun accResult segment ->
     match accResult with
     | Error e -> Stdlib.Result.Result.Error e
-    | Ok loc -> applySegment loc segment
+    | Ok loc -> applySegment branchId loc segment
   )
 
 
 // Search for module names under Darklang owner (fallback search)
-let searchDarklangModules (prefixText: String) : List<String> =
-  let darklangResults = Search.searchContents ["Darklang"]
+let searchDarklangModules
+  (branchId: Stdlib.Option.Option<Uuid>)
+  (prefixText: String)
+  : List<String> =
+  let darklangResults = Search.searchContents branchId ["Darklang"]
   let currentPathLength = 1L
   let moduleNames = Search.getDirectSubmodules darklangResults currentPathLength
 
@@ -131,10 +146,14 @@ let searchDarklangModules (prefixText: String) : List<String> =
   |> Stdlib.List.map (fun name -> "Darklang." ++ name) // Return fully qualified names
 
 // Get all available names at a location for completion
-let getAvailableNames (location: PackageLocation) (prefixText: String) : List<String> =
+let getAvailableNames
+  (branchId: Stdlib.Option.Option<Uuid>)
+  (location: PackageLocation)
+  (prefixText: String)
+  : List<String> =
   let currentPath = getCurrentModulePath location
   // Get all available entities in this module
-  let allResults = Search.searchContents currentPath
+  let allResults = Search.searchContents branchId currentPath
 
   let currentPathLength = Stdlib.List.length currentPath
   let moduleNames = Search.getDirectSubmodules allResults currentPathLength
@@ -165,28 +184,32 @@ let getAvailableNames (location: PackageLocation) (prefixText: String) : List<St
     if Stdlib.Bool.not (Stdlib.List.isEmpty ownerMatches) then
       ownerMatches
     else
-      let fallbackResults = searchDarklangModules prefixText
+      let fallbackResults = searchDarklangModules branchId prefixText
       primaryResults |> Stdlib.List.append fallbackResults |> Stdlib.List.unique |> Stdlib.List.sort
   | _ ->
     primaryResults
 
 // Simple completion: traverse exact path, then fuzzy search the last part
-let completePartialPath (start: PackageLocation) (partialPath: String) : List<String> =
+let completePartialPath
+  (branchId: Stdlib.Option.Option<Uuid>)
+  (start: PackageLocation)
+  (partialPath: String)
+  : List<String> =
   let segments = parsePath partialPath
 
 
   match Stdlib.List.reverse segments with
   | [] ->
     // Empty path - get completions from current location
-    getAvailableNames start ""
+    getAvailableNames branchId start ""
 
   | (Into fuzzyPart) :: exactSegmentsReversed ->
     // Navigate to exact path, then fuzzy search
     let exactSegments = Stdlib.List.reverse exactSegmentsReversed
-    match applyPath start exactSegments with
+    match applyPath branchId start exactSegments with
     | Error _ -> []
     | Ok contextLocation ->
-      let completionNames = getAvailableNames contextLocation fuzzyPart
+      let completionNames = getAvailableNames branchId contextLocation fuzzyPart
 
       // Build prefix for the completions, preserving the separator style
       let prefix =
@@ -218,6 +241,10 @@ let completePartialPath (start: PackageLocation) (partialPath: String) : List<St
 
 
 // Main traverse function
-let traverse (start: PackageLocation) (path: String) : Stdlib.Result.Result<PackageLocation, String> =
+let traverse
+  (branchId: Stdlib.Option.Option<Uuid>)
+  (start: PackageLocation)
+  (path: String)
+  : Stdlib.Result.Result<PackageLocation, String> =
   let segments = parsePath path
-  applyPath start segments
+  applyPath branchId start segments

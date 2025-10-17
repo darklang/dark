@@ -6,7 +6,7 @@ let _handler _req =
 // expose some metadata to quickly check if things seem to be working and populated
 [<HttpHandler("GET", "/stats")>]
 let _handler _req =
-  let stats = Builtin.packageManagerGetStats ()
+  let stats = Builtin.pmGetStats ()
 
   let body =
     $"Package stats:
@@ -23,7 +23,7 @@ let _handler _req =
 // (JSON representation of PT.PackageType)
 [<HttpHandler("GET", "/type/find/:name")>]
 let _handler _req =
-  match Builtin.packageManagerFindType name with
+  match Builtin.pmFindType name with
   | Some foundID ->
     let json = $"\"{Stdlib.Uuid.toString foundID}\""
     Stdlib.Http.response (Stdlib.String.toBytes json) 200L
@@ -33,7 +33,7 @@ let _handler _req =
 let _handler _req =
   let id = (Stdlib.Uuid.parse id) |> Builtin.unwrap
 
-  match Builtin.packageManagerGetType id with
+  match Builtin.pmGetType id with
   | Some f ->
     let json =
       Builtin.jsonSerialize<LanguageTools.ProgramTypes.PackageType.PackageType> f
@@ -46,7 +46,7 @@ let _handler _req =
 // (JSON representation of PT.PackageValues)
 [<HttpHandler("GET", "/value/find/:name")>]
 let _handler _req =
-  match Builtin.packageManagerFindValue name with
+  match Builtin.pmFindValue name with
   | Some foundID ->
     let json = $"\"{Stdlib.Uuid.toString foundID}\""
     Stdlib.Http.response (Stdlib.String.toBytes json) 200L
@@ -56,7 +56,7 @@ let _handler _req =
 let _handler _req =
   let id = (Stdlib.Uuid.parse id) |> Builtin.unwrap
 
-  match Builtin.packageManagerGetValue id with
+  match Builtin.pmGetValue id with
   | Some f ->
     let json =
       Builtin.jsonSerialize<LanguageTools.ProgramTypes.PackageValue.PackageValue>
@@ -70,7 +70,7 @@ let _handler _req =
 // (JSON representation of PT.PackageFn)
 [<HttpHandler("GET", "/function/find/:name")>]
 let _handler _req =
-  match Builtin.packageManagerFindFn name with
+  match Builtin.pmFindFn name with
   | Some foundID ->
     let json = $"\"{Stdlib.Uuid.toString foundID}\""
     Stdlib.Http.response (Stdlib.String.toBytes json) 200L
@@ -80,7 +80,7 @@ let _handler _req =
 let _handler _req =
   let id = (Stdlib.Uuid.parse id) |> Builtin.unwrap
 
-  match Builtin.packageManagerGetFn id with
+  match Builtin.pmGetFn id with
   | Some f ->
     let json =
       Builtin.jsonSerialize<LanguageTools.ProgramTypes.PackageFn.PackageFn> f
@@ -192,7 +192,7 @@ let _handler _req =
         exactMatch = exactMatch }
 
 
-  let results = Builtin.packageManagerSearch query
+  let results = Builtin.pmSearch query
 
   let json = Builtin.jsonSerialize<LanguageTools.ProgramTypes.Search.SearchResults> results
 

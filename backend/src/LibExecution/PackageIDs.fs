@@ -275,7 +275,8 @@ module Type =
 
       let deprecation = p [] "Deprecation" "e6ac931d-eac0-42df-a197-a9bcf1094b09"
 
-      let packageLocation = p [] "PackageLocation" "a8e4f2b1-3c5d-4e6f-8a9b-1c2d3e4f5a6b"
+      let packageLocation =
+        p [] "PackageLocation" "a8e4f2b1-3c5d-4e6f-8a9b-1c2d3e4f5a6b"
       let branchID = p [] "BranchID" "c1d2e3f4-5a6b-7c8d-9e0f-1a2b3c4d5e6f"
       let locatedItem = p [] "LocatedItem" "4869d6bc-f934-4341-8cab-4c42968c7790"
 
@@ -311,6 +312,8 @@ module Type =
         let searchQuery = p [] "SearchQuery" "3937be09-aa05-40d6-b42d-3146e9774c82"
         let searchResults =
           p [] "SearchResults" "0660f9dc-a816-4185-9e5c-f936325f83d5"
+
+      let packageOp = p [] "PackageOp" "7d8e9f0a-1b2c-3d4e-5f6a-7b8c9d0e1f2a"
 
       let secret = p [] "Secret" "37427120-d71d-41f2-b094-68757570bc41"
       let db = p [] "DB" "7f219668-f8ac-4b17-a404-1171985dadf9"
@@ -430,6 +433,12 @@ module Fn =
           "parseAndPrettyPrint"
           "361fb7f2-523b-4b50-8f29-cc99d5f03e3a"
 
+      let parsePTSourceFileWithOps =
+        p
+          [ "TestParsing" ]
+          "parsePTSourceFileWithOps"
+          "8a5c3f1b-9d2e-4a7c-b8f3-1a2b3c4d5e6f"
+
       module CliScript =
         let private p addl = p ("CliScript" :: addl)
         let parseCliScript = p [] "parse" "e7574db7-f7e6-4263-adc2-a05b14309cbc"
@@ -452,6 +461,8 @@ module Fn =
 
     module ProgramTypes =
       let private p addl = p ("ProgramTypes" :: addl)
+      let sourceFile = p [] "sourceFile" "f3b2e4d5-7a8c-4e9f-b1a2-3c4d5e6f7a8b"
+
       module FQFnName =
         let private p addl = p ("FQFnName" :: addl)
         let fullForReference =

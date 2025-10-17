@@ -88,6 +88,14 @@ module RoundtripTests =
 
     let tests =
       [ testRoundtripList
+          "PT.PackageLocation"
+          (pkg PackageIDs.Type.LanguageTools.ProgramTypes.packageLocation)
+          V.ProgramTypes.packageLocations
+          PT2DT.PackageLocation.toDT
+          PT2DT.PackageLocation.fromDT
+          None
+
+        testRoundtripList
           "PT.PackageType"
           (pkg PackageIDs.Type.LanguageTools.ProgramTypes.PackageType.packageType)
           V.ProgramTypes.packageTypes

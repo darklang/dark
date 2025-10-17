@@ -61,7 +61,8 @@ module ReadFile =
               ]
               exactMatch = false }
 
-        let searchResults = LanguageTools.PackageManager.Search.search searchQuery
+        let searchResults =
+          LanguageTools.PackageManager.Search.search state.branchId searchQuery
 
         let functions =
           searchResults.fns

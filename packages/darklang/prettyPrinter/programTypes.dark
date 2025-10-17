@@ -79,19 +79,22 @@ module FQTypeName =
     let atDefinition
       (id: LanguageTools.ProgramTypes.FQTypeName.Package)
       : String =
-      match Builtin.packageManagerGetLocationByTypeId id with
-      | Some location -> location.name
+      // TODO: Consider accepting branchId as parameter when pretty-printing branch-specific code
+      let branchId = Stdlib.Option.Option.None
+
+      match Builtin.pmGetLocationByType branchId id with
+      | Some l -> l.name
       | None -> Stdlib.Uuid.toString id
 
     let fullForReference
       (id: LanguageTools.ProgramTypes.FQTypeName.Package)
       : String =
-      match Builtin.packageManagerGetLocationByTypeId id with
-      | Some location ->
-        PrettyPrinter.ProgramTypes.packageName
-          location.owner
-          location.modules
-          location.name
+      // TODO: Consider accepting branchId as parameter when pretty-printing branch-specific code
+      let branchId = Stdlib.Option.Option.None
+
+      match Builtin.pmGetLocationByType branchId id with
+      | Some l ->
+        PrettyPrinter.ProgramTypes.packageName l.owner l.modules l.name
       | None -> Stdlib.Uuid.toString id
 
 
@@ -129,19 +132,22 @@ module FQValueName =
     let atDefinition
       (id: LanguageTools.ProgramTypes.FQValueName.Package)
       : String =
-      match Builtin.packageManagerGetLocationByValueId id with
-      | Some location -> location.name
+      // TODO: Consider accepting branchId as parameter when pretty-printing branch-specific code
+      let branchId = Stdlib.Option.Option.None
+
+      match Builtin.pmGetLocationByValue branchId id with
+      | Some l -> l.name
       | None -> Stdlib.Uuid.toString id
 
     let fullForReference
       (id: LanguageTools.ProgramTypes.FQValueName.Package)
       : String =
-      match Builtin.packageManagerGetLocationByValueId id with
-      | Some location ->
-        PrettyPrinter.ProgramTypes.packageName
-          location.owner
-          location.modules
-          location.name
+      // TODO: Consider accepting branchId as parameter when pretty-printing branch-specific code
+      let branchId = Stdlib.Option.Option.None
+
+      match Builtin.pmGetLocationByValue branchId id with
+      | Some l ->
+        PrettyPrinter.ProgramTypes.packageName l.owner l.modules l.name
       | None -> Stdlib.Uuid.toString id
 
 
@@ -185,19 +191,22 @@ module FQFnName =
     let atDefinition
       (id: LanguageTools.ProgramTypes.FQFnName.Package)
       : String =
-      match Builtin.packageManagerGetLocationByFnId id with
-      | Some location -> location.name
+      // TODO: Consider accepting branchId as parameter when pretty-printing branch-specific code
+      let branchId = Stdlib.Option.Option.None
+
+      match Builtin.pmGetLocationByFn branchId id with
+      | Some l -> l.name
       | None -> Stdlib.Uuid.toString id
 
     let fullForReference
       (id: LanguageTools.ProgramTypes.FQFnName.Package)
       : String =
-      match Builtin.packageManagerGetLocationByFnId id with
-      | Some location ->
-        PrettyPrinter.ProgramTypes.packageName
-          location.owner
-          location.modules
-          location.name
+      // TODO: Consider accepting branchId as parameter when pretty-printing branch-specific code
+      let branchId = Stdlib.Option.Option.None
+
+      match Builtin.pmGetLocationByFn branchId id with
+      | Some l ->
+        PrettyPrinter.ProgramTypes.packageName l.owner l.modules l.name
       | None -> Stdlib.Uuid.toString id
 
 

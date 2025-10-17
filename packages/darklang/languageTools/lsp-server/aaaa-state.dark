@@ -13,8 +13,21 @@ type LspState =
 
     shouldShutdown: Bool
 
+    /// The branch context for this LSP session
+    branchId: Stdlib.Option.Option<Uuid>
+
     /// Documents that are currently open in the editor
     /// (i.e. have been `textDocument/didOpen`ed, and not yet `textDocument/didClose`d)
     /// note: the string key here is the URI
     documentsInScope: Dict<DocumentInScope>
   }
+
+(*
+TODO change data modeling from "one server one client" to ...
+
+It's _not_ that our lsp-server nereds to connect to multiple clients
+It's that our _dev server_ needs to operate on separate LSP Clients separately
+  (track {initialization, documentsInScope, branchId} per client)
+
+(this is prob. part of a larger effort to move from stdio lsp server to http-bound one)
+*)

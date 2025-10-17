@@ -164,7 +164,8 @@ let handleGetChildNodesRequest
             ]
             exactMatch = false }
 
-      let searchResults = LanguageTools.PackageManager.Search.search searchQuery
+      let searchResults =
+        LanguageTools.PackageManager.Search.search state.branchId searchQuery
       buildTreeItems searchResults currentPath nodeId
 
   let response =

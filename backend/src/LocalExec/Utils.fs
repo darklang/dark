@@ -50,6 +50,11 @@ let inMemPackageManagerFromOps (ops : List<PT.PackageOp>) : PT.PackageManager =
       | _ -> None)
     |> Map.ofList
 
+  // Build reverse lookup maps (id -> location)
+  let typeIdToLoc = typeLocToId |> Map.toList |> List.map (fun (loc, id) -> id, loc) |> Map.ofList
+  let valueIdToLoc = valueLocToId |> Map.toList |> List.map (fun (loc, id) -> id, loc) |> Map.ofList
+  let fnIdToLoc = fnLocToId |> Map.toList |> List.map (fun (loc, id) -> id, loc) |> Map.ofList
+
   { findType = fun (_, loc) -> Map.tryFind loc typeLocToId |> Ply
     findValue = fun (_, loc) -> Map.tryFind loc valueLocToId |> Ply
     findFn = fun (_, loc) -> Map.tryFind loc fnLocToId |> Ply
@@ -57,6 +62,10 @@ let inMemPackageManagerFromOps (ops : List<PT.PackageOp>) : PT.PackageManager =
     getType = fun id -> types |> List.find (fun t -> t.id = id) |> Ply
     getValue = fun id -> values |> List.find (fun v -> v.id = id) |> Ply
     getFn = fun id -> fns |> List.find (fun f -> f.id = id) |> Ply
+
+    getTypeLocation = fun (_, id) -> Map.tryFind id typeIdToLoc |> Ply
+    getValueLocation = fun (_, id) -> Map.tryFind id valueIdToLoc |> Ply
+    getFnLocation = fun (_, id) -> Map.tryFind id fnIdToLoc |> Ply
 
     search =
       fun _ ->

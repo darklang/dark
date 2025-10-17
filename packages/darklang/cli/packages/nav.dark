@@ -20,10 +20,14 @@ module Interactive =
       selectedIndex: Int64           // Which item is focused/selected
       scrollOffset: Int64            // For scrolling long lists
       currentLocation: PackageLocation
-      showInlineView: Bool }          // Whether to show inline view of selected item
+      showInlineView: Bool            // Whether to show inline view of selected item
+      branchId: Stdlib.Option.Option<Uuid> }  // Branch context for package operations
 
   // Create interactive navigation state for a location
-  let buildState (location: PackageLocation) : State =
+  let buildState
+    (branchId: Stdlib.Option.Option<Uuid>)
+    (location: PackageLocation)
+    : State =
     let modulePath =
       match location with
       | Module path -> path
@@ -32,7 +36,7 @@ module Interactive =
       | Function f -> Stdlib.List.append [f.owner] f.modules
 
     // Get all entities in this location
-    let results = Search.searchContents modulePath
+    let results = Search.searchContents branchId modulePath
 
     // Get submodules
     let currentPathLength = Stdlib.List.length modulePath
@@ -81,16 +85,20 @@ module Interactive =
         selectedIndex = 0L
         scrollOffset = 0L
         currentLocation = location
-        showInlineView = false }
+        showInlineView = false
+        branchId = branchId }
 
   // Truncated view for inline display to avoid flooding screen with large modules
-  let viewEntityTruncated (location: PackageLocation) : Unit =
+  let viewEntityTruncated
+    (branchId: Stdlib.Option.Option<Uuid>)
+    (location: PackageLocation)
+    : Unit =
     let maxItemsPerCategory = 3L
     let maxTotalLines = 12L
 
     match location with
     | Module path ->
-      let results = Search.searchContents path
+      let results = Search.searchContents branchId path
       let locationStr = Packages.formatLocation location
       Stdlib.printLine locationStr
 
@@ -129,7 +137,7 @@ module Interactive =
 
     | _ ->
       // For individual entities, show full view since they're typically small
-      View.viewEntity location
+      View.viewEntity branchId location
 
   // Display the interactive navigation interface
   let display (navState: State) : Unit =
@@ -185,7 +193,7 @@ module Interactive =
       | Some selectedItem ->
         Stdlib.printLine ""
         Stdlib.printLine (Stdlib.String.repeat "─" 60L)
-        viewEntityTruncated selectedItem.location
+        viewEntityTruncated navState.branchId selectedItem.location
       | None -> ()
 
     Stdlib.printLine ""
@@ -262,7 +270,7 @@ module Interactive =
             // Navigate into this location
             let newState = navTo state selectedItem.location
             let newNavState =
-              let baseState = buildState selectedItem.location
+              let baseState = buildState state.currentBranchId selectedItem.location
               { baseState with showInlineView = navState.showInlineView }
             { newState with currentPage = Page.InteractiveNav newNavState }
           else
@@ -275,11 +283,11 @@ module Interactive =
 
     | LeftArrow ->
       // Go up to parent directory
-      match Traversal.applySegment navState.currentLocation Traversal.PathSegment.Up with
+      match Traversal.applySegment navState.branchId navState.currentLocation Traversal.PathSegment.Up with
       | Ok parentLocation ->
         let newState = navTo state parentLocation
         let newNavState =
-          let baseState = buildState parentLocation
+          let baseState = buildState state.currentBranchId parentLocation
           { baseState with showInlineView = navState.showInlineView }
         { newState with currentPage = Page.InteractiveNav newNavState }
       | Error _ ->
@@ -362,7 +370,7 @@ let execute (state: AppState) (args: List<String>) : AppState =
   | [] ->
     // Enter interactive navigation mode
     Interactive.enterAlternateScreen ()
-    let navState = Interactive.buildState state.packageData.currentLocation
+    let navState = Interactive.buildState state.currentBranchId state.packageData.currentLocation
     { state with
         currentPage = Page.InteractiveNav navState
         needsFullRedraw = true
@@ -371,7 +379,7 @@ let execute (state: AppState) (args: List<String>) : AppState =
 
   | [pathArg] ->
     // Use traverse to handle the path navigation
-    match Traversal.traverse state.packageData.currentLocation pathArg with
+    match Traversal.traverse state.currentBranchId state.packageData.currentLocation pathArg with
     | Error errorMsg ->
       // Navigation failed - show error and don't change location
       Stdlib.printLine (Colors.error $"Navigation failed: {errorMsg}")
@@ -389,9 +397,9 @@ let complete (state: AppState) (args: List<String>) : List<String> =
   match args with
   | [] ->
     // No args - complete from current location
-    Traversal.completePartialPath state.packageData.currentLocation ""
+    Traversal.completePartialPath state.currentBranchId state.packageData.currentLocation ""
   | [partialPath] ->
-    Traversal.completePartialPath state.packageData.currentLocation partialPath
+    Traversal.completePartialPath state.currentBranchId state.packageData.currentLocation partialPath
   | _ ->
     // Too many arguments
     []

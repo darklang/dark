@@ -78,6 +78,19 @@ let makeDeserializer<'T, 'ID> (reader : BinaryReader -> 'T) : 'ID -> byte[] -> '
 
 
 module PT =
+  module PackageLocation =
+    let serialize id value =
+      makeSerializer
+        LibBinarySerialization.Serializers.PT.Common.PackageLocation.write
+        id
+        value
+
+    let deserialize id data =
+      makeDeserializer
+        LibBinarySerialization.Serializers.PT.Common.PackageLocation.read
+        id
+        data
+
   module PackageType =
     let serialize id value = makeSerializer PT.PackageType.write id value
     let deserialize id data = makeDeserializer PT.PackageType.read id data

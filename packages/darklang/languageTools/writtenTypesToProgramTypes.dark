@@ -1238,14 +1238,196 @@ module FunctionDeclaration =
         body = body },
       unresolvedNames)
 
+// Process a module declaration and generate both the Definitions and PackageOps
+let moduleDeclarationWithOpsHelper
+  (pm: ProgramTypes.PackageManager.PackageManager)
+  (owner: String)
+  (modules: List<String>)
+  (m: WrittenTypes.ModuleDeclaration.ModuleDeclaration)
+  : (ProgramTypes.Definitions *
+    List<ProgramTypes.PackageOp> *
+    List<Parser.Range * ProgramTypes.NameResolutionError>)
+  =
+  // Process types
+  let typeResults =
+    m.declarations
+    |> Stdlib.List.filterMap (fun d ->
+      match d with
+      | Type t ->
+        let typeName = t.name.name
+
+        let (pt, unresolvedNames) =
+          TypeDeclaration.toPackageTypePT
+            NameResolver.OnMissing.Allow
+            pm
+            owner
+            modules
+            t
+
+        let location =
+          ProgramTypes.PackageLocation
+            { owner = owner; modules = modules; name = typeName }
+
+        let ops =
+          [ ProgramTypes.PackageOp.AddType pt
+            ProgramTypes.PackageOp.SetTypeName(pt.id, location) ]
+
+        Stdlib.Option.Option.Some((pt, ops, unresolvedNames))
+      | _ -> Stdlib.Option.Option.None)
+
+  let types = typeResults |> Stdlib.List.map (fun (t, _, _) -> t)
+  let typeOps = typeResults |> Stdlib.List.map (fun (_, ops, _) -> ops)
+
+  let typeUnresolvedNames =
+    typeResults |> Stdlib.List.map (fun (_, _, unresolved) -> unresolved)
+
+  // Process values
+  let valueResults =
+    m.declarations
+    |> Stdlib.List.filterMap (fun d ->
+      match d with
+      | Value v ->
+        let valueName = v.name.name
+
+        let (pv, unresolvedNames) =
+          ValueDeclaration.toPackageValuePT
+            NameResolver.OnMissing.Allow
+            pm
+            owner
+            modules
+            v
+
+        let location =
+          ProgramTypes.PackageLocation
+            { owner = owner; modules = modules; name = valueName }
+
+        let ops =
+          [ ProgramTypes.PackageOp.AddValue pv
+            ProgramTypes.PackageOp.SetValueName(pv.id, location) ]
+
+        Stdlib.Option.Option.Some((pv, ops, unresolvedNames))
+      | _ -> Stdlib.Option.Option.None)
+
+  let values = valueResults |> Stdlib.List.map (fun (v, _, _) -> v)
+  let valueOps = valueResults |> Stdlib.List.map (fun (_, ops, _) -> ops)
+
+  let valueUnresolvedNames =
+    valueResults |> Stdlib.List.map (fun (_, _, unresolved) -> unresolved)
+
+  // Process functions
+  let fnResults =
+    m.declarations
+    |> Stdlib.List.filterMap (fun d ->
+      match d with
+      | Function f ->
+        let fnName = f.name.name
+
+        let (pf, unresolvedNames) =
+          FunctionDeclaration.toPackageFnPT
+            NameResolver.OnMissing.Allow
+            pm
+            owner
+            modules
+            f
+
+        let location =
+          ProgramTypes.PackageLocation
+            { owner = owner; modules = modules; name = fnName }
+
+        let ops =
+          [ ProgramTypes.PackageOp.AddFn pf
+            ProgramTypes.PackageOp.SetFnName(pf.id, location) ]
+
+        Stdlib.Option.Option.Some((pf, ops, unresolvedNames))
+      | _ -> Stdlib.Option.Option.None)
+
+  let fns = fnResults |> Stdlib.List.map (fun (f, _, _) -> f)
+  let fnOps = fnResults |> Stdlib.List.map (fun (_, ops, _) -> ops)
+
+  let fnUnresolvedNames =
+    fnResults |> Stdlib.List.map (fun (_, _, unresolved) -> unresolved)
+
+  // Process expressions
+  let (exprs, exprUnresolvedNames) =
+    m.declarations
+    |> Stdlib.List.filterMap (fun d ->
+      match d with
+      | Expr e ->
+        let (expr, unresolvedNames) =
+          Expr.toPT NameResolver.OnMissing.Allow pm owner modules e
+
+        Stdlib.Option.Option.Some(((expr, modules), unresolvedNames))
+      | _ -> Stdlib.Option.Option.None)
+    |> Stdlib.List.unzip
+
+  // Process submodules recursively
+  let submoduleResults =
+    m.declarations
+    |> Stdlib.List.filterMap (fun d ->
+      match d with
+      | SubModule sm ->
+        let (_, submoduleName) = sm.name
+        let extendedModules = Stdlib.List.append modules [ submoduleName ]
+
+        let (defs, ops, unresolvedNames) =
+          moduleDeclarationWithOpsHelper pm owner extendedModules sm
+
+        Stdlib.Option.Option.Some((defs, ops, unresolvedNames))
+      | _ -> Stdlib.Option.Option.None)
+
+  let submoduleDefs =
+    submoduleResults |> Stdlib.List.map (fun (defs, _, _) -> defs)
+
+  let submoduleOps = submoduleResults |> Stdlib.List.map (fun (_, ops, _) -> ops)
+
+  let submoduleUnresolvedNames =
+    submoduleResults |> Stdlib.List.map (fun (_, _, unresolved) -> unresolved)
+
+  // Combine all submodule definitions
+  let combinedSubmoduleDefs =
+    ModuleDeclaration.combineSubmodules submoduleDefs
+
+  // Combine everything
+  let allTypes = Stdlib.List.append types combinedSubmoduleDefs.types
+  let allValues = Stdlib.List.append values combinedSubmoduleDefs.values
+  let allFns = Stdlib.List.append fns combinedSubmoduleDefs.fns
+  let allExprs = Stdlib.List.append exprs combinedSubmoduleDefs.exprs
+
+  let allOps =
+    Stdlib.List.flatten
+      [ typeOps |> Stdlib.List.flatten
+        valueOps |> Stdlib.List.flatten
+        fnOps |> Stdlib.List.flatten
+        submoduleOps |> Stdlib.List.flatten ]
+
+  let allUnresolvedNames =
+    Stdlib.List.flatten
+      [ typeUnresolvedNames |> Stdlib.List.flatten
+        valueUnresolvedNames |> Stdlib.List.flatten
+        fnUnresolvedNames |> Stdlib.List.flatten
+        exprUnresolvedNames |> Stdlib.List.flatten
+        submoduleUnresolvedNames |> Stdlib.List.flatten ]
+
+  let defs =
+    ProgramTypes.Definitions
+      { types = allTypes
+        values = allValues
+        fns = allFns
+        exprs = allExprs }
+
+  (defs, allOps, allUnresolvedNames)
+
 let declarationsToPT
   (pm: ProgramTypes.PackageManager.PackageManager)
   (d: WrittenTypes.SourceFile.SourceFileDeclaration)
   : (ProgramTypes.SourceFile.Declaration *
+    List<ProgramTypes.PackageOp> *
     List<Parser.Range * ProgramTypes.NameResolutionError>)
   =
   match d with
   | Type t ->
+    let typeName = t.name.name
+
     let (t, unresolvedNames) =
       TypeDeclaration.toPackageTypePT
         NameResolver.OnMissing.Allow
@@ -1254,9 +1436,19 @@ let declarationsToPT
         []
         t
 
-    (ProgramTypes.SourceFile.Declaration.Type t, unresolvedNames)
+    let location =
+      ProgramTypes.PackageLocation
+        { owner = "Tests"; modules = []; name = typeName }
+
+    let ops =
+      [ ProgramTypes.PackageOp.AddType t
+        ProgramTypes.PackageOp.SetTypeName(t.id, location) ]
+
+    (ProgramTypes.SourceFile.Declaration.Type t, ops, unresolvedNames)
 
   | Value v ->
+    let valueName = v.name.name
+
     let (v, unresolvedNames) =
       ValueDeclaration.toPackageValuePT
         NameResolver.OnMissing.Allow
@@ -1265,10 +1457,20 @@ let declarationsToPT
         []
         v
 
-    (ProgramTypes.SourceFile.Declaration.Value v, unresolvedNames)
+    let location =
+      ProgramTypes.PackageLocation
+        { owner = "Tests"; modules = []; name = valueName }
+
+    let ops =
+      [ ProgramTypes.PackageOp.AddValue v
+        ProgramTypes.PackageOp.SetValueName(v.id, location) ]
+
+    (ProgramTypes.SourceFile.Declaration.Value v, ops, unresolvedNames)
 
 
   | Function f ->
+    let fnName = f.name.name
+
     let (f, unresolvedNames) =
       FunctionDeclaration.toPackageFnPT
         NameResolver.OnMissing.Allow
@@ -1277,29 +1479,50 @@ let declarationsToPT
         []
         f
 
-    (ProgramTypes.SourceFile.Declaration.Function f, unresolvedNames)
+    let location =
+      ProgramTypes.PackageLocation
+        { owner = "Tests"; modules = []; name = fnName }
+
+    let ops =
+      [ ProgramTypes.PackageOp.AddFn f
+        ProgramTypes.PackageOp.SetFnName(f.id, location) ]
+
+    (ProgramTypes.SourceFile.Declaration.Function f, ops, unresolvedNames)
 
   | Module m ->
-    // TODO: should owner be added to ModuleDeclaration.toPT?
-    let (m, unresolvedNames) =
-      ModuleDeclaration.toPT NameResolver.OnMissing.Allow pm [] m
+    let (_, moduleName) = m.name
 
-    (ProgramTypes.SourceFile.Declaration.Module m, unresolvedNames)
+    // Convert declarations and generate ops recursively using the same PM
+    let (defs, ops, unresolvedNames) =
+      moduleDeclarationWithOpsHelper pm "Tests" [ moduleName ] m
+
+    (ProgramTypes.SourceFile.Declaration.Module defs, ops, unresolvedNames)
 
 
 let parsedFileAsSourceFile
   (parsedFile: WrittenTypes.ParsedFile)
   : (ProgramTypes.SourceFile.SourceFile *
+    List<ProgramTypes.PackageOp> *
     List<Parser.Range * ProgramTypes.NameResolutionError>)
   =
   let pm = LanguageTools.PackageManager.pm ()
   // CLEANUP potentially complain about unparsable stuff?
   match parsedFile with
   | SourceFile source ->
-    let (declarations, declarationsUnresolvedNames) =
+    let results =
       source.declarations
       |> Stdlib.List.map (WrittenTypesToProgramTypes.declarationsToPT pm)
-      |> Stdlib.List.unzip
+
+    let declarations =
+      results |> Stdlib.List.map (fun (decl, _, _) -> decl)
+
+    let allPackageOps =
+      results
+      |> Stdlib.List.map (fun (_, ops, _) -> ops)
+      |> Stdlib.List.flatten
+
+    let declarationsUnresolvedNames =
+      results |> Stdlib.List.map (fun (_, _, unresolved) -> unresolved)
 
     let (exprsToEval, exprsToEvalUnresolvedNames) =
       source.exprsToEval
@@ -1317,4 +1540,4 @@ let parsedFileAsSourceFile
         { declarations = declarations
           exprsToEval = exprsToEval }
 
-    (sourceFile, unresolvedNames)
+    (sourceFile, allPackageOps, unresolvedNames)
