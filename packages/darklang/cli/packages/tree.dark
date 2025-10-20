@@ -36,7 +36,7 @@ let execute (state: AppState) (args: List<String>) : AppState =
 
 // Display tree recursively from a given location
 let displayTree
-  (branchId: Stdlib.Option.Option<Uuid>)
+  (branchID: Stdlib.Option.Option<Uuid>)
   (location: PackageLocation)
   (remainingDepth: Int64)
   (currentDepth: Int64)
@@ -53,7 +53,7 @@ let displayTree
       | Function f -> Stdlib.List.append [f.owner] f.modules
 
     // Get all entities in this module
-    let results = Search.searchContents branchId modulePath
+    let results = Search.searchContents branchID modulePath
 
     // Get submodules
     let currentPathLength = Stdlib.List.length modulePath
@@ -70,7 +70,7 @@ let displayTree
       let typeEntities = typeNames |> Stdlib.List.map (fun name -> (name, "type")) |> Stdlib.List.sortBy (fun (name, _) -> name)
       let valueEntities = valueNames |> Stdlib.List.map (fun name -> (name, "value")) |> Stdlib.List.sortBy (fun (name, _) -> name)
       let functionEntities = functionNames |> Stdlib.List.map (fun name -> (name, "function")) |> Stdlib.List.sortBy (fun (name, _) -> name)
-      
+
       moduleEntities
       |> Stdlib.List.append typeEntities
       |> Stdlib.List.append valueEntities
@@ -93,7 +93,7 @@ let displayTree
         let newPrefix = prefix ++ (if isLast then "    " else "│   ")
         let newModulePath = Stdlib.List.append modulePath [name]
         let newLocation = PackageLocation.Module newModulePath
-        displayTree branchId newLocation (remainingDepth - 1L) (currentDepth + 1L) newPrefix
+        displayTree branchID newLocation (remainingDepth - 1L) (currentDepth + 1L) newPrefix
     )
     |> Stdlib.List.iter (fun _ -> ())
 

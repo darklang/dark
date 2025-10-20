@@ -3,7 +3,7 @@
 module Darklang.Cli.Packages.Listing
 
 let listModule
-  (branchId: Stdlib.Option.Option<Uuid>)
+  (branchID: Stdlib.Option.Option<Uuid>)
   (location: PackageLocation)
   : Unit =
   let modulePath =
@@ -14,7 +14,7 @@ let listModule
     | Function f -> Stdlib.List.append [f.owner] f.modules
 
   // Search for contents at this location
-  let results = Search.searchContents branchId modulePath
+  let results = Search.searchContents branchID modulePath
 
   // Display module path
   let locationStr = Packages.formatLocation location

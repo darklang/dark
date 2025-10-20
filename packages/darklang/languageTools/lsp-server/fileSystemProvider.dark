@@ -25,11 +25,18 @@ module ReadFile =
     (params:
       LspExtension.FileSystemProvider.ReadFile.ReadFileParams.ReadFileParams)
     : LspState =
+
+    let branchID = state.branchID
+
     // CLEANUP: make the 'remove scheme part of URI' more universal. Maybe be add it to Stdlib eg.`Stdlib.Uri.removeScheme`
     let nameForLookup =
       params.uri
       |> Stdlib.String.dropFirst 8L  // Drop "darkfs:/"
       |> Stdlib.String.dropLast 5L   // Drop ".dark"
+
+    let location =
+      ProgramTypes.parsePackageLocation nameForLookup
+
 
     let getContent =
       // Check if this is a script request
@@ -41,6 +48,7 @@ module ReadFile =
         match Builtin.cliScriptsGet scriptName with
         | Some script -> script.text
         | None -> $"Script not found: {scriptName}"
+
       // Check if this is a full module request
       elif Stdlib.String.startsWith nameForLookup "module/" then
         let modulePath =
@@ -62,7 +70,7 @@ module ReadFile =
               exactMatch = false }
 
         let searchResults =
-          LanguageTools.PackageManager.Search.search state.branchId searchQuery
+          LanguageTools.PackageManager.Search.search state.branchID searchQuery
 
         let functions =
           searchResults.fns
@@ -111,36 +119,27 @@ module ReadFile =
         // Try to find the entity in the package manager
         // First try as a type, then function, then value
         // Try to find as a type
-        // CLEANUP: use `pm.findType nameForLookup` directly once the parser/interpreter is fixed
-        let findType = pm.findType
-        let getType = pm.getType
-        match findType nameForLookup with
+        match pm.findType branchID location with
         | Some id ->
-          match getType id with
+          match pm.getType id with
           | Some typ -> typ |> PrettyPrinter.ProgramTypes.packageType
           | None -> "Could not get type"
         | None ->
           // Try to find as a function
-          // CLEANUP: use `pm.findFn nameForLookup` directly once the parser/interpreter is fixed
-          let findFn = pm.findFn
-          let getFn = pm.getFn
-          match findFn nameForLookup with
+          match pm.findFn branchID location with
           | Some id ->
-            match getFn id with
+            match pm.getFn id with
             | Some fn -> fn |> PrettyPrinter.ProgramTypes.packageFn
             | None -> "Could not get function"
           | None ->
             // Try to find as a value
-            // CLEANUP: use `pm.findValue nameForLookup` directly once the parser/interpreter is fixed
-            let findVal = pm.findValue
-            let getVal = pm.getValue
-            match findVal nameForLookup with
+            match pm.findValue branchID location with
             | Some id ->
-              match getVal id with
+              match pm.getValue id with
               | Some value ->
                 value |> PrettyPrinter.ProgramTypes.packageValue
               | None -> "Could not get value"
-            | None -> $"Package element not found: {nameForLookup}"
+            | None -> $"Package element not found: {location}"
 
     sendResponse state requestId getContent
 

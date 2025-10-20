@@ -177,7 +177,7 @@ module View =
     let branches = Matter.State.fakeBranches ()
     let currentBranch =
       match state.currentBranchId with
-      | Some branchId -> Matter.State.findBranch branches branchId
+      | Some branchID -> Matter.State.findBranch branches branchID
       | None -> Stdlib.Option.Option.None
     let branchName =
       match currentBranch with
@@ -596,7 +596,7 @@ let runInteractiveLoop (state: AppState) : Int64 =
       let branches = Matter.State.fakeBranches ()
       let currentBranch =
         match state.currentBranchId with
-        | Some branchId -> Matter.State.findBranch branches branchId
+        | Some branchID -> Matter.State.findBranch branches branchID
         | None -> Stdlib.Option.Option.None
       let branchName =
         match currentBranch with

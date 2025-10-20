@@ -87,8 +87,8 @@ let execute
         do! exeState.reportException exeState vm metadata ex
 
         let metadata = metadata |> List.map (fun (k, v) -> k, RT.DString(string v))
-        return
-          (RTE.UncaughtException(ex.Message, metadata)) |> RT.raiseRTE vm.threadID
+        let callStack = callStackFromVM vm
+        return Error(RTE.UncaughtException(ex.Message, metadata), callStack)
 
     finally
       // Does nothing in non-tests

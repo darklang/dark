@@ -71,20 +71,20 @@ let namesToTryHelper
 
 module TypeName =
   let tryResolve
+    (branchID: Stdlib.Option.Option<ProgramTypes.BranchID>)
     (pm: ProgramTypes.PackageManager.PackageManager)
     (name: GenericName)
     : Stdlib.Result.Result<ProgramTypes.FQTypeName.FQTypeName, Unit> =
     match name.modules with
     | [] -> Stdlib.Result.Result.Error()
     | owner :: modules ->
-      let nameForLookup =
-        (Stdlib.List.flatten [ name.modules; [ name.name ] ])
-        |> Stdlib.String.join "."
+      let location =
+        ProgramTypes.PackageLocation
+          { owner = owner
+            modules = modules
+            name = name.name }
 
-      // CLEANUP: use `pm.findType nameForLookup` directly once the parser/interpreter is fixed
-      let find = pm.findType
-
-      match find nameForLookup with
+      match pm.findType branchID location with
       | Some id ->
         (ProgramTypes.FQTypeName.FQTypeName.Package id)
         |> Stdlib.Result.Result.Ok
@@ -92,6 +92,7 @@ module TypeName =
 
 
   let resolve
+    (branchID: Stdlib.Option.Option<ProgramTypes.BranchID>)
     (onMissing: OnMissing)
     (pm: ProgramTypes.PackageManager.PackageManager)
     (owner: String)
@@ -123,7 +124,7 @@ module TypeName =
               match currentResult with
               | Ok _ -> currentResult
               | Error _ ->
-                match tryResolve pm nameToTry with
+                match tryResolve branchID pm nameToTry with
                 | Error() -> currentResult
                 | Ok success -> Stdlib.Result.Result.Ok success)
 
@@ -138,16 +139,13 @@ module ValueName =
     |> Stdlib.Option.isSome
 
   let tryResolve
+    (branchID: Stdlib.Option.Option<ProgramTypes.BranchID>)
     (pm: ProgramTypes.PackageManager.PackageManager)
     (name: GenericName)
     : Stdlib.Result.Result<ProgramTypes.FQValueName.FQValueName, Unit> =
     match name.modules with
     | [] -> Stdlib.Result.Result.Error()
     | owner :: modules ->
-      let nameForLookup =
-        (Stdlib.List.flatten [ name.modules; [ name.name ] ])
-        |> Stdlib.String.join "."
-
       if owner == "Builtin" && modules == [] then
         if builtinThingExists name.name then
           (ProgramTypes.FQValueName.Builtin
@@ -158,9 +156,13 @@ module ValueName =
         else
           Stdlib.Result.Result.Error()
       else
-        let find = pm.findValue
+        let location =
+          ProgramTypes.PackageLocation
+            { owner = owner
+              modules = modules
+              name = name.name }
 
-        match find nameForLookup with
+        match pm.findValue branchID location with
         | Some id ->
           (ProgramTypes.FQValueName.FQValueName.Package id)
           |> Stdlib.Result.Result.Ok
@@ -168,6 +170,7 @@ module ValueName =
 
 
   let resolve
+    (branchID: Stdlib.Option.Option<ProgramTypes.BranchID>)
     (onMissing: OnMissing)
     (pm: ProgramTypes.PackageManager.PackageManager)
     (owner: String)
@@ -198,7 +201,7 @@ module ValueName =
               match currentResult with
               | Ok _ -> currentResult
               | Error _ ->
-                match tryResolve pm nameToTry with
+                match tryResolve branchID pm nameToTry with
                 | Error() -> currentResult
                 | Ok success -> Stdlib.Result.Result.Ok success)
 
@@ -208,6 +211,7 @@ module ValueName =
 
 module FnName =
   let tryResolve
+    (branchID: Stdlib.Option.Option<ProgramTypes.BranchID>)
     (pm: ProgramTypes.PackageManager.PackageManager)
     (name: GenericName)
     : Stdlib.Result.Result<ProgramTypes.FQFnName.FQFnName, Unit> =
@@ -225,37 +229,53 @@ module FnName =
         else
           Stdlib.Result.Result.Error()
       else
-        let nameForLookup =
-          (Stdlib.List.flatten [ name.modules; [ name.name ] ])
-          |> Stdlib.String.join "."
+        let location =
+          ProgramTypes.PackageLocation
+            { owner = owner
+              modules = modules
+              name = name.name }
 
-        // CLEANUP: allow this to be inline (i.e. `pm.findFn nameForLookup`)
-        let find = pm.findFn
+        //Builtin.debug "what" 1L
 
-        match find nameForLookup with
+        //let find =
+        //Builtin.debug "what" "two"
+        let found = pm.findFn branchID location
+        //Builtin.debug "what" "3.5"
+
+        match found with
         | Some id ->
+          //Builtin.debug "what" 3L
           (ProgramTypes.FQFnName.FQFnName.Package id)
           |> Stdlib.Result.Result.Ok
-        | None -> Stdlib.Result.Result.Error()
+        | None ->
+          //Builtin.debug "what" 4L
+          Stdlib.Result.Result.Error()
 
 
   let resolve
+    (branchID: Stdlib.Option.Option<ProgramTypes.BranchID>)
     (onMissing: OnMissing)
     (pm: ProgramTypes.PackageManager.PackageManager)
     (owner: String)
     (currentModule: List<String>)
     (name: WrittenTypes.Name)
     : ProgramTypes.NameResolution<ProgramTypes.FQFnName.FQFnName> =
+    //Builtin.debug "a" ()
     match name with
     | Unresolved(_range, given) ->
+      //Builtin.debug "b" ()
       let modules = Stdlib.List.dropLast given
       let name = Stdlib.List.last given
+
+      //Builtin.debug "c" ()
 
       // TODO: handle versions... (parse out the _v[n] part if present)
       match name with
       | None ->
+        //Builtin.debug "d" ()
         Stdlib.Result.Result.Error (ProgramTypes.NameResolutionError.InvalidName given)
       | Some name ->
+        //Builtin.debug "e" ()
         let genericName =
           GenericName
             { modules = modules
@@ -264,16 +284,21 @@ module FnName =
 
         let names = namesToTry owner currentModule genericName
 
+        //Builtin.debug "f" ()
+
         let result =
           Stdlib.List.fold
             names
             (Stdlib.Result.Result.Error (ProgramTypes.NameResolutionError.NotFound given))
             (fun currentResult nameToTry ->
+              //Builtin.debug "fa" nameToTry
               match currentResult with
               | Ok _ -> currentResult
               | Error _ ->
-                match tryResolve pm nameToTry with
+                match tryResolve branchID pm nameToTry with
                 | Error _ -> currentResult
                 | Ok success -> Stdlib.Result.Result.Ok success)
+
+        //Builtin.debug "g" ()
 
         throwIfRelevant onMissing result

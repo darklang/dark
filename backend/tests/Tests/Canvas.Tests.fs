@@ -83,8 +83,9 @@ let testHttpLoadIgnoresDeletedHandler =
 let testSetHandlerAfterDelete =
   testTask "handler set after delete" {
     let! canvasID = initializeTestCanvas "set-handlder-after-delete"
-    let! e1 = parsePTExpr "5 + 3"
-    let! e2 = parsePTExpr "5 + 2"
+    let branchID = None
+    let! e1 = parsePTExpr branchID "5 + 3"
+    let! e2 = parsePTExpr branchID "5 + 2"
     let h1 = testHttpRouteHandler "/path" "GET" e1
     let h2 = testHttpRouteHandler "/path" "GET" e2
 

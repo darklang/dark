@@ -8,10 +8,10 @@ module Darklang.LanguageTools.PackageManager
 
 module Type =
   let find
-    (branchId: Stdlib.Option.Option<Uuid>)
+    (branchID: Stdlib.Option.Option<Uuid>)
     (location: ProgramTypes.PackageLocation)
     : Stdlib.Option.Option<Uuid> =
-    Builtin.pmFindType branchId location
+    Builtin.pmFindType branchID location
 
   let get
     (id: Uuid)
@@ -21,10 +21,10 @@ module Type =
 
 module Value =
   let find
-    (branchId: Stdlib.Option.Option<Uuid>)
+    (branchID: Stdlib.Option.Option<Uuid>)
     (location: ProgramTypes.PackageLocation)
     : Stdlib.Option.Option<Uuid> =
-    Builtin.pmFindValue branchId location
+    Builtin.pmFindValue branchID location
 
   let get
     (id: Uuid)
@@ -34,10 +34,10 @@ module Value =
 
 module Function =
   let find
-    (branchId: Stdlib.Option.Option<Uuid>)
+    (branchID: Stdlib.Option.Option<Uuid>)
     (location: ProgramTypes.PackageLocation)
     : Stdlib.Option.Option<Uuid> =
-    Builtin.pmFindFn branchId location
+    Builtin.pmFindFn branchID location
 
   let get (id: Uuid) : Stdlib.Option.Option<ProgramTypes.PackageFn.PackageFn> =
     Builtin.pmGetFn id
@@ -45,10 +45,10 @@ module Function =
 
 module Search =
   let search
-    (branchId: Stdlib.Option.Option<Uuid>)
+    (branchID: Stdlib.Option.Option<Uuid>)
     (query: ProgramTypes.Search.SearchQuery)
     : ProgramTypes.Search.SearchResults =
-    let searchResults = Builtin.pmSearch branchId query
+    let searchResults = Builtin.pmSearch branchID query
 
     ProgramTypes.Search.SearchResults
       { submodules = [ searchResults.submodules ]
@@ -59,17 +59,12 @@ module Search =
 // CLEANUP: update this to a value rather than a function, once we have support for value records
 let pm () : ProgramTypes.PackageManager.PackageManager =
   ProgramTypes.PackageManager.PackageManager
-    { findType =
-        fun (branchId, location) ->
-          PackageManager.Type.find branchId location
-      findValue =
-        fun (branchId, location) ->
-          PackageManager.Value.find branchId location
-      findFn =
-        fun (branchId, location) ->
-          PackageManager.Function.find branchId location
+    { findType = PackageManager.Type.find
+      findValue = PackageManager.Value.find
+      findFn = PackageManager.Function.find
+
       getFn = PackageManager.Function.get
       getValue = PackageManager.Value.get
       getType = PackageManager.Type.get
-      search =
-        fun (branchId, query) -> PackageManager.Search.search branchId query }
+
+      search = PackageManager.Search.search }

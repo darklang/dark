@@ -56,7 +56,13 @@ let executeFunction (state: AppState) (fnName: String) (args: List<String>) : Ap
         | SourceFile source -> source.exprsToEval)
     |> Stdlib.List.flatten
     |> Stdlib.List.map (fun arg ->
-      LanguageTools.WrittenTypesToProgramTypes.Expr.toPT onMissing pm "" [] arg)
+      LanguageTools.WrittenTypesToProgramTypes.Expr.toPT
+        state.currentBranchId
+        onMissing
+        pm
+        ""
+        []
+        arg)
     |> Stdlib.List.unzip
 
   match Builtin.cliExecuteFunction fnName parsedArgs with
@@ -84,6 +90,7 @@ let complete (state: AppState) (args: List<String>) : List<String> =
     if Stdlib.String.startsWith partialArg "@" then
       // Complete function names - query actual package manager
       let pm = LanguageTools.PackageManager.pm ()
+      // CLEANUP this doesn't exist any more.
       let allFunctions = LanguageTools.PackageManager.allFunctions pm
       allFunctions
       |> Stdlib.List.map (fun fn -> $"@{fn.name}")

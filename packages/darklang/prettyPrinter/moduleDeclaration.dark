@@ -71,10 +71,10 @@ module ModuleDeclaration =
     (ms: List<Module>)
     (t: LanguageTools.ProgramTypes.PackageType.PackageType)
     : List<Module> =
-    // TODO: Consider accepting branchId as parameter when pretty-printing branch-specific code
-    let branchId = Stdlib.Option.Option.None
+    // TODO: Consider accepting branchID as parameter when pretty-printing branch-specific code
+    let branchID = Stdlib.Option.Option.None
 
-    match Builtin.pmGetLocationByType branchId t.id with
+    match Builtin.pmGetLocationByType branchID t.id with
     | None ->
       [ Module
           { name = "type with unknown location"
@@ -148,10 +148,10 @@ module ModuleDeclaration =
     (ms: List<Module>)
     (f: LanguageTools.ProgramTypes.PackageFn.PackageFn)
     : List<Module> =
-    // TODO: Consider accepting branchId as parameter when pretty-printing branch-specific code
-    let branchId = Stdlib.Option.Option.None
+    // TODO: Consider accepting branchID as parameter when pretty-printing branch-specific code
+    let branchID = Stdlib.Option.Option.None
 
-    match Builtin.pmGetLocationByFn branchId f.id with
+    match Builtin.pmGetLocationByFn branchID f.id with
     | None ->
       [ Module
           { name = "fn with unknown location"
@@ -224,10 +224,10 @@ module ModuleDeclaration =
     (ms: List<Module>)
     (v: LanguageTools.ProgramTypes.PackageValue.PackageValue)
     : List<Module> =
-    // TODO: Consider accepting branchId as parameter when pretty-printing branch-specific code
-    let branchId = Stdlib.Option.Option.None
+    // TODO: Consider accepting branchID as parameter when pretty-printing branch-specific code
+    let branchID = Stdlib.Option.Option.None
 
-    match Builtin.pmGetLocationByValue branchId v.id with
+    match Builtin.pmGetLocationByValue branchID v.id with
     | None ->
       [ Module
           { name = "value with unknown location"

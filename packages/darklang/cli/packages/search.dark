@@ -2,7 +2,7 @@ module Darklang.Cli.Packages.Search
 
 /// Search for all contents (modules, types, values, functions) in a given module path
 let searchContents
-  (branchId: Stdlib.Option.Option<Uuid>)
+  (branchID: Stdlib.Option.Option<Uuid>)
   (modulePath: List<String>)
   : LanguageTools.ProgramTypes.Search.SearchResults =
   let query =
@@ -13,12 +13,12 @@ let searchContents
         entityTypes = []
         exactMatch = false }
 
-  LanguageTools.PackageManager.Search.search branchId query
+  LanguageTools.PackageManager.Search.search branchID query
 
 
 /// Search for a specific entity by name in a given module path (exact match)
 let searchEntity
-  (branchId: Stdlib.Option.Option<Uuid>)
+  (branchID: Stdlib.Option.Option<Uuid>)
   (modulePath: List<String>)
   (entityName: String)
   : LanguageTools.ProgramTypes.Search.SearchResults =
@@ -30,12 +30,12 @@ let searchEntity
         entityTypes = []
         exactMatch = true }
 
-  LanguageTools.PackageManager.Search.search branchId query
+  LanguageTools.PackageManager.Search.search branchID query
 
 
 /// Search for entities matching a partial string (fuzzy search for completions)
 let searchFuzzy
-  (branchId: Stdlib.Option.Option<Uuid>)
+  (branchID: Stdlib.Option.Option<Uuid>)
   (modulePath: List<String>)
   (partialText: String)
   : LanguageTools.ProgramTypes.Search.SearchResults =
@@ -47,7 +47,7 @@ let searchFuzzy
         entityTypes = []
         exactMatch = false }
 
-  LanguageTools.PackageManager.Search.search branchId query
+  LanguageTools.PackageManager.Search.search branchID query
 
 
 /// Find types by name in the search results

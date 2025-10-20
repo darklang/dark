@@ -21,11 +21,11 @@ module Interactive =
       scrollOffset: Int64            // For scrolling long lists
       currentLocation: PackageLocation
       showInlineView: Bool            // Whether to show inline view of selected item
-      branchId: Stdlib.Option.Option<Uuid> }  // Branch context for package operations
+      branchID: Stdlib.Option.Option<Uuid> }  // Branch context for package operations
 
   // Create interactive navigation state for a location
   let buildState
-    (branchId: Stdlib.Option.Option<Uuid>)
+    (branchID: Stdlib.Option.Option<Uuid>)
     (location: PackageLocation)
     : State =
     let modulePath =
@@ -36,7 +36,7 @@ module Interactive =
       | Function f -> Stdlib.List.append [f.owner] f.modules
 
     // Get all entities in this location
-    let results = Search.searchContents branchId modulePath
+    let results = Search.searchContents branchID modulePath
 
     // Get submodules
     let currentPathLength = Stdlib.List.length modulePath
@@ -86,11 +86,11 @@ module Interactive =
         scrollOffset = 0L
         currentLocation = location
         showInlineView = false
-        branchId = branchId }
+        branchID = branchID }
 
   // Truncated view for inline display to avoid flooding screen with large modules
   let viewEntityTruncated
-    (branchId: Stdlib.Option.Option<Uuid>)
+    (branchID: Stdlib.Option.Option<Uuid>)
     (location: PackageLocation)
     : Unit =
     let maxItemsPerCategory = 3L
@@ -98,7 +98,7 @@ module Interactive =
 
     match location with
     | Module path ->
-      let results = Search.searchContents branchId path
+      let results = Search.searchContents branchID path
       let locationStr = Packages.formatLocation location
       Stdlib.printLine locationStr
 
@@ -137,7 +137,7 @@ module Interactive =
 
     | _ ->
       // For individual entities, show full view since they're typically small
-      View.viewEntity branchId location
+      View.viewEntity branchID location
 
   // Display the interactive navigation interface
   let display (navState: State) : Unit =
@@ -193,7 +193,7 @@ module Interactive =
       | Some selectedItem ->
         Stdlib.printLine ""
         Stdlib.printLine (Stdlib.String.repeat "─" 60L)
-        viewEntityTruncated navState.branchId selectedItem.location
+        viewEntityTruncated navState.branchID selectedItem.location
       | None -> ()
 
     Stdlib.printLine ""
@@ -283,7 +283,7 @@ module Interactive =
 
     | LeftArrow ->
       // Go up to parent directory
-      match Traversal.applySegment navState.branchId navState.currentLocation Traversal.PathSegment.Up with
+      match Traversal.applySegment navState.branchID navState.currentLocation Traversal.PathSegment.Up with
       | Ok parentLocation ->
         let newState = navTo state parentLocation
         let newNavState =

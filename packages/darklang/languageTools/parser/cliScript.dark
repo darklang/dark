@@ -72,6 +72,7 @@ let parseDecls
 
 
 let toPT
+  (branchID: Stdlib.Option.Option<ProgramTypes.BranchID>)
   (onMissing: NameResolver.OnMissing)
   (pm: ProgramTypes.PackageManager.PackageManager)
   (wt: WTCliScriptModule)
@@ -83,6 +84,7 @@ let toPT
     wt.types
     |> Stdlib.List.map (fun t ->
       LanguageTools.WrittenTypesToProgramTypes.TypeDeclaration.toPackageTypePT
+        branchID
         onMissing
         pm
         wt.owner
@@ -94,6 +96,7 @@ let toPT
     wt.values
     |> Stdlib.List.map (fun c ->
       WrittenTypesToProgramTypes.ValueDeclaration.toPackageValuePT
+        branchID
         onMissing
         pm
         wt.owner
@@ -105,6 +108,7 @@ let toPT
     wt.fns
     |> Stdlib.List.map (fun f ->
       WrittenTypesToProgramTypes.FunctionDeclaration.toPackageFnPT
+        branchID
         onMissing
         pm
         wt.owner
@@ -116,6 +120,7 @@ let toPT
     wt.submodules
     |> Stdlib.List.map (fun m ->
       WrittenTypesToProgramTypes.ModuleDeclaration.submoduleToPT
+        branchID
         onMissing
         pm
         wt.owner
@@ -128,6 +133,7 @@ let toPT
     wt.exprs
     |> Stdlib.List.map (fun e ->
       LanguageTools.WrittenTypesToProgramTypes.Expr.toPT
+        branchID
         onMissing
         pm
         wt.owner
@@ -154,6 +160,7 @@ let toPT
 
 
 let parse
+  (branchID: Stdlib.Option.Option<ProgramTypes.BranchID>)
   (owner: String)
   (scriptName: String)
   (onMissing: NameResolver.OnMissing)
@@ -167,7 +174,7 @@ let parse
     match parseDecls owner scriptName parsedFile with
     | Error e -> Stdlib.Result.Result.Error e
     | Ok moduleWT ->
-      let (result, unresolvedNames) = toPT onMissing pm moduleWT
+      let (result, unresolvedNames) = toPT branchID onMissing pm moduleWT
 
       // Note: We only do a single pass of toPT now.
       // The old code did two passes to preserve IDs, but that relied on
@@ -177,6 +184,7 @@ let parse
 
 
 let pmWithExtras
+  (branchID: Stdlib.Option.Option<ProgramTypes.BranchID>)
   (owner: String)
   (scriptName: String)
   (onMissing: NameResolver.OnMissing)
@@ -190,7 +198,7 @@ let pmWithExtras
     match parseDecls owner scriptName parsedFile with
     | Error e -> Stdlib.Result.Result.Error e
     | Ok moduleWT ->
-      let (initialParse, _) = toPT onMissing pm moduleWT
+      let (initialParse, _) = toPT branchID onMissing pm moduleWT
 
       let types =
         Stdlib.List.append

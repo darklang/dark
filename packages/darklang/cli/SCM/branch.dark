@@ -41,7 +41,7 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
     let branches = State.fakeBranches ()
     let currentBranch =
       match state.currentBranchId with
-      | Some branchId -> State.findBranch branches branchId
+      | Some branchID -> State.findBranch branches branchID
       | None -> Stdlib.Option.Option.None
 
     match currentBranch with

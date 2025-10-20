@@ -1564,7 +1564,7 @@ let unwrapExecutionResult
       | _ -> return RT.DString(string rteMessage)
   }
 
-let parsePTExpr (code : string) : Task<PT.Expr> =
+let parsePTExpr (branchID : Option<PT.BranchID>) (code : string) : Task<PT.Expr> =
   uply {
     let! (state : RT.ExecutionState) =
       let canvasID = System.Guid.NewGuid()
@@ -1573,7 +1573,12 @@ let parsePTExpr (code : string) : Task<PT.Expr> =
     let name =
       RT.FQFnName.FQFnName.Package PackageIDs.Fn.LanguageTools.Parser.parsePTExpr
 
-    let args = NEList.singleton (RT.DString code)
+    let branchID =
+      match branchID with
+      | Some id -> Dval.option RT.KTUuid (Some(RT.DUuid id))
+      | None -> Dval.option RT.KTUuid None
+
+    let args = NEList.doubleton branchID (RT.DString code)
     let! execResult = LibExecution.Execution.executeFunction state name [] args
 
     match execResult with

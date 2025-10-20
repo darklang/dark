@@ -25,5 +25,5 @@ let fakeBranches () : List<Branch> =
         active = true } ]
 
 
-let findBranch (branches: List<Branch>) (branchId: Uuid) : Stdlib.Option.Option<Branch> =
-  Stdlib.List.findFirst branches (fun b -> b.id == branchId)
+let findBranch (branches: List<Branch>) (branchID: Uuid) : Stdlib.Option.Option<Branch> =
+  Stdlib.List.findFirst branches (fun b -> b.id == branchID)

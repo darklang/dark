@@ -304,6 +304,19 @@ type PackageLocation =
     modules: List<String>
     name: String }
 
+let parsePackageLocation (nameToParse: String): PackageLocation =
+  // CLEANUP will crash if you just pass owner name
+  let parts = Stdlib.String.split nameToParse "."
+  match parts with
+  | owner :: rest ->
+    let rev = Stdlib.List.reverse rest
+    match rev with
+    | name :: rest ->
+      PackageLocation
+        { owner = owner
+          modules = Stdlib.List.reverse rest
+          name = name }
+
 type BranchID = Uuid
 
 /// A package entity paired with its location
@@ -436,14 +449,17 @@ module Search =
 module PackageManager =
   type PackageManager =
     { findType:
-        (Stdlib.Option.Option<BranchID> * PackageLocation)
-          -> Stdlib.Option.Option<FQTypeName.Package>
+        Stdlib.Option.Option<BranchID>
+        -> PackageLocation
+        -> Stdlib.Option.Option<FQTypeName.Package>
       findValue:
-        (Stdlib.Option.Option<BranchID> * PackageLocation)
-          -> Stdlib.Option.Option<FQValueName.Package>
+        Stdlib.Option.Option<BranchID>
+        -> PackageLocation
+        -> Stdlib.Option.Option<FQValueName.Package>
       findFn:
-        (Stdlib.Option.Option<BranchID> * PackageLocation)
-          -> Stdlib.Option.Option<FQFnName.Package>
+        Stdlib.Option.Option<BranchID>
+        -> PackageLocation
+        -> Stdlib.Option.Option<FQFnName.Package>
 
       getType:
         FQTypeName.Package -> Stdlib.Option.Option<PackageType.PackageType>
@@ -467,7 +483,7 @@ module PackageManager =
     : PackageManager.PackageManager =
     PackageManager.PackageManager
       { findType =
-          fun (branchId, location) ->
+          fun branchID location ->
             match
               types
               |> Stdlib.List.findFirst (fun t ->
@@ -477,10 +493,9 @@ module PackageManager =
             with
             | Some t -> Stdlib.Option.Option.Some t.entity.id
             | None ->
-              let findType = pm.findType
-              findType (branchId, location)
+              pm.findType branchID location
         findValue =
-          fun (branchId, location) ->
+          fun branchID location ->
             match
               values
               |> Stdlib.List.findFirst (fun v ->
@@ -490,10 +505,9 @@ module PackageManager =
             with
             | Some v -> Stdlib.Option.Option.Some v.entity.id
             | None ->
-              let findValue = pm.findValue
-              findValue (branchId, location)
+              pm.findValue branchID location
         findFn =
-          fun (branchId, location) ->
+          fun branchID location ->
             match
               fns
               |> Stdlib.List.findFirst (fun f ->
@@ -503,8 +517,7 @@ module PackageManager =
             with
             | Some f -> Stdlib.Option.Option.Some f.entity.id
             | None ->
-              let findFn = pm.findFn
-              findFn (branchId, location)
+              pm.findFn branchID location
 
         getType =
           fun id ->
