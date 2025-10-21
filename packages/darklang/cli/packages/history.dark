@@ -1,0 +1,75 @@
+module Darklang.Cli.Packages.History
+
+let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
+  match args with
+  | [itemType; location] ->
+    // Parse location
+    let parts = Stdlib.String.split location "."
+
+    match parts with
+    | [] ->
+      Stdlib.printLine (Colors.error "Empty location")
+      state
+
+    | [_] ->
+      Stdlib.printLine (Colors.error "Location must have at least owner and name")
+      state
+
+    | owner :: rest ->
+      let name = (Stdlib.List.last rest) |> Builtin.unwrap
+      let modules = Stdlib.List.dropLast rest
+
+      // Get history
+      let history =
+        Darklang.SCM.History.getNameHistory owner modules name itemType
+
+      match history with
+      | [] ->
+        Stdlib.printLine $"No history found for {itemType} {location}"
+        state
+
+      | entries ->
+        Stdlib.printLine ""
+        Stdlib.printLine (Colors.boldText $"History for {itemType} {location}:")
+        Stdlib.printLine ""
+
+        entries
+        |> Stdlib.List.iter (fun entry ->
+          let timestampStr = Stdlib.DateTime.toString entry.timestamp
+
+          let branchStr =
+            match entry.branchId with
+            | Some id ->
+              let idShort = Stdlib.String.slice id 0L 8L
+              $"branch {idShort}..."
+            | None -> "main"
+
+          let idShort = Stdlib.String.slice entry.itemId 0L 8L
+
+          Stdlib.printLine
+            $"  {timestampStr} | {branchStr} | {entry.opType} -> {idShort}...")
+
+        Stdlib.printLine ""
+        state
+
+  | _ -> help state
+
+
+let help (state: Cli.AppState) : Cli.AppState =
+  Stdlib.printLine "View history of what a name pointed to"
+  Stdlib.printLine ""
+  Stdlib.printLine "Usage: dark history <type|fn|value> <location>"
+  Stdlib.printLine "Example: dark history fn Darklang.Stdlib.List.map"
+  Stdlib.printLine ""
+  Stdlib.printLine "Shows all times the name was pointed to different items"
+  Stdlib.printLine ""
+  state
+
+
+let complete (state: Cli.AppState) (args: List<String>) : List<String> =
+  match args with
+  | [] -> [ "fn"; "type"; "value" ]
+  | [partial] ->
+    [ "fn"; "type"; "value" ]
+    |> Stdlib.List.filter (fun cmd -> Stdlib.String.startsWith cmd partial)
+  | _ -> []

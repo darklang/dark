@@ -1,0 +1,74 @@
+module Darklang.Cli.Packages.Create.Fn
+
+/// Create a function by opening $EDITOR
+/// Example: createFn "map" when in Darklang.Stdlib.List -> opens editor for Darklang.Stdlib.List.map
+let createFn
+  (currentLocation: Packages.PackageLocation)
+  (locationStr: String)
+  : Cli.AppState -> Cli.AppState =
+  fun state ->
+    // Parse location relative to current position
+    let parsedLocation = Location.parseRelativeTo currentLocation locationStr
+
+    match parsedLocation with
+    | Error msg ->
+      Stdlib.printLine (Colors.error $"Invalid location: {msg}")
+      state
+
+    | Ok loc ->
+      let fullPath =
+        [ [ loc.owner ]; loc.modules; [ loc.name ] ]
+        |> Stdlib.List.flatten
+        |> Stdlib.String.join "."
+
+      Stdlib.printLine ""
+      Stdlib.printLine (Colors.boldText "Creating function:")
+      Stdlib.printLine $"  Location: {fullPath}"
+      Stdlib.printLine ""
+      Stdlib.printLine (Colors.dimText "TODO: Open $EDITOR with function template")
+      Stdlib.printLine ""
+
+      // Flow would be:
+      // 1. Generate template:
+      //    let <name> (param: Type) : ReturnType =
+      //      // TODO: implement
+      //      Builtin.todo
+      // 2. Write to temp file
+      // 3. Open in $EDITOR (via Builtin.cliFileEdit or similar)
+      // 4. User edits and saves
+      // 5. Parse file to WrittenTypes.Fn
+      // 6. Convert to ProgramTypes.PackageFn
+      // 7. Create ops: [AddFn(pf), SetFnName(pf.id, location)]
+      // 8. Ask for confirmation: "Create function Darklang.Foo.bar? [y/n]"
+      // 9. If yes: Call Darklang.SCM.PackageOps.commitToCurrent ops
+      // 10. Show success message
+
+      state
+
+
+let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
+  match args with
+  | [ location ] -> createFn state.packageData.currentLocation location state
+
+  | _ -> help state
+
+
+let help (state: Cli.AppState) : Cli.AppState =
+  Stdlib.printLine "Create a new function"
+  Stdlib.printLine ""
+  Stdlib.printLine "Usage: dark fn <location>"
+  Stdlib.printLine ""
+  Stdlib.printLine "Opens $EDITOR with a function template"
+  Stdlib.printLine ""
+  Stdlib.printLine "Examples:"
+  Stdlib.printLine "  # Absolute path:"
+  Stdlib.printLine "  dark fn /Darklang.Foo.helper"
+  Stdlib.printLine ""
+  Stdlib.printLine "  # Relative path (if you're in Darklang.Foo):"
+  Stdlib.printLine "  dark fn helper"
+  Stdlib.printLine "  dark fn Utils.parse"
+  Stdlib.printLine ""
+  state
+
+
+let complete (state: Cli.AppState) (args: List<String>) : List<String> = []

@@ -16,11 +16,18 @@
     <Compile Include="Libs/Execution.fs" />
     <Compile Include="Libs/Stdin.fs" />
     <Compile Include="Libs/Time.fs" />
+    <Compile Include="Libs/Account.fs" />
+    <Compile Include="Libs/Branches.fs" />
+    <Compile Include="Libs/PackageOps.fs" />
+    <Compile Include="Libs/PackageHistory.fs" />
     <Compile Include="Builtin.fs" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="../Prelude/Prelude.fsproj" />
     <ProjectReference Include="../LibExecution/LibExecution.fsproj" />
+    <ProjectReference Include="../LibPackageManager/LibPackageManager.fsproj" />
+    <ProjectReference Include="../LibBinarySerialization/LibBinarySerialization.fsproj" />
+    <ProjectReference Include="../LibDB/LibDB.fsproj" />
   </ItemGroup>
   <Import Project="..\..\.paket\Paket.Restore.targets" />
 </Project>

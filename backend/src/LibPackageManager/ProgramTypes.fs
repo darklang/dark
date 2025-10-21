@@ -226,9 +226,8 @@ module Fn =
 
 
 let search
-  ((_branchId, query) : Option<PT.BranchID> * PT.Search.SearchQuery)
+  ((branchId, query) : Option<PT.BranchID> * PT.Search.SearchQuery)
   : Ply<PT.Search.SearchResults> =
-  // TODO: use _branchId when implementing branch-aware search
   uply {
     let currentModule = String.concat "." query.currentModule
 
@@ -276,14 +275,47 @@ let search
              "nestedPattern", Sql.string (currentModule + ".%.%")
              "searchText", Sql.string query.text ])
 
+      // When searching with a branch:
+      // 1. Get anything with branch_id = NULL (base packages)
+      // 2. Get anything with branch_id = @current_branch (branch-specific)
+      // 3. If there's a branch-specific version of a package, it shadows the NULL version
+      // 4. If branch-specific is deprecated, exclude both versions
       $"""
       SELECT DISTINCT owner, modules
-      FROM locations
-      WHERE deprecated_at IS NULL
+      FROM locations l
+      WHERE (l.branch_id IS NULL OR l.branch_id = @branch_id)
+        AND l.deprecated_at IS NULL
         AND {submoduleCondition}
+        -- Exclude if there's a deprecated branch-specific version shadowing this
+        AND NOT EXISTS (
+          SELECT 1 FROM locations l2
+          WHERE l2.owner = l.owner
+            AND l2.modules = l.modules
+            AND l2.name = l.name
+            AND l2.item_type = l.item_type
+            AND l2.branch_id = @branch_id
+            AND l2.deprecated_at IS NOT NULL
+            AND l.branch_id IS NULL
+        )
+        -- If both NULL and branch-specific exist, only show branch-specific
+        AND NOT EXISTS (
+          SELECT 1 FROM locations l3
+          WHERE l3.owner = l.owner
+            AND l3.modules = l.modules
+            AND l3.name = l.name
+            AND l3.item_type = l.item_type
+            AND l3.branch_id = @branch_id
+            AND l3.deprecated_at IS NULL
+            AND l.branch_id IS NULL
+        )
       """
       |> Sql.query
-      |> Sql.parameters sqlParams
+      |> Sql.parameters
+        ([ "branch_id",
+           (match branchId with
+            | Some id -> Sql.uuid id
+            | None -> Sql.dbnull) ]
+         @ sqlParams)
       |> Sql.executeAsync (fun read ->
         let owner = read.string "owner"
         let modulesStr = read.string "modules"
@@ -300,16 +332,44 @@ let search
         else
           "l.name LIKE '%' || @searchText || '%'"
 
+      // Same shadowing logic as for submodules
       $"SELECT c.id, c.pt_def, l.owner, l.modules, l.name\n"
       + $"FROM locations l\n"
       + $"JOIN {contentTable} c ON l.id = c.id\n"
-      + "WHERE l.deprecated_at IS NULL\n"
+      + "WHERE (l.branch_id IS NULL OR l.branch_id = @branch_id)\n"
+      + "  AND l.deprecated_at IS NULL\n"
       + $"  AND l.item_type = '{itemType}'\n"
       + "  AND ((l.modules = @modules) OR (l.owner || '.' || l.modules = @fqname))\n"
-      + $"  AND {nameCondition}"
+      + $"  AND {nameCondition}\n"
+      + "  -- Exclude if there's a deprecated branch-specific version shadowing this\n"
+      + "  AND NOT EXISTS (\n"
+      + "    SELECT 1 FROM locations l2\n"
+      + "    WHERE l2.owner = l.owner\n"
+      + "      AND l2.modules = l.modules\n"
+      + "      AND l2.name = l.name\n"
+      + $"      AND l2.item_type = '{itemType}'\n"
+      + "      AND l2.branch_id = @branch_id\n"
+      + "      AND l2.deprecated_at IS NOT NULL\n"
+      + "      AND l.branch_id IS NULL\n"
+      + "  )\n"
+      + "  -- If both NULL and branch-specific exist, only show branch-specific\n"
+      + "  AND NOT EXISTS (\n"
+      + "    SELECT 1 FROM locations l3\n"
+      + "    WHERE l3.owner = l.owner\n"
+      + "      AND l3.modules = l.modules\n"
+      + "      AND l3.name = l.name\n"
+      + $"      AND l3.item_type = '{itemType}'\n"
+      + "      AND l3.branch_id = @branch_id\n"
+      + "      AND l3.deprecated_at IS NULL\n"
+      + "      AND l.branch_id IS NULL\n"
+      + "  )"
       |> Sql.query
       |> Sql.parameters
-        [ "modules", Sql.string currentModule
+        [ "branch_id",
+          (match branchId with
+           | Some id -> Sql.uuid id
+           | None -> Sql.dbnull)
+          "modules", Sql.string currentModule
           "fqname", Sql.string currentModule
           "searchText", Sql.string query.text ]
       |> Sql.executeAsync (fun read ->

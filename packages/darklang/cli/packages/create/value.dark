@@ -1,0 +1,73 @@
+module Darklang.Cli.Packages.Create.Value
+
+/// Create a simple value from a literal expression
+/// Example: createSimple "map" "42L" when in Darklang.Foo -> Darklang.Foo.map = 42L
+///          createSimple "/Darklang.Bar.x" "42L" -> Darklang.Bar.x = 42L (absolute)
+let createSimple
+  (currentLocation: Packages.PackageLocation)
+  (locationStr: String)
+  (exprStr: String)
+  : Cli.AppState -> Cli.AppState =
+  fun state ->
+    // Parse location relative to current position
+    let parsedLocation = Location.parseRelativeTo currentLocation locationStr
+
+    match parsedLocation with
+    | Error msg ->
+      Stdlib.printLine (Colors.error $"Invalid location: {msg}")
+      state
+
+    | Ok loc ->
+      let fullPath =
+        [ [ loc.owner ]; loc.modules; [ loc.name ] ]
+        |> Stdlib.List.flatten
+        |> Stdlib.String.join "."
+
+      Stdlib.printLine ""
+      Stdlib.printLine (Colors.boldText "Creating value:")
+      Stdlib.printLine $"  Location: {fullPath}"
+      Stdlib.printLine $"  Expression: {exprStr}"
+      Stdlib.printLine ""
+      Stdlib.printLine (Colors.dimText "TODO: Implement expression parsing and op generation")
+      Stdlib.printLine ""
+
+      // Flow would be:
+      // 1. Parse exprStr to WrittenTypes.Expr
+      // 2. Convert to ProgramTypes.Expr
+      // 3. Evaluate to get Dval
+      // 4. Create PackageValue with id, location, expr, dval
+      // 5. Create ops: [AddValue(pv), SetValueName(pv.id, location)]
+      // 6. Ask for confirmation: "Create value Darklang.Foo.x = 42L? [y/n]"
+      // 7. If yes: Call Darklang.SCM.PackageOps.commitToCurrent ops
+      // 8. Show success message
+
+      state
+
+
+let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
+  match args with
+  | [ location; "="; expr ] ->
+    createSimple state.packageData.currentLocation location expr state
+
+  | _ -> help state
+
+
+let help (state: Cli.AppState) : Cli.AppState =
+  Stdlib.printLine "Create a new value"
+  Stdlib.printLine ""
+  Stdlib.printLine "Usage: dark let <location> = <expression>"
+  Stdlib.printLine ""
+  Stdlib.printLine "Examples:"
+  Stdlib.printLine "  # Absolute path:"
+  Stdlib.printLine "  dark let /Darklang.Foo.x = 42L"
+  Stdlib.printLine ""
+  Stdlib.printLine "  # Relative path (if you're in Darklang.Foo):"
+  Stdlib.printLine "  dark let x = 42L"
+  Stdlib.printLine "  dark let Bar.y = \"hello\""
+  Stdlib.printLine ""
+  Stdlib.printLine "Note: Currently only supports simple literals"
+  Stdlib.printLine ""
+  state
+
+
+let complete (state: Cli.AppState) (args: List<String>) : List<String> = []

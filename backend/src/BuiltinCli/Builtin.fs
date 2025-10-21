@@ -19,5 +19,9 @@ let builtins =
       Libs.Execution.builtins
       Libs.Output.builtins
       Libs.Stdin.builtins
-      Libs.Time.builtins ]
+      Libs.Time.builtins
+      Libs.Account.builtins
+      Libs.Branches.builtins
+      Libs.PackageOps.builtins
+      Libs.PackageHistory.builtins ]
     fnRenames

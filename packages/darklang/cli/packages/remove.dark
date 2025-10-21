@@ -1,0 +1,60 @@
+module Darklang.Cli.Packages.Remove
+
+/// Remove/deprecate a package item
+let remove
+  (itemType: String)
+  (location: String)
+  (state: Cli.AppState)
+  : Cli.AppState =
+  Stdlib.printLine ""
+  Stdlib.printLine (Colors.boldText $"Removing {itemType}:")
+  Stdlib.printLine $"  Location: {location}"
+  Stdlib.printLine ""
+  Stdlib.printLine (Colors.dimText "TODO: Implement remove operation")
+  Stdlib.printLine ""
+
+  // Flow would be:
+  // 1. Parse location to get owner/modules/name
+  // 2. Find current item ID at that location (query package_ops for latest SetXName)
+  // 3. Create RemoveX op with that ID
+  //    (or possibly SetXName op with empty/null location to "unname" it)
+  // 4. Ask for confirmation: "Remove Darklang.Foo.bar? [y/n]"
+  // 5. If yes: Call Darklang.SCM.PackageOps.commitToCurrent [op]
+  // 6. Show success message
+  // Note: The item still exists in history, just no longer has a current name
+
+  state
+
+
+let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
+  match args with
+  | [ itemType; location ] -> remove itemType location state
+
+  | _ -> help state
+
+
+let help (state: Cli.AppState) : Cli.AppState =
+  Stdlib.printLine "Remove/deprecate a package item"
+  Stdlib.printLine ""
+  Stdlib.printLine "Usage: dark rm <type|fn|value> <location>"
+  Stdlib.printLine ""
+  Stdlib.printLine "Examples:"
+  Stdlib.printLine "  # Absolute path:"
+  Stdlib.printLine "  dark rm fn /Darklang.Foo.deprecated"
+  Stdlib.printLine ""
+  Stdlib.printLine "  # Relative path (if you're in Darklang.Foo):"
+  Stdlib.printLine "  dark rm fn deprecated"
+  Stdlib.printLine "  dark rm type OldModel"
+  Stdlib.printLine ""
+  Stdlib.printLine "Note: The item remains in history, but loses its current name"
+  Stdlib.printLine ""
+  state
+
+
+let complete (state: Cli.AppState) (args: List<String>) : List<String> =
+  match args with
+  | [] -> [ "fn"; "type"; "value" ]
+  | [ partial ] ->
+    [ "fn"; "type"; "value" ]
+    |> Stdlib.List.filter (fun cmd -> Stdlib.String.startsWith cmd partial)
+  | _ -> []

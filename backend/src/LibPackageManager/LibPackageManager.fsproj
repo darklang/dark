@@ -25,6 +25,8 @@
     <Compile Include="PackageOpPlayback.fs" />
     <Compile Include="Inserts.fs" />
     <Compile Include="Stats.fs" />
+    <Compile Include="Branches.fs" />
+    <Compile Include="AccountContext.fs" />
     <Compile Include="ProgramTypes.fs" />
     <Compile Include="RuntimeTypes.fs" />
     <Compile Include="PackageManager.fs" />

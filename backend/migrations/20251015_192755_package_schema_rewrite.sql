@@ -70,29 +70,38 @@ CREATE INDEX idx_locations_module ON locations(owner, modules)
 CREATE INDEX idx_locations_conflicts ON locations(owner, modules, name, branch_id)
   WHERE deprecated_at IS NULL AND branch_id IS NOT NULL;
 
+-- Index for branch shadowing/override lookups (used in NOT EXISTS subqueries)
+-- This helps find if a branch-specific version exists for a given location
+CREATE INDEX idx_locations_shadowing ON locations(owner, modules, name, item_type, branch_id, deprecated_at);
+
+-- Index for branch_id filtering to speed up branch-scoped searches
+CREATE INDEX idx_locations_branch ON locations(branch_id) WHERE branch_id IS NOT NULL;
+
 
 CREATE TABLE branches (
   id TEXT PRIMARY KEY,
-  owner_id TEXT NOT NULL REFERENCES accounts(id),  -- Who owns this branch
-  title TEXT NOT NULL,                             -- User-friendly name
-  state TEXT NOT NULL,                             -- 'active', 'merged', 'abandoned'
-  is_default BOOLEAN NOT NULL DEFAULT FALSE,       -- Default branch for account
+  created_by TEXT NULL REFERENCES accounts(id),   -- Who created this branch (for attribution)
+  title TEXT NOT NULL,                            -- User-friendly name (non-unique)
+  state TEXT NOT NULL,                            -- 'active', 'merged', 'abandoned'
   created_at TIMESTAMP NOT NULL,
   last_active_at TIMESTAMP NOT NULL,
   merged_at TIMESTAMP NULL
 );
 
-CREATE INDEX idx_branches_owner ON branches(owner_id, state);
 CREATE INDEX idx_branches_state ON branches(state);
 CREATE INDEX idx_branches_active ON branches(last_active_at) WHERE state = 'active';
-CREATE INDEX idx_branches_default ON branches(owner_id) WHERE is_default = TRUE;
 
--- **Default branch per account**:
--- - First branch created by account is automatically marked `is_default = TRUE`
--- - Only one default branch per owner_id (enforced in application logic)
--- - VS Code defaults to default branch on startup
--- - CLI shows `* stachu/main (default)` indicator for default branch
--- - Normal UUIDs used (not nil UUID to avoid collisions across accounts)
+-- Track which branch each account is currently working on
+CREATE TABLE account_context (
+  account_id TEXT PRIMARY KEY REFERENCES accounts(id),
+  current_branch_id TEXT REFERENCES branches(id),
+  last_updated_at TIMESTAMP NOT NULL
+);
+
+-- Default 'anon' account for local development
+INSERT INTO accounts (id, name, created_at)
+VALUES ('00000000-0000-0000-0000-000000000001', 'anon', datetime('now'))
+ON CONFLICT DO NOTHING;
 
 
 -- Ops tracking table - source of truth for all package changes

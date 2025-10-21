@@ -127,6 +127,10 @@ module Sql =
 type RowReader with
 
   member this.uuid(id : string) : uuid = this.string id |> System.Guid.Parse
+
+  member this.uuidOrNone(id : string) : Option<uuid> =
+    this.stringOrNone id |> Option.map System.Guid.Parse
+
   member this.tlid(name : string) : tlid = this.int64 name |> uint64
   member this.id(name : string) : id = this.int64 name |> uint64
 

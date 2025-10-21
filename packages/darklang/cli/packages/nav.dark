@@ -205,7 +205,7 @@ module Interactive =
     Stdlib.printLine (Colors.hint helpText)
 
   // Handle key input for interactive navigation
-  let handleKey (state: AppState) (key: Stdlib.Cli.Stdin.Key.Key) (navState: State) : AppState =
+  let handleKey (state: Cli.AppState) (key: Stdlib.Cli.Stdin.Key.Key) (navState: State) : Cli.AppState =
     match key with
     | UpArrow ->
       // Move selection up
@@ -345,7 +345,7 @@ module Interactive =
       // Ignore other keys
       state
 
-let navTo (state: AppState) (location: PackageLocation): AppState =
+let navTo (state: Cli.AppState) (location: PackageLocation): Cli.AppState =
   // if the intended state is the same as the current state (cd .), then short-circuit
   if location == state.packageData.currentLocation then
     state
@@ -365,7 +365,7 @@ let navTo (state: AppState) (location: PackageLocation): AppState =
     }
 
 
-let execute (state: AppState) (args: List<String>) : AppState =
+let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
   match args with
   | [] ->
     // Enter interactive navigation mode
@@ -393,7 +393,7 @@ let execute (state: AppState) (args: List<String>) : AppState =
     help state
 
 
-let complete (state: AppState) (args: List<String>) : List<String> =
+let complete (state: Cli.AppState) (args: List<String>) : List<String> =
   match args with
   | [] ->
     // No args - complete from current location
@@ -405,7 +405,7 @@ let complete (state: AppState) (args: List<String>) : List<String> =
     []
 
 
-let help (_state: AppState) : Unit =
+let help (_state: Cli.AppState) : Cli.AppState =
   [
     "Usage: nav [path]"
     "Navigate package space - modules, types, values, and functions ."
@@ -423,3 +423,4 @@ let help (_state: AppState) : Unit =
     "  nav equals           - Go to equals function"
     "  nav Option           - Go to Option type"
   ] |> Stdlib.printLines
+  _state

@@ -65,7 +65,9 @@ let info () =
 let builtins : RT.Builtins =
   LibExecution.Builtin.combine
     [ BuiltinCliHostConfig.builtinsToUse
-      LibExecution.Builtin.combine [ BuiltinCliHost.Builtin.builtins ] [] ]
+      LibExecution.Builtin.combine
+        [ BuiltinCliHost.Builtin.builtins; BuiltinCli.builtins ]
+        [] ]
     []
 
 

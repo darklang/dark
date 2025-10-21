@@ -1,0 +1,17 @@
+module Darklang.SCM.History
+
+type HistoryEntry =
+  { timestamp: DateTime
+    branchId: Stdlib.Option.Option<Uuid>
+    itemId: Uuid
+    opType: String }
+
+/// Get the history of what a name has pointed to over time
+/// itemType should be "fn", "type", or "value"
+let getNameHistory
+  (owner: String)
+  (modules: List<String>)
+  (name: String)
+  (itemType: String)
+  : List<HistoryEntry> =
+  Builtin.cliPackageHistoryGetNameHistory owner modules name itemType

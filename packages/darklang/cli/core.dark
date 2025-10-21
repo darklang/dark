@@ -16,10 +16,12 @@ type AppState =
     historyIndex: Int64
     savedPrompt: String
 
-    instanceName: String
     currentBranchId: Stdlib.Option.Option<Uuid> }
 
 let initState () : AppState =
+  // Get the current branch for the account (creates "main" if needed)
+  let currentBranchId = Darklang.SCM.Account.getCurrentBranch ()
+
   AppState
     { isExiting = false
       mainPrompt = ""
@@ -31,8 +33,7 @@ let initState () : AppState =
       historyIndex = -1L
       savedPrompt = ""
 
-      instanceName = "local"
-      currentBranchId = Stdlib.Option.Option.None }
+      currentBranchId = Stdlib.Option.Option.Some currentBranchId }
 
 // Helper to update core state fields while preserving package navigation fields
 let updateCoreFields (state: AppState) (isExiting: Bool) (mainPrompt: String) (needsFullRedraw: Bool) : AppState =
@@ -61,6 +62,8 @@ module ExecutionError =
     $"Error: {err.msg}\n{metadataStr}"
 
 
+// TODO: this Completion module could be extracted to its own file (utils/completion.dark)
+// to reduce the size of core.dark
 module Completion =
   type ParsedInput =
     { commandName: String
@@ -170,29 +173,25 @@ module View =
     Colors.success message
 
 
-  let formatPrompt () : String =
-    "> "
-
-  let formatPromptWithInput (state: AppState) : String =
-    let branches = Matter.State.fakeBranches ()
+  let promptBranchPreamble (state: AppState): String =
     let currentBranch =
       match state.currentBranchId with
-      | Some branchID -> Matter.State.findBranch branches branchID
+      | Some branchID -> Darklang.SCM.Branch.get branchID
       | None -> Stdlib.Option.Option.None
-    let branchName =
-      match currentBranch with
-      | Some branch -> branch.name
-      | None -> "unknown"
 
-    let instanceStr = Colors.mutedText $"[{state.instanceName}]"
-    let branchStr = Colors.info $"[{branchName}]"
-    let contextStr = instanceStr ++ " " ++ branchStr
+    match currentBranch with
+    | Some branch -> $"[{branch.title}]"
+    | None -> ""
+
+
+  let formatPromptWithInput (state: AppState) : String =
+    let branchStr = Colors.info (promptBranchPreamble state)
 
     let hint = Registry.getCompletionHint state state.mainPrompt
     if Stdlib.String.isEmpty hint then
-      contextStr ++ " > " ++ state.mainPrompt
+      branchStr ++ "> " ++ state.mainPrompt
     else
-      contextStr ++ " > " ++ state.mainPrompt ++ (Colors.hint hint)
+      branchStr ++ "> " ++ state.mainPrompt ++ (Colors.hint hint)
 
 
   let formatWelcome () : String =
@@ -209,11 +208,15 @@ module Registry =
       help: AppState -> AppState // CLEANUP we shouldn't need to return an AppState? Like a string would be fine...
       complete: AppState -> List<String> -> List<String> }
 
+  // TODO: this command list is very long and repetitive - consider:
+  //   - auto-discovering commands via module introspection
+  //   - using a declarative format (JSON/config file)
+  //   - grouping related commands into sub-registries
   let allCommands () : List<CommandHandler> =
     [
       ("quit", "Exit the CLI", ["exit"; "q"], Quit.execute, Quit.help, Quit.complete)
       ("help", "Show help for commands", ["commands"; "?"], Help.execute, Help.help, Help.complete)
-      ("branch", "Manage development branches", [], Matter.Branch.execute, Matter.Branch.help, Matter.Branch.complete)
+      ("branch", "Manage development branches", [], Packages.Branch.execute, Packages.Branch.help, Packages.Branch.complete)
       ("install", "Install CLI globally", [], Installation.Install.execute, Installation.Install.help, Installation.Install.complete)
       ("update", "Update CLI to latest version", ["upgrade"], Installation.Update.execute, Installation.Update.help, Installation.Update.complete)
       ("uninstall", "Remove CLI installation", [], Installation.Uninstall.execute, Installation.Uninstall.help, Installation.Uninstall.complete)
@@ -229,6 +232,12 @@ module Registry =
       ("scripts", "Store, manage, and run Dark scripts", [], Cli.Scripts.execute, Cli.Scripts.help, Cli.Scripts.complete)
       ("view", "View details of a module, type, value, or fns", [], Packages.View.execute, Packages.View.help, Packages.View.complete)
       ("tree", "Display package hierarchy in tree format", [], Packages.Tree.execute, Packages.Tree.help, Packages.Tree.complete)
+      ("history", "View history of what a name pointed to", [], Packages.History.execute, Packages.History.help, Packages.History.complete)
+      ("let", "Create a new value", [], Packages.Create.Value.execute, Packages.Create.Value.help, Packages.Create.Value.complete)
+      ("fn", "Create a new function", [], Packages.Create.Fn.execute, Packages.Create.Fn.help, Packages.Create.Fn.complete)
+      ("type", "Create a new type", [], Packages.Create.Type.execute, Packages.Create.Type.help, Packages.Create.Type.complete)
+      ("mv", "Rename a package item", [], Packages.Rename.execute, Packages.Rename.help, Packages.Rename.complete)
+      ("rm", "Remove a package item", [], Packages.Remove.execute, Packages.Remove.help, Packages.Remove.complete)
       ("experiments", "Try out various WIP CLI experiments", [], Cli.Experiments.execute, Cli.Experiments.help, Cli.Experiments.complete)
     ]
     |> Stdlib.List.map(
@@ -297,6 +306,7 @@ module Registry =
       Stdlib.printLine $"Aliases: {aliasText}"
       resultState
 
+  // TODO: formatCommandGroup + getCommandList logic could be simplified or moved to View module
   // Helper function to format a group of commands
   let formatCommandGroup (groupName: String) (commandNames: List<String>) (commands: List<CommandHandler>) : String =
     let formattedCommands =
@@ -317,9 +327,8 @@ module Registry =
     let commands = allCommands ()
 
     // Group commands by category
-    let scmCommands = ["branch"] // maybe 'instance'
-    let packageCommands = ["nav"; "ls"; "view"; "tree"; "back"]
-                          // TODO mv, rm, let, type
+    let scmCommands = [] // maybe 'instance', later
+    let packageCommands = ["branch"; "nav"; "ls"; "view"; "tree"; "back"; "history"; "let"; "fn"; "type"; "mv"; "rm"]
     let executionCommands = ["run"; "eval"; "scripts"]
     let installCommands = ["install"; "update"; "uninstall"; "status"; "version"]
     let utilityCommands = ["clear"; "help"; "quit"; "experiments"]
@@ -398,6 +407,10 @@ module Commands =
       Registry.executeCommand commandName state args
 
 
+// TODO: key handling is very long (~170 lines) - consider:
+//   - extracting to separate module (input/keyHandler.dark)
+//   - using a key binding map/table instead of huge match
+//   - separate handlers for different page types
 let handleKeyInput (state: AppState) (key: Stdlib.Cli.Stdin.Key.Key) (modifiers: Stdlib.Cli.Stdin.Modifiers.Modifiers) (keyChar: Stdlib.Option.Option<String>) : AppState =
   match state.currentPage with
   | MainPrompt ->
@@ -592,22 +605,11 @@ let runInteractiveLoop (state: AppState) : Int64 =
     // Display current page
     match state.currentPage with
     | MainPrompt ->
-      // Determine where user input starts (instance + branch + " > ")
-      let branches = Matter.State.fakeBranches ()
-      let currentBranch =
-        match state.currentBranchId with
-        | Some branchID -> Matter.State.findBranch branches branchID
-        | None -> Stdlib.Option.Option.None
-      let branchName =
-        match currentBranch with
-        | Some branch -> branch.name
-        | None -> "unknown"
-
-      let contextLength =
-        (Stdlib.String.length state.instanceName) +
-        (Stdlib.String.length branchName) +
-        10L  // brackets, spaces, " > "
-      let inputStartColumn = contextLength + 1L
+      // Determine where user input starts (branch + " > ")
+      let inputStartColumn =
+        (Stdlib.String.length (View.promptBranchPreamble state))
+        + (Stdlib.String.length "> ")
+        + 1L
 
       if state.needsFullRedraw then
         // Redraw entire prompt line (used after commands that change state)
