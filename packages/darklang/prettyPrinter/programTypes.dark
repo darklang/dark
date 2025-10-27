@@ -79,25 +79,31 @@ let packageName
 module FQTypeName =
   module Package =
     let atDefinition
+      (branchID: Stdlib.Option.Option<Uuid>)
       (id: LanguageTools.ProgramTypes.FQTypeName.Package)
       : String =
-      match LanguageTools.PackageManager.Type.get id with
-      | Some p -> p.name.name
+      match Builtin.pmGetLocationByType branchID id with
+      | Some l -> l.name
       | None -> Stdlib.Uuid.toString id
 
     let fullForReference
       (id: LanguageTools.ProgramTypes.FQTypeName.Package)
       : String =
-      match LanguageTools.PackageManager.Type.get id with
-      | Some p -> packageName p.name.owner p.name.modules p.name.name
+      // TODO: Consider accepting branchID as parameter when pretty-printing branch-specific code
+      let branchID = Stdlib.Option.Option.None
+
+      match Builtin.pmGetLocationByType branchID id with
+      | Some l ->
+        PrettyPrinter.ProgramTypes.packageName l.owner l.modules l.name
       | None -> Stdlib.Uuid.toString id
 
 
   let atDefinition
+    (branchID: Stdlib.Option.Option<Uuid>)
     (t: LanguageTools.ProgramTypes.FQTypeName.FQTypeName)
     : String =
     match t with
-    | Package p -> PrettyPrinter.ProgramTypes.FQTypeName.Package.atDefinition p
+    | Package p -> PrettyPrinter.ProgramTypes.FQTypeName.Package.atDefinition branchID p
 
   let fullForReference
     (t: LanguageTools.ProgramTypes.FQTypeName.FQTypeName)
@@ -125,29 +131,35 @@ module FQValueName =
 
   module Package =
     let atDefinition
+      (branchID: Stdlib.Option.Option<Uuid>)
       (id: LanguageTools.ProgramTypes.FQValueName.Package)
       : String =
-      match LanguageTools.PackageManager.Value.get id with
-      | Some p -> p.name.name
+      match Builtin.pmGetLocationByValue branchID id with
+      | Some l -> l.name
       | None -> Stdlib.Uuid.toString id
 
     let fullForReference
       (id: LanguageTools.ProgramTypes.FQValueName.Package)
       : String =
-      match LanguageTools.PackageManager.Value.get id with
-      | Some p -> packageName p.name.owner p.name.modules p.name.name
+      // TODO: Consider accepting branchID as parameter when pretty-printing branch-specific code
+      let branchID = Stdlib.Option.Option.None
+
+      match Builtin.pmGetLocationByValue branchID id with
+      | Some l ->
+        PrettyPrinter.ProgramTypes.packageName l.owner l.modules l.name
       | None -> Stdlib.Uuid.toString id
 
 
 
   let atDefinition
+    (branchID: Stdlib.Option.Option<Uuid>)
     (t: LanguageTools.ProgramTypes.FQValueName.FQValueName)
     : String =
     match t with
     | Builtin b ->
       PrettyPrinter.ProgramTypes.FQValueName.Builtin.fullForReference b
     | Package p ->
-      PrettyPrinter.ProgramTypes.FQValueName.Package.atDefinition p
+      PrettyPrinter.ProgramTypes.FQValueName.Package.atDefinition branchID p
 
   let fullForReference
     (t: LanguageTools.ProgramTypes.FQValueName.FQValueName)
@@ -177,25 +189,33 @@ module FQFnName =
 
   module Package =
     let atDefinition
+      (branchID: Stdlib.Option.Option<Uuid>)
       (id: LanguageTools.ProgramTypes.FQFnName.Package)
       : String =
-      match LanguageTools.PackageManager.Function.get id with
-      | Some p -> p.name.name
+      match Builtin.pmGetLocationByFn branchID id with
+      | Some l -> l.name
       | None -> Stdlib.Uuid.toString id
 
     let fullForReference
       (id: LanguageTools.ProgramTypes.FQFnName.Package)
       : String =
-      match LanguageTools.PackageManager.Function.get id with
-      | Some p -> packageName p.name.owner p.name.modules p.name.name
+      // TODO: Consider accepting branchID as parameter when pretty-printing branch-specific code
+      let branchID = Stdlib.Option.Option.None
+
+      match Builtin.pmGetLocationByFn branchID id with
+      | Some l ->
+        PrettyPrinter.ProgramTypes.packageName l.owner l.modules l.name
       | None -> Stdlib.Uuid.toString id
 
 
-  let atDefinition (t: LanguageTools.ProgramTypes.FQFnName.FQFnName) : String =
+  let atDefinition
+    (branchID: Stdlib.Option.Option<Uuid>)
+    (t: LanguageTools.ProgramTypes.FQFnName.FQFnName)
+    : String =
     match t with
     | Builtin _b ->
       "why are you trying to print a stdlib type name _definition_?"
-    | Package p -> PrettyPrinter.ProgramTypes.FQFnName.Package.atDefinition p
+    | Package p -> PrettyPrinter.ProgramTypes.FQFnName.Package.atDefinition branchID p
 
   let fullForReference
     (t: LanguageTools.ProgramTypes.FQFnName.FQFnName)
@@ -842,9 +862,12 @@ let db (db: LanguageTools.ProgramTypes.DB) : String =
 
 
 let packageType
+  (branchID: Stdlib.Option.Option<Uuid>)
   (p: LanguageTools.ProgramTypes.PackageType.PackageType)
   : String =
   // TODO: take care of deprecated and description
+  let namePart = PrettyPrinter.ProgramTypes.FQTypeName.Package.atDefinition branchID p.id
+
   let typeParamPart =
     match p.declaration.typeParams with
     | [] -> ""
@@ -858,14 +881,16 @@ let packageType
     (PrettyPrinter.ProgramTypes.customType p.declaration)
     |> PrettyPrinter.indent
 
-  $"type {p.name.name}{typeParamPart} =\n{defPart}"
+  $"type {namePart}{typeParamPart} =\n{defPart}"
 
 
 let packageValue
+  (branchID: Stdlib.Option.Option<Uuid>)
   (p: LanguageTools.ProgramTypes.PackageValue.PackageValue)
   : String =
-  let bodyPart = PrettyPrinter.ProgramTypes.expr defaultContext p.body
-  $"val {p.name.name} = {bodyPart}"
+  let namePart = PrettyPrinter.ProgramTypes.FQValueName.Package.atDefinition branchID p.id
+  let bodyPart = PrettyPrinter.ProgramTypes.expr p.body
+  $"val {namePart} = {bodyPart}"
 
 
 module PackageFn =
@@ -886,8 +911,13 @@ module PackageFn =
     params ++ " -> " ++ returnType
 
 
-let packageFn (p: LanguageTools.ProgramTypes.PackageFn.PackageFn) : String =
+let packageFn
+  (branchID: Stdlib.Option.Option<Uuid>)
+  (p: LanguageTools.ProgramTypes.PackageFn.PackageFn)
+  : String =
   // TODO: handle `deprecated`, `description`
+  let namePart = PrettyPrinter.ProgramTypes.FQFnName.Package.atDefinition branchID p.id
+
   let typeParamPart =
     match p.typeParams with
     | [] -> ""
@@ -914,7 +944,7 @@ let packageFn (p: LanguageTools.ProgramTypes.PackageFn.PackageFn) : String =
   let context = Context { currentModule = defaultContext.currentModule; currentFunction = Stdlib.Option.Option.Some p.name.name; argMap = argMap }
   let bodyPart = PrettyPrinter.ProgramTypes.expr context p.body
 
-  $"let {p.name.name}{typeParamPart} {paramPart}: {retPart} =\n{PrettyPrinter.indent bodyPart}"
+  $"let {namePart}{typeParamPart} {paramPart}: {retPart} =\n{PrettyPrinter.indent bodyPart}"
 
 
 module BuiltinFn =

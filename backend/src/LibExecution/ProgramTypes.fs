@@ -506,8 +506,13 @@ module TypeDeclaration =
 
 
 
-// Used to mark whether a function/type has been deprecated, and if so,
-// details about possible replacements/alternatives, and reasoning
+/// Used to mark whether a function/type has been deprecated, and if so,
+/// details about possible replacements/alternatives, and reasoning
+///
+/// Our use of this is sort of minimal currently.
+/// I'm not sure if it's still an appropriate model going forward.
+/// TODO reconsider
+/// TODO has this changed at all since -classic? Check the old source.
 type Deprecation<'name> =
   | NotDeprecated
 
@@ -525,63 +530,58 @@ type Deprecation<'name> =
 // Package things
 // --
 
-// TODO: bring these back in some form.
-// let assertPackage
-//   (modules : List<string>)
-//   (name : string)
-//   (nameValidator : string -> unit)
-//   : unit =
-//   List.iter (assertRe "modules name must match" modulePattern) modules
-//   nameValidator name
+// this should prob. be named PackageLocation
+type PackageLocation =
+  { owner : string
+    modules : List<string>
+    name : string }
 
 
-// let packageName (owner : string) (modules : List<string>) (name : string) : string =
-//   let nameParts =
-//     match owner with
-//     | "Tests" -> modules @ [ name ]
-//   nameParts |> String.concat "."
+  // let create (owner: string) (modules: List<string>) (name: string) : T =
+  //   { owner = owner; modules = modules; name = name }
+
+  // let toString (location: T) : string =
+  //   let moduleStr =
+  //     if List.isEmpty location.modules then
+  //       ""
+  //     else
+  //       (String.concat "." location.modules) + "."
+  //   $"{location.owner}.{moduleStr}{location.name}"
+
+  // let parse (locationString: string) : Result<T, string> =
+  //   let parts = locationString.Split('.') |> Array.toList
+  //   match parts with
+  //   | owner :: rest when not (List.isEmpty rest) ->
+  //     let reversedRest = List.rev rest
+  //     match reversedRest with
+  //     | name :: reversedModules ->
+  //       let modules = List.rev reversedModules
+  //       Ok { owner = owner; modules = modules; name = name }
+  //     | [] -> Error $"Invalid package location: {locationString}"
+  //   | _ -> Error $"Invalid package location: {locationString}"
 
 
 module PackageType =
-  type Name = { owner : string; modules : List<string>; name : string }
-
-  let name (owner : string) (modules : List<string>) (name : string) : Name =
-    // TODO: assert OK
-    { owner = owner; modules = modules; name = name }
-
   type PackageType =
-    { id : uuid
-      name : Name
+    { id : FQTypeName.Package
       declaration : TypeDeclaration.T
       description : string
       deprecated : Deprecation<FQTypeName.FQTypeName> }
 
+
 module PackageValue =
-  type Name = { owner : string; modules : List<string>; name : string }
-
-  let name (owner : string) (modules : List<string>) (name : string) : Name =
-    // TODO: assert OK
-    { owner = owner; modules = modules; name = name }
-
   type PackageValue =
     { id : uuid
-      name : Name
       description : string
       deprecated : Deprecation<FQValueName.FQValueName>
       body : Expr }
 
+
 module PackageFn =
-  type Name = { owner : string; modules : List<string>; name : string }
-
-  let name (owner : string) (modules : List<string>) (name : string) : Name =
-    // TODO: assert OK
-    { owner = owner; modules = modules; name = name }
-
   type Parameter = { name : string; typ : TypeReference; description : string }
 
   type PackageFn =
-    { id : uuid
-      name : Name
+    { id : FQFnName.Package
       body : Expr
       typeParams : List<string>
       parameters : NEList<Parameter>
@@ -589,15 +589,169 @@ module PackageFn =
       description : string
       deprecated : Deprecation<FQFnName.FQFnName> }
 
-type Packages =
-  { types : List<PackageType.PackageType>
-    values : List<PackageValue.PackageValue>
-    fns : List<PackageFn.PackageFn> }
 
-  static member combine(packages : List<Packages>) : Packages =
-    { types = packages |> List.collect _.types
-      values = packages |> List.collect _.values
-      fns = packages |> List.collect _.fns }
+// type PackageItemType = | Type | Value | Fn
+
+
+// type PackageItemLocation =
+//   { item: uuid
+//     itemType : PackageItemType
+//     location : uuid }
+
+
+
+// CLEANUP move out - only used during loading process
+// type Packages =
+//   { types : List<PackageType.PackageType>
+//     values : List<PackageValue.PackageValue>
+//     fns : List<PackageFn.PackageFn> }
+
+//   static member combine(packages : List<Packages>) : Packages =
+//     { types = packages |> List.collect _.types
+//       values = packages |> List.collect _.values
+//       fns = packages |> List.collect _.fns }
+
+
+///
+type PackageOp =
+  // not handled -- punt: DB operations, Crons, http handlers...
+  | AddType of typ: PackageType.PackageType  // note: has ID in it
+  | AddValue of value: PackageValue.PackageValue
+  | AddFn of fn: PackageFn.PackageFn
+
+  // These always happen in the context of a Branch
+  // CLEANUP probably extract them to LocationOp, or something
+  | SetTypeName of id: FQTypeName.Package * location: PackageLocation
+  | SetValueName of id: FQValueName.Package * location: PackageLocation
+  | SetFnName of id: FQFnName.Package * location: PackageLocation
+  // DB should have _history_ of old item names, but only one active PackageLocation
+
+
+//   | MoveItem of item: uuid * from : Location * to_: Location
+//   // we can punt this for now, I think
+//   //| MoveModule of from: Location * to_: Location // hmm what about the _timing_ of this?
+//   // maybe this isn't supported, and we instead need _many_ moveItem
+
+//   // TODO: support a _reason_ for deprecation
+//   // , and an optional pointer to some sort of replacement
+//   | DeprecateFn of id: FQFnName.Package
+//   | DeprecateValue of id: FQValueName.Package
+//   | DeprecateType of id: FQTypeName.Package
+
+
+// prob belongs in LibMatter
+// type BranchMergeConflict =
+//   | TypeIntroducedButNotReferenced of FQTypeName.Package
+//   | ...IntroducedButNotReferenced of ...
+
+(*
+
+branchId
+|> getBranch
+|> getPatches
+|> List.find(p -> p.hasDefinitionOf id)
+|> lol what line was that at?
+
+*)
+
+
+
+(*
+how do we search for things at a location (find me all at Darklang.Stdlib)
+
+select id, owner, modules, name, item_type
+from locations
+where ... Darklang.Stdlib ???
+  and item_type = 'type'
+
+when/how would the item_type fields get populated?
+Short answer: while Ops are played out
+*)
+
+// I don't think we delete Location records upon something being deprecated.
+
+// We should _generally prevent_ duplicates of owner+modules+name + (deprecated=true)
+// Locations table would have a constraint? (warning)
+
+// Ops table needs to record when the Op was saved
+
+
+// Locations: | id  | owner | modules     | name  | workspace ID | createdAt | deprecatedAt |
+
+
+// Search: give me everything in Darklang.Stdlib
+
+// select * from locations where owner = darklang and modules like "stdlib%"
+// select * from locations where location like "Darklang.Stdlib%"
+
+// scenario: Move fn from filter to filter1
+//    | abc | Dark  | Stdlib.List | filter  | oct 1 | null        | null
+//    | abc | Dark  | Stdlib.List | filter  | oct 1 | oct 4       | 7cb
+//    | abc | Dark  | Stdlib.List | filter1 | oct 4 | null        | 7cb
+//    | abc | Dark  | Stdlib.List | filter1 | oct 4 | null        | 6df
+
+// WHat happens when we merge a session:
+// For each record in the DB that has our session ID,
+// remove the old equivalent session=null records
+// set the session id to null for our records
+// ?
+
+// constraint on : id * sessionID
+// we need some sql trick like: if a session ID is passed in, then use the session-specific record where available
+
+// general principle: anything affected by a session should have sessino-speific records in the DB
+// whether something has been moved, or deprecated, or whatever
+
+
+// if, in my session, I deprecate List.filter
+// and then add List.filter2
+// then I expect a search to _not_ return List.filter
+// but this schema doesn't support htat.
+// (nvm it work s- we just need to create another record w/ the deprecation)
+
+
+// Locations table needs some recording of timing
+// a Version field or a createdAt field or something // time of the Op? Or patch-merge?
+// oh, then maybe we have deprecatedAt rather than deprecated: bool
+
+
+// Q: how do we revert things?
+  // scenario: we merged a session, and later realized it's problematic.
+  // (quick note: should be rare - so, notable DB rebuild is OK, maybe?)
+
+  //reminder: source of truth is NOT locations table, but is the Sessions/Patches/etc. table
+  // a Session being merged caused the Locations and Packages table to do a bunch of stuff
+  // and a revert of that session ("Unmerge Session") ??? needs some complicated process
+
+  // Maybe we can't revert a merge of a session
+  // BUT we can generate a session that reverts the merge
+  // a bunch of Deprecations and name-assignments
+
+
+
+// Darklang.Stdlib.List
+// -> Darklang.Stdlib.Lists
+
+
+// // Darklang.Stdlib.List
+// // -> Darklang.Stdlib.Lists
+//   Move([ID] {"Darklang"; ["Stdlib"] "List"} {"Darklang"; ["Stdlib"] "Lists"})
+
+
+// // Darklang.Stdlib.List.filter
+// // -> Darklang.Stdlib.List.filter2
+//   Move([ID] {"Darklang"; ["Stdlib"; "List"] "filter"} {"Darklang"; ["Stdlib"; "List"] "filter2"})
+
+// // if filter2 already exists, then we have a conflict!
+// // 2 things at the same Location
+
+
+type BranchID = uuid
+
+/// A package entity paired with its location
+type LocatedItem<'T> =
+  { entity : 'T
+    location : PackageLocation }
 
 module Search =
   /// The type of entity to search for
@@ -608,8 +762,9 @@ module Search =
     | Value
 
   /// How deep to search in the module hierarchy
-  type SearchDepth = | OnlyDirectDescendants
-  // TODO: support this. | AllDescendants
+  type SearchDepth =
+    | OnlyDirectDescendants
+    | AllDescendants
 
   /// Query parameters for searching packages
   type SearchQuery =
@@ -632,9 +787,9 @@ module Search =
   /// Results from a package search
   type SearchResults =
     { submodules : List<List<string>> // [ [ "List"]; ["String"; "List"] ]
-      types : List<PackageType.PackageType>
-      values : List<PackageValue.PackageValue>
-      fns : List<PackageFn.PackageFn> }
+      types : List<LocatedItem<PackageType.PackageType>>
+      values : List<LocatedItem<PackageValue.PackageValue>>
+      fns : List<LocatedItem<PackageFn.PackageFn>> }
 
 /// Functionality written in Dark stored and managed outside of user space
 ///
@@ -642,30 +797,47 @@ module Search =
 /// but there's a chance of Local <-> Cloud not being fully in sync,
 /// for whatever reasons.
 type PackageManager =
-  { findType : PackageType.Name -> Ply<Option<FQTypeName.Package>>
-    findValue : PackageValue.Name -> Ply<Option<FQValueName.Package>>
-    findFn : PackageFn.Name -> Ply<Option<FQFnName.Package>>
+  {
+    // TODO review all usages - make sure they're not just putting 'None' in
+    // i.e. demand the branchId from every usage above.
+    findType : (Option<BranchID> * PackageLocation) -> Ply<Option<FQTypeName.Package>>
+    findValue : (Option<BranchID> *  PackageLocation) -> Ply<Option<FQValueName.Package>>
+    findFn : (Option<BranchID> *  PackageLocation) -> Ply<Option<FQFnName.Package>>
 
+    search : Option<BranchID> *  Search.SearchQuery -> Ply<Search.SearchResults>
+
+    // why does the PT one even need these?
     getType : FQTypeName.Package -> Ply<Option<PackageType.PackageType>>
     getValue : FQValueName.Package -> Ply<Option<PackageValue.PackageValue>>
     getFn : FQFnName.Package -> Ply<Option<PackageFn.PackageFn>>
 
-    search : Search.SearchQuery -> Ply<Search.SearchResults>
+    // Reverse lookups for pretty-printing and other tooling
+    // TODO: These currently return Option<PackageLocation> but theoretically there
+    // could be multiple locations for a single ID (e.g., across branches, deprecations).
+    // We may need to revisit this to return List<PackageLocation> or add branch filtering.
+    getTypeLocation : Option<BranchID> * FQTypeName.Package -> Ply<Option<PackageLocation>>
+    getValueLocation : Option<BranchID> * FQValueName.Package -> Ply<Option<PackageLocation>>
+    getFnLocation : Option<BranchID> * FQFnName.Package -> Ply<Option<PackageLocation>>
 
     init : Ply<unit> }
+
 
   static member empty =
     { findType = fun _ -> Ply None
       findFn = fun _ -> Ply None
       findValue = fun _ -> Ply None
 
+      search =
+        fun _ ->
+          Ply { submodules = []; types = []; values = []; fns = [] }
+
       getType = fun _ -> Ply None
       getFn = fun _ -> Ply None
       getValue = fun _ -> Ply None
 
-      search =
-        fun _ ->
-          uply { return { submodules = []; types = []; values = []; fns = [] } }
+      getTypeLocation = fun _ -> Ply None
+      getValueLocation = fun _ -> Ply None
+      getFnLocation = fun _ -> Ply None
 
       init = uply { return () } }
 
@@ -673,46 +845,112 @@ type PackageManager =
   /// Allows you to side-load a few 'extras' in-memory, along
   /// the normal fetching functionality. (Mostly helpful for tests)
   static member withExtras
-    (types : List<PackageType.PackageType>)
-    (values : List<PackageValue.PackageValue>)
-    (fns : List<PackageFn.PackageFn>)
+    (types : List<PackageType.PackageType * PackageLocation>)
+    (values : List<PackageValue.PackageValue * PackageLocation>)
+    (fns : List<PackageFn.PackageFn * PackageLocation>)
     (pm : PackageManager)
     : PackageManager =
+
+    // Build lookup maps for bidirectional access
+    let typeLocationToId = types |> List.map (fun (t, loc) -> loc, t.id) |> Map.ofList
+    let typeIdToLocation = types |> List.map (fun (t, loc) -> t.id, loc) |> Map.ofList
+    let typeIdToType = types |> List.map (fun (t, _) -> t.id, t) |> Map.ofList
+
+    let valueLocationToId = values |> List.map (fun (v, loc) -> loc, v.id) |> Map.ofList
+    let valueIdToLocation = values |> List.map (fun (v, loc) -> v.id, loc) |> Map.ofList
+    let valueIdToValue = values |> List.map (fun (v, _) -> v.id, v) |> Map.ofList
+
+    let fnLocationToId = fns |> List.map (fun (f, loc) -> loc, f.id) |> Map.ofList
+    let fnIdToLocation = fns |> List.map (fun (f, loc) -> f.id, loc) |> Map.ofList
+    let fnIdToFn = fns |> List.map (fun (f, _) -> f.id, f) |> Map.ofList
+
     { findType =
-        fun name ->
-          match types |> List.tryFind (fun t -> t.name = name) with
-          | Some t -> Some t.id |> Ply
-          | None -> pm.findType name
+        fun (branchId, location) ->
+          match Map.tryFind location typeLocationToId with
+          | Some id -> Ply (Some id)
+          | None -> pm.findType (branchId, location)
+
       findValue =
-        fun name ->
-          match values |> List.tryFind (fun v -> v.name = name) with
-          | Some v -> Some v.id |> Ply
-          | None -> pm.findValue name
+        fun (branchId, location) ->
+          match Map.tryFind location valueLocationToId with
+          | Some id -> Ply (Some id)
+          | None -> pm.findValue (branchId, location)
+
       findFn =
-        fun name ->
-          match fns |> List.tryFind (fun f -> f.name = name) with
-          | Some f -> Some f.id |> Ply
-          | None -> pm.findFn name
+        fun (branchId, location) ->
+          match Map.tryFind location fnLocationToId with
+          | Some id -> Ply (Some id)
+          | None -> pm.findFn (branchId, location)
+
+      search = pm.search
 
       getType =
         fun id ->
-          match types |> List.tryFind (fun t -> t.id = id) with
-          | Some t -> Ply(Some t)
+          match Map.tryFind id typeIdToType with
+          | Some t -> Ply (Some t)
           | None -> pm.getType id
+
       getValue =
         fun id ->
-          match values |> List.tryFind (fun v -> v.id = id) with
-          | Some v -> Ply(Some v)
+          match Map.tryFind id valueIdToValue with
+          | Some v -> Ply (Some v)
           | None -> pm.getValue id
+
       getFn =
         fun id ->
-          match fns |> List.tryFind (fun f -> f.id = id) with
-          | Some f -> Ply(Some f)
+          match Map.tryFind id fnIdToFn with
+          | Some f -> Ply (Some f)
           | None -> pm.getFn id
 
-      search = fun query -> pm.search query
+      getTypeLocation =
+        fun (branchId, id) ->
+          match Map.tryFind id typeIdToLocation with
+          | Some location -> Ply (Some location)
+          | None -> pm.getTypeLocation (branchId, id)
+
+      getValueLocation =
+        fun (branchId, id) ->
+          match Map.tryFind id valueIdToLocation with
+          | Some location -> Ply (Some location)
+          | None -> pm.getValueLocation (branchId, id)
+
+      getFnLocation =
+        fun (branchId, id) ->
+          match Map.tryFind id fnIdToLocation with
+          | Some location -> Ply (Some location)
+          | None -> pm.getFnLocation (branchId, id)
 
       init = pm.init }
+
+
+
+(*
+the source of truth is our core tables, which sync:
+  sessions, patches (incl ops), instances
+
+the package stuff is all a projection of that
+  package types, values, fns
+  locations, and how they map to those package items
+*)
+
+
+(*
+we need a Locations table with a `session: id` column
+if merged, the col is null
+if non-null
+we need a constraint on (location*session)
+the full schema is likely
+  | id | session | location | createdAt | deprecatedAt | itemType |
+  , where location is a representation of the module location (maybe A.B.c, maybe json, idk)
+
+
+This table should support broad package search well.
+It'll also be the primary table for doing one-off finds of package items
+
+I imagine we'll need a pretty notable rewrite of our DB schema.
+*)
+
+
 
 
 
@@ -761,3 +999,62 @@ module Toplevel =
     match tl with
     | TLDB db -> db.tlid
     | TLHandler h -> h.tlid
+
+
+
+// /// Atomic operations that can be tracked and validated
+// module Op =
+//   type T =
+//     // Content Operations - create new immutable content
+//     | AddFunctionContent of hash: string * content: PackageFn.PackageFn
+//     | AddTypeContent of hash: string * content: PackageType.PackageType
+//     | AddValueContent of hash: string * content: PackageValue.PackageValue
+
+//     // Name Operations - manage name pointers
+//     | CreateName of location: PackageLocation.T * hash: string * contentType: string
+//     | UpdateNamePointer of location: PackageLocation.T * oldHash: string * newHash: string
+//     | MoveName of oldLocation: PackageLocation.T * newLocation: PackageLocation.T
+//     | UnassignName of location: PackageLocation.T
+
+//     // Content Operations - deprecate content (by hash)
+//     | DeprecateContent of hash: string * reason: string * replacement: string option
+
+// /// Types of conflicts that can occur when we try to apply an Op
+// type Conflict =
+//   | TODO
+
+
+
+
+// /// A development session
+// /// informally a 'branch'
+// module Session =
+//   type State =
+//     | Active
+//     | Abandoned
+//     | Merged
+
+//   type T = {
+//     id: uuid
+//     title: string
+//     patches: List<uuid>
+//     createdAt: System.DateTime
+//     lastActiveAt: System.DateTime
+//     state: SessionState.T
+//     workspace: WorkspaceState.T
+//   }
+
+
+
+// /// Darklang instance definition -- what can we sync against
+// module Instance =
+//   type Location =
+//     | LocalCLI of pathToExe: string
+//     | HttpServer of url: string
+
+//   type T = {
+//     id: uuid
+//     name: string
+//     location: Location
+//   }
+

@@ -181,3 +181,16 @@ module Deprecation =
     | 3uy -> DeprecatedBecause(String.read r)
     | b ->
       raise (BinaryFormatException(CorruptedData $"Invalid Deprecation tag: {b}"))
+
+
+module PackageLocation =
+  let write (w : BinaryWriter) (loc : PackageLocation) : unit =
+    String.write w loc.owner
+    List.write w String.write loc.modules
+    String.write w loc.name
+
+  let read (r : BinaryReader) : PackageLocation =
+    let owner = String.read r
+    let modules = List.read r String.read
+    let name = String.read r
+    { owner = owner; modules = modules; name = name }

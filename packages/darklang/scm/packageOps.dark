@@ -1,0 +1,37 @@
+module Darklang.SCM.PackageOps
+
+/// Add a list of package ops to the database and apply them immediately
+/// branchId = None means add to main branch
+/// branchId = Some(id) means add to specific branch
+let add
+  (branchId: Stdlib.Option.Option<Uuid>)
+  (ops: List<LanguageTools.ProgramTypes.PackageOp>)
+  : Unit =
+  Builtin.scmAddOps branchId ops
+
+
+/// Helper to add ops to the current branch
+let addToCurrent (ops: List<LanguageTools.ProgramTypes.PackageOp>) : Unit =
+  let currentBranchId = Darklang.SCM.Account.getCurrentBranch ()
+  add (Stdlib.Option.Option.Some currentBranchId) ops
+
+
+/// Helper to add ops to main branch
+let addToMain (ops: List<LanguageTools.ProgramTypes.PackageOp>) : Unit =
+  add Stdlib.Option.Option.None ops
+
+
+/// Get recent package ops from the database
+let getRecent
+  (branchId: Stdlib.Option.Option<Uuid>)
+  (limit: Int64)
+  : List<LanguageTools.ProgramTypes.PackageOp> =
+  Builtin.scmGetRecentOps branchId limit
+
+
+/// Get package ops created since the specified datetime
+let getSince
+  (branchId: Stdlib.Option.Option<Uuid>)
+  (since: DateTime)
+  : List<LanguageTools.ProgramTypes.PackageOp> =
+  Builtin.scmGetOpsSince branchId since

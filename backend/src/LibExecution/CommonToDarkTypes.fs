@@ -1,6 +1,25 @@
 module LibExecution.CommonToDarkTypes
 
 open RuntimeTypes
+module PackageIDs = LibExecution.PackageIDs
+
+
+module Option =
+  /// Convert a Darklang Option<'a> (DEnum) to F# Option<'a>
+  let fromDT (f : Dval -> 'a) (d : Dval) : Option<'a> =
+    match d with
+    | DEnum(FQTypeName.Package id, _, _, "Some", [ value ]) when
+      id = PackageIDs.Type.Stdlib.option
+      ->
+      Some(f value)
+
+    | DEnum(FQTypeName.Package id, _, _, "None", []) when
+      id = PackageIDs.Type.Stdlib.option
+      ->
+      None
+
+    | _ -> Exception.raiseInternal "Invalid Option" [ "dval", d ]
+
 
 module Result =
   let toDT

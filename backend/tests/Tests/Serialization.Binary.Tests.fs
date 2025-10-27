@@ -24,6 +24,15 @@ module Roundtripping =
       (List.map (fun x -> x, true) values)
 
 module PT =
+  let packageLocationTests =
+    Roundtripping.testRoundtripMany
+      "packageLocations"
+      (fun loc ->
+        loc
+        |> BinarySerialization.PT.PackageLocation.serialize "packageLocation"
+        |> BinarySerialization.PT.PackageLocation.deserialize "packageLocation")
+      Values.ProgramTypes.packageLocations
+
   let packageTypeTests =
     Roundtripping.testRoundtripMany
       "packageTypes"
@@ -183,7 +192,8 @@ let tests =
     "Binary Serialization"
     [ testList
         "PT Roundtrip Tests"
-        [ PT.packageTypeTests
+        [ PT.packageLocationTests
+          PT.packageTypeTests
           PT.packageValTests
           PT.packageFnTests
           PT.toplevelTests ]

@@ -1,0 +1,67 @@
+module Darklang.PrettyPrinter.PackageOps
+
+let packageLocation (loc: LanguageTools.ProgramTypes.PackageLocation) : String =
+  let modulesPart =
+    match loc.modules with
+    | [] -> ""
+    | modules -> (Stdlib.String.join modules ".") ++ "."
+
+  $"{loc.owner}.{modulesPart}{loc.name}"
+
+
+let packageOp (op: LanguageTools.ProgramTypes.PackageOp) : String =
+  match op with
+  | AddType typ ->
+    let branchID = Stdlib.Option.Option.None
+
+    let name =
+      PrettyPrinter.ProgramTypes.FQTypeName.Package.atDefinition branchID typ.id
+
+    let typeParamPart =
+      match typ.declaration.typeParams with
+      | [] -> ""
+      | params ->
+        params
+        |> Stdlib.List.map (fun p -> "'" ++ p)
+        |> Stdlib.String.join ", "
+        |> fun parts -> $"<{parts}>"
+
+    let kindPart =
+      match typ.declaration.definition with
+      | Alias _ -> "alias"
+      | Record _ -> "record"
+      | Enum _ -> "enum"
+
+    $"AddType {name}{typeParamPart} ({kindPart})"
+
+  | SetTypeName (id, loc) ->
+    let path = packageLocation loc
+    $"SetTypeName → {path}"
+
+  | AddFn fn ->
+    let branchID = Stdlib.Option.Option.None
+
+    let name =
+      PrettyPrinter.ProgramTypes.FQFnName.Package.atDefinition branchID fn.id
+
+    let signature = PrettyPrinter.ProgramTypes.PackageFn.signature fn
+
+    $"AddFn {name}: {signature}"
+
+  | SetFnName (id, loc) ->
+    let path = packageLocation loc
+    $"SetFnName → {path}"
+
+  | AddValue _value ->
+    let branchID = Stdlib.Option.Option.None
+
+    let name =
+      PrettyPrinter.ProgramTypes.FQValueName.Package.atDefinition
+        branchID
+        _value.id
+
+    $"AddValue {name}"
+
+  | SetValueName (id, loc) ->
+    let path = packageLocation loc
+    $"SetValueName → {path}"
