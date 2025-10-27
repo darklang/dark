@@ -273,21 +273,7 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotQueryable
       previewable = Impure
       deprecated = NotDeprecated }
-
-
-    { name = fn "stdinKeyAvailable" 0
-      typeParams = []
-      parameters = [ Param.make "unit" TUnit "" ]
-      returnType = TBool
-      description =
-        "Returns true if a key press is available to be read without blocking."
-      fn =
-        function
-        | _, _, _, [ DUnit ] -> Console.KeyAvailable |> DBool |> Ply
-        | _ -> incorrectArgs ()
-      sqlSpec = NotQueryable
-      previewable = Impure
-      deprecated = NotDeprecated } ]
+    ]
 
 
 let builtins : Builtins = Builtin.make [] fns

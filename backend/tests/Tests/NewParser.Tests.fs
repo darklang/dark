@@ -70,7 +70,7 @@ let t
       let enhancedPM = LibPackageManager.PackageManager.withExtraOps basePM packageOps
       let! ppExeState = executionStateFor enhancedPM canvasID false false Map.empty
 
-      let ppArgs = NEList.singleton sourceFile
+      let ppArgs = NEList.doubleton branchID sourceFile
       let! ppResult = LibExecution.Execution.executeFunction ppExeState prettyPrintFnName [] ppArgs
       let! resultDval = unwrapExecutionResult ppExeState ppResult |> Ply.toTask
 

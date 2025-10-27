@@ -14,7 +14,7 @@ module Documentation =
 
 module Infra =
   // correct number of tables
-  Stdlib.Dict.size_v0 (Builtin.darkInternalInfraGetAndLogTableSizes_v0 ()) = 20L
+  Stdlib.Dict.size_v0 (Builtin.darkInternalInfraGetAndLogTableSizes_v0 ()) = 23L
 
 
   // server build hash
