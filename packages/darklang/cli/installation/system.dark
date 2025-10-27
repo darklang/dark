@@ -216,7 +216,7 @@ let updateIfAvailable (currentVersion: String) (host: Stdlib.Cli.Host.Host) : St
 
 /// Uninstall the CLI with user confirmation
 let uninstallWithConfirmation (host: Stdlib.Cli.Host.Host) : Stdlib.Result.Result<String, String> =
-  Stdlib.printLine "Are you sure you want to uninstall dark cli? (y/n): "
+  Stdlib.printLine "Are you sure you want to uninstall the CLI? (y/n): "
   let response = Builtin.stdinReadLine ()
 
   if response == "y" || response == "Y" then

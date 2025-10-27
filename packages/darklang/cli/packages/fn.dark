@@ -21,7 +21,7 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
       [
         (Colors.error "Error: Inline function definition required")
         ""
-        "Usage: fn <location> <signature and body>"
+        "Usage: fn <location> <parameters and body>"
         ""
         "Examples:"
         "  fn double (x: Int64): Int64 = Stdlib.Int64.multiply x 2L"

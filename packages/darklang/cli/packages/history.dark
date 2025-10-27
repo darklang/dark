@@ -1,13 +1,9 @@
 module Darklang.Cli.Packages.History
 
-// TODO: we just care what has been at some location,
-// with no regard to the item type
-// TODO Hm that said, we're currently being kinda loose, potentially allowing
-// types of lowercase names and fns/vals of uppercase names
 
 let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
   match args with
-  | [itemType; location] ->
+  | [location] ->
     // Parse location
     let parts = Stdlib.String.split location "."
 
@@ -24,18 +20,24 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
       let name = (Stdlib.List.last rest) |> Builtin.unwrap
       let modules = Stdlib.List.dropLast rest
 
-      // Get history
-      let history =
-        Darklang.SCM.History.getNameHistory owner modules name itemType
+      // Get history for all item types and combine
+      let fnHistory = Darklang.SCM.History.getNameHistory owner modules name "fn"
+      let typeHistory = Darklang.SCM.History.getNameHistory owner modules name "type"
+      let valueHistory = Darklang.SCM.History.getNameHistory owner modules name "value"
 
-      match history with
+      let allHistory =
+        (Stdlib.List.append fnHistory typeHistory)
+        |> Stdlib.List.append valueHistory
+        |> Stdlib.List.sortBy (fun entry -> entry.timestamp)
+
+      match allHistory with
       | [] ->
-        Stdlib.printLine $"No history found for {itemType} {location}"
+        Stdlib.printLine $"No history found for {location}"
         state
 
       | entries ->
         Stdlib.printLine ""
-        Stdlib.printLine (Colors.boldText $"History for {itemType} {location}:")
+        Stdlib.printLine (Colors.boldText $"History for {location}:")
         Stdlib.printLine ""
 
         entries
@@ -64,8 +66,8 @@ let help (state: Cli.AppState) : Cli.AppState =
   [
     "View history of what a name pointed to"
     ""
-    "Usage: dark history <type|fn|value> <location>"
-    "Example: dark history fn Darklang.Stdlib.List.map"
+    "Usage: history <location>"
+    "Example: history Darklang.Stdlib.List.map"
     ""
     "Shows all times the name was pointed to different items"
     ""
@@ -73,12 +75,16 @@ let help (state: Cli.AppState) : Cli.AppState =
 
   state
 
-// TODO: completions should _not_ be for 'subcommands'
-//, but should rather work based on what's available at the location -- like 'ls' and 'nav' and that sorta thing.
 let complete (state: Cli.AppState) (args: List<String>) : List<String> =
   match args with
-  | [] -> [ "fn"; "type"; "value" ]
-  | [partial] ->
-    [ "fn"; "type"; "value" ]
-    |> Stdlib.List.filter (fun cmd -> Stdlib.String.startsWith cmd partial)
+  | [] ->
+    Packages.Traversal.completePartialPath
+      state.currentBranchId
+      state.packageData.currentLocation
+      ""
+  | [partialPath] ->
+    Packages.Traversal.completePartialPath
+      state.currentBranchId
+      state.packageData.currentLocation
+      partialPath
   | _ -> []

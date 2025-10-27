@@ -100,7 +100,7 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
         Stdlib.printLine $"  {b.title} (id: {idShort}..., created {dateStr})")
 
       Stdlib.printLine ""
-      Stdlib.printLine "Please use 'dark branch switch-id <branch-id>' to switch"
+      Stdlib.printLine "Please use 'branch switch-id <branch-id>' to switch"
       state
 
   | ["switch-id"; branchIdStr] ->
@@ -224,16 +224,16 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
 let help (state: Cli.AppState) : Cli.AppState =
   Stdlib.printLine "Branch Management Commands"
   Stdlib.printLine ""
-  Stdlib.printLine "  dark branch list           List all branches"
-  Stdlib.printLine "  dark branch create NAME    Create and switch to new branch"
-  Stdlib.printLine "  dark branch switch NAME    Switch to existing branch"
-  Stdlib.printLine "  dark branch switch-id ID   Switch to branch by ID"
-  Stdlib.printLine "  dark branch status         Show current branch status"
-  Stdlib.printLine "  dark branch info           Show detailed info (current branch)"
-  Stdlib.printLine "  dark branch info NAME      Show detailed info (specific branch)"
-  Stdlib.printLine "  dark branch unset          Unset current branch (search all packages)"
-  Stdlib.printLine "  dark branch none           Alias for 'unset'"
-  Stdlib.printLine "  dark branch clear          Deprecated alias for 'unset'"
+  Stdlib.printLine "  branch list           List all branches"
+  Stdlib.printLine "  branch create NAME    Create and switch to new branch"
+  Stdlib.printLine "  branch switch NAME    Switch to existing branch"
+  Stdlib.printLine "  branch switch-id ID   Switch to branch by ID"
+  Stdlib.printLine "  branch status         Show current branch status"
+  Stdlib.printLine "  branch info           Show detailed info (current branch)"
+  Stdlib.printLine "  branch info NAME      Show detailed info (specific branch)"
+  Stdlib.printLine "  branch unset          Unset current branch (search all packages)"
+  Stdlib.printLine "  branch none           Alias for 'unset'"
+  Stdlib.printLine "  branch clear          Deprecated alias for 'unset'"
   Stdlib.printLine ""
   state
 
