@@ -1,0 +1,176 @@
+module Darklang.Cli.Packages.Create.Type
+
+
+let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
+  match args with
+  | [] -> help state
+
+  // type SomeModule.myType = definition
+  | location :: definitionParts ->
+    // Strip leading "=" if present (since users naturally type "type Foo = ...")
+    let cleanedParts =
+      match definitionParts with
+      | "=" :: rest -> rest
+      | parts -> parts
+
+    // Join all remaining args as the inline definition
+    let inlineDefinition = Stdlib.String.join cleanedParts " "
+
+    if Stdlib.String.isEmpty inlineDefinition then
+      // No inline definition provided - show error
+      [
+        (Colors.error "Error: Inline type definition required")
+        ""
+        "Usage: type <location> <definition>"
+        ""
+        "Examples:"
+        "  type Status = | Active | Inactive"
+        "  type User = { name: String; age: Int64 }"
+        "  type Result = | Ok of String | Error of String"
+        ""
+      ] |> Stdlib.printLines
+
+      state
+    else
+      // Parse and create type immediately
+      createTypeInline
+        state.currentBranchId
+        state.packageData.currentLocation
+        location
+        inlineDefinition
+        state
+
+
+let createTypeInline
+  (branchId: Stdlib.Option.Option<Uuid>)
+  (currentLocation: Packages.PackageLocation)
+  (locationStr: String)
+  (definition: String)
+  (state: Cli.AppState)
+  : Cli.AppState =
+  // 1. Parse location relative to current position
+  let parsedLocationResult = Location.parseRelativeTo currentLocation locationStr
+
+  match parsedLocationResult with
+  | Error msg ->
+    Stdlib.printLine (Colors.error $"Invalid location: {msg}")
+    state
+
+  | Ok parsedLocation ->
+    // 2. Build full source code for parsing
+    let fullSource = $"type {parsedLocation.name} = {definition}"
+
+    // 3. Parse the type definition string using tree-sitter
+    let tree = LanguageTools.Parser.parseToSimplifiedTree fullSource
+
+    // Find the type_decl node
+    let typeDecl =
+      tree.children
+      |> Stdlib.List.findFirst (fun node -> node.typ == "type_decl")
+
+    match typeDecl with
+    | None ->
+      Stdlib.printLine (Colors.error "Failed to parse type definition")
+      Stdlib.printLine ""
+      Stdlib.printLine "Make sure your syntax is correct. Examples:"
+      Stdlib.printLine "  type Status = | Active | Inactive"
+      Stdlib.printLine "  type User = { name: String; age: Int64 }"
+      Stdlib.printLine ""
+      state
+
+    | Some typeDeclNode ->
+      // 4. Parse node to WrittenTypes
+      let writtenTypeResult =
+        LanguageTools.Parser.TypeDeclaration.parse typeDeclNode
+
+      match writtenTypeResult with
+      | Error unparseable ->
+        Stdlib.printLine (Colors.error "Failed to parse type definition")
+        Stdlib.printLine $"Parse error at range: {unparseable.source.range}"
+        state
+
+      | Ok writtenType ->
+        // 5. Convert to ProgramTypes.PackageType
+        let pm = LanguageTools.PackageManager.pm ()
+
+        let (packageType, unresolvedNames) =
+          LanguageTools.WrittenTypesToProgramTypes.TypeDeclaration.toPackageTypePT
+            branchId
+            LanguageTools.NameResolver.OnMissing.Allow
+            pm
+            parsedLocation.owner
+            parsedLocation.modules
+            writtenType
+
+        // Check for unresolved names
+        if (Stdlib.List.isEmpty unresolvedNames) |> Stdlib.Bool.not then
+          Stdlib.printLine (Colors.error "Error: Unresolved type references")
+          Stdlib.printLine ""
+
+          unresolvedNames
+          |> Stdlib.List.iter (fun (range, err) ->
+            match err with
+            | TypeNotFound names ->
+              let nameStr = Stdlib.String.join names "."
+              Stdlib.printLine $"  - Type not found: {nameStr}"
+            | _ -> Stdlib.printLine $"  - Unresolved name at {range}")
+
+          Stdlib.printLine ""
+          state
+        else
+          // 6. Create the package location for SetTypeName
+          let packageLocation = Location.toPackageLocation parsedLocation
+
+          // 7. Create ops: AddType and SetTypeName
+          let ops =
+            [ LanguageTools.ProgramTypes.PackageOp.AddType packageType
+              LanguageTools.ProgramTypes.PackageOp.SetTypeName (packageType.id, packageLocation) ]
+
+          // 8. Add ops to the current branch
+          match branchId with
+          | Some id -> SCM.PackageOps.add (Stdlib.Option.Option.Some id) ops
+          | None -> SCM.PackageOps.addToMain ops
+
+          // 9. Show success message
+          let fullPath =
+            [ [ parsedLocation.owner ]; parsedLocation.modules; [ parsedLocation.name ] ]
+            |> Stdlib.List.flatten
+            |> Stdlib.String.join "."
+
+          Stdlib.printLine ""
+          Stdlib.printLine (Colors.success $"✓ Created type: {fullPath}")
+          Stdlib.printLine ""
+
+          state
+
+
+let help (state: Cli.AppState) : Cli.AppState =
+  [
+    "Create a new type"
+    ""
+    "Usage: type <location> <definition>"
+    ""
+    "Examples:"
+    "  # Simple enum:"
+    "  type Status = | Active | Inactive"
+    ""
+    "  # Enum with fields:"
+    "  type Result = | Ok of String | Error of String"
+    ""
+    "  # Record type:"
+    "  type User = { name: String; age: Int64 }"
+    ""
+    "  # Type alias:"
+    "  type UserId = Uuid"
+    ""
+    "Location can be relative or absolute:"
+    "  type Foo = ...          # Relative to current location"
+    "  type /Darklang.Foo = ...  # Absolute path"
+    ""
+  ] |> Stdlib.printLines
+
+  state
+
+
+let complete (state: Cli.AppState) (args: List<String>) : List<String> =
+  []

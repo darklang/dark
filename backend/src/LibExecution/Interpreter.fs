@@ -185,6 +185,7 @@ let execute (exeState : ExecutionState) (vm : VMState) : Ply<Dval> =
                     resultReg = fn.body.resultIn }
                 vm.packageFnInstrCache <-
                   Map.add fn.id instrData vm.packageFnInstrCache
+                // do I need to also avail any lambda stuff ...?
                 return instrData
 
               | None -> return raiseRTE (RTE.FnNotFound(FQFnName.Package fn))
@@ -490,6 +491,10 @@ let execute (exeState : ExecutionState) (vm : VMState) : Ply<Dval> =
           match applicable with
           | AppLambda appLambda ->
             let exprId = appLambda.exprId
+
+
+
+
             let foundLambda =
               match
                 Map.tryFind (currentFrame.executionPoint, exprId) vm.lambdaInstrCache
@@ -499,6 +504,20 @@ let execute (exeState : ExecutionState) (vm : VMState) : Ply<Dval> =
                 match Map.tryFind (Source, exprId) vm.lambdaInstrCache with
                 | Some lambda -> lambda
                 | None ->
+
+                  // match
+                  //   vm.lambdaInstrCache
+                  //   |> Map.keys
+                  //   |> List.find(fun (_, e) -> e = exprId)
+                  //   with
+                  // | None -> debuG "no bogus key found" ()
+                  // | Some bogusKey ->
+                  //   let resultInOtherExecutionPoint =
+                  //     Map.tryFind bogusKey vm.lambdaInstrCache
+                  //   debuG "found result in a different execution point" resultInOtherExecutionPoint
+
+                  // debuG "keys" (Map.keys vm.lambdaInstrCache)
+
                   Exception.raiseInternal "lambda not found" [ "exprId", exprId ]
 
             let allArgs = appLambda.argsSoFar @ newArgDvals

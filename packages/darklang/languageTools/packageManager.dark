@@ -7,40 +7,51 @@ module Darklang.LanguageTools.PackageManager
 
 
 module Type =
-  let find (typeName: String) : Stdlib.Option.Option<Uuid> =
-    Builtin.packageManagerFindType typeName
+  let find
+    (branchID: Stdlib.Option.Option<Uuid>)
+    (location: ProgramTypes.PackageLocation)
+    : Stdlib.Option.Option<Uuid> =
+    Builtin.pmFindType branchID location
 
   let get
     (id: Uuid)
     : Stdlib.Option.Option<ProgramTypes.PackageType.PackageType> =
-    Builtin.packageManagerGetType id
+    Builtin.pmGetType id
 
 
 module Value =
-  let find (name: String) : Stdlib.Option.Option<Uuid> =
-    Builtin.packageManagerFindValue name
+  let find
+    (branchID: Stdlib.Option.Option<Uuid>)
+    (location: ProgramTypes.PackageLocation)
+    : Stdlib.Option.Option<Uuid> =
+    Builtin.pmFindValue branchID location
 
   let get
     (id: Uuid)
     : Stdlib.Option.Option<ProgramTypes.PackageValue.PackageValue> =
-    Builtin.packageManagerGetValue id
+    Builtin.pmGetValue id
 
 
 module Function =
-  let find (name: String) : Stdlib.Option.Option<Uuid> =
-    Builtin.packageManagerFindFn name
+  let find
+    (branchID: Stdlib.Option.Option<Uuid>)
+    (location: ProgramTypes.PackageLocation)
+    : Stdlib.Option.Option<Uuid> =
+    Builtin.pmFindFn branchID location
 
   let get (id: Uuid) : Stdlib.Option.Option<ProgramTypes.PackageFn.PackageFn> =
-    Builtin.packageManagerGetFn id
+    Builtin.pmGetFn id
 
 
 module Search =
-  let search (query: ProgramTypes.Search.SearchQuery) : ProgramTypes.Search.SearchResults =
-    let searchResults =
-      Builtin.packageManagerSearch query
+  let search
+    (branchID: Stdlib.Option.Option<Uuid>)
+    (query: ProgramTypes.Search.SearchQuery)
+    : ProgramTypes.Search.SearchResults =
+    let searchResults = Builtin.pmSearch branchID query
 
     ProgramTypes.Search.SearchResults
-      { submodules = [searchResults.submodules]
+      { submodules = [ searchResults.submodules ]
         types = searchResults.types
         values = searchResults.values
         fns = searchResults.fns }
@@ -51,7 +62,9 @@ let pm () : ProgramTypes.PackageManager.PackageManager =
     { findType = PackageManager.Type.find
       findValue = PackageManager.Value.find
       findFn = PackageManager.Function.find
+
       getFn = PackageManager.Function.get
       getValue = PackageManager.Value.get
       getType = PackageManager.Type.get
-      search = fun query -> PackageManager.Search.search query }
+
+      search = PackageManager.Search.search }

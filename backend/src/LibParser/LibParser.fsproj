@@ -10,6 +10,7 @@
   <ItemGroup>
     <ProjectReference Include="../Prelude/Prelude.fsproj" />
     <ProjectReference Include="../LibExecution/LibExecution.fsproj" />
+    <ProjectReference Include="../LibPackageManager/LibPackageManager.fsproj" />
   </ItemGroup>
   <ItemGroup>
     <Compile Include="ParserException.fs" />

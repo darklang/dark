@@ -22,122 +22,156 @@ module RT = LibExecution.RuntimeTypes
 module Dval = LibExecution.Dval
 module PackageIDs = LibExecution.PackageIDs
 
+// Test package type definitions as tuples with locations
+
 
 let t
   (name : string)
   (input : string)
   (expected : string)
-  (extraTypes : List<PT.PackageType.PackageType>)
-  (extraValues : List<PT.PackageValue.PackageValue>)
-  (extraFns : List<PT.PackageFn.PackageFn>)
+  (extraTypes : List<PT.PackageType.PackageType * PT.PackageLocation>)
+  (extraValues : List<PT.PackageValue.PackageValue * PT.PackageLocation>)
+  (extraFns : List<PT.PackageFn.PackageFn * PT.PackageLocation>)
   (allowUnresolved : bool)
   =
-  let fnname =
+  let parseFnName =
     RT.FQFnName.FQFnName.Package
-      PackageIDs.Fn.LanguageTools.Parser.parseAndPrettyPrint
+      PackageIDs.Fn.LanguageTools.Parser.parsePTSourceFileWithOps
+
+  let prettyPrintFnName =
+    RT.FQFnName.FQFnName.Package
+      PackageIDs.Fn.PrettyPrinter.ProgramTypes.sourceFile
 
   testTask name {
-    let pm =
+    // First phase: parse with base PM to get PackageOps
+    let basePM =
       if allowUnresolved then
         pmPT
       else
         pmPT |> PT.PackageManager.withExtras extraTypes extraValues extraFns
     let canvasID = System.Guid.NewGuid()
-    let! exeState = executionStateFor pm canvasID false false Map.empty
+    let! parseExeState = executionStateFor basePM canvasID false false Map.empty
 
-    let args = NEList.singleton (RT.DString input)
-    let! exeResult = LibExecution.Execution.executeFunction exeState fnname [] args
-    let! resultDval = unwrapExecutionResult exeState exeResult |> Ply.toTask
+    let branchID = Dval.option RT.KTUuid None
+    let args = NEList.doubleton branchID (RT.DString input)
+    let! parseResult = LibExecution.Execution.executeFunction parseExeState parseFnName [] args
+    let! parseDval = unwrapExecutionResult parseExeState parseResult |> Ply.toTask
 
-    match resultDval with
-    | RT.DEnum(tn, _, _, "Ok", [ RT.DString result ]) when tn = Dval.resultType ->
-      return
-        Expect.RT.equalDval
-          (RT.DString result)
-          (RT.DString expected)
-          "Didn't round-trip as expected"
+    match parseDval with
+    | RT.DEnum(tn, _, _, "Ok", [ RT.DTuple(sourceFile, opsList, []) ]) when tn = Dval.resultType ->
+      // Extract PackageOps from the Dval list
+      let packageOps =
+        match opsList with
+        | RT.DList(_vt, ops) ->
+          ops |> List.choose LibExecution.ProgramTypesToDarkTypes.PackageOp.fromDT
+        | _ -> []
+
+      // Second phase: enhance PM with PackageOps and pretty print
+      let enhancedPM = LibPackageManager.PackageManager.withExtraOps basePM packageOps
+      let! ppExeState = executionStateFor enhancedPM canvasID false false Map.empty
+
+      let ppArgs = NEList.singleton sourceFile
+      let! ppResult = LibExecution.Execution.executeFunction ppExeState prettyPrintFnName [] ppArgs
+      let! resultDval = unwrapExecutionResult ppExeState ppResult |> Ply.toTask
+
+      match resultDval with
+      | RT.DString result ->
+        return
+          Expect.RT.equalDval
+            (RT.DString result)
+            (RT.DString expected)
+            "Didn't round-trip as expected"
+      | _ ->
+        return failtest $"Unexpected pretty print result: {resultDval}"
+
     | RT.DEnum(tn, _, _, "Error", [ RT.DString errMsg ]) when tn = Dval.resultType ->
       return failtest $"Parse error: {errMsg}"
     | _ ->
-      return
-        failtest $"Unexpected result format from parseAndPrettyPrint: {resultDval}"
+      return failtest $"Unexpected parse result format: {parseDval}"
   }
 
 
-let tID = System.Guid.NewGuid()
-let person : PT.PackageType.PackageType =
-  { id = tID
-    name = { owner = "Tests"; modules = []; name = "Person" }
-    description = ""
-    deprecated = PT.NotDeprecated
-    declaration =
-      { typeParams = []
-        definition =
-          PT.TypeDeclaration.Record(
-            { head =
-                { name = "name"; typ = PT.TypeReference.TString; description = "" }
-              tail =
-                [ { name = "age"; typ = PT.TypeReference.TInt64; description = "" }
-                  { name = "hasPet"; typ = PT.TypeReference.TBool; description = "" } ] }
-          ) } }
+let person : (PT.PackageType.PackageType * PT.PackageLocation) =
+  let packageType : PT.PackageType.PackageType =
+    { id = System.Guid.NewGuid()
+      description = ""
+      deprecated = PT.NotDeprecated
+      declaration =
+        { typeParams = []
+          definition =
+            PT.TypeDeclaration.Record(
+              { head =
+                  { name = "name"; typ = PT.TypeReference.TString; description = "" }
+                tail =
+                  [ { name = "age"; typ = PT.TypeReference.TInt64; description = "" }
+                    { name = "hasPet"; typ = PT.TypeReference.TBool; description = "" } ] }
+            ) } }
+  let location : PT.PackageLocation = { owner = "Tests"; modules = []; name = "Person" }
+  (packageType, location)
 
-let myString : PT.PackageType.PackageType =
-  { id = tID
-    name = { owner = "Tests"; modules = []; name = "MyString" }
-    description = ""
-    deprecated = PT.NotDeprecated
-    declaration =
-      { typeParams = []
-        definition = PT.TypeDeclaration.Alias PT.TypeReference.TString } }
+let myString : (PT.PackageType.PackageType * PT.PackageLocation) =
+  let packageType : PT.PackageType.PackageType =
+    { id = System.Guid.NewGuid()
+      description = ""
+      deprecated = PT.NotDeprecated
+      declaration =
+        { typeParams = []
+          definition = PT.TypeDeclaration.Alias PT.TypeReference.TString } }
+  let location : PT.PackageLocation = { owner = "Tests"; modules = []; name = "MyString" }
+  (packageType, location)
 
-let pet : PT.PackageType.PackageType =
-  { id = tID
-    name = { owner = "Tests"; modules = []; name = "Pet" }
-    description = ""
-    deprecated = PT.NotDeprecated
-    declaration =
-      { typeParams = []
-        definition = PT.TypeDeclaration.Alias PT.TypeReference.TString } }
+let pet : (PT.PackageType.PackageType * PT.PackageLocation) =
+  let packageType : PT.PackageType.PackageType =
+    { id = System.Guid.NewGuid()
+      description = ""
+      deprecated = PT.NotDeprecated
+      declaration =
+        { typeParams = []
+          definition = PT.TypeDeclaration.Alias PT.TypeReference.TString } }
+  let location : PT.PackageLocation = { owner = "Tests"; modules = []; name = "Pet" }
+  (packageType, location)
 
-let myEnum : PT.PackageType.PackageType =
-  { id = tID
-    name = { owner = "Tests"; modules = []; name = "MyEnum" }
-    description = ""
-    deprecated = PT.NotDeprecated
-    declaration =
-      { typeParams = []
-        definition =
-          PT.TypeDeclaration.Enum(
-            NEList.ofList
-              ({ name = "A"; fields = []; description = "" })
-              [ ({ name = "B"
-                   fields =
-                     [ { typ = PT.TypeReference.TInt64
-                         label = None
-                         description = "" } ]
-                   description = "" })
-                ({ name = "C"
-                   fields =
-                     [ { typ =
-                           PT.TypeReference.TTuple(
-                             PT.TypeReference.TInt64,
-                             PT.TypeReference.TInt64,
-                             []
-                           )
-                         label = None
-                         description = "" } ]
-                   description = "" })
-                ({ name = "D"
-                   fields =
-                     [ { typ = PT.TypeReference.TInt64
-                         label = None
-                         description = "" }
+let myEnum : (PT.PackageType.PackageType * PT.PackageLocation) =
+  let packageType : PT.PackageType.PackageType =
+    { id = System.Guid.NewGuid()
+      description = ""
+      deprecated = PT.NotDeprecated
+      declaration =
+        { typeParams = []
+          definition =
+            PT.TypeDeclaration.Enum(
+              NEList.ofList
+                ({ name = "A"; fields = []; description = "" })
+                [ ({ name = "B"
+                     fields =
+                       [ { typ = PT.TypeReference.TInt64
+                           label = None
+                           description = "" } ]
+                     description = "" })
+                  ({ name = "C"
+                     fields =
+                       [ { typ =
+                             PT.TypeReference.TTuple(
+                               PT.TypeReference.TInt64,
+                               PT.TypeReference.TInt64,
+                               []
+                             )
+                           label = None
+                           description = "" } ]
+                     description = "" })
+                  ({ name = "D"
+                     fields =
+                       [ { typ = PT.TypeReference.TInt64
+                           label = None
+                           description = "" }
 
-                       { typ = PT.TypeReference.TInt64
-                         label = None
-                         description = "" } ]
-                   description = "" }) ]
-          ) } }
+                         { typ = PT.TypeReference.TInt64
+                           label = None
+                           description = "" } ]
+                     description = "" }) ]
+            ) } }
+  let location : PT.PackageLocation = { owner = "Tests"; modules = []; name = "MyEnum" }
+  (packageType, location)
 
 let typeReferences =
   [

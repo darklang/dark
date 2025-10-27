@@ -1,0 +1,174 @@
+module Darklang.Cli.Packages.Create.Value
+
+
+let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
+  match args with
+  | [] -> help state
+
+  // val SomeModule.myValue = expression
+  | location :: definitionParts ->
+    // Strip leading "=" if present (since users naturally type "val x = ...")
+    let cleanedParts =
+      match definitionParts with
+      | "=" :: rest -> rest
+      | parts -> parts
+
+    // Join all remaining args as the inline definition
+    let inlineDefinition = Stdlib.String.join cleanedParts " "
+
+    if Stdlib.String.isEmpty inlineDefinition then
+      // No inline definition provided - show error
+      [
+        (Colors.error "Error: Inline value expression required")
+        ""
+        "Usage: val <location> <expression>"
+        ""
+        "Examples:"
+        "  val x = 42L"
+        "  val myString = \"hello\""
+        "  val myList = [1L; 2L; 3L]"
+        ""
+      ] |> Stdlib.printLines
+
+      state
+    else
+      // Parse and create value immediately
+      createValueInline
+        state.currentBranchId
+        state.packageData.currentLocation
+        location
+        inlineDefinition
+        state
+
+
+let createValueInline
+  (branchId: Stdlib.Option.Option<Uuid>)
+  (currentLocation: Packages.PackageLocation)
+  (locationStr: String)
+  (expression: String)
+  (state: Cli.AppState)
+  : Cli.AppState =
+  // 1. Parse location relative to current position
+  let parsedLocationResult = Location.parseRelativeTo currentLocation locationStr
+
+  match parsedLocationResult with
+  | Error msg ->
+    Stdlib.printLine (Colors.error $"Invalid location: {msg}")
+    state
+
+  | Ok parsedLocation ->
+    // 2. Build full source code for parsing
+    let fullSource = $"val {parsedLocation.name} = {expression}"
+
+    // 3. Parse the value definition string using tree-sitter
+    let tree = LanguageTools.Parser.parseToSimplifiedTree fullSource
+
+    // Find the val_decl node
+    let valDecl =
+      tree.children
+      |> Stdlib.List.findFirst (fun node -> node.typ == "val_decl")
+
+    match valDecl with
+    | None ->
+      Stdlib.printLine (Colors.error "Failed to parse value expression")
+      Stdlib.printLine ""
+      Stdlib.printLine "Make sure your syntax is correct. Examples:"
+      Stdlib.printLine "  val x = 42L"
+      Stdlib.printLine "  val myString = \"hello\""
+      Stdlib.printLine ""
+      state
+
+    | Some valDeclNode ->
+      // 4. Parse node to WrittenTypes
+      let writtenValueResult =
+        LanguageTools.Parser.ValueDeclaration.parse valDeclNode
+
+      match writtenValueResult with
+      | Error unparseable ->
+        Stdlib.printLine (Colors.error "Failed to parse value expression")
+        Stdlib.printLine $"Parse error at range: {unparseable.source.range}"
+        state
+
+      | Ok writtenValue ->
+        // 5. Convert to ProgramTypes.PackageValue
+        let pm = LanguageTools.PackageManager.pm ()
+
+        let (packageValue, unresolvedNames) =
+          LanguageTools.WrittenTypesToProgramTypes.ValueDeclaration.toPackageValuePT
+            branchId
+            LanguageTools.NameResolver.OnMissing.Allow
+            pm
+            parsedLocation.owner
+            parsedLocation.modules
+            writtenValue
+
+        // Check for unresolved names
+        if (Stdlib.List.isEmpty unresolvedNames) |> Stdlib.Bool.not then
+          Stdlib.printLine (Colors.error "Error: Unresolved references")
+          Stdlib.printLine ""
+
+          unresolvedNames
+          |> Stdlib.List.iter (fun (range, err) ->
+            match err with
+            | TypeNotFound names ->
+              let nameStr = Stdlib.String.join names "."
+              Stdlib.printLine $"  - Type not found: {nameStr}"
+            | _ -> Stdlib.printLine $"  - Unresolved name at {range}")
+
+          Stdlib.printLine ""
+          state
+        else
+          // 6. Create the package location for SetValueName
+          let packageLocation = Location.toPackageLocation parsedLocation
+
+          // 7. Create ops: AddValue and SetValueName
+          let ops =
+            [ LanguageTools.ProgramTypes.PackageOp.AddValue packageValue
+              LanguageTools.ProgramTypes.PackageOp.SetValueName (packageValue.id, packageLocation) ]
+
+          // 8. Add ops to the current branch
+          match branchId with
+          | Some id -> SCM.PackageOps.add (Stdlib.Option.Option.Some id) ops
+          | None -> SCM.PackageOps.addToMain ops
+
+          // 9. Show success message
+          let fullPath =
+            [ [ parsedLocation.owner ]; parsedLocation.modules; [ parsedLocation.name ] ]
+            |> Stdlib.List.flatten
+            |> Stdlib.String.join "."
+
+          Stdlib.printLine ""
+          Stdlib.printLine (Colors.success $"✓ Created value: {fullPath}")
+          Stdlib.printLine ""
+
+          state
+
+
+let help (state: Cli.AppState) : Cli.AppState =
+  [
+    "Create a new value"
+    ""
+    "Usage: val <location> <expression>"
+    ""
+    "Examples:"
+    "  # Simple values:"
+    "  val x = 42L"
+    "  val message = \"hello world\""
+    ""
+    "  # Collections:"
+    "  val myList = [1L; 2L; 3L]"
+    "  val myDict = Dict { key = \"value\" }"
+    ""
+    "  # Type alias:"
+    "  val userId = Uuid.parse \"123e4567-e89b-12d3-a456-426614174000\""
+    ""
+    "Location can be relative or absolute:"
+    "  val foo = 42L          # Relative to current location"
+    "  val /Darklang.Foo.x = 42L  # Absolute path"
+    ""
+  ] |> Stdlib.printLines
+
+  state
+
+
+let complete (state: Cli.AppState) (args: List<String>) : List<String> = []

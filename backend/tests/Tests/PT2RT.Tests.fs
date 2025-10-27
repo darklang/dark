@@ -1622,11 +1622,10 @@ module Expr =
 
 
 module PackageFn =
-  let t name fnName typeParams params' returnType expr expected =
+  let t name _fnName typeParams params' returnType expr expected =
     testTask name {
       let fn : PT.PackageFn.PackageFn =
         { id = guuid ()
-          name = { owner = "Test"; modules = []; name = fnName }
           body = expr
           typeParams = typeParams
           parameters = params' |> NEList.ofListUnsafe "" []

@@ -5,9 +5,9 @@ module Darklang.Cli.Packages
 
 type PackageLocation =
   | Module of path: List<String>
-  | Type of name: LanguageTools.ProgramTypes.PackageType.Name
-  | Value of name: LanguageTools.ProgramTypes.PackageValue.Name
-  | Function of name: LanguageTools.ProgramTypes.PackageFn.Name
+  | Type of location: LanguageTools.ProgramTypes.PackageLocation
+  | Value of location: LanguageTools.ProgramTypes.PackageLocation
+  | Function of location: LanguageTools.ProgramTypes.PackageLocation
 
 type State =
   { currentLocation: PackageLocation
@@ -26,18 +26,18 @@ let formatLocation (location: PackageLocation) : String =
       "/ (root)"
     else
       $"/{Stdlib.String.join path "."} (module)"
-  | Type name ->
-    [[name.owner]; name.modules; [name.name]]
+  | Type loc ->
+    [[loc.owner]; loc.modules; [loc.name]]
     |> Stdlib.List.flatten
     |> Stdlib.String.join "."
     |> fun s -> $"/{s} (type)"
-  | Value name ->
-    [[name.owner]; name.modules; [name.name]]
+  | Value loc ->
+    [[loc.owner]; loc.modules; [loc.name]]
     |> Stdlib.List.flatten
     |> Stdlib.String.join "."
     |> fun s -> $"/{s} (value)"
-  | Function name ->
-    [[name.owner]; name.modules; [name.name]]
+  | Function loc ->
+    [[loc.owner]; loc.modules; [loc.name]]
     |> Stdlib.List.flatten
     |> Stdlib.String.join "."
     |> fun s -> $"/{s} (fn)"

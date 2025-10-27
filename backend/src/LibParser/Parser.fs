@@ -53,8 +53,5 @@ let parsePackageFile
   (onMissing : NR.OnMissing)
   (path : string)
   (contents : string)
-  : Ply<PT.Packages> =
-  uply {
-    let! pModule = Package.parse builtins pm onMissing path contents
-    return { types = pModule.types; values = pModule.values; fns = pModule.fns }
-  }
+  : Ply<List<PT.PackageOp>> =
+  Package.parse builtins pm onMissing path contents

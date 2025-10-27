@@ -9,18 +9,16 @@ module ModuleDeclaration =
       exprs: List<LanguageTools.ProgramTypes.Expr * List<String>>
       submodules: List<Module> }
 
-  let withType
+  let withTypeHelper
     (ms: List<Module>)
     (t: LanguageTools.ProgramTypes.PackageType.PackageType)
+    (modulePath: List<String>)
     : List<Module> =
-    match t.name.modules with
+    match modulePath with
     | [] ->
       [ Module
-          { name =
-              (t.name
-                |> PrettyPrinter.ProgramTypes.FQTypeName.Package.fullForReference)
-              ++ "has no modules"
-            types = []
+          { name = "type has no modules"
+            types = [ t ]
             fns = []
             values = []
             exprs = []
@@ -35,9 +33,7 @@ module ModuleDeclaration =
         let newModule =
           Module
             { name = firstModuleNamePart
-              types =
-                [ { t with
-                      name = { t.name with modules = [] } } ]
+              types = [ t ]
               fns = []
               values = []
               exprs = []
@@ -46,10 +42,6 @@ module ModuleDeclaration =
         Stdlib.List.append otherModules [ newModule ]
 
       | [], submoduleNames ->
-        let typeWithoutFirstModuleNamePartOfModule =
-          { t with
-              name = { t.name with modules = submoduleNames } }
-
         let newModuleWithSubmodule =
           Module
             { name = firstModuleNamePart
@@ -57,53 +49,131 @@ module ModuleDeclaration =
               fns = []
               values = []
               exprs = []
-              submodules =
-                ModuleDeclaration.withType
-                  []
-                  typeWithoutFirstModuleNamePartOfModule }
+              submodules = withTypeHelper [] t submoduleNames }
 
         Stdlib.List.append otherModules [ newModuleWithSubmodule ]
 
       | [ foundModule ], [] ->
         let updatedModule =
           { foundModule with
-              types =
-                Stdlib.List.append
-                  foundModule.types
-                  [ { t with
-                        name = { t.name with modules = [] } } ] }
+              types = Stdlib.List.append foundModule.types [ t ] }
 
         Stdlib.List.append otherModules [ updatedModule ]
 
       | [ foundModule ], submoduleNames ->
-        let typeWithoutFirstModuleNamePartOfModule =
-          { t with
-              name = { t.name with modules = submoduleNames } }
-
         let updatedModule =
           { foundModule with
-              submodules =
-                ModuleDeclaration.withType
-                  foundModule.submodules
-                  typeWithoutFirstModuleNamePartOfModule }
+              submodules = withTypeHelper foundModule.submodules t submoduleNames }
 
         Stdlib.List.append otherModules [ updatedModule ]
 
+  let withType
+    (ms: List<Module>)
+    (t: LanguageTools.ProgramTypes.PackageType.PackageType)
+    : List<Module> =
+    // TODO: Consider accepting branchID as parameter when pretty-printing branch-specific code
+    let branchID = Stdlib.Option.Option.None
+
+    match Builtin.pmGetLocationByType branchID t.id with
+    | None ->
+      [ Module
+          { name = "type with unknown location"
+            types = [ t ]
+            fns = []
+            values = []
+            exprs = []
+            submodules = [] } ]
+    | Some location -> withTypeHelper ms t location.modules
+
+
+  let withFnHelper
+    (ms: List<Module>)
+    (f: LanguageTools.ProgramTypes.PackageFn.PackageFn)
+    (modulePath: List<String>)
+    : List<Module> =
+    match modulePath with
+    | [] ->
+      [ Module
+          { name = "fn has no modules"
+            types = []
+            fns = [ f ]
+            values = []
+            exprs = []
+            submodules = [] } ]
+
+    | firstModuleNamePart :: submoduleNames ->
+      let (foundModuleMaybe, otherModules) =
+        ms |> Stdlib.List.partition (fun m -> m.name == firstModuleNamePart)
+
+      match (foundModuleMaybe, submoduleNames) with
+      | [], [] ->
+        let newModule =
+          Module
+            { name = firstModuleNamePart
+              types = []
+              fns = [ f ]
+              values = []
+              exprs = []
+              submodules = [] }
+
+        Stdlib.List.append otherModules [ newModule ]
+
+      | [], submoduleNames ->
+        let newModuleWithSubmodule =
+          Module
+            { name = firstModuleNamePart
+              types = []
+              fns = []
+              values = []
+              exprs = []
+              submodules = withFnHelper [] f submoduleNames }
+
+        Stdlib.List.append otherModules [ newModuleWithSubmodule ]
+
+      | [ foundModule ], [] ->
+        let updatedModule =
+          { foundModule with
+              fns = Stdlib.List.append foundModule.fns [ f ] }
+
+        Stdlib.List.append otherModules [ updatedModule ]
+
+      | [ foundModule ], submoduleNames ->
+        let updatedModule =
+          { foundModule with
+              submodules = withFnHelper foundModule.submodules f submoduleNames }
+
+        Stdlib.List.append otherModules [ updatedModule ]
 
   let withFn
     (ms: List<Module>)
     (f: LanguageTools.ProgramTypes.PackageFn.PackageFn)
     : List<Module> =
-    match f.name.modules with
+    // TODO: Consider accepting branchID as parameter when pretty-printing branch-specific code
+    let branchID = Stdlib.Option.Option.None
+
+    match Builtin.pmGetLocationByFn branchID f.id with
+    | None ->
+      [ Module
+          { name = "fn with unknown location"
+            types = []
+            fns = [ f ]
+            values = []
+            exprs = []
+            submodules = [] } ]
+    | Some location -> withFnHelper ms f location.modules
+
+  let withValueHelper
+    (ms: List<Module>)
+    (v: LanguageTools.ProgramTypes.PackageValue.PackageValue)
+    (modulePath: List<String>)
+    : List<Module> =
+    match modulePath with
     | [] ->
       [ Module
-          { name =
-              (f.name
-                |> PrettyPrinter.ProgramTypes.FQTypeName.Package.fullForReference)
-              ++ "has no modules"
+          { name = "value has no modules"
             types = []
             fns = []
-            values = []
+            values = [ v ]
             exprs = []
             submodules = [] } ]
 
@@ -117,20 +187,14 @@ module ModuleDeclaration =
           Module
             { name = firstModuleNamePart
               types = []
-              fns =
-                [ { f with
-                      name = { f.name with modules = [] } } ]
-              values = []
+              fns = []
+              values = [ v ]
               exprs = []
               submodules = [] }
 
         Stdlib.List.append otherModules [ newModule ]
 
       | [], submoduleNames ->
-        let fnWithoutFirstModuleNamePartOfModule =
-          { f with
-              name = { f.name with modules = submoduleNames } }
-
         let newModuleWithSubmodule =
           Module
             { name = firstModuleNamePart
@@ -138,33 +202,21 @@ module ModuleDeclaration =
               fns = []
               values = []
               exprs = []
-              submodules =
-                ModuleDeclaration.withFn [] fnWithoutFirstModuleNamePartOfModule }
+              submodules = withValueHelper [] v submoduleNames }
 
         Stdlib.List.append otherModules [ newModuleWithSubmodule ]
 
       | [ foundModule ], [] ->
         let updatedModule =
           { foundModule with
-              fns =
-                Stdlib.List.append
-                  foundModule.fns
-                  [ { f with
-                        name = { f.name with modules = [] } } ] }
+              values = Stdlib.List.append foundModule.values [ v ] }
 
         Stdlib.List.append otherModules [ updatedModule ]
 
       | [ foundModule ], submoduleNames ->
-        let fnWithoutFirstModuleNamePartOfModule =
-          { f with
-              name = { f.name with modules = submoduleNames } }
-
         let updatedModule =
           { foundModule with
-              submodules =
-                ModuleDeclaration.withFn
-                  foundModule.submodules
-                  fnWithoutFirstModuleNamePartOfModule }
+              submodules = withValueHelper foundModule.submodules v submoduleNames }
 
         Stdlib.List.append otherModules [ updatedModule ]
 
@@ -172,81 +224,19 @@ module ModuleDeclaration =
     (ms: List<Module>)
     (v: LanguageTools.ProgramTypes.PackageValue.PackageValue)
     : List<Module> =
-    match v.name.modules with
-    | [] ->
+    // TODO: Consider accepting branchID as parameter when pretty-printing branch-specific code
+    let branchID = Stdlib.Option.Option.None
+
+    match Builtin.pmGetLocationByValue branchID v.id with
+    | None ->
       [ Module
-          { name =
-              (v.name
-                |> PrettyPrinter.ProgramTypes.FQTypeName.Package.fullForReference)
-              ++ "has no modules"
+          { name = "value with unknown location"
             types = []
             fns = []
-            values = []
+            values = [ v ]
             exprs = []
             submodules = [] } ]
-
-    | firstModuleNamePart :: submoduleNames ->
-      let (foundModuleMaybe, otherModules) =
-        ms |> Stdlib.List.partition (fun m -> m.name == firstModuleNamePart)
-
-      match (foundModuleMaybe, submoduleNames) with
-      | [], [] ->
-        let newModule =
-          Module
-            { name = firstModuleNamePart
-              types = []
-              fns = []
-              values =
-                [ { v with
-                      name = { v.name with modules = [] } } ]
-              exprs = []
-              submodules = [] }
-
-        Stdlib.List.append otherModules [ newModule ]
-
-      | [], submoduleNames ->
-        let valueWithoutFirstModuleNamePartOfModule =
-          { v with
-              name = { v.name with modules = submoduleNames } }
-
-        let newModuleWithSubmodule =
-          Module
-            { name = firstModuleNamePart
-              types = []
-              fns = []
-              values = []
-              exprs = []
-              submodules =
-                ModuleDeclaration.withValue
-                  []
-                  valueWithoutFirstModuleNamePartOfModule }
-
-        Stdlib.List.append otherModules [ newModuleWithSubmodule ]
-
-      | [ foundModule ], [] ->
-        let updatedModule =
-          { foundModule with
-              values =
-                Stdlib.List.append
-                  foundModule.values
-                  [ { v with
-                        name = { v.name with modules = [] } } ] }
-
-        Stdlib.List.append otherModules [ updatedModule ]
-
-      | [ foundModule ], submoduleNames ->
-        let valueWithoutFirstModuleNamePartOfModule =
-          { v with
-              name = { v.name with modules = submoduleNames } }
-
-        let updatedModule =
-          { foundModule with
-              submodules =
-                ModuleDeclaration.withValue
-                  foundModule.submodules
-                  valueWithoutFirstModuleNamePartOfModule }
-
-        Stdlib.List.append otherModules [ updatedModule ]
+    | Some location -> withValueHelper ms v location.modules
 
 
   let withExpr
@@ -400,41 +390,7 @@ let moduleDeclaration (m: ModuleDeclaration.Module) : String =
     $"module {m.name} =\n{bodyPart}"
 
 let definitions (p: LanguageTools.ProgramTypes.Definitions) : String =
-  let withOwnerStuffRepresentedAsRootLevelModule =
-    LanguageTools.ProgramTypes.Definitions
-      { types =
-          p.types
-          |> Stdlib.List.map (fun t ->
-            { t with
-                name =
-                  { t.name with
-                      modules =
-                        Stdlib.List.append [ t.name.owner ] t.name.modules
-                      owner = "(redacted)" } })
-        fns =
-          p.fns
-          |> Stdlib.List.map (fun f ->
-            { f with
-                name =
-                  { f.name with
-                      modules =
-                        Stdlib.List.append [ f.name.owner ] f.name.modules
-                      owner = "(redacted)" } })
-
-        values =
-          p.values
-          |> Stdlib.List.map (fun v ->
-            { v with
-                name =
-                  { v.name with
-                      modules =
-                        Stdlib.List.append [ v.name.owner ] v.name.modules
-                      owner = "(redacted)" } })
-
-        exprs = p.exprs |> Stdlib.List.map (fun e -> e) }
-
-  let modules =
-    ModuleDeclaration.toModules withOwnerStuffRepresentedAsRootLevelModule
+  let modules = ModuleDeclaration.toModules p
 
   // CLEANUP make ordering 'better' in some way
   modules
