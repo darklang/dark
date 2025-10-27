@@ -275,6 +275,11 @@ module Type =
 
       let deprecation = p [] "Deprecation" "e6ac931d-eac0-42df-a197-a9bcf1094b09"
 
+      let packageLocation =
+        p [] "PackageLocation" "a8e4f2b1-3c5d-4e6f-8a9b-1c2d3e4f5a6b"
+      let branchID = p [] "BranchID" "c1d2e3f4-5a6b-7c8d-9e0f-1a2b3c4d5e6f"
+      let locatedItem = p [] "LocatedItem" "4869d6bc-f934-4341-8cab-4c42968c7790"
+
       module TypeDeclaration =
         let private p addl = p ("TypeDeclaration" :: addl)
         let recordField = p [] "RecordField" "148003cf-828c-4645-8a7a-f0fbc3fc5c81"
@@ -308,6 +313,8 @@ module Type =
         let searchResults =
           p [] "SearchResults" "0660f9dc-a816-4185-9e5c-f936325f83d5"
 
+      let packageOp = p [] "PackageOp" "7d8e9f0a-1b2c-3d4e-5f6a-7b8c9d0e1f2a"
+
       let secret = p [] "Secret" "37427120-d71d-41f2-b094-68757570bc41"
       let db = p [] "DB" "7f219668-f8ac-4b17-a404-1171985dadf9"
 
@@ -339,6 +346,19 @@ module Type =
   module DarkPackages =
     let stats = p [ "DarkPackages" ] "Stats" "0fcd5847-701c-4da7-9f24-adbe8b5eb397"
 
+
+  module SCM =
+    let private p addl = p ("SCM" :: addl)
+
+    module Branch =
+      let private p addl = p ("Branch" :: addl)
+      let branchState = p [] "BranchState" "a1b2c3d4-e5f6-4a5b-9c8d-7e6f5a4b3c2d"
+      let branch = p [] "Branch" "f1e2d3c4-b5a6-7c8d-9e0f-1a2b3c4d5e6f"
+      let historyEntry = p [] "HistoryEntry" "b1c2d3e4-f5a6-4b7c-8d9e-0f1a2b3c4d5e"
+
+    module Instances =
+      let private p addl = p ("Instances" :: addl)
+      let instance = p [] "Instance" "a2b3c4d5-e6f7-4a5b-9c8d-7e6f5a4b3c2e"
 
 
   module Internal =
@@ -426,6 +446,12 @@ module Fn =
           "parseAndPrettyPrint"
           "361fb7f2-523b-4b50-8f29-cc99d5f03e3a"
 
+      let parsePTSourceFileWithOps =
+        p
+          [ "TestParsing" ]
+          "parsePTSourceFileWithOps"
+          "8a5c3f1b-9d2e-4a7c-b8f3-1a2b3c4d5e6f"
+
       module CliScript =
         let private p addl = p ("CliScript" :: addl)
         let parseCliScript = p [] "parse" "e7574db7-f7e6-4263-adc2-a05b14309cbc"
@@ -448,6 +474,8 @@ module Fn =
 
     module ProgramTypes =
       let private p addl = p ("ProgramTypes" :: addl)
+      let sourceFile = p [] "sourceFile" "f3b2e4d5-7a8c-4e9f-b1a2-3c4d5e6f7a8b"
+
       module FQFnName =
         let private p addl = p ("FQFnName" :: addl)
         let fullForReference =

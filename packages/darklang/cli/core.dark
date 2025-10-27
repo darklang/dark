@@ -14,9 +14,12 @@ type AppState =
     currentPage: Page
     commandHistory: List<String>
     historyIndex: Int64
-    savedPrompt: String }
+    savedPrompt: String
+
+    currentBranchId: Stdlib.Option.Option<Uuid> }
 
 let initState () : AppState =
+  // Default to no branch selected (user can select one with 'branch switch')
   AppState
     { isExiting = false
       mainPrompt = ""
@@ -26,7 +29,9 @@ let initState () : AppState =
       currentPage = Page.MainPrompt  // Default to main prompt page
       commandHistory = []
       historyIndex = -1L
-      savedPrompt = "" }
+      savedPrompt = ""
+
+      currentBranchId = Stdlib.Option.Option.None }
 
 // Helper to update core state fields while preserving package navigation fields
 let updateCoreFields (state: AppState) (isExiting: Bool) (mainPrompt: String) (needsFullRedraw: Bool) : AppState =
@@ -55,6 +60,8 @@ module ExecutionError =
     $"Error: {err.msg}\n{metadataStr}"
 
 
+// TODO: this Completion module could be extracted to its own file (utils/completion.dark)
+// to reduce the size of core.dark
 module Completion =
   type ParsedInput =
     { commandName: String
@@ -164,21 +171,29 @@ module View =
     Colors.success message
 
 
-  let formatPrompt () : String =
-    "> "
+  let promptBranchPreamble (state: AppState): String =
+    let currentBranch =
+      match state.currentBranchId with
+      | Some branchID -> Darklang.SCM.Branch.get branchID
+      | None -> Stdlib.Option.Option.None
+
+    match currentBranch with
+    | Some branch -> $"[{branch.title}]"
+    | None -> ""
+
 
   let formatPromptWithInput (state: AppState) : String =
-    let currentPathStr = Colors.info (Packages.formatLocation state.packageData.currentLocation)
+    let branchStr = Colors.info (promptBranchPreamble state)
 
     let hint = Registry.getCompletionHint state state.mainPrompt
     if Stdlib.String.isEmpty hint then
-      currentPathStr ++ "> " ++ state.mainPrompt
+      branchStr ++ "> " ++ state.mainPrompt
     else
-      currentPathStr ++ "> " ++ state.mainPrompt ++ (Colors.hint hint)
+      branchStr ++ "> " ++ state.mainPrompt ++ (Colors.hint hint)
 
 
   let formatWelcome () : String =
-    Registry.getCommandList () ++ "\n\nType 'help <command>' for specific command help."
+    Registry.getCompactCommandList ()
 
 
 
@@ -191,10 +206,17 @@ module Registry =
       help: AppState -> AppState // CLEANUP we shouldn't need to return an AppState? Like a string would be fine...
       complete: AppState -> List<String> -> List<String> }
 
+  // TODO: this command list is very long and repetitive - consider:
+  //   - auto-discovering commands via module introspection
+  //   - using a declarative format (JSON/config file)
+  //   - grouping related commands into sub-registries
   let allCommands () : List<CommandHandler> =
     [
       ("quit", "Exit the CLI", ["exit"; "q"], Quit.execute, Quit.help, Quit.complete)
       ("help", "Show help for commands", ["commands"; "?"], Help.execute, Help.help, Help.complete)
+      ("branch", "Manage development branches", [], Packages.Branch.execute, Packages.Branch.help, Packages.Branch.complete)
+      ("instance", "Manage remote instances for syncing", [], Instances.execute, Instances.help, Instances.complete)
+      ("sync", "Sync package ops with remote instance", [], Sync.execute, Sync.help, Sync.complete)
       ("install", "Install CLI globally", [], Installation.Install.execute, Installation.Install.help, Installation.Install.complete)
       ("update", "Update CLI to latest version", ["upgrade"], Installation.Update.execute, Installation.Update.help, Installation.Update.complete)
       ("uninstall", "Remove CLI installation", [], Installation.Uninstall.execute, Installation.Uninstall.help, Installation.Uninstall.complete)
@@ -210,6 +232,14 @@ module Registry =
       ("scripts", "Store, manage, and run Dark scripts", [], Cli.Scripts.execute, Cli.Scripts.help, Cli.Scripts.complete)
       ("view", "View details of a module, type, value, or fns", [], Packages.View.execute, Packages.View.help, Packages.View.complete)
       ("tree", "Display package hierarchy in tree format", [], Packages.Tree.execute, Packages.Tree.help, Packages.Tree.complete)
+      ("history", "View history of what a name pointed to", [], Packages.History.execute, Packages.History.help, Packages.History.complete)
+      ("search", "Search for packages, types, functions, and values", [], Packages.Search.execute, Packages.Search.help, Packages.Search.complete)
+      ("val", "Create a new value", [], Packages.Create.Value.execute, Packages.Create.Value.help, Packages.Create.Value.complete)
+      ("let", "Create a new value (alias for val)", [], Packages.Create.Value.execute, Packages.Create.Value.help, Packages.Create.Value.complete)
+      ("fn", "Create a new function", ["function"], Packages.Create.Fn.execute, Packages.Create.Fn.help, Packages.Create.Fn.complete)
+      ("type", "Create a new type", [], Packages.Create.Type.execute, Packages.Create.Type.help, Packages.Create.Type.complete)
+      ("mv", "Rename a package item", [], Packages.Rename.execute, Packages.Rename.help, Packages.Rename.complete)
+      ("rm", "Remove a package item", [], Packages.Remove.execute, Packages.Remove.help, Packages.Remove.complete)
       ("experiments", "Try out various WIP CLI experiments", [], Cli.Experiments.execute, Cli.Experiments.help, Cli.Experiments.complete)
     ]
     |> Stdlib.List.map(
@@ -278,7 +308,8 @@ module Registry =
       Stdlib.printLine $"Aliases: {aliasText}"
       resultState
 
-  // Helper function to format a group of commands
+  // TODO: formatCommandGroup + getCommandList logic could be simplified or moved to View module
+  // Helper function to format a group of commands with details
   let formatCommandGroup (groupName: String) (commandNames: List<String>) (commands: List<CommandHandler>) : String =
     let formattedCommands =
       commandNames
@@ -294,23 +325,55 @@ module Registry =
     let commandLines = Stdlib.String.join formattedCommands "\n"
     $"{groupName}:\n{commandLines}"
 
-  let getCommandList () : String =
+  // Helper function to format a group of commands compactly (just names)
+  let formatCompactGroup (groupName: String) (cmdNames: List<String>) : String =
+    let namesList = Stdlib.String.join cmdNames ", "
+    $"{groupName}: {namesList}"
+
+  // Compact command list for welcome screen (with logo, minimal text)
+  let getCompactCommandList () : String =
+    let commands = allCommands ()
+
+    // Group commands by category - just names, no descriptions
+    let packageCommands = ["nav"; "ls"; "view"; "tree"; "back"; "history"; "search"; "val"; "let"; "fn"; "type"; "mv"; "rm"]
+    let sourceControlCommands = ["branch"; "instance"; "sync"]
+    let executionCommands = ["run"; "eval"; "scripts"]
+    let installCommands = ["install"; "update"; "uninstall"; "status"; "version"]
+    let utilityCommands = ["clear"; "help"; "quit"; "experiments"]
+
+    let packageGroup = formatCompactGroup "Packages" packageCommands
+    let sourceControlGroup = formatCompactGroup "Source Control" sourceControlCommands
+    let executionGroup = formatCompactGroup "Execution" executionCommands
+    let installGroup = formatCompactGroup "Installation" installCommands
+    let utilityGroup = formatCompactGroup "Utilities" utilityCommands
+
+    let welcome = "Hello! Let's write some software with Darklang."
+    let availableCommands = "Here are the commands available:"
+    let compactText = Stdlib.String.join [welcome; ""; availableCommands; ""; packageGroup; sourceControlGroup; executionGroup; installGroup; utilityGroup; ""; "Type 'help' for detailed command info"] "\n"
+    let textLines = Stdlib.String.split compactText "\n"
+    Logo.combineLogoAndText Logo.logo textLines Colors.logoColor
+
+  // Detailed command list for help command (no logo, full details)
+  let getDetailedCommandList () : String =
     let commands = allCommands ()
 
     // Group commands by category
-    let packageCommands = ["nav"; "ls"; "view"; "tree"; "back"]
+    let packageCommands = ["nav"; "ls"; "view"; "tree"; "back"; "history"; "search"; "val"; "let"; "fn"; "type"; "mv"; "rm"]
+    let sourceControlCommands = ["branch"; "instance"; "sync"; ]
     let executionCommands = ["run"; "eval"; "scripts"]
     let installCommands = ["install"; "update"; "uninstall"; "status"; "version"]
     let utilityCommands = ["clear"; "help"; "quit"; "experiments"]
 
     // Format command groups
     let packageGroup = formatCommandGroup "Packages" packageCommands commands
+    let sourceControlGroup = formatCommandGroup "Source Control" sourceControlCommands commands
     let executionGroup = formatCommandGroup "Execution" executionCommands commands
     let installGroup = formatCommandGroup "Installation" installCommands commands
     let utilityGroup = formatCommandGroup "Utilities" utilityCommands commands
 
     // Find any ungrouped commands
-    let allGroupedCommands = Stdlib.List.append (Stdlib.List.append (Stdlib.List.append packageCommands executionCommands) installCommands) utilityCommands
+    let allGroupedCommands =
+      Stdlib.List.flatten [ packageCommands; sourceControlCommands; executionCommands; installCommands; utilityCommands ]
     let ungroupedCommands =
       commands
       |> Stdlib.List.filter (fun cmd ->
@@ -324,7 +387,7 @@ module Registry =
           let aliasText = Stdlib.String.join aliases ", "
           $"  {cmd.name} ({aliasText}) - {cmd.description}")
 
-    let allGroups = [packageGroup; executionGroup; installGroup; utilityGroup]
+    let allGroups = [packageGroup; sourceControlGroup; executionGroup; installGroup; utilityGroup]
     let finalGroups =
       if Stdlib.List.isEmpty ungroupedCommands then
         allGroups
@@ -334,9 +397,7 @@ module Registry =
           $"Other:\n{ungroupedLines}"
         Stdlib.List.append allGroups [ungroupedGroup]
 
-    let groupsText = Stdlib.String.join finalGroups "\n\n"
-    let helpLines = Stdlib.String.split groupsText "\n"
-    Logo.combineLogoAndText Logo.logo helpLines Colors.logoColor
+    Stdlib.String.join finalGroups "\n\n"
 
 
   let getCompletions (state: AppState) (input: String) : List<String> =
@@ -376,6 +437,10 @@ module Commands =
       Registry.executeCommand commandName state args
 
 
+// TODO: key handling is very long (~170 lines) - consider:
+//   - extracting to separate module (input/keyHandler.dark)
+//   - using a key binding map/table instead of huge match
+//   - separate handlers for different page types
 let handleKeyInput (state: AppState) (key: Stdlib.Cli.Stdin.Key.Key) (modifiers: Stdlib.Cli.Stdin.Modifiers.Modifiers) (keyChar: Stdlib.Option.Option<String>) : AppState =
   match state.currentPage with
   | MainPrompt ->
@@ -415,6 +480,20 @@ let handleKeyInput (state: AppState) (key: Stdlib.Cli.Stdin.Key.Key) (modifiers:
         { state with
             mainPrompt = newPrompt
             cursorPosition = state.cursorPosition - 1L
+            historyIndex = -1L
+            needsFullRedraw = false }
+      else
+        state
+    | Delete ->
+      // Remove character at cursor position
+      let promptLength = Stdlib.String.length state.mainPrompt
+
+      if state.cursorPosition < promptLength then
+        let beforeCursor = Stdlib.String.slice state.mainPrompt 0L state.cursorPosition
+        let afterCursor = Stdlib.String.dropFirst state.mainPrompt (state.cursorPosition + 1L)
+        let newPrompt = beforeCursor ++ afterCursor
+        { state with
+            mainPrompt = newPrompt
             historyIndex = -1L
             needsFullRedraw = false }
       else
@@ -542,7 +621,7 @@ let handleKeyInput (state: AppState) (key: Stdlib.Cli.Stdin.Key.Key) (modifiers:
       state
   | InteractiveNav navState ->
     // Interactive navigation key handling
-    Packages.Nav.Interactive.handleKey state key navState
+    Packages.Nav.Interactive.handleKey state key keyChar navState
 
 module Update =
   let updateAppState (state: AppState) (msg: Msg) : AppState =
@@ -570,10 +649,11 @@ let runInteractiveLoop (state: AppState) : Int64 =
     // Display current page
     match state.currentPage with
     | MainPrompt ->
-      // Determine where user input starts (path + "> ")
-      let currentPath = Packages.formatLocation state.packageData.currentLocation
-      let visiblePromptLength = (Stdlib.String.length currentPath) + 2L  // "> "
-      let inputStartColumn = visiblePromptLength + 1L
+      // Determine where user input starts (branch + " > ")
+      let inputStartColumn =
+        (Stdlib.String.length (View.promptBranchPreamble state))
+        + (Stdlib.String.length "> ")
+        + 1L
 
       if state.needsFullRedraw then
         // Redraw entire prompt line (used after commands that change state)
@@ -591,7 +671,7 @@ let runInteractiveLoop (state: AppState) : Int64 =
         Stdlib.print "\u001b[?25h" // Show cursor again
 
       // Position cursor at correct location within user input
-      let cursorColumn = visiblePromptLength + state.cursorPosition + 1L
+      let cursorColumn = inputStartColumn + state.cursorPosition
       Stdlib.print (Colors.moveCursorToColumn cursorColumn)
     | Experiments ->
       if state.needsFullRedraw then

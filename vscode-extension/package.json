@@ -18,13 +18,11 @@
   },
   "main": "./client/out/extension",
   "activationEvents": [
-		"onFileSystem:darkfs",
-		"onLanguage:plaintext",
-		"onCommand:darkfs.workspaceInit",
-		"onCommand:darkfs.init",
-		"workspaceContains:*.txt"
+		"*"
 	],
   "contributes": {
+    "keybindings": [
+    ],
     "languages": [
       {
         "id": "darklang",
@@ -95,10 +93,6 @@
         "icon": "$(refresh)"
       },
       {
-        "command": "darklang.lookUpToplevel",
-        "title": "Darklang: Look Up Package Element"
-      },
-      {
         "command": "darklang.openPackageDefinition",
         "title": "Darklang: Open Package Definition"
       },
@@ -109,6 +103,58 @@
       {
         "command": "darklang.init",
         "title": "Darklang: Init Workspace"
+      },
+      {
+        "command": "darklang.branch.new",
+        "title": "Start New Branch",
+        "icon": "$(add)"
+      },
+      {
+        "command": "darklang.branch.switch",
+        "title": "Switch Branch",
+        "icon": "$(arrow-swap)"
+      },
+      {
+        "command": "darklang.branch.view",
+        "title": "View Branch Details",
+        "icon": "$(eye)"
+      },
+      {
+        "command": "darklang.branch.rename",
+        "title": "Rename Branch",
+        "icon": "$(edit)"
+      },
+      {
+        "command": "darklang.branches.manageAll",
+        "title": "Manage All Branches",
+        "icon": "$(list-flat)"
+      },
+      {
+        "command": "darklang.switchToAST",
+        "title": "AST Mode",
+        "category": "Darklang",
+        "icon": "$(list-tree)"
+      },
+      {
+        "command": "darklang.switchToSource",
+        "title": "Source Mode",
+        "category": "Darklang",
+        "icon": "$(code)"
+      },
+      {
+        "command": "darklang.sync.execute",
+        "title": "Darklang: Sync with Remote Instance",
+        "icon": "$(sync)"
+      },
+      {
+        "command": "darklang.sync.quickSync",
+        "title": "Darklang: Quick Sync (instance2)",
+        "icon": "$(sync)"
+      },
+      {
+        "command": "darklang.instance.sync",
+        "title": "Sync with Instance",
+        "icon": "$(sync)"
       }
     ],
     "menus": {
@@ -118,36 +164,71 @@
 					"when": "workbenchState != workspace"
 				}
 			],
-			"view/title": [
-				{
-					"command": "darklang.refreshTreeView",
-					"when": "view == darklangTreeView",
+			"view/item/context": [
+        {
+					"command": "darklang.openFullModule",
+					"when": "view == darklangPackages && viewItem == module",
 					"group": "navigation"
+				},
+        {
+					"command": "darklang.branch.rename",
+					"when": "view == darklangWorkspace && viewItem == workspace-branch-root",
+					"group": "inline@1"
+				},
+				{
+					"command": "darklang.branch.view",
+					"when": "view == darklangWorkspace && viewItem == workspace-branch-root",
+					"group": "inline@2"
+				},
+				{
+					"command": "darklang.branch.new",
+					"when": "view == darklangWorkspace && viewItem == workspace-branch-root",
+					"group": "inline@3"
+				},
+				{
+					"command": "darklang.branch.switch",
+					"when": "view == darklangWorkspace && viewItem == branch",
+					"group": "basic@1"
+				},
+				{
+					"command": "darklang.instance.sync",
+					"when": "view == darklangWorkspace && viewItem == remote-instance",
+					"group": "inline@1"
 				}
 			],
-			"view/item/context": [
-				{
-					"command": "darklang.openFullModule",
-					"when": "view == darklangTreeView && viewItem == module",
-					"group": "navigation"
-				}
-			]
+      "editor/title": [
+        {
+          "command": "darklang.switchToAST",
+          "when": "resourceLangId == darklang && darklang.viewMode != 'ast'",
+          "group": "navigation@2"
+        },
+        {
+          "command": "darklang.switchToSource",
+          "when": "resourceLangId == darklang && darklang.viewMode == 'ast'",
+          "group": "navigation@2"
+        }
+      ]
 		},
     "viewsContainers": {
       "activitybar": [
         {
-          "id": "darklangViewContainer",
+          "id": "darklang",
           "title": "Darklang",
-          "icon": "static/logo-dark-transparent-low-margin.svg"
+          "icon": "static/logo-dark-transparent.svg"
         }
       ]
     },
     "views": {
-      "darklangViewContainer": [
+      "darklang": [
         {
-          "id": "darklangTreeView",
-          "name": "tree view of packages",
-          "_todo_when": "workspaceHasFolder"
+          "id": "darklangWorkspace",
+          "name": "Workspace",
+          "visibility": "visible"
+        },
+        {
+          "id": "darklangPackages",
+          "name": "Packages",
+          "visibility": "visible"
         }
       ]
     }

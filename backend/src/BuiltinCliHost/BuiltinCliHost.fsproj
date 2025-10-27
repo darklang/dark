@@ -19,6 +19,7 @@
     <ProjectReference Include="../DvalReprDeveloper/DvalReprDeveloper.fsproj" />
     <ProjectReference Include="../BuiltinExecution/BuiltinExecution.fsproj" />
     <ProjectReference Include="../BuiltinCli/BuiltinCli.fsproj" />
+    <ProjectReference Include="../BuiltinPM/BuiltinPM.fsproj" />
     <ProjectReference Include="../LibPackageManager/LibPackageManager.fsproj" />
   </ItemGroup>
   <Import Project="..\..\.paket\Paket.Restore.targets" />

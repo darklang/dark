@@ -45,7 +45,8 @@ module Config =
       [ BuiltinExecution.Builtin.builtins
           BuiltinExecution.Libs.HttpClient.defaultConfig
           packageManagerPT
-        BuiltinCli.Builtin.builtins ]
+        BuiltinCli.Builtin.builtins
+        BuiltinPM.Builtin.builtins ]
       []
 
 
@@ -110,6 +111,7 @@ let execute
 
 
 let fns : List<BuiltInFn> =
+  // CLEANUP: should these fns take branchID as an argument?
   [ { name = fn "cliParseAndExecuteScript" 0
       typeParams = []
       parameters =
@@ -166,10 +168,12 @@ let fns : List<BuiltInFn> =
                         "Error running runtimeErrorToString"
                         [ "original rte", rte; "nested rte", nestedRte ]
               }
+            let branchIDNone = Dval.option RT.KTUuid None
             let args =
               NEList.ofList
-                (DString "CliScript")
-                [ DString "ScriptName"
+                branchIDNone
+                [ DString "CliScript"
+                  DString "ScriptName"
                   onMissingAllow
                   pm
                   DString filename
@@ -333,10 +337,11 @@ let fns : List<BuiltInFn> =
                         [ "rte", rteString ]
                 }
 
+              let branchIDNone = Dval.option RT.KTUuid None
               let resolveFnArgs =
                 NEList.ofList
-                  onMissingAllow
-                  [ pm; RT.DString "Cli"; currentModule; nameArg ]
+                  branchIDNone
+                  [ onMissingAllow; pm; RT.DString "Cli"; currentModule; nameArg ]
 
               let! execResult =
                 Exe.executeFunction exeState resolveFn [] resolveFnArgs
@@ -360,7 +365,7 @@ let fns : List<BuiltInFn> =
                       | PT.NameResolutionError.InvalidName names ->
                         let nameStr = names |> String.concat "."
                         return Error $"Invalid function name: {nameStr}"
-                  | Error(rte) ->
+                  | Error rte ->
                     return
                       Exception.raiseInternal
                         "Error executing resolve function"
@@ -475,10 +480,12 @@ let fns : List<BuiltInFn> =
                         [ "original rte", rte; "nested rte", nestedRte ]
               }
 
+            let branchIDNone = Dval.option RT.KTUuid None
             let args =
               NEList.ofList
-                (DString "CliScript")
-                [ DString "ExprWrapper"
+                branchIDNone
+                [ DString "CliScript"
+                  DString "ExprWrapper"
                   onMissingAllow
                   pm
                   DString "exprWrapper"

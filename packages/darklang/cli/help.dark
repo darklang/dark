@@ -4,7 +4,9 @@ module Darklang.Cli.Help
 let execute (state: AppState) (args: List<String>) : AppState =
   match args with
   | [] ->
-    Stdlib.printLine (Registry.getCommandList ())
+    Stdlib.printLine (Registry.getDetailedCommandList ())
+    Stdlib.printLine ""
+    Stdlib.printLine "Type 'help <command>' for specific command help."
     updateCoreFields state state.isExiting state.mainPrompt state.needsFullRedraw
   | [commandName] ->
     Registry.executeCommandHelp commandName state

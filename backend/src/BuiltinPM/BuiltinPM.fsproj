@@ -9,13 +9,12 @@
   </PropertyGroup>
   <ItemGroup>
     <None Include="paket.references" />
-    <Compile Include="Libs/Directory.fs" />
-    <Compile Include="Libs/Environment.fs" />
-    <Compile Include="Libs/File.fs" />
-    <Compile Include="Libs/Output.fs" />
-    <Compile Include="Libs/Execution.fs" />
-    <Compile Include="Libs/Stdin.fs" />
-    <Compile Include="Libs/Time.fs" />
+    <Compile Include="Libs/PackageOps.fs" />
+    <Compile Include="Libs/Sync.fs" />
+    <Compile Include="Libs/Instances.fs" />
+    <Compile Include="Libs/Account.fs" />
+    <Compile Include="Libs/Branches.fs" />
+    <Compile Include="Libs/PackageHistory.fs" />
     <Compile Include="Builtin.fs" />
   </ItemGroup>
   <ItemGroup>

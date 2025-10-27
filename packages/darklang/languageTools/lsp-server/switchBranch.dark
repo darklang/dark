@@ -1,0 +1,28 @@
+module Darklang.LanguageTools.LspServer.SwitchBranch
+
+let handleSwitchBranchRequest
+  (state: LspState)
+  (requestId: JsonRPC.RequestId)
+  (branchIdStr: String)
+  : LspState =
+
+  let branchID =
+    if branchIdStr == "main" then
+      Stdlib.Option.Option.None
+    else
+      match Stdlib.Uuid.parse branchIdStr with
+      | Ok uuid -> Stdlib.Option.Option.Some uuid
+      | Error _ -> Stdlib.Option.Option.None
+
+  // Update state with new branch ID
+  let newState = { state with branchID = branchID }
+
+  // Send success response
+  let responseJson =
+    (JsonRPC.Response.Ok.make
+      (Stdlib.Option.Option.Some(requestId))
+      (Json.Object [ ("success", Json.Bool true) ]))
+    |> Stdlib.AltJson.format
+
+  logAndSendToClient responseJson
+  newState

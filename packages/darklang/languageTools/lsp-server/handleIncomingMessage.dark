@@ -259,6 +259,31 @@ let handleIncomingMessage
           Some(Object [ ("nodeId", String nodeId) ])) ->
           TreeView.handleGetChildNodesRequest state requestId nodeId
 
+        | ("darklang/getBranches", Some requestId, None) ->
+          Branches.handleGetBranchesRequest state requestId
+
+        | ("darklang/createBranch",
+          Some requestId,
+          Some(Object [ ("name", String branchName) ])) ->
+          Branches.handleCreateBranchRequest state requestId branchName
+
+        | ("darklang/getPendingOps", Some requestId, _) ->
+          PendingOps.handleGetPendingOpsRequest state requestId
+
+        | ("darklang/switchBranch",
+          Some requestId,
+          Some(Object [ ("branchId", String branchId) ])) ->
+          SwitchBranch.handleSwitchBranchRequest state requestId branchId
+
+        | ("darklang/clearBranch", Some requestId, _) ->
+          Branches.handleClearBranchRequest state requestId
+
+        | ("darklang/sync",
+          Some requestId,
+          Some(Object [ ("instanceId", String instanceId)
+                        ("remoteUrl", String remoteUrl) ])) ->
+          Sync.handleSyncRequest state requestId instanceId remoteUrl
+
         | other ->
           log $"TODO: we don't yet support this method: {r.method}"
           state

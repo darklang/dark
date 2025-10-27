@@ -1,0 +1,39 @@
+module Darklang.SCM.Branch
+
+type BranchState =
+  | Active
+  | Merged
+  | Abandoned
+
+type Branch =
+  { id: Uuid
+    createdBy: Stdlib.Option.Option<Uuid>
+    title: String
+    state: BranchState
+    createdAt: DateTime
+    lastActiveAt: DateTime
+    mergedAt: Stdlib.Option.Option<DateTime> }
+
+
+/// List all active branches
+let list () : List<Branch> = Builtin.scmBranchList ()
+
+/// Get a specific branch by ID
+let get (branchId: Uuid) : Stdlib.Option.Option<Branch> =
+  Builtin.scmBranchGet branchId
+
+/// Find branches by title (may return multiple if titles collide)
+let findByTitle (title: String) : List<Branch> =
+  Builtin.scmBranchFindByTitle title
+
+/// Create a new branch
+let create (createdBy: Stdlib.Option.Option<Uuid>) (title: String) : Branch =
+  Builtin.scmBranchCreate createdBy title
+
+/// Update the last active timestamp for a branch
+let updateLastActive (branchId: Uuid) : Unit =
+  Builtin.scmBranchUpdateLastActive branchId
+
+/// Ensure a 'main' branch exists, creating it if needed
+let ensureMainBranch (createdBy: Stdlib.Option.Option<Uuid>) : Branch =
+  Builtin.scmBranchEnsureMainBranch createdBy

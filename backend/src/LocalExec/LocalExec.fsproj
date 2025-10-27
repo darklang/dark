@@ -23,6 +23,7 @@
 
     <ProjectReference Include="../BuiltinExecution/BuiltinExecution.fsproj" />
     <ProjectReference Include="../BuiltinCli/BuiltinCli.fsproj" />
+    <ProjectReference Include="../BuiltinPM/BuiltinPM.fsproj" />
     <ProjectReference Include="../BuiltinCliHost/BuiltinCliHost.fsproj" />
     <ProjectReference Include="../BuiltinDarkInternal/BuiltinDarkInternal.fsproj" />
     <ProjectReference Include="../BuiltinCloudExecution/BuiltinCloudExecution.fsproj" />
