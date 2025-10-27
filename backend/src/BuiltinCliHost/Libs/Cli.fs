@@ -38,15 +38,14 @@ let scriptType = TCustomType(Ok scriptTypeName, [])
 
 module Config =
   let packageManagerRT = LibPackageManager.PackageManager.rt
-  let packageManagerPT = LibPackageManager.PackageManager.pt
+  let ptPM = LibPackageManager.PackageManager.pt
 
   let builtinsToUse : RT.Builtins =
     LibExecution.Builtin.combine
       [ BuiltinExecution.Builtin.builtins
           BuiltinExecution.Libs.HttpClient.defaultConfig
-          packageManagerPT
         BuiltinCli.Builtin.builtins
-        BuiltinPM.Builtin.builtins ]
+        BuiltinPM.Builtin.builtins ptPM ]
       []
 
 
@@ -111,11 +110,11 @@ let execute
 
 
 let fns : List<BuiltInFn> =
-  // CLEANUP: should these fns take branchID as an argument?
   [ { name = fn "cliParseAndExecuteScript" 0
       typeParams = []
       parameters =
-        [ Param.make "filename" TString ""
+        [ Param.make "branchId" (TypeReference.option TUuid) ""
+          Param.make "filename" TString ""
           Param.make "code" TString ""
           Param.make "args" (TList TString) "" ]
       returnType = TypeReference.result TInt64 ExecutionError.typeRef
@@ -129,7 +128,7 @@ let fns : List<BuiltInFn> =
         | exeState,
           _,
           [],
-          [ DString filename; DString code; DList(_vtTODO, scriptArgs) ] ->
+          [ branchIdDval; DString filename; DString code; DList(_vtTODO, scriptArgs) ] ->
           uply {
             let exnError (e : exn) : RuntimeError.Error =
               RuntimeError.UncaughtException(
@@ -168,10 +167,9 @@ let fns : List<BuiltInFn> =
                         "Error running runtimeErrorToString"
                         [ "original rte", rte; "nested rte", nestedRte ]
               }
-            let branchIDNone = Dval.option RT.KTUuid None
             let args =
               NEList.ofList
-                branchIDNone
+                branchIdDval
                 [ DString "CliScript"
                   DString "ScriptName"
                   onMissingAllow
@@ -249,7 +247,8 @@ let fns : List<BuiltInFn> =
     { name = fn "cliExecuteFunction" 0
       typeParams = []
       parameters =
-        [ Param.make "functionName" TString ""
+        [ Param.make "branchId" (TypeReference.option TUuid) ""
+          Param.make "functionName" TString ""
           Param.make "args" (TList(TCustomType(Ok PT2DT.Expr.typeName, []))) "" ]
       returnType = TypeReference.result TString ExecutionError.typeRef
       description =
@@ -260,7 +259,7 @@ let fns : List<BuiltInFn> =
         let resultError = Dval.resultError KTString errType
 
         function
-        | exeState, _, [], [ DString functionName; DList(_vtTODO, args) ] ->
+        | exeState, _, [], [ branchIdDval; DString functionName; DList(_vtTODO, args) ] ->
           uply {
             let err (msg : string) (metadata : List<string * string>) : Dval =
               let fields =
@@ -337,10 +336,9 @@ let fns : List<BuiltInFn> =
                         [ "rte", rteString ]
                 }
 
-              let branchIDNone = Dval.option RT.KTUuid None
               let resolveFnArgs =
                 NEList.ofList
-                  branchIDNone
+                  branchIdDval
                   [ onMissingAllow; pm; RT.DString "Cli"; currentModule; nameArg ]
 
               let! execResult =
@@ -433,7 +431,9 @@ let fns : List<BuiltInFn> =
 
     { name = fn "cliEvaluateExpression" 0
       typeParams = []
-      parameters = [ Param.make "expression" TString "" ]
+      parameters =
+        [ Param.make "branchId" (TypeReference.option TUuid) ""
+          Param.make "expression" TString "" ]
       returnType = TypeReference.result TString ExecutionError.typeRef
       description = "Evaluates a Dark expression and returns the result as a Strin"
       fn =
@@ -441,7 +441,7 @@ let fns : List<BuiltInFn> =
         let resultOk = Dval.resultOk KTString errType
         let resultError = Dval.resultError KTString errType
         (function
-        | exeState, _, [], [ DString expression ] ->
+        | exeState, _, [], [ branchIdDval; DString expression ] ->
           uply {
             let exnError (e : exn) : RuntimeError.Error =
               RuntimeError.UncaughtException(
@@ -480,10 +480,9 @@ let fns : List<BuiltInFn> =
                         [ "original rte", rte; "nested rte", nestedRte ]
               }
 
-            let branchIDNone = Dval.option RT.KTUuid None
             let args =
               NEList.ofList
-                branchIDNone
+                branchIdDval
                 [ DString "CliScript"
                   DString "ExprWrapper"
                   onMissingAllow

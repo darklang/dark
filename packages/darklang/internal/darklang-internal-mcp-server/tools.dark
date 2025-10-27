@@ -8,7 +8,7 @@ let executeDarklang () : ModelContextProtocol.ServerBuilder.Tool =
     description = "Execute Darklang code and return the result"
     handler =
       fun code ->
-        match Builtin.cliEvaluateExpression code with
+        match Builtin.cliEvaluateExpression Stdlib.Option.Option.None code with
         | Ok result -> $"Result: {result}"
         | Error err ->
             let prettyError = PrettyPrinter.RuntimeTypes.RuntimeError.toString err
