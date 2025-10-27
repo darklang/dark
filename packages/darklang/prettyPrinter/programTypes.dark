@@ -889,7 +889,7 @@ let packageValue
   (p: LanguageTools.ProgramTypes.PackageValue.PackageValue)
   : String =
   let namePart = PrettyPrinter.ProgramTypes.FQValueName.Package.atDefinition branchID p.id
-  let bodyPart = PrettyPrinter.ProgramTypes.expr p.body
+  let bodyPart = PrettyPrinter.ProgramTypes.expr defaultContext p.body
   $"val {namePart} = {bodyPart}"
 
 
@@ -941,7 +941,7 @@ let packageFn
     |> Stdlib.List.fold Stdlib.Dict.empty (fun acc (name, idx) ->
       Stdlib.Dict.set acc name idx)
 
-  let context = Context { currentModule = defaultContext.currentModule; currentFunction = Stdlib.Option.Option.Some p.name.name; argMap = argMap }
+  let context = Context { currentModule = defaultContext.currentModule; currentFunction = Stdlib.Option.Option.Some namePart; argMap = argMap }
   let bodyPart = PrettyPrinter.ProgramTypes.expr context p.body
 
   $"let {namePart}{typeParamPart} {paramPart}: {retPart} =\n{PrettyPrinter.indent bodyPart}"

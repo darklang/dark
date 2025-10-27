@@ -411,7 +411,7 @@ module Expr =
       match pipeExpr with
       | EPipeInfix(_, (_, infix), right) ->
         let (right, unresolvedNames) =
-          Expr.toPT branchID onMissing pm owner currentModule right
+          Expr.toPT branchID onMissing pm owner currentModule context right
 
         (ProgramTypes.PipeExpr.EPipeInfix(gid (), Infix.toPT infix, right),
           unresolvedNames)
@@ -420,7 +420,7 @@ module Expr =
         // Start with a clean argMap to prevent lambda params from being converted to EArg
         let lambdaContext = Context { currentFnName = context.currentFnName; argMap = Stdlib.Dict.empty }
         let (body, unresolvedNames) =
-          Expr.toPT branchID onMissing pm owner currentModule body
+          Expr.toPT branchID onMissing pm owner currentModule lambdaContext body
 
         let pats = Stdlib.List.map pats (fun p ->
           let (_, pat) = LetPattern.toPT lambdaContext p
@@ -441,7 +441,7 @@ module Expr =
         let (fields, fieldsUnresolvedNames) =
           fields
           |> Stdlib.List.map (fun e ->
-            Expr.toPT branchID onMissing pm owner currentModule e)
+            Expr.toPT branchID onMissing pm owner currentModule context e)
           |> Stdlib.List.unzip
 
         let unresolvedNames =
@@ -466,7 +466,7 @@ module Expr =
         let (args, argsUnresolvedNames) =
           args
           |> Stdlib.List.map (fun a ->
-            Expr.toPT branchID onMissing pm owner currentModule a)
+            Expr.toPT branchID onMissing pm owner currentModule context a)
           |> Stdlib.List.unzip
 
         let unresolvedNames =
@@ -484,7 +484,7 @@ module Expr =
             | Some fnName when fn.fn.name == fnName ->
               // This is a recursive call - resolve as function
               let (fnName, _fnUnresolvedNames) =
-                Identifiers.QualifiedFn.toPT onMissing pm owner currentModule fn
+                Identifiers.QualifiedFn.toPT branchID onMissing pm owner currentModule fn
 
               match fnName with
               | Ok _ ->
@@ -507,7 +507,7 @@ module Expr =
         else
           // Qualified call - resolve as function
           let (fnName, _fnUnresolvedNames) =
-            Identifiers.QualifiedFn.toPT onMissing pm owner currentModule fn
+            Identifiers.QualifiedFn.toPT branchID onMissing pm owner currentModule fn
 
           match fnName with
           | Ok _ ->
@@ -555,7 +555,7 @@ module Expr =
           | StringText(_, s) -> (ProgramTypes.StringSegment.StringText s, [])
           | StringInterpolation(_, expr, _, _) ->
             let (expr, unresolvedNames) =
-              Expr.toPT branchID onMissing pm owner currentModule expr
+              Expr.toPT branchID onMissing pm owner currentModule context expr
 
             (ProgramTypes.StringSegment.StringInterpolation(expr),
               unresolvedNames))
@@ -572,7 +572,7 @@ module Expr =
     | EList(_, contents, _, _) ->
       let (contents, unresolvedNames) =
         (Stdlib.List.map contents (fun (expr, _) ->
-          toPT branchID onMissing pm owner currentModule expr))
+          toPT branchID onMissing pm owner currentModule context expr))
         |> Stdlib.List.unzip
 
       (ProgramTypes.Expr.EList(gid (), contents),
@@ -582,7 +582,7 @@ module Expr =
       let (contents, unresolvedNames) =
         (Stdlib.List.map contents (fun (_, k, v) ->
           let (_, k) = k
-          let (v, unresolvedNames) = toPT branchID onMissing pm owner currentModule v
+          let (v, unresolvedNames) = toPT branchID onMissing pm owner currentModule context v
           ((k, v), unresolvedNames)))
         |> Stdlib.List.unzip
 
@@ -591,15 +591,15 @@ module Expr =
 
     | ETuple(_, first, _, second, rest, _, _) ->
       let (first, fstUnresolvedNames) =
-        toPT branchID onMissing pm owner currentModule first
+        toPT branchID onMissing pm owner currentModule context first
 
       let (second, sndUnresolvedNames) =
-        toPT branchID onMissing pm owner currentModule second
+        toPT branchID onMissing pm owner currentModule context second
 
       let (rest, restUnresolvedNames) =
         rest
         |> Stdlib.List.map (fun (_, e) ->
-          toPT branchID onMissing pm owner currentModule e)
+          toPT branchID onMissing pm owner currentModule context e)
         |> Stdlib.List.unzip
 
       let unresolvedNames =
@@ -622,13 +622,13 @@ module Expr =
 
       let (fields, unresolvedNames) =
         fields
-        |> Stdlib.List.map (fun (_, name, typeName) ->
+        |> Stdlib.List.map (fun (_, name, expr) ->
           let fieldName = name |> Stdlib.Tuple2.second
 
-          let (typeName, unresolvedNames) =
-            toPT branchID onMissing pm owner currentModule typeName
+          let (expr, unresolvedNames) =
+            toPT branchID onMissing pm owner currentModule context expr
 
-          ((fieldName, typeName), unresolvedNames))
+          ((fieldName, expr), unresolvedNames))
         |> Stdlib.List.unzip
 
       let unresolvedNames =
@@ -641,7 +641,7 @@ module Expr =
 
     | ERecordUpdate(_, record, updates, _, _, _) ->
       let (record, recUnresolvedNames) =
-        toPT branchID onMissing pm owner currentModule record
+        toPT branchID onMissing pm owner currentModule context record
 
       let (updates, updUnresolvedNames) =
         updates
@@ -649,7 +649,7 @@ module Expr =
           let name = name |> Stdlib.Tuple2.second
 
           let (expr, unresolvedNames) =
-            toPT branchID onMissing pm owner currentModule expr
+            toPT branchID onMissing pm owner currentModule context expr
 
           ((name, expr), unresolvedNames))
         |> Stdlib.List.unzip
@@ -674,7 +674,7 @@ module Expr =
       let (fields, fieldsUnresolvedNames) =
         fields
         |> Stdlib.List.map (fun expr ->
-          toPT branchID onMissing pm owner currentModule expr)
+          toPT branchID onMissing pm owner currentModule context expr)
         |> Stdlib.List.unzip
 
       let unresolvedNames =
@@ -687,10 +687,13 @@ module Expr =
 
     // declaring and accessing variables
     | ELet(_, pat, rhs, body, _, _) ->
-      let (rhs, rhsUnresolvedNames) = toPT branchID onMissing pm owner currentModule rhs
+      let (rhs, rhsUnresolvedNames) = toPT branchID onMissing pm owner currentModule context rhs
+
+      // Get the new context from LetPattern processing
+      let (bodyContext, ptPattern) = LetPattern.toPT context pat
 
       let (body, bodyUnresolvedNames) =
-        toPT branchID onMissing pm owner currentModule body
+        toPT branchID onMissing pm owner currentModule bodyContext body
 
       let unresolvedNames =
         Stdlib.List.flatten [ rhsUnresolvedNames; bodyUnresolvedNames ]
@@ -704,16 +707,14 @@ module Expr =
       | Some index -> (ProgramTypes.Expr.EArg(gid (), index), [])
       | None ->
         let unresolved = WrittenTypes.Name.Unresolved(range, [ var ])
-
-      let value =
-        NameResolver.ValueName.resolve
-          branchID
-          onMissing
-          pm
-          owner
-          currentModule
-          unresolved
-
+        let value =
+          NameResolver.ValueName.resolve
+            branchID
+            onMissing
+            pm
+            owner
+            currentModule
+            unresolved
         match value with
         | Ok _ -> (ProgramTypes.Expr.EValue(gid (), value), [])
         | Error _ -> (ProgramTypes.Expr.EVariable (gid ()) var, [])
@@ -733,22 +734,22 @@ module Expr =
           unresolvedNames)
 
     | ERecordFieldAccess(_, expr, (_, fieldName), _) ->
-      let (expr, unresolvedNames) = toPT branchID onMissing pm owner currentModule expr
+      let (expr, unresolvedNames) = toPT branchID onMissing pm owner currentModule context expr
 
       (ProgramTypes.Expr.ERecordFieldAccess(gid (), expr, fieldName), unresolvedNames)
 
     | EIf(_, cond, thenExpr, elseExpr, _, _, _) ->
       let (cond, condUnresolvedNames) =
-        toPT branchID onMissing pm owner currentModule cond
+        toPT branchID onMissing pm owner currentModule context cond
 
       let (thenExpr, thenUnresolvedNames) =
-        toPT branchID onMissing pm owner currentModule thenExpr
+        toPT branchID onMissing pm owner currentModule context thenExpr
 
       let (elseExpr, elseUnresolvedNames) =
         match elseExpr with
         | None -> (Stdlib.Option.Option.None, [])
         | Some e ->
-          let (e, unresolvedNames) = toPT branchID onMissing pm owner currentModule e
+          let (e, unresolvedNames) = toPT branchID onMissing pm owner currentModule context e
 
           (Stdlib.Option.Option.Some e, unresolvedNames)
 
@@ -778,12 +779,12 @@ module Expr =
               let (_, e) = e
 
               let (e, unresolvedNames) =
-                toPT branchID onMissing pm owner currentModule e
+                toPT branchID onMissing pm owner currentModule context e
 
               (Stdlib.Option.Option.Some e, unresolvedNames)
 
           let (rhs, rhsUnresolvedNames) =
-            toPT branchID onMissing pm owner currentModule case.rhs
+            toPT branchID onMissing pm owner currentModule context case.rhs
 
           let matchCasesUnresolvedNames =
             Stdlib.List.flatten [ whenUnresolvedNames; rhsUnresolvedNames ]
@@ -796,7 +797,7 @@ module Expr =
         |> Stdlib.List.unzip
 
       let (expr, exprUnresolvedNames) =
-        toPT branchID onMissing pm owner currentModule expr
+        toPT branchID onMissing pm owner currentModule context expr
 
       let unresolvedNames =
         Stdlib.List.flatten
@@ -808,11 +809,11 @@ module Expr =
       let (pipeExpr, pExprUnresolvedNames) =
         pipeExpr
         |> Stdlib.List.map (fun (_, e) ->
-          PipeExpr.toPT branchID onMissing pm owner currentModule e)
+          PipeExpr.toPT branchID onMissing pm owner currentModule context e)
         |> Stdlib.List.unzip
 
       let (expr, exprUnresolvedNames) =
-        toPT branchID onMissing pm owner currentModule expr
+        toPT branchID onMissing pm owner currentModule context expr
 
       let unresolvedNames =
         Stdlib.List.flatten
@@ -825,10 +826,10 @@ module Expr =
       let infix = Infix.toPT op
 
       let (left, lefstUnresolvedNames) =
-        toPT branchID onMissing pm owner currentModule left
+        toPT branchID onMissing pm owner currentModule context left
 
       let (right, rightUnresolvedNames) =
-        toPT branchID onMissing pm owner currentModule right
+        toPT branchID onMissing pm owner currentModule context right
 
       let unresolvedNames =
         Stdlib.List.flatten [ lefstUnresolvedNames; rightUnresolvedNames ]
@@ -845,12 +846,12 @@ module Expr =
           (newCtx, Stdlib.List.append acc [ ptPattern ]))
 
       let (body, unresolvedNames) =
-        Expr.toPT branchID onMissing pm owner currentModule body
+        Expr.toPT branchID onMissing pm owner currentModule finalContext body
 
       (ProgramTypes.Expr.ELambda(gid (), pats, body), unresolvedNames)
 
     | EFnName(_, fnName) ->
-      let (fnName, unresolvedNames) =
+      let (resolvedFnName, unresolvedNames) =
         Identifiers.QualifiedFn.toPT branchID onMissing pm owner currentModule fnName
 
       match resolvedFnName with
@@ -887,17 +888,17 @@ module Expr =
 
             (ProgramTypes.Expr.EApply(gid (), ProgramTypes.Expr.ESelf(gid ()), typeArgs, args), unresolvedNames)
           | _ ->
-            let (fn, fnUnresolvedNames) = toPT onMissing pm owner currentModule context fn
+            let (fn, fnUnresolvedNames) = toPT branchID onMissing pm owner currentModule context fn
 
             let (typeArgs, tpUnresolvedNames) =
               typeArgs
               |> Stdlib.List.map (fun t ->
-                TypeReference.toPT onMissing pm owner currentModule t)
+                TypeReference.toPT branchID onMissing pm owner currentModule t)
               |> Stdlib.List.unzip
 
             let (args, argsUnresolvedNames) =
               args
-              |> Stdlib.List.map (fun a -> toPT onMissing pm owner currentModule context a)
+              |> Stdlib.List.map (fun a -> toPT branchID onMissing pm owner currentModule context a)
               |> Stdlib.List.unzip
 
             let unresolvedNames =
@@ -909,17 +910,17 @@ module Expr =
             (ProgramTypes.Expr.EApply(gid (), fn, typeArgs, args), unresolvedNames)
         | None ->
           // No self context, process normally
-          let (fn, fnUnresolvedNames) = toPT onMissing pm owner currentModule context fn
+          let (fn, fnUnresolvedNames) = toPT branchID onMissing pm owner currentModule context fn
 
           let (typeArgs, tpUnresolvedNames) =
             typeArgs
             |> Stdlib.List.map (fun t ->
-              TypeReference.toPT onMissing pm owner currentModule t)
+              TypeReference.toPT branchID onMissing pm owner currentModule t)
             |> Stdlib.List.unzip
 
           let (args, argsUnresolvedNames) =
             args
-            |> Stdlib.List.map (fun a -> toPT onMissing pm owner currentModule context a)
+            |> Stdlib.List.map (fun a -> toPT branchID onMissing pm owner currentModule context a)
             |> Stdlib.List.unzip
 
           let unresolvedNames =
@@ -955,12 +956,12 @@ module Expr =
             let (typeArgs, tpUnresolvedNames) =
               typeArgs
               |> Stdlib.List.map (fun t ->
-                TypeReference.toPT onMissing pm owner currentModule t)
+                TypeReference.toPT branchID onMissing pm owner currentModule t)
               |> Stdlib.List.unzip
 
             let (args, argsUnresolvedNames) =
               args
-              |> Stdlib.List.map (fun a -> toPT onMissing pm owner currentModule context a)
+              |> Stdlib.List.map (fun a -> toPT branchID onMissing pm owner currentModule context a)
               |> Stdlib.List.unzip
 
             let unresolvedNames =
@@ -970,17 +971,17 @@ module Expr =
 
             (ProgramTypes.Expr.EApply(gid (), ProgramTypes.Expr.ESelf(gid ()), typeArgs, args), unresolvedNames)
           else
-            let (fn, fnUnresolvedNames) = toPT onMissing pm owner currentModule context fn
+            let (fn, fnUnresolvedNames) = toPT branchID onMissing pm owner currentModule context fn
 
             let (typeArgs, tpUnresolvedNames) =
               typeArgs
               |> Stdlib.List.map (fun t ->
-                TypeReference.toPT onMissing pm owner currentModule t)
+                TypeReference.toPT branchID onMissing pm owner currentModule t)
               |> Stdlib.List.unzip
 
             let (args, argsUnresolvedNames) =
               args
-              |> Stdlib.List.map (fun a -> toPT onMissing pm owner currentModule context a)
+              |> Stdlib.List.map (fun a -> toPT branchID onMissing pm owner currentModule context a)
               |> Stdlib.List.unzip
 
             let unresolvedNames =
@@ -995,13 +996,13 @@ module Expr =
           | EFnName(_, fnName) when Stdlib.List.isEmpty fnName.modules ->
             let (args, argsUnresolvedNames) =
               args
-              |> Stdlib.List.map (fun a -> toPT onMissing pm owner currentModule context a)
+              |> Stdlib.List.map (fun a -> toPT branchID onMissing pm owner currentModule context a)
               |> Stdlib.List.unzip
 
             let (typeArgs, tpUnresolvedNames) =
               typeArgs
               |> Stdlib.List.map (fun t ->
-                TypeReference.toPT onMissing pm owner currentModule t)
+                TypeReference.toPT branchID onMissing pm owner currentModule t)
               |> Stdlib.List.unzip
 
             let unresolvedNames =
@@ -1011,17 +1012,17 @@ module Expr =
 
             (ProgramTypes.Expr.EApply(gid (), ProgramTypes.Expr.EVariable(gid (), fnName.fn.name), typeArgs, args), unresolvedNames)
           | _ ->
-            let (fn, fnUnresolvedNames) = toPT onMissing pm owner currentModule context fn
+            let (fn, fnUnresolvedNames) = toPT branchID onMissing pm owner currentModule context fn
 
             let (typeArgs, tpUnresolvedNames) =
               typeArgs
               |> Stdlib.List.map (fun t ->
-                TypeReference.toPT onMissing pm owner currentModule t)
+                TypeReference.toPT branchID onMissing pm owner currentModule t)
               |> Stdlib.List.unzip
 
             let (args, argsUnresolvedNames) =
               args
-              |> Stdlib.List.map (fun a -> toPT onMissing pm owner currentModule context a)
+              |> Stdlib.List.map (fun a -> toPT branchID onMissing pm owner currentModule context a)
               |> Stdlib.List.unzip
 
             let unresolvedNames =
@@ -1044,12 +1045,12 @@ module Expr =
             let (typeArgs, tpUnresolvedNames) =
               typeArgs
               |> Stdlib.List.map (fun t ->
-                TypeReference.toPT onMissing pm owner currentModule t)
+                TypeReference.toPT branchID onMissing pm owner currentModule t)
               |> Stdlib.List.unzip
 
             let (args, argsUnresolvedNames) =
               args
-              |> Stdlib.List.map (fun a -> toPT onMissing pm owner currentModule context a)
+              |> Stdlib.List.map (fun a -> toPT branchID onMissing pm owner currentModule context a)
               |> Stdlib.List.unzip
 
             let unresolvedNames =
@@ -1059,17 +1060,17 @@ module Expr =
 
             (ProgramTypes.Expr.EApply(gid (), ProgramTypes.Expr.ESelf(gid ()), typeArgs, args), unresolvedNames)
           else
-            let (fn, fnUnresolvedNames) = toPT onMissing pm owner currentModule context fn
+            let (fn, fnUnresolvedNames) = toPT branchID onMissing pm owner currentModule context fn
 
             let (typeArgs, tpUnresolvedNames) =
               typeArgs
               |> Stdlib.List.map (fun t ->
-                TypeReference.toPT onMissing pm owner currentModule t)
+                TypeReference.toPT branchID onMissing pm owner currentModule t)
               |> Stdlib.List.unzip
 
             let (args, argsUnresolvedNames) =
               args
-              |> Stdlib.List.map (fun a -> toPT onMissing pm owner currentModule context a)
+              |> Stdlib.List.map (fun a -> toPT branchID onMissing pm owner currentModule context a)
               |> Stdlib.List.unzip
 
             let unresolvedNames =
@@ -1080,17 +1081,17 @@ module Expr =
 
             (ProgramTypes.Expr.EApply(gid (), fn, typeArgs, args), unresolvedNames)
         | None ->
-          let (fn, fnUnresolvedNames) = toPT onMissing pm owner currentModule context fn
+          let (fn, fnUnresolvedNames) = toPT branchID onMissing pm owner currentModule context fn
 
           let (typeArgs, tpUnresolvedNames) =
             typeArgs
             |> Stdlib.List.map (fun t ->
-              TypeReference.toPT onMissing pm owner currentModule t)
+              TypeReference.toPT branchID onMissing pm owner currentModule t)
             |> Stdlib.List.unzip
 
           let (args, argsUnresolvedNames) =
             args
-            |> Stdlib.List.map (fun a -> toPT onMissing pm owner currentModule context a)
+            |> Stdlib.List.map (fun a -> toPT branchID onMissing pm owner currentModule context a)
             |> Stdlib.List.unzip
 
           let unresolvedNames =
@@ -1101,17 +1102,17 @@ module Expr =
 
           (ProgramTypes.Expr.EApply(gid (), fn, typeArgs, args), unresolvedNames)
       | _ ->
-        let (fn, fnUnresolvedNames) = toPT onMissing pm owner currentModule context fn
+        let (fn, fnUnresolvedNames) = toPT branchID onMissing pm owner currentModule context fn
 
         let (typeArgs, tpUnresolvedNames) =
           typeArgs
           |> Stdlib.List.map (fun t ->
-            TypeReference.toPT onMissing pm owner currentModule t)
+            TypeReference.toPT branchID onMissing pm owner currentModule t)
           |> Stdlib.List.unzip
 
         let (args, argsUnresolvedNames) =
           args
-          |> Stdlib.List.map (fun a -> toPT onMissing pm owner currentModule context a)
+          |> Stdlib.List.map (fun a -> toPT branchID onMissing pm owner currentModule context a)
           |> Stdlib.List.unzip
 
         let unresolvedNames =
@@ -1123,9 +1124,9 @@ module Expr =
         (ProgramTypes.Expr.EApply(gid (), fn, typeArgs, args), unresolvedNames)
 
     | EStatement (_, first, next) ->
-      let (first, firstUnresolvedNames) = toPT branchID onMissing pm owner currentModule first
+      let (first, firstUnresolvedNames) = toPT branchID onMissing pm owner currentModule context first
 
-      let (next, nextUnresolvedNames) = toPT branchID onMissing pm owner currentModule next
+      let (next, nextUnresolvedNames) = toPT branchID onMissing pm owner currentModule context next
 
       let unresolvedNames =
         Stdlib.List.flatten [ firstUnresolvedNames; nextUnresolvedNames ]
@@ -1208,8 +1209,9 @@ module ModuleDeclaration =
       |> Stdlib.List.filterMap (fun d ->
         match d with
         | Expr e ->
+          let context = Context { currentFnName = Stdlib.Option.Option.None; argMap = Stdlib.Dict.empty }
           let (expr, exprUnresolvedNames) =
-            Expr.toPT branchID onMissing pm owner modules e
+            Expr.toPT branchID onMissing pm owner modules context e
 
           let modules = Stdlib.List.push modules owner
           Stdlib.Option.Option.Some(((expr, modules), exprUnresolvedNames))
@@ -1310,7 +1312,7 @@ module ModuleDeclaration =
         match d with
         | Expr e ->
           let (expr, unresolvedNames) =
-            Expr.toPT branchID onMissing pm owner currentModule e
+            Expr.toPT branchID onMissing pm owner currentModule (Context { currentFnName = Stdlib.Option.Option.None; argMap = Stdlib.Dict.empty }) e
 
           Stdlib.Option.Option.Some(((expr, [ owner ]), unresolvedNames))
         | _ -> Stdlib.Option.Option.None)
@@ -1514,7 +1516,7 @@ module ValueDeclaration =
     : (ProgramTypes.PackageValue.PackageValue *
       List<Parser.Range * ProgramTypes.NameResolutionError>)
     =
-    let (body, unresolvedNames) = Expr.toPT branchID onMissing pm owner modules d.body
+    let (body, unresolvedNames) = Expr.toPT branchID onMissing pm owner modules (Context { currentFnName = Stdlib.Option.Option.None; argMap = Stdlib.Dict.empty }) d.body
 
     (ProgramTypes.PackageValue.PackageValue
       { id = Stdlib.Uuid.generate ()
@@ -1722,8 +1724,9 @@ let moduleDeclarationWithOpsHelper
     |> Stdlib.List.filterMap (fun d ->
       match d with
       | Expr e ->
+        let context = Context { currentFnName = Stdlib.Option.Option.None; argMap = Stdlib.Dict.empty }
         let (expr, unresolvedNames) =
-          Expr.toPT branchID NameResolver.OnMissing.Allow pm owner modules e
+          Expr.toPT branchID NameResolver.OnMissing.Allow pm owner modules context e
 
         Stdlib.Option.Option.Some(((expr, modules), unresolvedNames))
       | _ -> Stdlib.Option.Option.None)

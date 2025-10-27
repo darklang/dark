@@ -75,7 +75,6 @@ let parseAndPrettyPrint
   : Stdlib.Result.Result<String, String> =
   match code |> TestParsing.parsePTSourceFile branchID with
   | Ok sourceFile ->
-    sourceFile
-    |> PrettyPrinter.ProgramTypes.sourceFile
+    (PrettyPrinter.ProgramTypes.sourceFile branchID sourceFile)
     |> Stdlib.Result.Result.Ok
   | Error e -> Stdlib.Result.Result.Error e

@@ -1,25 +1,26 @@
 module Darklang.PrettyPrinter.ProgramTypes
 
 let sourceFile
+  (branchID: Stdlib.Option.Option<Uuid>)
   (source: LanguageTools.ProgramTypes.SourceFile.SourceFile)
   : String =
   let declsPart =
     (Stdlib.List.fold source.declarations [] (fun acc decl ->
       match decl with
       | Module moduleDecl ->
-        let prettyPrinted = PrettyPrinter.definitions moduleDecl
+        let prettyPrinted = PrettyPrinter.definitions branchID moduleDecl
         acc |> Stdlib.List.push prettyPrinted
 
       | Type typeDecl ->
-        let prettyPrinted = PrettyPrinter.ProgramTypes.packageType typeDecl
+        let prettyPrinted = PrettyPrinter.ProgramTypes.packageType branchID typeDecl
         acc |> Stdlib.List.push prettyPrinted
 
       | Value valDecl ->
-        let prettyPrinted = PrettyPrinter.ProgramTypes.packageValue valDecl
+        let prettyPrinted = PrettyPrinter.ProgramTypes.packageValue branchID valDecl
         acc |> Stdlib.List.push prettyPrinted
 
       | Function fnDecl ->
-        let prettyPrinted = PrettyPrinter.ProgramTypes.packageFn fnDecl
+        let prettyPrinted = PrettyPrinter.ProgramTypes.packageFn branchID fnDecl
         acc |> Stdlib.List.push prettyPrinted))
     |> Stdlib.List.reverse
 
