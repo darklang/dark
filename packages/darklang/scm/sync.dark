@@ -147,52 +147,56 @@ let sync
           Stdlib.Result.Result.Error "Failed to parse pulled ops JSON"
 
         | Ok pulledOps ->
-          let pulledCount = Stdlib.List.length pulledOps
+          let fetchedCount = Stdlib.List.length pulledOps
 
-          // Add pulled ops to local database in batches
-          if pulledCount > 0L then
-            let batchSize = 100L
+          // Add pulled ops to local database in batches, tracking how many were actually new
+          let appliedCount =
+            if fetchedCount > 0L then
+              let batchSize = 100L
 
-            let batches =
-              match Stdlib.List.chunkBySize pulledOps batchSize with
-              | Ok chunks -> chunks
-              | Error _ -> [ pulledOps ] // Fallback to single batch if chunking fails
+              let batches =
+                match Stdlib.List.chunkBySize pulledOps batchSize with
+                | Ok chunks -> chunks
+                | Error _ -> [ pulledOps ] // Fallback to single batch if chunking fails
 
-            let batchCount = Stdlib.List.length batches
-            let pulledCountStr = Stdlib.Int64.toString pulledCount
-            let batchCountStr = Stdlib.Int64.toString batchCount
+              let batchCount = Stdlib.List.length batches
+              let fetchedCountStr = Stdlib.Int64.toString fetchedCount
+              let batchCountStr = Stdlib.Int64.toString batchCount
 
-            Builtin.printLine
-              $"Applying {pulledCountStr} pulled ops in {batchCountStr} batches..."
+              Builtin.printLine
+                $"Applying {fetchedCountStr} pulled ops in {batchCountStr} batches..."
 
-            let _ =
-              Stdlib.List.fold
-                batches
-                0L
-                (fun index batch ->
-                  let batchNum = index + 1L
-                  let batchNumStr = Stdlib.Int64.toString batchNum
-                  let batchCountStr = Stdlib.Int64.toString batchCount
-                  let batchOpsCount = Stdlib.List.length batch
-                  let batchOpsCountStr = Stdlib.Int64.toString batchOpsCount
+              let (_, totalApplied) =
+                Stdlib.List.fold
+                  batches
+                  (0L, 0L)
+                  (fun acc batch ->
+                    let (index, appliedSoFar) = acc
+                    let batchNum = index + 1L
+                    let batchNumStr = Stdlib.Int64.toString batchNum
+                    let batchCountStr = Stdlib.Int64.toString batchCount
+                    let batchOpsCount = Stdlib.List.length batch
+                    let batchOpsCountStr = Stdlib.Int64.toString batchOpsCount
 
-                  Builtin.printLine
-                    $"  Applying batch {batchNumStr}/{batchCountStr} ({batchOpsCountStr} ops)..."
+                    Builtin.printLine
+                      $"  Applying batch {batchNumStr}/{batchCountStr} ({batchOpsCountStr} ops)..."
 
-                  Builtin.scmAddOps branchId batch
+                    let batchApplied = Builtin.scmAddOps branchId batch
 
-                  index + 1L)
+                    (index + 1L, appliedSoFar + batchApplied))
 
-            ()
+              totalApplied
+            else
+              0L
 
-          // Record the sync
-          Builtin.scmRecordSync instanceId pushedCount pulledCount
+          // Record the sync with actual applied count (not fetched count)
+          Builtin.scmRecordSync instanceId pushedCount appliedCount
 
           let pushedStr = Stdlib.Int64.toString pushedCount
-          let pulledStr = Stdlib.Int64.toString pulledCount
+          let appliedStr = Stdlib.Int64.toString appliedCount
 
           Stdlib.Result.Result.Ok
-            $"Sync complete: pushed {pushedStr} ops, pulled {pulledStr} ops"
+            $"Sync complete: pushed {pushedStr} ops, pulled {appliedStr} ops"
 
       else
         let errorBody = Stdlib.String.fromBytesWithReplacement response.body

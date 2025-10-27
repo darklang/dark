@@ -17,15 +17,30 @@ open Fumble
 open LibDB.Db
 
 
+/// Compute a content-addressed ID for a PackageOp by hashing its serialized content
+let computeOpHash (op : PT.PackageOp) : System.Guid =
+  use memoryStream = new System.IO.MemoryStream()
+  use binaryWriter = new System.IO.BinaryWriter(memoryStream)
+
+  // Serialize just the op content (without an ID)
+  LibBinarySerialization.Serializers.PT.PackageOp.write binaryWriter op
+
+  let opBytes = memoryStream.ToArray()
+  let hashBytes = System.Security.Cryptography.SHA256.HashData(opBytes)
+
+  // Take first 16 bytes to make a UUID
+  System.Guid(hashBytes[0..15])
+
+
 let fns : List<BuiltInFn> =
   [ { name = fn "scmAddOps" 0
       typeParams = []
       parameters =
         [ Param.make "branchId" (TypeReference.option TUuid) ""
           Param.make "ops" (TList(TVariable "packageOp")) "" ]
-      returnType = TUnit
+      returnType = TInt64
       description =
-        "Add package ops to the database and apply them to projections. branchId None = main branch, Some = specific branch"
+        "Add package ops to the database and apply them to projections. Returns count of actually inserted ops (skips duplicates). branchId None = main branch, Some = specific branch"
       fn =
         function
         | _, _, _, [ branchIdOpt; DList(_vtTODO, ops) ] ->
@@ -39,15 +54,20 @@ let fns : List<BuiltInFn> =
             let ptOps =
               ops |> List.choose (fun opDval -> PT2DT.PackageOp.fromDT opDval)
 
+            // Track how many ops were actually inserted (vs skipped as duplicates)
+            let mutable insertedCount = 0
+
             // Serialize, insert, and playback each op
             for op in ptOps do
-              let opId = System.Guid.NewGuid()
+              // Use content-addressed hash as the ID
+              let opId = computeOpHash op
               let opBlob = BinarySerialization.PT.PackageOp.serialize opId op
 
-              do!
+              // INSERT OR IGNORE - if hash already exists, skip it (deduplication)
+              let! rowsAffected =
                 Sql.query
                   """
-                  INSERT INTO package_ops (id, branch_id, op_blob, created_at)
+                  INSERT OR IGNORE INTO package_ops (id, branch_id, op_blob, created_at)
                   VALUES (@id, @branch_id, @op_blob, @created_at)
                   """
                 |> Sql.parameters
@@ -59,12 +79,13 @@ let fns : List<BuiltInFn> =
                     "op_blob", Sql.bytes opBlob
                     "created_at", Sql.string (System.DateTime.UtcNow.ToString("o")) ]
                 |> Sql.executeNonQueryAsync
-                |> Task.map (fun _ -> ())
 
-              // Trigger op playback to update the projections
-              do! LibPackageManager.PackageOpPlayback.applyOp branchId op
+              // Only apply op if it was actually inserted (not a duplicate)
+              if rowsAffected > 0 then
+                insertedCount <- insertedCount + 1
+                do! LibPackageManager.PackageOpPlayback.applyOp branchId op
 
-            return DUnit
+            return DInt64(int64 insertedCount)
           }
         | _ -> incorrectArgs ()
       sqlSpec = NotQueryable
