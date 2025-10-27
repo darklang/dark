@@ -55,8 +55,6 @@
 
     <Compile Include="Libs/Reflection.fs" />
 
-    <Compile Include="Libs/Packages.fs" />
-
     <Compile Include="Builtin.fs" />
   </ItemGroup>
   <ItemGroup>

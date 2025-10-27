@@ -4,6 +4,7 @@ open Prelude
 open LibExecution.RuntimeTypes
 
 module Builtin = LibExecution.Builtin
+module PT = LibExecution.ProgramTypes
 
 
 let fnRenames : Builtin.FnRenames =
@@ -11,12 +12,13 @@ let fnRenames : Builtin.FnRenames =
   // eg: fn "Http" "respond" 0, fn "Http" "response" 0
   []
 
-let builtins =
+let builtins (pm : PT.PackageManager) : Builtins =
   Builtin.combine
     [ Libs.PackageOps.builtins
       Libs.Sync.builtins
       Libs.Instances.builtins
       Libs.Account.builtins
       Libs.Branches.builtins
-      Libs.PackageHistory.builtins ]
+      Libs.PackageHistory.builtins
+      Libs.Packages.builtins pm ]
     fnRenames

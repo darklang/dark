@@ -150,11 +150,11 @@ let fns : List<BuiltInFn> =
                         "console.warn"
                         [ string metadata; string e ]) }
 
+            let ptPM = PT.PackageManager.empty
             let builtin =
               LibExecution.Builtin.combine
-                [ BuiltinExecution.Builtin.builtins
-                    httpConfig
-                    PT.PackageManager.empty ]
+                [ BuiltinExecution.Builtin.builtins httpConfig
+                  BuiltinPM.Builtin.builtins ptPM ]
                 []
 
             let! result =

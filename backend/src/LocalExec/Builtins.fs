@@ -13,9 +13,9 @@ let ptPM = LibExecution.ProgramTypes.PackageManager.empty
 /// for parsing packages, which may reference _any_ builtin
 let all : RT.Builtins =
   LibExecution.Builtin.combine
-    [ BuiltinExecution.Builtin.builtins httpClientConfig ptPM
+    [ BuiltinExecution.Builtin.builtins httpClientConfig
       BuiltinCli.Builtin.builtins
-      BuiltinPM.Builtin.builtins
+      BuiltinPM.Builtin.builtins ptPM
       BuiltinCliHost.Builtin.builtins
       BuiltinCloudExecution.Builtin.builtins // TODO: do we need this?
       TestUtils.LibTest.builtins ] // TODO: or this?
@@ -23,8 +23,8 @@ let all : RT.Builtins =
 
 let accessibleByCanvas : RT.Builtins =
   LibExecution.Builtin.combine
-    [ BuiltinExecution.Builtin.builtins httpClientConfig ptPM
-      BuiltinPM.Builtin.builtins
+    [ BuiltinExecution.Builtin.builtins httpClientConfig
+      BuiltinPM.Builtin.builtins ptPM
       BuiltinCloudExecution.Builtin.builtins
       //?BuiltinDarkInternal.Builtin.builtins
       ]

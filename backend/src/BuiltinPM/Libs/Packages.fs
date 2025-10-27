@@ -15,7 +15,7 @@
 /// to grab the name of a package type). We do those operations quite a lot, so it's
 /// important that the operations are reasonably fast, which we can't curently do
 /// without some sort of such caching.
-module BuiltinExecution.Libs.Packages
+module BuiltinPM.Libs.Packages
 
 open Prelude
 open LibExecution.RuntimeTypes

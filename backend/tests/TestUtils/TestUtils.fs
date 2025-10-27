@@ -119,7 +119,8 @@ let builtins
   : RT.Builtins =
   LibExecution.Builtin.combine
     [ LibTest.builtins
-      BuiltinExecution.Builtin.builtins httpConfig pm
+      BuiltinExecution.Builtin.builtins httpConfig
+      BuiltinPM.Builtin.builtins pm
       BuiltinCloudExecution.Builtin.builtins
       BuiltinDarkInternal.Builtin.builtins
       BuiltinCli.Builtin.builtins ]

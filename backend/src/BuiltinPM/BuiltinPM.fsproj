@@ -15,6 +15,7 @@
     <Compile Include="Libs/Account.fs" />
     <Compile Include="Libs/Branches.fs" />
     <Compile Include="Libs/PackageHistory.fs" />
+    <Compile Include="Libs/Packages.fs" />
     <Compile Include="Builtin.fs" />
   </ItemGroup>
   <ItemGroup>
