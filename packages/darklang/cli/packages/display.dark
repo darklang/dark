@@ -1,0 +1,21 @@
+module Darklang.Cli.Packages.Display
+
+/// Icon mappings for different entity types
+let getIcon (entityType: String) : String =
+  match entityType with
+  | "module" -> "🗂️"
+  | "function" -> "⚡"
+  | "type" -> "🏷️"
+  | "value" -> "💎"
+  | _ -> ""
+
+
+/// Get section header with icon for entity type
+let getSectionHeader (entityType: String) : String =
+  match entityType with
+  | "module" -> "🗂️ Modules:"
+  | "function" -> "⚡ Functions:"
+  | "type" -> "🏷️ Types:"
+  | "value" -> "💎 Values:"
+  | "submodule" -> "🗂️ Submodules:"
+  | _ -> entityType ++ ":"

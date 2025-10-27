@@ -1,10 +1,13 @@
 module Darklang.Cli.Packages.View
 
-let viewEntity (location: PackageLocation) : Unit =
+let viewEntity
+  (branchID: Stdlib.Option.Option<Uuid>)
+  (location: PackageLocation)
+  : Unit =
   match location with
   | Module path ->
     // Display module contents (similar to list but with more detail)
-    let results = Search.searchContents path
+    let results = Query.searchContents branchID path
 
     let locationStr = Packages.formatLocation location
     Stdlib.printLine locationStr
@@ -13,89 +16,113 @@ let viewEntity (location: PackageLocation) : Unit =
 
     // Display submodules
     let currentPathLength = Stdlib.List.length path
-    let directSubmodules = Search.getDirectSubmodules results currentPathLength
+    let directSubmodules = Query.getDirectSubmodules results currentPathLength
 
     // Display in order: modules, types, values, functions
     if Stdlib.Bool.not (Stdlib.List.isEmpty directSubmodules) then
-      Stdlib.printLine (Search.getSectionHeader "submodule")
+      Stdlib.printLine (Display.getSectionHeader "submodule")
       directSubmodules
       |> Stdlib.List.iter (fun name -> Stdlib.printLine $"  {name}/")
       Stdlib.printLine ""
 
-    // Display types with pretty printing
+    // Display types (temporarily without pretty printing to test LocatedItem fix)
     if Stdlib.Bool.not (Stdlib.List.isEmpty results.types) then
-      Stdlib.printLine (Search.getSectionHeader "type")
+      Stdlib.printLine (Display.getSectionHeader "type")
       results.types
-      |> Stdlib.List.iter (fun t ->
-        let prettyPrinted = Darklang.PrettyPrinter.ProgramTypes.packageType t
-        let highlighted = Darklang.Cli.SyntaxHighlighting.highlightCode prettyPrinted
-        Stdlib.printLine $"  {highlighted}"
-        Stdlib.printLine "")
+      |> Stdlib.List.iter (fun item ->
+        Stdlib.printLine $"  {item.location.name}")
       Stdlib.printLine ""
 
-    // Display values with pretty printing
+    // Display values (temporarily without pretty printing to test LocatedItem fix)
     if Stdlib.Bool.not (Stdlib.List.isEmpty results.values) then
-      Stdlib.printLine (Search.getSectionHeader "value")
+      Stdlib.printLine (Display.getSectionHeader "value")
       results.values
-      |> Stdlib.List.iter (fun v ->
-        let prettyPrinted = Darklang.PrettyPrinter.ProgramTypes.packageValue v
-        let highlighted = Darklang.Cli.SyntaxHighlighting.highlightCode prettyPrinted
-        Stdlib.printLine $"  {highlighted}"
-        Stdlib.printLine "")
+      |> Stdlib.List.iter (fun item ->
+        Stdlib.printLine $"  {item.location.name}")
       Stdlib.printLine ""
 
-    // Display functions with pretty printing
+    // Display functions (temporarily without pretty printing to test LocatedItem fix)
     if Stdlib.Bool.not (Stdlib.List.isEmpty results.fns) then
-      Stdlib.printLine (Search.getSectionHeader "function")
+      Stdlib.printLine (Display.getSectionHeader "function")
       results.fns
-      |> Stdlib.List.iter (fun f ->
-        let prettyPrinted = Darklang.PrettyPrinter.ProgramTypes.packageFn f
-        let highlighted = Darklang.Cli.SyntaxHighlighting.highlightCode prettyPrinted
-        Stdlib.printLine $"  {highlighted}"
-        Stdlib.printLine "")
+      |> Stdlib.List.iter (fun item ->
+        Stdlib.printLine $"  {item.location.name}")
       Stdlib.printLine ""
 
   | Type name ->
     // Find and display the specific type
     let modulePath = Stdlib.List.append [name.owner] name.modules
-    let results = Search.searchEntity modulePath name.name
+    let results = Query.searchEntity branchID modulePath name.name
 
-    match Search.findTypeByName results name.name with
-    | Some typ ->
-      let prettyPrinted = Darklang.PrettyPrinter.ProgramTypes.packageType typ
-      let highlighted = Darklang.Cli.SyntaxHighlighting.highlightCode prettyPrinted
-      Stdlib.printLine highlighted
-    | None ->
+    // Access the first type directly from results.types
+    match results.types with
+    | [] ->
       let locationStr = Packages.formatLocation location
       Stdlib.printLine $"Type '{locationStr}' not found."
+    | item :: _ ->
+      let typeParamPart =
+        match item.entity.declaration.typeParams with
+        | [] -> ""
+        | _ ->
+          item.entity.declaration.typeParams
+          |> Stdlib.List.map (fun typeParam -> $"'{typeParam}")
+          |> Stdlib.String.join ", "
+          |> fun parts -> $"<{parts}>"
+
+      let defPart = Darklang.PrettyPrinter.ProgramTypes.customType item.entity.declaration
+
+      let prettyPrinted = $"type {item.location.name}{typeParamPart} =\n  {defPart}"
+      let highlighted = Darklang.Cli.SyntaxHighlighting.highlightCode prettyPrinted
+      Stdlib.printLine highlighted
 
   | Function name ->
     // Find and display the specific function
     let modulePath = Stdlib.List.append [name.owner] name.modules
-    let results = Search.searchEntity modulePath name.name
+    let results = Query.searchEntity branchID modulePath name.name
 
-    match Search.findFnByName results name.name with
-    | Some fn ->
-      let prettyPrinted = Darklang.PrettyPrinter.ProgramTypes.packageFn fn
-      let highlighted = Darklang.Cli.SyntaxHighlighting.highlightCode prettyPrinted
-      Stdlib.printLine highlighted
-    | None ->
+    // Access the first function directly from results.fns
+    match results.fns with
+    | [] ->
       let locationStr = Packages.formatLocation location
       Stdlib.printLine $"Function '{locationStr}' not found."
+    | item :: _ ->
+      let typeParamPart =
+        match item.entity.typeParams with
+        | [] -> ""
+        | _ ->
+          item.entity.typeParams
+          |> Stdlib.List.map (fun typeParam -> $"'{typeParam}")
+          |> Stdlib.String.join ", "
+          |> fun parts -> $"<{parts}>"
+
+      let paramPart =
+        item.entity.parameters
+        |> Stdlib.List.map (fun param ->
+          $"({param.name}: {Darklang.PrettyPrinter.ProgramTypes.typeReference param.typ})")
+        |> Stdlib.String.join " "
+
+      let retPart = Darklang.PrettyPrinter.ProgramTypes.typeReference item.entity.returnType
+      let bodyPart = Darklang.PrettyPrinter.ProgramTypes.expr item.entity.body
+
+      let prettyPrinted = $"let {item.location.name}{typeParamPart} {paramPart}: {retPart} =\n  {bodyPart}"
+      let highlighted = Darklang.Cli.SyntaxHighlighting.highlightCode prettyPrinted
+      Stdlib.printLine highlighted
 
   | Value name ->
     // Find and display the specific value
     let modulePath = Stdlib.List.append [name.owner] name.modules
-    let results = Search.searchEntity modulePath name.name
+    let results = Query.searchEntity branchID modulePath name.name
 
-    match Search.findValueByName results name.name with
-    | Some value ->
-      let prettyPrinted = Darklang.PrettyPrinter.ProgramTypes.packageValue value
-      let highlighted = Darklang.Cli.SyntaxHighlighting.highlightCode prettyPrinted
-      Stdlib.printLine highlighted
-    | None ->
+    // Access the first value directly from results.values
+    match results.values with
+    | [] ->
       let locationStr = Packages.formatLocation location
       Stdlib.printLine $"Value '{locationStr}' not found."
+    | item :: _ ->
+      let bodyPart = Darklang.PrettyPrinter.ProgramTypes.expr item.entity.body
+      let prettyPrinted = $"val {item.location.name} = {bodyPart}"
+      let highlighted = Darklang.Cli.SyntaxHighlighting.highlightCode prettyPrinted
+      Stdlib.printLine highlighted
 
 
 // VIEW command - view modules, functions, types, or constants
@@ -103,16 +130,16 @@ let execute (state: AppState) (args: List<String>) : AppState =
   match args with
   | [] ->
     // No args - view current location
-    viewEntity state.packageData.currentLocation
+    viewEntity state.currentBranchId state.packageData.currentLocation
     state
   | [pathArg] ->
     // Navigate to the path and view
-    match Traversal.traverse state.packageData.currentLocation pathArg with
+    match Traversal.traverse state.currentBranchId state.packageData.currentLocation pathArg with
     | Error errorMsg ->
       Stdlib.printLine (Colors.error $"Cannot view: {errorMsg}")
       state
     | Ok newLocation ->
-      viewEntity newLocation
+      viewEntity state.currentBranchId newLocation
       state
   | _ ->
     help state
@@ -121,9 +148,9 @@ let execute (state: AppState) (args: List<String>) : AppState =
 let complete (state: AppState) (args: List<String>) : List<String> =
   match args with
   | [] ->
-    Traversal.completePartialPath state.packageData.currentLocation ""
+    Traversal.completePartialPath state.currentBranchId state.packageData.currentLocation ""
   | [partialPath] ->
-    Traversal.completePartialPath state.packageData.currentLocation partialPath
+    Traversal.completePartialPath state.currentBranchId state.packageData.currentLocation partialPath
   | _ -> []
 
 

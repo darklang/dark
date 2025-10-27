@@ -20,7 +20,7 @@ let execute (state: AppState) (args: List<String>) : AppState =
     match pathArgs with
     | [] -> state.packageData.currentLocation
     | [pathStr] ->
-      match Traversal.traverse state.packageData.currentLocation pathStr with
+      match Traversal.traverse state.currentBranchId state.packageData.currentLocation pathStr with
       | Ok location -> location
       | Error _ -> state.packageData.currentLocation
     | _ -> state.packageData.currentLocation
@@ -29,34 +29,40 @@ let execute (state: AppState) (args: List<String>) : AppState =
   let locationStr = Packages.formatLocation startLocation
   Stdlib.printLine $"Package tree from {locationStr}:"
   Stdlib.printLine ""
-  displayTree startLocation maxDepth 0L ""
+  displayTree state.currentBranchId startLocation maxDepth 0L ""
 
   state
 
 
 // Display tree recursively from a given location
-let displayTree (location: PackageLocation) (remainingDepth: Int64) (currentDepth: Int64) (prefix: String) : Unit =
+let displayTree
+  (branchID: Stdlib.Option.Option<Uuid>)
+  (location: PackageLocation)
+  (remainingDepth: Int64)
+  (currentDepth: Int64)
+  (prefix: String)
+  : Unit =
   if remainingDepth <= 0L then
     ()
   else
-    let modulePath = 
+    let modulePath =
       match location with
       | Module path -> path
       | Type t -> Stdlib.List.append [t.owner] t.modules
       | Value v -> Stdlib.List.append [v.owner] v.modules
       | Function f -> Stdlib.List.append [f.owner] f.modules
-      
+
     // Get all entities in this module
-    let results = Search.searchContents modulePath
+    let results = Query.searchContents branchID modulePath
 
     // Get submodules
     let currentPathLength = Stdlib.List.length modulePath
-    let submoduleNames = Search.getDirectSubmodules results currentPathLength
+    let submoduleNames = Query.getDirectSubmodules results currentPathLength
 
     // Get entity names
-    let functionNames = results.fns |> Stdlib.List.map (fun f -> f.name.name) |> Stdlib.List.sort
-    let typeNames = results.types |> Stdlib.List.map (fun t -> t.name.name) |> Stdlib.List.sort
-    let valueNames = results.values |> Stdlib.List.map (fun v -> v.name.name) |> Stdlib.List.sort
+    let functionNames = results.fns |> Stdlib.List.map (fun f -> f.location.name) |> Stdlib.List.sort
+    let typeNames = results.types |> Stdlib.List.map (fun t -> t.location.name) |> Stdlib.List.sort
+    let valueNames = results.values |> Stdlib.List.map (fun v -> v.location.name) |> Stdlib.List.sort
 
     // Combine all entities with their types in proper order: modules, types, values, functions
     let allEntities =
@@ -64,7 +70,7 @@ let displayTree (location: PackageLocation) (remainingDepth: Int64) (currentDept
       let typeEntities = typeNames |> Stdlib.List.map (fun name -> (name, "type")) |> Stdlib.List.sortBy (fun (name, _) -> name)
       let valueEntities = valueNames |> Stdlib.List.map (fun name -> (name, "value")) |> Stdlib.List.sortBy (fun (name, _) -> name)
       let functionEntities = functionNames |> Stdlib.List.map (fun name -> (name, "function")) |> Stdlib.List.sortBy (fun (name, _) -> name)
-      
+
       moduleEntities
       |> Stdlib.List.append typeEntities
       |> Stdlib.List.append valueEntities
@@ -78,7 +84,7 @@ let displayTree (location: PackageLocation) (remainingDepth: Int64) (currentDept
       let treeBranch = if isLast then "└── " else "├── "
       let fullPrefix = prefix ++ treeBranch
 
-      let icon = Search.getIcon entityType ++ " "
+      let icon = Display.getIcon entityType ++ " "
 
       Stdlib.printLine $"{fullPrefix}{icon}{name}"
 
@@ -87,7 +93,7 @@ let displayTree (location: PackageLocation) (remainingDepth: Int64) (currentDept
         let newPrefix = prefix ++ (if isLast then "    " else "│   ")
         let newModulePath = Stdlib.List.append modulePath [name]
         let newLocation = PackageLocation.Module newModulePath
-        displayTree newLocation (remainingDepth - 1L) (currentDepth + 1L) newPrefix
+        displayTree branchID newLocation (remainingDepth - 1L) (currentDepth + 1L) newPrefix
     )
     |> Stdlib.List.iter (fun _ -> ())
 
@@ -95,12 +101,12 @@ let displayTree (location: PackageLocation) (remainingDepth: Int64) (currentDept
 let complete (state: AppState) (args: List<String>) : List<String> =
   // Filter out depth arguments for path completion
   let pathArgs = Stdlib.List.filter args (fun arg -> Stdlib.Bool.not (Stdlib.String.startsWith arg "--"))
-  
+
   match pathArgs with
   | [] ->
-    Traversal.completePartialPath state.packageData.currentLocation ""
+    Traversal.completePartialPath state.currentBranchId state.packageData.currentLocation ""
   | [partialPath] ->
-    Traversal.completePartialPath state.packageData.currentLocation partialPath
+    Traversal.completePartialPath state.currentBranchId state.packageData.currentLocation partialPath
   | _ -> []
 
 

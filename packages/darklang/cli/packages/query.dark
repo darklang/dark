@@ -1,0 +1,96 @@
+module Darklang.Cli.Packages.Query
+
+/// Search for all contents (modules, types, values, functions) in a given module path
+let searchContents
+  (branchID: Stdlib.Option.Option<Uuid>)
+  (modulePath: List<String>)
+  : LanguageTools.ProgramTypes.Search.SearchResults =
+  let query =
+    LanguageTools.ProgramTypes.Search.SearchQuery
+      { currentModule = modulePath
+        text = ""
+        searchDepth = LanguageTools.ProgramTypes.Search.SearchDepth.OnlyDirectDescendants
+        entityTypes = []
+        exactMatch = false }
+
+  LanguageTools.PackageManager.Search.search branchID query
+
+
+/// Search for a specific entity by name in a given module path (exact match)
+let searchEntity
+  (branchID: Stdlib.Option.Option<Uuid>)
+  (modulePath: List<String>)
+  (entityName: String)
+  : LanguageTools.ProgramTypes.Search.SearchResults =
+  let query =
+    LanguageTools.ProgramTypes.Search.SearchQuery
+      { currentModule = modulePath
+        text = entityName
+        searchDepth = LanguageTools.ProgramTypes.Search.SearchDepth.OnlyDirectDescendants
+        entityTypes = []
+        exactMatch = true }
+
+  LanguageTools.PackageManager.Search.search branchID query
+
+
+/// Search for entities matching a partial string (fuzzy search for completions)
+let searchFuzzy
+  (branchID: Stdlib.Option.Option<Uuid>)
+  (modulePath: List<String>)
+  (partialText: String)
+  : LanguageTools.ProgramTypes.Search.SearchResults =
+  let query =
+    LanguageTools.ProgramTypes.Search.SearchQuery
+      { currentModule = modulePath
+        text = partialText
+        searchDepth = LanguageTools.ProgramTypes.Search.SearchDepth.OnlyDirectDescendants
+        entityTypes = []
+        exactMatch = false }
+
+  LanguageTools.PackageManager.Search.search branchID query
+
+
+/// Find types by name in the search results
+let findTypesByName (results: LanguageTools.ProgramTypes.Search.SearchResults) (name: String) : List<LanguageTools.ProgramTypes.LocatedItem<LanguageTools.ProgramTypes.PackageType.PackageType>> =
+  results.types
+  |> Stdlib.List.filter (fun item -> item.location.name == name)
+
+
+/// Find functions by name in the search results
+let findFnsByName (results: LanguageTools.ProgramTypes.Search.SearchResults) (name: String) : List<LanguageTools.ProgramTypes.LocatedItem<LanguageTools.ProgramTypes.PackageFn.PackageFn>> =
+  results.fns
+  |> Stdlib.List.filter (fun item -> item.location.name == name)
+
+
+/// Find values by name in the search results
+let findValuesByName (results: LanguageTools.ProgramTypes.Search.SearchResults) (name: String) : List<LanguageTools.ProgramTypes.LocatedItem<LanguageTools.ProgramTypes.PackageValue.PackageValue>> =
+  results.values
+  |> Stdlib.List.filter (fun item -> item.location.name == name)
+
+
+/// Check if search results contain any content
+let hasContent (r: LanguageTools.ProgramTypes.Search.SearchResults) : Bool =
+  match r.submodules with
+  | [] -> (r.types != []) || (r.fns != []) || (r.values != [])
+  | [submodules] -> (submodules != []) || (r.types != []) || (r.fns != []) || (r.values != [])
+  | _ -> true
+
+
+/// Extract direct submodule names from the current module path
+let getDirectSubmodules (results: LanguageTools.ProgramTypes.Search.SearchResults) (currentPathLength: Int64) : List<String> =
+  match results.submodules with
+  | [] -> []
+  | [submodules] ->
+    submodules
+    |> Stdlib.List.filterMap (fun modulePath ->
+      match Stdlib.List.drop modulePath currentPathLength with
+      | [] -> Stdlib.Option.Option.None
+      | nextPart :: _ ->
+        if Stdlib.String.isEmpty nextPart then
+          Stdlib.Option.Option.None
+        else
+          Stdlib.Option.Option.Some nextPart
+    )
+    |> Stdlib.List.unique
+    |> Stdlib.List.sort
+  | _ -> []
