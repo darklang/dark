@@ -10,6 +10,7 @@ let initialParse
 
 // TODO: maybe use a proper type instead of string?
 let parsePTExpr
+  (branchID: Stdlib.Option.Option<ProgramTypes.BranchID>)
   (code: String)
   : Stdlib.Result.Result<ProgramTypes.Expr, String> =
   match code |> TestParsing.initialParse with
@@ -26,6 +27,7 @@ let parsePTExpr
     | [ expr ] ->
       let (expr, _) =
         WrittenTypesToProgramTypes.Expr.toPT
+          branchID
           onMissing
           pm
           ""
@@ -41,19 +43,37 @@ let parsePTExpr
 
 let parsePTSourceFile
   (code: String)
+  (branchID: Stdlib.Option.Option<ProgramTypes.BranchID>)
   : Stdlib.Result.Result<ProgramTypes.SourceFile.SourceFile, String> =
   match code |> TestParsing.initialParse with
   | Ok parsedFile ->
     parsedFile
-    |> WrittenTypesToProgramTypes.parsedFileAsSourceFile
-    |> Stdlib.Tuple2.first
+    |> WrittenTypesToProgramTypes.parsedFileAsSourceFile branchID
+    |> Stdlib.Tuple3.first
     |> Stdlib.Result.Result.Ok
   | Error e -> Stdlib.Result.Result.Error e
 
+let parsePTSourceFileWithOps
+  (branchID: Stdlib.Option.Option<ProgramTypes.BranchID>)
+  (code: String)
+  : Stdlib.Result.Result<
+    (ProgramTypes.SourceFile.SourceFile *
+      List<ProgramTypes.PackageOp>),
+    String
+  > =
+  match code |> TestParsing.initialParse with
+  | Ok parsedFile ->
+    let (sourceFile, ops, _unresolvedNames) =
+      parsedFile |> WrittenTypesToProgramTypes.parsedFileAsSourceFile branchID
+
+    (sourceFile, ops) |> Stdlib.Result.Result.Ok
+  | Error e -> Stdlib.Result.Result.Error e
+
 let parseAndPrettyPrint
+  (branchID: Stdlib.Option.Option<ProgramTypes.BranchID>)
   (code: String)
   : Stdlib.Result.Result<String, String> =
-  match code |> TestParsing.parsePTSourceFile with
+  match code |> TestParsing.parsePTSourceFile branchID with
   | Ok sourceFile ->
     sourceFile
     |> PrettyPrinter.ProgramTypes.sourceFile

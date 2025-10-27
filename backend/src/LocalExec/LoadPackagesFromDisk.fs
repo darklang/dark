@@ -15,7 +15,7 @@ open Utils
 
 /// Reads and parses all .dark files in `packages` dir,
 /// failing upon any individual failure
-let load (builtins : RT.Builtins) : Ply<PT.Packages> =
+let load (builtins : RT.Builtins) : Ply<List<PT.PackageOp>> =
   uply {
     let filesWithContents =
       "/home/dark/app/packages"
@@ -26,7 +26,7 @@ let load (builtins : RT.Builtins) : Ply<PT.Packages> =
 
     // First pass, parse all the packages, allowing unresolved names
     // (other package items won't be available yet)
-    let! (packages : PT.Packages) =
+    let! (firstPassOps : List<PT.PackageOp>) =
       filesWithContents
       // TODO: parallelize
       |> Ply.List.mapSequentially (fun (path, contents) ->
@@ -41,50 +41,95 @@ let load (builtins : RT.Builtins) : Ply<PT.Packages> =
         with _ex ->
           debuG "failed to parse" path
           reraise ())
-      |> Ply.map PT.Packages.combine
+      |> Ply.map List.flatten
 
     // Re-parse the packages, though this time we don't allow unresolved names
     // (any package references that may have been unresolved a second ago should now be OK)
-    let! reParsed =
+    let! reParsedOps =
       filesWithContents
       |> Ply.List.mapSequentially (fun (path, contents) ->
         LibParser.Parser.parsePackageFile
           builtins
-          (inMemPackageManagerFromPackages packages) // should have the packages from the first pass, with some IDs... that should be used when parsing other things
+          (inMemPackageManagerFromOps firstPassOps)
           NR.OnMissing.ThrowError
           path
           contents)
-      |> Ply.map PT.Packages.combine
+      |> Ply.map List.flatten
 
-    // The IDs that weren't locked-in have changed - let's fix that now.
-    let adjusted : PT.Packages =
-      { types =
-          reParsed.types
-          |> List.map (fun typ ->
-            { typ with
-                id =
-                  packages.types
-                  |> List.find (fun original -> original.name = typ.name)
-                  |> Option.map _.id
-                  |> Option.defaultValue typ.id })
-        values =
-          reParsed.values
-          |> List.map (fun c ->
-            { c with
-                id =
-                  packages.values
-                  |> List.find (fun original -> original.name = c.name)
-                  |> Option.map _.id
-                  |> Option.defaultValue c.id })
-        fns =
-          reParsed.fns
-          |> List.map (fun fn ->
-            { fn with
-                id =
-                  packages.fns
-                  |> List.find (fun original -> original.name = fn.name)
-                  |> Option.map _.id
-                  |> Option.defaultValue fn.id }) }
+    // Build location→ID maps from first pass for ID stabilization
+    let firstPassTypeLocToId =
+      firstPassOps
+      |> List.choose (function
+        | PT.PackageOp.SetTypeName(id, loc) -> Some(loc, id)
+        | _ -> None)
+      |> Map.ofList
 
-    return adjusted
+    let firstPassValueLocToId =
+      firstPassOps
+      |> List.choose (function
+        | PT.PackageOp.SetValueName(id, loc) -> Some(loc, id)
+        | _ -> None)
+      |> Map.ofList
+
+    let firstPassFnLocToId =
+      firstPassOps
+      |> List.choose (function
+        | PT.PackageOp.SetFnName(id, loc) -> Some(loc, id)
+        | _ -> None)
+      |> Map.ofList
+
+    // Adjust IDs in second pass to match first pass (ID stabilization)
+    let adjustedOps : List<PT.PackageOp> =
+      reParsedOps
+      |> List.map (function
+        | PT.PackageOp.SetTypeName(_, loc) ->
+          let stableId = firstPassTypeLocToId |> Map.tryFind loc |> Option.defaultWith (fun () -> System.Guid.NewGuid())
+          PT.PackageOp.SetTypeName(stableId, loc)
+
+        | PT.PackageOp.AddType typ ->
+          // Find this type's location to get stable ID
+          let typLoc =
+            reParsedOps
+            |> List.tryPick (function
+              | PT.PackageOp.SetTypeName(id, loc) when id = typ.id -> Some loc
+              | _ -> None)
+          let stableId =
+            typLoc
+            |> Option.bind (fun loc -> Map.tryFind loc firstPassTypeLocToId)
+            |> Option.defaultValue typ.id
+          PT.PackageOp.AddType { typ with id = stableId }
+
+        | PT.PackageOp.SetValueName(_, loc) ->
+          let stableId = firstPassValueLocToId |> Map.tryFind loc |> Option.defaultWith (fun () -> System.Guid.NewGuid())
+          PT.PackageOp.SetValueName(stableId, loc)
+
+        | PT.PackageOp.AddValue value ->
+          let valueLoc =
+            reParsedOps
+            |> List.tryPick (function
+              | PT.PackageOp.SetValueName(id, loc) when id = value.id -> Some loc
+              | _ -> None)
+          let stableId =
+            valueLoc
+            |> Option.bind (fun loc -> Map.tryFind loc firstPassValueLocToId)
+            |> Option.defaultValue value.id
+          PT.PackageOp.AddValue { value with id = stableId }
+
+        | PT.PackageOp.SetFnName(_, loc) ->
+          let stableId = firstPassFnLocToId |> Map.tryFind loc |> Option.defaultWith (fun () -> System.Guid.NewGuid())
+          PT.PackageOp.SetFnName(stableId, loc)
+
+        | PT.PackageOp.AddFn fn ->
+          let fnLoc =
+            reParsedOps
+            |> List.tryPick (function
+              | PT.PackageOp.SetFnName(id, loc) when id = fn.id -> Some loc
+              | _ -> None)
+          let stableId =
+            fnLoc
+            |> Option.bind (fun loc -> Map.tryFind loc firstPassFnLocToId)
+            |> Option.defaultValue fn.id
+          PT.PackageOp.AddFn { fn with id = stableId })
+
+    return adjustedOps
   }

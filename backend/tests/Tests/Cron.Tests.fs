@@ -10,6 +10,7 @@ open TestUtils.TestUtils
 
 module PT = LibExecution.ProgramTypes
 module RT = LibExecution.RuntimeTypes
+module Dval = LibExecution.Dval
 module Cron = LibCloud.Cron
 module Canvas = LibCloud.Canvas
 module Serialize = LibCloud.Serialize
@@ -26,7 +27,8 @@ let p (code : string) : Task<PT.Expr> =
     let name =
       RT.FQFnName.FQFnName.Package PackageIDs.Fn.LanguageTools.Parser.parsePTExpr
 
-    let args = NEList.singleton (RT.DString code)
+    let branchID = Dval.option RT.KTUuid None
+    let args = NEList.doubleton branchID (RT.DString code)
     let! execResult = LibExecution.Execution.executeFunction state name [] args
 
     match execResult with

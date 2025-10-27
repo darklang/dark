@@ -12,6 +12,7 @@
   <ItemGroup>
     <ProjectReference Include="../LibExecution/LibExecution.fsproj" />
     <ProjectReference Include="../BuiltinExecution/BuiltinExecution.fsproj" />
+    <ProjectReference Include="../BuiltinPM/BuiltinPM.fsproj" />
     <ProjectReference Include="../LibCloud/LibCloud.fsproj" />
     <ProjectReference Include="../BuiltinCloudExecution/BuiltinCloudExecution.fsproj" />
     <ProjectReference Include="../BuiltinDarkInternal/BuiltinDarkInternal.fsproj" />

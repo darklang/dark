@@ -45,6 +45,14 @@ let main (args : string array) : int =
         Tests.NewParser.tests
         Tests.HttpClient.tests
 
+
+        (*tests to possibly backfill
+        - op playback
+        - package search
+        - soon: branch-specific stuff
+        - account/access stuff
+        *)
+
         // cloud
         Tests.BwdServer.tests
         Tests.Canvas.tests
@@ -58,7 +66,8 @@ let main (args : string array) : int =
         Tests.SqlCompiler.tests
 
         // cross-cutting
-        Tests.LibExecution.tests.Force() ]
+        Tests.LibExecution.tests.Force()
+        ]
 
     let cancelationTokenSource = new System.Threading.CancellationTokenSource()
     let bwdServerTestsTask = Tests.BwdServer.init cancelationTokenSource.Token
@@ -66,7 +75,7 @@ let main (args : string array) : int =
     Telemetry.Console.loadTelemetry "tests" Telemetry.TraceDBQueries
 
     // Generate this so that we can see if the format has changed in a git diff
-    BinarySerialization.generateTestFiles ()
+    // BinarySerialization.generateTestFiles () // DISABLED: test module commented out
     VanillaSerialization.PersistedSerializations.generateTestFiles ()
 
     // this does async stuff within it, so do not run it from a task/async

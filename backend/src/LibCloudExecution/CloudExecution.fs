@@ -26,6 +26,7 @@ let pmPT = LibPackageManager.PackageManager.pt
 let builtins : RT.Builtins =
   LibExecution.Builtin.combine
     [ BuiltinExecution.Builtin.builtins HttpClient.configuration pmPT
+      BuiltinPM.Builtin.builtins
       BuiltinCloudExecution.Builtin.builtins
       BuiltinDarkInternal.Builtin.builtins ]
     []
