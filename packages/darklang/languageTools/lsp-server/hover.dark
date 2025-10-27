@@ -55,7 +55,7 @@ let handleHoverRequest
     let owner = "LspHover"
 
     let pmWithExtras =
-      match Parser.CliScript.pmWithExtras owner "" onMissing pm "" doc.text with
+      match Parser.CliScript.pmWithExtras state.branchID owner "" onMissing pm "" doc.text with
       | Ok pm -> pm
       | Error _ -> pm // fallback to original pm on error
 
@@ -64,8 +64,9 @@ let handleHoverRequest
       match parsed with
       | Ok(SourceFile s) ->
         let decls =
-          s.declarations
-          |> HoverInformation.collectNodeHoverInfoAtPos
+          HoverInformation.collectNodeHoverInfoAtPos
+            state.branchID
+            s.declarations
             position
             pmWithExtras
             owner
@@ -78,6 +79,7 @@ let handleHoverRequest
           s.exprsToEval
           |> Stdlib.List.filterMap (fun e ->
             HoverInformation.collectExpressionHoverInfoAtPos
+              state.branchID
               e
               position
               pmWithExtras

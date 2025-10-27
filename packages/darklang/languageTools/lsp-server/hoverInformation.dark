@@ -47,7 +47,7 @@ let hoverInfoForThingAtPosition
     createHoverInfo range description metadata
 
   | PackageValue v description ->
-    let prettyVal = PrettyPrinter.ProgramTypes.packageValue v
+    let prettyVal = PrettyPrinter.ProgramTypes.packageValue Stdlib.Option.Option.None v
 
     let fqName =
       (Stdlib.List.append v.name.modules [ v.name.name ])
@@ -89,7 +89,7 @@ let hoverInfoForThingAtPosition
 
 
   | PackageType typ description ->
-    let prettyType = PrettyPrinter.ProgramTypes.packageType typ
+    let prettyType = PrettyPrinter.ProgramTypes.packageType Stdlib.Option.Option.None typ
 
     let fqName =
       (Stdlib.List.append typ.name.modules [ typ.name.name ])
@@ -155,6 +155,7 @@ let getBuiltinFn (name: String) : Stdlib.Option.Option<BuiltinFunction> =
 
 /// Helper function to find and get package functions, types, and values by name from the package manager
 let tryGetFnAndCollectHoverInfo
+  (branchID: Stdlib.Option.Option<ProgramTypes.BranchID>)
   (fnName: List<String>)
   (range: WrittenTypes.Range)
   (pm: ProgramTypes.PackageManager.PackageManager)
@@ -165,7 +166,7 @@ let tryGetFnAndCollectHoverInfo
   let fnName = WrittenTypes.Name.Unresolved range fnName
 
   let resolvedFn =
-    NameResolver.FnName.resolve onMissing pm owner currentModules fnName
+    NameResolver.FnName.resolve branchID onMissing pm owner currentModules fnName
 
   match resolvedFn with
   | Ok fn ->
@@ -212,6 +213,7 @@ let tryGetFnAndCollectHoverInfo
 
 
 let tryGetPkgType
+  (branchID: Stdlib.Option.Option<ProgramTypes.BranchID>)
   (typeName: List<String>)
   (range: WrittenTypes.Range)
   (pm: ProgramTypes.PackageManager.PackageManager)
@@ -222,7 +224,7 @@ let tryGetPkgType
   let typeName = WrittenTypes.Name.Unresolved range typeName
 
   let resolvedType =
-    NameResolver.TypeName.resolve onMissing pm owner currentModules typeName
+    NameResolver.TypeName.resolve branchID onMissing pm owner currentModules typeName
 
   match resolvedType with
   | Ok typ ->
@@ -236,6 +238,7 @@ let tryGetPkgType
 
 
 let tryGetPkgVal
+  (branchID: Stdlib.Option.Option<ProgramTypes.BranchID>)
   (valName: List<String>)
   (range: WrittenTypes.Range)
   (pm: ProgramTypes.PackageManager.PackageManager)
@@ -247,6 +250,7 @@ let tryGetPkgVal
 
   let resolvedVal =
     NameResolver.ValueName.resolve
+      branchID
       onMissing
       pm
       owner
@@ -285,6 +289,7 @@ let createBuiltinTypeInfoIfInRange
   | None -> Stdlib.Option.Option.None
 
 let collectBuiltinTypeHoverInfoAtPos
+  (branchID: Stdlib.Option.Option<ProgramTypes.BranchID>)
   (builtin: WrittenTypes.TypeReference.Builtin)
   (position: LanguageServerProtocol.Position.Position)
   (pm: ProgramTypes.PackageManager.PackageManager)
@@ -324,7 +329,13 @@ let collectBuiltinTypeHoverInfoAtPos
         |> Stdlib.Option.Option.Some
       | None ->
         // check if we are hovering over the type reference
-        collectTypeRefHoverInfoAtPos typ position pm owner currentModules
+        collectTypeRefHoverInfoAtPos
+          branchID
+          typ
+          position
+          pm
+          owner
+          currentModules
     else
       Stdlib.Option.Option.None
 
@@ -343,7 +354,13 @@ let collectBuiltinTypeHoverInfoAtPos
 
       | None ->
         // check if we are hovering over the type reference
-        collectTypeRefHoverInfoAtPos typ position pm owner currentModules
+        collectTypeRefHoverInfoAtPos
+          branchID
+          typ
+          position
+          pm
+          owner
+          currentModules
 
     else
       Stdlib.Option.Option.None
@@ -353,20 +370,32 @@ let collectBuiltinTypeHoverInfoAtPos
     if CursorPosition.isLineNumberInRange position range then
       // check if we are hovering over the first type reference
       match
-        collectTypeRefHoverInfoAtPos f position pm owner currentModules
+        collectTypeRefHoverInfoAtPos branchID f position pm owner currentModules
       with
       | Some r -> Stdlib.Option.Option.Some(r)
       | None ->
         // check if we are hovering over the second type reference
         match
-          collectTypeRefHoverInfoAtPos s position pm owner currentModules
+          collectTypeRefHoverInfoAtPos
+            branchID
+            s
+            position
+            pm
+            owner
+            currentModules
         with
         | Some r -> Stdlib.Option.Option.Some(r)
         | None ->
           // check if we are hovering over the rest type references
           rest
           |> Stdlib.List.filterMap (fun (_, t) ->
-            collectTypeRefHoverInfoAtPos t position pm owner currentModules)
+            collectTypeRefHoverInfoAtPos
+              branchID
+              t
+              position
+              pm
+              owner
+              currentModules)
           |> Stdlib.List.head
     else
       Stdlib.Option.Option.None
@@ -376,14 +405,26 @@ let collectBuiltinTypeHoverInfoAtPos
     if CursorPosition.isLineNumberInRange position r then
       // check if we are hovering over the return type
       match
-        collectTypeRefHoverInfoAtPos ret position pm owner currentModules
+        collectTypeRefHoverInfoAtPos
+          branchID
+          ret
+          position
+          pm
+          owner
+          currentModules
       with
       | Some r -> Stdlib.Option.Option.Some(r)
       | None ->
         // check if we are hovering over the arguments
         args
         |> Stdlib.List.filterMap (fun (t, _) ->
-          collectTypeRefHoverInfoAtPos t position pm owner currentModules)
+          collectTypeRefHoverInfoAtPos
+            branchID
+            t
+            position
+            pm
+            owner
+            currentModules)
         |> Stdlib.List.head
     else
       Stdlib.Option.Option.None
@@ -402,7 +443,13 @@ let collectBuiltinTypeHoverInfoAtPos
         |> Stdlib.Option.Option.Some
       | None ->
         // check if we are hovering over the type reference
-        collectTypeRefHoverInfoAtPos typ position pm owner currentModules
+        collectTypeRefHoverInfoAtPos
+          branchID
+          typ
+          position
+          pm
+          owner
+          currentModules
     else
       Stdlib.Option.Option.None
 
@@ -449,6 +496,7 @@ let collectModuleNameHoverInfoAtPos
 
 
 let collectTypeRefHoverInfoAtPos
+  (branchID: Stdlib.Option.Option<ProgramTypes.BranchID>)
   (typeRef: WrittenTypes.TypeReference.TypeReference)
   (position: LanguageServerProtocol.Position.Position)
   (pm: ProgramTypes.PackageManager.PackageManager)
@@ -457,7 +505,7 @@ let collectTypeRefHoverInfoAtPos
   : Stdlib.Option.Option<Info> =
   match typeRef with
   | Builtin b ->
-    collectBuiltinTypeHoverInfoAtPos b position pm owner currentModules
+    collectBuiltinTypeHoverInfoAtPos branchID b position pm owner currentModules
   | QualifiedName qn ->
     // check if we are hovering over the one of the modules
     let moduleHoverInfo =
@@ -473,7 +521,7 @@ let collectTypeRefHoverInfoAtPos
         let modules = qn.modules |> Stdlib.List.map (fun (m, _) -> m.name)
         let typeName = Stdlib.List.append modules [ qn.typ.name ]
 
-        let typ = tryGetPkgType typeName range pm owner currentModules
+        let typ = tryGetPkgType branchID typeName range pm owner currentModules
 
         match typ with
         | Some t ->
@@ -493,7 +541,13 @@ let collectTypeRefHoverInfoAtPos
         // check if we are hovering over the type parameters
         qn.typeArgs
         |> Stdlib.List.filterMap (fun tr ->
-          collectTypeRefHoverInfoAtPos tr position pm owner currentModules)
+          collectTypeRefHoverInfoAtPos
+            branchID
+            tr
+            position
+            pm
+            owner
+            currentModules)
         |> Stdlib.List.head
 
 
@@ -501,6 +555,7 @@ let collectTypeRefHoverInfoAtPos
 // Type declaration Hover Info
 // ---------------------------
 let collectEnumFieldHoverInfoAtPos
+  (branchID: Stdlib.Option.Option<ProgramTypes.BranchID>)
   (enumField: WrittenTypes.TypeDeclaration.EnumField)
   (position: LanguageServerProtocol.Position.Position)
   (pm: ProgramTypes.PackageManager.PackageManager)
@@ -513,8 +568,13 @@ let collectEnumFieldHoverInfoAtPos
   with
   | Some r ->
     let typ =
-      enumField.typ
-      |> collectTypeRefHoverInfoAtPos position pm owner currentModules
+      collectTypeRefHoverInfoAtPos
+        branchID
+        enumField.typ
+        position
+        pm
+        owner
+        currentModules
     // check if we are hovering over the enum field type
     match typ with
     | Some _ -> typ
@@ -545,6 +605,7 @@ let collectEnumFieldHoverInfoAtPos
   | None -> Stdlib.Option.Option.None
 
 let collectEnumCaseHoverInfoAtPos
+  (branchID: Stdlib.Option.Option<ProgramTypes.BranchID>)
   (enumCase: WrittenTypes.TypeDeclaration.EnumCase)
   (position: LanguageServerProtocol.Position.Position)
   (pm: ProgramTypes.PackageManager.PackageManager)
@@ -587,6 +648,7 @@ let collectEnumCaseHoverInfoAtPos
           enumCase.fields
           |> Stdlib.List.filterMap (fun field ->
             collectEnumFieldHoverInfoAtPos
+              branchID
               field
               position
               pm
@@ -599,6 +661,7 @@ let collectEnumCaseHoverInfoAtPos
 
 
 let collectDefintionHoverInfoAtPos
+  (branchID: Stdlib.Option.Option<ProgramTypes.BranchID>)
   (def: WrittenTypes.TypeDeclaration.Definition)
   (position: LanguageServerProtocol.Position.Position)
   (pm: ProgramTypes.PackageManager.PackageManager)
@@ -607,7 +670,7 @@ let collectDefintionHoverInfoAtPos
   : Stdlib.Option.Option<Info> =
   match def with
   | Alias a ->
-    collectTypeRefHoverInfoAtPos a position pm owner currentModules
+    collectTypeRefHoverInfoAtPos branchID a position pm owner currentModules
   | Record r ->
     r
     |> Stdlib.List.filterMap (fun (field, _) ->
@@ -631,6 +694,7 @@ let collectDefintionHoverInfoAtPos
       | None ->
         // check if we are hovering over the record field type
         collectTypeRefHoverInfoAtPos
+          branchID
           field.typ
           position
           pm
@@ -643,6 +707,7 @@ let collectDefintionHoverInfoAtPos
     enumCases
     |> Stdlib.List.filterMap (fun (_, enumCase) ->
       collectEnumCaseHoverInfoAtPos
+        branchID
         enumCase
         position
         pm
@@ -653,6 +718,7 @@ let collectDefintionHoverInfoAtPos
 
 
 let collectTypeHoverInfoAtPosition
+  (branchID: Stdlib.Option.Option<ProgramTypes.BranchID>)
   (typeDecl: WrittenTypes.TypeDeclaration.TypeDeclaration)
   (position: LanguageServerProtocol.Position.Position)
   (pm: ProgramTypes.PackageManager.PackageManager)
@@ -676,7 +742,7 @@ let collectTypeHoverInfoAtPosition
       let modules = Stdlib.String.join currentModules "."
 
       let typ =
-        tryGetPkgType [ typeDecl.name.name ] range pm owner currentModules
+        tryGetPkgType branchID [ typeDecl.name.name ] range pm owner currentModules
 
       match typ with
       | Some t ->
@@ -721,6 +787,7 @@ let collectTypeHoverInfoAtPosition
       | None ->
         // check if we are hovering over the type definition
         collectDefintionHoverInfoAtPos
+          branchID
           typeDecl.definition
           position
           pm
@@ -734,6 +801,7 @@ let collectTypeHoverInfoAtPosition
 
 /// Collect hover information for a value declaration at a given position
 let collectValueHoverInfoAtPos
+  (branchID: Stdlib.Option.Option<ProgramTypes.BranchID>)
   (v: WrittenTypes.ValueDeclaration.ValueDeclaration)
   (position: LanguageServerProtocol.Position.Position)
   (pm: ProgramTypes.PackageManager.PackageManager)
@@ -756,7 +824,7 @@ let collectValueHoverInfoAtPos
     match CursorPosition.checkIfPositionWithinRange position range with
     | Some r ->
       let getValue =
-        tryGetPkgVal [ v.name.name ] range pm owner currentModules
+        tryGetPkgVal branchID [ v.name.name ] range pm owner currentModules
 
       match getValue with
       | Some value ->
@@ -775,15 +843,23 @@ let collectValueHoverInfoAtPos
 
     | None ->
       // check if we are hovering over the value body (which is an expression)
-      collectExpressionHoverInfoAtPos v.body position pm owner currentModules
+      collectExpressionHoverInfoAtPos
+        branchID
+        v.body
+        position
+        pm
+        owner
+        currentModules
 
 
 // ---------------------------
 // Function declaration Hover Info
 // ---------------------------
 let collectFnParameterHoverInfoAtPos
+  (branchID: Stdlib.Option.Option<ProgramTypes.BranchID>)
   (p: WrittenTypes.FnDeclaration.Parameter)
   (position: LanguageServerProtocol.Position.Position)
+  (pm: ProgramTypes.PackageManager.PackageManager)
   (owner: String)
   (currentModules: List<String>)
   : Stdlib.Option.Option<Info> =
@@ -792,7 +868,6 @@ let collectFnParameterHoverInfoAtPos
   | Normal np ->
     let onMissing = LanguageTools.NameResolver.OnMissing.Allow
 
-    let pm = LanguageTools.PackageManager.pm ()
     // check if we are hovering over a parameter
     match CursorPosition.checkIfPositionWithinRange position np.range with
     | Some r ->
@@ -806,6 +881,7 @@ let collectFnParameterHoverInfoAtPos
 
         let typ =
           (WrittenTypesToProgramTypes.TypeReference.toPT
+            branchID
             onMissing
             pm
             owner
@@ -831,11 +907,18 @@ let collectFnParameterHoverInfoAtPos
 
       | None ->
         // check if we are hovering over the parameter type
-        collectTypeRefHoverInfoAtPos np.typ position pm owner currentModules
+        collectTypeRefHoverInfoAtPos
+          branchID
+          np.typ
+          position
+          pm
+          owner
+          currentModules
 
     | None -> Stdlib.Option.Option.None
 
 let collectFnHoverInfoAtPos
+  (branchID: Stdlib.Option.Option<ProgramTypes.BranchID>)
   (f: WrittenTypes.FnDeclaration.FnDeclaration)
   (position: LanguageServerProtocol.Position.Position)
   (pm: ProgramTypes.PackageManager.PackageManager)
@@ -905,7 +988,13 @@ let collectFnHoverInfoAtPos
         let parameters =
           f.parameters
           |> Stdlib.List.filterMap (fun p ->
-            p |> collectFnParameterHoverInfoAtPos position owner currentModules)
+            collectFnParameterHoverInfoAtPos
+              branchID
+              p
+              position
+              pm
+              owner
+              currentModules)
           |> Stdlib.List.head
 
         match parameters with
@@ -913,14 +1002,20 @@ let collectFnHoverInfoAtPos
         | None ->
           // check if we are hovering over the function return type
           let returnType =
-            f.returnType
-            |> collectTypeRefHoverInfoAtPos position pm owner currentModules
+            collectTypeRefHoverInfoAtPos
+              branchID
+              f.returnType
+              position
+              pm
+              owner
+              currentModules
 
           match returnType with
           | Some _ -> returnType
           | None ->
             // check if we are hovering over the function body
             collectExpressionHoverInfoAtPos
+              branchID
               f.body
               position
               pm
@@ -1075,6 +1170,7 @@ let collectMatchPatternHoverInfoAtPos
   | _ -> Stdlib.Option.Option.None
 
 let collectMatchCaseHoverInfoAtPos
+  (branchID: Stdlib.Option.Option<ProgramTypes.BranchID>)
   (mc: WrittenTypes.MatchCase)
   (position: LanguageServerProtocol.Position.Position)
   (pm: ProgramTypes.PackageManager.PackageManager)
@@ -1091,7 +1187,13 @@ let collectMatchCaseHoverInfoAtPos
   | None ->
     // check if we are hovering over the match case rhs
     match
-      collectExpressionHoverInfoAtPos mc.rhs position pm owner currentModules
+      collectExpressionHoverInfoAtPos
+        branchID
+        mc.rhs
+        position
+        pm
+        owner
+        currentModules
     with
     | Some r -> Stdlib.Option.Option.Some r
     | None ->
@@ -1110,6 +1212,7 @@ let collectMatchCaseHoverInfoAtPos
         | None ->
           // check if we are hovering over the when condition expression
           collectExpressionHoverInfoAtPos
+            branchID
             expr
             position
             pm
@@ -1303,6 +1406,7 @@ let collectLetPatternHoverInfoAtPos
       Stdlib.Option.Option.None
 
 let collectTypeNameHoverInfoAtPos
+  (branchID: Stdlib.Option.Option<ProgramTypes.BranchID>)
   (typeName: WrittenTypes.QualifiedTypeIdentifier)
   (position: LanguageServerProtocol.Position.Position)
   (pm: ProgramTypes.PackageManager.PackageManager)
@@ -1329,7 +1433,7 @@ let collectTypeNameHoverInfoAtPos
         let range = typeName.typ.range
         let fqName = Stdlib.List.append modules [ name ]
 
-        let typ = tryGetPkgType fqName range pm owner currentModules
+        let typ = tryGetPkgType branchID fqName range pm owner currentModules
 
         match typ with
         | Some t ->
@@ -1349,10 +1453,17 @@ let collectTypeNameHoverInfoAtPos
         // check if we are hovering over the type arguments
         typeName.typeArgs
         |> Stdlib.List.filterMap (fun tr ->
-          collectTypeRefHoverInfoAtPos tr position pm owner currentModules)
+          collectTypeRefHoverInfoAtPos
+            branchID
+            tr
+            position
+            pm
+            owner
+            currentModules)
         |> Stdlib.List.head
 
 let collectRecordHoverInfo
+  (branchID: Stdlib.Option.Option<ProgramTypes.BranchID>)
   (typeName: WrittenTypes.QualifiedTypeIdentifier)
   (fields: List<((WrittenTypes.Range * String) * 'a)>)
   (position: LanguageServerProtocol.Position.Position)
@@ -1361,7 +1472,8 @@ let collectRecordHoverInfo
   (owner: String)
   (currentModules: List<String>)
   (hoverInfoFn:
-    'a
+    Stdlib.Option.Option<ProgramTypes.BranchID>
+      -> 'a
       -> LanguageServerProtocol.Position.Position
       -> ProgramTypes.PackageManager.PackageManager
       -> String
@@ -1374,6 +1486,7 @@ let collectRecordHoverInfo
   with
   | Some r ->
     collectTypeNameHoverInfoAtPos
+      branchID
       typeName
       position
       pm
@@ -1400,10 +1513,11 @@ let collectRecordHoverInfo
         |> Stdlib.Option.Option.Some
       | None ->
         // Check if hovering over field value
-        hoverInfoFn value position pm owner currentModules)
+        hoverInfoFn branchID value position pm owner currentModules)
     |> Stdlib.List.head
 
 let collectEnumHoverInfo
+  (branchID: Stdlib.Option.Option<ProgramTypes.BranchID>)
   (typeName: WrittenTypes.QualifiedTypeIdentifier)
   (caseName: (WrittenTypes.Range * String))
   (fields: List<'a>)
@@ -1413,7 +1527,8 @@ let collectEnumHoverInfo
   (owner: String)
   (currentModules: List<String>)
   (hoverInfoFn:
-    'a
+    Stdlib.Option.Option<ProgramTypes.BranchID>
+      -> 'a
       -> LanguageServerProtocol.Position.Position
       -> ProgramTypes.PackageManager.PackageManager
       -> String
@@ -1426,6 +1541,7 @@ let collectEnumHoverInfo
   with
   | Some r ->
     collectTypeNameHoverInfoAtPos
+      branchID
       typeName
       position
       pm
@@ -1453,12 +1569,13 @@ let collectEnumHoverInfo
       // check if we are hovering over one of the fields
       fields
       |> Stdlib.List.filterMap (fun exprOrVal ->
-        hoverInfoFn exprOrVal position pm owner currentModules)
+        hoverInfoFn branchID exprOrVal position pm owner currentModules)
       |> Stdlib.List.head
 
 
 /// Collect hover information for a PipeExpr at a given position
 let collectPipeExprHoverInfoAtPos
+  (branchID: Stdlib.Option.Option<ProgramTypes.BranchID>)
   (pe: WrittenTypes.PipeExpr)
   (position: LanguageServerProtocol.Position.Position)
   (pm: ProgramTypes.PackageManager.PackageManager)
@@ -1475,7 +1592,13 @@ let collectPipeExprHoverInfoAtPos
       | Some r -> collectInfixHoverInfoAtPos infix r
       | None ->
         // check if we are hovering over the expression
-        collectExpressionHoverInfoAtPos expr position pm owner currentModules
+        collectExpressionHoverInfoAtPos
+          branchID
+          expr
+          position
+          pm
+          owner
+          currentModules
     else
       Stdlib.Option.Option.None
 
@@ -1505,6 +1628,7 @@ let collectPipeExprHoverInfoAtPos
         | None ->
           // check if we are hovering over the body
           collectExpressionHoverInfoAtPos
+            branchID
             body
             position
             pm
@@ -1517,6 +1641,7 @@ let collectPipeExprHoverInfoAtPos
   | EPipeEnum(r, typeName, caseName, fields, _symbolDot) ->
     if CursorPosition.isLineNumberInRange position r then
       collectEnumHoverInfo
+        branchID
         typeName
         caseName
         fields
@@ -1553,13 +1678,14 @@ let collectPipeExprHoverInfoAtPos
           let fn = Stdlib.List.append modules [ name ]
 
           match
-            tryGetFnAndCollectHoverInfo fn range pm owner currentModules
+            tryGetFnAndCollectHoverInfo branchID fn range pm owner currentModules
           with
           | Some r -> Stdlib.Option.Option.Some r
           | None ->
             fnName.typeArgs
             |> Stdlib.List.filterMap (fun tr ->
               collectTypeRefHoverInfoAtPos
+                branchID
                 tr
                 position
                 pm
@@ -1571,13 +1697,20 @@ let collectPipeExprHoverInfoAtPos
         let typeArgs =
           fnName.typeArgs
           |> Stdlib.List.filterMap (fun tr ->
-            collectTypeRefHoverInfoAtPos tr position pm owner currentModules)
+            collectTypeRefHoverInfoAtPos
+              branchID
+              tr
+              position
+              pm
+              owner
+              currentModules)
           |> Stdlib.List.head
 
         // check if we are hovering over one of the arguments
         args
         |> Stdlib.List.filterMap (fun expr ->
           collectExpressionHoverInfoAtPos
+            branchID
             expr
             position
             pm
@@ -1590,7 +1723,9 @@ let collectPipeExprHoverInfoAtPos
   | EPipeVariableOrFnCall(r, name) ->
     // check if position is within the PipeExpr range
     if CursorPosition.isLineNumberInRange position r then
-      match tryGetFnAndCollectHoverInfo name r pm owner currentModules with
+      match
+        tryGetFnAndCollectHoverInfo branchID name r pm owner currentModules
+      with
       | Some r -> Stdlib.Option.Option.Some r
       | None ->
         let description =
@@ -1608,6 +1743,7 @@ let collectPipeExprHoverInfoAtPos
 
 
 let collectExpressionHoverInfoAtPos
+  (branchID: Stdlib.Option.Option<ProgramTypes.BranchID>)
   (e: WrittenTypes.Expr)
   (position: LanguageServerProtocol.Position.Position)
   (pm: ProgramTypes.PackageManager.PackageManager)
@@ -1621,7 +1757,13 @@ let collectExpressionHoverInfoAtPos
       // check if we are hovering over one of the List contents
       contents
       |> Stdlib.List.filterMap (fun (c, _) ->
-        collectExpressionHoverInfoAtPos c position pm owner currentModules)
+        collectExpressionHoverInfoAtPos
+          branchID
+          c
+          position
+          pm
+          owner
+          currentModules)
       |> Stdlib.List.head
     else
       Stdlib.Option.Option.None
@@ -1662,6 +1804,7 @@ let collectExpressionHoverInfoAtPos
 
           | None ->
             collectExpressionHoverInfoAtPos
+              branchID
               v
               position
               pm
@@ -1677,6 +1820,7 @@ let collectExpressionHoverInfoAtPos
       // check if we are hovering over the first expression
       match
         collectExpressionHoverInfoAtPos
+          branchID
           first
           position
           pm
@@ -1688,6 +1832,7 @@ let collectExpressionHoverInfoAtPos
         // check if we are hovering over the second expression
         match
           collectExpressionHoverInfoAtPos
+            branchID
             second
             position
             pm
@@ -1700,6 +1845,7 @@ let collectExpressionHoverInfoAtPos
           rest
           |> Stdlib.List.filterMap (fun (_, e) ->
             collectExpressionHoverInfoAtPos
+              branchID
               e
               position
               pm
@@ -1715,6 +1861,7 @@ let collectExpressionHoverInfoAtPos
       match CursorPosition.checkIfPositionWithinRange position typeName.range with
       | Some range ->
         collectTypeNameHoverInfoAtPos
+          branchID
           typeName
           position
           pm
@@ -1745,6 +1892,7 @@ let collectExpressionHoverInfoAtPos
 
           | None ->
             collectExpressionHoverInfoAtPos
+              branchID
               expr
               position
               pm
@@ -1762,6 +1910,7 @@ let collectExpressionHoverInfoAtPos
       // check if we are hovering over the record expression
       match
         collectExpressionHoverInfoAtPos
+          branchID
           record
           position
           pm
@@ -1803,6 +1952,7 @@ let collectExpressionHoverInfoAtPos
 
             | None ->
               collectExpressionHoverInfoAtPos
+                branchID
                 expr
                 position
                 pm
@@ -1815,6 +1965,7 @@ let collectExpressionHoverInfoAtPos
   | EEnum(r, typeName, caseName, fields, _) ->
     if CursorPosition.isLineNumberInRange position r then
       collectEnumHoverInfo
+        branchID
         typeName
         caseName
         fields
@@ -1847,6 +1998,7 @@ let collectExpressionHoverInfoAtPos
           // check if we are hovering over the let expression
           match
             collectExpressionHoverInfoAtPos
+              branchID
               expr
               position
               pm
@@ -1857,6 +2009,7 @@ let collectExpressionHoverInfoAtPos
           | None ->
             // check if we are hovering over the let body
             collectExpressionHoverInfoAtPos
+              branchID
               body
               position
               pm
@@ -1886,7 +2039,13 @@ let collectExpressionHoverInfoAtPos
     if CursorPosition.isLineNumberInRange position r then
       // check if we are hovering over the expression
       match
-        collectExpressionHoverInfoAtPos expr position pm owner currentModules
+        collectExpressionHoverInfoAtPos
+          branchID
+          expr
+          position
+          pm
+          owner
+          currentModules
       with
       | Some r -> Stdlib.Option.Option.Some r
       | None ->
@@ -1925,6 +2084,7 @@ let collectExpressionHoverInfoAtPos
         // check if we are hovering over the condition
         match
           collectExpressionHoverInfoAtPos
+            branchID
             cond
             position
             pm
@@ -1947,6 +2107,7 @@ let collectExpressionHoverInfoAtPos
             // check if we are hovering over the then expression
             match
               collectExpressionHoverInfoAtPos
+                branchID
                 thenExpr
                 position
                 pm
@@ -1972,6 +2133,7 @@ let collectExpressionHoverInfoAtPos
                   match elseExpr with
                   | Some e ->
                     collectExpressionHoverInfoAtPos
+                      branchID
                       e
                       position
                       pm
@@ -1999,6 +2161,7 @@ let collectExpressionHoverInfoAtPos
         // check if we are hovering over the expression
         match
           collectExpressionHoverInfoAtPos
+            branchID
             expr
             position
             pm
@@ -2023,6 +2186,7 @@ let collectExpressionHoverInfoAtPos
             cases
             |> Stdlib.List.filterMap (fun c ->
               collectMatchCaseHoverInfoAtPos
+                branchID
                 c
                 position
                 pm
@@ -2038,14 +2202,26 @@ let collectExpressionHoverInfoAtPos
     if CursorPosition.isLineNumberInRange position r then
       // check if we are hovering over the expression
       match
-        collectExpressionHoverInfoAtPos expr position pm owner currentModules
+        collectExpressionHoverInfoAtPos
+          branchID
+          expr
+          position
+          pm
+          owner
+          currentModules
       with
       | Some r -> Stdlib.Option.Option.Some r
       | None ->
         // check if we are hovering over the pipe expression
         pipeExprs
         |> Stdlib.List.filterMap (fun (_, pe) ->
-          collectPipeExprHoverInfoAtPos pe position pm owner currentModules)
+          collectPipeExprHoverInfoAtPos
+            branchID
+            pe
+            position
+            pm
+            owner
+            currentModules)
         |> Stdlib.List.head
     else
       Stdlib.Option.Option.None
@@ -2063,6 +2239,7 @@ let collectExpressionHoverInfoAtPos
       | None ->
         match
           collectExpressionHoverInfoAtPos
+            branchID
             left
             position
             pm
@@ -2072,6 +2249,7 @@ let collectExpressionHoverInfoAtPos
         | Some r -> Stdlib.Option.Option.Some r
         | None ->
           collectExpressionHoverInfoAtPos
+            branchID
             right
             position
             pm
@@ -2106,6 +2284,7 @@ let collectExpressionHoverInfoAtPos
         | None ->
           // check if we are hovering over the lambda body
           collectExpressionHoverInfoAtPos
+            branchID
             body
             position
             pm
@@ -2120,14 +2299,26 @@ let collectExpressionHoverInfoAtPos
     if CursorPosition.isLineNumberInRange position r then
       // check if we are hovering over the lhs expression
       match
-        collectExpressionHoverInfoAtPos lhs position pm owner currentModules
+        collectExpressionHoverInfoAtPos
+          branchID
+          lhs
+          position
+          pm
+          owner
+          currentModules
       with
       | Some r -> Stdlib.Option.Option.Some r
       | None ->
         match
           typeArgs
           |> Stdlib.List.filterMap (fun tr ->
-            collectTypeRefHoverInfoAtPos tr position pm owner currentModules)
+            collectTypeRefHoverInfoAtPos
+              branchID
+              tr
+              position
+              pm
+              owner
+              currentModules)
           |> Stdlib.List.head
         with
         | Some r -> Stdlib.Option.Option.Some r
@@ -2135,6 +2326,7 @@ let collectExpressionHoverInfoAtPos
           args
           |> Stdlib.List.filterMap (fun e ->
             collectExpressionHoverInfoAtPos
+              branchID
               e
               position
               pm
@@ -2155,6 +2347,7 @@ let collectExpressionHoverInfoAtPos
         let fnName = Stdlib.List.append modules [ name.fn.name ]
 
         tryGetFnAndCollectHoverInfo
+          branchID
           fnName
           name.fn.range
           pm
@@ -2185,6 +2378,7 @@ let collectExpressionHoverInfoAtPos
           // check if we are hovering over a function
           match
             tryGetFnAndCollectHoverInfo
+              branchID
               fnOrValueName
               r
               pm
@@ -2196,6 +2390,7 @@ let collectExpressionHoverInfoAtPos
             // check if we are hovering over a value
             let getValue =
               tryGetPkgVal
+                branchID
                 fnOrValueName
                 fnOrValueName.valueOrFn.range
                 pm
@@ -2230,6 +2425,7 @@ let collectExpressionHoverInfoAtPos
       // check if we are hovering over the first statement
       match
         collectExpressionHoverInfoAtPos
+          branchID
           first
           position
           pm
@@ -2239,7 +2435,13 @@ let collectExpressionHoverInfoAtPos
       | Some r -> Stdlib.Option.Option.Some r
       | None ->
         // check if we are hovering over one of the next statements
-        collectExpressionHoverInfoAtPos next position pm owner currentModules
+        collectExpressionHoverInfoAtPos
+          branchID
+          next
+          position
+          pm
+          owner
+          currentModules
 
     else
       Stdlib.Option.Option.None
@@ -2250,7 +2452,114 @@ let collectExpressionHoverInfoAtPos
 // ---------------------------
 // Source File Hover Info
 // ---------------------------
+
+/// Helper function to collect hover info from module declarations
+let collectModuleDeclHoverInfoAtPos
+  (branchID: Stdlib.Option.Option<ProgramTypes.BranchID>)
+  (decls: List<WrittenTypes.ModuleDeclaration.Declaration>)
+  (position: LanguageServerProtocol.Position.Position)
+  (pm: ProgramTypes.PackageManager.PackageManager)
+  (owner: String)
+  (currentModules: List<String>)
+  : Stdlib.Option.Option<Info> =
+  let node =
+    decls
+    |> Stdlib.List.filterMap (fun decl ->
+      match decl with
+      | Type t ->
+        // Check if position is within type range for early escape
+        if CursorPosition.isLineNumberInRange position t.range then
+          collectTypeHoverInfoAtPosition
+            branchID
+            t
+            position
+            pm
+            owner
+            currentModules
+        else
+          Stdlib.Option.Option.None
+
+      | Value v ->
+        // Check if position is within value range for early escape
+        if CursorPosition.isLineNumberInRange position v.range then
+          collectValueHoverInfoAtPos branchID v position pm owner currentModules
+        else
+          Stdlib.Option.Option.None
+
+      | Function f ->
+        // Check if position is within function range for early escape
+        if CursorPosition.isLineNumberInRange position f.range then
+          collectFnHoverInfoAtPos branchID f position pm owner currentModules
+        else
+          Stdlib.Option.Option.None
+
+      | SubModule m ->
+        // Check if position is within submodule range for early escape
+        if CursorPosition.isLineNumberInRange position m.range then
+          match
+            CursorPosition.checkIfPositionWithinRange
+              position
+              m.keywordModule
+          with
+          | Some r ->
+            let thingAtPosition =
+              CursorPosition.ThingAtPosition.Keyword("module")
+
+            (hoverInfoForThingAtPosition thingAtPosition r)
+            |> Stdlib.Option.Option.Some
+
+          | None ->
+            let (nameRange, subModuleName) = m.name
+
+            match
+              CursorPosition.checkIfPositionWithinRange position nameRange
+            with
+            | Some r ->
+              let fqName =
+                (Stdlib.String.join currentModules ".")
+                |> (fun currentModules ->
+                  if currentModules == "" then
+                    subModuleName
+                  else
+                    currentModules ++ "." ++ subModuleName)
+
+              let description =
+                Stdlib.Option.Option.Some(
+                  "TODO: add description when /// comments are supported"
+                )
+
+              let thingAtPosition =
+                CursorPosition.ThingAtPosition.SubModuleName(
+                  fqName,
+                  description
+                )
+
+              (hoverInfoForThingAtPosition thingAtPosition r)
+              |> Stdlib.Option.Option.Some
+
+            | None ->
+              let currentModules =
+                Stdlib.List.append currentModules [ subModuleName ]
+
+              collectModuleDeclHoverInfoAtPos
+                branchID
+                m.declarations
+                position
+                pm
+                owner
+                currentModules
+
+
+        else
+          Stdlib.Option.Option.None
+
+      | _ -> Stdlib.Option.Option.None)
+
+  node |> Stdlib.List.head
+
+
 let collectNodeHoverInfoAtPos
+  (branchID: Stdlib.Option.Option<ProgramTypes.BranchID>)
   (decls: List<WrittenTypes.SourceFile.SourceFileDeclaration>)
   (position: LanguageServerProtocol.Position.Position)
   (pm: ProgramTypes.PackageManager.PackageManager)
@@ -2264,26 +2573,38 @@ let collectNodeHoverInfoAtPos
       | Type t ->
         // Check if position is within type range for early escape
         if CursorPosition.isLineNumberInRange position t.range then
-          collectTypeHoverInfoAtPosition t position pm owner currentModules
+          collectTypeHoverInfoAtPosition
+            branchID
+            t
+            position
+            pm
+            owner
+            currentModules
         else
           Stdlib.Option.Option.None
 
       | Value v ->
         // Check if position is within value range for early escape
         if CursorPosition.isLineNumberInRange position v.range then
-          collectValueHoverInfoAtPos v position pm owner currentModules
+          collectValueHoverInfoAtPos branchID v position pm owner currentModules
         else
           Stdlib.Option.Option.None
 
       | Function f ->
         // Check if position is within function range for early escape
         if CursorPosition.isLineNumberInRange position f.range then
-          collectFnHoverInfoAtPos f position pm owner currentModules
+          collectFnHoverInfoAtPos branchID f position pm owner currentModules
         else
           Stdlib.Option.Option.None
 
       | Expr e ->
-        collectExpressionHoverInfoAtPos e position pm owner currentModules
+        collectExpressionHoverInfoAtPos
+          branchID
+          e
+          position
+          pm
+          owner
+          currentModules
 
       | Module m ->
         // Check if position is within module range for early escape
@@ -2322,8 +2643,13 @@ let collectNodeHoverInfoAtPos
               let currentModules =
                 Stdlib.List.append currentModules [ name ]
 
-              m.declarations
-              |> collectNodeHoverInfoAtPos position pm owner currentModules
+              collectModuleDeclHoverInfoAtPos
+                branchID
+                m.declarations
+                position
+                pm
+                owner
+                currentModules
 
         else
           Stdlib.Option.Option.None
@@ -2376,8 +2702,13 @@ let collectNodeHoverInfoAtPos
               let currentModules =
                 Stdlib.List.append currentModules [ subModuleName ]
 
-              m.declarations
-              |> collectNodeHoverInfoAtPos position pm owner currentModules
+              collectModuleDeclHoverInfoAtPos
+                branchID
+                m.declarations
+                position
+                pm
+                owner
+                currentModules
 
 
         else

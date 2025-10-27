@@ -102,29 +102,29 @@ let buildTreeItems
   let fnItems =
     searchResults.fns
     |> Stdlib.List.filter (fun fn ->
-      let modules = Stdlib.List.push fn.name.modules fn.name.owner
+      let modules = Stdlib.List.push fn.location.modules fn.location.owner
       modules == currentPath)
     |> Stdlib.List.map (fun fn ->
-      let id = fn.name |> ProgramTypes.PackageFn.nameToString
-      makeTreeItem id fn.name.name TreeItemCollapsibleState.None (Stdlib.Option.Option.Some $"fn:{id}"))
+      let id = fn.location.owner ++ "." ++ (Stdlib.String.join fn.location.modules ".") ++ "." ++ fn.location.name
+      makeTreeItem id fn.location.name TreeItemCollapsibleState.None (Stdlib.Option.Option.Some $"fn:{id}"))
 
   let typeItems =
     searchResults.types
-    |> Stdlib.List.filter (fun typ ->
-      let modules = Stdlib.List.push typ.name.modules typ.name.owner
+    |> Stdlib.List.filter (fun fn ->
+      let modules = Stdlib.List.push fn.location.modules fn.location.owner
       modules == currentPath)
-    |> Stdlib.List.map (fun typ ->
-      let id = typ.name |> ProgramTypes.PackageType.nameToString
-      makeTreeItem id typ.name.name TreeItemCollapsibleState.None (Stdlib.Option.Option.Some $"type:{id}"))
+    |> Stdlib.List.map (fun fn ->
+      let id = fn.location.owner ++ "." ++ (Stdlib.String.join fn.location.modules ".") ++ "." ++ fn.location.name
+      makeTreeItem id fn.location.name TreeItemCollapsibleState.None (Stdlib.Option.Option.Some $"type:{id}"))
 
   let valueItems =
     searchResults.values
     |> Stdlib.List.filter (fun v ->
-      let modules = Stdlib.List.push v.name.modules v.name.owner
+      let modules = Stdlib.List.push v.location.modules v.location.owner
       modules == currentPath)
     |> Stdlib.List.map (fun v ->
-      let id = v.name |> ProgramTypes.PackageValue.nameToString
-      makeTreeItem id v.name.name TreeItemCollapsibleState.None (Stdlib.Option.Option.Some $"value:{id}"))
+      let id = v.location.owner ++ "." ++ (Stdlib.String.join v.location.modules ".") ++ "." ++ v.location.name
+      makeTreeItem id v.location.name TreeItemCollapsibleState.None (Stdlib.Option.Option.Some $"value:{id}"))
 
   (Stdlib.List.flatten [submodules; fnItems; typeItems; valueItems])
   |> Stdlib.List.uniqueBy (fun item ->
@@ -164,7 +164,8 @@ let handleGetChildNodesRequest
             ]
             exactMatch = false }
 
-      let searchResults = LanguageTools.PackageManager.Search.search searchQuery
+      let searchResults =
+        LanguageTools.PackageManager.Search.search state.branchID searchQuery
       buildTreeItems searchResults currentPath nodeId
 
   let response =
