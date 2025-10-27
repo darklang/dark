@@ -1,0 +1,202 @@
+module Darklang.SCM.Sync
+
+/// Synchronize package ops with a remote Darklang instance
+/// Returns a result with success message or error
+let sync
+  (instanceId: Uuid)
+  (remoteUrl: String)
+  (branchId: Stdlib.Option.Option<Uuid>)
+  : Stdlib.Result.Result<String, String> =
+  Builtin.debug "=== Starting sync ===" instanceId
+
+  // Get last sync date with this instance
+  let lastSyncOpt = Builtin.scmGetLastSyncDate instanceId
+
+  Builtin.debug "Last sync date" lastSyncOpt
+
+  let sinceDate =
+    match lastSyncOpt with
+    | Some dt -> dt
+    // If never synced, use Unix epoch (will sync everything)
+    | None -> Stdlib.DateTime.fromSeconds 0L
+
+  Builtin.debug "Syncing since" sinceDate
+
+  // Get ops to push (created since last sync)
+  let opsToPush = Darklang.SCM.PackageOps.getSince branchId sinceDate
+
+  let opsPushedCount = Stdlib.List.length opsToPush
+
+  Builtin.debug "Ops to push" opsPushedCount
+
+  // Push ops to remote in batches
+  let pushResult =
+    if opsPushedCount == 0L then
+      Builtin.debug "No ops to push, skipping POST" ()
+      Stdlib.Result.Result.Ok 0L
+    else
+      let batchSize = 100L
+
+      let batches =
+        match Stdlib.List.chunkBySize opsToPush batchSize with
+        | Ok chunks -> chunks
+        | Error _ -> [ opsToPush ] // Fallback to single batch if chunking fails
+
+      let batchCount = Stdlib.List.length batches
+      let opsPushedCountStr = Stdlib.Int64.toString opsPushedCount
+      let batchCountStr = Stdlib.Int64.toString batchCount
+
+      Builtin.printLine
+        $"Pushing {opsPushedCountStr} ops in {batchCountStr} batches..."
+
+      let pushUrl = $"{remoteUrl}/ops"
+
+      Builtin.debug "Push URL" pushUrl
+
+      // Push each batch sequentially using fold with manual index tracking
+      let (_, pushAllBatches) =
+        Stdlib.List.fold
+          batches
+          (0L, Stdlib.Result.Result.Ok 0L)
+          (fun acc batch ->
+            let (index, batchResult) = acc
+
+            match batchResult with
+            | Error msg -> (index + 1L, Stdlib.Result.Result.Error msg)
+            | Ok totalSoFar ->
+              let batchNum = index + 1L
+              let batchNumStr = Stdlib.Int64.toString batchNum
+              let batchCountStr = Stdlib.Int64.toString batchCount
+              let batchOpsCount = Stdlib.List.length batch
+              let batchOpsCountStr = Stdlib.Int64.toString batchOpsCount
+
+              Builtin.printLine
+                $"  Batch {batchNumStr}/{batchCountStr} ({batchOpsCountStr} ops)..."
+
+              let opsJson =
+                Builtin.jsonSerialize<List<LanguageTools.ProgramTypes.PackageOp>> batch
+
+              let pushRequest =
+                Stdlib.HttpClient.request
+                  "POST"
+                  pushUrl
+                  [ ("Content-Type", "application/json") ]
+                  (Stdlib.String.toBytes opsJson)
+
+              let newResult =
+                match pushRequest with
+                | Ok response ->
+                  if response.statusCode >= 200L && response.statusCode < 300L then
+                    Stdlib.Result.Result.Ok(totalSoFar + batchOpsCount)
+                  else
+                    let errorBody =
+                      Stdlib.String.fromBytesWithReplacement response.body
+
+                    let statusCode = Stdlib.Int64.toString response.statusCode
+
+                    Stdlib.Result.Result.Error
+                      $"Push failed on batch {batchNumStr} with status {statusCode}: {errorBody}"
+
+                | Error err ->
+                  let errorMsg =
+                    match err with
+                    | BadUrl details -> $"Bad URL: {details}"
+                    | Timeout -> "Request timeout"
+                    | BadHeader header -> $"Bad header: {header}"
+                    | NetworkError -> "Network error"
+                    | BadMethod -> "Bad method"
+
+                  Stdlib.Result.Result.Error
+                    $"Push request failed on batch {batchNumStr}: {errorMsg}"
+
+              (index + 1L, newResult))
+
+      pushAllBatches
+
+  // If push succeeded, pull ops from remote
+  match pushResult with
+  | Error msg -> Stdlib.Result.Result.Error msg
+  | Ok pushedCount ->
+    Builtin.printLine "Pulling ops from remote..."
+
+    // Pull ops from remote
+    let pullRequest =
+      Stdlib.HttpClient.request
+        "GET"
+        $"{remoteUrl}/ops?since={(Stdlib.DateTime.toString sinceDate)}"
+        []
+        (Stdlib.String.toBytes "")
+
+    match pullRequest with
+    | Error err ->
+      let errorMsg =
+        match err with
+        | BadUrl details -> $"Bad URL: {details}"
+        | Timeout -> "Request timeout"
+        | BadHeader header -> $"Bad header: {header}"
+        | NetworkError -> "Network error"
+        | BadMethod -> "Bad method"
+
+      Stdlib.Result.Result.Error $"Pull request failed: {errorMsg}"
+    | Ok response ->
+      if response.statusCode >= 200L && response.statusCode < 300L then
+        let responseBody = Stdlib.String.fromBytesWithReplacement response.body
+
+        match Builtin.jsonParse<List<LanguageTools.ProgramTypes.PackageOp>> responseBody with
+        | Error _err ->
+          Stdlib.Result.Result.Error "Failed to parse pulled ops JSON"
+
+        | Ok pulledOps ->
+          let pulledCount = Stdlib.List.length pulledOps
+
+          // Add pulled ops to local database in batches
+          if pulledCount > 0L then
+            let batchSize = 100L
+
+            let batches =
+              match Stdlib.List.chunkBySize pulledOps batchSize with
+              | Ok chunks -> chunks
+              | Error _ -> [ pulledOps ] // Fallback to single batch if chunking fails
+
+            let batchCount = Stdlib.List.length batches
+            let pulledCountStr = Stdlib.Int64.toString pulledCount
+            let batchCountStr = Stdlib.Int64.toString batchCount
+
+            Builtin.printLine
+              $"Applying {pulledCountStr} pulled ops in {batchCountStr} batches..."
+
+            let _ =
+              Stdlib.List.fold
+                batches
+                0L
+                (fun index batch ->
+                  let batchNum = index + 1L
+                  let batchNumStr = Stdlib.Int64.toString batchNum
+                  let batchCountStr = Stdlib.Int64.toString batchCount
+                  let batchOpsCount = Stdlib.List.length batch
+                  let batchOpsCountStr = Stdlib.Int64.toString batchOpsCount
+
+                  Builtin.printLine
+                    $"  Applying batch {batchNumStr}/{batchCountStr} ({batchOpsCountStr} ops)..."
+
+                  Builtin.scmAddOps branchId batch
+
+                  index + 1L)
+
+            ()
+
+          // Record the sync
+          Builtin.scmRecordSync instanceId pushedCount pulledCount
+
+          let pushedStr = Stdlib.Int64.toString pushedCount
+          let pulledStr = Stdlib.Int64.toString pulledCount
+
+          Stdlib.Result.Result.Ok
+            $"Sync complete: pushed {pushedStr} ops, pulled {pulledStr} ops"
+
+      else
+        let errorBody = Stdlib.String.fromBytesWithReplacement response.body
+        let statusCode = Stdlib.Int64.toString response.statusCode
+
+        Stdlib.Result.Result.Error
+          $"Pull failed with status {statusCode}: {errorBody}"

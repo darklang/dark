@@ -1,0 +1,15 @@
+module Darklang.SCM.Account
+
+/// Get the current account ID for this CLI session
+let getCurrentId () : Uuid = Builtin.scmGetCurrentAccountId ()
+
+/// Get the current branch for the account (ensures 'main' exists if needed)
+let getCurrentBranch () : Uuid = Builtin.scmGetCurrentBranch ()
+
+/// Set the current branch for the account
+let setCurrentBranch (branchId: Uuid) : Unit =
+  Builtin.scmSetCurrentBranch branchId
+
+/// Clear the current branch for the account (sets it to NULL)
+let clearCurrentBranch () : Unit =
+  Builtin.scmClearCurrentBranch ()

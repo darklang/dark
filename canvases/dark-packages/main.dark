@@ -1,12 +1,184 @@
+// CLEANUP branchId tidyings
+
 [<HttpHandler("GET", "/ping")>]
 let _handler _req =
   Stdlib.Http.response (Stdlib.String.toBytes "pong") 200L
 
 
+// Client/server or P2P setup?
+
+// data.db -> client.db, server.db
+// or leave data.db and just add server.db
+
+// does the 'server' need a diff. schema at all?
+// is anything stoed in a user db?
+
+
+[<HttpHandler("POST", "/ops")>]
+let _handler _req =
+  let bodyBytes = request.body
+  let bodyStr = Stdlib.String.fromBytesWithReplacement bodyBytes
+
+  match Builtin.jsonParse<List<LanguageTools.ProgramTypes.PackageOp>> bodyStr with
+  | Ok ops ->
+    // Add ops to database (branchId None for now)
+    let branchId = Stdlib.Option.Option.None
+    Builtin.scmAddOps branchId ops
+
+    let opsCount = Builtin.int64ToString (Stdlib.List.length ops)
+
+    let responseMsg = $"Successfully received and applied {opsCount} ops"
+
+    Stdlib.Http.response (Stdlib.String.toBytes responseMsg) 200L
+
+  | Error _err ->
+    let errorMsg = "Invalid request body. Expected JSON list of PackageOps."
+
+    Stdlib.Http.response (Stdlib.String.toBytes errorMsg) 400L
+
+
+// type HttpHandler =
+//   { verb: String
+//     route: String
+//     body: HttpRequest -> HttpResponse }
+
+// let handler =
+//   HttpHandler
+//     { verb = "GET"
+//       route = "/ops"
+//       body =
+//         fun req ->
+//         }
+
+
+
+[<HttpHandler("GET", "/ops")>]
+let _handler _req =
+  let sinceParam =
+    // CLEANUP use a helper here, this should be a one-liner
+    (Stdlib.Http.Request.queryParams request)
+    |> Stdlib.List.findFirst (fun pair ->
+      match pair with
+      | (key, _value) -> key == "since")
+
+  match sinceParam with
+  | Some((_key, sinceStr)) ->
+    match Stdlib.DateTime.parse sinceStr with
+    | Ok sinceDate ->
+      // Get ops since that date
+      let branchId = Stdlib.Option.Option.None
+      let ops =
+        Darklang.SCM.PackageOps.getSince branchId sinceDate
+
+      let json =
+        Builtin.jsonSerialize<List<LanguageTools.ProgramTypes.PackageOp>> ops
+
+      Stdlib.Http.response (Stdlib.String.toBytes json) 200L
+
+    | Error _err ->
+      let errorMsg = "Invalid 'since' parameter. Expected ISO 8601 datetime."
+
+      Stdlib.Http.response (Stdlib.String.toBytes errorMsg) 400L
+
+  | None ->
+    let errorMsg = "Missing required query parameter: 'since'"
+
+    Stdlib.Http.response (Stdlib.String.toBytes errorMsg) 400L
+
+
+
+(*Implementation plan:
+- add syncs table
+- make Sync.fs in LibPackageManager real
+  - 'get latest sync date' (querying DB)
+- expose builtins
+- make the HTTP endpoints real
+- CLI 'sync' command
+- see changes *magic*
+- VS Code command, etc.
+- actually test it: get tailscale stuff set up, etc.
+  (could test w/ 2 computers locally)
+*)
+
+
+(*
+if ocean and I have diverged at all, we could face weird sync issues
+specifically due to .dark files not yet making it into ops, or something?
+
+Maybe the start of a sync could be negotiated by reviewing what op IDs are in both places?
+A: I have ops {1b6, 2b7, e43}
+B: I have ops {1b6, e43}
+
+OK to ignore for now, since we _can_ enforce that we start at the same point,
+when the 'servers' are started up.
+*)
+
+
+(*backend thinking:
+
+ what if someone is connecting for the first time?
+ maybe the .db that we ship with the CLI has some 'since' date?
+ Like when was that dump craeted?
+
+DB:
+- 'syncs' table -- just records how many ops were pushed/pulled
+  id
+  instance_id // ocean | stachu | (matter.darklang.com) | dark-matter.shell.com
+  when
+  ops pushed (just a count)
+  ops fetched (just a count)
+  (maybe future: adjust package_op table to have sync id)
+    (prob. not)
+
+
+LibPackageManager changes
+- Sync.fs
+  - checks sync DB to determine when we last synced
+    `let lastSynced = ...`
+  - push
+    - gathers all Ops created since that sync
+    - serialize the blobs for transport (binary?)
+    - make HTTP request to `POST /ops` -- 200 OK
+  - pull
+    - make HTTP request to `POST /ops`
+    - deserialize the blobs
+    - insert op records into DB
+  - record the sync results in the sync table
+  - (future: push notification to CLI / VSCode, via dev server, "new stuff!")
+
+  (callable from CLI or VS Code)
+  (what order do we do these in? or maybe in parallel?)
+
+
+right now this is written as if we must push+pull at the same time
+should we chnage things so we only pull or only push?
+if so, we likely need to record those dates separately
+
+
+Builtins:
+- Builtin.scmSync() -- no args, just calls that sync fn in the PM
+
+CLI changes:
+- `sync` command which triggers this
+
+VS Code changes:
+- some 'sync' command
+- maybe a button to trigger it
+- maybe a view of the syncs (just list when we've synched and how many ops were pushed/pulled)
+
+LSP changes:
+-
+
+*)
+
+
+
+
+
 // expose some metadata to quickly check if things seem to be working and populated
 [<HttpHandler("GET", "/stats")>]
 let _handler _req =
-  let stats = Builtin.packageManagerGetStats ()
+  let stats = Builtin.pmGetStats ()
 
   let body =
     $"Package stats:
@@ -18,149 +190,54 @@ let _handler _req =
   Stdlib.Http.response body 200L
 
 
-
-// fetch types
-// (JSON representation of PT.PackageType)
-[<HttpHandler("GET", "/type/find/:name")>]
-let _handler _req =
-  match Builtin.packageManagerFindType name with
-  | Some foundID ->
-    let json = $"\"{Stdlib.Uuid.toString foundID}\""
-    Stdlib.Http.response (Stdlib.String.toBytes json) 200L
-  | None -> Stdlib.Http.response (Stdlib.String.toBytes "not found") 404L
-
-[<HttpHandler("GET", "/type/get/:id")>]
-let _handler _req =
-  let id = (Stdlib.Uuid.parse id) |> Builtin.unwrap
-
-  match Builtin.packageManagerGetType id with
-  | Some f ->
-    let json =
-      Builtin.jsonSerialize<LanguageTools.ProgramTypes.PackageType.PackageType> f
-
-    Stdlib.Http.response (Stdlib.String.toBytes json) 200L
-  | None -> Stdlib.Http.response (Stdlib.String.toBytes "not found") 404L
+// // [<HttpHandler("GET", "/query/:location")>]
+// // let _handler _req =
+// //   match Builtin.pmFindType name with
+// //   | Some foundID ->
+// //     let json = $"\"{Stdlib.Uuid.toString foundID}\""
+// //     Stdlib.Http.response (Stdlib.String.toBytes json) 200L
+// //   | None -> Stdlib.Http.response (Stdlib.String.toBytes "not found") 404L
 
 
-// fetch values
-// (JSON representation of PT.PackageValues)
-[<HttpHandler("GET", "/value/find/:name")>]
-let _handler _req =
-  match Builtin.packageManagerFindValue name with
-  | Some foundID ->
-    let json = $"\"{Stdlib.Uuid.toString foundID}\""
-    Stdlib.Http.response (Stdlib.String.toBytes json) 200L
-  | None -> Stdlib.Http.response (Stdlib.String.toBytes "not found") 404L
+// // up for discussion:
+//   // can 2 things of different classes have the same owner+modules+name?
 
-[<HttpHandler("GET", "/value/get/:id")>]
-let _handler _req =
-  let id = (Stdlib.Uuid.parse id) |> Builtin.unwrap
+//   // let List.empty()
+//   // val List.empty
 
-  match Builtin.packageManagerGetValue id with
-  | Some f ->
-    let json =
-      Builtin.jsonSerialize<LanguageTools.ProgramTypes.PackageValue.PackageValue>
-        f
+//   // if so, what should show when you go to:
+//   // dark://package/Dark.Stdlib.List.empty
+//   // ?
+//   // or do we change URLs to
+//   // dark://package/Dark.Stdlib.List.empty
+//   // ?
 
-    Stdlib.Http.response (Stdlib.String.toBytes json) 200L
-  | None -> Stdlib.Http.response (Stdlib.String.toBytes "not found") 404L
+//   // `List.empty` -- which thing am I referring to?
 
 
-// fetch functions
-// (JSON representation of PT.PackageFn)
-[<HttpHandler("GET", "/function/find/:name")>]
-let _handler _req =
-  match Builtin.packageManagerFindFn name with
-  | Some foundID ->
-    let json = $"\"{Stdlib.Uuid.toString foundID}\""
-    Stdlib.Http.response (Stdlib.String.toBytes json) 200L
-  | None -> Stdlib.Http.response (Stdlib.String.toBytes "not found") 404L
-
-[<HttpHandler("GET", "/function/get/:id")>]
-let _handler _req =
-  let id = (Stdlib.Uuid.parse id) |> Builtin.unwrap
-
-  match Builtin.packageManagerGetFn id with
-  | Some f ->
-    let json =
-      Builtin.jsonSerialize<LanguageTools.ProgramTypes.PackageFn.PackageFn> f
-
-    Stdlib.Http.response (Stdlib.String.toBytes json) 200L
-  | None -> Stdlib.Http.response (Stdlib.String.toBytes "not found") 404L
 
 
-[<HttpHandler("GET", "/search")>]
-let _handler _req =
-  let currentModule =
-    (Stdlib.Http.Request.queryParams request)
-    |> Stdlib.List.filterMap (fun pair ->
-      match pair with
-      | (k, v) ->
-        if k == "modules" then
-          Stdlib.Option.Option.Some v
-        else
-          Stdlib.Option.Option.None
-      | _ -> Stdlib.Option.Option.None)
+// // fetch types
+// // (JSON representation of PT.PackageType)
+// [<HttpHandler("GET", "/type/find/:name")>]
+// let _handler _req =
+//   match Builtin.pmFindType name with
+//   | Some foundID ->
+//     let json = $"\"{Stdlib.Uuid.toString foundID}\""
+//     Stdlib.Http.response (Stdlib.String.toBytes json) 200L
+//   | None -> Stdlib.Http.response (Stdlib.String.toBytes "not found") 404L
 
-    |> Stdlib.List.head
-    |> Builtin.unwrap
-    |> Stdlib.String.split "."
+// [<HttpHandler("GET", "/type/get/:id")>]
+// let _handler _req =
+//   let id = (Stdlib.Uuid.parse id) |> Builtin.unwrap
 
-  let text =
-    (Stdlib.Http.Request.queryParams request)
-    |> Stdlib.List.filterMap (fun pair ->
-      match pair with
-      | (k, v) ->
-        if k == "text" then
-          Stdlib.Option.Option.Some v
-        else
-          Stdlib.Option.Option.None
-      | _ -> Stdlib.Option.Option.None)
-    |> fun text ->
-      match text with
-      | [] -> ""
-      | _ ->
-        (Stdlib.List.head text)
-        |> Builtin.unwrap
+//   match Builtin.pmGetType id with
+//   | Some f ->
+//     let json =
+//       Builtin.jsonSerialize<LanguageTools.ProgramTypes.PackageType.PackageType> f
 
-  let searchDepth =
-    (Stdlib.Http.Request.queryParams request)
-    |> Stdlib.List.filterMap (fun pair ->
-      match pair with
-      | (k, v) ->
-        if k == "searchDepth" then
-          Stdlib.Option.Option.Some v
-        else
-          Stdlib.Option.Option.None
-      | _ -> Stdlib.Option.Option.None)
-    |> Stdlib.List.head
-    |> Builtin.unwrap
-    |> fun depth ->
-      match depth with
-      | "direct" ->
-        LanguageTools.ProgramTypes.Search.SearchDepth.OnlyDirectDescendants
-
-  let entityTypes =
-    (Stdlib.Http.Request.queryParams request)
-    |> Stdlib.List.filterMap (fun pair ->
-      match pair with
-      | (k, v) ->
-        if k == "entityTypes" then
-          Stdlib.Option.Option.Some v
-        else
-          Stdlib.Option.Option.None
-      | _ -> Stdlib.Option.Option.None)
-    |> Stdlib.List.head
-    |> Builtin.unwrap
-    |> Stdlib.String.split ","
-    |> Stdlib.List.map (fun entityType ->
-      match entityType with
-      | "type" -> LanguageTools.ProgramTypes.Search.EntityType.Type
-      | "value" -> LanguageTools.ProgramTypes.Search.EntityType.Value
-      | "function" -> LanguageTools.ProgramTypes.Search.EntityType.Fn
-      | "module" -> LanguageTools.ProgramTypes.Search.EntityType.Module)
-
-    |> Stdlib.List.unique
+//     Stdlib.Http.response (Stdlib.String.toBytes json) 200L
+//   | None -> Stdlib.Http.response (Stdlib.String.toBytes "not found") 404L
 
   let exactMatch =
     (Stdlib.Http.Request.queryParams request)
@@ -190,10 +267,158 @@ let _handler _req =
         searchDepth = searchDepth
         entityTypes = entityTypes
         exactMatch = exactMatch }
+// // fetch values
+// // (JSON representation of PT.PackageValues)
+// [<HttpHandler("GET", "/value/find/:name")>]
+// let _handler _req =
+//   match Builtin.pmFindValue name with
+//   | Some foundID ->
+//     let json = $"\"{Stdlib.Uuid.toString foundID}\""
+//     Stdlib.Http.response (Stdlib.String.toBytes json) 200L
+//   | None -> Stdlib.Http.response (Stdlib.String.toBytes "not found") 404L
+
+// [<HttpHandler("GET", "/value/get/:id")>]
+// let _handler _req =
+//   let id = (Stdlib.Uuid.parse id) |> Builtin.unwrap
+
+//   match Builtin.pmGetValue id with
+//   | Some f ->
+//     let json =
+//       Builtin.jsonSerialize<LanguageTools.ProgramTypes.PackageValue.PackageValue>
+//         f
+
+//     Stdlib.Http.response (Stdlib.String.toBytes json) 200L
+//   | None -> Stdlib.Http.response (Stdlib.String.toBytes "not found") 404L
 
 
-  let results = Builtin.packageManagerSearch query
+// // fetch functions
+// // (JSON representation of PT.PackageFn)
+// [<HttpHandler("GET", "/function/find/:name")>]
+// let _handler _req =
+//   match Builtin.pmFindFn name with
+//   | Some foundID ->
+//     let json = $"\"{Stdlib.Uuid.toString foundID}\""
+//     Stdlib.Http.response (Stdlib.String.toBytes json) 200L
+//   | None -> Stdlib.Http.response (Stdlib.String.toBytes "not found") 404L
 
-  let json = Builtin.jsonSerialize<LanguageTools.ProgramTypes.Search.SearchResults> results
+// [<HttpHandler("GET", "/function/get/:id")>]
+// let _handler _req =
+//   let id = (Stdlib.Uuid.parse id) |> Builtin.unwrap
 
-  Stdlib.Http.response (Stdlib.String.toBytes json) 200L
+//   match Builtin.pmGetFn id with
+//   | Some f ->
+//     let json =
+//       Builtin.jsonSerialize<LanguageTools.ProgramTypes.PackageFn.PackageFn> f
+
+//     Stdlib.Http.response (Stdlib.String.toBytes json) 200L
+//   | None -> Stdlib.Http.response (Stdlib.String.toBytes "not found") 404L
+
+
+// [<HttpHandler("GET", "/search")>]
+// let _handler _req =
+//   let currentModule =
+//     (Stdlib.Http.Request.queryParams request)
+//     |> Stdlib.List.filterMap (fun pair ->
+//       match pair with
+//       | (k, v) ->
+//         if k == "modules" then
+//           Stdlib.Option.Option.Some v
+//         else
+//           Stdlib.Option.Option.None
+//       | _ -> Stdlib.Option.Option.None)
+
+//     |> Stdlib.List.head
+//     |> Builtin.unwrap
+//     |> Stdlib.String.split "."
+
+//   let text =
+//     (Stdlib.Http.Request.queryParams request)
+//     |> Stdlib.List.filterMap (fun pair ->
+//       match pair with
+//       | (k, v) ->
+//         if k == "text" then
+//           Stdlib.Option.Option.Some v
+//         else
+//           Stdlib.Option.Option.None
+//       | _ -> Stdlib.Option.Option.None)
+//     |> fun text ->
+//       match text with
+//       | [] -> ""
+//       | _ ->
+//         (Stdlib.List.head text)
+//         |> Builtin.unwrap
+
+//   let searchDepth =
+//     (Stdlib.Http.Request.queryParams request)
+//     |> Stdlib.List.filterMap (fun pair ->
+//       match pair with
+//       | (k, v) ->
+//         if k == "searchDepth" then
+//           Stdlib.Option.Option.Some v
+//         else
+//           Stdlib.Option.Option.None
+//       | _ -> Stdlib.Option.Option.None)
+//     |> Stdlib.List.head
+//     |> Builtin.unwrap
+//     |> fun depth ->
+//       match depth with
+//       | "direct" ->
+//         LanguageTools.ProgramTypes.Search.SearchDepth.OnlyDirectDescendants
+
+//   let entityTypes =
+//     (Stdlib.Http.Request.queryParams request)
+//     |> Stdlib.List.filterMap (fun pair ->
+//       match pair with
+//       | (k, v) ->
+//         if k == "entityTypes" then
+//           Stdlib.Option.Option.Some v
+//         else
+//           Stdlib.Option.Option.None
+//       | _ -> Stdlib.Option.Option.None)
+//     |> Stdlib.List.head
+//     |> Builtin.unwrap
+//     |> Stdlib.String.split ","
+//     |> Stdlib.List.map (fun entityType ->
+//       match entityType with
+//       | "type" -> LanguageTools.ProgramTypes.Search.EntityType.Type
+//       | "value" -> LanguageTools.ProgramTypes.Search.EntityType.Value
+//       | "function" -> LanguageTools.ProgramTypes.Search.EntityType.Fn
+//       | "module" -> LanguageTools.ProgramTypes.Search.EntityType.Module)
+
+//     |> Stdlib.List.unique
+
+//   let exactMatch =
+//     (Stdlib.Http.Request.queryParams request)
+//     |> Stdlib.List.filterMap (fun pair ->
+//       match pair with
+//       | (k, v) ->
+//         if k == "exactMatch" then
+//           Stdlib.Option.Option.Some v
+//         else
+//           Stdlib.Option.Option.None
+//       | _ -> Stdlib.Option.Option.None)
+//     |> Stdlib.List.head
+//     |> fun em ->
+//       match em with
+//       | None -> false
+//       | Some em ->
+//         match em with
+//         | "true" -> true
+//         | "false" -> false
+//         | _ -> false
+
+
+//   let query =
+//     LanguageTools.ProgramTypes.Search.SearchQuery
+//       { currentModule = currentModule
+//         text = text
+//         searchDepth = searchDepth
+//         entityTypes = entityTypes
+//         exactMatch = exactMatch }
+
+
+//   let results = Builtin.pmSearch query
+
+//   let json = Builtin.jsonSerialize<LanguageTools.ProgramTypes.Search.SearchResults> results
+
+//   Stdlib.Http.response (Stdlib.String.toBytes json) 200L

@@ -1,0 +1,125 @@
+module Darklang.Cli.Instances
+
+let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
+  match args with
+  | [] -> help state
+
+  | ["list"] ->
+    let instances = SCM.Instances.list ()
+
+    if Stdlib.List.isEmpty instances then
+      Stdlib.printLine ""
+      Stdlib.printLine "No instances configured."
+      Stdlib.printLine ""
+      Stdlib.printLine "Use 'instance add <name> <url>' to add an instance."
+    else
+      Stdlib.printLine ""
+      Stdlib.printLine (Colors.boldText "Configured Instances:")
+      Stdlib.printLine ""
+
+      instances
+      |> Stdlib.List.iter (fun instance ->
+        let idShort = Stdlib.String.slice (Stdlib.Uuid.toString instance.id) 0L 8L
+        Stdlib.printLine $"  {instance.name}"
+        Stdlib.printLine $"    ID:  {idShort}..."
+        Stdlib.printLine $"    URL: {instance.url}"
+        Stdlib.printLine "")
+
+    state
+
+  | ["add"; name; url] ->
+    // Check if instance with this name already exists
+    match Darklang.SCM.Instances.getByName name with
+    | Some existing ->
+      Stdlib.printLine (Colors.error $"Instance with name '{name}' already exists")
+      Stdlib.printLine $"  ID:  {Stdlib.Uuid.toString existing.id}"
+      Stdlib.printLine $"  URL: {existing.url}"
+      state
+
+    | None ->
+      let instance = Darklang.SCM.Instances.add name url
+      Stdlib.printLine (Colors.success $"Added instance: {name}")
+      Stdlib.printLine $"  ID:  {Stdlib.Uuid.toString instance.id}"
+      Stdlib.printLine $"  URL: {url}"
+      state
+
+  | ["remove"; name] ->
+    match Darklang.SCM.Instances.removeByName name with
+    | Ok () ->
+      Stdlib.printLine (Colors.success $"Removed instance: {name}")
+      state
+
+    | Error msg ->
+      Stdlib.printLine (Colors.error msg)
+      state
+
+  | ["info"; name] ->
+    match Darklang.SCM.Instances.getByName name with
+    | Some instance ->
+      Stdlib.printLine ""
+      Stdlib.printLine (Colors.boldText "Instance Information:")
+      Stdlib.printLine ""
+      Stdlib.printLine $"  Name: {instance.name}"
+      Stdlib.printLine $"  ID:   {Stdlib.Uuid.toString instance.id}"
+      Stdlib.printLine $"  URL:  {instance.url}"
+      Stdlib.printLine ""
+      state
+
+    | None ->
+      Stdlib.printLine (Colors.error $"Instance not found: {name}")
+      state
+
+  | _ ->
+    Stdlib.printLine (Colors.error "Invalid arguments")
+    Stdlib.printLine ""
+    help state
+
+
+let help (state: Cli.AppState) : Cli.AppState =
+  Stdlib.printLine "Instance Management Commands"
+  Stdlib.printLine ""
+  Stdlib.printLine "  instance list              List all configured instances"
+  Stdlib.printLine "  instance add NAME URL      Add a new instance"
+  Stdlib.printLine "  instance remove NAME       Remove an instance"
+  Stdlib.printLine "  instance info NAME         Show detailed instance info"
+  Stdlib.printLine ""
+  Stdlib.printLine "Examples:"
+  Stdlib.printLine "  instance add local http://dark-packages.dlio.localhost:11001"
+  Stdlib.printLine "  instance add production https://packages.darklang.com"
+  Stdlib.printLine "  instance list"
+  Stdlib.printLine "  instance remove local"
+  Stdlib.printLine ""
+  state
+
+
+let complete (state: Cli.AppState) (args: List<String>) : List<String> =
+  match args with
+  | [] -> ["list"; "add"; "remove"; "info"]
+
+  | [partial] ->
+    ["list"; "add"; "remove"; "info"]
+    |> Stdlib.List.filter (fun cmd -> Stdlib.String.startsWith cmd partial)
+
+  | ["remove"] ->
+    let instances = Darklang.SCM.Instances.list ()
+    Stdlib.List.map instances (fun i -> i.name)
+
+  | ["remove"; partial] ->
+    let instances = Darklang.SCM.Instances.list ()
+
+    instances
+    |> Stdlib.List.map (fun i -> i.name)
+    |> Stdlib.List.filter (fun name -> Stdlib.String.startsWith name partial)
+
+  | ["info"] ->
+    let instances = Darklang.SCM.Instances.list ()
+    Stdlib.List.map instances (fun i -> i.name)
+
+  | ["info"; partial] ->
+    let instances = Darklang.SCM.Instances.list ()
+
+    instances
+    |> Stdlib.List.map (fun i -> i.name)
+    |> Stdlib.List.filter (fun name -> Stdlib.String.startsWith name partial)
+
+  | _ -> []

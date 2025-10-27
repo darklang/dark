@@ -1,0 +1,25 @@
+module Darklang.LanguageTools.LspServer.PendingOps
+
+// Get recent package ops from the database
+let handleGetPendingOpsRequest
+  (state: LspState)
+  (requestId: JsonRPC.RequestId)
+  : LspState =
+
+  let ops = SCM.PackageOps.getRecent state.branchID 10L
+
+  let opsWithLabels =
+    ops
+    |> Stdlib.List.map (fun op ->
+      let opData = Builtin.jsonSerialize<LanguageTools.ProgramTypes.PackageOp> op
+      let label = PrettyPrinter.PackageOps.packageOp op
+      Json.Object [ ("op", Json.String opData); ("label", Json.String label) ])
+
+  let responseJson =
+    (JsonRPC.Response.Ok.make
+      (Stdlib.Option.Option.Some(requestId))
+      (Json.Array opsWithLabels))
+    |> Stdlib.AltJson.format
+
+  logAndSendToClient responseJson
+  state
