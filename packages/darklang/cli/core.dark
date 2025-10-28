@@ -3,7 +3,7 @@ module Darklang.Cli
 type Page =
   | MainPrompt
   | Experiments
-  | InteractiveNav of Packages.Nav.Interactive.State
+  | InteractiveNav of Packages.NavInteractive.State
 
 type AppState =
   { isExiting: Bool
@@ -523,7 +523,7 @@ let handleKeyInput (state: AppState) (key: Stdlib.Cli.Stdin.Key.Key) (modifiers:
       state
   | InteractiveNav navState ->
     // Interactive navigation key handling
-    Packages.Nav.Interactive.handleKey state key keyChar navState
+    Packages.NavInteractive.handleKey state key keyChar navState
 
 module Update =
   let updateAppState (state: AppState) (msg: Msg) : AppState =
@@ -592,7 +592,7 @@ let runInteractiveLoop (state: AppState) : Int64 =
         Stdlib.printLine "Press ESC to return to main prompt"
     | InteractiveNav navState ->
       // Always display in interactive nav mode - it manages its own screen clearing
-      Packages.Nav.Interactive.display navState
+      Packages.NavInteractive.display navState
 
     // Read keystroke input
     let keyInput = Stdlib.Cli.Stdin.readKey ()
