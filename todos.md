@@ -19,7 +19,7 @@ OK - this PR is going great, and I'm nearing being comfortable merging it, but
 - [x] I feel like we have `withExtraOps` defined in multiple places. could we reasonably consolidate? I could be wrong. (checked - only one definition in PackageManager.fs, just used in multiple places)
 - [x] backend/src/LibPackageManager/Stats.fs doesn't account for branches. can/should it? (added comment - intentionally counts total content, not branch-specific views)
 - [ ] backend/src/LibParser/Canvas.fs hasn't been updated like TestModule.fs for 2 phase whatever. it should be.
-- [ ] that said, the stuff in backend/src/LibParser/TestModule.fs is kinda meh - it's doing WAY too much logic stuff around op-applications. that should be handled below in LibPM or something
+- [x] that said, the stuff in backend/src/LibParser/TestModule.fs is kinda meh - it's doing WAY too much logic stuff around op-applications. that should be handled below in LibPM or something
 - [ ] I'm not even sure how the canvas is loading considering the inserts have been commented in backend/src/LocalExec/Canvas.fs ?
 - [x] in backend/tests/TestUtils/TestUtils.fs, there's no reason `let testPackageFn` needs to take the args that are now being ignored... there are probably other fns that create package things that _used_ to include a 'name' (components) and can now be tidied up further.
   - [x] e.g. backend/tests/Tests/PT2RT.Tests.fs, `let t` on line 1625
