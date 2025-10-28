@@ -25,7 +25,7 @@ let viewEntity
       |> Stdlib.List.iter (fun name -> Stdlib.printLine $"  {name}/")
       Stdlib.printLine ""
 
-    // Display types (temporarily without pretty printing to test LocatedItem fix)
+    // Display types
     if Stdlib.Bool.not (Stdlib.List.isEmpty results.types) then
       Stdlib.printLine (Display.getSectionHeader "type")
       results.types
@@ -33,7 +33,7 @@ let viewEntity
         Stdlib.printLine $"  {item.location.name}")
       Stdlib.printLine ""
 
-    // Display values (temporarily without pretty printing to test LocatedItem fix)
+    // Display values
     if Stdlib.Bool.not (Stdlib.List.isEmpty results.values) then
       Stdlib.printLine (Display.getSectionHeader "value")
       results.values
@@ -41,7 +41,7 @@ let viewEntity
         Stdlib.printLine $"  {item.location.name}")
       Stdlib.printLine ""
 
-    // Display functions (temporarily without pretty printing to test LocatedItem fix)
+    // Display functions
     if Stdlib.Bool.not (Stdlib.List.isEmpty results.fns) then
       Stdlib.printLine (Display.getSectionHeader "function")
       results.fns
