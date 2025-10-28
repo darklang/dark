@@ -11,7 +11,7 @@ OK - this PR is going great, and I'm nearing being comfortable merging it, but
 - [x] I think the BranchState model+usage can be killed
 - [x] ensureMainBranch (top to bottom) can be removed - idk why that's a thing
 
-- [ ] put TODOs in the BuiltinsPM that we should reconsider which fns should be fully public, or admin-only, etc.
+- [x] put TODOs in the BuiltinsPM that we should reconsider which fns should be fully public, or admin-only, etc.
 - [x] remove anything referring to a patch (probably just comments - like I see a comment in a migration script)
 - [x] the changes in backend/src/LibExecution/Interpreter.fs are trash revert them
 - [ ] package reloading is taking like 3x as long as it used to (before this branch/PR). can you identify/diagnose why that might be? Any tips to improving that perf? Probably something in localexec...
