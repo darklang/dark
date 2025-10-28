@@ -16,7 +16,7 @@ OK - this PR is going great, and I'm nearing being comfortable merging it, but
 - [x] the changes in backend/src/LibExecution/Interpreter.fs are trash revert them
 - [ ] package reloading is taking like 3x as long as it used to (before this branch/PR). can you identify/diagnose why that might be? Any tips to improving that perf? Probably something in localexec...
 - [ ] the CLI's prompt line used to include the 'current path' as set by 'cd' etc. but now it doesn't. can we fix that?
-- [ ] I feel like we have `withExtraOps` defined in multiple places. could we reasonably consolidate? I could be wrong.
+- [x] I feel like we have `withExtraOps` defined in multiple places. could we reasonably consolidate? I could be wrong. (checked - only one definition in PackageManager.fs, just used in multiple places)
 - [ ] backend/src/LibPackageManager/Stats.fs doesn't account for branches. can/should it?
 - [ ] backend/src/LibParser/Canvas.fs hasn't been updated like TestModule.fs for 2 phase whatever. it should be.
 - [ ] that said, the stuff in backend/src/LibParser/TestModule.fs is kinda meh - it's doing WAY too much logic stuff around op-applications. that should be handled below in LibPM or something

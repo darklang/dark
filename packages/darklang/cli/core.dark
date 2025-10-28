@@ -178,18 +178,25 @@ module View =
       | None -> Stdlib.Option.Option.None
 
     match currentBranch with
-    | Some branch -> $"[{branch.title}]"
+    | Some branch -> $"[{branch.name}]"
     | None -> ""
 
 
   let formatPromptWithInput (state: AppState) : String =
     let branchStr = Colors.info (promptBranchPreamble state)
 
+    let locationStr =
+      let pathStr = Packages.formatLocation state.packageData.currentLocation
+      if Stdlib.String.isEmpty pathStr then
+        ""
+      else
+        Colors.dimText $" {pathStr}"
+
     let hint = Registry.getCompletionHint state state.mainPrompt
     if Stdlib.String.isEmpty hint then
-      branchStr ++ "> " ++ state.mainPrompt
+      branchStr ++ locationStr ++ "> " ++ state.mainPrompt
     else
-      branchStr ++ "> " ++ state.mainPrompt ++ (Colors.hint hint)
+      branchStr ++ locationStr ++ "> " ++ state.mainPrompt ++ (Colors.hint hint)
 
 
   let formatWelcome () : String =
