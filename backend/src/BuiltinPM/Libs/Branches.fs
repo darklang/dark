@@ -34,6 +34,11 @@ let branchToDT (branch : Branches.Branch) : Dval =
   DRecord(branchTypeName, branchTypeName, [], fields)
 
 
+// TODO: Reconsider which of these functions should be public vs admin-only:
+// - scmBranchList: Read-only, probably OK as public
+// - scmBranchGet: Read-only, probably OK as public
+// - scmBranchFindByName: Read-only, probably OK as public
+// - scmBranchCreate: Creates branches - probably OK as public for collaborative development
 let fns : List<BuiltInFn> =
   [ { name = fn "scmBranchList" 0
       typeParams = []

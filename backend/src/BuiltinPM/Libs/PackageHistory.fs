@@ -27,6 +27,8 @@ type HistoryEntry =
     opType : string }
 
 
+// TODO: Reconsider which of these functions should be public vs admin-only:
+// - scmGetNameHistory: Read-only history lookup, should be public for transparency
 let fns : List<BuiltInFn> =
   [ { name = fn "scmGetNameHistory" 0
       typeParams = []

@@ -31,6 +31,10 @@ module C2DT = LibExecution.CommonToDarkTypes
 let statsTypeName = FQTypeName.fqPackage PackageIDs.Type.DarkPackages.stats
 
 
+// TODO: Reconsider which of these functions should be public vs admin-only:
+// - All pmGet*, pmFind*, pmSearch functions: Read-only lookups, should be public
+// - pmGetStats: Read-only stats, should be public
+// These are core package manager query functions needed by all users
 let fns (pm : PT.PackageManager) : List<BuiltInFn> =
   [ { name = fn "pmGetStats" 0
       typeParams = []

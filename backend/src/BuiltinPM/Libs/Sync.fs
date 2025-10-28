@@ -12,6 +12,9 @@ module Dval = LibExecution.Dval
 open Builtin.Shortcuts
 
 
+// TODO: Reconsider which of these functions should be public vs admin-only:
+// - scmGetLastSyncDate: Read-only, probably OK as public
+// - scmRecordSync: Writes sync metadata - should probably be admin-only or require auth
 let fns : List<BuiltInFn> =
   [ { name = fn "scmGetLastSyncDate" 0
       typeParams = []

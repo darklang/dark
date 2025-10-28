@@ -32,6 +32,10 @@ let computeOpHash (op : PT.PackageOp) : System.Guid =
   System.Guid(hashBytes[0..15])
 
 
+// TODO: Reconsider which of these functions should be public vs admin-only:
+// - scmAddOps: Currently public but writes to DB - should this be admin-only?
+// - scmGetRecentOps: Read-only, probably OK as public
+// - scmGetOpsSince: Read-only, probably OK as public (used by sync)
 let fns : List<BuiltInFn> =
   [ { name = fn "scmAddOps" 0
       typeParams = []
