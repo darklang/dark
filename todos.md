@@ -33,7 +33,7 @@ OK - this PR is going great, and I'm nearing being comfortable merging it, but
 - [x] packages/darklang/cli/packages/rename.dark can be safely removed with the _intent_ noted in later.md
 - [ ] I'm not sure what `Display values (temporarily without pretty printing to test LocatedItem fix)` is about...
 - [ ] there's an inline None for the branch when calling the builtin in packages/darklang/internal/darklang-internal-mcp-server/tools.dark -- can we pass some legit branchID in?
-- [ ] migratet he comment at the bottom of packages/darklang/languageTools/lsp-server/aaaa-state.dark to 'later.md'
+- [x] migratet he comment at the bottom of packages/darklang/languageTools/lsp-server/aaaa-state.dark to 'later.md'
 - [ ] I see some instances of `t.location.owner ++ "." ++ (Stdlib.String.join item.location.modules ".") ++ "." ++ item.location.name` - that should just be replaced with a call-out to something in the pretty-printer module(s) for PackageLocation
 - [ ]
 
