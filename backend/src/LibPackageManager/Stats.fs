@@ -12,6 +12,10 @@ open LibDB.Db
 
 type Stats = { types : int64; values : int64; fns : int64 }
 
+// Note: These stats count total unique content items in the system,
+// not branch-specific views. The package_types/values/functions tables
+// are content-addressed and branch-agnostic. Branch visibility is
+// determined by the locations table.
 let get () : Ply<Stats> =
   uply {
     let! typesCount =

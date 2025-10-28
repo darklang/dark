@@ -31,11 +31,29 @@ mv type User Models.User
 
 ## Package History Command
 
-**Status**: Needs consolidation based on recent package_ops changes
+**Status**: CLI command removed, but underlying functionality exists
 
-**Intent**: Show history of changes to packages, possibly filtering by branch, time range, or item.
+**Intent**: Show the history of what a package name has pointed to over time (tracking when names were reassigned to different items).
 
-**Next steps**: Review how this can be implemented using the package_ops table and determine the right UX.
+**Current implementation**:
+- Backend: `scmGetNameHistory` builtin in `BuiltinPM/Libs/PackageHistory.fs`
+- Package wrapper: `Darklang.SCM.History.getNameHistory`
+- Returns list of HistoryEntry with: timestamp, branchId, itemId, opType
+
+**Removed CLI command usage**:
+```
+history Darklang.Stdlib.List.map
+
+# Output showed:
+# 2024-10-28 10:30:00 | main | SetFnName -> abc123...
+# 2024-10-28 11:45:00 | branch def456... | SetFnName -> 789xyz...
+```
+
+**Next steps**:
+- The underlying functionality is fully implemented and working
+- Decide on final UX for the CLI history command
+- Consider: Should it show package_ops history? Or just name reassignment history? Both?
+- Consider adding filtering by branch, time range, or item type
 
 ---
 

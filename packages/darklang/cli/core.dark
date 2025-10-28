@@ -239,7 +239,6 @@ module Registry =
       ("scripts", "Store, manage, and run Dark scripts", [], Cli.Scripts.execute, Cli.Scripts.help, Cli.Scripts.complete)
       ("view", "View details of a module, type, value, or fns", [], Packages.View.execute, Packages.View.help, Packages.View.complete)
       ("tree", "Display package hierarchy in tree format", [], Packages.Tree.execute, Packages.Tree.help, Packages.Tree.complete)
-      ("history", "View history of what a name pointed to", [], Packages.History.execute, Packages.History.help, Packages.History.complete)
       ("search", "Search for packages, types, functions, and values", [], Packages.Search.execute, Packages.Search.help, Packages.Search.complete)
       ("val", "Create a new value", [], Packages.Create.Value.execute, Packages.Create.Value.help, Packages.Create.Value.complete)
       ("let", "Create a new value (alias for val)", [], Packages.Create.Value.execute, Packages.Create.Value.help, Packages.Create.Value.complete)
@@ -341,7 +340,7 @@ module Registry =
     let commands = allCommands ()
 
     // Group commands by category - just names, no descriptions
-    let packageCommands = ["nav"; "ls"; "view"; "tree"; "back"; "history"; "search"; "val"; "let"; "fn"; "type"; "mv"; "rm"]
+    let packageCommands = ["nav"; "ls"; "view"; "tree"; "back"; "search"; "val"; "let"; "fn"; "type"; "rm"]
     let sourceControlCommands = ["branch"; "instance"; "sync"]
     let executionCommands = ["run"; "eval"; "scripts"]
     let installCommands = ["install"; "update"; "uninstall"; "status"; "version"]
@@ -364,7 +363,7 @@ module Registry =
     let commands = allCommands ()
 
     // Group commands by category
-    let packageCommands = ["nav"; "ls"; "view"; "tree"; "back"; "history"; "search"; "val"; "let"; "fn"; "type"; "mv"; "rm"]
+    let packageCommands = ["nav"; "ls"; "view"; "tree"; "back"; "search"; "val"; "let"; "fn"; "type"; "rm"]
     let sourceControlCommands = ["branch"; "instance"; "sync"; ]
     let executionCommands = ["run"; "eval"; "scripts"]
     let installCommands = ["install"; "update"; "uninstall"; "status"; "version"]
