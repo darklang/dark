@@ -352,7 +352,6 @@ module Type =
 
     module Branch =
       let private p addl = p ("Branch" :: addl)
-      let branchState = p [] "BranchState" "a1b2c3d4-e5f6-4a5b-9c8d-7e6f5a4b3c2d"
       let branch = p [] "Branch" "f1e2d3c4-b5a6-7c8d-9e0f-1a2b3c4d5e6f"
       let historyEntry = p [] "HistoryEntry" "b1c2d3e4-f5a6-4b7c-8d9e-0f1a2b3c4d5e"
 
