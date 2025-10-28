@@ -238,7 +238,6 @@ module Registry =
       ("let", "Create a new value (alias for val)", [], Packages.Create.Value.execute, Packages.Create.Value.help, Packages.Create.Value.complete)
       ("fn", "Create a new function", ["function"], Packages.Create.Fn.execute, Packages.Create.Fn.help, Packages.Create.Fn.complete)
       ("type", "Create a new type", [], Packages.Create.Type.execute, Packages.Create.Type.help, Packages.Create.Type.complete)
-      ("mv", "Rename a package item", [], Packages.Rename.execute, Packages.Rename.help, Packages.Rename.complete)
       ("rm", "Remove a package item", [], Packages.Remove.execute, Packages.Remove.help, Packages.Remove.complete)
       ("experiments", "Try out various WIP CLI experiments", [], Cli.Experiments.execute, Cli.Experiments.help, Cli.Experiments.complete)
     ]
