@@ -77,6 +77,68 @@ let namesToTry
   (loop currentModule) @ addl
 
 
+/// Generic name resolution that handles the common pattern across Type/Value/Fn resolution
+let resolveGenericName<'FQName, 'Builtin when 'Builtin : comparison>
+  (builtins : Option<Set<'Builtin>>)
+  (onMissing : OnMissing)
+  (currentModule : List<string>)
+  (given : NEList<string>)
+  (parseName : string -> Result<string * int, string>)
+  (findInPM : Option<PT.BranchID> * PT.PackageLocation -> Ply<Option<System.Guid>>)
+  (makePackageFQName : System.Guid -> 'FQName)
+  (makeBuiltinFQName : string * int -> 'FQName)
+  (builtinToRT : string * int -> 'Builtin)
+  : Ply<PT.NameResolution<'FQName>> =
+  uply {
+    let notFoundError = Error(NRE.NotFound(NEList.toList given))
+    let (modules, name) = NEList.splitLast given
+
+    match parseName name with
+    | Error _ -> return Error(NRE.InvalidName(NEList.toList given))
+    | Ok(name, version) ->
+      let genericName = { modules = modules; name = name; version = version }
+
+      let tryResolve (nameToTry : GenericName) : Ply<Result<'FQName, unit>> =
+        uply {
+          match nameToTry.modules with
+          | [] -> return Error()
+          | owner :: modules ->
+            // Check builtins if applicable (values/fns only, not types)
+            match builtins with
+            | Some builtinSet when owner = "Builtin" && modules = [] ->
+              let builtInRT = builtinToRT (nameToTry.name, nameToTry.version)
+              if Set.contains builtInRT builtinSet then
+                let fqName = makeBuiltinFQName (nameToTry.name, nameToTry.version)
+                return Ok fqName
+              else
+                return Error()
+            | _ ->
+              // Try package manager lookup
+              let location : PT.PackageLocation =
+                { owner = owner; modules = modules; name = nameToTry.name }
+              match! findInPM (None, location) with
+              | Some id -> return Ok(makePackageFQName id)
+              | None -> return Error()
+        }
+
+      let! result =
+        Ply.List.foldSequentially
+          (fun currentResult nameToTry ->
+            match currentResult with
+            | Ok _ -> Ply currentResult
+            | Error _ ->
+              uply {
+                match! tryResolve nameToTry with
+                | Error() -> return currentResult
+                | Ok success -> return Ok success
+              })
+          notFoundError
+          (namesToTry currentModule genericName)
+
+      return throwIfRelevant onMissing currentModule given result
+  }
+
+
 let resolveTypeName
   (packageManager : PT.PackageManager)
   (onMissing : OnMissing)
@@ -88,58 +150,21 @@ let resolveTypeName
   | WT.KnownBuiltin(_name, _version) ->
     Exception.raiseInternal "Builtin types don't exist" []
   | WT.Unresolved given ->
-    let notFoundError = Error(NRE.NotFound(NEList.toList given))
+    // Types don't have builtins, so pass None
+    // parseTypeName returns just name (version always 0 for types)
+    let parseTypeName name =
+      FS2WT.Expr.parseTypeName name |> Result.map (fun n -> (n, 0))
 
-    let tryPackageName
-      (location : PT.PackageLocation)
-      : Ply<PT.NameResolution<PT.FQTypeName.FQTypeName>> =
-      // TODO: error if type version is somehow non-0 (here and other package stuff in this file)
-      // TODO: also do this in the Dark equivalent
-      uply {
-        match! packageManager.findType(None, location) with
-        | Some id -> return Ok(PT.FQTypeName.FQTypeName.Package id)
-        | None -> return notFoundError
-      }
-
-    let tryResolve
-      (name : GenericName)
-      : Ply<Result<PT.FQTypeName.FQTypeName, unit>> =
-      uply {
-        match name.modules with
-        | [] -> return Error()
-        | owner :: modules ->
-          let location : PT.PackageLocation =
-            { owner = owner; modules = modules; name = name.name }
-          let! packageName = tryPackageName location
-          return packageName |> Result.mapError (fun _ -> ())
-      }
-
-    uply {
-      let (modules, name) = NEList.splitLast given
-
-      // parses `TypeName_v2` into `(TypeName, 2)`, or just `TypeName` into `(TypeName, 0)`.
-      // TODO: ensure we're validating fully and reasonably (e.g. include module)
-      match FS2WT.Expr.parseTypeName name with
-      | Error _ -> return Error(NRE.InvalidName(NEList.toList given))
-      | Ok name ->
-        let genericName = { modules = modules; name = name; version = 0 }
-
-        let! (result : PT.NameResolution<PT.FQTypeName.FQTypeName>) =
-          Ply.List.foldSequentially
-            (fun currentResult nameToTry ->
-              match currentResult with
-              | Ok _ -> Ply currentResult
-              | Error _ ->
-                uply {
-                  match! tryResolve nameToTry with
-                  | Error() -> return currentResult
-                  | Ok success -> return Ok success
-                })
-            notFoundError
-            (namesToTry currentModule genericName)
-
-        return throwIfRelevant onMissing currentModule given result
-    }
+    resolveGenericName
+      None // no builtins for types
+      onMissing
+      currentModule
+      given
+      parseTypeName
+      packageManager.findType
+      PT.FQTypeName.FQTypeName.Package
+      (fun _ -> Exception.raiseInternal "Builtin types don't exist" [])
+      (fun _ -> Exception.raiseInternal "Builtin types don't exist" [])
 
 
 
@@ -154,65 +179,18 @@ let resolveValueName
   | WT.KnownBuiltin(name, version) ->
     Ok(PT.FQValueName.fqBuiltIn name version) |> Ply
   | WT.Unresolved given ->
-    let notFoundError = Error(NRE.NotFound(NEList.toList given))
-
-    let tryPackageName
-      (location : PT.PackageLocation)
-      : Ply<PT.NameResolution<PT.FQValueName.FQValueName>> =
-      uply {
-        match! packageManager.findValue(None, location) with
-        | Some id -> return Ok(PT.FQValueName.FQValueName.Package id)
-        | None -> return notFoundError
-      }
-
-    let tryResolve
-      (name : GenericName)
-      : Ply<Result<PT.FQValueName.FQValueName, unit>> =
-      uply {
-        match name.modules with
-        | [] -> return Error()
-        | owner :: modules ->
-          if owner = "Builtin" && modules = [] then
-            let (builtInRT : RT.FQValueName.Builtin) =
-              { name = name.name; version = name.version }
-
-            if Set.contains builtInRT builtinValues then
-              let (builtInPT : PT.FQValueName.Builtin) =
-                { name = name.name; version = name.version }
-              return Ok(PT.FQValueName.Builtin builtInPT)
-            else
-              return Error()
-          else
-            let location : PT.PackageLocation =
-              { owner = owner; modules = modules; name = name.name }
-            let! packageName = tryPackageName location
-            return packageName |> Result.mapError (fun _ -> ())
-      }
-
-    uply {
-      let (modules, name) = NEList.splitLast given
-
-      match FS2WT.Expr.parseFnName name with
-      | Error _ -> return Error(NRE.InvalidName(NEList.toList given))
-      | Ok(name, version) ->
-        let genericName = { modules = modules; name = name; version = version }
-
-        let! (result : PT.NameResolution<PT.FQValueName.FQValueName>) =
-          Ply.List.foldSequentially
-            (fun currentResult nameToTry ->
-              match currentResult with
-              | Ok _ -> Ply currentResult
-              | Error _ ->
-                uply {
-                  match! tryResolve nameToTry with
-                  | Error() -> return currentResult
-                  | Ok success -> return Ok success
-                })
-            notFoundError
-            (namesToTry currentModule genericName)
-
-        return throwIfRelevant onMissing currentModule given result
-    }
+    resolveGenericName
+      (Some builtinValues)
+      onMissing
+      currentModule
+      given
+      FS2WT.Expr.parseFnName
+      packageManager.findValue
+      PT.FQValueName.FQValueName.Package
+      (fun (name, version) ->
+        PT.FQValueName.Builtin { name = name; version = version })
+      (fun (name, version) ->
+        { RT.FQValueName.Builtin.name = name; version = version })
 
 
 let resolveFnName
@@ -225,61 +203,15 @@ let resolveFnName
   match name with
   | WT.KnownBuiltin(name, version) -> Ok(PT.FQFnName.fqBuiltIn name version) |> Ply
   | WT.Unresolved given ->
-    let notFoundError = Error(NRE.NotFound(NEList.toList given))
-
-    let tryPackageName
-      (location : PT.PackageLocation)
-      : Ply<PT.NameResolution<PT.FQFnName.FQFnName>> =
-      uply {
-        match! packageManager.findFn(None, location) with
-        | Some id -> return Ok(PT.FQFnName.FQFnName.Package id)
-        | None -> return notFoundError
-      }
-
-    let tryResolve (name : GenericName) : Ply<Result<PT.FQFnName.FQFnName, unit>> =
-      uply {
-        match name.modules with
-        | [] -> return Error()
-        | owner :: modules ->
-          if owner = "Builtin" && modules = [] then
-            let (builtInRT : RT.FQFnName.Builtin) =
-              { name = name.name; version = name.version }
-
-            if Set.contains builtInRT builtinFns then
-              let (builtInPT : PT.FQFnName.Builtin) =
-                { name = name.name; version = name.version }
-              return Ok(PT.FQFnName.Builtin builtInPT)
-            else
-              return Error()
-
-          else
-            let location : PT.PackageLocation =
-              { owner = owner; modules = modules; name = name.name }
-            let! packageName = tryPackageName location
-            return packageName |> Result.mapError (fun _ -> ())
-      }
-
-    uply {
-      let (modules, name) = NEList.splitLast given
-
-      match FS2WT.Expr.parseFnName name with
-      | Error _ -> return Error(NRE.InvalidName(NEList.toList given))
-      | Ok(name, version) ->
-        let genericName = { modules = modules; name = name; version = version }
-
-        let! (result : PT.NameResolution<PT.FQFnName.FQFnName>) =
-          Ply.List.foldSequentially
-            (fun currentResult nameToTry ->
-              match currentResult with
-              | Ok _ -> Ply currentResult
-              | Error _ ->
-                uply {
-                  match! tryResolve nameToTry with
-                  | Error() -> return currentResult
-                  | Ok success -> return Ok success
-                })
-            notFoundError
-            (namesToTry currentModule genericName)
-
-        return throwIfRelevant onMissing currentModule given result
-    }
+    resolveGenericName
+      (Some builtinFns)
+      onMissing
+      currentModule
+      given
+      FS2WT.Expr.parseFnName
+      packageManager.findFn
+      PT.FQFnName.FQFnName.Package
+      (fun (name, version) ->
+        PT.FQFnName.Builtin { name = name; version = version })
+      (fun (name, version) ->
+        { RT.FQFnName.Builtin.name = name; version = version })
