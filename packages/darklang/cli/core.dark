@@ -654,9 +654,17 @@ let runInteractiveLoop (state: AppState) : Int64 =
     // Display current page
     match state.currentPage with
     | MainPrompt ->
-      // Determine where user input starts (branch + " > ")
+      // Determine where user input starts (branch + location + " > ")
+      let locationLength =
+        let pathStr = Packages.formatLocation state.packageData.currentLocation
+        if Stdlib.String.isEmpty pathStr then
+          0L
+        else
+          (Stdlib.String.length pathStr) + 1L  // +1 for the space before path
+
       let inputStartColumn =
         (Stdlib.String.length (View.promptBranchPreamble state))
+        + locationLength
         + (Stdlib.String.length "> ")
         + 1L
 
