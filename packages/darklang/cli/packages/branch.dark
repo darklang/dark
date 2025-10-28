@@ -5,24 +5,9 @@ let displayBranchInfo (branch: SCM.Branch.Branch) : Unit =
   Stdlib.printLine (Colors.boldText "Branch Information:")
   Stdlib.printLine ""
 
-  let stateText =
-    match branch.state with
-    | Active -> "active"
-    | Merged -> "merged"
-    | Abandoned -> "abandoned"
-
   Stdlib.printLine $"  ID:             {Stdlib.Uuid.toString branch.id}"
-
-  let createdByText =
-    match branch.createdBy with
-    | Some uuid -> Stdlib.Uuid.toString uuid
-    | None -> "(none)"
-
-  Stdlib.printLine $"  Created by:     {createdByText}"
-  Stdlib.printLine $"  Title:          {branch.title}"
-  Stdlib.printLine $"  State:          {stateText}"
+  Stdlib.printLine $"  Name:           {branch.name}"
   Stdlib.printLine $"  Created at:     {Stdlib.DateTime.toString branch.createdAt}"
-  Stdlib.printLine $"  Last active:    {Stdlib.DateTime.toString branch.lastActiveAt}"
 
   let mergedAtText =
     match branch.mergedAt with
@@ -34,21 +19,15 @@ let displayBranchInfo (branch: SCM.Branch.Branch) : Unit =
 
 
 let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
-  let accountId = Darklang.SCM.Account.getCurrentId ()
-
   match args with
   | [] -> help state
 
   | ["list"] ->
     let branches = Darklang.SCM.Branch.list ()
     Stdlib.printLine ""
-    Stdlib.printLine (Colors.boldText "Active Branches:")
+    Stdlib.printLine (Colors.boldText "Branches:")
 
     branches
-    |> Stdlib.List.filter (fun b ->
-      match b.state with
-      | Active -> true
-      | _ -> false)
     |> Stdlib.List.iter (fun b ->
       let marker =
         match state.currentBranchId with
@@ -57,14 +36,13 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
 
       // Show creation date for disambiguation when there are name collisions
       let dateStr = Stdlib.DateTime.toString b.createdAt
-      Stdlib.printLine $"{marker}{b.title} (created {dateStr})")
+      Stdlib.printLine $"{marker}{b.name} (created {dateStr})")
 
     Stdlib.printLine ""
     state
 
   | ["create"; name] ->
-    let branch = Darklang.SCM.Branch.create (Stdlib.Option.Option.Some accountId) name
-    Darklang.SCM.Account.setCurrentBranch branch.id
+    let branch = Darklang.SCM.Branch.create name
     Stdlib.printLine $"Created and switched to branch: {name}"
 
     { state with
@@ -72,7 +50,7 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
         needsFullRedraw = true }
 
   | ["switch"; name] ->
-    let branches = Darklang.SCM.Branch.findByTitle name
+    let branches = Darklang.SCM.Branch.findByName name
 
     match branches with
     | [] ->
@@ -80,8 +58,6 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
       state
 
     | [branch] ->
-      Darklang.SCM.Branch.updateLastActive branch.id
-      Darklang.SCM.Account.setCurrentBranch branch.id
       Stdlib.printLine $"Switched to branch: {name}"
 
       { state with
@@ -96,8 +72,8 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
       multipleBranches
       |> Stdlib.List.iter (fun b ->
         let dateStr = Stdlib.DateTime.toString b.createdAt
-        let idShort = Stdlib.String.slice b.id 0L 8L
-        Stdlib.printLine $"  {b.title} (id: {idShort}..., created {dateStr})")
+        let idShort = Stdlib.String.slice (Stdlib.Uuid.toString b.id) 0L 8L
+        Stdlib.printLine $"  {b.name} (id: {idShort}..., created {dateStr})")
 
       Stdlib.printLine ""
       Stdlib.printLine "Please use 'branch switch-id <branch-id>' to switch"
@@ -110,9 +86,7 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
 
       match branch with
       | Some b ->
-        Darklang.SCM.Branch.updateLastActive b.id
-        Darklang.SCM.Account.setCurrentBranch b.id
-        Stdlib.printLine $"Switched to branch: {b.title}"
+        Stdlib.printLine $"Switched to branch: {b.name}"
 
         { state with
             currentBranchId = Stdlib.Option.Option.Some b.id
@@ -135,16 +109,8 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
     match currentBranch with
     | Some branch ->
       Stdlib.printLine ""
-
-      let statusText =
-        match branch.state with
-        | Active -> "active"
-        | Merged -> "merged"
-        | Abandoned -> "abandoned"
-
-      Stdlib.printLine $"Branch: {branch.title} ({statusText})"
+      Stdlib.printLine $"Branch: {branch.name}"
       Stdlib.printLine $"ID: {Stdlib.Uuid.toString branch.id}"
-      Stdlib.printLine $"Last active: {Stdlib.DateTime.toString branch.lastActiveAt}"
       Stdlib.printLine ""
 
     | None -> Stdlib.printLine (Colors.error "Current branch not found")
@@ -167,7 +133,7 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
       state
 
   | ["info"; name] ->
-    let branches = Darklang.SCM.Branch.findByTitle name
+    let branches = Darklang.SCM.Branch.findByName name
 
     match branches with
     | [] ->
@@ -187,13 +153,12 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
       |> Stdlib.List.iter (fun b ->
         let dateStr = Stdlib.DateTime.toString b.createdAt
         let idShort = Stdlib.String.slice (Stdlib.Uuid.toString b.id) 0L 8L
-        Stdlib.printLine $"  {b.title} (id: {idShort}..., created {dateStr})")
+        Stdlib.printLine $"  {b.name} (id: {idShort}..., created {dateStr})")
 
       Stdlib.printLine ""
       state
 
   | ["clear"] ->
-    Darklang.SCM.Account.clearCurrentBranch ()
     Stdlib.printLine "Cleared current branch (now searching all packages)"
 
     { state with
@@ -201,7 +166,6 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
         needsFullRedraw = true }
 
   | ["unset"] ->
-    Darklang.SCM.Account.clearCurrentBranch ()
     Stdlib.printLine "Unset current branch (now searching all packages)"
 
     { state with
@@ -209,7 +173,6 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
         needsFullRedraw = true }
 
   | ["none"] ->
-    Darklang.SCM.Account.clearCurrentBranch ()
     Stdlib.printLine "Unset current branch (now searching all packages)"
 
     { state with
@@ -248,13 +211,13 @@ let complete (state: Cli.AppState) (args: List<String>) : List<String> =
 
   | ["switch"] ->
     let branches = Darklang.SCM.Branch.list ()
-    Stdlib.List.map branches (fun b -> b.title)
+    Stdlib.List.map branches (fun b -> b.name)
 
   | ["switch"; partial] ->
     let branches = Darklang.SCM.Branch.list ()
 
     branches
-    |> Stdlib.List.map (fun b -> b.title)
+    |> Stdlib.List.map (fun b -> b.name)
     |> Stdlib.List.filter (fun name -> Stdlib.String.startsWith name partial)
 
   | _ -> []
