@@ -12,7 +12,8 @@ let parsePath (pathStr: String) : List<PathSegment> =
     [PathSegment.Root]
   else
     // Check if path ends with a dot - this means user wants to complete within that location
-    let endsWithDot = Stdlib.String.endsWith pathStr "."
+    let endsWithDot =
+      (Stdlib.String.endsWith pathStr ".") && Stdlib.Bool.not (Stdlib.String.endsWith pathStr "..")
 
     // Split on / first, then handle each part separately
     let parts =
