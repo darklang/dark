@@ -26,8 +26,8 @@ OK - this PR is going great, and I'm nearing being comfortable merging it, but
 - [ ] `(LanguageTools.WrittenTypesToProgramTypes.Context { currentFnName = Stdlib.Option.Option.None; argMap = Stdlib.Dict.empty })` is a bit wordy, maybe there should be a 'defaultContext' or something to make this tidier?
 - [ ] `// CLEANUP this doesn't exist any more.` what should we do about this?
 - [ ] `/ TODO: this Completion module could be extracted to its own file (utils/completion.dark)` OK I think it's time to do this that file is getting huge
-- [ ] in `packages/darklang/cli/packages/branch.dark` -- `clear` and `unset` and `none` -- those are all the same. They should be consolidated with 'clear' as the real name and the others simply aliases
-- [ ] broadly, whenever you have `let help (state: Cli.AppState) : Cli.AppState =` don't make a BUNCH of printLine usages. Rather have a [] filled with the lines and pipe it into a `Stdlib.printLines` usage - there are examples in other files
+- [x] in `packages/darklang/cli/packages/branch.dark` -- `clear` and `unset` and `none` -- those are all the same. They should be consolidated with 'clear' as the real name and the others simply aliases
+- [x] broadly, whenever you have `let help (state: Cli.AppState) : Cli.AppState =` don't make a BUNCH of printLine usages. Rather have a [] filled with the lines and pipe it into a `Stdlib.printLines` usage - there are examples in other files
 - [ ] (relevant to multiple layers) `packages/darklang/cli/packages/history.dark` this might be possible to be consolidated based on recent changes to ... actually, for now, let's remove the 'history' command and put it for later (later.md)
 - [ ] packages/darklang/cli/packages/nav.dark is too long. the interactive stuff, certainly, should be extracted to some other file. I'm not sure how else to shorten things, but gosh that's long. it's worth a _lot_ of thought to tidy things up a bit. plz don't break anything tho
 - [ ] packages/darklang/cli/packages/rename.dark can be safely removed with the _intent_ noted in later.md

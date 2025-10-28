@@ -89,14 +89,9 @@ let complete (state: AppState) (args: List<String>) : List<String> =
 
   | [partialArg] ->
     if Stdlib.String.startsWith partialArg "@" then
-      // Complete function names - query actual package manager
-      let pm = LanguageTools.PackageManager.pm ()
-      // CLEANUP this doesn't exist any more.
-      let allFunctions = LanguageTools.PackageManager.allFunctions pm
-      allFunctions
-      |> Stdlib.List.map (fun fn -> $"@{fn.name}")
-      |> Stdlib.List.filter (fun name ->
-        Stdlib.String.startsWith name partialArg)
+      // TODO: Complete function names - allFunctions doesn't exist anymore
+      // Need to implement function name completion using the new package system
+      []
     else if partialArg == "." then
       // Special case: "." means show all files in current directory
       let currentDir = Builtin.directoryCurrent ()
