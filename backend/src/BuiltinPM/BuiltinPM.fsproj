@@ -12,7 +12,6 @@
     <Compile Include="Libs/PackageOps.fs" />
     <Compile Include="Libs/Sync.fs" />
     <Compile Include="Libs/Instances.fs" />
-    <Compile Include="Libs/Account.fs" />
     <Compile Include="Libs/Branches.fs" />
     <Compile Include="Libs/PackageHistory.fs" />
     <Compile Include="Libs/Packages.fs" />

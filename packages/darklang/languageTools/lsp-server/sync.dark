@@ -20,15 +20,11 @@ let handleSyncRequest
               $"Instance '{instanceName}' not found. Use 'instance list' to see available instances.") ]
 
     | Some instance ->
-      // Get current branch ID (may be None if not on a branch)
-      let branchId = Darklang.SCM.Account.getCurrentBranch ()
+      // Get current branch ID from LSP state (may be None if not on a branch)
+      let branchId = state.branchID
 
       // Execute sync
-      let result =
-        Darklang.SCM.Sync.sync
-          instance.id
-          instance.url
-          (Stdlib.Option.Option.Some branchId)
+      let result = Darklang.SCM.Sync.sync instance.id instance.url branchId
 
       match result with
       | Ok message ->

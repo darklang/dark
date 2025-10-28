@@ -11,26 +11,13 @@ let handleGetBranchesRequest
   let response =
     branches
     |> Stdlib.List.map (fun branch ->
-      let stateStr =
-        match branch.state with
-        | Active -> "active"
-        | Merged -> "merged"
-        | Abandoned -> "abandoned"
-
       Json.Object
         [ ("id", Json.String(Stdlib.Uuid.toString branch.id))
-          ("title", Json.String branch.title)
-          ("state", Json.String stateStr)
+          ("name", Json.String branch.name)
           ("createdAt", Json.String(Stdlib.DateTime.toString branch.createdAt))
-          ("lastActiveAt",
-           Json.String(Stdlib.DateTime.toString branch.lastActiveAt))
           ("mergedAt",
            match branch.mergedAt with
            | Some dt -> Json.String(Stdlib.DateTime.toString dt)
-           | None -> Json.Null)
-          ("createdBy",
-           match branch.createdBy with
-           | Some uuid -> Json.String(Stdlib.Uuid.toString uuid)
            | None -> Json.Null) ])
     |> Json.Array
 
@@ -51,34 +38,16 @@ let handleCreateBranchRequest
   (requestId: JsonRPC.RequestId)
   (branchName: String)
   : LspState =
-  let accountId = Darklang.SCM.Account.getCurrentId ()
-  let branch =
-    Darklang.SCM.Branch.create (Stdlib.Option.Option.Some accountId) branchName
-
-  // Set this as the current branch
-  Darklang.SCM.Account.setCurrentBranch branch.id
-
-  let stateStr =
-    match branch.state with
-    | Active -> "active"
-    | Merged -> "merged"
-    | Abandoned -> "abandoned"
+  let branch = Darklang.SCM.Branch.create branchName
 
   let response =
     Json.Object
       [ ("id", Json.String(Stdlib.Uuid.toString branch.id))
-        ("title", Json.String branch.title)
-        ("state", Json.String stateStr)
+        ("name", Json.String branch.name)
         ("createdAt", Json.String(Stdlib.DateTime.toString branch.createdAt))
-        ("lastActiveAt",
-         Json.String(Stdlib.DateTime.toString branch.lastActiveAt))
         ("mergedAt",
          match branch.mergedAt with
          | Some dt -> Json.String(Stdlib.DateTime.toString dt)
-         | None -> Json.Null)
-        ("createdBy",
-         match branch.createdBy with
-         | Some uuid -> Json.String(Stdlib.Uuid.toString uuid)
          | None -> Json.Null) ]
 
   let responseJson =
@@ -89,7 +58,8 @@ let handleCreateBranchRequest
 
   logAndSendToClient responseJson
 
-  state
+  // Set this as the current branch in LSP state
+  { state with branchID = Stdlib.Option.Option.Some branch.id }
 
 
 
@@ -98,9 +68,6 @@ let handleClearBranchRequest
   (state: LspState)
   (requestId: JsonRPC.RequestId)
   : LspState =
-  // Clear the current branch selection
-  Darklang.SCM.Account.clearCurrentBranch ()
-
   let response = Json.Null
 
   let responseJson =
@@ -111,4 +78,5 @@ let handleClearBranchRequest
 
   logAndSendToClient responseJson
 
-  state
+  // Clear the current branch from LSP state
+  { state with branchID = Stdlib.Option.Option.None }

@@ -235,21 +235,14 @@ module FnName =
               modules = modules
               name = name.name }
 
-        //Builtin.debug "what" 1L
 
-        //let find =
-        //Builtin.debug "what" "two"
         let found = pm.findFn branchID location
-        //Builtin.debug "what" "3.5"
 
         match found with
         | Some id ->
-          //Builtin.debug "what" 3L
           (ProgramTypes.FQFnName.FQFnName.Package id)
           |> Stdlib.Result.Result.Ok
-        | None ->
-          //Builtin.debug "what" 4L
-          Stdlib.Result.Result.Error()
+        | None -> Stdlib.Result.Result.Error()
 
 
   let resolve
@@ -260,22 +253,16 @@ module FnName =
     (currentModule: List<String>)
     (name: WrittenTypes.Name)
     : ProgramTypes.NameResolution<ProgramTypes.FQFnName.FQFnName> =
-    //Builtin.debug "a" ()
     match name with
     | Unresolved(_range, given) ->
-      //Builtin.debug "b" ()
       let modules = Stdlib.List.dropLast given
       let name = Stdlib.List.last given
-
-      //Builtin.debug "c" ()
 
       // TODO: handle versions... (parse out the _v[n] part if present)
       match name with
       | None ->
-        //Builtin.debug "d" ()
         Stdlib.Result.Result.Error (ProgramTypes.NameResolutionError.InvalidName given)
       | Some name ->
-        //Builtin.debug "e" ()
         let genericName =
           GenericName
             { modules = modules
@@ -284,14 +271,12 @@ module FnName =
 
         let names = namesToTry owner currentModule genericName
 
-        //Builtin.debug "f" ()
 
         let result =
           Stdlib.List.fold
             names
             (Stdlib.Result.Result.Error (ProgramTypes.NameResolutionError.NotFound given))
             (fun currentResult nameToTry ->
-              //Builtin.debug "fa" nameToTry
               match currentResult with
               | Ok _ -> currentResult
               | Error _ ->

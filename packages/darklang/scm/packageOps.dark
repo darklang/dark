@@ -11,10 +11,12 @@ let add
   Builtin.scmAddOps branchId ops
 
 
-/// Helper to add ops to the current branch
-let addToCurrent (ops: List<LanguageTools.ProgramTypes.PackageOp>) : Unit =
-  let currentBranchId = Darklang.SCM.Account.getCurrentBranch ()
-  let _ = add (Stdlib.Option.Option.Some currentBranchId) ops
+/// Helper to add ops to a specific branch
+let addToBranch
+  (branchId: Uuid)
+  (ops: List<LanguageTools.ProgramTypes.PackageOp>)
+  : Unit =
+  let _ = add (Stdlib.Option.Option.Some branchId) ops
   ()
 
 
