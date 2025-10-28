@@ -10,9 +10,7 @@
 -- This migration aims to:
 -- - split item storage from 'naming' mechanism
 -- - introduce 'branches' to manage work in progress
--- - track who's done what -- see adjacent migration around accounts+access
--- - implement some sort of tracking about what has/hasn't been synced upwards
--- - hmm we likely need an ops table or two...
+-- - implement tracking about what has/hasn't been synced upwards
 
 
 -- Drop old package tables
@@ -81,28 +79,12 @@ CREATE INDEX IF NOT EXISTS idx_locations_branch ON locations(branch_id) WHERE br
 
 CREATE TABLE IF NOT EXISTS branches (
   id TEXT PRIMARY KEY,
-  created_by TEXT NULL REFERENCES accounts(id),   -- Who created this branch (for attribution)
-  title TEXT NOT NULL,                            -- User-friendly name (non-unique)
-  state TEXT NOT NULL,                            -- 'active', 'merged', 'abandoned'
+  name TEXT NOT NULL,                             -- User-friendly name (non-unique)
   created_at TIMESTAMP NOT NULL,
-  last_active_at TIMESTAMP NOT NULL,
   merged_at TIMESTAMP NULL
 );
 
-CREATE INDEX IF NOT EXISTS idx_branches_state ON branches(state);
-CREATE INDEX IF NOT EXISTS idx_branches_active ON branches(last_active_at) WHERE state = 'active';
-
--- Track which branch each account is currently working on
-CREATE TABLE IF NOT EXISTS account_context (
-  account_id TEXT PRIMARY KEY REFERENCES accounts(id),
-  current_branch_id TEXT REFERENCES branches(id),
-  last_updated_at TIMESTAMP NOT NULL
-);
-
--- Default 'anon' account for local development
-INSERT INTO accounts (id, name, created_at)
-VALUES ('00000000-0000-0000-0000-000000000001', 'anon', datetime('now'))
-ON CONFLICT DO NOTHING;
+CREATE INDEX IF NOT EXISTS idx_branches_name ON branches(name);
 
 
 -- Ops tracking table - source of truth for all package changes
@@ -117,20 +99,6 @@ CREATE TABLE IF NOT EXISTS package_ops (
 CREATE INDEX IF NOT EXISTS idx_package_ops_branch ON package_ops(branch_id);
 CREATE INDEX IF NOT EXISTS idx_package_ops_created ON package_ops(created_at);
 
--- FUTURE: Patches/commits within branches
--- CREATE TABLE patches (
---   id UUID PRIMARY KEY,
---   branch_id UUID NOT NULL REFERENCES branches(id),
---   title TEXT NOT NULL,
---   author_id UUID NOT NULL REFERENCES accounts(id),
---   created_at TIMESTAMP NOT NULL,
---   updated_at TIMESTAMP NOT NULL,
---   merged_at TIMESTAMP NULL,        -- NULL = not merged yet
---   merged_by UUID NULL REFERENCES accounts(id)
--- );
--- CREATE INDEX idx_patches_author ON patches(author_id);
--- CREATE INDEX idx_patches_branch ON patches(branch_id);
--- CREATE INDEX idx_patches_merged ON patches(merged_at);
 
 -- CLEANUP can/should the concept of a 'package item' be extracted out somehow?
 -- would that somehow help dealing with unparseables?
