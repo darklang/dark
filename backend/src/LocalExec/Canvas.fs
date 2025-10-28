@@ -119,10 +119,8 @@ let loadFromDisk
 
         let dbs = canvas.dbs |> List.map PT.Toplevel.TLDB
 
-        // TODO: Canvas types/values/fns need to be converted to PackageOps
-        // or we need a separate insert mechanism for canvas-local items
-        // For now, skip inserting them
-        // do! LibPackageManager.Inserts.insertOps (canvasToOps canvas)
+        // Insert canvas types/values/fns as PackageOps (now that Canvas.parse produces them)
+        do! LibPackageManager.Inserts.insertOps None canvas.ops
 
         return
           (dbs @ handlers) |> List.map (fun tl -> tl, LibCloud.Serialize.NotDeleted)

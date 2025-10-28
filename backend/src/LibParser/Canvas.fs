@@ -38,10 +38,7 @@ let emptyRootWTModule owner canvasName =
     exprs = [] }
 
 type PTCanvasModule =
-  { types : List<PT.PackageType.PackageType>
-    values : List<PT.PackageValue.PackageValue>
-    fns : List<PT.PackageFn.PackageFn>
-
+  { ops : List<PT.PackageOp>
     dbs : List<PT.DB.T>
     // TODO: consider breaking this down into httpHandlers, crons, workers, and repls
     handlers : List<PT.Handler.Spec * PT.Expr>
@@ -236,27 +233,56 @@ let toPT
   (m : WTCanvasModule)
   : Ply<PTCanvasModule> =
   uply {
-    let! types =
-      m.types
-      |> Ply.List.mapSequentially (
-        WT2PT.PackageType.toPT pm onMissing (m.owner :: m.name)
-      )
+    let currentModule = m.owner :: m.name
 
-    let! values =
+    let! typeOps =
+      m.types
+      |> Ply.List.mapSequentially (fun wtType ->
+        uply {
+          let! ptType = WT2PT.PackageType.toPT pm onMissing currentModule wtType
+          let location : PT.PackageLocation =
+            { owner = wtType.name.owner
+              modules = wtType.name.modules
+              name = wtType.name.name }
+          return
+            [ PT.PackageOp.AddType ptType
+              PT.PackageOp.SetTypeName(ptType.id, location) ]
+        })
+      |> Ply.map List.flatten
+
+    let! valueOps =
       m.values
-      |> Ply.List.mapSequentially (
-        WT2PT.PackageValue.toPT builtins pm onMissing (m.owner :: m.name)
-      )
+      |> Ply.List.mapSequentially (fun wtValue ->
+        uply {
+          let! ptValue = WT2PT.PackageValue.toPT builtins pm onMissing currentModule wtValue
+          let location : PT.PackageLocation =
+            { owner = wtValue.name.owner
+              modules = wtValue.name.modules
+              name = wtValue.name.name }
+          return
+            [ PT.PackageOp.AddValue ptValue
+              PT.PackageOp.SetValueName(ptValue.id, location) ]
+        })
+      |> Ply.map List.flatten
+
+    let! fnOps =
+      m.fns
+      |> Ply.List.mapSequentially (fun wtFn ->
+        uply {
+          let! ptFn = WT2PT.PackageFn.toPT builtins pm onMissing currentModule wtFn
+          let location : PT.PackageLocation =
+            { owner = wtFn.name.owner
+              modules = wtFn.name.modules
+              name = wtFn.name.name }
+          return
+            [ PT.PackageOp.AddFn ptFn
+              PT.PackageOp.SetFnName(ptFn.id, location) ]
+        })
+      |> Ply.map List.flatten
 
     let! dbs =
       m.dbs
-      |> Ply.List.mapSequentially (WT2PT.DB.toPT pm onMissing (m.owner :: m.name))
-
-    let! fns =
-      m.fns
-      |> Ply.List.mapSequentially (
-        WT2PT.PackageFn.toPT builtins pm onMissing (m.owner :: m.name)
-      )
+      |> Ply.List.mapSequentially (WT2PT.DB.toPT pm onMissing currentModule)
 
     let! handlers =
       m.handlers
@@ -279,14 +305,14 @@ let toPT
           { WT2PT.Context.currentFnName = None
             WT2PT.Context.isInFunction = false
             WT2PT.Context.argMap = Map.empty }
-        WT2PT.Expr.toPT builtins pm onMissing (m.owner :: m.name) context
+        WT2PT.Expr.toPT builtins pm onMissing currentModule context
       )
 
+    let allOps = typeOps @ valueOps @ fnOps
+
     return
-      { types = types
-        values = values
+      { ops = allOps
         dbs = dbs
-        fns = fns
         handlers = handlers
         exprs = exprs }
   }
@@ -324,9 +350,82 @@ let parse
 
     let moduleWT = parseDecls owner canvasName decls
 
-    // TODO: Two-phase parsing with ID stabilization was disabled during package schema rewrite
-    // This needs to be updated to use the new ops-based approach similar to LoadPackagesFromDisk.fs
-    // For now, just do a single pass (IDs will be regenerated on each parse)
-    let! result = toPT builtins pm onMissing moduleWT
-    return result
+    // Two-phase parsing with ID stabilization:
+    // First pass: parse with OnMissing.Allow to allow forward references
+    let! firstPass = toPT builtins PT.PackageManager.empty NR.OnMissing.Allow moduleWT
+
+    // Extract ops from first pass for second pass PackageManager
+    let firstPassOps = firstPass.ops
+
+    // Second pass: re-parse with PackageManager containing first pass results
+    let enhancedPM = LibPackageManager.PackageManager.withExtraOps pm firstPassOps
+    let! secondPass = toPT builtins enhancedPM onMissing moduleWT
+
+    // ID stabilization: adjust second pass IDs to match first pass IDs
+    let (firstPassTypeLocToId, firstPassValueLocToId, firstPassFnLocToId) =
+      LibPackageManager.PackageManager.extractLocationMaps firstPassOps
+
+    let adjustOp (op : PT.PackageOp) : PT.PackageOp =
+      match op with
+      | PT.PackageOp.SetTypeName(_, loc) ->
+        let stableId =
+          firstPassTypeLocToId
+          |> Map.tryFind loc
+          |> Option.defaultWith (fun () -> System.Guid.NewGuid())
+        PT.PackageOp.SetTypeName(stableId, loc)
+
+      | PT.PackageOp.AddType typ ->
+        let typLoc =
+          secondPass.ops
+          |> List.tryPick (function
+            | PT.PackageOp.SetTypeName(id, loc) when id = typ.id -> Some loc
+            | _ -> None)
+        let stableId =
+          typLoc
+          |> Option.bind (fun loc -> Map.tryFind loc firstPassTypeLocToId)
+          |> Option.defaultValue typ.id
+        PT.PackageOp.AddType { typ with id = stableId }
+
+      | PT.PackageOp.SetValueName(_, loc) ->
+        let stableId =
+          firstPassValueLocToId
+          |> Map.tryFind loc
+          |> Option.defaultWith (fun () -> System.Guid.NewGuid())
+        PT.PackageOp.SetValueName(stableId, loc)
+
+      | PT.PackageOp.AddValue value ->
+        let valueLoc =
+          secondPass.ops
+          |> List.tryPick (function
+            | PT.PackageOp.SetValueName(id, loc) when id = value.id -> Some loc
+            | _ -> None)
+        let stableId =
+          valueLoc
+          |> Option.bind (fun loc -> Map.tryFind loc firstPassValueLocToId)
+          |> Option.defaultValue value.id
+        PT.PackageOp.AddValue { value with id = stableId }
+
+      | PT.PackageOp.SetFnName(_, loc) ->
+        let stableId =
+          firstPassFnLocToId
+          |> Map.tryFind loc
+          |> Option.defaultWith (fun () -> System.Guid.NewGuid())
+        PT.PackageOp.SetFnName(stableId, loc)
+
+      | PT.PackageOp.AddFn fn ->
+        let fnLoc =
+          secondPass.ops
+          |> List.tryPick (function
+            | PT.PackageOp.SetFnName(id, loc) when id = fn.id -> Some loc
+            | _ -> None)
+        let stableId =
+          fnLoc
+          |> Option.bind (fun loc -> Map.tryFind loc firstPassFnLocToId)
+          |> Option.defaultValue fn.id
+        PT.PackageOp.AddFn { fn with id = stableId }
+
+    let adjustedOps = secondPass.ops |> List.map adjustOp
+
+    return
+      { secondPass with ops = adjustedOps }
   }
