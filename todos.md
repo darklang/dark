@@ -36,7 +36,7 @@ OK - this PR is going great, and I'm nearing being comfortable merging it, but
 - [x] migratet he comment at the bottom of packages/darklang/languageTools/lsp-server/aaaa-state.dark to 'later.md'
 - [x] I see some instances of `t.location.owner ++ "." ++ (Stdlib.String.join item.location.modules ".") ++ "." ++ item.location.name` - that should just be replaced with a call-out to something in the pretty-printer module(s) for PackageLocation
 
-- [ ] I wonder if backend/src/LibParser/NameResolver.fs could be greatly tidied now that we've done a big refactor includig the 'locations' table stuff. maybe the F# equivalent too? At least, maybe there are some new helpers to extract, idk
+- [x] I wonder if backend/src/LibParser/NameResolver.fs could be greatly tidied now that we've done a big refactor includig the 'locations' table stuff. maybe the F# equivalent too? At least, maybe there are some new helpers to extract, idk
 
 - [ ] separately from all of this - i'd like a full builtins.md report on all the existing builtins. keep it complete but concise
 
