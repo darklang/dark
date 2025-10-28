@@ -16,34 +16,15 @@ module PackageIDs = LibExecution.PackageIDs
 open Builtin.Shortcuts
 
 
-let branchStateTypeName =
-  FQTypeName.fqPackage PackageIDs.Type.SCM.Branch.branchState
-
 let branchTypeName =
   FQTypeName.fqPackage PackageIDs.Type.SCM.Branch.branch
-
-
-let branchStateToDT (state : Branches.BranchState) : Dval =
-  let typeName = branchStateTypeName
-  let caseName =
-    match state with
-    | Branches.Active -> "Active"
-    | Branches.Merged -> "Merged"
-    | Branches.Abandoned -> "Abandoned"
-  DEnum(typeName, typeName, [], caseName, [])
 
 
 let branchToDT (branch : Branches.Branch) : Dval =
   let fields =
     [ "id", DUuid branch.id
-      "createdBy",
-      (match branch.createdBy with
-       | Some id -> Dval.optionSome KTUuid (DUuid id)
-       | None -> Dval.optionNone KTUuid)
-      "title", DString branch.title
-      "state", branchStateToDT branch.state
+      "name", DString branch.name
       "createdAt", DDateTime(DarkDateTime.fromInstant branch.createdAt)
-      "lastActiveAt", DDateTime(DarkDateTime.fromInstant branch.lastActiveAt)
       "mergedAt",
       (match branch.mergedAt with
        | Some dt -> Dval.optionSome KTDateTime (DDateTime(DarkDateTime.fromInstant dt))
@@ -58,12 +39,12 @@ let fns : List<BuiltInFn> =
       typeParams = []
       parameters = [ Param.make "" TUnit "" ]
       returnType = TList(TCustomType(Ok branchTypeName, []))
-      description = "List all active branches"
+      description = "List all branches"
       fn =
         (function
         | _, _, _, [ DUnit ] ->
           uply {
-            let! branches = Branches.list (Some Branches.Active)
+            let! branches = Branches.list ()
             let branchVT = VT.customType branchTypeName []
             return DList(branchVT, branches |> List.map branchToDT)
           }
@@ -92,16 +73,16 @@ let fns : List<BuiltInFn> =
       previewable = Impure
       deprecated = NotDeprecated }
 
-    { name = fn "scmBranchFindByTitle" 0
+    { name = fn "scmBranchFindByName" 0
       typeParams = []
-      parameters = [ Param.make "title" TString "" ]
+      parameters = [ Param.make "name" TString "" ]
       returnType = TList(TCustomType(Ok branchTypeName, []))
-      description = "Find branches by title (may return multiple if titles collide)"
+      description = "Find branches by name (may return multiple if names collide)"
       fn =
         (function
-        | _, _, _, [ DString title ] ->
+        | _, _, _, [ DString name ] ->
           uply {
-            let! branches = Branches.findByTitle title
+            let! branches = Branches.findByName name
             let branchVT = VT.customType branchTypeName []
             return DList(branchVT, branches |> List.map branchToDT)
           }
@@ -112,21 +93,14 @@ let fns : List<BuiltInFn> =
 
     { name = fn "scmBranchCreate" 0
       typeParams = []
-      parameters =
-        [ Param.make "createdBy" (TypeReference.option TUuid) ""
-          Param.make "title" TString "" ]
+      parameters = [ Param.make "name" TString "" ]
       returnType = TCustomType(Ok branchTypeName, [])
       description = "Create a new branch"
       fn =
         (function
-        | _, _, _, [ createdBy; DString title ] ->
+        | _, _, _, [ DString name ] ->
           uply {
-            let createdByOpt =
-              match createdBy with
-              | DEnum(_, _, _, "Some", [ DUuid id ]) -> Some id
-              | _ -> None
-
-            let! branch = Branches.create createdByOpt title
+            let! branch = Branches.create name
             return branchToDT branch
           }
         | _ -> incorrectArgs ())
@@ -134,45 +108,7 @@ let fns : List<BuiltInFn> =
       previewable = Impure
       deprecated = NotDeprecated }
 
-    { name = fn "scmBranchUpdateLastActive" 0
-      typeParams = []
-      parameters = [ Param.make "branchId" TUuid "" ]
-      returnType = TUnit
-      description = "Update the last active timestamp for a branch"
-      fn =
-        (function
-        | _, _, _, [ DUuid branchId ] ->
-          uply {
-            do! Branches.updateLastActive branchId
-            return DUnit
-          }
-        | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
-      previewable = Impure
-      deprecated = NotDeprecated }
-
-    { name = fn "scmBranchEnsureMainBranch" 0
-      typeParams = []
-      parameters = [ Param.make "createdBy" (TypeReference.option TUuid) "" ]
-      returnType = TCustomType(Ok branchTypeName, [])
-      description =
-        "Ensure a 'main' branch exists, creating it if needed. Returns the main branch."
-      fn =
-        (function
-        | _, _, _, [ createdBy ] ->
-          uply {
-            let createdByOpt =
-              match createdBy with
-              | DEnum(_, _, _, "Some", [ DUuid id ]) -> Some id
-              | _ -> None
-
-            let! branch = Branches.ensureMainBranch createdByOpt
-            return branchToDT branch
-          }
-        | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
-      previewable = Impure
-      deprecated = NotDeprecated } ]
+    ]
 
 
 let builtins : Builtins = LibExecution.Builtin.make [] fns
