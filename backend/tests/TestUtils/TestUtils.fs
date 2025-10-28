@@ -88,8 +88,6 @@ let testWorker (name : string) (ast : PT.Expr) : PT.Handler.T =
   { tlid = gid (); ast = ast; spec = PT.Handler.Worker name }
 
 let testPackageFn
-  (_owner : string)
-  (_name : string)
   (typeParams : List<string>)
   (parameters : NEList<string>)
   (returnType : PT.TypeReference)
