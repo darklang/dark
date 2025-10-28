@@ -30,7 +30,7 @@ OK - this PR is going great, and I'm nearing being comfortable merging it, but
 - [x] broadly, whenever you have `let help (state: Cli.AppState) : Cli.AppState =` don't make a BUNCH of printLine usages. Rather have a [] filled with the lines and pipe it into a `Stdlib.printLines` usage - there are examples in other files
 - [ ] (relevant to multiple layers) `packages/darklang/cli/packages/history.dark` this might be possible to be consolidated based on recent changes to ... actually, for now, let's remove the 'history' command and put it for later (later.md)
 - [ ] packages/darklang/cli/packages/nav.dark is too long. the interactive stuff, certainly, should be extracted to some other file. I'm not sure how else to shorten things, but gosh that's long. it's worth a _lot_ of thought to tidy things up a bit. plz don't break anything tho
-- [ ] packages/darklang/cli/packages/rename.dark can be safely removed with the _intent_ noted in later.md
+- [x] packages/darklang/cli/packages/rename.dark can be safely removed with the _intent_ noted in later.md
 - [ ] I'm not sure what `Display values (temporarily without pretty printing to test LocatedItem fix)` is about...
 - [ ] there's an inline None for the branch when calling the builtin in packages/darklang/internal/darklang-internal-mcp-server/tools.dark -- can we pass some legit branchID in?
 - [ ] migratet he comment at the bottom of packages/darklang/languageTools/lsp-server/aaaa-state.dark to 'later.md'

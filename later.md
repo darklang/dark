@@ -38,3 +38,19 @@ mv type User Models.User
 **Next steps**: Review how this can be implemented using the package_ops table and determine the right UX.
 
 ---
+
+## LSP Server Architecture: Multi-Client Support
+
+**Status**: Current design is "one server, one client"
+
+**Issue**: The LSP server currently assumes a single client connection. However, the dev server needs to operate on separate LSP clients separately, tracking state (initialization, documentsInScope, branchID) per client.
+
+**Proposed change**: Refactor LspState to support multiple clients:
+- Track state per client connection
+- Maintain separate branchID context for each client
+- Keep separate documentsInScope for each client
+- Handle initialization state per client
+
+**Note**: This is probably part of a larger effort to move from stdio-based LSP server to HTTP-bound one.
+
+---
