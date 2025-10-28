@@ -5,6 +5,9 @@ type Context =
   { currentFnName: Stdlib.Option.Option<List<String>>
     argMap: Dict<Int64> }
 
+let defaultContext =
+  Context { currentFnName = Stdlib.Option.Option.None; argMap = Dict {} }
+
 let gid () : Int64 =
   // TODO: fix upper range here
   Stdlib.Int64.random 0L 922337203685477580L
@@ -311,7 +314,7 @@ module Expr =
 
         let newContext =
           if shadowsFunctionName then
-            Context { currentFnName = Stdlib.Option.Option.None; argMap = Stdlib.Dict.empty }
+            defaultContext
           else
             // Remove this variable from argMap only if it was a function argument
             let newArgMap =
@@ -1209,7 +1212,7 @@ module ModuleDeclaration =
       |> Stdlib.List.filterMap (fun d ->
         match d with
         | Expr e ->
-          let context = Context { currentFnName = Stdlib.Option.Option.None; argMap = Stdlib.Dict.empty }
+          let context = defaultContext
           let (expr, exprUnresolvedNames) =
             Expr.toPT branchID onMissing pm owner modules context e
 
@@ -1312,7 +1315,7 @@ module ModuleDeclaration =
         match d with
         | Expr e ->
           let (expr, unresolvedNames) =
-            Expr.toPT branchID onMissing pm owner currentModule (Context { currentFnName = Stdlib.Option.Option.None; argMap = Stdlib.Dict.empty }) e
+            Expr.toPT branchID onMissing pm owner currentModule defaultContext e
 
           Stdlib.Option.Option.Some(((expr, [ owner ]), unresolvedNames))
         | _ -> Stdlib.Option.Option.None)
@@ -1516,7 +1519,7 @@ module ValueDeclaration =
     : (ProgramTypes.PackageValue.PackageValue *
       List<Parser.Range * ProgramTypes.NameResolutionError>)
     =
-    let (body, unresolvedNames) = Expr.toPT branchID onMissing pm owner modules (Context { currentFnName = Stdlib.Option.Option.None; argMap = Stdlib.Dict.empty }) d.body
+    let (body, unresolvedNames) = Expr.toPT branchID onMissing pm owner modules defaultContext d.body
 
     (ProgramTypes.PackageValue.PackageValue
       { id = Stdlib.Uuid.generate ()
@@ -1724,7 +1727,7 @@ let moduleDeclarationWithOpsHelper
     |> Stdlib.List.filterMap (fun d ->
       match d with
       | Expr e ->
-        let context = Context { currentFnName = Stdlib.Option.Option.None; argMap = Stdlib.Dict.empty }
+        let context = defaultContext
         let (expr, unresolvedNames) =
           Expr.toPT branchID NameResolver.OnMissing.Allow pm owner modules context e
 
@@ -1906,7 +1909,7 @@ let parsedFileAsSourceFile
     let (exprsToEval, exprsToEvalUnresolvedNames) =
       source.exprsToEval
       |> Stdlib.List.map (fun e ->
-        Expr.toPT branchID NameResolver.OnMissing.Allow pm "" [] (Context { currentFnName = Stdlib.Option.Option.None; argMap = Stdlib.Dict.empty }) e)
+        Expr.toPT branchID NameResolver.OnMissing.Allow pm "" [] defaultContext e)
       |> Stdlib.List.unzip
 
     let unresolvedNames =

@@ -113,7 +113,7 @@ let toPT
         pm
         wt.owner
         []
-        (LanguageTools.WrittenTypesToProgramTypes.Context { currentFnName = Stdlib.Option.Option.None; argMap = Stdlib.Dict.empty })
+        LanguageTools.WrittenTypesToProgramTypes.defaultContext
         e)
     |> Stdlib.List.unzip
 

@@ -62,7 +62,7 @@ let executeFunction (state: AppState) (fnName: String) (args: List<String>) : Ap
         pm
         ""
         []
-        (LanguageTools.WrittenTypesToProgramTypes.Context { currentFnName = Stdlib.Option.Option.None; argMap = Stdlib.Dict.empty })
+        LanguageTools.WrittenTypesToProgramTypes.defaultContext
         arg)
     |> Stdlib.List.unzip
 
