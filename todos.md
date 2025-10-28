@@ -25,7 +25,7 @@ OK - this PR is going great, and I'm nearing being comfortable merging it, but
   - [x] e.g. backend/tests/Tests/PT2RT.Tests.fs, `let t` on line 1625
 - [x] `(LanguageTools.WrittenTypesToProgramTypes.Context { currentFnName = Stdlib.Option.Option.None; argMap = Stdlib.Dict.empty })` is a bit wordy, maybe there should be a 'defaultContext' or something to make this tidier?
 - [x] `// CLEANUP this doesn't exist any more.` what should we do about this?
-- [ ] `/ TODO: this Completion module could be extracted to its own file (utils/completion.dark)` OK I think it's time to do this that file is getting huge
+- [x] `/ TODO: this Completion module could be extracted to its own file (utils/completion.dark)` OK I think it's time to do this that file is getting huge
 - [x] in `packages/darklang/cli/packages/branch.dark` -- `clear` and `unset` and `none` -- those are all the same. They should be consolidated with 'clear' as the real name and the others simply aliases
 - [x] broadly, whenever you have `let help (state: Cli.AppState) : Cli.AppState =` don't make a BUNCH of printLine usages. Rather have a [] filled with the lines and pipe it into a `Stdlib.printLines` usage - there are examples in other files
 - [x] (relevant to multiple layers) `packages/darklang/cli/packages/history.dark` this might be possible to be consolidated based on recent changes to ... actually, for now, let's remove the 'history' command and put it for later (later.md)
