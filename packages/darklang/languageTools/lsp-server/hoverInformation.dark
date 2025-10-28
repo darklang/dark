@@ -46,12 +46,10 @@ let hoverInfoForThingAtPosition
 
     createHoverInfo range description metadata
 
-  | PackageValue v description ->
-    let prettyVal = PrettyPrinter.ProgramTypes.packageValue Stdlib.Option.Option.None v
+  | PackageValue fqNameList value description ->
+    let prettyVal = PrettyPrinter.ProgramTypes.packageValue Stdlib.Option.Option.None value
 
-    let fqName =
-      (Stdlib.List.append v.name.modules [ v.name.name ])
-      |> Stdlib.String.join "."
+    let fqName = fqNameList |> Stdlib.String.join "."
 
     let metadata =
       Stdlib.Option.Option.Some(
@@ -66,12 +64,10 @@ let hoverInfoForThingAtPosition
 
     createHoverInfo range description metadata
 
-  | PackageFn f description ->
-    let signature = PrettyPrinter.ProgramTypes.PackageFn.signature f
+  | PackageFn fqNameList fn description ->
+    let signature = PrettyPrinter.ProgramTypes.PackageFn.signature fn
 
-    let fqName =
-      (Stdlib.List.append f.name.modules [ f.name.name ])
-      |> Stdlib.String.join "."
+    let fqName = fqNameList |> Stdlib.String.join "."
 
     let metadata =
       Stdlib.Option.Option.Some(
@@ -88,12 +84,10 @@ let hoverInfoForThingAtPosition
     createHoverInfo range description metadata
 
 
-  | PackageType typ description ->
+  | PackageType fqNameList typ description ->
     let prettyType = PrettyPrinter.ProgramTypes.packageType Stdlib.Option.Option.None typ
 
-    let fqName =
-      (Stdlib.List.append typ.name.modules [ typ.name.name ])
-      |> Stdlib.String.join "."
+    let fqName = fqNameList |> Stdlib.String.join "."
 
     let metadata =
       Stdlib.Option.Option.Some(
@@ -163,6 +157,7 @@ let tryGetFnAndCollectHoverInfo
   (currentModules: List<String>)
   : Stdlib.Option.Option<Info> =
   let onMissing = LanguageTools.NameResolver.OnMissing.Allow
+  let fnNameList = fnName
   let fnName = WrittenTypes.Name.Unresolved range fnName
 
   let resolvedFn =
@@ -182,7 +177,7 @@ let tryGetFnAndCollectHoverInfo
           )
 
         let thingAtPosition =
-          CursorPosition.ThingAtPosition.PackageFn(f, description)
+          CursorPosition.ThingAtPosition.PackageFn(fnNameList, f, description)
 
         (hoverInfoForThingAtPosition thingAtPosition range)
         |> Stdlib.Option.Option.Some
@@ -531,7 +526,7 @@ let collectTypeRefHoverInfoAtPos
             )
 
           let thingAtPosition =
-            CursorPosition.ThingAtPosition.PackageType(t, description)
+            CursorPosition.ThingAtPosition.PackageType(typeName, t, description)
 
           (hoverInfoForThingAtPosition thingAtPosition r)
           |> Stdlib.Option.Option.Some
@@ -740,6 +735,7 @@ let collectTypeHoverInfoAtPosition
     match CursorPosition.checkIfPositionWithinRange position range with
     | Some r ->
       let modules = Stdlib.String.join currentModules "."
+      let typeNameList = Stdlib.List.append currentModules [ typeDecl.name.name ]
 
       let typ =
         tryGetPkgType branchID [ typeDecl.name.name ] range pm owner currentModules
@@ -752,7 +748,7 @@ let collectTypeHoverInfoAtPosition
           )
 
         let thingAtPosition =
-          CursorPosition.ThingAtPosition.PackageType(t, description)
+          CursorPosition.ThingAtPosition.PackageType(typeNameList, t, description)
 
         (hoverInfoForThingAtPosition thingAtPosition r)
         |> Stdlib.Option.Option.Some
@@ -823,6 +819,8 @@ let collectValueHoverInfoAtPos
     // check if we are hovering over the value name
     match CursorPosition.checkIfPositionWithinRange position range with
     | Some r ->
+      let valueNameList = Stdlib.List.append currentModules [ v.name.name ]
+
       let getValue =
         tryGetPkgVal branchID [ v.name.name ] range pm owner currentModules
 
@@ -834,7 +832,11 @@ let collectValueHoverInfoAtPos
           )
 
         let thingAtPosition =
-          CursorPosition.ThingAtPosition.PackageValue(value, description)
+          CursorPosition.ThingAtPosition.PackageValue(
+            valueNameList,
+            value,
+            description
+          )
 
         (hoverInfoForThingAtPosition thingAtPosition r)
         |> Stdlib.Option.Option.Some
@@ -1443,7 +1445,7 @@ let collectTypeNameHoverInfoAtPos
             )
 
           let thingAtPosition =
-            CursorPosition.ThingAtPosition.PackageType(t, description)
+            CursorPosition.ThingAtPosition.PackageType(fqName, t, description)
 
           (hoverInfoForThingAtPosition thingAtPosition r)
           |> Stdlib.Option.Option.Some
@@ -2370,7 +2372,7 @@ let collectExpressionHoverInfoAtPos
         let modules =
           fnOrValueName.modules |> Stdlib.List.map (fun (m, _) -> m.name)
 
-        let fnOrValueName =
+        let fnOrValueNameList =
           Stdlib.List.append modules [ fnOrValueName.valueOrFn.name ]
 
         match CursorPosition.checkIfPositionWithinRange position r with
@@ -2379,7 +2381,7 @@ let collectExpressionHoverInfoAtPos
           match
             tryGetFnAndCollectHoverInfo
               branchID
-              fnOrValueName
+              fnOrValueNameList
               r
               pm
               owner
@@ -2391,7 +2393,7 @@ let collectExpressionHoverInfoAtPos
             let getValue =
               tryGetPkgVal
                 branchID
-                fnOrValueName
+                fnOrValueNameList
                 fnOrValueName.valueOrFn.range
                 pm
                 owner
@@ -2406,6 +2408,7 @@ let collectExpressionHoverInfoAtPos
 
               let thingAtPosition =
                 CursorPosition.ThingAtPosition.PackageValue(
+                  fnOrValueNameList,
                   value,
                   description
                 )
