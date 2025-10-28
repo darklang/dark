@@ -2,14 +2,14 @@ TODOs.md
 
 OK - this PR is going great, and I'm nearing being comfortable merging it, but
 
-- [ ] some DB feedback...
+- [x] some DB feedback...
 	(all of these should involve updates to .sql migration files _and_ updates downstream, in .fs and .dark files)
-	- [ ] let's remove the accounts and access table - as far as I recall, nothing _really_ uses them. If there are DB references etc to accounts, let's remove that stuff
-	- [ ] the 'branches' table: title->name, remove 'state' and `last_active_at`. and I suppose remove `created_by` until we figure out accounts
-	- [ ] `backend/migrations/20251024_000003_seed_default_instance.sql` might need some work. I feel like (1) remove that script (2) the 'run-second-instance' script should be updated to insert 1 row into each DB (if nto already done) for the _other_ instance - instead of this 'migration' script
-- [ ] can prob remove Account.fs and related stuff
-- [ ] I think the BranchState model+usage can be killed
-- [ ] ensureMainBranch (top to bottom) can be removed - idk why that's a thing
+	- [x] let's remove the accounts and access table - as far as I recall, nothing _really_ uses them. If there are DB references etc to accounts, let's remove that stuff
+	- [x] the 'branches' table: title->name, remove 'state' and `last_active_at`. and I suppose remove `created_by` until we figure out accounts
+	- [x] `backend/migrations/20251024_000003_seed_default_instance.sql` might need some work. I feel like (1) remove that script (2) the 'run-second-instance' script should be updated to insert 1 row into each DB (if nto already done) for the _other_ instance - instead of this 'migration' script
+- [x] can prob remove Account.fs and related stuff
+- [x] I think the BranchState model+usage can be killed
+- [x] ensureMainBranch (top to bottom) can be removed - idk why that's a thing
 
 - [ ] put TODOs in the BuiltinsPM that we should reconsider which fns should be fully public, or admin-only, etc.
 - [ ] remove anything referring to a patch (probably just comments - like I see a comment in a migration script)

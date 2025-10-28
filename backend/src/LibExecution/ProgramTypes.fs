@@ -644,16 +644,6 @@ type PackageOp =
 //   | TypeIntroducedButNotReferenced of FQTypeName.Package
 //   | ...IntroducedButNotReferenced of ...
 
-(*
-
-branchId
-|> getBranch
-|> getPatches
-|> List.find(p -> p.hasDefinitionOf id)
-|> lol what line was that at?
-
-*)
-
 
 
 (*
@@ -711,20 +701,20 @@ Short answer: while Ops are played out
 
 
 // Locations table needs some recording of timing
-// a Version field or a createdAt field or something // time of the Op? Or patch-merge?
+// a Version field or a createdAt field or something
 // oh, then maybe we have deprecatedAt rather than deprecated: bool
 
 
 // Q: how do we revert things?
-  // scenario: we merged a session, and later realized it's problematic.
+  // scenario: we merged a branch, and later realized it's problematic.
   // (quick note: should be rare - so, notable DB rebuild is OK, maybe?)
 
-  //reminder: source of truth is NOT locations table, but is the Sessions/Patches/etc. table
-  // a Session being merged caused the Locations and Packages table to do a bunch of stuff
-  // and a revert of that session ("Unmerge Session") ??? needs some complicated process
+  //reminder: source of truth is NOT locations table, but is the package_ops table
+  // a branch being merged causes the Locations and Packages tables to update
+  // and a revert of that branch needs some complicated process
 
-  // Maybe we can't revert a merge of a session
-  // BUT we can generate a session that reverts the merge
+  // Maybe we can't revert a merge of a branch
+  // BUT we can generate a branch that reverts the merge
   // a bunch of Deprecations and name-assignments
 
 
@@ -926,7 +916,7 @@ type PackageManager =
 
 (*
 the source of truth is our core tables, which sync:
-  sessions, patches (incl ops), instances
+  package_ops, branches, instances
 
 the package stuff is all a projection of that
   package types, values, fns
@@ -935,19 +925,19 @@ the package stuff is all a projection of that
 
 
 (*
-we need a Locations table with a `session: id` column
+we need a Locations table with a `branch_id` column
 if merged, the col is null
 if non-null
-we need a constraint on (location*session)
+we need a constraint on (location*branch_id)
 the full schema is likely
-  | id | session | location | createdAt | deprecatedAt | itemType |
+  | id | branch_id | location | createdAt | deprecatedAt | itemType |
   , where location is a representation of the module location (maybe A.B.c, maybe json, idk)
 
 
 This table should support broad package search well.
 It'll also be the primary table for doing one-off finds of package items
 
-I imagine we'll need a pretty notable rewrite of our DB schema.
+(Note: This schema has been implemented)
 *)
 
 
@@ -1037,7 +1027,7 @@ module Toplevel =
 //   type T = {
 //     id: uuid
 //     title: string
-//     patches: List<uuid>
+//     ops: List<uuid>
 //     createdAt: System.DateTime
 //     lastActiveAt: System.DateTime
 //     state: SessionState.T
