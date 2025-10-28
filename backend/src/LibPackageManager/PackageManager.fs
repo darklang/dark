@@ -42,6 +42,36 @@ let pt : PT.PackageManager =
     init = uply { return () } }
 
 
+/// Extract location→ID mappings from PackageOps
+let extractLocationMaps
+  (ops : List<PT.PackageOp>)
+  : Map<PT.PackageLocation, uuid>
+    * Map<PT.PackageLocation, uuid>
+    * Map<PT.PackageLocation, uuid> =
+  let typeLocToId =
+    ops
+    |> List.choose (function
+      | PT.PackageOp.SetTypeName(id, loc) -> Some(loc, id)
+      | _ -> None)
+    |> Map.ofList
+
+  let valueLocToId =
+    ops
+    |> List.choose (function
+      | PT.PackageOp.SetValueName(id, loc) -> Some(loc, id)
+      | _ -> None)
+    |> Map.ofList
+
+  let fnLocToId =
+    ops
+    |> List.choose (function
+      | PT.PackageOp.SetFnName(id, loc) -> Some(loc, id)
+      | _ -> None)
+    |> Map.ofList
+
+  (typeLocToId, valueLocToId, fnLocToId)
+
+
 /// Create an in-memory PackageManager from PackageOps (for tests)
 let withExtraOps
   (basePM : PT.PackageManager)
@@ -67,26 +97,7 @@ let withExtraOps
       | _ -> None)
 
   // Build location→ID maps
-  let typeLocToId =
-    ops
-    |> List.choose (function
-      | PT.PackageOp.SetTypeName(id, loc) -> Some(loc, id)
-      | _ -> None)
-    |> Map.ofList
-
-  let valueLocToId =
-    ops
-    |> List.choose (function
-      | PT.PackageOp.SetValueName(id, loc) -> Some(loc, id)
-      | _ -> None)
-    |> Map.ofList
-
-  let fnLocToId =
-    ops
-    |> List.choose (function
-      | PT.PackageOp.SetFnName(id, loc) -> Some(loc, id)
-      | _ -> None)
-    |> Map.ofList
+  let (typeLocToId, valueLocToId, fnLocToId) = extractLocationMaps ops
 
   // Build reverse lookup maps (id -> location)
   let typeIdToLoc =

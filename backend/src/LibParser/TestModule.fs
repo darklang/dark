@@ -296,26 +296,8 @@ let parseTestFile
 
     // ID stabilization: adjust second pass IDs to match first pass IDs
     // Build location→ID maps from first pass
-    let firstPassTypeLocToId =
-      firstPassOps
-      |> List.choose (function
-        | PT.PackageOp.SetTypeName(id, loc) -> Some(loc, id)
-        | _ -> None)
-      |> Map.ofList
-
-    let firstPassValueLocToId =
-      firstPassOps
-      |> List.choose (function
-        | PT.PackageOp.SetValueName(id, loc) -> Some(loc, id)
-        | _ -> None)
-      |> Map.ofList
-
-    let firstPassFnLocToId =
-      firstPassOps
-      |> List.choose (function
-        | PT.PackageOp.SetFnName(id, loc) -> Some(loc, id)
-        | _ -> None)
-      |> Map.ofList
+    let (firstPassTypeLocToId, firstPassValueLocToId, firstPassFnLocToId) =
+      LibPackageManager.PackageManager.extractLocationMaps firstPassOps
 
 
     let adjustOp (allOps : List<PT.PackageOp>) (op : PT.PackageOp) : PT.PackageOp =
