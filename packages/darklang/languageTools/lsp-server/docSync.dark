@@ -44,8 +44,32 @@ let parseAndReportDiagnostics
 
   match parsed with
   | Ok (SourceFile sf) ->
+    let (owner, scriptName) =
+      if Stdlib.String.startsWith requestUri "darkfs:/" then
+        let pathPart =
+          requestUri
+          |> Stdlib.String.dropFirst 8L // Remove "darkfs:/"
+          |> Stdlib.String.dropLast 5L // Remove ".dark"
+
+        if Stdlib.String.startsWith pathPart "script/" then
+          ("LSP", "scriptName")
+        else
+          let parts = Stdlib.String.split pathPart "."
+
+          match parts with
+          | [] -> ("LSP", "scriptName")
+          | [ owner ] -> (owner, "")
+          | owner :: rest ->
+            let moduleParts = Stdlib.List.dropLast rest
+
+            let scriptName = Stdlib.String.join moduleParts "."
+
+            (owner, scriptName)
+      else
+        ("LSP", "scriptName")
+
     let unresolvedNames =
-      match Parser.CliScript.parse branchID "LSP" "scriptName" onMissing pm "fileName" requestText with
+      match Parser.CliScript.parse branchID owner scriptName onMissing pm "fileName" requestText with
       | Ok ((_ptCliScriptModule, unresolvedNames)) -> unresolvedNames
       | Error err ->
         log $"Parse error: {err}"
