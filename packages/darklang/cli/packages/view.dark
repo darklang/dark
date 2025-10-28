@@ -102,7 +102,21 @@ let viewEntity
         |> Stdlib.String.join " "
 
       let retPart = Darklang.PrettyPrinter.ProgramTypes.typeReference item.entity.returnType
-      let bodyPart = Darklang.PrettyPrinter.ProgramTypes.expr item.entity.body
+
+      // Create context with argMap for parameter name resolution
+      let argMap =
+        item.entity.parameters
+        |> Stdlib.List.indexedMap (fun i param -> (param.name, i))
+        |> Stdlib.List.fold Stdlib.Dict.empty (fun acc (name, idx) ->
+          Stdlib.Dict.set acc name idx)
+
+      let context =
+        Darklang.PrettyPrinter.ProgramTypes.Context
+          { currentModule = Stdlib.Option.Option.None
+            currentFunction = Stdlib.Option.Option.Some item.location.name
+            argMap = argMap }
+
+      let bodyPart = Darklang.PrettyPrinter.ProgramTypes.expr context item.entity.body
 
       let prettyPrinted = $"let {item.location.name}{typeParamPart} {paramPart}: {retPart} =\n  {bodyPart}"
       let highlighted = Darklang.Cli.SyntaxHighlighting.highlightCode prettyPrinted
@@ -119,7 +133,7 @@ let viewEntity
       let locationStr = Packages.formatLocation location
       Stdlib.printLine $"Value '{locationStr}' not found."
     | item :: _ ->
-      let bodyPart = Darklang.PrettyPrinter.ProgramTypes.expr item.entity.body
+      let bodyPart = Darklang.PrettyPrinter.ProgramTypes.expr PrettyPrinter.ProgramTypes.defaultContext item.entity.body
       let prettyPrinted = $"val {item.location.name} = {bodyPart}"
       let highlighted = Darklang.Cli.SyntaxHighlighting.highlightCode prettyPrinted
       Stdlib.printLine highlighted
