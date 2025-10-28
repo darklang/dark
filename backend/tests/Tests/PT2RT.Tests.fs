@@ -1642,7 +1642,6 @@ module PackageFn =
     let returnSecondParam =
       t
         "returnSecondParam"
-        "returnSecondParam"
         []
         [ { name = "a"; typ = PT.TInt64; description = "TODO" }
           { name = "b"; typ = PT.TInt64; description = "TODO" } ]
@@ -1652,8 +1651,7 @@ module PackageFn =
 
     let eargTest =
       t
-        "EArg functionality test"
-        "eargTest"
+        "EArgTest"
         []
         [ { name = "x"; typ = PT.TInt64; description = "TODO" }
           { name = "y"; typ = PT.TInt64; description = "TODO" } ]
@@ -1663,7 +1661,6 @@ module PackageFn =
 
     let ignoresParamsAndReturnsStr =
       t
-        "ignoresParamsAndReturnsStr"
         "ignoresParamsAndReturnsStr"
         []
         [ { name = "a"; typ = PT.TInt64; description = "TODO" }
