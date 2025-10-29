@@ -411,8 +411,8 @@ module Darklang.Cli.Packages.NavInteractive
         if totalItems > 0L then
           match Stdlib.List.getAt navState.items navState.selectedIndex with
           | Some selectedItem ->
-            Interactive.exitAlternateScreen ()
-            let newState = navTo state selectedItem.location
+            exitAlternateScreen ()
+            let newState = Nav.navTo state selectedItem.location
             let locationStr = Packages.formatLocation selectedItem.location
             Stdlib.printLine (Colors.success $"Selected: {locationStr}")
             { newState with
@@ -519,7 +519,7 @@ module Darklang.Cli.Packages.NavInteractive
           | Some selectedItem ->
             if selectedItem.entityType == "module" then
               // Navigate into this location
-              let newState = navTo state selectedItem.location
+              let newState = Nav.navTo state selectedItem.location
               let newNavState = buildState state.currentBranchId selectedItem.location
               { newState with currentPage = Page.InteractiveNav newNavState }
             else
@@ -534,7 +534,7 @@ module Darklang.Cli.Packages.NavInteractive
         // Go up to parent directory
         match Traversal.applySegment navState.branchID navState.currentLocation Traversal.PathSegment.Up with
         | Ok parentLocation ->
-          let newState = navTo state parentLocation
+          let newState = Nav.navTo state parentLocation
           let newNavState = buildState state.currentBranchId parentLocation
           { newState with currentPage = Page.InteractiveNav newNavState }
         | Error _ ->
@@ -547,8 +547,8 @@ module Darklang.Cli.Packages.NavInteractive
         if totalItems > 0L then
           match Stdlib.List.getAt navState.items navState.selectedIndex with
           | Some selectedItem ->
-            Interactive.exitAlternateScreen ()
-            let newState = navTo state selectedItem.location
+            exitAlternateScreen ()
+            let newState = Nav.navTo state selectedItem.location
             let locationStr = Packages.formatLocation selectedItem.location
             Stdlib.printLine (Colors.success $"Selected: {locationStr}")
             { newState with
@@ -558,7 +558,7 @@ module Darklang.Cli.Packages.NavInteractive
                 cursorPosition = 0L }
           | None ->
             // Exit without selection
-            Interactive.exitAlternateScreen ()
+            exitAlternateScreen ()
             { state with
                 currentPage = Page.MainPrompt
                 needsFullRedraw = true
@@ -566,7 +566,7 @@ module Darklang.Cli.Packages.NavInteractive
                 cursorPosition = 0L }
         else
           // Exit without selection
-          Interactive.exitAlternateScreen ()
+          exitAlternateScreen ()
           { state with
               currentPage = Page.MainPrompt
               needsFullRedraw = true
@@ -575,7 +575,7 @@ module Darklang.Cli.Packages.NavInteractive
 
       | Escape ->
         // Exit interactive navigation without making changes
-        Interactive.exitAlternateScreen ()
+        exitAlternateScreen ()
         { state with
             currentPage = Page.MainPrompt
             needsFullRedraw = true
@@ -607,7 +607,7 @@ module Darklang.Cli.Packages.NavInteractive
           match Stdlib.List.getAt navState.items navState.selectedIndex with
           | Some selectedItem ->
             // TODO: Implement update flow - for now just show a message
-            Interactive.exitAlternateScreen ()
+            exitAlternateScreen ()
             let locationStr = Packages.formatLocation selectedItem.location
             Stdlib.printLine (Colors.info $"Update mode for {locationStr} (coming soon)")
             { state with
@@ -672,7 +672,7 @@ module Darklang.Cli.Packages.NavInteractive
           match Stdlib.List.getAt navState.items navState.selectedIndex with
           | Some selectedItem ->
             if selectedItem.entityType == "module" then
-              let newState = navTo state selectedItem.location
+              let newState = Nav.navTo state selectedItem.location
               let newNavState = buildState state.currentBranchId selectedItem.location
               { newState with currentPage = Page.InteractiveNav newNavState }
             else
@@ -686,7 +686,7 @@ module Darklang.Cli.Packages.NavInteractive
         // Go up to parent directory
         match Traversal.applySegment navState.branchID navState.currentLocation Traversal.PathSegment.Up with
         | Ok parentLocation ->
-          let newState = navTo state parentLocation
+          let newState = Nav.navTo state parentLocation
           let newNavState = buildState state.currentBranchId parentLocation
           { newState with currentPage = Page.InteractiveNav newNavState }
         | Error _ ->
@@ -698,8 +698,8 @@ module Darklang.Cli.Packages.NavInteractive
         if totalItems > 0L then
           match Stdlib.List.getAt navState.items navState.selectedIndex with
           | Some selectedItem ->
-            Interactive.exitAlternateScreen ()
-            let newState = navTo state selectedItem.location
+            exitAlternateScreen ()
+            let newState = Nav.navTo state selectedItem.location
             let locationStr = Packages.formatLocation selectedItem.location
             Stdlib.printLine (Colors.success $"Selected: {locationStr}")
             { newState with
@@ -708,14 +708,14 @@ module Darklang.Cli.Packages.NavInteractive
                 mainPrompt = ""
                 cursorPosition = 0L }
           | None ->
-            Interactive.exitAlternateScreen ()
+            exitAlternateScreen ()
             { state with
                 currentPage = Page.MainPrompt
                 needsFullRedraw = true
                 mainPrompt = ""
                 cursorPosition = 0L }
         else
-          Interactive.exitAlternateScreen ()
+          exitAlternateScreen ()
           { state with
               currentPage = Page.MainPrompt
               needsFullRedraw = true
