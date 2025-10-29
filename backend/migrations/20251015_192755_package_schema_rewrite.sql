@@ -1,6 +1,11 @@
--- Rewrites package storage to support branches and sync tracking
--- Old design: 3 tables with id/name/PT/RT combined
--- New design: separate content (types/values/functions) from naming (locations)
+-- Rewrites package storage for branch support and sync tracking
+-- Old: 3 tables (package_types_v0, package_values_v0, package_fns_v0)
+--      combining id, name/location, PT and RT
+-- New: Separate content storage from naming:
+--      - Content tables: package_types/values/functions (content-addressed)
+--      - Naming table: locations (maps owner.modules.name to item_id)
+--      - Branches: track work-in-progress
+--      - Package ops: source of truth for all changes
 
 -- Drop old package tables
 DROP TABLE IF EXISTS package_types_v0;
@@ -30,28 +35,34 @@ CREATE TABLE IF NOT EXISTS package_functions (
   created_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
--- Locations table maps (owner, modules, name) to item_id
--- Supports branch overrides and deprecation tracking
+-- Locations table: name resolution
+-- Maps (owner, modules, name, branch_id) -> item_id
+-- Supports branch-specific overrides and deprecation
 CREATE TABLE IF NOT EXISTS locations (
   location_id TEXT PRIMARY KEY,
-  item_id TEXT NOT NULL,
-  branch_id TEXT NULL, -- NULL = main branch
-  owner TEXT NOT NULL,
-  modules TEXT NOT NULL,
-  name TEXT NOT NULL,
-  item_type TEXT NOT NULL, -- 'fn', 'type', 'value'
+  item_id TEXT NOT NULL, -- refs package_types/values/functions
+  branch_id TEXT NULL, -- NULL = main, non-null = branch override
+  owner TEXT NOT NULL, -- e.g., "Darklang"
+  modules TEXT NOT NULL, -- e.g., "Stdlib.List"
+  name TEXT NOT NULL, -- e.g., "map"
+  item_type TEXT NOT NULL, -- 'fn', 'type', or 'value'
   created_at TIMESTAMP NOT NULL DEFAULT (datetime('now')),
-  deprecated_at TIMESTAMP NULL
+  deprecated_at TIMESTAMP NULL -- NULL = active
+  -- No unique constraint: branches can have conflicting names
 );
 
-CREATE INDEX IF NOT EXISTS idx_locations_lookup ON locations(owner, modules, name, branch_id)
-  WHERE deprecated_at IS NULL;
-CREATE INDEX IF NOT EXISTS idx_locations_module ON locations(owner, modules)
-  WHERE deprecated_at IS NULL;
-CREATE INDEX IF NOT EXISTS idx_locations_conflicts ON locations(owner, modules, name, branch_id)
+-- Indexes for name lookups, module searches, and branch queries
+CREATE INDEX IF NOT EXISTS idx_locations_lookup
+  ON locations(owner, modules, name, branch_id) WHERE deprecated_at IS NULL;
+CREATE INDEX IF NOT EXISTS idx_locations_module
+  ON locations(owner, modules) WHERE deprecated_at IS NULL;
+CREATE INDEX IF NOT EXISTS idx_locations_conflicts
+  ON locations(owner, modules, name, branch_id)
   WHERE deprecated_at IS NULL AND branch_id IS NOT NULL;
-CREATE INDEX IF NOT EXISTS idx_locations_shadowing ON locations(owner, modules, name, item_type, branch_id, deprecated_at);
-CREATE INDEX IF NOT EXISTS idx_locations_branch ON locations(branch_id) WHERE branch_id IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_locations_shadowing
+  ON locations(owner, modules, name, item_type, branch_id, deprecated_at);
+CREATE INDEX IF NOT EXISTS idx_locations_branch
+  ON locations(branch_id) WHERE branch_id IS NOT NULL;
 
 
 CREATE TABLE IF NOT EXISTS branches (
@@ -63,11 +74,12 @@ CREATE TABLE IF NOT EXISTS branches (
 
 CREATE INDEX IF NOT EXISTS idx_branches_name ON branches(name);
 
--- Package ops are the source of truth; other tables are projections
+-- Package ops: the source of truth for all package changes
+-- Other tables (types/values/functions/locations) are projections
 CREATE TABLE IF NOT EXISTS package_ops (
   id TEXT PRIMARY KEY,
-  branch_id TEXT NULL,
-  op_blob BLOB NOT NULL,
+  branch_id TEXT NULL, -- NULL = merged to main
+  op_blob BLOB NOT NULL, -- Serialized PackageOp
   created_at TIMESTAMP NOT NULL DEFAULT (datetime('now'))
 );
 
