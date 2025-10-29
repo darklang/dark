@@ -10,6 +10,8 @@ module PT = LibExecution.ProgramTypes
 module PT2DT = LibExecution.ProgramTypesToDarkTypes
 module BinarySerialization = LibBinarySerialization.BinarySerialization
 module Builtin = LibExecution.Builtin
+module C2DT = LibExecution.CommonToDarkTypes
+module D = LibExecution.DvalDecoder
 
 open Builtin.Shortcuts
 open Microsoft.Data.Sqlite
@@ -18,6 +20,8 @@ open LibDB.Db
 
 
 /// Compute a content-addressed ID for a PackageOp by hashing its serialized content
+/// TODO migrate this to LibExecution or maybe LibBinarySerialization or something
+/// maybe we just have LibSerialization, and some of the things in that are Binary
 let computeOpHash (op : PT.PackageOp) : System.Guid =
   use memoryStream = new System.IO.MemoryStream()
   use binaryWriter = new System.IO.BinaryWriter(memoryStream)
@@ -49,10 +53,7 @@ let fns : List<BuiltInFn> =
         function
         | _, _, _, [ branchIdOpt; DList(_vtTODO, ops) ] ->
           uply {
-            let branchId =
-              match branchIdOpt with
-              | DEnum(_, _, _, "Some", [ DUuid id ]) -> Some id
-              | _ -> None
+            let branchId = C2DT.Option.fromDT D.uuid branchIdOpt
 
             // Convert each op from Dval to PT.PackageOp
             let ptOps =
@@ -108,10 +109,7 @@ let fns : List<BuiltInFn> =
         function
         | _, _, _, [ branchIdOpt; DInt64 limit ] ->
           uply {
-            let branchId =
-              match branchIdOpt with
-              | DEnum(_, _, _, "Some", [ DUuid id ]) -> Some id
-              | _ -> None
+            let branchId = C2DT.Option.fromDT D.uuid branchIdOpt
 
             let! ops =
               match branchId with
@@ -202,10 +200,7 @@ let fns : List<BuiltInFn> =
         function
         | _, _, _, [ branchIdOpt; DDateTime since ] ->
           uply {
-            let branchId =
-              match branchIdOpt with
-              | DEnum(_, _, _, "Some", [ DUuid id ]) -> Some id
-              | _ -> None
+            let branchId = C2DT.Option.fromDT D.uuid branchIdOpt
 
             let sinceStr = LibExecution.DarkDateTime.toIsoString since
 
