@@ -1,10 +1,6 @@
 module BuiltinCli.Builtin
 
-open Prelude
-open LibExecution.RuntimeTypes
-
 module Builtin = LibExecution.Builtin
-
 
 let fnRenames : Builtin.FnRenames =
   // old names, new names
@@ -19,5 +15,6 @@ let builtins =
       Libs.Execution.builtins
       Libs.Output.builtins
       Libs.Stdin.builtins
-      Libs.Time.builtins ]
+      Libs.Time.builtins
+      Libs.Terminal.builtins ]
     fnRenames
