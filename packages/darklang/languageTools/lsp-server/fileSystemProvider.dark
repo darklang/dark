@@ -45,7 +45,7 @@ module ReadFile =
           nameForLookup
           |> Stdlib.String.dropFirst 7L  // Drop "script/"
 
-        match Builtin.cliScriptsGet scriptName with
+        match Builtin.pmScriptsGet scriptName with
         | Some script -> script.text
         | None -> $"Script not found: {scriptName}"
       else
@@ -271,7 +271,7 @@ module WriteFile =
         |> Stdlib.String.dropFirst 7L  // Drop "script/"
 
       // Update the script content
-      match Builtin.cliScriptsUpdate scriptName content with
+      match Builtin.pmScriptsUpdate scriptName content with
       | Ok () -> sendSuccessResponse state requestId []
       | Error err -> sendErrorResponse state requestId [ err ]
     else

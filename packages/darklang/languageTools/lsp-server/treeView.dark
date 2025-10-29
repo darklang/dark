@@ -142,7 +142,7 @@ let handleGetChildNodesRequest
   let treeItems =
     if nodeId == "Scripts" then
       // Handle Scripts node - show all stored scripts
-      let scripts = Builtin.cliScriptsList ()
+      let scripts = Builtin.pmScriptsList ()
       scripts
       |> Stdlib.List.map (fun script ->
         let scriptId = $"script/{script.name}"

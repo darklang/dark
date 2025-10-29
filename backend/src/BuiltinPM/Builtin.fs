@@ -19,5 +19,6 @@ let builtins (pm : PT.PackageManager) : Builtins =
       Libs.PackageOps.builtins
       Libs.Instances.builtins
       Libs.Branches.builtins
-      Libs.Sync.builtins ]
+      Libs.Sync.builtins
+      Libs.Scripts.builtins ]
     fnRenames
