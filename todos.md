@@ -14,7 +14,7 @@ OK - this PR is going great, and I'm nearing being comfortable merging it, but
 - [x] put TODOs in the BuiltinsPM that we should reconsider which fns should be fully public, or admin-only, etc.
 - [x] remove anything referring to a patch (probably just comments - like I see a comment in a migration script)
 - [x] the changes in backend/src/LibExecution/Interpreter.fs are trash revert them
-- [ ] package reloading is taking like 3x as long as it used to (before this branch/PR). can you identify/diagnose why that might be? Any tips to improving that perf? Probably something in localexec...
+- [x] package reloading is taking like 3x as long as it used to (before this branch/PR). can you identify/diagnose why that might be? Any tips to improving that perf? Probably something in localexec...
 - [x] the CLI's prompt line used to include the 'current path' as set by 'cd' etc. but now it doesn't. can we fix that?
 - [x] I feel like we have `withExtraOps` defined in multiple places. could we reasonably consolidate? I could be wrong. (checked - only one definition in PackageManager.fs, just used in multiple places)
 - [x] backend/src/LibPackageManager/Stats.fs doesn't account for branches. can/should it? (added comment - intentionally counts total content, not branch-specific views)
@@ -38,7 +38,7 @@ OK - this PR is going great, and I'm nearing being comfortable merging it, but
 
 - [x] I wonder if backend/src/LibParser/NameResolver.fs could be greatly tidied now that we've done a big refactor includig the 'locations' table stuff. maybe the F# equivalent too? At least, maybe there are some new helpers to extract, idk
 
-- [ ] separately from all of this - i'd like a full builtins.md report on all the existing builtins. keep it complete but concise
+- [x] separately from all of this - i'd like a full builtins.md report on all the existing builtins. keep it complete but concise
 
 For anything we remove but might need later, let's create a section around the topic in `later.md`, with all relevant details
 
