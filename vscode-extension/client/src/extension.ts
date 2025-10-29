@@ -172,6 +172,37 @@ export function activate(context: vscode.ExtensionContext) {
   // Wire up providers now that workspaceProvider is created
   fileSystemProvider.setWorkspaceProvider(workspaceProvider);
 
+  // Register ops filter commands
+  context.subscriptions.push(
+    vscode.commands.registerCommand("darklang.ops.setLimit", async () => {
+      await workspaceProvider.configureLimitFilter();
+    })
+  );
+
+  context.subscriptions.push(
+    vscode.commands.registerCommand("darklang.ops.setDateRange", async () => {
+      await workspaceProvider.configureDateFilter();
+    })
+  );
+
+  context.subscriptions.push(
+    vscode.commands.registerCommand("darklang.ops.setBranch", async () => {
+      await workspaceProvider.configureBranchFilter();
+    })
+  );
+
+  context.subscriptions.push(
+    vscode.commands.registerCommand("darklang.ops.setLocation", async () => {
+      await workspaceProvider.configureLocationFilter();
+    })
+  );
+
+  context.subscriptions.push(
+    vscode.commands.registerCommand("darklang.ops.clearFilters", async () => {
+      await workspaceProvider.clearAllFilters();
+    })
+  );
+
   // Create tree views
   console.log("📊 Creating tree views...");
 

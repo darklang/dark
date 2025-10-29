@@ -191,18 +191,18 @@ Branch with ID \`${branchId}\` was not found.
       }
     };
 
-    return `# Branch: ${branch.title}
+    const state = branch.mergedAt ? "merged" : "active";
+
+    return `# Branch: ${branch.name}
 
 ## Branch Information
 
 | Field | Value |
 |-------|-------|
 | **ID** | \`${branch.id}\` |
-| **Title** | ${branch.title} |
-| **State** | ${branch.state} |
-| **Created By** | ${branch.createdBy || "(none)"} |
+| **Name** | ${branch.name} |
+| **State** | ${state} |
 | **Created At** | ${formatDate(branch.createdAt)} |
-| **Last Active** | ${formatDate(branch.lastActiveAt)} |
 | **Merged At** | ${
       branch.mergedAt ? formatDate(branch.mergedAt) : "(not merged)"
     } |

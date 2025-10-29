@@ -19,9 +19,9 @@ export class BranchCommands {
         const currentBranchId = this.branchStateManager.getCurrentBranchId();
 
         const activeBranches = branches
-          .filter(b => b.state === "active")
+          .filter(b => !b.mergedAt)
           .map(b => ({
-            label: b.title,
+            label: b.name,
             id: b.id,
             description: b.id === currentBranchId ? "● Current" : undefined
           }));
@@ -80,7 +80,7 @@ export class BranchCommands {
 
         // Handle both {label: ...} and {id: ...} formats
         const branchId = branch?.id;
-        const branchLabel = branch?.label || branch?.title || "Unknown";
+        const branchLabel = branch?.label || branch?.name || "Unknown";
 
         console.log('  branchId:', branchId, 'branchLabel:', branchLabel);
 
@@ -93,7 +93,7 @@ export class BranchCommands {
 
       vscode.commands.registerCommand("darklang.branch.view", (branch) => {
         const branchId = branch?.id || this.branchStateManager.getCurrentBranchId();
-        const branchLabel = branch?.label || branch?.title || this.branchStateManager.getCurrentBranchName();
+        const branchLabel = branch?.label || branch?.name || this.branchStateManager.getCurrentBranchName();
 
         if (!branchId) {
           vscode.window.showErrorMessage("No branch is currently selected");

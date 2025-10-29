@@ -155,6 +155,31 @@
         "command": "darklang.instance.sync",
         "title": "Sync with Instance",
         "icon": "$(sync)"
+      },
+      {
+        "command": "darklang.ops.setLimit",
+        "title": "Set Ops Limit",
+        "icon": "$(symbol-number)"
+      },
+      {
+        "command": "darklang.ops.setDateRange",
+        "title": "Filter by Date Range",
+        "icon": "$(calendar)"
+      },
+      {
+        "command": "darklang.ops.setBranch",
+        "title": "Filter by Branch",
+        "icon": "$(git-branch)"
+      },
+      {
+        "command": "darklang.ops.setLocation",
+        "title": "Filter by Location",
+        "icon": "$(location)"
+      },
+      {
+        "command": "darklang.ops.clearFilters",
+        "title": "Clear All Filters",
+        "icon": "$(clear-all)"
       }
     ],
     "menus": {
@@ -194,6 +219,31 @@
 					"command": "darklang.instance.sync",
 					"when": "view == darklangWorkspace && viewItem == remote-instance",
 					"group": "inline@1"
+				},
+				{
+					"command": "darklang.ops.setLimit",
+					"when": "view == darklangWorkspace && viewItem == workspace-changes-root",
+					"group": "inline@1"
+				},
+				{
+					"command": "darklang.ops.setDateRange",
+					"when": "view == darklangWorkspace && viewItem == workspace-changes-root",
+					"group": "inline@2"
+				},
+				{
+					"command": "darklang.ops.setBranch",
+					"when": "view == darklangWorkspace && viewItem == workspace-changes-root",
+					"group": "inline@3"
+				},
+				{
+					"command": "darklang.ops.setLocation",
+					"when": "view == darklangWorkspace && viewItem == workspace-changes-root",
+					"group": "inline@4"
+				},
+				{
+					"command": "darklang.ops.clearFilters",
+					"when": "view == darklangWorkspace && viewItem == workspace-changes-root",
+					"group": "inline@5"
 				}
 			],
       "editor/title": [

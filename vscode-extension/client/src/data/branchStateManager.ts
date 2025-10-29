@@ -3,12 +3,13 @@ import { LanguageClient } from "vscode-languageclient/node";
 
 export interface Branch {
   id: string;
-  title: string;
-  state: "active" | "merged" | "abandoned";
+  name: string;
   createdAt: string;
-  lastActiveAt: string;
   mergedAt: string | null;
-  createdBy: string | null;
+}
+
+function getBranchState(branch: Branch): "active" | "merged" {
+  return branch.mergedAt ? "merged" : "active";
 }
 
 export class BranchStateManager {
@@ -70,7 +71,7 @@ export class BranchStateManager {
     if (this._client) {
       try {
         await this._client.sendRequest("darklang/switchBranch", {
-          branchId: branchId
+          branchId: branchId,
         });
         console.log(`LSP server updated to branch: ${branchId}`);
       } catch (error) {
@@ -87,7 +88,7 @@ export class BranchStateManager {
 
   getCurrentBranchName(): string {
     const currentBranch = this.getCurrentBranch();
-    return currentBranch?.title || "No Branch";
+    return currentBranch?.name || "No Branch";
   }
 
   async clearCurrentBranch(): Promise<void> {
@@ -117,7 +118,7 @@ export class BranchStateManager {
       console.log(`Creating branch: ${name}`);
       const response = await this._client.sendRequest<Branch>(
         "darklang/createBranch",
-        { name }
+        { name },
       );
 
       // Refresh the branch list to include the new branch

@@ -527,9 +527,9 @@ export class BranchesManagerPanel {
 
     const allBranches = realBranches.map(branch => ({
       id: branch.id,
-      name: branch.title,
+      name: branch.name,
       description: `Created ${new Date(branch.createdAt).toLocaleDateString()}`,
-      active: branch.state === "active",
+      active: !branch.mergedAt,
       isCurrent: branch.id === currentBranchId,
       createdAt: branch.createdAt,
     }));

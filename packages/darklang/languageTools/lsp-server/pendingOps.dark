@@ -1,12 +1,82 @@
 module Darklang.LanguageTools.LspServer.PendingOps
 
-// Get recent package ops from the database
+// Get recent package ops from the database with optional filtering
 let handleGetPendingOpsRequest
   (state: LspState)
   (requestId: JsonRPC.RequestId)
+  (params: Stdlib.Option.Option<JsonRPC.Request.RequestParams>)
   : LspState =
+  // Parse filter parameters from request
+  let limit =
+    match params with
+    | Some(Object fields) ->
+      (match Stdlib.List.findFirst fields (fun (k, v) -> k == "limit") with
+       | Some((_key, Number n)) ->
+         let parsedLimit = Stdlib.Float.round n
+         parsedLimit
+       | Some((k, _v)) ->
+         50L
+       | None ->
+         50L)
+    | _ ->
+      50L
 
-  let ops = SCM.PackageOps.getRecent state.branchID 10L
+  let sinceDate =
+    match params with
+    | Some(Object fields) ->
+      (match Stdlib.List.findFirst fields (fun (k, v) -> k == "sinceDate") with
+       | Some((_key, String dateStr)) -> Stdlib.Option.Option.Some dateStr
+       | _ -> Stdlib.Option.Option.None)
+    | _ -> Stdlib.Option.Option.None
+
+  let branchFilter =
+    match params with
+    | Some(Object fields) ->
+      (match Stdlib.List.findFirst fields (fun (k, v) -> k == "branchFilter") with
+       | Some((_key, String filterValue)) -> filterValue
+       | _ -> "current")
+    | _ -> "current"
+
+
+  // Determine which branch ID to query
+  let queryBranchId =
+    if branchFilter == "current" then
+      // Use the current branch from state
+      state.branchID
+    else
+      if branchFilter == "all" then
+        // No branch filter - will query all branches
+        Stdlib.Option.Option.None
+      else
+        // It's a specific branch ID - try to parse it
+        match Stdlib.Uuid.parse branchFilter with
+        | Ok uuid ->
+          Stdlib.Option.Option.Some uuid
+        | Error _ ->
+          state.branchID
+
+  // Get ops based on branch filter and date filter
+  let ops =
+    if branchFilter == "all" then
+      // Query all branches - no branch filter
+      match sinceDate with
+      | Some dateStr ->
+        SCM.PackageOps.getRecentAllBranches limit
+      | None ->
+        SCM.PackageOps.getRecentAllBranches limit
+    else
+      // Query specific branch (or main if no branch is set)
+      match sinceDate with
+      | Some dateStr ->
+        (match Stdlib.DateTime.parse dateStr with
+         | Ok dt ->
+           SCM.PackageOps.getSince queryBranchId dt
+         | Error _ ->
+           SCM.PackageOps.getRecent queryBranchId limit)
+      | None ->
+        SCM.PackageOps.getRecent queryBranchId limit
+
+  let opsCount = Stdlib.List.length ops
 
   let opsWithLabels =
     ops

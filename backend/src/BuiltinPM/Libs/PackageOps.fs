@@ -114,20 +114,67 @@ let fns : List<BuiltInFn> =
               | _ -> None
 
             let! ops =
+              match branchId with
+              | Some id ->
+                // Query specific branch only
+                Sql.query
+                  """
+                  SELECT id, op_blob
+                  FROM package_ops
+                  WHERE branch_id = @branch_id
+                  ORDER BY created_at DESC
+                  LIMIT @limit
+                  """
+                |> Sql.parameters [ "branch_id", Sql.uuid id; "limit", Sql.int64 limit ]
+                |> Sql.executeAsync (fun read ->
+                  let opId = read.uuid "id"
+                  let opBlob = read.bytes "op_blob"
+                  let op = BinarySerialization.PT.PackageOp.deserialize opId opBlob
+                  PT2DT.PackageOp.toDT op)
+              | None ->
+                // Query main branch only (branch_id IS NULL)
+                Sql.query
+                  """
+                  SELECT id, op_blob
+                  FROM package_ops
+                  WHERE branch_id IS NULL
+                  ORDER BY created_at DESC
+                  LIMIT @limit
+                  """
+                |> Sql.parameters [ "limit", Sql.int64 limit ]
+                |> Sql.executeAsync (fun read ->
+                  let opId = read.uuid "id"
+                  let opBlob = read.bytes "op_blob"
+                  let op = BinarySerialization.PT.PackageOp.deserialize opId opBlob
+                  PT2DT.PackageOp.toDT op)
+
+            let opVT = LibExecution.ValueType.customType PT2DT.PackageOp.typeName []
+            return DList(opVT, ops)
+          }
+        | _ -> incorrectArgs ()
+      sqlSpec = NotQueryable
+      previewable = Impure
+      deprecated = NotDeprecated }
+
+
+    { name = fn "scmGetRecentOpsAllBranches" 0
+      typeParams = []
+      parameters = [ Param.make "limit" TInt64 "" ]
+      returnType = TList(TVariable "packageOp")
+      description = "Get recent package ops from ALL branches (no branch filter)."
+      fn =
+        function
+        | _, _, _, [ DInt64 limit ] ->
+          uply {
+            let! ops =
               Sql.query
                 """
                 SELECT id, op_blob
                 FROM package_ops
-                WHERE (branch_id IS NULL OR branch_id = @branch_id)
                 ORDER BY created_at DESC
                 LIMIT @limit
                 """
-              |> Sql.parameters
-                [ "branch_id",
-                  (match branchId with
-                   | Some id -> Sql.uuid id
-                   | None -> Sql.dbnull)
-                  "limit", Sql.int64 limit ]
+              |> Sql.parameters [ "limit", Sql.int64 limit ]
               |> Sql.executeAsync (fun read ->
                 let opId = read.uuid "id"
                 let opBlob = read.bytes "op_blob"
@@ -163,25 +210,40 @@ let fns : List<BuiltInFn> =
             let sinceStr = LibExecution.DarkDateTime.toIsoString since
 
             let! ops =
-              Sql.query
-                """
-                SELECT id, op_blob
-                FROM package_ops
-                WHERE (branch_id IS NULL OR branch_id = @branch_id)
-                  AND created_at > @since
-                ORDER BY created_at ASC
-                """
-              |> Sql.parameters
-                [ "branch_id",
-                  (match branchId with
-                   | Some id -> Sql.uuid id
-                   | None -> Sql.dbnull)
-                  "since", Sql.string sinceStr ]
-              |> Sql.executeAsync (fun read ->
-                let opId = read.uuid "id"
-                let opBlob = read.bytes "op_blob"
-                let op = BinarySerialization.PT.PackageOp.deserialize opId opBlob
-                PT2DT.PackageOp.toDT op)
+              match branchId with
+              | Some id ->
+                // Query specific branch only
+                Sql.query
+                  """
+                  SELECT id, op_blob
+                  FROM package_ops
+                  WHERE branch_id = @branch_id
+                    AND created_at > @since
+                  ORDER BY created_at ASC
+                  """
+                |> Sql.parameters
+                  [ "branch_id", Sql.uuid id; "since", Sql.string sinceStr ]
+                |> Sql.executeAsync (fun read ->
+                  let opId = read.uuid "id"
+                  let opBlob = read.bytes "op_blob"
+                  let op = BinarySerialization.PT.PackageOp.deserialize opId opBlob
+                  PT2DT.PackageOp.toDT op)
+              | None ->
+                // Query main branch only (branch_id IS NULL)
+                Sql.query
+                  """
+                  SELECT id, op_blob
+                  FROM package_ops
+                  WHERE branch_id IS NULL
+                    AND created_at > @since
+                  ORDER BY created_at ASC
+                  """
+                |> Sql.parameters [ "since", Sql.string sinceStr ]
+                |> Sql.executeAsync (fun read ->
+                  let opId = read.uuid "id"
+                  let opBlob = read.bytes "op_blob"
+                  let op = BinarySerialization.PT.PackageOp.deserialize opId opBlob
+                  PT2DT.PackageOp.toDT op)
 
             let opVT = LibExecution.ValueType.customType PT2DT.PackageOp.typeName []
             return DList(opVT, ops)

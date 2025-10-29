@@ -267,8 +267,8 @@ let handleIncomingMessage
           Some(Object [ ("name", String branchName) ])) ->
           Branches.handleCreateBranchRequest state requestId branchName
 
-        | ("darklang/getPendingOps", Some requestId, _) ->
-          PendingOps.handleGetPendingOpsRequest state requestId
+        | ("darklang/getPendingOps", Some requestId, params) ->
+          PendingOps.handleGetPendingOpsRequest state requestId params
 
         | ("darklang/switchBranch",
           Some requestId,
