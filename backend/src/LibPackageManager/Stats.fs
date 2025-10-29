@@ -12,38 +12,16 @@ open LibDB.Db
 
 type Stats = { types : int64; values : int64; fns : int64 }
 
-// Note: These stats count total unique content items in the system,
-// not branch-specific views. The package_types/values/functions tables
-// are content-addressed and branch-agnostic. Branch visibility is
-// determined by the locations table.
+// Stats count total unique content items, not branch-specific views
 let get () : Ply<Stats> =
   uply {
-    let! typesCount =
-      Sql.query
-        """
-        SELECT COUNT(DISTINCT id) as count
-        FROM package_types
-        """
+    let countQuery table =
+      Sql.query $"SELECT COUNT(DISTINCT id) as count FROM {table}"
       |> Sql.executeRowAsync (fun read -> read.int64 "count")
 
-    let! valuesCount =
-      Sql.query
-        """
-        SELECT COUNT(DISTINCT id) as count
-        FROM package_values
-        """
-      |> Sql.executeRowAsync (fun read -> read.int64 "count")
+    let! typesCount = countQuery "package_types"
+    let! valuesCount = countQuery "package_values"
+    let! fnsCount = countQuery "package_functions"
 
-    let! fnsCount =
-      Sql.query
-        """
-        SELECT COUNT(DISTINCT id) as count
-        FROM package_functions
-        """
-      |> Sql.executeRowAsync (fun read -> read.int64 "count")
-
-    return
-      { types = typesCount
-        values = valuesCount
-        fns = fnsCount }
+    return { types = typesCount; values = valuesCount; fns = fnsCount }
   }
