@@ -137,11 +137,8 @@ let createTypeInline
             |> Stdlib.List.flatten
             |> Stdlib.String.join "."
 
-          [
-            ""
-            (Colors.success $"✓ Created type: {fullPath}")
-            ""
-          ] |> Stdlib.printLines
+          [ ""; (Colors.success $"✓ Created type: {fullPath}"); "" ]
+          |> Stdlib.printLines
 
           state
 

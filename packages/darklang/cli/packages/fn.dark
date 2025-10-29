@@ -136,11 +136,8 @@ let createFnInline
             |> Stdlib.List.flatten
             |> Stdlib.String.join "."
 
-          [
-            ""
-            (Colors.success $"✓ Created function: {fullPath}")
-            ""
-          ] |> Stdlib.printLines
+          [ ""; (Colors.success $"✓ Created function: {fullPath}"); "" ]
+          |> Stdlib.printLines
 
           state
 

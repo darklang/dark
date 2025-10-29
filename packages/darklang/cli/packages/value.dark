@@ -137,11 +137,8 @@ let createValueInline
             |> Stdlib.List.flatten
             |> Stdlib.String.join "."
 
-          [
-            ""
-            (Colors.success $"✓ Created value: {fullPath}")
-            ""
-          ] |> Stdlib.printLines
+          [ ""; (Colors.success $"✓ Created value: {fullPath}"); "" ]
+          |> Stdlib.printLines
 
           state
 
