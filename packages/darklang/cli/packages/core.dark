@@ -27,17 +27,8 @@ let formatLocation (location: PackageLocation) : String =
     else
       $"/{Stdlib.String.join path "."} (module)"
   | Type loc ->
-    [[loc.owner]; loc.modules; [loc.name]]
-    |> Stdlib.List.flatten
-    |> Stdlib.String.join "."
-    |> fun s -> $"/{s} (type)"
+    $"/{PrettyPrinter.PackageOps.packageLocation loc} (type)"
   | Value loc ->
-    [[loc.owner]; loc.modules; [loc.name]]
-    |> Stdlib.List.flatten
-    |> Stdlib.String.join "."
-    |> fun s -> $"/{s} (value)"
+    $"/{PrettyPrinter.PackageOps.packageLocation loc} (value)"
   | Function loc ->
-    [[loc.owner]; loc.modules; [loc.name]]
-    |> Stdlib.List.flatten
-    |> Stdlib.String.join "."
-    |> fun s -> $"/{s} (fn)"
+    $"/{PrettyPrinter.PackageOps.packageLocation loc} (fn)"
