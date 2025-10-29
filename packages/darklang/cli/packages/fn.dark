@@ -69,12 +69,14 @@ let createFnInline
 
     match fnDecl with
     | None ->
-      Stdlib.printLine (Colors.error "Failed to parse function definition")
-      Stdlib.printLine ""
-      Stdlib.printLine "Make sure your syntax is correct. Examples:"
-      Stdlib.printLine "  fn double (x: Int64): Int64 = Stdlib.Int64.multiply x 2L"
-      Stdlib.printLine "  fn greet (name: String): String = \"Hello, \" ++ name"
-      Stdlib.printLine ""
+      [
+        (Colors.error "Failed to parse function definition")
+        ""
+        "Make sure your syntax is correct. Examples:"
+        "  fn double (x: Int64): Int64 = Stdlib.Int64.multiply x 2L"
+        "  fn greet (name: String): String = \"Hello, \" ++ name"
+        ""
+      ] |> Stdlib.printLines
       state
 
     | Some fnDeclNode ->
@@ -126,9 +128,7 @@ let createFnInline
               LanguageTools.ProgramTypes.PackageOp.SetFnName (packageFn.id, packageLocation) ]
 
           // 8. Add ops to the current branch
-          match branchId with
-          | Some id -> SCM.PackageOps.add (Stdlib.Option.Option.Some id) ops
-          | None -> SCM.PackageOps.addToMain ops
+          SCM.PackageOps.add branchId ops
 
           // 9. Show success message
           let fullPath =
@@ -136,9 +136,11 @@ let createFnInline
             |> Stdlib.List.flatten
             |> Stdlib.String.join "."
 
-          Stdlib.printLine ""
-          Stdlib.printLine (Colors.success $"✓ Created function: {fullPath}")
-          Stdlib.printLine ""
+          [
+            ""
+            (Colors.success $"✓ Created function: {fullPath}")
+            ""
+          ] |> Stdlib.printLines
 
           state
 

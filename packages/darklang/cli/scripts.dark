@@ -12,14 +12,16 @@ let execute (state: AppState) (args: List<String>) : AppState =
   match args with
   | [] ->
     // CLEANUP defer to 'help' stuff -- consolidate
-    Stdlib.printLine "Scripts commands:"
-    Stdlib.printLine "  scripts list               - List all scripts"
-    Stdlib.printLine "  scripts view <name>        - View script content"
-    Stdlib.printLine "  scripts add <name> <text>  - Add a new script"
-    Stdlib.printLine "  scripts edit <name>        - Show script content"
-    Stdlib.printLine "  scripts edit <name> <text> - Update script with new content"
-    Stdlib.printLine "  scripts delete <name>      - Delete a script"
-    Stdlib.printLine "  scripts run <name>         - Run a script"
+    [
+      "Scripts commands:"
+      "  scripts list               - List all scripts"
+      "  scripts view <name>        - View script content"
+      "  scripts add <name> <text>  - Add a new script"
+      "  scripts edit <name>        - Show script content"
+      "  scripts edit <name> <text> - Update script with new content"
+      "  scripts delete <name>      - Delete a script"
+      "  scripts run <name>         - Run a script"
+    ] |> Stdlib.printLines
     state
 
   | ["list"] ->
@@ -47,15 +49,19 @@ let execute (state: AppState) (args: List<String>) : AppState =
       state
 
   | ["add"] ->
-    Stdlib.printLine "Error: Missing arguments for scripts add"
-    Stdlib.printLine "Usage: scripts add <name> <text>"
-    Stdlib.printLine "Example: scripts add hello 'Stdlib.printLine \"Hello World\"'"
+    [
+      "Error: Missing arguments for scripts add"
+      "Usage: scripts add <name> <text>"
+      "Example: scripts add hello 'Stdlib.printLine \"Hello World\"'"
+    ] |> Stdlib.printLines
     state
 
   | ["add"; _] ->
-    Stdlib.printLine "Error: Missing script text"
-    Stdlib.printLine "Usage: scripts add <name> <text>"
-    Stdlib.printLine "Example: scripts add hello 'Stdlib.printLine \"Hello World\"'"
+    [
+      "Error: Missing script text"
+      "Usage: scripts add <name> <text>"
+      "Example: scripts add hello 'Stdlib.printLine \"Hello World\"'"
+    ] |> Stdlib.printLines
     staet
 
   | "add" :: name :: textParts when Stdlib.Bool.not (Stdlib.List.isEmpty textParts) ->
@@ -72,10 +78,11 @@ let execute (state: AppState) (args: List<String>) : AppState =
   | ["edit"; name] ->
     match Builtin.pmScriptsGet name with
     | Some script ->
-      let output = $"Current content of script '{name}':\n{script.text}"
-      Stdlib.printLine output
-      Stdlib.printLine ""
-      Stdlib.printLine "Use 'scripts edit <name> <new_content>' to update the script"
+      [
+        $"Current content of script '{name}':\n{script.text}"
+        ""
+        "Use 'scripts edit <name> <new_content>' to update the script"
+      ] |> Stdlib.printLines
       state
     | None ->
       let error = $"Script '{name}' not found"

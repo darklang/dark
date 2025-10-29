@@ -70,12 +70,14 @@ let createTypeInline
 
     match typeDecl with
     | None ->
-      Stdlib.printLine (Colors.error "Failed to parse type definition")
-      Stdlib.printLine ""
-      Stdlib.printLine "Make sure your syntax is correct. Examples:"
-      Stdlib.printLine "  type Status = | Active | Inactive"
-      Stdlib.printLine "  type User = { name: String; age: Int64 }"
-      Stdlib.printLine ""
+      [
+        (Colors.error "Failed to parse type definition")
+        ""
+        "Make sure your syntax is correct. Examples:"
+        "  type Status = | Active | Inactive"
+        "  type User = { name: String; age: Int64 }"
+        ""
+      ] |> Stdlib.printLines
       state
 
     | Some typeDeclNode ->
@@ -127,9 +129,7 @@ let createTypeInline
               LanguageTools.ProgramTypes.PackageOp.SetTypeName (packageType.id, packageLocation) ]
 
           // 8. Add ops to the current branch
-          match branchId with
-          | Some id -> SCM.PackageOps.add (Stdlib.Option.Option.Some id) ops
-          | None -> SCM.PackageOps.addToMain ops
+          SCM.PackageOps.add branchId ops
 
           // 9. Show success message
           let fullPath =
@@ -137,9 +137,11 @@ let createTypeInline
             |> Stdlib.List.flatten
             |> Stdlib.String.join "."
 
-          Stdlib.printLine ""
-          Stdlib.printLine (Colors.success $"✓ Created type: {fullPath}")
-          Stdlib.printLine ""
+          [
+            ""
+            (Colors.success $"✓ Created type: {fullPath}")
+            ""
+          ] |> Stdlib.printLines
 
           state
 

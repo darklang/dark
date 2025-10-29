@@ -70,12 +70,14 @@ let createValueInline
 
     match valDecl with
     | None ->
-      Stdlib.printLine (Colors.error "Failed to parse value expression")
-      Stdlib.printLine ""
-      Stdlib.printLine "Make sure your syntax is correct. Examples:"
-      Stdlib.printLine "  val x = 42L"
-      Stdlib.printLine "  val myString = \"hello\""
-      Stdlib.printLine ""
+      [
+        (Colors.error "Failed to parse value expression")
+        ""
+        "Make sure your syntax is correct. Examples:"
+        "  val x = 42L"
+        "  val myString = \"hello\""
+        ""
+      ] |> Stdlib.printLines
       state
 
     | Some valDeclNode ->
@@ -127,9 +129,7 @@ let createValueInline
               LanguageTools.ProgramTypes.PackageOp.SetValueName (packageValue.id, packageLocation) ]
 
           // 8. Add ops to the current branch
-          match branchId with
-          | Some id -> SCM.PackageOps.add (Stdlib.Option.Option.Some id) ops
-          | None -> SCM.PackageOps.addToMain ops
+          SCM.PackageOps.add branchId ops
 
           // 9. Show success message
           let fullPath =
@@ -137,9 +137,11 @@ let createValueInline
             |> Stdlib.List.flatten
             |> Stdlib.String.join "."
 
-          Stdlib.printLine ""
-          Stdlib.printLine (Colors.success $"✓ Created value: {fullPath}")
-          Stdlib.printLine ""
+          [
+            ""
+            (Colors.success $"✓ Created value: {fullPath}")
+            ""
+          ] |> Stdlib.printLines
 
           state
 
