@@ -98,13 +98,7 @@ let sync
                       $"Push failed on batch {batchNumStr} with status {statusCode}: {errorBody}"
 
                 | Error err ->
-                  let errorMsg =
-                    match err with
-                    | BadUrl details -> $"Bad URL: {details}"
-                    | Timeout -> "Request timeout"
-                    | BadHeader header -> $"Bad header: {header}"
-                    | NetworkError -> "Network error"
-                    | BadMethod -> "Bad method"
+                  let errorMsg = Stdlib.HttpClient.toString err
 
                   Stdlib.Result.Result.Error
                     $"Push request failed on batch {batchNumStr}: {errorMsg}"
@@ -129,13 +123,7 @@ let sync
 
     match pullRequest with
     | Error err ->
-      let errorMsg =
-        match err with
-        | BadUrl details -> $"Bad URL: {details}"
-        | Timeout -> "Request timeout"
-        | BadHeader header -> $"Bad header: {header}"
-        | NetworkError -> "Network error"
-        | BadMethod -> "Bad method"
+      let errorMsg = Stdlib.HttpClient.toString err
 
       Stdlib.Result.Result.Error $"Pull request failed: {errorMsg}"
     | Ok response ->
