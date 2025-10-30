@@ -26,9 +26,9 @@ let branchToDT (branch : Branches.Branch) : Dval =
       "name", DString branch.name
       "createdAt", DDateTime(DarkDateTime.fromInstant branch.createdAt)
       "mergedAt",
-      (match branch.mergedAt with
-       | Some dt -> Dval.optionSome KTDateTime (DDateTime(DarkDateTime.fromInstant dt))
-       | None -> Dval.optionNone KTDateTime) ]
+      branch.mergedAt
+      |> Option.map (DarkDateTime.fromInstant >> DDateTime)
+      |> Dval.option KTDateTime ]
     |> Map
 
   DRecord(branchTypeName, branchTypeName, [], fields)
@@ -69,9 +69,9 @@ let fns : List<BuiltInFn> =
           uply {
             let! branch = Branches.get branchId
             return
-              match branch with
-              | Some b -> Dval.optionSome (KTCustomType(branchTypeName, [])) (branchToDT b)
-              | None -> Dval.optionNone (KTCustomType(branchTypeName, []))
+              branch
+              |> Option.map branchToDT
+              |> Dval.option (KTCustomType(branchTypeName, []))
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable

@@ -174,8 +174,3 @@ module CliScript =
         exprs = exprs }
 
     | _ -> Exception.raiseInternal "Invalid PTCliScriptModule" []
-
-
-// CLEANUP: This alias exists for backwards compatibility
-// Use LibPackageManager.ScriptsToDT directly in new code
-module ScriptsToDarkTypes = LibPackageManager.ScriptsToDT

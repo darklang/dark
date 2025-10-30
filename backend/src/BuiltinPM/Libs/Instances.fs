@@ -48,12 +48,9 @@ let fns : List<BuiltInFn> =
             let! instanceOpt = Instances.getById instanceId
 
             return
-              match instanceOpt with
-              | None -> Dval.optionNone (KTCustomType(instanceTypeName, []))
-              | Some instance ->
-                Dval.optionSome
-                  (KTCustomType(instanceTypeName, []))
-                  (instanceToDT instance)
+              instanceOpt
+              |> Option.map instanceToDT
+              |> Dval.option (KTCustomType(instanceTypeName, []))
           }
         | _ -> incorrectArgs ()
       sqlSpec = NotQueryable
@@ -73,12 +70,9 @@ let fns : List<BuiltInFn> =
             let! instanceOpt = Instances.getByName name
 
             return
-              match instanceOpt with
-              | None -> Dval.optionNone (KTCustomType(instanceTypeName, []))
-              | Some instance ->
-                Dval.optionSome
-                  (KTCustomType(instanceTypeName, []))
-                  (instanceToDT instance)
+              instanceOpt
+              |> Option.map instanceToDT
+              |> Dval.option (KTCustomType(instanceTypeName, []))
           }
         | _ -> incorrectArgs ()
       sqlSpec = NotQueryable
