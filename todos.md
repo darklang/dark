@@ -13,7 +13,7 @@
 - [ ] does packages/darklang/cli/packages/navInteractive.dark really need to be over 700 lines of code to get that functionality? maybe some major refactor would tidy it up a ton?
 - [x] packages/darklang/cli/packages/remove.dark can be removed - not a command we _actually_ support at this time. migrate idea to later.md (removed and migrated)
 - [x] Cli.fs fns should take a branch (if they don't already -- they might, actually) (already done - all CLI builtins take branchID as first parameter)
-- [ ] migrate any direct sql querying from BuiltinPM to LibPM
+- [x] migrate any direct sql querying from BuiltinPM to LibPM (created LibPackageManager.Queries with getRecentOps, getRecentOpsAllBranches, getOpsSince, getNameHistory)
 - [ ] packages/darklang/prettyPrinter/packages.dark got deleted - maybe a module.dark would be good to replace it? i suspect some downstream stuff should actually be consolidated here.
 - [ ] the centralize pretty-printer functions _should_ take in a branchId and respect it. the upstream fns that get the Location for an ID should definiltely consider branchID somehow. this will be an involved task requiring adjustments on a few layers. plan accordingly and just commit once.
 - [ ] this block in packages/darklang/scm/sync.dark must already exist in stdlib somewhere
