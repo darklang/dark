@@ -36,8 +36,7 @@ export class StatusBarManager {
     const { instance, branch, user } = this.currentData;
 
     this.statusBarItems[0].text = `$(server) ${instance.name}`;
-    this.statusBarItems[0].tooltip = "Click to switch Darklang instance";
-    this.statusBarItems[0].command = "darklang.instance.switch";
+    this.statusBarItems[0].tooltip = "Current Darklang instance";
 
     this.statusBarItems[1].text = `$(target) ${branch.name}`;
     this.statusBarItems[1].tooltip = "Current branch - click to manage";

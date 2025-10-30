@@ -23,14 +23,6 @@ export class InstanceCommands {
 
   register(): vscode.Disposable[] {
     return [
-      // Switch to instance (triggered by clicking instance in workspace tree)
-      vscode.commands.registerCommand("darklang.instance.switch", (instanceId) => {
-        console.log('🔄 Switching to instance:', instanceId);
-        // TODO: Actually switch instance state
-        this.workspaceProvider.refresh();
-        vscode.window.showInformationMessage(`Switched to instance: ${instanceId}`);
-      }),
-
       // Sync with instance
       vscode.commands.registerCommand("darklang.instance.sync", async (treeItem) => {
         if (!this.client) {

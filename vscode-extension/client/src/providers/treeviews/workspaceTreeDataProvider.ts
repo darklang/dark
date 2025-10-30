@@ -118,12 +118,7 @@ export class WorkspaceTreeDataProvider implements vscode.TreeDataProvider<Branch
       } else {
         item.iconPath = new vscode.ThemeIcon("cloud");
       }
-      item.tooltip = element.instanceData?.url || element.instanceData?.path || "Switch to this instance";
-      item.command = {
-        command: "darklang.instance.switch",
-        title: "Switch Instance",
-        arguments: [element.id]
-      };
+      item.tooltip = element.instanceData?.url || element.instanceData?.path || element.label;
       return item;
     }
 
