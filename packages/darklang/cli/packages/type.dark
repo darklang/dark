@@ -1,4 +1,4 @@
-module Darklang.Cli.Packages.Create.Type
+module Darklang.Cli.Packages.Type
 
 
 let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =

@@ -1,4 +1,4 @@
-module Darklang.Cli.Packages.Create.Fn
+module Darklang.Cli.Packages.Fn
 
 
 let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =

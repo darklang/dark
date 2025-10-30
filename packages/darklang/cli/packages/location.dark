@@ -1,4 +1,4 @@
-module Darklang.Cli.Packages.Create.Location
+module Darklang.Cli.Packages.Location
 
 type ParsedLocation =
   { owner: String
