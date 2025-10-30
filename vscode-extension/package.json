@@ -83,6 +83,11 @@
       }
     ],
     "commands": [
+      // Workspace & General
+      {
+        "command": "darklang.init",
+        "title": "Darklang: Init Workspace"
+      },
       {
         "command": "darklang.runScript",
         "title": "Run Darklang Script"
@@ -92,6 +97,8 @@
         "title": "Refresh",
         "icon": "$(refresh)"
       },
+
+      // Package Navigation
       {
         "command": "darklang.openPackageDefinition",
         "title": "Darklang: Open Package Definition"
@@ -100,10 +107,8 @@
         "command": "darklang.openFullModule",
         "title": "Open Full Module"
       },
-      {
-        "command": "darklang.init",
-        "title": "Darklang: Init Workspace"
-      },
+
+      // Branch Management
       {
         "command": "darklang.branch.new",
         "title": "Start New Branch",
@@ -129,6 +134,8 @@
         "title": "Manage All Branches",
         "icon": "$(list-flat)"
       },
+
+      // View Modes
       {
         "command": "darklang.switchToAST",
         "title": "AST Mode",
@@ -141,6 +148,8 @@
         "category": "Darklang",
         "icon": "$(code)"
       },
+
+      // Sync & Instance Management
       {
         "command": "darklang.sync.execute",
         "title": "Darklang: Sync with Remote Instance",
@@ -156,6 +165,8 @@
         "title": "Sync with Instance",
         "icon": "$(sync)"
       },
+
+      // Ops Filtering
       {
         "command": "darklang.ops.setLimit",
         "title": "Set Ops Limit",
