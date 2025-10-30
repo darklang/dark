@@ -141,7 +141,6 @@ module Registry =
       ("let", "Create a new value (alias for val)", [], Packages.Value.execute, Packages.Value.help, Packages.Value.complete)
       ("fn", "Create a new function", ["function"], Packages.Fn.execute, Packages.Fn.help, Packages.Fn.complete)
       ("type", "Create a new type", [], Packages.Type.execute, Packages.Type.help, Packages.Type.complete)
-      ("rm", "Remove a package item", [], Packages.Remove.execute, Packages.Remove.help, Packages.Remove.complete)
       ("experiments", "Try out various WIP CLI experiments", [], Cli.Experiments.execute, Cli.Experiments.help, Cli.Experiments.complete)
     ]
     |> Stdlib.List.map(

@@ -57,6 +57,39 @@ history Darklang.Stdlib.List.map
 
 ---
 
+## Package Removal / Deprecation (`rm` command)
+
+**Status**: Stub removed - not implementing at this time
+
+**Intent**: Allow users to remove/deprecate package items (functions, types, values) by removing their name binding while preserving the item in history.
+
+**Proposed flow**:
+1. Parse location to get owner/modules/name
+2. Find current item ID at that location (query package_ops for latest SetXName)
+3. Create RemoveX op with that ID (or possibly SetXName op with empty/null location to "unname" it)
+4. Ask for confirmation: "Remove Darklang.Foo.bar? [y/n]"
+5. If yes: Call Darklang.SCM.PackageOps.addToBranch with the op
+6. Show success message
+
+**Examples**:
+```
+# Absolute path:
+rm fn /Darklang.Foo.deprecated
+
+# Relative path (if you're in Darklang.Foo):
+rm fn deprecated
+rm type OldModel
+```
+
+**Note**: The item remains in history, but loses its current name binding. This is different from `mv` which reassigns the name.
+
+**Open questions**:
+- Do we need RemoveX ops, or should we use SetXName with null location?
+- How do we represent "unnamed" items in the package manager?
+- Should removed items be queryable/restorable?
+
+---
+
 ## LSP Server Architecture: Multi-Client Support
 
 **Status**: Current design is "one server, one client"
