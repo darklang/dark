@@ -18,7 +18,12 @@ export class BranchCommands {
         const branches = this.branchStateManager.getBranches();
         const currentBranchId = this.branchStateManager.getCurrentBranchId();
 
-        const activeBranches = branches
+        interface BranchQuickPickItem extends vscode.QuickPickItem {
+          id?: string;
+          action?: "manageAll" | "clear";
+        }
+
+        const activeBranches: BranchQuickPickItem[] = branches
           .filter(b => !b.mergedAt)
           .map(b => ({
             label: b.name,
@@ -27,11 +32,11 @@ export class BranchCommands {
           }));
 
         // Add separator and options at the end
-        const items: vscode.QuickPickItem[] = [
+        const items: BranchQuickPickItem[] = [
           ...activeBranches,
           { label: "", kind: vscode.QuickPickItemKind.Separator },
-          { label: "🚫 Clear Branch Selection", alwaysShow: true },
-          { label: "📋 Manage All Branches...", alwaysShow: true }
+          { label: "🚫 Clear Branch Selection", alwaysShow: true, action: "clear" },
+          { label: "📋 Manage All Branches...", alwaysShow: true, action: "manageAll" }
         ];
 
         const selected = await vscode.window.showQuickPick(items, {
@@ -40,19 +45,16 @@ export class BranchCommands {
         });
 
         if (selected) {
-          if (selected.label === "📋 Manage All Branches...") {
+          if (selected.action === "manageAll") {
             vscode.commands.executeCommand("darklang.branches.manageAll");
-          } else if (selected.label === "🚫 Clear Branch Selection") {
+          } else if (selected.action === "clear") {
             await this.branchStateManager.clearCurrentBranch();
             this.statusBarManager.updateBranch("No Branch");
             vscode.window.showInformationMessage("Branch selection cleared - viewing all branches");
-          } else {
-            const branch = activeBranches.find(b => b.label === selected.label);
-            if (branch) {
-              this.branchStateManager.setCurrentBranchById(branch.id);
-              this.statusBarManager.updateBranch(branch.label);
-              vscode.window.showInformationMessage(`Switched to branch: ${branch.label}`);
-            }
+          } else if (selected.id) {
+            this.branchStateManager.setCurrentBranchById(selected.id);
+            this.statusBarManager.updateBranch(selected.label);
+            vscode.window.showInformationMessage(`Switched to branch: ${selected.label}`);
           }
         }
       }),
