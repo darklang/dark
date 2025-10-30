@@ -19,6 +19,7 @@ let createHoverInfo
 
 
 let hoverInfoForThingAtPosition
+  (branchID: Stdlib.Option.Option<ProgramTypes.BranchID>)
   (thingAtPosition: CursorPosition.ThingAtPosition)
   (range: WrittenTypes.Range)
   : HoverInformation.Info =
@@ -47,7 +48,7 @@ let hoverInfoForThingAtPosition
     createHoverInfo range description metadata
 
   | PackageValue fqNameList value description ->
-    let prettyVal = PrettyPrinter.ProgramTypes.packageValue Stdlib.Option.Option.None value
+    let prettyVal = PrettyPrinter.ProgramTypes.packageValue branchID value
 
     let fqName = fqNameList |> Stdlib.String.join "."
 
@@ -65,7 +66,7 @@ let hoverInfoForThingAtPosition
     createHoverInfo range description metadata
 
   | PackageFn fqNameList fn description ->
-    let signature = PrettyPrinter.ProgramTypes.PackageFn.signature fn
+    let signature = PrettyPrinter.ProgramTypes.PackageFn.signature branchID fn
 
     let fqName = fqNameList |> Stdlib.String.join "."
 
@@ -85,7 +86,7 @@ let hoverInfoForThingAtPosition
 
 
   | PackageType fqNameList typ description ->
-    let prettyType = PrettyPrinter.ProgramTypes.packageType Stdlib.Option.Option.None typ
+    let prettyType = PrettyPrinter.ProgramTypes.packageType branchID typ
 
     let fqName = fqNameList |> Stdlib.String.join "."
 
@@ -179,7 +180,7 @@ let tryGetFnAndCollectHoverInfo
         let thingAtPosition =
           CursorPosition.ThingAtPosition.PackageFn(fnNameList, f, description)
 
-        (hoverInfoForThingAtPosition thingAtPosition range)
+        (hoverInfoForThingAtPosition branchID thingAtPosition range)
         |> Stdlib.Option.Option.Some
 
       | None -> Stdlib.Option.Option.None
@@ -199,7 +200,7 @@ let tryGetFnAndCollectHoverInfo
             description
           )
 
-        (hoverInfoForThingAtPosition thingAtPosition range)
+        (hoverInfoForThingAtPosition branchID thingAtPosition range)
         |> Stdlib.Option.Option.Some
 
       | None -> Stdlib.Option.Option.None
@@ -265,6 +266,7 @@ let tryGetPkgVal
 
 /// Helper function for `collectBuiltinTypeHoverInfoAtPos`
 let createBuiltinTypeInfoIfInRange
+  (branchID: Stdlib.Option.Option<ProgramTypes.BranchID>)
   (range: WrittenTypes.Range)
   (typeName: String)
   (position: LanguageServerProtocol.Position.Position)
@@ -279,7 +281,7 @@ let createBuiltinTypeInfoIfInRange
     let thingAtPosition =
       CursorPosition.ThingAtPosition.BuiltinType(typeName, description)
 
-    (hoverInfoForThingAtPosition thingAtPosition r)
+    (hoverInfoForThingAtPosition branchID thingAtPosition r)
     |> Stdlib.Option.Option.Some
   | None -> Stdlib.Option.Option.None
 
@@ -292,23 +294,23 @@ let collectBuiltinTypeHoverInfoAtPos
   (currentModules: List<String>)
   : Stdlib.Option.Option<Info> =
   match builtin with
-  | TUnit r -> createBuiltinTypeInfoIfInRange r "Unit" position
-  | TBool r -> createBuiltinTypeInfoIfInRange r "Bool" position
-  | TInt8 r -> createBuiltinTypeInfoIfInRange r "Int8" position
-  | TUInt8 r -> createBuiltinTypeInfoIfInRange r "UInt8" position
-  | TInt16 r -> createBuiltinTypeInfoIfInRange r "Int16" position
-  | TUInt16 r -> createBuiltinTypeInfoIfInRange r "UInt16" position
-  | TInt32 r -> createBuiltinTypeInfoIfInRange r "Int32" position
-  | TUInt32 r -> createBuiltinTypeInfoIfInRange r "UInt32" position
-  | TInt64 r -> createBuiltinTypeInfoIfInRange r "Int64" position
-  | TUInt64 r -> createBuiltinTypeInfoIfInRange r "UInt64" position
-  | TInt128 r -> createBuiltinTypeInfoIfInRange r "Int128" position
-  | TUInt128 r -> createBuiltinTypeInfoIfInRange r "UInt128" position
-  | TFloat r -> createBuiltinTypeInfoIfInRange r "Float" position
-  | TChar r -> createBuiltinTypeInfoIfInRange r "Char" position
-  | TString r -> createBuiltinTypeInfoIfInRange r "String" position
-  | TDateTime r -> createBuiltinTypeInfoIfInRange r "DateTime" position
-  | TUuid r -> createBuiltinTypeInfoIfInRange r "Uuid" position
+  | TUnit r -> createBuiltinTypeInfoIfInRange branchID r "Unit" position
+  | TBool r -> createBuiltinTypeInfoIfInRange branchID r "Bool" position
+  | TInt8 r -> createBuiltinTypeInfoIfInRange branchID r "Int8" position
+  | TUInt8 r -> createBuiltinTypeInfoIfInRange branchID r "UInt8" position
+  | TInt16 r -> createBuiltinTypeInfoIfInRange branchID r "Int16" position
+  | TUInt16 r -> createBuiltinTypeInfoIfInRange branchID r "UInt16" position
+  | TInt32 r -> createBuiltinTypeInfoIfInRange branchID r "Int32" position
+  | TUInt32 r -> createBuiltinTypeInfoIfInRange branchID r "UInt32" position
+  | TInt64 r -> createBuiltinTypeInfoIfInRange branchID r "Int64" position
+  | TUInt64 r -> createBuiltinTypeInfoIfInRange branchID r "UInt64" position
+  | TInt128 r -> createBuiltinTypeInfoIfInRange branchID r "Int128" position
+  | TUInt128 r -> createBuiltinTypeInfoIfInRange branchID r "UInt128" position
+  | TFloat r -> createBuiltinTypeInfoIfInRange branchID r "Float" position
+  | TChar r -> createBuiltinTypeInfoIfInRange branchID r "Char" position
+  | TString r -> createBuiltinTypeInfoIfInRange branchID r "String" position
+  | TDateTime r -> createBuiltinTypeInfoIfInRange branchID r "DateTime" position
+  | TUuid r -> createBuiltinTypeInfoIfInRange branchID r "Uuid" position
 
   | TList(r, keywordRange, _, typ, _) ->
     // check if position is within the List range
@@ -320,7 +322,7 @@ let collectBuiltinTypeHoverInfoAtPos
       | Some r ->
         let thingAtPosition = CursorPosition.ThingAtPosition.Keyword("List")
 
-        (hoverInfoForThingAtPosition thingAtPosition r)
+        (hoverInfoForThingAtPosition branchID thingAtPosition r)
         |> Stdlib.Option.Option.Some
       | None ->
         // check if we are hovering over the type reference
@@ -344,7 +346,7 @@ let collectBuiltinTypeHoverInfoAtPos
       | Some r ->
         let thingAtPosition = CursorPosition.ThingAtPosition.Keyword("Dict")
 
-        (hoverInfoForThingAtPosition thingAtPosition r)
+        (hoverInfoForThingAtPosition branchID thingAtPosition r)
         |> Stdlib.Option.Option.Some
 
       | None ->
@@ -434,7 +436,7 @@ let collectBuiltinTypeHoverInfoAtPos
       | Some r ->
         let thingAtPosition = CursorPosition.ThingAtPosition.Keyword("DB")
 
-        (hoverInfoForThingAtPosition thingAtPosition r)
+        (hoverInfoForThingAtPosition branchID thingAtPosition r)
         |> Stdlib.Option.Option.Some
       | None ->
         // check if we are hovering over the type reference
@@ -459,7 +461,7 @@ let collectBuiltinTypeHoverInfoAtPos
       let thingAtPosition =
         CursorPosition.ThingAtPosition.TypeParameter description
 
-      (hoverInfoForThingAtPosition thingAtPosition r)
+      (hoverInfoForThingAtPosition branchID thingAtPosition r)
       |> Stdlib.Option.Option.Some
 
     | None -> Stdlib.Option.Option.None
@@ -467,6 +469,7 @@ let collectBuiltinTypeHoverInfoAtPos
   | _ -> Stdlib.Option.Option.None
 
 let collectModuleNameHoverInfoAtPos
+  (branchID: Stdlib.Option.Option<ProgramTypes.BranchID>)
   (modules: List<WrittenTypes.ModuleIdentifier * WrittenTypes.Range>)
   (position: LanguageServerProtocol.Position.Position)
   : Stdlib.Option.Option<Info> =
@@ -482,7 +485,7 @@ let collectModuleNameHoverInfoAtPos
       let thingAtPosition =
         CursorPosition.ThingAtPosition.ModuleName(m.name, description)
 
-      (hoverInfoForThingAtPosition thingAtPosition r)
+      (hoverInfoForThingAtPosition branchID thingAtPosition r)
       |> Stdlib.Option.Option.Some
 
     | None -> Stdlib.Option.Option.None)
@@ -504,7 +507,7 @@ let collectTypeRefHoverInfoAtPos
   | QualifiedName qn ->
     // check if we are hovering over the one of the modules
     let moduleHoverInfo =
-      qn.modules |> collectModuleNameHoverInfoAtPos position
+      collectModuleNameHoverInfoAtPos branchID qn.modules position
 
     match moduleHoverInfo with
     | Some r -> Stdlib.Option.Option.Some r
@@ -528,7 +531,7 @@ let collectTypeRefHoverInfoAtPos
           let thingAtPosition =
             CursorPosition.ThingAtPosition.PackageType(typeName, t, description)
 
-          (hoverInfoForThingAtPosition thingAtPosition r)
+          (hoverInfoForThingAtPosition branchID thingAtPosition r)
           |> Stdlib.Option.Option.Some
         | None -> Stdlib.Option.Option.None
 
@@ -592,7 +595,7 @@ let collectEnumFieldHoverInfoAtPos
           let thingAtPosition =
             CursorPosition.ThingAtPosition.EnumLabel description
 
-          (hoverInfoForThingAtPosition thingAtPosition r)
+          (hoverInfoForThingAtPosition branchID thingAtPosition r)
           |> Stdlib.Option.Option.Some
 
         | None -> Stdlib.Option.Option.None
@@ -624,7 +627,7 @@ let collectEnumCaseHoverInfoAtPos
       let thingAtPosition =
         CursorPosition.ThingAtPosition.EnumCase caseName description
 
-      (hoverInfoForThingAtPosition thingAtPosition r)
+      (hoverInfoForThingAtPosition branchID thingAtPosition r)
       |> Stdlib.Option.Option.Some
 
     | None ->
@@ -635,7 +638,7 @@ let collectEnumCaseHoverInfoAtPos
         | Some r ->
           let thingAtPosition = CursorPosition.ThingAtPosition.Keyword("of")
 
-          (hoverInfoForThingAtPosition thingAtPosition r)
+          (hoverInfoForThingAtPosition branchID thingAtPosition r)
           |> Stdlib.Option.Option.Some
 
         | None ->
@@ -683,7 +686,7 @@ let collectDefintionHoverInfoAtPos
         let thingAtPosition =
           CursorPosition.ThingAtPosition.FieldName name description
 
-        (hoverInfoForThingAtPosition thingAtPosition r)
+        (hoverInfoForThingAtPosition branchID thingAtPosition r)
         |> Stdlib.Option.Option.Some
 
       | None ->
@@ -727,7 +730,7 @@ let collectTypeHoverInfoAtPosition
   | Some r ->
     let thingAtPosition = CursorPosition.ThingAtPosition.Keyword("type")
 
-    (hoverInfoForThingAtPosition thingAtPosition r)
+    (hoverInfoForThingAtPosition branchID thingAtPosition r)
     |> Stdlib.Option.Option.Some
   | None ->
     let range = typeDecl.name.range
@@ -750,7 +753,7 @@ let collectTypeHoverInfoAtPosition
         let thingAtPosition =
           CursorPosition.ThingAtPosition.PackageType(typeNameList, t, description)
 
-        (hoverInfoForThingAtPosition thingAtPosition r)
+        (hoverInfoForThingAtPosition branchID thingAtPosition r)
         |> Stdlib.Option.Option.Some
       | None -> Stdlib.Option.Option.None
 
@@ -771,7 +774,7 @@ let collectTypeHoverInfoAtPosition
             let thingAtPosition =
               CursorPosition.ThingAtPosition.TypeParameter description
 
-            (hoverInfoForThingAtPosition thingAtPosition r)
+            (hoverInfoForThingAtPosition branchID thingAtPosition r)
             |> Stdlib.Option.Option.Some
 
           | None -> Stdlib.Option.Option.None)
@@ -811,7 +814,7 @@ let collectValueHoverInfoAtPos
   | Some r ->
     let thingAtPosition = CursorPosition.ThingAtPosition.Keyword("val")
 
-    (hoverInfoForThingAtPosition thingAtPosition r)
+    (hoverInfoForThingAtPosition branchID thingAtPosition r)
     |> Stdlib.Option.Option.Some
 
   | None ->
@@ -838,7 +841,7 @@ let collectValueHoverInfoAtPos
             description
           )
 
-        (hoverInfoForThingAtPosition thingAtPosition r)
+        (hoverInfoForThingAtPosition branchID thingAtPosition r)
         |> Stdlib.Option.Option.Some
 
       | None -> Stdlib.Option.Option.None
@@ -866,7 +869,7 @@ let collectFnParameterHoverInfoAtPos
   (currentModules: List<String>)
   : Stdlib.Option.Option<Info> =
   match p with
-  | Unit r -> createBuiltinTypeInfoIfInRange r "Unit" position
+  | Unit r -> createBuiltinTypeInfoIfInRange branchID r "Unit" position
   | Normal np ->
     let onMissing = LanguageTools.NameResolver.OnMissing.Allow
 
@@ -904,7 +907,7 @@ let collectFnParameterHoverInfoAtPos
             typAsString
             description
 
-        (hoverInfoForThingAtPosition thingAtPosition r)
+        (hoverInfoForThingAtPosition branchID thingAtPosition r)
         |> Stdlib.Option.Option.Some
 
       | None ->
@@ -932,7 +935,7 @@ let collectFnHoverInfoAtPos
   | Some r ->
     let thingAtPosition = CursorPosition.ThingAtPosition.Keyword("let")
 
-    (hoverInfoForThingAtPosition thingAtPosition r)
+    (hoverInfoForThingAtPosition branchID thingAtPosition r)
     |> Stdlib.Option.Option.Some
   | None ->
     // check if we are hovering over the function name
@@ -956,7 +959,7 @@ let collectFnHoverInfoAtPos
       let thingAtPosition =
         CursorPosition.ThingAtPosition.FnName(fqName, description)
 
-      (hoverInfoForThingAtPosition thingAtPosition r)
+      (hoverInfoForThingAtPosition branchID thingAtPosition r)
       |> Stdlib.Option.Option.Some
 
     | None ->
@@ -976,7 +979,7 @@ let collectFnHoverInfoAtPos
             let thingAtPosition =
               CursorPosition.ThingAtPosition.TypeParameter description
 
-            (hoverInfoForThingAtPosition thingAtPosition r)
+            (hoverInfoForThingAtPosition branchID thingAtPosition r)
             |> Stdlib.Option.Option.Some
 
           | None -> Stdlib.Option.Option.None)
@@ -1073,7 +1076,7 @@ let collectMatchPatternHoverInfoAtPos
             "Cons operator: used to construct a list by adding an element to the front of an existing list"
           )
 
-        (hoverInfoForThingAtPosition thingAtPosition r)
+        (hoverInfoForThingAtPosition branchID thingAtPosition r)
         |> Stdlib.Option.Option.Some
 
       | None ->
@@ -1123,7 +1126,7 @@ let collectMatchPatternHoverInfoAtPos
       let thingAtPosition =
         CursorPosition.ThingAtPosition.Variable(name, description)
 
-      (hoverInfoForThingAtPosition thingAtPosition r)
+      (hoverInfoForThingAtPosition branchID thingAtPosition r)
       |> Stdlib.Option.Option.Some
 
     | None -> Stdlib.Option.Option.None
@@ -1146,7 +1149,7 @@ let collectMatchPatternHoverInfoAtPos
         let thingAtPosition =
           CursorPosition.ThingAtPosition.EnumCase caseName description
 
-        (hoverInfoForThingAtPosition thingAtPosition r)
+        (hoverInfoForThingAtPosition branchID thingAtPosition r)
         |> Stdlib.Option.Option.Some
 
       | None ->
@@ -1209,7 +1212,7 @@ let collectMatchCaseHoverInfoAtPos
           let thingAtPosition =
             CursorPosition.ThingAtPosition.Keyword("when")
 
-          (hoverInfoForThingAtPosition thingAtPosition r)
+          (hoverInfoForThingAtPosition branchID thingAtPosition r)
           |> Stdlib.Option.Option.Some
         | None ->
           // check if we are hovering over the when condition expression
@@ -1226,6 +1229,7 @@ let collectMatchCaseHoverInfoAtPos
 
 /// Collect hover information for Infix operations at a given position
 let collectInfixFnNameHoverInfoAtPos
+  (branchID: Stdlib.Option.Option<ProgramTypes.BranchID>)
   (i: WrittenTypes.InfixFnName)
   (range: WrittenTypes.Range)
   : Stdlib.Option.Option<Info> =
@@ -1234,49 +1238,49 @@ let collectInfixFnNameHoverInfoAtPos
     let thingAtPosition =
       CursorPosition.ThingAtPosition.Operator("Arithmetic plus")
 
-    (hoverInfoForThingAtPosition thingAtPosition range)
+    (hoverInfoForThingAtPosition branchID thingAtPosition range)
     |> Stdlib.Option.Option.Some
 
   | ArithmeticMinus ->
     let thingAtPosition =
       CursorPosition.ThingAtPosition.Operator("Arithmetic minus")
 
-    (hoverInfoForThingAtPosition thingAtPosition range)
+    (hoverInfoForThingAtPosition branchID thingAtPosition range)
     |> Stdlib.Option.Option.Some
 
   | ArithmeticMultiply ->
     let thingAtPosition =
       CursorPosition.ThingAtPosition.Operator("Arithmetic multiply")
 
-    (hoverInfoForThingAtPosition thingAtPosition range)
+    (hoverInfoForThingAtPosition branchID thingAtPosition range)
     |> Stdlib.Option.Option.Some
 
   | ArithmeticDivide ->
     let thingAtPosition =
       CursorPosition.ThingAtPosition.Operator("Arithmetic divide")
 
-    (hoverInfoForThingAtPosition thingAtPosition range)
+    (hoverInfoForThingAtPosition branchID thingAtPosition range)
     |> Stdlib.Option.Option.Some
 
   | ArithmeticModulo ->
     let thingAtPosition =
       CursorPosition.ThingAtPosition.Operator("Arithmetic modulo")
 
-    (hoverInfoForThingAtPosition thingAtPosition range)
+    (hoverInfoForThingAtPosition branchID thingAtPosition range)
     |> Stdlib.Option.Option.Some
 
   | ArithmeticPower ->
     let thingAtPosition =
       CursorPosition.ThingAtPosition.Operator("Arithmetic power")
 
-    (hoverInfoForThingAtPosition thingAtPosition range)
+    (hoverInfoForThingAtPosition branchID thingAtPosition range)
     |> Stdlib.Option.Option.Some
 
   | ComparisonGreaterThan ->
     let thingAtPosition =
       CursorPosition.ThingAtPosition.Operator("Comparison greater than")
 
-    (hoverInfoForThingAtPosition thingAtPosition range)
+    (hoverInfoForThingAtPosition branchID thingAtPosition range)
     |> Stdlib.Option.Option.Some
 
   | ComparisonGreaterThanOrEqual ->
@@ -1285,14 +1289,14 @@ let collectInfixFnNameHoverInfoAtPos
         "Comparison greater than or equal"
       )
 
-    (hoverInfoForThingAtPosition thingAtPosition range)
+    (hoverInfoForThingAtPosition branchID thingAtPosition range)
     |> Stdlib.Option.Option.Some
 
   | ComparisonLessThan ->
     let thingAtPosition =
       CursorPosition.ThingAtPosition.Operator("Comparison less than")
 
-    (hoverInfoForThingAtPosition thingAtPosition range)
+    (hoverInfoForThingAtPosition branchID thingAtPosition range)
     |> Stdlib.Option.Option.Some
 
   | ComparisonLessThanOrEqual ->
@@ -1301,31 +1305,32 @@ let collectInfixFnNameHoverInfoAtPos
         "Comparison less than or equal"
       )
 
-    (hoverInfoForThingAtPosition thingAtPosition range)
+    (hoverInfoForThingAtPosition branchID thingAtPosition range)
     |> Stdlib.Option.Option.Some
 
   | ComparisonEquals ->
     let thingAtPosition =
       CursorPosition.ThingAtPosition.Operator("Comparison equals")
 
-    (hoverInfoForThingAtPosition thingAtPosition range)
+    (hoverInfoForThingAtPosition branchID thingAtPosition range)
     |> Stdlib.Option.Option.Some
 
   | ComparisonNotEquals ->
     let thingAtPosition =
       CursorPosition.ThingAtPosition.Operator("Comparison not equals")
 
-    (hoverInfoForThingAtPosition thingAtPosition range)
+    (hoverInfoForThingAtPosition branchID thingAtPosition range)
     |> Stdlib.Option.Option.Some
 
   | StringConcat ->
     let thingAtPosition =
       CursorPosition.ThingAtPosition.Operator("String concat")
 
-    (hoverInfoForThingAtPosition thingAtPosition range)
+    (hoverInfoForThingAtPosition branchID thingAtPosition range)
     |> Stdlib.Option.Option.Some
 
 let collectBinOpHoverInfoAtPos
+  (branchID: Stdlib.Option.Option<ProgramTypes.BranchID>)
   (b: WrittenTypes.BinaryOperation)
   (range: WrittenTypes.Range)
   : Stdlib.Option.Option<Info> =
@@ -1334,23 +1339,24 @@ let collectBinOpHoverInfoAtPos
     let thingAtPosition =
       CursorPosition.ThingAtPosition.Operator("Logical and")
 
-    (hoverInfoForThingAtPosition thingAtPosition range)
+    (hoverInfoForThingAtPosition branchID thingAtPosition range)
     |> Stdlib.Option.Option.Some
 
   | BinOpOr ->
     let thingAtPosition =
       CursorPosition.ThingAtPosition.Operator("Logical or")
 
-    (hoverInfoForThingAtPosition thingAtPosition range)
+    (hoverInfoForThingAtPosition branchID thingAtPosition range)
     |> Stdlib.Option.Option.Some
 
 let collectInfixHoverInfoAtPos
+  (branchID: Stdlib.Option.Option<ProgramTypes.BranchID>)
   (infix: WrittenTypes.Infix)
   (range: WrittenTypes.Range)
   : Stdlib.Option.Option<Info> =
   match infix with
-  | InfixFnCall i -> collectInfixFnNameHoverInfoAtPos i range
-  | BinOp b -> collectBinOpHoverInfoAtPos b range
+  | InfixFnCall i -> collectInfixFnNameHoverInfoAtPos branchID i range
+  | BinOp b -> collectBinOpHoverInfoAtPos branchID b range
 
 
 /// Collect hover information for let pattern at a given position
@@ -1382,7 +1388,7 @@ let collectLetPatternHoverInfoAtPos
       let thingAtPosition =
         CursorPosition.ThingAtPosition.Variable(name, description)
 
-      (hoverInfoForThingAtPosition thingAtPosition r)
+      (hoverInfoForThingAtPosition branchID thingAtPosition r)
       |> Stdlib.Option.Option.Some
 
     | None -> Stdlib.Option.Option.None
@@ -1417,7 +1423,7 @@ let collectTypeNameHoverInfoAtPos
   : Stdlib.Option.Option<Info> =
   // check if we are hovering over the type name
     let modules =
-      typeName.modules |> collectModuleNameHoverInfoAtPos position
+      collectModuleNameHoverInfoAtPos branchID typeName.modules position
 
     // check if we are hovering over one of the module names
     match modules with
@@ -1447,7 +1453,7 @@ let collectTypeNameHoverInfoAtPos
           let thingAtPosition =
             CursorPosition.ThingAtPosition.PackageType(fqName, t, description)
 
-          (hoverInfoForThingAtPosition thingAtPosition r)
+          (hoverInfoForThingAtPosition branchID thingAtPosition r)
           |> Stdlib.Option.Option.Some
 
         | None -> Stdlib.Option.Option.None
@@ -1511,7 +1517,7 @@ let collectRecordHoverInfo
         let thingAtPosition =
           CursorPosition.ThingAtPosition.FieldName(fieldName, description)
 
-        (hoverInfoForThingAtPosition thingAtPosition r)
+        (hoverInfoForThingAtPosition branchID thingAtPosition r)
         |> Stdlib.Option.Option.Some
       | None ->
         // Check if hovering over field value
@@ -1564,7 +1570,7 @@ let collectEnumHoverInfo
       let thingAtPosition =
         CursorPosition.ThingAtPosition.EnumCase(caseName, description)
 
-      (hoverInfoForThingAtPosition thingAtPosition r)
+      (hoverInfoForThingAtPosition branchID thingAtPosition r)
       |> Stdlib.Option.Option.Some
 
     | None ->
@@ -1591,7 +1597,7 @@ let collectPipeExprHoverInfoAtPos
       let (range, infix) = op
       // check if we are hovering over an infix operator
       match CursorPosition.checkIfPositionWithinRange position range with
-      | Some r -> collectInfixHoverInfoAtPos infix r
+      | Some r -> collectInfixHoverInfoAtPos branchID infix r
       | None ->
         // check if we are hovering over the expression
         collectExpressionHoverInfoAtPos
@@ -1614,7 +1620,7 @@ let collectPipeExprHoverInfoAtPos
       | Some r ->
         let thingAtPosition = CursorPosition.ThingAtPosition.Keyword("fun")
 
-        (hoverInfoForThingAtPosition thingAtPosition r)
+        (hoverInfoForThingAtPosition branchID thingAtPosition r)
         |> Stdlib.Option.Option.Some
 
       | None ->
@@ -1666,7 +1672,7 @@ let collectPipeExprHoverInfoAtPos
       | Some r ->
         // check if we are hovering over one of the module names
         let modules =
-          fnName.modules |> collectModuleNameHoverInfoAtPos position
+          collectModuleNameHoverInfoAtPos branchID fnName.modules position
 
         match modules with
         | Some r -> Stdlib.Option.Option.Some r
@@ -1738,7 +1744,7 @@ let collectPipeExprHoverInfoAtPos
         let thingAtPosition =
           CursorPosition.ThingAtPosition.Variable(name, description)
 
-        (hoverInfoForThingAtPosition thingAtPosition r)
+        (hoverInfoForThingAtPosition branchID thingAtPosition r)
         |> Stdlib.Option.Option.Some
     else
       Stdlib.Option.Option.None
@@ -1780,7 +1786,7 @@ let collectExpressionHoverInfoAtPos
       | Some r ->
         let thingAtPosition = CursorPosition.ThingAtPosition.Keyword("Dict")
 
-        (hoverInfoForThingAtPosition thingAtPosition r)
+        (hoverInfoForThingAtPosition branchID thingAtPosition r)
         |> Stdlib.Option.Option.Some
 
       | None ->
@@ -1801,7 +1807,7 @@ let collectExpressionHoverInfoAtPos
             let thingAtPosition =
               CursorPosition.ThingAtPosition.DictKey key description
 
-            (hoverInfoForThingAtPosition thingAtPosition r)
+            (hoverInfoForThingAtPosition branchID thingAtPosition r)
             |> Stdlib.Option.Option.Some
 
           | None ->
@@ -1889,7 +1895,7 @@ let collectExpressionHoverInfoAtPos
             let thingAtPosition =
               CursorPosition.ThingAtPosition.FieldName name description
 
-            (hoverInfoForThingAtPosition thingAtPosition r)
+            (hoverInfoForThingAtPosition branchID thingAtPosition r)
             |> Stdlib.Option.Option.Some
 
           | None ->
@@ -1929,7 +1935,7 @@ let collectExpressionHoverInfoAtPos
           let thingAtPosition =
             CursorPosition.ThingAtPosition.Keyword("with")
 
-          (hoverInfoForThingAtPosition thingAtPosition r)
+          (hoverInfoForThingAtPosition branchID thingAtPosition r)
           |> Stdlib.Option.Option.Some
         | None ->
           // check if we are hovering over one of the updates
@@ -1949,7 +1955,7 @@ let collectExpressionHoverInfoAtPos
               let thingAtPosition =
                 CursorPosition.ThingAtPosition.FieldName name description
 
-              (hoverInfoForThingAtPosition thingAtPosition r)
+              (hoverInfoForThingAtPosition branchID thingAtPosition r)
               |> Stdlib.Option.Option.Some
 
             | None ->
@@ -1990,7 +1996,7 @@ let collectExpressionHoverInfoAtPos
       | Some r ->
         let thingAtPosition = CursorPosition.ThingAtPosition.Keyword("let")
 
-        (hoverInfoForThingAtPosition thingAtPosition r)
+        (hoverInfoForThingAtPosition branchID thingAtPosition r)
         |> Stdlib.Option.Option.Some
       | None ->
         // check if we are hovering over the let pattern
@@ -2031,7 +2037,7 @@ let collectExpressionHoverInfoAtPos
       let thingAtPosition =
         CursorPosition.ThingAtPosition.Variable(name, description)
 
-      (hoverInfoForThingAtPosition thingAtPosition r)
+      (hoverInfoForThingAtPosition branchID thingAtPosition r)
       |> Stdlib.Option.Option.Some
 
     | None -> Stdlib.Option.Option.None
@@ -2064,7 +2070,7 @@ let collectExpressionHoverInfoAtPos
           let thingAtPosition =
             CursorPosition.ThingAtPosition.FieldName name description
 
-          (hoverInfoForThingAtPosition thingAtPosition r)
+          (hoverInfoForThingAtPosition branchID thingAtPosition r)
           |> Stdlib.Option.Option.Some
 
         | None -> Stdlib.Option.Option.None
@@ -2080,7 +2086,7 @@ let collectExpressionHoverInfoAtPos
       | Some r ->
         let thingAtPosition = CursorPosition.ThingAtPosition.Keyword("if")
 
-        (hoverInfoForThingAtPosition thingAtPosition r)
+        (hoverInfoForThingAtPosition branchID thingAtPosition r)
         |> Stdlib.Option.Option.Some
       | None ->
         // check if we are hovering over the condition
@@ -2103,7 +2109,7 @@ let collectExpressionHoverInfoAtPos
             let thingAtPosition =
               CursorPosition.ThingAtPosition.Keyword("then")
 
-            (hoverInfoForThingAtPosition thingAtPosition r)
+            (hoverInfoForThingAtPosition branchID thingAtPosition r)
             |> Stdlib.Option.Option.Some
           | None ->
             // check if we are hovering over the then expression
@@ -2128,7 +2134,7 @@ let collectExpressionHoverInfoAtPos
                   let thingAtPosition =
                     CursorPosition.ThingAtPosition.Keyword("else")
 
-                  (hoverInfoForThingAtPosition thingAtPosition r)
+                  (hoverInfoForThingAtPosition branchID thingAtPosition r)
                   |> Stdlib.Option.Option.Some
                 | None ->
                   // check if we are hovering over the else expression
@@ -2157,7 +2163,7 @@ let collectExpressionHoverInfoAtPos
       | Some r ->
         let thingAtPosition = CursorPosition.ThingAtPosition.Keyword("match")
 
-        (hoverInfoForThingAtPosition thingAtPosition r)
+        (hoverInfoForThingAtPosition branchID thingAtPosition r)
         |> Stdlib.Option.Option.Some
       | None ->
         // check if we are hovering over the expression
@@ -2180,7 +2186,7 @@ let collectExpressionHoverInfoAtPos
             let thingAtPosition =
               CursorPosition.ThingAtPosition.Keyword("with")
 
-            (hoverInfoForThingAtPosition thingAtPosition r)
+            (hoverInfoForThingAtPosition branchID thingAtPosition r)
             |> Stdlib.Option.Option.Some
 
           | None ->
@@ -2234,7 +2240,7 @@ let collectExpressionHoverInfoAtPos
 
       match CursorPosition.checkIfPositionWithinRange position opRange with
       | Some range ->
-        match collectInfixHoverInfoAtPos op range with
+        match collectInfixHoverInfoAtPos branchID op range with
         | Some r -> Stdlib.Option.Option.Some r
         | None -> Stdlib.Option.Option.None
 
@@ -2271,7 +2277,7 @@ let collectExpressionHoverInfoAtPos
       | Some r ->
         let thingAtPosition = CursorPosition.ThingAtPosition.Keyword("fun")
 
-        (hoverInfoForThingAtPosition thingAtPosition r)
+        (hoverInfoForThingAtPosition branchID thingAtPosition r)
         |> Stdlib.Option.Option.Some
       | None ->
         // check if we are hovering over one of the lambda patterns
@@ -2356,7 +2362,7 @@ let collectExpressionHoverInfoAtPos
           owner
           currentModules
 
-      | None -> name.modules |> collectModuleNameHoverInfoAtPos position
+      | None -> collectModuleNameHoverInfoAtPos branchID name.modules position
     else
       Stdlib.Option.Option.None
 
@@ -2364,7 +2370,7 @@ let collectExpressionHoverInfoAtPos
     // check if position is within the EValueOrFn range
     if CursorPosition.isLineNumberInRange position r then
       let modules =
-        fnOrValueName.modules |> collectModuleNameHoverInfoAtPos position
+        collectModuleNameHoverInfoAtPos branchID fnOrValueName.modules position
 
       match modules with
       | Some r -> Stdlib.Option.Option.Some r
@@ -2413,7 +2419,7 @@ let collectExpressionHoverInfoAtPos
                   description
                 )
 
-              (hoverInfoForThingAtPosition thingAtPosition r)
+              (hoverInfoForThingAtPosition branchID thingAtPosition r)
               |> Stdlib.Option.Option.Some
 
             | None -> Stdlib.Option.Option.None
@@ -2508,7 +2514,7 @@ let collectModuleDeclHoverInfoAtPos
             let thingAtPosition =
               CursorPosition.ThingAtPosition.Keyword("module")
 
-            (hoverInfoForThingAtPosition thingAtPosition r)
+            (hoverInfoForThingAtPosition branchID thingAtPosition r)
             |> Stdlib.Option.Option.Some
 
           | None ->
@@ -2537,7 +2543,7 @@ let collectModuleDeclHoverInfoAtPos
                   description
                 )
 
-              (hoverInfoForThingAtPosition thingAtPosition r)
+              (hoverInfoForThingAtPosition branchID thingAtPosition r)
               |> Stdlib.Option.Option.Some
 
             | None ->
@@ -2621,7 +2627,7 @@ let collectNodeHoverInfoAtPos
             let thingAtPosition =
               CursorPosition.ThingAtPosition.Keyword("module")
 
-            (hoverInfoForThingAtPosition thingAtPosition r)
+            (hoverInfoForThingAtPosition branchID thingAtPosition r)
             |> Stdlib.Option.Option.Some
 
           | None ->
@@ -2639,7 +2645,7 @@ let collectNodeHoverInfoAtPos
               let thingAtPosition =
                 CursorPosition.ThingAtPosition.ModuleName(name, description)
 
-              (hoverInfoForThingAtPosition thingAtPosition r)
+              (hoverInfoForThingAtPosition branchID thingAtPosition r)
               |> Stdlib.Option.Option.Some
 
             | None ->
@@ -2669,7 +2675,7 @@ let collectNodeHoverInfoAtPos
             let thingAtPosition =
               CursorPosition.ThingAtPosition.Keyword("module")
 
-            (hoverInfoForThingAtPosition thingAtPosition r)
+            (hoverInfoForThingAtPosition branchID thingAtPosition r)
             |> Stdlib.Option.Option.Some
 
           | None ->
@@ -2698,7 +2704,7 @@ let collectNodeHoverInfoAtPos
                   description
                 )
 
-              (hoverInfoForThingAtPosition thingAtPosition r)
+              (hoverInfoForThingAtPosition branchID thingAtPosition r)
               |> Stdlib.Option.Option.Some
 
             | None ->
