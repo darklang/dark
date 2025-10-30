@@ -82,14 +82,18 @@ export class BranchCommands {
 
         // Handle both {label: ...} and {id: ...} formats
         const branchId = branch?.id;
-        const branchLabel = branch?.label || branch?.name || "Unknown";
+        // CLEANUP: do we need branch?.label || branch?.name
+        const branchLabel = branch?.label || branch?.name || branch?.title || "Unknown";
 
         console.log('  branchId:', branchId, 'branchLabel:', branchLabel);
 
         if (branchId) {
           this.branchStateManager.setCurrentBranchById(branchId);
           this.statusBarManager.updateBranch(branchLabel);
+          this.workspaceProvider.refresh();
           vscode.window.showInformationMessage(`Switched to branch: ${branchLabel}`);
+        } else {
+          console.error('  ERROR: No branchId provided to switch command!');
         }
       }),
 
