@@ -942,7 +942,7 @@ module PackageFn =
       |> Stdlib.String.join ", "
 
     let returnType =
-      f.returnType |> PrettyPrinter.ProgramTypes.typeReference branchID
+      PrettyPrinter.ProgramTypes.typeReference branchID f.returnType
 
     params ++ " -> " ++ returnType
 

@@ -1033,6 +1033,7 @@ let collectFnHoverInfoAtPos
 // ---------------------------
 /// Collect hover information for match expression at a given position
 let collectMatchPatternHoverInfoAtPos
+  (branchID: Stdlib.Option.Option<ProgramTypes.BranchID>)
   (mp: WrittenTypes.MatchPattern)
   (position: LanguageServerProtocol.Position.Position)
   (currentModules: List<String>)
@@ -1059,7 +1060,7 @@ let collectMatchPatternHoverInfoAtPos
     | Some r ->
       contents
       |> Stdlib.List.filterMap (fun (c, _) ->
-        collectMatchPatternHoverInfoAtPos c position currentModules)
+        collectMatchPatternHoverInfoAtPos branchID c position currentModules)
       |> Stdlib.List.head
     | None -> Stdlib.Option.Option.None
 
@@ -1082,12 +1083,12 @@ let collectMatchPatternHoverInfoAtPos
       | None ->
         // check if we are hovering over the head
         match
-          collectMatchPatternHoverInfoAtPos head position currentModules
+          collectMatchPatternHoverInfoAtPos branchID head position currentModules
         with
         | Some r -> Stdlib.Option.Option.Some r
         | None ->
           // check if we are hovering over the tail
-          collectMatchPatternHoverInfoAtPos tail position currentModules
+          collectMatchPatternHoverInfoAtPos branchID tail position currentModules
     else
       Stdlib.Option.Option.None
 
@@ -1096,20 +1097,20 @@ let collectMatchPatternHoverInfoAtPos
     if CursorPosition.isLineNumberInRange position r then
       // check if we are hovering over the first match pattern
       match
-        collectMatchPatternHoverInfoAtPos first position currentModules
+        collectMatchPatternHoverInfoAtPos branchID first position currentModules
       with
       | Some r -> Stdlib.Option.Option.Some r
       | None ->
         // check if we are hovering over the second match pattern
         match
-          collectMatchPatternHoverInfoAtPos second position currentModules
+          collectMatchPatternHoverInfoAtPos branchID second position currentModules
         with
         | Some r -> Stdlib.Option.Option.Some r
         | None ->
           // check if we are hovering over the rest match patterns
           rest
           |> Stdlib.List.filterMap (fun (_, mp) ->
-            collectMatchPatternHoverInfoAtPos mp position currentModules)
+            collectMatchPatternHoverInfoAtPos branchID mp position currentModules)
           |> Stdlib.List.head
 
     else
@@ -1156,7 +1157,7 @@ let collectMatchPatternHoverInfoAtPos
         // check if we are hovering over the field patterns
         fieldPats
         |> Stdlib.List.filterMap (fun mp ->
-          collectMatchPatternHoverInfoAtPos mp position currentModules)
+          collectMatchPatternHoverInfoAtPos branchID mp position currentModules)
         |> Stdlib.List.head
     else
       Stdlib.Option.Option.None
@@ -1167,7 +1168,7 @@ let collectMatchPatternHoverInfoAtPos
       // check if we are hovering over one of the or patterns
       patterns
       |> Stdlib.List.filterMap (fun mp ->
-        collectMatchPatternHoverInfoAtPos mp position currentModules)
+        collectMatchPatternHoverInfoAtPos branchID mp position currentModules)
       |> Stdlib.List.head
     else
       Stdlib.Option.Option.None
@@ -1186,7 +1187,7 @@ let collectMatchCaseHoverInfoAtPos
 
   // check if we are hovering over the match case pattern
   match
-    collectMatchPatternHoverInfoAtPos matchPattern position currentModules
+    collectMatchPatternHoverInfoAtPos branchID matchPattern position currentModules
   with
   | Some r -> Stdlib.Option.Option.Some r
   | None ->
@@ -1361,6 +1362,7 @@ let collectInfixHoverInfoAtPos
 
 /// Collect hover information for let pattern at a given position
 let collectLetPatternHoverInfoAtPos
+  (branchID: Stdlib.Option.Option<ProgramTypes.BranchID>)
   (lp: WrittenTypes.LetPattern)
   (position: LanguageServerProtocol.Position.Position)
   : Stdlib.Option.Option<Info> =
@@ -1397,17 +1399,17 @@ let collectLetPatternHoverInfoAtPos
     // check if position is within the Tuple range
     if CursorPosition.isLineNumberInRange position r then
       // check if we are hovering over the first let pattern
-      match collectLetPatternHoverInfoAtPos first position with
+      match collectLetPatternHoverInfoAtPos branchID first position with
       | Some r -> Stdlib.Option.Option.Some r
       | None ->
         // check if we are hovering over the second let pattern
-        match collectLetPatternHoverInfoAtPos second position with
+        match collectLetPatternHoverInfoAtPos branchID second position with
         | Some r -> Stdlib.Option.Option.Some r
         | None ->
           // check if we are hovering over one of the rest let patterns
           rest
           |> Stdlib.List.filterMap (fun (_, lp) ->
-            collectLetPatternHoverInfoAtPos lp position)
+            collectLetPatternHoverInfoAtPos branchID lp position)
           |> Stdlib.List.head
 
     else
@@ -1628,7 +1630,7 @@ let collectPipeExprHoverInfoAtPos
         let pats =
           pats
           |> Stdlib.List.filterMap (fun lp ->
-            collectLetPatternHoverInfoAtPos lp position)
+            collectLetPatternHoverInfoAtPos branchID lp position)
           |> Stdlib.List.head
 
         match pats with
@@ -2000,7 +2002,7 @@ let collectExpressionHoverInfoAtPos
         |> Stdlib.Option.Option.Some
       | None ->
         // check if we are hovering over the let pattern
-        match collectLetPatternHoverInfoAtPos letPattern position with
+        match collectLetPatternHoverInfoAtPos branchID letPattern position with
         | Some r -> Stdlib.Option.Option.Some r
         | None ->
           // check if we are hovering over the let expression
@@ -2284,7 +2286,7 @@ let collectExpressionHoverInfoAtPos
         let pats =
           pats
           |> Stdlib.List.filterMap (fun lp ->
-            collectLetPatternHoverInfoAtPos lp position)
+            collectLetPatternHoverInfoAtPos branchID lp position)
           |> Stdlib.List.head
 
         match pats with
