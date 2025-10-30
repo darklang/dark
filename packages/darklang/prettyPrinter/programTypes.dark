@@ -913,9 +913,9 @@ let packageValue
 
   let context =
     Context
-      { currentModule = defaultContext.currentModule
-        currentFunction = defaultContext.currentFunction
-        argMap = defaultContext.argMap
+      { currentModule = Stdlib.Option.Option.None
+        currentFunction = Stdlib.Option.Option.None
+        argMap = Stdlib.Dict.empty
         branchID = branchID }
 
   let bodyPart = PrettyPrinter.ProgramTypes.expr context p.body
@@ -979,7 +979,7 @@ let packageFn
 
   let context =
     Context
-      { currentModule = defaultContext.currentModule
+      { currentModule = Stdlib.Option.Option.None
         currentFunction = Stdlib.Option.Option.Some namePart
         argMap = argMap
         branchID = branchID }
