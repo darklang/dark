@@ -11,7 +11,6 @@ module PT = LibExecution.ProgramTypes
 module PT2DT = LibExecution.ProgramTypesToDarkTypes
 module NR = LibParser.NameResolver
 
-open Utils
 
 /// Reads and parses all .dark files in `packages` dir,
 /// failing upon any individual failure
@@ -50,7 +49,7 @@ let load (builtins : RT.Builtins) : Ply<List<PT.PackageOp>> =
       |> Ply.List.mapSequentially (fun (path, contents) ->
         LibParser.Parser.parsePackageFile
           builtins
-          (inMemPackageManagerFromOps firstPassOps)
+          (LibPackageManager.PackageManager.withExtraOps PT.PackageManager.empty firstPassOps)
           NR.OnMissing.ThrowError
           path
           contents)
