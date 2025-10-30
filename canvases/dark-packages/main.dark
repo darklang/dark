@@ -37,21 +37,6 @@ let _handler _req =
     Stdlib.Http.response (Stdlib.String.toBytes errorMsg) 400L
 
 
-// type HttpHandler =
-//   { verb: String
-//     route: String
-//     body: HttpRequest -> HttpResponse }
-
-// let handler =
-//   HttpHandler
-//     { verb = "GET"
-//       route = "/ops"
-//       body =
-//         fun req ->
-//         }
-
-
-
 [<HttpHandler("GET", "/ops")>]
 let _handler _req =
   let sinceParam =
@@ -87,20 +72,6 @@ let _handler _req =
 
 
 
-(*Implementation plan:
-- add syncs table
-- make Sync.fs in LibPackageManager real
-  - 'get latest sync date' (querying DB)
-- expose builtins
-- make the HTTP endpoints real
-- CLI 'sync' command
-- see changes *magic*
-- VS Code command, etc.
-- actually test it: get tailscale stuff set up, etc.
-  (could test w/ 2 computers locally)
-*)
-
-
 (*
 if ocean and I have diverged at all, we could face weird sync issues
 specifically due to .dark files not yet making it into ops, or something?
@@ -118,17 +89,7 @@ when the 'servers' are started up.
 
  what if someone is connecting for the first time?
  maybe the .db that we ship with the CLI has some 'since' date?
- Like when was that dump craeted?
-
-DB:
-- 'syncs' table -- just records how many ops were pushed/pulled
-  id
-  instance_id // ocean | stachu | (matter.darklang.com) | dark-matter.shell.com
-  when
-  ops pushed (just a count)
-  ops fetched (just a count)
-  (maybe future: adjust package_op table to have sync id)
-    (prob. not)
+ Like when was that dump created?
 
 
 LibPackageManager changes
@@ -158,16 +119,11 @@ if so, we likely need to record those dates separately
 Builtins:
 - Builtin.scmSync() -- no args, just calls that sync fn in the PM
 
-CLI changes:
-- `sync` command which triggers this
-
 VS Code changes:
 - some 'sync' command
 - maybe a button to trigger it
 - maybe a view of the syncs (just list when we've synched and how many ops were pushed/pulled)
 
-LSP changes:
--
 
 *)
 
@@ -627,3 +583,19 @@ let _handler _req =
             results
 
         Stdlib.Http.response (Stdlib.String.toBytes json) 200L
+
+
+
+// FUTURE:
+// type HttpHandler =
+//   { verb: String
+//     route: String
+//     body: HttpRequest -> HttpResponse }
+
+// let handler =
+//   HttpHandler
+//     { verb = "GET"
+//       route = "/ops"
+//       body =
+//         fun req ->
+//         }

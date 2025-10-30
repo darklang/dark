@@ -13,7 +13,6 @@ open TestUtils.PTShortcuts
 // which better points out the diffs in the lists
 
 module PM =
-  // TODO: Update for new package schema (no name field, uses PackageOp instead)
   module Types =
     let make id definition : PT.PackageType.PackageType =
       { id = id

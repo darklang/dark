@@ -1,8 +1,8 @@
-module LibPackageManager.PackageOpPlayback
-
 /// Applies PackageOps to the DB projection tables.
 /// These tables (package_types, package_values, package_functions, locations) are projections
 /// of the source-of-truth package_ops table.
+module LibPackageManager.PackageOpPlayback
+
 
 open System.Threading.Tasks
 open FSharp.Control.Tasks
@@ -23,7 +23,9 @@ let private applyAddType (typ : PT.PackageType.PackageType) : Task<unit> =
   task {
     let ptDef = BinarySerialization.PT.PackageType.serialize typ.id typ
     let rtDef =
-      typ |> PT2RT.PackageType.toRT |> BinarySerialization.RT.PackageType.serialize typ.id
+      typ
+      |> PT2RT.PackageType.toRT
+      |> BinarySerialization.RT.PackageType.serialize typ.id
 
     do!
       Sql.query
@@ -103,7 +105,10 @@ let private applySetName
         """
       |> Sql.parameters
         [ "item_id", Sql.uuid itemId
-          "branch_id", (match branchId with | Some id -> Sql.uuid id | None -> Sql.dbnull) ]
+          "branch_id",
+          (match branchId with
+           | Some id -> Sql.uuid id
+           | None -> Sql.dbnull) ]
       |> Sql.executeStatementAsync
 
     // Insert new location entry with unique location_id
@@ -117,7 +122,10 @@ let private applySetName
       |> Sql.parameters
         [ "location_id", Sql.uuid locationId
           "item_id", Sql.uuid itemId
-          "branch_id", (match branchId with | Some id -> Sql.uuid id | None -> Sql.dbnull)
+          "branch_id",
+          (match branchId with
+           | Some id -> Sql.uuid id
+           | None -> Sql.dbnull)
           "owner", Sql.string location.owner
           "modules", Sql.string modulesStr
           "name", Sql.string location.name
@@ -145,7 +153,10 @@ let applyOp (branchId : Option<PT.BranchID>) (op : PT.PackageOp) : Task<unit> =
 
 /// Apply a list of PackageOps to the projection tables
 /// This is used during package loading/reload
-let applyOps (branchId : Option<PT.BranchID>) (ops : List<PT.PackageOp>) : Task<unit> =
+let applyOps
+  (branchId : Option<PT.BranchID>)
+  (ops : List<PT.PackageOp>)
+  : Task<unit> =
   task {
     for op in ops do
       do! applyOp branchId op

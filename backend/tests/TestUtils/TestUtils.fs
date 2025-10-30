@@ -1578,9 +1578,9 @@ let parsePTExpr (branchID : Option<PT.BranchID>) (code : string) : Task<PT.Expr>
       RT.FQFnName.FQFnName.Package PackageIDs.Fn.LanguageTools.Parser.parsePTExpr
 
     let branchID =
-      match branchID with
-      | Some id -> Dval.option RT.KTUuid (Some(RT.DUuid id))
-      | None -> Dval.option RT.KTUuid None
+      branchID
+      |> Option.map RT.DUuid
+      |> Dval.option RT.KTUuid
 
     let args = NEList.doubleton branchID (RT.DString code)
     let! execResult = LibExecution.Execution.executeFunction state name [] args
