@@ -72,6 +72,74 @@ let extractLocationMaps
   (typeLocToId, valueLocToId, fnLocToId)
 
 
+/// Stabilize IDs in ops by matching them to stable IDs from previous pass
+/// Used when reparsing to ensure IDs remain consistent across parses
+let stabilizeOpIds
+  (stableTypeLocToId : Map<PT.PackageLocation, uuid>)
+  (stableValueLocToId : Map<PT.PackageLocation, uuid>)
+  (stableFnLocToId : Map<PT.PackageLocation, uuid>)
+  (allOps : List<PT.PackageOp>)
+  (op : PT.PackageOp)
+  : PT.PackageOp =
+  match op with
+  | PT.PackageOp.SetTypeName(_, loc) ->
+    let stableId =
+      stableTypeLocToId
+      |> Map.tryFind loc
+      |> Option.defaultWith (fun () -> System.Guid.NewGuid())
+    PT.PackageOp.SetTypeName(stableId, loc)
+
+  | PT.PackageOp.AddType typ ->
+    let typLoc =
+      allOps
+      |> List.tryPick (function
+        | PT.PackageOp.SetTypeName(id, loc) when id = typ.id -> Some loc
+        | _ -> None)
+    let stableId =
+      typLoc
+      |> Option.bind (fun loc -> Map.tryFind loc stableTypeLocToId)
+      |> Option.defaultValue typ.id
+    PT.PackageOp.AddType { typ with id = stableId }
+
+  | PT.PackageOp.SetValueName(_, loc) ->
+    let stableId =
+      stableValueLocToId
+      |> Map.tryFind loc
+      |> Option.defaultWith (fun () -> System.Guid.NewGuid())
+    PT.PackageOp.SetValueName(stableId, loc)
+
+  | PT.PackageOp.AddValue value ->
+    let valueLoc =
+      allOps
+      |> List.tryPick (function
+        | PT.PackageOp.SetValueName(id, loc) when id = value.id -> Some loc
+        | _ -> None)
+    let stableId =
+      valueLoc
+      |> Option.bind (fun loc -> Map.tryFind loc stableValueLocToId)
+      |> Option.defaultValue value.id
+    PT.PackageOp.AddValue { value with id = stableId }
+
+  | PT.PackageOp.SetFnName(_, loc) ->
+    let stableId =
+      stableFnLocToId
+      |> Map.tryFind loc
+      |> Option.defaultWith (fun () -> System.Guid.NewGuid())
+    PT.PackageOp.SetFnName(stableId, loc)
+
+  | PT.PackageOp.AddFn fn ->
+    let fnLoc =
+      allOps
+      |> List.tryPick (function
+        | PT.PackageOp.SetFnName(id, loc) when id = fn.id -> Some loc
+        | _ -> None)
+    let stableId =
+      fnLoc
+      |> Option.bind (fun loc -> Map.tryFind loc stableFnLocToId)
+      |> Option.defaultValue fn.id
+    PT.PackageOp.AddFn { fn with id = stableId }
+
+
 /// Create an in-memory PackageManager from PackageOps (for tests)
 let withExtraOps
   (basePM : PT.PackageManager)

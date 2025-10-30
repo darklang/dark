@@ -57,79 +57,19 @@ let load (builtins : RT.Builtins) : Ply<List<PT.PackageOp>> =
       |> Ply.map List.flatten
 
     // Build location→ID maps from first pass for ID stabilization
-    let firstPassTypeLocToId =
-      firstPassOps
-      |> List.choose (function
-        | PT.PackageOp.SetTypeName(id, loc) -> Some(loc, id)
-        | _ -> None)
-      |> Map.ofList
-
-    let firstPassValueLocToId =
-      firstPassOps
-      |> List.choose (function
-        | PT.PackageOp.SetValueName(id, loc) -> Some(loc, id)
-        | _ -> None)
-      |> Map.ofList
-
-    let firstPassFnLocToId =
-      firstPassOps
-      |> List.choose (function
-        | PT.PackageOp.SetFnName(id, loc) -> Some(loc, id)
-        | _ -> None)
-      |> Map.ofList
+    let (firstPassTypeLocToId, firstPassValueLocToId, firstPassFnLocToId) =
+      LibPackageManager.PackageManager.extractLocationMaps firstPassOps
 
     // Adjust IDs in second pass to match first pass (ID stabilization)
     let adjustedOps : List<PT.PackageOp> =
       reParsedOps
-      |> List.map (function
-        | PT.PackageOp.SetTypeName(_, loc) ->
-          let stableId = firstPassTypeLocToId |> Map.tryFind loc |> Option.defaultWith (fun () -> System.Guid.NewGuid())
-          PT.PackageOp.SetTypeName(stableId, loc)
-
-        | PT.PackageOp.AddType typ ->
-          // Find this type's location to get stable ID
-          let typLoc =
-            reParsedOps
-            |> List.tryPick (function
-              | PT.PackageOp.SetTypeName(id, loc) when id = typ.id -> Some loc
-              | _ -> None)
-          let stableId =
-            typLoc
-            |> Option.bind (fun loc -> Map.tryFind loc firstPassTypeLocToId)
-            |> Option.defaultValue typ.id
-          PT.PackageOp.AddType { typ with id = stableId }
-
-        | PT.PackageOp.SetValueName(_, loc) ->
-          let stableId = firstPassValueLocToId |> Map.tryFind loc |> Option.defaultWith (fun () -> System.Guid.NewGuid())
-          PT.PackageOp.SetValueName(stableId, loc)
-
-        | PT.PackageOp.AddValue value ->
-          let valueLoc =
-            reParsedOps
-            |> List.tryPick (function
-              | PT.PackageOp.SetValueName(id, loc) when id = value.id -> Some loc
-              | _ -> None)
-          let stableId =
-            valueLoc
-            |> Option.bind (fun loc -> Map.tryFind loc firstPassValueLocToId)
-            |> Option.defaultValue value.id
-          PT.PackageOp.AddValue { value with id = stableId }
-
-        | PT.PackageOp.SetFnName(_, loc) ->
-          let stableId = firstPassFnLocToId |> Map.tryFind loc |> Option.defaultWith (fun () -> System.Guid.NewGuid())
-          PT.PackageOp.SetFnName(stableId, loc)
-
-        | PT.PackageOp.AddFn fn ->
-          let fnLoc =
-            reParsedOps
-            |> List.tryPick (function
-              | PT.PackageOp.SetFnName(id, loc) when id = fn.id -> Some loc
-              | _ -> None)
-          let stableId =
-            fnLoc
-            |> Option.bind (fun loc -> Map.tryFind loc firstPassFnLocToId)
-            |> Option.defaultValue fn.id
-          PT.PackageOp.AddFn { fn with id = stableId })
+      |> List.map (
+        LibPackageManager.PackageManager.stabilizeOpIds
+          firstPassTypeLocToId
+          firstPassValueLocToId
+          firstPassFnLocToId
+          reParsedOps
+      )
 
     return adjustedOps
   }
