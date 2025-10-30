@@ -7,8 +7,8 @@
 - [x] what's going on w/ the 'type' fields in vscode-extension/client/src/types/index.ts - seems dumb and has a bunch of dead stuff. (removed PatchNode, DemoScenario, ValidationError)
 - [x] could vscode-extension/package.json have some // comments to break down sections like of commands? Not a lot, just in places where there's too much clutter. (added organizing comments)
 - [x] in the ops table, have we made a column that tracks whether it's been applied yet? if not, that might be a thing to do. (added applied column + updated Inserts.fs)
-- [ ] it feels to me as though backend/src/LibParser/TestModule.fs has too much "id stabilization" logic that should be centralized and reused somewhere else I bet we have duplication. like maybe backend/src/LocalExec/LoadPackagesFromDisk.fs.
-- [ ] similarly backend/src/LocalExec/Utils.fs seems to have some overlap with 'withExtras' from LibExe/ProgramTypes.fs
+- [x] it feels to me as though backend/src/LibParser/TestModule.fs has too much "id stabilization" logic that should be centralized and reused somewhere else I bet we have duplication. like maybe backend/src/LocalExec/LoadPackagesFromDisk.fs. (centralized into PackageManager.stabilizeOpIds)
+- [x] similarly backend/src/LocalExec/Utils.fs seems to have some overlap with 'withExtras' from LibExe/ProgramTypes.fs (removed inMemPackageManagerFromOps, using PackageManager.withExtraOps)
 - [ ] packages/darklang/cli/packages/location.dark is a good file, but the module its in is sort of nonsensical. move this stuff?
 - [ ] does packages/darklang/cli/packages/navInteractive.dark really need to be over 700 lines of code to get that functionality? maybe some major refactor would tidy it up a ton?
 - [ ] packages/darklang/cli/packages/remove.dark can be removed - not a command we _actually_ support at this time. migrate idea to later.md
