@@ -938,7 +938,7 @@ module PackageFn =
     let params =
       f.parameters
       |> Stdlib.List.map (fun p ->
-        p |> PrettyPrinter.ProgramTypes.PackageFn.parameter branchID)
+        PrettyPrinter.ProgramTypes.PackageFn.parameter branchID p)
       |> Stdlib.String.join ", "
 
     let returnType =
