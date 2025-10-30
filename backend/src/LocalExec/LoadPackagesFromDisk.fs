@@ -11,6 +11,7 @@ module PT = LibExecution.ProgramTypes
 module PT2DT = LibExecution.ProgramTypesToDarkTypes
 module NR = LibParser.NameResolver
 
+open Utils
 
 /// Reads and parses all .dark files in `packages` dir,
 /// failing upon any individual failure
