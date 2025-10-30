@@ -8,23 +8,12 @@ open LibExecution.RuntimeTypes
 
 module PT = LibExecution.ProgramTypes
 module PT2DT = LibExecution.ProgramTypesToDarkTypes
-module BinarySerialization = LibBinarySerialization.BinarySerialization
 module DarkDateTime = LibExecution.DarkDateTime
 module Dval = LibExecution.Dval
 module Builtin = LibExecution.Builtin
 module PackageIDs = LibExecution.PackageIDs
 
 open Builtin.Shortcuts
-open Microsoft.Data.Sqlite
-open Fumble
-open LibDB.Db
-
-
-type HistoryEntry =
-  { timestamp : System.DateTime
-    branchId : Option<uuid>
-    itemId : uuid
-    opType : string }
 
 
 // TODO: Reconsider which of these functions should be public vs admin-only:
@@ -50,67 +39,14 @@ let fns : List<BuiltInFn> =
                 | DString s -> s
                 | _ -> "")
 
-            let modulesStr = String.concat "." modules
-
-            // Query package_ops for all Set*Name ops for this location
             let! history =
-              Sql.query
-                """
-                SELECT id, created_at, branch_id, op_blob
-                FROM package_ops
-                ORDER BY created_at ASC
-                """
-              |> Sql.executeAsync (fun read ->
-                let opId = read.uuid "id"
-                let timestamp = read.dateTime "created_at"
-                let branchId = read.uuidOrNone "branch_id"
-                let opBlob = read.bytes "op_blob"
-
-                let op = BinarySerialization.PT.PackageOp.deserialize opId opBlob
-
-                // Check if this op sets the name we're looking for
-                match op with
-                | PT.PackageOp.SetFnName(id, location)
-                  when itemType = "fn"
-                       && location.owner = owner
-                       && String.concat "." location.modules = modulesStr
-                       && location.name = name ->
-                  Some
-                    { timestamp = timestamp
-                      branchId = branchId
-                      itemId = id
-                      opType = "SetFnName" }
-
-                | PT.PackageOp.SetTypeName(id, location)
-                  when itemType = "type"
-                       && location.owner = owner
-                       && String.concat "." location.modules = modulesStr
-                       && location.name = name ->
-                  Some
-                    { timestamp = timestamp
-                      branchId = branchId
-                      itemId = id
-                      opType = "SetTypeName" }
-
-                | PT.PackageOp.SetValueName(id, location)
-                  when itemType = "value"
-                       && location.owner = owner
-                       && String.concat "." location.modules = modulesStr
-                       && location.name = name ->
-                  Some
-                    { timestamp = timestamp
-                      branchId = branchId
-                      itemId = id
-                      opType = "SetValueName" }
-
-                | _ -> None)
+              LibPackageManager.Queries.getNameHistory owner modules name itemType
 
             let historyEntryTypeName =
               FQTypeName.fqPackage PackageIDs.Type.SCM.Branch.historyEntry
 
             let historyDvals =
               history
-              |> List.choose (fun x -> x)
               |> List.map (fun entry ->
                 let fields =
                   [ "timestamp", DDateTime(DarkDateTime.fromDateTime entry.timestamp)

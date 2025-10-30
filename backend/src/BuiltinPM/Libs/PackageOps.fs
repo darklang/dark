@@ -69,11 +69,12 @@ let fns : List<BuiltInFn> =
               let opBlob = BinarySerialization.PT.PackageOp.serialize opId op
 
               // INSERT OR IGNORE - if hash already exists, skip it (deduplication)
+              // TODO: Move this INSERT logic to LibPackageManager.Inserts
               let! rowsAffected =
                 Sql.query
                   """
-                  INSERT OR IGNORE INTO package_ops (id, branch_id, op_blob, created_at)
-                  VALUES (@id, @branch_id, @op_blob, @created_at)
+                  INSERT OR IGNORE INTO package_ops (id, branch_id, op_blob, created_at, applied)
+                  VALUES (@id, @branch_id, @op_blob, @created_at, @applied)
                   """
                 |> Sql.parameters
                   [ "id", Sql.uuid opId
@@ -82,7 +83,8 @@ let fns : List<BuiltInFn> =
                      | Some id -> Sql.uuid id
                      | None -> Sql.dbnull)
                     "op_blob", Sql.bytes opBlob
-                    "created_at", Sql.string (System.DateTime.UtcNow.ToString("o")) ]
+                    "created_at", Sql.string (System.DateTime.UtcNow.ToString("o"))
+                    "applied", Sql.bool true ]
                 |> Sql.executeNonQueryAsync
 
               // Only apply op if it was actually inserted (not a duplicate)
@@ -111,40 +113,8 @@ let fns : List<BuiltInFn> =
           uply {
             let branchId = C2DT.Option.fromDT D.uuid branchIdOpt
 
-            let! ops =
-              match branchId with
-              | Some id ->
-                // Query specific branch only
-                Sql.query
-                  """
-                  SELECT id, op_blob
-                  FROM package_ops
-                  WHERE branch_id = @branch_id
-                  ORDER BY created_at DESC
-                  LIMIT @limit
-                  """
-                |> Sql.parameters [ "branch_id", Sql.uuid id; "limit", Sql.int64 limit ]
-                |> Sql.executeAsync (fun read ->
-                  let opId = read.uuid "id"
-                  let opBlob = read.bytes "op_blob"
-                  let op = BinarySerialization.PT.PackageOp.deserialize opId opBlob
-                  PT2DT.PackageOp.toDT op)
-              | None ->
-                // Query main branch only (branch_id IS NULL)
-                Sql.query
-                  """
-                  SELECT id, op_blob
-                  FROM package_ops
-                  WHERE branch_id IS NULL
-                  ORDER BY created_at DESC
-                  LIMIT @limit
-                  """
-                |> Sql.parameters [ "limit", Sql.int64 limit ]
-                |> Sql.executeAsync (fun read ->
-                  let opId = read.uuid "id"
-                  let opBlob = read.bytes "op_blob"
-                  let op = BinarySerialization.PT.PackageOp.deserialize opId opBlob
-                  PT2DT.PackageOp.toDT op)
+            let! ptOps = LibPackageManager.Queries.getRecentOps branchId limit
+            let ops = ptOps |> List.map PT2DT.PackageOp.toDT
 
             let opVT = LibExecution.ValueType.customType PT2DT.PackageOp.typeName []
             return DList(opVT, ops)
@@ -164,20 +134,8 @@ let fns : List<BuiltInFn> =
         function
         | _, _, _, [ DInt64 limit ] ->
           uply {
-            let! ops =
-              Sql.query
-                """
-                SELECT id, op_blob
-                FROM package_ops
-                ORDER BY created_at DESC
-                LIMIT @limit
-                """
-              |> Sql.parameters [ "limit", Sql.int64 limit ]
-              |> Sql.executeAsync (fun read ->
-                let opId = read.uuid "id"
-                let opBlob = read.bytes "op_blob"
-                let op = BinarySerialization.PT.PackageOp.deserialize opId opBlob
-                PT2DT.PackageOp.toDT op)
+            let! ptOps = LibPackageManager.Queries.getRecentOpsAllBranches limit
+            let ops = ptOps |> List.map PT2DT.PackageOp.toDT
 
             let opVT = LibExecution.ValueType.customType PT2DT.PackageOp.typeName []
             return DList(opVT, ops)
@@ -202,43 +160,8 @@ let fns : List<BuiltInFn> =
           uply {
             let branchId = C2DT.Option.fromDT D.uuid branchIdOpt
 
-            let sinceStr = LibExecution.DarkDateTime.toIsoString since
-
-            let! ops =
-              match branchId with
-              | Some id ->
-                // Query specific branch only
-                Sql.query
-                  """
-                  SELECT id, op_blob
-                  FROM package_ops
-                  WHERE branch_id = @branch_id
-                    AND created_at > @since
-                  ORDER BY created_at ASC
-                  """
-                |> Sql.parameters
-                  [ "branch_id", Sql.uuid id; "since", Sql.string sinceStr ]
-                |> Sql.executeAsync (fun read ->
-                  let opId = read.uuid "id"
-                  let opBlob = read.bytes "op_blob"
-                  let op = BinarySerialization.PT.PackageOp.deserialize opId opBlob
-                  PT2DT.PackageOp.toDT op)
-              | None ->
-                // Query main branch only (branch_id IS NULL)
-                Sql.query
-                  """
-                  SELECT id, op_blob
-                  FROM package_ops
-                  WHERE branch_id IS NULL
-                    AND created_at > @since
-                  ORDER BY created_at ASC
-                  """
-                |> Sql.parameters [ "since", Sql.string sinceStr ]
-                |> Sql.executeAsync (fun read ->
-                  let opId = read.uuid "id"
-                  let opBlob = read.bytes "op_blob"
-                  let op = BinarySerialization.PT.PackageOp.deserialize opId opBlob
-                  PT2DT.PackageOp.toDT op)
+            let! ptOps = LibPackageManager.Queries.getOpsSince branchId since
+            let ops = ptOps |> List.map PT2DT.PackageOp.toDT
 
             let opVT = LibExecution.ValueType.customType PT2DT.PackageOp.typeName []
             return DList(opVT, ops)
