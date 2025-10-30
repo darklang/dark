@@ -29,9 +29,9 @@ let fns : List<BuiltInFn> =
             let! lastSync = LibPackageManager.Sync.getLastSyncDate instanceId
 
             return
-              match lastSync with
-              | None -> Dval.optionNone KTDateTime
-              | Some dt -> Dval.optionSome KTDateTime (DDateTime dt)
+              lastSync
+              |> Option.map DDateTime
+              |> Dval.option KTDateTime
           }
         | _ -> incorrectArgs ()
       sqlSpec = NotQueryable

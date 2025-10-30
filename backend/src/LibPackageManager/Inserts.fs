@@ -13,6 +13,21 @@ module PT = LibExecution.ProgramTypes
 module BinarySerialization = LibBinarySerialization.BinarySerialization
 
 
+/// Compute a content-addressed ID for a PackageOp by hashing its serialized content
+let computeOpHash (op : PT.PackageOp) : System.Guid =
+  use memoryStream = new System.IO.MemoryStream()
+  use binaryWriter = new System.IO.BinaryWriter(memoryStream)
+
+  // Serialize just the op content (without an ID)
+  LibBinarySerialization.Serializers.PT.PackageOp.write binaryWriter op
+
+  let opBytes = memoryStream.ToArray()
+  let hashBytes = System.Security.Cryptography.SHA256.HashData(opBytes)
+
+  // Take first 16 bytes to make a UUID
+  System.Guid(hashBytes[0..15])
+
+
 /// Insert PackageOps into the package_ops table and apply them to projection tables
 /// branchId: None = main/merged, Some(id) = branch-specific
 let insertOps (branchId : Option<PT.BranchID>) (ops : List<PT.PackageOp>) : Task<unit> =
@@ -44,4 +59,50 @@ let insertOps (branchId : Option<PT.BranchID>) (ops : List<PT.PackageOp>) : Task
 
     // Step 2: Apply ops to projection tables (types, values, functions, locations)
     do! LibPackageManager.PackageOpPlayback.applyOps branchId ops
+  }
+
+
+/// Insert PackageOps with deduplication (INSERT OR IGNORE).
+/// Uses content-addressed hashing to skip duplicate ops.
+/// Returns count of actually inserted ops (excludes duplicates).
+let insertOrIgnore
+  (branchId : Option<PT.BranchID>)
+  (ops : List<PT.PackageOp>)
+  : Task<int> =
+  task {
+    if List.isEmpty ops then
+      return 0
+    else
+      let mutable insertedCount = 0
+
+      // Process each op individually to track which ones were actually inserted
+      for op in ops do
+        // Use content-addressed hash as the ID for deduplication
+        let opId = computeOpHash op
+        let opBlob = BinarySerialization.PT.PackageOp.serialize opId op
+
+        // INSERT OR IGNORE - if hash already exists, skip it
+        let! rowsAffected =
+          Sql.query
+            """
+            INSERT OR IGNORE INTO package_ops (id, branch_id, op_blob, created_at, applied)
+            VALUES (@id, @branch_id, @op_blob, @created_at, @applied)
+            """
+          |> Sql.parameters
+            [ "id", Sql.uuid opId
+              "branch_id",
+              (match branchId with
+               | Some id -> Sql.uuid id
+               | None -> Sql.dbnull)
+              "op_blob", Sql.bytes opBlob
+              "created_at", Sql.string (System.DateTime.UtcNow.ToString("o"))
+              "applied", Sql.bool true ]
+          |> Sql.executeNonQueryAsync
+
+        // Only apply op if it was actually inserted (not a duplicate)
+        if rowsAffected > 0 then
+          insertedCount <- insertedCount + 1
+          do! LibPackageManager.PackageOpPlayback.applyOp branchId op
+
+      return insertedCount
   }

@@ -277,7 +277,8 @@ module Type =
 
       let packageLocation =
         p [] "PackageLocation" "a8e4f2b1-3c5d-4e6f-8a9b-1c2d3e4f5a6b"
-      let branchID = p [] "BranchID" "c1d2e3f4-5a6b-7c8d-9e0f-1a2b3c4d5e6f"
+      // CLEANUP: this isn't used anywhere - remove?
+      // let branchID = p [] "BranchID" "c1d2e3f4-5a6b-7c8d-9e0f-1a2b3c4d5e6f"
       let locatedItem = p [] "LocatedItem" "4869d6bc-f934-4341-8cab-4c42968c7790"
 
       module TypeDeclaration =
@@ -353,7 +354,6 @@ module Type =
     module Branch =
       let private p addl = p ("Branch" :: addl)
       let branch = p [] "Branch" "f1e2d3c4-b5a6-7c8d-9e0f-1a2b3c4d5e6f"
-      let historyEntry = p [] "HistoryEntry" "b1c2d3e4-f5a6-4b7c-8d9e-0f1a2b3c4d5e"
 
     module Instances =
       let private p addl = p ("Instances" :: addl)

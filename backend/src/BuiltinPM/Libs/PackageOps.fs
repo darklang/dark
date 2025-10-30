@@ -8,32 +8,11 @@ open LibExecution.RuntimeTypes
 
 module PT = LibExecution.ProgramTypes
 module PT2DT = LibExecution.ProgramTypesToDarkTypes
-module BinarySerialization = LibBinarySerialization.BinarySerialization
 module Builtin = LibExecution.Builtin
 module C2DT = LibExecution.CommonToDarkTypes
 module D = LibExecution.DvalDecoder
 
 open Builtin.Shortcuts
-open Microsoft.Data.Sqlite
-open Fumble
-open LibDB.Db
-
-
-/// Compute a content-addressed ID for a PackageOp by hashing its serialized content
-/// TODO migrate this to LibExecution or maybe LibBinarySerialization or something
-/// maybe we just have LibSerialization, and some of the things in that are Binary
-let computeOpHash (op : PT.PackageOp) : System.Guid =
-  use memoryStream = new System.IO.MemoryStream()
-  use binaryWriter = new System.IO.BinaryWriter(memoryStream)
-
-  // Serialize just the op content (without an ID)
-  LibBinarySerialization.Serializers.PT.PackageOp.write binaryWriter op
-
-  let opBytes = memoryStream.ToArray()
-  let hashBytes = System.Security.Cryptography.SHA256.HashData(opBytes)
-
-  // Take first 16 bytes to make a UUID
-  System.Guid(hashBytes[0..15])
 
 
 // TODO: Reconsider which of these functions should be public vs admin-only:
@@ -59,38 +38,8 @@ let fns : List<BuiltInFn> =
             let ptOps =
               ops |> List.choose (fun opDval -> PT2DT.PackageOp.fromDT opDval)
 
-            // Track how many ops were actually inserted (vs skipped as duplicates)
-            let mutable insertedCount = 0
-
-            // Serialize, insert, and playback each op
-            for op in ptOps do
-              // Use content-addressed hash as the ID
-              let opId = computeOpHash op
-              let opBlob = BinarySerialization.PT.PackageOp.serialize opId op
-
-              // INSERT OR IGNORE - if hash already exists, skip it (deduplication)
-              // TODO: Move this INSERT logic to LibPackageManager.Inserts
-              let! rowsAffected =
-                Sql.query
-                  """
-                  INSERT OR IGNORE INTO package_ops (id, branch_id, op_blob, created_at, applied)
-                  VALUES (@id, @branch_id, @op_blob, @created_at, @applied)
-                  """
-                |> Sql.parameters
-                  [ "id", Sql.uuid opId
-                    "branch_id",
-                    (match branchId with
-                     | Some id -> Sql.uuid id
-                     | None -> Sql.dbnull)
-                    "op_blob", Sql.bytes opBlob
-                    "created_at", Sql.string (System.DateTime.UtcNow.ToString("o"))
-                    "applied", Sql.bool true ]
-                |> Sql.executeNonQueryAsync
-
-              // Only apply op if it was actually inserted (not a duplicate)
-              if rowsAffected > 0 then
-                insertedCount <- insertedCount + 1
-                do! LibPackageManager.PackageOpPlayback.applyOp branchId op
+            // Insert ops with deduplication
+            let! insertedCount = LibPackageManager.Inserts.insertOrIgnore branchId ptOps
 
             return DInt64(int64 insertedCount)
           }
