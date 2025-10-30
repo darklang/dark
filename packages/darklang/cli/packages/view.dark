@@ -69,7 +69,8 @@ let viewEntity
           |> Stdlib.String.join ", "
           |> fun parts -> $"<{parts}>"
 
-      let defPart = Darklang.PrettyPrinter.ProgramTypes.customType item.entity.declaration
+      let defPart =
+        Darklang.PrettyPrinter.ProgramTypes.customType branchID item.entity.declaration
 
       let prettyPrinted = $"type {item.location.name}{typeParamPart} =\n  {defPart}"
       let highlighted = Darklang.Cli.SyntaxHighlighting.highlightCode prettyPrinted
@@ -98,10 +99,11 @@ let viewEntity
       let paramPart =
         item.entity.parameters
         |> Stdlib.List.map (fun param ->
-          $"({param.name}: {Darklang.PrettyPrinter.ProgramTypes.typeReference param.typ})")
+          $"({param.name}: {Darklang.PrettyPrinter.ProgramTypes.typeReference branchID param.typ})")
         |> Stdlib.String.join " "
 
-      let retPart = Darklang.PrettyPrinter.ProgramTypes.typeReference item.entity.returnType
+      let retPart =
+        Darklang.PrettyPrinter.ProgramTypes.typeReference branchID item.entity.returnType
 
       // Create context with argMap for parameter name resolution
       let argMap =
@@ -114,7 +116,8 @@ let viewEntity
         Darklang.PrettyPrinter.ProgramTypes.Context
           { currentModule = Stdlib.Option.Option.None
             currentFunction = Stdlib.Option.Option.Some item.location.name
-            argMap = argMap }
+            argMap = argMap
+            branchID = branchID }
 
       let bodyPart = Darklang.PrettyPrinter.ProgramTypes.expr context item.entity.body
 

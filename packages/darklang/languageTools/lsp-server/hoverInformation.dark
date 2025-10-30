@@ -891,7 +891,7 @@ let collectFnParameterHoverInfoAtPos
             np.typ)
           |> Stdlib.Tuple2.first
 
-        let typAsString = PrettyPrinter.ProgramTypes.typeReference typ
+        let typAsString = PrettyPrinter.ProgramTypes.typeReference branchID typ
 
         let description =
           Stdlib.Option.Option.Some(

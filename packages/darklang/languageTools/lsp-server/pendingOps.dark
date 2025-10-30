@@ -82,7 +82,7 @@ let handleGetPendingOpsRequest
     ops
     |> Stdlib.List.map (fun op ->
       let opData = Builtin.jsonSerialize<LanguageTools.ProgramTypes.PackageOp> op
-      let label = PrettyPrinter.PackageOps.packageOp op
+      let label = PrettyPrinter.PackageOps.packageOp queryBranchId op
       Json.Object [ ("op", Json.String opData); ("label", Json.String label) ])
 
   let responseJson =

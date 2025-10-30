@@ -26,10 +26,15 @@ module NameResolutionError =
 type Context =
   { currentModule: Stdlib.Option.Option<String>
     currentFunction: Stdlib.Option.Option<String>
-    argMap: Dict<Int64> }
+    argMap: Dict<Int64>
+    branchID: Stdlib.Option.Option<Uuid> }
 
 let defaultContext =
-  Context { currentModule = Stdlib.Option.Option.None; currentFunction = Stdlib.Option.Option.None; argMap = Stdlib.Dict.empty }
+  Context
+    { currentModule = Stdlib.Option.Option.None
+      currentFunction = Stdlib.Option.Option.None
+      argMap = Stdlib.Dict.empty
+      branchID = Stdlib.Option.Option.None }
 
 let packageNameWithContext
   (ctx: Context)
@@ -87,11 +92,9 @@ module FQTypeName =
       | None -> Stdlib.Uuid.toString id
 
     let fullForReference
+      (branchID: Stdlib.Option.Option<Uuid>)
       (id: LanguageTools.ProgramTypes.FQTypeName.Package)
       : String =
-      // TODO: Consider accepting branchID as parameter when pretty-printing branch-specific code
-      let branchID = Stdlib.Option.Option.None
-
       match Builtin.pmGetLocationByType branchID id with
       | Some l ->
         PrettyPrinter.ProgramTypes.packageName l.owner l.modules l.name
@@ -106,11 +109,12 @@ module FQTypeName =
     | Package p -> PrettyPrinter.ProgramTypes.FQTypeName.Package.atDefinition branchID p
 
   let fullForReference
+    (branchID: Stdlib.Option.Option<Uuid>)
     (t: LanguageTools.ProgramTypes.FQTypeName.FQTypeName)
     : String =
     match t with
     | Package p ->
-      PrettyPrinter.ProgramTypes.FQTypeName.Package.fullForReference p
+      PrettyPrinter.ProgramTypes.FQTypeName.Package.fullForReference branchID p
 
 
 module FQValueName =
@@ -139,11 +143,9 @@ module FQValueName =
       | None -> Stdlib.Uuid.toString id
 
     let fullForReference
+      (branchID: Stdlib.Option.Option<Uuid>)
       (id: LanguageTools.ProgramTypes.FQValueName.Package)
       : String =
-      // TODO: Consider accepting branchID as parameter when pretty-printing branch-specific code
-      let branchID = Stdlib.Option.Option.None
-
       match Builtin.pmGetLocationByValue branchID id with
       | Some l ->
         PrettyPrinter.ProgramTypes.packageName l.owner l.modules l.name
@@ -162,13 +164,14 @@ module FQValueName =
       PrettyPrinter.ProgramTypes.FQValueName.Package.atDefinition branchID p
 
   let fullForReference
+    (branchID: Stdlib.Option.Option<Uuid>)
     (t: LanguageTools.ProgramTypes.FQValueName.FQValueName)
     : String =
     match t with
     | Builtin b ->
       PrettyPrinter.ProgramTypes.FQValueName.Builtin.fullForReference b
     | Package p ->
-      PrettyPrinter.ProgramTypes.FQValueName.Package.fullForReference p
+      PrettyPrinter.ProgramTypes.FQValueName.Package.fullForReference branchID p
 
 
 module FQFnName =
@@ -197,11 +200,9 @@ module FQFnName =
       | None -> Stdlib.Uuid.toString id
 
     let fullForReference
+      (branchID: Stdlib.Option.Option<Uuid>)
       (id: LanguageTools.ProgramTypes.FQFnName.Package)
       : String =
-      // TODO: Consider accepting branchID as parameter when pretty-printing branch-specific code
-      let branchID = Stdlib.Option.Option.None
-
       match Builtin.pmGetLocationByFn branchID id with
       | Some l ->
         PrettyPrinter.ProgramTypes.packageName l.owner l.modules l.name
@@ -218,16 +219,20 @@ module FQFnName =
     | Package p -> PrettyPrinter.ProgramTypes.FQFnName.Package.atDefinition branchID p
 
   let fullForReference
+    (branchID: Stdlib.Option.Option<Uuid>)
     (t: LanguageTools.ProgramTypes.FQFnName.FQFnName)
     : String =
     match t with
     | Builtin b ->
       PrettyPrinter.ProgramTypes.FQFnName.Builtin.fullForReference b
     | Package p ->
-      PrettyPrinter.ProgramTypes.FQFnName.Package.fullForReference p
+      PrettyPrinter.ProgramTypes.FQFnName.Package.fullForReference branchID p
 
 
-let typeReference (t: LanguageTools.ProgramTypes.TypeReference) : String =
+let typeReference
+  (branchID: Stdlib.Option.Option<Uuid>)
+  (t: LanguageTools.ProgramTypes.TypeReference)
+  : String =
   match t with
   | TVariable varName -> "'" ++ varName
 
@@ -249,16 +254,18 @@ let typeReference (t: LanguageTools.ProgramTypes.TypeReference) : String =
   | TDateTime -> "DateTime"
   | TUuid -> "Uuid"
 
-  | TList inner -> $"List<{PrettyPrinter.ProgramTypes.typeReference inner}>"
+  | TList inner ->
+    $"List<{PrettyPrinter.ProgramTypes.typeReference branchID inner}>"
 
   | TTuple(first, second, theRest) ->
     (Stdlib.List.append [ first; second ] theRest)
     |> Stdlib.List.map (fun item ->
-      PrettyPrinter.ProgramTypes.typeReference item)
+      PrettyPrinter.ProgramTypes.typeReference branchID item)
     |> Stdlib.String.join " * "
     |> fun parts -> "(" ++ parts ++ ")"
 
-  | TDict inner -> $"Dict<{PrettyPrinter.ProgramTypes.typeReference inner}>"
+  | TDict inner ->
+    $"Dict<{PrettyPrinter.ProgramTypes.typeReference branchID inner}>"
 
   | TCustomType(typ, args) ->
     let argsPart =
@@ -267,27 +274,29 @@ let typeReference (t: LanguageTools.ProgramTypes.TypeReference) : String =
       | args ->
         args
         |> Stdlib.List.map (fun arg ->
-          PrettyPrinter.ProgramTypes.typeReference arg)
+          PrettyPrinter.ProgramTypes.typeReference branchID arg)
         |> Stdlib.String.join ", "
         |> fun parts -> $"<{parts}>"
 
     let typeNamePart =
       match typ with
-      | Ok name -> PrettyPrinter.ProgramTypes.FQTypeName.fullForReference name
+      | Ok name ->
+        PrettyPrinter.ProgramTypes.FQTypeName.fullForReference branchID name
       | Error e -> PrettyPrinter.ProgramTypes.NameResolutionError.source e
 
     $"{typeNamePart}{argsPart}"
 
-  | TDB inner -> $"DB<{PrettyPrinter.ProgramTypes.typeReference inner}>"
+  | TDB inner ->
+    $"DB<{PrettyPrinter.ProgramTypes.typeReference branchID inner}>"
 
   | TFn(args, ret) ->
     let argPart =
       args
       |> Stdlib.List.map (fun arg ->
-        PrettyPrinter.ProgramTypes.typeReference arg)
+        PrettyPrinter.ProgramTypes.typeReference branchID arg)
       |> Stdlib.String.join " -> "
 
-    $"{argPart} -> {PrettyPrinter.ProgramTypes.typeReference ret}"
+    $"{argPart} -> {PrettyPrinter.ProgramTypes.typeReference branchID ret}"
   | _ ->
     let s = Builtin.Json.serialize<LanguageTools.ProgramTypes.TypeReference> t
 
@@ -420,7 +429,8 @@ let pipeExpr (ctx: Context) (p: LanguageTools.ProgramTypes.PipeExpr) : String =
   | EPipeFnCall(_id, fnName, typeArgs, args) ->
     let fnNamePart =
       match fnName with
-      | Ok name -> PrettyPrinter.ProgramTypes.FQFnName.fullForReference name
+      | Ok name ->
+        PrettyPrinter.ProgramTypes.FQFnName.fullForReference ctx.branchID name
       | Error e -> PrettyPrinter.ProgramTypes.NameResolutionError.source e
 
     let typeArgsPart =
@@ -429,7 +439,7 @@ let pipeExpr (ctx: Context) (p: LanguageTools.ProgramTypes.PipeExpr) : String =
       | _ ->
         typeArgs
         |> Stdlib.List.map (fun typeArg ->
-          PrettyPrinter.ProgramTypes.typeReference typeArg)
+          PrettyPrinter.ProgramTypes.typeReference ctx.branchID typeArg)
         |> Stdlib.String.join ", "
         |> fun parts -> $"<{parts}>"
 
@@ -451,7 +461,8 @@ let pipeExpr (ctx: Context) (p: LanguageTools.ProgramTypes.PipeExpr) : String =
   | EPipeEnum(_id, typeName, caseName, fields) ->
     let typeNamePart =
       match typeName with
-      | Ok name -> PrettyPrinter.ProgramTypes.FQTypeName.fullForReference name
+      | Ok name ->
+        PrettyPrinter.ProgramTypes.FQTypeName.fullForReference ctx.branchID name
       | Error e -> PrettyPrinter.ProgramTypes.NameResolutionError.source e
 
     match fields with
@@ -529,7 +540,8 @@ let expr (ctx: Context) (e: LanguageTools.ProgramTypes.Expr) : String =
   | ERecord(_id, typeName, typeArgs, fields) ->
     let typeNamePart =
       match typeName with
-      | Ok name -> PrettyPrinter.ProgramTypes.FQTypeName.fullForReference name
+      | Ok name ->
+        PrettyPrinter.ProgramTypes.FQTypeName.fullForReference ctx.branchID name
       | Error e -> PrettyPrinter.ProgramTypes.NameResolutionError.source e
 
     let typeArgsPart =
@@ -538,7 +550,7 @@ let expr (ctx: Context) (e: LanguageTools.ProgramTypes.Expr) : String =
       | _ ->
         typeArgs
         |> Stdlib.List.map (fun typeArg ->
-          PrettyPrinter.ProgramTypes.typeReference typeArg)
+          PrettyPrinter.ProgramTypes.typeReference ctx.branchID typeArg)
         |> Stdlib.String.join ", "
         |> fun parts -> $"<{parts}>"
 
@@ -555,7 +567,8 @@ let expr (ctx: Context) (e: LanguageTools.ProgramTypes.Expr) : String =
   | EEnum(_id, typeName, typeArgs, caseName, fields) ->
     let typeNamePart =
       match typeName with
-      | Ok name -> PrettyPrinter.ProgramTypes.FQTypeName.fullForReference name
+      | Ok name ->
+        PrettyPrinter.ProgramTypes.FQTypeName.fullForReference ctx.branchID name
       | Error e -> PrettyPrinter.ProgramTypes.NameResolutionError.source e
 
     let typeArgsPart =
@@ -564,7 +577,7 @@ let expr (ctx: Context) (e: LanguageTools.ProgramTypes.Expr) : String =
       | _ ->
         typeArgs
         |> Stdlib.List.map (fun typeArg ->
-          PrettyPrinter.ProgramTypes.typeReference typeArg)
+          PrettyPrinter.ProgramTypes.typeReference ctx.branchID typeArg)
         |> Stdlib.String.join ", "
         |> fun parts -> $"<{parts}>"
 
@@ -700,14 +713,15 @@ let expr (ctx: Context) (e: LanguageTools.ProgramTypes.Expr) : String =
       let typeArgsPart =
         typeArgs
         |> Stdlib.List.map (fun typeArg ->
-          PrettyPrinter.ProgramTypes.typeReference typeArg)
+          PrettyPrinter.ProgramTypes.typeReference ctx.branchID typeArg)
         |> Stdlib.String.join ", "
 
       $"{fnNamePart}<{typeArgsPart}> {argsPart}"
 
   | EFnName(_id, fnName) ->
     match fnName with
-    | Ok name -> PrettyPrinter.ProgramTypes.FQFnName.fullForReference name
+    | Ok name ->
+      PrettyPrinter.ProgramTypes.FQFnName.fullForReference ctx.branchID name
     | Error e -> PrettyPrinter.ProgramTypes.NameResolutionError.source e
 
   // LanguageTools.ID *
@@ -730,7 +744,7 @@ let expr (ctx: Context) (e: LanguageTools.ProgramTypes.Expr) : String =
   | EValue(_id, value) ->
     match value with
     | Ok name ->
-      PrettyPrinter.ProgramTypes.FQValueName.fullForReference name
+      PrettyPrinter.ProgramTypes.FQValueName.fullForReference ctx.branchID name
     | Error e -> PrettyPrinter.ProgramTypes.NameResolutionError.source e
 
   | EStatement (_id, first, next) ->
@@ -766,20 +780,23 @@ let expr (ctx: Context) (e: LanguageTools.ProgramTypes.Expr) : String =
 
 module TypeDeclaration =
   let recordField
+    (branchID: Stdlib.Option.Option<Uuid>)
     (d: LanguageTools.ProgramTypes.TypeDeclaration.RecordField)
     : String =
     // TODO: /// for description
-    $"{d.name}: {PrettyPrinter.ProgramTypes.typeReference d.typ}"
+    $"{d.name}: {PrettyPrinter.ProgramTypes.typeReference branchID d.typ}"
 
   let enumField
+    (branchID: Stdlib.Option.Option<Uuid>)
     (d: LanguageTools.ProgramTypes.TypeDeclaration.EnumField)
     : String =
     match d.label with
-    | None -> PrettyPrinter.ProgramTypes.typeReference d.typ
+    | None -> PrettyPrinter.ProgramTypes.typeReference branchID d.typ
     | Some label ->
-      $"{label}: {PrettyPrinter.ProgramTypes.typeReference d.typ}"
+      $"{label}: {PrettyPrinter.ProgramTypes.typeReference branchID d.typ}"
 
   let enumCase
+    (branchID: Stdlib.Option.Option<Uuid>)
     (c: LanguageTools.ProgramTypes.TypeDeclaration.EnumCase)
     : String =
     match c.fields with
@@ -788,23 +805,24 @@ module TypeDeclaration =
       let fieldPart =
         fields
         |> Stdlib.List.map (fun field ->
-          PrettyPrinter.ProgramTypes.TypeDeclaration.enumField field)
+          PrettyPrinter.ProgramTypes.TypeDeclaration.enumField branchID field)
         |> Stdlib.String.join " * "
 
       $"| {c.name} of {fieldPart}"
 
 
 let customType
+  (branchID: Stdlib.Option.Option<Uuid>)
   (d: LanguageTools.ProgramTypes.TypeDeclaration.TypeDeclaration)
   : String =
   match d.definition with
-  | Alias typeRef -> PrettyPrinter.ProgramTypes.typeReference typeRef
+  | Alias typeRef -> PrettyPrinter.ProgramTypes.typeReference branchID typeRef
 
   | Record fields ->
     let fieldsPart =
       fields
       |> Stdlib.List.map (fun field ->
-        PrettyPrinter.ProgramTypes.TypeDeclaration.recordField field)
+        PrettyPrinter.ProgramTypes.TypeDeclaration.recordField branchID field)
       |> Stdlib.String.join "\n  "
 
     "{ " ++ (fieldsPart) ++ " }"
@@ -812,7 +830,7 @@ let customType
   | Enum cases ->
     cases
     |> Stdlib.List.map (fun case ->
-      PrettyPrinter.ProgramTypes.TypeDeclaration.enumCase case)
+      PrettyPrinter.ProgramTypes.TypeDeclaration.enumCase branchID case)
     |> Stdlib.String.join "\n"
 
 
@@ -842,14 +860,17 @@ let handler (h: LanguageTools.ProgramTypes.Handler.Handler) : String =
   $"{specPart}\nlet _handler _ignored =\n  {PrettyPrinter.ProgramTypes.expr defaultContext h.ast}"
 
 
-let db (db: LanguageTools.ProgramTypes.DB) : String =
+let db
+  (branchID: Stdlib.Option.Option<Uuid>)
+  (db: LanguageTools.ProgramTypes.DB)
+  : String =
   let versionPart =
     if db.version == 0 then
       ""
     else
       $"_v{Stdlib.Int32.toString db.version}"
 
-  let typPart = PrettyPrinter.ProgramTypes.typeReference db.typ
+  let typPart = PrettyPrinter.ProgramTypes.typeReference branchID db.typ
 
   $"type {db.name}{versionPart} = {typPart}"
 
@@ -878,7 +899,7 @@ let packageType
       |> fun parts -> $"<{parts}>"
 
   let defPart =
-    (PrettyPrinter.ProgramTypes.customType p.declaration)
+    (PrettyPrinter.ProgramTypes.customType branchID p.declaration)
     |> PrettyPrinter.indent
 
   $"type {namePart}{typeParamPart} =\n{defPart}"
@@ -889,24 +910,39 @@ let packageValue
   (p: LanguageTools.ProgramTypes.PackageValue.PackageValue)
   : String =
   let namePart = PrettyPrinter.ProgramTypes.FQValueName.Package.atDefinition branchID p.id
-  let bodyPart = PrettyPrinter.ProgramTypes.expr defaultContext p.body
+
+  let context =
+    Context
+      { currentModule = defaultContext.currentModule
+        currentFunction = defaultContext.currentFunction
+        argMap = defaultContext.argMap
+        branchID = branchID }
+
+  let bodyPart = PrettyPrinter.ProgramTypes.expr context p.body
   $"val {namePart} = {bodyPart}"
 
 
 module PackageFn =
-  let parameter (p: LanguageTools.ProgramTypes.PackageFn.Parameter) : String =
+  let parameter
+    (branchID: Stdlib.Option.Option<Uuid>)
+    (p: LanguageTools.ProgramTypes.PackageFn.Parameter)
+    : String =
     // TODO: /// for description
-    $"({p.name}: {PrettyPrinter.ProgramTypes.typeReference p.typ})"
+    $"({p.name}: {PrettyPrinter.ProgramTypes.typeReference branchID p.typ})"
 
 
-  let signature (f: LanguageTools.ProgramTypes.PackageFn.PackageFn) : String =
+  let signature
+    (branchID: Stdlib.Option.Option<Uuid>)
+    (f: LanguageTools.ProgramTypes.PackageFn.PackageFn)
+    : String =
     let params =
       f.parameters
       |> Stdlib.List.map (fun p ->
-        p |> PrettyPrinter.ProgramTypes.PackageFn.parameter)
+        p |> PrettyPrinter.ProgramTypes.PackageFn.parameter branchID)
       |> Stdlib.String.join ", "
 
-    let returnType = f.returnType |> PrettyPrinter.ProgramTypes.typeReference
+    let returnType =
+      f.returnType |> PrettyPrinter.ProgramTypes.typeReference branchID
 
     params ++ " -> " ++ returnType
 
@@ -930,10 +966,10 @@ let packageFn
   let paramPart =
     p.parameters
     |> Stdlib.List.map (fun param ->
-      PrettyPrinter.ProgramTypes.PackageFn.parameter param)
+      PrettyPrinter.ProgramTypes.PackageFn.parameter branchID param)
     |> Stdlib.String.join " "
 
-  let retPart = PrettyPrinter.ProgramTypes.typeReference p.returnType
+  let retPart = PrettyPrinter.ProgramTypes.typeReference branchID p.returnType
 
   let argMap =
     p.parameters
@@ -941,7 +977,13 @@ let packageFn
     |> Stdlib.List.fold Stdlib.Dict.empty (fun acc (name, idx) ->
       Stdlib.Dict.set acc name idx)
 
-  let context = Context { currentModule = defaultContext.currentModule; currentFunction = Stdlib.Option.Option.Some namePart; argMap = argMap }
+  let context =
+    Context
+      { currentModule = defaultContext.currentModule
+        currentFunction = Stdlib.Option.Option.Some namePart
+        argMap = argMap
+        branchID = branchID }
+
   let bodyPart = PrettyPrinter.ProgramTypes.expr context p.body
 
   $"let {namePart}{typeParamPart} {paramPart}: {retPart} =\n{PrettyPrinter.indent bodyPart}"

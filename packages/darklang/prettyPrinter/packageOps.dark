@@ -9,11 +9,12 @@ let packageLocation (loc: LanguageTools.ProgramTypes.PackageLocation) : String =
   $"{loc.owner}.{modulesPart}{loc.name}"
 
 
-let packageOp (op: LanguageTools.ProgramTypes.PackageOp) : String =
+let packageOp
+  (branchID: Stdlib.Option.Option<Uuid>)
+  (op: LanguageTools.ProgramTypes.PackageOp)
+  : String =
   match op with
   | AddType typ ->
-    let branchID = Stdlib.Option.Option.None
-
     let name =
       PrettyPrinter.ProgramTypes.FQTypeName.Package.atDefinition branchID typ.id
 
@@ -39,12 +40,10 @@ let packageOp (op: LanguageTools.ProgramTypes.PackageOp) : String =
     $"SetTypeName → {path}"
 
   | AddFn fn ->
-    let branchID = Stdlib.Option.Option.None
-
     let name =
       PrettyPrinter.ProgramTypes.FQFnName.Package.atDefinition branchID fn.id
 
-    let signature = PrettyPrinter.ProgramTypes.PackageFn.signature fn
+    let signature = PrettyPrinter.ProgramTypes.PackageFn.signature branchID fn
 
     $"AddFn {name}: {signature}"
 
@@ -53,8 +52,6 @@ let packageOp (op: LanguageTools.ProgramTypes.PackageOp) : String =
     $"SetFnName → {path}"
 
   | AddValue _value ->
-    let branchID = Stdlib.Option.Option.None
-
     let name =
       PrettyPrinter.ProgramTypes.FQValueName.Package.atDefinition
         branchID
