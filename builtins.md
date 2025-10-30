@@ -79,7 +79,6 @@ Backend execution functions for cloud-hosted Darklang code.
 Package management functions for working with Darklang packages.
 
 - **Packages** - Package CRUD operations
-- **PackageHistory** - Package version history
 - **PackageOps** - Package operation handling
 - **Instances** - Instance management
 - **Branches** - Branch operations
