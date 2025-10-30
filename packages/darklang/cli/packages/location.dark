@@ -30,7 +30,8 @@ let parseRelativeTo
 
   match parts with
   | [] -> Stdlib.Result.Result.Error "Empty location"
-  | [_] -> Stdlib.Result.Result.Error "Location must have at least owner and name"
+  | [_] -> Stdlib.Result.Result.Error "Location must have at least owner, module, and name"
+  | [_; _] -> Stdlib.Result.Result.Error "Location must have at least owner, module, and name"
   | owner :: rest ->
     let name = (Stdlib.List.last rest) |> Builtin.unwrap
     let modules = Stdlib.List.dropLast rest
@@ -46,7 +47,8 @@ let parse (location: String) : Stdlib.Result.Result<ParsedLocation, String> =
 
   match parts with
   | [] -> Stdlib.Result.Result.Error "Empty location"
-  | [_] -> Stdlib.Result.Result.Error "Location must have at least owner and name"
+  | [_] -> Stdlib.Result.Result.Error "Location must have at least owner, module, and name"
+  | [_; _] -> Stdlib.Result.Result.Error "Location must have at least owner, module, and name"
   | owner :: rest ->
     let name = (Stdlib.List.last rest) |> Builtin.unwrap
     let modules = Stdlib.List.dropLast rest
