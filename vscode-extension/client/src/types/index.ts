@@ -11,20 +11,6 @@ export interface PackageNode {
   packagePath?: string;
 }
 
-export interface PatchNode {
-  id: string;
-  label: string;
-  type: "current" | "draft" | "incoming" | "applied" | "sync-status";
-  author?: string;
-  intent?: string;
-  contextValue: string;
-  children?: PatchNode[];
-  status?: string;
-  operations?: number;
-  conflicts?: number;
-  tests?: number;
-}
-
 export interface BranchNode {
   id: string;
   label: string;
@@ -105,19 +91,6 @@ export type TreeItemState = "normal" | "modified" | "new" | "conflict" | "resolv
 export interface CommandContext {
   extensionUri: vscode.Uri;
   statusBarManager: any; // TODO: Type this properly
-}
-
-// Demo data interfaces
-export interface DemoScenario {
-  name: string;
-  description: string;
-  execute: () => void;
-}
-
-export interface ValidationError {
-  field: string;
-  message: string;
-  severity: "error" | "warning";
 }
 
 // User and authentication
