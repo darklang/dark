@@ -28,14 +28,15 @@ let insertOps (branchId : Option<PT.BranchID>) (ops : List<PT.PackageOp>) : Task
 
         let sql =
           """
-          INSERT INTO package_ops (id, branch_id, op_blob)
-          VALUES (@id, @branch_id, @op_blob)
+          INSERT INTO package_ops (id, branch_id, op_blob, applied)
+          VALUES (@id, @branch_id, @op_blob, @applied)
           """
 
         let parameters =
           [ "id", Sql.uuid opId
             "branch_id", (match branchId with | Some id -> Sql.uuid id | None -> Sql.dbnull)
-            "op_blob", Sql.bytes opBlob ]
+            "op_blob", Sql.bytes opBlob
+            "applied", Sql.bool true ]
 
         (sql, [ parameters ]))
 
