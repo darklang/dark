@@ -84,17 +84,8 @@
     ],
     "commands": [
       {
-        "command": "darklang.init",
-        "title": "Darklang: Init Workspace"
-      },
-      {
         "command": "darklang.runScript",
         "title": "Run Darklang Script"
-      },
-      {
-        "command": "darklang.refreshTreeView",
-        "title": "Refresh",
-        "icon": "$(refresh)"
       },
       {
         "command": "darklang.lookUpToplevel",
@@ -107,6 +98,10 @@
       {
         "command": "darklang.openFullModule",
         "title": "Open Full Module"
+      },
+      {
+        "command": "darklang.showOpDiff",
+        "title": "Show Op Diff"
       },
       {
         "command": "darklang.branch.new",
@@ -129,21 +124,17 @@
         "icon": "$(edit)"
       },
       {
+        "command": "darklang.branch.quickSwitch",
+        "title": "Quick Switch Branch"
+      },
+      {
+        "command": "darklang.branch.clear",
+        "title": "Clear Branch"
+      },
+      {
         "command": "darklang.branches.manageAll",
         "title": "Manage All Branches",
         "icon": "$(list-flat)"
-      },
-      {
-        "command": "darklang.switchToAST",
-        "title": "AST Mode",
-        "category": "Darklang",
-        "icon": "$(list-tree)"
-      },
-      {
-        "command": "darklang.switchToSource",
-        "title": "Source Mode",
-        "category": "Darklang",
-        "icon": "$(code)"
       },
       {
         "command": "darklang.sync.execute",
@@ -187,12 +178,6 @@
       }
     ],
     "menus": {
-			"commandPalette": [
-				{
-					"command": "darklang.init",
-					"when": "workbenchState != workspace"
-				}
-			],
 			"view/item/context": [
         {
 					"command": "darklang.openFullModule",
@@ -249,19 +234,7 @@
 					"when": "view == darklangWorkspace && viewItem == workspace-changes-root",
 					"group": "inline@5"
 				}
-			],
-      "editor/title": [
-        {
-          "command": "darklang.switchToAST",
-          "when": "resourceLangId == darklang && darklang.viewMode != 'ast'",
-          "group": "navigation@2"
-        },
-        {
-          "command": "darklang.switchToSource",
-          "when": "resourceLangId == darklang && darklang.viewMode == 'ast'",
-          "group": "navigation@2"
-        }
-      ]
+			]
 		},
     "viewsContainers": {
       "activitybar": [

@@ -1,6 +1,13 @@
 import * as vscode from 'vscode';
 import { UrlPatternRouter, ParsedUrl } from './urlPatternRouter';
 
+// CLEANUP:
+// - UrlMetadata.title field is generated but never used
+// - UrlMetadata.contentProvider field is set but never read
+// - createUrl() method (line 98) is never called anywhere
+// - getInstanceBadge() method (line 91) just returns hardcoded emoji - could be inlined
+// - Hardcoded emoji strings could be extracted to constants
+
 export interface UrlMetadata {
   title: string;
   badge: string;

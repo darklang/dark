@@ -3,7 +3,6 @@ import * as vscode from "vscode";
 export interface StatusData {
   instance: { name: string };
   branch: { name: string };
-  user: string;
 }
 
 export class StatusBarManager {
@@ -17,10 +16,10 @@ export class StatusBarManager {
   }
 
   private createDemoData(): StatusData {
+    // TODO: Get actual instance name from instance manager/state
     return {
       instance: { name: "Local" },
-      branch: { name: "main" },
-      user: "stachu"
+      branch: { name: "main" }
     };
   }
 
@@ -28,23 +27,19 @@ export class StatusBarManager {
     this.statusBarItems = [
       vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Left, 100),
       vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Left, 99),
-      vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Left, 98),
     ];
   }
 
   private updateDisplay(): void {
-    const { instance, branch, user } = this.currentData;
+    const { instance, branch } = this.currentData;
 
     this.statusBarItems[0].text = `$(server) ${instance.name}`;
     this.statusBarItems[0].tooltip = "Current Darklang instance";
+    // TODO: Add command to switch instances when implemented
 
     this.statusBarItems[1].text = `$(target) ${branch.name}`;
     this.statusBarItems[1].tooltip = "Current branch - click to manage";
     this.statusBarItems[1].command = "darklang.branch.switch";
-
-    this.statusBarItems[2].text = `$(account) ${user}`;
-    this.statusBarItems[2].tooltip = "Current user";
-    this.statusBarItems[2].command = "darklang.user.switch";
 
     this.statusBarItems.forEach(item => item.show());
   }
@@ -58,11 +53,11 @@ export class StatusBarManager {
     this.updateData({ branch: { name: branchName } });
   }
 
-  public dispose(): void {
-    this.statusBarItems.forEach(item => item.dispose());
+  public updateInstance(instanceName: string): void {
+    this.updateData({ instance: { name: instanceName } });
   }
 
-  public getCurrentData(): StatusData {
-    return { ...this.currentData };
+  public dispose(): void {
+    this.statusBarItems.forEach(item => item.dispose());
   }
 }
