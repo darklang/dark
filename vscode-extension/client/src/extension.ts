@@ -161,6 +161,7 @@ export function activate(context: vscode.ExtensionContext) {
     });
 
     context.subscriptions.push(packagesView);
+    context.subscriptions.push(packagesProvider);
 
     // Wire up packages provider to file system provider
     fileSystemProvider.setPackagesProvider(packagesProvider);

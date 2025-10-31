@@ -72,7 +72,7 @@ export class Node extends vscode.TreeItem {
           "symbol-type-parameter",
           new vscode.ThemeColor("charts.blue"),
         );
-      } else if (this.contextValue.startsWith("value:")) {
+      } else if (this.contextValue.startsWith("value:") || this.contextValue.startsWith("const:")) {
         this.iconPath = new vscode.ThemeIcon(
           "symbol-constant",
           new vscode.ThemeColor("charts.orange"),
@@ -87,12 +87,13 @@ export class Node extends vscode.TreeItem {
   }
 }
 
-export class PackagesTreeDataProvider
-  implements vscode.TreeDataProvider<Node>
-{
+export class PackagesTreeDataProvider implements vscode.TreeDataProvider<Node> {
   private _client: LanguageClient;
-  private _onDidChangeTreeData: vscode.EventEmitter<Node | undefined | null | void> = new vscode.EventEmitter<Node | undefined | null | void>();
-  readonly onDidChangeTreeData: vscode.Event<Node | undefined | null | void> = this._onDidChangeTreeData.event;
+  private _onDidChangeTreeData: vscode.EventEmitter<
+    Node | undefined | null | void
+  > = new vscode.EventEmitter<Node | undefined | null | void>();
+  readonly onDidChangeTreeData: vscode.Event<Node | undefined | null | void> =
+    this._onDidChangeTreeData.event;
   private _isServerReady: boolean = false;
   private _rootNodesCache: Node[] | null = null;
 
@@ -106,22 +107,13 @@ export class PackagesTreeDataProvider
     });
   }
 
-  // constructor() {
-  //   this.refresh();
-  //   // Listen for branch changes
-  //   this.branchStateManager.onBranchChanged(() => {
-  //     this.refresh();
-  //   });
-  // }
-
-  // refresh(): void {
-  //   this.data = this.branchStateManager.getCurrentBranchState().packages;
-  //   this._onDidChangeTreeData.fire();
-  // }
-
   refresh(): void {
     this._rootNodesCache = null;
     this._onDidChangeTreeData.fire();
+  }
+
+  dispose(): void {
+    this._onDidChangeTreeData.dispose();
   }
 
   getTreeItem(node: Node): vscode.TreeItem {
@@ -144,7 +136,9 @@ export class PackagesTreeDataProvider
 
     // If contextValue has a type prefix, extract the actual path
     if (item.contextValue) {
-      const prefixMatch = item.contextValue.match(/^(fn:|type:|const:|value:)(.+)$/);
+      const prefixMatch = item.contextValue.match(
+        /^(fn:|type:|const:|value:)(.+)$/,
+      );
       if (prefixMatch) {
         contextValue = item.contextValue; // Keep the full value with prefix for icon detection
         packagePath = prefixMatch[2]; // Extract the path without prefix for the command
@@ -216,35 +210,6 @@ export class PackagesTreeDataProvider
       );
 
       const nodes = items.map(item => this.mapResponseToNode(item));
-
-      // For each module node, check if it has any non-module children
-      // Don't open context menu for empty modules
-      for (const childNode of nodes) {
-        if (
-          childNode.type === "directory" &&
-          childNode.contextValue === "module"
-        ) {
-          const children = await this._client.sendRequest<TreeItemResponse[]>(
-            "darklang/getChildNodes",
-            { nodeId: childNode.id },
-          );
-
-          // Check if any children are actual definitions (not submodules)
-          const hasDefinitions = children.some(
-            c =>
-              c.contextValue &&
-              (c.contextValue.startsWith("fn:") ||
-                c.contextValue.startsWith("type:") ||
-                c.contextValue.startsWith("value:")),
-          );
-
-          if (!hasDefinitions) {
-            // Remove context menu and tooltip for empty modules
-            childNode.contextValue = undefined;
-            childNode.tooltip = childNode.label;
-          }
-        }
-      }
 
       return nodes;
     } catch (error) {
