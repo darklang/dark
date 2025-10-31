@@ -265,7 +265,8 @@
     "compile": "tsc -b",
     "watch": "tsc -b -w",
     "lint": "eslint ./client/src --ext .ts,.tsx",
-    "postinstall": "cd client && npm install && cd .."
+    "postinstall": "cd client && npm install && cd ..",
+    "package": "vsce package --allow-star-activation"
   },
   "devDependencies": {
     "@types/mocha": "^9.1.0",
