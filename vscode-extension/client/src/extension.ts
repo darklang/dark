@@ -19,6 +19,7 @@ import { BranchCommands } from "./commands/branchCommands";
 import { PackageCommands } from "./commands/packageCommands";
 import { InstanceCommands } from "./commands/instanceCommands";
 import { SyncCommands } from "./commands/syncCommands";
+import { ScriptCommands } from "./commands/scriptCommands";
 
 import { StatusBarManager } from "./ui/statusbar/statusBarManager";
 import { BranchStateManager } from "./data/branchStateManager";
@@ -241,6 +242,7 @@ export function activate(context: vscode.ExtensionContext) {
     workspaceProvider,
   );
   const syncCommands = new SyncCommands();
+  const scriptCommands = new ScriptCommands();
 
   // Pass LSP client to commands when ready
   client.onReady().then(() => {
@@ -253,6 +255,7 @@ export function activate(context: vscode.ExtensionContext) {
   const allInstanceCommands = instanceCommands.register();
   const allPackageCommands = packageCommands.register();
   const allSyncCommands = syncCommands.register();
+  const allScriptCommands = scriptCommands.register();
 
   // Register all commands with context
   context.subscriptions.push(
@@ -260,6 +263,7 @@ export function activate(context: vscode.ExtensionContext) {
     ...allBranchCommands,
     ...allInstanceCommands,
     ...allSyncCommands,
+    ...allScriptCommands,
   );
 
   console.log("🎉 Darklang VS Code extension fully activated!");
