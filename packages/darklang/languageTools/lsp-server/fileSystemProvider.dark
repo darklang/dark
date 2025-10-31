@@ -211,6 +211,7 @@ module WriteFile =
     (state: LspState)
     (requestId: JsonRPC.RequestId)
     (ops: List<LanguageTools.ProgramTypes.PackageOp>)
+    (updatedContent: Stdlib.Option.Option<String>)
     : LspState =
     let opsJson =
       ops
@@ -218,12 +219,18 @@ module WriteFile =
         Json.String (Builtin.jsonSerialize<LanguageTools.ProgramTypes.PackageOp> op))
       |> Json.Array
 
+    let contentJson =
+      match updatedContent with
+      | Some content -> Json.String content
+      | None -> Json.Null
+
     let responseJson =
       (JsonRPC.Response.Ok.make
         (Stdlib.Option.Option.Some(requestId))
         (Json.Object
           [ ("success", Json.Bool true)
             ("ops", opsJson)
+            ("updatedContent", contentJson)
             ("errors", Json.Array []) ]))
       |> Stdlib.AltJson.format
 
@@ -272,7 +279,7 @@ module WriteFile =
 
       // Update the script content
       match Builtin.pmScriptsUpdate scriptName content with
-      | Ok () -> sendSuccessResponse state requestId []
+      | Ok () -> sendSuccessResponse state requestId [] Stdlib.Option.Option.None
       | Error err -> sendErrorResponse state requestId [ err ]
     else
       // Parse package module content
@@ -474,4 +481,72 @@ module WriteFile =
             SCM.PackageOps.add (Stdlib.Option.Option.Some id) allOps
           | None -> SCM.PackageOps.addToMain allOps
 
-        sendSuccessResponse state requestId allOps
+        // If ops were added, re-read the content from database to get the version with IDs
+        let updatedContent =
+          if (Stdlib.List.isEmpty allOps) |> Stdlib.Bool.not then
+            // Re-read from package manager to get content with assigned IDs
+            let pm = LanguageTools.PackageManager.pm ()
+            let location = ProgramTypes.parsePackageLocation nameForLookup
+
+            // Build the content from database (same logic as ReadFile)
+            let modulePath = nameForLookup |> Stdlib.String.split "."
+            let searchQuery =
+              LanguageTools.ProgramTypes.Search.SearchQuery
+                { currentModule = modulePath
+                  text = ""
+                  searchDepth = LanguageTools.ProgramTypes.Search.SearchDepth.OnlyDirectDescendants
+                  entityTypes = [
+                    LanguageTools.ProgramTypes.Search.EntityType.Fn
+                    LanguageTools.ProgramTypes.Search.EntityType.Type
+                    LanguageTools.ProgramTypes.Search.EntityType.Value
+                  ]
+                  exactMatch = false }
+
+            let searchResults =
+              LanguageTools.PackageManager.Search.search state.branchID searchQuery
+
+            let functions =
+              searchResults.fns
+              |> Stdlib.List.map (fun locatedFn ->
+                PrettyPrinter.ProgramTypes.packageFn state.branchID locatedFn.entity)
+              |> Stdlib.String.join "\n\n"
+
+            let types =
+              searchResults.types
+              |> Stdlib.List.map (fun locatedType ->
+                PrettyPrinter.ProgramTypes.packageType state.branchID locatedType.entity)
+              |> Stdlib.String.join "\n\n"
+
+            let values =
+              searchResults.values
+              |> Stdlib.List.map (fun locatedValue ->
+                PrettyPrinter.ProgramTypes.packageValue state.branchID locatedValue.entity)
+              |> Stdlib.String.join "\n\n"
+
+            let allDefinitions =
+              [ types; values; functions ]
+              |> Stdlib.List.filter (fun s -> s != "")
+              |> Stdlib.String.join "\n\n"
+
+            // Build module header with proper nesting
+            let moduleHeader =
+              modulePath
+              |> Stdlib.List.indexedMap (fun i name ->
+                let indent = Stdlib.String.repeat "  " i
+                $"{indent}module {name} =")
+              |> Stdlib.String.join "\n"
+
+            let contentIndent = Stdlib.String.repeat "  " (Stdlib.List.length modulePath)
+            let indentedContent =
+              allDefinitions
+              |> Stdlib.String.split "\n"
+              |> Stdlib.List.map (fun line ->
+                if line == "" then line else $"{contentIndent}{line}")
+              |> Stdlib.String.join "\n"
+
+            $"{moduleHeader}\n{indentedContent}"
+            |> Stdlib.Option.Option.Some
+          else
+            Stdlib.Option.Option.None
+
+        sendSuccessResponse state requestId allOps updatedContent
