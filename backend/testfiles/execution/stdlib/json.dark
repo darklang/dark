@@ -10,10 +10,12 @@ type Person = { Name: String; Age: Int64 }
 type Result<'ok, 'err> = Stdlib.Result.Result<'ok, 'err>
 type Option<'t> = Stdlib.Option.Option<'t>
 
+let branchID = Stdlib.Option.Option.None
+
 let err
   (v: Stdlib.Result.Result<'a, Stdlib.Json.ParseError.ParseError>)
   : Result<'a, String> =
-  v |> Stdlib.Result.mapError Stdlib.Json.ParseError.toString
+  v |> Stdlib.Result.mapError (Stdlib.Json.ParseError.toString branchID)
 
 
 module Unit =

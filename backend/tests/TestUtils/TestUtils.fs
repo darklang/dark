@@ -1540,6 +1540,7 @@ let configureLogging
   |> ignore<IServiceCollection>
 
 
+// TODO: should unwrapExecutionResult take branchID?
 let unwrapExecutionResult
   (state : RT.ExecutionState)
   (exeResult : RT.ExecutionResult)
@@ -1554,12 +1555,22 @@ let unwrapExecutionResult
 
       let rte = RT2DT.RuntimeError.toDT rte
 
+      let optionTypeName = RT.FQTypeName.fqPackage PackageIDs.Type.Stdlib.option
+      let branchID =
+        RT.Dval.DEnum(
+          optionTypeName,
+          optionTypeName,
+          [ RT.ValueType.Known RT.KTUuid ],
+          "None",
+          []
+        )
+
       let! rteMessage =
         LibExecution.Execution.executeFunction
           state
           errorMessageFn
           []
-          (NEList.ofList rte [])
+          (NEList.ofList branchID [ rte ])
 
       let! cs = LibExecution.Execution.callStackString state callStack
 
@@ -1577,10 +1588,7 @@ let parsePTExpr (branchID : Option<PT.BranchID>) (code : string) : Task<PT.Expr>
     let name =
       RT.FQFnName.FQFnName.Package PackageIDs.Fn.LanguageTools.Parser.parsePTExpr
 
-    let branchID =
-      branchID
-      |> Option.map RT.DUuid
-      |> Dval.option RT.KTUuid
+    let branchID = branchID |> Option.map RT.DUuid |> Dval.option RT.KTUuid
 
     let args = NEList.doubleton branchID (RT.DString code)
     let! execResult = LibExecution.Execution.executeFunction state name [] args

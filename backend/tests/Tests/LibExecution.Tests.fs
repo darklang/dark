@@ -149,6 +149,16 @@ let t
 
             let! _csString = Exe.callStackString state callStack
 
+            let optionTypeName = RT.FQTypeName.fqPackage PackageIDs.Type.Stdlib.option
+            let branchID =
+              RT.Dval.DEnum(
+                optionTypeName,
+                optionTypeName,
+                [ RT.ValueType.Known RT.KTUuid ],
+                "None",
+                []
+              )
+
             let! typeChecked =
               let expected =
                 RT.TCustomType(
@@ -168,7 +178,7 @@ let t
                   state
                   errorMessageFn
                   []
-                  (NEList.ofList actual [])
+                  (NEList.ofList branchID [ actual ])
 
               match result with
               | Ok(RT.DEnum(_, _, [], "ErrorString", [ RT.DString _ ])) ->
