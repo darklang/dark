@@ -24,6 +24,7 @@ import { StatusBarManager } from "./ui/statusbar/statusBarManager";
 import { BranchStateManager } from "./data/branchStateManager";
 
 import { DarkFileSystemProvider } from "./providers/darkFileSystemProvider";
+import { DarkContentProvider } from "./providers/darkContentProvider";
 import { DarklangFileDecorationProvider } from "./providers/fileDecorationProvider";
 
 let client: LanguageClient;
@@ -34,6 +35,7 @@ let workspaceProvider: WorkspaceTreeDataProvider;
 let packagesProvider: PackagesTreeDataProvider;
 
 let fileSystemProvider: DarkFileSystemProvider;
+let contentProvider: DarkContentProvider;
 let fileDecorationProvider: DarklangFileDecorationProvider;
 
 interface LSPFileResponse {
@@ -107,9 +109,16 @@ export function activate(context: vscode.ExtensionContext) {
     });
   context.subscriptions.push(fileSystemProviderRegistration);
 
+  // Initialize content provider for dark:// URLs (read-only package/branch views)
+  contentProvider = new DarkContentProvider();
+  const contentProviderRegistration =
+    vscode.workspace.registerTextDocumentContentProvider("dark", contentProvider);
+  context.subscriptions.push(contentProviderRegistration);
+
   // Pass the LSP client to providers once it's ready
   client.onReady().then(() => {
     fileSystemProvider.setClient(client);
+    contentProvider.setClient(client);
     workspaceProvider.setClient(client);
     BranchStateManager.getInstance().setClient(client);
   });
@@ -134,7 +143,7 @@ export function activate(context: vscode.ExtensionContext) {
       {
         async deserializeWebviewPanel(
           webviewPanel: vscode.WebviewPanel,
-          state: any,
+          _state: any,
         ) {
           BranchesManagerPanel.revive(webviewPanel, context.extensionUri);
         },

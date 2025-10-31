@@ -15,22 +15,16 @@ export class PackageContentProvider {
   static async getContentAsync(parsedUrl: ParsedUrl): Promise<string> {
     const { target, view } = parsedUrl;
 
-    console.log(`PackageContentProvider.getContentAsync: target="${target}", view="${view}"`);
+    console.log(
+      `PackageContentProvider.getContentAsync: target="${target}", view="${view}"`,
+    );
 
     if (!target) {
       return this.getPackageListContent();
     }
 
-    switch (view) {
-      case 'ast':
-        return this.getAstView(target);
-
-      case 'module':
-        return await this.getSourceView(target, true);
-
-      default:
-        return await this.getSourceView(target, false);
-    }
+    // TODO: Add AST view support (should integrate with LSP's darklang/ast request)
+    return await this.getSourceView(target);
   }
 
   static getContent(parsedUrl: ParsedUrl): string {
@@ -41,7 +35,7 @@ export class PackageContentProvider {
     return this.getLoadingContent(target);
   }
 
-  private static async getSourceView(target: string, isModule: boolean = false): Promise<string> {
+  private static async getSourceView(target: string): Promise<string> {
     if (!this.client) {
       return this.getGenericPackageContent(target);
     }
@@ -51,8 +45,8 @@ export class PackageContentProvider {
       const uri = `darkfs:/${packagePath}.dark`;
 
       const response = await this.client.sendRequest<{ content: string }>(
-        'fileSystem/read',
-        { uri }
+        "fileSystem/read",
+        { uri },
       );
 
       return response.content;
@@ -68,64 +62,22 @@ export class PackageContentProvider {
 Loading package definition...`;
   }
 
-  private static getAstView(target: string): string {
-    return `# AST View: ${target}
-
-## Abstract Syntax Tree
-
-\`\`\`
-FunctionDef {
-  name: "${target.split('.').pop()}"
-  parameters: [
-    Parameter { name: "fn", type: "'a -> 'b" },
-    Parameter { name: "list", type: "List<'a>" }
-  ]
-  returnType: "List<'b>"
-  body: MatchExpression {
-    expr: Variable("list")
-    cases: [
-      Case {
-        pattern: EmptyList
-        body: EmptyList
-      },
-      Case {
-        pattern: Cons(Variable("head"), Variable("tail"))
-        body: Cons(
-          FunctionCall(Variable("fn"), [Variable("head")]),
-          FunctionCall(Variable("map"), [Variable("fn"), Variable("tail")])
-        )
-      }
-    ]
-  }
-}
-\`\`\`
-
-## Type Inference
-
-- **Input Types**: \`'a -> 'b\`, \`List<'a>\`
-- **Output Type**: \`List<'b>\`
-- **Type Variables**: \`'a\`, \`'b\` (polymorphic)
-- **Constraints**: None
-
-## Compilation Target
-
-\`\`\`javascript
-function map(fn, list) {
-  if (list.length === 0) return [];
-  return [fn(list[0])].concat(map(fn, list.slice(1)));
-}
-\`\`\``;
-  }
-
-
   private static getGenericPackageContent(target: string): string {
+    // TODO: Implement fallback content when LSP client is unavailable or fetch fails?
     return `# ${target}
-(imagine we have package content here)`;
-  }
 
+Package content could not be loaded.`;
+  }
 
   private static getPackageListContent(): string {
+    // TODO: Implement package browser/explorer page
+    // Should show:
+    // - List of all available packages organized by namespace
+    // - Search functionality
+    // - Package categories (Stdlib, Darklang, User packages, etc.)
+    // - Quick links to commonly used packages
     return `# Darklang Packages
-    TODO: some pretty page`;
+
+Package browser is not yet implemented.`;
   }
 }

@@ -2,6 +2,19 @@ import * as vscode from "vscode";
 import { BranchStateManager } from "../data/branchStateManager";
 
 /**
+ * Display model for a branch in the manager panel
+ */
+interface BranchDisplayModel {
+  id: string;
+  name: string;
+  description: string;
+  active: boolean;
+  isCurrent: boolean;
+  createdAt: string;
+  conflicts?: number;
+}
+
+/**
  * Branches Manager Panel - Manage all branches (active and inactive)
  */
 export class BranchesManagerPanel {
@@ -26,7 +39,7 @@ export class BranchesManagerPanel {
     // Otherwise, create a new panel
     const panel = vscode.window.createWebviewPanel(
       BranchesManagerPanel.viewType,
-      "Manage Branchs",
+      "Manage Branches",
       column || vscode.ViewColumn.One,
       {
         enableScripts: true,
@@ -78,31 +91,6 @@ export class BranchesManagerPanel {
             await vscode.window.showTextDocument(doc, { preview: false });
             break;
 
-          case "toggleActive":
-            // TODO: Implement branch active toggle
-            vscode.window.showInformationMessage(
-              `Toggled branch "${message.branchName}" to ${
-                message.active ? "active" : "inactive"
-              }`,
-            );
-            this._update();
-            break;
-
-          case "renameBranch":
-            const newName = await vscode.window.showInputBox({
-              prompt: "Enter new branch name",
-              value: message.currentName,
-              placeHolder: "Branch name",
-            });
-            if (newName && newName !== message.currentName) {
-              // TODO: Implement branch rename
-              vscode.window.showInformationMessage(
-                `Renamed branch to: ${newName}`,
-              );
-              this._update();
-            }
-            break;
-
           case "createBranch":
             const branchName = await vscode.window.showInputBox({
               prompt: "Enter new branch name",
@@ -110,7 +98,9 @@ export class BranchesManagerPanel {
             });
             if (branchName) {
               const branchStateManager = BranchStateManager.getInstance();
-              const newBranch = await branchStateManager.createBranch(branchName);
+              const newBranch = await branchStateManager.createBranch(
+                branchName,
+              );
               if (newBranch) {
                 vscode.window.showInformationMessage(
                   `Created and switched to branch: ${branchName}`,
@@ -159,7 +149,7 @@ export class BranchesManagerPanel {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Manage Branchs</title>
+    <title>Manage Branches</title>
     <style>
         body {
             font-family: var(--vscode-font-family);
@@ -304,7 +294,7 @@ export class BranchesManagerPanel {
     </style>
 </head>
 <body>
-    <h1>Manage Branchs</h1>
+    <h1>Manage Branches</h1>
 
     <div style="display: flex; gap: 8px; margin-bottom: 16px;">
         <input
@@ -454,23 +444,6 @@ export class BranchesManagerPanel {
             });
         }
 
-        function toggleActive(branchId, branchName, currentActive) {
-            vscode.postMessage({
-                type: 'toggleActive',
-                branchId: branchId,
-                branchName: branchName,
-                active: !currentActive
-            });
-        }
-
-        function renameBranch(branchId, currentName) {
-            vscode.postMessage({
-                type: 'renameBranch',
-                branchId: branchId,
-                currentName: currentName
-            });
-        }
-
         function createNewBranch() {
             vscode.postMessage({
                 type: 'createBranch'
@@ -481,7 +454,7 @@ export class BranchesManagerPanel {
 </html>`;
   }
 
-  private _renderBranch(branch: any, isActive: boolean): string {
+  private _renderBranch(branch: BranchDisplayModel, isActive: boolean): string {
     const isCurrent = branch.isCurrent || false;
     const statusBadge = isActive
       ? '<span class="badge badge-active">Active</span>'
@@ -508,19 +481,14 @@ export class BranchesManagerPanel {
           <button class="btn btn-secondary" onclick="viewBranch('${
             branch.id
           }')">View</button>
-          <button class="btn btn-secondary" onclick="toggleActive('${
-            branch.id
-          }', '${branch.name}', ${isActive})">${
-      isActive ? "Deactivate" : "Activate"
-    }</button>
         </div>
       </div>
     `;
   }
 
   private _getAllBranches(currentBranchId: string | null): {
-    active: any[];
-    inactive: any[];
+    active: BranchDisplayModel[];
+    inactive: BranchDisplayModel[];
   } {
     const branchStateManager = BranchStateManager.getInstance();
     const realBranches = branchStateManager.getBranches();

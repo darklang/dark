@@ -530,35 +530,31 @@ type Deprecation<'name> =
 // Package things
 // --
 
-// this should prob. be named PackageLocation
-type PackageLocation =
-  { owner : string
-    modules : List<string>
-    name : string }
+type PackageLocation = { owner : string; modules : List<string>; name : string }
 
 
-  // let create (owner: string) (modules: List<string>) (name: string) : T =
-  //   { owner = owner; modules = modules; name = name }
+// let create (owner: string) (modules: List<string>) (name: string) : T =
+//   { owner = owner; modules = modules; name = name }
 
-  // let toString (location: T) : string =
-  //   let moduleStr =
-  //     if List.isEmpty location.modules then
-  //       ""
-  //     else
-  //       (String.concat "." location.modules) + "."
-  //   $"{location.owner}.{moduleStr}{location.name}"
+// let toString (location: T) : string =
+//   let moduleStr =
+//     if List.isEmpty location.modules then
+//       ""
+//     else
+//       (String.concat "." location.modules) + "."
+//   $"{location.owner}.{moduleStr}{location.name}"
 
-  // let parse (locationString: string) : Result<T, string> =
-  //   let parts = locationString.Split('.') |> Array.toList
-  //   match parts with
-  //   | owner :: rest when not (List.isEmpty rest) ->
-  //     let reversedRest = List.rev rest
-  //     match reversedRest with
-  //     | name :: reversedModules ->
-  //       let modules = List.rev reversedModules
-  //       Ok { owner = owner; modules = modules; name = name }
-  //     | [] -> Error $"Invalid package location: {locationString}"
-  //   | _ -> Error $"Invalid package location: {locationString}"
+// let parse (locationString: string) : Result<T, string> =
+//   let parts = locationString.Split('.') |> Array.toList
+//   match parts with
+//   | owner :: rest when not (List.isEmpty rest) ->
+//     let reversedRest = List.rev rest
+//     match reversedRest with
+//     | name :: reversedModules ->
+//       let modules = List.rev reversedModules
+//       Ok { owner = owner; modules = modules; name = name }
+//     | [] -> Error $"Invalid package location: {locationString}"
+//   | _ -> Error $"Invalid package location: {locationString}"
 
 
 module PackageType =
@@ -615,16 +611,16 @@ module PackageFn =
 ///
 type PackageOp =
   // not handled -- punt: DB operations, Crons, http handlers...
-  | AddType of typ: PackageType.PackageType  // note: has ID in it
-  | AddValue of value: PackageValue.PackageValue
-  | AddFn of fn: PackageFn.PackageFn
+  | AddType of typ : PackageType.PackageType // note: has ID in it
+  | AddValue of value : PackageValue.PackageValue
+  | AddFn of fn : PackageFn.PackageFn
 
   // These always happen in the context of a Branch
   // CLEANUP probably extract them to LocationOp, or something
-  | SetTypeName of id: FQTypeName.Package * location: PackageLocation
-  | SetValueName of id: FQValueName.Package * location: PackageLocation
-  | SetFnName of id: FQFnName.Package * location: PackageLocation
-  // DB should have _history_ of old item names, but only one active PackageLocation
+  | SetTypeName of id : FQTypeName.Package * location : PackageLocation
+  | SetValueName of id : FQValueName.Package * location : PackageLocation
+  | SetFnName of id : FQFnName.Package * location : PackageLocation
+// DB should have _history_ of old item names, but only one active PackageLocation
 
 
 //   | MoveItem of item: uuid * from : Location * to_: Location
@@ -706,16 +702,16 @@ Short answer: while Ops are played out
 
 
 // Q: how do we revert things?
-  // scenario: we merged a branch, and later realized it's problematic.
-  // (quick note: should be rare - so, notable DB rebuild is OK, maybe?)
+// scenario: we merged a branch, and later realized it's problematic.
+// (quick note: should be rare - so, notable DB rebuild is OK, maybe?)
 
-  //reminder: source of truth is NOT locations table, but is the package_ops table
-  // a branch being merged causes the Locations and Packages tables to update
-  // and a revert of that branch needs some complicated process
+//reminder: source of truth is NOT locations table, but is the package_ops table
+// a branch being merged causes the Locations and Packages tables to update
+// and a revert of that branch needs some complicated process
 
-  // Maybe we can't revert a merge of a branch
-  // BUT we can generate a branch that reverts the merge
-  // a bunch of Deprecations and name-assignments
+// Maybe we can't revert a merge of a branch
+// BUT we can generate a branch that reverts the merge
+// a bunch of Deprecations and name-assignments
 
 
 
@@ -739,9 +735,7 @@ Short answer: while Ops are played out
 type BranchID = uuid
 
 /// A package entity paired with its location
-type LocatedItem<'T> =
-  { entity : 'T
-    location : PackageLocation }
+type LocatedItem<'T> = { entity : 'T; location : PackageLocation }
 
 module Search =
   /// The type of entity to search for
@@ -790,11 +784,13 @@ type PackageManager =
   {
     // TODO review all usages - make sure they're not just putting 'None' in
     // i.e. demand the branchId from every usage above.
-    findType : (Option<BranchID> * PackageLocation) -> Ply<Option<FQTypeName.Package>>
-    findValue : (Option<BranchID> *  PackageLocation) -> Ply<Option<FQValueName.Package>>
-    findFn : (Option<BranchID> *  PackageLocation) -> Ply<Option<FQFnName.Package>>
+    findType :
+      (Option<BranchID> * PackageLocation) -> Ply<Option<FQTypeName.Package>>
+    findValue :
+      (Option<BranchID> * PackageLocation) -> Ply<Option<FQValueName.Package>>
+    findFn : (Option<BranchID> * PackageLocation) -> Ply<Option<FQFnName.Package>>
 
-    search : Option<BranchID> *  Search.SearchQuery -> Ply<Search.SearchResults>
+    search : Option<BranchID> * Search.SearchQuery -> Ply<Search.SearchResults>
 
     // why does the PT one even need these?
     getType : FQTypeName.Package -> Ply<Option<PackageType.PackageType>>
@@ -805,9 +801,12 @@ type PackageManager =
     // TODO: These currently return Option<PackageLocation> but theoretically there
     // could be multiple locations for a single ID (e.g., across branches, deprecations).
     // We may need to revisit this to return List<PackageLocation> or add branch filtering.
-    getTypeLocation : Option<BranchID> * FQTypeName.Package -> Ply<Option<PackageLocation>>
-    getValueLocation : Option<BranchID> * FQValueName.Package -> Ply<Option<PackageLocation>>
-    getFnLocation : Option<BranchID> * FQFnName.Package -> Ply<Option<PackageLocation>>
+    getTypeLocation :
+      Option<BranchID> * FQTypeName.Package -> Ply<Option<PackageLocation>>
+    getValueLocation :
+      Option<BranchID> * FQValueName.Package -> Ply<Option<PackageLocation>>
+    getFnLocation :
+      Option<BranchID> * FQFnName.Package -> Ply<Option<PackageLocation>>
 
     init : Ply<unit> }
 
@@ -817,9 +816,7 @@ type PackageManager =
       findFn = fun _ -> Ply None
       findValue = fun _ -> Ply None
 
-      search =
-        fun _ ->
-          Ply { submodules = []; types = []; values = []; fns = [] }
+      search = fun _ -> Ply { submodules = []; types = []; values = []; fns = [] }
 
       getType = fun _ -> Ply None
       getFn = fun _ -> Ply None
@@ -842,12 +839,16 @@ type PackageManager =
     : PackageManager =
 
     // Build lookup maps for bidirectional access
-    let typeLocationToId = types |> List.map (fun (t, loc) -> loc, t.id) |> Map.ofList
-    let typeIdToLocation = types |> List.map (fun (t, loc) -> t.id, loc) |> Map.ofList
+    let typeLocationToId =
+      types |> List.map (fun (t, loc) -> loc, t.id) |> Map.ofList
+    let typeIdToLocation =
+      types |> List.map (fun (t, loc) -> t.id, loc) |> Map.ofList
     let typeIdToType = types |> List.map (fun (t, _) -> t.id, t) |> Map.ofList
 
-    let valueLocationToId = values |> List.map (fun (v, loc) -> loc, v.id) |> Map.ofList
-    let valueIdToLocation = values |> List.map (fun (v, loc) -> v.id, loc) |> Map.ofList
+    let valueLocationToId =
+      values |> List.map (fun (v, loc) -> loc, v.id) |> Map.ofList
+    let valueIdToLocation =
+      values |> List.map (fun (v, loc) -> v.id, loc) |> Map.ofList
     let valueIdToValue = values |> List.map (fun (v, _) -> v.id, v) |> Map.ofList
 
     let fnLocationToId = fns |> List.map (fun (f, loc) -> loc, f.id) |> Map.ofList
@@ -857,19 +858,19 @@ type PackageManager =
     { findType =
         fun (branchId, location) ->
           match Map.tryFind location typeLocationToId with
-          | Some id -> Ply (Some id)
+          | Some id -> Ply(Some id)
           | None -> pm.findType (branchId, location)
 
       findValue =
         fun (branchId, location) ->
           match Map.tryFind location valueLocationToId with
-          | Some id -> Ply (Some id)
+          | Some id -> Ply(Some id)
           | None -> pm.findValue (branchId, location)
 
       findFn =
         fun (branchId, location) ->
           match Map.tryFind location fnLocationToId with
-          | Some id -> Ply (Some id)
+          | Some id -> Ply(Some id)
           | None -> pm.findFn (branchId, location)
 
       search = pm.search
@@ -877,37 +878,37 @@ type PackageManager =
       getType =
         fun id ->
           match Map.tryFind id typeIdToType with
-          | Some t -> Ply (Some t)
+          | Some t -> Ply(Some t)
           | None -> pm.getType id
 
       getValue =
         fun id ->
           match Map.tryFind id valueIdToValue with
-          | Some v -> Ply (Some v)
+          | Some v -> Ply(Some v)
           | None -> pm.getValue id
 
       getFn =
         fun id ->
           match Map.tryFind id fnIdToFn with
-          | Some f -> Ply (Some f)
+          | Some f -> Ply(Some f)
           | None -> pm.getFn id
 
       getTypeLocation =
         fun (branchId, id) ->
           match Map.tryFind id typeIdToLocation with
-          | Some location -> Ply (Some location)
+          | Some location -> Ply(Some location)
           | None -> pm.getTypeLocation (branchId, id)
 
       getValueLocation =
         fun (branchId, id) ->
           match Map.tryFind id valueIdToLocation with
-          | Some location -> Ply (Some location)
+          | Some location -> Ply(Some location)
           | None -> pm.getValueLocation (branchId, id)
 
       getFnLocation =
         fun (branchId, id) ->
           match Map.tryFind id fnIdToLocation with
-          | Some location -> Ply (Some location)
+          | Some location -> Ply(Some location)
           | None -> pm.getFnLocation (branchId, id)
 
       init = pm.init }
@@ -1047,4 +1048,3 @@ module Toplevel =
 //     name: string
 //     location: Location
 //   }
-

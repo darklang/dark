@@ -14,8 +14,7 @@ export class PackageCommands {
           });
 
           if (!input) return;
-          const packageName = input.split('.').pop() || input;
-          const virtualUri = vscode.Uri.parse(`dark://package/${input.replace(/\./g, '/')}/${packageName}.darklang`);
+          const virtualUri = vscode.Uri.parse(`dark:///package/${input}`);
           const doc = await vscode.workspace.openTextDocument(virtualUri);
 
           await vscode.window.showTextDocument(doc, {
