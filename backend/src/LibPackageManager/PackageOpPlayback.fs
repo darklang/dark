@@ -84,10 +84,10 @@ let private applyAddFn (fn : PT.PackageFn.PackageFn) : Task<unit> =
 
 /// Apply a Set*Name op to the locations table
 let private applySetName
+  (branchID : Option<PT.BranchID>)
   (itemId : uuid)
   (location : PT.PackageLocation)
   (itemType : string)
-  (branchId : Option<PT.BranchID>)
   : Task<unit> =
   task {
     let modulesStr = String.concat "." location.modules
@@ -106,7 +106,7 @@ let private applySetName
       |> Sql.parameters
         [ "item_id", Sql.uuid itemId
           "branch_id",
-          (match branchId with
+          (match branchID with
            | Some id -> Sql.uuid id
            | None -> Sql.dbnull) ]
       |> Sql.executeStatementAsync
@@ -123,7 +123,7 @@ let private applySetName
         [ "location_id", Sql.uuid locationId
           "item_id", Sql.uuid itemId
           "branch_id",
-          (match branchId with
+          (match branchID with
            | Some id -> Sql.uuid id
            | None -> Sql.dbnull)
           "owner", Sql.string location.owner
@@ -135,29 +135,29 @@ let private applySetName
 
 
 /// Apply a single PackageOp to the projection tables
-/// branchId: None = main/merged, Some(id) = branch-specific
-let applyOp (branchId : Option<PT.BranchID>) (op : PT.PackageOp) : Task<unit> =
+/// branchID: None = main/merged, Some(id) = branch-specific
+let applyOp (branchID : Option<PT.BranchID>) (op : PT.PackageOp) : Task<unit> =
   task {
     match op with
     | PT.PackageOp.AddType typ -> do! applyAddType typ
     | PT.PackageOp.AddValue value -> do! applyAddValue value
     | PT.PackageOp.AddFn fn -> do! applyAddFn fn
     | PT.PackageOp.SetTypeName(id, location) ->
-      do! applySetName id location "type" branchId
+      do! applySetName branchID id location "type"
     | PT.PackageOp.SetValueName(id, location) ->
-      do! applySetName id location "value" branchId
+      do! applySetName branchID id location "value"
     | PT.PackageOp.SetFnName(id, location) ->
-      do! applySetName id location "fn" branchId
+      do! applySetName branchID id location "fn"
   }
 
 
 /// Apply a list of PackageOps to the projection tables
 /// This is used during package loading/reload
 let applyOps
-  (branchId : Option<PT.BranchID>)
+  (branchID : Option<PT.BranchID>)
   (ops : List<PT.PackageOp>)
   : Task<unit> =
   task {
     for op in ops do
-      do! applyOp branchId op
+      do! applyOp branchID op
   }
