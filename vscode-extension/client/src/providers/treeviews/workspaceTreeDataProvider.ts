@@ -5,11 +5,43 @@ import { BranchStateManager } from "../../data/branchStateManager";
 import { InstanceDemoData } from "../../data/demo/instanceDemoData";
 
 interface OpsFilterConfig {
-  limit: number;
+  limit: number | null;  // null means no limit
   branch: 'current' | 'all' | string; // 'current', 'all', or a specific branch ID
   dateRange: 'all' | 'today' | 'week' | 'month' | 'custom';
   customStartDate?: Date;
   locationFilter?: string;
+}
+
+// Interface for pending op response from LSP
+interface PendingOpResponse {
+  op: string;
+  label: string;
+}
+
+// Location information extracted from an op
+interface OpLocation {
+  owner: string;
+  modules: string[];
+  name: string;
+}
+
+// Extended BranchNode for pending ops with additional properties
+interface PendingOpNode extends BranchNode {
+  type: "pending-op";
+  location?: OpLocation;
+  opData?: string;
+}
+
+// Interface for branch quick pick items with custom properties
+interface BranchQuickPickItem extends vscode.QuickPickItem {
+  value?: string;
+  branchId?: string;
+}
+
+// Type for package ops (from file system provider)
+interface PackageOp {
+  // TODO: Define proper structure based on actual op format
+  [key: string]: unknown;
 }
 
 export class WorkspaceTreeDataProvider implements vscode.TreeDataProvider<BranchNode> {
@@ -29,11 +61,8 @@ export class WorkspaceTreeDataProvider implements vscode.TreeDataProvider<Branch
   };
 
   constructor() {
-    console.log('🌳 WorkspaceTreeDataProvider constructor called');
-
     // Listen for branch changes and refresh the tree
     this.branchStateManager.onBranchChanged(() => {
-      console.log('🔔 WorkspaceTreeDataProvider: Branch changed event received');
       this.refresh();
     });
   }
@@ -42,8 +71,9 @@ export class WorkspaceTreeDataProvider implements vscode.TreeDataProvider<Branch
     this.client = client;
   }
 
-  addPendingOps(ops: any[]): void {
-    console.log('WorkspaceTreeDataProvider.addPendingOps called - refreshing to show new ops from DB');
+  // CLEANUP: These methods don't actually add/clear ops - they just refresh the tree
+  // to re-fetch ops from the database. Consider renaming or removing.
+  addPendingOps(_ops: PackageOp[]): void {
     // Ops are stored in the database, just refresh to show them
     this.refresh();
   }
@@ -54,8 +84,11 @@ export class WorkspaceTreeDataProvider implements vscode.TreeDataProvider<Branch
   }
 
   refresh(): void {
-    console.log('🔄 WorkspaceTreeDataProvider: refresh() called');
     this._onDidChangeTreeData.fire(undefined);
+  }
+
+  dispose(): void {
+    this._onDidChangeTreeData.dispose();
   }
 
   refreshItem(item: BranchNode): void {
@@ -141,12 +174,14 @@ export class WorkspaceTreeDataProvider implements vscode.TreeDataProvider<Branch
       item.iconPath = new vscode.ThemeIcon("diff-added", new vscode.ThemeColor("charts.green"));
       item.tooltip = "Click to open module file";
 
+      const pendingOpNode = element as PendingOpNode;
+
       // Add command to show diff if we have location info
-      if ((element as any).location) {
+      if (pendingOpNode.location) {
         item.command = {
           command: "darklang.showOpDiff",
           title: "Show Changes",
-          arguments: [(element as any).opData, (element as any).location]
+          arguments: [pendingOpNode.opData, pendingOpNode.location]
         };
       }
 
@@ -172,10 +207,7 @@ export class WorkspaceTreeDataProvider implements vscode.TreeDataProvider<Branch
   }
 
   private async getPendingChanges(): Promise<BranchNode[]> {
-    console.log('getPendingChanges called - querying database');
-
     if (!this.client) {
-      console.log('No LSP client available');
       return [];
     }
 
@@ -207,26 +239,22 @@ export class WorkspaceTreeDataProvider implements vscode.TreeDataProvider<Branch
       }
 
       const requestParams = {
-        limit: this.opsFilter.limit,
+        limit: this.opsFilter.limit ?? 999999, // Send large number if null
         branchFilter: this.opsFilter.branch,
         sinceDate: sinceDate,
       };
-      console.log('Sending getPendingOps request with params:', requestParams);
 
-      const ops = await this.client.sendRequest<Array<{op: string, label: string}>>(
+      const ops = await this.client.sendRequest<PendingOpResponse[]>(
         'darklang/getPendingOps',
         requestParams
       );
 
-      console.log('Received ops from database:', ops.length);
-      console.log('Current filter config:', JSON.stringify(this.opsFilter));
-
-      let nodes = ops.map((opWithLabel, index) => {
+      let nodes: PendingOpNode[] = ops.map((opWithLabel, index) => {
         const location = this.extractLocationFromOp(opWithLabel.op);
         return {
           id: `op-${index}`,
           label: opWithLabel.label,  // Use the formatted label from backend
-          type: "pending-op" as any,
+          type: "pending-op",
           contextValue: "pending-op",
           location: location,  // Store location for the command
           opData: opWithLabel.op  // Store full op for diff view
@@ -236,7 +264,6 @@ export class WorkspaceTreeDataProvider implements vscode.TreeDataProvider<Branch
       // Apply client-side location filter if specified
       if (this.opsFilter.locationFilter && this.opsFilter.locationFilter.trim() !== '') {
         const filterLower = this.opsFilter.locationFilter.toLowerCase();
-        console.log('Applying location filter:', filterLower);
         nodes = nodes.filter(node => {
           // Filter by label
           if (node.label.toLowerCase().includes(filterLower)) {
@@ -250,10 +277,8 @@ export class WorkspaceTreeDataProvider implements vscode.TreeDataProvider<Branch
           // If no location available, don't match (only label matching works)
           return false;
         });
-        console.log('After location filter:', nodes.length);
       }
 
-      console.log('Returning nodes:', nodes.length);
       return nodes;
     } catch (error) {
       console.error('Failed to get pending ops:', error);
@@ -261,7 +286,7 @@ export class WorkspaceTreeDataProvider implements vscode.TreeDataProvider<Branch
     }
   }
 
-  private extractLocationFromOp(op: any): { owner: string, modules: string[], name: string } | null {
+  private extractLocationFromOp(op: string): OpLocation | null {
     try {
       if (typeof op === 'string') {
         const parsed = JSON.parse(op);
@@ -312,19 +337,19 @@ export class WorkspaceTreeDataProvider implements vscode.TreeDataProvider<Branch
     const instanceChildren: BranchNode[] = instances.map(inst => ({
       id: inst.id,
       label: inst.label.replace("★ ", ""), // Remove star from label
-      type: "instance-item" as any,
+      type: "instance-item",
       contextValue: inst.contextValue,
       instanceData: inst.instanceData,
       children: inst.children?.map(child => ({
         id: child.id,
         label: child.label,
-        type: child.type as any,
+        type: child.type as BranchNode["type"], // Map InstanceNode types to BranchNode types
         contextValue: child.contextValue,
         instanceData: child.instanceData,
         children: child.children?.map(grandchild => ({
           id: grandchild.id,
           label: grandchild.label,
-          type: grandchild.type as any,
+          type: grandchild.type as BranchNode["type"],
           contextValue: grandchild.contextValue
         }))
       }))
@@ -335,7 +360,7 @@ export class WorkspaceTreeDataProvider implements vscode.TreeDataProvider<Branch
       {
         id: "workspace-instance",
         label: `Instance: Local`,  // TODO: get current instance name from state
-        type: "instance-root" as any,
+        type: "instance-root",
         contextValue: "workspace-instance-root",
         children: instanceChildren
       },
@@ -343,7 +368,7 @@ export class WorkspaceTreeDataProvider implements vscode.TreeDataProvider<Branch
       {
         id: branchId || "no-branch",
         label: `Branch: ${branchName}`,
-        type: "branch-root" as any,
+        type: "branch-root",
         contextValue: "workspace-branch-root",
         children: []
       },
@@ -351,7 +376,7 @@ export class WorkspaceTreeDataProvider implements vscode.TreeDataProvider<Branch
       {
         id: "pending-changes",
         label: this.getPendingChangesLabel(),
-        type: "changes-root" as any,
+        type: "changes-root",
         contextValue: "workspace-changes-root",
         children: [] // Will be populated async
       }
@@ -364,7 +389,7 @@ export class WorkspaceTreeDataProvider implements vscode.TreeDataProvider<Branch
 
     // Show limit if not default
     if (this.opsFilter.limit !== 50) {
-      if (this.opsFilter.limit >= 999999) {
+      if (this.opsFilter.limit === null) {
         filters.push('all');
       } else {
         filters.push(`${this.opsFilter.limit}`);
@@ -399,7 +424,8 @@ export class WorkspaceTreeDataProvider implements vscode.TreeDataProvider<Branch
   private getOpsFilterTooltip(): string {
     const parts: string[] = [];
 
-    parts.push(`Showing up to ${this.opsFilter.limit} ops`);
+    const limitText = this.opsFilter.limit === null ? 'all' : `up to ${this.opsFilter.limit}`;
+    parts.push(`Showing ${limitText} ops`);
 
     if (this.opsFilter.dateRange !== 'all') {
       const dateLabel = this.opsFilter.dateRange === 'custom'
@@ -427,7 +453,7 @@ export class WorkspaceTreeDataProvider implements vscode.TreeDataProvider<Branch
   }
 
   async configureLimitFilter(): Promise<void> {
-    console.log('Setting limit filter, current:', this.opsFilter.limit);
+    const currentLimit = this.opsFilter.limit === null ? 'all' : this.opsFilter.limit.toString();
     const choice = await vscode.window.showQuickPick([
       { label: '10', value: 10 },
       { label: '25', value: 25 },
@@ -435,21 +461,25 @@ export class WorkspaceTreeDataProvider implements vscode.TreeDataProvider<Branch
       { label: '100', value: 100 },
       { label: '500', value: 500 },
       { label: '1000', value: 1000 },
-      { label: 'All (no limit)', value: 999999 },
+      { label: 'All (no limit)', value: null },
     ], {
-      placeHolder: `Current limit: ${this.opsFilter.limit}`
+      placeHolder: `Current limit: ${currentLimit}`
     });
 
     if (choice) {
       this.opsFilter.limit = choice.value;
-      console.log('Limit changed to:', choice.value);
       vscode.window.showInformationMessage(`Ops limit set to ${choice.label}`);
       this.refresh();
     }
   }
 
   async configureDateFilter(): Promise<void> {
-    const choice = await vscode.window.showQuickPick([
+    type DateRangeOption = {
+      label: string;
+      value: OpsFilterConfig['dateRange'];
+    };
+
+    const choice = await vscode.window.showQuickPick<DateRangeOption>([
       { label: 'All time', value: 'all' },
       { label: 'Today', value: 'today' },
       { label: 'Last 7 days', value: 'week' },
@@ -463,7 +493,7 @@ export class WorkspaceTreeDataProvider implements vscode.TreeDataProvider<Branch
       return;
     }
 
-    this.opsFilter.dateRange = choice.value as any;
+    this.opsFilter.dateRange = choice.value;
 
     if (choice.value === 'custom') {
       const dateStr = await vscode.window.showInputBox({
@@ -505,7 +535,7 @@ export class WorkspaceTreeDataProvider implements vscode.TreeDataProvider<Branch
     const currentBranchId = this.branchStateManager.getCurrentBranchId();
 
     // Build the list of branch options
-    const branchItems = [
+    const branchItems: BranchQuickPickItem[] = [
       {
         label: '$(git-branch) Current branch only',
         value: 'current',
@@ -513,7 +543,7 @@ export class WorkspaceTreeDataProvider implements vscode.TreeDataProvider<Branch
       },
       { label: '$(layers) All branches', value: 'all', description: 'Show ops from all branches' },
       { label: '', kind: vscode.QuickPickItemKind.Separator }
-    ] as vscode.QuickPickItem[];
+    ];
 
     // Add individual branches (only show non-merged branches)
     branches
@@ -524,8 +554,7 @@ export class WorkspaceTreeDataProvider implements vscode.TreeDataProvider<Branch
           label: b.name,
           description: isCurrent ? '● Current' : undefined,
           detail: `Branch ID: ${b.id}`,
-          // Store the branch ID as a custom property
-          ...({ branchId: b.id } as any)
+          branchId: b.id
         });
       });
 
@@ -534,12 +563,11 @@ export class WorkspaceTreeDataProvider implements vscode.TreeDataProvider<Branch
     });
 
     if (choice) {
-      const branchId = (choice as any).branchId;
-      if (branchId) {
-        this.opsFilter.branch = branchId;
+      if (choice.branchId) {
+        this.opsFilter.branch = choice.branchId;
         vscode.window.showInformationMessage(`Branch filter set to: ${choice.label}`);
-      } else if ((choice as any).value) {
-        this.opsFilter.branch = (choice as any).value;
+      } else if (choice.value) {
+        this.opsFilter.branch = choice.value;
         vscode.window.showInformationMessage(`Branch filter set to: ${choice.label}`);
       }
       this.refresh();
