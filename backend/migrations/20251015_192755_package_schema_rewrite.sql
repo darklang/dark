@@ -69,6 +69,7 @@ CREATE TABLE IF NOT EXISTS branches (
   id TEXT PRIMARY KEY,
   name TEXT NOT NULL,
   created_at TIMESTAMP NOT NULL,
+  --CLEANUP consider an `updated_at` col
   merged_at TIMESTAMP NULL
 );
 
@@ -80,11 +81,13 @@ CREATE TABLE IF NOT EXISTS package_ops (
   id TEXT PRIMARY KEY,
   branch_id TEXT NULL, -- NULL = merged to main
   op_blob BLOB NOT NULL, -- Serialized PackageOp
+  applied BOOLEAN NOT NULL DEFAULT FALSE, -- Track whether op has been processed
   created_at TIMESTAMP NOT NULL DEFAULT (datetime('now'))
 );
 
 CREATE INDEX IF NOT EXISTS idx_package_ops_branch ON package_ops(branch_id);
 CREATE INDEX IF NOT EXISTS idx_package_ops_created ON package_ops(created_at);
+CREATE INDEX IF NOT EXISTS idx_package_ops_applied ON package_ops(applied) WHERE applied = FALSE;
 
 -- Instances table tracks remote Darklang instances for syncing
 CREATE TABLE IF NOT EXISTS instances (
