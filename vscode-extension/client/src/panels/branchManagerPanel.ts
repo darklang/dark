@@ -2,6 +2,102 @@ import * as vscode from "vscode";
 import { BranchStateManager } from "../data/branchStateManager";
 
 /**
+ * TODOS for Branch Management Features:
+ *
+ * Branch State Section:
+ * - Add Branch State section showing:
+ *   - Modified items count (fetch from branch ops)
+ *   - New items count (fetch from branch ops)
+ *   - Pending changes count (fetch from branch ops)
+ *   - Test status/results (integrate with test runner if available)
+ *
+ * Collaboration Section:
+ * - Add Collaboration section showing:
+ *   - Branch owner (from branch metadata)
+ *   - Users with shared access (if multi-user is supported)
+ *   - Access level permissions (read-only, read/write, admin)
+ *
+ * Additional Branch Actions:
+ * - Implement Export Branch functionality
+ *   - Command: darklang.branch.export
+ *   - Should export branch as shareable format
+ * - Implement Transfer Branch functionality
+ *   - Command: darklang.branch.transfer
+ *   - Allow transferring branch ownership/moving to different workspace
+ * - Implement Suspend Branch functionality
+ *   - Command: darklang.branch.suspend
+ *   - Temporarily deactivate branch without deleting
+ * - Implement End Branch functionality
+ *   - Command: darklang.branch.end
+ *   - Properly close/archive a completed branch
+ *
+ * Recent Activity Section:
+ * - Add Recent Activity section showing:
+ *   - List of recent operations on the branch (from OpLog)
+ *   - Timestamps and operation types
+ *   - Which items were modified
+ *   - Limit to last 5-10 operations
+ *
+ * Branch Statistics & Files:
+ * - Implement Branch Statistics view
+ *   - URL: dark:///branch/{branchId}/stats
+ *   - Show charts/metrics about branch activity
+ * - Implement Browse Branch Files view
+ *   - URL: dark:///branch/{branchId}/files
+ *   - Tree view of all modified files in the branch
+ *
+ * Branch List Page (getBranchListContent):
+ * - Implement full branch list view
+ *   - Fetch all branches from BranchStateManager
+ *   - Display current branch prominently
+ *   - List all active branches with descriptions
+ *   - List all inactive/merged branches separately
+ *   - Add search/filter capabilities
+ * - Add branch sorting options
+ *   - By date created
+ *   - By last modified
+ *   - Alphabetically
+ * - Implement Import Branch functionality
+ *   - Command: darklang.branch.import
+ *   - Import branch from file/URL
+ * - Implement Sync Branches functionality
+ *   - Command: darklang.branch.sync
+ *   - Sync branches with remote or between workspaces
+ * - Implement Branch Templates
+ *   - Commands: darklang.branch.template.auth, .ui, .perf
+ *   - Create new branches from predefined templates
+ *
+ * Instance Content Provider:
+ * - Implement instance content provider
+ *   - Handle dark:///instance/... URLs
+ *   - Display instance metadata, configuration, status
+ *   - Show instance-specific operations
+ *   - Link to instance management commands
+ *
+ * Branch Management Commands (add to commands/branchCommands.ts):
+ * - Implement darklang.branch.suspend - Temporarily deactivate branch without deleting
+ * - Implement darklang.branch.end - Close/archive completed branch
+ * - Implement darklang.branch.import - Import branch from file/URL
+ * - Implement darklang.branch.sync - Sync branches with remote/workspace
+ *
+ * Branch Templates (add to commands/branchCommands.ts):
+ * - Implement darklang.branch.template.auth - Create auth template branch
+ * - Implement darklang.branch.template.ui - Create UI development template branch
+ * - Implement darklang.branch.template.perf - Create performance template branch
+ *
+ * Branch Content URLs (add to providers/darkContentProvider.ts):
+ * - Implement dark:///branch/{id}/export - Export branch view
+ * - Implement dark:///branch/{id}/transfer - Transfer branch view
+ * - Implement dark:///branch/{id}/stats - Branch statistics view
+ * - Implement dark:///branch/{id}/files - Browse branch files view
+ * - Implement dark:///branch/stats - Overall branch statistics
+ * - Implement dark:///config/branches - Branch settings/configuration
+ *
+ * Package.json Updates:
+ * - Register all new branch commands in package.json contributes.commands
+ */
+
+/**
  * Display model for a branch in the manager panel
  */
 interface BranchDisplayModel {
