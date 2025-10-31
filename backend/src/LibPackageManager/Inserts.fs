@@ -29,8 +29,8 @@ let computeOpHash (op : PT.PackageOp) : System.Guid =
 
 
 /// Insert PackageOps into the package_ops table and apply them to projection tables
-/// branchId: None = main/merged, Some(id) = branch-specific
-let insertOps (branchId : Option<PT.BranchID>) (ops : List<PT.PackageOp>) : Task<unit> =
+/// branchID: None = main/merged, Some(id) = branch-specific
+let insertOps (branchID : Option<PT.BranchID>) (ops : List<PT.PackageOp>) : Task<unit> =
   task {
     if List.isEmpty ops then return ()
 
@@ -38,18 +38,18 @@ let insertOps (branchId : Option<PT.BranchID>) (ops : List<PT.PackageOp>) : Task
     let insertStatements =
       ops
       |> List.map (fun op ->
-        let opId = System.Guid.NewGuid()
+        let opId = computeOpHash op
         let opBlob = BinarySerialization.PT.PackageOp.serialize opId op
 
         let sql =
           """
-          INSERT INTO package_ops (id, branch_id, op_blob, applied)
+          INSERT OR IGNORE INTO package_ops (id, branch_id, op_blob, applied)
           VALUES (@id, @branch_id, @op_blob, @applied)
           """
 
         let parameters =
           [ "id", Sql.uuid opId
-            "branch_id", (match branchId with | Some id -> Sql.uuid id | None -> Sql.dbnull)
+            "branch_id", (match branchID with | Some id -> Sql.uuid id | None -> Sql.dbnull)
             "op_blob", Sql.bytes opBlob
             "applied", Sql.bool true ]
 
@@ -58,7 +58,7 @@ let insertOps (branchId : Option<PT.BranchID>) (ops : List<PT.PackageOp>) : Task
     insertStatements |> Sql.executeTransactionSync |> ignore<List<int>>
 
     // Step 2: Apply ops to projection tables (types, values, functions, locations)
-    do! LibPackageManager.PackageOpPlayback.applyOps branchId ops
+    do! LibPackageManager.PackageOpPlayback.applyOps branchID ops
   }
 
 
@@ -66,7 +66,7 @@ let insertOps (branchId : Option<PT.BranchID>) (ops : List<PT.PackageOp>) : Task
 /// Uses content-addressed hashing to skip duplicate ops.
 /// Returns count of actually inserted ops (excludes duplicates).
 let insertOrIgnore
-  (branchId : Option<PT.BranchID>)
+  (branchID : Option<PT.BranchID>)
   (ops : List<PT.PackageOp>)
   : Task<int> =
   task {
@@ -91,7 +91,7 @@ let insertOrIgnore
           |> Sql.parameters
             [ "id", Sql.uuid opId
               "branch_id",
-              (match branchId with
+              (match branchID with
                | Some id -> Sql.uuid id
                | None -> Sql.dbnull)
               "op_blob", Sql.bytes opBlob
@@ -102,7 +102,7 @@ let insertOrIgnore
         // Only apply op if it was actually inserted (not a duplicate)
         if rowsAffected > 0 then
           insertedCount <- insertedCount + 1
-          do! LibPackageManager.PackageOpPlayback.applyOp branchId op
+          do! LibPackageManager.PackageOpPlayback.applyOp branchID op
 
       return insertedCount
   }
