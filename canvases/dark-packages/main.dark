@@ -19,10 +19,23 @@ let _handler _req =
   let bodyBytes = request.body
   let bodyStr = Stdlib.String.fromBytesWithReplacement bodyBytes
 
+  let branchId =
+    (Stdlib.Http.Request.queryParams request)
+    |> Stdlib.List.findFirst (fun pair ->
+      match pair with
+      | (key, _value) -> key == "branchId"
+      | _ -> false)
+    |> fun result ->
+      match result with
+      | Some((_key, value)) ->
+        match Stdlib.Uuid.parse value with
+        | Ok uuid -> Stdlib.Option.Option.Some uuid
+        | Error _err -> Stdlib.Option.Option.None
+      | None -> Stdlib.Option.Option.None
+
   match Builtin.jsonParse<List<LanguageTools.ProgramTypes.PackageOp>> bodyStr with
   | Ok ops ->
-    // Add ops to database (branchId None for now)
-    let branchId = Stdlib.Option.Option.None
+    // Add ops to database
     Builtin.scmAddOps branchId ops
 
     let opsCount = Builtin.int64ToString (Stdlib.List.length ops)
@@ -39,6 +52,20 @@ let _handler _req =
 
 [<HttpHandler("GET", "/ops")>]
 let _handler _req =
+  let branchId =
+    (Stdlib.Http.Request.queryParams request)
+    |> Stdlib.List.findFirst (fun pair ->
+      match pair with
+      | (key, _value) -> key == "branchId"
+      | _ -> false)
+    |> fun result ->
+      match result with
+      | Some((_key, value)) ->
+        match Stdlib.Uuid.parse value with
+        | Ok uuid -> Stdlib.Option.Option.Some uuid
+        | Error _err -> Stdlib.Option.Option.None
+      | None -> Stdlib.Option.Option.None
+
   let sinceParam =
     // CLEANUP use a helper here, this should be a one-liner
     (Stdlib.Http.Request.queryParams request)
@@ -51,7 +78,6 @@ let _handler _req =
     match Stdlib.DateTime.parse sinceStr with
     | Ok sinceDate ->
       // Get ops since that date
-      let branchId = Stdlib.Option.Option.None
       let ops =
         Darklang.SCM.PackageOps.getSince branchId sinceDate
 
