@@ -11,8 +11,8 @@ type Branch =
 let list () : List<Branch> = Builtin.scmBranchList ()
 
 /// Get a specific branch by ID
-let get (branchId: Uuid) : Stdlib.Option.Option<Branch> =
-  Builtin.scmBranchGet branchId
+let get (branchID: Uuid) : Stdlib.Option.Option<Branch> =
+  Builtin.scmBranchGet branchID
 
 /// Find branches by name (may return multiple if names collide)
 let findByName (name: String) : List<Branch> =

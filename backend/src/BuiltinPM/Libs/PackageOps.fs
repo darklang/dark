@@ -23,23 +23,23 @@ let fns : List<BuiltInFn> =
   [ { name = fn "scmAddOps" 0
       typeParams = []
       parameters =
-        [ Param.make "branchId" (TypeReference.option TUuid) ""
+        [ Param.make "branchID" (TypeReference.option TUuid) ""
           Param.make "ops" (TList(TVariable "packageOp")) "" ]
       returnType = TInt64
       description =
-        "Add package ops to the database and apply them to projections. Returns count of actually inserted ops (skips duplicates). branchId None = main branch, Some = specific branch"
+        "Add package ops to the database and apply them to projections. Returns count of actually inserted ops (skips duplicates). branchID None = main branch, Some = specific branch"
       fn =
         function
         | _, _, _, [ branchIdOpt; DList(_vtTODO, ops) ] ->
           uply {
-            let branchId = C2DT.Option.fromDT D.uuid branchIdOpt
+            let branchID = C2DT.Option.fromDT D.uuid branchIdOpt
 
             // Convert each op from Dval to PT.PackageOp
             let ptOps =
               ops |> List.choose (fun opDval -> PT2DT.PackageOp.fromDT opDval)
 
             // Insert ops with deduplication
-            let! insertedCount = LibPackageManager.Inserts.insertOrIgnore branchId ptOps
+            let! insertedCount = LibPackageManager.Inserts.insertOrIgnore branchID ptOps
 
             return DInt64(int64 insertedCount)
           }
@@ -52,7 +52,7 @@ let fns : List<BuiltInFn> =
     { name = fn "scmGetRecentOps" 0
       typeParams = []
       parameters =
-        [ Param.make "branchId" (TypeReference.option TUuid) ""
+        [ Param.make "branchID" (TypeReference.option TUuid) ""
           Param.make "limit" TInt64 "" ]
       returnType = TList(TVariable "packageOp")
       description = "Get recent package ops from the database."
@@ -60,9 +60,9 @@ let fns : List<BuiltInFn> =
         function
         | _, _, _, [ branchIdOpt; DInt64 limit ] ->
           uply {
-            let branchId = C2DT.Option.fromDT D.uuid branchIdOpt
+            let branchID = C2DT.Option.fromDT D.uuid branchIdOpt
 
-            let! ptOps = LibPackageManager.Queries.getRecentOps branchId limit
+            let! ptOps = LibPackageManager.Queries.getRecentOps branchID limit
             let ops = ptOps |> List.map PT2DT.PackageOp.toDT
 
             let opVT = LibExecution.ValueType.customType PT2DT.PackageOp.typeName []
@@ -98,18 +98,18 @@ let fns : List<BuiltInFn> =
     { name = fn "scmGetOpsSince" 0
       typeParams = []
       parameters =
-        [ Param.make "branchId" (TypeReference.option TUuid) ""
+        [ Param.make "branchID" (TypeReference.option TUuid) ""
           Param.make "since" TDateTime "" ]
       returnType = TList(TVariable "packageOp")
       description =
-        "Get package ops created since the specified datetime. branchId None = main branch, Some = specific branch"
+        "Get package ops created since the specified datetime. branchID None = main branch, Some = specific branch"
       fn =
         function
         | _, _, _, [ branchIdOpt; DDateTime since ] ->
           uply {
-            let branchId = C2DT.Option.fromDT D.uuid branchIdOpt
+            let branchID = C2DT.Option.fromDT D.uuid branchIdOpt
 
-            let! ptOps = LibPackageManager.Queries.getOpsSince branchId since
+            let! ptOps = LibPackageManager.Queries.getOpsSince branchID since
             let ops = ptOps |> List.map PT2DT.PackageOp.toDT
 
             let opVT = LibExecution.ValueType.customType PT2DT.PackageOp.typeName []

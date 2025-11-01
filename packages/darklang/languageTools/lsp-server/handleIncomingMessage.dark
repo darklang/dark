@@ -272,8 +272,8 @@ let handleIncomingMessage
 
         | ("darklang/switchBranch",
           Some requestId,
-          Some(Object [ ("branchId", String branchId) ])) ->
-          SwitchBranch.handleSwitchBranchRequest state requestId branchId
+          Some(Object [ ("branchID", String branchID) ])) ->
+          SwitchBranch.handleSwitchBranchRequest state requestId branchID
 
         | ("darklang/clearBranch", Some requestId, _) ->
           Branches.handleClearBranchRequest state requestId

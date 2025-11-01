@@ -60,14 +60,14 @@ let fns : List<BuiltInFn> =
 
     { name = fn "scmBranchGet" 0
       typeParams = []
-      parameters = [ Param.make "branchId" TUuid "" ]
+      parameters = [ Param.make "branchID" TUuid "" ]
       returnType = TypeReference.option (TCustomType(Ok branchTypeName, []))
       description = "Get a specific branch by ID"
       fn =
         (function
-        | _, _, _, [ DUuid branchId ] ->
+        | _, _, _, [ DUuid branchID ] ->
           uply {
-            let! branch = Branches.get branchId
+            let! branch = Branches.get branchID
             return
               branch
               |> Option.map branchToDT

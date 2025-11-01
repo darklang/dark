@@ -783,7 +783,7 @@ module Search =
 type PackageManager =
   {
     // TODO review all usages - make sure they're not just putting 'None' in
-    // i.e. demand the branchId from every usage above.
+    // i.e. demand the branchID from every usage above.
     findType :
       (Option<BranchID> * PackageLocation) -> Ply<Option<FQTypeName.Package>>
     findValue :
@@ -838,17 +838,12 @@ type PackageManager =
     (pm : PackageManager)
     : PackageManager =
 
-    // Build lookup maps for bidirectional access
-    let typeLocationToId =
-      types |> List.map (fun (t, loc) -> loc, t.id) |> Map.ofList
-    let typeIdToLocation =
-      types |> List.map (fun (t, loc) -> t.id, loc) |> Map.ofList
+    let typeLocationToId = types |> List.map (fun (t, loc) -> loc, t.id) |> Map.ofList
+    let typeIdToLocation = types |> List.map (fun (t, loc) -> t.id, loc) |> Map.ofList
     let typeIdToType = types |> List.map (fun (t, _) -> t.id, t) |> Map.ofList
 
-    let valueLocationToId =
-      values |> List.map (fun (v, loc) -> loc, v.id) |> Map.ofList
-    let valueIdToLocation =
-      values |> List.map (fun (v, loc) -> v.id, loc) |> Map.ofList
+    let valueLocationToId = values |> List.map (fun (v, loc) -> loc, v.id) |> Map.ofList
+    let valueIdToLocation = values |> List.map (fun (v, loc) -> v.id, loc) |> Map.ofList
     let valueIdToValue = values |> List.map (fun (v, _) -> v.id, v) |> Map.ofList
 
     let fnLocationToId = fns |> List.map (fun (f, loc) -> loc, f.id) |> Map.ofList
@@ -856,22 +851,22 @@ type PackageManager =
     let fnIdToFn = fns |> List.map (fun (f, _) -> f.id, f) |> Map.ofList
 
     { findType =
-        fun (branchId, location) ->
+        fun (branchID, location) ->
           match Map.tryFind location typeLocationToId with
           | Some id -> Ply(Some id)
-          | None -> pm.findType (branchId, location)
+          | None -> pm.findType (branchID, location)
 
       findValue =
-        fun (branchId, location) ->
+        fun (branchID, location) ->
           match Map.tryFind location valueLocationToId with
           | Some id -> Ply(Some id)
-          | None -> pm.findValue (branchId, location)
+          | None -> pm.findValue (branchID, location)
 
       findFn =
-        fun (branchId, location) ->
+        fun (branchID, location) ->
           match Map.tryFind location fnLocationToId with
           | Some id -> Ply(Some id)
-          | None -> pm.findFn (branchId, location)
+          | None -> pm.findFn (branchID, location)
 
       search = pm.search
 
@@ -894,22 +889,22 @@ type PackageManager =
           | None -> pm.getFn id
 
       getTypeLocation =
-        fun (branchId, id) ->
+        fun (branchID, id) ->
           match Map.tryFind id typeIdToLocation with
           | Some location -> Ply(Some location)
-          | None -> pm.getTypeLocation (branchId, id)
+          | None -> pm.getTypeLocation (branchID, id)
 
       getValueLocation =
-        fun (branchId, id) ->
+        fun (branchID, id) ->
           match Map.tryFind id valueIdToLocation with
           | Some location -> Ply(Some location)
-          | None -> pm.getValueLocation (branchId, id)
+          | None -> pm.getValueLocation (branchID, id)
 
       getFnLocation =
-        fun (branchId, id) ->
+        fun (branchID, id) ->
           match Map.tryFind id fnIdToLocation with
           | Some location -> Ply(Some location)
-          | None -> pm.getFnLocation (branchId, id)
+          | None -> pm.getFnLocation (branchID, id)
 
       init = pm.init }
 

@@ -42,7 +42,7 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
 
 
 let createValueInline
-  (branchId: Stdlib.Option.Option<Uuid>)
+  (branchID: Stdlib.Option.Option<Uuid>)
   (currentLocation: Packages.PackageLocation)
   (locationStr: String)
   (expression: String)
@@ -97,7 +97,7 @@ let createValueInline
 
         let (packageValue, unresolvedNames) =
           LanguageTools.WrittenTypesToProgramTypes.ValueDeclaration.toPackageValuePT
-            branchId
+            branchID
             LanguageTools.NameResolver.OnMissing.Allow
             pm
             parsedLocation.owner
@@ -129,7 +129,7 @@ let createValueInline
               LanguageTools.ProgramTypes.PackageOp.SetValueName (packageValue.id, packageLocation) ]
 
           // 8. Add ops to the current branch
-          SCM.PackageOps.add branchId ops
+          SCM.PackageOps.add branchID ops
 
           // 9. Show success message
           let fullPath =

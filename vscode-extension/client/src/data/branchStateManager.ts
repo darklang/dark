@@ -63,23 +63,23 @@ export class BranchStateManager {
     return this._branches.find(b => b.id === this._currentBranchId) || null;
   }
 
-  async setCurrentBranchById(branchId: string): Promise<void> {
-    this._currentBranchId = branchId;
-    console.log(`Branch changed to: ${branchId}`);
+  async setCurrentBranchById(branchID: string): Promise<void> {
+    this._currentBranchId = branchID;
+    console.log(`Branch changed to: ${branchID}`);
 
     // Notify the LSP server about the branch switch
     if (this._client) {
       try {
         await this._client.sendRequest("darklang/switchBranch", {
-          branchId: branchId,
+          branchID: branchID,
         });
-        console.log(`LSP server updated to branch: ${branchId}`);
+        console.log(`LSP server updated to branch: ${branchID}`);
       } catch (error) {
         console.error("Error updating LSP server branch context:", error);
       }
     }
 
-    this._onBranchChanged.fire(branchId);
+    this._onBranchChanged.fire(branchID);
   }
 
   getCurrentBranchId(): string | null {

@@ -40,10 +40,10 @@ import { BranchStateManager } from "../data/branchStateManager";
  *
  * Branch Statistics & Files:
  * - Implement Branch Statistics view
- *   - URL: dark:///branch/{branchId}/stats
+ *   - URL: dark:///branch/{branchID}/stats
  *   - Show charts/metrics about branch activity
  * - Implement Browse Branch Files view
- *   - URL: dark:///branch/{branchId}/files
+ *   - URL: dark:///branch/{branchID}/files
  *   - Tree view of all modified files in the branch
  *
  * Branch List Page (getBranchListContent):
@@ -172,7 +172,7 @@ export class BranchesManagerPanel {
         switch (message.type) {
           case "switchBranch":
             await vscode.commands.executeCommand("darklang.branch.switch", {
-              id: message.branchId,
+              id: message.branchID,
               title: message.branchName,
             });
             vscode.window.showInformationMessage(
@@ -182,7 +182,7 @@ export class BranchesManagerPanel {
             break;
 
           case "viewBranch":
-            const uri = vscode.Uri.parse(`dark:///branch/${message.branchId}`);
+            const uri = vscode.Uri.parse(`dark:///branch/${message.branchID}`);
             const doc = await vscode.workspace.openTextDocument(uri);
             await vscode.window.showTextDocument(doc, { preview: false });
             break;
@@ -525,18 +525,18 @@ export class BranchesManagerPanel {
             });
         }
 
-        function switchBranch(branchId, branchName) {
+        function switchBranch(branchID, branchName) {
             vscode.postMessage({
                 type: 'switchBranch',
-                branchId: branchId,
+                branchID: branchID,
                 branchName: branchName
             });
         }
 
-        function viewBranch(branchId) {
+        function viewBranch(branchID) {
             vscode.postMessage({
                 type: 'viewBranch',
-                branchId: branchId
+                branchID: branchID
             });
         }
 

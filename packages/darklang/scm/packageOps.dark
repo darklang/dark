@@ -2,21 +2,21 @@ module Darklang.SCM.PackageOps
 
 /// Add a list of package ops to the database and apply them immediately
 /// Returns the count of ops actually inserted (vs skipped as duplicates)
-/// branchId = None means add to main branch
-/// branchId = Some(id) means add to specific branch
+/// branchID = None means add to main branch
+/// branchID = Some(id) means add to specific branch
 let add
-  (branchId: Stdlib.Option.Option<Uuid>)
+  (branchID: Stdlib.Option.Option<Uuid>)
   (ops: List<LanguageTools.ProgramTypes.PackageOp>)
   : Int64 =
-  Builtin.scmAddOps branchId ops
+  Builtin.scmAddOps branchID ops
 
 
 /// Helper to add ops to a specific branch
 let addToBranch
-  (branchId: Uuid)
+  (branchID: Uuid)
   (ops: List<LanguageTools.ProgramTypes.PackageOp>)
   : Unit =
-  let _ = add (Stdlib.Option.Option.Some branchId) ops
+  let _ = add (Stdlib.Option.Option.Some branchID) ops
   ()
 
 
@@ -28,10 +28,10 @@ let addToMain (ops: List<LanguageTools.ProgramTypes.PackageOp>) : Unit =
 
 /// Get recent package ops from the database
 let getRecent
-  (branchId: Stdlib.Option.Option<Uuid>)
+  (branchID: Stdlib.Option.Option<Uuid>)
   (limit: Int64)
   : List<LanguageTools.ProgramTypes.PackageOp> =
-  Builtin.scmGetRecentOps branchId limit
+  Builtin.scmGetRecentOps branchID limit
 
 
 /// Get recent package ops from ALL branches (no branch filter)
@@ -43,7 +43,7 @@ let getRecentAllBranches
 
 /// Get package ops created since the specified datetime
 let getSince
-  (branchId: Stdlib.Option.Option<Uuid>)
+  (branchID: Stdlib.Option.Option<Uuid>)
   (since: DateTime)
   : List<LanguageTools.ProgramTypes.PackageOp> =
-  Builtin.scmGetOpsSince branchId since
+  Builtin.scmGetOpsSince branchID since

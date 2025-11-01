@@ -1,4 +1,4 @@
-// CLEANUP branchId tidyings
+// CLEANUP branchID tidyings
 
 [<HttpHandler("GET", "/ping")>]
 let _handler _req =
@@ -19,11 +19,11 @@ let _handler _req =
   let bodyBytes = request.body
   let bodyStr = Stdlib.String.fromBytesWithReplacement bodyBytes
 
-  let branchId =
+  let branchID =
     (Stdlib.Http.Request.queryParams request)
     |> Stdlib.List.findFirst (fun pair ->
       match pair with
-      | (key, _value) -> key == "branchId"
+      | (key, _value) -> key == "branchID"
       | _ -> false)
     |> fun result ->
       match result with
@@ -35,8 +35,7 @@ let _handler _req =
 
   match Builtin.jsonParse<List<LanguageTools.ProgramTypes.PackageOp>> bodyStr with
   | Ok ops ->
-    // Add ops to database
-    Builtin.scmAddOps branchId ops
+    Builtin.scmAddOps branchID ops
 
     let opsCount = Builtin.int64ToString (Stdlib.List.length ops)
 
@@ -52,11 +51,11 @@ let _handler _req =
 
 [<HttpHandler("GET", "/ops")>]
 let _handler _req =
-  let branchId =
+  let branchID =
     (Stdlib.Http.Request.queryParams request)
     |> Stdlib.List.findFirst (fun pair ->
       match pair with
-      | (key, _value) -> key == "branchId"
+      | (key, _value) -> key == "branchID"
       | _ -> false)
     |> fun result ->
       match result with
@@ -79,7 +78,7 @@ let _handler _req =
     | Ok sinceDate ->
       // Get ops since that date
       let ops =
-        Darklang.SCM.PackageOps.getSince branchId sinceDate
+        Darklang.SCM.PackageOps.getSince branchID sinceDate
 
       let json =
         Builtin.jsonSerialize<List<LanguageTools.ProgramTypes.PackageOp>> ops
@@ -174,11 +173,11 @@ let _handler _req =
 
 [<HttpHandler("GET", "/:location")>]
 let _handler _req =
-  let branchId =
+  let branchID =
     (Stdlib.Http.Request.queryParams request)
     |> Stdlib.List.findFirst (fun pair ->
       match pair with
-      | (key, _value) -> key == "branchId"
+      | (key, _value) -> key == "branchID"
       | _ -> false)
     |> fun result ->
       match result with
@@ -211,7 +210,7 @@ let _handler _req =
               LanguageTools.ProgramTypes.Search.EntityType.Module ]
           exactMatch = false }
 
-    let results = Builtin.pmSearch branchId searchQuery
+    let results = Builtin.pmSearch branchID searchQuery
 
     let json =
       Builtin.jsonSerialize<LanguageTools.ProgramTypes.Search.SearchResults>
@@ -229,7 +228,7 @@ let _handler _req =
         { owner = owner; modules = modules; name = entityName }
 
     // Try to find as function first
-    match Builtin.pmFindFn branchId packageLocation with
+    match Builtin.pmFindFn branchID packageLocation with
     | Some fnId ->
       match Builtin.pmGetFn fnId with
       | Some fn ->
@@ -242,7 +241,7 @@ let _handler _req =
 
     | None ->
       // Try to find as type
-      match Builtin.pmFindType branchId packageLocation with
+      match Builtin.pmFindType branchID packageLocation with
       | Some typeId ->
         match Builtin.pmGetType typeId with
         | Some typeDefinition ->
@@ -256,7 +255,7 @@ let _handler _req =
 
       | None ->
         // Try to find as value
-        match Builtin.pmFindValue branchId packageLocation with
+        match Builtin.pmFindValue branchID packageLocation with
         | Some valueId ->
           match Builtin.pmGetValue valueId with
           | Some value ->
@@ -285,7 +284,7 @@ let _handler _req =
                     LanguageTools.ProgramTypes.Search.EntityType.Module ]
                 exactMatch = false }
 
-          let results = Builtin.pmSearch branchId searchQuery
+          let results = Builtin.pmSearch branchID searchQuery
 
           let json =
             Builtin.jsonSerialize<LanguageTools.ProgramTypes.Search.SearchResults>
@@ -314,11 +313,11 @@ let _handler _req =
 
 [<HttpHandler("GET", "/type/find/:name")>]
 let _handler _req =
-  let branchId =
+  let branchID =
     (Stdlib.Http.Request.queryParams request)
     |> Stdlib.List.findFirst (fun pair ->
       match pair with
-      | (key, _value) -> key == "branchId"
+      | (key, _value) -> key == "branchID"
       | _ -> false)
     |> fun result ->
       match result with
@@ -344,7 +343,7 @@ let _handler _req =
       LanguageTools.ProgramTypes.PackageLocation
         { owner = owner; modules = modules; name = typeName }
 
-    match Builtin.pmFindType branchId location with
+    match Builtin.pmFindType branchID location with
     | Some foundID ->
       let json = $"\"{Stdlib.Uuid.toString foundID}\""
       Stdlib.Http.response (Stdlib.String.toBytes json) 200L
@@ -371,11 +370,11 @@ let _handler _req =
 
 [<HttpHandler("GET", "/value/find/:name")>]
 let _handler _req =
-  let branchId =
+  let branchID =
     (Stdlib.Http.Request.queryParams request)
     |> Stdlib.List.findFirst (fun pair ->
       match pair with
-      | (key, _value) -> key == "branchId"
+      | (key, _value) -> key == "branchID"
       | _ -> false)
     |> fun result ->
       match result with
@@ -401,7 +400,7 @@ let _handler _req =
       LanguageTools.ProgramTypes.PackageLocation
         { owner = owner; modules = modules; name = valueName }
 
-    match Builtin.pmFindValue branchId location with
+    match Builtin.pmFindValue branchID location with
     | Some foundID ->
       let json = $"\"{Stdlib.Uuid.toString foundID}\""
       Stdlib.Http.response (Stdlib.String.toBytes json) 200L
@@ -428,11 +427,11 @@ let _handler _req =
 
 [<HttpHandler("GET", "/function/find/:name")>]
 let _handler _req =
-  let branchId =
+  let branchID =
     (Stdlib.Http.Request.queryParams request)
     |> Stdlib.List.findFirst (fun pair ->
       match pair with
-      | (key, _value) -> key == "branchId"
+      | (key, _value) -> key == "branchID"
       | _ -> false)
     |> fun result ->
       match result with
@@ -458,7 +457,7 @@ let _handler _req =
       LanguageTools.ProgramTypes.PackageLocation
         { owner = owner; modules = modules; name = fnName }
 
-    match Builtin.pmFindFn branchId location with
+    match Builtin.pmFindFn branchID location with
     | Some foundID ->
       let json = $"\"{Stdlib.Uuid.toString foundID}\""
       Stdlib.Http.response (Stdlib.String.toBytes json) 200L
@@ -484,11 +483,11 @@ let _handler _req =
 
 [<HttpHandler("GET", "/search")>]
 let _handler _req =
-  let branchId =
+  let branchID =
     (Stdlib.Http.Request.queryParams request)
     |> Stdlib.List.findFirst (fun pair ->
       match pair with
-      | (key, _value) -> key == "branchId"
+      | (key, _value) -> key == "branchID"
       | _ -> false)
     |> fun result ->
       match result with
@@ -602,7 +601,7 @@ let _handler _req =
               entityTypes = entityTypes
               exactMatch = exactMatch }
 
-        let results = Builtin.pmSearch branchId query
+        let results = Builtin.pmSearch branchID query
 
         let json =
           Builtin.jsonSerialize<LanguageTools.ProgramTypes.Search.SearchResults>

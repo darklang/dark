@@ -81,32 +81,32 @@ export class BranchCommands {
         console.log('🔀 Branch switch command called with:', branch);
 
         // Handle both {label: ...} and {id: ...} formats
-        const branchId = branch?.id;
+        const branchID = branch?.id;
         // CLEANUP: do we need branch?.label || branch?.name
         const branchLabel = branch?.label || branch?.name || branch?.title || "Unknown";
 
-        console.log('  branchId:', branchId, 'branchLabel:', branchLabel);
+        console.log('  branchID:', branchID, 'branchLabel:', branchLabel);
 
-        if (branchId) {
-          this.branchStateManager.setCurrentBranchById(branchId);
+        if (branchID) {
+          this.branchStateManager.setCurrentBranchById(branchID);
           this.statusBarManager.updateBranch(branchLabel);
           this.workspaceProvider.refresh();
           vscode.window.showInformationMessage(`Switched to branch: ${branchLabel}`);
         } else {
-          console.error('  ERROR: No branchId provided to switch command!');
+          console.error('  ERROR: No branchID provided to switch command!');
         }
       }),
 
       vscode.commands.registerCommand("darklang.branch.view", (branch) => {
-        const branchId = branch?.id || this.branchStateManager.getCurrentBranchId();
+        const branchID = branch?.id || this.branchStateManager.getCurrentBranchId();
         const branchLabel = branch?.label || branch?.name || this.branchStateManager.getCurrentBranchName();
 
-        if (!branchId) {
+        if (!branchID) {
           vscode.window.showErrorMessage("No branch is currently selected");
           return;
         }
 
-        const virtualUri = vscode.Uri.parse(`dark:///branch/${branchId}?label=${encodeURIComponent(branchLabel)}`);
+        const virtualUri = vscode.Uri.parse(`dark:///branch/${branchID}?label=${encodeURIComponent(branchLabel)}`);
         vscode.workspace.openTextDocument(virtualUri).then(doc => {
           vscode.window.showTextDocument(doc, {
             preview: false,

@@ -176,22 +176,22 @@ let withExtraOps
     fnLocToId |> Map.toList |> List.map (fun (loc, id) -> id, loc) |> Map.ofList
 
   { findType =
-      fun (branchId, loc) ->
+      fun (branchID, loc) ->
         match Map.tryFind loc typeLocToId with
         | Some id -> Ply(Some id)
-        | None -> basePM.findType (branchId, loc)
+        | None -> basePM.findType (branchID, loc)
 
     findValue =
-      fun (branchId, loc) ->
+      fun (branchID, loc) ->
         match Map.tryFind loc valueLocToId with
         | Some id -> Ply(Some id)
-        | None -> basePM.findValue (branchId, loc)
+        | None -> basePM.findValue (branchID, loc)
 
     findFn =
-      fun (branchId, loc) ->
+      fun (branchID, loc) ->
         match Map.tryFind loc fnLocToId with
         | Some id -> Ply(Some id)
-        | None -> basePM.findFn (branchId, loc)
+        | None -> basePM.findFn (branchID, loc)
 
     getType =
       fun id ->
@@ -212,22 +212,22 @@ let withExtraOps
         | None -> basePM.getFn id
 
     getTypeLocation =
-      fun (branchId, id) ->
+      fun (branchID, id) ->
         match Map.tryFind id typeIdToLoc with
         | Some loc -> Ply(Some loc)
-        | None -> basePM.getTypeLocation (branchId, id)
+        | None -> basePM.getTypeLocation (branchID, id)
 
     getValueLocation =
-      fun (branchId, id) ->
+      fun (branchID, id) ->
         match Map.tryFind id valueIdToLoc with
         | Some loc -> Ply(Some loc)
-        | None -> basePM.getValueLocation (branchId, id)
+        | None -> basePM.getValueLocation (branchID, id)
 
     getFnLocation =
-      fun (branchId, id) ->
+      fun (branchID, id) ->
         match Map.tryFind id fnIdToLoc with
         | Some loc -> Ply(Some loc)
-        | None -> basePM.getFnLocation (branchId, id)
+        | None -> basePM.getFnLocation (branchID, id)
 
     search = basePM.search
     init = basePM.init }

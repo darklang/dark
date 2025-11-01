@@ -14,13 +14,13 @@ module BinarySerialization = LibBinarySerialization.BinarySerialization
 
 
 /// Get recent package ops from the database
-/// branchId: None = main/merged, Some(id) = branch-specific
+/// branchID: None = main/merged, Some(id) = branch-specific
 let getRecentOps
-  (branchId : Option<PT.BranchID>)
+  (branchID : Option<PT.BranchID>)
   (limit : int64)
   : Task<List<PT.PackageOp>> =
   task {
-    match branchId with
+    match branchID with
     | Some id ->
       // Query specific branch only
       return!
@@ -76,13 +76,13 @@ let getRecentOpsAllBranches (limit : int64) : Task<List<PT.PackageOp>> =
 
 /// Get package ops created since the specified datetime
 let getOpsSince
-  (branchId : Option<PT.BranchID>)
+  (branchID : Option<PT.BranchID>)
   (since : LibExecution.DarkDateTime.T)
   : Task<List<PT.PackageOp>> =
   task {
     let sinceStr = LibExecution.DarkDateTime.toIsoString since
 
-    match branchId with
+    match branchID with
     | Some id ->
       // Query specific branch only
       return!

@@ -63,7 +63,7 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
     { name = fn "pmFindType" 0
       typeParams = []
       parameters =
-        [ Param.make "branchId" (TypeReference.option TUuid) ""
+        [ Param.make "branchID" (TypeReference.option TUuid) ""
           Param.make "location" (TCustomType(Ok PT2DT.PackageLocation.typeName, [])) "" ]
       returnType = TypeReference.option TUuid
       description =
@@ -73,9 +73,9 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
         (function
         | _, _, _, [ branchIdDval; locationDval ] ->
           uply {
-            let branchId = C2DT.Option.fromDT D.uuid branchIdDval
+            let branchID = C2DT.Option.fromDT D.uuid branchIdDval
             let location = PT2DT.PackageLocation.fromDT locationDval
-            match! pm.findType(branchId, location) with
+            match! pm.findType(branchID, location) with
             | Some id -> return DUuid id |> Dval.optionSome optType
             | None -> return Dval.optionNone optType
           }
@@ -110,7 +110,7 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
     { name = fn "pmFindValue" 0
       typeParams = []
       parameters =
-        [ Param.make "branchId" (TypeReference.option TUuid) ""
+        [ Param.make "branchID" (TypeReference.option TUuid) ""
           Param.make "location" (TCustomType(Ok PT2DT.PackageLocation.typeName, [])) "" ]
       returnType = TypeReference.option TUuid
       description =
@@ -120,9 +120,9 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
         (function
         | _, _, _, [ branchIdDval; locationDval ] ->
           uply {
-            let branchId = C2DT.Option.fromDT D.uuid branchIdDval
+            let branchID = C2DT.Option.fromDT D.uuid branchIdDval
             let location = PT2DT.PackageLocation.fromDT locationDval
-            match! pm.findValue(branchId, location) with
+            match! pm.findValue(branchID, location) with
             | Some id -> return DUuid id |> Dval.optionSome optType
             | None -> return Dval.optionNone optType
           }
@@ -158,7 +158,7 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
     { name = fn "pmFindFn" 0
       typeParams = []
       parameters =
-        [ Param.make "branchId" (TypeReference.option TUuid) ""
+        [ Param.make "branchID" (TypeReference.option TUuid) ""
           Param.make "location" (TCustomType(Ok PT2DT.PackageLocation.typeName, [])) "" ]
       returnType = TypeReference.option TUuid
       description =
@@ -168,9 +168,9 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
         (function
         | _, _, _, [ branchIdDval; locationDval ] ->
           uply {
-            let branchId = C2DT.Option.fromDT D.uuid branchIdDval
+            let branchID = C2DT.Option.fromDT D.uuid branchIdDval
             let location = PT2DT.PackageLocation.fromDT locationDval
-            match! pm.findFn(branchId, location) with
+            match! pm.findFn(branchID, location) with
             | Some id -> return DUuid id |> Dval.optionSome optType
             | None -> return Dval.optionNone optType
           }
@@ -204,7 +204,7 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
     { name = fn "pmSearch" 0
       typeParams = []
       parameters =
-        [ Param.make "branchId" (TypeReference.option TUuid) ""
+        [ Param.make "branchID" (TypeReference.option TUuid) ""
           Param.make
             "query"
             (TCustomType(Ok PT2DT.Search.SearchQuery.typeName, []))
@@ -215,10 +215,10 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
         function
         | _, _, _, [ branchIdDval; query as DRecord(_, _, _, _fields) ] ->
           uply {
-            let branchId = C2DT.Option.fromDT D.uuid branchIdDval
+            let branchID = C2DT.Option.fromDT D.uuid branchIdDval
             let searchQuery = PT2DT.Search.SearchQuery.fromDT query
 
-            let! results = pm.search(branchId, searchQuery)
+            let! results = pm.search(branchID, searchQuery)
 
             let submodules =
               results.submodules
@@ -267,7 +267,7 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
     { name = fn "pmGetLocationByType" 0
       typeParams = []
       parameters =
-        [ Param.make "branchId" (TypeReference.option TUuid) ""
+        [ Param.make "branchID" (TypeReference.option TUuid) ""
           Param.make "id" TUuid "" ]
       returnType =
         TypeReference.option (TCustomType(Ok PT2DT.PackageLocation.typeName, []))
@@ -277,8 +277,8 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
         (function
         | _, _, _, [ branchIdDval; DUuid id ] ->
           uply {
-            let branchId = C2DT.Option.fromDT D.uuid branchIdDval
-            match! pm.getTypeLocation(branchId, id) with
+            let branchID = C2DT.Option.fromDT D.uuid branchIdDval
+            match! pm.getTypeLocation(branchID, id) with
             | Some location ->
               return location |> PT2DT.PackageLocation.toDT |> Dval.optionSome optType
             | None -> return Dval.optionNone optType
@@ -292,7 +292,7 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
     { name = fn "pmGetLocationByValue" 0
       typeParams = []
       parameters =
-        [ Param.make "branchId" (TypeReference.option TUuid) ""
+        [ Param.make "branchID" (TypeReference.option TUuid) ""
           Param.make "id" TUuid "" ]
       returnType =
         TypeReference.option (TCustomType(Ok PT2DT.PackageLocation.typeName, []))
@@ -302,8 +302,8 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
         (function
         | _, _, _, [ branchIdDval; DUuid id ] ->
           uply {
-            let branchId = C2DT.Option.fromDT D.uuid branchIdDval
-            match! pm.getValueLocation(branchId, id) with
+            let branchID = C2DT.Option.fromDT D.uuid branchIdDval
+            match! pm.getValueLocation(branchID, id) with
             | Some location ->
               return location |> PT2DT.PackageLocation.toDT |> Dval.optionSome optType
             | None -> return Dval.optionNone optType
@@ -317,7 +317,7 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
     { name = fn "pmGetLocationByFn" 0
       typeParams = []
       parameters =
-        [ Param.make "branchId" (TypeReference.option TUuid) ""
+        [ Param.make "branchID" (TypeReference.option TUuid) ""
           Param.make "id" TUuid "" ]
       returnType =
         TypeReference.option (TCustomType(Ok PT2DT.PackageLocation.typeName, []))
@@ -327,8 +327,8 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
         (function
         | _, _, _, [ branchIdDval; DUuid id ] ->
           uply {
-            let branchId = C2DT.Option.fromDT D.uuid branchIdDval
-            match! pm.getFnLocation(branchId, id) with
+            let branchID = C2DT.Option.fromDT D.uuid branchIdDval
+            match! pm.getFnLocation(branchID, id) with
             | Some location ->
               return location |> PT2DT.PackageLocation.toDT |> Dval.optionSome optType
             | None -> return Dval.optionNone optType

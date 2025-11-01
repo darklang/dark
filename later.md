@@ -38,7 +38,7 @@ mv type User Models.User
 **Current implementation**:
 - Backend: `scmGetNameHistory` builtin in `BuiltinPM/Libs/PackageHistory.fs`
 - Package wrapper: `Darklang.SCM.History.getNameHistory`
-- Returns list of HistoryEntry with: timestamp, branchId, itemId, opType
+- Returns list of HistoryEntry with: timestamp, branchID, itemId, opType
 
 **Removed CLI command usage**:
 ```

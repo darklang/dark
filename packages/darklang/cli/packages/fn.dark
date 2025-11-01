@@ -41,7 +41,7 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
 
 
 let createFnInline
-  (branchId: Stdlib.Option.Option<Uuid>)
+  (branchID: Stdlib.Option.Option<Uuid>)
   (currentLocation: Packages.PackageLocation)
   (locationStr: String)
   (definition: String)
@@ -96,7 +96,7 @@ let createFnInline
 
         let (packageFn, unresolvedNames) =
           LanguageTools.WrittenTypesToProgramTypes.FunctionDeclaration.toPackageFnPT
-            branchId
+            branchID
             LanguageTools.NameResolver.OnMissing.Allow
             pm
             parsedLocation.owner
@@ -128,7 +128,7 @@ let createFnInline
               LanguageTools.ProgramTypes.PackageOp.SetFnName (packageFn.id, packageLocation) ]
 
           // 8. Add ops to the current branch
-          SCM.PackageOps.add branchId ops
+          SCM.PackageOps.add branchID ops
 
           // 9. Show success message
           let fullPath =

@@ -5,7 +5,7 @@ module Darklang.SCM.Sync
 let sync
   (instanceId: Uuid)
   (remoteUrl: String)
-  (branchId: Stdlib.Option.Option<Uuid>)
+  (branchID: Stdlib.Option.Option<Uuid>)
   : Stdlib.Result.Result<String, String> =
   Builtin.debug "=== Starting sync ===" instanceId
 
@@ -23,7 +23,7 @@ let sync
   Builtin.debug "Syncing since" sinceDate
 
   // Get ops to push (created since last sync)
-  let opsToPush = Darklang.SCM.PackageOps.getSince branchId sinceDate
+  let opsToPush = Darklang.SCM.PackageOps.getSince branchID sinceDate
 
   let opsPushedCount = Stdlib.List.length opsToPush
 
@@ -169,7 +169,7 @@ let sync
                     Builtin.printLine
                       $"  Applying batch {batchNumStr}/{batchCountStr} ({batchOpsCountStr} ops)..."
 
-                    let batchApplied = Builtin.scmAddOps branchId batch
+                    let batchApplied = Builtin.scmAddOps branchID batch
 
                     (index + 1L, appliedSoFar + batchApplied))
 

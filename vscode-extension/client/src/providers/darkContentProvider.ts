@@ -76,23 +76,23 @@ Instance content is not yet implemented.`;
   }
 
   private getBranchContent(parsedUrl: ParsedUrl): string {
-    const { context: branchId } = parsedUrl;
+    const { context: branchID } = parsedUrl;
 
-    if (!branchId) {
+    if (!branchID) {
       return this.getBranchListContent();
     }
 
-    return this.getBranchOverviewContent(branchId);
+    return this.getBranchOverviewContent(branchID);
   }
 
-  private getBranchOverviewContent(branchId: string): string {
+  private getBranchOverviewContent(branchID: string): string {
     const branchManager = BranchStateManager.getInstance();
-    const branch = branchManager.getBranches().find(b => b.id === branchId);
+    const branch = branchManager.getBranches().find(b => b.id === branchID);
 
     if (!branch) {
       return `# Branch Not Found
 
-Branch with ID \`${branchId}\` was not found.
+Branch with ID \`${branchID}\` was not found.
 `;
     }
 
@@ -122,7 +122,7 @@ Branch with ID \`${branchId}\` was not found.
 
 ## Branch Actions
 
-- [🎯 Switch to Branch](command:darklang.branch.switch?${branchId})`;
+- [🎯 Switch to Branch](command:darklang.branch.switch?${branchID})`;
   }
 
   private getBranchListContent(): string {

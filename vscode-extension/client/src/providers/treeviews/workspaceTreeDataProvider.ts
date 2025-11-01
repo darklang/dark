@@ -35,7 +35,7 @@ interface PendingOpNode extends BranchNode {
 // Interface for branch quick pick items with custom properties
 interface BranchQuickPickItem extends vscode.QuickPickItem {
   value?: string;
-  branchId?: string;
+  branchID?: string;
 }
 
 // Type for package ops (from file system provider)
@@ -330,7 +330,7 @@ export class WorkspaceTreeDataProvider implements vscode.TreeDataProvider<Branch
 
   private getRootNodes(): BranchNode[] {
     const branchName = this.branchStateManager.getCurrentBranchName();
-    const branchId = this.branchStateManager.getCurrentBranchId();
+    const branchID = this.branchStateManager.getCurrentBranchId();
 
     // Get instances for the Instance node
     const instances = InstanceDemoData.getInstancesData();
@@ -366,7 +366,7 @@ export class WorkspaceTreeDataProvider implements vscode.TreeDataProvider<Branch
       },
       // Branch node (non-expandable, clickable)
       {
-        id: branchId || "no-branch",
+        id: branchID || "no-branch",
         label: `Branch: ${branchName}`,
         type: "branch-root",
         contextValue: "workspace-branch-root",
@@ -554,7 +554,7 @@ export class WorkspaceTreeDataProvider implements vscode.TreeDataProvider<Branch
           label: b.name,
           description: isCurrent ? '● Current' : undefined,
           detail: `Branch ID: ${b.id}`,
-          branchId: b.id
+          branchID: b.id
         });
       });
 
@@ -563,8 +563,8 @@ export class WorkspaceTreeDataProvider implements vscode.TreeDataProvider<Branch
     });
 
     if (choice) {
-      if (choice.branchId) {
-        this.opsFilter.branch = choice.branchId;
+      if (choice.branchID) {
+        this.opsFilter.branch = choice.branchID;
         vscode.window.showInformationMessage(`Branch filter set to: ${choice.label}`);
       } else if (choice.value) {
         this.opsFilter.branch = choice.value;

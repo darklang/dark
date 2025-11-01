@@ -16,7 +16,7 @@ module BinarySerialization = LibBinarySerialization.BinarySerialization
 
 module Type =
   let find
-    ((branchId, location) : Option<PT.BranchID> * PT.PackageLocation)
+    ((branchID, location) : Option<PT.BranchID> * PT.PackageLocation)
     : Ply<Option<PT.FQTypeName.Package>> =
     uply {
       let modulesStr = String.concat "." location.modules
@@ -39,7 +39,7 @@ module Type =
           [ "owner", Sql.string location.owner
             "modules", Sql.string modulesStr
             "name", Sql.string location.name
-            "branch_id", (match branchId with | Some id -> Sql.uuid id | None -> Sql.dbnull) ]
+            "branch_id", (match branchID with | Some id -> Sql.uuid id | None -> Sql.dbnull) ]
         |> Sql.executeRowOptionAsync (fun read -> read.uuid "item_id")
     }
 
@@ -58,7 +58,7 @@ module Type =
     }
 
   let getLocation
-    ((branchId, id) : Option<PT.BranchID> * uuid)
+    ((branchID, id) : Option<PT.BranchID> * uuid)
     : Ply<Option<PT.PackageLocation>> =
     uply {
       return!
@@ -75,7 +75,7 @@ module Type =
           """
         |> Sql.parameters
           [ "item_id", Sql.uuid id
-            "branch_id", (match branchId with | Some id -> Sql.uuid id | None -> Sql.dbnull) ]
+            "branch_id", (match branchID with | Some id -> Sql.uuid id | None -> Sql.dbnull) ]
         |> Sql.executeRowOptionAsync (fun read ->
           let modulesStr = read.string "modules"
           { owner = read.string "owner"
@@ -86,7 +86,7 @@ module Type =
 
 module Value =
   let find
-    ((branchId, location) : Option<PT.BranchID> * PT.PackageLocation)
+    ((branchID, location) : Option<PT.BranchID> * PT.PackageLocation)
     : Ply<Option<PT.FQValueName.Package>> =
     uply {
       let modulesStr = String.concat "." location.modules
@@ -109,7 +109,7 @@ module Value =
           [ "owner", Sql.string location.owner
             "modules", Sql.string modulesStr
             "name", Sql.string location.name
-            "branch_id", (match branchId with | Some id -> Sql.uuid id | None -> Sql.dbnull) ]
+            "branch_id", (match branchID with | Some id -> Sql.uuid id | None -> Sql.dbnull) ]
         |> Sql.executeRowOptionAsync (fun read -> read.uuid "item_id")
     }
 
@@ -128,7 +128,7 @@ module Value =
     }
 
   let getLocation
-    ((branchId, id) : Option<PT.BranchID> * uuid)
+    ((branchID, id) : Option<PT.BranchID> * uuid)
     : Ply<Option<PT.PackageLocation>> =
     uply {
       return!
@@ -145,7 +145,7 @@ module Value =
           """
         |> Sql.parameters
           [ "item_id", Sql.uuid id
-            "branch_id", (match branchId with | Some id -> Sql.uuid id | None -> Sql.dbnull) ]
+            "branch_id", (match branchID with | Some id -> Sql.uuid id | None -> Sql.dbnull) ]
         |> Sql.executeRowOptionAsync (fun read ->
           let modulesStr = read.string "modules"
           { owner = read.string "owner"
@@ -156,7 +156,7 @@ module Value =
 
 module Fn =
   let find
-    ((branchId, location) : Option<PT.BranchID> * PT.PackageLocation)
+    ((branchID, location) : Option<PT.BranchID> * PT.PackageLocation)
     : Ply<Option<PT.FQFnName.Package>> =
     uply {
       let modulesStr = String.concat "." location.modules
@@ -179,7 +179,7 @@ module Fn =
           [ "owner", Sql.string location.owner
             "modules", Sql.string modulesStr
             "name", Sql.string location.name
-            "branch_id", (match branchId with | Some id -> Sql.uuid id | None -> Sql.dbnull) ]
+            "branch_id", (match branchID with | Some id -> Sql.uuid id | None -> Sql.dbnull) ]
         |> Sql.executeRowOptionAsync (fun read -> read.uuid "item_id")
     }
 
@@ -198,7 +198,7 @@ module Fn =
     }
 
   let getLocation
-    ((branchId, id) : Option<PT.BranchID> * uuid)
+    ((branchID, id) : Option<PT.BranchID> * uuid)
     : Ply<Option<PT.PackageLocation>> =
     uply {
       return!
@@ -215,7 +215,7 @@ module Fn =
           """
         |> Sql.parameters
           [ "item_id", Sql.uuid id
-            "branch_id", (match branchId with | Some id -> Sql.uuid id | None -> Sql.dbnull) ]
+            "branch_id", (match branchID with | Some id -> Sql.uuid id | None -> Sql.dbnull) ]
         |> Sql.executeRowOptionAsync (fun read ->
           let modulesStr = read.string "modules"
           { owner = read.string "owner"
@@ -226,7 +226,7 @@ module Fn =
 
 
 let search
-  ((branchId, query) : Option<PT.BranchID> * PT.Search.SearchQuery)
+  ((branchID, query) : Option<PT.BranchID> * PT.Search.SearchQuery)
   : Ply<PT.Search.SearchResults> =
   uply {
     let currentModule = String.concat "." query.currentModule
@@ -330,7 +330,7 @@ let search
       |> Sql.query
       |> Sql.parameters
         ([ "branch_id",
-           (match branchId with
+           (match branchID with
             | Some id -> Sql.uuid id
             | None -> Sql.dbnull) ]
          @ sqlParams)
@@ -401,7 +401,7 @@ let search
       |> Sql.query
       |> Sql.parameters
         [ "branch_id",
-          (match branchId with
+          (match branchID with
            | Some id -> Sql.uuid id
            | None -> Sql.dbnull)
           "modules", Sql.string currentModule

@@ -36,7 +36,7 @@ let list () : Task<List<Branch>> =
 
 
 /// Get a specific branch by ID
-let get (branchId : uuid) : Task<Option<Branch>> =
+let get (branchID : uuid) : Task<Option<Branch>> =
   task {
     return!
       Sql.query
@@ -45,7 +45,7 @@ let get (branchId : uuid) : Task<Option<Branch>> =
         FROM branches
         WHERE id = @id
         """
-      |> Sql.parameters [ "id", Sql.uuid branchId ]
+      |> Sql.parameters [ "id", Sql.uuid branchID ]
       |> Sql.executeRowOptionAsync (fun read ->
         { id = read.uuid "id"
           name = read.string "name"

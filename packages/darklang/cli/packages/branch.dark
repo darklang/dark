@@ -81,8 +81,8 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
 
   | ["switch-id"; branchIdStr] ->
     match Stdlib.Uuid.parse branchIdStr with
-    | Ok branchId ->
-      let branch = Darklang.SCM.Branch.get branchId
+    | Ok branchID ->
+      let branch = Darklang.SCM.Branch.get branchID
 
       match branch with
       | Some b ->
@@ -103,7 +103,7 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
   | ["status"] ->
     let currentBranch =
       match state.currentBranchId with
-      | Some branchId -> Darklang.SCM.Branch.get branchId
+      | Some branchID -> Darklang.SCM.Branch.get branchID
       | None -> Stdlib.Option.Option.None
 
     match currentBranch with
@@ -120,7 +120,7 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
   | ["info"] ->
     let currentBranch =
       match state.currentBranchId with
-      | Some branchId -> Darklang.SCM.Branch.get branchId
+      | Some branchID -> Darklang.SCM.Branch.get branchID
       | None -> Stdlib.Option.Option.None
 
     match currentBranch with
