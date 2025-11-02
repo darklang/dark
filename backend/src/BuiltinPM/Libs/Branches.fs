@@ -16,8 +16,7 @@ module PackageIDs = LibExecution.PackageIDs
 open Builtin.Shortcuts
 
 
-let branchTypeName =
-  FQTypeName.fqPackage PackageIDs.Type.SCM.Branch.branch
+let branchTypeName = FQTypeName.fqPackage PackageIDs.Type.SCM.Branch.branch
 
 
 let branchToDT (branch : Branches.Branch) : Dval =

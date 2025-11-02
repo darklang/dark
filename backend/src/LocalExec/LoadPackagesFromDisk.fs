@@ -50,7 +50,9 @@ let load (builtins : RT.Builtins) : Ply<List<PT.PackageOp>> =
       |> Ply.List.mapSequentially (fun (path, contents) ->
         LibParser.Parser.parsePackageFile
           builtins
-          (LibPackageManager.PackageManager.withExtraOps PT.PackageManager.empty firstPassOps)
+          (LibPackageManager.PackageManager.withExtraOps
+            PT.PackageManager.empty
+            firstPassOps)
           NR.OnMissing.ThrowError
           path
           contents)

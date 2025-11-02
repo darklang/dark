@@ -28,10 +28,7 @@ let fns : List<BuiltInFn> =
           uply {
             let! lastSync = LibPackageManager.Sync.getLastSyncDate instanceId
 
-            return
-              lastSync
-              |> Option.map DDateTime
-              |> Dval.option KTDateTime
+            return lastSync |> Option.map DDateTime |> Dval.option KTDateTime
           }
         | _ -> incorrectArgs ()
       sqlSpec = NotQueryable

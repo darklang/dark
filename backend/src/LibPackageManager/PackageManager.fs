@@ -72,8 +72,7 @@ let createInMemory (ops : List<PT.PackageOp>) : PT.PackageManager =
   let fnLocMap = Map.ofSeq fnLocations
 
   // Build reverse maps (id → location)
-  let typeIdToLoc =
-    typeLocations |> Seq.map (fun (loc, id) -> id, loc) |> Map.ofSeq
+  let typeIdToLoc = typeLocations |> Seq.map (fun (loc, id) -> id, loc) |> Map.ofSeq
   let valueIdToLoc =
     valueLocations |> Seq.map (fun (loc, id) -> id, loc) |> Map.ofSeq
   let fnIdToLoc = fnLocations |> Seq.map (fun (loc, id) -> id, loc) |> Map.ofSeq
@@ -99,7 +98,8 @@ let createInMemory (ops : List<PT.PackageOp>) : PT.PackageManager =
           |> Seq.toList
           |> List.choose (fun t ->
             match Map.tryFind t.id typeIdToLoc with
-            | Some loc -> Option.Some({ entity = t; location = loc } : PT.LocatedItem<_>)
+            | Some loc ->
+              Option.Some({ entity = t; location = loc } : PT.LocatedItem<_>)
             | None -> Option.None)
 
         let valuesWithLocs =
@@ -107,7 +107,8 @@ let createInMemory (ops : List<PT.PackageOp>) : PT.PackageManager =
           |> Seq.toList
           |> List.choose (fun v ->
             match Map.tryFind v.id valueIdToLoc with
-            | Some loc -> Option.Some({ entity = v; location = loc } : PT.LocatedItem<_>)
+            | Some loc ->
+              Option.Some({ entity = v; location = loc } : PT.LocatedItem<_>)
             | None -> Option.None)
 
         let fnsWithLocs =
@@ -115,7 +116,8 @@ let createInMemory (ops : List<PT.PackageOp>) : PT.PackageManager =
           |> Seq.toList
           |> List.choose (fun f ->
             match Map.tryFind f.id fnIdToLoc with
-            | Some loc -> Option.Some({ entity = f; location = loc } : PT.LocatedItem<_>)
+            | Some loc ->
+              Option.Some({ entity = f; location = loc } : PT.LocatedItem<_>)
             | None -> Option.None)
 
         Ply
@@ -136,25 +138,25 @@ let combine
   { findType =
       fun (branchID, loc) ->
         uply {
-          match! overlay.findType(branchID, loc) with
+          match! overlay.findType (branchID, loc) with
           | Some id -> return Some id
-          | None -> return! fallback.findType(branchID, loc)
+          | None -> return! fallback.findType (branchID, loc)
         }
 
     findValue =
       fun (branchID, loc) ->
         uply {
-          match! overlay.findValue(branchID, loc) with
+          match! overlay.findValue (branchID, loc) with
           | Some id -> return Some id
-          | None -> return! fallback.findValue(branchID, loc)
+          | None -> return! fallback.findValue (branchID, loc)
         }
 
     findFn =
       fun (branchID, loc) ->
         uply {
-          match! overlay.findFn(branchID, loc) with
+          match! overlay.findFn (branchID, loc) with
           | Some id -> return Some id
-          | None -> return! fallback.findFn(branchID, loc)
+          | None -> return! fallback.findFn (branchID, loc)
         }
 
     getType =
@@ -184,33 +186,33 @@ let combine
     getTypeLocation =
       fun (branchID, id) ->
         uply {
-          match! overlay.getTypeLocation(branchID, id) with
+          match! overlay.getTypeLocation (branchID, id) with
           | Some loc -> return Some loc
-          | None -> return! fallback.getTypeLocation(branchID, id)
+          | None -> return! fallback.getTypeLocation (branchID, id)
         }
 
     getValueLocation =
       fun (branchID, id) ->
         uply {
-          match! overlay.getValueLocation(branchID, id) with
+          match! overlay.getValueLocation (branchID, id) with
           | Some loc -> return Some loc
-          | None -> return! fallback.getValueLocation(branchID, id)
+          | None -> return! fallback.getValueLocation (branchID, id)
         }
 
     getFnLocation =
       fun (branchID, id) ->
         uply {
-          match! overlay.getFnLocation(branchID, id) with
+          match! overlay.getFnLocation (branchID, id) with
           | Some loc -> return Some loc
-          | None -> return! fallback.getFnLocation(branchID, id)
+          | None -> return! fallback.getFnLocation (branchID, id)
         }
 
     search =
       fun (branchID, query) ->
         uply {
           // Combine search results from both
-          let! overlayResults = overlay.search(branchID, query)
-          let! fallbackResults = fallback.search(branchID, query)
+          let! overlayResults = overlay.search (branchID, query)
+          let! fallbackResults = fallback.search (branchID, query)
 
           return
             { PT.Search.SearchResults.submodules =

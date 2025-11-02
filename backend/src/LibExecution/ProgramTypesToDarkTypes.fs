@@ -1299,8 +1299,7 @@ module PackageFn =
 
 module PackageLocation =
   let typeName =
-    FQTypeName.fqPackage
-      PackageIDs.Type.LanguageTools.ProgramTypes.packageLocation
+    FQTypeName.fqPackage PackageIDs.Type.LanguageTools.ProgramTypes.packageLocation
   let knownType = KTCustomType(typeName, [])
 
   let toDT (loc : PT.PackageLocation) : Dval =
@@ -1321,14 +1320,13 @@ module PackageLocation =
 
 module LocatedItem =
   let typeName =
-    FQTypeName.fqPackage
-      PackageIDs.Type.LanguageTools.ProgramTypes.locatedItem
-  let knownType (entityKT : KnownType) = KTCustomType(typeName, [ VT.known entityKT ])
+    FQTypeName.fqPackage PackageIDs.Type.LanguageTools.ProgramTypes.locatedItem
+  let knownType (entityKT : KnownType) =
+    KTCustomType(typeName, [ VT.known entityKT ])
 
   let toDT (entityToDT : 'T -> Dval) (i : PT.LocatedItem<'T>) : Dval =
     let fields =
-      [ "entity", entityToDT i.entity
-        "location", PackageLocation.toDT i.location ]
+      [ "entity", entityToDT i.entity; "location", PackageLocation.toDT i.location ]
     DRecord(typeName, typeName, [], Map fields)
 
   let fromDT (entityFromDT : Dval -> 'T) (d : Dval) : PT.LocatedItem<'T> =
@@ -1379,8 +1377,7 @@ module Search =
       match d with
       | DEnum(_, _, [], "OnlyDirectDescendants", []) ->
         PT.Search.SearchDepth.OnlyDirectDescendants
-      | DEnum(_, _, [], "AllDescendants", []) ->
-        PT.Search.SearchDepth.AllDescendants
+      | DEnum(_, _, [], "AllDescendants", []) -> PT.Search.SearchDepth.AllDescendants
       | _ -> Exception.raiseInternal "Invalid SearchDepth" []
 
   module SearchQuery =
@@ -1429,11 +1426,15 @@ module Search =
           "types",
           sr.types
           |> List.map (LocatedItem.toDT PackageType.toDT)
-          |> Dval.list (LocatedItem.knownType (KTCustomType(PackageType.typeName, [])))
+          |> Dval.list (
+            LocatedItem.knownType (KTCustomType(PackageType.typeName, []))
+          )
           "values",
           sr.values
           |> List.map (LocatedItem.toDT PackageValue.toDT)
-          |> Dval.list (LocatedItem.knownType (KTCustomType(PackageValue.typeName, [])))
+          |> Dval.list (
+            LocatedItem.knownType (KTCustomType(PackageValue.typeName, []))
+          )
           "fns",
           sr.fns
           |> List.map (LocatedItem.toDT PackageFn.toDT)
@@ -1453,9 +1454,7 @@ module Search =
             |> D.field "values"
             |> D.list (LocatedItem.fromDT PackageValue.fromDT)
           fns =
-            fields
-            |> D.field "fns"
-            |> D.list (LocatedItem.fromDT PackageFn.fromDT) }
+            fields |> D.field "fns" |> D.list (LocatedItem.fromDT PackageFn.fromDT) }
       | _ -> Exception.raiseInternal "Invalid SearchResults" []
 
 
@@ -1479,8 +1478,10 @@ module PackageOp =
 
   let fromDT (d : Dval) : PT.PackageOp option =
     match d with
-    | DEnum(_, _, [], "AddType", [ t ]) -> Some(PT.PackageOp.AddType(PackageType.fromDT t))
-    | DEnum(_, _, [], "AddValue", [ v ]) -> Some(PT.PackageOp.AddValue(PackageValue.fromDT v))
+    | DEnum(_, _, [], "AddType", [ t ]) ->
+      Some(PT.PackageOp.AddType(PackageType.fromDT t))
+    | DEnum(_, _, [], "AddValue", [ v ]) ->
+      Some(PT.PackageOp.AddValue(PackageValue.fromDT v))
     | DEnum(_, _, [], "AddFn", [ f ]) -> Some(PT.PackageOp.AddFn(PackageFn.fromDT f))
     | DEnum(_, _, [], "SetTypeName", [ DUuid id; loc ]) ->
       Some(PT.PackageOp.SetTypeName(id, PackageLocation.fromDT loc))

@@ -253,10 +253,7 @@ let fns : List<BuiltInFn> =
         let resultError = Dval.resultError KTString errType
 
         function
-        | exeState,
-          _,
-          [],
-          [ branchID; DString functionName; DList(_vtTODO, args) ] ->
+        | exeState, _, [], [ branchID; DString functionName; DList(_vtTODO, args) ] ->
           uply {
             let err (msg : string) (metadata : List<string * string>) : Dval =
               let fields =

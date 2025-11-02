@@ -87,17 +87,9 @@ let create (name : string) : Task<Branch> =
         VALUES (@id, @name, @created_at, NULL)
         """
       |> Sql.parameters
-        [ "id", Sql.uuid id
-          "name", Sql.string name
-          "created_at", Sql.instant now ]
+        [ "id", Sql.uuid id; "name", Sql.string name; "created_at", Sql.instant now ]
       |> Sql.executeNonQueryAsync
       |> Task.map (fun _ -> ())
 
-    return
-      { id = id
-        name = name
-        createdAt = now
-        mergedAt = None }
+    return { id = id; name = name; createdAt = now; mergedAt = None }
   }
-
-

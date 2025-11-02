@@ -21,7 +21,4 @@ let read (r : BinaryReader) : PackageValue.PackageValue =
   let body = LibBinarySerialization.Serializers.PT.Expr.Expr.read r
   let description = String.read r
   let deprecated = Deprecation.read r FQValueName.read
-  { id = id
-    body = body
-    description = description
-    deprecated = deprecated }
+  { id = id; body = body; description = description; deprecated = deprecated }

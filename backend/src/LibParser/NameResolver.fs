@@ -211,7 +211,5 @@ let resolveFnName
       FS2WT.Expr.parseFnName
       packageManager.findFn
       PT.FQFnName.FQFnName.Package
-      (fun (name, version) ->
-        PT.FQFnName.Builtin { name = name; version = version })
-      (fun (name, version) ->
-        { RT.FQFnName.Builtin.name = name; version = version })
+      (fun (name, version) -> PT.FQFnName.Builtin { name = name; version = version })
+      (fun (name, version) -> { RT.FQFnName.Builtin.name = name; version = version })

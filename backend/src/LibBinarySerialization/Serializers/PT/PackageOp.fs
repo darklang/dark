@@ -58,8 +58,7 @@ let read (r : BinaryReader) : PackageOp =
     let id = FQFnName.Package.read r
     let location = PackageLocation.read r
     PackageOp.SetFnName(id, location)
-  | b ->
-    raise (BinaryFormatException(CorruptedData $"Invalid PackageOp tag: {b}"))
+  | b -> raise (BinaryFormatException(CorruptedData $"Invalid PackageOp tag: {b}"))
 
 
 let serialize (id : uuid) (op : PackageOp) : byte array =

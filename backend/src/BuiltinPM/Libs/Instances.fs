@@ -15,8 +15,7 @@ module PackageIDs = LibExecution.PackageIDs
 open Builtin.Shortcuts
 
 
-let instanceTypeName =
-  FQTypeName.fqPackage PackageIDs.Type.SCM.Instances.instance
+let instanceTypeName = FQTypeName.fqPackage PackageIDs.Type.SCM.Instances.instance
 
 
 let instanceToDT (instance : Instances.Instance) : Dval =
@@ -105,8 +104,7 @@ let fns : List<BuiltInFn> =
 
     { name = fn "scmAddInstance" 0
       typeParams = []
-      parameters =
-        [ Param.make "name" TString ""; Param.make "url" TString "" ]
+      parameters = [ Param.make "name" TString ""; Param.make "url" TString "" ]
       returnType = TCustomType(Ok instanceTypeName, [])
       description = "Add a new instance."
       fn =

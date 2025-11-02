@@ -254,7 +254,8 @@ let toPT
       m.values
       |> Ply.List.mapSequentially (fun wtValue ->
         uply {
-          let! ptValue = WT2PT.PackageValue.toPT builtins pm onMissing currentModule wtValue
+          let! ptValue =
+            WT2PT.PackageValue.toPT builtins pm onMissing currentModule wtValue
           let location : PT.PackageLocation =
             { owner = wtValue.name.owner
               modules = wtValue.name.modules
@@ -275,14 +276,12 @@ let toPT
               modules = wtFn.name.modules
               name = wtFn.name.name }
           return
-            [ PT.PackageOp.AddFn ptFn
-              PT.PackageOp.SetFnName(ptFn.id, location) ]
+            [ PT.PackageOp.AddFn ptFn; PT.PackageOp.SetFnName(ptFn.id, location) ]
         })
       |> Ply.map List.flatten
 
     let! dbs =
-      m.dbs
-      |> Ply.List.mapSequentially (WT2PT.DB.toPT pm onMissing currentModule)
+      m.dbs |> Ply.List.mapSequentially (WT2PT.DB.toPT pm onMissing currentModule)
 
     let! handlers =
       m.handlers
@@ -310,11 +309,7 @@ let toPT
 
     let allOps = typeOps @ valueOps @ fnOps
 
-    return
-      { ops = allOps
-        dbs = dbs
-        handlers = handlers
-        exprs = exprs }
+    return { ops = allOps; dbs = dbs; handlers = handlers; exprs = exprs }
   }
 
 
@@ -352,7 +347,8 @@ let parse
 
     // Two-phase parsing with ID stabilization:
     // First pass: parse with OnMissing.Allow to allow forward references
-    let! firstPass = toPT builtins PT.PackageManager.empty NR.OnMissing.Allow moduleWT
+    let! firstPass =
+      toPT builtins PT.PackageManager.empty NR.OnMissing.Allow moduleWT
 
     // Extract ops from first pass for second pass PackageManager
     let firstPassOps = firstPass.ops
@@ -364,8 +360,9 @@ let parse
     // ID stabilization: adjust second pass IDs to match first pass IDs
     let firstPassPM = LibPackageManager.PackageManager.createInMemory firstPassOps
     let! adjustedOps =
-      LibPackageManager.PackageManager.stabilizeOpsAgainstPM firstPassPM secondPass.ops
+      LibPackageManager.PackageManager.stabilizeOpsAgainstPM
+        firstPassPM
+        secondPass.ops
 
-    return
-      { secondPass with ops = adjustedOps }
+    return { secondPass with ops = adjustedOps }
   }

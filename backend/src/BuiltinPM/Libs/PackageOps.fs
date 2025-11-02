@@ -39,7 +39,8 @@ let fns : List<BuiltInFn> =
               ops |> List.choose (fun opDval -> PT2DT.PackageOp.fromDT opDval)
 
             // Insert ops with deduplication
-            let! insertedCount = LibPackageManager.Inserts.insertOrIgnore branchID ptOps
+            let! insertedCount =
+              LibPackageManager.Inserts.insertOrIgnore branchID ptOps
 
             return DInt64(int64 insertedCount)
           }

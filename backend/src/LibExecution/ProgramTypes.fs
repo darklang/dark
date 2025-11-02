@@ -838,12 +838,16 @@ type PackageManager =
     (pm : PackageManager)
     : PackageManager =
 
-    let typeLocationToId = types |> List.map (fun (t, loc) -> loc, t.id) |> Map.ofList
-    let typeIdToLocation = types |> List.map (fun (t, loc) -> t.id, loc) |> Map.ofList
+    let typeLocationToId =
+      types |> List.map (fun (t, loc) -> loc, t.id) |> Map.ofList
+    let typeIdToLocation =
+      types |> List.map (fun (t, loc) -> t.id, loc) |> Map.ofList
     let typeIdToType = types |> List.map (fun (t, _) -> t.id, t) |> Map.ofList
 
-    let valueLocationToId = values |> List.map (fun (v, loc) -> loc, v.id) |> Map.ofList
-    let valueIdToLocation = values |> List.map (fun (v, loc) -> v.id, loc) |> Map.ofList
+    let valueLocationToId =
+      values |> List.map (fun (v, loc) -> loc, v.id) |> Map.ofList
+    let valueIdToLocation =
+      values |> List.map (fun (v, loc) -> v.id, loc) |> Map.ofList
     let valueIdToValue = values |> List.map (fun (v, _) -> v.id, v) |> Map.ofList
 
     let fnLocationToId = fns |> List.map (fun (f, loc) -> loc, f.id) |> Map.ofList

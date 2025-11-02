@@ -186,7 +186,8 @@ let parse
           // Add all values and their locations
           for (wtValue, ptValue) in List.zip modul.values values do
             yield PT.PackageOp.AddValue ptValue
-            yield PT.PackageOp.SetValueName(ptValue.id, valueNameToLocation wtValue.name)
+            yield
+              PT.PackageOp.SetValueName(ptValue.id, valueNameToLocation wtValue.name)
 
           // Add all functions and their locations
           for (wtFn, ptFn) in List.zip modul.fns fns do

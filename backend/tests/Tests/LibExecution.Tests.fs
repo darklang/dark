@@ -149,7 +149,8 @@ let t
 
             let! _csString = Exe.callStackString state callStack
 
-            let optionTypeName = RT.FQTypeName.fqPackage PackageIDs.Type.Stdlib.option
+            let optionTypeName =
+              RT.FQTypeName.fqPackage PackageIDs.Type.Stdlib.option
             let branchID =
               RT.Dval.DEnum(
                 optionTypeName,

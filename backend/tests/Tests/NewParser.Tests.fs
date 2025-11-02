@@ -39,8 +39,7 @@ let t
       PackageIDs.Fn.LanguageTools.Parser.parsePTSourceFileWithOps
 
   let prettyPrintFnName =
-    RT.FQFnName.FQFnName.Package
-      PackageIDs.Fn.PrettyPrinter.ProgramTypes.sourceFile
+    RT.FQFnName.FQFnName.Package PackageIDs.Fn.PrettyPrinter.ProgramTypes.sourceFile
 
   testTask name {
     // First phase: parse with base PM to get PackageOps
@@ -54,11 +53,14 @@ let t
 
     let branchID = Dval.option RT.KTUuid None
     let args = NEList.doubleton branchID (RT.DString input)
-    let! parseResult = LibExecution.Execution.executeFunction parseExeState parseFnName [] args
+    let! parseResult =
+      LibExecution.Execution.executeFunction parseExeState parseFnName [] args
     let! parseDval = unwrapExecutionResult parseExeState parseResult |> Ply.toTask
 
     match parseDval with
-    | RT.DEnum(tn, _, _, "Ok", [ RT.DTuple(sourceFile, opsList, []) ]) when tn = Dval.resultType ->
+    | RT.DEnum(tn, _, _, "Ok", [ RT.DTuple(sourceFile, opsList, []) ]) when
+      tn = Dval.resultType
+      ->
       // Extract PackageOps from the Dval list
       let packageOps =
         match opsList with
@@ -67,11 +69,13 @@ let t
         | _ -> []
 
       // Second phase: enhance PM with PackageOps and pretty print
-      let enhancedPM = LibPackageManager.PackageManager.withExtraOps basePM packageOps
+      let enhancedPM =
+        LibPackageManager.PackageManager.withExtraOps basePM packageOps
       let! ppExeState = executionStateFor enhancedPM canvasID false false Map.empty
 
       let ppArgs = NEList.doubleton branchID sourceFile
-      let! ppResult = LibExecution.Execution.executeFunction ppExeState prettyPrintFnName [] ppArgs
+      let! ppResult =
+        LibExecution.Execution.executeFunction ppExeState prettyPrintFnName [] ppArgs
       let! resultDval = unwrapExecutionResult ppExeState ppResult |> Ply.toTask
 
       match resultDval with
@@ -81,13 +85,11 @@ let t
             (RT.DString result)
             (RT.DString expected)
             "Didn't round-trip as expected"
-      | _ ->
-        return failtest $"Unexpected pretty print result: {resultDval}"
+      | _ -> return failtest $"Unexpected pretty print result: {resultDval}"
 
     | RT.DEnum(tn, _, _, "Error", [ RT.DString errMsg ]) when tn = Dval.resultType ->
       return failtest $"Parse error: {errMsg}"
-    | _ ->
-      return failtest $"Unexpected parse result format: {parseDval}"
+    | _ -> return failtest $"Unexpected parse result format: {parseDval}"
   }
 
 
@@ -104,9 +106,12 @@ let person : (PT.PackageType.PackageType * PT.PackageLocation) =
                   { name = "name"; typ = PT.TypeReference.TString; description = "" }
                 tail =
                   [ { name = "age"; typ = PT.TypeReference.TInt64; description = "" }
-                    { name = "hasPet"; typ = PT.TypeReference.TBool; description = "" } ] }
+                    { name = "hasPet"
+                      typ = PT.TypeReference.TBool
+                      description = "" } ] }
             ) } }
-  let location : PT.PackageLocation = { owner = "Tests"; modules = []; name = "Person" }
+  let location : PT.PackageLocation =
+    { owner = "Tests"; modules = []; name = "Person" }
   (packageType, location)
 
 let myString : (PT.PackageType.PackageType * PT.PackageLocation) =
@@ -117,7 +122,8 @@ let myString : (PT.PackageType.PackageType * PT.PackageLocation) =
       declaration =
         { typeParams = []
           definition = PT.TypeDeclaration.Alias PT.TypeReference.TString } }
-  let location : PT.PackageLocation = { owner = "Tests"; modules = []; name = "MyString" }
+  let location : PT.PackageLocation =
+    { owner = "Tests"; modules = []; name = "MyString" }
   (packageType, location)
 
 let pet : (PT.PackageType.PackageType * PT.PackageLocation) =
@@ -170,7 +176,8 @@ let myEnum : (PT.PackageType.PackageType * PT.PackageLocation) =
                            description = "" } ]
                      description = "" }) ]
             ) } }
-  let location : PT.PackageLocation = { owner = "Tests"; modules = []; name = "MyEnum" }
+  let location : PT.PackageLocation =
+    { owner = "Tests"; modules = []; name = "MyEnum" }
   (packageType, location)
 
 let typeReferences =

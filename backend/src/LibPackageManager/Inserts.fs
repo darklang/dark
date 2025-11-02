@@ -30,7 +30,10 @@ let computeOpHash (op : PT.PackageOp) : System.Guid =
 
 /// Insert PackageOps into the package_ops table and apply them to projection tables
 /// branchID: None = main/merged, Some(id) = branch-specific
-let insertOps (branchID : Option<PT.BranchID>) (ops : List<PT.PackageOp>) : Task<unit> =
+let insertOps
+  (branchID : Option<PT.BranchID>)
+  (ops : List<PT.PackageOp>)
+  : Task<unit> =
   task {
     if List.isEmpty ops then return ()
 
@@ -49,7 +52,10 @@ let insertOps (branchID : Option<PT.BranchID>) (ops : List<PT.PackageOp>) : Task
 
         let parameters =
           [ "id", Sql.uuid opId
-            "branch_id", (match branchID with | Some id -> Sql.uuid id | None -> Sql.dbnull)
+            "branch_id",
+            (match branchID with
+             | Some id -> Sql.uuid id
+             | None -> Sql.dbnull)
             "op_blob", Sql.bytes opBlob
             "applied", Sql.bool true ]
 

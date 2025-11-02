@@ -22,7 +22,11 @@ let purge () : Task<unit> =
     // Delete from projection tables and source-of-truth ops table
     // Only delete if tables exist (handles case where migrations haven't run yet)
     let tablesToPurge =
-      [ "locations"; "package_types"; "package_values"; "package_functions"; "package_ops" ]
+      [ "locations"
+        "package_types"
+        "package_values"
+        "package_functions"
+        "package_ops" ]
       |> List.filter tableExists
       |> List.map (fun table -> ($"DELETE FROM {table}", [ [] ]))
 

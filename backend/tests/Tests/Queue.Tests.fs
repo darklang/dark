@@ -158,7 +158,8 @@ let waitUntilQueueEmpty () : Task<unit> =
 let testSuccess =
   testTask "event queue success" {
     let branchID = None
-    let! (canvasID : CanvasID, tlid) = initializeCanvas branchID "event-queue-success"
+    let! (canvasID : CanvasID, tlid) =
+      initializeCanvas branchID "event-queue-success"
     do! enqueueNow canvasID
     do! waitForSuccess canvasID tlid 1
     do! checkExecutedTraces canvasID 1
@@ -181,7 +182,8 @@ let testSuccessThree =
 let testSuccessLockExpired =
   testTask "success lock expired" {
     let branchID = None
-    let! (canvasID : CanvasID, tlid) = initializeCanvas branchID "success-lock-expired"
+    let! (canvasID : CanvasID, tlid) =
+      initializeCanvas branchID "success-lock-expired"
 
     // Create the event, but don't have it run yet
     do! enqueueAtTime canvasID (Instant.now () + Duration.FromSeconds 3L)

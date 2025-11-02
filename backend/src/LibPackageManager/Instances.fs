@@ -12,10 +12,7 @@ open Fumble
 open LibDB.Db
 
 
-type Instance =
-  { id : System.Guid
-    name : string
-    url : string }
+type Instance = { id : System.Guid; name : string; url : string }
 
 
 /// Get an instance by ID

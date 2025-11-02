@@ -39,7 +39,10 @@ module Type =
           [ "owner", Sql.string location.owner
             "modules", Sql.string modulesStr
             "name", Sql.string location.name
-            "branch_id", (match branchID with | Some id -> Sql.uuid id | None -> Sql.dbnull) ]
+            "branch_id",
+            (match branchID with
+             | Some id -> Sql.uuid id
+             | None -> Sql.dbnull) ]
         |> Sql.executeRowOptionAsync (fun read -> read.uuid "item_id")
     }
 
@@ -75,7 +78,10 @@ module Type =
           """
         |> Sql.parameters
           [ "item_id", Sql.uuid id
-            "branch_id", (match branchID with | Some id -> Sql.uuid id | None -> Sql.dbnull) ]
+            "branch_id",
+            (match branchID with
+             | Some id -> Sql.uuid id
+             | None -> Sql.dbnull) ]
         |> Sql.executeRowOptionAsync (fun read ->
           let modulesStr = read.string "modules"
           { owner = read.string "owner"
@@ -109,7 +115,10 @@ module Value =
           [ "owner", Sql.string location.owner
             "modules", Sql.string modulesStr
             "name", Sql.string location.name
-            "branch_id", (match branchID with | Some id -> Sql.uuid id | None -> Sql.dbnull) ]
+            "branch_id",
+            (match branchID with
+             | Some id -> Sql.uuid id
+             | None -> Sql.dbnull) ]
         |> Sql.executeRowOptionAsync (fun read -> read.uuid "item_id")
     }
 
@@ -145,7 +154,10 @@ module Value =
           """
         |> Sql.parameters
           [ "item_id", Sql.uuid id
-            "branch_id", (match branchID with | Some id -> Sql.uuid id | None -> Sql.dbnull) ]
+            "branch_id",
+            (match branchID with
+             | Some id -> Sql.uuid id
+             | None -> Sql.dbnull) ]
         |> Sql.executeRowOptionAsync (fun read ->
           let modulesStr = read.string "modules"
           { owner = read.string "owner"
@@ -179,7 +191,10 @@ module Fn =
           [ "owner", Sql.string location.owner
             "modules", Sql.string modulesStr
             "name", Sql.string location.name
-            "branch_id", (match branchID with | Some id -> Sql.uuid id | None -> Sql.dbnull) ]
+            "branch_id",
+            (match branchID with
+             | Some id -> Sql.uuid id
+             | None -> Sql.dbnull) ]
         |> Sql.executeRowOptionAsync (fun read -> read.uuid "item_id")
     }
 
@@ -215,7 +230,10 @@ module Fn =
           """
         |> Sql.parameters
           [ "item_id", Sql.uuid id
-            "branch_id", (match branchID with | Some id -> Sql.uuid id | None -> Sql.dbnull) ]
+            "branch_id",
+            (match branchID with
+             | Some id -> Sql.uuid id
+             | None -> Sql.dbnull) ]
         |> Sql.executeRowOptionAsync (fun read ->
           let modulesStr = read.string "modules"
           { owner = read.string "owner"
@@ -328,12 +346,13 @@ let search
         )
       """
       |> Sql.query
-      |> Sql.parameters
-        ([ "branch_id",
-           (match branchID with
-            | Some id -> Sql.uuid id
-            | None -> Sql.dbnull) ]
-         @ sqlParams)
+      |> Sql.parameters (
+        [ "branch_id",
+          (match branchID with
+           | Some id -> Sql.uuid id
+           | None -> Sql.dbnull) ]
+        @ sqlParams
+      )
       |> Sql.executeAsync (fun read ->
         let owner = read.string "owner"
         let modulesStr = read.string "modules"
@@ -352,7 +371,10 @@ let search
 
       // Location filter depends on depth and current location
       let locationCondition =
-        if System.String.IsNullOrEmpty currentModule && query.searchDepth = PT.Search.SearchDepth.AllDescendants then
+        if
+          System.String.IsNullOrEmpty currentModule
+          && query.searchDepth = PT.Search.SearchDepth.AllDescendants
+        then
           // At root with AllDescendants - search everywhere
           "1 = 1"
         else if System.String.IsNullOrEmpty currentModule then
@@ -425,7 +447,10 @@ let search
 
     let! types =
       if isEntityRequested PT.Search.EntityType.Type then
-        makeEntityQuery "type" "package_types" BinarySerialization.PT.PackageType.deserialize
+        makeEntityQuery
+          "type"
+          "package_types"
+          BinarySerialization.PT.PackageType.deserialize
       else
         Task.FromResult<List<PT.LocatedItem<PT.PackageType.PackageType>>> []
 
@@ -440,7 +465,10 @@ let search
 
     let! fns =
       if isEntityRequested PT.Search.EntityType.Fn then
-        makeEntityQuery "fn" "package_functions" BinarySerialization.PT.PackageFn.deserialize
+        makeEntityQuery
+          "fn"
+          "package_functions"
+          BinarySerialization.PT.PackageFn.deserialize
       else
         Task.FromResult<List<PT.LocatedItem<PT.PackageFn.PackageFn>>> []
 
