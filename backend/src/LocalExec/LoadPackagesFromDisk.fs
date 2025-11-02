@@ -56,20 +56,12 @@ let load (builtins : RT.Builtins) : Ply<List<PT.PackageOp>> =
           contents)
       |> Ply.map List.flatten
 
-    // Build location→ID maps from first pass for ID stabilization
-    let (firstPassTypeLocToId, firstPassValueLocToId, firstPassFnLocToId) =
-      LibPackageManager.PackageManager.extractLocationMaps firstPassOps
+    // Build PM from first pass for ID stabilization
+    let firstPassPM = LibPackageManager.PackageManager.createInMemory firstPassOps
 
     // Adjust IDs in second pass to match first pass (ID stabilization)
-    let adjustedOps : List<PT.PackageOp> =
-      reParsedOps
-      |> List.map (
-        LibPackageManager.PackageManager.stabilizeOpIds
-          firstPassTypeLocToId
-          firstPassValueLocToId
-          firstPassFnLocToId
-          reParsedOps
-      )
+    let! adjustedOps =
+      LibPackageManager.PackageManager.stabilizeOpsAgainstPM firstPassPM reParsedOps
 
     return adjustedOps
   }

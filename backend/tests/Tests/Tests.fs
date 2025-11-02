@@ -75,7 +75,7 @@ let main (args : string array) : int =
     Telemetry.Console.loadTelemetry "tests" Telemetry.TraceDBQueries
 
     // Generate this so that we can see if the format has changed in a git diff
-    // BinarySerialization.generateTestFiles () // DISABLED: test module commented out
+    BinarySerialization.generateTestFiles ()
     VanillaSerialization.PersistedSerializations.generateTestFiles ()
 
     // this does async stuff within it, so do not run it from a task/async

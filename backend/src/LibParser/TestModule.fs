@@ -295,24 +295,17 @@ let parseTestFile
         toPT owner builtins enhancedPM onMissing m)
 
     // ID stabilization: adjust second pass IDs to match first pass IDs
-    // Build location→ID maps from first pass
-    let (firstPassTypeLocToId, firstPassValueLocToId, firstPassFnLocToId) =
-      LibPackageManager.PackageManager.extractLocationMaps firstPassOps
+    let firstPassPM = LibPackageManager.PackageManager.createInMemory firstPassOps
 
     // Adjust IDs in each module's ops
-    let adjustedModules =
+    let! adjustedModules =
       reParsedModules
-      |> List.map (fun m ->
-        let adjustedOps =
-          m.ops
-          |> List.map (
-            LibPackageManager.PackageManager.stabilizeOpIds
-              firstPassTypeLocToId
-              firstPassValueLocToId
-              firstPassFnLocToId
-              m.ops
-          )
-        { m with ops = adjustedOps })
+      |> Ply.List.mapSequentially (fun m ->
+        uply {
+          let! adjustedOps =
+            LibPackageManager.PackageManager.stabilizeOpsAgainstPM firstPassPM m.ops
+          return { m with ops = adjustedOps }
+        })
 
     return adjustedModules
   }

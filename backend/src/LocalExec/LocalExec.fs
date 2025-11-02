@@ -24,6 +24,16 @@ module HandleCommand =
       return Ok()
     }
 
+  let reloadJsonCanvasCanvas () : Ply<Result<unit, string>> =
+    uply {
+      let! (canvasId, toplevels) =
+        Canvas.loadFromDisk LibPackageManager.PackageManager.pt "dark-jsoncanvas"
+
+      print $"Loaded canvas {canvasId} with {List.length toplevels} toplevels"
+
+      return Ok()
+    }
+
   let reloadPackages () : Ply<Result<unit, string>> =
     uply {
       // first, load the packages from disk, ensuring all parse well
@@ -68,6 +78,10 @@ module HandleCommand =
       // Reload dark-packages canvas after package reload
       print "Reloading dark-packages canvas..."
       let! _ = reloadDarkPackagesCanvas ()
+
+      // Reload jsoncanvas canvas
+      print "Reloading jsoncanvas canvas..."
+      let! _ = reloadJsonCanvasCanvas ()
 
       return Ok()
     }
