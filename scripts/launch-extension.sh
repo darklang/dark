@@ -18,7 +18,7 @@ pkill -f "extensionDevelopmentPath" || true
 
 # Initial build - fail fast if compilation fails
 echo "Building extension..."
-cd "$EXT_PATH"
+cd "$EXT_PATH" || exit
 if ! npm run compile; then
   echo "ERROR: Initial compilation failed. Fix errors and try again."
   exit 1
@@ -58,7 +58,7 @@ EOF
 
 # Launch VS Code with extension
 # Return to workspace root and open it as the workspace
-cd "$WORKSPACE_ROOT"
+cd "$WORKSPACE_ROOT" || exit
 VSCODE_DEBUG_MODE=true code \
   --extensionDevelopmentPath="$EXT_PATH" \
   --disable-extensions \
