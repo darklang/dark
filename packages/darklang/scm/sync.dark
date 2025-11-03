@@ -7,12 +7,8 @@ let sync
   (remoteUrl: String)
   (branchID: Stdlib.Option.Option<Uuid>)
   : Stdlib.Result.Result<String, String> =
-  Builtin.debug "=== Starting sync ===" instanceId
-
   // Get last sync date with this instance
   let lastSyncOpt = Builtin.scmGetLastSyncDate instanceId
-
-  Builtin.debug "Last sync date" lastSyncOpt
 
   let sinceDate =
     match lastSyncOpt with
@@ -20,19 +16,14 @@ let sync
     // If never synced, use Unix epoch (will sync everything)
     | None -> Stdlib.DateTime.fromSeconds 0L
 
-  Builtin.debug "Syncing since" sinceDate
-
   // Get ops to push (created since last sync)
   let opsToPush = Darklang.SCM.PackageOps.getSince branchID sinceDate
 
   let opsPushedCount = Stdlib.List.length opsToPush
 
-  Builtin.debug "Ops to push" opsPushedCount
-
   // Push ops to remote in batches
   let pushResult =
     if opsPushedCount == 0L then
-      Builtin.debug "No ops to push, skipping POST" ()
       Stdlib.Result.Result.Ok 0L
     else
       let batchSize = 100L
@@ -50,8 +41,6 @@ let sync
         $"Pushing {opsPushedCountStr} ops in {batchCountStr} batches..."
 
       let pushUrl = $"{remoteUrl}/ops"
-
-      Builtin.debug "Push URL" pushUrl
 
       // Push each batch sequentially using fold with manual index tracking
       let (_, pushAllBatches) =

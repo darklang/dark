@@ -176,16 +176,14 @@ let help (state: Cli.AppState) : Cli.AppState =
   let lines =
     [ "Branch Management Commands"
       ""
-      "  branch list           List all branches"
-      "  branch create NAME    Create and switch to new branch"
-      "  branch switch NAME    Switch to existing branch"
-      "  branch switch-id ID   Switch to branch by ID"
-      "  branch status         Show current branch status"
-      "  branch info           Show detailed info (current branch)"
-      "  branch info NAME      Show detailed info (specific branch)"
-      "  branch clear          Clear current branch (search all packages)"
-      "  branch unset          Alias for 'clear'"
-      "  branch none           Alias for 'clear'"
+      "  branch list                   List all branches"
+      "  branch create NAME            Create and switch to new branch"
+      "  branch switch NAME            Switch to existing branch"
+      "  branch switch-id ID           Switch to branch by ID"
+      "  branch status                 Show current branch status"
+      "  branch info                   Show detailed info (current branch)"
+      "  branch info NAME              Show detailed info (specific branch)"
+      "  branch [clear|unset|none]     Clear current branch (search all packages)"
       "" ]
 
   Stdlib.List.iter lines Stdlib.printLine
