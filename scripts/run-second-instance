@@ -24,7 +24,7 @@ MAIN_DB_PATH="${DARK_CONFIG_RUNDIR}/data.db"
 
 
 echo -e "${green}Creating new database for ${INSTANCE_NAME}${reset}"
-rm $DB_PATH
+rm -f $DB_PATH
 cp "${MAIN_DB_PATH}" "${DB_PATH}"
 echo -e "${green}Database created: ${DB_PATH}${reset}"
 
