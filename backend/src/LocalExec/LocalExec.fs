@@ -79,10 +79,6 @@ module HandleCommand =
       print "Reloading dark-packages canvas..."
       let! _ = reloadDarkPackagesCanvas ()
 
-      // Reload jsoncanvas canvas
-      print "Reloading jsoncanvas canvas..."
-      let! _ = reloadJsonCanvasCanvas ()
-
       return Ok()
     }
 
