@@ -8,6 +8,7 @@ open Prelude
 module RT = RuntimeTypes
 module RTE = RT.RuntimeError
 module RT2DT = RuntimeTypesToDarkTypes
+module Dval = LibExecution.Dval
 
 let noTracing : RT.Tracing.Tracing =
   { traceDval = fun _ _ -> ()
@@ -151,15 +152,7 @@ let runtimeErrorToString
     let fnName =
       RT.FQFnName.fqPackage
         PackageIDs.Fn.PrettyPrinter.RuntimeTypes.RuntimeError.toString
-    let optionTypeName = RT.FQTypeName.fqPackage PackageIDs.Type.Stdlib.option
-    let branchID =
-      RT.Dval.DEnum(
-        optionTypeName,
-        optionTypeName,
-        [ RT.ValueType.Known RT.KTUuid ],
-        "None",
-        []
-      )
+    let branchID = Dval.optionNone RT.KTUuid
     let args = NEList.ofList branchID [ RT2DT.RuntimeError.toDT rte ]
     return! executeFunction state fnName [] args
   }
@@ -337,15 +330,7 @@ let rec rteToString
         PackageIDs.Fn.PrettyPrinter.RuntimeTypes.RuntimeError.toErrorMessage
 
     let rteDval = rteToDval rte
-    let optionTypeName = RT.FQTypeName.fqPackage PackageIDs.Type.Stdlib.option
-    let branchID =
-      RT.Dval.DEnum(
-        optionTypeName,
-        optionTypeName,
-        [ RT.ValueType.Known RT.KTUuid ],
-        "None",
-        []
-      )
+    let branchID = Dval.optionNone RT.KTUuid
 
     let! rteMessage =
       executeFunction state errorMessageFn [] (NEList.ofList branchID [ rteDval ])

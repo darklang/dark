@@ -65,7 +65,7 @@ let resultError
   DEnum(
     resultType,
     resultType,
-    [ ValueType.known okType; ValueType.known errorType ],
+    [ ValueType.Known okType; ValueType.Known errorType ],
     "Error",
     [ dvError ]
   )

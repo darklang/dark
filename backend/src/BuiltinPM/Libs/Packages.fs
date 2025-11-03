@@ -74,13 +74,12 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
       fn =
         let optType = KTUuid
         (function
-        | _, _, _, [ branchIdDval; locationDval ] ->
+        | _, _, _, [ branchID; location ] ->
           uply {
-            let branchID = C2DT.Option.fromDT D.uuid branchIdDval
-            let location = PT2DT.PackageLocation.fromDT locationDval
-            match! pm.findType (branchID, location) with
-            | Some id -> return DUuid id |> Dval.optionSome optType
-            | None -> return Dval.optionNone optType
+            let branchID = C2DT.Option.fromDT D.uuid branchID
+            let location = PT2DT.PackageLocation.fromDT location
+            let! result = pm.findType (branchID, location)
+            return result |> Option.map DUuid |> Dval.option optType
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
@@ -99,9 +98,8 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
         (function
         | _, _, _, [ DUuid id ] ->
           uply {
-            match! pm.getType id with
-            | Some f -> return f |> PT2DT.PackageType.toDT |> Dval.optionSome optType
-            | None -> return Dval.optionNone optType
+            let! result = pm.getType id
+            return result |> Option.map PT2DT.PackageType.toDT |> Dval.option optType
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
@@ -122,15 +120,13 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
       description =
         "Tries to find a package value, by location, and returns the ID if it exists"
       fn =
-        let optType = KTUuid
         (function
-        | _, _, _, [ branchIdDval; locationDval ] ->
+        | _, _, _, [ branchID; location ] ->
           uply {
-            let branchID = C2DT.Option.fromDT D.uuid branchIdDval
-            let location = PT2DT.PackageLocation.fromDT locationDval
-            match! pm.findValue (branchID, location) with
-            | Some id -> return DUuid id |> Dval.optionSome optType
-            | None -> return Dval.optionNone optType
+            let branchID = C2DT.Option.fromDT D.uuid branchID
+            let location = PT2DT.PackageLocation.fromDT location
+            let! result = pm.findValue (branchID, location)
+            return result |> Option.map DUuid |> Dval.option KTUuid
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
@@ -149,10 +145,9 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
         (function
         | _, _, _, [ DUuid id ] ->
           uply {
-            match! pm.getValue id with
-            | Some f ->
-              return f |> PT2DT.PackageValue.toDT |> Dval.optionSome optType
-            | None -> return Dval.optionNone optType
+            let! result = pm.getValue id
+            return
+              result |> Option.map PT2DT.PackageValue.toDT |> Dval.option optType
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
@@ -175,13 +170,12 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
       fn =
         let optType = KTUuid
         (function
-        | _, _, _, [ branchIdDval; locationDval ] ->
+        | _, _, _, [ brachID; location ] ->
           uply {
-            let branchID = C2DT.Option.fromDT D.uuid branchIdDval
-            let location = PT2DT.PackageLocation.fromDT locationDval
-            match! pm.findFn (branchID, location) with
-            | Some id -> return DUuid id |> Dval.optionSome optType
-            | None -> return Dval.optionNone optType
+            let branchID = C2DT.Option.fromDT D.uuid brachID
+            let location = PT2DT.PackageLocation.fromDT location
+            let! result = pm.findFn (branchID, location)
+            return result |> Option.map DUuid |> Dval.option optType
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
@@ -200,9 +194,8 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
         (function
         | _, _, _, [ DUuid id ] ->
           uply {
-            match! pm.getFn id with
-            | Some f -> return f |> PT2DT.PackageFn.toDT |> Dval.optionSome optType
-            | None -> return Dval.optionNone optType
+            let! result = pm.getFn id
+            return result |> Option.map PT2DT.PackageFn.toDT |> Dval.option optType
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
@@ -222,9 +215,9 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
       description = "Search for packages based on the given query"
       fn =
         function
-        | _, _, _, [ branchIdDval; query as DRecord(_, _, _, _fields) ] ->
+        | _, _, _, [ branchID; query as DRecord(_, _, _, _fields) ] ->
           uply {
-            let branchID = C2DT.Option.fromDT D.uuid branchIdDval
+            let branchID = C2DT.Option.fromDT D.uuid branchID
             let searchQuery = PT2DT.Search.SearchQuery.fromDT query
 
             let! results = pm.search (branchID, searchQuery)
@@ -296,14 +289,12 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
       fn =
         let optType = KTCustomType(PT2DT.PackageLocation.typeName, [])
         (function
-        | _, _, _, [ branchIdDval; DUuid id ] ->
+        | _, _, _, [ branchID; DUuid id ] ->
           uply {
-            let branchID = C2DT.Option.fromDT D.uuid branchIdDval
-            match! pm.getTypeLocation (branchID, id) with
-            | Some location ->
-              return
-                location |> PT2DT.PackageLocation.toDT |> Dval.optionSome optType
-            | None -> return Dval.optionNone optType
+            let branchID = C2DT.Option.fromDT D.uuid branchID
+            let! result = pm.getTypeLocation (branchID, id)
+            return
+              result |> Option.map PT2DT.PackageLocation.toDT |> Dval.option optType
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
@@ -322,14 +313,12 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
       fn =
         let optType = KTCustomType(PT2DT.PackageLocation.typeName, [])
         (function
-        | _, _, _, [ branchIdDval; DUuid id ] ->
+        | _, _, _, [ branchID; DUuid id ] ->
           uply {
-            let branchID = C2DT.Option.fromDT D.uuid branchIdDval
-            match! pm.getValueLocation (branchID, id) with
-            | Some location ->
-              return
-                location |> PT2DT.PackageLocation.toDT |> Dval.optionSome optType
-            | None -> return Dval.optionNone optType
+            let branchID = C2DT.Option.fromDT D.uuid branchID
+            let! result = pm.getValueLocation (branchID, id)
+            return
+              result |> Option.map PT2DT.PackageLocation.toDT |> Dval.option optType
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
@@ -349,14 +338,12 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
       fn =
         let optType = KTCustomType(PT2DT.PackageLocation.typeName, [])
         (function
-        | _, _, _, [ branchIdDval; DUuid id ] ->
+        | _, _, _, [ branchID; DUuid id ] ->
           uply {
-            let branchID = C2DT.Option.fromDT D.uuid branchIdDval
-            match! pm.getFnLocation (branchID, id) with
-            | Some location ->
-              return
-                location |> PT2DT.PackageLocation.toDT |> Dval.optionSome optType
-            | None -> return Dval.optionNone optType
+            let branchID = C2DT.Option.fromDT D.uuid branchID
+            let! result = pm.getFnLocation (branchID, id)
+            return
+              result |> Option.map PT2DT.PackageLocation.toDT |> Dval.option optType
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable

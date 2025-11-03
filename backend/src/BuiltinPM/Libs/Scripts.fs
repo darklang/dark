@@ -35,8 +35,10 @@ let fns : List<BuiltInFn> =
         | _, _, _, [ DUnit ] ->
           uply {
             let! scripts = Scripts.list ()
-            let dvals = scripts |> List.map ScriptsToDT.toDT
-            return Dval.list (KTCustomType(scriptTypeName, [])) dvals
+            return
+              scripts
+              |> List.map ScriptsToDT.toDT
+              |> Dval.list (KTCustomType(scriptTypeName, []))
           }
         | _ -> incorrectArgs ()
       sqlSpec = NotQueryable
@@ -50,19 +52,17 @@ let fns : List<BuiltInFn> =
       returnType = TypeReference.option scriptType
       description = "Get a script by name"
       fn =
-        (function
+        function
         | _, _, _, [ DString name ] ->
           uply {
             let! scriptOpt = Scripts.get name
-            match scriptOpt with
-            | Some script ->
-              return
-                Dval.optionSome
-                  (KTCustomType(scriptTypeName, []))
-                  (ScriptsToDT.toDT script)
-            | None -> return Dval.optionNone (KTCustomType(scriptTypeName, []))
+            return
+              scriptOpt
+              |> Option.map ScriptsToDT.toDT
+              |> Dval.option (KTCustomType(scriptTypeName, []))
+
           }
-        | _ -> incorrectArgs ())
+        | _ -> incorrectArgs ()
       sqlSpec = NotQueryable
       previewable = Impure
       deprecated = NotDeprecated }
@@ -74,25 +74,17 @@ let fns : List<BuiltInFn> =
       returnType = TypeReference.result scriptType TString
       description = "Add a new script"
       fn =
-        (function
+        function
         | _, _, _, [ DString name; DString text ] ->
           uply {
             let! result = Scripts.add name text
-            match result with
-            | Ok script ->
-              return
-                Dval.resultOk
-                  (KTCustomType(scriptTypeName, []))
-                  KTString
-                  (ScriptsToDT.toDT script)
-            | Error err ->
-              return
-                Dval.resultError
-                  (KTCustomType(scriptTypeName, []))
-                  KTString
-                  (DString err)
+            return
+              result
+              |> Result.map ScriptsToDT.toDT
+              |> Result.mapError DString
+              |> Dval.result (KTCustomType(scriptTypeName, [])) KTString
           }
-        | _ -> incorrectArgs ())
+        | _ -> incorrectArgs ()
       sqlSpec = NotQueryable
       previewable = Impure
       deprecated = NotDeprecated }
@@ -104,15 +96,17 @@ let fns : List<BuiltInFn> =
       returnType = TypeReference.result TUnit TString
       description = "Update an existing script's text"
       fn =
-        (function
+        function
         | _, _, _, [ DString name; DString text ] ->
           uply {
             let! result = Scripts.update name text
-            match result with
-            | Ok() -> return Dval.resultOk KTUnit KTString DUnit
-            | Error err -> return Dval.resultError KTUnit KTString (DString err)
+            return
+              result
+              |> Result.map (fun () -> DUnit)
+              |> Result.mapError DString
+              |> Dval.result KTUnit KTString
           }
-        | _ -> incorrectArgs ())
+        | _ -> incorrectArgs ()
       sqlSpec = NotQueryable
       previewable = Impure
       deprecated = NotDeprecated }
@@ -124,15 +118,17 @@ let fns : List<BuiltInFn> =
       returnType = TypeReference.result TUnit TString
       description = "Delete a script by name"
       fn =
-        (function
+        function
         | _, _, _, [ DString name ] ->
           uply {
             let! result = Scripts.delete name
-            match result with
-            | Ok() -> return Dval.resultOk KTUnit KTString DUnit
-            | Error err -> return Dval.resultError KTUnit KTString (DString err)
+            return
+              result
+              |> Result.map (fun () -> DUnit)
+              |> Result.mapError DString
+              |> Dval.result KTUnit KTString
           }
-        | _ -> incorrectArgs ())
+        | _ -> incorrectArgs ()
       sqlSpec = NotQueryable
       previewable = Impure
       deprecated = NotDeprecated } ]

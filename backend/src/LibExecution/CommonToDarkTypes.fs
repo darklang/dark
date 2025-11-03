@@ -5,6 +5,12 @@ module PackageIDs = LibExecution.PackageIDs
 
 
 module Option =
+  /// Convert F# Option<'a> to Darklang Option<'a> (DEnum)
+  let toDT (f : 'a -> Dval) (innerType : KnownType) (opt : Option<'a>) : Dval =
+    match opt with
+    | Some value -> Dval.optionSome innerType (f value)
+    | None -> Dval.optionNone innerType
+
   /// Convert a Darklang Option<'a> (DEnum) to F# Option<'a>
   let fromDT (f : Dval -> 'a) (d : Dval) : Option<'a> =
     match d with

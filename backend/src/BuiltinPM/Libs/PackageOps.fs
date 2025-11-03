@@ -30,9 +30,9 @@ let fns : List<BuiltInFn> =
         "Add package ops to the database and apply them to projections. Returns count of actually inserted ops (skips duplicates). branchID None = main branch, Some = specific branch"
       fn =
         function
-        | _, _, _, [ branchIdOpt; DList(_vtTODO, ops) ] ->
+        | _, _, _, [ branchID; DList(_vtTODO, ops) ] ->
           uply {
-            let branchID = C2DT.Option.fromDT D.uuid branchIdOpt
+            let branchID = C2DT.Option.fromDT D.uuid branchID
 
             // Convert each op from Dval to PT.PackageOp
             let ptOps =
@@ -59,9 +59,9 @@ let fns : List<BuiltInFn> =
       description = "Get recent package ops from the database."
       fn =
         function
-        | _, _, _, [ branchIdOpt; DInt64 limit ] ->
+        | _, _, _, [ branchID; DInt64 limit ] ->
           uply {
-            let branchID = C2DT.Option.fromDT D.uuid branchIdOpt
+            let branchID = C2DT.Option.fromDT D.uuid branchID
 
             let! ptOps = LibPackageManager.Queries.getRecentOps branchID limit
             let ops = ptOps |> List.map PT2DT.PackageOp.toDT
@@ -106,9 +106,9 @@ let fns : List<BuiltInFn> =
         "Get package ops created since the specified datetime. branchID None = main branch, Some = specific branch"
       fn =
         function
-        | _, _, _, [ branchIdOpt; DDateTime since ] ->
+        | _, _, _, [ branchID; DDateTime since ] ->
           uply {
-            let branchID = C2DT.Option.fromDT D.uuid branchIdOpt
+            let branchID = C2DT.Option.fromDT D.uuid branchID
 
             let! ptOps = LibPackageManager.Queries.getOpsSince branchID since
             let ops = ptOps |> List.map PT2DT.PackageOp.toDT

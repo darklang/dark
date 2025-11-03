@@ -926,12 +926,7 @@ module Expr =
 
     // control flow
     | DEnum(_, _, [], "EIf", [ DInt64 id; cond; thenExpr; elseExpr ]) ->
-      let elseExpr =
-        match elseExpr with
-        | DEnum(_, _, _typeArgsDEnumTODO, "Some", [ dv ]) -> Some(fromDT dv)
-        | DEnum(_, _, _typeArgsDEnumTODO, "None", []) -> None
-        | _ ->
-          Exception.raiseInternal "Invalid else expression" [ "elseExpr", elseExpr ]
+      let elseExpr = C2DT.Option.fromDT fromDT elseExpr
       PT.EIf(uint64 id, fromDT cond, fromDT thenExpr, elseExpr)
 
     | DEnum(_, _, [], "EMatch", [ DInt64 id; arg; DList(_vtTODO, cases) ]) ->
@@ -942,9 +937,8 @@ module Expr =
           | DRecord(_, _, _, fields) ->
             let whenCondition =
               match Map.tryFind "whenCondition" fields with
-              | Some(DEnum(_, _, _, "Some", [ value ])) -> Some(fromDT value)
-              | Some(DEnum(_, _, _, "None", [])) -> None
-              | _ -> None
+              | Some dval -> C2DT.Option.fromDT fromDT dval
+              | None -> None
             match Map.tryFind "pat" fields, Map.tryFind "rhs" fields with
             | Some pat, Some rhs ->
               [ { pat = MatchPattern.fromDT pat
@@ -1089,11 +1083,12 @@ module TypeDeclaration =
         { typ = fields |> D.field "typ" |> TypeReference.fromDT
           label =
             match Map.get "label" fields with
-            | Some(DEnum(_, _, _typeArgsDEnumTODO, "Some", [ DString label ])) ->
-              Some label
-            | Some(DEnum(_, _, _typeArgsDEnumTODO, "None", [])) -> None
-            | _ ->
-              Exception.raiseInternal "Expected label to be an option of string" []
+            | Some dval ->
+              match C2DT.Option.fromDT (fun d -> d) dval with
+              | Some(DString s) -> Some s
+              | Some _ -> Exception.raiseInternal "Expected label to be a string" []
+              | None -> None
+            | None -> None
           description = fields |> D.field "description" |> D.string }
       | _ -> Exception.raiseInternal "Invalid EnumField" []
 
