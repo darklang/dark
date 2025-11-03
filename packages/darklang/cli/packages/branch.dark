@@ -113,7 +113,7 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
       Stdlib.printLine $"ID: {Stdlib.Uuid.toString branch.id}"
       Stdlib.printLine ""
 
-    | None -> Stdlib.printLine (Colors.error "Current branch not found")
+    | None -> Stdlib.printLine (Colors.error "Not currently on a branch. Use 'branch switch <name>' to switch to one, or 'branch list' to see available branches.")
 
     state
 
@@ -129,7 +129,7 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
       state
 
     | None ->
-      Stdlib.printLine (Colors.error "Current branch not found")
+      Stdlib.printLine (Colors.error "Not currently on a branch. Use 'branch switch <name>' to switch to one, or 'branch list' to see available branches.")
       state
 
   | ["info"; name] ->
