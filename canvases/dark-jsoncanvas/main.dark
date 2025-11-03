@@ -1,0 +1,920 @@
+// JSON Canvas demonstration canvas
+// This demonstrates the Stachu.JsonCanvas module with HTTP endpoints
+
+[<HttpHandler("GET", "/ping")>]
+let _handler _req =
+  Stdlib.Http.response (Stdlib.String.toBytes "JSON Canvas demo is running!") 200L
+
+
+[<HttpHandler("GET", "/")>]
+let _handler _req =
+  let html =
+    "<!DOCTYPE html>
+<html lang=\"en\">
+<head>
+    <meta charset=\"UTF-8\">
+    <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">
+    <title>JSON Canvas Viewer</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            overflow: hidden;
+            background: #1e1e1e;
+            color: #fff;
+        }
+        #controls {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            background: rgba(40, 40, 40, 0.95);
+            padding: 15px;
+            border-radius: 8px;
+            z-index: 1000;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+            max-width: 300px;
+        }
+        #controls h2 {
+            font-size: 16px;
+            margin-bottom: 12px;
+            color: #4fc3f7;
+        }
+        #controls button {
+            background: #4fc3f7;
+            color: #000;
+            border: none;
+            padding: 8px 16px;
+            margin: 4px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.2s;
+        }
+        #controls button:hover {
+            background: #81d4fa;
+            transform: translateY(-1px);
+        }
+        #canvas {
+            width: 100vw;
+            height: 100vh;
+            cursor: grab;
+        }
+        #canvas:active {
+            cursor: grabbing;
+        }
+        .node {
+            position: absolute;
+            background: #2e2e2e;
+            border: 2px solid #4fc3f7;
+            border-radius: 8px;
+            padding: 12px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+            cursor: move;
+            user-select: none;
+            transition: box-shadow 0.2s;
+        }
+        .node:hover {
+            box-shadow: 0 4px 16px rgba(79, 195, 247, 0.4);
+            z-index: 100;
+        }
+        .node.text-node {
+            background: linear-gradient(135deg, #2e2e2e 0%, #3a3a3a 100%);
+        }
+        .node.link-node {
+            background: linear-gradient(135deg, #1a237e 0%, #283593 100%);
+            border-color: #7986cb;
+        }
+        .node.file-node {
+            background: linear-gradient(135deg, #1b5e20 0%, #2e7d32 100%);
+            border-color: #81c784;
+        }
+        .node.group-node {
+            background: rgba(255, 152, 0, 0.1);
+            border-color: #ff9800;
+            border-style: dashed;
+        }
+        .node-content {
+            font-size: 14px;
+            line-height: 1.4;
+        }
+        .node-id {
+            font-size: 10px;
+            color: #999;
+            margin-top: 4px;
+        }
+        svg {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 1;
+        }
+        line.edge {
+            stroke: #4fc3f7;
+            stroke-width: 2;
+            opacity: 0.6;
+        }
+        .edge-label {
+            fill: #81d4fa;
+            font-size: 12px;
+            font-weight: 600;
+        }
+    </style>
+</head>
+<body>
+    <div id=\"controls\">
+        <h2>JSON Canvas Demo</h2>
+        <button onclick=\"loadExample()\">Load Example</button>
+        <button onclick=\"loadMindmap()\">Load Mindmap</button>
+        <button onclick=\"loadWorkflow()\">Load Workflow</button>
+        <button onclick=\"resetView()\">Reset View</button>
+    </div>
+    <div id=\"canvas\">
+        <svg id=\"edges\"></svg>
+    </div>
+    <script>
+        let offsetX = 0, offsetY = 0;
+        let isPanning = false;
+        let isDraggingNode = false;
+        let startX, startY;
+        let draggedNode = null;
+        let scale = 1;
+        const canvas = document.getElementById('canvas');
+
+        // Node dragging
+        document.addEventListener('mousedown', (e) => {
+            const node = e.target.closest('.node');
+            if (node) {
+                isDraggingNode = true;
+                draggedNode = node;
+                startX = e.clientX;
+                startY = e.clientY;
+                node.style.zIndex = '1000';
+                e.preventDefault();
+                return;
+            }
+
+            // Pan canvas if clicking on background
+            if (e.target === canvas || e.target.tagName === 'svg') {
+                isPanning = true;
+                startX = e.clientX - offsetX;
+                startY = e.clientY - offsetY;
+            }
+        });
+
+        document.addEventListener('mousemove', (e) => {
+            if (isDraggingNode && draggedNode) {
+                const dx = e.clientX - startX;
+                const dy = e.clientY - startY;
+                const currentX = parseFloat(draggedNode.dataset.x);
+                const currentY = parseFloat(draggedNode.dataset.y);
+                draggedNode.dataset.x = currentX + dx;
+                draggedNode.dataset.y = currentY + dy;
+                startX = e.clientX;
+                startY = e.clientY;
+                updateView();
+                e.preventDefault();
+            } else if (isPanning) {
+                offsetX = e.clientX - startX;
+                offsetY = e.clientY - startY;
+                updateView();
+            }
+        });
+
+        document.addEventListener('mouseup', () => {
+            if (draggedNode) {
+                draggedNode.style.zIndex = '';
+            }
+            isDraggingNode = false;
+            isPanning = false;
+            draggedNode = null;
+        });
+
+        function updateView() {
+            const nodes = document.querySelectorAll('.node');
+            nodes.forEach(node => {
+                const x = parseFloat(node.dataset.x);
+                const y = parseFloat(node.dataset.y);
+                node.style.transform = `translate(${x + offsetX}px, ${y + offsetY}px)`;
+            });
+            drawEdges();
+        }
+
+        function resetView() {
+            offsetX = window.innerWidth / 2 - 400;
+            offsetY = window.innerHeight / 2 - 300;
+            updateView();
+        }
+
+        function createCanvas(data) {
+            // Clear existing
+            document.querySelectorAll('.node').forEach(n => n.remove());
+            document.getElementById('edges').innerHTML = '';
+
+            // Create nodes
+            data.nodes.forEach(node => {
+                const div = document.createElement('div');
+                div.className = 'node';
+                div.dataset.id = node.id;
+                div.dataset.x = node.x;
+                div.dataset.y = node.y;
+
+                if (node.type === 'text') {
+                    div.classList.add('text-node');
+                    div.innerHTML = `<div class=\"node-content\">${node.text}</div><div class=\"node-id\">${node.id}</div>`;
+                } else if (node.type === 'link') {
+                    div.classList.add('link-node');
+                    div.innerHTML = `<div class=\"node-content\">🔗 <a href=\"${node.url}\" style=\"color:#81d4fa\">${node.url}</a></div><div class=\"node-id\">${node.id}</div>`;
+                } else if (node.type === 'file') {
+                    div.classList.add('file-node');
+                    div.innerHTML = `<div class=\"node-content\">📄 ${node.file}</div><div class=\"node-id\">${node.id}</div>`;
+                } else if (node.type === 'group') {
+                    div.classList.add('group-node');
+                    div.innerHTML = `<div class=\"node-content\">${node.label || 'Group'}</div><div class=\"node-id\">${node.id}</div>`;
+                }
+
+                div.style.width = node.width + 'px';
+                div.style.height = node.height + 'px';
+                canvas.appendChild(div);
+            });
+
+            window.canvasData = data;
+            resetView();
+        }
+
+        function drawEdges() {
+            const svg = document.getElementById('edges');
+            svg.innerHTML = '';
+
+            if (!window.canvasData) return;
+
+            window.canvasData.edges.forEach(edge => {
+                const fromNode = document.querySelector(`[data-id=\"${edge.fromNode}\"]`);
+                const toNode = document.querySelector(`[data-id=\"${edge.toNode}\"]`);
+
+                if (fromNode && toNode) {
+                    const fromX = parseFloat(fromNode.dataset.x) + parseFloat(fromNode.style.width) / 2 + offsetX;
+                    const fromY = parseFloat(fromNode.dataset.y) + parseFloat(fromNode.style.height) / 2 + offsetY;
+                    const toX = parseFloat(toNode.dataset.x) + parseFloat(toNode.style.width) / 2 + offsetX;
+                    const toY = parseFloat(toNode.dataset.y) + parseFloat(toNode.style.height) / 2 + offsetY;
+
+                    const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+                    line.setAttribute('class', 'edge');
+                    line.setAttribute('x1', fromX);
+                    line.setAttribute('y1', fromY);
+                    line.setAttribute('x2', toX);
+                    line.setAttribute('y2', toY);
+                    svg.appendChild(line);
+
+                    if (edge.label) {
+                        const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+                        text.setAttribute('class', 'edge-label');
+                        text.setAttribute('x', (fromX + toX) / 2);
+                        text.setAttribute('y', (fromY + toY) / 2);
+                        text.setAttribute('text-anchor', 'middle');
+                        text.textContent = edge.label;
+                        svg.appendChild(text);
+                    }
+                }
+            });
+        }
+
+        async function loadExample() {
+            const response = await fetch('/api/example');
+            const data = await response.json();
+            createCanvas(data);
+        }
+
+        async function loadMindmap() {
+            const response = await fetch('/api/mindmap');
+            const data = await response.json();
+            createCanvas(data);
+        }
+
+        async function loadWorkflow() {
+            const response = await fetch('/api/workflow');
+            const data = await response.json();
+            createCanvas(data);
+        }
+
+        // Load example on startup
+        loadExample();
+    </script>
+</body>
+</html>"
+
+  Stdlib.Http.response (Stdlib.String.toBytes html) 200L
+
+
+// Create a simple canvas with some nodes and edges
+[<HttpHandler("GET", "/canvas/example")>]
+let _handler _req =
+  let canvas = Stachu.JsonCanvas.empty ()
+
+  // Create some nodes
+  let node1 =
+    Stachu.JsonCanvas.Node.TextNode(
+      Stachu.JsonCanvas.TextNodeData
+        { id = "node1"
+          x = 0L
+          y = 0L
+          width = 250L
+          height = 100L
+          text = "Hello from Darklang!"
+          color = Stdlib.Option.Option.None }
+    )
+
+  let node2 =
+    Stachu.JsonCanvas.Node.TextNode(
+      Stachu.JsonCanvas.TextNodeData
+        { id = "node2"
+          x = 300L
+          y = 50L
+          width = 250L
+          height = 100L
+          text = "This is a JSON Canvas"
+          color = Stdlib.Option.Option.None }
+    )
+
+  let node3 =
+    Stachu.JsonCanvas.Node.LinkNode(
+      Stachu.JsonCanvas.LinkNodeData
+        { id = "node3"
+          x = 100L
+          y = 200L
+          width = 300L
+          height = 80L
+          url = "https://jsoncanvas.org"
+          color = Stdlib.Option.Option.None }
+    )
+
+  let node4 =
+    Stachu.JsonCanvas.Node.GroupNode(
+      Stachu.JsonCanvas.GroupNodeData
+        { id = "group1"
+          x = -50L
+          y = -50L
+          width = 650L
+          height = 400L
+          label = Stdlib.Option.Option.Some("Main Group")
+          background = Stdlib.Option.Option.None
+          backgroundStyle = Stdlib.Option.Option.None
+          color = Stdlib.Option.Option.None }
+    )
+
+  // Create edges connecting the nodes
+  let edge1 = Stachu.JsonCanvas.Edge.simple "edge1" "node1" "node2"
+
+  let edge2 =
+    (Stachu.JsonCanvas.Edge.simple "edge2" "node2" "node3")
+    |> Stachu.JsonCanvas.Edge.withLabel "learn more"
+
+  // Build the canvas
+  let canvas =
+    canvas
+    |> Stachu.JsonCanvas.addNode node4
+    |> Stachu.JsonCanvas.addNode node1
+    |> Stachu.JsonCanvas.addNode node2
+    |> Stachu.JsonCanvas.addNode node3
+    |> Stachu.JsonCanvas.addEdge edge1
+    |> Stachu.JsonCanvas.addEdge edge2
+
+  let nodeIds = Stachu.JsonCanvas.getNodeIds canvas
+  let nodeIdsStr = Stdlib.String.join nodeIds ", "
+
+  let stats = Stachu.JsonCanvas.countNodesByType canvas
+
+  let responseText =
+    $"Canvas created successfully!\n\nNode IDs: {nodeIdsStr}\n\nNode counts: {stats}\n\nTotal edges: {Builtin.int64ToString (Stdlib.List.length canvas.edges)}"
+
+  Stdlib.Http.response (Stdlib.String.toBytes responseText) 200L
+
+
+// Get information about a canvas structure
+[<HttpHandler("GET", "/canvas/info")>]
+let _handler _req =
+  let canvas = Stachu.JsonCanvas.empty ()
+
+  // Add a variety of nodes
+  let canvas =
+    canvas
+    |> Stachu.JsonCanvas.addNode
+      (Stachu.JsonCanvas.Node.TextNode(
+        Stachu.JsonCanvas.TextNodeData
+          { id = "text1"
+            x = 0L
+            y = 0L
+            width = 200L
+            height = 100L
+            text = "Text node 1"
+            color = Stdlib.Option.Option.None }
+      ))
+    |> Stachu.JsonCanvas.addNode
+      (Stachu.JsonCanvas.Node.TextNode(
+        Stachu.JsonCanvas.TextNodeData
+          { id = "text2"
+            x = 250L
+            y = 0L
+            width = 200L
+            height = 100L
+            text = "Text node 2"
+            color = Stdlib.Option.Option.None }
+      ))
+    |> Stachu.JsonCanvas.addNode
+      (Stachu.JsonCanvas.Node.FileNode(
+        Stachu.JsonCanvas.FileNodeData
+          { id = "file1"
+            x = 0L
+            y = 150L
+            width = 200L
+            height = 100L
+            file = "/path/to/file.md"
+            subpath = Stdlib.Option.Option.None
+            color = Stdlib.Option.Option.None }
+      ))
+    |> Stachu.JsonCanvas.addNode
+      (Stachu.JsonCanvas.Node.LinkNode(
+        Stachu.JsonCanvas.LinkNodeData
+          { id = "link1"
+            x = 250L
+            y = 150L
+            width = 200L
+            height = 100L
+            url = "https://darklang.com"
+            color = Stdlib.Option.Option.None }
+      ))
+
+  let stats = Stachu.JsonCanvas.countNodesByType canvas
+
+  let responseText = $"Canvas Statistics:\n{stats}\n\nTotal nodes: {Builtin.int64ToString (Stdlib.List.length canvas.nodes)}"
+
+  Stdlib.Http.response (Stdlib.String.toBytes responseText) 200L
+
+
+// Demonstrate building a mind map structure
+[<HttpHandler("GET", "/canvas/mindmap")>]
+let _handler _req =
+  let canvas = Stachu.JsonCanvas.empty ()
+
+  // Central idea
+  let centerNode =
+    Stachu.JsonCanvas.Node.TextNode(
+      Stachu.JsonCanvas.TextNodeData
+        { id = "center"
+          x = 400L
+          y = 300L
+          width = 200L
+          height = 80L
+          text = "Darklang"
+          color = Stdlib.Option.Option.None }
+    )
+
+  // Branch ideas
+  let branch1 =
+    Stachu.JsonCanvas.Node.TextNode(
+      Stachu.JsonCanvas.TextNodeData
+        { id = "branch1"
+          x = 100L
+          y = 200L
+          width = 150L
+          height = 60L
+          text = "Type Safety"
+          color = Stdlib.Option.Option.None }
+    )
+
+  let branch2 =
+    Stachu.JsonCanvas.Node.TextNode(
+      Stachu.JsonCanvas.TextNodeData
+        { id = "branch2"
+          x = 100L
+          y = 400L
+          width = 150L
+          height = 60L
+          text = "Packages"
+          color = Stdlib.Option.Option.None }
+    )
+
+  let branch3 =
+    Stachu.JsonCanvas.Node.TextNode(
+      Stachu.JsonCanvas.TextNodeData
+        { id = "branch3"
+          x = 700L
+          y = 200L
+          width = 150L
+          height = 60L
+          text = "HTTP Handlers"
+          color = Stdlib.Option.Option.None }
+    )
+
+  let branch4 =
+    Stachu.JsonCanvas.Node.TextNode(
+      Stachu.JsonCanvas.TextNodeData
+        { id = "branch4"
+          x = 700L
+          y = 400L
+          width = 150L
+          height = 60L
+          text = "Cloud Native"
+          color = Stdlib.Option.Option.None }
+    )
+
+  // Connect branches to center
+  let edge1 =
+    (Stachu.JsonCanvas.Edge.simple "e1" "branch1" "center")
+    |> Stachu.JsonCanvas.Edge.withLabel "enables"
+
+  let edge2 =
+    (Stachu.JsonCanvas.Edge.simple "e2" "branch2" "center")
+    |> Stachu.JsonCanvas.Edge.withLabel "extend"
+
+  let edge3 =
+    (Stachu.JsonCanvas.Edge.simple "e3" "center" "branch3")
+    |> Stachu.JsonCanvas.Edge.withLabel "supports"
+
+  let edge4 =
+    (Stachu.JsonCanvas.Edge.simple "e4" "center" "branch4")
+    |> Stachu.JsonCanvas.Edge.withLabel "runs in"
+
+  // Build the mindmap
+  let mindmap =
+    canvas
+    |> Stachu.JsonCanvas.addNode centerNode
+    |> Stachu.JsonCanvas.addNode branch1
+    |> Stachu.JsonCanvas.addNode branch2
+    |> Stachu.JsonCanvas.addNode branch3
+    |> Stachu.JsonCanvas.addNode branch4
+    |> Stachu.JsonCanvas.addEdge edge1
+    |> Stachu.JsonCanvas.addEdge edge2
+    |> Stachu.JsonCanvas.addEdge edge3
+    |> Stachu.JsonCanvas.addEdge edge4
+
+  let nodeCount = Stdlib.List.length mindmap.nodes
+  let edgeCount = Stdlib.List.length mindmap.edges
+
+  let responseText =
+    $"Mind Map Created!\n\nNodes: {Builtin.int64ToString nodeCount}\nEdges: {Builtin.int64ToString edgeCount}\n\n{Stachu.JsonCanvas.countNodesByType mindmap}"
+
+  Stdlib.Http.response (Stdlib.String.toBytes responseText) 200L
+
+
+// Demonstrate workflow/flowchart structure
+[<HttpHandler("GET", "/canvas/workflow")>]
+let _handler _req =
+  let canvas = Stachu.JsonCanvas.empty ()
+
+  // Workflow steps
+  let step1 =
+    Stachu.JsonCanvas.Node.TextNode(
+      Stachu.JsonCanvas.TextNodeData
+        { id = "step1"
+          x = 50L
+          y = 50L
+          width = 180L
+          height = 80L
+          text = "Receive Request"
+          color = Stdlib.Option.Option.None }
+    )
+
+  let step2 =
+    Stachu.JsonCanvas.Node.TextNode(
+      Stachu.JsonCanvas.TextNodeData
+        { id = "step2"
+          x = 50L
+          y = 180L
+          width = 180L
+          height = 80L
+          text = "Parse JSON"
+          color = Stdlib.Option.Option.None }
+    )
+
+  let step3 =
+    Stachu.JsonCanvas.Node.TextNode(
+      Stachu.JsonCanvas.TextNodeData
+        { id = "step3"
+          x = 50L
+          y = 310L
+          width = 180L
+          height = 80L
+          text = "Validate Data"
+          color = Stdlib.Option.Option.None }
+    )
+
+  let step4 =
+    Stachu.JsonCanvas.Node.TextNode(
+      Stachu.JsonCanvas.TextNodeData
+        { id = "step4"
+          x = 50L
+          y = 440L
+          width = 180L
+          height = 80L
+          text = "Process & Respond"
+          color = Stdlib.Option.Option.None }
+    )
+
+  let errorNode =
+    Stachu.JsonCanvas.Node.TextNode(
+      Stachu.JsonCanvas.TextNodeData
+        { id = "error"
+          x = 300L
+          y = 250L
+          width = 180L
+          height = 80L
+          text = "Return Error"
+          color = Stdlib.Option.Option.None }
+    )
+
+  // Connect the workflow
+  let flow1 = Stachu.JsonCanvas.Edge.simple "f1" "step1" "step2"
+  let flow2 = Stachu.JsonCanvas.Edge.simple "f2" "step2" "step3"
+
+  let flow3 =
+    (Stachu.JsonCanvas.Edge.simple "f3" "step3" "step4")
+    |> Stachu.JsonCanvas.Edge.withLabel "valid"
+
+  let flow4 =
+    (Stachu.JsonCanvas.Edge.simple "f4" "step3" "error")
+    |> Stachu.JsonCanvas.Edge.withLabel "invalid"
+
+  // Build the workflow
+  let workflow =
+    canvas
+    |> Stachu.JsonCanvas.addNode step1
+    |> Stachu.JsonCanvas.addNode step2
+    |> Stachu.JsonCanvas.addNode step3
+    |> Stachu.JsonCanvas.addNode step4
+    |> Stachu.JsonCanvas.addNode errorNode
+    |> Stachu.JsonCanvas.addEdge flow1
+    |> Stachu.JsonCanvas.addEdge flow2
+    |> Stachu.JsonCanvas.addEdge flow3
+    |> Stachu.JsonCanvas.addEdge flow4
+
+  let responseText =
+    $"Workflow Canvas Created!\n\nThis demonstrates a simple HTTP request processing workflow.\n\nNodes: {Builtin.int64ToString (Stdlib.List.length workflow.nodes)}\nEdges: {Builtin.int64ToString (Stdlib.List.length workflow.edges)}"
+
+  Stdlib.Http.response (Stdlib.String.toBytes responseText) 200L
+
+
+// JSON API Endpoints
+[<HttpHandler("GET", "/api/example")>]
+let _handler _req =
+  let canvas = Stachu.JsonCanvas.empty ()
+
+  let node4 =
+    Stachu.JsonCanvas.Node.GroupNode(
+      Stachu.JsonCanvas.GroupNodeData
+        { id = "group1"
+          x = 0L
+          y = 0L
+          width = 600L
+          height = 400L
+          label = Stdlib.Option.Option.Some("Main Group")
+          background = Stdlib.Option.Option.None
+          backgroundStyle = Stdlib.Option.Option.None
+          color = Stdlib.Option.Option.None }
+    )
+
+  let node1 =
+    Stachu.JsonCanvas.Node.TextNode(
+      Stachu.JsonCanvas.TextNodeData
+        { id = "node1"
+          x = 20L
+          y = 50L
+          width = 250L
+          height = 100L
+          text = "Hello from Darklang!"
+          color = Stdlib.Option.Option.None }
+    )
+
+  let node2 =
+    Stachu.JsonCanvas.Node.TextNode(
+      Stachu.JsonCanvas.TextNodeData
+        { id = "node2"
+          x = 320L
+          y = 50L
+          width = 250L
+          height = 100L
+          text = "This is a JSON Canvas"
+          color = Stdlib.Option.Option.None }
+    )
+
+  let node3 =
+    Stachu.JsonCanvas.Node.LinkNode(
+      Stachu.JsonCanvas.LinkNodeData
+        { id = "node3"
+          x = 150L
+          y = 220L
+          width = 300L
+          height = 80L
+          url = "https://jsoncanvas.org"
+          color = Stdlib.Option.Option.None }
+    )
+
+  let edge1 = Stachu.JsonCanvas.Edge.simple "edge1" "node1" "node2"
+
+  let edge2 =
+    (Stachu.JsonCanvas.Edge.simple "edge2" "node2" "node3")
+    |> Stachu.JsonCanvas.Edge.withLabel "learn more"
+
+  let canvas =
+    canvas
+    |> Stachu.JsonCanvas.addNode node4
+    |> Stachu.JsonCanvas.addNode node1
+    |> Stachu.JsonCanvas.addNode node2
+    |> Stachu.JsonCanvas.addNode node3
+    |> Stachu.JsonCanvas.addEdge edge1
+    |> Stachu.JsonCanvas.addEdge edge2
+
+  let json = Stachu.JsonCanvas.Json.canvasToJson canvas
+
+  Stdlib.Http.response (Stdlib.String.toBytes json) 200L
+
+
+[<HttpHandler("GET", "/api/mindmap")>]
+let _handler _req =
+  let canvas = Stachu.JsonCanvas.empty ()
+
+  let centerNode =
+    Stachu.JsonCanvas.Node.TextNode(
+      Stachu.JsonCanvas.TextNodeData
+        { id = "center"
+          x = 400L
+          y = 300L
+          width = 200L
+          height = 80L
+          text = "Darklang"
+          color = Stdlib.Option.Option.None }
+    )
+
+  let branch1 =
+    Stachu.JsonCanvas.Node.TextNode(
+      Stachu.JsonCanvas.TextNodeData
+        { id = "branch1"
+          x = 100L
+          y = 200L
+          width = 150L
+          height = 60L
+          text = "Type Safety"
+          color = Stdlib.Option.Option.None }
+    )
+
+  let branch2 =
+    Stachu.JsonCanvas.Node.TextNode(
+      Stachu.JsonCanvas.TextNodeData
+        { id = "branch2"
+          x = 100L
+          y = 400L
+          width = 150L
+          height = 60L
+          text = "Packages"
+          color = Stdlib.Option.Option.None }
+    )
+
+  let branch3 =
+    Stachu.JsonCanvas.Node.TextNode(
+      Stachu.JsonCanvas.TextNodeData
+        { id = "branch3"
+          x = 700L
+          y = 200L
+          width = 150L
+          height = 60L
+          text = "HTTP Handlers"
+          color = Stdlib.Option.Option.None }
+    )
+
+  let branch4 =
+    Stachu.JsonCanvas.Node.TextNode(
+      Stachu.JsonCanvas.TextNodeData
+        { id = "branch4"
+          x = 700L
+          y = 400L
+          width = 150L
+          height = 60L
+          text = "Cloud Native"
+          color = Stdlib.Option.Option.None }
+    )
+
+  let edge1 =
+    (Stachu.JsonCanvas.Edge.simple "e1" "branch1" "center")
+    |> Stachu.JsonCanvas.Edge.withLabel "enables"
+
+  let edge2 =
+    (Stachu.JsonCanvas.Edge.simple "e2" "branch2" "center")
+    |> Stachu.JsonCanvas.Edge.withLabel "extend"
+
+  let edge3 =
+    (Stachu.JsonCanvas.Edge.simple "e3" "center" "branch3")
+    |> Stachu.JsonCanvas.Edge.withLabel "supports"
+
+  let edge4 =
+    (Stachu.JsonCanvas.Edge.simple "e4" "center" "branch4")
+    |> Stachu.JsonCanvas.Edge.withLabel "runs in"
+
+  let mindmap =
+    canvas
+    |> Stachu.JsonCanvas.addNode centerNode
+    |> Stachu.JsonCanvas.addNode branch1
+    |> Stachu.JsonCanvas.addNode branch2
+    |> Stachu.JsonCanvas.addNode branch3
+    |> Stachu.JsonCanvas.addNode branch4
+    |> Stachu.JsonCanvas.addEdge edge1
+    |> Stachu.JsonCanvas.addEdge edge2
+    |> Stachu.JsonCanvas.addEdge edge3
+    |> Stachu.JsonCanvas.addEdge edge4
+
+  let json = Stachu.JsonCanvas.Json.canvasToJson mindmap
+
+  Stdlib.Http.response (Stdlib.String.toBytes json) 200L
+
+
+[<HttpHandler("GET", "/api/workflow")>]
+let _handler _req =
+  let canvas = Stachu.JsonCanvas.empty ()
+
+  let step1 =
+    Stachu.JsonCanvas.Node.TextNode(
+      Stachu.JsonCanvas.TextNodeData
+        { id = "step1"
+          x = 50L
+          y = 50L
+          width = 180L
+          height = 80L
+          text = "Receive Request"
+          color = Stdlib.Option.Option.None }
+    )
+
+  let step2 =
+    Stachu.JsonCanvas.Node.TextNode(
+      Stachu.JsonCanvas.TextNodeData
+        { id = "step2"
+          x = 50L
+          y = 180L
+          width = 180L
+          height = 80L
+          text = "Parse JSON"
+          color = Stdlib.Option.Option.None }
+    )
+
+  let step3 =
+    Stachu.JsonCanvas.Node.TextNode(
+      Stachu.JsonCanvas.TextNodeData
+        { id = "step3"
+          x = 50L
+          y = 310L
+          width = 180L
+          height = 80L
+          text = "Validate Data"
+          color = Stdlib.Option.Option.None }
+    )
+
+  let step4 =
+    Stachu.JsonCanvas.Node.TextNode(
+      Stachu.JsonCanvas.TextNodeData
+        { id = "step4"
+          x = 50L
+          y = 440L
+          width = 180L
+          height = 80L
+          text = "Process & Respond"
+          color = Stdlib.Option.Option.None }
+    )
+
+  let errorNode =
+    Stachu.JsonCanvas.Node.TextNode(
+      Stachu.JsonCanvas.TextNodeData
+        { id = "error"
+          x = 300L
+          y = 250L
+          width = 180L
+          height = 80L
+          text = "Return Error"
+          color = Stdlib.Option.Option.None }
+    )
+
+  let flow1 = Stachu.JsonCanvas.Edge.simple "f1" "step1" "step2"
+  let flow2 = Stachu.JsonCanvas.Edge.simple "f2" "step2" "step3"
+
+  let flow3 =
+    (Stachu.JsonCanvas.Edge.simple "f3" "step3" "step4")
+    |> Stachu.JsonCanvas.Edge.withLabel "valid"
+
+  let flow4 =
+    (Stachu.JsonCanvas.Edge.simple "f4" "step3" "error")
+    |> Stachu.JsonCanvas.Edge.withLabel "invalid"
+
+  let workflow =
+    canvas
+    |> Stachu.JsonCanvas.addNode step1
+    |> Stachu.JsonCanvas.addNode step2
+    |> Stachu.JsonCanvas.addNode step3
+    |> Stachu.JsonCanvas.addNode step4
+    |> Stachu.JsonCanvas.addNode errorNode
+    |> Stachu.JsonCanvas.addEdge flow1
+    |> Stachu.JsonCanvas.addEdge flow2
+    |> Stachu.JsonCanvas.addEdge flow3
+    |> Stachu.JsonCanvas.addEdge flow4
+
+  let json = Stachu.JsonCanvas.Json.canvasToJson workflow
+
+  Stdlib.Http.response (Stdlib.String.toBytes json) 200L
