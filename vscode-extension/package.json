@@ -17,9 +17,6 @@
     "vscode": "^1.83.0"
   },
   "main": "./client/out/extension",
-  "activationEvents": [
-		"*"
-	],
   "contributes": {
     "keybindings": [
     ],
@@ -266,7 +263,7 @@
     "watch": "tsc -b -w",
     "lint": "eslint ./client/src --ext .ts,.tsx",
     "postinstall": "cd client && npm install && cd ..",
-    "package": "vsce package --allow-star-activation"
+    "package": "vsce package"
   },
   "devDependencies": {
     "@types/mocha": "^9.1.0",
