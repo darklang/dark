@@ -1,274 +1,346 @@
 // JSON Canvas type definitions
 // Spec: https://jsoncanvas.org/spec/1.0/
 
-module Stachu =
-  module JsonCanvas =
-    // Color can be either a preset number (1-6) or a hex string
-    type Color =
-      | Preset of Int64
-      | Hex of String
+module Stachu.JsonCanvas
 
-    // Side of a node where an edge connects
-    type Side =
-      | Top
-      | Right
-      | Bottom
-      | Left
+// Color can be either a preset number (1-6) or a hex string
+type Color =
+  | Preset of Int64
+  | Hex of String
 
-    // Endpoint shape for edges
-    type EndpointStyle =
-      | None
-      | Arrow
+// Side of a node where an edge connects
+type Side =
+  | Top
+  | Right
+  | Bottom
+  | Left
 
-    // Background style for group nodes
-    type BackgroundStyle =
-      | Cover
-      | Ratio
-      | Repeat
+// Endpoint shape for edges
+type EndpointStyle =
+  | None
+  | Arrow
 
-    // Record types for each node variant
-    type TextNodeData =
-      { id: String
-        x: Int64
-        y: Int64
-        width: Int64
-        height: Int64
-        text: String
-        color: Stdlib.Option.Option<Color> }
-
-    type FileNodeData =
-      { id: String
-        x: Int64
-        y: Int64
-        width: Int64
-        height: Int64
-        file: String
-        subpath: Stdlib.Option.Option<String>
-        color: Stdlib.Option.Option<Color> }
-
-    type LinkNodeData =
-      { id: String
-        x: Int64
-        y: Int64
-        width: Int64
-        height: Int64
-        url: String
-        color: Stdlib.Option.Option<Color> }
-
-    type GroupNodeData =
-      { id: String
-        x: Int64
-        y: Int64
-        width: Int64
-        height: Int64
-        label: Stdlib.Option.Option<String>
-        background: Stdlib.Option.Option<String>
-        backgroundStyle: Stdlib.Option.Option<BackgroundStyle>
-        color: Stdlib.Option.Option<Color> }
-
-    // Node types using record types
-    type Node =
-      | TextNode of TextNodeData
-      | FileNode of FileNodeData
-      | LinkNode of LinkNodeData
-      | GroupNode of GroupNodeData
-
-    // Edge connecting nodes
-    type Edge =
-      { id: String
-        fromNode: String
-        toNode: String
-        fromSide: Stdlib.Option.Option<Side>
-        toSide: Stdlib.Option.Option<Side>
-        fromEnd: Stdlib.Option.Option<EndpointStyle>
-        toEnd: Stdlib.Option.Option<EndpointStyle>
-        color: Stdlib.Option.Option<Color>
-        label: Stdlib.Option.Option<String> }
-
-    // Canvas is the top-level structure
-    type Canvas =
-      { nodes: List<Node>
-        edges: List<Edge> }
+// Background style for group nodes
+type BackgroundStyle =
+  | Cover
+  | Ratio
+  | Repeat
 
 
-    // Helper functions for creating edges
-    module Edge =
-      let simple (id: String) (fromNode: String) (toNode: String) : Edge =
-        Edge
-          { id = id
-            fromNode = fromNode
-            toNode = toNode
-            fromSide = Stdlib.Option.Option.None
-            toSide = Stdlib.Option.Option.None
-            fromEnd = Stdlib.Option.Option.None
-            toEnd = Stdlib.Option.Option.None
-            color = Stdlib.Option.Option.None
-            label = Stdlib.Option.Option.None }
+// Record types for each node variant
+type TextNodeData =
+  { id: String
+    x: Int64
+    y: Int64
+    width: Int64
+    height: Int64
+    text: String
+    color: Stdlib.Option.Option<Color> }
 
-      let withLabel
-        (edge: Edge)
-        (label: String)
-        : Edge =
-        Edge
-          { id = edge.id
-            fromNode = edge.fromNode
-            toNode = edge.toNode
-            fromSide = edge.fromSide
-            toSide = edge.toSide
-            fromEnd = edge.fromEnd
-            toEnd = edge.toEnd
-            color = edge.color
-            label = Stdlib.Option.Option.Some(label) }
+type FileNodeData =
+  { id: String
+    x: Int64
+    y: Int64
+    width: Int64
+    height: Int64
+    file: String
+    subpath: Stdlib.Option.Option<String>
+    color: Stdlib.Option.Option<Color> }
+
+type LinkNodeData =
+  { id: String
+    x: Int64
+    y: Int64
+    width: Int64
+    height: Int64
+    url: String
+    color: Stdlib.Option.Option<Color> }
+
+type GroupNodeData =
+  { id: String
+    x: Int64
+    y: Int64
+    width: Int64
+    height: Int64
+    label: Stdlib.Option.Option<String>
+    background: Stdlib.Option.Option<String>
+    backgroundStyle: Stdlib.Option.Option<BackgroundStyle>
+    color: Stdlib.Option.Option<Color> }
+
+// Node types using record types
+type Node =
+  | TextNode of TextNodeData
+  | FileNode of FileNodeData
+  | LinkNode of LinkNodeData
+  | GroupNode of GroupNodeData
+
+// Edge connecting nodes
+type Edge =
+  { id: String
+    fromNode: String
+    toNode: String
+    fromSide: Stdlib.Option.Option<Side>
+    toSide: Stdlib.Option.Option<Side>
+    fromEnd: Stdlib.Option.Option<EndpointStyle>
+    toEnd: Stdlib.Option.Option<EndpointStyle>
+    color: Stdlib.Option.Option<Color>
+    label: Stdlib.Option.Option<String> }
+
+// Canvas is the top-level structure
+type Canvas =
+  { nodes: List<Node>
+    edges: List<Edge> }
 
 
-    // Create an empty canvas
-    let empty () : Canvas = Canvas { nodes = []; edges = [] }
+// Helper functions for creating nodes
+module Node =
+  let text (id: String) (x: Int64) (y: Int64) (width: Int64) (height: Int64) (text: String) : Node =
+    (TextNodeData
+      { id = id
+        x = x
+        y = y
+        width = width
+        height = height
+        text = text
+        color = Stdlib.Option.Option.None })
+    |> Node.TextNode
 
-    // Add a node to a canvas
-    let addNode (canvas: Canvas) (node: Node) : Canvas =
-      Canvas
-        { nodes = Stdlib.List.append canvas.nodes [ node ]
-          edges = canvas.edges }
+  let link (id: String) (x: Int64) (y: Int64) (width: Int64) (height: Int64) (url: String) : Node =
+    (LinkNodeData
+      { id = id
+        x = x
+        y = y
+        width = width
+        height = height
+        url = url
+        color = Stdlib.Option.Option.None })
+    |> Node.LinkNode
 
-    // Add an edge to a canvas
-    let addEdge (canvas: Canvas) (edge: Edge) : Canvas =
-      Canvas
-        { nodes = canvas.nodes
-          edges = Stdlib.List.append canvas.edges [ edge ] }
+  let file (id: String) (x: Int64) (y: Int64) (width: Int64) (height: Int64) (filePath: String) : Node =
+    (FileNodeData
+      { id = id
+        x = x
+        y = y
+        width = width
+        height = height
+        file = filePath
+        subpath = Stdlib.Option.Option.None
+        color = Stdlib.Option.Option.None }
+    ) |> Node.FileNode
 
-    // Get all node IDs
-    let getNodeIds (canvas: Canvas) : List<String> =
+  let group (id: String) (x: Int64) (y: Int64) (width: Int64) (height: Int64) (label: String) : Node =
+    (GroupNodeData
+      { id = id
+        x = x
+        y = y
+        width = width
+        height = height
+        label = Stdlib.Option.Option.Some(label)
+        background = Stdlib.Option.Option.None
+        backgroundStyle = Stdlib.Option.Option.None
+        color = Stdlib.Option.Option.None })
+    |> Node.GroupNode
+
+
+// Helper functions for creating edges
+module Edge =
+  let simple (id: String) (fromNode: String) (toNode: String) : Edge =
+    Edge
+      { id = id
+        fromNode = fromNode
+        toNode = toNode
+        fromSide = Stdlib.Option.Option.None
+        toSide = Stdlib.Option.Option.None
+        fromEnd = Stdlib.Option.Option.None
+        toEnd = Stdlib.Option.Option.None
+        color = Stdlib.Option.Option.None
+        label = Stdlib.Option.Option.None }
+
+  let withLabel (label: String) (edge: Edge) : Edge =
+    { edge with label = Stdlib.Option.Option.Some(label) }
+
+
+// Create an empty canvas
+let empty () : Canvas =
+  Canvas { nodes = []; edges = [] }
+
+// Add a node to a canvas
+let addNode (canvas: Canvas) (node: Node) : Canvas =
+  Canvas
+    { nodes = Stdlib.List.append canvas.nodes [ node ]
+      edges = canvas.edges }
+
+// Add an edge to a canvas
+let addEdge (canvas: Canvas) (edge: Edge) : Canvas =
+  Canvas
+    { nodes = canvas.nodes
+      edges = Stdlib.List.append canvas.edges [ edge ] }
+
+// Get all node IDs
+let getNodeIds (canvas: Canvas) : List<String> =
+  canvas.nodes
+  |> Stdlib.List.map (fun node ->
+    match node with
+    | TextNode data -> data.id
+    | FileNode data -> data.id
+    | LinkNode data -> data.id
+    | GroupNode data -> data.id)
+
+// Count nodes by type
+let countNodesByType (canvas: Canvas) : String =
+  let textCount =
+    canvas.nodes
+    |> Stdlib.List.filter (fun node ->
+      match node with
+      | TextNode _ -> true
+      | _ -> false)
+    |> Stdlib.List.length
+
+  let fileCount =
+    canvas.nodes
+    |> Stdlib.List.filter (fun node ->
+      match node with
+      | FileNode _ -> true
+      | _ -> false)
+    |> Stdlib.List.length
+
+  let linkCount =
+    canvas.nodes
+    |> Stdlib.List.filter (fun node ->
+      match node with
+      | LinkNode _ -> true
+      | _ -> false)
+    |> Stdlib.List.length
+
+  let groupCount =
+    canvas.nodes
+    |> Stdlib.List.filter (fun node ->
+      match node with
+      | GroupNode _ -> true
+      | _ -> false)
+    |> Stdlib.List.length
+
+  $"Text: {Builtin.int64ToString textCount}, File: {Builtin.int64ToString fileCount}, Link: {Builtin.int64ToString linkCount}, Group: {Builtin.int64ToString groupCount}"
+
+
+// Demo/Example Canvas Builders
+module Examples =
+  let basic () : Canvas =
+    (empty ())
+    |> addNode (Node.group "group1" 0L 0L 600L 400L "Main Group")
+    |> addNode (Node.text "node1" 20L 50L 250L 100L "Hello from Darklang!")
+    |> addNode (Node.text "node2" 320L 50L 250L 100L "This is a JSON Canvas")
+    |> addNode (Node.link "node3" 150L 220L 300L 80L "https://jsoncanvas.org")
+    |> addEdge (Edge.simple "edge1" "node1" "node2")
+    |> addEdge ((Edge.simple "edge2" "node2" "node3") |> Edge.withLabel "learn more")
+
+  let mindmap () : Canvas =
+    (empty ())
+    |> addNode (Node.text "center" 400L 300L 200L 80L "Darklang")
+    |> addNode (Node.text "branch1" 100L 200L 150L 60L "Type Safety")
+    |> addNode (Node.text "branch2" 100L 400L 150L 60L "Packages")
+    |> addNode (Node.text "branch3" 700L 200L 150L 60L "HTTP Handlers")
+    |> addNode (Node.text "branch4" 700L 400L 150L 60L "Cloud Native")
+    |> addEdge ((Edge.simple "e1" "branch1" "center") |> Edge.withLabel "enables")
+    |> addEdge ((Edge.simple "e2" "branch2" "center") |> Edge.withLabel "extend")
+    |> addEdge ((Edge.simple "e3" "center" "branch3") |> Edge.withLabel "supports")
+    |> addEdge ((Edge.simple "e4" "center" "branch4") |> Edge.withLabel "runs in")
+
+  let workflow () : Canvas =
+    (empty ())
+    |> addNode (Node.text "step1" 50L 50L 180L 80L "Receive Request")
+    |> addNode (Node.text "step2" 50L 180L 180L 80L "Parse JSON")
+    |> addNode (Node.text "step3" 50L 310L 180L 80L "Validate Data")
+    |> addNode (Node.text "step4" 50L 440L 180L 80L "Process & Respond")
+    |> addNode (Node.text "error" 300L 250L 180L 80L "Return Error")
+    |> addEdge (Edge.simple "f1" "step1" "step2")
+    |> addEdge (Edge.simple "f2" "step2" "step3")
+    |> addEdge ((Edge.simple "f3" "step3" "step4") |> Edge.withLabel "valid")
+    |> addEdge ((Edge.simple "f4" "step3" "error") |> Edge.withLabel "invalid")
+
+
+// JSON Serialization
+module Json =
+  let nodeToJson (node: Node) : Stdlib.AltJson.Json =
+    match node with
+    | TextNode data ->
+      [ ("id", Stdlib.AltJson.Json.String(data.id))
+        ("type", Stdlib.AltJson.Json.String("text"))
+        ("x", Stdlib.AltJson.Json.Number(Builtin.int64ToFloat data.x))
+        ("y", Stdlib.AltJson.Json.Number(Builtin.int64ToFloat data.y))
+        ("width", Stdlib.AltJson.Json.Number(Builtin.int64ToFloat data.width))
+        ("height", Stdlib.AltJson.Json.Number(Builtin.int64ToFloat data.height))
+        ("text", Stdlib.AltJson.Json.String(data.text)) ]
+      |> Stdlib.AltJson.Json.Object
+
+    | LinkNode data ->
+      [ ("id", Stdlib.AltJson.Json.String(data.id))
+        ("type", Stdlib.AltJson.Json.String("link"))
+        ("x", Stdlib.AltJson.Json.Number(Builtin.int64ToFloat data.x))
+        ("y", Stdlib.AltJson.Json.Number(Builtin.int64ToFloat data.y))
+        ("width", Stdlib.AltJson.Json.Number(Builtin.int64ToFloat data.width))
+        ("height", Stdlib.AltJson.Json.Number(Builtin.int64ToFloat data.height))
+        ("url", Stdlib.AltJson.Json.String(data.url)) ]
+      |> Stdlib.AltJson.Json.Object
+
+    | FileNode data ->
+      [ ("id", Stdlib.AltJson.Json.String(data.id))
+        ("type", Stdlib.AltJson.Json.String("file"))
+        ("x", Stdlib.AltJson.Json.Number(Builtin.int64ToFloat data.x))
+        ("y", Stdlib.AltJson.Json.Number(Builtin.int64ToFloat data.y))
+        ("width", Stdlib.AltJson.Json.Number(Builtin.int64ToFloat data.width))
+        ("height", Stdlib.AltJson.Json.Number(Builtin.int64ToFloat data.height))
+        ("file", Stdlib.AltJson.Json.String(data.file)) ]
+      |> Stdlib.AltJson.Json.Object
+
+    | GroupNode data ->
+      let fields =
+        [ ("id", Stdlib.AltJson.Json.String(data.id))
+          ("type", Stdlib.AltJson.Json.String("group"))
+          ("x", Stdlib.AltJson.Json.Number(Builtin.int64ToFloat data.x))
+          ("y", Stdlib.AltJson.Json.Number(Builtin.int64ToFloat data.y))
+          ("width", Stdlib.AltJson.Json.Number(Builtin.int64ToFloat data.width))
+          ("height", Stdlib.AltJson.Json.Number(Builtin.int64ToFloat data.height)) ]
+
+      let fields =
+        match data.label with
+        | Some label ->
+          Stdlib.List.append
+            fields
+            [ ("label", Stdlib.AltJson.Json.String(label)) ]
+        | None -> fields
+
+      Stdlib.AltJson.Json.Object(fields)
+
+  let edgeToJson (edge: Edge) : Stdlib.AltJson.Json =
+    let fields =
+      [ ("id", Stdlib.AltJson.Json.String(edge.id))
+        ("fromNode", Stdlib.AltJson.Json.String(edge.fromNode))
+        ("toNode", Stdlib.AltJson.Json.String(edge.toNode)) ]
+
+    let fields =
+      match edge.label with
+      | Some label ->
+        Stdlib.List.append
+          fields
+          [ ("label", Stdlib.AltJson.Json.String(label)) ]
+      | None -> fields
+
+    Stdlib.AltJson.Json.Object(fields)
+
+  let canvasToJson (canvas: Canvas) : String =
+    let nodesJson =
       canvas.nodes
-      |> Stdlib.List.map (fun node ->
-        match node with
-        | TextNode data -> data.id
-        | FileNode data -> data.id
-        | LinkNode data -> data.id
-        | GroupNode data -> data.id)
+      |> Stdlib.List.map (fun node -> nodeToJson node)
+      |> Stdlib.AltJson.Json.Array
 
-    // Count nodes by type
-    let countNodesByType (canvas: Canvas) : String =
-      let textCount =
-        canvas.nodes
-        |> Stdlib.List.filter (fun node ->
-          match node with
-          | TextNode _ -> true
-          | _ -> false)
-        |> Stdlib.List.length
+    let edgesJson =
+      canvas.edges
+      |> Stdlib.List.map (fun edge -> edgeToJson edge)
+      |> Stdlib.AltJson.Json.Array
 
-      let fileCount =
-        canvas.nodes
-        |> Stdlib.List.filter (fun node ->
-          match node with
-          | FileNode _ -> true
-          | _ -> false)
-        |> Stdlib.List.length
+    let canvasJson =
+      [ ("nodes", nodesJson); ("edges", edgesJson) ]
+      |> Stdlib.AltJson.Json.Object
 
-      let linkCount =
-        canvas.nodes
-        |> Stdlib.List.filter (fun node ->
-          match node with
-          | LinkNode _ -> true
-          | _ -> false)
-        |> Stdlib.List.length
-
-      let groupCount =
-        canvas.nodes
-        |> Stdlib.List.filter (fun node ->
-          match node with
-          | GroupNode _ -> true
-          | _ -> false)
-        |> Stdlib.List.length
-
-      $"Text: {Builtin.int64ToString textCount}, File: {Builtin.int64ToString fileCount}, Link: {Builtin.int64ToString linkCount}, Group: {Builtin.int64ToString groupCount}"
-
-
-    // JSON Serialization
-    module Json =
-      let nodeToJson (node: Node) : Darklang.Stdlib.AltJson.Json =
-        match node with
-        | TextNode data ->
-          Darklang.Stdlib.AltJson.Json.Object(
-            [ ("id", Darklang.Stdlib.AltJson.Json.String(data.id))
-              ("type", Darklang.Stdlib.AltJson.Json.String("text"))
-              ("x", Darklang.Stdlib.AltJson.Json.Number(Builtin.int64ToFloat data.x))
-              ("y", Darklang.Stdlib.AltJson.Json.Number(Builtin.int64ToFloat data.y))
-              ("width", Darklang.Stdlib.AltJson.Json.Number(Builtin.int64ToFloat data.width))
-              ("height", Darklang.Stdlib.AltJson.Json.Number(Builtin.int64ToFloat data.height))
-              ("text", Darklang.Stdlib.AltJson.Json.String(data.text)) ]
-          )
-
-        | LinkNode data ->
-          Darklang.Stdlib.AltJson.Json.Object(
-            [ ("id", Darklang.Stdlib.AltJson.Json.String(data.id))
-              ("type", Darklang.Stdlib.AltJson.Json.String("link"))
-              ("x", Darklang.Stdlib.AltJson.Json.Number(Builtin.int64ToFloat data.x))
-              ("y", Darklang.Stdlib.AltJson.Json.Number(Builtin.int64ToFloat data.y))
-              ("width", Darklang.Stdlib.AltJson.Json.Number(Builtin.int64ToFloat data.width))
-              ("height", Darklang.Stdlib.AltJson.Json.Number(Builtin.int64ToFloat data.height))
-              ("url", Darklang.Stdlib.AltJson.Json.String(data.url)) ]
-          )
-
-        | FileNode data ->
-          Darklang.Stdlib.AltJson.Json.Object(
-            [ ("id", Darklang.Stdlib.AltJson.Json.String(data.id))
-              ("type", Darklang.Stdlib.AltJson.Json.String("file"))
-              ("x", Darklang.Stdlib.AltJson.Json.Number(Builtin.int64ToFloat data.x))
-              ("y", Darklang.Stdlib.AltJson.Json.Number(Builtin.int64ToFloat data.y))
-              ("width", Darklang.Stdlib.AltJson.Json.Number(Builtin.int64ToFloat data.width))
-              ("height", Darklang.Stdlib.AltJson.Json.Number(Builtin.int64ToFloat data.height))
-              ("file", Darklang.Stdlib.AltJson.Json.String(data.file)) ]
-          )
-
-        | GroupNode data ->
-          let fields =
-            [ ("id", Darklang.Stdlib.AltJson.Json.String(data.id))
-              ("type", Darklang.Stdlib.AltJson.Json.String("group"))
-              ("x", Darklang.Stdlib.AltJson.Json.Number(Builtin.int64ToFloat data.x))
-              ("y", Darklang.Stdlib.AltJson.Json.Number(Builtin.int64ToFloat data.y))
-              ("width", Darklang.Stdlib.AltJson.Json.Number(Builtin.int64ToFloat data.width))
-              ("height", Darklang.Stdlib.AltJson.Json.Number(Builtin.int64ToFloat data.height)) ]
-
-          let fieldsWithLabel =
-            match data.label with
-            | Some label ->
-              Stdlib.List.append
-                fields
-                [ ("label", Darklang.Stdlib.AltJson.Json.String(label)) ]
-            | None -> fields
-
-          Darklang.Stdlib.AltJson.Json.Object(fieldsWithLabel)
-
-      let edgeToJson (edge: Edge) : Darklang.Stdlib.AltJson.Json =
-        let fields =
-          [ ("id", Darklang.Stdlib.AltJson.Json.String(edge.id))
-            ("fromNode", Darklang.Stdlib.AltJson.Json.String(edge.fromNode))
-            ("toNode", Darklang.Stdlib.AltJson.Json.String(edge.toNode)) ]
-
-        let fieldsWithLabel =
-          match edge.label with
-          | Some label ->
-            Stdlib.List.append
-              fields
-              [ ("label", Darklang.Stdlib.AltJson.Json.String(label)) ]
-          | None -> fields
-
-        Darklang.Stdlib.AltJson.Json.Object(fieldsWithLabel)
-
-      let canvasToJson (canvas: Canvas) : String =
-        let nodesJson =
-          canvas.nodes
-          |> Stdlib.List.map (fun node -> nodeToJson node)
-          |> Darklang.Stdlib.AltJson.Json.Array
-
-        let edgesJson =
-          canvas.edges
-          |> Stdlib.List.map (fun edge -> edgeToJson edge)
-          |> Darklang.Stdlib.AltJson.Json.Array
-
-        let canvasJson =
-          Darklang.Stdlib.AltJson.Json.Object(
-            [ ("nodes", nodesJson); ("edges", edgesJson) ]
-          )
-
-        Darklang.Stdlib.AltJson.format canvasJson
+    Stdlib.AltJson.format canvasJson

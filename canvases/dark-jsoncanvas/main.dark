@@ -311,79 +311,9 @@ let _handler _req =
 // Create a simple canvas with some nodes and edges
 [<HttpHandler("GET", "/canvas/example")>]
 let _handler _req =
-  let canvas = Stachu.JsonCanvas.empty ()
-
-  // Create some nodes
-  let node1 =
-    Stachu.JsonCanvas.Node.TextNode(
-      Stachu.JsonCanvas.TextNodeData
-        { id = "node1"
-          x = 0L
-          y = 0L
-          width = 250L
-          height = 100L
-          text = "Hello from Darklang!"
-          color = Stdlib.Option.Option.None }
-    )
-
-  let node2 =
-    Stachu.JsonCanvas.Node.TextNode(
-      Stachu.JsonCanvas.TextNodeData
-        { id = "node2"
-          x = 300L
-          y = 50L
-          width = 250L
-          height = 100L
-          text = "This is a JSON Canvas"
-          color = Stdlib.Option.Option.None }
-    )
-
-  let node3 =
-    Stachu.JsonCanvas.Node.LinkNode(
-      Stachu.JsonCanvas.LinkNodeData
-        { id = "node3"
-          x = 100L
-          y = 200L
-          width = 300L
-          height = 80L
-          url = "https://jsoncanvas.org"
-          color = Stdlib.Option.Option.None }
-    )
-
-  let node4 =
-    Stachu.JsonCanvas.Node.GroupNode(
-      Stachu.JsonCanvas.GroupNodeData
-        { id = "group1"
-          x = -50L
-          y = -50L
-          width = 650L
-          height = 400L
-          label = Stdlib.Option.Option.Some("Main Group")
-          background = Stdlib.Option.Option.None
-          backgroundStyle = Stdlib.Option.Option.None
-          color = Stdlib.Option.Option.None }
-    )
-
-  // Create edges connecting the nodes
-  let edge1 = Stachu.JsonCanvas.Edge.simple "edge1" "node1" "node2"
-
-  let edge2 =
-    (Stachu.JsonCanvas.Edge.simple "edge2" "node2" "node3")
-    |> Stachu.JsonCanvas.Edge.withLabel "learn more"
-
-  // Build the canvas
-  let canvas =
-    canvas
-    |> Stachu.JsonCanvas.addNode node4
-    |> Stachu.JsonCanvas.addNode node1
-    |> Stachu.JsonCanvas.addNode node2
-    |> Stachu.JsonCanvas.addNode node3
-    |> Stachu.JsonCanvas.addEdge edge1
-    |> Stachu.JsonCanvas.addEdge edge2
-
+  let canvas = Stachu.JsonCanvas.Examples.basic ()
   let nodeIds = Stachu.JsonCanvas.getNodeIds canvas
   let nodeIdsStr = Stdlib.String.join nodeIds ", "
-
   let stats = Stachu.JsonCanvas.countNodesByType canvas
 
   let responseText =
@@ -395,59 +325,14 @@ let _handler _req =
 // Get information about a canvas structure
 [<HttpHandler("GET", "/canvas/info")>]
 let _handler _req =
-  let canvas = Stachu.JsonCanvas.empty ()
-
-  // Add a variety of nodes
   let canvas =
-    canvas
-    |> Stachu.JsonCanvas.addNode
-      (Stachu.JsonCanvas.Node.TextNode(
-        Stachu.JsonCanvas.TextNodeData
-          { id = "text1"
-            x = 0L
-            y = 0L
-            width = 200L
-            height = 100L
-            text = "Text node 1"
-            color = Stdlib.Option.Option.None }
-      ))
-    |> Stachu.JsonCanvas.addNode
-      (Stachu.JsonCanvas.Node.TextNode(
-        Stachu.JsonCanvas.TextNodeData
-          { id = "text2"
-            x = 250L
-            y = 0L
-            width = 200L
-            height = 100L
-            text = "Text node 2"
-            color = Stdlib.Option.Option.None }
-      ))
-    |> Stachu.JsonCanvas.addNode
-      (Stachu.JsonCanvas.Node.FileNode(
-        Stachu.JsonCanvas.FileNodeData
-          { id = "file1"
-            x = 0L
-            y = 150L
-            width = 200L
-            height = 100L
-            file = "/path/to/file.md"
-            subpath = Stdlib.Option.Option.None
-            color = Stdlib.Option.Option.None }
-      ))
-    |> Stachu.JsonCanvas.addNode
-      (Stachu.JsonCanvas.Node.LinkNode(
-        Stachu.JsonCanvas.LinkNodeData
-          { id = "link1"
-            x = 250L
-            y = 150L
-            width = 200L
-            height = 100L
-            url = "https://darklang.com"
-            color = Stdlib.Option.Option.None }
-      ))
+    (Stachu.JsonCanvas.empty ())
+    |> Stachu.JsonCanvas.addNode (Stachu.JsonCanvas.Node.text "text1" 0L 0L 200L 100L "Text node 1")
+    |> Stachu.JsonCanvas.addNode (Stachu.JsonCanvas.Node.text "text2" 250L 0L 200L 100L "Text node 2")
+    |> Stachu.JsonCanvas.addNode (Stachu.JsonCanvas.Node.file "file1" 0L 150L 200L 100L "/path/to/file.md")
+    |> Stachu.JsonCanvas.addNode (Stachu.JsonCanvas.Node.link "link1" 250L 150L 200L 100L "https://darklang.com")
 
   let stats = Stachu.JsonCanvas.countNodesByType canvas
-
   let responseText = $"Canvas Statistics:\n{stats}\n\nTotal nodes: {Builtin.int64ToString (Stdlib.List.length canvas.nodes)}"
 
   Stdlib.Http.response (Stdlib.String.toBytes responseText) 200L
@@ -456,100 +341,7 @@ let _handler _req =
 // Demonstrate building a mind map structure
 [<HttpHandler("GET", "/canvas/mindmap")>]
 let _handler _req =
-  let canvas = Stachu.JsonCanvas.empty ()
-
-  // Central idea
-  let centerNode =
-    Stachu.JsonCanvas.Node.TextNode(
-      Stachu.JsonCanvas.TextNodeData
-        { id = "center"
-          x = 400L
-          y = 300L
-          width = 200L
-          height = 80L
-          text = "Darklang"
-          color = Stdlib.Option.Option.None }
-    )
-
-  // Branch ideas
-  let branch1 =
-    Stachu.JsonCanvas.Node.TextNode(
-      Stachu.JsonCanvas.TextNodeData
-        { id = "branch1"
-          x = 100L
-          y = 200L
-          width = 150L
-          height = 60L
-          text = "Type Safety"
-          color = Stdlib.Option.Option.None }
-    )
-
-  let branch2 =
-    Stachu.JsonCanvas.Node.TextNode(
-      Stachu.JsonCanvas.TextNodeData
-        { id = "branch2"
-          x = 100L
-          y = 400L
-          width = 150L
-          height = 60L
-          text = "Packages"
-          color = Stdlib.Option.Option.None }
-    )
-
-  let branch3 =
-    Stachu.JsonCanvas.Node.TextNode(
-      Stachu.JsonCanvas.TextNodeData
-        { id = "branch3"
-          x = 700L
-          y = 200L
-          width = 150L
-          height = 60L
-          text = "HTTP Handlers"
-          color = Stdlib.Option.Option.None }
-    )
-
-  let branch4 =
-    Stachu.JsonCanvas.Node.TextNode(
-      Stachu.JsonCanvas.TextNodeData
-        { id = "branch4"
-          x = 700L
-          y = 400L
-          width = 150L
-          height = 60L
-          text = "Cloud Native"
-          color = Stdlib.Option.Option.None }
-    )
-
-  // Connect branches to center
-  let edge1 =
-    (Stachu.JsonCanvas.Edge.simple "e1" "branch1" "center")
-    |> Stachu.JsonCanvas.Edge.withLabel "enables"
-
-  let edge2 =
-    (Stachu.JsonCanvas.Edge.simple "e2" "branch2" "center")
-    |> Stachu.JsonCanvas.Edge.withLabel "extend"
-
-  let edge3 =
-    (Stachu.JsonCanvas.Edge.simple "e3" "center" "branch3")
-    |> Stachu.JsonCanvas.Edge.withLabel "supports"
-
-  let edge4 =
-    (Stachu.JsonCanvas.Edge.simple "e4" "center" "branch4")
-    |> Stachu.JsonCanvas.Edge.withLabel "runs in"
-
-  // Build the mindmap
-  let mindmap =
-    canvas
-    |> Stachu.JsonCanvas.addNode centerNode
-    |> Stachu.JsonCanvas.addNode branch1
-    |> Stachu.JsonCanvas.addNode branch2
-    |> Stachu.JsonCanvas.addNode branch3
-    |> Stachu.JsonCanvas.addNode branch4
-    |> Stachu.JsonCanvas.addEdge edge1
-    |> Stachu.JsonCanvas.addEdge edge2
-    |> Stachu.JsonCanvas.addEdge edge3
-    |> Stachu.JsonCanvas.addEdge edge4
-
+  let mindmap = Stachu.JsonCanvas.Examples.mindmap ()
   let nodeCount = Stdlib.List.length mindmap.nodes
   let edgeCount = Stdlib.List.length mindmap.edges
 
@@ -562,93 +354,7 @@ let _handler _req =
 // Demonstrate workflow/flowchart structure
 [<HttpHandler("GET", "/canvas/workflow")>]
 let _handler _req =
-  let canvas = Stachu.JsonCanvas.empty ()
-
-  // Workflow steps
-  let step1 =
-    Stachu.JsonCanvas.Node.TextNode(
-      Stachu.JsonCanvas.TextNodeData
-        { id = "step1"
-          x = 50L
-          y = 50L
-          width = 180L
-          height = 80L
-          text = "Receive Request"
-          color = Stdlib.Option.Option.None }
-    )
-
-  let step2 =
-    Stachu.JsonCanvas.Node.TextNode(
-      Stachu.JsonCanvas.TextNodeData
-        { id = "step2"
-          x = 50L
-          y = 180L
-          width = 180L
-          height = 80L
-          text = "Parse JSON"
-          color = Stdlib.Option.Option.None }
-    )
-
-  let step3 =
-    Stachu.JsonCanvas.Node.TextNode(
-      Stachu.JsonCanvas.TextNodeData
-        { id = "step3"
-          x = 50L
-          y = 310L
-          width = 180L
-          height = 80L
-          text = "Validate Data"
-          color = Stdlib.Option.Option.None }
-    )
-
-  let step4 =
-    Stachu.JsonCanvas.Node.TextNode(
-      Stachu.JsonCanvas.TextNodeData
-        { id = "step4"
-          x = 50L
-          y = 440L
-          width = 180L
-          height = 80L
-          text = "Process & Respond"
-          color = Stdlib.Option.Option.None }
-    )
-
-  let errorNode =
-    Stachu.JsonCanvas.Node.TextNode(
-      Stachu.JsonCanvas.TextNodeData
-        { id = "error"
-          x = 300L
-          y = 250L
-          width = 180L
-          height = 80L
-          text = "Return Error"
-          color = Stdlib.Option.Option.None }
-    )
-
-  // Connect the workflow
-  let flow1 = Stachu.JsonCanvas.Edge.simple "f1" "step1" "step2"
-  let flow2 = Stachu.JsonCanvas.Edge.simple "f2" "step2" "step3"
-
-  let flow3 =
-    (Stachu.JsonCanvas.Edge.simple "f3" "step3" "step4")
-    |> Stachu.JsonCanvas.Edge.withLabel "valid"
-
-  let flow4 =
-    (Stachu.JsonCanvas.Edge.simple "f4" "step3" "error")
-    |> Stachu.JsonCanvas.Edge.withLabel "invalid"
-
-  // Build the workflow
-  let workflow =
-    canvas
-    |> Stachu.JsonCanvas.addNode step1
-    |> Stachu.JsonCanvas.addNode step2
-    |> Stachu.JsonCanvas.addNode step3
-    |> Stachu.JsonCanvas.addNode step4
-    |> Stachu.JsonCanvas.addNode errorNode
-    |> Stachu.JsonCanvas.addEdge flow1
-    |> Stachu.JsonCanvas.addEdge flow2
-    |> Stachu.JsonCanvas.addEdge flow3
-    |> Stachu.JsonCanvas.addEdge flow4
+  let workflow = Stachu.JsonCanvas.Examples.workflow ()
 
   let responseText =
     $"Workflow Canvas Created!\n\nThis demonstrates a simple HTTP request processing workflow.\n\nNodes: {Builtin.int64ToString (Stdlib.List.length workflow.nodes)}\nEdges: {Builtin.int64ToString (Stdlib.List.length workflow.edges)}"
@@ -659,73 +365,7 @@ let _handler _req =
 // JSON API Endpoints
 [<HttpHandler("GET", "/api/example")>]
 let _handler _req =
-  let canvas = Stachu.JsonCanvas.empty ()
-
-  let node4 =
-    Stachu.JsonCanvas.Node.GroupNode(
-      Stachu.JsonCanvas.GroupNodeData
-        { id = "group1"
-          x = 0L
-          y = 0L
-          width = 600L
-          height = 400L
-          label = Stdlib.Option.Option.Some("Main Group")
-          background = Stdlib.Option.Option.None
-          backgroundStyle = Stdlib.Option.Option.None
-          color = Stdlib.Option.Option.None }
-    )
-
-  let node1 =
-    Stachu.JsonCanvas.Node.TextNode(
-      Stachu.JsonCanvas.TextNodeData
-        { id = "node1"
-          x = 20L
-          y = 50L
-          width = 250L
-          height = 100L
-          text = "Hello from Darklang!"
-          color = Stdlib.Option.Option.None }
-    )
-
-  let node2 =
-    Stachu.JsonCanvas.Node.TextNode(
-      Stachu.JsonCanvas.TextNodeData
-        { id = "node2"
-          x = 320L
-          y = 50L
-          width = 250L
-          height = 100L
-          text = "This is a JSON Canvas"
-          color = Stdlib.Option.Option.None }
-    )
-
-  let node3 =
-    Stachu.JsonCanvas.Node.LinkNode(
-      Stachu.JsonCanvas.LinkNodeData
-        { id = "node3"
-          x = 150L
-          y = 220L
-          width = 300L
-          height = 80L
-          url = "https://jsoncanvas.org"
-          color = Stdlib.Option.Option.None }
-    )
-
-  let edge1 = Stachu.JsonCanvas.Edge.simple "edge1" "node1" "node2"
-
-  let edge2 =
-    (Stachu.JsonCanvas.Edge.simple "edge2" "node2" "node3")
-    |> Stachu.JsonCanvas.Edge.withLabel "learn more"
-
-  let canvas =
-    canvas
-    |> Stachu.JsonCanvas.addNode node4
-    |> Stachu.JsonCanvas.addNode node1
-    |> Stachu.JsonCanvas.addNode node2
-    |> Stachu.JsonCanvas.addNode node3
-    |> Stachu.JsonCanvas.addEdge edge1
-    |> Stachu.JsonCanvas.addEdge edge2
-
+  let canvas = Stachu.JsonCanvas.Examples.basic ()
   let json = Stachu.JsonCanvas.Json.canvasToJson canvas
 
   Stdlib.Http.response (Stdlib.String.toBytes json) 200L
@@ -733,96 +373,7 @@ let _handler _req =
 
 [<HttpHandler("GET", "/api/mindmap")>]
 let _handler _req =
-  let canvas = Stachu.JsonCanvas.empty ()
-
-  let centerNode =
-    Stachu.JsonCanvas.Node.TextNode(
-      Stachu.JsonCanvas.TextNodeData
-        { id = "center"
-          x = 400L
-          y = 300L
-          width = 200L
-          height = 80L
-          text = "Darklang"
-          color = Stdlib.Option.Option.None }
-    )
-
-  let branch1 =
-    Stachu.JsonCanvas.Node.TextNode(
-      Stachu.JsonCanvas.TextNodeData
-        { id = "branch1"
-          x = 100L
-          y = 200L
-          width = 150L
-          height = 60L
-          text = "Type Safety"
-          color = Stdlib.Option.Option.None }
-    )
-
-  let branch2 =
-    Stachu.JsonCanvas.Node.TextNode(
-      Stachu.JsonCanvas.TextNodeData
-        { id = "branch2"
-          x = 100L
-          y = 400L
-          width = 150L
-          height = 60L
-          text = "Packages"
-          color = Stdlib.Option.Option.None }
-    )
-
-  let branch3 =
-    Stachu.JsonCanvas.Node.TextNode(
-      Stachu.JsonCanvas.TextNodeData
-        { id = "branch3"
-          x = 700L
-          y = 200L
-          width = 150L
-          height = 60L
-          text = "HTTP Handlers"
-          color = Stdlib.Option.Option.None }
-    )
-
-  let branch4 =
-    Stachu.JsonCanvas.Node.TextNode(
-      Stachu.JsonCanvas.TextNodeData
-        { id = "branch4"
-          x = 700L
-          y = 400L
-          width = 150L
-          height = 60L
-          text = "Cloud Native"
-          color = Stdlib.Option.Option.None }
-    )
-
-  let edge1 =
-    (Stachu.JsonCanvas.Edge.simple "e1" "branch1" "center")
-    |> Stachu.JsonCanvas.Edge.withLabel "enables"
-
-  let edge2 =
-    (Stachu.JsonCanvas.Edge.simple "e2" "branch2" "center")
-    |> Stachu.JsonCanvas.Edge.withLabel "extend"
-
-  let edge3 =
-    (Stachu.JsonCanvas.Edge.simple "e3" "center" "branch3")
-    |> Stachu.JsonCanvas.Edge.withLabel "supports"
-
-  let edge4 =
-    (Stachu.JsonCanvas.Edge.simple "e4" "center" "branch4")
-    |> Stachu.JsonCanvas.Edge.withLabel "runs in"
-
-  let mindmap =
-    canvas
-    |> Stachu.JsonCanvas.addNode centerNode
-    |> Stachu.JsonCanvas.addNode branch1
-    |> Stachu.JsonCanvas.addNode branch2
-    |> Stachu.JsonCanvas.addNode branch3
-    |> Stachu.JsonCanvas.addNode branch4
-    |> Stachu.JsonCanvas.addEdge edge1
-    |> Stachu.JsonCanvas.addEdge edge2
-    |> Stachu.JsonCanvas.addEdge edge3
-    |> Stachu.JsonCanvas.addEdge edge4
-
+  let mindmap = Stachu.JsonCanvas.Examples.mindmap ()
   let json = Stachu.JsonCanvas.Json.canvasToJson mindmap
 
   Stdlib.Http.response (Stdlib.String.toBytes json) 200L
@@ -830,91 +381,7 @@ let _handler _req =
 
 [<HttpHandler("GET", "/api/workflow")>]
 let _handler _req =
-  let canvas = Stachu.JsonCanvas.empty ()
-
-  let step1 =
-    Stachu.JsonCanvas.Node.TextNode(
-      Stachu.JsonCanvas.TextNodeData
-        { id = "step1"
-          x = 50L
-          y = 50L
-          width = 180L
-          height = 80L
-          text = "Receive Request"
-          color = Stdlib.Option.Option.None }
-    )
-
-  let step2 =
-    Stachu.JsonCanvas.Node.TextNode(
-      Stachu.JsonCanvas.TextNodeData
-        { id = "step2"
-          x = 50L
-          y = 180L
-          width = 180L
-          height = 80L
-          text = "Parse JSON"
-          color = Stdlib.Option.Option.None }
-    )
-
-  let step3 =
-    Stachu.JsonCanvas.Node.TextNode(
-      Stachu.JsonCanvas.TextNodeData
-        { id = "step3"
-          x = 50L
-          y = 310L
-          width = 180L
-          height = 80L
-          text = "Validate Data"
-          color = Stdlib.Option.Option.None }
-    )
-
-  let step4 =
-    Stachu.JsonCanvas.Node.TextNode(
-      Stachu.JsonCanvas.TextNodeData
-        { id = "step4"
-          x = 50L
-          y = 440L
-          width = 180L
-          height = 80L
-          text = "Process & Respond"
-          color = Stdlib.Option.Option.None }
-    )
-
-  let errorNode =
-    Stachu.JsonCanvas.Node.TextNode(
-      Stachu.JsonCanvas.TextNodeData
-        { id = "error"
-          x = 300L
-          y = 250L
-          width = 180L
-          height = 80L
-          text = "Return Error"
-          color = Stdlib.Option.Option.None }
-    )
-
-  let flow1 = Stachu.JsonCanvas.Edge.simple "f1" "step1" "step2"
-  let flow2 = Stachu.JsonCanvas.Edge.simple "f2" "step2" "step3"
-
-  let flow3 =
-    (Stachu.JsonCanvas.Edge.simple "f3" "step3" "step4")
-    |> Stachu.JsonCanvas.Edge.withLabel "valid"
-
-  let flow4 =
-    (Stachu.JsonCanvas.Edge.simple "f4" "step3" "error")
-    |> Stachu.JsonCanvas.Edge.withLabel "invalid"
-
-  let workflow =
-    canvas
-    |> Stachu.JsonCanvas.addNode step1
-    |> Stachu.JsonCanvas.addNode step2
-    |> Stachu.JsonCanvas.addNode step3
-    |> Stachu.JsonCanvas.addNode step4
-    |> Stachu.JsonCanvas.addNode errorNode
-    |> Stachu.JsonCanvas.addEdge flow1
-    |> Stachu.JsonCanvas.addEdge flow2
-    |> Stachu.JsonCanvas.addEdge flow3
-    |> Stachu.JsonCanvas.addEdge flow4
-
+  let workflow = Stachu.JsonCanvas.Examples.workflow ()
   let json = Stachu.JsonCanvas.Json.canvasToJson workflow
 
   Stdlib.Http.response (Stdlib.String.toBytes json) 200L
