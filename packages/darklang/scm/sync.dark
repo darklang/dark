@@ -34,11 +34,6 @@ let sync
         | Error _ -> [ opsToPush ] // Fallback to single batch if chunking fails
 
       let batchCount = Stdlib.List.length batches
-      let opsPushedCountStr = Stdlib.Int64.toString opsPushedCount
-      let batchCountStr = Stdlib.Int64.toString batchCount
-
-      Builtin.printLine
-        $"Pushing {opsPushedCountStr} ops in {batchCountStr} batches..."
 
       let pushUrl = $"{remoteUrl}/ops"
 
@@ -55,12 +50,7 @@ let sync
             | Ok totalSoFar ->
               let batchNum = index + 1L
               let batchNumStr = Stdlib.Int64.toString batchNum
-              let batchCountStr = Stdlib.Int64.toString batchCount
               let batchOpsCount = Stdlib.List.length batch
-              let batchOpsCountStr = Stdlib.Int64.toString batchOpsCount
-
-              Builtin.printLine
-                $"  Batch {batchNumStr}/{batchCountStr} ({batchOpsCountStr} ops)..."
 
               let opsJson =
                 Builtin.jsonSerialize<List<LanguageTools.ProgramTypes.PackageOp>> batch
@@ -100,8 +90,6 @@ let sync
   match pushResult with
   | Error msg -> Stdlib.Result.Result.Error msg
   | Ok pushedCount ->
-    Builtin.printLine "Pulling ops from remote..."
-
     // Pull ops from remote
     let pullRequest =
       Stdlib.HttpClient.request
@@ -136,12 +124,6 @@ let sync
                 | Ok chunks -> chunks
                 | Error _ -> [ pulledOps ] // Fallback to single batch if chunking fails
 
-              let batchCount = Stdlib.List.length batches
-              let fetchedCountStr = Stdlib.Int64.toString fetchedCount
-              let batchCountStr = Stdlib.Int64.toString batchCount
-
-              Builtin.printLine
-                $"Applying {fetchedCountStr} pulled ops in {batchCountStr} batches..."
 
               let (_, totalApplied) =
                 Stdlib.List.fold
@@ -149,14 +131,6 @@ let sync
                   (0L, 0L)
                   (fun acc batch ->
                     let (index, appliedSoFar) = acc
-                    let batchNum = index + 1L
-                    let batchNumStr = Stdlib.Int64.toString batchNum
-                    let batchCountStr = Stdlib.Int64.toString batchCount
-                    let batchOpsCount = Stdlib.List.length batch
-                    let batchOpsCountStr = Stdlib.Int64.toString batchOpsCount
-
-                    Builtin.printLine
-                      $"  Applying batch {batchNumStr}/{batchCountStr} ({batchOpsCountStr} ops)..."
 
                     let batchApplied = Builtin.scmAddOps branchID batch
 

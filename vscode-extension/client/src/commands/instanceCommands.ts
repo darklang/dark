@@ -40,26 +40,40 @@ export class InstanceCommands {
         }
 
         try {
-          vscode.window.showInformationMessage(`Syncing with ${instanceId}...`);
+          await vscode.window.withProgress(
+            {
+              location: vscode.ProgressLocation.Notification,
+              title: `Syncing with ${instanceId}...`,
+              cancellable: false
+            },
+            async () => {
+              const syncPromise = this.client.sendRequest<{
+                success: boolean;
+                message: string;
+              }>("darklang/sync", {
+                instanceId,
+                remoteUrl: instanceUrl
+              });
 
-          const response = await this.client.sendRequest<{
-            success: boolean;
-            message: string;
-          }>("darklang/sync", {
-            instanceId,
-            remoteUrl: instanceUrl
-          });
+              const timeoutPromise = new Promise<never>((_, reject) =>
+                setTimeout(() => reject(new Error("Sync request timed out")), 10000)
+              );
 
-          if (response.success) {
-            vscode.window.showInformationMessage(response.message);
-            // Refresh both trees to show synced changes
-            this.workspaceProvider.refresh();
-            if (this.packagesProvider) {
-              this.packagesProvider.refresh();
+              const response = await Promise.race([syncPromise, timeoutPromise]);
+
+              if (response.success) {
+                // Show success message
+                vscode.window.showInformationMessage(`✓ ${response.message}`);
+                // Refresh both trees to show synced changes
+                this.workspaceProvider.refresh();
+                if (this.packagesProvider) {
+                  this.packagesProvider.refresh();
+                }
+              } else {
+                vscode.window.showErrorMessage(`Sync failed: ${response.message}`);
+              }
             }
-          } else {
-            vscode.window.showErrorMessage(`Sync failed: ${response.message}`);
-          }
+          );
         } catch (error) {
           const errorMessage = error instanceof Error ? error.message : String(error);
           vscode.window.showErrorMessage(`Sync error: ${errorMessage}`);
