@@ -61,7 +61,7 @@ let viewEntity
       Stdlib.printLine $"Type '{locationStr}' not found."
     | item :: _ ->
       let prettyPrinted = PrettyPrinter.ProgramTypes.packageType branchID item.entity
-      let highlighted = Darklang.Cli.SyntaxHighlighting.highlightCode prettyPrinted
+      let highlighted = SyntaxHighlighting.highlightCode prettyPrinted
       Stdlib.printLine highlighted
 
   | Function name ->
@@ -76,7 +76,7 @@ let viewEntity
       Stdlib.printLine $"Function '{locationStr}' not found."
     | item :: _ ->
       let prettyPrinted = PrettyPrinter.ProgramTypes.packageFn branchID item.entity
-      let highlighted = Darklang.Cli.SyntaxHighlighting.highlightCode prettyPrinted
+      let highlighted = SyntaxHighlighting.highlightCode prettyPrinted
       Stdlib.printLine highlighted
 
   | Value name ->
@@ -91,7 +91,7 @@ let viewEntity
       Stdlib.printLine $"Value '{locationStr}' not found."
     | item :: _ ->
       let prettyPrinted = PrettyPrinter.ProgramTypes.packageValue branchID item.entity
-      let highlighted = Darklang.Cli.SyntaxHighlighting.highlightCode prettyPrinted
+      let highlighted = SyntaxHighlighting.highlightCode prettyPrinted
       Stdlib.printLine highlighted
 
 

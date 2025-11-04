@@ -11,19 +11,14 @@ export class DarkFileSystemProvider implements vscode.FileSystemProvider {
   private _emitter = new vscode.EventEmitter<vscode.FileChangeEvent[]>();
   readonly onDidChangeFile: vscode.Event<vscode.FileChangeEvent[]> = this._emitter.event;
 
-  private client: LanguageClient | null = null;
   private workspaceProvider: WorkspaceTreeDataProvider | null = null;
   private packagesProvider: PackagesTreeDataProvider | null = null;
 
   // Cache of file contents to detect changes
   private contentCache = new Map<string, Uint8Array>();
 
-  constructor() {
+  constructor(private client: LanguageClient) {
     console.log('DarkFileSystemProvider initialized');
-  }
-
-  setClient(client: LanguageClient): void {
-    this.client = client;
   }
 
   setWorkspaceProvider(provider: WorkspaceTreeDataProvider): void {
@@ -85,10 +80,6 @@ export class DarkFileSystemProvider implements vscode.FileSystemProvider {
   }
 
   async readFile(uri: vscode.Uri): Promise<Uint8Array> {
-    if (!this.client) {
-      throw vscode.FileSystemError.Unavailable('LSP client not ready');
-    }
-
     try {
       const response = await this.client.sendRequest<{ content: string }>(
         'fileSystem/read',
@@ -109,10 +100,6 @@ export class DarkFileSystemProvider implements vscode.FileSystemProvider {
     content: Uint8Array,
     options: { create: boolean; overwrite: boolean; }
   ): Promise<void> {
-    if (!this.client) {
-      throw vscode.FileSystemError.Unavailable('LSP client not ready');
-    }
-
     // Content must be base64 encoded per LSP spec
     const contentStr = Buffer.from(content).toString('utf-8');
 

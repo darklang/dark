@@ -8,36 +8,32 @@ export interface Branch {
   mergedAt: string | null;
 }
 
-function getBranchState(branch: Branch): "active" | "merged" {
-  return branch.mergedAt ? "merged" : "active";
-}
-
 export class BranchStateManager {
-  private static _instance: BranchStateManager;
+  private static _instance: BranchStateManager | null = null;
   private _currentBranchId: string | null = null;
   private _onBranchChanged = new vscode.EventEmitter<string | null>();
   readonly onBranchChanged = this._onBranchChanged.event;
-  private _client: LanguageClient | null = null;
   private _branches: Branch[] = [];
 
-  static getInstance(): BranchStateManager {
+  private constructor(private _client: LanguageClient) {
+    this.fetchBranches();
+  }
+
+  static initialize(client: LanguageClient): BranchStateManager {
     if (!BranchStateManager._instance) {
-      BranchStateManager._instance = new BranchStateManager();
+      BranchStateManager._instance = new BranchStateManager(client);
     }
     return BranchStateManager._instance;
   }
 
-  setClient(client: LanguageClient): void {
-    this._client = client;
-    this.fetchBranches();
+  static getInstance(): BranchStateManager {
+    if (!BranchStateManager._instance) {
+      throw new Error("BranchStateManager not initialized. Call initialize() first.");
+    }
+    return BranchStateManager._instance;
   }
 
   async fetchBranches(): Promise<void> {
-    if (!this._client) {
-      console.log("Cannot fetch branches: LSP client not set");
-      return;
-    }
-
     try {
       console.log("Fetching branches from LSP server...");
       const response = await this._client.sendRequest<Branch[]>(

@@ -5,7 +5,6 @@ let handleSwitchBranchRequest
   (requestId: JsonRPC.RequestId)
   (branchIdStr: String)
   : LspState =
-
   let branchID =
     if branchIdStr == "main" then
       Stdlib.Option.Option.None
@@ -14,15 +13,13 @@ let handleSwitchBranchRequest
       | Ok uuid -> Stdlib.Option.Option.Some uuid
       | Error _ -> Stdlib.Option.Option.None
 
-  // Update state with new branch ID
-  let newState = { state with branchID = branchID }
-
-  // Send success response
   let responseJson =
-    (JsonRPC.Response.Ok.make
-      (Stdlib.Option.Option.Some(requestId))
-      (Json.Object [ ("success", Json.Bool true) ]))
+    let requestID = Stdlib.Option.Option.Some(requestId)
+    let body = Json.Object [ ("success", Json.Bool true) ]
+    (JsonRPC.Response.Ok.make requestID body)
     |> Stdlib.AltJson.format
 
   logAndSendToClient responseJson
-  newState
+
+  // the actual change requested
+  { state with branchID = branchID }

@@ -15,7 +15,7 @@ module DvalDecoder = LibExecution.DvalDecoder
 type Script = { id : System.Guid; name : string; text : string }
 
 // Serialization to/from Dval
-let private scriptTypeName = RT.FQTypeName.fqPackage PackageIDs.Type.Cli.script
+let scriptTypeName = RT.FQTypeName.fqPackage PackageIDs.Type.Cli.script
 
 let toDT (script : Script) : RT.Dval =
   let fields =

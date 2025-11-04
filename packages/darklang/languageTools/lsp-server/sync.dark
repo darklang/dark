@@ -3,41 +3,29 @@ module Darklang.LanguageTools.LspServer.Sync
 /// Handles `darklang/sync` requests from VS Code
 let handleSyncRequest
   (state: LspState)
-  (requestId: JsonRPC.RequestId)
+  (requestID: JsonRPC.RequestId)
   (instanceName: String)
   : LspState =
-  // Look up instance by name
-  let instanceOpt = Darklang.SCM.Instances.getByName instanceName
-
-  let response =
-    match instanceOpt with
-    | None ->
-      Json.Object
-        [ ("success", Json.Bool false)
-          ("message",
-            Json.String
-              $"Instance '{instanceName}' not found. Use 'instance list' to see available instances.") ]
-
+  let result =
+    match Darklang.SCM.Instances.getByName instanceName with
     | Some instance ->
-      // Get current branch ID from LSP state (may be None if not on a branch)
-      let branchID = state.branchID
-
-      // Execute sync
-      let result = Darklang.SCM.Sync.sync instance.id instance.url branchID
+      let result = Darklang.SCM.Sync.sync instance.id instance.url state.branchID
 
       match result with
       | Ok message ->
-        Json.Object
-          [ ("success", Json.Bool true); ("message", Json.String message) ]
-
+        [ ("success", Json.Bool true); ("message", Json.String message) ]
+        |> Json.Object
       | Error errorMsg ->
-        Json.Object
-          [ ("success", Json.Bool false); ("message", Json.String errorMsg) ]
+        [ ("success", Json.Bool false); ("message", Json.String errorMsg) ]
+        |> Json.Object
+    | None ->
+      [ ("success", Json.Bool false)
+        ("message", Json.String $"Instance '{instanceName}' not found.") ]
+      |> Json.Object
 
   let responseJson =
-    response
-    |> (fun r ->
-      JsonRPC.Response.Ok.make (Stdlib.Option.Option.Some requestId) r)
+    let requestID = Stdlib.Option.Option.Some requestID
+    (JsonRPC.Response.Ok.make requestID result)
     |> Stdlib.AltJson.format
 
   logAndSendToClient responseJson

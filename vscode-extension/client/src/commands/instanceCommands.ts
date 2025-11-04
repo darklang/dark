@@ -5,10 +5,10 @@ import { WorkspaceTreeDataProvider } from "../providers/treeviews/workspaceTreeD
 import { PackagesTreeDataProvider } from "../providers/treeviews/packagesTreeDataProvider";
 
 export class InstanceCommands {
-  private client: LanguageClient | null = null;
   private packagesProvider: PackagesTreeDataProvider | null = null;
 
   constructor(
+    private client: LanguageClient,
     private statusBarManager: StatusBarManager,
     private workspaceProvider: WorkspaceTreeDataProvider
   ) {}
@@ -17,18 +17,10 @@ export class InstanceCommands {
     this.packagesProvider = provider;
   }
 
-  setClient(client: LanguageClient): void {
-    this.client = client;
-  }
-
   register(): vscode.Disposable[] {
     return [
       // Sync with instance
       vscode.commands.registerCommand("darklang.instance.sync", async (treeItem) => {
-        if (!this.client) {
-          vscode.window.showErrorMessage("LSP client not ready");
-          return;
-        }
 
         // Extract instance info from tree item
         const instanceID = treeItem.id || "unknown";

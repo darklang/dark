@@ -34,32 +34,41 @@ let makeTreeItem
       tooltip = Stdlib.Option.Option.None }
 
 
+/// Helper to send a tree view response
+let sendTreeViewResponse
+  (requestID: JsonRPC.RequestId)
+  (treeItems: List<TreeItem>)
+  : Unit =
+  let result =
+    treeItems
+    |> Stdlib.List.map VSCode.TreeView.TreeItem.toJson
+    |> Json.Array
+
+  let responseJson =
+    let requestID = Stdlib.Option.Option.Some requestID
+    (JsonRPC.Response.Ok.make requestID result)
+    |> Stdlib.AltJson.format
+
+  logAndSendToClient responseJson
+
+
 /// handles `darklang/getRootNodes` requests
 let handleGetRootNodesRequest
   (state: LspState)
-  (requestId: JsonRPC.RequestId)
+  (requestID: JsonRPC.RequestId)
   : LspState =
-  let response =
-    // TODO: this should be the list of packages that you have access to
-    // - the `darklang` package
-    // - (future: other globally-accessible packages)
-    //   (anything that you've 'pinned' or whatever)
-    // - your account's packages (for me, `stachu`)
-    // - packages shared with you
+  // TODO: this should be the list of packages that you have access to
+  // - the `darklang` package
+  // - (future: other globally-accessible packages)
+  //   (anything that you've 'pinned' or whatever)
+  // - your account's packages (for me, `stachu`)
+  // - packages shared with you
+  let treeItems =
     [ makeTreeItem "Darklang" "Darklang" TreeItemCollapsibleState.Collapsed Stdlib.Option.Option.None
       makeTreeItem "Stachu" "Stachu" TreeItemCollapsibleState.Collapsed Stdlib.Option.Option.None
       makeTreeItem "Scripts" "Scripts" TreeItemCollapsibleState.Collapsed Stdlib.Option.Option.None ]
 
-    |> Stdlib.List.map (fun i -> VSCode.TreeView.TreeItem.toJson i)
-    |> Json.Array
-
-  let responseJson =
-    response
-    |> (fun r ->
-      JsonRPC.Response.Ok.make (Stdlib.Option.Option.Some requestId) r)
-    |> Stdlib.AltJson.format
-
-  logAndSendToClient responseJson
+  sendTreeViewResponse requestID treeItems
 
   state
 
@@ -74,15 +83,30 @@ let isModuleParentOf (parentPath: List<String>) (childPath: List<String>) : Bool
   else Stdlib.List.take childPath parentPathLength == parentPath
 
 
+/// Helper to create tree items for entities (fns, types, values)
+let makeEntityTreeItems
+  (entities: List<ProgramTypes.LocatedItem<'a>>)
+  (currentPath: List<String>)
+  (entityType: String)
+  : List<TreeItem> =
+  entities
+  |> Stdlib.List.filter (fun item ->
+    let modules = Stdlib.List.push item.location.modules item.location.owner
+    modules == currentPath)
+  |> Stdlib.List.map (fun item ->
+    let id = PrettyPrinter.ProgramTypes.PackageLocation.packageLocation item.location
+    makeTreeItem id item.location.name TreeItemCollapsibleState.None (Stdlib.Option.Option.Some $"{entityType}:{id}"))
+
+
 let buildTreeItems
-  (searchResults: ProgramTypes.Search.SearchResults)
+  (results: ProgramTypes.Search.SearchResults)
   (currentPath: List<String>)
   (nodeId: String)
   : List<TreeItem> =
   let currentDepth = Stdlib.List.length currentPath
 
   let submodules =
-    searchResults.submodules
+    results.submodules
     |> Stdlib.List.filter (fun modulePath ->
       (Stdlib.List.length modulePath == currentDepth + 1L) &&
       isModuleParentOf currentPath modulePath)
@@ -96,32 +120,9 @@ let buildTreeItems
       let childId = $"{nodeId}.{childName}"
       makeTreeItem childId childName TreeItemCollapsibleState.Collapsed Stdlib.Option.Option.None)
 
-  let fnItems =
-    searchResults.fns
-    |> Stdlib.List.filter (fun fn ->
-      let modules = Stdlib.List.push fn.location.modules fn.location.owner
-      modules == currentPath)
-    |> Stdlib.List.map (fun fn ->
-      let id = PrettyPrinter.ProgramTypes.PackageLocation.packageLocation fn.location
-      makeTreeItem id fn.location.name TreeItemCollapsibleState.None (Stdlib.Option.Option.Some $"fn:{id}"))
-
-  let typeItems =
-    searchResults.types
-    |> Stdlib.List.filter (fun fn ->
-      let modules = Stdlib.List.push fn.location.modules fn.location.owner
-      modules == currentPath)
-    |> Stdlib.List.map (fun fn ->
-      let id = PrettyPrinter.ProgramTypes.PackageLocation.packageLocation fn.location
-      makeTreeItem id fn.location.name TreeItemCollapsibleState.None (Stdlib.Option.Option.Some $"type:{id}"))
-
-  let valueItems =
-    searchResults.values
-    |> Stdlib.List.filter (fun v ->
-      let modules = Stdlib.List.push v.location.modules v.location.owner
-      modules == currentPath)
-    |> Stdlib.List.map (fun v ->
-      let id = PrettyPrinter.ProgramTypes.PackageLocation.packageLocation v.location
-      makeTreeItem id v.location.name TreeItemCollapsibleState.None (Stdlib.Option.Option.Some $"value:{id}"))
+  let fnItems = makeEntityTreeItems results.fns currentPath "fn"
+  let typeItems = makeEntityTreeItems results.types currentPath "type"
+  let valueItems = makeEntityTreeItems results.values currentPath "value"
 
   (Stdlib.List.flatten [submodules; fnItems; typeItems; valueItems])
   |> Stdlib.List.uniqueBy (fun item ->
@@ -132,10 +133,9 @@ let buildTreeItems
 
 let handleGetChildNodesRequest
   (state: LspState)
-  (requestId: JsonRPC.RequestId)
+  (requestID: JsonRPC.RequestId)
   (nodeId: String)
   : LspState =
-
   let treeItems =
     if nodeId == "Scripts" then
       // Handle Scripts node - show all stored scripts
@@ -149,30 +149,21 @@ let handleGetChildNodesRequest
       let currentPath = nodeId |> Stdlib.String.split "."
 
       let searchQuery =
-        LanguageTools.ProgramTypes.Search.SearchQuery
+        ProgramTypes.Search.SearchQuery
           { currentModule = currentPath
             text = ""
-            searchDepth = LanguageTools.ProgramTypes.Search.SearchDepth.OnlyDirectDescendants
+            searchDepth = ProgramTypes.Search.SearchDepth.OnlyDirectDescendants
             entityTypes = [
-              LanguageTools.ProgramTypes.Search.EntityType.Module
-              LanguageTools.ProgramTypes.Search.EntityType.Fn
-              LanguageTools.ProgramTypes.Search.EntityType.Type
-              LanguageTools.ProgramTypes.Search.EntityType.Value
+              ProgramTypes.Search.EntityType.Module
+              ProgramTypes.Search.EntityType.Fn
+              ProgramTypes.Search.EntityType.Type
+              ProgramTypes.Search.EntityType.Value
             ]
             exactMatch = false }
 
       let searchResults =
-        LanguageTools.PackageManager.Search.search state.branchID searchQuery
+        PackageManager.Search.search state.branchID searchQuery
       buildTreeItems searchResults currentPath nodeId
 
-  let response =
-    treeItems
-    |> Stdlib.List.map VSCode.TreeView.TreeItem.toJson
-    |> Json.Array
-
-  let responseJson =
-    (JsonRPC.Response.Ok.make (Stdlib.Option.Option.Some requestId) response)
-    |> Stdlib.AltJson.format
-
-  logAndSendToClient responseJson
+  sendTreeViewResponse requestID treeItems
   state

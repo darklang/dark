@@ -2,19 +2,11 @@ import * as vscode from "vscode";
 import { LanguageClient } from "vscode-languageclient/node";
 
 export class SyncCommands {
-  private client: LanguageClient | null = null;
-
-  setClient(client: LanguageClient): void {
-    this.client = client;
-  }
+  constructor(private client: LanguageClient) {}
 
   register(): vscode.Disposable[] {
     return [
       vscode.commands.registerCommand("darklang.sync.execute", async () => {
-        if (!this.client) {
-          vscode.window.showErrorMessage("LSP client not ready");
-          return;
-        }
 
         // Ask for instance name
         const instanceName = await vscode.window.showInputBox({
@@ -45,11 +37,6 @@ export class SyncCommands {
       }),
 
       vscode.commands.registerCommand("darklang.sync.quickSync", async () => {
-        if (!this.client) {
-          vscode.window.showErrorMessage("LSP client not ready");
-          return;
-        }
-
         // Quick sync with default local instance
         const instanceName = "local";
 

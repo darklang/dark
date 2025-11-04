@@ -6,7 +6,7 @@ import { LanguageClient } from "vscode-languageclient/node";
  * Handles: dark://package/Name.Space.item[?view=type]
  */
 export class PackageContentProvider {
-  private static client: LanguageClient | null = null;
+  private static client: LanguageClient;
 
   static setClient(client: LanguageClient): void {
     this.client = client;
@@ -36,10 +36,6 @@ export class PackageContentProvider {
   }
 
   private static async getSourceView(target: string): Promise<string> {
-    if (!this.client) {
-      return this.getGenericPackageContent(target);
-    }
-
     try {
       const packagePath = target;
       const uri = `darkfs:/${packagePath}.dark`;

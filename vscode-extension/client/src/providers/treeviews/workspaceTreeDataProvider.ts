@@ -51,7 +51,6 @@ export class WorkspaceTreeDataProvider implements vscode.TreeDataProvider<Branch
     this._onDidChangeTreeData.event;
 
   private branchStateManager = BranchStateManager.getInstance();
-  private client: LanguageClient | null = null;
 
   // Filter configuration for ops display
   private opsFilter: OpsFilterConfig = {
@@ -60,15 +59,11 @@ export class WorkspaceTreeDataProvider implements vscode.TreeDataProvider<Branch
     dateRange: 'all',
   };
 
-  constructor() {
+  constructor(private client: LanguageClient) {
     // Listen for branch changes and refresh the tree
     this.branchStateManager.onBranchChanged(() => {
       this.refresh();
     });
-  }
-
-  setClient(client: LanguageClient): void {
-    this.client = client;
   }
 
   // CLEANUP: These methods don't actually add/clear ops - they just refresh the tree
@@ -207,10 +202,6 @@ export class WorkspaceTreeDataProvider implements vscode.TreeDataProvider<Branch
   }
 
   private async getPendingChanges(): Promise<BranchNode[]> {
-    if (!this.client) {
-      return [];
-    }
-
     try {
       // Calculate date filter if applicable
       let sinceDate: string | undefined;

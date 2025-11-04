@@ -4,27 +4,29 @@ module Darklang.LanguageTools.LspServer.Branches
 /// Handles `darklang/getBranches` requests
 let handleGetBranchesRequest
   (state: LspState)
-  (requestId: JsonRPC.RequestId)
+  (requestID: JsonRPC.RequestId)
   : LspState =
+
   let branches = Darklang.SCM.Branch.list ()
 
-  let response =
+  let result =
     branches
     |> Stdlib.List.map (fun branch ->
-      Json.Object
-        [ ("id", Json.String(Stdlib.Uuid.toString branch.id))
-          ("name", Json.String branch.name)
-          ("createdAt", Json.String(Stdlib.DateTime.toString branch.createdAt))
-          ("mergedAt",
-           match branch.mergedAt with
-           | Some dt -> Json.String(Stdlib.DateTime.toString dt)
-           | None -> Json.Null) ])
+      let mergedAt =
+        match branch.mergedAt with
+        | Some dt -> Json.String(Stdlib.DateTime.toString dt)
+        | None -> Json.Null
+
+      [ ("id", Json.String(Stdlib.Uuid.toString branch.id))
+        ("name", Json.String branch.name)
+        ("createdAt", Json.String(Stdlib.DateTime.toString branch.createdAt))
+        ("mergedAt", mergedAt) ]
+      |> Json.Object)
     |> Json.Array
 
   let responseJson =
-    response
-    |> (fun r ->
-      JsonRPC.Response.Ok.make (Stdlib.Option.Option.Some requestId) r)
+    let requestID = Stdlib.Option.Option.Some requestID
+    (JsonRPC.Response.Ok.make requestID result)
     |> Stdlib.AltJson.format
 
   logAndSendToClient responseJson
@@ -35,25 +37,26 @@ let handleGetBranchesRequest
 /// Handles `darklang/createBranch` requests
 let handleCreateBranchRequest
   (state: LspState)
-  (requestId: JsonRPC.RequestId)
+  (requestID: JsonRPC.RequestId)
   (branchName: String)
   : LspState =
   let branch = Darklang.SCM.Branch.create branchName
 
-  let response =
-    Json.Object
-      [ ("id", Json.String(Stdlib.Uuid.toString branch.id))
-        ("name", Json.String branch.name)
-        ("createdAt", Json.String(Stdlib.DateTime.toString branch.createdAt))
-        ("mergedAt",
-         match branch.mergedAt with
-         | Some dt -> Json.String(Stdlib.DateTime.toString dt)
-         | None -> Json.Null) ]
+  let result =
+    let mergedAt =
+      match branch.mergedAt with
+      | Some dt -> Json.String(Stdlib.DateTime.toString dt)
+      | None -> Json.Null
+
+    [ ("id", Json.String(Stdlib.Uuid.toString branch.id))
+      ("name", Json.String branch.name)
+      ("createdAt", Json.String(Stdlib.DateTime.toString branch.createdAt))
+      ("mergedAt", mergedAt) ]
+    |> Json.Object
 
   let responseJson =
-    response
-    |> (fun r ->
-      JsonRPC.Response.Ok.make (Stdlib.Option.Option.Some requestId) r)
+    let requestID = Stdlib.Option.Option.Some requestID
+    (JsonRPC.Response.Ok.make requestID result)
     |> Stdlib.AltJson.format
 
   logAndSendToClient responseJson
@@ -66,14 +69,12 @@ let handleCreateBranchRequest
 /// Handles `darklang/clearBranch` requests
 let handleClearBranchRequest
   (state: LspState)
-  (requestId: JsonRPC.RequestId)
+  (requestID: JsonRPC.RequestId)
   : LspState =
-  let response = Json.Null
-
   let responseJson =
-    response
-    |> (fun r ->
-      JsonRPC.Response.Ok.make (Stdlib.Option.Option.Some requestId) r)
+    let requestID = Stdlib.Option.Option.Some requestID
+    let body = Json.Null
+    (JsonRPC.Response.Ok.make requestID body)
     |> Stdlib.AltJson.format
 
   logAndSendToClient responseJson

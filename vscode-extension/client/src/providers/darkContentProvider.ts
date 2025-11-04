@@ -7,17 +7,11 @@ import { BranchStateManager } from "../data/branchStateManager";
 export class DarkContentProvider implements vscode.TextDocumentContentProvider {
   private _onDidChange = new vscode.EventEmitter<vscode.Uri>();
   readonly onDidChange = this._onDidChange.event;
-  private client: LanguageClient | null = null;
 
-  constructor() {
+  constructor(private client: LanguageClient) {
     console.log(
       "DarkContentProvider initialized with support for all URL patterns",
     );
-  }
-
-  setClient(client: LanguageClient): void {
-    this.client = client;
-    PackageContentProvider.setClient(client);
   }
 
   async provideTextDocumentContent(uri: vscode.Uri): Promise<string> {
