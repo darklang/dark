@@ -1,4 +1,5 @@
-/// Manages Darklang instances for package synchronization.
+/// Manages what Darklang instances _this_ instance knows about
+/// and is ready to sync with.
 module LibPackageManager.Instances
 
 
@@ -15,66 +16,45 @@ open LibDB.Db
 type Instance = { id : System.Guid; name : string; url : string }
 
 
-/// Get an instance by ID
-/// Returns None if not found
-let getById (instanceId : System.Guid) : Ply<Option<Instance>> =
-  uply {
-    let! results =
-      Sql.query
-        """
-        SELECT id, name, url
-        FROM instances
-        WHERE id = @id
-        """
-      |> Sql.parameters [ "id", Sql.uuid instanceId ]
-      |> Sql.executeAsync (fun read ->
-        { id = read.uuid "id"; name = read.string "name"; url = read.string "url" })
-
-    return List.tryHead results
-  }
+let getByID (instanceID : System.Guid) : Task<Option<Instance>> =
+  """
+  SELECT id, name, url
+  FROM instances
+  WHERE id = @id
+  """
+  |> Sql.query
+  |> Sql.parameters [ "id", Sql.uuid instanceID ]
+  |> Sql.executeRowOptionAsync (fun read ->
+    { id = read.uuid "id"; name = read.string "name"; url = read.string "url" })
 
 
-/// Get an instance by name
-/// Returns None if not found
-let getByName (name : string) : Ply<Option<Instance>> =
-  uply {
-    let! results =
-      Sql.query
-        """
-        SELECT id, name, url
-        FROM instances
-        WHERE name = @name
-        """
-      |> Sql.parameters [ "name", Sql.string name ]
-      |> Sql.executeAsync (fun read ->
-        { id = read.uuid "id"; name = read.string "name"; url = read.string "url" })
-
-    return List.tryHead results
-  }
+let getByName (name : string) : Task<Option<Instance>> =
+  Sql.query
+    """
+    SELECT id, name, url
+    FROM instances
+    WHERE name = @name
+    """
+  |> Sql.parameters [ "name", Sql.string name ]
+  |> Sql.executeRowOptionAsync (fun read ->
+    { id = read.uuid "id"; name = read.string "name"; url = read.string "url" })
 
 
-/// List all instances
-let list () : Ply<List<Instance>> =
-  uply {
-    let! results =
-      Sql.query
-        """
-        SELECT id, name, url
-        FROM instances
-        ORDER BY name ASC
-        """
-      |> Sql.parameters []
-      |> Sql.executeAsync (fun read ->
-        { id = read.uuid "id"; name = read.string "name"; url = read.string "url" })
-
-    return results
-  }
+let list () : Task<List<Instance>> =
+  """
+    SELECT id, name, url
+    FROM instances
+    ORDER BY name ASC
+    """
+  |> Sql.query
+  |> Sql.parameters []
+  |> Sql.executeAsync (fun read ->
+    { id = read.uuid "id"; name = read.string "name"; url = read.string "url" })
 
 
-/// Add a new instance
 let add (name : string) (url : string) : Ply<Instance> =
   uply {
-    let instanceId = System.Guid.NewGuid()
+    let instanceID = System.Guid.NewGuid()
 
     do!
       Sql.query
@@ -83,22 +63,18 @@ let add (name : string) (url : string) : Ply<Instance> =
         VALUES (@id, @name, @url)
         """
       |> Sql.parameters
-        [ "id", Sql.uuid instanceId; "name", Sql.string name; "url", Sql.string url ]
+        [ "id", Sql.uuid instanceID; "name", Sql.string name; "url", Sql.string url ]
       |> Sql.executeStatementAsync
 
-    return { id = instanceId; name = name; url = url }
+    return { id = instanceID; name = name; url = url }
   }
 
 
-/// Remove an instance by ID
-let remove (instanceId : System.Guid) : Task<unit> =
-  task {
-    do!
-      Sql.query
-        """
-        DELETE FROM instances
-        WHERE id = @id
-        """
-      |> Sql.parameters [ "id", Sql.uuid instanceId ]
-      |> Sql.executeStatementAsync
-  }
+let remove (id : System.Guid) : Task<unit> =
+  Sql.query
+    """
+    DELETE FROM instances
+    WHERE id = @id
+    """
+  |> Sql.parameters [ "id", Sql.uuid id ]
+  |> Sql.executeStatementAsync

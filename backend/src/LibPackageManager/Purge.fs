@@ -10,8 +10,13 @@ open Microsoft.Data.Sqlite
 open Fumble
 open LibDB.Db
 
+/// CLEANUP
+/// This needs work:
+/// - no reason this can't just be a few simple sql statements rather than this fanciness.
+/// - I'm not even sure this is the right (complete) set of tables to purge
 let purge () : Task<unit> =
   task {
+
     // Helper to check if a table exists
     let tableExists (tableName : string) : bool =
       Sql.query

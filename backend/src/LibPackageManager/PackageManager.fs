@@ -7,8 +7,8 @@ module PT = LibExecution.ProgramTypes
 
 open LibPackageManager.Caching
 
-module PMPT = LibPackageManager.ProgramTypes
-module PMRT = LibPackageManager.RuntimeTypes
+module PMPT = ProgramTypes
+module PMRT = RuntimeTypes
 
 
 // TODO: bring back eager loading
@@ -306,9 +306,8 @@ let stabilizeOpsAgainstPM
   }
 
 
-/// Create an in-memory PackageManager from PackageOps (for tests)
-/// DEPRECATED: Use createInMemory + combine instead.
-/// Kept for backward compatibility during migration.
+/// Create an in-memory PackageManager from PackageOps
+/// (at time of writing, only really useful for tests and from-disk parsing)
 let withExtraOps
   (basePM : PT.PackageManager)
   (ops : List<PT.PackageOp>)

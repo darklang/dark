@@ -33,7 +33,6 @@
     <Compile Include="RuntimeTypes.fs" />
     <Compile Include="PackageManager.fs" />
     <Compile Include="Scripts.fs" />
-    <Compile Include="ScriptsToDT.fs" />
   </ItemGroup>
   <Import Project="..\..\.paket\Paket.Restore.targets" />
 </Project>
