@@ -21,6 +21,7 @@ module PT2RT = LibExecution.ProgramTypesToRuntimeTypes
 module RT2DT = LibExecution.RuntimeTypesToDarkTypes
 module Exe = LibExecution.Execution
 module PackageIDs = LibExecution.PackageIDs
+module Dval = LibExecution.Dval
 module NR = LibParser.NameResolver
 module Canvas = LibCloud.Canvas
 module Serialize = LibCloud.Serialize
@@ -149,16 +150,7 @@ let t
 
             let! _csString = Exe.callStackString state callStack
 
-            let optionTypeName =
-              RT.FQTypeName.fqPackage PackageIDs.Type.Stdlib.option
-            let branchID =
-              RT.Dval.DEnum(
-                optionTypeName,
-                optionTypeName,
-                [ RT.ValueType.Known RT.KTUuid ],
-                "None",
-                []
-              )
+            let branchID = Dval.optionNone RT.KTUuid
 
             let! typeChecked =
               let expected =
