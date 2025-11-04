@@ -119,7 +119,7 @@ let loadFromDisk
 
         let dbs = canvas.dbs |> List.map PT.Toplevel.TLDB
 
-        // Insert canvas types/values/fns as PackageOps (now that Canvas.parse produces them)
+        // Insert+apply canvas types, values, and fns as PackageOps
         do! LibPackageManager.Inserts.insertOps None canvas.ops
 
         return

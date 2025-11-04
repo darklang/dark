@@ -3,12 +3,12 @@ module Darklang.SCM.Sync
 /// Synchronize package ops with a remote Darklang instance
 /// Returns a result with success message or error
 let sync
-  (instanceId: Uuid)
+  (instanceID: Uuid)
   (remoteUrl: String)
   (branchID: Stdlib.Option.Option<Uuid>)
   : Stdlib.Result.Result<String, String> =
   // Get last sync date with this instance
-  let lastSyncOpt = Builtin.scmGetLastSyncDate instanceId
+  let lastSyncOpt = Builtin.scmGetLastSyncDate instanceID
 
   let sinceDate =
     match lastSyncOpt with
@@ -141,7 +141,7 @@ let sync
               0L
 
           // Record the sync with actual applied count (not fetched count)
-          Builtin.scmRecordSync instanceId pushedCount appliedCount
+          Builtin.scmRecordSync instanceID pushedCount appliedCount
 
           let pushedStr = Stdlib.Int64.toString pushedCount
           let appliedStr = Stdlib.Int64.toString appliedCount

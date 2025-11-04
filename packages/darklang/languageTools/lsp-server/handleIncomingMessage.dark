@@ -280,9 +280,9 @@ let handleIncomingMessage
 
         | ("darklang/sync",
           Some requestId,
-          Some(Object [ ("instanceId", String instanceId)
+          Some(Object [ ("instanceID", String instanceID)
                         ("remoteUrl", String remoteUrl) ])) ->
-          Sync.handleSyncRequest state requestId instanceId remoteUrl
+          Sync.handleSyncRequest state requestId instanceID remoteUrl
 
         | other ->
           log $"TODO: we don't yet support this method: {r.method}"

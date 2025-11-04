@@ -67,6 +67,7 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
       let currentModule =
         match state.packageData.currentLocation with
         | Module path -> path
+        // CLEANUP there must be a helper for this
         | Type t -> Stdlib.List.append [t.owner] t.modules
         | Value v -> Stdlib.List.append [v.owner] v.modules
         | Function f -> Stdlib.List.append [f.owner] f.modules

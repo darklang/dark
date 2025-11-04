@@ -1,3 +1,4 @@
+/// CLEANUP still feels like this can be tidied/shortened a bit.
 module LibParser.NameResolver
 
 open Prelude
@@ -72,6 +73,7 @@ let namesToTry
   let addl =
     match given.modules with
     | "Stdlib" :: _ -> [ { given with modules = "Darklang" :: given.modules } ]
+    // TODO: additional shortcuts for Option and Result, at least?
     | _ -> []
 
   (loop currentModule) @ addl
@@ -145,10 +147,12 @@ let resolveTypeName
   (currentModule : List<string>)
   (name : WT.Name)
   : Ply<PT.NameResolution<PT.FQTypeName.FQTypeName>> =
+  let warning = "Builtin types don't exist"
+  let emptyBuiltins = None // irrelevant for types
+
   match name with
   // TODO remodel things appropriately so this is not needed
-  | WT.KnownBuiltin(_name, _version) ->
-    Exception.raiseInternal "Builtin types don't exist" []
+  | WT.KnownBuiltin(_name, _version) -> Exception.raiseInternal warning []
   | WT.Unresolved given ->
     // Types don't have builtins, so pass None
     // parseTypeName returns just name (version always 0 for types)
@@ -156,20 +160,20 @@ let resolveTypeName
       FS2WT.Expr.parseTypeName name |> Result.map (fun n -> (n, 0))
 
     resolveGenericName
-      None // no builtins for types
+      emptyBuiltins
       onMissing
       currentModule
       given
       parseTypeName
       packageManager.findType
       PT.FQTypeName.FQTypeName.Package
-      (fun _ -> Exception.raiseInternal "Builtin types don't exist" [])
-      (fun _ -> Exception.raiseInternal "Builtin types don't exist" [])
+      (fun _ -> Exception.raiseInternal warning [])
+      (fun _ -> Exception.raiseInternal warning [])
 
 
 
 let resolveValueName
-  (builtinValues : Set<RT.FQValueName.Builtin>)
+  (builtins : Set<RT.FQValueName.Builtin>)
   (packageManager : PT.PackageManager)
   (onMissing : OnMissing)
   (currentModule : List<string>)
@@ -180,17 +184,15 @@ let resolveValueName
     Ok(PT.FQValueName.fqBuiltIn name version) |> Ply
   | WT.Unresolved given ->
     resolveGenericName
-      (Some builtinValues)
+      (Some builtins)
       onMissing
       currentModule
       given
       FS2WT.Expr.parseFnName
       packageManager.findValue
       PT.FQValueName.FQValueName.Package
-      (fun (name, version) ->
-        PT.FQValueName.Builtin { name = name; version = version })
-      (fun (name, version) ->
-        { RT.FQValueName.Builtin.name = name; version = version })
+      (fun (n, v) -> PT.FQValueName.Builtin { name = n; version = v })
+      (fun (n, v) -> { RT.FQValueName.Builtin.name = n; version = v })
 
 
 let resolveFnName
@@ -201,7 +203,7 @@ let resolveFnName
   (name : WT.Name)
   : Ply<PT.NameResolution<PT.FQFnName.FQFnName>> =
   match name with
-  | WT.KnownBuiltin(name, version) -> Ok(PT.FQFnName.fqBuiltIn name version) |> Ply
+  | WT.KnownBuiltin(n, v) -> Ok(PT.FQFnName.fqBuiltIn n v) |> Ply
   | WT.Unresolved given ->
     resolveGenericName
       (Some builtinFns)
@@ -211,5 +213,5 @@ let resolveFnName
       FS2WT.Expr.parseFnName
       packageManager.findFn
       PT.FQFnName.FQFnName.Package
-      (fun (name, version) -> PT.FQFnName.Builtin { name = name; version = version })
-      (fun (name, version) -> { RT.FQFnName.Builtin.name = name; version = version })
+      (fun (n, v) -> PT.FQFnName.Builtin { name = n; version = v })
+      (fun (n, v) -> { RT.FQFnName.Builtin.name = n; version = v })
