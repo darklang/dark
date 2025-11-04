@@ -89,9 +89,89 @@ let complete (state: AppState) (args: List<String>) : List<String> =
 
   | [partialArg] ->
     if Stdlib.String.startsWith partialArg "@" then
-      // TODO: Complete function names - allFunctions doesn't exist anymore
-      // Need to implement function name completion using the new package system
-      []
+      let searchText = Stdlib.String.dropFirst partialArg 1L
+
+      // Require at least 2 characters to avoid searching all functions
+      if (Stdlib.String.length searchText) < 2L then
+        []
+      else
+        let (currentModule, searchName) =
+          match Stdlib.String.lastIndexOf searchText "." with
+          | Some idx ->
+            let modulePath = Stdlib.String.slice searchText 0L idx
+            let name = Stdlib.String.dropFirst searchText (idx + 1L)
+            let modules = Stdlib.String.split modulePath "."
+            (modules, name)
+          | None ->
+            ([], searchText)
+
+        // When we have a specific module path, get all direct descendants
+        // Otherwise search all descendants
+        if Stdlib.List.isEmpty currentModule then
+          // At root level, search all descendants to find nested functions
+          let query =
+            LanguageTools.ProgramTypes.Search.SearchQuery
+              { currentModule = []
+                text = searchName
+                searchDepth = LanguageTools.ProgramTypes.Search.SearchDepth.AllDescendants
+                entityTypes = [ LanguageTools.ProgramTypes.Search.EntityType.Fn ]
+                exactMatch = false }
+
+          let results = LanguageTools.PackageManager.Search.search Stdlib.Option.Option.None query
+
+          results.fns
+          |> Stdlib.List.map (fun fn ->
+            let parts = Stdlib.List.flatten [ [ fn.location.owner ]; fn.location.modules; [ fn.location.name ] ]
+            let name = Stdlib.String.join parts "."
+            $"@{name}")
+          |> Stdlib.List.uniqueBy (fun name -> name)
+          |> Stdlib.List.take 100L
+        else
+          // In a specific module, get all direct descendants (submodules and functions)
+          let query =
+            LanguageTools.ProgramTypes.Search.SearchQuery
+              { currentModule = currentModule
+                text = ""
+                searchDepth = LanguageTools.ProgramTypes.Search.SearchDepth.OnlyDirectDescendants
+                entityTypes = []
+                exactMatch = false }
+
+          let results = LanguageTools.PackageManager.Search.search Stdlib.Option.Option.None query
+
+          let modulePath = Stdlib.String.join currentModule "."
+          let currentPathLength = Stdlib.List.length currentModule
+
+          // Get submodule names
+          let submoduleNames =
+            results.submodules
+            |> Stdlib.List.filterMap (fun submodulePath ->
+              match Stdlib.List.drop submodulePath currentPathLength with
+              | [] -> Stdlib.Option.Option.None
+              | nextPart :: _ ->
+                if Stdlib.String.isEmpty nextPart then
+                  Stdlib.Option.Option.None
+                else
+                  Stdlib.Option.Option.Some nextPart)
+            |> Stdlib.List.unique
+            |> Stdlib.List.filter (fun name -> Stdlib.String.startsWith name searchName)
+            |> Stdlib.List.map (fun name -> $"{modulePath}.{name}")
+
+          // Get function names
+          let fnNames =
+            results.fns
+            |> Stdlib.List.map (fun fn -> fn.location.name)
+            |> Stdlib.List.filter (fun name -> Stdlib.String.startsWith name searchName)
+            |> Stdlib.List.map (fun name -> $"{modulePath}.{name}")
+
+          // Combine submodules and functions
+          let allNames =
+            (Stdlib.List.append submoduleNames fnNames)
+            |> Stdlib.List.unique
+            |> Stdlib.List.sort
+
+          allNames
+          |> Stdlib.List.map (fun name -> $"@{name}")
+          |> Stdlib.List.take 100L
     else if partialArg == "." then
       // Special case: "." means show all files in current directory
       let currentDir = Builtin.directoryCurrent ()
