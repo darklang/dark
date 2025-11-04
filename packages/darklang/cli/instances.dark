@@ -8,22 +8,26 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
     let instances = SCM.Instances.list ()
 
     if Stdlib.List.isEmpty instances then
-      Stdlib.printLine ""
-      Stdlib.printLine "No instances configured."
-      Stdlib.printLine ""
-      Stdlib.printLine "Use 'instance add <name> <url>' to add an instance."
+      [ ""
+        "No instances configured."
+        ""
+        "Use 'instance add <name> <url>' to add an instance." ]
+      |> Stdlib.printLines
     else
-      Stdlib.printLine ""
-      Stdlib.printLine (Colors.boldText "Configured Instances:")
-      Stdlib.printLine ""
+      [ ""
+        (Colors.boldText "Configured Instances:")
+        "" ]
+      |> Stdlib.printLines
 
       instances
       |> Stdlib.List.iter (fun instance ->
         let idShort = Stdlib.String.slice (Stdlib.Uuid.toString instance.id) 0L 8L
-        Stdlib.printLine $"  {instance.name}"
-        Stdlib.printLine $"    ID:  {idShort}..."
-        Stdlib.printLine $"    URL: {instance.url}"
-        Stdlib.printLine "")
+
+        [ $"  {instance.name}"
+          $"    ID:  {idShort}..."
+          $"    URL: {instance.url}"
+          "" ]
+        |> Stdlib.printLines)
 
     state
 
@@ -31,16 +35,21 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
     // Check if instance with this name already exists
     match Darklang.SCM.Instances.getByName name with
     | Some existing ->
-      Stdlib.printLine (Colors.error $"Instance with name '{name}' already exists")
-      Stdlib.printLine $"  ID:  {Stdlib.Uuid.toString existing.id}"
-      Stdlib.printLine $"  URL: {existing.url}"
+      [ (Colors.error $"Instance with name '{name}' already exists")
+        $"  ID:  {Stdlib.Uuid.toString existing.id}"
+        $"  URL: {existing.url}" ]
+      |> Stdlib.printLines
+
       state
 
     | None ->
       let instance = Darklang.SCM.Instances.add name url
-      Stdlib.printLine (Colors.success $"Added instance: {name}")
-      Stdlib.printLine $"  ID:  {Stdlib.Uuid.toString instance.id}"
-      Stdlib.printLine $"  URL: {url}"
+
+      [ (Colors.success $"Added instance: {name}")
+        $"  ID:  {Stdlib.Uuid.toString instance.id}"
+        $"  URL: {url}" ]
+      |> Stdlib.printLines
+
       state
 
   | ["remove"; name] ->
@@ -56,13 +65,15 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
   | ["info"; name] ->
     match Darklang.SCM.Instances.getByName name with
     | Some instance ->
-      Stdlib.printLine ""
-      Stdlib.printLine (Colors.boldText "Instance Information:")
-      Stdlib.printLine ""
-      Stdlib.printLine $"  Name: {instance.name}"
-      Stdlib.printLine $"  ID:   {Stdlib.Uuid.toString instance.id}"
-      Stdlib.printLine $"  URL:  {instance.url}"
-      Stdlib.printLine ""
+      [ ""
+        (Colors.boldText "Instance Information:")
+        ""
+        $"  Name: {instance.name}"
+        $"  ID:   {Stdlib.Uuid.toString instance.id}"
+        $"  URL:  {instance.url}"
+        "" ]
+      |> Stdlib.printLines
+
       state
 
     | None ->
@@ -76,19 +87,21 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
 
 
 let help (state: Cli.AppState) : Cli.AppState =
-  Stdlib.printLine "Instance Management Commands"
-  Stdlib.printLine ""
-  Stdlib.printLine "  instance list              List all configured instances"
-  Stdlib.printLine "  instance add NAME URL      Add a new instance"
-  Stdlib.printLine "  instance remove NAME       Remove an instance"
-  Stdlib.printLine "  instance info NAME         Show detailed instance info"
-  Stdlib.printLine ""
-  Stdlib.printLine "Examples:"
-  Stdlib.printLine "  instance add local http://dark-packages.dlio.localhost:11001"
-  Stdlib.printLine "  instance add production https://packages.darklang.com"
-  Stdlib.printLine "  instance list"
-  Stdlib.printLine "  instance remove local"
-  Stdlib.printLine ""
+  [ "Instance Management Commands"
+    ""
+    "  instance list              List all configured instances"
+    "  instance add NAME URL      Add a new instance"
+    "  instance remove NAME       Remove an instance"
+    "  instance info NAME         Show detailed instance info"
+    ""
+    "Examples:"
+    "  instance add local http://dark-packages.dlio.localhost:11001"
+    "  instance add production https://packages.darklang.com"
+    "  instance list"
+    "  instance remove local"
+    "" ]
+  |> Stdlib.printLines
+
   state
 
 

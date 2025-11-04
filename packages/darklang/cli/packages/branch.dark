@@ -1,21 +1,20 @@
 module Darklang.Cli.Packages.Branch
 
 let displayBranchInfo (branch: SCM.Branch.Branch) : Unit =
-  Stdlib.printLine ""
-  Stdlib.printLine (Colors.boldText "Branch Information:")
-  Stdlib.printLine ""
-
-  Stdlib.printLine $"  ID:             {Stdlib.Uuid.toString branch.id}"
-  Stdlib.printLine $"  Name:           {branch.name}"
-  Stdlib.printLine $"  Created at:     {Stdlib.DateTime.toString branch.createdAt}"
-
   let mergedAtText =
     match branch.mergedAt with
     | Some dt -> Stdlib.DateTime.toString dt
     | None -> "(not merged)"
 
-  Stdlib.printLine $"  Merged at:      {mergedAtText}"
-  Stdlib.printLine ""
+  [ ""
+    (Colors.boldText "Branch Information:")
+    ""
+    $"  ID:             {Stdlib.Uuid.toString branch.id}"
+    $"  Name:           {branch.name}"
+    $"  Created at:     {Stdlib.DateTime.toString branch.createdAt}"
+    $"  Merged at:      {mergedAtText}"
+    "" ]
+  |> Stdlib.printLines
 
 
 let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
@@ -66,8 +65,9 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
 
     | multipleBranches ->
       // Name collision - show options
-      Stdlib.printLine (Colors.error $"Multiple branches found with name '{name}':")
-      Stdlib.printLine ""
+      [ (Colors.error $"Multiple branches found with name '{name}':")
+        "" ]
+      |> Stdlib.printLines
 
       multipleBranches
       |> Stdlib.List.iter (fun b ->
@@ -75,8 +75,10 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
         let idShort = Stdlib.String.slice (Stdlib.Uuid.toString b.id) 0L 8L
         Stdlib.printLine $"  {b.name} (id: {idShort}..., created {dateStr})")
 
-      Stdlib.printLine ""
-      Stdlib.printLine "Please use 'branch switch-id <branch-id>' to switch"
+      [ ""
+        "Please use 'branch switch-id <branch-id>' to switch" ]
+      |> Stdlib.printLines
+
       state
 
   | ["switch-id"; branchIdStr] ->
@@ -108,10 +110,11 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
 
     match currentBranch with
     | Some branch ->
-      Stdlib.printLine ""
-      Stdlib.printLine $"Branch: {branch.name}"
-      Stdlib.printLine $"ID: {Stdlib.Uuid.toString branch.id}"
-      Stdlib.printLine ""
+      [ ""
+        $"Branch: {branch.name}"
+        $"ID: {Stdlib.Uuid.toString branch.id}"
+        "" ]
+      |> Stdlib.printLines
 
     | None -> Stdlib.printLine (Colors.error "Not currently on a branch. Use 'branch switch <name>' to switch to one, or 'branch list' to see available branches.")
 
@@ -146,8 +149,9 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
 
     | multipleBranches ->
       // Multiple branches with same name
-      Stdlib.printLine (Colors.error $"Multiple branches found with name '{name}':")
-      Stdlib.printLine ""
+      [ (Colors.error $"Multiple branches found with name '{name}':")
+        "" ]
+      |> Stdlib.printLines
 
       multipleBranches
       |> Stdlib.List.iter (fun b ->
