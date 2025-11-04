@@ -475,78 +475,85 @@ module WriteFile =
             (Stdlib.List.append fnOps valueOps)
 
         // Only add ops if there are new items
-        if (Stdlib.List.isEmpty allOps) |> Stdlib.Bool.not then
-          match state.branchID with
-          | Some id ->
-            SCM.PackageOps.add (Stdlib.Option.Option.Some id) allOps
-          | None -> SCM.PackageOps.addToMain allOps
-
-        // If ops were added, re-read the content from database to get the version with IDs
-        let updatedContent =
+        let addResult =
           if (Stdlib.List.isEmpty allOps) |> Stdlib.Bool.not then
-            // Re-read from package manager to get content with assigned IDs
-            let pm = LanguageTools.PackageManager.pm ()
-            let location = ProgramTypes.parsePackageLocation nameForLookup
-
-            // Build the content from database (same logic as ReadFile)
-            let modulePath = nameForLookup |> Stdlib.String.split "."
-            let searchQuery =
-              LanguageTools.ProgramTypes.Search.SearchQuery
-                { currentModule = modulePath
-                  text = ""
-                  searchDepth = LanguageTools.ProgramTypes.Search.SearchDepth.OnlyDirectDescendants
-                  entityTypes = [
-                    LanguageTools.ProgramTypes.Search.EntityType.Fn
-                    LanguageTools.ProgramTypes.Search.EntityType.Type
-                    LanguageTools.ProgramTypes.Search.EntityType.Value
-                  ]
-                  exactMatch = false }
-
-            let searchResults =
-              LanguageTools.PackageManager.Search.search state.branchID searchQuery
-
-            let functions =
-              searchResults.fns
-              |> Stdlib.List.map (fun locatedFn ->
-                PrettyPrinter.ProgramTypes.packageFn state.branchID locatedFn.entity)
-              |> Stdlib.String.join "\n\n"
-
-            let types =
-              searchResults.types
-              |> Stdlib.List.map (fun locatedType ->
-                PrettyPrinter.ProgramTypes.packageType state.branchID locatedType.entity)
-              |> Stdlib.String.join "\n\n"
-
-            let values =
-              searchResults.values
-              |> Stdlib.List.map (fun locatedValue ->
-                PrettyPrinter.ProgramTypes.packageValue state.branchID locatedValue.entity)
-              |> Stdlib.String.join "\n\n"
-
-            let allDefinitions =
-              [ types; values; functions ]
-              |> Stdlib.List.filter (fun s -> s != "")
-              |> Stdlib.String.join "\n\n"
-
-            // Build module header with proper nesting
-            let moduleHeader =
-              modulePath
-              |> Stdlib.List.indexedMap (fun i name ->
-                let indent = Stdlib.String.repeat "  " i
-                $"{indent}module {name} =")
-              |> Stdlib.String.join "\n"
-
-            let contentIndent = Stdlib.String.repeat "  " (Stdlib.List.length modulePath)
-            let indentedContent =
-              allDefinitions
-              |> Stdlib.String.split "\n"
-              |> Stdlib.List.map (fun line ->
-                if line == "" then line else $"{contentIndent}{line}")
-              |> Stdlib.String.join "\n"
-
-            $"{moduleHeader}\n{indentedContent}"
-            |> Stdlib.Option.Option.Some
+            match state.branchID with
+            | Some id ->
+              SCM.PackageOps.add (Stdlib.Option.Option.Some id) allOps
+            | None -> SCM.PackageOps.addToMain allOps
           else
-            Stdlib.Option.Option.None
+            Stdlib.Result.Result.Ok 0L
 
-        sendSuccessResponse state requestId allOps updatedContent
+        match addResult with
+        | Error err ->
+          sendErrorResponse state requestId [ $"Failed to add package ops: {err}" ]
+        | Ok _ ->
+          // If ops were added, re-read the content from database to get the version with IDs
+          let updatedContent =
+            if (Stdlib.List.isEmpty allOps) |> Stdlib.Bool.not then
+              // Re-read from package manager to get content with assigned IDs
+              let pm = LanguageTools.PackageManager.pm ()
+              let location = ProgramTypes.parsePackageLocation nameForLookup
+
+              // Build the content from database (same logic as ReadFile)
+              let modulePath = nameForLookup |> Stdlib.String.split "."
+              let searchQuery =
+                LanguageTools.ProgramTypes.Search.SearchQuery
+                  { currentModule = modulePath
+                    text = ""
+                    searchDepth = LanguageTools.ProgramTypes.Search.SearchDepth.OnlyDirectDescendants
+                    entityTypes = [
+                      LanguageTools.ProgramTypes.Search.EntityType.Fn
+                      LanguageTools.ProgramTypes.Search.EntityType.Type
+                      LanguageTools.ProgramTypes.Search.EntityType.Value
+                    ]
+                    exactMatch = false }
+
+              let searchResults =
+                LanguageTools.PackageManager.Search.search state.branchID searchQuery
+
+              let functions =
+                searchResults.fns
+                |> Stdlib.List.map (fun locatedFn ->
+                  PrettyPrinter.ProgramTypes.packageFn state.branchID locatedFn.entity)
+                |> Stdlib.String.join "\n\n"
+
+              let types =
+                searchResults.types
+                |> Stdlib.List.map (fun locatedType ->
+                  PrettyPrinter.ProgramTypes.packageType state.branchID locatedType.entity)
+                |> Stdlib.String.join "\n\n"
+
+              let values =
+                searchResults.values
+                |> Stdlib.List.map (fun locatedValue ->
+                  PrettyPrinter.ProgramTypes.packageValue state.branchID locatedValue.entity)
+                |> Stdlib.String.join "\n\n"
+
+              let allDefinitions =
+                [ types; values; functions ]
+                |> Stdlib.List.filter (fun s -> s != "")
+                |> Stdlib.String.join "\n\n"
+
+              // Build module header with proper nesting
+              let moduleHeader =
+                modulePath
+                |> Stdlib.List.indexedMap (fun i name ->
+                  let indent = Stdlib.String.repeat "  " i
+                  $"{indent}module {name} =")
+                |> Stdlib.String.join "\n"
+
+              let contentIndent = Stdlib.String.repeat "  " (Stdlib.List.length modulePath)
+              let indentedContent =
+                allDefinitions
+                |> Stdlib.String.split "\n"
+                |> Stdlib.List.map (fun line ->
+                  if line == "" then line else $"{contentIndent}{line}")
+                |> Stdlib.String.join "\n"
+
+              $"{moduleHeader}\n{indentedContent}"
+              |> Stdlib.Option.Option.Some
+            else
+              Stdlib.Option.Option.None
+
+          sendSuccessResponse state requestId allOps updatedContent

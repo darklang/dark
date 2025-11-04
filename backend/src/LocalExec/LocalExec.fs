@@ -58,7 +58,7 @@ module HandleCommand =
       do! LibPackageManager.Purge.purge ()
 
       print "Filling ..."
-      do! LibPackageManager.Inserts.insertOps None ops
+      let! _ = LibPackageManager.Inserts.insertOps None ops
 
       // print "Populating RT columns..."
       // do! PM.populateRTColumns ()

@@ -38,44 +38,57 @@ let computeOpHash (op : PT.PackageOp) : System.Guid =
 
 /// Insert PackageOps into the package_ops table and apply them to projection tables
 /// branchID: None = main/merged, Some(id) = branch-specific
+/// Returns the count of ops actually inserted (duplicates are skipped via INSERT OR IGNORE)
 let insertOps
   (branchID : Option<PT.BranchID>)
   (ops : List<PT.PackageOp>)
-  : Task<unit> =
+  : Task<int64> =
   task {
-    if List.isEmpty ops then return ()
+    if List.isEmpty ops then
+      return 0L
+    else
+      // CLEANUP this should either
+      // - be made to be one big transaction
+      // OR
+      // - be inserted as applied:false, and have 'step 2' trigger them being toggled
 
-    // CLEANUP this should either
-    // - be made to be one big transaction
-    // OR
-    // - be inserted as applied:false, and have 'step 2' trigger them being toggled
+      // Step 1: Insert ops into package_ops table (source of truth)
+      let insertStatements =
+        ops
+        |> List.map (fun op ->
+          let opId = computeOpHash op
+          let opBlob = BinarySerialization.PT.PackageOp.serialize opId op
 
-    // Step 1: Insert ops into package_ops table (source of truth)
-    let insertStatements =
-      ops
-      |> List.map (fun op ->
-        let opId = computeOpHash op
-        let opBlob = BinarySerialization.PT.PackageOp.serialize opId op
+          let sql =
+            """
+            INSERT OR IGNORE INTO package_ops (id, branch_id, op_blob, applied)
+            VALUES (@id, @branch_id, @op_blob, @applied)
+            """
 
-        let sql =
-          """
-          INSERT OR IGNORE INTO package_ops (id, branch_id, op_blob, applied)
-          VALUES (@id, @branch_id, @op_blob, @applied)
-          """
+          let parameters =
+            [ "id", Sql.uuid opId
+              "branch_id",
+              (match branchID with
+               | Some id -> Sql.uuid id
+               | None -> Sql.dbnull)
+              "op_blob", Sql.bytes opBlob
+              "applied", Sql.bool true ]
 
-        let parameters =
-          [ "id", Sql.uuid opId
-            "branch_id",
-            (match branchID with
-             | Some id -> Sql.uuid id
-             | None -> Sql.dbnull)
-            "op_blob", Sql.bytes opBlob
-            "applied", Sql.bool true ]
+          (sql, [ parameters ]))
 
-        (sql, [ parameters ]))
+      let rowsAffected = insertStatements |> Sql.executeTransactionSync
 
-    insertStatements |> Sql.executeTransactionSync |> ignore<List<int>>
+      // Count how many ops were actually inserted (vs skipped as duplicates)
+      let insertedCount = rowsAffected |> List.sumBy int64
 
-    // Step 2: Apply ops to projection tables (types, values, functions, locations)
-    do! PackageOpPlayback.applyOps branchID ops
+      // Step 2: Apply ops to projection tables (types, values, functions, locations)
+      // Only apply ops that were actually inserted
+      let opsToApply =
+        List.zip ops rowsAffected
+        |> List.filter (fun (_, affected) -> affected > 0)
+        |> List.map fst
+
+      do! PackageOpPlayback.applyOps branchID opsToApply
+
+      return insertedCount
   }

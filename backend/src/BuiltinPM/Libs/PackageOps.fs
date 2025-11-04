@@ -13,6 +13,7 @@ module C2DT = LibExecution.CommonToDarkTypes
 module D = LibExecution.DvalDecoder
 module VT = LibExecution.ValueType
 module PackageIDs = LibExecution.PackageIDs
+module Dval = LibExecution.Dval
 
 open Builtin.Shortcuts
 
@@ -28,29 +29,29 @@ let fns : List<BuiltInFn> =
       parameters =
         [ Param.make "branchID" (TypeReference.option TUuid) ""
           Param.make "ops" (TList(TCustomType(Ok packageOpTypeName, []))) "" ]
-      returnType = TInt64
+      returnType = TypeReference.result TInt64 TString
       description =
         "Add package ops to the database and apply them to projections.
-        Returns count of actually inserted ops (skips duplicates)."
+        Returns Ok(insertedCount) on success (duplicates are skipped), or Error with message on failure."
       fn =
-        function
+        let resultOk = Dval.resultOk KTInt64 KTString
+        let resultError = Dval.resultError KTInt64 KTString
+        (function
         | _, _, _, [ branchID; DList(_vtTODO, ops) ] ->
           uply {
-            // Deserialize dvals
-            let branchID = C2DT.Option.fromDT D.uuid branchID
-            let ops = ops |> List.choose PT2DT.PackageOp.fromDT
+            try
+              // Deserialize dvals
+              let branchID = C2DT.Option.fromDT D.uuid branchID
+              let ops = ops |> List.choose PT2DT.PackageOp.fromDT
 
-            // Insert ops with deduplication
-            do! LibPackageManager.Inserts.insertOps branchID ops
+              // Insert ops with deduplication, get count of actually inserted ops
+              let! insertedCount = LibPackageManager.Inserts.insertOps branchID ops
 
-
-            /// CLEANUP no one above really cares about the count that we ended up inserting.
-            /// We should rather return _some_ Result here - more meaningful+consumable.
-            /// Based on that stance, I've adjusted this to return a static 0 for now. (hope I'm right)
-            let fakeInsertCount = 0L
-            return DInt64 fakeInsertCount
+              return resultOk (DInt64 insertedCount)
+            with ex ->
+              return resultError (DString ex.Message)
           }
-        | _ -> incorrectArgs ()
+        | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
       deprecated = NotDeprecated }

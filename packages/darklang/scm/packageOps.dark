@@ -1,13 +1,13 @@
 module Darklang.SCM.PackageOps
 
 /// Add a list of package ops to the database and apply them immediately
-/// Returns the count of ops actually inserted (vs skipped as duplicates)
+/// Returns Ok(insertedCount) on success (duplicates are skipped), or Error with message on failure
 /// branchID = None means add to main branch
 /// branchID = Some(id) means add to specific branch
 let add
   (branchID: Stdlib.Option.Option<Uuid>)
   (ops: List<LanguageTools.ProgramTypes.PackageOp>)
-  : Int64 =
+  : Stdlib.Result.Result<Int64, String> =
   Builtin.scmAddOps branchID ops
 
 
@@ -15,15 +15,15 @@ let add
 let addToBranch
   (branchID: Uuid)
   (ops: List<LanguageTools.ProgramTypes.PackageOp>)
-  : Unit =
-  let _ = add (Stdlib.Option.Option.Some branchID) ops
-  ()
+  : Stdlib.Result.Result<Int64, String> =
+  add (Stdlib.Option.Option.Some branchID) ops
 
 
 /// Helper to add ops to main branch
-let addToMain (ops: List<LanguageTools.ProgramTypes.PackageOp>) : Unit =
-  let _ = add Stdlib.Option.Option.None ops
-  ()
+let addToMain
+  (ops: List<LanguageTools.ProgramTypes.PackageOp>)
+  : Stdlib.Result.Result<Int64, String> =
+  add Stdlib.Option.Option.None ops
 
 
 /// Get recent package ops from the database

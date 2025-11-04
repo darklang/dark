@@ -114,8 +114,8 @@ let sync
         | Ok pulledOps ->
           let fetchedCount = Stdlib.List.length pulledOps
 
-          // Add pulled ops to local database in batches, tracking how many were actually new
-          let appliedCount =
+          // Add pulled ops to local database in batches, tracking how many were actually inserted
+          let applyResult =
             if fetchedCount > 0L then
               let batchSize = 100L
 
@@ -125,29 +125,45 @@ let sync
                 | Error _ -> [ pulledOps ] // Fallback to single batch if chunking fails
 
 
-              let (_, totalApplied) =
+              let (_, batchResults) =
                 Stdlib.List.fold
                   batches
-                  (0L, 0L)
+                  (0L, Stdlib.Result.Result.Ok 0L)
                   (fun acc batch ->
-                    let (index, appliedSoFar) = acc
+                    let (index, resultSoFar) = acc
 
-                    let batchApplied = Builtin.scmAddOps branchID batch
+                    match resultSoFar with
+                    | Error msg -> (index + 1L, Stdlib.Result.Result.Error msg)
+                    | Ok appliedSoFar ->
+                      let addResult = Builtin.scmAddOps branchID batch
 
-                    (index + 1L, appliedSoFar + batchApplied))
+                      match addResult with
+                      | Ok batchApplied ->
+                        (index + 1L, Stdlib.Result.Result.Ok(appliedSoFar + batchApplied))
+                      | Error errMsg ->
+                        let batchNum = Stdlib.Int64.toString(index + 1L)
 
-              totalApplied
+                        (
+                          index + 1L,
+                          Stdlib.Result.Result.Error
+                            $"Failed to apply batch {batchNum}: {errMsg}"
+                        ))
+
+              batchResults
             else
-              0L
+              Stdlib.Result.Result.Ok 0L
 
-          // Record the sync with actual applied count (not fetched count)
-          Builtin.scmRecordSync instanceID pushedCount appliedCount
+          match applyResult with
+          | Error msg -> Stdlib.Result.Result.Error msg
+          | Ok appliedCount ->
+            // Record the sync with the count of ops actually inserted (not just fetched)
+            Builtin.scmRecordSync instanceID pushedCount appliedCount
 
-          let pushedStr = Stdlib.Int64.toString pushedCount
-          let appliedStr = Stdlib.Int64.toString appliedCount
+            let pushedStr = Stdlib.Int64.toString pushedCount
+            let appliedStr = Stdlib.Int64.toString appliedCount
 
-          Stdlib.Result.Result.Ok
-            $"Sync complete: pushed {pushedStr} ops, pulled {appliedStr} ops"
+            Stdlib.Result.Result.Ok
+              $"Sync complete: pushed {pushedStr} ops, pulled {appliedStr} ops"
 
       else
         let errorBody = Stdlib.String.fromBytesWithReplacement response.body

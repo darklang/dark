@@ -125,18 +125,26 @@ let createFnInline
               LanguageTools.ProgramTypes.PackageOp.SetFnName (packageFn.id, parsedLocation) ]
 
           // 7. Add ops to the current branch
-          SCM.PackageOps.add branchID ops
+          match SCM.PackageOps.add branchID ops with
+          | Ok _ ->
+            // 8. Show success message
+            let fullPath =
+              [ [ parsedLocation.owner ]; parsedLocation.modules; [ parsedLocation.name ] ]
+              |> Stdlib.List.flatten
+              |> Stdlib.String.join "."
 
-          // 8. Show success message
-          let fullPath =
-            [ [ parsedLocation.owner ]; parsedLocation.modules; [ parsedLocation.name ] ]
-            |> Stdlib.List.flatten
-            |> Stdlib.String.join "."
+            [ ""; (Colors.success $"✓ Created function: {fullPath}"); "" ]
+            |> Stdlib.printLines
 
-          [ ""; (Colors.success $"✓ Created function: {fullPath}"); "" ]
-          |> Stdlib.printLines
+            state
 
-          state
+          | Error msg ->
+            [ ""
+              (Colors.error $"✗ Failed to add function: {msg}")
+              "" ]
+            |> Stdlib.printLines
+
+            state
 
 
 let help (state: Cli.AppState) : Cli.AppState =

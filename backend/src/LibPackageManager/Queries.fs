@@ -91,7 +91,7 @@ let getOpsSince
           SELECT id, op_blob
           FROM package_ops
           WHERE branch_id = @branch_id
-            AND created_at > @since
+            AND datetime(created_at) > datetime(@since)
           ORDER BY created_at ASC
           """
         |> Sql.parameters [ "branch_id", Sql.uuid id; "since", Sql.string sinceStr ]
@@ -107,7 +107,7 @@ let getOpsSince
           SELECT id, op_blob
           FROM package_ops
           WHERE branch_id IS NULL
-            AND created_at > @since
+            AND datetime(created_at) > datetime(@since)
           ORDER BY created_at ASC
           """
         |> Sql.parameters [ "since", Sql.string sinceStr ]
