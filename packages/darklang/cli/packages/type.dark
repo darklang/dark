@@ -120,18 +120,15 @@ let createTypeInline
           Stdlib.printLine ""
           state
         else
-          // 6. Create the package location for SetTypeName
-          let packageLocation = Location.toPackageLocation parsedLocation
-
-          // 7. Create ops: AddType and SetTypeName
+          // 6. Create ops: AddType and SetTypeName
           let ops =
             [ LanguageTools.ProgramTypes.PackageOp.AddType packageType
-              LanguageTools.ProgramTypes.PackageOp.SetTypeName (packageType.id, packageLocation) ]
+              LanguageTools.ProgramTypes.PackageOp.SetTypeName (packageType.id, parsedLocation) ]
 
-          // 8. Add ops to the current branch
+          // 7. Add ops to the current branch
           SCM.PackageOps.add branchID ops
 
-          // 9. Show success message
+          // 8. Show success message
           let fullPath =
             [ [ parsedLocation.owner ]; parsedLocation.modules; [ parsedLocation.name ] ]
             |> Stdlib.List.flatten

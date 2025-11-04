@@ -120,18 +120,15 @@ let createValueInline
           Stdlib.printLine ""
           state
         else
-          // 6. Create the package location for SetValueName
-          let packageLocation = Location.toPackageLocation parsedLocation
-
-          // 7. Create ops: AddValue and SetValueName
+          // 6. Create ops: AddValue and SetValueName
           let ops =
             [ LanguageTools.ProgramTypes.PackageOp.AddValue packageValue
-              LanguageTools.ProgramTypes.PackageOp.SetValueName (packageValue.id, packageLocation) ]
+              LanguageTools.ProgramTypes.PackageOp.SetValueName (packageValue.id, parsedLocation) ]
 
-          // 8. Add ops to the current branch
+          // 7. Add ops to the current branch
           SCM.PackageOps.add branchID ops
 
-          // 9. Show success message
+          // 8. Show success message
           let fullPath =
             [ [ parsedLocation.owner ]; parsedLocation.modules; [ parsedLocation.name ] ]
             |> Stdlib.List.flatten

@@ -119,18 +119,15 @@ let createFnInline
           Stdlib.printLine ""
           state
         else
-          // 6. Create the package location for SetFnName
-          let packageLocation = Location.toPackageLocation parsedLocation
-
-          // 7. Create ops: AddFn and SetFnName
+          // 6. Create ops: AddFn and SetFnName
           let ops =
             [ LanguageTools.ProgramTypes.PackageOp.AddFn packageFn
-              LanguageTools.ProgramTypes.PackageOp.SetFnName (packageFn.id, packageLocation) ]
+              LanguageTools.ProgramTypes.PackageOp.SetFnName (packageFn.id, parsedLocation) ]
 
-          // 8. Add ops to the current branch
+          // 7. Add ops to the current branch
           SCM.PackageOps.add branchID ops
 
-          // 9. Show success message
+          // 8. Show success message
           let fullPath =
             [ [ parsedLocation.owner ]; parsedLocation.modules; [ parsedLocation.name ] ]
             |> Stdlib.List.flatten

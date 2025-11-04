@@ -1,17 +1,12 @@
 module Darklang.Cli.Packages.Location
 
-type ParsedLocation =
-  { owner: String
-    modules: List<String>
-    name: String }
-
 
 /// Parse a location string relative to current position
 /// Handles absolute paths (/Darklang.Foo.bar) and relative paths (bar, Foo.bar)
 let parseRelativeTo
   (currentLocation: Packages.PackageLocation)
   (location: String)
-  : Stdlib.Result.Result<ParsedLocation, String> =
+  : Stdlib.Result.Result<LanguageTools.ProgramTypes.PackageLocation, String> =
   // Get the current module path
   let currentPath = Traversal.getCurrentModulePath currentLocation
 
@@ -37,12 +32,12 @@ let parseRelativeTo
     let modules = Stdlib.List.dropLast rest
 
     Stdlib.Result.Result.Ok
-      (ParsedLocation { owner = owner; modules = modules; name = name })
+      (LanguageTools.ProgramTypes.PackageLocation { owner = owner; modules = modules; name = name })
 
 
 /// Parse an absolute location like "Darklang.Foo.Bar.baz"
 /// Returns owner="Darklang", modules=["Foo", "Bar"], name="baz"
-let parse (location: String) : Stdlib.Result.Result<ParsedLocation, String> =
+let parse (location: String) : Stdlib.Result.Result<LanguageTools.ProgramTypes.PackageLocation, String> =
   let parts = Stdlib.String.split location "."
 
   match parts with
@@ -54,10 +49,4 @@ let parse (location: String) : Stdlib.Result.Result<ParsedLocation, String> =
     let modules = Stdlib.List.dropLast rest
 
     Stdlib.Result.Result.Ok
-      (ParsedLocation { owner = owner; modules = modules; name = name })
-
-
-/// Convert to ProgramTypes.PackageLocation
-let toPackageLocation (loc: ParsedLocation) : LanguageTools.ProgramTypes.PackageLocation =
-  LanguageTools.ProgramTypes.PackageLocation
-    { owner = loc.owner; modules = loc.modules; name = loc.name }
+      (LanguageTools.ProgramTypes.PackageLocation { owner = owner; modules = modules; name = name })
