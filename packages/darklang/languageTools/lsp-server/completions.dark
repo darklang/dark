@@ -148,8 +148,7 @@ let createCompletions
 
   let submodules =
     searchResults.submodules
-    |> Stdlib.List.map (fun m -> m |> Stdlib.List.map (fun s -> s |> Stdlib.String.join "."))
-    |> Stdlib.List.flatten
+    |> Stdlib.List.map (fun m -> Stdlib.String.join m ".")
     |> processSearchResults
         LanguageServerProtocol.Completions.CompletionItem.CompletionItemKind.CompletionItemKind.Module
         "module"

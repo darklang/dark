@@ -83,21 +83,18 @@ let buildTreeItems
 
   let submodules =
     searchResults.submodules
+    |> Stdlib.List.filter (fun modulePath ->
+      (Stdlib.List.length modulePath == currentDepth + 1L) &&
+      isModuleParentOf currentPath modulePath)
     |> Stdlib.List.map (fun modulePath ->
-      modulePath
-      |> Stdlib.List.filter (fun modulePath ->
-        (Stdlib.List.length modulePath == currentDepth + 1L) &&
-        isModuleParentOf currentPath modulePath)
-      |> Stdlib.List.map (fun modulePath ->
-        match Stdlib.List.last modulePath with
-        | Some lastPart -> lastPart
-        | None -> "")
-      |> Stdlib.List.filter (fun name -> name != "")
-      |> Stdlib.List.unique
-      |> Stdlib.List.map (fun childName ->
-        let childId = $"{nodeId}.{childName}"
-        makeTreeItem childId childName TreeItemCollapsibleState.Collapsed Stdlib.Option.Option.None))
-    |> Stdlib.List.flatten
+      match Stdlib.List.last modulePath with
+      | Some lastPart -> lastPart
+      | None -> "")
+    |> Stdlib.List.filter (fun name -> name != "")
+    |> Stdlib.List.unique
+    |> Stdlib.List.map (fun childName ->
+      let childId = $"{nodeId}.{childName}"
+      makeTreeItem childId childName TreeItemCollapsibleState.Collapsed Stdlib.Option.Option.None)
 
   let fnItems =
     searchResults.fns
