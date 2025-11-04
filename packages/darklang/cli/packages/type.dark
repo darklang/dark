@@ -48,51 +48,23 @@ let createTypeInline
   (definition: String)
   (state: Cli.AppState)
   : Cli.AppState =
-  // 1. Parse location relative to current position
-  let parsedLocationResult = Location.parseRelativeTo currentLocation locationStr
+  // Parse location relative to current position
+  match Location.parseRelativeTo currentLocation locationStr with
+  | Ok location ->
+    // Build full source code for parsing
+    let fullSource = $"type {location.name} = {definition}"
 
-  match parsedLocationResult with
-  | Error msg ->
-    Stdlib.printLine (Colors.error $"Invalid location: {msg}")
-    state
-
-  | Ok parsedLocation ->
-    // 2. Build full source code for parsing
-    let fullSource = $"type {parsedLocation.name} = {definition}"
-
-    // 3. Parse the type definition string using tree-sitter
+    // Parse the type definition string using tree-sitter
     let tree = LanguageTools.Parser.parseToSimplifiedTree fullSource
 
     // Find the type_decl node
-    let typeDecl =
-      tree.children
-      |> Stdlib.List.findFirst (fun node -> node.typ == "type_decl")
-
-    match typeDecl with
-    | None ->
-      [
-        (Colors.error "Failed to parse type definition")
-        ""
-        "Make sure your syntax is correct. Examples:"
-        "  type Status = | Active | Inactive"
-        "  type User = { name: String; age: Int64 }"
-        ""
-      ] |> Stdlib.printLines
-      state
-
+    // (CLEANUP there should only be 1, I suppose)
+    match tree.children |> Stdlib.List.findFirst (fun node -> node.typ == "type_decl") with
     | Some typeDeclNode ->
-      // 4. Parse node to WrittenTypes
-      let writtenTypeResult =
-        LanguageTools.Parser.TypeDeclaration.parse typeDeclNode
-
-      match writtenTypeResult with
-      | Error unparseable ->
-        Stdlib.printLine (Colors.error "Failed to parse type definition")
-        Stdlib.printLine $"Parse error at range: {unparseable.source.range}"
-        state
-
+      // Parse node to WrittenTypes
+      match LanguageTools.Parser.TypeDeclaration.parse typeDeclNode with
       | Ok writtenType ->
-        // 5. Convert to ProgramTypes.PackageType
+        // Convert to ProgramTypes.PackageType
         let pm = LanguageTools.PackageManager.pm ()
 
         let (packageType, unresolvedNames) =
@@ -100,8 +72,8 @@ let createTypeInline
             branchID
             LanguageTools.NameResolver.OnMissing.Allow
             pm
-            parsedLocation.owner
-            parsedLocation.modules
+            location.owner
+            location.modules
             writtenType
 
         // Check for unresolved names
@@ -119,20 +91,18 @@ let createTypeInline
 
           Stdlib.printLine ""
           state
+        // no unresolved names - keep going
         else
-          // 6. Create ops: AddType and SetTypeName
+          // Create ops: AddType and SetTypeName
           let ops =
             [ LanguageTools.ProgramTypes.PackageOp.AddType packageType
-              LanguageTools.ProgramTypes.PackageOp.SetTypeName (packageType.id, parsedLocation) ]
+              LanguageTools.ProgramTypes.PackageOp.SetTypeName (packageType.id, location) ]
 
-          // 7. Add ops to the current branch
+          // Push the ops up to the server
           match SCM.PackageOps.add branchID ops with
           | Ok _ ->
-            // 8. Show success message
-            let fullPath =
-              [ [ parsedLocation.owner ]; parsedLocation.modules; [ parsedLocation.name ] ]
-              |> Stdlib.List.flatten
-              |> Stdlib.String.join "."
+            // Show success message
+            let fullPath = PrettyPrinter.ProgramTypes.PackageLocation.packageLocation location
 
             [ ""; (Colors.success $"✓ Created type: {fullPath}"); "" ]
             |> Stdlib.printLines
@@ -146,6 +116,24 @@ let createTypeInline
             |> Stdlib.printLines
 
             state
+
+      | Error unparseable ->
+        Stdlib.printLine (Colors.error "Failed to parse type definition")
+        Stdlib.printLine $"Parse error at range: {unparseable.source.range}"
+        state
+    | None ->
+      [
+        (Colors.error "Failed to parse type definition")
+        ""
+        "Make sure your syntax is correct. Examples:"
+        "  type Status = | Active | Inactive"
+        "  type User = { name: String; age: Int64 }"
+        ""
+      ] |> Stdlib.printLines
+      state
+  | Error msg ->
+    Stdlib.printLine (Colors.error $"Invalid location: {msg}")
+    state
 
 
 let help (state: Cli.AppState) : Cli.AppState =
@@ -168,13 +156,20 @@ let help (state: Cli.AppState) : Cli.AppState =
     "  type UserId = Uuid"
     ""
     "Location can be relative or absolute:"
-    "  type Foo = ...          # Relative to current location"
-    "  type /Darklang.Foo = ...  # Absolute path"
+    "  type Foo = ...              # Right here in this module"
+    "  type ../Adjacent.Foo = ...  # Relative to current location"
+    "  type /Darklang.Foo = ...    # Absolute path"
     ""
   ] |> Stdlib.printLines
 
   state
 
 
+/// CLEANUP could offer useful completions:
+/// - when on the LHS of the =,
+///   - help in the same way that nav-like commands do
+/// - when on the RHS of the =,
+///   - probably nothing,
+///   - but _could_ offer some suggested impls via AI...
 let complete (state: Cli.AppState) (args: List<String>) : List<String> =
   []

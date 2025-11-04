@@ -33,20 +33,3 @@ let parseRelativeTo
 
     Stdlib.Result.Result.Ok
       (LanguageTools.ProgramTypes.PackageLocation { owner = owner; modules = modules; name = name })
-
-
-/// Parse an absolute location like "Darklang.Foo.Bar.baz"
-/// Returns owner="Darklang", modules=["Foo", "Bar"], name="baz"
-let parse (location: String) : Stdlib.Result.Result<LanguageTools.ProgramTypes.PackageLocation, String> =
-  let parts = Stdlib.String.split location "."
-
-  match parts with
-  | [] -> Stdlib.Result.Result.Error "Empty location"
-  | [_] -> Stdlib.Result.Result.Error "Location must have at least owner, module, and name"
-  | [_; _] -> Stdlib.Result.Result.Error "Location must have at least owner, module, and name"
-  | owner :: rest ->
-    let name = (Stdlib.List.last rest) |> Builtin.unwrap
-    let modules = Stdlib.List.dropLast rest
-
-    Stdlib.Result.Result.Ok
-      (LanguageTools.ProgramTypes.PackageLocation { owner = owner; modules = modules; name = name })

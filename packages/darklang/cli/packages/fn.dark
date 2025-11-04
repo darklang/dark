@@ -47,51 +47,22 @@ let createFnInline
   (definition: String)
   (state: Cli.AppState)
   : Cli.AppState =
-  // 1. Parse location relative to current position
-  let parsedLocationResult = Location.parseRelativeTo currentLocation locationStr
+  // Parse location relative to current position
+  match Location.parseRelativeTo currentLocation locationStr with
+  | Ok location ->
+    // Build full source code for parsing
+    let fullSource = $"let {location.name} {definition}"
 
-  match parsedLocationResult with
-  | Error msg ->
-    Stdlib.printLine (Colors.error $"Invalid location: {msg}")
-    state
-
-  | Ok parsedLocation ->
-    // 2. Build full source code for parsing
-    let fullSource = $"let {parsedLocation.name} {definition}"
-
-    // 3. Parse the function definition string using tree-sitter
+    // Parse the function definition string using tree-sitter
     let tree = LanguageTools.Parser.parseToSimplifiedTree fullSource
 
     // Find the fn_decl node
-    let fnDecl =
-      tree.children
-      |> Stdlib.List.findFirst (fun node -> node.typ == "fn_decl")
-
-    match fnDecl with
-    | None ->
-      [
-        (Colors.error "Failed to parse function definition")
-        ""
-        "Make sure your syntax is correct. Examples:"
-        "  fn double (x: Int64): Int64 = Stdlib.Int64.multiply x 2L"
-        "  fn greet (name: String): String = \"Hello, \" ++ name"
-        ""
-      ] |> Stdlib.printLines
-      state
-
+    match tree.children |> Stdlib.List.findFirst (fun node -> node.typ == "fn_decl") with
     | Some fnDeclNode ->
-      // 4. Parse node to WrittenTypes
-      let writtenFnResult =
-        LanguageTools.Parser.FunctionDeclaration.parse fnDeclNode
-
-      match writtenFnResult with
-      | Error unparseable ->
-        Stdlib.printLine (Colors.error "Failed to parse function definition")
-        Stdlib.printLine $"Parse error at range: {unparseable.source.range}"
-        state
-
+      // Parse node to WrittenTypes
+      match LanguageTools.Parser.FunctionDeclaration.parse fnDeclNode with
       | Ok writtenFn ->
-        // 5. Convert to ProgramTypes.PackageFn
+        // Convert to ProgramTypes.PackageFn
         let pm = LanguageTools.PackageManager.pm ()
 
         let (packageFn, unresolvedNames) =
@@ -99,8 +70,8 @@ let createFnInline
             branchID
             LanguageTools.NameResolver.OnMissing.Allow
             pm
-            parsedLocation.owner
-            parsedLocation.modules
+            location.owner
+            location.modules
             writtenFn
 
         // Check for unresolved names
@@ -118,20 +89,18 @@ let createFnInline
 
           Stdlib.printLine ""
           state
+        // no unresolved names - keep going
         else
-          // 6. Create ops: AddFn and SetFnName
+          // Create ops: AddFn and SetFnName
           let ops =
             [ LanguageTools.ProgramTypes.PackageOp.AddFn packageFn
-              LanguageTools.ProgramTypes.PackageOp.SetFnName (packageFn.id, parsedLocation) ]
+              LanguageTools.ProgramTypes.PackageOp.SetFnName (packageFn.id, location) ]
 
-          // 7. Add ops to the current branch
+          // Push the ops up to the server
           match SCM.PackageOps.add branchID ops with
           | Ok _ ->
-            // 8. Show success message
-            let fullPath =
-              [ [ parsedLocation.owner ]; parsedLocation.modules; [ parsedLocation.name ] ]
-              |> Stdlib.List.flatten
-              |> Stdlib.String.join "."
+            // Show success message
+            let fullPath = PrettyPrinter.ProgramTypes.PackageLocation.packageLocation location
 
             [ ""; (Colors.success $"✓ Created function: {fullPath}"); "" ]
             |> Stdlib.printLines
@@ -145,6 +114,24 @@ let createFnInline
             |> Stdlib.printLines
 
             state
+
+      | Error unparseable ->
+        Stdlib.printLine (Colors.error "Failed to parse function definition")
+        Stdlib.printLine $"Parse error at range: {unparseable.source.range}"
+        state
+    | None ->
+      [
+        (Colors.error "Failed to parse function definition")
+        ""
+        "Make sure your syntax is correct. Examples:"
+        "  fn double (x: Int64): Int64 = Stdlib.Int64.multiply x 2L"
+        "  fn greet (name: String): String = \"Hello, \" ++ name"
+        ""
+      ] |> Stdlib.printLines
+      state
+  | Error msg ->
+    Stdlib.printLine (Colors.error $"Invalid location: {msg}")
+    state
 
 
 let help (state: Cli.AppState) : Cli.AppState =

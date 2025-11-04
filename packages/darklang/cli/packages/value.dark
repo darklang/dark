@@ -48,51 +48,22 @@ let createValueInline
   (expression: String)
   (state: Cli.AppState)
   : Cli.AppState =
-  // 1. Parse location relative to current position
-  let parsedLocationResult = Location.parseRelativeTo currentLocation locationStr
+  // Parse location relative to current position
+  match Location.parseRelativeTo currentLocation locationStr with
+  | Ok location ->
+    // Build full source code for parsing
+    let fullSource = $"val {location.name} = {expression}"
 
-  match parsedLocationResult with
-  | Error msg ->
-    Stdlib.printLine (Colors.error $"Invalid location: {msg}")
-    state
-
-  | Ok parsedLocation ->
-    // 2. Build full source code for parsing
-    let fullSource = $"val {parsedLocation.name} = {expression}"
-
-    // 3. Parse the value definition string using tree-sitter
+    // Parse the value definition string using tree-sitter
     let tree = LanguageTools.Parser.parseToSimplifiedTree fullSource
 
     // Find the val_decl node
-    let valDecl =
-      tree.children
-      |> Stdlib.List.findFirst (fun node -> node.typ == "val_decl")
-
-    match valDecl with
-    | None ->
-      [
-        (Colors.error "Failed to parse value expression")
-        ""
-        "Make sure your syntax is correct. Examples:"
-        "  val x = 42L"
-        "  val myString = \"hello\""
-        ""
-      ] |> Stdlib.printLines
-      state
-
+    match tree.children |> Stdlib.List.findFirst (fun node -> node.typ == "val_decl") with
     | Some valDeclNode ->
-      // 4. Parse node to WrittenTypes
-      let writtenValueResult =
-        LanguageTools.Parser.ValueDeclaration.parse valDeclNode
-
-      match writtenValueResult with
-      | Error unparseable ->
-        Stdlib.printLine (Colors.error "Failed to parse value expression")
-        Stdlib.printLine $"Parse error at range: {unparseable.source.range}"
-        state
-
+      // Parse node to WrittenTypes
+      match LanguageTools.Parser.ValueDeclaration.parse valDeclNode with
       | Ok writtenValue ->
-        // 5. Convert to ProgramTypes.PackageValue
+        // Convert to ProgramTypes.PackageValue
         let pm = LanguageTools.PackageManager.pm ()
 
         let (packageValue, unresolvedNames) =
@@ -100,8 +71,8 @@ let createValueInline
             branchID
             LanguageTools.NameResolver.OnMissing.Allow
             pm
-            parsedLocation.owner
-            parsedLocation.modules
+            location.owner
+            location.modules
             writtenValue
 
         // Check for unresolved names
@@ -119,20 +90,18 @@ let createValueInline
 
           Stdlib.printLine ""
           state
+        // no unresolved names - keep going
         else
-          // 6. Create ops: AddValue and SetValueName
+          // Create ops: AddValue and SetValueName
           let ops =
             [ LanguageTools.ProgramTypes.PackageOp.AddValue packageValue
-              LanguageTools.ProgramTypes.PackageOp.SetValueName (packageValue.id, parsedLocation) ]
+              LanguageTools.ProgramTypes.PackageOp.SetValueName (packageValue.id, location) ]
 
-          // 7. Add ops to the current branch
+          // Push the ops up to the server
           match SCM.PackageOps.add branchID ops with
           | Ok _ ->
-            // 8. Show success message
-            let fullPath =
-              [ [ parsedLocation.owner ]; parsedLocation.modules; [ parsedLocation.name ] ]
-              |> Stdlib.List.flatten
-              |> Stdlib.String.join "."
+            // Show success message
+            let fullPath = PrettyPrinter.ProgramTypes.PackageLocation.packageLocation location
 
             [ ""; (Colors.success $"✓ Created value: {fullPath}"); "" ]
             |> Stdlib.printLines
@@ -146,6 +115,24 @@ let createValueInline
             |> Stdlib.printLines
 
             state
+
+      | Error unparseable ->
+        Stdlib.printLine (Colors.error "Failed to parse value expression")
+        Stdlib.printLine $"Parse error at range: {unparseable.source.range}"
+        state
+    | None ->
+      [
+        (Colors.error "Failed to parse value expression")
+        ""
+        "Make sure your syntax is correct. Examples:"
+        "  val x = 42L"
+        "  val myString = \"hello\""
+        ""
+      ] |> Stdlib.printLines
+      state
+  | Error msg ->
+    Stdlib.printLine (Colors.error $"Invalid location: {msg}")
+    state
 
 
 let help (state: Cli.AppState) : Cli.AppState =
