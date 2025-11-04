@@ -53,7 +53,7 @@ let displayTree
       | Function f -> Stdlib.List.append [f.owner] f.modules
 
     // Get all entities in this module
-    let results = Query.searchContents branchID modulePath
+    let results = Query.allDirectDescendants branchID modulePath
 
     // Get submodules
     let currentPathLength = Stdlib.List.length modulePath

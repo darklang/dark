@@ -40,7 +40,7 @@ module Darklang.Cli.Packages.NavInteractive
       | Function f -> Stdlib.List.append [f.owner] f.modules
 
     // Get all entities in this location
-    let results = Query.searchContents branchID modulePath
+    let results = Query.allDirectDescendants branchID modulePath
 
     // Get submodules
     let currentPathLength = Stdlib.List.length modulePath
@@ -104,7 +104,7 @@ module Darklang.Cli.Packages.NavInteractive
 
     match location with
     | Module path ->
-      let results = Query.searchContents branchID path
+      let results = Query.allDirectDescendants branchID path
       let locationStr = Packages.formatLocation location
       Stdlib.printLine locationStr
 

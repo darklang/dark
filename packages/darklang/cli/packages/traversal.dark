@@ -98,7 +98,7 @@ let resolveEntity
   : Stdlib.Result.Result<PackageLocation, String> =
   // First see if it's a module
   let modulePath = Stdlib.List.append basePath [name]
-  let moduleResults = Query.searchContents branchID modulePath
+  let moduleResults = Query.allDirectDescendants branchID modulePath
 
   let isAModule = Query.hasContent moduleResults
 
@@ -106,7 +106,7 @@ let resolveEntity
     Stdlib.Result.Result.Ok (PackageLocation.Module modulePath)
   // Not a module -- check if it's a type/value/fn
   else
-    let entityResults = Query.searchEntity branchID basePath name
+    let entityResults = Query.searchExactMatch branchID basePath name
 
     // Access lists directly to avoid type parameter loss
     match entityResults.types with
@@ -138,7 +138,7 @@ let searchDarklangModules
   (branchID: Stdlib.Option.Option<Uuid>)
   (prefixText: String)
   : List<String> =
-  let darklangResults = Query.searchContents branchID ["Darklang"]
+  let darklangResults = Query.allDirectDescendants branchID ["Darklang"]
   let currentPathLength = 1L
   let moduleNames = Query.getDirectSubmodules darklangResults currentPathLength
 
@@ -154,7 +154,7 @@ let getAvailableNames
   : List<String> =
   let currentPath = getCurrentModulePath location
   // Get all available entities in this module
-  let allResults = Query.searchContents branchID currentPath
+  let allResults = Query.allDirectDescendants branchID currentPath
 
   let currentPathLength = Stdlib.List.length currentPath
   let moduleNames = Query.getDirectSubmodules allResults currentPathLength

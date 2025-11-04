@@ -14,7 +14,7 @@ let listModule
     | Function f -> Stdlib.List.append [f.owner] f.modules
 
   // Search for contents at this location
-  let results = Query.searchContents branchID modulePath
+  let results = Query.allDirectDescendants branchID modulePath
 
   // Display module path
   let locationStr = Packages.formatLocation location

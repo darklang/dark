@@ -51,7 +51,7 @@ module Search =
     let searchResults = Builtin.pmSearch branchID query
 
     ProgramTypes.Search.SearchResults
-      { submodules = [ searchResults.submodules ]
+      { submodules = searchResults.submodules
         types = searchResults.types
         values = searchResults.values
         fns = searchResults.fns }
