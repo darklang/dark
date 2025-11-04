@@ -28,12 +28,7 @@ let instanceToDT (instance : Instances.Instance) : Dval =
   DRecord(instanceTypeName, instanceTypeName, [], fields)
 
 
-// TODO: Reconsider which of these functions should be public vs admin-only:
-// - scmGetInstance: Read-only, probably OK as public
-// - scmGetInstanceByName: Read-only, probably OK as public
-// - scmListInstances: Read-only, probably OK as public
-// - scmAddInstance: Writes to DB - should probably be admin-only
-// - scmRemoveInstance: Deletes from DB - should probably be admin-only
+// TODO: review/reconsider the accessibility of these fns
 let fns : List<BuiltInFn> =
   [ { name = fn "scmGetInstance" 0
       typeParams = []

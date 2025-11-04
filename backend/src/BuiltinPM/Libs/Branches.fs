@@ -33,11 +33,7 @@ let branchToDT (branch : Branches.Branch) : Dval =
   DRecord(branchTypeName, branchTypeName, [], fields)
 
 
-// TODO: Reconsider which of these functions should be public vs admin-only:
-// - scmBranchList: Read-only, probably OK as public
-// - scmBranchGet: Read-only, probably OK as public
-// - scmBranchFindByName: Read-only, probably OK as public
-// - scmBranchCreate: Creates branches - probably OK as public for collaborative development
+// TODO: review/reconsider the accessibility of these fns
 let fns : List<BuiltInFn> =
   [ { name = fn "scmBranchList" 0
       typeParams = []
@@ -56,6 +52,7 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotQueryable
       previewable = Impure
       deprecated = NotDeprecated }
+
 
     { name = fn "scmBranchGet" 0
       typeParams = []
@@ -77,6 +74,7 @@ let fns : List<BuiltInFn> =
       previewable = Impure
       deprecated = NotDeprecated }
 
+
     { name = fn "scmBranchFindByName" 0
       typeParams = []
       parameters = [ Param.make "name" TString "" ]
@@ -95,6 +93,7 @@ let fns : List<BuiltInFn> =
       previewable = Impure
       deprecated = NotDeprecated }
 
+
     { name = fn "scmBranchCreate" 0
       typeParams = []
       parameters = [ Param.make "name" TString "" ]
@@ -110,9 +109,7 @@ let fns : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
-      deprecated = NotDeprecated }
-
-    ]
+      deprecated = NotDeprecated } ]
 
 
 let builtins : Builtins = LibExecution.Builtin.make [] fns

@@ -45,7 +45,7 @@ let fns : List<BuiltInFn> =
               let ops = ops |> List.choose PT2DT.PackageOp.fromDT
 
               // Insert ops with deduplication, get count of actually inserted ops
-              let! insertedCount = LibPackageManager.Inserts.insertOps branchID ops
+              let! insertedCount = LibPackageManager.Inserts.insertAndApplyOps branchID ops
 
               return resultOk (DInt64 insertedCount)
             with ex ->

@@ -270,9 +270,7 @@ let handleIncomingMessage
         | ("darklang/getPendingOps", Some requestId, params) ->
           PendingOps.handleGetPendingOpsRequest state requestId params
 
-        | ("darklang/switchBranch",
-          Some requestId,
-          Some(Object [ ("branchID", String branchID) ])) ->
+        | ("darklang/switchBranch", Some requestId, Some(Object [ ("branchID", String branchID) ])) ->
           SwitchBranch.handleSwitchBranchRequest state requestId branchID
 
         | ("darklang/clearBranch", Some requestId, _) ->

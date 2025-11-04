@@ -3,7 +3,7 @@ module Darklang.LanguageTools.LspServer.PendingOps
 // Get recent package ops from the database with optional filtering
 let handleGetPendingOpsRequest
   (state: LspState)
-  (requestId: JsonRPC.RequestId)
+  (requestID: JsonRPC.RequestId)
   (params: Stdlib.Option.Option<JsonRPC.Request.RequestParams>)
   : LspState =
   // Parse filter parameters from request
@@ -11,13 +11,9 @@ let handleGetPendingOpsRequest
     match params with
     | Some(Object fields) ->
       (match Stdlib.List.findFirst fields (fun (k, v) -> k == "limit") with
-       | Some((_key, Number n)) ->
-         let parsedLimit = Stdlib.Float.round n
-         parsedLimit
-       | Some((k, _v)) ->
-         50L
-       | None ->
-         50L)
+       | Some((_key, Number n)) -> Stdlib.Float.round n
+       | Some((k, _v)) -> 50L
+       | None -> 50L)
     | _ ->
       50L
 
@@ -50,45 +46,39 @@ let handleGetPendingOpsRequest
       else
         // It's a specific branch ID - try to parse it
         match Stdlib.Uuid.parse branchFilter with
-        | Ok uuid ->
-          Stdlib.Option.Option.Some uuid
-        | Error _ ->
-          state.branchID
+        | Ok uuid -> Stdlib.Option.Option.Some uuid
+        | Error _ -> state.branchID
 
   // Get ops based on branch filter and date filter
   let ops =
     if branchFilter == "all" then
       // Query all branches - no branch filter
       match sinceDate with
-      | Some dateStr ->
-        SCM.PackageOps.getRecentAllBranches limit
-      | None ->
-        SCM.PackageOps.getRecentAllBranches limit
+      | Some dateStr -> SCM.PackageOps.getRecentAllBranches limit
+      | None -> SCM.PackageOps.getRecentAllBranches limit
     else
       // Query specific branch (or main if no branch is set)
       match sinceDate with
       | Some dateStr ->
         (match Stdlib.DateTime.parse dateStr with
-         | Ok dt ->
-           SCM.PackageOps.getSince queryBranchId dt
-         | Error _ ->
-           SCM.PackageOps.getRecent queryBranchId limit)
+         | Ok dt -> SCM.PackageOps.getSince queryBranchId dt
+         | Error _ -> SCM.PackageOps.getRecent queryBranchId limit)
       | None ->
         SCM.PackageOps.getRecent queryBranchId limit
 
   let opsCount = Stdlib.List.length ops
 
-  let opsWithLabels =
+  let body =
     ops
     |> Stdlib.List.map (fun op ->
       let opData = Builtin.jsonSerialize<LanguageTools.ProgramTypes.PackageOp> op
       let label = PrettyPrinter.ProgramTypes.PackageOp.packageOp queryBranchId op
       Json.Object [ ("op", Json.String opData); ("label", Json.String label) ])
+    |> Json.Array
 
   let responseJson =
-    (JsonRPC.Response.Ok.make
-      (Stdlib.Option.Option.Some(requestId))
-      (Json.Array opsWithLabels))
+    let requestID = Stdlib.Option.Option.Some(requestID)
+    (JsonRPC.Response.Ok.make requestID body)
     |> Stdlib.AltJson.format
 
   logAndSendToClient responseJson

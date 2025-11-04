@@ -39,7 +39,7 @@ let computeOpHash (op : PT.PackageOp) : System.Guid =
 /// Insert PackageOps into the package_ops table and apply them to projection tables
 /// branchID: None = main/merged, Some(id) = branch-specific
 /// Returns the count of ops actually inserted (duplicates are skipped via INSERT OR IGNORE)
-let insertOps
+let insertAndApplyOps
   (branchID : Option<PT.BranchID>)
   (ops : List<PT.PackageOp>)
   : Task<int64> =

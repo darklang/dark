@@ -69,6 +69,48 @@ let namesToTryHelper
     Stdlib.List.append [ newNameToTry ] (namesToTryHelper allButLast given)
 
 
+/// Generic name resolution that handles the common pattern across Type/Value/Fn resolution
+let resolveGenericName
+  (branchID: Stdlib.Option.Option<ProgramTypes.BranchID>)
+  (pm: ProgramTypes.PackageManager.PackageManager)
+  (onMissing: OnMissing)
+  (owner: String)
+  (currentModule: List<String>)
+  (name: WrittenTypes.Name)
+  (tryResolve:
+    Stdlib.Option.Option<ProgramTypes.BranchID>
+    -> ProgramTypes.PackageManager.PackageManager
+    -> GenericName
+    -> Stdlib.Result.Result<'a, Unit>)
+  : ProgramTypes.NameResolution<'a> =
+  match name with
+  | Unresolved(_range, given) ->
+    let modules = Stdlib.List.dropLast given
+    let name = Stdlib.List.last given
+
+    // TODO: handle versions... (parse out the _v[n] part if present)
+    match name with
+    | None ->
+      Stdlib.Result.Result.Error (ProgramTypes.NameResolutionError.InvalidName given)
+    | Some name ->
+      let genericName =
+        GenericName { modules = modules; name = name; version = 0 }
+
+      let result =
+        Stdlib.List.fold
+          (namesToTry owner currentModule genericName)
+          (Stdlib.Result.Result.Error (ProgramTypes.NameResolutionError.NotFound given))
+          (fun currentResult nameToTry ->
+            match currentResult with
+            | Ok _ -> currentResult
+            | Error _ ->
+              match tryResolve branchID pm nameToTry with
+              | Error() -> currentResult
+              | Ok success -> Stdlib.Result.Result.Ok success)
+
+      throwIfRelevant onMissing result
+
+
 module TypeName =
   let tryResolve
     (branchID: Stdlib.Option.Option<ProgramTypes.BranchID>)
@@ -99,36 +141,7 @@ module TypeName =
     (currentModule: List<String>)
     (name: WrittenTypes.Name)
     : ProgramTypes.NameResolution<ProgramTypes.FQTypeName.FQTypeName> =
-    match name with
-    | Unresolved(_range, given) ->
-      let modules = Stdlib.List.dropLast given
-      let name = Stdlib.List.last given
-
-      // TODO: handle versions... (parse out the _v[n] part if present)
-      match name with
-      | None ->
-        Stdlib.Result.Result.Error (ProgramTypes.NameResolutionError.InvalidName given)
-
-      | Some name ->
-        let genericName =
-          GenericName
-            { modules = modules
-              name = name
-              version = 0 }
-
-        let result =
-          Stdlib.List.fold
-            (namesToTry owner currentModule genericName)
-            (Stdlib.Result.Result.Error (ProgramTypes.NameResolutionError.NotFound given))
-            (fun currentResult nameToTry ->
-              match currentResult with
-              | Ok _ -> currentResult
-              | Error _ ->
-                match tryResolve branchID pm nameToTry with
-                | Error() -> currentResult
-                | Ok success -> Stdlib.Result.Result.Ok success)
-
-        throwIfRelevant onMissing result
+    resolveGenericName branchID pm onMissing owner currentModule name tryResolve
 
 
 
@@ -177,35 +190,7 @@ module ValueName =
     (currentModule: List<String>)
     (name: WrittenTypes.Name)
     : ProgramTypes.NameResolution<ProgramTypes.FQValueName.FQValueName> =
-    match name with
-    | Unresolved(_range, given) ->
-      let modules = Stdlib.List.dropLast given
-      let name = Stdlib.List.last given
-
-      // TODO: handle versions... (parse out the _v[n] part if present)
-      match name with
-      | None ->
-        Stdlib.Result.Result.Error (ProgramTypes.NameResolutionError.InvalidName given)
-      | Some name ->
-        let genericName =
-          GenericName
-            { modules = modules
-              name = name
-              version = 0 }
-
-        let result =
-          Stdlib.List.fold
-            (namesToTry owner currentModule genericName)
-            (Stdlib.Result.Result.Error (ProgramTypes.NameResolutionError.NotFound given))
-            (fun currentResult nameToTry ->
-              match currentResult with
-              | Ok _ -> currentResult
-              | Error _ ->
-                match tryResolve branchID pm nameToTry with
-                | Error() -> currentResult
-                | Ok success -> Stdlib.Result.Result.Ok success)
-
-        throwIfRelevant onMissing result
+    resolveGenericName branchID pm onMissing owner currentModule name tryResolve
 
 
 
@@ -253,35 +238,4 @@ module FnName =
     (currentModule: List<String>)
     (name: WrittenTypes.Name)
     : ProgramTypes.NameResolution<ProgramTypes.FQFnName.FQFnName> =
-    match name with
-    | Unresolved(_range, given) ->
-      let modules = Stdlib.List.dropLast given
-      let name = Stdlib.List.last given
-
-      // TODO: handle versions... (parse out the _v[n] part if present)
-      match name with
-      | None ->
-        Stdlib.Result.Result.Error (ProgramTypes.NameResolutionError.InvalidName given)
-      | Some name ->
-        let genericName =
-          GenericName
-            { modules = modules
-              name = name
-              version = 0 }
-
-        let names = namesToTry owner currentModule genericName
-
-
-        let result =
-          Stdlib.List.fold
-            names
-            (Stdlib.Result.Result.Error (ProgramTypes.NameResolutionError.NotFound given))
-            (fun currentResult nameToTry ->
-              match currentResult with
-              | Ok _ -> currentResult
-              | Error _ ->
-                match tryResolve branchID pm nameToTry with
-                | Error _ -> currentResult
-                | Ok success -> Stdlib.Result.Result.Ok success)
-
-        throwIfRelevant onMissing result
+    resolveGenericName branchID pm onMissing owner currentModule name tryResolve
