@@ -278,11 +278,8 @@ let handleIncomingMessage
         | ("darklang/clearBranch", Some requestId, _) ->
           Branches.handleClearBranchRequest state requestId
 
-        | ("darklang/sync",
-          Some requestId,
-          Some(Object [ ("instanceID", String instanceID)
-                        ("remoteUrl", String remoteUrl) ])) ->
-          Sync.handleSyncRequest state requestId instanceID remoteUrl
+        | ("darklang/sync", Some requestId, Some(Object [ ("instanceID", String instanceID) ])) ->
+          Sync.handleSyncRequest state requestId instanceID
 
         | other ->
           log $"TODO: we don't yet support this method: {r.method}"

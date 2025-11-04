@@ -5,7 +5,6 @@ let handleSyncRequest
   (state: LspState)
   (requestId: JsonRPC.RequestId)
   (instanceName: String)
-  (remoteUrl: String)
   : LspState =
   // Look up instance by name
   let instanceOpt = Darklang.SCM.Instances.getByName instanceName

@@ -31,10 +31,7 @@ export class SyncCommands {
           const response = await this.client.sendRequest<{
             success: boolean;
             message: string;
-          }>("darklang/sync", {
-            instanceID: instanceName,
-            remoteUrl: "" // Not used anymore, kept for backwards compatibility
-          });
+          }>("darklang/sync", { instanceID: instanceName });
 
           if (response.success) {
             vscode.window.showInformationMessage(response.message);
@@ -62,10 +59,7 @@ export class SyncCommands {
           const response = await this.client.sendRequest<{
             success: boolean;
             message: string;
-          }>("darklang/sync", {
-            instanceID: instanceName,
-            remoteUrl: "" // Not used anymore, kept for backwards compatibility
-          });
+          }>("darklang/sync", { instanceID: instanceName });
 
           if (response.success) {
             vscode.window.showInformationMessage(response.message);

@@ -50,10 +50,7 @@ export class InstanceCommands {
               const syncPromise = this.client.sendRequest<{
                 success: boolean;
                 message: string;
-              }>("darklang/sync", {
-                instanceID,
-                remoteUrl: instanceUrl
-              });
+              }>("darklang/sync", { instanceID });
 
               const timeoutPromise = new Promise<never>((_, reject) =>
                 setTimeout(() => reject(new Error("Sync request timed out")), 10000)

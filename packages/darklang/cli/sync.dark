@@ -5,13 +5,13 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
   match args with
   | [instanceName] ->
     // Sync with specified instance by name
-    match Darklang.SCM.Instances.getByName instanceName with
+    match SCM.Instances.getByName instanceName with
     | Some instance ->
       Stdlib.printLine $"Syncing with {instance.name} ({instance.url})..."
       Stdlib.printLine ""
 
       let result =
-        Darklang.SCM.Sync.sync instance.id instance.url state.currentBranchId
+        SCM.Sync.sync instance.id instance.url state.currentBranchId
 
       match result with
       | Ok message ->
@@ -39,11 +39,11 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
 let complete (_state: Cli.AppState) (args: List<String>) : List<String> =
   match args with
   | [] ->
-    let instances = Darklang.SCM.Instances.list ()
+    let instances = SCM.Instances.list ()
     Stdlib.List.map instances (fun i -> i.name)
 
   | [partial] ->
-    let instances = Darklang.SCM.Instances.list ()
+    let instances = SCM.Instances.list ()
 
     instances
     |> Stdlib.List.map (fun i -> i.name)
