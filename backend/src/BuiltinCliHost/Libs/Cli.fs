@@ -21,6 +21,7 @@ module Exe = LibExecution.Execution
 module PackageIDs = LibExecution.PackageIDs
 module Json = BuiltinExecution.Libs.Json
 module C2DT = LibExecution.CommonToDarkTypes
+module D = LibExecution.DvalDecoder
 
 module Utils = BuiltinCliHost.Utils
 
@@ -124,6 +125,8 @@ let fns : List<BuiltInFn> =
           [],
           [ branchID; DString filename; DString code; DList(_vtTODO, scriptArgs) ] ->
           uply {
+            let branchIDOpt = branchID |> C2DT.Option.fromDT D.uuid
+
             let exnError (e : exn) : RuntimeError.Error =
               RuntimeError.UncaughtException(
                 Exception.getMessages e |> String.concat "\n",
@@ -147,7 +150,7 @@ let fns : List<BuiltInFn> =
                 match execResult with
                 | Ok dval -> return dval
                 | Error(rte, _cs) ->
-                  let! rteString = Exe.runtimeErrorToString exeState rte
+                  let! rteString = Exe.runtimeErrorToString branchIDOpt exeState rte
                   match rteString with
                   | Ok rte ->
                     return
@@ -195,7 +198,7 @@ let fns : List<BuiltInFn> =
                         "Invalid error format from parseCliScript"
                         [ "dval", dval ]
                 | Error(rte, _cs) ->
-                  let! rteString = Exe.runtimeErrorToString exeState rte
+                  let! rteString = Exe.runtimeErrorToString branchIDOpt exeState rte
                   match rteString with
                   | Ok errorDval ->
                     return
@@ -255,6 +258,8 @@ let fns : List<BuiltInFn> =
         function
         | exeState, _, [], [ branchID; DString functionName; DList(_vtTODO, args) ] ->
           uply {
+            let branchIDOpt = branchID |> C2DT.Option.fromDT D.uuid
+
             let err (msg : string) (metadata : List<string * string>) : Dval =
               let fields =
                 [ ("msg", DString msg)
@@ -323,7 +328,11 @@ let fns : List<BuiltInFn> =
                   | Ok dval -> return dval
                   | Error(rte, _cs) ->
                     let! rteString =
-                      Exe.rteToString RT2DT.RuntimeError.toDT exeState rte
+                      Exe.rteToString
+                        RT2DT.RuntimeError.toDT
+                        branchIDOpt
+                        exeState
+                        rte
                     return
                       Exception.raiseInternal
                         "Error executing pm function"
@@ -397,7 +406,7 @@ let fns : List<BuiltInFn> =
                   | Error(rte, _cs) ->
                     // TODO we should probably return the error here as-is, and handle by calling the
                     // toSegments on the error within the CLI
-                    match! Exe.runtimeErrorToString exeState rte with
+                    match! Exe.runtimeErrorToString branchIDOpt exeState rte with
                     | Ok(DString s) -> return err s []
                     | _ ->
                       let rte =
@@ -437,6 +446,8 @@ let fns : List<BuiltInFn> =
         (function
         | exeState, _, [], [ branchID; DString expression ] ->
           uply {
+            let branchIDOpt = branchID |> C2DT.Option.fromDT D.uuid
+
             let exnError (e : exn) : RuntimeError.Error =
               RuntimeError.UncaughtException(
                 Exception.getMessages e |> String.concat "\n",
@@ -460,7 +471,7 @@ let fns : List<BuiltInFn> =
                 match execResult with
                 | Ok dval -> return dval
                 | Error(rte, _cs) ->
-                  let! rteString = Exe.runtimeErrorToString exeState rte
+                  let! rteString = Exe.runtimeErrorToString branchIDOpt exeState rte
                   match rteString with
                   | Ok rte ->
                     return
@@ -508,7 +519,7 @@ let fns : List<BuiltInFn> =
                         "Invalid error format from parseCliScript"
                         [ "dval", dval ]
                 | Error(rte, _cs) ->
-                  let! rteString = Exe.runtimeErrorToString exeState rte
+                  let! rteString = Exe.runtimeErrorToString branchIDOpt exeState rte
                   match rteString with
                   | Ok errorDval ->
                     return

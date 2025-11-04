@@ -143,8 +143,8 @@ let executeFunction
   executeExpr exeState instrs
 
 
-// TODO: should runtimeErrorToString take a branchID?
 let runtimeErrorToString
+  (branchID : Option<uuid>)
   (state : RT.ExecutionState)
   (rte : RT.RuntimeError.Error)
   : Task<RT.ExecutionResult> =
@@ -152,7 +152,7 @@ let runtimeErrorToString
     let fnName =
       RT.FQFnName.fqPackage
         PackageIDs.Fn.PrettyPrinter.RuntimeTypes.RuntimeError.toString
-    let branchID = Dval.optionNone RT.KTUuid
+    let branchID = branchID |> Option.map Dval.uuid |> Dval.option RT.KTUuid
     let args = NEList.ofList branchID [ RT2DT.RuntimeError.toDT rte ]
     return! executeFunction state fnName [] args
   }
@@ -318,19 +318,20 @@ let traceDvals () : Dictionary.T<id, RT.Dval> * RT.Tracing.TraceDval =
   (results, trace)
 
 
-// TODO: should rteToString take a branchID?
 let rec rteToString
   (rteToDval : RT.RuntimeError.Error -> RT.Dval)
+  (branchID : option<uuid>)
   (state : RT.ExecutionState)
   (rte : RT.RuntimeError.Error)
   : Ply<string> =
+  let r = rteToString rteToDval branchID state
+  let branchID = branchID |> Option.map Dval.uuid |> Dval.option RT.KTUuid
   uply {
     let errorMessageFn =
       RT.FQFnName.fqPackage
         PackageIDs.Fn.PrettyPrinter.RuntimeTypes.RuntimeError.toErrorMessage
 
     let rteDval = rteToDval rte
-    let branchID = Dval.optionNone RT.KTUuid
 
     let! rteMessage =
       executeFunction state errorMessageFn [] (NEList.ofList branchID [ rteDval ])
@@ -340,5 +341,5 @@ let rec rteToString
     | Ok(other) -> return string other
     | Error(rte, _cs) ->
       debuG "Error converting RTE to string" rte
-      return! rteToString rteToDval state rte
+      return! r rte
   }
