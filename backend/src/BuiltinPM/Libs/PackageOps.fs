@@ -12,8 +12,13 @@ module Builtin = LibExecution.Builtin
 module C2DT = LibExecution.CommonToDarkTypes
 module D = LibExecution.DvalDecoder
 module VT = LibExecution.ValueType
+module PackageIDs = LibExecution.PackageIDs
 
 open Builtin.Shortcuts
+
+
+let packageOpTypeName =
+  FQTypeName.fqPackage PackageIDs.Type.LanguageTools.ProgramTypes.packageOp
 
 
 // TODO: review/reconsider the accessibility of these fns
@@ -22,7 +27,7 @@ let fns : List<BuiltInFn> =
       typeParams = []
       parameters =
         [ Param.make "branchID" (TypeReference.option TUuid) ""
-          Param.make "ops" (TList(TVariable "packageOp")) "" ]
+          Param.make "ops" (TList(TCustomType(Ok packageOpTypeName, []))) "" ]
       returnType = TInt64
       description =
         "Add package ops to the database and apply them to projections.
@@ -56,7 +61,7 @@ let fns : List<BuiltInFn> =
       parameters =
         [ Param.make "branchID" (TypeReference.option TUuid) ""
           Param.make "limit" TInt64 "" ]
-      returnType = TList(TVariable "packageOp")
+      returnType = TList(TCustomType(Ok packageOpTypeName, []))
       description = "Get recent package ops from the database."
       fn =
         function
@@ -81,7 +86,7 @@ let fns : List<BuiltInFn> =
     { name = fn "scmGetRecentOpsAllBranches" 0
       typeParams = []
       parameters = [ Param.make "limit" TInt64 "" ]
-      returnType = TList(TVariable "packageOp")
+      returnType = TList(TCustomType(Ok packageOpTypeName, []))
       description = "Get recent package ops from ALL branches (no branch filter)."
       fn =
         function
@@ -105,7 +110,7 @@ let fns : List<BuiltInFn> =
       parameters =
         [ Param.make "branchID" (TypeReference.option TUuid) ""
           Param.make "since" TDateTime "" ]
-      returnType = TList(TVariable "packageOp")
+      returnType = TList(TCustomType(Ok packageOpTypeName, []))
       description =
         "Get package ops created since the specified datetime. branchID None = main branch, Some = specific branch"
       fn =
