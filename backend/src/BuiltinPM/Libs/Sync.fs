@@ -12,21 +12,19 @@ module Dval = LibExecution.Dval
 open Builtin.Shortcuts
 
 
-// TODO: Reconsider which of these functions should be public vs admin-only:
-// - scmGetLastSyncDate: Read-only, probably OK as public
-// - scmRecordSync: Writes sync metadata - should probably be admin-only or require auth
+
+// TODO: review/reconsider the accessibility of these fns
 let fns : List<BuiltInFn> =
   [ { name = fn "scmGetLastSyncDate" 0
       typeParams = []
-      parameters = [ Param.make "instanceId" TUuid "" ]
+      parameters = [ Param.make "instanceID" TUuid "" ]
       returnType = TypeReference.option TDateTime
-      description =
-        "Get the most recent sync time with a specific instance. Returns None if no sync has occurred."
+      description = "Get when we've most recently synced against the given instance."
       fn =
         function
-        | _, _, _, [ DUuid instanceId ] ->
+        | _, _, _, [ DUuid instanceID ] ->
           uply {
-            let! lastSync = LibPackageManager.Sync.getLastSyncDate instanceId
+            let! lastSync = LibPackageManager.Sync.getLastSyncDate instanceID
 
             return lastSync |> Option.map DDateTime |> Dval.option KTDateTime
           }
@@ -39,17 +37,16 @@ let fns : List<BuiltInFn> =
     { name = fn "scmRecordSync" 0
       typeParams = []
       parameters =
-        [ Param.make "instanceId" TUuid ""
+        [ Param.make "instanceID" TUuid ""
           Param.make "opsPushed" TInt64 ""
           Param.make "opsFetched" TInt64 "" ]
       returnType = TUnit
-      description =
-        "Record a sync event in the database with the specified instance and op counts."
+      description = "Record a sync event in the database."
       fn =
         function
-        | _, _, _, [ DUuid instanceId; DInt64 opsPushed; DInt64 opsFetched ] ->
+        | _, _, _, [ DUuid instanceID; DInt64 opsPushed; DInt64 opsFetched ] ->
           uply {
-            do! LibPackageManager.Sync.recordSync instanceId opsPushed opsFetched
+            do! LibPackageManager.Sync.recordSync instanceID opsPushed opsFetched
 
             return DUnit
           }

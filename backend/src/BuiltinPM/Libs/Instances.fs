@@ -37,14 +37,14 @@ let instanceToDT (instance : Instances.Instance) : Dval =
 let fns : List<BuiltInFn> =
   [ { name = fn "scmGetInstance" 0
       typeParams = []
-      parameters = [ Param.make "instanceId" TUuid "" ]
+      parameters = [ Param.make "instanceID" TUuid "" ]
       returnType = TypeReference.option (TCustomType(Ok instanceTypeName, []))
       description = "Get an instance by ID. Returns None if not found."
       fn =
         function
-        | _, _, _, [ DUuid instanceId ] ->
+        | _, _, _, [ DUuid instanceID ] ->
           uply {
-            let! instanceOpt = Instances.getById instanceId
+            let! instanceOpt = Instances.getByID instanceID
 
             return
               instanceOpt
@@ -123,14 +123,14 @@ let fns : List<BuiltInFn> =
 
     { name = fn "scmRemoveInstance" 0
       typeParams = []
-      parameters = [ Param.make "instanceId" TUuid "" ]
+      parameters = [ Param.make "instanceID" TUuid "" ]
       returnType = TUnit
       description = "Remove an instance by ID."
       fn =
         function
-        | _, _, _, [ DUuid instanceId ] ->
+        | _, _, _, [ DUuid instanceID ] ->
           uply {
-            do! Instances.remove instanceId
+            do! Instances.remove instanceID
 
             return DUnit
           }

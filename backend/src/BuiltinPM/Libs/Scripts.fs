@@ -11,19 +11,21 @@ module Dval = LibExecution.Dval
 module Builtin = LibExecution.Builtin
 module Scripts = LibPackageManager.Scripts
 module PackageIDs = LibExecution.PackageIDs
-module ScriptsToDT = LibPackageManager.ScriptsToDT
 
 open Builtin.Shortcuts
 
 
-let scriptTypeName = ScriptsToDT.scriptTypeName
+let scriptTypeName = FQTypeName.fqPackage PackageIDs.Type.Cli.script
 let scriptType = TCustomType(Ok scriptTypeName, [])
 
 
-// TODO: Consider migrating scripts away from a dedicated SQLite table to just
-// making 'Script' a Darklang type that we respect in a special way, without
-// requiring a ton of special F#/SQL code. They could potentially just be stored
-// in a UserDB like any other data.
+/// TODO: Consider migrating scripts away from a dedicated SQLite table to just
+/// making 'Script' a Darklang type that we respect in a special way, without
+/// requiring a ton of special F#/SQL code. They could potentially just be stored
+/// in a UserDB like any other data.
+///
+/// A similar argument could soon be made for Tests, HttpHandlers, Docs,
+/// and other sorts of 'TopLevels' that we respect.
 let fns : List<BuiltInFn> =
   [ { name = fn "pmScriptsList" 0
       typeParams = []
@@ -37,7 +39,7 @@ let fns : List<BuiltInFn> =
             let! scripts = Scripts.list ()
             return
               scripts
-              |> List.map ScriptsToDT.toDT
+              |> List.map Scripts.toDT
               |> Dval.list (KTCustomType(scriptTypeName, []))
           }
         | _ -> incorrectArgs ()
@@ -58,9 +60,8 @@ let fns : List<BuiltInFn> =
             let! scriptOpt = Scripts.get name
             return
               scriptOpt
-              |> Option.map ScriptsToDT.toDT
+              |> Option.map Scripts.toDT
               |> Dval.option (KTCustomType(scriptTypeName, []))
-
           }
         | _ -> incorrectArgs ()
       sqlSpec = NotQueryable
@@ -80,7 +81,7 @@ let fns : List<BuiltInFn> =
             let! result = Scripts.add name text
             return
               result
-              |> Result.map ScriptsToDT.toDT
+              |> Result.map Scripts.toDT
               |> Result.mapError DString
               |> Dval.result (KTCustomType(scriptTypeName, [])) KTString
           }

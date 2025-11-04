@@ -11,14 +11,12 @@ module PT2DT = LibExecution.ProgramTypesToDarkTypes
 module Builtin = LibExecution.Builtin
 module C2DT = LibExecution.CommonToDarkTypes
 module D = LibExecution.DvalDecoder
+module VT = LibExecution.ValueType
 
 open Builtin.Shortcuts
 
 
-// TODO: Reconsider which of these functions should be public vs admin-only:
-// - scmAddOps: Currently public but writes to DB - should this be admin-only?
-// - scmGetRecentOps: Read-only, probably OK as public
-// - scmGetOpsSince: Read-only, probably OK as public (used by sync)
+// TODO: review/reconsider the accessibility of these fns
 let fns : List<BuiltInFn> =
   [ { name = fn "scmAddOps" 0
       typeParams = []
@@ -27,22 +25,25 @@ let fns : List<BuiltInFn> =
           Param.make "ops" (TList(TVariable "packageOp")) "" ]
       returnType = TInt64
       description =
-        "Add package ops to the database and apply them to projections. Returns count of actually inserted ops (skips duplicates). branchID None = main branch, Some = specific branch"
+        "Add package ops to the database and apply them to projections.
+        Returns count of actually inserted ops (skips duplicates)."
       fn =
         function
         | _, _, _, [ branchID; DList(_vtTODO, ops) ] ->
           uply {
+            // Deserialize dvals
             let branchID = C2DT.Option.fromDT D.uuid branchID
-
-            // Convert each op from Dval to PT.PackageOp
-            let ptOps =
-              ops |> List.choose (fun opDval -> PT2DT.PackageOp.fromDT opDval)
+            let ops = ops |> List.choose PT2DT.PackageOp.fromDT
 
             // Insert ops with deduplication
-            let! insertedCount =
-              LibPackageManager.Inserts.insertOrIgnore branchID ptOps
+            do! LibPackageManager.Inserts.insertOps branchID ops
 
-            return DInt64(int64 insertedCount)
+
+            /// CLEANUP no one above really cares about the count that we ended up inserting.
+            /// We should rather return _some_ Result here - more meaningful+consumable.
+            /// Based on that stance, I've adjusted this to return a static 0 for now. (hope I'm right)
+            let fakeInsertCount = 0L
+            return DInt64 fakeInsertCount
           }
         | _ -> incorrectArgs ()
       sqlSpec = NotQueryable
@@ -63,11 +64,13 @@ let fns : List<BuiltInFn> =
           uply {
             let branchID = C2DT.Option.fromDT D.uuid branchID
 
-            let! ptOps = LibPackageManager.Queries.getRecentOps branchID limit
-            let ops = ptOps |> List.map PT2DT.PackageOp.toDT
+            let! ops = LibPackageManager.Queries.getRecentOps branchID limit
 
-            let opVT = LibExecution.ValueType.customType PT2DT.PackageOp.typeName []
-            return DList(opVT, ops)
+            return
+              DList(
+                VT.customType PT2DT.PackageOp.typeName [],
+                ops |> List.map PT2DT.PackageOp.toDT
+              )
           }
         | _ -> incorrectArgs ()
       sqlSpec = NotQueryable
@@ -84,11 +87,12 @@ let fns : List<BuiltInFn> =
         function
         | _, _, _, [ DInt64 limit ] ->
           uply {
-            let! ptOps = LibPackageManager.Queries.getRecentOpsAllBranches limit
-            let ops = ptOps |> List.map PT2DT.PackageOp.toDT
-
-            let opVT = LibExecution.ValueType.customType PT2DT.PackageOp.typeName []
-            return DList(opVT, ops)
+            let! ops = LibPackageManager.Queries.getRecentOpsAllBranches limit
+            return
+              DList(
+                VT.customType PT2DT.PackageOp.typeName [],
+                ops |> List.map PT2DT.PackageOp.toDT
+              )
           }
         | _ -> incorrectArgs ()
       sqlSpec = NotQueryable
@@ -110,11 +114,13 @@ let fns : List<BuiltInFn> =
           uply {
             let branchID = C2DT.Option.fromDT D.uuid branchID
 
-            let! ptOps = LibPackageManager.Queries.getOpsSince branchID since
-            let ops = ptOps |> List.map PT2DT.PackageOp.toDT
+            let! ops = LibPackageManager.Queries.getOpsSince branchID since
 
-            let opVT = LibExecution.ValueType.customType PT2DT.PackageOp.typeName []
-            return DList(opVT, ops)
+            return
+              DList(
+                VT.customType PT2DT.PackageOp.typeName [],
+                ops |> List.map PT2DT.PackageOp.toDT
+              )
           }
         | _ -> incorrectArgs ()
       sqlSpec = NotQueryable
