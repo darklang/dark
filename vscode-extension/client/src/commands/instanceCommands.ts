@@ -31,7 +31,7 @@ export class InstanceCommands {
         }
 
         // Extract instance info from tree item
-        const instanceId = treeItem.id || "unknown";
+        const instanceID = treeItem.id || "unknown";
         const instanceUrl = treeItem.instanceData?.url;
 
         if (!instanceUrl) {
@@ -43,7 +43,7 @@ export class InstanceCommands {
           await vscode.window.withProgress(
             {
               location: vscode.ProgressLocation.Notification,
-              title: `Syncing with ${instanceId}...`,
+              title: `Syncing with ${instanceID}...`,
               cancellable: false
             },
             async () => {
@@ -51,7 +51,7 @@ export class InstanceCommands {
                 success: boolean;
                 message: string;
               }>("darklang/sync", {
-                instanceId,
+                instanceID,
                 remoteUrl: instanceUrl
               });
 

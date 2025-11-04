@@ -32,7 +32,7 @@ export class SyncCommands {
             success: boolean;
             message: string;
           }>("darklang/sync", {
-            instanceId: instanceName,
+            instanceID: instanceName,
             remoteUrl: "" // Not used anymore, kept for backwards compatibility
           });
 
@@ -63,7 +63,7 @@ export class SyncCommands {
             success: boolean;
             message: string;
           }>("darklang/sync", {
-            instanceId: instanceName,
+            instanceID: instanceName,
             remoteUrl: "" // Not used anymore, kept for backwards compatibility
           });
 

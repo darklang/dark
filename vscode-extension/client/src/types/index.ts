@@ -12,8 +12,21 @@ export interface PackageNode {
 export interface BranchNode {
   id: string;
   label: string;
-  type: "current" | "recent" | "shared" | "actions" | "operation" | "conflict" | "section"
-    | "instance-root" | "branch-root" | "changes-root" | "instance-item" | "packages" | "branches" | "category"
+  type:
+    "current"
+    | "recent"
+    | "shared"
+    | "actions"
+    | "operation"
+    | "conflict"
+    | "section"
+    | "instance-root"
+    | "branch-root"
+    | "changes-root"
+    | "instance-item"
+    | "packages"
+    | "branches"
+    | "category"
     | "pending-op";
   contextValue: string;
   children?: BranchNode[];

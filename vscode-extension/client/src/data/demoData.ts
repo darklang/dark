@@ -1,5 +1,5 @@
 import { PackageNode, BranchNode, InstanceNode } from "../types";
-import { InstanceDemoData } from "./demo";
+import { InstanceDemoData } from "./demo/instanceDemoData";
 
 export class DemoDataProvider {
   static getInstancesData(): InstanceNode[] {
