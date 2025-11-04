@@ -27,8 +27,8 @@ let formatLocation (location: PackageLocation) : String =
     else
       $"/{Stdlib.String.join path "."} (module)"
   | Type loc ->
-    $"/{PrettyPrinter.PackageOps.packageLocation loc} (type)"
+    $"/{PrettyPrinter.ProgramTypes.PackageLocation.packageLocation loc} (type)"
   | Value loc ->
-    $"/{PrettyPrinter.PackageOps.packageLocation loc} (value)"
+    $"/{PrettyPrinter.ProgramTypes.PackageLocation.packageLocation loc} (value)"
   | Function loc ->
-    $"/{PrettyPrinter.PackageOps.packageLocation loc} (fn)"
+    $"/{PrettyPrinter.ProgramTypes.PackageLocation.packageLocation loc} (fn)"

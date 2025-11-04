@@ -922,6 +922,16 @@ let packageValue
   $"val {namePart} = {bodyPart}"
 
 
+module PackageLocation =
+  let packageLocation (loc: LanguageTools.ProgramTypes.PackageLocation) : String =
+    let modulesPart =
+      match loc.modules with
+      | [] -> ""
+      | modules -> (Stdlib.String.join modules ".") ++ "."
+
+    $"{loc.owner}.{modulesPart}{loc.name}"
+
+
 module PackageFn =
   let parameter
     (branchID: Stdlib.Option.Option<Uuid>)
@@ -1006,3 +1016,59 @@ module BuiltinFn =
       |> Stdlib.String.join ", "
 
     parameters ++ " -> " ++ (f.returnType |> PrettyPrinter.RuntimeTypes.typeReference branchID)
+
+
+module PackageOp =
+  let packageOp
+    (branchID: Stdlib.Option.Option<Uuid>)
+    (op: LanguageTools.ProgramTypes.PackageOp)
+    : String =
+    match op with
+    | AddType typ ->
+      let name =
+        PrettyPrinter.ProgramTypes.FQTypeName.Package.atDefinition branchID typ.id
+
+      let typeParamPart =
+        match typ.declaration.typeParams with
+        | [] -> ""
+        | params ->
+          params
+          |> Stdlib.List.map (fun p -> "'" ++ p)
+          |> Stdlib.String.join ", "
+          |> fun parts -> $"<{parts}>"
+
+      let kindPart =
+        match typ.declaration.definition with
+        | Alias _ -> "alias"
+        | Record _ -> "record"
+        | Enum _ -> "enum"
+
+      $"AddType {name}{typeParamPart} ({kindPart})"
+
+    | SetTypeName (id, loc) ->
+      let path = PrettyPrinter.ProgramTypes.PackageLocation.packageLocation loc
+      $"SetTypeName → {path}"
+
+    | AddFn fn ->
+      let name =
+        PrettyPrinter.ProgramTypes.FQFnName.Package.atDefinition branchID fn.id
+
+      let signature = PrettyPrinter.ProgramTypes.PackageFn.signature branchID fn
+
+      $"AddFn {name}: {signature}"
+
+    | SetFnName (id, loc) ->
+      let path = PrettyPrinter.ProgramTypes.PackageLocation.packageLocation loc
+      $"SetFnName → {path}"
+
+    | AddValue _value ->
+      let name =
+        PrettyPrinter.ProgramTypes.FQValueName.Package.atDefinition
+          branchID
+          _value.id
+
+      $"AddValue {name}"
+
+    | SetValueName (id, loc) ->
+      let path = PrettyPrinter.ProgramTypes.PackageLocation.packageLocation loc
+      $"SetValueName → {path}"

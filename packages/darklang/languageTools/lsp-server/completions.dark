@@ -124,7 +124,7 @@ let createCompletions
 
   let types =
     searchResults.types
-    |> Stdlib.List.map (fun t -> PrettyPrinter.PackageOps.packageLocation t.location)
+    |> Stdlib.List.map (fun t -> PrettyPrinter.ProgramTypes.PackageLocation.packageLocation t.location)
     |> processSearchResults
         LanguageServerProtocol.Completions.CompletionItem.CompletionItemKind.CompletionItemKind.Class
         "type"
@@ -132,7 +132,7 @@ let createCompletions
 
   let values =
     searchResults.values
-    |> Stdlib.List.map (fun v -> PrettyPrinter.PackageOps.packageLocation v.location)
+    |> Stdlib.List.map (fun v -> PrettyPrinter.ProgramTypes.PackageLocation.packageLocation v.location)
     |> processSearchResults
         LanguageServerProtocol.Completions.CompletionItem.CompletionItemKind.CompletionItemKind.Value
         "value"
@@ -140,7 +140,7 @@ let createCompletions
 
   let functions =
     searchResults.fns
-    |> Stdlib.List.map (fun fn -> PrettyPrinter.PackageOps.packageLocation fn.location)
+    |> Stdlib.List.map (fun fn -> PrettyPrinter.ProgramTypes.PackageLocation.packageLocation fn.location)
     |> processSearchResults
         LanguageServerProtocol.Completions.CompletionItem.CompletionItemKind.CompletionItemKind.Function
         "function"
