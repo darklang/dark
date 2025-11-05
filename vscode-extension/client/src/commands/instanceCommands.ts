@@ -23,7 +23,7 @@ export class InstanceCommands {
       vscode.commands.registerCommand("darklang.instance.sync", async (treeItem) => {
 
         // Extract instance info from tree item
-        const instanceID = treeItem.id || "unknown";
+        const instanceName = treeItem.label || treeItem.instanceData?.name || "unknown";
         const instanceUrl = treeItem.instanceData?.url;
 
         if (!instanceUrl) {
@@ -35,17 +35,17 @@ export class InstanceCommands {
           await vscode.window.withProgress(
             {
               location: vscode.ProgressLocation.Notification,
-              title: `Syncing with ${instanceID}...`,
+              title: `Syncing with ${instanceName}...`,
               cancellable: false
             },
             async () => {
               const syncPromise = this.client.sendRequest<{
                 success: boolean;
                 message: string;
-              }>("darklang/sync", { instanceID });
+              }>("darklang/sync", { instanceID: instanceName });
 
               const timeoutPromise = new Promise<never>((_, reject) =>
-                setTimeout(() => reject(new Error("Sync request timed out")), 10000)
+                setTimeout(() => reject(new Error("Sync request timed out")), 120000)
               );
 
               const response = await Promise.race([syncPromise, timeoutPromise]);

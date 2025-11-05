@@ -35,13 +35,14 @@ let _handler _req =
 
   match Builtin.jsonParse<List<LanguageTools.ProgramTypes.PackageOp>> bodyStr with
   | Ok ops ->
-    Builtin.scmAddOps branchID ops
+    match Builtin.scmAddOps branchID ops with
+    | Ok insertedCount ->
+      let countStr = Builtin.int64ToString insertedCount
+      let responseMsg = $"Successfully received and applied {countStr} ops"
+      Stdlib.Http.response (Stdlib.String.toBytes responseMsg) 200L
 
-    let opsCount = Builtin.int64ToString (Stdlib.List.length ops)
-
-    let responseMsg = $"Successfully received and applied {opsCount} ops"
-
-    Stdlib.Http.response (Stdlib.String.toBytes responseMsg) 200L
+    | Error errorMsg ->
+      Stdlib.Http.response (Stdlib.String.toBytes errorMsg) 500L
 
   | Error _err ->
     let errorMsg = "Invalid request body. Expected JSON list of PackageOps."
