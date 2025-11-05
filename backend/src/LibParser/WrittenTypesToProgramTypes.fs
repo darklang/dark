@@ -734,6 +734,13 @@ module TypeDeclaration =
 module PackageIDs = LibExecution.PackageIDs
 
 module PackageType =
+  module Name =
+    let toLocation (name : WT.PackageType.Name) : PT.PackageLocation =
+      { owner = name.owner; modules = name.modules; name = name.name }
+
+    let toModules (name : WT.PackageType.Name) : List<string> =
+      name.owner :: name.modules
+
   let toPT
     (pm : PT.PackageManager)
     (onMissing : NR.OnMissing)
@@ -751,6 +758,13 @@ module PackageType =
     }
 
 module PackageValue =
+  module Name =
+    let toLocation (name : WT.PackageValue.Name) : PT.PackageLocation =
+      { owner = name.owner; modules = name.modules; name = name.name }
+
+    let toModules (name : WT.PackageValue.Name) : List<string> =
+      name.owner :: name.modules
+
   let toPT
     (builtins : RT.Builtins)
     (pm : PT.PackageManager)
@@ -771,6 +785,13 @@ module PackageValue =
 
 
 module PackageFn =
+  module Name =
+    let toLocation (name : WT.PackageFn.Name) : PT.PackageLocation =
+      { owner = name.owner; modules = name.modules; name = name.name }
+
+    let toModules (name : WT.PackageFn.Name) : List<string> =
+      name.owner :: name.modules
+
   module Parameter =
     let toPT
       (pm : PT.PackageManager)

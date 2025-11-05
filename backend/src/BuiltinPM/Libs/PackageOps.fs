@@ -113,8 +113,7 @@ let fns : List<BuiltInFn> =
         [ Param.make "branchID" (TypeReference.option TUuid) ""
           Param.make "since" TDateTime "" ]
       returnType = TList(TCustomType(Ok packageOpTypeName, []))
-      description =
-        "Get package ops created since the specified datetime. branchID None = main branch, Some = specific branch"
+      description = "Get package ops created since the given timestamp."
       fn =
         function
         | _, _, _, [ branchID; DDateTime since ] ->

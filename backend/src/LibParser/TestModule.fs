@@ -195,13 +195,12 @@ let toPT
       |> Ply.List.mapSequentially (fun wtType ->
         uply {
           let! ptType = WT2PT.PackageType.toPT pm onMissing currentModule wtType
-          let location : PT.PackageLocation =
-            { owner = wtType.name.owner
-              modules = wtType.name.modules
-              name = wtType.name.name }
           return
             [ PT.PackageOp.AddType ptType
-              PT.PackageOp.SetTypeName(ptType.id, location) ]
+              PT.PackageOp.SetTypeName(
+                ptType.id,
+                WT2PT.PackageType.Name.toLocation wtType.name
+              ) ]
         })
       |> Ply.map List.flatten
 
@@ -211,13 +210,12 @@ let toPT
         uply {
           let! ptValue =
             WT2PT.PackageValue.toPT builtins pm onMissing currentModule wtValue
-          let location : PT.PackageLocation =
-            { owner = wtValue.name.owner
-              modules = wtValue.name.modules
-              name = wtValue.name.name }
           return
             [ PT.PackageOp.AddValue ptValue
-              PT.PackageOp.SetValueName(ptValue.id, location) ]
+              PT.PackageOp.SetValueName(
+                ptValue.id,
+                WT2PT.PackageValue.Name.toLocation wtValue.name
+              ) ]
         })
       |> Ply.map List.flatten
 
@@ -226,12 +224,12 @@ let toPT
       |> Ply.List.mapSequentially (fun wtFn ->
         uply {
           let! ptFn = WT2PT.PackageFn.toPT builtins pm onMissing currentModule wtFn
-          let location : PT.PackageLocation =
-            { owner = wtFn.name.owner
-              modules = wtFn.name.modules
-              name = wtFn.name.name }
           return
-            [ PT.PackageOp.AddFn ptFn; PT.PackageOp.SetFnName(ptFn.id, location) ]
+            [ PT.PackageOp.AddFn ptFn
+              PT.PackageOp.SetFnName(
+                ptFn.id,
+                WT2PT.PackageFn.Name.toLocation wtFn.name
+              ) ]
         })
       |> Ply.map List.flatten
 
