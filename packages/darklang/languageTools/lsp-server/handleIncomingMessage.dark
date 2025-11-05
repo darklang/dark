@@ -251,7 +251,7 @@ let handleIncomingMessage
         let r = jsonRpcRequest
 
         match (r.method, r.id, r.params) with
-        | ("darklang/getRootNodes", Some requestId, None) ->
+        | ("darklang/getRootNodes", Some requestId, _) ->
           TreeView.handleGetRootNodesRequest state requestId
 
         | ("darklang/getChildNodes",
@@ -259,7 +259,7 @@ let handleIncomingMessage
           Some(Object [ ("nodeId", String nodeId) ])) ->
           TreeView.handleGetChildNodesRequest state requestId nodeId
 
-        | ("darklang/getBranches", Some requestId, None) ->
+        | ("darklang/getBranches", Some requestId, _) ->
           Branches.handleGetBranchesRequest state requestId
 
         | ("darklang/createBranch",
@@ -278,6 +278,9 @@ let handleIncomingMessage
 
         | ("darklang/sync", Some requestId, Some(Object [ ("instanceID", String instanceID) ])) ->
           Sync.handleSyncRequest state requestId instanceID
+
+        | ("darklang/listInstances", Some requestId, _) ->
+          Sync.handleListInstancesRequest state requestId
 
         | other ->
           log $"TODO: we don't yet support this method: {r.method}"

@@ -1,4 +1,3 @@
-import * as os from "os";
 import * as vscode from "vscode";
 
 export class ScriptCommands {
@@ -7,12 +6,12 @@ export class ScriptCommands {
   }
 
   public register(): vscode.Disposable[] {
-    const runScriptCommand = vscode.commands.registerCommand(
-      "darklang.runScript",
-      () => this.runScript()
-    );
-
-    return [runScriptCommand];
+    return [
+      vscode.commands.registerCommand(
+        "darklang.runScript",
+        () => this.runScript()
+      )
+    ];
   }
 
   private runScript(): void {
@@ -31,21 +30,15 @@ export class ScriptCommands {
     );
 
     if (!terminal) {
-      terminal = vscode.window.createTerminal(`darklang-terminal`);
+      terminal = vscode.window.createTerminal("darklang-terminal");
     }
 
-    terminal.show(true);
+    terminal.show();
 
-    if (this.isDebugMode()) {
-      const changeDirCommand = `cd /home/dark/app`;
-      const scriptCommand = `./scripts/run-cli run "${filePath}" --skip-self-update`;
-      terminal.sendText(changeDirCommand, true);
-      terminal.sendText(scriptCommand, true);
-    } else {
-      const changeDirCommand = `cd ${os.homedir()}`;
-      const scriptCommand = `darklang run "${filePath}" --skip-self-update`;
-      terminal.sendText(changeDirCommand, true);
-      terminal.sendText(scriptCommand, true);
-    }
+    const command = this.isDebugMode()
+      ? `cd /home/dark/app && ./scripts/run-cli run "${filePath}" --skip-self-update`
+      : `darklang run "${filePath}" --skip-self-update`;
+
+    terminal.sendText(command);
   }
 }

@@ -2,7 +2,6 @@ import * as vscode from "vscode";
 import { LanguageClient } from "vscode-languageclient/node";
 import { BranchNode } from "../../types";
 import { BranchStateManager } from "../../data/branchStateManager";
-import { InstanceDemoData } from "../../data/demo/instanceDemoData";
 
 interface OpsFilterConfig {
   limit: number | null;  // null means no limit
@@ -189,7 +188,7 @@ export class WorkspaceTreeDataProvider implements vscode.TreeDataProvider<Branch
   async getChildren(element?: BranchNode): Promise<BranchNode[]> {
     if (!element) {
       // Root level: Instance, Branch, Pending Changes
-      return this.getRootNodes();
+      return await this.getRootNodes();
     }
 
     // Handle pending changes node - fetch ops from LSP
@@ -319,32 +318,32 @@ export class WorkspaceTreeDataProvider implements vscode.TreeDataProvider<Branch
   }
 
 
-  private getRootNodes(): BranchNode[] {
+  private async getRootNodes(): Promise<BranchNode[]> {
     const branchName = this.branchStateManager.getCurrentBranchName();
     const branchID = this.branchStateManager.getCurrentBranchId();
 
-    // Get instances for the Instance node
-    const instances = InstanceDemoData.getInstancesData();
-    const instanceChildren: BranchNode[] = instances.map(inst => ({
-      id: inst.id,
-      label: inst.label.replace("★ ", ""), // Remove star from label
-      type: "instance-item",
-      contextValue: inst.contextValue,
-      instanceData: inst.instanceData,
-      children: inst.children?.map(child => ({
-        id: child.id,
-        label: child.label,
-        type: child.type as BranchNode["type"], // Map InstanceNode types to BranchNode types
-        contextValue: child.contextValue,
-        instanceData: child.instanceData,
-        children: child.children?.map(grandchild => ({
-          id: grandchild.id,
-          label: grandchild.label,
-          type: grandchild.type as BranchNode["type"],
-          contextValue: grandchild.contextValue
-        }))
-      }))
-    }));
+    // Get instances from LSP
+    let instanceChildren: BranchNode[] = [];
+    try {
+      const instances = await this.client.sendRequest<Array<{id: string, name: string, url: string}>>(
+        "darklang/listInstances",
+        {}
+      );
+
+      instanceChildren = instances.map(inst => ({
+        id: inst.id,
+        label: inst.name,
+        type: "instance-item" as const,
+        contextValue: "remote-instance",
+        instanceData: {
+          url: inst.url,
+          status: "connected" as const
+        },
+        children: []
+      }));
+    } catch (error) {
+      console.error("Failed to fetch instances:", error);
+    }
 
     return [
       // Instance node (collapsed by default)

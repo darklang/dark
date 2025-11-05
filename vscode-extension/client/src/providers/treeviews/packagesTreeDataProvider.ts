@@ -45,12 +45,12 @@ export class Node extends vscode.TreeItem {
   }
 
   private setIcon(): void {
-    // For packages (root level items)
-    if (
-      this.id === "Darklang" ||
-      this.id === "Stachu" ||
-      this.id === "Scripts"
-    ) {
+    // For packages (root level items) - detect by ID not containing a dot
+    // Root level IDs are single words like "Darklang", "Stachu", "Scripts"
+    // Child IDs contain dots like "Darklang.Stdlib", "Darklang.Stdlib.Int64"
+    const isRootLevel = this.type === "directory" && !this.id.includes(".");
+
+    if (isRootLevel) {
       this.iconPath = new vscode.ThemeIcon(
         "package",
         new vscode.ThemeColor("charts.orange"),
@@ -76,11 +76,6 @@ export class Node extends vscode.TreeItem {
         this.iconPath = new vscode.ThemeIcon(
           "symbol-constant",
           new vscode.ThemeColor("charts.orange"),
-        );
-      } else if (this.contextValue.startsWith("script/")) {
-        this.iconPath = new vscode.ThemeIcon(
-          "file-code",
-          new vscode.ThemeColor("charts.purple"),
         );
       }
     }
@@ -143,11 +138,6 @@ export class PackagesTreeDataProvider implements vscode.TreeDataProvider<Node> {
         contextValue = item.contextValue; // Keep the full value with prefix for icon detection
         packagePath = prefixMatch[2]; // Extract the path without prefix for the command
       }
-      // For scripts, keep the full path including "script/"
-      else if (item.contextValue.startsWith("script/")) {
-        contextValue = item.contextValue;
-        packagePath = item.contextValue; // Keep the full path for scripts
-      }
     }
 
     const node = new Node(
@@ -170,37 +160,31 @@ export class PackagesTreeDataProvider implements vscode.TreeDataProvider<Node> {
   }
 
   async getChildren(node?: Node): Promise<Node[]> {
-    // If requesting root nodes
-    if (!node) {
-      // Return static root nodes immediately, without waiting for server
-      if (!this._rootNodesCache) {
-        this._rootNodesCache = [
-          new Node(
-            "Darklang",
-            "Darklang",
-            "directory",
-            vscode.TreeItemCollapsibleState.Collapsed,
-          ),
-          new Node(
-            "Stachu",
-            "Stachu",
-            "directory",
-            vscode.TreeItemCollapsibleState.Collapsed,
-          ),
-          new Node(
-            "Scripts",
-            "Scripts",
-            "directory",
-            vscode.TreeItemCollapsibleState.Collapsed,
-          ),
-        ];
-      }
-      return this._rootNodesCache;
-    }
-
-    // For child nodes, only fetch if server is ready
+    // Wait for server to be ready before fetching any nodes
     if (!this._isServerReady) {
       return [];
+    }
+
+    // If requesting root nodes
+    if (!node) {
+      // Use cache if available
+      if (this._rootNodesCache) {
+        return this._rootNodesCache;
+      }
+
+      // Fetch root nodes from LSP
+      try {
+        const items = await this._client.sendRequest<TreeItemResponse[]>(
+          "darklang/getRootNodes",
+          {}
+        );
+
+        this._rootNodesCache = items.map(item => this.mapResponseToNode(item));
+        return this._rootNodesCache;
+      } catch (error) {
+        console.error(`Failed to get root nodes: ${error}`);
+        return [];
+      }
     }
 
     try {

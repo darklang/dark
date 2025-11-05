@@ -31,3 +31,29 @@ let handleSyncRequest
   logAndSendToClient responseJson
 
   state
+
+
+/// Handles `darklang/listInstances` requests from VS Code
+let handleListInstancesRequest
+  (state: LspState)
+  (requestID: JsonRPC.RequestId)
+  : LspState =
+  let instances = Darklang.SCM.Instances.list ()
+
+  let instancesJson =
+    instances
+    |> Stdlib.List.map (fun instance ->
+      Json.Object
+        [ ("id", Json.String (Stdlib.Uuid.toString instance.id))
+          ("name", Json.String instance.name)
+          ("url", Json.String instance.url) ])
+    |> Json.Array
+
+  let responseJson =
+    let requestID = Stdlib.Option.Option.Some requestID
+    (JsonRPC.Response.Ok.make requestID instancesJson)
+    |> Stdlib.AltJson.format
+
+  logAndSendToClient responseJson
+
+  state

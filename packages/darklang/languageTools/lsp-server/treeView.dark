@@ -57,16 +57,37 @@ let handleGetRootNodesRequest
   (state: LspState)
   (requestID: JsonRPC.RequestId)
   : LspState =
-  // TODO: this should be the list of packages that you have access to
-  // - the `darklang` package
-  // - (future: other globally-accessible packages)
-  //   (anything that you've 'pinned' or whatever)
-  // - your account's packages (for me, `stachu`)
-  // - packages shared with you
+  // Search for all packages to get unique owners
+  let searchQuery =
+    ProgramTypes.Search.SearchQuery
+      { currentModule = []
+        text = ""
+        searchDepth = ProgramTypes.Search.SearchDepth.AllDescendants
+        entityTypes = [
+          ProgramTypes.Search.EntityType.Module
+          ProgramTypes.Search.EntityType.Fn
+          ProgramTypes.Search.EntityType.Type
+          ProgramTypes.Search.EntityType.Value
+        ]
+        exactMatch = false }
+
+  let searchResults = PackageManager.Search.search state.branchID searchQuery
+
+  // Extract unique owners from all results
+  let owners =
+    let fnOwners = searchResults.fns |> Stdlib.List.map (fun item -> item.location.owner)
+    let typeOwners = searchResults.types |> Stdlib.List.map (fun item -> item.location.owner)
+    let valueOwners = searchResults.values |> Stdlib.List.map (fun item -> item.location.owner)
+
+    (Stdlib.List.flatten [ fnOwners; typeOwners; valueOwners ])
+    |> Stdlib.List.unique
+    |> Stdlib.List.sort
+
+  // Create tree items for each owner
   let treeItems =
-    [ makeTreeItem "Darklang" "Darklang" TreeItemCollapsibleState.Collapsed Stdlib.Option.Option.None
-      makeTreeItem "Stachu" "Stachu" TreeItemCollapsibleState.Collapsed Stdlib.Option.Option.None
-      makeTreeItem "Scripts" "Scripts" TreeItemCollapsibleState.Collapsed Stdlib.Option.Option.None ]
+    owners
+    |> Stdlib.List.map (fun owner ->
+      makeTreeItem owner owner TreeItemCollapsibleState.Collapsed Stdlib.Option.Option.None)
 
   sendTreeViewResponse requestID treeItems
 
@@ -108,11 +129,11 @@ let buildTreeItems
   let submodules =
     results.submodules
     |> Stdlib.List.filter (fun modulePath ->
-      (Stdlib.List.length modulePath == currentDepth + 1L) &&
+      (Stdlib.List.length modulePath > currentDepth) &&
       isModuleParentOf currentPath modulePath)
     |> Stdlib.List.map (fun modulePath ->
-      match Stdlib.List.last modulePath with
-      | Some lastPart -> lastPart
+      match Stdlib.List.getAt modulePath currentDepth with
+      | Some childName -> childName
       | None -> "")
     |> Stdlib.List.filter (fun name -> name != "")
     |> Stdlib.List.unique
@@ -136,34 +157,25 @@ let handleGetChildNodesRequest
   (requestID: JsonRPC.RequestId)
   (nodeId: String)
   : LspState =
-  let treeItems =
-    if nodeId == "Scripts" then
-      // Handle Scripts node - show all stored scripts
-      let scripts = Builtin.pmScriptsList ()
-      scripts
-      |> Stdlib.List.map (fun script ->
-        let scriptId = $"script/{script.name}"
-        makeTreeItem scriptId script.name TreeItemCollapsibleState.None (Stdlib.Option.Option.Some scriptId))
-    else
-      // Handle package nodes
-      let currentPath = nodeId |> Stdlib.String.split "."
+  // Handle package nodes
+  let currentPath = nodeId |> Stdlib.String.split "."
 
-      let searchQuery =
-        ProgramTypes.Search.SearchQuery
-          { currentModule = currentPath
-            text = ""
-            searchDepth = ProgramTypes.Search.SearchDepth.OnlyDirectDescendants
-            entityTypes = [
-              ProgramTypes.Search.EntityType.Module
-              ProgramTypes.Search.EntityType.Fn
-              ProgramTypes.Search.EntityType.Type
-              ProgramTypes.Search.EntityType.Value
-            ]
-            exactMatch = false }
+  let searchQuery =
+    ProgramTypes.Search.SearchQuery
+      { currentModule = currentPath
+        text = ""
+        searchDepth = ProgramTypes.Search.SearchDepth.AllDescendants
+        entityTypes = [
+          ProgramTypes.Search.EntityType.Module
+          ProgramTypes.Search.EntityType.Fn
+          ProgramTypes.Search.EntityType.Type
+          ProgramTypes.Search.EntityType.Value
+        ]
+        exactMatch = false }
 
-      let searchResults =
-        PackageManager.Search.search state.branchID searchQuery
-      buildTreeItems searchResults currentPath nodeId
+  let searchResults =
+    PackageManager.Search.search state.branchID searchQuery
+  let treeItems = buildTreeItems searchResults currentPath nodeId
 
   sendTreeViewResponse requestID treeItems
   state
