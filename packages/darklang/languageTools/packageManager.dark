@@ -18,6 +18,21 @@ module Type =
     : Stdlib.Option.Option<ProgramTypes.PackageType.PackageType> =
     Builtin.pmGetType id
 
+  let getWithLocation
+    (branchID: Stdlib.Option.Option<Uuid>)
+    (id: Uuid)
+    : Stdlib.Option.Option<
+      ProgramTypes.LocatedItem<ProgramTypes.PackageType.PackageType>> =
+    match Builtin.pmGetType id with
+    | Some entity ->
+      match Builtin.pmGetLocationByType branchID id with
+      | Some location ->
+        Stdlib.Option.Option.Some(
+          ProgramTypes.LocatedItem { entity = entity; location = location }
+        )
+      | None -> Stdlib.Option.Option.None
+    | None -> Stdlib.Option.Option.None
+
 
 module Value =
   let find
@@ -31,6 +46,21 @@ module Value =
     : Stdlib.Option.Option<ProgramTypes.PackageValue.PackageValue> =
     Builtin.pmGetValue id
 
+  let getWithLocation
+    (branchID: Stdlib.Option.Option<Uuid>)
+    (id: Uuid)
+    : Stdlib.Option.Option<
+      ProgramTypes.LocatedItem<ProgramTypes.PackageValue.PackageValue>> =
+    match Builtin.pmGetValue id with
+    | Some entity ->
+      match Builtin.pmGetLocationByValue branchID id with
+      | Some location ->
+        Stdlib.Option.Option.Some(
+          ProgramTypes.LocatedItem { entity = entity; location = location }
+        )
+      | None -> Stdlib.Option.Option.None
+    | None -> Stdlib.Option.Option.None
+
 
 module Function =
   let find
@@ -41,6 +71,21 @@ module Function =
 
   let get (id: Uuid) : Stdlib.Option.Option<ProgramTypes.PackageFn.PackageFn> =
     Builtin.pmGetFn id
+
+  let getWithLocation
+    (branchID: Stdlib.Option.Option<Uuid>)
+    (id: Uuid)
+    : Stdlib.Option.Option<
+      ProgramTypes.LocatedItem<ProgramTypes.PackageFn.PackageFn>> =
+    match Builtin.pmGetFn id with
+    | Some entity ->
+      match Builtin.pmGetLocationByFn branchID id with
+      | Some location ->
+        Stdlib.Option.Option.Some(
+          ProgramTypes.LocatedItem { entity = entity; location = location }
+        )
+      | None -> Stdlib.Option.Option.None
+    | None -> Stdlib.Option.Option.None
 
 
 module Search =
