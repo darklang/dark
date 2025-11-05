@@ -320,6 +320,7 @@ let parsePackageLocation (nameToParse: String): PackageLocation =
           modules = Stdlib.List.reverse rest
           name = name }
     | [] ->
+      // CLEANUP: This case should be handled better
       // Just an owner name with no module/entity name
       // Return a location pointing to the owner itself
       PackageLocation
