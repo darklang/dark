@@ -93,8 +93,9 @@ module ReadFile =
             LanguageTools.ProgramTypes.Search.SearchQuery
               { currentModule = modulePath
                 text = ""
-                searchDepth = LanguageTools.ProgramTypes.Search.SearchDepth.OnlyDirectDescendants
+                searchDepth = LanguageTools.ProgramTypes.Search.SearchDepth.AllDescendants
                 entityTypes = [
+                  LanguageTools.ProgramTypes.Search.EntityType.Module
                   LanguageTools.ProgramTypes.Search.EntityType.Fn
                   LanguageTools.ProgramTypes.Search.EntityType.Type
                   LanguageTools.ProgramTypes.Search.EntityType.Value
@@ -136,17 +137,18 @@ module ReadFile =
             |> Stdlib.String.join "\n"
 
           let contentIndent = Stdlib.String.repeat "  " (Stdlib.List.length modulePath)
-          let indentedContent =
-            allDefinitions
-            |> Stdlib.String.split "\n"
-            |> Stdlib.List.map (fun line ->
-              if line == "" then line else $"{contentIndent}{line}")
-            |> Stdlib.String.join "\n"
 
-          if allDefinitions == "" then
-            $"Module or package element not found: {nameForLookup}"
-          else
-            $"{moduleHeader}\n{indentedContent}"
+          let content =
+            if allDefinitions == "" then
+              $"{contentIndent}// This module is empty."
+            else
+              allDefinitions
+              |> Stdlib.String.split "\n"
+              |> Stdlib.List.map (fun line ->
+                if line == "" then line else $"{contentIndent}{line}")
+              |> Stdlib.String.join "\n"
+
+          $"{moduleHeader}\n{content}"
 
     sendResponse state requestId getContent
 

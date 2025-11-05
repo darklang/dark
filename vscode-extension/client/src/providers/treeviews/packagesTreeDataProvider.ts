@@ -72,7 +72,7 @@ export class Node extends vscode.TreeItem {
           "symbol-type-parameter",
           new vscode.ThemeColor("charts.blue"),
         );
-      } else if (this.contextValue.startsWith("value:") || this.contextValue.startsWith("const:")) {
+      } else if (this.contextValue.startsWith("value:")) {
         this.iconPath = new vscode.ThemeIcon(
           "symbol-constant",
           new vscode.ThemeColor("charts.orange"),
@@ -151,7 +151,9 @@ export class PackagesTreeDataProvider implements vscode.TreeDataProvider<Node> {
 
     // Set contextValue for modules (directories) to enable context menu
     // Only set if there's no existing contextValue (which would be a packagePath for entities)
-    if (type === "directory" && !item.contextValue) {
+    // Skip owners
+    const isRootLevel = !item.id.includes(".");
+    if (type === "directory" && !item.contextValue && !isRootLevel) {
       node.contextValue = "module";
       node.tooltip = `${item.label} - Right-click to open full module`;
     }
@@ -176,7 +178,7 @@ export class PackagesTreeDataProvider implements vscode.TreeDataProvider<Node> {
       try {
         const items = await this._client.sendRequest<TreeItemResponse[]>(
           "dark/getRootNodes",
-          {}
+          {},
         );
 
         this._rootNodesCache = items.map(item => this.mapResponseToNode(item));
