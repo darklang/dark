@@ -141,7 +141,7 @@ module TypeName =
     (currentModule: List<String>)
     (name: WrittenTypes.Name)
     : ProgramTypes.NameResolution<ProgramTypes.FQTypeName.FQTypeName> =
-    resolveGenericName branchID pm onMissing owner currentModule name tryResolve
+    resolveGenericName branchID pm onMissing owner currentModule name TypeName.tryResolve
 
 
 
@@ -190,7 +190,7 @@ module ValueName =
     (currentModule: List<String>)
     (name: WrittenTypes.Name)
     : ProgramTypes.NameResolution<ProgramTypes.FQValueName.FQValueName> =
-    resolveGenericName branchID pm onMissing owner currentModule name tryResolve
+    resolveGenericName branchID pm onMissing owner currentModule name ValueName.tryResolve
 
 
 
@@ -238,4 +238,4 @@ module FnName =
     (currentModule: List<String>)
     (name: WrittenTypes.Name)
     : ProgramTypes.NameResolution<ProgramTypes.FQFnName.FQFnName> =
-    resolveGenericName branchID pm onMissing owner currentModule name tryResolve
+    resolveGenericName branchID pm onMissing owner currentModule name FnName.tryResolve

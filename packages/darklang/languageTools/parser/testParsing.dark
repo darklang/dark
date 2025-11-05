@@ -5,8 +5,9 @@ let initialParse
   (code: String)
   : Stdlib.Result.Result<WrittenTypes.ParsedFile, String> =
   code
-  |> LanguageTools.Parser.parseToSimplifiedTree
-  |> LanguageTools.Parser.parseFromTree
+  |> parseToSimplifiedTree
+  |> parseFromTree
+
 
 // TODO: maybe use a proper type instead of string?
 let parsePTExpr
@@ -20,8 +21,8 @@ let parsePTExpr
       | SourceFile s -> s.exprsToEval
       | _ -> []
 
-    let onMissing = LanguageTools.NameResolver.OnMissing.Allow
-    let pm = LanguageTools.PackageManager.pm ()
+    let onMissing = NameResolver.OnMissing.Allow
+    let pm = PackageManager.pm ()
 
     match exprs with
     | [ expr ] ->
@@ -41,24 +42,12 @@ let parsePTExpr
       |> Stdlib.Result.Result.Error
   | Error e -> Stdlib.Result.Result.Error e
 
-let parsePTSourceFile
-  (code: String)
-  (branchID: Stdlib.Option.Option<ProgramTypes.BranchID>)
-  : Stdlib.Result.Result<ProgramTypes.SourceFile.SourceFile, String> =
-  match code |> TestParsing.initialParse with
-  | Ok parsedFile ->
-    parsedFile
-    |> WrittenTypesToProgramTypes.parsedFileAsSourceFile branchID
-    |> Stdlib.Tuple3.first
-    |> Stdlib.Result.Result.Ok
-  | Error e -> Stdlib.Result.Result.Error e
 
 let parsePTSourceFileWithOps
   (branchID: Stdlib.Option.Option<ProgramTypes.BranchID>)
   (code: String)
   : Stdlib.Result.Result<
-    (ProgramTypes.SourceFile.SourceFile *
-      List<ProgramTypes.PackageOp>),
+    (ProgramTypes.SourceFile.SourceFile * List<ProgramTypes.PackageOp>),
     String
   > =
   match code |> TestParsing.initialParse with
@@ -67,14 +56,4 @@ let parsePTSourceFileWithOps
       parsedFile |> WrittenTypesToProgramTypes.parsedFileAsSourceFile branchID
 
     (sourceFile, ops) |> Stdlib.Result.Result.Ok
-  | Error e -> Stdlib.Result.Result.Error e
-
-let parseAndPrettyPrint
-  (branchID: Stdlib.Option.Option<ProgramTypes.BranchID>)
-  (code: String)
-  : Stdlib.Result.Result<String, String> =
-  match code |> TestParsing.parsePTSourceFile branchID with
-  | Ok sourceFile ->
-    (PrettyPrinter.ProgramTypes.sourceFile branchID sourceFile)
-    |> Stdlib.Result.Result.Ok
   | Error e -> Stdlib.Result.Result.Error e

@@ -437,12 +437,6 @@ module Fn =
       let parsePTExpr =
         p [ "TestParsing" ] "parsePTExpr" "d96d3e6b-6c0d-4559-ae36-353eaf738fa9"
 
-      let parseAndPrettyPrint =
-        p
-          [ "TestParsing" ]
-          "parseAndPrettyPrint"
-          "361fb7f2-523b-4b50-8f29-cc99d5f03e3a"
-
       let parsePTSourceFileWithOps =
         p
           [ "TestParsing" ]

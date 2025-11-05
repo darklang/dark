@@ -114,11 +114,10 @@ let addSlashToDirectories (baseDir: String) (files: List<String>) : List<String>
 
 /// Complete filesystem paths, handling . .. and / separators
 let completeFilesystemPath (partialArg: String) : List<String> =
-  let currentDir = Builtin.directoryCurrent ()
+  let currentDir = "."
 
   if partialArg == "." then
-    Stdlib.Cli.FileSystem.getDirectoryContents "."
-    |> addSlashToDirectories currentDir
+    addSlashToDirectories currentDir (Stdlib.Cli.FileSystem.getDirectoryContents ".")
   else if partialArg == ".." then
     [ "../" ]
   else if Stdlib.String.contains partialArg "/" then
@@ -133,7 +132,7 @@ let completeFilesystemPath (partialArg: String) : List<String> =
         else
           $"{currentDir}/{dirPart}"
 
-      Stdlib.Cli.FileSystem.getDirectoryContents fullPath
+      (Stdlib.Cli.FileSystem.getDirectoryContents fullPath)
       |> Stdlib.List.filter (fun f -> Stdlib.String.startsWith f filePart)
       |> Stdlib.List.map (fun f ->
         if Stdlib.Cli.FileSystem.isDirectoryAtPath fullPath f then
@@ -142,6 +141,8 @@ let completeFilesystemPath (partialArg: String) : List<String> =
           $"{dirPart}{f}")
     | None -> []
   else
-    Stdlib.Cli.FileSystem.getDirectoryContents "."
-    |> Stdlib.List.filter (fun f -> Stdlib.String.startsWith f partialArg)
-    |> addSlashToDirectories currentDir
+    let files =
+      (Stdlib.Cli.FileSystem.getDirectoryContents ".")
+      |> Stdlib.List.filter (fun f -> Stdlib.String.startsWith f partialArg)
+
+    addSlashToDirectories currentDir files

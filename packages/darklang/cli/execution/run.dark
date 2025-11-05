@@ -2,7 +2,7 @@ module Darklang.Cli.Run
 
 
 // Helper: Parse a single argument string into an expression
-let parseArgString (branchId: Uuid) (pm: LanguageTools.ProgramTypes.PackageManager) (arg: String) : LanguageTools.ProgramTypes.Expr =
+let parseArgString (branchId: Stdlib.Option.Option<Uuid>) (pm: LanguageTools.ProgramTypes.PackageManager.PackageManager) (arg: String) : LanguageTools.ProgramTypes.Expr =
   let onMissing = LanguageTools.NameResolver.OnMissing.Allow
   let parsedFile =
     arg
@@ -39,10 +39,10 @@ let completeFunctionName (searchText: String) : List<String> =
     // Start from root and use existing traversal completion
     let rootLocation = Packages.PackageLocation.Module []
 
-    Packages.Traversal.completePartialPath
+    (Packages.Traversal.completePartialPath
       Stdlib.Option.Option.None
       rootLocation
-      searchText
+      searchText)
     |> Stdlib.List.map (fun completion -> $"@{completion}")
     |> Stdlib.List.take 100L
 
