@@ -98,3 +98,50 @@ let findCommonPrefix (strings: List<String>) : String =
       let maxLen = Stdlib.Int64.min (Stdlib.String.length acc) (Stdlib.String.length next)
       let commonLen = findCommonLength acc next 0L maxLen
       Stdlib.String.slice acc 0L commonLen)
+
+
+// Filesystem completion helpers
+
+/// Add trailing slashes to directory names in a file list
+let addSlashToDirectories (baseDir: String) (files: List<String>) : List<String> =
+  files
+  |> Stdlib.List.map (fun file ->
+    if Stdlib.Cli.FileSystem.isDirectoryAtPath baseDir file then
+      $"{file}/"
+    else
+      file)
+
+
+/// Complete filesystem paths, handling . .. and / separators
+let completeFilesystemPath (partialArg: String) : List<String> =
+  let currentDir = Builtin.directoryCurrent ()
+
+  if partialArg == "." then
+    Stdlib.Cli.FileSystem.getDirectoryContents "."
+    |> addSlashToDirectories currentDir
+  else if partialArg == ".." then
+    [ "../" ]
+  else if Stdlib.String.contains partialArg "/" then
+    match Stdlib.String.lastIndexOf partialArg "/" with
+    | Some idx ->
+      let dirPart = Stdlib.String.slice partialArg 0L (idx + 1L)
+      let filePart = Stdlib.String.dropFirst partialArg (idx + 1L)
+
+      let fullPath =
+        if Stdlib.String.startsWith dirPart "/" then
+          dirPart
+        else
+          $"{currentDir}/{dirPart}"
+
+      Stdlib.Cli.FileSystem.getDirectoryContents fullPath
+      |> Stdlib.List.filter (fun f -> Stdlib.String.startsWith f filePart)
+      |> Stdlib.List.map (fun f ->
+        if Stdlib.Cli.FileSystem.isDirectoryAtPath fullPath f then
+          $"{dirPart}{f}/"
+        else
+          $"{dirPart}{f}")
+    | None -> []
+  else
+    Stdlib.Cli.FileSystem.getDirectoryContents "."
+    |> Stdlib.List.filter (fun f -> Stdlib.String.startsWith f partialArg)
+    |> addSlashToDirectories currentDir
