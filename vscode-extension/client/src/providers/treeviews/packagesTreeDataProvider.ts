@@ -175,7 +175,7 @@ export class PackagesTreeDataProvider implements vscode.TreeDataProvider<Node> {
       // Fetch root nodes from LSP
       try {
         const items = await this._client.sendRequest<TreeItemResponse[]>(
-          "darklang/getRootNodes",
+          "dark/getRootNodes",
           {}
         );
 
@@ -189,7 +189,7 @@ export class PackagesTreeDataProvider implements vscode.TreeDataProvider<Node> {
 
     try {
       const items = await this._client.sendRequest<TreeItemResponse[]>(
-        "darklang/getChildNodes",
+        "dark/getChildNodes",
         { nodeId: node.id },
       );
 

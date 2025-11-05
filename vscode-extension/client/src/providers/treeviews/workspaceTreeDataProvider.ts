@@ -235,7 +235,7 @@ export class WorkspaceTreeDataProvider implements vscode.TreeDataProvider<Branch
       };
 
       const ops = await this.client.sendRequest<PendingOpResponse[]>(
-        'darklang/getPendingOps',
+        'dark/getPendingOps',
         requestParams
       );
 
@@ -326,7 +326,7 @@ export class WorkspaceTreeDataProvider implements vscode.TreeDataProvider<Branch
     let instanceChildren: BranchNode[] = [];
     try {
       const instances = await this.client.sendRequest<Array<{id: string, name: string, url: string}>>(
-        "darklang/listInstances",
+        "dark/listInstances",
         {}
       );
 

@@ -1,7 +1,7 @@
 module Darklang.LanguageTools.LspServer.Branches
 
 
-/// Handles `darklang/getBranches` requests
+/// Handles `dark/getBranches` requests
 let handleGetBranchesRequest
   (state: LspState)
   (requestID: JsonRPC.RequestId)
@@ -34,7 +34,7 @@ let handleGetBranchesRequest
   state
 
 
-/// Handles `darklang/createBranch` requests
+/// Handles `dark/createBranch` requests
 let handleCreateBranchRequest
   (state: LspState)
   (requestID: JsonRPC.RequestId)
@@ -66,7 +66,7 @@ let handleCreateBranchRequest
 
 
 
-/// Handles `darklang/clearBranch` requests
+/// Handles `dark/clearBranch` requests
 let handleClearBranchRequest
   (state: LspState)
   (requestID: JsonRPC.RequestId)

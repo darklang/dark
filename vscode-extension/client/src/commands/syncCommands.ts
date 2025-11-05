@@ -23,7 +23,7 @@ export class SyncCommands {
           const response = await this.client.sendRequest<{
             success: boolean;
             message: string;
-          }>("darklang/sync", { instanceID: instanceName });
+          }>("dark/sync", { instanceID: instanceName });
 
           if (response.success) {
             vscode.window.showInformationMessage(response.message);
@@ -46,7 +46,7 @@ export class SyncCommands {
           const response = await this.client.sendRequest<{
             success: boolean;
             message: string;
-          }>("darklang/sync", { instanceID: instanceName });
+          }>("dark/sync", { instanceID: instanceName });
 
           if (response.success) {
             vscode.window.showInformationMessage(response.message);

@@ -52,7 +52,7 @@ let sendTreeViewResponse
   logAndSendToClient responseJson
 
 
-/// handles `darklang/getRootNodes` requests
+/// handles `dark/getRootNodes` requests
 let handleGetRootNodesRequest
   (state: LspState)
   (requestID: JsonRPC.RequestId)

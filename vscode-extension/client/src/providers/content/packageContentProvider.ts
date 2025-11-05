@@ -23,7 +23,7 @@ export class PackageContentProvider {
       return this.getPackageListContent();
     }
 
-    // TODO: Add AST view support (should integrate with LSP's darklang/ast request)
+    // TODO: Add AST view support (should integrate with LSP's dark/ast request)
     return await this.getSourceView(target);
   }
 

@@ -251,35 +251,35 @@ let handleIncomingMessage
         let r = jsonRpcRequest
 
         match (r.method, r.id, r.params) with
-        | ("darklang/getRootNodes", Some requestId, _) ->
+        | ("dark/getRootNodes", Some requestId, _) ->
           TreeView.handleGetRootNodesRequest state requestId
 
-        | ("darklang/getChildNodes",
+        | ("dark/getChildNodes",
           Some requestId,
           Some(Object [ ("nodeId", String nodeId) ])) ->
           TreeView.handleGetChildNodesRequest state requestId nodeId
 
-        | ("darklang/getBranches", Some requestId, _) ->
+        | ("dark/getBranches", Some requestId, _) ->
           Branches.handleGetBranchesRequest state requestId
 
-        | ("darklang/createBranch",
+        | ("dark/createBranch",
           Some requestId,
           Some(Object [ ("name", String branchName) ])) ->
           Branches.handleCreateBranchRequest state requestId branchName
 
-        | ("darklang/getPendingOps", Some requestId, params) ->
+        | ("dark/getPendingOps", Some requestId, params) ->
           PendingOps.handleGetPendingOpsRequest state requestId params
 
-        | ("darklang/switchBranch", Some requestId, Some(Object [ ("branchID", String branchID) ])) ->
+        | ("dark/switchBranch", Some requestId, Some(Object [ ("branchID", String branchID) ])) ->
           SwitchBranch.handleSwitchBranchRequest state requestId branchID
 
-        | ("darklang/clearBranch", Some requestId, _) ->
+        | ("dark/clearBranch", Some requestId, _) ->
           Branches.handleClearBranchRequest state requestId
 
-        | ("darklang/sync", Some requestId, Some(Object [ ("instanceID", String instanceID) ])) ->
+        | ("dark/sync", Some requestId, Some(Object [ ("instanceID", String instanceID) ])) ->
           Sync.handleSyncRequest state requestId instanceID
 
-        | ("darklang/listInstances", Some requestId, _) ->
+        | ("dark/listInstances", Some requestId, _) ->
           Sync.handleListInstancesRequest state requestId
 
         | other ->

@@ -1,6 +1,6 @@
 module Darklang.LanguageTools.LspServer.Sync
 
-/// Handles `darklang/sync` requests from VS Code
+/// Handles `dark/sync` requests from VS Code
 let handleSyncRequest
   (state: LspState)
   (requestID: JsonRPC.RequestId)
@@ -33,7 +33,7 @@ let handleSyncRequest
   state
 
 
-/// Handles `darklang/listInstances` requests from VS Code
+/// Handles `dark/listInstances` requests from VS Code
 let handleListInstancesRequest
   (state: LspState)
   (requestID: JsonRPC.RequestId)

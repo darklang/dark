@@ -37,7 +37,7 @@ export class BranchStateManager {
     try {
       console.log("Fetching branches from LSP server...");
       const response = await this._client.sendRequest<Branch[]>(
-        "darklang/getBranches",
+        "dark/getBranches",
       );
       this._branches = response;
       console.log(`Fetched ${this._branches.length} branches:`, this._branches);
@@ -66,7 +66,7 @@ export class BranchStateManager {
     // Notify the LSP server about the branch switch
     if (this._client) {
       try {
-        await this._client.sendRequest("darklang/switchBranch", {
+        await this._client.sendRequest("dark/switchBranch", {
           branchID: branchID,
         });
         console.log(`LSP server updated to branch: ${branchID}`);
@@ -94,7 +94,7 @@ export class BranchStateManager {
     // Notify the LSP server about clearing the branch
     if (this._client) {
       try {
-        await this._client.sendRequest("darklang/clearBranch", {});
+        await this._client.sendRequest("dark/clearBranch", {});
         console.log("LSP server cleared branch context");
       } catch (error) {
         console.error("Error clearing LSP server branch context:", error);
@@ -113,7 +113,7 @@ export class BranchStateManager {
     try {
       console.log(`Creating branch: ${name}`);
       const response = await this._client.sendRequest<Branch>(
-        "darklang/createBranch",
+        "dark/createBranch",
         { name },
       );
 

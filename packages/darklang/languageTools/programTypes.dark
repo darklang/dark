@@ -309,7 +309,6 @@ type PackageLocation =
     name: String }
 
 let parsePackageLocation (nameToParse: String): PackageLocation =
-  // CLEANUP will crash if you just pass owner name
   let parts = Stdlib.String.split nameToParse "."
   match parts with
   | owner :: rest ->
@@ -320,6 +319,16 @@ let parsePackageLocation (nameToParse: String): PackageLocation =
         { owner = owner
           modules = Stdlib.List.reverse rest
           name = name }
+    | [] ->
+      // Just an owner name with no module/entity name
+      // Return a location pointing to the owner itself
+      PackageLocation
+        { owner = owner
+          modules = []
+          name = "" }
+  | [] ->
+    // Empty name (shouldn't happen, but handle it)
+    PackageLocation { owner = ""; modules = []; name = "" }
 
 type BranchID = Uuid
 
