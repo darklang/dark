@@ -1,5 +1,10 @@
 module Darklang.LanguageTools.LspServer.HoverInformation
 
+// this file is really long - quick thoughts on how to potentially tidy:
+// - operators (lines ~1231-1361): 13 nearly identical fns, could be lookup table. Quick win, saves ~100 lines.
+// - builtin types (lines ~296-314): 15 identical primitive type cases, could be data-driven. Saves ~50 lines.
+// - expression helpers: lots of "check range → recurse on children" patterns could be extracted. Saves ~200 lines.
+// - full generic tree walker: would cut ~50% of code but big refactor. probably overkill unless we're actively working here.
 
 type Info =
   { range: WrittenTypes.Range

@@ -57,6 +57,8 @@ let handleGetRootNodesRequest
   (state: LspState)
   (requestID: JsonRPC.RequestId)
   : LspState =
+  // TODO perf: this is kinda nuts - we search ALL packages just to extract unique owners
+  // should have a dedicated SQL query like `SELECT DISTINCT owner FROM locations WHERE deprecated_at IS NULL`
   // Search for all packages to get unique owners
   let searchQuery =
     ProgramTypes.Search.SearchQuery
@@ -157,6 +159,9 @@ let handleGetChildNodesRequest
   (requestID: JsonRPC.RequestId)
   (nodeId: String)
   : LspState =
+  // TODO perf: using AllDescendants then filtering in Darklang to get immediate children
+  // works fine now but won't scale to millions of packages
+  // see later.md for optimization options (denormalized table, better SQL queries, etc.)
   // Handle package nodes
   let currentPath = nodeId |> Stdlib.String.split "."
 

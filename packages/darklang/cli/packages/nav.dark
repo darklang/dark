@@ -1,7 +1,7 @@
 /// Navigate between packages, modules, and entities
 module Darklang.Cli.Packages.Nav
 
-let navTo (state: Cli.AppState) (location: PackageLocation): Cli.AppState =
+let navTo (state: AppState) (location: PackageLocation): AppState =
   // if the intended state is the same as the current state (cd .), then short-circuit
   if location == state.packageData.currentLocation then
     state
@@ -21,7 +21,7 @@ let navTo (state: Cli.AppState) (location: PackageLocation): Cli.AppState =
     }
 
 
-let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
+let execute (state: AppState) (args: List<String>) : AppState =
   match args with
   | [] ->
     // Enter interactive navigation mode
@@ -49,7 +49,7 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
     help state
 
 
-let complete (state: Cli.AppState) (args: List<String>) : List<String> =
+let complete (state: AppState) (args: List<String>) : List<String> =
   match args with
   | [] ->
     // No args - complete from current location
@@ -61,7 +61,7 @@ let complete (state: Cli.AppState) (args: List<String>) : List<String> =
     []
 
 
-let help (_state: Cli.AppState) : Cli.AppState =
+let help (_state: AppState) : AppState =
   [
     "Usage: nav [path]"
     "Navigate package space - modules, types, values, and functions ."

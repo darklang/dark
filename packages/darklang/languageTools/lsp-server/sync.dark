@@ -7,9 +7,9 @@ let handleSyncRequest
   (instanceName: String)
   : LspState =
   let result =
-    match Darklang.SCM.Instances.getByName instanceName with
+    match SCM.Instances.getByName instanceName with
     | Some instance ->
-      let result = Darklang.SCM.Sync.sync instance.id instance.url state.branchID
+      let result = SCM.Sync.sync instance.id instance.url state.branchID
 
       match result with
       | Ok message ->
@@ -38,7 +38,7 @@ let handleListInstancesRequest
   (state: LspState)
   (requestID: JsonRPC.RequestId)
   : LspState =
-  let instances = Darklang.SCM.Instances.list ()
+  let instances = SCM.Instances.list ()
 
   let instancesJson =
     instances
