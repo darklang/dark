@@ -5,12 +5,14 @@ set -euo pipefail
 
 PUBLISHED=false
 FLAGS=""
+NO_LOG=false
 
 for i in "$@"
 do
   case "${i}" in
     --published) shift; PUBLISHED=true ;;
     --flags=*) FLAGS="${i#*=}" ;;
+    --no-log) shift; NO_LOG=true ;;
   esac
 done
 
@@ -62,8 +64,11 @@ fi
 GIT_COMMIT=$(git rev-parse --short HEAD)
 export GIT_COMMIT
 
-# 'tee' was screwing up our MCP server running through this script
-"${EXE}" "$@" 2>&1 | tee "${CLI_LOG}"
-# CLEANUP It'd be great to come up with a solution that allos us to still log to that cli.log file.
-# "${EXE}" "$@"
+# context: 'tee' was screwing up our MCP server running through this script
+# so a --no-log argument is supported to skip logging to the file
+if [[ "$NO_LOG" == "true" ]]; then
+  "${EXE}" "$@"
+else
+  "${EXE}" "$@" 2>&1 | tee "${CLI_LOG}"
+fi
 

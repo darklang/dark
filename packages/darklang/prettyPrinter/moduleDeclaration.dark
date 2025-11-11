@@ -328,7 +328,7 @@ module ModuleDeclaration =
 
 
 let moduleDeclaration
-  (branchID: Stdlib.Option.Option<Uuid>)
+  (ctx: PrettyPrinter.ProgramTypes.Context)
   (m: ModuleDeclaration.Module)
   : String =
   let headerPart = $"module {m.name} =\n"
@@ -338,7 +338,7 @@ let moduleDeclaration
     | [] -> Stdlib.Option.Option.None
     | types ->
       m.types
-      |> Stdlib.List.map (fun t -> PrettyPrinter.ProgramTypes.packageType branchID t)
+      |> Stdlib.List.map (fun t -> PrettyPrinter.ProgramTypes.packageType ctx.branchID t)
       |> Stdlib.String.join "\n\n"
       |> Stdlib.Option.Option.Some
 
@@ -347,7 +347,7 @@ let moduleDeclaration
     | [] -> Stdlib.Option.Option.None
     | fns ->
       m.fns
-      |> Stdlib.List.map (fun f -> PrettyPrinter.ProgramTypes.packageFn branchID f)
+      |> Stdlib.List.map (fun f -> PrettyPrinter.ProgramTypes.packageFn ctx f)
       |> Stdlib.String.join "\n\n"
       |> Stdlib.Option.Option.Some
 
@@ -356,7 +356,7 @@ let moduleDeclaration
     | [] -> Stdlib.Option.Option.None
     | values ->
       m.values
-      |> Stdlib.List.map (fun v -> PrettyPrinter.ProgramTypes.packageValue branchID v)
+      |> Stdlib.List.map (fun v -> PrettyPrinter.ProgramTypes.packageValue ctx v)
       |> Stdlib.String.join "\n\n"
       |> Stdlib.Option.Option.Some
 
@@ -365,7 +365,7 @@ let moduleDeclaration
     | [] -> Stdlib.Option.Option.None
     | exprs ->
       m.exprs
-      |> Stdlib.List.map (fun (e, _) -> PrettyPrinter.ProgramTypes.expr PrettyPrinter.ProgramTypes.defaultContext e)
+      |> Stdlib.List.map (fun (e, _) -> PrettyPrinter.ProgramTypes.expr ctx e)
       |> Stdlib.String.join "\n\n"
       |> Stdlib.Option.Option.Some
 
@@ -375,7 +375,7 @@ let moduleDeclaration
     | [] -> Stdlib.Option.Option.None
     | submodules ->
       submodules
-      |> Stdlib.List.map (fun m -> PrettyPrinter.moduleDeclaration branchID m)
+      |> Stdlib.List.map (fun m -> PrettyPrinter.moduleDeclaration ctx m)
       |> Stdlib.String.join "\n\n"
       |> Stdlib.Option.Option.Some
 
@@ -393,12 +393,12 @@ let moduleDeclaration
     $"module {m.name} =\n{bodyPart}"
 
 let definitions
-  (branchID: Stdlib.Option.Option<Uuid>)
+  (ctx: PrettyPrinter.ProgramTypes.Context)
   (p: LanguageTools.ProgramTypes.Definitions)
   : String =
   let modules = ModuleDeclaration.toModules p
 
   // CLEANUP make ordering 'better' in some way
   modules
-  |> Stdlib.List.map (fun m -> PrettyPrinter.moduleDeclaration branchID m)
+  |> Stdlib.List.map (fun m -> PrettyPrinter.moduleDeclaration ctx m)
   |> Stdlib.String.join "\n\n"

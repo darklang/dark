@@ -10,7 +10,6 @@ import {
 
 import { PackagesTreeDataProvider } from "./providers/treeviews/packagesTreeDataProvider";
 import { WorkspaceTreeDataProvider } from "./providers/treeviews/workspaceTreeDataProvider";
-
 import { BranchesManagerPanel } from "./panels/branchManagerPanel";
 
 import { BranchCommands } from "./commands/branchCommands";
@@ -25,35 +24,24 @@ import { BranchStateManager } from "./data/branchStateManager";
 import { DarkFileSystemProvider } from "./providers/darkFileSystemProvider";
 import { DarkContentProvider } from "./providers/darkContentProvider";
 import { DarklangFileDecorationProvider } from "./providers/fileDecorationProvider";
+import { PackageContentProvider } from "./providers/content/packageContentProvider";
 
 let client: LanguageClient;
 
 function createLSPClient(): LanguageClient {
-  const isDebugMode = process.env.VSCODE_DEBUG_MODE === "true";
-  const serverOptions: ServerOptions = {
-    run: {
-      options: { cwd: "/home/dark/app" },
-      command: "bash",
-      args: [
-        isDebugMode ? "./scripts/run-cli" : "darklang",
-        "run",
-        "@Darklang.LanguageTools.LspServer.runServerCli",
-        "()",
-      ],
-      transport: TransportKind.stdio,
-    },
-    debug: {
-      options: { cwd: "/home/dark/app" },
-      command: "bash",
-      args: [
-        isDebugMode ? "./scripts/run-cli" : "darklang",
-        "run",
-        "@Darklang.LanguageTools.LspServer.runServerCli",
-        "()",
-      ],
-      transport: TransportKind.stdio,
-    },
+  const isDebug = process.env.VSCODE_DEBUG_MODE === "true";
+  const cwd = "/home/dark/app";
+  const cli = isDebug ? "./scripts/run-cli" : "darklang";
+  const args = [cli, "run", "@Darklang.LanguageTools.LspServer.runServerCli", "()" ];
+
+  const baseRun = {
+    options: { cwd },
+    command: "bash",
+    args,
+    transport: TransportKind.stdio as const,
   };
+
+  const serverOptions: ServerOptions = { run: baseRun, debug: baseRun };
 
   const clientOptions: LanguageClientOptions = {
     documentSelector: [
@@ -64,21 +52,13 @@ function createLSPClient(): LanguageClient {
       fileEvents: vscode.workspace.createFileSystemWatcher("**/*.dark"),
     },
     traceOutputChannel: vscode.window.createOutputChannel("Darklang LSP - Client"),
-    connectionOptions: {
-      cancellationStrategy: null,
-      maxRestartCount: 0,
-    },
+    connectionOptions: { cancellationStrategy: null, maxRestartCount: 0 },
   };
 
-  const lspClient = new LanguageClient(
-    "darklangLsp",
-    "Darklang LSP - Server",
-    serverOptions,
-    clientOptions,
-  );
-  lspClient.registerFeature(new SemanticTokensFeature(lspClient));
-  lspClient.trace = Trace.Verbose;
-  return lspClient;
+  const lsp = new LanguageClient("darklangLsp", "Darklang LSP - Server", serverOptions, clientOptions);
+  lsp.registerFeature(new SemanticTokensFeature(lsp));
+  lsp.trace = Trace.Verbose;
+  return lsp;
 }
 
 export async function activate(context: vscode.ExtensionContext) {
@@ -88,81 +68,69 @@ export async function activate(context: vscode.ExtensionContext) {
 
   BranchStateManager.initialize(client);
 
-  const statusBarManager = new StatusBarManager();
-  const fileSystemProvider = new DarkFileSystemProvider(client);
+  const statusBar = new StatusBarManager();
+  const fsProvider = new DarkFileSystemProvider(client);
   const contentProvider = new DarkContentProvider(client);
-  const fileDecorationProvider = new DarklangFileDecorationProvider();
+  const decorationProvider = new DarklangFileDecorationProvider();
 
-  const { PackageContentProvider } = await import("./providers/content/packageContentProvider");
   PackageContentProvider.setClient(client);
 
-  // Register webview panel serializer for branches manager
-  if (vscode.window.registerWebviewPanelSerializer) {
-    vscode.window.registerWebviewPanelSerializer(
-      BranchesManagerPanel.viewType,
-      {
-        async deserializeWebviewPanel(
-          webviewPanel: vscode.WebviewPanel,
-          _state: any,
-        ) {
-          BranchesManagerPanel.revive(webviewPanel, context.extensionUri);
-        },
+  // Webview panel serializer (if supported)
+  vscode.window.registerWebviewPanelSerializer?.(
+    BranchesManagerPanel.viewType,
+    {
+      async deserializeWebviewPanel(panel) {
+        BranchesManagerPanel.revive(panel, context.extensionUri);
       },
-    );
-  }
+    },
+  );
 
   const packagesProvider = new PackagesTreeDataProvider(client);
   const workspaceProvider = new WorkspaceTreeDataProvider(client);
 
-  fileSystemProvider.setPackagesProvider(packagesProvider);
-  fileSystemProvider.setWorkspaceProvider(workspaceProvider);
+  fsProvider.setPackagesProvider(packagesProvider);
+  fsProvider.setWorkspaceProvider(workspaceProvider);
 
-  const packagesView = vscode.window.createTreeView("darklangPackages", {
-    treeDataProvider: packagesProvider,
-    showCollapseAll: true,
-  });
+  const createView = (id: string, provider: vscode.TreeDataProvider<any>, showCollapseAll: boolean) =>
+    vscode.window.createTreeView(id, { treeDataProvider: provider, showCollapseAll });
 
-  const workspaceView = vscode.window.createTreeView("darklangWorkspace", {
-    treeDataProvider: workspaceProvider,
-    showCollapseAll: false,
-  });
-  workspaceView.title = "Workspace";
+  const packagesView = createView("darklangPackages", packagesProvider, true);
+  const workspaceView = createView("darklangWorkspace", workspaceProvider, false);
+  (workspaceView as any).title = "Workspace"; // keep existing behavior
 
   BranchStateManager.getInstance().onBranchChanged(() => {
     packagesProvider.refresh();
-    fileSystemProvider.refreshAllOpenFiles();
+    fsProvider.refreshAllOpenFiles();
   });
 
   const packageCommands = new PackageCommands();
-  const branchCommands = new BranchCommands(statusBarManager, workspaceProvider);
-  const instanceCommands = new InstanceCommands(client, statusBarManager, workspaceProvider);
+  const branchCommands = new BranchCommands(statusBar, workspaceProvider);
+  const instanceCommands = new InstanceCommands(client, statusBar, workspaceProvider);
   const syncCommands = new SyncCommands(client);
   const scriptCommands = new ScriptCommands();
 
   instanceCommands.setPackagesProvider(packagesProvider);
 
-  const opsCommands = [
+  const reg = (d: vscode.Disposable) => context.subscriptions.push(d);
+
+  const ops = [
     ["darklang.ops.setLimit", () => workspaceProvider.configureLimitFilter()],
     ["darklang.ops.setDateRange", () => workspaceProvider.configureDateFilter()],
     ["darklang.ops.setBranch", () => workspaceProvider.configureBranchFilter()],
     ["darklang.ops.setLocation", () => workspaceProvider.configureLocationFilter()],
     ["darklang.ops.clearFilters", () => workspaceProvider.clearAllFilters()],
-  ].map(([cmd, handler]) =>
-    vscode.commands.registerCommand(cmd as string, handler as () => void)
-  );
+  ] as const;
 
-  context.subscriptions.push(
-    statusBarManager,
-    vscode.workspace.registerFileSystemProvider("darkfs", fileSystemProvider, {
-      isCaseSensitive: true,
-      isReadonly: false,
-    }),
+  // Core registrations
+  [
+    statusBar,
+    vscode.workspace.registerFileSystemProvider("darkfs", fsProvider, { isCaseSensitive: true, isReadonly: false }),
     vscode.workspace.registerTextDocumentContentProvider("dark", contentProvider),
-    vscode.window.registerFileDecorationProvider(fileDecorationProvider),
+    vscode.window.registerFileDecorationProvider(decorationProvider),
     vscode.commands.registerCommand("darklang.branches.manageAll", () => {
       BranchesManagerPanel.createOrShow(context.extensionUri);
     }),
-    ...opsCommands,
+    ...ops.map(([cmd, fn]) => vscode.commands.registerCommand(cmd, fn)),
     packagesView,
     packagesProvider,
     workspaceView,
@@ -171,12 +139,9 @@ export async function activate(context: vscode.ExtensionContext) {
     ...instanceCommands.register(),
     ...syncCommands.register(),
     ...scriptCommands.register(),
-  );
+  ].forEach(reg);
 }
 
 export function deactivate(): Thenable<void> | undefined {
-  if (!client) {
-    return undefined;
-  }
-  return client.stop();
+  return client ? client.stop() : undefined;
 }

@@ -28,9 +28,7 @@ export class DarkContentProvider implements vscode.TextDocumentContentProvider {
     }
   }
 
-  /**
-   * Render the source view for a URI
-   */
+  /** Render the source view for a URI */
   private async renderSourceFor(uri: vscode.Uri): Promise<string> {
     const url = uri.toString();
     const parsedUrl = UrlPatternRouter.parseUrl(url);
@@ -42,9 +40,7 @@ export class DarkContentProvider implements vscode.TextDocumentContentProvider {
     return await this.getContentForParsedUrl(parsedUrl);
   }
 
-  /**
-   * Route parsed URL to appropriate content provider
-   */
+  /** Route parsed URL to appropriate content provider */
   private async getContentForParsedUrl(parsedUrl: ParsedUrl): Promise<string> {
     switch (parsedUrl.mode) {
       case "package":

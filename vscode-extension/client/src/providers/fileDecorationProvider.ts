@@ -3,7 +3,6 @@ import { UrlMetadataSystem } from './urlMetadataSystem';
 
 // CLEANUP:
 // - UrlMetadata.title field is generated but never used by this provider
-// - UrlMetadata.contentProvider field is set but never read
 
 export class DarklangFileDecorationProvider implements vscode.FileDecorationProvider {
   private readonly _onDidChangeFileDecorations = new vscode.EventEmitter<vscode.Uri | vscode.Uri[] | undefined>();

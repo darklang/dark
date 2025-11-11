@@ -1,6 +1,6 @@
 /** URL Pattern Router */
 
-// uh this should all be in Darklang
+// CLEANUP this should all be in Darklang
 // and should be modeled as a Page, maybe? or Document
 export interface ParsedUrl {
   scheme: string;
@@ -106,11 +106,5 @@ export class UrlPatternRouter {
       }
     }
     return params;
-  }
-
-  /** Generate URLs for common patterns */
-  static createPackageUrl(packagePath: string, view?: string): string {
-    const url = `dark:///package/${packagePath.replace(/\./g, '/')}`;
-    return view ? `${url}?view=${view}` : url;
   }
 }

@@ -6,6 +6,24 @@ import { PackagesTreeDataProvider } from "./treeviews/packagesTreeDataProvider";
 /**
  * FileSystemProvider for darkfs:// URIs
  * Enables editing of package modules with automatic parsing and op generation on save
+ *
+ * TODO: Clean up URI scheme usage
+ * Currently we have:
+ * - dark:// = TextDocumentContentProvider (read-only views like branch overviews)
+ * - darkfs:// = FileSystemProvider (editable, currently requires .dark extension)
+ *
+ * Plan:
+ * 1. Keep both schemes (different schemes = different editability, good UX)
+ * 2. Remove .dark extension requirement from darkfs:// URLs
+ * 3. Update LSP URI parsing to be flexible (no hardcoded .dark stripping)
+ * 4. Remove lookUpToplevel command (redundant with tree view)
+ *
+ * After changes:
+ * - dark://branch/{id} - read-only branch overview
+ * - dark://package/{path}?view=ast - read-only AST view (future)
+ * - darkfs://package/{path} - editable package source (NO .dark extension)
+ * - darkfs://module/{path} - editable full module (NO .dark extension)
+ * - darkfs://script/{name} - editable script (NO .dark extension)
  */
 export class DarkFileSystemProvider implements vscode.FileSystemProvider {
   private _emitter = new vscode.EventEmitter<vscode.FileChangeEvent[]>();

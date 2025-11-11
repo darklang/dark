@@ -3,8 +3,6 @@ import { UrlPatternRouter, ParsedUrl } from './urlPatternRouter';
 
 // CLEANUP:
 // - UrlMetadata.title field is generated but never used
-// - UrlMetadata.contentProvider field is set but never read
-// - createUrl() method (line 98) is never called anywhere
 // - getInstanceBadge() method (line 91) just returns hardcoded emoji - could be inlined
 // - Hardcoded emoji strings could be extracted to constants
 
@@ -13,7 +11,6 @@ export interface UrlMetadata {
   badge: string;
   tooltip: string;
   themeColor: vscode.ThemeColor;
-  contentProvider: string; // Which provider handles this URL type
 }
 
 /**
@@ -35,7 +32,6 @@ export class UrlMetadataSystem {
           badge: '🏢',
           tooltip: `Branch: ${parsed.context || 'Unknown'}`,
           themeColor: new vscode.ThemeColor('charts.blue'),
-          contentProvider: 'branch'
         };
 
       case 'package':
@@ -47,7 +43,6 @@ export class UrlMetadataSystem {
               ? `Module: ${parsed.target || "Unknown"}`
               : `Package: ${parsed.target || "Unknown"}`,
           themeColor: new vscode.ThemeColor("charts.purple"),
-          contentProvider: "package",
         };
 
       case 'instance':
@@ -56,7 +51,6 @@ export class UrlMetadataSystem {
           badge: this.getInstanceBadge(parsed),
           tooltip: `Instance: ${parsed.context} (${parsed.view})`,
           themeColor: new vscode.ThemeColor('charts.orange'),
-          contentProvider: 'instance'
         };
 
       default:
@@ -65,7 +59,6 @@ export class UrlMetadataSystem {
           badge: '🌑',
           tooltip: 'Darklang Document',
           themeColor: new vscode.ThemeColor('charts.foreground'),
-          contentProvider: 'default'
         };
     }
   }
@@ -95,25 +88,7 @@ export class UrlMetadataSystem {
     return `Instance: ${context}`;
   }
 
-  private static getInstanceBadge(parsed: ParsedUrl): string {
+  private static getInstanceBadge(_parsed: ParsedUrl): string {
     return '🖥️';
-  }
-
-  /**
-   * Create a clean URL without redundant extensions
-   */
-  static createUrl(mode: string, context?: string, view?: string, target?: string, queryParams?: Record<string, string>): string {
-    let url = `dark:///${mode}`;
-
-    if (context) url += `/${context}`;
-    if (view && view !== 'overview') url += `/${view}`;
-    if (target) url += `/${target}`;
-
-    if (queryParams && Object.keys(queryParams).length > 0) {
-      const params = new URLSearchParams(queryParams);
-      url += `?${params.toString()}`;
-    }
-
-    return url;
   }
 }

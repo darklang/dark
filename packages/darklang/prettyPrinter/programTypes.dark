@@ -24,17 +24,17 @@ module NameResolutionError =
 // Context for relative name resolution - when we know what module we're currently in,
 // we can shorten names that share the same prefix
 type Context =
-  { currentModule: Stdlib.Option.Option<String>
-    currentFunction: Stdlib.Option.Option<String>
-    argMap: Dict<Int64>
-    branchID: Stdlib.Option.Option<Uuid> }
+  { branchID: Stdlib.Option.Option<Uuid>
+    currentModule: Stdlib.Option.Option<String>
+    /// Used to resolve ESelf and EArg expressions when pretty-printing function bodies.
+    /// When Some, contains (functionName, argMap) where argMap maps parameter names to indices.
+    currentFunction: Stdlib.Option.Option<(String * Dict<Int64>)> }
 
 let defaultContext =
   Context
-    { currentModule = Stdlib.Option.Option.None
-      currentFunction = Stdlib.Option.Option.None
-      argMap = Stdlib.Dict.empty
-      branchID = Stdlib.Option.Option.None }
+    { branchID = Stdlib.Option.Option.None
+      currentModule = Stdlib.Option.Option.None
+      currentFunction = Stdlib.Option.Option.None }
 
 let packageNameWithContext
   (ctx: Context)
@@ -73,6 +73,8 @@ let packageNameWithContext
       $"{modulesPart}{name}"
     | _ -> $"{owner}.{modulesPart}{name}"
 
+// CLEANUP: this function exists for backwards compatibility
+// Prefer using packageNameWithContext with a proper Context
 let packageName
   (owner: String)
   (modules: List<String>)
@@ -611,11 +613,14 @@ let expr (ctx: Context) (e: LanguageTools.ProgramTypes.Expr) : String =
 
   | EArg(_id, index) ->
     // Find the parameter name that corresponds to this index
-    ctx.argMap
-    |> Stdlib.Dict.toList
-    |> Stdlib.List.findFirst (fun (name, idx) -> idx == index)
-    |> Stdlib.Option.map (fun (name, _) -> name)
-    |> Stdlib.Option.withDefault $"earg{Stdlib.Int64.toString index}"
+    match ctx.currentFunction with
+    | Some((_fnName, argMap)) ->
+      argMap
+      |> Stdlib.Dict.toList
+      |> Stdlib.List.findFirst (fun (name, idx) -> idx == index)
+      |> Stdlib.Option.map (fun (name, _) -> name)
+      |> Stdlib.Option.withDefault $"earg{Stdlib.Int64.toString index}"
+    | None -> $"earg{Stdlib.Int64.toString index}"
 
   // control flow
   | EIf(_id, cond, thenBranch, elseBranch) ->
@@ -754,7 +759,7 @@ let expr (ctx: Context) (e: LanguageTools.ProgramTypes.Expr) : String =
 
   | ESelf _id ->
     match ctx.currentFunction with
-    | Some functionName -> functionName
+    | Some((functionName, _argMap)) -> functionName
     // This should never happen - ESelf should only appear within a function body
     // CLEANUP: consider making this a runtime error instead
     | None -> "ESelf"
@@ -854,10 +859,10 @@ module Handler =
       $"[<Cron({name}, {Handler.cronInterval interval})>]"
     | REPL name -> $"[<REPL({name})>]"
 
-let handler (h: LanguageTools.ProgramTypes.Handler.Handler) : String =
+let handler (ctx: Context) (h: LanguageTools.ProgramTypes.Handler.Handler) : String =
   let specPart = Handler.spec h.spec
 
-  $"{specPart}\nlet _handler _ignored =\n  {expr defaultContext h.ast}"
+  $"{specPart}\nlet _handler _ignored =\n  {expr ctx h.ast}"
 
 
 let db
@@ -906,19 +911,12 @@ let packageType
 
 
 let packageValue
-  (branchID: Stdlib.Option.Option<Uuid>)
+  (ctx: Context)
   (p: LanguageTools.ProgramTypes.PackageValue.PackageValue)
   : String =
-  let namePart = FQValueName.Package.atDefinition branchID p.id
+  let namePart = FQValueName.Package.atDefinition ctx.branchID p.id
 
-  let context =
-    Context
-      { currentModule = Stdlib.Option.Option.None
-        currentFunction = Stdlib.Option.Option.None
-        argMap = Stdlib.Dict.empty
-        branchID = branchID }
-
-  let bodyPart = expr context p.body
+  let bodyPart = expr ctx p.body
   $"val {namePart} = {bodyPart}"
 
 
@@ -958,11 +956,11 @@ module PackageFn =
 
 
 let packageFn
-  (branchID: Stdlib.Option.Option<Uuid>)
+  (ctx: Context)
   (p: LanguageTools.ProgramTypes.PackageFn.PackageFn)
   : String =
   // TODO: handle `deprecated`, `description`
-  let namePart = FQFnName.Package.atDefinition branchID p.id
+  let namePart = FQFnName.Package.atDefinition ctx.branchID p.id
 
   let typeParamPart =
     match p.typeParams with
@@ -976,10 +974,10 @@ let packageFn
   let paramPart =
     p.parameters
     |> Stdlib.List.map (fun param ->
-      PackageFn.parameter branchID param)
+      PackageFn.parameter ctx.branchID param)
     |> Stdlib.String.join " "
 
-  let retPart = typeReference branchID p.returnType
+  let retPart = typeReference ctx.branchID p.returnType
 
   let argMap =
     p.parameters
@@ -987,14 +985,11 @@ let packageFn
     |> Stdlib.List.fold Stdlib.Dict.empty (fun acc (name, idx) ->
       Stdlib.Dict.set acc name idx)
 
-  let context =
-    Context
-      { currentModule = Stdlib.Option.Option.None
-        currentFunction = Stdlib.Option.Option.Some namePart
-        argMap = argMap
-        branchID = branchID }
+  let contextWithFn =
+    { ctx with
+        currentFunction = Stdlib.Option.Option.Some((namePart, argMap)) }
 
-  let bodyPart = expr context p.body
+  let bodyPart = expr contextWithFn p.body
 
   $"let {namePart}{typeParamPart} {paramPart}: {retPart} =\n{PrettyPrinter.indent bodyPart}"
 
