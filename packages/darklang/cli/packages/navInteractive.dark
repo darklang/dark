@@ -295,8 +295,7 @@ let exitToMainPrompt (state: Cli.AppState) : Cli.AppState =
   { state with
       currentPage = Page.MainPrompt
       needsFullRedraw = true
-      mainPrompt = ""
-      cursorPosition = 0L }
+      prompt = Prompt.Editing.clear state.prompt }
 
 let selectAndExit (state: Cli.AppState) (navState: State) : Cli.AppState =
   let totalItems = Stdlib.List.length navState.items
@@ -310,8 +309,7 @@ let selectAndExit (state: Cli.AppState) (navState: State) : Cli.AppState =
       { newState with
           currentPage = Page.MainPrompt
           needsFullRedraw = true
-          mainPrompt = ""
-          cursorPosition = 0L }
+          prompt = Prompt.Editing.clear newState.prompt }
     | None -> exitToMainPrompt state
   else
     exitToMainPrompt state

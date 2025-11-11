@@ -9,14 +9,13 @@ let execute (state: AppState) (args: List<String>) : AppState =
       ""
       "Type 'help <command>' for specific command help."
     ] |> Stdlib.printLines
-    updateCoreFields state state.isExiting state.mainPrompt state.needsFullRedraw
+    state
   | [commandName] ->
     Registry.executeCommandHelp commandName state
   | _ ->
     Stdlib.printLine (Colors.error "Usage: help [command]")
     Stdlib.printLine "Too many arguments. Use 'help' for general help or 'help <command>' for specific help."
-
-    updateCoreFields state state.isExiting state.mainPrompt state.needsFullRedraw
+    state
 
 
 let complete (state: AppState) (args: List<String>) : List<String> =

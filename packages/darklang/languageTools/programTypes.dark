@@ -498,62 +498,35 @@ module PackageManager =
     PackageManager.PackageManager
       { findType =
           fun branchID location ->
-            match
-              types
-              |> Stdlib.List.findFirst (fun t ->
-                t.location.owner == location.owner
-                && t.location.modules == location.modules
-                && t.location.name == location.name)
-            with
+            match types |> Stdlib.List.findFirst (fun t -> t.location location) with
             | Some t -> Stdlib.Option.Option.Some t.entity.id
-            | None ->
-              pm.findType branchID location
+            | None -> pm.findType branchID location
         findValue =
           fun branchID location ->
-            match
-              values
-              |> Stdlib.List.findFirst (fun v ->
-                v.location.owner == location.owner
-                && v.location.modules == location.modules
-                && v.location.name == location.name)
-            with
+            match values |> Stdlib.List.findFirst (fun v -> v.location = location) with
             | Some v -> Stdlib.Option.Option.Some v.entity.id
-            | None ->
-              pm.findValue branchID location
+            | None -> pm.findValue branchID location
         findFn =
           fun branchID location ->
-            match
-              fns
-              |> Stdlib.List.findFirst (fun f ->
-                f.location.owner == location.owner
-                && f.location.modules == location.modules
-                && f.location.name == location.name)
-            with
+            match fns |> Stdlib.List.findFirst (fun f -> f.location == location) with
             | Some f -> Stdlib.Option.Option.Some f.entity.id
-            | None ->
-              pm.findFn branchID location
+            | None -> pm.findFn branchID location
 
         getType =
           fun id ->
             match types |> Stdlib.List.findFirst (fun t -> t.entity.id == id) with
             | Some t -> Stdlib.Option.Option.Some t.entity
-            | None ->
-              let getType = pm.getType
-              getType id
+            | None -> pm.getType id
         getValue =
           fun id ->
             match values |> Stdlib.List.findFirst (fun v -> v.entity.id == id) with
             | Some v -> Stdlib.Option.Option.Some v.entity
-            | None ->
-              let getValue = pm.getValue
-              getValue id
+            | None -> pm.getValue id
         getFn =
           fun id ->
             match fns |> Stdlib.List.findFirst (fun f -> f.entity.id == id) with
             | Some f -> Stdlib.Option.Option.Some f.entity
-            | None ->
-              let getFn = pm.getFn
-              getFn id
+            | None -> pm.getFn id
 
         search = pm.search }
 

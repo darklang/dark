@@ -4,7 +4,7 @@ module Darklang.SCM.Sync
 /// Returns a result with success message or error
 let sync
   (instanceID: Uuid)
-  (remoteUrl: String)
+  (remoteURL: String)
   (branchID: Stdlib.Option.Option<Uuid>)
   : Stdlib.Result.Result<String, String> =
   // Get last sync date with this instance
@@ -17,7 +17,7 @@ let sync
     | None -> Stdlib.DateTime.fromSeconds 0L
 
   // Get ops to push (created since last sync)
-  let opsToPush = Darklang.SCM.PackageOps.getSince branchID sinceDate
+  let opsToPush = PackageOps.getSince branchID sinceDate
 
   let opsPushedCount = Stdlib.List.length opsToPush
 
@@ -35,7 +35,7 @@ let sync
 
       let batchCount = Stdlib.List.length batches
 
-      let pushUrl = $"{remoteUrl}/ops"
+      let pushUrl = $"{remoteURL}/ops"
 
       // Push each batch sequentially using fold with manual index tracking
       let (_, pushAllBatches) =
@@ -56,8 +56,7 @@ let sync
                 Builtin.jsonSerialize<List<LanguageTools.ProgramTypes.PackageOp>> batch
 
               let pushRequest =
-                Stdlib.HttpClient.request
-                  "POST"
+                Stdlib.HttpClient.post
                   pushUrl
                   [ ("Content-Type", "application/json") ]
                   (Stdlib.String.toBytes opsJson)
@@ -92,11 +91,8 @@ let sync
   | Ok pushedCount ->
     // Pull ops from remote
     let pullRequest =
-      Stdlib.HttpClient.request
-        "GET"
-        $"{remoteUrl}/ops?since={(Stdlib.DateTime.toString sinceDate)}"
-        []
-        (Stdlib.String.toBytes "")
+      let sinceDateStr = Stdlib.DateTime.toString sinceDate
+      Stdlib.HttpClient.get $"{remoteURL}/ops?since={sinceDateStr}" []
 
     match pullRequest with
     | Error err ->

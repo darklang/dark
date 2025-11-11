@@ -63,11 +63,17 @@ module ReadFile =
             | None -> Stdlib.Option.Option.None
 
           | None ->
+            let ctx =
+              PrettyPrinter.ProgramTypes.Context
+                { branchID = branchID
+                  currentModule = Stdlib.Option.Option.None
+                  currentFunction = Stdlib.Option.Option.None }
+
             match pm.findFn branchID location with
             | Some id ->
               match pm.getFn id with
               | Some fn ->
-                (PrettyPrinter.ProgramTypes.packageFn branchID fn)
+                (PrettyPrinter.ProgramTypes.packageFn ctx fn)
                 |> Stdlib.Option.Option.Some
               | None -> Stdlib.Option.Option.None
 
@@ -76,7 +82,7 @@ module ReadFile =
               | Some id ->
                 match pm.getValue id with
                 | Some value ->
-                  (PrettyPrinter.ProgramTypes.packageValue branchID value)
+                  (PrettyPrinter.ProgramTypes.packageValue ctx value)
                   |> Stdlib.Option.Option.Some
                 | None -> Stdlib.Option.Option.None
 
@@ -102,13 +108,19 @@ module ReadFile =
                 ]
                 exactMatch = false }
 
+          let ctx =
+            PrettyPrinter.ProgramTypes.Context
+              { branchID = branchID
+                currentModule = Stdlib.Option.Option.None
+                currentFunction = Stdlib.Option.Option.None }
+
           let searchResults =
             LanguageTools.PackageManager.Search.search state.branchID searchQuery
 
           let functions =
             searchResults.fns
             |> Stdlib.List.map (fun locatedFn ->
-              PrettyPrinter.ProgramTypes.packageFn branchID locatedFn.entity)
+              PrettyPrinter.ProgramTypes.packageFn ctx locatedFn.entity)
             |> Stdlib.String.join "\n\n"
 
           let types =
@@ -120,7 +132,7 @@ module ReadFile =
           let values =
             searchResults.values
             |> Stdlib.List.map (fun locatedValue ->
-              PrettyPrinter.ProgramTypes.packageValue branchID locatedValue.entity)
+              PrettyPrinter.ProgramTypes.packageValue ctx locatedValue.entity)
             |> Stdlib.String.join "\n\n"
 
           let allDefinitions =
@@ -479,10 +491,7 @@ module WriteFile =
         // Only add ops if there are new items
         let addResult =
           if (Stdlib.List.isEmpty allOps) |> Stdlib.Bool.not then
-            match state.branchID with
-            | Some id ->
-              SCM.PackageOps.add (Stdlib.Option.Option.Some id) allOps
-            | None -> SCM.PackageOps.addToMain allOps
+            SCM.PackageOps.add state.branchID allOps
           else
             Stdlib.Result.Result.Ok 0L
 
@@ -511,13 +520,19 @@ module WriteFile =
                     ]
                     exactMatch = false }
 
+              let ctx =
+                PrettyPrinter.ProgramTypes.Context
+                  { branchID = state.branchID
+                    currentModule = Stdlib.Option.Option.None
+                    currentFunction = Stdlib.Option.Option.None }
+
               let searchResults =
                 LanguageTools.PackageManager.Search.search state.branchID searchQuery
 
               let functions =
                 searchResults.fns
                 |> Stdlib.List.map (fun locatedFn ->
-                  PrettyPrinter.ProgramTypes.packageFn state.branchID locatedFn.entity)
+                  PrettyPrinter.ProgramTypes.packageFn ctx locatedFn.entity)
                 |> Stdlib.String.join "\n\n"
 
               let types =
@@ -529,7 +544,7 @@ module WriteFile =
               let values =
                 searchResults.values
                 |> Stdlib.List.map (fun locatedValue ->
-                  PrettyPrinter.ProgramTypes.packageValue state.branchID locatedValue.entity)
+                  PrettyPrinter.ProgramTypes.packageValue ctx locatedValue.entity)
                 |> Stdlib.String.join "\n\n"
 
               let allDefinitions =

@@ -11,8 +11,7 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
     { state with
         currentPage = Page.InteractiveNav searchNavState
         needsFullRedraw = true
-        mainPrompt = ""
-        cursorPosition = 0L }
+        prompt = Prompt.Editing.clear state.prompt }
 
   | _ ->
     // Parse flags and query text

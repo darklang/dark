@@ -7,38 +7,20 @@ type Page =
 
 type AppState =
   { isExiting: Bool
-    mainPrompt: String
-    cursorPosition: Int64
+    prompt: Prompt.State
     needsFullRedraw: Bool
     packageData: Packages.State
     currentPage: Page
-    commandHistory: List<String>
-    historyIndex: Int64
-    savedPrompt: String
-
     currentBranchId: Stdlib.Option.Option<Uuid> }
 
 let initState () : AppState =
-  // Default to no branch selected (user can select one with 'branch switch')
   AppState
     { isExiting = false
-      mainPrompt = ""
-      cursorPosition = 0L
+      prompt = Prompt.initState()
       needsFullRedraw = true
       packageData = Packages.initState()
-      currentPage = Page.MainPrompt  // Default to main prompt page
-      commandHistory = []
-      historyIndex = -1L
-      savedPrompt = ""
-
+      currentPage = Page.MainPrompt
       currentBranchId = Stdlib.Option.Option.None }
-
-// Helper to update core state fields while preserving package navigation fields
-let updateCoreFields (state: AppState) (isExiting: Bool) (mainPrompt: String) (needsFullRedraw: Bool) : AppState =
-  { state with
-      isExiting = isExiting
-      mainPrompt = mainPrompt
-      needsFullRedraw = needsFullRedraw }
 
 type Msg =
   | ProcessInput of String
@@ -67,34 +49,10 @@ module View =
   let formatSuccess (message: String) : String =
     Colors.success message
 
-
-  let promptBranchPreamble (state: AppState): String =
-    let currentBranch =
-      match state.currentBranchId with
-      | Some branchID -> Darklang.SCM.Branch.get branchID
-      | None -> Stdlib.Option.Option.None
-
-    match currentBranch with
-    | Some branch -> $"[{branch.name}]"
-    | None -> ""
-
-
   let formatPromptWithInput (state: AppState) : String =
-    let branchStr = Colors.info (promptBranchPreamble state)
-
-    let locationStr =
-      let pathStr = Packages.formatLocation state.packageData.currentLocation
-      if Stdlib.String.isEmpty pathStr then
-        ""
-      else
-        Colors.dimText $" {pathStr}"
-
-    let hint = Registry.getCompletionHint state state.mainPrompt
-    if Stdlib.String.isEmpty hint then
-      branchStr ++ locationStr ++ "> " ++ state.mainPrompt
-    else
-      branchStr ++ locationStr ++ "> " ++ state.mainPrompt ++ (Colors.hint hint)
-
+    let locationStr = Packages.formatLocation state.packageData.currentLocation
+    let hint = Registry.getCompletionHint state state.prompt.text
+    Prompt.Display.formatPromptWithInput state.currentBranchId locationStr state.prompt.text hint
 
   let formatWelcome () : String =
     Registry.getCompactCommandList ()
@@ -110,10 +68,6 @@ module Registry =
       help: AppState -> AppState // CLEANUP we shouldn't need to return an AppState? Like a string would be fine...
       complete: AppState -> List<String> -> List<String> }
 
-  // TODO: this command list is very long and repetitive - consider:
-  //   - auto-discovering commands via module introspection
-  //   - using a declarative format (JSON/config file)
-  //   - grouping related commands into sub-registries
   let allCommands () : List<CommandHandler> =
     [
       ("quit", "Exit the CLI", ["exit"; "q"], Quit.execute, Quit.help, Quit.complete)
@@ -209,7 +163,14 @@ module Registry =
       Stdlib.printLine $"Aliases: {aliasText}"
       resultState
 
-  // TODO: formatCommandGroup + getCommandList logic could be simplified or moved to View module
+  // Command groups organized by category (shared between compact and detailed views)
+  let commandGroups () : List<(String * List<String>)> =
+    [ ("Packages", ["nav"; "ls"; "view"; "tree"; "back"; "search"; "val"; "let"; "fn"; "type"; "rm"])
+      ("Source Control", ["branch"; "instance"; "sync"])
+      ("Execution", ["run"; "eval"; "scripts"])
+      ("Installation", ["install"; "update"; "uninstall"; "status"; "version"])
+      ("Utilities", ["clear"; "help"; "quit"; "experiments"]) ]
+
   // Helper function to format a group of commands with details
   let formatCommandGroup (groupName: String) (commandNames: List<String>) (commands: List<CommandHandler>) : String =
     let formattedCommands =
@@ -233,48 +194,36 @@ module Registry =
 
   // Compact command list for welcome screen (with logo, minimal text)
   let getCompactCommandList () : String =
-    let commands = allCommands ()
-
-    // Group commands by category - just names, no descriptions
-    let packageCommands = ["nav"; "ls"; "view"; "tree"; "back"; "search"; "val"; "let"; "fn"; "type"; "rm"]
-    let sourceControlCommands = ["branch"; "instance"; "sync"]
-    let executionCommands = ["run"; "eval"; "scripts"]
-    let installCommands = ["install"; "update"; "uninstall"; "status"; "version"]
-    let utilityCommands = ["clear"; "help"; "quit"; "experiments"]
-
-    let packageGroup = formatCompactGroup "Packages" packageCommands
-    let sourceControlGroup = formatCompactGroup "Source Control" sourceControlCommands
-    let executionGroup = formatCompactGroup "Execution" executionCommands
-    let installGroup = formatCompactGroup "Installation" installCommands
-    let utilityGroup = formatCompactGroup "Utilities" utilityCommands
+    let groups = commandGroups ()
+    let formattedGroups =
+      groups
+      |> Stdlib.List.map (fun (groupName, cmdNames) ->
+        formatCompactGroup groupName cmdNames)
 
     let welcome = "Hello! Let's write some software with Darklang."
     let availableCommands = "Here are the commands available:"
-    let compactText = Stdlib.String.join [welcome; ""; availableCommands; ""; packageGroup; sourceControlGroup; executionGroup; installGroup; utilityGroup; ""; "Type 'help' for detailed command info"] "\n"
+    let groupsWithFooter = Stdlib.List.append formattedGroups [""; "Type 'help' for detailed command info"]
+    let allLines = Stdlib.List.append [welcome; ""; availableCommands; ""] groupsWithFooter
+    let compactText = Stdlib.String.join allLines "\n"
     let textLines = Stdlib.String.split compactText "\n"
     Logo.combineLogoAndText Logo.logo textLines Colors.logoColor
 
   // Detailed command list for help command (no logo, full details)
   let getDetailedCommandList () : String =
     let commands = allCommands ()
+    let groups = commandGroups ()
 
-    // Group commands by category
-    let packageCommands = ["nav"; "ls"; "view"; "tree"; "back"; "search"; "val"; "let"; "fn"; "type"; "rm"]
-    let sourceControlCommands = ["branch"; "instance"; "sync"; ]
-    let executionCommands = ["run"; "eval"; "scripts"]
-    let installCommands = ["install"; "update"; "uninstall"; "status"; "version"]
-    let utilityCommands = ["clear"; "help"; "quit"; "experiments"]
-
-    // Format command groups
-    let packageGroup = formatCommandGroup "Packages" packageCommands commands
-    let sourceControlGroup = formatCommandGroup "Source Control" sourceControlCommands commands
-    let executionGroup = formatCommandGroup "Execution" executionCommands commands
-    let installGroup = formatCommandGroup "Installation" installCommands commands
-    let utilityGroup = formatCommandGroup "Utilities" utilityCommands commands
+    // Format command groups with details
+    let formattedGroups =
+      groups
+      |> Stdlib.List.map (fun (groupName, cmdNames) ->
+        formatCommandGroup groupName cmdNames commands)
 
     // Find any ungrouped commands
     let allGroupedCommands =
-      Stdlib.List.flatten [ packageCommands; sourceControlCommands; executionCommands; installCommands; utilityCommands ]
+      groups
+      |> Stdlib.List.map (fun (_groupName, cmdNames) -> cmdNames)
+      |> Stdlib.List.flatten
     let ungroupedCommands =
       commands
       |> Stdlib.List.filter (fun cmd ->
@@ -288,15 +237,14 @@ module Registry =
           let aliasText = Stdlib.String.join aliases ", "
           $"  {cmd.name} ({aliasText}) - {cmd.description}")
 
-    let allGroups = [packageGroup; sourceControlGroup; executionGroup; installGroup; utilityGroup]
     let finalGroups =
       if Stdlib.List.isEmpty ungroupedCommands then
-        allGroups
+        formattedGroups
       else
         let ungroupedGroup =
           let ungroupedLines = Stdlib.String.join ungroupedCommands "\n"
           $"Other:\n{ungroupedLines}"
-        Stdlib.List.append allGroups [ungroupedGroup]
+        Stdlib.List.append formattedGroups [ungroupedGroup]
 
     Stdlib.String.join finalGroups "\n\n"
 
@@ -338,10 +286,6 @@ module Commands =
       Registry.executeCommand commandName state args
 
 
-// TODO: key handling is very long (~170 lines) - consider:
-//   - extracting to separate module (input/keyHandler.dark)
-//   - using a key binding map/table instead of huge match
-//   - separate handlers for different page types
 let handleKeyInput (state: AppState) (key: Stdlib.Cli.Stdin.Key.Key) (modifiers: Stdlib.Cli.Stdin.Modifiers.Modifiers) (keyChar: Stdlib.Option.Option<String>) : AppState =
   match state.currentPage with
   | MainPrompt ->
@@ -349,168 +293,89 @@ let handleKeyInput (state: AppState) (key: Stdlib.Cli.Stdin.Key.Key) (modifiers:
     match key with
     | Enter ->
       // Execute the current command
-      if Stdlib.String.isEmpty (Stdlib.String.trim state.mainPrompt) then
+      if Stdlib.String.isEmpty (Stdlib.String.trim state.prompt.text) then
         Stdlib.printLine ""
         { state with
-            mainPrompt = ""
-            cursorPosition = 0L
-            needsFullRedraw = false
-            historyIndex = -1L }
+            prompt = Prompt.Editing.clear state.prompt
+            needsFullRedraw = false }
       else
         Stdlib.printLine ""
-        let commandToExecute = Stdlib.String.trim state.mainPrompt
+        let commandToExecute = Stdlib.String.trim state.prompt.text
         let newState = Commands.parseAndExecute state commandToExecute
-        // Add command to history (avoiding duplicates)
-        let updatedHistory =
-          if Stdlib.List.isEmpty state.commandHistory || Stdlib.List.head state.commandHistory != Stdlib.Option.Option.Some commandToExecute then
-            Stdlib.List.append [commandToExecute] state.commandHistory
-          else
-            state.commandHistory
+        let clearedPrompt = Prompt.Editing.clear newState.prompt
+        let promptWithHistory = Prompt.History.addCommand clearedPrompt commandToExecute
         { newState with
-            mainPrompt = ""
-            cursorPosition = 0L
-            needsFullRedraw = true
-            commandHistory = updatedHistory
-            historyIndex = -1L }
-    | Backspace ->
-      // Remove character before cursor
-      if state.cursorPosition > 0L then
-        let beforeCursor = Stdlib.String.slice state.mainPrompt 0L (state.cursorPosition - 1L)
-        let afterCursor = Stdlib.String.dropFirst state.mainPrompt state.cursorPosition
-        let newPrompt = beforeCursor ++ afterCursor
-        { state with
-            mainPrompt = newPrompt
-            cursorPosition = state.cursorPosition - 1L
-            historyIndex = -1L
-            needsFullRedraw = false }
-      else
-        state
-    | Delete ->
-      // Remove character at cursor position
-      let promptLength = Stdlib.String.length state.mainPrompt
+            prompt = promptWithHistory
+            needsFullRedraw = true }
 
-      if state.cursorPosition < promptLength then
-        let beforeCursor = Stdlib.String.slice state.mainPrompt 0L state.cursorPosition
-        let afterCursor = Stdlib.String.dropFirst state.mainPrompt (state.cursorPosition + 1L)
-        let newPrompt = beforeCursor ++ afterCursor
-        { state with
-            mainPrompt = newPrompt
-            historyIndex = -1L
-            needsFullRedraw = false }
-      else
-        state
+    | Backspace ->
+      { state with
+          prompt = Prompt.Editing.deleteBeforeCursor state.prompt
+          needsFullRedraw = false }
+
+    | Delete ->
+      { state with
+          prompt = Prompt.Editing.deleteAtCursor state.prompt
+          needsFullRedraw = false }
+
     | Tab ->
       // Handle tab completion
-      let completions = Registry.getCompletions state state.mainPrompt
+      let completions = Registry.getCompletions state state.prompt.text
 
       // CLEANUP: When there are multiple completions with a common prefix (e.g. "filter" and "filterMap"),
       // Tab should complete up to the common part ("filter") rather than just showing options
       match completions with
-      | [] ->
-        // No completions available
-        state
+      | [] -> state  // No completions available
       | [singleCompletion] ->
         // Single completion - auto-complete it
-        let parsed = Completion.parseInput state.mainPrompt
-        let newPrompt = Completion.buildCompletedCommand parsed singleCompletion
-        let newPromptLength = Stdlib.String.length newPrompt
-        { state with
-            mainPrompt = newPrompt
-            cursorPosition = newPromptLength }
+        let parsed = Completion.parseInput state.prompt.text
+        let newPromptText = Completion.buildCompletedCommand parsed singleCompletion
+        { state with prompt = Prompt.Editing.setText state.prompt newPromptText }
       | multiple ->
         // Multiple completions - show them
         Stdlib.printLine ""
         Stdlib.printLine (Stdlib.String.join multiple " ")
         { state with needsFullRedraw = true }
+
     | UpArrow ->
-      // Navigate to previous command in history
-      if Stdlib.Bool.not (Stdlib.List.isEmpty state.commandHistory) then
-        let historyLength = Stdlib.List.length state.commandHistory
-        let newIndex =
-          if state.historyIndex == -1L then
-            0L  // Start from the most recent command
-          else
-            if state.historyIndex < (historyLength - 1L) then
-              state.historyIndex + 1L
-            else
-              state.historyIndex  // Stay at oldest command
-        match Stdlib.List.getAt state.commandHistory newIndex with
-        | Some command ->
-          let commandLength = Stdlib.String.length command
-          let newSavedPrompt =
-            if state.historyIndex == -1L then
-              state.mainPrompt
-            else
-              state.savedPrompt
-          { state with
-              mainPrompt = command
-              cursorPosition = commandLength
-              historyIndex = newIndex
-              needsFullRedraw = false
-              savedPrompt = newSavedPrompt }
-        | None ->
-          state
-      else
-        state
+      { state with
+          prompt = Prompt.History.navigatePrevious state.prompt
+          needsFullRedraw = false }
+
     | DownArrow ->
-      // Navigate to next command in history
-      if Stdlib.Bool.not (Stdlib.List.isEmpty state.commandHistory) && state.historyIndex >= 0L then
-        let newIndex =
-          if state.historyIndex > 0L then
-            state.historyIndex - 1L
-          else
-            -1L  // Go back to empty prompt
-        if newIndex == -1L then
-          let restoredPromptLength = Stdlib.String.length state.savedPrompt
-          { state with
-              mainPrompt = state.savedPrompt
-              cursorPosition = restoredPromptLength
-              historyIndex = newIndex
-              needsFullRedraw = false }
-        else
-          match Stdlib.List.getAt state.commandHistory newIndex with
-          | Some command ->
-            let commandLength = Stdlib.String.length command
-            { state with
-                mainPrompt = command
-                cursorPosition = commandLength
-                historyIndex = newIndex
-                needsFullRedraw = false }
-          | None ->
-            state
-      else
-        state
+      { state with
+          prompt = Prompt.History.navigateNext state.prompt
+          needsFullRedraw = false }
+
     | LeftArrow ->
-      // Move cursor left (cursor-only movement, no content change)
-      let newCursorPos = Stdlib.Int64.max 0L (state.cursorPosition - 1L)
-      { state with cursorPosition = newCursorPos; needsFullRedraw = false }
+      { state with
+          prompt = Prompt.Editing.moveCursorLeft state.prompt
+          needsFullRedraw = false }
+
     | RightArrow ->
-      // Move cursor right
-      let promptLength = Stdlib.String.length state.mainPrompt
-      let newCursorPos = Stdlib.Int64.min promptLength (state.cursorPosition + 1L)
-      { state with cursorPosition = newCursorPos; needsFullRedraw = false }
+      { state with
+          prompt = Prompt.Editing.moveCursorRight state.prompt
+          needsFullRedraw = false }
+
     | Home ->
-      // Move cursor to start of line
-      { state with cursorPosition = 0L; needsFullRedraw = false }
+      { state with
+          prompt = Prompt.Editing.moveCursorHome state.prompt
+          needsFullRedraw = false }
+
     | End ->
-      // Move cursor to end of line
-      let promptLength = Stdlib.String.length state.mainPrompt
-      { state with cursorPosition = promptLength; needsFullRedraw = false }
+      { state with
+          prompt = Prompt.Editing.moveCursorEnd state.prompt
+          needsFullRedraw = false }
+
     | _ ->
       // Add character to prompt at cursor position
       match keyChar with
       | Some char ->
-        let beforeCursor = Stdlib.String.slice state.mainPrompt 0L state.cursorPosition
-        let afterCursor = Stdlib.String.dropFirst state.mainPrompt state.cursorPosition
-        let newPrompt = beforeCursor ++ char ++ afterCursor
         { state with
-            mainPrompt = newPrompt
-            cursorPosition = state.cursorPosition + (Stdlib.String.length char)
-            historyIndex = -1L
-            needsFullRedraw = false
-            savedPrompt = "" }
-      | None ->
-        state
+            prompt = Prompt.Editing.insertAtCursor state.prompt char
+            needsFullRedraw = false }
+      | None -> state
+
   | Experiments ->
     // Experiments page key handling
     match key with
@@ -523,6 +388,7 @@ let handleKeyInput (state: AppState) (key: Stdlib.Cli.Stdin.Key.Key) (modifiers:
   | InteractiveNav navState ->
     // Interactive navigation key handling
     Packages.NavInteractive.handleKey state key keyChar navState
+
 
 module Update =
   let updateAppState (state: AppState) (msg: Msg) : AppState =
@@ -550,19 +416,9 @@ let runInteractiveLoop (state: AppState) : Int64 =
     // Display current page
     match state.currentPage with
     | MainPrompt ->
-      // Determine where user input starts (branch + location + " > ")
-      let locationLength =
-        let pathStr = Packages.formatLocation state.packageData.currentLocation
-        if Stdlib.String.isEmpty pathStr then
-          0L
-        else
-          (Stdlib.String.length pathStr) + 1L  // +1 for the space before path
-
+      let locationStr = Packages.formatLocation state.packageData.currentLocation
       let inputStartColumn =
-        (Stdlib.String.length (View.promptBranchPreamble state))
-        + locationLength
-        + (Stdlib.String.length "> ")
-        + 1L
+        Prompt.Display.calculateInputStartColumn state.currentBranchId locationStr
 
       if state.needsFullRedraw then
         // Redraw entire prompt line (used after commands that change state)
@@ -573,14 +429,14 @@ let runInteractiveLoop (state: AppState) : Int64 =
         Stdlib.print "\u001b[?25l" // Hide cursor during redraw
         Stdlib.print (Colors.moveCursorToColumn inputStartColumn)
         Stdlib.print Colors.clearLine
-        Stdlib.print state.mainPrompt
-        let hint = Registry.getCompletionHint state state.mainPrompt
+        Stdlib.print state.prompt.text
+        let hint = Registry.getCompletionHint state state.prompt.text
         if Stdlib.Bool.not (Stdlib.String.isEmpty hint) then
           Stdlib.print (Colors.hint hint)
         Stdlib.print "\u001b[?25h" // Show cursor again
 
       // Position cursor at correct location within user input
-      let cursorColumn = inputStartColumn + state.cursorPosition
+      let cursorColumn = inputStartColumn + state.prompt.cursorPosition
       Stdlib.print (Colors.moveCursorToColumn cursorColumn)
     | Experiments ->
       if state.needsFullRedraw then

@@ -28,6 +28,11 @@ let hoverInfoForThingAtPosition
   (thingAtPosition: CursorPosition.ThingAtPosition)
   (range: WrittenTypes.Range)
   : HoverInformation.Info =
+  let ctx =
+    PrettyPrinter.ProgramTypes.Context
+      { branchID = branchID
+        currentModule = Stdlib.Option.Option.None
+        currentFunction = Stdlib.Option.Option.None }
   match thingAtPosition with
   | Keyword keywordName ->
     let metadata = Stdlib.Option.Option.Some("Keyword: " ++ keywordName)
@@ -53,7 +58,7 @@ let hoverInfoForThingAtPosition
     createHoverInfo range description metadata
 
   | PackageValue fqNameList value description ->
-    let prettyVal = PrettyPrinter.ProgramTypes.packageValue branchID value
+    let prettyVal = PrettyPrinter.ProgramTypes.packageValue ctx value
 
     let fqName = fqNameList |> Stdlib.String.join "."
 

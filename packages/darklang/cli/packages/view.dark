@@ -75,7 +75,12 @@ let viewEntity
       let locationStr = Packages.formatLocation location
       Stdlib.printLine $"Function '{locationStr}' not found."
     | item :: _ ->
-      let prettyPrinted = PrettyPrinter.ProgramTypes.packageFn branchID item.entity
+      let ctx =
+        PrettyPrinter.ProgramTypes.Context
+          { branchID = branchID
+            currentModule = Stdlib.Option.Option.None
+            currentFunction = Stdlib.Option.Option.None }
+      let prettyPrinted = PrettyPrinter.ProgramTypes.packageFn ctx item.entity
       let highlighted = SyntaxHighlighting.highlightCode prettyPrinted
       Stdlib.printLine highlighted
 
@@ -90,7 +95,12 @@ let viewEntity
       let locationStr = Packages.formatLocation location
       Stdlib.printLine $"Value '{locationStr}' not found."
     | item :: _ ->
-      let prettyPrinted = PrettyPrinter.ProgramTypes.packageValue branchID item.entity
+      let ctx =
+        PrettyPrinter.ProgramTypes.Context
+          { branchID = branchID
+            currentModule = Stdlib.Option.Option.None
+            currentFunction = Stdlib.Option.Option.None }
+      let prettyPrinted = PrettyPrinter.ProgramTypes.packageValue ctx item.entity
       let highlighted = SyntaxHighlighting.highlightCode prettyPrinted
       Stdlib.printLine highlighted
 
