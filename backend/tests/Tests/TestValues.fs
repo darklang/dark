@@ -664,7 +664,7 @@ module Expressions =
     let shouldError = eStatement (eInt64 1) (eBool true)
 
 
-// Build a PM with test packages using the new schema
+// Build a PM with test packages
 let pm : PT.PackageManager =
   let typeMap = PM.Types.all |> List.map (fun t -> t.id, t) |> Map.ofList
 

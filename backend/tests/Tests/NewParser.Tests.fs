@@ -1,4 +1,4 @@
-/// Tests the new, tree-sitter-based parser.
+/// Tests the new tree-sitter-based parser.
 ///
 /// Currently just focused on round-tripping:
 ///   source (input)
@@ -6,7 +6,6 @@
 ///   -> parsed CLI Script
 ///   -> PT.SourceFile
 ///   -> pretty-print back to text (expected)
-///
 module Tests.NewParser
 
 open System.Threading.Tasks
