@@ -9,6 +9,12 @@ type PackageLocation =
   | Value of location: LanguageTools.ProgramTypes.PackageLocation
   | Function of location: LanguageTools.ProgramTypes.PackageLocation
 
+type EntityType =
+  | Module
+  | Type
+  | Function
+  | Value
+
 type State =
   { currentLocation: PackageLocation
     locationHistory: List<PackageLocation> }

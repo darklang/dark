@@ -1,6 +1,9 @@
 #!/usr/bin/env bash
 . ./scripts/devcontainer/_assert-in-container "$0" "$@"
 
+# TODO remove this and run-second-instance
+# (temporary until we have a 'real' server standing.)
+
 set -euo pipefail
 
 INSTANCE_DB="data-instance2.db"

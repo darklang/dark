@@ -3,6 +3,9 @@
 
 set -euo pipefail
 
+# TODO remove this and stop-second-instance
+# (temporary until we have a 'real' server standing.)
+
 # This script runs a second Darklang instance for testing sync
 # Instance 1 (default): port 11001, database data.db
 # Instance 2 (this one): port 11003, database data-instance2.db
@@ -56,12 +59,8 @@ echo "Stopping any existing ${INSTANCE_NAME} processes..."
 pkill -f "DARK_CONFIG_DB_NAME=${INSTANCE_DB}" || true
 sleep 1
 
-# # Run migrations on the second database
-# echo "Running migrations on ${INSTANCE_DB}..."
-LOCALEXEC_EXE="backend/Build/out/LocalExec/Debug/net8.0/LocalExec"
-# DARK_CONFIG_DB_NAME="${INSTANCE_DB}" "${LOCALEXEC_EXE}" migrations run > /dev/null 2>&1
-
 # Reload packages and canvases for the second instance
+LOCALEXEC_EXE="backend/Build/out/LocalExec/Debug/net8.0/LocalExec"
 echo "Reloading packages for ${INSTANCE_DB}..."
 DARK_CONFIG_DB_NAME="${INSTANCE_DB}" "${LOCALEXEC_EXE}" reload-canvases > /dev/null 2>&1
 echo "Packages reloaded"

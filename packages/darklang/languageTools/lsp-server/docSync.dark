@@ -47,6 +47,7 @@ let parseAndReportDiagnostics
     let (owner, scriptName) =
       if Stdlib.String.startsWith requestUri "darkfs:/" then
         let pathPart =
+          // TODO: remove magic
           requestUri
           |> Stdlib.String.dropFirst 8L // Remove "darkfs:/"
           |> Stdlib.String.dropLast 5L // Remove ".dark"

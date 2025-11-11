@@ -30,6 +30,7 @@ module ReadFile =
 
     // CLEANUP: make the 'remove scheme part of URI' more universal. Maybe be add it to Stdlib eg.`Stdlib.Uri.removeScheme`
     let nameForLookup =
+      // TODO: remove magic
       params.uri
       |> Stdlib.String.dropFirst 8L  // Drop "darkfs:/"
       |> Stdlib.String.dropLast 5L   // Drop ".dark"
@@ -282,6 +283,7 @@ module WriteFile =
 
     // Check if this is a script write request
     let nameForLookup =
+      // TODO: remove magic
       params.uri
       |> Stdlib.String.dropFirst 8L  // Drop "darkfs:/"
       |> Stdlib.String.dropLast 5L   // Drop ".dark"
