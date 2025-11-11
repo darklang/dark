@@ -63,7 +63,7 @@ LOCALEXEC_EXE="backend/Build/out/LocalExec/Debug/net8.0/LocalExec"
 
 # Reload packages and canvases for the second instance
 echo "Reloading packages for ${INSTANCE_DB}..."
-DARK_CONFIG_DB_NAME="${INSTANCE_DB}" "${LOCALEXEC_EXE}" reload-packages-canvas > /dev/null 2>&1
+DARK_CONFIG_DB_NAME="${INSTANCE_DB}" "${LOCALEXEC_EXE}" reload-canvases > /dev/null 2>&1
 echo "Packages reloaded"
 
 # Record initial sync to mark instances as in-sync at this point

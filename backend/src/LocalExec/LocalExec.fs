@@ -14,13 +14,24 @@ module PM = LibPackageManager.PackageManager
 open Utils
 
 module HandleCommand =
-  let reloadDarkPackagesCanvas () : Ply<Result<unit, string>> =
+
+  let reloadCanvas (name : string) : Ply<Result<unit, string>> =
     uply {
+      print $"Reloading {name} canvas..."
+
       let! (canvasId, toplevels) =
-        Canvas.loadFromDisk LibPackageManager.PackageManager.pt "dark-packages"
+        Canvas.loadFromDisk LibPackageManager.PackageManager.pt name
 
       print $"Loaded canvas {canvasId} with {List.length toplevels} toplevels"
 
+      return Ok()
+    }
+
+  let reloadCanvases () : Ply<Result<unit, string>> =
+    uply {
+      // CLEANUP fetch the list of canvases by 'ls canvases' equiv.
+      // CLEANUP stop tossing the result
+      let! _ = reloadCanvas "dark-packages"
       return Ok()
     }
 
@@ -29,30 +40,7 @@ module HandleCommand =
       // first, load the packages from disk, ensuring all parse well
       let! ops = LoadPackagesFromDisk.load Builtins.all
 
-      let typeCount =
-        ops
-        |> List.filter (function
-          | PT.PackageOp.AddType _ -> true
-          | _ -> false)
-        |> List.length
-      let valueCount =
-        ops
-        |> List.filter (function
-          | PT.PackageOp.AddValue _ -> true
-          | _ -> false)
-        |> List.length
-      let fnCount =
-        ops
-        |> List.filter (function
-          | PT.PackageOp.AddFn _ -> true
-          | _ -> false)
-        |> List.length
-
-      print "Loaded packages from disk "
-      print $"{typeCount} types, {valueCount} values, and {fnCount} fns"
-
-      // TODO: Check for duplicates - need to extract locations from SetName ops
-      // For now, skip duplicate checking
+      // CLEANUP consider checking for duplicates (helps prevent a class of issues)
 
       print "Purging ..."
       do! LibPackageManager.Purge.purge ()
@@ -60,22 +48,14 @@ module HandleCommand =
       print "Filling ..."
       let! _ = LibPackageManager.Inserts.insertAndApplyOps None ops
 
-      // print "Populating RT columns..."
-      // do! PM.populateRTColumns ()
-
-      //do! PM.flushCheckpoint ()
+      // Get stats after ops are inserted/applied
+      let! stats = LibPackageManager.Stats.get ()
+      print "Loaded packages from disk "
+      print $"{stats.types} types, {stats.values} values, and {stats.fns} fns"
 
       // Reload dark-packages canvas after package reload
       print "Reloading dark-packages canvas..."
-      let! _ = reloadDarkPackagesCanvas ()
-
-      return Ok()
-    }
-
-  let reloadPackagesCanvas () : Ply<Result<unit, string>> =
-    uply {
-      print "Reloading dark-packages canvas..."
-      let! _ = reloadDarkPackagesCanvas ()
+      let! _ = reloadCanvas "dark-packages"
 
       return Ok()
     }
@@ -143,11 +123,13 @@ let main (args : string[]) : int =
     match Array.toList args with
     | [ "reload-packages" ] ->
       handleCommand
-        "reading, parsing packages from `packages` directory, and saving to internal SQL tables"
+        "Reload packages from `packages` directory"
         (HandleCommand.reloadPackages ())
 
-    | [ "reload-packages-canvas" ] ->
-      handleCommand "TODO" (HandleCommand.reloadPackagesCanvas ())
+    | [ "reload-canvases" ] ->
+      handleCommand
+        "Reload canvases from 'canvases' directory"
+        (HandleCommand.reloadCanvases ())
 
 
     | [ "migrations"; "run" ] ->
@@ -158,16 +140,11 @@ let main (args : string[]) : int =
     | [ "migrations"; "list" ] ->
       handleCommand "listing available migrations" (HandleCommand.listMigrations ())
 
-    | [ "reload-dark-packages-canvas" ] ->
-      handleCommand
-        "loading dark-packages canvas from disk"
-        (HandleCommand.reloadDarkPackagesCanvas ())
-
     | _ ->
       print "Invalid arguments"
       print "Available commands:"
       print "  reload-packages"
-      print "  reload-dark-packages-canvas"
+      print "  reload-canvases"
       print "  migrations run"
       print "  migrations list"
       NonBlockingConsole.wait ()
