@@ -15,17 +15,14 @@ open LibDB.Db
 
 module PT = LibExecution.ProgramTypes
 module PT2RT = LibExecution.ProgramTypesToRuntimeTypes
-module BinarySerialization = LibBinarySerialization.BinarySerialization
+module BS = LibBinarySerialization.BinarySerialization
 
 
 /// Apply a single AddType op to the package_types table
 let private applyAddType (typ : PT.PackageType.PackageType) : Task<unit> =
   task {
-    let ptDef = BinarySerialization.PT.PackageType.serialize typ.id typ
-    let rtDef =
-      typ
-      |> PT2RT.PackageType.toRT
-      |> BinarySerialization.RT.PackageType.serialize typ.id
+    let ptDef = BS.PT.PackageType.serialize typ.id typ
+    let rtDef = typ |> PT2RT.PackageType.toRT |> BS.RT.PackageType.serialize typ.id
 
     do!
       Sql.query
@@ -43,11 +40,9 @@ let private applyAddType (typ : PT.PackageType.PackageType) : Task<unit> =
 /// Apply a single AddValue op to the package_values table
 let private applyAddValue (value : PT.PackageValue.PackageValue) : Task<unit> =
   task {
-    let ptDef = BinarySerialization.PT.PackageValue.serialize value.id value
+    let ptDef = BS.PT.PackageValue.serialize value.id value
     let rtDval =
-      value
-      |> PT2RT.PackageValue.toRT
-      |> BinarySerialization.RT.PackageValue.serialize value.id
+      value |> PT2RT.PackageValue.toRT |> BS.RT.PackageValue.serialize value.id
 
     do!
       Sql.query
@@ -65,9 +60,8 @@ let private applyAddValue (value : PT.PackageValue.PackageValue) : Task<unit> =
 /// Apply a single AddFn op to the package_functions table
 let private applyAddFn (fn : PT.PackageFn.PackageFn) : Task<unit> =
   task {
-    let ptDef = BinarySerialization.PT.PackageFn.serialize fn.id fn
-    let rtInstrs =
-      fn |> PT2RT.PackageFn.toRT |> BinarySerialization.RT.PackageFn.serialize fn.id
+    let ptDef = BS.PT.PackageFn.serialize fn.id fn
+    let rtInstrs = fn |> PT2RT.PackageFn.toRT |> BS.RT.PackageFn.serialize fn.id
 
     do!
       Sql.query
@@ -135,19 +129,15 @@ let private applySetName
 
 
 /// Apply a single PackageOp to the projection tables
-/// branchID: None = main/merged, Some(id) = branch-specific
 let applyOp (branchID : Option<PT.BranchID>) (op : PT.PackageOp) : Task<unit> =
   task {
     match op with
     | PT.PackageOp.AddType typ -> do! applyAddType typ
     | PT.PackageOp.AddValue value -> do! applyAddValue value
     | PT.PackageOp.AddFn fn -> do! applyAddFn fn
-    | PT.PackageOp.SetTypeName(id, location) ->
-      do! applySetName branchID id location "type"
-    | PT.PackageOp.SetValueName(id, location) ->
-      do! applySetName branchID id location "value"
-    | PT.PackageOp.SetFnName(id, location) ->
-      do! applySetName branchID id location "fn"
+    | PT.PackageOp.SetTypeName(id, loc) -> do! applySetName branchID id loc "type"
+    | PT.PackageOp.SetValueName(id, loc) -> do! applySetName branchID id loc "value"
+    | PT.PackageOp.SetFnName(id, loc) -> do! applySetName branchID id loc "fn"
   }
 
 

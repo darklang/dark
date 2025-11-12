@@ -19,7 +19,6 @@
     <ProjectReference Include="../LibDB/LibDB.fsproj" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="Utils.fs" />
     <Compile Include="Caching.fs" />
     <Compile Include="Purge.fs" />
     <Compile Include="PackageOpPlayback.fs" />

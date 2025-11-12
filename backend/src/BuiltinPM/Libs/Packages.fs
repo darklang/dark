@@ -232,8 +232,6 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
 
 
     // Location lookups
-    // Note that there _could_ be multiple names for the same type/fn/etc
-    // TODO deal with that... somehow.
     { name = fn "pmGetLocationByType" 0
       typeParams = []
       parameters =

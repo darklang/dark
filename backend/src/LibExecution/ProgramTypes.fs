@@ -530,34 +530,22 @@ type Deprecation<'name> =
 // Package things
 // --
 
-type PackageLocation = { owner : string; modules : List<string>; name : string }
-
-
-// let create (owner: string) (modules: List<string>) (name: string) : T =
-//   { owner = owner; modules = modules; name = name }
-
-// let toString (location: T) : string =
-//   let moduleStr =
-//     if List.isEmpty location.modules then
-//       ""
-//     else
-//       (String.concat "." location.modules) + "."
-//   $"{location.owner}.{moduleStr}{location.name}"
-
-// let parse (locationString: string) : Result<T, string> =
-//   let parts = locationString.Split('.') |> Array.toList
-//   match parts with
-//   | owner :: rest when not (List.isEmpty rest) ->
-//     let reversedRest = List.rev rest
-//     match reversedRest with
-//     | name :: reversedModules ->
-//       let modules = List.rev reversedModules
-//       Ok { owner = owner; modules = modules; name = name }
-//     | [] -> Error $"Invalid package location: {locationString}"
-//   | _ -> Error $"Invalid package location: {locationString}"
+type PackageLocation =
+  // CLEANUP this doesn't really account for when you're referring to a root 'owner'
+  { owner : string
+    modules : List<string>
+    name : string }
 
 
 module PackageType =
+  // CLEANUP most of the time, the deprecation status isn't a useful thing in F# land.
+  // We can (largely) migrate the Deprecation (action) of something, and trim this down to what matters: just the declaration
+  // (similarly, the description)
+  // (and the hash is sort of an artifact of the declaration)
+  // The deprecation is useful for _builtins_ in the cases of PackageValue and PackageFn,
+  // but we don't need to manage it as part of _package_ stuff -- right?
+  // OK but what do we do about /// comments?
+  // really this just begs a series of questions about the PackageManager...
   type PackageType =
     { id : FQTypeName.Package
       declaration : TypeDeclaration.T
@@ -584,28 +572,6 @@ module PackageFn =
       returnType : TypeReference
       description : string
       deprecated : Deprecation<FQFnName.FQFnName> }
-
-
-// type PackageItemType = | Type | Value | Fn
-
-
-// type PackageItemLocation =
-//   { item: uuid
-//     itemType : PackageItemType
-//     location : uuid }
-
-
-
-// CLEANUP move out - only used during loading process
-// type Packages =
-//   { types : List<PackageType.PackageType>
-//     values : List<PackageValue.PackageValue>
-//     fns : List<PackageFn.PackageFn> }
-
-//   static member combine(packages : List<Packages>) : Packages =
-//     { types = packages |> List.collect _.types
-//       values = packages |> List.collect _.values
-//       fns = packages |> List.collect _.fns }
 
 
 ///
@@ -775,6 +741,8 @@ module Search =
       values : List<LocatedItem<PackageValue.PackageValue>>
       fns : List<LocatedItem<PackageFn.PackageFn>> }
 
+type BranchIDOpt = Option<BranchID>
+
 /// Functionality written in Dark stored and managed outside of user space
 ///
 /// Note: It may be tempting to think the `getX` fns shouldn't return Options,
@@ -784,13 +752,13 @@ type PackageManager =
   {
     // TODO review all usages - make sure they're not just putting 'None' in
     // i.e. demand the branchID from every usage above.
-    findType :
-      (Option<BranchID> * PackageLocation) -> Ply<Option<FQTypeName.Package>>
-    findValue :
-      (Option<BranchID> * PackageLocation) -> Ply<Option<FQValueName.Package>>
-    findFn : (Option<BranchID> * PackageLocation) -> Ply<Option<FQFnName.Package>>
+    // CLEANUP we could/should probably collapse these to just 'find'.
+    //   (and getX to just one 'get' by ID+context)
+    findType : (BranchIDOpt * PackageLocation) -> Ply<Option<FQTypeName.Package>>
+    findValue : (BranchIDOpt * PackageLocation) -> Ply<Option<FQValueName.Package>>
+    findFn : (BranchIDOpt * PackageLocation) -> Ply<Option<FQFnName.Package>>
 
-    search : Option<BranchID> * Search.SearchQuery -> Ply<Search.SearchResults>
+    search : BranchIDOpt * Search.SearchQuery -> Ply<Search.SearchResults>
 
     // why does the PT one even need these?
     getType : FQTypeName.Package -> Ply<Option<PackageType.PackageType>>
@@ -798,15 +766,13 @@ type PackageManager =
     getFn : FQFnName.Package -> Ply<Option<PackageFn.PackageFn>>
 
     // Reverse lookups for pretty-printing and other tooling
-    // TODO: These currently return Option<PackageLocation> but theoretically there
-    // could be multiple locations for a single ID (e.g., across branches, deprecations).
-    // We may need to revisit this to return List<PackageLocation> or add branch filtering.
+    // TODO: Revisit this given that a single ID might refer to multiple locations,
+    // even per a branch (because... why? not sure or totally convinced either way)).
     getTypeLocation :
-      Option<BranchID> * FQTypeName.Package -> Ply<Option<PackageLocation>>
+      BranchIDOpt * FQTypeName.Package -> Ply<Option<PackageLocation>>
     getValueLocation :
-      Option<BranchID> * FQValueName.Package -> Ply<Option<PackageLocation>>
-    getFnLocation :
-      Option<BranchID> * FQFnName.Package -> Ply<Option<PackageLocation>>
+      BranchIDOpt * FQValueName.Package -> Ply<Option<PackageLocation>>
+    getFnLocation : BranchIDOpt * FQFnName.Package -> Ply<Option<PackageLocation>>
 
     init : Ply<unit> }
 
@@ -917,6 +883,15 @@ type PackageManager =
 (*
 the source of truth is our core tables, which sync:
   package_ops, branches, instances
+  should branch operations be separate from package ops? hmm idk.
+  we should sync all ops that you have permissions to...
+  oh, how _should_ we do permissioning?
+  iI guess there's an SetName thing and later an ApproveName thing? Not sure I actually worked that out...
+  | AddBranch? hmm.
+  what if an Op referring to a branch is received before the AddBranch op? Prob ignore that for now, right?
+  we really need to timestamp these ops in a super-safe way
+  I guess working internationally helps us test this a bit...
+  what about timezone switches and ... probably need NodaTime if we don't already have it
 
 the package stuff is all a projection of that
   package types, values, fns
@@ -924,71 +899,6 @@ the package stuff is all a projection of that
 *)
 
 
-(*
-we need a Locations table with a `branch_id` column
-if merged, the col is null
-if non-null
-we need a constraint on (location*branch_id)
-the full schema is likely
-  | id | branch_id | location | createdAt | deprecatedAt | itemType |
-  , where location is a representation of the module location (maybe A.B.c, maybe json, idk)
-
-
-This table should support broad package search well.
-It'll also be the primary table for doing one-off finds of package items
-
-(Note: This schema has been implemented)
-*)
-
-
-
-
-
-// --
-// User things
-// --
-module DB =
-  type T = { tlid : tlid; name : string; version : int; typ : TypeReference }
-
-module Secret =
-  type T = { name : string; value : string; version : int }
-
-module Handler =
-  type CronInterval =
-    | EveryDay
-    | EveryWeek
-    | EveryFortnight
-    | EveryHour
-    | Every12Hours
-    | EveryMinute
-
-  /// User to represent handlers in their lowest-level form: a triple of space * name * modifier
-  /// "Space" is "HTTP", "WORKER", "REPL", etc.
-  ///
-  /// "Modifier" options differ based on space.
-  /// e.g. HTTP handler may have "GET" modifier.
-  ///
-  /// Handlers which don't have modifiers (e.g. repl, worker) nearly
-  /// always (but not actually always) have `_` as their modifier.
-  type HandlerDesc = (string * string * string)
-
-  type Spec =
-    | HTTP of route : string * method : string
-    | Worker of name : string
-    | Cron of name : string * interval : CronInterval
-    | REPL of name : string
-
-  type T = { tlid : tlid; ast : Expr; spec : Spec }
-
-module Toplevel =
-  type T =
-    | TLDB of DB.T
-    | TLHandler of Handler.T
-
-  let toTLID (tl : T) : tlid =
-    match tl with
-    | TLDB db -> db.tlid
-    | TLHandler h -> h.tlid
 
 
 
@@ -1039,7 +949,7 @@ module Toplevel =
 // /// Darklang instance definition -- what can we sync against
 // module Instance =
 //   type Location =
-//     | LocalCLI of pathToExe: string
+//     | LocalCLI of pathToExe: string // or maybe this should be path to dir? prob not.
 //     | HttpServer of url: string
 
 //   type T = {
@@ -1047,3 +957,53 @@ module Toplevel =
 //     name: string
 //     location: Location
 //   }
+
+
+
+
+
+// --
+// User things
+// --
+module DB =
+  type T = { tlid : tlid; name : string; version : int; typ : TypeReference }
+
+module Secret =
+  type T = { name : string; value : string; version : int }
+
+module Handler =
+  type CronInterval =
+    | EveryDay
+    | EveryWeek
+    | EveryFortnight
+    | EveryHour
+    | Every12Hours
+    | EveryMinute
+
+  /// User to represent handlers in their lowest-level form: a triple of space * name * modifier
+  /// "Space" is "HTTP", "WORKER", "REPL", etc.
+  ///
+  /// "Modifier" options differ based on space.
+  /// e.g. HTTP handler may have "GET" modifier.
+  ///
+  /// Handlers which don't have modifiers (e.g. repl, worker) nearly
+  /// always (but not actually always) have `_` as their modifier.
+  type HandlerDesc = (string * string * string)
+
+  type Spec =
+    | HTTP of route : string * method : string
+    | Worker of name : string
+    | Cron of name : string * interval : CronInterval
+    | REPL of name : string
+
+  type T = { tlid : tlid; ast : Expr; spec : Spec }
+
+module Toplevel =
+  type T =
+    | TLDB of DB.T
+    | TLHandler of Handler.T
+
+  let toTLID (tl : T) : tlid =
+    match tl with
+    | TLDB db -> db.tlid
+    | TLHandler h -> h.tlid

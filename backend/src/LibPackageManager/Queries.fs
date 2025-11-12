@@ -14,7 +14,6 @@ module BinarySerialization = LibBinarySerialization.BinarySerialization
 
 
 /// Get recent package ops from the database
-/// branchID: None = main/merged, Some(id) = branch-specific
 let getRecentOps
   (branchID : Option<PT.BranchID>)
   (limit : int64)

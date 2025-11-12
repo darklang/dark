@@ -229,12 +229,7 @@ let fileTests () : Test =
   let pmPT = LibPackageManager.PackageManager.pt
 
   let parseTestFile fileName =
-    LibParser.TestModule.parseTestFile
-      "Tests"
-      (localBuiltIns pmPT)
-      pmPT
-      NR.OnMissing.Allow
-      fileName
+    LibParser.TestModule.parseTestFile "Tests" (localBuiltIns pmPT) pmPT fileName
 
   System.IO.Directory.GetDirectories(
     baseDir,

@@ -13,7 +13,7 @@ module PT2RT = LibExecution.ProgramTypesToRuntimeTypes
 module Exe = LibExecution.Execution
 module PackageIDs = LibExecution.PackageIDs
 module BuiltinCli = BuiltinCli.Builtin
-module BuiltinCliHostConfig = BuiltinCliHost.Libs.Cli.Config
+module BuiltinCliHost = BuiltinCliHost.Libs.Cli
 
 // Dual logging (console + cli.log file)
 let private logError (message : string) : unit =
@@ -64,7 +64,7 @@ let info () =
 
 let builtins : RT.Builtins =
   LibExecution.Builtin.combine
-    [ BuiltinCliHostConfig.builtinsToUse
+    [ BuiltinCliHost.builtinsToUse
       BuiltinCliHost.Builtin.builtins
       BuiltinCli.builtins ]
     []

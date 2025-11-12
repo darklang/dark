@@ -26,22 +26,120 @@ module D = LibExecution.DvalDecoder
 module Utils = BuiltinCliHost.Utils
 
 
+module BranchID =
+  let fromDT = C2DT.Option.fromDT D.uuid
+  let toDT = C2DT.Option.toDT Dval.uuid KTUuid
+
+
+// Get PackageManager instance with error handling
+let executePM
+  (exeState : RT.ExecutionState)
+  (branchID : Option<System.Guid>)
+  : Ply<Dval> =
+  uply {
+    let getPmFnName = FQFnName.Package PackageIDs.Fn.LanguageTools.PackageManager.pm
+
+    let! execResult =
+      Exe.executeFunction exeState getPmFnName [] (NEList.singleton DUnit)
+
+    match execResult with
+    | Ok dval -> return dval
+    | Error(rte, _cs) ->
+      let! rteString = Exe.runtimeErrorToString branchID exeState rte
+      match rteString with
+      | Ok rte ->
+        return Exception.raiseInternal "Error executing pm function" [ "rte", rte ]
+      | Error(nestedRte, _cs) ->
+        return
+          Exception.raiseInternal
+            "Error running runtimeErrorToString"
+            [ "original rte", rte; "nested rte", nestedRte ]
+  }
+
+// Create OnMissing.Allow enum value
+let createOnMissingAllow () : Dval =
+  let onMissingType =
+    FQTypeName.Package
+      PackageIDs.Type.LanguageTools.NameResolver.nameResolverOnMissing
+  DEnum(onMissingType, onMissingType, [], "Allow", [])
+
+// Create exception error from exn
+let createExceptionError (e : exn) : RuntimeError.Error =
+  RuntimeError.UncaughtException(
+    Exception.getMessages e |> String.concat "\n",
+    Exception.toMetadata e |> List.map (fun (k, v) -> (k, DString(string v)))
+  )
+
+// Parse CLI script code
+let parseCliScript
+  (exeState : RT.ExecutionState)
+  (branchID : Option<System.Guid>)
+  (pm : Dval)
+  (owner : string)
+  (scriptName : string)
+  (code : string)
+  : Ply<Result<Utils.CliScript.PTCliScriptModule, RuntimeError.Error>> =
+  uply {
+    let onMissingAllow = createOnMissingAllow ()
+
+    let args =
+      NEList.ofList
+        (BranchID.toDT branchID)
+        [ DString owner
+          DString scriptName
+          onMissingAllow
+          pm
+          DString scriptName
+          DString code ]
+
+    let parseCliScriptFnName =
+      FQFnName.Package PackageIDs.Fn.LanguageTools.Parser.CliScript.parseCliScript
+
+    let! execResult = Exe.executeFunction exeState parseCliScriptFnName [] args
+
+    match execResult with
+    | Ok dval ->
+      match C2DT.Result.fromDT identity dval identity with
+      | Ok parsedModuleAndUnresolvedNames ->
+        return (Utils.CliScript.fromDT parsedModuleAndUnresolvedNames) |> Ok
+      | Error(DString errMsg) ->
+        return Error(RuntimeError.UncaughtException(errMsg, []))
+      | Error _ ->
+        return
+          Exception.raiseInternal
+            "Invalid error format from parseCliScript"
+            [ "dval", dval ]
+    | Error(rte, _cs) ->
+      let! rteString = Exe.runtimeErrorToString branchID exeState rte
+      match rteString with
+      | Ok errorDval ->
+        return
+          Exception.raiseInternal
+            "Error executing parseCliScript function"
+            [ "rte", errorDval ]
+      | Error(nestedRte, _cs) ->
+        return
+          Exception.raiseInternal
+            "Error running runtimeErrorToString"
+            [ "original rte", rte; "nested rte", nestedRte ]
+  }
+
+
 module ExecutionError =
   let fqTypeName = FQTypeName.fqPackage PackageIDs.Type.Cli.executionError
   let typeRef = TCustomType(Ok fqTypeName, [])
 
 
-module Config =
-  let packageManagerRT = LibPackageManager.PackageManager.rt
-  let ptPM = LibPackageManager.PackageManager.pt
+let pmRT = LibPackageManager.PackageManager.rt
+let ptPM = LibPackageManager.PackageManager.pt
 
-  let builtinsToUse : RT.Builtins =
-    LibExecution.Builtin.combine
-      [ BuiltinExecution.Builtin.builtins
-          BuiltinExecution.Libs.HttpClient.defaultConfig
-        BuiltinCli.Builtin.builtins
-        BuiltinPM.Builtin.builtins ptPM ]
-      []
+let builtinsToUse : RT.Builtins =
+  LibExecution.Builtin.combine
+    [ BuiltinExecution.Builtin.builtins
+        BuiltinExecution.Libs.HttpClient.defaultConfig
+      BuiltinCli.Builtin.builtins
+      BuiltinPM.Builtin.builtins ptPM ]
+    []
 
 
 let execute
@@ -71,15 +169,16 @@ let execute
         [ mod'.fns |> List.map PT2RT.PackageFn.toRT
           mod'.submodules.fns |> List.map PT2RT.PackageFn.toRT ]
 
-    let packageManager =
-      Config.packageManagerRT |> PackageManager.withExtras types values fns
+    // TODO we should probably use LibPM's in-memory grafting thing instead of this
+    // (no need for RT.PM.withExtras to exist, I think)
+    let pm = pmRT |> PackageManager.withExtras types values fns
 
     let tracing = Exe.noTracing
 
     let state =
       Exe.createState
-        Config.builtinsToUse
-        packageManager
+        builtinsToUse
+        pm
         tracing
         parentState.reportException
         parentState.notify
@@ -125,92 +224,10 @@ let fns : List<BuiltInFn> =
           [],
           [ branchID; DString filename; DString code; DList(_vtTODO, scriptArgs) ] ->
           uply {
-            let branchIDOpt = branchID |> C2DT.Option.fromDT D.uuid
-
-            let exnError (e : exn) : RuntimeError.Error =
-              RuntimeError.UncaughtException(
-                Exception.getMessages e |> String.concat "\n",
-                Exception.toMetadata e
-                |> List.map (fun (k, v) -> (k, DString(string v)))
-              )
-
-            let onMissingType =
-              FQTypeName.Package
-                PackageIDs.Type.LanguageTools.NameResolver.nameResolverOnMissing
-            let onMissingAllow = DEnum(onMissingType, onMissingType, [], "Allow", [])
-
-            let getPmFnName =
-              FQFnName.Package PackageIDs.Fn.LanguageTools.PackageManager.pm
-
-            let! execResult =
-              Exe.executeFunction exeState getPmFnName [] (NEList.singleton DUnit)
-
-            let! pm =
-              uply {
-                match execResult with
-                | Ok dval -> return dval
-                | Error(rte, _cs) ->
-                  let! rteString = Exe.runtimeErrorToString branchIDOpt exeState rte
-                  match rteString with
-                  | Ok rte ->
-                    return
-                      Exception.raiseInternal
-                        "Error executing pm function"
-                        [ "rte", rte ]
-
-                  | Error(nestedRte, _cs) ->
-                    return
-                      Exception.raiseInternal
-                        "Error running runtimeErrorToString"
-                        [ "original rte", rte; "nested rte", nestedRte ]
-              }
-            let args =
-              NEList.ofList
-                branchID
-                [ DString "CliScript"
-                  DString "ScriptName"
-                  onMissingAllow
-                  pm
-                  DString filename
-                  DString code ]
-
-            let parseCliScriptFnName =
-              FQFnName.Package
-                PackageIDs.Fn.LanguageTools.Parser.CliScript.parseCliScript
-
-            let! execResult =
-              Exe.executeFunction exeState parseCliScriptFnName [] args
-
-            let! (parsedScript :
-              Result<Utils.CliScript.PTCliScriptModule, RuntimeError.Error>) =
-              uply {
-                match execResult with
-                | Ok dval ->
-                  match C2DT.Result.fromDT identity dval identity with
-                  | Ok parsedModuleAndUnresolvedNames ->
-                    return
-                      (Utils.CliScript.fromDT parsedModuleAndUnresolvedNames) |> Ok
-                  | Error(DString errMsg) ->
-                    return Error(RuntimeError.UncaughtException(errMsg, []))
-                  | Error _ ->
-                    return
-                      Exception.raiseInternal
-                        "Invalid error format from parseCliScript"
-                        [ "dval", dval ]
-                | Error(rte, _cs) ->
-                  let! rteString = Exe.runtimeErrorToString branchIDOpt exeState rte
-                  match rteString with
-                  | Ok errorDval ->
-                    return
-                      Exception.raiseInternal
-                        "Error executing parseCliScript function"
-                        [ "rte", errorDval ]
-                  | Error(nestedRte, _cs) ->
-                    return
-                      Exception.raiseInternal
-                        "Error running runtimeErrorToString"
-                        [ "original rte", rte; "nested rte", nestedRte ]
-              }
+            let branchID = BranchID.fromDT branchID
+            let! pm = executePM exeState branchID
+            let! parsedScript =
+              parseCliScript exeState branchID pm "CliScript" filename code
 
             try
               match parsedScript with
@@ -224,15 +241,12 @@ let fns : List<BuiltInFn> =
                     |> RT2DT.RuntimeError.toDT
                     |> resultError
                 | Error(e, callStack) ->
-                  // TODO: do this, some better way
-                  // (probably pass it back in a structured way)
                   let! csString = Exe.callStackString exeState callStack
                   print $"Error when executing Script. Call-stack:\n{csString}\n"
-
                   return e |> RT2DT.RuntimeError.toDT |> resultError
               | Error e -> return e |> RT2DT.RuntimeError.toDT |> resultError
             with e ->
-              return exnError e |> RT2DT.RuntimeError.toDT |> resultError
+              return createExceptionError e |> RT2DT.RuntimeError.toDT |> resultError
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
@@ -258,7 +272,7 @@ let fns : List<BuiltInFn> =
         function
         | exeState, _, [], [ branchID; DString functionName; DList(_vtTODO, args) ] ->
           uply {
-            let branchIDOpt = branchID |> C2DT.Option.fromDT D.uuid
+            let branchID = BranchID.fromDT branchID
 
             let err (msg : string) (metadata : List<string * string>) : Dval =
               let fields =
@@ -288,11 +302,7 @@ let fns : List<BuiltInFn> =
                 FQFnName.Package
                   PackageIDs.Fn.LanguageTools.NameResolver.FnName.resolve
 
-              let onMissingType =
-                FQTypeName.Package
-                  PackageIDs.Type.LanguageTools.NameResolver.nameResolverOnMissing
-              let onMissingAllow =
-                DEnum(onMissingType, onMissingType, [], "Allow", [])
+              let onMissingAllow = createOnMissingAllow ()
 
               let parserRangeType =
                 FQTypeName.Package PackageIDs.Type.LanguageTools.Parser.range
@@ -319,29 +329,11 @@ let fns : List<BuiltInFn> =
                   [ rangeParser; DList(VT.string, parts |> List.map DString) ]
                 )
 
-              let pm = FQFnName.Package PackageIDs.Fn.LanguageTools.PackageManager.pm
-              let! execResult =
-                Exe.executeFunction exeState pm [] (NEList.singleton RT.Dval.DUnit)
-              let! pm =
-                uply {
-                  match execResult with
-                  | Ok dval -> return dval
-                  | Error(rte, _cs) ->
-                    let! rteString =
-                      Exe.rteToString
-                        RT2DT.RuntimeError.toDT
-                        branchIDOpt
-                        exeState
-                        rte
-                    return
-                      Exception.raiseInternal
-                        "Error executing pm function"
-                        [ "rte", rteString ]
-                }
+              let! pm = executePM exeState branchID
 
               let resolveFnArgs =
                 NEList.ofList
-                  branchID
+                  (BranchID.toDT branchID)
                   [ onMissingAllow; pm; RT.DString "Cli"; currentModule; nameArg ]
 
               let! execResult =
@@ -351,12 +343,13 @@ let fns : List<BuiltInFn> =
                 uply {
                   match execResult with
                   | Ok dval ->
-                    match
+                    let nre =
                       C2DT.Result.fromDT
                         PT2DT.FQFnName.fromDT
                         dval
                         PT2DT.NameResolutionError.fromDT
-                    with
+
+                    match nre with
                     | Ok fnName -> return Ok fnName
                     | Error nameErr ->
                       match nameErr with
@@ -404,9 +397,7 @@ let fns : List<BuiltInFn> =
 
                   match result with
                   | Error(rte, _cs) ->
-                    // TODO we should probably return the error here as-is, and handle by calling the
-                    // toSegments on the error within the CLI
-                    match! Exe.runtimeErrorToString branchIDOpt exeState rte with
+                    match! Exe.runtimeErrorToString branchID exeState rte with
                     | Ok(DString s) -> return err s []
                     | _ ->
                       let rte =
@@ -446,92 +437,16 @@ let fns : List<BuiltInFn> =
         (function
         | exeState, _, [], [ branchID; DString expression ] ->
           uply {
-            let branchIDOpt = branchID |> C2DT.Option.fromDT D.uuid
-
-            let exnError (e : exn) : RuntimeError.Error =
-              RuntimeError.UncaughtException(
-                Exception.getMessages e |> String.concat "\n",
-                Exception.toMetadata e
-                |> List.map (fun (k, v) -> (k, DString(string v)))
-              )
-
-            let onMissingType =
-              FQTypeName.Package
-                PackageIDs.Type.LanguageTools.NameResolver.nameResolverOnMissing
-            let onMissingAllow = DEnum(onMissingType, onMissingType, [], "Allow", [])
-
-            let getPmFnName =
-              FQFnName.Package PackageIDs.Fn.LanguageTools.PackageManager.pm
-
-            let! execResult =
-              Exe.executeFunction exeState getPmFnName [] (NEList.singleton DUnit)
-
-            let! pm =
-              uply {
-                match execResult with
-                | Ok dval -> return dval
-                | Error(rte, _cs) ->
-                  let! rteString = Exe.runtimeErrorToString branchIDOpt exeState rte
-                  match rteString with
-                  | Ok rte ->
-                    return
-                      Exception.raiseInternal
-                        "Error executing pm function"
-                        [ "rte", rte ]
-                  | Error(nestedRte, _cs) ->
-                    return
-                      Exception.raiseInternal
-                        "Error running runtimeErrorToString"
-                        [ "original rte", rte; "nested rte", nestedRte ]
-              }
-
-            let args =
-              NEList.ofList
+            let branchID = BranchID.fromDT branchID
+            let! pm = executePM exeState branchID
+            let! parsedScript =
+              parseCliScript
+                exeState
                 branchID
-                [ DString "CliScript"
-                  DString "ExprWrapper"
-                  onMissingAllow
-                  pm
-                  DString "exprWrapper"
-                  DString expression ]
-
-            let parseCliScriptFnName =
-              FQFnName.Package
-                PackageIDs.Fn.LanguageTools.Parser.CliScript.parseCliScript
-
-            let! execResult =
-              Exe.executeFunction exeState parseCliScriptFnName [] args
-
-            let! (parsedScript :
-              Result<Utils.CliScript.PTCliScriptModule, RuntimeError.Error>) =
-              uply {
-                match execResult with
-                | Ok dval ->
-                  match C2DT.Result.fromDT identity dval identity with
-                  | Ok parsedModuleAndUnresolvedNames ->
-                    return
-                      (Utils.CliScript.fromDT parsedModuleAndUnresolvedNames) |> Ok
-                  | Error(DString errMsg) ->
-                    return Error(RuntimeError.UncaughtException(errMsg, []))
-                  | Error _ ->
-                    return
-                      Exception.raiseInternal
-                        "Invalid error format from parseCliScript"
-                        [ "dval", dval ]
-                | Error(rte, _cs) ->
-                  let! rteString = Exe.runtimeErrorToString branchIDOpt exeState rte
-                  match rteString with
-                  | Ok errorDval ->
-                    return
-                      Exception.raiseInternal
-                        "Error executing parseCliScript function"
-                        [ "rte", errorDval ]
-                  | Error(nestedRte, _cs) ->
-                    return
-                      Exception.raiseInternal
-                        "Error running runtimeErrorToString"
-                        [ "original rte", rte; "nested rte", nestedRte ]
-              }
+                pm
+                "CliScript"
+                "exprWrapper"
+                expression
 
             try
               match parsedScript with
@@ -549,23 +464,9 @@ let fns : List<BuiltInFn> =
                   return e |> RT2DT.RuntimeError.toDT |> resultError
               | Error e -> return e |> RT2DT.RuntimeError.toDT |> resultError
             with e ->
-              return exnError e |> RT2DT.RuntimeError.toDT |> resultError
+              return createExceptionError e |> RT2DT.RuntimeError.toDT |> resultError
           }
         | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
-      previewable = Impure
-      deprecated = NotDeprecated }
-
-
-    { name = fn "getBuildHash" 0
-      typeParams = []
-      parameters = [ Param.make "unit" TUnit "" ]
-      returnType = TString
-      description = "Returns the git hash of the current CLI build"
-      fn =
-        function
-        | _, _, [], [ DUnit ] -> uply { return DString LibConfig.Config.buildHash }
-        | _ -> incorrectArgs ()
       sqlSpec = NotQueryable
       previewable = Impure
       deprecated = NotDeprecated } ]

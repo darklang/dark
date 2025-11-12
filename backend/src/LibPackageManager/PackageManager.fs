@@ -89,6 +89,7 @@ let createInMemory (ops : List<PT.PackageOp>) : PT.PackageManager =
     getValueLocation = fun (_branchID, id) -> Ply(Map.tryFind id valueIdToLoc)
     getFnLocation = fun (_branchID, id) -> Ply(Map.tryFind id fnIdToLoc)
 
+    // no need to support this for in-memory.
     search =
       fun (_branchID, _query) ->
         // Simple in-memory search - just return all items with their locations
@@ -228,6 +229,8 @@ let combine
         do! fallback.init
       } }
 
+
+// TODO can we (somehow) abstract the algorithm of: phase 1, id stabilization, reparse for phase 2
 
 /// Stabilize IDs in ops by matching them against a reference PackageManager
 /// Used during two-phase parsing to ensure IDs from second pass match first pass

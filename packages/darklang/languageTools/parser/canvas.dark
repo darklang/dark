@@ -1,5 +1,8 @@
 module Darklang.LanguageTools.Parser.Canvas
 
+// CLEANUP this hasn't been used in a while.
+// by the time we do use it, it'll likely need some notable adjustments.
+
 
 type WTCanvasModule =
   { owner: String

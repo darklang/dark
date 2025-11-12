@@ -20,10 +20,10 @@ type Branch =
 /// List all branches
 let list () : Task<List<Branch>> =
   """
-    SELECT id, name, created_at, merged_at
-    FROM branches
-    ORDER BY created_at DESC
-    """
+  SELECT id, name, created_at, merged_at
+  FROM branches
+  ORDER BY created_at DESC
+  """
   |> Sql.query
   |> Sql.executeAsync (fun read ->
     { id = read.uuid "id"
@@ -35,10 +35,10 @@ let list () : Task<List<Branch>> =
 /// Get a specific branch by ID
 let get (branchID : uuid) : Task<Option<Branch>> =
   """
-    SELECT id, name, created_at, merged_at
-    FROM branches
-    WHERE id = @id
-    """
+  SELECT id, name, created_at, merged_at
+  FROM branches
+  WHERE id = @id
+  """
   |> Sql.query
   |> Sql.parameters [ "id", Sql.uuid branchID ]
   |> Sql.executeRowOptionAsync (fun read ->

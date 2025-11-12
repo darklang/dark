@@ -392,6 +392,47 @@ let moduleDeclaration
 
     $"module {m.name} =\n{bodyPart}"
 
+
+let formatModuleContent
+  (ctx: PrettyPrinter.ProgramTypes.Context)
+  (types: List<LanguageTools.ProgramTypes.PackageType.PackageType>)
+  (fns: List<LanguageTools.ProgramTypes.PackageFn.PackageFn>)
+  (values: List<LanguageTools.ProgramTypes.PackageValue.PackageValue>)
+  : String =
+  let typesPart =
+    match types with
+    | [] -> Stdlib.Option.Option.None
+    | types ->
+      types
+      |> Stdlib.List.map (fun t -> PrettyPrinter.ProgramTypes.packageType ctx.branchID t)
+      |> Stdlib.String.join "\n\n"
+      |> Stdlib.Option.Option.Some
+
+  let fnsPart =
+    match fns with
+    | [] -> Stdlib.Option.Option.None
+    | fns ->
+      fns
+      |> Stdlib.List.map (fun f -> PrettyPrinter.ProgramTypes.packageFn ctx f)
+      |> Stdlib.String.join "\n\n"
+      |> Stdlib.Option.Option.Some
+
+  let valuesPart =
+    match values with
+    | [] -> Stdlib.Option.Option.None
+    | values ->
+      values
+      |> Stdlib.List.map (fun v -> PrettyPrinter.ProgramTypes.packageValue ctx v)
+      |> Stdlib.String.join "\n\n"
+      |> Stdlib.Option.Option.Some
+
+  let parts = [ typesPart; fnsPart; valuesPart ] |> Stdlib.List.filterMap (fun s -> s)
+
+  match parts with
+  | [] -> "// This module is empty."
+  | parts -> Stdlib.String.join parts "\n\n"
+
+
 let definitions
   (ctx: PrettyPrinter.ProgramTypes.Context)
   (p: LanguageTools.ProgramTypes.Definitions)

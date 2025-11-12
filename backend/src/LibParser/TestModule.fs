@@ -266,10 +266,12 @@ let parseTestFile
   (owner : string)
   (builtins : RT.Builtins)
   (pm : PT.PackageManager)
-  (onMissing : NR.OnMissing)
   (filename : string)
   : Ply<List<PTModule>> =
   uply {
+    // test modules should always allow NREs
+    let onMissing = NR.OnMissing.Allow
+
     let modulesWT =
       filename
       |> System.IO.File.ReadAllText
@@ -279,8 +281,9 @@ let parseTestFile
     // First pass: parse with OnMissing.Allow to allow unresolved names
     let! firstPassModules =
       modulesWT
-      |> Ply.List.mapSequentially (fun m ->
-        toPT owner builtins PT.PackageManager.empty NR.OnMissing.Allow m)
+      |> Ply.List.mapSequentially (
+        toPT owner builtins PT.PackageManager.empty onMissing
+      )
 
     // Extract ops from first pass for second pass PackageManager
     let firstPassOps = firstPassModules |> List.collect _.ops
@@ -289,8 +292,7 @@ let parseTestFile
     let enhancedPM = LibPackageManager.PackageManager.withExtraOps pm firstPassOps
     let! reParsedModules =
       modulesWT
-      |> Ply.List.mapSequentially (fun m ->
-        toPT owner builtins enhancedPM onMissing m)
+      |> Ply.List.mapSequentially (toPT owner builtins enhancedPM onMissing)
 
     // ID stabilization: adjust second pass IDs to match first pass IDs
     let firstPassPM = LibPackageManager.PackageManager.createInMemory firstPassOps

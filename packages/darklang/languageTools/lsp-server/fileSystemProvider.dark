@@ -101,12 +101,7 @@ module ReadFile =
               { currentModule = modulePath
                 text = ""
                 searchDepth = LanguageTools.ProgramTypes.Search.SearchDepth.AllDescendants
-                entityTypes = [
-                  LanguageTools.ProgramTypes.Search.EntityType.Module
-                  LanguageTools.ProgramTypes.Search.EntityType.Fn
-                  LanguageTools.ProgramTypes.Search.EntityType.Type
-                  LanguageTools.ProgramTypes.Search.EntityType.Value
-                ]
+                entityTypes = []
                 exactMatch = false }
 
           let ctx =
@@ -115,31 +110,15 @@ module ReadFile =
                 currentModule = Stdlib.Option.Option.None
                 currentFunction = Stdlib.Option.Option.None }
 
-          let searchResults =
+          let results =
             LanguageTools.PackageManager.Search.search state.branchID searchQuery
 
-          let functions =
-            searchResults.fns
-            |> Stdlib.List.map (fun locatedFn ->
-              PrettyPrinter.ProgramTypes.packageFn ctx locatedFn.entity)
-            |> Stdlib.String.join "\n\n"
+          let types = results.types |> Stdlib.List.map (fun found -> found.entity)
+          let fns = results.fns |> Stdlib.List.map (fun found -> found.entity)
+          let values = results.values |> Stdlib.List.map (fun found -> found.entity)
 
-          let types =
-            searchResults.types
-            |> Stdlib.List.map (fun locatedType ->
-              PrettyPrinter.ProgramTypes.packageType branchID locatedType.entity)
-            |> Stdlib.String.join "\n\n"
-
-          let values =
-            searchResults.values
-            |> Stdlib.List.map (fun locatedValue ->
-              PrettyPrinter.ProgramTypes.packageValue ctx locatedValue.entity)
-            |> Stdlib.String.join "\n\n"
-
-          let allDefinitions =
-            [ types; values; functions ]
-            |> Stdlib.List.filter (fun s -> s != "")
-            |> Stdlib.String.join "\n\n"
+          let formattedContent =
+            PrettyPrinter.formatModuleContent ctx types fns values
 
           // Build module header with proper nesting
           let moduleHeader =
@@ -149,19 +128,10 @@ module ReadFile =
               $"{indent}module {name} =")
             |> Stdlib.String.join "\n"
 
-          let contentIndent = Stdlib.String.repeat "  " (Stdlib.List.length modulePath)
+          let nestingLevel = Stdlib.List.length modulePath
+          let indentedContent = PrettyPrinter.indentByLevel nestingLevel formattedContent
 
-          let content =
-            if allDefinitions == "" then
-              $"{contentIndent}// This module is empty."
-            else
-              allDefinitions
-              |> Stdlib.String.split "\n"
-              |> Stdlib.List.map (fun line ->
-                if line == "" then line else $"{contentIndent}{line}")
-              |> Stdlib.String.join "\n"
-
-          $"{moduleHeader}\n{content}"
+          $"{moduleHeader}\n{indentedContent}"
 
     sendResponse state requestId getContent
 
@@ -528,31 +498,15 @@ module WriteFile =
                     currentModule = Stdlib.Option.Option.None
                     currentFunction = Stdlib.Option.Option.None }
 
-              let searchResults =
+              let results =
                 LanguageTools.PackageManager.Search.search state.branchID searchQuery
 
-              let functions =
-                searchResults.fns
-                |> Stdlib.List.map (fun locatedFn ->
-                  PrettyPrinter.ProgramTypes.packageFn ctx locatedFn.entity)
-                |> Stdlib.String.join "\n\n"
+              let types = results.types |> Stdlib.List.map (fun found -> found.entity)
+              let fns = results.fns |> Stdlib.List.map (fun found -> found.entity)
+              let values = results.values |> Stdlib.List.map (fun found -> found.entity)
 
-              let types =
-                searchResults.types
-                |> Stdlib.List.map (fun locatedType ->
-                  PrettyPrinter.ProgramTypes.packageType state.branchID locatedType.entity)
-                |> Stdlib.String.join "\n\n"
-
-              let values =
-                searchResults.values
-                |> Stdlib.List.map (fun locatedValue ->
-                  PrettyPrinter.ProgramTypes.packageValue ctx locatedValue.entity)
-                |> Stdlib.String.join "\n\n"
-
-              let allDefinitions =
-                [ types; values; functions ]
-                |> Stdlib.List.filter (fun s -> s != "")
-                |> Stdlib.String.join "\n\n"
+              let formattedContent =
+                PrettyPrinter.formatModuleContent ctx types fns values
 
               // Build module header with proper nesting
               let moduleHeader =
@@ -562,13 +516,8 @@ module WriteFile =
                   $"{indent}module {name} =")
                 |> Stdlib.String.join "\n"
 
-              let contentIndent = Stdlib.String.repeat "  " (Stdlib.List.length modulePath)
-              let indentedContent =
-                allDefinitions
-                |> Stdlib.String.split "\n"
-                |> Stdlib.List.map (fun line ->
-                  if line == "" then line else $"{contentIndent}{line}")
-                |> Stdlib.String.join "\n"
+              let nestingLevel = Stdlib.List.length modulePath
+              let indentedContent = PrettyPrinter.indentByLevel nestingLevel formattedContent
 
               $"{moduleHeader}\n{indentedContent}"
               |> Stdlib.Option.Option.Some
