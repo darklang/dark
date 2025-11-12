@@ -1,0 +1,83 @@
+module Darklang.LanguageTools.LspServer.Branches
+
+
+/// Handles `dark/getBranches` requests
+let handleGetBranchesRequest
+  (state: LspState)
+  (requestID: JsonRPC.RequestId)
+  : LspState =
+
+  let branches = Darklang.SCM.Branch.list ()
+
+  let result =
+    branches
+    |> Stdlib.List.map (fun branch ->
+      let mergedAt =
+        match branch.mergedAt with
+        | Some dt -> Json.String(Stdlib.DateTime.toString dt)
+        | None -> Json.Null
+
+      [ ("id", Json.String(Stdlib.Uuid.toString branch.id))
+        ("name", Json.String branch.name)
+        ("createdAt", Json.String(Stdlib.DateTime.toString branch.createdAt))
+        ("mergedAt", mergedAt) ]
+      |> Json.Object)
+    |> Json.Array
+
+  let responseJson =
+    let requestID = Stdlib.Option.Option.Some requestID
+    (JsonRPC.Response.Ok.make requestID result)
+    |> Stdlib.AltJson.format
+
+  logAndSendToClient responseJson
+
+  state
+
+
+/// Handles `dark/createBranch` requests
+let handleCreateBranchRequest
+  (state: LspState)
+  (requestID: JsonRPC.RequestId)
+  (branchName: String)
+  : LspState =
+  let branch = Darklang.SCM.Branch.create branchName
+
+  let result =
+    let mergedAt =
+      match branch.mergedAt with
+      | Some dt -> Json.String(Stdlib.DateTime.toString dt)
+      | None -> Json.Null
+
+    [ ("id", Json.String(Stdlib.Uuid.toString branch.id))
+      ("name", Json.String branch.name)
+      ("createdAt", Json.String(Stdlib.DateTime.toString branch.createdAt))
+      ("mergedAt", mergedAt) ]
+    |> Json.Object
+
+  let responseJson =
+    let requestID = Stdlib.Option.Option.Some requestID
+    (JsonRPC.Response.Ok.make requestID result)
+    |> Stdlib.AltJson.format
+
+  logAndSendToClient responseJson
+
+  // Set this as the current branch in LSP state
+  { state with branchID = Stdlib.Option.Option.Some branch.id }
+
+
+
+/// Handles `dark/clearBranch` requests
+let handleClearBranchRequest
+  (state: LspState)
+  (requestID: JsonRPC.RequestId)
+  : LspState =
+  let responseJson =
+    let requestID = Stdlib.Option.Option.Some requestID
+    let body = Json.Null
+    (JsonRPC.Response.Ok.make requestID body)
+    |> Stdlib.AltJson.format
+
+  logAndSendToClient responseJson
+
+  // Clear the current branch from LSP state
+  { state with branchID = Stdlib.Option.Option.None }

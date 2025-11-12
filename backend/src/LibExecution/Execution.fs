@@ -8,6 +8,7 @@ open Prelude
 module RT = RuntimeTypes
 module RTE = RT.RuntimeError
 module RT2DT = RuntimeTypesToDarkTypes
+module Dval = LibExecution.Dval
 
 let noTracing : RT.Tracing.Tracing =
   { traceDval = fun _ _ -> ()
@@ -87,8 +88,8 @@ let execute
         do! exeState.reportException exeState vm metadata ex
 
         let metadata = metadata |> List.map (fun (k, v) -> k, RT.DString(string v))
-        return
-          (RTE.UncaughtException(ex.Message, metadata)) |> RT.raiseRTE vm.threadID
+        let callStack = callStackFromVM vm
+        return Error(RTE.UncaughtException(ex.Message, metadata), callStack)
 
     finally
       // Does nothing in non-tests
@@ -143,6 +144,7 @@ let executeFunction
 
 
 let runtimeErrorToString
+  (branchID : Option<uuid>)
   (state : RT.ExecutionState)
   (rte : RT.RuntimeError.Error)
   : Task<RT.ExecutionResult> =
@@ -150,7 +152,8 @@ let runtimeErrorToString
     let fnName =
       RT.FQFnName.fqPackage
         PackageIDs.Fn.PrettyPrinter.RuntimeTypes.RuntimeError.toString
-    let args = NEList.singleton (RT2DT.RuntimeError.toDT rte)
+    let branchID = branchID |> Option.map Dval.uuid |> Dval.option RT.KTUuid
+    let args = NEList.ofList branchID [ RT2DT.RuntimeError.toDT rte ]
     return! executeFunction state fnName [] args
   }
 
@@ -317,9 +320,12 @@ let traceDvals () : Dictionary.T<id, RT.Dval> * RT.Tracing.TraceDval =
 
 let rec rteToString
   (rteToDval : RT.RuntimeError.Error -> RT.Dval)
+  (branchID : option<uuid>)
   (state : RT.ExecutionState)
   (rte : RT.RuntimeError.Error)
   : Ply<string> =
+  let r = rteToString rteToDval branchID state
+  let branchID = branchID |> Option.map Dval.uuid |> Dval.option RT.KTUuid
   uply {
     let errorMessageFn =
       RT.FQFnName.fqPackage
@@ -328,12 +334,12 @@ let rec rteToString
     let rteDval = rteToDval rte
 
     let! rteMessage =
-      executeFunction state errorMessageFn [] (NEList.ofList rteDval [])
+      executeFunction state errorMessageFn [] (NEList.ofList branchID [ rteDval ])
 
     match rteMessage with
     | Ok(RT.DString msg) -> return msg
     | Ok(other) -> return string other
     | Error(rte, _cs) ->
       debuG "Error converting RTE to string" rte
-      return! rteToString rteToDval state rte
+      return! r rte
   }

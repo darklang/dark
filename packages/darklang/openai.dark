@@ -39,8 +39,7 @@ module Completion =
     let headers = Config.getHeaders apiKey
 
     let openAIResponse =
-      Stdlib.HttpClient.request
-        "POST"
+      Stdlib.HttpClient.post
         "https://api.openai.com/v1/completions"
         headers
         (Stdlib.String.toBytes reqBody)
@@ -117,8 +116,7 @@ module ChatCompletion =
     let headers = Config.getHeaders apiKey
 
     let openAIResponse =
-      Stdlib.HttpClient.request
-        "POST"
+      Stdlib.HttpClient.post
         "https://api.openai.com/v1/chat/completions"
         headers
         (Stdlib.String.toBytes reqBody)
@@ -158,8 +156,7 @@ module ChatCompletion =
     let headers = Darklang.OpenAI.Config.getHeaders apiKey
 
     let openAIResponse =
-      Stdlib.HttpClient.request
-        "POST"
+      Stdlib.HttpClient.post
         "https://api.openai.com/v1/chat/completions"
         headers
         (Stdlib.String.toBytes reqBody)
@@ -203,8 +200,7 @@ module ImageGeneration =
     let headers = Config.getHeaders apiKey
 
     let openAIResponse =
-      Stdlib.HttpClient.request
-        "POST"
+      Stdlib.HttpClient.post
         "https://api.openai.com/v1/images/generations"
         headers
         (Stdlib.String.toBytes reqBody)
@@ -245,11 +241,7 @@ module Model =
     let headers = Config.getHeaders apiKey
 
     let modelResponse =
-      Stdlib.HttpClient.request
-        "GET"
-        $"https://api.openai.com/v1/models/{model}"
-        headers
-        []
+      Stdlib.HttpClient.get $"https://api.openai.com/v1/models/{model}" headers
 
     match modelResponse with
     | Ok r ->
@@ -261,11 +253,7 @@ module Model =
     (apiKey: String)
     : Stdlib.Result.Result<List<String>, String> =
     let modelResponse =
-      Stdlib.HttpClient.request
-        "GET"
-        "https://api.openai.com/v1/models"
-        (Config.getHeaders apiKey)
-        []
+      Stdlib.HttpClient.get "https://api.openai.com/v1/models" (Config.getHeaders apiKey)
 
     match modelResponse with
     | Ok r ->

@@ -5,11 +5,13 @@ let initialParse
   (code: String)
   : Stdlib.Result.Result<WrittenTypes.ParsedFile, String> =
   code
-  |> LanguageTools.Parser.parseToSimplifiedTree
-  |> LanguageTools.Parser.parseFromTree
+  |> parseToSimplifiedTree
+  |> parseFromTree
+
 
 // TODO: maybe use a proper type instead of string?
 let parsePTExpr
+  (branchID: Stdlib.Option.Option<ProgramTypes.BranchID>)
   (code: String)
   : Stdlib.Result.Result<ProgramTypes.Expr, String> =
   match code |> TestParsing.initialParse with
@@ -19,18 +21,19 @@ let parsePTExpr
       | SourceFile s -> s.exprsToEval
       | _ -> []
 
-    let onMissing = LanguageTools.NameResolver.OnMissing.Allow
-    let pm = LanguageTools.PackageManager.pm ()
+    let onMissing = NameResolver.OnMissing.Allow
+    let pm = PackageManager.pm ()
 
     match exprs with
     | [ expr ] ->
       let (expr, _) =
         WrittenTypesToProgramTypes.Expr.toPT
+          branchID
           onMissing
           pm
           ""
           []
-          (WrittenTypesToProgramTypes.Context { currentFnName = Stdlib.Option.Option.None; argMap = Stdlib.Dict.empty })
+          WrittenTypesToProgramTypes.defaultContext
           expr
 
       expr |> Stdlib.Result.Result.Ok
@@ -39,23 +42,18 @@ let parsePTExpr
       |> Stdlib.Result.Result.Error
   | Error e -> Stdlib.Result.Result.Error e
 
-let parsePTSourceFile
+
+let parsePTSourceFileWithOps
+  (branchID: Stdlib.Option.Option<ProgramTypes.BranchID>)
   (code: String)
-  : Stdlib.Result.Result<ProgramTypes.SourceFile.SourceFile, String> =
+  : Stdlib.Result.Result<
+    (ProgramTypes.SourceFile.SourceFile * List<ProgramTypes.PackageOp>),
+    String
+  > =
   match code |> TestParsing.initialParse with
   | Ok parsedFile ->
-    parsedFile
-    |> WrittenTypesToProgramTypes.parsedFileAsSourceFile
-    |> Stdlib.Tuple2.first
-    |> Stdlib.Result.Result.Ok
-  | Error e -> Stdlib.Result.Result.Error e
+    let (sourceFile, ops, _unresolvedNames) =
+      parsedFile |> WrittenTypesToProgramTypes.parsedFileAsSourceFile branchID
 
-let parseAndPrettyPrint
-  (code: String)
-  : Stdlib.Result.Result<String, String> =
-  match code |> TestParsing.parsePTSourceFile with
-  | Ok sourceFile ->
-    sourceFile
-    |> PrettyPrinter.ProgramTypes.sourceFile
-    |> Stdlib.Result.Result.Ok
+    (sourceFile, ops) |> Stdlib.Result.Result.Ok
   | Error e -> Stdlib.Result.Result.Error e

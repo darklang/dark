@@ -12,18 +12,20 @@ let execute (state: AppState) (args: List<String>) : AppState =
   match args with
   | [] ->
     // CLEANUP defer to 'help' stuff -- consolidate
-    Stdlib.printLine "Scripts commands:"
-    Stdlib.printLine "  scripts list               - List all scripts"
-    Stdlib.printLine "  scripts view <name>        - View script content"
-    Stdlib.printLine "  scripts add <name> <text>  - Add a new script"
-    Stdlib.printLine "  scripts edit <name>        - Show script content"
-    Stdlib.printLine "  scripts edit <name> <text> - Update script with new content"
-    Stdlib.printLine "  scripts delete <name>      - Delete a script"
-    Stdlib.printLine "  scripts run <name>         - Run a script"
+    [
+      "Scripts commands:"
+      "  scripts list               - List all scripts"
+      "  scripts view <name>        - View script content"
+      "  scripts add <name> <text>  - Add a new script"
+      "  scripts edit <name>        - Show script content"
+      "  scripts edit <name> <text> - Update script with new content"
+      "  scripts delete <name>      - Delete a script"
+      "  scripts run <name>         - Run a script"
+    ] |> Stdlib.printLines
     state
 
   | ["list"] ->
-    let scripts = Builtin.cliScriptsList ()
+    let scripts = Builtin.pmScriptsList ()
     if Stdlib.List.isEmpty scripts then
       Stdlib.printLine "No scripts found"
       state
@@ -36,7 +38,7 @@ let execute (state: AppState) (args: List<String>) : AppState =
       state
 
   | ["view"; name] ->
-    match Builtin.cliScriptsGet name with
+    match Builtin.pmScriptsGet name with
     | Some script ->
       let output = $"Script: {script.name}\n\n{script.text}"
       Stdlib.printLine output
@@ -47,20 +49,24 @@ let execute (state: AppState) (args: List<String>) : AppState =
       state
 
   | ["add"] ->
-    Stdlib.printLine "Error: Missing arguments for scripts add"
-    Stdlib.printLine "Usage: scripts add <name> <text>"
-    Stdlib.printLine "Example: scripts add hello 'Stdlib.printLine \"Hello World\"'"
+    [
+      "Error: Missing arguments for scripts add"
+      "Usage: scripts add <name> <text>"
+      "Example: scripts add hello 'Stdlib.printLine \"Hello World\"'"
+    ] |> Stdlib.printLines
     state
 
   | ["add"; _] ->
-    Stdlib.printLine "Error: Missing script text"
-    Stdlib.printLine "Usage: scripts add <name> <text>"
-    Stdlib.printLine "Example: scripts add hello 'Stdlib.printLine \"Hello World\"'"
+    [
+      "Error: Missing script text"
+      "Usage: scripts add <name> <text>"
+      "Example: scripts add hello 'Stdlib.printLine \"Hello World\"'"
+    ] |> Stdlib.printLines
     staet
 
   | "add" :: name :: textParts when Stdlib.Bool.not (Stdlib.List.isEmpty textParts) ->
     let text = Stdlib.String.join textParts " "
-    match Builtin.cliScriptsAdd name text with
+    match Builtin.pmScriptsAdd name text with
     | Ok script ->
       let message = $"Script '{script.name}' added successfully"
       Stdlib.printLine message
@@ -70,12 +76,13 @@ let execute (state: AppState) (args: List<String>) : AppState =
       state
 
   | ["edit"; name] ->
-    match Builtin.cliScriptsGet name with
+    match Builtin.pmScriptsGet name with
     | Some script ->
-      let output = $"Current content of script '{name}':\n{script.text}"
-      Stdlib.printLine output
-      Stdlib.printLine ""
-      Stdlib.printLine "Use 'scripts edit <name> <new_content>' to update the script"
+      [
+        $"Current content of script '{name}':\n{script.text}"
+        ""
+        "Use 'scripts edit <name> <new_content>' to update the script"
+      ] |> Stdlib.printLines
       state
     | None ->
       let error = $"Script '{name}' not found"
@@ -84,7 +91,7 @@ let execute (state: AppState) (args: List<String>) : AppState =
 
   | "edit" :: name :: textParts when Stdlib.Bool.not (Stdlib.List.isEmpty textParts) ->
     let text = Stdlib.String.join textParts " "
-    match Builtin.cliScriptsUpdate name text with
+    match Builtin.pmScriptsUpdate name text with
     | Ok () ->
       let message = $"Script '{name}' updated successfully"
       Stdlib.printLine message
@@ -94,7 +101,7 @@ let execute (state: AppState) (args: List<String>) : AppState =
       state
 
   | ["delete"; name] ->
-    match Builtin.cliScriptsDelete name with
+    match Builtin.pmScriptsDelete name with
     | Ok () ->
       let message = $"Script '{name}' deleted successfully"
       Stdlib.printLine message
@@ -104,16 +111,16 @@ let execute (state: AppState) (args: List<String>) : AppState =
       state
 
   | ["run"; name] ->
-    match Builtin.cliScriptsGet name with
+    match Builtin.pmScriptsGet name with
     | Some script ->
-      let result = Builtin.cliParseAndExecuteScript $"script:{name}" script.text []
+      let result = Builtin.cliParseAndExecuteScript state.currentBranchId $"script:{name}" script.text []
       match result with
       | Ok exitCode ->
         let message = $"Script '{name}' executed with exit code: {Stdlib.Int64.toString exitCode}"
         Stdlib.printLine message
         state
       | Error runtimeError ->
-        let prettyError = PrettyPrinter.RuntimeTypes.RuntimeError.toString runtimeError
+        let prettyError = PrettyPrinter.RuntimeTypes.RuntimeError.toString state.currentBranchId runtimeError
         Stdlib.printLine $"Script error: {prettyError}"
         state
     | None ->
@@ -138,7 +145,7 @@ let complete (state: AppState) (args: List<String>) : List<String> =
   // we're referencing some specific script - recommend names
   | ["view"] | ["edit"] | ["delete"] | ["run"] ->
     // Complete script names
-    let scripts = Builtin.cliScriptsList ()
+    let scripts = Builtin.pmScriptsList ()
     scripts |> Stdlib.List.map (fun s -> s.name)
 
   | [subcommand] ->

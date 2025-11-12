@@ -45,12 +45,12 @@ export class Node extends vscode.TreeItem {
   }
 
   private setIcon(): void {
-    // For packages (root level items)
-    if (
-      this.id === "Darklang" ||
-      this.id === "Stachu" ||
-      this.id === "Scripts"
-    ) {
+    // For packages (root level items) - detect by ID not containing a dot
+    // Root level IDs are single words like "Darklang", "Stachu", "Scripts"
+    // Child IDs contain dots like "Darklang.Stdlib", "Darklang.Stdlib.Int64"
+    const isRootLevel = this.type === "directory" && !this.id.includes(".");
+
+    if (isRootLevel) {
       this.iconPath = new vscode.ThemeIcon(
         "package",
         new vscode.ThemeColor("charts.orange"),
@@ -77,19 +77,12 @@ export class Node extends vscode.TreeItem {
           "symbol-constant",
           new vscode.ThemeColor("charts.orange"),
         );
-      } else if (this.contextValue.startsWith("script/")) {
-        this.iconPath = new vscode.ThemeIcon(
-          "file-code",
-          new vscode.ThemeColor("charts.purple"),
-        );
       }
     }
   }
 }
 
-export class ServerBackedTreeDataProvider
-  implements vscode.TreeDataProvider<Node>
-{
+export class PackagesTreeDataProvider implements vscode.TreeDataProvider<Node> {
   private _client: LanguageClient;
   private _onDidChangeTreeData: vscode.EventEmitter<
     Node | undefined | null | void
@@ -104,6 +97,7 @@ export class ServerBackedTreeDataProvider
 
     // Wait for server to be ready, then refresh the tree
     this._client.onReady().then(() => {
+      this._isServerReady = true;
       this._onDidChangeTreeData.fire();
     });
   }
@@ -111,6 +105,10 @@ export class ServerBackedTreeDataProvider
   refresh(): void {
     this._rootNodesCache = null;
     this._onDidChangeTreeData.fire();
+  }
+
+  dispose(): void {
+    this._onDidChangeTreeData.dispose();
   }
 
   getTreeItem(node: Node): vscode.TreeItem {
@@ -140,11 +138,6 @@ export class ServerBackedTreeDataProvider
         contextValue = item.contextValue; // Keep the full value with prefix for icon detection
         packagePath = prefixMatch[2]; // Extract the path without prefix for the command
       }
-      // For scripts, keep the full path including "script/"
-      else if (item.contextValue.startsWith("script/")) {
-        contextValue = item.contextValue;
-        packagePath = item.contextValue; // Keep the full path for scripts
-      }
     }
 
     const node = new Node(
@@ -158,7 +151,9 @@ export class ServerBackedTreeDataProvider
 
     // Set contextValue for modules (directories) to enable context menu
     // Only set if there's no existing contextValue (which would be a packagePath for entities)
-    if (type === "directory" && !item.contextValue) {
+    // Skip owners
+    const isRootLevel = !item.id.includes(".");
+    if (type === "directory" && !item.contextValue && !isRootLevel) {
       node.contextValue = "module";
       node.tooltip = `${item.label} - Right-click to open full module`;
     }
@@ -167,70 +162,40 @@ export class ServerBackedTreeDataProvider
   }
 
   async getChildren(node?: Node): Promise<Node[]> {
+    // Wait for server to be ready before fetching any nodes
+    if (!this._isServerReady) {
+      return [];
+    }
+
     // If requesting root nodes
     if (!node) {
-      // Return static root nodes immediately, without waiting for server
-      if (!this._rootNodesCache) {
-        this._rootNodesCache = [
-          new Node(
-            "Darklang",
-            "Darklang",
-            "directory",
-            vscode.TreeItemCollapsibleState.Collapsed,
-          ),
-          new Node(
-            "Stachu",
-            "Stachu",
-            "directory",
-            vscode.TreeItemCollapsibleState.Collapsed,
-          ),
-          new Node(
-            "Scripts",
-            "Scripts",
-            "directory",
-            vscode.TreeItemCollapsibleState.Collapsed,
-          ),
-        ];
+      // Use cache if available
+      if (this._rootNodesCache) {
+        return this._rootNodesCache;
       }
-      return this._rootNodesCache;
+
+      // Fetch root nodes from LSP
+      try {
+        const items = await this._client.sendRequest<TreeItemResponse[]>(
+          "dark/getRootNodes",
+          {},
+        );
+
+        this._rootNodesCache = items.map(item => this.mapResponseToNode(item));
+        return this._rootNodesCache;
+      } catch (error) {
+        console.error(`Failed to get root nodes: ${error}`);
+        return [];
+      }
     }
 
     try {
       const items = await this._client.sendRequest<TreeItemResponse[]>(
-        "darklang/getChildNodes",
+        "dark/getChildNodes",
         { nodeId: node.id },
       );
 
       const nodes = items.map(item => this.mapResponseToNode(item));
-
-      // For each module node, check if it has any non-module children
-      // Don't open context menu for empty modules
-      for (const childNode of nodes) {
-        if (
-          childNode.type === "directory" &&
-          childNode.contextValue === "module"
-        ) {
-          const children = await this._client.sendRequest<TreeItemResponse[]>(
-            "darklang/getChildNodes",
-            { nodeId: childNode.id },
-          );
-
-          // Check if any children are actual definitions (not submodules)
-          const hasDefinitions = children.some(
-            c =>
-              c.contextValue &&
-              (c.contextValue.startsWith("fn:") ||
-                c.contextValue.startsWith("type:") ||
-                c.contextValue.startsWith("value:")),
-          );
-
-          if (!hasDefinitions) {
-            // Remove context menu and tooltip for empty modules
-            childNode.contextValue = undefined;
-            childNode.tooltip = childNode.label;
-          }
-        }
-      }
 
       return nodes;
     } catch (error) {

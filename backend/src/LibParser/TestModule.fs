@@ -32,14 +32,11 @@ type PTTest =
 
 type PTModule =
   { name : List<string>
-    types : List<PT.PackageType.PackageType>
-    fns : List<PT.PackageFn.PackageFn>
-    values : List<PT.PackageValue.PackageValue>
+    ops : List<PT.PackageOp>
     dbs : List<PT.DB.T>
     tests : List<PTTest> }
 
-let emptyPTModule =
-  { name = []; types = []; fns = []; values = []; dbs = []; tests = [] }
+let emptyPTModule = { name = []; ops = []; dbs = []; tests = [] }
 
 
 module UserDB =
@@ -193,24 +190,51 @@ let toPT
   uply {
     let currentModule = owner :: m.name
 
-    let! types =
+    let! typeOps =
       m.types
-      |> Ply.List.mapSequentially (WT2PT.PackageType.toPT pm onMissing currentModule)
+      |> Ply.List.mapSequentially (fun wtType ->
+        uply {
+          let! ptType = WT2PT.PackageType.toPT pm onMissing currentModule wtType
+          return
+            [ PT.PackageOp.AddType ptType
+              PT.PackageOp.SetTypeName(
+                ptType.id,
+                WT2PT.PackageType.Name.toLocation wtType.name
+              ) ]
+        })
+      |> Ply.map List.flatten
 
-    let! values =
+    let! valueOps =
       m.values
-      |> Ply.List.mapSequentially (
-        WT2PT.PackageValue.toPT builtins pm onMissing currentModule
-      )
+      |> Ply.List.mapSequentially (fun wtValue ->
+        uply {
+          let! ptValue =
+            WT2PT.PackageValue.toPT builtins pm onMissing currentModule wtValue
+          return
+            [ PT.PackageOp.AddValue ptValue
+              PT.PackageOp.SetValueName(
+                ptValue.id,
+                WT2PT.PackageValue.Name.toLocation wtValue.name
+              ) ]
+        })
+      |> Ply.map List.flatten
+
+    let! fnOps =
+      m.fns
+      |> Ply.List.mapSequentially (fun wtFn ->
+        uply {
+          let! ptFn = WT2PT.PackageFn.toPT builtins pm onMissing currentModule wtFn
+          return
+            [ PT.PackageOp.AddFn ptFn
+              PT.PackageOp.SetFnName(
+                ptFn.id,
+                WT2PT.PackageFn.Name.toLocation wtFn.name
+              ) ]
+        })
+      |> Ply.map List.flatten
 
     let! dbs =
       m.dbs |> Ply.List.mapSequentially (WT2PT.DB.toPT pm onMissing currentModule)
-
-    let! fns =
-      m.fns
-      |> Ply.List.mapSequentially (
-        WT2PT.PackageFn.toPT builtins pm onMissing currentModule
-      )
 
     let! (tests : List<PTTest>) =
       m.tests
@@ -230,86 +254,58 @@ let toPT
               name = test.name }
         })
 
-    return
-      { name = m.name
-        fns = fns
-        types = types
-        values = values
-        dbs = dbs
-        tests = tests }
+    let allOps = typeOps @ valueOps @ fnOps
+
+    return { name = m.name; ops = allOps; dbs = dbs; tests = tests }
   }
 
 
 
-// Below are the fns that we intend to expose to the rest of the codebase
-
-/// Returns a flattened list of modules in the file.
+// Helper functions for two-phase parsing (must be defined before parseTestFile)
 let parseTestFile
   (owner : string)
   (builtins : RT.Builtins)
   (pm : PT.PackageManager)
-  (onMissing : NR.OnMissing)
   (filename : string)
   : Ply<List<PTModule>> =
   uply {
+    // test modules should always allow NREs
+    let onMissing = NR.OnMissing.Allow
+
     let modulesWT =
       filename
       |> System.IO.File.ReadAllText
       |> parseAsFSharpSourceFile filename
       |> parseFile owner
 
-    // Initial pass, so we can re-parse with all names in context
-    let! (afterFirstPass : List<PTModule>) =
-      modulesWT |> Ply.List.mapSequentially (toPT owner builtins pm onMissing)
+    // First pass: parse with OnMissing.Allow to allow unresolved names
+    let! firstPassModules =
+      modulesWT
+      |> Ply.List.mapSequentially (
+        toPT owner builtins PT.PackageManager.empty onMissing
+      )
 
-    // Now, parse again, but with the names in context (so fewer are marked as unresolved)
-    let pm =
-      pm
-      |> PT.PackageManager.withExtras
-        (afterFirstPass |> List.collect _.types)
-        (afterFirstPass |> List.collect _.values)
-        (afterFirstPass |> List.collect _.fns)
+    // Extract ops from first pass for second pass PackageManager
+    let firstPassOps = firstPassModules |> List.collect _.ops
 
-    let! (afterSecondPass : List<PTModule>) =
-      modulesWT |> Ply.List.mapSequentially (toPT owner builtins pm onMissing)
+    // Second pass: re-parse with PackageManager containing first pass results
+    let enhancedPM = LibPackageManager.PackageManager.withExtraOps pm firstPassOps
+    let! reParsedModules =
+      modulesWT
+      |> Ply.List.mapSequentially (toPT owner builtins enhancedPM onMissing)
 
-    // The IDs that weren't locked-in have changed - let's fix that now.
-    let adjusted : List<PTModule> =
-      afterSecondPass
-      |> List.map (fun m ->
-        let originalModule =
-          afterFirstPass
-          |> List.find (fun original -> original.name = m.name)
-          |> Option.unwrap m
+    // ID stabilization: adjust second pass IDs to match first pass IDs
+    let firstPassPM = LibPackageManager.PackageManager.createInMemory firstPassOps
 
-        { m with
-            types =
-              m.types
-              |> List.map (fun typ ->
-                { typ with
-                    id =
-                      originalModule.types
-                      |> List.find (fun original -> original.name = typ.name)
-                      |> Option.map _.id
-                      |> Option.defaultValue typ.id })
-            values =
-              m.values
-              |> List.map (fun c ->
-                { c with
-                    id =
-                      originalModule.values
-                      |> List.find (fun original -> original.name = c.name)
-                      |> Option.map _.id
-                      |> Option.defaultValue c.id })
-            fns =
-              m.fns
-              |> List.map (fun fn ->
-                { fn with
-                    id =
-                      originalModule.fns
-                      |> List.find (fun original -> original.name = fn.name)
-                      |> Option.map _.id
-                      |> Option.defaultValue fn.id }) })
+    // Adjust IDs in each module's ops
+    let! adjustedModules =
+      reParsedModules
+      |> Ply.List.mapSequentially (fun m ->
+        uply {
+          let! adjustedOps =
+            LibPackageManager.PackageManager.stabilizeOpsAgainstPM firstPassPM m.ops
+          return { m with ops = adjustedOps }
+        })
 
-    return adjusted
+    return adjustedModules
   }

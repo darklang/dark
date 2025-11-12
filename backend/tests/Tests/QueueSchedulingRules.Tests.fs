@@ -21,9 +21,10 @@ let testGetWorkerSchedulesForCanvas =
   testTask "worker schedules for canvas" {
     let! canvasID = initializeTestCanvas "worker-schedules"
 
-    let! e1 = parsePTExpr "1L"
-    let! e2 = parsePTExpr "1L"
-    let! e3 = parsePTExpr "1L"
+    let branchID = None
+    let! e1 = parsePTExpr branchID "1L"
+    let! e2 = parsePTExpr branchID "1L"
+    let! e3 = parsePTExpr branchID "1L"
     let apple = testWorker "apple" e1
     let banana = testWorker "banana" e2
     let cherry = testWorker "cherry" e3

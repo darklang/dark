@@ -735,8 +735,11 @@ module PackageIDs = LibExecution.PackageIDs
 
 module PackageType =
   module Name =
-    let toPT (n : WT.PackageType.Name) : PT.PackageType.Name =
-      { owner = n.owner; modules = n.modules; name = n.name }
+    let toLocation (name : WT.PackageType.Name) : PT.PackageLocation =
+      { owner = name.owner; modules = name.modules; name = name.name }
+
+    let toModules (name : WT.PackageType.Name) : List<string> =
+      name.owner :: name.modules
 
   let toPT
     (pm : PT.PackageManager)
@@ -749,7 +752,6 @@ module PackageType =
         TypeDeclaration.toPT pm onMissing currentModule pt.declaration
       return
         { id = PackageIDs.Type.idForName pt.name.owner pt.name.modules pt.name.name
-          name = Name.toPT pt.name
           description = pt.description
           declaration = declaration
           deprecated = PT.NotDeprecated }
@@ -757,8 +759,11 @@ module PackageType =
 
 module PackageValue =
   module Name =
-    let toPT (n : WT.PackageValue.Name) : PT.PackageValue.Name =
-      { owner = n.owner; modules = n.modules; name = n.name }
+    let toLocation (name : WT.PackageValue.Name) : PT.PackageLocation =
+      { owner = name.owner; modules = name.modules; name = name.name }
+
+    let toModules (name : WT.PackageValue.Name) : List<string> =
+      name.owner :: name.modules
 
   let toPT
     (builtins : RT.Builtins)
@@ -773,7 +778,6 @@ module PackageValue =
       let! body = Expr.toPT builtins pm onMissing currentModule context c.body
       return
         { id = PackageIDs.Value.idForName c.name.owner c.name.modules c.name.name
-          name = Name.toPT c.name
           description = c.description
           deprecated = PT.NotDeprecated
           body = body }
@@ -782,8 +786,11 @@ module PackageValue =
 
 module PackageFn =
   module Name =
-    let toPT (n : WT.PackageFn.Name) : PT.PackageFn.Name =
-      { owner = n.owner; modules = n.modules; name = n.name }
+    let toLocation (name : WT.PackageFn.Name) : PT.PackageLocation =
+      { owner = name.owner; modules = name.modules; name = name.name }
+
+    let toModules (name : WT.PackageFn.Name) : List<string> =
+      name.owner :: name.modules
 
   module Parameter =
     let toPT
@@ -823,7 +830,6 @@ module PackageFn =
 
       return
         { id = PackageIDs.Fn.idForName fn.name.owner fn.name.modules fn.name.name
-          name = Name.toPT fn.name
           parameters = parameters
           returnType = returnType
           description = fn.description

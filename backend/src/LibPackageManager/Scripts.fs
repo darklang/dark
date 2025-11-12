@@ -9,8 +9,28 @@ open LibDB.Db
 open Prelude
 
 module RT = LibExecution.RuntimeTypes
+module PackageIDs = LibExecution.PackageIDs
+module DvalDecoder = LibExecution.DvalDecoder
 
 type Script = { id : System.Guid; name : string; text : string }
+
+// Serialization to/from Dval
+let scriptTypeName = RT.FQTypeName.fqPackage PackageIDs.Type.Cli.script
+
+let toDT (script : Script) : RT.Dval =
+  let fields =
+    [ ("id", RT.DString(string script.id))
+      ("name", RT.DString script.name)
+      ("text", RT.DString script.text) ]
+  RT.DRecord(scriptTypeName, scriptTypeName, [], Map.ofList fields)
+
+let fromDT (d : RT.Dval) : Script =
+  match d with
+  | RT.DRecord(_, _, _, fields) ->
+    { id = System.Guid.Parse(DvalDecoder.field "id" fields |> DvalDecoder.string)
+      name = DvalDecoder.field "name" fields |> DvalDecoder.string
+      text = DvalDecoder.field "text" fields |> DvalDecoder.string }
+  | _ -> Exception.raiseInternal "Invalid Script" []
 
 /// List all scripts
 let list () : Task<List<Script>> =

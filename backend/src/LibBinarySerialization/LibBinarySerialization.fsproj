@@ -26,6 +26,7 @@
     <Compile Include="Serializers/PT/Expr.fs" />
     <Compile Include="Serializers/PT/PackageValue.fs" />
     <Compile Include="Serializers/PT/PackageFn.fs" />
+    <Compile Include="Serializers/PT/PackageOp.fs" />
     <Compile Include="Serializers/PT/Toplevel.fs" />
 
     <Compile Include="Serializers/RT/Common.fs" />

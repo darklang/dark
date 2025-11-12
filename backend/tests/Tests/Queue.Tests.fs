@@ -24,11 +24,14 @@ module SR = LibCloud.QueueSchedulingRules
 
 
 // This doesn't actually test input, since it's a cron handler and not an actual event handler
-let initializeCanvas (name : string) : Task<CanvasID * tlid> =
+let initializeCanvas
+  (branchID : Option<PT.BranchID>)
+  (name : string)
+  : Task<CanvasID * tlid> =
   task {
     // set up handler
     let! canvasID = initializeTestCanvas name
-    let! e = parsePTExpr "let data = Darklang.Stdlib.DateTime.now ()\n 123"
+    let! e = parsePTExpr branchID "let data = Darklang.Stdlib.DateTime.now ()\n 123"
     let h = testWorker "test" e
 
     do! Canvas.saveTLIDs canvasID [ (PT.Toplevel.TLHandler h, Serialize.NotDeleted) ]
@@ -154,7 +157,9 @@ let waitUntilQueueEmpty () : Task<unit> =
 
 let testSuccess =
   testTask "event queue success" {
-    let! (canvasID : CanvasID, tlid) = initializeCanvas "event-queue-success"
+    let branchID = None
+    let! (canvasID : CanvasID, tlid) =
+      initializeCanvas branchID "event-queue-success"
     do! enqueueNow canvasID
     do! waitForSuccess canvasID tlid 1
     do! checkExecutedTraces canvasID 1
@@ -163,7 +168,9 @@ let testSuccess =
 
 let testSuccessThree =
   testTask "event queue success three" {
-    let! (canvasID : CanvasID, tlid) = initializeCanvas "event-queue-success-three"
+    let branchID = None
+    let! (canvasID : CanvasID, tlid) =
+      initializeCanvas branchID "event-queue-success-three"
     do! enqueueNow canvasID
     do! enqueueNow canvasID
     do! enqueueNow canvasID
@@ -174,7 +181,9 @@ let testSuccessThree =
 
 let testSuccessLockExpired =
   testTask "success lock expired" {
-    let! (canvasID : CanvasID, tlid) = initializeCanvas "success-lock-expired"
+    let branchID = None
+    let! (canvasID : CanvasID, tlid) =
+      initializeCanvas branchID "success-lock-expired"
 
     // Create the event, but don't have it run yet
     do! enqueueAtTime canvasID (Instant.now () + Duration.FromSeconds 3L)
@@ -196,7 +205,8 @@ let testSuccessLockExpired =
 
 let testFailLocked =
   testTask "fail locked" {
-    let! (canvasID : CanvasID, _tlid) = initializeCanvas "fail-locked"
+    let branchID = None
+    let! (canvasID : CanvasID, _tlid) = initializeCanvas branchID "fail-locked"
 
     // Create the event, but don't have it run yet
     do! enqueueAtTime canvasID (Instant.now () + Duration.FromSeconds 3L)
@@ -216,7 +226,8 @@ let testFailLocked =
 
 let testSuccessBlockAndUnblock =
   testTask "block and unblock" {
-    let! (canvasID : CanvasID, tlid) = initializeCanvas "block-and-unblock"
+    let branchID = None
+    let! (canvasID : CanvasID, tlid) = initializeCanvas branchID "block-and-unblock"
 
     // Block it
     do! EQ.blockWorker canvasID "test"
@@ -239,7 +250,8 @@ let testSuccessBlockAndUnblock =
 
 let testSuccessPauseAndUnpause =
   testTask "pause and unpause" {
-    let! (canvasID : CanvasID, tlid) = initializeCanvas "pause-and-unpause"
+    let branchID = None
+    let! (canvasID : CanvasID, tlid) = initializeCanvas branchID "pause-and-unpause"
     // Pause it
     do! EQ.pauseWorker canvasID "test"
 
@@ -262,7 +274,9 @@ let testSuccessPauseAndUnpause =
 
 let testFailPauseBlockAndUnpause =
   testTask "pause block and unpause" {
-    let! (canvasID : CanvasID, _tlid) = initializeCanvas "pause-block-and-unpause"
+    let branchID = None
+    let! (canvasID : CanvasID, _tlid) =
+      initializeCanvas branchID "pause-block-and-unpause"
 
     // Pause it
     do! EQ.pauseWorker canvasID "test"
@@ -286,7 +300,9 @@ let testFailPauseBlockAndUnpause =
 
 let testFailPauseBlockAndUnblock =
   testTask "pause block and unblock" {
-    let! (canvasID : CanvasID, _tlid) = initializeCanvas "pause-block-and-unblock"
+    let branchID = None
+    let! (canvasID : CanvasID, _tlid) =
+      initializeCanvas branchID "pause-block-and-unblock"
 
     // Pause it
     do! EQ.pauseWorker canvasID "test"
@@ -311,7 +327,9 @@ let testFailPauseBlockAndUnblock =
 
 let testFailBlockPauseAndUnpause =
   testTask "block pause and unpause" {
-    let! (canvasID : CanvasID, _tlid) = initializeCanvas "block-pause-and-unpause"
+    let branchID = None
+    let! (canvasID : CanvasID, _tlid) =
+      initializeCanvas branchID "block-pause-and-unpause"
 
     // Block it
     do! EQ.blockWorker canvasID "test"
@@ -335,7 +353,9 @@ let testFailBlockPauseAndUnpause =
 
 let testFailBlockPauseAndUnblock =
   testTask "block pause and unblock" {
-    let! (canvasID : CanvasID, _tlid) = initializeCanvas "block-pause-and-unblock"
+    let branchID = None
+    let! (canvasID : CanvasID, _tlid) =
+      initializeCanvas branchID "block-pause-and-unblock"
 
     // Block it
     do! EQ.blockWorker canvasID "test"
@@ -360,8 +380,9 @@ let testFailBlockPauseAndUnblock =
 
 let testUnpauseMulitpleTimesInSequence =
   testTask "unpause multiple times in sequence" {
+    let branchID = None
     let! (canvasID : CanvasID, tlid) =
-      initializeCanvas "unpause-multiple-times-in-secquence"
+      initializeCanvas branchID "unpause-multiple-times-in-secquence"
 
     // Block it
     do! EQ.blockWorker canvasID "test"
@@ -388,8 +409,9 @@ let testUnpauseMulitpleTimesInSequence =
 
 let testUnpauseMultipleTimesInParallel =
   testTask "unpause multiple times in parallel" {
+    let branchID = None
     let! (canvasID : CanvasID, tlid) =
-      initializeCanvas "unpause-multiple-times-in-parallel"
+      initializeCanvas branchID "unpause-multiple-times-in-parallel"
 
     // Block it
     do! EQ.blockWorker canvasID "test"
@@ -417,7 +439,8 @@ let testUnpauseMultipleTimesInParallel =
 
 let testCount =
   testTask "count is right" {
-    let! (canvasID : CanvasID, tlid) = initializeCanvas "count-is-correct"
+    let branchID = None
+    let! (canvasID : CanvasID, tlid) = initializeCanvas branchID "count-is-correct"
     do! EQ.blockWorker canvasID "test"
     do! enqueueNow canvasID
     do! enqueueNow canvasID

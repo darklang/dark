@@ -88,8 +88,6 @@ let testWorker (name : string) (ast : PT.Expr) : PT.Handler.T =
   { tlid = gid (); ast = ast; spec = PT.Handler.Worker name }
 
 let testPackageFn
-  (owner : string)
-  (name : string)
   (typeParams : List<string>)
   (parameters : NEList<string>)
   (returnType : PT.TypeReference)
@@ -98,7 +96,6 @@ let testPackageFn
   { id = System.Guid.NewGuid()
     body = body
     description = ""
-    name = PT.PackageFn.name owner [] name
     typeParams = typeParams
     deprecated = PT.NotDeprecated
     parameters =
@@ -120,7 +117,8 @@ let builtins
   : RT.Builtins =
   LibExecution.Builtin.combine
     [ LibTest.builtins
-      BuiltinExecution.Builtin.builtins httpConfig pm
+      BuiltinExecution.Builtin.builtins httpConfig
+      BuiltinPM.Builtin.builtins pm
       BuiltinCloudExecution.Builtin.builtins
       BuiltinDarkInternal.Builtin.builtins
       BuiltinCli.Builtin.builtins ]
@@ -1324,95 +1322,31 @@ let interestingDvals : List<string * RT.Dval * RT.TypeReference> =
      TDateTime)
     ("uuid", DUuid(System.Guid.Parse "7d9e5495-b068-4364-a2cc-3633ab4d13e6"), TUuid)
     ("uuid0", DUuid(System.Guid.Parse "00000000-0000-0000-0000-000000000000"), TUuid)
-    ("option",
-     DEnum(Dval.optionType, Dval.optionType, [ VT.int64 ], "None", []),
-     TypeReference.option TInt64)
-    ("option2",
-     DEnum(Dval.optionType, Dval.optionType, [ VT.int64 ], "Some", [ Dval.int64 15 ]),
-     TypeReference.option TInt64)
+    ("option", Dval.optionNone KTInt64, TypeReference.option TInt64)
+    ("option2", Dval.optionSome KTInt64 (Dval.int64 15), TypeReference.option TInt64)
     ("option3",
-     DEnum(
-       Dval.optionType,
-       Dval.optionType,
-       [ VT.string ],
-       "Some",
-       [ DString "a string" ]
-     ),
+     Dval.optionSome KTString (DString "a string"),
      TypeReference.option TString)
-    ("option4",
-     DEnum(Dval.optionType, Dval.optionType, [ VT.int8 ], "Some", [ Dval.int8 15y ]),
-     TypeReference.option TInt8)
+    ("option4", Dval.optionSome KTInt8 (Dval.int8 15y), TypeReference.option TInt8)
     ("option5",
-     DEnum(
-       Dval.optionType,
-       Dval.optionType,
-       [ VT.uint8 ],
-       "Some",
-       [ Dval.uint8 15uy ]
-     ),
+     Dval.optionSome KTUInt8 (Dval.uint8 15uy),
      TypeReference.option TUInt8)
-    ("option6",
-     DEnum(
-       Dval.optionType,
-       Dval.optionType,
-       [ VT.int16 ],
-       "Some",
-       [ Dval.int16 16s ]
-     ),
-     TypeReference.option TInt16)
+    ("option6", Dval.optionSome KTInt16 (Dval.int16 16s), TypeReference.option TInt16)
     ("option7",
-     DEnum(
-       Dval.optionType,
-       Dval.optionType,
-       [ VT.uint16 ],
-       "Some",
-       [ Dval.uint16 16us ]
-     ),
+     Dval.optionSome KTUInt16 (Dval.uint16 16us),
      TypeReference.option TUInt16)
-    ("option8",
-     DEnum(
-       Dval.optionType,
-       Dval.optionType,
-       [ VT.int32 ],
-       "Some",
-       [ Dval.int32 32l ]
-     ),
-     TypeReference.option TInt32)
+    ("option8", Dval.optionSome KTInt32 (Dval.int32 32l), TypeReference.option TInt32)
     ("option9",
-     DEnum(
-       Dval.optionType,
-       Dval.optionType,
-       [ VT.uint32 ],
-       "Some",
-       [ Dval.uint32 32ul ]
-     ),
+     Dval.optionSome KTUInt32 (Dval.uint32 32ul),
      TypeReference.option TUInt32)
     ("option10",
-     DEnum(
-       Dval.optionType,
-       Dval.optionType,
-       [ VT.int128 ],
-       "Some",
-       [ Dval.int128 128Q ]
-     ),
+     Dval.optionSome KTInt128 (Dval.int128 128Q),
      TypeReference.option TInt128)
     ("option11",
-     DEnum(
-       Dval.optionType,
-       Dval.optionType,
-       [ VT.uint128 ],
-       "Some",
-       [ Dval.uint128 128Z ]
-     ),
+     Dval.optionSome KTUInt128 (Dval.uint128 128Z),
      TypeReference.option TUInt128)
     ("option12",
-     DEnum(
-       Dval.optionType,
-       Dval.optionType,
-       [ VT.uint64 ],
-       "Some",
-       [ Dval.uint64 64UL ]
-     ),
+     Dval.optionSome KTUInt64 (Dval.uint64 64UL),
      TypeReference.option TUInt64)
     ("character", DChar "s", TChar)
     ("bytes",
@@ -1542,6 +1476,7 @@ let configureLogging
   |> ignore<IServiceCollection>
 
 
+// TODO: should unwrapExecutionResult take branchID?
 let unwrapExecutionResult
   (state : RT.ExecutionState)
   (exeResult : RT.ExecutionResult)
@@ -1556,12 +1491,14 @@ let unwrapExecutionResult
 
       let rte = RT2DT.RuntimeError.toDT rte
 
+      let branchID = Dval.optionNone RT.KTUuid
+
       let! rteMessage =
         LibExecution.Execution.executeFunction
           state
           errorMessageFn
           []
-          (NEList.ofList rte [])
+          (NEList.ofList branchID [ rte ])
 
       let! cs = LibExecution.Execution.callStackString state callStack
 
@@ -1570,7 +1507,7 @@ let unwrapExecutionResult
       | _ -> return RT.DString(string rteMessage)
   }
 
-let parsePTExpr (code : string) : Task<PT.Expr> =
+let parsePTExpr (branchID : Option<PT.BranchID>) (code : string) : Task<PT.Expr> =
   uply {
     let! (state : RT.ExecutionState) =
       let canvasID = System.Guid.NewGuid()
@@ -1579,7 +1516,9 @@ let parsePTExpr (code : string) : Task<PT.Expr> =
     let name =
       RT.FQFnName.FQFnName.Package PackageIDs.Fn.LanguageTools.Parser.parsePTExpr
 
-    let args = NEList.singleton (RT.DString code)
+    let branchID = branchID |> Option.map RT.DUuid |> Dval.option RT.KTUuid
+
+    let args = NEList.doubleton branchID (RT.DString code)
     let! execResult = LibExecution.Execution.executeFunction state name [] args
 
     match execResult with

@@ -3,10 +3,107 @@ let _handler _req =
   Stdlib.Http.response (Stdlib.String.toBytes "pong") 200L
 
 
+let getBranchIDFromQuery (req: Stdlib.Http.Request) : Stdlib.Option.Option<Uuid> =
+  (Stdlib.Http.Request.queryParams req)
+  |> Stdlib.List.findFirst (fun pair ->
+    match pair with
+    | (key, _value) -> key == "branchID"
+    | _ -> false)
+  |> fun result ->
+    match result with
+    | Some((_key, value)) ->
+      match Stdlib.Uuid.parse value with
+      | Ok uuid -> Stdlib.Option.Option.Some uuid
+      | Error _err -> Stdlib.Option.Option.None
+    | None -> Stdlib.Option.Option.None
+
+
+let getQueryParam (req: Stdlib.Http.Request) (key: String) : Stdlib.Option.Option<String> =
+  (Stdlib.Http.Request.queryParams req)
+  |> Stdlib.List.findFirst (fun pair ->
+    match pair with
+    | (k, _value) -> k == key
+    | _ -> false)
+  |> fun result ->
+    match result with
+    | Some((_k, value)) -> Stdlib.Option.Option.Some value
+    | None -> Stdlib.Option.Option.None
+
+
+let parseNameToLocation (name: String) : Stdlib.Result.Result<LanguageTools.ProgramTypes.PackageLocation, String> =
+  let parts = Stdlib.String.split name "."
+  let partsLength = Stdlib.List.length parts
+
+  if partsLength < 2L then
+    Stdlib.Result.Result.Error "Invalid name format. Expected 'Owner.Module.Name' or 'Owner.Name'"
+  else
+    let owner = (Stdlib.List.head parts) |> Builtin.unwrap
+    let entityName = (Stdlib.List.last parts) |> Builtin.unwrap
+    let middleParts = (Stdlib.List.tail parts) |> Builtin.unwrap
+    let modules = Stdlib.List.take middleParts (partsLength - 2L)
+
+    (LanguageTools.ProgramTypes.PackageLocation
+      { owner = owner; modules = modules; name = entityName })
+    |> Stdlib.Result.Result.Ok
+
+
+let parseUuidParam (value: String) : Stdlib.Result.Result<Uuid, Stdlib.Http.Response> =
+  match Stdlib.Uuid.parse value with
+  | Ok parsedId -> Stdlib.Result.Result.Ok parsedId
+  | Error _err ->
+    let errorMsg = "Invalid UUID format for parameter 'id'"
+    let response = Stdlib.Http.response (Stdlib.String.toBytes errorMsg) 400L
+    Stdlib.Result.Result.Error response
+
+
+[<HttpHandler("POST", "/ops")>]
+let _handler _req =
+  let bodyStr = Stdlib.String.fromBytesWithReplacement request.body
+  let branchID = getBranchIDFromQuery request
+
+  match Builtin.jsonParse<List<LanguageTools.ProgramTypes.PackageOp>> bodyStr with
+  | Ok ops ->
+    match Builtin.scmAddOps branchID ops with
+    | Ok insertedCount ->
+      let countStr = Builtin.int64ToString insertedCount
+      let responseMsg = $"Successfully received and applied {countStr} ops"
+      Stdlib.Http.response (Stdlib.String.toBytes responseMsg) 200L
+
+    | Error errorMsg ->
+      Stdlib.Http.response (Stdlib.String.toBytes errorMsg) 500L
+
+  | Error _err ->
+    let errorMsg = "Invalid request body. Expected JSON list of PackageOps."
+
+    Stdlib.Http.response (Stdlib.String.toBytes errorMsg) 400L
+
+
+[<HttpHandler("GET", "/ops")>]
+let _handler _req =
+  let branchID = getBranchIDFromQuery request
+
+  match getQueryParam request "since" with
+  | None ->
+    let errorMsg = "Missing required query parameter: 'since'"
+    Stdlib.Http.response (Stdlib.String.toBytes errorMsg) 400L
+
+  | Some sinceStr ->
+    match Stdlib.DateTime.parse sinceStr with
+    | Ok sinceDate ->
+      let ops = Darklang.SCM.PackageOps.getSince branchID sinceDate
+      let json = ops |> Builtin.jsonSerialize<List<LanguageTools.ProgramTypes.PackageOp>>
+      Stdlib.Http.response (Stdlib.String.toBytes json) 200L
+
+    | Error _err ->
+      let errorMsg = "Invalid 'since' parameter. Expected ISO 8601 datetime."
+      Stdlib.Http.response (Stdlib.String.toBytes errorMsg) 400L
+
+
+
 // expose some metadata to quickly check if things seem to be working and populated
 [<HttpHandler("GET", "/stats")>]
 let _handler _req =
-  let stats = Builtin.packageManagerGetStats ()
+  let stats = Builtin.pmGetStats ()
 
   let body =
     $"Package stats:
@@ -18,182 +115,271 @@ let _handler _req =
   Stdlib.Http.response body 200L
 
 
+[<HttpHandler("GET", "/:location")>]
+let _handler _req =
+  let branchID = getBranchIDFromQuery request
 
-// fetch types
-// (JSON representation of PT.PackageType)
+  let parts = Stdlib.String.split location "."
+  let partsLength = Stdlib.List.length parts
+
+  if partsLength < 1L then
+    let errorMsg = "Invalid location format. Expected 'Owner', 'Owner.Module', or 'Owner.Module.Name'"
+    Stdlib.Http.response (Stdlib.String.toBytes errorMsg) 400L
+  else if partsLength == 1L then
+    let owner = (Stdlib.List.head parts) |> Builtin.unwrap
+
+    let searchQuery =
+      LanguageTools.ProgramTypes.Search.SearchQuery
+        { currentModule = [ owner ]
+          text = ""
+          searchDepth = LanguageTools.ProgramTypes.Search.SearchDepth.OnlyDirectDescendants
+          entityTypes = []
+          exactMatch = false }
+
+    let results = Builtin.pmSearch branchID searchQuery
+    let json = results |> Builtin.jsonSerialize<LanguageTools.ProgramTypes.Search.SearchResults>
+    Stdlib.Http.response (Stdlib.String.toBytes json) 200L
+  else
+    let owner = (Stdlib.List.head parts) |> Builtin.unwrap
+    let entityName = (Stdlib.List.last parts) |> Builtin.unwrap
+    let middleParts = (Stdlib.List.tail parts) |> Builtin.unwrap
+    let modules = Stdlib.List.take middleParts (partsLength - 2L)
+
+    let packageLocation =
+      LanguageTools.ProgramTypes.PackageLocation
+        { owner = owner; modules = modules; name = entityName }
+
+    // Try to find as function first
+    match Builtin.pmFindFn branchID packageLocation with
+    | Some fnId ->
+      match Builtin.pmGetFn fnId with
+      | Some fn ->
+        let json = fn |> Builtin.jsonSerialize<LanguageTools.ProgramTypes.PackageFn.PackageFn>
+
+        Stdlib.Http.response (Stdlib.String.toBytes json) 200L
+      | None -> Stdlib.Http.response (Stdlib.String.toBytes "not found") 404L
+
+    | None ->
+      // Try to find as type
+      match Builtin.pmFindType branchID packageLocation with
+      | Some typeId ->
+        match Builtin.pmGetType typeId with
+        | Some typeDefinition ->
+          let json = typeDefinition |> Builtin.jsonSerialize<LanguageTools.ProgramTypes.PackageType.PackageType>
+          Stdlib.Http.response (Stdlib.String.toBytes json) 200L
+        | None ->
+          Stdlib.Http.response (Stdlib.String.toBytes "not found") 404L
+
+      | None ->
+        // Try to find as value
+        match Builtin.pmFindValue branchID packageLocation with
+        | Some valueId ->
+          match Builtin.pmGetValue valueId with
+          | Some value ->
+            let json = value |> Builtin.jsonSerialize<LanguageTools.ProgramTypes.PackageValue.PackageValue>
+            Stdlib.Http.response (Stdlib.String.toBytes json) 200L
+          | None ->
+            Stdlib.Http.response (Stdlib.String.toBytes "not found") 404L
+
+        | None ->
+          // Not found as function, type, or value - treat as module query
+          let modulePathParts = Stdlib.List.append modules [ entityName ]
+
+          let searchQuery =
+            LanguageTools.ProgramTypes.Search.SearchQuery
+              { currentModule = Stdlib.List.append [ owner ] modulePathParts
+                text = ""
+                searchDepth = LanguageTools.ProgramTypes.Search.SearchDepth.OnlyDirectDescendants
+                entityTypes = [ ]
+                exactMatch = false }
+
+          let results = Builtin.pmSearch branchID searchQuery
+          let json = results |> Builtin.jsonSerialize<LanguageTools.ProgramTypes.Search.SearchResults>
+          Stdlib.Http.response (Stdlib.String.toBytes json) 200L
+
+
 [<HttpHandler("GET", "/type/find/:name")>]
 let _handler _req =
-  match Builtin.packageManagerFindType name with
-  | Some foundID ->
-    let json = $"\"{Stdlib.Uuid.toString foundID}\""
-    Stdlib.Http.response (Stdlib.String.toBytes json) 200L
-  | None -> Stdlib.Http.response (Stdlib.String.toBytes "not found") 404L
+  let branchID = getBranchIDFromQuery request
+
+  match parseNameToLocation name with
+  | Error errorMsg -> Stdlib.Http.response (Stdlib.String.toBytes errorMsg) 400L
+  | Ok location ->
+    match Builtin.pmFindType branchID location with
+    | Some foundID ->
+      let json = $"\"{Stdlib.Uuid.toString foundID}\""
+      Stdlib.Http.response (Stdlib.String.toBytes json) 200L
+    | None -> Stdlib.Http.response (Stdlib.String.toBytes "not found") 404L
 
 [<HttpHandler("GET", "/type/get/:id")>]
 let _handler _req =
-  let id = (Stdlib.Uuid.parse id) |> Builtin.unwrap
+  match parseUuidParam id with
+  | Error response -> response
+  | Ok parsedId ->
+    match Builtin.pmGetType parsedId with
+    | Some t ->
+      let json = t |> Builtin.jsonSerialize<LanguageTools.ProgramTypes.PackageType.PackageType>
+      Stdlib.Http.response (Stdlib.String.toBytes json) 200L
+    | None -> Stdlib.Http.response (Stdlib.String.toBytes "not found") 404L
 
-  match Builtin.packageManagerGetType id with
-  | Some f ->
-    let json =
-      Builtin.jsonSerialize<LanguageTools.ProgramTypes.PackageType.PackageType> f
 
-    Stdlib.Http.response (Stdlib.String.toBytes json) 200L
-  | None -> Stdlib.Http.response (Stdlib.String.toBytes "not found") 404L
+[<HttpHandler("GET", "/type/get/with-location/:id")>]
+let _handler _req =
+  let branchID = getBranchIDFromQuery request
+
+  match parseUuidParam id with
+  | Error response -> response
+  | Ok parsedId ->
+    match LanguageTools.PackageManager.Type.getWithLocation branchID parsedId with
+    | Some locatedItem ->
+      let json =
+        locatedItem
+        |> Builtin.jsonSerialize<LanguageTools.ProgramTypes.LocatedItem<LanguageTools.ProgramTypes.PackageType.PackageType>>
+      Stdlib.Http.response (Stdlib.String.toBytes json) 200L
+    | None -> Stdlib.Http.response (Stdlib.String.toBytes "not found") 404L
 
 
-// fetch values
-// (JSON representation of PT.PackageValues)
 [<HttpHandler("GET", "/value/find/:name")>]
 let _handler _req =
-  match Builtin.packageManagerFindValue name with
-  | Some foundID ->
-    let json = $"\"{Stdlib.Uuid.toString foundID}\""
-    Stdlib.Http.response (Stdlib.String.toBytes json) 200L
-  | None -> Stdlib.Http.response (Stdlib.String.toBytes "not found") 404L
+  let branchID = getBranchIDFromQuery request
+
+  match parseNameToLocation name with
+  | Ok location ->
+    match Builtin.pmFindValue branchID location with
+    | Some foundID ->
+      let json = $"\"{Stdlib.Uuid.toString foundID}\""
+      Stdlib.Http.response (Stdlib.String.toBytes json) 200L
+    | None -> Stdlib.Http.response (Stdlib.String.toBytes "not found") 404L
+  | Error errorMsg -> Stdlib.Http.response (Stdlib.String.toBytes errorMsg) 400L
 
 [<HttpHandler("GET", "/value/get/:id")>]
 let _handler _req =
-  let id = (Stdlib.Uuid.parse id) |> Builtin.unwrap
-
-  match Builtin.packageManagerGetValue id with
-  | Some f ->
-    let json =
-      Builtin.jsonSerialize<LanguageTools.ProgramTypes.PackageValue.PackageValue>
-        f
-
-    Stdlib.Http.response (Stdlib.String.toBytes json) 200L
-  | None -> Stdlib.Http.response (Stdlib.String.toBytes "not found") 404L
+  match parseUuidParam id with
+  | Error response -> response
+  | Ok parsedId ->
+    match Builtin.pmGetValue parsedId with
+    | Some v ->
+      let json = v |> Builtin.jsonSerialize<LanguageTools.ProgramTypes.PackageValue.PackageValue>
+      Stdlib.Http.response (Stdlib.String.toBytes json) 200L
+    | None -> Stdlib.Http.response (Stdlib.String.toBytes "not found") 404L
 
 
-// fetch functions
-// (JSON representation of PT.PackageFn)
+[<HttpHandler("GET", "/value/get/with-location/:id")>]
+let _handler _req =
+  let branchID = getBranchIDFromQuery request
+
+  match parseUuidParam id with
+  | Error response -> response
+  | Ok parsedId ->
+    match LanguageTools.PackageManager.Value.getWithLocation branchID parsedId with
+    | Some locatedItem ->
+      let json = locatedItem |> Builtin.jsonSerialize<LanguageTools.ProgramTypes.LocatedItem<LanguageTools.ProgramTypes.PackageValue.PackageValue>>
+      Stdlib.Http.response (Stdlib.String.toBytes json) 200L
+    | None -> Stdlib.Http.response (Stdlib.String.toBytes "not found") 404L
+
+
 [<HttpHandler("GET", "/function/find/:name")>]
 let _handler _req =
-  match Builtin.packageManagerFindFn name with
-  | Some foundID ->
-    let json = $"\"{Stdlib.Uuid.toString foundID}\""
-    Stdlib.Http.response (Stdlib.String.toBytes json) 200L
-  | None -> Stdlib.Http.response (Stdlib.String.toBytes "not found") 404L
+  let branchID = getBranchIDFromQuery request
+
+  match parseNameToLocation name with
+  | Error errorMsg -> Stdlib.Http.response (Stdlib.String.toBytes errorMsg) 400L
+  | Ok location ->
+    match Builtin.pmFindFn branchID location with
+    | Some foundID ->
+      let json = $"\"{Stdlib.Uuid.toString foundID}\""
+      Stdlib.Http.response (Stdlib.String.toBytes json) 200L
+    | None -> Stdlib.Http.response (Stdlib.String.toBytes "not found") 404L
 
 [<HttpHandler("GET", "/function/get/:id")>]
 let _handler _req =
-  let id = (Stdlib.Uuid.parse id) |> Builtin.unwrap
+  match parseUuidParam id with
+  | Error response -> response
+  | Ok parsedId ->
+    match Builtin.pmGetFn parsedId with
+    | Some f ->
+      let json = f |> Builtin.jsonSerialize<LanguageTools.ProgramTypes.PackageFn.PackageFn>
+      Stdlib.Http.response (Stdlib.String.toBytes json) 200L
+    | None -> Stdlib.Http.response (Stdlib.String.toBytes "not found") 404L
 
-  match Builtin.packageManagerGetFn id with
-  | Some f ->
-    let json =
-      Builtin.jsonSerialize<LanguageTools.ProgramTypes.PackageFn.PackageFn> f
 
-    Stdlib.Http.response (Stdlib.String.toBytes json) 200L
-  | None -> Stdlib.Http.response (Stdlib.String.toBytes "not found") 404L
+[<HttpHandler("GET", "/function/get/with-location/:id")>]
+let _handler _req =
+  let branchID = getBranchIDFromQuery request
+
+  match parseUuidParam id with
+  | Error response -> response
+  | Ok parsedId ->
+    match LanguageTools.PackageManager.Function.getWithLocation branchID parsedId with
+    | Some locatedItem ->
+      let json =
+        locatedItem
+        |> Builtin.jsonSerialize<LanguageTools.ProgramTypes.LocatedItem<LanguageTools.ProgramTypes.PackageFn.PackageFn>>
+      Stdlib.Http.response (Stdlib.String.toBytes json) 200L
+    | None -> Stdlib.Http.response (Stdlib.String.toBytes "not found") 404L
 
 
 [<HttpHandler("GET", "/search")>]
 let _handler _req =
-  let currentModule =
-    (Stdlib.Http.Request.queryParams request)
-    |> Stdlib.List.filterMap (fun pair ->
-      match pair with
-      | (k, v) ->
-        if k == "modules" then
-          Stdlib.Option.Option.Some v
-        else
-          Stdlib.Option.Option.None
-      | _ -> Stdlib.Option.Option.None)
+  let branchID = getBranchIDFromQuery request
 
-    |> Stdlib.List.head
-    |> Builtin.unwrap
-    |> Stdlib.String.split "."
+  match getQueryParam request "modules" with
+  | None ->
+    let errorMsg = "Missing required query parameter: 'modules'"
+    Stdlib.Http.response (Stdlib.String.toBytes errorMsg) 400L
 
-  let text =
-    (Stdlib.Http.Request.queryParams request)
-    |> Stdlib.List.filterMap (fun pair ->
-      match pair with
-      | (k, v) ->
-        if k == "text" then
-          Stdlib.Option.Option.Some v
-        else
-          Stdlib.Option.Option.None
-      | _ -> Stdlib.Option.Option.None)
-    |> fun text ->
-      match text with
-      | [] -> ""
-      | _ ->
-        (Stdlib.List.head text)
-        |> Builtin.unwrap
+  | Some modulesStr ->
+    let currentModule = Stdlib.String.split modulesStr "."
 
-  let searchDepth =
-    (Stdlib.Http.Request.queryParams request)
-    |> Stdlib.List.filterMap (fun pair ->
-      match pair with
-      | (k, v) ->
-        if k == "searchDepth" then
-          Stdlib.Option.Option.Some v
-        else
-          Stdlib.Option.Option.None
-      | _ -> Stdlib.Option.Option.None)
-    |> Stdlib.List.head
-    |> Builtin.unwrap
-    |> fun depth ->
-      match depth with
-      | "direct" ->
-        LanguageTools.ProgramTypes.Search.SearchDepth.OnlyDirectDescendants
+    let text =
+      match getQueryParam request "text" with
+      | Some t -> t
+      | None -> ""
 
-  let entityTypes =
-    (Stdlib.Http.Request.queryParams request)
-    |> Stdlib.List.filterMap (fun pair ->
-      match pair with
-      | (k, v) ->
-        if k == "entityTypes" then
-          Stdlib.Option.Option.Some v
-        else
-          Stdlib.Option.Option.None
-      | _ -> Stdlib.Option.Option.None)
-    |> Stdlib.List.head
-    |> Builtin.unwrap
-    |> Stdlib.String.split ","
-    |> Stdlib.List.map (fun entityType ->
-      match entityType with
-      | "type" -> LanguageTools.ProgramTypes.Search.EntityType.Type
-      | "value" -> LanguageTools.ProgramTypes.Search.EntityType.Value
-      | "function" -> LanguageTools.ProgramTypes.Search.EntityType.Fn
-      | "module" -> LanguageTools.ProgramTypes.Search.EntityType.Module)
+    match getQueryParam request "searchDepth" with
+    | None ->
+      let errorMsg = "Missing required query parameter: 'searchDepth'"
+      Stdlib.Http.response (Stdlib.String.toBytes errorMsg) 400L
 
-    |> Stdlib.List.unique
+    | Some depthStr ->
+      let searchDepth =
+        match depthStr with
+        | "direct" -> LanguageTools.ProgramTypes.Search.SearchDepth.OnlyDirectDescendants
+        | _ -> LanguageTools.ProgramTypes.Search.SearchDepth.OnlyDirectDescendants
 
-  let exactMatch =
-    (Stdlib.Http.Request.queryParams request)
-    |> Stdlib.List.filterMap (fun pair ->
-      match pair with
-      | (k, v) ->
-        if k == "exactMatch" then
-          Stdlib.Option.Option.Some v
-        else
-          Stdlib.Option.Option.None
-      | _ -> Stdlib.Option.Option.None)
-    |> Stdlib.List.head
-    |> fun em ->
-      match em with
-      | None -> false
-      | Some em ->
-        match em with
-        | "true" -> true
-        | "false" -> false
-        | _ -> false
+      match getQueryParam request "entityTypes" with
+      | None ->
+        let errorMsg = "Missing required query parameter: 'entityTypes'"
+        Stdlib.Http.response (Stdlib.String.toBytes errorMsg) 400L
 
+      | Some entityTypesStr ->
+        let entityTypes =
+          (Stdlib.String.split entityTypesStr ",")
+          |> Stdlib.List.map (fun entityType ->
+            match entityType with
+            | "type" -> LanguageTools.ProgramTypes.Search.EntityType.Type
+            | "value" -> LanguageTools.ProgramTypes.Search.EntityType.Value
+            | "function" -> LanguageTools.ProgramTypes.Search.EntityType.Fn
+            | "module" -> LanguageTools.ProgramTypes.Search.EntityType.Module)
+          |> Stdlib.List.unique
 
-  let query =
-    LanguageTools.ProgramTypes.Search.SearchQuery
-      { currentModule = currentModule
-        text = text
-        searchDepth = searchDepth
-        entityTypes = entityTypes
-        exactMatch = exactMatch }
+        let exactMatch =
+          match getQueryParam request "exactMatch" with
+          | None -> false
+          | Some em ->
+            match em with
+            | "true" -> true
+            | "false" -> false
+            | _ -> false
 
+        let query =
+          LanguageTools.ProgramTypes.Search.SearchQuery
+            { currentModule = currentModule
+              text = text
+              searchDepth = searchDepth
+              entityTypes = entityTypes
+              exactMatch = exactMatch }
 
-  let results = Builtin.packageManagerSearch query
-
-  let json = Builtin.jsonSerialize<LanguageTools.ProgramTypes.Search.SearchResults> results
-
-  Stdlib.Http.response (Stdlib.String.toBytes json) 200L
+        let results = Builtin.pmSearch branchID query
+        let json = results |> Builtin.jsonSerialize<LanguageTools.ProgramTypes.Search.SearchResults>
+        Stdlib.Http.response (Stdlib.String.toBytes json) 200L

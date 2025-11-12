@@ -1,0 +1,500 @@
+module Darklang.Cli.Packages.NavInteractive
+
+// Terminal screen management
+let enterAlternateScreen () : Unit =
+  Stdlib.print "\u001b[?1049h"  // Switch to alternate screen buffer
+
+let exitAlternateScreen () : Unit =
+  Stdlib.print "\u001b[?1049l"  // Switch back to main screen buffer
+
+// Interactive navigation types
+type NavItem =
+  { name: String
+    entityType: EntityType
+    location: PackageLocation }
+
+type Display =
+  | JustName
+  | Source
+  // | AST  // future: show AST view
+
+type Mode =
+  | Nav
+  | Search
+
+type State =
+  { items: List<NavItem>
+    selectedIndex: Int64
+    scrollOffset: Int64
+    currentLocation: PackageLocation
+    mode: Mode
+    display: Display
+    branchID: Stdlib.Option.Option<Uuid>
+    searchQuery: String
+    allItems: List<NavItem> }
+
+
+// Helper functions
+let modulePathOf (location: PackageLocation) : List<String> =
+  match location with
+  | Module path -> path
+  | Type t -> Stdlib.List.append [t.owner] t.modules
+  | Value v -> Stdlib.List.append [v.owner] v.modules
+  | Function f -> Stdlib.List.append [f.owner] f.modules
+
+let buildNavItemsFromResults
+  (results: LanguageTools.ProgramTypes.Search.SearchResults)
+  (modulePath: List<String>)
+  : List<NavItem> =
+  let currentPathLength = Stdlib.List.length modulePath
+
+  let submodules =
+    (Query.getDirectSubmodules results currentPathLength)
+    |> Stdlib.List.map (fun name ->
+      NavItem { name = name; entityType = EntityType.Module; location = PackageLocation.Module (Stdlib.List.append modulePath [name]) })
+
+  let types =
+    results.types
+    |> Stdlib.List.map (fun t ->
+      NavItem { name = t.location.name; entityType = EntityType.Type; location = PackageLocation.Type t.location })
+
+  let values =
+    results.values
+    |> Stdlib.List.map (fun v ->
+      NavItem { name = v.location.name; entityType = EntityType.Value; location = PackageLocation.Value v.location })
+
+  let functions =
+    results.fns
+    |> Stdlib.List.map (fun fn ->
+      NavItem { name = fn.location.name; entityType = EntityType.Function; location = PackageLocation.Function fn.location })
+
+  Stdlib.List.flatten [ submodules; types; values; functions ]
+
+
+// Create interactive navigation state for a location
+let buildState
+  (branchID: Stdlib.Option.Option<Uuid>)
+  (location: PackageLocation)
+  : State =
+  let modulePath = modulePathOf location
+
+  // Get all entities in this location
+  let results = Query.allDirectDescendants branchID modulePath
+  let allItems = buildNavItemsFromResults results modulePath
+
+  State
+    { items = allItems
+      selectedIndex = 0L
+      scrollOffset = 0L
+      currentLocation = location
+      mode = Mode.Nav
+      display = Display.JustName
+      branchID = branchID
+      searchQuery = ""
+      allItems = allItems }
+
+// Truncated view for inline display to avoid flooding screen with large modules
+let viewEntityTruncated
+  (branchID: Stdlib.Option.Option<Uuid>)
+  (location: PackageLocation)
+  : Unit =
+  let maxItemsPerCategory = 3L
+  let maxTotalLines = 12L
+
+  match location with
+  | Module path ->
+    let results = Query.allDirectDescendants branchID path
+    let locationStr = Packages.formatLocation location
+    Stdlib.printLine locationStr
+
+    let currentPathLength = Stdlib.List.length path
+    let directSubmodules = Query.getDirectSubmodules results currentPathLength
+
+    let lineCount = 1L // Start with location line
+    let lineCount =
+      if Stdlib.Bool.not (Stdlib.List.isEmpty directSubmodules) then
+        Stdlib.printLine (Display.getSectionHeader "submodule")
+        let itemsToShow = Stdlib.List.take directSubmodules maxItemsPerCategory
+        itemsToShow |> Stdlib.List.iter (fun name -> Stdlib.printLine $"  {name}/")
+
+        let remaining = (Stdlib.List.length directSubmodules) - maxItemsPerCategory
+        if remaining > 0L then
+          Stdlib.printLine $"  ... and {Stdlib.Int64.toString remaining} more modules"
+
+        lineCount + 1L + (Stdlib.List.length itemsToShow) + (if remaining > 0L then 1L else 0L)
+      else
+        lineCount
+
+    // Only show other categories if we haven't exceeded line limit
+    if lineCount < maxTotalLines then
+      let remainingLines = maxTotalLines - lineCount
+      let itemsPerRemaining = Stdlib.Int64.min 2L remainingLines
+
+      // Show types (limited)
+      if Stdlib.Bool.not (Stdlib.List.isEmpty results.types) && itemsPerRemaining > 0L then
+        Stdlib.printLine (Display.getSectionHeader "type")
+        let typesToShow = Stdlib.List.take results.types itemsPerRemaining
+        typesToShow |> Stdlib.List.iter (fun t -> Stdlib.printLine $"  {t.location.name}")
+
+        let remaining = (Stdlib.List.length results.types) - itemsPerRemaining
+        if remaining > 0L then
+          Stdlib.printLine $"  ... and {Stdlib.Int64.toString remaining} more types"
+
+  | _ ->
+    // For individual entities, show full view since they're typically small
+    View.viewEntity branchID location
+
+// Display the interactive navigation interface
+let display (navState: State) : Unit =
+  // Clear alternate screen and show header (main screen is preserved)
+  Stdlib.print "\u001b[?25l\u001b[2J\u001b[H"
+
+  let locationStr = Packages.formatLocation navState.currentLocation
+
+  // Mode-specific header
+  let headerPrefix =
+    match navState.mode with
+    | Nav -> "📁"
+    | Search -> "🔍 Search from"
+
+  let displaySuffix =
+    match navState.display with
+    | JustName -> ""
+    | Source -> " (Focus Mode)"
+
+  match navState.mode with
+  | Nav ->
+    Stdlib.printLine (Colors.boldText $"{headerPrefix} {locationStr}{displaySuffix}")
+    Stdlib.printLine (Stdlib.String.repeat "─" 60L)
+  | Search ->
+    Stdlib.printLine (Colors.boldText $"{headerPrefix} {locationStr}{displaySuffix}")
+    Stdlib.printLine (Stdlib.String.repeat "━" 60L)
+    Stdlib.printLine $"  {navState.searchQuery}_"
+    Stdlib.printLine (Stdlib.String.repeat "━" 60L)
+
+  // Calculate viewport
+  let viewportHeight = 12L
+  let totalItems = Stdlib.List.length navState.items
+
+  if totalItems == 0L then
+    Stdlib.printLine "  (empty directory)"
+  else
+    // Calculate visible items
+    let startIndex = navState.scrollOffset
+    let endIndex = Stdlib.Int64.min (startIndex + viewportHeight) totalItems
+
+    let visibleItems =
+      navState.items
+      |> Stdlib.List.drop startIndex
+      |> Stdlib.List.take (endIndex - startIndex)
+
+    // Display items
+    visibleItems
+    |> Stdlib.List.indexedMap (fun relativeIndex item ->
+      let absoluteIndex = startIndex + relativeIndex
+      let isSelected = absoluteIndex == navState.selectedIndex
+
+      let icon = Display.getIcon item.entityType
+      let cursor = if isSelected then "> " else "  "
+      let nameDisplay =
+        match item.entityType with
+        | Module -> item.name ++ "/"
+        | _ -> item.name
+
+      let line = cursor ++ icon ++ " " ++ nameDisplay
+
+      if isSelected then
+        Stdlib.printLine (Colors.info line)
+      else
+        Stdlib.printLine line
+    )
+    |> Stdlib.List.iter (fun _ -> ())
+
+  // Show inline view and actions if displaying source and there are items
+  match navState.display with
+  | Source ->
+    if totalItems > 0L then
+      match Stdlib.List.getAt navState.items navState.selectedIndex with
+      | Some selectedItem ->
+        Stdlib.printLines [ ""; (Stdlib.String.repeat "─" 60L) ]
+        viewEntityTruncated navState.branchID selectedItem.location
+        Stdlib.printLines [ ""; (Stdlib.String.repeat "─" 60L) ]
+      | None -> ()
+  | JustName -> ()
+
+  Stdlib.printLine ""
+  let helpText =
+    match (navState.mode, navState.display) with
+    | (Nav, JustName) -> "↑/↓: Navigate • ←: Up • →: Enter • Enter: Select • Space: Focus • /: Search • Esc: Exit"
+    | (Nav, Source) -> "u: Update • →: Navigate/View • ←: Up • Space: Unfocus • Esc: Back"
+    | (Search, JustName) -> "Type to search • ↑/↓: Navigate • Enter: Select • Space: Focus • Esc: Exit"
+    | (Search, Source) -> "Type to search • u: Update • →: Navigate/View • Space: Unfocus • Esc: Back"
+  Stdlib.printLine (Colors.hint helpText)
+
+// Navigation helper functions
+let moveUp (navState: State) : State =
+  let totalItems = Stdlib.List.length navState.items
+  if totalItems > 0L then
+    let newIndex =
+      if navState.selectedIndex > 0L then
+        navState.selectedIndex - 1L
+      else
+        totalItems - 1L
+
+    let newScrollOffset =
+      if newIndex < navState.scrollOffset then
+        newIndex
+      else
+        navState.scrollOffset
+
+    { navState with
+        selectedIndex = newIndex
+        scrollOffset = newScrollOffset }
+  else
+    navState
+
+let moveDown (navState: State) : State =
+  let totalItems = Stdlib.List.length navState.items
+  if totalItems > 0L then
+    let newIndex =
+      if navState.selectedIndex < totalItems - 1L then
+        navState.selectedIndex + 1L
+      else
+        0L
+
+    let viewportHeight = 12L
+    let newScrollOffset =
+      if newIndex >= navState.scrollOffset + viewportHeight then
+        newIndex - viewportHeight + 1L
+      else
+        navState.scrollOffset
+
+    { navState with
+        selectedIndex = newIndex
+        scrollOffset = newScrollOffset }
+  else
+    navState
+
+let exitToMainPrompt (state: Cli.AppState) : Cli.AppState =
+  exitAlternateScreen ()
+  { state with
+      currentPage = Page.MainPrompt
+      needsFullRedraw = true
+      prompt = Prompt.Editing.clear state.prompt }
+
+let selectAndExit (state: Cli.AppState) (navState: State) : Cli.AppState =
+  let totalItems = Stdlib.List.length navState.items
+  if totalItems > 0L then
+    match Stdlib.List.getAt navState.items navState.selectedIndex with
+    | Some selectedItem ->
+      exitAlternateScreen ()
+      let newState = Nav.navTo state selectedItem.location
+      let locationStr = Packages.formatLocation selectedItem.location
+      Stdlib.printLine (Colors.success $"Selected: {locationStr}")
+      { newState with
+          currentPage = Page.MainPrompt
+          needsFullRedraw = true
+          prompt = Prompt.Editing.clear newState.prompt }
+    | None -> exitToMainPrompt state
+  else
+    exitToMainPrompt state
+
+let navigateIntoModule (state: Cli.AppState) (navState: State) : Cli.AppState =
+  let totalItems = Stdlib.List.length navState.items
+  if totalItems > 0L then
+    match Stdlib.List.getAt navState.items navState.selectedIndex with
+    | Some selectedItem ->
+      match selectedItem.entityType with
+      | Module ->
+        let newState = Nav.navTo state selectedItem.location
+        let newNavState = buildState state.currentBranchId selectedItem.location
+        { newState with currentPage = Page.InteractiveNav newNavState }
+      | _ -> state
+    | None -> state
+  else
+    state
+
+let navigateToParent (state: Cli.AppState) (navState: State) : Cli.AppState =
+  match Traversal.applySegment navState.branchID navState.currentLocation Traversal.PathSegment.Up with
+  | Ok parentLocation ->
+    let newState = Nav.navTo state parentLocation
+    let newNavState = buildState state.currentBranchId parentLocation
+    { newState with currentPage = Page.InteractiveNav newNavState }
+  | Error _ -> state
+
+// Helper for building full paths in search results
+let buildFullPath (owner: String) (modules: List<String>) (name: String) : String =
+  [ [ owner ]; modules; [ name ] ]
+  |> Stdlib.List.flatten
+  |> Stdlib.String.join "."
+
+// Perform search and update items based on query
+let performSearch (navState: State) : State =
+  if Stdlib.String.isEmpty navState.searchQuery then
+    // Empty query - restore all items
+    { navState with
+        items = navState.allItems
+        selectedIndex = 0L
+        scrollOffset = 0L }
+  else
+    // Search through package system
+    let currentModule = modulePathOf navState.currentLocation
+
+    let query =
+      LanguageTools.ProgramTypes.Search.SearchQuery
+        { currentModule = currentModule
+          text = navState.searchQuery
+          searchDepth = LanguageTools.ProgramTypes.Search.SearchDepth.AllDescendants
+          entityTypes = []
+          exactMatch = false }
+
+    let results = LanguageTools.PackageManager.Search.search navState.branchID query
+
+    // Convert search results to NavItems with full paths
+    let moduleItems =
+      match results.submodules with
+      | [] -> []
+      | [submodulePaths] ->
+        submodulePaths
+        |> Stdlib.List.map (fun modulePath ->
+          NavItem { name = Stdlib.String.join modulePath "."; entityType = EntityType.Module; location = PackageLocation.Module modulePath })
+      | _ -> []
+
+    let typeItems =
+      results.types
+      |> Stdlib.List.map (fun t ->
+        NavItem { name = buildFullPath t.location.owner t.location.modules t.location.name; entityType = EntityType.Type; location = PackageLocation.Type t.location })
+
+    let valueItems =
+      results.values
+      |> Stdlib.List.map (fun v ->
+        NavItem { name = buildFullPath v.location.owner v.location.modules v.location.name; entityType = EntityType.Value; location = PackageLocation.Value v.location })
+
+    let fnItems =
+      results.fns
+      |> Stdlib.List.map (fun fn ->
+        NavItem { name = buildFullPath fn.location.owner fn.location.modules fn.location.name; entityType = EntityType.Function; location = PackageLocation.Function fn.location })
+
+    let searchItems = Stdlib.List.flatten [ moduleItems; typeItems; valueItems; fnItems ]
+
+    { navState with
+        items = searchItems
+        selectedIndex = 0L
+        scrollOffset = 0L }
+
+// Common key handlers
+let handleNavKeys (navState: State) (key: Stdlib.Cli.Stdin.Key.Key) : Stdlib.Option.Option<State> =
+  match key with
+  | UpArrow -> Stdlib.Option.Option.Some (moveUp navState)
+  | DownArrow -> Stdlib.Option.Option.Some (moveDown navState)
+  | _ -> Stdlib.Option.Option.None
+
+let toggleDisplay (navState: State) : State =
+  let newDisplay =
+    match navState.display with
+    | JustName -> Display.Source
+    | Source -> Display.JustName
+  { navState with display = newDisplay }
+
+// Mode-specific key handlers
+let handleSearchKeys
+  (state: Cli.AppState)
+  (key: Stdlib.Cli.Stdin.Key.Key)
+  (keyChar: Stdlib.Option.Option<String>)
+  (navState: State)
+  : Stdlib.Option.Option<Cli.AppState> =
+  match key with
+  | Escape ->
+    let newNavState =
+      { navState with
+          mode = Mode.Nav
+          searchQuery = ""
+          items = navState.allItems
+          selectedIndex = 0L
+          scrollOffset = 0L }
+    Stdlib.Option.Option.Some( { state with currentPage = Page.InteractiveNav newNavState })
+
+  | Backspace ->
+    let newQuery =
+      if Stdlib.String.length navState.searchQuery > 0L then
+        Stdlib.String.dropLast navState.searchQuery 1L
+      else
+        ""
+    let newNavState = { navState with searchQuery = newQuery }
+    let searchedNavState = performSearch newNavState
+    Stdlib.Option.Option.Some ({ state with currentPage = Page.InteractiveNav searchedNavState })
+
+  | Spacebar ->
+    let newNavState = toggleDisplay navState
+    Stdlib.Option.Option.Some ({ state with currentPage = Page.InteractiveNav newNavState })
+
+  | Enter ->
+    Stdlib.Option.Option.Some (selectAndExit state navState)
+
+  | _ ->
+    match keyChar with
+    | Some char ->
+      let newQuery = navState.searchQuery ++ char
+      let newNavState = { navState with searchQuery = newQuery }
+      let searchedNavState = performSearch newNavState
+      Stdlib.Option.Option.Some ({ state with currentPage = Page.InteractiveNav searchedNavState })
+    | None -> Stdlib.Option.Option.None
+
+let handleNavModeKeys
+  (state: Cli.AppState)
+  (key: Stdlib.Cli.Stdin.Key.Key)
+  (keyChar: Stdlib.Option.Option<String>)
+  (navState: State)
+  : Stdlib.Option.Option<Cli.AppState> =
+  match key with
+  | Spacebar ->
+    let newNavState = toggleDisplay navState
+    Stdlib.Option.Option.Some({ state with currentPage = Page.InteractiveNav newNavState })
+
+  | RightArrow -> Stdlib.Option.Option.Some (navigateIntoModule state navState)
+  | LeftArrow -> Stdlib.Option.Option.Some (navigateToParent state navState)
+
+  | Enter -> Stdlib.Option.Option.Some (selectAndExit state navState)
+
+  | Escape -> Stdlib.Option.Option.Some (exitToMainPrompt state)
+
+  | U ->
+    match navState.display with
+    | Source ->
+      let totalItems = Stdlib.List.length navState.items
+      if totalItems > 0L then
+        match Stdlib.List.getAt navState.items navState.selectedIndex with
+        | Some selectedItem ->
+          exitAlternateScreen ()
+          let locationStr = Packages.formatLocation selectedItem.location
+          Stdlib.printLine (Colors.info $"Update mode for {locationStr} (coming soon)")
+          Stdlib.Option.Option.Some (exitToMainPrompt state)
+        | None -> Stdlib.Option.Option.None
+      else
+        Stdlib.Option.Option.None
+    | JustName -> Stdlib.Option.Option.None
+
+  | _ ->
+    match keyChar with
+    | Some "/" ->
+      let newNavState = { navState with mode = Mode.Search }
+      Stdlib.Option.Option.Some({ state with currentPage = Page.InteractiveNav newNavState })
+    | _ -> Stdlib.Option.Option.None
+
+// Handle key input for interactive navigation
+let handleKey (state: Cli.AppState) (key: Stdlib.Cli.Stdin.Key.Key) (keyChar: Stdlib.Option.Option<String>) (navState: State) : Cli.AppState =
+  // Try common navigation keys first
+  match handleNavKeys navState key with
+  | Some newNavState ->
+    { state with currentPage = Page.InteractiveNav newNavState }
+  | None ->
+    // Try mode-specific handlers
+    let modeResult =
+      match navState.mode with
+      | Search -> handleSearchKeys state key keyChar navState
+      | Nav -> handleNavModeKeys state key keyChar navState
+
+    match modeResult with
+    | Some newState -> newState
+    | None -> state
+

@@ -31,9 +31,11 @@ let hardcodedServerCapabilities
     )
 
 let parseAndReportDiagnostics
+  (branchID: Stdlib.Option.Option<ProgramTypes.BranchID>)
   (requestUri: String)
   (requestText: String)
   : Stdlib.Result.Result<WrittenTypes.ParsedFile, String> =
+
   let onMissing = LanguageTools.NameResolver.OnMissing.Allow
   let pm = LanguageTools.PackageManager.pm ()
 
@@ -42,8 +44,33 @@ let parseAndReportDiagnostics
 
   match parsed with
   | Ok (SourceFile sf) ->
+    let (owner, scriptName) =
+      if Stdlib.String.startsWith requestUri "darkfs:/" then
+        let pathPart =
+          // TODO: remove magic
+          requestUri
+          |> Stdlib.String.dropFirst 8L // Remove "darkfs:/"
+          |> Stdlib.String.dropLast 5L // Remove ".dark"
+
+        if Stdlib.String.startsWith pathPart "script/" then
+          ("LSP", "scriptName")
+        else
+          let parts = Stdlib.String.split pathPart "."
+
+          match parts with
+          | [] -> ("LSP", "scriptName")
+          | [ owner ] -> (owner, "")
+          | owner :: rest ->
+            let moduleParts = Stdlib.List.dropLast rest
+
+            let scriptName = Stdlib.String.join moduleParts "."
+
+            (owner, scriptName)
+      else
+        ("LSP", "scriptName")
+
     let unresolvedNames =
-      match Parser.CliScript.parse "LSP" "scriptName" onMissing pm "fileName" requestText with
+      match Parser.CliScript.parse branchID owner scriptName onMissing pm "fileName" requestText with
       | Ok ((_ptCliScriptModule, unresolvedNames)) -> unresolvedNames
       | Error err ->
         log $"Parse error: {err}"
@@ -66,13 +93,15 @@ let handleTextDocumentDidOpen
   (request:
     LanguageServerProtocol.DocumentSync.TextDocument.DidOpenTextDocumentNotification.DidOpenTextDocumentParams.DidOpenTextDocumentParams)
   : LspState =
-  let parsed = parseAndReportDiagnostics request.textDocument.uri request.textDocument.text
+
+  let branchID = state.branchID
+  let parsed = parseAndReportDiagnostics branchID request.textDocument.uri request.textDocument.text
 
   let parsedToPT =
     match parsed with
     | Ok parsedFile ->
-      (WrittenTypesToProgramTypes.parsedFileAsSourceFile parsedFile)
-      |> Stdlib.Tuple2.first
+      (WrittenTypesToProgramTypes.parsedFileAsSourceFile parsedFile branchID)
+      |> Stdlib.Tuple3.first
       |> Stdlib.Option.Option.Some
 
     | _ -> Stdlib.Option.Option.None
@@ -123,6 +152,9 @@ let handleTextDocumentDidSave
   (request:
     LanguageServerProtocol.DocumentSync.TextDocument.DidSaveTextDocumentNotification.DidSaveTextDocumentParams.DidSaveTextDocumentParams)
   : LspState =
+
+  let branchID = state.branchID
+
   match request.text with
   | None ->
     log
@@ -131,13 +163,13 @@ let handleTextDocumentDidSave
     state
 
   | Some text ->
-    let parsed = parseAndReportDiagnostics request.textDocument.uri text
+    let parsed = parseAndReportDiagnostics branchID request.textDocument.uri text
 
     let parsedToPT =
       match parsed with
       | Ok parsedFile ->
-        (WrittenTypesToProgramTypes.parsedFileAsSourceFile parsedFile)
-        |> Stdlib.Tuple2.first
+        (WrittenTypesToProgramTypes.parsedFileAsSourceFile parsedFile branchID)
+        |> Stdlib.Tuple3.first
         |> Stdlib.Option.Option.Some
 
       | _ -> Stdlib.Option.Option.None

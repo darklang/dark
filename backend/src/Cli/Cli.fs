@@ -13,7 +13,7 @@ module PT2RT = LibExecution.ProgramTypesToRuntimeTypes
 module Exe = LibExecution.Execution
 module PackageIDs = LibExecution.PackageIDs
 module BuiltinCli = BuiltinCli.Builtin
-module BuiltinCliHostConfig = BuiltinCliHost.Libs.Cli.Config
+module BuiltinCliHost = BuiltinCliHost.Libs.Cli
 
 // Dual logging (console + cli.log file)
 let private logError (message : string) : unit =
@@ -64,8 +64,9 @@ let info () =
 
 let builtins : RT.Builtins =
   LibExecution.Builtin.combine
-    [ BuiltinCliHostConfig.builtinsToUse
-      LibExecution.Builtin.combine [ BuiltinCliHost.Builtin.builtins ] [] ]
+    [ BuiltinCliHost.builtinsToUse
+      BuiltinCliHost.Builtin.builtins
+      BuiltinCli.builtins ]
     []
 
 
@@ -136,7 +137,7 @@ let main (args : string[]) =
       let errorCallStackStr =
         (LibExecution.Execution.callStackString state callStack).Result
 
-      match (LibExecution.Execution.runtimeErrorToString state rte).Result with
+      match (LibExecution.Execution.runtimeErrorToString None state rte).Result with
       | Ok(RT.DString s) ->
         logError $"Encountered a Runtime Error:\n{s}\n\n{errorCallStackStr}\n  "
 

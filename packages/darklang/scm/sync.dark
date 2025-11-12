@@ -1,0 +1,169 @@
+module Darklang.SCM.Sync
+
+/// Synchronize package ops with a remote Darklang instance
+/// Returns a result with success message or error
+let sync
+  (instanceID: Uuid)
+  (remoteURL: String)
+  (branchID: Stdlib.Option.Option<Uuid>)
+  : Stdlib.Result.Result<String, String> =
+  // Get last sync date with this instance
+  let lastSyncOpt = Builtin.scmGetLastSyncDate instanceID
+
+  let sinceDate =
+    match lastSyncOpt with
+    | Some dt -> dt
+    // If never synced, use Unix epoch (will sync everything)
+    | None -> Stdlib.DateTime.fromSeconds 0L
+
+  // Get ops to push (created since last sync)
+  let opsToPush = PackageOps.getSince branchID sinceDate
+
+  let opsPushedCount = Stdlib.List.length opsToPush
+
+  // Push ops to remote in batches
+  let pushResult =
+    if opsPushedCount == 0L then
+      Stdlib.Result.Result.Ok 0L
+    else
+      let batchSize = 100L
+
+      let batches =
+        match Stdlib.List.chunkBySize opsToPush batchSize with
+        | Ok chunks -> chunks
+        | Error _ -> [ opsToPush ] // Fallback to single batch if chunking fails
+
+      let batchCount = Stdlib.List.length batches
+
+      let pushUrl = $"{remoteURL}/ops"
+
+      // Push each batch sequentially using fold with manual index tracking
+      let (_, pushAllBatches) =
+        Stdlib.List.fold
+          batches
+          (0L, Stdlib.Result.Result.Ok 0L)
+          (fun acc batch ->
+            let (index, batchResult) = acc
+
+            match batchResult with
+            | Error msg -> (index + 1L, Stdlib.Result.Result.Error msg)
+            | Ok totalSoFar ->
+              let batchNum = index + 1L
+              let batchNumStr = Stdlib.Int64.toString batchNum
+              let batchOpsCount = Stdlib.List.length batch
+
+              let opsJson =
+                Builtin.jsonSerialize<List<LanguageTools.ProgramTypes.PackageOp>> batch
+
+              let pushRequest =
+                Stdlib.HttpClient.post
+                  pushUrl
+                  [ ("Content-Type", "application/json") ]
+                  (Stdlib.String.toBytes opsJson)
+
+              let newResult =
+                match pushRequest with
+                | Ok response ->
+                  if response.statusCode >= 200L && response.statusCode < 300L then
+                    Stdlib.Result.Result.Ok(totalSoFar + batchOpsCount)
+                  else
+                    let errorBody =
+                      Stdlib.String.fromBytesWithReplacement response.body
+
+                    let statusCode = Stdlib.Int64.toString response.statusCode
+
+                    Stdlib.Result.Result.Error
+                      $"Push failed on batch {batchNumStr} with status {statusCode}: {errorBody}"
+
+                | Error err ->
+                  let errorMsg = Stdlib.HttpClient.toString err
+
+                  Stdlib.Result.Result.Error
+                    $"Push request failed on batch {batchNumStr}: {errorMsg}"
+
+              (index + 1L, newResult))
+
+      pushAllBatches
+
+  // If push succeeded, pull ops from remote
+  match pushResult with
+  | Error msg -> Stdlib.Result.Result.Error msg
+  | Ok pushedCount ->
+    // Pull ops from remote
+    let pullRequest =
+      let sinceDateStr = Stdlib.DateTime.toString sinceDate
+      Stdlib.HttpClient.get $"{remoteURL}/ops?since={sinceDateStr}" []
+
+    match pullRequest with
+    | Error err ->
+      let errorMsg = Stdlib.HttpClient.toString err
+
+      Stdlib.Result.Result.Error $"Pull request failed: {errorMsg}"
+    | Ok response ->
+      if response.statusCode >= 200L && response.statusCode < 300L then
+        let responseBody = Stdlib.String.fromBytesWithReplacement response.body
+
+        match Builtin.jsonParse<List<LanguageTools.ProgramTypes.PackageOp>> responseBody with
+        | Error _err ->
+          Stdlib.Result.Result.Error "Failed to parse pulled ops JSON"
+
+        | Ok pulledOps ->
+          let fetchedCount = Stdlib.List.length pulledOps
+
+          // Add pulled ops to local database in batches, tracking how many were actually inserted
+          let applyResult =
+            if fetchedCount > 0L then
+              let batchSize = 100L
+
+              let batches =
+                match Stdlib.List.chunkBySize pulledOps batchSize with
+                | Ok chunks -> chunks
+                | Error _ -> [ pulledOps ] // Fallback to single batch if chunking fails
+
+
+              let (_, batchResults) =
+                Stdlib.List.fold
+                  batches
+                  (0L, Stdlib.Result.Result.Ok 0L)
+                  (fun acc batch ->
+                    let (index, resultSoFar) = acc
+
+                    match resultSoFar with
+                    | Error msg -> (index + 1L, Stdlib.Result.Result.Error msg)
+                    | Ok appliedSoFar ->
+                      let addResult = Builtin.scmAddOps branchID batch
+
+                      match addResult with
+                      | Ok batchApplied ->
+                        (index + 1L, Stdlib.Result.Result.Ok(appliedSoFar + batchApplied))
+                      | Error errMsg ->
+                        let batchNum = Stdlib.Int64.toString(index + 1L)
+
+                        (
+                          index + 1L,
+                          Stdlib.Result.Result.Error
+                            $"Failed to apply batch {batchNum}: {errMsg}"
+                        ))
+
+              batchResults
+            else
+              Stdlib.Result.Result.Ok 0L
+
+          match applyResult with
+          | Error msg -> Stdlib.Result.Result.Error msg
+          | Ok appliedCount ->
+            // Record the sync with the count of ops actually inserted (not just fetched)
+            Builtin.scmRecordSync instanceID pushedCount appliedCount
+
+            let pushedStr = Stdlib.Int64.toString pushedCount
+            let appliedStr = Stdlib.Int64.toString appliedCount
+
+            Stdlib.Result.Result.Ok
+              $"Sync complete: pushed {pushedStr} ops, pulled {appliedStr} ops"
+
+      else
+        let errorBody = Stdlib.String.fromBytesWithReplacement response.body
+        let statusCode = Stdlib.Int64.toString response.statusCode
+
+        Stdlib.Result.Result.Error
+          $"Pull failed with status {statusCode}: {errorBody}"

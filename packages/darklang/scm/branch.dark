@@ -1,0 +1,23 @@
+module Darklang.SCM.Branch
+
+type Branch =
+  { id: Uuid
+    name: String
+    createdAt: DateTime
+    mergedAt: Stdlib.Option.Option<DateTime> }
+
+
+/// List all branches
+let list () : List<Branch> = Builtin.scmBranchList ()
+
+/// Get a specific branch by ID
+let get (branchID: Uuid) : Stdlib.Option.Option<Branch> =
+  Builtin.scmBranchGet branchID
+
+/// Find branches by name (may return multiple if names collide)
+let findByName (name: String) : List<Branch> =
+  Builtin.scmBranchFindByName name
+
+/// Create a new branch
+let create (name: String) : Branch =
+  Builtin.scmBranchCreate name

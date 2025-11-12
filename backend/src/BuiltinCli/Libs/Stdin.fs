@@ -196,7 +196,13 @@ let fns : List<BuiltInFn> =
             DEnum(typeName, typeName, [], keyCaseName, [])
 
           // Get character representation based on keyboard layout
-          let keyChar = readKey.KeyChar |> string |> DString
+          // Only include keyChar for printable characters, not control characters
+          let keyChar =
+            let ch = readKey.KeyChar
+            if System.Char.IsControl(ch) || ch = '\u0000' then
+              DString "" // Empty string for control/special keys
+            else
+              ch |> string |> DString
 
           let keyRead =
             let typeName =

@@ -174,25 +174,3 @@ module CliScript =
         exprs = exprs }
 
     | _ -> Exception.raiseInternal "Invalid PTCliScriptModule" []
-
-
-module ScriptsToDarkTypes =
-  let scriptTypeName = FQTypeName.fqPackage PackageIDs.Type.Cli.script
-
-  let toDT (script : LibPackageManager.Scripts.Script) : Dval =
-    let fields =
-      [ ("id", DString(string script.id))
-        ("name", DString script.name)
-        ("text", DString script.text) ]
-    DRecord(scriptTypeName, scriptTypeName, [], Map.ofList fields)
-
-  let fromDT (d : Dval) : LibPackageManager.Scripts.Script =
-    match d with
-    | DRecord(_, _, _, fields) ->
-      { LibPackageManager.Scripts.id =
-          System.Guid.Parse(DvalDecoder.field "id" fields |> DvalDecoder.string)
-        LibPackageManager.Scripts.name =
-          DvalDecoder.field "name" fields |> DvalDecoder.string
-        LibPackageManager.Scripts.text =
-          DvalDecoder.field "text" fields |> DvalDecoder.string }
-    | _ -> Exception.raiseInternal "Invalid Script" []

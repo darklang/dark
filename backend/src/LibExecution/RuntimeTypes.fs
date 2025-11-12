@@ -1096,19 +1096,23 @@ type PackageManager =
     (fns : List<PackageFn.PackageFn>)
     (pm : PackageManager)
     : PackageManager =
+    let typeMap = types |> List.map (fun t -> t.id, t) |> Map.ofList
+    let valueMap = values |> List.map (fun v -> v.id, v) |> Map.ofList
+    let fnMap = fns |> List.map (fun f -> f.id, f) |> Map.ofList
+
     { getType =
         fun id ->
-          match types |> List.tryFind (fun t -> t.id = id) with
+          match Map.tryFind id typeMap with
           | Some t -> Some t |> Ply
           | None -> pm.getType id
       getValue =
         fun id ->
-          match values |> List.tryFind (fun v -> v.id = id) with
+          match Map.tryFind id valueMap with
           | Some v -> Some v |> Ply
           | None -> pm.getValue id
       getFn =
         fun id ->
-          match fns |> List.tryFind (fun f -> f.id = id) with
+          match Map.tryFind id fnMap with
           | Some f -> Some f |> Ply
           | None -> pm.getFn id
       init = pm.init }

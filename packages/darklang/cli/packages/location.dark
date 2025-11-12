@@ -1,0 +1,35 @@
+module Darklang.Cli.Packages.Location
+
+
+/// Parse a location string relative to current position
+/// Handles absolute paths (/Darklang.Foo.bar) and relative paths (bar, Foo.bar)
+let parseRelativeTo
+  (currentLocation: Packages.PackageLocation)
+  (location: String)
+  : Stdlib.Result.Result<LanguageTools.ProgramTypes.PackageLocation, String> =
+  // Get the current module path
+  let currentPath = Traversal.getCurrentModulePath currentLocation
+
+  // Check if it's an absolute path
+  let isAbsolute = Stdlib.String.startsWith location "/"
+
+  let parts =
+    if isAbsolute then
+      // Remove leading slash and split
+      let withoutSlash = Stdlib.String.dropFirst location 1L
+      Stdlib.String.split withoutSlash "."
+    else
+      // Relative path - combine current path with relative path
+      let relativeParts = Stdlib.String.split location "."
+      Stdlib.List.append currentPath relativeParts
+
+  match parts with
+  | [] -> Stdlib.Result.Result.Error "Empty location"
+  | [_] -> Stdlib.Result.Result.Error "Location must have at least owner, module, and name"
+  | [_; _] -> Stdlib.Result.Result.Error "Location must have at least owner, module, and name"
+  | owner :: rest ->
+    let name = (Stdlib.List.last rest) |> Builtin.unwrap
+    let modules = Stdlib.List.dropLast rest
+
+    Stdlib.Result.Result.Ok
+      (LanguageTools.ProgramTypes.PackageLocation { owner = owner; modules = modules; name = name })

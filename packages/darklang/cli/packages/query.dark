@@ -1,0 +1,54 @@
+module Darklang.Cli.Packages.Query
+
+/// Search for all contents (modules, types, values, functions) in a given module path
+let allDirectDescendants
+  (branchID: Stdlib.Option.Option<Uuid>)
+  (modulePath: List<String>)
+  : LanguageTools.ProgramTypes.Search.SearchResults =
+  let query =
+    LanguageTools.ProgramTypes.Search.SearchQuery
+      { currentModule = modulePath
+        text = "" // CLEANUP maybe 'none' would be better
+        searchDepth = LanguageTools.ProgramTypes.Search.SearchDepth.OnlyDirectDescendants
+        entityTypes = []
+        exactMatch = false }
+
+  LanguageTools.PackageManager.Search.search branchID query
+
+
+/// Search for a specific entity by name in a given module path (exact match)
+let searchExactMatch
+  (branchID: Stdlib.Option.Option<Uuid>)
+  (modulePath: List<String>)
+  (entityName: String)
+  : LanguageTools.ProgramTypes.Search.SearchResults =
+  let query =
+    LanguageTools.ProgramTypes.Search.SearchQuery
+      { currentModule = modulePath
+        text = entityName
+        searchDepth = LanguageTools.ProgramTypes.Search.SearchDepth.OnlyDirectDescendants
+        entityTypes = []
+        exactMatch = true }
+
+  LanguageTools.PackageManager.Search.search branchID query
+
+
+/// Check if search results contain any content
+let hasContent (r: LanguageTools.ProgramTypes.Search.SearchResults) : Bool =
+  (r.submodules != []) || (r.types != []) || (r.fns != []) || (r.values != [])
+
+
+/// Extract direct submodule names from the current module path
+let getDirectSubmodules (results: LanguageTools.ProgramTypes.Search.SearchResults) (currentPathLength: Int64) : List<String> =
+  results.submodules
+  |> Stdlib.List.filterMap (fun modulePath ->
+    match Stdlib.List.drop modulePath currentPathLength with
+    | [] -> Stdlib.Option.Option.None
+    | nextPart :: _ ->
+      if Stdlib.String.isEmpty nextPart then
+        Stdlib.Option.Option.None
+      else
+        Stdlib.Option.Option.Some nextPart
+  )
+  |> Stdlib.List.unique
+  |> Stdlib.List.sort

@@ -4,15 +4,18 @@ module Darklang.Cli.Help
 let execute (state: AppState) (args: List<String>) : AppState =
   match args with
   | [] ->
-    Stdlib.printLine (Registry.getCommandList ())
-    updateCoreFields state state.isExiting state.mainPrompt state.needsFullRedraw
+    [
+      (Registry.getDetailedCommandList ())
+      ""
+      "Type 'help <command>' for specific command help."
+    ] |> Stdlib.printLines
+    state
   | [commandName] ->
     Registry.executeCommandHelp commandName state
   | _ ->
     Stdlib.printLine (Colors.error "Usage: help [command]")
     Stdlib.printLine "Too many arguments. Use 'help' for general help or 'help <command>' for specific help."
-
-    updateCoreFields state state.isExiting state.mainPrompt state.needsFullRedraw
+    state
 
 
 let complete (state: AppState) (args: List<String>) : List<String> =

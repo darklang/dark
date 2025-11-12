@@ -63,6 +63,13 @@ module UserDefined =
   Ok 5L = Builtin.testDerrorMessage "Ok is not a valid name"
 
 
+  type MyRecord = { a: Bool; b: String }
+  let recordValue = MyRecord { a = true; b = "glasses" }
+  (Stdlib.Bool.not recordValue.a) = false
+
+
+
+
 module Package =
   Darklang.Test.Values.stringValue = "test"
   "test" = Darklang.Test.Values.stringValue
@@ -115,3 +122,5 @@ module Package =
 
   Darklang.Test.Values.enumValue = Stdlib.Option.Option.Some 5L
   Darklang.Test.Values.enumValue = Stdlib.Option.Option.Some 5L
+
+

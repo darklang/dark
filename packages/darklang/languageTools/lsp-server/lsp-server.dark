@@ -37,11 +37,22 @@ let runServerCli (u: Unit) : Int64 =
       match jsonRpcRequest.id with
       | Some requestId -> handleInitializeRequest requestId
       | None ->
-        log "Error: initialize request missing ID"
-        LspState { initialized = false; shouldShutdown = true; documentsInScope = Dict { } }
+        log "Error: initialize request must have an id"
+
+        LspState
+          { initialized = false
+            shouldShutdown = false
+            branchID = Stdlib.Option.Option.None
+            documentsInScope = Dict { } }
+
     | _ ->
-      log "Error: Failed to parse initialize request"
-      LspState { initialized = false; shouldShutdown = true; documentsInScope = Dict { } }
+      log "Error: expected initialize request as first message"
+
+      LspState
+        { initialized = false
+          shouldShutdown = false
+          branchID = Stdlib.Option.Option.None
+          documentsInScope = Dict { } }
 
 
   // now that _that_ is out of the way, we can start responding to normal requests

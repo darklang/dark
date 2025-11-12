@@ -1,0 +1,165 @@
+module Darklang.Cli.Packages.Fn
+
+
+let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
+  match args with
+  | [] -> help state
+
+  // fn SomeModule.myFn (param: Type): ReturnType = body
+  | location :: definitionParts ->
+    // Strip leading "=" if present (since users naturally type "fn foo (x: Int64): Int64 = ...")
+    let cleanedParts =
+      match definitionParts with
+      | "=" :: rest -> rest
+      | parts -> parts
+
+    // Join all remaining args as the inline definition
+    let inlineDefinition = Stdlib.String.join cleanedParts " "
+
+    if Stdlib.String.isEmpty inlineDefinition then
+      // No inline definition provided - show error
+      [
+        (Colors.error "Error: Inline function definition required")
+        ""
+        "Usage: fn <location> <parameters and body>"
+        ""
+        "Examples:"
+        "  fn double (x: Int64): Int64 = Stdlib.Int64.multiply x 2L"
+        "  fn greet (name: String): String = \"Hello, \" ++ name"
+        ""
+      ] |> Stdlib.printLines
+
+      state
+    else
+      // Parse and create function immediately
+      createFnInline
+        state.currentBranchId
+        state.packageData.currentLocation
+        location
+        inlineDefinition
+        state
+
+
+let createFnInline
+  (branchID: Stdlib.Option.Option<Uuid>)
+  (currentLocation: Packages.PackageLocation)
+  (locationStr: String)
+  (definition: String)
+  (state: Cli.AppState)
+  : Cli.AppState =
+  // Parse location relative to current position
+  match Location.parseRelativeTo currentLocation locationStr with
+  | Ok location ->
+    // Build full source code for parsing
+    let fullSource = $"let {location.name} {definition}"
+
+    // Parse the function definition string using tree-sitter
+    let tree = LanguageTools.Parser.parseToSimplifiedTree fullSource
+
+    // Find the fn_decl node
+    match tree.children |> Stdlib.List.findFirst (fun node -> node.typ == "fn_decl") with
+    | Some fnDeclNode ->
+      // Parse node to WrittenTypes
+      match LanguageTools.Parser.FunctionDeclaration.parse fnDeclNode with
+      | Ok writtenFn ->
+        // Convert to ProgramTypes.PackageFn
+        let pm = LanguageTools.PackageManager.pm ()
+
+        let (packageFn, unresolvedNames) =
+          LanguageTools.WrittenTypesToProgramTypes.FunctionDeclaration.toPackageFnPT
+            branchID
+            LanguageTools.NameResolver.OnMissing.Allow
+            pm
+            location.owner
+            location.modules
+            writtenFn
+
+        // Check for unresolved names
+        if (Stdlib.List.isEmpty unresolvedNames) |> Stdlib.Bool.not then
+          Stdlib.printLine (Colors.error "Error: Unresolved references")
+          Stdlib.printLine ""
+
+          unresolvedNames
+          |> Stdlib.List.iter (fun (range, err) ->
+            match err with
+            | TypeNotFound names ->
+              let nameStr = Stdlib.String.join names "."
+              Stdlib.printLine $"  - Type not found: {nameStr}"
+            | _ -> Stdlib.printLine $"  - Unresolved name at {range}")
+
+          Stdlib.printLine ""
+          state
+        // no unresolved names - keep going
+        else
+          // Create ops: AddFn and SetFnName
+          let ops =
+            [ LanguageTools.ProgramTypes.PackageOp.AddFn packageFn
+              LanguageTools.ProgramTypes.PackageOp.SetFnName (packageFn.id, location) ]
+
+          // Push the ops up to the server
+          match SCM.PackageOps.add branchID ops with
+          | Ok _ ->
+            // Show success message
+            let fullPath = PrettyPrinter.ProgramTypes.PackageLocation.packageLocation location
+
+            [ ""; (Colors.success $"✓ Created function: {fullPath}"); "" ]
+            |> Stdlib.printLines
+
+            state
+
+          | Error msg ->
+            [ ""
+              (Colors.error $"✗ Failed to add function: {msg}")
+              "" ]
+            |> Stdlib.printLines
+
+            state
+
+      | Error unparseable ->
+        Stdlib.printLine (Colors.error "Failed to parse function definition")
+        Stdlib.printLine $"Parse error at range: {unparseable.source.range}"
+        state
+    | None ->
+      [
+        (Colors.error "Failed to parse function definition")
+        ""
+        "Make sure your syntax is correct. Examples:"
+        "  fn double (x: Int64): Int64 = Stdlib.Int64.multiply x 2L"
+        "  fn greet (name: String): String = \"Hello, \" ++ name"
+        ""
+      ] |> Stdlib.printLines
+      state
+  | Error msg ->
+    Stdlib.printLine (Colors.error $"Invalid location: {msg}")
+    state
+
+
+let help (state: Cli.AppState) : Cli.AppState =
+  [
+    "Create a new function"
+    ""
+    "Usage: fn <location> <parameters and body>"
+    ""
+    "Examples:"
+    "  # Simple function:"
+    "  fn double (x: Int64): Int64 = Stdlib.Int64.multiply x 2L"
+    ""
+    "  # String function:"
+    "  fn greet (name: String): String = \"Hello, \" ++ name"
+    ""
+    "  # Multiple parameters:"
+    "  fn add (a: Int64) (b: Int64): Int64 = Stdlib.Int64.add a b"
+    ""
+    "  # Boolean function:"
+    "  fn isPositive (x: Int64): Bool = x > 0L"
+    ""
+    "Location can be relative or absolute:"
+    "  fn helper (x: Int64): Int64 = ...    # Relative to current location"
+    "  fn /Darklang.Foo.bar (x: String): String = ...  # Absolute path"
+    ""
+  ] |> Stdlib.printLines
+
+  state
+
+
+let complete (state: Cli.AppState) (args: List<String>) : List<String> = []

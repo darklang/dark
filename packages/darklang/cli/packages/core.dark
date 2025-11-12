@@ -5,9 +5,15 @@ module Darklang.Cli.Packages
 
 type PackageLocation =
   | Module of path: List<String>
-  | Type of name: LanguageTools.ProgramTypes.PackageType.Name
-  | Value of name: LanguageTools.ProgramTypes.PackageValue.Name
-  | Function of name: LanguageTools.ProgramTypes.PackageFn.Name
+  | Type of location: LanguageTools.ProgramTypes.PackageLocation
+  | Value of location: LanguageTools.ProgramTypes.PackageLocation
+  | Function of location: LanguageTools.ProgramTypes.PackageLocation
+
+type EntityType =
+  | Module
+  | Type
+  | Function
+  | Value
 
 type State =
   { currentLocation: PackageLocation
@@ -26,18 +32,9 @@ let formatLocation (location: PackageLocation) : String =
       "/ (root)"
     else
       $"/{Stdlib.String.join path "."} (module)"
-  | Type name ->
-    [[name.owner]; name.modules; [name.name]]
-    |> Stdlib.List.flatten
-    |> Stdlib.String.join "."
-    |> fun s -> $"/{s} (type)"
-  | Value name ->
-    [[name.owner]; name.modules; [name.name]]
-    |> Stdlib.List.flatten
-    |> Stdlib.String.join "."
-    |> fun s -> $"/{s} (value)"
-  | Function name ->
-    [[name.owner]; name.modules; [name.name]]
-    |> Stdlib.List.flatten
-    |> Stdlib.String.join "."
-    |> fun s -> $"/{s} (fn)"
+  | Type loc ->
+    $"/{PrettyPrinter.ProgramTypes.PackageLocation.packageLocation loc} (type)"
+  | Value loc ->
+    $"/{PrettyPrinter.ProgramTypes.PackageLocation.packageLocation loc} (value)"
+  | Function loc ->
+    $"/{PrettyPrinter.ProgramTypes.PackageLocation.packageLocation loc} (fn)"

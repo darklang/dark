@@ -10,10 +10,7 @@ let fnRenames =
   // eg: fn "Http" "respond" 0, fn "Http" "response" 0
   []
 
-let builtins
-  (httpConfig : Libs.HttpClient.Configuration)
-  (pm : LibExecution.ProgramTypes.PackageManager)
-  : Builtins =
+let builtins (httpConfig : Libs.HttpClient.Configuration) : Builtins =
   Builtin.combine
     [ Libs.NoModule.builtins
 
@@ -58,7 +55,5 @@ let builtins
       Libs.Crypto.builtins
       Libs.X509.builtins
 
-      Libs.Reflection.builtins
-
-      Libs.Packages.builtins pm ]
+      Libs.Reflection.builtins ]
     fnRenames

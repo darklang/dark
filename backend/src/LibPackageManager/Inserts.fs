@@ -2,7 +2,6 @@ module LibPackageManager.Inserts
 
 open System.Threading.Tasks
 open FSharp.Control.Tasks
-open System.Collections.Concurrent
 
 open Prelude
 
@@ -10,102 +9,85 @@ open Microsoft.Data.Sqlite
 open Fumble
 open LibDB.Db
 
-module RT = LibExecution.RuntimeTypes
 module PT = LibExecution.ProgramTypes
-module PT2RT = LibExecution.ProgramTypesToRuntimeTypes
 module BinarySerialization = LibBinarySerialization.BinarySerialization
 
 
-let insertTypes (types : List<PT.PackageType.PackageType>) : Task<unit> =
+/// Compute a content-addressed ID for a PackageOp by hashing its serialized content
+///
+/// TODO this is really hacky.
+/// honestly we should
+/// - make hashing more legit.
+/// - rebrand LibBinarySerialization as LibSerialization
+/// - migrate any remaining hacky JSON serialization things there
+///   (if LibExecution needs them, maybe ExecutionState needs to/from json fns to be part of that context)
+/// - put all sorts of Hashers there -
+let computeOpHash (op : PT.PackageOp) : System.Guid =
+  use memoryStream = new System.IO.MemoryStream()
+  use binaryWriter = new System.IO.BinaryWriter(memoryStream)
+
+  // Serialize just the op content (without an ID)
+  LibBinarySerialization.Serializers.PT.PackageOp.write binaryWriter op
+
+  let opBytes = memoryStream.ToArray()
+  let hashBytes = System.Security.Cryptography.SHA256.HashData(opBytes)
+
+  // Take first 16 bytes to make a UUID
+  System.Guid(hashBytes[0..15])
+
+
+/// Insert PackageOps into the package_ops table and apply them to projection tables
+/// Returns the count of ops actually inserted (duplicates are skipped via INSERT OR IGNORE)
+let insertAndApplyOps
+  (branchID : Option<PT.BranchID>)
+  (ops : List<PT.PackageOp>)
+  : Task<int64> =
   task {
-    if List.isEmpty types then return ()
+    if List.isEmpty ops then
+      return 0L
+    else
+      // CLEANUP this should either
+      // - be made to be one big transaction
+      // OR
+      // - be inserted as applied:false, and have 'step 2' trigger them being toggled
 
-    types
-    |> List.map (fun typ ->
-      let sql =
-        @"INSERT INTO package_types_v0
-            (id, owner, modules, name, pt_def, rt_def)
-          VALUES
-            (@id, @owner, @modules, @name, @pt_def, @rt_def)"
+      // Step 1: Insert ops into package_ops table (source of truth)
+      let insertStatements =
+        ops
+        |> List.map (fun op ->
+          let opId = computeOpHash op
+          let opBlob = BinarySerialization.PT.PackageOp.serialize opId op
 
-      let ptDef = BinarySerialization.PT.PackageType.serialize typ.id typ
-      let rtDef =
-        typ
-        |> PT2RT.PackageType.toRT
-        |> BinarySerialization.RT.PackageType.serialize typ.id
+          let sql =
+            """
+            INSERT OR IGNORE INTO package_ops (id, branch_id, op_blob, applied)
+            VALUES (@id, @branch_id, @op_blob, @applied)
+            """
 
-      let parameters =
-        [ "id", Sql.uuid typ.id
-          "owner", Sql.string typ.name.owner
-          "modules", Sql.string (String.concat "." typ.name.modules)
-          "name", Sql.string typ.name.name
-          "pt_def", Sql.bytes ptDef
-          "rt_def", Sql.bytes rtDef ]
+          let parameters =
+            [ "id", Sql.uuid opId
+              "branch_id",
+              (match branchID with
+               | Some id -> Sql.uuid id
+               | None -> Sql.dbnull)
+              "op_blob", Sql.bytes opBlob
+              "applied", Sql.bool true ]
 
-      (sql, [ parameters ]))
-    |> Sql.executeTransactionSync
-    |> ignore<List<int>>
-  }
+          (sql, [ parameters ]))
 
+      let rowsAffected = insertStatements |> Sql.executeTransactionSync
 
-let insertValues (values : List<PT.PackageValue.PackageValue>) : Task<unit> =
-  task {
-    if List.isEmpty values then return ()
+      // Count how many ops were actually inserted (vs skipped as duplicates)
+      let insertedCount = rowsAffected |> List.sumBy int64
 
-    values
-    |> List.map (fun v ->
-      let sql =
-        @"INSERT INTO package_values_v0
-            (id, owner, modules, name, pt_def, rt_dval)
-          VALUES
-            (@id, @owner, @modules, @name, @pt_def, @rt_dval)"
+      // Step 2: Apply ops to projection tables (types, values, functions, locations)
+      // Only apply ops that were actually inserted
+      let opsToApply =
+        List.zip ops rowsAffected
+        |> List.filter (fun (_, affected) -> affected > 0)
+        |> List.map fst
 
-      let dval = PT2RT.PackageValue.toRT v
+      do! PackageOpPlayback.applyOps branchID opsToApply
 
-      let ptBits = BinarySerialization.PT.PackageValue.serialize v.id v
-      let rtBits = dval |> BinarySerialization.RT.PackageValue.serialize v.id
-
-
-      let parameters =
-        [ "id", Sql.uuid v.id
-          "owner", Sql.string v.name.owner
-          "modules", Sql.string (String.concat "." v.name.modules)
-          "name", Sql.string v.name.name
-          "pt_def", Sql.bytes ptBits
-          "rt_dval", Sql.bytes rtBits ]
-
-      (sql, [ parameters ]))
-    |> Sql.executeTransactionSync
-    |> ignore<List<int>>
-  }
-
-let insertFns (fns : List<PT.PackageFn.PackageFn>) : Task<unit> =
-  task {
-    if List.isEmpty fns then return ()
-
-    fns
-    |> List.map (fun fn ->
-      let sql =
-        @"INSERT INTO package_functions_v0
-            (id, owner, modules, name, pt_def, rt_instrs)
-          VALUES
-            (@id, @owner, @modules, @name, @pt_def, @rt_instrs)"
-
-      let ptDef = BinarySerialization.PT.PackageFn.serialize fn.id fn
-      let rtInstrs =
-        fn
-        |> PT2RT.PackageFn.toRT
-        |> BinarySerialization.RT.PackageFn.serialize fn.id
-
-      let parameters =
-        [ "id", Sql.uuid fn.id
-          "owner", Sql.string fn.name.owner
-          "modules", Sql.string (String.concat "." fn.name.modules)
-          "name", Sql.string fn.name.name
-          "pt_def", Sql.bytes ptDef
-          "rt_instrs", Sql.bytes rtInstrs ]
-
-      (sql, [ parameters ]))
-    |> Sql.executeTransactionSync
-    |> ignore<List<int>>
+      return insertedCount
   }

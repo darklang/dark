@@ -9,19 +9,22 @@ type ThingAtPosition =
     description: Stdlib.Option.Option<String>
   | FnName of String * description: Stdlib.Option.Option<String>
   | PackageValue of
-    ProgramTypes.PackageValue.PackageValue *
+    fqName: List<String> *
+    value: ProgramTypes.PackageValue.PackageValue *
     description: Stdlib.Option.Option<String>
   | BuiltinFn of
     signature: String *
     description: Stdlib.Option.Option<String>
   | PackageFn of
-    ProgramTypes.PackageFn.PackageFn *
+    fqName: List<String> *
+    fn: ProgramTypes.PackageFn.PackageFn *
     description: Stdlib.Option.Option<String>
   | BuiltinType of
     signature: String *
     description: Stdlib.Option.Option<String>
   | PackageType of
-    ProgramTypes.PackageType.PackageType *
+    fqName: List<String> *
+    typ: ProgramTypes.PackageType.PackageType *
     description: Stdlib.Option.Option<String>
   | Variable of String * description: Stdlib.Option.Option<String>
   | Operator of description: String

@@ -1,0 +1,165 @@
+module Darklang.Cli.Packages.Value
+
+
+let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
+  match args with
+  | [] -> help state
+
+  // val SomeModule.myValue = expression
+  | location :: definitionParts ->
+    // Strip leading "=" if present (since users naturally type "val x = ...")
+    let cleanedParts =
+      match definitionParts with
+      | "=" :: rest -> rest
+      | parts -> parts
+
+    // Join all remaining args as the inline definition
+    let inlineDefinition = Stdlib.String.join cleanedParts " "
+
+    if Stdlib.String.isEmpty inlineDefinition then
+      // No inline definition provided - show error
+      [
+        (Colors.error "Error: Inline value expression required")
+        ""
+        "Usage: val <location> <expression>"
+        ""
+        "Examples:"
+        "  val x = 42L"
+        "  val myString = \"hello\""
+        "  val myList = [1L; 2L; 3L]"
+        ""
+      ] |> Stdlib.printLines
+
+      state
+    else
+      // Parse and create value immediately
+      createValueInline
+        state.currentBranchId
+        state.packageData.currentLocation
+        location
+        inlineDefinition
+        state
+
+
+let createValueInline
+  (branchID: Stdlib.Option.Option<Uuid>)
+  (currentLocation: Packages.PackageLocation)
+  (locationStr: String)
+  (expression: String)
+  (state: Cli.AppState)
+  : Cli.AppState =
+  // Parse location relative to current position
+  match Location.parseRelativeTo currentLocation locationStr with
+  | Ok location ->
+    // Build full source code for parsing
+    let fullSource = $"val {location.name} = {expression}"
+
+    // Parse the value definition string using tree-sitter
+    let tree = LanguageTools.Parser.parseToSimplifiedTree fullSource
+
+    // Find the val_decl node
+    match tree.children |> Stdlib.List.findFirst (fun node -> node.typ == "val_decl") with
+    | Some valDeclNode ->
+      // Parse node to WrittenTypes
+      match LanguageTools.Parser.ValueDeclaration.parse valDeclNode with
+      | Ok writtenValue ->
+        // Convert to ProgramTypes.PackageValue
+        let pm = LanguageTools.PackageManager.pm ()
+
+        let (packageValue, unresolvedNames) =
+          LanguageTools.WrittenTypesToProgramTypes.ValueDeclaration.toPackageValuePT
+            branchID
+            LanguageTools.NameResolver.OnMissing.Allow
+            pm
+            location.owner
+            location.modules
+            writtenValue
+
+        // Check for unresolved names
+        if (Stdlib.List.isEmpty unresolvedNames) |> Stdlib.Bool.not then
+          Stdlib.printLine (Colors.error "Error: Unresolved references")
+          Stdlib.printLine ""
+
+          unresolvedNames
+          |> Stdlib.List.iter (fun (range, err) ->
+            match err with
+            | TypeNotFound names ->
+              let nameStr = Stdlib.String.join names "."
+              Stdlib.printLine $"  - Type not found: {nameStr}"
+            | _ -> Stdlib.printLine $"  - Unresolved name at {range}")
+
+          Stdlib.printLine ""
+          state
+        // no unresolved names - keep going
+        else
+          // Create ops: AddValue and SetValueName
+          let ops =
+            [ LanguageTools.ProgramTypes.PackageOp.AddValue packageValue
+              LanguageTools.ProgramTypes.PackageOp.SetValueName (packageValue.id, location) ]
+
+          // Push the ops up to the server
+          match SCM.PackageOps.add branchID ops with
+          | Ok _ ->
+            // Show success message
+            let fullPath = PrettyPrinter.ProgramTypes.PackageLocation.packageLocation location
+
+            [ ""; (Colors.success $"✓ Created value: {fullPath}"); "" ]
+            |> Stdlib.printLines
+
+            state
+
+          | Error msg ->
+            [ ""
+              (Colors.error $"✗ Failed to add value: {msg}")
+              "" ]
+            |> Stdlib.printLines
+
+            state
+
+      | Error unparseable ->
+        Stdlib.printLine (Colors.error "Failed to parse value expression")
+        Stdlib.printLine $"Parse error at range: {unparseable.source.range}"
+        state
+    | None ->
+      [
+        (Colors.error "Failed to parse value expression")
+        ""
+        "Make sure your syntax is correct. Examples:"
+        "  val x = 42L"
+        "  val myString = \"hello\""
+        ""
+      ] |> Stdlib.printLines
+      state
+  | Error msg ->
+    Stdlib.printLine (Colors.error $"Invalid location: {msg}")
+    state
+
+
+let help (state: Cli.AppState) : Cli.AppState =
+  [
+    "Create a new value"
+    ""
+    "Usage: val <location> <expression>"
+    ""
+    "Examples:"
+    "  # Simple values:"
+    "  val x = 42L"
+    "  val message = \"hello world\""
+    ""
+    "  # Collections:"
+    "  val myList = [1L; 2L; 3L]"
+    "  val myDict = Dict { key = \"value\" }"
+    ""
+    "  # Type alias:"
+    "  val userId = Uuid.parse \"123e4567-e89b-12d3-a456-426614174000\""
+    ""
+    "Location can be relative or absolute:"
+    "  val foo = 42L          # Relative to current location"
+    "  val /Darklang.Foo.x = 42L  # Absolute path"
+    ""
+  ] |> Stdlib.printLines
+
+  state
+
+
+let complete (state: Cli.AppState) (args: List<String>) : List<String> = []

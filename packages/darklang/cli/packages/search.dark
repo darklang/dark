@@ -1,109 +1,201 @@
 module Darklang.Cli.Packages.Search
 
-/// Search for all contents (modules, types, values, functions) in a given module path
-let searchContents (modulePath: List<String>) : LanguageTools.ProgramTypes.Search.SearchResults =
-  let query =
-    LanguageTools.ProgramTypes.Search.SearchQuery
-      { currentModule = modulePath
-        text = ""
-        searchDepth = LanguageTools.ProgramTypes.Search.SearchDepth.OnlyDirectDescendants
-        entityTypes = []
-        exactMatch = false }
-  LanguageTools.PackageManager.Search.search query
 
-
-/// Search for a specific entity by name in a given module path (exact match)
-let searchEntity (modulePath: List<String>) (entityName: String) : LanguageTools.ProgramTypes.Search.SearchResults =
-  let query =
-    LanguageTools.ProgramTypes.Search.SearchQuery
-      { currentModule = modulePath
-        text = entityName
-        searchDepth = LanguageTools.ProgramTypes.Search.SearchDepth.OnlyDirectDescendants
-        entityTypes = []
-        exactMatch = true }
-  LanguageTools.PackageManager.Search.search query
-
-
-/// Search for entities matching a partial string (fuzzy search for completions)
-let searchFuzzy (modulePath: List<String>) (partialText: String) : LanguageTools.ProgramTypes.Search.SearchResults =
-  let query =
-    LanguageTools.ProgramTypes.Search.SearchQuery
-      { currentModule = modulePath
-        text = partialText
-        searchDepth = LanguageTools.ProgramTypes.Search.SearchDepth.OnlyDirectDescendants
-        entityTypes = []
-        exactMatch = false }
-  LanguageTools.PackageManager.Search.search query
-
-
-/// Find a specific type by name in the search results
-let findTypeByName (results: LanguageTools.ProgramTypes.Search.SearchResults) (name: String) : Stdlib.Option.Option<LanguageTools.ProgramTypes.PackageType.PackageType> =
-  results.types |> Stdlib.List.findFirst (fun t -> t.name.name == name)
-
-
-/// Find a specific function by name in the search results
-let findFnByName (results: LanguageTools.ProgramTypes.Search.SearchResults) (name: String) : Stdlib.Option.Option<LanguageTools.ProgramTypes.PackageFn.PackageFn> =
-  results.fns |> Stdlib.List.findFirst (fun f -> f.name.name == name)
-
-
-/// Find a specific value by name in the search results
-let findValueByName (results: LanguageTools.ProgramTypes.Search.SearchResults) (name: String) : Stdlib.Option.Option<LanguageTools.ProgramTypes.PackageValue.PackageValue> =
-  results.values |> Stdlib.List.findFirst (fun v -> v.name.name == name)
-
-
-/// Check if search results contain any content
-let hasContent (r: LanguageTools.ProgramTypes.Search.SearchResults) : Bool =
-  match r.submodules with
+let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
+  match args with
   | [] ->
-    (r.types != []) ||
-    (r.fns != []) ||
-    (r.values != [])
+    // Enter interactive search mode (nav with search enabled)
+    NavInteractive.enterAlternateScreen ()
+    let navState = NavInteractive.buildState state.currentBranchId state.packageData.currentLocation
+    let searchNavState = { navState with mode = NavInteractive.Mode.Search }
+    { state with
+        currentPage = Page.InteractiveNav searchNavState
+        needsFullRedraw = true
+        prompt = Prompt.Editing.clear state.prompt }
 
-  | [submodules] ->
-    (submodules) != [] ||
-    (r.types != []) ||
-    (r.fns != []) ||
-    (r.values != [])
-
-  | _ -> true
-
-
-/// Extract direct submodule names from the current module path
-let getDirectSubmodules (results: LanguageTools.ProgramTypes.Search.SearchResults) (currentPathLength: Int64) : List<String> =
-  match results.submodules with
-  | [] -> []
-  | [submodules] ->
-    submodules
-    |> Stdlib.List.filterMap (fun modulePath ->
-      match Stdlib.List.drop modulePath currentPathLength with
-      | [] -> Stdlib.Option.Option.None
-      | nextPart :: _ ->
-        if Stdlib.String.isEmpty nextPart then
-          Stdlib.Option.Option.None
+  | _ ->
+    // Parse flags and query text
+    let (flags, queryParts) =
+      args
+      |> Stdlib.List.fold ([], []) (fun (flags, parts) arg ->
+        if Stdlib.String.startsWith arg "--" then
+          (Stdlib.List.append flags [arg], parts)
         else
-          Stdlib.Option.Option.Some nextPart
-    )
-    |> Stdlib.List.unique
-    |> Stdlib.List.sort
-  | _ -> []
+          (flags, Stdlib.List.append parts [arg]))
+
+    let queryText = Stdlib.String.join queryParts " "
+
+    if Stdlib.String.isEmpty queryText then
+      Stdlib.printLine (Colors.error "Error: Search query cannot be empty")
+      Stdlib.printLine ""
+      Stdlib.printLine "Usage: search <query> [--type] [--fn] [--val] [--exact] [--shallow]"
+      state
+    else
+      // Determine entity types to search based on flags
+      let entityTypes =
+        if Stdlib.List.isEmpty flags then
+          [] // Empty list means search all types
+        else
+          flags
+          |> Stdlib.List.filterMap (fun flag ->
+            match flag with
+            | "--type" -> Stdlib.Option.Option.Some LanguageTools.ProgramTypes.Search.EntityType.Type
+            | "--fn" | "--function" -> Stdlib.Option.Option.Some LanguageTools.ProgramTypes.Search.EntityType.Fn
+            | "--val" | "--value" -> Stdlib.Option.Option.Some LanguageTools.ProgramTypes.Search.EntityType.Value
+            | _ -> Stdlib.Option.Option.None)
+
+      // Determine if exact match is requested
+      let exactMatch =
+        flags
+        |> Stdlib.List.findFirst (fun f -> f == "--exact")
+        |> Stdlib.Option.isSome
+
+      // Determine search depth - default to deep for search command
+      let searchDepth =
+        let isShallow =
+          flags
+          |> Stdlib.List.findFirst (fun f -> f == "--shallow")
+          |> Stdlib.Option.isSome
+
+        if isShallow then
+          LanguageTools.ProgramTypes.Search.SearchDepth.OnlyDirectDescendants
+        else
+          LanguageTools.ProgramTypes.Search.SearchDepth.AllDescendants
+
+      // Get current module path from state
+      let currentModule =
+        match state.packageData.currentLocation with
+        | Module path -> path
+        // CLEANUP there must be a helper for this
+        | Type t -> Stdlib.List.append [t.owner] t.modules
+        | Value v -> Stdlib.List.append [v.owner] v.modules
+        | Function f -> Stdlib.List.append [f.owner] f.modules
+
+      // Build search query
+      let query =
+        LanguageTools.ProgramTypes.Search.SearchQuery
+          { currentModule = currentModule
+            text = queryText
+            searchDepth = searchDepth
+            entityTypes = entityTypes
+            exactMatch = exactMatch }
+
+      // Execute search
+      let results = LanguageTools.PackageManager.Search.search state.currentBranchId query
+
+      // Display results
+      let submodulesCount =
+        match results.submodules with
+        | [] -> 0L
+        | [submodulePaths] -> Stdlib.List.length submodulePaths
+        | _ -> 0L
+
+      let totalResults =
+        (Stdlib.List.length results.types)
+        + (Stdlib.List.length results.values)
+        + (Stdlib.List.length results.fns)
+        + submodulesCount
+
+      if totalResults == 0L then
+        Stdlib.printLine (Colors.dimText $"No results found for: {queryText}")
+        Stdlib.printLine ""
+      else
+        Stdlib.printLine (Colors.boldText $"Search results for: {queryText}")
+        Stdlib.printLine ""
+
+        // Display submodules
+        match results.submodules with
+        | [] -> ()
+        | [submodulePaths] ->
+          if Stdlib.Bool.not (Stdlib.List.isEmpty submodulePaths) then
+            Stdlib.printLine (Display.getSectionHeader "module")
+            submodulePaths
+            |> Stdlib.List.iter (fun modulePath ->
+              let moduleStr = Stdlib.String.join modulePath "."
+              Stdlib.printLine $"  {moduleStr}")
+            Stdlib.printLine ""
+        | _ -> ()
+
+        // Display types
+        if Stdlib.Bool.not (Stdlib.List.isEmpty results.types) then
+          Stdlib.printLine (Display.getSectionHeader "type")
+          results.types
+          |> Stdlib.List.iter (fun item ->
+            let fullPath =
+              [ [ item.location.owner ]; item.location.modules; [ item.location.name ] ]
+              |> Stdlib.List.flatten
+              |> Stdlib.String.join "."
+            Stdlib.printLine $"  {fullPath}")
+          Stdlib.printLine ""
+
+        // Display values
+        if Stdlib.Bool.not (Stdlib.List.isEmpty results.values) then
+          Stdlib.printLine (Display.getSectionHeader "value")
+          results.values
+          |> Stdlib.List.iter (fun item ->
+            let fullPath =
+              [ [ item.location.owner ]; item.location.modules; [ item.location.name ] ]
+              |> Stdlib.List.flatten
+              |> Stdlib.String.join "."
+            Stdlib.printLine $"  {fullPath}")
+          Stdlib.printLine ""
+
+        // Display functions
+        if Stdlib.Bool.not (Stdlib.List.isEmpty results.fns) then
+          Stdlib.printLine (Display.getSectionHeader "function")
+          results.fns
+          |> Stdlib.List.iter (fun item ->
+            let fullPath =
+              [ [ item.location.owner ]; item.location.modules; [ item.location.name ] ]
+              |> Stdlib.List.flatten
+              |> Stdlib.String.join "."
+            Stdlib.printLine $"  {fullPath}")
+          Stdlib.printLine ""
+
+      state
 
 
-/// Icon mappings for different entity types
-let getIcon (entityType: String) : String =
-  match entityType with
-  | "module" -> "🗂️"
-  | "function" -> "⚡"
-  | "type" -> "🏷️"
-  | "value" -> "💎"
-  | _ -> ""
+let help (state: Cli.AppState) : Cli.AppState =
+  [
+    "Search for packages, types, functions, and values"
+    ""
+    "Usage: search [query] [options]"
+    ""
+    "Without query: Launch interactive search mode"
+    "With query: Execute search and display results"
+    ""
+    "Options:"
+    "  --type       Search only types"
+    "  --fn         Search only functions"
+    "  --val        Search only values"
+    "  --exact      Require exact match (default: fuzzy)"
+    "  --shallow    Search only direct descendants (default: all descendants)"
+    ""
+    "Examples:"
+    "  search                      # Launch interactive search mode"
+    "  search List                 # Find all entities matching 'List' (recursively)"
+    "  search List --shallow       # Find all entities matching 'List' (direct descendants only)"
+    "  search map --fn             # Find functions matching 'map'"
+    "  search String --type        # Find types matching 'String'"
+    "  search parseJson --exact    # Find exact match for 'parseJson'"
+    "  search Http --fn --val      # Find functions and values matching 'Http'"
+    ""
+    "By default, search looks in the current module and ALL nested descendants recursively."
+    "Use --shallow to search only direct children of the current module."
+    "Use 'nav' to change your current location first if needed."
+    ""
+  ] |> Stdlib.printLines
+
+  state
 
 
-/// Get section header with icon for entity type
-let getSectionHeader (entityType: String) : String =
-  match entityType with
-  | "module" -> "🗂️ Modules:"
-  | "function" -> "⚡ Functions:"
-  | "type" -> "🏷️ Types:"
-  | "value" -> "💎 Values:"
-  | "submodule" -> "🗂️ Submodules:"
-  | _ -> entityType ++ ":"
+let complete (state: Cli.AppState) (args: List<String>) : List<String> =
+  // Offer flag completions when typing --
+  match Stdlib.List.last args with
+  | Some lastArg ->
+    if Stdlib.String.startsWith lastArg "--" then
+      ["--type"; "--fn"; "--val"; "--exact"; "--shallow"]
+      |> Stdlib.List.filter (fun flag -> Stdlib.String.startsWith flag lastArg)
+    else
+      []
+  | None -> []

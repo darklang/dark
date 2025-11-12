@@ -52,24 +52,51 @@ let handleHoverRequest
 
     let onMissing = LanguageTools.NameResolver.OnMissing.Allow
     let pm = LanguageTools.PackageManager.pm ()
-    let owner = "LspHover"
+
+    // Extract owner and modules from URI to provide correct parsing context
+    let (owner, scriptName) =
+      if Stdlib.String.startsWith params.textDocument.uri "darkfs:/" then
+        let pathPart =
+          // TODO: remove magic
+          params.textDocument.uri
+          |> Stdlib.String.dropFirst 8L // Remove "darkfs:/"
+          |> Stdlib.String.dropLast 5L // Remove ".dark"
+
+        if Stdlib.String.startsWith pathPart "script/" then
+          ("LspHover", "")
+        else
+          let parts = Stdlib.String.split pathPart "."
+
+          match parts with
+          | [] -> ("LspHover", "")
+          | [ owner ] -> (owner, "")
+          | owner :: rest ->
+            let moduleParts = Stdlib.List.dropLast rest
+            let scriptName = Stdlib.String.join moduleParts "."
+            (owner, scriptName)
+      else
+        ("LspHover", "")
 
     let pmWithExtras =
-      match Parser.CliScript.pmWithExtras owner "" onMissing pm "" doc.text with
+      match Parser.CliScript.pmWithExtras state.branchID owner scriptName onMissing pm "" doc.text with
       | Ok pm -> pm
       | Error _ -> pm // fallback to original pm on error
 
     /// Find the node at the hover position, and get the hover information
+    let currentModules =
+      if scriptName == "" then [] else Stdlib.String.split scriptName "."
+
     let info =
       match parsed with
       | Ok(SourceFile s) ->
         let decls =
-          s.declarations
-          |> HoverInformation.collectNodeHoverInfoAtPos
+          HoverInformation.collectNodeHoverInfoAtPos
+            state.branchID
+            s.declarations
             position
             pmWithExtras
             owner
-            []
+            currentModules
 
         // First try to find a declaration at the position, then try to find expressions
         match decls with
@@ -78,11 +105,12 @@ let handleHoverRequest
           s.exprsToEval
           |> Stdlib.List.filterMap (fun e ->
             HoverInformation.collectExpressionHoverInfoAtPos
+              state.branchID
               e
               position
               pmWithExtras
               owner
-              [])
+              currentModules)
           |> Stdlib.List.head
 
       | _ -> Stdlib.Option.Option.None

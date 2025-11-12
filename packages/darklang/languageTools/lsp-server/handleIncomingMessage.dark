@@ -251,13 +251,36 @@ let handleIncomingMessage
         let r = jsonRpcRequest
 
         match (r.method, r.id, r.params) with
-        | ("darklang/getRootNodes", Some requestId, None) ->
+        | ("dark/getRootNodes", Some requestId, _) ->
           TreeView.handleGetRootNodesRequest state requestId
 
-        | ("darklang/getChildNodes",
+        | ("dark/getChildNodes",
           Some requestId,
           Some(Object [ ("nodeId", String nodeId) ])) ->
           TreeView.handleGetChildNodesRequest state requestId nodeId
+
+        | ("dark/getBranches", Some requestId, _) ->
+          Branches.handleGetBranchesRequest state requestId
+
+        | ("dark/createBranch",
+          Some requestId,
+          Some(Object [ ("name", String branchName) ])) ->
+          Branches.handleCreateBranchRequest state requestId branchName
+
+        | ("dark/getPendingOps", Some requestId, params) ->
+          PendingOps.handleGetPendingOpsRequest state requestId params
+
+        | ("dark/switchBranch", Some requestId, Some(Object [ ("branchID", String branchID) ])) ->
+          SwitchBranch.handleSwitchBranchRequest state requestId branchID
+
+        | ("dark/clearBranch", Some requestId, _) ->
+          Branches.handleClearBranchRequest state requestId
+
+        | ("dark/sync", Some requestId, Some(Object [ ("instanceID", String instanceID) ])) ->
+          Sync.handleSyncRequest state requestId instanceID
+
+        | ("dark/listInstances", Some requestId, _) ->
+          Sync.handleListInstancesRequest state requestId
 
         | other ->
           log $"TODO: we don't yet support this method: {r.method}"

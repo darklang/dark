@@ -1,0 +1,100 @@
+#!/usr/bin/env bash
+. ./scripts/devcontainer/_assert-in-container "$0" "$@"
+
+set -euo pipefail
+
+# TODO remove this and stop-second-instance
+# (temporary until we have a 'real' server standing.)
+
+# This script runs a second Darklang instance for testing sync
+# Instance 1 (default): port 11001, database data.db
+# Instance 2 (this one): port 11003, database data-instance2.db
+
+INSTANCE_NAME="instance2"
+INSTANCE_PORT=11003
+INSTANCE_DB="data-instance2.db"
+
+grey="\033[1;30m"
+green="\033[0;32m"
+reset="\033[0m"
+
+LOGS="${DARK_CONFIG_RUNDIR}/logs"
+INSTANCE_LOG="$LOGS/bwdserver-${INSTANCE_NAME}.log"
+
+# Check if database exists, if not, copy from main instance
+DB_PATH="${DARK_CONFIG_RUNDIR}/${INSTANCE_DB}"
+MAIN_DB_PATH="${DARK_CONFIG_RUNDIR}/data.db"
+
+
+echo -e "${green}Creating new database for ${INSTANCE_NAME}${reset}"
+rm -f $DB_PATH
+cp "${MAIN_DB_PATH}" "${DB_PATH}"
+echo -e "${green}Database created: ${DB_PATH}${reset}"
+
+# Find the BwdServer executable
+PUBLISHED=false
+if [[ "$PUBLISHED" == "true" ]]; then
+  BWDSERVER_EXE="backend/Build/out/BwdServer/Release/net8.0/linux-x64/publish/BwdServer"
+else
+  BWDSERVER_EXE="backend/Build/out/BwdServer/Debug/net8.0/BwdServer"
+fi
+
+# Wait for build if needed
+echo "Waiting for BwdServer build..."
+for ((i=1;i<=1000;i++)); do
+  if [[ ! -f "${BWDSERVER_EXE}" ]]; then
+    sleep 0.01
+  else
+    break
+  fi
+done
+
+if [[ ! -f "${BWDSERVER_EXE}" ]]; then
+  echo "Error: BwdServer executable not found at ${BWDSERVER_EXE}"
+  exit 1
+fi
+
+# Stop any existing instance2 process
+echo "Stopping any existing ${INSTANCE_NAME} processes..."
+pkill -f "DARK_CONFIG_DB_NAME=${INSTANCE_DB}" || true
+sleep 1
+
+# Reload packages and canvases for the second instance
+LOCALEXEC_EXE="backend/Build/out/LocalExec/Debug/net8.0/LocalExec"
+echo "Reloading packages for ${INSTANCE_DB}..."
+DARK_CONFIG_DB_NAME="${INSTANCE_DB}" "${LOCALEXEC_EXE}" reload-canvases > /dev/null 2>&1
+echo "Packages reloaded"
+
+# Record initial sync to mark instances as in-sync at this point
+# This prevents trying to re-sync all historical ops
+echo "Recording initial sync state..."
+MAIN_INSTANCE_ID="11111111-1111-1111-1111-111111111111"
+SECOND_INSTANCE_ID="fcdacd03-8324-4efd-8cc9-3ae1a4157a2a"
+
+# Record sync in main instance's database (synced with second)
+# Use SQLite's random UUID generation
+sqlite3 "${MAIN_DB_PATH}" "INSERT OR REPLACE INTO syncs (id, instance_id, synced_at, ops_pushed, ops_fetched) VALUES (lower(hex(randomblob(4)) || '-' || hex(randomblob(2)) || '-4' || substr(hex(randomblob(2)),2) || '-' || substr('89ab',abs(random()) % 4 + 1, 1) || substr(hex(randomblob(2)),2) || '-' || hex(randomblob(6))), '${SECOND_INSTANCE_ID}', strftime('%Y-%m-%dT%H:%M:%SZ', 'now'), 0, 0);"
+
+# Record sync in second instance's database (synced with main)
+sqlite3 "${DB_PATH}" "INSERT OR REPLACE INTO syncs (id, instance_id, synced_at, ops_pushed, ops_fetched) VALUES (lower(hex(randomblob(4)) || '-' || hex(randomblob(2)) || '-4' || substr(hex(randomblob(2)),2) || '-' || substr('89ab',abs(random()) % 4 + 1, 1) || substr(hex(randomblob(2)),2) || '-' || hex(randomblob(6))), '${MAIN_INSTANCE_ID}', strftime('%Y-%m-%dT%H:%M:%SZ', 'now'), 0, 0);"
+
+echo "Initial sync recorded"
+
+# Start the second instance
+echo -e "${green}Starting ${INSTANCE_NAME} on port ${INSTANCE_PORT}${reset}"
+echo -e "${grey}Database: ${DB_PATH}${reset}"
+echo -e "${grey}Log file: ${INSTANCE_LOG}${reset}"
+echo ""
+
+DARK_CONFIG_DB_NAME="${INSTANCE_DB}" \
+DARK_CONFIG_BWDSERVER_BACKEND_PORT="${INSTANCE_PORT}" \
+DARK_CONFIG_BWDSERVER_KUBERNETES_PORT="11004" \
+"${BWDSERVER_EXE}" > "${INSTANCE_LOG}" 2>&1 &
+
+PID=$!
+echo -e "${green}Instance ${INSTANCE_NAME} started (PID: ${PID})${reset}"
+echo ""
+echo "Access it at: http://dark-packages.dlio.localhost:${INSTANCE_PORT}/stats"
+echo ""
+echo "View logs:"
+echo "  tail -f ${INSTANCE_LOG}"

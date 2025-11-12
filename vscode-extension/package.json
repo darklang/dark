@@ -17,14 +17,9 @@
     "vscode": "^1.83.0"
   },
   "main": "./client/out/extension",
-  "activationEvents": [
-		"onFileSystem:darkfs",
-		"onLanguage:plaintext",
-		"onCommand:darkfs.workspaceInit",
-		"onCommand:darkfs.init",
-		"workspaceContains:*.txt"
-	],
   "contributes": {
+    "keybindings": [
+    ],
     "languages": [
       {
         "id": "darklang",
@@ -90,11 +85,6 @@
         "title": "Run Darklang Script"
       },
       {
-        "command": "darklang.refreshTreeView",
-        "title": "Refresh",
-        "icon": "$(refresh)"
-      },
-      {
         "command": "darklang.lookUpToplevel",
         "title": "Darklang: Look Up Package Element"
       },
@@ -107,47 +97,162 @@
         "title": "Open Full Module"
       },
       {
-        "command": "darklang.init",
-        "title": "Darklang: Init Workspace"
+        "command": "darklang.showOpDiff",
+        "title": "Show Op Diff"
+      },
+      {
+        "command": "darklang.branch.new",
+        "title": "Start New Branch",
+        "icon": "$(add)"
+      },
+      {
+        "command": "darklang.branch.switch",
+        "title": "Switch Branch",
+        "icon": "$(arrow-swap)"
+      },
+      {
+        "command": "darklang.branch.view",
+        "title": "View Branch Details",
+        "icon": "$(eye)"
+      },
+      {
+        "command": "darklang.branch.rename",
+        "title": "Rename Branch",
+        "icon": "$(edit)"
+      },
+      {
+        "command": "darklang.branch.quickSwitch",
+        "title": "Quick Switch Branch"
+      },
+      {
+        "command": "darklang.branch.clear",
+        "title": "Clear Branch"
+      },
+      {
+        "command": "darklang.branches.manageAll",
+        "title": "Manage All Branches",
+        "icon": "$(list-flat)"
+      },
+      {
+        "command": "darklang.sync.execute",
+        "title": "Darklang: Sync with Remote Instance",
+        "icon": "$(sync)"
+      },
+      {
+        "command": "darklang.sync.quickSync",
+        "title": "Darklang: Quick Sync (instance2)",
+        "icon": "$(sync)"
+      },
+      {
+        "command": "darklang.instance.sync",
+        "title": "Sync with Instance",
+        "icon": "$(sync)"
+      },
+      {
+        "command": "darklang.ops.setLimit",
+        "title": "Set Ops Limit",
+        "icon": "$(symbol-number)"
+      },
+      {
+        "command": "darklang.ops.setDateRange",
+        "title": "Filter by Date Range",
+        "icon": "$(calendar)"
+      },
+      {
+        "command": "darklang.ops.setBranch",
+        "title": "Filter by Branch",
+        "icon": "$(git-branch)"
+      },
+      {
+        "command": "darklang.ops.setLocation",
+        "title": "Filter by Location",
+        "icon": "$(location)"
+      },
+      {
+        "command": "darklang.ops.clearFilters",
+        "title": "Clear All Filters",
+        "icon": "$(clear-all)"
       }
     ],
     "menus": {
-			"commandPalette": [
-				{
-					"command": "darklang.init",
-					"when": "workbenchState != workspace"
-				}
-			],
-			"view/title": [
-				{
-					"command": "darklang.refreshTreeView",
-					"when": "view == darklangTreeView",
-					"group": "navigation"
-				}
-			],
 			"view/item/context": [
-				{
+        {
 					"command": "darklang.openFullModule",
-					"when": "view == darklangTreeView && viewItem == module",
+					"when": "view == darklangPackages && viewItem == module",
 					"group": "navigation"
+				},
+        {
+					"command": "darklang.branch.rename",
+					"when": "view == darklangWorkspace && viewItem == workspace-branch-root",
+					"group": "inline@1"
+				},
+				{
+					"command": "darklang.branch.view",
+					"when": "view == darklangWorkspace && viewItem == workspace-branch-root",
+					"group": "inline@2"
+				},
+				{
+					"command": "darklang.branch.new",
+					"when": "view == darklangWorkspace && viewItem == workspace-branch-root",
+					"group": "inline@3"
+				},
+				{
+					"command": "darklang.branch.switch",
+					"when": "view == darklangWorkspace && viewItem == branch",
+					"group": "basic@1"
+				},
+				{
+					"command": "darklang.instance.sync",
+					"when": "view == darklangWorkspace && viewItem == remote-instance",
+					"group": "inline@1"
+				},
+				{
+					"command": "darklang.ops.setLimit",
+					"when": "view == darklangWorkspace && viewItem == workspace-changes-root",
+					"group": "inline@1"
+				},
+				{
+					"command": "darklang.ops.setDateRange",
+					"when": "view == darklangWorkspace && viewItem == workspace-changes-root",
+					"group": "inline@2"
+				},
+				{
+					"command": "darklang.ops.setBranch",
+					"when": "view == darklangWorkspace && viewItem == workspace-changes-root",
+					"group": "inline@3"
+				},
+				{
+					"command": "darklang.ops.setLocation",
+					"when": "view == darklangWorkspace && viewItem == workspace-changes-root",
+					"group": "inline@4"
+				},
+				{
+					"command": "darklang.ops.clearFilters",
+					"when": "view == darklangWorkspace && viewItem == workspace-changes-root",
+					"group": "inline@5"
 				}
 			]
 		},
     "viewsContainers": {
       "activitybar": [
         {
-          "id": "darklangViewContainer",
+          "id": "darklang",
           "title": "Darklang",
-          "icon": "static/logo-dark-transparent-low-margin.svg"
+          "icon": "static/logo-dark-transparent.svg"
         }
       ]
     },
     "views": {
-      "darklangViewContainer": [
+      "darklang": [
         {
-          "id": "darklangTreeView",
-          "name": "tree view of packages",
-          "_todo_when": "workspaceHasFolder"
+          "id": "darklangWorkspace",
+          "name": "Workspace",
+          "visibility": "visible"
+        },
+        {
+          "id": "darklangPackages",
+          "name": "Packages",
+          "visibility": "visible"
         }
       ]
     }
@@ -157,7 +262,8 @@
     "compile": "tsc -b",
     "watch": "tsc -b -w",
     "lint": "eslint ./client/src --ext .ts,.tsx",
-    "postinstall": "cd client && npm install && cd .."
+    "postinstall": "cd client && npm install && cd ..",
+    "package": "vsce package"
   },
   "devDependencies": {
     "@types/mocha": "^9.1.0",

@@ -1,0 +1,203 @@
+module Darklang.Cli.Prompt
+
+/// State for prompt-specific fields (text, cursor, history)
+type State =
+  { text: String
+    cursorPosition: Int64
+    commandHistory: List<String>
+    historyIndex: Int64
+    savedPrompt: String }
+
+let initState () : State =
+  State
+    { text = ""
+      cursorPosition = 0L
+      commandHistory = []
+      historyIndex = -1L
+      savedPrompt = "" }
+
+
+module Editing =
+  /// Insert text at cursor position
+  let insertAtCursor (state: State) (char: String) : State =
+    let beforeCursor = Stdlib.String.slice state.text 0L state.cursorPosition
+    let afterCursor = Stdlib.String.dropFirst state.text state.cursorPosition
+    let newText = beforeCursor ++ char ++ afterCursor
+    { state with
+        text = newText
+        cursorPosition = state.cursorPosition + (Stdlib.String.length char)
+        historyIndex = -1L
+        savedPrompt = "" }
+
+  /// Delete character before cursor (backspace)
+  let deleteBeforeCursor (state: State) : State =
+    if state.cursorPosition > 0L then
+      let beforeCursor = Stdlib.String.slice state.text 0L (state.cursorPosition - 1L)
+      let afterCursor = Stdlib.String.dropFirst state.text state.cursorPosition
+      let newText = beforeCursor ++ afterCursor
+      { state with
+          text = newText
+          cursorPosition = state.cursorPosition - 1L
+          historyIndex = -1L }
+    else
+      state
+
+  /// Delete character at cursor (delete key)
+  let deleteAtCursor (state: State) : State =
+    let textLength = Stdlib.String.length state.text
+
+    if state.cursorPosition < textLength then
+      let beforeCursor = Stdlib.String.slice state.text 0L state.cursorPosition
+      let afterCursor = Stdlib.String.dropFirst state.text (state.cursorPosition + 1L)
+      let newText = beforeCursor ++ afterCursor
+      { state with text = newText; historyIndex = -1L }
+    else
+      state
+
+  /// Move cursor left
+  let moveCursorLeft (state: State) : State =
+    let newCursorPos = Stdlib.Int64.max 0L (state.cursorPosition - 1L)
+    { state with cursorPosition = newCursorPos }
+
+  /// Move cursor right
+  let moveCursorRight (state: State) : State =
+    let textLength = Stdlib.String.length state.text
+    let newCursorPos = Stdlib.Int64.min textLength (state.cursorPosition + 1L)
+    { state with cursorPosition = newCursorPos }
+
+  /// Move cursor to start of line
+  let moveCursorHome (state: State) : State =
+    { state with cursorPosition = 0L }
+
+  /// Move cursor to end of line
+  let moveCursorEnd (state: State) : State =
+    let textLength = Stdlib.String.length state.text
+    { state with cursorPosition = textLength }
+
+  /// Clear the prompt text
+  let clear (state: State) : State =
+    { state with
+        text = ""
+        cursorPosition = 0L
+        historyIndex = -1L }
+
+  /// Set the prompt text and move cursor to end
+  let setText (state: State) (text: String) : State =
+    let textLength = Stdlib.String.length text
+    { state with text = text; cursorPosition = textLength }
+
+
+module History =
+  /// Add command to history (avoiding duplicates at the front)
+  let addCommand (state: State) (command: String) : State =
+    let updatedHistory =
+      if Stdlib.List.isEmpty state.commandHistory || Stdlib.List.head state.commandHistory != Stdlib.Option.Option.Some command then
+        Stdlib.List.append [command] state.commandHistory
+      else
+        state.commandHistory
+    { state with
+        commandHistory = updatedHistory
+        historyIndex = -1L }
+
+  /// Navigate to previous command in history
+  let navigatePrevious (state: State) : State =
+    if Stdlib.Bool.not (Stdlib.List.isEmpty state.commandHistory) then
+      let historyLength = Stdlib.List.length state.commandHistory
+      let newIndex =
+        if state.historyIndex == -1L then
+          0L  // Start from the most recent command
+        else
+          if state.historyIndex < (historyLength - 1L) then
+            state.historyIndex + 1L
+          else
+            state.historyIndex  // Stay at oldest command
+      match Stdlib.List.getAt state.commandHistory newIndex with
+      | Some command ->
+        let commandLength = Stdlib.String.length command
+        let newSavedPrompt =
+          if state.historyIndex == -1L then
+            state.text
+          else
+            state.savedPrompt
+        { state with
+            text = command
+            cursorPosition = commandLength
+            historyIndex = newIndex
+            savedPrompt = newSavedPrompt }
+      | None ->
+        state
+    else
+      state
+
+  /// Navigate to next command in history
+  let navigateNext (state: State) : State =
+    if Stdlib.Bool.not (Stdlib.List.isEmpty state.commandHistory) && state.historyIndex >= 0L then
+      let newIndex =
+        if state.historyIndex > 0L then
+          state.historyIndex - 1L
+        else
+          -1L  // Go back to empty prompt
+      if newIndex == -1L then
+        let restoredPromptLength = Stdlib.String.length state.savedPrompt
+        { state with
+            text = state.savedPrompt
+            cursorPosition = restoredPromptLength
+            historyIndex = newIndex }
+      else
+        match Stdlib.List.getAt state.commandHistory newIndex with
+        | Some command ->
+          let commandLength = Stdlib.String.length command
+          { state with
+              text = command
+              cursorPosition = commandLength
+              historyIndex = newIndex }
+        | None ->
+          state
+    else
+      state
+
+
+module Display =
+  /// Format branch preamble for display (e.g., "[main]")
+  let formatBranchPreamble (branchID: Stdlib.Option.Option<Uuid>) : String =
+    let currentBranch =
+      match branchID with
+      | Some id -> Darklang.SCM.Branch.get id
+      | None -> Stdlib.Option.Option.None
+
+    match currentBranch with
+    | Some branch -> $"[{branch.name}]"
+    | None -> ""
+
+  /// Format the complete prompt with input and optional hint
+  let formatPromptWithInput
+    (branchID: Stdlib.Option.Option<Uuid>)
+    (locationStr: String)
+    (text: String)
+    (hint: String)
+    : String =
+    let branchStr = Colors.info (formatBranchPreamble branchID)
+
+    let formattedLocation =
+      if Stdlib.String.isEmpty locationStr then
+        ""
+      else
+        Colors.dimText $" {locationStr}"
+
+    if Stdlib.String.isEmpty hint then
+      branchStr ++ formattedLocation ++ "> " ++ text
+    else
+      branchStr ++ formattedLocation ++ "> " ++ text ++ (Colors.hint hint)
+
+  /// Calculate the column where user input starts (after branch + location + "> ")
+  let calculateInputStartColumn (branchID: Stdlib.Option.Option<Uuid>) (locationStr: String) : Int64 =
+    let locationLength =
+      if Stdlib.String.isEmpty locationStr then
+        0L
+      else
+        (Stdlib.String.length locationStr) + 1L  // +1 for the space before path
+
+    (Stdlib.String.length (formatBranchPreamble branchID))
+    + locationLength
+    + (Stdlib.String.length "> ")
+    + 1L

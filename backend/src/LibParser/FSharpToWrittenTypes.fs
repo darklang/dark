@@ -712,6 +712,10 @@ module Expr =
       | WT.EEnum(id, names, caseName, fields) ->
         WT.EEnum(id, names, caseName, fields @ convertEnumArg arg)
 
+      // Record field access (e.g., pm.findFn someArg)
+      | WT.ERecordFieldAccess(_, _, _) as recordFieldAccess ->
+        WT.EApply(gid (), recordFieldAccess, [], NEList.singleton (c arg))
+
       | e ->
         raiseParserError
           "Unsupported expression in app"

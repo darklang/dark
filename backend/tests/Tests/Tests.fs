@@ -45,6 +45,15 @@ let main (args : string array) : int =
         Tests.NewParser.tests
         Tests.HttpClient.tests
 
+        (*
+        TODO backfill the following tests we neglected to write during a big refactor:
+        - op playback
+        - package search
+        - branch-specific stuff
+
+        (agaist both in-mem and sql-bound PMs)
+        *)
+
         // cloud
         Tests.BwdServer.tests
         Tests.Canvas.tests

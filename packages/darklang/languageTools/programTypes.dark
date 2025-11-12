@@ -303,6 +303,42 @@ type Deprecation<'name> =
   | DeprecatedBecause of String
 
 
+type PackageLocation =
+  { owner: String
+    modules: List<String>
+    name: String }
+
+let parsePackageLocation (nameToParse: String): PackageLocation =
+  let parts = Stdlib.String.split nameToParse "."
+  match parts with
+  | owner :: rest ->
+    let rev = Stdlib.List.reverse rest
+    match rev with
+    | name :: rest ->
+      PackageLocation
+        { owner = owner
+          modules = Stdlib.List.reverse rest
+          name = name }
+    | [] ->
+      // CLEANUP: This case should be handled better
+      // Just an owner name with no module/entity name
+      // Return a location pointing to the owner itself
+      PackageLocation
+        { owner = owner
+          modules = []
+          name = "" }
+  | [] ->
+    // Empty name (shouldn't happen, but handle it)
+    PackageLocation { owner = ""; modules = []; name = "" }
+
+type BranchID = Uuid
+
+/// A package entity paired with its location
+type LocatedItem<'entity> =
+  { entity: 'entity
+    location: PackageLocation }
+
+
 /// A stdlib-, user-, or package- defined type (an alias, record, or enum)
 module TypeDeclaration =
   type RecordField =
@@ -334,67 +370,27 @@ module TypeDeclaration =
 
 // Package space
 module PackageType =
-  type Name =
-    { owner: String
-      modules: List<String>
-      name: String }
-
   type PackageType =
-    { id: Uuid
-      name: Name
+    { id: FQTypeName.Package
       declaration: TypeDeclaration.TypeDeclaration
       description: String
       deprecated: Deprecation<FQTypeName.FQTypeName> }
 
-  let nameToString (typeName: Name) : String =
-    let owner = if typeName.owner == "" then "" else typeName.owner ++ "."
-
-    let modules =
-      match typeName.modules with
-      | [] -> ""
-      | modules -> (modules |> Stdlib.String.join ".") ++ "."
-
-    let name = typeName.name
-    owner ++ modules ++ name
-
 module PackageValue =
-  type Name =
-    { owner: String
-      modules: List<String>
-      name: String }
-
   type PackageValue =
     { id: Uuid
-      name: Name
       body: Expr
       description: String
-      deprecated: Deprecation<FQFnName.FQFnName> }
-
-  let nameToString (valueName: Name) : String =
-    let owner = if valueName.owner == "" then "" else valueName.owner ++ "."
-
-    let modules =
-      match valueName.modules with
-      | [] -> ""
-      | modules -> (modules |> Stdlib.String.join ".") ++ "."
-
-    let name = valueName.name
-    owner ++ modules ++ name
+      deprecated: Deprecation<FQValueName.FQValueName> }
 
 module PackageFn =
-  type Name =
-    { owner: String
-      modules: List<String>
-      name: String }
-
   type Parameter =
     { name: String
       typ: TypeReference
       description: String }
 
   type PackageFn =
-    { id: Uuid
-      name: Name
+    { id: FQFnName.Package
       body: Expr
       typeParams: List<String>
       parameters: List<Parameter>
@@ -402,21 +398,20 @@ module PackageFn =
       description: String
       deprecated: Deprecation<FQFnName.FQFnName> }
 
-  let nameToString (fnName: Name) : String =
-    let owner = if fnName.owner == "" then "" else fnName.owner ++ "."
+// CLEANUP: Packages type commented out - only used during loading process
+// type Packages =
+//   { types: List<PackageType.PackageType>
+//     values: List<PackageValue.PackageValue>
+//     fns: List<PackageFn.PackageFn> }
 
-    let modules =
-      match fnName.modules with
-      | [] -> ""
-      | modules -> (modules |> Stdlib.String.join ".") ++ "."
 
-    let name = fnName.name
-    owner ++ modules ++ name
-
-type Packages =
-  { types: List<PackageType.PackageType>
-    values: List<PackageValue.PackageValue>
-    fns: List<PackageFn.PackageFn> }
+type PackageOp =
+  | AddType of PackageType.PackageType
+  | AddValue of PackageValue.PackageValue
+  | AddFn of PackageFn.PackageFn
+  | SetTypeName of FQTypeName.Package * PackageLocation
+  | SetValueName of FQValueName.Package * PackageLocation
+  | SetFnName of FQFnName.Package * PackageLocation
 
 
 module Search =
@@ -430,7 +425,7 @@ module Search =
   /// How deep to search in the module hierarchy
   type SearchDepth =
     | OnlyDirectDescendants
-    // TODO: support this. | AllDescendants
+    | AllDescendants
 
   /// Query parameters for searching packages
   type SearchQuery =
@@ -453,9 +448,9 @@ module Search =
   /// Results from a package search
   type SearchResults =
     { submodules: List<List<String>> // [ [ "List"]; ["String"; "List"] ]
-      types : List<ProgramTypes.PackageType.PackageType>
-      values : List<ProgramTypes.PackageValue.PackageValue>
-      fns : List<ProgramTypes.PackageFn.PackageFn> }
+      types : List<LocatedItem<ProgramTypes.PackageType.PackageType>>
+      values : List<LocatedItem<ProgramTypes.PackageValue.PackageValue>>
+      fns : List<LocatedItem<ProgramTypes.PackageFn.PackageFn>> }
 
 
 
@@ -467,9 +462,18 @@ module Search =
 /// for whatever reasons.
 module PackageManager =
   type PackageManager =
-    { findType: String -> Stdlib.Option.Option<FQTypeName.Package>
-      findValue: String -> Stdlib.Option.Option<FQValueName.Package>
-      findFn: String -> Stdlib.Option.Option<FQFnName.Package>
+    { findType:
+        Stdlib.Option.Option<BranchID>
+        -> PackageLocation
+        -> Stdlib.Option.Option<FQTypeName.Package>
+      findValue:
+        Stdlib.Option.Option<BranchID>
+        -> PackageLocation
+        -> Stdlib.Option.Option<FQValueName.Package>
+      findFn:
+        Stdlib.Option.Option<BranchID>
+        -> PackageLocation
+        -> Stdlib.Option.Option<FQFnName.Package>
 
       getType:
         FQTypeName.Package -> Stdlib.Option.Option<PackageType.PackageType>
@@ -478,79 +482,171 @@ module PackageManager =
           -> Stdlib.Option.Option<PackageValue.PackageValue>
       getFn: FQFnName.Package -> Stdlib.Option.Option<PackageFn.PackageFn>
 
-      search: Search.SearchQuery -> Search.SearchResults }
+      search:
+        (Stdlib.Option.Option<BranchID> * Search.SearchQuery)
+          -> Search.SearchResults }
 
 
   /// Allows you to side-load a few 'extras' in-memory, along
   /// the normal fetching functionality. (Mostly helpful for tests)
   let withExtras
     (pm: PackageManager.PackageManager)
-    (types: List<PackageType.PackageType>)
-    (values: List<PackageValue.PackageValue>)
-    (fns: List<PackageFn.PackageFn>)
+    (types: List<LocatedItem<PackageType.PackageType>>)
+    (values: List<LocatedItem<PackageValue.PackageValue>>)
+    (fns: List<LocatedItem<PackageFn.PackageFn>>)
     : PackageManager.PackageManager =
     PackageManager.PackageManager
       { findType =
-          fun name ->
-            match
-              types
-              |> Stdlib.List.findFirst (fun t ->
-                let typeName = PackageType.nameToString t.name
-                typeName == name)
-            with
-            | Some t -> Stdlib.Option.Option.Some t.id
-            | None ->
-              // CLEANUP: use `pm.findType name` directly once the parser/interpreter is fixed
-              let findType = pm.findType
-              findType name
+          fun branchID location ->
+            match types |> Stdlib.List.findFirst (fun t -> t.location == location) with
+            | Some t -> Stdlib.Option.Option.Some t.entity.id
+            | None -> pm.findType branchID location
         findValue =
-          fun name ->
-            match
-              values
-              |> Stdlib.List.findFirst (fun v ->
-                let valueName = PackageValue.nameToString v.name
-                valueName == name)
-            with
-            | Some v -> Stdlib.Option.Option.Some v.id
-            | None ->
-              let findValue = pm.findValue
-              findValue name
+          fun branchID location ->
+            match values |> Stdlib.List.findFirst (fun v -> v.location == location) with
+            | Some v -> Stdlib.Option.Option.Some v.entity.id
+            | None -> pm.findValue branchID location
         findFn =
-          fun name ->
-            match
-              fns
-              |> Stdlib.List.findFirst (fun f ->
-                let fnName = PackageFn.nameToString f.name
-                fnName == name)
-            with
-            | Some f -> Stdlib.Option.Option.Some f.id
-            | None ->
-              let findFn = pm.findFn
-              findFn name
+          fun branchID location ->
+            match fns |> Stdlib.List.findFirst (fun f -> f.location == location) with
+            | Some f -> Stdlib.Option.Option.Some f.entity.id
+            | None -> pm.findFn branchID location
 
         getType =
           fun id ->
-            match types |> Stdlib.List.findFirst (fun t -> t.id == id) with
-            | Some t -> Stdlib.Option.Option.Some t
-            | None ->
-              let getType = pm.getType
-              getType id
+            match types |> Stdlib.List.findFirst (fun t -> t.entity.id == id) with
+            | Some t -> Stdlib.Option.Option.Some t.entity
+            | None -> pm.getType id
         getValue =
           fun id ->
-            match values |> Stdlib.List.findFirst (fun v -> v.id == id) with
-            | Some v -> Stdlib.Option.Option.Some v
-            | None ->
-              let getValue = pm.getValue
-              getValue id
+            match values |> Stdlib.List.findFirst (fun v -> v.entity.id == id) with
+            | Some v -> Stdlib.Option.Option.Some v.entity
+            | None -> pm.getValue id
         getFn =
           fun id ->
-            match fns |> Stdlib.List.findFirst (fun f -> f.id == id) with
-            | Some f -> Stdlib.Option.Option.Some f
-            | None ->
-              let getFn = pm.getFn
-              getFn id
+            match fns |> Stdlib.List.findFirst (fun f -> f.entity.id == id) with
+            | Some f -> Stdlib.Option.Option.Some f.entity
+            | None -> pm.getFn id
 
         search = pm.search }
+
+
+  /// Create a PackageManager from PackageOps, combining with an existing PM
+  let withExtraOps
+    (basePM: PackageManager.PackageManager)
+    (ops: List<PackageOp>)
+    : PackageManager.PackageManager =
+    let typesByID =
+      ops
+      |> Stdlib.List.filterMap (fun op ->
+        match op with
+        | AddType t -> Stdlib.Option.Option.Some((t.id, t))
+        | _ -> Stdlib.Option.Option.None)
+
+    let valuesByID =
+      ops
+      |> Stdlib.List.filterMap (fun op ->
+        match op with
+        | AddValue v -> Stdlib.Option.Option.Some((v.id, v))
+        | _ -> Stdlib.Option.Option.None)
+
+    let fnsByID =
+      ops
+      |> Stdlib.List.filterMap (fun op ->
+        match op with
+        | AddFn f -> Stdlib.Option.Option.Some((f.id, f))
+        | _ -> Stdlib.Option.Option.None)
+
+    let typeLocationMap =
+      ops
+      |> Stdlib.List.filterMap (fun op ->
+        match op with
+        | SetTypeName (id, loc) -> Stdlib.Option.Option.Some((loc, id))
+        | _ -> Stdlib.Option.Option.None)
+
+    let valueLocationMap =
+      ops
+      |> Stdlib.List.filterMap (fun op ->
+        match op with
+        | SetValueName (id, loc) -> Stdlib.Option.Option.Some((loc, id))
+        | _ -> Stdlib.Option.Option.None)
+
+    let fnLocationMap =
+      ops
+      |> Stdlib.List.filterMap (fun op ->
+        match op with
+        | SetFnName (id, loc) -> Stdlib.Option.Option.Some((loc, id))
+        | _ -> Stdlib.Option.Option.None)
+
+    // Create PackageManager that looks up in ops first, then falls back to basePM
+    PackageManager.PackageManager
+      { findType =
+          fun branchID location ->
+            match typeLocationMap
+                  |> Stdlib.List.findFirst (fun tuple ->
+                    let (loc, _) = tuple
+                    loc == location) with
+            | Some tuple ->
+              let (_, id) = tuple
+              Stdlib.Option.Option.Some id
+            | None -> basePM.findType branchID location
+
+        findValue =
+          fun branchID location ->
+            match valueLocationMap
+                  |> Stdlib.List.findFirst (fun tuple ->
+                    let (loc, _) = tuple
+                    loc == location) with
+            | Some tuple ->
+              let (_, id) = tuple
+              Stdlib.Option.Option.Some id
+            | None -> basePM.findValue branchID location
+
+        findFn =
+          fun branchID location ->
+            match fnLocationMap
+                  |> Stdlib.List.findFirst (fun tuple ->
+                    let (loc, _) = tuple
+                    loc == location) with
+            | Some tuple ->
+              let (_, id) = tuple
+              Stdlib.Option.Option.Some id
+            | None -> basePM.findFn branchID location
+
+        getType =
+          fun id ->
+            match typesByID
+                  |> Stdlib.List.findFirst (fun tuple ->
+                    let (tid, _) = tuple
+                    tid == id) with
+            | Some tuple ->
+              let (_, t) = tuple
+              Stdlib.Option.Option.Some t
+            | None -> basePM.getType id
+
+        getValue =
+          fun id ->
+            match valuesByID
+                  |> Stdlib.List.findFirst (fun tuple ->
+                    let (vid, _) = tuple
+                    vid == id) with
+            | Some tuple ->
+              let (_, v) = tuple
+              Stdlib.Option.Option.Some v
+            | None -> basePM.getValue id
+
+        getFn =
+          fun id ->
+            match fnsByID
+                  |> Stdlib.List.findFirst (fun tuple ->
+                    let (fid, _) = tuple
+                    fid == id) with
+            | Some tuple ->
+              let (_, f) = tuple
+              Stdlib.Option.Option.Some f
+            | None -> basePM.getFn id
+
+        search = basePM.search }
 
 
 type Definitions =

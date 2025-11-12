@@ -14,6 +14,17 @@ let indent (s: String) : String =
     | line -> "  " ++ line)
   |> Stdlib.String.join "\n"
 
+let indentByLevel (level: Int64) (s: String) : String =
+  let indentStr = Stdlib.String.repeat "  " level
+
+  s
+  |> Stdlib.String.split "\n"
+  |> Stdlib.List.map (fun line ->
+    match line with
+    | "" -> ""
+    | line -> indentStr ++ line)
+  |> Stdlib.String.join "\n"
+
 let sign (s: LanguageTools.Sign) : String =
   match s with
   | Positive -> ""

@@ -20,6 +20,8 @@ let uint128 (i : System.UInt128) = DUInt128 i
 
 let string (s : string) = DString s
 
+let uuid (s : System.Guid) = DUuid s
+
 let list (typ : KnownType) (list : List<Dval>) : Dval = DList(VT.known typ, list)
 
 let dict (typ : KnownType) (entries : List<string * Dval>) : Dval =
@@ -65,7 +67,7 @@ let resultError
   DEnum(
     resultType,
     resultType,
-    [ ValueType.known okType; ValueType.known errorType ],
+    [ ValueType.Known okType; ValueType.Known errorType ],
     "Error",
     [ dvError ]
   )

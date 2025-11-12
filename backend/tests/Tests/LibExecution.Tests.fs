@@ -21,6 +21,7 @@ module PT2RT = LibExecution.ProgramTypesToRuntimeTypes
 module RT2DT = LibExecution.RuntimeTypesToDarkTypes
 module Exe = LibExecution.Execution
 module PackageIDs = LibExecution.PackageIDs
+module Dval = LibExecution.Dval
 module NR = LibParser.NameResolver
 module Canvas = LibCloud.Canvas
 module Serialize = LibCloud.Serialize
@@ -149,6 +150,8 @@ let t
 
             let! _csString = Exe.callStackString state callStack
 
+            let branchID = Dval.optionNone RT.KTUuid
+
             let! typeChecked =
               let expected =
                 RT.TCustomType(
@@ -168,7 +171,7 @@ let t
                   state
                   errorMessageFn
                   []
-                  (NEList.ofList actual [])
+                  (NEList.ofList branchID [ actual ])
 
               match result with
               | Ok(RT.DEnum(_, _, [], "ErrorString", [ RT.DString _ ])) ->
@@ -226,12 +229,7 @@ let fileTests () : Test =
   let pmPT = LibPackageManager.PackageManager.pt
 
   let parseTestFile fileName =
-    LibParser.TestModule.parseTestFile
-      "Tests"
-      (localBuiltIns pmPT)
-      pmPT
-      NR.OnMissing.Allow
-      fileName
+    LibParser.TestModule.parseTestFile "Tests" (localBuiltIns pmPT) pmPT fileName
 
   System.IO.Directory.GetDirectories(
     baseDir,
@@ -251,15 +249,12 @@ let fileTests () : Test =
         testList $"skipped - {testName}" []
       else
         try
-          let modules =
-            $"{dir}/{filename}" |> parseTestFile |> (fun ply -> ply.Result)
+          let filePath = $"{dir}/{filename}"
+          let modules = filePath |> parseTestFile |> (fun ply -> ply.Result)
 
-          let pm =
-            pmPT
-            |> PT.PackageManager.withExtras
-              (modules |> List.collect _.types)
-              (modules |> List.collect _.values)
-              (modules |> List.collect _.fns)
+          let allOps = modules |> List.collect _.ops
+
+          let pm = LibPackageManager.PackageManager.withExtraOps pmPT allOps
 
           let tests =
             modules

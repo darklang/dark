@@ -1622,11 +1622,10 @@ module Expr =
 
 
 module PackageFn =
-  let t name fnName typeParams params' returnType expr expected =
+  let t name typeParams params' returnType expr expected =
     testTask name {
       let fn : PT.PackageFn.PackageFn =
         { id = guuid ()
-          name = { owner = "Test"; modules = []; name = fnName }
           body = expr
           typeParams = typeParams
           parameters = params' |> NEList.ofListUnsafe "" []
@@ -1643,7 +1642,6 @@ module PackageFn =
     let returnSecondParam =
       t
         "returnSecondParam"
-        "returnSecondParam"
         []
         [ { name = "a"; typ = PT.TInt64; description = "TODO" }
           { name = "b"; typ = PT.TInt64; description = "TODO" } ]
@@ -1653,8 +1651,7 @@ module PackageFn =
 
     let eargTest =
       t
-        "EArg functionality test"
-        "eargTest"
+        "EArgTest"
         []
         [ { name = "x"; typ = PT.TInt64; description = "TODO" }
           { name = "y"; typ = PT.TInt64; description = "TODO" } ]
@@ -1664,7 +1661,6 @@ module PackageFn =
 
     let ignoresParamsAndReturnsStr =
       t
-        "ignoresParamsAndReturnsStr"
         "ignoresParamsAndReturnsStr"
         []
         [ { name = "a"; typ = PT.TInt64; description = "TODO" }

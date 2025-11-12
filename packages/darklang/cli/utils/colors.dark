@@ -83,6 +83,7 @@ let colorize (color: String) (text: String) : String =
 
 let boldText (text: String) : String = colorize bold text
 let dimText (text: String) : String = colorize dim text
+let mutedText (text: String) : String = colorize muted text
 let command (text: String) : String = colorize commandColor text
 let argument (text: String) : String = colorize argumentColor text
 let keyword (text: String) : String = colorize keywordColor text

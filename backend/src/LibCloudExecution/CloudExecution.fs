@@ -25,7 +25,8 @@ let pmPT = LibPackageManager.PackageManager.pt
 
 let builtins : RT.Builtins =
   LibExecution.Builtin.combine
-    [ BuiltinExecution.Builtin.builtins HttpClient.configuration pmPT
+    [ BuiltinExecution.Builtin.builtins HttpClient.configuration
+      BuiltinPM.Builtin.builtins pmPT
       BuiltinCloudExecution.Builtin.builtins
       BuiltinDarkInternal.Builtin.builtins ]
     []
@@ -146,14 +147,14 @@ let executeHandler
         | Error(originalRTE, originalCallStack) ->
           let! originalCallStack = callStackString originalCallStack
 
-          match! Exe.runtimeErrorToString state originalRTE with
+          match! Exe.runtimeErrorToString None state originalRTE with
           | Ok(RT.DString msg) ->
             let msg = $"Error: {msg}\n\nSource: {originalCallStack}"
             return error msg
           | Ok result -> return result
           | Error(firstErrorRTE, firstErrorCallStack) ->
             let! firstErrorCallStack = callStackString firstErrorCallStack
-            match! Exe.runtimeErrorToString state firstErrorRTE with
+            match! Exe.runtimeErrorToString None state firstErrorRTE with
             | Ok(RT.DString msg) ->
               return
                 error (

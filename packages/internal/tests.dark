@@ -54,6 +54,7 @@ let parseSingleTestFromFile
 
       let (actual, _unres) =
         LanguageTools.WrittenTypesToProgramTypes.Expr.toPT
+          Stdlib.Option.Option.None
           LanguageTools.NameResolver.OnMissing.ThrowError
           pm
           ""
@@ -63,6 +64,7 @@ let parseSingleTestFromFile
 
       let (expected, _unres) =
         LanguageTools.WrittenTypesToProgramTypes.Expr.toPT
+          Stdlib.Option.Option.None
           LanguageTools.NameResolver.OnMissing.ThrowError
           pm
           ""

@@ -17,7 +17,7 @@ module Type =
         Sql.query
           """
           SELECT rt_def
-          FROM package_types_v0
+          FROM package_types
           WHERE id = @id
           """
         |> Sql.parameters [ "id", Sql.uuid id ]
@@ -33,7 +33,7 @@ module Value =
         Sql.query
           """
           SELECT rt_dval
-          FROM package_values_v0
+          FROM package_values
           WHERE id = @id
           """
         |> Sql.parameters [ "id", Sql.uuid id ]
@@ -49,7 +49,7 @@ module Fn =
         Sql.query
           """
           SELECT rt_instrs
-          FROM package_functions_v0
+          FROM package_functions
           WHERE id = @id
           """
         |> Sql.parameters [ "id", Sql.uuid id ]

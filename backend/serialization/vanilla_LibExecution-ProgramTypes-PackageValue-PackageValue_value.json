@@ -1,14 +1,5 @@
 {
   "id": "31d72f73-0f99-5a9b-949c-b95705ae7c4d",
-  "name": {
-    "owner": "dark",
-    "modules": [
-      "stdlib",
-      "Int64",
-      "Int64"
-    ],
-    "name": "testValue"
-  },
   "description": "test",
   "deprecated": {
     "NotDeprecated": []

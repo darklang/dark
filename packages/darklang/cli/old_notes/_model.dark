@@ -13,9 +13,9 @@ type Page =
 
   // Matter
   | Module of owner: String * submodulePath: List<String>
-  | Type of name: LanguageTools.ProgramTypes.PackageType.Name
-  | Fn of name: LanguageTools.ProgramTypes.PackageFn.Name
-  | Value of name: LanguageTools.ProgramTypes.PackageValue.Name
+  | Type of location: LanguageTools.ProgramTypes.PackageLocation
+  | Fn of location: LanguageTools.ProgramTypes.PackageLocation
+  | Value of location: LanguageTools.ProgramTypes.PackageLocation
 
   // app
   //| App of Uuid

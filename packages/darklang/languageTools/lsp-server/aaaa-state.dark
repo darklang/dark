@@ -13,6 +13,9 @@ type LspState =
 
     shouldShutdown: Bool
 
+    /// The branch context for this LSP session
+    branchID: Stdlib.Option.Option<Uuid>
+
     /// Documents that are currently open in the editor
     /// (i.e. have been `textDocument/didOpen`ed, and not yet `textDocument/didClose`d)
     /// note: the string key here is the URI
