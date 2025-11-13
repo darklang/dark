@@ -11,21 +11,6 @@ let add
   Builtin.scmAddOps branchID ops
 
 
-/// Get recent package ops from the database
-let getRecent
-  (branchID: Stdlib.Option.Option<Uuid>)
-  (limit: Int64)
-  : List<LanguageTools.ProgramTypes.PackageOp> =
-  Builtin.scmGetRecentOps branchID limit
-
-
-/// Get recent package ops from ALL branches (no branch filter)
-let getRecentAllBranches
-  (limit: Int64)
-  : List<LanguageTools.ProgramTypes.PackageOp> =
-  Builtin.scmGetRecentOpsAllBranches limit
-
-
 /// Get package ops created since the specified datetime
 let getSince
   (branchID: Stdlib.Option.Option<Uuid>)

@@ -21,7 +21,7 @@
 
     <!-- cloud -->
     <ProjectReference Include="../../src/LibClientTypes/LibClientTypes.fsproj" />
-    <ProjectReference Include="../../src/LibBinarySerialization/LibBinarySerialization.fsproj" />
+    <ProjectReference Include="../../src/LibSerialization/LibSerialization.fsproj" />
     <ProjectReference Include="../../src/BuiltinCloudExecution/BuiltinCloudExecution.fsproj" />
     <ProjectReference Include="../../src/BuiltinDarkInternal/BuiltinDarkInternal.fsproj" />
     <ProjectReference Include="../../src/LibCloudExecution/LibCloudExecution.fsproj" />

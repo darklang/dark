@@ -10,7 +10,7 @@ This project organizes our implementations of RT. and PT.PackageManager
 
 
 Use cases vary:
-- run-time
+- run-timeF
 - pre-dogfooding parsings
   - (all 2 phases, maybe with 'id stabilization')
   - canvases from disk

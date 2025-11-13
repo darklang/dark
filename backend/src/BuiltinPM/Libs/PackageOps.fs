@@ -46,62 +46,13 @@ let fns : List<BuiltInFn> =
 
               // Insert ops with deduplication, get count of actually inserted ops
               let! insertedCount =
-                LibPackageManager.Inserts.insertAndApplyOps branchID ops
+                pm.applyOps branchID ops
 
               return resultOk (DInt64 insertedCount)
             with ex ->
               return resultError (DString ex.Message)
           }
         | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
-      previewable = Impure
-      deprecated = NotDeprecated }
-
-
-    { name = fn "scmGetRecentOps" 0
-      typeParams = []
-      parameters =
-        [ Param.make "branchID" (TypeReference.option TUuid) ""
-          Param.make "limit" TInt64 "" ]
-      returnType = TList(TCustomType(Ok packageOpTypeName, []))
-      description = "Get recent package ops from the database."
-      fn =
-        function
-        | _, _, _, [ branchID; DInt64 limit ] ->
-          uply {
-            let branchID = C2DT.Option.fromDT D.uuid branchID
-
-            let! ops = LibPackageManager.Queries.getRecentOps branchID limit
-
-            return
-              DList(
-                VT.customType PT2DT.PackageOp.typeName [],
-                ops |> List.map PT2DT.PackageOp.toDT
-              )
-          }
-        | _ -> incorrectArgs ()
-      sqlSpec = NotQueryable
-      previewable = Impure
-      deprecated = NotDeprecated }
-
-
-    { name = fn "scmGetRecentOpsAllBranches" 0
-      typeParams = []
-      parameters = [ Param.make "limit" TInt64 "" ]
-      returnType = TList(TCustomType(Ok packageOpTypeName, []))
-      description = "Get recent package ops from ALL branches (no branch filter)."
-      fn =
-        function
-        | _, _, _, [ DInt64 limit ] ->
-          uply {
-            let! ops = LibPackageManager.Queries.getRecentOpsAllBranches limit
-            return
-              DList(
-                VT.customType PT2DT.PackageOp.typeName [],
-                ops |> List.map PT2DT.PackageOp.toDT
-              )
-          }
-        | _ -> incorrectArgs ()
       sqlSpec = NotQueryable
       previewable = Impure
       deprecated = NotDeprecated }

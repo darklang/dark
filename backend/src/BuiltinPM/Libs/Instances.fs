@@ -39,29 +39,7 @@ let fns : List<BuiltInFn> =
         function
         | _, _, _, [ DUuid instanceID ] ->
           uply {
-            let! instanceOpt = Instances.getByID instanceID
-
-            return
-              instanceOpt
-              |> Option.map instanceToDT
-              |> Dval.option (KTCustomType(instanceTypeName, []))
-          }
-        | _ -> incorrectArgs ()
-      sqlSpec = NotQueryable
-      previewable = Impure
-      deprecated = NotDeprecated }
-
-
-    { name = fn "scmGetInstanceByName" 0
-      typeParams = []
-      parameters = [ Param.make "name" TString "" ]
-      returnType = TypeReference.option (TCustomType(Ok instanceTypeName, []))
-      description = "Get an instance by name. Returns None if not found."
-      fn =
-        function
-        | _, _, _, [ DString name ] ->
-          uply {
-            let! instanceOpt = Instances.getByName name
+            let! instanceOpt = Instances.get instanceID
 
             return
               instanceOpt
@@ -84,11 +62,8 @@ let fns : List<BuiltInFn> =
         | _, _, _, [ DUnit ] ->
           uply {
             let! instances = Instances.list ()
-
             let instanceDvals = instances |> List.map instanceToDT
-
             let vt = VT.customType instanceTypeName []
-
             return DList(vt, instanceDvals)
           }
         | _ -> incorrectArgs ()

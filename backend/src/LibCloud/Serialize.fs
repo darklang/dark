@@ -14,7 +14,7 @@ open LibDB.Db
 open Prelude
 
 module PT = LibExecution.ProgramTypes
-module BinarySerialization = LibBinarySerialization.BinarySerialization
+module BS = LibSerialization.Binary.Serialization
 module PTParser = LibExecution.ProgramTypesParser
 
 
@@ -65,7 +65,7 @@ let loadToplevels
       data
       |> List.map (fun (tlid, tl, deleted) ->
         let isDeleted = if deleted then Deleted else NotDeleted
-        (isDeleted, BinarySerialization.PT.Toplevel.deserialize tlid tl))
+        (isDeleted, BS.PT.Toplevel.deserialize tlid tl))
   }
 
 
