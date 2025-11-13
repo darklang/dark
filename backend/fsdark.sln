@@ -41,7 +41,7 @@ Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "LibPackageManager", "src\Li
 EndProject
 
 # Cloud stuff
-Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "LibBinarySerialization", "src\LibBinarySerialization\LibBinarySerialization.fsproj", "{5830D9BF-CA28-47B0-964F-343FAB28751B}"
+Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "LibSerialization", "src\LibSerialization\LibSerialization.fsproj", "{5830D9BF-CA28-47B0-964F-343FAB28751B}"
 EndProject
 Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "LibService", "src\LibService\LibService.fsproj", "{824DD2A5-7F01-4A8A-9ABD-9F91F52582AD}"
 EndProject

@@ -1,0 +1,81 @@
+module LibSerialization.Binary.Serializers.RT.PackageType
+
+open System
+open System.IO
+open Prelude
+
+open LibExecution.RuntimeTypes
+
+open LibSerialization.Binary
+open BaseFormat
+open Serializers.Common
+open Serializers.RT.Common
+
+
+module RecordField =
+  let write (w : BinaryWriter) (f : TypeDeclaration.RecordField) : unit =
+    String.write w f.name
+    TypeReference.write w f.typ
+
+  let read (r : BinaryReader) : TypeDeclaration.RecordField =
+    let name = String.read r
+    let typ = TypeReference.read r
+    { name = name; typ = typ }
+
+
+module EnumCase =
+  let write (w : BinaryWriter) (c : TypeDeclaration.EnumCase) : unit =
+    String.write w c.name
+    List.write w TypeReference.write c.fields
+
+  let read (r : BinaryReader) : TypeDeclaration.EnumCase =
+    let name = String.read r
+    let fields = List.read r TypeReference.read
+    { name = name; fields = fields }
+
+
+module Definition =
+  let write (w : BinaryWriter) (d : TypeDeclaration.Definition) : unit =
+    match d with
+    | TypeDeclaration.Definition.Alias typeRef ->
+      w.Write 0uy
+      TypeReference.write w typeRef
+    | TypeDeclaration.Definition.Record fields ->
+      w.Write 1uy
+      NEList.write RecordField.write w fields
+    | TypeDeclaration.Definition.Enum cases ->
+      w.Write 2uy
+      NEList.write EnumCase.write w cases
+
+  let read (r : BinaryReader) : TypeDeclaration.Definition =
+    match r.ReadByte() with
+    | 0uy -> TypeDeclaration.Definition.Alias(TypeReference.read r)
+    | 1uy -> TypeDeclaration.Definition.Record(NEList.read RecordField.read r)
+    | 2uy -> TypeDeclaration.Definition.Enum(NEList.read EnumCase.read r)
+    | b ->
+      raise (
+        BinaryFormatException(
+          CorruptedData $"Invalid TypeDeclaration.Definition tag: {b}"
+        )
+      )
+
+
+module TypeDeclaration =
+  let write (w : BinaryWriter) (d : TypeDeclaration.T) : unit =
+    List.write w String.write d.typeParams
+    Definition.write w d.definition
+
+  let read (r : BinaryReader) : TypeDeclaration.T =
+    let typeParams = List.read r String.read
+    let definition = Definition.read r
+    { typeParams = typeParams; definition = definition }
+
+
+let write (w : BinaryWriter) (t : PackageType.PackageType) =
+  Guid.write w t.id
+  TypeDeclaration.write w t.declaration
+
+let read (r : BinaryReader) : PackageType.PackageType =
+  let id = Guid.read r
+  let declaration = TypeDeclaration.read r
+  { id = id; declaration = declaration }

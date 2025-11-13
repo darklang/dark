@@ -5,35 +5,36 @@ type Instance =
     name: String
     url: String }
 
+/// List all instances
+let list () : List<Instance> =
+  Builtin.scmListInstances()
+
 /// Get an instance by ID
 let get (id: Uuid) : Stdlib.Option.Option<Instance> =
   match Builtin.scmGetInstance id with
   | Some instance -> Stdlib.Option.Option.Some instance
   | None -> Stdlib.Option.Option.None
 
-
 /// Get an instance by name
 let getByName (name: String) : Stdlib.Option.Option<Instance> =
-  match Builtin.scmGetInstanceByName name with
-  | Some instance -> Stdlib.Option.Option.Some instance
-  | None -> Stdlib.Option.Option.None
+  // TODO: just list() and then filter by name...
+  Stdlib.Option.Option.None
 
 
-/// List all instances
-let list () : List<Instance> = Builtin.scmListInstances()
-
+// TODO: should the following fns instead be ops? CQRS...
 
 /// Add a new instance
 let add (name: String) (url: String) : Instance =
   Builtin.scmAddInstance name url
 
-
 /// Remove an instance by ID
-let remove (id: Uuid) : Unit = Builtin.scmRemoveInstance id
-
+/// CLEANUP maybe
+let remove (id: Uuid) : Unit =
+  Builtin.scmRemoveInstance id
 
 /// Remove an instance by name
 let removeByName (name: String) : Stdlib.Result.Result<Unit, String> =
+  // TODO: inline this, no need for this fn generally...
   match getByName name with
   | Some instance ->
     remove instance.id
