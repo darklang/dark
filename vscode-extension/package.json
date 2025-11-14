@@ -19,6 +19,13 @@
   "main": "./client/out/extension",
   "contributes": {
     "keybindings": [
+      {
+        "command": "darklang.newVirtualFile",
+        "key": "cmd+alt+n",
+        "mac": "cmd+alt+n",
+        "win": "ctrl+alt+n",
+        "linux": "ctrl+alt+n"
+      }
     ],
     "languages": [
       {
@@ -101,6 +108,10 @@
         "title": "Show Op Diff"
       },
       {
+        "command": "darklang.newVirtualFile",
+        "title": "Darklang: New Virtual File"
+      },
+      {
         "command": "darklang.branch.new",
         "title": "Start New Branch",
         "icon": "$(add)"
@@ -129,6 +140,21 @@
         "title": "Clear Branch"
       },
       {
+        "command": "darklang.branch.sync",
+        "title": "Sync Branch",
+        "icon": "$(sync)"
+      },
+      {
+        "command": "darklang.branch.delete",
+        "title": "Delete Branch",
+        "icon": "$(trash)"
+      },
+      {
+        "command": "darklang.branch.showMenu",
+        "title": "Branch Menu",
+        "icon": "$(ellipsis)"
+      },
+      {
         "command": "darklang.branches.manageAll",
         "title": "Manage All Branches",
         "icon": "$(list-flat)"
@@ -149,33 +175,69 @@
         "icon": "$(sync)"
       },
       {
-        "command": "darklang.ops.setLimit",
-        "title": "Set Ops Limit",
-        "icon": "$(symbol-number)"
+        "command": "darklang.openHomepage",
+        "title": "Darklang: Open Homepage",
+        "icon": "./static/logo-dark-transparent.svg"
       },
       {
-        "command": "darklang.ops.setDateRange",
-        "title": "Filter by Date Range",
-        "icon": "$(calendar)"
+        "command": "darklang.packages.search",
+        "title": "Search Packages",
+        "icon": "$(search)"
       },
       {
-        "command": "darklang.ops.setBranch",
-        "title": "Filter by Branch",
-        "icon": "$(git-branch)"
-      },
-      {
-        "command": "darklang.ops.setLocation",
-        "title": "Filter by Location",
-        "icon": "$(location)"
-      },
-      {
-        "command": "darklang.ops.clearFilters",
-        "title": "Clear All Filters",
+        "command": "darklang.packages.clearSearch",
+        "title": "Clear Search",
         "icon": "$(clear-all)"
+      },
+      {
+        "command": "darklang.workspace.toggleAutoSync",
+        "title": "Auto-sync: Off",
+        "icon": "$(sync-ignored)"
+      },
+      {
+        "command": "darklang.workspace.toggleAutoSyncOn",
+        "title": "Auto-sync: On",
+        "icon": "$(sync)"
+      },
+      {
+        "command": "darklang.ops.toggleSelectAll",
+        "title": "Select All",
+        "icon": "$(checklist)"
+      },
+      {
+        "command": "darklang.ops.toggleDeselectAll",
+        "title": "Deselect All",
+        "icon": "$(close-all)"
+      },
+      {
+        "command": "darklang.ops.toggleSelectOwnerGroup",
+        "title": "Select All in Group",
+        "icon": "$(checklist)"
+      },
+      {
+        "command": "darklang.ops.toggleDeselectOwnerGroup",
+        "title": "Deselect All in Group",
+        "icon": "$(close-all)"
+      },
+      {
+        "command": "darklang.changes.review",
+        "title": "Review Changes",
+        "icon": "$(preview)"
       }
     ],
     "menus": {
+      "editor/title": [
+        {
+          "command": "darklang.openHomepage",
+          "group": "navigation"
+        }
+      ],
 			"view/item/context": [
+        {
+					"command": "darklang.newVirtualFile",
+					"when": "view == darklangPackages && viewItem == package-owner",
+					"group": "navigation"
+				},
         {
 					"command": "darklang.openFullModule",
 					"when": "view == darklangPackages && viewItem == module",
@@ -202,34 +264,86 @@
 					"group": "basic@1"
 				},
 				{
+					"command": "darklang.branch.sync",
+					"when": "view == darklangWorkspace && viewItem == branch-item",
+					"group": "inline@1"
+				},
+				{
+					"command": "darklang.branch.showMenu",
+					"when": "view == darklangWorkspace && viewItem == branch-item",
+					"group": "inline@2"
+				},
+				{
+					"command": "darklang.branch.rename",
+					"when": "view == darklangWorkspace && viewItem == branch-item",
+					"group": "context@1"
+				},
+				{
+					"command": "darklang.branch.delete",
+					"when": "view == darklangWorkspace && viewItem == branch-item",
+					"group": "context@2"
+				},
+				{
+					"command": "darklang.branch.sync",
+					"when": "view == darklangWorkspace && viewItem == branch-item-main",
+					"group": "inline@1"
+				},
+				{
+					"command": "darklang.branch.showMenu",
+					"when": "view == darklangWorkspace && viewItem == branch-item-main",
+					"group": "inline@2"
+				},
+				{
 					"command": "darklang.instance.sync",
 					"when": "view == darklangWorkspace && viewItem == remote-instance",
 					"group": "inline@1"
 				},
 				{
-					"command": "darklang.ops.setLimit",
-					"when": "view == darklangWorkspace && viewItem == workspace-changes-root",
+					"command": "darklang.ops.toggleSelectAll",
+					"when": "view == darklangWorkspace && viewItem == workspace-changes-root && !darklang.allOpsSelected && darklang.isSpecificBranchSelected",
 					"group": "inline@1"
 				},
 				{
-					"command": "darklang.ops.setDateRange",
+					"command": "darklang.ops.toggleDeselectAll",
+					"when": "view == darklangWorkspace && viewItem == workspace-changes-root && darklang.allOpsSelected && darklang.isSpecificBranchSelected",
+					"group": "inline@1"
+				},
+				{
+					"command": "darklang.changes.review",
 					"when": "view == darklangWorkspace && viewItem == workspace-changes-root",
 					"group": "inline@2"
 				},
 				{
-					"command": "darklang.ops.setBranch",
-					"when": "view == darklangWorkspace && viewItem == workspace-changes-root",
-					"group": "inline@3"
+					"command": "darklang.ops.toggleSelectOwnerGroup",
+					"when": "view == darklangWorkspace && viewItem =~ /^owner-group-notallselected/",
+					"group": "inline"
 				},
 				{
-					"command": "darklang.ops.setLocation",
-					"when": "view == darklangWorkspace && viewItem == workspace-changes-root",
-					"group": "inline@4"
+					"command": "darklang.ops.toggleDeselectOwnerGroup",
+					"when": "view == darklangWorkspace && viewItem =~ /^owner-group-allselected/",
+					"group": "inline"
+				}
+			],
+			"view/title": [
+				{
+					"command": "darklang.packages.search",
+					"when": "view == darklangPackages",
+					"group": "navigation@1"
 				},
 				{
-					"command": "darklang.ops.clearFilters",
-					"when": "view == darklangWorkspace && viewItem == workspace-changes-root",
-					"group": "inline@5"
+					"command": "darklang.packages.clearSearch",
+					"when": "view == darklangPackages",
+					"group": "navigation@2"
+				},
+				{
+					"command": "darklang.workspace.toggleAutoSync",
+					"when": "view == darklangWorkspace && !darklang.autoSyncEnabled",
+					"group": "navigation@1"
+				},
+				{
+					"command": "darklang.workspace.toggleAutoSyncOn",
+					"when": "view == darklangWorkspace && darklang.autoSyncEnabled",
+					"group": "navigation@1"
 				}
 			]
 		},
@@ -253,6 +367,12 @@
           "id": "darklangPackages",
           "name": "Packages",
           "visibility": "visible"
+        },
+        {
+          "id": "darklangConflicts",
+          "name": "Conflicts",
+          "visibility": "visible",
+          "contextualTitle": "Conflicts"
         }
       ]
     }
