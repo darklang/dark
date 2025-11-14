@@ -173,6 +173,81 @@ export class PackageCommands {
           console.error(`Failed to show op diff:`, error);
           vscode.window.showErrorMessage(`Failed to show diff: ${error instanceof Error ? error.message : "Unknown error"}`);
         }
+      }),
+
+      vscode.commands.registerCommand("darklang.newVirtualFile", async (node?: any) => {
+        try {
+          // If called from context menu, node will be provided with the owner name
+          const ownerName = node?.id || "";
+          const defaultValue = ownerName ? `${ownerName}.` : "";
+
+          const input = await vscode.window.showInputBox({
+            prompt: "Enter the module path for the new file",
+            placeHolder: "e.g. MyPackage.MyModule or MyPackage.SubModule.Utils",
+            value: defaultValue,
+            valueSelection: defaultValue ? [defaultValue.length, defaultValue.length] : undefined,
+            validateInput: (value) => {
+              if (!value) return "Module path cannot be empty";
+              if (!/^[A-Z][a-zA-Z0-9]*(\.[A-Z][a-zA-Z0-9]*)+$/.test(value)) {
+                return "Module path must be in format: Owner.Module (e.g. MyPackage.MyModule)";
+              }
+              return null;
+            }
+          });
+
+          if (!input) return;
+
+          // Open the file via darkfs://
+          const virtualUri = vscode.Uri.parse(`darkfs:/${input}.dark`);
+          const doc = await vscode.workspace.openTextDocument(virtualUri);
+
+          await vscode.languages.setTextDocumentLanguage(doc, 'darklang');
+
+          const editor = await vscode.window.showTextDocument(doc, {
+            preview: false,
+            preserveFocus: false,
+          });
+
+          // Check if the file already has content
+          const existingContent = doc.getText().trim();
+
+          if (existingContent) {
+            // File already exists with content, just show it
+            vscode.window.showInformationMessage(`Opened existing module: ${input}`);
+          } else {
+            // File is empty or new, populate with template
+            // Split the path and create nested module structure
+            const parts = input.split('.');
+
+            // Build nested module declarations
+            let moduleDeclaration = '';
+            let indent = '';
+            for (let i = 0; i < parts.length; i++) {
+              moduleDeclaration += `${indent}module ${parts[i]} =\n`;
+              indent += '  ';
+            }
+
+            // Create template with just the module structure
+            const template = `${moduleDeclaration}${indent}`;
+
+            // Replace the content with the template
+            await editor.edit(editBuilder => {
+              const fullRange = new vscode.Range(
+                doc.positionAt(0),
+                doc.positionAt(doc.getText().length)
+              );
+              editBuilder.replace(fullRange, template);
+            });
+
+            vscode.window.showInformationMessage(
+              `Created new virtual file for ${input}. Add your definitions and save to create operations.`
+            );
+          }
+
+        } catch (error) {
+          console.error(`Failed to create new virtual file:`, error);
+          vscode.window.showErrorMessage(`Failed to create virtual file: ${error instanceof Error ? error.message : "Unknown error"}`);
+        }
       })
     ];
   }

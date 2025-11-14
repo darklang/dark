@@ -77,17 +77,39 @@ export class BranchCommands {
         }
       }),
 
-      vscode.commands.registerCommand("darklang.branch.switch", (branch) => {
-        console.log('🔀 Branch switch command called with:', branch);
+      vscode.commands.registerCommand("darklang.branch.switch", (branchIdOrNode) => {
+        console.log('🔀 Branch switch command called with:', branchIdOrNode);
 
-        // Handle both {label: ...} and {id: ...} formats
-        const branchID = branch?.id;
-        // CLEANUP: do we need branch?.label || branch?.name
-        const branchLabel = branch?.label || branch?.name || branch?.title || "Unknown";
+        // Handle multiple formats:
+        // 1. Direct branch ID string (from command argument in getTreeItem)
+        // 2. Branch node with branchData
+        // 3. Legacy format with id/label properties
+        let branchID: string | undefined;
+        let branchLabel: string;
+
+        // Check type first - string takes priority (most common case from tree item command)
+        if (typeof branchIdOrNode === 'string' || branchIdOrNode === '') {
+          // Direct branch ID (could be empty string for main)
+          branchID = branchIdOrNode;
+          if (branchID === '' || !branchID) {
+            branchLabel = "main";
+          } else {
+            const branch = this.branchStateManager.getBranches().find(b => b.id === branchID);
+            branchLabel = branch?.name || "Unknown";
+          }
+        } else if (branchIdOrNode?.branchData) {
+          // New format with branchData
+          branchID = branchIdOrNode.branchData.branchId;
+          branchLabel = branchIdOrNode.branchData.branchName;
+        } else {
+          // Legacy format
+          branchID = branchIdOrNode?.id;
+          branchLabel = branchIdOrNode?.label || branchIdOrNode?.name || branchIdOrNode?.title || "Unknown";
+        }
 
         console.log('  branchID:', branchID, 'branchLabel:', branchLabel);
 
-        if (branchID) {
+        if (branchID !== undefined) {
           this.branchStateManager.setCurrentBranchById(branchID);
           this.statusBarManager.updateBranch(branchLabel);
           this.workspaceProvider.refresh();
@@ -136,6 +158,86 @@ export class BranchCommands {
         this.statusBarManager.updateBranch("No Branch");
         this.workspaceProvider.refresh();
         vscode.window.showInformationMessage("Branch selection cleared - viewing all branches");
+      }),
+
+      vscode.commands.registerCommand("darklang.branch.sync", async (branchNode) => {
+        // Extract branch ID from node
+        const branchId = branchNode?.branchData?.branchId || branchNode?.id;
+        const branchName = branchNode?.branchData?.branchName || branchNode?.label || "branch";
+
+        // For now, just show a placeholder message
+        vscode.window.showInformationMessage(`Sync functionality for ${branchName} not yet implemented`);
+
+        // TODO: Implement actual sync logic
+        // - Fetch ops from remote
+        // - Compare with local
+        // - Show sync status
+      }),
+
+      vscode.commands.registerCommand("darklang.branch.delete", async (branchNode) => {
+        // Extract branch info from node
+        const branchId = branchNode?.branchData?.branchId;
+        const branchName = branchNode?.branchData?.branchName || branchNode?.label || "branch";
+
+        if (!branchId) {
+          vscode.window.showErrorMessage("Cannot delete: Invalid branch");
+          return;
+        }
+
+        // Confirm deletion
+        const confirm = await vscode.window.showWarningMessage(
+          `Are you sure you want to delete branch "${branchName}"?`,
+          { modal: true },
+          "Delete"
+        );
+
+        if (confirm === "Delete") {
+          // For now, just show a placeholder message
+          vscode.window.showInformationMessage(`Delete functionality for ${branchName} not yet implemented`);
+
+          // TODO: Implement actual delete logic
+          // - Call LSP to delete branch
+          // - Refresh branch list
+          // - Switch to main if current branch was deleted
+        }
+      }),
+
+      vscode.commands.registerCommand("darklang.branch.showMenu", async (branchNode) => {
+        // Extract branch info
+        const branchId = branchNode?.branchData?.branchId;
+        const branchName = branchNode?.branchData?.branchName || branchNode?.label || "branch";
+        const isMain = branchNode?.branchData?.isMain || false;
+
+        interface MenuQuickPickItem extends vscode.QuickPickItem {
+          action: "rename" | "delete";
+        }
+
+        const items: MenuQuickPickItem[] = [
+          {
+            label: "$(edit) Rename",
+            action: "rename"
+          }
+        ];
+
+        // Only show delete for non-main branches
+        if (!isMain) {
+          items.push({
+            label: "$(trash) Delete",
+            action: "delete"
+          });
+        }
+
+        const selected = await vscode.window.showQuickPick(items, {
+          placeHolder: `Actions for ${branchName}`
+        });
+
+        if (selected) {
+          if (selected.action === "rename") {
+            vscode.commands.executeCommand("darklang.branch.rename", branchNode);
+          } else if (selected.action === "delete") {
+            vscode.commands.executeCommand("darklang.branch.delete", branchNode);
+          }
+        }
       })
     ];
   }
