@@ -9,6 +9,8 @@ open LibExecution.RuntimeTypes
 module Builtin = LibExecution.Builtin
 module Dval = LibExecution.Dval
 
+module Sync = LibPackageManager.PT.SQL.Sync
+
 open Builtin.Shortcuts
 
 
@@ -24,7 +26,7 @@ let fns : List<BuiltInFn> =
         function
         | _, _, _, [ DUuid instanceID ] ->
           uply {
-            let! lastSync = LibPackageManager.Sync.getLastSyncDate instanceID
+            let! lastSync = Sync.getLastSyncDate instanceID
 
             return lastSync |> Option.map DDateTime |> Dval.option KTDateTime
           }
@@ -46,7 +48,7 @@ let fns : List<BuiltInFn> =
         function
         | _, _, _, [ DUuid instanceID; DInt64 opsPushed; DInt64 opsFetched ] ->
           uply {
-            do! LibPackageManager.Sync.recordSync instanceID opsPushed opsFetched
+            do! Sync.recordSync instanceID opsPushed opsFetched
 
             return DUnit
           }

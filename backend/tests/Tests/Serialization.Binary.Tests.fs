@@ -11,7 +11,7 @@ module Config = LibCloud.Config
 module PT = LibExecution.ProgramTypes
 module RT = LibExecution.RuntimeTypes
 
-module BinarySerialization = LibBinarySerialization.BinarySerialization
+module BS = LibSerialization.Binary.Serialization
 
 module Values = SerializationTestValues
 
@@ -28,46 +28,32 @@ module PT =
     Roundtripping.testRoundtripMany
       "packageLocations"
       (fun loc ->
-        loc
-        |> BinarySerialization.PT.PackageLocation.serialize "packageLocation"
-        |> BinarySerialization.PT.PackageLocation.deserialize "packageLocation")
+        loc |> BS.PT.PackageLocation.serialize |> BS.PT.PackageLocation.deserialize)
       Values.ProgramTypes.packageLocations
 
   let packageTypeTests =
     Roundtripping.testRoundtripMany
       "packageTypes"
       (fun typ ->
-        typ
-        |> BinarySerialization.PT.PackageType.serialize typ.id
-        |> BinarySerialization.PT.PackageType.deserialize typ.id)
+        typ |> BS.PT.PackageType.serialize |> BS.PT.PackageType.deserialize)
       Values.ProgramTypes.packageTypes
 
   let packageFnTests =
     Roundtripping.testRoundtripMany
       "packageFns"
-      (fun fn ->
-        fn
-        |> BinarySerialization.PT.PackageFn.serialize fn.id
-        |> BinarySerialization.PT.PackageFn.deserialize fn.id)
+      (fun fn -> fn |> BS.PT.PackageFn.serialize |> BS.PT.PackageFn.deserialize)
       Values.ProgramTypes.packageFns
 
   let packageValTests =
     Roundtripping.testRoundtripMany
       "packageVals"
-      (fun c ->
-        c
-        |> BinarySerialization.PT.PackageValue.serialize c.id
-        |> BinarySerialization.PT.PackageValue.deserialize c.id)
+      (fun c -> c |> BS.PT.PackageValue.serialize |> BS.PT.PackageValue.deserialize)
       Values.ProgramTypes.packageValues
 
   let toplevelTests =
     Roundtripping.testRoundtripMany
       "toplevels"
-      (fun tl ->
-        let tlid = PT.Toplevel.toTLID tl
-        tl
-        |> BinarySerialization.PT.Toplevel.serialize tlid
-        |> BinarySerialization.PT.Toplevel.deserialize tlid)
+      (fun tl -> tl |> BS.PT.Toplevel.serialize |> BS.PT.Toplevel.deserialize)
       Values.ProgramTypes.toplevels
 
 
@@ -75,28 +61,19 @@ module RT =
   let packageTypeTests =
     Roundtripping.testRoundtripMany
       "packageTypes"
-      (fun t ->
-        t
-        |> BinarySerialization.RT.PackageType.serialize t.id
-        |> BinarySerialization.RT.PackageType.deserialize t.id)
+      (fun t -> t |> BS.RT.PackageType.serialize |> BS.RT.PackageType.deserialize)
       Values.RuntimeTypes.packageTypes
 
   let packageValueTests =
     Roundtripping.testRoundtripMany
       "packageValues"
-      (fun c ->
-        c
-        |> BinarySerialization.RT.PackageValue.serialize c.id
-        |> BinarySerialization.RT.PackageValue.deserialize c.id)
+      (fun c -> c |> BS.RT.PackageValue.serialize |> BS.RT.PackageValue.deserialize)
       Values.RuntimeTypes.packageValues
 
   let packageFnTests =
     Roundtripping.testRoundtripMany
       "packageFns"
-      (fun fn ->
-        fn
-        |> BinarySerialization.RT.PackageFn.serialize fn.id
-        |> BinarySerialization.RT.PackageFn.deserialize fn.id)
+      (fun fn -> fn |> BS.RT.PackageFn.serialize |> BS.RT.PackageFn.deserialize)
       Values.RuntimeTypes.packageFns
 
   let dvalTests =
@@ -111,20 +88,14 @@ module RT =
     testMany
       "vals"
       (fun dval ->
-        let deserialized =
-          dval
-          |> BinarySerialization.RT.Dval.serialize "dval"
-          |> BinarySerialization.RT.Dval.deserialize "dval"
+        let deserialized = dval |> BS.RT.Dval.serialize |> BS.RT.Dval.deserialize
         dvalEquals dval deserialized)
       (List.map (fun x -> x, true) Values.RuntimeTypes.dvals)
 
   let instructionsTests =
     Roundtripping.testRoundtripMany
       "instrs"
-      (fun i ->
-        i
-        |> BinarySerialization.RT.Instructions.serialize "instrs"
-        |> BinarySerialization.RT.Instructions.deserialize "instrs")
+      (fun i -> i |> BS.RT.Instructions.serialize |> BS.RT.Instructions.deserialize)
       Values.RuntimeTypes.instructions
 
 
@@ -138,11 +109,8 @@ module ConsistentSerializationTests =
 
   let formats =
     [ { name = "BinarySerialization"
-        serializer =
-          fun tl ->
-            BinarySerialization.PT.Toplevel.serialize (PT.Toplevel.toTLID tl) tl
-        deserializer =
-          fun data -> BinarySerialization.PT.Toplevel.deserialize 0UL data
+        serializer = fun tl -> BS.PT.Toplevel.serialize tl
+        deserializer = fun data -> BS.PT.Toplevel.deserialize data
         prefix = "toplevels-binary"
         suffix = ".bin" } ]
 

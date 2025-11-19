@@ -12,8 +12,6 @@ module PT = LibExecution.ProgramTypes
 module Dval = LibExecution.Dval
 module RT = LibExecution.RuntimeTypes
 
-module BinarySerialization = LibBinarySerialization.BinarySerialization
-
 let instant = NodaTime.Instant.parse "2022-07-04T17:46:57Z"
 
 let uuid = System.Guid.Parse "31d72f73-0f99-5a9b-949c-b95705ae7c4d"

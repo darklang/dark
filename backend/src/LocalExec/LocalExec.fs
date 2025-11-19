@@ -19,8 +19,7 @@ module HandleCommand =
     uply {
       print $"Reloading {name} canvas..."
 
-      let! (canvasId, toplevels) =
-        Canvas.loadFromDisk LibPackageManager.PackageManager.pt name
+      let! (canvasId, toplevels) = Canvas.loadFromDisk PM.pt name
 
       print $"Loaded canvas {canvasId} with {List.length toplevels} toplevels"
 
@@ -46,10 +45,10 @@ module HandleCommand =
       do! LibPackageManager.Purge.purge ()
 
       print "Filling ..."
-      let! _ = LibPackageManager.Inserts.insertAndApplyOps None ops
+      do! PM.pt.applyOps (None, ops)
 
       // Get stats after ops are inserted/applied
-      let! stats = LibPackageManager.Stats.get ()
+      let! stats = LibPackageManager.PT.SQL.Stats.get ()
       print "Loaded packages from disk "
       print $"{stats.types} types, {stats.values} values, and {stats.fns} fns"
 

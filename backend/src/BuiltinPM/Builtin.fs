@@ -15,7 +15,7 @@ let fnRenames : Builtin.FnRenames =
 let builtins (pm : PT.PackageManager) : Builtins =
   Builtin.combine
     [ Libs.Packages.builtins pm
-      Libs.PackageOps.builtins
+      Libs.PackageOps.builtins pm
       Libs.Instances.builtins
       Libs.Branches.builtins
       Libs.Sync.builtins

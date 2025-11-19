@@ -16,12 +16,13 @@ module PT2RT = LibExecution.ProgramTypesToRuntimeTypes
 module AT = LibExecution.AnalysisTypes
 module Exe = LibExecution.Execution
 module PackageIDs = LibExecution.PackageIDs
+module PM = LibPackageManager.PackageManager
 
 open LibCloud
 
 
-let pmRT = LibPackageManager.PackageManager.rt
-let pmPT = LibPackageManager.PackageManager.pt
+let pmRT = PM.rt
+let pmPT = PM.pt
 
 let builtins : RT.Builtins =
   LibExecution.Builtin.combine

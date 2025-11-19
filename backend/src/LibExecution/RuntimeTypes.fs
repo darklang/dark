@@ -1089,7 +1089,7 @@ type PackageManager =
       init = uply { return () } }
 
   /// Allows you to side-load a few 'extras' in-memory, along
-  /// the normal fetching functionality. (Mostly helpful for tests)
+  /// the normal fetching functionality. (Mostly helpful for CLI execution with transient defs)
   static member withExtras
     (types : List<PackageType.PackageType>)
     (values : List<PackageValue.PackageValue>)
@@ -1116,6 +1116,7 @@ type PackageManager =
           | Some f -> Some f |> Ply
           | None -> pm.getFn id
       init = pm.init }
+
 
 
 // ------------

@@ -549,8 +549,18 @@ module PackageType =
   type PackageType =
     { id : FQTypeName.Package
       declaration : TypeDeclaration.T
+      //mutuals: List<Int, MutualHash>
+
       description : string
       deprecated : Deprecation<FQTypeName.FQTypeName> }
+
+
+// type A = | Tag1 of B
+// type B = | OtherTag of A
+// if TypeReference were to get some kind of equiv. to MutualType#1
+// and PackageType were to get some EArg->OtherType mapping,
+// would that solve things?
+
 
 
 module PackageValue =
@@ -574,7 +584,10 @@ module PackageFn =
       deprecated : Deprecation<FQFnName.FQFnName> }
 
 
-///
+/// CLEANUP Is this the best name?
+/// maybe "op" would be actually fine.
+/// we might want to 'split' the ops into different sub-types some day,
+///   but let's not pre-optimize
 type PackageOp =
   // not handled -- punt: DB operations, Crons, http handlers...
   | AddType of typ : PackageType.PackageType // note: has ID in it
@@ -587,6 +600,31 @@ type PackageOp =
   | SetValueName of id : FQValueName.Package * location : PackageLocation
   | SetFnName of id : FQFnName.Package * location : PackageLocation
 // DB should have _history_ of old item names, but only one active PackageLocation
+
+
+
+// /// Atomic operations that can be tracked and validated
+// module Op =
+//   type T =
+//     // Content Operations - create new immutable content
+//     | AddFunctionContent of hash: string * content: PackageFn.PackageFn
+//     | AddTypeContent of hash: string * content: PackageType.PackageType
+//     | AddValueContent of hash: string * content: PackageValue.PackageValue
+
+//     // Name Operations - manage name pointers
+//     | CreateName of location: PackageLocation.T * hash: string * contentType: string
+//     | UpdateNamePointer of location: PackageLocation.T * oldHash: string * newHash: string
+//     | MoveName of oldLocation: PackageLocation.T * newLocation: PackageLocation.T
+//     | UnassignName of location: PackageLocation.T
+
+//     // Content Operations - deprecate content (by hash)
+//     | DeprecateContent of hash: string * reason: string * replacement: string option
+
+
+// /// Types of conflicts that can occur when we try to apply an Op
+// type Conflict =
+//   | TODO
+
 
 
 //   | MoveItem of item: uuid * from : Location * to_: Location
@@ -769,116 +807,26 @@ type PackageManager =
     // TODO: Revisit this given that a single ID might refer to multiple locations,
     // even per a branch (because... why? not sure or totally convinced either way)).
     getTypeLocation :
-      BranchIDOpt * FQTypeName.Package -> Ply<Option<PackageLocation>>
+      (BranchIDOpt * FQTypeName.Package) -> Ply<Option<PackageLocation>>
     getValueLocation :
-      BranchIDOpt * FQValueName.Package -> Ply<Option<PackageLocation>>
-    getFnLocation : BranchIDOpt * FQFnName.Package -> Ply<Option<PackageLocation>>
+      (BranchIDOpt * FQValueName.Package) -> Ply<Option<PackageLocation>>
+    getFnLocation : (BranchIDOpt * FQFnName.Package) -> Ply<Option<PackageLocation>>
+
+    // maybe it returns a List of (Location * Ranking) and we encode a nice ranking alg.
+
+    // TODO: maybe a result? hmm
+    // TODO maybe apply op_s_?
+    applyOps : (BranchIDOpt * List<PackageOp>) -> Ply<unit>
+
+    // branch fns
+    // instance fns
+    // getStats
+
 
     init : Ply<unit> }
 
 
-  static member empty =
-    { findType = fun _ -> Ply None
-      findFn = fun _ -> Ply None
-      findValue = fun _ -> Ply None
-
-      search = fun _ -> Ply { submodules = []; types = []; values = []; fns = [] }
-
-      getType = fun _ -> Ply None
-      getFn = fun _ -> Ply None
-      getValue = fun _ -> Ply None
-
-      getTypeLocation = fun _ -> Ply None
-      getValueLocation = fun _ -> Ply None
-      getFnLocation = fun _ -> Ply None
-
-      init = uply { return () } }
-
-
-  /// Allows you to side-load a few 'extras' in-memory, along
-  /// the normal fetching functionality. (Mostly helpful for tests)
-  static member withExtras
-    (types : List<PackageType.PackageType * PackageLocation>)
-    (values : List<PackageValue.PackageValue * PackageLocation>)
-    (fns : List<PackageFn.PackageFn * PackageLocation>)
-    (pm : PackageManager)
-    : PackageManager =
-
-    let typeLocationToId =
-      types |> List.map (fun (t, loc) -> loc, t.id) |> Map.ofList
-    let typeIdToLocation =
-      types |> List.map (fun (t, loc) -> t.id, loc) |> Map.ofList
-    let typeIdToType = types |> List.map (fun (t, _) -> t.id, t) |> Map.ofList
-
-    let valueLocationToId =
-      values |> List.map (fun (v, loc) -> loc, v.id) |> Map.ofList
-    let valueIdToLocation =
-      values |> List.map (fun (v, loc) -> v.id, loc) |> Map.ofList
-    let valueIdToValue = values |> List.map (fun (v, _) -> v.id, v) |> Map.ofList
-
-    let fnLocationToId = fns |> List.map (fun (f, loc) -> loc, f.id) |> Map.ofList
-    let fnIdToLocation = fns |> List.map (fun (f, loc) -> f.id, loc) |> Map.ofList
-    let fnIdToFn = fns |> List.map (fun (f, _) -> f.id, f) |> Map.ofList
-
-    { findType =
-        fun (branchID, location) ->
-          match Map.tryFind location typeLocationToId with
-          | Some id -> Ply(Some id)
-          | None -> pm.findType (branchID, location)
-
-      findValue =
-        fun (branchID, location) ->
-          match Map.tryFind location valueLocationToId with
-          | Some id -> Ply(Some id)
-          | None -> pm.findValue (branchID, location)
-
-      findFn =
-        fun (branchID, location) ->
-          match Map.tryFind location fnLocationToId with
-          | Some id -> Ply(Some id)
-          | None -> pm.findFn (branchID, location)
-
-      search = pm.search
-
-      getType =
-        fun id ->
-          match Map.tryFind id typeIdToType with
-          | Some t -> Ply(Some t)
-          | None -> pm.getType id
-
-      getValue =
-        fun id ->
-          match Map.tryFind id valueIdToValue with
-          | Some v -> Ply(Some v)
-          | None -> pm.getValue id
-
-      getFn =
-        fun id ->
-          match Map.tryFind id fnIdToFn with
-          | Some f -> Ply(Some f)
-          | None -> pm.getFn id
-
-      getTypeLocation =
-        fun (branchID, id) ->
-          match Map.tryFind id typeIdToLocation with
-          | Some location -> Ply(Some location)
-          | None -> pm.getTypeLocation (branchID, id)
-
-      getValueLocation =
-        fun (branchID, id) ->
-          match Map.tryFind id valueIdToLocation with
-          | Some location -> Ply(Some location)
-          | None -> pm.getValueLocation (branchID, id)
-
-      getFnLocation =
-        fun (branchID, id) ->
-          match Map.tryFind id fnIdToLocation with
-          | Some location -> Ply(Some location)
-          | None -> pm.getFnLocation (branchID, id)
-
-      init = pm.init }
-
-
+// type Status =  | NotApplied | Applied | Checked (detect/report conflicts)
 
 (*
 the source of truth is our core tables, which sync:
@@ -901,27 +849,6 @@ the package stuff is all a projection of that
 
 
 
-
-// /// Atomic operations that can be tracked and validated
-// module Op =
-//   type T =
-//     // Content Operations - create new immutable content
-//     | AddFunctionContent of hash: string * content: PackageFn.PackageFn
-//     | AddTypeContent of hash: string * content: PackageType.PackageType
-//     | AddValueContent of hash: string * content: PackageValue.PackageValue
-
-//     // Name Operations - manage name pointers
-//     | CreateName of location: PackageLocation.T * hash: string * contentType: string
-//     | UpdateNamePointer of location: PackageLocation.T * oldHash: string * newHash: string
-//     | MoveName of oldLocation: PackageLocation.T * newLocation: PackageLocation.T
-//     | UnassignName of location: PackageLocation.T
-
-//     // Content Operations - deprecate content (by hash)
-//     | DeprecateContent of hash: string * reason: string * replacement: string option
-
-// /// Types of conflicts that can occur when we try to apply an Op
-// type Conflict =
-//   | TODO
 
 
 

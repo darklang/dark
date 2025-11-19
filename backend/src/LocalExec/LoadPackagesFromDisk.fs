@@ -9,6 +9,7 @@ open Prelude
 module RT = LibExecution.RuntimeTypes
 module PT = LibExecution.ProgramTypes
 module PT2DT = LibExecution.ProgramTypesToDarkTypes
+module PM = LibPackageManager.PackageManager
 module NR = LibParser.NameResolver
 
 open Utils
@@ -34,7 +35,7 @@ let load (builtins : RT.Builtins) : Ply<List<PT.PackageOp>> =
           debuG "about to parse" path
           LibParser.Parser.parsePackageFile
             builtins
-            PT.PackageManager.empty
+            PM.empty
             NR.OnMissing.Allow
             path
             contents
@@ -50,20 +51,17 @@ let load (builtins : RT.Builtins) : Ply<List<PT.PackageOp>> =
       |> Ply.List.mapSequentially (fun (path, contents) ->
         LibParser.Parser.parsePackageFile
           builtins
-          (LibPackageManager.PackageManager.withExtraOps
-            PT.PackageManager.empty
-            firstPassOps)
+          (PM.withExtraOps PM.empty firstPassOps)
           NR.OnMissing.ThrowError
           path
           contents)
       |> Ply.map List.flatten
 
     // Build PM from first pass for ID stabilization
-    let firstPassPM = LibPackageManager.PackageManager.createInMemory firstPassOps
+    let firstPassPM = LibPackageManager.PT.InMemory.create firstPassOps
 
     // Adjust IDs in second pass to match first pass (ID stabilization)
-    let! adjustedOps =
-      LibPackageManager.PackageManager.stabilizeOpsAgainstPM firstPassPM reParsedOps
+    let! adjustedOps = PM.stabilizeOps firstPassPM reParsedOps
 
     return adjustedOps
   }

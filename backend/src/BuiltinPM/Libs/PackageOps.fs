@@ -23,7 +23,7 @@ let packageOpTypeName =
 
 
 // TODO: review/reconsider the accessibility of these fns
-let fns : List<BuiltInFn> =
+let fns (pm : PT.PackageManager) : List<BuiltInFn> =
   [ { name = fn "scmAddOps" 0
       typeParams = []
       parameters =
@@ -44,64 +44,16 @@ let fns : List<BuiltInFn> =
               let branchID = C2DT.Option.fromDT D.uuid branchID
               let ops = ops |> List.choose PT2DT.PackageOp.fromDT
 
-              // Insert ops with deduplication, get count of actually inserted ops
-              let! insertedCount =
-                LibPackageManager.Inserts.insertAndApplyOps branchID ops
+              // Insert ops with deduplication
+              do! pm.applyOps (branchID, ops)
 
-              return resultOk (DInt64 insertedCount)
+              // TODO: Return actual inserted count (not total ops count)
+              // Currently applyOps doesn't return count, so we return attempted count
+              return resultOk (DInt64(int64 (List.length ops)))
             with ex ->
               return resultError (DString ex.Message)
           }
         | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
-      previewable = Impure
-      deprecated = NotDeprecated }
-
-
-    { name = fn "scmGetRecentOps" 0
-      typeParams = []
-      parameters =
-        [ Param.make "branchID" (TypeReference.option TUuid) ""
-          Param.make "limit" TInt64 "" ]
-      returnType = TList(TCustomType(Ok packageOpTypeName, []))
-      description = "Get recent package ops from the database."
-      fn =
-        function
-        | _, _, _, [ branchID; DInt64 limit ] ->
-          uply {
-            let branchID = C2DT.Option.fromDT D.uuid branchID
-
-            let! ops = LibPackageManager.Queries.getRecentOps branchID limit
-
-            return
-              DList(
-                VT.customType PT2DT.PackageOp.typeName [],
-                ops |> List.map PT2DT.PackageOp.toDT
-              )
-          }
-        | _ -> incorrectArgs ()
-      sqlSpec = NotQueryable
-      previewable = Impure
-      deprecated = NotDeprecated }
-
-
-    { name = fn "scmGetRecentOpsAllBranches" 0
-      typeParams = []
-      parameters = [ Param.make "limit" TInt64 "" ]
-      returnType = TList(TCustomType(Ok packageOpTypeName, []))
-      description = "Get recent package ops from ALL branches (no branch filter)."
-      fn =
-        function
-        | _, _, _, [ DInt64 limit ] ->
-          uply {
-            let! ops = LibPackageManager.Queries.getRecentOpsAllBranches limit
-            return
-              DList(
-                VT.customType PT2DT.PackageOp.typeName [],
-                ops |> List.map PT2DT.PackageOp.toDT
-              )
-          }
-        | _ -> incorrectArgs ()
       sqlSpec = NotQueryable
       previewable = Impure
       deprecated = NotDeprecated }
@@ -120,7 +72,7 @@ let fns : List<BuiltInFn> =
           uply {
             let branchID = C2DT.Option.fromDT D.uuid branchID
 
-            let! ops = LibPackageManager.Queries.getOpsSince branchID since
+            let! ops = LibPackageManager.PT.SQL.Sync.getOpsSince branchID since
 
             return
               DList(
@@ -134,4 +86,5 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated } ]
 
 
-let builtins : Builtins = LibExecution.Builtin.make [] fns
+let builtins (pm : PT.PackageManager) : Builtins =
+  LibExecution.Builtin.make [] (fns pm)

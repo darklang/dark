@@ -22,6 +22,7 @@ module PackageIDs = LibExecution.PackageIDs
 module Json = BuiltinExecution.Libs.Json
 module C2DT = LibExecution.CommonToDarkTypes
 module D = LibExecution.DvalDecoder
+module PM = LibPackageManager.PackageManager
 
 module Utils = BuiltinCliHost.Utils
 
@@ -130,8 +131,8 @@ module ExecutionError =
   let typeRef = TCustomType(Ok fqTypeName, [])
 
 
-let pmRT = LibPackageManager.PackageManager.rt
-let ptPM = LibPackageManager.PackageManager.pt
+let pmRT = PM.rt
+let ptPM = PM.pt
 
 let builtinsToUse : RT.Builtins =
   LibExecution.Builtin.combine
@@ -169,9 +170,8 @@ let execute
         [ mod'.fns |> List.map PT2RT.PackageFn.toRT
           mod'.submodules.fns |> List.map PT2RT.PackageFn.toRT ]
 
-    // TODO we should probably use LibPM's in-memory grafting thing instead of this
-    // (no need for RT.PM.withExtras to exist, I think)
-    let pm = pmRT |> PackageManager.withExtras types values fns
+    // Layer the parsed script's types/values/fns on top of the base RT PM
+    let pm = pmRT |> RT.PackageManager.withExtras types values fns
 
     let tracing = Exe.noTracing
 

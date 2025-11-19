@@ -15,6 +15,7 @@ module PT = LibExecution.ProgramTypes
 module PT2RT = LibExecution.ProgramTypesToRuntimeTypes
 module PTParser = LibExecution.ProgramTypesParser
 module Exe = LibExecution.Execution
+module PM = LibPackageManager.PackageManager
 
 open TestUtils.TestUtils
 
@@ -25,7 +26,7 @@ let oldFunctionsAreDeprecated =
   testTask "old functions are deprecated" {
     let mutable counts = Map.empty
 
-    let fns = (localBuiltIns PT.PackageManager.empty).fns |> Map.values
+    let fns = (localBuiltIns PM.empty).fns |> Map.values
 
     fns
     |> List.iter (fun fn ->

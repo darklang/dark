@@ -14,6 +14,7 @@ module Exe = LibExecution.Execution
 module PackageIDs = LibExecution.PackageIDs
 module BuiltinCli = BuiltinCli.Builtin
 module BuiltinCliHost = BuiltinCliHost.Libs.Cli
+module PM = LibPackageManager.PackageManager
 
 // Dual logging (console + cli.log file)
 let private logError (message : string) : unit =
@@ -122,7 +123,7 @@ let main (args : string[]) =
     EmbeddedResources.extract ()
     initSerializers ()
 
-    let cliPackageManager = LibPackageManager.PackageManager.rt
+    let cliPackageManager = PM.rt
     cliPackageManager.init.Result
 
     let result = execute cliPackageManager (Array.toList args)
