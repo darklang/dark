@@ -1,9 +1,0 @@
-#!/usr/bin/env bash
-. ./scripts/devcontainer/_assert-in-container "$0" "$@"
-
-set -euo pipefail
-
-cd backend
-rm -f paket-files/paket.restore.cached
-dotnet restore fsdark.sln
-dotnet paket generate-load-scripts --framework net8.0

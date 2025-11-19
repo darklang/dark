@@ -20,6 +20,7 @@ module PT = LibExecution.ProgramTypes
 module RT = LibExecution.RuntimeTypes
 module Dval = LibExecution.Dval
 module PackageIDs = LibExecution.PackageIDs
+module PM = LibPackageManager.PackageManager
 
 // Test package type definitions as tuples with locations
 
@@ -46,7 +47,24 @@ let t
       if allowUnresolved then
         pmPT
       else
-        pmPT |> PT.PackageManager.withExtras extraTypes extraValues extraFns
+        // Convert extraTypes/Values/Fns to PackageOps
+        let typeOps =
+          extraTypes
+          |> List.collect (fun (t, loc) ->
+            [ PT.PackageOp.AddType t; PT.PackageOp.SetTypeName(t.id, loc) ])
+
+        let valueOps =
+          extraValues
+          |> List.collect (fun (v, loc) ->
+            [ PT.PackageOp.AddValue v; PT.PackageOp.SetValueName(v.id, loc) ])
+
+        let fnOps =
+          extraFns
+          |> List.collect (fun (f, loc) ->
+            [ PT.PackageOp.AddFn f; PT.PackageOp.SetFnName(f.id, loc) ])
+
+        let allOps = typeOps @ valueOps @ fnOps
+        PM.withExtraOps pmPT allOps
     let canvasID = System.Guid.NewGuid()
     let! parseExeState = executionStateFor basePM canvasID false false Map.empty
 
@@ -68,8 +86,7 @@ let t
         | _ -> []
 
       // Second phase: enhance PM with PackageOps and pretty print
-      let enhancedPM =
-        LibPackageManager.PackageManager.withExtraOps basePM packageOps
+      let enhancedPM = PM.withExtraOps basePM packageOps
       let! ppExeState = executionStateFor enhancedPM canvasID false false Map.empty
 
       let ppArgs = NEList.doubleton branchID sourceFile

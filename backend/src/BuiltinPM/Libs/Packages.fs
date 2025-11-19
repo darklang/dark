@@ -42,7 +42,7 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
         function
         | _, _, _, [ DUnit ] ->
           uply {
-            let! stats = LibPackageManager.Stats.get ()
+            let! stats = LibPackageManager.PT.SQL.Stats.get ()
 
             return
               DRecord(

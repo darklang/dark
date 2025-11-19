@@ -21,7 +21,9 @@
       "Bash(timeout:*)",
       "mcp__darklang-push-notifications__send_ntfy_notification",
       "mcp__push-notifications__send_pushover_notification",
-      "mcp__push-notifications__send_ntfy_notification"
+      "mcp__push-notifications__send_ntfy_notification",
+      "Bash(git log:*)",
+      "Bash(git ls-tree:*)"
     ],
     "deny": []
   }

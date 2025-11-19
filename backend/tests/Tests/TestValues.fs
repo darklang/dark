@@ -6,6 +6,7 @@ open TestUtils.TestUtils
 module PT = LibExecution.ProgramTypes
 module PackageIDs = LibExecution.PackageIDs
 module RT = LibExecution.RuntimeTypes
+module PM = LibPackageManager.PackageManager
 
 open TestUtils.PTShortcuts
 
@@ -811,7 +812,7 @@ let pm : PT.PackageManager =
     |> List.map (fun f -> f.id, f)
     |> Map.ofList
 
-  { PT.PackageManager.empty with
+  { PM.empty with
       getType = fun id -> Ply(Map.tryFind id typeMap)
       getValue = fun id -> Ply(Map.tryFind id valueMap)
       getFn = fun id -> Ply(Map.tryFind id fnMap) }

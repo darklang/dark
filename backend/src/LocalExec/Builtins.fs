@@ -6,9 +6,10 @@ open FSharp.Control.Tasks
 open Prelude
 
 module RT = LibExecution.RuntimeTypes
+module PM = LibPackageManager.PackageManager
 
 let httpClientConfig = BuiltinExecution.Libs.HttpClient.defaultConfig
-let ptPM = LibExecution.ProgramTypes.PackageManager.empty
+let ptPM = PM.empty
 
 /// for parsing packages, which may reference _any_ builtin
 let all : RT.Builtins =

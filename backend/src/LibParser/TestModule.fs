@@ -10,6 +10,7 @@ module WT2PT = WrittenTypesToProgramTypes
 module PT = LibExecution.ProgramTypes
 module RT = LibExecution.RuntimeTypes
 module NR = NameResolver
+module PM = LibPackageManager.PackageManager
 
 open Utils
 
@@ -265,7 +266,12 @@ let toPT
 let parseTestFile
   (owner : string)
   (builtins : RT.Builtins)
-  (pm : PT.PackageManager)
+  (pm : PT.PackageManager) // Is this needed? oh yeah, for the actual package files.
+  // ok so we need to... apply ops to an in-memory PM and graft that in-mem one over the provided
+  // pm when doing the re-parse - is that right?
+  // PM.compose might be a better word than overlay
+  // I suppose 'applyOps' always applies to the top-most thing? Hm. or maybe the compose fn
+  // takes in a fn that decides - choose A or B (a, b) -> b
   (filename : string)
   : Ply<List<PTModule>> =
   uply {
@@ -278,32 +284,33 @@ let parseTestFile
       |> parseAsFSharpSourceFile filename
       |> parseFile owner
 
-    // First pass: parse with OnMissing.Allow to allow unresolved names
-    let! firstPassModules =
-      modulesWT
-      |> Ply.List.mapSequentially (
-        toPT owner builtins PT.PackageManager.empty onMissing
-      )
+    //let pm = LibPackageManager.PT.Empty.empty // TODO why is a 'pm' object passed in here and ignored?
 
-    // Extract ops from first pass for second pass PackageManager
+    // First pass: parse with OnMissing.Allow to allow unresolved names
+    // The goal here is to discover all the names relevant, so that the second
+    // pass has no unresolved names
+    let! firstPassModules =
+      modulesWT |> Ply.List.mapSequentially (toPT owner builtins pm onMissing)
     let firstPassOps = firstPassModules |> List.collect _.ops
+    let pmAfterFirstPass =
+      let inMemPM = LibPackageManager.PT.InMemory.create firstPassOps
+      LibPackageManager.PT.Compose.compose pm inMemPM
+
 
     // Second pass: re-parse with PackageManager containing first pass results
-    let enhancedPM = LibPackageManager.PackageManager.withExtraOps pm firstPassOps
     let! reParsedModules =
       modulesWT
-      |> Ply.List.mapSequentially (toPT owner builtins enhancedPM onMissing)
+      |> Ply.List.mapSequentially (toPT owner builtins pmAfterFirstPass onMissing)
 
     // ID stabilization: adjust second pass IDs to match first pass IDs
-    let firstPassPM = LibPackageManager.PackageManager.createInMemory firstPassOps
+    let firstPassPM = LibPackageManager.PT.InMemory.create firstPassOps
 
     // Adjust IDs in each module's ops
     let! adjustedModules =
       reParsedModules
       |> Ply.List.mapSequentially (fun m ->
         uply {
-          let! adjustedOps =
-            LibPackageManager.PackageManager.stabilizeOpsAgainstPM firstPassPM m.ops
+          let! adjustedOps = PM.stabilizeOps firstPassPM m.ops
           return { m with ops = adjustedOps }
         })
 

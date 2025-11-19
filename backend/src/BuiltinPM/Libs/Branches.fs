@@ -9,9 +9,10 @@ open LibExecution.RuntimeTypes
 module VT = LibExecution.ValueType
 module Dval = LibExecution.Dval
 module Builtin = LibExecution.Builtin
-module Branches = LibPackageManager.Branches
 module DarkDateTime = LibExecution.DarkDateTime
 module PackageIDs = LibExecution.PackageIDs
+
+module Branches = LibPackageManager.PT.SQL.Branches
 
 open Builtin.Shortcuts
 

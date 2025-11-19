@@ -14,7 +14,7 @@ open LibDB.Db
 open Prelude
 
 module PT = LibExecution.ProgramTypes
-module BinarySerialization = LibBinarySerialization.BinarySerialization
+module BS = LibSerialization.Binary.Serialization
 module PTParser = LibExecution.ProgramTypesParser
 
 
@@ -47,7 +47,7 @@ let loadToplevels
           tlids |> List.mapi (fun i _ -> $"@tlid{i}") |> String.concat ", "
 
         let query =
-          $"SELECT tlid, data, deleted
+          $"SELECT data, deleted
            FROM toplevels_v0
            WHERE canvas_id = @canvasID
              AND tlid IN ({tlidPlaceholders})
@@ -58,14 +58,13 @@ let loadToplevels
 
         Sql.query query
         |> Sql.parameters (("canvasID", Sql.uuid canvasID) :: tlidParams)
-        |> Sql.executeAsync (fun read ->
-          (read.tlid "tlid", read.bytes "data", read.bool "deleted"))
+        |> Sql.executeAsync (fun read -> (read.bytes "data", read.bool "deleted"))
 
     return
       data
-      |> List.map (fun (tlid, tl, deleted) ->
+      |> List.map (fun (tl, deleted) ->
         let isDeleted = if deleted then Deleted else NotDeleted
-        (isDeleted, BinarySerialization.PT.Toplevel.deserialize tlid tl))
+        (isDeleted, BS.PT.Toplevel.deserialize tl))
   }
 
 

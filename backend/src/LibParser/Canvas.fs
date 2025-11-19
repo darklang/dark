@@ -12,6 +12,7 @@ module WT = WrittenTypes
 module FS2WT = FSharpToWrittenTypes
 module WT2PT = WrittenTypesToProgramTypes
 module NR = NameResolver
+module PM = LibPackageManager.PackageManager
 
 open Utils
 open ParserException
@@ -347,22 +348,18 @@ let parse
 
     // Two-phase parsing with ID stabilization:
     // First pass: parse with OnMissing.Allow to allow forward references
-    let! firstPass =
-      toPT builtins PT.PackageManager.empty NR.OnMissing.Allow moduleWT
+    let! firstPass = toPT builtins PM.empty NR.OnMissing.Allow moduleWT
 
     // Extract ops from first pass for second pass PackageManager
     let firstPassOps = firstPass.ops
 
     // Second pass: re-parse with PackageManager containing first pass results
-    let enhancedPM = LibPackageManager.PackageManager.withExtraOps pm firstPassOps
+    let enhancedPM = PM.withExtraOps pm firstPassOps
     let! secondPass = toPT builtins enhancedPM onMissing moduleWT
 
     // ID stabilization: adjust second pass IDs to match first pass IDs
-    let firstPassPM = LibPackageManager.PackageManager.createInMemory firstPassOps
-    let! adjustedOps =
-      LibPackageManager.PackageManager.stabilizeOpsAgainstPM
-        firstPassPM
-        secondPass.ops
+    let firstPassPM = LibPackageManager.PT.InMemory.create firstPassOps
+    let! adjustedOps = PM.stabilizeOps firstPassPM secondPass.ops
 
     return { secondPass with ops = adjustedOps }
   }

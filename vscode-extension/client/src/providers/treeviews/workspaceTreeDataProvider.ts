@@ -51,13 +51,6 @@ export class WorkspaceTreeDataProvider implements vscode.TreeDataProvider<Branch
 
   private branchStateManager = BranchStateManager.getInstance();
 
-  // Filter configuration for ops display
-  private opsFilter: OpsFilterConfig = {
-    limit: 50,
-    branch: 'current',
-    dateRange: 'all',
-  };
-
   constructor(private client: LanguageClient) {
     // Listen for branch changes and refresh the tree
     this.branchStateManager.onBranchChanged(() => {
@@ -130,7 +123,7 @@ export class WorkspaceTreeDataProvider implements vscode.TreeDataProvider<Branch
     // Handle Pending Changes root node
     if (element.type === "changes-root") {
       item.iconPath = new vscode.ThemeIcon("git-commit", new vscode.ThemeColor("charts.yellow"));
-      item.tooltip = this.getOpsFilterTooltip();
+      item.tooltip = "TODO";
       item.contextValue = "workspace-changes-root"; // Enable context menu
       // Count will be shown when children are loaded
       return item;
@@ -202,42 +195,7 @@ export class WorkspaceTreeDataProvider implements vscode.TreeDataProvider<Branch
 
   private async getPendingChanges(): Promise<BranchNode[]> {
     try {
-      // Calculate date filter if applicable
-      let sinceDate: string | undefined;
-      if (this.opsFilter.dateRange !== 'all') {
-        const now = new Date();
-        const since = new Date();
-
-        switch (this.opsFilter.dateRange) {
-          case 'today':
-            since.setHours(0, 0, 0, 0);
-            break;
-          case 'week':
-            since.setDate(now.getDate() - 7);
-            break;
-          case 'month':
-            since.setMonth(now.getMonth() - 1);
-            break;
-          case 'custom':
-            if (this.opsFilter.customStartDate) {
-              since.setTime(this.opsFilter.customStartDate.getTime());
-            }
-            break;
-        }
-
-        sinceDate = since.toISOString();
-      }
-
-      const requestParams = {
-        limit: this.opsFilter.limit ?? 999999, // Send large number if null
-        branchFilter: this.opsFilter.branch,
-        sinceDate: sinceDate,
-      };
-
-      const ops = await this.client.sendRequest<PendingOpResponse[]>(
-        'dark/getPendingOps',
-        requestParams
-      );
+      const ops = []; // TODO: maybe show fake data here
 
       let nodes: PendingOpNode[] = ops.map((opWithLabel, index) => {
         const location = this.extractLocationFromOp(opWithLabel.op);
@@ -250,24 +208,6 @@ export class WorkspaceTreeDataProvider implements vscode.TreeDataProvider<Branch
           opData: opWithLabel.op  // Store full op for diff view
         };
       });
-
-      // Apply client-side location filter if specified
-      if (this.opsFilter.locationFilter && this.opsFilter.locationFilter.trim() !== '') {
-        const filterLower = this.opsFilter.locationFilter.toLowerCase();
-        nodes = nodes.filter(node => {
-          // Filter by label
-          if (node.label.toLowerCase().includes(filterLower)) {
-            return true;
-          }
-          // Filter by location if available
-          if (node.location) {
-            const locStr = `${node.location.owner}.${node.location.modules.join('.')}.${node.location.name}`.toLowerCase();
-            return locStr.includes(filterLower);
-          }
-          // If no location available, don't match (only label matching works)
-          return false;
-        });
-      }
 
       return nodes;
     } catch (error) {
@@ -375,220 +315,6 @@ export class WorkspaceTreeDataProvider implements vscode.TreeDataProvider<Branch
 
   // Filter configuration methods
   private getPendingChangesLabel(): string {
-    const filters: string[] = [];
-
-    // Show limit if not default
-    if (this.opsFilter.limit !== 50) {
-      if (this.opsFilter.limit === null) {
-        filters.push('all');
-      } else {
-        filters.push(`${this.opsFilter.limit}`);
-      }
-    }
-
-    // Show date range if not all
-    if (this.opsFilter.dateRange !== 'all') {
-      filters.push(this.opsFilter.dateRange);
-    }
-
-    // Show branch filter
-    if (this.opsFilter.branch === 'all') {
-      filters.push('all branches');
-    } else if (this.opsFilter.branch !== 'current') {
-      // It's a specific branch - show the branch name
-      const branchLabel = this.getBranchFilterLabel();
-      filters.push(branchLabel);
-    }
-
-    // Show location filter
-    if (this.opsFilter.locationFilter) {
-      filters.push(`"${this.opsFilter.locationFilter}"`);
-    }
-
-    if (filters.length > 0) {
-      return `Pending Changes (${filters.join(', ')})`;
-    }
     return 'Pending Changes';
-  }
-
-  private getOpsFilterTooltip(): string {
-    const parts: string[] = [];
-
-    const limitText = this.opsFilter.limit === null ? 'all' : `up to ${this.opsFilter.limit}`;
-    parts.push(`Showing ${limitText} ops`);
-
-    if (this.opsFilter.dateRange !== 'all') {
-      const dateLabel = this.opsFilter.dateRange === 'custom'
-        ? `since ${this.opsFilter.customStartDate?.toLocaleDateString()}`
-        : `from ${this.opsFilter.dateRange}`;
-      parts.push(dateLabel);
-    }
-
-    // Show branch filter information
-    if (this.opsFilter.branch === 'current') {
-      parts.push('current branch only');
-    } else if (this.opsFilter.branch === 'all') {
-      parts.push('all branches');
-    } else {
-      // It's a specific branch
-      const branchLabel = this.getBranchFilterLabel();
-      parts.push(`branch: ${branchLabel}`);
-    }
-
-    if (this.opsFilter.locationFilter) {
-      parts.push(`filtered by "${this.opsFilter.locationFilter}"`);
-    }
-
-    return parts.join(', ');
-  }
-
-  async configureLimitFilter(): Promise<void> {
-    const currentLimit = this.opsFilter.limit === null ? 'all' : this.opsFilter.limit.toString();
-    const choice = await vscode.window.showQuickPick([
-      { label: '10', value: 10 },
-      { label: '25', value: 25 },
-      { label: '50', value: 50 },
-      { label: '100', value: 100 },
-      { label: '500', value: 500 },
-      { label: '1000', value: 1000 },
-      { label: 'All (no limit)', value: null },
-    ], {
-      placeHolder: `Current limit: ${currentLimit}`
-    });
-
-    if (choice) {
-      this.opsFilter.limit = choice.value;
-      vscode.window.showInformationMessage(`Ops limit set to ${choice.label}`);
-      this.refresh();
-    }
-  }
-
-  async configureDateFilter(): Promise<void> {
-    type DateRangeOption = {
-      label: string;
-      value: OpsFilterConfig['dateRange'];
-    };
-
-    const choice = await vscode.window.showQuickPick<DateRangeOption>([
-      { label: 'All time', value: 'all' },
-      { label: 'Today', value: 'today' },
-      { label: 'Last 7 days', value: 'week' },
-      { label: 'Last 30 days', value: 'month' },
-      { label: 'Custom date...', value: 'custom' },
-    ], {
-      placeHolder: `Current: ${this.opsFilter.dateRange}`
-    });
-
-    if (!choice) {
-      return;
-    }
-
-    this.opsFilter.dateRange = choice.value;
-
-    if (choice.value === 'custom') {
-      const dateStr = await vscode.window.showInputBox({
-        prompt: 'Enter start date (YYYY-MM-DD)',
-        placeHolder: '2024-01-01'
-      });
-
-      if (dateStr) {
-        const date = new Date(dateStr);
-        if (!isNaN(date.getTime())) {
-          this.opsFilter.customStartDate = date;
-          vscode.window.showInformationMessage(`Filtering ops since ${dateStr}`);
-        } else {
-          vscode.window.showErrorMessage('Invalid date format');
-          return;
-        }
-      }
-    } else {
-      vscode.window.showInformationMessage(`Date filter set to: ${choice.label}`);
-    }
-
-    this.refresh();
-  }
-
-  private getBranchFilterLabel(): string {
-    if (this.opsFilter.branch === 'all') {
-      return 'All branches';
-    } else if (this.opsFilter.branch === 'current') {
-      return 'Current branch';
-    } else {
-      // It's a specific branch ID - find the branch name
-      const branch = this.branchStateManager.getBranches().find(b => b.id === this.opsFilter.branch);
-      return branch ? branch.name : 'Unknown branch';
-    }
-  }
-
-  async configureBranchFilter(): Promise<void> {
-    const branches = this.branchStateManager.getBranches();
-    const currentBranchId = this.branchStateManager.getCurrentBranchId();
-
-    // Build the list of branch options
-    const branchItems: BranchQuickPickItem[] = [
-      {
-        label: '$(git-branch) Current branch only',
-        value: 'current',
-        description: currentBranchId ? this.branchStateManager.getCurrentBranchName() : 'No branch selected'
-      },
-      { label: '$(layers) All branches', value: 'all', description: 'Show ops from all branches' },
-      { label: '', kind: vscode.QuickPickItemKind.Separator }
-    ];
-
-    // Add individual branches (only show non-merged branches)
-    branches
-      .filter(b => !b.mergedAt)
-      .forEach(b => {
-        const isCurrent = b.id === currentBranchId;
-        branchItems.push({
-          label: b.name,
-          description: isCurrent ? '● Current' : undefined,
-          detail: `Branch ID: ${b.id}`,
-          branchID: b.id
-        });
-      });
-
-    const choice = await vscode.window.showQuickPick(branchItems, {
-      placeHolder: `Current filter: ${this.getBranchFilterLabel()}`
-    });
-
-    if (choice) {
-      if (choice.branchID) {
-        this.opsFilter.branch = choice.branchID;
-        vscode.window.showInformationMessage(`Branch filter set to: ${choice.label}`);
-      } else if (choice.value) {
-        this.opsFilter.branch = choice.value;
-        vscode.window.showInformationMessage(`Branch filter set to: ${choice.label}`);
-      }
-      this.refresh();
-    }
-  }
-
-  async configureLocationFilter(): Promise<void> {
-    const input = await vscode.window.showInputBox({
-      prompt: 'Filter by module/function name (case-insensitive)',
-      placeHolder: 'e.g., Stdlib.List or MyModule',
-      value: this.opsFilter.locationFilter || ''
-    });
-
-    if (input !== undefined) {
-      this.opsFilter.locationFilter = input.trim() || undefined;
-      if (this.opsFilter.locationFilter) {
-        vscode.window.showInformationMessage(`Filtering by location: ${this.opsFilter.locationFilter}`);
-      } else {
-        vscode.window.showInformationMessage('Location filter cleared');
-      }
-      this.refresh();
-    }
-  }
-
-  async clearAllFilters(): Promise<void> {
-    this.opsFilter = {
-      limit: 50,
-      branch: 'current',
-      dateRange: 'all',
-    };
-    vscode.window.showInformationMessage('All filters cleared');
-    this.refresh();
   }
 }

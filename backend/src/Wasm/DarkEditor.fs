@@ -34,7 +34,7 @@ let ptPM = PT.PackageManager.empty
 let builtin =
   LibExecution.Builtin.combine
     [ BuiltinExecution.Builtin.builtins httpConfig
-      BuiltinPM.Builtin.builtins ptPM
+      BuiltinPM.Builtin.builtins ptPM // CLEANUP if we're using an empty PM, why even bother?
       Builtin.builtins ]
     []
 

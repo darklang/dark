@@ -14,24 +14,44 @@
   <ItemGroup>
     <ProjectReference Include="../Prelude/Prelude.fsproj" />
     <ProjectReference Include="../LibExecution/LibExecution.fsproj" />
-    <ProjectReference Include="../LibBinarySerialization/LibBinarySerialization.fsproj" />
+    <ProjectReference Include="../LibSerialization/LibSerialization.fsproj" />
     <ProjectReference Include="../LibConfig/LibConfig.fsproj" />
     <ProjectReference Include="../LibDB/LibDB.fsproj" />
   </ItemGroup>
   <ItemGroup>
+    <!-- Helpers /-->
     <Compile Include="Caching.fs" />
-    <Compile Include="Purge.fs" />
-    <Compile Include="PackageOpPlayback.fs" />
-    <Compile Include="Inserts.fs" />
-    <Compile Include="Queries.fs" />
-    <Compile Include="Stats.fs" />
-    <Compile Include="Instances.fs" />
-    <Compile Include="Sync.fs" />
-    <Compile Include="Branches.fs" />
-    <Compile Include="ProgramTypes.fs" />
-    <Compile Include="RuntimeTypes.fs" />
+
+
+    <!-- RT /-->
+    <Compile Include="RT/SQL.fs" />
+
+
+    <!-- PT /-->
+    <Compile Include="PT/Compose.fs" />
+    <Compile Include="PT/InMemory.fs" />
+    <Compile Include="PT/Empty.fs" />
+
+    <Compile Include="PT/SQL/Instances.fs" />
+    <Compile Include="PT/SQL/Branches.fs" />
+
+    <Compile Include="PT/SQL/Types.fs" />
+    <Compile Include="PT/SQL/Values.fs" />
+    <Compile Include="PT/SQL/Fns.fs" />
+    <Compile Include="PT/SQL/Search.fs" />
+
+    <Compile Include="PT/SQL/OpPlayback.fs" />
+
+    <Compile Include="PT/SQL/PM.fs" />
+    <!-- (maybe these should be part of the PM type, idk) -->
+    <Compile Include="PT/SQL/Stats.fs" />
+    <Compile Include="PT/SQL/Purge.fs" />
+    <Compile Include="PT/SQL/Scripts.fs" />
+    <Compile Include="PT/SQL/Sync.fs" />
+
+
+    <!-- Round it all up in a nice package. -->
     <Compile Include="PackageManager.fs" />
-    <Compile Include="Scripts.fs" />
   </ItemGroup>
   <Import Project="..\..\.paket\Paket.Restore.targets" />
 </Project>
