@@ -15,7 +15,6 @@ import { BranchesManagerPanel } from "./panels/branchManagerPanel";
 import { BranchCommands } from "./commands/branchCommands";
 import { PackageCommands } from "./commands/packageCommands";
 import { InstanceCommands } from "./commands/instanceCommands";
-import { SyncCommands } from "./commands/syncCommands";
 import { ScriptCommands } from "./commands/scriptCommands";
 
 import { StatusBarManager } from "./ui/statusbar/statusBarManager";
@@ -68,6 +67,21 @@ export async function activate(context: vscode.ExtensionContext) {
 
   BranchStateManager.initialize(client);
 
+  // Auto-start sync service
+  try {
+    const response = await client.sendRequest<{ success: boolean; message: string }>(
+      "dark/startSyncService",
+      {}
+    );
+    if (response.success) {
+      console.log("Sync service started:", response.message);
+    } else {
+      console.log("Sync service not started:", response.message);
+    }
+  } catch (error) {
+    console.error("Failed to start sync service:", error);
+  }
+
   const statusBar = new StatusBarManager();
   const fsProvider = new DarkFileSystemProvider(client);
   const contentProvider = new DarkContentProvider(client);
@@ -106,20 +120,11 @@ export async function activate(context: vscode.ExtensionContext) {
   const packageCommands = new PackageCommands();
   const branchCommands = new BranchCommands(statusBar, workspaceProvider);
   const instanceCommands = new InstanceCommands(client, statusBar, workspaceProvider);
-  const syncCommands = new SyncCommands(client);
   const scriptCommands = new ScriptCommands();
 
   instanceCommands.setPackagesProvider(packagesProvider);
 
   const reg = (d: vscode.Disposable) => context.subscriptions.push(d);
-
-  const ops = [
-    ["darklang.ops.setLimit", () => workspaceProvider.configureLimitFilter()],
-    ["darklang.ops.setDateRange", () => workspaceProvider.configureDateFilter()],
-    ["darklang.ops.setBranch", () => workspaceProvider.configureBranchFilter()],
-    ["darklang.ops.setLocation", () => workspaceProvider.configureLocationFilter()],
-    ["darklang.ops.clearFilters", () => workspaceProvider.clearAllFilters()],
-  ] as const;
 
   // Core registrations
   [
@@ -130,18 +135,25 @@ export async function activate(context: vscode.ExtensionContext) {
     vscode.commands.registerCommand("darklang.branches.manageAll", () => {
       BranchesManagerPanel.createOrShow(context.extensionUri);
     }),
-    ...ops.map(([cmd, fn]) => vscode.commands.registerCommand(cmd, fn)),
     packagesView,
     packagesProvider,
     workspaceView,
     ...packageCommands.register(),
     ...branchCommands.register(),
     ...instanceCommands.register(),
-    ...syncCommands.register(),
     ...scriptCommands.register(),
   ].forEach(reg);
 }
 
-export function deactivate(): Thenable<void> | undefined {
-  return client ? client.stop() : undefined;
+export async function deactivate(): Promise<void> {
+  if (client) {
+    // Stop sync service before stopping LSP client
+    try {
+      await client.sendRequest("dark/stopSyncService", {});
+    } catch (error) {
+      console.error("Failed to stop sync service:", error);
+    }
+
+    await client.stop();
+  }
 }

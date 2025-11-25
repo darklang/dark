@@ -414,6 +414,13 @@ type PackageOp =
   | SetFnName of FQFnName.Package * PackageLocation
 
 
+/// A batch of package ops that all share the same branch and instance
+type PackageOpBatch =
+  { branchID: Stdlib.Option.Option<Uuid>
+    instanceID: Stdlib.Option.Option<Uuid>
+    ops: List<PackageOp> }
+
+
 module Search =
   /// The type of entity to search for
   type EntityType =

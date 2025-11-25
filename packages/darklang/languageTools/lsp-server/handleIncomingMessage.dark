@@ -276,11 +276,14 @@ let handleIncomingMessage
         | ("dark/clearBranch", Some requestId, _) ->
           Branches.handleClearBranchRequest state requestId
 
-        | ("dark/sync", Some requestId, Some(Object [ ("instanceID", String instanceID) ])) ->
-          Sync.handleSyncRequest state requestId instanceID
-
         | ("dark/listInstances", Some requestId, _) ->
           Sync.handleListInstancesRequest state requestId
+
+        | ("dark/startSyncService", Some requestId, _) ->
+          Sync.handleStartSyncServiceRequest state requestId
+
+        | ("dark/stopSyncService", Some requestId, _) ->
+          Sync.handleStopSyncServiceRequest state requestId
 
         | other ->
           log $"TODO: we don't yet support this method: {r.method}"

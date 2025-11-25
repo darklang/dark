@@ -1,0 +1,301 @@
+module Darklang.Cli.SyncService
+
+/// File paths for sync service state - uses rundir/ in portable mode, ~/.darklang/ when installed
+let pidFilePath () : String =
+  match Installation.System.getInstallationMode () with
+  | Portable -> "rundir/sync-service.pid"
+  | Installed ->
+    let host = (Stdlib.Cli.Host.getRuntimeHost ()) |> Builtin.unwrap
+    let darklangHomeDir = Installation.Config.getDarklangHomeDir host
+    $"{darklangHomeDir}/sync-service.pid"
+
+let shutdownSignalPath () : String =
+  match Installation.System.getInstallationMode () with
+  | Portable -> "rundir/sync-service.shutdown"
+  | Installed ->
+    let host = (Stdlib.Cli.Host.getRuntimeHost ()) |> Builtin.unwrap
+    let darklangHomeDir = Installation.Config.getDarklangHomeDir host
+    $"{darklangHomeDir}/sync-service.shutdown"
+
+// Logging helper function
+let log (message: String) : Unit =
+  let timestamp = (Stdlib.DateTime.now ()) |> Stdlib.DateTime.toString
+  let logMessage = $"[{timestamp}] {message}\n"
+
+  let logPath =
+    match Installation.System.getInstallationMode () with
+    | Portable -> "rundir/logs/sync-service.log"
+    | Installed ->
+      let host = (Stdlib.Cli.Host.getRuntimeHost ()) |> Builtin.unwrap
+      let darklangHomeDir = Installation.Config.getDarklangHomeDir host
+      $"{darklangHomeDir}/sync-service.log"
+
+  let _ = Builtin.fileAppendText logPath logMessage
+  ()
+
+
+/// Check if sync service is running
+let isRunning () : Bool =
+  match Builtin.fileExists (pidFilePath ()) with
+  | true ->
+    match Builtin.fileRead (pidFilePath ()) with
+    | Ok bytes ->
+      let pidStr = Stdlib.String.fromBytesWithReplacement bytes
+
+      match Stdlib.Int64.parse pidStr with
+      | Ok pid ->
+        if Builtin.processIsRunning pid then
+          true
+        else
+          // Process not running, clean up stale PID file
+          let _ = Builtin.fileDelete (pidFilePath ())
+          false
+
+      | Error _ ->
+        // Invalid PID file, clean it up
+        let _ = Builtin.fileDelete (pidFilePath ())
+        false
+
+    | Error _ ->
+      // Error reading file, clean it up
+      let _ = Builtin.fileDelete (pidFilePath ())
+      false
+
+  | false -> false
+
+
+/// Read PID from file
+let readPid () : Stdlib.Option.Option<Int64> =
+  match Builtin.fileExists (pidFilePath ()) with
+  | true ->
+    match Builtin.fileRead (pidFilePath ()) with
+    | Ok bytes ->
+      let pidStr = Stdlib.String.fromBytesWithReplacement bytes
+
+      match Stdlib.Int64.parse pidStr with
+      | Ok pid -> Stdlib.Option.Option.Some pid
+      | Error _ -> Stdlib.Option.Option.None
+
+    | Error _ -> Stdlib.Option.Option.None
+
+  | false -> Stdlib.Option.Option.None
+
+
+/// Internal command - runs the eternal sync loop
+/// This is called by the background process spawned by startInBackground
+let syncLoop (intervalSeconds: Int64) : Unit =
+  let intervalMs = Stdlib.Int64.multiply intervalSeconds 1000L
+
+  // Get default instance from config, or fall back to "instance2"
+  let instanceName =
+    match Config.get "sync.default_instance" with
+    | Some name -> name
+    | None -> "instance2"
+
+  // Look up instance details
+  match SCM.Instances.getByName instanceName with
+  | Some instance ->
+      log $"Sync check starting (instance: {instance.name}, all branches)"
+
+      // Perform sync (syncs all branches)
+      let syncResult = SCM.Sync.sync instance.id instance.url
+
+      // Log result
+      (match syncResult with
+       | Ok message -> log message
+
+       | Error errorMsg -> log $"Sync failed: {errorMsg}")
+
+      // Sleep
+      let intervalFloat = Stdlib.Int64.toFloat intervalMs
+      Builtin.timeSleep intervalFloat
+
+      // Check shutdown signal
+      if Builtin.fileExists (shutdownSignalPath ()) then
+        log "Sync service shutting down"
+        // Cleanup files
+        let _ = Builtin.fileDelete (pidFilePath ())
+        let _ = Builtin.fileDelete (shutdownSignalPath ())
+        ()
+      else
+        syncLoop intervalSeconds
+
+  | None ->
+    log $"Instance not found: {instanceName}"
+    log "Run: dark instance list"
+    ()
+
+
+/// Start the sync service in the background
+/// Returns unit on success, or an error message if failed to start
+let startInBackground () : Stdlib.Result.Result<Unit, String> =
+  // Check if already running
+  if isRunning () then
+    Stdlib.Result.Result.Error "Sync service is already running"
+  else
+    // Get default instance from config, or fall back to "instance2"
+    let instanceName =
+      match Config.get "sync.default_instance" with
+      | Some name -> name
+      | None -> "instance2"
+
+    // Check if the instance exists
+    match SCM.Instances.getByName instanceName with
+    | Some _instance ->
+      // Get interval from config or use default (20 seconds)
+      let intervalSeconds =
+        match Config.get "sync.interval_seconds" with
+        | Some intervalStr ->
+          (match Stdlib.Int64.parse intervalStr with
+           | Ok interval -> interval
+           | Error _ -> 20L)
+        | None -> 20L
+
+      let intervalSecondsStr = Stdlib.Int64.toString intervalSeconds
+
+      // Build args for sync service loop
+      let args = [ "sync-service-loop"; intervalSecondsStr ]
+
+      // Spawn background process
+      match Builtin.processSpawnBackground args with
+      | Ok pid ->
+        let pidStr = Stdlib.Int64.toString pid
+        // Delete old PID file if exists, then write new one
+        let _ = Builtin.fileDelete (pidFilePath ())
+        let _ = Builtin.fileAppendText (pidFilePath ()) pidStr
+        log $"Sync service started (PID: {pidStr})"
+        Stdlib.Result.Result.Ok ()
+
+      | Error errMsg -> Stdlib.Result.Result.Error $"Failed to start sync service: {errMsg}"
+
+    | None ->
+      Stdlib.Result.Result.Error
+        $"Instance '{instanceName}' not found. Run: dark instance list"
+
+
+/// Helper function to wait for a process to shutdown
+let waitForProcessShutdown (pid: Int64) (checksRemaining: Float) : Bool =
+  let checkIntervalMs = 200.0
+
+  if Stdlib.Float.lessThanOrEqualTo checksRemaining 0.0 then
+    false
+  else if Builtin.processIsRunning pid then
+    Builtin.timeSleep checkIntervalMs
+    waitForProcessShutdown pid (Stdlib.Float.subtract checksRemaining 1.0)
+  else
+    true
+
+
+/// Stop the sync service
+let stop () : Stdlib.Result.Result<Unit, String> =
+  match readPid () with
+  | Some pid ->
+    // Create shutdown signal
+    let _ = Builtin.fileDelete (shutdownSignalPath ())
+    let _ = Builtin.fileAppendText (shutdownSignalPath ()) ""
+
+    log "Waiting for sync service to shutdown..."
+
+    // Wait up to 10 seconds for graceful shutdown
+    let maxWaitMs = 10000.0
+    let checkIntervalMs = 200.0
+    let maxChecks = Stdlib.Float.divide maxWaitMs checkIntervalMs
+
+    let shutdownGracefully = waitForProcessShutdown pid maxChecks
+
+    if shutdownGracefully then
+      // Cleanup files
+      let _ = Builtin.fileDelete (pidFilePath ())
+      let _ = Builtin.fileDelete (shutdownSignalPath ())
+      log "Sync service stopped"
+      Stdlib.Result.Result.Ok ()
+    else
+      // Force kill if didn't shutdown gracefully
+      log "Force killing sync service..."
+
+      match Builtin.processKill pid with
+      | Ok () ->
+        let _ = Builtin.fileDelete (pidFilePath ())
+        let _ = Builtin.fileDelete (shutdownSignalPath ())
+        log "Sync service stopped (force killed)"
+        Stdlib.Result.Result.Ok ()
+
+      | Error errMsg ->
+        let _ = Builtin.fileDelete (pidFilePath ())
+        let _ = Builtin.fileDelete (shutdownSignalPath ())
+
+        Stdlib.Result.Result.Error $"Failed to kill sync service: {errMsg}"
+  | None -> Stdlib.Result.Result.Error "Sync service is not running"
+
+
+/// Get the status of the sync service
+type SyncServiceStatus =
+  { running: Bool
+    pid: Stdlib.Option.Option<Int64>
+    instance: Stdlib.Option.Option<String>
+    intervalSeconds: Stdlib.Option.Option<Int64> }
+
+let status () : SyncServiceStatus =
+  let running = isRunning ()
+  let pid = readPid ()
+
+  // Get instance name from config, or fall back to "instance2"
+  let instance =
+    match Config.get "sync.default_instance" with
+    | Some name -> Stdlib.Option.Option.Some name
+    | None -> Stdlib.Option.Option.Some "instance2 (default)"
+
+  let intervalSeconds =
+    match Config.get "sync.interval_seconds" with
+    | Some intervalStr ->
+      (match Stdlib.Int64.parse intervalStr with
+       | Ok interval -> Stdlib.Option.Option.Some interval
+       | Error _ -> Stdlib.Option.Option.None)
+    | None -> Stdlib.Option.Option.None
+
+  SyncServiceStatus
+    { running = running
+      pid = pid
+      instance = instance
+      intervalSeconds = intervalSeconds }
+
+
+/// Restart sync service
+/// Stops the current service if running, then starts a new one
+let restart () : Stdlib.Result.Result<Unit, String> =
+  // Force kill existing service if running (don't wait for graceful shutdown)
+  match readPid () with
+  | Some pid ->
+    let _ = Builtin.processKill pid
+    let _ = Builtin.fileDelete (pidFilePath ())
+    let _ = Builtin.fileDelete (shutdownSignalPath ())
+    log "Sync service force-killed for restart"
+  | None -> ()
+
+  // Start immediately
+  startInBackground ()
+
+
+/// Auto-start the sync service if not already running
+/// Called during CLI startup
+let autoStart () : Unit =
+  if isRunning () then
+    ()
+  else
+    // Check if auto-start is enabled (default: true)
+    let autoStartEnabled =
+      match Config.get "sync.auto_start" with
+      | Some "false" -> false
+      | _ -> true // Default to enabled
+
+    if autoStartEnabled then
+      // Auto-start syncs all branches
+      match startInBackground () with
+      | Ok () ->
+        log "Auto-started sync service"
+        Stdlib.printLine (Colors.success "✓ Sync service started")
+        ()
+      | Error errMsg ->
+        // Log error but don't block CLI startup
+        log $"Failed to auto-start sync service: {errMsg}"
+        ()

@@ -1,0 +1,154 @@
+module Darklang.Cli.SyncServiceCommands
+
+/// start-sync-service command
+module StartSyncService =
+  let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
+    match args with
+    | [] ->
+      match SyncService.startInBackground () with
+      | Ok () ->
+        Stdlib.printLine (Colors.success "Sync service started")
+        state
+
+      | Error errMsg ->
+        Stdlib.printLine (Colors.error errMsg)
+        state
+
+    | _ ->
+      Stdlib.printLine (Colors.error "Invalid arguments")
+      Stdlib.printLine ""
+      help state
+      state
+
+  let complete (_state: Cli.AppState) (_args: List<String>) : List<String> = []
+
+  let help (_state: Cli.AppState) : Cli.AppState =
+    [ "Usage:"
+      "  start-sync-service    - Start the background sync service"
+      ""
+      "The sync service will:"
+      "  - Automatically sync with the configured default instance"
+      "  - Run in the background, checking for changes periodically"
+      "  - Start automatically when you run the CLI"
+      ""
+      "Configuration:"
+      "  dark config set sync.default_instance <instance-name>"
+      "  dark config set sync.interval_seconds 30" ]
+    |> Stdlib.printLines
+
+    _state
+
+
+/// stop-sync-service command
+module StopSyncService =
+  let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
+    match args with
+    | [] ->
+      match SyncService.stop () with
+      | Ok () ->
+        Stdlib.printLine (Colors.success "Sync service stopped")
+        state
+
+      | Error errMsg ->
+        Stdlib.printLine (Colors.error errMsg)
+        state
+
+    | _ ->
+      Stdlib.printLine (Colors.error "Invalid arguments")
+      Stdlib.printLine ""
+      help state
+      state
+
+  let complete (_state: Cli.AppState) (_args: List<String>) : List<String> = []
+
+  let help (_state: Cli.AppState) : Cli.AppState =
+    [ "Usage:"
+      "  stop-sync-service    - Stop the background sync service"
+      ""
+      "This will gracefully shutdown the sync service."
+      "If it doesn't stop within 10 seconds, it will be force killed." ]
+    |> Stdlib.printLines
+
+    _state
+
+
+/// sync-service-status command
+module SyncServiceStatus =
+  let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
+    match args with
+    | [] ->
+      let status = SyncService.status ()
+
+      Stdlib.printLine "Sync Service Status:"
+      Stdlib.printLine ""
+
+      if status.running then
+        Stdlib.printLine (Colors.success "  Status: Running")
+
+        match status.pid with
+        | Some pid ->
+          let pidStr = Stdlib.Int64.toString pid
+          Stdlib.printLine $"  PID: {pidStr}"
+        | None -> ()
+      else
+        Stdlib.printLine (Colors.error "  Status: Stopped")
+
+      match status.instance with
+      | Some instanceName -> Stdlib.printLine $"  Instance: {instanceName}"
+      | None -> Stdlib.printLine (Colors.error "  Instance: Not configured")
+
+      match status.intervalSeconds with
+      | Some interval ->
+        let intervalStr = Stdlib.Int64.toString interval
+        Stdlib.printLine $"  Interval: {intervalStr} seconds"
+      | None -> Stdlib.printLine "  Interval: 30 seconds (default)"
+
+      state
+
+    | _ ->
+      Stdlib.printLine (Colors.error "Invalid arguments")
+      Stdlib.printLine ""
+      help state
+      state
+
+  let complete (_state: Cli.AppState) (_args: List<String>) : List<String> = []
+
+  let help (_state: Cli.AppState) : Cli.AppState =
+    [ "Usage:"
+      "  sync-service-status    - Show the status of the sync service"
+      ""
+      "Displays:"
+      "  - Whether the service is running"
+      "  - Process ID (PID) if running"
+      "  - Configured instance name"
+      "  - Sync check interval" ]
+    |> Stdlib.printLines
+
+    _state
+
+
+/// sync-service-loop command (internal, hidden)
+module SyncServiceLoop =
+  let execute (_state: Cli.AppState) (args: List<String>) : Cli.AppState =
+    // This is an internal command called by the background process
+    match args with
+    | [intervalSecondsStr] ->
+      match Stdlib.Int64.parse intervalSecondsStr with
+      | Ok intervalSeconds ->
+        SyncService.syncLoop intervalSeconds
+        Cli.initState ()
+
+      | Error _ ->
+        Builtin.cliLogError "Invalid interval argument"
+        Cli.initState ()
+
+    | _ ->
+      // Default to 20 seconds
+      SyncService.syncLoop 20L
+      Cli.initState ()
+
+  let complete (_state: Cli.AppState) (_args: List<String>) : List<String> = []
+
+  let help (_state: Cli.AppState) : Cli.AppState =
+    Stdlib.printLine "Internal command - not for direct use"
+    _state

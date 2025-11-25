@@ -3,31 +3,58 @@ module Darklang.Cli.Sync
 
 let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
   match args with
-  | [instanceName] ->
-    // Sync with specified instance by name
-    match SCM.Instances.getByName instanceName with
-    | Some instance ->
-      Stdlib.printLine $"Syncing with {instance.name} ({instance.url})..."
-      Stdlib.printLine ""
+  | [] ->
+    help state
+    state
 
-      let result =
-        SCM.Sync.sync instance.id instance.url state.currentBranchId
-
-      match result with
-      | Ok message ->
-        Stdlib.printLine (Colors.success message)
-        state
-
-      | Error errorMsg ->
-        Stdlib.printLine (Colors.error errorMsg)
-        state
-
-    | None ->
-      Stdlib.printLine (Colors.error $"Instance not found: {instanceName}")
-      Stdlib.printLine ""
-      Stdlib.printLine "Use 'instance list' to see configured instances."
-      Stdlib.printLine "Use 'instance add <name> <url>' to add a new instance."
+  | ["start-service"] ->
+    match SyncService.startInBackground () with
+    | Ok () ->
+      Stdlib.printLine (Colors.success "Sync service started")
       state
+
+    | Error errMsg ->
+      Stdlib.printLine (Colors.error errMsg)
+      state
+
+  | ["stop-service"] ->
+    match SyncService.stop () with
+    | Ok () ->
+      Stdlib.printLine (Colors.success "Sync service stopped")
+      state
+
+    | Error errMsg ->
+      Stdlib.printLine (Colors.error errMsg)
+      state
+
+  | ["service-status"] ->
+    let status = SyncService.status ()
+
+    Stdlib.printLine "Sync Service Status:"
+    Stdlib.printLine ""
+
+    if status.running then
+      Stdlib.printLine (Colors.success "  Status: Running")
+
+      match status.pid with
+      | Some pid ->
+        let pidStr = Stdlib.Int64.toString pid
+        Stdlib.printLine $"  PID: {pidStr}"
+      | None -> ()
+    else
+      Stdlib.printLine (Colors.error "  Status: Stopped")
+
+    match status.instance with
+    | Some instanceName -> Stdlib.printLine $"  Instance: {instanceName}"
+    | None -> Stdlib.printLine (Colors.error "  Instance: Not configured")
+
+    match status.intervalSeconds with
+    | Some interval ->
+      let intervalStr = Stdlib.Int64.toString interval
+      Stdlib.printLine $"  Interval: {intervalStr} seconds"
+    | None -> Stdlib.printLine "  Interval: 30 seconds (default)"
+
+    state
 
   | _ ->
     Stdlib.printLine (Colors.error "Invalid arguments")
@@ -38,27 +65,30 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
 
 let complete (_state: Cli.AppState) (args: List<String>) : List<String> =
   match args with
-  | [] ->
-    let instances = SCM.Instances.list ()
-    Stdlib.List.map instances (fun i -> i.name)
+  | [] -> [ "start-service"; "stop-service"; "service-status" ]
 
   | [partial] ->
-    let instances = SCM.Instances.list ()
-
-    instances
-    |> Stdlib.List.map (fun i -> i.name)
-    |> Stdlib.List.filter (fun name -> Stdlib.String.startsWith name partial)
+    let allOptions = [ "start-service"; "stop-service"; "service-status" ]
+    Stdlib.List.filter allOptions (fun name -> Stdlib.String.startsWith name partial)
 
   | _ -> []
 
 
 let help (_state: Cli.AppState) : Unit =
   [ "Usage:"
-    "  sync <instance-name>  - Sync with a configured instance"
+    "  sync start-service       - Start background sync service"
+    "  sync stop-service        - Stop background sync service"
+    "  sync service-status      - Show sync service status"
     ""
     "Examples:"
-    "  sync local            - Sync with 'local' instance"
-    "  sync production       - Sync with 'production' instance"
+    "  sync start-service       - Start automatic background syncing"
+    "  sync service-status      - Check if service is running"
+    "  sync stop-service        - Stop the sync service"
+    ""
+    "Configure the service:"
+    "  config set sync.default_instance local"
+    "  config set sync.interval_seconds 60"
+    "  config set sync.auto_start true"
     ""
     "Before syncing, configure instances using:"
     "  instance add local http://dark-packages.dlio.localhost:11001"

@@ -74,7 +74,9 @@ module Registry =
       ("help", "Show help for commands", ["commands"; "?"], Help.execute, Help.help, Help.complete)
       ("branch", "Manage development branches", [], Packages.Branch.execute, Packages.Branch.help, Packages.Branch.complete)
       ("instance", "Manage remote instances for syncing", [], Instances.execute, Instances.help, Instances.complete)
-      ("sync", "Sync package ops with remote instance", [], Sync.execute, Sync.help, Sync.complete)
+      ("sync", "Sync with remote instance", [], Sync.execute, Sync.help, Sync.complete)
+      ("config", "Manage CLI configuration", [], Config.execute, Config.help, Config.complete)
+      ("sync-service-loop", "Internal sync service loop", [], SyncServiceCommands.SyncServiceLoop.execute, SyncServiceCommands.SyncServiceLoop.help, SyncServiceCommands.SyncServiceLoop.complete)
       ("install", "Install CLI globally", [], Installation.Install.execute, Installation.Install.help, Installation.Install.complete)
       ("update", "Update CLI to latest version", ["upgrade"], Installation.Update.execute, Installation.Update.help, Installation.Update.complete)
       ("uninstall", "Remove CLI installation", [], Installation.Uninstall.execute, Installation.Uninstall.help, Installation.Uninstall.complete)
@@ -169,7 +171,7 @@ module Registry =
       ("Source Control", ["branch"; "instance"; "sync"])
       ("Execution", ["run"; "eval"; "scripts"])
       ("Installation", ["install"; "update"; "uninstall"; "status"; "version"])
-      ("Utilities", ["clear"; "help"; "quit"; "experiments"]) ]
+      ("Utilities", ["clear"; "help"; "quit"; "config"; "experiments"]) ]
 
   // Helper function to format a group of commands with details
   let formatCommandGroup (groupName: String) (commandNames: List<String>) (commands: List<CommandHandler>) : String =
@@ -256,9 +258,15 @@ module Registry =
       // Completing command name
       let partial = Completion.getPartialCompletion parsed
       let commands = allCommands ()
-      let allNames = Stdlib.List.map commands (fun cmd -> cmd.name)
+      let allNames =
+        commands
+        |> Stdlib.List.map (fun cmd -> cmd.name)
+        // CLEANUP: handle this better
+        |> Stdlib.List.filter (fun name -> name != "sync-service-loop") // Hide internal command
+
       let allAliases = Stdlib.List.fold commands [] (fun acc cmd -> Stdlib.List.append acc cmd.aliases)
       let allOptions = Stdlib.List.append allNames allAliases
+
       if Stdlib.String.isEmpty partial then
         allOptions
       else
@@ -411,6 +419,10 @@ module Update =
 
 let runInteractiveLoop (state: AppState) : Int64 =
   if state.isExiting then
+    // stop sync service if running
+    match SyncService.stop () with
+    | Ok () -> ()
+    | Error _ -> () // Silently ignore if not running
     0L
   else
     // Display current page
@@ -462,6 +474,9 @@ let executeCliCommand (args: List<String>) : Int64 =
   match args with
   // If someone runs `dark` without args, start the interactive loop
   | [] ->
+    // Auto-start sync service if not already running
+    SyncService.autoStart ()
+
     Stdlib.printLine (View.formatWelcome ())
     runInteractiveLoop initialState
   // Otherwise, just execute command, print result, and exit

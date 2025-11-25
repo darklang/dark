@@ -38,7 +38,10 @@ let computeOpHash (op : PT.PackageOp) : System.Guid =
 
 /// Insert PackageOps into the package_ops table and apply them to projection tables
 /// Returns the count of ops actually inserted (duplicates are skipped via INSERT OR IGNORE)
+/// CLEANUP: The 'applied' flag is currently always set to true and all ops are applied
+/// immediately. Should we reconsider this?
 let insertAndApplyOps
+  (instanceID : Option<System.Guid>)
   (branchID : Option<PT.BranchID>)
   (ops : List<PT.PackageOp>)
   : Task<int64> =
@@ -60,8 +63,8 @@ let insertAndApplyOps
 
           let sql =
             """
-            INSERT OR IGNORE INTO package_ops (id, branch_id, op_blob, applied)
-            VALUES (@id, @branch_id, @op_blob, @applied)
+            INSERT OR IGNORE INTO package_ops (id, branch_id, op_blob, applied, instance_id)
+            VALUES (@id, @branch_id, @op_blob, @applied, @instance_id)
             """
 
           let parameters =
@@ -71,7 +74,11 @@ let insertAndApplyOps
                | Some id -> Sql.uuid id
                | None -> Sql.dbnull)
               "op_blob", Sql.bytes opBlob
-              "applied", Sql.bool true ]
+              "applied", Sql.bool true
+              "instance_id",
+              (match instanceID with
+               | Some id -> Sql.uuid id
+               | None -> Sql.dbnull) ]
 
           (sql, [ parameters ]))
 
