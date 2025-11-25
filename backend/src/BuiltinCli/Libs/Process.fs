@@ -39,6 +39,10 @@ let fns : List<BuiltInFn> =
               psi.FileName <- currentExe
               psi.UseShellExecute <- false
               psi.CreateNoWindow <- true
+              // Redirect to prevent inheriting parent's streams
+              psi.RedirectStandardOutput <- true
+              psi.RedirectStandardError <- true
+              psi.RedirectStandardInput <- true
 
               // Add arguments
               for arg in argStrings do

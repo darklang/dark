@@ -92,40 +92,30 @@ let sync
           // Process each batch
           let applyResult =
             if batchCount > 0L then
-              let (_, batchResults) =
-                Stdlib.List.fold
-                  pulledBatches
-                  (0L, Stdlib.Result.Result.Ok 0L)
-                  (fun acc batch ->
-                    let (batchIndex, resultSoFar) = acc
+              Stdlib.List.fold
+                pulledBatches
+                (Stdlib.Result.Result.Ok 0L)
+                (fun resultSoFar batch ->
+                  match resultSoFar with
+                  | Error msg -> Stdlib.Result.Result.Error msg
+                  | Ok appliedSoFar ->
+                    // Insert this batch's ops directly
+                    // Preserve the batch's instanceID to maintain provenance
+                    let addResult =
+                      Builtin.scmAddOps batch.instanceID batch.branchID batch.ops
 
-                    match resultSoFar with
-                    | Error msg -> (batchIndex + 1L, Stdlib.Result.Result.Error msg)
-                    | Ok appliedSoFar ->
-                      // Insert this batch's ops directly
-                      // Preserve the batch's instanceID to maintain provenance
-                      let addResult =
-                        Builtin.scmAddOps batch.instanceID batch.branchID batch.ops
+                    match addResult with
+                    | Ok batchApplied ->
+                      Stdlib.Result.Result.Ok(appliedSoFar + batchApplied)
 
-                      match addResult with
-                      | Ok batchApplied ->
-                        (
-                          batchIndex + 1L,
-                          Stdlib.Result.Result.Ok(appliedSoFar + batchApplied)
-                        )
-                      | Error errMsg ->
-                        let branchName =
-                          match batch.branchID with
-                          | Some id -> Stdlib.Uuid.toString id
-                          | None -> "main"
+                    | Error errMsg ->
+                      let branchName =
+                        match batch.branchID with
+                        | Some id -> Stdlib.Uuid.toString id
+                        | None -> "main"
 
-                        (
-                          batchIndex + 1L,
-                          Stdlib.Result.Result.Error
-                            $"Failed to apply ops for branch {branchName}: {errMsg}"
-                        ))
-
-              batchResults
+                      Stdlib.Result.Result.Error
+                        $"Failed to apply ops for branch {branchName}: {errMsg}")
             else
               Stdlib.Result.Result.Ok 0L
 

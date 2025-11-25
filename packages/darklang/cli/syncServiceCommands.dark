@@ -33,7 +33,7 @@ module StartSyncService =
       ""
       "Configuration:"
       "  dark config set sync.default_instance <instance-name>"
-      "  dark config set sync.interval_seconds 30" ]
+      "  dark config set sync.interval_seconds 20" ]
     |> Stdlib.printLines
 
     _state

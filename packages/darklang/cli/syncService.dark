@@ -90,6 +90,7 @@ let syncLoop (intervalSeconds: Int64) : Unit =
   let instanceName =
     match Config.get "sync.default_instance" with
     | Some name -> name
+    // CLEANUP: don't use a hardcoded default instance name here
     | None -> "instance2"
 
   // Look up instance details
@@ -106,23 +107,31 @@ let syncLoop (intervalSeconds: Int64) : Unit =
 
        | Error errorMsg -> log $"Sync failed: {errorMsg}")
 
-      // Sleep
-      let intervalFloat = Stdlib.Int64.toFloat intervalMs
-      Builtin.timeSleep intervalFloat
-
-      // Check shutdown signal
+      // Check shutdown signal before sleeping
       if Builtin.fileExists (shutdownSignalPath ()) then
         log "Sync service shutting down"
-        // Cleanup files
         let _ = Builtin.fileDelete (pidFilePath ())
         let _ = Builtin.fileDelete (shutdownSignalPath ())
         ()
       else
-        syncLoop intervalSeconds
+        // Sleep
+        let intervalFloat = Stdlib.Int64.toFloat intervalMs
+        Builtin.timeSleep intervalFloat
+
+        // Check shutdown signal after sleeping
+        if Builtin.fileExists (shutdownSignalPath ()) then
+          log "Sync service shutting down"
+          let _ = Builtin.fileDelete (pidFilePath ())
+          let _ = Builtin.fileDelete (shutdownSignalPath ())
+          ()
+        else
+          syncLoop intervalSeconds
 
   | None ->
     log $"Instance not found: {instanceName}"
     log "Run: dark instance list"
+    // Cleanup PID file since we're exiting
+    let _ = Builtin.fileDelete (pidFilePath ())
     ()
 
 
@@ -160,9 +169,8 @@ let startInBackground () : Stdlib.Result.Result<Unit, String> =
       match Builtin.processSpawnBackground args with
       | Ok pid ->
         let pidStr = Stdlib.Int64.toString pid
-        // Delete old PID file if exists, then write new one
-        let _ = Builtin.fileDelete (pidFilePath ())
-        let _ = Builtin.fileAppendText (pidFilePath ()) pidStr
+        // Write PID file (overwrite if exists)
+        let _ = Builtin.fileWrite (Stdlib.String.toBytes pidStr) (pidFilePath ())
         log $"Sync service started (PID: {pidStr})"
         Stdlib.Result.Result.Ok ()
 
