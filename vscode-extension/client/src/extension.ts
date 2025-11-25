@@ -12,6 +12,7 @@ import {
 import { PackagesTreeDataProvider } from "./providers/treeviews/packagesTreeDataProvider";
 import { WorkspaceTreeDataProvider } from "./providers/treeviews/workspaceTreeDataProvider";
 import { BranchesManagerPanel } from "./panels/branchManagerPanel";
+import { HomepagePanel } from "./panels/homepagePanel";
 
 import { BranchCommands } from "./commands/branchCommands";
 import { PackageCommands } from "./commands/packageCommands";
@@ -107,6 +108,15 @@ export async function activate(context: vscode.ExtensionContext) {
     },
   );
 
+  vscode.window.registerWebviewPanelSerializer?.(
+    HomepagePanel.viewType,
+    {
+      async deserializeWebviewPanel(panel) {
+        HomepagePanel.revive(panel, context.extensionUri);
+      },
+    },
+  );
+
   const packagesProvider = new PackagesTreeDataProvider(client);
   const workspaceProvider = new WorkspaceTreeDataProvider(client);
 
@@ -139,6 +149,9 @@ export async function activate(context: vscode.ExtensionContext) {
     vscode.window.registerFileDecorationProvider(decorationProvider),
     vscode.commands.registerCommand("darklang.branches.manageAll", () => {
       BranchesManagerPanel.createOrShow(context.extensionUri);
+    }),
+    vscode.commands.registerCommand("darklang.openHomepage", () => {
+      HomepagePanel.createOrShow(context.extensionUri);
     }),
     packagesView,
     packagesProvider,
