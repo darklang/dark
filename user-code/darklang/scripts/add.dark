@@ -1,1 +1,16 @@
-1L + 2L
+module ColorExample =
+  module Color =
+    type Color =
+      | Blue
+      | Green
+      | Red
+
+let blue = ColorExample.Color.Color.Blue
+let result =
+  match blue with
+  | Blue -> "It's blue!"
+  | Green -> "It's green!"
+  | Red -> "It's red!"
+
+Stdlib.printLine result
+0L

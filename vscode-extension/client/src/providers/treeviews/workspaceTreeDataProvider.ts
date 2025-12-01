@@ -3,14 +3,6 @@ import { LanguageClient } from "vscode-languageclient/node";
 import { BranchNode } from "../../types";
 import { BranchStateManager } from "../../data/branchStateManager";
 
-interface OpsFilterConfig {
-  limit: number | null;  // null means no limit
-  branch: 'current' | 'all' | string; // 'current', 'all', or a specific branch ID
-  dateRange: 'all' | 'today' | 'week' | 'month' | 'custom';
-  customStartDate?: Date;
-  locationFilter?: string;
-}
-
 // Interface for pending op response from LSP
 interface PendingOpResponse {
   op: string;
@@ -29,6 +21,14 @@ interface PendingOpNode extends BranchNode {
   type: "pending-op";
   location?: OpLocation;
   opData?: string;
+  checked?: boolean;
+}
+
+// Group node for owner grouping
+interface OwnerGroupNode extends BranchNode {
+  type: "owner-group";
+  owner: string;
+  children: PendingOpNode[];
 }
 
 // Interface for branch quick pick items with custom properties
@@ -51,18 +51,109 @@ export class WorkspaceTreeDataProvider implements vscode.TreeDataProvider<Branch
 
   private branchStateManager = BranchStateManager.getInstance();
 
-  // Filter configuration for ops display
-  private opsFilter: OpsFilterConfig = {
-    limit: 50,
-    branch: 'current',
-    dateRange: 'all',
-  };
+
+  // Track checked state of ops
+  private checkedOps: Map<string, boolean> = new Map();
+  // Cache of current ops for select all/deselect all
+  private currentOpIds: string[] = [];
 
   constructor(private client: LanguageClient) {
     // Listen for branch changes and refresh the tree
     this.branchStateManager.onBranchChanged(() => {
       this.refresh();
     });
+  }
+
+  private formatRelativeTime(date: Date): string {
+    const now = new Date();
+    const diffMs = now.getTime() - date.getTime();
+    const diffMinutes = Math.floor(diffMs / 60000);
+    const diffHours = Math.floor(diffMs / 3600000);
+    const diffDays = Math.floor(diffMs / 86400000);
+
+    if (diffMinutes < 1) {
+      return "just now";
+    } else if (diffMinutes < 60) {
+      return `${diffMinutes} min ago`;
+    } else if (diffHours < 24) {
+      return `${diffHours} hour${diffHours !== 1 ? 's' : ''} ago`;
+    } else {
+      return `${diffDays} day${diffDays !== 1 ? 's' : ''} ago`;
+    }
+  }
+
+  toggleSelectAll(): void {
+    // Check if all ops are currently selected
+    const allSelected = this.areAllOpsSelected();
+
+    if (allSelected) {
+      // Deselect all
+      for (const opId of this.currentOpIds) {
+        this.checkedOps.set(opId, false);
+      }
+    } else {
+      // Select all
+      for (const opId of this.currentOpIds) {
+        this.checkedOps.set(opId, true);
+      }
+    }
+
+    this.updateSelectAllContext();
+    this.refresh();
+  }
+
+  handleCheckboxChange(e: vscode.TreeCheckboxChangeEvent<BranchNode>): void {
+    // Update the checkedOps map based on user's manual checkbox clicks
+    for (const [item, state] of e.items) {
+      const isChecked = state === vscode.TreeItemCheckboxState.Checked;
+      this.checkedOps.set(item.id, isChecked);
+    }
+
+    this.updateSelectAllContext();
+    this.refresh();
+  }
+
+  selectOwnerGroup(ownerGroupNode: OwnerGroupNode): void {
+    // Toggle: check if all ops in this group are currently selected
+    if (!ownerGroupNode.children || ownerGroupNode.children.length === 0) {
+      return;
+    }
+
+    const allSelected = ownerGroupNode.children.every(child =>
+      this.checkedOps.get(child.id) === true
+    );
+
+    if (allSelected) {
+      // Deselect all ops in this owner group
+      for (const child of ownerGroupNode.children) {
+        this.checkedOps.set(child.id, false);
+      }
+    } else {
+      // Select all ops in this owner group
+      for (const child of ownerGroupNode.children) {
+        this.checkedOps.set(child.id, true);
+      }
+    }
+
+    this.updateSelectAllContext();
+    this.refresh();
+  }
+
+  private areAllOpsSelected(): boolean {
+    if (this.currentOpIds.length === 0) {
+      return false;
+    }
+
+    return this.currentOpIds.every(opId => this.checkedOps.get(opId) === true);
+  }
+
+  private updateSelectAllContext(): void {
+    const allSelected = this.areAllOpsSelected();
+    const currentBranchId = this.branchStateManager.getCurrentBranchId();
+    const isOnBranch = currentBranchId !== null && currentBranchId !== '';
+
+    vscode.commands.executeCommand("setContext", "darklang.allOpsSelected", allSelected);
+    vscode.commands.executeCommand("setContext", "darklang.isSpecificBranchSelected", isOnBranch);
   }
 
   // CLEANUP: These methods don't actually add/clear ops - they just refresh the tree
@@ -79,6 +170,7 @@ export class WorkspaceTreeDataProvider implements vscode.TreeDataProvider<Branch
 
   refresh(): void {
     this._onDidChangeTreeData.fire(undefined);
+    this.updateSelectAllContext();
   }
 
   dispose(): void {
@@ -93,9 +185,9 @@ export class WorkspaceTreeDataProvider implements vscode.TreeDataProvider<Branch
     // Determine collapsible state
     let collapsibleState: vscode.TreeItemCollapsibleState;
 
-    if (element.type === "changes-root") {
-      // Always expandable to show pending ops
-      collapsibleState = vscode.TreeItemCollapsibleState.Collapsed;
+    if (element.type === "changes-root" || element.type === "owner-group") {
+      // Always expandable to show pending ops or grouped ops
+      collapsibleState = vscode.TreeItemCollapsibleState.Expanded;
     } else if (element.children && element.children.length > 0) {
       collapsibleState = vscode.TreeItemCollapsibleState.Collapsed;
     } else {
@@ -114,14 +206,68 @@ export class WorkspaceTreeDataProvider implements vscode.TreeDataProvider<Branch
       return item;
     }
 
-    // Handle Branch root node (non-expandable, clickable)
+    // Handle Branch root node (now expandable)
     if (element.type === "branch-root") {
       item.iconPath = new vscode.ThemeIcon("git-branch");
-      item.tooltip = "Click to switch branches";
+      item.tooltip = "Expand to see all branches";
+      item.collapsibleState = vscode.TreeItemCollapsibleState.Expanded;
+      return item;
+    }
+
+    // Handle branch header (section label)
+    if (element.type === "branch-header") {
+      item.iconPath = new vscode.ThemeIcon("layers");
+      item.collapsibleState = vscode.TreeItemCollapsibleState.Collapsed;
+      return item;
+    }
+
+    // Handle individual branch items
+    if (element.type === "branch-item") {
+      const branchData = element.branchData;
+      if (branchData) {
+        // Build description with status
+        let descriptions: string[] = [];
+
+        // Add last synced time first with "last synced" prefix
+        if (branchData.lastSynced) {
+          descriptions.push(`last synced ${this.formatRelativeTime(branchData.lastSynced)}`);
+        }
+
+        // Add status for all branches (always show status)
+        if (branchData.status === "ahead" && branchData.opsCount !== undefined && branchData.opsCount > 0) {
+          descriptions.push(`${branchData.opsCount} op${branchData.opsCount !== 1 ? 's' : ''} ahead`);
+        } else if (branchData.status === "behind" && branchData.opsCount !== undefined && branchData.opsCount > 0) {
+          descriptions.push(`${branchData.opsCount} op${branchData.opsCount !== 1 ? 's' : ''} behind`);
+        } else {
+          // Default to up-to-date if no specific status or count is 0
+          descriptions.push("up-to-date");
+        }
+
+        item.description = descriptions.join(" • ");
+
+        item.iconPath = branchData.isCurrent
+          ? new vscode.ThemeIcon("circle-filled", new vscode.ThemeColor("charts.green"))
+          : new vscode.ThemeIcon("git-branch");
+
+        item.tooltip = `Click to switch to ${branchData.branchName}`;
+
+        // Add command to switch to this branch
+        item.command = {
+          command: "darklang.branch.switch",
+          title: "Switch Branch",
+          arguments: [branchData.branchId]
+        };
+      }
+      return item;
+    }
+
+    // Handle "Manage All Branches" action node
+    if (element.type === "branch-action") {
+      item.iconPath = new vscode.ThemeIcon("list-flat");
+      item.tooltip = "Open branch management interface";
       item.command = {
-        command: "darklang.branch.quickSwitch",
-        title: "Switch Branch",
-        arguments: []
+        command: "darklang.branches.manageAll",
+        title: "Manage All Branches"
       };
       return item;
     }
@@ -163,12 +309,40 @@ export class WorkspaceTreeDataProvider implements vscode.TreeDataProvider<Branch
       return item;
     }
 
+    // Handle owner group items
+    if (element.type === "owner-group") {
+      const ownerGroup = element as OwnerGroupNode;
+      item.iconPath = new vscode.ThemeIcon("person", new vscode.ThemeColor("charts.purple"));
+      item.tooltip = `Changes by ${ownerGroup.owner}`;
+      item.description = `${ownerGroup.children.length} ops`;
+
+      // Set contextValue based on whether all ops in this group are selected
+      const allSelected = ownerGroup.children.every(child =>
+        this.checkedOps.get(child.id) === true
+      );
+      item.contextValue = allSelected ? "owner-group-allselected" : "owner-group-notallselected";
+
+      return item;
+    }
+
     // Handle pending op items
     if (element.type === "pending-op") {
+      const pendingOpNode = element as PendingOpNode;
+
+      // Only show checkboxes when on a non-main branch
+      const currentBranchId = this.branchStateManager.getCurrentBranchId();
+      const shouldShowCheckbox = currentBranchId !== null && currentBranchId !== '';
+
+      if (shouldShowCheckbox) {
+        // Add checkbox support
+        const isChecked = this.checkedOps.get(pendingOpNode.id) || false;
+        item.checkboxState = isChecked
+          ? vscode.TreeItemCheckboxState.Checked
+          : vscode.TreeItemCheckboxState.Unchecked;
+      }
+
       item.iconPath = new vscode.ThemeIcon("diff-added", new vscode.ThemeColor("charts.green"));
       item.tooltip = "Click to open module file";
-
-      const pendingOpNode = element as PendingOpNode;
 
       // Add command to show diff if we have location info
       if (pendingOpNode.location) {
@@ -191,47 +365,122 @@ export class WorkspaceTreeDataProvider implements vscode.TreeDataProvider<Branch
       return await this.getRootNodes();
     }
 
+    // Handle branch root node - show branch list
+    if (element.type === "branch-root") {
+      return await this.getBranchChildren();
+    }
+
     // Handle pending changes node - fetch ops from LSP
     if (element.type === "changes-root") {
       return await this.getPendingChanges();
+    }
+
+    // Handle owner group - return its children
+    if (element.type === "owner-group") {
+      const ownerGroup = element as OwnerGroupNode;
+      return ownerGroup.children;
     }
 
     // Return children of the element
     return element.children || [];
   }
 
+  private async getBranchChildren(): Promise<BranchNode[]> {
+    const currentBranchId = this.branchStateManager.getCurrentBranchId();
+    const allBranches = this.branchStateManager.getBranches();
+
+    const children: BranchNode[] = [];
+
+    // 1. Current branch (if any)
+    if (currentBranchId) {
+      const currentBranch = allBranches.find(b => b.id === currentBranchId);
+      if (currentBranch) {
+        // TODO: Get actual last synced time from LSP
+        const lastSynced = new Date(Date.now() - 5 * 60 * 1000); // Mock: 5 minutes ago
+
+        children.push({
+          id: `branch-${currentBranch.id}`,
+          label: currentBranch.name,
+          type: "branch-item",
+          contextValue: "branch-item",
+          branchData: {
+            branchId: currentBranch.id,
+            branchName: currentBranch.name,
+            isCurrent: true,
+            status: "up-to-date",
+            opsCount: 0,
+            lastSynced: lastSynced
+          }
+        });
+      }
+    }
+
+    // 2. Main/Root branch (always show, unless it's the current branch)
+    // TODO: Get actual last synced time from LSP
+    const mainLastSynced = new Date(Date.now() - 10 * 60 * 1000); // Mock: 10 minutes ago
+
+    const mainBranchNode: BranchNode = {
+      id: "branch-main",
+      label: "main",
+      type: "branch-item",
+      contextValue: "branch-item-main",
+      branchData: {
+        branchId: "",
+        branchName: "main",
+        isMain: true,
+        status: "up-to-date",
+        opsCount: 0,
+        lastSynced: mainLastSynced
+      }
+    };
+
+    // Only add main if it's not the current branch
+    if (!currentBranchId || currentBranchId === "") {
+      // If no branch selected, don't show main as a separate item
+    } else {
+      children.push(mainBranchNode);
+    }
+
+    // 3. All other branches (directly, no grouping)
+    const otherBranches = allBranches.filter(b => b.id !== currentBranchId);
+
+    otherBranches.forEach((branch, index) => {
+      // TODO: Get actual last synced time from LSP
+      const lastSynced = new Date(Date.now() - (15 + index * 5) * 60 * 1000); // Mock: varying times
+
+      children.push({
+        id: `branch-${branch.id}`,
+        label: branch.name,
+        type: "branch-item",
+        contextValue: "branch-item",
+        branchData: {
+          branchId: branch.id,
+          branchName: branch.name,
+          isCurrent: false,
+          status: "up-to-date", // TODO: Calculate actual status
+          opsCount: 0,
+          lastSynced: lastSynced
+        }
+      });
+    });
+
+    // 4. Add "Manage All" action node at the bottom
+    children.push({
+      id: "branch-manage-all",
+      label: "Manage All Branches",
+      type: "branch-action",
+      contextValue: "branch-manage-all"
+    });
+
+    return children;
+  }
+
   private async getPendingChanges(): Promise<BranchNode[]> {
     try {
-      // Calculate date filter if applicable
-      let sinceDate: string | undefined;
-      if (this.opsFilter.dateRange !== 'all') {
-        const now = new Date();
-        const since = new Date();
-
-        switch (this.opsFilter.dateRange) {
-          case 'today':
-            since.setHours(0, 0, 0, 0);
-            break;
-          case 'week':
-            since.setDate(now.getDate() - 7);
-            break;
-          case 'month':
-            since.setMonth(now.getMonth() - 1);
-            break;
-          case 'custom':
-            if (this.opsFilter.customStartDate) {
-              since.setTime(this.opsFilter.customStartDate.getTime());
-            }
-            break;
-        }
-
-        sinceDate = since.toISOString();
-      }
-
       const requestParams = {
-        limit: this.opsFilter.limit ?? 999999, // Send large number if null
-        branchFilter: this.opsFilter.branch,
-        sinceDate: sinceDate,
+        limit: 20,
+        branchFilter: 'current',
+        sinceDate: undefined,
       };
 
       const ops = await this.client.sendRequest<PendingOpResponse[]>(
@@ -239,41 +488,104 @@ export class WorkspaceTreeDataProvider implements vscode.TreeDataProvider<Branch
         requestParams
       );
 
-      let nodes: PendingOpNode[] = ops.map((opWithLabel, index) => {
-        const location = this.extractLocationFromOp(opWithLabel.op);
-        return {
-          id: `op-${index}`,
-          label: opWithLabel.label,  // Use the formatted label from backend
-          type: "pending-op",
-          contextValue: "pending-op",
-          location: location,  // Store location for the command
-          opData: opWithLabel.op  // Store full op for diff view
-        };
-      });
+      let nodes: PendingOpNode[] = ops
+        .filter((opWithLabel) => {
+          // Filter out Add* ops completely (AddFn, AddType, AddValue, etc.)
+          try {
+            const parsed = JSON.parse(opWithLabel.op);
+            if (parsed.AddFn || parsed.AddType || parsed.AddValue) {
+              return false; // Skip Add* ops
+            }
+          } catch (e) {
+            // If parsing fails, keep the op
+          }
+          return true;
+        })
+        .map((opWithLabel, index) => {
+          const location = this.extractLocationFromOp(opWithLabel.op);
+          // Use the op data itself as a stable ID (not index-based)
+          // This ensures IDs don't change when ops are reordered
+          const opId = opWithLabel.op;
 
-      // Apply client-side location filter if specified
-      if (this.opsFilter.locationFilter && this.opsFilter.locationFilter.trim() !== '') {
-        const filterLower = this.opsFilter.locationFilter.toLowerCase();
-        nodes = nodes.filter(node => {
-          // Filter by label
-          if (node.label.toLowerCase().includes(filterLower)) {
-            return true;
-          }
-          // Filter by location if available
-          if (node.location) {
-            const locStr = `${node.location.owner}.${node.location.modules.join('.')}.${node.location.name}`.toLowerCase();
-            return locStr.includes(filterLower);
-          }
-          // If no location available, don't match (only label matching works)
-          return false;
+          // Clean up label - remove "Set*Name →" prefix text, keep only the fqname
+          let cleanLabel = opWithLabel.label;
+          cleanLabel = cleanLabel.replace(/^SetFnName\s+→\s+/, '');
+          cleanLabel = cleanLabel.replace(/^SetTypeName\s+→\s+/, '');
+          cleanLabel = cleanLabel.replace(/^SetValueName\s+→\s+/, '');
+
+          return {
+            id: opId,
+            label: cleanLabel,
+            type: "pending-op",
+            contextValue: "pending-op",
+            location: location,  // Store location for the command
+            opData: opWithLabel.op,  // Store full op for diff view
+            checked: this.checkedOps.get(opId) || false
+          };
         });
+
+      // Store current op IDs for select/deselect all
+      this.currentOpIds = nodes.map(n => n.id);
+
+      // Add "see more" node if we hit the limit
+      const hasMore = ops.length === 20;
+
+      // Only group by owner when on a non-main branch
+      const currentBranchId = this.branchStateManager.getCurrentBranchId();
+      const shouldGroupByOwner = currentBranchId !== null && currentBranchId !== '';
+
+      let result: BranchNode[];
+      if (shouldGroupByOwner) {
+        result = this.groupByOwner(nodes);
+      } else {
+        result = nodes;
       }
 
-      return nodes;
+      // Add "see more" node at the end if there are more items
+      if (hasMore) {
+        const seeMoreNode: BranchNode = {
+          id: 'see-more-changes',
+          label: 'See more...',
+          type: 'section',
+          contextValue: 'see-more',
+        };
+        result.push(seeMoreNode);
+      }
+
+      return result;
     } catch (error) {
       console.error('Failed to get pending ops:', error);
       return [];
     }
+  }
+
+  private groupByOwner(nodes: PendingOpNode[]): BranchNode[] {
+    // Group nodes by owner
+    const groupMap = new Map<string, PendingOpNode[]>();
+
+    for (const node of nodes) {
+      const owner = node.location?.owner || "Unknown";
+      if (!groupMap.has(owner)) {
+        groupMap.set(owner, []);
+      }
+      groupMap.get(owner)!.push(node);
+    }
+
+    // Convert to owner group nodes
+    const ownerGroups: OwnerGroupNode[] = [];
+    for (const [owner, opsInGroup] of groupMap.entries()) {
+      ownerGroups.push({
+        id: `owner-group-${owner}`,
+        label: owner,
+        type: "owner-group",
+        contextValue: "owner-group",
+        owner: owner,
+        children: opsInGroup
+      });
+    }
+
+    // Sort by owner name
+    return ownerGroups.sort((a, b) => a.owner.localeCompare(b.owner));
   }
 
   private extractLocationFromOp(op: string): OpLocation | null {
@@ -373,222 +685,12 @@ export class WorkspaceTreeDataProvider implements vscode.TreeDataProvider<Branch
     ];
   }
 
-  // Filter configuration methods
   private getPendingChangesLabel(): string {
-    const filters: string[] = [];
-
-    // Show limit if not default
-    if (this.opsFilter.limit !== 50) {
-      if (this.opsFilter.limit === null) {
-        filters.push('all');
-      } else {
-        filters.push(`${this.opsFilter.limit}`);
-      }
-    }
-
-    // Show date range if not all
-    if (this.opsFilter.dateRange !== 'all') {
-      filters.push(this.opsFilter.dateRange);
-    }
-
-    // Show branch filter
-    if (this.opsFilter.branch === 'all') {
-      filters.push('all branches');
-    } else if (this.opsFilter.branch !== 'current') {
-      // It's a specific branch - show the branch name
-      const branchLabel = this.getBranchFilterLabel();
-      filters.push(branchLabel);
-    }
-
-    // Show location filter
-    if (this.opsFilter.locationFilter) {
-      filters.push(`"${this.opsFilter.locationFilter}"`);
-    }
-
-    if (filters.length > 0) {
-      return `Pending Changes (${filters.join(', ')})`;
-    }
-    return 'Pending Changes';
+    return 'Changes';
   }
 
   private getOpsFilterTooltip(): string {
-    const parts: string[] = [];
-
-    const limitText = this.opsFilter.limit === null ? 'all' : `up to ${this.opsFilter.limit}`;
-    parts.push(`Showing ${limitText} ops`);
-
-    if (this.opsFilter.dateRange !== 'all') {
-      const dateLabel = this.opsFilter.dateRange === 'custom'
-        ? `since ${this.opsFilter.customStartDate?.toLocaleDateString()}`
-        : `from ${this.opsFilter.dateRange}`;
-      parts.push(dateLabel);
-    }
-
-    // Show branch filter information
-    if (this.opsFilter.branch === 'current') {
-      parts.push('current branch only');
-    } else if (this.opsFilter.branch === 'all') {
-      parts.push('all branches');
-    } else {
-      // It's a specific branch
-      const branchLabel = this.getBranchFilterLabel();
-      parts.push(`branch: ${branchLabel}`);
-    }
-
-    if (this.opsFilter.locationFilter) {
-      parts.push(`filtered by "${this.opsFilter.locationFilter}"`);
-    }
-
-    return parts.join(', ');
+    return 'Pending changes from the current branch';
   }
 
-  async configureLimitFilter(): Promise<void> {
-    const currentLimit = this.opsFilter.limit === null ? 'all' : this.opsFilter.limit.toString();
-    const choice = await vscode.window.showQuickPick([
-      { label: '10', value: 10 },
-      { label: '25', value: 25 },
-      { label: '50', value: 50 },
-      { label: '100', value: 100 },
-      { label: '500', value: 500 },
-      { label: '1000', value: 1000 },
-      { label: 'All (no limit)', value: null },
-    ], {
-      placeHolder: `Current limit: ${currentLimit}`
-    });
-
-    if (choice) {
-      this.opsFilter.limit = choice.value;
-      vscode.window.showInformationMessage(`Ops limit set to ${choice.label}`);
-      this.refresh();
-    }
-  }
-
-  async configureDateFilter(): Promise<void> {
-    type DateRangeOption = {
-      label: string;
-      value: OpsFilterConfig['dateRange'];
-    };
-
-    const choice = await vscode.window.showQuickPick<DateRangeOption>([
-      { label: 'All time', value: 'all' },
-      { label: 'Today', value: 'today' },
-      { label: 'Last 7 days', value: 'week' },
-      { label: 'Last 30 days', value: 'month' },
-      { label: 'Custom date...', value: 'custom' },
-    ], {
-      placeHolder: `Current: ${this.opsFilter.dateRange}`
-    });
-
-    if (!choice) {
-      return;
-    }
-
-    this.opsFilter.dateRange = choice.value;
-
-    if (choice.value === 'custom') {
-      const dateStr = await vscode.window.showInputBox({
-        prompt: 'Enter start date (YYYY-MM-DD)',
-        placeHolder: '2024-01-01'
-      });
-
-      if (dateStr) {
-        const date = new Date(dateStr);
-        if (!isNaN(date.getTime())) {
-          this.opsFilter.customStartDate = date;
-          vscode.window.showInformationMessage(`Filtering ops since ${dateStr}`);
-        } else {
-          vscode.window.showErrorMessage('Invalid date format');
-          return;
-        }
-      }
-    } else {
-      vscode.window.showInformationMessage(`Date filter set to: ${choice.label}`);
-    }
-
-    this.refresh();
-  }
-
-  private getBranchFilterLabel(): string {
-    if (this.opsFilter.branch === 'all') {
-      return 'All branches';
-    } else if (this.opsFilter.branch === 'current') {
-      return 'Current branch';
-    } else {
-      // It's a specific branch ID - find the branch name
-      const branch = this.branchStateManager.getBranches().find(b => b.id === this.opsFilter.branch);
-      return branch ? branch.name : 'Unknown branch';
-    }
-  }
-
-  async configureBranchFilter(): Promise<void> {
-    const branches = this.branchStateManager.getBranches();
-    const currentBranchId = this.branchStateManager.getCurrentBranchId();
-
-    // Build the list of branch options
-    const branchItems: BranchQuickPickItem[] = [
-      {
-        label: '$(git-branch) Current branch only',
-        value: 'current',
-        description: currentBranchId ? this.branchStateManager.getCurrentBranchName() : 'No branch selected'
-      },
-      { label: '$(layers) All branches', value: 'all', description: 'Show ops from all branches' },
-      { label: '', kind: vscode.QuickPickItemKind.Separator }
-    ];
-
-    // Add individual branches (only show non-merged branches)
-    branches
-      .filter(b => !b.mergedAt)
-      .forEach(b => {
-        const isCurrent = b.id === currentBranchId;
-        branchItems.push({
-          label: b.name,
-          description: isCurrent ? '● Current' : undefined,
-          detail: `Branch ID: ${b.id}`,
-          branchID: b.id
-        });
-      });
-
-    const choice = await vscode.window.showQuickPick(branchItems, {
-      placeHolder: `Current filter: ${this.getBranchFilterLabel()}`
-    });
-
-    if (choice) {
-      if (choice.branchID) {
-        this.opsFilter.branch = choice.branchID;
-        vscode.window.showInformationMessage(`Branch filter set to: ${choice.label}`);
-      } else if (choice.value) {
-        this.opsFilter.branch = choice.value;
-        vscode.window.showInformationMessage(`Branch filter set to: ${choice.label}`);
-      }
-      this.refresh();
-    }
-  }
-
-  async configureLocationFilter(): Promise<void> {
-    const input = await vscode.window.showInputBox({
-      prompt: 'Filter by module/function name (case-insensitive)',
-      placeHolder: 'e.g., Stdlib.List or MyModule',
-      value: this.opsFilter.locationFilter || ''
-    });
-
-    if (input !== undefined) {
-      this.opsFilter.locationFilter = input.trim() || undefined;
-      if (this.opsFilter.locationFilter) {
-        vscode.window.showInformationMessage(`Filtering by location: ${this.opsFilter.locationFilter}`);
-      } else {
-        vscode.window.showInformationMessage('Location filter cleared');
-      }
-      this.refresh();
-    }
-  }
-
-  async clearAllFilters(): Promise<void> {
-    this.opsFilter = {
-      limit: 50,
-      branch: 'current',
-      dateRange: 'all',
-    };
-    vscode.window.showInformationMessage('All filters cleared');
-    this.refresh();
-  }
 }

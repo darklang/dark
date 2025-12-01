@@ -383,3 +383,54 @@ let _handler _req =
         let results = Builtin.pmSearch branchID query
         let json = results |> Builtin.jsonSerialize<LanguageTools.ProgramTypes.Search.SearchResults>
         Stdlib.Http.response (Stdlib.String.toBytes json) 200L
+
+
+// =============================================================================
+// Test Database for extension UI
+// =============================================================================
+
+type Test = { name: String }
+
+[<DB>]
+type TestDB = Test
+
+
+[<HttpHandler("GET", "/db/set")>]
+let _handler _req =
+  let dbParam = getQueryParam request "db"
+  let keyParam = getQueryParam request "key"
+  let valueParam = getQueryParam request "value"
+
+  match (dbParam, keyParam, valueParam) with
+  | (Some _db, Some key, Some value) ->
+    // For now, only support TestDB
+    let record = Test { name = value }
+    let result = Stdlib.DB.set record key TestDB
+    let json = result |> Builtin.jsonSerialize<Test>
+    Stdlib.Http.response (Stdlib.String.toBytes json) 200L
+  | _ ->
+    Stdlib.Http.response (Stdlib.String.toBytes "Missing db, key, or value parameter") 400L
+
+
+[<HttpHandler("GET", "/db/get")>]
+let _handler _req =
+  let dbParam = getQueryParam request "db"
+  let keyParam = getQueryParam request "key"
+
+  match (dbParam, keyParam) with
+  | (Some _db, Some key) ->
+    match Stdlib.DB.get key TestDB with
+    | Some record ->
+      let json = record |> Builtin.jsonSerialize<Test>
+      Stdlib.Http.response (Stdlib.String.toBytes json) 200L
+    | None ->
+      Stdlib.Http.response (Stdlib.String.toBytes "not found") 404L
+  | _ ->
+    Stdlib.Http.response (Stdlib.String.toBytes "Missing db or key parameter") 400L
+
+
+[<HttpHandler("GET", "/db/getAll")>]
+let _handler _req =
+  let records = Stdlib.DB.getAll TestDB
+  let json = records |> Builtin.jsonSerialize<List<Test>>
+  Stdlib.Http.response (Stdlib.String.toBytes json) 200L

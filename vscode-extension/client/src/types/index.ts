@@ -22,12 +22,16 @@ export interface BranchNode {
     | "section"
     | "instance-root"
     | "branch-root"
+    | "branch-item"
+    | "branch-header"
+    | "branch-action"
     | "changes-root"
     | "instance-item"
     | "packages"
     | "branches"
     | "category"
-    | "pending-op";
+    | "pending-op"
+    | "owner-group";
   contextValue: string;
   children?: BranchNode[];
   instanceData?: {
@@ -37,6 +41,15 @@ export interface BranchNode {
     status?: "connected" | "disconnected" | "syncing";
     packageCount?: number;
     branchCount?: number;
+  };
+  branchData?: {
+    branchId: string;
+    branchName: string;
+    isCurrent?: boolean;
+    isMain?: boolean;
+    status?: "up-to-date" | "ahead" | "behind";
+    opsCount?: number;
+    lastSynced?: Date;
   };
 }
 

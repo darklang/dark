@@ -88,6 +88,22 @@ module Response =
             UTF8.toBytes
               "Application error: expected a Http.Response, but its fields were the wrong type" }
 
+    // Auto-wrap DString results as 200 OK text responses
+    | RT.DString s ->
+      Telemetry.addTags [ "response-type", "autoWrapped string" ]
+      { statusCode = 200
+        headers = [ "Content-Type", "text/plain; charset=utf-8" ]
+        body = UTF8.toBytes s }
+
+    // Auto-wrap DBytes results as 200 OK responses
+    | RT.DList(_, bytes) when
+      bytes |> List.forall (function RT.DUInt8 _ -> true | _ -> false)
+      ->
+      Telemetry.addTags [ "response-type", "autoWrapped bytes" ]
+      { statusCode = 200
+        headers = []
+        body = bytes |> Dval.dlistToByteArray }
+
     // Error responses
     | uncaughtResult ->
       Telemetry.addTags [ "response-type", "error"; "result", uncaughtResult ]
@@ -105,5 +121,6 @@ module Response =
               "    statusCode : Int64"
               "    headers : List<String*String>"
               "    body : Bytes"
-              "  }" ]
+              "  }"
+              "\nOr simply return a String for auto-wrapped 200 OK response." ]
           message |> String.concat "\n" |> UTF8.toBytes }
