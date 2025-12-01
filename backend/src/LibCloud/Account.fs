@@ -9,15 +9,17 @@ open Prelude
 open Fumble
 open LibDB.Db
 
-let createUser () : Task<UserID> =
+type Account = { id : UserID; name : string }
+
+let createUser (name : string) : Task<UserID> =
   task {
     let userID = System.Guid.NewGuid()
     do!
       Sql.query
         "INSERT INTO accounts_v0
-          (id)
-          VALUES (@id)"
-      |> Sql.parameters [ "id", Sql.uuid userID ]
+          (id, name)
+          VALUES (@id, @name)"
+      |> Sql.parameters [ "id", Sql.uuid userID; "name", Sql.string name ]
       |> Sql.executeStatementAsync
 
     return userID

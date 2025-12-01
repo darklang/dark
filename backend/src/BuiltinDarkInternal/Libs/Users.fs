@@ -12,15 +12,15 @@ open LibExecution.Builtin.Shortcuts
 let fns : List<BuiltInFn> =
   [ { name = fn "darkInternalUserCreate" 0
       typeParams = []
-      parameters = [ Param.make "unit" TUnit "" ]
+      parameters = [ Param.make "name" TString "The name for the new user" ]
       returnType = TUuid
-      description = "Creates a user, and returns their userID."
+      description = "Creates a user with the given name, and returns their userID."
       fn =
         (function
-        | _, _, _, [ DUnit ] ->
+        | _, _, _, [ DString name ] ->
           uply {
-            let! canvasID = LibCloud.Account.createUser ()
-            return DUuid canvasID
+            let! userID = LibCloud.Account.createUser name
+            return DUuid userID
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
