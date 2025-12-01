@@ -58,6 +58,9 @@ export class HomepagePanel {
           case "navigate":
             this._handleNavigation(message.page);
             return;
+          case "createNew":
+            this._handleCreateNew(message.type);
+            return;
         }
       },
       null,
@@ -74,6 +77,20 @@ export class HomepagePanel {
         ApprovalRequestsPanel.createOrShow(this._extensionUri);
         break;
       // Add other navigation cases here
+    }
+  }
+
+  private _handleCreateNew(type: string) {
+    switch (type) {
+      case "httphandler":
+        const HttpHandlerPanel =
+          require("./httpHandlerPanel").HttpHandlerPanel;
+        HttpHandlerPanel.createOrShow(this._extensionUri);
+        break;
+      case "db":
+        const DatabasePanel = require("./databasePanel").DatabasePanel;
+        DatabasePanel.createOrShow(this._extensionUri);
+        break;
     }
   }
 
@@ -338,6 +355,55 @@ export class HomepagePanel {
 
         .header-btn.primary:hover {
             background-color: #7C3AED;
+        }
+
+        .new-btn-container {
+            position: relative;
+        }
+
+        .new-dropdown {
+            position: absolute;
+            top: 100%;
+            right: 0;
+            margin-top: 4px;
+            background-color: var(--vscode-dropdown-background);
+            border: 1px solid var(--vscode-dropdown-border);
+            border-radius: 6px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+            z-index: 1000;
+            min-width: 160px;
+            display: none;
+        }
+
+        .new-dropdown.show {
+            display: block;
+        }
+
+        .dropdown-item {
+            padding: 10px 16px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            color: var(--vscode-foreground);
+            transition: background-color 0.15s;
+        }
+
+        .dropdown-item:first-child {
+            border-radius: 6px 6px 0 0;
+        }
+
+        .dropdown-item:last-child {
+            border-radius: 0 0 6px 6px;
+        }
+
+        .dropdown-item:hover {
+            background-color: var(--vscode-list-hoverBackground);
+        }
+
+        .dropdown-item svg {
+            width: 16px;
+            height: 16px;
         }
 
         .user-avatar {
@@ -645,10 +711,28 @@ export class HomepagePanel {
                     <span>📄</span>
                     <span>Docs</span>
                 </button>
-                <button class="header-btn primary">
-                    <span>+</span>
-                    <span>New</span>
-                </button>
+                <div class="new-btn-container">
+                    <button class="header-btn primary" id="newBtn">
+                        <span>+</span>
+                        <span>New</span>
+                    </button>
+                    <div class="new-dropdown" id="newDropdown">
+                        <div class="dropdown-item" data-type="httphandler">
+                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M22 12h-4l-3 9L9 3l-3 9H2"/>
+                            </svg>
+                            <span>HTTP Handler</span>
+                        </div>
+                        <div class="dropdown-item" data-type="db">
+                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <ellipse cx="12" cy="5" rx="9" ry="3"/>
+                                <path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/>
+                                <path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/>
+                            </svg>
+                            <span>Database</span>
+                        </div>
+                    </div>
+                </div>
                 <div class="user-avatar"></div>
             </div>
         </div>
@@ -862,8 +946,35 @@ export class HomepagePanel {
             btn.addEventListener('click', (e) => {
                 e.stopPropagation();
                 const text = btn.textContent.trim();
+                if (text.includes('Docs')) {
+                    vscode.postMessage({ command: 'openDocs' });
+                }
+            });
+        });
+
+        // Handle New button dropdown
+        const newBtn = document.getElementById('newBtn');
+        const newDropdown = document.getElementById('newDropdown');
+
+        newBtn?.addEventListener('click', (e) => {
+            e.stopPropagation();
+            newDropdown?.classList.toggle('show');
+        });
+
+        // Close dropdown when clicking outside
+        document.addEventListener('click', () => {
+            newDropdown?.classList.remove('show');
+        });
+
+        // Handle dropdown item clicks
+        document.querySelectorAll('.dropdown-item').forEach(item => {
+            item.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const type = item.getAttribute('data-type');
+                newDropdown?.classList.remove('show');
                 vscode.postMessage({
-                    command: text.includes('New') ? 'createNew' : 'openDocs'
+                    command: 'createNew',
+                    type: type
                 });
             });
         });
