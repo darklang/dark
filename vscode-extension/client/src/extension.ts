@@ -15,6 +15,7 @@ import { BranchesManagerPanel } from "./panels/branchManagerPanel";
 import { HomepagePanel } from "./panels/homepagePanel";
 import { ReviewChangesPanel } from "./panels/reviewChangesPanel";
 import { ApprovalRequestsPanel } from "./panels/approvalRequestsPanel";
+import { CallGraphPanel } from "./panels/callGraphPanel";
 
 import { BranchCommands } from "./commands/branchCommands";
 import { PackageCommands } from "./commands/packageCommands";
@@ -125,6 +126,15 @@ export async function activate(context: vscode.ExtensionContext) {
     },
   );
 
+  vscode.window.registerWebviewPanelSerializer?.(
+    CallGraphPanel.viewType,
+    {
+      async deserializeWebviewPanel(panel) {
+        CallGraphPanel.revive(panel, context.extensionUri);
+      },
+    },
+  );
+
   const packagesProvider = new PackagesTreeDataProvider(client);
   const workspaceProvider = new WorkspaceTreeDataProvider(client);
   const conflictsProvider = new ConflictsTreeDataProvider();
@@ -195,6 +205,9 @@ export async function activate(context: vscode.ExtensionContext) {
     }),
     vscode.commands.registerCommand("darklang.openHomepage", () => {
       HomepagePanel.createOrShow(context.extensionUri);
+    }),
+    vscode.commands.registerCommand("darklang.openCallGraph", () => {
+      CallGraphPanel.createOrShow(context.extensionUri);
     }),
     vscode.commands.registerCommand("darklang.changes.review", () => {
       // TODO: Get actual ops from workspace provider
