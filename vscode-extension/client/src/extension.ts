@@ -1,4 +1,5 @@
 import * as vscode from "vscode";
+import { spawn } from "child_process";
 import { SemanticTokensFeature } from "vscode-languageclient/lib/common/semanticTokens";
 import {
   LanguageClient,
@@ -14,7 +15,6 @@ import { BranchesManagerPanel } from "./panels/branchManagerPanel";
 
 import { BranchCommands } from "./commands/branchCommands";
 import { PackageCommands } from "./commands/packageCommands";
-import { InstanceCommands } from "./commands/instanceCommands";
 import { ScriptCommands } from "./commands/scriptCommands";
 
 import { StatusBarManager } from "./ui/statusbar/statusBarManager";
@@ -27,10 +27,30 @@ import { PackageContentProvider } from "./providers/content/packageContentProvid
 
 let client: LanguageClient;
 
+const isDebug = process.env.VSCODE_DEBUG_MODE === "true";
+const cwd = "/home/dark/app";
+const cli = isDebug ? "./scripts/run-cli" : "darklang";
+
+function startSyncService(): void {
+  const child = spawn("bash", [cli, "sync", "start-service"], {
+    cwd,
+    detached: true,
+    stdio: "ignore",
+  });
+  child.unref();
+  console.log("Sync service start requested via CLI");
+}
+
+function stopSyncService(): void {
+  const child = spawn("bash", [cli, "sync", "stop-service"], {
+    cwd,
+    stdio: "ignore",
+  });
+  child.unref();
+  console.log("Sync service stop requested via CLI");
+}
+
 function createLSPClient(): LanguageClient {
-  const isDebug = process.env.VSCODE_DEBUG_MODE === "true";
-  const cwd = "/home/dark/app";
-  const cli = isDebug ? "./scripts/run-cli" : "darklang";
   const args = [cli, "run", "@Darklang.LanguageTools.LspServer.runServerCli", "()" ];
 
   const baseRun = {
@@ -67,20 +87,8 @@ export async function activate(context: vscode.ExtensionContext) {
 
   BranchStateManager.initialize(client);
 
-  // Auto-start sync service
-  try {
-    const response = await client.sendRequest<{ success: boolean; message: string }>(
-      "dark/startSyncService",
-      {}
-    );
-    if (response.success) {
-      console.log("Sync service started:", response.message);
-    } else {
-      console.log("Sync service not started:", response.message);
-    }
-  } catch (error) {
-    console.error("Failed to start sync service:", error);
-  }
+  // Auto-start sync service via CLI
+  startSyncService();
 
   const statusBar = new StatusBarManager();
   const fsProvider = new DarkFileSystemProvider(client);
@@ -119,10 +127,7 @@ export async function activate(context: vscode.ExtensionContext) {
 
   const packageCommands = new PackageCommands();
   const branchCommands = new BranchCommands(statusBar, workspaceProvider);
-  const instanceCommands = new InstanceCommands(client, statusBar, workspaceProvider);
   const scriptCommands = new ScriptCommands();
-
-  instanceCommands.setPackagesProvider(packagesProvider);
 
   const reg = (d: vscode.Disposable) => context.subscriptions.push(d);
 
@@ -140,20 +145,15 @@ export async function activate(context: vscode.ExtensionContext) {
     workspaceView,
     ...packageCommands.register(),
     ...branchCommands.register(),
-    ...instanceCommands.register(),
     ...scriptCommands.register(),
   ].forEach(reg);
 }
 
 export async function deactivate(): Promise<void> {
-  if (client) {
-    // Stop sync service before stopping LSP client
-    try {
-      await client.sendRequest("dark/stopSyncService", {});
-    } catch (error) {
-      console.error("Failed to stop sync service:", error);
-    }
+  // Stop sync service via CLI (not LSP)
+  stopSyncService();
 
+  if (client) {
     await client.stop();
   }
 }
