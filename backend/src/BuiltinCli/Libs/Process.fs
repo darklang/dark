@@ -71,24 +71,6 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "processGetPid" 0
-      typeParams = []
-      parameters = [ Param.make "unit" TUnit "" ]
-      returnType = TInt64
-      description = "Returns the current process ID (PID)."
-      fn =
-        (function
-        | _, _, _, [ DUnit ] ->
-          uply {
-            let pid = System.Diagnostics.Process.GetCurrentProcess().Id
-            return DInt64(int64 pid)
-          }
-        | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplemented
-      previewable = Impure
-      deprecated = NotDeprecated }
-
-
     { name = fn "processIsRunning" 0
       typeParams = []
       parameters = [ Param.make "pid" TInt64 "Process ID to check" ]

@@ -233,54 +233,6 @@ let stop () : Stdlib.Result.Result<Unit, String> =
   | None -> Stdlib.Result.Result.Error "Sync service is not running"
 
 
-/// Get the status of the sync service
-type SyncServiceStatus =
-  { running: Bool
-    pid: Stdlib.Option.Option<Int64>
-    instance: Stdlib.Option.Option<String>
-    intervalSeconds: Stdlib.Option.Option<Int64> }
-
-let status () : SyncServiceStatus =
-  let running = isRunning ()
-  let pid = readPid ()
-
-  // Get instance name from config, or fall back to "instance2"
-  let instance =
-    match Config.get "sync.default_instance" with
-    | Some name -> Stdlib.Option.Option.Some name
-    | None -> Stdlib.Option.Option.Some "instance2 (default)"
-
-  let intervalSeconds =
-    match Config.get "sync.interval_seconds" with
-    | Some intervalStr ->
-      (match Stdlib.Int64.parse intervalStr with
-       | Ok interval -> Stdlib.Option.Option.Some interval
-       | Error _ -> Stdlib.Option.Option.None)
-    | None -> Stdlib.Option.Option.None
-
-  SyncServiceStatus
-    { running = running
-      pid = pid
-      instance = instance
-      intervalSeconds = intervalSeconds }
-
-
-/// Restart sync service
-/// Stops the current service if running, then starts a new one
-let restart () : Stdlib.Result.Result<Unit, String> =
-  // Force kill existing service if running (don't wait for graceful shutdown)
-  match readPid () with
-  | Some pid ->
-    let _ = Builtin.processKill pid
-    let _ = Builtin.fileDelete (pidFilePath ())
-    let _ = Builtin.fileDelete (shutdownSignalPath ())
-    log "Sync service force-killed for restart"
-  | None -> ()
-
-  // Start immediately
-  startInBackground ()
-
-
 /// Auto-start the sync service if not already running
 /// Called during CLI startup
 let autoStart () : Unit =
