@@ -32,7 +32,7 @@ const cwd = "/home/dark/app";
 const cli = isDebug ? "./scripts/run-cli" : "darklang";
 
 function startSyncService(): void {
-  const child = spawn("bash", [cli, "sync", "start-service"], {
+  const child = spawn("bash", [cli, "run", "@Darklang.Cli.SyncService.startInBackground", "()"], {
     cwd,
     detached: true,
     stdio: "ignore",
@@ -42,7 +42,7 @@ function startSyncService(): void {
 }
 
 function stopSyncService(): void {
-  const child = spawn("bash", [cli, "sync", "stop-service"], {
+  const child = spawn("bash", [cli, "run", "@Darklang.Cli.SyncService.stop", "()"], {
     cwd,
     stdio: "ignore",
   });

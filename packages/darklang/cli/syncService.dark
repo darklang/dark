@@ -81,8 +81,7 @@ let readPid () : Stdlib.Option.Option<Int64> =
   | false -> Stdlib.Option.Option.None
 
 
-/// Internal command - runs the eternal sync loop
-/// This is called by the background process spawned by startInBackground
+/// Runs the sync loop forever
 let syncLoop (intervalSeconds: Int64) : Unit =
   let intervalMs = Stdlib.Int64.multiply intervalSeconds 1000L
 
@@ -160,10 +159,8 @@ let startInBackground () : Stdlib.Result.Result<Unit, String> =
            | Error _ -> 20L)
         | None -> 20L
 
-      let intervalSecondsStr = Stdlib.Int64.toString intervalSeconds
-
-      // Build args for sync service loop
-      let args = [ "sync-service-loop"; intervalSecondsStr ]
+      // setup args to run syncLoop in background
+      let args = [ "run"; "@Darklang.Cli.SyncService.syncLoop"; $"{Stdlib.Int64.toString intervalSeconds}L" ]
 
       // Spawn background process
       match Builtin.processSpawnBackground args with

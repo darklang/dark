@@ -74,7 +74,6 @@ module Registry =
       ("help", "Show help for commands", ["commands"; "?"], Help.execute, Help.help, Help.complete)
       ("branch", "Manage development branches", [], Packages.Branch.execute, Packages.Branch.help, Packages.Branch.complete)
       ("instance", "Manage remote instances for syncing", [], Instances.execute, Instances.help, Instances.complete)
-      ("sync", "Sync with remote instance", [], Sync.execute, Sync.help, Sync.complete)
       ("config", "Manage CLI configuration", [], Config.execute, Config.help, Config.complete)
       ("install", "Install CLI globally", [], Installation.Install.execute, Installation.Install.help, Installation.Install.complete)
       ("update", "Update CLI to latest version", ["upgrade"], Installation.Update.execute, Installation.Update.help, Installation.Update.complete)
@@ -167,7 +166,7 @@ module Registry =
   // Command groups organized by category (shared between compact and detailed views)
   let commandGroups () : List<(String * List<String>)> =
     [ ("Packages", ["nav"; "ls"; "view"; "tree"; "back"; "search"; "val"; "let"; "fn"; "type"; "rm"])
-      ("Source Control", ["branch"; "instance"; "sync"])
+      ("Source Control", ["branch"; "instance"])
       ("Execution", ["run"; "eval"; "scripts"])
       ("Installation", ["install"; "update"; "uninstall"; "status"; "version"])
       ("Utilities", ["clear"; "help"; "quit"; "config"; "experiments"]) ]
@@ -462,40 +461,20 @@ let runInteractiveLoop (state: AppState) : Int64 =
     runInteractiveLoop newState
 
 
-/// Internal commands
-/// These are not visible to users and are only invoked programmatically
-module InternalCommands =
-  let tryExecute (args: List<String>) : Stdlib.Option.Option<Int64> =
-    match args with
-    | ["sync-service-loop"] ->
-      SyncServiceCommands.SyncServiceLoop.execute (initState ()) []
-      Stdlib.Option.Option.Some 0L
-
-    | ["sync-service-loop"; intervalSecondsStr] ->
-      SyncServiceCommands.SyncServiceLoop.execute (initState ()) [intervalSecondsStr]
-      Stdlib.Option.Option.Some 0L
-
-    | _ -> Stdlib.Option.Option.None
-
-
 let executeCliCommand (args: List<String>) : Int64 =
-  // First, check for internal commands
-  match InternalCommands.tryExecute args with
-  | Some exitCode -> exitCode
-  | None ->
-    let initialState = initState ()
+  let initialState = initState ()
 
-    match args with
-    // If someone runs `dark` without args, start the interactive loop
-    | [] ->
-      // Auto-start sync service if not already running
-      SyncService.autoStart ()
+  match args with
+  // If someone runs `dark` without args, start the interactive loop
+  | [] ->
+    // Auto-start sync service if not already running
+    SyncService.autoStart ()
 
-      Stdlib.printLine (View.formatWelcome ())
-      runInteractiveLoop initialState
-    // Otherwise, just execute command, print result, and exit
-    | _ ->
-      let command = args |> Stdlib.String.join " "
-      let finalState = Update.processInput initialState command
-      0L
+    Stdlib.printLine (View.formatWelcome ())
+    runInteractiveLoop initialState
+  // Otherwise, just execute command, print result, and exit
+  | _ ->
+    let command = args |> Stdlib.String.join " "
+    let finalState = Update.processInput initialState command
+    0L
 
