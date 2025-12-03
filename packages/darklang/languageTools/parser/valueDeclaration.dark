@@ -23,12 +23,15 @@ let parse
     let keywordValNode = findField node "keyword_val"
     let symEqualsNode = findField node "symbol_equals"
 
+    let description = extractDocComments node
+
     match (nameNode, valueNode, keywordValNode, symEqualsNode) with
     | Ok name, Ok value, Ok keywordVal, Ok equals ->
       (WrittenTypes.ValueDeclaration.ValueDeclaration
         { range = node.range
           name = name
           body = value
+          description = description
           keywordVal = keywordVal.range
           symbolEquals = equals.range })
       |> Stdlib.Result.Result.Ok

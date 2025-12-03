@@ -124,6 +124,7 @@ module ParseNodeToWrittenTypes =
                           Darklang.LanguageTools.WrittenTypes.TypeReference.Builtin.TInt64(range (0L, 12L) (0L, 17L))
                         )
                       )
+                    description = ""
                     keywordType = range (0L, 0L) (0L, 4L)
                     symbolEquals = range (0L, 10L) (0L, 11L) }
             ) ]

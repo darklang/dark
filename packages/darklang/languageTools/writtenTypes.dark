@@ -432,6 +432,7 @@ module TypeDeclaration =
       name: TypeIdentifier
       typeParams: List<(Range * String)>
       definition: Definition
+      description: String
       keywordType: Range
       symbolEquals: Range }
 
@@ -442,6 +443,7 @@ module ValueDeclaration =
     { range: Range
       name: ValueIdentifier
       body: Expr
+      description: String
       keywordVal: Range
       symbolEquals: Range }
 
@@ -470,6 +472,7 @@ module FnDeclaration =
       parameters: List<Parameter>
       returnType: TypeReference.TypeReference
       body: Expr
+      description: String
       keywordLet: Range
       symbolColon: Range
       symbolEquals: Range }

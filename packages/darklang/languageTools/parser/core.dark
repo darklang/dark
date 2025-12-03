@@ -115,6 +115,19 @@ let findAndParseRequired
     |> Stdlib.Result.Result.Error
 
 
+/// Extracts doc comment text from a node
+/// Looks for doc_comment children and combines them into a single string
+let extractDocComments (node: ParsedNode) : String =
+  node.children
+  |> Stdlib.List.filter (fun child -> child.fieldName == Stdlib.Option.Option.Some "doc_comments")
+  |> Stdlib.List.map (fun docComment ->
+    // Remove the "///" prefix and any leading space
+    docComment.text
+    |> Stdlib.String.dropFirst 3L
+    |> Stdlib.String.trimStart)
+  |> Stdlib.String.join "\n"
+
+
 let baseParseList
   (parseFn: ParsedNode -> Stdlib.Result.Result<'a, WrittenTypes.Unparseable>)
   (node: ParsedNode)
