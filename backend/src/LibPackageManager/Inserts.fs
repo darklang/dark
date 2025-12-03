@@ -41,7 +41,7 @@ let computeOpHash (op : PT.PackageOp) : System.Guid =
 
 // CLEANUP: The 'applied' flag is currently always set to true and all ops are applied immediately
 let insertAndApplyOps
-  (instanceID : Option<System.Guid>)
+  (instanceID : Option<PT.InstanceID>)
   (branchID : Option<PT.BranchID>)
   (ops : List<PT.PackageOp>)
   : Task<int64> =
@@ -63,22 +63,22 @@ let insertAndApplyOps
 
           let sql =
             """
-            INSERT OR IGNORE INTO package_ops (id, branch_id, op_blob, applied, instance_id)
-            VALUES (@id, @branch_id, @op_blob, @applied, @instance_id)
+            INSERT OR IGNORE INTO package_ops (id, instance_id, branch_id, op_blob, applied)
+            VALUES (@id, @instance_id, @branch_id, @op_blob, @applied)
             """
 
           let parameters =
             [ "id", Sql.uuid opId
+              "instance_id",
+              (match instanceID with
+               | Some id -> Sql.uuid id
+               | None -> Sql.dbnull)
               "branch_id",
               (match branchID with
                | Some id -> Sql.uuid id
                | None -> Sql.dbnull)
               "op_blob", Sql.bytes opBlob
-              "applied", Sql.bool true
-              "instance_id",
-              (match instanceID with
-               | Some id -> Sql.uuid id
-               | None -> Sql.dbnull) ]
+              "applied", Sql.bool true ]
 
           (sql, [ parameters ]))
 

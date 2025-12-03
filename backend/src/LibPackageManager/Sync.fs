@@ -12,11 +12,12 @@ open Fumble
 open LibDB.Db
 
 module DarkDateTime = LibExecution.DarkDateTime
+module PT = LibExecution.ProgramTypes
 
 
 /// Get the most recent sync time with a specific instance
 /// Returns None if no sync has occurred with this instance
-let getLastSyncDate (instanceID : System.Guid) : Ply<Option<DarkDateTime.T>> =
+let getLastSyncDate (instanceID : PT.InstanceID) : Ply<Option<DarkDateTime.T>> =
   uply {
     let! result =
       Sql.query
@@ -41,7 +42,7 @@ let getLastSyncDate (instanceID : System.Guid) : Ply<Option<DarkDateTime.T>> =
 
 /// Record a sync event in the database
 let recordSync
-  (instanceID : System.Guid)
+  (instanceID : PT.InstanceID)
   (opsPushed : int64)
   (opsFetched : int64)
   : Task<unit> =

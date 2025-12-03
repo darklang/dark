@@ -70,7 +70,6 @@ let _handler _req =
         (fun resultSoFar batch ->
           match resultSoFar with
           | Ok insertedSoFar ->
-            // Insert this batch's ops, preserving the batch's instanceID
             match SCM.PackageOps.add batch.instanceID batch.branchID batch.ops with
             | Ok batchInserted ->
               Stdlib.Result.Result.Ok(insertedSoFar + batchInserted)

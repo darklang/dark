@@ -76,13 +76,13 @@ let getRecentOpsAllBranches (limit : int64) : Task<List<PT.PackageOp>> =
 /// Get all package ops (from ALL branches) created since the specified datetime
 /// Returns ops with their branch IDs for multi-branch sync
 ///
-/// targetInstanceID: Optional target instance ID to filter results for.
+/// targetInstanceID: Optional target instance ID to filter results for:
 ///   - None: Return all ops
 ///   - Some(uuid): Exclude ops where instance_id = uuid (used when pushing to target to avoid sending ops back to their source)
 let getAllOpsSince
-  (targetInstanceID : Option<System.Guid>)
+  (targetInstanceID : Option<PT.InstanceID>)
   (since : LibExecution.DarkDateTime.T)
-  : Task<List<PT.PackageOp * Option<PT.BranchID> * Option<System.Guid>>> =
+  : Task<List<PT.PackageOp * Option<PT.BranchID> * Option<PT.InstanceID>>> =
   task {
     let sinceStr = LibExecution.DarkDateTime.toIsoString since
 
