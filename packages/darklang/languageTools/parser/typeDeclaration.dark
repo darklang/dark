@@ -203,6 +203,8 @@ let parse
     let keywordTypeNode = findField node "keyword_type"
     let symbolEqualsNode = findField node "symbol_equals"
 
+    let description = extractDocComments node
+
     match
       nameNode, defNode, typeParams, keywordTypeNode, symbolEqualsNode
     with
@@ -212,6 +214,7 @@ let parse
           name = name
           typeParams = typeParams
           definition = def
+          description = description
           keywordType = keywordType.range
           symbolEquals = symbolEquals.range })
       |> Stdlib.Result.Result.Ok

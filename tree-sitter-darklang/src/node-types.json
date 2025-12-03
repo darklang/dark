@@ -679,6 +679,16 @@
           }
         ]
       },
+      "doc_comments": {
+        "multiple": true,
+        "required": false,
+        "types": [
+          {
+            "type": "doc_comment",
+            "named": true
+          }
+        ]
+      },
       "keyword_let": {
         "multiple": false,
         "required": true,
@@ -3619,6 +3629,16 @@
     "type": "type_decl",
     "named": true,
     "fields": {
+      "doc_comments": {
+        "multiple": true,
+        "required": false,
+        "types": [
+          {
+            "type": "doc_comment",
+            "named": true
+          }
+        ]
+      },
       "keyword_type": {
         "multiple": false,
         "required": true,
@@ -4383,6 +4403,16 @@
     "type": "val_decl",
     "named": true,
     "fields": {
+      "doc_comments": {
+        "multiple": true,
+        "required": false,
+        "types": [
+          {
+            "type": "doc_comment",
+            "named": true
+          }
+        ]
+      },
       "keyword_val": {
         "multiple": false,
         "required": true,
@@ -4541,6 +4571,10 @@
   },
   {
     "type": "dedent",
+    "named": true
+  },
+  {
+    "type": "doc_comment",
     "named": true
   },
   {

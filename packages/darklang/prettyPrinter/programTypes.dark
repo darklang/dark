@@ -9,6 +9,19 @@
 module Darklang.PrettyPrinter.ProgramTypes
 
 
+/// Formats a description string as doc comments
+/// Returns empty string if description is empty
+let formatDocComment (description: String) : String =
+  if description == "" then
+    ""
+  else
+    description
+    |> Stdlib.String.split "\n"
+    |> Stdlib.List.map (fun line -> $"/// {line}")
+    |> Stdlib.String.join "\n"
+    |> fun s -> s ++ "\n"
+
+
 module NameResolutionError =
   let source (nre: LanguageTools.ProgramTypes.NameResolutionError) : String =
     match nre with
@@ -891,7 +904,7 @@ let packageType
   (branchID: Stdlib.Option.Option<Uuid>)
   (p: LanguageTools.ProgramTypes.PackageType.PackageType)
   : String =
-  // TODO: take care of deprecated and description
+  // TODO: take care of deprecated
   let namePart = FQTypeName.Package.atDefinition branchID p.id
 
   let typeParamPart =
@@ -907,7 +920,9 @@ let packageType
     (customType branchID p.declaration)
     |> PrettyPrinter.indent
 
-  $"type {namePart}{typeParamPart} =\n{defPart}"
+  let docComment = formatDocComment p.description
+
+  $"{docComment}type {namePart}{typeParamPart} =\n{defPart}"
 
 
 let packageValue
@@ -915,9 +930,11 @@ let packageValue
   (p: LanguageTools.ProgramTypes.PackageValue.PackageValue)
   : String =
   let namePart = FQValueName.Package.atDefinition ctx.branchID p.id
-
   let bodyPart = expr ctx p.body
-  $"val {namePart} = {bodyPart}"
+
+  let docComment = formatDocComment p.description
+
+  $"{docComment}val {namePart} = {bodyPart}"
 
 
 module PackageLocation =
@@ -959,7 +976,7 @@ let packageFn
   (ctx: Context)
   (p: LanguageTools.ProgramTypes.PackageFn.PackageFn)
   : String =
-  // TODO: handle `deprecated`, `description`
+  // TODO: handle `deprecated`
   let namePart = FQFnName.Package.atDefinition ctx.branchID p.id
 
   let typeParamPart =
@@ -991,7 +1008,9 @@ let packageFn
 
   let bodyPart = expr contextWithFn p.body
 
-  $"let {namePart}{typeParamPart} {paramPart}: {retPart} =\n{PrettyPrinter.indent bodyPart}"
+  let docComment = formatDocComment p.description
+
+  $"{docComment}let {namePart}{typeParamPart} {paramPart}: {retPart} =\n{PrettyPrinter.indent bodyPart}"
 
 
 module BuiltinFn =
@@ -1010,7 +1029,7 @@ module BuiltinFn =
           $"({p.name} : {params})")
       |> Stdlib.String.join ", "
 
-    parameters ++ " -> " ++ (f.returnType |> PrettyPrinter.RuntimeTypes.typeReference branchID)
+    parameters ++ " -> " ++ (PrettyPrinter.RuntimeTypes.typeReference branchID f.returnType)
 
 
 module PackageOp =

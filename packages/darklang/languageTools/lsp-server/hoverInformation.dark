@@ -64,7 +64,7 @@ let hoverInfoForThingAtPosition
 
     let metadata =
       Stdlib.Option.Option.Some(
-        "Fully qualified name: " ++ fqName ++ "\n\n" ++ prettyVal
+        "Fully qualified name: " ++ fqName ++ "\n\n" ++ (createCodeSnippet prettyVal)
       )
 
     createHoverInfo range description metadata
@@ -183,9 +183,10 @@ let tryGetFnAndCollectHoverInfo
       match getFn pkgFn with
       | Some f ->
         let description =
-          Stdlib.Option.Option.Some(
-            "TODO: add description when /// comments are supported"
-          )
+          if f.description == "" then
+            Stdlib.Option.Option.None
+          else
+            Stdlib.Option.Option.Some f.description
 
         let thingAtPosition =
           CursorPosition.ThingAtPosition.PackageFn(fnNameList, f, description)
@@ -534,9 +535,10 @@ let collectTypeRefHoverInfoAtPos
         match typ with
         | Some t ->
           let description =
-            Stdlib.Option.Option.Some(
-              "TODO: add description when /// comments are supported"
-            )
+            if t.description == "" then
+              Stdlib.Option.Option.None
+            else
+              Stdlib.Option.Option.Some t.description
 
           let thingAtPosition =
             CursorPosition.ThingAtPosition.PackageType(typeName, t, description)
@@ -756,9 +758,10 @@ let collectTypeHoverInfoAtPosition
       match typ with
       | Some t ->
         let description =
-          Stdlib.Option.Option.Some(
-            "TODO: add description when /// comments are supported"
-          )
+          if t.description == "" then
+            Stdlib.Option.Option.None
+          else
+            Stdlib.Option.Option.Some t.description
 
         let thingAtPosition =
           CursorPosition.ThingAtPosition.PackageType(typeNameList, t, description)
@@ -840,9 +843,10 @@ let collectValueHoverInfoAtPos
       match getValue with
       | Some value ->
         let description =
-          Stdlib.Option.Option.Some(
-            "TODO: add description when /// comments are supported"
-          )
+          if value.description == "" then
+            Stdlib.Option.Option.None
+          else
+            Stdlib.Option.Option.Some value.description
 
         let thingAtPosition =
           CursorPosition.ThingAtPosition.PackageValue(
@@ -962,9 +966,10 @@ let collectFnHoverInfoAtPos
             currentModules ++ "." ++ f.name.name)
 
       let description =
-        Stdlib.Option.Option.Some(
-          "TODO: add description when /// comments are supported"
-        )
+        if f.description == "" then
+          Stdlib.Option.Option.None
+        else
+          Stdlib.Option.Option.Some f.description
 
       let thingAtPosition =
         CursorPosition.ThingAtPosition.FnName(fqName, description)
@@ -1458,9 +1463,10 @@ let collectTypeNameHoverInfoAtPos
         match typ with
         | Some t ->
           let description =
-            Stdlib.Option.Option.Some(
-              "TODO: add description when /// comments are supported"
-            )
+            if t.description == "" then
+              Stdlib.Option.Option.None
+            else
+              Stdlib.Option.Option.Some t.description
 
           let thingAtPosition =
             CursorPosition.ThingAtPosition.PackageType(fqName, t, description)
@@ -2420,9 +2426,10 @@ let collectExpressionHoverInfoAtPos
             match getValue with
             | Some value ->
               let description =
-                Stdlib.Option.Option.Some(
-                  "TODO: add description when /// comments are supported"
-                )
+                if value.description == "" then
+                  Stdlib.Option.Option.None
+                else
+                  Stdlib.Option.Option.Some value.description
 
               let thingAtPosition =
                 CursorPosition.ThingAtPosition.PackageValue(

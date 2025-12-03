@@ -43,7 +43,9 @@ module.exports = grammar({
         optional($.expression),
       ),
 
-    _inline_comment: _ => token(seq("//", /.*/)),
+    doc_comment: _ => token(prec(1, seq("///", /.*/))),
+
+    _inline_comment: _ => token(prec(0, seq("//", /.*/))),
 
     type_params: $ =>
       seq(
@@ -84,18 +86,19 @@ module.exports = grammar({
     // ---------------------
     val_decl: $ =>
       seq(
+        field("doc_comments", repeat($.doc_comment)),
         field("keyword_val", alias("val", $.keyword)),
         field("name", $.value_identifier),
         field("symbol_equals", alias("=", $.symbol)),
         field("value", $.simple_expression),
       ),
 
-
     // ---------------------
     // Function declarations
     // ---------------------
     fn_decl: $ =>
       seq(
+        field("doc_comments", repeat($.doc_comment)),
         field("keyword_let", alias("let", $.keyword)),
         field("name", $.fn_identifier),
         optional(field("type_params", $.type_params)),
@@ -123,6 +126,7 @@ module.exports = grammar({
     // ---------------------
     type_decl: $ =>
       seq(
+        field("doc_comments", repeat($.doc_comment)),
         field("keyword_type", alias("type", $.keyword)),
         field("name", $.type_identifier),
         optional(field("type_params", $.type_params)),
@@ -141,10 +145,7 @@ module.exports = grammar({
     //
     // Alias
     type_decl_def_alias: $ =>
-      choice(
-        $.type_reference,
-        seq($.indent, $.type_reference, $.dedent)
-      ),
+      choice($.type_reference, seq($.indent, $.type_reference, $.dedent)),
 
     //
     // Record

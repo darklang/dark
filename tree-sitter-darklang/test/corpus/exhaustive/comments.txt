@@ -79,3 +79,85 @@ inline comment 3
     )
   )
 )
+
+
+==================
+doc comment - function
+==================
+
+/// This function adds two numbers
+let add (x: Int64) (y: Int64) : Int64 = x + y
+
+---
+
+(source_file
+  (fn_decl
+    (doc_comment)
+    (keyword)
+    (fn_identifier)
+    (fn_decl_params
+      (fn_decl_param (symbol) (variable_identifier) (symbol) (type_reference (builtin_type)) (symbol))
+      (fn_decl_param (symbol) (variable_identifier) (symbol) (type_reference (builtin_type)) (symbol))
+    )
+    (symbol)
+    (type_reference (builtin_type))
+    (symbol)
+    (expression (simple_expression (infix_operation (simple_expression (variable_identifier)) (operator) (simple_expression (variable_identifier)))))
+    (newline)
+  )
+)
+
+
+==================
+doc comment - multiple lines - type
+==================
+
+/// This type represents a user
+/// It contains basic user information
+/// for authentication purposes
+type User = { name: String; age: Int64 }
+
+---
+
+(source_file
+  (type_decl
+    (doc_comment)
+    (doc_comment)
+    (doc_comment)
+    (keyword)
+    (type_identifier)
+    (symbol)
+    (type_decl_def
+      (type_decl_def_record
+        (symbol)
+        (type_decl_def_record_fields
+          (type_decl_def_record_field (variable_identifier) (symbol) (type_reference (builtin_type)))
+          (symbol)
+          (type_decl_def_record_field (variable_identifier) (symbol) (type_reference (builtin_type)))
+        )
+        (symbol)
+      )
+    )
+  )
+)
+
+
+==================
+doc comment vs inline comment - value
+==================
+
+// This is a regular comment
+/// This is a doc comment
+val greeting = "hello" // trailing comment
+
+---
+
+(source_file
+  (val_decl
+    (doc_comment)
+    (keyword)
+    (value_identifier)
+    (symbol)
+    (simple_expression (string_segment (string_literal (symbol) (string_content) (symbol))))
+  )
+)

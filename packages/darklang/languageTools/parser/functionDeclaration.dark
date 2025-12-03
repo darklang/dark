@@ -122,6 +122,8 @@ let parse
     let symColonNode = findField node "symbol_colon"
     let symEqualsNode = findField node "symbol_equals"
 
+    let description = extractDocComments node
+
     match
       nameNode,
       typeParams,
@@ -147,6 +149,7 @@ let parse
           parameters = params
           returnType = rt
           body = body
+          description = description
           keywordLet = keywordLet.range
           symbolColon = colon.range
           symbolEquals = equals.range })
