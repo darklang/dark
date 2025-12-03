@@ -99,10 +99,9 @@ let sync
                   match resultSoFar with
                   | Error msg -> Stdlib.Result.Result.Error msg
                   | Ok appliedSoFar ->
-                    // Insert this batch's ops directly
-                    // Preserve the batch's instanceID to maintain provenance
+                    // Insert this batch's ops directly, preserving the batch's instanceID
                     let addResult =
-                      Builtin.scmAddOps batch.instanceID batch.branchID batch.ops
+                      SCM.PackageOps.add batch.instanceID batch.branchID batch.ops
 
                     match addResult with
                     | Ok batchApplied ->

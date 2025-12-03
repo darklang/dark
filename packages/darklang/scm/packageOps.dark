@@ -5,10 +5,11 @@ module Darklang.SCM.PackageOps
 /// Returns the number of inserted ops on success (duplicates are skipped),
 /// or an error message on failure
 let add
+  (instanceID: Stdlib.Option.Option<Uuid>)
   (branchID: Stdlib.Option.Option<Uuid>)
   (ops: List<LanguageTools.ProgramTypes.PackageOp>)
   : Stdlib.Result.Result<Int64, String> =
-  Builtin.scmAddOps Stdlib.Option.Option.None branchID ops
+  Builtin.scmAddOps instanceID branchID ops
 
 
 /// Get recent package ops from the database

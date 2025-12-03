@@ -65,7 +65,7 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
     Stdlib.printLine "Common configuration keys:"
     Stdlib.printLine ""
     Stdlib.printLine "  sync.default_instance    - Default instance for sync service"
-    Stdlib.printLine "  sync.interval_seconds    - Sync check interval (default: 30)"
+    Stdlib.printLine "  sync.interval_seconds    - Sync check interval (default: 20)"
     Stdlib.printLine "  sync.auto_start          - Auto-start sync service (default: true)"
     Stdlib.printLine ""
     Stdlib.printLine "Use 'config get <key>' to read a value"
@@ -110,7 +110,7 @@ let help (_state: Cli.AppState) : Cli.AppState =
     ""
     "Common keys:"
     "  sync.default_instance    - Which instance to sync with"
-    "  sync.interval_seconds    - How often to check for changes (default: 30)"
+    "  sync.interval_seconds    - How often to check for changes (default: 20)"
     "  sync.auto_start          - Start sync service automatically (default: true)" ]
   |> Stdlib.printLines
 

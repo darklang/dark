@@ -38,8 +38,8 @@ let computeOpHash (op : PT.PackageOp) : System.Guid =
 
 /// Insert PackageOps into the package_ops table and apply them to projection tables
 /// Returns the count of ops actually inserted (duplicates are skipped via INSERT OR IGNORE)
-/// CLEANUP: The 'applied' flag is currently always set to true and all ops are applied
-/// immediately. Should we reconsider this?
+
+// CLEANUP: The 'applied' flag is currently always set to true and all ops are applied immediately
 let insertAndApplyOps
   (instanceID : Option<System.Guid>)
   (branchID : Option<PT.BranchID>)

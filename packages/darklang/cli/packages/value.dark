@@ -98,7 +98,10 @@ let createValueInline
               LanguageTools.ProgramTypes.PackageOp.SetValueName (packageValue.id, location) ]
 
           // Push the ops up to the server
-          match SCM.PackageOps.add branchID ops with
+          // Local CLI ops don't need an instanceID to track their origin
+          let instanceID = Stdlib.Option.Option.None
+
+          match SCM.PackageOps.add instanceID branchID ops with
           | Ok _ ->
             // Show success message
             let fullPath = PrettyPrinter.ProgramTypes.PackageLocation.packageLocation location
