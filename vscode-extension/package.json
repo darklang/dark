@@ -101,6 +101,14 @@
         "title": "Show Op Diff"
       },
       {
+        "command": "darklang.clearRecentItems",
+        "title": "Darklang: Clear Recent Items"
+      },
+      {
+        "command": "darklang.revealInPackagesTree",
+        "title": "Darklang: Reveal in Packages Tree"
+      },
+      {
         "command": "darklang.branch.new",
         "title": "Start New Branch",
         "icon": "$(add)"
@@ -157,6 +165,16 @@
         "command": "darklang.changes.review",
         "title": "Review Changes",
         "icon": "$(preview)"
+      },
+      {
+        "command": "darklang.packages.pin",
+        "title": "Pin",
+        "icon": "$(pin)"
+      },
+      {
+        "command": "darklang.packages.unpin",
+        "title": "Unpin",
+        "icon": "$(pinned)"
       }
     ],
     "menus": {
@@ -168,8 +186,18 @@
       ],
 			"view/item/context": [
         {
+					"command": "darklang.packages.pin",
+					"when": "view == darklangPackages && !(viewItem =~ /pinned/)",
+					"group": "inline"
+				},
+        {
+					"command": "darklang.packages.unpin",
+					"when": "view == darklangPackages && viewItem =~ /pinned/",
+					"group": "inline"
+				},
+        {
 					"command": "darklang.openFullModule",
-					"when": "view == darklangPackages && viewItem == module",
+					"when": "view == darklangPackages && viewItem =~ /module/",
 					"group": "navigation"
 				},
         {

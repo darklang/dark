@@ -41,8 +41,8 @@ let errBadMethod = Stdlib.Result.Result.Error(Stdlib.HttpClient.RequestError.Bad
 let errUnsupportedProtocol = Stdlib.Result.Result.Error(Stdlib.HttpClient.RequestError.BadUrl(Stdlib.HttpClient.BadUrlDetails.UnsupportedProtocol))
 
 // basic requests work
-((get "https://httpbin.org" []) |> Stdlib.Result.map (fun r -> r.statusCode)) = Stdlib.Result.Result.Ok 200L
-// TODO: this is a flaky test – replace httpbin.org call with a local server
+// TODO: these tests are flaky – replace httpbin.org call with a local server
+// ((get "https://httpbin.org" []) |> Stdlib.Result.map (fun r -> r.statusCode)) = Stdlib.Result.Result.Ok 200L
 // ((get "http://httpbin.org" []) |> Stdlib.Result.map (fun r -> r.statusCode)) = Stdlib.Result.Result.Ok 200L
 
 // Stdlib.HttpClient.request "get" "https://darklang.com" [ 1L ] [] =

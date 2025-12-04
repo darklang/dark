@@ -32,6 +32,7 @@ module HandleCommand =
       // CLEANUP fetch the list of canvases by 'ls canvases' equiv.
       // CLEANUP stop tossing the result
       let! _ = reloadCanvas "dark-packages"
+      let! _ = reloadCanvas "dark-editor"
       return Ok()
     }
 
@@ -53,9 +54,10 @@ module HandleCommand =
       print "Loaded packages from disk "
       print $"{stats.types} types, {stats.values} values, and {stats.fns} fns"
 
-      // Reload dark-packages canvas after package reload
+      // Reload dark-packages and dark-editor canvases after package reload
       print "Reloading dark-packages canvas..."
       let! _ = reloadCanvas "dark-packages"
+      let! _ = reloadCanvas "dark-editor"
 
       return Ok()
     }

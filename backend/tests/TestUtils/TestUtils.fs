@@ -32,7 +32,7 @@ module PT2DT = LibExecution.ProgramTypesToDarkTypes
 let pmPT = LibPackageManager.PackageManager.pt
 let pmRT = LibPackageManager.PackageManager.rt
 
-let testOwner : Lazy<Task<UserID>> = lazy (Account.createUser ())
+let testOwner : Lazy<Task<UserID>> = lazy (Account.createUser "TestUser")
 
 let nameToTestDomain (name : string) : string =
   let name =
