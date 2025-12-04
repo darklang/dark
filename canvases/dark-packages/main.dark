@@ -59,11 +59,25 @@ let parseUuidParam (value: String) : Stdlib.Result.Result<Uuid, Stdlib.Http.Resp
 [<HttpHandler("POST", "/ops")>]
 let _handler _req =
   let bodyStr = Stdlib.String.fromBytesWithReplacement request.body
-  let branchID = getBranchIDFromQuery request
 
-  match Builtin.jsonParse<List<LanguageTools.ProgramTypes.PackageOp>> bodyStr with
-  | Ok ops ->
-    match Builtin.scmAddOps branchID ops with
+  match Builtin.jsonParse<List<LanguageTools.ProgramTypes.PackageOpBatch>> bodyStr with
+  | Ok batches ->
+    // Process each batch
+    let results =
+      Stdlib.List.fold
+        batches
+        (Stdlib.Result.Result.Ok 0L)
+        (fun resultSoFar batch ->
+          match resultSoFar with
+          | Ok insertedSoFar ->
+            match SCM.PackageOps.add batch.instanceID batch.branchID batch.ops with
+            | Ok batchInserted ->
+              Stdlib.Result.Result.Ok(insertedSoFar + batchInserted)
+            | Error errMsg -> Stdlib.Result.Result.Error errMsg
+
+          | Error msg -> Stdlib.Result.Result.Error msg)
+
+    match results with
     | Ok insertedCount ->
       let countStr = Builtin.int64ToString insertedCount
       let responseMsg = $"Successfully received and applied {countStr} ops"
@@ -73,15 +87,13 @@ let _handler _req =
       Stdlib.Http.response (Stdlib.String.toBytes errorMsg) 500L
 
   | Error _err ->
-    let errorMsg = "Invalid request body. Expected JSON list of PackageOps."
+    let errorMsg = "Invalid request body. Expected JSON list of PackageOpBatch."
 
     Stdlib.Http.response (Stdlib.String.toBytes errorMsg) 400L
 
 
 [<HttpHandler("GET", "/ops")>]
 let _handler _req =
-  let branchID = getBranchIDFromQuery request
-
   match getQueryParam request "since" with
   | None ->
     let errorMsg = "Missing required query parameter: 'since'"
@@ -90,8 +102,14 @@ let _handler _req =
   | Some sinceStr ->
     match Stdlib.DateTime.parse sinceStr with
     | Ok sinceDate ->
-      let ops = Darklang.SCM.PackageOps.getSince branchID sinceDate
-      let json = ops |> Builtin.jsonSerialize<List<LanguageTools.ProgramTypes.PackageOp>>
+      // Get ops from ALL branches, already grouped by (branchID, instanceID)
+      // Pass None for targetInstanceID since we're not filtering on pull side
+      let batches = Builtin.scmGetOpsSince Stdlib.Option.Option.None sinceDate
+
+      let json =
+        batches
+        |> Builtin.jsonSerialize<List<LanguageTools.ProgramTypes.PackageOpBatch>>
+
       Stdlib.Http.response (Stdlib.String.toBytes json) 200L
 
     | Error _err ->

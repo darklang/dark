@@ -46,7 +46,7 @@ module HandleCommand =
       do! LibPackageManager.Purge.purge ()
 
       print "Filling ..."
-      let! _ = LibPackageManager.Inserts.insertAndApplyOps None ops
+      let! _ = LibPackageManager.Inserts.insertAndApplyOps None None ops
 
       // Get stats after ops are inserted/applied
       let! stats = LibPackageManager.Stats.get ()

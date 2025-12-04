@@ -699,6 +699,7 @@ Short answer: while Ops are played out
 
 
 type BranchID = uuid
+type InstanceID = uuid
 
 /// A package entity paired with its location
 type LocatedItem<'T> = { entity : 'T; location : PackageLocation }

@@ -9,7 +9,6 @@ interface BranchDisplayModel {
   active: boolean;
   isCurrent: boolean;
   createdAt: string;
-  conflicts?: number;
 }
 
 /** Branches Manager Panel - Manage all branches (active and inactive) */
@@ -464,8 +463,7 @@ export class BranchesManagerPanel {
         <div class="branch-info">
           <div class="branch-name">${branch.name}${statusBadge}</div>
           <div class="branch-meta">
-            ${branch.description ? branch.description + " · " : ""}
-            ${branch.conflicts ? " · " + branch.conflicts + " conflicts" : ""}
+            ${branch.description ? branch.description : ""}
           </div>
         </div>
         <div class="branch-actions">

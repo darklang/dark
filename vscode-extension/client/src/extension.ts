@@ -1,4 +1,5 @@
 import * as vscode from "vscode";
+import { spawn } from "child_process";
 import { SemanticTokensFeature } from "vscode-languageclient/lib/common/semanticTokens";
 import {
   LanguageClient,
@@ -14,8 +15,6 @@ import { BranchesManagerPanel } from "./panels/branchManagerPanel";
 
 import { BranchCommands } from "./commands/branchCommands";
 import { PackageCommands } from "./commands/packageCommands";
-import { InstanceCommands } from "./commands/instanceCommands";
-import { SyncCommands } from "./commands/syncCommands";
 import { ScriptCommands } from "./commands/scriptCommands";
 
 import { StatusBarManager } from "./ui/statusbar/statusBarManager";
@@ -28,10 +27,30 @@ import { PackageContentProvider } from "./providers/content/packageContentProvid
 
 let client: LanguageClient;
 
+const isDebug = process.env.VSCODE_DEBUG_MODE === "true";
+const cwd = "/home/dark/app";
+const cli = isDebug ? "./scripts/run-cli" : "darklang";
+
+function startSyncService(): void {
+  const child = spawn("bash", [cli, "run", "@Darklang.Cli.SyncService.startInBackground", "()"], {
+    cwd,
+    detached: true,
+    stdio: "ignore",
+  });
+  child.unref();
+  console.log("Sync service start requested via CLI");
+}
+
+function stopSyncService(): void {
+  const child = spawn("bash", [cli, "run", "@Darklang.Cli.SyncService.stop", "()"], {
+    cwd,
+    stdio: "ignore",
+  });
+  child.unref();
+  console.log("Sync service stop requested via CLI");
+}
+
 function createLSPClient(): LanguageClient {
-  const isDebug = process.env.VSCODE_DEBUG_MODE === "true";
-  const cwd = "/home/dark/app";
-  const cli = isDebug ? "./scripts/run-cli" : "darklang";
   const args = [cli, "run", "@Darklang.LanguageTools.LspServer.runServerCli", "()" ];
 
   const baseRun = {
@@ -67,6 +86,9 @@ export async function activate(context: vscode.ExtensionContext) {
   await client.onReady();
 
   BranchStateManager.initialize(client);
+
+  // Auto-start sync service via CLI
+  startSyncService();
 
   const statusBar = new StatusBarManager();
   const fsProvider = new DarkFileSystemProvider(client);
@@ -105,21 +127,9 @@ export async function activate(context: vscode.ExtensionContext) {
 
   const packageCommands = new PackageCommands();
   const branchCommands = new BranchCommands(statusBar, workspaceProvider);
-  const instanceCommands = new InstanceCommands(client, statusBar, workspaceProvider);
-  const syncCommands = new SyncCommands(client);
   const scriptCommands = new ScriptCommands();
 
-  instanceCommands.setPackagesProvider(packagesProvider);
-
   const reg = (d: vscode.Disposable) => context.subscriptions.push(d);
-
-  const ops = [
-    ["darklang.ops.setLimit", () => workspaceProvider.configureLimitFilter()],
-    ["darklang.ops.setDateRange", () => workspaceProvider.configureDateFilter()],
-    ["darklang.ops.setBranch", () => workspaceProvider.configureBranchFilter()],
-    ["darklang.ops.setLocation", () => workspaceProvider.configureLocationFilter()],
-    ["darklang.ops.clearFilters", () => workspaceProvider.clearAllFilters()],
-  ] as const;
 
   // Core registrations
   [
@@ -130,18 +140,20 @@ export async function activate(context: vscode.ExtensionContext) {
     vscode.commands.registerCommand("darklang.branches.manageAll", () => {
       BranchesManagerPanel.createOrShow(context.extensionUri);
     }),
-    ...ops.map(([cmd, fn]) => vscode.commands.registerCommand(cmd, fn)),
     packagesView,
     packagesProvider,
     workspaceView,
     ...packageCommands.register(),
     ...branchCommands.register(),
-    ...instanceCommands.register(),
-    ...syncCommands.register(),
     ...scriptCommands.register(),
   ].forEach(reg);
 }
 
-export function deactivate(): Thenable<void> | undefined {
-  return client ? client.stop() : undefined;
+export async function deactivate(): Promise<void> {
+  // Stop sync service via CLI (not LSP)
+  stopSyncService();
+
+  if (client) {
+    await client.stop();
+  }
 }

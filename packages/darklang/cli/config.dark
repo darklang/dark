@@ -1,0 +1,117 @@
+module Darklang.Cli.Config
+
+// Config file path - uses rundir/ in portable mode, ~/.darklang/ when installed
+let configFilePath () : String =
+  match Installation.System.getInstallationMode () with
+  | Portable -> "rundir/cli-config.json"
+  | Installed ->
+    let host = (Stdlib.Cli.Host.getRuntimeHost ()) |> Builtin.unwrap
+    let darklangHomeDir = Installation.Config.getDarklangHomeDir host
+    $"{darklangHomeDir}/cli-config.json"
+
+// Read config from disk
+let readConfig () : Dict<String> =
+  match Builtin.fileExists (configFilePath ()) with
+  | true ->
+    match Builtin.fileRead (configFilePath ()) with
+    | Ok bytes ->
+      let contents = Stdlib.String.fromBytesWithReplacement bytes
+
+      match Builtin.jsonParse<Dict<String>> contents with
+      | Ok config -> config
+      | Error _ -> Dict {}
+
+    | Error _ -> Dict {}
+
+  | false -> Dict {}
+
+
+// Write config to disk
+let writeConfig (config: Dict<String>) : Unit =
+  let json = Builtin.jsonSerialize<Dict<String>> config
+  let jsonBytes = Stdlib.String.toBytes json
+  let _ = Builtin.fileWrite jsonBytes (configFilePath ())
+  ()
+
+
+// Helper to get a single config value
+let get (key: String) : Stdlib.Option.Option<String> =
+  let config = readConfig ()
+  Stdlib.Dict.get config key
+
+
+let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
+  match args with
+  | ["get"; key] ->
+    let config = readConfig ()
+    match Stdlib.Dict.get config key with
+    | Some value ->
+      Stdlib.printLine $"{key} = {value}"
+      state
+
+    | None ->
+      Stdlib.printLine (Colors.error $"Configuration key not found: {key}")
+      state
+
+  | ["set"; key; value] ->
+    let config = readConfig ()
+    let updatedConfig = Stdlib.Dict.set config key value
+    writeConfig updatedConfig
+    Stdlib.printLine (Colors.success $"Set {key} = {value}")
+    state
+
+  | ["list"] ->
+    // List all common config keys
+    Stdlib.printLine "Common configuration keys:"
+    Stdlib.printLine ""
+    Stdlib.printLine "  sync.default_instance    - Default instance for sync service"
+    Stdlib.printLine "  sync.interval_seconds    - Sync check interval (default: 20)"
+    Stdlib.printLine "  sync.auto_start          - Auto-start sync service (default: true)"
+    Stdlib.printLine ""
+    Stdlib.printLine "Use 'config get <key>' to read a value"
+    Stdlib.printLine "Use 'config set <key> <value>' to set a value"
+    state
+
+  | _ ->
+    Stdlib.printLine (Colors.error "Invalid arguments")
+    Stdlib.printLine ""
+    help state
+    state
+
+
+let complete (_state: Cli.AppState) (args: List<String>) : List<String> =
+  match args with
+  | [] -> ["get"; "set"; "list"]
+
+  | ["get"] ->
+    [ "sync.default_instance"
+      "sync.interval_seconds"
+      "sync.auto_start" ]
+
+  | ["set"] ->
+    [ "sync.default_instance"
+      "sync.interval_seconds"
+      "sync.auto_start" ]
+
+  | _ -> []
+
+
+let help (_state: Cli.AppState) : Cli.AppState =
+  [ "Usage:"
+    "  config get <key>           - Get a configuration value"
+    "  config set <key> <value>   - Set a configuration value"
+    "  config list                - List common configuration keys"
+    ""
+    "Examples:"
+    "  config set sync.default_instance local"
+    "  config set sync.interval_seconds 60"
+    "  config get sync.default_instance"
+    "  config set sync.auto_start false"
+    ""
+    "Common keys:"
+    "  sync.default_instance    - Which instance to sync with"
+    "  sync.interval_seconds    - How often to check for changes (default: 20)"
+    "  sync.auto_start          - Start sync service automatically (default: true)" ]
+  |> Stdlib.printLines
+
+  _state

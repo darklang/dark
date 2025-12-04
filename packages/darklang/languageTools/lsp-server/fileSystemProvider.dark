@@ -461,9 +461,12 @@ module WriteFile =
             (Stdlib.List.append fnOps valueOps)
 
         // Only add ops if there are new items
+        // Local editor ops don't need an instanceID to track their origin
+        let instanceID = Stdlib.Option.Option.None
+
         let addResult =
           if (Stdlib.List.isEmpty allOps) |> Stdlib.Bool.not then
-            SCM.PackageOps.add state.branchID allOps
+            SCM.PackageOps.add instanceID state.branchID allOps
           else
             Stdlib.Result.Result.Ok 0L
 

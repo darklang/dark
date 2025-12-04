@@ -73,45 +73,59 @@ let getRecentOpsAllBranches (limit : int64) : Task<List<PT.PackageOp>> =
   }
 
 
-/// Get package ops created since the specified datetime
-let getOpsSince
-  (branchID : Option<PT.BranchID>)
+/// Get all package ops (from ALL branches) created since the specified datetime
+/// Returns ops with their branch IDs for multi-branch sync
+///
+/// targetInstanceID: Optional target instance ID to filter results for:
+///   - None: Return all ops
+///   - Some(uuid): Exclude ops where instance_id = uuid (used when pushing to target to avoid sending ops back to their source)
+let getAllOpsSince
+  (targetInstanceID : Option<PT.InstanceID>)
   (since : LibExecution.DarkDateTime.T)
-  : Task<List<PT.PackageOp>> =
+  : Task<List<PT.PackageOp * Option<PT.BranchID> * Option<PT.InstanceID>>> =
   task {
     let sinceStr = LibExecution.DarkDateTime.toIsoString since
 
-    match branchID with
-    | Some id ->
-      // Query specific branch only
+    match targetInstanceID with
+    | Some targetID ->
       return!
         Sql.query
           """
-          SELECT id, op_blob
+          SELECT id, op_blob, branch_id, instance_id
           FROM package_ops
-          WHERE branch_id = @branch_id
-            AND datetime(created_at) > datetime(@since)
-          ORDER BY created_at ASC
+          WHERE datetime(created_at) > datetime(@since)
+            AND (instance_id IS NULL OR instance_id != @target_instance_id)
+          ORDER BY
+            CASE WHEN branch_id IS NULL THEN 0 ELSE 1 END,
+            created_at ASC
           """
-        |> Sql.parameters [ "branch_id", Sql.uuid id; "since", Sql.string sinceStr ]
+        |> Sql.parameters
+          [ "since", Sql.string sinceStr; "target_instance_id", Sql.uuid targetID ]
         |> Sql.executeAsync (fun read ->
           let opId = read.uuid "id"
           let opBlob = read.bytes "op_blob"
-          BinarySerialization.PT.PackageOp.deserialize opId opBlob)
+          let branchID = read.uuidOrNone "branch_id"
+          let instanceID = read.uuidOrNone "instance_id"
+          let op = BinarySerialization.PT.PackageOp.deserialize opId opBlob
+          (op, branchID, instanceID))
     | None ->
-      // Query main branch only (branch_id IS NULL)
       return!
         Sql.query
           """
-          SELECT id, op_blob
+          SELECT id, op_blob, branch_id, instance_id
           FROM package_ops
-          WHERE branch_id IS NULL
-            AND datetime(created_at) > datetime(@since)
-          ORDER BY created_at ASC
+          WHERE datetime(created_at) > datetime(@since)
+          ORDER BY
+            CASE WHEN branch_id IS NULL THEN 0 ELSE 1 END,
+            created_at ASC
           """
         |> Sql.parameters [ "since", Sql.string sinceStr ]
         |> Sql.executeAsync (fun read ->
           let opId = read.uuid "id"
           let opBlob = read.bytes "op_blob"
-          BinarySerialization.PT.PackageOp.deserialize opId opBlob)
+          let branchID = read.uuidOrNone "branch_id"
+          let instanceID = read.uuidOrNone "instance_id"
+          let op = BinarySerialization.PT.PackageOp.deserialize opId opBlob
+          (op, branchID, instanceID))
+
   }

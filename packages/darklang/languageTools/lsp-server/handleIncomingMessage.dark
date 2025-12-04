@@ -276,9 +276,6 @@ let handleIncomingMessage
         | ("dark/clearBranch", Some requestId, _) ->
           Branches.handleClearBranchRequest state requestId
 
-        | ("dark/sync", Some requestId, Some(Object [ ("instanceID", String instanceID) ])) ->
-          Sync.handleSyncRequest state requestId instanceID
-
         | ("dark/listInstances", Some requestId, _) ->
           Sync.handleListInstancesRequest state requestId
 

@@ -1,38 +1,5 @@
 module Darklang.LanguageTools.LspServer.Sync
 
-/// Handles `dark/sync` requests from VS Code
-let handleSyncRequest
-  (state: LspState)
-  (requestID: JsonRPC.RequestId)
-  (instanceName: String)
-  : LspState =
-  let result =
-    match SCM.Instances.getByName instanceName with
-    | Some instance ->
-      let result = SCM.Sync.sync instance.id instance.url state.branchID
-
-      match result with
-      | Ok message ->
-        [ ("success", Json.Bool true); ("message", Json.String message) ]
-        |> Json.Object
-      | Error errorMsg ->
-        [ ("success", Json.Bool false); ("message", Json.String errorMsg) ]
-        |> Json.Object
-    | None ->
-      [ ("success", Json.Bool false)
-        ("message", Json.String $"Instance '{instanceName}' not found.") ]
-      |> Json.Object
-
-  let responseJson =
-    let requestID = Stdlib.Option.Option.Some requestID
-    (JsonRPC.Response.Ok.make requestID result)
-    |> Stdlib.AltJson.format
-
-  logAndSendToClient responseJson
-
-  state
-
-
 /// Handles `dark/listInstances` requests from VS Code
 let handleListInstancesRequest
   (state: LspState)

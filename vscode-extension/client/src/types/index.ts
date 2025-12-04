@@ -9,25 +9,22 @@ export interface PackageNode {
   packagePath?: string;
 }
 
+export enum BranchNodeType {
+  PendingOp = "pending-op",
+  OwnerGroup = "owner-group",
+  BranchItem = "branch-item",
+  BranchAction = "branch-action",
+  InstanceItem = "instance-item",
+  InstanceRoot = "instance-root",
+  BranchRoot = "branch-root",
+  ChangesRoot = "changes-root",
+  SeeMore = "see-more"
+}
+
 export interface BranchNode {
   id: string;
   label: string;
-  type:
-    "current"
-    | "recent"
-    | "shared"
-    | "actions"
-    | "operation"
-    | "conflict"
-    | "section"
-    | "instance-root"
-    | "branch-root"
-    | "changes-root"
-    | "instance-item"
-    | "packages"
-    | "branches"
-    | "category"
-    | "pending-op";
+  type: BranchNodeType;
   contextValue: string;
   children?: BranchNode[];
   instanceData?: {
@@ -37,6 +34,15 @@ export interface BranchNode {
     status?: "connected" | "disconnected" | "syncing";
     packageCount?: number;
     branchCount?: number;
+  };
+  branchData?: {
+    branchId: string;
+    branchName: string;
+    isCurrent?: boolean;
+    isMain?: boolean;
+    status?: "up-to-date" | "ahead" | "behind";
+    opsCount?: number;
+    lastSynced?: Date;
   };
 }
 

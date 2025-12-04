@@ -276,6 +276,8 @@ module Expr =
     | ERecordFieldAccess(id, _, _)
     | EVariable(id, _)
     | EArg(id, _)
+    | EValue(id, _)
+    | EFnName(id, _)
     | EApply(id, _, _, _)
     | EList(id, _)
     | EDict(id, _)
@@ -285,7 +287,8 @@ module Expr =
     | EEnum(id, _, _, _, _)
     | EMatch(id, _, _)
     | ERecordUpdate(id, _, _)
-    | EStatement(id, _, _) -> id
+    | EStatement(id, _, _)
+    | ESelf id -> id
 
 
 // Used to mark whether a function/type has been deprecated, and if so,
@@ -412,6 +415,13 @@ type PackageOp =
   | SetTypeName of FQTypeName.Package * PackageLocation
   | SetValueName of FQValueName.Package * PackageLocation
   | SetFnName of FQFnName.Package * PackageLocation
+
+
+/// A batch of package ops that all share the same branch and instance
+type PackageOpBatch =
+  { branchID: Stdlib.Option.Option<Uuid>
+    instanceID: Stdlib.Option.Option<Uuid>
+    ops: List<PackageOp> }
 
 
 module Search =
