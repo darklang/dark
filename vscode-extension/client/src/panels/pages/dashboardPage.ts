@@ -1,27 +1,27 @@
 /** Dashboard page content renderer */
 
-export interface RecentItem {
+export interface DashboardRecentItem {
   id: string;
   title: string;
-  type: "branch" | "app" | "package";
+  type: "branch" | "app" | "package" | "function" | "type" | "value";
   meta: string[];
-  icon: string;
 }
 
-export interface PinnedItem {
+export interface DashboardPinnedItem {
   id: string;
   title: string;
-  status?: "deployed" | "running" | "stopped" | "draft";
+  treeId: string; // Full path for tree view (e.g., "Darklang.Stdlib.List.map")
+  kind: "function" | "type" | "value" | "package";
   meta: string[];
 }
 
 export interface DashboardData {
-  recentItems: RecentItem[];
-  pinnedItems: PinnedItem[];
+  recentItems: DashboardRecentItem[];
+  pinnedItems: DashboardPinnedItem[];
 }
 
 // Icons for different item types
-const icons = {
+const icons: Record<string, string> = {
   branch: `<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 18 18" fill="none">
 <path d="M12.9377 6.7501C12.2925 6.7502 11.6669 6.97215 11.1659 7.37874C10.6649 7.78533 10.3189 8.35183 10.186 8.98322C8.06873 8.8426 6.14948 7.83347 5.71636 6.67247C6.39026 6.51088 6.98078 6.10617 7.37465 5.53597C7.76852 4.96578 7.938 4.27024 7.85059 3.58276C7.76318 2.89529 7.42504 2.26429 6.90101 1.8108C6.37699 1.3573 5.70398 1.11325 5.01108 1.12544C4.31818 1.13763 3.65418 1.40521 3.14643 1.87685C2.63868 2.3485 2.32294 2.991 2.25976 3.68112C2.19659 4.37124 2.39043 5.06039 2.80411 5.61638C3.2178 6.17237 3.82218 6.55606 4.50136 6.69385V11.3063C3.81846 11.4457 3.21164 11.8337 2.79856 12.3951C2.38547 12.9565 2.19555 13.6513 2.2656 14.3447C2.33565 15.0382 2.66069 15.6809 3.17771 16.1483C3.69472 16.6157 4.36687 16.8745 5.06386 16.8745C5.76084 16.8745 6.43299 16.6157 6.95 16.1483C7.46702 15.6809 7.79206 15.0382 7.86211 14.3447C7.93217 13.6513 7.74224 12.9565 7.32915 12.3951C6.91607 11.8337 6.30925 11.4457 5.62636 11.3063V8.39935C6.92555 9.43543 8.5192 10.034 10.1792 10.1093C10.2828 10.632 10.5328 11.1146 10.9 11.5007C11.2672 11.8869 11.7365 12.1607 12.2533 12.2905C12.7702 12.4202 13.3132 12.4004 13.8193 12.2335C14.3253 12.0665 14.7735 11.7593 15.1116 11.3475C15.4498 10.9357 15.664 10.4362 15.7294 9.9074C15.7947 9.37856 15.7084 8.84204 15.4806 8.36031C15.2529 7.87859 14.8929 7.47149 14.4427 7.18642C13.9925 6.90135 13.4706 6.75003 12.9377 6.7501ZM3.37523 3.9376C3.37523 3.49005 3.55302 3.06082 3.86949 2.74436C4.18596 2.42789 4.61518 2.2501 5.06273 2.2501C5.51028 2.2501 5.93951 2.42789 6.25597 2.74436C6.57244 3.06082 6.75023 3.49005 6.75023 3.9376C6.75023 4.38515 6.57244 4.81437 6.25597 5.13084C5.93951 5.44731 5.51028 5.6251 5.06273 5.6251C4.61518 5.6251 4.18596 5.44731 3.86949 5.13084C3.55302 4.81437 3.37523 4.38515 3.37523 3.9376ZM6.75023 14.0626C6.75605 14.2878 6.71671 14.5119 6.63455 14.7216C6.55239 14.9314 6.42906 15.1226 6.27184 15.2839C6.11462 15.4452 5.92669 15.5735 5.71912 15.661C5.51156 15.7486 5.28857 15.7937 5.06329 15.7937C4.83802 15.7937 4.61503 15.7486 4.40746 15.661C4.1999 15.5735 4.01197 15.4452 3.85475 15.2839C3.69752 15.1226 3.5742 14.9314 3.49203 14.7216C3.40987 14.5119 3.37054 14.2878 3.37636 14.0626C3.37636 13.615 3.55415 13.1858 3.87061 12.8694C4.18708 12.5529 4.6163 12.3751 5.06386 12.3751C5.51141 12.3751 5.94063 12.5529 6.2571 12.8694C6.57357 13.1858 6.75023 13.615 6.75023 14.0626ZM12.9389 11.2501C12.4913 11.2501 12.0621 11.0723 11.7456 10.7558C11.4291 10.4394 11.2514 10.0102 11.2514 9.5626C11.2514 9.11505 11.4291 8.68582 11.7456 8.36936C12.0621 8.05289 12.4913 7.8751 12.9389 7.8751C13.3864 7.8751 13.8156 8.05289 14.1321 8.36936C14.4486 8.68582 14.6264 9.11505 14.6264 9.5626C14.6264 10.0102 14.4486 10.4394 14.1321 10.7558C13.8156 11.0723 13.3864 11.2501 12.9389 11.2501Z" fill="#8599FA"/>
 </svg>`,
@@ -39,39 +39,86 @@ const icons = {
   package: `<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 18 18" fill="none">
 <path d="M16.2529 4.18945L9.50287 0.81445C9.34672 0.736422 9.17456 0.695801 9 0.695801C8.82544 0.695801 8.65327 0.736422 8.49712 0.81445L1.74712 4.18945C1.56028 4.28281 1.40312 4.42635 1.29325 4.60398C1.18337 4.78162 1.12511 4.98633 1.125 5.1952V12.8047C1.12511 13.0136 1.18337 13.2183 1.29325 13.3959C1.40312 13.5736 1.56028 13.7171 1.74712 13.8105L8.49712 17.1855C8.65327 17.2635 8.82544 17.3041 9 17.3041C9.17456 17.3041 9.34672 17.2635 9.50287 17.1855L16.2529 13.8105C16.4397 13.7171 16.5969 13.5736 16.7068 13.3959C16.8166 13.2183 16.8749 13.0136 16.875 12.8047V5.1952C16.8749 4.98633 16.8166 4.78162 16.7068 4.60398C16.5969 4.42635 16.4397 4.28281 16.2529 4.18945ZM6.60487 6.63408L12.6157 3.62808L15.0435 4.84195L9 7.81083L6.60487 6.63408ZM9 1.8202L11.358 2.9992L5.33588 6.01083L2.9565 4.84195L9 1.8202ZM2.25 5.7487L4.78125 6.99183V10.125C4.78125 10.2741 4.84051 10.4172 4.946 10.5227C5.05149 10.6282 5.19457 10.6875 5.34375 10.6875C5.49293 10.6875 5.63601 10.6282 5.7415 10.5227C5.84699 10.4172 5.90625 10.2741 5.90625 10.125V7.5442L8.4375 8.78733V15.8985L2.25 12.8047V5.7487ZM9.5625 15.8985V8.78845L15.75 5.7487V12.8047L9.5625 15.8985Z" fill="#BF9F85"/>
 </svg>`,
+  function: `<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 11 11" fill="none">
+<path d="M2.58789 8.19591C2.6855 8.6083 2.88258 9.05865 3.39653 9.05865C4.28651 9.05865 4.50873 8.19591 5.17613 5.1763C5.84352 2.15669 6.06574 1.29395 6.95572 1.29395C7.46967 1.29395 7.66675 1.7443 7.76436 2.15669M4.06688 4.31355H7.02487" stroke="#B18AFA" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>`,
+  type: `<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 9 9" fill="none">
+<path d="M1.875 2.625V2.25C1.875 2.05109 1.95402 1.86032 2.09467 1.71967C2.23532 1.57902 2.42609 1.5 2.625 1.5H4.5M4.5 1.5H6.375C6.57391 1.5 6.76468 1.57902 6.90533 1.71967C7.04598 1.86032 7.125 2.05109 7.125 2.25V2.625M4.5 1.5V7.5M4.5 7.5H3.375M4.5 7.5H5.625" stroke="#6174D0" stroke-width="1.14583" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>`,
+  value: `<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 11 11" fill="none">
+<path fill-rule="evenodd" clip-rule="evenodd" d="M6.47243 2.58276L8.41737 4.52769C8.67514 4.78555 8.81995 5.13522 8.81995 5.49982C8.81995 5.86442 8.67514 6.21409 8.41737 6.47194L6.47243 8.41688C6.21458 8.67465 5.86491 8.81946 5.50031 8.81946C5.13571 8.81946 4.78603 8.67465 4.52818 8.41688L2.58325 6.47194C2.32547 6.21409 2.18066 5.86442 2.18066 5.49982C2.18066 5.13522 2.32547 4.78555 2.58325 4.52769L4.52818 2.58276C4.78603 2.32498 5.13571 2.18018 5.50031 2.18018C5.86491 2.18018 6.21458 2.32498 6.47243 2.58276ZM5.27137 4.58338C5.08903 4.58338 4.91417 4.65582 4.78523 4.78475C4.6563 4.91368 4.58387 5.08855 4.58387 5.27088V5.72876C4.58387 5.91109 4.6563 6.08596 4.78523 6.21489C4.91417 6.34382 5.08903 6.41626 5.27137 6.41626H5.72925C5.91158 6.41626 6.08645 6.34382 6.21538 6.21489C6.34431 6.08596 6.41675 5.91109 6.41675 5.72876V5.27088C6.41675 5.08855 6.34431 4.91368 6.21538 4.78475C6.08645 4.65582 5.91158 4.58338 5.72925 4.58338H5.27137Z" fill="#9D7840"/>
+</svg>`,
 };
 
-function renderRecentCard(item: RecentItem): string {
-  const icon = item.icon || icons[item.type] || icons.package;
+// Pin icon for unpin button
+const unpinIcon = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16" fill="currentColor" style="transform: rotate(45deg);">
+  <path d="M4.146.146A.5.5 0 0 1 4.5 0h7a.5.5 0 0 1 .5.5c0 .68-.342 1.174-.646 1.479-.126.125-.25.224-.354.298v4.431l.078.048c.203.127.476.314.751.555C12.36 7.775 13 8.527 13 9.5a.5.5 0 0 1-.5.5h-4v4.5c0 .276-.224 1.5-.5 1.5s-.5-1.224-.5-1.5V10h-4a.5.5 0 0 1-.5-.5c0-.973.64-1.725 1.17-2.189A5.921 5.921 0 0 1 5 6.708V2.277a2.77 2.77 0 0 1-.354-.298C4.342 1.674 4 1.179 4 .5a.5.5 0 0 1 .146-.354z"/>
+</svg>`;
+
+interface CardOptions {
+  id: string;
+  title: string;
+  type: string;
+  meta: string[];
+  treeId?: string;
+  pinned?: boolean;
+}
+
+function renderCard(options: CardOptions): string {
+  const { id, title, type, meta, treeId, pinned } = options;
+  const icon = icons[type] || icons.package;
+
+  const dataAttrs = treeId
+    ? `data-project="${id}" data-tree-id="${treeId}" data-kind="${type}"`
+    : `data-project="${id}" data-type="${type}"`;
+
+  const unpinBtn = pinned && treeId
+    ? `<button class="unpin-btn" data-tree-id="${treeId}" title="Unpin">${unpinIcon}</button>`
+    : "";
+
+  const cardClass = pinned ? "project-card pinned-card" : "project-card";
+
   return `
-    <div class="project-card" data-project="${item.id}">
+    <div class="${cardClass}" ${dataAttrs}>
         <div class="card-icon-wrapper">${icon}</div>
         <div class="card-content">
-            <div class="card-title">${item.title}</div>
+            <div class="card-title">${title}</div>
             <div class="card-meta">
-                ${item.meta.map((m, i) => `<span class="card-meta-item">${m}</span>${i < item.meta.length - 1 ? '<span class="meta-separator">.</span>' : ""}`).join("")}
+                ${meta
+                  .map(
+                    (m, i) =>
+                      `<span class="card-meta-item" title="${m}">${m}</span>${
+                        i < meta.length - 1
+                          ? '<span class="meta-separator">.</span>'
+                          : ""
+                      }`,
+                  )
+                  .join("")}
             </div>
         </div>
+        ${unpinBtn}
         <span class="card-arrow">→</span>
     </div>`;
 }
 
-function renderPinnedCard(item: PinnedItem): string {
-  const statusTag = item.status
-    ? `<span class="status-tag ${item.status}">${item.status.charAt(0).toUpperCase() + item.status.slice(1)}</span>`
-    : "";
+function renderRecentCard(item: DashboardRecentItem): string {
+  return renderCard({
+    id: item.id,
+    title: item.title,
+    type: item.type,
+    meta: item.meta,
+  });
+}
 
-  return `
-    <div class="project-card" data-project="${item.id}">
-        <div class="card-content">
-            <div class="card-title">${item.title}</div>
-            <div class="card-meta">
-                ${statusTag}
-                ${item.meta.map((m, i) => `<span class="card-meta-item">${m}</span>${i < item.meta.length - 1 ? '<span class="meta-dot"></span>' : ""}`).join("")}
-            </div>
-        </div>
-        <span class="card-arrow">→</span>
-    </div>`;
+function renderPinnedCard(item: DashboardPinnedItem): string {
+  return renderCard({
+    id: item.id,
+    title: item.title,
+    type: item.kind,
+    meta: item.meta,
+    treeId: item.treeId,
+    pinned: true,
+  });
 }
 
 /** Render the dashboard page content */
@@ -101,7 +148,6 @@ export function renderDashboard(data: DashboardData): string {
             <div class="section">
                 <div class="section-header">
                     <h2 class="section-title">Pinned</h2>
-                    <button class="section-action">+ Add pin</button>
                 </div>
                 <div class="cards-grid">
                     ${data.pinnedItems.map(renderPinnedCard).join("")}
@@ -110,63 +156,10 @@ export function renderDashboard(data: DashboardData): string {
         </div>`;
 }
 
-/** Default sample data for the dashboard */
+/** Default data for the dashboard */
 export function getDefaultDashboardData(): DashboardData {
   return {
-    recentItems: [
-      {
-        id: "feature-x",
-        title: "feature-x",
-        type: "branch",
-        meta: ["Branch", "22 ops", "2h ago"],
-        icon: icons.branch,
-      },
-      {
-        id: "portfolio-site",
-        title: "portfolio-site",
-        type: "app",
-        meta: ["App", "Deployed", "200req/day"],
-        icon: icons.app,
-      },
-      {
-        id: "darklang-cli",
-        title: "Darklang.CLI",
-        type: "package",
-        meta: ["Package", "22fns", "2types", "3vals"],
-        icon: icons.package,
-      },
-    ],
-    pinnedItems: [
-      {
-        id: "portfolio-site",
-        title: "portfolio-site",
-        status: "deployed",
-        meta: ["200req/day", "john.dev"],
-      },
-      {
-        id: "darklang-cli",
-        title: "darklang-cli",
-        status: "running",
-        meta: ["200req/day"],
-      },
-      {
-        id: "api-service",
-        title: "api-service",
-        status: "running",
-        meta: ["1.2k req/day", "alice.dev"],
-      },
-      {
-        id: "String.toUpperCase",
-        title: "String.toUpperCase",
-        meta: ["Function", "Stdlib.String"],
-      },
-      {
-        id: "blog-site",
-        title: "blog-site",
-        status: "stopped",
-        meta: ["App", "jane.dev"],
-      },
-      { id: "Http", title: "Http", meta: ["Module", "15 fns", "Stdlib"] },
-    ],
+    recentItems: [],
+    pinnedItems: [],
   };
 }

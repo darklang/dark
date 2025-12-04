@@ -23,8 +23,10 @@ import { BranchStateManager } from "./data/branchStateManager";
 
 import { DarkFileSystemProvider } from "./providers/darkFileSystemProvider";
 import { DarkContentProvider } from "./providers/darkContentProvider";
+import { DiffContentProvider } from "./providers/diffContentProvider";
 import { DarklangFileDecorationProvider } from "./providers/fileDecorationProvider";
 import { PackageContentProvider } from "./providers/content/packageContentProvider";
+import { RecentItemsService } from "./services/recentItemsService";
 
 let client: LanguageClient;
 
@@ -87,6 +89,7 @@ export async function activate(context: vscode.ExtensionContext) {
   await client.onReady();
 
   BranchStateManager.initialize(client);
+  RecentItemsService.initialize(context);
 
   // Auto-start sync service via CLI
   startSyncService();
@@ -94,6 +97,7 @@ export async function activate(context: vscode.ExtensionContext) {
   const statusBar = new StatusBarManager();
   const fsProvider = new DarkFileSystemProvider(client);
   const contentProvider = new DarkContentProvider(client);
+  const diffContentProvider = DiffContentProvider.getInstance();
   const decorationProvider = new DarklangFileDecorationProvider();
 
   PackageContentProvider.setClient(client);
@@ -136,6 +140,8 @@ export async function activate(context: vscode.ExtensionContext) {
   });
 
   const packageCommands = new PackageCommands();
+  packageCommands.setPackagesProvider(packagesProvider);
+  packageCommands.setPackagesView(packagesView);
   const branchCommands = new BranchCommands(statusBar, workspaceProvider);
   const scriptCommands = new ScriptCommands();
 
@@ -146,12 +152,17 @@ export async function activate(context: vscode.ExtensionContext) {
     statusBar,
     vscode.workspace.registerFileSystemProvider("darkfs", fsProvider, { isCaseSensitive: true, isReadonly: false }),
     vscode.workspace.registerTextDocumentContentProvider("dark", contentProvider),
+    vscode.workspace.registerTextDocumentContentProvider(DiffContentProvider.scheme, diffContentProvider),
     vscode.window.registerFileDecorationProvider(decorationProvider),
     vscode.commands.registerCommand("darklang.branches.manageAll", () => {
       BranchesManagerPanel.createOrShow(context.extensionUri);
     }),
     vscode.commands.registerCommand("darklang.openHomepage", () => {
       HomepagePanel.createOrShow(context.extensionUri);
+    }),
+    vscode.commands.registerCommand("darklang.clearRecentItems", () => {
+      RecentItemsService.clear();
+      vscode.window.showInformationMessage("Recent items cleared");
     }),
     packagesView,
     packagesProvider,
