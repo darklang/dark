@@ -69,16 +69,6 @@ let loadFromDisk
       | None -> System.Guid.NewGuid()
       | Some id -> System.Guid.Parse id
 
-    let! ownerID =
-      task {
-        match! LibCloud.Canvas.getOwner canvasID with
-        | Some id -> return id
-        | None ->
-          let! ownerID = LibCloud.Account.createUser ()
-          do! LibCloud.Canvas.createWithExactID canvasID ownerID domain
-          return ownerID
-      }
-
     // i.e. dark-packages -> ("Darklang", "Packages")
     let (ownerName, canvasName) =
       if String.startsWith "dark-" canvasName then
@@ -91,6 +81,24 @@ let loadFromDisk
           System.Exception
             $"Currently only prepared to parse Darklang (dark-) canvases"
         )
+
+    let! ownerID =
+      task {
+        match! LibCloud.Canvas.getOwner canvasID with
+        | Some id -> return id
+        | None ->
+          match! LibCloud.Account.getUserByName ownerName with
+          | Some ownerID ->
+            do! LibCloud.Canvas.createWithExactID canvasID ownerID domain
+            return ownerID
+          | None ->
+            match! LibCloud.Account.createUser ownerName with
+            | Ok ownerID ->
+              do! LibCloud.Canvas.createWithExactID canvasID ownerID domain
+              return ownerID
+            | Error msg ->
+              return raise (System.Exception $"Failed to create owner: {msg}")
+      }
 
     // TODO this doesn't purge any added types/vals/fns from PM...
     // maybe we should?

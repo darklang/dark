@@ -1,9 +1,102 @@
 import * as vscode from "vscode";
-import * as os from "os";
-import * as path from "path";
-import * as fs from "fs";
+import * as crypto from "crypto";
+import { PackagesTreeDataProvider } from "../providers/treeviews/packagesTreeDataProvider";
+import { DiffContentProvider } from "../providers/diffContentProvider";
+import { RecentItemsService } from "../services/recentItemsService";
+import { PinnedItemsService } from "../services/pinnedItemsService";
 
 export class PackageCommands {
+  private packagesProvider: PackagesTreeDataProvider | null = null;
+  private packagesView: vscode.TreeView<any> | null = null;
+
+  setPackagesProvider(provider: PackagesTreeDataProvider): void {
+    this.packagesProvider = provider;
+  }
+
+  setPackagesView(view: vscode.TreeView<any>): void {
+    this.packagesView = view;
+  }
+
+  private async openDarkFile(packagePath: string, itemType?: "function" | "type" | "value" | "module"): Promise<void> {
+    try {
+      const virtualUri = vscode.Uri.parse(`darkfs:/${packagePath}.dark`);
+      const doc = await vscode.workspace.openTextDocument(virtualUri);
+      await vscode.languages.setTextDocumentLanguage(doc, 'darklang');
+      await vscode.window.showTextDocument(doc, { preview: false, preserveFocus: false });
+
+      // Track as recent item
+      const parts = packagePath.split(".");
+      const name = parts[parts.length - 1];
+      const owner = parts[0] || "Darklang";
+      const modules = parts.slice(1, -1).join(".");
+
+      await RecentItemsService.trackItem({
+        id: packagePath,
+        title: name,
+        type: itemType || "module",
+        meta: [itemType || "module", modules || owner],
+      });
+    } catch (error) {
+      console.error(`Failed to open ${packagePath}:`, error);
+      vscode.window.showErrorMessage(`Failed to open ${packagePath}: ${error instanceof Error ? error.message : "Unknown error"}`);
+    }
+  }
+
+  private async revealInTree(treeId: string): Promise<void> {
+    if (!this.packagesView || !this.packagesProvider) {
+      return;
+    }
+
+    try {
+      // First, try to get the node from the cache
+      let targetNode = this.packagesProvider.getNodeById(treeId);
+
+      // If not in cache, we need to expand the "All" section first to populate the cache
+      if (!targetNode) {
+        const allSection = this.packagesProvider.getNodeById("__all_section__");
+        if (allSection) {
+          // Expand the All section to load children
+          await this.packagesProvider.getChildren(allSection);
+          targetNode = this.packagesProvider.getNodeById(treeId);
+        }
+      }
+
+      if (targetNode) {
+        // Reveal the node and expand it
+        await this.packagesView.reveal(targetNode, { select: true, focus: true, expand: true });
+      }
+    } catch (error) {
+      console.error("Failed to reveal in tree:", error);
+    }
+  }
+
+  /** Extract kind from node's contextValue */
+  private getKindFromNode(node: any): string {
+    const baseContextValue = node.contextValue?.replace(/:pinned$/, "");
+    if (baseContextValue?.startsWith("fn:")) return "function";
+    if (baseContextValue?.startsWith("type:")) return "type";
+    if (baseContextValue?.startsWith("value:") || baseContextValue?.startsWith("const:")) return "value";
+    return "module";
+  }
+
+  private async pinItem(node: any): Promise<void> {
+    if (!node) return;
+
+    const treeId = node.id.startsWith("pinned:") ? node.id.substring("pinned:".length) : node.id;
+    const parts = treeId.split(".");
+    const name = node.label || parts[parts.length - 1];
+    const kind = this.getKindFromNode(node);
+
+    await PinnedItemsService.pin({ treeId, name, kind });
+  }
+
+  private async unpinItem(node: any): Promise<void> {
+    if (!node) return;
+
+    const treeId = node.id.startsWith("pinned:") ? node.id.substring("pinned:".length) : node.id;
+    await PinnedItemsService.unpin(treeId);
+  }
+
   register(): vscode.Disposable[] {
     return [
       vscode.commands.registerCommand("darklang.lookUpToplevel", async () => {
@@ -26,40 +119,19 @@ export class PackageCommands {
         }
       }),
 
-      vscode.commands.registerCommand("darklang.openPackageDefinition", async (packagePath: string) => {
-        try {
-          const virtualUri = vscode.Uri.parse(`darkfs:/${packagePath}.dark`);
-          const doc = await vscode.workspace.openTextDocument(virtualUri);
-
-          // Set the language to darklang for syntax highlighting
-          await vscode.languages.setTextDocumentLanguage(doc, 'darklang');
-
-          await vscode.window.showTextDocument(doc, {
-            preview: false,
-            preserveFocus: false,
-          });
-        } catch (error) {
-          console.error(`Failed to open package definition for ${packagePath}:`, error);
-          vscode.window.showErrorMessage(`Failed to open ${packagePath}: ${error instanceof Error ? error.message : "Unknown error"}`);
-        }
+      vscode.commands.registerCommand("darklang.openPackageDefinition", async (packagePath: string, itemType?: "function" | "type" | "value" | "module") => {
+        await this.openDarkFile(packagePath, itemType);
       }),
 
       vscode.commands.registerCommand("darklang.openFullModule", async (node: any) => {
-        try {
-          const modulePath = node?.id || "";
-          const virtualUri = vscode.Uri.parse(`darkfs:/${modulePath}.dark`);
-          const doc = await vscode.workspace.openTextDocument(virtualUri);
+        await this.openDarkFile(node?.id || "");
+      }),
 
-          await vscode.languages.setTextDocumentLanguage(doc, 'darklang');
+      vscode.commands.registerCommand("darklang.packages.pin", (node: any) => this.pinItem(node)),
+      vscode.commands.registerCommand("darklang.packages.unpin", (node: any) => this.unpinItem(node)),
 
-          await vscode.window.showTextDocument(doc, {
-            preview: false,
-            preserveFocus: false,
-          });
-        } catch (error) {
-          console.error(`Failed to open full module:`, error);
-          vscode.window.showErrorMessage(`Failed to open module: ${error instanceof Error ? error.message : "Unknown error"}`);
-        }
+      vscode.commands.registerCommand("darklang.revealInPackagesTree", async (treeId: string) => {
+        await this.revealInTree(treeId);
       }),
 
       vscode.commands.registerCommand("darklang.showOpDiff", async (opData: any, location: any) => {
@@ -146,20 +218,10 @@ export class PackageCommands {
             definition = `// Error reading module file for ${itemType}: ${fullPath}\n\n${err}`;
           }
 
-          // Create temporary files for diff view
-          const tmpDir = os.tmpdir();
-          const beforePath = path.join(tmpDir, `before-${itemName}.dark`);
-          const afterPath = path.join(tmpDir, `after-${itemName}.dark`);
-
-          // Write empty before file
-          fs.writeFileSync(beforePath, "");
-
-          // Write after file with the actual definition
-          fs.writeFileSync(afterPath, definition);
-
-          // Open diff view
-          const beforeUri = vscode.Uri.file(beforePath);
-          const afterUri = vscode.Uri.file(afterPath);
+          // Use virtual document provider for diff view
+          const diffId = crypto.randomUUID();
+          const diffProvider = DiffContentProvider.getInstance();
+          const { beforeUri, afterUri } = diffProvider.setDiffContent(diffId, "", definition);
 
           await vscode.commands.executeCommand(
             'vscode.diff',

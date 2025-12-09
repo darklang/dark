@@ -7,20 +7,26 @@ open System.Threading.Tasks
 open Prelude
 open LibExecution.RuntimeTypes
 open LibExecution.Builtin.Shortcuts
+module Dval = LibExecution.Dval
 
 
 let fns : List<BuiltInFn> =
   [ { name = fn "darkInternalUserCreate" 0
       typeParams = []
-      parameters = [ Param.make "unit" TUnit "" ]
-      returnType = TUuid
-      description = "Creates a user, and returns their userID."
+      parameters = [ Param.make "name" TString "The name for the new user" ]
+      returnType = TypeReference.result TUuid TString
+      description =
+        "Creates a user with the given name and returns their userID, or an error if the name is already taken."
       fn =
+        let resultOk = Dval.resultOk KTUuid KTString
+        let resultError = Dval.resultError KTUuid KTString
         (function
-        | _, _, _, [ DUnit ] ->
+        | _, _, _, [ DString name ] ->
           uply {
-            let! canvasID = LibCloud.Account.createUser ()
-            return DUuid canvasID
+            let! result = LibCloud.Account.createUser name
+            match result with
+            | Ok userID -> return resultOk (DUuid userID)
+            | Error msg -> return resultError (DString msg)
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable

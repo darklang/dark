@@ -1,0 +1,127 @@
+// Pinning feature for the Dark Editor
+// Allows users to pin modules, functions, types, and values for quick access
+
+type PinnedItemKind =
+  | Module
+  | Function
+  | Type
+  | Value
+
+type PinnedItem =
+  { itemId: Uuid
+    kind: PinnedItemKind
+    pinnedAt: DateTime
+    owner: String
+    modules: String
+    name: String }
+
+[<DB>]
+type PinnedItemsDB = PinnedItem
+
+
+type PinRequest =
+  { itemId: String
+    kind: String
+    owner: String
+    modules: String
+    name: String }
+
+type PinnedItemResponse =
+  { itemId: String
+    kind: String
+    pinnedAt: String
+    owner: String
+    modules: String
+    name: String }
+
+
+// Helper to serialize PinnedItemKind to string
+let kindToString (kind: PinnedItemKind) : String =
+  match kind with
+  | Module -> "module"
+  | Function -> "function"
+  | Type -> "type"
+  | Value -> "value"
+
+// Helper to parse PinnedItemKind from string
+let kindFromString (s: String) : Stdlib.Option.Option<PinnedItemKind> =
+  match s with
+  | "module" -> Stdlib.Option.Option.Some PinnedItemKind.Module
+  | "function" -> Stdlib.Option.Option.Some PinnedItemKind.Function
+  | "type" -> Stdlib.Option.Option.Some PinnedItemKind.Type
+  | "value" -> Stdlib.Option.Option.Some PinnedItemKind.Value
+  | _ -> Stdlib.Option.Option.None
+
+// Convert PinnedItem to response type
+let toResponse (item: PinnedItem) : PinnedItemResponse =
+  PinnedItemResponse
+    { itemId = Stdlib.Uuid.toString item.itemId
+      kind = kindToString item.kind
+      pinnedAt = Stdlib.DateTime.toString item.pinnedAt
+      owner = item.owner
+      modules = item.modules
+      name = item.name }
+
+
+[<HttpHandler("GET", "/pinned")>]
+let _getPinnedHandler _req =
+  let items = Stdlib.DB.getAll PinnedItemsDB
+  let responses = Stdlib.List.map items (fun item -> toResponse item)
+  let body = Builtin.jsonSerialize<List<PinnedItemResponse>> responses
+
+  Stdlib.Http.responseWithHeaders
+    (Stdlib.String.toBytes body)
+    [ ("Content-Type", "application/json") ]
+    200L
+
+
+[<HttpHandler("POST", "/pin")>]
+let _pinHandler _req =
+  let bodyStr = Stdlib.String.fromBytesWithReplacement request.body
+
+  match Builtin.jsonParse<PinRequest> bodyStr with
+  | Ok pinReq ->
+    match kindFromString pinReq.kind with
+    | Some kind ->
+      match Stdlib.Uuid.parse pinReq.itemId with
+      | Ok itemUuid ->
+        let item =
+          PinnedItem
+            { itemId = itemUuid
+              kind = kind
+              pinnedAt = Stdlib.DateTime.now ()
+              owner = pinReq.owner
+              modules = pinReq.modules
+              name = pinReq.name }
+
+        let key = pinReq.itemId
+        let _ = Stdlib.DB.set item key PinnedItemsDB
+        Stdlib.Http.response (Stdlib.String.toBytes "") 200L
+
+      | Error _ ->
+        Stdlib.Http.response (Stdlib.String.toBytes "Invalid UUID") 400L
+
+    | None ->
+      Stdlib.Http.response (Stdlib.String.toBytes "Invalid kind") 400L
+
+  | Error _ ->
+    Stdlib.Http.response (Stdlib.String.toBytes "Invalid JSON") 400L
+
+
+type UnpinRequest = { itemId: String }
+
+[<HttpHandler("DELETE", "/pin")>]
+let _unpinHandler _req =
+  let bodyStr = Stdlib.String.fromBytesWithReplacement request.body
+
+  match Builtin.jsonParse<UnpinRequest> bodyStr with
+  | Ok unpinReq ->
+    let _ = Stdlib.DB.delete unpinReq.itemId PinnedItemsDB
+    Stdlib.Http.response (Stdlib.String.toBytes "") 200L
+  | Error _ ->
+    Stdlib.Http.response (Stdlib.String.toBytes "Invalid JSON") 400L
+
+
+[<HttpHandler("GET", "/ping")>]
+let _pingHandler _req =
+  Stdlib.Http.response (Stdlib.String.toBytes "pong") 200L
