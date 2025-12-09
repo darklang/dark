@@ -90,37 +90,15 @@ export class Node extends vscode.TreeItem {
     const isRootLevel = this.type === "directory" && !this.id.includes(".");
 
     if (isRootLevel) {
-      this.iconPath = new vscode.ThemeIcon(
-        "package",
-        new vscode.ThemeColor("charts.orange"),
-      );
-    }
-    // For modules (collapsible directories inside packages)
-    else if (this.type === "directory") {
-      this.iconPath = new vscode.ThemeIcon(
-        "symbol-structure",
-        new vscode.ThemeColor("charts.lines"),
-      );
-    }
-    // For entities - use itemKind
-    else if (this.itemKind) {
-      if (this.itemKind === "function") {
-        this.iconPath = new vscode.ThemeIcon("symbol-function");
-      } else if (this.itemKind === "type") {
-        this.iconPath = new vscode.ThemeIcon(
-          "symbol-type-parameter",
-          new vscode.ThemeColor("charts.blue"),
-        );
-      } else if (this.itemKind === "value") {
-        this.iconPath = new vscode.ThemeIcon(
-          "symbol-constant",
-          new vscode.ThemeColor("charts.orange"),
-        );
-      }
+      this.setIconFromKind("owner");
+    } else if (this.type === "directory") {
+      this.setIconFromKind("module");
+    } else if (this.itemKind) {
+      this.setIconFromKind(this.itemKind);
     }
   }
 
-  /** Set icon based on kind (for pinned items) */
+  /** Set icon based on kind */
   setIconFromKind(kind: string): void {
     const normalizedKind = kind.toLowerCase();
     if (normalizedKind === "function") {
@@ -135,10 +113,15 @@ export class Node extends vscode.TreeItem {
         "symbol-constant",
         new vscode.ThemeColor("charts.orange"),
       );
-    } else if (normalizedKind === "module" || normalizedKind === "package") {
+    } else if (normalizedKind === "module") {
       this.iconPath = new vscode.ThemeIcon(
         "symbol-structure",
         new vscode.ThemeColor("charts.lines"),
+      );
+    } else if (normalizedKind === "package" || normalizedKind === "owner") {
+      this.iconPath = new vscode.ThemeIcon(
+        "package",
+        new vscode.ThemeColor("charts.orange"),
       );
     }
   }
