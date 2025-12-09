@@ -87,9 +87,17 @@ let loadFromDisk
         match! LibCloud.Canvas.getOwner canvasID with
         | Some id -> return id
         | None ->
-          let! ownerID = LibCloud.Account.createUser ownerName
-          do! LibCloud.Canvas.createWithExactID canvasID ownerID domain
-          return ownerID
+          match! LibCloud.Account.getUserByName ownerName with
+          | Some ownerID ->
+            do! LibCloud.Canvas.createWithExactID canvasID ownerID domain
+            return ownerID
+          | None ->
+            match! LibCloud.Account.createUser ownerName with
+            | Ok ownerID ->
+              do! LibCloud.Canvas.createWithExactID canvasID ownerID domain
+              return ownerID
+            | Error msg ->
+              return raise (System.Exception $"Failed to create owner: {msg}")
       }
 
     // TODO this doesn't purge any added types/vals/fns from PM...
