@@ -1,5 +1,7 @@
 /** Header bar component */
 
+import { uiIcons } from "../icons";
+
 export interface HeaderConfig {
   title: string;
   icon: string;
@@ -32,7 +34,7 @@ export function renderHeader(config: HeaderConfig): string {
        </button>`
     : "";
 
-  const avatar = showAvatar ? `<div class="user-avatar"></div>` : "";
+  const avatar = showAvatar ? `<div class="user-avatar">${uiIcons.user}</div>` : "";
 
   return `
     <div class="dashboard-header">

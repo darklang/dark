@@ -231,13 +231,10 @@ body {
 .user-avatar {
     width: 28px;
     height: 28px;
-    border-radius: 50%;
     display: flex;
     align-items: center;
     justify-content: center;
-    background: linear-gradient(135deg, #FF6B6B, #FFA500);
     cursor: pointer;
-    overflow: hidden;
 }
 
 .user-avatar img {
