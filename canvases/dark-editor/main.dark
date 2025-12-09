@@ -1,8 +1,8 @@
 // Pinning feature for the Dark Editor
-// Allows users to pin packages, functions, types, and values for quick access
+// Allows users to pin modules, functions, types, and values for quick access
 
 type PinnedItemKind =
-  | Package
+  | Module
   | Function
   | Type
   | Value
@@ -38,7 +38,7 @@ type PinnedItemResponse =
 // Helper to serialize PinnedItemKind to string
 let kindToString (kind: PinnedItemKind) : String =
   match kind with
-  | Package -> "package"
+  | Module -> "module"
   | Function -> "function"
   | Type -> "type"
   | Value -> "value"
@@ -46,7 +46,7 @@ let kindToString (kind: PinnedItemKind) : String =
 // Helper to parse PinnedItemKind from string
 let kindFromString (s: String) : Stdlib.Option.Option<PinnedItemKind> =
   match s with
-  | "package" -> Stdlib.Option.Option.Some PinnedItemKind.Package
+  | "module" -> Stdlib.Option.Option.Some PinnedItemKind.Module
   | "function" -> Stdlib.Option.Option.Some PinnedItemKind.Function
   | "type" -> Stdlib.Option.Option.Some PinnedItemKind.Type
   | "value" -> Stdlib.Option.Option.Some PinnedItemKind.Value

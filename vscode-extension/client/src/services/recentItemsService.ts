@@ -3,7 +3,7 @@ import * as vscode from "vscode";
 export interface RecentItem {
   id: string;
   title: string;
-  type: "branch" | "app" | "package" | "function" | "type" | "value";
+  type: "branch" | "app" | "module" | "function" | "type" | "value";
   meta: string[];
   accessedAt: number; // timestamp
 }

@@ -17,7 +17,7 @@ export class PackageCommands {
     this.packagesView = view;
   }
 
-  private async openDarkFile(packagePath: string, itemType?: "function" | "type" | "value" | "package"): Promise<void> {
+  private async openDarkFile(packagePath: string, itemType?: "function" | "type" | "value" | "module"): Promise<void> {
     try {
       const virtualUri = vscode.Uri.parse(`darkfs:/${packagePath}.dark`);
       const doc = await vscode.workspace.openTextDocument(virtualUri);
@@ -33,8 +33,8 @@ export class PackageCommands {
       await RecentItemsService.trackItem({
         id: packagePath,
         title: name,
-        type: itemType || "package",
-        meta: [itemType || "package", modules || owner],
+        type: itemType || "module",
+        meta: [itemType || "module", modules || owner],
       });
     } catch (error) {
       console.error(`Failed to open ${packagePath}:`, error);
@@ -76,8 +76,7 @@ export class PackageCommands {
     if (baseContextValue?.startsWith("fn:")) return "function";
     if (baseContextValue?.startsWith("type:")) return "type";
     if (baseContextValue?.startsWith("value:") || baseContextValue?.startsWith("const:")) return "value";
-    if (baseContextValue === "module") return "package";
-    return "package";
+    return "module";
   }
 
   private async pinItem(node: any): Promise<void> {
@@ -120,7 +119,7 @@ export class PackageCommands {
         }
       }),
 
-      vscode.commands.registerCommand("darklang.openPackageDefinition", async (packagePath: string, itemType?: "function" | "type" | "value" | "package") => {
+      vscode.commands.registerCommand("darklang.openPackageDefinition", async (packagePath: string, itemType?: "function" | "type" | "value" | "module") => {
         await this.openDarkFile(packagePath, itemType);
       }),
 
