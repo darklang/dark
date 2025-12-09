@@ -1,3 +1,10 @@
+// Tracks recently accessed items (branches, apps, modules, functions, types, values)
+// for display on the homepage panel.
+//
+// Items are stored in VS Code's globalState, so they persist across editor restarts
+// but don't sync to other machines. We should eventually sync these to the server so
+// users see the same recent items everywhere.
+
 import * as vscode from "vscode";
 
 export interface RecentItem {
