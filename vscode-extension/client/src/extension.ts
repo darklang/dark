@@ -12,7 +12,7 @@ import {
 import { PackagesTreeDataProvider } from "./providers/treeviews/packagesTreeDataProvider";
 import { WorkspaceTreeDataProvider } from "./providers/treeviews/workspaceTreeDataProvider";
 import { BranchesManagerPanel } from "./panels/branchManagerPanel";
-import { HomepagePanel } from "./panels/homepagePanel";
+import { HomepagePanel } from "./panels/homepage/homepagePanel";
 
 import { BranchCommands } from "./commands/branchCommands";
 import { PackageCommands } from "./commands/packageCommands";

@@ -1,5 +1,5 @@
-/** CSS styles for the homepage panel */
-export const homepageStyles = `
+/* Homepage Panel Styles */
+
 * {
     box-sizing: border-box;
     margin: 0;
@@ -859,4 +859,3 @@ body {
         margin: 0 3px;
     }
 }
-`;

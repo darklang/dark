@@ -2,9 +2,8 @@ import * as vscode from "vscode";
 import { renderDashboard, getDefaultDashboardData, DashboardData, DashboardPinnedItem, DashboardRecentItem } from "./pages/dashboardPage";
 import { renderSidebar, navIcons } from "./components/sidebar";
 import { renderHeader } from "./components/header";
-import { homepageStyles } from "./styles/homepageStyles";
-import { PinnedItemsService } from "../services/pinnedItemsService";
-import { RecentItemsService } from "../services/recentItemsService";
+import { PinnedItemsService } from "../../services/pinnedItemsService";
+import { RecentItemsService } from "../../services/recentItemsService";
 
 export type PageName = "dashboard" | "packages" | "branches" | "apps" | "approval-requests" | "contributions" | "traces" | "settings" | "changelog" | "logout";
 
@@ -101,7 +100,7 @@ export class HomepagePanel {
   private _getPinnedItems(): DashboardPinnedItem[] {
     return PinnedItemsService.getAll().map(item => {
       // Map kind string to the expected type
-      let kind: "function" | "type" | "value" | "package" = "package";
+      let kind: "function" | "type" | "value" | "module" = "module";
       const normalizedKind = item.kind.toLowerCase();
       if (normalizedKind === "function") kind = "function";
       else if (normalizedKind === "type") kind = "type";
@@ -239,13 +238,26 @@ export class HomepagePanel {
       ),
     );
 
+    // Get URI for the stylesheet
+    const stylesUri = webview.asWebviewUri(
+      vscode.Uri.joinPath(
+        this._extensionUri,
+        "client",
+        "src",
+        "panels",
+        "homepage",
+        "styles",
+        "homepageStyles.css",
+      ),
+    );
+
     return `<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Darklang Home</title>
-    <style>${homepageStyles}</style>
+    <link rel="stylesheet" href="${stylesUri}">
 </head>
 <body>
     ${renderSidebar(logoUri.toString(), this._currentPage)}
