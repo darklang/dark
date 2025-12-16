@@ -7,7 +7,13 @@ let handleGetBranchesRequest
   (requestID: JsonRPC.RequestId)
   : LspState =
 
-  let branches = Darklang.SCM.Branch.list ()
+  // Get branches for the current account only
+  let owner =
+    match state.currentAccountId with
+    | Some id -> id
+    | None -> ""
+
+  let branches = Darklang.SCM.Branch.list owner
 
   let result =
     branches
@@ -19,6 +25,7 @@ let handleGetBranchesRequest
 
       [ ("id", Json.String(Stdlib.Uuid.toString branch.id))
         ("name", Json.String branch.name)
+        ("owner", Json.String branch.owner)
         ("createdAt", Json.String(Stdlib.DateTime.toString branch.createdAt))
         ("mergedAt", mergedAt) ]
       |> Json.Object)
@@ -40,7 +47,13 @@ let handleCreateBranchRequest
   (requestID: JsonRPC.RequestId)
   (branchName: String)
   : LspState =
-  let branch = Darklang.SCM.Branch.create branchName
+  // Branch is owned by the current account
+  let owner =
+    match state.currentAccountId with
+    | Some id -> id
+    | None -> ""
+
+  let branch = Darklang.SCM.Branch.create owner branchName
 
   let result =
     let mergedAt =
@@ -50,6 +63,7 @@ let handleCreateBranchRequest
 
     [ ("id", Json.String(Stdlib.Uuid.toString branch.id))
       ("name", Json.String branch.name)
+      ("owner", Json.String branch.owner)
       ("createdAt", Json.String(Stdlib.DateTime.toString branch.createdAt))
       ("mergedAt", mergedAt) ]
     |> Json.Object
