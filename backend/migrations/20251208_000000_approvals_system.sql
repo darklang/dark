@@ -60,3 +60,9 @@ INSERT OR IGNORE INTO namespace_access (namespace, account_id, role, granted_by)
 INSERT OR IGNORE INTO namespace_access (namespace, account_id, role, granted_by) VALUES ('Stachu', 'Stachu', 'owner', 'Stachu');
 INSERT OR IGNORE INTO namespace_access (namespace, account_id, role, granted_by) VALUES ('Feriel', 'Feriel', 'owner', 'Feriel');
 
+-- Add owner column to branches table
+ALTER TABLE branches ADD COLUMN owner TEXT NOT NULL DEFAULT '';
+-- Create index on branches owner
+CREATE INDEX IF NOT EXISTS idx_branches_owner ON branches(owner);
+-- Enforce unique branch names per owner
+CREATE UNIQUE INDEX IF NOT EXISTS idx_branches_owner_name ON branches(owner, name);
