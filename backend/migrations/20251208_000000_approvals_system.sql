@@ -49,3 +49,14 @@ CREATE TABLE IF NOT EXISTS namespace_access (
 
 CREATE INDEX IF NOT EXISTS idx_namespace_access_account ON namespace_access(account_id);
 CREATE INDEX IF NOT EXISTS idx_namespace_access_namespace ON namespace_access(namespace);
+
+-- Seed initial accounts
+INSERT OR IGNORE INTO accounts (id, username) VALUES ('Darklang', 'Darklang');
+INSERT OR IGNORE INTO accounts (id, username) VALUES ('Stachu', 'Stachu');
+INSERT OR IGNORE INTO accounts (id, username) VALUES ('Feriel', 'Feriel');
+
+-- Seed initial namespace ownership
+INSERT OR IGNORE INTO namespace_access (namespace, account_id, role, granted_by) VALUES ('Darklang', 'Darklang', 'owner', 'Darklang');
+INSERT OR IGNORE INTO namespace_access (namespace, account_id, role, granted_by) VALUES ('Stachu', 'Stachu', 'owner', 'Stachu');
+INSERT OR IGNORE INTO namespace_access (namespace, account_id, role, granted_by) VALUES ('Feriel', 'Feriel', 'owner', 'Feriel');
+
