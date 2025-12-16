@@ -1,9 +1,11 @@
 import * as vscode from "vscode";
 import * as crypto from "crypto";
 import { httpRequest, DARK_EDITOR_HOST, DARK_EDITOR_PORT } from "../utils/http";
+import { AccountService } from "./accountService";
 
 export interface PinnedItem {
   itemId: string;
+  accountId: string;
   kind: string;
   name: string;
   owner: string;
@@ -36,6 +38,19 @@ class PinnedItemsServiceImpl {
     this._listeners.forEach(listener => listener());
   }
 
+  /** Set the current account and reload pinned items */
+  async setCurrentAccount(accountId: string): Promise<void> {
+    if (AccountService.getCurrentAccountId() !== accountId) {
+      AccountService.setCurrentAccount(accountId);
+      await this.load();
+    }
+  }
+
+  /** Get the current account ID */
+  getCurrentAccountId(): string {
+    return AccountService.getCurrentAccountId();
+  }
+
   /** Compute owner and modules from a treeId */
   private _parseTreeId(treeId: string): { owner: string; modules: string } {
     const parts = treeId.split(".");
@@ -46,22 +61,18 @@ class PinnedItemsServiceImpl {
 
   /** Load pinned items from the server */
   async load(): Promise<void> {
+    const currentAccountId = AccountService.getCurrentAccountId();
+    const url = `/pinned?accountId=${encodeURIComponent(currentAccountId)}`;
     try {
       const response = await httpRequest({
         hostname: DARK_EDITOR_HOST,
         port: DARK_EDITOR_PORT,
-        path: "/pinned",
+        path: url,
         method: "GET",
       });
 
       if (response.statusCode === 200) {
-        let items: any[];
-        try {
-          items = JSON.parse(response.data);
-        } catch (parseError) {
-          console.error("Failed to parse pinned items JSON:", parseError);
-          return;
-        }
+        const items = JSON.parse(response.data);
         this._pinnedItems.clear();
 
         for (const item of items) {
@@ -88,6 +99,7 @@ class PinnedItemsServiceImpl {
 
           this._pinnedItems.set(treeId, {
             itemId: item.itemId,
+            accountId: item.accountId || currentAccountId,
             kind: item.kind,
             name: item.name,
             owner: item.owner,
@@ -134,22 +146,42 @@ class PinnedItemsServiceImpl {
     const { treeId, name, kind } = data;
     const { owner, modules } = this._parseTreeId(treeId);
     const itemId = crypto.randomUUID();
+    const accountId = AccountService.getCurrentAccountId();
 
-    const item: PinnedItem = { itemId, treeId, name, kind, owner, modules };
+    const item: PinnedItem = {
+      itemId,
+      accountId,
+      treeId,
+      name,
+      kind,
+      owner,
+      modules,
+    };
 
     // Optimistic update
     this._pinnedItems.set(treeId, item);
     this._notifyListeners();
 
     try {
-      const body = JSON.stringify({ itemId, treeId, name, kind, owner, modules });
-      const response = await httpRequest({
-        hostname: DARK_EDITOR_HOST,
-        port: DARK_EDITOR_PORT,
-        path: "/pin",
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-      }, body);
+      const body = JSON.stringify({
+        itemId,
+        accountId,
+        treeId,
+        name,
+        kind,
+        owner,
+        modules,
+      });
+      const response = await httpRequest(
+        {
+          hostname: DARK_EDITOR_HOST,
+          port: DARK_EDITOR_PORT,
+          path: "/pin",
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+        },
+        body,
+      );
 
       if (response.statusCode !== 200) {
         // Revert on failure
@@ -164,7 +196,11 @@ class PinnedItemsServiceImpl {
       this._pinnedItems.delete(treeId);
       this._notifyListeners();
       console.error("Failed to pin item:", error);
-      vscode.window.showErrorMessage(`Failed to pin: ${error instanceof Error ? error.message : "Connection failed"}`);
+      vscode.window.showErrorMessage(
+        `Failed to pin: ${
+          error instanceof Error ? error.message : "Connection failed"
+        }`,
+      );
       return false;
     }
   }
@@ -181,14 +217,20 @@ class PinnedItemsServiceImpl {
     this._notifyListeners();
 
     try {
-      const body = JSON.stringify({ itemId: item.itemId });
-      const response = await httpRequest({
-        hostname: DARK_EDITOR_HOST,
-        port: DARK_EDITOR_PORT,
-        path: `/pin`,
-        method: "DELETE",
-        headers: { "Content-Type": "application/json" },
-      }, body);
+      const body = JSON.stringify({
+        itemId: item.itemId,
+        accountId: item.accountId,
+      });
+      const response = await httpRequest(
+        {
+          hostname: DARK_EDITOR_HOST,
+          port: DARK_EDITOR_PORT,
+          path: "/pin",
+          method: "DELETE",
+          headers: { "Content-Type": "application/json" },
+        },
+        body,
+      );
 
       if (response.statusCode !== 200) {
         // Revert on failure
@@ -203,7 +245,11 @@ class PinnedItemsServiceImpl {
       this._pinnedItems.set(treeId, item);
       this._notifyListeners();
       console.error("Failed to unpin item:", error);
-      vscode.window.showErrorMessage(`Failed to unpin: ${error instanceof Error ? error.message : "Connection failed"}`);
+      vscode.window.showErrorMessage(
+        `Failed to unpin: ${
+          error instanceof Error ? error.message : "Connection failed"
+        }`,
+      );
       return false;
     }
   }

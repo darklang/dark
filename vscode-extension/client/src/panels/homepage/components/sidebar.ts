@@ -33,7 +33,12 @@ export const defaultNavItems: NavItem[] = [
   },
   { page: "traces", label: "Traces", icon: navIcons.traces },
   { page: "settings", label: "Settings", icon: navIcons.settings },
-  { page: "changelog", label: "changelog", icon: navIcons.changelog, tag: "NEW" },
+  {
+    page: "changelog",
+    label: "Changelog",
+    icon: navIcons.changelog,
+    tag: "NEW",
+  },
   { page: "logout", label: "Logout", icon: navIcons.logout },
 ];
 
@@ -56,7 +61,7 @@ function renderNavItem(item: NavItem, activePage: PageName): string {
 export function renderSidebar(
   logoUri: string,
   activePage: PageName,
-  navItems: NavItem[] = defaultNavItems
+  navItems: NavItem[] = defaultNavItems,
 ): string {
   return `
     <div class="sidebar">
@@ -68,7 +73,7 @@ export function renderSidebar(
         </div>
 
         <nav class="nav-menu">
-            ${navItems.map((item) => renderNavItem(item, activePage)).join("")}
+            ${navItems.map(item => renderNavItem(item, activePage)).join("")}
         </nav>
     </div>`;
 }
