@@ -2,6 +2,7 @@ import * as vscode from "vscode";
 import { LanguageClient } from "vscode-languageclient/node";
 import { WorkspaceTreeDataProvider } from "./treeviews/workspaceTreeDataProvider";
 import { PackagesTreeDataProvider } from "./treeviews/packagesTreeDataProvider";
+import { ApprovalsTreeDataProvider } from "./treeviews/approvalsTreeDataProvider";
 
 /**
  * FileSystemProvider for darkfs:// URIs
@@ -31,6 +32,7 @@ export class DarkFileSystemProvider implements vscode.FileSystemProvider {
 
   private workspaceProvider: WorkspaceTreeDataProvider | null = null;
   private packagesProvider: PackagesTreeDataProvider | null = null;
+  private approvalsProvider: ApprovalsTreeDataProvider | null = null;
 
   // Cache of file contents to detect changes
   private contentCache = new Map<string, Uint8Array>();
@@ -45,6 +47,10 @@ export class DarkFileSystemProvider implements vscode.FileSystemProvider {
 
   setPackagesProvider(provider: PackagesTreeDataProvider): void {
     this.packagesProvider = provider;
+  }
+
+  setApprovalsProvider(provider: ApprovalsTreeDataProvider): void {
+    this.approvalsProvider = provider;
   }
 
   /**
@@ -161,6 +167,11 @@ export class DarkFileSystemProvider implements vscode.FileSystemProvider {
           // Refresh packages tree to show new declarations
           if (this.packagesProvider) {
             this.packagesProvider.refresh();
+          }
+
+          // Refresh approvals tree in case we added to a namespace we don't own
+          if (this.approvalsProvider) {
+            this.approvalsProvider.refresh();
           }
         } else {
           // No ops created - just update cache with what was written

@@ -129,6 +129,7 @@ export async function activate(context: vscode.ExtensionContext) {
 
   fsProvider.setPackagesProvider(packagesProvider);
   fsProvider.setWorkspaceProvider(workspaceProvider);
+  fsProvider.setApprovalsProvider(approvalsProvider);
 
   const createView = (id: string, provider: vscode.TreeDataProvider<any>, showCollapseAll: boolean) =>
     vscode.window.createTreeView(id, { treeDataProvider: provider, showCollapseAll });
