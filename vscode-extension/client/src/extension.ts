@@ -22,6 +22,7 @@ import { ApprovalCommands } from "./commands/approvalCommands";
 
 import { StatusBarManager } from "./ui/statusbar/statusBarManager";
 import { BranchStateManager } from "./data/branchStateManager";
+import { AccountService } from "./services/accountService";
 
 import { DarkFileSystemProvider } from "./providers/darkFileSystemProvider";
 import { DarkContentProvider } from "./providers/darkContentProvider";
@@ -89,6 +90,12 @@ export async function activate(context: vscode.ExtensionContext) {
   client = createLSPClient();
   client.start();
   await client.onReady();
+
+  // Sync default account to LSP before initializing BranchStateManager
+  // (branches are filtered by account, so account must be set first)
+  await client.sendRequest("dark/setCurrentAccount", {
+    accountID: AccountService.getCurrentAccountId(),
+  });
 
   BranchStateManager.initialize(client);
   RecentItemsService.initialize(context);

@@ -52,6 +52,10 @@ export class BranchStateManager {
     return this._branches;
   }
 
+  findByName(name: string): Branch | undefined {
+    return this._branches.find(b => b.name === name);
+  }
+
   getCurrentBranch(): Branch | null {
     if (!this._currentBranchId) return null;
     return this._branches.find(b => b.id === this._currentBranchId) || null;
