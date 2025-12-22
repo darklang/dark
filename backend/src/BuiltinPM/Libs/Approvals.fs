@@ -12,6 +12,8 @@ module Builtin = LibExecution.Builtin
 module Approvals = LibPackageManager.Approvals
 module DarkDateTime = LibExecution.DarkDateTime
 module PackageIDs = LibExecution.PackageIDs
+module C2DT = LibExecution.CommonToDarkTypes
+module D = LibExecution.DvalDecoder
 
 open Builtin.Shortcuts
 
@@ -155,10 +157,7 @@ let fns : List<BuiltInFn> =
         (function
         | _, _, _, [ DUuid accountID; branchId ] ->
           uply {
-            let branchId =
-              match branchId with
-              | DEnum(_, _, _, "Some", [ DUuid u ]) -> Some u
-              | _ -> None
+            let branchId = C2DT.Option.fromDT D.uuid branchId
             let! locations =
               Approvals.listPendingLocationsWithDetails accountID branchId
 
@@ -228,18 +227,9 @@ let fns : List<BuiltInFn> =
                 match d with
                 | DString s -> s
                 | _ -> "")
-            let title =
-              match title with
-              | DEnum(_, _, _, "Some", [ DString s ]) -> Some s
-              | _ -> None
-            let description =
-              match description with
-              | DEnum(_, _, _, "Some", [ DString s ]) -> Some s
-              | _ -> None
-            let sourceBranchId =
-              match sourceBranchId with
-              | DEnum(_, _, _, "Some", [ DUuid u ]) -> Some u
-              | _ -> None
+            let title = C2DT.Option.fromDT D.string title
+            let description = C2DT.Option.fromDT D.string description
+            let sourceBranchId = C2DT.Option.fromDT D.uuid sourceBranchId
 
             let! request =
               Approvals.createApprovalRequest
