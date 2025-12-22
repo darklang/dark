@@ -69,7 +69,7 @@ let handleListIncomingApprovalRequestsRequest
             | None -> Stdlib.AltJson.Json.Null)
           ("status",
             match request.status with
-            | Open -> Stdlib.AltJson.Json.String "pending"
+            | Open -> Stdlib.AltJson.Json.String "open"
             | Closed -> Stdlib.AltJson.Json.String "closed")
           ("locationCount", Stdlib.AltJson.Json.Number (Stdlib.Int64.toFloat locationCount)) ])
 
@@ -112,7 +112,7 @@ let handleListOutgoingApprovalRequestsRequest
             | None -> Stdlib.AltJson.Json.Null)
           ("status",
             match request.status with
-            | Open -> Stdlib.AltJson.Json.String "pending"
+            | Open -> Stdlib.AltJson.Json.String "open"
             | Closed -> Stdlib.AltJson.Json.String "closed")
           ("locationCount", Stdlib.AltJson.Json.Number (Stdlib.Int64.toFloat locationCount)) ])
 
@@ -170,7 +170,7 @@ let handleGetApprovalRequestDetailsRequest
             | None -> Stdlib.AltJson.Json.Null)
           ("status",
             match request.status with
-            | Open -> Stdlib.AltJson.Json.String "pending"
+            | Open -> Stdlib.AltJson.Json.String "open"
             | Closed -> Stdlib.AltJson.Json.String "closed")
           ("locations", Stdlib.AltJson.Json.Array locationsJson) ]
 

@@ -23,7 +23,7 @@ let branchToDT (branch : Branches.Branch) : Dval =
   let fields =
     [ "id", DUuid branch.id
       "name", DString branch.name
-      "owner", DString branch.owner
+      "owner", DUuid branch.owner
       "createdAt", DDateTime(DarkDateTime.fromInstant branch.createdAt)
       "mergedAt",
       branch.mergedAt
@@ -38,12 +38,12 @@ let branchToDT (branch : Branches.Branch) : Dval =
 let fns : List<BuiltInFn> =
   [ { name = fn "scmBranchList" 0
       typeParams = []
-      parameters = [ Param.make "owner" TString "Account ID to filter branches by" ]
+      parameters = [ Param.make "owner" TUuid "Account ID to filter branches by" ]
       returnType = TList(TCustomType(Ok branchTypeName, []))
       description = "List all branches for a specific owner/account"
       fn =
         (function
-        | _, _, _, [ DString owner ] ->
+        | _, _, _, [ DUuid owner ] ->
           uply {
             let! branches = Branches.list owner
             let branchVT = VT.customType branchTypeName []
@@ -79,13 +79,13 @@ let fns : List<BuiltInFn> =
     { name = fn "scmBranchFindByName" 0
       typeParams = []
       parameters =
-        [ Param.make "owner" TString "Account ID to filter branches by"
+        [ Param.make "owner" TUuid "Account ID to filter branches by"
           Param.make "name" TString "" ]
       returnType = TypeReference.option (TCustomType(Ok branchTypeName, []))
       description = "Find branch by name for a specific owner"
       fn =
         (function
-        | _, _, _, [ DString owner; DString name ] ->
+        | _, _, _, [ DUuid owner; DString name ] ->
           uply {
             let! branch = Branches.findByName owner name
             return
@@ -102,13 +102,13 @@ let fns : List<BuiltInFn> =
     { name = fn "scmBranchCreate" 0
       typeParams = []
       parameters =
-        [ Param.make "owner" TString "Account ID that will own this branch"
+        [ Param.make "owner" TUuid "Account ID that will own this branch"
           Param.make "name" TString "" ]
       returnType = TCustomType(Ok branchTypeName, [])
       description = "Create a new branch for a specific owner/account"
       fn =
         (function
-        | _, _, _, [ DString owner; DString name ] ->
+        | _, _, _, [ DUuid owner; DString name ] ->
           uply {
             let! branch = Branches.create owner name
             return branchToDT branch

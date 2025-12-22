@@ -8,15 +8,10 @@ let handleGetBranchesRequest
   : LspState =
 
   // Get branches for the current account only
-  let owner =
+  let branches =
     match state.accountID with
-    | Some uuid ->
-      match Builtin.pmGetAccountNameById uuid with
-      | Some name -> name
-      | None -> ""
-    | None -> ""
-
-  let branches = Darklang.SCM.Branch.list owner
+    | Some accountID -> Darklang.SCM.Branch.list accountID
+    | None -> []
 
   let result =
     branches
@@ -28,7 +23,7 @@ let handleGetBranchesRequest
 
       [ ("id", Json.String(Stdlib.Uuid.toString branch.id))
         ("name", Json.String branch.name)
-        ("owner", Json.String branch.owner)
+        ("owner", Json.String(Stdlib.Uuid.toString branch.owner))
         ("createdAt", Json.String(Stdlib.DateTime.toString branch.createdAt))
         ("mergedAt", mergedAt) ]
       |> Json.Object)
@@ -50,39 +45,45 @@ let handleCreateBranchRequest
   (requestID: JsonRPC.RequestId)
   (branchName: String)
   : LspState =
-  // Branch is owned by the current account
-  let owner =
-    match state.accountID with
-    | Some uuid ->
-      match Builtin.pmGetAccountNameById uuid with
-      | Some name -> name
-      | None -> ""
-    | None -> ""
+  match state.accountID with
+  | None ->
+    // No account logged in, return error
+    let responseJson =
+      (JsonRPC.Response.Error.make
+        (Stdlib.Option.Option.Some requestID)
+        JsonRPC.Response.Error.KnownErrorCodes.invalidRequest
+        "No account logged in"
+        Stdlib.Option.Option.None)
+      |> Stdlib.AltJson.format
 
-  let branch = Darklang.SCM.Branch.create owner branchName
+    logAndSendToClient responseJson
+    state
 
-  let result =
-    let mergedAt =
-      match branch.mergedAt with
-      | Some dt -> Json.String(Stdlib.DateTime.toString dt)
-      | None -> Json.Null
+  | Some accountID ->
+    let branch = Darklang.SCM.Branch.create accountID branchName
 
-    [ ("id", Json.String(Stdlib.Uuid.toString branch.id))
-      ("name", Json.String branch.name)
-      ("owner", Json.String branch.owner)
-      ("createdAt", Json.String(Stdlib.DateTime.toString branch.createdAt))
-      ("mergedAt", mergedAt) ]
-    |> Json.Object
+    let result =
+      let mergedAt =
+        match branch.mergedAt with
+        | Some dt -> Json.String(Stdlib.DateTime.toString dt)
+        | None -> Json.Null
 
-  let responseJson =
-    let requestID = Stdlib.Option.Option.Some requestID
-    (JsonRPC.Response.Ok.make requestID result)
-    |> Stdlib.AltJson.format
+      [ ("id", Json.String(Stdlib.Uuid.toString branch.id))
+        ("name", Json.String branch.name)
+        ("owner", Json.String(Stdlib.Uuid.toString branch.owner))
+        ("createdAt", Json.String(Stdlib.DateTime.toString branch.createdAt))
+        ("mergedAt", mergedAt) ]
+      |> Json.Object
 
-  logAndSendToClient responseJson
+    let responseJson =
+      let requestID = Stdlib.Option.Option.Some requestID
+      (JsonRPC.Response.Ok.make requestID result)
+      |> Stdlib.AltJson.format
 
-  // Set this as the current branch in LSP state
-  { state with branchID = Stdlib.Option.Option.Some branch.id }
+    logAndSendToClient responseJson
+
+    // Set this as the current branch in LSP state
+    { state with branchID = Stdlib.Option.Option.Some branch.id }
 
 
 
