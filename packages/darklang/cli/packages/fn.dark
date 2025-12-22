@@ -100,8 +100,7 @@ let createFnInline
           // Push the ops up to the server
           // Local CLI ops don't need an instanceID to track their origin
           let instanceID = Stdlib.Option.Option.None
-          // CLEANUP: createdBy is None - will use the owner from the location
-          let createdBy = Stdlib.Option.Option.None
+          let createdBy = state.accountID
 
           match SCM.PackageOps.add instanceID branchID createdBy ops with
           | Ok _ ->

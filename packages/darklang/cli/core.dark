@@ -26,6 +26,15 @@ let initState () : AppState =
 
   let accountUuid = Builtin.pmGetAccountByName accountName
 
+  // Get branch from DARK_BRANCH env var if set
+  let branchId =
+    match Builtin.environmentGet "DARK_BRANCH" with
+    | Some idStr ->
+      match Stdlib.Uuid.parse idStr with
+      | Ok id -> Stdlib.Option.Option.Some id
+      | Error _ -> Stdlib.Option.Option.None
+    | None -> Stdlib.Option.Option.None
+
   AppState
     { isExiting = false
       prompt = Prompt.initState()
@@ -34,7 +43,7 @@ let initState () : AppState =
       currentPage = Page.MainPrompt
       accountName = accountName
       accountID = accountUuid
-      currentBranchId = Stdlib.Option.Option.None}
+      currentBranchId = branchId }
 
 type Msg =
   | ProcessInput of String
