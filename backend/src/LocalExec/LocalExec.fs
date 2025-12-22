@@ -19,9 +19,8 @@ module HandleCommand =
     uply {
       print $"Reloading {name} canvas..."
 
-      // Use None for accountID and branchId during local dev - see all approved items
       let! (canvasId, toplevels) =
-        Canvas.loadFromDisk None None LibPackageManager.PackageManager.pt name
+        Canvas.loadFromDisk LibPackageManager.PackageManager.pt name
 
       print $"Loaded canvas {canvasId} with {List.length toplevels} toplevels"
 
@@ -40,8 +39,7 @@ module HandleCommand =
   let reloadPackages () : Ply<Result<unit, string>> =
     uply {
       // first, load the packages from disk, ensuring all parse well
-      // Use None for accountID and branchId during local dev - see all approved items
-      let! ops = LoadPackagesFromDisk.load None None Builtins.all
+      let! ops = LoadPackagesFromDisk.load Builtins.all
 
       // CLEANUP consider checking for duplicates (helps prevent a class of issues)
 

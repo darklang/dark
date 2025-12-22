@@ -15,12 +15,10 @@ open Utils
 
 /// Reads and parses all .dark files in `packages` dir,
 /// failing upon any individual failure
-let load
-  (accountID : Option<PT.AccountID>)
-  (branchId : Option<PT.BranchID>)
-  (builtins : RT.Builtins)
-  : Ply<List<PT.PackageOp>> =
+let load (builtins : RT.Builtins) : Ply<List<PT.PackageOp>> =
   uply {
+    let accountID = None
+    let branchId = None
     let filesWithContents =
       "/home/dark/app/packages"
       |> listDirectoryRecursive

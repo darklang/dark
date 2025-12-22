@@ -53,12 +53,14 @@ let purgeDataFromInternalSqlTables (id : CanvasID) : Task<unit> =
 
 
 let loadFromDisk
-  (accountID : Option<PT.AccountID>)
-  (branchId : Option<PT.BranchID>)
   (pm : PT.PackageManager)
   (canvasName : string)
   : Ply<System.Guid * List<LibExecution.ProgramTypes.Toplevel.T>> =
   uply {
+    // Use None for accountID and branchId during local dev - see all approved items
+    let accountID = None
+    let branchId = None
+
     print $"Loading canvas {canvasName} from disk"
 
     let canvasDir = $"canvases/{canvasName}"
