@@ -9,8 +9,11 @@ let handleGetBranchesRequest
 
   // Get branches for the current account only
   let owner =
-    match state.currentAccountId with
-    | Some id -> id
+    match state.accountID with
+    | Some uuid ->
+      match Builtin.pmGetAccountNameById uuid with
+      | Some name -> name
+      | None -> ""
     | None -> ""
 
   let branches = Darklang.SCM.Branch.list owner
@@ -49,8 +52,11 @@ let handleCreateBranchRequest
   : LspState =
   // Branch is owned by the current account
   let owner =
-    match state.currentAccountId with
-    | Some id -> id
+    match state.accountID with
+    | Some uuid ->
+      match Builtin.pmGetAccountNameById uuid with
+      | Some name -> name
+      | None -> ""
     | None -> ""
 
   let branch = Darklang.SCM.Branch.create owner branchName

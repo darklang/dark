@@ -65,6 +65,7 @@ let main (args : string array) : int =
         Tests.VanillaSerialization.tests
         Tests.DarkTypesSerialization.tests
         Tests.SqlCompiler.tests
+        Tests.Approvals.tests
 
         // cross-cutting
         Tests.LibExecution.tests.Force() ]

@@ -280,9 +280,9 @@ let handleIncomingMessage
           Sync.handleListInstancesRequest state requestId
 
         | ("dark/setCurrentAccount", Some requestId, Some(Object params)) ->
-          let accountId =
+          let accountName =
             params
-            |> Stdlib.List.findFirst (fun (k, _) -> k == "accountId")
+            |> Stdlib.List.findFirst (fun (k, _) -> k == "accountID")
             |> Stdlib.Option.map (fun (_, v) ->
               match v with
               | String s -> s
@@ -290,10 +290,12 @@ let handleIncomingMessage
             |> Stdlib.Option.withDefault ""
 
           let newState =
-            if accountId == "" then
-              { state with currentAccountId = Stdlib.Option.Option.None }
+            if accountName == "" then
+              { state with accountID = Stdlib.Option.Option.None }
             else
-              { state with currentAccountId = Stdlib.Option.Option.Some accountId }
+              // Look up the account UUID by name
+              let accountUuid = Builtin.pmGetAccountByName accountName
+              { state with accountID = accountUuid }
 
           let response =
             (JsonRPC.Response.Ok.make
@@ -306,6 +308,353 @@ let handleIncomingMessage
 
         | ("dark/listAccounts", Some requestId, _) ->
           Accounts.handleListAccountsRequest state requestId
+
+        | ("dark/listPendingLocations", Some requestId, Some(Object params)) ->
+          let accountName =
+            params
+            |> Stdlib.List.findFirst (fun (k, _) -> k == "accountID")
+            |> Stdlib.Option.map (fun (_, v) ->
+              match v with
+              | String s -> s
+              | _ -> "")
+            |> Stdlib.Option.withDefault ""
+
+          match Builtin.pmGetAccountByName accountName with
+          | Some accountID ->
+            Approvals.handleListPendingLocationsRequest state requestId accountID
+          | None ->
+            log $"Unknown account: {accountName}"
+            // Send empty response to avoid hanging
+            let response =
+              (JsonRPC.Response.Ok.make
+                (Stdlib.Option.Option.Some requestId)
+                (Stdlib.AltJson.Json.Array []))
+              |> Stdlib.AltJson.format
+            logAndSendToClient response
+            state
+
+        | ("dark/listIncomingApprovalRequests", Some requestId, Some(Object params)) ->
+          let accountName =
+            params
+            |> Stdlib.List.findFirst (fun (k, _) -> k == "accountID")
+            |> Stdlib.Option.map (fun (_, v) ->
+              match v with
+              | String s -> s
+              | _ -> "")
+            |> Stdlib.Option.withDefault ""
+
+          match Builtin.pmGetAccountByName accountName with
+          | Some accountID ->
+            Approvals.handleListIncomingApprovalRequestsRequest state requestId accountID
+          | None ->
+            log $"Unknown account: {accountName}"
+            let response =
+              (JsonRPC.Response.Ok.make
+                (Stdlib.Option.Option.Some requestId)
+                (Stdlib.AltJson.Json.Array []))
+              |> Stdlib.AltJson.format
+            logAndSendToClient response
+            state
+
+        | ("dark/listOutgoingApprovalRequests", Some requestId, Some(Object params)) ->
+          let accountName =
+            params
+            |> Stdlib.List.findFirst (fun (k, _) -> k == "accountID")
+            |> Stdlib.Option.map (fun (_, v) ->
+              match v with
+              | String s -> s
+              | _ -> "")
+            |> Stdlib.Option.withDefault ""
+
+          match Builtin.pmGetAccountByName accountName with
+          | Some accountID ->
+            Approvals.handleListOutgoingApprovalRequestsRequest state requestId accountID
+          | None ->
+            log $"Unknown account: {accountName}"
+            let response =
+              (JsonRPC.Response.Ok.make
+                (Stdlib.Option.Option.Some requestId)
+                (Stdlib.AltJson.Json.Array []))
+              |> Stdlib.AltJson.format
+            logAndSendToClient response
+            state
+
+        | ("dark/getApprovalRequestDetails", Some requestId, Some(Object params)) ->
+          let requestIdStr =
+            params
+            |> Stdlib.List.findFirst (fun (k, _) -> k == "requestId")
+            |> Stdlib.Option.map (fun (_, v) ->
+              match v with
+              | String s -> s
+              | _ -> "")
+            |> Stdlib.Option.withDefault ""
+
+          match Stdlib.Uuid.parse requestIdStr with
+          | Ok uuid ->
+            Approvals.handleGetApprovalRequestDetailsRequest state requestId uuid
+          | Error _ ->
+            log $"Invalid request ID: {requestIdStr}"
+            let response =
+              (JsonRPC.Response.Ok.make
+                (Stdlib.Option.Option.Some requestId)
+                Stdlib.AltJson.Json.Null)
+              |> Stdlib.AltJson.format
+            logAndSendToClient response
+            state
+
+        | ("dark/approveRequest", Some requestId, Some(Object params)) ->
+          let approvalRequestIdStr =
+            params
+            |> Stdlib.List.findFirst (fun (k, _) -> k == "requestId")
+            |> Stdlib.Option.map (fun (_, v) ->
+              match v with
+              | String s -> s
+              | _ -> "")
+            |> Stdlib.Option.withDefault ""
+
+          let reviewerName =
+            params
+            |> Stdlib.List.findFirst (fun (k, _) -> k == "reviewerId")
+            |> Stdlib.Option.map (fun (_, v) ->
+              match v with
+              | String s -> s
+              | _ -> "")
+            |> Stdlib.Option.withDefault ""
+
+          match (Stdlib.Uuid.parse approvalRequestIdStr, Builtin.pmGetAccountByName reviewerName) with
+          | (Ok uuid, Some reviewerId) ->
+            Approvals.handleApproveRequest state requestId uuid reviewerId
+          | (Error _, _) ->
+            log $"Invalid request ID: {approvalRequestIdStr}"
+            let response =
+              (JsonRPC.Response.Ok.make
+                (Stdlib.Option.Option.Some requestId)
+                (Stdlib.AltJson.Json.Object [ ("success", Stdlib.AltJson.Json.Bool false); ("error", Stdlib.AltJson.Json.String $"Invalid request ID: {approvalRequestIdStr}") ]))
+              |> Stdlib.AltJson.format
+            logAndSendToClient response
+            state
+          | (_, None) ->
+            log $"Unknown reviewer: {reviewerName}"
+            let response =
+              (JsonRPC.Response.Ok.make
+                (Stdlib.Option.Option.Some requestId)
+                (Stdlib.AltJson.Json.Object [ ("success", Stdlib.AltJson.Json.Bool false); ("error", Stdlib.AltJson.Json.String $"Unknown reviewer: {reviewerName}") ]))
+              |> Stdlib.AltJson.format
+            logAndSendToClient response
+            state
+
+        | ("dark/rejectRequest", Some requestId, Some(Object params)) ->
+          let approvalRequestIdStr =
+            params
+            |> Stdlib.List.findFirst (fun (k, _) -> k == "requestId")
+            |> Stdlib.Option.map (fun (_, v) ->
+              match v with
+              | String s -> s
+              | _ -> "")
+            |> Stdlib.Option.withDefault ""
+
+          let reviewerName =
+            params
+            |> Stdlib.List.findFirst (fun (k, _) -> k == "reviewerId")
+            |> Stdlib.Option.map (fun (_, v) ->
+              match v with
+              | String s -> s
+              | _ -> "")
+            |> Stdlib.Option.withDefault ""
+
+          let reason =
+            params
+            |> Stdlib.List.findFirst (fun (k, _) -> k == "reason")
+            |> Stdlib.Option.map (fun (_, v) ->
+              match v with
+              | String s -> s
+              | _ -> "")
+            |> Stdlib.Option.withDefault ""
+
+          match (Stdlib.Uuid.parse approvalRequestIdStr, Builtin.pmGetAccountByName reviewerName) with
+          | (Ok uuid, Some reviewerId) ->
+            Approvals.handleRejectRequest state requestId uuid reviewerId reason
+          | (Error _, _) ->
+            log $"Invalid request ID: {approvalRequestIdStr}"
+            let response =
+              (JsonRPC.Response.Ok.make
+                (Stdlib.Option.Option.Some requestId)
+                (Stdlib.AltJson.Json.Object [ ("success", Stdlib.AltJson.Json.Bool false); ("error", Stdlib.AltJson.Json.String $"Invalid request ID: {approvalRequestIdStr}") ]))
+              |> Stdlib.AltJson.format
+            logAndSendToClient response
+            state
+          | (_, None) ->
+            log $"Unknown reviewer: {reviewerName}"
+            let response =
+              (JsonRPC.Response.Ok.make
+                (Stdlib.Option.Option.Some requestId)
+                (Stdlib.AltJson.Json.Object [ ("success", Stdlib.AltJson.Json.Bool false); ("error", Stdlib.AltJson.Json.String $"Unknown reviewer: {reviewerName}") ]))
+              |> Stdlib.AltJson.format
+            logAndSendToClient response
+            state
+
+        | ("dark/requestChangesForRequest", Some requestId, Some(Object params)) ->
+          let approvalRequestIdStr =
+            params
+            |> Stdlib.List.findFirst (fun (k, _) -> k == "requestId")
+            |> Stdlib.Option.map (fun (_, v) ->
+              match v with
+              | String s -> s
+              | _ -> "")
+            |> Stdlib.Option.withDefault ""
+
+          let reviewerName =
+            params
+            |> Stdlib.List.findFirst (fun (k, _) -> k == "reviewerId")
+            |> Stdlib.Option.map (fun (_, v) ->
+              match v with
+              | String s -> s
+              | _ -> "")
+            |> Stdlib.Option.withDefault ""
+
+          let comment =
+            params
+            |> Stdlib.List.findFirst (fun (k, _) -> k == "comment")
+            |> Stdlib.Option.map (fun (_, v) ->
+              match v with
+              | String s -> s
+              | _ -> "")
+            |> Stdlib.Option.withDefault ""
+
+          match (Stdlib.Uuid.parse approvalRequestIdStr, Builtin.pmGetAccountByName reviewerName) with
+          | (Ok uuid, Some reviewerId) ->
+            Approvals.handleRequestChangesRequest state requestId uuid reviewerId comment
+          | (Error _, _) ->
+            log $"Invalid request ID: {approvalRequestIdStr}"
+            let response =
+              (JsonRPC.Response.Ok.make
+                (Stdlib.Option.Option.Some requestId)
+                (Stdlib.AltJson.Json.Object [ ("success", Stdlib.AltJson.Json.Bool false); ("error", Stdlib.AltJson.Json.String $"Invalid request ID: {approvalRequestIdStr}") ]))
+              |> Stdlib.AltJson.format
+            logAndSendToClient response
+            state
+          | (_, None) ->
+            log $"Unknown reviewer: {reviewerName}"
+            let response =
+              (JsonRPC.Response.Ok.make
+                (Stdlib.Option.Option.Some requestId)
+                (Stdlib.AltJson.Json.Object [ ("success", Stdlib.AltJson.Json.Bool false); ("error", Stdlib.AltJson.Json.String $"Unknown reviewer: {reviewerName}") ]))
+              |> Stdlib.AltJson.format
+            logAndSendToClient response
+            state
+
+        | ("dark/withdrawApprovalRequest", Some requestId, Some(Object params)) ->
+          let approvalRequestIdStr =
+            params
+            |> Stdlib.List.findFirst (fun (k, _) -> k == "requestId")
+            |> Stdlib.Option.map (fun (_, v) ->
+              match v with
+              | String s -> s
+              | _ -> "")
+            |> Stdlib.Option.withDefault ""
+
+          let submitterName =
+            params
+            |> Stdlib.List.findFirst (fun (k, _) -> k == "submitterId")
+            |> Stdlib.Option.map (fun (_, v) ->
+              match v with
+              | String s -> s
+              | _ -> "")
+            |> Stdlib.Option.withDefault ""
+
+          match (Stdlib.Uuid.parse approvalRequestIdStr, Builtin.pmGetAccountByName submitterName) with
+          | (Ok uuid, Some submitterId) ->
+            Approvals.handleWithdrawRequest state requestId uuid submitterId
+          | (Error _, _) ->
+            log $"Invalid request ID: {approvalRequestIdStr}"
+            let response =
+              (JsonRPC.Response.Ok.make
+                (Stdlib.Option.Option.Some requestId)
+                (Stdlib.AltJson.Json.Object [ ("success", Stdlib.AltJson.Json.Bool false); ("error", Stdlib.AltJson.Json.String $"Invalid request ID: {approvalRequestIdStr}") ]))
+              |> Stdlib.AltJson.format
+            logAndSendToClient response
+            state
+          | (_, None) ->
+            log $"Unknown submitter: {submitterName}"
+            let response =
+              (JsonRPC.Response.Ok.make
+                (Stdlib.Option.Option.Some requestId)
+                (Stdlib.AltJson.Json.Object [ ("success", Stdlib.AltJson.Json.Bool false); ("error", Stdlib.AltJson.Json.String $"Unknown submitter: {submitterName}") ]))
+              |> Stdlib.AltJson.format
+            logAndSendToClient response
+            state
+
+        | ("dark/createApprovalRequest", Some requestId, Some(Object params)) ->
+          let accountName =
+            params
+            |> Stdlib.List.findFirst (fun (k, _) -> k == "accountID")
+            |> Stdlib.Option.map (fun (_, v) ->
+              match v with
+              | String s -> s
+              | _ -> "")
+            |> Stdlib.Option.withDefault ""
+
+          let targetNamespace =
+            params
+            |> Stdlib.List.findFirst (fun (k, _) -> k == "targetNamespace")
+            |> Stdlib.Option.map (fun (_, v) ->
+              match v with
+              | String s -> s
+              | _ -> "")
+            |> Stdlib.Option.withDefault ""
+
+          let locationIds =
+            params
+            |> Stdlib.List.findFirst (fun (k, _) -> k == "locationIds")
+            |> Stdlib.Option.map (fun (_, v) ->
+              match v with
+              | Array arr ->
+                arr
+                |> Stdlib.List.filterMap (fun item ->
+                  match item with
+                  | String s -> Stdlib.Option.Option.Some s
+                  | _ -> Stdlib.Option.Option.None)
+              | _ -> [])
+            |> Stdlib.Option.withDefault []
+
+          let title =
+            params
+            |> Stdlib.List.findFirst (fun (k, _) -> k == "title")
+            |> Stdlib.Option.andThen (fun (_, v) ->
+              match v with
+              | String s -> Stdlib.Option.Option.Some s
+              | Null -> Stdlib.Option.Option.None
+              | _ -> Stdlib.Option.Option.None)
+
+          let description =
+            params
+            |> Stdlib.List.findFirst (fun (k, _) -> k == "description")
+            |> Stdlib.Option.andThen (fun (_, v) ->
+              match v with
+              | String s -> Stdlib.Option.Option.Some s
+              | Null -> Stdlib.Option.Option.None
+              | _ -> Stdlib.Option.Option.None)
+
+          match Builtin.pmGetAccountByName accountName with
+          | Some accountID ->
+            Approvals.handleCreateApprovalRequest
+              state
+              requestId
+              accountID
+              targetNamespace
+              locationIds
+              title
+              description
+          | None ->
+            log $"Unknown account: {accountName}"
+            let response =
+              (JsonRPC.Response.Ok.make
+                (Stdlib.Option.Option.Some requestId)
+                (Stdlib.AltJson.Json.Object [ ("success", Stdlib.AltJson.Json.Bool false); ("error", Stdlib.AltJson.Json.String $"Unknown account: {accountName}") ]))
+              |> Stdlib.AltJson.format
+            logAndSendToClient response
+            state
+
         | other ->
           log $"TODO: we don't yet support this method: {r.method}"
           state

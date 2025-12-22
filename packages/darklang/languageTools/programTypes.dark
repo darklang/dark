@@ -415,6 +415,30 @@ type PackageOp =
   | SetTypeName of FQTypeName.Package * PackageLocation
   | SetValueName of FQValueName.Package * PackageLocation
   | SetFnName of FQFnName.Package * PackageLocation
+  // Approval ops
+  | ApproveItem of
+      itemId: Uuid *
+      branchId: Stdlib.Option.Option<Uuid> *
+      reviewerId: Uuid
+  | RejectItem of
+      itemId: Uuid *
+      branchId: Stdlib.Option.Option<Uuid> *
+      reviewerId: Uuid *
+      reason: String
+  | RequestNamingApproval of
+      requestId: Uuid *
+      createdBy: Uuid *
+      targetNamespace: String *
+      locationIds: List<String> *
+      title: Stdlib.Option.Option<String> *
+      description: Stdlib.Option.Option<String> *
+      sourceBranchId: Stdlib.Option.Option<Uuid>
+  | WithdrawApprovalRequest of requestId: Uuid * withdrawnBy: Uuid
+  | RequestChanges of
+      requestId: Uuid *
+      locationId: String *
+      reviewerId: Uuid *
+      comment: String
 
 
 /// A batch of package ops that all share the same branch and instance
@@ -470,18 +494,27 @@ module Search =
 /// Note: It may be tempting to think the `getX` fns shouldn't return Options,
 /// but there's a chance of Local <-> Cloud not being fully in sync,
 /// for whatever reasons.
+///
+/// Visibility rules:
+/// - Approved items are visible to everyone
+/// - Pending items are visible only to their creator (when accountID matches created_by)
+/// - Items on main (branch_id IS NULL) are always included in queries
+/// - Items on a specific branch are included when viewing that branch
 module PackageManager =
   type PackageManager =
     { findType:
-        Stdlib.Option.Option<BranchID>
+        Stdlib.Option.Option<Uuid>
+        -> Stdlib.Option.Option<BranchID>
         -> PackageLocation
         -> Stdlib.Option.Option<FQTypeName.Package>
       findValue:
-        Stdlib.Option.Option<BranchID>
+        Stdlib.Option.Option<Uuid>
+        -> Stdlib.Option.Option<BranchID>
         -> PackageLocation
         -> Stdlib.Option.Option<FQValueName.Package>
       findFn:
-        Stdlib.Option.Option<BranchID>
+        Stdlib.Option.Option<Uuid>
+        -> Stdlib.Option.Option<BranchID>
         -> PackageLocation
         -> Stdlib.Option.Option<FQFnName.Package>
 
@@ -493,8 +526,10 @@ module PackageManager =
       getFn: FQFnName.Package -> Stdlib.Option.Option<PackageFn.PackageFn>
 
       search:
-        (Stdlib.Option.Option<BranchID> * Search.SearchQuery)
-          -> Search.SearchResults }
+        Stdlib.Option.Option<Uuid>
+        -> Stdlib.Option.Option<BranchID>
+        -> Search.SearchQuery
+        -> Search.SearchResults }
 
 
   /// Allows you to side-load a few 'extras' in-memory, along
@@ -507,20 +542,20 @@ module PackageManager =
     : PackageManager.PackageManager =
     PackageManager.PackageManager
       { findType =
-          fun branchID location ->
+          fun accountID branchID location ->
             match types |> Stdlib.List.findFirst (fun t -> t.location == location) with
             | Some t -> Stdlib.Option.Option.Some t.entity.id
-            | None -> pm.findType branchID location
+            | None -> pm.findType accountID branchID location
         findValue =
-          fun branchID location ->
+          fun accountID branchID location ->
             match values |> Stdlib.List.findFirst (fun v -> v.location == location) with
             | Some v -> Stdlib.Option.Option.Some v.entity.id
-            | None -> pm.findValue branchID location
+            | None -> pm.findValue accountID branchID location
         findFn =
-          fun branchID location ->
+          fun accountID branchID location ->
             match fns |> Stdlib.List.findFirst (fun f -> f.location == location) with
             | Some f -> Stdlib.Option.Option.Some f.entity.id
-            | None -> pm.findFn branchID location
+            | None -> pm.findFn accountID branchID location
 
         getType =
           fun id ->
@@ -591,7 +626,7 @@ module PackageManager =
     // Create PackageManager that looks up in ops first, then falls back to basePM
     PackageManager.PackageManager
       { findType =
-          fun branchID location ->
+          fun accountID branchID location ->
             match typeLocationMap
                   |> Stdlib.List.findFirst (fun tuple ->
                     let (loc, _) = tuple
@@ -599,10 +634,10 @@ module PackageManager =
             | Some tuple ->
               let (_, id) = tuple
               Stdlib.Option.Option.Some id
-            | None -> basePM.findType branchID location
+            | None -> basePM.findType accountID branchID location
 
         findValue =
-          fun branchID location ->
+          fun accountID branchID location ->
             match valueLocationMap
                   |> Stdlib.List.findFirst (fun tuple ->
                     let (loc, _) = tuple
@@ -610,10 +645,10 @@ module PackageManager =
             | Some tuple ->
               let (_, id) = tuple
               Stdlib.Option.Option.Some id
-            | None -> basePM.findValue branchID location
+            | None -> basePM.findValue accountID branchID location
 
         findFn =
-          fun branchID location ->
+          fun accountID branchID location ->
             match fnLocationMap
                   |> Stdlib.List.findFirst (fun tuple ->
                     let (loc, _) = tuple
@@ -621,7 +656,7 @@ module PackageManager =
             | Some tuple ->
               let (_, id) = tuple
               Stdlib.Option.Option.Some id
-            | None -> basePM.findFn branchID location
+            | None -> basePM.findFn accountID branchID location
 
         getType =
           fun id ->

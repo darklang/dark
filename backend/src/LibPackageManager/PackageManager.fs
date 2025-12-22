@@ -37,7 +37,7 @@ let pt : PT.PackageManager =
     getValueLocation = withCache PMPT.Value.getLocation
     getFnLocation = withCache PMPT.Fn.getLocation
 
-    search = LibPackageManager.ProgramTypes.search
+    search = PMPT.search
 
     init = uply { return () } }
 
@@ -63,6 +63,12 @@ let createInMemory (ops : List<PT.PackageOp>) : PT.PackageManager =
     | PT.PackageOp.AddFn f -> fns.Add(f)
     | PT.PackageOp.SetFnName(id, loc) -> fnLocations.Add(loc, id)
 
+    | PT.PackageOp.ApproveItem _ -> ()
+    | PT.PackageOp.RejectItem _ -> ()
+    | PT.PackageOp.RequestNamingApproval _ -> ()
+    | PT.PackageOp.WithdrawApprovalRequest _ -> ()
+    | PT.PackageOp.RequestChanges _ -> ()
+
   // Convert to immutable maps for efficient lookup
   let typeMap = types |> Seq.map (fun t -> t.id, t) |> Map.ofSeq
   let valueMap = values |> Seq.map (fun v -> v.id, v) |> Map.ofSeq
@@ -77,21 +83,23 @@ let createInMemory (ops : List<PT.PackageOp>) : PT.PackageManager =
     valueLocations |> Seq.map (fun (loc, id) -> id, loc) |> Map.ofSeq
   let fnIdToLoc = fnLocations |> Seq.map (fun (loc, id) -> id, loc) |> Map.ofSeq
 
-  { findType = fun (_branchID, loc) -> Ply(Map.tryFind loc typeLocMap)
-    findValue = fun (_branchID, loc) -> Ply(Map.tryFind loc valueLocMap)
-    findFn = fun (_branchID, loc) -> Ply(Map.tryFind loc fnLocMap)
+  { findType = fun (_accountId, _branchID, loc) -> Ply(Map.tryFind loc typeLocMap)
+    findValue = fun (_accountId, _branchID, loc) -> Ply(Map.tryFind loc valueLocMap)
+    findFn = fun (_accountId, _branchID, loc) -> Ply(Map.tryFind loc fnLocMap)
 
     getType = fun id -> Ply(Map.tryFind id typeMap)
     getValue = fun id -> Ply(Map.tryFind id valueMap)
     getFn = fun id -> Ply(Map.tryFind id fnMap)
 
-    getTypeLocation = fun (_branchID, id) -> Ply(Map.tryFind id typeIdToLoc)
-    getValueLocation = fun (_branchID, id) -> Ply(Map.tryFind id valueIdToLoc)
-    getFnLocation = fun (_branchID, id) -> Ply(Map.tryFind id fnIdToLoc)
+    getTypeLocation =
+      fun (_accountId, _branchID, id) -> Ply(Map.tryFind id typeIdToLoc)
+    getValueLocation =
+      fun (_accountId, _branchID, id) -> Ply(Map.tryFind id valueIdToLoc)
+    getFnLocation = fun (_accountId, _branchID, id) -> Ply(Map.tryFind id fnIdToLoc)
 
     // no need to support this for in-memory.
     search =
-      fun (_branchID, _query) ->
+      fun (_accountId, _branchID, _query) ->
         // Simple in-memory search - just return all items with their locations
         // Could implement proper filtering if needed
         let typesWithLocs =
@@ -137,27 +145,27 @@ let combine
   (fallback : PT.PackageManager)
   : PT.PackageManager =
   { findType =
-      fun (branchID, loc) ->
+      fun (accountID, branchID, loc) ->
         uply {
-          match! overlay.findType (branchID, loc) with
+          match! overlay.findType (accountID, branchID, loc) with
           | Some id -> return Some id
-          | None -> return! fallback.findType (branchID, loc)
+          | None -> return! fallback.findType (accountID, branchID, loc)
         }
 
     findValue =
-      fun (branchID, loc) ->
+      fun (accountID, branchID, loc) ->
         uply {
-          match! overlay.findValue (branchID, loc) with
+          match! overlay.findValue (accountID, branchID, loc) with
           | Some id -> return Some id
-          | None -> return! fallback.findValue (branchID, loc)
+          | None -> return! fallback.findValue (accountID, branchID, loc)
         }
 
     findFn =
-      fun (branchID, loc) ->
+      fun (accountID, branchID, loc) ->
         uply {
-          match! overlay.findFn (branchID, loc) with
+          match! overlay.findFn (accountID, branchID, loc) with
           | Some id -> return Some id
-          | None -> return! fallback.findFn (branchID, loc)
+          | None -> return! fallback.findFn (accountID, branchID, loc)
         }
 
     getType =
@@ -185,35 +193,35 @@ let combine
         }
 
     getTypeLocation =
-      fun (branchID, id) ->
+      fun (accountID, branchID, id) ->
         uply {
-          match! overlay.getTypeLocation (branchID, id) with
+          match! overlay.getTypeLocation (accountID, branchID, id) with
           | Some loc -> return Some loc
-          | None -> return! fallback.getTypeLocation (branchID, id)
+          | None -> return! fallback.getTypeLocation (accountID, branchID, id)
         }
 
     getValueLocation =
-      fun (branchID, id) ->
+      fun (accountID, branchID, id) ->
         uply {
-          match! overlay.getValueLocation (branchID, id) with
+          match! overlay.getValueLocation (accountID, branchID, id) with
           | Some loc -> return Some loc
-          | None -> return! fallback.getValueLocation (branchID, id)
+          | None -> return! fallback.getValueLocation (accountID, branchID, id)
         }
 
     getFnLocation =
-      fun (branchID, id) ->
+      fun (accountID, branchID, id) ->
         uply {
-          match! overlay.getFnLocation (branchID, id) with
+          match! overlay.getFnLocation (accountID, branchID, id) with
           | Some loc -> return Some loc
-          | None -> return! fallback.getFnLocation (branchID, id)
+          | None -> return! fallback.getFnLocation (accountID, branchID, id)
         }
 
     search =
-      fun (branchID, query) ->
+      fun (accountID, branchID, query) ->
         uply {
           // Combine search results from both
-          let! overlayResults = overlay.search (branchID, query)
-          let! fallbackResults = fallback.search (branchID, query)
+          let! overlayResults = overlay.search (accountID, branchID, query)
+          let! fallbackResults = fallback.search (accountID, branchID, query)
 
           return
             { PT.Search.SearchResults.submodules =
@@ -240,13 +248,14 @@ let stabilizeOpsAgainstPM
   : Ply<List<PT.PackageOp>> =
   uply {
     let mutable result = []
+    let accountID : Option<PT.AccountID> = None
     for op in List.rev ops do
       let! stabilizedOp =
         uply {
           match op with
           | PT.PackageOp.SetTypeName(_, loc) ->
             // Look up stable ID from reference PM
-            let! stableIdOpt = referencePM.findType (None, loc)
+            let! stableIdOpt = referencePM.findType (accountID, None, loc)
             let stableId =
               stableIdOpt |> Option.defaultWith (fun () -> System.Guid.NewGuid())
             return PT.PackageOp.SetTypeName(stableId, loc)
@@ -261,13 +270,13 @@ let stabilizeOpsAgainstPM
             // Look up stable ID from reference PM using that location
             let! stableIdOpt =
               match typLoc with
-              | Some loc -> referencePM.findType (None, loc)
+              | Some loc -> referencePM.findType (accountID, None, loc)
               | None -> Ply(None)
             let stableId = stableIdOpt |> Option.defaultValue typ.id
             return PT.PackageOp.AddType { typ with id = stableId }
 
           | PT.PackageOp.SetValueName(_, loc) ->
-            let! stableIdOpt = referencePM.findValue (None, loc)
+            let! stableIdOpt = referencePM.findValue (accountID, None, loc)
             let stableId =
               stableIdOpt |> Option.defaultWith (fun () -> System.Guid.NewGuid())
             return PT.PackageOp.SetValueName(stableId, loc)
@@ -280,13 +289,13 @@ let stabilizeOpsAgainstPM
                 | _ -> None)
             let! stableIdOpt =
               match valueLoc with
-              | Some loc -> referencePM.findValue (None, loc)
+              | Some loc -> referencePM.findValue (accountID, None, loc)
               | None -> Ply(None)
             let stableId = stableIdOpt |> Option.defaultValue value.id
             return PT.PackageOp.AddValue { value with id = stableId }
 
           | PT.PackageOp.SetFnName(_, loc) ->
-            let! stableIdOpt = referencePM.findFn (None, loc)
+            let! stableIdOpt = referencePM.findFn (accountID, None, loc)
             let stableId =
               stableIdOpt |> Option.defaultWith (fun () -> System.Guid.NewGuid())
             return PT.PackageOp.SetFnName(stableId, loc)
@@ -299,10 +308,16 @@ let stabilizeOpsAgainstPM
                 | _ -> None)
             let! stableIdOpt =
               match fnLoc with
-              | Some loc -> referencePM.findFn (None, loc)
+              | Some loc -> referencePM.findFn (accountID, None, loc)
               | None -> Ply(None)
             let stableId = stableIdOpt |> Option.defaultValue fn.id
             return PT.PackageOp.AddFn { fn with id = stableId }
+
+          | PT.PackageOp.ApproveItem _ -> return op
+          | PT.PackageOp.RejectItem _ -> return op
+          | PT.PackageOp.RequestNamingApproval _ -> return op
+          | PT.PackageOp.WithdrawApprovalRequest _ -> return op
+          | PT.PackageOp.RequestChanges _ -> return op
         }
       result <- stabilizedOp :: result
     return result

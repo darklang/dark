@@ -18,12 +18,24 @@ let displayBranchInfo (branch: SCM.Branch.Branch) : Unit =
   |> Stdlib.printLines
 
 
+/// Get the account name from state, looking it up from the UUID
+let getAccountName (state: Cli.AppState) : String =
+  match state.accountID with
+  | Some uuid ->
+    match Builtin.pmGetAccountNameById uuid with
+    | Some name -> name
+    | None -> ""
+  | None -> ""
+
+
 let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
+  let accountName = getAccountName state
+
   match args with
   | [] -> help state
 
   | ["list"] ->
-    let branches = Darklang.SCM.Branch.list state.currentAccountId
+    let branches = Darklang.SCM.Branch.list accountName
     Stdlib.printLine ""
     Stdlib.printLine (Colors.boldText "Branches:")
 
@@ -42,7 +54,7 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
     state
 
   | ["create"; name] ->
-    let branch = Darklang.SCM.Branch.create state.currentAccountId name
+    let branch = Darklang.SCM.Branch.create accountName name
     Stdlib.printLine $"Created and switched to branch: {name}"
 
     { state with
@@ -50,7 +62,7 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
         needsFullRedraw = true }
 
   | ["switch"; name] ->
-    let branch = Darklang.SCM.Branch.findByName state.currentAccountId name
+    let branch = Darklang.SCM.Branch.findByName accountName name
 
     match branch with
     | None ->
@@ -119,7 +131,7 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
       state
 
   | ["info"; name] ->
-    let branch = Darklang.SCM.Branch.findByName state.currentAccountId name
+    let branch = Darklang.SCM.Branch.findByName accountName name
 
     match branch with
     | None ->
@@ -163,6 +175,8 @@ let help (state: Cli.AppState) : Cli.AppState =
 
 
 let complete (state: Cli.AppState) (args: List<String>) : List<String> =
+  let accountName = getAccountName state
+
   match args with
   | [] -> [ "list"; "create"; "switch"; "switch-id"; "status"; "unset"; "none"; "clear" ]
 
@@ -171,11 +185,11 @@ let complete (state: Cli.AppState) (args: List<String>) : List<String> =
     |> Stdlib.List.filter (fun cmd -> Stdlib.String.startsWith cmd partial)
 
   | ["switch"] ->
-    let branches = Darklang.SCM.Branch.list state.currentAccountId
+    let branches = Darklang.SCM.Branch.list accountName
     Stdlib.List.map branches (fun b -> b.name)
 
   | ["switch"; partial] ->
-    let branches = Darklang.SCM.Branch.list state.currentAccountId
+    let branches = Darklang.SCM.Branch.list accountName
 
     branches
     |> Stdlib.List.map (fun b -> b.name)

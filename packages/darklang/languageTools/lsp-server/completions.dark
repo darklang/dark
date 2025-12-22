@@ -67,6 +67,7 @@ let processSearchResults (names: List<String>) (kind: LanguageServerProtocol.Com
 
 
 let createCompletions
+  (accountID: Stdlib.Option.Option<Uuid>)
   (branchID: Stdlib.Option.Option<Uuid>)
   (wordUnderCursor: String)
   : List<LanguageServerProtocol.Completions.CompletionItem.CompletionItem> =
@@ -115,7 +116,7 @@ let createCompletions
         exactMatch = false }
 
   let searchResults =
-    LanguageTools.PackageManager.Search.search branchID query
+    LanguageTools.PackageManager.Search.search accountID branchID query
 
   let currentPrefix =
     match wordUnderCursor |> Stdlib.String.lastIndexOf "." with
@@ -173,7 +174,7 @@ let handleCompletionRequest
       CursorPosition.wordUnderCursor content.text requestParams.position
 
     let completions =
-      (createCompletions state.branchID wordUnderCursor)
+      (createCompletions state.accountID state.branchID wordUnderCursor)
       |> Stdlib.List.filter (fun c ->
         // handle both formats (with and without owner, e.g., "Darklang.Stdlib.List" and "Stdlib.List")
         if Stdlib.String.contains wordUnderCursor "." then

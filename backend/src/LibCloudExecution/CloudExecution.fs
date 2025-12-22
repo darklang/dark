@@ -147,14 +147,14 @@ let executeHandler
         | Error(originalRTE, originalCallStack) ->
           let! originalCallStack = callStackString originalCallStack
 
-          match! Exe.runtimeErrorToString None state originalRTE with
+          match! Exe.runtimeErrorToString None None state originalRTE with
           | Ok(RT.DString msg) ->
             let msg = $"Error: {msg}\n\nSource: {originalCallStack}"
             return error msg
           | Ok result -> return result
           | Error(firstErrorRTE, firstErrorCallStack) ->
             let! firstErrorCallStack = callStackString firstErrorCallStack
-            match! Exe.runtimeErrorToString None state firstErrorRTE with
+            match! Exe.runtimeErrorToString None None state firstErrorRTE with
             | Ok(RT.DString msg) ->
               return
                 error (

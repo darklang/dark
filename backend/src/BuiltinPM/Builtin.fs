@@ -19,6 +19,7 @@ let builtins (pm : PT.PackageManager) : Builtins =
       Libs.Instances.builtins
       Libs.Branches.builtins
       Libs.Accounts.builtins
+      Libs.Approvals.builtins
       Libs.Sync.builtins
       Libs.Scripts.builtins ]
     fnRenames

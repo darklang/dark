@@ -52,8 +52,6 @@ export class DarkFileSystemProvider implements vscode.FileSystemProvider {
    * This should be called when switching branches to show updated content
    */
   async refreshAllOpenFiles(): Promise<void> {
-    console.log('Refreshing all open darkfs:// files');
-
     // Get all open text documents
     const openDarkfsFiles = vscode.workspace.textDocuments.filter(
       doc => doc.uri.scheme === 'darkfs'

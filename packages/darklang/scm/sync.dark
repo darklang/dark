@@ -99,8 +99,9 @@ let sync
                   match resultSoFar with
                   | Error msg -> Stdlib.Result.Result.Error msg
                   | Ok appliedSoFar ->
+                    let createdBy = Stdlib.Option.Option.None
                     let addResult =
-                      SCM.PackageOps.add batch.instanceID batch.branchID batch.ops
+                      SCM.PackageOps.add batch.instanceID batch.branchID createdBy batch.ops
 
                     match addResult with
                     | Ok batchApplied ->

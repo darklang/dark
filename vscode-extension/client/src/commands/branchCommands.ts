@@ -78,14 +78,10 @@ export class BranchCommands {
       }),
 
       vscode.commands.registerCommand("darklang.branch.switch", (branch) => {
-        console.log('🔀 Branch switch command called with:', branch);
-
         // Handle both {label: ...} and {id: ...} formats
         const branchID = branch?.id;
         // CLEANUP: do we need branch?.label || branch?.name
         const branchLabel = branch?.label || branch?.name || branch?.title || "Unknown";
-
-        console.log('  branchID:', branchID, 'branchLabel:', branchLabel);
 
         if (branchID) {
           this.branchStateManager.setCurrentBranchById(branchID);

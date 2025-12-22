@@ -5,7 +5,7 @@ import { AccountService } from "./accountService";
 
 export interface PinnedItem {
   itemId: string;
-  accountId: string;
+  accountID: string;
   kind: string;
   name: string;
   owner: string;
@@ -39,9 +39,9 @@ class PinnedItemsServiceImpl {
   }
 
   /** Set the current account and reload pinned items */
-  async setCurrentAccount(accountId: string): Promise<void> {
-    if (AccountService.getCurrentAccountId() !== accountId) {
-      AccountService.setCurrentAccount(accountId);
+  async setCurrentAccount(accountID: string): Promise<void> {
+    if (AccountService.getCurrentAccountId() !== accountID) {
+      AccountService.setCurrentAccount(accountID);
       await this.load();
     }
   }
@@ -62,7 +62,7 @@ class PinnedItemsServiceImpl {
   /** Load pinned items from the server */
   async load(): Promise<void> {
     const currentAccountId = AccountService.getCurrentAccountId();
-    const url = `/pinned?accountId=${encodeURIComponent(currentAccountId)}`;
+    const url = `/pinned?accountID=${encodeURIComponent(currentAccountId)}`;
     try {
       const response = await httpRequest({
         hostname: DARK_EDITOR_HOST,
@@ -99,7 +99,7 @@ class PinnedItemsServiceImpl {
 
           this._pinnedItems.set(treeId, {
             itemId: item.itemId,
-            accountId: item.accountId || currentAccountId,
+            accountID: item.accountID || currentAccountId,
             kind: item.kind,
             name: item.name,
             owner: item.owner,
@@ -146,11 +146,11 @@ class PinnedItemsServiceImpl {
     const { treeId, name, kind } = data;
     const { owner, modules } = this._parseTreeId(treeId);
     const itemId = crypto.randomUUID();
-    const accountId = AccountService.getCurrentAccountId();
+    const accountID = AccountService.getCurrentAccountId();
 
     const item: PinnedItem = {
       itemId,
-      accountId,
+      accountID,
       treeId,
       name,
       kind,
@@ -165,7 +165,7 @@ class PinnedItemsServiceImpl {
     try {
       const body = JSON.stringify({
         itemId,
-        accountId,
+        accountID,
         treeId,
         name,
         kind,
@@ -219,7 +219,7 @@ class PinnedItemsServiceImpl {
     try {
       const body = JSON.stringify({
         itemId: item.itemId,
-        accountId: item.accountId,
+        accountID: item.accountID,
       });
       const response = await httpRequest(
         {

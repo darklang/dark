@@ -11,12 +11,14 @@ import {
 
 import { PackagesTreeDataProvider } from "./providers/treeviews/packagesTreeDataProvider";
 import { WorkspaceTreeDataProvider } from "./providers/treeviews/workspaceTreeDataProvider";
+import { ApprovalsTreeDataProvider } from "./providers/treeviews/approvalsTreeDataProvider";
 import { BranchesManagerPanel } from "./panels/branchManagerPanel";
 import { HomepagePanel } from "./panels/homepage/homepagePanel";
 
 import { BranchCommands } from "./commands/branchCommands";
 import { PackageCommands } from "./commands/packageCommands";
 import { ScriptCommands } from "./commands/scriptCommands";
+import { ApprovalCommands } from "./commands/approvalCommands";
 
 import { StatusBarManager } from "./ui/statusbar/statusBarManager";
 import { BranchStateManager } from "./data/branchStateManager";
@@ -123,6 +125,7 @@ export async function activate(context: vscode.ExtensionContext) {
 
   const packagesProvider = new PackagesTreeDataProvider(client);
   const workspaceProvider = new WorkspaceTreeDataProvider(client);
+  const approvalsProvider = new ApprovalsTreeDataProvider(client);
 
   fsProvider.setPackagesProvider(packagesProvider);
   fsProvider.setWorkspaceProvider(workspaceProvider);
@@ -132,6 +135,7 @@ export async function activate(context: vscode.ExtensionContext) {
 
   const packagesView = createView("darklangPackages", packagesProvider, true);
   const workspaceView = createView("darklangWorkspace", workspaceProvider, false);
+  const approvalsView = createView("darklangApprovals", approvalsProvider, false);
   (workspaceView as any).title = "Workspace"; // keep existing behavior
 
   BranchStateManager.getInstance().onBranchChanged(() => {
@@ -144,6 +148,13 @@ export async function activate(context: vscode.ExtensionContext) {
   packageCommands.setPackagesView(packagesView);
   const branchCommands = new BranchCommands(statusBar, workspaceProvider);
   const scriptCommands = new ScriptCommands();
+  const approvalCommands = new ApprovalCommands();
+  approvalCommands.setClient(client);
+  approvalCommands.setApprovalsProvider(approvalsProvider);
+  approvalCommands.setPackagesProvider(packagesProvider);
+
+  // Set client on HomepagePanel for account fetching
+  HomepagePanel.setClient(client);
 
   const reg = (d: vscode.Disposable) => context.subscriptions.push(d);
 
@@ -167,9 +178,12 @@ export async function activate(context: vscode.ExtensionContext) {
     packagesView,
     packagesProvider,
     workspaceView,
+    approvalsView,
+    approvalsProvider,
     ...packageCommands.register(),
     ...branchCommands.register(),
     ...scriptCommands.register(),
+    ...approvalCommands.register(),
   ].forEach(reg);
 }
 

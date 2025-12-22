@@ -25,11 +25,47 @@ let fns : List<BuiltInFn> =
           uply {
             let! accounts =
               """
-              SELECT id FROM accounts ORDER BY id
+              SELECT name FROM accounts_v0 ORDER BY name
               """
               |> Sql.query
-              |> Sql.executeAsync (fun read -> read.string "id")
+              |> Sql.executeAsync (fun read -> read.string "name")
             return DList(VT.string, accounts |> List.map DString)
+          }
+        | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Impure
+      deprecated = NotDeprecated }
+
+
+    { name = fn "pmGetAccountByName" 0
+      typeParams = []
+      parameters = [ Param.make "name" TString "" ]
+      returnType = TypeReference.option TUuid
+      description = "Get account UUID by name"
+      fn =
+        (function
+        | _, _, _, [ DString name ] ->
+          uply {
+            let! result = LibPackageManager.Accounts.getByName name
+            return result |> Option.map DUuid |> Dval.option KTUuid
+          }
+        | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Impure
+      deprecated = NotDeprecated }
+
+
+    { name = fn "pmGetAccountNameById" 0
+      typeParams = []
+      parameters = [ Param.make "id" TUuid "" ]
+      returnType = TypeReference.option TString
+      description = "Get account name by UUID"
+      fn =
+        (function
+        | _, _, _, [ DUuid id ] ->
+          uply {
+            let! result = LibPackageManager.Accounts.getName id
+            return result |> Option.map DString |> Dval.option KTString
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable

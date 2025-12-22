@@ -1,6 +1,6 @@
 import * as vscode from "vscode";
 
-type AccountListener = (accountId: string) => void;
+type AccountListener = (accountID: string) => void;
 
 /** Centralized account management - placeholder until proper auth */
 class AccountServiceImpl {
@@ -12,10 +12,10 @@ class AccountServiceImpl {
     return this._currentAccountId;
   }
 
-  setCurrentAccount(accountId: string): void {
-    if (this._currentAccountId !== accountId) {
-      this._currentAccountId = accountId;
-      this._listeners.forEach(listener => listener(accountId));
+  setCurrentAccount(accountID: string): void {
+    if (this._currentAccountId !== accountID) {
+      this._currentAccountId = accountID;
+      this._listeners.forEach(listener => listener(accountID));
     }
   }
 

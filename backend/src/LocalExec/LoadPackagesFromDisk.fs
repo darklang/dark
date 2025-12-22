@@ -15,7 +15,11 @@ open Utils
 
 /// Reads and parses all .dark files in `packages` dir,
 /// failing upon any individual failure
-let load (builtins : RT.Builtins) : Ply<List<PT.PackageOp>> =
+let load
+  (accountID : Option<PT.AccountID>)
+  (branchId : Option<PT.BranchID>)
+  (builtins : RT.Builtins)
+  : Ply<List<PT.PackageOp>> =
   uply {
     let filesWithContents =
       "/home/dark/app/packages"
@@ -33,6 +37,8 @@ let load (builtins : RT.Builtins) : Ply<List<PT.PackageOp>> =
         try
           debuG "about to parse" path
           LibParser.Parser.parsePackageFile
+            accountID
+            branchId
             builtins
             PT.PackageManager.empty
             NR.OnMissing.Allow
@@ -49,6 +55,8 @@ let load (builtins : RT.Builtins) : Ply<List<PT.PackageOp>> =
       filesWithContents
       |> Ply.List.mapSequentially (fun (path, contents) ->
         LibParser.Parser.parsePackageFile
+          accountID
+          branchId
           builtins
           (LibPackageManager.PackageManager.withExtraOps
             PT.PackageManager.empty

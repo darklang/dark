@@ -32,27 +32,34 @@ let fns : List<BuiltInFn> =
       parameters =
         [ Param.make "instanceID" (TypeReference.option TUuid) ""
           Param.make "branchID" (TypeReference.option TUuid) ""
+          Param.make "createdBy" (TypeReference.option TUuid) ""
           Param.make "ops" (TList(TCustomType(Ok packageOpTypeName, []))) "" ]
       returnType = TypeReference.result TInt64 TString
       description =
         "Add package ops to the database and apply them to projections.
         Pass None for instanceID for local ops, or Some(uuid) for ops from remote instances.
+        Pass createdBy to track who created the ops (for approval workflow).
         Returns the number of inserted ops on success (duplicates are skipped), or an error message on failure."
       fn =
         let resultOk = Dval.resultOk KTInt64 KTString
         let resultError = Dval.resultError KTInt64 KTString
         (function
-        | _, _, _, [ instanceID; branchID; DList(_vtTODO, ops) ] ->
+        | _, _, _, [ instanceID; branchID; createdBy; DList(_vtTODO, ops) ] ->
           uply {
             try
               // Deserialize dvals
               let branchID = C2DT.Option.fromDT D.uuid branchID
               let instanceID = C2DT.Option.fromDT D.uuid instanceID
+              let createdBy = C2DT.Option.fromDT D.uuid createdBy
               let ops = ops |> List.choose PT2DT.PackageOp.fromDT
 
               // Insert ops with deduplication, get count of actually inserted ops
               let! insertedCount =
-                LibPackageManager.Inserts.insertAndApplyOps instanceID branchID ops
+                LibPackageManager.Inserts.insertAndApplyOps
+                  instanceID
+                  branchID
+                  createdBy
+                  ops
 
               return resultOk (DInt64 insertedCount)
             with ex ->
@@ -108,6 +115,81 @@ let fns : List<BuiltInFn> =
               )
           }
         | _ -> incorrectArgs ()
+      sqlSpec = NotQueryable
+      previewable = Impure
+      deprecated = NotDeprecated }
+
+
+    { name = fn "scmApproveItem" 0
+      typeParams = []
+      parameters =
+        [ Param.make "branchID" (TypeReference.option TUuid) ""
+          Param.make "itemId" TUuid ""
+          Param.make "reviewerId" TUuid "" ]
+      returnType = TypeReference.result TInt64 TString
+      description =
+        "Approve an item by creating and applying an ApproveItem op.
+        Returns the number of ops inserted (1 on success, 0 if duplicate)."
+      fn =
+        let resultOk = Dval.resultOk KTInt64 KTString
+        let resultError = Dval.resultError KTInt64 KTString
+        (function
+        | _, _, _, [ branchID; DUuid itemId; DUuid reviewerId ] ->
+          uply {
+            try
+              let branchID = C2DT.Option.fromDT D.uuid branchID
+              let op = PT.PackageOp.ApproveItem(itemId, branchID, reviewerId)
+
+              let! insertedCount =
+                LibPackageManager.Inserts.insertAndApplyOps
+                  None // local op, not from sync
+                  branchID
+                  (Some reviewerId)
+                  [ op ]
+
+              return resultOk (DInt64 insertedCount)
+            with ex ->
+              return resultError (DString ex.Message)
+          }
+        | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Impure
+      deprecated = NotDeprecated }
+
+
+    { name = fn "scmRejectItem" 0
+      typeParams = []
+      parameters =
+        [ Param.make "branchID" (TypeReference.option TUuid) ""
+          Param.make "itemId" TUuid ""
+          Param.make "reviewerId" TUuid ""
+          Param.make "reason" TString "" ]
+      returnType = TypeReference.result TInt64 TString
+      description =
+        "Reject an item by creating and applying a RejectItem op.
+        Returns the number of ops inserted (1 on success, 0 if duplicate)."
+      fn =
+        let resultOk = Dval.resultOk KTInt64 KTString
+        let resultError = Dval.resultError KTInt64 KTString
+        (function
+        | _, _, _, [ branchID; DUuid itemId; DUuid reviewerId; DString reason ] ->
+          uply {
+            try
+              let branchID = C2DT.Option.fromDT D.uuid branchID
+              let op = PT.PackageOp.RejectItem(itemId, branchID, reviewerId, reason)
+
+              let! insertedCount =
+                LibPackageManager.Inserts.insertAndApplyOps
+                  None // local op, not from sync
+                  branchID
+                  (Some reviewerId)
+                  [ op ]
+
+              return resultOk (DInt64 insertedCount)
+            with ex ->
+              return resultError (DString ex.Message)
+          }
+        | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
       deprecated = NotDeprecated }

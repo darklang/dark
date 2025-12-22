@@ -359,6 +359,20 @@ module Type =
       let private p addl = p ("Instances" :: addl)
       let instance = p [] "Instance" "a2b3c4d5-e6f7-4a5b-9c8d-7e6f5a4b3c2e"
 
+    module Approvals =
+      let private p addl = p ("Approvals" :: addl)
+      let approvalStatus =
+        p [] "ApprovalStatus" "a1b2c3d4-e5f6-7a8b-9c0d-1e2f3a4b5c6d"
+      let approvalRequestStatus =
+        p [] "ApprovalRequestStatus" "b2c3d4e5-f6a7-8b9c-0d1e-2f3a4b5c6d7e"
+      let approvalRequest =
+        p [] "ApprovalRequest" "e5f6a7b8-c9d0-1e2f-3a4b-5c6d7e8f9a0b"
+      let requestItem = p [] "RequestItem" "f6a7b8c9-d0e1-2f3a-4b5c-6d7e8f9a0b1c"
+      let pendingLocationDetails =
+        p [] "PendingLocationDetails" "a7b8c9d0-e1f2-3a4b-5c6d-7e8f9a0b1c2d"
+      let requestItemWithDetails =
+        p [] "RequestItemWithDetails" "b8c9d0e1-f2a3-4b5c-6d7e-8f9a0b1c2d3e"
+
 
   module Internal =
     let private p addl = p ("Internal" :: addl)

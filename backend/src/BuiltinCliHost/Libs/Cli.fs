@@ -26,11 +26,6 @@ module D = LibExecution.DvalDecoder
 module Utils = BuiltinCliHost.Utils
 
 
-module BranchID =
-  let fromDT = C2DT.Option.fromDT D.uuid
-  let toDT = C2DT.Option.toDT Dval.uuid KTUuid
-
-
 // Get PackageManager instance with error handling
 let executePM
   (exeState : RT.ExecutionState)
@@ -45,7 +40,8 @@ let executePM
     match execResult with
     | Ok dval -> return dval
     | Error(rte, _cs) ->
-      let! rteString = Exe.runtimeErrorToString branchID exeState rte
+      let accountID = None
+      let! rteString = Exe.runtimeErrorToString accountID branchID exeState rte
       match rteString with
       | Ok rte ->
         return Exception.raiseInternal "Error executing pm function" [ "rte", rte ]
@@ -73,6 +69,7 @@ let createExceptionError (e : exn) : RuntimeError.Error =
 // Parse CLI script code
 let parseCliScript
   (exeState : RT.ExecutionState)
+  (accountID : Option<System.Guid>)
   (branchID : Option<System.Guid>)
   (pm : Dval)
   (owner : string)
@@ -84,8 +81,9 @@ let parseCliScript
 
     let args =
       NEList.ofList
-        (BranchID.toDT branchID)
-        [ DString owner
+        (PT2DT.AccountID.optionToDT accountID)
+        [ PT2DT.BranchID.optionToDT branchID
+          DString owner
           DString scriptName
           onMissingAllow
           pm
@@ -110,7 +108,7 @@ let parseCliScript
             "Invalid error format from parseCliScript"
             [ "dval", dval ]
     | Error(rte, _cs) ->
-      let! rteString = Exe.runtimeErrorToString branchID exeState rte
+      let! rteString = Exe.runtimeErrorToString None branchID exeState rte
       match rteString with
       | Ok errorDval ->
         return
@@ -202,12 +200,12 @@ let execute
             []
   }
 
-
 let fns : List<BuiltInFn> =
   [ { name = fn "cliParseAndExecuteScript" 0
       typeParams = []
       parameters =
-        [ Param.make "branchID" (TypeReference.option TUuid) ""
+        [ Param.make "accountID" (TypeReference.option TUuid) ""
+          Param.make "branchID" (TypeReference.option TUuid) ""
           Param.make "filename" TString ""
           Param.make "code" TString ""
           Param.make "args" (TList TString) "" ]
@@ -222,12 +220,17 @@ let fns : List<BuiltInFn> =
         | exeState,
           _,
           [],
-          [ branchID; DString filename; DString code; DList(_vtTODO, scriptArgs) ] ->
+          [ accountID
+            branchID
+            DString filename
+            DString code
+            DList(_vtTODO, scriptArgs) ] ->
           uply {
-            let branchID = BranchID.fromDT branchID
+            let accountID = PT2DT.AccountID.optionFromDT accountID
+            let branchID = PT2DT.BranchID.optionFromDT branchID
             let! pm = executePM exeState branchID
             let! parsedScript =
-              parseCliScript exeState branchID pm "CliScript" filename code
+              parseCliScript exeState accountID branchID pm "CliScript" filename code
 
             try
               match parsedScript with
@@ -258,7 +261,8 @@ let fns : List<BuiltInFn> =
     { name = fn "cliExecuteFunction" 0
       typeParams = []
       parameters =
-        [ Param.make "branchID" (TypeReference.option TUuid) ""
+        [ Param.make "accountID" (TypeReference.option TUuid) ""
+          Param.make "branchID" (TypeReference.option TUuid) ""
           Param.make "functionName" TString ""
           Param.make "args" (TList(TCustomType(Ok PT2DT.Expr.typeName, []))) "" ]
       returnType = TypeReference.result TString ExecutionError.typeRef
@@ -270,9 +274,13 @@ let fns : List<BuiltInFn> =
         let resultError = Dval.resultError KTString errType
 
         function
-        | exeState, _, [], [ branchID; DString functionName; DList(_vtTODO, args) ] ->
+        | exeState,
+          _,
+          [],
+          [ accountID; branchID; DString functionName; DList(_vtTODO, args) ] ->
           uply {
-            let branchID = BranchID.fromDT branchID
+            let accountID = PT2DT.AccountID.optionFromDT accountID
+            let branchID = PT2DT.BranchID.optionFromDT branchID
 
             let err (msg : string) (metadata : List<string * string>) : Dval =
               let fields =
@@ -333,8 +341,13 @@ let fns : List<BuiltInFn> =
 
               let resolveFnArgs =
                 NEList.ofList
-                  (BranchID.toDT branchID)
-                  [ onMissingAllow; pm; RT.DString "Cli"; currentModule; nameArg ]
+                  (PT2DT.AccountID.optionToDT accountID)
+                  [ PT2DT.BranchID.optionToDT branchID
+                    onMissingAllow
+                    pm
+                    RT.DString "Cli"
+                    currentModule
+                    nameArg ]
 
               let! execResult =
                 Exe.executeFunction exeState resolveFn [] resolveFnArgs
@@ -397,7 +410,9 @@ let fns : List<BuiltInFn> =
 
                   match result with
                   | Error(rte, _cs) ->
-                    match! Exe.runtimeErrorToString branchID exeState rte with
+                    match!
+                      Exe.runtimeErrorToString accountID branchID exeState rte
+                    with
                     | Ok(DString s) -> return err s []
                     | _ ->
                       let rte =
@@ -426,22 +441,25 @@ let fns : List<BuiltInFn> =
     { name = fn "cliEvaluateExpression" 0
       typeParams = []
       parameters =
-        [ Param.make "branchID" (TypeReference.option TUuid) ""
+        [ Param.make "accountID" (TypeReference.option TUuid) ""
+          Param.make "branchID" (TypeReference.option TUuid) ""
           Param.make "expression" TString "" ]
       returnType = TypeReference.result TString ExecutionError.typeRef
-      description = "Evaluates a Dark expression and returns the result as a Strin"
+      description = "Evaluates a Dark expression and returns the result as a String"
       fn =
         let errType = KTCustomType(ExecutionError.fqTypeName, [])
         let resultOk = Dval.resultOk KTString errType
         let resultError = Dval.resultError KTString errType
         (function
-        | exeState, _, [], [ branchID; DString expression ] ->
+        | exeState, _, [], [ accountID; branchID; DString expression ] ->
           uply {
-            let branchID = BranchID.fromDT branchID
+            let accountID = PT2DT.AccountID.optionFromDT accountID
+            let branchID = PT2DT.BranchID.optionFromDT branchID
             let! pm = executePM exeState branchID
             let! parsedScript =
               parseCliScript
                 exeState
+                accountID
                 branchID
                 pm
                 "CliScript"

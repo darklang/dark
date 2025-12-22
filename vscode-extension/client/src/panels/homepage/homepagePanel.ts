@@ -1,13 +1,29 @@
 import * as vscode from "vscode";
 import { LanguageClient } from "vscode-languageclient/node";
-import { renderDashboard, getDefaultDashboardData, DashboardData, DashboardPinnedItem, DashboardRecentItem } from "./pages/dashboardPage";
+import {
+  renderDashboard,
+  getDefaultDashboardData,
+  DashboardData,
+  DashboardPinnedItem,
+  DashboardRecentItem,
+} from "./pages/dashboardPage";
 import { renderSidebar, navIcons } from "./components/sidebar";
 import { renderHeader } from "./components/header";
 import { PinnedItemsService } from "../../services/pinnedItemsService";
 import { RecentItemsService } from "../../services/recentItemsService";
 import { AccountService } from "../../services/accountService";
 
-export type PageName = "dashboard" | "packages" | "branches" | "apps" | "approval-requests" | "contributions" | "traces" | "settings" | "changelog" | "logout";
+export type PageName =
+  | "dashboard"
+  | "packages"
+  | "branches"
+  | "apps"
+  | "approval-requests"
+  | "contributions"
+  | "traces"
+  | "settings"
+  | "changelog"
+  | "logout";
 
 /** Homepage Panel - Display Darklang homepage with account info */
 export class HomepagePanel {
@@ -64,19 +80,16 @@ export class HomepagePanel {
 
     // Subscribe to pinned items changes
     this._disposables.push(
-      PinnedItemsService.onDidChange(() => this._update())
+      PinnedItemsService.onDidChange(() => this._update()),
     );
 
     // Subscribe to recent items changes
     this._disposables.push(
-      RecentItemsService.onDidChange(() => this._update())
+      RecentItemsService.onDidChange(() => this._update()),
     );
 
     // Load pinned items and accounts, then update the view
-    Promise.all([
-      PinnedItemsService.load(),
-      this._fetchAvailableAccounts(),
-    ])
+    Promise.all([PinnedItemsService.load(), this._fetchAvailableAccounts()])
       .then(() => this._update())
       .catch(err => {
         console.error("Failed to load initial data:", err);
@@ -119,7 +132,8 @@ export class HomepagePanel {
       const normalizedKind = item.kind.toLowerCase();
       if (normalizedKind === "function") kind = "function";
       else if (normalizedKind === "type") kind = "type";
-      else if (normalizedKind === "value" || normalizedKind === "constant") kind = "value";
+      else if (normalizedKind === "value" || normalizedKind === "constant")
+        kind = "value";
 
       return {
         id: item.itemId,
@@ -145,7 +159,18 @@ export class HomepagePanel {
   }
 
   private _handleNavigation(page: string) {
-    const validPages: PageName[] = ["dashboard", "packages", "branches", "apps", "approval-requests", "contributions", "traces", "settings", "changelog", "logout"];
+    const validPages: PageName[] = [
+      "dashboard",
+      "packages",
+      "branches",
+      "apps",
+      "approval-requests",
+      "contributions",
+      "traces",
+      "settings",
+      "changelog",
+      "logout",
+    ];
 
     if (!validPages.includes(page as PageName)) {
       return;
@@ -168,7 +193,10 @@ export class HomepagePanel {
     vscode.window.showInformationMessage(`${page} page coming soon!`);
   }
 
-  private async _handleOpenPackage(treeId: string, itemType?: string): Promise<void> {
+  private async _handleOpenPackage(
+    treeId: string,
+    itemType?: string,
+  ): Promise<void> {
     if (!treeId) return;
 
     // Check if this is a top-level owner (no dots = owner like "Darklang", "Stachu")
@@ -177,9 +205,16 @@ export class HomepagePanel {
     try {
       if (isOwner) {
         // For owners, reveal and expand in tree view instead of opening file
-        await vscode.commands.executeCommand("darklang.revealInPackagesTree", treeId);
+        await vscode.commands.executeCommand(
+          "darklang.revealInPackagesTree",
+          treeId,
+        );
       } else {
-        await vscode.commands.executeCommand("darklang.openPackageDefinition", treeId, itemType);
+        await vscode.commands.executeCommand(
+          "darklang.openPackageDefinition",
+          treeId,
+          itemType,
+        );
       }
     } catch (error) {
       console.error("Failed to open package:", error);
@@ -194,7 +229,10 @@ export class HomepagePanel {
     }
 
     try {
-      const accounts = await HomepagePanel._client.sendRequest<string[]>("dark/listAccounts", {});
+      const accounts = await HomepagePanel._client.sendRequest<string[]>(
+        "dark/listAccounts",
+        {},
+      );
       this._availableAccounts = accounts ?? [];
     } catch (error) {
       console.error("Failed to fetch accounts:", error);
@@ -211,7 +249,7 @@ export class HomepagePanel {
     if (HomepagePanel._client) {
       try {
         await HomepagePanel._client.sendRequest("dark/setCurrentAccount", {
-          accountId: account,
+          accountID: account,
         });
       } catch (error) {
         console.error("Failed to set account:", error);
@@ -224,7 +262,10 @@ export class HomepagePanel {
     AccountService.setCurrentAccount(account);
 
     // Notify the approval commands about the change
-    await vscode.commands.executeCommand("darklang.approvals.setAccount", account);
+    await vscode.commands.executeCommand(
+      "darklang.approvals.setAccount",
+      account,
+    );
 
     // Update pinned items for the new account
     await PinnedItemsService.setCurrentAccount(account);
@@ -234,10 +275,10 @@ export class HomepagePanel {
   }
 
   /** Update the current account and refresh the view */
-  public async setCurrentAccount(accountId: string): Promise<void> {
-    AccountService.setCurrentAccount(accountId);
+  public async setCurrentAccount(accountID: string): Promise<void> {
+    AccountService.setCurrentAccount(accountID);
     // Update pinned items for the new account
-    await PinnedItemsService.setCurrentAccount(accountId);
+    await PinnedItemsService.setCurrentAccount(accountID);
     this._update();
   }
 

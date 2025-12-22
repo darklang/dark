@@ -11,16 +11,30 @@ type AppState =
     needsFullRedraw: Bool
     packageData: Packages.State
     currentPage: Page
+    accountName: String
+    accountID: Stdlib.Option.Option<Uuid>
     currentBranchId: Stdlib.Option.Option<Uuid> }
 
 let initState () : AppState =
+  // Get account from DARK_ACCOUNT env var, or default to "Darklang"
+  // This allows testing different accounts without real auth
+  // CLEANUP: remove this once we have real auth in the CLI
+  let accountName =
+    match Builtin.environmentGet "DARK_ACCOUNT" with
+    | Some name -> name
+    | None -> "Darklang"
+
+  let accountUuid = Builtin.pmGetAccountByName accountName
+
   AppState
     { isExiting = false
       prompt = Prompt.initState()
       needsFullRedraw = true
       packageData = Packages.initState()
       currentPage = Page.MainPrompt
-      currentBranchId = Stdlib.Option.Option.None }
+      accountName = accountName
+      accountID = accountUuid
+      currentBranchId = Stdlib.Option.Option.None}
 
 type Msg =
   | ProcessInput of String
@@ -54,8 +68,8 @@ module View =
     let hint = Registry.getCompletionHint state state.prompt.text
     Prompt.Display.formatPromptWithInput state.currentBranchId locationStr state.prompt.text hint
 
-  let formatWelcome () : String =
-    Registry.getCompactCommandList ()
+  let formatWelcome (accountName: String) : String =
+    Registry.getCompactCommandList accountName
 
 
 
@@ -75,6 +89,7 @@ module Registry =
       ("branch", "Manage development branches", [], Packages.Branch.execute, Packages.Branch.help, Packages.Branch.complete)
       ("instance", "Manage remote instances for syncing", [], Instances.execute, Instances.help, Instances.complete)
       ("config", "Manage CLI configuration", [], Config.execute, Config.help, Config.complete)
+      ("account", "Manage account settings", [], Account.execute, Account.help, Account.complete)
       ("install", "Install CLI globally", [], Installation.Install.execute, Installation.Install.help, Installation.Install.complete)
       ("update", "Update CLI to latest version", ["upgrade"], Installation.Update.execute, Installation.Update.help, Installation.Update.complete)
       ("uninstall", "Remove CLI installation", [], Installation.Uninstall.execute, Installation.Uninstall.help, Installation.Uninstall.complete)
@@ -169,7 +184,7 @@ module Registry =
       ("Source Control", ["branch"; "instance"])
       ("Execution", ["run"; "eval"; "scripts"])
       ("Installation", ["install"; "update"; "uninstall"; "status"; "version"])
-      ("Utilities", ["clear"; "help"; "quit"; "config"; "experiments"]) ]
+      ("Utilities", ["clear"; "help"; "quit"; "config"; "account"; "experiments"]) ]
 
   // Helper function to format a group of commands with details
   let formatCommandGroup (groupName: String) (commandNames: List<String>) (commands: List<CommandHandler>) : String =
@@ -193,14 +208,14 @@ module Registry =
     $"{groupName}: {namesList}"
 
   // Compact command list for welcome screen (with logo, minimal text)
-  let getCompactCommandList () : String =
+  let getCompactCommandList (accountName: String) : String =
     let groups = commandGroups ()
     let formattedGroups =
       groups
       |> Stdlib.List.map (fun (groupName, cmdNames) ->
         formatCompactGroup groupName cmdNames)
 
-    let welcome = "Hello! Let's write some software with Darklang."
+    let welcome = $"Hello {accountName}! Let's write some software with Darklang."
     let availableCommands = "Here are the commands available:"
     let groupsWithFooter = Stdlib.List.append formattedGroups [""; "Type 'help' for detailed command info"]
     let allLines = Stdlib.List.append [welcome; ""; availableCommands; ""] groupsWithFooter
@@ -470,7 +485,7 @@ let executeCliCommand (args: List<String>) : Int64 =
     // Auto-start sync service if not already running
     SyncService.autoStart ()
 
-    Stdlib.printLine (View.formatWelcome ())
+    Stdlib.printLine (View.formatWelcome initialState.accountName)
     runInteractiveLoop initialState
   // Otherwise, just execute command, print result, and exit
   | _ ->

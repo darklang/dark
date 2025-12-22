@@ -19,6 +19,7 @@ let parseArgString (branchId: Stdlib.Option.Option<Uuid>) (pm: LanguageTools.Pro
 
   let (converted, _unresolved) =
     LanguageTools.WrittenTypesToProgramTypes.Expr.toPT
+      Stdlib.Option.Option.None
       branchId
       onMissing
       pm
@@ -40,6 +41,7 @@ let completeFunctionName (searchText: String) : List<String> =
     let rootLocation = Packages.PackageLocation.Module []
 
     (Packages.Traversal.completePartialPath
+      Stdlib.Option.Option.None
       Stdlib.Option.Option.None
       rootLocation
       searchText)
@@ -70,6 +72,7 @@ let executeScript (state: AppState) (scriptPath: String) (args: List<String>) : 
     let scriptSourceCode = Stdlib.String.fromBytesWithReplacement script
     let result =
       Builtin.cliParseAndExecuteScript
+        state.accountID
         state.currentBranchId
         scriptPath
         scriptSourceCode
@@ -84,6 +87,7 @@ let executeScript (state: AppState) (scriptPath: String) (args: List<String>) : 
     | Error e ->
       let prettyError =
         PrettyPrinter.RuntimeTypes.RuntimeError.toString
+          state.accountID
           state.currentBranchId
           e
 
@@ -97,7 +101,7 @@ let executeFunction (state: AppState) (fnName: String) (args: List<String>) : Ap
   let parsedArgs =
     args |> Stdlib.List.map (parseArgString state.currentBranchId pm)
 
-  match Builtin.cliExecuteFunction state.currentBranchId fnName parsedArgs with
+  match Builtin.cliExecuteFunction state.accountID state.currentBranchId fnName parsedArgs with
   | Ok result ->
     Stdlib.printLine result
     state

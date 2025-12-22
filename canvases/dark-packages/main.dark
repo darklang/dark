@@ -154,7 +154,8 @@ let _handler _req =
           entityTypes = []
           exactMatch = false }
 
-    let results = Builtin.pmSearch branchID searchQuery
+    // CLEANUP: accountID should be passed in as a query param
+    let results = Builtin.pmSearch Stdlib.Option.Option.None branchID searchQuery
     let json = results |> Builtin.jsonSerialize<LanguageTools.ProgramTypes.Search.SearchResults>
     Stdlib.Http.response (Stdlib.String.toBytes json) 200L
   else
@@ -168,7 +169,7 @@ let _handler _req =
         { owner = owner; modules = modules; name = entityName }
 
     // Try to find as function first
-    match Builtin.pmFindFn branchID packageLocation with
+    match Builtin.pmFindFn Stdlib.Option.Option.None branchID packageLocation with
     | Some fnId ->
       match Builtin.pmGetFn fnId with
       | Some fn ->
@@ -179,7 +180,7 @@ let _handler _req =
 
     | None ->
       // Try to find as type
-      match Builtin.pmFindType branchID packageLocation with
+      match Builtin.pmFindType Stdlib.Option.Option.None branchID packageLocation with
       | Some typeId ->
         match Builtin.pmGetType typeId with
         | Some typeDefinition ->
@@ -190,7 +191,7 @@ let _handler _req =
 
       | None ->
         // Try to find as value
-        match Builtin.pmFindValue branchID packageLocation with
+        match Builtin.pmFindValue Stdlib.Option.Option.None branchID packageLocation with
         | Some valueId ->
           match Builtin.pmGetValue valueId with
           | Some value ->
@@ -211,7 +212,7 @@ let _handler _req =
                 entityTypes = [ ]
                 exactMatch = false }
 
-          let results = Builtin.pmSearch branchID searchQuery
+          let results = Builtin.pmSearch Stdlib.Option.Option.None branchID searchQuery
           let json = results |> Builtin.jsonSerialize<LanguageTools.ProgramTypes.Search.SearchResults>
           Stdlib.Http.response (Stdlib.String.toBytes json) 200L
 
@@ -223,7 +224,7 @@ let _handler _req =
   match parseNameToLocation name with
   | Error errorMsg -> Stdlib.Http.response (Stdlib.String.toBytes errorMsg) 400L
   | Ok location ->
-    match Builtin.pmFindType branchID location with
+    match Builtin.pmFindType Stdlib.Option.Option.None branchID location with
     | Some foundID ->
       let json = $"\"{Stdlib.Uuid.toString foundID}\""
       Stdlib.Http.response (Stdlib.String.toBytes json) 200L
@@ -248,7 +249,7 @@ let _handler _req =
   match parseUuidParam id with
   | Error response -> response
   | Ok parsedId ->
-    match LanguageTools.PackageManager.Type.getWithLocation branchID parsedId with
+    match LanguageTools.PackageManager.Type.getWithLocation Stdlib.Option.Option.None branchID parsedId with
     | Some locatedItem ->
       let json =
         locatedItem
@@ -263,7 +264,7 @@ let _handler _req =
 
   match parseNameToLocation name with
   | Ok location ->
-    match Builtin.pmFindValue branchID location with
+    match Builtin.pmFindValue Stdlib.Option.Option.None branchID location with
     | Some foundID ->
       let json = $"\"{Stdlib.Uuid.toString foundID}\""
       Stdlib.Http.response (Stdlib.String.toBytes json) 200L
@@ -289,7 +290,7 @@ let _handler _req =
   match parseUuidParam id with
   | Error response -> response
   | Ok parsedId ->
-    match LanguageTools.PackageManager.Value.getWithLocation branchID parsedId with
+    match LanguageTools.PackageManager.Value.getWithLocation Stdlib.Option.Option.None branchID parsedId with
     | Some locatedItem ->
       let json = locatedItem |> Builtin.jsonSerialize<LanguageTools.ProgramTypes.LocatedItem<LanguageTools.ProgramTypes.PackageValue.PackageValue>>
       Stdlib.Http.response (Stdlib.String.toBytes json) 200L
@@ -303,7 +304,7 @@ let _handler _req =
   match parseNameToLocation name with
   | Error errorMsg -> Stdlib.Http.response (Stdlib.String.toBytes errorMsg) 400L
   | Ok location ->
-    match Builtin.pmFindFn branchID location with
+    match Builtin.pmFindFn Stdlib.Option.Option.None branchID location with
     | Some foundID ->
       let json = $"\"{Stdlib.Uuid.toString foundID}\""
       Stdlib.Http.response (Stdlib.String.toBytes json) 200L
@@ -328,7 +329,7 @@ let _handler _req =
   match parseUuidParam id with
   | Error response -> response
   | Ok parsedId ->
-    match LanguageTools.PackageManager.Function.getWithLocation branchID parsedId with
+    match LanguageTools.PackageManager.Function.getWithLocation Stdlib.Option.Option.None branchID parsedId with
     | Some locatedItem ->
       let json =
         locatedItem
@@ -398,6 +399,6 @@ let _handler _req =
               entityTypes = entityTypes
               exactMatch = exactMatch }
 
-        let results = Builtin.pmSearch branchID query
+        let results = Builtin.pmSearch Stdlib.Option.Option.None branchID query
         let json = results |> Builtin.jsonSerialize<LanguageTools.ProgramTypes.Search.SearchResults>
         Stdlib.Http.response (Stdlib.String.toBytes json) 200L

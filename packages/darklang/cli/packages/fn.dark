@@ -67,6 +67,7 @@ let createFnInline
 
         let (packageFn, unresolvedNames) =
           LanguageTools.WrittenTypesToProgramTypes.FunctionDeclaration.toPackageFnPT
+            state.accountID
             branchID
             LanguageTools.NameResolver.OnMissing.Allow
             pm
@@ -99,8 +100,10 @@ let createFnInline
           // Push the ops up to the server
           // Local CLI ops don't need an instanceID to track their origin
           let instanceID = Stdlib.Option.Option.None
+          // CLEANUP: createdBy is None - will use the owner from the location
+          let createdBy = Stdlib.Option.Option.None
 
-          match SCM.PackageOps.add instanceID branchID ops with
+          match SCM.PackageOps.add instanceID branchID createdBy ops with
           | Ok _ ->
             // Show success message
             let fullPath = PrettyPrinter.ProgramTypes.PackageLocation.packageLocation location
