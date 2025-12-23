@@ -69,6 +69,7 @@ let createTypeInline
 
         let (packageType, unresolvedNames) =
           LanguageTools.WrittenTypesToProgramTypes.TypeDeclaration.toPackageTypePT
+            state.accountID
             branchID
             LanguageTools.NameResolver.OnMissing.Allow
             pm
@@ -101,8 +102,9 @@ let createTypeInline
           // Push the ops up to the server
           // Local CLI ops don't need an instanceID to track their origin
           let instanceID = Stdlib.Option.Option.None
+          let createdBy = state.accountID
 
-          match SCM.PackageOps.add instanceID branchID ops with
+          match SCM.PackageOps.add instanceID branchID createdBy ops with
           | Ok _ ->
             // Show success message
             let fullPath = PrettyPrinter.ProgramTypes.PackageLocation.packageLocation location

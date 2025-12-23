@@ -25,7 +25,7 @@ let handleGetPendingOpsRequest
     ops
     |> Stdlib.List.map (fun op ->
       let opData = Builtin.jsonSerialize<LanguageTools.ProgramTypes.PackageOp> op
-      let label = PrettyPrinter.ProgramTypes.PackageOp.packageOp queryBranchId op
+      let label = PrettyPrinter.ProgramTypes.PackageOp.packageOp state.accountID queryBranchId op
       Json.Object [ ("op", Json.String opData); ("label", Json.String label) ])
     |> Json.Array
 

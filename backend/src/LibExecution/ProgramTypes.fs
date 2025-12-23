@@ -586,6 +586,29 @@ type PackageOp =
   | SetTypeName of id : FQTypeName.Package * location : PackageLocation
   | SetValueName of id : FQValueName.Package * location : PackageLocation
   | SetFnName of id : FQFnName.Package * location : PackageLocation
+
+  // Approval workflow operations
+  | RequestNamingApproval of
+    requestId : uuid *
+    createdBy : uuid *
+    targetNamespace : string *
+    locationIds : List<string> *
+    title : Option<string> *
+    description : Option<string> *
+    sourceBranchId : Option<uuid>
+
+  | ApproveItem of itemId : uuid * branchId : Option<uuid> * reviewerId : uuid
+  | RejectItem of
+    itemId : uuid *
+    branchId : Option<uuid> *
+    reviewerId : uuid *
+    reason : string
+  | WithdrawApprovalRequest of requestId : uuid * withdrawnBy : uuid
+  | RequestChanges of
+    requestId : uuid *
+    locationId : string *
+    reviewerId : uuid *
+    comment : string
 // DB should have _history_ of old item names, but only one active PackageLocation
 
 
@@ -742,7 +765,7 @@ module Search =
       values : List<LocatedItem<PackageValue.PackageValue>>
       fns : List<LocatedItem<PackageFn.PackageFn>> }
 
-type BranchIDOpt = Option<BranchID>
+type AccountID = uuid
 
 /// Functionality written in Dark stored and managed outside of user space
 ///
@@ -751,15 +774,22 @@ type BranchIDOpt = Option<BranchID>
 /// for whatever reasons.
 type PackageManager =
   {
-    // TODO review all usages - make sure they're not just putting 'None' in
-    // i.e. demand the branchID from every usage above.
-    // CLEANUP we could/should probably collapse these to just 'find'.
-    //   (and getX to just one 'get' by ID+context)
-    findType : (BranchIDOpt * PackageLocation) -> Ply<Option<FQTypeName.Package>>
-    findValue : (BranchIDOpt * PackageLocation) -> Ply<Option<FQValueName.Package>>
-    findFn : (BranchIDOpt * PackageLocation) -> Ply<Option<FQFnName.Package>>
+    // Find functions include accountID to support visibility of pending items
+    // - When accountID = Some id: returns approved items + pending items created by that account
+    // - When accountID = None: returns only approved items
+    findType :
+      (Option<AccountID> * Option<BranchID> * PackageLocation)
+        -> Ply<Option<FQTypeName.Package>>
+    findValue :
+      (Option<AccountID> * Option<BranchID> * PackageLocation)
+        -> Ply<Option<FQValueName.Package>>
+    findFn :
+      (Option<AccountID> * Option<BranchID> * PackageLocation)
+        -> Ply<Option<FQFnName.Package>>
 
-    search : BranchIDOpt * Search.SearchQuery -> Ply<Search.SearchResults>
+    search :
+      Option<AccountID> * Option<BranchID> * Search.SearchQuery
+        -> Ply<Search.SearchResults>
 
     // why does the PT one even need these?
     getType : FQTypeName.Package -> Ply<Option<PackageType.PackageType>>
@@ -770,10 +800,14 @@ type PackageManager =
     // TODO: Revisit this given that a single ID might refer to multiple locations,
     // even per a branch (because... why? not sure or totally convinced either way)).
     getTypeLocation :
-      BranchIDOpt * FQTypeName.Package -> Ply<Option<PackageLocation>>
+      Option<AccountID> * Option<BranchID> * FQTypeName.Package
+        -> Ply<Option<PackageLocation>>
     getValueLocation :
-      BranchIDOpt * FQValueName.Package -> Ply<Option<PackageLocation>>
-    getFnLocation : BranchIDOpt * FQFnName.Package -> Ply<Option<PackageLocation>>
+      Option<AccountID> * Option<BranchID> * FQValueName.Package
+        -> Ply<Option<PackageLocation>>
+    getFnLocation :
+      Option<AccountID> * Option<BranchID> * FQFnName.Package
+        -> Ply<Option<PackageLocation>>
 
     init : Ply<unit> }
 
@@ -822,24 +856,25 @@ type PackageManager =
     let fnIdToFn = fns |> List.map (fun (f, _) -> f.id, f) |> Map.ofList
 
     { findType =
-        fun (branchID, location) ->
+        fun (accountID, branchID, location) ->
           match Map.tryFind location typeLocationToId with
           | Some id -> Ply(Some id)
-          | None -> pm.findType (branchID, location)
+          | None -> pm.findType (accountID, branchID, location)
 
       findValue =
-        fun (branchID, location) ->
+        fun (accountID, branchID, location) ->
           match Map.tryFind location valueLocationToId with
           | Some id -> Ply(Some id)
-          | None -> pm.findValue (branchID, location)
+          | None -> pm.findValue (accountID, branchID, location)
 
       findFn =
-        fun (branchID, location) ->
+        fun (accountID, branchID, location) ->
           match Map.tryFind location fnLocationToId with
           | Some id -> Ply(Some id)
-          | None -> pm.findFn (branchID, location)
+          | None -> pm.findFn (accountID, branchID, location)
 
-      search = pm.search
+      search =
+        fun (accountID, branchID, query) -> pm.search (accountID, branchID, query)
 
       getType =
         fun id ->
@@ -860,22 +895,22 @@ type PackageManager =
           | None -> pm.getFn id
 
       getTypeLocation =
-        fun (branchID, id) ->
+        fun (accountID, branchID, id) ->
           match Map.tryFind id typeIdToLocation with
           | Some location -> Ply(Some location)
-          | None -> pm.getTypeLocation (branchID, id)
+          | None -> pm.getTypeLocation (accountID, branchID, id)
 
       getValueLocation =
-        fun (branchID, id) ->
+        fun (accountID, branchID, id) ->
           match Map.tryFind id valueIdToLocation with
           | Some location -> Ply(Some location)
-          | None -> pm.getValueLocation (branchID, id)
+          | None -> pm.getValueLocation (accountID, branchID, id)
 
       getFnLocation =
-        fun (branchID, id) ->
+        fun (accountID, branchID, id) ->
           match Map.tryFind id fnIdToLocation with
           | Some location -> Ply(Some location)
-          | None -> pm.getFnLocation (branchID, id)
+          | None -> pm.getFnLocation (accountID, branchID, id)
 
       init = pm.init }
 

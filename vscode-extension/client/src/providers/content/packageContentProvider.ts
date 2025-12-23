@@ -15,10 +15,6 @@ export class PackageContentProvider {
   static async getContentAsync(parsedUrl: ParsedUrl): Promise<string> {
     const { target, view } = parsedUrl;
 
-    console.log(
-      `PackageContentProvider.getContentAsync: target="${target}", view="${view}"`,
-    );
-
     if (!target) {
       return this.getPackageListContent();
     }

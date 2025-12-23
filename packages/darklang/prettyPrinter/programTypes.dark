@@ -37,7 +37,8 @@ module NameResolutionError =
 // Context for relative name resolution - when we know what module we're currently in,
 // we can shorten names that share the same prefix
 type Context =
-  { branchID: Stdlib.Option.Option<Uuid>
+  { accountID: Stdlib.Option.Option<Uuid>
+    branchID: Stdlib.Option.Option<Uuid>
     currentModule: Stdlib.Option.Option<String>
     /// Used to resolve ESelf and EArg expressions when pretty-printing function bodies.
     /// When Some, contains (functionName, argMap) where argMap maps parameter names to indices.
@@ -45,7 +46,8 @@ type Context =
 
 let defaultContext =
   Context
-    { branchID = Stdlib.Option.Option.None
+    { accountID = Stdlib.Option.Option.None
+      branchID = Stdlib.Option.Option.None
       currentModule = Stdlib.Option.Option.None
       currentFunction = Stdlib.Option.Option.None }
 
@@ -99,37 +101,41 @@ let packageName
 module FQTypeName =
   module Package =
     let atDefinition
+      (accountID: Stdlib.Option.Option<Uuid>)
       (branchID: Stdlib.Option.Option<Uuid>)
       (id: LanguageTools.ProgramTypes.FQTypeName.Package)
       : String =
-      match Builtin.pmGetLocationByType branchID id with
+      match Builtin.pmGetLocationByType accountID branchID id with
       | Some l -> l.name
       | None -> Stdlib.Uuid.toString id
 
     let fullForReference
+      (accountID: Stdlib.Option.Option<Uuid>)
       (branchID: Stdlib.Option.Option<Uuid>)
       (id: LanguageTools.ProgramTypes.FQTypeName.Package)
       : String =
-      match Builtin.pmGetLocationByType branchID id with
+      match Builtin.pmGetLocationByType accountID branchID id with
       | Some l ->
         packageName l.owner l.modules l.name
       | None -> Stdlib.Uuid.toString id
 
 
   let atDefinition
+    (accountID: Stdlib.Option.Option<Uuid>)
     (branchID: Stdlib.Option.Option<Uuid>)
     (t: LanguageTools.ProgramTypes.FQTypeName.FQTypeName)
     : String =
     match t with
-    | Package p -> FQTypeName.Package.atDefinition branchID p
+    | Package p -> FQTypeName.Package.atDefinition accountID branchID p
 
   let fullForReference
+    (accountID: Stdlib.Option.Option<Uuid>)
     (branchID: Stdlib.Option.Option<Uuid>)
     (t: LanguageTools.ProgramTypes.FQTypeName.FQTypeName)
     : String =
     match t with
     | Package p ->
-      FQTypeName.Package.fullForReference branchID p
+      FQTypeName.Package.fullForReference accountID branchID p
 
 
 module FQValueName =
@@ -150,18 +156,20 @@ module FQValueName =
 
   module Package =
     let atDefinition
+      (accountID: Stdlib.Option.Option<Uuid>)
       (branchID: Stdlib.Option.Option<Uuid>)
       (id: LanguageTools.ProgramTypes.FQValueName.Package)
       : String =
-      match Builtin.pmGetLocationByValue branchID id with
+      match Builtin.pmGetLocationByValue accountID branchID id with
       | Some l -> l.name
       | None -> Stdlib.Uuid.toString id
 
     let fullForReference
+      (accountID: Stdlib.Option.Option<Uuid>)
       (branchID: Stdlib.Option.Option<Uuid>)
       (id: LanguageTools.ProgramTypes.FQValueName.Package)
       : String =
-      match Builtin.pmGetLocationByValue branchID id with
+      match Builtin.pmGetLocationByValue accountID branchID id with
       | Some l ->
         packageName l.owner l.modules l.name
       | None -> Stdlib.Uuid.toString id
@@ -169,6 +177,7 @@ module FQValueName =
 
 
   let atDefinition
+    (accountID: Stdlib.Option.Option<Uuid>)
     (branchID: Stdlib.Option.Option<Uuid>)
     (t: LanguageTools.ProgramTypes.FQValueName.FQValueName)
     : String =
@@ -176,9 +185,10 @@ module FQValueName =
     | Builtin b ->
       FQValueName.Builtin.fullForReference b
     | Package p ->
-      FQValueName.Package.atDefinition branchID p
+      FQValueName.Package.atDefinition accountID branchID p
 
   let fullForReference
+    (accountID: Stdlib.Option.Option<Uuid>)
     (branchID: Stdlib.Option.Option<Uuid>)
     (t: LanguageTools.ProgramTypes.FQValueName.FQValueName)
     : String =
@@ -186,7 +196,7 @@ module FQValueName =
     | Builtin b ->
       FQValueName.Builtin.fullForReference b
     | Package p ->
-      FQValueName.Package.fullForReference branchID p
+      FQValueName.Package.fullForReference accountID branchID p
 
 
 module FQFnName =
@@ -207,33 +217,37 @@ module FQFnName =
 
   module Package =
     let atDefinition
+      (accountID: Stdlib.Option.Option<Uuid>)
       (branchID: Stdlib.Option.Option<Uuid>)
       (id: LanguageTools.ProgramTypes.FQFnName.Package)
       : String =
-      match Builtin.pmGetLocationByFn branchID id with
+      match Builtin.pmGetLocationByFn accountID branchID id with
       | Some l -> l.name
       | None -> Stdlib.Uuid.toString id
 
     let fullForReference
+      (accountID: Stdlib.Option.Option<Uuid>)
       (branchID: Stdlib.Option.Option<Uuid>)
       (id: LanguageTools.ProgramTypes.FQFnName.Package)
       : String =
-      match Builtin.pmGetLocationByFn branchID id with
+      match Builtin.pmGetLocationByFn accountID branchID id with
       | Some l ->
         packageName l.owner l.modules l.name
       | None -> Stdlib.Uuid.toString id
 
 
   let atDefinition
+    (accountID: Stdlib.Option.Option<Uuid>)
     (branchID: Stdlib.Option.Option<Uuid>)
     (t: LanguageTools.ProgramTypes.FQFnName.FQFnName)
     : String =
     match t with
     | Builtin _b ->
       "why are you trying to print a stdlib type name _definition_?"
-    | Package p -> FQFnName.Package.atDefinition branchID p
+    | Package p -> FQFnName.Package.atDefinition accountID branchID p
 
   let fullForReference
+    (accountID: Stdlib.Option.Option<Uuid>)
     (branchID: Stdlib.Option.Option<Uuid>)
     (t: LanguageTools.ProgramTypes.FQFnName.FQFnName)
     : String =
@@ -241,10 +255,11 @@ module FQFnName =
     | Builtin b ->
       FQFnName.Builtin.fullForReference b
     | Package p ->
-      FQFnName.Package.fullForReference branchID p
+      FQFnName.Package.fullForReference accountID branchID p
 
 
 let typeReference
+  (accountID: Stdlib.Option.Option<Uuid>)
   (branchID: Stdlib.Option.Option<Uuid>)
   (t: LanguageTools.ProgramTypes.TypeReference)
   : String =
@@ -270,17 +285,17 @@ let typeReference
   | TUuid -> "Uuid"
 
   | TList inner ->
-    $"List<{typeReference branchID inner}>"
+    $"List<{typeReference accountID branchID inner}>"
 
   | TTuple(first, second, theRest) ->
     (Stdlib.List.append [ first; second ] theRest)
     |> Stdlib.List.map (fun item ->
-      typeReference branchID item)
+      typeReference accountID branchID item)
     |> Stdlib.String.join " * "
     |> fun parts -> "(" ++ parts ++ ")"
 
   | TDict inner ->
-    $"Dict<{typeReference branchID inner}>"
+    $"Dict<{typeReference accountID branchID inner}>"
 
   | TCustomType(typ, args) ->
     let argsPart =
@@ -289,29 +304,29 @@ let typeReference
       | args ->
         args
         |> Stdlib.List.map (fun arg ->
-          typeReference branchID arg)
+          typeReference accountID branchID arg)
         |> Stdlib.String.join ", "
         |> fun parts -> $"<{parts}>"
 
     let typeNamePart =
       match typ with
       | Ok name ->
-        FQTypeName.fullForReference branchID name
+        FQTypeName.fullForReference accountID branchID name
       | Error e -> NameResolutionError.source e
 
     $"{typeNamePart}{argsPart}"
 
   | TDB inner ->
-    $"DB<{typeReference branchID inner}>"
+    $"DB<{typeReference accountID branchID inner}>"
 
   | TFn(args, ret) ->
     let argPart =
       args
       |> Stdlib.List.map (fun arg ->
-        typeReference branchID arg)
+        typeReference accountID branchID arg)
       |> Stdlib.String.join " -> "
 
-    $"{argPart} -> {typeReference branchID ret}"
+    $"{argPart} -> {typeReference accountID branchID ret}"
   | _ ->
     let s = Builtin.Json.serialize<LanguageTools.ProgramTypes.TypeReference> t
 
@@ -445,7 +460,7 @@ let pipeExpr (ctx: Context) (p: LanguageTools.ProgramTypes.PipeExpr) : String =
     let fnNamePart =
       match fnName with
       | Ok name ->
-        FQFnName.fullForReference ctx.branchID name
+        FQFnName.fullForReference ctx.accountID ctx.branchID name
       | Error e -> NameResolutionError.source e
 
     let typeArgsPart =
@@ -454,7 +469,7 @@ let pipeExpr (ctx: Context) (p: LanguageTools.ProgramTypes.PipeExpr) : String =
       | _ ->
         typeArgs
         |> Stdlib.List.map (fun typeArg ->
-          typeReference ctx.branchID typeArg)
+          typeReference ctx.accountID ctx.branchID typeArg)
         |> Stdlib.String.join ", "
         |> fun parts -> $"<{parts}>"
 
@@ -477,7 +492,7 @@ let pipeExpr (ctx: Context) (p: LanguageTools.ProgramTypes.PipeExpr) : String =
     let typeNamePart =
       match typeName with
       | Ok name ->
-        FQTypeName.fullForReference ctx.branchID name
+        FQTypeName.fullForReference ctx.accountID ctx.branchID name
       | Error e -> NameResolutionError.source e
 
     match fields with
@@ -556,7 +571,7 @@ let expr (ctx: Context) (e: LanguageTools.ProgramTypes.Expr) : String =
     let typeNamePart =
       match typeName with
       | Ok name ->
-        FQTypeName.fullForReference ctx.branchID name
+        FQTypeName.fullForReference ctx.accountID ctx.branchID name
       | Error e -> NameResolutionError.source e
 
     let typeArgsPart =
@@ -565,7 +580,7 @@ let expr (ctx: Context) (e: LanguageTools.ProgramTypes.Expr) : String =
       | _ ->
         typeArgs
         |> Stdlib.List.map (fun typeArg ->
-          typeReference ctx.branchID typeArg)
+          typeReference ctx.accountID ctx.branchID typeArg)
         |> Stdlib.String.join ", "
         |> fun parts -> $"<{parts}>"
 
@@ -583,7 +598,7 @@ let expr (ctx: Context) (e: LanguageTools.ProgramTypes.Expr) : String =
     let typeNamePart =
       match typeName with
       | Ok name ->
-        FQTypeName.fullForReference ctx.branchID name
+        FQTypeName.fullForReference ctx.accountID ctx.branchID name
       | Error e -> NameResolutionError.source e
 
     let typeArgsPart =
@@ -592,7 +607,7 @@ let expr (ctx: Context) (e: LanguageTools.ProgramTypes.Expr) : String =
       | _ ->
         typeArgs
         |> Stdlib.List.map (fun typeArg ->
-          typeReference ctx.branchID typeArg)
+          typeReference ctx.accountID ctx.branchID typeArg)
         |> Stdlib.String.join ", "
         |> fun parts -> $"<{parts}>"
 
@@ -731,7 +746,7 @@ let expr (ctx: Context) (e: LanguageTools.ProgramTypes.Expr) : String =
       let typeArgsPart =
         typeArgs
         |> Stdlib.List.map (fun typeArg ->
-          typeReference ctx.branchID typeArg)
+          typeReference ctx.accountID ctx.branchID typeArg)
         |> Stdlib.String.join ", "
 
       $"{fnNamePart}<{typeArgsPart}> {argsPart}"
@@ -739,7 +754,7 @@ let expr (ctx: Context) (e: LanguageTools.ProgramTypes.Expr) : String =
   | EFnName(_id, fnName) ->
     match fnName with
     | Ok name ->
-      FQFnName.fullForReference ctx.branchID name
+      FQFnName.fullForReference ctx.accountID ctx.branchID name
     | Error e -> NameResolutionError.source e
 
   // LanguageTools.ID *
@@ -762,7 +777,7 @@ let expr (ctx: Context) (e: LanguageTools.ProgramTypes.Expr) : String =
   | EValue(_id, value) ->
     match value with
     | Ok name ->
-      FQValueName.fullForReference ctx.branchID name
+      FQValueName.fullForReference ctx.accountID ctx.branchID name
     | Error e -> NameResolutionError.source e
 
   | EStatement (_id, first, next) ->
@@ -798,22 +813,25 @@ let expr (ctx: Context) (e: LanguageTools.ProgramTypes.Expr) : String =
 
 module TypeDeclaration =
   let recordField
+    (accountID: Stdlib.Option.Option<Uuid>)
     (branchID: Stdlib.Option.Option<Uuid>)
     (d: LanguageTools.ProgramTypes.TypeDeclaration.RecordField)
     : String =
     // TODO: /// for description
-    $"{d.name}: {typeReference branchID d.typ}"
+    $"{d.name}: {typeReference accountID branchID d.typ}"
 
   let enumField
+    (accountID: Stdlib.Option.Option<Uuid>)
     (branchID: Stdlib.Option.Option<Uuid>)
     (d: LanguageTools.ProgramTypes.TypeDeclaration.EnumField)
     : String =
     match d.label with
-    | None -> typeReference branchID d.typ
+    | None -> typeReference accountID branchID d.typ
     | Some label ->
-      $"{label}: {typeReference branchID d.typ}"
+      $"{label}: {typeReference accountID branchID d.typ}"
 
   let enumCase
+    (accountID: Stdlib.Option.Option<Uuid>)
     (branchID: Stdlib.Option.Option<Uuid>)
     (c: LanguageTools.ProgramTypes.TypeDeclaration.EnumCase)
     : String =
@@ -823,24 +841,25 @@ module TypeDeclaration =
       let fieldPart =
         fields
         |> Stdlib.List.map (fun field ->
-          TypeDeclaration.enumField branchID field)
+          TypeDeclaration.enumField accountID branchID field)
         |> Stdlib.String.join " * "
 
       $"| {c.name} of {fieldPart}"
 
 
 let customType
+  (accountID: Stdlib.Option.Option<Uuid>)
   (branchID: Stdlib.Option.Option<Uuid>)
   (d: LanguageTools.ProgramTypes.TypeDeclaration.TypeDeclaration)
   : String =
   match d.definition with
-  | Alias typeRef -> typeReference branchID typeRef
+  | Alias typeRef -> typeReference accountID branchID typeRef
 
   | Record fields ->
     let fieldsPart =
       fields
       |> Stdlib.List.map (fun field ->
-        TypeDeclaration.recordField branchID field)
+        TypeDeclaration.recordField accountID branchID field)
       |> Stdlib.String.join "\n  "
 
     "{ " ++ (fieldsPart) ++ " }"
@@ -848,7 +867,7 @@ let customType
   | Enum cases ->
     cases
     |> Stdlib.List.map (fun case ->
-      TypeDeclaration.enumCase branchID case)
+      TypeDeclaration.enumCase accountID branchID case)
     |> Stdlib.String.join "\n"
 
 
@@ -879,6 +898,7 @@ let handler (ctx: Context) (h: LanguageTools.ProgramTypes.Handler.Handler) : Str
 
 
 let db
+  (accountID: Stdlib.Option.Option<Uuid>)
   (branchID: Stdlib.Option.Option<Uuid>)
   (db: LanguageTools.ProgramTypes.DB)
   : String =
@@ -888,7 +908,7 @@ let db
     else
       $"_v{Stdlib.Int32.toString db.version}"
 
-  let typPart = typeReference branchID db.typ
+  let typPart = typeReference accountID branchID db.typ
 
   $"type {db.name}{versionPart} = {typPart}"
 
@@ -901,11 +921,12 @@ let db
 
 
 let packageType
+  (accountID: Stdlib.Option.Option<Uuid>)
   (branchID: Stdlib.Option.Option<Uuid>)
   (p: LanguageTools.ProgramTypes.PackageType.PackageType)
   : String =
   // TODO: take care of deprecated
-  let namePart = FQTypeName.Package.atDefinition branchID p.id
+  let namePart = FQTypeName.Package.atDefinition accountID branchID p.id
 
   let typeParamPart =
     match p.declaration.typeParams with
@@ -917,7 +938,7 @@ let packageType
       |> fun parts -> $"<{parts}>"
 
   let defPart =
-    (customType branchID p.declaration)
+    (customType accountID branchID p.declaration)
     |> PrettyPrinter.indent
 
   let docComment = formatDocComment p.description
@@ -929,7 +950,7 @@ let packageValue
   (ctx: Context)
   (p: LanguageTools.ProgramTypes.PackageValue.PackageValue)
   : String =
-  let namePart = FQValueName.Package.atDefinition ctx.branchID p.id
+  let namePart = FQValueName.Package.atDefinition ctx.accountID ctx.branchID p.id
   let bodyPart = expr ctx p.body
 
   let docComment = formatDocComment p.description
@@ -949,25 +970,27 @@ module PackageLocation =
 
 module PackageFn =
   let parameter
+    (accountID: Stdlib.Option.Option<Uuid>)
     (branchID: Stdlib.Option.Option<Uuid>)
     (p: LanguageTools.ProgramTypes.PackageFn.Parameter)
     : String =
     // TODO: /// for description
-    $"({p.name}: {typeReference branchID p.typ})"
+    $"({p.name}: {typeReference accountID branchID p.typ})"
 
 
   let signature
+    (accountID: Stdlib.Option.Option<Uuid>)
     (branchID: Stdlib.Option.Option<Uuid>)
     (f: LanguageTools.ProgramTypes.PackageFn.PackageFn)
     : String =
     let params =
       f.parameters
       |> Stdlib.List.map (fun p ->
-        PackageFn.parameter branchID p)
+        PackageFn.parameter accountID branchID p)
       |> Stdlib.String.join ", "
 
     let returnType =
-      typeReference branchID f.returnType
+      typeReference accountID branchID f.returnType
 
     params ++ " -> " ++ returnType
 
@@ -977,7 +1000,7 @@ let packageFn
   (p: LanguageTools.ProgramTypes.PackageFn.PackageFn)
   : String =
   // TODO: handle `deprecated`
-  let namePart = FQFnName.Package.atDefinition ctx.branchID p.id
+  let namePart = FQFnName.Package.atDefinition ctx.accountID ctx.branchID p.id
 
   let typeParamPart =
     match p.typeParams with
@@ -991,10 +1014,10 @@ let packageFn
   let paramPart =
     p.parameters
     |> Stdlib.List.map (fun param ->
-      PackageFn.parameter ctx.branchID param)
+      PackageFn.parameter ctx.accountID ctx.branchID param)
     |> Stdlib.String.join " "
 
-  let retPart = typeReference ctx.branchID p.returnType
+  let retPart = typeReference ctx.accountID ctx.branchID p.returnType
 
   let argMap =
     p.parameters
@@ -1019,28 +1042,30 @@ module BuiltinFn =
     // Potential solution: update RuntimeTypes (.fs) such that BuiltInFn's returnType and parameters use PT TypeReferences.
     // Main blocker: "RT comes before PT" in LibExecution, and it'd take some wrangling to get it all compiling again if we did that.
 
-    // Builtin functions don't have branch-specific types, so we pass None
+    // Builtin functions don't have branch-specific types or approval status, so we pass None for both
     let branchID = Stdlib.Option.Option.None
+    let accountID = Stdlib.Option.Option.None
 
     let parameters =
       f.parameters
       |> Stdlib.List.map (fun p ->
-          let params = PrettyPrinter.RuntimeTypes.typeReference branchID p.``type``
+          let params = PrettyPrinter.RuntimeTypes.typeReference accountID branchID p.``type``
           $"({p.name} : {params})")
       |> Stdlib.String.join ", "
 
-    parameters ++ " -> " ++ (PrettyPrinter.RuntimeTypes.typeReference branchID f.returnType)
+    parameters ++ " -> " ++ (PrettyPrinter.RuntimeTypes.typeReference accountID branchID f.returnType)
 
 
 module PackageOp =
   let packageOp
+    (accountID: Stdlib.Option.Option<Uuid>)
     (branchID: Stdlib.Option.Option<Uuid>)
     (op: LanguageTools.ProgramTypes.PackageOp)
     : String =
     match op with
     | AddType typ ->
       let name =
-        FQTypeName.Package.atDefinition branchID typ.id
+        FQTypeName.Package.atDefinition accountID branchID typ.id
 
       let typeParamPart =
         match typ.declaration.typeParams with
@@ -1065,9 +1090,9 @@ module PackageOp =
 
     | AddFn fn ->
       let name =
-        FQFnName.Package.atDefinition branchID fn.id
+        FQFnName.Package.atDefinition accountID branchID fn.id
 
-      let signature = PackageFn.signature branchID fn
+      let signature = PackageFn.signature accountID branchID fn
 
       $"AddFn {name}: {signature}"
 
@@ -1078,6 +1103,7 @@ module PackageOp =
     | AddValue _value ->
       let name =
         FQValueName.Package.atDefinition
+          accountID
           branchID
           _value.id
 
@@ -1086,3 +1112,25 @@ module PackageOp =
     | SetValueName (id, loc) ->
       let path = PackageLocation.packageLocation loc
       $"SetValueName → {path}"
+
+    | ApproveItem (itemId, branchId, reviewerId) ->
+      $"ApproveItem {Stdlib.Uuid.toString itemId} by {Stdlib.Uuid.toString reviewerId}"
+
+    | RejectItem (itemId, branchId, reviewerId, reason) ->
+      $"RejectItem {Stdlib.Uuid.toString itemId} by {Stdlib.Uuid.toString reviewerId}: {reason}"
+
+    | RequestNamingApproval (requestId, createdBy, targetNamespace, locationIds, title, description, sourceBranchId) ->
+      let locationCount = Stdlib.List.length locationIds
+
+      let titleStr =
+        match title with
+        | Some t -> $" \"{t}\""
+        | None -> ""
+
+      $"RequestNamingApproval{titleStr} for {targetNamespace} ({Stdlib.Int64.toString locationCount} items) by {Stdlib.Uuid.toString createdBy}"
+
+    | WithdrawApprovalRequest (requestId, withdrawnBy) ->
+      $"WithdrawApprovalRequest {Stdlib.Uuid.toString requestId} by {Stdlib.Uuid.toString withdrawnBy}"
+
+    | RequestChanges (requestId, locationId, reviewerId, comment) ->
+      $"RequestChanges on {locationId} by {Stdlib.Uuid.toString reviewerId}: {comment}"

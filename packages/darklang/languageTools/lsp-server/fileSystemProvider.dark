@@ -55,22 +55,23 @@ module ReadFile =
 
         // Try to find as a specific entity (type, function, or value)
         let entityContent =
-          match pm.findType branchID location with
+          match pm.findType state.accountID branchID location with
           | Some id ->
             match pm.getType id with
             | Some typ ->
-              (PrettyPrinter.ProgramTypes.packageType branchID typ)
+              (PrettyPrinter.ProgramTypes.packageType state.accountID branchID typ)
               |> Stdlib.Option.Option.Some
             | None -> Stdlib.Option.Option.None
 
           | None ->
             let ctx =
               PrettyPrinter.ProgramTypes.Context
-                { branchID = branchID
+                { accountID = state.accountID
+                  branchID = branchID
                   currentModule = Stdlib.Option.Option.None
                   currentFunction = Stdlib.Option.Option.None }
 
-            match pm.findFn branchID location with
+            match pm.findFn state.accountID branchID location with
             | Some id ->
               match pm.getFn id with
               | Some fn ->
@@ -79,7 +80,7 @@ module ReadFile =
               | None -> Stdlib.Option.Option.None
 
             | None ->
-              match pm.findValue branchID location with
+              match pm.findValue state.accountID branchID location with
               | Some id ->
                 match pm.getValue id with
                 | Some value ->
@@ -106,12 +107,13 @@ module ReadFile =
 
           let ctx =
             PrettyPrinter.ProgramTypes.Context
-              { branchID = branchID
+              { accountID = state.accountID
+                branchID = branchID
                 currentModule = Stdlib.Option.Option.None
                 currentFunction = Stdlib.Option.Option.None }
 
           let results =
-            LanguageTools.PackageManager.Search.search state.branchID searchQuery
+            LanguageTools.PackageManager.Search.search state.accountID state.branchID searchQuery
 
           let types = results.types |> Stdlib.List.map (fun found -> found.entity)
           let fns = results.fns |> Stdlib.List.map (fun found -> found.entity)
@@ -361,13 +363,14 @@ module WriteFile =
                     modules = modules
                     name = typeDecl.name.name })
 
-              let existingTypeId = pm.findType state.branchID typeLocation
+              let existingTypeId = pm.findType state.accountID state.branchID typeLocation
 
               match existingTypeId with
               | Some _id -> []
               | None ->
                 let (packageType, _unresolvedNames) =
                   LanguageTools.WrittenTypesToProgramTypes.TypeDeclaration.toPackageTypePT
+                    state.accountID
                     state.branchID
                     LanguageTools.NameResolver.OnMissing.Allow
                     pm
@@ -398,13 +401,14 @@ module WriteFile =
                     modules = modules
                     name = fnDecl.name.name })
 
-              let existingFnId = pm.findFn state.branchID fnLocation
+              let existingFnId = pm.findFn state.accountID state.branchID fnLocation
 
               match existingFnId with
               | Some _id -> []
               | None ->
                 let (packageFn, _unresolvedNames) =
                   LanguageTools.WrittenTypesToProgramTypes.FunctionDeclaration.toPackageFnPT
+                    state.accountID
                     state.branchID
                     LanguageTools.NameResolver.OnMissing.Allow
                     pm
@@ -435,13 +439,14 @@ module WriteFile =
                     modules = modules
                     name = valDecl.name.name })
 
-              let existingValId = pm.findValue state.branchID valLocation
+              let existingValId = pm.findValue state.accountID state.branchID valLocation
 
               match existingValId with
               | Some _id -> []
               | None ->
                 let (packageValue, _unresolvedNames) =
                   LanguageTools.WrittenTypesToProgramTypes.ValueDeclaration.toPackageValuePT
+                    state.accountID
                     state.branchID
                     LanguageTools.NameResolver.OnMissing.Allow
                     pm
@@ -463,10 +468,12 @@ module WriteFile =
         // Only add ops if there are new items
         // Local editor ops don't need an instanceID to track their origin
         let instanceID = Stdlib.Option.Option.None
+        // createdBy tracks who made the change for the approval workflow
+        let createdBy = state.accountID
 
         let addResult =
           if (Stdlib.List.isEmpty allOps) |> Stdlib.Bool.not then
-            SCM.PackageOps.add instanceID state.branchID allOps
+            SCM.PackageOps.add instanceID state.branchID createdBy allOps
           else
             Stdlib.Result.Result.Ok 0L
 
@@ -497,12 +504,13 @@ module WriteFile =
 
               let ctx =
                 PrettyPrinter.ProgramTypes.Context
-                  { branchID = state.branchID
+                  { accountID = state.accountID
+                    branchID = state.branchID
                     currentModule = Stdlib.Option.Option.None
                     currentFunction = Stdlib.Option.Option.None }
 
               let results =
-                LanguageTools.PackageManager.Search.search state.branchID searchQuery
+                LanguageTools.PackageManager.Search.search state.accountID state.branchID searchQuery
 
               let types = results.types |> Stdlib.List.map (fun found -> found.entity)
               let fns = results.fns |> Stdlib.List.map (fun found -> found.entity)

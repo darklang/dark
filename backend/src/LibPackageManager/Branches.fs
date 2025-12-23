@@ -13,21 +13,25 @@ open LibDB.Db
 type Branch =
   { id : uuid
     name : string
+    owner : uuid
     createdAt : NodaTime.Instant
     mergedAt : Option<NodaTime.Instant> }
 
 
-/// List all branches
-let list () : Task<List<Branch>> =
+/// List branches for a specific owner
+let list (owner : uuid) : Task<List<Branch>> =
   """
-  SELECT id, name, created_at, merged_at
+  SELECT id, name, owner, created_at, merged_at
   FROM branches
+  WHERE owner = @owner
   ORDER BY created_at DESC
   """
   |> Sql.query
+  |> Sql.parameters [ "owner", Sql.uuid owner ]
   |> Sql.executeAsync (fun read ->
     { id = read.uuid "id"
       name = read.string "name"
+      owner = read.uuid "owner"
       createdAt = read.instant "created_at"
       mergedAt = read.instantOrNone "merged_at" })
 
@@ -35,7 +39,7 @@ let list () : Task<List<Branch>> =
 /// Get a specific branch by ID
 let get (branchID : uuid) : Task<Option<Branch>> =
   """
-  SELECT id, name, created_at, merged_at
+  SELECT id, name, owner, created_at, merged_at
   FROM branches
   WHERE id = @id
   """
@@ -44,45 +48,49 @@ let get (branchID : uuid) : Task<Option<Branch>> =
   |> Sql.executeRowOptionAsync (fun read ->
     { id = read.uuid "id"
       name = read.string "name"
+      owner = read.uuid "owner"
       createdAt = read.instant "created_at"
       mergedAt = read.instantOrNone "merged_at" })
 
 
-/// Find branches by name (may return multiple if names collide)
-let findByName (name : string) : Task<List<Branch>> =
+/// Find branch by name for a specific owner
+let findByName (owner : uuid) (name : string) : Task<Option<Branch>> =
   """
-  SELECT id, name, created_at, merged_at
+  SELECT id, name, owner, created_at, merged_at
   FROM branches
-  WHERE name = @name
-  ORDER BY created_at DESC
+  WHERE owner = @owner AND name = @name
   """
   |> Sql.query
-  |> Sql.parameters [ "name", Sql.string name ]
-  |> Sql.executeAsync (fun read ->
+  |> Sql.parameters [ "owner", Sql.uuid owner; "name", Sql.string name ]
+  |> Sql.executeRowOptionAsync (fun read ->
     { id = read.uuid "id"
       name = read.string "name"
+      owner = read.uuid "owner"
       createdAt = read.instant "created_at"
       mergedAt = read.instantOrNone "merged_at" })
 
 
-/// Create a new branch
+/// Create a new branch for a specific owner
 ///
 /// CLEANUP consider just returning ID?
-let create (name : string) : Task<Branch> =
+let create (owner : uuid) (name : string) : Task<Branch> =
   task {
     let now = NodaTime.Instant.now ()
     let id = System.Guid.NewGuid()
 
     do!
       """
-        INSERT INTO branches (id, name, created_at, merged_at)
-        VALUES (@id, @name, @created_at, NULL)
+        INSERT INTO branches (id, name, owner, created_at, merged_at)
+        VALUES (@id, @name, @owner, @created_at, NULL)
         """
       |> Sql.query
       |> Sql.parameters
-        [ "id", Sql.uuid id; "name", Sql.string name; "created_at", Sql.instant now ]
+        [ "id", Sql.uuid id
+          "name", Sql.string name
+          "owner", Sql.uuid owner
+          "created_at", Sql.instant now ]
       |> Sql.executeNonQueryAsync
       |> Task.map (fun _ -> ())
 
-    return { id = id; name = name; createdAt = now; mergedAt = None }
+    return { id = id; name = name; owner = owner; createdAt = now; mergedAt = None }
   }

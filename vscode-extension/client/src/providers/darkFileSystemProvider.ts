@@ -2,6 +2,7 @@ import * as vscode from "vscode";
 import { LanguageClient } from "vscode-languageclient/node";
 import { WorkspaceTreeDataProvider } from "./treeviews/workspaceTreeDataProvider";
 import { PackagesTreeDataProvider } from "./treeviews/packagesTreeDataProvider";
+import { ApprovalsTreeDataProvider } from "./treeviews/approvalsTreeDataProvider";
 
 /**
  * FileSystemProvider for darkfs:// URIs
@@ -31,6 +32,7 @@ export class DarkFileSystemProvider implements vscode.FileSystemProvider {
 
   private workspaceProvider: WorkspaceTreeDataProvider | null = null;
   private packagesProvider: PackagesTreeDataProvider | null = null;
+  private approvalsProvider: ApprovalsTreeDataProvider | null = null;
 
   // Cache of file contents to detect changes
   private contentCache = new Map<string, Uint8Array>();
@@ -47,13 +49,15 @@ export class DarkFileSystemProvider implements vscode.FileSystemProvider {
     this.packagesProvider = provider;
   }
 
+  setApprovalsProvider(provider: ApprovalsTreeDataProvider): void {
+    this.approvalsProvider = provider;
+  }
+
   /**
    * Refresh all open darkfs:// files by clearing cache and firing change events
    * This should be called when switching branches to show updated content
    */
   async refreshAllOpenFiles(): Promise<void> {
-    console.log('Refreshing all open darkfs:// files');
-
     // Get all open text documents
     const openDarkfsFiles = vscode.workspace.textDocuments.filter(
       doc => doc.uri.scheme === 'darkfs'
@@ -163,6 +167,11 @@ export class DarkFileSystemProvider implements vscode.FileSystemProvider {
           // Refresh packages tree to show new declarations
           if (this.packagesProvider) {
             this.packagesProvider.refresh();
+          }
+
+          // Refresh approvals tree in case we added to a namespace we don't own
+          if (this.approvalsProvider) {
+            this.approvalsProvider.refresh();
           }
         } else {
           // No ops created - just update cache with what was written

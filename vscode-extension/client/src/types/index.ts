@@ -18,7 +18,15 @@ export enum BranchNodeType {
   InstanceRoot = "instance-root",
   BranchRoot = "branch-root",
   ChangesRoot = "changes-root",
-  SeeMore = "see-more"
+  SeeMore = "see-more",
+  // Approval system node types
+  ApprovalsRoot = "approvals-root",
+  IncomingRequestsRoot = "incoming-requests-root",
+  OutgoingRequestsRoot = "outgoing-requests-root",
+  PendingLocationsRoot = "pending-locations-root",
+  ApprovalRequest = "approval-request",
+  PendingLocation = "pending-location",
+  NamespaceGroup = "namespace-group"
 }
 
 export interface BranchNode {
@@ -43,6 +51,18 @@ export interface BranchNode {
     status?: "up-to-date" | "ahead" | "behind";
     opsCount?: number;
     lastSynced?: Date;
+  };
+  // Approval system data
+  approvalData?: {
+    requestId?: string;
+    locationId?: string;
+    namespace?: string;
+    status?: "pending" | "approved" | "rejected" | "changes_requested";
+    createdBy?: string;
+    title?: string;
+    description?: string;
+    itemType?: "type" | "fn" | "value";
+    itemName?: string;
   };
 }
 

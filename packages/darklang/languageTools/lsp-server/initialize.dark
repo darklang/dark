@@ -55,5 +55,6 @@ let handleInitializeRequest
   LspState
     { initialized = true
       shouldShutdown = false
+      accountID = Stdlib.Option.Option.None
       branchID = Stdlib.Option.Option.None
       documentsInScope = Dict { } }

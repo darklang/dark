@@ -6,11 +6,16 @@ let displayBranchInfo (branch: SCM.Branch.Branch) : Unit =
     | Some dt -> Stdlib.DateTime.toString dt
     | None -> "(not merged)"
 
+  let ownerName =
+    (Builtin.pmGetAccountNameById branch.owner)
+    |> Stdlib.Option.withDefault (Stdlib.Uuid.toString branch.owner)
+
   [ ""
     (Colors.boldText "Branch Information:")
     ""
     $"  ID:             {Stdlib.Uuid.toString branch.id}"
     $"  Name:           {branch.name}"
+    $"  Owner:          {ownerName}"
     $"  Created at:     {Stdlib.DateTime.toString branch.createdAt}"
     $"  Merged at:      {mergedAtText}"
     "" ]
@@ -22,64 +27,61 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
   | [] -> help state
 
   | ["list"] ->
-    let branches = Darklang.SCM.Branch.list ()
-    Stdlib.printLine ""
-    Stdlib.printLine (Colors.boldText "Branches:")
+    match state.accountID with
+    | None ->
+      Stdlib.printLine (Colors.error "No account logged in")
+      state
+    | Some accountID ->
+      let branches = Darklang.SCM.Branch.list accountID
+      Stdlib.printLine ""
+      Stdlib.printLine (Colors.boldText "Branches:")
 
-    branches
-    |> Stdlib.List.iter (fun b ->
-      let marker =
-        match state.currentBranchId with
-        | Some currentId -> if b.id == currentId then "* " else "  "
-        | None -> "  "
+      branches
+      |> Stdlib.List.iter (fun b ->
+        let marker =
+          match state.currentBranchId with
+          | Some currentId -> if b.id == currentId then "* " else "  "
+          | None -> "  "
 
-      // Show creation date for disambiguation when there are name collisions
-      let dateStr = Stdlib.DateTime.toString b.createdAt
-      Stdlib.printLine $"{marker}{b.name} (created {dateStr})")
+        // Show creation date for disambiguation when there are name collisions
+        let dateStr = Stdlib.DateTime.toString b.createdAt
+        Stdlib.printLine $"{marker}{b.name} (created {dateStr})")
 
-    Stdlib.printLine ""
-    state
-
-  | ["create"; name] ->
-    let branch = Darklang.SCM.Branch.create name
-    Stdlib.printLine $"Created and switched to branch: {name}"
-
-    { state with
-        currentBranchId = Stdlib.Option.Option.Some branch.id
-        needsFullRedraw = true }
-
-  | ["switch"; name] ->
-    let branches = Darklang.SCM.Branch.findByName name
-
-    match branches with
-    | [] ->
-      Stdlib.printLine (Colors.error $"Branch not found: {name}")
+      Stdlib.printLine ""
       state
 
-    | [branch] ->
-      Stdlib.printLine $"Switched to branch: {name}"
+  | ["create"; name] ->
+    match state.accountID with
+    | None ->
+      Stdlib.printLine (Colors.error "No account logged in")
+      state
+    | Some accountID ->
+      let branch = Darklang.SCM.Branch.create accountID name
+      Stdlib.printLine $"Created and switched to branch: {name}"
 
       { state with
           currentBranchId = Stdlib.Option.Option.Some branch.id
           needsFullRedraw = true }
 
-    | multipleBranches ->
-      // Name collision - show options
-      [ (Colors.error $"Multiple branches found with name '{name}':")
-        "" ]
-      |> Stdlib.printLines
-
-      multipleBranches
-      |> Stdlib.List.iter (fun b ->
-        let dateStr = Stdlib.DateTime.toString b.createdAt
-        let idShort = Stdlib.String.slice (Stdlib.Uuid.toString b.id) 0L 8L
-        Stdlib.printLine $"  {b.name} (id: {idShort}..., created {dateStr})")
-
-      [ ""
-        "Please use 'branch switch-id <branch-id>' to switch" ]
-      |> Stdlib.printLines
-
+  | ["switch"; name] ->
+    match state.accountID with
+    | None ->
+      Stdlib.printLine (Colors.error "No account logged in")
       state
+    | Some accountID ->
+      let branch = Darklang.SCM.Branch.findByName accountID name
+
+      match branch with
+      | None ->
+        Stdlib.printLine (Colors.error $"Branch not found: {name}")
+        state
+
+      | Some branch ->
+        Stdlib.printLine $"Switched to branch: {name}"
+
+        { state with
+            currentBranchId = Stdlib.Option.Option.Some branch.id
+            needsFullRedraw = true }
 
   | ["switch-id"; branchIdStr] ->
     match Stdlib.Uuid.parse branchIdStr with
@@ -136,31 +138,21 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
       state
 
   | ["info"; name] ->
-    let branches = Darklang.SCM.Branch.findByName name
-
-    match branches with
-    | [] ->
-      Stdlib.printLine (Colors.error $"Branch not found: {name}")
+    match state.accountID with
+    | None ->
+      Stdlib.printLine (Colors.error "No account logged in")
       state
+    | Some accountID ->
+      let branch = Darklang.SCM.Branch.findByName accountID name
 
-    | [branch] ->
-      displayBranchInfo branch
-      state
+      match branch with
+      | None ->
+        Stdlib.printLine (Colors.error $"Branch not found: {name}")
+        state
 
-    | multipleBranches ->
-      // Multiple branches with same name
-      [ (Colors.error $"Multiple branches found with name '{name}':")
-        "" ]
-      |> Stdlib.printLines
-
-      multipleBranches
-      |> Stdlib.List.iter (fun b ->
-        let dateStr = Stdlib.DateTime.toString b.createdAt
-        let idShort = Stdlib.String.slice (Stdlib.Uuid.toString b.id) 0L 8L
-        Stdlib.printLine $"  {b.name} (id: {idShort}..., created {dateStr})")
-
-      Stdlib.printLine ""
-      state
+      | Some branch ->
+        displayBranchInfo branch
+        state
 
   | ["clear"]
   | ["unset"]
@@ -203,14 +195,20 @@ let complete (state: Cli.AppState) (args: List<String>) : List<String> =
     |> Stdlib.List.filter (fun cmd -> Stdlib.String.startsWith cmd partial)
 
   | ["switch"] ->
-    let branches = Darklang.SCM.Branch.list ()
-    Stdlib.List.map branches (fun b -> b.name)
+    match state.accountID with
+    | None -> []
+    | Some accountID ->
+      let branches = Darklang.SCM.Branch.list accountID
+      Stdlib.List.map branches (fun b -> b.name)
 
   | ["switch"; partial] ->
-    let branches = Darklang.SCM.Branch.list ()
+    match state.accountID with
+    | None -> []
+    | Some accountID ->
+      let branches = Darklang.SCM.Branch.list accountID
 
-    branches
-    |> Stdlib.List.map (fun b -> b.name)
-    |> Stdlib.List.filter (fun name -> Stdlib.String.startsWith name partial)
+      branches
+      |> Stdlib.List.map (fun b -> b.name)
+      |> Stdlib.List.filter (fun name -> Stdlib.String.startsWith name partial)
 
   | _ -> []

@@ -15,7 +15,8 @@ let executeDarklang () : ModelContextProtocol.ServerBuilder.Tool =
         | Ok result -> $"Result: {result}"
         | Error err ->
             let branchID = Stdlib.Option.Option.None
-            let prettyError = PrettyPrinter.RuntimeTypes.RuntimeError.toString branchID err
+            let accountID = Stdlib.Option.Option.None
+            let prettyError = PrettyPrinter.RuntimeTypes.RuntimeError.toString accountID branchID err
             $"Error: {prettyError}"
   }
 

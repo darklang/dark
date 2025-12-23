@@ -1,21 +1,41 @@
 import * as vscode from "vscode";
-import { renderDashboard, getDefaultDashboardData, DashboardData, DashboardPinnedItem, DashboardRecentItem } from "./pages/dashboardPage";
+import { LanguageClient } from "vscode-languageclient/node";
+import {
+  renderDashboard,
+  getDefaultDashboardData,
+  DashboardData,
+  DashboardPinnedItem,
+  DashboardRecentItem,
+} from "./pages/dashboardPage";
 import { renderSidebar, navIcons } from "./components/sidebar";
 import { renderHeader } from "./components/header";
 import { PinnedItemsService } from "../../services/pinnedItemsService";
 import { RecentItemsService } from "../../services/recentItemsService";
+import { AccountService } from "../../services/accountService";
 
-export type PageName = "dashboard" | "packages" | "branches" | "apps" | "approval-requests" | "contributions" | "traces" | "settings" | "changelog" | "logout";
+export type PageName =
+  | "dashboard"
+  | "packages"
+  | "branches"
+  | "apps"
+  | "approval-requests"
+  | "contributions"
+  | "traces"
+  | "settings"
+  | "changelog"
+  | "logout";
 
 /** Homepage Panel - Display Darklang homepage with account info */
 export class HomepagePanel {
   public static currentPanel: HomepagePanel | undefined;
   public static readonly viewType = "darklangHomepage";
+  private static _client: LanguageClient | undefined;
 
   private readonly _panel: vscode.WebviewPanel;
   private readonly _extensionUri: vscode.Uri;
   private _disposables: vscode.Disposable[] = [];
   private _currentPage: PageName = "dashboard";
+  private _availableAccounts: string[] = [];
 
   public static createOrShow(extensionUri: vscode.Uri) {
     const column = vscode.window.activeTextEditor
@@ -49,25 +69,30 @@ export class HomepagePanel {
     HomepagePanel.currentPanel = new HomepagePanel(panel, extensionUri);
   }
 
+  /** Set the LSP client for fetching account data */
+  public static setClient(client: LanguageClient): void {
+    HomepagePanel._client = client;
+  }
+
   private constructor(panel: vscode.WebviewPanel, extensionUri: vscode.Uri) {
     this._panel = panel;
     this._extensionUri = extensionUri;
 
     // Subscribe to pinned items changes
     this._disposables.push(
-      PinnedItemsService.onDidChange(() => this._update())
+      PinnedItemsService.onDidChange(() => this._update()),
     );
 
     // Subscribe to recent items changes
     this._disposables.push(
-      RecentItemsService.onDidChange(() => this._update())
+      RecentItemsService.onDidChange(() => this._update()),
     );
 
-    // Load pinned items and then update the view
-    PinnedItemsService.load()
+    // Load pinned items and accounts, then update the view
+    Promise.all([PinnedItemsService.load(), this._fetchAvailableAccounts()])
       .then(() => this._update())
       .catch(err => {
-        console.error("Failed to load pinned items:", err);
+        console.error("Failed to load initial data:", err);
         this._update();
       });
 
@@ -90,6 +115,9 @@ export class HomepagePanel {
           case "openProject":
             this._handleOpenPackage(message.project, message.itemType);
             return;
+          case "selectAccount":
+            this._handleSelectAccount(message.account);
+            return;
         }
       },
       null,
@@ -104,7 +132,8 @@ export class HomepagePanel {
       const normalizedKind = item.kind.toLowerCase();
       if (normalizedKind === "function") kind = "function";
       else if (normalizedKind === "type") kind = "type";
-      else if (normalizedKind === "value" || normalizedKind === "constant") kind = "value";
+      else if (normalizedKind === "value" || normalizedKind === "constant")
+        kind = "value";
 
       return {
         id: item.itemId,
@@ -130,7 +159,18 @@ export class HomepagePanel {
   }
 
   private _handleNavigation(page: string) {
-    const validPages: PageName[] = ["dashboard", "packages", "branches", "apps", "approval-requests", "contributions", "traces", "settings", "changelog", "logout"];
+    const validPages: PageName[] = [
+      "dashboard",
+      "packages",
+      "branches",
+      "apps",
+      "approval-requests",
+      "contributions",
+      "traces",
+      "settings",
+      "changelog",
+      "logout",
+    ];
 
     if (!validPages.includes(page as PageName)) {
       return;
@@ -153,7 +193,10 @@ export class HomepagePanel {
     vscode.window.showInformationMessage(`${page} page coming soon!`);
   }
 
-  private async _handleOpenPackage(treeId: string, itemType?: string): Promise<void> {
+  private async _handleOpenPackage(
+    treeId: string,
+    itemType?: string,
+  ): Promise<void> {
     if (!treeId) return;
 
     // Check if this is a top-level owner (no dots = owner like "Darklang", "Stachu")
@@ -162,13 +205,81 @@ export class HomepagePanel {
     try {
       if (isOwner) {
         // For owners, reveal and expand in tree view instead of opening file
-        await vscode.commands.executeCommand("darklang.revealInPackagesTree", treeId);
+        await vscode.commands.executeCommand(
+          "darklang.revealInPackagesTree",
+          treeId,
+        );
       } else {
-        await vscode.commands.executeCommand("darklang.openPackageDefinition", treeId, itemType);
+        await vscode.commands.executeCommand(
+          "darklang.openPackageDefinition",
+          treeId,
+          itemType,
+        );
       }
     } catch (error) {
       console.error("Failed to open package:", error);
     }
+  }
+
+  /** Fetch available accounts from LSP */
+  private async _fetchAvailableAccounts(): Promise<void> {
+    if (!HomepagePanel._client) {
+      this._availableAccounts = [];
+      return;
+    }
+
+    try {
+      const accounts = await HomepagePanel._client.sendRequest<string[]>(
+        "dark/listAccounts",
+        {},
+      );
+      this._availableAccounts = accounts ?? [];
+    } catch (error) {
+      console.error("Failed to fetch accounts:", error);
+      this._availableAccounts = [];
+    }
+  }
+
+  /** Handle account selection from dropdown */
+  private async _handleSelectAccount(account: string): Promise<void> {
+    if (!account || account === AccountService.getCurrentAccountId()) {
+      return;
+    }
+
+    if (HomepagePanel._client) {
+      try {
+        await HomepagePanel._client.sendRequest("dark/setCurrentAccount", {
+          accountID: account,
+        });
+      } catch (error) {
+        console.error("Failed to set account:", error);
+        vscode.window.showErrorMessage("Failed to switch account");
+        return;
+      }
+    }
+
+    // Update centralized account service
+    AccountService.setCurrentAccount(account);
+
+    // Notify the approval commands about the change
+    await vscode.commands.executeCommand(
+      "darklang.approvals.setAccount",
+      account,
+    );
+
+    // Update pinned items for the new account
+    await PinnedItemsService.setCurrentAccount(account);
+
+    this._update();
+    vscode.window.showInformationMessage(`Switched to account: ${account}`);
+  }
+
+  /** Update the current account and refresh the view */
+  public async setCurrentAccount(accountID: string): Promise<void> {
+    AccountService.setCurrentAccount(accountID);
+    // Update pinned items for the new account
+    await PinnedItemsService.setCurrentAccount(accountID);
+    this._update();
   }
 
   public dispose() {
@@ -207,6 +318,8 @@ export class HomepagePanel {
     return renderHeader({
       title: pageTitles[this._currentPage] || "Dashboard",
       icon: navIcons[this._currentPage] || navIcons.dashboard,
+      currentAccount: AccountService.getCurrentAccountId(),
+      availableAccounts: this._availableAccounts,
     });
   }
 
@@ -353,6 +466,38 @@ export class HomepagePanel {
                     kind: kind
                 });
             });
+        });
+
+        // Handle account dropdown
+        const accountSwitcher = document.getElementById('accountSwitcher');
+        const accountDropdown = document.getElementById('accountDropdown');
+
+        // Toggle dropdown on avatar click
+        accountSwitcher?.addEventListener('click', (e) => {
+            e.stopPropagation();
+            accountDropdown?.classList.toggle('show');
+        });
+
+        // Handle account selection
+        document.querySelectorAll('.account-dropdown-item').forEach(item => {
+            item.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const account = item.getAttribute('data-account');
+                if (account) {
+                    vscode.postMessage({
+                        command: 'selectAccount',
+                        account: account
+                    });
+                }
+                accountDropdown?.classList.remove('show');
+            });
+        });
+
+        // Close dropdown when clicking outside
+        document.addEventListener('click', (e) => {
+            if (!accountSwitcher?.contains(e.target) && !accountDropdown?.contains(e.target)) {
+                accountDropdown?.classList.remove('show');
+            }
         });
     </script>
 </body>

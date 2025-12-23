@@ -1,0 +1,333 @@
+module Darklang.LanguageTools.LspServer.Approvals
+
+// LSP handlers for the approvals system
+
+
+/// Handle dark/listPendingLocations request
+/// Returns pending locations for the given account
+let handleListPendingLocationsRequest
+  (state: LspState)
+  (requestId: JsonRPC.RequestId)
+  (accountID: Uuid)
+  : LspState =
+  let locations = Builtin.scmApprovalsListPendingLocationsWithDetails accountID state.branchID
+
+  let locationsJson =
+    locations
+    |> Stdlib.List.map (fun loc ->
+      let modulesArray =
+        if loc.modules == "" then
+          []
+        else
+          loc.modules
+          |> Stdlib.String.split "."
+          |> Stdlib.List.map (fun m -> Stdlib.AltJson.Json.String m)
+
+      Stdlib.AltJson.Json.Object
+        [ ("locationId", Stdlib.AltJson.Json.String loc.locationId)
+          ("namespace", Stdlib.AltJson.Json.String loc.namespace_)
+          ("modules", Stdlib.AltJson.Json.Array modulesArray)
+          ("name", Stdlib.AltJson.Json.String loc.name)
+          ("itemType", Stdlib.AltJson.Json.String loc.itemType) ])
+
+  let response =
+    (JsonRPC.Response.Ok.make
+      (Stdlib.Option.Option.Some requestId)
+      (Stdlib.AltJson.Json.Array locationsJson))
+    |> Stdlib.AltJson.format
+
+  logAndSendToClient response
+  state
+
+
+/// Handle dark/listIncomingApprovalRequests request
+/// Returns incoming approval requests for namespaces the account can review
+let handleListIncomingApprovalRequestsRequest
+  (state: LspState)
+  (requestId: JsonRPC.RequestId)
+  (accountID: Uuid)
+  : LspState =
+  let requests = Builtin.scmApprovalsListIncomingRequests accountID
+
+  let requestsJson =
+    requests
+    |> Stdlib.List.map (fun request ->
+      let items = Builtin.scmApprovalsGetApprovalRequestLocations request.id
+      let locationCount = Stdlib.List.length items
+
+      Stdlib.AltJson.Json.Object
+        [ ("id", Stdlib.AltJson.Json.String (Stdlib.Uuid.toString request.id))
+          ("createdBy", Stdlib.AltJson.Json.String (Stdlib.Uuid.toString request.createdBy))
+          ("targetNamespace", Stdlib.AltJson.Json.String request.targetNamespace)
+          ("title",
+            match request.title with
+            | Some t -> Stdlib.AltJson.Json.String t
+            | None -> Stdlib.AltJson.Json.Null)
+          ("description",
+            match request.description with
+            | Some d -> Stdlib.AltJson.Json.String d
+            | None -> Stdlib.AltJson.Json.Null)
+          ("status",
+            match request.status with
+            | Open -> Stdlib.AltJson.Json.String "open"
+            | Closed -> Stdlib.AltJson.Json.String "closed")
+          ("locationCount", Stdlib.AltJson.Json.Number (Stdlib.Int64.toFloat locationCount)) ])
+
+  let response =
+    (JsonRPC.Response.Ok.make
+      (Stdlib.Option.Option.Some requestId)
+      (Stdlib.AltJson.Json.Array requestsJson))
+    |> Stdlib.AltJson.format
+
+  logAndSendToClient response
+  state
+
+
+/// Handle dark/listOutgoingApprovalRequests request
+/// Returns outgoing approval requests created by the account
+let handleListOutgoingApprovalRequestsRequest
+  (state: LspState)
+  (requestId: JsonRPC.RequestId)
+  (accountID: Uuid)
+  : LspState =
+  let requests = Builtin.scmApprovalsListOutgoingRequests accountID
+
+  let requestsJson =
+    requests
+    |> Stdlib.List.map (fun request ->
+      let items = Builtin.scmApprovalsGetApprovalRequestLocations request.id
+      let locationCount = Stdlib.List.length items
+
+      Stdlib.AltJson.Json.Object
+        [ ("id", Stdlib.AltJson.Json.String (Stdlib.Uuid.toString request.id))
+          ("createdBy", Stdlib.AltJson.Json.String (Stdlib.Uuid.toString request.createdBy))
+          ("targetNamespace", Stdlib.AltJson.Json.String request.targetNamespace)
+          ("title",
+            match request.title with
+            | Some t -> Stdlib.AltJson.Json.String t
+            | None -> Stdlib.AltJson.Json.Null)
+          ("description",
+            match request.description with
+            | Some d -> Stdlib.AltJson.Json.String d
+            | None -> Stdlib.AltJson.Json.Null)
+          ("status",
+            match request.status with
+            | Open -> Stdlib.AltJson.Json.String "open"
+            | Closed -> Stdlib.AltJson.Json.String "closed")
+          ("locationCount", Stdlib.AltJson.Json.Number (Stdlib.Int64.toFloat locationCount)) ])
+
+  let response =
+    (JsonRPC.Response.Ok.make
+      (Stdlib.Option.Option.Some requestId)
+      (Stdlib.AltJson.Json.Array requestsJson))
+    |> Stdlib.AltJson.format
+
+  logAndSendToClient response
+  state
+
+
+/// Handle dark/getApprovalRequestDetails request
+/// Returns details of a specific approval request including its locations
+let handleGetApprovalRequestDetailsRequest
+  (state: LspState)
+  (requestId: JsonRPC.RequestId)
+  (approvalRequestId: Uuid)
+  : LspState =
+  let requestOpt = Builtin.scmApprovalsGetApprovalRequest approvalRequestId
+
+  let responseJson =
+    match requestOpt with
+    | Some request ->
+      // Use the new function that includes full location details
+      let locations =
+        Builtin.scmApprovalsGetApprovalRequestLocationsWithDetails approvalRequestId
+
+      let locationsJson =
+        locations
+        |> Stdlib.List.map (fun loc ->
+          Stdlib.AltJson.Json.Object
+            [ ("locationId", Stdlib.AltJson.Json.String loc.locationId)
+              ("name", Stdlib.AltJson.Json.String loc.name)
+              ("itemType", Stdlib.AltJson.Json.String loc.itemType)
+              ("status",
+                match loc.approvalStatus with
+                | Pending -> Stdlib.AltJson.Json.String "pending"
+                | Approved -> Stdlib.AltJson.Json.String "approved"
+                | Rejected _ -> Stdlib.AltJson.Json.String "rejected"
+                | ChangesRequested _ -> Stdlib.AltJson.Json.String "changes_requested") ])
+
+      Stdlib.AltJson.Json.Object
+        [ ("id", Stdlib.AltJson.Json.String (Stdlib.Uuid.toString request.id))
+          ("createdBy", Stdlib.AltJson.Json.String (Stdlib.Uuid.toString request.createdBy))
+          ("targetNamespace", Stdlib.AltJson.Json.String request.targetNamespace)
+          ("title",
+            match request.title with
+            | Some t -> Stdlib.AltJson.Json.String t
+            | None -> Stdlib.AltJson.Json.Null)
+          ("description",
+            match request.description with
+            | Some d -> Stdlib.AltJson.Json.String d
+            | None -> Stdlib.AltJson.Json.Null)
+          ("status",
+            match request.status with
+            | Open -> Stdlib.AltJson.Json.String "open"
+            | Closed -> Stdlib.AltJson.Json.String "closed")
+          ("locations", Stdlib.AltJson.Json.Array locationsJson) ]
+
+    | None -> Stdlib.AltJson.Json.Null
+
+  let response =
+    (JsonRPC.Response.Ok.make
+      (Stdlib.Option.Option.Some requestId)
+      responseJson)
+    |> Stdlib.AltJson.format
+
+  logAndSendToClient response
+  state
+
+
+/// Handle dark/approveRequest request
+/// Approves all locations in an approval request
+let handleApproveRequest
+  (state: LspState)
+  (requestId: JsonRPC.RequestId)
+  (approvalRequestId: Uuid)
+  (reviewerId: Uuid)
+  : LspState =
+  let locations = Builtin.scmApprovalsGetApprovalRequestLocations approvalRequestId
+
+  // Approve each location
+  locations
+  |> Stdlib.List.iter (fun loc ->
+    Builtin.scmApprovalsSetLocationStatus
+      approvalRequestId
+      loc.locationId
+      (Darklang.SCM.Approvals.ApprovalStatus.Approved)
+      reviewerId)
+
+  // Update request status if all locations decided
+  Builtin.scmApprovalsUpdateRequestStatusIfComplete approvalRequestId
+
+  let response =
+    (JsonRPC.Response.Ok.make
+      (Stdlib.Option.Option.Some requestId)
+      (Stdlib.AltJson.Json.Object [ ("success", Stdlib.AltJson.Json.Bool true) ]))
+    |> Stdlib.AltJson.format
+
+  logAndSendToClient response
+  state
+
+
+/// Handle dark/rejectRequest request
+/// Rejects all locations in an approval request
+let handleRejectRequest
+  (state: LspState)
+  (requestId: JsonRPC.RequestId)
+  (approvalRequestId: Uuid)
+  (reviewerId: Uuid)
+  (reason: String)
+  : LspState =
+  let locations = Builtin.scmApprovalsGetApprovalRequestLocations approvalRequestId
+
+  // Reject each location
+  locations
+  |> Stdlib.List.iter (fun loc ->
+    Builtin.scmApprovalsSetLocationStatus
+      approvalRequestId
+      loc.locationId
+      (Darklang.SCM.Approvals.ApprovalStatus.Rejected reason)
+      reviewerId)
+
+  // Update request status
+  Builtin.scmApprovalsUpdateRequestStatusIfComplete approvalRequestId
+
+  let response =
+    (JsonRPC.Response.Ok.make
+      (Stdlib.Option.Option.Some requestId)
+      (Stdlib.AltJson.Json.Object [ ("success", Stdlib.AltJson.Json.Bool true) ]))
+    |> Stdlib.AltJson.format
+
+  logAndSendToClient response
+  state
+
+
+/// Handle dark/requestChangesForRequest request
+/// Requests changes for all locations in an approval request
+let handleRequestChangesRequest
+  (state: LspState)
+  (requestId: JsonRPC.RequestId)
+  (approvalRequestId: Uuid)
+  (reviewerId: Uuid)
+  (comment: String)
+  : LspState =
+  let locations = Builtin.scmApprovalsGetApprovalRequestLocations approvalRequestId
+
+  // Request changes for each location
+  locations
+  |> Stdlib.List.iter (fun loc ->
+    Builtin.scmApprovalsSetLocationStatus
+      approvalRequestId
+      loc.locationId
+      (Darklang.SCM.Approvals.ApprovalStatus.ChangesRequested comment)
+      reviewerId)
+
+  let response =
+    (JsonRPC.Response.Ok.make
+      (Stdlib.Option.Option.Some requestId)
+      (Stdlib.AltJson.Json.Object [ ("success", Stdlib.AltJson.Json.Bool true) ]))
+    |> Stdlib.AltJson.format
+
+  logAndSendToClient response
+  state
+
+
+/// Handle dark/withdrawApprovalRequest request
+/// Withdraws an approval request (only by the creator)
+let handleWithdrawRequest
+  (state: LspState)
+  (requestId: JsonRPC.RequestId)
+  (approvalRequestId: Uuid)
+  (submitterId: Uuid)
+  : LspState =
+  let success = Builtin.scmApprovalsWithdrawRequest approvalRequestId submitterId
+
+  let response =
+    (JsonRPC.Response.Ok.make
+      (Stdlib.Option.Option.Some requestId)
+      (Stdlib.AltJson.Json.Object [ ("success", Stdlib.AltJson.Json.Bool success) ]))
+    |> Stdlib.AltJson.format
+
+  logAndSendToClient response
+  state
+
+
+/// Handle dark/createApprovalRequest request
+/// Creates a new approval request for pending locations
+let handleCreateApprovalRequest
+  (state: LspState)
+  (requestId: JsonRPC.RequestId)
+  (accountID: Uuid)
+  (targetNamespace: String)
+  (locationIds: List<String>)
+  (title: Stdlib.Option.Option<String>)
+  (description: Stdlib.Option.Option<String>)
+  : LspState =
+  let request =
+    Builtin.scmApprovalsCreateApprovalRequest
+      accountID
+      targetNamespace
+      locationIds
+      title
+      description
+      (Stdlib.Option.Option.None)
+
+  let response =
+    (JsonRPC.Response.Ok.make
+      (Stdlib.Option.Option.Some requestId)
+      (Stdlib.AltJson.Json.Object
+        [ ("id", Stdlib.AltJson.Json.String (Stdlib.Uuid.toString request.id))
+          ("success", Stdlib.AltJson.Json.Bool true) ]))
+    |> Stdlib.AltJson.format
+
+  logAndSendToClient response
+  state

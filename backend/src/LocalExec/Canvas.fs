@@ -57,6 +57,10 @@ let loadFromDisk
   (canvasName : string)
   : Ply<System.Guid * List<LibExecution.ProgramTypes.Toplevel.T>> =
   uply {
+    // Use None for accountID and branchId during local dev - see all approved items
+    let accountID = None
+    let branchId = None
+
     print $"Loading canvas {canvasName} from disk"
 
     let canvasDir = $"canvases/{canvasName}"
@@ -112,6 +116,8 @@ let loadFromDisk
 
         let! canvas =
           LibParser.Canvas.parse
+            accountID
+            branchId
             ownerName
             canvasName
             Builtins.accessibleByCanvas
@@ -128,7 +134,8 @@ let loadFromDisk
         let dbs = canvas.dbs |> List.map PT.Toplevel.TLDB
 
         // Insert+apply canvas types, values, and fns as PackageOps
-        let! _ = LibPackageManager.Inserts.insertAndApplyOps None None canvas.ops
+        let! _ =
+          LibPackageManager.Inserts.insertAndApplyOps None None None canvas.ops
 
         return
           (dbs @ handlers) |> List.map (fun tl -> tl, LibCloud.Serialize.NotDeleted)

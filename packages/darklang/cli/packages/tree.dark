@@ -15,12 +15,13 @@ let execute (state: AppState) (args: List<String>) : AppState =
     | None -> 2L // Default depth of 2 for concise but useful view
 
   // Determine starting location
+  let accountID = state.accountID
   let startLocation =
     let pathArgs = Stdlib.List.filter args (fun arg -> Stdlib.Bool.not (Stdlib.String.startsWith arg "--"))
     match pathArgs with
     | [] -> state.packageData.currentLocation
     | [pathStr] ->
-      match Traversal.traverse state.currentBranchId state.packageData.currentLocation pathStr with
+      match Traversal.traverse accountID state.currentBranchId state.packageData.currentLocation pathStr with
       | Ok location -> location
       | Error _ -> state.packageData.currentLocation
     | _ -> state.packageData.currentLocation
@@ -29,13 +30,14 @@ let execute (state: AppState) (args: List<String>) : AppState =
   let locationStr = Packages.formatLocation startLocation
   Stdlib.printLine $"Package tree from {locationStr}:"
   Stdlib.printLine ""
-  displayTree state.currentBranchId startLocation maxDepth 0L ""
+  displayTree accountID state.currentBranchId startLocation maxDepth 0L ""
 
   state
 
 
 // Display tree recursively from a given location
 let displayTree
+  (accountID: Stdlib.Option.Option<Uuid>)
   (branchID: Stdlib.Option.Option<Uuid>)
   (location: PackageLocation)
   (remainingDepth: Int64)
@@ -53,7 +55,7 @@ let displayTree
       | Function f -> Stdlib.List.append [f.owner] f.modules
 
     // Get all entities in this module
-    let results = Query.allDirectDescendants branchID modulePath
+    let results = Query.allDirectDescendants accountID branchID modulePath
 
     // Get submodules
     let currentPathLength = Stdlib.List.length modulePath
@@ -93,7 +95,7 @@ let displayTree
         let newPrefix = prefix ++ (if isLast then "    " else "│   ")
         let newModulePath = Stdlib.List.append modulePath [name]
         let newLocation = PackageLocation.Module newModulePath
-        displayTree branchID newLocation (remainingDepth - 1L) (currentDepth + 1L) newPrefix
+        displayTree accountID branchID newLocation (remainingDepth - 1L) (currentDepth + 1L) newPrefix
     )
     |> Stdlib.List.iter (fun _ -> ())
 
@@ -101,12 +103,13 @@ let displayTree
 let complete (state: AppState) (args: List<String>) : List<String> =
   // Filter out depth arguments for path completion
   let pathArgs = Stdlib.List.filter args (fun arg -> Stdlib.Bool.not (Stdlib.String.startsWith arg "--"))
+  let accountID = state.accountID
 
   match pathArgs with
   | [] ->
-    Traversal.completePartialPath state.currentBranchId state.packageData.currentLocation ""
+    Traversal.completePartialPath accountID state.currentBranchId state.packageData.currentLocation ""
   | [partialPath] ->
-    Traversal.completePartialPath state.currentBranchId state.packageData.currentLocation partialPath
+    Traversal.completePartialPath accountID state.currentBranchId state.packageData.currentLocation partialPath
   | _ -> []
 
 

@@ -35,12 +35,10 @@ export class BranchStateManager {
 
   async fetchBranches(): Promise<void> {
     try {
-      console.log("Fetching branches from LSP server...");
       const response = await this._client.sendRequest<Branch[]>(
         "dark/getBranches",
       );
       this._branches = response;
-      console.log(`Fetched ${this._branches.length} branches:`, this._branches);
 
       // Don't automatically set a branch - user can choose one if they want
       // This allows working across all branches by default
@@ -54,6 +52,10 @@ export class BranchStateManager {
     return this._branches;
   }
 
+  findByName(name: string): Branch | undefined {
+    return this._branches.find(b => b.name === name);
+  }
+
   getCurrentBranch(): Branch | null {
     if (!this._currentBranchId) return null;
     return this._branches.find(b => b.id === this._currentBranchId) || null;
@@ -61,7 +63,6 @@ export class BranchStateManager {
 
   async setCurrentBranchById(branchID: string): Promise<void> {
     this._currentBranchId = branchID;
-    console.log(`Branch changed to: ${branchID}`);
 
     // Notify the LSP server about the branch switch
     if (this._client) {
@@ -69,7 +70,6 @@ export class BranchStateManager {
         await this._client.sendRequest("dark/switchBranch", {
           branchID: branchID,
         });
-        console.log(`LSP server updated to branch: ${branchID}`);
       } catch (error) {
         console.error("Error updating LSP server branch context:", error);
       }
@@ -89,13 +89,10 @@ export class BranchStateManager {
 
   async clearCurrentBranch(): Promise<void> {
     this._currentBranchId = null;
-    console.log("Branch cleared");
-
     // Notify the LSP server about clearing the branch
     if (this._client) {
       try {
         await this._client.sendRequest("dark/clearBranch", {});
-        console.log("LSP server cleared branch context");
       } catch (error) {
         console.error("Error clearing LSP server branch context:", error);
       }
@@ -111,7 +108,6 @@ export class BranchStateManager {
     }
 
     try {
-      console.log(`Creating branch: ${name}`);
       const response = await this._client.sendRequest<Branch>(
         "dark/createBranch",
         { name },

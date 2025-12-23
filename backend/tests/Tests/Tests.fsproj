@@ -63,6 +63,7 @@
     <Compile Include="Serialization.Vanilla.Tests.fs" />
     <Compile Include="Serialization.DarkTypes.Tests.fs" />
     <Compile Include="SqlCompiler.Tests.fs" />
+    <Compile Include="Approvals.Tests.fs" />
 
     <Compile Include="Tests.fs" />
   </ItemGroup>

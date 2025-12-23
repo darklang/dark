@@ -66,6 +66,23 @@ export class BranchCommands {
         });
 
         if (name) {
+          // Check if branch already exists
+          const existing = this.branchStateManager.findByName(name);
+          if (existing) {
+            const choice = await vscode.window.showWarningMessage(
+              `Branch '${name}' already exists.`,
+              "Switch to it",
+              "Cancel"
+            );
+            if (choice === "Switch to it") {
+              this.branchStateManager.setCurrentBranchById(existing.id);
+              this.statusBarManager.updateBranch(name);
+              this.workspaceProvider.refresh();
+              vscode.window.showInformationMessage(`Switched to branch: ${name}`);
+            }
+            return;
+          }
+
           const newBranch = await this.branchStateManager.createBranch(name);
           if (newBranch) {
             this.statusBarManager.updateBranch(name);
@@ -78,14 +95,10 @@ export class BranchCommands {
       }),
 
       vscode.commands.registerCommand("darklang.branch.switch", (branch) => {
-        console.log('🔀 Branch switch command called with:', branch);
-
         // Handle both {label: ...} and {id: ...} formats
         const branchID = branch?.id;
         // CLEANUP: do we need branch?.label || branch?.name
         const branchLabel = branch?.label || branch?.name || branch?.title || "Unknown";
-
-        console.log('  branchID:', branchID, 'branchLabel:', branchLabel);
 
         if (branchID) {
           this.branchStateManager.setCurrentBranchById(branchID);

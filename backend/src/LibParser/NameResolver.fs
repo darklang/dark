@@ -81,12 +81,16 @@ let namesToTry
 
 /// Generic name resolution that handles the common pattern across Type/Value/Fn resolution
 let resolveGenericName<'FQName, 'Builtin when 'Builtin : comparison>
+  (accountID : Option<PT.AccountID>)
+  (branchId : Option<PT.BranchID>)
   (builtins : Option<Set<'Builtin>>)
   (onMissing : OnMissing)
   (currentModule : List<string>)
   (given : NEList<string>)
   (parseName : string -> Result<string * int, string>)
-  (findInPM : Option<PT.BranchID> * PT.PackageLocation -> Ply<Option<System.Guid>>)
+  (findInPM :
+    Option<PT.AccountID> * Option<PT.BranchID> * PT.PackageLocation
+      -> Ply<Option<System.Guid>>)
   (makePackageFQName : System.Guid -> 'FQName)
   (makeBuiltinFQName : string * int -> 'FQName)
   (builtinToRT : string * int -> 'Builtin)
@@ -118,7 +122,7 @@ let resolveGenericName<'FQName, 'Builtin when 'Builtin : comparison>
               // Try package manager lookup
               let location : PT.PackageLocation =
                 { owner = owner; modules = modules; name = nameToTry.name }
-              match! findInPM (None, location) with
+              match! findInPM (accountID, branchId, location) with
               | Some id -> return Ok(makePackageFQName id)
               | None -> return Error()
         }
@@ -142,6 +146,8 @@ let resolveGenericName<'FQName, 'Builtin when 'Builtin : comparison>
 
 
 let resolveTypeName
+  (accountID : Option<PT.AccountID>)
+  (branchId : Option<PT.BranchID>)
   (packageManager : PT.PackageManager)
   (onMissing : OnMissing)
   (currentModule : List<string>)
@@ -160,6 +166,8 @@ let resolveTypeName
       FS2WT.Expr.parseTypeName name |> Result.map (fun n -> (n, 0))
 
     resolveGenericName
+      accountID
+      branchId
       emptyBuiltins
       onMissing
       currentModule
@@ -173,6 +181,8 @@ let resolveTypeName
 
 
 let resolveValueName
+  (accountID : Option<PT.AccountID>)
+  (branchId : Option<PT.BranchID>)
   (builtins : Set<RT.FQValueName.Builtin>)
   (packageManager : PT.PackageManager)
   (onMissing : OnMissing)
@@ -184,6 +194,8 @@ let resolveValueName
     Ok(PT.FQValueName.fqBuiltIn name version) |> Ply
   | WT.Unresolved given ->
     resolveGenericName
+      accountID
+      branchId
       (Some builtins)
       onMissing
       currentModule
@@ -196,6 +208,8 @@ let resolveValueName
 
 
 let resolveFnName
+  (accountID : Option<PT.AccountID>)
+  (branchId : Option<PT.BranchID>)
   (builtinFns : Set<RT.FQFnName.Builtin>)
   (packageManager : PT.PackageManager)
   (onMissing : OnMissing)
@@ -206,6 +220,8 @@ let resolveFnName
   | WT.KnownBuiltin(n, v) -> Ok(PT.FQFnName.fqBuiltIn n v) |> Ply
   | WT.Unresolved given ->
     resolveGenericName
+      accountID
+      branchId
       (Some builtinFns)
       onMissing
       currentModule
