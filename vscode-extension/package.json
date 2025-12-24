@@ -210,6 +210,31 @@
         "icon": "$(git-pull-request-create)"
       },
       {
+        "command": "darklang.approvals.quickSubmit",
+        "title": "Submit for Approval",
+        "icon": "$(send)"
+      },
+      {
+        "command": "darklang.approvals.quickApprove",
+        "title": "Quick Approve",
+        "icon": "$(check)"
+      },
+      {
+        "command": "darklang.approvals.quickReject",
+        "title": "Quick Reject",
+        "icon": "$(x)"
+      },
+      {
+        "command": "darklang.approvals.approveSelected",
+        "title": "Approve Selected",
+        "icon": "$(check-all)"
+      },
+      {
+        "command": "darklang.approvals.rejectSelected",
+        "title": "Reject Selected",
+        "icon": "$(close-all)"
+      },
+      {
         "command": "darklang.approvals.switchAccount",
         "title": "Switch Account",
         "icon": "$(account)"
@@ -285,8 +310,28 @@
         },
         {
           "command": "darklang.approvals.createRequest",
-          "when": "view == darklangApprovals && viewItem == pending-locations-root",
+          "when": "view == darklangApprovals && viewItem == pending-locations-root && darklang.hasMultiNamespaceSelection",
           "group": "inline@1"
+        },
+        {
+          "command": "darklang.approvals.createRequest",
+          "when": "view == darklangApprovals && viewItem == namespace-group",
+          "group": "inline@2"
+        },
+        {
+          "command": "darklang.approvals.quickSubmit",
+          "when": "view == darklangApprovals && viewItem == pending-location",
+          "group": "inline@1"
+        },
+        {
+          "command": "darklang.approvals.quickApprove",
+          "when": "view == darklangApprovals && viewItem == request-location",
+          "group": "inline@1"
+        },
+        {
+          "command": "darklang.approvals.quickReject",
+          "when": "view == darklangApprovals && viewItem == request-location",
+          "group": "inline@2"
         },
         {
           "command": "darklang.approvals.approve",
@@ -316,9 +361,19 @@
           "group": "navigation@1"
         },
         {
-          "command": "darklang.approvals.createRequest",
+          "command": "darklang.approvals.approveSelected",
+          "when": "view == darklangApprovals",
+          "group": "navigation@2"
+        },
+        {
+          "command": "darklang.approvals.rejectSelected",
           "when": "view == darklangApprovals",
           "group": "navigation@3"
+        },
+        {
+          "command": "darklang.approvals.createRequest",
+          "when": "view == darklangApprovals",
+          "group": "navigation@4"
         }
       ]
     },

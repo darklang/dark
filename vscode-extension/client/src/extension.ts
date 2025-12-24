@@ -143,7 +143,18 @@ export async function activate(context: vscode.ExtensionContext) {
 
   const packagesView = createView("darklangPackages", packagesProvider, true);
   const workspaceView = createView("darklangWorkspace", workspaceProvider, false);
-  const approvalsView = createView("darklangApprovals", approvalsProvider, false);
+
+  const approvalsView = vscode.window.createTreeView("darklangApprovals", {
+    treeDataProvider: approvalsProvider,
+    showCollapseAll: false,
+    manageCheckboxStateManually: true,
+  });
+
+  // Handle checkbox changes for pending locations
+  approvalsView.onDidChangeCheckboxState(e => {
+    approvalsProvider.handleCheckboxChange(e.items);
+  });
+
   (workspaceView as any).title = "Workspace"; // keep existing behavior
 
   BranchStateManager.getInstance().onBranchChanged(() => {
