@@ -2,6 +2,322 @@ module Darklang.LanguageTools.LspServer.Approvals
 
 // LSP handlers for the approvals system
 
+type Json = Stdlib.AltJson.Json
+
+/// Helper to get a string field from JSON params
+let getStringField
+  (fields: List<String * Json>)
+  (key: String)
+  : Stdlib.Result.Result<String, String> =
+  match Stdlib.List.findFirst fields (fun (k, _) -> k == key) with
+  | Some((_, String s)) -> Stdlib.Result.Result.Ok s
+  | Some((_, _)) -> Stdlib.Result.Result.Error $"{key} must be a string"
+  | None -> Stdlib.Result.Result.Error $"{key} is required"
+
+
+/// Helper to get an optional string field from JSON params
+let getOptionalStringField
+  (fields: List<String * Json>)
+  (key: String)
+  : Stdlib.Option.Option<String> =
+  match Stdlib.List.findFirst fields (fun (k, _) -> k == key) with
+  | Some((_, String s)) -> Stdlib.Option.Option.Some s
+  | _ -> Stdlib.Option.Option.None
+
+
+/// Helper to get a string list field from JSON params
+let getStringListField
+  (fields: List<String * Json>)
+  (key: String)
+  : Stdlib.Result.Result<List<String>, String> =
+  match Stdlib.List.findFirst fields (fun (k, _) -> k == key) with
+  | Some((_, Array arr)) ->
+    arr
+    |> Stdlib.List.filterMap (fun item ->
+      match item with
+      | String s -> Stdlib.Option.Option.Some s
+      | _ -> Stdlib.Option.Option.None)
+    |> Stdlib.Result.Result.Ok
+  | Some((_, _)) -> Stdlib.Result.Result.Error $"{key} must be an array"
+  | None -> Stdlib.Result.Result.Error $"{key} is required"
+
+
+/// Helper to resolve account name to UUID
+let resolveAccount (name: String) : Stdlib.Result.Result<Uuid, String> =
+  match Builtin.pmGetAccountByName name with
+  | Some id -> Stdlib.Result.Result.Ok id
+  | None -> Stdlib.Result.Result.Error $"Unknown account: {name}"
+
+
+/// Helper to parse UUID string
+let parseUuid (s: String) (fieldName: String) : Stdlib.Result.Result<Uuid, String> =
+  match Stdlib.Uuid.parse s with
+  | Ok id -> Stdlib.Result.Result.Ok id
+  | Error _ -> Stdlib.Result.Result.Error $"Invalid {fieldName}: {s}"
+
+
+// -- Param types for each request --
+
+type AccountParams = { accountId: Uuid }
+
+type RequestIdParams = { approvalRequestId: Uuid }
+
+type ReviewerParams =
+  { approvalRequestId: Uuid
+    reviewerId: Uuid }
+
+type ReviewerWithReasonParams =
+  { approvalRequestId: Uuid
+    reviewerId: Uuid
+    reason: String }
+
+type ReviewerWithCommentParams =
+  { approvalRequestId: Uuid
+    reviewerId: Uuid
+    comment: String }
+
+type LocationsParams =
+  { approvalRequestId: Uuid
+    locationIds: List<String>
+    reviewerId: Uuid }
+
+type LocationsWithReasonParams =
+  { approvalRequestId: Uuid
+    locationIds: List<String>
+    reviewerId: Uuid
+    reason: String }
+
+type SubmitterParams =
+  { approvalRequestId: Uuid
+    submitterId: Uuid }
+
+type CreateRequestParams =
+  { accountId: Uuid
+    targetNamespace: String
+    locationIds: List<String>
+    title: Stdlib.Option.Option<String>
+    description: Stdlib.Option.Option<String> }
+
+
+// -- Parsers --
+
+let parseAccountParams
+  (fields: List<String * Json>)
+  : Stdlib.Result.Result<AccountParams, String> =
+  (getStringField fields "accountID")
+  |> Stdlib.Result.andThen (fun name -> resolveAccount name)
+  |> Stdlib.Result.map (fun id -> AccountParams { accountId = id })
+
+
+let parseRequestIdParams
+  (fields: List<String * Json>)
+  : Stdlib.Result.Result<RequestIdParams, String> =
+  (getStringField fields "requestId")
+  |> Stdlib.Result.andThen (fun s -> parseUuid s "request ID")
+  |> Stdlib.Result.map (fun id -> RequestIdParams { approvalRequestId = id })
+
+
+let parseReviewerParams
+  (fields: List<String * Json>)
+  : Stdlib.Result.Result<ReviewerParams, String> =
+  let requestIdResult =
+    (getStringField fields "requestId")
+    |> Stdlib.Result.andThen (fun s -> parseUuid s "request ID")
+
+  let reviewerResult =
+    (getStringField fields "reviewerId")
+    |> Stdlib.Result.andThen (fun name -> resolveAccount name)
+
+  match (requestIdResult, reviewerResult) with
+  | (Ok reqId, Ok revId) ->
+    Stdlib.Result.Result.Ok(
+      ReviewerParams
+        { approvalRequestId = reqId
+          reviewerId = revId }
+    )
+  | (Error e, _) -> Stdlib.Result.Result.Error e
+  | (_, Error e) -> Stdlib.Result.Result.Error e
+
+
+let parseReviewerWithReasonParams
+  (fields: List<String * Json>)
+  : Stdlib.Result.Result<ReviewerWithReasonParams, String> =
+  let requestIdResult =
+    (getStringField fields "requestId")
+    |> Stdlib.Result.andThen (fun s -> parseUuid s "request ID")
+
+  let reviewerResult =
+    (getStringField fields "reviewerId")
+    |> Stdlib.Result.andThen (fun name -> resolveAccount name)
+
+  let reason =
+    (getOptionalStringField fields "reason")
+    |> Stdlib.Option.withDefault ""
+
+  match (requestIdResult, reviewerResult) with
+  | (Ok reqId, Ok revId) ->
+    Stdlib.Result.Result.Ok(
+      ReviewerWithReasonParams
+        { approvalRequestId = reqId
+          reviewerId = revId
+          reason = reason }
+    )
+  | (Error e, _) -> Stdlib.Result.Result.Error e
+  | (_, Error e) -> Stdlib.Result.Result.Error e
+
+
+let parseReviewerWithCommentParams
+  (fields: List<String * Json>)
+  : Stdlib.Result.Result<ReviewerWithCommentParams, String> =
+  let requestIdResult =
+    (getStringField fields "requestId")
+    |> Stdlib.Result.andThen (fun s -> parseUuid s "request ID")
+
+  let reviewerResult =
+    (getStringField fields "reviewerId")
+    |> Stdlib.Result.andThen (fun name -> resolveAccount name)
+
+  let comment =
+    (getOptionalStringField fields "comment")
+    |> Stdlib.Option.withDefault ""
+
+  match (requestIdResult, reviewerResult) with
+  | (Ok reqId, Ok revId) ->
+    Stdlib.Result.Result.Ok(
+      ReviewerWithCommentParams
+        { approvalRequestId = reqId
+          reviewerId = revId
+          comment = comment }
+    )
+  | (Error e, _) -> Stdlib.Result.Result.Error e
+  | (_, Error e) -> Stdlib.Result.Result.Error e
+
+
+let parseLocationsParams
+  (fields: List<String * Json>)
+  : Stdlib.Result.Result<LocationsParams, String> =
+  let requestIdResult =
+    (getStringField fields "requestId")
+    |> Stdlib.Result.andThen (fun s -> parseUuid s "request ID")
+
+  let locationIdsResult = getStringListField fields "locationIds"
+
+  let reviewerResult =
+    (getStringField fields "reviewerId")
+    |> Stdlib.Result.andThen (fun name -> resolveAccount name)
+
+  match (requestIdResult, locationIdsResult, reviewerResult) with
+  | (Ok reqId, Ok locIds, Ok revId) ->
+    Stdlib.Result.Result.Ok(
+      LocationsParams
+        { approvalRequestId = reqId
+          locationIds = locIds
+          reviewerId = revId }
+    )
+  | (Error e, _, _) -> Stdlib.Result.Result.Error e
+  | (_, Error e, _) -> Stdlib.Result.Result.Error e
+  | (_, _, Error e) -> Stdlib.Result.Result.Error e
+
+
+let parseLocationsWithReasonParams
+  (fields: List<String * Json>)
+  : Stdlib.Result.Result<LocationsWithReasonParams, String> =
+  let requestIdResult =
+    (getStringField fields "requestId")
+    |> Stdlib.Result.andThen (fun s -> parseUuid s "request ID")
+
+  let locationIdsResult = getStringListField fields "locationIds"
+
+  let reviewerResult =
+    (getStringField fields "reviewerId")
+    |> Stdlib.Result.andThen (fun name -> resolveAccount name)
+
+  let reason =
+    (getOptionalStringField fields "reason")
+    |> Stdlib.Option.withDefault ""
+
+  match (requestIdResult, locationIdsResult, reviewerResult) with
+  | (Ok reqId, Ok locIds, Ok revId) ->
+    Stdlib.Result.Result.Ok(
+      LocationsWithReasonParams
+        { approvalRequestId = reqId
+          locationIds = locIds
+          reviewerId = revId
+          reason = reason }
+    )
+  | (Error e, _, _) -> Stdlib.Result.Result.Error e
+  | (_, Error e, _) -> Stdlib.Result.Result.Error e
+  | (_, _, Error e) -> Stdlib.Result.Result.Error e
+
+
+let parseSubmitterParams
+  (fields: List<String * Json>)
+  : Stdlib.Result.Result<SubmitterParams, String> =
+  let requestIdResult =
+    (getStringField fields "requestId")
+    |> Stdlib.Result.andThen (fun s -> parseUuid s "request ID")
+
+  let submitterResult =
+    (getStringField fields "submitterId")
+    |> Stdlib.Result.andThen (fun name -> resolveAccount name)
+
+  match (requestIdResult, submitterResult) with
+  | (Ok reqId, Ok subId) ->
+    Stdlib.Result.Result.Ok(
+      SubmitterParams
+        { approvalRequestId = reqId
+          submitterId = subId }
+    )
+  | (Error e, _) -> Stdlib.Result.Result.Error e
+  | (_, Error e) -> Stdlib.Result.Result.Error e
+
+
+let parseCreateRequestParams
+  (fields: List<String * Json>)
+  : Stdlib.Result.Result<CreateRequestParams, String> =
+  let accountResult =
+    (getStringField fields "accountID")
+    |> Stdlib.Result.andThen (fun name -> resolveAccount name)
+
+  let namespaceResult = getStringField fields "targetNamespace"
+  let locationIdsResult = getStringListField fields "locationIds"
+  let title = getOptionalStringField fields "title"
+  let description = getOptionalStringField fields "description"
+
+  match (accountResult, namespaceResult, locationIdsResult) with
+  | (Ok accId, Ok ns, Ok locIds) ->
+    Stdlib.Result.Result.Ok(
+      CreateRequestParams
+        { accountId = accId
+          targetNamespace = ns
+          locationIds = locIds
+          title = title
+          description = description }
+    )
+  | (Error e, _, _) -> Stdlib.Result.Result.Error e
+  | (_, Error e, _) -> Stdlib.Result.Result.Error e
+  | (_, _, Error e) -> Stdlib.Result.Result.Error e
+
+
+/// Send an error response
+let sendErrorResponse
+  (state: LspState)
+  (requestId: JsonRPC.RequestId)
+  (errorMsg: String)
+  : LspState =
+  log errorMsg
+
+  let response =
+    (JsonRPC.Response.Ok.make
+      (Stdlib.Option.Option.Some requestId)
+      (Json.Object
+        [ ("success", Json.Bool false)
+          ("error", Json.String errorMsg) ]))
+    |> Stdlib.AltJson.format
+
+  logAndSendToClient response
+  state
+
 
 /// Handle dark/listPendingLocations request
 /// Returns pending locations for the given account
@@ -186,26 +502,19 @@ let handleGetApprovalRequestDetailsRequest
   state
 
 
-/// Handle dark/approveRequest request
-/// Approves all locations in an approval request
-let handleApproveRequest
+/// Helper: Set status on specific locations and send success response
+let setLocationStatuses
   (state: LspState)
   (requestId: JsonRPC.RequestId)
   (approvalRequestId: Uuid)
+  (locationIds: List<String>)
+  (status: Darklang.SCM.Approvals.ApprovalStatus)
   (reviewerId: Uuid)
   : LspState =
-  let locations = Builtin.scmApprovalsGetApprovalRequestLocations approvalRequestId
+  locationIds
+  |> Stdlib.List.iter (fun locationId ->
+    Builtin.scmApprovalsSetLocationStatus approvalRequestId locationId status reviewerId)
 
-  // Approve each location
-  locations
-  |> Stdlib.List.iter (fun loc ->
-    Builtin.scmApprovalsSetLocationStatus
-      approvalRequestId
-      loc.locationId
-      (Darklang.SCM.Approvals.ApprovalStatus.Approved)
-      reviewerId)
-
-  // Update request status if all locations decided
   Builtin.scmApprovalsUpdateRequestStatusIfComplete approvalRequestId
 
   let response =
@@ -216,6 +525,31 @@ let handleApproveRequest
 
   logAndSendToClient response
   state
+
+
+/// Helper: Get all location IDs for an approval request
+let getAllLocationIds (approvalRequestId: Uuid) : List<String> =
+  (Builtin.scmApprovalsGetApprovalRequestLocations approvalRequestId)
+  |> Stdlib.List.map (fun loc -> loc.locationId)
+
+
+/// Handle dark/approveRequest request
+/// Approves all locations in an approval request
+let handleApproveRequest
+  (state: LspState)
+  (requestId: JsonRPC.RequestId)
+  (approvalRequestId: Uuid)
+  (reviewerId: Uuid)
+  : LspState =
+  let locationIds = getAllLocationIds approvalRequestId
+
+  setLocationStatuses
+    state
+    requestId
+    approvalRequestId
+    locationIds
+    (Darklang.SCM.Approvals.ApprovalStatus.Approved)
+    reviewerId
 
 
 /// Handle dark/rejectRequest request
@@ -227,28 +561,52 @@ let handleRejectRequest
   (reviewerId: Uuid)
   (reason: String)
   : LspState =
-  let locations = Builtin.scmApprovalsGetApprovalRequestLocations approvalRequestId
+  let locationIds = getAllLocationIds approvalRequestId
 
-  // Reject each location
-  locations
-  |> Stdlib.List.iter (fun loc ->
-    Builtin.scmApprovalsSetLocationStatus
-      approvalRequestId
-      loc.locationId
-      (Darklang.SCM.Approvals.ApprovalStatus.Rejected reason)
-      reviewerId)
+  setLocationStatuses
+    state
+    requestId
+    approvalRequestId
+    locationIds
+    (Darklang.SCM.Approvals.ApprovalStatus.Rejected reason)
+    reviewerId
 
-  // Update request status
-  Builtin.scmApprovalsUpdateRequestStatusIfComplete approvalRequestId
 
-  let response =
-    (JsonRPC.Response.Ok.make
-      (Stdlib.Option.Option.Some requestId)
-      (Stdlib.AltJson.Json.Object [ ("success", Stdlib.AltJson.Json.Bool true) ]))
-    |> Stdlib.AltJson.format
+/// Handle dark/approveLocations request
+/// Approves specific locations in an approval request (partial approval)
+let handleApproveLocations
+  (state: LspState)
+  (requestId: JsonRPC.RequestId)
+  (approvalRequestId: Uuid)
+  (locationIds: List<String>)
+  (reviewerId: Uuid)
+  : LspState =
+  setLocationStatuses
+    state
+    requestId
+    approvalRequestId
+    locationIds
+    (Darklang.SCM.Approvals.ApprovalStatus.Approved)
+    reviewerId
 
-  logAndSendToClient response
-  state
+
+/// Handle dark/rejectLocations request
+/// Rejects specific locations in an approval request
+let handleRejectLocations
+  (state: LspState)
+  (requestId: JsonRPC.RequestId)
+  (approvalRequestId: Uuid)
+  (locationIds: List<String>)
+  (reviewerId: Uuid)
+  (reason: String)
+  : LspState =
+  setLocationStatuses
+    state
+    requestId
+    approvalRequestId
+    locationIds
+    (Darklang.SCM.Approvals.ApprovalStatus.Rejected reason)
+    reviewerId
 
 
 /// Handle dark/requestChangesForRequest request
@@ -260,25 +618,15 @@ let handleRequestChangesRequest
   (reviewerId: Uuid)
   (comment: String)
   : LspState =
-  let locations = Builtin.scmApprovalsGetApprovalRequestLocations approvalRequestId
+  let locationIds = getAllLocationIds approvalRequestId
 
-  // Request changes for each location
-  locations
-  |> Stdlib.List.iter (fun loc ->
-    Builtin.scmApprovalsSetLocationStatus
-      approvalRequestId
-      loc.locationId
-      (Darklang.SCM.Approvals.ApprovalStatus.ChangesRequested comment)
-      reviewerId)
-
-  let response =
-    (JsonRPC.Response.Ok.make
-      (Stdlib.Option.Option.Some requestId)
-      (Stdlib.AltJson.Json.Object [ ("success", Stdlib.AltJson.Json.Bool true) ]))
-    |> Stdlib.AltJson.format
-
-  logAndSendToClient response
-  state
+  setLocationStatuses
+    state
+    requestId
+    approvalRequestId
+    locationIds
+    (Darklang.SCM.Approvals.ApprovalStatus.ChangesRequested comment)
+    reviewerId
 
 
 /// Handle dark/withdrawApprovalRequest request
