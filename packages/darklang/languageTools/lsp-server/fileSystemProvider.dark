@@ -115,25 +115,19 @@ module ReadFile =
           let results =
             LanguageTools.PackageManager.Search.search state.accountID state.branchID searchQuery
 
-          let types = results.types |> Stdlib.List.map (fun found -> found.entity)
-          let fns = results.fns |> Stdlib.List.map (fun found -> found.entity)
-          let values = results.values |> Stdlib.List.map (fun found -> found.entity)
+          let definitions =
+            LanguageTools.ProgramTypes.Definitions
+              { types = results.types |> Stdlib.List.map (fun found -> found.entity)
+                fns = results.fns |> Stdlib.List.map (fun found -> found.entity)
+                values = results.values |> Stdlib.List.map (fun found -> found.entity)
+                exprs = [] }
 
-          let formattedContent =
-            PrettyPrinter.formatModuleContent ctx types fns values
+          let modules =
+            PrettyPrinter.ModuleDeclaration.toModules state.accountID branchID definitions
 
-          // Build module header with proper nesting
-          let moduleHeader =
-            modulePath
-            |> Stdlib.List.indexedMap (fun i name ->
-              let indent = Stdlib.String.repeat "  " i
-              $"{indent}module {name} =")
-            |> Stdlib.String.join "\n"
-
-          let nestingLevel = Stdlib.List.length modulePath
-          let indentedContent = PrettyPrinter.indentByLevel nestingLevel formattedContent
-
-          $"{moduleHeader}\n{indentedContent}"
+          match Stdlib.List.head modules with
+          | Some rootModule -> PrettyPrinter.moduleDeclaration ctx rootModule
+          | None -> $"// No definitions found in {nameForLookup}"
 
     sendResponse state requestId getContent
 
@@ -494,12 +488,8 @@ module WriteFile =
                 LanguageTools.ProgramTypes.Search.SearchQuery
                   { currentModule = modulePath
                     text = ""
-                    searchDepth = LanguageTools.ProgramTypes.Search.SearchDepth.OnlyDirectDescendants
-                    entityTypes = [
-                      LanguageTools.ProgramTypes.Search.EntityType.Fn
-                      LanguageTools.ProgramTypes.Search.EntityType.Type
-                      LanguageTools.ProgramTypes.Search.EntityType.Value
-                    ]
+                    searchDepth = LanguageTools.ProgramTypes.Search.SearchDepth.AllDescendants
+                    entityTypes = []
                     exactMatch = false }
 
               let ctx =
@@ -512,25 +502,19 @@ module WriteFile =
               let results =
                 LanguageTools.PackageManager.Search.search state.accountID state.branchID searchQuery
 
-              let types = results.types |> Stdlib.List.map (fun found -> found.entity)
-              let fns = results.fns |> Stdlib.List.map (fun found -> found.entity)
-              let values = results.values |> Stdlib.List.map (fun found -> found.entity)
+              let definitions =
+                LanguageTools.ProgramTypes.Definitions
+                  { types = results.types |> Stdlib.List.map (fun found -> found.entity)
+                    fns = results.fns |> Stdlib.List.map (fun found -> found.entity)
+                    values = results.values |> Stdlib.List.map (fun found -> found.entity)
+                    exprs = [] }
 
-              let formattedContent =
-                PrettyPrinter.formatModuleContent ctx types fns values
+              let modules =
+                PrettyPrinter.ModuleDeclaration.toModules state.accountID state.branchID definitions
 
-              // Build module header with proper nesting
-              let moduleHeader =
-                modulePath
-                |> Stdlib.List.indexedMap (fun i name ->
-                  let indent = Stdlib.String.repeat "  " i
-                  $"{indent}module {name} =")
-                |> Stdlib.String.join "\n"
-
-              let nestingLevel = Stdlib.List.length modulePath
-              let indentedContent = PrettyPrinter.indentByLevel nestingLevel formattedContent
-
-              $"{moduleHeader}\n{indentedContent}"
+              (match Stdlib.List.head modules with
+              | Some rootModule -> PrettyPrinter.moduleDeclaration ctx rootModule
+              | None -> $"// No definitions found in {nameForLookup}")
               |> Stdlib.Option.Option.Some
             else
               Stdlib.Option.Option.None
