@@ -1763,7 +1763,8 @@ let moduleDeclarationWithOpsHelper
         let (expr, unresolvedNames) =
           Expr.toPT accountID branchID NameResolver.OnMissing.Allow pm owner modules context e
 
-        Stdlib.Option.Option.Some(((expr, modules), unresolvedNames))
+        let fullPath = Stdlib.List.push modules owner
+        Stdlib.Option.Option.Some(((expr, fullPath), unresolvedNames))
       | _ -> Stdlib.Option.Option.None)
     |> Stdlib.List.unzip
 

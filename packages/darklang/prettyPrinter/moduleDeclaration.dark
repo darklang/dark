@@ -82,7 +82,9 @@ module ModuleDeclaration =
             values = []
             exprs = []
             submodules = [] } ]
-    | Some location -> withTypeHelper ms t location.modules
+    | Some location ->
+      let fullPath = Stdlib.List.push location.modules location.owner
+      withTypeHelper ms t fullPath
 
 
   let withFnHelper
@@ -158,7 +160,9 @@ module ModuleDeclaration =
             values = []
             exprs = []
             submodules = [] } ]
-    | Some location -> withFnHelper ms f location.modules
+    | Some location ->
+      let fullPath = Stdlib.List.push location.modules location.owner
+      withFnHelper ms f fullPath
 
   let withValueHelper
     (ms: List<Module>)
@@ -233,7 +237,9 @@ module ModuleDeclaration =
             values = [ v ]
             exprs = []
             submodules = [] } ]
-    | Some location -> withValueHelper ms v location.modules
+    | Some location ->
+      let fullPath = Stdlib.List.push location.modules location.owner
+      withValueHelper ms v fullPath
 
 
   let withExpr
@@ -270,8 +276,6 @@ module ModuleDeclaration =
         Stdlib.List.append otherModules [ newModule ]
 
       | [], submoduleNames ->
-        let exprWithoutFirstModuleNamePartOfModule = expr
-
         let newModuleWithSubmodule =
           Module
             { name = firstModuleNamePart
