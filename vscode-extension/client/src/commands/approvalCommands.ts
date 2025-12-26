@@ -3,6 +3,10 @@ import { LanguageClient } from "vscode-languageclient/node";
 import { ApprovalsTreeDataProvider } from "../providers/treeviews/approvalsTreeDataProvider";
 import { PackagesTreeDataProvider } from "../providers/treeviews/packagesTreeDataProvider";
 import { HomepagePanel } from "../panels/homepage/homepagePanel";
+import {
+  ApprovalRequestPanel,
+  ApprovalItem,
+} from "../panels/approvalRequestPanel";
 import { BranchNode } from "../types";
 import { PinnedItemsService } from "../services/pinnedItemsService";
 import { BranchStateManager } from "../data/branchStateManager";
@@ -77,8 +81,28 @@ export class ApprovalCommands {
         "darklang.approvals.withdraw",
         (node: BranchNode) => this.withdrawRequest(node),
       ),
-      vscode.commands.registerCommand("darklang.approvals.createRequest", () =>
-        this.createRequest(),
+      vscode.commands.registerCommand(
+        "darklang.approvals.createRequest",
+        (node?: BranchNode) => this.createRequest(node),
+      ),
+      vscode.commands.registerCommand(
+        "darklang.approvals.quickSubmit",
+        (node: BranchNode) => this.quickSubmit(node),
+      ),
+      vscode.commands.registerCommand(
+        "darklang.approvals.quickApprove",
+        (node: BranchNode) => this.quickApprove(node),
+      ),
+      vscode.commands.registerCommand(
+        "darklang.approvals.quickReject",
+        (node: BranchNode) => this.quickReject(node),
+      ),
+      vscode.commands.registerCommand(
+        "darklang.approvals.approveSelected",
+        () => this.approveSelected(),
+      ),
+      vscode.commands.registerCommand("darklang.approvals.rejectSelected", () =>
+        this.rejectSelected(),
       ),
       vscode.commands.registerCommand("darklang.approvals.switchAccount", () =>
         this.switchAccount(),
@@ -290,34 +314,285 @@ export class ApprovalCommands {
     }
   }
 
-  private async createRequest(): Promise<void> {
+  /** Quick submit a single pending item for approval (no prompts) */
+  private async quickSubmit(node: BranchNode): Promise<void> {
     if (!this.client) {
       vscode.window.showErrorMessage("LSP client not ready");
       return;
     }
 
-    // Get pending locations for this user
+    const data = node.approvalData;
+    if (!data?.locationId || !data?.namespace) {
+      vscode.window.showErrorMessage("No location data found");
+      return;
+    }
+
     try {
-      const locations = await this.client.sendRequest<
-        Array<{
-          locationId: string;
-          namespace: string;
-          name: string;
-          itemType: string;
-        }>
-      >("dark/listPendingLocations", {
+      await this.client.sendRequest("dark/createApprovalRequest", {
         accountID: AccountService.getCurrentAccountId(),
+        targetNamespace: data.namespace,
+        locationIds: [data.locationId],
+        title: `${data.itemName || "Change"} in ${data.namespace}`,
+        description: null,
       });
 
-      if (!locations || locations.length === 0) {
+      vscode.window.showInformationMessage(
+        `Submitted ${data.itemName || "item"} for approval`,
+      );
+      this.approvalsProvider?.clearSelection();
+    } catch (error) {
+      console.error("Failed to submit for approval:", error);
+      vscode.window.showErrorMessage("Failed to submit for approval");
+    }
+  }
+
+  /** Quick approve a single location (no prompts) */
+  private async quickApprove(node: BranchNode): Promise<void> {
+    if (!this.client) {
+      vscode.window.showErrorMessage("LSP client not ready");
+      return;
+    }
+
+    const data = node.approvalData;
+    if (!data?.locationId || !data?.requestId) {
+      vscode.window.showErrorMessage("No location data found");
+      return;
+    }
+
+    try {
+      await this.client.sendRequest("dark/approveLocations", {
+        requestId: data.requestId,
+        locationIds: [data.locationId],
+        reviewerId: AccountService.getCurrentAccountId(),
+      });
+
+      vscode.window.showInformationMessage(
+        `Approved ${data.itemName || "item"}`,
+      );
+      this.approvalsProvider?.clearReviewSelection();
+    } catch (error) {
+      console.error("Failed to approve:", error);
+      vscode.window.showErrorMessage("Failed to approve item");
+    }
+  }
+
+  /** Quick reject a single location */
+  private async quickReject(node: BranchNode): Promise<void> {
+    if (!this.client) {
+      vscode.window.showErrorMessage("LSP client not ready");
+      return;
+    }
+
+    const data = node.approvalData;
+    if (!data?.locationId || !data?.requestId) {
+      vscode.window.showErrorMessage("No location data found");
+      return;
+    }
+
+    const reason = await vscode.window.showInputBox({
+      prompt: `Why are you rejecting ${data.itemName || "this item"}?`,
+      placeHolder: "Reason for rejection...",
+    });
+
+    if (reason === undefined) {
+      return; // Cancelled
+    }
+
+    try {
+      await this.client.sendRequest("dark/rejectLocations", {
+        requestId: data.requestId,
+        locationIds: [data.locationId],
+        reviewerId: AccountService.getCurrentAccountId(),
+        reason: reason || "No reason provided",
+      });
+
+      vscode.window.showInformationMessage(
+        `Rejected ${data.itemName || "item"}`,
+      );
+      this.approvalsProvider?.clearReviewSelection();
+    } catch (error) {
+      console.error("Failed to reject:", error);
+      vscode.window.showErrorMessage("Failed to reject item");
+    }
+  }
+
+  /** Approve all selected review items */
+  private async approveSelected(): Promise<void> {
+    if (!this.client) {
+      vscode.window.showErrorMessage("LSP client not ready");
+      return;
+    }
+
+    const byRequest = this.approvalsProvider?.getSelectedReviewItemsByRequest();
+    if (!byRequest || byRequest.size === 0) {
+      vscode.window.showInformationMessage("No items selected to approve");
+      return;
+    }
+
+    const totalCount = Array.from(byRequest.values()).reduce(
+      (sum, ids) => sum + ids.length,
+      0,
+    );
+
+    const confirm = await vscode.window.showWarningMessage(
+      `Approve ${totalCount} selected item(s)?`,
+      { modal: true },
+      "Approve",
+    );
+
+    if (confirm !== "Approve") {
+      return;
+    }
+
+    try {
+      // Make a request for each approval request
+      for (const [requestId, locationIds] of byRequest) {
+        await this.client.sendRequest("dark/approveLocations", {
+          requestId,
+          locationIds,
+          reviewerId: AccountService.getCurrentAccountId(),
+        });
+      }
+
+      vscode.window.showInformationMessage(`Approved ${totalCount} item(s)`);
+      this.approvalsProvider?.clearReviewSelection();
+    } catch (error) {
+      console.error("Failed to approve selected:", error);
+      vscode.window.showErrorMessage("Failed to approve selected items");
+    }
+  }
+
+  /** Reject all selected review items */
+  private async rejectSelected(): Promise<void> {
+    if (!this.client) {
+      vscode.window.showErrorMessage("LSP client not ready");
+      return;
+    }
+
+    const byRequest = this.approvalsProvider?.getSelectedReviewItemsByRequest();
+    if (!byRequest || byRequest.size === 0) {
+      vscode.window.showInformationMessage("No items selected to reject");
+      return;
+    }
+
+    const totalCount = Array.from(byRequest.values()).reduce(
+      (sum, ids) => sum + ids.length,
+      0,
+    );
+
+    const reason = await vscode.window.showInputBox({
+      prompt: `Why are you rejecting ${totalCount} item(s)?`,
+      placeHolder: "Reason for rejection...",
+    });
+
+    if (reason === undefined) {
+      return; // Cancelled
+    }
+
+    try {
+      // Make a request for each approval request
+      for (const [requestId, locationIds] of byRequest) {
+        await this.client.sendRequest("dark/rejectLocations", {
+          requestId,
+          locationIds,
+          reviewerId: AccountService.getCurrentAccountId(),
+          reason: reason || "No reason provided",
+        });
+      }
+
+      vscode.window.showInformationMessage(`Rejected ${totalCount} item(s)`);
+      this.approvalsProvider?.clearReviewSelection();
+    } catch (error) {
+      console.error("Failed to reject selected:", error);
+      vscode.window.showErrorMessage("Failed to reject selected items");
+    }
+  }
+
+  private async createRequest(node?: BranchNode): Promise<void> {
+    if (!this.client) {
+      vscode.window.showErrorMessage("LSP client not ready");
+      return;
+    }
+
+    // If called from a namespace group, create request for that namespace
+    if (
+      node?.contextValue === "namespace-group" &&
+      node.approvalData?.namespace
+    ) {
+      const namespace = node.approvalData.namespace;
+      await this.createRequestForNamespace(namespace);
+      return;
+    }
+
+    // Check if there are pre-selected items from checkboxes
+    const preSelectedIds = this.approvalsProvider?.getSelectedLocationIds();
+    const hasPreSelected = preSelectedIds && preSelectedIds.length > 0;
+
+    try {
+      const locations = await this.fetchPendingLocations();
+
+      if (locations.length === 0) {
         vscode.window.showInformationMessage(
           "No pending changes to submit for approval",
         );
         return;
       }
 
-      // Group by namespace for selection
-      const namespaces = [...new Set(locations.map(l => l.namespace))];
+      // Group ALL locations by namespace
+      const allByNamespace = new Map<
+        string,
+        Array<{
+          locationId: string;
+          modules: string[];
+          name: string;
+          itemType: string;
+        }>
+      >();
+      for (const loc of locations) {
+        if (!allByNamespace.has(loc.namespace)) {
+          allByNamespace.set(loc.namespace, []);
+        }
+        allByNamespace.get(loc.namespace)!.push(loc);
+      }
+
+      if (hasPreSelected) {
+        // Filter to only selected items
+        const selectedSet = new Set(preSelectedIds);
+        const selectedLocations = locations.filter(l =>
+          selectedSet.has(l.locationId),
+        );
+
+        if (selectedLocations.length > 0) {
+          // Group selected by namespace
+          const selectedByNamespace = new Map<
+            string,
+            Array<{
+              locationId: string;
+              modules: string[];
+              name: string;
+              itemType: string;
+            }>
+          >();
+          for (const loc of selectedLocations) {
+            if (!selectedByNamespace.has(loc.namespace)) {
+              selectedByNamespace.set(loc.namespace, []);
+            }
+            selectedByNamespace.get(loc.namespace)!.push(loc);
+          }
+
+          // Open a tab for each namespace simultaneously
+          for (const [namespace, selectedItems] of selectedByNamespace) {
+            const allItems = allByNamespace.get(namespace) || [];
+            this.openApprovalTab(namespace, allItems, selectedItems);
+          }
+
+          this.approvalsProvider?.clearSelection();
+          return;
+        }
+      }
+
+      // No pre-selected items, let user pick a namespace then open tab
+      const namespaces = Array.from(allByNamespace.keys());
 
       const selectedNamespace = await vscode.window.showQuickPick(namespaces, {
         placeHolder: "Select namespace to create request for",
@@ -327,62 +602,73 @@ export class ApprovalCommands {
         return;
       }
 
-      const locationsForNs = locations.filter(
-        l => l.namespace === selectedNamespace,
-      );
-
-      // Let user select which locations to include
-      const locationItems = locationsForNs.map(loc => ({
-        label: loc.name,
-        description: loc.itemType,
-        picked: true, // Pre-select all by default
-        locationId: loc.locationId,
-      }));
-
-      const selectedLocations = await vscode.window.showQuickPick(
-        locationItems,
-        {
-          placeHolder: "Select items to include in this request",
-          canPickMany: true,
-        },
-      );
-
-      if (!selectedLocations || selectedLocations.length === 0) {
-        return;
-      }
-
-      const locationIds = selectedLocations.map(l => l.locationId);
-
-      const title = await vscode.window.showInputBox({
-        prompt: "Enter a title for this approval request",
-        placeHolder: `Changes to ${selectedNamespace}`,
-      });
-
-      if (title === undefined) {
-        return;
-      }
-
-      const description = await vscode.window.showInputBox({
-        prompt: "Enter a description (optional)",
-        placeHolder: "Description of changes...",
-      });
-
-      await this.client.sendRequest("dark/createApprovalRequest", {
-        accountID: AccountService.getCurrentAccountId(),
-        targetNamespace: selectedNamespace,
-        locationIds,
-        title: title || `Changes to ${selectedNamespace}`,
-        description: description || null,
-      });
-
-      vscode.window.showInformationMessage(
-        `Approval request created for ${locationIds.length} item(s) in ${selectedNamespace}`,
-      );
-      this.approvalsProvider?.refresh();
+      const locationsForNs = allByNamespace.get(selectedNamespace) || [];
+      this.openApprovalTab(selectedNamespace, locationsForNs, locationsForNs);
     } catch (error) {
       console.error("Failed to create request:", error);
       vscode.window.showErrorMessage("Failed to create approval request");
     }
+  }
+
+  /** Create approval request for a specific namespace */
+  private async createRequestForNamespace(namespace: string): Promise<void> {
+    if (!this.client) {
+      vscode.window.showErrorMessage("LSP client not ready");
+      return;
+    }
+
+    try {
+      const locations = await this.fetchPendingLocations();
+      const locationsForNs = locations.filter(l => l.namespace === namespace);
+
+      if (locationsForNs.length === 0) {
+        vscode.window.showInformationMessage(
+          `No pending changes in ${namespace}`,
+        );
+        return;
+      }
+
+      // Use selected items if any, otherwise all items in namespace
+      const selectedIds = new Set(
+        this.approvalsProvider?.getSelectedLocationIds() || [],
+      );
+      const selectedInNs = locationsForNs.filter(l =>
+        selectedIds.has(l.locationId),
+      );
+      const initialItems =
+        selectedInNs.length > 0 ? selectedInNs : locationsForNs;
+
+      this.openApprovalTab(namespace, locationsForNs, initialItems);
+      this.approvalsProvider?.clearSelection();
+    } catch (error) {
+      console.error("Failed to create request:", error);
+      vscode.window.showErrorMessage("Failed to create approval request");
+    }
+  }
+
+  /** Fetch pending locations for the current account */
+  private async fetchPendingLocations(): Promise<
+    Array<{
+      locationId: string;
+      namespace: string;
+      modules: string[];
+      name: string;
+      itemType: string;
+    }>
+  > {
+    if (!this.client) return [];
+    const locations = await this.client.sendRequest<
+      Array<{
+        locationId: string;
+        namespace: string;
+        modules: string[];
+        name: string;
+        itemType: string;
+      }>
+    >("dark/listPendingLocations", {
+      accountID: AccountService.getCurrentAccountId(),
+    });
+    return locations || [];
   }
 
   private async switchAccount(): Promise<void> {
@@ -446,5 +732,25 @@ export class ApprovalCommands {
     const branchManager = BranchStateManager.getInstance();
     await branchManager.clearCurrentBranch();
     await branchManager.fetchBranches();
+  }
+
+  /** Open a tab for creating an approval request */
+  private openApprovalTab(
+    namespace: string,
+    allItems: ApprovalItem[],
+    initiallySelected: ApprovalItem[],
+  ): void {
+    if (!this.client) {
+      vscode.window.showErrorMessage("LSP client not ready");
+      return;
+    }
+
+    ApprovalRequestPanel.create(
+      this.client,
+      this.approvalsProvider ?? null,
+      namespace,
+      allItems,
+      initiallySelected,
+    );
   }
 }

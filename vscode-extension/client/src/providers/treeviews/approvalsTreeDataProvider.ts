@@ -32,6 +32,18 @@ export class ApprovalsTreeDataProvider
     BranchNode | undefined | null | void
   > = this._onDidChangeTreeData.event;
 
+  // Track selected pending locations by locationId (for creating requests)
+  private selectedLocationIds: Set<string> = new Set();
+
+  // Track selected review items: locationId -> requestId (for approving/rejecting)
+  private selectedReviewItems: Map<string, string> = new Map();
+
+  // Cache request locations for select-all functionality
+  private requestLocationsCache: Map<string, string[]> = new Map();
+
+  // Cache namespace group children for select-all functionality
+  private namespaceLocationsCache: Map<string, string[]> = new Map();
+
   constructor(private client: LanguageClient) {}
 
   refresh(): void {
@@ -45,6 +57,157 @@ export class ApprovalsTreeDataProvider
   setCurrentAccount(_accountId: string): void {
     // Account is managed centrally by AccountService
     // Just refresh to pick up the new account
+    this.selectedLocationIds.clear();
+    this.selectedReviewItems.clear();
+    vscode.commands.executeCommand(
+      "setContext",
+      "darklang.hasMultiNamespaceSelection",
+      false,
+    );
+    this.refresh();
+  }
+
+  /** Handle checkbox state changes from the tree view */
+  handleCheckboxChange(
+    items: ReadonlyArray<[BranchNode, vscode.TreeItemCheckboxState]>,
+  ): void {
+    let needsRefresh = false;
+
+    for (const [node, state] of items) {
+      const locationId = node.approvalData?.locationId;
+      const requestId = node.approvalData?.requestId;
+      const namespace = node.approvalData?.namespace;
+      const contextValue = node.contextValue;
+
+      // Handle namespace group checkbox (select all pending items in namespace)
+      if (contextValue === "namespace-group" && namespace) {
+        const childLocationIds = this.namespaceLocationsCache.get(namespace);
+        if (childLocationIds) {
+          if (state === vscode.TreeItemCheckboxState.Checked) {
+            for (const id of childLocationIds) {
+              this.selectedLocationIds.add(id);
+            }
+          } else {
+            for (const id of childLocationIds) {
+              this.selectedLocationIds.delete(id);
+            }
+          }
+          needsRefresh = true; // Refresh to update children checkboxes
+        }
+        continue;
+      }
+
+      // Handle approval request checkbox (select all children)
+      if (contextValue === "approval-request-incoming" && requestId) {
+        const childLocationIds = this.requestLocationsCache.get(requestId);
+        if (childLocationIds) {
+          if (state === vscode.TreeItemCheckboxState.Checked) {
+            for (const id of childLocationIds) {
+              this.selectedReviewItems.set(id, requestId);
+            }
+          } else {
+            for (const id of childLocationIds) {
+              this.selectedReviewItems.delete(id);
+            }
+          }
+          needsRefresh = true; // Refresh to update children checkboxes
+        }
+        continue;
+      }
+
+      if (locationId) {
+        // Determine which set to update based on context
+        const isReviewItem = contextValue === "request-location";
+
+        if (isReviewItem && requestId) {
+          if (state === vscode.TreeItemCheckboxState.Checked) {
+            this.selectedReviewItems.set(locationId, requestId);
+          } else {
+            this.selectedReviewItems.delete(locationId);
+          }
+        } else if (!isReviewItem) {
+          if (state === vscode.TreeItemCheckboxState.Checked) {
+            this.selectedLocationIds.add(locationId);
+          } else {
+            this.selectedLocationIds.delete(locationId);
+          }
+        }
+      }
+    }
+
+    // Refresh tree to show updated checkbox states on children
+    if (needsRefresh) {
+      this.refresh();
+    }
+
+    // Update context key for multi-namespace selection visibility
+    this.updateMultiNamespaceContext();
+  }
+
+  /** Update context key based on whether selections span multiple namespaces */
+  private updateMultiNamespaceContext(): void {
+    const selectedIds = this.selectedLocationIds;
+    if (selectedIds.size === 0) {
+      vscode.commands.executeCommand(
+        "setContext",
+        "darklang.hasMultiNamespaceSelection",
+        false,
+      );
+      return;
+    }
+
+    // Check how many namespaces are represented in the selection
+    const namespacesWithSelections = new Set<string>();
+    for (const [namespace, locationIds] of this.namespaceLocationsCache) {
+      if (locationIds.some(id => selectedIds.has(id))) {
+        namespacesWithSelections.add(namespace);
+      }
+    }
+
+    vscode.commands.executeCommand(
+      "setContext",
+      "darklang.hasMultiNamespaceSelection",
+      namespacesWithSelections.size > 1,
+    );
+  }
+
+  /** Get all selected location IDs */
+  getSelectedLocationIds(): string[] {
+    return Array.from(this.selectedLocationIds);
+  }
+
+  /** Check if there are any selected locations */
+  hasSelectedLocations(): boolean {
+    return this.selectedLocationIds.size > 0;
+  }
+
+  /** Clear all pending location selections */
+  clearSelection(): void {
+    this.selectedLocationIds.clear();
+    this.updateMultiNamespaceContext();
+    this.refresh();
+  }
+
+  /** Get selected review items grouped by requestId */
+  getSelectedReviewItemsByRequest(): Map<string, string[]> {
+    const byRequest = new Map<string, string[]>();
+    for (const [locationId, requestId] of this.selectedReviewItems) {
+      if (!byRequest.has(requestId)) {
+        byRequest.set(requestId, []);
+      }
+      byRequest.get(requestId)!.push(locationId);
+    }
+    return byRequest;
+  }
+
+  /** Check if there are any selected review items */
+  hasSelectedReviewItems(): boolean {
+    return this.selectedReviewItems.size > 0;
+  }
+
+  /** Clear all review selections */
+  clearReviewSelection(): void {
+    this.selectedReviewItems.clear();
     this.refresh();
   }
 
@@ -100,10 +263,27 @@ export class ApprovalsTreeDataProvider
 
     // Namespace group
     if (element.type === BranchNodeType.NamespaceGroup) {
-      item.iconPath = new vscode.ThemeIcon("folder");
+      item.iconPath = new vscode.ThemeIcon(
+        "package",
+        new vscode.ThemeColor("charts.orange"),
+      );
       item.tooltip = `Namespace: ${element.approvalData?.namespace}`;
       const count = element.children?.length || 0;
       item.description = `${count} item${count !== 1 ? "s" : ""}`;
+
+      // Add checkbox for namespace groups (select all children)
+      const namespace = element.approvalData?.namespace;
+      if (namespace) {
+        const childLocationIds = this.namespaceLocationsCache.get(namespace);
+        const allSelected =
+          childLocationIds &&
+          childLocationIds.length > 0 &&
+          childLocationIds.every(id => this.selectedLocationIds.has(id));
+        item.checkboxState = allSelected
+          ? vscode.TreeItemCheckboxState.Checked
+          : vscode.TreeItemCheckboxState.Unchecked;
+      }
+
       return item;
     }
 
@@ -133,6 +313,22 @@ export class ApprovalsTreeDataProvider
 
       // Make expandable to show locations
       item.collapsibleState = vscode.TreeItemCollapsibleState.Collapsed;
+
+      // Add checkbox for incoming requests (select all children)
+      if (
+        element.contextValue === "approval-request-incoming" &&
+        data?.requestId
+      ) {
+        const childLocationIds = this.requestLocationsCache.get(data.requestId);
+        const allSelected =
+          childLocationIds &&
+          childLocationIds.length > 0 &&
+          childLocationIds.every(id => this.selectedReviewItems.has(id));
+        item.checkboxState = allSelected
+          ? vscode.TreeItemCheckboxState.Checked
+          : vscode.TreeItemCheckboxState.Unchecked;
+      }
+
       return item;
     }
 
@@ -144,15 +340,37 @@ export class ApprovalsTreeDataProvider
       if (data?.itemType === "fn") {
         item.iconPath = new vscode.ThemeIcon("symbol-function");
       } else if (data?.itemType === "type") {
-        item.iconPath = new vscode.ThemeIcon("symbol-class");
+        item.iconPath = new vscode.ThemeIcon(
+          "symbol-type-parameter",
+          new vscode.ThemeColor("charts.blue"),
+        );
       } else if (data?.itemType === "value") {
-        item.iconPath = new vscode.ThemeIcon("symbol-constant");
+        item.iconPath = new vscode.ThemeIcon(
+          "symbol-constant",
+          new vscode.ThemeColor("charts.orange"),
+        );
       } else {
         item.iconPath = new vscode.ThemeIcon("file");
       }
 
       item.tooltip = `${data?.namespace}.${data?.itemName} (${data?.itemType})`;
       item.description = data?.status;
+
+      // Add checkbox for pending locations (user's own pending items)
+      if (element.contextValue === "pending-location" && data?.locationId) {
+        const isSelected = this.selectedLocationIds.has(data.locationId);
+        item.checkboxState = isSelected
+          ? vscode.TreeItemCheckboxState.Checked
+          : vscode.TreeItemCheckboxState.Unchecked;
+      }
+
+      // Add checkbox for request locations (items to review)
+      if (element.contextValue === "request-location" && data?.locationId) {
+        const isSelected = this.selectedReviewItems.has(data.locationId);
+        item.checkboxState = isSelected
+          ? vscode.TreeItemCheckboxState.Checked
+          : vscode.TreeItemCheckboxState.Unchecked;
+      }
 
       return item;
     }
@@ -331,6 +549,7 @@ export class ApprovalsTreeDataProvider
       });
 
       if (!locations || locations.length === 0) {
+        this.namespaceLocationsCache.clear();
         return [
           {
             id: "no-pending",
@@ -349,6 +568,15 @@ export class ApprovalsTreeDataProvider
           byNamespace.set(ns, []);
         }
         byNamespace.get(ns)!.push(loc);
+      }
+
+      // Cache namespace location IDs for select-all functionality
+      this.namespaceLocationsCache.clear();
+      for (const [namespace, locs] of byNamespace.entries()) {
+        this.namespaceLocationsCache.set(
+          namespace,
+          locs.map(loc => loc.locationId),
+        );
       }
 
       // Create namespace group nodes
@@ -381,6 +609,7 @@ export class ApprovalsTreeDataProvider
       return groups;
     } catch (error) {
       console.error("Failed to get pending locations:", error);
+      this.namespaceLocationsCache.clear();
       return [
         {
           id: "error-pending",
@@ -410,6 +639,7 @@ export class ApprovalsTreeDataProvider
       }>("dark/getApprovalRequestDetails", { requestId });
 
       if (!details || !details.locations || details.locations.length === 0) {
+        this.requestLocationsCache.delete(requestId);
         return [
           {
             id: `no-locations-${requestId}`,
@@ -419,6 +649,12 @@ export class ApprovalsTreeDataProvider
           },
         ];
       }
+
+      // Cache location IDs for select-all functionality
+      this.requestLocationsCache.set(
+        requestId,
+        details.locations.map(loc => loc.locationId),
+      );
 
       return details.locations.map(loc => ({
         id: `request-loc-${requestId}-${loc.locationId}`,
@@ -440,6 +676,7 @@ export class ApprovalsTreeDataProvider
       }));
     } catch (error) {
       console.error("Failed to get request locations:", error);
+      this.requestLocationsCache.delete(requestId);
       return [
         {
           id: `error-locations-${requestId}`,
