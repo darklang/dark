@@ -71,6 +71,7 @@ let addAlias
   match shell with
   | Bash -> Bash.addAlias alias command
   | Zsh -> Zsh.addAlias alias command
+  | Fish -> Fish.addAlias alias command
   | _ -> Result.Result.Error "Unsupported shell"
 
 
@@ -82,6 +83,7 @@ let deleteAlias
   match shell with
   | Bash -> Bash.deleteAlias alias
   | Zsh -> Zsh.deleteAlias alias
+  | Fish -> Fish.deleteAlias alias
   | _ -> Result.Result.Error "Unsupported OS or shell"
 
 
