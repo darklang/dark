@@ -41,6 +41,9 @@ export class ApprovalsTreeDataProvider
   // Cache request locations for select-all functionality
   private requestLocationsCache: Map<string, string[]> = new Map();
 
+  // Cache request location statuses (locationId -> status)
+  private requestLocationStatusCache: Map<string, string> = new Map();
+
   // Cache namespace group children for select-all functionality
   private namespaceLocationsCache: Map<string, string[]> = new Map();
 
@@ -59,6 +62,9 @@ export class ApprovalsTreeDataProvider
     // Just refresh to pick up the new account
     this.selectedLocationIds.clear();
     this.selectedReviewItems.clear();
+    this.requestLocationsCache.clear();
+    this.requestLocationStatusCache.clear();
+    this.namespaceLocationsCache.clear();
     vscode.commands.executeCommand(
       "setContext",
       "darklang.hasMultiNamespaceSelection",
@@ -103,7 +109,11 @@ export class ApprovalsTreeDataProvider
         if (childLocationIds) {
           if (state === vscode.TreeItemCheckboxState.Checked) {
             for (const id of childLocationIds) {
-              this.selectedReviewItems.set(id, requestId);
+              // Only select pending items, skip already approved/rejected
+              const status = this.requestLocationStatusCache.get(id);
+              if (status !== "approved" && status !== "rejected") {
+                this.selectedReviewItems.set(id, requestId);
+              }
             }
           } else {
             for (const id of childLocationIds) {
@@ -118,8 +128,13 @@ export class ApprovalsTreeDataProvider
       if (locationId) {
         // Determine which set to update based on context
         const isReviewItem = contextValue === "request-location";
+        const itemStatus = node.approvalData?.status;
 
         if (isReviewItem && requestId) {
+          // Skip already-approved/rejected items - they shouldn't be toggled
+          if (itemStatus === "approved" || itemStatus === "rejected") {
+            continue;
+          }
           if (state === vscode.TreeItemCheckboxState.Checked) {
             this.selectedReviewItems.set(locationId, requestId);
           } else {
@@ -366,10 +381,28 @@ export class ApprovalsTreeDataProvider
 
       // Add checkbox for request locations (items to review)
       if (element.contextValue === "request-location" && data?.locationId) {
-        const isSelected = this.selectedReviewItems.has(data.locationId);
-        item.checkboxState = isSelected
-          ? vscode.TreeItemCheckboxState.Checked
-          : vscode.TreeItemCheckboxState.Unchecked;
+        // Already approved/rejected items should appear checked and visually distinct
+        if (data.status === "approved") {
+          item.checkboxState = vscode.TreeItemCheckboxState.Checked;
+          item.iconPath = new vscode.ThemeIcon(
+            "pass",
+            new vscode.ThemeColor("testing.iconPassed"),
+          );
+          item.description = "approved";
+        } else if (data.status === "rejected") {
+          item.checkboxState = vscode.TreeItemCheckboxState.Unchecked;
+          item.iconPath = new vscode.ThemeIcon(
+            "error",
+            new vscode.ThemeColor("testing.iconFailed"),
+          );
+          item.description = "rejected";
+        } else {
+          // Pending items - normal checkbox behavior
+          const isSelected = this.selectedReviewItems.has(data.locationId);
+          item.checkboxState = isSelected
+            ? vscode.TreeItemCheckboxState.Checked
+            : vscode.TreeItemCheckboxState.Unchecked;
+        }
       }
 
       return item;
@@ -650,11 +683,16 @@ export class ApprovalsTreeDataProvider
         ];
       }
 
-      // Cache location IDs for select-all functionality
+      // Cache location IDs and statuses for select-all functionality
       this.requestLocationsCache.set(
         requestId,
         details.locations.map(loc => loc.locationId),
       );
+
+      // Cache statuses for each location
+      for (const loc of details.locations) {
+        this.requestLocationStatusCache.set(loc.locationId, loc.status);
+      }
 
       return details.locations.map(loc => ({
         id: `request-loc-${requestId}-${loc.locationId}`,

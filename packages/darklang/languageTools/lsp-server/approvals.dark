@@ -56,6 +56,21 @@ let parseUuid (s: String) (fieldName: String) : Stdlib.Result.Result<Uuid, Strin
   | Error _ -> Stdlib.Result.Result.Error $"Invalid {fieldName}: {s}"
 
 
+/// Helper to get an optional UUID field from JSON params
+let getOptionalUuidField
+  (fields: List<String * Json>)
+  (key: String)
+  : Stdlib.Result.Result<Stdlib.Option.Option<Uuid>, String> =
+  match Stdlib.List.findFirst fields (fun (k, _) -> k == key) with
+  | Some((_, String s)) ->
+    match Stdlib.Uuid.parse s with
+    | Ok id -> Stdlib.Result.Result.Ok(Stdlib.Option.Option.Some id)
+    | Error _ -> Stdlib.Result.Result.Error $"Invalid {key}: {s}"
+  | Some((_, Null)) -> Stdlib.Result.Result.Ok(Stdlib.Option.Option.None)
+  | Some((_, _)) -> Stdlib.Result.Result.Error $"{key} must be a string or null"
+  | None -> Stdlib.Result.Result.Ok(Stdlib.Option.Option.None)
+
+
 // -- Param types for each request --
 
 type AccountParams = { accountId: Uuid }
@@ -77,12 +92,12 @@ type ReviewerWithCommentParams =
     comment: String }
 
 type LocationsParams =
-  { approvalRequestId: Uuid
+  { approvalRequestId: Stdlib.Option.Option<Uuid>
     locationIds: List<String>
     reviewerId: Uuid }
 
 type LocationsWithReasonParams =
-  { approvalRequestId: Uuid
+  { approvalRequestId: Stdlib.Option.Option<Uuid>
     locationIds: List<String>
     reviewerId: Uuid
     reason: String }
@@ -196,10 +211,7 @@ let parseReviewerWithCommentParams
 let parseLocationsParams
   (fields: List<String * Json>)
   : Stdlib.Result.Result<LocationsParams, String> =
-  let requestIdResult =
-    (getStringField fields "requestId")
-    |> Stdlib.Result.andThen (fun s -> parseUuid s "request ID")
-
+  let requestIdResult = getOptionalUuidField fields "requestId"
   let locationIdsResult = getStringListField fields "locationIds"
 
   let reviewerResult =
@@ -222,10 +234,7 @@ let parseLocationsParams
 let parseLocationsWithReasonParams
   (fields: List<String * Json>)
   : Stdlib.Result.Result<LocationsWithReasonParams, String> =
-  let requestIdResult =
-    (getStringField fields "requestId")
-    |> Stdlib.Result.andThen (fun s -> parseUuid s "request ID")
-
+  let requestIdResult = getOptionalUuidField fields "requestId"
   let locationIdsResult = getStringListField fields "locationIds"
 
   let reviewerResult =
@@ -573,21 +582,45 @@ let handleRejectRequest
 
 
 /// Handle dark/approveLocations request
-/// Approves specific locations in an approval request (partial approval)
+/// Approves specific locations - either in an approval request (partial approval)
+/// or directly (for own-namespace items when requestId is None)
 let handleApproveLocations
   (state: LspState)
   (requestId: JsonRPC.RequestId)
-  (approvalRequestId: Uuid)
+  (approvalRequestId: Stdlib.Option.Option<Uuid>)
   (locationIds: List<String>)
   (reviewerId: Uuid)
   : LspState =
-  setLocationStatuses
+  match approvalRequestId with
+  | Some reqId ->
+    // Approval request workflow - update request_items table
+    setLocationStatuses
+      state
+      requestId
+      reqId
+      locationIds
+      (Darklang.SCM.Approvals.ApprovalStatus.Approved)
+      reviewerId
+  | None ->
+    // Direct approval - no request, approve each location
+    let results =
+      locationIds
+      |> Stdlib.List.map (fun locId ->
+        Builtin.scmApprovalsApproveLocationDirectly locId reviewerId)
+
+    let count =
+      results |> Stdlib.List.filter (fun r -> r) |> Stdlib.List.length
+
+    let response =
+      (JsonRPC.Response.Ok.make
+        (Stdlib.Option.Option.Some requestId)
+        (Stdlib.AltJson.Json.Object
+          [ ("success", Stdlib.AltJson.Json.Bool true)
+            ("count", Stdlib.AltJson.Json.Number (Stdlib.Int64.toFloat count)) ]))
+      |> Stdlib.AltJson.format
+
+    logAndSendToClient response
     state
-    requestId
-    approvalRequestId
-    locationIds
-    (Darklang.SCM.Approvals.ApprovalStatus.Approved)
-    reviewerId
 
 
 /// Handle dark/rejectLocations request
@@ -595,18 +628,23 @@ let handleApproveLocations
 let handleRejectLocations
   (state: LspState)
   (requestId: JsonRPC.RequestId)
-  (approvalRequestId: Uuid)
+  (approvalRequestId: Stdlib.Option.Option<Uuid>)
   (locationIds: List<String>)
   (reviewerId: Uuid)
   (reason: String)
   : LspState =
-  setLocationStatuses
-    state
-    requestId
-    approvalRequestId
-    locationIds
-    (Darklang.SCM.Approvals.ApprovalStatus.Rejected reason)
-    reviewerId
+  match approvalRequestId with
+  | Some reqId ->
+    setLocationStatuses
+      state
+      requestId
+      reqId
+      locationIds
+      (Darklang.SCM.Approvals.ApprovalStatus.Rejected reason)
+      reviewerId
+  | None ->
+    // Rejection without requestId is not supported
+    sendErrorResponse state requestId "requestId is required for rejection."
 
 
 /// Handle dark/requestChangesForRequest request
@@ -675,6 +713,27 @@ let handleCreateApprovalRequest
       (Stdlib.AltJson.Json.Object
         [ ("id", Stdlib.AltJson.Json.String (Stdlib.Uuid.toString request.id))
           ("success", Stdlib.AltJson.Json.Bool true) ]))
+    |> Stdlib.AltJson.format
+
+  logAndSendToClient response
+  state
+
+
+/// Handle dark/checkNamespaceAccess request
+/// Returns whether the account has access to the given namespace
+let handleCheckNamespaceAccess
+  (state: LspState)
+  (requestId: JsonRPC.RequestId)
+  (accountID: Uuid)
+  (targetNamespace: String)
+  : LspState =
+  let hasAccess = Builtin.scmApprovalsHasAccessToNamespace accountID targetNamespace
+
+  let response =
+    (JsonRPC.Response.Ok.make
+      (Stdlib.Option.Option.Some requestId)
+      (Stdlib.AltJson.Json.Object
+        [ ("hasAccess", Stdlib.AltJson.Json.Bool hasAccess) ]))
     |> Stdlib.AltJson.format
 
   logAndSendToClient response

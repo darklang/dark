@@ -328,18 +328,41 @@ export class ApprovalCommands {
     }
 
     try {
-      await this.client.sendRequest("dark/createApprovalRequest", {
-        accountID: AccountService.getCurrentAccountId(),
-        targetNamespace: data.namespace,
-        locationIds: [data.locationId],
-        title: `${data.itemName || "Change"} in ${data.namespace}`,
-        description: null,
-      });
+      // Check if user has access to this namespace
+      const accessCheck = (await this.client.sendRequest(
+        "dark/checkNamespaceAccess",
+        {
+          accountID: AccountService.getCurrentAccountId(),
+          namespace: data.namespace,
+        },
+      )) as { hasAccess: boolean };
 
-      vscode.window.showInformationMessage(
-        `Submitted ${data.itemName || "item"} for approval`,
-      );
+      if (accessCheck.hasAccess) {
+        // User has access - directly approve
+        await this.client.sendRequest("dark/approveLocations", {
+          locationIds: [data.locationId],
+          reviewerId: AccountService.getCurrentAccountId(),
+        });
+
+        vscode.window.showInformationMessage(
+          `Approved ${data.itemName || "item"}`,
+        );
+      } else {
+        // User doesn't have access - create approval request
+        await this.client.sendRequest("dark/createApprovalRequest", {
+          accountID: AccountService.getCurrentAccountId(),
+          targetNamespace: data.namespace,
+          locationIds: [data.locationId],
+          title: `${data.itemName || "Change"} in ${data.namespace}`,
+          description: null,
+        });
+
+        vscode.window.showInformationMessage(
+          `Submitted ${data.itemName || "item"} for approval`,
+        );
+      }
       this.approvalsProvider?.clearSelection();
+      this.approvalsProvider?.refresh();
     } catch (error) {
       console.error("Failed to submit for approval:", error);
       vscode.window.showErrorMessage("Failed to submit for approval");
@@ -580,13 +603,36 @@ export class ApprovalCommands {
             selectedByNamespace.get(loc.namespace)!.push(loc);
           }
 
-          // Open a tab for each namespace simultaneously
+          // Process each namespace
           for (const [namespace, selectedItems] of selectedByNamespace) {
-            const allItems = allByNamespace.get(namespace) || [];
-            this.openApprovalTab(namespace, allItems, selectedItems);
+            // Check if user has access to this namespace
+            const accessCheck = (await this.client.sendRequest(
+              "dark/checkNamespaceAccess",
+              {
+                accountID: AccountService.getCurrentAccountId(),
+                namespace,
+              },
+            )) as { hasAccess: boolean };
+
+            if (accessCheck.hasAccess) {
+              // User has access - directly approve
+              await this.client.sendRequest("dark/approveLocations", {
+                locationIds: selectedItems.map(i => i.locationId),
+                reviewerId: AccountService.getCurrentAccountId(),
+              });
+
+              vscode.window.showInformationMessage(
+                `Approved ${selectedItems.length} item(s)`,
+              );
+            } else {
+              // User doesn't have access - open approval tab
+              const allItems = allByNamespace.get(namespace) || [];
+              this.openApprovalTab(namespace, allItems, selectedItems);
+            }
           }
 
           this.approvalsProvider?.clearSelection();
+          this.approvalsProvider?.refresh();
           return;
         }
       }
@@ -603,7 +649,31 @@ export class ApprovalCommands {
       }
 
       const locationsForNs = allByNamespace.get(selectedNamespace) || [];
-      this.openApprovalTab(selectedNamespace, locationsForNs, locationsForNs);
+
+      // Check if user has access to this namespace
+      const accessCheck = (await this.client.sendRequest(
+        "dark/checkNamespaceAccess",
+        {
+          accountID: AccountService.getCurrentAccountId(),
+          namespace: selectedNamespace,
+        },
+      )) as { hasAccess: boolean };
+
+      if (accessCheck.hasAccess) {
+        // User has access - directly approve all items
+        await this.client.sendRequest("dark/approveLocations", {
+          locationIds: locationsForNs.map(i => i.locationId),
+          reviewerId: AccountService.getCurrentAccountId(),
+        });
+
+        vscode.window.showInformationMessage(
+          `Approved ${locationsForNs.length} item(s)`,
+        );
+        this.approvalsProvider?.refresh();
+      } else {
+        // User doesn't have access - open approval tab
+        this.openApprovalTab(selectedNamespace, locationsForNs, locationsForNs);
+      }
     } catch (error) {
       console.error("Failed to create request:", error);
       vscode.window.showErrorMessage("Failed to create approval request");
@@ -638,8 +708,32 @@ export class ApprovalCommands {
       const initialItems =
         selectedInNs.length > 0 ? selectedInNs : locationsForNs;
 
-      this.openApprovalTab(namespace, locationsForNs, initialItems);
-      this.approvalsProvider?.clearSelection();
+      // Check if user has access to this namespace
+      const accessCheck = (await this.client.sendRequest(
+        "dark/checkNamespaceAccess",
+        {
+          accountID: AccountService.getCurrentAccountId(),
+          namespace,
+        },
+      )) as { hasAccess: boolean };
+
+      if (accessCheck.hasAccess) {
+        // User has access - directly approve all items
+        await this.client.sendRequest("dark/approveLocations", {
+          locationIds: initialItems.map(i => i.locationId),
+          reviewerId: AccountService.getCurrentAccountId(),
+        });
+
+        vscode.window.showInformationMessage(
+          `Approved ${initialItems.length} item(s)`,
+        );
+        this.approvalsProvider?.clearSelection();
+        this.approvalsProvider?.refresh();
+      } else {
+        // User doesn't have access - open the approval request panel
+        this.openApprovalTab(namespace, locationsForNs, initialItems);
+        this.approvalsProvider?.clearSelection();
+      }
     } catch (error) {
       console.error("Failed to create request:", error);
       vscode.window.showErrorMessage("Failed to create approval request");

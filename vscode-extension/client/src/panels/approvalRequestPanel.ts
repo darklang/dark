@@ -59,17 +59,25 @@ export class ApprovalRequestPanel {
     this._panel.webview.onDidReceiveMessage(async message => {
       if (message.type === "submit") {
         try {
-          await this.client.sendRequest("dark/createApprovalRequest", {
-            accountID: AccountService.getCurrentAccountId(),
-            targetNamespace: this.namespace,
-            locationIds: message.locationIds,
-            title: message.title.trim() || `Changes to ${this.namespace}`,
-            description: message.description.trim() || null,
-          });
+          const response = (await this.client.sendRequest(
+            "dark/createApprovalRequest",
+            {
+              accountID: AccountService.getCurrentAccountId(),
+              targetNamespace: this.namespace,
+              locationIds: message.locationIds,
+              title: message.title.trim() || `Changes to ${this.namespace}`,
+              description: message.description.trim() || null,
+            },
+          )) as { directApproval?: boolean; success?: boolean; count?: number };
+
+          const itemCount = response.count ?? message.locationIds.length;
+          const successMessage = response.directApproval
+            ? `Approved ${itemCount} item(s)`
+            : `Request created for ${itemCount} item(s)`;
 
           this._panel.webview.postMessage({
             type: "success",
-            message: `Request created for ${message.locationIds.length} item(s)`,
+            message: successMessage,
           });
 
           this.approvalsProvider?.refresh();

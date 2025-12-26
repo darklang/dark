@@ -265,6 +265,7 @@ let listIncomingRequests (accountID : uuid) : Task<List<ApprovalRequest>> =
       JOIN namespace_access na ON ar.target_namespace = na.namespace
       WHERE na.account_id = @account_id
         AND ar.status = 'open'
+        AND ar.created_by != @account_id
       ORDER BY ar.created_at DESC
       """
       |> Sql.query
@@ -309,49 +310,53 @@ let listOutgoingRequests (accountID : uuid) : Task<List<ApprovalRequest>> =
 // Location Review Functions
 // =============================================================================
 
-/// Set the status of a location in an approval request
+/// Set the status of a location, optionally within an approval request
+/// When requestId is Some, updates the request_items table
 /// Creates PackageOps for statuses that need to sync across instances
 let setLocationStatus
-  (requestId : uuid)
+  (requestId : Option<uuid>)
   (locationId : string)
   (status : ApprovalStatus)
   (reviewerId : uuid)
-  : Task<unit> =
+  : Task<bool> =
   task {
-    // For ChangesRequested, the op handles the DB update via playback
-    // For other statuses, we do a direct DB write
-    match status with
-    | ChangesRequested _ -> ()
-    | _ ->
-      let (statusStr, message) = approvalStatusToString status
-      let now = NodaTime.Instant.now ()
-      do!
-        """
-        UPDATE request_items
-        SET status = @status,
-            status_message = @message,
-            reviewed_by = @reviewer,
-            reviewed_at = @reviewed_at
-        WHERE request_id = @request_id
-          AND location_id = @location_id
-        """
-        |> Sql.query
-        |> Sql.parameters
-          [ "request_id", Sql.uuid requestId
-            "location_id", Sql.string locationId
-            "status", Sql.string statusStr
-            "message",
-            (match message with
-             | Some m -> Sql.string m
-             | None -> Sql.dbnull)
-            "reviewer", Sql.uuid reviewerId
-            "reviewed_at", Sql.instant now ]
-        |> Sql.executeNonQueryAsync
-        |> Task.map (fun _ -> ())
+    // Update request_items table if this is part of an approval request
+    match requestId with
+    | Some reqId ->
+      match status with
+      | ChangesRequested _ -> ()
+      | _ ->
+        let (statusStr, message) = approvalStatusToString status
+        let now = NodaTime.Instant.now ()
+        do!
+          """
+          UPDATE request_items
+          SET status = @status,
+              status_message = @message,
+              reviewed_by = @reviewer,
+              reviewed_at = @reviewed_at
+          WHERE request_id = @request_id
+            AND location_id = @location_id
+          """
+          |> Sql.query
+          |> Sql.parameters
+            [ "request_id", Sql.uuid reqId
+              "location_id", Sql.string locationId
+              "status", Sql.string statusStr
+              "message",
+              (match message with
+               | Some m -> Sql.string m
+               | None -> Sql.dbnull)
+              "reviewer", Sql.uuid reviewerId
+              "reviewed_at", Sql.instant now ]
+          |> Sql.executeNonQueryAsync
+          |> Task.map (fun _ -> ())
+    | None -> ()
 
     // Create PackageOps for statuses that need to sync across instances
     match status with
-    | Approved ->
+    | Approved
+    | Rejected _ ->
       // Look up item_id and branch_id from location_id
       let! locationInfo =
         """
@@ -365,8 +370,8 @@ let setLocationStatus
         |> Sql.executeRowOptionAsync (fun read ->
           (read.uuid "item_id", read.uuidOrNone "branch_id"))
 
-      match locationInfo with
-      | Some(itemId, branchId) ->
+      match locationInfo, status with
+      | Some(itemId, branchId), Approved ->
         let op =
           LibExecution.ProgramTypes.PackageOp.ApproveItem(
             itemId,
@@ -374,25 +379,8 @@ let setLocationStatus
             reviewerId
           )
         let! _ = Inserts.insertAndApplyOps None branchId (Some reviewerId) [ op ]
-        ()
-      | None -> ()
-
-    | Rejected reason ->
-      // Look up item_id and branch_id from location_id
-      let! locationInfo =
-        """
-        SELECT item_id, branch_id
-        FROM locations
-        WHERE location_id = @location_id
-          AND deprecated_at IS NULL
-        """
-        |> Sql.query
-        |> Sql.parameters [ "location_id", Sql.string locationId ]
-        |> Sql.executeRowOptionAsync (fun read ->
-          (read.uuid "item_id", read.uuidOrNone "branch_id"))
-
-      match locationInfo with
-      | Some(itemId, branchId) ->
+        return true
+      | Some(itemId, branchId), Rejected reason ->
         let op =
           LibExecution.ProgramTypes.PackageOp.RejectItem(
             itemId,
@@ -401,24 +389,28 @@ let setLocationStatus
             reason
           )
         let! _ = Inserts.insertAndApplyOps None branchId (Some reviewerId) [ op ]
-        ()
-      | None -> ()
+        return true
+      | Some _, (Pending | ChangesRequested _) -> return false
+      | None, _ -> return false
 
     | ChangesRequested comment ->
-      // Create a RequestChanges op so it syncs across instances
-      let op =
-        LibExecution.ProgramTypes.PackageOp.RequestChanges(
-          requestId,
-          locationId,
-          reviewerId,
-          comment
-        )
-      let! _ = Inserts.insertAndApplyOps None None (Some reviewerId) [ op ]
-      ()
+      // ChangesRequested requires a request
+      match requestId with
+      | Some reqId ->
+        let op =
+          LibExecution.ProgramTypes.PackageOp.RequestChanges(
+            reqId,
+            locationId,
+            reviewerId,
+            comment
+          )
+        let! _ = Inserts.insertAndApplyOps None None (Some reviewerId) [ op ]
+        return true
+      | None -> return false
 
     | Pending ->
       // No PackageOp for pending status - it's the initial state
-      ()
+      return true
   }
 
 /// Withdraw (cancel) an approval request
@@ -496,3 +488,27 @@ let updateRequestStatusIfComplete (requestId : uuid) : Task<unit> =
           |> Sql.executeNonQueryAsync
           |> Task.map (fun _ -> ())
   }
+
+
+/// Check if an account has access to a namespace (owner or reviewer)
+let hasAccessToNamespace (accountId : uuid) (namespace_ : string) : Task<bool> =
+  task {
+    let! count =
+      """
+      SELECT COUNT(*) as count
+      FROM namespace_access
+      WHERE account_id = @account_id
+        AND namespace = @namespace
+      """
+      |> Sql.query
+      |> Sql.parameters
+        [ "account_id", Sql.uuid accountId; "namespace", Sql.string namespace_ ]
+      |> Sql.executeRowAsync (fun read -> read.int64 "count")
+
+    return count > 0L
+  }
+
+
+/// Approve a single location directly (for own-namespace items)
+let approveLocationDirectly (locationId : string) (reviewerId : uuid) : Task<bool> =
+  setLocationStatus None locationId Approved reviewerId
