@@ -426,7 +426,12 @@ let testApproveRequest =
     let! maxRowidBefore = getMaxRowid ()
 
     // Kate approves the item
-    do! Approvals.setLocationStatus request.id locationId Approvals.Approved ownerId
+    do!
+      Approvals.setLocationStatus
+        (Some request.id)
+        locationId
+        Approvals.Approved
+        ownerId
 
     // Check ops: ApproveItem
     let! newOps = getOpsAfter maxRowidBefore noBranch
@@ -471,7 +476,7 @@ let testRejectRequest =
     // Mia rejects the item with a reason
     do!
       Approvals.setLocationStatus
-        request.id
+        (Some request.id)
         locationId
         (Approvals.Rejected "Does not follow naming conventions")
         ownerId
@@ -519,7 +524,7 @@ let testRequestChanges =
     // Olivia requests changes
     do!
       Approvals.setLocationStatus
-        request.id
+        (Some request.id)
         locationId
         (Approvals.ChangesRequested "Please add documentation")
         ownerId

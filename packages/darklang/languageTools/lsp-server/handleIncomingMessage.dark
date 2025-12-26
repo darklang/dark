@@ -421,6 +421,21 @@ let handleIncomingMessage
           | Error msg ->
             Approvals.sendErrorResponse state requestId msg
 
+        | ("dark/checkNamespaceAccess", Some requestId, Some(Object params)) ->
+          let accountResult =
+            (Approvals.getStringField params "accountID")
+            |> Stdlib.Result.andThen (fun name -> Approvals.resolveAccount name)
+
+          let namespaceResult = Approvals.getStringField params "namespace"
+
+          match (accountResult, namespaceResult) with
+          | (Ok accId, Ok ns) ->
+            Approvals.handleCheckNamespaceAccess state requestId accId ns
+          | (Error e, _) ->
+            Approvals.sendErrorResponse state requestId e
+          | (_, Error e) ->
+            Approvals.sendErrorResponse state requestId e
+
         | other ->
           log $"TODO: we don't yet support this method: {r.method}"
           state

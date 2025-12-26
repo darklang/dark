@@ -107,32 +107,23 @@ let private applySetName
            | None -> Sql.dbnull) ]
       |> Sql.executeStatementAsync
 
-    // Determine approval status based on source:
-    // - instanceID = Some _ (from sync): always start pending, let ApproveItem ops set status
-    // - instanceID = None, createdBy = None (disk-load): auto-approve (built-in packages)
-    // - instanceID = None, createdBy = Some creator (local editor):
-    //     - creator == owner: auto-approve (own namespace)
-    //     - creator != owner: pending (needs approval from namespace owner)
-    let! approvalStatus =
-      task {
-        match instanceID with
-        | Some _ ->
-          // From sync - always start pending
-          // ApproveItem ops in the synced op stream will set the correct status
-          return "pending"
+    // New items start as pending unless they're built-in packages loaded from disk.
+    // Users must explicitly approve their changes before they become visible.
+    let approvalStatus =
+      match instanceID with
+      | Some _ ->
+        // Synced from another instance - start pending, ApproveItem ops will follow
+        "pending"
+      | None ->
+        // CLEANUP: Disk-loaded packages should set createdBy to the namespace owner,
+        // then this special case can be removed
+        match createdBy with
         | None ->
-          // Local or disk-loaded
-          match createdBy with
-          | None ->
-            // Disk-load: no known creator, auto-approve as built-in packages
-            return "approved"
-          | Some creatorId ->
-            // Local editor with known creator - look up if they own the namespace
-            let! creatorName = Accounts.getName creatorId
-            match creatorName with
-            | Some name when location.owner = name -> return "approved"
-            | _ -> return "pending"
-      }
+          // Loaded from disk (built-in packages) - no user to approve, auto-approve
+          "approved"
+        | Some _ ->
+          // User editing locally - must explicitly approve
+          "pending"
 
     // Insert new location entry with unique location_id
     let locationId = System.Guid.NewGuid()

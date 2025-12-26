@@ -361,7 +361,12 @@ let fns : List<BuiltInFn> =
         | _, _, _, [ DUuid requestId; DString locationId; status; DUuid reviewerId ] ->
           uply {
             let status = dtToApprovalStatus status
-            do! Approvals.setLocationStatus requestId locationId status reviewerId
+            let! _ =
+              Approvals.setLocationStatus
+                (Some requestId)
+                locationId
+                status
+                reviewerId
             return DUnit
           }
         | _ -> incorrectArgs ())
@@ -400,6 +405,47 @@ let fns : List<BuiltInFn> =
           uply {
             do! Approvals.updateRequestStatusIfComplete requestId
             return DUnit
+          }
+        | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Impure
+      deprecated = NotDeprecated }
+
+
+    // Namespace Access Functions
+    { name = fn "scmApprovalsHasAccessToNamespace" 0
+      typeParams = []
+      parameters =
+        [ Param.make "accountId" TUuid ""; Param.make "namespace" TString "" ]
+      returnType = TBool
+      description =
+        "Check if an account has access to a namespace (owner or reviewer role)"
+      fn =
+        (function
+        | _, _, _, [ DUuid accountId; DString namespace_ ] ->
+          uply {
+            let! result = Approvals.hasAccessToNamespace accountId namespace_
+            return DBool result
+          }
+        | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Impure
+      deprecated = NotDeprecated }
+
+
+    // Direct Location Approval Functions (without approval request)
+    { name = fn "scmApprovalsApproveLocationDirectly" 0
+      typeParams = []
+      parameters =
+        [ Param.make "locationId" TString ""; Param.make "reviewerId" TUuid "" ]
+      returnType = TBool
+      description = "Approve a pending location directly by location ID"
+      fn =
+        (function
+        | _, _, _, [ DString locationId; DUuid reviewerId ] ->
+          uply {
+            let! result = Approvals.approveLocationDirectly locationId reviewerId
+            return DBool result
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
