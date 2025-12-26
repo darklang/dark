@@ -147,7 +147,7 @@ let getLocationId (owner : string) (name : string) : Task<Option<string>> =
 // =============================================================================
 
 let testAddItemToOwnNamespaceMain =
-  testTask "add item to own namespace (no branch) - auto-approves" {
+  testTask "add item to own namespace (no branch) - starts pending" {
     let ownerName = "TestAlice"
     let! ownerId = setupNamespace ownerName ownerName
 
@@ -158,22 +158,25 @@ let testAddItemToOwnNamespaceMain =
     let ops = createTestTypeOps ownerName "MyType"
     let! _ = Inserts.insertAndApplyOps noInstance noBranch (Some ownerId) ops
 
-    // Check ops: AddType + SetTypeName + ApproveItem
+    // Check ops: AddType + SetTypeName (user must explicitly approve)
     let! newOps = getOpsAfter maxRowidBefore noBranch
     let opTypes = newOps |> List.map opToTypeName
     Expect.equal
       opTypes
-      [ "AddType"; "SetTypeName"; "ApproveItem" ]
-      "Own namespace (no branch) should auto-approve: AddType + SetTypeName + ApproveItem"
+      [ "AddType"; "SetTypeName" ]
+      "Own namespace (no branch): AddType + SetTypeName (pending until explicit approval)"
 
-    // Final state should be approved
+    // State should be pending until explicitly approved
     let! status = getApprovalStatus ownerName "MyType"
-    Expect.equal status (Some "approved") "Status should be approved"
+    Expect.equal
+      status
+      (Some "pending")
+      "Status should be pending until explicitly approved"
   }
 
 
 let testAddItemToOwnNamespaceBranch =
-  testTask "add item to own namespace (branch) - auto-approves" {
+  testTask "add item to own namespace (branch) - starts pending" {
     let ownerName = "TestJosh"
     let! ownerId = setupNamespace ownerName ownerName
 
@@ -186,13 +189,13 @@ let testAddItemToOwnNamespaceBranch =
     let ops = createTestTypeOps ownerName "MyBranchType"
     let! _ = Inserts.insertAndApplyOps noInstance (Some branch.id) (Some ownerId) ops
 
-    // Check ops in branch: AddType + SetTypeName + ApproveItem
+    // Check ops in branch: AddType + SetTypeName (user must explicitly approve)
     let! branchOps = getOpsAfter maxRowidBefore (Some branch.id)
     let branchOpTypes = branchOps |> List.map opToTypeName
     Expect.equal
       branchOpTypes
-      [ "AddType"; "SetTypeName"; "ApproveItem" ]
-      "Own namespace (branch) should auto-approve: AddType + SetTypeName + ApproveItem"
+      [ "AddType"; "SetTypeName" ]
+      "Own namespace (branch): AddType + SetTypeName (pending until explicit approval)"
 
     // Check our type was NOT added to main
     let! mainOps = getOpsAfter maxRowidBefore noBranch
@@ -201,9 +204,46 @@ let testAddItemToOwnNamespaceBranch =
       (List.contains "MyBranchType" mainTypeNames)
       "Branch ops should not appear in main"
 
-    // Final state should be approved
+    // State should be pending until explicitly approved
     let! status = getApprovalStatus ownerName "MyBranchType"
-    Expect.equal status (Some "approved") "Status should be approved"
+    Expect.equal
+      status
+      (Some "pending")
+      "Status should be pending until explicitly approved"
+  }
+
+
+let testExplicitApprovalOwnNamespace =
+  testTask "explicit approval of own namespace item" {
+    let ownerName = "TestLea"
+    let! ownerId = setupNamespace ownerName ownerName
+
+    // Add a type to own namespace (starts pending)
+    let ops = createTestTypeOps ownerName "ExplicitApproveType"
+    let! _ = Inserts.insertAndApplyOps noInstance noBranch (Some ownerId) ops
+
+    // Verify it starts as pending
+    let! statusBefore = getApprovalStatus ownerName "ExplicitApproveType"
+    Expect.equal statusBefore (Some "pending") "Should start as pending"
+
+    // Get the location_id
+    let! locationIdOpt = getLocationId ownerName "ExplicitApproveType"
+    let locationId = Expect.wantSome locationIdOpt "Location should exist"
+
+    let! maxRowidBefore = getMaxRowid ()
+
+    // Explicitly approve
+    let! approved = Approvals.approveLocationDirectly locationId ownerId
+    Expect.isTrue approved "approveLocationDirectly should return true"
+
+    // Check that ApproveItem op was created
+    let! newOps = getOpsAfter maxRowidBefore noBranch
+    let opTypes = newOps |> List.map opToTypeName
+    Expect.equal opTypes [ "ApproveItem" ] "Should create ApproveItem op"
+
+    // Status should now be approved
+    let! statusAfter = getApprovalStatus ownerName "ExplicitApproveType"
+    Expect.equal statusAfter (Some "approved") "Status should be approved"
   }
 
 
@@ -612,6 +652,7 @@ let tests =
       "approvals"
       [ testAddItemToOwnNamespaceMain
         testAddItemToOwnNamespaceBranch
+        testExplicitApprovalOwnNamespace
         testAddItemToOthersNamespaceMain
         testAddItemToOthersNamespaceBranch
         testCreateApprovalRequestSingleItem
