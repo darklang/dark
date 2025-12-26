@@ -1906,7 +1906,7 @@ let moduleDeclarations =
   [ t
       "simple module"
       "module MyModule =\n  type ID = Int64"
-      "module MyModule =\n  type ID =\n    Int64"
+      "module Tests =\n  module MyModule =\n    type ID =\n      Int64"
       []
       []
       []
@@ -1919,7 +1919,7 @@ let moduleDeclarations =
   type MyString = String
   let myFn (i: Int64): Int64 = 1L
   val x = 100L"""
-      "module MyModule =\n  type ID =\n    Int64\n\n  type MyString =\n    String\n\n  let myFn (i: Int64): Int64 =\n    1L\n\n  val x = 100L"
+      "module Tests =\n  module MyModule =\n    type ID =\n      Int64\n\n    type MyString =\n      String\n\n    let myFn (i: Int64): Int64 =\n      1L\n\n    val x = 100L"
       []
       []
       []
@@ -1935,7 +1935,7 @@ let moduleDeclarations =
   let myFn (i: Int64): Int64 = 1L
 
   val x = 100L"""
-      "module MyModule =\n  type ID =\n    Int64\n\n  type MyString =\n    String\n\n  let myFn (i: Int64): Int64 =\n    1L\n\n  val x = 100L"
+      "module Tests =\n  module MyModule =\n    type ID =\n      Int64\n\n    type MyString =\n      String\n\n    let myFn (i: Int64): Int64 =\n      1L\n\n    val x = 100L"
       []
       []
       []
@@ -1951,7 +1951,7 @@ let moduleDeclarations =
       type ID = Int64
       val x = 100L
       1L"""
-      "module MyModule1 =\n  type ID =\n    Int64\n\n  module MyModule2 =\n    type ID =\n      Int64\n\n    module MyModule3 =\n      type ID =\n        Int64\n\n      val x = 100L\n\n      1L"
+      "module Tests =\n  module MyModule1 =\n    type ID =\n      Int64\n\n    module MyModule2 =\n      type ID =\n        Int64\n\n      module MyModule3 =\n        type ID =\n          Int64\n\n        val x = 100L\n\n        1L"
       []
       []
       []
