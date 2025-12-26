@@ -69,6 +69,7 @@ module Shell =
   type Shell =
     | Bash
     | Zsh
+    | Fish
     | PowerShell
 
   /// Determines the default shell used by the current user.
@@ -81,21 +82,24 @@ module Shell =
         match Stdlib.String.trim shell with
         | "/bin/bash" -> Stdlib.Result.Result.Ok Shell.Bash
         | "/bin/zsh" -> Stdlib.Result.Result.Ok Shell.Zsh
+        | shell when shell |> Stdlib.String.contains "/fish" ->
+          Stdlib.Result.Result.Ok Shell.Fish
         | _ ->
           Stdlib.Result.Result.Error
-            "Unsupported shell, if you are on Linux please use Bash or Zsh")
+            "Unsupported shell, if you are on Linux please use Bash, Zsh, or Fish")
 
     | Ok MacOS ->
       (Stdlib.Cli.executeWithStdOutOrStdErr "echo $SHELL")
       |> Stdlib.Result.andThen (fun shell ->
         match Stdlib.String.trim shell with
         | "/bin/zsh" -> Stdlib.Result.Result.Ok Shell.Zsh
-        // `echo $SHELL` could return `/opt/homebrew/bin/bash` it is specifically the path for bash when installed through Homebrew on macOS
         | shell when shell |> Stdlib.String.contains "/bin/bash" ->
           Stdlib.Result.Result.Ok Shell.Bash
+        | shell when shell |> Stdlib.String.contains "/fish" ->
+          Stdlib.Result.Result.Ok Shell.Fish
         | _ ->
           Stdlib.Result.Result.Error
-            "Unsupported shell, if you are on MacOS please use Bash or Zsh")
+            "Unsupported shell, if you are on MacOS please use Bash, Zsh, or Fish")
 
     | Ok Windows ->
       // TODO: Add support for Command Prompt
