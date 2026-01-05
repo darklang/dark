@@ -15,9 +15,28 @@
         "panel": "dedicated",
         "reveal": "never"
       },
-      "problemMatcher": [
-        "$tsc-watch"
-      ],
+      "problemMatcher": {
+        "owner": "esbuild",
+        "source": "esbuild",
+        "fileLocation": ["relative", "${workspaceFolder}/vscode-extension"],
+        "pattern": [
+          {
+            "regexp": "^✘ \\[ERROR\\] (.+)$",
+            "message": 1
+          },
+          {
+            "regexp": "^\\s+(.+):(\\d+):(\\d+):$",
+            "file": 1,
+            "line": 2,
+            "column": 3
+          }
+        ],
+        "background": {
+          "activeOnStart": true,
+          "beginsPattern": "\\[watch\\] build started",
+          "endsPattern": "\\[watch\\] build (finished|failed)"
+        }
+      },
       "options": {
         "cwd": "${workspaceFolder}/vscode-extension"
       }
