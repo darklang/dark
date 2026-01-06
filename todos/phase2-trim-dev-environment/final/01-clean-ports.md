@@ -1,32 +1,23 @@
 # Clean Up Forwarded Ports
 
-**Status**: [ ] Not started
+**Status**: [x] Complete
 
-## Current Port Forwarding
+## Port Investigation Results
 
-From `.devcontainer/devcontainer.json`:
-```json
-"forwardPorts": [
-  3275, 3276, 9000, 9001, 9002, 10011, 10012, 10030, 11001, 11002, 12002, 13002
-]
-```
-
-## Investigate Each Port
-
-| Port | Used For | Keep? |
-|------|----------|-------|
-| 3275 | ? | INVESTIGATE |
-| 3276 | ? | INVESTIGATE |
-| 9000 | ? | INVESTIGATE |
-| 9001 | ? | INVESTIGATE |
-| 9002 | ? | INVESTIGATE |
-| 10011 | ? | INVESTIGATE |
-| 10012 | ? | INVESTIGATE |
-| 10030 | ? | INVESTIGATE |
-| 11001 | BwdServer main | KEEP |
-| 11002 | BwdServer k8s | REVIEW |
-| 12002 | ? | INVESTIGATE |
-| 13002 | ? | INVESTIGATE |
+| Port | Used For | Action |
+|------|----------|--------|
+| 3275 | Old Executor serve port | REMOVED |
+| 3276 | Old Executor health check port | REMOVED |
+| 9000 | Old ApiServer port | REMOVED |
+| 9001 | Old ApiServer related | REMOVED |
+| 9002 | Old ApiServer related | REMOVED |
+| 10011 | Test BwdServer backend port | KEEP |
+| 10012 | Test BwdServer Kubernetes port | KEEP |
+| 10030 | Test HTTP client server port | KEEP |
+| 11001 | BwdServer main port | KEEP |
+| 11002 | BwdServer Kubernetes port | KEEP |
+| 12002 | Old CronChecker port | REMOVED |
+| 13002 | Old QueueWorker port | REMOVED |
 
 ## Search Commands
 

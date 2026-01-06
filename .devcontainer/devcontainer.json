@@ -40,10 +40,8 @@
   /////////////////////////////////////////////////
 
   // Ports are loaded in the build process
-  "forwardPorts": [
-    3275, 3276, 9000, 9001, 9002, 10011, 10012, 10030, 11001, 11002, 12002,
-    13002
-  ],
+  // Ports: 10011-10030 are test servers, 11001-11002 are BwdServer
+  "forwardPorts": [10011, 10012, 10030, 11001, 11002],
 
   "containerEnv": {
     "IN_DEV_CONTAINER": "true"
