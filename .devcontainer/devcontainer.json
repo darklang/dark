@@ -94,14 +94,6 @@
     "type=volume,src=dark_build,dst=/home/dark/app/backend/Build",
     "type=volume,src=dark_nuget,dst=/home/dark/.nuget",
 
-    // Postgres
-    "type=volume,src=pgconf,dst=/etc/postgresql",
-    "type=volume,src=pglogs,dst=/var/log/postgresql",
-    "type=volume,src=pgdata,dst=/var/lib/postgresql",
-
-    // Yugabyte
-    "type=volume,src=yugabyte,dst=/home/dark/yugabyte-data",
-
     // Tree-sitter
     "type=volume,src=tree-sitter-build,dst=/home/dark/tree-sitter-darklang/build",
     "type=volume,src=tree-sitter-node-modules,dst=/home/dark/tree-sitter-darklang/node_modules",
