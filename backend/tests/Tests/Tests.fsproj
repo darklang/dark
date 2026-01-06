@@ -51,7 +51,6 @@
     <!-- cloud stuff /-->
     <Compile Include="BwdServer.Tests.fs" />
     <Compile Include="Canvas.Tests.fs" />
-    <Compile Include="Cron.Tests.fs" />
     <Compile Include="DvalRepr.Tests.fs" />
     <Compile Include="Routing.Tests.fs" />
     <Compile Include="Serialization.TestValues.fs" />

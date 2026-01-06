@@ -56,7 +56,6 @@ let main (args : string array) : int =
         // cloud
         Tests.BwdServer.tests
         Tests.Canvas.tests
-        Tests.Cron.tests
         Tests.Routing.tests
         Tests.BinarySerialization.tests
         Tests.VanillaSerialization.tests

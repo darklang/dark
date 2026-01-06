@@ -37,7 +37,6 @@ nuget LaunchDarkly.ServerSdk = 8.0.0
 
 // LibCloud
 nuget Sodium.Core = 1.3.4
-nuget Google.Cloud.PubSub.V1 = 3.8.0
 
 // LocalExec
 nuget Legivel = 0.4.6

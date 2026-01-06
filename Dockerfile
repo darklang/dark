@@ -61,13 +61,9 @@ RUN DEBIAN_FRONTEND=noninteractive \
 
 # Latest NPM (taken from https://deb.nodesource.com)
 RUN curl -fsSL https://deb.nodesource.com/gpgkey/nodesource-repo.gpg.key | gpg --dearmor -o /etc/apt/keyrings/nodesource.gpg
-RUN curl -sSL https://dl.google.com/linux/linux_signing_key.pub | apt-key add -
-RUN curl -sSL https://packages.cloud.google.com/apt/doc/apt-key.gpg | apt-key add -
 RUN curl -sSL https://apt.releases.hashicorp.com/gpg | apt-key add -
 
 RUN echo "deb [signed-by=/etc/apt/keyrings/nodesource.gpg] https://deb.nodesource.com/node_20.x nodistro main" | tee /etc/apt/sources.list.d/nodesource.list
-
-RUN echo "deb http://packages.cloud.google.com/apt cloud-sdk main" > /etc/apt/sources.list.d/google-cloud-sdk.list
 
 RUN echo "deb https://apt.releases.hashicorp.com $(lsb_release -cs) main" > /etc/apt/sources.list.d/hashicorp.list
 
@@ -98,9 +94,6 @@ RUN DEBIAN_FRONTEND=noninteractive \
       git-restore-mtime \
       nodejs \
       sqlite3 \
-      google-cloud-sdk \
-      google-cloud-sdk-pubsub-emulator \
-      google-cloud-sdk-gke-gcloud-auth-plugin \
       jq \
       parallel \
       ntp \
@@ -205,17 +198,6 @@ RUN /home/dark/install-gz-file \
   --amd64-sha256=704a31cd89911a0f7d1741ee9ca32ca0f5496b06370bf398dfc5b7d3a31ef563 \
   --url=https://github.com/jpillora/chisel/releases/download/v1.9.1/chisel_1.9.1_linux_${TARGETARCH}.gz \
   --target=/usr/bin/chisel
-
-############################
-# Java version management
-############################
-# Set Java 11 as default for gcloud tools (including PubSub emulator)
-ENV JAVA_HOME=/usr/lib/jvm/java-11-openjdk-${TARGETARCH}
-
-############################
-# PubSub
-############################
-ENV PUBSUB_EMULATOR_HOST=localhost:8085
 
 ############################
 # Pip packages
@@ -349,7 +331,6 @@ USER dark
 
 # Add all the mounts here so that they have the right permissions
 RUN touch .bash_history
-RUN mkdir -p .config/gcloud
 RUN mkdir -p .config/configstore
 RUN mkdir -p .terraform.d/
 RUN mkdir -p app

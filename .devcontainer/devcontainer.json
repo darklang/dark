@@ -83,7 +83,6 @@
     // "type=bind,src=/var/run/docker.sock,dst=/var/run/docker.sock",
 
     // Credentials
-    "type=volume,src=gcloud_creds,dst=/home/dark/.config/gcloud",
     "type=volume,src=terraform_creds,dst=/home/dark/.terraform.d",
 
     // Bash history - uncomment this to save bash history between container restarts

@@ -30,8 +30,6 @@
     <Compile Include="Serialize.fs" />
     <Compile Include="Secret.fs" />
     <Compile Include="Canvas.fs" />
-    <Compile Include="Queue.fs" />
-    <Compile Include="Cron.fs" />
     <Compile Include="Tracing.fs" />
 
     <Compile Include="Init.fs" />

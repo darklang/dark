@@ -1,12 +1,10 @@
 /// Builtin functions for emitting events
 ///
-/// Those events are handled by Workers
+/// Note: Workers/QueueWorker have been removed. emit is now a no-op that returns the event.
 module BuiltinCloudExecution.Libs.Event
 
 open Prelude
 open LibExecution.RuntimeTypes
-
-module Queue = LibCloud.Queue
 
 open LibExecution.Builtin.Shortcuts
 
@@ -17,21 +15,12 @@ let fns : List<BuiltInFn> =
       typeParams = []
       parameters = [ Param.make "event" (tvar "a") ""; Param.make "name" TString "" ]
       returnType = tvar "a"
-      description = "Emit a <param event> to the <param name> worker"
+      description = "Emit a <param event> to the <param name> worker (no-op, workers removed)"
       fn =
         (function
-        | exeState, _, _, [ data; DString name ] ->
-          uply {
-            let canvasID = exeState.program.canvasID
-
-            do!
-              // Handlers in our Sqlite DB are all stored in the same table.
-              // Typically they have 3 fields (e.g. `Http`, `/path`, `GET`).
-              // The "_" exists here to fit that shape, even though, workers don't need it.
-              Queue.enqueueNow canvasID "WORKER" name "_" data
-
-            return data
-          }
+        | _, _, _, [ data; DString _ ] ->
+          // Workers have been removed, so emit is now a no-op
+          Ply data
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure

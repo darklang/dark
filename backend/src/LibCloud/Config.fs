@@ -51,12 +51,6 @@ let dir (root : Root) : string =
 // Running the server
 // -------------------------
 
-// If we have production data in a non-production environment, we don't want to trigger their crons
-let triggerCrons = bool "DARK_CONFIG_TRIGGER_CRONS"
-
-// Stop my fans from spinning
-let pauseBetweenCronsInMs = int "DARK_CONFIG_PAUSE_BETWEEN_CRONS"
-
 let httpclientTimeoutInMs = int "DARK_CONFIG_HTTPCLIENT_TIMEOUT_IN_MS"
 
 
@@ -109,21 +103,6 @@ let pusherKey = string "DARK_CONFIG_PUSHER_KEY"
 let pusherSecret = credentials "DARK_CONFIG_PUSHER_SECRET"
 
 let pusherCluster = credentials "DARK_CONFIG_PUSHER_CLUSTER"
-
-
-// -------------------------
-// Queues
-// -------------------------
-let queuePubSubProjectID = string "DARK_CONFIG_QUEUE_PUBSUB_PROJECT_ID"
-
-let queuePubSubTopicName = string "DARK_CONFIG_QUEUE_PUBSUB_TOPIC_NAME"
-
-let queuePubSubSubscriptionName = string "DARK_CONFIG_QUEUE_PUBSUB_SUBSCRIPTION_NAME"
-
-let queuePubSubCreateTopic = bool "DARK_CONFIG_QUEUE_PUBSUB_CREATE_TOPIC"
-
-let queuePubSubCredentials = credentialsOption "DARK_CONFIG_QUEUE_PUBSUB_CREDENTIALS"
-
 
 
 // -------------------------
