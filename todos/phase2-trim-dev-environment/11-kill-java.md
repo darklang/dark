@@ -1,6 +1,6 @@
 # Kill Java
 
-**Status**: [ ] Not started
+**Status**: [x] Complete
 
 ## What's Being Removed?
 
