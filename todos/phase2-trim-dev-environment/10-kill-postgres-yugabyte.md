@@ -1,6 +1,6 @@
 # Kill PostgreSQL and YugaByte
 
-**Status**: [ ] Not started
+**Status**: [x] Complete
 
 ## What's Being Removed?
 
