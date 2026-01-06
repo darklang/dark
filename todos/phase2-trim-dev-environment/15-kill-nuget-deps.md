@@ -1,6 +1,6 @@
 # Kill Unused NuGet Dependencies
 
-**Status**: [ ] Not started
+**Status**: [x] Complete
 
 ## Dependencies to Remove
 
