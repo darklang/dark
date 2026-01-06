@@ -44,7 +44,7 @@ This directory contains the task breakdown for trimming the Darklang codebase. E
 - [x] [final/03-clean-docs.md](phase2-trim-dev-environment/final/03-clean-docs.md)
 
 ### Phase 2.5: Dev Cycle Analysis
-- [ ] [01-analyze-compile-scripts.md](phase2.5-dev-cycle-analysis/01-analyze-compile-scripts.md)
+- [x] [01-analyze-compile-scripts.md](phase2.5-dev-cycle-analysis/01-analyze-compile-scripts.md)
 
 ## Notes
 
