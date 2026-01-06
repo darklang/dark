@@ -30,7 +30,7 @@ This directory contains the task breakdown for trimming the Darklang codebase. E
 - [x] [05-kill-second-instance.md](phase2-trim-dev-environment/05-kill-second-instance.md)
 - [x] [06-kill-honeycomb-otel.md](phase2-trim-dev-environment/06-kill-honeycomb-otel.md)
 - [x] [07-kill-prod-containers.md](phase2-trim-dev-environment/07-kill-prod-containers.md)
-- [ ] [08-delete-datatests.md](phase2-trim-dev-environment/08-delete-datatests.md)
+- [x] [08-delete-datatests.md](phase2-trim-dev-environment/08-delete-datatests.md)
 - [ ] [09-kill-gcloud-pubsub.md](phase2-trim-dev-environment/09-kill-gcloud-pubsub.md)
 - [ ] [10-kill-postgres-yugabyte.md](phase2-trim-dev-environment/10-kill-postgres-yugabyte.md)
 - [ ] [11-kill-java.md](phase2-trim-dev-environment/11-kill-java.md)
