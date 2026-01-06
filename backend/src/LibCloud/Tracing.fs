@@ -41,8 +41,7 @@ module TraceSamplingRule =
 
   /// Get the trace sampling rule for a handler. Always returns SampleAll now that
   /// LaunchDarkly has been removed.
-  let ruleForHandler (_canvasID : CanvasID) (_tlid : tlid) : T =
-    SampleAll
+  let ruleForHandler (_canvasID : CanvasID) (_tlid : tlid) : T = SampleAll
 
 
 

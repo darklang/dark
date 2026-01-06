@@ -313,8 +313,7 @@ let runDarkHandler (ctx : HttpContext) : Task<HttpContext> =
         return! faviconResponse ctx
 
       // no matching route found - store as 404
-      | [] ->
-        return! noHandlerResponse ctx
+      | [] -> return! noHandlerResponse ctx
       | _ -> return! moreThanOneHandlerResponse ctx
     | None -> return! canvasNotFoundResponse ctx
   }

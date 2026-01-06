@@ -151,9 +151,7 @@ let runKubernetesServer
   registerShutdownCallback shutdownCallback
 
   let app = builder.Build()
-  app.UseRouting()
-  |> configureApp port
-  |> ignore<IApplicationBuilder>
+  app.UseRouting() |> configureApp port |> ignore<IApplicationBuilder>
   app.RunAsync()
 
 
