@@ -1,6 +1,6 @@
 # Trim CircleCI Configuration
 
-**Status**: [ ] Not started
+**Status**: [x] Complete
 
 ## Current CircleCI Jobs
 

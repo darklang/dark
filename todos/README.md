@@ -24,7 +24,7 @@ This directory contains the task breakdown for trimming the Darklang codebase. E
 
 ### Phase 2: Trim Dev Environment
 - [x] [01-remove-deployment-terraform.md](phase2-trim-dev-environment/01-remove-deployment-terraform.md)
-- [ ] [02-trim-circleci.md](phase2-trim-dev-environment/02-trim-circleci.md)
+- [x] [02-trim-circleci.md](phase2-trim-dev-environment/02-trim-circleci.md)
 - [ ] [03-kill-docker-ce.md](phase2-trim-dev-environment/03-kill-docker-ce.md)
 - [ ] [04-trim-vscode-extensions.md](phase2-trim-dev-environment/04-trim-vscode-extensions.md)
 - [ ] [05-kill-second-instance.md](phase2-trim-dev-environment/05-kill-second-instance.md)
