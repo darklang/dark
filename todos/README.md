@@ -18,7 +18,7 @@ This directory contains the task breakdown for trimming the Darklang codebase. E
 - [x] [02-delete-queueworker.md](phase1-remove-product-features/02-delete-queueworker.md)
 - [x] [03-delete-cronchecker.md](phase1-remove-product-features/03-delete-cronchecker.md)
 - [x] [04-trim-builtin-dark-internal.md](phase1-remove-product-features/04-trim-builtin-dark-internal.md)
-- [ ] [05-delete-libclienttypes.md](phase1-remove-product-features/05-delete-libclienttypes.md)
+- [x] [05-delete-libclienttypes.md](phase1-remove-product-features/05-delete-libclienttypes.md)
 - [ ] [06-delete-wasm.md](phase1-remove-product-features/06-delete-wasm.md)
 - [ ] [07-clean-backend-static.md](phase1-remove-product-features/07-clean-backend-static.md)
 

@@ -1,6 +1,6 @@
 # Delete LibClientTypes and LibClientTypesToCloudTypes
 
-**Status**: [ ] Not started
+**Status**: [x] Complete
 
 ## What are these?
 
