@@ -1,6 +1,6 @@
 # Kill Second Instance Scripts
 
-**Status**: [ ] Not started
+**Status**: [x] Complete
 
 ## What's Being Removed?
 

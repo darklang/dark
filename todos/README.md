@@ -27,7 +27,7 @@ This directory contains the task breakdown for trimming the Darklang codebase. E
 - [x] [02-trim-circleci.md](phase2-trim-dev-environment/02-trim-circleci.md)
 - [x] [03-kill-docker-ce.md](phase2-trim-dev-environment/03-kill-docker-ce.md)
 - [x] [04-trim-vscode-extensions.md](phase2-trim-dev-environment/04-trim-vscode-extensions.md)
-- [ ] [05-kill-second-instance.md](phase2-trim-dev-environment/05-kill-second-instance.md)
+- [x] [05-kill-second-instance.md](phase2-trim-dev-environment/05-kill-second-instance.md)
 - [ ] [06-kill-honeycomb-otel.md](phase2-trim-dev-environment/06-kill-honeycomb-otel.md)
 - [ ] [07-kill-prod-containers.md](phase2-trim-dev-environment/07-kill-prod-containers.md)
 - [ ] [08-delete-datatests.md](phase2-trim-dev-environment/08-delete-datatests.md)
