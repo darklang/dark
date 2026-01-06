@@ -106,7 +106,7 @@ let fns : List<BuiltInFn> =
         | _, _, _, [ DString s ] ->
           s |> String.lengthInEgcs |> int64 |> Dval.int64 |> Ply
         | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplemented // there isn't a unicode version of length
+      sqlSpec = SqlFunction "LENGTH" // Note: SQLite LENGTH counts characters, not EGCs
       previewable = Pure
       deprecated = NotDeprecated }
 
@@ -420,7 +420,7 @@ let fns : List<BuiltInFn> =
           let index = str.IndexOf(search)
           Ply(DInt64 index)
         | _ -> incorrectArgs ())
-      sqlSpec = SqlCallback2(fun str search -> $"strpos({str}, {search}) - 1")
+      sqlSpec = SqlCallback2(fun str search -> $"(INSTR({str}, {search}) - 1)")
       previewable = Pure
       deprecated = NotDeprecated }
 

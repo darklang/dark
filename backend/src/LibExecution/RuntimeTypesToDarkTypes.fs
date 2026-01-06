@@ -1345,6 +1345,7 @@ module RuntimeError =
       | RuntimeError.Unwrap e -> "Unwrap", [ Unwraps.toDT e ]
       | RuntimeError.Json e -> "Json", [ Jsons.toDT e ]
       | RuntimeError.CLI e -> "CLI", [ CLIs.toDT e ]
+      | RuntimeError.SqlCompiler errMsg -> "SqlCompiler", [ DString errMsg ]
       | RuntimeError.UncaughtException(msg, metadata) ->
         "UncaughtException",
         [ DString msg
@@ -1399,6 +1400,8 @@ module RuntimeError =
     | DEnum(_, _, [], "Unwrap", [ e ]) -> RuntimeError.Unwrap(Unwraps.fromDT e)
     | DEnum(_, _, [], "Json", [ e ]) -> RuntimeError.Json(Jsons.fromDT e)
     | DEnum(_, _, [], "CLI", [ e ]) -> RuntimeError.CLI(CLIs.fromDT e)
+    | DEnum(_, _, [], "SqlCompiler", [ DString errMsg ]) ->
+      RuntimeError.SqlCompiler errMsg
     | DEnum(_, _, [], "UncaughtException", [ DString msg; DList(_, metadata) ]) ->
       RuntimeError.UncaughtException(
         msg,

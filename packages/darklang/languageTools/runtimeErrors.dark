@@ -177,4 +177,6 @@ type Error =
 
   | DBSetOfWrongType of expected: TypeReference * actual: ValueType
 
+  | SqlCompiler of errMsg: String
+
   | UncaughtException of msg : String * metadata : List<(String * Dval)>

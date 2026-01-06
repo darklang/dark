@@ -63,7 +63,13 @@ module Sql =
     }
 
   let executeAsync rr props =
-    Sql.executeAsync rr props |> Async.StartAsTask |> Task.map Result.unwrap
+    Sql.executeAsync rr props
+    |> Async.StartAsTask
+    |> Task.map (fun r ->
+      match r with
+      | Ok v -> v
+      | Error err ->
+        Exception.raiseInternal $"SQL query failed: {err}" [ "error", err ])
 
   let executeExistsSync (props : Sql.SqlProps) : bool =
     match Sql.execute (fun read -> read.bool 0) props with

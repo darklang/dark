@@ -61,38 +61,38 @@ let generateKey () : String = Builtin.dbGenerateKey ()
 let keys (table: 'a) : List<String> = Builtin.dbKeys table
 
 
-// /// Fetch all the values from <param table> for which filter returns true. Note that this does not check every value in <param table>,
-// /// but rather is optimized to find data with indexes. Errors at compile-time if Dark's compiler does not support the code in question.
-// let query (table: 'a) (filter: ('a -> Bool)) : List<'a> =
-//   Builtin.dbQuery table filter
+/// Fetch all the values from <param table> for which filter returns true. Note that this does not check every value in <param table>,
+/// but rather is optimized to find data with indexes. Errors at compile-time if Dark's compiler does not support the code in question.
+let query (table: 'a) (filter: ('a -> Bool)) : List<'a> =
+  Builtin.dbQuery table filter
 
 
-// /// Fetch all the values from <param table> for which filter returns true, returning {key : value} as an dict.
-// /// Note that this does not check every value in <param table>, but rather is optimized to find data with indexes.
-// /// Errors at compile-time if Dark's compiler does not support the code in question.
-// let queryWithKey (table: 'a) (filter: ('a -> Bool)) : Dict<'a> =
-//   Builtin.dbQueryWithKey table filter
+/// Fetch all the values from <param table> for which filter returns true, returning {key : value} as an dict.
+/// Note that this does not check every value in <param table>, but rather is optimized to find data with indexes.
+/// Errors at compile-time if Dark's compiler does not support the code in question.
+let queryWithKey (table: 'a) (filter: ('a -> Bool)) : Dict<'a> =
+  Builtin.dbQueryWithKey table filter
 
 
-// /// Fetch exactly one value from <param table> for which filter returns true.
-// /// Note that this does not check every value in <param table>, but rather is optimized to find data with indexes.
-// /// If there is exactly one value, it returns Some value and if there is none or more than 1 found, it returns None.
-// /// Errors at compile-time if Dark's compiler does not support the code in question.
-// let queryOne (table: 'a) (filter: ('a -> Bool)) : Stdlib.Option.Option<'a> =
-//   Builtin.dbQueryOne table filter
+/// Fetch exactly one value from <param table> for which filter returns true.
+/// Note that this does not check every value in <param table>, but rather is optimized to find data with indexes.
+/// If there is exactly one value, it returns Some value and if there is none or more than 1 found, it returns None.
+/// Errors at compile-time if Dark's compiler does not support the code in question.
+let queryOne (table: 'a) (filter: ('a -> Bool)) : Stdlib.Option.Option<'a> =
+  Builtin.dbQueryOne table filter
 
 
-// /// Fetch exactly one value from <param table> for which filter returns true. Note that this does not check every value in <param table>,
-// /// but rather is optimized to find data with indexes. If there is exactly one key/value pair, it returns Some {key: value} and if there is none or more than 1 found, it returns None.
-// /// Errors at compile-time if Dark's compiler does not support the code in question.
-// let queryOneWithKey
-//   (table: 'a)
-//   (filter: ('a -> Bool))
-//   : Stdlib.Option.Option<String * 'a> =
-//   Builtin.dbQueryOneWithKey table filter
+/// Fetch exactly one value from <param table> for which filter returns true. Note that this does not check every value in <param table>,
+/// but rather is optimized to find data with indexes. If there is exactly one key/value pair, it returns Some {key: value} and if there is none or more than 1 found, it returns None.
+/// Errors at compile-time if Dark's compiler does not support the code in question.
+let queryOneWithKey
+  (table: 'a)
+  (filter: ('a -> Bool))
+  : Stdlib.Option.Option<String * 'a> =
+  Builtin.dbQueryOneWithKey table filter
 
 
-// /// Return the number of items from <param table> for which filter returns true. Note that this does not check every value in <param table>, but rather is optimized to find data with indexes.
-// /// Errors at compile-time if Dark's compiler does not support the code in question.
-// let queryCount (table: 'a) (filter: ('a -> Bool)) : Int64 =
-//   Builtin.dbQueryCount table filter
+/// Return the number of items from <param table> for which filter returns true. Note that this does not check every value in <param table>, but rather is optimized to find data with indexes.
+/// Errors at compile-time if Dark's compiler does not support the code in question.
+let queryCount (table: 'a) (filter: ('a -> Bool)) : Int64 =
+  Builtin.dbQueryCount table filter

@@ -29,6 +29,7 @@
     <!-- Dev-time, Language Design, Mental Model /-->
     <Compile Include="ProgramTypes.fs" />
     <Compile Include="ProgramTypesAst.fs" />
+    <Compile Include="RTQueryCompiler.fs" />
     <Compile Include="ProgramTypesToRuntimeTypes.fs" />
     <Compile Include="ProgramTypesParser.fs" />
     <!-- User+Runtime I/O /-->

@@ -190,7 +190,7 @@ let fns : List<BuiltInFn> =
            with :? System.OverflowException ->
              RTE.Ints.OutOfRange |> RTE.Int |> raiseRTE vm.threadID)
         | _ -> incorrectArgs ())
-      sqlSpec = SqlBinOp "^"
+      sqlSpec = SqlFunction "POWER"
       previewable = Pure
       deprecated = NotDeprecated }
 
