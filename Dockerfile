@@ -83,7 +83,6 @@ RUN DEBIAN_FRONTEND=noninteractive \
     apt install \
       --no-install-recommends \
       -y \
-      rsync \
       git \
       wget \
       sudo \
@@ -102,8 +101,6 @@ RUN DEBIAN_FRONTEND=noninteractive \
       libsodium-dev \
       libssl-dev \
       zlib1g-dev \
-      pv \
-      htop \
       net-tools \
       bash-completion \
       dnsutils \
