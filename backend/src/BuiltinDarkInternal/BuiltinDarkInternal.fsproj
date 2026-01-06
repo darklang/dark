@@ -14,7 +14,6 @@
     <ProjectReference Include="../DvalReprDeveloper/DvalReprDeveloper.fsproj" />
     <ProjectReference Include="../LibDB/LibDB.fsproj" />
     <ProjectReference Include="../LibCloud/LibCloud.fsproj" />
-    <ProjectReference Include="../LibClientTypesToCloudTypes/LibClientTypesToCloudTypes.fsproj" />
   </ItemGroup>
   <ItemGroup>
     <None Include="paket.references" />

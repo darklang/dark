@@ -13,7 +13,6 @@ module Config = LibCloud.Config
 
 module PT = LibExecution.ProgramTypes
 module RT = LibExecution.RuntimeTypes
-module WorkerStates = LibCloud.QueueSchedulingRules.WorkerStates
 
 module V = SerializationTestValues
 
@@ -99,30 +98,6 @@ module PersistedSerializations =
         v<LibExecution.ProgramTypes.Toplevel.T>
           "db"
           (PT.Toplevel.TLDB V.ProgramTypes.userDB)
-
-        // ------------------
-        // LibCloud
-        // ------------------
-        v<LibCloud.Queue.NotificationData>
-          "simple"
-          { id = V.uuid; canvasID = V.uuid }
-
-
-        // ------------------
-        // Used by Pusher
-        // ------------------
-        v<LibClientTypes.Pusher.Payload.NewTrace> "simple" (V.uuid, V.tlids)
-        v<LibClientTypes.Pusher.Payload.New404>
-          "simple"
-          ("HTTP", "/", "GET", V.instant, V.uuid)
-        // v<LibClientTypes.Pusher.Payload.UpdateWorkerStates>
-        //   "pusher-update-worker-states"
-        //   CV.workerStates
-        // v<LibClientTypes.Pusher.Payload.AddOpV1> "simple" CV.addOpEventV1
-        // v<LibClientTypes.Pusher.Payload.AddOpV1PayloadTooBig> // this is so-far unused
-        //   "simple"
-        //   { tlids = testTLIDs }
-
 
         // ------------------
         // Tests

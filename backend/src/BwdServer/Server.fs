@@ -39,8 +39,6 @@ module Rollbar = LibService.Rollbar
 module Telemetry = LibService.Telemetry
 module Logging = LibService.Logging
 
-module CTPusher = LibClientTypes.Pusher
-
 // HttpHandlerTODO there are still a number of things in this file that were
 // written with the original Http handler+middleware in mind, and aren't
 // appropriate more generally. Much of this should be migrated to the module in
@@ -318,7 +316,6 @@ let runDarkHandler (ctx : HttpContext) : Task<HttpContext> =
           let! canvas = Canvas.toProgram canvas
           let! (result, _) =
             CloudExe.executeHandler
-              LibClientTypesToCloudTypes.Pusher.eventSerializer
               handler
               canvas
               traceID
@@ -348,17 +345,6 @@ let runDarkHandler (ctx : HttpContext) : Task<HttpContext> =
         // TODO: reenable using CloudStorage
         // let! reqBody = getBody ctx
         // let reqHeaders = getHeadersWithoutMergingKeys ctx
-        // let event = LibHttpMiddleware.Request.fromRequest url reqHeaders reqBody
-        // let! timestamp = TI.storeEvent canvasID traceID desc event
-
-        // CLEANUP: move pusher into storeEvent
-        // Send to pusher - do not resolve task, send this into the ether
-        // Pusher.push
-        //   LibClientTypesToCloudTypes.Pusher.eventSerializer
-        //   canvasID
-        //   (Pusher.New404("HTTP", requestPath, requestMethod, timestamp, traceID))
-        //   None
-
         return! noHandlerResponse ctx
       | _ -> return! moreThanOneHandlerResponse ctx
     | None -> return! canvasNotFoundResponse ctx
@@ -467,16 +453,7 @@ let initSerializers () =
   Json.Vanilla.allow<List<LibExecution.ProgramTypes.Toplevel.T>>
     "Canvas.loadJsonFromDisk"
   Json.Vanilla.allow<LibExecution.ProgramTypes.Toplevel.T> "Canvas.loadJsonFromDisk"
-  Json.Vanilla.allow<LibCloud.Queue.NotificationData> "eventqueue storage"
   Json.Vanilla.allow<LibService.Rollbar.HoneycombJson> "Rollbar"
-
-  // for Pusher.com payloads
-  Json.Vanilla.allow<CTPusher.Payload.NewTrace> "Pusher"
-  Json.Vanilla.allow<CTPusher.Payload.New404> "Pusher"
-// Json.Vanilla.allow<CTPusher.Payload.AddOpV1> "Pusher"
-// Json.Vanilla.allow<CTPusher.Payload.AddOpV1PayloadTooBig> "Pusher" // this is so-far unused
-// Json.Vanilla.allow<CTPusher.Payload.UpdateWorkerStates> "Pusher"
-
 
 
 [<EntryPoint>]

@@ -96,12 +96,9 @@ type ExecutionReason =
 /// - the first execution, which will
 ///   - have an ExecutionReason of InitialExecution
 ///   - initialize traces
-///   - send pushes
 /// - or ReExecution, which will
 ///   - update existing traces
-///   - not send pushes
 let executeHandler
-  (pusherSerializer : Pusher.PusherEventSerializer)
   (h : PT.Handler.T)
   (program : RT.Program)
   (traceID : AT.TraceID.T)
@@ -175,17 +172,6 @@ let executeHandler
       }
 
     tracing.storeTraceResults ()
-
-    match reason with
-    | ReExecution -> ()
-    | InitialExecution _ ->
-      if tracing.enabled then
-        let tlids = HashSet.toList tracing.results.tlids
-        Pusher.push
-          pusherSerializer
-          program.canvasID
-          (Pusher.NewTrace(traceID, tlids))
-          None
 
     return (result, tracing.results)
   }
