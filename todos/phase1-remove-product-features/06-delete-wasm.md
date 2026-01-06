@@ -1,6 +1,6 @@
 # Delete WASM
 
-**Status**: [ ] Not started
+**Status**: [x] Complete
 
 ## What is WASM?
 
