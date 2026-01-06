@@ -1,6 +1,6 @@
 # Clean Up Docs Directory
 
-**Status**: [ ] Not started
+**Status**: [x] Complete
 
 ## Current Docs
 

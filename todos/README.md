@@ -41,7 +41,7 @@ This directory contains the task breakdown for trimming the Darklang codebase. E
 - [x] [16-kill-chisel.md](phase2-trim-dev-environment/16-kill-chisel.md)
 - [x] [final/01-clean-ports.md](phase2-trim-dev-environment/final/01-clean-ports.md)
 - [x] [final/02-clean-scripts.md](phase2-trim-dev-environment/final/02-clean-scripts.md)
-- [ ] [final/03-clean-docs.md](phase2-trim-dev-environment/final/03-clean-docs.md)
+- [x] [final/03-clean-docs.md](phase2-trim-dev-environment/final/03-clean-docs.md)
 
 ### Phase 2.5: Dev Cycle Analysis
 - [ ] [01-analyze-compile-scripts.md](phase2.5-dev-cycle-analysis/01-analyze-compile-scripts.md)
