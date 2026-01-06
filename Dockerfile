@@ -175,15 +175,6 @@ RUN sudo npm install -g prettier@3.0.2
 COPY --chown=dark:dark --chmod=755 ./scripts/installers/* .
 
 ############################
-# Chisel
-############################
-RUN /home/dark/install-gz-file \
-  --arm64-sha256=05f5eabab4a5f65f2bb08d967d6af41247465af213f1c874ad0e059c0a3ebedc \
-  --amd64-sha256=704a31cd89911a0f7d1741ee9ca32ca0f5496b06370bf398dfc5b7d3a31ef563 \
-  --url=https://github.com/jpillora/chisel/releases/download/v1.9.1/chisel_1.9.1_linux_${TARGETARCH}.gz \
-  --target=/usr/bin/chisel
-
-############################
 # Pip packages
 ############################
 RUN python3 -m venv /home/dark/.local \
