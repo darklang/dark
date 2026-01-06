@@ -1,6 +1,6 @@
 # Remove Deployment Infrastructure (Terraform)
 
-**Status**: [ ] Not started
+**Status**: [x] Complete
 
 ## What's Being Removed?
 
