@@ -53,7 +53,6 @@
     <Compile Include="Canvas.Tests.fs" />
     <Compile Include="Cron.Tests.fs" />
     <Compile Include="DvalRepr.Tests.fs" />
-    <Compile Include="QueueSchedulingRules.Tests.fs" />
     <Compile Include="Routing.Tests.fs" />
     <Compile Include="Serialization.TestValues.fs" />
     <Compile Include="Serialization.Binary.Tests.fs" />

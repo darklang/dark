@@ -27,7 +27,6 @@ module PT2RT = LibExecution.ProgramTypesToRuntimeTypes
 
 module Canvas = LibCloud.Canvas
 module Routing = LibCloud.Routing
-module Pusher = LibCloud.Pusher
 
 module LibHttpMiddleware = LibHttpMiddleware.Http
 

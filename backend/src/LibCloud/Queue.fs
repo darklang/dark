@@ -1,15 +1,14 @@
-/// Queue/Event system for Workers (including Crons). See [the docs](/docs/eventsV2.md).
+/// Queue/Event system for Workers (including Crons).
+/// Note: QueueWorker and CronChecker have been removed, so events stored here
+/// are not processed. This module is kept for the emit builtin to work without
+/// errors, though events go nowhere.
 module LibCloud.Queue
 
 open System.Threading.Tasks
 open FSharp.Control.Tasks
 
-open Microsoft.Data.Sqlite
 open Fumble
 open LibDB.Db
-
-open Google.Cloud.PubSub.V1
-open Grpc.Auth
 
 type Instant = NodaTime.Instant
 
@@ -20,9 +19,6 @@ module Telemetry = LibService.Telemetry
 module DvalReprInternalRoundtrippable = LibExecution.DvalReprInternalRoundtrippable
 module PT = LibExecution.ProgramTypes
 module RT = LibExecution.RuntimeTypes
-module SchedulingRules = QueueSchedulingRules
-
-module LD = LibService.LaunchDarkly
 
 /// -----------------
 /// Types
@@ -30,23 +26,10 @@ module LD = LibService.LaunchDarkly
 
 type EventID = System.Guid
 
-/// Notifications are sent by PubSub to say that now would be a good time to try this
-/// event. We only load events in response to notifications.
-
+/// Notification data structure (kept for serialization compatibility)
 type NotificationData = { id : EventID; canvasID : CanvasID }
 
-type Notification =
-  {
-    data : NotificationData
-    pubSubMessageID : string
-    /// The first delivery has value 1
-    deliveryAttempt : int
-    timeInQueue : System.TimeSpan
-    pubSubAckID : string
-  }
-
-/// Events are stored in the DB and are the source of truth for when and how an event
-/// should be executed. When they are complete, they are deleted.
+/// Events are stored in the DB. Without QueueWorker, they are never processed.
 type T =
   { id : EventID
     canvasID : CanvasID
@@ -61,7 +44,6 @@ let toEventDesc t = (t.module', t.name, t.modifier)
 
 /// -----------------
 /// Database
-/// The events_v2 is the source of truth for the queue
 /// -----------------
 
 let createEventAtTime
@@ -126,7 +108,7 @@ let loadEventIDs
       AND name = @name
       AND modifier = @modifier
       AND canvas_id = @canvasID
-    LIMIT 1000" // don't go overboard
+    LIMIT 1000"
   |> Sql.parameters
     [ "canvasID", Sql.uuid canvasID
       "module", Sql.string module'
@@ -146,7 +128,7 @@ module Test =
         AND name = @name
         AND modifier = @modifier
         AND canvas_id = @canvasID
-      LIMIT 1000" // don't go overboard
+      LIMIT 1000"
     |> Sql.parameters
       [ "canvasID", Sql.uuid canvasID
         "module", Sql.string module'
@@ -154,7 +136,6 @@ module Test =
         "modifier", Sql.string modifier ]
     |> Sql.executeAsync (fun read ->
       read.string "value" |> DvalReprInternalRoundtrippable.parseJsonV0)
-
 
 
 let deleteEvent (event : T) : Task<unit> =
@@ -166,176 +147,9 @@ let deleteEvent (event : T) : Task<unit> =
     [ "eventID", Sql.uuid event.id; "canvasID", Sql.uuid event.canvasID ]
   |> Sql.executeStatementAsync
 
-/// Claim the lock by setting the lockedAt field. Must have already determined in
-/// queue logic that this is OK to do. The update checks the old value and this
-/// function will return Error without updating the DB if it does not see the
-/// expected value.
-let claimLock (event : T) (_n : Notification) : Task<Result<unit, string>> =
-  task {
-    let! rowCount =
-      Sql.query
-        $"UPDATE queue_events_v0
-            SET locked_at = CURRENT_TIMESTAMP
-          WHERE id = @eventID
-            AND canvas_id = @canvasID
-            AND locked_at IS NOT DISTINCT FROM @currentLockedAt"
-      // IS NOT DISTINCT FROM is like `=`, but it allows a null value
-      |> Sql.parameters
-        [ "eventID", Sql.uuid event.id
-          "canvasID", Sql.uuid event.canvasID
-          "currentLockedAt", Sql.instantOrNone event.lockedAt ]
-      |> Sql.executeNonQueryAsync
-    if rowCount = 1 then return Ok()
-    else if rowCount = 0 then return Error "LockNotClaimed"
-    else return Error $"LockError: Invalid count: {rowCount}"
-  }
-
 /// -----------------
-/// PubSub
+/// Enqueue (stores events but they won't be processed)
 /// -----------------
-
-
-let topicName = TopicName(Config.queuePubSubProjectID, Config.queuePubSubTopicName)
-
-let subscriptionName =
-  SubscriptionName(Config.queuePubSubProjectID, Config.queuePubSubSubscriptionName)
-
-
-let credentials : Option<Grpc.Core.ChannelCredentials> =
-  Config.queuePubSubCredentials
-  |> Option.map Google.Apis.Auth.OAuth2.GoogleCredential.FromJson
-  |> Option.map _.ToChannelCredentials()
-
-// PublisherClient and SubscriberClient have deprecated constructors that take
-// Channels as arguments. However, it's not clear what we're supposed to use instead.
-#nowarn "44"
-
-let publisher : Lazy<Task<PublisherServiceApiClient>> =
-  lazy
-    (task {
-      let! client =
-        // If we have no credentials, then assume we must be trying to use the
-        // PubSub Emulator for local/test development
-        match credentials with
-        | None ->
-          PublisherServiceApiClientBuilder(
-            EmulatorDetection = Google.Api.Gax.EmulatorDetection.EmulatorOrProduction
-          )
-            .BuildAsync()
-        | Some credentials ->
-          PublisherServiceApiClientBuilder(ChannelCredentials = credentials)
-            .BuildAsync()
-
-
-      // Ensure the topic is created locally
-      if Config.queuePubSubCreateTopic then
-        let! topicFound =
-          task {
-            try
-              let! _ = client.GetTopicAsync(topicName)
-              return true
-            with _ ->
-              return false
-          }
-        if not topicFound then
-          let! (_ : Topic) = client.CreateTopicAsync(topicName)
-          ()
-
-      return client
-    })
-
-
-
-let subscriber : Lazy<Task<SubscriberServiceApiClient>> =
-  lazy
-    (task {
-      let! (_ : PublisherServiceApiClient) = publisher.Force()
-
-      // Ensure subscription is created locally
-      let! client =
-        match credentials with
-        | None ->
-          SubscriberServiceApiClientBuilder(
-            EmulatorDetection = Google.Api.Gax.EmulatorDetection.EmulatorOrProduction
-          )
-            .BuildAsync()
-        | Some credentials ->
-          SubscriberServiceApiClientBuilder(ChannelCredentials = credentials)
-            .BuildAsync()
-
-
-      if Config.queuePubSubCreateTopic then
-        let! subFound =
-          task {
-            try
-              let! _ = client.GetSubscriptionAsync(subscriptionName)
-              return true
-            with _ ->
-              return false
-          }
-        if not subFound then
-          let! (_ : Subscription) =
-            client.CreateSubscriptionAsync(
-              subscriptionName,
-              topicName,
-              pushConfig = null,
-              ackDeadlineSeconds = 60
-            )
-          ()
-      return client
-    })
-
-/// Gets as many messages as allowed the next available notification in the queue, or None if it doesn't find
-/// one within a timeout
-let dequeue (timeout : System.TimeSpan) (count : int) : Task<List<Notification>> =
-  task {
-    let! subscriber = subscriber.Force()
-    // We set a deadline in case we get the shutdown signal. We want to go back to
-    // the outer loop if we're told to shutdown.
-    let expiration = Google.Api.Gax.Expiration.FromTimeout timeout
-    let callSettings = Google.Api.Gax.Grpc.CallSettings.FromExpiration expiration
-    let! envelopes =
-      task {
-        try
-          let! response =
-            subscriber.PullAsync(
-              subscriptionName,
-              callSettings = callSettings,
-              maxMessages = count
-            )
-          return response.ReceivedMessages |> Seq.toList
-        with
-        // We set the deadline above, and then if it didn't find anything it throws a
-        // DeadlineExceeded Exception
-        | :? Grpc.Core.RpcException as e when
-            e.StatusCode = Grpc.Core.StatusCode.DeadlineExceeded ->
-          return []
-      }
-    return
-      envelopes
-      |> List.map (fun (envelope : ReceivedMessage) ->
-        let message = envelope.Message
-        let timeInQueue = System.DateTime.Now - (message.PublishTime.ToDateTime())
-        let data =
-          message.Data.ToByteArray()
-          |> UTF8.ofBytesUnsafe
-          |> Json.Vanilla.deserialize<NotificationData>
-        let deliveryAttempt =
-          let da = message.GetDeliveryAttempt()
-          if da.HasValue then Some da.Value else None
-        { data = data
-          deliveryAttempt = Option.defaultValue 1 deliveryAttempt
-          timeInQueue = timeInQueue
-          pubSubMessageID = message.MessageId
-          pubSubAckID = envelope.AckId })
-  }
-
-let createNotifications (_canvasID : CanvasID) (_ids : List<EventID>) : Task<unit> =
-  task {
-    // PubSub disabled - QueueWorker and CronChecker have been removed
-    // Events are stored in DB but no notifications are sent
-    return ()
-  }
 
 let enqueueAtTime
   (canvasID : CanvasID)
@@ -353,10 +167,9 @@ let enqueueAtTime
           "handler.module", module'
           "handler.name", name
           "handler.modifier", modifier ]
-    // save the event
     let id = System.Guid.NewGuid()
     do! createEventAtTime canvasID id module' name modifier dt value
-    do! createNotifications canvasID [ id ]
+    // Note: Events are stored but never processed (QueueWorker removed)
   }
 
 let enqueueNow
@@ -374,88 +187,9 @@ let enqueueNow
     (Instant.FromDateTimeUtc System.DateTime.UtcNow)
     value
 
-/// Tell PubSub that it can try to deliver this again, waiting [delay] seconds to do
-/// so. This expiration of the ack is called NACK in the PubSub docs, and it
-/// increments the deliveryAttempt counter
-let requeueEvent (n : Notification) (delay : NodaTime.Duration) : Task<unit> =
-  task {
-    Telemetry.addTag "queue.requeue_delay_ms" delay.TotalMilliseconds
-    let! subscriber = subscriber.Force()
-    let delay = min 600 (int delay.TotalSeconds)
-    let delay = max 0 delay
-    Telemetry.addTag "queue.requeue_delay_actual_ms" (delay * 1000)
-    return!
-      subscriber.ModifyAckDeadlineAsync(
-        subscriptionName,
-        [ n.pubSubAckID ],
-        int delay
-      )
-  }
-
-/// Tell PubSub not to try again for 5 minutes
-let extendDeadline (n : Notification) : Task<unit> =
-  task {
-    let! subscriber = subscriber.Force()
-    return!
-      subscriber.ModifyAckDeadlineAsync(
-        subscriptionName,
-        [ n.pubSubAckID ],
-        LD.queueAllowedExecutionTimeInSeconds ()
-      )
-  }
-
-/// Tell PubSub that we have handled this event. This drops the event.
-let acknowledgeEvent (n : Notification) : Task<unit> =
-  task {
-    let! subscriber = subscriber.Force()
-    return! subscriber.AcknowledgeAsync(subscriptionName, [ n.pubSubAckID ])
-  }
-
-
-let getRule
-  (canvasID : CanvasID)
-  (event : T)
-  : Task<Option<SchedulingRules.SchedulingRule.T>> =
-  task {
-    // Rules seem to ignore modifiers which is fine as they shouldn't have meaning here
-    let! rules = SchedulingRules.getSchedulingRules canvasID
-    let rule =
-      rules
-      |> List.filter (fun r ->
-        (r.eventSpace, r.handlerName) = (event.module', event.name))
-      |> List.head
-    return rule
-  }
-
-let requeueSavedEvents (canvasID : CanvasID) (handlerName : string) : Task<unit> =
-  task {
-    let! ids = loadEventIDs canvasID ("WORKER", handlerName, "_")
-    return! createNotifications canvasID ids
-  }
-
 let init () : Task<unit> =
   task {
     // Queue/PubSub disabled - QueueWorker and CronChecker have been removed
     printTime "Queue init skipped (PubSub disabled)"
     return ()
-  }
-
-
-// DARK INTERNAL FN
-let blockWorker = SchedulingRules.addSchedulingRule "block"
-
-// DARK INTERNAL FN
-let unblockWorker (canvasID : CanvasID) (handlerName : string) : Task<unit> =
-  task {
-    do! SchedulingRules.removeSchedulingRule "block" canvasID handlerName
-    return! requeueSavedEvents canvasID handlerName
-  }
-
-let pauseWorker : CanvasID -> string -> Task<unit> =
-  SchedulingRules.addSchedulingRule "pause"
-
-let unpauseWorker (canvasID : CanvasID) (handlerName : string) : Task<unit> =
-  task {
-    do! SchedulingRules.removeSchedulingRule "pause" canvasID handlerName
-    return! requeueSavedEvents canvasID handlerName
   }

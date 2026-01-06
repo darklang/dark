@@ -58,8 +58,6 @@ let main (args : string array) : int =
         Tests.BwdServer.tests
         Tests.Canvas.tests
         Tests.Cron.tests
-        Tests.QueueSchedulingRules.tests
-        // TODO: bring back Tests.Queue.tests
         Tests.Routing.tests
         Tests.BinarySerialization.tests
         Tests.VanillaSerialization.tests
