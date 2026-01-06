@@ -1,4 +1,4 @@
-/// QueueWorkers (including Crons). See [the docs](/docs/eventsV2.md).
+/// Queue/Event system for Workers (including Crons). See [the docs](/docs/eventsV2.md).
 module LibCloud.Queue
 
 open System.Threading.Tasks

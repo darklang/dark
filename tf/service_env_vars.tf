@@ -25,11 +25,7 @@ variable "service_env_vars" {
     ## CronChecker
     "DARK_CONFIG_CRONCHECKER_KUBERNETES_PORT" = { value : "12002" }
 
-    ## QueueWorker
-    "DARK_CONFIG_QUEUEWORKER_KUBERNETES_PORT" = { value : "13002" }
-
-    "DARK_CONFIG_TRIGGER_QUEUE_WORKERS" = { value : "y" }
-    "DARK_CONFIG_TRIGGER_CRONS"         = { value : "y" }
+    "DARK_CONFIG_TRIGGER_CRONS" = { value : "y" }
     "DARK_CONFIG_PAUSE_BETWEEN_CRONS"   = { value : "0" }
 
     # Http

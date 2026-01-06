@@ -15,7 +15,6 @@ cd backend && dotnet "$@" 2>&1 | while read -r line; do
     echo "Saw a failed copy, killing servers"
     killall BwdServer || true
     killall CronChecker || true
-    killall QueueWorker || true
     killall Tests || true
   fi
   echo "$line"

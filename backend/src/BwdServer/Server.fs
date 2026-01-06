@@ -458,7 +458,6 @@ let run () : unit =
   (webserver None port k8sPort).Run()
 
 
-// Generally speaking, this should be the same list as QueueWorker's
 let initSerializers () =
   // universally-serializable types
 

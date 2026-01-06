@@ -22,8 +22,6 @@ printfn "Loading program; if something wrong run ./scripts/build/dotnet-regen-fs
 #r "LibBinarySerialization/Debug/net8.0/LibBinarySerialization.dll"
 #r "BuiltinExecution/Debug/net8.0/BuiltinExecution.dll"
 #r "LibCloudExecution/Debug/net8.0/LibCloudExecution.dll"
-// #r "QueueWorker/Debug/net8.0/QueueWorker.dll"
-
 // Convenience shortcuts
 module RT = LibExecution.RuntimeTypes
 module PT = LibExecution.ProgramTypes

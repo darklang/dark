@@ -50,7 +50,6 @@ BWDSERVER_EXE=$(exe_path "BwdServer")
 BWDSERVER_LOG="$LOGS/bwdserver.log"
 CRONCHECKER_EXE=$(exe_path "CronChecker")
 CRONCHECKER_LOG="$LOGS/cronchecker.log"
-QUEUEWORKER_EXE=$(exe_path "QueueWorker")
 LOCALEXEC_EXE=$(exe_path "LocalExec")
 
 
@@ -60,7 +59,6 @@ LOCALEXEC_EXE=$(exe_path "LocalExec")
 # we should exit early if everything is already running
 if [[ $(pgrep BwdServer -c) -eq 0 ]]; then RESTART=true; fi
 if [[ $(pgrep CronChecker -c) -eq 0 ]]; then RESTART=true; fi
-if [[ $(pgrep QueueWorker -c) -eq 0 ]]; then RESTART=true; fi
 if [[ "${RESTART}" == "false" ]]; then
   echo "Servers are running and we don't need to restart"
   exit 0
@@ -70,13 +68,6 @@ fi
 echo "Stopping servers"
 sudo pkill -f "BwdServer" || true
 sudo pkill -f "CronChecker" || true
-sudo pkill -f "QueueWorker" || true
-
-
-# Run the PubSub emulator (used for QueueWorker stuff)
-./scripts/run-pubsub-emulator
-
-
 # Wait for any builds that haven't been yet compiled
 echo "Waiting for builds to be ready"
 for ((i=1;i<=1000;i++));
@@ -84,7 +75,6 @@ do
   if [[
      ! -f "${BWDSERVER_EXE}" || \
      ! -f "${CRONCHECKER_EXE}" || \
-     ! -f "${QUEUEWORKER_EXE}" || \
      ! -f "${LOCALEXEC_EXE}" ]]; then
     sleep 0.01
   fi
@@ -100,9 +90,5 @@ announce "Running bwdserver" "${BWDSERVER_LOG}"
 
 announce "Running cronchecker" "${CRONCHECKER_LOG}"
 "${CRONCHECKER_EXE}" > "${CRONCHECKER_LOG}" 2>&1 &
-
-QUEUEWORKER_LOG="$LOGS/queueworker.log"
-announce "Running queueworker" "${QUEUEWORKER_LOG}"
-"${QUEUEWORKER_EXE}" > "${QUEUEWORKER_LOG}" 2>&1 &
 
 echo "Finished loading servers"

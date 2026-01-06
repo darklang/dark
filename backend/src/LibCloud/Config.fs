@@ -51,10 +51,7 @@ let dir (root : Root) : string =
 // Running the server
 // -------------------------
 
-// If we have production data in a non-production environment, we don't want to trigger their workers
-let triggerQueueWorkers = bool "DARK_CONFIG_TRIGGER_QUEUE_WORKERS"
-
-// If we have production data in a non-production environment, we don't want to trigger their workers
+// If we have production data in a non-production environment, we don't want to trigger their crons
 let triggerCrons = bool "DARK_CONFIG_TRIGGER_CRONS"
 
 // Stop my fans from spinning
