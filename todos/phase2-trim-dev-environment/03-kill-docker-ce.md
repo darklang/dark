@@ -1,6 +1,6 @@
 # Kill Docker CE in Container
 
-**Status**: [ ] Not started
+**Status**: [x] Complete
 
 ## What's Being Removed?
 
