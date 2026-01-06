@@ -1,6 +1,6 @@
 # Kill Honeycomb and OpenTelemetry
 
-**Status**: [ ] Not started
+**Status**: [x] Complete
 
 ## What's Being Removed?
 
@@ -62,15 +62,15 @@ Likely locations:
 
 ## Steps
 
-1. [ ] Remove honeymarker from `Dockerfile`
-2. [ ] Remove OpenTelemetry/Honeycomb NuGet packages from `backend/paket.dependencies`
-3. [ ] Run `paket install` to update lock file
-4. [ ] Search for telemetry code in F# and remove/stub it
-5. [ ] Delete `scripts/deployment/_notify-deployment-honeycomb`
-6. [ ] Remove telemetry env vars from config if present
-7. [ ] Run `./scripts/run-backend-tests`
-8. [ ] Wait for build (significant change)
-9. [ ] Commit: `trim: remove Honeycomb and OpenTelemetry`
+1. [x] Remove honeymarker from `Dockerfile`
+2. [x] Remove OpenTelemetry/Honeycomb NuGet packages from `backend/paket.dependencies`
+3. [x] Run `paket install` to update lock file
+4. [x] Search for telemetry code in F# and remove/stub it
+5. [x] Delete `scripts/deployment/_notify-deployment-honeycomb`
+6. [x] Remove telemetry env vars from config if present
+7. [x] Run `./scripts/run-backend-tests`
+8. [x] Wait for build (significant change)
+9. [x] Commit: `trim: remove honeycomb and opentelemetry`
 
 ## Commit Message Template
 
