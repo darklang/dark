@@ -93,7 +93,6 @@ RUN DEBIAN_FRONTEND=noninteractive \
       sqlite3 \
       jq \
       parallel \
-      ntp \
       vim \
       unzip \
       python3-pip \
@@ -107,7 +106,6 @@ RUN DEBIAN_FRONTEND=noninteractive \
       htop \
       net-tools \
       bash-completion \
-      openssh-server \
       dnsutils \
       # .NET dependencies - https://github.com/dotnet/dotnet-docker/blob/master/src/runtime-deps/3.1/bionic/amd64/Dockerfile
       libc6 \
