@@ -1,6 +1,6 @@
 # Add .dockerignore
 
-**Status**: [ ] Not started
+**Status**: [x] Complete
 
 ## Purpose
 
