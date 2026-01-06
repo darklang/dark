@@ -65,7 +65,8 @@ let createState
       uply {
         let! extra = extraMetadata state vm
         let metadata = extra @ metadata
-        LibService.Rollbar.notify msg metadata
+        print $"[notify] {msg}"
+        metadata |> List.iter (fun (k, v) -> print $"  {k}: {v}")
       }
 
     let sendException
@@ -77,7 +78,7 @@ let createState
       uply {
         let! extra = extraMetadata state vm
         let metadata = extra @ metadata
-        LibService.Rollbar.sendException None metadata exn
+        printException "[exception]" metadata exn
       }
 
     return Exe.createState builtins pmRT tracing sendException notify program

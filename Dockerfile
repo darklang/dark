@@ -141,8 +141,8 @@ RUN usermod -u 2000 ubuntu && groupmod -g 2000 ubuntu
 ############################
 USER root
 RUN groupadd -g ${gid} dark \
-    && adduser --disabled-password --gecos '' --uid ${uid} --gid ${gid} dark
-RUN echo "dark:dark" | chpasswd && adduser dark sudo
+    && useradd --create-home --uid ${uid} --gid ${gid} --shell /bin/bash dark
+RUN echo "dark:dark" | chpasswd && usermod -aG sudo dark
 RUN sudo chown -R dark:dark /home/dark
 RUN echo '%sudo ALL=(ALL) NOPASSWD:ALL' >> /etc/sudoers
 ## Although dark should get permissions via sudoers, this failed for one contributor using WSL

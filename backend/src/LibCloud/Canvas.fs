@@ -15,7 +15,6 @@ module PT = LibExecution.ProgramTypes
 module PTParser = LibExecution.ProgramTypesParser
 module RT = LibExecution.RuntimeTypes
 module PT2RT = LibExecution.ProgramTypesToRuntimeTypes
-module LD = LibService.LaunchDarkly
 module K8s = LibService.Kubernetes
 
 
@@ -228,7 +227,7 @@ let loadFrom (id : CanvasID) (tlids : List<tlid>) : Task<T> =
       let secrets = secrets |> List.map (fun s -> s.name, s) |> Map
 
       return { c with secrets = secrets } |> addToplevels tls |> verify
-    with e when not (LD.knownBroken id) ->
+    with e ->
       let tags = [ "tlids", tlids :> obj ]
       return Exception.reraiseAsPageable "canvas load failed" tags e
   }
@@ -416,47 +415,11 @@ let saveTLIDs
 type HealthCheckResult =
   Microsoft.Extensions.Diagnostics.HealthChecks.HealthCheckResult
 
-/// Check a set of known domains to ensure that the serializer works before starting up
+/// Simple healthcheck that just returns healthy (domain checks removed with LaunchDarkly)
 let loadDomainsHealthCheck
   (_ : System.Threading.CancellationToken)
   : Task<HealthCheckResult> =
-  task {
-    let healthy = HealthCheckResult.Healthy()
-    try
-      let! results =
-        LD.healthCheckDomains ()
-        |> String.split ","
-        |> Task.mapInParallel (fun hostname ->
-          task {
-            try
-              let! id = canvasIDForDomain hostname
-              let id =
-                Exception.unwrapOptionInternal
-                  "canvas host healthcheck probe"
-                  [ "domain", hostname ]
-                  id
-              let _canvas =
-                // TODO this is still expecting another arg -- not doing anything.
-                // (fix it)
-                Serialize.loadToplevels id
-              return healthy
-            with _ ->
-              return
-                HealthCheckResult.Unhealthy(
-                  $"error loading canvas host healthcheck probe on {hostname}"
-                )
-          })
-      return
-        results
-        |> List.fold
-          (fun prev current ->
-            if prev = healthy && current = healthy then healthy else current)
-          healthy
-
-    with _ ->
-      return
-        HealthCheckResult.Unhealthy("error running Canvas host healthcheck probe")
-  }
+  task { return HealthCheckResult.Healthy() }
 
 let healthCheck : K8s.HealthCheck =
   { name = "canvas"; checkFn = loadDomainsHealthCheck; probeTypes = [ K8s.Startup ] }

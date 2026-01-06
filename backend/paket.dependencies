@@ -19,6 +19,7 @@ nuget System.IO.Hashing 8.0.0
 // Sqlite and binary serialization
 nuget Microsoft.Data.Sqlite = 8.0.1
 nuget Fumble = 1.0.3
+nuget SQLitePCLRaw.bundle_e_sqlite3 = 2.1.10
 
 // Parser
 nuget FSharp.Compiler.Service = 43.8.101

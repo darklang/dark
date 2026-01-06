@@ -34,7 +34,6 @@ module CloudExe = LibCloudExecution.CloudExecution
 
 module FireAndForget = LibService.FireAndForget
 module Kubernetes = LibService.Kubernetes
-module Rollbar = LibService.Rollbar
 module Logging = LibService.Logging
 
 // HttpHandlerTODO there are still a number of things in this file that were
@@ -352,26 +351,7 @@ let configureApp (healthCheckPort : int) (app : IApplicationBuilder) =
         return Exception.reraise e
     })
 
-  let rollbarCtxToMetadata (ctx : HttpContext) : Rollbar.Person * Metadata =
-    let domain =
-      try
-        Some(ctx.Items["canvasDomain"])
-      with _ ->
-        None
-
-    let id =
-      try
-        Some(ctx.Items["canvasOwnerID"] :?> UserID)
-      with _ ->
-        None
-
-    let metadata =
-      domain |> Option.map (fun d -> [ "canvasDomain", d ]) |> Option.defaultValue []
-
-    (id, metadata)
-
-  Rollbar.AspNet.addRollbarToApp app rollbarCtxToMetadata None
-  |> fun app -> app.UseRouting()
+  app.UseRouting()
   // must go after UseRouting
   |> Kubernetes.configureApp healthCheckPort
   |> Logging.addHttpLogging
@@ -381,7 +361,6 @@ let configureApp (healthCheckPort : int) (app : IApplicationBuilder) =
 let configureServices (services : IServiceCollection) : unit =
   services
   |> Kubernetes.configureServices [ Canvas.healthCheck ]
-  |> Rollbar.AspNet.addRollbarToServices
   |> ignore<IServiceCollection>
 
 
@@ -438,4 +417,6 @@ let main _ =
     LibService.Init.shutdown name
     0
   with e ->
-    Rollbar.lastDitchBlockAndPage "error starting bwdserver" e
+    printException "error starting bwdserver" [] e
+    System.Threading.Tasks.Task.Delay(1000).Wait()
+    -1
