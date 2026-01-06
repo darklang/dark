@@ -14,7 +14,7 @@ This directory contains the task breakdown for trimming the Darklang codebase. E
 ## Current Progress
 
 ### Phase 1: Remove Product Features
-- [ ] [01-delete-prodexec.md](phase1-remove-product-features/01-delete-prodexec.md)
+- [x] [01-delete-prodexec.md](phase1-remove-product-features/01-delete-prodexec.md)
 - [ ] [02-delete-queueworker.md](phase1-remove-product-features/02-delete-queueworker.md)
 - [ ] [03-delete-cronchecker.md](phase1-remove-product-features/03-delete-cronchecker.md)
 - [ ] [04-trim-builtin-dark-internal.md](phase1-remove-product-features/04-trim-builtin-dark-internal.md)
