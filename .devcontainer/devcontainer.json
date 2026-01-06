@@ -27,10 +27,7 @@
         "ionide.ionide-fsharp",
         "esbenp.prettier-vscode",
         "ms-python.python",
-        "ms-azuretools.vscode-docker",
-        "editorconfig.editorconfig",
-        "hashicorp.terraform",
-        "CircleCI.circleci"
+        "editorconfig.editorconfig"
       ]
     }
   },
