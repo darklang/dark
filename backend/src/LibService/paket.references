@@ -1,6 +1,3 @@
 FSharp.Core
 FsRegex
-Rollbar
-Rollbar.NetCore.AspNet
 Microsoft.Extensions.Diagnostics.HealthChecks
-LaunchDarkly.ServerSdk

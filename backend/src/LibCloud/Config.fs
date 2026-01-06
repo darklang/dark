@@ -55,28 +55,6 @@ let httpclientTimeoutInMs = int "DARK_CONFIG_HTTPCLIENT_TIMEOUT_IN_MS"
 
 
 // -------------------------
-// Rollbar
-// -------------------------
-
-let rollbarClientAccessToken =
-  // This is what the rollbar UI calls it
-  match credentials "DARK_CONFIG_ROLLBAR_POST_CLIENT_ITEM" with
-  | "none" -> None
-  | item -> Some item
-
-
-let rollbarJs =
-  match rollbarClientAccessToken with
-  | Some token ->
-    Printf.sprintf
-      "{captureUncaught:true,verbose:true,enabled:%s,accessToken:'%s',payload:{environment: '%s'}}"
-      (if Config.rollbarEnabled then "true" else "false")
-      token
-      Config.rollbarEnvironment
-  | _ -> "{enabled:false}"
-
-
-// -------------------------
 // Serialization
 // -------------------------
 
@@ -90,19 +68,6 @@ let serializationGenerateTestData =
 /// Canvases that are allowed access to the DarkInternal stdlib functions
 let allowedDarkInternalCanvasIDs =
   uuids "DARK_CONFIG_ALLOWED_DARK_INTERNAL_CANVAS_IDS"
-
-
-// -------------------------
-// Pusher
-// -------------------------
-
-let pusherID = string "DARK_CONFIG_PUSHER_APP_ID"
-
-let pusherKey = string "DARK_CONFIG_PUSHER_KEY"
-
-let pusherSecret = credentials "DARK_CONFIG_PUSHER_SECRET"
-
-let pusherCluster = credentials "DARK_CONFIG_PUSHER_CLUSTER"
 
 
 // -------------------------

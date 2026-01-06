@@ -1,265 +1,131 @@
-/// LaunchDarkly configuration (feature flags)
+/// LaunchDarkly configuration (feature flags) - STUBBED OUT
+/// LaunchDarkly has been removed. This module returns default values.
 module LibService.LaunchDarkly
-
-open FSharp.Control.Tasks
-open System.Threading.Tasks
 
 open Prelude
 
-open LaunchDarkly.Sdk
-open LaunchDarkly.Sdk.Server
-
 module Internal =
-  // For testing
-  // See https://docs.launchdarkly.com/sdk/features/test-data-sources#net-server-side
-  let testData = Integrations.TestData.DataSource()
+  // Stubbed versions that just return the default/test value
 
-  let client =
-    lazy
-      (match Config.launchDarklyApiKey with
-       | Some key ->
-         let config =
-           Configuration
-             .Builder(key)
-             .StartWaitTime(System.TimeSpan.FromSeconds(1))
-             .DiagnosticOptOut(false)
-             .Offline(false)
-             .Logging(Components.NoLogging)
-             .Build()
-         new LdClient(config)
-       | None ->
-         let config =
-           Configuration
-             .Builder("test")
-             .DataSource(testData)
-             .StartWaitTime(System.TimeSpan.FromSeconds(0))
-             .DiagnosticOptOut(true)
-             .Offline(false)
-             .Logging(Components.NoLogging)
-             .Build()
-         new LdClient(config))
-
-  // Internal functions to call LD. Should only be used from within
-  let boolSetTestDefault (flagName : string) (default_ : bool) =
-    testData.Update(testData.Flag(flagName).ValueForAll(LdValue.Of default_))
-    |> ignore<Integrations.TestData>
-
-  let intSetTestDefault (flagName : string) (default_ : int) =
-    testData.Update(testData.Flag(flagName).ValueForAll(LdValue.Of default_))
-    |> ignore<Integrations.TestData>
-
-  let floatSetTestDefault (flagName : string) (default_ : float) =
-    testData.Update(testData.Flag(flagName).ValueForAll(LdValue.Of default_))
-    |> ignore<Integrations.TestData>
-
-  let stringSetTestDefault (flagName : string) (default_ : string) =
-    testData.Update(testData.Flag(flagName).ValueForAll(LdValue.Of default_))
-    |> ignore<Integrations.TestData>
-
-  let boolVar
-    (flagName : string)
-    (kind : ContextKind)
-    (contextName : string)
-    (default_ : bool)
-    : bool =
-    client.Force().BoolVariation(flagName, Context.New(kind, contextName), default_)
-
-  let intVar
-    (flagName : string)
-    (kind : ContextKind)
-    (contextName : string)
-    (default_ : int)
-    : int =
-    client.Force().IntVariation(flagName, Context.New(kind, contextName), default_)
-
-  let floatVar
-    (flagName : string)
-    (kind : ContextKind)
-    (contextName : string)
-    (default_ : float)
-    : float =
-    // Note use of name Double here (C# double is an F# float)
-    client
-      .Force()
-      .DoubleVariation(flagName, Context.New(kind, contextName), default_)
-
-  let stringVar
-    (flagName : string)
-    (kind : ContextKind)
-    (contextName : string)
-    (default_ : string)
-    : string =
-    client
-      .Force()
-      .StringVariation(flagName, Context.New(kind, contextName), default_)
-
-
-  // -------------
-  // System values
-  // Functions to create dynamic configuration, which can be set remotely. These
-  // provide knobs to change how the system works remotely, for example, changing the
-  // number of queue events to execute simulateously.
-  // -------------
-  let configKind = ContextKind.Of "config"
   let boolConfig
-    (name : string)
-    (default_ : bool)
+    (_name : string)
+    (_default_ : bool)
     (testDefault : bool)
     : unit -> bool =
-    boolSetTestDefault name testDefault
-    fun () -> boolVar name configKind "system" default_
+    fun () -> testDefault
 
-  let intConfig (name : string) (default_ : int) (testDefault : int) : unit -> int =
-    intSetTestDefault name testDefault
-    fun () -> intVar name configKind "system" default_
+  let intConfig
+    (_name : string)
+    (_default_ : int)
+    (testDefault : int)
+    : unit -> int =
+    fun () -> testDefault
 
   let floatConfig
-    (name : string)
-    (default_ : float)
+    (_name : string)
+    (_default_ : float)
     (testDefault : float)
     : unit -> float =
-    floatSetTestDefault name testDefault
-    fun () -> floatVar name configKind "system" default_
+    fun () -> testDefault
 
   let stringConfig
-    (name : string)
-    (default_ : string)
+    (_name : string)
+    (_default_ : string)
     (testDefault : string)
     : unit -> string =
-    stringSetTestDefault name testDefault
-    fun () -> stringVar name configKind "system" default_
-
-
-
-  // -------------
-  // per-handler values
-  // -------------
-
-  let flagNameForHandler (canvasID : CanvasID) (tlid : tlid) =
-    // Use tlid instead of a desc because a tlid is canonical. A desc would be better
-    // because it's user readable but it's not too hard to find a tlid id
-    $"handler-{canvasID}-{tlid}"
-
-  let handlerKind = ContextKind.Of "handler"
+    fun () -> testDefault
 
   let handlerBool
-    (name : string)
-    (default_ : bool)
+    (_name : string)
+    (_default_ : bool)
     (testDefault : bool)
     : CanvasID -> tlid -> bool =
-    boolSetTestDefault name testDefault
-    fun canvasName tlid ->
-      boolVar name handlerKind (flagNameForHandler canvasName tlid) default_
+    fun _ _ -> testDefault
 
   let handlerInt
-    (name : string)
-    (default_ : int)
+    (_name : string)
+    (_default_ : int)
     (testDefault : int)
     : CanvasID -> tlid -> int =
-    intSetTestDefault name testDefault
-    fun canvasName tlid ->
-      intVar name handlerKind (flagNameForHandler canvasName tlid) default_
+    fun _ _ -> testDefault
 
   let handlerFloat
-    (name : string)
-    (default_ : float)
+    (_name : string)
+    (_default_ : float)
     (testDefault : float)
     : CanvasID -> tlid -> float =
-    floatSetTestDefault name testDefault
-    fun canvasName tlid ->
-      floatVar name handlerKind (flagNameForHandler canvasName tlid) default_
+    fun _ _ -> testDefault
 
   let handlerString
-    (name : string)
-    (default_ : string)
+    (_name : string)
+    (_default_ : string)
     (testDefault : string)
     : CanvasID -> tlid -> string =
-    stringSetTestDefault name testDefault
-    fun canvasName tlid ->
-      stringVar name handlerKind (flagNameForHandler canvasName tlid) default_
-
-
-  // -------------
-  // per-canvas values
-  // -------------
-  let canvasKind = ContextKind.Of "canvas"
+    fun _ _ -> testDefault
 
   let canvasBool
-    (name : string)
-    (default_ : bool)
+    (_name : string)
+    (_default_ : bool)
     (testDefault : bool)
     : CanvasID -> bool =
-    boolSetTestDefault name testDefault
-    fun canvasID -> boolVar name canvasKind $"canvas-{canvasID}" default_
+    fun _ -> testDefault
 
   let canvasInt
-    (name : string)
-    (default_ : int)
+    (_name : string)
+    (_default_ : int)
     (testDefault : int)
     : CanvasID -> int =
-    intSetTestDefault name testDefault
-    fun canvasID -> intVar name canvasKind $"canvas-{canvasID}" default_
+    fun _ -> testDefault
 
   let canvasFloat
-    (name : string)
-    (default_ : float)
+    (_name : string)
+    (_default_ : float)
     (testDefault : float)
     : CanvasID -> float =
-    floatSetTestDefault name testDefault
-    fun canvasID -> floatVar name canvasKind $"canvas-{canvasID}" default_
+    fun _ -> testDefault
 
   let canvasString
-    (name : string)
-    (default_ : string)
+    (_name : string)
+    (_default_ : string)
     (testDefault : string)
     : CanvasID -> string =
-    stringSetTestDefault name testDefault
-    fun canvasID -> stringVar name canvasKind $"canvas-{canvasID}" default_
+    fun _ -> testDefault
 
-  // -------------
-  // per-service values
-  // -------------
-  let serviceKind = ContextKind.Of "service"
   let serviceBool
-    (name : string)
-    (default_ : bool)
+    (_name : string)
+    (_default_ : bool)
     (testDefault : bool)
     : string -> bool =
-    boolSetTestDefault name testDefault
-    fun serviceName -> boolVar name serviceKind $"service-{serviceName}" default_
+    fun _ -> testDefault
 
   let serviceInt
-    (name : string)
-    (default_ : int)
+    (_name : string)
+    (_default_ : int)
     (testDefault : int)
     : string -> int =
-    intSetTestDefault name testDefault
-    fun serviceName -> intVar name serviceKind $"service-{serviceName}" default_
+    fun _ -> testDefault
 
   let serviceFloat
-    (name : string)
-    (default_ : float)
+    (_name : string)
+    (_default_ : float)
     (testDefault : float)
     : string -> float =
-    floatSetTestDefault name testDefault
-    fun serviceName -> floatVar name serviceKind serviceName default_
+    fun _ -> testDefault
 
   let serviceString
-    (name : string)
-    (default_ : string)
+    (_name : string)
+    (_default_ : string)
     (testDefault : string)
     : string -> string =
-    stringSetTestDefault name testDefault
-    fun serviceName -> stringVar name serviceKind $"service-{serviceName}" default_
+    fun _ -> testDefault
 
 
-
-let flush () : unit = Internal.client.Force().Dispose()
+/// Flush - no-op
+let flush () : unit = ()
 
 // --------------
 // Handler Flags - per-canvas, per-handler settings
 // --------------
-
 let traceSamplingRule =
   Internal.handlerString
     "traces-sampling-rule"
@@ -271,16 +137,13 @@ let traceSamplingRule =
 // --------------
 let knownBroken = Internal.canvasBool "canvas-known-broken" false false
 
-
 // --------------
 // Service Flags - may be different for each service
 // --------------
-// Whether to record traces
 let telemetrySamplePercentage =
   Internal.serviceFloat "telemetry-sample-percentage" 100.0 100.0
 
 // --------------
-// System flags - this allows us to change the run-time values of system
-// configuration. This is the preferred way of setting arbitrary numbers
+// System flags
 // --------------
 let healthCheckDomains = Internal.stringConfig "canvas-health-checks" "" ""

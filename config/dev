@@ -33,32 +33,8 @@ DARK_CONFIG_SERIALIZATION_GENERATE_TEST_DATA=y
 DARK_CONFIG_ENV_DISPLAY_NAME=dev
 DARK_CONFIG_DEFAULT_LOGGER=console
 
-# Rollbar
-## Rollbar is disabled in dev because it hits rate limits
-DARK_CONFIG_ROLLBAR_ENABLED=n
-DARK_CONFIG_ROLLBAR_ENVIRONMENT=development
-DARK_CONFIG_ROLLBAR_POST_CLIENT_ITEM=c7af77e991aa4edd80cf6a576c1e42f5
-DARK_CONFIG_ROLLBAR_POST_SERVER_ITEM=e2777a52d9a24c00a7e8e8aedaa61017
-
-# Honeycomb
-DARK_CONFIG_TELEMETRY_EXPORTER=honeycomb
-DARK_CONFIG_HONEYCOMB_API_KEY=none
-DARK_CONFIG_HONEYCOMB_DATASET_NAME=dev
-DARK_CONFIG_HONEYCOMB_API_ENDPOINT=https://api.honeycomb.io:443
-
-# Launchdarkly - https://app.launchdarkly.com/settings/projects/default/environments
-DARK_CONFIG_LAUNCHDARKLY_SDK_API_KEY=none
-
 # Feature flag defaults
 DARK_CONFIG_TRACE_SAMPLING_RULE_DEFAULT=sample-all
-
-# Pusher
-## This account is the dark-dev-account pusher account, username
-## ops@darklang.com, whose password is in the 1pw admin vault.
-DARK_CONFIG_PUSHER_APP_ID=1006124
-DARK_CONFIG_PUSHER_KEY=acd42e5073f0bad7e604
-DARK_CONFIG_PUSHER_SECRET=fcd318b907f67bbedb4f
-DARK_CONFIG_PUSHER_CLUSTER=us2
 
 # Package manager
 DARK_CONFIG_PACKAGE_MANAGER_BASE_URL=http://dark-packages.dlio.localhost:11001

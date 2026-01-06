@@ -25,21 +25,7 @@ let defaultLogger =
   | name -> failwith $"Unexpected default logger: {name}"
 
 // Cloud-specific config
-// Provided by k8s, used in rollbar
 let hostName = getEnv "HOSTNAME" |> Option.defaultValue "none"
-
-
-// --------------------
-// rollbar
-// --------------------
-let rollbarServerAccessToken =
-  // This is what the rollbar UI calls it
-  credentials "DARK_CONFIG_ROLLBAR_POST_SERVER_ITEM"
-
-let rollbarEnabled = bool "DARK_CONFIG_ROLLBAR_ENABLED"
-
-let rollbarEnvironment = string "DARK_CONFIG_ROLLBAR_ENVIRONMENT"
-
 
 
 // --------------------
@@ -47,13 +33,6 @@ let rollbarEnvironment = string "DARK_CONFIG_ROLLBAR_ENVIRONMENT"
 // --------------------
 let bwdServerPort = int "DARK_CONFIG_BWDSERVER_BACKEND_PORT"
 let bwdServerKubernetesPort = int "DARK_CONFIG_BWDSERVER_KUBERNETES_PORT"
-
-// --------------------
-// Launchdarkly
-// --------------------
-
-/// If none, use test values
-let launchDarklyApiKey = credentialsOption "DARK_CONFIG_LAUNCHDARKLY_SDK_API_KEY"
 
 
 // --------------------

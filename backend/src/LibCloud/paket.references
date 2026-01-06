@@ -1,8 +1,6 @@
 FSharp.Core
-PusherServer
 System.Diagnostics.DiagnosticSource
 FsRegEx
 Sodium.Core
-Google.Cloud.PubSub.V1
 Microsoft.Data.Sqlite
 Fumble

@@ -1,238 +1,47 @@
+/// Rollbar error tracking - STUBBED OUT
+/// Rollbar has been removed. This module provides no-op implementations.
 module LibService.Rollbar
 
-open FSharp.Control.Tasks
 open System.Threading.Tasks
-open FSharp.Control.Tasks
 
 open Microsoft.AspNetCore.Http
-open Microsoft.AspNetCore.Http.Extensions
 
 open Prelude
-
-/// Logs various Rollbar-related configuration options to Rollbar,
-/// at the debug level
-let debugRollbarConfig () =
-  let config = Rollbar.RollbarInfrastructure.Instance.Config
-
-  let destinationOptions = config.RollbarLoggerConfig.RollbarDestinationOptions
-  debuG
-    "destinationOptions"
-    ((destinationOptions :?> Rollbar.RollbarDestinationOptions).TraceAsString())
-
-  let telemetryOptions = config.RollbarTelemetryOptions
-  debuG
-    "telemetryOptions"
-    ((telemetryOptions :?> Rollbar.RollbarTelemetryOptions).TraceAsString())
-
-  let offlineStoreOptions = config.RollbarOfflineStoreOptions
-  debuG
-    "offlineStoreOptions"
-    ((offlineStoreOptions :?> Rollbar.RollbarOfflineStoreOptions).TraceAsString())
-
-  let infraOptions = config.RollbarInfrastructureOptions
-  debuG
-    "infraOptions"
-    ((infraOptions :?> Rollbar.RollbarInfrastructureOptions).TraceAsString())
-
-  let developerOptions = config.RollbarLoggerConfig.RollbarDeveloperOptions
-  debuG
-    "developerOptions"
-    ((developerOptions :?> Rollbar.RollbarDeveloperOptions).TraceAsString())
-
-  let dataSecurityOptions = config.RollbarLoggerConfig.RollbarDataSecurityOptions
-  debuG
-    "dataSecurityOptions"
-    ((dataSecurityOptions :?> Rollbar.RollbarDataSecurityOptions).TraceAsString())
-
-  let payloadAdditionOptions =
-    config.RollbarLoggerConfig.RollbarPayloadAdditionOptions
-  debuG
-    "payloadAdditionOptions"
-    ((payloadAdditionOptions :?> Rollbar.RollbarPayloadAdditionOptions)
-      .TraceAsString())
-
-  let payloadManipulationOptions =
-    config.RollbarLoggerConfig.RollbarPayloadManipulationOptions
-  debuG
-    "payloadManipulationOptions"
-    ((payloadManipulationOptions :?> Rollbar.RollbarPayloadManipulationOptions)
-      .TraceAsString())
-
-  ()
-
-// -------------------------------
-// Include person data
-// -------------------------------
 
 /// Optional person data
 type Person = Option<UserID>
 
-/// Take a Person and an Exception and create a RollbarPackage that can be reported
-let createPackage (exn : exn) (person : Person) : Rollbar.IRollbarPackage =
-  let package : Rollbar.IRollbarPackage =
-    new Rollbar.ExceptionPackage(exn, exn.Message)
-  match person with
-  | Some id -> Rollbar.PersonPackageDecorator(package, id |> string, null)
-  | None -> package
+/// Debug Rollbar config - no-op
+let debugRollbarConfig () = ()
 
-
-
-// -------------------------------
-// Custom metadata
-// -------------------------------
-let createCustom (metadata : Metadata) : Dictionary.T<string, obj> =
-  let (custom : Dictionary.T<string, obj>) = Dictionary.empty ()
-  List.iter (fun (k, v) -> Dictionary.add k (v :> obj) custom) metadata
-  custom
-
-// -------------------------------
-// Reporting functions
-// -------------------------------
-
-/// Notify that a non-error happened
+/// Notify that a non-error happened - prints to console only
 let notify (message : string) (metadata : Metadata) : unit =
-  print $"rollbar: {message}"
-  try
-    print (string metadata)
-  with _ ->
-    ()
-  let stacktraceMetadata = ("stacktrace", System.Environment.StackTrace :> obj)
-  let metadata = stacktraceMetadata :: metadata
-  let custom = createCustom metadata
-  Rollbar.RollbarLocator.RollbarInstance.Info(message, custom)
-  |> ignore<Rollbar.ILogger>
+  print $"[notify] {message}"
 
-
-/// Notify that an error (but not an exception) happened
+/// Notify that an error (but not an exception) happened - prints to console only
 let sendError (message : string) (metadata : Metadata) : unit =
-  print $"rollbar: {message}"
-  try
-    print (string metadata)
-  with _ ->
-    ()
+  print $"[error] {message}"
   print System.Environment.StackTrace
-  let custom = createCustom (("message", message :> obj) :: metadata)
-  Rollbar.RollbarLocator.RollbarInstance.Error(message, custom)
-  |> ignore<Rollbar.ILogger>
 
-// If there is an exception while processing the exception
-let exceptionWhileProcessingException
-  (original : exn)
-  (processingException : exn)
-  : unit =
+/// Sends exception to console (Rollbar removed)
+let sendException (person : Person) (metadata : Metadata) (e : exn) : unit =
+  printException "[exception]" metadata e
 
-  // If there's an exception while creating another exception, let's try to report
-  // as much as possible without error
-  try
-    print "Exception when processing exception"
-  with _ ->
-    ()
-
-  try
-    // Let's first try to get the new exception into the tracker quickly
-    Rollbar.RollbarLocator.RollbarInstance.Critical(processingException)
-    |> ignore<Rollbar.ILogger>
-  with _ ->
-    ()
-
-  try
-    // Then try to get the original exception into it
-    Rollbar.RollbarLocator.RollbarInstance.Error(original)
-    |> ignore<Rollbar.ILogger>
-  with _ ->
-    ()
-
-  try
-    // Now let's send a pageable exception, as our exception processing being down is
-    // a pageable situation
-    let e =
-      Exception.PageableException(
-        "Exception when processing exception",
-        [],
-        processingException
-      )
-    Rollbar.RollbarLocator.RollbarInstance.Critical(e) |> ignore<Rollbar.ILogger>
-  with _ ->
-    ()
-
-  try
-    // Do this after, as these could cause exceptions
-    printException "Original exception" [] original
-  with _ ->
-    ()
-
-  try
-    // Do this after, as these could cause exceptions
-    printException "Processing exception" [] processingException
-  with _ ->
-    ()
-
-let personMetadata (person : Person) : Metadata =
-  match person with
-  | None -> []
-  | Some id -> [ "user.id", id ]
-
-
-/// Sends exception to Rollbar and prints it.
-let rec sendException (person : Person) (metadata : Metadata) (e : exn) : unit =
-  try
-    // don't include exception metadata, as the other functions do
-    let metadata = personMetadata person @ metadata
-
-    // print to console
-    printException $"rollbar ({NodaTime.Instant.now ()})" metadata e
-
-    // actually send to rollbar
-    let metadata = Exception.nestedMetadata e @ metadata
-    let custom = createCustom metadata
-    let package = createPackage e person
-    Rollbar.RollbarLocator.RollbarInstance.Error(package, custom)
-    |> ignore<Rollbar.ILogger>
-  // Do the same for the innerException
-  with processingException ->
-    exceptionWhileProcessingException e processingException
-
-
-/// Wraps the exception in a PageableException, then sends in to rollbar in a blocking
-/// call to make sure this exception gets sent. Use for startup and other places where
-/// the process is intended to end after this call. Do not use this in general code,
-/// as it blocks. Returns an int as the process will exit immediately after.
+/// Last ditch error reporting - prints and returns -1
 let lastDitchBlockAndPage (msg : string) (e : exn) : int =
-  try
-    printException msg [] e
-    let e = Exception.PageableException(msg, [], e)
-    let metadata = Exception.nestedMetadata e
-    let custom = createCustom metadata
-    Rollbar.RollbarLocator.RollbarInstance
-      .AsBlockingLogger(System.TimeSpan.FromSeconds(5))
-      .Error(e, custom)
-    |> ignore<Rollbar.ILogger>
-    (-1)
-  with processingException ->
-    exceptionWhileProcessingException e processingException
-    LaunchDarkly.flush ()
-    // Pause so that the exceptions can send
-    Task.Delay(10000).Wait()
-    (-1)
+  printException msg [] e
+  Task.Delay(1000).Wait()
+  -1
 
 module AspNet =
   open Microsoft.Extensions.DependencyInjection
-  open Rollbar.NetCore.AspNet
   open Microsoft.AspNetCore.Builder
 
-  // Setup parameters for rollbar middleware
   type RollbarContext =
-    {
-      // Using the HttpContext, fetch the Person and any useful metadata
-      ctxMetadataFn : HttpContext -> Person * Metadata
-      // Ignore this path, used to ignore exceptions that happen during the k8s startupProbe
+    { ctxMetadataFn : HttpContext -> Person * Metadata
       ignoreStartupPath : Option<string> }
 
-  // Rollbar's ASP.NET core middleware requires an IHttpContextAccessor, which
-  // supposedly costs significant performance (couldn't see a cost in practice
-  // though). AFAICT, this allows HTTP vars to be shared across the Task using an
-  // AsyncContext. This would make sense for a lot of ways to use Rollbar, but we use
-  // telemetry for our context and only want to use rollbar for exception tracking.
+  /// Middleware that catches exceptions and logs them
   type DarkRollbarMiddleware
     (nextRequestProcessor : RequestDelegate, rollbarCtx : RollbarContext) =
     member this._nextRequestProcessor : RequestDelegate = nextRequestProcessor
@@ -244,33 +53,11 @@ module AspNet =
           if Some(string ctx.Request.Path) = rollbarCtx.ignoreStartupPath then
             ()
           else
-            try
-              let url =
-                Exception.catch ctx.Request.GetEncodedUrl
-                |> Option.defaultValue "invalid url"
-              printException "rollbar in http middleware" [ "url", url ] e
-
-              let person, metadata =
-                try
-                  rollbarCtx.ctxMetadataFn ctx
-                with _ ->
-                  None, [ "exception calling ctxMetadataFn", true ]
-              let metadata = metadata @ Exception.nestedMetadata e
-              let custom = createCustom metadata
-              let package = createPackage e person
-              let package = HttpRequestPackageDecorator(package, ctx.Request, true)
-              let package = HttpResponsePackageDecorator(package, ctx.Response, true)
-              Rollbar.RollbarLocator.RollbarInstance.Error(package, custom)
-              |> ignore<Rollbar.ILogger>
-              print "Rollbar exception sent"
-            with processingException ->
-              exceptionWhileProcessingException e processingException
+            printException "[http exception]" [] e
           Exception.reraise e
       }
 
-
   let addRollbarToServices (services : IServiceCollection) : IServiceCollection =
-    // Nothing to do here, as rollbar is initialized above
     services
 
   let addRollbarToApp
@@ -282,76 +69,7 @@ module AspNet =
       { ctxMetadataFn = ctxMetadataFn; ignoreStartupPath = ignoreStartupPath }
     )
 
-
+/// Initialize Rollbar - no-op
 let init (serviceName : string) : unit =
-  printTime "Configuring Rollbar"
-  let config =
-    Rollbar.RollbarInfrastructureConfig(
-      Config.rollbarServerAccessToken,
-      Config.rollbarEnvironment
-    )
-  // We don't have any settings here
-  // let _destinationOptions = config.RollbarLoggerConfig.RollbarDestinationOptions
-  // let _telemetryOptions = config.RollbarTelemetryOptions
-
-  // Offline storage
-  let offlineStoreOptions = config.RollbarOfflineStoreOptions
-  let osOpts = Rollbar.RollbarOfflineStoreOptions()
-  osOpts.EnableLocalPayloadStore <- false
-  offlineStoreOptions.Reconfigure osOpts
-  |> ignore<Rollbar.IRollbarOfflineStoreOptions>
-
-  // Main options
-  let iOpts = Rollbar.RollbarInfrastructureOptions()
-  iOpts.CaptureUncaughtExceptions <- true // doesn't seem to work afaict (true in v4, unclear in v5)
-  config.RollbarInfrastructureOptions.Reconfigure(iOpts)
-  |> ignore<Rollbar.IRollbarInfrastructureOptions>
-
-  let dOpts = Rollbar.RollbarDeveloperOptions()
-  dOpts.Enabled <- Config.rollbarEnabled
-  dOpts.LogLevel <- Rollbar.ErrorLevel.Info // We use Info for notifications
-  dOpts.Transmit <- true
-  dOpts.RethrowExceptionsAfterReporting <- false
-  dOpts.WrapReportedExceptionWithRollbarException <- false
-  config.RollbarLoggerConfig.RollbarDeveloperOptions.Reconfigure(dOpts)
-  |> ignore<Rollbar.IRollbarDeveloperOptions>
-
-  // data options
-  let dsOpts = Rollbar.RollbarDataSecurityOptions()
-  dsOpts.ScrubFields <-
-    Array.append
-      config.RollbarLoggerConfig.RollbarDataSecurityOptions.ScrubFields
-      [| "Set-Cookie"; "Cookie"; "Authorization"; "x-csrf-token" |]
-  config.RollbarLoggerConfig.RollbarDataSecurityOptions.Reconfigure dsOpts
-  |> ignore<Rollbar.IRollbarDataSecurityOptions>
-
-  let paOpts = Rollbar.RollbarPayloadAdditionOptions()
-
-  let (state : Dictionary.T<string, obj>) = Dictionary.empty ()
-  state["service"] <- serviceName
-  paOpts.Server <- Rollbar.DTOs.Server(state)
-  paOpts.Server.Host <- Config.hostName
-  paOpts.Server.Root <- Config.sourceRootDir
-  paOpts.Server.CodeVersion <- Config.buildHash
-  config.RollbarLoggerConfig.RollbarPayloadAdditionOptions.Reconfigure paOpts
-  |> ignore<Rollbar.IRollbarPayloadAdditionOptions>
-
-
-  // Seems we don't have the ability to set Rollbar.DTOs.Data.DefaultLanguage
-  let pmOpts = Rollbar.RollbarPayloadManipulationOptions()
-  pmOpts.Transform <- (fun payload -> payload.Data.Language <- "f#")
-  config.RollbarLoggerConfig.RollbarPayloadManipulationOptions.Reconfigure pmOpts
-  |> ignore<Rollbar.IRollbarPayloadManipulationOptions>
-
-  // Initialize
-  Rollbar.RollbarInfrastructure.Instance.Init(config)
-
-  // Debug Rollbar internals - when a Rollbar log is made, we lose sight of it.
-  // Enabling this callback lets us see what actually happens when it's processed
-  Rollbar.RollbarInfrastructure.Instance.QueueController.InternalEvent.AddHandler
-    (fun this e -> print $"rollbar internal error: {e.TraceAsString()}")
-
+  printTime "Rollbar disabled (stubbed out)"
   Exception.sendRollbarError <- fun msg metadata -> sendError msg metadata
-
-  printTime " Configured rollbar"
-  ()

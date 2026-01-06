@@ -28,31 +28,8 @@ DARK_CONFIG_SERIALIZATION_GENERATE_TEST_DATA=n
 DARK_CONFIG_ENV_DISPLAY_NAME=circleci
 DARK_CONFIG_DEFAULT_LOGGER=console
 
-# Rollbar
-DARK_CONFIG_ROLLBAR_ENABLED=n
-DARK_CONFIG_ROLLBAR_ENVIRONMENT=test
-DARK_CONFIG_ROLLBAR_POST_CLIENT_ITEM=none
-DARK_CONFIG_ROLLBAR_POST_SERVER_ITEM=none
-
-# Honeycomb
-DARK_CONFIG_TELEMETRY_EXPORTER=console
-DARK_CONFIG_HONEYCOMB_API_KEY=none
-DARK_CONFIG_HONEYCOMB_DATASET_NAME=none
-DARK_CONFIG_HONEYCOMB_API_ENDPOINT=none
-
-# Launchdarkly - https://app.launchdarkly.com/settings/projects/default/environments
-DARK_CONFIG_LAUNCHDARKLY_SDK_API_KEY=none
-
 # Feature flag defaults
 DARK_CONFIG_TRACE_SAMPLING_RULE_DEFAULT=sample-all
-
-# Pusher
-## This account is the dark-dev-account pusher account, username
-## ops@darklang.com, whose password is in the 1pw admin vault.
-DARK_CONFIG_PUSHER_APP_ID=1006124
-DARK_CONFIG_PUSHER_KEY=acd42e5073f0bad7e604
-DARK_CONFIG_PUSHER_SECRET=fcd318b907f67bbedb4f
-DARK_CONFIG_PUSHER_CLUSTER=us2
 
 # Package manager
 DARK_CONFIG_PACKAGE_MANAGER_BASE_URL=http://dark-packages.dlio.localhost:11001
