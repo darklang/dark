@@ -32,12 +32,6 @@ variable "service_env_vars" {
     "DARK_CONFIG_TRIGGER_CRONS"         = { value : "y" }
     "DARK_CONFIG_PAUSE_BETWEEN_CRONS"   = { value : "0" }
 
-    ## ProdExec
-    "DARK_CONFIG_PRODEXEC_PORT"            = { value : "8080" }
-    "DARK_CONFIG_PRODEXEC_CHISEL_USERNAME" = { secret : "prodexec-chisel-username" }
-    "DARK_CONFIG_PRODEXEC_CHISEL_PASSWORD" = { secret : "prodexec-chisel-password" }
-    "DARK_CONFIG_PRODEXEC_SSH_PASSWORD"    = { secret : "prodexec-ssh-password" }
-
     # Http
     "DARK_CONFIG_HTTPCLIENT_TIMEOUT_IN_MS" = { value : "10000" }
 

@@ -40,19 +40,6 @@ exec_sql() {
     -c "$1"
 }
 
-run_prod_exec() {
-  DARK_CONFIG_DB_HOST=$db_host \
-  DARK_CONFIG_DB_PORT=$db_port \
-  DARK_CONFIG_DB_DBNAME=$db_name \
-  DARK_CONFIG_DB_USER=$db_username \
-  DARK_CONFIG_DB_PASSWORD=$db_password \
-  DARK_CONFIG_TELEMETRY_EXPORTER=none \
-  DARK_CONFIG_ROLLBAR_ENABLED=n \
-  DARK_CONFIG_LAUNCHDARKLY_SDK_API_KEY=none \
-  ./scripts/run-prod-exec "$@"
-}
-
-
 run_local_exec() {
   DARK_CONFIG_DB_HOST=$db_host \
   DARK_CONFIG_DB_PORT=$db_port \
@@ -70,8 +57,8 @@ echo "1. Prove we can connect to the DB"
 exec_sql "select 2 ;"
 
 echo "2. Run migrations"
-run_prod_exec migrations run
-run_prod_exec migrations list
+run_local_exec migrations run
+run_local_exec migrations list
 
 echo "3. Load packages into internal SQL tables"
 # this will be used by BwdServer when _it_ needs to use package items

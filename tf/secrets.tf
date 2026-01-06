@@ -13,9 +13,6 @@ variable "secret_names" {
     "queue-pubsub-credentials",
     "rollbar-post-token",
     "allowed-dark-internal-canvas-ids",
-    "prodexec-chisel-username",
-    "prodexec-chisel-password",
-    "prodexec-ssh-password",
     "packages-darklang-com-auth-password"
   ]
 }
