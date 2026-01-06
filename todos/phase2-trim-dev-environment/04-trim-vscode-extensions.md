@@ -1,6 +1,6 @@
 # Trim VS Code Extensions
 
-**Status**: [ ] Not started
+**Status**: [x] Complete
 
 ## Current Extensions
 
