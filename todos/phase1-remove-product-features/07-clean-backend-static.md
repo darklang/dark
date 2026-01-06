@@ -1,6 +1,6 @@
 # Clean backend/static
 
-**Status**: [ ] Not started
+**Status**: [x] Complete
 
 ## What's in backend/static?
 

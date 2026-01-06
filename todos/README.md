@@ -20,7 +20,7 @@ This directory contains the task breakdown for trimming the Darklang codebase. E
 - [x] [04-trim-builtin-dark-internal.md](phase1-remove-product-features/04-trim-builtin-dark-internal.md)
 - [x] [05-delete-libclienttypes.md](phase1-remove-product-features/05-delete-libclienttypes.md)
 - [x] [06-delete-wasm.md](phase1-remove-product-features/06-delete-wasm.md)
-- [ ] [07-clean-backend-static.md](phase1-remove-product-features/07-clean-backend-static.md)
+- [x] [07-clean-backend-static.md](phase1-remove-product-features/07-clean-backend-static.md)
 
 ### Phase 2: Trim Dev Environment
 - [ ] [01-remove-deployment-terraform.md](phase2-trim-dev-environment/01-remove-deployment-terraform.md)
