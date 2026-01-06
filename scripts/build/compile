@@ -101,12 +101,6 @@ def yamllint(f):
   return result
 
 
-def terraform_validate():
-  start = time.time()
-  result = run_backend(start, "cd tf && terraform validate")
-  return result
-
-
 def circleci_validate():
   start = time.time()
   return run_backend(start, "circleci config validate")
@@ -269,7 +263,6 @@ class Should:
     self.reload_backend_server = False
     self.shellcheck = []
     self.yamllint = []
-    self.terraform_validate = False
     self.build_parser = False
 
 
@@ -343,9 +336,6 @@ def execute(should):
     if not all([yamllint(f) for f in should.yamllint]):
       success = False
 
-  if should.terraform_validate:
-    if not terraform_validate(): success = False
-
   return success
 
 
@@ -392,9 +382,6 @@ def mark(should, f):
 
   elif f == ".circleci/config.yml":
     should.circleci_validate = True
-
-  elif f.startswith("tf/") and f.endswith(".tf"):
-    should.terraform_validate = True
 
   elif (f.startswith("scripts/") or f.endswith(".sh")) and is_script(f):
     should.shellcheck += [f]

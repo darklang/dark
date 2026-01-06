@@ -54,13 +54,8 @@ Each file has:
 ./scripts/run-backend-tests  # Must pass
 # Wait for build to succeed (check rundir/logs/build-server.log)
 
-# Commit format:
-git commit -m "trim: [brief description]
-
-- [bullet points of what was removed/changed]
-
-Part of codebase trimming sprint.
-"
+# Commit format - keep it SHORT, no attribution:
+git commit -m "trim: [brief description]"
 ```
 
 ## External Resources
@@ -96,6 +91,8 @@ Before any commit:
 ```
 
 This runs the Expecto test suite. All tests must pass before committing.
+
+**After tests pass**: Report the test count (e.g., "Tests passed: 142/142") so we can track the count decreasing as we trim.
 
 ## Darklang Syntax Reference
 

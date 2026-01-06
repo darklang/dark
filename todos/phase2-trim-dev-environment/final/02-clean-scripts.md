@@ -1,6 +1,6 @@
 # Clean Up Scripts Directory
 
-**Status**: [ ] Not started
+**Status**: [x] Complete
 
 ## Scripts to Audit
 

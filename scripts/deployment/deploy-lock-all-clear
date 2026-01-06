@@ -1,8 +1,0 @@
-#!/usr/bin/env bash
-. ./scripts/devcontainer/_assert-in-container "$0" "$@"
-
-# Clear all deploy locks
-
-set -euo pipefail
-
-./scripts/deployment/_deploy-lock-request / DELETE | jq -r .
