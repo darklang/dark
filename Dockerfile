@@ -117,14 +117,10 @@ RUN DEBIAN_FRONTEND=noninteractive \
       build-essential \
       # end parser dependencies
       psmisc \
+      # CLI integration tests
+      expect \
       && apt clean \
       && rm -rf /var/lib/apt/lists/*
-
-# Install expect for the CLI integration tests
-RUN DEBIAN_FRONTEND=noninteractive apt-get update && \
-  DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends expect && \
-  apt-get clean && \
-  rm -rf /var/lib/apt/lists/*
 
 # As of Ubuntu 24.04, an install includes
 # an 'ubuntu' user, that we don't use,
