@@ -51,6 +51,3 @@ nuget Google.Cloud.PubSub.V1 = 3.8.0
 
 // LocalExec
 nuget Legivel = 0.4.6
-
-// Wasm
-nuget Microsoft.AspNetCore.Components.WebAssembly = 8.0.0

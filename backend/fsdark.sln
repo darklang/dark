@@ -53,8 +53,6 @@ Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "BuiltinDarkInternal", "src\
 EndProject
 Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "LibCloud", "src\LibCloud\LibCloud.fsproj", "{3FC57943-9D51-49AE-9FBD-4A112B4F68D6}"
 EndProject
-#Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "Wasm", "src\Wasm\Wasm.fsproj", "{5990939C-7E7B-4CFA-86FF-44CA5756498A}"
-#EndProject
 Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "LibHttpMiddleware", "src\LibHttpMiddleware\LibHttpMiddleware.fsproj", "{DAE2B2E9-40AF-4D99-A5B0-79678F94BFDA}"
 EndProject
 Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "BwdServer", "src\BwdServer\BwdServer.fsproj", "{B56110F0-2D27-4718-8C80-E7FDE3439A63}"
@@ -152,10 +150,6 @@ Global
 		{DF812CBE-894C-4C90-9EDC-4558983CCDEA}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{DF812CBE-894C-4C90-9EDC-4558983CCDEA}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{DF812CBE-894C-4C90-9EDC-4558983CCDEA}.Release|Any CPU.Build.0 = Release|Any CPU
-		#{5990939C-7E7B-4CFA-86FF-44CA5756498A}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		#{5990939C-7E7B-4CFA-86FF-44CA5756498A}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		#{5990939C-7E7B-4CFA-86FF-44CA5756498A}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		#{5990939C-7E7B-4CFA-86FF-44CA5756498A}.Release|Any CPU.Build.0 = Release|Any CPU
 		{FC9D3B85-2CD6-4A5C-B853-BCE770F76FC6}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
 		{FC9D3B85-2CD6-4A5C-B853-BCE770F76FC6}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{FC9D3B85-2CD6-4A5C-B853-BCE770F76FC6}.Release|Any CPU.ActiveCfg = Release|Any CPU
