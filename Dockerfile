@@ -112,7 +112,6 @@ RUN DEBIAN_FRONTEND=noninteractive \
       bash-completion \
       openssh-server \
       dnsutils \
-      openjdk-11-jdk \
       # .NET dependencies - https://github.com/dotnet/dotnet-docker/blob/master/src/runtime-deps/3.1/bionic/amd64/Dockerfile
       libc6 \
       libgcc1 \
