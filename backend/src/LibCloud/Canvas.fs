@@ -15,7 +15,6 @@ module PT = LibExecution.ProgramTypes
 module PTParser = LibExecution.ProgramTypesParser
 module RT = LibExecution.RuntimeTypes
 module PT2RT = LibExecution.ProgramTypesToRuntimeTypes
-module Telemetry = LibService.Telemetry
 module LD = LibService.LaunchDarkly
 module K8s = LibService.Kubernetes
 
@@ -220,8 +219,6 @@ let empty (id : CanvasID) =
 let loadFrom (id : CanvasID) (tlids : List<tlid>) : Task<T> =
   task {
     try
-      Telemetry.addTags [ "tlids", tlids ]
-
       // load
       let! tls = Serialize.loadToplevels id tlids
 

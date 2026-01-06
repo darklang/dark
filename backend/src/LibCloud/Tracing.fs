@@ -14,7 +14,6 @@ module DvalReprInternalHash = LibExecution.DvalReprInternalHash
 
 module LD = LibService.LaunchDarkly
 module Rollbar = LibService.Rollbar
-module Telemetry = LibService.Telemetry
 
 /// Tracing can go overboard, so use a per-handler feature flag to control it. If
 /// sampling is disabled for a canvas, no traces will be recorded to be saved to the
@@ -47,7 +46,6 @@ module TraceSamplingRule =
   /// fails, returns SampleNone.
   let ruleForHandler (canvasID : CanvasID) (tlid : tlid) : T =
     let ruleString = LD.traceSamplingRule canvasID tlid
-    Telemetry.addTag "trace_sampling_rule" ruleString
     match parseRule ruleString with
     | Error msg ->
       Rollbar.sendError

@@ -61,32 +61,6 @@ let debugRollbarConfig () =
   ()
 
 // -------------------------------
-// Honeycomb
-// -------------------------------
-
-// "https://ui.honeycomb.io/dark/datasets/kubernetes-bwd-ocaml?query={\"filters\":[{\"column\":\"rollbar\",\"op\":\"exists\"},{\"column\":\"execution_id\",\"op\":\"=\",\"value\":\"44602511168214071\"}],\"limit\":100,\"time_range\":604800}"
-type HoneycombFilter = { column : string; op : string; value : string }
-
-type HoneycombJson =
-  { filters : List<HoneycombFilter>; limit : int; time_range : int }
-
-let honeycombLinkOfTraceID () : string =
-  let rootID = Telemetry.rootID ()
-  let query =
-    { filters = [ { column = "trace.trace_id"; op = "="; value = rootID } ]
-      limit = 100
-      // 604800 is 7 days
-      time_range = 604800 }
-
-  let queryStr = Json.Vanilla.serialize query
-  let dataset = Config.honeycombDataset
-
-  let uri =
-    System.Uri($"https://ui.honeycomb.io/dark/datasets/{dataset}?query={queryStr}")
-
-  string uri
-
-// -------------------------------
 // Include person data
 // -------------------------------
 
@@ -107,11 +81,7 @@ let createPackage (exn : exn) (person : Person) : Rollbar.IRollbarPackage =
 // Custom metadata
 // -------------------------------
 let createCustom (metadata : Metadata) : Dictionary.T<string, obj> =
-
   let (custom : Dictionary.T<string, obj>) = Dictionary.empty ()
-  // CLEANUP rollbar has a built-in way to do this called "Service links"
-  custom["message.honeycomb"] <- honeycombLinkOfTraceID ()
-
   List.iter (fun (k, v) -> Dictionary.add k (v :> obj) custom) metadata
   custom
 
@@ -128,7 +98,6 @@ let notify (message : string) (metadata : Metadata) : unit =
     ()
   let stacktraceMetadata = ("stacktrace", System.Environment.StackTrace :> obj)
   let metadata = stacktraceMetadata :: metadata
-  Telemetry.notify message metadata
   let custom = createCustom metadata
   Rollbar.RollbarLocator.RollbarInstance.Info(message, custom)
   |> ignore<Rollbar.ILogger>
@@ -142,7 +111,6 @@ let sendError (message : string) (metadata : Metadata) : unit =
   with _ ->
     ()
   print System.Environment.StackTrace
-  Telemetry.addEvent message metadata
   let custom = createCustom (("message", message :> obj) :: metadata)
   Rollbar.RollbarLocator.RollbarInstance.Error(message, custom)
   |> ignore<Rollbar.ILogger>
@@ -191,20 +159,13 @@ let exceptionWhileProcessingException
     // Do this after, as these could cause exceptions
     printException "Original exception" [] original
   with _ ->
+    ()
 
-    try
-      // Do this after, as these could cause exceptions
-      printException "Processing exception" [] processingException
-    with _ ->
-
-      try
-        // Do telemetry later, in case that's the cause
-        if Telemetry.Span.current () = null then
-          Telemetry.createRoot "LastDitch" |> ignore<Telemetry.Span.T>
-        Telemetry.addException [] original
-        Telemetry.addException [] processingException
-      with _ ->
-        ()
+  try
+    // Do this after, as these could cause exceptions
+    printException "Processing exception" [] processingException
+  with _ ->
+    ()
 
 let personMetadata (person : Person) : Metadata =
   match person with
@@ -212,11 +173,7 @@ let personMetadata (person : Person) : Metadata =
   | Some id -> [ "user.id", id ]
 
 
-/// Sends exception to Rollbar and also to Telemetry (honeycomb) and also prints it.
-/// The error is titled after the exception message - to change it wrap it in another
-/// exception. However, it's better to keep the existing exception and add extra
-/// context via metadata. For nested exceptions: the printException function and
-/// Telemetry.addException are recursive and capture nested exceptions.
+/// Sends exception to Rollbar and prints it.
 let rec sendException (person : Person) (metadata : Metadata) (e : exn) : unit =
   try
     // don't include exception metadata, as the other functions do
@@ -224,14 +181,6 @@ let rec sendException (person : Person) (metadata : Metadata) (e : exn) : unit =
 
     // print to console
     printException $"rollbar ({NodaTime.Instant.now ()})" metadata e
-
-    // send to telemetry
-    use _span =
-      if isNull (Telemetry.Span.current ()) then
-        Telemetry.createRoot "sendException"
-      else
-        null // don't use the current span as we don't want `use` to clean it up
-    Telemetry.addException metadata e
 
     // actually send to rollbar
     let metadata = Exception.nestedMetadata e @ metadata
@@ -252,18 +201,15 @@ let lastDitchBlockAndPage (msg : string) (e : exn) : int =
   try
     printException msg [] e
     let e = Exception.PageableException(msg, [], e)
-    Telemetry.addException [] e
     let metadata = Exception.nestedMetadata e
     let custom = createCustom metadata
     Rollbar.RollbarLocator.RollbarInstance
       .AsBlockingLogger(System.TimeSpan.FromSeconds(5))
       .Error(e, custom)
     |> ignore<Rollbar.ILogger>
-    Telemetry.addException [] e
     (-1)
   with processingException ->
     exceptionWhileProcessingException e processingException
-    Telemetry.flush ()
     LaunchDarkly.flush ()
     // Pause so that the exceptions can send
     Task.Delay(10000).Wait()
@@ -317,7 +263,6 @@ module AspNet =
               Rollbar.RollbarLocator.RollbarInstance.Error(package, custom)
               |> ignore<Rollbar.ILogger>
               print "Rollbar exception sent"
-            // No telemetry call here as it should happen automatically
             with processingException ->
               exceptionWhileProcessingException e processingException
           Exception.reraise e
@@ -405,29 +350,6 @@ let init (serviceName : string) : unit =
   // Enabling this callback lets us see what actually happens when it's processed
   Rollbar.RollbarInfrastructure.Instance.QueueController.InternalEvent.AddHandler
     (fun this e -> print $"rollbar internal error: {e.TraceAsString()}")
-
-  // Disable the ConnectivityMonitor: https://github.com/rollbar/Rollbar.NET/issues/615
-  // We actually want to call
-  // Rollbar.RollbarInfrastructure.Instance.ConnectivityMonitor.Disable() to disable
-  // the ConnectivityMonitor. However, ConnectivityMonitor is an internal class, and
-  // we're only provided access to an IConnectivityMonitor, which does not have that
-  // method.
-  // We need to disable this because the ConnectivityMonitor checks for
-  // www.rollbar.com:80 instead of api.rollbar.com:443, and we firewall that off in
-  // production.
-  // let cm = Rollbar.RollbarInfrastructure.Instance.ConnectivityMonitor
-  // cm
-  //   .GetType()
-  //   .InvokeMember(
-  //     "Disable",
-  //     System.Reflection.BindingFlags.Public
-  //     ||| System.Reflection.BindingFlags.InvokeMethod
-  //     ||| System.Reflection.BindingFlags.Instance,
-  //     null,
-  //     cm,
-  //     [||]
-  //   )
-  // |> ignore<obj>
 
   Exception.sendRollbarError <- fun msg metadata -> sendError msg metadata
 

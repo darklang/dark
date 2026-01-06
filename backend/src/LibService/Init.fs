@@ -5,7 +5,6 @@ open Prelude
 let init (serviceName : string) : unit =
   printTime $"Initing LibService in {serviceName}"
   Rollbar.init serviceName
-  Telemetry.init serviceName
   printTime $" Inited LibService in {serviceName}"
 
 
@@ -14,5 +13,4 @@ let init (serviceName : string) : unit =
 let shutdown (serviceName : string) : unit =
   printTime $"Shutting down LibService in {serviceName}"
   LaunchDarkly.flush ()
-  Telemetry.flush ()
   printTime $"Shutting down LibService in {serviceName}"

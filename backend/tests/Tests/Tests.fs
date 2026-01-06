@@ -8,7 +8,6 @@ open System.Threading.Tasks
 open Prelude
 
 module PT = LibExecution.ProgramTypes
-module Telemetry = LibService.Telemetry
 
 let initSerializers () =
   BwdServer.Server.initSerializers ()
@@ -71,7 +70,6 @@ let main (args : string array) : int =
     let cancelationTokenSource = new System.Threading.CancellationTokenSource()
     let bwdServerTestsTask = Tests.BwdServer.init cancelationTokenSource.Token
     let httpClientTestsTask = Tests.HttpClient.init cancelationTokenSource.Token
-    Telemetry.Console.loadTelemetry "tests" Telemetry.TraceDBQueries
 
     // Generate this so that we can see if the format has changed in a git diff
     BinarySerialization.generateTestFiles ()

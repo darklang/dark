@@ -14,8 +14,6 @@ type Instant = NodaTime.Instant
 
 open Prelude
 
-module Telemetry = LibService.Telemetry
-
 module DvalReprInternalRoundtrippable = LibExecution.DvalReprInternalRoundtrippable
 module PT = LibExecution.ProgramTypes
 module RT = LibExecution.RuntimeTypes
@@ -160,13 +158,6 @@ let enqueueAtTime
   (value : RT.Dval)
   : Task<unit> =
   task {
-    use _ =
-      Telemetry.child
-        "enqueue"
-        [ "canvas_id", canvasID
-          "handler.module", module'
-          "handler.name", name
-          "handler.modifier", modifier ]
     let id = System.Guid.NewGuid()
     do! createEventAtTime canvasID id module' name modifier dt value
     // Note: Events are stored but never processed (QueueWorker removed)

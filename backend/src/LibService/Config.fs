@@ -43,29 +43,6 @@ let rollbarEnvironment = string "DARK_CONFIG_ROLLBAR_ENVIRONMENT"
 
 
 // --------------------
-// honeycomb
-// --------------------
-type TelemetryExporter =
-  | Honeycomb
-  | Console
-
-// "Where do you send the logs?"
-let telemetryExporters : List<TelemetryExporter> =
-  "DARK_CONFIG_TELEMETRY_EXPORTER"
-  |> string
-  |> String.split ","
-  |> List.filterMap (fun telemExporter ->
-    match telemExporter with
-    | "honeycomb" -> Some Honeycomb
-    | "console" -> Some Console
-    | "none" -> None
-    | name -> failwith $"Unexpected Telemetry exporter {name}")
-
-let honeycombApiKey = credentials "DARK_CONFIG_HONEYCOMB_API_KEY"
-let honeycombDataset = string "DARK_CONFIG_HONEYCOMB_DATASET_NAME"
-let honeycombEndpoint = string "DARK_CONFIG_HONEYCOMB_API_ENDPOINT"
-
-// --------------------
 // ports
 // --------------------
 let bwdServerPort = int "DARK_CONFIG_BWDSERVER_BACKEND_PORT"

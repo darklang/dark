@@ -239,7 +239,6 @@ module Execution =
       |> List.filterMap (fun (k, v) ->
         match k, v with
         | "Date", _ -> Some(k, "xxx, xx xxx xxxx xx:xx:xx xxx")
-        | "x-darklang-execution-id", _ -> Some(k, "0123456789")
         | _other -> Some(k, v))
       |> List.sortBy Tuple2.first
 

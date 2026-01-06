@@ -249,17 +249,6 @@ RUN \
   --target=/usr/bin/shellcheck
 
 ####################################
-# Honeymarker installs
-####################################
-
-RUN /home/dark/install-exe-file \
-  --arm64-sha256=fef8c383419c86ceabb0bbffd3bcad2bf9223537fba9f848218480f873a96e8d \
-  --amd64-sha256=6e08038f4587d515856076746ad3a69e67376eddd38d8657f449aad393b95cd8 \
-  --url=https://github.com/honeycombio/honeymarker/releases/download/v0.2.10/honeymarker-linux-${TARGETARCH} \
-  --target=/usr/bin/honeymarker
-
-
-####################################
 # dotnet / F#
 ####################################
 

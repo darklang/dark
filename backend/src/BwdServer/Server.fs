@@ -35,7 +35,6 @@ module CloudExe = LibCloudExecution.CloudExecution
 module FireAndForget = LibService.FireAndForget
 module Kubernetes = LibService.Kubernetes
 module Rollbar = LibService.Rollbar
-module Telemetry = LibService.Telemetry
 module Logging = LibService.Logging
 
 // HttpHandlerTODO there are still a number of things in this file that were
@@ -107,7 +106,6 @@ let faviconResponse (ctx : HttpContext) : Task<HttpContext> =
     // NB: we're sending back a png, not an ico - this is deliberate,
     // favicon.ico can be png, and the png is 454 bytes vs a 4+kb .ico
     let memory = Lazy.force favicon
-    Telemetry.addTag "http.completion_reason" "darklangFavicon"
     setResponseHeader ctx "Access-Control-Allow-Origin" "*"
     ctx.Response.StatusCode <- 200
     ctx.Response.ContentType <- "image/png"
@@ -187,20 +185,14 @@ let errorResponse
 
 
 let noHandlerResponse (ctx : HttpContext) : Task<HttpContext> =
-  Telemetry.addTag "http.completion_reason" "noHandler"
   errorResponse ctx "404 Not Found: No route matches" 404
 
 let canvasNotFoundResponse (ctx : HttpContext) : Task<HttpContext> =
-  Telemetry.addTag "http.completion_reason" "canvasNotFound"
   errorResponse ctx "canvas not found" 404
 
-let internalErrorResponse (ctx : HttpContext) (e : exn) : Task<HttpContext> =
-  Telemetry.addTag "http.completion_reason" "internalError"
-  Telemetry.addTag "http.internal_exception_msg" e.Message
-
+let internalErrorResponse (ctx : HttpContext) (_e : exn) : Task<HttpContext> =
   // It's possible that the body has already been written to, so we need to be careful here
   if ctx.Response.HasStarted then
-    Telemetry.addTag "http.body_started_before_error_logged" true
     task { return ctx }
   else
     let msg =
@@ -211,7 +203,6 @@ let internalErrorResponse (ctx : HttpContext) (e : exn) : Task<HttpContext> =
 let moreThanOneHandlerResponse (ctx : HttpContext) : Task<HttpContext> =
   let path = ctx.Request.Path.Value
   let message = $"500 Internal Server Error: More than one handler for route: {path}"
-  Telemetry.addTag "http.completion_reason" "moreThanOnHandler"
   errorResponse ctx message 500
 
 let unmatchedRouteResponse
@@ -220,7 +211,6 @@ let unmatchedRouteResponse
   (route : string)
   : Task<HttpContext> =
   let message = $"The request ({requestPath}) does not match the route ({route})"
-  Telemetry.addTag "http.completion_reason" "unmatchedRoute"
   errorResponse ctx message 500
 
 
@@ -265,7 +255,6 @@ let runDarkHandler (ctx : HttpContext) : Task<HttpContext> =
       | None -> Task.FromResult None
       | Some domain ->
         ctx.Items["canvasDomain"] <- domain // store for exception tracking
-        Telemetry.addTags [ "canvas.domain", domain ]
         Canvas.canvasIDForDomain domain
 
     match canvasID with
@@ -276,8 +265,6 @@ let runDarkHandler (ctx : HttpContext) : Task<HttpContext> =
 
       // TODO: stop storing all the handler types together...
       let desc = ("HTTP", requestPath, requestMethod)
-
-      Telemetry.addTags [ "canvas.id", canvasID; "trace_id", traceID ]
 
       // redirect HEADs to GET. We pass the actual HEAD method to the engine,
       // and leave it to middleware to say what it wants to do with that
@@ -294,9 +281,7 @@ let runDarkHandler (ctx : HttpContext) : Task<HttpContext> =
 
       match pages with
       // matching handler found - process normally
-      | [ { spec = PT.Handler.HTTP(route = route); tlid = tlid } as handler ] ->
-        Telemetry.addTags [ "handler.route", route; "handler.tlid", tlid ]
-
+      | [ { spec = PT.Handler.HTTP(route = route); tlid = _ } as handler ] ->
         let routeVars = Routing.routeInputVars route requestPath
 
         let! reqBody = getBody ctx
@@ -304,11 +289,6 @@ let runDarkHandler (ctx : HttpContext) : Task<HttpContext> =
 
         match routeVars with
         | Some routeVars ->
-          Telemetry.addTag "handler.routeVars" routeVars
-
-          // Do request
-          use _ = Telemetry.child "executeHandler" []
-
           let request = LibHttpMiddleware.Request.fromRequest url reqHeaders reqBody
           let inputVars = routeVars |> Map |> Map.add "request" request
 
@@ -324,16 +304,10 @@ let runDarkHandler (ctx : HttpContext) : Task<HttpContext> =
           let result = LibHttpMiddleware.Response.toHttpResponse result
 
           do! writeResponseToContext ctx result.statusCode result.headers result.body
-          Telemetry.addTag "http.completion_reason" "success"
 
           return ctx
 
         | None -> // vars didn't parse
-          // TODO: reenable using CloudStorage
-          // FireAndForget.fireAndForgetTask "store-event" (fun () ->
-          //   let request = LibHttpMiddleware.Request.fromRequest url reqHeaders reqBody
-          //   TI.storeEvent canvasID traceID desc request)
-
           return! unmatchedRouteResponse ctx requestPath route
 
       | [] when string ctx.Request.Path = "/favicon.ico" ->
@@ -341,9 +315,6 @@ let runDarkHandler (ctx : HttpContext) : Task<HttpContext> =
 
       // no matching route found - store as 404
       | [] ->
-        // TODO: reenable using CloudStorage
-        // let! reqBody = getBody ctx
-        // let reqHeaders = getHeadersWithoutMergingKeys ctx
         return! noHandlerResponse ctx
       | _ -> return! moreThanOneHandlerResponse ctx
     | None -> return! canvasNotFoundResponse ctx
@@ -363,7 +334,6 @@ let configureApp (healthCheckPort : int) (app : IApplicationBuilder) =
       // HttpHandlerTODO lowercase keys for Http handler responses
       setResponseHeader ctx "Strict-Transport-Security" LibService.HSTS.stringConfig
 
-      setResponseHeader ctx "x-darklang-execution-id" (Telemetry.rootID ())
       setResponseHeader ctx "Server" "darklang"
 
       try
@@ -412,7 +382,6 @@ let configureServices (services : IServiceCollection) : unit =
   services
   |> Kubernetes.configureServices [ Canvas.healthCheck ]
   |> Rollbar.AspNet.addRollbarToServices
-  |> Telemetry.AspNet.addTelemetryToServices "BwdServer" Telemetry.TraceDBQueries
   |> ignore<IServiceCollection>
 
 
@@ -452,7 +421,6 @@ let initSerializers () =
   Json.Vanilla.allow<List<LibExecution.ProgramTypes.Toplevel.T>>
     "Canvas.loadJsonFromDisk"
   Json.Vanilla.allow<LibExecution.ProgramTypes.Toplevel.T> "Canvas.loadJsonFromDisk"
-  Json.Vanilla.allow<LibService.Rollbar.HoneycombJson> "Rollbar"
 
 
 [<EntryPoint>]

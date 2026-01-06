@@ -57,16 +57,6 @@ module PersistedSerializations =
         // Prelude
         // ------------------
 
-        // ------------------
-        // LibService
-        // ------------------
-        v<LibService.Rollbar.HoneycombJson>
-          "simple"
-          { filters =
-              [ { column = "trace.trace_id"; op = "="; value = string V.uuid } ]
-            limit = 100
-            time_range = 604800 }
-
         // -------- ----------
         // LibExecution
         // ------------------

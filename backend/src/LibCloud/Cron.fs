@@ -9,7 +9,6 @@ open LibDB.Db
 
 open Prelude
 
-module Telemetry = LibService.Telemetry
 module PT = LibExecution.ProgramTypes
 module PTParser = LibExecution.ProgramTypesParser
 module RT = LibExecution.RuntimeTypes
@@ -95,9 +94,7 @@ let recordExecution (cron : CronScheduleData) : Task<unit> =
 let checkAndScheduleWorkForCron (cron : CronScheduleData) : Task<bool> =
   task {
     match! executionCheck cron with
-    | Some check ->
-      use _span = Telemetry.child "cron.enqueue" []
-
+    | Some _ ->
       // trigger execution
       if Config.triggerCrons then
         do!
@@ -109,40 +106,6 @@ let checkAndScheduleWorkForCron (cron : CronScheduleData) : Task<bool> =
             RT.DUnit
         do! recordExecution cron
 
-      // record the execution
-
-      // It's a little silly to recalculate now when we just did
-      // it in executionCheck, but maybe EventQueue.enqueue was
-      // slow or something
-      let now = NodaTime.Instant.now ()
-      let delayMs =
-        check.scheduledRunAt
-        |> Option.map (fun scheduled -> (now - scheduled).TotalMilliseconds)
-      let delayLog = delayMs |> Option.map (fun delay -> ("delay", delay :> obj))
-      let intervalLog =
-        // Floats are IEEE-754, which has a max at 2**31-1;
-        // that's 24.85 days worth of milliseconds. Since our
-        // longest allowed cron interval is two weeks, this is
-        // fine
-        // CLEANUP: that^ note assumes too much about our cron setup;
-        //   monthly crons would be reasonable
-        check.interval
-        |> Option.map (fun interval -> ("interval", interval.Milliseconds :> obj))
-      let delayRatioLog =
-        Option.map2
-          (fun delayMs (interval : NodaTime.Period) ->
-            delayMs / interval.ToDuration().TotalMilliseconds)
-          delayMs
-          check.interval
-        |> Option.map (fun delayRatio -> ("delay_ratio", delayRatio :> obj))
-      let attrs =
-        [ ("tlid", cron.tlid :> obj)
-          ("handler_name", cron.cronName)
-          // method here to use the spec-handler name for
-          // consistency with http/worker logs
-          ("method", string cron.interval) ]
-        @ ([ delayLog; intervalLog; delayRatioLog ] |> List.filterMap (fun a -> a))
-      Telemetry.addTags attrs
       return true
     | None -> return false
   }
@@ -152,16 +115,10 @@ let checkAndScheduleWorkForCron (cron : CronScheduleData) : Task<bool> =
 /// work to execute it if necessary.
 let checkAndScheduleWorkForAllCrons () : Task<unit> =
   task {
-    use (_span : Telemetry.Span.T) =
-      Telemetry.child "checkAndScheduleWorkForAllCrons" []
     let! crons = Serialize.fetchActiveCrons ()
 
     let concurrencyCount = 1 // CLEANUP
-    let! enqueuedCrons =
+    let! _ =
       Task.mapWithConcurrency concurrencyCount checkAndScheduleWorkForCron crons
-    let enqueuedCronCount = List.count identity enqueuedCrons
-    Telemetry.addTags
-      [ ("crons.checked", List.length crons)
-        ("crons.scheduled", enqueuedCronCount) ]
     return ()
   }

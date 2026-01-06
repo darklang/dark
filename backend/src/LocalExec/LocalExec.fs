@@ -88,8 +88,6 @@ let initSerializers () =
     "Parse packageFn list"
   Json.Vanilla.allow<List<LibExecution.ProgramTypes.PackageType.PackageType>>
     "Parse packageType list"
-  Json.Vanilla.allow<LibService.Rollbar.HoneycombJson>
-    "Allow Rollbar HoneycombJson serialization"
 
 
 
@@ -99,11 +97,7 @@ let main (args : string[]) : int =
   try
     initSerializers ()
 
-    // Use minimal telemetry for CLI tools - enable telemetry but disable Rollbar
     LibService.Init.init name
-    LibService.Telemetry.Console.loadTelemetry
-      name
-      LibService.Telemetry.DontTraceDBQueries
 
     //let _ = (LibCloud.Init.init name).Result
 

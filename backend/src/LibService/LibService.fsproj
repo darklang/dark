@@ -11,7 +11,6 @@
     <None Include="paket.references" />
     <Compile Include="Config.fs" />
     <Compile Include="LaunchDarkly.fs" />
-    <Compile Include="Telemetry.fs" />
     <Compile Include="Logging.fs" />
     <Compile Include="Rollbar.fs" />
     <Compile Include="FireAndForget.fs" />
