@@ -1,6 +1,6 @@
 # Kill Production Containers Directory
 
-**Status**: [ ] Not started
+**Status**: [x] Complete
 
 ## What's Being Removed?
 
