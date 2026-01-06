@@ -1,6 +1,6 @@
 # Kill Chisel
 
-**Status**: [ ] Not started
+**Status**: [x] Complete
 
 ## What is Chisel?
 

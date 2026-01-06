@@ -38,7 +38,7 @@ This directory contains the task breakdown for trimming the Darklang codebase. E
 - [x] [13-add-dockerignore.md](phase2-trim-dev-environment/13-add-dockerignore.md)
 - [x] [14-trim-apt-installs.md](phase2-trim-dev-environment/14-trim-apt-installs.md)
 - [x] [15-kill-nuget-deps.md](phase2-trim-dev-environment/15-kill-nuget-deps.md)
-- [ ] [16-kill-chisel.md](phase2-trim-dev-environment/16-kill-chisel.md)
+- [x] [16-kill-chisel.md](phase2-trim-dev-environment/16-kill-chisel.md)
 - [ ] [final/01-clean-ports.md](phase2-trim-dev-environment/final/01-clean-ports.md)
 - [ ] [final/02-clean-scripts.md](phase2-trim-dev-environment/final/02-clean-scripts.md)
 - [ ] [final/03-clean-docs.md](phase2-trim-dev-environment/final/03-clean-docs.md)
