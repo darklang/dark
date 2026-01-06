@@ -61,11 +61,8 @@ RUN DEBIAN_FRONTEND=noninteractive \
 
 # Latest NPM (taken from https://deb.nodesource.com)
 RUN curl -fsSL https://deb.nodesource.com/gpgkey/nodesource-repo.gpg.key | gpg --dearmor -o /etc/apt/keyrings/nodesource.gpg
-RUN curl -sSL https://apt.releases.hashicorp.com/gpg | apt-key add -
 
 RUN echo "deb [signed-by=/etc/apt/keyrings/nodesource.gpg] https://deb.nodesource.com/node_20.x nodistro main" | tee /etc/apt/sources.list.d/nodesource.list
-
-RUN echo "deb https://apt.releases.hashicorp.com $(lsb_release -cs) main" > /etc/apt/sources.list.d/hashicorp.list
 
 # Mostly, we use the generic version. However, for things in production we want
 # to pin the exact package version so that we don't have any surprises.  As a
@@ -178,16 +175,6 @@ RUN sudo npm install -g prettier@3.0.2
 ############################
 
 COPY --chown=dark:dark --chmod=755 ./scripts/installers/* .
-
-############################
-# Terraform
-############################
-RUN /home/dark/install-targz-file \
-  --arm64-sha256=413006af67285f158df9e7e2ce1faf4460fd68aa7de612f550aa0e8d70d62e60 \
-  --amd64-sha256=0ddc3f21786026e1f8522ba0f5c6ed27a3c8cc56bfac91e342c1f578f8af44a8 \
-  --url=https://releases.hashicorp.com/terraform/1.6.0/terraform_1.6.0_linux_${TARGETARCH}.zip \
-  --extract-file=terraform \
-  --target=/usr/bin/terraform
 
 ############################
 # Chisel
@@ -331,7 +318,6 @@ USER dark
 # Add all the mounts here so that they have the right permissions
 RUN touch .bash_history
 RUN mkdir -p .config/configstore
-RUN mkdir -p .terraform.d/
 RUN mkdir -p app
 RUN mkdir -p app/backend/Build
 
