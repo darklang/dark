@@ -67,17 +67,7 @@ MOUNTS="$MOUNTS --mount type=bind,src=$HOME/.dark_bash_history,dst=/home/dark/.b
 # environment
 # --------------
 
-ENV="dev"
-for i in "$@"
-do
-  case $i in
-    --prodclone)
-    ENV="dev_prodclone"
-    ;;
-  esac
-done
-
-ENV_FILE="config/$ENV"
+ENV_FILE="config/dev"
 if [[ -e "config/local" ]]; then
   ENV_FILE="$ENV_FILE config/local"
 fi
@@ -120,7 +110,6 @@ docker run \
   -p 10030:10030 \
   -p 11001:11001 \
   -p 11002:11002 \
-  --security-opt seccomp=scripts/devcontainer/chrome-seccomp.json \
   -w /home/dark/app \
   --user "$uid:$gid" \
   --cap-add=ALL \

@@ -53,7 +53,6 @@ rm -f "$DB_PATH"
 echo -e "Running migrations ${grey}($LOGS/test-migrations.log)${reset}"
 cd backend && \
   DARK_CONFIG_TELEMETRY_EXPORTER=none \
-  DARK_CONFIG_ROLLBAR_ENABLED=n \
   "${LOCALEXEC}" migrations run > "$LOGS/test-migrations.log" 2>&1
 cd ..
 
@@ -83,6 +82,4 @@ fi
 
 cd backend
 DARK_CONFIG_TELEMETRY_EXPORTER=none \
-DARK_CONFIG_ROLLBAR_ENABLED=n \
-DARK_CONFIG_LAUNCHDARKLY_SDK_API_KEY=none \
 "${EXE}" ${SPINNER} --colours "${COLOURS}" --junit-summary "${JUNIT_FILE}" "${EXPECTO_ARGS[@]}"

@@ -1,66 +1,68 @@
-# Codebase Trimming Sprint - Task Tracker
+# Task Tracking System
 
-This directory contains the task breakdown for trimming the Darklang codebase. Each checkbox represents a discrete, committable unit of work.
+This directory is used for organizing and tracking discrete units of work during focused development sprints.
 
 ## How to Use This System
 
-1. **Find the next unchecked item**: Go through phases in order. Within each phase, work top-to-bottom.
-2. **Complete the task**: Follow the instructions in the specific todo file.
-3. **Test**: Run `./scripts/run-backend-tests` - must pass before committing.
-4. **Commit**: One commit per checkbox. Use format: `trim: [brief description]`
-5. **Mark complete**: Change `[ ]` to `[x]` in the todo file.
-6. **Commit the checkbox update**: Include it in the same commit or make a separate "progress" commit.
+1. **Create a phase directory**: `phase1-description/`, `phase2-description/`, etc.
+2. **Create task files**: Each `.md` file represents one committable unit of work
+3. **Work top-to-bottom**: Go through phases in order, tasks within each phase sequentially
+4. **Test before commit**: Run `./scripts/run-backend-tests` - must pass
+5. **Commit format**: `trim: [brief description]` or `feat: [description]`
+6. **Mark complete**: Change `[ ]` to `[x]` in the task file
+7. **Track in README**: Keep a progress list with checkboxes here
 
-## Current Progress
+## Task File Template
 
-### Phase 1: Remove Product Features
-- [x] [01-delete-prodexec.md](phase1-remove-product-features/01-delete-prodexec.md)
-- [x] [02-delete-queueworker.md](phase1-remove-product-features/02-delete-queueworker.md)
-- [x] [03-delete-cronchecker.md](phase1-remove-product-features/03-delete-cronchecker.md)
-- [x] [04-trim-builtin-dark-internal.md](phase1-remove-product-features/04-trim-builtin-dark-internal.md)
-- [x] [05-delete-libclienttypes.md](phase1-remove-product-features/05-delete-libclienttypes.md)
-- [x] [06-delete-wasm.md](phase1-remove-product-features/06-delete-wasm.md)
-- [x] [07-clean-backend-static.md](phase1-remove-product-features/07-clean-backend-static.md)
+```markdown
+# Task Name
 
-### Phase 2: Trim Dev Environment
-- [x] [01-remove-deployment-terraform.md](phase2-trim-dev-environment/01-remove-deployment-terraform.md)
-- [x] [02-trim-circleci.md](phase2-trim-dev-environment/02-trim-circleci.md)
-- [x] [03-kill-docker-ce.md](phase2-trim-dev-environment/03-kill-docker-ce.md)
-- [x] [04-trim-vscode-extensions.md](phase2-trim-dev-environment/04-trim-vscode-extensions.md)
-- [x] [05-kill-second-instance.md](phase2-trim-dev-environment/05-kill-second-instance.md)
-- [x] [06-kill-honeycomb-otel.md](phase2-trim-dev-environment/06-kill-honeycomb-otel.md)
-- [x] [07-kill-prod-containers.md](phase2-trim-dev-environment/07-kill-prod-containers.md)
-- [x] [08-delete-datatests.md](phase2-trim-dev-environment/08-delete-datatests.md)
-- [x] [09-kill-gcloud-pubsub.md](phase2-trim-dev-environment/09-kill-gcloud-pubsub.md)
-- [x] [10-kill-postgres-yugabyte.md](phase2-trim-dev-environment/10-kill-postgres-yugabyte.md)
-- [x] [11-kill-java.md](phase2-trim-dev-environment/11-kill-java.md)
-- [x] [12-kill-terraform-tooling.md](phase2-trim-dev-environment/12-kill-terraform-tooling.md)
-- [x] [13-add-dockerignore.md](phase2-trim-dev-environment/13-add-dockerignore.md)
-- [x] [14-trim-apt-installs.md](phase2-trim-dev-environment/14-trim-apt-installs.md)
-- [x] [15-kill-nuget-deps.md](phase2-trim-dev-environment/15-kill-nuget-deps.md)
-- [x] [16-kill-chisel.md](phase2-trim-dev-environment/16-kill-chisel.md)
-- [x] [final/01-clean-ports.md](phase2-trim-dev-environment/final/01-clean-ports.md)
-- [x] [final/02-clean-scripts.md](phase2-trim-dev-environment/final/02-clean-scripts.md)
-- [x] [final/03-clean-docs.md](phase2-trim-dev-environment/final/03-clean-docs.md)
+**Status**: [ ] Not started
 
-### Phase 2.5: Dev Cycle Analysis
-- [x] [01-analyze-compile-scripts.md](phase2.5-dev-cycle-analysis/01-analyze-compile-scripts.md)
+## What This Task Does
+
+Brief description of the goal.
+
+## Steps
+
+1. [ ] First step
+2. [ ] Second step
+3. [ ] Run tests
+4. [ ] Commit
+
+## Search Commands
+
+```bash
+# Commands to find relevant code
+grep -r "pattern" --include="*.fs" backend/
+```
+
+## Commit Message Template
+
+```
+type: brief description
+
+- Detail 1
+- Detail 2
+```
 
 ## Notes
 
-- **Testing is mandatory**: Never commit without `./scripts/run-backend-tests` passing.
-- **Wait for builds**: After F# changes, check `rundir/logs/build-server.log` for build completion.
-- **One thing at a time**: Complete one checkbox fully before moving to the next.
-- **Ask when uncertain**: If a removal has unexpected consequences, investigate before proceeding.
+- Any gotchas or considerations
+```
 
-## Phases Overview
+## Completed Sprints
 
-| Phase | Goal | Estimated Items |
-|-------|------|-----------------|
-| 1 | Remove unused product features (ProdExec, QueueWorker, etc.) | 7 |
-| 2 | Trim dev environment (terraform, docker, cloud deps) | 19 |
-| 2.5 | Analyze and optimize dev cycles | 1 |
+### Codebase Trimming Sprint (Jan 2026)
+
+Removed production infrastructure to focus on CLI and VS Code extension:
+
+- **Phase 1** (7 tasks): Removed ProdExec, QueueWorker, CronChecker, WASM, LibClientTypes
+- **Phase 2** (19 tasks): Removed Terraform, Docker CE, Honeycomb, PubSub, PostgreSQL, Java, etc.
+- **Phase 2.5** (1 task): Analyzed build system for optimization opportunities
+
+See `docs/codebase-cleanup-audit.md` for follow-up opportunities identified.
 
 ---
 
-*Last updated: Session start. Update this when phases are completed.*
+*Keep task files until sprint is complete, then archive or delete them.*

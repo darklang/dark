@@ -83,13 +83,3 @@ You can get a REPL with all of the Dark libraries loaded by running:
 
 - [Contributor docs](https://docs.darklang.com/contributing/getting-started)
 - [Writing docstrings in the Dark Standard library](docs/writing-docstrings.md)
-- [Logging and telemetry](docs/logging-and-telemetry.md)
-- [Docs around running Dark in production](docs/production) (for internal use)
-
-## Production Services
-
-These are compiled to create libraries and binaries.
-
-These are put into containers, whose definitions are in [containers/](containers). We also
-have some containers which are defined entirely in their directory (typically,
-these have a self-contained codebase).

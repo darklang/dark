@@ -62,8 +62,6 @@
     "--env",
     "HOST_PWD=${localWorkspaceFolder}",
     "--security-opt",
-    "seccomp=scripts/devcontainer/chrome-seccomp.json",
-    "--security-opt",
     "seccomp=unconfined",
     "--label",
     "dark-dev-container",

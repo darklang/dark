@@ -40,7 +40,6 @@
       "console": "internalConsole",
       "env": {
         "DARK_CONFIG_TELEMETRY_EXPORTER": "none",
-        "DARK_CONFIG_ROLLBAR_ENABLED": "n",
         "DARK_CONFIG_DB_HOST": "localhost",
         "DARK_CONFIG_DB_DBNAME": "testdb",
         "DARK_CONFIG_DB_USER": "dark",
@@ -59,7 +58,6 @@
       "console": "internalConsole",
       "env": {
         "DARK_CONFIG_TELEMETRY_EXPORTER": "none",
-        "DARK_CONFIG_ROLLBAR_ENABLED": "n",
         "DARK_CONFIG_DB_HOST": "localhost",
         "DARK_CONFIG_DB_DBNAME": "testdb",
         "DARK_CONFIG_DB_USER": "dark",

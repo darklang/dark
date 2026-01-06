@@ -25,7 +25,10 @@
       "WebSearch",
       "Bash(git checkout:*)",
       "Bash(git add:*)",
-      "Bash(git ls-tree:*)"
+      "Bash(git ls-tree:*)",
+      "Bash(head:*)",
+      "Bash(wc:*)",
+      "Bash(git -C /home/stachu/code/dark log --oneline --all)"
     ],
     "deny": []
   }
