@@ -1,2 +1,43 @@
+# Git
 .git
+.gitignore
+
+# Build outputs
+backend/Build/
+rundir/
+
+# Node modules (tree-sitter)
+tree-sitter-darklang/node_modules/
+tree-sitter-darklang/build/
+node_modules/
+
+# IDE
+.vscode/
+.idea/
+
+# Documentation (not needed in container)
+docs/
+
+# Logs
+*.log
+rundir/logs/
+
+# Test artifacts
+*.test.db
+
+# Local config
+config/local
+
+# CI (not needed in container)
+.circleci/
+
+# Todos (meta)
+todos/
+pre-prompt.md
+
+# Claude
+.claude/
+CLAUDE.md
+
+# Legacy
 sqldump*.gz
