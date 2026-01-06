@@ -36,7 +36,7 @@ This directory contains the task breakdown for trimming the Darklang codebase. E
 - [x] [11-kill-java.md](phase2-trim-dev-environment/11-kill-java.md)
 - [x] [12-kill-terraform-tooling.md](phase2-trim-dev-environment/12-kill-terraform-tooling.md)
 - [x] [13-add-dockerignore.md](phase2-trim-dev-environment/13-add-dockerignore.md)
-- [ ] [14-trim-apt-installs.md](phase2-trim-dev-environment/14-trim-apt-installs.md)
+- [x] [14-trim-apt-installs.md](phase2-trim-dev-environment/14-trim-apt-installs.md)
 - [ ] [15-kill-nuget-deps.md](phase2-trim-dev-environment/15-kill-nuget-deps.md)
 - [ ] [16-kill-chisel.md](phase2-trim-dev-environment/16-kill-chisel.md)
 - [ ] [final/01-clean-ports.md](phase2-trim-dev-environment/final/01-clean-ports.md)

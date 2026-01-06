@@ -1,6 +1,6 @@
 # Trim apt Installs
 
-**Status**: [ ] Not started
+**Status**: [x] Complete
 
 ## Review Current apt Packages
 
