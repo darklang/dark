@@ -48,8 +48,6 @@ function exe_path() {
 
 BWDSERVER_EXE=$(exe_path "BwdServer")
 BWDSERVER_LOG="$LOGS/bwdserver.log"
-CRONCHECKER_EXE=$(exe_path "CronChecker")
-CRONCHECKER_LOG="$LOGS/cronchecker.log"
 LOCALEXEC_EXE=$(exe_path "LocalExec")
 
 
@@ -58,7 +56,6 @@ LOCALEXEC_EXE=$(exe_path "LocalExec")
 # If this script was called with `--restart=no`,
 # we should exit early if everything is already running
 if [[ $(pgrep BwdServer -c) -eq 0 ]]; then RESTART=true; fi
-if [[ $(pgrep CronChecker -c) -eq 0 ]]; then RESTART=true; fi
 if [[ "${RESTART}" == "false" ]]; then
   echo "Servers are running and we don't need to restart"
   exit 0
@@ -67,14 +64,12 @@ fi
 # Otherwise, stop the server processes now; we'll start them back up again shortly
 echo "Stopping servers"
 sudo pkill -f "BwdServer" || true
-sudo pkill -f "CronChecker" || true
 # Wait for any builds that haven't been yet compiled
 echo "Waiting for builds to be ready"
 for ((i=1;i<=1000;i++));
 do
   if [[
      ! -f "${BWDSERVER_EXE}" || \
-     ! -f "${CRONCHECKER_EXE}" || \
      ! -f "${LOCALEXEC_EXE}" ]]; then
     sleep 0.01
   fi
@@ -87,8 +82,5 @@ announce "Running migrations" "${MIGRATIONS_LOG}"
 
 announce "Running bwdserver" "${BWDSERVER_LOG}"
 "${BWDSERVER_EXE}" > "${BWDSERVER_LOG}" 2>&1 &
-
-announce "Running cronchecker" "${CRONCHECKER_LOG}"
-"${CRONCHECKER_EXE}" > "${CRONCHECKER_LOG}" 2>&1 &
 
 echo "Finished loading servers"

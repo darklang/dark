@@ -288,7 +288,7 @@ let healthCheckDomains = Internal.stringConfig "canvas-health-checks" "" ""
 let queueAllowedExecutionTimeInSeconds =
   Internal.intConfig "queue-allowed-execution-time-in-seconds" 300 300
 
-/// Limit to the number of events each QueueWorker will run concurrently
+/// Limit to the number of events to run concurrently
 let queueMaxConcurrentEventsPerWorker =
   // 4 is conservative, we'll probably set this much higher
   Internal.intConfig "queue-max-concurrent-events-per-worker" 4 4

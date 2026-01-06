@@ -71,9 +71,6 @@ let honeycombEndpoint = string "DARK_CONFIG_HONEYCOMB_API_ENDPOINT"
 let bwdServerPort = int "DARK_CONFIG_BWDSERVER_BACKEND_PORT"
 let bwdServerKubernetesPort = int "DARK_CONFIG_BWDSERVER_KUBERNETES_PORT"
 
-let croncheckerKubernetesPort = int "DARK_CONFIG_CRONCHECKER_KUBERNETES_PORT"
-let queueWorkerKubernetesPort = int "DARK_CONFIG_QUEUEWORKER_KUBERNETES_PORT"
-
 // --------------------
 // Launchdarkly
 // --------------------

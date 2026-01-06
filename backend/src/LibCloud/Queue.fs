@@ -330,22 +330,10 @@ let dequeue (timeout : System.TimeSpan) (count : int) : Task<List<Notification>>
           pubSubAckID = envelope.AckId })
   }
 
-let createNotifications (canvasID : CanvasID) (ids : List<EventID>) : Task<unit> =
+let createNotifications (_canvasID : CanvasID) (_ids : List<EventID>) : Task<unit> =
   task {
-    if ids <> [] then
-      let! publisher = publisher.Force()
-      let messages =
-        ids
-        |> List.map (fun id ->
-          { id = id; canvasID = canvasID }
-          |> Json.Vanilla.serialize
-          |> Google.Protobuf.ByteString.CopyFromUtf8
-          |> fun contents -> PubsubMessage(Data = contents))
-      let! response = publisher.PublishAsync(topicName, messages)
-      Telemetry.addTag "event.pubsub_ids" response.MessageIds
-    else
-      // Don't send an empty list of messages to pubsub
-      Telemetry.addTag "event.pubsub_ids" []
+    // PubSub disabled - QueueWorker and CronChecker have been removed
+    // Events are stored in DB but no notifications are sent
     return ()
   }
 
@@ -447,17 +435,8 @@ let requeueSavedEvents (canvasID : CanvasID) (handlerName : string) : Task<unit>
 
 let init () : Task<unit> =
   task {
-    printTime "Initing Queue"
-    let publisherTask =
-      task {
-        return! publisher.Force() |> Task.map (ignore<PublisherServiceApiClient>)
-      }
-    let subscriberTask =
-      task {
-        return! subscriber.Force() |> Task.map (ignore<SubscriberServiceApiClient>)
-      }
-    let! (_ : List<unit>) = Task.flatten [ publisherTask; subscriberTask ]
-    printTime " Inited Queue"
+    // Queue/PubSub disabled - QueueWorker and CronChecker have been removed
+    printTime "Queue init skipped (PubSub disabled)"
     return ()
   }
 

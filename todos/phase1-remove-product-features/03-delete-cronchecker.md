@@ -1,6 +1,6 @@
 # Delete CronChecker
 
-**Status**: [ ] Not started
+**Status**: [x] Complete
 
 ## What is CronChecker?
 
@@ -35,15 +35,15 @@ grep -r "Cron" --include="*.fs" backend/src/LibCloud/
 
 ## Steps
 
-1. [ ] Delete `backend/src/CronChecker/` directory
-2. [ ] Remove from `backend/fsdark.sln`
-3. [ ] Update `scripts/run-backend-server` to not start CronChecker
-4. [ ] Delete `containers/cronchecker/` directory
-5. [ ] Remove CronChecker from `.circleci/config.yml`
-6. [ ] Check LibCloud for cron dependencies (investigate before removing)
-7. [ ] Run `./scripts/run-backend-tests`
-8. [ ] Wait for build
-9. [ ] Commit: `trim: delete CronChecker`
+1. [x] Delete `backend/src/CronChecker/` directory
+2. [x] Remove from `backend/fsdark.sln`
+3. [x] Update `scripts/run-backend-server` to not start CronChecker
+4. [x] Delete `containers/cronchecker/` directory
+5. [x] Remove CronChecker from config files
+6. [x] Disable Queue/PubSub (CronChecker was the main consumer)
+7. [x] Run `./scripts/run-backend-tests`
+8. [x] Wait for build
+9. [x] Commit: `trim: delete CronChecker`
 
 ## Commit Message Template
 

@@ -1,6 +1,6 @@
 /// For executing code with the appropriate production "Dark cloud" execution,
 /// setting traces, stdlib, etc, appropriately.
-/// Used by any "Cloud" service (bwdserver, queueworker, cronchecker, etc.)
+/// Used by cloud services (bwdserver, etc.)
 module LibCloudExecution.CloudExecution
 
 open FSharp.Control.Tasks
