@@ -1,6 +1,6 @@
 # Delete QueueWorker
 
-**Status**: [ ] Not started
+**Status**: [x] Complete
 
 ## What is QueueWorker?
 
