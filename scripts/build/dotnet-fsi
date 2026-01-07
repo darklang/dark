@@ -1,4 +1,0 @@
-#!/usr/bin/env bash
-. ./scripts/devcontainer/_assert-in-container "$0" "$@"
-
-cd backend && dotnet fsi --use:../scripts/build/fsi-setup.fsx "${@}"

@@ -39,12 +39,6 @@ fi
 
 LOGS="${DARK_CONFIG_RUNDIR}/logs"
 
-./scripts/run-pubsub-emulator
-
-# Use random to avoid old items being in the pubsub queue. Use this instead of
-# $RANDOM as RANDOM is only 5 digits
-RANDOM_VALUE=$(cat /proc/sys/kernel/random/uuid)
-
 grey="\033[1;30m"
 reset="\033[0m"
 
@@ -59,8 +53,6 @@ rm -f "$DB_PATH"
 echo -e "Running migrations ${grey}($LOGS/test-migrations.log)${reset}"
 cd backend && \
   DARK_CONFIG_TELEMETRY_EXPORTER=none \
-  DARK_CONFIG_ROLLBAR_ENABLED=n \
-  DARK_CONFIG_QUEUE_PUBSUB_PROJECT_ID=pubsub-test-${RANDOM_VALUE} \
   "${LOCALEXEC}" migrations run > "$LOGS/test-migrations.log" 2>&1
 cd ..
 
@@ -90,7 +82,4 @@ fi
 
 cd backend
 DARK_CONFIG_TELEMETRY_EXPORTER=none \
-DARK_CONFIG_ROLLBAR_ENABLED=n \
-DARK_CONFIG_LAUNCHDARKLY_SDK_API_KEY=none \
-DARK_CONFIG_QUEUE_PUBSUB_PROJECT_ID=pubsub-test-${RANDOM_VALUE} \
 "${EXE}" ${SPINNER} --colours "${COLOURS}" --junit-summary "${JUNIT_FILE}" "${EXPECTO_ARGS[@]}"

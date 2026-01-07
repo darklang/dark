@@ -1,3 +1,0 @@
-#!/usr/bin/env bash
-
-docker volume rm pgdata pgconf pglogs

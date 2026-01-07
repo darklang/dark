@@ -8,7 +8,6 @@ open System.Threading.Tasks
 open Prelude
 
 module PT = LibExecution.ProgramTypes
-module Telemetry = LibService.Telemetry
 
 let initSerializers () =
   BwdServer.Server.initSerializers ()
@@ -57,9 +56,6 @@ let main (args : string array) : int =
         // cloud
         Tests.BwdServer.tests
         Tests.Canvas.tests
-        Tests.Cron.tests
-        Tests.QueueSchedulingRules.tests
-        // TODO: bring back Tests.Queue.tests
         Tests.Routing.tests
         Tests.BinarySerialization.tests
         Tests.VanillaSerialization.tests
@@ -73,7 +69,6 @@ let main (args : string array) : int =
     let cancelationTokenSource = new System.Threading.CancellationTokenSource()
     let bwdServerTestsTask = Tests.BwdServer.init cancelationTokenSource.Token
     let httpClientTestsTask = Tests.HttpClient.init cancelationTokenSource.Token
-    Telemetry.Console.loadTelemetry "tests" Telemetry.TraceDBQueries
 
     // Generate this so that we can see if the format has changed in a git diff
     BinarySerialization.generateTestFiles ()
@@ -88,7 +83,6 @@ let main (args : string array) : int =
     cancelationTokenSource.Cancel()
     bwdServerTestsTask.Wait()
     httpClientTestsTask.Wait()
-    QueueWorker.shouldShutdown <- true
     exitCode
   with e ->
     printException "Outer exception" [] e

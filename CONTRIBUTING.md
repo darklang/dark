@@ -71,25 +71,7 @@ what tests are run or how other binaries are started up, which should be straigh
 That said, running tests with debugger support _does_ seem to work -- again, adjust
 `launch.json` to adjust which tests are run, and then run the "Tests" configuration.
 
-### REPL (fsi)
-
-(Disclaimer: this is out of date, and probably won't work).
-
-You can get a REPL with all of the Dark libraries loaded by running:
-
-- [`scripts/build/dotnet-fsi`](scripts/build/dotnet-fsi)
-
 ## Other docs worth reviewing
 
 - [Contributor docs](https://docs.darklang.com/contributing/getting-started)
 - [Writing docstrings in the Dark Standard library](docs/writing-docstrings.md)
-- [Logging and telemetry](docs/logging-and-telemetry.md)
-- [Docs around running Dark in production](docs/production) (for internal use)
-
-## Production Services
-
-These are compiled to create libraries and binaries.
-
-These are put into containers, whose definitions are in [containers/](containers). We also
-have some containers which are defined entirely in their directory (typically,
-these have a self-contained codebase).

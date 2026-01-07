@@ -61,17 +61,8 @@ RUN DEBIAN_FRONTEND=noninteractive \
 
 # Latest NPM (taken from https://deb.nodesource.com)
 RUN curl -fsSL https://deb.nodesource.com/gpgkey/nodesource-repo.gpg.key | gpg --dearmor -o /etc/apt/keyrings/nodesource.gpg
-RUN curl -sSL https://dl.google.com/linux/linux_signing_key.pub | apt-key add -
-RUN curl -sSL https://packages.cloud.google.com/apt/doc/apt-key.gpg | apt-key add -
-RUN curl -sSL https://download.docker.com/linux/ubuntu/gpg | apt-key add -
-RUN curl -sSL https://apt.releases.hashicorp.com/gpg | apt-key add -
 
 RUN echo "deb [signed-by=/etc/apt/keyrings/nodesource.gpg] https://deb.nodesource.com/node_20.x nodistro main" | tee /etc/apt/sources.list.d/nodesource.list
-
-RUN echo "deb http://packages.cloud.google.com/apt cloud-sdk main" > /etc/apt/sources.list.d/google-cloud-sdk.list
-RUN echo "deb [arch=${TARGETARCH}] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable" > /etc/apt/sources.list.d/docker.list
-
-RUN echo "deb https://apt.releases.hashicorp.com $(lsb_release -cs) main" > /etc/apt/sources.list.d/hashicorp.list
 
 # Mostly, we use the generic version. However, for things in production we want
 # to pin the exact package version so that we don't have any surprises.  As a
@@ -92,7 +83,6 @@ RUN DEBIAN_FRONTEND=noninteractive \
     apt install \
       --no-install-recommends \
       -y \
-      rsync \
       git \
       wget \
       sudo \
@@ -100,16 +90,10 @@ RUN DEBIAN_FRONTEND=noninteractive \
       git-restore-mtime \
       nodejs \
       sqlite3 \
-      google-cloud-sdk \
-      google-cloud-sdk-pubsub-emulator \
-      google-cloud-sdk-gke-gcloud-auth-plugin \
       jq \
       parallel \
-      ntp \
       vim \
       unzip \
-      docker-ce \
-      docker-buildx-plugin \
       python3-pip \
       python3-setuptools \
       python3-dev \
@@ -117,13 +101,9 @@ RUN DEBIAN_FRONTEND=noninteractive \
       libsodium-dev \
       libssl-dev \
       zlib1g-dev \
-      pv \
-      htop \
       net-tools \
       bash-completion \
-      openssh-server \
       dnsutils \
-      openjdk-11-jdk \
       # .NET dependencies - https://github.com/dotnet/dotnet-docker/blob/master/src/runtime-deps/3.1/bionic/amd64/Dockerfile
       libc6 \
       libgcc1 \
@@ -136,18 +116,11 @@ RUN DEBIAN_FRONTEND=noninteractive \
       # parser (tree-sitter) dependencies
       build-essential \
       # end parser dependencies
-      # prodexec dependencies
-      sshpass \
-      # end prodexec dependencies
       psmisc \
+      # CLI integration tests
+      expect \
       && apt clean \
       && rm -rf /var/lib/apt/lists/*
-
-# Install expect for the CLI integration tests
-RUN DEBIAN_FRONTEND=noninteractive apt-get update && \
-  DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends expect && \
-  apt-get clean && \
-  rm -rf /var/lib/apt/lists/*
 
 # As of Ubuntu 24.04, an install includes
 # an 'ubuntu' user, that we don't use,
@@ -161,8 +134,8 @@ RUN usermod -u 2000 ubuntu && groupmod -g 2000 ubuntu
 ############################
 USER root
 RUN groupadd -g ${gid} dark \
-    && adduser --disabled-password --gecos '' --uid ${uid} --gid ${gid} dark
-RUN echo "dark:dark" | chpasswd && adduser dark sudo
+    && useradd --create-home --uid ${uid} --gid ${gid} --shell /bin/bash dark
+RUN echo "dark:dark" | chpasswd && usermod -aG sudo dark
 RUN sudo chown -R dark:dark /home/dark
 RUN echo '%sudo ALL=(ALL) NOPASSWD:ALL' >> /etc/sudoers
 ## Although dark should get permissions via sudoers, this failed for one contributor using WSL
@@ -195,36 +168,6 @@ RUN sudo npm install -g prettier@3.0.2
 COPY --chown=dark:dark --chmod=755 ./scripts/installers/* .
 
 ############################
-# Terraform
-############################
-RUN /home/dark/install-targz-file \
-  --arm64-sha256=413006af67285f158df9e7e2ce1faf4460fd68aa7de612f550aa0e8d70d62e60 \
-  --amd64-sha256=0ddc3f21786026e1f8522ba0f5c6ed27a3c8cc56bfac91e342c1f578f8af44a8 \
-  --url=https://releases.hashicorp.com/terraform/1.6.0/terraform_1.6.0_linux_${TARGETARCH}.zip \
-  --extract-file=terraform \
-  --target=/usr/bin/terraform
-
-############################
-# Chisel
-############################
-RUN /home/dark/install-gz-file \
-  --arm64-sha256=05f5eabab4a5f65f2bb08d967d6af41247465af213f1c874ad0e059c0a3ebedc \
-  --amd64-sha256=704a31cd89911a0f7d1741ee9ca32ca0f5496b06370bf398dfc5b7d3a31ef563 \
-  --url=https://github.com/jpillora/chisel/releases/download/v1.9.1/chisel_1.9.1_linux_${TARGETARCH}.gz \
-  --target=/usr/bin/chisel
-
-############################
-# Java version management
-############################
-# Set Java 11 as default for gcloud tools (including PubSub emulator)
-ENV JAVA_HOME=/usr/lib/jvm/java-11-openjdk-${TARGETARCH}
-
-############################
-# PubSub
-############################
-ENV PUBSUB_EMULATOR_HOST=localhost:8085
-
-############################
 # Pip packages
 ############################
 RUN python3 -m venv /home/dark/.local \
@@ -254,17 +197,6 @@ RUN \
   --url=https://github.com/koalaman/shellcheck/releases/download/$VERSION/$FILENAME \
   --extract-file=shellcheck-${VERSION}/shellcheck \
   --target=/usr/bin/shellcheck
-
-####################################
-# Honeymarker installs
-####################################
-
-RUN /home/dark/install-exe-file \
-  --arm64-sha256=fef8c383419c86ceabb0bbffd3bcad2bf9223537fba9f848218480f873a96e8d \
-  --amd64-sha256=6e08038f4587d515856076746ad3a69e67376eddd38d8657f449aad393b95cd8 \
-  --url=https://github.com/honeycombio/honeymarker/releases/download/v0.2.10/honeymarker-linux-${TARGETARCH} \
-  --target=/usr/bin/honeymarker
-
 
 ####################################
 # dotnet / F#
@@ -367,9 +299,7 @@ USER dark
 
 # Add all the mounts here so that they have the right permissions
 RUN touch .bash_history
-RUN mkdir -p .config/gcloud
 RUN mkdir -p .config/configstore
-RUN mkdir -p .terraform.d/
 RUN mkdir -p app
 RUN mkdir -p app/backend/Build
 

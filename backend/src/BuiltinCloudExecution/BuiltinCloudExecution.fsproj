@@ -19,7 +19,6 @@
   <ItemGroup>
     <None Include="paket.references" />
     <Compile Include="Libs/DB.fs" />
-    <Compile Include="Libs/Event.fs" />
     <Compile Include="Builtin.fs" />
   </ItemGroup>
   <Import Project="..\..\.paket\Paket.Restore.targets" />

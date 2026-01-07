@@ -27,10 +27,7 @@
         "ionide.ionide-fsharp",
         "esbenp.prettier-vscode",
         "ms-python.python",
-        "ms-azuretools.vscode-docker",
-        "editorconfig.editorconfig",
-        "hashicorp.terraform",
-        "CircleCI.circleci"
+        "editorconfig.editorconfig"
       ]
     }
   },
@@ -43,10 +40,8 @@
   /////////////////////////////////////////////////
 
   // Ports are loaded in the build process
-  "forwardPorts": [
-    3275, 3276, 9000, 9001, 9002, 10011, 10012, 10030, 11001, 11002, 12002,
-    13002
-  ],
+  // Ports: 10011-10030 are test servers, 11001-11002 are BwdServer
+  "forwardPorts": [10011, 10012, 10030, 11001, 11002],
 
   "containerEnv": {
     "IN_DEV_CONTAINER": "true"
@@ -67,8 +62,6 @@
     "--env",
     "HOST_PWD=${localWorkspaceFolder}",
     "--security-opt",
-    "seccomp=scripts/devcontainer/chrome-seccomp.json",
-    "--security-opt",
     "seccomp=unconfined",
     "--label",
     "dark-dev-container",
@@ -85,10 +78,6 @@
     // Docker-in-Docker - uncomment this to be able to build Dark's production containers
     // "type=bind,src=/var/run/docker.sock,dst=/var/run/docker.sock",
 
-    // Credentials
-    "type=volume,src=gcloud_creds,dst=/home/dark/.config/gcloud",
-    "type=volume,src=terraform_creds,dst=/home/dark/.terraform.d",
-
     // Bash history - uncomment this to save bash history between container restarts
     // "type=bind,src=${localEnv:HOME}${localEnv:USERPROFILE}/.dark_bash_history,dst=/home/dark/.bash_history,consistency=cached",
     // If using a remote DOCKER_HOST, you need to mount a directory on the remote host instead
@@ -97,14 +86,6 @@
     // Build directories
     "type=volume,src=dark_build,dst=/home/dark/app/backend/Build",
     "type=volume,src=dark_nuget,dst=/home/dark/.nuget",
-
-    // Postgres
-    "type=volume,src=pgconf,dst=/etc/postgresql",
-    "type=volume,src=pglogs,dst=/var/log/postgresql",
-    "type=volume,src=pgdata,dst=/var/lib/postgresql",
-
-    // Yugabyte
-    "type=volume,src=yugabyte,dst=/home/dark/yugabyte-data",
 
     // Tree-sitter
     "type=volume,src=tree-sitter-build,dst=/home/dark/tree-sitter-darklang/build",

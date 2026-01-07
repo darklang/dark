@@ -23,7 +23,7 @@ let logDir = Config.logDir
 
 let backendDir = $"{sourceRootDir}backend/"
 let testdataDir = $"{backendDir}testfiles/data/"
-let serializationDir = $"{backendDir}serialization/"
+let serializationDir = $"{backendDir}testfiles/serialization-artifacts/"
 let webrootDir = $"{backendDir}static/"
 let migrationsDir = $"{backendDir}migrations/"
 
@@ -51,38 +51,7 @@ let dir (root : Root) : string =
 // Running the server
 // -------------------------
 
-// If we have production data in a non-production environment, we don't want to trigger their workers
-let triggerQueueWorkers = bool "DARK_CONFIG_TRIGGER_QUEUE_WORKERS"
-
-// If we have production data in a non-production environment, we don't want to trigger their workers
-let triggerCrons = bool "DARK_CONFIG_TRIGGER_CRONS"
-
-// Stop my fans from spinning
-let pauseBetweenCronsInMs = int "DARK_CONFIG_PAUSE_BETWEEN_CRONS"
-
 let httpclientTimeoutInMs = int "DARK_CONFIG_HTTPCLIENT_TIMEOUT_IN_MS"
-
-
-// -------------------------
-// Rollbar
-// -------------------------
-
-let rollbarClientAccessToken =
-  // This is what the rollbar UI calls it
-  match credentials "DARK_CONFIG_ROLLBAR_POST_CLIENT_ITEM" with
-  | "none" -> None
-  | item -> Some item
-
-
-let rollbarJs =
-  match rollbarClientAccessToken with
-  | Some token ->
-    Printf.sprintf
-      "{captureUncaught:true,verbose:true,enabled:%s,accessToken:'%s',payload:{environment: '%s'}}"
-      (if Config.rollbarEnabled then "true" else "false")
-      token
-      Config.rollbarEnvironment
-  | _ -> "{enabled:false}"
 
 
 // -------------------------
@@ -99,34 +68,6 @@ let serializationGenerateTestData =
 /// Canvases that are allowed access to the DarkInternal stdlib functions
 let allowedDarkInternalCanvasIDs =
   uuids "DARK_CONFIG_ALLOWED_DARK_INTERNAL_CANVAS_IDS"
-
-
-// -------------------------
-// Pusher
-// -------------------------
-
-let pusherID = string "DARK_CONFIG_PUSHER_APP_ID"
-
-let pusherKey = string "DARK_CONFIG_PUSHER_KEY"
-
-let pusherSecret = credentials "DARK_CONFIG_PUSHER_SECRET"
-
-let pusherCluster = credentials "DARK_CONFIG_PUSHER_CLUSTER"
-
-
-// -------------------------
-// Queues
-// -------------------------
-let queuePubSubProjectID = string "DARK_CONFIG_QUEUE_PUBSUB_PROJECT_ID"
-
-let queuePubSubTopicName = string "DARK_CONFIG_QUEUE_PUBSUB_TOPIC_NAME"
-
-let queuePubSubSubscriptionName = string "DARK_CONFIG_QUEUE_PUBSUB_SUBSCRIPTION_NAME"
-
-let queuePubSubCreateTopic = bool "DARK_CONFIG_QUEUE_PUBSUB_CREATE_TOPIC"
-
-let queuePubSubCredentials = credentialsOption "DARK_CONFIG_QUEUE_PUBSUB_CREDENTIALS"
-
 
 
 // -------------------------

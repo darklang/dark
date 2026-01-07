@@ -12,10 +12,6 @@ module AT = LibExecution.AnalysisTypes
 module Exe = LibExecution.Execution
 module DvalReprInternalHash = LibExecution.DvalReprInternalHash
 
-module LD = LibService.LaunchDarkly
-module Rollbar = LibService.Rollbar
-module Telemetry = LibService.Telemetry
-
 /// Tracing can go overboard, so use a per-handler feature flag to control it. If
 /// sampling is disabled for a canvas, no traces will be recorded to be saved to the
 /// DBs, but tlids will still be recorded as they are needed by APIs.
@@ -43,23 +39,14 @@ module TraceSamplingRule =
       with _ ->
         Error "Exception thrown"
 
-  /// Fetch the traceSamplingRule from the feature flag, and parse it. If parsing
-  /// fails, returns SampleNone.
-  let ruleForHandler (canvasID : CanvasID) (tlid : tlid) : T =
-    let ruleString = LD.traceSamplingRule canvasID tlid
-    Telemetry.addTag "trace_sampling_rule" ruleString
-    match parseRule ruleString with
-    | Error msg ->
-      Rollbar.sendError
-        $"Invalid traceSamplingRule: {msg}"
-        [ "ruleString", ruleString; "canvasID", canvasID; "tlid", tlid ]
-      SampleNone
-    | Ok rule -> rule
+  /// Get the trace sampling rule for a handler. Always returns SampleAll now that
+  /// LaunchDarkly has been removed.
+  let ruleForHandler (_canvasID : CanvasID) (_tlid : tlid) : T = SampleAll
 
 
 
-/// Simplified version of the TraceSamplingRule. TraceSamplingRule is what's stored
-/// in LaunchDarkly. This resolves the one-in-x option into DoTrace or DontTrace
+/// Simplified version of the TraceSamplingRule. Resolves the one-in-x option into
+/// DoTrace or DontTrace
 module TracingConfig =
   type T =
     | DoTrace

@@ -17,7 +17,7 @@ executors:
       IN_DEV_CONTAINER: true
     docker:
       # DOCKERFILE_REPO: see Dockerfile note about how this is built.
-      - image: darklang/dark-base:cff02c8
+      - image: darklang/dark-base:7dc786d
 
 commands:
   show-large-files-and-directories:
@@ -68,94 +68,6 @@ commands:
             # Build process statements moved to build-backend
             env
 
-  ##########################
-  # Deploy locks
-  ##########################
-  deploy-lock-remove-on-fail:
-    steps:
-      - run:
-          name: Remove deploy lock
-          when: on_fail
-          command: |
-            if [[ "${CIRCLE_BRANCH}" = "main" ]]; then
-              ./scripts/deployment/deploy-lock-one-remove
-            fi
-
-  ##########################
-  # Slack
-  ##########################
-  slack-notify-failure:
-    parameters:
-      buildType: { type: string } # build or deploy
-    steps:
-      - run:
-          name: Slack notification
-          when: on_fail
-          command: |
-            curl -v -X POST -H 'Content-type: application/json' -d "{ \"success\": false, \"buildType\": \"<<parameters.buildType>>\", \"branch\": \"$CIRCLE_BRANCH\", \"url\": \"$CIRCLE_BUILD_URL\", \"prs\": \"$CIRCLE_PULL_REQUESTS\", \"sha\": \"$CIRCLE_SHA1\", \"username\": \"$CIRCLE_USERNAME\", \"job\": \"$CIRCLE_JOB\" }" https://ops-circleci.builtwithdark.com/notify-slack
-
-  slack-notify-success:
-    parameters:
-      buildType: { type: string } # build or deploy
-    steps:
-      - run:
-          name: Slack notification
-          when: on_success
-          command: |
-            curl -v -X POST -H 'Content-type: application/json' -d "{ \"success\": true, \"buildType\": \"<<parameters.buildType>>\", \"branch\": \"$CIRCLE_BRANCH\", \"url\": \"$CIRCLE_BUILD_URL\", \"prs\": \"$CIRCLE_PULL_REQUESTS\", \"sha\": \"$CIRCLE_SHA1\", \"username\": \"$CIRCLE_USERNAME\", \"job\": \"$CIRCLE_JOB\" }" https://ops-circleci.builtwithdark.com/notify-slack
-
-  slack-notify-job-failure:
-    steps:
-      - slack-notify-failure:
-          buildType: "job"
-  slack-notify-deploy:
-    steps:
-      - slack-notify-failure:
-          buildType: "deploy"
-      - slack-notify-success:
-          buildType: "deploy"
-  slack-notify-build:
-    steps:
-      - slack-notify-failure:
-          buildType: "build"
-      - slack-notify-success:
-          buildType: "build"
-
-  ##########################
-  # Initializing the containers
-  ##########################
-  prep-container-creation:
-    steps:
-      - setup_remote_docker: { docker_layer_caching: true, version: edge }
-
-      # Save the docker env: type .docker-env when sshing in, then you can
-      # use ./scripts/run-in-docker
-      - run:
-          name: Setup docker-env for debugging
-          command: env | grep 'DOCKER\|NO_PROXY' | sed 's/^/export /' > ../docker-env
-
-  build-gcp-containers:
-    steps:
-      - prep-container-creation
-      - run: ./scripts/deployment/new-build-containers.sh
-
-  ##########################
-  # Google Cloud
-  # https://circleci.com/docs/openid-connect-tokens/#setting-up-gcp
-  ##########################
-  auth-with-gcp:
-    parameters: { background: { type: boolean } }
-    steps:
-      - run:
-          name: Auth with GCP
-          background: << parameters.background >>
-          command: |
-            # Don't run a second time (no need, but also token becomes invalid after an hour)
-            if [[ ! -f CIRCLE_OIDC_TOKEN_FILE ]]; then
-              echo $CIRCLE_OIDC_TOKEN > CIRCLE_OIDC_TOKEN_FILE
-              gcloud auth login --brief --cred-file .circleci/gcp-workload-identity-config.json
-            fi
-
 ##########################
 # Actual workflow
 ##########################
@@ -170,10 +82,7 @@ jobs:
       - run: scripts/linting/shellchecker
       # There are currently no yaml files
       # - run: scripts/linting/yamllinter
-      - run: cd tf && terraform init -backend=false && terraform validate
       - run: scripts/formatting/format check
-      - slack-notify-job-failure
-      - deploy-lock-remove-on-fail
 
   # Build parser
   build-parser:
@@ -233,7 +142,6 @@ jobs:
           root: "."
           paths:
             - backend/src/LibTreeSitter/lib
-      - slack-notify-job-failure
 
   # Build server binaries and run tests
   # Cleanup: consider splitting into (1) build debug (2) prepare .db (3) build release
@@ -248,7 +156,7 @@ jobs:
       # rebuilt
       # Currently disabled, as it was causing issues failures within
       # Serialization.Tests.fs where the allowedTypes for serializers did not match
-      # what tests expected (and what files were persisted in backend/serialization).
+      # what tests expected (and what files were persisted in backend/testfiles/serialization-artifacts).
       # TODO: think through an alternative or more nuanced approach.
       #- run: git restore-mtime
       - setup-app
@@ -299,9 +207,6 @@ jobs:
           paths:
             # Just enough for deploy
             - backend/Build/out/BwdServer/Release/net8.0/linux-x64/publish/
-            # - backend/Build/out/QueueWorker/Release/net8.0/linux-x64/publish/
-            # - backend/Build/out/CronChecker/Release/net8.0/linux-x64/publish/
-            - backend/Build/out/ProdExec/Release/net8.0/linux-x64/publish/
       - show-large-files-and-directories
       - save_cache:
           paths:
@@ -312,8 +217,6 @@ jobs:
           key: v5-backend-{{ checksum "../checksum" }}
       - store_artifacts: { path: rundir }
       - store_test_results: { path: rundir/test_results }
-      - slack-notify-job-failure
-      - deploy-lock-remove-on-fail
 
   # Build cli binaries
   build-cli:
@@ -370,8 +273,6 @@ jobs:
       - store_artifacts: { path: rundir }
       - store_artifacts: { path: clis }
       - store_test_results: { path: rundir/test_results }
-      - slack-notify-job-failure
-      - deploy-lock-remove-on-fail
 
   #
   # This is used as a no-op dependency for other jobs, to prevent "deploy things"
@@ -384,24 +285,6 @@ jobs:
           command: "true"
 
   #
-  # Jobs that test that a deploy _should_ work, for feature branch builds
-  gcp-containers-test:
-    executor: in-container
-    steps:
-      # Just test that we can build them for now
-      - darkcheckout
-      - setup-app
-      - attach_workspace: { at: "." }
-      - build-gcp-containers
-      - slack-notify-job-failure
-      - deploy-lock-remove-on-fail
-
-  notify-non-deploy:
-    executor: simple-executor
-    steps:
-      - slack-notify-build
-
-  #
   # Jobs to run on `main` after we've confirmed the build is OK
   # Publish cli via github releases
   publish-github-release:
@@ -411,8 +294,6 @@ jobs:
       - setup-app
       - attach_workspace: { at: "." }
       - run: ./scripts/deployment/publish-github-release
-      - slack-notify-job-failure
-      - deploy-lock-remove-on-fail
 
   # Publish VS Code Extension to the Marketplace
   publish-vs-code-extension:
@@ -422,84 +303,19 @@ jobs:
       - setup-app
       - attach_workspace: { at: "." }
       - run: ./scripts/deployment/publish-vs-code-extension
-      - slack-notify-job-failure
-      - deploy-lock-remove-on-fail
-
-  push-containers-to-gcp:
-    executor: in-container
-    steps:
-      - darkcheckout
-      - setup-app
-      - auth-with-gcp: { background: true }
-      - attach_workspace: { at: "." }
-      - show-large-files-and-directories
-      - build-gcp-containers
-      - run: scripts/deployment/new-push-containers.sh
-      - persist_to_workspace:
-          root: "."
-          paths: ["image-digests.json"]
-      - slack-notify-job-failure
-      - deploy-lock-remove-on-fail
-
-  push-assets-to-gcp:
-    executor: in-container
-    steps:
-      - darkcheckout
-      - setup-app
-      - auth-with-gcp: { background: false }
-      # LIGHTTODO
-      # - run: gcloud storage objects list gs://darklang-downloads/*
-      - attach_workspace: { at: "." }
-      - show-large-files-and-directories
-      # LIGHTTODO
-      # - run: scripts/deployment/_push-assets-to-cdn
-      - slack-notify-job-failure
-      - deploy-lock-remove-on-fail
-
-  deploy-lock:
-    # Note that it doesn't matter if the in-container executor is a bit slow: they
-    # deploy according the timestamp on the commit. Even if builds add their locks in
-    # the wrong order, so long as the locks are there by the time the next deploy
-    # comes, they'll be in the right order.
-    executor: in-container
-    steps:
-      - darkcheckout
-      - run: scripts/deployment/deploy-lock-one-add
-      - slack-notify-job-failure
-      - deploy-lock-remove-on-fail
-
-  deploy:
-    executor: in-container
-    steps:
-      - darkcheckout
-      - setup-app
-      - auth-with-gcp: { background: false }
-      - attach_workspace: { at: "." }
-      - show-large-files-and-directories
-      # # deploy lock is removed as part of the gke-deploy script
-      - run: scripts/deployment/deploy-lock-one-remove
-      - run: scripts/deployment/new-deploy.sh
-      - slack-notify-deploy
-      - deploy-lock-remove-on-fail
 
 workflows:
   build-and-deploy:
     jobs:
-      #
-      # build things
+      # Build jobs
       - static-checks
-
       - build-parser
-
       - build-backend:
           requires: [build-parser]
-
       - build-cli:
           requires: [build-parser]
 
-      #
-      # "did the build work?"
-      # (other jobs should largely depend on this 'passing')
+      # Gate for release jobs
       - ok-to-deploy:
           requires:
             - static-checks
@@ -507,25 +323,7 @@ workflows:
             - build-backend
             - build-cli
 
-      #
-      # for feature branches, check: "is this thing gonna be OK to deploy?"
-      - gcp-containers-test:
-          # This is fully covered by push-containers-to-gcp, so no need to do it twice
-          filters:
-            branches:
-              ignore: main
-          requires: [ok-to-deploy]
-
-      - notify-non-deploy:
-          filters:
-            branches:
-              ignore: main
-          requires:
-            - ok-to-deploy
-            - gcp-containers-test
-
-      #
-      # Deploy things (only on `main`)
+      # Release jobs (only on main)
       - publish-vs-code-extension:
           filters:
             branches:
@@ -537,38 +335,3 @@ workflows:
             branches:
               only: main
           requires: [ok-to-deploy]
-
-      - push-assets-to-gcp:
-          context:
-            - gcp circleci-ai pool
-          filters:
-            branches:
-              only: main
-          requires: [ok-to-deploy]
-
-      - push-containers-to-gcp:
-          context:
-            - gcp circleci-ai pool
-          filters:
-            branches:
-              only: main
-          requires: [ok-to-deploy]
-
-      - deploy-lock:
-          filters:
-            branches:
-              only: main
-          requires: [ok-to-deploy]
-
-      # actual deploy
-      - deploy:
-          context:
-            - gcp circleci-ai pool
-          filters:
-            branches:
-              only: main
-          requires:
-            - ok-to-deploy
-            - deploy-lock
-            - push-containers-to-gcp
-            - push-assets-to-gcp

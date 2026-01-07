@@ -8,13 +8,16 @@ config/local
 .idea
 .ionide/
 
+# Local task tracking
+todos/
+
 # Build system
 rundir/
 
 # F# / dotnet
 backend/packages/
 backend/paket-files/
-backend/.paket/load/
+backend/.paket/
 backend/Build/
 backend/src/**/obj
 backend/tests/**/obj

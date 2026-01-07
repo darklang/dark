@@ -10,7 +10,6 @@ open LibExecution.Builtin.Shortcuts
 module Dval = LibExecution.Dval
 module RT = LibExecution.RuntimeTypes
 module VT = LibExecution.ValueType
-module Telemetry = LibService.Telemetry
 module PackageIDs = LibExecution.PackageIDs
 
 
@@ -50,8 +49,6 @@ module Response =
     | RT.DRecord(RT.FQTypeName.Package id, _, [], fields) when
       id = PackageIDs.Type.Stdlib.Http.response
       ->
-      Telemetry.addTags [ "response-type", "httpResponse response" ]
-
       let code = Map.get "statusCode" fields
       let headers = Map.get "headers" fields
       let body = Map.get "body" fields
@@ -89,9 +86,7 @@ module Response =
               "Application error: expected a Http.Response, but its fields were the wrong type" }
 
     // Error responses
-    | uncaughtResult ->
-      Telemetry.addTags [ "response-type", "error"; "result", uncaughtResult ]
-
+    | _ ->
       { statusCode = 500
         headers = [ "Content-Type", "text/plain; charset=utf-8" ]
         body =

@@ -19,7 +19,7 @@ To accomplish these, we have robust serialization tests, implemented in Serializ
 
 For each serialization format in Dark, we store serialized data from that format in
 the repo, to ensure it never changes. The serialized data should be quite extensive,
-covering as many cases as we can reasonably think of. It's currently stored in [backend/serialization].
+covering as many cases as we can reasonably think of. It's currently stored in [backend/testfiles/serialization-artifacts].
 
 ### Goal: never changing formats
 

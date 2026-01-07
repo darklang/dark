@@ -69,10 +69,6 @@ fi
 echo "Building tree-sitter-darklang.so"
 zig cc -o tree-sitter-darklang.so -shared src/parser.c src/scanner.c -Isrc -O3 -fPIC
 
-# compile for WASM
-#echo "Building tree-sitter-darklang.wasm"
-#zig cc -target wasm32-freestanding -o tree-sitter-darklang.wasm -shared src/parser.c src/scanner.c -Isrc -O3 -fPIC
-
 # Optionally cross-compile to other platforms
 if $cross_compile; then
   echo "Cross-compiling tree-sitter-darklang.so for all platforms"

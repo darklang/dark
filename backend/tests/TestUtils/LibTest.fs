@@ -204,30 +204,6 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    // { name = fn "testGetQueue" 0
-    //   typeParams = []
-    //   parameters = [ Param.make "eventName" TString "" ]
-    //   returnType = TList TString
-    //   description = "Fetch a queue (test only)"
-    //   fn =
-    //     (function
-    //     | state, _, _, [ DString eventName ] ->
-    //       uply {
-    //         let canvasID = state.program.canvasID
-    //         let! results =
-    //           LibCloud.Queue.Test.loadEvents canvasID ("WORKER", eventName, "_")
-    //         let results =
-    //           results
-    //           |> List.map LibExecution.DvalReprDeveloper.toRepr
-    //           |> List.map DString
-    //         return DList(VT.string, results)
-    //       }
-    //     | _ -> incorrectArgs ())
-    //   sqlSpec = NotQueryable
-    //   previewable = Impure
-    //   deprecated = NotDeprecated }
-
-
     { name = fn "testRaiseException" 0
       typeParams = []
       parameters = [ Param.make "message" TString "" ]

@@ -20,13 +20,11 @@
     <ProjectReference Include="../../src/LibDB/LibDB.fsproj" />
 
     <!-- cloud -->
-    <ProjectReference Include="../../src/LibClientTypes/LibClientTypes.fsproj" />
     <ProjectReference Include="../../src/LibBinarySerialization/LibBinarySerialization.fsproj" />
     <ProjectReference Include="../../src/BuiltinCloudExecution/BuiltinCloudExecution.fsproj" />
     <ProjectReference Include="../../src/BuiltinDarkInternal/BuiltinDarkInternal.fsproj" />
     <ProjectReference Include="../../src/LibCloudExecution/LibCloudExecution.fsproj" />
     <ProjectReference Include="../../src/BwdServer/BwdServer.fsproj" />
-    <ProjectReference Include="../../src/QueueWorker/QueueWorker.fsproj" />
 
     <!-- cross-cutting -->
     <ProjectReference Include="../TestUtils/TestUtils.fsproj" />
@@ -53,10 +51,7 @@
     <!-- cloud stuff /-->
     <Compile Include="BwdServer.Tests.fs" />
     <Compile Include="Canvas.Tests.fs" />
-    <Compile Include="Cron.Tests.fs" />
     <Compile Include="DvalRepr.Tests.fs" />
-    <Compile Include="Queue.Tests.fs" />
-    <Compile Include="QueueSchedulingRules.Tests.fs" />
     <Compile Include="Routing.Tests.fs" />
     <Compile Include="Serialization.TestValues.fs" />
     <Compile Include="Serialization.Binary.Tests.fs" />

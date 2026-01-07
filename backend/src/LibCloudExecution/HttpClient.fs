@@ -89,12 +89,6 @@ module LocalAccess =
       || (eq k "X-Google-Metadata-Request" && eq v "True"))
     |> Option.isSome
 
-let initializeTelemetry (f : unit -> Task<'a>) : Task<'a> =
-  task {
-    use _ = LibService.Telemetry.child "HttpClient.call" []
-    return! f ()
-  }
-
 let configuration : BuiltinExecution.Libs.HttpClient.Configuration =
   { timeoutInMs = LibCloud.Config.httpclientTimeoutInMs
     allowedIP = (fun ip -> not <| LocalAccess.bannedIp ip)
@@ -102,6 +96,6 @@ let configuration : BuiltinExecution.Libs.HttpClient.Configuration =
     allowedScheme = (fun scheme -> scheme = "https" || scheme = "http")
     allowedHeaders =
       (fun headers -> not <| LocalAccess.hasInstanceMetadataHeader headers)
-    telemetryInitialize = initializeTelemetry
-    telemetryAddTag = LibService.Telemetry.addTag
-    telemetryAddException = LibService.Telemetry.addException }
+    telemetryInitialize = (fun f -> f ())
+    telemetryAddTag = (fun _ _ -> ())
+    telemetryAddException = (fun _ _ -> ()) }

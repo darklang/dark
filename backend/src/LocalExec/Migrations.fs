@@ -12,8 +12,6 @@ open Microsoft.Data.Sqlite
 open Fumble
 open LibDB.Db
 module File = LibCloud.File
-
-module Telemetry = LibService.Telemetry
 module Config = LibCloud.Config
 
 open Prelude
@@ -42,7 +40,6 @@ let alreadyRunMigrations () : List<string> =
   |> Result.unwrap
 
 let runSystemMigration (name : string) (sql : string) : unit =
-  use span = Telemetry.child "new migration" [ "name", name; "sql", sql ]
   // Use print instead of Rollbar to avoid serialization issues
   print $"Running migration: {name}"
 

@@ -26,7 +26,6 @@
     <ProjectReference Include="../LibCloudExecution/LibCloudExecution.fsproj" />
     <ProjectReference Include="../LibCloud/LibCloud.fsproj" />
     <ProjectReference Include="../LibHttpMiddleware/LibHttpMiddleware.fsproj" />
-    <ProjectReference Include="../LibClientTypesToCloudTypes/LibClientTypesToCloudTypes.fsproj" />
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Server.fs" />

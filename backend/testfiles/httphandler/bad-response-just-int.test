@@ -12,7 +12,6 @@ Content-Length: 13
 [response]
 HTTP/1.1 500 Internal Server Error
 Date: xxx, xx xxx xxxx xx:xx:xx xxx
-x-darklang-execution-id: 0123456789
 Content-Type: text/plain; charset=utf-8
 Server: darklang
 Strict-Transport-Security: max-age=31536000; includeSubDomains; preload

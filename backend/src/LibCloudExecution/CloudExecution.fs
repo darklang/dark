@@ -1,6 +1,6 @@
 /// For executing code with the appropriate production "Dark cloud" execution,
 /// setting traces, stdlib, etc, appropriately.
-/// Used by any "Cloud" service (bwdserver, queueworker, cronchecker, etc.)
+/// Used by cloud services (bwdserver, etc.)
 module LibCloudExecution.CloudExecution
 
 open FSharp.Control.Tasks
@@ -65,7 +65,8 @@ let createState
       uply {
         let! extra = extraMetadata state vm
         let metadata = extra @ metadata
-        LibService.Rollbar.notify msg metadata
+        print $"[notify] {msg}"
+        metadata |> List.iter (fun (k, v) -> print $"  {k}: {v}")
       }
 
     let sendException
@@ -77,7 +78,7 @@ let createState
       uply {
         let! extra = extraMetadata state vm
         let metadata = extra @ metadata
-        LibService.Rollbar.sendException None metadata exn
+        printException "[exception]" metadata exn
       }
 
     return Exe.createState builtins pmRT tracing sendException notify program
@@ -96,12 +97,9 @@ type ExecutionReason =
 /// - the first execution, which will
 ///   - have an ExecutionReason of InitialExecution
 ///   - initialize traces
-///   - send pushes
 /// - or ReExecution, which will
 ///   - update existing traces
-///   - not send pushes
 let executeHandler
-  (pusherSerializer : Pusher.PusherEventSerializer)
   (h : PT.Handler.T)
   (program : RT.Program)
   (traceID : AT.TraceID.T)
@@ -175,17 +173,6 @@ let executeHandler
       }
 
     tracing.storeTraceResults ()
-
-    match reason with
-    | ReExecution -> ()
-    | InitialExecution _ ->
-      if tracing.enabled then
-        let tlids = HashSet.toList tracing.results.tlids
-        Pusher.push
-          pusherSerializer
-          program.canvasID
-          (Pusher.NewTrace(traceID, tlids))
-          None
 
     return (result, tracing.results)
   }
