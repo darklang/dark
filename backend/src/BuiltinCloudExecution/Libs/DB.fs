@@ -13,101 +13,8 @@ module PT = LibExecution.ProgramTypes
 
 module UserDB = LibCloud.UserDB
 module Db = LibDB.Db
-module SqlCompiler = LibCloud.SqlCompiler
+module RTQueryCompiler = LibExecution.RTQueryCompiler
 module PackageIDs = LibExecution.PackageIDs
-
-/// Create a SqlSpec lookup from ExecutionState
-/// Looks up the SqlSpec for both builtin and package functions
-let createSqlSpecLookup
-  (exeState : ExecutionState)
-  : LibExecution.RTQueryCompiler.SqlSpecLookup =
-
-  fun (fnName : FQFnName.FQFnName) ->
-    match fnName with
-    | FQFnName.Builtin builtinName ->
-      // Look up in builtin functions
-      match Map.tryFind builtinName exeState.fns.builtIn with
-      | Some fn -> Some fn.sqlSpec
-      | None -> None
-    | FQFnName.Package _ ->
-      // Package functions don't have SqlSpec - they delegate to builtins
-      // Return None and let the inliner handle it
-      None
-
-
-/// Create a function body lookup for inlining package functions
-let createFunctionBodyLookup
-  (exeState : ExecutionState)
-  : LibExecution.RTQueryCompiler.FunctionBodyLookup =
-
-  fun (pkgId : FQFnName.Package) ->
-    uply {
-      match! exeState.fns.package pkgId with
-      | Some fn -> return Some fn.body
-      | None -> return None
-    }
-
-
-/// Create a partial evaluator for executing non-DB-dependent expressions at compile time.
-/// This allows user-defined functions like `rossDOB()` to be called and their results
-/// used as literal values in SQL queries.
-let createPartialEvaluator
-  (exeState : ExecutionState)
-  (_vm : VMState)
-  : LibExecution.RTQueryCompiler.PartialEvaluator =
-
-  fun
-      (fnName : FQFnName.FQFnName)
-      (typeArgs : List<TypeReference>)
-      (args : List<Dval>) ->
-    uply {
-      // Create instructions to call the function:
-      // reg 0: the function reference
-      // reg 1..n: the arguments
-      // reg n+1: the result
-      let fnReg = 0
-      let resultReg = List.length args + 1
-      let argRegs = [ 1 .. List.length args ]
-
-      // Build instruction list
-      let instructions = ResizeArray<Instruction>()
-
-      // Load the function reference
-      let appFn =
-        { name = fnName
-          typeArgs = typeArgs
-          argsSoFar = []
-          typeSymbolTable = Map.empty }
-      instructions.Add(LoadVal(fnReg, DApplicable(AppNamedFn appFn)))
-
-      // Load the arguments
-      args |> List.iteri (fun i arg -> instructions.Add(LoadVal(i + 1, arg)))
-
-      // Apply the function
-      let argRegNEList =
-        match argRegs with
-        | [] -> NEList.singleton fnReg // No args - just pass the fn reg as placeholder
-        | first :: rest -> NEList.ofList first rest
-      if List.isEmpty args then
-        // Zero-arg function - we need to apply with a unit arg to trigger execution
-        instructions.Add(LoadVal(1, DUnit))
-        instructions.Add(Apply(resultReg, fnReg, typeArgs, NEList.singleton 1))
-      else
-        instructions.Add(Apply(resultReg, fnReg, typeArgs, argRegNEList))
-
-      let instrs : Instructions =
-        { registerCount = resultReg + 1
-          instructions = instructions |> Seq.toList
-          resultIn = resultReg }
-
-      // Create a new VMState to execute these instructions
-      let miniVm = VMState.createWithoutTLID instrs
-
-      // Execute and return the result
-      let! result = LibExecution.Interpreter.execute exeState miniVm
-      return result
-    }
-
 
 let tvar v = TVariable v
 
@@ -191,16 +98,14 @@ let compileQueryLambda
     let! resolvedValues = resolveLoadValues exeState lambdaImpl
 
     match
-      LibExecution.RTQueryCompiler.compileLambda
-        (createSqlSpecLookup exeState)
-        (Some(createPartialEvaluator exeState vm))
-        (Some(createFunctionBodyLookup exeState))
+      RTQueryCompiler.compileLambda
+        exeState
         lambdaImpl
         appLambda.closedRegisters
         resolvedValues
     with
     | Error err ->
-      let fullMessage = SqlCompiler.errorTemplate + err
+      let fullMessage = RTQueryCompiler.errorTemplate + err
       return raiseUntargetedRTE (RuntimeError.Error.SqlCompiler fullMessage)
     | Ok compiled -> return compiled
   }
@@ -513,7 +418,7 @@ let fns : List<BuiltInFn> =
                 exeState
                 vm
                 db
-                DBQueryAll
+                UserDB.DBQueryAll
                 compiled.sql
                 compiled.paramValues
           }
@@ -540,7 +445,7 @@ let fns : List<BuiltInFn> =
                 exeState
                 vm
                 db
-                DBQueryWithKey
+                UserDB.DBQueryWithKey
                 compiled.sql
                 compiled.paramValues
           }
@@ -567,7 +472,7 @@ let fns : List<BuiltInFn> =
                 exeState
                 vm
                 db
-                DBQueryOne
+                UserDB.DBQueryOne
                 compiled.sql
                 compiled.paramValues
           }
@@ -594,7 +499,7 @@ let fns : List<BuiltInFn> =
                 exeState
                 vm
                 db
-                DBQueryCount
+                UserDB.DBQueryCount
                 compiled.sql
                 compiled.paramValues
           }

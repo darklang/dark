@@ -1,11 +1,15 @@
 /// Compiles RT Instructions (from lambdas) to SQL at runtime.
-/// This enables DB.query to work with lambdas passed as variables,
-/// not just inline lambdas.
+///
+/// TODO: Ideally this would operate at PT level rather than RT level,
+/// but we need RT to access lambda bodies when passed as variables rather than inline.
 module LibExecution.RTQueryCompiler
 
 open Prelude
 module RT = RuntimeTypes
-module Ply = Ply
+
+/// Error message prefix shown to users when SQL compilation fails
+let errorTemplate =
+  "You're using our new experimental Datastore query compiler. It compiles your lambdas into optimized (and partially indexed) Datastore queries, which should be reasonably fast.\n\nUnfortunately, we hit a snag while compiling your lambda. We only support a subset of Darklang's functionality, but will be expanding it in the future.\n\nSome Darklang code is not supported in DB::query lambdas for now, and some of it won't be supported because it's an odd thing to do in a datastore query. If you think your operation should be supported, let us know in #general in Discord.\n\n  Error: "
 
 /// Symbolic representation of what a register contains
 type SymbolicValue =
@@ -15,8 +19,6 @@ type SymbolicValue =
   | DBField of path : List<string>
   /// A literal value that can be used as SQL parameter
   | Literal of RT.Dval
-  /// Result of a comparison: (left, op, right)
-  | Comparison of SymbolicValue * string * SymbolicValue
   /// Boolean AND
   | BoolAnd of SymbolicValue * SymbolicValue
   /// Boolean OR
@@ -34,7 +36,6 @@ let rec dependsOnDBRow (sv : SymbolicValue) : bool =
   | DBRow -> true
   | DBField _ -> true
   | Literal _ -> false
-  | Comparison(left, _, right) -> dependsOnDBRow left || dependsOnDBRow right
   | BoolAnd(left, right) -> dependsOnDBRow left || dependsOnDBRow right
   | BoolOr(left, right) -> dependsOnDBRow left || dependsOnDBRow right
   | BoolNot inner -> dependsOnDBRow inner
@@ -53,17 +54,81 @@ type CompiledQuery =
 /// Error when compilation fails
 type CompileError = string
 
-/// Function to look up the SqlSpec for a function
-type SqlSpecLookup = RT.FQFnName.FQFnName -> Option<RT.SqlSpec>
 
-/// Function to partially evaluate a function call at runtime
-/// Takes: function name, type args, argument Dvals -> returns the result Dval
-type PartialEvaluator =
-  RT.FQFnName.FQFnName -> List<RT.TypeReference> -> List<RT.Dval> -> Ply.Ply<RT.Dval>
+// -------------------------
+// Helper functions for ExecutionState lookups
+// -------------------------
 
-/// Function to inline a package function by looking up its body
-/// Takes: package function ID -> returns the function's body instructions (or None)
-type FunctionBodyLookup = RT.FQFnName.Package -> Ply.Ply<Option<RT.Instructions>>
+/// Look up the SqlSpec for a function
+let getSqlSpec
+  (exeState : RT.ExecutionState)
+  (fnName : RT.FQFnName.FQFnName)
+  : Option<RT.SqlSpec> =
+  match fnName with
+  | RT.FQFnName.Builtin builtinName ->
+    Map.tryFind builtinName exeState.fns.builtIn |> Option.map _.sqlSpec
+  | RT.FQFnName.Package _ ->
+    // Package functions don't have SqlSpec - they delegate to builtins
+    None
+
+/// Look up a package function's body for inlining
+let getFnBody
+  (exeState : RT.ExecutionState)
+  (pkgId : RT.FQFnName.Package)
+  : Ply.Ply<Option<RT.Instructions>> =
+  uply {
+    let! fn = exeState.fns.package pkgId
+    return Option.map (fun (f : RT.PackageFn.PackageFn) -> f.body) fn
+  }
+
+/// Partially evaluate a function call at compile time
+/// Used when all arguments are known literals and we can compute the result
+let partialEvaluate
+  (exeState : RT.ExecutionState)
+  (fnName : RT.FQFnName.FQFnName)
+  (typeArgs : List<RT.TypeReference>)
+  (args : List<RT.Dval>)
+  : Ply.Ply<RT.Dval> =
+  uply {
+    // Build instructions to call the function
+    let fnReg = 0
+    let argRegs = [ 1 .. List.length args ]
+    let resultReg = List.length args + 1
+
+    let instructions = ResizeArray<RT.Instruction>()
+
+    // Load the function reference
+    let appFn : RT.ApplicableNamedFn =
+      { name = fnName
+        typeSymbolTable = Map.empty
+        typeArgs = typeArgs
+        argsSoFar = [] }
+    instructions.Add(RT.LoadVal(fnReg, RT.DApplicable(RT.AppNamedFn appFn)))
+
+    // Load the arguments
+    args |> List.iteri (fun i arg -> instructions.Add(RT.LoadVal(i + 1, arg)))
+
+    // Apply the function
+    if List.isEmpty args then
+      // Zero-arg function - apply with unit to trigger execution
+      instructions.Add(RT.LoadVal(1, RT.DUnit))
+      instructions.Add(RT.Apply(resultReg, fnReg, typeArgs, NEList.singleton 1))
+    else
+      let argRegNEList =
+        match argRegs with
+        | first :: rest -> NEList.ofList first rest
+        | [] -> NEList.singleton fnReg
+      instructions.Add(RT.Apply(resultReg, fnReg, typeArgs, argRegNEList))
+
+    let instrs : RT.Instructions =
+      { registerCount = resultReg + 1
+        instructions = instructions |> Seq.toList
+        resultIn = resultReg }
+
+    // Execute
+    let miniVm = RT.VMState.createWithoutTLID instrs
+    return! Interpreter.execute exeState miniVm
+  }
 
 
 /// Compile a function call using its SqlSpec
@@ -135,7 +200,12 @@ let rec symbolicToSql
   | DBRow -> Error "Cannot use the entire row directly; access its fields"
 
   | DBField path ->
-    let jsonPath = "$." + (path |> String.concat ".")
+    // Strip any non-alphanumeric characters to prevent SQL injection via field names
+    let safePath =
+      path
+      |> List.map (fun s ->
+        System.Text.RegularExpressions.Regex.Replace(s, "[^a-zA-Z0-9_]", ""))
+    let jsonPath = "$." + (safePath |> String.concat ".")
     Ok($"json_extract(data, '{jsonPath}')", state)
 
   | Literal dv ->
@@ -166,14 +236,6 @@ let rec symbolicToSql
       // For other types, try to use as parameter
       let (paramName, newState) = state.addParam other
       Ok(paramName, newState)
-
-  | Comparison(left, op, right) ->
-    match symbolicToSql state left with
-    | Error e -> Error e
-    | Ok(leftSql, state1) ->
-      match symbolicToSql state1 right with
-      | Error e -> Error e
-      | Ok(rightSql, state2) -> Ok($"({leftSql} {op} {rightSql})", state2)
 
   | BoolAnd(left, right) ->
     match symbolicToSql state left with
@@ -219,9 +281,7 @@ let rec symbolicToSql
 
 /// Recursively inline and execute a function's body
 let rec inlineAndExecute
-  (sqlSpecLookup : SqlSpecLookup)
-  (partialEval : Option<PartialEvaluator>)
-  (fnBodyLookup : Option<FunctionBodyLookup>)
+  (exeState : RT.ExecutionState)
   (resolvedValues : Map<RT.FQValueName.FQValueName, RT.Dval>)
   (maxInlineDepth : int)
   (state : SymbolicState)
@@ -232,53 +292,40 @@ let rec inlineAndExecute
   if maxInlineDepth <= 0 then
     Error "Max inline depth exceeded"
   else
-    match fnBodyLookup with
-    | None -> Error "Function body lookup not available for inlining"
-    | Some lookup ->
-      // Look up the function body synchronously
-      let fnBodyOpt = lookup fnId |> Ply.toTask |> _.Result
-      match fnBodyOpt with
-      | None -> Error $"Function not found for inlining: {fnId}"
-      | Some fnBody ->
-        // Create a new symbolic state with args bound to parameter registers
-        let initialState =
-          args
-          |> List.mapi (fun i arg -> (i, arg))
-          |> List.fold
-            (fun s (reg, v) -> { s with registers = Map.add reg v s.registers })
-            state
+    // Look up the function body synchronously
+    let fnBodyOpt = getFnBody exeState fnId |> Ply.toTask |> _.Result
+    match fnBodyOpt with
+    | None -> Error $"Function not found for inlining: {fnId}"
+    | Some fnBody ->
+      // Create a new symbolic state with args bound to parameter registers
+      let initialState =
+        args
+        |> List.mapi (fun i arg -> (i, arg))
+        |> List.fold
+          (fun s (reg, v) -> { s with registers = Map.add reg v s.registers })
+          state
 
-        // Execute the function body instructions
-        let rec executeAll st instrs =
-          match instrs with
-          | [] -> Ok st
-          | instr :: rest ->
-            match
-              executeInstruction
-                sqlSpecLookup
-                partialEval
-                fnBodyLookup
-                maxInlineDepth
-                resolvedValues
-                st
-                0
-                instr
-            with
-            | Error e -> Error e
-            | Ok newState -> executeAll newState rest
+      // Execute the function body instructions
+      let rec executeAll st instrs =
+        match instrs with
+        | [] -> Ok st
+        | instr :: rest ->
+          match
+            executeInstruction exeState maxInlineDepth resolvedValues st 0 instr
+          with
+          | Error e -> Error e
+          | Ok newState -> executeAll newState rest
 
-        match executeAll initialState fnBody.instructions with
-        | Error e -> Error e
-        | Ok finalState ->
-          // Return the result from the result register
-          Ok(finalState.getReg fnBody.resultIn)
+      match executeAll initialState fnBody.instructions with
+      | Error e -> Error e
+      | Ok finalState ->
+        // Return the result from the result register
+        Ok(finalState.getReg fnBody.resultIn)
 
 
 /// Symbolically execute a single instruction
 and executeInstruction
-  (sqlSpecLookup : SqlSpecLookup)
-  (partialEval : Option<PartialEvaluator>)
-  (fnBodyLookup : Option<FunctionBodyLookup>)
+  (exeState : RT.ExecutionState)
   (maxInlineDepth : int)
   (resolvedValues : Map<RT.FQValueName.FQValueName, RT.Dval>)
   (state : SymbolicState)
@@ -325,7 +372,7 @@ and executeInstruction
       let args = argRegs |> NEList.toList |> List.map state.getReg
 
       // Look up the SqlSpec for the function
-      match sqlSpecLookup fnName with
+      match getSqlSpec exeState fnName with
       | Some sqlSpec when sqlSpec.isQueryable () ->
         // Function has a queryable SqlSpec - use it
         Ok(state.withReg (createTo, SqlFnCall(sqlSpec, args)))
@@ -333,47 +380,19 @@ and executeInstruction
         // Not a SQL function - try partial evaluation or inlining
         let argDvals = args |> List.choose tryExtractDval
         if List.length argDvals = List.length args then
-          // All args are Literals - try partial evaluation
-          match partialEval with
-          | Some eval ->
-            let result = eval fnName typeArgs argDvals |> Ply.toTask |> _.Result
-            Ok(state.withReg (createTo, Literal result))
-          | None ->
-            // No partial evaluator - try inlining for package functions
-            match fnName with
-            | RT.FQFnName.Package pkgId ->
-              match
-                inlineAndExecute
-                  sqlSpecLookup
-                  partialEval
-                  fnBodyLookup
-                  resolvedValues
-                  (maxInlineDepth - 1)
-                  state
-                  pkgId
-                  args
-              with
-              | Ok resultSv -> Ok(state.withReg (createTo, resultSv))
-              | Error _ ->
-                Ok(
-                  state.withReg (createTo, Unknown $"Unsupported function: {fnName}")
-                )
-            | RT.FQFnName.Builtin { name = n } ->
-              Ok(
-                state.withReg (
-                  createTo,
-                  Unknown $"Unsupported builtin function: {n}"
-                )
-              )
+          // All args are Literals - partial evaluate
+          let result =
+            partialEvaluate exeState fnName typeArgs argDvals
+            |> Ply.toTask
+            |> _.Result
+          Ok(state.withReg (createTo, Literal result))
         else
           // Not all args are Literals - try to inline package functions
           match fnName with
           | RT.FQFnName.Package pkgId ->
             match
               inlineAndExecute
-                sqlSpecLookup
-                partialEval
-                fnBodyLookup
+                exeState
                 resolvedValues
                 (maxInlineDepth - 1)
                 state
@@ -423,7 +442,21 @@ and executeInstruction
 
   // Instructions we can't handle
   | RT.CreateLambda _ -> Error "Nested lambdas not supported in SQL queries"
-  | RT.CreateList _ -> Error "List creation not supported in SQL queries"
+  | RT.CreateList(createTo, itemRegs) ->
+    // Allow list creation when all items are literals (for partial evaluation)
+    let rec collectLiterals acc regs =
+      match regs with
+      | [] -> Ok(List.rev acc)
+      | reg :: rest ->
+        match state.getReg reg with
+        | Literal dv -> collectLiterals (dv :: acc) rest
+        | _ ->
+          Error "List elements must be literal values for SQL partial evaluation"
+    match collectLiterals [] itemRegs with
+    | Error e -> Error e
+    | Ok items ->
+      let listDval = RT.DList(RT.ValueType.Unknown, items)
+      Ok(state.withReg (createTo, Literal listDval))
   | RT.CreateDict _ -> Error "Dict creation not supported in SQL queries"
   | RT.CreateRecord(createTo, typeName, _typeArgs, fields) ->
     // Build a record Dval from the field values (must all be literals)
@@ -507,16 +540,13 @@ and executeInstruction
     Error "Match expressions not supported in SQL queries"
   | RT.MatchUnmatched _ -> Error "Match expressions not supported in SQL queries"
   | RT.RaiseNRE _ -> Error "Name resolution errors not supported in SQL queries"
-  | RT.VarNotFound(_, varName) ->
-    Error $"This variable is not defined: {varName}"
+  | RT.VarNotFound(_, varName) -> Error $"This variable is not defined: {varName}"
   | RT.CheckIfFirstExprIsUnit _ -> Ok state
 
 
 /// Compile a lambda's instructions to SQL
 let compileLambda
-  (sqlSpecLookup : SqlSpecLookup)
-  (partialEval : Option<PartialEvaluator>)
-  (fnBodyLookup : Option<FunctionBodyLookup>)
+  (exeState : RT.ExecutionState)
   (lambdaImpl : RT.LambdaImpl)
   (closedValues : List<RT.Register * RT.Dval>)
   (resolvedValues : Map<RT.FQValueName.FQValueName, RT.Dval>)
@@ -547,9 +577,7 @@ let compileLambda
     | instr :: rest ->
       match
         executeInstruction
-          sqlSpecLookup
-          partialEval
-          fnBodyLookup
+          exeState
           maxInlineDepth
           resolvedValues
           state
@@ -563,7 +591,6 @@ let compileLambda
   let validateBoolResult (sv : SymbolicValue) : Result<unit, CompileError> =
     match sv with
     | Literal(RT.DBool _) -> Ok()
-    | Comparison _ -> Ok()
     | BoolAnd _ -> Ok()
     | BoolOr _ -> Ok()
     | BoolNot _ -> Ok()

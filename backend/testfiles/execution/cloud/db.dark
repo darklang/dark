@@ -728,9 +728,8 @@ module FindAll =
   // pipes with operators
   (friends (fun p -> p.height |> (*) 2L |> (<) 40L)) = [ "GrumpyCat" ]
 
-  // //[test.db query with external variable] with DB Person
-  // // TODO pass an external var x
-  // //(friends (fun p -> p.height < x)) = ["GrumpyCat"]
+  // [test.db query with external variable] with DB Person
+  (let x = 11L in friends (fun p -> p.height < x)) = ["GrumpyCat"]
 
   // fieldaccess
   type IntField = { x: Int64 }
@@ -804,12 +803,11 @@ module CompiledFunctions =
 
   (friends (fun p -> Stdlib.Int64.divide p.height 2L == 5L)) = [ "GrumpyCat" ]
 
-  // // TODO: This test should pass, but it is causing an infinite recursion
-  // // (friends (fun p -> (Stdlib.Int64.power p.height 2) == Stdlib.Result.Result.Ok(100))) = [ "GrumpyCat" ]
+  (friends (fun p -> Stdlib.Int64.power p.height 2L == 100L)) = [ "GrumpyCat" ]
 
   (friends (fun p -> Stdlib.String.toLowercase p.name == "rachel")) = [ "Rachel" ]
   (friends (fun p -> Stdlib.String.toUppercase p.name == "RACHEL")) = [ "Rachel" ]
-  // SQLite doesn't have a REVERSE function
+  // TODO: SQLite doesn't have a REVERSE function
   // (friends (fun p -> Stdlib.String.reverse p.name == "lehcaR")) = [ "Rachel" ]
   // String.length returns Int64, compared with > operator
   (friends (fun p -> Stdlib.String.length p.name > 5L)) = [ " Chandler "
@@ -857,10 +855,9 @@ module CompiledFunctions =
                                                                                 "Rachel"
                                                                                 "Ross" ]
 
-  // SQLite doesn't have a REVERSE function
+  // TODO: SQLite doesn't have a REVERSE function
   // (friends (fun p -> Stdlib.String.reverse p.name == "lehcaR")) = [ "Rachel" ]
 
-  // SQLite doesn't have a REVERSE function
   // (friends (fun p ->
   //   Stdlib.String.reverse (
   //     (Stdlib.String.toLowercase p.name) |> Stdlib.String.toUppercase
@@ -904,7 +901,7 @@ module CompiledFunctions =
                                                                           "Rachel"
                                                                           "Ross" ]
 
-  // These use Postgres-specific date_part/date_trunc functions - not supported in SQLite
+  // TODO: These use Postgres-specific date_part/date_trunc functions - not supported in SQLite
   // (friends (fun p ->
   //   Stdlib.DateTime.atStartOfDay p.dob == (d "1969-08-19T00:00:00Z"))) = [ " Chandler " ]
 
@@ -966,11 +963,9 @@ module PartialEvaluation =
                                                                                           "Rachel"
                                                                                           "Ross" ]
 
-  // fieldAccesses inside query with List.length - requires evaluating let-bound variables
-  // Currently not supported: partial evaluation can't pass let-bound variable values to the interpreter
-  // (friends (fun p ->
-  //   let x = YL { y = ZL { z = AL { a = [ 1L; 2L; 3L; 4L; 5L ] } } }
-  //   (Stdlib.List.length x.y.z.a) < p.height)) = [ " Chandler "; "GrumpyCat"; "Rachel"; "Ross" ]
+  (friends (fun p ->
+    let x = YL { y = ZL { z = AL { a = [ 1L; 2L; 3L; 4L; 5L ] } } }
+    (Stdlib.List.length x.y.z.a) < p.height)) = [ " Chandler "; "GrumpyCat"; "Rachel"; "Ross" ]
 
   // tuple destructuring inside query - requires tuple pattern support
   (friends (fun p ->

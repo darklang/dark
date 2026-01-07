@@ -437,12 +437,6 @@ type Instruction =
 
   | CheckIfFirstExprIsUnit of Register
 
-and DBQueryType =
-  | DBQueryAll // DB.query - returns List<'a>
-  | DBQueryWithKey // DB.queryWithKey - returns Dict<'a>
-  | DBQueryOne // DB.queryOne - returns Option<'a>
-  | DBQueryCount // DB.queryCount - returns Int64
-
 and Instructions =
   {
     /// How many registers are used in evaluating these instructions

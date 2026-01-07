@@ -24,6 +24,13 @@ module PT = LibExecution.ProgramTypes
 module RT = LibExecution.RuntimeTypes
 module DvalReprInternalQueryable = LibExecution.DvalReprInternalQueryable
 
+/// Type of DB query operation - determines SQL SELECT and result processing
+type DBQueryType =
+  | DBQueryAll
+  | DBQueryWithKey
+  | DBQueryOne
+  | DBQueryCount
+
 // Bump this if you make a breaking change to the underlying data format, and
 // are migrating user data to the new version
 //
@@ -528,7 +535,7 @@ let executeCompiledQuery
   (exeState : RT.ExecutionState)
   (vm : RT.VMState)
   (db : RT.DB.T)
-  (queryType : RT.DBQueryType)
+  (queryType : DBQueryType)
   (compiledSql : string)
   (paramValues : List<RT.Dval>)
   : Ply<RT.Dval> =
@@ -575,7 +582,7 @@ let executeCompiledQuery
 
     // Determine what to SELECT and build the query
     match queryType with
-    | RT.DBQueryAll ->
+    | DBQueryAll ->
       let! results =
         Sql.query
           $"SELECT data
@@ -597,7 +604,7 @@ let executeCompiledQuery
           threadID
           LibExecution.ValueType.unknownDbTODO
 
-    | RT.DBQueryWithKey ->
+    | DBQueryWithKey ->
       let! results =
         Sql.query
           $"SELECT key, data
@@ -622,7 +629,7 @@ let executeCompiledQuery
           LibExecution.ValueType.unknownDbTODO
           kvPairs
 
-    | RT.DBQueryOne ->
+    | DBQueryOne ->
       let! results =
         Sql.query
           $"SELECT data
@@ -650,7 +657,7 @@ let executeCompiledQuery
           LibExecution.TypeChecker.DvalCreator.optionNone
             LibExecution.ValueType.unknownDbTODO
 
-    | RT.DBQueryCount ->
+    | DBQueryCount ->
       let! count =
         Sql.query
           $"SELECT COUNT(*) as count

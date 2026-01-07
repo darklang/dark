@@ -98,7 +98,7 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, _, _, [ DString errorString ] ->
-          let msg = LibCloud.SqlCompiler.errorTemplate + errorString
+          let msg = LibExecution.RTQueryCompiler.errorTemplate + errorString
           let typeName =
             FQTypeName.Package
               PackageIDs.Type.PrettyPrinter.RuntimeTypes.RuntimeError.errorMessage
