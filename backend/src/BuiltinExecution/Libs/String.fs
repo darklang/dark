@@ -106,7 +106,7 @@ let fns : List<BuiltInFn> =
         | _, _, _, [ DString s ] ->
           s |> String.lengthInEgcs |> int64 |> Dval.int64 |> Ply
         | _ -> incorrectArgs ())
-      sqlSpec = SqlFunction "LENGTH" // Note: SQLite LENGTH counts characters, not EGCs
+      sqlSpec = NotYetImplemented // CLEANUP: Sqlite has "LENGTH" but that counts characters; if we can get it to count EGCs, great
       previewable = Pure
       deprecated = NotDeprecated }
 
