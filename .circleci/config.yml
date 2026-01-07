@@ -177,7 +177,6 @@ jobs:
       # For tests
       - run: ./scripts/build/_dotnet-wrapper tool restore
       - run: ./scripts/build/_dotnet-wrapper paket restore
-      - run: git checkout -- backend/.paket/Paket.Restore.targets  # paket regenerates with wrong line endings
       # DebugType=None and DebugSymbol=false tells dotnet not to copy .pdb files to publish/
 
       # Setup database for tests that need it
@@ -238,7 +237,6 @@ jobs:
       # For tests
       - run: ./scripts/build/_dotnet-wrapper tool restore
       - run: ./scripts/build/_dotnet-wrapper paket restore
-      - run: git checkout -- backend/.paket/Paket.Restore.targets  # paket regenerates with wrong line endings
 
       # The CLI embeds the Sqlite data.db,
       # so we need to get a copy ready first.

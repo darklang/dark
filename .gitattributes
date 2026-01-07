@@ -1,4 +1,2 @@
-*Paket.Restore.targets eol=crlf
-
 backend/testfiles/serialization-artifacts/*.bin linguist-generated=true
 backend/testfiles/serialization-artifacts/*.json linguist-generated=true
