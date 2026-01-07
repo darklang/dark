@@ -1,5 +1,6 @@
 #! /usr/bin/env bash
-. ./scripts/devcontainer/_assert-in-container "$0" "$@"
+# Note: This script can run in lightweight CI containers (doesn't need dark-base)
+# Requirements: npm, vsce (npm package), jq
 
 set -euo pipefail
 
