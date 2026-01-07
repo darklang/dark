@@ -23,7 +23,7 @@ let logDir = Config.logDir
 
 let backendDir = $"{sourceRootDir}backend/"
 let testdataDir = $"{backendDir}testfiles/data/"
-let serializationDir = $"{backendDir}serialization/"
+let serializationDir = $"{backendDir}testfiles/serialization-artifacts/"
 let webrootDir = $"{backendDir}static/"
 let migrationsDir = $"{backendDir}migrations/"
 

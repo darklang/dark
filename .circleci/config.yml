@@ -156,7 +156,7 @@ jobs:
       # rebuilt
       # Currently disabled, as it was causing issues failures within
       # Serialization.Tests.fs where the allowedTypes for serializers did not match
-      # what tests expected (and what files were persisted in backend/serialization).
+      # what tests expected (and what files were persisted in backend/testfiles/serialization-artifacts).
       # TODO: think through an alternative or more nuanced approach.
       #- run: git restore-mtime
       - setup-app

@@ -385,7 +385,7 @@ def get_ignored_files():
   ignores = [
         ".git/",
         "scripts/build/compile",
-        "backend/serialization/",
+        "backend/testfiles/serialization-artifacts/",
         "tree-sitter-darklang/src/"
         "containers/",
         "Dockerfile",

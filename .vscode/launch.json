@@ -15,54 +15,6 @@
       "preLaunchTask": { "type": "npm", "script": "watch" },
       "internalConsoleOptions": "openOnSessionStart",
       "env": { "VSCODE_DEBUG_MODE": "true"}
-    },
-    {
-      "name": "BwdServer",
-      "type": "coreclr",
-      "request": "launch",
-      "preLaunchTask": "build-bwdserver",
-      "program": "/home/dark/app/backend/Build/out/BwdServer/Debug/net8.0/linux-x64/BwdServer",
-      "args": [],
-      "cwd": "${workspaceFolder}",
-      "stopAtEntry": false,
-      "console": "internalConsole"
-    },
-    {
-      "name": "Tests",
-      "type": "coreclr",
-      "request": "launch",
-      "preLaunchTask": "build-tests",
-      "program": "/home/dark/app/backend/Build/out/Tests/Debug/net8.0/Tests",
-      //"args": ["--filter-test-list", "HttpClient"],
-      "args": ["--filter-test-list", "ematch"],
-      "cwd": "${workspaceFolder}/backend",
-      "stopAtEntry": false,
-      "console": "internalConsole",
-      "env": {
-        "DARK_CONFIG_TELEMETRY_EXPORTER": "none",
-        "DARK_CONFIG_DB_HOST": "localhost",
-        "DARK_CONFIG_DB_DBNAME": "testdb",
-        "DARK_CONFIG_DB_USER": "dark",
-        "DARK_CONFIG_DB_PASSWORD": "darklang"
-      }
-    },
-    {
-      "name": "Benchmark",
-      "type": "coreclr",
-      "request": "launch",
-      "preLaunchTask": "build-benchmark",
-      "program": "/home/dark/app/backend/Build/out/Benchmark/Debug/net8.0/linux-x64/Benchmark",
-      "args": ["fizzbuzz"],
-      "cwd": "${workspaceFolder}/backend",
-      "stopAtEntry": true,
-      "console": "internalConsole",
-      "env": {
-        "DARK_CONFIG_TELEMETRY_EXPORTER": "none",
-        "DARK_CONFIG_DB_HOST": "localhost",
-        "DARK_CONFIG_DB_DBNAME": "testdb",
-        "DARK_CONFIG_DB_USER": "dark",
-        "DARK_CONFIG_DB_PASSWORD": "darklang"
-      }
     }
   ]
 }
