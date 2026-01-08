@@ -889,6 +889,9 @@ module RuntimeError =
 
     | Statement of Statements.Error
 
+    /// SQL compiler errors when compiling lambdas to SQL queries
+    | SqlCompiler of errMsg : string
+
     // punting these until DBs are supported again
     // - bring back this RTE where/when relevant "Attempting to access field '{fieldName}' of a Datastore (use `DB.*` standard library functions to interact with Datastores. Field access only work with records)"
     // - in backend/src/LibCloud/SqlCompiler.fs:
@@ -1382,7 +1385,6 @@ and ExecutionState =
     /// Useful for tracking behaviour we want to deprecate, understanding what
     /// users are doing, etc.
     notify : Notifier
-
 
     // -- Set per-execution --
     program : Program

@@ -9,10 +9,12 @@ module VT = LibExecution.ValueType
 module Dval = LibExecution.Dval
 module TypeChecker = LibExecution.TypeChecker
 module Builtin = LibExecution.Builtin
+module PT = LibExecution.ProgramTypes
 
 module UserDB = LibCloud.UserDB
 module Db = LibDB.Db
-
+module RTQueryCompiler = LibExecution.RTQueryCompiler
+module PackageIDs = LibExecution.PackageIDs
 
 let tvar v = TVariable v
 
@@ -31,6 +33,83 @@ let queryFilterParam v =
     (TFn(NEList.singleton (TVariable v), TBool))
     ""
     [ "value" ]
+
+
+/// Collect all LoadValue instructions from lambda instructions and resolve them
+let resolveLoadValues
+  (exeState : ExecutionState)
+  (lambdaImpl : LambdaImpl)
+  : Ply.Ply<Map<FQValueName.FQValueName, Dval>> =
+  uply {
+    // Collect all value references from LoadValue instructions
+    let valueRefs =
+      lambdaImpl.instructions.instructions
+      |> List.choose (function
+        | Instruction.LoadValue(_, valueName) -> Some valueName
+        | _ -> None)
+      |> List.distinct
+
+    // Resolve each value
+    let! resolved =
+      valueRefs
+      |> Ply.List.mapSequentially (fun valueName ->
+        uply {
+          match valueName with
+          | FQValueName.Builtin builtinName ->
+            // Builtin values - look up in builtIn values
+            match Map.tryFind builtinName exeState.values.builtIn with
+            | Some v -> return Some(valueName, v.body)
+            | None -> return None
+          | FQValueName.Package pkgId ->
+            let! pkg = exeState.values.package pkgId
+            match pkg with
+            | Some v -> return Some(valueName, v.body)
+            | None -> return None
+        })
+
+    return resolved |> List.choose (fun x -> x) |> Map.ofList
+  }
+
+
+/// Look up a lambda from the VM cache by its exprId
+let lookupLambdaImpl (vm : VMState) (exprId : id) : LambdaImpl =
+  match
+    Map.tryFind
+      (vm.callFrames[vm.currentFrameID].executionPoint, exprId)
+      vm.lambdaInstrCache
+  with
+  | Some impl -> impl
+  | None ->
+    match Map.tryFind (Source, exprId) vm.lambdaInstrCache with
+    | Some impl -> impl
+    | None ->
+      Exception.raiseInternal "Lambda not found in cache" [ "exprId", exprId ]
+
+
+/// Compile a lambda to SQL for use in DB queries
+/// Raises RuntimeErrorException on error
+let compileQueryLambda
+  (exeState : ExecutionState)
+  (vm : VMState)
+  (appLambda : ApplicableLambda)
+  : Ply.Ply<LibExecution.RTQueryCompiler.CompiledQuery> =
+  uply {
+    let lambdaImpl = lookupLambdaImpl vm appLambda.exprId
+    let! resolvedValues = resolveLoadValues exeState lambdaImpl
+
+    match
+      RTQueryCompiler.compileLambda
+        exeState
+        lambdaImpl
+        appLambda.closedRegisters
+        resolvedValues
+    with
+    | Error err ->
+      let fullMessage = RTQueryCompiler.errorTemplate + err
+      return raiseUntargetedRTE (RuntimeError.Error.SqlCompiler fullMessage)
+    | Ok compiled -> return compiled
+  }
+
 
 // let handleUnexpectedExceptionDuringQuery
 //   (exeState : ExecutionState)
@@ -320,153 +399,113 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    // { name = fn "dbQuery" 0
-    //   typeParams = []
-    //   parameters = [ tableParam "a"; queryFilterParam "a" ]
-    //   returnType = TList(tvar "a")
-    //   description =
-    //     "Fetch all the values from <param table> for which filter returns true.
-    //     Note that this does not check every value in <param table>, but rather is optimized to find data with indexes.
-    //     Errors at compile-time if Dark's compiler does not support the code in question."
-    //   fn =
-    //     (function
-    //     | exeState, _, [ DDB dbname; DFnVal(Lambda b) ] ->
-    //       uply {
-    //         try
-    //           let db = exeState.program.dbs[dbname]
-    //           let! results = UserDB.queryValues exeState db b
-    //           match results with
-    //           | Ok results ->
-    //             return
-    //               results
-    //               |> TypeChecker.DvalCreator.list
-    //                 exeState.tracing.callStack
-    //                 VT.unknownDbTODO
-    //           | Error rte -> return raiseUntargetedRTE rte
-    //         with e ->
-    //           return handleUnexpectedExceptionDuringQuery exeState dbname b e
-    //       }
-    //     | _ -> incorrectArgs ())
-    //   sqlSpec = QueryFunction
-    //   previewable = Impure
-    //   deprecated = NotDeprecated }
+    { name = fn "dbQuery" 0
+      typeParams = []
+      parameters = [ tableParam "a"; queryFilterParam "a" ]
+      returnType = TList(tvar "a")
+      description =
+        "Fetch all the values from <param table> for which filter returns true.
+        Note that this does not check every value in <param table>, but rather is optimized to find data with indexes.
+        Errors at compile-time if Dark's compiler does not support the code in question."
+      fn =
+        (function
+        | exeState, vm, _, [ DDB dbname; DApplicable(AppLambda appLambda) ] ->
+          uply {
+            let db = exeState.program.dbs[dbname]
+            let! compiled = compileQueryLambda exeState vm appLambda
+            return!
+              UserDB.executeCompiledQuery
+                exeState
+                vm
+                db
+                UserDB.DBQueryAll
+                compiled.sql
+                compiled.paramValues
+          }
+        | _ -> incorrectArgs ())
+      sqlSpec = QueryFunction
+      previewable = Impure
+      deprecated = NotDeprecated }
 
 
-    // { name = fn "dbQueryWithKey" 0
-    //   typeParams = []
-    //   parameters = [ tableParam "a"; queryFilterParam "a" ]
-    //   returnType = TDict(tvar "a")
-    //   description =
-    //     "Fetch all the values from <param table> for which filter returns true, returning {key : value} as an dict. Note that this does not check every value in <param table>, but rather is optimized to find data with indexes. Errors at compile-time if Dark's compiler does not support the code in question."
-    //   fn =
-    //     (function
-    //     | exeState, _, [ DDB dbname; DFnVal(Lambda b) ] ->
-    //       uply {
-    //         try
-    //           let db = exeState.program.dbs[dbname]
-    //           let! results = UserDB.query exeState db b
-    //           match results with
-    //           | Ok results ->
-    //             return TypeChecker.DvalCreator.dict VT.unknownDbTODO results
-    //           | Error rte -> return raiseUntargetedRTE rte
-    //         with e ->
-    //           return handleUnexpectedExceptionDuringQuery exeState dbname b e
-    //       }
-    //     | _ -> incorrectArgs ())
-    //   sqlSpec = QueryFunction
-    //   previewable = Impure
-    //   deprecated = NotDeprecated }
+    { name = fn "dbQueryWithKey" 0
+      typeParams = []
+      parameters = [ tableParam "a"; queryFilterParam "a" ]
+      returnType = TDict(tvar "a")
+      description =
+        "Fetch all the values from <param table> for which filter returns true, returning {key : value} as a dict."
+      fn =
+        (function
+        | exeState, vm, _, [ DDB dbname; DApplicable(AppLambda appLambda) ] ->
+          uply {
+            let db = exeState.program.dbs[dbname]
+            let! compiled = compileQueryLambda exeState vm appLambda
+            return!
+              UserDB.executeCompiledQuery
+                exeState
+                vm
+                db
+                UserDB.DBQueryWithKey
+                compiled.sql
+                compiled.paramValues
+          }
+        | _ -> incorrectArgs ())
+      sqlSpec = QueryFunction
+      previewable = Impure
+      deprecated = NotDeprecated }
 
 
-    // { name = fn "dbQueryOne" 0
-    //   typeParams = []
-    //   parameters = [ tableParam "a"; queryFilterParam "a" ]
-    //   returnType = TypeReference.option (tvar "a")
-    //   description =
-    //     "Fetch exactly one value from <param table> for which filter returns true. Note that this does not check every value in <param table>, but rather is optimized to find data with indexes.  If there is exactly one value, it returns Some value and if there is none or more than 1 found, it returns None. Errors at compile-time if Dark's compiler does not support the code in question."
-    //   fn =
-    //     let optType = VT.unknownDbTODO
-    //     (function
-    //     | exeState, _, [ DDB dbname; DFnVal(Lambda b) ] ->
-    //       uply {
-    //         try
-    //           let db = exeState.program.dbs[dbname]
-    //           let! results = UserDB.query exeState db b
-
-    //           match results with
-    //           | Ok [ (_, v) ] ->
-    //             return
-    //               TypeChecker.DvalCreator.optionSome
-    //                 exeState.tracing.callStack
-    //                 optType
-    //                 v
-    //           | Ok _ -> return TypeChecker.DvalCreator.optionNone optType
-    //           | Error rte -> return raiseUntargetedRTE rte
-    //         with e ->
-    //           return handleUnexpectedExceptionDuringQuery exeState dbname b e
-    //       }
-    //     | _ -> incorrectArgs ())
-    //   sqlSpec = QueryFunction
-    //   previewable = Impure
-    //   deprecated = NotDeprecated }
+    { name = fn "dbQueryOne" 0
+      typeParams = []
+      parameters = [ tableParam "a"; queryFilterParam "a" ]
+      returnType = TypeReference.option (tvar "a")
+      description =
+        "Fetch exactly one value from <param table> for which filter returns true. Returns Some if exactly one found, None otherwise."
+      fn =
+        (function
+        | exeState, vm, _, [ DDB dbname; DApplicable(AppLambda appLambda) ] ->
+          uply {
+            let db = exeState.program.dbs[dbname]
+            let! compiled = compileQueryLambda exeState vm appLambda
+            return!
+              UserDB.executeCompiledQuery
+                exeState
+                vm
+                db
+                UserDB.DBQueryOne
+                compiled.sql
+                compiled.paramValues
+          }
+        | _ -> incorrectArgs ())
+      sqlSpec = QueryFunction
+      previewable = Impure
+      deprecated = NotDeprecated }
 
 
-    // { name = fn "dbQueryOneWithKey" 0
-    //   typeParams = []
-    //   parameters = [ tableParam "a"; queryFilterParam "a" ]
-    //   returnType = TypeReference.option (TTuple(TString, tvar "a", []))
-    //   description =
-    //     "Fetch exactly one value from <param table> for which filter returns true. Note that this does not check every value in <param table>, but rather is optimized to find data with indexes. If there is exactly one key/value pair, it returns Some {key: value} and if there is none or more than 1 found, it returns None. Errors at compile-time if Dark's compiler does not support the code in question."
-    //   fn =
-    //     let optType = VT.tuple VT.string VT.unknownDbTODO []
-    //     (function
-    //     | exeState, _, [ DDB dbname; DFnVal(Lambda b) ] ->
-    //       uply {
-    //         try
-    //           let db = exeState.program.dbs[dbname]
-    //           let! results = UserDB.query exeState db b
-
-    //           match results with
-    //           | Ok [ (key, dv) ] ->
-    //             return
-    //               TypeChecker.DvalCreator.optionSome
-    //                 exeState.tracing.callStack
-    //                 optType
-    //                 (DTuple(DString key, dv, []))
-    //           | Ok _ -> return TypeChecker.DvalCreator.optionNone optType
-    //           | Error rte -> return raiseUntargetedRTE rte
-    //         with e ->
-    //           return handleUnexpectedExceptionDuringQuery exeState dbname b e
-    //       }
-    //     | _ -> incorrectArgs ())
-    //   sqlSpec = QueryFunction
-    //   previewable = Impure
-    //   deprecated = NotDeprecated }
-
-
-    // { name = fn "dbQueryCount" 0
-    //   typeParams = []
-    //   parameters = [ tableParam "a"; queryFilterParam "a" ]
-    //   returnType = TInt64
-    //   description =
-    //     "Return the number of items from <param table> for which filter returns true. Note that this does not check every value in <param table>, but rather is optimized to find data with indexes. Errors at compile-time if Dark's compiler does not support the code in question."
-    //   fn =
-    //     (function
-    //     | exeState, _, [ DDB dbname; DFnVal(Lambda b) ] ->
-    //       uply {
-    //         try
-    //           let db = exeState.program.dbs[dbname]
-    //           let! result = UserDB.queryCount exeState db b
-    //           match result with
-    //           | Ok result -> return Dval.int64 result
-    //           | Error rte -> return raiseUntargetedRTE rte
-    //         with e ->
-    //           return handleUnexpectedExceptionDuringQuery exeState dbname b e
-    //       }
-    //     | _ -> incorrectArgs ())
-    //   sqlSpec = QueryFunction
-    //   previewable = Impure
-    //   deprecated = NotDeprecated }
-    ]
+    { name = fn "dbQueryCount" 0
+      typeParams = []
+      parameters = [ tableParam "a"; queryFilterParam "a" ]
+      returnType = TInt64
+      description =
+        "Return the number of items from <param table> for which filter returns true."
+      fn =
+        (function
+        | exeState, vm, _, [ DDB dbname; DApplicable(AppLambda appLambda) ] ->
+          uply {
+            let db = exeState.program.dbs[dbname]
+            let! compiled = compileQueryLambda exeState vm appLambda
+            return!
+              UserDB.executeCompiledQuery
+                exeState
+                vm
+                db
+                UserDB.DBQueryCount
+                compiled.sql
+                compiled.paramValues
+          }
+        | _ -> incorrectArgs ())
+      sqlSpec = QueryFunction
+      previewable = Impure
+      deprecated = NotDeprecated } ]
 
 let builtins = Builtin.make [] fns

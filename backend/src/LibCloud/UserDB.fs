@@ -24,6 +24,13 @@ module PT = LibExecution.ProgramTypes
 module RT = LibExecution.RuntimeTypes
 module DvalReprInternalQueryable = LibExecution.DvalReprInternalQueryable
 
+/// Type of DB query operation - determines SQL SELECT and result processing
+type DBQueryType =
+  | DBQueryAll
+  | DBQueryWithKey
+  | DBQueryOne
+  | DBQueryCount
+
 // Bump this if you make a breaking change to the underlying data format, and
 // are migrating user data to the new version
 //
@@ -516,3 +523,152 @@ let create (tlid : tlid) (name : string) (typ : PT.TypeReference) : PT.DB.T =
   { tlid = tlid; name = name; typ = typ; version = 0 }
 
 let renameDB (n : string) (db : PT.DB.T) : PT.DB.T = { db with name = n }
+
+
+// -------------------------
+// DBQuery execution
+// -------------------------
+
+/// Execute a compiled DB query
+/// Called by DB.query/queryWithKey/queryOne/queryCount builtins
+let executeCompiledQuery
+  (exeState : RT.ExecutionState)
+  (vm : RT.VMState)
+  (db : RT.DB.T)
+  (queryType : DBQueryType)
+  (compiledSql : string)
+  (paramValues : List<RT.Dval>)
+  : Ply<RT.Dval> =
+  uply {
+    let types = exeState.types
+    let threadID = vm.threadID
+    let tst = Map.empty // TODO: proper type symbol table
+
+    // Build parameter bindings for the SQL query
+    // The compiled SQL uses @p1, @p2, etc.
+    let! paramBindings =
+      paramValues
+      |> List.mapi (fun i dv -> (i, dv))
+      |> Ply.List.mapSequentially (fun (i, dv) ->
+        uply {
+          let paramName = $"p{i + 1}"
+          let! sqlValue =
+            match dv with
+            | RT.DString s -> Ply(Sql.string s)
+            | RT.DInt64 n -> Ply(Sql.int64 n)
+            | RT.DFloat f -> Ply(Sql.double f)
+            | RT.DBool b -> Ply(Sql.bool b)
+            | RT.DUnit -> Ply(Sql.string "null")
+            | RT.DUuid u -> Ply(Sql.uuid u)
+            | RT.DDateTime dt ->
+              Ply(Sql.string (LibExecution.DarkDateTime.toIsoString dt))
+            | other ->
+              // For complex types, convert to JSON string
+              uply {
+                let! json = dvalToDB threadID types other
+                return Sql.string json
+              }
+          return (paramName, sqlValue)
+        })
+
+    // Base parameters for the table filtering
+    let baseParams =
+      [ "tlid", Sql.tlid db.tlid
+        "canvasID", Sql.uuid exeState.program.canvasID
+        "userVersion", Sql.int db.version
+        "darkVersion", Sql.int currentDarkVersion ]
+
+    let allParams = baseParams @ paramBindings
+
+    // Determine what to SELECT and build the query
+    match queryType with
+    | DBQueryAll ->
+      let! results =
+        Sql.query
+          $"SELECT data
+            FROM user_data_v0
+            WHERE table_tlid = @tlid
+              AND canvas_id = @canvasID
+              AND user_version = @userVersion
+              AND dark_version = @darkVersion
+              AND ({compiledSql})"
+        |> Sql.parameters allParams
+        |> Sql.executeAsync (fun read -> read.string "data")
+
+      let! dvals =
+        results |> List.map (dbToDval types threadID tst db) |> Ply.List.flatten
+
+      return
+        dvals
+        |> LibExecution.TypeChecker.DvalCreator.list
+          threadID
+          LibExecution.ValueType.unknownDbTODO
+
+    | DBQueryWithKey ->
+      let! results =
+        Sql.query
+          $"SELECT key, data
+            FROM user_data_v0
+            WHERE table_tlid = @tlid
+              AND canvas_id = @canvasID
+              AND user_version = @userVersion
+              AND dark_version = @darkVersion
+              AND ({compiledSql})"
+        |> Sql.parameters allParams
+        |> Sql.executeAsync (fun read -> (read.string "key", read.string "data"))
+
+      let! kvPairs =
+        results
+        |> List.map (fun (key, data) ->
+          dbToDval types threadID tst db data |> Ply.map (fun dval -> (key, dval)))
+        |> Ply.List.flatten
+
+      return
+        LibExecution.TypeChecker.DvalCreator.dict
+          threadID
+          LibExecution.ValueType.unknownDbTODO
+          kvPairs
+
+    | DBQueryOne ->
+      let! results =
+        Sql.query
+          $"SELECT data
+            FROM user_data_v0
+            WHERE table_tlid = @tlid
+              AND canvas_id = @canvasID
+              AND user_version = @userVersion
+              AND dark_version = @darkVersion
+              AND ({compiledSql})
+            LIMIT 2"
+        |> Sql.parameters allParams
+        |> Sql.executeAsync (fun read -> read.string "data")
+
+      match results with
+      | [ single ] ->
+        let! dval = dbToDval types threadID tst db single
+        return
+          LibExecution.TypeChecker.DvalCreator.optionSome
+            threadID
+            LibExecution.ValueType.unknownDbTODO
+            dval
+      | _ ->
+        // None if zero or more than one result
+        return
+          LibExecution.TypeChecker.DvalCreator.optionNone
+            LibExecution.ValueType.unknownDbTODO
+
+    | DBQueryCount ->
+      let! count =
+        Sql.query
+          $"SELECT COUNT(*) as count
+            FROM user_data_v0
+            WHERE table_tlid = @tlid
+              AND canvas_id = @canvasID
+              AND user_version = @userVersion
+              AND dark_version = @darkVersion
+              AND ({compiledSql})"
+        |> Sql.parameters allParams
+        |> Sql.executeRowAsync (fun read -> read.int "count")
+
+      return RT.DInt64(int64 count)
+  }

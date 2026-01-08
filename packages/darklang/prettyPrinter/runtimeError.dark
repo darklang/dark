@@ -462,6 +462,8 @@ module RuntimeError =
       | NoExpressionsToExecute -> [ ES.String "TODO NoExpressionsToExecute" ]
       | NonIntReturned actuallyReturnedOfDval -> [ ES.String "TODO NonIntReturned" ]
 
+    | SqlCompiler errMsg -> [ ES.String errMsg ]
+
     | UncaughtException (msg, metadata) ->
       let withMetadata =
         match metadata with

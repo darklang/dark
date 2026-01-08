@@ -25,7 +25,7 @@ let writeJson (f : Utf8JsonWriter -> Ply<unit>) : Ply<string> =
   uply {
     let options =
       new JsonWriterOptions(
-        Indented = true,
+        Indented = false,
         SkipValidation = true,
         Encoder =
           System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping

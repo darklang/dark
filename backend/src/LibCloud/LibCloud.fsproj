@@ -35,7 +35,6 @@
     <Compile Include="Init.fs" />
 
     <Compile Include="DvalReprInternalQueryable.fs" />
-    <Compile Include="SqlCompiler.fs" />
     <Compile Include="UserDB.fs" />
 
     <Compile Include="Stats.fs" />

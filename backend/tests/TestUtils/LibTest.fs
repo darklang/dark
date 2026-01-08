@@ -83,30 +83,30 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    // { name = fn "testDerrorSqlMessage" 0
-    //   typeParams = []
-    //   parameters = [ Param.make "errorString" TString "" ]
-    //   returnType =
-    //     TCustomType(
-    //       Ok(
-    //         FQTypeName.Package
-    //           PackageIDs.Type.LanguageTools.RuntimeError.Error.errorMessage
-    //       ),
-    //       []
-    //     )
-    //   description = "Return a value that matches errors thrown by the SqlCompiler"
-    //   fn =
-    //     (function
-    //     | _, _, [ DString errorString ] ->
-    //       let msg = LibCloud.SqlCompiler.errorTemplate + errorString
-    //       let typeName =
-    //         FQTypeName.Package
-    //           PackageIDs.Type.LanguageTools.RuntimeError.Error.errorMessage
-    //       DEnum(typeName, typeName, [], "ErrorString", [ DString msg ]) |> Ply
-    //     | _ -> incorrectArgs ())
-    //   sqlSpec = NotQueryable
-    //   previewable = Pure
-    //   deprecated = NotDeprecated }
+    { name = fn "testDerrorSqlMessage" 0
+      typeParams = []
+      parameters = [ Param.make "errorString" TString "" ]
+      returnType =
+        TCustomType(
+          Ok(
+            FQTypeName.Package
+              PackageIDs.Type.PrettyPrinter.RuntimeTypes.RuntimeError.errorMessage
+          ),
+          []
+        )
+      description = "Return a value that matches errors thrown by the SqlCompiler"
+      fn =
+        (function
+        | _, _, _, [ DString errorString ] ->
+          let msg = LibExecution.RTQueryCompiler.errorTemplate + errorString
+          let typeName =
+            FQTypeName.Package
+              PackageIDs.Type.PrettyPrinter.RuntimeTypes.RuntimeError.errorMessage
+          DEnum(typeName, typeName, [], "ErrorString", [ DString msg ]) |> Ply
+        | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Pure
+      deprecated = NotDeprecated }
 
     { name = fn "testToChar" 0
       typeParams = []

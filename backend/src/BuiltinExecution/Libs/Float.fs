@@ -142,7 +142,7 @@ let fns : List<BuiltInFn> =
         (function
         | _, _, _, [ DFloat base_; DFloat exp ] -> Ply(DFloat(base_ ** exp))
         | _ -> incorrectArgs ())
-      sqlSpec = SqlBinOp "^"
+      sqlSpec = SqlFunction "POWER"
       previewable = Pure
       deprecated = NotDeprecated }
 
