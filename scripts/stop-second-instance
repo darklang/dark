@@ -1,0 +1,13 @@
+#!/usr/bin/env bash
+. ./scripts/devcontainer/_assert-in-container "$0" "$@"
+
+set -euo pipefail
+
+INSTANCE_DB="data-instance2.db"
+
+green="\033[0;32m"
+reset="\033[0m"
+
+echo -e "${green}Stopping instance2...${reset}"
+pkill -f "DARK_CONFIG_DB_NAME=${INSTANCE_DB}" || true
+echo -e "${green}Done${reset}"

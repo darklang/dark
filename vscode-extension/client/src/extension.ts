@@ -34,11 +34,16 @@ import { RecentItemsService } from "./services/recentItemsService";
 let client: LanguageClient;
 
 const isDebug = process.env.VSCODE_DEBUG_MODE === "true";
-const cwd = "/home/dark/app";
+const homeDir = process.env.HOME || process.env.USERPROFILE || ".";
+const cwd = isDebug ? "/home/dark/app" : homeDir;
 const cli = isDebug ? "./scripts/run-cli" : "darklang";
 
 function startSyncService(): void {
-  const child = spawn("bash", [cli, "run", "@Darklang.Cli.SyncService.startInBackground", "()"], {
+  const command = isDebug ? "bash" : cli;
+  const args = isDebug
+    ? [cli, "run", "@Darklang.Cli.SyncService.startInBackground", "()"]
+    : ["run", "@Darklang.Cli.SyncService.startInBackground", "()"];
+  const child = spawn(command, args, {
     cwd,
     detached: true,
     stdio: "ignore",
@@ -48,7 +53,11 @@ function startSyncService(): void {
 }
 
 function stopSyncService(): void {
-  const child = spawn("bash", [cli, "run", "@Darklang.Cli.SyncService.stop", "()"], {
+  const command = isDebug ? "bash" : cli;
+  const args = isDebug
+    ? [cli, "run", "@Darklang.Cli.SyncService.stop", "()"]
+    : ["run", "@Darklang.Cli.SyncService.stop", "()"];
+  const child = spawn(command, args, {
     cwd,
     stdio: "ignore",
   });
@@ -57,11 +66,14 @@ function stopSyncService(): void {
 }
 
 function createLSPClient(): LanguageClient {
-  const args = [cli, "run", "@Darklang.LanguageTools.LspServer.runServerCli", "()" ];
+  const command = isDebug ? "bash" : cli;
+  const args = isDebug
+    ? [cli, "run", "@Darklang.LanguageTools.LspServer.runServerCli", "()"]
+    : ["run", "@Darklang.LanguageTools.LspServer.runServerCli", "()"];
 
   const baseRun = {
     options: { cwd },
-    command: "bash",
+    command,
     args,
     transport: TransportKind.stdio as const,
   };

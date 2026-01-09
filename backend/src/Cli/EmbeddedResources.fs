@@ -69,12 +69,17 @@ let extract () : unit =
 
     Environment.SetEnvironmentVariable("DARK_CONFIG_RUNDIR", darklangDir)
 
-    // Only extract if .darklang directory doesn't exist yet
-    if not (Directory.Exists(darklangDir)) then
+    let dbPath = Path.Combine(darklangDir, "data.db")
+
+    // Only extract if data.db doesn't exist yet
+    if not (File.Exists(dbPath)) then
       printfn $"Setting up Darklang CLI data directory at {darklangDir}"
 
+      // Create directory if needed
+      if not (Directory.Exists(darklangDir)) then
+        Directory.CreateDirectory(darklangDir) |> ignore
+
       // Extract database
-      let dbPath = Path.Combine(darklangDir, "data.db")
       extractResource "data.db" dbPath
 
       // Extract README
