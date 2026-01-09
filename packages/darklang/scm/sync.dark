@@ -121,8 +121,12 @@ let sync
           match applyResult with
           | Error msg -> Stdlib.Result.Result.Error msg
           | Ok appliedCount ->
-            // Record the sync with the count of ops actually inserted (not just fetched)
-            Builtin.scmRecordSync instanceID pushedCount appliedCount
+            // TODO: Reconsider sync timestamp approach. Currently we skip recording
+            // 0-op syncs to prevent the timestamp from advancing past unsynced ops.
+            // A better fix might be to change getLastSyncDate to only consider syncs
+            // where ops were actually transferred, or track last synced op ID instead.
+            if pushedCount > 0L || appliedCount > 0L then
+              Builtin.scmRecordSync instanceID pushedCount appliedCount
 
             let pushedStr = Stdlib.Int64.toString pushedCount
             let appliedStr = Stdlib.Int64.toString appliedCount

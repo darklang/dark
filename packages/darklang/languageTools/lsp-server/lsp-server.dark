@@ -42,6 +42,7 @@ let runServerCli (u: Unit) : Int64 =
         LspState
           { initialized = false
             shouldShutdown = false
+            accountID = Stdlib.Option.Option.None
             branchID = Stdlib.Option.Option.None
             documentsInScope = Dict { } }
 
@@ -51,6 +52,7 @@ let runServerCli (u: Unit) : Int64 =
       LspState
         { initialized = false
           shouldShutdown = false
+          accountID = Stdlib.Option.Option.None
           branchID = Stdlib.Option.Option.None
           documentsInScope = Dict { } }
 
@@ -200,6 +202,9 @@ let tryReadHeader
     match Stdlib.Int64.parse lengthStr with
     | Ok length -> tryReadHeader (Stdlib.Option.Option.Some length)
     | Error _ -> Stdlib.Result.Result.Error "Invalid Content-Length value"
+  else
+    // Skip other headers (like Content-Type) and continue reading
+    tryReadHeader contentLength
 
 
 // TODO maybe this should return a Result eventually,
