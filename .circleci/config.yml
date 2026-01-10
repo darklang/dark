@@ -11,6 +11,13 @@ executors:
   simple-executor:
     docker:
       - image: cimg/base:2023.09
+    environment:
+      IN_DEV_CONTAINER: true
+  node-executor:
+    docker:
+      - image: cimg/node:20.17
+    environment:
+      IN_DEV_CONTAINER: true
   in-container:
     working_directory: ~/app
     environment:
@@ -287,20 +294,28 @@ jobs:
   #
   # Jobs to run on `main` after we've confirmed the build is OK
   # Publish cli via github releases
+  # Uses lightweight container - only needs curl, jq, bash
   publish-github-release:
-    executor: in-container
+    executor: simple-executor
     steps:
-      - darkcheckout
-      - setup-app
+      - checkout
+      - run:
+          name: Install jq
+          command: sudo apt-get update && sudo apt-get install -y jq
       - attach_workspace: { at: "." }
       - run: ./scripts/deployment/publish-github-release
 
   # Publish VS Code Extension to the Marketplace
+  # Uses lightweight node container - only needs npm, vsce, jq
   publish-vs-code-extension:
-    executor: in-container
+    executor: node-executor
     steps:
-      - darkcheckout
-      - setup-app
+      - checkout
+      - run:
+          name: Install dependencies
+          command: |
+            sudo apt-get update && sudo apt-get install -y jq
+            sudo npm install -g @vscode/vsce
       - attach_workspace: { at: "." }
       - run: ./scripts/deployment/publish-vs-code-extension
 
