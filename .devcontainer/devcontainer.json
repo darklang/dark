@@ -23,11 +23,13 @@
       },
 
       // Add the IDs of extensions you want installed when the container is created.
+      // Use "-" prefix to prevent an extension from being installed (e.g., from host).
       "extensions": [
         "ionide.ionide-fsharp",
         "esbenp.prettier-vscode",
         "ms-python.python",
-        "editorconfig.editorconfig"
+        "editorconfig.editorconfig",
+        "-darklang.darklang-vs-code-extension"
       ]
     }
   },
@@ -83,17 +85,15 @@
     // If using a remote DOCKER_HOST, you need to mount a directory on the remote host instead
     // "type=bind,src=/home/paulbiggar/.dark_bash_history,dst=/home/dark/.bash_history,consistency=cached",
 
-    // Build directories
-    "type=volume,src=dark_build,dst=/home/dark/app/backend/Build",
+    // NuGet cache - shared across containers (read-mostly, safe to share)
     "type=volume,src=dark_nuget,dst=/home/dark/.nuget",
 
-    // Tree-sitter
-    "type=volume,src=tree-sitter-build,dst=/home/dark/tree-sitter-darklang/build",
-    "type=volume,src=tree-sitter-node-modules,dst=/home/dark/tree-sitter-darklang/node_modules",
-
-    // VS Code extensions
+    // VS Code extensions - shared across containers
     "type=volume,src=darklang-dark-extension-volume,dst=/home/dark/.vscode-server/extensions",
     "type=volume,src=darklang-dark-extension-volume-insiders,dst=/home/dark/.vscode-server-insiders/extensions"
+
+    // NOTE: dark_build and tree-sitter volumes removed to support multi-instance setup.
+    // Build artifacts now live in each clone's directory for automatic isolation.
   ],
 
   // See https://aka.ms/vscode-remote/containers/non-root.

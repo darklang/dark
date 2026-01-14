@@ -52,3 +52,5 @@ clis/
 
 .mono
 .fake
+# Multi-instance devcontainer setup
+.multi-instance
