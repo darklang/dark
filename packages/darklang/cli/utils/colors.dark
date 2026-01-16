@@ -11,6 +11,13 @@ let underline = "\u001b[4m"
 let clearLine = "\u001b[K"
 let carriageReturn = "\r"
 let moveCursorToColumn (col: Int64) : String = $"\u001b[{Stdlib.Int64.toString col}G"
+let saveCursor = "\u001b[s"
+let restoreCursor = "\u001b[u"
+/// Move cursor to absolute position (row, col). Used to jump to the status bar without disrupting where the user is typing.
+let moveCursorTo (row: Int64) (col: Int64) : String = $"\u001b[{Stdlib.Int64.toString row};{Stdlib.Int64.toString col}H"
+/// Define which rows can scroll. Content outside this region stays fixed. Used to keep the status bar pinned at the bottom.
+let setScrollRegion (top: Int64) (bottom: Int64) : String = $"\u001b[{Stdlib.Int64.toString top};{Stdlib.Int64.toString bottom}r"
+let resetScrollRegion = "\u001b[r"
 
 // Standard colors
 let black = "\u001b[30m"
@@ -43,7 +50,7 @@ let bgCyan = "\u001b[46m"
 let bgWhite = "\u001b[47m"
 
 // Background colors
-// (CLEANUP idk why we have 2 of these)
+let grayBg = "\x1b[48;5;236m"
 let purpleBg = "\x1b[48;5;61m"
 let magentaBg = "\x1b[48;5;134m"
 let lightPinkBg = "\x1b[48;5;218m"

@@ -158,46 +158,31 @@ module History =
 
 
 module Display =
-  /// Format branch preamble for display (e.g., "[main]")
-  let formatBranchPreamble (branchID: Stdlib.Option.Option<Uuid>) : String =
-    let currentBranch =
-      match branchID with
-      | Some id -> Darklang.SCM.Branch.get id
-      | None -> Stdlib.Option.Option.None
-
-    match currentBranch with
-    | Some branch -> $"[{branch.name}]"
-    | None -> ""
-
   /// Format the complete prompt with input and optional hint
   let formatPromptWithInput
-    (branchID: Stdlib.Option.Option<Uuid>)
     (locationStr: String)
     (text: String)
     (hint: String)
     : String =
-    let branchStr = Colors.info (formatBranchPreamble branchID)
-
     let formattedLocation =
       if Stdlib.String.isEmpty locationStr then
         ""
       else
-        Colors.dimText $" {locationStr}"
+        Colors.dimText $"{locationStr} "
 
     if Stdlib.String.isEmpty hint then
-      branchStr ++ formattedLocation ++ "> " ++ text
+      formattedLocation ++ "> " ++ text
     else
-      branchStr ++ formattedLocation ++ "> " ++ text ++ (Colors.hint hint)
+      formattedLocation ++ "> " ++ text ++ (Colors.hint hint)
 
-  /// Calculate the column where user input starts (after branch + location + "> ")
-  let calculateInputStartColumn (branchID: Stdlib.Option.Option<Uuid>) (locationStr: String) : Int64 =
+  /// Calculate the column where user input starts (after location + "> ")
+  let calculateInputStartColumn (locationStr: String) : Int64 =
     let locationLength =
       if Stdlib.String.isEmpty locationStr then
         0L
       else
-        (Stdlib.String.length locationStr) + 1L  // +1 for the space before path
+        (Stdlib.String.length locationStr) + 1L  // +1 for the space after path
 
-    (Stdlib.String.length (formatBranchPreamble branchID))
-    + locationLength
+    locationLength
     + (Stdlib.String.length "> ")
     + 1L
