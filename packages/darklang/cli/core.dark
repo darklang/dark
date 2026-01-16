@@ -81,6 +81,58 @@ module View =
     Registry.getCompactCommandList accountName
 
 
+module StatusBar =
+  /// Get the branch name from the current branch ID
+  let getBranchName (branchId: Stdlib.Option.Option<Uuid>) : String =
+    match branchId with
+    | Some id ->
+      match Darklang.SCM.Branch.get id with
+      | Some branch -> branch.name
+      | None -> "unknown"
+    | None -> "none"
+
+  /// Initialize the status bar by setting up scroll region to reserve bottom line
+  let init () : Unit =
+    let terminalHeight = Terminal.getHeight ()
+    // Set scroll region to all rows except the last one
+    Stdlib.print (Colors.setScrollRegion 1L (terminalHeight - 1L))
+
+  /// Render the status bar at the bottom of the terminal
+  let render (state: AppState) : Unit =
+    let terminalHeight = Terminal.getHeight ()
+    let terminalWidth = Terminal.getWidth ()
+
+    let accountText = $" {state.accountName} "
+    let branchName = getBranchName state.currentBranchId
+    let branchText = $" {branchName} "
+
+    // Use Darklang brand colors (purple/magenta)
+    let leftPart = Colors.colorize (Colors.purpleBg ++ Colors.white ++ Colors.bold) accountText
+    let rightPart = Colors.colorize (Colors.magentaBg ++ Colors.white ++ Colors.bold) branchText
+
+    // Calculate padding between left and right
+    let leftLen = Stdlib.String.length accountText
+    let rightLen = Stdlib.String.length branchText
+    let paddingLen = terminalWidth - leftLen - rightLen
+
+    let padding =
+      if paddingLen > 0L then
+        Colors.colorize Colors.grayBg (Stdlib.String.repeat " " paddingLen)
+      else
+        ""
+
+    let statusLine = leftPart ++ padding ++ rightPart
+
+    // Save cursor, move to bottom, render, restore cursor
+    Stdlib.print (Colors.saveCursor ++ Colors.moveCursorTo terminalHeight 1L ++ statusLine ++ Colors.restoreCursor)
+
+  /// Clear the status bar and reset scroll region
+  let clear () : Unit =
+    let terminalHeight = Terminal.getHeight ()
+    // Reset scroll region and clear the status bar line
+    Stdlib.print (Colors.resetScrollRegion ++ Colors.saveCursor ++ Colors.moveCursorTo terminalHeight 1L ++ Colors.clearLine ++ Colors.restoreCursor)
+
+
 
 module Registry =
   type CommandHandler =
@@ -436,6 +488,8 @@ module Update =
 
 let runInteractiveLoop (state: AppState) : Int64 =
   if state.isExiting then
+    // Clear status bar before exiting
+    StatusBar.clear ()
     // stop sync service if running
     match SyncService.stop () with
     | Ok () -> ()
@@ -478,6 +532,9 @@ let runInteractiveLoop (state: AppState) : Int64 =
       // Always display in interactive nav mode - it manages its own screen clearing
       Packages.NavInteractive.display navState
 
+    // Render status bar at bottom of terminal
+    StatusBar.render state
+
     // Read keystroke input
     let keyInput = Stdlib.Cli.Stdin.readKey ()
     let keyPressedMsg = Msg.KeyPressed (keyInput.key, keyInput.modifiers, Stdlib.Option.Option.Some keyInput.keyChar)
@@ -493,6 +550,9 @@ let executeCliCommand (args: List<String>) : Int64 =
   | [] ->
     // Auto-start sync service if not already running
     SyncService.autoStart ()
+
+    // Initialize status bar (sets up scroll region to reserve bottom line)
+    StatusBar.init ()
 
     Stdlib.printLine (View.formatWelcome initialState.accountName)
     runInteractiveLoop initialState
