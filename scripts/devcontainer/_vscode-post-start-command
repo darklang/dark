@@ -2,21 +2,33 @@
 
 set -euo pipefail
 
-echo "Fetching and building tree-sitter library"
-./scripts/build/build-tree-sitter.sh
-
-echo "Starting build server"
-
+# Create log directory and file early, so logs are available from the start
 mkdir -p rundir/logs/
+LOG_FILE="rundir/logs/build-server.log"
 
 # Clear old logs so health checks can accurately detect startup progress
 rm -f rundir/logs/*.log
 
+# Initialize the log file
+touch "$LOG_FILE"
+
+# Helper to log both to console and file
+log() {
+  echo "$@" | tee -a "$LOG_FILE"
+}
+
+log "=== Build started at $(date) ==="
+
+log "Fetching and building tree-sitter library"
+./scripts/build/build-tree-sitter.sh 2>&1 | tee -a "$LOG_FILE"
+
+log "Starting build server"
+
 git config --global --add safe.directory /home/dark/app
 
-nohup ./scripts/build/_build-server --compile --watch &> /home/dark/app/rundir/logs/build-server.log &
+nohup ./scripts/build/_build-server --compile --watch &>> "$LOG_FILE" &
 
 # It seems that if we don't sleep here, the server does not start properly in all cases
 sleep 2
 
-echo "Build server started"
+log "Build server started"
