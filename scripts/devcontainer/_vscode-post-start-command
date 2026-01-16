@@ -9,6 +9,9 @@ echo "Starting build server"
 
 mkdir -p rundir/logs/
 
+# Clear old logs so health checks can accurately detect startup progress
+rm -f rundir/logs/*.log
+
 git config --global --add safe.directory /home/dark/app
 
 nohup ./scripts/build/_build-server --compile --watch &> /home/dark/app/rundir/logs/build-server.log &
