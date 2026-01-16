@@ -75,7 +75,7 @@ module View =
   let formatPromptWithInput (state: AppState) : String =
     let locationStr = Packages.formatLocation state.packageData.currentLocation
     let hint = Registry.getCompletionHint state state.prompt.text
-    Prompt.Display.formatPromptWithInput state.currentBranchId locationStr state.prompt.text hint
+    Prompt.Display.formatPromptWithInput locationStr state.prompt.text hint
 
   let formatWelcome (accountName: String) : String =
     Registry.getCompactCommandList accountName
@@ -89,7 +89,7 @@ module StatusBar =
       match Darklang.SCM.Branch.get id with
       | Some branch -> branch.name
       | None -> "unknown"
-    | None -> "none"
+    | None -> "main"
 
   /// Initialize the status bar by setting up scroll region to reserve bottom line
   let init () : Unit =
@@ -501,7 +501,7 @@ let runInteractiveLoop (state: AppState) : Int64 =
     | MainPrompt ->
       let locationStr = Packages.formatLocation state.packageData.currentLocation
       let inputStartColumn =
-        Prompt.Display.calculateInputStartColumn state.currentBranchId locationStr
+        Prompt.Display.calculateInputStartColumn locationStr
 
       if state.needsFullRedraw then
         // Redraw entire prompt line (used after commands that change state)
