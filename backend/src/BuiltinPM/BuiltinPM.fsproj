@@ -17,6 +17,7 @@
     <Compile Include="Libs/Approvals.fs" />
     <Compile Include="Libs/Packages.fs" />
     <Compile Include="Libs/Scripts.fs" />
+    <Compile Include="Libs/Dependencies.fs" />
     <Compile Include="Builtin.fs" />
   </ItemGroup>
   <ItemGroup>

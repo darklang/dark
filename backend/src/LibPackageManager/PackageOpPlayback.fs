@@ -16,6 +16,42 @@ open LibDB.Db
 module PT = LibExecution.ProgramTypes
 module PT2RT = LibExecution.ProgramTypesToRuntimeTypes
 module BS = LibBinarySerialization.BinarySerialization
+module DE = LibPackageManager.DependencyExtractor
+
+
+/// Update dependencies for an item atomically.
+/// Clears existing dependencies and stores new ones in a single operation.
+let private updateDependencies
+  (itemId : uuid)
+  (deps : List<DE.Dependency>)
+  : Task<unit> =
+  task {
+    if List.isEmpty deps then
+      // Just delete, no inserts needed
+      do!
+        Sql.query "DELETE FROM package_dependencies WHERE item_id = @item_id"
+        |> Sql.parameters [ "item_id", Sql.uuid itemId ]
+        |> Sql.executeStatementAsync
+    else
+      // Build a single SQL script: DELETE + batched INSERTs
+      // SQLite executes multi-statement scripts atomically within one call
+      let insertValues =
+        deps
+        |> List.mapi (fun i _ -> $"(@item_id, @depends_on_{i})")
+        |> String.concat ", "
+
+      let insertParams =
+        deps |> List.mapi (fun i dep -> $"depends_on_{i}", Sql.uuid dep)
+
+      let sql =
+        $"DELETE FROM package_dependencies WHERE item_id = @item_id; "
+        + $"INSERT OR IGNORE INTO package_dependencies (item_id, depends_on_id) VALUES {insertValues}"
+
+      do!
+        Sql.query sql
+        |> Sql.parameters ([ "item_id", Sql.uuid itemId ] @ insertParams)
+        |> Sql.executeStatementAsync
+  }
 
 
 /// Apply a single AddType op to the package_types table
@@ -35,6 +71,10 @@ let private applyAddType (typ : PT.PackageType.PackageType) : Task<unit> =
           "pt_def", Sql.bytes ptDef
           "rt_def", Sql.bytes rtDef ]
       |> Sql.executeStatementAsync
+
+    // Extract and store dependency references atomically
+    let refs = DE.extractFromType typ
+    do! updateDependencies typ.id refs
   }
 
 /// Apply a single AddValue op to the package_values table
@@ -55,6 +95,10 @@ let private applyAddValue (value : PT.PackageValue.PackageValue) : Task<unit> =
           "pt_def", Sql.bytes ptDef
           "rt_dval", Sql.bytes rtDval ]
       |> Sql.executeStatementAsync
+
+    // Extract and store dependency references atomically
+    let refs = DE.extractFromValue value
+    do! updateDependencies value.id refs
   }
 
 /// Apply a single AddFn op to the package_functions table
@@ -74,6 +118,10 @@ let private applyAddFn (fn : PT.PackageFn.PackageFn) : Task<unit> =
           "pt_def", Sql.bytes ptDef
           "rt_instrs", Sql.bytes rtInstrs ]
       |> Sql.executeStatementAsync
+
+    // Extract and store dependency references atomically
+    let refs = DE.extractFromFn fn
+    do! updateDependencies fn.id refs
   }
 
 /// Apply a Set*Name op to the locations table
@@ -87,6 +135,13 @@ let private applySetName
   : Task<unit> =
   task {
     let modulesStr = String.concat "." location.modules
+
+    // Resolve createdBy: use provided value, or look up from namespace owner.
+    // For disk-loaded packages, createdBy is None, so we resolve from the namespace.
+    let! resolvedCreatedBy =
+      match createdBy with
+      | Some id -> Task.FromResult(Some id)
+      | None -> Accounts.getByName location.owner
 
     // First, deprecate any existing location for this item in this branch
     // (handles moves: old location gets deprecated, new location created)
@@ -115,15 +170,11 @@ let private applySetName
         // Synced from another instance - start pending, ApproveItem ops will follow
         "pending"
       | None ->
-        // CLEANUP: Disk-loaded packages should set createdBy to the namespace owner,
-        // then this special case can be removed
+        // Disk-loaded packages (no instanceID, no explicit createdBy) are auto-approved.
+        // User-created items start as pending.
         match createdBy with
-        | None ->
-          // Loaded from disk (built-in packages) - no user to approve, auto-approve
-          "approved"
-        | Some _ ->
-          // User editing locally - must explicitly approve
-          "pending"
+        | None -> "approved"
+        | Some _ -> "pending"
 
     // Insert new location entry with unique location_id
     let locationId = System.Guid.NewGuid()
@@ -145,7 +196,7 @@ let private applySetName
           "name", Sql.string location.name
           "item_type", Sql.string itemType
           "created_by",
-          (match createdBy with
+          (match resolvedCreatedBy with
            | Some id -> Sql.uuid id
            | None -> Sql.string "")
           "approval_status", Sql.string approvalStatus ]
