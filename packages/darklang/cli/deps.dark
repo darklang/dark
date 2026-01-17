@@ -1,0 +1,300 @@
+module Darklang.Cli.Deps
+
+/// Resolve UUIDs to display names. Returns a Dict mapping UUID string to name.
+let resolveNames
+  (accountID: Stdlib.Option.Option<Uuid>)
+  (branchID: Stdlib.Option.Option<Uuid>)
+  (itemIds: List<Uuid>)
+  : Dict<String> =
+  (Builtin.dependenciesResolveNames accountID branchID itemIds)
+  |> Stdlib.List.fold Stdlib.Dict.empty (fun acc (itemId, displayName) ->
+    Stdlib.Dict.set acc (Stdlib.Uuid.toString itemId) displayName)
+
+
+/// Get displayable name for an item, using precomputed names dict or falling back to UUID
+let getName (namesDict: Dict<String>) (id: Uuid) : String =
+  let key = Stdlib.Uuid.toString id
+
+  match Stdlib.Dict.get namesDict key with
+  | Some name -> name
+  | None -> key
+
+
+/// Display dependents (what uses this entity)
+/// Shows approved items + caller's own pending items.
+let showDependents
+  (accountID: Stdlib.Option.Option<Uuid>)
+  (branchID: Stdlib.Option.Option<Uuid>)
+  (targetId: Uuid)
+  (entityName: String)
+  : Unit =
+  let dependents = Builtin.dependenciesGetDependents accountID branchID targetId
+
+  match dependents with
+  | [] ->
+    Stdlib.printLine $"No dependents found for {entityName}"
+  | deps ->
+    let count = Stdlib.List.length deps
+    Stdlib.printLine $"Found {Stdlib.Int64.toString count} dependents of {entityName}:"
+    Stdlib.printLine ""
+
+    let ids = deps |> Stdlib.List.map (fun (id, _) -> id)
+    let namesDict = resolveNames accountID branchID ids
+
+    deps
+    |> Stdlib.List.iter (fun (sourceId, refType) ->
+      let name = getName namesDict sourceId
+      Stdlib.printLine $"  [{refType}] {name}")
+
+
+/// Helper for transitive traversal - collects dependents using batched queries.
+/// Processes multiple pending IDs per iteration to minimize DB round-trips.
+let collectTransitiveDependents
+  (accountID: Stdlib.Option.Option<Uuid>)
+  (branchID: Stdlib.Option.Option<Uuid>)
+  (processed: List<Uuid>)
+  (pending: List<Uuid>)
+  (accumulated: List<Uuid * String>)
+  : List<Uuid * String> =
+  match pending with
+  | [] -> accumulated
+  | _ ->
+    // Filter out already-processed IDs
+    let toProcess =
+      pending |> Stdlib.List.filter (fun id -> Stdlib.Bool.not (Stdlib.List.member_v0 processed id))
+
+    match toProcess with
+    | [] -> accumulated
+    | ids ->
+      // Batch fetch dependents for all pending IDs at once
+      let batchResults = Builtin.dependenciesGetDependentsBatch accountID branchID ids
+
+      // Extract new dependents as (sourceId, refType) tuples
+      let newDeps =
+        batchResults
+        |> Stdlib.List.map (fun result ->
+          let (_targetId, sourceId, refType) = result
+          (sourceId, refType))
+
+      // Get unique new IDs to process next
+      let newIds =
+        batchResults
+        |> Stdlib.List.map (fun result ->
+          let (_targetId, sourceId, _refType) = result
+          sourceId)
+        |> Stdlib.List.unique
+
+      let newProcessed = Stdlib.List.append processed ids
+      let newAccumulated = Stdlib.List.append accumulated newDeps
+
+      collectTransitiveDependents accountID branchID newProcessed newIds newAccumulated
+
+
+/// Get all transitive dependents (everything that could break if this changes)
+let getTransitiveDependents
+  (accountID: Stdlib.Option.Option<Uuid>)
+  (branchID: Stdlib.Option.Option<Uuid>)
+  (targetId: Uuid)
+  : List<Uuid * String> =
+  (collectTransitiveDependents accountID branchID [] [ targetId ] [])
+  |> Stdlib.List.unique
+
+
+/// Display all transitive dependents (what could break)
+let showTransitiveDependents
+  (accountID: Stdlib.Option.Option<Uuid>)
+  (branchID: Stdlib.Option.Option<Uuid>)
+  (targetId: Uuid)
+  (entityName: String)
+  : Unit =
+  let allDependents = getTransitiveDependents accountID branchID targetId
+
+  match allDependents with
+  | [] ->
+    Stdlib.printLine $"Nothing depends on {entityName}"
+  | deps ->
+    let count = Stdlib.List.length deps
+    Stdlib.printLine $"Found {Stdlib.Int64.toString count} items that could break if {entityName} changes:"
+    Stdlib.printLine ""
+
+    let ids = deps |> Stdlib.List.map (fun (id, _) -> id)
+    let namesDict = resolveNames accountID branchID ids
+
+    deps
+    |> Stdlib.List.iter (fun (sourceId, refType) ->
+      let name = getName namesDict sourceId
+      Stdlib.printLine $"  [{refType}] {name}")
+
+
+/// Display dependencies (what this entity uses)
+let showDependencies
+  (accountID: Stdlib.Option.Option<Uuid>)
+  (branchID: Stdlib.Option.Option<Uuid>)
+  (sourceId: Uuid)
+  (entityName: String)
+  : Unit =
+  let dependencies = Builtin.dependenciesGetDependencies sourceId
+
+  match dependencies with
+  | [] ->
+    Stdlib.printLine $"No dependencies found for {entityName}"
+  | deps ->
+    let count = Stdlib.List.length deps
+    Stdlib.printLine $"Found {Stdlib.Int64.toString count} dependencies of {entityName}:"
+    Stdlib.printLine ""
+
+    let ids = deps |> Stdlib.List.map (fun (id, _) -> id)
+    let namesDict = resolveNames accountID branchID ids
+
+    deps
+    |> Stdlib.List.iter (fun (targetId, refType) ->
+      let name = getName namesDict targetId
+      Stdlib.printLine $"  [{refType}] {name}")
+
+
+/// Resolve a path to a UUID
+let resolvePath
+  (accountID: Stdlib.Option.Option<Uuid>)
+  (branchID: Stdlib.Option.Option<Uuid>)
+  (currentLocation: Packages.PackageLocation)
+  (pathArg: String)
+  : Stdlib.Result.Result<(Uuid * String * String), String> =
+  // Try to traverse to the location
+  match Packages.Traversal.traverse accountID branchID currentLocation pathArg with
+  | Error errMsg -> Stdlib.Result.Result.Error errMsg
+  | Ok loc ->
+    match loc with
+    | Module _ ->
+      Stdlib.Result.Result.Error "Cannot show dependencies for a module, only for functions, types, or values"
+    | Function fnLoc ->
+      match Builtin.pmFindFn accountID branchID fnLoc with
+      | Some id ->
+        let name = PrettyPrinter.ProgramTypes.PackageLocation.packageLocation fnLoc
+        Stdlib.Result.Result.Ok((id, name, "fn"))
+      | None -> Stdlib.Result.Result.Error $"Function not found: {PrettyPrinter.ProgramTypes.PackageLocation.packageLocation fnLoc}"
+    | Type typeLoc ->
+      match Builtin.pmFindType accountID branchID typeLoc with
+      | Some id ->
+        let name = PrettyPrinter.ProgramTypes.PackageLocation.packageLocation typeLoc
+        Stdlib.Result.Result.Ok((id, name, "type"))
+      | None -> Stdlib.Result.Result.Error $"Type not found: {PrettyPrinter.ProgramTypes.PackageLocation.packageLocation typeLoc}"
+    | Value valueLoc ->
+      match Builtin.pmFindValue accountID branchID valueLoc with
+      | Some id ->
+        let name = PrettyPrinter.ProgramTypes.PackageLocation.packageLocation valueLoc
+        Stdlib.Result.Result.Ok((id, name, "value"))
+      | None -> Stdlib.Result.Result.Error $"Value not found: {PrettyPrinter.ProgramTypes.PackageLocation.packageLocation valueLoc}"
+
+
+let execute (state: AppState) (args: List<String>) : AppState =
+  let accountID = state.accountID
+  let branchID = state.currentBranchId
+
+  // Check for --deep flag
+  let deep = Stdlib.List.member_v0 args "--deep"
+  let filteredArgs = args |> Stdlib.List.filter (fun arg -> arg != "--deep")
+
+  match filteredArgs with
+  | [] ->
+    Stdlib.printLine (Colors.error "Usage: deps <subcommand> <path>")
+    Stdlib.printLine ""
+    Stdlib.printLine "Subcommands:"
+    Stdlib.printLine "  uses <path>         - Show what the entity uses (dependencies)"
+    Stdlib.printLine "  usedby <path>       - Show what uses the entity (dependents)"
+    Stdlib.printLine ""
+    Stdlib.printLine "Options:"
+    Stdlib.printLine "  --deep              - Show transitive dependents (everything that could break)"
+    state
+
+  | ["uses"; pathArg] ->
+    match resolvePath accountID branchID state.packageData.currentLocation pathArg with
+    | Error errMsg ->
+      Stdlib.printLine (Colors.error errMsg)
+      state
+    | Ok result ->
+      let (id, name, _entityType) = result
+      showDependencies accountID branchID id name
+      state
+
+  | ["usedby"; pathArg] ->
+    match resolvePath accountID branchID state.packageData.currentLocation pathArg with
+    | Error errMsg ->
+      Stdlib.printLine (Colors.error errMsg)
+      state
+    | Ok result ->
+      let (id, name, _entityType) = result
+
+      if deep then
+        showTransitiveDependents accountID branchID id name
+      else
+        showDependents accountID branchID id name
+
+      state
+
+  | [pathArg] ->
+    // Default to showing both uses and usedby
+    match resolvePath accountID branchID state.packageData.currentLocation pathArg with
+    | Error errMsg ->
+      Stdlib.printLine (Colors.error errMsg)
+      state
+    | Ok result ->
+      let (id, name, _entityType) = result
+      showDependencies accountID branchID id name
+      Stdlib.printLine ""
+
+      if deep then
+        showTransitiveDependents accountID branchID id name
+      else
+        showDependents accountID branchID id name
+
+      state
+
+  | _ -> help state
+
+
+let complete (state: AppState) (args: List<String>) : List<String> =
+  let accountID = state.accountID
+
+  match args with
+  | [] ->
+    ["uses"; "usedby"]
+  | ["uses"] ->
+    Packages.Traversal.completePartialPath accountID state.currentBranchId state.packageData.currentLocation ""
+  | ["usedby"] ->
+    Packages.Traversal.completePartialPath accountID state.currentBranchId state.packageData.currentLocation ""
+  | ["uses"; partialPath] ->
+    Packages.Traversal.completePartialPath accountID state.currentBranchId state.packageData.currentLocation partialPath
+  | ["usedby"; partialPath] ->
+    Packages.Traversal.completePartialPath accountID state.currentBranchId state.packageData.currentLocation partialPath
+  | [partialPath] ->
+    let subcommands =
+      ["uses"; "usedby"]
+      |> Stdlib.List.filter (fun cmd -> Stdlib.String.startsWith cmd partialPath)
+    let paths = Packages.Traversal.completePartialPath accountID state.currentBranchId state.packageData.currentLocation partialPath
+    Stdlib.List.append subcommands paths
+  | _ -> []
+
+
+let help (state: AppState) : AppState =
+  [
+    "Usage: deps [subcommand] <path> [--deep]"
+    "Show dependencies and dependents of a function, type, or value."
+    ""
+    "Subcommands:"
+    "  uses <path>    - Show what the entity uses (forward dependencies)"
+    "  usedby <path>  - Show what uses the entity (direct dependents)"
+    ""
+    "Options:"
+    "  --deep         - Show transitive dependents (everything that could break)"
+    ""
+    "Without subcommand, shows both uses and usedby."
+    ""
+    "Examples:"
+    "  deps Stdlib.List.map              - Show all deps for List.map"
+    "  deps uses Stdlib.List.map         - Show what List.map uses"
+    "  deps usedby Stdlib.List.map       - Show what uses List.map"
+    "  deps usedby Stdlib.Option --deep  - Show everything that could break if Option changes"
+  ]
+  |> Stdlib.printLines
+
+  state
