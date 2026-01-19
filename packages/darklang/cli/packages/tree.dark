@@ -68,10 +68,10 @@ let displayTree
 
     // Combine all entities with their types in proper order: modules, types, values, functions
     let allEntities =
-      let moduleEntities = submoduleNames |> Stdlib.List.map (fun name -> (name, "module")) |> Stdlib.List.sortBy (fun (name, _) -> name)
-      let typeEntities = typeNames |> Stdlib.List.map (fun name -> (name, "type")) |> Stdlib.List.sortBy (fun (name, _) -> name)
-      let valueEntities = valueNames |> Stdlib.List.map (fun name -> (name, "value")) |> Stdlib.List.sortBy (fun (name, _) -> name)
-      let functionEntities = functionNames |> Stdlib.List.map (fun name -> (name, "function")) |> Stdlib.List.sortBy (fun (name, _) -> name)
+      let moduleEntities = submoduleNames |> Stdlib.List.map (fun name -> (name, EntityType.Module)) |> Stdlib.List.sortBy (fun (name, _) -> name)
+      let typeEntities = typeNames |> Stdlib.List.map (fun name -> (name, EntityType.Type)) |> Stdlib.List.sortBy (fun (name, _) -> name)
+      let valueEntities = valueNames |> Stdlib.List.map (fun name -> (name, EntityType.Value)) |> Stdlib.List.sortBy (fun (name, _) -> name)
+      let functionEntities = functionNames |> Stdlib.List.map (fun name -> (name, EntityType.Function)) |> Stdlib.List.sortBy (fun (name, _) -> name)
 
       moduleEntities
       |> Stdlib.List.append typeEntities
@@ -91,7 +91,7 @@ let displayTree
       Stdlib.printLine $"{fullPrefix}{icon}{name}"
 
       // Recursively display submodules
-      if entityType == "module" && remainingDepth > 1L then
+      if entityType == EntityType.Module && remainingDepth > 1L then
         let newPrefix = prefix ++ (if isLast then "    " else "│   ")
         let newModulePath = Stdlib.List.append modulePath [name]
         let newLocation = PackageLocation.Module newModulePath
