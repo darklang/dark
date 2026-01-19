@@ -27,46 +27,62 @@ let parseDecls
   : Stdlib.Result.Result<WTCliScriptModule, String> =
   match source with
   | SourceFile source ->
-    let types =
-      source.declarations
-      |> Stdlib.List.filterMap (fun decl ->
-        match decl with
-        | Type t -> Stdlib.Option.Option.Some t
-        | _ -> Stdlib.Option.Option.None)
+    // Check for unparseable content (e.g., invalid syntax like `!true`)
+    match source.unparseableStuff with
+    | first :: _ ->
+      let errorText = first.source.text
+      let errorRange = first.source.range
+      let lineNum = (Stdlib.Int64.add errorRange.start.row 1L) |> Stdlib.Int64.toString
+      let colNum = errorRange.start.column |> Stdlib.Int64.toString
+      let note =
+        match first.note with
+        | Some n -> $": {n}"
+        | None -> ""
 
-    let values =
-      source.declarations
-      |> Stdlib.List.filterMap (fun decl ->
-        match decl with
-        | Value v -> Stdlib.Option.Option.Some v
-        | _ -> Stdlib.Option.Option.None)
+      Stdlib.Result.Result.Error
+        $"Parse error at line {lineNum}, column {colNum}: unexpected '{errorText}'{note}"
 
-    let fns =
-      source.declarations
-      |> Stdlib.List.filterMap (fun decl ->
-        match decl with
-        | Function f -> Stdlib.Option.Option.Some f
-        | _ -> Stdlib.Option.Option.None)
+    | [] ->
+      let types =
+        source.declarations
+        |> Stdlib.List.filterMap (fun decl ->
+          match decl with
+          | Type t -> Stdlib.Option.Option.Some t
+          | _ -> Stdlib.Option.Option.None)
 
-    let submodules =
-      source.declarations
-      |> Stdlib.List.filterMap (fun decl ->
-        match decl with
-        | Module m -> Stdlib.Option.Option.Some m
-        | _ -> Stdlib.Option.Option.None)
+      let values =
+        source.declarations
+        |> Stdlib.List.filterMap (fun decl ->
+          match decl with
+          | Value v -> Stdlib.Option.Option.Some v
+          | _ -> Stdlib.Option.Option.None)
 
-    let exprs = source.exprsToEval
+      let fns =
+        source.declarations
+        |> Stdlib.List.filterMap (fun decl ->
+          match decl with
+          | Function f -> Stdlib.Option.Option.Some f
+          | _ -> Stdlib.Option.Option.None)
 
-    Stdlib.Result.Result.Ok(
-      WTCliScriptModule
-        { owner = owner
-          name = scriptName
-          types = types
-          values = values
-          fns = fns
-          submodules = submodules
-          exprs = exprs }
-    )
+      let submodules =
+        source.declarations
+        |> Stdlib.List.filterMap (fun decl ->
+          match decl with
+          | Module m -> Stdlib.Option.Option.Some m
+          | _ -> Stdlib.Option.Option.None)
+
+      let exprs = source.exprsToEval
+
+      Stdlib.Result.Result.Ok(
+        WTCliScriptModule
+          { owner = owner
+            name = scriptName
+            types = types
+            values = values
+            fns = fns
+            submodules = submodules
+            exprs = exprs }
+      )
 
   | _ -> Stdlib.Result.Result.Error "Invalid source file"
 
