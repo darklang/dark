@@ -380,6 +380,7 @@ let _handler _req =
       let searchDepth =
         match depthStr with
         | "direct" -> LanguageTools.ProgramTypes.Search.SearchDepth.OnlyDirectDescendants
+        | "all" -> LanguageTools.ProgramTypes.Search.SearchDepth.AllDescendants
         | _ -> LanguageTools.ProgramTypes.Search.SearchDepth.OnlyDirectDescendants
 
       match getQueryParam request "entityTypes" with

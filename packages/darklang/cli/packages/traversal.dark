@@ -136,19 +136,41 @@ let applyPath
   )
 
 
-// Search for module names under Darklang owner (fallback search)
-let searchDarklangModules
+// Search for modules globally where a segment starts with the prefix
+// Returns only the path up to the matching segment, not descendants
+let searchModulesByPrefix
   (accountID: Stdlib.Option.Option<Uuid>)
   (branchID: Stdlib.Option.Option<Uuid>)
   (prefixText: String)
   : List<String> =
-  let darklangResults = Query.allDirectDescendants accountID branchID ["Darklang"]
-  let currentPathLength = 1L
-  let moduleNames = Query.getDirectSubmodules darklangResults currentPathLength
+  // Search from root with AllDescendants - database returns all matching paths
+  let query =
+    LanguageTools.ProgramTypes.Search.SearchQuery
+      { currentModule = []
+        text = prefixText
+        searchDepth = LanguageTools.ProgramTypes.Search.SearchDepth.AllDescendants
+        entityTypes = []
+        exactMatch = false }
 
-  moduleNames
-  |> Stdlib.List.filter (fun name -> Stdlib.String.startsWith name prefixText)
-  |> Stdlib.List.map (fun name -> "Darklang." ++ name) // Return fully qualified names
+  let results = LanguageTools.PackageManager.Search.search accountID branchID query
+
+  // For each result, find the first segment starting with prefix and truncate there
+  results.submodules
+  |> Stdlib.List.filterMap (fun modulePath ->
+    // Find index of first segment starting with prefix
+    let indexed = Stdlib.List.indexedMap modulePath (fun idx seg -> (idx, seg))
+    let found = Stdlib.List.findFirst indexed (fun pair ->
+      let (_, seg) = pair
+      Stdlib.String.startsWith seg prefixText)
+
+    match found with
+    | Some pair ->
+      let (idx, _) = pair
+      // Return path up to and including the matching segment
+      Stdlib.Option.Option.Some (Stdlib.List.take modulePath (idx + 1L))
+    | None -> Stdlib.Option.Option.None)
+  |> Stdlib.List.unique
+  |> Stdlib.List.map (fun path -> Stdlib.String.join path ".")
 
 // Get all available names at a location for completion
 let getAvailableNames
@@ -190,7 +212,7 @@ let getAvailableNames
     if Stdlib.Bool.not (Stdlib.List.isEmpty ownerMatches) then
       ownerMatches
     else
-      let fallbackResults = searchDarklangModules accountID branchID prefixText
+      let fallbackResults = searchModulesByPrefix accountID branchID prefixText
       primaryResults |> Stdlib.List.append fallbackResults |> Stdlib.List.unique |> Stdlib.List.sort
   | _ ->
     primaryResults
@@ -203,7 +225,6 @@ let completePartialPath
   (partialPath: String)
   : List<String> =
   let segments = parsePath partialPath
-
 
   match Stdlib.List.reverse segments with
   | [] ->

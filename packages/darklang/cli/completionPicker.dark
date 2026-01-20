@@ -1,0 +1,125 @@
+module Darklang.Cli.CompletionPicker
+
+type State =
+  { items: List<String>
+    selectedIndex: Int64
+    scrollOffset: Int64
+    commandPrefix: String
+    hasBeenDisplayed: Bool }
+
+let maxVisibleItems: Int64 = 10L
+
+/// Create picker state from completions
+let create (promptText: String) (items: List<String>) : State =
+  let parsed = Completion.parseInput promptText
+  let commandPrefix =
+    if parsed.isCompletingCommand then ""
+    else parsed.commandName ++ " "
+
+  State
+    { items = items
+      selectedIndex = 0L
+      scrollOffset = 0L
+      commandPrefix = commandPrefix
+      hasBeenDisplayed = false }
+
+/// Get the currently selected item
+let getSelectedItem (state: State) : Stdlib.Option.Option<String> =
+  Stdlib.List.getAt state.items state.selectedIndex
+
+/// Display the completion picker UI
+let display (state: State) : Unit =
+  let itemCount = Stdlib.List.length state.items
+  let visibleCount = Stdlib.Int64.min maxVisibleItems itemCount
+  let hasScrollIndicator = itemCount > maxVisibleItems
+
+  // Move cursor up to overwrite previous display (only after first render)
+  if state.hasBeenDisplayed then
+    let lineCount = visibleCount + (if hasScrollIndicator then 1L else 0L) + 1L
+    Stdlib.print $"\u001b[{Stdlib.Int64.toString lineCount}A\u001b[J"
+
+  let visibleItems =
+    state.items
+    |> Stdlib.List.drop state.scrollOffset
+    |> Stdlib.List.take visibleCount
+
+  // Render each visible item
+  let _ =
+    visibleItems
+    |> Stdlib.List.indexedMap (fun index item ->
+      let isSelected = (state.scrollOffset + index) == state.selectedIndex
+
+      if isSelected then
+        Stdlib.printLine (Colors.colorize Colors.completionSelection item)
+      else
+        Stdlib.printLine item)
+
+  // Show scroll indicator if needed
+  if hasScrollIndicator then
+    let start = Stdlib.Int64.toString (state.scrollOffset + 1L)
+    let endIdx = Stdlib.Int64.toString (state.scrollOffset + visibleCount)
+    let total = Stdlib.Int64.toString itemCount
+    Stdlib.printLine (Colors.dimText $"({start}-{endIdx} of {total})")
+
+  Stdlib.printLine (Colors.dimText "↑/↓: navigate  Enter: select  Esc: cancel")
+
+/// Move selection up
+let moveUp (state: State) : State =
+  if state.selectedIndex > 0L then
+    let newIndex = state.selectedIndex - 1L
+
+    // Adjust scroll if needed
+    let newOffset =
+      if newIndex < state.scrollOffset then newIndex else state.scrollOffset
+
+    { state with
+        selectedIndex = newIndex
+        scrollOffset = newOffset }
+  else
+    state
+
+/// Move selection down
+let moveDown (state: State) : State =
+  let itemCount = Stdlib.List.length state.items
+
+  if state.selectedIndex < (itemCount - 1L) then
+    let newIndex = state.selectedIndex + 1L
+
+    // Adjust scroll if needed
+    let newOffset =
+      if newIndex >= (state.scrollOffset + maxVisibleItems) then
+        state.scrollOffset + 1L
+      else
+        state.scrollOffset
+
+    { state with
+        selectedIndex = newIndex
+        scrollOffset = newOffset }
+  else
+    state
+
+/// Result of handling a key press
+type KeyResult =
+  | Continue of State
+  | SelectItem of String
+  | Cancel
+
+/// Handle a key press in the picker
+let handleKey (state: State) (key: Stdlib.Cli.Stdin.Key.Key) : KeyResult =
+  // Mark as displayed for subsequent renders to know to clear previous output
+  let stateDisplayed = { state with hasBeenDisplayed = true }
+
+  match key with
+  | UpArrow -> KeyResult.Continue (moveUp stateDisplayed)
+  | DownArrow -> KeyResult.Continue (moveDown stateDisplayed)
+  | Enter ->
+    // Use original state here - no need to mark as displayed since we're exiting
+    match getSelectedItem state with
+    | Some item -> KeyResult.SelectItem item
+    | None -> KeyResult.Cancel
+  | Escape -> KeyResult.Cancel
+  | _ -> KeyResult.Continue stateDisplayed
+
+/// Build the completed command text from selection
+let buildCompletedCommand (state: State) (selection: String) : String =
+  state.commandPrefix ++ selection

@@ -180,7 +180,7 @@ let handleCompletionRequest
         if Stdlib.String.contains wordUnderCursor "." then
           Stdlib.String.contains c.label wordUnderCursor
         else
-          c.label |> Stdlib.String.startsWith wordUnderCursor)
+          Stdlib.String.startsWith c.label wordUnderCursor)
 
 
     let response =

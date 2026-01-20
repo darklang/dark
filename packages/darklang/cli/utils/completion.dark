@@ -39,6 +39,20 @@ let buildCompletedCommand (parsed: ParsedInput) (completion: String) : String =
     Stdlib.String.join fullCommand " "
 
 
+/// Get the suffix of the matched segment after the partial text
+/// Used for hints when completion contains (but doesn't start with) the partial
+let getMatchedSegmentSuffix (completion: String) (partial: String) : String =
+  match Stdlib.String.indexOf completion partial with
+  | None -> ""
+  | Some matchStart ->
+    let afterMatch = matchStart + (Stdlib.String.length partial)
+    let rest = Stdlib.String.dropFirst completion afterMatch
+    // Find end of current segment (next "." or end of string)
+    match Stdlib.String.indexOf rest "." with
+    | Some dotPos -> Stdlib.String.slice rest 0L dotPos
+    | None -> rest
+
+
 let getHintFromCompletions (partial: String) (completions: List<String>) : String =
   match completions with
   | [] -> ""
@@ -46,13 +60,13 @@ let getHintFromCompletions (partial: String) (completions: List<String>) : Strin
     if Stdlib.String.startsWith singleCompletion partial then
       Stdlib.String.dropFirst singleCompletion (Stdlib.String.length partial)
     else
-      ""
+      getMatchedSegmentSuffix singleCompletion partial
   | multiple ->
     let commonPrefix = findCommonPrefix multiple
     if Stdlib.String.startsWith commonPrefix partial && Stdlib.String.length commonPrefix > Stdlib.String.length partial then
       Stdlib.String.dropFirst commonPrefix (Stdlib.String.length partial)
     else
-      ""
+      getMatchedSegmentSuffix commonPrefix partial
 
 
 // Standard completion for commands that complete with other command names

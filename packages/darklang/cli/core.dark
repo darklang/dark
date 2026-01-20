@@ -4,6 +4,7 @@ type Page =
   | MainPrompt
   | Experiments
   | InteractiveNav of Packages.NavInteractive.State
+  | CompletionPicker of CompletionPicker.State
 
 type AppState =
   { isExiting: Bool
@@ -409,10 +410,12 @@ let handleKeyInput (state: AppState) (key: Stdlib.Cli.Stdin.Key.Key) (modifiers:
         let newPromptText = Completion.buildCompletedCommand parsed singleCompletion
         { state with prompt = Prompt.Editing.setText state.prompt newPromptText }
       | multiple ->
-        // Multiple completions - show them
+        // Multiple completions - open interactive picker
         Stdlib.printLine ""
-        Stdlib.printLine (Stdlib.String.join multiple " ")
-        { state with needsFullRedraw = true }
+        let pickerState = CompletionPicker.create state.prompt.text multiple
+        { state with
+            currentPage = Page.CompletionPicker pickerState
+            needsFullRedraw = true }
 
     | UpArrow ->
       { state with
@@ -465,6 +468,26 @@ let handleKeyInput (state: AppState) (key: Stdlib.Cli.Stdin.Key.Key) (modifiers:
   | InteractiveNav navState ->
     // Interactive navigation key handling
     Packages.NavInteractive.handleKey state key keyChar navState
+
+  | CompletionPicker pickerState ->
+    // Completion picker key handling
+    match CompletionPicker.handleKey pickerState key with
+    | Continue newPickerState ->
+      { state with
+          currentPage = Page.CompletionPicker newPickerState
+          needsFullRedraw = true }
+    | SelectItem selection ->
+      // User selected an item - update prompt and return to main
+      let newPromptText = CompletionPicker.buildCompletedCommand pickerState selection
+      { state with
+          currentPage = Page.MainPrompt
+          prompt = Prompt.Editing.setText state.prompt newPromptText
+          needsFullRedraw = true }
+    | Cancel ->
+      // User cancelled - return to main with original prompt
+      { state with
+          currentPage = Page.MainPrompt
+          needsFullRedraw = true }
 
 
 module Update =
@@ -531,6 +554,10 @@ let runInteractiveLoop (state: AppState) : Int64 =
     | InteractiveNav navState ->
       // Always display in interactive nav mode - it manages its own screen clearing
       Packages.NavInteractive.display navState
+
+    | CompletionPicker pickerState ->
+      // Display the completion picker
+      if state.needsFullRedraw then CompletionPicker.display pickerState
 
     // Render status bar at bottom of terminal
     StatusBar.render state
