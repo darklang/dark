@@ -167,6 +167,7 @@ module Registry =
       ("view", "View details of a module, type, value, or fns", [], Packages.View.execute, Packages.View.help, Packages.View.complete)
       ("tree", "Display package hierarchy in tree format", [], Packages.Tree.execute, Packages.Tree.help, Packages.Tree.complete)
       ("search", "Search for packages, types, functions, and values", [], Packages.Search.execute, Packages.Search.help, Packages.Search.complete)
+      ("deps", "Show dependencies and dependents", ["dependencies"], Cli.Deps.execute, Cli.Deps.help, Cli.Deps.complete)
       ("val", "Create a new value", [], Packages.Value.execute, Packages.Value.help, Packages.Value.complete)
       ("let", "Create a new value (alias for val)", [], Packages.Value.execute, Packages.Value.help, Packages.Value.complete)
       ("fn", "Create a new function", ["function"], Packages.Fn.execute, Packages.Fn.help, Packages.Fn.complete)
@@ -241,7 +242,7 @@ module Registry =
 
   // Command groups organized by category (shared between compact and detailed views)
   let commandGroups () : List<(String * List<String>)> =
-    [ ("Packages", ["nav"; "ls"; "view"; "tree"; "back"; "search"; "val"; "let"; "fn"; "type"; "rm"])
+    [ ("Packages", ["nav"; "ls"; "view"; "tree"; "back"; "search"; "deps"; "val"; "let"; "fn"; "type"; "rm"])
       ("Source Control", ["branch"; "instance"])
       ("Execution", ["run"; "eval"; "scripts"])
       ("Installation", ["install"; "update"; "uninstall"; "status"; "version"])

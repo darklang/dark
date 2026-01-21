@@ -31,7 +31,8 @@ let purge () : Task<unit> =
         "package_types"
         "package_values"
         "package_functions"
-        "package_ops" ]
+        "package_ops"
+        "package_dependencies" ]
       |> List.filter tableExists
       |> List.map (fun table -> ($"DELETE FROM {table}", [ [] ]))
 
