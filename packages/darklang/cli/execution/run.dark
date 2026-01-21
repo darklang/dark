@@ -33,7 +33,7 @@ let parseArgString (branchId: Stdlib.Option.Option<Uuid>) (pm: LanguageTools.Pro
 
 // Helper: Complete function names with @ prefix
 // Uses the same traversal logic as 'nav' and 'ls' commands
-let completeFunctionName (searchText: String) : List<String> =
+let completeFunctionName (searchText: String) : List<Completion.CompletionItem> =
   if (Stdlib.String.length searchText) < 2L then
     []
   else
@@ -45,7 +45,10 @@ let completeFunctionName (searchText: String) : List<String> =
       Stdlib.Option.Option.None
       rootLocation
       searchText)
-    |> Stdlib.List.map (fun completion -> $"@{completion}")
+    |> Stdlib.List.map (fun item ->
+      Completion.CompletionItem
+        { display = item.display
+          value = $"@{item.value}" })
     |> Stdlib.List.take 100L
 
 
@@ -111,7 +114,7 @@ let executeFunction (state: AppState) (fnName: String) (args: List<String>) : Ap
 
 
 // Provide autocomplete suggestions
-let complete (state: AppState) (args: List<String>) : List<String> =
+let complete (_state: AppState) (args: List<String>) : List<Completion.CompletionItem> =
   match args with
   | [] ->
     let files = Stdlib.Cli.FileSystem.getDirectoryContents "."
@@ -124,13 +127,15 @@ let complete (state: AppState) (args: List<String>) : List<String> =
     let darkFiles =
       files |> Stdlib.List.filter (Stdlib.String.endsWith ".dark")
 
-    Stdlib.List.append directories darkFiles
+    let allFiles = Stdlib.List.append directories darkFiles
+    allFiles |> Stdlib.List.map Completion.simple
 
   | [ partialArg ] ->
     if Stdlib.String.startsWith partialArg "@" then
       completeFunctionName (Stdlib.String.dropFirst partialArg 1L)
     else
-      Darklang.Cli.Completion.completeFilesystemPath partialArg
+      (Darklang.Cli.Completion.completeFilesystemPath partialArg)
+      |> Stdlib.List.map Completion.simple
 
   | _ -> []
 

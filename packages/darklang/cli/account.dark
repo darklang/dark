@@ -49,13 +49,18 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
         { state with accountName = name; accountID = Stdlib.Option.Option.Some uuid }
 
 
-let complete (state: Cli.AppState) (args: List<String>) : List<String> =
+let complete (_state: Cli.AppState) (args: List<String>) : List<Cli.Completion.CompletionItem> =
   match args with
-  | [] -> ["list"; "switch"]
-  | ["switch"] -> Builtin.pmListAccounts ()
+  | [] ->
+    ["list"; "switch"]
+    |> Stdlib.List.map Cli.Completion.simple
+  | ["switch"] ->
+    (Builtin.pmListAccounts ())
+    |> Stdlib.List.map Cli.Completion.simple
   | ["switch"; partial] ->
     (Builtin.pmListAccounts ())
     |> Stdlib.List.filter (fun name -> Stdlib.String.startsWith name partial)
+    |> Stdlib.List.map Cli.Completion.simple
   | _ -> []
 
 

@@ -136,62 +136,97 @@ let applyPath
   )
 
 
-// Search for module names under Darklang owner (fallback search)
-let searchDarklangModules
+// Search for modules globally where a segment starts with the prefix
+// Returns only the path up to the matching segment, not descendants
+let searchModulesByPrefix
   (accountID: Stdlib.Option.Option<Uuid>)
   (branchID: Stdlib.Option.Option<Uuid>)
   (prefixText: String)
   : List<String> =
-  let darklangResults = Query.allDirectDescendants accountID branchID ["Darklang"]
-  let currentPathLength = 1L
-  let moduleNames = Query.getDirectSubmodules darklangResults currentPathLength
+  // Search from root with AllDescendants - database returns all matching paths
+  let query =
+    LanguageTools.ProgramTypes.Search.SearchQuery
+      { currentModule = []
+        text = prefixText
+        searchDepth = LanguageTools.ProgramTypes.Search.SearchDepth.AllDescendants
+        entityTypes = []
+        exactMatch = false }
 
-  moduleNames
-  |> Stdlib.List.filter (fun name -> Stdlib.String.startsWith name prefixText)
-  |> Stdlib.List.map (fun name -> "Darklang." ++ name) // Return fully qualified names
+  let results = LanguageTools.PackageManager.Search.search accountID branchID query
 
-// Get all available names at a location for completion
-let getAvailableNames
+  // For each result, find the first segment starting with prefix and truncate there
+  results.submodules
+  |> Stdlib.List.filterMap (fun modulePath ->
+    // Find index of first segment starting with prefix
+    let indexed = Stdlib.List.indexedMap modulePath (fun idx seg -> (idx, seg))
+    let found = Stdlib.List.findFirst indexed (fun pair ->
+      let (_, seg) = pair
+      Stdlib.String.startsWith seg prefixText)
+
+    match found with
+    | Some pair ->
+      let (idx, _) = pair
+      // Return path up to and including the matching segment
+      Stdlib.Option.Option.Some (Stdlib.List.take modulePath (idx + 1L))
+    | None -> Stdlib.Option.Option.None)
+  |> Stdlib.List.unique
+  |> Stdlib.List.map (fun path -> Stdlib.String.join path ".")
+
+// Get all available items at a location for completion
+let getAvailableItems
   (accountID: Stdlib.Option.Option<Uuid>)
   (branchID: Stdlib.Option.Option<Uuid>)
   (location: PackageLocation)
   (prefixText: String)
-  : List<String> =
+  : List<Cli.Completion.CompletionItem> =
   let currentPath = getCurrentModulePath location
   // Get all available entities in this module
   let allResults = Query.allDirectDescendants accountID branchID currentPath
 
   let currentPathLength = Stdlib.List.length currentPath
-  let moduleNames = Query.getDirectSubmodules allResults currentPathLength
-  let typeNames = allResults.types |> Stdlib.List.map (fun item -> item.location.name)
-  let fnNames = allResults.fns |> Stdlib.List.map (fun item -> item.location.name)
-  let valueNames = allResults.values |> Stdlib.List.map (fun item -> item.location.name)
 
-  let allNames =
-    moduleNames
-    |> Stdlib.List.append typeNames
-    |> Stdlib.List.append fnNames
-    |> Stdlib.List.append valueNames
-    |> Stdlib.List.unique
-    |> Stdlib.List.sort
+  let moduleItems =
+    (Query.getDirectSubmodules allResults currentPathLength)
+    |> Stdlib.List.map (fun name -> Cli.Completion.withIcon EntityType.Module name)
+
+  let typeItems =
+    allResults.types
+    |> Stdlib.List.map (fun item -> Cli.Completion.withIcon EntityType.Type item.location.name)
+
+  let fnItems =
+    allResults.fns
+    |> Stdlib.List.map (fun item -> Cli.Completion.withIcon EntityType.Function item.location.name)
+
+  let valueItems =
+    allResults.values
+    |> Stdlib.List.map (fun item -> Cli.Completion.withIcon EntityType.Value item.location.name)
+
+  let flatItems = Stdlib.List.flatten [moduleItems; typeItems; fnItems; valueItems]
+  let allItems = flatItems |> Stdlib.List.sortBy (fun item -> item.value)
 
   // Primary results: filter by prefix if we have search text
   let primaryResults =
     if Stdlib.String.isEmpty prefixText then
-      allNames
+      allItems
     else
-      allNames |> Stdlib.List.filter (fun name -> Stdlib.String.startsWith name prefixText)
+      allItems |> Stdlib.List.filter (fun item -> Stdlib.String.startsWith item.value prefixText)
 
   // At root level: prioritize owners, then add fallback
   match location with
   | Module [] when Stdlib.Bool.not (Stdlib.String.isEmpty prefixText) ->
-    let ownerMatches = primaryResults |> Stdlib.List.filter (fun result -> Stdlib.Bool.not (Stdlib.String.contains result "."))
+    let ownerMatches =
+      primaryResults
+      |> Stdlib.List.filter (fun item -> Stdlib.Bool.not (Stdlib.String.contains item.value "."))
 
     if Stdlib.Bool.not (Stdlib.List.isEmpty ownerMatches) then
       ownerMatches
     else
-      let fallbackResults = searchDarklangModules accountID branchID prefixText
-      primaryResults |> Stdlib.List.append fallbackResults |> Stdlib.List.unique |> Stdlib.List.sort
+      let fallbackResults =
+        (searchModulesByPrefix accountID branchID prefixText)
+        |> Stdlib.List.map (fun name -> Cli.Completion.withIcon EntityType.Module name)
+
+      let combined = Stdlib.List.append primaryResults fallbackResults
+      combined |> Stdlib.List.sortBy (fun item -> item.value)
   | _ ->
     primaryResults
 
@@ -201,14 +236,13 @@ let completePartialPath
   (branchID: Stdlib.Option.Option<Uuid>)
   (start: PackageLocation)
   (partialPath: String)
-  : List<String> =
+  : List<Cli.Completion.CompletionItem> =
   let segments = parsePath partialPath
-
 
   match Stdlib.List.reverse segments with
   | [] ->
     // Empty path - get completions from current location
-    getAvailableNames accountID branchID start ""
+    getAvailableItems accountID branchID start ""
 
   | (Into fuzzyPart) :: exactSegmentsReversed ->
     // Navigate to exact path, then fuzzy search
@@ -216,7 +250,7 @@ let completePartialPath
     match applyPath accountID branchID start exactSegments with
     | Error _ -> []
     | Ok contextLocation ->
-      let completionNames = getAvailableNames accountID branchID contextLocation fuzzyPart
+      let completionItems = getAvailableItems accountID branchID contextLocation fuzzyPart
 
       // Build prefix for the completions, preserving the separator style
       let prefix =
@@ -240,7 +274,12 @@ let completePartialPath
             |> Stdlib.String.join separator
           pathStr ++ separator
 
-      completionNames |> Stdlib.List.map (fun name -> prefix ++ name)
+      // Add prefix to both display and value
+      completionItems
+      |> Stdlib.List.map (fun item ->
+        Cli.Completion.CompletionItem
+          { display = item.display
+            value = prefix ++ item.value })
 
   | _ ->
     // Last segment is Root, Here, or Up - no fuzzy completion

@@ -105,17 +105,22 @@ let help (state: Cli.AppState) : Cli.AppState =
   state
 
 
-let complete (state: Cli.AppState) (args: List<String>) : List<String> =
+let complete (_state: Cli.AppState) (args: List<String>) : List<Cli.Completion.CompletionItem> =
   match args with
-  | [] -> ["list"; "add"; "remove"; "info"]
+  | [] ->
+    ["list"; "add"; "remove"; "info"]
+    |> Stdlib.List.map Cli.Completion.simple
 
   | [partial] ->
     ["list"; "add"; "remove"; "info"]
     |> Stdlib.List.filter (fun cmd -> Stdlib.String.startsWith cmd partial)
+    |> Stdlib.List.map Cli.Completion.simple
 
   | ["remove"] ->
     let instances = Darklang.SCM.Instances.list ()
-    Stdlib.List.map instances (fun i -> i.name)
+    instances
+    |> Stdlib.List.map (fun i -> i.name)
+    |> Stdlib.List.map Cli.Completion.simple
 
   | ["remove"; partial] ->
     let instances = Darklang.SCM.Instances.list ()
@@ -123,10 +128,13 @@ let complete (state: Cli.AppState) (args: List<String>) : List<String> =
     instances
     |> Stdlib.List.map (fun i -> i.name)
     |> Stdlib.List.filter (fun name -> Stdlib.String.startsWith name partial)
+    |> Stdlib.List.map Cli.Completion.simple
 
   | ["info"] ->
     let instances = Darklang.SCM.Instances.list ()
-    Stdlib.List.map instances (fun i -> i.name)
+    instances
+    |> Stdlib.List.map (fun i -> i.name)
+    |> Stdlib.List.map Cli.Completion.simple
 
   | ["info"; partial] ->
     let instances = Darklang.SCM.Instances.list ()
@@ -134,5 +142,6 @@ let complete (state: Cli.AppState) (args: List<String>) : List<String> =
     instances
     |> Stdlib.List.map (fun i -> i.name)
     |> Stdlib.List.filter (fun name -> Stdlib.String.startsWith name partial)
+    |> Stdlib.List.map Cli.Completion.simple
 
   | _ -> []

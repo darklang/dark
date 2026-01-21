@@ -167,4 +167,4 @@ let help (state: Cli.AppState) : Cli.AppState =
   state
 
 
-let complete (state: Cli.AppState) (args: List<String>) : List<String> = []
+let complete (_state: Cli.AppState) (_args: List<String>) : List<Cli.Completion.CompletionItem> = []

@@ -4,6 +4,7 @@ type Page =
   | MainPrompt
   | Experiments
   | InteractiveNav of Packages.NavInteractive.State
+  | CompletionPicker of CompletionPicker.State
 
 type AppState =
   { isExiting: Bool
@@ -141,7 +142,7 @@ module Registry =
       aliases: List<String>
       execute: AppState -> List<String> -> AppState
       help: AppState -> AppState // CLEANUP we shouldn't need to return an AppState? Like a string would be fine...
-      complete: AppState -> List<String> -> List<String> }
+      complete: AppState -> List<String> -> List<Completion.CompletionItem> }
 
   let allCommands () : List<CommandHandler> =
     [
@@ -219,7 +220,7 @@ module Registry =
           help = fun state ->
             Stdlib.printLine $"No help available for command: {name}"
             state
-          complete = fun state args -> [] }
+          complete = fun _state _args -> [] }
 
   let executeCommand (name: String) (state: AppState) (args: List<String>) : AppState =
     let handler = findCommand name
@@ -326,7 +327,7 @@ module Registry =
     Stdlib.String.join finalGroups "\n\n"
 
 
-  let getCompletions (state: AppState) (input: String) : List<String> =
+  let getCompletions (state: AppState) (input: String) : List<Completion.CompletionItem> =
     let parsed = Completion.parseInput input
 
     if parsed.isCompletingCommand then
@@ -337,10 +338,13 @@ module Registry =
       let allAliases = Stdlib.List.fold commands [] (fun acc cmd -> Stdlib.List.append acc cmd.aliases)
       let allOptions = Stdlib.List.append allNames allAliases
 
-      if Stdlib.String.isEmpty partial then
-        allOptions
-      else
-        Stdlib.List.filter allOptions (fun name -> Stdlib.String.startsWith name partial)
+      let filtered =
+        if Stdlib.String.isEmpty partial then
+          allOptions
+        else
+          Stdlib.List.filter allOptions (fun name -> Stdlib.String.startsWith name partial)
+
+      filtered |> Stdlib.List.map Completion.simple
     else
       // Completing command arguments
       let handler = findCommand parsed.commandName
@@ -351,7 +355,9 @@ module Registry =
     let parsed = Completion.parseInput input
     let completions = getCompletions state input
     let partial = Completion.getPartialCompletion parsed
-    Completion.getHintFromCompletions partial completions
+
+    let completionValues = completions |> Stdlib.List.map (fun item -> item.value)
+    Completion.getHintFromCompletions partial completionValues
 
 
 module Commands =
@@ -407,13 +413,15 @@ let handleKeyInput (state: AppState) (key: Stdlib.Cli.Stdin.Key.Key) (modifiers:
       | [singleCompletion] ->
         // Single completion - auto-complete it
         let parsed = Completion.parseInput state.prompt.text
-        let newPromptText = Completion.buildCompletedCommand parsed singleCompletion
+        let newPromptText = Completion.buildCompletedCommand parsed singleCompletion.value
         { state with prompt = Prompt.Editing.setText state.prompt newPromptText }
       | multiple ->
-        // Multiple completions - show them
+        // Multiple completions - open interactive picker
         Stdlib.printLine ""
-        Stdlib.printLine (Stdlib.String.join multiple " ")
-        { state with needsFullRedraw = true }
+        let pickerState = CompletionPicker.create state.prompt.text multiple
+        { state with
+            currentPage = Page.CompletionPicker pickerState
+            needsFullRedraw = true }
 
     | UpArrow ->
       { state with
@@ -466,6 +474,26 @@ let handleKeyInput (state: AppState) (key: Stdlib.Cli.Stdin.Key.Key) (modifiers:
   | InteractiveNav navState ->
     // Interactive navigation key handling
     Packages.NavInteractive.handleKey state key keyChar navState
+
+  | CompletionPicker pickerState ->
+    // Completion picker key handling
+    match CompletionPicker.handleKey pickerState key with
+    | Continue newPickerState ->
+      { state with
+          currentPage = Page.CompletionPicker newPickerState
+          needsFullRedraw = true }
+    | SelectItem selection ->
+      // User selected an item - update prompt and return to main
+      let newPromptText = CompletionPicker.buildCompletedCommand pickerState selection
+      { state with
+          currentPage = Page.MainPrompt
+          prompt = Prompt.Editing.setText state.prompt newPromptText
+          needsFullRedraw = true }
+    | Cancel ->
+      // User cancelled - return to main with original prompt
+      { state with
+          currentPage = Page.MainPrompt
+          needsFullRedraw = true }
 
 
 module Update =
@@ -532,6 +560,10 @@ let runInteractiveLoop (state: AppState) : Int64 =
     | InteractiveNav navState ->
       // Always display in interactive nav mode - it manages its own screen clearing
       Packages.NavInteractive.display navState
+
+    | CompletionPicker pickerState ->
+      // Display the completion picker
+      if state.needsFullRedraw then CompletionPicker.display pickerState
 
     // Render status bar at bottom of terminal
     StatusBar.render state

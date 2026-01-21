@@ -191,13 +191,14 @@ let help (state: Cli.AppState) : Cli.AppState =
   state
 
 
-let complete (state: Cli.AppState) (args: List<String>) : List<String> =
+let complete (_state: Cli.AppState) (args: List<String>) : List<Cli.Completion.CompletionItem> =
   // Offer flag completions when typing --
   match Stdlib.List.last args with
   | Some lastArg ->
     if Stdlib.String.startsWith lastArg "--" then
       ["--type"; "--fn"; "--val"; "--exact"; "--shallow"]
       |> Stdlib.List.filter (fun flag -> Stdlib.String.startsWith flag lastArg)
+      |> Stdlib.List.map Cli.Completion.simple
     else
       []
   | None -> []

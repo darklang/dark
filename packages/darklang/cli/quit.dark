@@ -6,7 +6,7 @@ let execute (state: AppState) (_args: List<String>) : AppState =
   { state with isExiting = true }
 
 
-let complete (_state: AppState) (_args: List<String>) : List<String> =
+let complete (_state: AppState) (_args: List<String>) : List<Completion.CompletionItem> =
   []
 
 
