@@ -101,10 +101,10 @@ export class BranchStateManager {
     this._onBranchChanged.fire(null);
   }
 
-  async createBranch(name: string): Promise<Branch | null> {
+  async createBranch(name: string): Promise<{ branch: Branch | null; error: string | null }> {
     if (!this._client) {
       console.error("Cannot create branch: LSP client not set");
-      return null;
+      return { branch: null, error: "LSP client not connected" };
     }
 
     try {
@@ -120,10 +120,10 @@ export class BranchStateManager {
       this._currentBranchId = response.id;
       this._onBranchChanged.fire(response.id);
 
-      return response;
-    } catch (error) {
-      console.error("Error creating branch:", error);
-      return null;
+      return { branch: response, error: null };
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : "Unknown error";
+      return { branch: null, error: errorMessage };
     }
   }
 }

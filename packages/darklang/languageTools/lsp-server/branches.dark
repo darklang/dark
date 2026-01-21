@@ -60,30 +60,42 @@ let handleCreateBranchRequest
     state
 
   | Some accountID ->
-    let branch = Darklang.SCM.Branch.create accountID branchName
+    match Darklang.SCM.Branch.create accountID branchName with
+    | Error errMsg ->
+      let responseJson =
+        (JsonRPC.Response.Error.make
+          (Stdlib.Option.Option.Some requestID)
+          JsonRPC.Response.Error.KnownErrorCodes.invalidRequest
+          errMsg
+          Stdlib.Option.Option.None)
+        |> Stdlib.AltJson.format
 
-    let result =
-      let mergedAt =
-        match branch.mergedAt with
-        | Some dt -> Json.String(Stdlib.DateTime.toString dt)
-        | None -> Json.Null
+      logAndSendToClient responseJson
+      state
 
-      [ ("id", Json.String(Stdlib.Uuid.toString branch.id))
-        ("name", Json.String branch.name)
-        ("owner", Json.String(Stdlib.Uuid.toString branch.owner))
-        ("createdAt", Json.String(Stdlib.DateTime.toString branch.createdAt))
-        ("mergedAt", mergedAt) ]
-      |> Json.Object
+    | Ok branch ->
+      let result =
+        let mergedAt =
+          match branch.mergedAt with
+          | Some dt -> Json.String(Stdlib.DateTime.toString dt)
+          | None -> Json.Null
 
-    let responseJson =
-      let requestID = Stdlib.Option.Option.Some requestID
-      (JsonRPC.Response.Ok.make requestID result)
-      |> Stdlib.AltJson.format
+        [ ("id", Json.String(Stdlib.Uuid.toString branch.id))
+          ("name", Json.String branch.name)
+          ("owner", Json.String(Stdlib.Uuid.toString branch.owner))
+          ("createdAt", Json.String(Stdlib.DateTime.toString branch.createdAt))
+          ("mergedAt", mergedAt) ]
+        |> Json.Object
 
-    logAndSendToClient responseJson
+      let responseJson =
+        let requestID = Stdlib.Option.Option.Some requestID
+        (JsonRPC.Response.Ok.make requestID result)
+        |> Stdlib.AltJson.format
 
-    // Set this as the current branch in LSP state
-    { state with branchID = Stdlib.Option.Option.Some branch.id }
+      logAndSendToClient responseJson
+
+      // Set this as the current branch in LSP state
+      { state with branchID = Stdlib.Option.Option.Some branch.id }
 
 
 

@@ -20,5 +20,6 @@ let findByName (owner: Uuid) (name: String) : Stdlib.Option.Option<Branch> =
   Builtin.scmBranchFindByName owner name
 
 /// Create a new branch for a specific owner/account
-let create (owner: Uuid) (name: String) : Branch =
+/// Returns Error if a branch with that name already exists for this owner
+let create (owner: Uuid) (name: String) : Stdlib.Result.Result<Branch, String> =
   Builtin.scmBranchCreate owner name

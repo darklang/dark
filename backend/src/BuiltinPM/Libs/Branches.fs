@@ -104,14 +104,26 @@ let fns : List<BuiltInFn> =
       parameters =
         [ Param.make "owner" TUuid "Account ID that will own this branch"
           Param.make "name" TString "" ]
-      returnType = TCustomType(Ok branchTypeName, [])
+      returnType = TypeReference.result (TCustomType(Ok branchTypeName, [])) TString
       description = "Create a new branch for a specific owner/account"
       fn =
         (function
         | _, _, _, [ DUuid owner; DString name ] ->
           uply {
-            let! branch = Branches.create owner name
-            return branchToDT branch
+            let! result = Branches.create owner name
+            match result with
+            | Ok branch ->
+              return
+                Dval.resultOk
+                  (KTCustomType(branchTypeName, []))
+                  KTString
+                  (branchToDT branch)
+            | Error errMsg ->
+              return
+                Dval.resultError
+                  (KTCustomType(branchTypeName, []))
+                  KTString
+                  (DString errMsg)
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable

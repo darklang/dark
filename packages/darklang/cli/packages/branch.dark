@@ -56,12 +56,16 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
       Stdlib.printLine (Colors.error "No account logged in")
       state
     | Some accountID ->
-      let branch = Darklang.SCM.Branch.create accountID name
-      Stdlib.printLine $"Created and switched to branch: {name}"
+      match Darklang.SCM.Branch.create accountID name with
+      | Ok branch ->
+        Stdlib.printLine $"Created and switched to branch: {name}"
 
-      { state with
-          currentBranchId = Stdlib.Option.Option.Some branch.id
-          needsFullRedraw = true }
+        { state with
+            currentBranchId = Stdlib.Option.Option.Some branch.id
+            needsFullRedraw = true }
+      | Error errMsg ->
+        Stdlib.printLine (Colors.error $"{errMsg}. Use 'branch switch {name}' to switch to it.")
+        state
 
   | ["switch"; name] ->
     match state.accountID with

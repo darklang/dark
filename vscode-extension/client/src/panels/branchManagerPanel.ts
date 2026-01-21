@@ -93,17 +93,32 @@ export class BranchesManagerPanel {
             });
             if (branchName) {
               const branchStateManager = BranchStateManager.getInstance();
-              const newBranch = await branchStateManager.createBranch(
-                branchName,
-              );
-              if (newBranch) {
+
+              // Refresh branches and check if it already exists
+              await branchStateManager.fetchBranches();
+              const existing = branchStateManager.findByName(branchName);
+              if (existing) {
+                const choice = await vscode.window.showInformationMessage(
+                  `Branch '${branchName}' already exists.`,
+                  "Switch to it"
+                );
+                if (choice === "Switch to it") {
+                  await branchStateManager.setCurrentBranchById(existing.id);
+                  vscode.window.showInformationMessage(`Switched to branch: ${branchName}`);
+                  this._update();
+                }
+                break;
+              }
+
+              const result = await branchStateManager.createBranch(branchName);
+              if (result.branch) {
                 vscode.window.showInformationMessage(
                   `Created and switched to branch: ${branchName}`,
                 );
                 this._update();
               } else {
                 vscode.window.showErrorMessage(
-                  `Failed to create branch: ${branchName}`,
+                  result.error || `Failed to create branch: ${branchName}`,
                 );
               }
             }
