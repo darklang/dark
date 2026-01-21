@@ -176,5 +176,5 @@ let help (state: Cli.AppState) : Cli.AppState =
 /// - when on the RHS of the =,
 ///   - probably nothing,
 ///   - but _could_ offer some suggested impls via AI...
-let complete (state: Cli.AppState) (args: List<String>) : List<String> =
+let complete (_state: Cli.AppState) (_args: List<String>) : List<Cli.Completion.CompletionItem> =
   []

@@ -79,19 +79,23 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
     state
 
 
-let complete (_state: Cli.AppState) (args: List<String>) : List<String> =
+let complete (_state: Cli.AppState) (args: List<String>) : List<Cli.Completion.CompletionItem> =
   match args with
-  | [] -> ["get"; "set"; "list"]
+  | [] ->
+    ["get"; "set"; "list"]
+    |> Stdlib.List.map Cli.Completion.simple
 
   | ["get"] ->
     [ "sync.default_instance"
       "sync.interval_seconds"
       "sync.auto_start" ]
+    |> Stdlib.List.map Cli.Completion.simple
 
   | ["set"] ->
     [ "sync.default_instance"
       "sync.interval_seconds"
       "sync.auto_start" ]
+    |> Stdlib.List.map Cli.Completion.simple
 
   | _ -> []
 

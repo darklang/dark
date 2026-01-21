@@ -1,5 +1,20 @@
 module Darklang.Cli.Completion
 
+/// A completion item with display text (shown to user) and value (inserted on selection)
+type CompletionItem =
+  { display: String
+    value: String }
+
+/// Create a simple completion item where display equals value
+let simple (text: String) : CompletionItem =
+  CompletionItem { display = text; value = text }
+
+/// Create a completion item with an icon based on entity type
+let withIcon (entityType: Packages.EntityType) (text: String) : CompletionItem =
+  let icon = Packages.Display.getIcon entityType
+  CompletionItem { display = icon ++ "  " ++ text; value = text }
+
+
 type ParsedInput =
   { commandName: String
     args: List<String>
@@ -71,21 +86,23 @@ let getHintFromCompletions (partial: String) (completions: List<String>) : Strin
 
 // Standard completion for commands that complete with other command names
 // (right now, just `help`)
-let commandNamesCompletion (_state: AppState) (args: List<String>) : List<String> =
+let commandNamesCompletion (_state: AppState) (args: List<String>) : List<CompletionItem> =
   match args with
   | [] ->
     // Suggest all command names and aliases
     let commands = Registry.allCommands ()
     let commandNames = Stdlib.List.map commands (fun cmd -> cmd.name)
     let allAliases = Stdlib.List.fold commands [] (fun acc cmd -> Stdlib.List.append acc cmd.aliases)
-    Stdlib.List.append commandNames allAliases
+    let allOptions = Stdlib.List.append commandNames allAliases
+    allOptions |> Stdlib.List.map simple
   | [partialArg] ->
     // Filter by partial match
     let commands = Registry.allCommands ()
     let commandNames = Stdlib.List.map commands (fun cmd -> cmd.name)
     let allAliases = Stdlib.List.fold commands [] (fun acc cmd -> Stdlib.List.append acc cmd.aliases)
     let allOptions = Stdlib.List.append commandNames allAliases
-    Stdlib.List.filter allOptions (fun name -> Stdlib.String.startsWith name partialArg)
+    let filtered = Stdlib.List.filter allOptions (fun name -> Stdlib.String.startsWith name partialArg)
+    filtered |> Stdlib.List.map simple
   | _ ->
     // Only complete first argument
     []

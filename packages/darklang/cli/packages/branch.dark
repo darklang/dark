@@ -186,20 +186,25 @@ let help (state: Cli.AppState) : Cli.AppState =
   state
 
 
-let complete (state: Cli.AppState) (args: List<String>) : List<String> =
+let complete (state: Cli.AppState) (args: List<String>) : List<Cli.Completion.CompletionItem> =
   match args with
-  | [] -> [ "list"; "create"; "switch"; "switch-id"; "status"; "unset"; "none"; "clear" ]
+  | [] ->
+    [ "list"; "create"; "switch"; "switch-id"; "status"; "unset"; "none"; "clear" ]
+    |> Stdlib.List.map Cli.Completion.simple
 
   | [partial] ->
     [ "list"; "create"; "switch"; "switch-id"; "status"; "unset"; "none"; "clear" ]
     |> Stdlib.List.filter (fun cmd -> Stdlib.String.startsWith cmd partial)
+    |> Stdlib.List.map Cli.Completion.simple
 
   | ["switch"] ->
     match state.accountID with
     | None -> []
     | Some accountID ->
       let branches = Darklang.SCM.Branch.list accountID
-      Stdlib.List.map branches (fun b -> b.name)
+      branches
+      |> Stdlib.List.map (fun b -> b.name)
+      |> Stdlib.List.map Cli.Completion.simple
 
   | ["switch"; partial] ->
     match state.accountID with
@@ -210,5 +215,6 @@ let complete (state: Cli.AppState) (args: List<String>) : List<String> =
       branches
       |> Stdlib.List.map (fun b -> b.name)
       |> Stdlib.List.filter (fun name -> Stdlib.String.startsWith name partial)
+      |> Stdlib.List.map Cli.Completion.simple
 
   | _ -> []

@@ -19,7 +19,7 @@ let execute (state: AppState) (args: List<String>) : AppState =
       state
 
 
-let complete (_state: AppState) (_args: List<String>) : List<String> =
+let complete (_state: AppState) (_args: List<String>) : List<Completion.CompletionItem> =
   // For eval completion, we could potentially complete function names, but for now keep it simple
   []
 

@@ -1,7 +1,7 @@
 module Darklang.Cli.CompletionPicker
 
 type State =
-  { items: List<String>
+  { items: List<Completion.CompletionItem>
     selectedIndex: Int64
     scrollOffset: Int64
     commandPrefix: String
@@ -10,7 +10,7 @@ type State =
 let maxVisibleItems: Int64 = 10L
 
 /// Create picker state from completions
-let create (promptText: String) (items: List<String>) : State =
+let create (promptText: String) (items: List<Completion.CompletionItem>) : State =
   let parsed = Completion.parseInput promptText
   let commandPrefix =
     if parsed.isCompletingCommand then ""
@@ -23,9 +23,11 @@ let create (promptText: String) (items: List<String>) : State =
       commandPrefix = commandPrefix
       hasBeenDisplayed = false }
 
-/// Get the currently selected item
-let getSelectedItem (state: State) : Stdlib.Option.Option<String> =
-  Stdlib.List.getAt state.items state.selectedIndex
+/// Get the currently selected item's value (what gets inserted)
+let getSelectedValue (state: State) : Stdlib.Option.Option<String> =
+  match Stdlib.List.getAt state.items state.selectedIndex with
+  | Some item -> Stdlib.Option.Option.Some item.value
+  | None -> Stdlib.Option.Option.None
 
 /// Display the completion picker UI
 let display (state: State) : Unit =
@@ -50,9 +52,9 @@ let display (state: State) : Unit =
       let isSelected = (state.scrollOffset + index) == state.selectedIndex
 
       if isSelected then
-        Stdlib.printLine (Colors.colorize Colors.completionSelection item)
+        Stdlib.printLine (Colors.colorize Colors.completionSelection item.display)
       else
-        Stdlib.printLine item)
+        Stdlib.printLine item.display)
 
   // Show scroll indicator if needed
   if hasScrollIndicator then
@@ -114,8 +116,8 @@ let handleKey (state: State) (key: Stdlib.Cli.Stdin.Key.Key) : KeyResult =
   | DownArrow -> KeyResult.Continue (moveDown stateDisplayed)
   | Enter ->
     // Use original state here - no need to mark as displayed since we're exiting
-    match getSelectedItem state with
-    | Some item -> KeyResult.SelectItem item
+    match getSelectedValue state with
+    | Some value -> KeyResult.SelectItem value
     | None -> KeyResult.Cancel
   | Escape -> KeyResult.Cancel
   | _ -> KeyResult.Continue stateDisplayed
