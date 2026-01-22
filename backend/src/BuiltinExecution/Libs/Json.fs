@@ -78,7 +78,8 @@ module JsonPath =
   type JsonPath = List<Part.Part>
 
   let toDT (path : JsonPath) : Dval =
-    path |> List.map Part.toDT |> (fun parts -> DList(VT.unknownTODO, parts))
+    let partType = VT.customType Part.typeName []
+    path |> List.map Part.toDT |> (fun parts -> DList(partType, parts))
 
 
 

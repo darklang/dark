@@ -1,5 +1,15 @@
 module Darklang.Stdlib.Json
 
+/// Serializes a Dark value to a JSON string.
+let serialize<'a> (value: 'a) : String =
+  Builtin.jsonSerialize<'a> value
+
+/// Parses a JSON string as a Dark value, matching the type <typeParam a>
+let parse<'a>
+  (json: String)
+  : Stdlib.Result.Result<'a, ParseError.ParseError> =
+  Builtin.jsonParse<'a> json
+
 
 module ParseError =
   module JsonPath =
