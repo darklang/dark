@@ -524,6 +524,7 @@ module Expr =
       match lp with
       | LPUnit range -> [ makeToken range TokenType.Symbol ]
       | LPVariable(range, _name) -> [ makeToken range TokenType.VariableName ]
+      | LPWildcard range -> [ makeToken range TokenType.Symbol ]
       | LPTuple(range,
                 first,
                 symbolComma,

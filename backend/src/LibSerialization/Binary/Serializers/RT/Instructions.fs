@@ -23,6 +23,7 @@ module LetPattern =
       write w second
       List.write w write theRest
     | LPUnit -> w.Write 2uy
+    | LPWildcard -> w.Write 3uy
 
   let rec read (r : BinaryReader) : LetPattern =
     match r.ReadByte() with
@@ -33,6 +34,7 @@ module LetPattern =
       let theRest = List.read r read
       LPTuple(first, second, theRest)
     | 2uy -> LPUnit
+    | 3uy -> LPWildcard
     | b -> raiseFormatError $"Invalid LetPattern tag: {b}"
 
 
