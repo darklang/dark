@@ -362,7 +362,10 @@ module Registry =
 module Commands =
   let parseAndExecute (state: AppState) (input: String) : AppState =
     let trimmed = Stdlib.String.trim input
-    let parts = Stdlib.String.split trimmed " "
+    let parts =
+      (Stdlib.String.split trimmed " ")
+      |> Stdlib.List.filter (fun s -> s != "")
+
     match parts with
     | [] -> state
     | commandName :: args ->

@@ -27,7 +27,10 @@ let parseInput (input: String) : ParsedInput =
   if Stdlib.String.isEmpty trimmed then
     ParsedInput { commandName = ""; args = []; isCompletingCommand = true }
   else
-    let words = Stdlib.String.split trimmed " "
+    let words =
+      (Stdlib.String.split trimmed " ")
+      |> Stdlib.List.filter (fun s -> s != "")
+
     match words with
     | [] -> ParsedInput { commandName = ""; args = []; isCompletingCommand = true }
     | [command] -> ParsedInput { commandName = command; args = []; isCompletingCommand = true }
