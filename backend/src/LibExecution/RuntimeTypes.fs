@@ -1548,6 +1548,81 @@ module TypeReference =
     }
 
 
+  /// Convert a KnownType back to a TypeReference
+  let rec fromKnownType (kt : KnownType) : TypeReference =
+    let fromVT (vt : ValueType) : TypeReference =
+      match vt with
+      | ValueType.Unknown -> TVariable "_"
+      | ValueType.Known kt -> fromKnownType kt
+
+    match kt with
+    | KTUnit -> TUnit
+    | KTBool -> TBool
+    | KTInt8 -> TInt8
+    | KTUInt8 -> TUInt8
+    | KTInt16 -> TInt16
+    | KTUInt16 -> TUInt16
+    | KTInt32 -> TInt32
+    | KTUInt32 -> TUInt32
+    | KTInt64 -> TInt64
+    | KTUInt64 -> TUInt64
+    | KTInt128 -> TInt128
+    | KTUInt128 -> TUInt128
+    | KTFloat -> TFloat
+    | KTChar -> TChar
+    | KTString -> TString
+    | KTUuid -> TUuid
+    | KTDateTime -> TDateTime
+    | KTList inner -> TList(fromVT inner)
+    | KTDict inner -> TDict(fromVT inner)
+    | KTTuple(first, second, rest) ->
+      TTuple(fromVT first, fromVT second, List.map fromVT rest)
+    | KTCustomType(typeName, typeArgs) ->
+      TCustomType(Ok typeName, List.map fromVT typeArgs)
+    | KTFn(args, ret) -> TFn(NEList.map fromVT args, fromVT ret)
+    | KTDB inner -> TDB(fromVT inner)
+
+
+  /// Resolve type variables in a TypeReference using the TypeSymbolTable.
+  /// If a variable is not found or resolves to Unknown, it is kept as TVariable.
+  let rec resolveTypeVariables
+    (tst : TypeSymbolTable)
+    (typ : TypeReference)
+    : TypeReference =
+    let r = resolveTypeVariables tst
+    match typ with
+    | TUnit
+    | TBool
+    | TInt8
+    | TUInt8
+    | TInt16
+    | TUInt16
+    | TInt32
+    | TUInt32
+    | TInt64
+    | TUInt64
+    | TInt128
+    | TUInt128
+    | TFloat
+    | TChar
+    | TString
+    | TUuid
+    | TDateTime -> typ
+
+    | TVariable name ->
+      match Map.get name tst with
+      | Some(ValueType.Known kt) -> fromKnownType kt
+      | Some ValueType.Unknown
+      | None -> typ // Keep as TVariable if not resolved
+
+    | TList inner -> TList(r inner)
+    | TDict inner -> TDict(r inner)
+    | TTuple(first, second, rest) -> TTuple(r first, r second, List.map r rest)
+    | TCustomType(typeName, typeArgs) -> TCustomType(typeName, List.map r typeArgs)
+    | TFn(args, ret) -> TFn(NEList.map r args, r ret)
+    | TDB inner -> TDB(r inner)
+
+
 
 let consoleReporter : ExceptionReporter =
   fun _state _vm (metadata : Metadata) (exn : exn) ->

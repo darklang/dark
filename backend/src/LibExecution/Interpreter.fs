@@ -642,7 +642,12 @@ let execute (exeState : ExecutionState) (vm : VMState) : Ply<Dval> =
                         |> AppNamedFn
                         |> DApplicable
                     else
-                      let! result = fn.fn (exeState, vm, typeArgs, allArgs)
+                      // Resolve type variables in typeArgs before passing to builtin.
+                      // When a package function like Stdlib.Json.parse<Int64> calls
+                      // Builtin.jsonParse<'a>, the 'a needs to resolve to Int64.
+                      let resolvedTypeArgs =
+                        typeArgs |> List.map (TypeReference.resolveTypeVariables tst)
+                      let! result = fn.fn (exeState, vm, resolvedTypeArgs, allArgs)
 
                       // now: type-check result against the return type
                       //let tst = currentFrame.typeSymbolTable
@@ -682,9 +687,9 @@ let execute (exeState : ExecutionState) (vm : VMState) : Ply<Dval> =
                 let! typeArgsVT =
                   typeArgs
                   |> Ply.List.mapSequentially (TypeReference.toVT exeState.types tst)
-                tst <-
-                  let newlyBound = List.zip fn.typeParams typeArgsVT |> Map
-                  Map.mergeFavoringRight tst newlyBound
+                // Bind the type params to their resolved type args
+                let newlyBound = List.zip fn.typeParams typeArgsVT |> Map
+                tst <- Map.mergeFavoringRight tst newlyBound
 
                 // type-check new arguments against the corresponding parameters
                 do!
@@ -714,6 +719,10 @@ let execute (exeState : ExecutionState) (vm : VMState) : Ply<Dval> =
                 else
                   // push a new frame to execute the function
                   // , and the interpreter will evaluate it shortly
+                  // Use frame TST with type args bound so the function body
+                  // can resolve type variables passed in the call
+                  let frameTst =
+                    Map.mergeFavoringRight currentFrame.typeSymbolTable newlyBound
                   frameToPush <-
                     { id = guuid ()
                       parent = Some(vm.currentFrameID, putResultIn, counter + 1)
@@ -722,7 +731,7 @@ let execute (exeState : ExecutionState) (vm : VMState) : Ply<Dval> =
                         let r = Array.zeroCreate fn.body.registerCount
                         allArgs |> List.iteri (fun i arg -> r[i] <- arg)
                         r
-                      typeSymbolTable = currentFrame.typeSymbolTable // copy. probably also need to _extend_ here.
+                      typeSymbolTable = frameTst
                       executionPoint = Function(FQFnName.Package fn.id) }
                     |> Some
 
