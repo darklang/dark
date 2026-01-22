@@ -71,17 +71,18 @@ let findByName (owner : uuid) (name : string) : Task<Option<Branch>> =
 
 
 /// Create a new branch for a specific owner
-///
+/// Returns Error if a branch with that name already exists for this owner
 /// CLEANUP consider just returning ID?
-let create (owner : uuid) (name : string) : Task<Branch> =
+let create (owner : uuid) (name : string) : Task<Result<Branch, string>> =
   task {
     let now = NodaTime.Instant.now ()
     let id = System.Guid.NewGuid()
 
-    do!
+    let! rowCount =
       """
         INSERT INTO branches (id, name, owner, created_at, merged_at)
         VALUES (@id, @name, @owner, @created_at, NULL)
+        ON CONFLICT (owner, name) DO NOTHING
         """
       |> Sql.query
       |> Sql.parameters
@@ -90,7 +91,10 @@ let create (owner : uuid) (name : string) : Task<Branch> =
           "owner", Sql.uuid owner
           "created_at", Sql.instant now ]
       |> Sql.executeNonQueryAsync
-      |> Task.map (fun _ -> ())
 
-    return { id = id; name = name; owner = owner; createdAt = now; mergedAt = None }
+    if rowCount = 0 then
+      return Error $"Branch '{name}' already exists"
+    else
+      return
+        Ok { id = id; name = name; owner = owner; createdAt = now; mergedAt = None }
   }

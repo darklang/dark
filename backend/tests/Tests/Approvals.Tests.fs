@@ -181,7 +181,8 @@ let testAddItemToOwnNamespaceBranch =
     let! ownerId = setupNamespace ownerName ownerName
 
     // Create a branch
-    let! (branch : Branches.Branch) = Branches.create ownerId "test-branch"
+    let! branchResult = Branches.create ownerId "test-branch"
+    let (branch : Branches.Branch) = Result.unwrap branchResult
 
     let! maxRowidBefore = getMaxRowid ()
 
@@ -282,7 +283,8 @@ let testAddItemToOthersNamespaceBranch =
     let! contributorId = Accounts.getOrCreate contributorName
 
     // Create a branch (owned by contributor)
-    let! (branch : Branches.Branch) = Branches.create contributorId "contrib-branch"
+    let! branchResult = Branches.create contributorId "contrib-branch"
+    let (branch : Branches.Branch) = Result.unwrap branchResult
 
     let! maxRowidBefore = getMaxRowid ()
 
