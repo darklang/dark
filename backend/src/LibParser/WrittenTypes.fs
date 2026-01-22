@@ -53,6 +53,7 @@ type UnresolvedEnumTypeName = List<string>
 type LetPattern =
   | LPUnit of id
   | LPVariable of id * name : string
+  | LPWildcard of id
   | LPTuple of
     id *
     first : LetPattern *

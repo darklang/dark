@@ -337,6 +337,7 @@ let letPattern (lp: LanguageTools.ProgramTypes.LetPattern) : String =
   match lp with
   | LPUnit _id -> "()"
   | LPVariable(_id, name) -> name
+  | LPWildcard _id -> "_"
   | LPTuple(_id, first, second, theRest) ->
     (Stdlib.List.append [ first; second ] theRest)
     |> Stdlib.List.map (fun item -> letPattern item)

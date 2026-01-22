@@ -124,6 +124,7 @@ module LetPattern =
             // Remove this variable from argMap as it's now shadowed by the let binding
             argMap = Map.remove varName context.argMap }
       (newContext, PT.LPVariable(id, varName))
+    | WT.LPWildcard id -> (context, PT.LPWildcard id)
     | WT.LPTuple(id, first, second, theRest) ->
       let (context1, first') = toPT context first
       let (context2, second') = toPT context1 second

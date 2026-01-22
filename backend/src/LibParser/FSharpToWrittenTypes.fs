@@ -167,7 +167,7 @@ module LetPattern =
 
     match pat with
     | SynPat.Paren(subPat, _) -> mapPat subPat
-    | SynPat.Wild(_) -> WT.LPVariable(gid (), "_")
+    | SynPat.Wild(_) -> WT.LPWildcard(gid ())
     | SynPat.Named(SynIdent(name, _), _, _, _) -> WT.LPVariable(gid (), name.idText)
     | SynPat.Const(SynConst.Unit, _) -> WT.LPUnit(gid ())
 
@@ -586,7 +586,7 @@ module Expr =
 
     // Sequential code: (a; b) -> let _ = a in b
     | SynExpr.Sequential(_, _, a, b, _) ->
-      WT.ELet(id, WT.LPVariable(gid (), "_"), c a, c b)
+      WT.ELet(id, WT.LPWildcard(gid ()), c a, c b)
 
 
     // Pipes (|>)

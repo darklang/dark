@@ -261,6 +261,7 @@ let letPattern (pat: LanguageTools.RuntimeTypes.LetPattern) : String =
   | LPVariable _reg ->
     // TODO clearly this is not ideal.
     "[variable]"
+  | LPWildcard -> "_"
   | LPUnit -> "()"
   | LPTuple(first, second, theRest) ->
     let parts = Stdlib.List.append [ first; second ] theRest
