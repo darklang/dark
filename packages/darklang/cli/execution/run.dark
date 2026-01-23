@@ -1,36 +1,6 @@
 module Darklang.Cli.Run
 
 
-// Helper: Parse a single argument string into an expression
-let parseArgString (branchId: Stdlib.Option.Option<Uuid>) (pm: LanguageTools.ProgramTypes.PackageManager.PackageManager) (arg: String) : LanguageTools.ProgramTypes.Expr =
-  let onMissing = LanguageTools.NameResolver.OnMissing.Allow
-  let parsedFile =
-    arg
-    |> LanguageTools.Parser.parseToSimplifiedTree
-    |> LanguageTools.Parser.parseFromTree
-    |> Builtin.unwrap
-
-  let expr =
-    match parsedFile with
-    | SourceFile source ->
-      source.exprsToEval
-      |> Stdlib.List.head
-      |> Builtin.unwrap
-
-  let (converted, _unresolved) =
-    LanguageTools.WrittenTypesToProgramTypes.Expr.toPT
-      Stdlib.Option.Option.None
-      branchId
-      onMissing
-      pm
-      ""
-      []
-      LanguageTools.WrittenTypesToProgramTypes.defaultContext
-      expr
-
-  converted
-
-
 // Helper: Complete function names with @ prefix
 // Uses the same traversal logic as 'nav' and 'ls' commands
 let completeFunctionName (searchText: String) : List<Completion.CompletionItem> =
@@ -100,11 +70,9 @@ let executeScript (state: AppState) (scriptPath: String) (args: List<String>) : 
 
 // Execute a function by name with arguments
 let executeFunction (state: AppState) (fnName: String) (args: List<String>) : AppState =
-  let pm = LanguageTools.PackageManager.pm ()
-  let parsedArgs =
-    args |> Stdlib.List.map (parseArgString state.currentBranchId pm)
+  let fullExpr = $"{fnName} {Stdlib.String.join args " "}"
 
-  match Builtin.cliExecuteFunction state.accountID state.currentBranchId fnName parsedArgs with
+  match Builtin.cliEvaluateExpression state.accountID state.currentBranchId fullExpr with
   | Ok result ->
     Stdlib.printLine result
     state
