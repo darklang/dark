@@ -1,5 +1,3 @@
-// TODO: a lot more tests.
-
 // aliases and helpers
 type HtmlTag = Stdlib.Html.HtmlTag
 type Node = Stdlib.Html.Node
@@ -37,6 +35,50 @@ let tidyHtml (html: String) : String =
 
 // -- testing of simple html node helpers
 (Stdlib.Html.comment "hello") |> nodeToString = "<!-- hello -->"
+
+// -- testing HTML escaping
+Stdlib.Html.escapeHtml "<script>alert('xss')</script>" = "&lt;script&gt;alert(&#x27;xss&#x27;)&lt;/script&gt;"
+
+Stdlib.Html.escapeHtml "a & b" = "a &amp; b"
+
+Stdlib.Html.escapeHtml "\"quoted\"" = "&quot;quoted&quot;"
+
+// text() should escape HTML
+(Stdlib.Html.text "<script>bad</script>")
+|> nodeToString = "&lt;script&gt;bad&lt;/script&gt;"
+
+// stringNode() should NOT escape HTML (for trusted content)
+(Stdlib.Html.stringNode "<script>trusted</script>")
+|> nodeToString = "<script>trusted</script>"
+
+// Using text() with div to prevent XSS
+(Stdlib.Html.div
+  []
+  [ Stdlib.Html.text "User said: <script>alert('xss')</script>" ])
+|> nodeToString = "<div>User said: &lt;script&gt;alert(&#x27;xss&#x27;)&lt;/script&gt;</div>"
+
+// -- testing attribute helpers
+Stdlib.Html.classes [ "btn"; "btn-primary" ] =
+  ("class", Stdlib.Option.Option.Some "btn btn-primary")
+
+Stdlib.Html.style [ ("color", "red"); ("font-size", "14px") ] =
+  ("style", Stdlib.Option.Option.Some "color: red; font-size: 14px")
+
+Stdlib.Html.dataAttr "user-id" "123" =
+  ("data-user-id", Stdlib.Option.Option.Some "123")
+
+// Using attribute helpers with tags
+(Stdlib.Html.div
+  [ Stdlib.Html.classes [ "container"; "mx-auto" ]
+    Stdlib.Html.dataAttr "testid" "main-container" ]
+  [ stringNode "content" ])
+|> nodeToString =
+  "<div class=\"container mx-auto\" data-testid=\"main-container\">content</div>"
+
+(Stdlib.Html.span
+  [ Stdlib.Html.style [ ("color", "blue"); ("font-weight", "bold") ] ]
+  [ stringNode "styled text" ])
+|> nodeToString = "<span style=\"color: blue; font-weight: bold\">styled text</span>"
 
 (Stdlib.Html.br ()) |> nodeToString = "<br>"
 (Stdlib.Html.div [] []) |> nodeToString = "<div></div>"
@@ -113,6 +155,105 @@ let tidyHtml (html: String) : String =
 (Stdlib.Html.nav [] []) |> nodeToString = "<nav></nav>"
 (Stdlib.Html.footer [] []) |> nodeToString = "<footer></footer>"
 
+// Semantic HTML5 tags
+(Stdlib.Html.article [] []) |> nodeToString = "<article></article>"
+(Stdlib.Html.aside [] []) |> nodeToString = "<aside></aside>"
+(Stdlib.Html.header [] []) |> nodeToString = "<header></header>"
+(Stdlib.Html.main [] []) |> nodeToString = "<main></main>"
+(Stdlib.Html.figure [] []) |> nodeToString = "<figure></figure>"
+(Stdlib.Html.figcaption [] []) |> nodeToString = "<figcaption></figcaption>"
+
+// Media tags
+(Stdlib.Html.video [] []) |> nodeToString = "<video></video>"
+(Stdlib.Html.audio [] []) |> nodeToString = "<audio></audio>"
+(Stdlib.Html.picture [] []) |> nodeToString = "<picture></picture>"
+
+// Text formatting tags
+(Stdlib.Html.strong [] []) |> nodeToString = "<strong></strong>"
+(Stdlib.Html.em [] []) |> nodeToString = "<em></em>"
+(Stdlib.Html.b [] []) |> nodeToString = "<b></b>"
+(Stdlib.Html.u [] []) |> nodeToString = "<u></u>"
+(Stdlib.Html.small [] []) |> nodeToString = "<small></small>"
+(Stdlib.Html.mark [] []) |> nodeToString = "<mark></mark>"
+(Stdlib.Html.del [] []) |> nodeToString = "<del></del>"
+(Stdlib.Html.ins [] []) |> nodeToString = "<ins></ins>"
+
+// Definition list tags
+(Stdlib.Html.dl [] []) |> nodeToString = "<dl></dl>"
+(Stdlib.Html.dt [] []) |> nodeToString = "<dt></dt>"
+(Stdlib.Html.dd [] []) |> nodeToString = "<dd></dd>"
+
+// Form elements
+(Stdlib.Html.textarea [] []) |> nodeToString = "<textarea></textarea>"
+(Stdlib.Html.select [] []) |> nodeToString = "<select></select>"
+(Stdlib.Html.option [] []) |> nodeToString = "<option></option>"
+(Stdlib.Html.fieldset [] []) |> nodeToString = "<fieldset></fieldset>"
+(Stdlib.Html.legend [] []) |> nodeToString = "<legend></legend>"
+
+// Interactive elements
+(Stdlib.Html.details [] []) |> nodeToString = "<details></details>"
+(Stdlib.Html.summary [] []) |> nodeToString = "<summary></summary>"
+(Stdlib.Html.dialog [] []) |> nodeToString = "<dialog></dialog>"
+
+// -- test whitespace handling between inline elements
+
+// This demonstrates the whitespace issue: when you want spaces between inline elements
+// You need to explicitly add whitespace nodes
+(Stdlib.Html.div
+  []
+  [ Stdlib.Html.span [] [ stringNode "foo" ]
+    stringNode " "
+    Stdlib.Html.span [] [ stringNode "bar" ] ])
+|> nodeToString = "<div><span>foo</span> <span>bar</span></div>"
+
+// Without the explicit whitespace node, elements run together
+(Stdlib.Html.div
+  []
+  [ Stdlib.Html.span [] [ stringNode "foo" ]
+    Stdlib.Html.span [] [ stringNode "bar" ] ])
+|> nodeToString = "<div><span>foo</span><span>bar</span></div>"
+
+
+// Form with new elements
+(Stdlib.Html.form
+  []
+  [ Stdlib.Html.fieldset
+      []
+      [ Stdlib.Html.legend [] [ stringNode "User Info" ]
+        Stdlib.Html.label [] [ stringNode "Name:" ]
+        Stdlib.Html.input [ ("type", Stdlib.Option.Option.Some "text") ]
+        Stdlib.Html.label [] [ stringNode "Bio:" ]
+        Stdlib.Html.textarea [] [] ] ])
+|> nodeToString = ("<form><fieldset><legend>User Info</legend>"
+                   ++ "<label>Name:</label><input type=\"text\">"
+                   ++ "<label>Bio:</label><textarea></textarea></fieldset></form>")
+
+// Definition list
+(Stdlib.Html.dl
+  []
+  [ Stdlib.Html.dt [] [ stringNode "Term" ]
+    Stdlib.Html.dd [] [ stringNode "Definition" ] ])
+|> nodeToString = "<dl><dt>Term</dt><dd>Definition</dd></dl>"
+
+// Text formatting
+(Stdlib.Html.p
+  []
+  [ stringNode "This is "
+    Stdlib.Html.strong [] [ stringNode "bold" ]
+    stringNode " and this is "
+    Stdlib.Html.em [] [ stringNode "italic" ]
+    stringNode "." ])
+|> nodeToString = "<p>This is <strong>bold</strong> and this is <em>italic</em>.</p>"
+
+// Semantic article structure
+(Stdlib.Html.article
+  []
+  [ Stdlib.Html.header [] [ Stdlib.Html.h1 [] [ stringNode "Article Title" ] ]
+    Stdlib.Html.p [] [ stringNode "Article content" ]
+    Stdlib.Html.footer [] [ stringNode "By Author" ] ])
+|> nodeToString = ("<article><header><h1>Article Title</h1></header>"
+                   ++ "<p>Article content</p><footer>By Author</footer></article>")
+
 // -- test writing out a full document
 
 ([ Stdlib.Html.html
@@ -126,3 +267,7 @@ let tidyHtml (html: String) : String =
       <body><p>welcome to darklang</p></body>
     </html>"
                              |> tidyHtml)
+
+// -- test creating a complete webpage with DOCTYPE
+([ Stdlib.Html.html [] [] ] |> Stdlib.Html.document |> Stdlib.String.contains
+   "<!DOCTYPE html><html></html>") = true
