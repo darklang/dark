@@ -44,7 +44,8 @@ let createState
         let epToString ep =
           match ep with
           | None -> Ply "None -- empty CallStack"
-          | Some ep -> Exe.executionPointToString state ep
+          | Some ep ->
+            Exe.executionPointToString (Some state.program.canvasID) None state ep
 
         let! entrypoint = epToString (RT.CallStack.entrypoint callStack)
         let! lastCalled = epToString (RT.CallStack.last callStack)
@@ -124,7 +125,8 @@ let executeHandler
     HashSet.add h.tlid tracing.results.tlids
     let! result = Exe.executeToplevel state h.tlid instrs
 
-    let callStackString = Exe.callStackString state
+    let callStackString =
+      Exe.callStackString (Some state.program.canvasID) None state
 
     let error (msg : string) : RT.Dval =
       let typeName = RT.FQTypeName.fqPackage PackageIDs.Type.Stdlib.Http.response
@@ -145,14 +147,26 @@ let executeHandler
         | Error(originalRTE, originalCallStack) ->
           let! originalCallStack = callStackString originalCallStack
 
-          match! Exe.runtimeErrorToString None None state originalRTE with
+          match!
+            Exe.runtimeErrorToString
+              (Some state.program.canvasID)
+              None
+              state
+              originalRTE
+          with
           | Ok(RT.DString msg) ->
             let msg = $"Error: {msg}\n\nSource: {originalCallStack}"
             return error msg
           | Ok result -> return result
           | Error(firstErrorRTE, firstErrorCallStack) ->
             let! firstErrorCallStack = callStackString firstErrorCallStack
-            match! Exe.runtimeErrorToString None None state firstErrorRTE with
+            match!
+              Exe.runtimeErrorToString
+                (Some state.program.canvasID)
+                None
+                state
+                firstErrorRTE
+            with
             | Ok(RT.DString msg) ->
               return
                 error (

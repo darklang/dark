@@ -161,6 +161,8 @@ let runtimeErrorToString
 
 // CLEANUP not ideal, but useful
 let getPackageFnName
+  (accountID : Option<uuid>)
+  (branchID : Option<uuid>)
   (state : RT.ExecutionState)
   (id : RT.FQFnName.Package)
   : Ply<string> =
@@ -171,8 +173,10 @@ let getPackageFnName
     let typeName =
       RT.FQTypeName.fqPackage
         PackageIDs.Type.LanguageTools.ProgramTypes.FQFnName.fqFnName
+    let accountIDDval = accountID |> Option.map Dval.uuid |> Dval.option RT.KTUuid
+    let branchIDDval = branchID |> Option.map Dval.uuid |> Dval.option RT.KTUuid
     let dval = RT.DEnum(typeName, typeName, [], "Package", [ RT.DUuid id ])
-    let args = NEList.singleton dval
+    let args = NEList.ofList accountIDDval [ branchIDDval; dval ]
     let! result = executeFunction state fnName [] args
     match result with
     | Ok(RT.DString s) -> return s
@@ -225,6 +229,8 @@ let getPackageFnName
 
 
 let executionPointToString
+  (accountID : Option<uuid>)
+  (branchID : Option<uuid>)
   (state : RT.ExecutionState)
   (ep : RT.ExecutionPoint)
   : Ply<string> =
@@ -243,7 +249,7 @@ let executionPointToString
     match ep with
     | RT.Source -> return "Source"
     | RT.Function(RT.FQFnName.Package id) ->
-      let! name = getPackageFnName state id
+      let! name = getPackageFnName accountID branchID state id
       return $"Package Function {name}"
     | RT.Function(RT.FQFnName.Builtin fnName) ->
       return $"Builtin Function {fnName.name}" // TODO actually fetch the fn, etc
@@ -256,13 +262,17 @@ let executionPointToString
 /// - consider accepting a VMState rather than the CallStack
 /// - generally tidy the output here
 let callStackString
+  (accountID : Option<uuid>)
+  (branchID : Option<uuid>)
   (state : RT.ExecutionState)
   (callStack : RT.CallStack)
   : Ply<string> =
   uply {
     // First, convert all execution points to strings
     let! stringParts =
-      Ply.List.mapSequentially (fun ep -> executionPointToString state ep) callStack
+      Ply.List.mapSequentially
+        (fun ep -> executionPointToString accountID branchID state ep)
+        callStack
 
     // Group consecutive identical entries with counts
     let rec groupConsecutive acc current count remaining =

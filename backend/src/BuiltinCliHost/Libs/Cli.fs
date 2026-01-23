@@ -40,7 +40,7 @@ let executePM
     match execResult with
     | Ok dval -> return dval
     | Error(rte, _cs) ->
-      let accountID = None
+      let accountID = Some exeState.program.canvasID
       let! rteString = Exe.runtimeErrorToString accountID branchID exeState rte
       match rteString with
       | Ok rte ->
@@ -108,7 +108,7 @@ let parseCliScript
             "Invalid error format from parseCliScript"
             [ "dval", dval ]
     | Error(rte, _cs) ->
-      let! rteString = Exe.runtimeErrorToString None branchID exeState rte
+      let! rteString = Exe.runtimeErrorToString accountID branchID exeState rte
       match rteString with
       | Ok errorDval ->
         return
@@ -244,7 +244,8 @@ let fns : List<BuiltInFn> =
                     |> RT2DT.RuntimeError.toDT
                     |> resultError
                 | Error(e, callStack) ->
-                  let! csString = Exe.callStackString exeState callStack
+                  let! csString =
+                    Exe.callStackString accountID branchID exeState callStack
                   print $"Error when executing Script. Call-stack:\n{csString}\n"
                   return e |> RT2DT.RuntimeError.toDT |> resultError
               | Error e -> return e |> RT2DT.RuntimeError.toDT |> resultError
@@ -477,7 +478,8 @@ let fns : List<BuiltInFn> =
                     let asString = DvalReprDeveloper.toRepr result
                     return resultOk (DString asString)
                 | Error(e, callStack) ->
-                  let! csString = Exe.callStackString exeState callStack
+                  let! csString =
+                    Exe.callStackString accountID branchID exeState callStack
                   print $"Error when executing expression. Call-stack:\n{csString}\n"
                   return e |> RT2DT.RuntimeError.toDT |> resultError
               | Error e -> return e |> RT2DT.RuntimeError.toDT |> resultError
