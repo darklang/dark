@@ -33,6 +33,7 @@
 
     <Compile Include="Libs/Char.fs" />
     <Compile Include="Libs/String.fs" />
+    <Compile Include="Libs/Regex.fs" />
 
     <Compile Include="Libs/List.fs" />
     <Compile Include="Libs/Dict.fs" />

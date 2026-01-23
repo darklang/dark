@@ -130,7 +130,7 @@ let fns : List<BuiltInFn> =
 
 
     // CLEANUP move implementation to Darklang, in package space, in darklang stdlib
-    // (blocked by lack of RegEx support in Dark)
+    // (RegEx support now available via Stdlib.Regex.*)
     { name = fn "stringSlugify" 0
       typeParams = []
       parameters = [ Param.make "string" TString "" ]

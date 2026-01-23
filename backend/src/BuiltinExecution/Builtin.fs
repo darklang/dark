@@ -35,6 +35,7 @@ let builtins (httpConfig : Libs.HttpClient.Configuration) : Builtins =
 
       Libs.Char.builtins
       Libs.String.builtins
+      Libs.Regex.builtins
 
       Libs.List.builtins
       Libs.Dict.builtins
