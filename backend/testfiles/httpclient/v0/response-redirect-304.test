@@ -4,14 +4,14 @@ Host: HOST
 Content-Length: 0
 
 [response]
-HTTP/1.1 304L Not Modified
+HTTP/1.1 304 Not Modified
 Date: xxx, xx xxx xxxx xx:xx:xx xxx
 Location: /v0/response-redirect-destination
 
 
 [test]
 (let response = (Darklang.Stdlib.HttpClient.request "get" "http://URL" [] []) |> Builtin.unwrap
- let respHeaders = response.headers |> Darklang.Stdlib.List.filter (fun h -> Darklang.Stdlib.Tuple2.first h != "date")
+ let respHeaders = response.headers |> Darklang.Stdlib.List.filter (fun h -> (Darklang.Stdlib.Tuple2.first h) != "date")
  {response with headers = respHeaders}) ==
    Darklang.Stdlib.HttpClient.Response
     { statusCode = 304L
@@ -19,7 +19,6 @@ Location: /v0/response-redirect-destination
         [
           ("server", "kestrel")
           ("location", "/v0/response-redirect-destination")
-          ("transfer-encoding", "chunked")
         ]
       body = [] }
 
