@@ -20,27 +20,27 @@ Review and expand the minimal reflection system in Darklang. Currently we only h
 - [x] Identify useful reflection operations
 - [x] Review CLI execution model
 
-### Phase 2: Add Core Builtins (F# Code - Minimal Impact)
-- [ ] Add `Builtin.reflectType` - get the ValueType/KnownType of a value without full Dval structure
+### Phase 2: Add Core Builtins (F# Code - Minimal Impact) ✅ COMPLETED
+- [x] Add `Builtin.reflectType` - get the ValueType/KnownType of a value without full Dval structure
   - File: `backend/src/BuiltinExecution/Libs/Reflection.fs`
   - Returns `LanguageTools.RuntimeTypes.ValueType`
   - Useful for type inspection without heavy Dval conversion
 
-- [ ] Add `Builtin.typeOf` - simplified type name as string
+- [x] Add `Builtin.typeOf` - simplified type name as string
   - File: `backend/src/BuiltinExecution/Libs/Reflection.fs`
   - Returns human-readable type name (e.g., "Int64", "List<String>", "Dict<Bool>")
   - Lightweight alternative to full reflection
 
-- [ ] Add `Builtin.typeName` - get FQTypeName for custom types
+- [x] Add `Builtin.typeName` - get FQTypeName for custom types
   - File: `backend/src/BuiltinExecution/Libs/Reflection.fs`
   - Returns `Option<LanguageTools.RuntimeTypes.FQTypeName>`
   - Returns Some for DRecord/DEnum, None for primitives
 
-### Phase 3: Package Functions (Darklang Code)
-- [ ] Create `Darklang.LanguageTools.Reflection` package module
+### Phase 3: Package Functions (Darklang Code) ✅ COMPLETED
+- [x] Create `Darklang.LanguageTools.Reflection` package module
   - File: `packages/darklang/languageTools/reflection.dark`
 
-- [ ] Add helper functions in reflection.dark:
+- [x] Add helper functions in reflection.dark:
   - `isPrimitive: Dval -> Bool` - check if value is a primitive type
   - `isCollection: Dval -> Bool` - check if List/Dict/Tuple
   - `isCustomType: Dval -> Bool` - check if Record/Enum
@@ -51,23 +51,24 @@ Review and expand the minimal reflection system in Darklang. Currently we only h
   - `getListElementType: Dval -> Option<ValueType>` - extract List element type
   - `getDictValueType: Dval -> Option<ValueType>` - extract Dict value type
 
-### Phase 4: Tests & Demos
-- [ ] Add F# unit tests for new builtins
-  - File: `backend/tests/Tests/Builtin.Tests.fs` or new `Reflection.Tests.fs`
+### Phase 4: Tests & Demos ✅ COMPLETED
+- [x] Add F# unit tests for new builtins
+  - File: `backend/testfiles/execution/stdlib/reflection.dark`
   - Test reflectType, typeOf, typeName with various value types
   - Test primitives, collections, records, enums, functions
 
-- [ ] Create demo/test script in Darklang
-  - File: `packages/darklang/languageTools/reflection-demo.dark` or similar
+- [x] Create demo/test script in Darklang
+  - File: `packages/darklang/languageTools/reflection-demo.dark`
   - Demonstrate reflection on various types
   - Show practical use cases (serialization, validation, debugging)
 
-- [ ] Add integration test via CLI
+- [x] Add integration test via CLI
+  - File: `backend/testfiles/execution/cli/reflection-test.dark`
   - Small CLI script that uses reflection to inspect values
   - Demonstrates CLI experience with reflection
 
-### Phase 5: CLI Integration Report
-- [ ] Create reflection-cli-integration.md report
+### Phase 5: CLI Integration Report ✅ COMPLETED
+- [x] Create reflection-cli-integration.md report
   - File: `.claude-task/reflection-cli-integration.md`
   - Analyze how reflection could enhance CLI experience
   - Ideas for CLI commands using reflection:
@@ -84,12 +85,12 @@ Review and expand the minimal reflection system in Darklang. Currently we only h
   - Discuss tradeoffs and implementation considerations
   - Keep F# code impact minimal - focus on what can be done with existing infrastructure
 
-### Phase 6: Documentation & Cleanup
-- [ ] Add docstrings/comments to new builtins
-- [ ] Ensure new package functions have descriptions
-- [ ] Update any relevant documentation files
-- [ ] Verify all tests pass
-- [ ] Final code review and cleanup
+### Phase 6: Documentation & Cleanup ✅ COMPLETED
+- [x] Add docstrings/comments to new builtins
+- [x] Ensure new package functions have descriptions
+- [x] Update any relevant documentation files
+- [x] Verify all tests pass
+- [x] Final code review and cleanup
 
 ## Success Criteria
 1. At least 3 new useful builtins added to Reflection.fs

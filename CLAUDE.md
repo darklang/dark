@@ -1,3 +1,54 @@
+<!-- TASK CONTEXT START -->
+# Active Task - Planning Phase
+
+You have been given a task to complete. Your job is to:
+
+1. **Research** the codebase to understand what needs to be done
+2. **Create a plan** with specific, actionable todos
+3. **Signal** when planning is complete
+
+## The Task
+
+More Reflection
+
+Review the minimal reflection we have.
+What else can/should we do?
+Add few clean builtins, and package fns, and demo/test things.
+I think right now we just have Builtin.reflect or something.
+
+How might this relate to the CLI experience/app? Create a .md report with ideas.
+Really keep F# code impact to be relatively minimal.
+
+## Your Instructions
+
+1. Read and understand the relevant code
+2. Create `.claude-task/todos.md` with a detailed checklist of specific tasks
+3. **When planning is complete**, write "ready" to `.claude-task/phase`:
+   ```bash
+   echo "ready" > .claude-task/phase
+   ```
+   This signals the TUI that you're done planning.
+
+4. Tell the user: "Planning complete. Review .claude-task/todos.md. Execution will start automatically."
+
+## What happens next
+
+The automated loop will:
+- Run you repeatedly until all todos are done
+- You read CLAUDE.md and .claude-task/todos.md each iteration
+- Mark todos as [x] when complete
+- Write "done" to .claude-task/phase when ALL todos complete
+
+## Important
+
+- Be thorough in research before creating the plan
+- Keep todos specific and actionable
+- Include testing in the plan
+- You can interact with the user now during planning
+- **COMMIT your plan** before signaling ready (git add . && git commit -m "plan: <task summary>")
+
+<!-- TASK CONTEXT END -->
+
 # This is the main Darklang monorepo. Please assist in the development of this language+platform.
 
 ## External resources:
