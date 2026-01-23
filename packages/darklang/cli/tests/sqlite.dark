@@ -1,0 +1,288 @@
+module Darklang.Cli.Tests.Sqlite
+
+type TestResult =
+  | Pass
+  | Fail of message: String
+
+
+let testCreateTableAndInsert (): TestResult =
+  // Use a temporary file for testing
+  let tempResult = Builtin.fileCreateTemp ()
+
+  match tempResult with
+  | Error msg -> TestResult.Fail $"Failed to create temp file: {msg}"
+  | Ok tempPath ->
+    // Create a table
+    let createResult =
+      Stdlib.Cli.Sqlite.execute
+        tempPath
+        "CREATE TABLE test_users (id INTEGER PRIMARY KEY, name TEXT, age INTEGER)"
+
+    match createResult with
+    | Error msg -> TestResult.Fail $"Failed to create table: {msg}"
+    | Ok rowCount ->
+      // Insert some data
+      let insert1 =
+        Stdlib.Cli.Sqlite.execute
+          tempPath
+          "INSERT INTO test_users (id, name, age) VALUES (1, 'Alice', 30)"
+
+      let insert2 =
+        Stdlib.Cli.Sqlite.execute
+          tempPath
+          "INSERT INTO test_users (id, name, age) VALUES (2, 'Bob', 25)"
+
+      match (insert1, insert2) with
+      | (Ok count1, Ok count2) ->
+        if count1 == 1L && count2 == 1L then
+          // Query the data
+          let queryResult =
+            Stdlib.Cli.Sqlite.query tempPath "SELECT * FROM test_users ORDER BY id"
+
+          match queryResult with
+          | Error msg -> TestResult.Fail $"Failed to query: {msg}"
+          | Ok rows ->
+            let rowCount = Stdlib.List.length rows
+
+            if rowCount == 2L then
+              TestResult.Pass
+            else
+              TestResult.Fail $"Expected 2 rows, got {rowCount}"
+        else
+          TestResult.Fail $"Expected 1 row affected per insert, got {count1} and {count2}"
+      | (Error msg, _) -> TestResult.Fail $"Insert 1 failed: {msg}"
+      | (_, Error msg) -> TestResult.Fail $"Insert 2 failed: {msg}"
+
+
+let testQueryOne (): TestResult =
+  // Use a temporary file for testing
+  let tempResult = Builtin.fileCreateTemp ()
+
+  match tempResult with
+  | Error msg -> TestResult.Fail $"Failed to create temp file: {msg}"
+  | Ok tempPath ->
+    // Create table and insert data
+    let _ =
+      Stdlib.Cli.Sqlite.execute
+        tempPath
+        "CREATE TABLE test_data (id INTEGER, value TEXT)"
+
+    let _ =
+      Stdlib.Cli.Sqlite.execute
+        tempPath
+        "INSERT INTO test_data VALUES (1, 'first')"
+
+    // Query for existing row
+    let queryResult =
+      Stdlib.Cli.Sqlite.queryOne
+        tempPath
+        "SELECT * FROM test_data WHERE id = 1"
+
+    match queryResult with
+    | Error msg -> TestResult.Fail $"Query failed: {msg}"
+    | Ok optRow ->
+      match optRow with
+      | None -> TestResult.Fail "Expected Some row, got None"
+      | Some row ->
+        // Query for non-existing row
+        let queryResult2 =
+          Stdlib.Cli.Sqlite.queryOne
+            tempPath
+            "SELECT * FROM test_data WHERE id = 999"
+
+        match queryResult2 with
+        | Error msg -> TestResult.Fail $"Query 2 failed: {msg}"
+        | Ok optRow2 ->
+          match optRow2 with
+          | Some _ -> TestResult.Fail "Expected None, got Some row"
+          | None -> TestResult.Pass
+
+
+let testUpdate (): TestResult =
+  // Use a temporary file for testing
+  let tempResult = Builtin.fileCreateTemp ()
+
+  match tempResult with
+  | Error msg -> TestResult.Fail $"Failed to create temp file: {msg}"
+  | Ok tempPath ->
+    // Create table and insert data
+    let _ =
+      Stdlib.Cli.Sqlite.execute
+        tempPath
+        "CREATE TABLE test_update (id INTEGER, name TEXT)"
+
+    let _ =
+      Stdlib.Cli.Sqlite.execute
+        tempPath
+        "INSERT INTO test_update VALUES (1, 'original')"
+
+    // Update the row
+    let updateResult =
+      Stdlib.Cli.Sqlite.update tempPath "test_update" "name = 'updated'" "id = 1"
+
+    match updateResult with
+    | Error msg -> TestResult.Fail $"Update failed: {msg}"
+    | Ok count ->
+      if count == 1L then
+        // Verify the update
+        let queryResult =
+          Stdlib.Cli.Sqlite.queryOne
+            tempPath
+            "SELECT name FROM test_update WHERE id = 1"
+
+        match queryResult with
+        | Error msg -> TestResult.Fail $"Query failed: {msg}"
+        | Ok optRow ->
+          match optRow with
+          | None -> TestResult.Fail "Expected row after update"
+          | Some row ->
+            let name = Stdlib.Dict.get row "name"
+
+            match name with
+            | Some nameVal ->
+              if nameVal == "updated" then
+                TestResult.Pass
+              else
+                TestResult.Fail $"Expected 'updated', got {nameVal}"
+            | None -> TestResult.Fail "Name column not found"
+      else
+        TestResult.Fail $"Expected 1 row updated, got {count}"
+
+
+let testDelete (): TestResult =
+  // Use a temporary file for testing
+  let tempResult = Builtin.fileCreateTemp ()
+
+  match tempResult with
+  | Error msg -> TestResult.Fail $"Failed to create temp file: {msg}"
+  | Ok tempPath ->
+    // Create table and insert data
+    let _ =
+      Stdlib.Cli.Sqlite.execute
+        tempPath
+        "CREATE TABLE test_delete (id INTEGER, name TEXT)"
+
+    let _ =
+      Stdlib.Cli.Sqlite.execute
+        tempPath
+        "INSERT INTO test_delete VALUES (1, 'to_delete')"
+
+    let _ =
+      Stdlib.Cli.Sqlite.execute
+        tempPath
+        "INSERT INTO test_delete VALUES (2, 'to_keep')"
+
+    // Delete one row
+    let deleteResult =
+      Stdlib.Cli.Sqlite.delete tempPath "test_delete" "id = 1"
+
+    match deleteResult with
+    | Error msg -> TestResult.Fail $"Delete failed: {msg}"
+    | Ok count ->
+      if count == 1L then
+        // Verify only one row remains
+        let queryResult =
+          Stdlib.Cli.Sqlite.query tempPath "SELECT * FROM test_delete"
+
+        match queryResult with
+        | Error msg -> TestResult.Fail $"Query failed: {msg}"
+        | Ok rows ->
+          let rowCount = Stdlib.List.length rows
+
+          if rowCount == 1L then
+            TestResult.Pass
+          else
+            TestResult.Fail $"Expected 1 row remaining, got {rowCount}"
+      else
+        TestResult.Fail $"Expected 1 row deleted, got {count}"
+
+
+let testHelperFunctions (): TestResult =
+  // Use a temporary file for testing
+  let tempResult = Builtin.fileCreateTemp ()
+
+  match tempResult with
+  | Error msg -> TestResult.Fail $"Failed to create temp file: {msg}"
+  | Ok tempPath ->
+    // Test createTable helper
+    let createResult =
+      Stdlib.Cli.Sqlite.createTable
+        tempPath
+        "helpers_test"
+        "id INTEGER PRIMARY KEY, name TEXT"
+
+    match createResult with
+    | Error msg -> TestResult.Fail $"createTable failed: {msg}"
+    | Ok _ ->
+      // Test insert helper
+      let insertResult =
+        Stdlib.Cli.Sqlite.insert tempPath "helpers_test" "id, name" "1, 'test'"
+
+      match insertResult with
+      | Error msg -> TestResult.Fail $"insert failed: {msg}"
+      | Ok count ->
+        if count == 1L then
+          TestResult.Pass
+        else
+          TestResult.Fail $"Expected 1 row inserted, got {count}"
+
+
+let testInvalidSql (): TestResult =
+  // Use a temporary file for testing
+  let tempResult = Builtin.fileCreateTemp ()
+
+  match tempResult with
+  | Error msg -> TestResult.Fail $"Failed to create temp file: {msg}"
+  | Ok tempPath ->
+    // Try to execute invalid SQL
+    let result =
+      Stdlib.Cli.Sqlite.execute tempPath "THIS IS NOT VALID SQL"
+
+    match result with
+    | Error msg ->
+      // We expect an error - check that it contains "SQLite" or "error"
+      if Stdlib.String.contains msg "SQLite" ||
+          Stdlib.String.contains msg "error" ||
+          Stdlib.String.contains msg "syntax" then
+        TestResult.Pass
+      else
+        TestResult.Fail $"Expected SQLite error message, got: {msg}"
+    | Ok _ -> TestResult.Fail "Expected error for invalid SQL, but got success"
+
+
+let testFileNotFound (): TestResult =
+  // Try to query a non-existent database file
+  let result =
+    Stdlib.Cli.Sqlite.query "/tmp/this-file-definitely-does-not-exist-12345.db" "SELECT 1"
+
+  match result with
+  | Error msg ->
+    // We expect an error - check that it mentions the issue
+    if Stdlib.String.contains msg "SQLite" || Stdlib.String.contains msg "error" then
+      TestResult.Pass
+    else
+      TestResult.Fail $"Expected SQLite error message, got: {msg}"
+  | Ok _ -> TestResult.Fail "Expected error for non-existent file, but got success"
+
+
+let testInvalidTable (): TestResult =
+  // Use a temporary file for testing
+  let tempResult = Builtin.fileCreateTemp ()
+
+  match tempResult with
+  | Error msg -> TestResult.Fail $"Failed to create temp file: {msg}"
+  | Ok tempPath ->
+    // Try to query a table that doesn't exist
+    let result =
+      Stdlib.Cli.Sqlite.query tempPath "SELECT * FROM nonexistent_table"
+
+    match result with
+    | Error msg ->
+      // We expect an error about the table not existing
+      if Stdlib.String.contains msg "no such table" ||
+          Stdlib.String.contains msg "nonexistent" ||
+          Stdlib.String.contains msg "error" then
+        TestResult.Pass
+      else
+        TestResult.Fail $"Expected 'no such table' error, got: {msg}"
+    | Ok _ -> TestResult.Fail "Expected error for non-existent table, but got success"
