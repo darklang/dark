@@ -82,4 +82,4 @@ fi
 
 cd backend
 DARK_CONFIG_TELEMETRY_EXPORTER=none \
-"${EXE}" ${SPINNER} --colours "${COLOURS}" --junit-summary "${JUNIT_FILE}" "${EXPECTO_ARGS[@]}"
+"${EXE}" ${SPINNER} --colours "${COLOURS}" --parallel-workers 16 --junit-summary "${JUNIT_FILE}" "${EXPECTO_ARGS[@]}"
