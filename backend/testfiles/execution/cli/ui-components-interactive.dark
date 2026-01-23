@@ -1,0 +1,164 @@
+// Tests for interactive UI components: Button, Progress
+
+// Test Button creation
+(let button =
+  Darklang.CLI.UI.Components.Button.createButton
+    "Click Me"
+    Darklang.CLI.UI.Core.Types.Color.Primary
+    (fun () -> ())
+
+ button.model.text) = "Click Me"
+
+// Test Button creation - verify focusable
+(let button =
+  Darklang.CLI.UI.Components.Button.createButton
+    "OK"
+    Darklang.CLI.UI.Core.Types.Color.Success
+    (fun () -> ())
+
+ button.focusable) = true
+
+// Test Button creation - verify default disabled state
+(let button =
+  Darklang.CLI.UI.Components.Button.createButton
+    "Submit"
+    Darklang.CLI.UI.Core.Types.Color.Primary
+    (fun () -> ())
+
+ button.model.disabled) = false
+
+// Test setButtonText
+(let button =
+  Darklang.CLI.UI.Components.Button.createButton
+    "Old"
+    Darklang.CLI.UI.Core.Types.Color.Default
+    (fun () -> ())
+
+ let updated = Darklang.CLI.UI.Components.Button.setButtonText button "New"
+ updated.model.text) = "New"
+
+// Test setButtonColor
+(let button =
+  Darklang.CLI.UI.Components.Button.createButton
+    "Button"
+    Darklang.CLI.UI.Core.Types.Color.Default
+    (fun () -> ())
+
+ let updated =
+  Darklang.CLI.UI.Components.Button.setButtonColor
+    button
+    Darklang.CLI.UI.Core.Types.Color.Success
+
+ updated.model.color) = Darklang.CLI.UI.Core.Types.Color.Success
+
+// Test disableButton
+(let button =
+  Darklang.CLI.UI.Components.Button.createButton
+    "Button"
+    Darklang.CLI.UI.Core.Types.Color.Default
+    (fun () -> ())
+
+ let disabled = Darklang.CLI.UI.Components.Button.disableButton button
+ disabled.model.disabled) = true
+
+// Test enableButton
+(let button =
+  Darklang.CLI.UI.Components.Button.createButton
+    "Button"
+    Darklang.CLI.UI.Core.Types.Color.Default
+    (fun () -> ())
+
+ let disabled = Darklang.CLI.UI.Components.Button.disableButton button
+ let enabled = Darklang.CLI.UI.Components.Button.enableButton disabled
+ enabled.model.disabled) = false
+
+// Test Progress bar creation
+(let progress =
+  Darklang.CLI.UI.Components.Progress.createProgressBar
+    50L
+    0L
+    100L
+    Darklang.CLI.UI.Core.Types.Color.Success
+
+ progress.model.value) = 50L
+
+// Test Progress bar min/max
+(let progress =
+  Darklang.CLI.UI.Components.Progress.createProgressBar
+    75L
+    0L
+    100L
+    Darklang.CLI.UI.Core.Types.Color.Primary
+
+ (progress.model.min, progress.model.max)) = (0L, 100L)
+
+// Test updateProgressValue
+(let progress =
+  Darklang.CLI.UI.Components.Progress.createProgressBar
+    0L
+    0L
+    100L
+    Darklang.CLI.UI.Core.Types.Color.Success
+
+ let updated = Darklang.CLI.UI.Components.Progress.updateProgressValue progress 75L
+ updated.model.value) = 75L
+
+// Test updateProgressValue with clamping to max
+(let progress =
+  Darklang.CLI.UI.Components.Progress.createProgressBar
+    0L
+    0L
+    100L
+    Darklang.CLI.UI.Core.Types.Color.Success
+
+ let updated = Darklang.CLI.UI.Components.Progress.updateProgressValue progress 150L
+ updated.model.value) = 100L
+
+// Test updateProgressValue with clamping to min
+(let progress =
+  Darklang.CLI.UI.Components.Progress.createProgressBar
+    50L
+    0L
+    100L
+    Darklang.CLI.UI.Core.Types.Color.Success
+
+ let updated = Darklang.CLI.UI.Components.Progress.updateProgressValue progress (-10L)
+ updated.model.value) = 0L
+
+// Test setProgressRange
+(let progress =
+  Darklang.CLI.UI.Components.Progress.createProgressBar
+    50L
+    0L
+    100L
+    Darklang.CLI.UI.Core.Types.Color.Success
+
+ let updated = Darklang.CLI.UI.Components.Progress.setProgressRange progress 10L 200L
+ (updated.model.min, updated.model.max)) = (10L, 200L)
+
+// Test setProgressColor
+(let progress =
+  Darklang.CLI.UI.Components.Progress.createProgressBar
+    50L
+    0L
+    100L
+    Darklang.CLI.UI.Core.Types.Color.Success
+
+ let updated =
+  Darklang.CLI.UI.Components.Progress.setProgressColor
+    progress
+    Darklang.CLI.UI.Core.Types.Color.Warning
+
+ updated.model.color) = Darklang.CLI.UI.Core.Types.Color.Warning
+
+// Test showProgressPercentage
+(let progress =
+  Darklang.CLI.UI.Components.Progress.createProgressBar
+    50L
+    0L
+    100L
+    Darklang.CLI.UI.Core.Types.Color.Success
+
+ let hidden = Darklang.CLI.UI.Components.Progress.hideProgressPercentage progress
+ let shown = Darklang.CLI.UI.Components.Progress.showProgressPercentage hidden
+ shown.model.showPercentage) = true

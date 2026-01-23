@@ -1,0 +1,72 @@
+// Tests for Darklang.CLI.UI.Core.Rendering
+
+// Test colorize function
+Darklang.CLI.UI.Core.Rendering.colorize
+  Darklang.CLI.UI.Core.Types.Color.Primary
+  "test" = "\u001b[34mtest\u001b[0m"
+
+Darklang.CLI.UI.Core.Rendering.colorize
+  Darklang.CLI.UI.Core.Types.Color.Success
+  "success" = "\u001b[32msuccess\u001b[0m"
+
+Darklang.CLI.UI.Core.Rendering.colorize
+  Darklang.CLI.UI.Core.Types.Color.Error
+  "error" = "\u001b[31merror\u001b[0m"
+
+Darklang.CLI.UI.Core.Rendering.colorize
+  Darklang.CLI.UI.Core.Types.Color.Default
+  "default" = "default"
+
+// Test bold
+Darklang.CLI.UI.Core.Rendering.bold "text" = "\u001b[1mtext\u001b[0m"
+
+// Test italic
+Darklang.CLI.UI.Core.Rendering.italic "text" = "\u001b[3mtext\u001b[0m"
+
+// Test underline
+Darklang.CLI.UI.Core.Rendering.underline "text" = "\u001b[4mtext\u001b[0m"
+
+// Test dim
+Darklang.CLI.UI.Core.Rendering.dim "text" = "\u001b[2mtext\u001b[0m"
+
+// Test padText with Left alignment
+Darklang.CLI.UI.Core.Rendering.padText
+  "test"
+  10L
+  Darklang.CLI.UI.Core.Types.Alignment.Left = "test      "
+
+// Test padText with Right alignment
+Darklang.CLI.UI.Core.Rendering.padText
+  "test"
+  10L
+  Darklang.CLI.UI.Core.Types.Alignment.Right = "      test"
+
+// Test padText with Center alignment
+Darklang.CLI.UI.Core.Rendering.padText
+  "test"
+  10L
+  Darklang.CLI.UI.Core.Types.Alignment.Center = "   test   "
+
+// Test padText with exact width
+Darklang.CLI.UI.Core.Rendering.padText
+  "test"
+  4L
+  Darklang.CLI.UI.Core.Types.Alignment.Left = "test"
+
+// Test truncateText - no truncation needed
+Darklang.CLI.UI.Core.Rendering.truncateText "short" 10L = "short"
+
+// Test truncateText - truncation needed
+Darklang.CLI.UI.Core.Rendering.truncateText "this is a long text" 10L = "this is..."
+
+// Test addFocusIndicator with focus
+Darklang.CLI.UI.Core.Rendering.addFocusIndicator "item" true = "► item"
+
+// Test addFocusIndicator without focus
+Darklang.CLI.UI.Core.Rendering.addFocusIndicator "item" false = "  item"
+
+// Test highlightIfFocused with focus
+Darklang.CLI.UI.Core.Rendering.highlightIfFocused "text" true = "\u001b[7mtext\u001b[0m"
+
+// Test highlightIfFocused without focus
+Darklang.CLI.UI.Core.Rendering.highlightIfFocused "text" false = "text"

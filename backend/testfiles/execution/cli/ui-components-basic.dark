@@ -1,0 +1,124 @@
+// Tests for basic UI components: Label, Divider, TextBlock
+
+// Test Label creation
+(let label =
+  Darklang.CLI.UI.Components.Label.createLabel
+    "Hello"
+    Darklang.CLI.UI.Core.Types.Color.Default
+
+ label.model.text) = "Hello"
+
+// Test Label rendering
+(let label =
+  Darklang.CLI.UI.Components.Label.createLabel
+    "Test"
+    Darklang.CLI.UI.Core.Types.Color.Primary
+
+ let context =
+  Darklang.CLI.UI.Core.Types.RenderContext
+    { availableWidth = 80L
+      availableHeight = 24L
+      hasFocus = false
+      theme = "default" }
+
+ Darklang.CLI.UI.Components.Label.renderLabel label context) = [ "\u001b[34mTest\u001b[0m" ]
+
+// Test Label with bold text
+(let label =
+  Darklang.CLI.UI.Components.Label.createLabel
+    "Bold"
+    Darklang.CLI.UI.Core.Types.Color.Default
+
+ let labelWithBold = { label with model = { label.model with bold = true } }
+ let context =
+  Darklang.CLI.UI.Core.Types.RenderContext
+    { availableWidth = 80L
+      availableHeight = 24L
+      hasFocus = false
+      theme = "default" }
+
+ Darklang.CLI.UI.Components.Label.renderLabel labelWithBold context) = [ "\u001b[1mBold\u001b[0m" ]
+
+// Test setLabelText
+(let label =
+  Darklang.CLI.UI.Components.Label.createLabel
+    "Old"
+    Darklang.CLI.UI.Core.Types.Color.Default
+
+ let updated = Darklang.CLI.UI.Components.Label.setLabelText label "New"
+ updated.model.text) = "New"
+
+// Test Divider creation
+(let divider =
+  Darklang.CLI.UI.Components.Divider.createDivider "-" 10L Darklang.CLI.UI.Core.Types.Color.Default
+
+ divider.model.length) = 10L
+
+// Test Divider rendering
+(let divider =
+  Darklang.CLI.UI.Components.Divider.createDivider
+    "─"
+    5L
+    Darklang.CLI.UI.Core.Types.Color.Default
+
+ let context =
+  Darklang.CLI.UI.Core.Types.RenderContext
+    { availableWidth = 80L
+      availableHeight = 24L
+      hasFocus = false
+      theme = "default" }
+
+ Darklang.CLI.UI.Components.Divider.renderDivider divider context) = [ "─────" ]
+
+// Test Divider with color
+(let divider =
+  Darklang.CLI.UI.Components.Divider.createDivider
+    "="
+    3L
+    Darklang.CLI.UI.Core.Types.Color.Primary
+
+ let context =
+  Darklang.CLI.UI.Core.Types.RenderContext
+    { availableWidth = 80L
+      availableHeight = 24L
+      hasFocus = false
+      theme = "default" }
+
+ Darklang.CLI.UI.Components.Divider.renderDivider divider context) = [ "\u001b[34m===\u001b[0m" ]
+
+// Test TextBlock creation
+(let textBlock =
+  Darklang.CLI.UI.Components.TextBlock.createTextBlock
+    [ "Line 1"; "Line 2" ]
+    Darklang.CLI.UI.Core.Types.Color.Default
+    Darklang.CLI.UI.Core.Types.Alignment.Left
+
+ Stdlib.List.length textBlock.model.lines) = 2L
+
+// Test TextBlock rendering with left alignment
+(let textBlock =
+  Darklang.CLI.UI.Components.TextBlock.createTextBlock
+    [ "Hi" ]
+    Darklang.CLI.UI.Core.Types.Color.Default
+    Darklang.CLI.UI.Core.Types.Alignment.Left
+
+ let context =
+  Darklang.CLI.UI.Core.Types.RenderContext
+    { availableWidth = 80L
+      availableHeight = 24L
+      hasFocus = false
+      theme = "default" }
+
+ Darklang.CLI.UI.Components.TextBlock.renderTextBlock textBlock context) = [ "Hi" ]
+
+// Test setTextBlockLines
+(let textBlock =
+  Darklang.CLI.UI.Components.TextBlock.createTextBlock
+    [ "Old" ]
+    Darklang.CLI.UI.Core.Types.Color.Default
+    Darklang.CLI.UI.Core.Types.Alignment.Left
+
+ let updated =
+  Darklang.CLI.UI.Components.TextBlock.setTextBlockLines textBlock [ "New1"; "New2" ]
+
+ Stdlib.List.length updated.model.lines) = 2L
