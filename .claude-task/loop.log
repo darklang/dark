@@ -1,6 +1,0 @@
-02:17:30 Starting Ralph loop (max 100 iterations)
-02:17:30 Iteration 1 - running Claude
-02:19:40 Claude exited, restarting in 2s...
-02:19:42 Iteration 2 - running Claude
-02:26:05 Task complete!
-02:26:05 Loop finished
