@@ -46,7 +46,7 @@ This spike adds basic regular expression support to Darklang. The implementation
 ## Remaining Work
 
 ### 6. Tests
-- [ ] Add F# tests for regex builtins (backend/tests)
+- [x] Add F# tests for regex builtins - NOT NEEDED (.dark tests sufficient)
 - [x] Add .dark tests for Stdlib.Regex functions (62 tests - already existed)
 - [x] Add comprehensive tests for parser combinator library (56 tests)
 - [x] Add tests for darklangParser (31 tests)
