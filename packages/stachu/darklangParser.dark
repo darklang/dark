@@ -1,0 +1,882 @@
+/// Full Darklang parser using parser combinators
+/// Attempts to parse the full PT.Expr structure
+module Stachu.DarklangParser
+
+// ============================================
+// AST Types (matching PT.Expr)
+// ============================================
+
+type Sign =
+  | Positive
+  | Negative
+
+type InfixOp =
+  | ArithmeticPlus
+  | ArithmeticMinus
+  | ArithmeticMultiply
+  | ArithmeticDivide
+  | ArithmeticModulo
+  | ArithmeticPower
+  | ComparisonGreaterThan
+  | ComparisonGreaterThanOrEqual
+  | ComparisonLessThan
+  | ComparisonLessThanOrEqual
+  | ComparisonEquals
+  | ComparisonNotEquals
+  | StringConcat
+  | BooleanAnd
+  | BooleanOr
+
+type StringSegment =
+  | StringText of String
+  | StringInterpolation of Expr
+
+type LetPattern =
+  | LPVariable of String
+  | LPUnit
+  | LPTuple of first: LetPattern * second: LetPattern * rest: List<LetPattern>
+
+type MatchPattern =
+  | MPVariable of String
+  | MPUnit
+  | MPBool of Bool
+  | MPInt64 of Int64
+  | MPFloat of Float
+  | MPString of String
+  | MPChar of String
+  | MPList of List<MatchPattern>
+  | MPListCons of head: MatchPattern * tail: MatchPattern
+  | MPTuple of first: MatchPattern * second: MatchPattern * rest: List<MatchPattern>
+  | MPEnum of typeName: String * caseName: String * fields: List<MatchPattern>
+
+type MatchCase =
+  { pattern: MatchPattern
+    whenCondition: Stdlib.Option.Option<Expr>
+    rhs: Expr }
+
+type QualifiedName =
+  { modules: List<String>
+    name: String }
+
+type TypeReference =
+  | TUnit
+  | TBool
+  | TInt8
+  | TUInt8
+  | TInt16
+  | TUInt16
+  | TInt32
+  | TUInt32
+  | TInt64
+  | TUInt64
+  | TInt128
+  | TUInt128
+  | TFloat
+  | TChar
+  | TString
+  | TList of TypeReference
+  | TTuple of first: TypeReference * second: TypeReference * rest: List<TypeReference>
+  | TDict of TypeReference
+  | TCustomType of QualifiedName * typeArgs: List<TypeReference>
+  | TVariable of String
+  | TFn of args: List<TypeReference> * ret: TypeReference
+
+type Expr =
+  // Literals
+  | EUnit
+  | EBool of Bool
+  | EInt8 of Int8
+  | EUInt8 of UInt8
+  | EInt16 of Int16
+  | EUInt16 of UInt16
+  | EInt32 of Int32
+  | EUInt32 of UInt32
+  | EInt64 of Int64
+  | EUInt64 of UInt64
+  | EInt128 of Int128
+  | EUInt128 of UInt128
+  | EFloat of sign: Sign * whole: String * fractional: String
+  | EChar of String
+  | EString of List<StringSegment>
+
+  // Variables and references
+  | EVariable of String
+  | EFnName of QualifiedName
+  | EValue of QualifiedName
+
+  // Control flow
+  | EIf of cond: Expr * thenExpr: Expr * elseExpr: Stdlib.Option.Option<Expr>
+  | EMatch of arg: Expr * cases: List<MatchCase>
+  | ELet of pattern: LetPattern * value: Expr * body: Expr
+
+  // Data structures
+  | EList of List<Expr>
+  | EDict of List<(String * Expr)>
+  | ETuple of first: Expr * second: Expr * rest: List<Expr>
+
+  // Records and Enums
+  | ERecord of typeName: QualifiedName * fields: List<(String * Expr)>
+  | ERecordFieldAccess of record: Expr * fieldName: String
+  | ERecordUpdate of record: Expr * updates: List<(String * Expr)>
+  | EEnum of typeName: QualifiedName * caseName: String * fields: List<Expr>
+
+  // Functions
+  | EApply of fn: Expr * typeArgs: List<TypeReference> * args: List<Expr>
+  | ELambda of pats: List<LetPattern> * body: Expr
+  | EInfix of op: InfixOp * left: Expr * right: Expr
+
+  // Pipe
+  | EPipe of expr: Expr * parts: List<PipeExpr>
+
+  // Statement (sequential expressions)
+  | EStatement of first: Expr * next: Expr
+
+type PipeExpr =
+  | PipeLambda of pats: List<LetPattern> * body: Expr
+  | PipeInfix of op: InfixOp * right: Expr
+  | PipeFnCall of fn: QualifiedName * args: List<Expr>
+  | PipeEnum of typeName: QualifiedName * caseName: String * fields: List<Expr>
+
+
+// ============================================
+// Parser type alias
+// ============================================
+type P<'a> = Parser.Parser<'a>
+
+
+// ============================================
+// Basic helpers
+// ============================================
+
+let ws () : P<String> = Parser.optionalWhitespace ()
+
+let ws1 () : P<String> = Parser.whitespace ()
+
+let keyword (kw: String) : P<String> =
+  Parser.keepLeft (Parser.string kw) (ws ())
+
+let symbol (s: String) : P<String> =
+  Parser.keepLeft (Parser.string s) (ws ())
+
+let symbolNoWs (s: String) : P<String> = Parser.string s
+
+
+// ============================================
+// Identifier parsers
+// ============================================
+
+/// Variable/function identifier: starts with lowercase
+let variableIdentifier () : P<String> =
+  Parser.regex "[a-z_][a-zA-Z0-9_']*"
+
+/// Type/Module identifier: starts with uppercase
+let typeIdentifier () : P<String> =
+  Parser.regex "[A-Z][a-zA-Z0-9_]*"
+
+/// Enum case identifier: starts with uppercase
+let enumCaseIdentifier () : P<String> =
+  Parser.regex "[A-Z][a-zA-Z0-9_]*"
+
+
+// ============================================
+// Qualified name parser
+// ============================================
+
+/// Parse a qualified name like Stdlib.List.map or MyModule.MyType
+let qualifiedName () : P<QualifiedName> =
+  Parser.map
+    (fun parts ->
+      let allParts = parts
+
+      match Stdlib.List.length allParts with
+      | 0L -> QualifiedName { modules = []; name = "" }
+      | 1L ->
+        match Stdlib.List.head allParts with
+        | Some name -> QualifiedName { modules = []; name = name }
+        | None -> QualifiedName { modules = []; name = "" }
+      | _ ->
+        let reversed = Stdlib.List.reverse allParts
+        let name = Builtin.unwrap (Stdlib.List.head reversed)
+        let modulesReversed = Builtin.unwrap (Stdlib.List.tail reversed)
+        let modules = Stdlib.List.reverse modulesReversed
+        QualifiedName { modules = modules; name = name })
+    (Parser.sepBy1
+      (Parser.orElse (typeIdentifier ()) (variableIdentifier ()))
+      (symbolNoWs "."))
+
+
+// ============================================
+// Literal parsers
+// ============================================
+
+let unitLiteral () : P<Expr> =
+  Parser.map (fun _ -> Expr.EUnit) (Parser.string "()")
+
+let boolLiteral () : P<Expr> =
+  Parser.orElse
+    (Parser.map (fun _ -> Expr.EBool true) (Parser.string "true"))
+    (Parser.map (fun _ -> Expr.EBool false) (Parser.string "false"))
+
+// Integer literals with suffixes
+let int8Literal () : P<Expr> =
+  Parser.map
+    (fun result ->
+      let (digits, _) = result
+      let n = Builtin.unwrap (Stdlib.Int8.parse digits)
+      Expr.EInt8 n)
+    (Parser.andThen (Parser.regex "-?[0-9]+") (symbolNoWs "y"))
+
+let uint8Literal () : P<Expr> =
+  Parser.map
+    (fun result ->
+      let (digits, _) = result
+      let n = Builtin.unwrap (Stdlib.UInt8.parse digits)
+      Expr.EUInt8 n)
+    (Parser.andThen (Parser.regex "[0-9]+") (symbolNoWs "uy"))
+
+let int16Literal () : P<Expr> =
+  Parser.map
+    (fun result ->
+      let (digits, _) = result
+      let n = Builtin.unwrap (Stdlib.Int16.parse digits)
+      Expr.EInt16 n)
+    (Parser.andThen (Parser.regex "-?[0-9]+") (symbolNoWs "s"))
+
+let uint16Literal () : P<Expr> =
+  Parser.map
+    (fun result ->
+      let (digits, _) = result
+      let n = Builtin.unwrap (Stdlib.UInt16.parse digits)
+      Expr.EUInt16 n)
+    (Parser.andThen (Parser.regex "[0-9]+") (symbolNoWs "us"))
+
+let int32Literal () : P<Expr> =
+  Parser.map
+    (fun result ->
+      let (digits, _) = result
+      let n = Builtin.unwrap (Stdlib.Int32.parse digits)
+      Expr.EInt32 n)
+    (Parser.andThen (Parser.regex "-?[0-9]+") (symbolNoWs "l"))
+
+let uint32Literal () : P<Expr> =
+  Parser.map
+    (fun result ->
+      let (digits, _) = result
+      let n = Builtin.unwrap (Stdlib.UInt32.parse digits)
+      Expr.EUInt32 n)
+    (Parser.andThen (Parser.regex "[0-9]+") (symbolNoWs "ul"))
+
+let int64Literal () : P<Expr> =
+  Parser.map
+    (fun result ->
+      let (digits, _) = result
+      let n = Builtin.unwrap (Stdlib.Int64.parse digits)
+      Expr.EInt64 n)
+    (Parser.andThen (Parser.regex "-?[0-9]+") (symbolNoWs "L"))
+
+let uint64Literal () : P<Expr> =
+  Parser.map
+    (fun result ->
+      let (digits, _) = result
+      let n = Builtin.unwrap (Stdlib.UInt64.parse digits)
+      Expr.EUInt64 n)
+    (Parser.andThen (Parser.regex "[0-9]+") (symbolNoWs "UL"))
+
+let int128Literal () : P<Expr> =
+  Parser.map
+    (fun result ->
+      let (digits, _) = result
+      let n = Builtin.unwrap (Stdlib.Int128.parse digits)
+      Expr.EInt128 n)
+    (Parser.andThen (Parser.regex "-?[0-9]+") (symbolNoWs "Q"))
+
+let uint128Literal () : P<Expr> =
+  Parser.map
+    (fun result ->
+      let (digits, _) = result
+      let n = Builtin.unwrap (Stdlib.UInt128.parse digits)
+      Expr.EUInt128 n)
+    (Parser.andThen (Parser.regex "[0-9]+") (symbolNoWs "Z"))
+
+let floatLiteral () : P<Expr> =
+  Parser.map
+    (fun s ->
+      let hasSign = Stdlib.String.startsWith s "-"
+
+      let sign =
+        if hasSign then
+          Sign.Negative
+        else
+          Sign.Positive
+
+      let withoutSign =
+        if hasSign then
+          Stdlib.String.dropFirst s 1L
+        else
+          s
+
+      let parts = Stdlib.String.split withoutSign "."
+
+      let whole =
+        Stdlib.Option.withDefault (Stdlib.List.head parts) ""
+
+      let tail = Stdlib.Option.withDefault (Stdlib.List.tail parts) []
+      let fractional = Stdlib.Option.withDefault (Stdlib.List.head tail) "0"
+
+      Expr.EFloat(sign, whole, fractional))
+    (Parser.regex "-?[0-9]+\\.[0-9]+")
+
+let charLiteral () : P<Expr> =
+  Parser.map
+    (fun result ->
+      let (_, (content, _)) = result
+      Expr.EChar content)
+    (Parser.andThen
+      (symbolNoWs "'")
+      (Parser.andThen (Parser.regex "[^'\\\\]|\\\\[nrt'\\\\]") (symbolNoWs "'")))
+
+let stringLiteral () : P<Expr> =
+  Parser.map
+    (fun result ->
+      let (_, (content, _)) = result
+      Expr.EString [ StringSegment.StringText content ])
+    (Parser.andThen
+      (symbolNoWs "\"")
+      (Parser.andThen
+        (Parser.regex "[^\"\\\\]*(?:\\\\.[^\"\\\\]*)*")
+        (symbolNoWs "\"")))
+
+/// All literals in order of specificity (longer suffixes first)
+let literal () : P<Expr> =
+  Parser.choice
+    [ unitLiteral ()
+      boolLiteral ()
+      // Unsigned before signed (uy before y, etc.)
+      uint128Literal ()
+      int128Literal ()
+      uint64Literal ()
+      int64Literal ()
+      uint32Literal ()
+      int32Literal ()
+      uint16Literal ()
+      int16Literal ()
+      uint8Literal ()
+      int8Literal ()
+      floatLiteral ()
+      charLiteral ()
+      stringLiteral () ]
+
+
+// ============================================
+// Variable and reference parsers
+// ============================================
+
+let variable () : P<Expr> =
+  Parser.map (fun name -> Expr.EVariable name) (variableIdentifier ())
+
+/// Parse a qualified function/value reference
+/// Must end with a lowercase identifier (function/value name)
+/// Examples: Stdlib.List.map, MyModule.value
+let qualifiedFnRef () : P<Expr> =
+  Parser.map
+    (fun result ->
+      let (modules, name) = result
+      Expr.EFnName(QualifiedName { modules = modules; name = name }))
+    (Parser.andThen
+      (Parser.many1 (Parser.keepLeft (typeIdentifier ()) (symbolNoWs ".")))
+      (variableIdentifier ()))
+
+
+// ============================================
+// List parser
+// ============================================
+
+let listLiteral (exprParser: P<Expr>) : P<Expr> =
+  Parser.map
+    (fun items -> Expr.EList items)
+    (Parser.between
+      (Parser.keepRight (symbolNoWs "[") (ws ()))
+      (Parser.keepRight (ws ()) (symbolNoWs "]"))
+      (Parser.sepBy
+        exprParser
+        (Parser.orElse
+          (Parser.keepRight (ws ()) (Parser.keepLeft (symbolNoWs ";") (ws ())))
+          (ws1 ()))))
+
+
+// ============================================
+// Tuple parser
+// ============================================
+
+let tupleLiteral (exprParser: P<Expr>) : P<Expr> =
+  Parser.map
+    (fun result ->
+      let (_, (first, (_, (second, (rest, _))))) = result
+
+      Expr.ETuple(first, second, rest))
+    (Parser.andThen
+      (symbolNoWs "(")
+      (Parser.andThen
+        exprParser
+        (Parser.andThen
+          (Parser.keepRight (ws ()) (Parser.keepLeft (symbolNoWs ",") (ws ())))
+          (Parser.andThen
+            exprParser
+            (Parser.andThen
+              (Parser.many
+                (Parser.keepRight
+                  (Parser.keepRight
+                    (ws ())
+                    (Parser.keepLeft (symbolNoWs ",") (ws ())))
+                  exprParser))
+              (Parser.keepRight (ws ()) (symbolNoWs ")")))))))
+
+
+// ============================================
+// Dict parser
+// ============================================
+
+let dictPair (exprParser: P<Expr>) : P<(String * Expr)> =
+  Parser.map
+    (fun result ->
+      let (key, (_, value)) = result
+      (key, value))
+    (Parser.andThen
+      (variableIdentifier ())
+      (Parser.andThen
+        (Parser.keepRight (ws ()) (Parser.keepLeft (symbolNoWs "=") (ws ())))
+        exprParser))
+
+let dictLiteral (exprParser: P<Expr>) : P<Expr> =
+  Parser.map
+    (fun result ->
+      let (_, pairs) = result
+      Expr.EDict pairs)
+    (Parser.andThen
+      (Parser.keepLeft (keyword "Dict") (symbolNoWs "{"))
+      (Parser.keepLeft
+        (Parser.keepRight
+          (ws ())
+          (Parser.sepBy
+            (dictPair exprParser)
+            (Parser.keepRight (ws ()) (Parser.keepLeft (symbolNoWs ";") (ws ())))))
+        (Parser.keepRight (ws ()) (symbolNoWs "}"))))
+
+
+// ============================================
+// Record parser
+// ============================================
+
+let recordPair (exprParser: P<Expr>) : P<(String * Expr)> =
+  Parser.map
+    (fun result ->
+      let (field, (_, value)) = result
+      (field, value))
+    (Parser.andThen
+      (variableIdentifier ())
+      (Parser.andThen
+        (Parser.keepRight (ws ()) (Parser.keepLeft (symbolNoWs "=") (ws ())))
+        exprParser))
+
+let recordLiteral (exprParser: P<Expr>) : P<Expr> =
+  Parser.map
+    (fun result ->
+      let (typeName, (_, (fields, _))) = result
+      Expr.ERecord(typeName, fields))
+    (Parser.andThen
+      (qualifiedName ())
+      (Parser.andThen
+        (Parser.keepRight (ws ()) (symbolNoWs "{"))
+        (Parser.andThen
+          (Parser.keepRight
+            (ws ())
+            (Parser.sepBy
+              (recordPair exprParser)
+              (Parser.keepRight
+                (ws ())
+                (Parser.keepLeft (symbolNoWs ";") (ws ())))))
+          (Parser.keepRight (ws ()) (symbolNoWs "}")))))
+
+
+// ============================================
+// Enum parser
+// ============================================
+
+/// Parse an enum literal: TypeName.CaseName or Module.TypeName.CaseName
+/// The key challenge is that both TypeName and CaseName start with uppercase
+/// We parse TypeName, then `.`, then CaseName
+let enumLiteral (exprParser: P<Expr>) : P<Expr> =
+  Parser.map
+    (fun result ->
+      let ((firstPart, restParts), fields) = result
+      let allParts = Stdlib.List.append [ firstPart ] restParts
+      // Last part is case name, everything before is type path
+      let reversed = Stdlib.List.reverse allParts
+      let caseName = Stdlib.Option.withDefault (Stdlib.List.head reversed) ""
+      let typePartsReversed = Stdlib.Option.withDefault (Stdlib.List.tail reversed) []
+      let typeParts = Stdlib.List.reverse typePartsReversed
+      // Construct the type name from remaining parts
+      let typeName =
+        match Stdlib.List.length typeParts with
+        | 0L -> QualifiedName { modules = []; name = "" }
+        | 1L ->
+          let name = Stdlib.Option.withDefault (Stdlib.List.head typeParts) ""
+          QualifiedName { modules = []; name = name }
+        | _ ->
+          let reversed2 = Stdlib.List.reverse typeParts
+          let name = Stdlib.Option.withDefault (Stdlib.List.head reversed2) ""
+          let modulesReversed = Stdlib.Option.withDefault (Stdlib.List.tail reversed2) []
+          let modules = Stdlib.List.reverse modulesReversed
+          QualifiedName { modules = modules; name = name }
+      Expr.EEnum(typeName, caseName, fields))
+    (Parser.andThen
+      // First part of Type.Case (requires exactly this pattern)
+      (Parser.andThen
+        (typeIdentifier ())
+        (Parser.many1
+          (Parser.keepRight (symbolNoWs ".") (typeIdentifier ()))))
+      (Parser.orElse
+        (Parser.map
+          (fun result ->
+            let (_, (args, _)) = result
+            args)
+          (Parser.andThen
+            (symbolNoWs "(")
+            (Parser.andThen
+              (Parser.sepBy
+                exprParser
+                (Parser.keepRight
+                  (ws ())
+                  (Parser.keepLeft (symbolNoWs ",") (ws ()))))
+              (symbolNoWs ")"))))
+        (Parser.succeed [])))
+
+
+// ============================================
+// If expression
+// ============================================
+
+let ifExpr (exprParser: P<Expr>) : P<Expr> =
+  Parser.map
+    (fun result ->
+      let (_, (cond, (_, (thenExpr, elseExprOpt)))) = result
+      Expr.EIf(cond, thenExpr, elseExprOpt))
+    (Parser.andThen
+      (keyword "if")
+      (Parser.andThen
+        exprParser
+        (Parser.andThen
+          (Parser.keepRight (ws ()) (keyword "then"))
+          (Parser.andThen
+            exprParser
+            (Parser.optional
+              (Parser.keepRight
+                (Parser.keepRight (ws ()) (keyword "else"))
+                exprParser))))))
+
+
+// ============================================
+// Let expression
+// ============================================
+
+let letPattern () : P<LetPattern> =
+  Parser.choice
+    [ Parser.map (fun _ -> LetPattern.LPUnit) (Parser.string "()")
+      Parser.map (fun name -> LetPattern.LPVariable name) (variableIdentifier ()) ]
+
+let letExpr (exprParser: P<Expr>) : P<Expr> =
+  Parser.map
+    (fun result ->
+      let (_, (pattern, (_, (value, (_, body))))) = result
+      Expr.ELet(pattern, value, body))
+    (Parser.andThen
+      (keyword "let")
+      (Parser.andThen
+        (Parser.keepLeft (letPattern ()) (ws ()))
+        (Parser.andThen
+          (Parser.keepLeft (symbolNoWs "=") (ws ()))
+          (Parser.andThen
+            exprParser
+            (Parser.andThen (ws1 ()) exprParser)))))
+
+
+// ============================================
+// Lambda expression
+// ============================================
+
+let lambdaExpr (exprParser: P<Expr>) : P<Expr> =
+  Parser.map
+    (fun result ->
+      let (_, (pats, (_, body))) = result
+      Expr.ELambda(pats, body))
+    (Parser.andThen
+      (keyword "fun")
+      (Parser.andThen
+        (Parser.many1 (Parser.keepLeft (letPattern ()) (ws ())))
+        (Parser.andThen (Parser.keepLeft (symbolNoWs "->") (ws ())) exprParser)))
+
+
+// ============================================
+// Match expression
+// ============================================
+
+let matchPattern () : P<MatchPattern> =
+  Parser.choice
+    [ Parser.map (fun _ -> MatchPattern.MPUnit) (Parser.string "()")
+      Parser.map (fun _ -> MatchPattern.MPBool true) (Parser.string "true")
+      Parser.map (fun _ -> MatchPattern.MPBool false) (Parser.string "false")
+      Parser.map
+        (fun result ->
+          let (digits, _) = result
+          let n = Builtin.unwrap (Stdlib.Int64.parse digits)
+          MatchPattern.MPInt64 n)
+        (Parser.andThen (Parser.regex "-?[0-9]+") (symbolNoWs "L"))
+      Parser.map
+        (fun result ->
+          let (_, (content, _)) = result
+          MatchPattern.MPString content)
+        (Parser.andThen
+          (symbolNoWs "\"")
+          (Parser.andThen
+            (Parser.regex "[^\"\\\\]*(?:\\\\.[^\"\\\\]*)*")
+            (symbolNoWs "\"")))
+      Parser.map
+        (fun name -> MatchPattern.MPVariable name)
+        (variableIdentifier ()) ]
+
+let matchCase (exprParser: P<Expr>) : P<MatchCase> =
+  Parser.map
+    (fun result ->
+      let (_, (pattern, (whenCond, (_, rhs)))) = result
+
+      MatchCase
+        { pattern = pattern
+          whenCondition = whenCond
+          rhs = rhs })
+    (Parser.andThen
+      (Parser.keepRight (ws ()) (Parser.keepLeft (symbolNoWs "|") (ws ())))
+      (Parser.andThen
+        (matchPattern ())
+        (Parser.andThen
+          (Parser.optional
+            (Parser.keepRight (Parser.keepRight (ws ()) (keyword "when")) exprParser))
+          (Parser.andThen
+            (Parser.keepRight (ws ()) (Parser.keepLeft (symbolNoWs "->") (ws ())))
+            exprParser))))
+
+let matchExpr (exprParser: P<Expr>) : P<Expr> =
+  Parser.map
+    (fun result ->
+      let (_, (arg, (_, cases))) = result
+      Expr.EMatch(arg, cases))
+    (Parser.andThen
+      (keyword "match")
+      (Parser.andThen
+        exprParser
+        (Parser.andThen (Parser.keepRight (ws ()) (keyword "with")) (Parser.many1 (matchCase exprParser)))))
+
+
+// ============================================
+// Field access
+// ============================================
+
+let fieldAccess (baseExpr: P<Expr>) : P<Expr> =
+  Parser.map
+    (fun result ->
+      let (expr, fields) = result
+
+      Stdlib.List.fold fields expr (fun acc field -> Expr.ERecordFieldAccess(acc, field)))
+    (Parser.andThen
+      baseExpr
+      (Parser.many
+        (Parser.keepRight (symbolNoWs ".") (variableIdentifier ()))))
+
+
+// ============================================
+// Function application
+// ============================================
+
+let fnApplication (atomParser: P<Expr>) : P<Expr> =
+  Parser.map
+    (fun result ->
+      let (fn, args) = result
+
+      match Stdlib.List.length args with
+      | 0L -> fn
+      | _ -> Expr.EApply(fn, [], args))
+    (Parser.andThen atomParser (Parser.many (Parser.keepRight (ws1 ()) atomParser)))
+
+
+// ============================================
+// Infix operators with precedence
+// ============================================
+
+// Precedence levels (higher = binds tighter)
+// 6: ^ (power)
+// 5: * / %
+// 4: + -
+// 3: ++ (string concat)
+// 2: == != < <= > >=
+// 1: &&
+// 0: ||
+
+let infixOp () : P<InfixOp> =
+  Parser.choice
+    [ Parser.map (fun _ -> InfixOp.BooleanOr) (symbolNoWs "||")
+      Parser.map (fun _ -> InfixOp.BooleanAnd) (symbolNoWs "&&")
+      Parser.map (fun _ -> InfixOp.ComparisonEquals) (symbolNoWs "==")
+      Parser.map (fun _ -> InfixOp.ComparisonNotEquals) (symbolNoWs "!=")
+      Parser.map (fun _ -> InfixOp.ComparisonLessThanOrEqual) (symbolNoWs "<=")
+      Parser.map (fun _ -> InfixOp.ComparisonGreaterThanOrEqual) (symbolNoWs ">=")
+      Parser.map (fun _ -> InfixOp.ComparisonLessThan) (symbolNoWs "<")
+      Parser.map (fun _ -> InfixOp.ComparisonGreaterThan) (symbolNoWs ">")
+      Parser.map (fun _ -> InfixOp.StringConcat) (symbolNoWs "++")
+      Parser.map (fun _ -> InfixOp.ArithmeticPower) (symbolNoWs "^")
+      Parser.map (fun _ -> InfixOp.ArithmeticMultiply) (symbolNoWs "*")
+      Parser.map (fun _ -> InfixOp.ArithmeticDivide) (symbolNoWs "/")
+      Parser.map (fun _ -> InfixOp.ArithmeticModulo) (symbolNoWs "%")
+      Parser.map (fun _ -> InfixOp.ArithmeticPlus) (symbolNoWs "+")
+      Parser.map (fun _ -> InfixOp.ArithmeticMinus) (symbolNoWs "-") ]
+
+/// Simple infix parser (left-associative, no precedence)
+/// For proper precedence, would need Pratt parsing
+let infixExpr (atomParser: P<Expr>) : P<Expr> =
+  Parser.map
+    (fun result ->
+      let (first, rest) = result
+
+      Stdlib.List.fold rest first (fun acc opAndExpr ->
+        let (op, expr) = opAndExpr
+        Expr.EInfix(op, acc, expr)))
+    (Parser.andThen
+      atomParser
+      (Parser.many
+        (Parser.andThen
+          (Parser.keepRight (ws ()) (Parser.keepLeft (infixOp ()) (ws ())))
+          atomParser)))
+
+
+// ============================================
+// Pipe expression
+// ============================================
+
+let pipeExpr (exprParser: P<Expr>) (atomParser: P<Expr>) : P<Expr> =
+  let pipePart =
+    Parser.choice
+      [ // Pipe lambda: |> fun x -> ...
+        Parser.map
+          (fun result ->
+            let (_, (pats, (_, body))) = result
+            PipeExpr.PipeLambda(pats, body))
+          (Parser.andThen
+            (keyword "fun")
+            (Parser.andThen
+              (Parser.many1 (Parser.keepLeft (letPattern ()) (ws ())))
+              (Parser.andThen
+                (Parser.keepLeft (symbolNoWs "->") (ws ()))
+                exprParser)))
+        // Pipe infix: |> (+) 1
+        Parser.map
+          (fun result ->
+            let (_, (op, (_, right))) = result
+            PipeExpr.PipeInfix(op, right))
+          (Parser.andThen
+            (symbolNoWs "(")
+            (Parser.andThen
+              (infixOp ())
+              (Parser.andThen (symbolNoWs ")") (Parser.keepRight (ws ()) atomParser))))
+        // Pipe fn call: |> Stdlib.List.map fn
+        Parser.map
+          (fun result ->
+            let (fn, args) = result
+            PipeExpr.PipeFnCall(fn, args))
+          (Parser.andThen
+            (qualifiedName ())
+            (Parser.many (Parser.keepRight (ws ()) atomParser))) ]
+
+  Parser.map
+    (fun result ->
+      let (expr, parts) = result
+
+      match Stdlib.List.length parts with
+      | 0L -> expr
+      | _ -> Expr.EPipe(expr, parts))
+    (Parser.andThen
+      exprParser
+      (Parser.many
+        (Parser.keepRight
+          (Parser.keepRight (ws ()) (Parser.keepLeft (symbolNoWs "|>") (ws ())))
+          pipePart)))
+
+
+// ============================================
+// Parenthesized expression
+// ============================================
+
+let parenExpr (exprParser: P<Expr>) : P<Expr> =
+  Parser.between
+    (Parser.keepRight (symbolNoWs "(") (ws ()))
+    (Parser.keepRight (ws ()) (symbolNoWs ")"))
+    exprParser
+
+
+// ============================================
+// Main expression parser
+// ============================================
+
+/// Forward declaration for recursive grammar
+/// We use deferred to break the infinite recursion
+let exprLazy () : P<Expr> = Parser.deferred (fun () -> expr ())
+
+/// Atom: smallest unit of expression
+let atom () : P<Expr> =
+  Parser.choice
+    [ literal ()
+      parenExpr (exprLazy ())
+      listLiteral (exprLazy ())
+      dictLiteral (exprLazy ())
+      tupleLiteral (exprLazy ())
+      recordLiteral (exprLazy ())
+      // qualifiedFnRef must come before enumLiteral to parse Stdlib.List.map correctly
+      qualifiedFnRef ()
+      enumLiteral (exprLazy ())
+      variable () ]
+
+/// Simple expression: atoms with field access
+let simpleExpr () : P<Expr> = fieldAccess (atom ())
+
+/// Expression with operators
+let exprWithOps () : P<Expr> = infixExpr (simpleExpr ())
+
+/// Full expression
+let expr () : P<Expr> =
+  Parser.choice
+    [ letExpr (exprLazy ())
+      ifExpr (exprLazy ())
+      matchExpr (exprLazy ())
+      lambdaExpr (exprLazy ())
+      pipeExpr (exprWithOps ()) (simpleExpr ())
+      exprWithOps () ]
+
+
+// ============================================
+// Top-level parsers
+// ============================================
+
+/// Parse a string into an Expr
+let parse (input: String) : Parser.ParseResult<Expr> =
+  Parser.parse (Parser.keepLeft (expr ()) (ws ())) input
+
+/// Parse and return a string representation
+let parseToString (input: String) : String =
+  match parse input with
+  | Success(expr, remaining) ->
+    if remaining == "" then
+      "Parsed: " ++ (Builtin.jsonSerialize<Expr> expr)
+    else
+      "Parsed with remaining: "
+      ++ (Builtin.jsonSerialize<Expr> expr)
+      ++ " | remaining: \""
+      ++ remaining
+      ++ "\""
+  | Failure error -> "Parse error: " ++ error
