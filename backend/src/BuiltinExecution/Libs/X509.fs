@@ -26,7 +26,7 @@ let fns : List<BuiltInFn> =
         (function
         | _, _, _, [ DString certString ] ->
           try
-            let cert = new X509Certificate2(UTF8.toBytes certString)
+            let cert = X509CertificateLoader.LoadCertificate(UTF8.toBytes certString)
             // Workaround to support ECC certs
             // https://www.pkisolutions.com/accessing-and-using-certificate-private-keys-in-net-framework-net-core/
             let publicKey : AsymmetricAlgorithm =
