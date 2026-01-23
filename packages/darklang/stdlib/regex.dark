@@ -1,0 +1,34 @@
+module Darklang.Stdlib.Regex
+
+
+/// Tests if <param input> matches the regex <param pattern>.
+/// Returns {{true}} if a match is found, {{false}} otherwise.
+let isMatch (input: String) (pattern: String) : Bool =
+  Builtin.regexIsMatch input pattern
+
+
+/// Finds the first match of the regex <param pattern> in <param input>.
+/// Returns {{Some match}} if found, {{None}} otherwise.
+let find (input: String) (pattern: String) : Stdlib.Option.Option<String> =
+  Builtin.regexFind input pattern
+
+
+/// Finds all matches of the regex <param pattern> in <param input>.
+/// Returns a list of matched strings.
+let findAll (input: String) (pattern: String) : List<String> =
+  Builtin.regexFindAll input pattern
+
+
+/// Replaces the first match of the regex <param pattern> in <param input> with <param replacement>.
+let replace (input: String) (pattern: String) (replacement: String) : String =
+  Builtin.regexReplace input pattern replacement
+
+
+/// Replaces all matches of the regex <param pattern> in <param input> with <param replacement>.
+let replaceAll (input: String) (pattern: String) (replacement: String) : String =
+  Builtin.regexReplaceAll input pattern replacement
+
+
+/// Splits <param input> by the regex <param pattern>, returning a list of strings.
+let split (input: String) (pattern: String) : List<String> =
+  Builtin.regexSplit input pattern

@@ -1,0 +1,161 @@
+/// A tiny programming language parser using the parser combinator library
+module Stachu.TinyLang
+// ============================================
+// AST Types (simplified PT.Expr)
+// ============================================
+
+type BinOp =
+  | Add
+  | Sub
+  | Mul
+  | Div
+
+type Expr =
+  | EInt of Int64
+  | EBool of Bool
+  | EVar of String
+  | EBinOp of left: Expr * op: BinOp * right: Expr
+  | EIf of cond: Expr * thenExpr: Expr * elseExpr: Expr
+  | ELet of name: String * value: Expr * body: Expr
+  | EList of List<Expr>
+
+
+// ============================================
+// Parser helpers
+// ============================================
+
+/// Skip optional whitespace
+let ws () : Parser.Parser<String> =
+  Parser.optionalWhitespace ()
+
+/// Parse a keyword followed by whitespace
+let keyword (kw: String) : Parser.Parser<String> =
+  Parser.keepLeft (Parser.string kw) (ws ())
+
+
+// ============================================
+// Literal parsers
+// ============================================
+
+/// Parse an integer literal
+let intLiteral () : Parser.Parser<Expr> =
+  Parser.map (fun n -> Expr.EInt n) (Parser.int64 ())
+
+/// Parse a boolean literal
+let boolLiteral () : Parser.Parser<Expr> =
+  let parseTrue =
+    Parser.map (fun _ -> Expr.EBool true) (Parser.string "true")
+
+  let parseFalse =
+    Parser.map (fun _ -> Expr.EBool false) (Parser.string "false")
+
+  Parser.orElse parseTrue parseFalse
+
+/// Parse a variable name (identifier)
+let varName () : Parser.Parser<String> =
+  Parser.regex "[a-z][a-zA-Z0-9_]*"
+
+/// Parse a variable reference
+let varExpr () : Parser.Parser<Expr> =
+  Parser.map (fun name -> Expr.EVar name) (varName ())
+
+
+// ============================================
+// Operator parsers
+// ============================================
+
+let addOp () : Parser.Parser<BinOp> =
+  Parser.map (fun _ -> BinOp.Add) (Parser.string "+")
+
+let subOp () : Parser.Parser<BinOp> =
+  Parser.map (fun _ -> BinOp.Sub) (Parser.string "-")
+
+let mulOp () : Parser.Parser<BinOp> =
+  Parser.map (fun _ -> BinOp.Mul) (Parser.string "*")
+
+let divOp () : Parser.Parser<BinOp> =
+  Parser.map (fun _ -> BinOp.Div) (Parser.string "/")
+
+let binOp () : Parser.Parser<BinOp> =
+  Parser.choice [ addOp (); subOp (); mulOp (); divOp () ]
+
+
+// ============================================
+// Expression parsers
+// ============================================
+
+/// Parse a simple atom (int, bool, or var)
+let atom () : Parser.Parser<Expr> =
+  Parser.choice [ intLiteral (); boolLiteral (); varExpr () ]
+
+/// Parse a binary expression: atom op atom
+let binExpr () : Parser.Parser<Expr> =
+  Parser.map
+    (fun result ->
+      let (left, (op, right)) = result
+      Expr.EBinOp(left, op, right))
+    (Parser.andThen
+      (atom ())
+      (Parser.andThen
+        (Parser.between (ws ()) (ws ()) (binOp ()))
+        (atom ())))
+
+/// Parse a list of expressions: [expr, expr, ...]
+let listExpr (itemParser: Parser.Parser<Expr>) : Parser.Parser<Expr> =
+  Parser.map
+    (fun items -> Expr.EList items)
+    (Parser.between
+      (Parser.keepRight (Parser.string "[") (ws ()))
+      (Parser.keepRight (ws ()) (Parser.string "]"))
+      (Parser.sepBy
+        itemParser
+        (Parser.between (ws ()) (ws ()) (Parser.string ","))))
+
+/// Parse a let expression: let name = expr
+let letExpr (valueParser: Parser.Parser<Expr>) : Parser.Parser<Expr> =
+  Parser.map
+    (fun result ->
+      let (_, (name, (_, value))) = result
+      // For simplicity, body is just the value (no "in" clause)
+      Expr.ELet(name, value, Expr.EInt 0L))
+    (Parser.andThen
+      (keyword "let")
+      (Parser.andThen
+        (Parser.keepLeft (varName ()) (ws ()))
+        (Parser.andThen
+          (Parser.keepLeft (Parser.string "=") (ws ()))
+          valueParser)))
+
+/// Parse any expression
+let expr () : Parser.Parser<Expr> =
+  Parser.choice
+    [ letExpr (listExpr (boolLiteral ()))
+      letExpr (listExpr (intLiteral ()))
+      letExpr (atom ())
+      binExpr ()
+      listExpr (boolLiteral ())
+      listExpr (intLiteral ())
+      atom () ]
+
+
+// ============================================
+// Main parse function
+// ============================================
+
+/// Parse a string into an Expr
+let parse (input: String) : Parser.ParseResult<Expr> =
+  Parser.parse (expr ()) input
+
+/// Parse and return a string representation
+let parseToString (input: String) : String =
+  match parse input with
+  | Success(expr, remaining) ->
+    if remaining == "" then
+      "Parsed: " ++ (Builtin.jsonSerialize<Expr> expr)
+    else
+      "Parsed with remaining: "
+      ++ (Builtin.jsonSerialize<Expr> expr)
+      ++ " | remaining: \""
+      ++ remaining
+      ++ "\""
+  | Failure error -> "Parse error: " ++ error
