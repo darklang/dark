@@ -14,14 +14,14 @@ Hello back
 
 [test]
 (let response = (Darklang.Stdlib.HttpClient.request "get" "http://URL?q=5#row=5-👨‍👩‍👧‍👦" [] []) |> Builtin.unwrap
- let respHeaders = response.headers |> Darklang.Stdlib.List.filter (fun h -> Darklang.Stdlib.Tuple2.first h != "date")
+ let respHeaders = response.headers |> Darklang.Stdlib.List.filter (fun h -> (Darklang.Stdlib.Tuple2.first h) != "date")
  {response with headers = respHeaders}) ==
    Darklang.Stdlib.HttpClient.Response
     { statusCode = 200L
       headers =
         [
+          ("server", "kestrel")
           ("content-length", "LENGTH")
           ("content-type", "text/plain; charset=utf-8")
-          ("server", "kestrel")
         ]
       body = "Hello back" |> Darklang.Stdlib.String.toBytes}

@@ -15,7 +15,7 @@ Hello back
 
 [test]
 (let response = (Darklang.Stdlib.HttpClient.request "get" "http://user:password@URL" [] []) |> Builtin.unwrap
- let respHeaders = response.headers |> Darklang.Stdlib.List.filter (fun h -> Darklang.Stdlib.Tuple2.first h != "date")
+ let respHeaders = response.headers |> Darklang.Stdlib.List.filter (fun h -> (Darklang.Stdlib.Tuple2.first h) != "date")
  {response with headers = respHeaders}) ==
    Darklang.Stdlib.HttpClient.Response
     { statusCode = 200L
