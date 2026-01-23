@@ -1,7 +1,7 @@
 version 8.0.0
 
 source https://api.nuget.org/v3/index.json
-framework: net8.0
+framework: net10.0
 storage: none
 
 // Basics
