@@ -1,0 +1,157 @@
+module Darklang.LanguageTools.Tests.Reflection
+
+type Person =
+  { name: String
+    age: Int64 }
+
+
+type Color =
+  | Red
+  | Green(String)
+
+
+let person(): Person =
+  Person { name = "Alice", age = 30 }
+
+
+module TypeOf =
+  test primitives =
+    [ LanguageTools.Reflection.typeOf()
+      LanguageTools.Reflection.typeOf(true)
+      LanguageTools.Reflection.typeOf(42)
+      LanguageTools.Reflection.typeOf(3.14)
+      LanguageTools.Reflection.typeOf("hello")
+      LanguageTools.Reflection.typeOf('c') ]
+    |> Stdlib.Test.equal([ "Unit", "Bool", "Int64", "Float", "String", "Char" ])
+
+
+  test collections =
+    [ LanguageTools.Reflection.typeOf([ 1, 2, 3 ])
+      LanguageTools.Reflection.typeOf([ "a", "b" ])
+      LanguageTools.Reflection.typeOf(Dict { "a": true })
+      LanguageTools.Reflection.typeOf((1, "hello"))
+      LanguageTools.Reflection.typeOf((1, "hello", true)) ]
+    |> Stdlib.Test.equal(
+      [ "List<Int64>"
+        "List<String>"
+        "Dict<String, Bool>"
+        "(Int64 * String)"
+        "(Int64 * String * Bool)" ])
+
+
+  test customTypes =
+    [ LanguageTools.Reflection.typeOf(person())
+      LanguageTools.Reflection.typeOf(Color.Red) ]
+    |> Stdlib.Test.equal(
+      [ "Darklang.LanguageTools.Tests.Reflection.Person"
+        "Darklang.LanguageTools.Tests.Reflection.Color" ])
+
+
+module ValueType =
+  test int64 =
+    LanguageTools.Reflection.valueType(42)
+    |> Stdlib.Test.equal(
+      LanguageTools.RuntimeTypes.ValueType.Known(
+        LanguageTools.RuntimeTypes.KnownType.KTInt64))
+
+
+  test list =
+    LanguageTools.Reflection.listElementType([ "a" ])
+    |> Stdlib.Test.equal(
+      Stdlib.Option.Option.Some(
+        LanguageTools.RuntimeTypes.ValueType.Known(
+          LanguageTools.RuntimeTypes.KnownType.KTString)))
+
+
+  test notAList =
+    LanguageTools.Reflection.listElementType(1)
+    |> Stdlib.Test.equal(Stdlib.Option.Option.None)
+
+
+  test dictValues =
+    LanguageTools.Reflection.dictValueType(Dict { "a": 1 })
+    |> Stdlib.Test.equal(
+      Stdlib.Option.Option.Some(
+        LanguageTools.RuntimeTypes.ValueType.Known(
+          LanguageTools.RuntimeTypes.KnownType.KTInt64)))
+
+
+module TypeName =
+  test primitivesHaveNone =
+    [ LanguageTools.Reflection.typeName(42)
+      LanguageTools.Reflection.typeName("hello")
+      LanguageTools.Reflection.typeName([ 1, 2 ]) ]
+    |> Stdlib.Test.equal(
+      [ Stdlib.Option.Option.None
+        Stdlib.Option.Option.None
+        Stdlib.Option.Option.None ])
+
+
+  test recordAndEnumHaveTheirType =
+    [ LanguageTools.Reflection.typeName(person())
+      LanguageTools.Reflection.typeName(Color.Green("x")) ]
+    |> Stdlib.List.map(Stdlib.Option.isSome)
+    |> Stdlib.Test.equal([ true, true ])
+
+
+  test recordAndEnumDiffer =
+    LanguageTools.Reflection.typeName(person())
+    == LanguageTools.Reflection.typeName(Color.Red)
+    |> Stdlib.Test.equal(false)
+
+
+module Predicates =
+  test isPrimitive =
+    [ LanguageTools.Reflection.isPrimitive(42)
+      LanguageTools.Reflection.isPrimitive("s")
+      LanguageTools.Reflection.isPrimitive([ 1 ])
+      LanguageTools.Reflection.isPrimitive(person()) ]
+    |> Stdlib.Test.equal([ true, true, false, false ])
+
+
+  test isCollection =
+    [ LanguageTools.Reflection.isCollection([ 1, 2 ])
+      LanguageTools.Reflection.isCollection(Dict { "a": 1 })
+      LanguageTools.Reflection.isCollection((1, 2))
+      LanguageTools.Reflection.isCollection(1) ]
+    |> Stdlib.Test.equal([ true, true, true, false ])
+
+
+  test isCustomType =
+    [ LanguageTools.Reflection.isCustomType(person())
+      LanguageTools.Reflection.isCustomType(Color.Red)
+      LanguageTools.Reflection.isCustomType(1) ]
+    |> Stdlib.Test.equal([ true, true, false ])
+
+
+  test isFunction =
+    [ LanguageTools.Reflection.isFunction(fun x -> x + 1)
+      LanguageTools.Reflection.isFunction(1) ]
+    |> Stdlib.Test.equal([ true, false ])
+
+
+  test recordOrEnum =
+    [ LanguageTools.Reflection.isRecord(person())
+      LanguageTools.Reflection.isRecord(Color.Red)
+      LanguageTools.Reflection.isEnum(Color.Red)
+      LanguageTools.Reflection.isEnum(person()) ]
+    |> Stdlib.Test.equal([ true, false, true, false ])
+
+
+module Parts =
+  test fieldNames =
+    LanguageTools.Reflection.fields(person())
+    |> Stdlib.Option.map(Stdlib.Dict.keys)
+    |> Stdlib.Test.equal(Stdlib.Option.Option.Some([ "age", "name" ]))
+
+
+  test noFields =
+    LanguageTools.Reflection.fields(1)
+    |> Stdlib.Test.equal(Stdlib.Option.Option.None)
+
+
+  test caseName =
+    [ LanguageTools.Reflection.caseName(Color.Green("x"))
+      LanguageTools.Reflection.caseName(person()) ]
+    |> Stdlib.Test.equal(
+      [ Stdlib.Option.Option.Some("Green"), Stdlib.Option.Option.None ])

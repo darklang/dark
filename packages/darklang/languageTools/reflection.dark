@@ -1,0 +1,89 @@
+module Darklang.LanguageTools.Reflection
+
+/// The runtime type of a value, without reflecting the value itself.
+let valueType(value: 'a): RuntimeTypes.ValueType =
+  Builtin.reflectType(value)
+
+
+/// The type name of a record or enum value, or None for any other value.
+let typeName(value: 'a): Option<RuntimeTypes.FQTypeName.FQTypeName> =
+  match valueType(value) with
+  | Known(KTCustomType(name, _)) -> Option.Some(name)
+  | _ -> Option.None
+
+
+/// The type of a value as it is written in source, e.g. `List<Int64>`.
+let typeOf(value: 'a): String =
+  PrettyPrinter.RuntimeTypes.valueType(SCM.PackageOps.currentBranch(), valueType(value))
+
+
+/// Unit, Bool, the numbers, Char, String, DateTime, Uuid and Bytes.
+let isPrimitive(value: 'a): Bool =
+  match valueType(value) with
+  | Known(KTUnit) | Known(KTBool) -> true
+  | Known(KTInt8) | Known(KTUInt8) | Known(KTInt16) | Known(KTUInt16) -> true
+  | Known(KTInt32) | Known(KTUInt32) | Known(KTInt64) | Known(KTUInt64) -> true
+  | Known(KTInt128) | Known(KTUInt128) | Known(KTBigInt) -> true
+  | Known(KTFloat) | Known(KTFloat32) | Known(KTDecimal) -> true
+  | Known(KTChar) | Known(KTString) | Known(KTDateTime) | Known(KTUuid) | Known(KTBytes) -> true
+  | _ -> false
+
+
+/// A List, Dict or tuple.
+let isCollection(value: 'a): Bool =
+  match valueType(value) with
+  | Known(KTList(_)) | Known(KTDict(_, _)) | Known(KTTuple(_, _, _)) -> true
+  | _ -> false
+
+
+/// A record or enum.
+let isCustomType(value: 'a): Bool =
+  match valueType(value) with
+  | Known(KTCustomType(_, _)) -> true
+  | _ -> false
+
+
+let isFunction(value: 'a): Bool =
+  match RuntimeTypes.reflect(value) with
+  | DApplicable(_) -> true
+  | _ -> false
+
+
+let isRecord(value: 'a): Bool =
+  match RuntimeTypes.reflect(value) with
+  | DRecord(_, _, _, _) -> true
+  | _ -> false
+
+
+let isEnum(value: 'a): Bool =
+  match RuntimeTypes.reflect(value) with
+  | DEnum(_, _, _, _, _) -> true
+  | _ -> false
+
+
+/// A record's fields, or None for any other value.
+let fields(value: 'a): Option<RuntimeTypes.DvalMap> =
+  match RuntimeTypes.reflect(value) with
+  | DRecord(_, _, _, fs) -> Option.Some(fs)
+  | _ -> Option.None
+
+
+/// An enum value's case name, or None for any other value.
+let caseName(value: 'a): Option<String> =
+  match RuntimeTypes.reflect(value) with
+  | DEnum(_, _, _, name, _) -> Option.Some(name)
+  | _ -> Option.None
+
+
+/// A List's element type, or None for any other value.
+let listElementType(value: 'a): Option<RuntimeTypes.ValueType> =
+  match valueType(value) with
+  | Known(KTList(elementType)) -> Option.Some(elementType)
+  | _ -> Option.None
+
+
+/// A Dict's value type, or None for any other value.
+let dictValueType(value: 'a): Option<RuntimeTypes.ValueType> =
+  match valueType(value) with
+  | Known(KTDict(_, valueType)) -> Option.Some(valueType)
+  | _ -> Option.None
