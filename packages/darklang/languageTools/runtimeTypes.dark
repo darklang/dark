@@ -98,6 +98,7 @@ type ValueType =
 
 type LetPattern =
   | LPVariable of reg: Register
+  | LPWildcard
   | LPUnit
   | LPTuple of
     first: LetPattern *

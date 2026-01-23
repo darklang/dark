@@ -78,6 +78,37 @@ module Shadowing =
      | Ok(Ok x) -> let x = 9L in x + 2L))) = [ 11L; 11L; 11L; 11L ]
 
 
+module Wildcard =
+  // Simple wildcard - should match any value without binding it
+  (let _ = 5L in 10L) = 10L
+
+  // Wildcard with side effects - the value should still be evaluated
+  (let _ = Builtin.testRuntimeError "test" in 10L) =
+    Builtin.testDerrorMessage "Uncaught exception: test"
+
+  // Wildcard in tuple destructuring
+  (let (x, _) = (1L, 2L) in x) = 1L
+  (let (_, y) = (1L, 2L) in y) = 2L
+  (let (_, _) = (1L, 2L) in 5L) = 5L
+
+  // Multiple wildcards in tuple
+  (let (_, _, _) = (1L, 2L, 3L) in 10L) = 10L
+  (let (x, _, _) = (1L, 2L, 3L) in x) = 1L
+  (let (_, y, _) = (1L, 2L, 3L) in y) = 2L
+  (let (_, _, z) = (1L, 2L, 3L) in z) = 3L
+
+  // Nested wildcards in tuples
+  (let ((_, x), _) = ((1L, 2L), 3L) in x) = 2L
+  (let (_, (_, y)) = (1L, (2L, 3L)) in y) = 3L
+
+  // Wildcard should not bind variable
+  // This should fail because _ is not a variable
+  // (let _ = 5L in _) should give a variable not found error
+
+  // Wildcard with complex values
+  (let _ = [ 1L; 2L; 3L ] in "done") = "done"
+
+
 module Errors =
-  (let (a, _) = 1 in a) = Builtin.testDerrorMessage "Could not deconstruct value 1 into pattern ([variable], [variable])"
-  (let (a, _) = (1, 2, 3) in a) = Builtin.testDerrorMessage "Could not deconstruct value (1, 2, 3) into pattern ([variable], [variable])"
+  (let (a, _) = 1 in a) = Builtin.testDerrorMessage "Could not deconstruct value 1 into pattern ([variable], _)"
+  (let (a, _) = (1, 2, 3) in a) = Builtin.testDerrorMessage "Could not deconstruct value (1, 2, 3) into pattern ([variable], _)"

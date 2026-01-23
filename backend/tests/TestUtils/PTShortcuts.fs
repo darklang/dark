@@ -40,6 +40,7 @@ let eTuple (first : Expr) (second : Expr) (theRest : Expr list) : Expr =
 
 let lpUnit () : LetPattern = LPUnit(gid ())
 let lpVar (name : string) : LetPattern = LPVariable(gid (), name)
+let lpWildcard () : LetPattern = LPWildcard(gid ())
 let lpTuple
   (first : LetPattern)
   (second : LetPattern)

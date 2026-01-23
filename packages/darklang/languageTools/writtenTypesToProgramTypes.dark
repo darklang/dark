@@ -312,6 +312,7 @@ module Expr =
       : (Context * ProgramTypes.LetPattern) =
       match p with
       | LPUnit _ -> (context, ProgramTypes.LetPattern.LPUnit(gid ()))
+      | LPWildcard _ -> (context, ProgramTypes.LetPattern.LPWildcard(gid ()))
       | LPVariable(_, name) ->
         let shadowsFunctionName =
           match context.currentFnName with

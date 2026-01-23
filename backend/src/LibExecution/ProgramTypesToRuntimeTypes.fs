@@ -174,7 +174,9 @@ module LetPattern =
     (p : PT.LetPattern)
     : (RT.LetPattern * Map<string, RT.Register> * int) =
     match p with
-    | PT.LPUnit _ -> RT.LPUnit, Map.empty, rc
+    | PT.LPUnit _ -> RT.LPUnit, symbols, rc
+
+    | PT.LPWildcard _ -> RT.LPWildcard, symbols, rc
 
     | PT.LPTuple(_, first, second, theRest) ->
       let first, symbols, rc = toRT symbols rc first

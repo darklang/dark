@@ -119,6 +119,7 @@ module TypeReference =
 type LetPattern =
   | LPUnit of Range
   | LPVariable of Range * name: String
+  | LPWildcard of Range
   | LPTuple of
     Range *
     first: LetPattern *
