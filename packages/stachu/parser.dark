@@ -1,0 +1,372 @@
+/// A small parser combinator library using regex
+module Stachu =
+  module Parser =
+    /// The result of parsing: either success with a value and remaining input, or failure
+    type ParseResult<'a> =
+      | Success of value: 'a * remaining: String
+      | Failure of error: String
+
+    /// A parser is a function from input string to parse result
+    /// We represent it as a record with a single `run` function
+    type Parser<'a> = { run: String -> ParseResult<'a> }
+
+
+    // ============================================
+    // Basic combinators
+    // ============================================
+
+    /// Run a parser on input
+    let parse (parser: Parser<'a>) (input: String) : ParseResult<'a> =
+      parser.run input
+
+
+    /// Create a parser that always succeeds with the given value
+    let succeed (value: 'a) : Parser<'a> =
+      Parser { run = (fun input -> ParseResult.Success(value, input)) }
+
+
+    /// Create a parser that always fails with the given error
+    let fail (error: String) : Parser<'a> =
+      Parser { run = (fun _input -> ParseResult.Failure error) }
+
+
+    /// Map a function over a successful parse result
+    let map (fn: 'a -> 'b) (parser: Parser<'a>) : Parser<'b> =
+      Parser
+        { run =
+            (fun input ->
+              match parser.run input with
+              | Success(value, remaining) -> ParseResult.Success((fn value), remaining)
+              | Failure error -> ParseResult.Failure error) }
+
+
+    /// Apply a parser that returns a function to a parser that returns a value
+    let apply (parserFn: Parser<'a -> 'b>) (parserVal: Parser<'a>) : Parser<'b> =
+      Parser
+        { run =
+            (fun input ->
+              match parserFn.run input with
+              | Success(fn, remaining1) ->
+                match parserVal.run remaining1 with
+                | Success(value, remaining2) ->
+                  ParseResult.Success((fn value), remaining2)
+                | Failure error -> ParseResult.Failure error
+              | Failure error -> ParseResult.Failure error) }
+
+
+    /// Sequence two parsers: run the first, then the second on remaining input
+    let andThen (first: Parser<'a>) (second: Parser<'b>) : Parser<('a * 'b)> =
+      Parser
+        { run =
+            (fun input ->
+              match first.run input with
+              | Success(value1, remaining1) ->
+                match second.run remaining1 with
+                | Success(value2, remaining2) ->
+                  ParseResult.Success((value1, value2), remaining2)
+                | Failure error -> ParseResult.Failure error
+              | Failure error -> ParseResult.Failure error) }
+
+
+    /// Try the first parser, if it fails try the second
+    let orElse (first: Parser<'a>) (second: Parser<'a>) : Parser<'a> =
+      Parser
+        { run =
+            (fun input ->
+              match first.run input with
+              | Success(value, remaining) -> ParseResult.Success(value, remaining)
+              | Failure _error1 -> second.run input) }
+
+
+    /// Keep only the left result of two sequenced parsers
+    let keepLeft (left: Parser<'a>) (right: Parser<'b>) : Parser<'a> =
+      map (fun pair -> Stdlib.Tuple2.first pair) (andThen left right)
+
+
+    /// Keep only the right result of two sequenced parsers
+    let keepRight (left: Parser<'a>) (right: Parser<'b>) : Parser<'b> =
+      map (fun pair -> Stdlib.Tuple2.second pair) (andThen left right)
+
+
+    // ============================================
+    // Basic parsers using regex
+    // ============================================
+
+    /// Parse using a regex pattern - returns the matched string
+    let regex (pattern: String) : Parser<String> =
+      Parser
+        { run =
+            (fun input ->
+              // Anchor the pattern to the start of the input
+              let anchoredPattern = "^(" ++ pattern ++ ")"
+
+              match Stdlib.Regex.find input anchoredPattern with
+              | Some matched ->
+                let remaining =
+                  Stdlib.String.dropFirst input (Stdlib.String.length matched)
+
+                ParseResult.Success(matched, remaining)
+              | None -> ParseResult.Failure("Expected pattern: " ++ pattern)) }
+
+
+    /// Parse an exact string
+    let string (expected: String) : Parser<String> =
+      Parser
+        { run =
+            (fun input ->
+              if Stdlib.String.startsWith input expected then
+                let remaining =
+                  Stdlib.String.dropFirst input (Stdlib.String.length expected)
+
+                ParseResult.Success(expected, remaining)
+              else
+                ParseResult.Failure("Expected: \"" ++ expected ++ "\"")) }
+
+
+    /// Parse a single character that matches a predicate
+    let charWhere (predicate: Char -> Bool) (description: String) : Parser<Char> =
+      Parser
+        { run =
+            (fun input ->
+              match Stdlib.String.head input with
+              | Some c ->
+                if predicate c then
+                  let remaining = Stdlib.String.dropFirst input 1L
+                  ParseResult.Success(c, remaining)
+                else
+                  ParseResult.Failure("Expected: " ++ description)
+              | None -> ParseResult.Failure("Unexpected end of input")) }
+
+
+    /// Parse any single character
+    let anyChar () : Parser<Char> = charWhere (fun _c -> true) "any character"
+
+
+    /// Parse one or more digits
+    let digits () : Parser<String> = regex "\\d+"
+
+
+    /// Parse one or more whitespace characters
+    let whitespace () : Parser<String> = regex "\\s+"
+
+
+    /// Parse zero or more whitespace characters
+    let optionalWhitespace () : Parser<String> =
+      Parser
+        { run =
+            (fun input ->
+              match (regex "\\s*").run input with
+              | Success(value, remaining) -> ParseResult.Success(value, remaining)
+              | Failure _error -> ParseResult.Success("", input)) }
+
+
+    /// Parse one or more word characters (letters, digits, underscores)
+    let word () : Parser<String> = regex "\\w+"
+
+
+    /// Parse one or more letters
+    let letters () : Parser<String> = regex "[a-zA-Z]+"
+
+
+    // ============================================
+    // Many combinator - specialized for String parsers to avoid type inference issues
+    // ============================================
+
+    /// State for the many combinator iteration
+    type ManyAcc = { results: List<String>; remaining: String; done_: Bool }
+
+    /// Parse zero or more occurrences of a String parser
+    let manyStrings (parser: Parser<String>) : Parser<List<String>> =
+      Parser
+        { run =
+            (fun input ->
+              let maxIterations = 100L
+              let indices = Stdlib.List.range 0L maxIterations
+
+              let initialAcc =
+                ManyAcc { results = []; remaining = input; done_ = false }
+
+              let finalAcc =
+                Stdlib.List.fold indices initialAcc (fun acc _i ->
+                  if acc.done_ then
+                    acc
+                  else
+                    match parser.run acc.remaining with
+                    | Success(value, newRemaining) ->
+                      if newRemaining == acc.remaining then
+                        ManyAcc
+                          { results = acc.results
+                            remaining = acc.remaining
+                            done_ = true }
+                      else
+                        ManyAcc
+                          { results = Stdlib.List.append acc.results [ value ]
+                            remaining = newRemaining
+                            done_ = false }
+                    | Failure _error ->
+                      ManyAcc
+                        { results = acc.results
+                          remaining = acc.remaining
+                          done_ = true })
+
+              ParseResult.Success(finalAcc.results, finalAcc.remaining)) }
+
+
+    /// State for generic many combinator
+    type ManyAccGeneric<'a> = { results: List<'a>; remaining: String; done_: Bool }
+
+
+    /// Parse zero or more occurrences (generic)
+    let many (parser: Parser<'a>) : Parser<List<'a>> =
+      Parser
+        { run =
+            (fun input ->
+              let maxIterations = 100L
+              let indices = Stdlib.List.range 0L maxIterations
+
+              let initialAcc =
+                ManyAccGeneric { results = []; remaining = input; done_ = false }
+
+              let finalAcc =
+                Stdlib.List.fold indices initialAcc (fun acc _i ->
+                  if acc.done_ then
+                    acc
+                  else
+                    match parser.run acc.remaining with
+                    | Success(value, newRemaining) ->
+                      if newRemaining == acc.remaining then
+                        ManyAccGeneric
+                          { results = acc.results
+                            remaining = acc.remaining
+                            done_ = true }
+                      else
+                        ManyAccGeneric
+                          { results = Stdlib.List.append acc.results [ value ]
+                            remaining = newRemaining
+                            done_ = false }
+                    | Failure _error ->
+                      ManyAccGeneric
+                        { results = acc.results
+                          remaining = acc.remaining
+                          done_ = true })
+
+              ParseResult.Success(finalAcc.results, finalAcc.remaining)) }
+
+
+    /// Parse one or more occurrences
+    let many1 (parser: Parser<'a>) : Parser<List<'a>> =
+      Parser
+        { run =
+            (fun input ->
+              match parser.run input with
+              | Success(firstValue, remaining) ->
+                match (many parser).run remaining with
+                | Success(restValues, finalRemaining) ->
+                  ParseResult.Success(
+                    (Stdlib.List.append [ firstValue ] restValues),
+                    finalRemaining
+                  )
+                | Failure error -> ParseResult.Failure error
+              | Failure error -> ParseResult.Failure error) }
+
+
+    /// Parse zero or one occurrence
+    let optional (parser: Parser<'a>) : Parser<Stdlib.Option.Option<'a>> =
+      Parser
+        { run =
+            (fun input ->
+              match parser.run input with
+              | Success(value, remaining) ->
+                ParseResult.Success(Stdlib.Option.Option.Some value, remaining)
+              | Failure _error ->
+                ParseResult.Success(Stdlib.Option.Option.None, input)) }
+
+
+    /// Parse items separated by a separator
+    let sepBy (item: Parser<'a>) (sep: Parser<'b>) : Parser<List<'a>> =
+      Parser
+        { run =
+            (fun input ->
+              match item.run input with
+              | Failure _error -> ParseResult.Success([], input)
+              | Success(firstValue, remaining) ->
+                let sepThenItem = keepRight sep item
+
+                match (many sepThenItem).run remaining with
+                | Success(restValues, finalRemaining) ->
+                  ParseResult.Success(
+                    (Stdlib.List.append [ firstValue ] restValues),
+                    finalRemaining
+                  )
+                | Failure error -> ParseResult.Failure error) }
+
+
+    /// Parse items separated by a separator (at least one item required)
+    let sepBy1 (item: Parser<'a>) (sep: Parser<'b>) : Parser<List<'a>> =
+      Parser
+        { run =
+            (fun input ->
+              match item.run input with
+              | Failure error -> ParseResult.Failure error
+              | Success(firstValue, remaining) ->
+                let sepThenItem = keepRight sep item
+
+                match (many sepThenItem).run remaining with
+                | Success(restValues, finalRemaining) ->
+                  ParseResult.Success(
+                    (Stdlib.List.append [ firstValue ] restValues),
+                    finalRemaining
+                  )
+                | Failure error -> ParseResult.Failure error) }
+
+
+    // ============================================
+    // Convenience combinators
+    // ============================================
+
+    /// Parse something between two delimiters
+    let between
+      (left: Parser<'a>)
+      (right: Parser<'b>)
+      (content: Parser<'c>)
+      : Parser<'c> =
+      keepRight left (keepLeft content right)
+
+
+    /// Try each parser in order until one succeeds
+    let choice (parsers: List<Parser<'a>>) : Parser<'a> =
+      Stdlib.List.fold parsers (fail "No parser matched") (fun acc parser ->
+        orElse acc parser)
+
+
+    /// Parse and convert digits to Int64
+    let int64 () : Parser<Int64> =
+      let signedDigits = regex "-?\\d+"
+
+      map
+        (fun s ->
+          match Stdlib.Int64.parse s with
+          | Ok n -> n
+          | Error _e -> 0L)
+        signedDigits
+
+
+    /// Parse a floating point number
+    let float () : Parser<Float> =
+      let floatPattern = regex "-?\\d+\\.\\d+"
+
+      map
+        (fun s ->
+          match Stdlib.Float.parse s with
+          | Ok n -> n
+          | Error _e -> 0.0)
+        floatPattern
+
+
+    /// Parse a quoted string (with escaped quotes support)
+    let quotedString () : Parser<String> =
+      let quote = string "\""
+      // Match any char except quote, or escaped quote
+      let content = regex "[^\"\\\\]*(?:\\\\.[^\"\\\\]*)*"
+
+      between quote quote content

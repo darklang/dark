@@ -1,0 +1,289 @@
+// A tiny programming language using the parser combinator library
+// This demonstrates parsing expressions similar to a simplified PT.Expr
+
+module TinyLang =
+  // ============================================
+  // AST Types (simplified PT.Expr)
+  // ============================================
+
+  type BinOp =
+    | Add
+    | Sub
+    | Mul
+    | Div
+
+  type Expr =
+    | EInt of Int64
+    | EBool of Bool
+    | EVar of String
+    | EBinOp of left: Expr * op: BinOp * right: Expr
+    | EIf of cond: Expr * thenExpr: Expr * elseExpr: Expr
+    | ELet of name: String * value: Expr * body: Expr
+    | EList of List<Expr>
+
+
+  // ============================================
+  // Parser helpers
+  // ============================================
+
+  /// Skip optional whitespace
+  let ws () : Stachu.Parser.Parser<String> =
+    Stachu.Parser.optionalWhitespace ()
+
+  /// Parse a keyword followed by whitespace
+  let keyword (kw: String) : Stachu.Parser.Parser<String> =
+    Stachu.Parser.keepLeft (Stachu.Parser.string kw) (ws ())
+
+
+  // ============================================
+  // Literal parsers
+  // ============================================
+
+  /// Parse an integer literal
+  let intLiteral () : Stachu.Parser.Parser<Expr> =
+    Stachu.Parser.map (fun n -> Expr.EInt n) (Stachu.Parser.int64 ())
+
+  /// Parse a boolean literal
+  let boolLiteral () : Stachu.Parser.Parser<Expr> =
+    let parseTrue =
+      Stachu.Parser.map (fun _ -> Expr.EBool true) (Stachu.Parser.string "true")
+
+    let parseFalse =
+      Stachu.Parser.map (fun _ -> Expr.EBool false) (Stachu.Parser.string "false")
+
+    Stachu.Parser.orElse parseTrue parseFalse
+
+  /// Parse a variable name (identifier)
+  let varName () : Stachu.Parser.Parser<String> =
+    Stachu.Parser.regex "[a-z][a-zA-Z0-9_]*"
+
+  /// Parse a variable reference
+  let varExpr () : Stachu.Parser.Parser<Expr> =
+    Stachu.Parser.map (fun name -> Expr.EVar name) (varName ())
+
+
+  // ============================================
+  // Operator parsers
+  // ============================================
+
+  let addOp () : Stachu.Parser.Parser<BinOp> =
+    Stachu.Parser.map (fun _ -> BinOp.Add) (Stachu.Parser.string "+")
+
+  let subOp () : Stachu.Parser.Parser<BinOp> =
+    Stachu.Parser.map (fun _ -> BinOp.Sub) (Stachu.Parser.string "-")
+
+  let mulOp () : Stachu.Parser.Parser<BinOp> =
+    Stachu.Parser.map (fun _ -> BinOp.Mul) (Stachu.Parser.string "*")
+
+  let divOp () : Stachu.Parser.Parser<BinOp> =
+    Stachu.Parser.map (fun _ -> BinOp.Div) (Stachu.Parser.string "/")
+
+  let binOp () : Stachu.Parser.Parser<BinOp> =
+    Stachu.Parser.choice [ addOp (); subOp (); mulOp (); divOp () ]
+
+
+// ============================================
+// Tests for the tiny language
+// ============================================
+
+module Literals =
+  // Integer literals
+  (Stachu.Parser.parse (TinyLang.intLiteral ()) "42") = Stachu.Parser.ParseResult.Success(TinyLang.Expr.EInt 42L, "")
+
+  (Stachu.Parser.parse (TinyLang.intLiteral ()) "0") = Stachu.Parser.ParseResult.Success(TinyLang.Expr.EInt 0L, "")
+
+  (Stachu.Parser.parse (TinyLang.intLiteral ()) "-123 rest") = Stachu.Parser.ParseResult.Success(TinyLang.Expr.EInt(-123L), " rest")
+
+  // Boolean literals
+  (Stachu.Parser.parse (TinyLang.boolLiteral ()) "true") = Stachu.Parser.ParseResult.Success(TinyLang.Expr.EBool true, "")
+
+  (Stachu.Parser.parse (TinyLang.boolLiteral ()) "false") = Stachu.Parser.ParseResult.Success(TinyLang.Expr.EBool false, "")
+
+  // Variable names
+  (Stachu.Parser.parse (TinyLang.varName ()) "foo") = Stachu.Parser.ParseResult.Success("foo", "")
+
+  (Stachu.Parser.parse (TinyLang.varName ()) "myVar123") = Stachu.Parser.ParseResult.Success("myVar123", "")
+
+  (Stachu.Parser.parse (TinyLang.varName ()) "x rest") = Stachu.Parser.ParseResult.Success("x", " rest")
+
+  // Variable expressions
+  (Stachu.Parser.parse (TinyLang.varExpr ()) "count") = Stachu.Parser.ParseResult.Success(TinyLang.Expr.EVar "count", "")
+
+
+module Operators =
+  // Binary operators
+  (Stachu.Parser.parse (TinyLang.binOp ()) "+") = Stachu.Parser.ParseResult.Success(TinyLang.BinOp.Add, "")
+
+  (Stachu.Parser.parse (TinyLang.binOp ()) "-") = Stachu.Parser.ParseResult.Success(TinyLang.BinOp.Sub, "")
+
+  (Stachu.Parser.parse (TinyLang.binOp ()) "*") = Stachu.Parser.ParseResult.Success(TinyLang.BinOp.Mul, "")
+
+  (Stachu.Parser.parse (TinyLang.binOp ()) "/") = Stachu.Parser.ParseResult.Success(TinyLang.BinOp.Div, "")
+
+
+module SimpleBinOp =
+  // Parse "1 + 2" manually step by step
+  // First, parse the left operand
+  (Stachu.Parser.parse (TinyLang.intLiteral ()) "1 + 2") = Stachu.Parser.ParseResult.Success(TinyLang.Expr.EInt 1L, " + 2")
+
+  // Parse operator with surrounding whitespace
+  (Stachu.Parser.parse
+    (Stachu.Parser.between (TinyLang.ws ()) (TinyLang.ws ()) (TinyLang.binOp ()))
+    " + 2") = Stachu.Parser.ParseResult.Success(TinyLang.BinOp.Add, "2")
+
+  // Combined: parse "left op right" pattern for "1 + 2"
+  (Stachu.Parser.parse
+    (Stachu.Parser.andThen
+      (TinyLang.intLiteral ())
+      (Stachu.Parser.andThen
+        (Stachu.Parser.between (TinyLang.ws ()) (TinyLang.ws ()) (TinyLang.binOp ()))
+        (TinyLang.intLiteral ())))
+    "1 + 2") = Stachu.Parser.ParseResult.Success((TinyLang.Expr.EInt 1L, (TinyLang.BinOp.Add, TinyLang.Expr.EInt 2L)), "")
+
+  // Build full BinOp expression using map
+  (Stachu.Parser.parse
+    (Stachu.Parser.map
+      (fun result ->
+        let (left, (op, right)) = result
+        TinyLang.Expr.EBinOp(left, op, right))
+      (Stachu.Parser.andThen
+        (TinyLang.intLiteral ())
+        (Stachu.Parser.andThen
+          (Stachu.Parser.between (TinyLang.ws ()) (TinyLang.ws ()) (TinyLang.binOp ()))
+          (TinyLang.intLiteral ()))))
+    "1 + 2") = Stachu.Parser.ParseResult.Success(TinyLang.Expr.EBinOp(TinyLang.Expr.EInt 1L, TinyLang.BinOp.Add, TinyLang.Expr.EInt 2L), "")
+
+  // More binary operations
+  (Stachu.Parser.parse
+    (Stachu.Parser.map
+      (fun result ->
+        let (left, (op, right)) = result
+        TinyLang.Expr.EBinOp(left, op, right))
+      (Stachu.Parser.andThen
+        (TinyLang.intLiteral ())
+        (Stachu.Parser.andThen
+          (Stachu.Parser.between (TinyLang.ws ()) (TinyLang.ws ()) (TinyLang.binOp ()))
+          (TinyLang.intLiteral ()))))
+    "10 * 5") = Stachu.Parser.ParseResult.Success(TinyLang.Expr.EBinOp(TinyLang.Expr.EInt 10L, TinyLang.BinOp.Mul, TinyLang.Expr.EInt 5L), "")
+
+  (Stachu.Parser.parse
+    (Stachu.Parser.map
+      (fun result ->
+        let (left, (op, right)) = result
+        TinyLang.Expr.EBinOp(left, op, right))
+      (Stachu.Parser.andThen
+        (TinyLang.intLiteral ())
+        (Stachu.Parser.andThen
+          (Stachu.Parser.between (TinyLang.ws ()) (TinyLang.ws ()) (TinyLang.binOp ()))
+          (TinyLang.intLiteral ()))))
+    "100 / 4") = Stachu.Parser.ParseResult.Success(TinyLang.Expr.EBinOp(TinyLang.Expr.EInt 100L, TinyLang.BinOp.Div, TinyLang.Expr.EInt 4L), "")
+
+
+module VarBinOp =
+  // Variable in binary op: "x + 1"
+  (Stachu.Parser.parse
+    (Stachu.Parser.map
+      (fun result ->
+        let (left, (op, right)) = result
+        TinyLang.Expr.EBinOp(left, op, right))
+      (Stachu.Parser.andThen
+        (TinyLang.varExpr ())
+        (Stachu.Parser.andThen
+          (Stachu.Parser.between (TinyLang.ws ()) (TinyLang.ws ()) (TinyLang.binOp ()))
+          (TinyLang.intLiteral ()))))
+    "x + 1") = Stachu.Parser.ParseResult.Success(TinyLang.Expr.EBinOp(TinyLang.Expr.EVar "x", TinyLang.BinOp.Add, TinyLang.Expr.EInt 1L), "")
+
+  // "a * b"
+  (Stachu.Parser.parse
+    (Stachu.Parser.map
+      (fun result ->
+        let (left, (op, right)) = result
+        TinyLang.Expr.EBinOp(left, op, right))
+      (Stachu.Parser.andThen
+        (TinyLang.varExpr ())
+        (Stachu.Parser.andThen
+          (Stachu.Parser.between (TinyLang.ws ()) (TinyLang.ws ()) (TinyLang.binOp ()))
+          (TinyLang.varExpr ()))))
+    "a * b") = Stachu.Parser.ParseResult.Success(TinyLang.Expr.EBinOp(TinyLang.Expr.EVar "a", TinyLang.BinOp.Mul, TinyLang.Expr.EVar "b"), "")
+
+
+module ListExpr =
+  // Empty list
+  (Stachu.Parser.parse
+    (Stachu.Parser.map
+      (fun items -> TinyLang.Expr.EList items)
+      (Stachu.Parser.between
+        (Stachu.Parser.keepRight (Stachu.Parser.string "[") (TinyLang.ws ()))
+        (Stachu.Parser.keepRight (TinyLang.ws ()) (Stachu.Parser.string "]"))
+        (Stachu.Parser.sepBy
+          (TinyLang.intLiteral ())
+          (Stachu.Parser.between (TinyLang.ws ()) (TinyLang.ws ()) (Stachu.Parser.string ",")))))
+    "[]") = Stachu.Parser.ParseResult.Success(TinyLang.Expr.EList [], "")
+
+  // Single element list
+  (Stachu.Parser.parse
+    (Stachu.Parser.map
+      (fun items -> TinyLang.Expr.EList items)
+      (Stachu.Parser.between
+        (Stachu.Parser.keepRight (Stachu.Parser.string "[") (TinyLang.ws ()))
+        (Stachu.Parser.keepRight (TinyLang.ws ()) (Stachu.Parser.string "]"))
+        (Stachu.Parser.sepBy
+          (TinyLang.intLiteral ())
+          (Stachu.Parser.between (TinyLang.ws ()) (TinyLang.ws ()) (Stachu.Parser.string ",")))))
+    "[42]") = Stachu.Parser.ParseResult.Success(TinyLang.Expr.EList [ TinyLang.Expr.EInt 42L ], "")
+
+  // Multiple element list
+  (Stachu.Parser.parse
+    (Stachu.Parser.map
+      (fun items -> TinyLang.Expr.EList items)
+      (Stachu.Parser.between
+        (Stachu.Parser.keepRight (Stachu.Parser.string "[") (TinyLang.ws ()))
+        (Stachu.Parser.keepRight (TinyLang.ws ()) (Stachu.Parser.string "]"))
+        (Stachu.Parser.sepBy
+          (TinyLang.intLiteral ())
+          (Stachu.Parser.between (TinyLang.ws ()) (TinyLang.ws ()) (Stachu.Parser.string ",")))))
+    "[1, 2, 3]") = Stachu.Parser.ParseResult.Success(TinyLang.Expr.EList [ TinyLang.Expr.EInt 1L; TinyLang.Expr.EInt 2L; TinyLang.Expr.EInt 3L ], "")
+
+
+module BoolListExpr =
+  // List of booleans
+  (Stachu.Parser.parse
+    (Stachu.Parser.map
+      (fun items -> TinyLang.Expr.EList items)
+      (Stachu.Parser.between
+        (Stachu.Parser.keepRight (Stachu.Parser.string "[") (TinyLang.ws ()))
+        (Stachu.Parser.keepRight (TinyLang.ws ()) (Stachu.Parser.string "]"))
+        (Stachu.Parser.sepBy
+          (TinyLang.boolLiteral ())
+          (Stachu.Parser.between (TinyLang.ws ()) (TinyLang.ws ()) (Stachu.Parser.string ",")))))
+    "[true, false, true]") = Stachu.Parser.ParseResult.Success(TinyLang.Expr.EList [ TinyLang.Expr.EBool true; TinyLang.Expr.EBool false; TinyLang.Expr.EBool true ], "")
+
+
+module Keywords =
+  // Test keyword parsing (would be used for if/let)
+  (Stachu.Parser.parse (TinyLang.keyword "if") "if x") = Stachu.Parser.ParseResult.Success("if", "x")
+
+  (Stachu.Parser.parse (TinyLang.keyword "then") "then 1") = Stachu.Parser.ParseResult.Success("then", "1")
+
+  (Stachu.Parser.parse (TinyLang.keyword "else") "else 2") = Stachu.Parser.ParseResult.Success("else", "2")
+
+  (Stachu.Parser.parse (TinyLang.keyword "let") "let x") = Stachu.Parser.ParseResult.Success("let", "x")
+
+
+module RegexPatterns =
+  // Test regex patterns useful for language parsing
+
+  // Identifier pattern
+  (Stachu.Parser.parse (Stachu.Parser.regex "[a-z][a-zA-Z0-9_]*") "myVariable123 rest") = Stachu.Parser.ParseResult.Success("myVariable123", " rest")
+
+  // Integer pattern with optional sign
+  (Stachu.Parser.parse (Stachu.Parser.regex "-?[0-9]+") "-42 rest") = Stachu.Parser.ParseResult.Success("-42", " rest")
+
+  // Whitespace pattern
+  (Stachu.Parser.parse (Stachu.Parser.regex "[ \\t\\n]+") "   \t\n  text") = Stachu.Parser.ParseResult.Success("   \t\n  ", "text")
+
+  // String content (non-greedy, no quotes)
+  (Stachu.Parser.parse (Stachu.Parser.regex "[^\"]*") "hello world\" rest") = Stachu.Parser.ParseResult.Success("hello world", "\" rest")
+
+  // Operator characters
+  (Stachu.Parser.parse (Stachu.Parser.regex "[+\\-*/]") "+ 1") = Stachu.Parser.ParseResult.Success("+", " 1")
