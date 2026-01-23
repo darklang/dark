@@ -162,6 +162,35 @@ module List =
       return List.rev filtered
     }
 
+  /// Map a function over a list in parallel, awaiting all results
+  let mapInParallel (f : 'a -> Ply<'b>) (list : List<'a>) : Ply<List<'b>> =
+    uply {
+      let tasks = list |> List.map (fun x -> toTask (f x))
+      let! results = System.Threading.Tasks.Task.WhenAll(tasks)
+      return Array.toList results
+    }
+
+  /// Map a function over a list with limited concurrency
+  let mapWithConcurrency
+    (concurrencyCount : int)
+    (f : 'a -> Ply<'b>)
+    (list : List<'a>)
+    : Ply<List<'b>> =
+    uply {
+      let semaphore = new System.Threading.SemaphoreSlim(concurrencyCount)
+      let runWithSemaphore x =
+        task {
+          try
+            do! semaphore.WaitAsync()
+            return! toTask (f x)
+          finally
+            semaphore.Release() |> ignore<int>
+        }
+      let tasks = list |> List.map runWithSemaphore
+      let! results = System.Threading.Tasks.Task.WhenAll(tasks)
+      return Array.toList results
+    }
+
 module NEList =
   let mapSequentially
     (f : 'a -> Ply<'b>)

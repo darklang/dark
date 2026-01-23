@@ -32,6 +32,7 @@
   <ItemGroup>
     <Compile Include="Utils.fs" />
     <Compile Include="Builtins.fs" />
+    <Compile Include="FileTracking.fs" />
     <Compile Include="LoadPackagesFromDisk.fs" />
     <Compile Include="Canvas.fs" />
     <Compile Include="Migrations.fs" />

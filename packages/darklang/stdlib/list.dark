@@ -1,5 +1,6 @@
 module Darklang.Stdlib.List
 
+let something = 1L
 
 /// Returns an empty list
 let empty = []
