@@ -1,0 +1,46 @@
+// CLI test for reflection capabilities
+// This demonstrates using reflection in CLI scripts
+
+module ReflectionCliTest =
+  type Person = { name: String; age: Int64 }
+
+  type Status =
+    | Active
+    | Inactive of String
+
+  let testValue = Person { name = "Alice"; age = 30L }
+
+  let testEnum = Status.Active
+
+  // Test typeOf
+  let typeOfTest =
+    (Builtin.typeOf testValue |> Stdlib.String.startsWith "Package")
+    && (Builtin.typeOf 42L == "Int64")
+    && (Builtin.typeOf "hello" == "String")
+
+  // Test reflectType
+  let reflectTypeTest =
+    match Builtin.reflectType 42L with
+    | Known kt ->
+      (match kt with
+      | KTInt64 -> true
+      | _ -> false)
+    | _ -> false
+
+  // Test typeName
+  let typeNameTest =
+    match Builtin.typeName testValue with
+    | Some _fqtn -> true
+    | None -> false
+
+  // Test package functions
+  let packageFnTests =
+    Darklang.LanguageTools.Reflection.isPrimitive 42L
+    && Darklang.LanguageTools.Reflection.isCustomType testValue
+    && Darklang.LanguageTools.Reflection.isCollection [ 1L; 2L ]
+
+  // Return 0 for success if all tests pass
+  (if typeOfTest && reflectTypeTest && typeNameTest && packageFnTests then
+     0L
+   else
+     1L)

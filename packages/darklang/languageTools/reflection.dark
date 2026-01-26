@@ -1,0 +1,131 @@
+module Darklang.LanguageTools.Reflection
+
+// <aliases>
+type Dval = Darklang.LanguageTools.RuntimeTypes.Dval
+type ValueType = Darklang.LanguageTools.RuntimeTypes.ValueType
+type KnownType = Darklang.LanguageTools.RuntimeTypes.KnownType
+type DvalMap = Darklang.LanguageTools.RuntimeTypes.DvalMap
+type Option = Stdlib.Option.Option
+// </aliases>
+
+
+/// Check if a Dval is a primitive type (Unit, Bool, Int*, UInt*, Float, Char, String, DateTime, Uuid)
+let isPrimitive (dv: Dval) : Bool =
+  match dv with
+  | DUnit -> true
+  | DBool _ -> true
+  | DInt8 _ -> true
+  | DUInt8 _ -> true
+  | DInt16 _ -> true
+  | DUInt16 _ -> true
+  | DInt32 _ -> true
+  | DUInt32 _ -> true
+  | DInt64 _ -> true
+  | DUInt64 _ -> true
+  | DInt128 _ -> true
+  | DUInt128 _ -> true
+  | DFloat _ -> true
+  | DChar _ -> true
+  | DString _ -> true
+  | DDateTime _ -> true
+  | DUuid _ -> true
+  | _ -> false
+
+
+/// Check if a Dval is a collection type (List, Dict, or Tuple)
+let isCollection (dv: Dval) : Bool =
+  match dv with
+  | DList _ -> true
+  | DDict _ -> true
+  | DTuple _ -> true
+  | _ -> false
+
+
+/// Check if a Dval is a custom type (Record or Enum)
+let isCustomType (dv: Dval) : Bool =
+  match dv with
+  | DRecord _ -> true
+  | DEnum _ -> true
+  | _ -> false
+
+
+/// Check if a Dval is a function (DApplicable)
+let isFunction (dv: Dval) : Bool =
+  match dv with
+  | DApplicable _ -> true
+  | _ -> false
+
+
+/// Get the type name of a Dval as a human-readable string
+let getTypeName (dv: Dval) : String =
+  Builtin.typeOf dv
+
+
+/// Extract record fields if the Dval is a record, otherwise return None
+let getFields (dv: Dval) : Option<DvalMap> =
+  match dv with
+  | DRecord(_runtimeTypeName, _sourceTypeName, _typeArgs, fields) ->
+    Stdlib.Option.Option.Some fields
+  | _ -> Stdlib.Option.Option.None
+
+
+/// Extract enum case name if the Dval is an enum, otherwise return None
+let getCaseName (dv: Dval) : Option<String> =
+  match dv with
+  | DEnum(_runtimeTypeName, _sourceTypeName, _typeArgs, caseName, _fields) ->
+    Stdlib.Option.Option.Some caseName
+  | _ -> Stdlib.Option.Option.None
+
+
+/// Extract List element type if the Dval is a List, otherwise return None
+let getListElementType (dv: Dval) : Option<ValueType> =
+  match dv with
+  | DList(elementType, _items) -> Stdlib.Option.Option.Some elementType
+  | _ -> Stdlib.Option.Option.None
+
+
+/// Extract Dict value type if the Dval is a Dict, otherwise return None
+let getDictValueType (dv: Dval) : Option<ValueType> =
+  match dv with
+  | DDict(valueType, _entries) -> Stdlib.Option.Option.Some valueType
+  | _ -> Stdlib.Option.Option.None
+
+
+/// Get the full ValueType of a Dval (wrapper around Builtin.reflectType)
+let getValueType (dv: Dval) : ValueType =
+  Builtin.reflectType dv
+
+
+/// Check if a Dval is a List type
+let isList (dv: Dval) : Bool =
+  match dv with
+  | DList _ -> true
+  | _ -> false
+
+
+/// Check if a Dval is a Dict type
+let isDict (dv: Dval) : Bool =
+  match dv with
+  | DDict _ -> true
+  | _ -> false
+
+
+/// Check if a Dval is a Tuple type
+let isTuple (dv: Dval) : Bool =
+  match dv with
+  | DTuple _ -> true
+  | _ -> false
+
+
+/// Check if a Dval is a Record type
+let isRecord (dv: Dval) : Bool =
+  match dv with
+  | DRecord _ -> true
+  | _ -> false
+
+
+/// Check if a Dval is an Enum type
+let isEnum (dv: Dval) : Bool =
+  match dv with
+  | DEnum _ -> true
+  | _ -> false
