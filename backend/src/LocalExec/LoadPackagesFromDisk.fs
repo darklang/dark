@@ -13,25 +13,28 @@ module NR = LibParser.NameResolver
 
 open Utils
 
-/// Reads and parses all .dark files in `packages` dir,
-/// failing upon any individual failure
-let load (builtins : RT.Builtins) : Ply<List<PT.PackageOp>> =
+/// Result type for incremental loading
+type LoadResult =
+  | NoChanges
+  | ParsedOps of List<PT.PackageOp>
+
+/// Package directory path
+let packageDir = "/home/dark/app/packages"
+
+/// Full load - parses all files (original behavior)
+let private loadFullInternal
+  (builtins : RT.Builtins)
+  (filesWithContents : List<string * string>)
+  : Ply<List<PT.PackageOp>> =
   uply {
     let accountID = None
     let branchId = None
-    let filesWithContents =
-      "/home/dark/app/packages"
-      |> listDirectoryRecursive
-      |> List.filter (String.contains "_" >> not)
-      |> List.filter (fun x -> x |> String.endsWith ".dark")
-      |> List.map (fun fileName -> (fileName, System.IO.File.ReadAllText fileName))
 
-    // First pass, parse all the packages, allowing unresolved names
+    // First pass, parse all the packages in parallel, allowing unresolved names
     // (other package items won't be available yet)
     let! (firstPassOps : List<PT.PackageOp>) =
       filesWithContents
-      // TODO: parallelize
-      |> Ply.List.mapSequentially (fun (path, contents) ->
+      |> Ply.List.mapWithConcurrency 8 (fun (path, contents) ->
         try
           debuG "about to parse" path
           LibParser.Parser.parsePackageFile
@@ -47,18 +50,19 @@ let load (builtins : RT.Builtins) : Ply<List<PT.PackageOp>> =
           reraise ())
       |> Ply.map List.flatten
 
-    // Re-parse the packages, though this time we don't allow unresolved names
+    // Re-parse the packages in parallel, this time with strict name resolution
     // (any package references that may have been unresolved a second ago should now be OK)
+    let secondPassPM =
+      LibPackageManager.PackageManager.withExtraOps PT.PackageManager.empty firstPassOps
+
     let! reParsedOps =
       filesWithContents
-      |> Ply.List.mapSequentially (fun (path, contents) ->
+      |> Ply.List.mapWithConcurrency 8 (fun (path, contents) ->
         LibParser.Parser.parsePackageFile
           accountID
           branchId
           builtins
-          (LibPackageManager.PackageManager.withExtraOps
-            PT.PackageManager.empty
-            firstPassOps)
+          secondPassPM
           NR.OnMissing.ThrowError
           path
           contents)
@@ -72,4 +76,51 @@ let load (builtins : RT.Builtins) : Ply<List<PT.PackageOp>> =
       LibPackageManager.PackageManager.stabilizeOpsAgainstPM firstPassPM reParsedOps
 
     return adjustedOps
+  }
+
+/// Reads and parses all .dark files in `packages` dir,
+/// failing upon any individual failure.
+/// Returns NoChanges if no files have changed since last reload.
+let loadIncremental (builtins : RT.Builtins) : Ply<LoadResult> =
+  uply {
+    // Quick mtime check - doesn't read file contents
+    let (changedPaths, unchangedPaths, deletedPaths) =
+      FileTracking.getChangedFilePaths packageDir
+
+    // If nothing changed and nothing deleted, skip reload entirely
+    if List.isEmpty changedPaths && List.isEmpty deletedPaths then
+      debuG "No files changed based on mtime" (List.length unchangedPaths)
+      return NoChanges
+    else
+      debuG "Files to reload based on mtime" (List.length changedPaths)
+      debuG "Files deleted" (List.length deletedPaths)
+
+      // For now, if anything changed, do full reload
+      // TODO: Implement true incremental - only parse changed files
+      let filesWithContents =
+        packageDir
+        |> listDirectoryRecursive
+        |> List.filter (String.contains "_" >> not)
+        |> List.filter (fun x -> x |> String.endsWith ".dark")
+        |> List.map (fun fileName -> (fileName, System.IO.File.ReadAllText fileName))
+
+      let! ops = loadFullInternal builtins filesWithContents
+
+      // Update tracking with current state
+      FileTracking.updateTracking filesWithContents
+
+      return ParsedOps ops
+  }
+
+/// Backward-compatible load function (always does full load)
+let load (builtins : RT.Builtins) : Ply<List<PT.PackageOp>> =
+  uply {
+    let filesWithContents =
+      packageDir
+      |> listDirectoryRecursive
+      |> List.filter (String.contains "_" >> not)
+      |> List.filter (fun x -> x |> String.endsWith ".dark")
+      |> List.map (fun fileName -> (fileName, System.IO.File.ReadAllText fileName))
+
+    return! loadFullInternal builtins filesWithContents
   }

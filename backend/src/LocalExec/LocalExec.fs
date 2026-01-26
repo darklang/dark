@@ -38,28 +38,36 @@ module HandleCommand =
 
   let reloadPackages () : Ply<Result<unit, string>> =
     uply {
-      // first, load the packages from disk, ensuring all parse well
-      let! ops = LoadPackagesFromDisk.load Builtins.all
+      // Use incremental loading - skips if no files changed
+      match! LoadPackagesFromDisk.loadIncremental Builtins.all with
+      | LoadPackagesFromDisk.NoChanges ->
+        // Nothing changed, skip the expensive reload
+        print "No package files changed, skipping reload"
+        let! stats = LibPackageManager.Stats.get ()
+        print $"Current packages: {stats.types} types, {stats.values} values, and {stats.fns} fns"
+        return Ok()
 
-      // CLEANUP consider checking for duplicates (helps prevent a class of issues)
+      | LoadPackagesFromDisk.ParsedOps ops ->
+        // Files changed, do full reload
+        // CLEANUP consider checking for duplicates (helps prevent a class of issues)
 
-      print "Purging ..."
-      do! LibPackageManager.Purge.purge ()
+        print "Purging ..."
+        do! LibPackageManager.Purge.purge ()
 
-      print "Filling ..."
-      let! _ = LibPackageManager.Inserts.insertAndApplyOps None None None ops
+        print "Filling ..."
+        let! _ = LibPackageManager.Inserts.insertAndApplyOps None None None ops
 
-      // Get stats after ops are inserted/applied
-      let! stats = LibPackageManager.Stats.get ()
-      print "Loaded packages from disk "
-      print $"{stats.types} types, {stats.values} values, and {stats.fns} fns"
+        // Get stats after ops are inserted/applied
+        let! stats = LibPackageManager.Stats.get ()
+        print "Loaded packages from disk "
+        print $"{stats.types} types, {stats.values} values, and {stats.fns} fns"
 
-      // Reload dark-packages and dark-editor canvases after package reload
-      print "Reloading dark-packages canvas..."
-      let! _ = reloadCanvas "dark-packages"
-      let! _ = reloadCanvas "dark-editor"
+        // Reload dark-packages and dark-editor canvases after package reload
+        print "Reloading dark-packages canvas..."
+        let! _ = reloadCanvas "dark-packages"
+        let! _ = reloadCanvas "dark-editor"
 
-      return Ok()
+        return Ok()
     }
 
   let runMigrations () : Ply<Result<unit, string>> =

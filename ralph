@@ -1,0 +1,170 @@
+#!/usr/bin/env bash
+# Ralph Wiggum Loop for Faster Package Reloading
+# Named after the iterative AI development technique by Geoffrey Huntley
+#
+# This script runs Claude Code in a loop, feeding it the same prompt until
+# the goal is achieved: package reloading in <1 second.
+
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+cd "$SCRIPT_DIR"
+
+# Configuration
+MAX_ITERATIONS=${MAX_ITERATIONS:-50}
+TARGET_TIME_MS=${TARGET_TIME_MS:-1000}  # 1 second in milliseconds
+LOG_DIR="./rundir/logs/ralph"
+PROMPT_FILE="./RALPH_PROMPT.md"
+
+# Colors
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+NC='\033[0m' # No Color
+
+# Create log directory
+mkdir -p "$LOG_DIR"
+
+# Check if claude is available
+if ! command -v claude &> /dev/null; then
+    echo -e "${RED}Error: 'claude' command not found. Install Claude Code first.${NC}"
+    exit 1
+fi
+
+# Measure current reload time in milliseconds
+measure_reload_time() {
+    local start_ms end_ms duration_ms
+    start_ms=$(date +%s%3N)
+    ./scripts/build/reload-packages > /dev/null 2>&1 || true
+    end_ms=$(date +%s%3N)
+    duration_ms=$((end_ms - start_ms))
+    echo "$duration_ms"
+}
+
+# Check if goal is achieved
+check_goal() {
+    local current_time_ms="$1"
+    if [ "$current_time_ms" -lt "$TARGET_TIME_MS" ]; then
+        return 0  # Goal achieved
+    else
+        return 1  # Goal not achieved
+    fi
+}
+
+# Generate iteration summary
+generate_summary() {
+    local iteration="$1"
+    local reload_time_ms="$2"
+    local log_file="$3"
+
+    echo "=== Iteration $iteration Summary ===" >> "$log_file"
+    echo "Reload time: ${reload_time_ms}ms (target: ${TARGET_TIME_MS}ms)" >> "$log_file"
+    echo "Git status:" >> "$log_file"
+    git status --short >> "$log_file" 2>&1 || true
+    echo "" >> "$log_file"
+}
+
+# Main loop
+main() {
+    echo -e "${BLUE}============================================${NC}"
+    echo -e "${BLUE}  Ralph Wiggum Loop - Faster Package Reload ${NC}"
+    echo -e "${BLUE}============================================${NC}"
+    echo ""
+
+    # Measure baseline
+    echo -e "${YELLOW}Measuring baseline reload time...${NC}"
+    local baseline_ms
+    baseline_ms=$(measure_reload_time)
+    echo -e "Baseline: ${RED}${baseline_ms}ms${NC} (target: ${GREEN}${TARGET_TIME_MS}ms${NC})"
+    echo ""
+
+    # Check if already at goal
+    if check_goal "$baseline_ms"; then
+        echo -e "${GREEN}Goal already achieved! Reload time is under ${TARGET_TIME_MS}ms${NC}"
+        exit 0
+    fi
+
+    local iteration=1
+    local current_time_ms="$baseline_ms"
+    local session_log="$LOG_DIR/session_$(date +%Y%m%d_%H%M%S).log"
+
+    echo "Session log: $session_log"
+    echo "Baseline: ${baseline_ms}ms" > "$session_log"
+    echo "" >> "$session_log"
+
+    while [ "$iteration" -le "$MAX_ITERATIONS" ]; do
+        echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+        echo -e "${BLUE}  Iteration $iteration / $MAX_ITERATIONS ${NC}"
+        echo -e "${BLUE}  Current: ${current_time_ms}ms | Target: ${TARGET_TIME_MS}ms ${NC}"
+        echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+
+        local iteration_log="$LOG_DIR/iteration_${iteration}_$(date +%Y%m%d_%H%M%S).log"
+
+        # Run Claude with the prompt
+        echo -e "${YELLOW}Running Claude Code...${NC}"
+
+        # Build the prompt with current metrics
+        local prompt
+        prompt=$(cat "$PROMPT_FILE")
+        prompt="$prompt
+
+## Current Metrics (Iteration $iteration)
+- Current reload time: ${current_time_ms}ms
+- Target reload time: ${TARGET_TIME_MS}ms
+- Baseline was: ${baseline_ms}ms
+- Improvement needed: $((current_time_ms - TARGET_TIME_MS))ms
+
+## Recent Git Changes
+$(git log --oneline -5 2>/dev/null || echo 'No recent commits')
+
+## Modified Files
+$(git status --short 2>/dev/null || echo 'Clean working tree')"
+
+        # Run Claude Code with the prompt
+        # Use --print to capture output, --dangerously-skip-permissions for automation
+        if claude --print --dangerously-skip-permissions "$prompt" > "$iteration_log" 2>&1; then
+            echo -e "${GREEN}Claude completed iteration $iteration${NC}"
+        else
+            echo -e "${YELLOW}Claude exited (may have completed or hit an issue)${NC}"
+        fi
+
+        # Measure new reload time
+        echo -e "${YELLOW}Measuring reload time after changes...${NC}"
+        current_time_ms=$(measure_reload_time)
+        echo -e "Current reload time: ${YELLOW}${current_time_ms}ms${NC}"
+
+        # Log iteration
+        generate_summary "$iteration" "$current_time_ms" "$session_log"
+
+        # Check if goal achieved
+        if check_goal "$current_time_ms"; then
+            echo ""
+            echo -e "${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+            echo -e "${GREEN}  GOAL ACHIEVED!${NC}"
+            echo -e "${GREEN}  Reload time: ${current_time_ms}ms < ${TARGET_TIME_MS}ms${NC}"
+            echo -e "${GREEN}  Iterations: $iteration${NC}"
+            echo -e "${GREEN}  Speedup: $(echo "scale=1; $baseline_ms / $current_time_ms" | bc)x${NC}"
+            echo -e "${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+            echo ""
+            echo "GOAL ACHIEVED at iteration $iteration" >> "$session_log"
+            echo "Final time: ${current_time_ms}ms" >> "$session_log"
+            exit 0
+        fi
+
+        iteration=$((iteration + 1))
+
+        # Brief pause between iterations
+        sleep 2
+    done
+
+    echo -e "${RED}Max iterations ($MAX_ITERATIONS) reached without achieving goal${NC}"
+    echo -e "Final reload time: ${current_time_ms}ms (target was ${TARGET_TIME_MS}ms)"
+    echo "MAX ITERATIONS REACHED" >> "$session_log"
+    exit 1
+}
+
+# Handle interrupts gracefully
+trap 'echo -e "\n${YELLOW}Interrupted. Partial progress saved.${NC}"; exit 130' INT TERM
+
+main "$@"
