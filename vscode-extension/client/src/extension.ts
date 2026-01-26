@@ -216,6 +216,9 @@ export async function activate(context: vscode.ExtensionContext) {
     ...scriptCommands.register(),
     ...approvalCommands.register(),
   ].forEach(reg);
+
+  // Open dashboard by default
+  HomepagePanel.createOrShow(context.extensionUri);
 }
 
 export async function deactivate(): Promise<void> {
