@@ -1,4 +1,4 @@
-module Darklang.Cli.Experiments.UICatalog.Components.Progress
+module Darklang.CLI.UI.Components.Progress
 
 type ProgressModel =
   { value: Int64

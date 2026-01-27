@@ -1,4 +1,4 @@
-module Darklang.Cli.Experiments.UICatalog.Components.Card
+module Darklang.CLI.UI.Components.Card
 
 // Border characters type
 type BorderChars =
@@ -51,22 +51,26 @@ let renderCard (component: Core.Types.Component<CardModel>) (context: Core.Types
     if Stdlib.String.isEmpty model.title && Stdlib.String.isEmpty model.subtitle then
       []
     else
+      let innerWidth = model.width - 4L
+
       let titleLine =
         if Stdlib.String.isEmpty model.title then
           ""
         else
+          // Calculate padding based on raw text, then apply styling
+          let titleLen = Stdlib.String.length model.title
+          let rightPad = if innerWidth > titleLen then Stdlib.String.repeat " " (innerWidth - titleLen) else ""
           let styledTitle = Core.Rendering.colorize model.headerColor (Core.Rendering.bold model.title)
-          let paddedTitle = Core.Rendering.padText styledTitle (model.width - 4L) Core.Types.Alignment.Left
-          left ++ " " ++ paddedTitle ++ " " ++ right
+          left ++ " " ++ styledTitle ++ rightPad ++ " " ++ right
 
       let subtitleLine =
         if Stdlib.String.isEmpty model.subtitle then
           ""
         else
-          let paddedSubtitle = Core.Rendering.padText model.subtitle (model.width - 4L) Core.Types.Alignment.Left
+          let paddedSubtitle = Core.Rendering.padText model.subtitle innerWidth Core.Types.Alignment.Left
           left ++ " " ++ paddedSubtitle ++ " " ++ right
 
-      let headerSeparator = left ++ (Stdlib.String.repeat horizontal (model.width - 2L)) ++ right
+      let headerSeparator = left ++ Stdlib.String.repeat horizontal (model.width - 2L) ++ right
 
       [titleLine; subtitleLine; headerSeparator]
       |> Stdlib.List.filter (fun line -> Stdlib.Bool.not (Stdlib.String.isEmpty line))
@@ -85,7 +89,10 @@ let renderCard (component: Core.Types.Component<CardModel>) (context: Core.Types
     let remainingHeight = maxContentHeight - Stdlib.List.length paddedContent
     let emptyLines =
       if remainingHeight > 0L then
-        Stdlib.List.repeat remainingHeight (left ++ (Stdlib.String.repeat " " (model.width - 2L)) ++ right)
+        let emptyLine = left ++ Stdlib.String.repeat " " (model.width - 2L) ++ right
+        match Stdlib.List.repeat remainingHeight emptyLine with
+        | Ok lines -> lines
+        | Error _ -> []
       else
         []
 

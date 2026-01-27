@@ -1,4 +1,4 @@
-module Darklang.Cli.Experiments.UICatalog.Components.Panel
+module Darklang.CLI.UI.Components.Panel
 
 // Panel Item Type
 type PanelItem =

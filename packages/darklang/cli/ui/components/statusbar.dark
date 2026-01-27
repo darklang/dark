@@ -1,5 +1,5 @@
 // StatusBar Components - Bottom status display
-module Darklang.Cli.Experiments.UICatalog.Components.StatusBar
+module Darklang.CLI.UI.Components.StatusBar
 
 
 // StatusBar Component
@@ -42,7 +42,7 @@ let renderStatusBar (component: Core.Types.Component<StatusBarModel>) (context: 
       if totalContentLen >= model.width then
         Stdlib.String.slice (model.leftText ++ model.centerText ++ model.rightText) 0L model.width
       else
-        let leftPadding = (model.width - centerLen) / 2L - leftLen
+        let leftPadding = Stdlib.Int64.divide (model.width - centerLen) 2L - leftLen
         let rightPadding = model.width - leftLen - centerLen - leftPadding
         let leftPad =
           if leftPadding > 0L then

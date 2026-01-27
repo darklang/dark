@@ -1,4 +1,4 @@
-module Darklang.Cli.Experiments.UICatalog.Components.Forms
+module Darklang.CLI.UI.Components.Forms
 
 
 // Text Input Component
@@ -24,21 +24,25 @@ let createTextInput (placeholder: String) (maxLength: Int64) : Core.Types.Compon
 let renderTextInput (component: Core.Types.Component<TextInputModel>) (context: Core.Types.RenderContext) : List<String> =
   let model = component.model
   let hasFocus = context.hasFocus && component.state == Core.Types.ComponentState.Focused
+  let innerWidth = component.bounds.dimensions.width - 4L
 
-  let displayValue =
+  // Calculate padding based on raw text length
+  let (rawValue, styledValue) =
     if model.password then
-      Stdlib.String.repeat "*" (Stdlib.String.length model.value)
+      let masked = Stdlib.String.repeat "*" (Stdlib.String.length model.value)
+      (masked, masked)
     else if Stdlib.String.isEmpty model.value then
-      Core.Rendering.dim model.placeholder
+      (model.placeholder, Core.Rendering.dim model.placeholder)
     else
-      model.value
+      (model.value, model.value)
 
-  let paddedValue = Core.Rendering.padText displayValue (component.bounds.dimensions.width - 4L) Core.Types.Alignment.Left
+  let textLen = Stdlib.String.length rawValue
+  let rightPad = if innerWidth > textLen then Stdlib.String.repeat " " (innerWidth - textLen) else ""
   let cursor = if hasFocus then "│" else " "
   let focusIndicator = if hasFocus then "► " else "  "
 
   [ focusIndicator ++ "┌" ++ Stdlib.String.repeat "─" (component.bounds.dimensions.width - 2L) ++ "┐"
-    focusIndicator ++ "│ " ++ paddedValue ++ cursor ++ " │"
+    focusIndicator ++ "│ " ++ styledValue ++ rightPad ++ cursor ++ " │"
     focusIndicator ++ "└" ++ Stdlib.String.repeat "─" (component.bounds.dimensions.width - 2L) ++ "┘" ]
 
 let updateTextInput (component: Core.Types.Component<TextInputModel>) (event: Core.Types.ComponentEvent) : Core.Types.Component<TextInputModel> =

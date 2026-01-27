@@ -1,4 +1,4 @@
-module Darklang.Cli.Experiments.UICatalog.Core.Rendering
+module Darklang.CLI.UI.Core.Rendering
 
 // Text styling functions
 let colorize (color: Types.Color) (text: String) : String =
@@ -25,8 +25,17 @@ let underline (text: String) : String =
 let dim (text: String) : String =
   "\u001b[2m" ++ text ++ "\u001b[0m"
 
-// Box drawing characters
+// Box drawing style
+type BoxStyle =
+  | Single
+  | Double
+  | Rounded
+  | Heavy
+  | Dashed
+
+// Box drawing characters organized by style
 module BoxChars =
+  // Single line (default)
   let horizontal = "─"
   let vertical = "│"
   let topLeft = "┌"
@@ -39,7 +48,7 @@ module BoxChars =
   let teeLeft = "┤"
   let teeRight = "├"
 
-  // Double line variants
+  // Double line
   let doubleHorizontal = "═"
   let doubleVertical = "║"
   let doubleTopLeft = "╔"
@@ -47,13 +56,42 @@ module BoxChars =
   let doubleBottomLeft = "╚"
   let doubleBottomRight = "╝"
 
-// Drawing utilities
-let drawBox (bounds: Types.Bounds) (title: String) (content: List<String>) : List<String> =
-  let width = bounds.dimensions.width
-  let height = bounds.dimensions.height
+  // Rounded corners (uses single line for edges)
+  let roundedTopLeft = "╭"
+  let roundedTopRight = "╮"
+  let roundedBottomLeft = "╰"
+  let roundedBottomRight = "╯"
 
-  let topBorder = BoxChars.topLeft ++ Stdlib.String.repeat BoxChars.horizontal (width - 2L) ++ BoxChars.topRight
-  let bottomBorder = BoxChars.bottomLeft ++ Stdlib.String.repeat BoxChars.horizontal (width - 2L) ++ BoxChars.bottomRight
+  // Heavy (thick) line
+  let heavyHorizontal = "━"
+  let heavyVertical = "┃"
+  let heavyTopLeft = "┏"
+  let heavyTopRight = "┓"
+  let heavyBottomLeft = "┗"
+  let heavyBottomRight = "┛"
+
+  // Dashed line
+  let dashedHorizontal = "┄"
+  let dashedVertical = "┆"
+
+// Get box characters for a given style
+let getBoxCharsForStyle (style: BoxStyle) : (String * String * String * String * String * String) =
+  match style with
+  | Single -> (BoxChars.horizontal, BoxChars.vertical, BoxChars.topLeft, BoxChars.topRight, BoxChars.bottomLeft, BoxChars.bottomRight)
+  | Double -> (BoxChars.doubleHorizontal, BoxChars.doubleVertical, BoxChars.doubleTopLeft, BoxChars.doubleTopRight, BoxChars.doubleBottomLeft, BoxChars.doubleBottomRight)
+  | Rounded -> (BoxChars.horizontal, BoxChars.vertical, BoxChars.roundedTopLeft, BoxChars.roundedTopRight, BoxChars.roundedBottomLeft, BoxChars.roundedBottomRight)
+  | Heavy -> (BoxChars.heavyHorizontal, BoxChars.heavyVertical, BoxChars.heavyTopLeft, BoxChars.heavyTopRight, BoxChars.heavyBottomLeft, BoxChars.heavyBottomRight)
+  | Dashed -> (BoxChars.dashedHorizontal, BoxChars.dashedVertical, BoxChars.topLeft, BoxChars.topRight, BoxChars.bottomLeft, BoxChars.bottomRight)
+
+// Drawing utilities
+let drawBoxWithStyle (bounds: Types.Bounds) (title: String) (content: List<String>) (style: BoxStyle) : List<String> =
+  let width = bounds.dimensions.width
+  let (horiz, vert, tl, tr, bl, br) = getBoxCharsForStyle style
+
+  let topBorder = tl ++ Stdlib.String.repeat horiz (width - 2L) ++ tr
+  let bottomBorder = bl ++ Stdlib.String.repeat horiz (width - 2L) ++ br
+
+  let innerWidth = width - 2L
 
   let titleLine =
     if Stdlib.String.isEmpty title then
@@ -61,21 +99,25 @@ let drawBox (bounds: Types.Bounds) (title: String) (content: List<String>) : Lis
     else
       let paddedTitle = " " ++ title ++ " "
       let titleWidth = Stdlib.String.length paddedTitle
-      let leftPadding = Stdlib.Int64.divide (width - titleWidth) 2L
-      let rightPadding = width - titleWidth - leftPadding
-      [BoxChars.vertical ++ Stdlib.String.repeat " " leftPadding ++ bold paddedTitle ++ Stdlib.String.repeat " " rightPadding ++ BoxChars.vertical]
+      let leftPadding = Stdlib.Int64.divide (innerWidth - titleWidth) 2L
+      let rightPadding = innerWidth - titleWidth - leftPadding
+      [vert ++ Stdlib.String.repeat " " leftPadding ++ bold paddedTitle ++ Stdlib.String.repeat " " rightPadding ++ vert]
 
   let contentLines =
     content
     |> Stdlib.List.map (fun line ->
       let lineLength = Stdlib.String.length line
-      let padding = if lineLength < width - 2L then Stdlib.String.repeat " " (width - 2L - lineLength) else ""
-      BoxChars.vertical ++ " " ++ line ++ padding ++ BoxChars.vertical)
+      let padding = if lineLength < innerWidth - 1L then Stdlib.String.repeat " " (innerWidth - 1L - lineLength) else ""
+      vert ++ " " ++ line ++ padding ++ vert)
 
   [topBorder]
   |> Stdlib.List.append titleLine
   |> Stdlib.List.append contentLines
   |> Stdlib.List.append [bottomBorder]
+
+// Default box drawing with Single style
+let drawBox (bounds: Types.Bounds) (title: String) (content: List<String>) : List<String> =
+  drawBoxWithStyle bounds title content BoxStyle.Single
 
 let padText (text: String) (width: Int64) (alignment: Types.Alignment) : String =
   let textLength = Stdlib.String.length text

@@ -1,4 +1,4 @@
-module Darklang.Cli.Experiments.UICatalog.Core.Types
+module Darklang.CLI.UI.Core.Types
 
 // Base UI Element Types
 type Color =
