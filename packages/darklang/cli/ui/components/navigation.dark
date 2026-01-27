@@ -1,4 +1,4 @@
-module Darklang.Cli.Experiments.UICatalog.Components.Navigation
+module Darklang.CLI.UI.Components.Navigation
 
 
 // Menu Item Type

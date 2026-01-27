@@ -1,5 +1,5 @@
 // TextBlock Component - Multi-line text
-module Darklang.Cli.Experiments.UICatalog.Components.TextBlock
+module Darklang.CLI.UI.Components.TextBlock
 
 
 type TextBlockModel =

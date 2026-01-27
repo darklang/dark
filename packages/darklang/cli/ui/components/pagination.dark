@@ -1,4 +1,4 @@
-module Darklang.Cli.Experiments.UICatalog.Components.Pagination
+module Darklang.CLI.UI.Components.Pagination
 
 // Pagination Component
 type PaginationModel =
@@ -19,8 +19,8 @@ type PaginationStyle =
 let createPagination (totalItems: Int64) (pageSize: Int64) : Core.Types.Component<PaginationModel> =
   let totalPages = if pageSize > 0L then Stdlib.Int64.divide (totalItems + pageSize - 1L) pageSize else 1L
   let model = PaginationModel { currentPage = 1L; totalPages = totalPages; pageSize = pageSize; totalItems = totalItems; showInfo = true; showJumper = false; maxVisiblePages = 7L; style = PaginationStyle.Standard }
-  let width = 50L
-  let height = if model.showInfo then 3L else 1L
+  let width = 60L
+  let height = if model.showInfo then 2L else 1L
   let bounds = Core.Types.Bounds { position = Core.Types.Position { x = 0L; y = 0L }; dimensions = Core.Types.Dimensions { width = width; height = height } }
   Core.Types.Component
     { id = "pagination"
@@ -101,8 +101,7 @@ let renderPagination (component: Core.Types.Component<PaginationModel>) (context
     let spacing = if model.style == PaginationStyle.Simple then " " else " "
     let combinedPages = Stdlib.String.join generatePageNumbers spacing
     let focusIndicator = if hasFocus then "► " else ""
-    let paddedPages = Core.Rendering.padText (focusIndicator ++ combinedPages) component.bounds.dimensions.width Core.Types.Alignment.Center
-    paddedPages
+    focusIndicator ++ combinedPages
 
   let infoLine =
     if model.showInfo then

@@ -2,7 +2,6 @@ module Darklang.Cli
 
 type Page =
   | MainPrompt
-  | Experiments
   | InteractiveNav of Packages.NavInteractive.State
   | CompletionPicker of CompletionPicker.State
 
@@ -173,7 +172,6 @@ module Registry =
       ("let", "Create a new value (alias for val)", [], Packages.Value.execute, Packages.Value.help, Packages.Value.complete)
       ("fn", "Create a new function", ["function"], Packages.Fn.execute, Packages.Fn.help, Packages.Fn.complete)
       ("type", "Create a new type", [], Packages.Type.execute, Packages.Type.help, Packages.Type.complete)
-      ("experiments", "Try out various WIP CLI experiments", [], Cli.Experiments.execute, Cli.Experiments.help, Cli.Experiments.complete)
     ]
     |> Stdlib.List.map(
       // CLEANUP nitpicky: swap help and complete
@@ -247,7 +245,7 @@ module Registry =
       ("Source Control", ["branch"; "instance"])
       ("Execution", ["run"; "eval"; "scripts"])
       ("Installation", ["install"; "update"; "uninstall"; "status"; "version"])
-      ("Utilities", ["clear"; "help"; "quit"; "config"; "account"; "experiments"]) ]
+      ("Utilities", ["clear"; "help"; "quit"; "config"; "account"]) ]
 
   // Helper function to format a group of commands with details
   let formatCommandGroup (groupName: String) (commandNames: List<String>) (commands: List<CommandHandler>) : String =
@@ -553,13 +551,6 @@ let runInteractiveLoop (state: AppState) : Int64 =
       // Position cursor at correct location within user input
       let cursorColumn = inputStartColumn + state.prompt.cursorPosition
       Stdlib.print (Colors.moveCursorToColumn cursorColumn)
-    | Experiments ->
-      if state.needsFullRedraw then
-        Stdlib.printLine "🧪 Experiments Mode"
-        Stdlib.printLine ""
-        Stdlib.printLine "Try out various WIP CLI experiments here"
-        Stdlib.printLine ""
-        Stdlib.printLine "Press ESC to return to main prompt"
     | InteractiveNav navState ->
       // Always display in interactive nav mode - it manages its own screen clearing
       Packages.NavInteractive.display navState

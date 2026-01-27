@@ -1,4 +1,4 @@
-module Darklang.Cli.Experiments.UICatalog.Components.Layout
+module Darklang.CLI.UI.Components.Layout
 
 // Container Component
 type ContainerModel<'TChild> =

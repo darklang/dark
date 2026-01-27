@@ -1,4 +1,4 @@
-module Darklang.Cli.Experiments.UICatalog.Components.ListView
+module Darklang.CLI.UI.Components.ListView
 
 // ListView Components - Data display with selection
 
@@ -30,6 +30,7 @@ let createListView (items: List<ListItem>) (width: Int64) (height: Int64) : Core
 let renderListView (component: Core.Types.Component<ListViewModel>) (context: Core.Types.RenderContext) : List<String> =
   let model = component.model
   let hasFocus = context.hasFocus && component.state == Core.Types.ComponentState.Focused
+  let innerWidth = model.width - 4L
 
   let visibleItems =
     model.items
@@ -41,19 +42,22 @@ let renderListView (component: Core.Types.Component<ListViewModel>) (context: Co
     |> Stdlib.List.indexedMap (fun i item ->
         let globalIndex = model.scrollOffset + i
         let marker = if globalIndex == model.selectedIndex then "▶ " else "  "
-        let itemText =
-          if item.enabled then
-            item.text
-          else
-            Core.Rendering.dim item.text
+        let rawText = marker ++ item.text
+        let textLen = Stdlib.String.length rawText
+        let rightPad = if innerWidth > textLen then Stdlib.String.repeat " " (innerWidth - textLen) else ""
+
+        // Style after calculating padding
         let styledText =
           if globalIndex == model.selectedIndex && hasFocus then
-            Core.Rendering.colorize Core.Types.Color.Primary (Core.Rendering.bold (marker ++ itemText))
+            Core.Rendering.colorize Core.Types.Color.Primary (Core.Rendering.bold rawText)
           else if globalIndex == model.selectedIndex then
-            Core.Rendering.bold (marker ++ itemText)
+            Core.Rendering.bold rawText
+          else if item.enabled then
+            rawText
           else
-            marker ++ itemText
-        Core.Rendering.padText styledText (model.width - 4L) Core.Types.Alignment.Left)
+            Core.Rendering.dim rawText
+
+        styledText ++ rightPad)
 
   let topBorder = "┌" ++ Stdlib.String.repeat "─" (model.width - 2L) ++ "┐"
   let bottomBorder = "└" ++ Stdlib.String.repeat "─" (model.width - 2L) ++ "┘"

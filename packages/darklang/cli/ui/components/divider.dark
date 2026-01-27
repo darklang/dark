@@ -1,4 +1,4 @@
-module Darklang.Cli.Experiments.UICatalog.Components.Divider
+module Darklang.CLI.UI.Components.Divider
 
 type DividerModel =
   { character: String

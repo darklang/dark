@@ -1,0 +1,101 @@
+module Darklang.CLI.UI.Components.Spinner
+
+// Spinner styles with different animation frames
+type SpinnerStyle =
+  | Dots
+  | Line
+  | Circle
+  | Braille
+  | Arrow
+
+// Get animation frames for a spinner style
+let getFrames (style: SpinnerStyle) : List<String> =
+  match style with
+  | Dots -> ["⠋"; "⠙"; "⠹"; "⠸"; "⠼"; "⠴"; "⠦"; "⠧"; "⠇"; "⠏"]
+  | Line -> ["-"; "\\"; "|"; "/"]
+  | Circle -> ["◐"; "◓"; "◑"; "◒"]
+  | Braille -> ["⣾"; "⣽"; "⣻"; "⢿"; "⡿"; "⣟"; "⣯"; "⣷"]
+  | Arrow -> ["←"; "↖"; "↑"; "↗"; "→"; "↘"; "↓"; "↙"]
+
+type SpinnerModel =
+  { message: String
+    style: SpinnerStyle
+    frameIndex: Int64
+    color: Core.Types.Color
+    running: Bool }
+
+let createSpinner (message: String) (style: SpinnerStyle) : Core.Types.Component<SpinnerModel> =
+  let model =
+    SpinnerModel
+      { message = message
+        style = style
+        frameIndex = 0L
+        color = Core.Types.Color.Primary
+        running = true }
+
+  let bounds =
+    Core.Types.Bounds
+      { position = Core.Types.Position { x = 0L; y = 0L }
+        dimensions = Core.Types.Dimensions { width = Stdlib.String.length message + 4L; height = 1L } }
+
+  Core.Types.Component
+    { id = "spinner"
+      model = model
+      state = Core.Types.ComponentState.Loading
+      bounds = bounds
+      visible = true
+      focusable = false }
+
+let renderSpinner (component: Core.Types.Component<SpinnerModel>) (context: Core.Types.RenderContext) : List<String> =
+  let model = component.model
+
+  if Stdlib.Bool.not model.running then
+    [model.message]
+  else
+    let frames = getFrames model.style
+    let frameCount = Stdlib.List.length frames
+
+    let frame =
+      let frameIndex =
+        match Stdlib.Int64.remainder model.frameIndex frameCount with
+        | Ok idx -> idx
+        | Error _ -> 0L
+      match Stdlib.List.getAt frames frameIndex with
+      | Some f -> f
+      | None -> "?"
+
+    let coloredFrame = Core.Rendering.colorize model.color frame
+    [coloredFrame ++ " " ++ model.message]
+
+let tick (component: Core.Types.Component<SpinnerModel>) : Core.Types.Component<SpinnerModel> =
+  let model = component.model
+  if model.running then
+    let frames = getFrames model.style
+    let frameCount = Stdlib.List.length frames
+    let nextIndex =
+      match Stdlib.Int64.remainder (model.frameIndex + 1L) frameCount with
+      | Ok idx -> idx
+      | Error _ -> 0L
+    { component with model = { model with frameIndex = nextIndex } }
+  else
+    component
+
+let setSpinnerMessage (component: Core.Types.Component<SpinnerModel>) (message: String) : Core.Types.Component<SpinnerModel> =
+  let model = component.model
+  { component with model = { model with message = message } }
+
+let setSpinnerColor (component: Core.Types.Component<SpinnerModel>) (color: Core.Types.Color) : Core.Types.Component<SpinnerModel> =
+  let model = component.model
+  { component with model = { model with color = color } }
+
+let setSpinnerStyle (component: Core.Types.Component<SpinnerModel>) (style: SpinnerStyle) : Core.Types.Component<SpinnerModel> =
+  let model = component.model
+  { component with model = { model with style = style; frameIndex = 0L } }
+
+let startSpinner (component: Core.Types.Component<SpinnerModel>) : Core.Types.Component<SpinnerModel> =
+  let model = component.model
+  { component with model = { model with running = true }; state = Core.Types.ComponentState.Loading }
+
+let stopSpinner (component: Core.Types.Component<SpinnerModel>) : Core.Types.Component<SpinnerModel> =
+  let model = component.model
+  { component with model = { model with running = false }; state = Core.Types.ComponentState.Normal }

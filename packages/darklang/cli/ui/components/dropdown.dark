@@ -1,4 +1,4 @@
-module Darklang.Cli.Experiments.UICatalog.Components.Dropdown
+module Darklang.CLI.UI.Components.Dropdown
 
 // Dropdown Item Type
 type DropdownItem =

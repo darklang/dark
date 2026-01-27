@@ -1,0 +1,179 @@
+module Darklang.CLI.UI.Demo
+
+/// Simple demo to visually verify UI components render correctly.
+/// Run with: dark run Darklang.CLI.UI.Demo.run
+
+let demoContext : Core.Types.RenderContext =
+  Core.Types.RenderContext
+    { availableWidth = 60L
+      availableHeight = 20L
+      hasFocus = true
+      theme = "default" }
+
+let printSection (title: String) : Unit =
+  Stdlib.printLine ""
+  Stdlib.printLine (Core.Rendering.bold ("━━━ " ++ title ++ " ━━━"))
+
+let run (unit: Unit) : Int64 =
+  Stdlib.printLine (Core.Rendering.bold "Darklang CLI UI Component Demo")
+  Stdlib.printLine (Core.Rendering.dim "Visual verification of component rendering")
+
+  // Box styles
+  printSection "Box Styles"
+  let bounds =
+    Core.Types.Bounds
+      { position = Core.Types.Position { x = 0L; y = 0L }
+        dimensions = Core.Types.Dimensions { width = 30L; height = 5L } }
+
+  let singleBox = Core.Rendering.drawBoxWithStyle bounds "Single" ["Content"] Core.Rendering.BoxStyle.Single
+  singleBox |> Stdlib.List.iter Stdlib.printLine
+
+  let doubleBox = Core.Rendering.drawBoxWithStyle bounds "Double" ["Content"] Core.Rendering.BoxStyle.Double
+  doubleBox |> Stdlib.List.iter Stdlib.printLine
+
+  let roundedBox = Core.Rendering.drawBoxWithStyle bounds "Rounded" ["Content"] Core.Rendering.BoxStyle.Rounded
+  roundedBox |> Stdlib.List.iter Stdlib.printLine
+
+  // Progress
+  printSection "Progress Bar"
+  let progress = Components.Progress.createProgressBar 75L 0L 100L Core.Types.Color.Success
+  let progressLines = Components.Progress.renderProgressBar progress demoContext
+  progressLines |> Stdlib.List.iter Stdlib.printLine
+
+  // Spinner frames
+  printSection "Spinner Styles"
+  let dotsFrames = Components.Spinner.getFrames Components.Spinner.SpinnerStyle.Dots
+  let lineFrames = Components.Spinner.getFrames Components.Spinner.SpinnerStyle.Line
+  Stdlib.printLine ("Dots: " ++ Stdlib.String.join (Stdlib.List.take dotsFrames 6L) " ")
+  Stdlib.printLine ("Line: " ++ Stdlib.String.join lineFrames " ")
+
+  // Table
+  printSection "Table"
+  let col1 = Components.Table.createColumn "Name" 15L
+  let col2 = Components.Table.createColumn "Status" 10L
+  let cols = [col1; col2]
+  let rows = [["Alice"; "Active"]; ["Bob"; "Pending"]; ["Charlie"; "Done"]]
+  let table = Components.Table.createTable cols rows
+  let tableWithSelection = Components.Table.selectRow table 1L
+  let tableLines = Components.Table.renderTable tableWithSelection demoContext
+  tableLines |> Stdlib.List.iter Stdlib.printLine
+
+  // Buttons
+  printSection "Buttons"
+  let btn1 = Components.Button.createButton "Submit" Core.Types.Color.Success (fun () -> ())
+  let btn2 = Components.Button.createButton "Cancel" Core.Types.Color.Error (fun () -> ())
+  let btn3 = Components.Button.disableButton (Components.Button.createButton "Disabled" Core.Types.Color.Secondary (fun () -> ()))
+  let btn1Lines = Components.Button.renderButton btn1 demoContext
+  btn1Lines |> Stdlib.List.iter Stdlib.printLine
+  let btn2Lines = Components.Button.renderButton btn2 demoContext
+  btn2Lines |> Stdlib.List.iter Stdlib.printLine
+  let btn3Lines = Components.Button.renderButton btn3 demoContext
+  btn3Lines |> Stdlib.List.iter Stdlib.printLine
+
+  // Card
+  printSection "Card"
+  let card = Components.Card.createCard "User Profile" ["Name: Alice"; "Role: Admin"; "Status: Active"] 35L 8L
+  let cardWithColors = Components.Card.setCardColors card Core.Types.Color.Primary Core.Types.Color.Default
+  let cardWithShadow = Components.Card.enableCardShadow cardWithColors
+  let cardLines = Components.Card.renderCard cardWithShadow demoContext
+  cardLines |> Stdlib.List.iter Stdlib.printLine
+
+  // Messages
+  printSection "Messages"
+  let successMsg = Components.Message.createMessage "Success" "Operation completed!" Core.Types.Color.Success 40L
+  let warningMsg = Components.Message.createMessage "Warning" "Check your input." Core.Types.Color.Warning 40L
+  let errorMsg = Components.Message.createMessage "Error" "Something went wrong." Core.Types.Color.Error 40L
+  let successLines = Components.Message.renderMessage successMsg demoContext
+  successLines |> Stdlib.List.iter Stdlib.printLine
+  let warningLines = Components.Message.renderMessage warningMsg demoContext
+  warningLines |> Stdlib.List.iter Stdlib.printLine
+  let errorLines = Components.Message.renderMessage errorMsg demoContext
+  errorLines |> Stdlib.List.iter Stdlib.printLine
+
+  // Toast
+  printSection "Toast"
+  let toast = Components.Message.createToast "File saved successfully" Core.Types.Color.Success 3000L
+  let toastLines = Components.Message.renderToast toast demoContext
+  toastLines |> Stdlib.List.iter Stdlib.printLine
+
+  // ListView
+  printSection "ListView"
+  let items = [
+    Components.ListView.ListItem { text = "Item 1"; enabled = true; data = "1" };
+    Components.ListView.ListItem { text = "Item 2"; enabled = true; data = "2" };
+    Components.ListView.ListItem { text = "Item 3 (disabled)"; enabled = false; data = "3" };
+    Components.ListView.ListItem { text = "Item 4"; enabled = true; data = "4" }
+  ]
+  let listView = Components.ListView.createListView items 30L 6L
+  let listViewWithSelection = Components.ListView.selectItem listView 1L
+  let listViewLines = Components.ListView.renderListView listViewWithSelection demoContext
+  listViewLines |> Stdlib.List.iter Stdlib.printLine
+
+  // Dividers
+  printSection "Dividers"
+  let divider1 = Components.Divider.createDivider "─" 40L Core.Types.Color.Default
+  let divider2 = Components.Divider.createDivider "═" 40L Core.Types.Color.Primary
+  let divider3 = Components.Divider.createDivider "·" 40L Core.Types.Color.Secondary
+  let divider1Lines = Components.Divider.renderDivider divider1 demoContext
+  divider1Lines |> Stdlib.List.iter Stdlib.printLine
+  let divider2Lines = Components.Divider.renderDivider divider2 demoContext
+  divider2Lines |> Stdlib.List.iter Stdlib.printLine
+  let divider3Lines = Components.Divider.renderDivider divider3 demoContext
+  divider3Lines |> Stdlib.List.iter Stdlib.printLine
+
+  // StatusBar
+  printSection "StatusBar"
+  let statusBar = Components.StatusBar.createStatusBar "Ready" "Ln 42, Col 8" 50L
+  let statusBarWithCenter = Components.StatusBar.setCenterText statusBar "main.dark"
+  let statusBarLines = Components.StatusBar.renderStatusBar statusBarWithCenter demoContext
+  statusBarLines |> Stdlib.List.iter Stdlib.printLine
+
+  // Pagination
+  printSection "Pagination"
+  let pagination = Components.Pagination.createPagination 100L 10L
+  let paginationPage3 = Components.Pagination.goToPage pagination 3L
+  let paginationLines = Components.Pagination.renderPagination paginationPage3 demoContext
+  paginationLines |> Stdlib.List.iter Stdlib.printLine
+
+  // Form Components
+  printSection "Form Components"
+
+  // TextInput
+  Stdlib.printLine "TextInput:"
+  let textInput = Components.Forms.createTextInput "Enter name..." 20L
+  let textInputLines = Components.Forms.renderTextInput textInput demoContext
+  textInputLines |> Stdlib.List.iter Stdlib.printLine
+
+  // Checkbox
+  Stdlib.printLine "Checkboxes:"
+  let checkbox1 = Components.Forms.createCheckbox "Remember me" true
+  let checkbox2 = Components.Forms.createCheckbox "Subscribe to newsletter" false
+  let checkbox1Lines = Components.Forms.renderCheckbox checkbox1 demoContext
+  checkbox1Lines |> Stdlib.List.iter Stdlib.printLine
+  let checkbox2Lines = Components.Forms.renderCheckbox checkbox2 demoContext
+  checkbox2Lines |> Stdlib.List.iter Stdlib.printLine
+
+  // Radio Group
+  Stdlib.printLine "Radio Group:"
+  let radio = Components.Forms.createRadioGroup ["Option A"; "Option B"; "Option C"] 1L
+  let radioLines = Components.Forms.renderRadioGroup radio demoContext
+  radioLines |> Stdlib.List.iter Stdlib.printLine
+
+  // Confirm Dialog
+  printSection "Confirm Dialog"
+  let confirmDialog = Components.Modal.createConfirmDialog "Delete File?" "Are you sure?" "Yes" "No"
+  let dialogVisible = Components.Modal.showConfirmDialog confirmDialog
+  let dialogLines = Components.Modal.renderConfirmDialog dialogVisible demoContext
+  dialogLines |> Stdlib.List.iter Stdlib.printLine
+
+  // Colors
+  printSection "Colors"
+  Stdlib.printLine (Core.Rendering.colorize Core.Types.Color.Primary "██ Primary")
+  Stdlib.printLine (Core.Rendering.colorize Core.Types.Color.Success "██ Success")
+  Stdlib.printLine (Core.Rendering.colorize Core.Types.Color.Warning "██ Warning")
+  Stdlib.printLine (Core.Rendering.colorize Core.Types.Color.Error "██ Error")
+  Stdlib.printLine (Core.Rendering.colorize Core.Types.Color.Info "██ Info")
+
+  Stdlib.printLine ""
+  Stdlib.printLine (Core.Rendering.dim "Demo complete.")
+  0L

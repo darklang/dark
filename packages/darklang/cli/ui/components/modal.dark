@@ -1,5 +1,5 @@
 // Modal Components - Overlay dialogs and popups
-module Darklang.Cli.Experiments.UICatalog.Components.Modal
+module Darklang.CLI.UI.Components.Modal
 
 
 // Modal Component

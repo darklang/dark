@@ -1,4 +1,4 @@
-module Darklang.Cli.Experiments.UICatalog.Components.Label
+module Darklang.CLI.UI.Components.Label
 
 type LabelModel =
   { text: String
