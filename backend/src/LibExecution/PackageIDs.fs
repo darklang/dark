@@ -315,6 +315,8 @@ module Type =
       let packageOp = p [] "PackageOp" "7d8e9f0a-1b2c-3d4e-5f6a-7b8c9d0e1f2a"
       let packageOpBatch =
         p [] "PackageOpBatch" "9f1a2b3c-4d5e-6f7a-8b9c-0d1e2f3a4b5c"
+      let pendingChange =
+        p [] "PendingChange" "b2c3d4e5-f6a7-8b9c-0d1e-2f3a4b5c6d7e"
 
       let secret = p [] "Secret" "37427120-d71d-41f2-b094-68757570bc41"
       let db = p [] "DB" "7f219668-f8ac-4b17-a404-1171985dadf9"
@@ -372,6 +374,14 @@ module Type =
         p [] "PendingLocationDetails" "a7b8c9d0-e1f2-3a4b-5c6d-7e8f9a0b1c2d"
       let requestItemWithDetails =
         p [] "RequestItemWithDetails" "b8c9d0e1-f2a3-4b5c-6d7e-8f9a0b1c2d3e"
+
+    module Todos =
+      let private p addl = p ("Todos" :: addl)
+      let todo = p [] "Todo" "c9d0e1f2-a3b4-5c6d-7e8f-9a0b1c2d3e4f"
+      let availableUpdate =
+        p [] "AvailableUpdate" "d0e1f2a3-b4c5-6d7e-8f9a-0b1c2d3e4f5a"
+      let appliedUpdate =
+        p [] "AppliedUpdate" "e1f2a3b4-c5d6-7e8f-9a0b-1c2d3e4f5a6b"
 
 
   module Internal =

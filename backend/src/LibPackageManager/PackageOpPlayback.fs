@@ -143,27 +143,9 @@ let private applySetName
       | Some id -> Task.FromResult(Some id)
       | None -> Accounts.getByName location.owner
 
-    // First, deprecate any existing location for this item in this branch
-    // (handles moves: old location gets deprecated, new location created)
-    do!
-      Sql.query
-        """
-        UPDATE locations
-        SET deprecated_at = datetime('now')
-        WHERE item_id = @item_id
-          AND deprecated_at IS NULL
-          AND (branch_id = @branch_id OR (branch_id IS NULL AND @branch_id IS NULL))
-        """
-      |> Sql.parameters
-        [ "item_id", Sql.uuid itemId
-          "branch_id",
-          (match branchID with
-           | Some id -> Sql.uuid id
-           | None -> Sql.dbnull) ]
-      |> Sql.executeStatementAsync
-
     // New items start as pending unless they're built-in packages loaded from disk.
     // Users must explicitly approve their changes before they become visible.
+    // Pending items are visible to their creator (via accountID = created_by check in queries).
     let approvalStatus =
       match instanceID with
       | Some _ ->
@@ -175,6 +157,14 @@ let private applySetName
         match createdBy with
         | None -> "approved"
         | Some _ -> "pending"
+
+    // IMPORTANT: We do NOT deprecate old location entries here.
+    // With the immutability model, old versions remain accessible:
+    // - Name resolution uses visibility rules to find the right version
+    // - Users pinned to an old UUID can still access it
+    // The visibility query (in find functions) handles showing:
+    // - Pending entry to its creator
+    // - Most recent approved entry to everyone else
 
     // Insert new location entry with unique location_id
     let locationId = System.Guid.NewGuid()

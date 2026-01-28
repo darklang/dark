@@ -7,8 +7,21 @@ open System.Collections.Concurrent
 open Prelude
 
 
+/// All caches that have been created, so we can clear them on edit
+let private allCaches = ResizeArray<unit -> unit>()
+
+/// Clear all package manager caches. Call this after edits are saved.
+let clearAllCaches () : unit =
+  for clearFn in allCaches do
+    clearFn ()
+
+
 let withCache (f : 'key -> Ply<Option<'value>>) =
   let cache = ConcurrentDictionary<'key, 'value>()
+
+  // Register this cache for clearing
+  allCaches.Add(fun () -> cache.Clear())
+
   fun (key : 'key) ->
     uply {
       let mutable cached = Unchecked.defaultof<'value>

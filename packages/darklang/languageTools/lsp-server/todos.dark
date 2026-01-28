@@ -1,0 +1,639 @@
+module Darklang.LanguageTools.LspServer.Todos
+
+/// Parse todoId from request params
+let parseTodoIdParams
+  (params: List<String * Stdlib.AltJson.Json>)
+  : Stdlib.Result.Result<Uuid, String> =
+  match Approvals.getStringField params "todoId" with
+  | Ok s ->
+    match Stdlib.Uuid.parse s with
+    | Ok id -> Stdlib.Result.Result.Ok id
+    | Error _ -> Stdlib.Result.Result.Error "Invalid todoId"
+  | Error e -> Stdlib.Result.Result.Error e
+
+
+/// Handle dark/listPendingTodos request
+let handleListPendingTodosRequest
+  (state: LspState)
+  (requestId: JsonRPC.RequestId)
+  (accountId: Uuid)
+  : LspState =
+  let rawTodos = Builtin.todosGetPending accountId
+
+  // Collect all item IDs that need name resolution (both dependents and changed items)
+  let dependentIds =
+    rawTodos
+    |> Stdlib.List.map (fun todo -> todo.dependentItemId)
+
+  let changedIds =
+    rawTodos
+    |> Stdlib.List.map (fun todo -> todo.oldItemId)
+
+  let allItemIds = Stdlib.List.append dependentIds changedIds
+
+  // Resolve item IDs to display names
+  let resolvedNames =
+    Builtin.dependenciesResolveNames
+      (Stdlib.Option.Option.Some accountId)
+      Stdlib.Option.Option.None
+      allItemIds
+
+  // Build a lookup map from UUID to display name
+  let nameMap =
+    resolvedNames
+    |> Stdlib.List.fold Stdlib.Dict.empty (fun acc pair ->
+      let (itemId, displayName) = pair
+      Stdlib.Dict.setOverridingDuplicates_v0 acc (Stdlib.Uuid.toString itemId) displayName)
+
+  let todos =
+    rawTodos
+    |> Stdlib.List.map (fun todo ->
+      let dependentIdStr = Stdlib.Uuid.toString todo.dependentItemId
+      let oldItemIdStr = Stdlib.Uuid.toString todo.oldItemId
+
+      let displayName =
+        match Stdlib.Dict.get nameMap dependentIdStr with
+        | Some name -> name
+        | None -> dependentIdStr
+
+      let changedItemName =
+        match Stdlib.Dict.get nameMap oldItemIdStr with
+        | Some name -> name
+        | None -> oldItemIdStr
+
+      Stdlib.AltJson.Json.Object
+        [ ("todoId", Stdlib.AltJson.Json.String(Stdlib.Uuid.toString todo.id))
+          ("editId", Stdlib.AltJson.Json.String "")
+          ("oldItemId", Stdlib.AltJson.Json.String oldItemIdStr)
+          ("newItemId", Stdlib.AltJson.Json.String(Stdlib.Uuid.toString todo.newItemId))
+          ("dependentItemId", Stdlib.AltJson.Json.String dependentIdStr)
+          ("isBreaking", Stdlib.AltJson.Json.Bool(todo.status == "pending"))
+          ("itemName", Stdlib.AltJson.Json.String displayName)
+          ("changedItemName", Stdlib.AltJson.Json.String changedItemName)
+          ("itemType", Stdlib.AltJson.Json.String "fn")
+          ("namespace", Stdlib.AltJson.Json.String "")
+          ("modules", Stdlib.AltJson.Json.Array [])
+          ("changedBy", Stdlib.AltJson.Json.String "")
+          ("createdAt", Stdlib.AltJson.Json.String todo.createdAt) ])
+
+  let response =
+    (JsonRPC.Response.Ok.make
+      (Stdlib.Option.Option.Some requestId)
+      (Stdlib.AltJson.Json.Array todos))
+    |> Stdlib.AltJson.format
+
+  logAndSendToClient response
+  state
+
+
+/// Handle dark/dismissTodo request
+let handleDismissTodoRequest
+  (state: LspState)
+  (requestId: JsonRPC.RequestId)
+  (todoId: Uuid)
+  : LspState =
+  let accountId =
+    match state.accountID with
+    | Some id -> id
+    | None -> Stdlib.Uuid.generate ()
+
+  let success = Builtin.todosDismiss todoId accountId
+
+  let response =
+    (JsonRPC.Response.Ok.make
+      (Stdlib.Option.Option.Some requestId)
+      (Stdlib.AltJson.Json.Object
+        [ ("success", Stdlib.AltJson.Json.Bool success) ]))
+    |> Stdlib.AltJson.format
+
+  logAndSendToClient response
+  state
+
+
+// --
+// Pending Changes handlers
+// --
+
+/// Handle dark/listPendingChanges request
+let handleListPendingChangesRequest
+  (state: LspState)
+  (requestId: JsonRPC.RequestId)
+  (accountId: Uuid)
+  : LspState =
+  let pendingChanges = Builtin.pmGetPendingChanges accountId Stdlib.Option.Option.None
+
+  let changes =
+    pendingChanges
+    |> Stdlib.List.map (fun change ->
+      Stdlib.AltJson.Json.Object
+        [ ("itemId", Stdlib.AltJson.Json.String(Stdlib.Uuid.toString change.itemId))
+          ("itemType", Stdlib.AltJson.Json.String change.itemType)
+          ("owner", Stdlib.AltJson.Json.String change.owner)
+          ("modules", Stdlib.AltJson.Json.String change.modules)
+          ("name", Stdlib.AltJson.Json.String change.name)
+          ("createdAt", Stdlib.AltJson.Json.String change.createdAt)
+          ("locationId", Stdlib.AltJson.Json.String(Stdlib.Uuid.toString change.locationId)) ])
+
+  let response =
+    (JsonRPC.Response.Ok.make
+      (Stdlib.Option.Option.Some requestId)
+      (Stdlib.AltJson.Json.Array changes))
+    |> Stdlib.AltJson.format
+
+  logAndSendToClient response
+  state
+
+
+/// Parse locationId and accountId from request params
+let parseRevertParams
+  (params: List<String * Stdlib.AltJson.Json>)
+  : Stdlib.Result.Result<Uuid * Uuid, String> =
+  let locationIdResult =
+    match Approvals.getStringField params "locationId" with
+    | Ok s ->
+      match Stdlib.Uuid.parse s with
+      | Ok id -> Stdlib.Result.Result.Ok id
+      | Error _ -> Stdlib.Result.Result.Error "Invalid locationId"
+    | Error e -> Stdlib.Result.Result.Error e
+
+  let accountIdResult =
+    match Approvals.getStringField params "accountId" with
+    | Ok s ->
+      match Stdlib.Uuid.parse s with
+      | Ok id -> Stdlib.Result.Result.Ok id
+      | Error _ -> Stdlib.Result.Result.Error "Invalid accountId"
+    | Error e -> Stdlib.Result.Result.Error e
+
+  match (locationIdResult, accountIdResult) with
+  | (Ok locationId, Ok accountId) -> Stdlib.Result.Result.Ok(locationId, accountId)
+  | (Error e, _) -> Stdlib.Result.Result.Error e
+  | (_, Error e) -> Stdlib.Result.Result.Error e
+
+
+/// Handle dark/revertPendingChange request
+let handleRevertPendingChangeRequest
+  (state: LspState)
+  (requestId: JsonRPC.RequestId)
+  (locationId: Uuid)
+  (accountId: Uuid)
+  : LspState =
+  let result = Builtin.pmRevertPendingChange locationId accountId
+
+  let response =
+    match result with
+    | Ok _ ->
+      (JsonRPC.Response.Ok.make
+        (Stdlib.Option.Option.Some requestId)
+        (Stdlib.AltJson.Json.Object
+          [ ("success", Stdlib.AltJson.Json.Bool true) ]))
+      |> Stdlib.AltJson.format
+    | Error msg ->
+      (JsonRPC.Response.Ok.make
+        (Stdlib.Option.Option.Some requestId)
+        (Stdlib.AltJson.Json.Object
+          [ ("success", Stdlib.AltJson.Json.Bool false)
+            ("error", Stdlib.AltJson.Json.String msg) ]))
+      |> Stdlib.AltJson.format
+
+  logAndSendToClient response
+  state
+
+
+// --
+// Available Updates handlers (compatible changes)
+// --
+
+/// Group update entry for tracking unique dependents and todo IDs
+type UpdateGroup =
+  { oldItemId: Uuid
+    newItemId: Uuid
+    changeType: String
+    createdAt: String
+    // Track unique dependents by ID to avoid counting duplicates
+    seenFns: Dict<String>
+    seenTypes: Dict<String>
+    seenValues: Dict<String>
+    todoIds: List<Uuid> }
+
+
+/// Handle dark/listAvailableUpdates request
+/// Groups updates by what changed and shows counts of unique affected items
+let handleListAvailableUpdatesRequest
+  (state: LspState)
+  (requestId: JsonRPC.RequestId)
+  (accountId: Uuid)
+  : LspState =
+  let rawUpdates = Builtin.todosGetAvailableUpdates accountId
+
+  // Group by oldItemId and track unique dependents by type
+  let grouped =
+    rawUpdates
+    |> Stdlib.List.fold (Dict {}) (fun acc update ->
+      let key = Stdlib.Uuid.toString update.oldItemId
+      let depKey = Stdlib.Uuid.toString update.dependentItemId
+
+      let existing =
+        match Stdlib.Dict.get acc key with
+        | Some g -> g
+        | None ->
+          UpdateGroup
+            { oldItemId = update.oldItemId
+              newItemId = update.newItemId
+              changeType = update.changeType
+              createdAt = update.createdAt
+              seenFns = Dict {}
+              seenTypes = Dict {}
+              seenValues = Dict {}
+              todoIds = [] }
+
+      // Add todo ID and track unique dependent
+      let updated =
+        match update.dependentItemType with
+        | "fn" ->
+          { existing with
+              seenFns = Stdlib.Dict.setOverridingDuplicates_v0 existing.seenFns depKey ""
+              todoIds = Stdlib.List.append existing.todoIds [ update.id ] }
+        | "type" ->
+          { existing with
+              seenTypes = Stdlib.Dict.setOverridingDuplicates_v0 existing.seenTypes depKey ""
+              todoIds = Stdlib.List.append existing.todoIds [ update.id ] }
+        | "value" ->
+          { existing with
+              seenValues = Stdlib.Dict.setOverridingDuplicates_v0 existing.seenValues depKey ""
+              todoIds = Stdlib.List.append existing.todoIds [ update.id ] }
+        | _ ->
+          { existing with
+              seenFns = Stdlib.Dict.setOverridingDuplicates_v0 existing.seenFns depKey ""
+              todoIds = Stdlib.List.append existing.todoIds [ update.id ] }
+
+      Stdlib.Dict.setOverridingDuplicates_v0 acc key updated)
+
+  // Get unique changed item IDs for name resolution
+  let changedIds =
+    grouped
+    |> Stdlib.Dict.values
+    |> Stdlib.List.map (fun g -> g.oldItemId)
+
+  // Resolve names for changed items only
+  let resolvedNames =
+    Builtin.dependenciesResolveNames
+      (Stdlib.Option.Option.Some accountId)
+      Stdlib.Option.Option.None
+      changedIds
+
+  let nameMap =
+    resolvedNames
+    |> Stdlib.List.fold (Dict {}) (fun acc pair ->
+      let (itemId, displayName) = pair
+      Stdlib.Dict.setOverridingDuplicates_v0 acc (Stdlib.Uuid.toString itemId) displayName)
+
+  // Build response with grouped data (using dict sizes for unique counts)
+  let updates =
+    grouped
+    |> Stdlib.Dict.values
+    |> Stdlib.List.map (fun group ->
+      let oldItemIdStr = Stdlib.Uuid.toString group.oldItemId
+
+      let changedItemName =
+        match Stdlib.Dict.get nameMap oldItemIdStr with
+        | Some name -> name
+        | None -> oldItemIdStr
+
+      let todoIdsJson =
+        group.todoIds
+        |> Stdlib.List.map (fun id ->
+          Stdlib.AltJson.Json.String(Stdlib.Uuid.toString id))
+
+      // Count unique dependents by type
+      let fnCount = Stdlib.Dict.size group.seenFns
+      let typeCount = Stdlib.Dict.size group.seenTypes
+      let valueCount = Stdlib.Dict.size group.seenValues
+
+      Stdlib.AltJson.Json.Object
+        [ ("oldItemId", Stdlib.AltJson.Json.String oldItemIdStr)
+          ("newItemId", Stdlib.AltJson.Json.String(Stdlib.Uuid.toString group.newItemId))
+          ("changeType", Stdlib.AltJson.Json.String group.changeType)
+          ("changedItemName", Stdlib.AltJson.Json.String changedItemName)
+          ("fnCount", Stdlib.AltJson.Json.Number(Stdlib.Int64.toFloat fnCount))
+          ("typeCount", Stdlib.AltJson.Json.Number(Stdlib.Int64.toFloat typeCount))
+          ("valueCount", Stdlib.AltJson.Json.Number(Stdlib.Int64.toFloat valueCount))
+          ("todoIds", Stdlib.AltJson.Json.Array todoIdsJson)
+          ("createdAt", Stdlib.AltJson.Json.String group.createdAt) ])
+
+  let response =
+    (JsonRPC.Response.Ok.make
+      (Stdlib.Option.Option.Some requestId)
+      (Stdlib.AltJson.Json.Array updates))
+    |> Stdlib.AltJson.format
+
+  logAndSendToClient response
+  state
+
+
+/// Group for applied updates (includes appliedAt, tracks unique dependents)
+type AppliedUpdateGroup =
+  { oldItemId: Uuid
+    newItemId: Uuid
+    changeType: String
+    createdAt: String
+    appliedAt: String
+    seenFns: Dict<String>
+    seenTypes: Dict<String>
+    seenValues: Dict<String>
+    todoIds: List<Uuid> }
+
+
+/// Handle dark/listAppliedUpdates request
+/// Groups updates by what changed and shows counts of unique affected items
+let handleListAppliedUpdatesRequest
+  (state: LspState)
+  (requestId: JsonRPC.RequestId)
+  (accountId: Uuid)
+  : LspState =
+  let rawUpdates = Builtin.todosGetAppliedUpdates accountId
+
+  // Group by oldItemId and track unique dependents by type
+  let grouped =
+    rawUpdates
+    |> Stdlib.List.fold (Dict {}) (fun acc update ->
+      let key = Stdlib.Uuid.toString update.oldItemId
+      let depKey = Stdlib.Uuid.toString update.dependentItemId
+
+      let existing =
+        match Stdlib.Dict.get acc key with
+        | Some g -> g
+        | None ->
+          AppliedUpdateGroup
+            { oldItemId = update.oldItemId
+              newItemId = update.newItemId
+              changeType = update.changeType
+              createdAt = update.createdAt
+              appliedAt = update.appliedAt
+              seenFns = Dict {}
+              seenTypes = Dict {}
+              seenValues = Dict {}
+              todoIds = [] }
+
+      // Add todo ID and track unique dependent
+      let updated =
+        match update.dependentItemType with
+        | "fn" ->
+          { existing with
+              seenFns = Stdlib.Dict.setOverridingDuplicates_v0 existing.seenFns depKey ""
+              todoIds = Stdlib.List.append existing.todoIds [ update.id ] }
+        | "type" ->
+          { existing with
+              seenTypes = Stdlib.Dict.setOverridingDuplicates_v0 existing.seenTypes depKey ""
+              todoIds = Stdlib.List.append existing.todoIds [ update.id ] }
+        | "value" ->
+          { existing with
+              seenValues = Stdlib.Dict.setOverridingDuplicates_v0 existing.seenValues depKey ""
+              todoIds = Stdlib.List.append existing.todoIds [ update.id ] }
+        | _ ->
+          { existing with
+              seenFns = Stdlib.Dict.setOverridingDuplicates_v0 existing.seenFns depKey ""
+              todoIds = Stdlib.List.append existing.todoIds [ update.id ] }
+
+      Stdlib.Dict.setOverridingDuplicates_v0 acc key updated)
+
+  // Get unique changed item IDs for name resolution
+  let changedIds =
+    grouped
+    |> Stdlib.Dict.values
+    |> Stdlib.List.map (fun g -> g.oldItemId)
+
+  // Resolve names for changed items only
+  let resolvedNames =
+    Builtin.dependenciesResolveNames
+      (Stdlib.Option.Option.Some accountId)
+      Stdlib.Option.Option.None
+      changedIds
+
+  let nameMap =
+    resolvedNames
+    |> Stdlib.List.fold (Dict {}) (fun acc pair ->
+      let (itemId, displayName) = pair
+      Stdlib.Dict.setOverridingDuplicates_v0 acc (Stdlib.Uuid.toString itemId) displayName)
+
+  // Build response with grouped data (using dict sizes for unique counts)
+  let updates =
+    grouped
+    |> Stdlib.Dict.values
+    |> Stdlib.List.map (fun group ->
+      let oldItemIdStr = Stdlib.Uuid.toString group.oldItemId
+
+      let changedItemName =
+        match Stdlib.Dict.get nameMap oldItemIdStr with
+        | Some name -> name
+        | None -> oldItemIdStr
+
+      let todoIdsJson =
+        group.todoIds
+        |> Stdlib.List.map (fun id ->
+          Stdlib.AltJson.Json.String(Stdlib.Uuid.toString id))
+
+      // Count unique dependents by type
+      let fnCount = Stdlib.Dict.size group.seenFns
+      let typeCount = Stdlib.Dict.size group.seenTypes
+      let valueCount = Stdlib.Dict.size group.seenValues
+
+      Stdlib.AltJson.Json.Object
+        [ ("oldItemId", Stdlib.AltJson.Json.String oldItemIdStr)
+          ("newItemId", Stdlib.AltJson.Json.String(Stdlib.Uuid.toString group.newItemId))
+          ("changeType", Stdlib.AltJson.Json.String group.changeType)
+          ("changedItemName", Stdlib.AltJson.Json.String changedItemName)
+          ("fnCount", Stdlib.AltJson.Json.Number(Stdlib.Int64.toFloat fnCount))
+          ("typeCount", Stdlib.AltJson.Json.Number(Stdlib.Int64.toFloat typeCount))
+          ("valueCount", Stdlib.AltJson.Json.Number(Stdlib.Int64.toFloat valueCount))
+          ("todoIds", Stdlib.AltJson.Json.Array todoIdsJson)
+          ("appliedAt", Stdlib.AltJson.Json.String group.appliedAt)
+          ("createdAt", Stdlib.AltJson.Json.String group.createdAt) ])
+
+  let response =
+    (JsonRPC.Response.Ok.make
+      (Stdlib.Option.Option.Some requestId)
+      (Stdlib.AltJson.Json.Array updates))
+    |> Stdlib.AltJson.format
+
+  logAndSendToClient response
+  state
+
+
+/// Handle dark/listPendingBreakingTodos request
+let handleListPendingBreakingTodosRequest
+  (state: LspState)
+  (requestId: JsonRPC.RequestId)
+  (accountId: Uuid)
+  : LspState =
+  let rawTodos = Builtin.todosGetPendingBreaking accountId
+
+  // Collect all item IDs that need name resolution (both dependents and changed items)
+  let dependentIds =
+    rawTodos
+    |> Stdlib.List.map (fun todo -> todo.dependentItemId)
+
+  let changedIds =
+    rawTodos
+    |> Stdlib.List.map (fun todo -> todo.oldItemId)
+
+  let allItemIds = Stdlib.List.append dependentIds changedIds
+
+  // Resolve item IDs to display names
+  let resolvedNames =
+    Builtin.dependenciesResolveNames
+      (Stdlib.Option.Option.Some accountId)
+      Stdlib.Option.Option.None
+      allItemIds
+
+  // Build a lookup map from UUID to display name
+  let nameMap =
+    resolvedNames
+    |> Stdlib.List.fold Stdlib.Dict.empty (fun acc pair ->
+      let (itemId, displayName) = pair
+      Stdlib.Dict.setOverridingDuplicates_v0 acc (Stdlib.Uuid.toString itemId) displayName)
+
+  let todos =
+    rawTodos
+    |> Stdlib.List.map (fun todo ->
+      let dependentIdStr = Stdlib.Uuid.toString todo.dependentItemId
+      let oldItemIdStr = Stdlib.Uuid.toString todo.oldItemId
+
+      let displayName =
+        match Stdlib.Dict.get nameMap dependentIdStr with
+        | Some name -> name
+        | None -> dependentIdStr
+
+      let changedItemName =
+        match Stdlib.Dict.get nameMap oldItemIdStr with
+        | Some name -> name
+        | None -> oldItemIdStr
+
+      Stdlib.AltJson.Json.Object
+        [ ("todoId", Stdlib.AltJson.Json.String(Stdlib.Uuid.toString todo.id))
+          ("oldItemId", Stdlib.AltJson.Json.String oldItemIdStr)
+          ("newItemId", Stdlib.AltJson.Json.String(Stdlib.Uuid.toString todo.newItemId))
+          ("dependentItemId", Stdlib.AltJson.Json.String dependentIdStr)
+          ("isBreaking", Stdlib.AltJson.Json.Bool true)
+          ("itemName", Stdlib.AltJson.Json.String displayName)
+          ("changedItemName", Stdlib.AltJson.Json.String changedItemName)
+          ("createdAt", Stdlib.AltJson.Json.String todo.createdAt) ])
+
+  let response =
+    (JsonRPC.Response.Ok.make
+      (Stdlib.Option.Option.Some requestId)
+      (Stdlib.AltJson.Json.Array todos))
+    |> Stdlib.AltJson.format
+
+  logAndSendToClient response
+  state
+
+
+/// Parse todoIds from request params
+let parseTodoIdsParams
+  (params: List<String * Stdlib.AltJson.Json>)
+  : Stdlib.Result.Result<List<Uuid>, String> =
+  match Stdlib.List.findFirst params (fun (k, _) -> k == "todoIds") with
+  | Some((_, Array todoIdsJson)) ->
+    let ids =
+      todoIdsJson
+      |> Stdlib.List.filterMap (fun item ->
+        match item with
+        | String s ->
+          match Stdlib.Uuid.parse s with
+          | Ok id -> Stdlib.Option.Option.Some id
+          | Error _ -> Stdlib.Option.Option.None
+        | _ -> Stdlib.Option.Option.None)
+
+    Stdlib.Result.Result.Ok ids
+  | Some((_, _)) -> Stdlib.Result.Result.Error "todoIds must be an array"
+  | None -> Stdlib.Result.Result.Error "todoIds is required"
+
+
+/// Handle dark/applyUpdates request
+let handleApplyUpdatesRequest
+  (state: LspState)
+  (requestId: JsonRPC.RequestId)
+  (todoIds: List<Uuid>)
+  : LspState =
+  let accountId =
+    match state.accountID with
+    | Some id -> id
+    | None -> Stdlib.Uuid.generate ()
+
+  let results =
+    Builtin.todosApplyUpdates
+      Stdlib.Option.Option.None
+      Stdlib.Option.Option.None
+      accountId
+      todoIds
+
+  let resultsJson =
+    results
+    |> Stdlib.List.map (fun pair ->
+      let (todoId, result) = pair
+
+      match result with
+      | Ok newId ->
+        Stdlib.AltJson.Json.Object
+          [ ("todoId", Stdlib.AltJson.Json.String(Stdlib.Uuid.toString todoId))
+            ("success", Stdlib.AltJson.Json.Bool true)
+            ("newItemId", Stdlib.AltJson.Json.String(Stdlib.Uuid.toString newId)) ]
+      | Error msg ->
+        Stdlib.AltJson.Json.Object
+          [ ("todoId", Stdlib.AltJson.Json.String(Stdlib.Uuid.toString todoId))
+            ("success", Stdlib.AltJson.Json.Bool false)
+            ("error", Stdlib.AltJson.Json.String msg) ])
+
+  let response =
+    (JsonRPC.Response.Ok.make
+      (Stdlib.Option.Option.Some requestId)
+      (Stdlib.AltJson.Json.Object
+        [ ("results", Stdlib.AltJson.Json.Array resultsJson) ]))
+    |> Stdlib.AltJson.format
+
+  logAndSendToClient response
+  state
+
+
+/// Handle dark/revertUpdates request
+let handleRevertUpdatesRequest
+  (state: LspState)
+  (requestId: JsonRPC.RequestId)
+  (todoIds: List<Uuid>)
+  : LspState =
+  let accountId =
+    match state.accountID with
+    | Some id -> id
+    | None -> Stdlib.Uuid.generate ()
+
+  let results =
+    Builtin.todosRevertUpdates
+      Stdlib.Option.Option.None
+      accountId
+      todoIds
+
+  let resultsJson =
+    results
+    |> Stdlib.List.map (fun pair ->
+      let (todoId, result) = pair
+
+      match result with
+      | Ok _ ->
+        Stdlib.AltJson.Json.Object
+          [ ("todoId", Stdlib.AltJson.Json.String(Stdlib.Uuid.toString todoId))
+            ("success", Stdlib.AltJson.Json.Bool true) ]
+      | Error msg ->
+        Stdlib.AltJson.Json.Object
+          [ ("todoId", Stdlib.AltJson.Json.String(Stdlib.Uuid.toString todoId))
+            ("success", Stdlib.AltJson.Json.Bool false)
+            ("error", Stdlib.AltJson.Json.String msg) ])
+
+  let response =
+    (JsonRPC.Response.Ok.make
+      (Stdlib.Option.Option.Some requestId)
+      (Stdlib.AltJson.Json.Object
+        [ ("results", Stdlib.AltJson.Json.Array resultsJson) ]))
+    |> Stdlib.AltJson.format
+
+  logAndSendToClient response
+  state

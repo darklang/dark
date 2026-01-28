@@ -238,6 +238,61 @@
         "command": "darklang.approvals.switchAccount",
         "title": "Switch Account",
         "icon": "$(account)"
+      },
+      {
+        "command": "darklang.todos.refresh",
+        "title": "Refresh Todos",
+        "icon": "$(refresh)"
+      },
+      {
+        "command": "darklang.todos.dismiss",
+        "title": "Dismiss",
+        "icon": "$(close)"
+      },
+      {
+        "command": "darklang.todos.viewItem",
+        "title": "View Item",
+        "icon": "$(go-to-file)"
+      },
+      {
+        "command": "darklang.pendingChanges.refresh",
+        "title": "Refresh Pending Changes",
+        "icon": "$(refresh)"
+      },
+      {
+        "command": "darklang.pendingChanges.revert",
+        "title": "Revert",
+        "icon": "$(discard)"
+      },
+      {
+        "command": "darklang.pendingChanges.viewItem",
+        "title": "View Item",
+        "icon": "$(go-to-file)"
+      },
+      {
+        "command": "darklang.todos.applySelectedUpdates",
+        "title": "Apply Selected Updates",
+        "icon": "$(cloud-download)"
+      },
+      {
+        "command": "darklang.todos.revertUpdate",
+        "title": "Revert Update",
+        "icon": "$(discard)"
+      },
+      {
+        "command": "darklang.todos.revertAllUpdates",
+        "title": "Revert All Updates",
+        "icon": "$(discard)"
+      },
+      {
+        "command": "darklang.todos.selectAllUpdates",
+        "title": "Select All Updates",
+        "icon": "$(check-all)"
+      },
+      {
+        "command": "darklang.todos.deselectAllUpdates",
+        "title": "Deselect All Updates",
+        "icon": "$(close-all)"
       }
     ],
     "menus": {
@@ -342,6 +397,61 @@
           "command": "darklang.approvals.reject",
           "when": "view == darklangApprovals && viewItem == pending-location-review",
           "group": "inline@2"
+        },
+        {
+          "command": "darklang.todos.viewItem",
+          "when": "view == darklangTodos && (viewItem == todo-breaking || viewItem == todo-update)",
+          "group": "inline@1"
+        },
+        {
+          "command": "darklang.todos.dismiss",
+          "when": "view == darklangTodos && (viewItem == todo-breaking || viewItem == todo-update)",
+          "group": "inline@2"
+        },
+        {
+          "command": "darklang.todos.applySelectedUpdates",
+          "when": "view == darklangTodos && viewItem == available-updates-section",
+          "group": "inline@1"
+        },
+        {
+          "command": "darklang.todos.selectAllUpdates",
+          "when": "view == darklangTodos && viewItem == available-updates-section",
+          "group": "inline@2"
+        },
+        {
+          "command": "darklang.todos.deselectAllUpdates",
+          "when": "view == darklangTodos && viewItem == available-updates-section",
+          "group": "inline@3"
+        },
+        {
+          "command": "darklang.todos.viewItem",
+          "when": "view == darklangTodos && viewItem == available-update-item",
+          "group": "inline@1"
+        },
+        {
+          "command": "darklang.todos.revertAllUpdates",
+          "when": "view == darklangTodos && viewItem == applied-updates-section",
+          "group": "inline@1"
+        },
+        {
+          "command": "darklang.todos.revertUpdate",
+          "when": "view == darklangTodos && viewItem == applied-update-item",
+          "group": "inline@1"
+        },
+        {
+          "command": "darklang.todos.viewItem",
+          "when": "view == darklangTodos && viewItem == applied-update-item",
+          "group": "inline@2"
+        },
+        {
+          "command": "darklang.pendingChanges.viewItem",
+          "when": "view == darklangPendingChanges && viewItem == pending-change-item",
+          "group": "inline@1"
+        },
+        {
+          "command": "darklang.pendingChanges.revert",
+          "when": "view == darklangPendingChanges && viewItem == pending-change-item",
+          "group": "inline@2"
         }
       ],
       "view/title": [
@@ -354,6 +464,16 @@
           "command": "darklang.packages.clearSearch",
           "when": "view == darklangPackages",
           "group": "navigation@2"
+        },
+        {
+          "command": "darklang.todos.refresh",
+          "when": "view == darklangTodos",
+          "group": "navigation@1"
+        },
+        {
+          "command": "darklang.pendingChanges.refresh",
+          "when": "view == darklangPendingChanges",
+          "group": "navigation@1"
         },
         {
           "command": "darklang.approvals.refresh",
@@ -391,6 +511,16 @@
         {
           "id": "darklangWorkspace",
           "name": "Workspace",
+          "visibility": "visible"
+        },
+        {
+          "id": "darklangTodos",
+          "name": "Notifications",
+          "visibility": "visible"
+        },
+        {
+          "id": "darklangPendingChanges",
+          "name": "Pending Changes",
           "visibility": "visible"
         },
         {

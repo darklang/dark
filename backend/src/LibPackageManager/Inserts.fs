@@ -37,7 +37,8 @@ let computeOpHash (op : PT.PackageOp) : System.Guid =
 
 
 /// Insert PackageOps into the package_ops table and apply them to projection tables
-/// Returns the count of ops actually inserted (duplicates are skipped via INSERT OR IGNORE)
+/// Returns (count, appliedOps) where count is the number of ops inserted and
+/// appliedOps are the ops that were actually applied (duplicates excluded)
 
 // CLEANUP: The 'applied' flag is currently always set to true and all ops are applied immediately
 let insertAndApplyOps
@@ -45,10 +46,10 @@ let insertAndApplyOps
   (branchID : Option<PT.BranchID>)
   (createdBy : Option<uuid>)
   (ops : List<PT.PackageOp>)
-  : Task<int64> =
+  : Task<int64 * List<PT.PackageOp>> =
   task {
     if List.isEmpty ops then
-      return 0L
+      return (0L, [])
     else
       // CLEANUP this should either
       // - be made to be one big transaction
@@ -97,5 +98,5 @@ let insertAndApplyOps
 
       do! PackageOpPlayback.applyOps instanceID branchID createdBy opsToApply
 
-      return insertedCount
+      return (insertedCount, opsToApply)
   }

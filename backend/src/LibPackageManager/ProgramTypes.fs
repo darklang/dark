@@ -34,7 +34,9 @@ module Type =
             AND deprecated_at IS NULL
             AND (approval_status = 'approved' OR (@accountID IS NOT NULL AND created_by = @accountID))
             AND (branch_id IS NULL OR branch_id = @branch_id)
-          ORDER BY created_at DESC
+          ORDER BY
+            CASE WHEN approval_status = 'pending' AND created_by = @accountID THEN 0 ELSE 1 END,
+            created_at DESC
           LIMIT 1
           """
         |> Sql.parameters
@@ -80,7 +82,9 @@ module Type =
             AND deprecated_at IS NULL
             AND (approval_status = 'approved' OR (@accountID IS NOT NULL AND created_by = @accountID))
             AND (branch_id IS NULL OR branch_id = @branch_id)
-          ORDER BY created_at DESC
+          ORDER BY
+            CASE WHEN approval_status = 'pending' AND created_by = @accountID THEN 0 ELSE 1 END,
+            created_at DESC
           LIMIT 1
           """
         |> Sql.parameters
@@ -121,7 +125,9 @@ module Value =
             AND deprecated_at IS NULL
             AND (approval_status = 'approved' OR (@accountID IS NOT NULL AND created_by = @accountID))
             AND (branch_id IS NULL OR branch_id = @branch_id)
-          ORDER BY created_at DESC
+          ORDER BY
+            CASE WHEN approval_status = 'pending' AND created_by = @accountID THEN 0 ELSE 1 END,
+            created_at DESC
           LIMIT 1
           """
         |> Sql.parameters
@@ -167,7 +173,9 @@ module Value =
             AND deprecated_at IS NULL
             AND (approval_status = 'approved' OR (@accountID IS NOT NULL AND created_by = @accountID))
             AND (branch_id IS NULL OR branch_id = @branch_id)
-          ORDER BY created_at DESC
+          ORDER BY
+            CASE WHEN approval_status = 'pending' AND created_by = @accountID THEN 0 ELSE 1 END,
+            created_at DESC
           LIMIT 1
           """
         |> Sql.parameters
@@ -208,7 +216,9 @@ module Fn =
             AND deprecated_at IS NULL
             AND (approval_status = 'approved' OR (@accountID IS NOT NULL AND created_by = @accountID))
             AND (branch_id IS NULL OR branch_id = @branch_id)
-          ORDER BY created_at DESC
+          ORDER BY
+            CASE WHEN approval_status = 'pending' AND created_by = @accountID THEN 0 ELSE 1 END,
+            created_at DESC
           LIMIT 1
           """
         |> Sql.parameters
@@ -254,7 +264,9 @@ module Fn =
             AND deprecated_at IS NULL
             AND (approval_status = 'approved' OR (@accountID IS NOT NULL AND created_by = @accountID))
             AND (branch_id IS NULL OR branch_id = @branch_id)
-          ORDER BY created_at DESC
+          ORDER BY
+            CASE WHEN approval_status = 'pending' AND created_by = @accountID THEN 0 ELSE 1 END,
+            created_at DESC
           LIMIT 1
           """
         |> Sql.parameters

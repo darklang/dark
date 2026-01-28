@@ -1,1 +1,2 @@
-1L + 2L
+Builtin.debug "test" (Darklang.Stdlib.Bool.or false false)
+0L

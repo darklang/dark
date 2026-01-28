@@ -448,6 +448,17 @@ type PackageOpBatch =
     ops: List<PackageOp> }
 
 
+/// A pending change that can be reverted
+type PendingChange =
+  { itemId: Uuid
+    itemType: String
+    owner: String
+    modules: String
+    name: String
+    createdAt: String
+    locationId: Uuid }
+
+
 module Search =
   /// The type of entity to search for
   type EntityType =

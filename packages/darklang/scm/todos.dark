@@ -1,0 +1,92 @@
+module Darklang.SCM.Todos
+
+// =============================================================================
+// Types
+// =============================================================================
+
+/// A dependency change notification (breaking change)
+/// Created when a package item you depend on is modified
+type Todo =
+  { id: Uuid
+    dependentItemId: Uuid
+    dependentItemType: String
+    oldItemId: Uuid
+    newItemId: Uuid
+    status: String
+    createdAt: String }
+
+
+/// An available update (compatible change) that can be auto-applied
+type AvailableUpdate =
+  { id: Uuid
+    dependentItemId: Uuid
+    dependentItemType: String
+    oldItemId: Uuid
+    newItemId: Uuid
+    changeType: String
+    status: String
+    createdAt: String }
+
+
+/// An applied update that can be reverted
+type AppliedUpdate =
+  { id: Uuid
+    dependentItemId: Uuid
+    dependentItemType: String
+    oldItemId: Uuid
+    newItemId: Uuid
+    changeType: String
+    status: String
+    createdAt: String
+    appliedAt: String
+    previousDependentId: Stdlib.Option.Option<Uuid> }
+
+
+// =============================================================================
+// Functions
+// =============================================================================
+
+/// Get all pending todos for an account
+let getPending (accountID: Uuid) : List<Todo> =
+  Builtin.todosGetPending accountID
+
+/// Get all todos (including resolved/dismissed) for an account
+let getAll (accountID: Uuid) : List<Todo> =
+  Builtin.todosGetAll accountID
+
+/// Resolve a todo (mark as handled)
+let resolve (todoId: Uuid) (resolvedBy: Uuid) : Bool =
+  Builtin.todosResolve todoId resolvedBy
+
+/// Dismiss a todo without resolving
+let dismiss (todoId: Uuid) (dismissedBy: Uuid) : Bool =
+  Builtin.todosDismiss todoId dismissedBy
+
+/// Get available updates (compatible changes) for an account
+let getAvailableUpdates (accountID: Uuid) : List<AvailableUpdate> =
+  Builtin.todosGetAvailableUpdates accountID
+
+/// Get applied updates for an account
+let getAppliedUpdates (accountID: Uuid) : List<AppliedUpdate> =
+  Builtin.todosGetAppliedUpdates accountID
+
+/// Get pending breaking change todos for an account
+let getPendingBreaking (accountID: Uuid) : List<Todo> =
+  Builtin.todosGetPendingBreaking accountID
+
+/// Apply selected updates
+let applyUpdates
+  (instanceID: Stdlib.Option.Option<Uuid>)
+  (branchID: Stdlib.Option.Option<Uuid>)
+  (appliedBy: Uuid)
+  (todoIds: List<Uuid>)
+  : List<Uuid * Stdlib.Result.Result<Uuid, String>> =
+  Builtin.todosApplyUpdates instanceID branchID appliedBy todoIds
+
+/// Revert selected applied updates
+let revertUpdates
+  (branchID: Stdlib.Option.Option<Uuid>)
+  (revertedBy: Uuid)
+  (todoIds: List<Uuid>)
+  : List<Uuid * Stdlib.Result.Result<Unit, String>> =
+  Builtin.todosRevertUpdates branchID revertedBy todoIds
