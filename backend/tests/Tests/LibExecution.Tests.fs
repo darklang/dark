@@ -148,7 +148,7 @@ let t
               RT.FQFnName.fqPackage
                 PackageIDs.Fn.PrettyPrinter.RuntimeTypes.RuntimeError.toErrorMessage
 
-            let! _csString = Exe.callStackString state callStack
+            let! _csString = Exe.callStackString None None state callStack
 
             let accountID = Dval.optionNone RT.KTUuid
             let branchID = Dval.optionNone RT.KTUuid

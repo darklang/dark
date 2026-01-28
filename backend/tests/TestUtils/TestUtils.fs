@@ -1501,7 +1501,7 @@ let unwrapExecutionResult
           []
           (NEList.ofList branchID [ rte ])
 
-      let! cs = LibExecution.Execution.callStackString state callStack
+      let! cs = LibExecution.Execution.callStackString None None state callStack
 
       match rteMessage with
       | Ok(RT.DString msg) -> return RT.DString(msg + "\n" + cs)

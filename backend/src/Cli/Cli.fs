@@ -135,10 +135,20 @@ let main (args : string[]) =
       let state = state cliPackageManager
 
       let errorCallStackStr =
-        (LibExecution.Execution.callStackString state callStack).Result
+        (LibExecution.Execution.callStackString
+          (Some state.program.canvasID)
+          None
+          state
+          callStack)
+          .Result
 
       match
-        (LibExecution.Execution.runtimeErrorToString None None state rte).Result
+        (LibExecution.Execution.runtimeErrorToString
+          (Some state.program.canvasID)
+          None
+          state
+          rte)
+          .Result
       with
       | Ok(RT.DString s) ->
         logError $"Encountered a Runtime Error:\n{s}\n\n{errorCallStackStr}\n  "
