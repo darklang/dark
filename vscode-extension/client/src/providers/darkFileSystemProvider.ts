@@ -122,14 +122,18 @@ export class DarkFileSystemProvider implements vscode.FileSystemProvider {
     content: Uint8Array,
     options: { create: boolean; overwrite: boolean; }
   ): Promise<void> {
+    console.log('writeFile called for:', uri.toString());
+
     // Content must be base64 encoded per LSP spec
     const contentStr = Buffer.from(content).toString('utf-8');
 
     try {
-      // Parse the content and create ops for new declarations
+      console.log('writeFile: sending LSP request...');
+
       const response = await this.client.sendRequest<{
         success: boolean;
         ops?: any[];
+        opsCount?: number;
         updatedContent?: string;
         errors?: string[];
       }>(
@@ -144,25 +148,21 @@ export class DarkFileSystemProvider implements vscode.FileSystemProvider {
         }
       );
 
+      console.log('writeFile: received response, success:', response?.success);
+      console.log('writeFile: opsCount:', response?.opsCount);
+      console.log('writeFile response:', JSON.stringify(response, null, 2));
+
       if (response.success) {
-        if (response.ops && response.ops.length > 0 && this.workspaceProvider) {
-          // Add ops to workspace tree view
-          this.workspaceProvider.addPendingOps(response.ops);
+        console.log('writeFile: success=true, ops count:', response.ops?.length ?? 0);
+
+        if (response.ops && response.ops.length > 0) {
+          if (this.workspaceProvider) {
+            // Add ops to workspace tree view
+            this.workspaceProvider.addPendingOps(response.ops);
+          }
           vscode.window.showInformationMessage(
             `✓ Parsed successfully. Created ${response.ops.length} operation(s).`
           );
-
-          // If LSP returned updated content with IDs, use it immediately
-          if (response.updatedContent) {
-            const updatedContentBuffer = Buffer.from(response.updatedContent, 'utf-8');
-            this.contentCache.set(uri.toString(), new Uint8Array(updatedContentBuffer));
-
-            // Fire change event to update the editor
-            this._emitter.fire([{
-              type: vscode.FileChangeType.Changed,
-              uri
-            }]);
-          }
 
           // Refresh packages tree to show new declarations
           if (this.packagesProvider) {
@@ -174,17 +174,18 @@ export class DarkFileSystemProvider implements vscode.FileSystemProvider {
             this.approvalsProvider.refresh();
           }
         } else {
-          // No ops created - just update cache with what was written
-          this.contentCache.set(uri.toString(), content);
           vscode.window.showInformationMessage('✓ Saved (no changes detected)');
         }
 
-        // Fire change event
-        this._emitter.fire([{
-          type: vscode.FileChangeType.Changed,
-          uri
-        }]);
+        // Update cache with what was written (not updatedContent, to avoid dirty state)
+        this.contentCache.set(uri.toString(), content);
+        console.log('writeFile: completed successfully');
+
+        // Don't fire change event - VS Code already knows about this save
+        // Firing a change event would cause VS Code to re-read and potentially
+        // see different content (e.g., reformatted), marking the file dirty again
       } else{
+        console.log('writeFile: success=false, errors:', response.errors);
         // Show parse errors
         const errors = response.errors || ['Unknown error'];
         vscode.window.showErrorMessage(

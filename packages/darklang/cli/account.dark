@@ -45,6 +45,8 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
         Stdlib.printLine (Colors.error $"Account not found: {name}")
         state
       | Some uuid ->
+        // Clear caches so queries use the new account's visibility rules
+        Builtin.pmClearAllCaches ()
         Stdlib.printLine $"Switched to account: {name}"
         { state with accountName = name; accountID = Stdlib.Option.Option.Some uuid }
 

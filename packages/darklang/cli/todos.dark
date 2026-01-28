@@ -1,0 +1,219 @@
+module Darklang.Cli.Todos
+
+/// Display pending breaking change todos for the current user.
+/// These are items that need to be updated due to breaking changes in dependencies.
+let showPending (accountID: Stdlib.Option.Option<Uuid>) : Unit =
+  match accountID with
+  | None ->
+    Stdlib.printLine (Colors.error "No account configured. Set DARK_ACCOUNT environment variable.")
+  | Some id ->
+    let todos = Builtin.todosGetPending id
+
+    match todos with
+    | [] ->
+      Stdlib.printLine (Colors.success "No pending breaking change todos!")
+    | _ ->
+      let count = Stdlib.List.length todos
+      Stdlib.printLine $"Found {Stdlib.Int64.toString count} pending breaking change todos:"
+      Stdlib.printLine ""
+
+      // Collect all item IDs for name resolution
+      let dependentIds = todos |> Stdlib.List.map (fun todo ->
+        let (_id, dependentId, _rest) = todo
+        dependentId)
+      let oldIds = todos |> Stdlib.List.map (fun todo ->
+        let (_id, _dependentId, rest) = todo
+        let (oldId, _newId, _status, _createdAt) = rest
+        oldId)
+      let newIds = todos |> Stdlib.List.map (fun todo ->
+        let (_id, _dependentId, rest) = todo
+        let (_oldId, newId, _status, _createdAt) = rest
+        newId)
+
+      let allIds =
+        dependentIds
+        |> Stdlib.List.append oldIds
+        |> Stdlib.List.append newIds
+        |> Stdlib.List.unique
+
+      let namesDict = Deps.resolveNames accountID (Stdlib.Option.Option.None) allIds
+
+      todos
+      |> Stdlib.List.iter (fun todo ->
+        let (todoId, dependentId, rest) = todo
+        let (oldId, newId, status, createdAt) = rest
+
+        let dependentName = Deps.getName namesDict dependentId
+        let oldName = Deps.getName namesDict oldId
+        let newName = Deps.getName namesDict newId
+        let shortId = (Stdlib.Uuid.toString todoId) |> Stdlib.String.slice 0L 8L
+
+        Stdlib.printLine $"  [{shortId}] {dependentName}"
+        Stdlib.printLine $"    - references {oldName}"
+        Stdlib.printLine $"    - which was replaced by {newName}"
+        Stdlib.printLine $"    - created: {createdAt}"
+        Stdlib.printLine "")
+
+
+/// Display all todos (including resolved and dismissed)
+let showAll (accountID: Stdlib.Option.Option<Uuid>) : Unit =
+  match accountID with
+  | None ->
+    Stdlib.printLine (Colors.error "No account configured. Set DARK_ACCOUNT environment variable.")
+  | Some id ->
+    let todos = Builtin.todosGetAll id
+
+    match todos with
+    | [] ->
+      Stdlib.printLine "No breaking change todos found."
+    | _ ->
+      let count = Stdlib.List.length todos
+      Stdlib.printLine $"Found {Stdlib.Int64.toString count} total breaking change todos:"
+      Stdlib.printLine ""
+
+      let allIds =
+        todos
+        |> Stdlib.List.map (fun todo ->
+          let (_id, dependentId, rest) = todo
+          let (oldId, newId, _status, _createdAt) = rest
+          [dependentId; oldId; newId])
+        |> Stdlib.List.flatten
+        |> Stdlib.List.unique
+
+      let namesDict = Deps.resolveNames accountID (Stdlib.Option.Option.None) allIds
+
+      todos
+      |> Stdlib.List.iter (fun todo ->
+        let (todoId, dependentId, rest) = todo
+        let (oldId, newId, status, createdAt) = rest
+
+        let dependentName = Deps.getName namesDict dependentId
+        let oldName = Deps.getName namesDict oldId
+        let shortId = (Stdlib.Uuid.toString todoId) |> Stdlib.String.slice 0L 8L
+        let statusColor =
+          if status == "pending" then Colors.warning status
+          else if status == "resolved" then Colors.success status
+          else Colors.hint status
+
+        Stdlib.printLine $"  [{shortId}] [{statusColor}] {dependentName} -> {oldName}"
+        Stdlib.printLine "")
+
+
+/// Resolve a todo by its ID
+let resolveTodo (accountID: Stdlib.Option.Option<Uuid>) (todoIdStr: String) : Unit =
+  match accountID with
+  | None ->
+    Stdlib.printLine (Colors.error "No account configured.")
+  | Some accountId ->
+    // Try to find matching todo by prefix
+    let todos = Builtin.todosGetPending accountId
+
+    let matchingTodos =
+      todos
+      |> Stdlib.List.filter (fun todo ->
+        let (todoId, _dependentId, _rest) = todo
+        let idStr = Stdlib.Uuid.toString todoId
+        Stdlib.String.startsWith idStr todoIdStr)
+
+    match matchingTodos with
+    | [] ->
+      Stdlib.printLine (Colors.error $"No pending todo found matching: {todoIdStr}")
+    | [todo] ->
+      let (todoId, _dependentId, _rest) = todo
+      let success = Builtin.todosResolve todoId accountId
+      if success then
+        Stdlib.printLine (Colors.success "Todo marked as resolved.")
+      else
+        Stdlib.printLine (Colors.error "Failed to resolve todo.")
+    | _ ->
+      Stdlib.printLine (Colors.error $"Multiple todos match '{todoIdStr}'. Please be more specific.")
+
+
+/// Dismiss a todo by its ID
+let dismissTodo (accountID: Stdlib.Option.Option<Uuid>) (todoIdStr: String) : Unit =
+  match accountID with
+  | None ->
+    Stdlib.printLine (Colors.error "No account configured.")
+  | Some accountId ->
+    let todos = Builtin.todosGetPending accountId
+
+    let matchingTodos =
+      todos
+      |> Stdlib.List.filter (fun todo ->
+        let (todoId, _dependentId, _rest) = todo
+        let idStr = Stdlib.Uuid.toString todoId
+        Stdlib.String.startsWith idStr todoIdStr)
+
+    match matchingTodos with
+    | [] ->
+      Stdlib.printLine (Colors.error $"No pending todo found matching: {todoIdStr}")
+    | [todo] ->
+      let (todoId, _dependentId, _rest) = todo
+      let success = Builtin.todosDismiss todoId accountId
+      if success then
+        Stdlib.printLine (Colors.success "Todo dismissed.")
+      else
+        Stdlib.printLine (Colors.error "Failed to dismiss todo.")
+    | _ ->
+      Stdlib.printLine (Colors.error $"Multiple todos match '{todoIdStr}'. Please be more specific.")
+
+
+let execute (state: AppState) (args: List<String>) : AppState =
+  let accountID = state.accountID
+
+  match args with
+  | [] ->
+    // Default: show pending todos
+    showPending accountID
+    state
+
+  | ["--all"] ->
+    showAll accountID
+    state
+
+  | ["resolve"; todoId] ->
+    resolveTodo accountID todoId
+    state
+
+  | ["dismiss"; todoId] ->
+    dismissTodo accountID todoId
+    state
+
+  | _ ->
+    help state
+
+
+let complete (state: AppState) (args: List<String>) : List<String> =
+  match args with
+  | [] -> ["--all"; "resolve"; "dismiss"]
+  | ["resolve"] -> []  // Could complete with todo IDs
+  | ["dismiss"] -> []
+  | [partial] ->
+    ["--all"; "resolve"; "dismiss"]
+    |> Stdlib.List.filter (fun cmd -> Stdlib.String.startsWith cmd partial)
+  | _ -> []
+
+
+let help (state: AppState) : AppState =
+  [
+    "Usage: todos [subcommand] [args]"
+    "Manage breaking change todos - items that need updating due to dependency changes."
+    ""
+    "Subcommands:"
+    "  (none)              - Show pending todos (default)"
+    "  --all               - Show all todos (including resolved/dismissed)"
+    "  resolve <id>        - Mark a todo as resolved"
+    "  dismiss <id>        - Dismiss a todo without resolving"
+    ""
+    "When a breaking change is made to a function, type, or value you depend on,"
+    "a todo is automatically created to track that you need to update your code."
+    ""
+    "Examples:"
+    "  todos                    - Show pending todos"
+    "  todos --all              - Show all todos"
+    "  todos resolve abc123     - Resolve todo starting with 'abc123'"
+    "  todos dismiss abc123     - Dismiss todo"
+  ]
+  |> Stdlib.printLines
+
+  state

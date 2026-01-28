@@ -23,6 +23,7 @@
     <Compile Include="Caching.fs" />
     <Compile Include="Purge.fs" />
     <Compile Include="DependencyExtractor.fs" />
+    <Compile Include="SignatureComparer.fs" />
     <Compile Include="PackageOpPlayback.fs" />
     <Compile Include="Inserts.fs" />
     <Compile Include="Approvals.fs" />
@@ -33,6 +34,8 @@
     <Compile Include="Branches.fs" />
     <Compile Include="ProgramTypes.fs" />
     <Compile Include="RuntimeTypes.fs" />
+    <Compile Include="EditPropagation.fs" />
+    <Compile Include="UpdateApplicator.fs" />
     <Compile Include="PackageManager.fs" />
     <Compile Include="Scripts.fs" />
   </ItemGroup>

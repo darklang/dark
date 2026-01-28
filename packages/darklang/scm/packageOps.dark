@@ -1,6 +1,7 @@
 module Darklang.SCM.PackageOps
 
-/// Add a list of package ops to the database, applying them immediately
+/// Add a list of package ops to the database, applying them immediately.
+/// This is for NEW items only - use `addWithEditDetection` for edits.
 ///
 /// Returns the number of inserted ops on success (duplicates are skipped),
 /// or an error message on failure
@@ -11,6 +12,51 @@ let add
   (ops: List<LanguageTools.ProgramTypes.PackageOp>)
   : Stdlib.Result.Result<Int64, String> =
   Builtin.scmAddOps instanceID branchID createdBy ops
+
+
+/// Edit info returned from edit detection
+type EditInfo = { oldId: Uuid; newId: Uuid; isBreaking: Bool }
+
+/// Result from edit detection
+type EditDetectionResult =
+  { insertedCount: Int64
+    edits: List<EditInfo>
+    appliedOps: List<LanguageTools.ProgramTypes.PackageOp> }
+
+/// Add package ops with edit detection (immutability model).
+/// Every edit creates a NEW UUID - the name then points to the new version.
+/// Old versions still exist.
+///
+/// Returns EditDetectionResult containing:
+/// - insertedCount: number of ops applied
+/// - edits: list of detected edits with old/new UUIDs and breaking status
+/// - appliedOps: the ops that were actually applied (duplicates excluded)
+///
+/// Breaking changes (signature changed) create todos for same-owner dependents.
+/// Compatible changes auto-propagate via name resolution.
+let addWithEditDetection
+  (instanceID: Stdlib.Option.Option<Uuid>)
+  (branchID: Stdlib.Option.Option<Uuid>)
+  (createdBy: Stdlib.Option.Option<Uuid>)
+  (ops: List<LanguageTools.ProgramTypes.PackageOp>)
+  : Stdlib.Result.Result<EditDetectionResult, String> =
+  let result = Builtin.scmAddOpsWithEditDetection instanceID branchID createdBy ops
+
+  match result with
+  | Ok value ->
+    let (count, editTuples, appliedOps) = value
+    let edits =
+      editTuples
+      |> Stdlib.List.map (fun tuple ->
+        let (oldId, newId, isBreaking) = tuple
+        EditInfo { oldId = oldId; newId = newId; isBreaking = isBreaking })
+
+    Stdlib.Result.Result.Ok
+      (EditDetectionResult
+        { insertedCount = count
+          edits = edits
+          appliedOps = appliedOps })
+  | Error err -> Stdlib.Result.Result.Error err
 
 
 /// Get recent package ops from the database

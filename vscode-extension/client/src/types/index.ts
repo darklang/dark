@@ -26,7 +26,20 @@ export enum BranchNodeType {
   PendingLocationsRoot = "pending-locations-root",
   ApprovalRequest = "approval-request",
   PendingLocation = "pending-location",
-  NamespaceGroup = "namespace-group"
+  NamespaceGroup = "namespace-group",
+  // Todos/notifications node types
+  TodosRoot = "todos-root",
+  TodoItem = "todo-item",
+  // Dependency Changes sections
+  BreakingChangesSection = "breaking-changes-section",
+  AvailableUpdatesSection = "available-updates-section",
+  AppliedUpdatesSection = "applied-updates-section",
+  AvailableUpdateItem = "available-update-item",
+  AppliedUpdateItem = "applied-update-item",
+  ChangedItemGroup = "changed-item-group",
+  // Pending changes (user's uncommitted edits)
+  PendingChangesRoot = "pending-changes-root",
+  PendingChangeItem = "pending-change-item"
 }
 
 export interface BranchNode {
@@ -63,6 +76,41 @@ export interface BranchNode {
     description?: string;
     itemType?: "type" | "fn" | "value";
     itemName?: string;
+  };
+  // Todo/notification data
+  todoData?: {
+    todoId?: string;
+    editId?: string;
+    oldItemId?: string;
+    newItemId?: string;
+    dependentItemId?: string;
+    isBreaking?: boolean;
+    itemName?: string;
+    itemType?: "type" | "fn" | "value";
+    namespace?: string;
+    modules?: string[];
+    changedBy?: string;
+    createdAt?: string;
+    // For available/applied updates
+    changeType?: "breaking" | "compatible";
+    appliedAt?: string;
+    isChecked?: boolean; // For checkbox state in available updates
+    changedItemName?: string; // Name of the item that was changed (parent)
+    // Counts for grouped updates
+    fnCount?: number;
+    typeCount?: number;
+    valueCount?: number;
+    todoIds?: string[]; // All todo IDs in this group (for batch operations)
+  };
+  // Pending change data (user's uncommitted edits)
+  pendingChangeData?: {
+    itemId?: string;
+    itemType?: string;
+    owner?: string;
+    modules?: string;
+    name?: string;
+    createdAt?: string;
+    locationId?: string;
   };
 }
 

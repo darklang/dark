@@ -226,7 +226,17 @@ let handleIncomingMessage
             params
 
         | Error err ->
-          log "Error parsing fileSystem/read params"
+          log $"Error parsing fileSystem/read params: {err}"
+          // Send an error response so the client doesn't hang
+          let response =
+            (JsonRPC.Response.Error.make
+              (Stdlib.Option.Option.Some requestId)
+              JsonRPC.Response.Error.KnownErrorCodes.invalidParams
+              $"Failed to parse read params: {err}"
+              Stdlib.Option.Option.None)
+            |> Stdlib.AltJson.format
+
+          logAndSendToClient response
           state
 
       | ("fileSystem/write", Some requestId, Some(Object p)) ->
@@ -244,8 +254,11 @@ let handleIncomingMessage
             params
 
         | Error err ->
-          log "Error parsing fileSystem/write params"
-          state
+          log $"Error parsing fileSystem/write params: {err}"
+          FileSystemProvider.WriteFile.sendErrorResponse
+            state
+            requestId
+            [ $"Failed to parse write params: {err}" ]
 
       | _ ->
         let r = jsonRpcRequest
@@ -296,6 +309,9 @@ let handleIncomingMessage
               // Look up the account UUID by name
               let accountUuid = Builtin.pmGetAccountByName accountName
               { state with accountID = accountUuid }
+
+          // Clear caches so updated data is visible with the new account context
+          Builtin.pmClearAllCaches ()
 
           let response =
             (JsonRPC.Response.Ok.make
@@ -435,6 +451,104 @@ let handleIncomingMessage
             Approvals.sendErrorResponse state requestId e
           | (_, Error e) ->
             Approvals.sendErrorResponse state requestId e
+
+        | ("dark/listPendingTodos", Some requestId, Some(Object params)) ->
+          match Approvals.parseAccountParams params with
+          | Ok p ->
+            Todos.handleListPendingTodosRequest state requestId p.accountId
+          | Error msg ->
+            log msg
+            let response =
+              (JsonRPC.Response.Ok.make
+                (Stdlib.Option.Option.Some requestId)
+                (Stdlib.AltJson.Json.Array []))
+              |> Stdlib.AltJson.format
+            logAndSendToClient response
+            state
+
+        | ("dark/dismissTodo", Some requestId, Some(Object params)) ->
+          match Todos.parseTodoIdParams params with
+          | Ok todoId ->
+            Todos.handleDismissTodoRequest state requestId todoId
+          | Error msg ->
+            Approvals.sendErrorResponse state requestId msg
+
+        | ("dark/listPendingChanges", Some requestId, Some(Object params)) ->
+          match Approvals.parseAccountParams params with
+          | Ok p ->
+            Todos.handleListPendingChangesRequest state requestId p.accountId
+          | Error msg ->
+            log msg
+            let response =
+              (JsonRPC.Response.Ok.make
+                (Stdlib.Option.Option.Some requestId)
+                (Stdlib.AltJson.Json.Array []))
+              |> Stdlib.AltJson.format
+            logAndSendToClient response
+            state
+
+        | ("dark/revertPendingChange", Some requestId, Some(Object params)) ->
+          match Todos.parseRevertParams params with
+          | Ok(locationId, accountId) ->
+            Todos.handleRevertPendingChangeRequest state requestId locationId accountId
+          | Error msg ->
+            Approvals.sendErrorResponse state requestId msg
+
+        | ("dark/listAvailableUpdates", Some requestId, Some(Object params)) ->
+          match Approvals.parseAccountParams params with
+          | Ok p ->
+            Todos.handleListAvailableUpdatesRequest state requestId p.accountId
+          | Error msg ->
+            log msg
+            let response =
+              (JsonRPC.Response.Ok.make
+                (Stdlib.Option.Option.Some requestId)
+                (Stdlib.AltJson.Json.Array []))
+              |> Stdlib.AltJson.format
+            logAndSendToClient response
+            state
+
+        | ("dark/listAppliedUpdates", Some requestId, Some(Object params)) ->
+          match Approvals.parseAccountParams params with
+          | Ok p ->
+            Todos.handleListAppliedUpdatesRequest state requestId p.accountId
+          | Error msg ->
+            log msg
+            let response =
+              (JsonRPC.Response.Ok.make
+                (Stdlib.Option.Option.Some requestId)
+                (Stdlib.AltJson.Json.Array []))
+              |> Stdlib.AltJson.format
+            logAndSendToClient response
+            state
+
+        | ("dark/listPendingBreakingTodos", Some requestId, Some(Object params)) ->
+          match Approvals.parseAccountParams params with
+          | Ok p ->
+            Todos.handleListPendingBreakingTodosRequest state requestId p.accountId
+          | Error msg ->
+            log msg
+            let response =
+              (JsonRPC.Response.Ok.make
+                (Stdlib.Option.Option.Some requestId)
+                (Stdlib.AltJson.Json.Array []))
+              |> Stdlib.AltJson.format
+            logAndSendToClient response
+            state
+
+        | ("dark/applyUpdates", Some requestId, Some(Object params)) ->
+          match Todos.parseTodoIdsParams params with
+          | Ok todoIds ->
+            Todos.handleApplyUpdatesRequest state requestId todoIds
+          | Error msg ->
+            Approvals.sendErrorResponse state requestId msg
+
+        | ("dark/revertUpdates", Some requestId, Some(Object params)) ->
+          match Todos.parseTodoIdsParams params with
+          | Ok todoIds ->
+            Todos.handleRevertUpdatesRequest state requestId todoIds
+          | Error msg ->
+            Approvals.sendErrorResponse state requestId msg
 
         | other ->
           log $"TODO: we don't yet support this method: {r.method}"
