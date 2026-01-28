@@ -82,11 +82,15 @@ let createFnInline
 
           unresolvedNames
           |> Stdlib.List.iter (fun (range, err) ->
+            let lineNum = (range.start.row + 1L) |> Stdlib.Int64.toString
+            let colNum = range.start.column |> Stdlib.Int64.toString
             match err with
-            | TypeNotFound names ->
+            | NotFound names ->
               let nameStr = Stdlib.String.join names "."
-              Stdlib.printLine $"  - Type not found: {nameStr}"
-            | _ -> Stdlib.printLine $"  - Unresolved name at {range}")
+              Stdlib.printLine $"  - Not found: {nameStr} (line {lineNum}, column {colNum})"
+            | InvalidName names ->
+              let nameStr = Stdlib.String.join names "."
+              Stdlib.printLine $"  - Invalid name: {nameStr} (line {lineNum}, column {colNum})")
 
           Stdlib.printLine ""
           state
