@@ -3,7 +3,7 @@ module Darklang.LanguageTools.LspServer.Sync
 /// Handles `dark/listInstances` requests from VS Code
 let handleListInstancesRequest
   (state: LspState)
-  (requestID: JsonRPC.RequestId)
+  (requestID: JsonRPC.RequestID)
   : LspState =
   let instances = SCM.Instances.list ()
 

@@ -23,7 +23,7 @@ let getTextAtRange
 
 let handleHoverRequest
   (state: LspState)
-  (requestId: JsonRPC.RequestId)
+  (requestId: JsonRPC.RequestID)
   (params: LanguageServerProtocol.Hover.HoverRequest.HoverParams.HoverParams)
   : LspState =
   /// Find the document in scope

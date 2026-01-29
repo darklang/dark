@@ -4,7 +4,7 @@ module Darklang.LanguageTools.LspServer.FileSystemProvider
 module ReadFile =
   let sendResponse
     (state: LspState)
-    (requestId: JsonRPC.RequestId)
+    (requestId: JsonRPC.RequestID)
     (content: String)
     : LspState =
     let responseJson =
@@ -21,7 +21,7 @@ module ReadFile =
 
   let handleReadFileRequest
     (state: LspState)
-    (requestId: JsonRPC.RequestId)
+    (requestId: JsonRPC.RequestID)
     (params:
       LspExtension.FileSystemProvider.ReadFile.ReadFileParams.ReadFileParams)
     : LspState =
@@ -184,7 +184,7 @@ module WriteFile =
 
   let sendSuccessResponse
     (state: LspState)
-    (requestId: JsonRPC.RequestId)
+    (requestId: JsonRPC.RequestID)
     (ops: List<LanguageTools.ProgramTypes.PackageOp>)
     (updatedContent: Stdlib.Option.Option<String>)
     : LspState =
@@ -215,7 +215,7 @@ module WriteFile =
 
   let sendErrorResponse
     (state: LspState)
-    (requestId: JsonRPC.RequestId)
+    (requestId: JsonRPC.RequestID)
     (errors: List<String>)
     : LspState =
     let errorsJson = errors |> Stdlib.List.map (fun e -> Json.String e) |> Json.Array
@@ -235,7 +235,7 @@ module WriteFile =
 
   let handleWriteFileRequest
     (state: LspState)
-    (requestId: JsonRPC.RequestId)
+    (requestId: JsonRPC.RequestID)
     (params:
       LspExtension.FileSystemProvider.WriteFile.WriteFileParams.WriteFileParams)
     : LspState =

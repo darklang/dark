@@ -11,19 +11,12 @@ import { renderSidebar, navIcons } from "./components/sidebar";
 import { renderHeader } from "./components/header";
 import { PinnedItemsService } from "../../services/pinnedItemsService";
 import { RecentItemsService } from "../../services/recentItemsService";
-import { AccountService } from "../../services/accountService";
 
 export type PageName =
   | "dashboard"
   | "packages"
-  | "branches"
-  | "apps"
-  | "approval-requests"
-  | "contributions"
-  | "traces"
   | "settings"
-  | "changelog"
-  | "logout";
+  | "changelog";
 
 /** Homepage Panel - Display Darklang homepage with account info */
 export class HomepagePanel {
@@ -35,7 +28,6 @@ export class HomepagePanel {
   private readonly _extensionUri: vscode.Uri;
   private _disposables: vscode.Disposable[] = [];
   private _currentPage: PageName = "dashboard";
-  private _availableAccounts: string[] = [];
 
   public static createOrShow(extensionUri: vscode.Uri) {
     const column = vscode.window.activeTextEditor
@@ -88,8 +80,8 @@ export class HomepagePanel {
       RecentItemsService.onDidChange(() => this._update()),
     );
 
-    // Load pinned items and accounts, then update the view
-    Promise.all([PinnedItemsService.load(), this._fetchAvailableAccounts()])
+    // Load pinned items and update the view
+    PinnedItemsService.load()
       .then(() => this._update())
       .catch(err => {
         console.error("Failed to load initial data:", err);
@@ -114,9 +106,6 @@ export class HomepagePanel {
             return;
           case "openProject":
             this._handleOpenPackage(message.project, message.itemType);
-            return;
-          case "selectAccount":
-            this._handleSelectAccount(message.account);
             return;
         }
       },
@@ -159,31 +148,15 @@ export class HomepagePanel {
   }
 
   private _handleNavigation(page: string) {
-    const validPages: PageName[] = [
-      "dashboard",
-      "packages",
-      "branches",
-      "apps",
-      "approval-requests",
-      "contributions",
-      "traces",
-      "settings",
-      "changelog",
-      "logout",
-    ];
+    const validPages: PageName[] = ["dashboard", "packages", "settings", "changelog"];
 
     if (!validPages.includes(page as PageName)) {
       return;
     }
 
-    if (page === "logout") {
-      vscode.window.showInformationMessage("Logout functionality coming soon!");
-      return;
-    }
-
     // Pages that are implemented
-    const pages: PageName[] = ["dashboard", "packages"];
-    if (pages.includes(page as PageName)) {
+    const implementedPages: PageName[] = ["dashboard", "packages"];
+    if (implementedPages.includes(page as PageName)) {
       this._currentPage = page as PageName;
       this._update();
       return;
@@ -221,67 +194,6 @@ export class HomepagePanel {
     }
   }
 
-  /** Fetch available accounts from LSP */
-  private async _fetchAvailableAccounts(): Promise<void> {
-    if (!HomepagePanel._client) {
-      this._availableAccounts = [];
-      return;
-    }
-
-    try {
-      const accounts = await HomepagePanel._client.sendRequest<string[]>(
-        "dark/listAccounts",
-        {},
-      );
-      this._availableAccounts = accounts ?? [];
-    } catch (error) {
-      console.error("Failed to fetch accounts:", error);
-      this._availableAccounts = [];
-    }
-  }
-
-  /** Handle account selection from dropdown */
-  private async _handleSelectAccount(account: string): Promise<void> {
-    if (!account || account === AccountService.getCurrentAccountId()) {
-      return;
-    }
-
-    if (HomepagePanel._client) {
-      try {
-        await HomepagePanel._client.sendRequest("dark/setCurrentAccount", {
-          accountID: account,
-        });
-      } catch (error) {
-        console.error("Failed to set account:", error);
-        vscode.window.showErrorMessage("Failed to switch account");
-        return;
-      }
-    }
-
-    // Update centralized account service
-    AccountService.setCurrentAccount(account);
-
-    // Notify the approval commands about the change
-    await vscode.commands.executeCommand(
-      "darklang.approvals.setAccount",
-      account,
-    );
-
-    // Update pinned items for the new account
-    await PinnedItemsService.setCurrentAccount(account);
-
-    this._update();
-    vscode.window.showInformationMessage(`Switched to account: ${account}`);
-  }
-
-  /** Update the current account and refresh the view */
-  public async setCurrentAccount(accountID: string): Promise<void> {
-    AccountService.setCurrentAccount(accountID);
-    // Update pinned items for the new account
-    await PinnedItemsService.setCurrentAccount(accountID);
-    this._update();
-  }
-
   public dispose() {
     HomepagePanel.currentPanel = undefined;
 
@@ -305,21 +217,14 @@ export class HomepagePanel {
     const pageTitles: Record<PageName, string> = {
       dashboard: "Dashboard",
       packages: "Packages",
-      branches: "Branches",
-      apps: "Apps",
-      "approval-requests": "Approval Requests",
-      contributions: "Contributions",
-      traces: "Traces",
       settings: "Settings",
       changelog: "Changelog",
-      logout: "Logout",
     };
 
     return renderHeader({
       title: pageTitles[this._currentPage] || "Dashboard",
       icon: navIcons[this._currentPage] || navIcons.dashboard,
-      currentAccount: AccountService.getCurrentAccountId(),
-      availableAccounts: this._availableAccounts,
+      showAvatar: false,
     });
   }
 
@@ -468,37 +373,6 @@ export class HomepagePanel {
             });
         });
 
-        // Handle account dropdown
-        const accountSwitcher = document.getElementById('accountSwitcher');
-        const accountDropdown = document.getElementById('accountDropdown');
-
-        // Toggle dropdown on avatar click
-        accountSwitcher?.addEventListener('click', (e) => {
-            e.stopPropagation();
-            accountDropdown?.classList.toggle('show');
-        });
-
-        // Handle account selection
-        document.querySelectorAll('.account-dropdown-item').forEach(item => {
-            item.addEventListener('click', (e) => {
-                e.stopPropagation();
-                const account = item.getAttribute('data-account');
-                if (account) {
-                    vscode.postMessage({
-                        command: 'selectAccount',
-                        account: account
-                    });
-                }
-                accountDropdown?.classList.remove('show');
-            });
-        });
-
-        // Close dropdown when clicking outside
-        document.addEventListener('click', (e) => {
-            if (!accountSwitcher?.contains(e.target) && !accountDropdown?.contains(e.target)) {
-                accountDropdown?.classList.remove('show');
-            }
-        });
     </script>
 </body>
 </html>`;

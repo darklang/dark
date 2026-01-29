@@ -6,7 +6,7 @@ module Darklang.LanguageTools.LspServer.Branches
 /// Handles `dark/getBranches` requests - returns empty list
 let handleGetBranchesRequest
   (state: LspState)
-  (requestID: JsonRPC.RequestId)
+  (requestID: JsonRPC.RequestID)
   : LspState =
   let result = Json.Array []
 
@@ -22,7 +22,7 @@ let handleGetBranchesRequest
 /// Handles `dark/createBranch` requests - returns error (branches no longer supported)
 let handleCreateBranchRequest
   (state: LspState)
-  (requestID: JsonRPC.RequestId)
+  (requestID: JsonRPC.RequestID)
   (branchName: String)
   : LspState =
   let responseJson =
@@ -40,7 +40,7 @@ let handleCreateBranchRequest
 /// Handles `dark/clearBranch` requests - no-op
 let handleClearBranchRequest
   (state: LspState)
-  (requestID: JsonRPC.RequestId)
+  (requestID: JsonRPC.RequestID)
   : LspState =
   let responseJson =
     let requestID = Stdlib.Option.Option.Some requestID

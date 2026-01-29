@@ -1,0 +1,118 @@
+module Darklang.LanguageTools.LspServer.Scm
+
+
+/// Handle dark/scm/getWipSummary request - returns summary of uncommitted changes
+let handleGetWipSummaryRequest
+  (state: LspState)
+  (requestId: JsonRPC.RequestID)
+  : LspState =
+  let summary = SCM.PackageOps.getWipSummary ()
+
+  let types =
+    match Stdlib.Dict.get summary "types" with
+    | Some t -> t
+    | None -> 0L
+
+  let values =
+    match Stdlib.Dict.get summary "values" with
+    | Some v -> v
+    | None -> 0L
+
+  let fns =
+    match Stdlib.Dict.get summary "fns" with
+    | Some f -> f
+    | None -> 0L
+
+  let total =
+    match Stdlib.Dict.get summary "total" with
+    | Some t -> t
+    | None -> 0L
+
+  let responseJson =
+    Stdlib.AltJson.Json.Object
+      [ ("types", Stdlib.AltJson.Json.Number(Stdlib.Int64.toFloat types))
+        ("values", Stdlib.AltJson.Json.Number(Stdlib.Int64.toFloat values))
+        ("fns", Stdlib.AltJson.Json.Number(Stdlib.Int64.toFloat fns))
+        ("renames", Stdlib.AltJson.Json.Number 0.0)
+        ("total", Stdlib.AltJson.Json.Number(Stdlib.Int64.toFloat total)) ]
+
+  let response =
+    (JsonRPC.Response.Ok.make (Stdlib.Option.Option.Some requestId) responseJson)
+    |> Stdlib.AltJson.format
+
+  logAndSendToClient response
+  state
+
+
+/// Handle dark/scm/getCommits request - returns recent commits
+let handleGetCommitsRequest
+  (state: LspState)
+  (requestId: JsonRPC.RequestID)
+  (limit: Int64)
+  : LspState =
+  let commits = SCM.PackageOps.getCommits limit
+
+  let commitsJson =
+    commits
+    |> Stdlib.List.map (fun c ->
+      let id =
+        match Stdlib.Dict.get c "id" with
+        | Some i -> i
+        | None -> ""
+
+      let message =
+        match Stdlib.Dict.get c "message" with
+        | Some m -> m
+        | None -> "(no message)"
+
+      let createdAt =
+        match Stdlib.Dict.get c "createdAt" with
+        | Some d -> d
+        | None -> ""
+
+      let opCount =
+        match Stdlib.Dict.get c "opCount" with
+        | Some o -> o
+        | None -> "0"
+
+      Stdlib.AltJson.Json.Object
+        [ ("id", Stdlib.AltJson.Json.String id)
+          ("message", Stdlib.AltJson.Json.String message)
+          ("createdAt", Stdlib.AltJson.Json.String createdAt)
+          ("opCount", Stdlib.AltJson.Json.String opCount) ])
+
+  let responseJson = Stdlib.AltJson.Json.Array commitsJson
+
+  let response =
+    (JsonRPC.Response.Ok.make (Stdlib.Option.Option.Some requestId) responseJson)
+    |> Stdlib.AltJson.format
+
+  logAndSendToClient response
+  state
+
+
+/// Handle dark/scm/getCommitOps request - returns ops for a specific commit
+let handleGetCommitOpsRequest
+  (state: LspState)
+  (requestId: JsonRPC.RequestID)
+  (commitIdStr: String)
+  : LspState =
+  let responseJson =
+    match Stdlib.Uuid.parse commitIdStr with
+    | Ok commitId ->
+      let ops = SCM.PackageOps.getCommitOps commitId
+
+      ops
+      |> Stdlib.List.map (fun op ->
+        let opStr = PrettyPrinter.ProgramTypes.PackageOp.packageOp op
+        Stdlib.AltJson.Json.String opStr)
+      |> Stdlib.AltJson.Json.Array
+
+    | Error _ -> Stdlib.AltJson.Json.Array []
+
+  let response =
+    (JsonRPC.Response.Ok.make (Stdlib.Option.Option.Some requestId) responseJson)
+    |> Stdlib.AltJson.format
+
+  logAndSendToClient response
+  state

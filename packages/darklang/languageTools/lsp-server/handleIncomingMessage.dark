@@ -279,6 +279,18 @@ let handleIncomingMessage
         | ("dark/listAccounts", Some requestId, _) ->
           Accounts.handleListAccountsRequest state requestId
 
+        | ("dark/scm/getWipSummary", Some requestId, _) ->
+          Scm.handleGetWipSummaryRequest state requestId
+
+        | ("dark/scm/getCommits", Some requestId, Some(Object [ ("limit", Number n) ])) ->
+          Scm.handleGetCommitsRequest state requestId (Stdlib.Float.truncate n)
+
+        | ("dark/scm/getCommits", Some requestId, _) ->
+          Scm.handleGetCommitsRequest state requestId 10L
+
+        | ("dark/scm/getCommitOps", Some requestId, Some(Object [ ("commitId", String commitIdStr) ])) ->
+          Scm.handleGetCommitOpsRequest state requestId commitIdStr
+
         | other ->
           log $"TODO: we don't yet support this method: {r.method}"
           state

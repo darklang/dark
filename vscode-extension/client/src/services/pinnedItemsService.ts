@@ -1,7 +1,9 @@
 import * as vscode from "vscode";
 import * as crypto from "crypto";
 import { httpRequest, DARK_EDITOR_HOST, DARK_EDITOR_PORT } from "../utils/http";
-import { AccountService } from "./accountService";
+
+// Default account ID used for pinned items
+const DEFAULT_ACCOUNT_ID = "Darklang";
 
 export interface PinnedItem {
   itemId: string;
@@ -38,17 +40,9 @@ class PinnedItemsServiceImpl {
     this._listeners.forEach(listener => listener());
   }
 
-  /** Set the current account and reload pinned items */
-  async setCurrentAccount(accountID: string): Promise<void> {
-    if (AccountService.getCurrentAccountId() !== accountID) {
-      AccountService.setCurrentAccount(accountID);
-      await this.load();
-    }
-  }
-
-  /** Get the current account ID */
+  /** Get the current account ID (always returns default) */
   getCurrentAccountId(): string {
-    return AccountService.getCurrentAccountId();
+    return DEFAULT_ACCOUNT_ID;
   }
 
   /** Compute owner and modules from a treeId */
@@ -61,7 +55,7 @@ class PinnedItemsServiceImpl {
 
   /** Load pinned items from the server */
   async load(): Promise<void> {
-    const currentAccountId = AccountService.getCurrentAccountId();
+    const currentAccountId = DEFAULT_ACCOUNT_ID;
     const url = `/pinned?accountID=${encodeURIComponent(currentAccountId)}`;
     try {
       const response = await httpRequest({
@@ -146,7 +140,7 @@ class PinnedItemsServiceImpl {
     const { treeId, name, kind } = data;
     const { owner, modules } = this._parseTreeId(treeId);
     const itemId = crypto.randomUUID();
-    const accountID = AccountService.getCurrentAccountId();
+    const accountID = DEFAULT_ACCOUNT_ID;
 
     const item: PinnedItem = {
       itemId,

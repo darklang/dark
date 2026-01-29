@@ -1,5 +1,4 @@
 import * as vscode from "vscode";
-import { BranchStateManager } from "../data/branchStateManager";
 
 export class ScriptCommands {
   private isDebugMode(): boolean {
@@ -36,21 +35,9 @@ export class ScriptCommands {
 
     terminal.show();
 
-    // Get current branch from extension state
-    let branchEnv = "";
-    try {
-      const branchManager = BranchStateManager.getInstance();
-      const branchId = branchManager.getCurrentBranchId();
-      if (branchId) {
-        branchEnv = `DARK_BRANCH="${branchId}" `;
-      }
-    } catch {
-      // BranchStateManager not initialized yet, run without branch
-    }
-
     const command = this.isDebugMode()
-      ? `cd /home/dark/app && ${branchEnv}./scripts/run-cli run "${filePath}" --skip-self-update`
-      : `${branchEnv}darklang run "${filePath}" --skip-self-update`;
+      ? `cd /home/dark/app && ./scripts/run-cli run "${filePath}" --skip-self-update`
+      : `darklang run "${filePath}" --skip-self-update`;
 
     terminal.sendText(command);
   }

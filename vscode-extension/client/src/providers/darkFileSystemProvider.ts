@@ -1,38 +1,16 @@
 import * as vscode from "vscode";
 import { LanguageClient } from "vscode-languageclient/node";
-import { WorkspaceTreeDataProvider } from "./treeviews/workspaceTreeDataProvider";
 import { PackagesTreeDataProvider } from "./treeviews/packagesTreeDataProvider";
-import { ApprovalsTreeDataProvider } from "./treeviews/approvalsTreeDataProvider";
 
 /**
  * FileSystemProvider for darkfs:// URIs
  * Enables editing of package modules with automatic parsing and op generation on save
- *
- * TODO: Clean up URI scheme usage
- * Currently we have:
- * - dark:// = TextDocumentContentProvider (read-only views like branch overviews)
- * - darkfs:// = FileSystemProvider (editable, currently requires .dark extension)
- *
- * Plan:
- * 1. Keep both schemes (different schemes = different editability, good UX)
- * 2. Remove .dark extension requirement from darkfs:// URLs
- * 3. Update LSP URI parsing to be flexible (no hardcoded .dark stripping)
- * 4. Remove lookUpToplevel command (redundant with tree view)
- *
- * After changes:
- * - dark://branch/{id} - read-only branch overview
- * - dark://package/{path}?view=ast - read-only AST view (future)
- * - darkfs://package/{path} - editable package source (NO .dark extension)
- * - darkfs://module/{path} - editable full module (NO .dark extension)
- * - darkfs://script/{name} - editable script (NO .dark extension)
  */
 export class DarkFileSystemProvider implements vscode.FileSystemProvider {
   private _emitter = new vscode.EventEmitter<vscode.FileChangeEvent[]>();
   readonly onDidChangeFile: vscode.Event<vscode.FileChangeEvent[]> = this._emitter.event;
 
-  private workspaceProvider: WorkspaceTreeDataProvider | null = null;
   private packagesProvider: PackagesTreeDataProvider | null = null;
-  private approvalsProvider: ApprovalsTreeDataProvider | null = null;
 
   // Cache of file contents to detect changes
   private contentCache = new Map<string, Uint8Array>();
@@ -41,34 +19,21 @@ export class DarkFileSystemProvider implements vscode.FileSystemProvider {
     console.log('DarkFileSystemProvider initialized');
   }
 
-  setWorkspaceProvider(provider: WorkspaceTreeDataProvider): void {
-    this.workspaceProvider = provider;
-  }
-
   setPackagesProvider(provider: PackagesTreeDataProvider): void {
     this.packagesProvider = provider;
   }
 
-  setApprovalsProvider(provider: ApprovalsTreeDataProvider): void {
-    this.approvalsProvider = provider;
-  }
-
   /**
    * Refresh all open darkfs:// files by clearing cache and firing change events
-   * This should be called when switching branches to show updated content
    */
   async refreshAllOpenFiles(): Promise<void> {
-    // Get all open text documents
     const openDarkfsFiles = vscode.workspace.textDocuments.filter(
       doc => doc.uri.scheme === 'darkfs'
     );
 
     for (const doc of openDarkfsFiles) {
       try {
-        // Clear cache for this file
         this.contentCache.delete(doc.uri.toString());
-
-        // Fire change event to trigger reload
         this._emitter.fire([{
           type: vscode.FileChangeType.Changed,
           uri: doc.uri
@@ -80,7 +45,6 @@ export class DarkFileSystemProvider implements vscode.FileSystemProvider {
   }
 
   watch(_uri: vscode.Uri, _options: { recursive: boolean; excludes: readonly string[]; }): vscode.Disposable {
-    // Watching is not required for our use case
     return new vscode.Disposable(() => {});
   }
 
@@ -122,11 +86,9 @@ export class DarkFileSystemProvider implements vscode.FileSystemProvider {
     content: Uint8Array,
     options: { create: boolean; overwrite: boolean; }
   ): Promise<void> {
-    // Content must be base64 encoded per LSP spec
     const contentStr = Buffer.from(content).toString('utf-8');
 
     try {
-      // Parse the content and create ops for new declarations
       const response = await this.client.sendRequest<{
         success: boolean;
         ops?: any[];
@@ -145,19 +107,15 @@ export class DarkFileSystemProvider implements vscode.FileSystemProvider {
       );
 
       if (response.success) {
-        if (response.ops && response.ops.length > 0 && this.workspaceProvider) {
-          // Add ops to workspace tree view
-          this.workspaceProvider.addPendingOps(response.ops);
+        if (response.ops && response.ops.length > 0) {
           vscode.window.showInformationMessage(
-            `✓ Parsed successfully. Created ${response.ops.length} operation(s).`
+            `Parsed successfully. Created ${response.ops.length} operation(s).`
           );
 
-          // If LSP returned updated content with IDs, use it immediately
           if (response.updatedContent) {
             const updatedContentBuffer = Buffer.from(response.updatedContent, 'utf-8');
             this.contentCache.set(uri.toString(), new Uint8Array(updatedContentBuffer));
 
-            // Fire change event to update the editor
             this._emitter.fire([{
               type: vscode.FileChangeType.Changed,
               uri
@@ -168,24 +126,16 @@ export class DarkFileSystemProvider implements vscode.FileSystemProvider {
           if (this.packagesProvider) {
             this.packagesProvider.refresh();
           }
-
-          // Refresh approvals tree in case we added to a namespace we don't own
-          if (this.approvalsProvider) {
-            this.approvalsProvider.refresh();
-          }
         } else {
-          // No ops created - just update cache with what was written
           this.contentCache.set(uri.toString(), content);
-          vscode.window.showInformationMessage('✓ Saved (no changes detected)');
+          vscode.window.showInformationMessage('Saved (no changes detected)');
         }
 
-        // Fire change event
         this._emitter.fire([{
           type: vscode.FileChangeType.Changed,
           uri
         }]);
-      } else{
-        // Show parse errors
+      } else {
         const errors = response.errors || ['Unknown error'];
         vscode.window.showErrorMessage(
           `Parse failed: ${errors.join(', ')}`

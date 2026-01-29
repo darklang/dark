@@ -3,7 +3,7 @@ module Darklang.LanguageTools.LspServer.PendingOps
 // Get recent package ops from the database
 let handleGetPendingOpsRequest
   (state: LspState)
-  (requestID: JsonRPC.RequestId)
+  (requestID: JsonRPC.RequestID)
   (params: Stdlib.Option.Option<JsonRPC.Request.RequestParams>)
   : LspState =
   // Get last 20 recent ops

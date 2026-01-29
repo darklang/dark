@@ -129,6 +129,11 @@ export class PackageCommands {
 
       vscode.commands.registerCommand("darklang.packages.pin", (node: any) => this.pinItem(node)),
       vscode.commands.registerCommand("darklang.packages.unpin", (node: any) => this.unpinItem(node)),
+      vscode.commands.registerCommand("darklang.packages.refresh", () => {
+        if (this.packagesProvider) {
+          this.packagesProvider.refresh();
+        }
+      }),
 
       vscode.commands.registerCommand("darklang.revealInPackagesTree", async (treeId: string) => {
         await this.revealInTree(treeId);

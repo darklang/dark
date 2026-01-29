@@ -2,7 +2,7 @@ module Darklang.LanguageTools.LspServer.Accounts
 
 let handleListAccountsRequest
   (state: LspState)
-  (requestId: JsonRPC.RequestId)
+  (requestId: JsonRPC.RequestID)
   : LspState =
   let accounts = Builtin.pmListAccounts (())
 

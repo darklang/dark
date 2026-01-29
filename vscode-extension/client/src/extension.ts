@@ -1,5 +1,4 @@
 import * as vscode from "vscode";
-import { spawn } from "child_process";
 import { SemanticTokensFeature } from "vscode-languageclient/lib/common/semanticTokens";
 import {
   LanguageClient,
@@ -10,19 +9,9 @@ import {
 } from "vscode-languageclient/node";
 
 import { PackagesTreeDataProvider } from "./providers/treeviews/packagesTreeDataProvider";
-import { WorkspaceTreeDataProvider } from "./providers/treeviews/workspaceTreeDataProvider";
-import { ApprovalsTreeDataProvider } from "./providers/treeviews/approvalsTreeDataProvider";
-import { BranchesManagerPanel } from "./panels/branchManagerPanel";
-import { HomepagePanel } from "./panels/homepage/homepagePanel";
-
-import { BranchCommands } from "./commands/branchCommands";
+import { ScmTreeDataProvider } from "./providers/treeviews/scmTreeDataProvider";
 import { PackageCommands } from "./commands/packageCommands";
 import { ScriptCommands } from "./commands/scriptCommands";
-import { ApprovalCommands } from "./commands/approvalCommands";
-
-import { StatusBarManager } from "./ui/statusbar/statusBarManager";
-import { BranchStateManager } from "./data/branchStateManager";
-import { AccountService } from "./services/accountService";
 
 import { DarkFileSystemProvider } from "./providers/darkFileSystemProvider";
 import { DarkContentProvider } from "./providers/darkContentProvider";
@@ -30,6 +19,8 @@ import { DiffContentProvider } from "./providers/diffContentProvider";
 import { DarklangFileDecorationProvider } from "./providers/fileDecorationProvider";
 import { PackageContentProvider } from "./providers/content/packageContentProvider";
 import { RecentItemsService } from "./services/recentItemsService";
+import { ScmStatusBar } from "./ui/statusbar/scmStatusBar";
+import { HomepagePanel } from "./panels/homepage/homepagePanel";
 
 let client: LanguageClient;
 
@@ -38,37 +29,10 @@ const homeDir = process.env.HOME || process.env.USERPROFILE || ".";
 const cwd = isDebug ? "/home/dark/app" : homeDir;
 const cli = isDebug ? "./scripts/run-cli" : "darklang";
 
-function startSyncService(): void {
-  const command = isDebug ? "bash" : cli;
-  const args = isDebug
-    ? [cli, "run", "@Darklang.Cli.SyncService.startInBackground", "()"]
-    : ["run", "@Darklang.Cli.SyncService.startInBackground", "()"];
-  const child = spawn(command, args, {
-    cwd,
-    detached: true,
-    stdio: "ignore",
-  });
-  child.unref();
-  console.log("Sync service start requested via CLI");
-}
-
-function stopSyncService(): void {
-  const command = isDebug ? "bash" : cli;
-  const args = isDebug
-    ? [cli, "run", "@Darklang.Cli.SyncService.stop", "()"]
-    : ["run", "@Darklang.Cli.SyncService.stop", "()"];
-  const child = spawn(command, args, {
-    cwd,
-    stdio: "ignore",
-  });
-  child.unref();
-  console.log("Sync service stop requested via CLI");
-}
-
 function createLSPClient(): LanguageClient {
   const command = isDebug ? "bash" : cli;
   const args = isDebug
-    ? [cli, "run", "@Darklang.LanguageTools.LspServer.runServerCli", "()"]
+    ? [cli, "--no-log", "run", "@Darklang.LanguageTools.LspServer.runServerCli", "()"]
     : ["run", "@Darklang.LanguageTools.LspServer.runServerCli", "()"];
 
   const baseRun = {
@@ -103,128 +67,151 @@ export async function activate(context: vscode.ExtensionContext) {
   client.start();
   await client.onReady();
 
-  // Sync default account to LSP before initializing BranchStateManager
-  // (branches are filtered by account, so account must be set first)
-  await client.sendRequest("dark/setCurrentAccount", {
-    accountID: AccountService.getCurrentAccountId(),
-  });
-
-  BranchStateManager.initialize(client);
   RecentItemsService.initialize(context);
 
-  // Auto-start sync service via CLI
-  startSyncService();
-
-  const statusBar = new StatusBarManager();
   const fsProvider = new DarkFileSystemProvider(client);
   const contentProvider = new DarkContentProvider(client);
   const diffContentProvider = DiffContentProvider.getInstance();
   const decorationProvider = new DarklangFileDecorationProvider();
+  const scmStatusBar = new ScmStatusBar();
 
   PackageContentProvider.setClient(client);
+  HomepagePanel.setClient(client);
 
-  // Webview panel serializer (if supported)
-  vscode.window.registerWebviewPanelSerializer?.(
-    BranchesManagerPanel.viewType,
-    {
-      async deserializeWebviewPanel(panel) {
-        BranchesManagerPanel.revive(panel, context.extensionUri);
-      },
-    },
-  );
-
-  vscode.window.registerWebviewPanelSerializer?.(
-    HomepagePanel.viewType,
-    {
-      async deserializeWebviewPanel(panel) {
-        HomepagePanel.revive(panel, context.extensionUri);
-      },
-    },
-  );
-
+  // Tree providers
   const packagesProvider = new PackagesTreeDataProvider(client);
-  const workspaceProvider = new WorkspaceTreeDataProvider(client);
-  const approvalsProvider = new ApprovalsTreeDataProvider(client);
+  const scmProvider = new ScmTreeDataProvider(client);
 
   fsProvider.setPackagesProvider(packagesProvider);
-  fsProvider.setWorkspaceProvider(workspaceProvider);
-  fsProvider.setApprovalsProvider(approvalsProvider);
 
-  const createView = (id: string, provider: vscode.TreeDataProvider<any>, showCollapseAll: boolean) =>
-    vscode.window.createTreeView(id, { treeDataProvider: provider, showCollapseAll });
+  // Update status bar when SCM status changes
+  scmProvider.onStatusChanged(status => {
+    scmStatusBar.updateStatus(status);
+  });
 
-  const packagesView = createView("darklangPackages", packagesProvider, true);
-  const workspaceView = createView("darklangWorkspace", workspaceProvider, false);
+  // Tree views
+  const packagesView = vscode.window.createTreeView("darklangPackages", {
+    treeDataProvider: packagesProvider,
+    showCollapseAll: true,
+  });
 
-  const approvalsView = vscode.window.createTreeView("darklangApprovals", {
-    treeDataProvider: approvalsProvider,
+  const scmView = vscode.window.createTreeView("darklangScm", {
+    treeDataProvider: scmProvider,
     showCollapseAll: false,
-    manageCheckboxStateManually: true,
   });
 
-  // Handle checkbox changes for pending locations
-  approvalsView.onDidChangeCheckboxState(e => {
-    approvalsProvider.handleCheckboxChange(e.items);
+  // Homepage panel serializer
+  vscode.window.registerWebviewPanelSerializer?.(HomepagePanel.viewType, {
+    async deserializeWebviewPanel(panel) {
+      HomepagePanel.revive(panel, context.extensionUri);
+    },
   });
 
-  (workspaceView as any).title = "Workspace"; // keep existing behavior
-
-  BranchStateManager.getInstance().onBranchChanged(() => {
-    packagesProvider.refresh();
-    fsProvider.refreshAllOpenFiles();
-  });
-
+  // Commands
   const packageCommands = new PackageCommands();
   packageCommands.setPackagesProvider(packagesProvider);
   packageCommands.setPackagesView(packagesView);
-  const branchCommands = new BranchCommands(statusBar, workspaceProvider);
   const scriptCommands = new ScriptCommands();
-  const approvalCommands = new ApprovalCommands();
-  approvalCommands.setClient(client);
-  approvalCommands.setApprovalsProvider(approvalsProvider);
-  approvalCommands.setPackagesProvider(packagesProvider);
-
-  // Set client on HomepagePanel for account fetching
-  HomepagePanel.setClient(client);
 
   const reg = (d: vscode.Disposable) => context.subscriptions.push(d);
 
-  // Core registrations
   [
-    statusBar,
+    scmStatusBar,
     vscode.workspace.registerFileSystemProvider("darkfs", fsProvider, { isCaseSensitive: true, isReadonly: false }),
     vscode.workspace.registerTextDocumentContentProvider("dark", contentProvider),
     vscode.workspace.registerTextDocumentContentProvider(DiffContentProvider.scheme, diffContentProvider),
     vscode.window.registerFileDecorationProvider(decorationProvider),
-    vscode.commands.registerCommand("darklang.branches.manageAll", () => {
-      BranchesManagerPanel.createOrShow(context.extensionUri);
-    }),
+
+    // Homepage command
     vscode.commands.registerCommand("darklang.openHomepage", () => {
       HomepagePanel.createOrShow(context.extensionUri);
     }),
+
+    // Utility commands
     vscode.commands.registerCommand("darklang.clearRecentItems", () => {
       RecentItemsService.clear();
       vscode.window.showInformationMessage("Recent items cleared");
     }),
+
+    // SCM commands
+    vscode.commands.registerCommand("darklang.scm.refresh", () => {
+      scmProvider.refresh();
+    }),
+
+    vscode.commands.registerCommand("darklang.scm.status", async () => {
+      const terminal = vscode.window.createTerminal("Darklang SCM");
+      terminal.sendText(`${cli} status`);
+      terminal.show();
+    }),
+
+    vscode.commands.registerCommand("darklang.scm.commit", async () => {
+      const message = await vscode.window.showInputBox({
+        prompt: "Commit message",
+        placeHolder: "Enter commit message",
+      });
+      if (message) {
+        const terminal = vscode.window.createTerminal("Darklang SCM");
+        terminal.sendText(`${cli} commit "${message}" --yes`);
+        terminal.show();
+        // Refresh SCM view after a delay
+        setTimeout(() => scmProvider.refresh(), 2000);
+      }
+    }),
+
+    vscode.commands.registerCommand("darklang.scm.log", async () => {
+      const terminal = vscode.window.createTerminal("Darklang SCM");
+      terminal.sendText(`${cli} log`);
+      terminal.show();
+    }),
+
+    vscode.commands.registerCommand("darklang.scm.discard", async () => {
+      const confirm = await vscode.window.showWarningMessage(
+        "Discard all uncommitted changes?",
+        { modal: true },
+        "Discard"
+      );
+      if (confirm === "Discard") {
+        const terminal = vscode.window.createTerminal("Darklang SCM");
+        terminal.sendText(`${cli} discard --yes`);
+        terminal.show();
+        // Refresh SCM view after a delay
+        setTimeout(() => scmProvider.refresh(), 2000);
+      }
+    }),
+
+    vscode.commands.registerCommand("darklang.scm.showCommit", async (commitId: string) => {
+      try {
+        const ops = await client.sendRequest<string[]>("dark/scm/getCommitOps", { commitId });
+        const content = ops.length > 0
+          ? ops.map((op, i) => `${i + 1}. ${op}`).join("\n")
+          : "No operations in this commit.";
+
+        const doc = await vscode.workspace.openTextDocument({
+          content: `Commit: ${commitId}\n${"=".repeat(50)}\n\n${content}`,
+          language: "plaintext"
+        });
+        await vscode.window.showTextDocument(doc, { preview: true });
+      } catch (error) {
+        vscode.window.showErrorMessage(`Failed to load commit: ${error}`);
+      }
+    }),
+
     packagesView,
     packagesProvider,
-    workspaceView,
-    approvalsView,
-    approvalsProvider,
+    scmView,
+    scmProvider,
     ...packageCommands.register(),
-    ...branchCommands.register(),
     ...scriptCommands.register(),
-    ...approvalCommands.register(),
   ].forEach(reg);
 
-  // Open dashboard by default
+  // Initial SCM refresh to populate status bar
+  scmProvider.refresh();
+
+  // Auto-open homepage on activation
   HomepagePanel.createOrShow(context.extensionUri);
 }
 
 export async function deactivate(): Promise<void> {
-  // Stop sync service via CLI (not LSP)
-  stopSyncService();
-
   if (client) {
     await client.stop();
   }

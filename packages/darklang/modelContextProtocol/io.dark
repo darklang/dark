@@ -6,53 +6,53 @@ module Darklang.ModelContextProtocol
 type IncomingMessage =
   // Lifecycle
   | InitializeRequest of
-      requestId: JsonRPC.RequestId *
+      requestId: JsonRPC.RequestID *
       LifeCycle.InitializeRequest.InitializeParams
   | Initialized
-  | Shutdown of requestId: JsonRPC.RequestId
+  | Shutdown of requestId: JsonRPC.RequestID
 
   // Resources
-  | ListResourcesRequest of requestId: JsonRPC.RequestId
-  | ListResourceTemplatesRequest of requestId: JsonRPC.RequestId
+  | ListResourcesRequest of requestId: JsonRPC.RequestID
+  | ListResourceTemplatesRequest of requestId: JsonRPC.RequestID
   | ReadResourceRequest of
-      requestId: JsonRPC.RequestId *
+      requestId: JsonRPC.RequestID *
       Resources.ReadResourceParams.ReadResourceParams
 
   // Tools
-  | ListToolsRequest of requestId: JsonRPC.RequestId
+  | ListToolsRequest of requestId: JsonRPC.RequestID
   | CallToolRequest of
-      requestId: JsonRPC.RequestId *
+      requestId: JsonRPC.RequestID *
       Tools.CallToolRequest.CallToolParams
 
   // Prompts
-  | ListPromptsRequest of requestId: JsonRPC.RequestId
+  | ListPromptsRequest of requestId: JsonRPC.RequestID
   | GetPromptRequest of
-      requestId: JsonRPC.RequestId *
+      requestId: JsonRPC.RequestID *
       name: String *
       arguments: Stdlib.AltJson.Json
 
   // Logging
   | SetLoggingLevelRequest of
-      requestId: Stdlib.Option.Option<JsonRPC.RequestId> *
+      requestId: Stdlib.Option.Option<JsonRPC.RequestID> *
       SetLoggingLevel.SetLoggingLevelParams
 
   // Progress
   | ProgressNotification of ProgressNotification.ProgressNotificationParams
 
   // Notifications
-  | CancelNotification of requestId: JsonRPC.RequestId
+  | CancelNotification of requestId: JsonRPC.RequestID
 
   // Roots
-  | ListRootsRequest of requestId: JsonRPC.RequestId
+  | ListRootsRequest of requestId: JsonRPC.RequestID
 
   // Sampling
   | CreateMessageRequest of
-      requestId: JsonRPC.RequestId *
+      requestId: JsonRPC.RequestID *
       Sampling.CreateMessageParams
 
   // Completion
   | CompleteRequest of
-      requestId: JsonRPC.RequestId *
+      requestId: JsonRPC.RequestID *
       CompletionParams
 
   // Other

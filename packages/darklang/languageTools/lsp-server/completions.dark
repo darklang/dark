@@ -162,7 +162,7 @@ let createCompletions
 /// handles `textDocument/completion` requests
 let handleCompletionRequest
   (state: LspState)
-  (requestId: JsonRPC.RequestId)
+  (requestId: JsonRPC.RequestID)
   (requestParams:
     LanguageServerProtocol.Completions.CompletionRequest.CompletionParams.CompletionParams)
   : LspState =

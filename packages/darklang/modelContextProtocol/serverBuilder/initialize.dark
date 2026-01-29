@@ -5,7 +5,7 @@ module Darklang.ModelContextProtocol.ServerBuilder
 let handleInitializeRequest
   (server: McpServerBuilder)
   (logFilePath: String)
-  (requestId: JsonRPC.RequestId)
+  (requestId: JsonRPC.RequestID)
   (params: LifeCycle.InitializeRequest.InitializeParams)
   : State.BuilderServerState =
   logWithPath logFilePath $"Handling initialize request for server: {server.name}"

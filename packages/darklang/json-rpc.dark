@@ -13,12 +13,12 @@ type Json = Stdlib.AltJson.Json
 
 let expectedJsonRpcVersion = "2.0"
 
-type RequestId =
+type RequestID =
   | Null
   | Int of Int64
   | String of String
 
-let requestIdToJson (id: RequestId) : Json =
+let requestIdToJson (id: RequestID) : Json =
   match id with
   | Null -> Json.Null
   | Int i -> Json.Number(Stdlib.Int64.toFloat i)
@@ -34,7 +34,7 @@ module Request =
   ///
   /// Note: when the `id` is `None`, this is referred to as a "notification"
   type Request =
-    { id: Stdlib.Option.Option<RequestId> // todo: rename to requestId
+    { id: Stdlib.Option.Option<RequestID> // todo: rename to requestId
       method: String
       ``params``: Stdlib.Option.Option<RequestParams> }
 
@@ -54,13 +54,13 @@ module Request =
       | InvalidIdField of actual: Json
 
       /// must be provided
-      | MissingMethodField of id: Stdlib.Option.Option<RequestId>
+      | MissingMethodField of id: Stdlib.Option.Option<RequestID>
 
       /// must be a string
-      | InvalidMethodField of id: Stdlib.Option.Option<RequestId> * actual: Json
+      | InvalidMethodField of id: Stdlib.Option.Option<RequestID> * actual: Json
 
       /// can be missing, but otherwise must be an array or an object
-      | InvalidParamsField of id: Stdlib.Option.Option<RequestId> * actual: Json
+      | InvalidParamsField of id: Stdlib.Option.Option<RequestID> * actual: Json
 
 
 
@@ -82,7 +82,7 @@ module Request =
     // If it's not provided, that's OK -- it's a notification we don't have to respond to!
     let extractIdFromRequest
       (fields: List<String * Json>)
-      : Stdlib.Result.Result<Stdlib.Option.Option<RequestId>, ParseError> =
+      : Stdlib.Result.Result<Stdlib.Option.Option<RequestID>, ParseError> =
       match Stdlib.List.findFirst fields (fun (k, v) -> k == "id") with
 
       // none provided - fine - notification
@@ -90,14 +90,14 @@ module Request =
 
       // can be null, a string, or a number
       | Some((_, Null)) ->
-        RequestId.Null |> Stdlib.Option.Option.Some |> Stdlib.Result.Result.Ok
+        RequestID.Null |> Stdlib.Option.Option.Some |> Stdlib.Result.Result.Ok
       | Some((_, String s)) ->
-        (RequestId.String s)
+        (RequestID.String s)
         |> Stdlib.Option.Option.Some
         |> Stdlib.Result.Result.Ok
       | Some((_, Number n)) ->
         (Stdlib.Float.floor n)
-        |> RequestId.Int
+        |> RequestID.Int
         |> Stdlib.Option.Option.Some
         |> Stdlib.Result.Result.Ok
 
@@ -108,7 +108,7 @@ module Request =
 
     // for each request, a `method` field must be present, and must be a string
     let extractMethodFromRequest
-      (requestId: Stdlib.Option.Option<RequestId>)
+      (requestId: Stdlib.Option.Option<RequestID>)
       (fields: List<String * Json>)
       : Stdlib.Result.Result<String, ParseError> =
       match Stdlib.List.findFirst fields (fun (k, v) -> k == "method") with
@@ -126,7 +126,7 @@ module Request =
     // - an Array (with params by index)
     // - or an Object (with params by name)
     let extractParamsMaybeFromRequest
-      (requestId: Stdlib.Option.Option<RequestId>)
+      (requestId: Stdlib.Option.Option<RequestID>)
       (fields: List<String * Json>)
       : Stdlib.Result.Result<Stdlib.Option.Option<RequestParams>, ParseError> =
       match Stdlib.List.findFirst fields (fun (k, v) -> k == "params") with
@@ -155,7 +155,7 @@ module Request =
         let idOrError = extractIdFromRequest o
 
         // (this is just convenient for including in some errors)
-        let simplifiedIdMaybe = // : Option<RequestId>
+        let simplifiedIdMaybe = // : Option<RequestID>
           match idOrError with
           | Ok idMaybe -> idMaybe
           | Error _ -> Stdlib.Option.Option.None
@@ -183,7 +183,7 @@ module Request =
 
   let makeString
     (method: String)
-    (id: Stdlib.Option.Option<RequestId>)
+    (id: Stdlib.Option.Option<RequestID>)
     (params: Stdlib.Option.Option<RequestParams>)
     : String =
     let fields =
@@ -250,7 +250,7 @@ module IncomingMessage =
 
 module Response =
   module Ok =
-    let make (requestId: Stdlib.Option.Option<RequestId>) (result: Json) : Json =
+    let make (requestId: Stdlib.Option.Option<RequestID>) (result: Json) : Json =
       [ Stdlib.Option.Option.Some(("jsonrpc", Json.String "2.0"))
 
         (requestId |> Stdlib.Option.map (fun id -> ("id", requestIdToJson id)))
@@ -269,7 +269,7 @@ module Response =
       let internalError = -32603L
 
     let make
-      (requestId: Stdlib.Option.Option<RequestId>)
+      (requestId: Stdlib.Option.Option<RequestID>)
       (errorCode: Int64)
       (errorMessage: String)
       (errorData: Stdlib.Option.Option<Json>)
