@@ -14,7 +14,7 @@
       "autoAttachChildProcesses": true,
       "preLaunchTask": { "type": "npm", "script": "watch" },
       "internalConsoleOptions": "openOnSessionStart",
-      "env": { "VSCODE_DEBUG_MODE": "true"}
+      "env": { "DARKLANG_CLI_MODE": "debug" }
     }
   ]
 }

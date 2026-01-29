@@ -24,10 +24,11 @@ import { HomepagePanel } from "./panels/homepage/homepagePanel";
 
 let client: LanguageClient;
 
-const isDebug = process.env.VSCODE_DEBUG_MODE === "true";
-const homeDir = process.env.HOME || process.env.USERPROFILE || ".";
-const cwd = isDebug ? "/home/dark/app" : homeDir;
-const cli = isDebug ? "./scripts/run-cli" : "darklang";
+// Default = prod mode (uses 'dark' CLI)
+// DARKLANG_CLI_MODE=debug uses './scripts/run-cli' with --no-log
+const isDebug = process.env.DARKLANG_CLI_MODE === "debug";
+const cwd = isDebug ? "/home/dark/app" : (process.env.HOME || process.env.USERPROFILE || ".");
+const cli = isDebug ? "./scripts/run-cli" : "dark";
 
 function createLSPClient(): LanguageClient {
   const command = isDebug ? "bash" : cli;
