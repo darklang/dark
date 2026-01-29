@@ -86,11 +86,12 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
       let results = LanguageTools.PackageManager.Search.search accountID state.currentBranchId query
 
       // Display results
+      // Only count submodules when no entity type filter is specified
       let submodulesCount =
-        match results.submodules with
-        | [] -> 0L
-        | [submodulePaths] -> Stdlib.List.length submodulePaths
-        | _ -> 0L
+        if Stdlib.List.isEmpty entityTypes then
+          Stdlib.List.length results.submodules
+        else
+          0L
 
       let totalResults =
         (Stdlib.List.length results.types)
@@ -105,18 +106,14 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
         Stdlib.printLine (Colors.boldText $"Search results for: {queryText}")
         Stdlib.printLine ""
 
-        // Display submodules
-        match results.submodules with
-        | [] -> ()
-        | [submodulePaths] ->
-          if Stdlib.Bool.not (Stdlib.List.isEmpty submodulePaths) then
-            Stdlib.printLine (Display.getSectionHeader "module")
-            submodulePaths
-            |> Stdlib.List.iter (fun modulePath ->
-              let moduleStr = Stdlib.String.join modulePath "."
-              Stdlib.printLine $"  {moduleStr}")
-            Stdlib.printLine ""
-        | _ -> ()
+        // Display submodules (only when no entity type filter is specified)
+        if (Stdlib.List.isEmpty entityTypes) && (Stdlib.Bool.not (Stdlib.List.isEmpty results.submodules)) then
+          Stdlib.printLine (Display.getSectionHeader "module")
+          results.submodules
+          |> Stdlib.List.iter (fun modulePath ->
+            let moduleStr = Stdlib.String.join modulePath "."
+            Stdlib.printLine $"  {moduleStr}")
+          Stdlib.printLine ""
 
         // Display types
         if Stdlib.Bool.not (Stdlib.List.isEmpty results.types) then
