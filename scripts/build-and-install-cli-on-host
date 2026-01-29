@@ -3,7 +3,7 @@
 # Build the darklang CLI from the host machine and install it globally.
 # This script:
 # 1. Detects the host architecture
-# 2. Runs the build inside the devcontainer
+# 2. Runs the build inside the devcontainer (using build-release-cli-exes.sh)
 # 3. Copies the binary to the host
 # 4. Runs 'install' to set up global access
 #
@@ -59,7 +59,6 @@ detect_host_runtime() {
 
 # Find the running devcontainer
 find_devcontainer() {
-  # Look for a container with 'main' in its image name
   local container_id
   container_id=$(docker ps --format '{{.ID}} {{.Image}}' | grep -i 'vsc-main' | head -1 | awk '{print $1}')
 
@@ -82,41 +81,20 @@ RELEASE="alpha-$SHA"
 
 echo "Building release: $RELEASE"
 
-# Run the build inside the container
+# Run the build inside the container using the main build script
 echo "Running build inside container..."
-docker exec -w /home/dark/app "$CONTAINER_ID" bash -c "
-  set -euo pipefail
-
-  export GIT_COMMIT='$SHA'
-
-  # Force WAL checkpoint
-  sqlite3 rundir/data.db 'PRAGMA wal_checkpoint(TRUNCATE);' 2>/dev/null || true
-
-  mkdir -p clis
-
-  ./scripts/build/_dotnet-wrapper publish \
-    -c Release \
-    src/Cli/Cli.fsproj \
-    /p:DebugType=None \
-    /p:DebugSymbols=false \
-    /p:PublishSingleFile=true \
-    /p:PublishTrimmed=true \
-    /p:PublishReadyToRun=true \
-    --self-contained true \
-    --runtime '$RUNTIME'
-"
+docker exec -w /home/dark/app "$CONTAINER_ID" bash -c \
+  "./scripts/build/build-release-cli-exes.sh --runtimes=$RUNTIME"
 
 # Determine binary name and path
 if [[ "$RUNTIME" == win-* ]]; then
-  BINARY_NAME="Cli.exe"
-  TARGET_NAME="darklang-$RELEASE-$RUNTIME.exe"
+  BINARY_NAME="darklang-$RELEASE-$RUNTIME.exe"
 else
-  BINARY_NAME="Cli"
-  TARGET_NAME="darklang-$RELEASE-$RUNTIME"
+  BINARY_NAME="darklang-$RELEASE-$RUNTIME"
 fi
 
-CONTAINER_BINARY_PATH="/home/dark/app/backend/Build/out/Cli/Release/net8.0/$RUNTIME/publish/$BINARY_NAME"
-HOST_BINARY_PATH="$REPO_ROOT/clis/$TARGET_NAME"
+CONTAINER_BINARY_PATH="/home/dark/app/clis/$BINARY_NAME"
+HOST_BINARY_PATH="$REPO_ROOT/clis/$BINARY_NAME"
 
 # Copy binary from container to host
 echo "Copying binary to host..."
