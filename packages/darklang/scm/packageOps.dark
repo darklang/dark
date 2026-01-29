@@ -1,28 +1,51 @@
 module Darklang.SCM.PackageOps
 
-/// Add a list of package ops to the database, applying them immediately
+/// Add a list of package ops to the database as WIP (uncommitted)
 ///
 /// Returns the number of inserted ops on success (duplicates are skipped),
-/// or an error message on failure
+/// or an error message on failure.
+///
+/// Use `commit` to commit WIP ops.
 let add
-  (instanceID: Stdlib.Option.Option<Uuid>)
-  (branchID: Stdlib.Option.Option<Uuid>)
-  (createdBy: Stdlib.Option.Option<Uuid>)
   (ops: List<LanguageTools.ProgramTypes.PackageOp>)
   : Stdlib.Result.Result<Int64, String> =
-  Builtin.scmAddOps instanceID branchID createdBy ops
+  Builtin.scmAddOps ops
 
 
 /// Get recent package ops from the database
-let getRecent
-  (branchID: Stdlib.Option.Option<Uuid>)
-  (limit: Int64)
-  : List<LanguageTools.ProgramTypes.PackageOp> =
-  Builtin.scmGetRecentOps branchID limit
+let getRecent (limit: Int64) : List<LanguageTools.ProgramTypes.PackageOp> =
+  Builtin.scmGetRecentOps limit
 
 
-/// Get recent package ops from ALL branches (no branch filter)
-let getRecentAllBranches
-  (limit: Int64)
-  : List<LanguageTools.ProgramTypes.PackageOp> =
-  Builtin.scmGetRecentOpsAllBranches limit
+/// Get all WIP (uncommitted) ops
+let getWip () : List<LanguageTools.ProgramTypes.PackageOp> =
+  Builtin.scmGetWipOps_v0 ()
+
+
+/// Get summary of WIP ops (counts by type)
+/// Returns a dict with keys: types, values, fns, renames, total
+let getWipSummary () : Dict<Int64> =
+  Builtin.scmGetWipSummary_v0 ()
+
+
+/// Commit all WIP ops with the given message
+/// Returns the commit ID on success, or an error message on failure
+let commit (message: String) : Stdlib.Result.Result<Uuid, String> =
+  Builtin.scmCommit message
+
+
+/// Discard all WIP ops
+/// Returns the count of discarded ops on success, or an error message on failure
+let discard () : Stdlib.Result.Result<Int64, String> =
+  Builtin.scmDiscard_v0 ()
+
+
+/// Get commit log ordered by date descending
+/// Each commit is a dict with: id, message, createdAt, opCount
+let getCommits (limit: Int64) : List<Dict<String>> =
+  Builtin.scmGetCommits limit
+
+
+/// Get ops for a specific commit
+let getCommitOps (commitId: Uuid) : List<LanguageTools.ProgramTypes.PackageOp> =
+  Builtin.scmGetCommitOps commitId

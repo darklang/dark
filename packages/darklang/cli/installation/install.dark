@@ -1,32 +1,80 @@
 module Darklang.Cli.Installation.Install
 
 
+/// Check if a flag is present in args (supports both --flag and -f forms)
+let hasFlag (args: List<String>) (longFlag: String) (shortFlag: String) : Bool =
+  (Stdlib.List.member_v0 args longFlag) || (Stdlib.List.member_v0 args shortFlag)
+
+
 let execute (state: AppState) (args: List<String>) : AppState =
   let host = (Stdlib.Cli.Host.getRuntimeHost ()) |> Builtin.unwrap
   let currentMode = Installation.System.getInstallationMode ()
 
+  // Parse flags
+  let autoConfirm = hasFlag args "--yes" "-y"
+  let uninstallFirst = Stdlib.List.member_v0 args "--uninstall-if-installed"
+
   match currentMode with
   | Installed ->
-    Stdlib.printLine (View.formatSuccess "Already installed globally")
-    state
+    if uninstallFirst then
+      // Uninstall first, then reinstall
+      Stdlib.printLine "Uninstalling existing installation..."
+      match Installation.System.uninstallWithConfirmation host true with
+      | Ok _ ->
+        Stdlib.printLine "Reinstalling..."
+        // After uninstall, we're effectively in portable mode, copy the binary
+        match Installation.System.installFromCurrentBinary host autoConfirm with
+        | Ok message ->
+          Stdlib.printLine (View.formatSuccess message)
+          state
+        | Error e ->
+          Stdlib.printLine (View.formatError e)
+          state
+      | Error e ->
+        Stdlib.printLine (View.formatError $"Uninstall failed: {e}")
+        state
+    else
+      Stdlib.printLine (View.formatSuccess "Already installed globally")
+      state
+
   | Portable ->
     let currentDir = Builtin.directoryCurrent ()
 
     if Installation.System.globalInstallationExists host then
-      let homeDir = Config.getDarklangHomeDir host
-
-      let message = $"Detected portable mode - you're running from {currentDir}/.darklang\nFound existing global installation at {homeDir}\n\nIf you'd like to update your global installation, please run `dark` rather than this portable executable."
-      Stdlib.printLine (View.formatSuccess message)
-      state
+      if uninstallFirst then
+        // Uninstall existing global, then install from current binary
+        Stdlib.printLine "Uninstalling existing global installation..."
+        match Installation.System.uninstallWithConfirmation host true with
+        | Ok _ ->
+          Stdlib.printLine "Installing from current binary..."
+          match Installation.System.installFromCurrentBinary host autoConfirm with
+          | Ok message ->
+            Stdlib.printLine (View.formatSuccess message)
+            state
+          | Error e ->
+            Stdlib.printLine (View.formatError e)
+            state
+        | Error e ->
+          Stdlib.printLine (View.formatError $"Uninstall failed: {e}")
+          state
+      else
+        let homeDir = Config.getDarklangHomeDir host
+        let message = $"Detected portable mode - you're running from {currentDir}/.darklang\nFound existing global installation at {homeDir}\n\nIf you'd like to update your global installation, please run `dark` rather than this portable executable.\n\nOr use --uninstall-if-installed to replace the existing installation."
+        Stdlib.printLine (View.formatSuccess message)
+        state
     else
-      Stdlib.printLine "Choose installation method:"
-      Stdlib.printLine "1. Copy this binary (for testing local changes)"
-      Stdlib.printLine "2. Download latest release from GitHub"
-      Stdlib.printLine "Choose option (1 or 2): "
-      let choice = (Builtin.stdinReadLine ()) |> Stdlib.String.trim
+      let choice =
+        if autoConfirm then
+          "1" // Default to copying current binary with --yes
+        else
+          Stdlib.printLine "Choose installation method:"
+          Stdlib.printLine "1. Copy this binary (for testing local changes)"
+          Stdlib.printLine "2. Download latest release from GitHub"
+          Stdlib.printLine "Choose option (1 or 2): "
+          (Builtin.stdinReadLine ()) |> Stdlib.String.trim
 
       if choice == "1" then
-        match Installation.System.installFromCurrentBinary host with
+        match Installation.System.installFromCurrentBinary host autoConfirm with
         | Ok message ->
           Stdlib.printLine (View.formatSuccess message)
           state
@@ -35,7 +83,7 @@ let execute (state: AppState) (args: List<String>) : AppState =
           state
       else
         Stdlib.printLine "Installing globally..."
-        match Installation.System.install host with
+        match Installation.System.install host autoConfirm with
         | Ok message ->
           Stdlib.printLine (View.formatSuccess message)
           state
@@ -49,10 +97,13 @@ let complete (_state: AppState) (_args: List<String>) : List<Completion.Completi
 
 
 let help (state: AppState) : Unit =
-  [
-    "Usage: install"
+  [ "Usage: install [--yes|-y] [--uninstall-if-installed]"
     "Install Darklang CLI globally for system-wide access."
     ""
     "This command installs the CLI to ~/.darklang/bin/ and sets up"
     "shell configuration for global access."
-  ] |> Stdlib.printLines
+    ""
+    "Flags:"
+    "  --yes, -y                 Skip all prompts (use defaults)"
+    "  --uninstall-if-installed  Uninstall existing installation first" ]
+  |> Stdlib.printLines

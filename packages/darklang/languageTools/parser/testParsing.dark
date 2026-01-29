@@ -10,9 +10,7 @@ let initialParse
 
 
 // TODO: maybe use a proper type instead of string?
-// TODO: should take accountID
 let parsePTExpr
-  (branchID: Stdlib.Option.Option<ProgramTypes.BranchID>)
   (code: String)
   : Stdlib.Result.Result<ProgramTypes.Expr, String> =
   match code |> TestParsing.initialParse with
@@ -29,8 +27,6 @@ let parsePTExpr
     | [ expr ] ->
       let (expr, _) =
         WrittenTypesToProgramTypes.Expr.toPT
-          Stdlib.Option.Option.None
-          branchID
           onMissing
           pm
           ""
@@ -46,8 +42,6 @@ let parsePTExpr
 
 
 let parsePTSourceFileWithOps
-  (accountID: Stdlib.Option.Option<Uuid>)
-  (branchID: Stdlib.Option.Option<ProgramTypes.BranchID>)
   (code: String)
   : Stdlib.Result.Result<
     (ProgramTypes.SourceFile.SourceFile * List<ProgramTypes.PackageOp>),
@@ -56,7 +50,7 @@ let parsePTSourceFileWithOps
   match code |> TestParsing.initialParse with
   | Ok parsedFile ->
     let (sourceFile, ops, _unresolvedNames) =
-      parsedFile |> WrittenTypesToProgramTypes.parsedFileAsSourceFile accountID branchID
+      parsedFile |> WrittenTypesToProgramTypes.parsedFileAsSourceFile
 
     (sourceFile, ops) |> Stdlib.Result.Result.Ok
   | Error e -> Stdlib.Result.Result.Error e

@@ -71,17 +71,13 @@ let namesToTryHelper
 
 /// Generic name resolution that handles the common pattern across Type/Value/Fn resolution
 let resolveGenericName
-  (accountID: Stdlib.Option.Option<Uuid>)
-  (branchID: Stdlib.Option.Option<ProgramTypes.BranchID>)
   (pm: ProgramTypes.PackageManager.PackageManager)
   (onMissing: OnMissing)
   (owner: String)
   (currentModule: List<String>)
   (name: WrittenTypes.Name)
   (tryResolve:
-    Stdlib.Option.Option<String>
-    -> Stdlib.Option.Option<ProgramTypes.BranchID>
-    -> ProgramTypes.PackageManager.PackageManager
+    ProgramTypes.PackageManager.PackageManager
     -> GenericName
     -> Stdlib.Result.Result<'a, Unit>)
   : ProgramTypes.NameResolution<'a> =
@@ -106,7 +102,7 @@ let resolveGenericName
             match currentResult with
             | Ok _ -> currentResult
             | Error _ ->
-              match tryResolve accountID branchID pm nameToTry with
+              match tryResolve pm nameToTry with
               | Error() -> currentResult
               | Ok success -> Stdlib.Result.Result.Ok success)
 
@@ -115,8 +111,6 @@ let resolveGenericName
 
 module TypeName =
   let tryResolve
-    (accountID: Stdlib.Option.Option<Uuid>)
-    (branchID: Stdlib.Option.Option<ProgramTypes.BranchID>)
     (pm: ProgramTypes.PackageManager.PackageManager)
     (name: GenericName)
     : Stdlib.Result.Result<ProgramTypes.FQTypeName.FQTypeName, Unit> =
@@ -129,7 +123,7 @@ module TypeName =
             modules = modules
             name = name.name }
 
-      match pm.findType accountID branchID location with
+      match pm.findType location with
       | Some id ->
         (ProgramTypes.FQTypeName.FQTypeName.Package id)
         |> Stdlib.Result.Result.Ok
@@ -137,15 +131,13 @@ module TypeName =
 
 
   let resolve
-    (accountID: Stdlib.Option.Option<Uuid>)
-    (branchID: Stdlib.Option.Option<ProgramTypes.BranchID>)
     (onMissing: OnMissing)
     (pm: ProgramTypes.PackageManager.PackageManager)
     (owner: String)
     (currentModule: List<String>)
     (name: WrittenTypes.Name)
     : ProgramTypes.NameResolution<ProgramTypes.FQTypeName.FQTypeName> =
-    resolveGenericName accountID branchID pm onMissing owner currentModule name TypeName.tryResolve
+    resolveGenericName pm onMissing owner currentModule name TypeName.tryResolve
 
 
 
@@ -156,8 +148,6 @@ module ValueName =
     |> Stdlib.Option.isSome
 
   let tryResolve
-    (accountID: Stdlib.Option.Option<Uuid>)
-    (branchID: Stdlib.Option.Option<ProgramTypes.BranchID>)
     (pm: ProgramTypes.PackageManager.PackageManager)
     (name: GenericName)
     : Stdlib.Result.Result<ProgramTypes.FQValueName.FQValueName, Unit> =
@@ -180,7 +170,7 @@ module ValueName =
               modules = modules
               name = name.name }
 
-        match pm.findValue accountID branchID location with
+        match pm.findValue location with
         | Some id ->
           (ProgramTypes.FQValueName.FQValueName.Package id)
           |> Stdlib.Result.Result.Ok
@@ -188,22 +178,18 @@ module ValueName =
 
 
   let resolve
-    (accountID: Stdlib.Option.Option<Uuid>)
-    (branchID: Stdlib.Option.Option<ProgramTypes.BranchID>)
     (onMissing: OnMissing)
     (pm: ProgramTypes.PackageManager.PackageManager)
     (owner: String)
     (currentModule: List<String>)
     (name: WrittenTypes.Name)
     : ProgramTypes.NameResolution<ProgramTypes.FQValueName.FQValueName> =
-    resolveGenericName accountID branchID pm onMissing owner currentModule name ValueName.tryResolve
+    resolveGenericName pm onMissing owner currentModule name ValueName.tryResolve
 
 
 
 module FnName =
   let tryResolve
-    (accountID: Stdlib.Option.Option<Uuid>)
-    (branchID: Stdlib.Option.Option<ProgramTypes.BranchID>)
     (pm: ProgramTypes.PackageManager.PackageManager)
     (name: GenericName)
     : Stdlib.Result.Result<ProgramTypes.FQFnName.FQFnName, Unit> =
@@ -228,7 +214,7 @@ module FnName =
               name = name.name }
 
 
-        let found = pm.findFn accountID branchID location
+        let found = pm.findFn location
 
         match found with
         | Some id ->
@@ -238,12 +224,10 @@ module FnName =
 
 
   let resolve
-    (accountID: Stdlib.Option.Option<Uuid>)
-    (branchID: Stdlib.Option.Option<ProgramTypes.BranchID>)
     (onMissing: OnMissing)
     (pm: ProgramTypes.PackageManager.PackageManager)
     (owner: String)
     (currentModule: List<String>)
     (name: WrittenTypes.Name)
     : ProgramTypes.NameResolution<ProgramTypes.FQFnName.FQFnName> =
-    resolveGenericName accountID branchID pm onMissing owner currentModule name FnName.tryResolve
+    resolveGenericName pm onMissing owner currentModule name FnName.tryResolve

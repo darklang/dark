@@ -47,12 +47,17 @@ module HandleCommand =
       do! LibPackageManager.Purge.purge ()
 
       print "Filling ..."
-      let! _ = LibPackageManager.Inserts.insertAndApplyOps None None None ops
+      // Create an "init" commit with all packages from disk
+      let! commitId =
+        LibPackageManager.Inserts.insertAndApplyOpsWithCommit
+          "Init: packages loaded from disk"
+          ops
 
       // Get stats after ops are inserted/applied
       let! stats = LibPackageManager.Stats.get ()
       print "Loaded packages from disk "
       print $"{stats.types} types, {stats.values} values, and {stats.fns} fns"
+      print $"Created init commit {commitId}"
 
       // Reload dark-packages and dark-editor canvases after package reload
       print "Reloading dark-packages canvas..."

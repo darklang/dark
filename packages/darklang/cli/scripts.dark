@@ -113,14 +113,14 @@ let execute (state: AppState) (args: List<String>) : AppState =
   | ["run"; name] ->
     match Builtin.pmScriptsGet name with
     | Some script ->
-      let result = Builtin.cliParseAndExecuteScript state.accountID state.currentBranchId $"script:{name}" script.text []
+      let result = Builtin.cliParseAndExecuteScript $"script:{name}" script.text []
       match result with
       | Ok exitCode ->
         let message = $"Script '{name}' executed with exit code: {Stdlib.Int64.toString exitCode}"
         Stdlib.printLine message
         state
       | Error runtimeError ->
-        let prettyError = PrettyPrinter.RuntimeTypes.RuntimeError.toString state.accountID state.currentBranchId runtimeError
+        let prettyError = PrettyPrinter.RuntimeTypes.RuntimeError.toString runtimeError
         Stdlib.printLine $"Script error: {prettyError}"
         state
     | None ->

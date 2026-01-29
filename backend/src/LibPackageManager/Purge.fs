@@ -24,7 +24,7 @@ let purge () : Task<unit> =
       |> Sql.parameters [ "tableName", Sql.string tableName ]
       |> Sql.executeExistsSync
 
-    // Delete from projection tables and source-of-truth ops table
+    // Delete from projection tables, source-of-truth ops table, and commits
     // Only delete if tables exist (handles case where migrations haven't run yet)
     let tablesToPurge =
       [ "locations"
@@ -32,7 +32,8 @@ let purge () : Task<unit> =
         "package_values"
         "package_functions"
         "package_ops"
-        "package_dependencies" ]
+        "package_dependencies"
+        "commits" ]
       |> List.filter tableExists
       |> List.map (fun table -> ($"DELETE FROM {table}", [ [] ]))
 

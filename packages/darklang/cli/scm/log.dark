@@ -1,0 +1,59 @@
+module Darklang.Cli.SCM.Log
+
+
+let execute (state: AppState) (args: List<String>) : AppState =
+  let limit =
+    match args with
+    | [ limitStr ] ->
+      match Stdlib.Int64.parse limitStr with
+      | Ok n -> n
+      | Error _ -> 20L
+    | _ -> 20L
+
+  let commits = SCM.PackageOps.getCommits limit
+
+  if Stdlib.List.isEmpty commits then
+    Stdlib.printLine "No commits yet."
+  else
+    commits
+    |> Stdlib.List.iter (fun c ->
+      let id =
+        match Stdlib.Dict.get c "id" with
+        | Some i -> Stdlib.String.first i 8L
+        | None -> "????????"
+
+      let message =
+        match Stdlib.Dict.get c "message" with
+        | Some m -> m
+        | None -> "(no message)"
+
+      let createdAt =
+        match Stdlib.Dict.get c "createdAt" with
+        | Some d -> d
+        | None -> "?"
+
+      let opCount =
+        match Stdlib.Dict.get c "opCount" with
+        | Some o -> o
+        | None -> "?"
+
+      Stdlib.printLine $"{Cli.Colors.cyan}{id}{Cli.Colors.reset}  {createdAt}  ({opCount} ops)"
+      Stdlib.printLine $"    {message}"
+      Stdlib.printLine "")
+
+  state
+
+
+let complete (_state: AppState) (_args: List<String>) : List<Completion.CompletionItem> =
+  []
+
+
+let help (_state: AppState) : Unit =
+  [ "Usage: log [limit]"
+    "Show commit history."
+    ""
+    "Arguments:"
+    "  limit   Maximum number of commits to show (default: 20)"
+    ""
+    "Use 'show <commit-id>' to see details of a specific commit." ]
+  |> Stdlib.printLines

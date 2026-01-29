@@ -1,33 +1,14 @@
 module Darklang.LanguageTools.LspServer.Branches
 
+// Branches have been removed from the codebase.
+// These handlers return empty/no-op responses for backwards compatibility.
 
-/// Handles `dark/getBranches` requests
+/// Handles `dark/getBranches` requests - returns empty list
 let handleGetBranchesRequest
   (state: LspState)
   (requestID: JsonRPC.RequestId)
   : LspState =
-
-  // Get branches for the current account only
-  let branches =
-    match state.accountID with
-    | Some accountID -> Darklang.SCM.Branch.list accountID
-    | None -> []
-
-  let result =
-    branches
-    |> Stdlib.List.map (fun branch ->
-      let mergedAt =
-        match branch.mergedAt with
-        | Some dt -> Json.String(Stdlib.DateTime.toString dt)
-        | None -> Json.Null
-
-      [ ("id", Json.String(Stdlib.Uuid.toString branch.id))
-        ("name", Json.String branch.name)
-        ("owner", Json.String(Stdlib.Uuid.toString branch.owner))
-        ("createdAt", Json.String(Stdlib.DateTime.toString branch.createdAt))
-        ("mergedAt", mergedAt) ]
-      |> Json.Object)
-    |> Json.Array
+  let result = Json.Array []
 
   let responseJson =
     let requestID = Stdlib.Option.Option.Some requestID
@@ -35,71 +16,28 @@ let handleGetBranchesRequest
     |> Stdlib.AltJson.format
 
   logAndSendToClient responseJson
-
   state
 
 
-/// Handles `dark/createBranch` requests
+/// Handles `dark/createBranch` requests - returns error (branches no longer supported)
 let handleCreateBranchRequest
   (state: LspState)
   (requestID: JsonRPC.RequestId)
   (branchName: String)
   : LspState =
-  match state.accountID with
-  | None ->
-    // No account logged in, return error
-    let responseJson =
-      (JsonRPC.Response.Error.make
-        (Stdlib.Option.Option.Some requestID)
-        JsonRPC.Response.Error.KnownErrorCodes.invalidRequest
-        "No account logged in"
-        Stdlib.Option.Option.None)
-      |> Stdlib.AltJson.format
+  let responseJson =
+    (JsonRPC.Response.Error.make
+      (Stdlib.Option.Option.Some requestID)
+      JsonRPC.Response.Error.KnownErrorCodes.invalidRequest
+      "Branches are no longer supported"
+      Stdlib.Option.Option.None)
+    |> Stdlib.AltJson.format
 
-    logAndSendToClient responseJson
-    state
-
-  | Some accountID ->
-    match Darklang.SCM.Branch.create accountID branchName with
-    | Error errMsg ->
-      let responseJson =
-        (JsonRPC.Response.Error.make
-          (Stdlib.Option.Option.Some requestID)
-          JsonRPC.Response.Error.KnownErrorCodes.invalidRequest
-          errMsg
-          Stdlib.Option.Option.None)
-        |> Stdlib.AltJson.format
-
-      logAndSendToClient responseJson
-      state
-
-    | Ok branch ->
-      let result =
-        let mergedAt =
-          match branch.mergedAt with
-          | Some dt -> Json.String(Stdlib.DateTime.toString dt)
-          | None -> Json.Null
-
-        [ ("id", Json.String(Stdlib.Uuid.toString branch.id))
-          ("name", Json.String branch.name)
-          ("owner", Json.String(Stdlib.Uuid.toString branch.owner))
-          ("createdAt", Json.String(Stdlib.DateTime.toString branch.createdAt))
-          ("mergedAt", mergedAt) ]
-        |> Json.Object
-
-      let responseJson =
-        let requestID = Stdlib.Option.Option.Some requestID
-        (JsonRPC.Response.Ok.make requestID result)
-        |> Stdlib.AltJson.format
-
-      logAndSendToClient responseJson
-
-      // Set this as the current branch in LSP state
-      { state with branchID = Stdlib.Option.Option.Some branch.id }
+  logAndSendToClient responseJson
+  state
 
 
-
-/// Handles `dark/clearBranch` requests
+/// Handles `dark/clearBranch` requests - no-op
 let handleClearBranchRequest
   (state: LspState)
   (requestID: JsonRPC.RequestId)
@@ -111,6 +49,4 @@ let handleClearBranchRequest
     |> Stdlib.AltJson.format
 
   logAndSendToClient responseJson
-
-  // Clear the current branch from LSP state
-  { state with branchID = Stdlib.Option.Option.None }
+  state

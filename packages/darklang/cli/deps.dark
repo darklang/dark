@@ -1,12 +1,8 @@
 module Darklang.Cli.Deps
 
 /// Resolve UUIDs to display names. Returns a Dict mapping UUID string to name.
-let resolveNames
-  (accountID: Stdlib.Option.Option<Uuid>)
-  (branchID: Stdlib.Option.Option<Uuid>)
-  (itemIds: List<Uuid>)
-  : Dict<String> =
-  (Builtin.dependenciesResolveNames accountID branchID itemIds)
+let resolveNames (itemIds: List<Uuid>) : Dict<String> =
+  (Builtin.dependenciesResolveNames itemIds)
   |> Stdlib.List.fold Stdlib.Dict.empty (fun acc (itemId, displayName) ->
     Stdlib.Dict.set acc (Stdlib.Uuid.toString itemId) displayName)
 
@@ -22,13 +18,8 @@ let getName (namesDict: Dict<String>) (id: Uuid) : String =
 
 /// Display dependents (what uses this entity)
 /// Shows approved items + caller's own pending items.
-let showDependents
-  (accountID: Stdlib.Option.Option<Uuid>)
-  (branchID: Stdlib.Option.Option<Uuid>)
-  (targetId: Uuid)
-  (entityName: String)
-  : Unit =
-  let dependents = Builtin.dependenciesGetDependents accountID branchID targetId
+let showDependents (targetId: Uuid) (entityName: String) : Unit =
+  let dependents = Builtin.dependenciesGetDependents targetId
 
   match dependents with
   | [] ->
@@ -39,7 +30,7 @@ let showDependents
     Stdlib.printLine ""
 
     let ids = deps |> Stdlib.List.map (fun (id, _) -> id)
-    let namesDict = resolveNames accountID branchID ids
+    let namesDict = resolveNames ids
 
     deps
     |> Stdlib.List.iter (fun (sourceId, refType) ->
@@ -50,8 +41,6 @@ let showDependents
 /// Helper for transitive traversal - collects dependents using batched queries.
 /// Processes multiple pending IDs per iteration to minimize DB round-trips.
 let collectTransitiveDependents
-  (accountID: Stdlib.Option.Option<Uuid>)
-  (branchID: Stdlib.Option.Option<Uuid>)
   (processed: List<Uuid>)
   (pending: List<Uuid>)
   (accumulated: List<Uuid * String>)
@@ -67,7 +56,7 @@ let collectTransitiveDependents
     | [] -> accumulated
     | ids ->
       // Batch fetch dependents for all pending IDs at once
-      let batchResults = Builtin.dependenciesGetDependentsBatch accountID branchID ids
+      let batchResults = Builtin.dependenciesGetDependentsBatch ids
 
       // Extract new dependents as (sourceId, refType) tuples
       let newDeps =
@@ -87,27 +76,18 @@ let collectTransitiveDependents
       let newProcessed = Stdlib.List.append processed ids
       let newAccumulated = Stdlib.List.append accumulated newDeps
 
-      collectTransitiveDependents accountID branchID newProcessed newIds newAccumulated
+      collectTransitiveDependents newProcessed newIds newAccumulated
 
 
 /// Get all transitive dependents (everything that could break if this changes)
-let getTransitiveDependents
-  (accountID: Stdlib.Option.Option<Uuid>)
-  (branchID: Stdlib.Option.Option<Uuid>)
-  (targetId: Uuid)
-  : List<Uuid * String> =
-  (collectTransitiveDependents accountID branchID [] [ targetId ] [])
+let getTransitiveDependents (targetId: Uuid) : List<Uuid * String> =
+  (collectTransitiveDependents [] [ targetId ] [])
   |> Stdlib.List.unique
 
 
 /// Display all transitive dependents (what could break)
-let showTransitiveDependents
-  (accountID: Stdlib.Option.Option<Uuid>)
-  (branchID: Stdlib.Option.Option<Uuid>)
-  (targetId: Uuid)
-  (entityName: String)
-  : Unit =
-  let allDependents = getTransitiveDependents accountID branchID targetId
+let showTransitiveDependents (targetId: Uuid) (entityName: String) : Unit =
+  let allDependents = getTransitiveDependents targetId
 
   match allDependents with
   | [] ->
@@ -118,7 +98,7 @@ let showTransitiveDependents
     Stdlib.printLine ""
 
     let ids = deps |> Stdlib.List.map (fun (id, _) -> id)
-    let namesDict = resolveNames accountID branchID ids
+    let namesDict = resolveNames ids
 
     deps
     |> Stdlib.List.iter (fun (sourceId, refType) ->
@@ -127,12 +107,7 @@ let showTransitiveDependents
 
 
 /// Display dependencies (what this entity uses)
-let showDependencies
-  (accountID: Stdlib.Option.Option<Uuid>)
-  (branchID: Stdlib.Option.Option<Uuid>)
-  (sourceId: Uuid)
-  (entityName: String)
-  : Unit =
+let showDependencies (sourceId: Uuid) (entityName: String) : Unit =
   let dependencies = Builtin.dependenciesGetDependencies sourceId
 
   match dependencies with
@@ -144,7 +119,7 @@ let showDependencies
     Stdlib.printLine ""
 
     let ids = deps |> Stdlib.List.map (fun (id, _) -> id)
-    let namesDict = resolveNames accountID branchID ids
+    let namesDict = resolveNames ids
 
     deps
     |> Stdlib.List.iter (fun (targetId, refType) ->
@@ -154,32 +129,30 @@ let showDependencies
 
 /// Resolve a path to a UUID
 let resolvePath
-  (accountID: Stdlib.Option.Option<Uuid>)
-  (branchID: Stdlib.Option.Option<Uuid>)
   (currentLocation: Packages.PackageLocation)
   (pathArg: String)
   : Stdlib.Result.Result<(Uuid * String * String), String> =
   // Try to traverse to the location
-  match Packages.Traversal.traverse accountID branchID currentLocation pathArg with
+  match Packages.Traversal.traverse currentLocation pathArg with
   | Error errMsg -> Stdlib.Result.Result.Error errMsg
   | Ok loc ->
     match loc with
     | Module _ ->
       Stdlib.Result.Result.Error "Cannot show dependencies for a module, only for functions, types, or values"
     | Function fnLoc ->
-      match Builtin.pmFindFn accountID branchID fnLoc with
+      match Builtin.pmFindFn fnLoc with
       | Some id ->
         let name = PrettyPrinter.ProgramTypes.PackageLocation.packageLocation fnLoc
         Stdlib.Result.Result.Ok((id, name, "fn"))
       | None -> Stdlib.Result.Result.Error $"Function not found: {PrettyPrinter.ProgramTypes.PackageLocation.packageLocation fnLoc}"
     | Type typeLoc ->
-      match Builtin.pmFindType accountID branchID typeLoc with
+      match Builtin.pmFindType typeLoc with
       | Some id ->
         let name = PrettyPrinter.ProgramTypes.PackageLocation.packageLocation typeLoc
         Stdlib.Result.Result.Ok((id, name, "type"))
       | None -> Stdlib.Result.Result.Error $"Type not found: {PrettyPrinter.ProgramTypes.PackageLocation.packageLocation typeLoc}"
     | Value valueLoc ->
-      match Builtin.pmFindValue accountID branchID valueLoc with
+      match Builtin.pmFindValue valueLoc with
       | Some id ->
         let name = PrettyPrinter.ProgramTypes.PackageLocation.packageLocation valueLoc
         Stdlib.Result.Result.Ok((id, name, "value"))
@@ -187,9 +160,6 @@ let resolvePath
 
 
 let execute (state: AppState) (args: List<String>) : AppState =
-  let accountID = state.accountID
-  let branchID = state.currentBranchId
-
   // Check for --deep flag
   let deep = Stdlib.List.member_v0 args "--deep"
   let filteredArgs = args |> Stdlib.List.filter (fun arg -> arg != "--deep")
@@ -207,17 +177,17 @@ let execute (state: AppState) (args: List<String>) : AppState =
     state
 
   | ["uses"; pathArg] ->
-    match resolvePath accountID branchID state.packageData.currentLocation pathArg with
+    match resolvePath state.packageData.currentLocation pathArg with
     | Error errMsg ->
       Stdlib.printLine (Colors.error errMsg)
       state
     | Ok result ->
       let (id, name, _entityType) = result
-      showDependencies accountID branchID id name
+      showDependencies id name
       state
 
   | ["usedby"; pathArg] ->
-    match resolvePath accountID branchID state.packageData.currentLocation pathArg with
+    match resolvePath state.packageData.currentLocation pathArg with
     | Error errMsg ->
       Stdlib.printLine (Colors.error errMsg)
       state
@@ -225,27 +195,27 @@ let execute (state: AppState) (args: List<String>) : AppState =
       let (id, name, _entityType) = result
 
       if deep then
-        showTransitiveDependents accountID branchID id name
+        showTransitiveDependents id name
       else
-        showDependents accountID branchID id name
+        showDependents id name
 
       state
 
   | [pathArg] ->
     // Default to showing both uses and usedby
-    match resolvePath accountID branchID state.packageData.currentLocation pathArg with
+    match resolvePath state.packageData.currentLocation pathArg with
     | Error errMsg ->
       Stdlib.printLine (Colors.error errMsg)
       state
     | Ok result ->
       let (id, name, _entityType) = result
-      showDependencies accountID branchID id name
+      showDependencies id name
       Stdlib.printLine ""
 
       if deep then
-        showTransitiveDependents accountID branchID id name
+        showTransitiveDependents id name
       else
-        showDependents accountID branchID id name
+        showDependents id name
 
       state
 
@@ -253,24 +223,22 @@ let execute (state: AppState) (args: List<String>) : AppState =
 
 
 let complete (state: AppState) (args: List<String>) : List<String> =
-  let accountID = state.accountID
-
   match args with
   | [] ->
     ["uses"; "usedby"]
   | ["uses"] ->
-    Packages.Traversal.completePartialPath accountID state.currentBranchId state.packageData.currentLocation ""
+    Packages.Traversal.completePartialPath state.packageData.currentLocation ""
   | ["usedby"] ->
-    Packages.Traversal.completePartialPath accountID state.currentBranchId state.packageData.currentLocation ""
+    Packages.Traversal.completePartialPath state.packageData.currentLocation ""
   | ["uses"; partialPath] ->
-    Packages.Traversal.completePartialPath accountID state.currentBranchId state.packageData.currentLocation partialPath
+    Packages.Traversal.completePartialPath state.packageData.currentLocation partialPath
   | ["usedby"; partialPath] ->
-    Packages.Traversal.completePartialPath accountID state.currentBranchId state.packageData.currentLocation partialPath
+    Packages.Traversal.completePartialPath state.packageData.currentLocation partialPath
   | [partialPath] ->
     let subcommands =
       ["uses"; "usedby"]
       |> Stdlib.List.filter (fun cmd -> Stdlib.String.startsWith cmd partialPath)
-    let paths = Packages.Traversal.completePartialPath accountID state.currentBranchId state.packageData.currentLocation partialPath
+    let paths = Packages.Traversal.completePartialPath state.packageData.currentLocation partialPath
     Stdlib.List.append subcommands paths
   | _ -> []
 

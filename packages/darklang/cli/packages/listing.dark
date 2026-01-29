@@ -2,11 +2,7 @@
 // CLEANUP could the impl here just be a `... --depth=1 --plain` call of 'tree'?
 module Darklang.Cli.Packages.Listing
 
-let listModule
-  (accountID: Stdlib.Option.Option<Uuid>)
-  (branchID: Stdlib.Option.Option<Uuid>)
-  (location: PackageLocation)
-  : Unit =
+let listModule (location: PackageLocation) : Unit =
   let modulePath =
     match location with
     | Module path -> path
@@ -15,7 +11,7 @@ let listModule
     | Function f -> Stdlib.List.append [f.owner] f.modules
 
   // Search for contents at this location
-  let results = Query.allDirectDescendants accountID branchID modulePath
+  let results = Query.allDirectDescendants modulePath
 
   // Display module path
   let locationStr = Packages.formatLocation location
@@ -56,22 +52,21 @@ let listModule
 
 
 let execute (state: AppState) (args: List<String>) : AppState =
-  let accountID = state.accountID
   match args with
   | [] ->
     // No args - list current location
-    listModule accountID state.currentBranchId state.packageData.currentLocation
+    listModule state.packageData.currentLocation
     state
   | [pathArg] ->
     // Navigate to the path and list
-    match Traversal.traverse accountID state.currentBranchId state.packageData.currentLocation pathArg with
+    match Traversal.traverse state.packageData.currentLocation pathArg with
     | Error errorMsg ->
       Stdlib.printLine (Colors.error $"Cannot list: {errorMsg}")
       state
     | Ok newLocation ->
       match newLocation with
       | Module _ ->
-        listModule accountID state.currentBranchId newLocation
+        listModule newLocation
         state
       | Type _ | Value _ | Function _ ->
         let locationStr = Packages.formatLocation newLocation
@@ -86,12 +81,11 @@ let execute (state: AppState) (args: List<String>) : AppState =
 
 
 let complete (state: AppState) (args: List<String>) : List<Completion.CompletionItem> =
-  let accountID = state.accountID
   match args with
   | [] ->
-    Traversal.completePartialPath accountID state.currentBranchId state.packageData.currentLocation ""
+    Traversal.completePartialPath state.packageData.currentLocation ""
   | [partialPath] ->
-    Traversal.completePartialPath accountID state.currentBranchId state.packageData.currentLocation partialPath
+    Traversal.completePartialPath state.packageData.currentLocation partialPath
   | _ -> []
 
 

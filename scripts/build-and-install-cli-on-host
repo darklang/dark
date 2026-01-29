@@ -1,0 +1,146 @@
+#!/usr/bin/env bash
+
+# Build the darklang CLI from the host machine and install it globally.
+# This script:
+# 1. Detects the host architecture
+# 2. Runs the build inside the devcontainer
+# 3. Copies the binary to the host
+# 4. Runs 'install' to set up global access
+#
+# Must be run from the HOST machine, not inside the devcontainer.
+
+set -euo pipefail
+
+# Reject if running inside the container
+if [[ -f /.dockerenv ]] || [[ -f /home/dark/.incontainer ]]; then
+  echo "Error: This script must be run from the HOST machine, not inside the devcontainer." >&2
+  echo "Run it from your regular terminal, not the VSCode integrated terminal." >&2
+  exit 1
+fi
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+
+# Detect host architecture
+detect_host_runtime() {
+  local os arch
+  os="$(uname -s)"
+  arch="$(uname -m)"
+
+  case "$os" in
+    Linux)
+      case "$arch" in
+        x86_64)  echo "linux-x64" ;;
+        aarch64) echo "linux-arm64" ;;
+        armv7l)  echo "linux-arm" ;;
+        *) echo "Unsupported Linux architecture: $arch" >&2; exit 1 ;;
+      esac
+      ;;
+    Darwin)
+      case "$arch" in
+        x86_64)  echo "osx-x64" ;;
+        arm64)   echo "osx-arm64" ;;
+        *) echo "Unsupported macOS architecture: $arch" >&2; exit 1 ;;
+      esac
+      ;;
+    MINGW*|MSYS*|CYGWIN*)
+      case "$arch" in
+        x86_64)  echo "win-x64" ;;
+        aarch64) echo "win-arm64" ;;
+        *) echo "Unsupported Windows architecture: $arch" >&2; exit 1 ;;
+      esac
+      ;;
+    *)
+      echo "Unsupported OS: $os" >&2
+      exit 1
+      ;;
+  esac
+}
+
+# Find the running devcontainer
+find_devcontainer() {
+  # Look for a container with 'main' in its image name
+  local container_id
+  container_id=$(docker ps --format '{{.ID}} {{.Image}}' | grep -i 'vsc-main' | head -1 | awk '{print $1}')
+
+  if [[ -z "$container_id" ]]; then
+    echo "Error: No running devcontainer found. Please start the devcontainer first." >&2
+    exit 1
+  fi
+
+  echo "$container_id"
+}
+
+RUNTIME=$(detect_host_runtime)
+echo "Building for host runtime: $RUNTIME"
+
+CONTAINER_ID=$(find_devcontainer)
+echo "Using devcontainer: $CONTAINER_ID"
+
+SHA=$(git -C "$REPO_ROOT" rev-parse HEAD | cut -c 1-10)
+RELEASE="alpha-$SHA"
+
+echo "Building release: $RELEASE"
+
+# Run the build inside the container
+echo "Running build inside container..."
+docker exec -w /home/dark/app "$CONTAINER_ID" bash -c "
+  set -euo pipefail
+
+  export GIT_COMMIT='$SHA'
+
+  # Force WAL checkpoint
+  sqlite3 rundir/data.db 'PRAGMA wal_checkpoint(TRUNCATE);' 2>/dev/null || true
+
+  mkdir -p clis
+
+  ./scripts/build/_dotnet-wrapper publish \
+    -c Release \
+    src/Cli/Cli.fsproj \
+    /p:DebugType=None \
+    /p:DebugSymbols=false \
+    /p:PublishSingleFile=true \
+    /p:PublishTrimmed=true \
+    /p:PublishReadyToRun=true \
+    --self-contained true \
+    --runtime '$RUNTIME'
+"
+
+# Determine binary name and path
+if [[ "$RUNTIME" == win-* ]]; then
+  BINARY_NAME="Cli.exe"
+  TARGET_NAME="darklang-$RELEASE-$RUNTIME.exe"
+else
+  BINARY_NAME="Cli"
+  TARGET_NAME="darklang-$RELEASE-$RUNTIME"
+fi
+
+CONTAINER_BINARY_PATH="/home/dark/app/backend/Build/out/Cli/Release/net8.0/$RUNTIME/publish/$BINARY_NAME"
+HOST_BINARY_PATH="$REPO_ROOT/clis/$TARGET_NAME"
+
+# Copy binary from container to host
+echo "Copying binary to host..."
+mkdir -p "$REPO_ROOT/clis"
+docker cp "$CONTAINER_ID:$CONTAINER_BINARY_PATH" "$HOST_BINARY_PATH"
+
+if [[ "$RUNTIME" != win-* ]]; then
+  chmod +x "$HOST_BINARY_PATH"
+fi
+
+echo ""
+echo "Build complete: $HOST_BINARY_PATH"
+echo ""
+
+# Run install
+echo "Running install..."
+echo ""
+
+# Use --yes to skip prompts (defaults to copying binary, fresh database)
+# Use --uninstall-if-installed to replace any existing installation
+cd "$REPO_ROOT"
+"$HOST_BINARY_PATH" install --yes --uninstall-if-installed
+
+echo ""
+echo "Installation complete!"
+echo "Restart your terminal or run: source ~/.bashrc (or ~/.zshrc)"
+echo "Then you can use the 'dark' command globally."

@@ -8,11 +8,9 @@ module Darklang.LanguageTools.PackageManager
 
 module Type =
   let find
-    (accountID: Stdlib.Option.Option<Uuid>)
-    (branchID: Stdlib.Option.Option<Uuid>)
     (location: ProgramTypes.PackageLocation)
     : Stdlib.Option.Option<Uuid> =
-    Builtin.pmFindType accountID branchID location
+    Builtin.pmFindType location
 
   let get
     (id: Uuid)
@@ -20,14 +18,12 @@ module Type =
     Builtin.pmGetType id
 
   let getWithLocation
-    (accountID: Stdlib.Option.Option<Uuid>)
-    (branchID: Stdlib.Option.Option<Uuid>)
     (id: Uuid)
     : Stdlib.Option.Option<
       ProgramTypes.LocatedItem<ProgramTypes.PackageType.PackageType>> =
     match Builtin.pmGetType id with
     | Some entity ->
-      match Builtin.pmGetLocationByType accountID branchID id with
+      match Builtin.pmGetLocationByType id with
       | Some location ->
         Stdlib.Option.Option.Some(
           ProgramTypes.LocatedItem { entity = entity; location = location }
@@ -38,11 +34,9 @@ module Type =
 
 module Value =
   let find
-    (accountID: Stdlib.Option.Option<Uuid>)
-    (branchID: Stdlib.Option.Option<Uuid>)
     (location: ProgramTypes.PackageLocation)
     : Stdlib.Option.Option<Uuid> =
-    Builtin.pmFindValue accountID branchID location
+    Builtin.pmFindValue location
 
   let get
     (id: Uuid)
@@ -50,14 +44,12 @@ module Value =
     Builtin.pmGetValue id
 
   let getWithLocation
-    (accountID: Stdlib.Option.Option<Uuid>)
-    (branchID: Stdlib.Option.Option<Uuid>)
     (id: Uuid)
     : Stdlib.Option.Option<
       ProgramTypes.LocatedItem<ProgramTypes.PackageValue.PackageValue>> =
     match Builtin.pmGetValue id with
     | Some entity ->
-      match Builtin.pmGetLocationByValue accountID branchID id with
+      match Builtin.pmGetLocationByValue id with
       | Some location ->
         Stdlib.Option.Option.Some(
           ProgramTypes.LocatedItem { entity = entity; location = location }
@@ -68,24 +60,20 @@ module Value =
 
 module Function =
   let find
-    (accountID: Stdlib.Option.Option<Uuid>)
-    (branchID: Stdlib.Option.Option<Uuid>)
     (location: ProgramTypes.PackageLocation)
     : Stdlib.Option.Option<Uuid> =
-    Builtin.pmFindFn accountID branchID location
+    Builtin.pmFindFn location
 
   let get (id: Uuid) : Stdlib.Option.Option<ProgramTypes.PackageFn.PackageFn> =
     Builtin.pmGetFn id
 
   let getWithLocation
-    (accountID: Stdlib.Option.Option<Uuid>)
-    (branchID: Stdlib.Option.Option<Uuid>)
     (id: Uuid)
     : Stdlib.Option.Option<
       ProgramTypes.LocatedItem<ProgramTypes.PackageFn.PackageFn>> =
     match Builtin.pmGetFn id with
     | Some entity ->
-      match Builtin.pmGetLocationByFn accountID branchID id with
+      match Builtin.pmGetLocationByFn id with
       | Some location ->
         Stdlib.Option.Option.Some(
           ProgramTypes.LocatedItem { entity = entity; location = location }
@@ -96,11 +84,9 @@ module Function =
 
 module Search =
   let search
-    (accountID: Stdlib.Option.Option<Uuid>)
-    (branchID: Stdlib.Option.Option<Uuid>)
     (query: ProgramTypes.Search.SearchQuery)
     : ProgramTypes.Search.SearchResults =
-    let searchResults = Builtin.pmSearch accountID branchID query
+    let searchResults = Builtin.pmSearch query
 
     ProgramTypes.Search.SearchResults
       { submodules = searchResults.submodules

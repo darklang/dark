@@ -66,8 +66,6 @@ let parseDecls
 
 
 let toPT
-  (accountID: Stdlib.Option.Option<Uuid>)
-  (branchID: Stdlib.Option.Option<ProgramTypes.BranchID>)
   (onMissing: NameResolver.OnMissing)
   (pm: ProgramTypes.PackageManager.PackageManager)
   (wt: WTCanvasModule)
@@ -76,8 +74,6 @@ let toPT
     wt.types
     |> Stdlib.List.map (fun t ->
       LanguageTools.WrittenTypesToProgramTypes.TypeDeclaration.toPackageTypePT
-        accountID
-        branchID
         onMissing
         pm
         wt.owner
@@ -89,8 +85,6 @@ let toPT
     wt.values
     |> Stdlib.List.map (fun v ->
       WrittenTypesToProgramTypes.ValueDeclaration.toPackageValuePT
-        accountID
-        branchID
         onMissing
         pm
         wt.owner
@@ -102,8 +96,6 @@ let toPT
     wt.fns
     |> Stdlib.List.map (fun f ->
       WrittenTypesToProgramTypes.FunctionDeclaration.toPackageFnPT
-        accountID
-        branchID
         onMissing
         pm
         wt.owner
@@ -115,8 +107,6 @@ let toPT
     wt.exprs
     |> Stdlib.List.map (fun e ->
       LanguageTools.WrittenTypesToProgramTypes.Expr.toPT
-        accountID
-        branchID
         onMissing
         pm
         wt.owner
@@ -133,8 +123,6 @@ let toPT
 
 
 let parse
-  (accountID: Stdlib.Option.Option<Uuid>)
-  (branchID: Stdlib.Option.Option<ProgramTypes.BranchID>)
   (owner: String)
   (canvasName: String)
   (onMissing: NameResolver.OnMissing)
@@ -148,7 +136,7 @@ let parse
     match parseDecls owner canvasName parsedFile with
     | Error e -> Stdlib.Result.Result.Error e
     | Ok moduleWT ->
-      let initialParse = toPT accountID branchID onMissing pm moduleWT
+      let initialParse = toPT onMissing pm moduleWT
 
       let pm =
         ProgramTypes.PackageManager.withExtras
@@ -157,7 +145,7 @@ let parse
           initialParse.values
           initialParse.fns
 
-      let result = toPT accountID branchID onMissing pm moduleWT
+      let result = toPT onMissing pm moduleWT
 
       let adjusted =
         PTCanvasModule

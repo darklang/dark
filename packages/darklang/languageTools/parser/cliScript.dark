@@ -102,8 +102,6 @@ let processDecls
 
 
 let toPT
-  (accountID: Stdlib.Option.Option<Uuid>)
-  (branchID: Stdlib.Option.Option<ProgramTypes.BranchID>)
   (onMissing: NameResolver.OnMissing)
   (pm: ProgramTypes.PackageManager.PackageManager)
   (wt: WTCliScriptModule)
@@ -120,8 +118,6 @@ let toPT
 
       let (pt, unresolvedNames) =
         LanguageTools.WrittenTypesToProgramTypes.TypeDeclaration.toPackageTypePT
-          accountID
-          branchID
           onMissing
           pm
           wt.owner
@@ -145,8 +141,6 @@ let toPT
 
       let (pv, unresolvedNames) =
         WrittenTypesToProgramTypes.ValueDeclaration.toPackageValuePT
-          accountID
-          branchID
           onMissing
           pm
           wt.owner
@@ -170,8 +164,6 @@ let toPT
 
       let (pf, unresolvedNames) =
         WrittenTypesToProgramTypes.FunctionDeclaration.toPackageFnPT
-          accountID
-          branchID
           onMissing
           pm
           wt.owner
@@ -195,8 +187,6 @@ let toPT
       let extendedModules = Stdlib.List.append modules [ submoduleName ]
 
       WrittenTypesToProgramTypes.moduleDeclarationWithOpsHelper
-        accountID
-        branchID
         pm
         wt.owner
         extendedModules
@@ -207,8 +197,6 @@ let toPT
     wt.exprs
     |> Stdlib.List.map (fun e ->
       LanguageTools.WrittenTypesToProgramTypes.Expr.toPT
-        accountID
-        branchID
         onMissing
         pm
         wt.owner
@@ -245,8 +233,6 @@ let toPT
 
 
 let parse
-  (accountID: Stdlib.Option.Option<Uuid>)
-  (branchID: Stdlib.Option.Option<ProgramTypes.BranchID>)
   (owner: String)
   (scriptName: String)
   (onMissing: NameResolver.OnMissing)
@@ -262,13 +248,13 @@ let parse
     | Ok moduleWT ->
       // First pass: parse and generate ops (allowing unresolved names)
       let (initialParse, firstPassOps, _) =
-        toPT accountID branchID NameResolver.OnMissing.Allow pm moduleWT
+        toPT NameResolver.OnMissing.Allow pm moduleWT
 
       // Create PM with first pass ops for second pass
       let pm = ProgramTypes.PackageManager.withExtraOps pm firstPassOps
 
       // Second pass: re-parse with updated PackageManager
-      let (result, _, unresolvedNames) = toPT accountID branchID onMissing pm moduleWT
+      let (result, _, unresolvedNames) = toPT onMissing pm moduleWT
 
       let adjustedTypes =
         (Stdlib.List.zip result.types initialParse.types)
@@ -343,8 +329,6 @@ let parse
 
 
 let pmWithExtras
-  (accountID: Stdlib.Option.Option<Uuid>)
-  (branchID: Stdlib.Option.Option<ProgramTypes.BranchID>)
   (owner: String)
   (scriptName: String)
   (onMissing: NameResolver.OnMissing)
@@ -358,7 +342,7 @@ let pmWithExtras
     match parseDecls owner scriptName parsedFile with
     | Error e -> Stdlib.Result.Result.Error e
     | Ok moduleWT ->
-      let (_, ops, _) = toPT accountID branchID onMissing pm moduleWT
+      let (_, ops, _) = toPT onMissing pm moduleWT
 
       (ProgramTypes.PackageManager.withExtraOps pm ops)
       |> Stdlib.Result.Result.Ok

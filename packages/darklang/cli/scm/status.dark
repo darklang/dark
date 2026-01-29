@@ -1,0 +1,58 @@
+module Darklang.Cli.SCM.Status
+
+
+let execute (state: AppState) (args: List<String>) : AppState =
+  let summary = SCM.PackageOps.getWipSummary ()
+
+  let total =
+    match Stdlib.Dict.get summary "total" with
+    | Some t -> t
+    | None -> 0L
+
+  if total == 0L then
+    Stdlib.printLine "No uncommitted changes."
+  else
+    Stdlib.printLine "Uncommitted changes:"
+
+    let types =
+      match Stdlib.Dict.get summary "types" with
+      | Some t -> t
+      | None -> 0L
+
+    let values =
+      match Stdlib.Dict.get summary "values" with
+      | Some v -> v
+      | None -> 0L
+
+    let fns =
+      match Stdlib.Dict.get summary "fns" with
+      | Some f -> f
+      | None -> 0L
+
+    if types > 0L then
+      Stdlib.printLine $"  {Builtin.int64ToString types} type(s)"
+
+    if values > 0L then
+      Stdlib.printLine $"  {Builtin.int64ToString values} value(s)"
+
+    if fns > 0L then
+      Stdlib.printLine $"  {Builtin.int64ToString fns} function(s)"
+
+    Stdlib.printLine ""
+    Stdlib.printLine "Use 'commit \"message\"' to commit these changes."
+    Stdlib.printLine "Use 'discard' to discard these changes."
+
+  state
+
+
+let complete (_state: AppState) (_args: List<String>) : List<Completion.CompletionItem> =
+  []
+
+
+let help (_state: AppState) : Unit =
+  [ "Usage: status"
+    "Show uncommitted (WIP) changes."
+    ""
+    "Displays a summary of types, values, and functions that have been"
+    "created or modified but not yet committed." ]
+  |> Stdlib.printLines

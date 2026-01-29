@@ -26,8 +26,6 @@ module ReadFile =
       LspExtension.FileSystemProvider.ReadFile.ReadFileParams.ReadFileParams)
     : LspState =
 
-    let branchID = state.branchID
-
     // CLEANUP: make the 'remove scheme part of URI' more universal. Maybe be add it to Stdlib eg.`Stdlib.Uri.removeScheme`
     let nameForLookup =
       // TODO: remove magic
@@ -55,23 +53,21 @@ module ReadFile =
 
         // Try to find as a specific entity (type, function, or value)
         let entityContent =
-          match pm.findType state.accountID branchID location with
+          match pm.findType location with
           | Some id ->
             match pm.getType id with
             | Some typ ->
-              (PrettyPrinter.ProgramTypes.packageType state.accountID branchID typ)
+              (PrettyPrinter.ProgramTypes.packageType typ)
               |> Stdlib.Option.Option.Some
             | None -> Stdlib.Option.Option.None
 
           | None ->
             let ctx =
               PrettyPrinter.ProgramTypes.Context
-                { accountID = state.accountID
-                  branchID = branchID
-                  currentModule = Stdlib.Option.Option.None
+                { currentModule = Stdlib.Option.Option.None
                   currentFunction = Stdlib.Option.Option.None }
 
-            match pm.findFn state.accountID branchID location with
+            match pm.findFn location with
             | Some id ->
               match pm.getFn id with
               | Some fn ->
@@ -80,7 +76,7 @@ module ReadFile =
               | None -> Stdlib.Option.Option.None
 
             | None ->
-              match pm.findValue state.accountID branchID location with
+              match pm.findValue location with
               | Some id ->
                 match pm.getValue id with
                 | Some value ->
@@ -107,13 +103,11 @@ module ReadFile =
 
           let ctx =
             PrettyPrinter.ProgramTypes.Context
-              { accountID = state.accountID
-                branchID = branchID
-                currentModule = Stdlib.Option.Option.None
+              { currentModule = Stdlib.Option.Option.None
                 currentFunction = Stdlib.Option.Option.None }
 
           let results =
-            LanguageTools.PackageManager.Search.search state.accountID state.branchID searchQuery
+            LanguageTools.PackageManager.Search.search searchQuery
 
           let definitions =
             LanguageTools.ProgramTypes.Definitions
@@ -123,7 +117,7 @@ module ReadFile =
                 exprs = [] }
 
           let modules =
-            PrettyPrinter.ModuleDeclaration.toModules state.accountID branchID definitions
+            PrettyPrinter.ModuleDeclaration.toModules definitions
 
           match Stdlib.List.head modules with
           | Some rootModule -> PrettyPrinter.moduleDeclaration ctx rootModule
@@ -357,15 +351,13 @@ module WriteFile =
                     modules = modules
                     name = typeDecl.name.name })
 
-              let existingTypeId = pm.findType state.accountID state.branchID typeLocation
+              let existingTypeId = pm.findType typeLocation
 
               match existingTypeId with
               | Some _id -> []
               | None ->
                 let (packageType, _unresolvedNames) =
                   LanguageTools.WrittenTypesToProgramTypes.TypeDeclaration.toPackageTypePT
-                    state.accountID
-                    state.branchID
                     LanguageTools.NameResolver.OnMissing.Allow
                     pm
                     owner
@@ -395,15 +387,13 @@ module WriteFile =
                     modules = modules
                     name = fnDecl.name.name })
 
-              let existingFnId = pm.findFn state.accountID state.branchID fnLocation
+              let existingFnId = pm.findFn fnLocation
 
               match existingFnId with
               | Some _id -> []
               | None ->
                 let (packageFn, _unresolvedNames) =
                   LanguageTools.WrittenTypesToProgramTypes.FunctionDeclaration.toPackageFnPT
-                    state.accountID
-                    state.branchID
                     LanguageTools.NameResolver.OnMissing.Allow
                     pm
                     owner
@@ -433,15 +423,13 @@ module WriteFile =
                     modules = modules
                     name = valDecl.name.name })
 
-              let existingValId = pm.findValue state.accountID state.branchID valLocation
+              let existingValId = pm.findValue valLocation
 
               match existingValId with
               | Some _id -> []
               | None ->
                 let (packageValue, _unresolvedNames) =
                   LanguageTools.WrittenTypesToProgramTypes.ValueDeclaration.toPackageValuePT
-                    state.accountID
-                    state.branchID
                     LanguageTools.NameResolver.OnMissing.Allow
                     pm
                     owner
@@ -459,15 +447,10 @@ module WriteFile =
             typeOps
             (Stdlib.List.append fnOps valueOps)
 
-        // Only add ops if there are new items
-        // Local editor ops don't need an instanceID to track their origin
-        let instanceID = Stdlib.Option.Option.None
-        // createdBy tracks who made the change for the approval workflow
-        let createdBy = state.accountID
-
+        // Only add ops if there are new items (added as WIP)
         let addResult =
           if (Stdlib.List.isEmpty allOps) |> Stdlib.Bool.not then
-            SCM.PackageOps.add instanceID state.branchID createdBy allOps
+            SCM.PackageOps.add allOps
           else
             Stdlib.Result.Result.Ok 0L
 
@@ -494,13 +477,11 @@ module WriteFile =
 
               let ctx =
                 PrettyPrinter.ProgramTypes.Context
-                  { accountID = state.accountID
-                    branchID = state.branchID
-                    currentModule = Stdlib.Option.Option.None
+                  { currentModule = Stdlib.Option.Option.None
                     currentFunction = Stdlib.Option.Option.None }
 
               let results =
-                LanguageTools.PackageManager.Search.search state.accountID state.branchID searchQuery
+                LanguageTools.PackageManager.Search.search searchQuery
 
               let definitions =
                 LanguageTools.ProgramTypes.Definitions
@@ -510,7 +491,7 @@ module WriteFile =
                     exprs = [] }
 
               let modules =
-                PrettyPrinter.ModuleDeclaration.toModules state.accountID state.branchID definitions
+                PrettyPrinter.ModuleDeclaration.toModules definitions
 
               (match Stdlib.List.head modules with
               | Some rootModule -> PrettyPrinter.moduleDeclaration ctx rootModule

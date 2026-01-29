@@ -7,58 +7,13 @@ system_migrations_v0
 );
 
 
-CREATE TABLE IF NOT EXISTS
-accounts_v0
--- TODO include name
--- and update references (i.e. in package_types) to be based on id
-( id TEXT PRIMARY KEY -- UUID stored as text
-, created_at TEXT NOT NULL DEFAULT (datetime('now'))
-);
-
---------------------
--- Stuff that belongs in "package space"
---------------------
--- [1] = the whole thing serialized as binary, in ProgramTypes form (via custom binary serialization)
-CREATE TABLE IF NOT EXISTS
-package_types_v0
-( id TEXT PRIMARY KEY -- UUID stored as text
-, owner TEXT NOT NULL  -- e.g. Darklang
-, modules TEXT NOT NULL -- e.g. Twitter.Other
-, name TEXT NOT NULL -- e.g. TextMetadata
-, definition BLOB NOT NULL -- see [1]
-, created_at TEXT NOT NULL DEFAULT (datetime('now'))
-);
-
-
-CREATE TABLE IF NOT EXISTS
-package_constants_v0
-( id TEXT PRIMARY KEY
-, owner TEXT NOT NULL -- e.g. Darklang
-, modules TEXT NOT NULL -- e.g. Math.Geometry
-, name TEXT NOT NULL -- e.g. pi
-, definition BLOB NOT NULL -- see [1]
-, created_at TEXT NOT NULL DEFAULT (datetime('now'))
-);
-
-CREATE TABLE IF NOT EXISTS
-package_functions_v0
-( id TEXT PRIMARY KEY
-, owner TEXT NOT NULL   -- e.g. Darklang
-, modules TEXT NOT NULL -- e.g. Twitter.Other
-, name TEXT NOT NULL   -- e.g. sendText
-, definition BLOB NOT NULL -- see [1]
-, created_at TEXT NOT NULL DEFAULT (datetime('now'))
-);
-
 --------------------
 -- Stuff that belongs in "user space"
 --------------------
 CREATE TABLE IF NOT EXISTS
 canvases_v0
 ( id TEXT PRIMARY KEY
-, account_id TEXT NOT NULL
 , created_at TEXT NOT NULL DEFAULT (datetime('now'))
-, FOREIGN KEY(account_id) REFERENCES accounts_v0(id)
 );
 
 -- User K/V DBs

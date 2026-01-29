@@ -43,13 +43,7 @@ let executeScript (state: AppState) (scriptPath: String) (args: List<String>) : 
     state
   | Ok script ->
     let scriptSourceCode = Stdlib.String.fromBytesWithReplacement script
-    let result =
-      Builtin.cliParseAndExecuteScript
-        state.accountID
-        state.currentBranchId
-        scriptPath
-        scriptSourceCode
-        args
+    let result = Builtin.cliParseAndExecuteScript scriptPath scriptSourceCode args
 
     match result with
     | Ok exitCode ->
@@ -58,11 +52,7 @@ let executeScript (state: AppState) (scriptPath: String) (args: List<String>) : 
 
       state
     | Error e ->
-      let prettyError =
-        PrettyPrinter.RuntimeTypes.RuntimeError.toString
-          state.accountID
-          state.currentBranchId
-          e
+      let prettyError = PrettyPrinter.RuntimeTypes.RuntimeError.toString e
 
       Stdlib.printLine $"Script error: {prettyError}"
       state
@@ -72,7 +62,7 @@ let executeScript (state: AppState) (scriptPath: String) (args: List<String>) : 
 let executeFunction (state: AppState) (fnName: String) (args: List<String>) : AppState =
   let fullExpr = $"{fnName} {Stdlib.String.join args " "}"
 
-  match Builtin.cliEvaluateExpression state.accountID state.currentBranchId fullExpr with
+  match Builtin.cliEvaluateExpression fullExpr with
   | Ok result ->
     Stdlib.printLine result
     state

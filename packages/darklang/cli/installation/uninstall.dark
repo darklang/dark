@@ -42,9 +42,13 @@ let execute (state: AppState) (args: List<String>) : AppState =
   let currentMode = Installation.System.getInstallationMode ()
   let host = (Stdlib.Cli.Host.getRuntimeHost ()) |> Builtin.unwrap
 
+  // Parse flags
+  let autoConfirm =
+    (Stdlib.List.member_v0 args "--yes") || (Stdlib.List.member_v0 args "-y")
+
   match currentMode with
   | Installed ->
-    match Installation.System.uninstallWithConfirmation host with
+    match Installation.System.uninstallWithConfirmation host autoConfirm with
     | Ok message ->
       Stdlib.printLine (View.formatSuccess message)
       // Exit after successful uninstall since the executable is being removed
@@ -63,10 +67,12 @@ let complete (_state: AppState) (_args: List<String>) : List<Completion.Completi
 
 
 let help (state: AppState) : Unit =
-  [
-    "Usage: uninstall"
+  [ "Usage: uninstall [--yes|-y]"
     "Uninstall Darklang CLI from global installation."
     ""
     "Removes the CLI from ~/.darklang/ and cleans up shell configuration."
     "Only available for global installations."
-  ] |> Stdlib.printLines
+    ""
+    "Flags:"
+    "  --yes, -y  Skip confirmation prompt" ]
+  |> Stdlib.printLines

@@ -144,8 +144,6 @@ let executeFunction
 
 
 let runtimeErrorToString
-  (accountID : Option<uuid>)
-  (branchID : Option<uuid>)
   (state : RT.ExecutionState)
   (rte : RT.RuntimeError.Error)
   : Task<RT.ExecutionResult> =
@@ -153,9 +151,7 @@ let runtimeErrorToString
     let fnName =
       RT.FQFnName.fqPackage
         PackageIDs.Fn.PrettyPrinter.RuntimeTypes.RuntimeError.toString
-    let accountID = accountID |> Option.map Dval.uuid |> Dval.option RT.KTUuid
-    let branchID = branchID |> Option.map Dval.uuid |> Dval.option RT.KTUuid
-    let args = NEList.ofList accountID [ branchID; RT2DT.RuntimeError.toDT rte ]
+    let args = NEList.singleton (RT2DT.RuntimeError.toDT rte)
     return! executeFunction state fnName [] args
   }
 
@@ -322,14 +318,10 @@ let traceDvals () : Dictionary.T<id, RT.Dval> * RT.Tracing.TraceDval =
 
 let rec rteToString
   (rteToDval : RT.RuntimeError.Error -> RT.Dval)
-  (accountID : option<uuid>)
-  (branchID : option<uuid>)
   (state : RT.ExecutionState)
   (rte : RT.RuntimeError.Error)
   : Ply<string> =
-  let r = rteToString rteToDval accountID branchID state
-  let accountID = accountID |> Option.map Dval.uuid |> Dval.option RT.KTUuid
-  let branchID = branchID |> Option.map Dval.uuid |> Dval.option RT.KTUuid
+  let r = rteToString rteToDval state
   uply {
     let errorMessageFn =
       RT.FQFnName.fqPackage
@@ -338,11 +330,7 @@ let rec rteToString
     let rteDval = rteToDval rte
 
     let! rteMessage =
-      executeFunction
-        state
-        errorMessageFn
-        []
-        (NEList.ofList accountID [ branchID; rteDval ])
+      executeFunction state errorMessageFn [] (NEList.singleton rteDval)
 
     match rteMessage with
     | Ok(RT.DString msg) -> return msg

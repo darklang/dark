@@ -9,12 +9,12 @@ let execute (state: AppState) (args: List<String>) : AppState =
     state
   | _ ->
     let expr = Stdlib.String.join args " "
-    match Builtin.cliEvaluateExpression state.accountID state.currentBranchId expr with
+    match Builtin.cliEvaluateExpression expr with
     | Ok result ->
       Stdlib.printLine result
       state
     | Error err ->
-      let prettyError = PrettyPrinter.RuntimeTypes.RuntimeError.toString state.accountID state.currentBranchId err
+      let prettyError = PrettyPrinter.RuntimeTypes.RuntimeError.toString err
       Stdlib.printLine $"Error: {prettyError}"
       state
 

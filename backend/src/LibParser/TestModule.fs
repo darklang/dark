@@ -181,8 +181,6 @@ let parseFile
 
 
 let toPT
-  (accountID : Option<PT.AccountID>)
-  (branchId : Option<PT.BranchID>)
   (owner : string)
   (builtins : RT.Builtins)
   (pm : PT.PackageManager)
@@ -196,14 +194,7 @@ let toPT
       m.types
       |> Ply.List.mapSequentially (fun wtType ->
         uply {
-          let! ptType =
-            WT2PT.PackageType.toPT
-              accountID
-              branchId
-              pm
-              onMissing
-              currentModule
-              wtType
+          let! ptType = WT2PT.PackageType.toPT pm onMissing currentModule wtType
           return
             [ PT.PackageOp.AddType ptType
               PT.PackageOp.SetTypeName(
@@ -218,14 +209,7 @@ let toPT
       |> Ply.List.mapSequentially (fun wtValue ->
         uply {
           let! ptValue =
-            WT2PT.PackageValue.toPT
-              accountID
-              branchId
-              builtins
-              pm
-              onMissing
-              currentModule
-              wtValue
+            WT2PT.PackageValue.toPT builtins pm onMissing currentModule wtValue
           return
             [ PT.PackageOp.AddValue ptValue
               PT.PackageOp.SetValueName(
@@ -239,15 +223,7 @@ let toPT
       m.fns
       |> Ply.List.mapSequentially (fun wtFn ->
         uply {
-          let! ptFn =
-            WT2PT.PackageFn.toPT
-              accountID
-              branchId
-              builtins
-              pm
-              onMissing
-              currentModule
-              wtFn
+          let! ptFn = WT2PT.PackageFn.toPT builtins pm onMissing currentModule wtFn
           return
             [ PT.PackageOp.AddFn ptFn
               PT.PackageOp.SetFnName(
@@ -258,10 +234,7 @@ let toPT
       |> Ply.map List.flatten
 
     let! dbs =
-      m.dbs
-      |> Ply.List.mapSequentially (
-        WT2PT.DB.toPT accountID branchId pm onMissing currentModule
-      )
+      m.dbs |> Ply.List.mapSequentially (WT2PT.DB.toPT pm onMissing currentModule)
 
     let! (tests : List<PTTest>) =
       m.tests
@@ -271,15 +244,7 @@ let toPT
             { WT2PT.Context.currentFnName = None
               WT2PT.Context.isInFunction = false
               WT2PT.Context.argMap = Map.empty }
-          let exprToPT =
-            WT2PT.Expr.toPT
-              accountID
-              branchId
-              builtins
-              pm
-              onMissing
-              currentModule
-              context
+          let exprToPT = WT2PT.Expr.toPT builtins pm onMissing currentModule context
           let! actual = exprToPT test.actual
           let! expected = exprToPT test.expected
           return
@@ -298,8 +263,6 @@ let toPT
 
 // Helper functions for two-phase parsing (must be defined before parseTestFile)
 let parseTestFile
-  (accountID : Option<PT.AccountID>)
-  (branchId : Option<PT.BranchID>)
   (owner : string)
   (builtins : RT.Builtins)
   (pm : PT.PackageManager)
@@ -319,7 +282,7 @@ let parseTestFile
     let! firstPassModules =
       modulesWT
       |> Ply.List.mapSequentially (
-        toPT accountID branchId owner builtins PT.PackageManager.empty onMissing
+        toPT owner builtins PT.PackageManager.empty onMissing
       )
 
     // Extract ops from first pass for second pass PackageManager
@@ -329,9 +292,7 @@ let parseTestFile
     let enhancedPM = LibPackageManager.PackageManager.withExtraOps pm firstPassOps
     let! reParsedModules =
       modulesWT
-      |> Ply.List.mapSequentially (
-        toPT accountID branchId owner builtins enhancedPM onMissing
-      )
+      |> Ply.List.mapSequentially (toPT owner builtins enhancedPM onMissing)
 
     // ID stabilization: adjust second pass IDs to match first pass IDs
     let firstPassPM = LibPackageManager.PackageManager.createInMemory firstPassOps

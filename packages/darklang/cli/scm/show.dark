@@ -1,0 +1,75 @@
+module Darklang.Cli.SCM.Show
+
+
+let execute (state: AppState) (args: List<String>) : AppState =
+  match args with
+  | [] ->
+    Stdlib.printLine "Usage: show <commit-id>"
+    state
+  | [ commitIdStr ] ->
+    // Allow partial commit IDs (at least 8 chars)
+    let fullIdStr =
+      if Stdlib.String.length commitIdStr < 36L then
+        // Try to find a matching commit
+        let commits = SCM.PackageOps.getCommits 100L
+
+        let matching =
+          commits
+          |> Stdlib.List.filter (fun c ->
+            match Stdlib.Dict.get c "id" with
+            | Some id -> Stdlib.String.startsWith id commitIdStr
+            | None -> false)
+
+        match matching with
+        | [ c ] ->
+          match Stdlib.Dict.get c "id" with
+          | Some id -> id
+          | None -> commitIdStr
+        | [] ->
+          Stdlib.printLine (Cli.Colors.error "No matching commit found.")
+          commitIdStr
+        | _ ->
+          Stdlib.printLine (Cli.Colors.error "Multiple commits match that prefix. Be more specific.")
+          commitIdStr
+      else
+        commitIdStr
+
+    match Stdlib.Uuid.parse fullIdStr with
+    | Ok commitId ->
+      let ops = SCM.PackageOps.getCommitOps commitId
+
+      if Stdlib.List.isEmpty ops then
+        Stdlib.printLine "Commit not found or has no ops."
+      else
+        let shortId = Stdlib.String.first fullIdStr 8L
+        Stdlib.printLine $"Commit {Cli.Colors.cyan}{shortId}{Cli.Colors.reset}:"
+        Stdlib.printLine ""
+
+        ops
+        |> Stdlib.List.iter (fun op ->
+          let opStr = PrettyPrinter.ProgramTypes.PackageOp.packageOp op
+          Stdlib.printLine $"  {opStr}")
+
+      state
+    | Error _ ->
+      Stdlib.printLine (Cli.Colors.error "Invalid commit ID format.")
+      state
+  | _ ->
+    Stdlib.printLine "Usage: show <commit-id>"
+    state
+
+
+let complete (_state: AppState) (_args: List<String>) : List<Completion.CompletionItem> =
+  // Could complete with recent commit IDs
+  []
+
+
+let help (_state: AppState) : Unit =
+  [ "Usage: show <commit-id>"
+    "Show details of a specific commit."
+    ""
+    "Arguments:"
+    "  commit-id   Full or partial (8+ chars) commit ID"
+    ""
+    "Use 'log' to see available commits." ]
+  |> Stdlib.printLines

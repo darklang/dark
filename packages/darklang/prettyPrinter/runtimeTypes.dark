@@ -35,22 +35,18 @@ let packageName
 
 module FQTypeName =
   let package
-    (accountID: Stdlib.Option.Option<Uuid>)
-    (branchID: Stdlib.Option.Option<LanguageTools.ProgramTypes.BranchID>)
-    (id: LanguageTools.RuntimeTypes.FQTypeName.Package)
+        (id: LanguageTools.RuntimeTypes.FQTypeName.Package)
     : String =
-    match Builtin.pmGetLocationByType accountID branchID id with
+    match Builtin.pmGetLocationByType id with
     | Some l -> packageName l.owner l.modules l.name
     | None -> Stdlib.Uuid.toString id
 
 // TODO rename to fqtypeName?
 let typeName
-  (accountID: Stdlib.Option.Option<Uuid>)
-  (branchID: Stdlib.Option.Option<LanguageTools.ProgramTypes.BranchID>)
-  (t: LanguageTools.RuntimeTypes.FQTypeName.FQTypeName)
+    (t: LanguageTools.RuntimeTypes.FQTypeName.FQTypeName)
   : String =
   match t with
-  | Package p -> FQTypeName.package accountID branchID p
+  | Package p -> FQTypeName.package p
 
 
 module FQValueName =
@@ -66,23 +62,19 @@ module FQValueName =
     $"{namePart}{versionPart}"
 
   let package
-    (accountID: Stdlib.Option.Option<Uuid>)
-    (branchID: Stdlib.Option.Option<LanguageTools.ProgramTypes.BranchID>)
-    (id: LanguageTools.RuntimeTypes.FQValueName.Package)
+        (id: LanguageTools.RuntimeTypes.FQValueName.Package)
     : String =
-    match Builtin.pmGetLocationByValue accountID branchID id with
+    match Builtin.pmGetLocationByValue id with
     | Some l -> packageName l.owner l.modules l.name
     | None -> Stdlib.Uuid.toString id
 
 // TODO rename to fqvalueName?
 let valueName
-  (accountID: Stdlib.Option.Option<Uuid>)
-  (branchID: Stdlib.Option.Option<LanguageTools.ProgramTypes.BranchID>)
-  (t: LanguageTools.RuntimeTypes.FQValueName.FQValueName)
+    (t: LanguageTools.RuntimeTypes.FQValueName.FQValueName)
   : String =
   match t with
   | Builtin b -> FQValueName.builtIn b
-  | Package p -> FQValueName.package accountID branchID p
+  | Package p -> FQValueName.package p
 
 
 module FQFnName =
@@ -98,31 +90,25 @@ module FQFnName =
     $"Builtin.{namePart}{versionPart}"
 
   let package
-    (accountID: Stdlib.Option.Option<Uuid>)
-    (branchID: Stdlib.Option.Option<LanguageTools.ProgramTypes.BranchID>)
-    (id: LanguageTools.RuntimeTypes.FQFnName.Package)
+        (id: LanguageTools.RuntimeTypes.FQFnName.Package)
     : String =
-    match Builtin.pmGetLocationByFn accountID branchID id with
+    match Builtin.pmGetLocationByFn id with
     | Some l -> packageName l.owner l.modules l.name
     | None -> Stdlib.Uuid.toString id
 
 
 // TODO rename to fqfnName?
 let fnName
-  (accountID: Stdlib.Option.Option<Uuid>)
-  (branchID: Stdlib.Option.Option<LanguageTools.ProgramTypes.BranchID>)
-  (t: LanguageTools.RuntimeTypes.FQFnName.FQFnName)
+    (t: LanguageTools.RuntimeTypes.FQFnName.FQFnName)
   : String =
   match t with
   | Builtin b -> FQFnName.builtIn b
-  | Package p -> FQFnName.package accountID branchID p
+  | Package p -> FQFnName.package p
 
 
 
 let typeReference
-  (accountID: Stdlib.Option.Option<Uuid>)
-  (branchID: Stdlib.Option.Option<LanguageTools.ProgramTypes.BranchID>)
-  (t: LanguageTools.RuntimeTypes.TypeReference)
+    (t: LanguageTools.RuntimeTypes.TypeReference)
   : String =
   match t with
   | TUnit -> "Unit"
@@ -150,13 +136,13 @@ let typeReference
 
   | TTuple(first, second, theRest) ->
     (Stdlib.List.append [ first; second ] theRest)
-    |> Stdlib.List.map (fun item -> typeReference accountID branchID item)
+    |> Stdlib.List.map (fun item -> typeReference item)
     |> Stdlib.String.join " * "
     |> fun parts -> "(" ++ parts ++ ")"
 
-  | TList inner -> $"List<{typeReference accountID branchID inner}>"
+  | TList inner -> $"List<{typeReference inner}>"
 
-  | TDict inner -> $"Dict<{typeReference accountID branchID inner}>"
+  | TDict inner -> $"Dict<{typeReference inner}>"
 
   | TCustomType(typ, args) ->
     let argsPart =
@@ -164,13 +150,13 @@ let typeReference
       | [] -> ""
       | args ->
         args
-        |> Stdlib.List.map (fun arg -> typeReference accountID branchID arg)
+        |> Stdlib.List.map (fun arg -> typeReference arg)
         |> Stdlib.String.join ", "
         |> fun parts -> $"<{parts}>"
 
     let typeNamePart =
       match typ with
-      | Ok name -> typeName accountID branchID name
+      | Ok name -> typeName name
       | Error e -> nameResolutionError e
 
     $"{typeNamePart}{argsPart}"
@@ -179,22 +165,20 @@ let typeReference
   | TFn(args, ret) ->
     let argPart =
       args
-      |> Stdlib.List.map (fun arg -> typeReference accountID branchID arg)
+      |> Stdlib.List.map (fun arg -> typeReference arg)
       |> Stdlib.String.join ", "
       |> fun parts -> "(" ++ parts ++ ")"
 
-    $"{argPart} -> {typeReference accountID branchID ret}"
+    $"{argPart} -> {typeReference ret}"
 
 
-  | TDB inner -> $"DB<{typeReference accountID branchID inner}>"
+  | TDB inner -> $"DB<{typeReference inner}>"
 
   | TVariable varName -> "'" ++ varName
 
 
 let knownType
-  (accountID: Stdlib.Option.Option<Uuid>)
-  (branchID: Stdlib.Option.Option<LanguageTools.ProgramTypes.BranchID>)
-  (t: LanguageTools.RuntimeTypes.KnownType)
+    (t: LanguageTools.RuntimeTypes.KnownType)
   : String =
   match t with
   | KTUnit -> "Unit"
@@ -221,15 +205,15 @@ let knownType
 
   | KTTuple(t1, t2, trest) ->
     (Stdlib.List.append [ t1; t2 ] trest)
-    |> Stdlib.List.map (fun item -> valueType accountID branchID item)
+    |> Stdlib.List.map (fun item -> valueType item)
     |> Stdlib.String.join " * "
     |> fun s -> $"({s})"
-  | KTList typ -> $"List<{valueType accountID branchID typ}>"
-  | KTDict typ -> $"Dict<{valueType accountID branchID typ}>"
+  | KTList typ -> $"List<{valueType typ}>"
+  | KTDict typ -> $"Dict<{valueType typ}>"
 
   | KTFn(argTypes, retType) ->
     (Stdlib.List.push argTypes retType)
-    |> Stdlib.List.map (fun vt -> valueType accountID branchID vt)
+    |> Stdlib.List.map (fun vt -> valueType vt)
     |> Stdlib.String.join " -> "
 
   | KTCustomType(name, typeArgs) ->
@@ -238,22 +222,20 @@ let knownType
       | [] -> ""
       | args ->
         args
-        |> Stdlib.List.map (fun t -> valueType accountID branchID t)
+        |> Stdlib.List.map (fun t -> valueType t)
         |> Stdlib.String.join ", "
         |> fun betweenBrackets -> "<" ++ betweenBrackets ++ ">"
 
-    (typeName accountID branchID name) ++ typeArgsPortion
+    (typeName name) ++ typeArgsPortion
 
-  | KTDB typ -> $"Datastore<{valueType accountID branchID typ}>"
+  | KTDB typ -> $"Datastore<{valueType typ}>"
 
 
 let valueType
-  (accountID: Stdlib.Option.Option<Uuid>)
-  (branchID: Stdlib.Option.Option<LanguageTools.ProgramTypes.BranchID>)
-  (vt: LanguageTools.RuntimeTypes.ValueType)
+    (vt: LanguageTools.RuntimeTypes.ValueType)
   : String =
   match vt with
-  | Known kt -> knownType accountID branchID kt
+  | Known kt -> knownType kt
   | Unknown -> "_"
 
 let letPattern (pat: LanguageTools.RuntimeTypes.LetPattern) : String =
@@ -271,14 +253,12 @@ let letPattern (pat: LanguageTools.RuntimeTypes.LetPattern) : String =
 
 module Dval =
   let valueTypeName
-    (accountID: Stdlib.Option.Option<Uuid>)
-    (branchID: Stdlib.Option.Option<LanguageTools.ProgramTypes.BranchID>)
-    (dv: LanguageTools.RuntimeTypes.Dval)
+        (dv: LanguageTools.RuntimeTypes.Dval)
     : String =
     // TODO: When a builtin for Dval.toValueType is available, use:
-    // dv |> LanguageTools.RuntimeTypes.Dval.toValueType |> valueType accountID branchID
+    // dv |> LanguageTools.RuntimeTypes.Dval.toValueType |> valueType
     // This mirrors DvalReprDeveloper.toTypeName
-    // If a builtin is ever exposed, we could simplify to: Builtin.dvalToTypeName accountID branchID dv
+    // If a builtin is ever exposed, we could simplify to: Builtin.dvalToTypeName dv
     match dv with
     | DUnit -> "Unit"
     | DBool _ -> "Bool"
@@ -300,31 +280,31 @@ module Dval =
     | DTuple(first, second, theRest) ->
       let types = Stdlib.List.append [ first; second ] theRest
       types
-      |> Stdlib.List.map (fun item -> valueTypeName accountID branchID item)
+      |> Stdlib.List.map (fun item -> valueTypeName item)
       |> Stdlib.String.join " * "
       |> fun parts -> "(" ++ parts ++ ")"
-    | DList (vt, _) -> $"List<{valueType accountID branchID vt}>"
-    | DDict (vt, _) -> $"Dict<{valueType accountID branchID vt}>"
+    | DList (vt, _) -> $"List<{valueType vt}>"
+    | DDict (vt, _) -> $"Dict<{valueType vt}>"
     | DRecord (_, typeName, typeArgs, _) ->
       let typeArgsPart =
         match typeArgs with
         | [] -> ""
         | args ->
           args
-          |> Stdlib.List.map (fun t -> valueType accountID branchID t)
+          |> Stdlib.List.map (fun t -> valueType t)
           |> Stdlib.String.join ", "
           |> fun parts -> $"<{parts}>"
-      (RuntimeTypes.typeName accountID branchID typeName) ++ typeArgsPart
+      (RuntimeTypes.typeName typeName) ++ typeArgsPart
     | DEnum (_, typeName, typeArgs, _, _) ->
       let typeArgsPart =
         match typeArgs with
         | [] -> ""
         | args ->
           args
-          |> Stdlib.List.map (fun t -> valueType accountID branchID t)
+          |> Stdlib.List.map (fun t -> valueType t)
           |> Stdlib.String.join ", "
           |> fun parts -> $"<{parts}>"
-      (RuntimeTypes.typeName accountID branchID typeName) ++ typeArgsPart
+      (RuntimeTypes.typeName typeName) ++ typeArgsPart
     | DDB _ -> "Datastore"
     | DApplicable (AppNamedFn _) -> "Function"
     | DApplicable (AppLambda _) -> "Lambda"
@@ -335,16 +315,14 @@ module Dval =
     | Error _ -> ""
 
   let withIndent
-    (accountID: Stdlib.Option.Option<Uuid>)
-    (branchID: Stdlib.Option.Option<LanguageTools.ProgramTypes.BranchID>)
-    (indent: Int64)
+        (indent: Int64)
     (dv: LanguageTools.RuntimeTypes.Dval)
     : String =
     let nl = "\n" ++ (makeSpaces indent)
     let inl = "\n" ++ (makeSpaces (indent + 2L))
     let indent = indent + 2L
 
-    let valueTypeName = valueTypeName accountID branchID dv
+    let valueTypeName = valueTypeName dv
 
     match dv with
     | DUnit -> "()"
@@ -379,7 +357,7 @@ module Dval =
       let l = Stdlib.List.append [ first; second ] theRest
 
       let parts =
-        Stdlib.List.map l (fun item -> withIndent accountID branchID indent item)
+        Stdlib.List.map l (fun item -> withIndent indent item)
 
       let short = Stdlib.String.join parts ", "
 
@@ -397,7 +375,7 @@ module Dval =
       else
         let elems =
           Stdlib.String.join
-            (Stdlib.List.map l (fun item -> withIndent accountID branchID indent item))
+            (Stdlib.List.map l (fun item -> withIndent indent item))
             ", "
 
         $"[{inl}{elems}{nl}]"
@@ -412,7 +390,7 @@ module Dval =
           |> Stdlib.Dict.toList
           |> Stdlib.List.map (fun pair ->
             let (key, value) = pair
-            $"{key}: {withIndent accountID branchID indent value}")
+            $"{key}: {withIndent indent value}")
 
         let elems = Stdlib.String.join strs $",{inl}"
         "{" ++ inl ++ elems ++ nl ++ "}"
@@ -424,19 +402,19 @@ module Dval =
         | [] -> ""
         | typeArgs ->
           typeArgs
-          |> Stdlib.List.map (fun typeArg -> valueType accountID branchID typeArg)
+          |> Stdlib.List.map (fun typeArg -> valueType typeArg)
           |> Stdlib.String.join ", "
           |> fun parts -> $"<{parts}>"
 
       let short =
         let fieldStr =
           fields
-          |> Stdlib.List.map (fun value -> withIndent accountID branchID indent value)
+          |> Stdlib.List.map (fun value -> withIndent indent value)
           |> Stdlib.String.join ", "
 
         let fieldStr = if fieldStr == "" then "" else $"({fieldStr})"
 
-        let typeStr = RuntimeTypes.typeName accountID branchID typeName
+        let typeStr = RuntimeTypes.typeName typeName
         $"{typeStr}{typeArgsPart}.{caseName}{fieldStr}"
 
       if Stdlib.String.length short <= 80L then
@@ -444,12 +422,12 @@ module Dval =
       else
         let fieldStr =
           fields
-          |> Stdlib.List.map (fun value -> withIndent accountID branchID indent value)
+          |> Stdlib.List.map (fun value -> withIndent indent value)
           |> Stdlib.String.join $",{inl}"
 
         let fieldStr = if fieldStr == "" then "" else $"({inl}{fieldStr}{nl})"
 
-        let typeStr = RuntimeTypes.typeName accountID branchID typeName
+        let typeStr = RuntimeTypes.typeName typeName
         $"{typeStr}{typeArgsPart}.{caseName}{fieldStr}"
 
 
@@ -459,17 +437,17 @@ module Dval =
         |> Stdlib.Dict.toList
         |> Stdlib.List.map (fun pair ->
           let (key, value) = pair
-          $"{key}: {withIndent accountID branchID indent value}")
+          $"{key}: {withIndent indent value}")
 
       let elems = Stdlib.String.join strs $",{inl}"
-      let typeStr = RuntimeTypes.typeName accountID branchID typeName
+      let typeStr = RuntimeTypes.typeName typeName
 
       let typeArgsPart =
         match typeArgs with
         | [] -> ""
         | args ->
           args
-          |> Stdlib.List.map (fun t -> valueTypeName accountID branchID t)
+          |> Stdlib.List.map (fun t -> valueTypeName t)
           |> Stdlib.String.join ", "
           |> fun betweenBrackets -> "<" + betweenBrackets + ">"
 
@@ -477,7 +455,7 @@ module Dval =
 
 
     | DApplicable(AppNamedFn namedFn) ->
-      PrettyPrinter.RuntimeTypes.fnName accountID branchID namedFn.name
+      PrettyPrinter.RuntimeTypes.fnName namedFn.name
 
     | DApplicable(AppLambda _lambda) ->
       // // Note: this use case is safe (RE docs/dblock-serialization.md)
@@ -497,8 +475,6 @@ module Dval =
 
 
 let dval
-  (accountID: Stdlib.Option.Option<Uuid>)
-  (branchID: Stdlib.Option.Option<LanguageTools.ProgramTypes.BranchID>)
-  (dv: LanguageTools.RuntimeTypes.Dval)
+    (dv: LanguageTools.RuntimeTypes.Dval)
   : String =
-  Dval.withIndent accountID branchID 0L dv
+  Dval.withIndent 0L dv

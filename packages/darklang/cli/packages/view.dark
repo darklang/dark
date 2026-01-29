@@ -1,14 +1,10 @@
 module Darklang.Cli.Packages.View
 
-let viewEntity
-  (accountID: Stdlib.Option.Option<Uuid>)
-  (branchID: Stdlib.Option.Option<Uuid>)
-  (location: PackageLocation)
-  : Unit =
+let viewEntity (location: PackageLocation) : Unit =
   match location with
   | Module path ->
     // Display module contents (similar to list but with more detail)
-    let results = Query.allDirectDescendants accountID branchID path
+    let results = Query.allDirectDescendants path
 
     let locationStr = Packages.formatLocation location
     Stdlib.printLine locationStr
@@ -53,7 +49,7 @@ let viewEntity
   | Type name ->
     // Find and display the specific type
     let modulePath = Stdlib.List.append [name.owner] name.modules
-    let results = Query.searchExactMatch accountID branchID modulePath name.name
+    let results = Query.searchExactMatch modulePath name.name
 
     // Access the first type directly from results.types
     match results.types with
@@ -61,14 +57,14 @@ let viewEntity
       let locationStr = Packages.formatLocation location
       Stdlib.printLine $"Type '{locationStr}' not found."
     | item :: _ ->
-      let prettyPrinted = PrettyPrinter.ProgramTypes.packageType accountID branchID item.entity
+      let prettyPrinted = PrettyPrinter.ProgramTypes.packageType item.entity
       let highlighted = SyntaxHighlighting.highlightCode prettyPrinted
       Stdlib.printLine highlighted
 
   | Function name ->
     // Find and display the specific function
     let modulePath = Stdlib.List.append [name.owner] name.modules
-    let results = Query.searchExactMatch accountID branchID modulePath name.name
+    let results = Query.searchExactMatch modulePath name.name
 
     // Access the first function directly from results.fns
     match results.fns with
@@ -76,12 +72,7 @@ let viewEntity
       let locationStr = Packages.formatLocation location
       Stdlib.printLine $"Function '{locationStr}' not found."
     | item :: _ ->
-      let ctx =
-        PrettyPrinter.ProgramTypes.Context
-          { accountID = accountID
-            branchID = branchID
-            currentModule = Stdlib.Option.Option.None
-            currentFunction = Stdlib.Option.Option.None }
+      let ctx = PrettyPrinter.ProgramTypes.defaultContext
       let prettyPrinted = PrettyPrinter.ProgramTypes.packageFn ctx item.entity
       let highlighted = SyntaxHighlighting.highlightCode prettyPrinted
       Stdlib.printLine highlighted
@@ -89,7 +80,7 @@ let viewEntity
   | Value name ->
     // Find and display the specific value
     let modulePath = Stdlib.List.append [name.owner] name.modules
-    let results = Query.searchExactMatch accountID branchID modulePath name.name
+    let results = Query.searchExactMatch modulePath name.name
 
     // Access the first value directly from results.values
     match results.values with
@@ -97,12 +88,7 @@ let viewEntity
       let locationStr = Packages.formatLocation location
       Stdlib.printLine $"Value '{locationStr}' not found."
     | item :: _ ->
-      let ctx =
-        PrettyPrinter.ProgramTypes.Context
-          { accountID = accountID
-            branchID = branchID
-            currentModule = Stdlib.Option.Option.None
-            currentFunction = Stdlib.Option.Option.None }
+      let ctx = PrettyPrinter.ProgramTypes.defaultContext
       let prettyPrinted = PrettyPrinter.ProgramTypes.packageValue ctx item.entity
       let highlighted = SyntaxHighlighting.highlightCode prettyPrinted
       Stdlib.printLine highlighted
@@ -110,32 +96,30 @@ let viewEntity
 
 // VIEW command - view modules, functions, types, or constants
 let execute (state: AppState) (args: List<String>) : AppState =
-  let accountID = state.accountID
   match args with
   | [] ->
     // No args - view current location
-    viewEntity accountID state.currentBranchId state.packageData.currentLocation
+    viewEntity state.packageData.currentLocation
     state
   | [pathArg] ->
     // Navigate to the path and view
-    match Traversal.traverse accountID state.currentBranchId state.packageData.currentLocation pathArg with
+    match Traversal.traverse state.packageData.currentLocation pathArg with
     | Error errorMsg ->
       Stdlib.printLine (Colors.error $"Cannot view: {errorMsg}")
       state
     | Ok newLocation ->
-      viewEntity accountID state.currentBranchId newLocation
+      viewEntity newLocation
       state
   | _ ->
     help state
     state
 
 let complete (state: AppState) (args: List<String>) : List<Completion.CompletionItem> =
-  let accountID = state.accountID
   match args with
   | [] ->
-    Traversal.completePartialPath accountID state.currentBranchId state.packageData.currentLocation ""
+    Traversal.completePartialPath state.packageData.currentLocation ""
   | [partialPath] ->
-    Traversal.completePartialPath accountID state.currentBranchId state.packageData.currentLocation partialPath
+    Traversal.completePartialPath state.packageData.currentLocation partialPath
   | _ -> []
 
 

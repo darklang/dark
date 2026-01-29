@@ -10,40 +10,15 @@ type AppState =
     prompt: Prompt.State
     needsFullRedraw: Bool
     packageData: Packages.State
-    currentPage: Page
-    accountName: String
-    accountID: Stdlib.Option.Option<Uuid>
-    currentBranchId: Stdlib.Option.Option<Uuid> }
+    currentPage: Page }
 
 let initState () : AppState =
-  // Get account from DARK_ACCOUNT env var, or default to "Darklang"
-  // This allows testing different accounts without real auth
-  // CLEANUP: remove this once we have real auth in the CLI
-  let accountName =
-    match Builtin.environmentGet "DARK_ACCOUNT" with
-    | Some name -> name
-    | None -> "Darklang"
-
-  let accountUuid = Builtin.pmGetAccountByName accountName
-
-  // Get branch from DARK_BRANCH env var if set
-  let branchId =
-    match Builtin.environmentGet "DARK_BRANCH" with
-    | Some idStr ->
-      match Stdlib.Uuid.parse idStr with
-      | Ok id -> Stdlib.Option.Option.Some id
-      | Error _ -> Stdlib.Option.Option.None
-    | None -> Stdlib.Option.Option.None
-
   AppState
     { isExiting = false
-      prompt = Prompt.initState()
+      prompt = Prompt.initState ()
       needsFullRedraw = true
-      packageData = Packages.initState()
-      currentPage = Page.MainPrompt
-      accountName = accountName
-      accountID = accountUuid
-      currentBranchId = branchId }
+      packageData = Packages.initState ()
+      currentPage = Page.MainPrompt }
 
 type Msg =
   | ProcessInput of String
@@ -77,20 +52,10 @@ module View =
     let hint = Registry.getCompletionHint state state.prompt.text
     Prompt.Display.formatPromptWithInput locationStr state.prompt.text hint
 
-  let formatWelcome (accountName: String) : String =
-    Registry.getCompactCommandList accountName
+  let formatWelcome () : String = Registry.getCompactCommandList ()
 
 
 module StatusBar =
-  /// Get the branch name from the current branch ID
-  let getBranchName (branchId: Stdlib.Option.Option<Uuid>) : String =
-    match branchId with
-    | Some id ->
-      match Darklang.SCM.Branch.get id with
-      | Some branch -> branch.name
-      | None -> "unknown"
-    | None -> "main"
-
   /// Initialize the status bar by setting up scroll region to reserve bottom line
   let init () : Unit =
     let terminalHeight = Terminal.getHeight ()
@@ -102,18 +67,15 @@ module StatusBar =
     let terminalHeight = Terminal.getHeight ()
     let terminalWidth = Terminal.getWidth ()
 
-    let accountText = $" {state.accountName} "
-    let branchName = getBranchName state.currentBranchId
-    let branchText = $" {branchName} "
+    let leftText = " Darklang "
 
     // Use Darklang brand colors (purple/magenta)
-    let leftPart = Colors.colorize (Colors.purpleBg ++ Colors.white ++ Colors.bold) accountText
-    let rightPart = Colors.colorize (Colors.magentaBg ++ Colors.white ++ Colors.bold) branchText
+    let leftPart =
+      Colors.colorize (Colors.purpleBg ++ Colors.white ++ Colors.bold) leftText
 
-    // Calculate padding between left and right
-    let leftLen = Stdlib.String.length accountText
-    let rightLen = Stdlib.String.length branchText
-    let paddingLen = terminalWidth - leftLen - rightLen
+    // Calculate padding
+    let leftLen = Stdlib.String.length leftText
+    let paddingLen = terminalWidth - leftLen
 
     let padding =
       if paddingLen > 0L then
@@ -121,16 +83,25 @@ module StatusBar =
       else
         ""
 
-    let statusLine = leftPart ++ padding ++ rightPart
+    let statusLine = leftPart ++ padding
 
     // Save cursor, move to bottom, render, restore cursor
-    Stdlib.print (Colors.saveCursor ++ Colors.moveCursorTo terminalHeight 1L ++ statusLine ++ Colors.restoreCursor)
+    Stdlib.print
+      (Colors.saveCursor
+       ++ Colors.moveCursorTo terminalHeight 1L
+       ++ statusLine
+       ++ Colors.restoreCursor)
 
   /// Clear the status bar and reset scroll region
   let clear () : Unit =
     let terminalHeight = Terminal.getHeight ()
     // Reset scroll region and clear the status bar line
-    Stdlib.print (Colors.resetScrollRegion ++ Colors.saveCursor ++ Colors.moveCursorTo terminalHeight 1L ++ Colors.clearLine ++ Colors.restoreCursor)
+    Stdlib.print
+      (Colors.resetScrollRegion
+       ++ Colors.saveCursor
+       ++ Colors.moveCursorTo terminalHeight 1L
+       ++ Colors.clearLine
+       ++ Colors.restoreCursor)
 
 
 
@@ -144,35 +115,35 @@ module Registry =
       complete: AppState -> List<String> -> List<Completion.CompletionItem> }
 
   let allCommands () : List<CommandHandler> =
-    [
-      ("quit", "Exit the CLI", ["exit"; "q"], Quit.execute, Quit.help, Quit.complete)
-      ("help", "Show help for commands", ["commands"; "?"], Help.execute, Help.help, Help.complete)
-      ("branch", "Manage development branches", [], Packages.Branch.execute, Packages.Branch.help, Packages.Branch.complete)
-      ("instance", "Manage remote instances for syncing", [], Instances.execute, Instances.help, Instances.complete)
+    [ ("quit", "Exit the CLI", [ "exit"; "q" ], Quit.execute, Quit.help, Quit.complete)
+      ("help", "Show help for commands", [ "commands"; "?" ], Help.execute, Help.help, Help.complete)
       ("config", "Manage CLI configuration", [], Config.execute, Config.help, Config.complete)
-      ("account", "Manage account settings", [], Account.execute, Account.help, Account.complete)
       ("install", "Install CLI globally", [], Installation.Install.execute, Installation.Install.help, Installation.Install.complete)
-      ("update", "Update CLI to latest version", ["upgrade"], Installation.Update.execute, Installation.Update.help, Installation.Update.complete)
+      ("update", "Update CLI to latest version", [ "upgrade" ], Installation.Update.execute, Installation.Update.help, Installation.Update.complete)
       ("uninstall", "Remove CLI installation", [], Installation.Uninstall.execute, Installation.Uninstall.help, Installation.Uninstall.complete)
-      ("status", "Show installation status", [], Installation.Status.execute, Installation.Status.help, Installation.Status.complete)
-      ("version", "Display CLI version", ["--version"; "-v"], Installation.Version.execute, Installation.Version.help, Installation.Version.complete)
-      ("nav", "Navigate between packages, modules, and entities", ["cd"], Packages.Nav.execute, Packages.Nav.help, Packages.Nav.complete)
-      ("ls", "List package contents", ["dir"], Packages.Listing.execute, Packages.Listing.help, Packages.Listing.complete)
-      //("pwd", "Show current package path", [], Packages.Navigation.executePWD, Packages.Navigation.pwdHelp, Packages.Navigation.pwdComplete)
+      ("install-status", "Show installation status", [], Installation.Status.execute, Installation.Status.help, Installation.Status.complete)
+      ("version", "Display CLI version", [ "--version"; "-v" ], Installation.Version.execute, Installation.Version.help, Installation.Version.complete)
+      ("nav", "Navigate between packages, modules, and entities", [ "cd" ], Packages.Nav.execute, Packages.Nav.help, Packages.Nav.complete)
+      ("ls", "List package contents", [ "dir" ], Packages.Listing.execute, Packages.Listing.help, Packages.Listing.complete)
       ("back", "Go back to previous location", [], Packages.Back.execute, Packages.Back.help, Packages.Back.complete)
-      ("clear", "Clear the screen", ["cls"], Cli.Clear.execute, Cli.Clear.help, Cli.Clear.complete)
+      ("clear", "Clear the screen", [ "cls" ], Cli.Clear.execute, Cli.Clear.help, Cli.Clear.complete)
       ("run", "Run a function or script", [], Cli.Run.execute, Cli.Run.help, Cli.Run.complete)
       ("eval", "Evaluate a Dark expression", [], Cli.Eval.execute, Cli.Eval.help, Cli.Eval.complete)
       ("scripts", "Store, manage, and run Dark scripts", [], Cli.Scripts.execute, Cli.Scripts.help, Cli.Scripts.complete)
       ("view", "View details of a module, type, value, or fns", [], Packages.View.execute, Packages.View.help, Packages.View.complete)
       ("tree", "Display package hierarchy in tree format", [], Packages.Tree.execute, Packages.Tree.help, Packages.Tree.complete)
       ("search", "Search for packages, types, functions, and values", [], Packages.Search.execute, Packages.Search.help, Packages.Search.complete)
-      ("deps", "Show dependencies and dependents", ["dependencies"], Cli.Deps.execute, Cli.Deps.help, Cli.Deps.complete)
+      ("deps", "Show dependencies and dependents", [ "dependencies" ], Cli.Deps.execute, Cli.Deps.help, Cli.Deps.complete)
       ("val", "Create a new value", [], Packages.Value.execute, Packages.Value.help, Packages.Value.complete)
       ("let", "Create a new value (alias for val)", [], Packages.Value.execute, Packages.Value.help, Packages.Value.complete)
-      ("fn", "Create a new function", ["function"], Packages.Fn.execute, Packages.Fn.help, Packages.Fn.complete)
+      ("fn", "Create a new function", [ "function" ], Packages.Fn.execute, Packages.Fn.help, Packages.Fn.complete)
       ("type", "Create a new type", [], Packages.Type.execute, Packages.Type.help, Packages.Type.complete)
-    ]
+      // SCM commands
+      ("status", "Show uncommitted changes", [ "wip"; "changes" ], SCM.Status.execute, SCM.Status.help, SCM.Status.complete)
+      ("log", "Show commit history", [ "history"; "commits" ], SCM.Log.execute, SCM.Log.help, SCM.Log.complete)
+      ("commit", "Commit uncommitted changes", [], SCM.Commit.execute, SCM.Commit.help, SCM.Commit.complete)
+      ("discard", "Discard uncommitted changes", [ "reset" ], SCM.Discard.execute, SCM.Discard.help, SCM.Discard.complete)
+      ("show", "Show commit details", [], SCM.Show.execute, SCM.Show.help, SCM.Show.complete) ]
     |> Stdlib.List.map(
       // CLEANUP nitpicky: swap help and complete
       fun (name, desc, aliases, execute, help, complete) ->
@@ -241,11 +212,11 @@ module Registry =
 
   // Command groups organized by category (shared between compact and detailed views)
   let commandGroups () : List<(String * List<String>)> =
-    [ ("Packages", ["nav"; "ls"; "view"; "tree"; "back"; "search"; "deps"; "val"; "let"; "fn"; "type"; "rm"])
-      ("Source Control", ["branch"; "instance"])
-      ("Execution", ["run"; "eval"; "scripts"])
-      ("Installation", ["install"; "update"; "uninstall"; "status"; "version"])
-      ("Utilities", ["clear"; "help"; "quit"; "config"; "account"]) ]
+    [ ("Packages", [ "nav"; "ls"; "view"; "back"; "search"; "fn"; "type" ])
+      ("SCM", [ "status"; "log"; "commit"; "discard"; "show" ])
+      ("Execution", [ "run"; "eval"; "scripts" ])
+      ("Install", [ "install"; "update"; "uninstall"; "version" ])
+      ("Utilities", [ "clear"; "help"; "quit" ]) ]
 
   // Helper function to format a group of commands with details
   let formatCommandGroup (groupName: String) (commandNames: List<String>) (commands: List<CommandHandler>) : String =
@@ -269,20 +240,24 @@ module Registry =
     $"{groupName}: {namesList}"
 
   // Compact command list for welcome screen (with logo, minimal text)
-  let getCompactCommandList (accountName: String) : String =
+  let getCompactCommandList () : String =
     let groups = commandGroups ()
+
     let formattedGroups =
       groups
       |> Stdlib.List.map (fun (groupName, cmdNames) ->
         formatCompactGroup groupName cmdNames)
 
-    let welcome = $"Hello {accountName}! Let's write some software with Darklang."
-    let availableCommands = "Here are the commands available:"
-    let groupsWithFooter = Stdlib.List.append formattedGroups [""; "Type 'help' for detailed command info"]
-    let allLines = Stdlib.List.append [welcome; ""; availableCommands; ""] groupsWithFooter
-    let compactText = Stdlib.String.join allLines "\n"
-    let textLines = Stdlib.String.split compactText "\n"
-    Logo.combineLogoAndText Logo.logo textLines Colors.logoColor
+    let welcome = "Welcome to Darklang!"
+    let availableCommands = "Commands:"
+
+    let groupsWithFooter =
+      Stdlib.List.append formattedGroups [ ""; "Type 'help' for detailed command info" ]
+
+    let allLines =
+      Stdlib.List.append [ welcome; ""; availableCommands; "" ] groupsWithFooter
+
+    Logo.combineLogoAndText Logo.logo allLines Colors.logoColor
 
   // Detailed command list for help command (no logo, full details)
   let getDetailedCommandList () : String =
@@ -463,15 +438,6 @@ let handleKeyInput (state: AppState) (key: Stdlib.Cli.Stdin.Key.Key) (modifiers:
             needsFullRedraw = false }
       | None -> state
 
-  | Experiments ->
-    // Experiments page key handling
-    match key with
-    | Escape ->
-      // Exit experiments page back to main prompt
-      { state with currentPage = Page.MainPrompt; needsFullRedraw = true }
-    | _ ->
-      // Ignore other keys in experiments mode
-      state
   | InteractiveNav navState ->
     // Interactive navigation key handling
     Packages.NavInteractive.handleKey state key keyChar navState
@@ -520,10 +486,6 @@ let runInteractiveLoop (state: AppState) : Int64 =
   if state.isExiting then
     // Clear status bar before exiting
     StatusBar.clear ()
-    // stop sync service if running
-    match SyncService.stop () with
-    | Ok () -> ()
-    | Error _ -> () // Silently ignore if not running
     0L
   else
     // Display current page
@@ -575,13 +537,10 @@ let executeCliCommand (args: List<String>) : Int64 =
   match args with
   // If someone runs `dark` without args, start the interactive loop
   | [] ->
-    // Auto-start sync service if not already running
-    SyncService.autoStart ()
-
     // Initialize status bar (sets up scroll region to reserve bottom line)
     StatusBar.init ()
 
-    Stdlib.printLine (View.formatWelcome initialState.accountName)
+    Stdlib.printLine (View.formatWelcome ())
     runInteractiveLoop initialState
   // Otherwise, just execute command, print result, and exit
   | _ ->

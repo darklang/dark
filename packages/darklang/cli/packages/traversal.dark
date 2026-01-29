@@ -57,8 +57,6 @@ let getCurrentModulePath (location: PackageLocation) : List<String> =
 
 
 let applySegment
-  (accountID: Stdlib.Option.Option<Uuid>)
-  (branchID: Stdlib.Option.Option<Uuid>)
   (location: PackageLocation)
   (segment: PathSegment)
   : Stdlib.Result.Result<PackageLocation, String> =
@@ -88,19 +86,17 @@ let applySegment
 
   | Into name ->
     let currentPath = getCurrentModulePath location
-    resolveEntity accountID branchID currentPath name
+    resolveEntity currentPath name
 
 
 // Resolve a name to an actual entity (module, type, fn, or value)
 let resolveEntity
-  (accountID: Stdlib.Option.Option<Uuid>)
-  (branchID: Stdlib.Option.Option<Uuid>)
   (basePath: List<String>)
   (name: String)
   : Stdlib.Result.Result<PackageLocation, String> =
   // First see if it's a module
   let modulePath = Stdlib.List.append basePath [name]
-  let moduleResults = Query.allDirectDescendants accountID branchID modulePath
+  let moduleResults = Query.allDirectDescendants modulePath
 
   let isAModule = Query.hasContent moduleResults
 
@@ -108,7 +104,7 @@ let resolveEntity
     Stdlib.Result.Result.Ok (PackageLocation.Module modulePath)
   // Not a module -- check if it's a type/value/fn
   else
-    let entityResults = Query.searchExactMatch accountID branchID basePath name
+    let entityResults = Query.searchExactMatch basePath name
 
     // Access lists directly to avoid type parameter loss
     match entityResults.types with
@@ -123,8 +119,6 @@ let resolveEntity
 
 
 let applyPath
-  (accountID: Stdlib.Option.Option<Uuid>)
-  (branchID: Stdlib.Option.Option<Uuid>)
   (start: PackageLocation)
   (segments: List<PathSegment>)
   : Stdlib.Result.Result<PackageLocation, String> =
@@ -132,15 +126,13 @@ let applyPath
   |> Stdlib.List.fold (Stdlib.Result.Result.Ok start) (fun accResult segment ->
     match accResult with
     | Error e -> Stdlib.Result.Result.Error e
-    | Ok loc -> applySegment accountID branchID loc segment
+    | Ok loc -> applySegment loc segment
   )
 
 
 // Search for modules globally where a segment starts with the prefix
 // Returns only the path up to the matching segment, not descendants
 let searchModulesByPrefix
-  (accountID: Stdlib.Option.Option<Uuid>)
-  (branchID: Stdlib.Option.Option<Uuid>)
   (prefixText: String)
   : List<String> =
   // Search from root with AllDescendants - database returns all matching paths
@@ -152,7 +144,7 @@ let searchModulesByPrefix
         entityTypes = []
         exactMatch = false }
 
-  let results = LanguageTools.PackageManager.Search.search accountID branchID query
+  let results = LanguageTools.PackageManager.Search.search query
 
   // For each result, find the first segment starting with prefix and truncate there
   results.submodules
@@ -174,14 +166,12 @@ let searchModulesByPrefix
 
 // Get all available items at a location for completion
 let getAvailableItems
-  (accountID: Stdlib.Option.Option<Uuid>)
-  (branchID: Stdlib.Option.Option<Uuid>)
   (location: PackageLocation)
   (prefixText: String)
   : List<Cli.Completion.CompletionItem> =
   let currentPath = getCurrentModulePath location
   // Get all available entities in this module
-  let allResults = Query.allDirectDescendants accountID branchID currentPath
+  let allResults = Query.allDirectDescendants currentPath
 
   let currentPathLength = Stdlib.List.length currentPath
 
@@ -222,7 +212,7 @@ let getAvailableItems
       ownerMatches
     else
       let fallbackResults =
-        (searchModulesByPrefix accountID branchID prefixText)
+        (searchModulesByPrefix prefixText)
         |> Stdlib.List.map (fun name -> Cli.Completion.withIcon EntityType.Module name)
 
       let combined = Stdlib.List.append primaryResults fallbackResults
@@ -232,8 +222,6 @@ let getAvailableItems
 
 // Simple completion: traverse exact path, then fuzzy search the last part
 let completePartialPath
-  (accountID: Stdlib.Option.Option<Uuid>)
-  (branchID: Stdlib.Option.Option<Uuid>)
   (start: PackageLocation)
   (partialPath: String)
   : List<Cli.Completion.CompletionItem> =
@@ -242,15 +230,15 @@ let completePartialPath
   match Stdlib.List.reverse segments with
   | [] ->
     // Empty path - get completions from current location
-    getAvailableItems accountID branchID start ""
+    getAvailableItems start ""
 
   | (Into fuzzyPart) :: exactSegmentsReversed ->
     // Navigate to exact path, then fuzzy search
     let exactSegments = Stdlib.List.reverse exactSegmentsReversed
-    match applyPath accountID branchID start exactSegments with
+    match applyPath start exactSegments with
     | Error _ -> []
     | Ok contextLocation ->
-      let completionItems = getAvailableItems accountID branchID contextLocation fuzzyPart
+      let completionItems = getAvailableItems contextLocation fuzzyPart
 
       // Build prefix for the completions, preserving the separator style
       let prefix =
@@ -288,10 +276,8 @@ let completePartialPath
 
 // Main traverse function
 let traverse
-  (accountID: Stdlib.Option.Option<Uuid>)
-  (branchID: Stdlib.Option.Option<Uuid>)
   (start: PackageLocation)
   (path: String)
   : Stdlib.Result.Result<PackageLocation, String> =
   let segments = parsePath path
-  applyPath accountID branchID start segments
+  applyPath start segments

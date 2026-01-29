@@ -3,27 +3,6 @@ let _handler _req =
   Stdlib.Http.response (Stdlib.String.toBytes "pong") 200L
 
 
-let getUuidFromQuery (req: Stdlib.Http.Request) (paramName: String) : Stdlib.Option.Option<Uuid> =
-  (Stdlib.Http.Request.queryParams req)
-  |> Stdlib.List.findFirst (fun pair ->
-    match pair with
-    | (key, _value) -> key == paramName
-    | _ -> false)
-  |> fun result ->
-    match result with
-    | Some((_key, value)) ->
-      match Stdlib.Uuid.parse value with
-      | Ok uuid -> Stdlib.Option.Option.Some uuid
-      | Error _err -> Stdlib.Option.Option.None
-    | None -> Stdlib.Option.Option.None
-
-let getBranchIDFromQuery (req: Stdlib.Http.Request) : Stdlib.Option.Option<Uuid> =
-  getUuidFromQuery req "branchID"
-
-let getAccountIDFromQuery (req: Stdlib.Http.Request) : Stdlib.Option.Option<Uuid> =
-  getUuidFromQuery req "accountID"
-
-
 let getQueryParam (req: Stdlib.Http.Request) (key: String) : Stdlib.Option.Option<String> =
   (Stdlib.Http.Request.queryParams req)
   |> Stdlib.List.findFirst (fun pair ->
@@ -66,27 +45,10 @@ let parseUuidParam (value: String) : Stdlib.Result.Result<Uuid, Stdlib.Http.Resp
 let _handler _req =
   let bodyStr = Stdlib.String.fromBytesWithReplacement request.body
 
-  match Builtin.jsonParse<List<LanguageTools.ProgramTypes.PackageOpBatch>> bodyStr with
-  | Ok batches ->
-    // Process each batch
-    let results =
-      Stdlib.List.fold
-        batches
-        (Stdlib.Result.Result.Ok 0L)
-        (fun resultSoFar batch ->
-          match resultSoFar with
-          | Ok insertedSoFar ->
-            // Pass None for createdBy since synced ops were created elsewhere
-            let createdBy = Stdlib.Option.Option.None
-
-            match SCM.PackageOps.add batch.instanceID batch.branchID createdBy batch.ops with
-            | Ok batchInserted ->
-              Stdlib.Result.Result.Ok(insertedSoFar + batchInserted)
-            | Error errMsg -> Stdlib.Result.Result.Error errMsg
-
-          | Error msg -> Stdlib.Result.Result.Error msg)
-
-    match results with
+  match Builtin.jsonParse<List<LanguageTools.ProgramTypes.PackageOp>> bodyStr with
+  | Ok ops ->
+    // Add ops as WIP - TODO: sync endpoint should handle commits differently
+    match SCM.PackageOps.add ops with
     | Ok insertedCount ->
       let countStr = Builtin.int64ToString insertedCount
       let responseMsg = $"Successfully received and applied {countStr} ops"
@@ -96,33 +58,26 @@ let _handler _req =
       Stdlib.Http.response (Stdlib.String.toBytes errorMsg) 500L
 
   | Error _err ->
-    let errorMsg = "Invalid request body. Expected JSON list of PackageOpBatch."
-
+    let errorMsg = "Invalid request body. Expected JSON list of PackageOp."
     Stdlib.Http.response (Stdlib.String.toBytes errorMsg) 400L
 
 
 [<HttpHandler("GET", "/ops")>]
 let _handler _req =
-  match getQueryParam request "since" with
+  match getQueryParam request "limit" with
   | None ->
-    let errorMsg = "Missing required query parameter: 'since'"
+    let errorMsg = "Missing required query parameter: 'limit'"
     Stdlib.Http.response (Stdlib.String.toBytes errorMsg) 400L
 
-  | Some sinceStr ->
-    match Stdlib.DateTime.parse sinceStr with
-    | Ok sinceDate ->
-      // Get ops from ALL branches, already grouped by (branchID, instanceID)
-      // Pass None for targetInstanceID since we're not filtering on pull side
-      let batches = Builtin.scmGetOpsSince Stdlib.Option.Option.None sinceDate
-
-      let json =
-        batches
-        |> Builtin.jsonSerialize<List<LanguageTools.ProgramTypes.PackageOpBatch>>
-
+  | Some limitStr ->
+    match Stdlib.Int64.parse limitStr with
+    | Ok limit ->
+      let ops = SCM.PackageOps.getRecent limit
+      let json = ops |> Builtin.jsonSerialize<List<LanguageTools.ProgramTypes.PackageOp>>
       Stdlib.Http.response (Stdlib.String.toBytes json) 200L
 
     | Error _err ->
-      let errorMsg = "Invalid 'since' parameter. Expected ISO 8601 datetime."
+      let errorMsg = "Invalid 'limit' parameter. Expected integer."
       Stdlib.Http.response (Stdlib.String.toBytes errorMsg) 400L
 
 
@@ -144,9 +99,6 @@ let _handler _req =
 
 [<HttpHandler("GET", "/:location")>]
 let _handler _req =
-  let accountID = getAccountIDFromQuery request
-  let branchID = getBranchIDFromQuery request
-
   let parts = Stdlib.String.split location "."
   let partsLength = Stdlib.List.length parts
 
@@ -164,7 +116,7 @@ let _handler _req =
           entityTypes = []
           exactMatch = false }
 
-    let results = Builtin.pmSearch accountID branchID searchQuery
+    let results = Builtin.pmSearch searchQuery
     let json = results |> Builtin.jsonSerialize<LanguageTools.ProgramTypes.Search.SearchResults>
     Stdlib.Http.response (Stdlib.String.toBytes json) 200L
   else
@@ -178,7 +130,7 @@ let _handler _req =
         { owner = owner; modules = modules; name = entityName }
 
     // Try to find as function first
-    match Builtin.pmFindFn accountID branchID packageLocation with
+    match Builtin.pmFindFn packageLocation with
     | Some fnId ->
       match Builtin.pmGetFn fnId with
       | Some fn ->
@@ -189,7 +141,7 @@ let _handler _req =
 
     | None ->
       // Try to find as type
-      match Builtin.pmFindType accountID branchID packageLocation with
+      match Builtin.pmFindType packageLocation with
       | Some typeId ->
         match Builtin.pmGetType typeId with
         | Some typeDefinition ->
@@ -200,7 +152,7 @@ let _handler _req =
 
       | None ->
         // Try to find as value
-        match Builtin.pmFindValue accountID branchID packageLocation with
+        match Builtin.pmFindValue packageLocation with
         | Some valueId ->
           match Builtin.pmGetValue valueId with
           | Some value ->
@@ -221,20 +173,17 @@ let _handler _req =
                 entityTypes = [ ]
                 exactMatch = false }
 
-          let results = Builtin.pmSearch accountID branchID searchQuery
+          let results = Builtin.pmSearch searchQuery
           let json = results |> Builtin.jsonSerialize<LanguageTools.ProgramTypes.Search.SearchResults>
           Stdlib.Http.response (Stdlib.String.toBytes json) 200L
 
 
 [<HttpHandler("GET", "/type/find/:name")>]
 let _handler _req =
-  let accountID = getAccountIDFromQuery request
-  let branchID = getBranchIDFromQuery request
-
   match parseNameToLocation name with
   | Error errorMsg -> Stdlib.Http.response (Stdlib.String.toBytes errorMsg) 400L
   | Ok location ->
-    match Builtin.pmFindType accountID branchID location with
+    match Builtin.pmFindType location with
     | Some foundID ->
       let json = $"\"{Stdlib.Uuid.toString foundID}\""
       Stdlib.Http.response (Stdlib.String.toBytes json) 200L
@@ -254,13 +203,10 @@ let _handler _req =
 
 [<HttpHandler("GET", "/type/get/with-location/:id")>]
 let _handler _req =
-  let accountID = getAccountIDFromQuery request
-  let branchID = getBranchIDFromQuery request
-
   match parseUuidParam id with
   | Error response -> response
   | Ok parsedId ->
-    match LanguageTools.PackageManager.Type.getWithLocation accountID branchID parsedId with
+    match LanguageTools.PackageManager.Type.getWithLocation parsedId with
     | Some locatedItem ->
       let json =
         locatedItem
@@ -271,12 +217,9 @@ let _handler _req =
 
 [<HttpHandler("GET", "/value/find/:name")>]
 let _handler _req =
-  let accountID = getAccountIDFromQuery request
-  let branchID = getBranchIDFromQuery request
-
   match parseNameToLocation name with
   | Ok location ->
-    match Builtin.pmFindValue accountID branchID location with
+    match Builtin.pmFindValue location with
     | Some foundID ->
       let json = $"\"{Stdlib.Uuid.toString foundID}\""
       Stdlib.Http.response (Stdlib.String.toBytes json) 200L
@@ -297,13 +240,10 @@ let _handler _req =
 
 [<HttpHandler("GET", "/value/get/with-location/:id")>]
 let _handler _req =
-  let accountID = getAccountIDFromQuery request
-  let branchID = getBranchIDFromQuery request
-
   match parseUuidParam id with
   | Error response -> response
   | Ok parsedId ->
-    match LanguageTools.PackageManager.Value.getWithLocation accountID branchID parsedId with
+    match LanguageTools.PackageManager.Value.getWithLocation parsedId with
     | Some locatedItem ->
       let json = locatedItem |> Builtin.jsonSerialize<LanguageTools.ProgramTypes.LocatedItem<LanguageTools.ProgramTypes.PackageValue.PackageValue>>
       Stdlib.Http.response (Stdlib.String.toBytes json) 200L
@@ -312,13 +252,10 @@ let _handler _req =
 
 [<HttpHandler("GET", "/function/find/:name")>]
 let _handler _req =
-  let accountID = getAccountIDFromQuery request
-  let branchID = getBranchIDFromQuery request
-
   match parseNameToLocation name with
   | Error errorMsg -> Stdlib.Http.response (Stdlib.String.toBytes errorMsg) 400L
   | Ok location ->
-    match Builtin.pmFindFn accountID branchID location with
+    match Builtin.pmFindFn location with
     | Some foundID ->
       let json = $"\"{Stdlib.Uuid.toString foundID}\""
       Stdlib.Http.response (Stdlib.String.toBytes json) 200L
@@ -338,13 +275,10 @@ let _handler _req =
 
 [<HttpHandler("GET", "/function/get/with-location/:id")>]
 let _handler _req =
-  let accountID = getAccountIDFromQuery request
-  let branchID = getBranchIDFromQuery request
-
   match parseUuidParam id with
   | Error response -> response
   | Ok parsedId ->
-    match LanguageTools.PackageManager.Function.getWithLocation accountID branchID parsedId with
+    match LanguageTools.PackageManager.Function.getWithLocation parsedId with
     | Some locatedItem ->
       let json =
         locatedItem
@@ -355,9 +289,6 @@ let _handler _req =
 
 [<HttpHandler("GET", "/search")>]
 let _handler _req =
-  let accountID = getAccountIDFromQuery request
-  let branchID = getBranchIDFromQuery request
-
   match getQueryParam request "modules" with
   | None ->
     let errorMsg = "Missing required query parameter: 'modules'"
@@ -416,6 +347,6 @@ let _handler _req =
               entityTypes = entityTypes
               exactMatch = exactMatch }
 
-        let results = Builtin.pmSearch accountID branchID query
+        let results = Builtin.pmSearch query
         let json = results |> Builtin.jsonSerialize<LanguageTools.ProgramTypes.Search.SearchResults>
         Stdlib.Http.response (Stdlib.String.toBytes json) 200L

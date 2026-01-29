@@ -1,0 +1,97 @@
+module Darklang.Cli.SCM.Commit
+
+
+let execute (state: AppState) (args: List<String>) : AppState =
+  let autoConfirm =
+    (Stdlib.List.member_v0 args "--yes") || (Stdlib.List.member_v0 args "-y")
+
+  // Get message from args (everything that's not a flag)
+  let messageParts =
+    args
+    |> Stdlib.List.filter (fun a ->
+      (Stdlib.Bool.not (Stdlib.String.startsWith a "--"))
+      && (Stdlib.Bool.not (a == "-y")))
+
+  let message = Stdlib.String.join messageParts " "
+
+  if Stdlib.String.isEmpty (Stdlib.String.trim message) then
+    Stdlib.printLine (Colors.error "Commit message required.")
+    Stdlib.printLine "Usage: commit \"Your commit message\""
+    state
+  else
+    // Show what will be committed
+    let summary = SCM.PackageOps.getWipSummary ()
+
+    let total =
+      match Stdlib.Dict.get summary "total" with
+      | Some t -> t
+      | None -> 0L
+
+    if total == 0L then
+      Stdlib.printLine "Nothing to commit."
+      state
+    else
+      let types =
+        match Stdlib.Dict.get summary "types" with
+        | Some t -> t
+        | None -> 0L
+
+      let values =
+        match Stdlib.Dict.get summary "values" with
+        | Some v -> v
+        | None -> 0L
+
+      let fns =
+        match Stdlib.Dict.get summary "fns" with
+        | Some f -> f
+        | None -> 0L
+
+      Stdlib.printLine "Will commit:"
+
+      if types > 0L then
+        Stdlib.printLine $"  {Builtin.int64ToString types} type(s)"
+
+      if values > 0L then
+        Stdlib.printLine $"  {Builtin.int64ToString values} value(s)"
+
+      if fns > 0L then
+        Stdlib.printLine $"  {Builtin.int64ToString fns} function(s)"
+
+      Stdlib.printLine ""
+
+      let proceed =
+        if autoConfirm then
+          true
+        else
+          Stdlib.printLine "Proceed? (y/n): "
+          let response = Builtin.stdinReadLine ()
+          (response == "y") || (response == "Y")
+
+      if proceed then
+        match SCM.PackageOps.commit message with
+        | Ok commitId ->
+          let shortId = Stdlib.String.first (Stdlib.Uuid.toString commitId) 8L
+          Stdlib.printLine (Colors.success $"Created commit {shortId}")
+          state
+        | Error e ->
+          Stdlib.printLine (Colors.error $"Commit failed: {e}")
+          state
+      else
+        Stdlib.printLine "Commit cancelled."
+        state
+
+
+let complete (_state: AppState) (_args: List<String>) : List<Completion.CompletionItem> =
+  []
+
+
+let help (_state: AppState) : Unit =
+  [ "Usage: commit \"message\" [--yes|-y]"
+    "Commit all uncommitted (WIP) changes."
+    ""
+    "Arguments:"
+    "  message   Commit message describing the changes"
+    ""
+    "Flags:"
+    "  --yes, -y   Skip confirmation prompt" ]
+  |> Stdlib.printLines

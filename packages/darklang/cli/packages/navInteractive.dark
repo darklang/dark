@@ -29,8 +29,6 @@ type State =
     currentLocation: PackageLocation
     mode: Mode
     display: Display
-    accountID: Stdlib.Option.Option<Uuid>
-    branchID: Stdlib.Option.Option<Uuid>
     searchQuery: String
     allItems: List<NavItem> }
 
@@ -73,15 +71,11 @@ let buildNavItemsFromResults
 
 
 // Create interactive navigation state for a location
-let buildState
-  (accountID: Stdlib.Option.Option<Uuid>)
-  (branchID: Stdlib.Option.Option<Uuid>)
-  (location: PackageLocation)
-  : State =
+let buildState (location: PackageLocation) : State =
   let modulePath = modulePathOf location
 
   // Get all entities in this location
-  let results = Query.allDirectDescendants accountID branchID modulePath
+  let results = Query.allDirectDescendants modulePath
   let allItems = buildNavItemsFromResults results modulePath
 
   State
@@ -91,23 +85,17 @@ let buildState
       currentLocation = location
       mode = Mode.Nav
       display = Display.JustName
-      branchID = branchID
-      accountID = accountID
       searchQuery = ""
       allItems = allItems }
 
 // Truncated view for inline display to avoid flooding screen with large modules
-let viewEntityTruncated
-  (accountID: Stdlib.Option.Option<Uuid>)
-  (branchID: Stdlib.Option.Option<Uuid>)
-  (location: PackageLocation)
-  : Unit =
+let viewEntityTruncated (location: PackageLocation) : Unit =
   let maxItemsPerCategory = 3L
   let maxTotalLines = 12L
 
   match location with
   | Module path ->
-    let results = Query.allDirectDescendants accountID branchID path
+    let results = Query.allDirectDescendants path
     let locationStr = Packages.formatLocation location
     Stdlib.printLine locationStr
 
@@ -146,7 +134,7 @@ let viewEntityTruncated
 
   | _ ->
     // For individual entities, show full view since they're typically small
-    View.viewEntity navState.accountID navState.branchID location
+    View.viewEntity location
 
 // Display the interactive navigation interface
 let display (navState: State) : Unit =
@@ -221,7 +209,7 @@ let display (navState: State) : Unit =
       match Stdlib.List.getAt navState.items navState.selectedIndex with
       | Some selectedItem ->
         Stdlib.printLines [ ""; (Stdlib.String.repeat "─" 60L) ]
-        viewEntityTruncated navState.accountID navState.branchID selectedItem.location
+        viewEntityTruncated selectedItem.location
         Stdlib.printLines [ ""; (Stdlib.String.repeat "─" 60L) ]
       | None -> ()
   | JustName -> ()
@@ -311,8 +299,7 @@ let navigateIntoModule (state: Cli.AppState) (navState: State) : Cli.AppState =
       match selectedItem.entityType with
       | Module ->
         let newState = Nav.navTo state selectedItem.location
-        let accountID = state.accountID
-        let newNavState = buildState accountID state.currentBranchId selectedItem.location
+        let newNavState = buildState selectedItem.location
         { newState with currentPage = Page.InteractiveNav newNavState }
       | _ -> state
     | None -> state
@@ -320,10 +307,10 @@ let navigateIntoModule (state: Cli.AppState) (navState: State) : Cli.AppState =
     state
 
 let navigateToParent (state: Cli.AppState) (navState: State) : Cli.AppState =
-  match Traversal.applySegment navState.accountID navState.branchID navState.currentLocation Traversal.PathSegment.Up with
+  match Traversal.applySegment navState.currentLocation Traversal.PathSegment.Up with
   | Ok parentLocation ->
     let newState = Nav.navTo state parentLocation
-    let newNavState = buildState navState.accountID state.currentBranchId parentLocation
+    let newNavState = buildState parentLocation
     { newState with currentPage = Page.InteractiveNav newNavState }
   | Error _ -> state
 
@@ -353,7 +340,7 @@ let performSearch (navState: State) : State =
           entityTypes = []
           exactMatch = false }
 
-    let results = LanguageTools.PackageManager.Search.search navState.accountID navState.branchID query
+    let results = LanguageTools.PackageManager.Search.search query
 
     // Convert search results to NavItems with full paths
     let moduleItems =

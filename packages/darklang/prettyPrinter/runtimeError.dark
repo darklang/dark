@@ -63,9 +63,7 @@ module RuntimeError =
 
 
   let segmentsToString
-    (accountID: Stdlib.Option.Option<Uuid>)
-    (branchID: Stdlib.Option.Option<LanguageTools.ProgramTypes.BranchID>)
-    (segments: ErrorSegments)
+        (segments: ErrorSegments)
     : String =
     let reversed = Stdlib.List.reverse segments
 
@@ -81,10 +79,10 @@ module RuntimeError =
             let count = Stdlib.Int64.toString i
 
             if i == 1L then
-              let segment = segmentsToString accountID branchID [ singular ]
+              let segment = segmentsToString [ singular ]
               $"{count} {segment}"
             else
-              let segment = segmentsToString accountID branchID [ plural ]
+              let segment = segmentsToString [ plural ]
               $"{count} {segment}"
 
           | IndefiniteArticle ->
@@ -93,19 +91,19 @@ module RuntimeError =
             | None -> ""
             | Some prev -> Stdlib.String.articleFor prev ++ " "
 
-          | FunctionName fn -> fnName accountID branchID fn
+          | FunctionName fn -> fnName fn
 
           | Description d -> d
           | ParamName p -> $"`{p}`"
           | InlineParamName p -> p // Inline versions don't have quotes
-          | TypeName t -> typeName accountID branchID t
-          | ValueName v -> valueName accountID branchID v
+          | TypeName t -> typeName t
+          | ValueName v -> valueName v
           | ShortTypeName t ->
             // TODO: make it short
-            typeName accountID branchID t
-          | TypeReference t -> typeReference accountID branchID t
-          | TypeOfValue dv -> Dval.valueTypeName accountID branchID dv
-          | ValueType vt -> valueType accountID branchID vt
+            typeName t
+          | TypeReference t -> typeReference t
+          | TypeOfValue dv -> Dval.valueTypeName dv
+          | ValueType vt -> valueType vt
           | FieldName f -> $"`{f}`"
           | InlineFieldName f -> f
           | DBName db -> db
@@ -113,11 +111,11 @@ module RuntimeError =
           | InlineVarName v -> v
           | InlineValue dv ->
             // CLEANUP for strings that are cut off, the closing `"` is missing.
-            (dval accountID branchID dv)
+            (dval dv)
             |> Stdlib.String.ellipsis 10L
             |> Stdlib.String.splitOnNewline
             |> Stdlib.String.join ""
-          | FullValue dv -> dval accountID branchID dv
+          | FullValue dv -> dval dv
           | LetPattern p -> letPattern p
           | segment ->
             $"(RTETODO segmentsToString parts {(Builtin.jsonSerialize<ErrorSegment> segment)})"
@@ -491,19 +489,15 @@ module RuntimeError =
 
 
   let toString
-    (accountID: Stdlib.Option.Option<Uuid>)
-    (branchID: Stdlib.Option.Option<LanguageTools.ProgramTypes.BranchID>)
-    (e: LanguageTools.RuntimeTypes.RuntimeError.Error)
+        (e: LanguageTools.RuntimeTypes.RuntimeError.Error)
     : String =
     let s = e |> toSegments
-    segmentsToString accountID branchID s
+    segmentsToString s
 
 
   type ErrorMessage = ErrorString of String
 
   let toErrorMessage
-    (accountID: Stdlib.Option.Option<Uuid>)
-    (branchID: Stdlib.Option.Option<LanguageTools.ProgramTypes.BranchID>)
-    (e: LanguageTools.RuntimeTypes.RuntimeError.Error)
+        (e: LanguageTools.RuntimeTypes.RuntimeError.Error)
     : ErrorMessage =
-    ErrorMessage.ErrorString(toString accountID branchID e)
+    ErrorMessage.ErrorString(toString e)

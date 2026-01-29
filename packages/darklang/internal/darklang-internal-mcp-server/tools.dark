@@ -8,15 +8,10 @@ let executeDarklang () : ModelContextProtocol.ServerBuilder.Tool =
     description = "Execute Darklang code and return the result"
     handler =
       fun code ->
-        // Note: Using None for branchID means we search main branch only.
-        // MCP server has no CLI session context, so no branch selection.
-        // TODO: Consider adding branch parameter to MCP protocol if needed.
-        match Builtin.cliEvaluateExpression Stdlib.Option.Option.None code with
+        match Builtin.cliEvaluateExpression code with
         | Ok result -> $"Result: {result}"
         | Error err ->
-            let branchID = Stdlib.Option.Option.None
-            let accountID = Stdlib.Option.Option.None
-            let prettyError = PrettyPrinter.RuntimeTypes.RuntimeError.toString accountID branchID err
+            let prettyError = PrettyPrinter.RuntimeTypes.RuntimeError.toString err
             $"Error: {prettyError}"
   }
 

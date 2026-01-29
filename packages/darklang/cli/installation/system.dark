@@ -80,7 +80,8 @@ let globalInstallationExists (host: Stdlib.Cli.Host.Host) : Bool =
 
 
 /// Install CLI by copying the current binary (for development/testing)
-let installFromCurrentBinary (host: Stdlib.Cli.Host.Host) : Stdlib.Result.Result<String, String> =
+/// If autoConfirm is true, skips prompts and uses fresh database
+let installFromCurrentBinary (host: Stdlib.Cli.Host.Host) (autoConfirm: Bool) : Stdlib.Result.Result<String, String> =
   let currentBinaryPath = Builtin.getCurrentExecutablePath ()
   let currentDir = Builtin.directoryCurrent ()
   let portableDbPath = $"{currentDir}/.darklang/data.db"
@@ -143,9 +144,13 @@ let installFromCurrentBinary (host: Stdlib.Cli.Host.Host) : Stdlib.Result.Result
 
     match setupResult with
     | Ok _ ->
-      // Ask about data migration
-      Stdlib.printLine "Would you like to copy the data from this portable directory to the installation, or start fresh? (copy/fresh, default: fresh): "
-      let migrateChoice = (Builtin.stdinReadLine ()) |> Stdlib.String.trim
+      // Ask about data migration (skip if autoConfirm, default to fresh)
+      let migrateChoice =
+        if autoConfirm then
+          "fresh"
+        else
+          Stdlib.printLine "Would you like to copy the data from this portable directory to the installation, or start fresh? (copy/fresh, default: fresh): "
+          (Builtin.stdinReadLine ()) |> Stdlib.String.trim
 
       if migrateChoice == "copy" then
         if Stdlib.Cli.Unix.fileExists portableDbPath || Stdlib.Cli.PowerShell.fileExists portableDbPath then
@@ -161,16 +166,21 @@ let installFromCurrentBinary (host: Stdlib.Cli.Host.Host) : Stdlib.Result.Result
 
 
 /// Install CLI with option to migrate existing portable data
-let install (host: Stdlib.Cli.Host.Host) : Stdlib.Result.Result<String, String> =
+/// If autoConfirm is true, skips prompts and uses fresh database
+let install (host: Stdlib.Cli.Host.Host) (autoConfirm: Bool) : Stdlib.Result.Result<String, String> =
   let currentDir = Builtin.directoryCurrent ()
   let portableDbPath = $"{currentDir}/.darklang/data.db"
 
-  Stdlib.printLine "Found existing portable installation with data."
-  Stdlib.printLine "Installation options:"
-  Stdlib.printLine "1. Fresh install (start with clean database)"
-  Stdlib.printLine "2. Migrate current data to global installation"
-  Stdlib.printLine "Choose option (1 or 2, default: 1): "
-  let choice = (Builtin.stdinReadLine ()) |> Stdlib.String.trim
+  let choice =
+    if autoConfirm then
+      "1"
+    else
+      Stdlib.printLine "Found existing portable installation with data."
+      Stdlib.printLine "Installation options:"
+      Stdlib.printLine "1. Fresh install (start with clean database)"
+      Stdlib.printLine "2. Migrate current data to global installation"
+      Stdlib.printLine "Choose option (1 or 2, default: 1): "
+      (Builtin.stdinReadLine ()) |> Stdlib.String.trim
 
   match Download.installOrUpdateLatestRelease host with
   | Ok _ ->
@@ -185,15 +195,20 @@ let install (host: Stdlib.Cli.Host.Host) : Stdlib.Result.Result<String, String> 
 
 
 /// Update the CLI if a newer version is available
-let updateIfAvailable (currentVersion: String) (host: Stdlib.Cli.Host.Host) : Stdlib.Result.Result<String, String> =
+/// If autoConfirm is true, skips prompts and auto-accepts update
+let updateIfAvailable (currentVersion: String) (host: Stdlib.Cli.Host.Host) (autoConfirm: Bool) : Stdlib.Result.Result<String, String> =
   match Darklang.GitHub.Releases.getLatestReleaseTag () with
   | Ok latestVersion ->
     // Handle local-binary specially
     if currentVersion == "local-binary" then
-      Stdlib.printLine "You're currently running a locally-installed binary (from development)."
-      Stdlib.printLine $"Latest official release is {latestVersion}."
-      Stdlib.printLine "Update to the official release? (y/n): "
-      let choice = (Builtin.stdinReadLine ()) |> Stdlib.String.trim
+      let choice =
+        if autoConfirm then
+          "y"
+        else
+          Stdlib.printLine "You're currently running a locally-installed binary (from development)."
+          Stdlib.printLine $"Latest official release is {latestVersion}."
+          Stdlib.printLine "Update to the official release? (y/n): "
+          (Builtin.stdinReadLine ()) |> Stdlib.String.trim
 
       if choice == "y" || choice == "Y" then
         match Download.installOrUpdateLatestRelease host with
@@ -215,9 +230,14 @@ let updateIfAvailable (currentVersion: String) (host: Stdlib.Cli.Host.Host) : St
 
 
 /// Uninstall the CLI with user confirmation
-let uninstallWithConfirmation (host: Stdlib.Cli.Host.Host) : Stdlib.Result.Result<String, String> =
-  Stdlib.printLine "Are you sure you want to uninstall the CLI? (y/n): "
-  let response = Builtin.stdinReadLine ()
+/// If autoConfirm is true, skips confirmation prompt
+let uninstallWithConfirmation (host: Stdlib.Cli.Host.Host) (autoConfirm: Bool) : Stdlib.Result.Result<String, String> =
+  let response =
+    if autoConfirm then
+      "y"
+    else
+      Stdlib.printLine "Are you sure you want to uninstall the CLI? (y/n): "
+      Builtin.stdinReadLine ()
 
   if response == "y" || response == "Y" then
     Stdlib.printLine "Uninstalling..."

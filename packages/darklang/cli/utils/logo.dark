@@ -62,11 +62,8 @@ let combineLogoAndText (logoStr: String) (textLines: List<String>) (color: Strin
         // Add color to non-empty lines
         color ++ paddedLine ++ Colors.reset)
 
-  // Split the text lines by newlines
-  let textLinesList =
-    textLines
-    |> Stdlib.List.map (fun line -> Stdlib.String.split line "\n")
-    |> Stdlib.List.flatten
+  // Text lines are already a list - use directly
+  let textLinesList = textLines
 
   let logoHeight = Stdlib.List.length paddedLogoLines
   let textHeight = Stdlib.List.length textLinesList

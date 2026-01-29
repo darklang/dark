@@ -60,7 +60,6 @@ let main (args : string array) : int =
         Tests.BinarySerialization.tests
         Tests.VanillaSerialization.tests
         Tests.DarkTypesSerialization.tests
-        Tests.Approvals.tests
 
         // cross-cutting
         Tests.LibExecution.tests.Force() ]

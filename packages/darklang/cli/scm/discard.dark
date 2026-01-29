@@ -1,0 +1,80 @@
+module Darklang.Cli.SCM.Discard
+
+
+let execute (state: AppState) (args: List<String>) : AppState =
+  let autoConfirm =
+    (Stdlib.List.member_v0 args "--yes") || (Stdlib.List.member_v0 args "-y")
+
+  let summary = SCM.PackageOps.getWipSummary ()
+
+  let total =
+    match Stdlib.Dict.get summary "total" with
+    | Some t -> t
+    | None -> 0L
+
+  if total == 0L then
+    Stdlib.printLine "Nothing to discard."
+    state
+  else
+    let types =
+      match Stdlib.Dict.get summary "types" with
+      | Some t -> t
+      | None -> 0L
+
+    let values =
+      match Stdlib.Dict.get summary "values" with
+      | Some v -> v
+      | None -> 0L
+
+    let fns =
+      match Stdlib.Dict.get summary "fns" with
+      | Some f -> f
+      | None -> 0L
+
+    Stdlib.printLine "Will discard:"
+
+    if types > 0L then
+      Stdlib.printLine $"  {Builtin.int64ToString types} type(s)"
+
+    if values > 0L then
+      Stdlib.printLine $"  {Builtin.int64ToString values} value(s)"
+
+    if fns > 0L then
+      Stdlib.printLine $"  {Builtin.int64ToString fns} function(s)"
+
+    Stdlib.printLine ""
+
+    let proceed =
+      if autoConfirm then
+        true
+      else
+        Stdlib.printLine (Colors.warning "This cannot be undone. Proceed? (y/n): ")
+        let response = Builtin.stdinReadLine ()
+        (response == "y") || (response == "Y")
+
+    if proceed then
+      match SCM.PackageOps.discard () with
+      | Ok count ->
+        Stdlib.printLine (Colors.success $"Discarded {Builtin.int64ToString count} ops.")
+        state
+      | Error e ->
+        Stdlib.printLine (Colors.error $"Discard failed: {e}")
+        state
+    else
+      Stdlib.printLine "Discard cancelled."
+      state
+
+
+let complete (_state: AppState) (_args: List<String>) : List<Completion.CompletionItem> =
+  []
+
+
+let help (_state: AppState) : Unit =
+  [ "Usage: discard [--yes|-y]"
+    "Discard all uncommitted (WIP) changes."
+    ""
+    "This permanently deletes all uncommitted changes. Use with caution."
+    ""
+    "Flags:"
+    "  --yes, -y   Skip confirmation prompt" ]
+  |> Stdlib.printLines

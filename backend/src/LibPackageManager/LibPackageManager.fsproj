@@ -19,18 +19,13 @@
     <ProjectReference Include="../LibDB/LibDB.fsproj" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="Accounts.fs" />
     <Compile Include="Caching.fs" />
     <Compile Include="Purge.fs" />
     <Compile Include="DependencyExtractor.fs" />
     <Compile Include="PackageOpPlayback.fs" />
     <Compile Include="Inserts.fs" />
-    <Compile Include="Approvals.fs" />
     <Compile Include="Queries.fs" />
     <Compile Include="Stats.fs" />
-    <Compile Include="Instances.fs" />
-    <Compile Include="Sync.fs" />
-    <Compile Include="Branches.fs" />
     <Compile Include="ProgramTypes.fs" />
     <Compile Include="RuntimeTypes.fs" />
     <Compile Include="PackageManager.fs" />

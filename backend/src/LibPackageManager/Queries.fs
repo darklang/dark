@@ -5,7 +5,6 @@ open FSharp.Control.Tasks
 
 open Prelude
 
-open Microsoft.Data.Sqlite
 open Fumble
 open LibDB.Db
 
@@ -14,48 +13,7 @@ module BinarySerialization = LibBinarySerialization.BinarySerialization
 
 
 /// Get recent package ops from the database
-let getRecentOps
-  (branchID : Option<PT.BranchID>)
-  (limit : int64)
-  : Task<List<PT.PackageOp>> =
-  task {
-    match branchID with
-    | Some id ->
-      // Query specific branch only
-      return!
-        Sql.query
-          """
-          SELECT id, op_blob
-          FROM package_ops
-          WHERE branch_id = @branch_id
-          ORDER BY created_at DESC
-          LIMIT @limit
-          """
-        |> Sql.parameters [ "branch_id", Sql.uuid id; "limit", Sql.int64 limit ]
-        |> Sql.executeAsync (fun read ->
-          let opId = read.uuid "id"
-          let opBlob = read.bytes "op_blob"
-          BinarySerialization.PT.PackageOp.deserialize opId opBlob)
-    | None ->
-      return!
-        Sql.query
-          """
-          SELECT id, op_blob
-          FROM package_ops
-          WHERE branch_id IS NULL
-          ORDER BY created_at DESC
-          LIMIT @limit
-          """
-        |> Sql.parameters [ "limit", Sql.int64 limit ]
-        |> Sql.executeAsync (fun read ->
-          let opId = read.uuid "id"
-          let opBlob = read.bytes "op_blob"
-          BinarySerialization.PT.PackageOp.deserialize opId opBlob)
-  }
-
-
-/// Get recent package ops from ALL branches (no branch filter)
-let getRecentOpsAllBranches (limit : int64) : Task<List<PT.PackageOp>> =
+let getRecentOps (limit : int64) : Task<List<PT.PackageOp>> =
   task {
     return!
       Sql.query
@@ -73,60 +31,28 @@ let getRecentOpsAllBranches (limit : int64) : Task<List<PT.PackageOp>> =
   }
 
 
-/// Get all package ops (from ALL branches) created since the specified datetime
-/// Returns ops with their branch IDs for multi-branch sync
-///
-/// targetInstanceID: Optional target instance ID to filter results for:
-///   - None: Return all ops
-///   - Some(uuid): Exclude ops where instance_id = uuid (used when pushing to target to avoid sending ops back to their source)
+/// Get all package ops created since the specified datetime
 let getAllOpsSince
-  (targetInstanceID : Option<PT.InstanceID>)
   (since : LibExecution.DarkDateTime.T)
-  : Task<List<PT.PackageOp * Option<PT.BranchID> * Option<PT.InstanceID>>> =
+  : Task<List<PT.PackageOp * bool>> =
   task {
     let sinceStr = LibExecution.DarkDateTime.toIsoString since
 
-    match targetInstanceID with
-    | Some targetID ->
-      return!
-        Sql.query
-          """
-          SELECT id, op_blob, branch_id, instance_id
-          FROM package_ops
-          WHERE datetime(created_at) > datetime(@since)
-            AND (instance_id IS NULL OR instance_id != @target_instance_id)
-          ORDER BY
-            CASE WHEN branch_id IS NULL THEN 0 ELSE 1 END,
-            created_at ASC
-          """
-        |> Sql.parameters
-          [ "since", Sql.string sinceStr; "target_instance_id", Sql.uuid targetID ]
-        |> Sql.executeAsync (fun read ->
-          let opId = read.uuid "id"
-          let opBlob = read.bytes "op_blob"
-          let branchID = read.uuidOrNone "branch_id"
-          let instanceID = read.uuidOrNone "instance_id"
-          let op = BinarySerialization.PT.PackageOp.deserialize opId opBlob
-          (op, branchID, instanceID))
-    | None ->
-      return!
-        Sql.query
-          """
-          SELECT id, op_blob, branch_id, instance_id
-          FROM package_ops
-          WHERE datetime(created_at) > datetime(@since)
-          ORDER BY
-            CASE WHEN branch_id IS NULL THEN 0 ELSE 1 END,
-            created_at ASC
-          """
-        |> Sql.parameters [ "since", Sql.string sinceStr ]
-        |> Sql.executeAsync (fun read ->
-          let opId = read.uuid "id"
-          let opBlob = read.bytes "op_blob"
-          let branchID = read.uuidOrNone "branch_id"
-          let instanceID = read.uuidOrNone "instance_id"
-          let op = BinarySerialization.PT.PackageOp.deserialize opId opBlob
-          (op, branchID, instanceID))
+    return!
+      Sql.query
+        """
+        SELECT id, op_blob, is_wip
+        FROM package_ops
+        WHERE datetime(created_at) > datetime(@since)
+        ORDER BY created_at ASC
+        """
+      |> Sql.parameters [ "since", Sql.string sinceStr ]
+      |> Sql.executeAsync (fun read ->
+        let opId = read.uuid "id"
+        let opBlob = read.bytes "op_blob"
+        let isWip = read.int "is_wip" = 1
+        let op = BinarySerialization.PT.PackageOp.deserialize opId opBlob
+        (op, isWip))
   }
 
 
@@ -137,12 +63,7 @@ type PackageDep = { itemId : uuid; kind : string } // "fn", "type", "value"
 
 
 /// Get items that depend on the given UUID (reverse dependencies / "what uses this?")
-/// Filters by visibility: approved items + caller's own pending items.
-let getDependents
-  (accountID : Option<uuid>)
-  (branchID : Option<uuid>)
-  (dependsOnId : uuid)
-  : Task<List<PackageDep>> =
+let getDependents (dependsOnId : uuid) : Task<List<PackageDep>> =
   task {
     return!
       Sql.query
@@ -152,27 +73,15 @@ let getDependents
         INNER JOIN locations l ON pd.item_id = l.item_id
         WHERE pd.depends_on_id = @depends_on_id
           AND l.deprecated_at IS NULL
-          AND (l.approval_status = 'approved' OR l.created_by = @account_id)
-          AND (l.branch_id IS NULL OR l.branch_id = @branch_id)
         ORDER BY pd.item_id
         """
-      |> Sql.parameters
-        [ "depends_on_id", Sql.uuid dependsOnId
-          "account_id",
-          (match accountID with
-           | Some id -> Sql.uuid id
-           | None -> Sql.dbnull)
-          "branch_id",
-          (match branchID with
-           | Some id -> Sql.uuid id
-           | None -> Sql.dbnull) ]
+      |> Sql.parameters [ "depends_on_id", Sql.uuid dependsOnId ]
       |> Sql.executeAsync (fun read ->
         { itemId = read.uuid "item_id"; kind = read.string "item_type" })
   }
 
 
 /// Get UUIDs that the given item depends on (forward dependencies / "what does this use?" / uses)
-/// For forward deps, we don't filter by account - you can depend on anyone's code.
 let getDependencies (itemId : uuid) : Task<List<PackageDep>> =
   task {
     return!
@@ -200,8 +109,6 @@ type BatchDependent =
 
 /// Batch lookup of dependents for a chunk of dependency IDs
 let private getDependentsBatchChunk
-  (accountID : Option<uuid>)
-  (branchID : Option<uuid>)
   (dependsOnIds : List<uuid>)
   : Task<List<BatchDependent>> =
   task {
@@ -221,26 +128,12 @@ let private getDependentsBatchChunk
           INNER JOIN locations l ON pd.item_id = l.item_id
           WHERE pd.depends_on_id IN ({inClause})
             AND l.deprecated_at IS NULL
-            AND (l.approval_status = 'approved' OR l.created_by = @account_id)
-            AND (l.branch_id IS NULL OR l.branch_id = @branch_id)
           ORDER BY pd.depends_on_id, pd.item_id
           """
 
-      let accountParam =
-        match accountID with
-        | Some id -> Sql.uuid id
-        | None -> Sql.dbnull
-
-      let branchParam =
-        match branchID with
-        | Some id -> Sql.uuid id
-        | None -> Sql.dbnull
-
       return!
         Sql.query sql
-        |> Sql.parameters (
-          depParams @ [ "account_id", accountParam; "branch_id", branchParam ]
-        )
+        |> Sql.parameters depParams
         |> Sql.executeAsync (fun read ->
           { dependsOnId = read.uuid "depends_on_id"
             itemId = read.uuid "item_id"
@@ -249,13 +142,8 @@ let private getDependentsBatchChunk
 
 
 /// Batch lookup of dependents for multiple dependency IDs.
-/// Filters by visibility: approved items + caller's own pending items.
 /// Chunks requests to avoid SQLite expression tree depth limits.
-let getDependentsBatch
-  (accountID : Option<uuid>)
-  (branchID : Option<uuid>)
-  (dependsOnIds : List<uuid>)
-  : Task<List<BatchDependent>> =
+let getDependentsBatch (dependsOnIds : List<uuid>) : Task<List<BatchDependent>> =
   task {
     if List.isEmpty dependsOnIds then
       return []
@@ -264,10 +152,7 @@ let getDependentsBatch
       // Chunk into batches of 100 to stay well under the limit
       let chunks = dependsOnIds |> List.chunkBySize 100
 
-      let! results =
-        chunks
-        |> List.map (getDependentsBatchChunk accountID branchID)
-        |> Task.flatten
+      let! results = chunks |> List.map getDependentsBatchChunk |> Task.flatten
 
       return results |> List.concat
   }
@@ -284,8 +169,6 @@ type LocationInfo =
 
 /// Batch lookup of locations for a chunk of item IDs
 let private resolveLocationsBatchChunk
-  (accountID : Option<uuid>)
-  (branchID : Option<uuid>)
   (itemIds : List<uuid>)
   : Task<List<LocationInfo>> =
   task {
@@ -303,20 +186,8 @@ let private resolveLocationsBatchChunk
           FROM locations
           WHERE item_id IN ({inClause})
             AND deprecated_at IS NULL
-            AND (approval_status = 'approved' OR created_by = @accountID)
-            AND (branch_id IS NULL OR branch_id = @branch_id)
           """
-        |> Sql.parameters (
-          itemParams
-          @ [ "branch_id",
-              (match branchID with
-               | Some id -> Sql.uuid id
-               | None -> Sql.dbnull)
-              "accountID",
-              (match accountID with
-               | Some id -> Sql.uuid id
-               | None -> Sql.dbnull) ]
-        )
+        |> Sql.parameters itemParams
         |> Sql.executeAsync (fun read ->
           { itemId = read.uuid "item_id"
             itemType = read.string "item_type"
@@ -327,12 +198,8 @@ let private resolveLocationsBatchChunk
 
 
 /// Resolve UUIDs to location info (owner, modules, name).
-/// Returns locations for all items found, filtering by accountID/branchID visibility.
-let resolveLocations
-  (accountID : Option<uuid>)
-  (branchID : Option<uuid>)
-  (itemIds : List<uuid>)
-  : Task<List<LocationInfo>> =
+/// Returns locations for all items found.
+let resolveLocations (itemIds : List<uuid>) : Task<List<LocationInfo>> =
   task {
     if List.isEmpty itemIds then
       return []
@@ -340,10 +207,127 @@ let resolveLocations
       // SQLite has a limit on IN clause (~1000 params)
       let chunks = itemIds |> List.chunkBySize 500
 
-      let! results =
-        chunks
-        |> List.map (resolveLocationsBatchChunk accountID branchID)
-        |> Task.flatten
+      let! results = chunks |> List.map resolveLocationsBatchChunk |> Task.flatten
 
       return results |> List.concat
+  }
+
+
+// ===========================================
+// SCM Queries
+// ===========================================
+
+/// Get all WIP ops (commit_id IS NULL)
+let getWipOps () : Task<List<PT.PackageOp>> =
+  task {
+    return!
+      Sql.query
+        """
+        SELECT id, op_blob
+        FROM package_ops
+        WHERE commit_id IS NULL
+        ORDER BY created_at ASC
+        """
+      |> Sql.executeAsync (fun read ->
+        let opId = read.uuid "id"
+        let opBlob = read.bytes "op_blob"
+        BinarySerialization.PT.PackageOp.deserialize opId opBlob)
+  }
+
+
+/// Summary of WIP changes
+type WipSummary =
+  { types : int64; values : int64; fns : int64; renames : int64; total : int64 }
+
+
+/// Get summary of WIP ops by type
+let getWipSummary () : Task<WipSummary> =
+  task {
+    let! ops = getWipOps ()
+
+    let types =
+      ops
+      |> List.filter (function
+        | PT.PackageOp.AddType _ -> true
+        | _ -> false)
+      |> List.length
+      |> int64
+
+    let values =
+      ops
+      |> List.filter (function
+        | PT.PackageOp.AddValue _ -> true
+        | _ -> false)
+      |> List.length
+      |> int64
+
+    let fns =
+      ops
+      |> List.filter (function
+        | PT.PackageOp.AddFn _ -> true
+        | _ -> false)
+      |> List.length
+      |> int64
+
+    let renames =
+      ops
+      |> List.filter (function
+        | PT.PackageOp.SetTypeName _
+        | PT.PackageOp.SetValueName _
+        | PT.PackageOp.SetFnName _ -> true
+        | _ -> false)
+      |> List.length
+      |> int64
+
+    return
+      { types = types
+        values = values
+        fns = fns
+        renames = renames
+        total = types + values + fns }
+  }
+
+
+/// A commit record
+type Commit =
+  { id : uuid; message : string; createdAt : NodaTime.Instant; opCount : int64 }
+
+
+/// Get commits ordered by date descending
+let getCommits (limit : int64) : Task<List<Commit>> =
+  task {
+    return!
+      Sql.query
+        """
+        SELECT c.id, c.message, c.created_at,
+               (SELECT COUNT(*) FROM package_ops WHERE commit_id = c.id) as op_count
+        FROM commits c
+        ORDER BY c.created_at DESC
+        LIMIT @limit
+        """
+      |> Sql.parameters [ "limit", Sql.int64 limit ]
+      |> Sql.executeAsync (fun read ->
+        { id = read.uuid "id"
+          message = read.string "message"
+          createdAt = read.instant "created_at"
+          opCount = read.int64 "op_count" })
+  }
+
+
+/// Get ops for a specific commit
+let getCommitOps (commitId : uuid) : Task<List<PT.PackageOp>> =
+  task {
+    return!
+      Sql.query
+        """
+        SELECT id, op_blob
+        FROM package_ops
+        WHERE commit_id = @commit_id
+        ORDER BY created_at ASC
+        """
+      |> Sql.parameters [ "commit_id", Sql.uuid commitId ]
+      |> Sql.executeAsync (fun read ->
+        let opId = read.uuid "id"
+        let opBlob = read.bytes "op_blob"
+        BinarySerialization.PT.PackageOp.deserialize opId opBlob)
   }

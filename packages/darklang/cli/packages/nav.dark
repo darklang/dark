@@ -21,12 +21,11 @@ let navTo (state: AppState) (location: PackageLocation): AppState =
 
 
 let execute (state: AppState) (args: List<String>) : AppState =
-  let accountID = state.accountID
   match args with
   | [] ->
     // Enter interactive navigation mode
     NavInteractive.enterAlternateScreen ()
-    let navState = NavInteractive.buildState accountID state.currentBranchId state.packageData.currentLocation
+    let navState = NavInteractive.buildState state.packageData.currentLocation
     { state with
         currentPage = Page.InteractiveNav navState
         needsFullRedraw = true
@@ -34,7 +33,7 @@ let execute (state: AppState) (args: List<String>) : AppState =
 
   | [pathArg] ->
     // Use traverse to handle the path navigation
-    match Traversal.traverse accountID state.currentBranchId state.packageData.currentLocation pathArg with
+    match Traversal.traverse state.packageData.currentLocation pathArg with
     | Error errorMsg ->
       // Navigation failed - show error and don't change location
       Stdlib.printLine (Colors.error $"Navigation failed: {errorMsg}")
@@ -49,13 +48,12 @@ let execute (state: AppState) (args: List<String>) : AppState =
 
 
 let complete (state: AppState) (args: List<String>) : List<Completion.CompletionItem> =
-  let accountID = state.accountID
   match args with
   | [] ->
     // No args - complete from current location
-    Traversal.completePartialPath accountID state.currentBranchId state.packageData.currentLocation ""
+    Traversal.completePartialPath state.packageData.currentLocation ""
   | [partialPath] ->
-    Traversal.completePartialPath accountID state.currentBranchId state.packageData.currentLocation partialPath
+    Traversal.completePartialPath state.packageData.currentLocation partialPath
   | _ ->
     // Too many arguments
     []

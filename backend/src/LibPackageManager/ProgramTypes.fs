@@ -2,11 +2,9 @@ module LibPackageManager.ProgramTypes
 
 open System.Threading.Tasks
 open FSharp.Control.Tasks
-open System.Collections.Concurrent
 
 open Prelude
 
-open Microsoft.Data.Sqlite
 open Fumble
 open LibDB.Db
 
@@ -15,10 +13,7 @@ module BinarySerialization = LibBinarySerialization.BinarySerialization
 
 
 module Type =
-  let find
-    ((accountID, branchID, location) :
-      Option<PT.AccountID> * Option<PT.BranchID> * PT.PackageLocation)
-    : Ply<Option<PT.FQTypeName.Package>> =
+  let find (location : PT.PackageLocation) : Ply<Option<PT.FQTypeName.Package>> =
     uply {
       let modulesStr = String.concat "." location.modules
 
@@ -32,23 +27,13 @@ module Type =
             AND name = @name
             AND item_type = 'type'
             AND deprecated_at IS NULL
-            AND (approval_status = 'approved' OR (@accountID IS NOT NULL AND created_by = @accountID))
-            AND (branch_id IS NULL OR branch_id = @branch_id)
           ORDER BY created_at DESC
           LIMIT 1
           """
         |> Sql.parameters
           [ "owner", Sql.string location.owner
             "modules", Sql.string modulesStr
-            "name", Sql.string location.name
-            "branch_id",
-            (match branchID with
-             | Some id -> Sql.uuid id
-             | None -> Sql.dbnull)
-            "accountID",
-            (match accountID with
-             | Some id -> Sql.uuid id
-             | None -> Sql.dbnull) ]
+            "name", Sql.string location.name ]
         |> Sql.executeRowOptionAsync (fun read -> read.uuid "item_id")
     }
 
@@ -66,9 +51,7 @@ module Type =
         |> Task.map (Option.map (BinarySerialization.PT.PackageType.deserialize id))
     }
 
-  let getLocation
-    ((accountID, branchID, id) : Option<PT.AccountID> * Option<PT.BranchID> * uuid)
-    : Ply<Option<PT.PackageLocation>> =
+  let getLocation (id : uuid) : Ply<Option<PT.PackageLocation>> =
     uply {
       return!
         Sql.query
@@ -78,21 +61,10 @@ module Type =
           WHERE item_id = @item_id
             AND item_type = 'type'
             AND deprecated_at IS NULL
-            AND (approval_status = 'approved' OR (@accountID IS NOT NULL AND created_by = @accountID))
-            AND (branch_id IS NULL OR branch_id = @branch_id)
           ORDER BY created_at DESC
           LIMIT 1
           """
-        |> Sql.parameters
-          [ "item_id", Sql.uuid id
-            "branch_id",
-            (match branchID with
-             | Some id -> Sql.uuid id
-             | None -> Sql.dbnull)
-            "accountID",
-            (match accountID with
-             | Some id -> Sql.uuid id
-             | None -> Sql.dbnull) ]
+        |> Sql.parameters [ "item_id", Sql.uuid id ]
         |> Sql.executeRowOptionAsync (fun read ->
           let modulesStr = read.string "modules"
           { owner = read.string "owner"
@@ -102,10 +74,7 @@ module Type =
 
 
 module Value =
-  let find
-    ((accountID, branchID, location) :
-      Option<PT.AccountID> * Option<PT.BranchID> * PT.PackageLocation)
-    : Ply<Option<PT.FQValueName.Package>> =
+  let find (location : PT.PackageLocation) : Ply<Option<PT.FQValueName.Package>> =
     uply {
       let modulesStr = String.concat "." location.modules
 
@@ -119,23 +88,13 @@ module Value =
             AND name = @name
             AND item_type = 'value'
             AND deprecated_at IS NULL
-            AND (approval_status = 'approved' OR (@accountID IS NOT NULL AND created_by = @accountID))
-            AND (branch_id IS NULL OR branch_id = @branch_id)
           ORDER BY created_at DESC
           LIMIT 1
           """
         |> Sql.parameters
           [ "owner", Sql.string location.owner
             "modules", Sql.string modulesStr
-            "name", Sql.string location.name
-            "branch_id",
-            (match branchID with
-             | Some id -> Sql.uuid id
-             | None -> Sql.dbnull)
-            "accountID",
-            (match accountID with
-             | Some id -> Sql.uuid id
-             | None -> Sql.dbnull) ]
+            "name", Sql.string location.name ]
         |> Sql.executeRowOptionAsync (fun read -> read.uuid "item_id")
     }
 
@@ -153,9 +112,7 @@ module Value =
         |> Task.map (Option.map (BinarySerialization.PT.PackageValue.deserialize id))
     }
 
-  let getLocation
-    ((accountID, branchID, id) : Option<PT.AccountID> * Option<PT.BranchID> * uuid)
-    : Ply<Option<PT.PackageLocation>> =
+  let getLocation (id : uuid) : Ply<Option<PT.PackageLocation>> =
     uply {
       return!
         Sql.query
@@ -165,21 +122,10 @@ module Value =
           WHERE item_id = @item_id
             AND item_type = 'value'
             AND deprecated_at IS NULL
-            AND (approval_status = 'approved' OR (@accountID IS NOT NULL AND created_by = @accountID))
-            AND (branch_id IS NULL OR branch_id = @branch_id)
           ORDER BY created_at DESC
           LIMIT 1
           """
-        |> Sql.parameters
-          [ "item_id", Sql.uuid id
-            "branch_id",
-            (match branchID with
-             | Some id -> Sql.uuid id
-             | None -> Sql.dbnull)
-            "accountID",
-            (match accountID with
-             | Some id -> Sql.uuid id
-             | None -> Sql.dbnull) ]
+        |> Sql.parameters [ "item_id", Sql.uuid id ]
         |> Sql.executeRowOptionAsync (fun read ->
           let modulesStr = read.string "modules"
           { owner = read.string "owner"
@@ -189,10 +135,7 @@ module Value =
 
 
 module Fn =
-  let find
-    ((accountID, branchID, location) :
-      Option<PT.AccountID> * Option<PT.BranchID> * PT.PackageLocation)
-    : Ply<Option<PT.FQFnName.Package>> =
+  let find (location : PT.PackageLocation) : Ply<Option<PT.FQFnName.Package>> =
     uply {
       let modulesStr = String.concat "." location.modules
 
@@ -206,23 +149,13 @@ module Fn =
             AND name = @name
             AND item_type = 'fn'
             AND deprecated_at IS NULL
-            AND (approval_status = 'approved' OR (@accountID IS NOT NULL AND created_by = @accountID))
-            AND (branch_id IS NULL OR branch_id = @branch_id)
           ORDER BY created_at DESC
           LIMIT 1
           """
         |> Sql.parameters
           [ "owner", Sql.string location.owner
             "modules", Sql.string modulesStr
-            "name", Sql.string location.name
-            "branch_id",
-            (match branchID with
-             | Some id -> Sql.uuid id
-             | None -> Sql.dbnull)
-            "accountID",
-            (match accountID with
-             | Some id -> Sql.uuid id
-             | None -> Sql.dbnull) ]
+            "name", Sql.string location.name ]
         |> Sql.executeRowOptionAsync (fun read -> read.uuid "item_id")
     }
 
@@ -240,9 +173,7 @@ module Fn =
         |> Task.map (Option.map (BinarySerialization.PT.PackageFn.deserialize id))
     }
 
-  let getLocation
-    ((accountID, branchID, id) : Option<PT.AccountID> * Option<PT.BranchID> * uuid)
-    : Ply<Option<PT.PackageLocation>> =
+  let getLocation (id : uuid) : Ply<Option<PT.PackageLocation>> =
     uply {
       return!
         Sql.query
@@ -252,21 +183,10 @@ module Fn =
           WHERE item_id = @item_id
             AND item_type = 'fn'
             AND deprecated_at IS NULL
-            AND (approval_status = 'approved' OR (@accountID IS NOT NULL AND created_by = @accountID))
-            AND (branch_id IS NULL OR branch_id = @branch_id)
           ORDER BY created_at DESC
           LIMIT 1
           """
-        |> Sql.parameters
-          [ "item_id", Sql.uuid id
-            "branch_id",
-            (match branchID with
-             | Some id -> Sql.uuid id
-             | None -> Sql.dbnull)
-            "accountID",
-            (match accountID with
-             | Some id -> Sql.uuid id
-             | None -> Sql.dbnull) ]
+        |> Sql.parameters [ "item_id", Sql.uuid id ]
         |> Sql.executeRowOptionAsync (fun read ->
           let modulesStr = read.string "modules"
           { owner = read.string "owner"
@@ -275,11 +195,7 @@ module Fn =
     }
 
 
-
-let search
-  ((accountID, branchID, query) :
-    Option<PT.AccountID> * Option<PT.BranchID> * PT.Search.SearchQuery)
-  : Ply<PT.Search.SearchResults> =
+let search (query : PT.Search.SearchQuery) : Ply<PT.Search.SearchResults> =
   uply {
     let currentModule = String.concat "." query.currentModule
 
@@ -345,54 +261,14 @@ let search
                "directChildPattern", Sql.string directChildPattern
                "searchText", Sql.string query.text ])
 
-      // When searching with a branch:
-      // Visibility rules:
-      // 1. Approved items are visible to everyone
-      // 2. Pending items are visible to their creator (when accountID matches created_by)
-      // 3. Branch-specific items are visible when viewing that branch
-      // 4. If branch-specific is deprecated, exclude both versions
       $"""
       SELECT DISTINCT owner, modules
       FROM locations l
       WHERE l.deprecated_at IS NULL
-        AND (l.approval_status = 'approved' OR (@accountID IS NOT NULL AND l.created_by = @accountID))
-        AND (l.branch_id IS NULL OR l.branch_id = @branch_id)
         AND {submoduleCondition}
-        -- Exclude if there's a deprecated branch-specific version shadowing this
-        AND NOT EXISTS (
-          SELECT 1 FROM locations l2
-          WHERE l2.owner = l.owner
-            AND l2.modules = l.modules
-            AND l2.name = l.name
-            AND l2.item_type = l.item_type
-            AND l2.branch_id = @branch_id
-            AND l2.deprecated_at IS NOT NULL
-            AND l.branch_id IS NULL
-        )
-        -- If both NULL and branch-specific exist, only show branch-specific
-        AND NOT EXISTS (
-          SELECT 1 FROM locations l3
-          WHERE l3.owner = l.owner
-            AND l3.modules = l.modules
-            AND l3.name = l.name
-            AND l3.item_type = l.item_type
-            AND l3.branch_id = @branch_id
-            AND l3.deprecated_at IS NULL
-            AND l.branch_id IS NULL
-        )
       """
       |> Sql.query
-      |> Sql.parameters (
-        [ "branch_id",
-          (match branchID with
-           | Some id -> Sql.uuid id
-           | None -> Sql.dbnull)
-          "accountID",
-          (match accountID with
-           | Some id -> Sql.uuid id
-           | None -> Sql.dbnull) ]
-        @ sqlParams
-      )
+      |> Sql.parameters sqlParams
       |> Sql.executeAsync (fun read ->
         let owner = read.string "owner"
         let modulesStr = read.string "modules"
@@ -429,49 +305,16 @@ let search
             // Search in current module and all descendants
             "((l.modules = @modules) OR (l.owner || '.' || l.modules = @fqname) OR (l.modules LIKE @modules || '.%') OR (l.owner || '.' || l.modules LIKE @fqname || '.%'))"
 
-      // Approved items visible to all, pending items visible to creator
       $"SELECT c.id, c.pt_def, l.owner, l.modules, l.name\n"
       + $"FROM locations l\n"
       + $"JOIN {contentTable} c ON l.item_id = c.id\n"
       + "WHERE l.deprecated_at IS NULL\n"
-      + "  AND (l.approval_status = 'approved' OR (@accountID IS NOT NULL AND l.created_by = @accountID))\n"
-      + "  AND (l.branch_id IS NULL OR l.branch_id = @branch_id)\n"
       + $"  AND l.item_type = '{itemType}'\n"
       + $"  AND ({locationCondition})\n"
-      + $"  AND {nameCondition}\n"
-      + "  -- Exclude if there's a deprecated branch-specific version shadowing this\n"
-      + "  AND NOT EXISTS (\n"
-      + "    SELECT 1 FROM locations l2\n"
-      + "    WHERE l2.owner = l.owner\n"
-      + "      AND l2.modules = l.modules\n"
-      + "      AND l2.name = l.name\n"
-      + $"      AND l2.item_type = '{itemType}'\n"
-      + "      AND l2.branch_id = @branch_id\n"
-      + "      AND l2.deprecated_at IS NOT NULL\n"
-      + "      AND l.branch_id IS NULL\n"
-      + "  )\n"
-      + "  -- If both NULL and branch-specific exist, only show branch-specific\n"
-      + "  AND NOT EXISTS (\n"
-      + "    SELECT 1 FROM locations l3\n"
-      + "    WHERE l3.owner = l.owner\n"
-      + "      AND l3.modules = l.modules\n"
-      + "      AND l3.name = l.name\n"
-      + $"      AND l3.item_type = '{itemType}'\n"
-      + "      AND l3.branch_id = @branch_id\n"
-      + "      AND l3.deprecated_at IS NULL\n"
-      + "      AND l.branch_id IS NULL\n"
-      + "  )"
+      + $"  AND {nameCondition}"
       |> Sql.query
       |> Sql.parameters
-        [ "branch_id",
-          (match branchID with
-           | Some id -> Sql.uuid id
-           | None -> Sql.dbnull)
-          "accountID",
-          (match accountID with
-           | Some id -> Sql.uuid id
-           | None -> Sql.dbnull)
-          "modules", Sql.string currentModule
+        [ "modules", Sql.string currentModule
           "fqname", Sql.string currentModule
           "searchText", Sql.string query.text ]
       |> Sql.executeAsync (fun read ->

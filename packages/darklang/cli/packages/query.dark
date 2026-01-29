@@ -2,8 +2,6 @@ module Darklang.Cli.Packages.Query
 
 /// Search for all contents (modules, types, values, functions) in a given module path
 let allDirectDescendants
-  (accountID: Stdlib.Option.Option<Uuid>)
-  (branchID: Stdlib.Option.Option<Uuid>)
   (modulePath: List<String>)
   : LanguageTools.ProgramTypes.Search.SearchResults =
   let query =
@@ -14,13 +12,11 @@ let allDirectDescendants
         entityTypes = []
         exactMatch = false }
 
-  LanguageTools.PackageManager.Search.search accountID branchID query
+  LanguageTools.PackageManager.Search.search query
 
 
 /// Search for a specific entity by name in a given module path (exact match)
 let searchExactMatch
-  (accountID: Stdlib.Option.Option<Uuid>)
-  (branchID: Stdlib.Option.Option<Uuid>)
   (modulePath: List<String>)
   (entityName: String)
   : LanguageTools.ProgramTypes.Search.SearchResults =
@@ -32,7 +28,7 @@ let searchExactMatch
         entityTypes = []
         exactMatch = true }
 
-  LanguageTools.PackageManager.Search.search accountID branchID query
+  LanguageTools.PackageManager.Search.search query
 
 
 /// Check if search results contain any content

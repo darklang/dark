@@ -137,7 +137,7 @@ let parseSingleTestFromFile
             "Invalid error format from parseSingleTestFromFile"
             [ "dval", dval ]
     | Error(rte, _) ->
-      let! rteString = Exe.rteToString RT2DT.RuntimeError.toDT None None state rte
+      let! rteString = Exe.rteToString RT2DT.RuntimeError.toDT state rte
       return
         Exception.raiseInternal
           "Error executing parseSingleTestFromFile function"

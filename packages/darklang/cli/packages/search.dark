@@ -6,8 +6,7 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
   | [] ->
     // Enter interactive search mode (nav with search enabled)
     NavInteractive.enterAlternateScreen ()
-    let accountID = state.accountID
-    let navState = NavInteractive.buildState accountID state.currentBranchId state.packageData.currentLocation
+    let navState = NavInteractive.buildState state.packageData.currentLocation
     let searchNavState = { navState with mode = NavInteractive.Mode.Search }
     { state with
         currentPage = Page.InteractiveNav searchNavState
@@ -82,8 +81,7 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
             exactMatch = exactMatch }
 
       // Execute search
-      let accountID = state.accountID
-      let results = LanguageTools.PackageManager.Search.search accountID state.currentBranchId query
+      let results = LanguageTools.PackageManager.Search.search query
 
       // Display results
       let submodulesCount =

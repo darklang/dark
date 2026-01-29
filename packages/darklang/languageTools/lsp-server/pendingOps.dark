@@ -6,26 +6,14 @@ let handleGetPendingOpsRequest
   (requestID: JsonRPC.RequestId)
   (params: Stdlib.Option.Option<JsonRPC.Request.RequestParams>)
   : LspState =
-  // Use current branch from state
-  let queryBranchId = state.branchID
-
-  // Get ops: if on a branch, get all; if on main, get last 20
-  let ops =
-    match queryBranchId with
-    | Some branchID ->
-      // On a branch - show ALL ops from this branch
-      SCM.PackageOps.getRecent (Stdlib.Option.Option.Some branchID) 999999L
-    | None ->
-      // On main - show last 20 from all branches
-      SCM.PackageOps.getRecent (Stdlib.Option.Option.None) 20L
-
-  let opsCount = Stdlib.List.length ops
+  // Get last 20 recent ops
+  let ops = SCM.PackageOps.getRecent 20L
 
   let body =
     ops
     |> Stdlib.List.map (fun op ->
       let opData = Builtin.jsonSerialize<LanguageTools.ProgramTypes.PackageOp> op
-      let label = PrettyPrinter.ProgramTypes.PackageOp.packageOp state.accountID queryBranchId op
+      let label = PrettyPrinter.ProgramTypes.PackageOp.packageOp op
       Json.Object [ ("op", Json.String opData); ("label", Json.String label) ])
     |> Json.Array
 

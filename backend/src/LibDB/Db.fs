@@ -114,6 +114,11 @@ module Sql =
 
   let uuid (u : uuid) = u.ToString() |> Sql.string
 
+  let uuidOrNone (u : Option<uuid>) =
+    match u with
+    | Some u -> uuid u
+    | None -> Sql.dbnull
+
   let id (id : uint64) = Sql.int64 (int64 id)
 
   let tlid (tlid : uint64) = id tlid
