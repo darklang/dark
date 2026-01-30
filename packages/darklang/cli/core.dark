@@ -533,24 +533,64 @@ let runInteractiveLoop (state: AppState) : Int64 =
       let inputStartColumn =
         Prompt.Display.calculateInputStartColumn locationStr
 
+      // Calculate total line length to detect if it exceeds terminal width
+      let hint = Registry.getCompletionHint state state.prompt.text
+      let totalLineLength =
+        inputStartColumn + (Stdlib.String.length state.prompt.text) + (Stdlib.String.length hint)
+      let terminalWidth = Terminal.getWidth ()
+      let lineExceedsWidth = totalLineLength > terminalWidth
+
       if state.needsFullRedraw then
-        // Redraw entire prompt line (used after commands that change state)
+        // Full redraw (used after commands that change state)
         let promptText = View.formatPromptWithInput state
         Stdlib.print promptText
+      else if lineExceedsWidth then
+        // Long line update: overwrite content without clearing first to reduce flicker
+        Stdlib.print "\u001b[?25l" // Hide cursor during redraw
+
+        // Calculate which row the cursor was on based on previous text length
+        let previousTotalLength = inputStartColumn + state.prompt.previousTextLength
+        let previousLineWrapped = previousTotalLength > terminalWidth
+
+        if previousLineWrapped then
+          // Cursor was on a wrapped line, move up to prompt start
+          let wrappedLines = Stdlib.Int64.divide (previousTotalLength - 1L) terminalWidth
+          if wrappedLines > 0L then
+            Stdlib.print (Colors.moveCursorUp wrappedLines)
+
+        // Go to start of line and overwrite with new content
+        Stdlib.print Colors.carriageReturn
+        let promptText = View.formatPromptWithInput state
+        Stdlib.print promptText
+        // Clear to end of line in case new text is shorter than old
+        Stdlib.print Colors.clearLine
+        Stdlib.print "\u001b[?25h" // Show cursor again
       else
-        // Update only the input portion (used during typing)
+        // Short line incremental update (used during typing when line fits)
         Stdlib.print "\u001b[?25l" // Hide cursor during redraw
         Stdlib.print (Colors.moveCursorToColumn inputStartColumn)
         Stdlib.print Colors.clearLine
         Stdlib.print state.prompt.text
-        let hint = Registry.getCompletionHint state state.prompt.text
         if Stdlib.Bool.not (Stdlib.String.isEmpty hint) then
           Stdlib.print (Colors.hint hint)
         Stdlib.print "\u001b[?25h" // Show cursor again
 
       // Position cursor at correct location within user input
       let cursorColumn = inputStartColumn + state.prompt.cursorPosition
-      Stdlib.print (Colors.moveCursorToColumn cursorColumn)
+      if lineExceedsWidth then
+        // For wrapped lines, calculate which row and column the cursor should be on
+        let absoluteCursorPos = inputStartColumn + state.prompt.cursorPosition
+        let cursorRow = Stdlib.Int64.divide (absoluteCursorPos - 1L) terminalWidth
+        let cursorCol = ((absoluteCursorPos - 1L) % terminalWidth) + 1L
+        // After reprinting, cursor is at end of text - calculate where it should go
+        let textEndRow = Stdlib.Int64.divide (totalLineLength - 1L) terminalWidth
+        // Move up from text end to cursor row if needed
+        let rowDiff = textEndRow - cursorRow
+        if rowDiff > 0L then
+          Stdlib.print (Colors.moveCursorUp rowDiff)
+        Stdlib.print (Colors.moveCursorToColumn cursorCol)
+      else
+        Stdlib.print (Colors.moveCursorToColumn cursorColumn)
     | InteractiveNav navState ->
       // Always display in interactive nav mode - it manages its own screen clearing
       Packages.NavInteractive.display navState
