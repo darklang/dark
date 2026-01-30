@@ -2,36 +2,161 @@
 module Darklang.Cli.Packages.Tree
 
 
-let execute (state: AppState) (args: List<String>) : AppState =
-  // Parse depth option (default is 2 for better initial view)
-  let maxDepth =
-    match Stdlib.List.findFirst args (fun arg -> Stdlib.String.startsWith arg "--depth=") with
-    | Some depthArg ->
-      let depthStr = Stdlib.String.dropFirst depthArg 8L // Remove "--depth="
-      match Stdlib.Int64.parse depthStr with
-      | Ok depth ->
-        if depth > 0L && depth <= 10L then depth else 2L // Limit to reasonable range
-      | Error _ -> 2L
-    | None -> 2L // Default depth of 2 for concise but useful view
+// Table of contents categories with their package paths and descriptions
+type TocEntry =
+  { category: String
+    path: String
+    description: String }
 
-  // Determine starting location
-  let startLocation =
-    let pathArgs = Stdlib.List.filter args (fun arg -> Stdlib.Bool.not (Stdlib.String.startsWith arg "--"))
-    match pathArgs with
-    | [] -> state.packageData.currentLocation
-    | [pathStr] ->
-      match Traversal.traverse state.packageData.currentLocation pathStr with
-      | Ok location -> location
-      | Error _ -> state.packageData.currentLocation
-    | _ -> state.packageData.currentLocation
+// Define the table of contents structure
+let tocEntries: List<TocEntry> =
+  [ // Platform Core
+    TocEntry
+      { category = "PLATFORM CORE"
+        path = "Darklang.Canvas"
+        description = "Editor UI components" }
+    TocEntry
+      { category = "PLATFORM CORE"
+        path = "Darklang.Cli"
+        description = "Command-line interface" }
 
-  // Display tree
-  let locationStr = Packages.formatLocation startLocation
-  Stdlib.printLine $"Package tree from {locationStr}:"
+    // Protocols & Integration
+    TocEntry
+      { category = "PROTOCOLS & INTEGRATION"
+        path = "Darklang.JsonRPC"
+        description = "JSON-RPC protocol" }
+    TocEntry
+      { category = "PROTOCOLS & INTEGRATION"
+        path = "Darklang.LanguageServerProtocol"
+        description = "LSP types" }
+    TocEntry
+      { category = "PROTOCOLS & INTEGRATION"
+        path = "Darklang.VSCode"
+        description = "VS Code extension" }
+    TocEntry
+      { category = "PROTOCOLS & INTEGRATION"
+        path = "Darklang.GitHub"
+        description = "GitHub integration" }
+
+    // Standard Library
+    TocEntry
+      { category = "STANDARD LIBRARY"
+        path = "Darklang.Stdlib"
+        description = "Core standard library" }
+
+    // Language Tools
+    TocEntry
+      { category = "LANGUAGE TOOLS"
+        path = "Darklang.LanguageTools"
+        description = "Parser, analyzer, etc." }
+    TocEntry
+      { category = "LANGUAGE TOOLS"
+        path = "Darklang.PrettyPrinter"
+        description = "Code formatting" }
+
+    // Testing & Utilities
+    TocEntry
+      { category = "TESTING & UTILITIES"
+        path = "Darklang.Tests"
+        description = "Test helpers" }
+    TocEntry
+      { category = "TESTING & UTILITIES"
+        path = "Darklang.DarkPackages"
+        description = "Package metadata" } ]
+
+
+// Display the table of contents
+let displayTableOfContents (): Unit =
   Stdlib.printLine ""
-  displayTree startLocation maxDepth 0L ""
+  Stdlib.printLine (Colors.colorize Colors.bold "DARKLANG PACKAGE TABLE OF CONTENTS")
+  Stdlib.printLine (Colors.colorize Colors.bold "===================================")
+  Stdlib.printLine ""
 
-  state
+  // Group entries by category
+  let grouped =
+    tocEntries
+    |> Stdlib.List.fold Stdlib.Dict.empty (fun acc entry ->
+      let existing =
+        match Stdlib.Dict.get acc entry.category with
+        | Some list -> list
+        | None -> []
+
+      Stdlib.Dict.setOverridingDuplicates
+        acc
+        entry.category
+        (Stdlib.List.append existing [ entry ]))
+
+  // Display in order (use a list to preserve order)
+  let categories =
+    [ "PLATFORM CORE"
+      "PROTOCOLS & INTEGRATION"
+      "STANDARD LIBRARY"
+      "LANGUAGE TOOLS"
+      "TESTING & UTILITIES" ]
+
+  categories
+  |> Stdlib.List.iter (fun category ->
+    match Stdlib.Dict.get grouped category with
+    | Some entries ->
+      Stdlib.printLine (Colors.colorize Colors.bold category)
+
+      entries
+      |> Stdlib.List.iter (fun entry ->
+        let pathDisplay = Colors.colorize Colors.cyan entry.path
+        let descDisplay = Colors.colorize Colors.dim entry.description
+        Stdlib.printLine $"  {pathDisplay}"
+        Stdlib.printLine $"    {descDisplay}")
+
+      Stdlib.printLine ""
+    | None -> ())
+
+  Stdlib.printLine (Colors.hint "Use 'tree <path>' to explore a specific package")
+  Stdlib.printLine (Colors.hint "Use 'tree --depth=N' for deeper views (max 10)")
+
+
+let execute (state: AppState) (args: List<String>): AppState =
+  // Check for --toc flag
+  let showToc =
+    match Stdlib.List.findFirst args (fun arg -> arg == "--toc") with
+    | Some _ -> true
+    | None -> false
+
+  if showToc then
+    displayTableOfContents ()
+    state
+  else
+    // Parse depth option (default is 2 for better initial view)
+    let maxDepth =
+      match Stdlib.List.findFirst args (fun arg -> Stdlib.String.startsWith arg "--depth=") with
+      | Some depthArg ->
+        let depthStr = Stdlib.String.dropFirst depthArg 8L // Remove "--depth="
+        match Stdlib.Int64.parse depthStr with
+        | Ok depth ->
+          if depth > 0L && depth <= 10L then depth else 2L // Limit to reasonable range
+        | Error _ -> 2L
+      | None -> 2L // Default depth of 2 for concise but useful view
+
+    // Determine starting location
+    let startLocation =
+      let pathArgs =
+        args
+        |> Stdlib.List.filter (fun arg -> Stdlib.Bool.not (Stdlib.String.startsWith arg "--"))
+
+      match pathArgs with
+      | [] -> state.packageData.currentLocation
+      | [ pathStr ] ->
+        match Traversal.traverse state.packageData.currentLocation pathStr with
+        | Ok location -> location
+        | Error _ -> state.packageData.currentLocation
+      | _ -> state.packageData.currentLocation
+
+    // Display tree
+    let locationStr = Packages.formatLocation startLocation
+    Stdlib.printLine $"Package tree from {locationStr}:"
+    Stdlib.printLine ""
+    displayTree startLocation maxDepth 0L ""
+
+    state
 
 
 // Display tree recursively from a given location
@@ -109,19 +234,23 @@ let complete (state: AppState) (args: List<String>) : List<Completion.Completion
   | _ -> []
 
 
-let help (state: AppState) : Unit =
-  [
-    "Usage: tree [path] [--depth=N]"
+let help (state: AppState): Unit =
+  [ "Usage: tree [path] [--depth=N] [--toc]"
+    "       packages [path] [--depth=N] [--toc]"
+    ""
     "Display package hierarchy in tree format."
     ""
     "Options:"
     "  --depth=N       Set maximum depth (1-10, default: 2)"
+    "  --toc           Show table of contents overview"
     ""
     "Examples:"
     "  tree                         - Show tree with icons, depth 2"
+    "  tree --toc                   - Show package table of contents"
+    "  packages --toc               - Same as tree --toc"
     "  tree /                       - Show tree from root"
     "  tree Darklang                - Show Darklang package tree"
     "  tree --depth=1               - Show only direct children"
     "  tree --depth=5               - Show deeper tree structure"
-    "  tree Darklang.Stdlib         - Show Stdlib tree"
-  ] |> Stdlib.printLines
+    "  tree Darklang.Stdlib         - Show Stdlib tree" ]
+  |> Stdlib.printLines

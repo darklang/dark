@@ -131,7 +131,7 @@ module Registry =
       ("eval", "Evaluate a Dark expression", [], Cli.Eval.execute, Cli.Eval.help, Cli.Eval.complete)
       ("scripts", "Store, manage, and run Dark scripts", [], Cli.Scripts.execute, Cli.Scripts.help, Cli.Scripts.complete)
       ("view", "View details of a module, type, value, or fns", [], Packages.View.execute, Packages.View.help, Packages.View.complete)
-      ("tree", "Display package hierarchy in tree format", [], Packages.Tree.execute, Packages.Tree.help, Packages.Tree.complete)
+      ("tree", "Display package hierarchy in tree format", [ "packages" ], Packages.Tree.execute, Packages.Tree.help, Packages.Tree.complete)
       ("search", "Search for packages, types, functions, and values", [], Packages.Search.execute, Packages.Search.help, Packages.Search.complete)
       ("deps", "Show dependencies and dependents", [ "dependencies" ], Cli.Deps.execute, Cli.Deps.help, Cli.Deps.complete)
       ("val", "Create a new value", [], Packages.Value.execute, Packages.Value.help, Packages.Value.complete)
@@ -143,7 +143,8 @@ module Registry =
       ("log", "Show commit history", [ "history"; "commits" ], SCM.Log.execute, SCM.Log.help, SCM.Log.complete)
       ("commit", "Commit uncommitted changes", [], SCM.Commit.execute, SCM.Commit.help, SCM.Commit.complete)
       ("discard", "Discard uncommitted changes", [ "reset" ], SCM.Discard.execute, SCM.Discard.help, SCM.Discard.complete)
-      ("show", "Show commit details", [], SCM.Show.execute, SCM.Show.help, SCM.Show.complete) ]
+      ("show", "Show commit details", [], SCM.Show.execute, SCM.Show.help, SCM.Show.complete)
+      ("builtins", "List all builtin functions", [], BuiltinsList.execute, BuiltinsList.help, BuiltinsList.complete) ]
     |> Stdlib.List.map(
       // CLEANUP nitpicky: swap help and complete
       fun (name, desc, aliases, execute, help, complete) ->
@@ -216,7 +217,7 @@ module Registry =
       ("SCM", [ "status"; "log"; "commit"; "discard"; "show" ])
       ("Execution", [ "run"; "eval"; "scripts" ])
       ("Install", [ "install"; "update"; "uninstall"; "version" ])
-      ("Utilities", [ "clear"; "help"; "quit" ]) ]
+      ("Utilities", [ "clear"; "help"; "quit"; "builtins" ]) ]
 
   // Helper function to format a group of commands with details
   let formatCommandGroup (groupName: String) (commandNames: List<String>) (commands: List<CommandHandler>) : String =

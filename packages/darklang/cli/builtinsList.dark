@@ -1,0 +1,275 @@
+module Darklang.Cli.BuiltinsList
+
+// Types for builtin function metadata (must match PackageIDs)
+type ParamInfo =
+  { name: String
+    typ: String
+    description: String }
+
+type FunctionInfo =
+  { name: String
+    version: Int64
+    parameters: List<ParamInfo>
+    returnType: String
+    description: String
+    purity: String }
+
+
+// Known groups in display order with their display names
+// Format: (prefix, displayName)
+let knownGroups: List<String * String> =
+  [ ("int", "Int")
+    ("float", "Float")
+    ("bool", "Bool")
+    ("char", "Char")
+    ("string", "String")
+    ("list", "List")
+    ("dict", "Dict")
+    ("tuple", "Tuple")
+    ("option", "Option")
+    ("result", "Result")
+    ("bytes", "Bytes")
+    ("json", "JSON")
+    ("altJson", "AltJSON")
+    ("base64", "Base64")
+    ("uuid", "UUID")
+    ("date", "DateTime")
+    ("math", "Math")
+    ("random", "Random")
+    ("crypto", "Crypto")
+    ("x509", "X509")
+    ("http", "HTTP")
+    ("httpClient", "HttpClient")
+    ("parser", "Parser")
+    ("regex", "Regex")
+    ("cli", "CLI")
+    ("debug", "Debug")
+    ("print", "Print") ]
+
+
+// Extract the group prefix from a camelCase builtin name
+let extractGroup (name: String): String =
+  let chars = Stdlib.String.toList name
+
+  let groupChars =
+    Stdlib.List.takeWhile chars (fun c -> Stdlib.Bool.not (Stdlib.Char.isUppercase c))
+
+  if Stdlib.List.isEmpty groupChars then
+    "other"
+  else
+    Stdlib.String.fromList groupChars
+
+
+// Get display name for a group
+let getDisplayName (prefix: String): String =
+  let found =
+    Stdlib.List.findFirst knownGroups (fun pair ->
+      (Stdlib.Tuple2.first pair) == prefix)
+
+  match found with
+  | Some pair -> Stdlib.Tuple2.second pair
+  | None -> Stdlib.String.toUppercase prefix
+
+
+// Check if a group is in the known list
+let isKnownGroup (prefix: String): Bool =
+  Stdlib.List.any knownGroups (fun pair -> (Stdlib.Tuple2.first pair) == prefix)
+
+
+// Sort groups: known groups first in order, then unknown groups alphabetically
+let sortGroups
+  (groups: List<String * List<FunctionInfo>>)
+  : List<String * List<FunctionInfo>> =
+  let knownPrefixes = Stdlib.List.map knownGroups (fun pair -> Stdlib.Tuple2.first pair)
+
+  let knownInOrder =
+    knownPrefixes
+    |> Stdlib.List.filterMap (fun prefix ->
+      let found =
+        Stdlib.List.findFirst groups (fun pair ->
+          (Stdlib.Tuple2.first pair) == prefix)
+
+      found)
+
+  let unknown =
+    groups
+    |> Stdlib.List.filter (fun pair ->
+      Stdlib.Bool.not (isKnownGroup (Stdlib.Tuple2.first pair)))
+    |> Stdlib.List.sortBy (fun pair -> Stdlib.Tuple2.first pair)
+
+  Stdlib.List.append knownInOrder unknown
+
+
+let execute (state: AppState) (args: List<String>): AppState =
+  let allBuiltins = Builtin.cliGetBuiltins ()
+
+  // Parse flags
+  // Workaround: Stdlib.List.any has issues, use findFirst instead
+  let withSigs =
+    match Stdlib.List.findFirst args (fun arg -> arg == "--with-sigs") with
+    | Some _ -> true
+    | None -> false
+
+  let withPurity =
+    match Stdlib.List.findFirst args (fun arg -> arg == "--with-purity") with
+    | Some _ -> true
+    | None -> false
+
+  let filterArgs =
+    args
+    |> Stdlib.List.filter (fun arg ->
+      (arg != "--with-sigs") && (arg != "--with-purity"))
+
+  let filter =
+    match filterArgs with
+    | [] -> Stdlib.Option.Option.None
+    | [ pattern ] -> Stdlib.Option.Option.Some pattern
+    | _ -> Stdlib.Option.Option.None
+
+  // Group by prefix
+  let grouped =
+    allBuiltins
+    |> Stdlib.List.fold Stdlib.Dict.empty (fun acc fn ->
+      let group = extractGroup fn.name
+
+      let existing =
+        match Stdlib.Dict.get acc group with
+        | Some list -> list
+        | None -> []
+
+      Stdlib.Dict.setOverridingDuplicates
+        acc
+        group
+        (Stdlib.List.append existing [ fn ]))
+
+  let allGroups = Stdlib.Dict.toList grouped
+
+  let sortedGroups = sortGroups allGroups
+
+  // Apply filter if provided
+  let filteredGroups =
+    match filter with
+    | None -> sortedGroups
+    | Some pattern ->
+      sortedGroups
+      |> Stdlib.List.filterMap (fun pair ->
+        let group = Stdlib.Tuple2.first pair
+        let fns = Stdlib.Tuple2.second pair
+
+        let matchingFns =
+          fns
+          |> Stdlib.List.filter (fun fn ->
+            (Stdlib.String.contains fn.name pattern)
+            || (Stdlib.String.contains group pattern))
+
+        if Stdlib.List.isEmpty matchingFns then
+          Stdlib.Option.Option.None
+        else
+          Stdlib.Option.Option.Some ((group, matchingFns)))
+
+  // Format and display
+  if withSigs then
+    // Detailed output with signatures
+    filteredGroups
+    |> Stdlib.List.iter (fun pair ->
+      let group = Stdlib.Tuple2.first pair
+      let fns = Stdlib.Tuple2.second pair
+      Stdlib.printLine ""
+      Stdlib.printLine (Colors.colorize Colors.bold (getDisplayName group))
+
+      fns
+      |> Stdlib.List.iter (fun fn ->
+        let params =
+          fn.parameters
+          |> Stdlib.List.map (fun p -> $"{p.name}: {p.typ}")
+          |> Stdlib.String.join ", "
+
+        let versionSuffix =
+          if fn.version == 0L then
+            ""
+          else
+            $"_v{Stdlib.Int64.toString fn.version}"
+
+        let puritySuffix =
+          if withPurity then
+            $" [{fn.purity}]"
+          else
+            ""
+
+        Stdlib.printLine $"  {fn.name}{versionSuffix}({params}) -> {fn.returnType}{puritySuffix}"))
+  else
+    // Compact output: comma-separated names
+    filteredGroups
+    |> Stdlib.List.iter (fun pair ->
+      let group = Stdlib.Tuple2.first pair
+      let fns = Stdlib.Tuple2.second pair
+
+      let names =
+        fns
+        |> Stdlib.List.map (fun fn ->
+          let versionSuffix =
+            if fn.version == 0L then
+              ""
+            else
+              $"_v{Stdlib.Int64.toString fn.version}"
+
+          $"{fn.name}{versionSuffix}")
+        |> Stdlib.String.join ", "
+
+      Stdlib.printLine ""
+      Stdlib.printLine $"{Colors.colorize Colors.bold (getDisplayName group)}: {names}")
+
+  let totalCount =
+    filteredGroups
+    |> Stdlib.List.map (fun pair -> Stdlib.List.length (Stdlib.Tuple2.second pair))
+    |> Stdlib.List.fold 0L (fun acc n -> acc + n)
+
+  let summary =
+    match filter with
+    | None -> $"Total: {Stdlib.Int64.toString totalCount} builtin functions"
+    | Some pattern ->
+      $"Showing {Stdlib.Int64.toString totalCount} functions matching '{pattern}'"
+
+  Stdlib.printLine ""
+  Stdlib.printLine (Colors.hint summary)
+
+  // Hints about available flags
+  if Stdlib.Bool.not withSigs then
+    Stdlib.printLine (Colors.hint "Use --with-sigs to see full function signatures")
+  else
+    ()
+
+  if Stdlib.Bool.not withPurity then
+    Stdlib.printLine (Colors.hint "Use --with-purity to see function purity (pure/impure)")
+  else
+    ()
+
+  state
+
+
+let help (state: AppState): AppState =
+  Stdlib.printLine "Usage: builtins [--with-sigs] [--with-purity] [filter]"
+  Stdlib.printLine ""
+  Stdlib.printLine "Lists all builtin functions grouped by category."
+  Stdlib.printLine ""
+  Stdlib.printLine "Options:"
+  Stdlib.printLine "  --with-sigs    Show full function signatures with parameter types"
+  Stdlib.printLine "  --with-purity  Show function purity (pure, impure, impure-previewable)"
+  Stdlib.printLine ""
+  Stdlib.printLine "Arguments:"
+  Stdlib.printLine "  filter         Optional pattern to filter functions by name or group"
+  Stdlib.printLine ""
+  Stdlib.printLine "Examples:"
+  Stdlib.printLine "  builtins                   - List all builtins (compact)"
+  Stdlib.printLine "  builtins --with-sigs       - List all builtins with signatures"
+  Stdlib.printLine "  builtins --with-purity     - List with purity info"
+  Stdlib.printLine "  builtins json              - Filter by 'json'"
+  Stdlib.printLine "  builtins --with-sigs http  - HTTP builtins with signatures"
+  state
+
+
+let complete
+  (state: AppState)
+  (args: List<String>)
+  : List<Completion.CompletionItem> =
+  []

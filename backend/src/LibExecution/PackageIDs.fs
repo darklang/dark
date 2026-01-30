@@ -343,6 +343,18 @@ module Type =
     let script =
       p [ "Cli"; "Scripts" ] "Script" "de1629b6-cdfa-46b1-84c0-e0c60048d93b"
 
+    let builtinParamInfo =
+      p
+        [ "Cli"; "BuiltinsList" ]
+        "ParamInfo"
+        "a3b4c5d6-e7f8-9012-3456-789abcdef012"
+
+    let builtinFunctionInfo =
+      p
+        [ "Cli"; "BuiltinsList" ]
+        "FunctionInfo"
+        "b4c5d6e7-f809-0123-4567-89abcdef0123"
+
 
   module DarkPackages =
     let stats = p [ "DarkPackages" ] "Stats" "0fcd5847-701c-4da7-9f24-adbe8b5eb397"
