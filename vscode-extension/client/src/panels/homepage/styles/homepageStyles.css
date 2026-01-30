@@ -8,7 +8,7 @@
 
 body {
     font-family: var(--vscode-font-family);
-    font-size: var(--vscode-font-size);
+    font-size: calc(var(--vscode-font-size) * var(--zoom-scale, 1) * 1.25);
     color: var(--vscode-foreground);
     background-color: var(--vscode-editor-background);
     display: flex;

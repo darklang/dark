@@ -25,7 +25,9 @@
       "Bash(git add:*)",
       "WebFetch(domain:builds.dotnet.microsoft.com)",
       "Bash(chmod:*)",
-      "Bash(xargs cat:*)"
+      "Bash(xargs cat:*)",
+      "Bash(npm run compile:*)",
+      "Bash(npx tsc:*)"
     ],
     "deny": []
   }

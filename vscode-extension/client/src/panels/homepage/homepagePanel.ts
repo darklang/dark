@@ -80,6 +80,15 @@ export class HomepagePanel {
       RecentItemsService.onDidChange(() => this._update()),
     );
 
+    // Subscribe to zoom level changes
+    this._disposables.push(
+      vscode.workspace.onDidChangeConfiguration(e => {
+        if (e.affectsConfiguration('window.zoomLevel')) {
+          this._update();
+        }
+      }),
+    );
+
     // Load pinned items and update the view
     PinnedItemsService.load()
       .then(() => this._update())
@@ -269,6 +278,10 @@ export class HomepagePanel {
       ),
     );
 
+    // Get zoom level from VS Code config (each unit is ~20% zoom)
+    const zoomLevel = vscode.workspace.getConfiguration('window').get<number>('zoomLevel') || 0;
+    const zoomScale = Math.pow(1.2, zoomLevel);
+
     return `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -276,6 +289,7 @@ export class HomepagePanel {
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Darklang Home</title>
     <link rel="stylesheet" href="${stylesUri}">
+    <style>:root { --zoom-scale: ${zoomScale}; }</style>
 </head>
 <body>
     ${renderSidebar(logoUri.toString(), this._currentPage)}
