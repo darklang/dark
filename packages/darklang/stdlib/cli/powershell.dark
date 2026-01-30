@@ -68,6 +68,15 @@ let deleteAlias (alias: String) : Result.Result<Unit, String> =
   Cli.executeWithUnitOrStdErr deleteAliasCommand
 
 
+/// Adds a directory to the user's PATH environment variable permanently.
+/// This works for non-interactive processes like VS Code.
+let addToPath (dir: String) : Result.Result<Unit, String> =
+  let addToPathCommand =
+    $"""powershell.exe -Command "$currentPath = [Environment]::GetEnvironmentVariable('PATH', 'User'); if (-not $currentPath.Contains('{dir}')) {{ [Environment]::SetEnvironmentVariable('PATH', '{dir};' + $currentPath, 'User') }}" """
+
+  Cli.executeWithUnitOrStdErr addToPathCommand
+
+
 module Gzip =
   /// Unzip a file to a specified destination path
   let unzipToFile

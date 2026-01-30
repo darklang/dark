@@ -37,3 +37,18 @@ let addAlias
   |> Result.map (fun content ->
     let updatedContent = content ++ "\n" ++ aliasDefinition
     overwriteFishConfig updatedContent)
+
+
+/// Add a directory to PATH in config.fish
+let addToPath (dir: String) : Result.Result<Unit, String> =
+  let exportLine = $"fish_add_path {dir}"
+
+  match readFishConfig () with
+  | Ok content ->
+    // Check if PATH addition for this dir already exists (not just any reference to the dir)
+    if String.contains content exportLine then
+      Result.Result.Ok()
+    else
+      let updatedContent = content ++ "\n" ++ exportLine
+      overwriteFishConfig updatedContent
+  | Error e -> Result.Result.Error e

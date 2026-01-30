@@ -130,16 +130,10 @@ let installFromCurrentBinary (host: Stdlib.Cli.Host.Host) (autoConfirm: Bool) : 
       | _ ->
         match Config.updateVersion configPath "local-binary" with
         | Ok _ ->
-          match Stdlib.Cli.Unix.deleteAlias host.defaultShell "dark" with
-          | Ok _ ->
-            match Stdlib.Cli.Unix.addAlias host.defaultShell "dark" globalBinaryPath with
-            | Ok _ -> Stdlib.Result.Result.Ok()
-            | Error e -> Stdlib.Result.Result.Error e
-          | Error _ ->
-            // Ignore error if alias doesn't exist, try to add it anyway
-            match Stdlib.Cli.Unix.addAlias host.defaultShell "dark" globalBinaryPath with
-            | Ok _ -> Stdlib.Result.Result.Ok()
-            | Error e -> Stdlib.Result.Result.Error e
+          // Add bin directory to PATH (works in non-interactive shells like VS Code)
+          match Stdlib.Cli.Unix.addToPath host.defaultShell globalBinDir with
+          | Ok _ -> Stdlib.Result.Result.Ok()
+          | Error e -> Stdlib.Result.Result.Error e
         | Error e -> Stdlib.Result.Result.Error e
 
     match setupResult with

@@ -44,3 +44,19 @@ let addAlias
     let updatedContent = content ++ "\n" ++ aliasDefinition
     overwriteZshrc updatedContent
     applyZshConfigChanges ())
+
+
+/// Add a directory to PATH in .zshrc
+let addToPath (dir: String) : Result.Result<Unit, String> =
+  let exportLine = $"export PATH=\"{dir}:$PATH\""
+
+  match readZshrc () with
+  | Ok content ->
+    // Check if PATH export for this dir already exists (not just any reference to the dir)
+    if String.contains content exportLine then
+      Result.Result.Ok()
+    else
+      let updatedContent = content ++ "\n" ++ exportLine
+      overwriteZshrc updatedContent
+      applyZshConfigChanges ()
+  | Error e -> Result.Result.Error e
