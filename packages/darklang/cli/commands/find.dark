@@ -1,0 +1,91 @@
+module Darklang.Cli.Commands.Find
+
+// Find all package values of a given type
+
+/// Resolve a type path to its UUID
+let resolveTypeId
+  (typePath: String)
+  : Stdlib.Result.Result<Uuid, String> =
+  let parts = Stdlib.String.split typePath "."
+
+  match Stdlib.List.reverse parts with
+  | [] -> Stdlib.Result.Result.Error "Empty type path"
+  | name :: revRest ->
+    let rest = Stdlib.List.reverse revRest
+
+    match rest with
+    | [] -> Stdlib.Result.Result.Error "Type path must have at least owner.name"
+    | owner :: modules ->
+      let location =
+        LanguageTools.ProgramTypes.PackageLocation
+          { owner = owner
+            modules = modules
+            name = name }
+
+      match LanguageTools.PackageManager.Type.find location with
+      | Some typeId -> Stdlib.Result.Result.Ok typeId
+      | None -> Stdlib.Result.Result.Error $"Type not found: {typePath}"
+
+
+let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
+  match args with
+  | [] ->
+    Stdlib.printLine "Usage: find-values <type-path> [namespace]"
+    state
+
+  | [ typePath ] ->
+    match resolveTypeId typePath with
+    | Error msg ->
+      Stdlib.printLine (Colors.error msg)
+      state
+    | Ok typeId ->
+      let values = Stdlib.Discovery.findByType "" typeId
+
+      if Stdlib.List.isEmpty values then
+        Stdlib.printLine (Colors.dimText $"No values of type {typePath}")
+      else
+        values
+        |> Stdlib.List.iter (fun discovered -> Stdlib.printLine discovered.path)
+
+      state
+
+  | [ typePath; namespace_ ] ->
+    match resolveTypeId typePath with
+    | Error msg ->
+      Stdlib.printLine (Colors.error msg)
+      state
+    | Ok typeId ->
+      let values = Stdlib.Discovery.findByType namespace_ typeId
+
+      if Stdlib.List.isEmpty values then
+        Stdlib.printLine (Colors.dimText $"No values of type {typePath} in {namespace_}")
+      else
+        values
+        |> Stdlib.List.iter (fun discovered -> Stdlib.printLine discovered.path)
+
+      state
+
+  | _ ->
+    Stdlib.printLine "Usage: find-values <type-path> [namespace]"
+    state
+
+
+let help (state: Cli.AppState) : Cli.AppState =
+  [ "Find all package values of a given type."
+    ""
+    "Usage: find-values <type-path> [namespace]"
+    ""
+    "Examples:"
+    "  find-values Darklang.LanguageTools.WrittenTypesToProgramTypes.Context"
+    "  find-values Darklang.CLI.UI.Core.Types.RenderContext Darklang.CLI" ]
+  |> Stdlib.printLines
+
+  state
+
+
+let complete
+  (state: Cli.AppState)
+  (args: List<String>)
+  : List<Cli.Completion.CompletionItem> =
+  // For now, just return empty - could add type path completion later
+  []

@@ -144,7 +144,8 @@ module Registry =
       ("commit", "Commit uncommitted changes", [], SCM.Commit.execute, SCM.Commit.help, SCM.Commit.complete)
       ("discard", "Discard uncommitted changes", [ "reset" ], SCM.Discard.execute, SCM.Discard.help, SCM.Discard.complete)
       ("show", "Show commit details", [], SCM.Show.execute, SCM.Show.help, SCM.Show.complete)
-      ("builtins", "List all builtin functions", [], BuiltinsList.execute, BuiltinsList.help, BuiltinsList.complete) ]
+      ("builtins", "List all builtin functions", [], BuiltinsList.execute, BuiltinsList.help, BuiltinsList.complete)
+      ("find-values", "Find values of a given type", [], Commands.Find.execute, Commands.Find.help, Commands.Find.complete) ]
     |> Stdlib.List.map(
       // CLEANUP nitpicky: swap help and complete
       fun (name, desc, aliases, execute, help, complete) ->

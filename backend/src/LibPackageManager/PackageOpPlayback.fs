@@ -13,6 +13,7 @@ open Fumble
 open LibDB.Db
 
 module PT = LibExecution.ProgramTypes
+module RT = LibExecution.RuntimeTypes
 module PT2RT = LibExecution.ProgramTypesToRuntimeTypes
 module BS = LibBinarySerialization.BinarySerialization
 module DE = LibPackageManager.DependencyExtractor
@@ -80,19 +81,24 @@ let private applyAddType (typ : PT.PackageType.PackageType) : Task<unit> =
 let private applyAddValue (value : PT.PackageValue.PackageValue) : Task<unit> =
   task {
     let ptDef = BS.PT.PackageValue.serialize value.id value
-    let rtDval =
-      value |> PT2RT.PackageValue.toRT |> BS.RT.PackageValue.serialize value.id
+    let rtValue = value |> PT2RT.PackageValue.toRT
+    let rtDval = BS.RT.PackageValue.serialize value.id rtValue
+
+    // Serialize the ValueType for type-based indexing
+    let valueType = RT.Dval.toValueType rtValue.body
+    let valueTypeBytes = BS.RT.ValueType.serialize valueType
 
     do!
       Sql.query
         """
-        INSERT OR REPLACE INTO package_values (id, pt_def, rt_dval)
-        VALUES (@id, @pt_def, @rt_dval)
+        INSERT OR REPLACE INTO package_values (id, pt_def, rt_dval, value_type)
+        VALUES (@id, @pt_def, @rt_dval, @value_type)
         """
       |> Sql.parameters
         [ "id", Sql.uuid value.id
           "pt_def", Sql.bytes ptDef
-          "rt_dval", Sql.bytes rtDval ]
+          "rt_dval", Sql.bytes rtDval
+          "value_type", Sql.bytes valueTypeBytes ]
       |> Sql.executeStatementAsync
 
     // Extract and store dependency references atomically

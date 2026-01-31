@@ -1,0 +1,142 @@
+module Darklang.Stdlib.Discovery
+
+// Type-based value discovery
+// Allows finding all package values of a specific type
+
+/// Information about a discovered value
+type DiscoveredValue<'a> =
+  { path: String
+    value: 'a }
+
+
+/// Find all values whose names end with a specific suffix
+/// This is a naming-convention approach to discovery
+let findBySuffix
+  (targetNamespace: String)
+  (suffix: String)
+  : List<String> =
+  let query =
+    LanguageTools.ProgramTypes.Search.SearchQuery
+      { currentModule =
+          if Stdlib.String.isEmpty targetNamespace then
+            []
+          else
+            Stdlib.String.split targetNamespace "."
+        text = suffix
+        searchDepth = LanguageTools.ProgramTypes.Search.SearchDepth.AllDescendants
+        entityTypes = [ LanguageTools.ProgramTypes.Search.EntityType.Value ]
+        exactMatch = false }
+
+  let results = LanguageTools.PackageManager.Search.search query
+
+  results.values
+  |> Stdlib.List.filterMap (fun v ->
+    if Stdlib.String.endsWith v.location.name suffix then
+      let fullPath =
+        (Stdlib.List.append [ v.location.owner ] v.location.modules)
+        |> Stdlib.List.append [ v.location.name ]
+        |> Stdlib.String.join "."
+
+      Stdlib.Option.Option.Some fullPath
+    else
+      Stdlib.Option.Option.None)
+
+
+/// Find all values that match a specific custom type
+/// Uses indexed type lookup for efficiency
+/// Optionally filters by namespace prefix
+let findByType
+  (targetNamespace: String)
+  (targetTypeId: Uuid)
+  : List<DiscoveredValue<'a>> =
+  let namespaceParts =
+    if Stdlib.String.isEmpty targetNamespace then
+      []
+    else
+      Stdlib.String.split targetNamespace "."
+
+  // Construct a ValueType for the custom type
+  let valueType =
+    LanguageTools.RuntimeTypes.ValueType.Known
+      (LanguageTools.RuntimeTypes.KnownType.KTCustomType
+        (LanguageTools.RuntimeTypes.FQTypeName.FQTypeName.Package targetTypeId)
+        [])
+
+  // Use indexed query to find all value IDs with the target type
+  let valueIds = Builtin.pmFindValuesByValueType valueType
+
+  valueIds
+  |> Stdlib.List.filterMap (fun valueId ->
+    // Get location for this value
+    match Builtin.pmGetLocationByValue valueId with
+    | Some location ->
+      // Check if it's in the target namespace
+      let valuePath = Stdlib.List.append [ location.owner ] location.modules
+
+      let isInNamespace =
+        if Stdlib.List.isEmpty namespaceParts then
+          true
+        else
+          (Stdlib.List.take valuePath (Stdlib.List.length namespaceParts))
+          == namespaceParts
+
+      if isInNamespace then
+        // Evaluate the value
+        match Builtin.pmEvaluateValue valueId with
+        | Some evaluatedValue ->
+          let fullPath =
+            (Stdlib.List.append [ location.owner ] location.modules)
+            |> Stdlib.List.append [ location.name ]
+            |> Stdlib.String.join "."
+
+          Stdlib.Option.Option.Some(
+            DiscoveredValue { path = fullPath; value = evaluatedValue }
+          )
+        | None -> Stdlib.Option.Option.None
+      else
+        Stdlib.Option.Option.None
+    | None -> Stdlib.Option.Option.None)
+
+
+/// Find all values with a given type, returning just the values
+/// This is a convenience function when you don't need the paths
+let findValuesByType<'a>
+  (targetNamespace: String)
+  (targetTypeId: Uuid)
+  : List<'a> =
+  (findByType targetNamespace targetTypeId)
+  |> Stdlib.List.map (fun discovered -> discovered.value)
+
+
+/// Find all values in a targetNamespace, returning path and value pairs
+/// Does not filter by type - returns all values
+let findAllValues
+  (targetNamespace: String)
+  : List<DiscoveredValue<'a>> =
+  let query =
+    LanguageTools.ProgramTypes.Search.SearchQuery
+      { currentModule =
+          if Stdlib.String.isEmpty targetNamespace then
+            []
+          else
+            Stdlib.String.split targetNamespace "."
+        text = ""
+        searchDepth = LanguageTools.ProgramTypes.Search.SearchDepth.AllDescendants
+        entityTypes = [ LanguageTools.ProgramTypes.Search.EntityType.Value ]
+        exactMatch = false }
+
+  let results = LanguageTools.PackageManager.Search.search query
+
+  results.values
+  |> Stdlib.List.filterMap (fun v ->
+    match Builtin.pmEvaluateValue v.entity.id with
+    | Some evaluatedValue ->
+      let fullPath =
+        (Stdlib.List.append [ v.location.owner ] v.location.modules)
+        |> Stdlib.List.append [ v.location.name ]
+        |> Stdlib.String.join "."
+
+      Stdlib.Option.Option.Some(
+        DiscoveredValue { path = fullPath; value = evaluatedValue }
+      )
+    | None -> Stdlib.Option.Option.None)
