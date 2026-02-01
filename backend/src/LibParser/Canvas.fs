@@ -291,7 +291,8 @@ let toPT
           let context =
             { WT2PT.Context.currentFnName = None
               WT2PT.Context.isInFunction = false
-              WT2PT.Context.argMap = Map.empty }
+              WT2PT.Context.argMap = Map.empty
+              WT2PT.Context.localBindings = Set.empty }
           let! expr =
             WT2PT.Expr.toPT builtins pm onMissing (m.owner :: m.name) context expr
           return (spec, expr)
@@ -303,7 +304,8 @@ let toPT
         let context =
           { WT2PT.Context.currentFnName = None
             WT2PT.Context.isInFunction = false
-            WT2PT.Context.argMap = Map.empty }
+            WT2PT.Context.argMap = Map.empty
+            WT2PT.Context.localBindings = Set.empty }
         WT2PT.Expr.toPT builtins pm onMissing currentModule context
       )
 

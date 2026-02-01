@@ -1,0 +1,44 @@
+module Darklang.Stdlib.HttpServerTest
+
+// Test handlers and router for the HTTP server
+
+let helloHandlerFn (req: Stdlib.Http.Request) : Stdlib.Http.Response =
+  Stdlib.Http.responseWithText "Hello, World!" 200L
+
+let helloHandler: Stdlib.HttpServer.Handler =
+  Stdlib.HttpServer.Handler
+    { route = "/hello"
+      method = "GET"
+      handler = helloHandlerFn }
+
+
+let echoHandlerFn (req: Stdlib.Http.Request) : Stdlib.Http.Response =
+  let bodyText = Stdlib.String.fromBytesWithReplacement req.body
+  Stdlib.Http.responseWithText bodyText 200L
+
+let echoHandler: Stdlib.HttpServer.Handler =
+  Stdlib.HttpServer.Handler
+    { route = "/echo"
+      method = "POST"
+      handler = echoHandlerFn }
+
+
+let rootHandlerFn (req: Stdlib.Http.Request) : Stdlib.Http.Response =
+  Stdlib.Http.responseWithText "Welcome to Darklang HTTP Server!" 200L
+
+let rootHandler: Stdlib.HttpServer.Handler =
+  Stdlib.HttpServer.Handler
+    { route = "/"
+      method = "GET"
+      handler = rootHandlerFn }
+
+
+/// All handlers for the test server
+let handlers: List<Stdlib.HttpServer.Handler> =
+  [ helloHandler; echoHandler; rootHandler ]
+
+
+/// Router function - routes requests through our handlers
+/// This is a named function so it can be passed to the builtin
+let router (req: Stdlib.Http.Request) : Stdlib.Http.Response =
+  Stdlib.HttpServer.routeRequest handlers req

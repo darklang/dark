@@ -20,7 +20,10 @@ type Context =
     isInFunction : bool
     // Maps parameter names to their indices within the current function
     // Used to convert EVariable references to EArg when they refer to function parameters
-    argMap : Map<string, int> }
+    argMap : Map<string, int>
+    // Tracks local variable bindings from let and match patterns
+    // Used to prevent resolving local names as global functions/values
+    localBindings : Set<string> }
 
 module InfixFnName =
   let toPT (name : WT.InfixFnName) : PT.InfixFnName =
@@ -120,7 +123,9 @@ module LetPattern =
                 | _ -> context.currentFnName
               | None -> None
             // Remove this variable from argMap as it's now shadowed by the let binding
-            argMap = Map.remove varName context.argMap }
+            argMap = Map.remove varName context.argMap
+            // Track this as a local binding to prevent resolving it as a global
+            localBindings = Set.add varName context.localBindings }
       (newContext, PT.LPVariable(id, varName))
     | WT.LPTuple(id, first, second, theRest) ->
       let (context1, first') = toPT context first
@@ -155,7 +160,9 @@ module MatchPattern =
                 | _ -> context.currentFnName
               | None -> None
             // Remove this variable from argMap as it's now shadowed by the match pattern
-            argMap = Map.remove varName context.argMap }
+            argMap = Map.remove varName context.argMap
+            // Track this as a local binding to prevent resolving it as a global
+            localBindings = Set.add varName context.localBindings }
       (newContext, PT.MPVariable(id, varName))
     | WT.MPEnum(id, caseName, fieldPats) ->
       let (finalContext, convertedPats) =
@@ -272,7 +279,11 @@ module Expr =
         // Check if this variable is a function argument first
         match Map.tryFind var context.argMap with
         | Some index -> return PT.EArg(id, index)
+        | None when Set.contains var context.localBindings ->
+          // Local binding takes precedence - don't resolve as global
+          return PT.EVariable(id, var)
         | None ->
+          // Try to resolve as a value first
           let! value =
             NR.resolveValueName
               (builtins.values |> Map.keys |> Set)
@@ -282,10 +293,68 @@ module Expr =
               (WT.Unresolved(NEList.singleton var))
           match value with
           | Ok _ as name -> return PT.EValue(id, name)
-          | Error _ -> return PT.EVariable(id, var)
+          | Error _ ->
+            // Try to resolve as a function reference
+            let! fnResult =
+              NR.resolveFnName
+                (builtins.fns |> Map.keys |> Set)
+                pm
+                NR.OnMissing.Allow
+                currentModule
+                (WT.Unresolved(NEList.singleton var))
+            match fnResult with
+            | Ok _ as name -> return PT.EFnName(id, name)
+            | Error _ -> return PT.EVariable(id, var)
       | WT.ERecordFieldAccess(id, obj, fieldname) ->
-        let! obj = toPT context obj
-        return PT.ERecordFieldAccess(id, obj, fieldname)
+        // When we have field access like `Module.fn`, try to resolve as qualified
+        // function or value name first, since the parser treats dotted identifiers
+        // as field access rather than qualified names.
+        let rec extractPath (expr : WT.Expr) : Option<NEList<string>> =
+          match expr with
+          | WT.EVariable(_, name) -> Some(NEList.singleton name)
+          | WT.ERecordFieldAccess(_, inner, field) ->
+            extractPath inner |> Option.map (fun path -> NEList.pushBack field path)
+          | _ -> None
+
+        match extractPath obj with
+        | Some basePath ->
+          // If the first part of the path is a local binding or function arg, it's field access, not a global
+          let firstPart = basePath.head
+          if Set.contains firstPart context.localBindings
+             || Map.containsKey firstPart context.argMap then
+            let! obj = toPT context obj
+            return PT.ERecordFieldAccess(id, obj, fieldname)
+          else
+            let fullPath = NEList.pushBack fieldname basePath
+            // Try to resolve as a value first
+            let! valueResult =
+              NR.resolveValueName
+                (builtins.values |> Map.keys |> Set)
+                pm
+                NR.OnMissing.Allow
+                currentModule
+                (WT.Unresolved fullPath)
+            match valueResult with
+            | Ok _ as name -> return PT.EValue(id, name)
+            | Error _ ->
+              // Try to resolve as a function reference
+              let! fnResult =
+                NR.resolveFnName
+                  (builtins.fns |> Map.keys |> Set)
+                  pm
+                  NR.OnMissing.Allow
+                  currentModule
+                  (WT.Unresolved fullPath)
+              match fnResult with
+              | Ok _ as name -> return PT.EFnName(id, name)
+              | Error _ ->
+                // Fall back to actual field access
+                let! obj = toPT context obj
+                return PT.ERecordFieldAccess(id, obj, fieldname)
+        | None ->
+          // Not a simple path, treat as field access
+          let! obj = toPT context obj
+          return PT.ERecordFieldAccess(id, obj, fieldname)
       | WT.EApply(id, (WT.EFnName(_, name)), [], { head = WT.EPlaceHolder }) ->
         let! fnName =
           NR.resolveFnName
@@ -384,6 +453,7 @@ module Expr =
         return PT.EFnName(id, fnName)
       | WT.ELambda(id, pats, body) ->
         // Start with a clean argMap to prevent lambda params from being converted to EArg
+        // Keep localBindings - outer scope variables should still be visible inside lambdas
         let lambdaContext = { context with argMap = Map.empty }
         let (finalContext, ptPats) =
           pats
@@ -584,6 +654,7 @@ module Expr =
 
       | WT.EPipeLambda(id, pats, body) ->
         // Start with a clean argMap to prevent lambda params from being converted to EArg
+        // Keep localBindings - outer scope variables should still be visible inside lambdas
         let lambdaContext = { context with argMap = Map.empty }
         let (finalContext, ptPats) =
           pats
@@ -774,7 +845,10 @@ module PackageValue =
     : Ply<PT.PackageValue.PackageValue> =
     uply {
       let context =
-        { currentFnName = None; isInFunction = false; argMap = Map.empty }
+        { currentFnName = None
+          isInFunction = false
+          argMap = Map.empty
+          localBindings = Set.empty }
       let! body = Expr.toPT builtins pm onMissing currentModule context c.body
       return
         { id = PackageIDs.Value.idForName c.name.owner c.name.modules c.name.name
@@ -825,7 +899,8 @@ module PackageFn =
       let context =
         { currentFnName = Some(currentModule @ [ fn.name.name ])
           isInFunction = true
-          argMap = argMap }
+          argMap = argMap
+          localBindings = Set.empty }
       let! body = Expr.toPT builtins pm onMissing currentModule context fn.body
 
       return
@@ -883,7 +958,10 @@ module Handler =
     : Ply<PT.Handler.T> =
     uply {
       let context =
-        { currentFnName = None; isInFunction = false; argMap = Map.empty }
+        { currentFnName = None
+          isInFunction = false
+          argMap = Map.empty
+          localBindings = Set.empty }
       let! ast = Expr.toPT builtins pm onMissing currentModule context h.ast
       return { tlid = gid (); ast = ast; spec = Spec.toPT h.spec }
     }

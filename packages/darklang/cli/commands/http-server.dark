@@ -1,0 +1,56 @@
+module Darklang.Cli.Commands.HttpServer
+
+// Run an HTTP server
+
+let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
+  match args with
+  | [] ->
+    Stdlib.printLine "Usage: http-server <port>"
+    Stdlib.printLine ""
+    Stdlib.printLine "Example:"
+    Stdlib.printLine "  http-server 8080"
+    state
+
+  | [ portStr ] ->
+    match Stdlib.Int64.parse portStr with
+    | Error _ ->
+      Stdlib.printLine (Colors.error $"Invalid port: {portStr}")
+      state
+    | Ok port ->
+      let portStr_ = Stdlib.Int64.toString port
+
+      Stdlib.printLine ""
+      Stdlib.printLine (Colors.success $"Listening on http://localhost:{portStr_}")
+      Stdlib.printLine "Press Ctrl+C to stop"
+      Stdlib.printLine ""
+
+      // Use the test router - in real usage, users would define their own
+      Stdlib.HttpServer.serve port Stdlib.HttpServerTest.router
+
+      state
+
+  | _ ->
+    Stdlib.printLine "Usage: http-server <port>"
+    state
+
+
+let help (state: Cli.AppState) : Cli.AppState =
+  [ "Start an HTTP server."
+    ""
+    "Usage: http-server <port>"
+    ""
+    "Arguments:"
+    "  port  Port to listen on (e.g., 8080)"
+    ""
+    "Example:"
+    "  http-server 8080" ]
+  |> Stdlib.printLines
+
+  state
+
+
+let complete
+  (state: Cli.AppState)
+  (args: List<String>)
+  : List<Cli.Completion.CompletionItem> =
+  []

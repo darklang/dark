@@ -78,27 +78,21 @@ let private applyAddType (typ : PT.PackageType.PackageType) : Task<unit> =
   }
 
 /// Apply a single AddValue op to the package_values table
+/// Note: rt_dval and value_type are stored as NULL here.
+/// They are evaluated in Phase 3 by LocalExec.evaluateAllValues after all ops are applied.
 let private applyAddValue (value : PT.PackageValue.PackageValue) : Task<unit> =
   task {
     let ptDef = BS.PT.PackageValue.serialize value.id value
-    let rtValue = value |> PT2RT.PackageValue.toRT
-    let rtDval = BS.RT.PackageValue.serialize value.id rtValue
 
-    // Serialize the ValueType for type-based indexing
-    let valueType = RT.Dval.toValueType rtValue.body
-    let valueTypeBytes = BS.RT.ValueType.serialize valueType
-
+    // Store NULL for rt_dval and value_type - they're populated by evaluateAllValues
+    // after all packages are loaded (so cross-package references resolve correctly)
     do!
       Sql.query
         """
         INSERT OR REPLACE INTO package_values (id, pt_def, rt_dval, value_type)
-        VALUES (@id, @pt_def, @rt_dval, @value_type)
+        VALUES (@id, @pt_def, NULL, NULL)
         """
-      |> Sql.parameters
-        [ "id", Sql.uuid value.id
-          "pt_def", Sql.bytes ptDef
-          "rt_dval", Sql.bytes rtDval
-          "value_type", Sql.bytes valueTypeBytes ]
+      |> Sql.parameters [ "id", Sql.uuid value.id; "pt_def", Sql.bytes ptDef ]
       |> Sql.executeStatementAsync
 
     // Extract and store dependency references atomically

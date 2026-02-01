@@ -19,7 +19,7 @@ CREATE TABLE IF NOT EXISTS package_types (
 CREATE TABLE IF NOT EXISTS package_values (
   id TEXT PRIMARY KEY,
   pt_def BLOB NOT NULL,
-  rt_dval BLOB NOT NULL,
+  rt_dval BLOB,  -- NULL until evaluated
   created_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
 

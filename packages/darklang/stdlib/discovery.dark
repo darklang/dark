@@ -42,6 +42,37 @@ let findBySuffix
       Stdlib.Option.Option.None)
 
 
+/// Parse namespace string into parts (non-generic helper)
+let parseNamespace (targetNamespace: String) : List<String> =
+  if (Stdlib.String.length targetNamespace) == 0L then
+    []
+  else
+    Stdlib.String.split targetNamespace "."
+
+
+/// Check if a value path starts with the namespace parts (non-generic helper)
+let isValueInNamespace
+  (namespaceParts: List<String>)
+  (valuePath: List<String>)
+  : Bool =
+  if (Stdlib.List.length namespaceParts) == 0L then
+    true
+  else
+    (Stdlib.List.take valuePath (Stdlib.List.length namespaceParts))
+    == namespaceParts
+
+
+/// Build full path string from location (non-generic helper)
+let buildPathFromLocation
+  (owner: String)
+  (modules: List<String>)
+  (name: String)
+  : String =
+  (Stdlib.List.append [ owner ] modules)
+  |> Stdlib.List.append [ name ]
+  |> Stdlib.String.join "."
+
+
 /// Find all values that match a specific custom type
 /// Uses indexed type lookup for efficiency
 /// Optionally filters by namespace prefix
@@ -49,11 +80,7 @@ let findByType
   (targetNamespace: String)
   (targetTypeId: Uuid)
   : List<DiscoveredValue<'a>> =
-  let namespaceParts =
-    if Stdlib.String.isEmpty targetNamespace then
-      []
-    else
-      Stdlib.String.split targetNamespace "."
+  let namespaceParts = parseNamespace targetNamespace
 
   // Construct a ValueType for the custom type
   let valueType =
@@ -73,21 +100,11 @@ let findByType
       // Check if it's in the target namespace
       let valuePath = Stdlib.List.append [ location.owner ] location.modules
 
-      let isInNamespace =
-        if Stdlib.List.isEmpty namespaceParts then
-          true
-        else
-          (Stdlib.List.take valuePath (Stdlib.List.length namespaceParts))
-          == namespaceParts
-
-      if isInNamespace then
+      if isValueInNamespace namespaceParts valuePath then
         // Evaluate the value
         match Builtin.pmEvaluateValue valueId with
         | Some evaluatedValue ->
-          let fullPath =
-            (Stdlib.List.append [ location.owner ] location.modules)
-            |> Stdlib.List.append [ location.name ]
-            |> Stdlib.String.join "."
+          let fullPath = buildPathFromLocation location.owner location.modules location.name
 
           Stdlib.Option.Option.Some(
             DiscoveredValue { path = fullPath; value = evaluatedValue }
@@ -115,11 +132,7 @@ let findAllValues
   : List<DiscoveredValue<'a>> =
   let query =
     LanguageTools.ProgramTypes.Search.SearchQuery
-      { currentModule =
-          if Stdlib.String.isEmpty targetNamespace then
-            []
-          else
-            Stdlib.String.split targetNamespace "."
+      { currentModule = parseNamespace targetNamespace
         text = ""
         searchDepth = LanguageTools.ProgramTypes.Search.SearchDepth.AllDescendants
         entityTypes = [ LanguageTools.ProgramTypes.Search.EntityType.Value ]
