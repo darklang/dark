@@ -165,6 +165,29 @@ let routeRequest
   | None -> Stdlib.Http.notFound ()
 
 
+/// Extract a path parameter from a request given a route pattern
+/// Example: getPathParam req "/user/:id" "id" returns Some "123" for path "/user/123"
+let getPathParam (req: Stdlib.Http.Request) (routePattern: String) (paramName: String) : Stdlib.Option.Option<String> =
+  let path = getPath req
+  let routeSegs = parseRouteSegments routePattern
+  let pathSegs =
+    (Stdlib.String.split path "/")
+    |> Stdlib.List.filter (fun s -> Stdlib.Bool.not (Stdlib.String.isEmpty s))
+
+  // Zip and find the matching variable
+  let zipped = Stdlib.List.zipShortest routeSegs pathSegs
+  zipped
+  |> Stdlib.List.findFirst (fun pair ->
+    let (routeSeg, _) = pair
+    match routeSeg with
+    | Variable name -> name == paramName
+    | _ -> false)
+  |> fun result ->
+    match result with
+    | Some ((_, pathValue)) -> Stdlib.Option.Option.Some pathValue
+    | None -> Stdlib.Option.Option.None
+
+
 /// Start an HTTP server with a handler function
 /// The handler receives each request and returns a response
 /// This function blocks forever
