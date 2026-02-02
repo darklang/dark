@@ -1,0 +1,32 @@
+module Darklang.Cli.Docs.HttpServer
+
+let content () : String =
+  """# HTTP Server
+
+## Start
+  http-server 8080 MyApp.router
+
+## Router function
+  let router (req: Stdlib.HttpServer.Request) : Stdlib.HttpServer.Response =
+    match (req.method, req.path) with
+    | ("GET", "/") -> Stdlib.HttpServer.response 200L "Hello"
+    | ("GET", "/api") -> Stdlib.HttpServer.jsonResponse 200L data
+    | _ -> Stdlib.HttpServer.response 404L "Not Found"
+
+## Request fields
+  method path headers query body
+
+## Response helpers
+  Stdlib.HttpServer.response status body
+  Stdlib.HttpServer.jsonResponse status data
+  Stdlib.HttpServer.responseWithHeaders status headers body
+
+## Route params
+  match Stdlib.HttpServer.matchRoute "/users/:id" req.path with
+  | Some vars -> Stdlib.Dict.get vars "id"
+  | None -> ...
+
+## JSON body
+  match Stdlib.Json.parse<MyType> req.body with
+  | Ok data -> ...
+  | Error e -> ..."""

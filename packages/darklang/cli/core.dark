@@ -146,7 +146,8 @@ module Registry =
       ("show", "Show commit details", [], SCM.Show.execute, SCM.Show.help, SCM.Show.complete)
       ("builtins", "List all builtin functions", [], BuiltinsList.execute, BuiltinsList.help, BuiltinsList.complete)
       ("find-values", "Find values of a given type", [], Commands.Find.execute, Commands.Find.help, Commands.Find.complete)
-      ("http-server", "Start an HTTP server", [], Commands.HttpServer.execute, Commands.HttpServer.help, Commands.HttpServer.complete) ]
+      ("http-server", "Start an HTTP server", [], Commands.HttpServer.execute, Commands.HttpServer.help, Commands.HttpServer.complete)
+      ("docs", "Browse in-CLI documentation", [ "doc"; "man" ], Commands.Docs.execute, Commands.Docs.help, Commands.Docs.complete) ]
     |> Stdlib.List.map(
       // CLEANUP nitpicky: swap help and complete
       fun (name, desc, aliases, execute, help, complete) ->
@@ -219,7 +220,7 @@ module Registry =
       ("SCM", [ "status"; "log"; "commit"; "discard"; "show" ])
       ("Execution", [ "run"; "eval"; "scripts" ])
       ("Install", [ "install"; "update"; "uninstall"; "version" ])
-      ("Utilities", [ "clear"; "help"; "quit"; "builtins" ]) ]
+      ("Utilities", [ "clear"; "help"; "docs"; "quit"; "builtins" ]) ]
 
   // Helper function to format a group of commands with details
   let formatCommandGroup (groupName: String) (commandNames: List<String>) (commands: List<CommandHandler>) : String =

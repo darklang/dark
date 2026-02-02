@@ -1,0 +1,38 @@
+module Darklang.Cli.Docs.Errors
+
+let content () : String =
+  """# Common Errors
+
+## Parse errors -> CHECK INDENTATION FIRST
+
+## "Unsupported expression"
+  - Nested function definition
+  - Bad indentation
+  - { left of type name in record
+
+## Type mismatch
+  - Wrong literal suffix (5L vs 5.0)
+  - Param order wrong
+  - Missing Option.Some wrapper
+  - Missing list wrapper [x]
+
+## "Function not found"
+  - Use full path: Stdlib.List.map
+  - Check spelling/case
+
+## Operator errors
+  - Int division: use Stdlib.Int64.divide
+  - Float subtract: use Stdlib.Float.subtract
+  - List concat: use Stdlib.List.append
+
+## Enum errors
+  - Constructing: need TypeName.Case
+  - Matching: just Case (no prefix)
+
+## Some + tuple
+  - Use Some ((a, b)) with double parens
+
+## Debug
+  1. Simplify expression
+  2. Use eval to test pieces
+  3. Check packages-canvas.log"""

@@ -1,0 +1,30 @@
+module Darklang.Cli.Docs.Operators
+
+let content () : String =
+  """# Operators
+
+## Comparison
+  == != < > <= >=
+
+## Boolean
+  && || (use Stdlib.Bool.not for negation)
+
+## Int64
+  + - * %
+  NO / -> Stdlib.Int64.divide
+
+## Float
+  +. *.
+  NO -. -> Stdlib.Float.subtract
+  Stdlib.Float.divide for division
+
+## String
+  ++   concat
+  NO @ operator
+
+## List
+  NO operators -> Stdlib.List.append
+
+## Pipe
+  value |> fn
+  (complex expr) |> fn   # parens needed"""

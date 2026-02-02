@@ -1,0 +1,248 @@
+module Darklang.Cli.Commands.Docs
+
+// The docs command - in-CLI documentation system
+// Usage: docs [topic] [subtopic]
+
+// TODO: Add subtopic drill-down support (docs stdlib list, docs cli nav, etc.)
+// TODO: Add detailed docs if AI agents need more depth:
+//   - stdlib-list, stdlib-string, stdlib-option, stdlib-result
+//   - cli-nav, cli-create, cli-scm
+//   - errors-parse, errors-types
+//   - testing
+
+module Topics =
+  // All available doc topics - maps name to (description, content-fn)
+  // Content is stored in Docs submodules
+
+  type DocTopic =
+    { name: String
+      description: String
+      aliases: List<String>
+      content: Unit -> String
+      subtopics: List<DocTopic> }
+
+  let allTopics () : List<DocTopic> =
+    [ DocTopic
+        { name = "for-ai"
+          description = "AI agent guide - start here"
+          aliases = [ "ai"; "agent" ]
+          content = Docs.ForAI.content
+          subtopics = [] }
+
+      DocTopic
+        { name = "for-ai-internal"
+          description = "AI guide for monorepo/F# work"
+          aliases = [ "internal"; "dev" ]
+          content = Docs.ForAIInternal.content
+          subtopics = [] }
+
+      DocTopic
+        { name = "syntax"
+          description = "Language syntax reference"
+          aliases = [ "lang" ]
+          content = Docs.Syntax.content
+          subtopics = [] }
+
+      DocTopic
+        { name = "types"
+          description = "Type system overview"
+          aliases = []
+          content = Docs.Types.content
+          subtopics = [] }
+
+      DocTopic
+        { name = "records"
+          description = "Record types deep dive"
+          aliases = []
+          content = Docs.Records.content
+          subtopics = [] }
+
+      DocTopic
+        { name = "enums"
+          description = "Enums/unions deep dive"
+          aliases = [ "unions" ]
+          content = Docs.Enums.content
+          subtopics = [] }
+
+      DocTopic
+        { name = "pattern-matching"
+          description = "Match expressions"
+          aliases = [ "match"; "patterns" ]
+          content = Docs.PatternMatching.content
+          subtopics = [] }
+
+      DocTopic
+        { name = "functions"
+          description = "Functions and lambdas"
+          aliases = [ "fn"; "fns" ]
+          content = Docs.Functions.content
+          subtopics = [] }
+
+      DocTopic
+        { name = "operators"
+          description = "Operators reference"
+          aliases = [ "ops" ]
+          content = Docs.Operators.content
+          subtopics = [] }
+
+      DocTopic
+        { name = "stdlib"
+          description = "Standard library overview"
+          aliases = [ "lib" ]
+          content = Docs.Stdlib.content
+          subtopics = [] }
+
+      DocTopic
+        { name = "cli"
+          description = "CLI commands reference"
+          aliases = [ "commands" ]
+          content = Docs.CLI.content
+          subtopics = [] }
+
+      DocTopic
+        { name = "errors"
+          description = "Common errors and fixes"
+          aliases = []
+          content = Docs.Errors.content
+          subtopics = [] }
+
+      DocTopic
+        { name = "http-server"
+          description = "HTTP server guide"
+          aliases = [ "http"; "server" ]
+          content = Docs.HttpServer.content
+          subtopics = [] }
+
+      DocTopic
+        { name = "packages"
+          description = "Package system"
+          aliases = []
+          content = Docs.Packages.content
+          subtopics = [] }
+
+      DocTopic
+        { name = "scm"
+          description = "Version control for packages"
+          aliases = [ "git"; "vcs"; "commits" ]
+          content = Docs.SCM.content
+          subtopics = [] } ]
+
+  let findTopic (name: String) : Stdlib.Option.Option<DocTopic> =
+    let topics = allTopics ()
+    let lowerName = Stdlib.String.toLowercase name
+
+    // Check exact name match
+    let byName =
+      topics
+      |> Stdlib.List.findFirst (fun t -> Stdlib.String.toLowercase t.name == lowerName)
+
+    match byName with
+    | Some t -> Stdlib.Option.Option.Some t
+    | None ->
+      // Check aliases
+      topics
+      |> Stdlib.List.findFirst (fun t ->
+        t.aliases
+        |> Stdlib.List.any (fun a -> Stdlib.String.toLowercase a == lowerName))
+
+  let formatTopicList () : String =
+    let topics = allTopics ()
+
+    let lines =
+      topics
+      |> Stdlib.List.map (fun t ->
+        let aliasStr =
+          match t.aliases with
+          | [] -> ""
+          | aliases ->
+            let joined = Stdlib.String.join aliases ", "
+            $" ({joined})"
+
+        $"  {Colors.command t.name}{Colors.dimText aliasStr} - {t.description}")
+
+    let header =
+      [ Colors.info "Available documentation topics:"
+        "" ]
+
+    let footer =
+      [ ""
+        "Usage: " ++ Colors.command "docs <topic>"
+        ""
+        "Start with: " ++ Colors.command "docs for-ai" ]
+
+    (Stdlib.List.append (Stdlib.List.append header lines) footer)
+    |> Stdlib.String.join "\n"
+
+
+let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
+  match args with
+  | [] ->
+    Stdlib.printLine (Topics.formatTopicList ())
+    state
+
+  | [ topicName ] ->
+    match Topics.findTopic topicName with
+    | Some topic ->
+      let contentFn = topic.content
+      Stdlib.printLine (contentFn ())
+      state
+    | None ->
+      Stdlib.printLine (Colors.error $"Unknown topic: {topicName}")
+      Stdlib.printLine ""
+      Stdlib.printLine (Topics.formatTopicList ())
+      state
+
+  | [ topicName; _subtopic ] ->
+    // TODO: subtopic support
+    match Topics.findTopic topicName with
+    | Some topic ->
+      let contentFn = topic.content
+      Stdlib.printLine (contentFn ())
+      state
+    | None ->
+      Stdlib.printLine (Colors.error $"Unknown topic: {topicName}")
+      state
+
+  | _ ->
+    Stdlib.printLine "Usage: docs [topic] [subtopic]"
+    state
+
+
+let help (state: Cli.AppState) : Cli.AppState =
+  [ Colors.info "Usage: " ++ Colors.command "docs [topic]"
+    "Browse in-CLI documentation."
+    ""
+    Colors.info "Examples:"
+    "  " ++ Colors.command "docs" ++ "         - List all topics"
+    "  " ++ Colors.command "docs for-ai" ++ "  - AI agent quick start"
+    "  " ++ Colors.command "docs syntax" ++ "  - Language syntax reference"
+    "  " ++ Colors.command "docs errors" ++ "  - Common errors and fixes" ]
+  |> Stdlib.printLines
+
+  state
+
+
+let complete
+  (state: Cli.AppState)
+  (args: List<String>)
+  : List<Cli.Completion.CompletionItem> =
+  match args with
+  | [] ->
+    // Complete topic names
+    let topics = Topics.allTopics ()
+
+    topics
+    |> Stdlib.List.map (fun t -> Cli.Completion.withDescription t.name t.description)
+  | [ partial ] ->
+    // Filter topics by partial match
+    let topics = Topics.allTopics ()
+    let lowerPartial = Stdlib.String.toLowercase partial
+
+    topics
+    |> Stdlib.List.filter (fun t ->
+      (Stdlib.String.startsWith (Stdlib.String.toLowercase t.name) lowerPartial)
+      || (t.aliases
+          |> Stdlib.List.any (fun a ->
+            Stdlib.String.startsWith (Stdlib.String.toLowercase a) lowerPartial)))
+    |> Stdlib.List.map (fun t -> Cli.Completion.withDescription t.name t.description)
+  | _ -> []

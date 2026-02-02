@@ -1,0 +1,45 @@
+module Darklang.Cli.Docs.CLI
+
+let content () : String =
+  """# CLI Commands
+
+## Creating Code (main workflow)
+  fn <name>       # create function - USE THIS TO WRITE CODE
+  type <name>     # create type
+  val <name>      # create value (let)
+
+## Running/Testing
+  run <fn> [args] # run function you created
+  eval <expr>     # test quick expressions (not for creating code)
+
+## Navigation
+  nav <path>      # go to module (cd)
+  ls              # list contents
+  back            # previous location
+  tree            # show hierarchy
+
+## Viewing
+  view <name>     # inspect fn/type/value
+  builtins        # list builtins
+  search <term>   # find anything
+  deps <name>     # show dependencies
+
+## Version Control (SCM)
+  status          # uncommitted changes
+  commit <msg>    # commit
+  log             # history
+  discard <path>  # undo changes
+  (see: docs scm)
+
+## Server
+  http-server <port> <router>
+
+## Other
+  help [cmd]      # help
+  docs [topic]    # documentation
+  clear / quit
+
+## Troubleshooting
+If something hangs or behaves unexpectedly, check the logs:
+  rundir/logs/cli.log    # main CLI log
+  rundir/logs/           # other logs (parser, etc.)"""

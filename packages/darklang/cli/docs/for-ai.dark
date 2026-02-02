@@ -1,0 +1,71 @@
+module Darklang.Cli.Docs.ForAI
+
+let content () : String =
+  """# Darklang AI Quick Reference
+
+## IMPORTANT: Darklang is Different
+Darklang is a LIVE PROGRAMMING ENVIRONMENT (like Smalltalk).
+You don't write scripts - you build a persistent package tree.
+- Use `fn` to CREATE functions in the tree (not eval)
+- Use `run` to TEST those functions
+- Use `commit` to SAVE your work
+- CLI state doesn't persist between calls - the PACKAGE TREE does
+
+## Workflow
+  1. fn myFn        # create function (stored in package tree)
+  2. run myFn       # test it
+  3. status         # see changes
+  4. commit "msg"   # save to SCM
+
+## First Commands
+  tree              # see package structure
+  builtins          # list builtins
+  search <term>     # find anything
+  view <name>       # inspect entity
+
+## Creating Code (use these, not eval!)
+  fn <name>         # create function - MAIN WAY TO WRITE CODE
+  type <name>       # create type
+  val <name>        # create value
+
+Names need full paths (owner.module.name), e.g.:
+  fn "Darklang.Testing.fib (n: Int64): Int64 = ..."
+Inside the body, use short names (e.g., `fib` for recursion).
+
+## Running/Testing
+  run <fn> [args]   # run a function you created
+  eval <expr>       # quick test expressions (not for creating code)
+
+## Navigation
+  nav <path>        # go to module (cd)
+  ls / back         # list / go back
+
+## SCM (version control)
+  status            # see uncommitted changes
+  commit <msg>      # commit changes
+  log               # history
+  discard <path>    # undo changes
+  (see: docs scm)
+
+## Critical Syntax
+- Whitespace-sensitive (like Python)
+- NO nested function definitions
+- Pipe needs parens: (complex expr) |> fn
+- Lists: [1L; 2L; 3L] (semicolons)
+- String concat: ++ (not @)
+- Int division: Stdlib.Int64.divide (not /)
+
+## Records
+  MyRecord { a = 1L; b = 2L }
+  # { must not be left of type name
+
+## Enums
+  Option.Some 5L      # construct: TypeName.Case
+  | Some x -> ...     # match: just Case
+
+## Troubleshooting
+If commands hang or fail silently, check logs:
+  rundir/logs/cli.log    # main CLI log
+  rundir/logs/           # other logs
+
+## More: docs syntax|types|operators|stdlib|errors|cli|scm"""

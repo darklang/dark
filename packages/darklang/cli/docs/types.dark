@@ -1,0 +1,36 @@
+module Darklang.Cli.Docs.Types
+
+let content () : String =
+  """# Types
+
+## Primitives
+  Int64    5L, -42L
+  Float    3.14, -0.5
+  String   "hello"
+  Bool     true, false
+  Char     'a'
+
+## Option
+  Option.Some 5L
+  Option.None
+
+## Result
+  Result.Ok value
+  Result.Error msg
+
+## Collections
+  List<T>     [1L; 2L]
+  Dict<T>     Dict { key = "value" }
+  (a, b)      tuple
+
+## Records
+  type Person = { name: String; age: Int64 }
+  Person { name = "Jo"; age = 30L }
+
+## Enums
+  type Status = | Active | Inactive of String
+  Status.Active
+  Status.Inactive "reason"
+
+## Generics
+  type Box<'a> = { value: 'a }"""

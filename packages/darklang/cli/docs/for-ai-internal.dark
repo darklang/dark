@@ -1,0 +1,50 @@
+module Darklang.Cli.Docs.ForAIInternal
+
+let content () : String =
+  """# Darklang Internal Dev (Monorepo/F#)
+
+## Directories
+  backend/src/          # F# source
+    LibExecution/       # execution engine
+    LibParser/          # parser
+    BuiltinExecution/   # builtin impls
+  packages/darklang/    # .dark files
+    cli/                # CLI code
+    stdlib/             # standard library
+  rundir/logs/          # log files
+  scripts/              # build scripts
+
+## Builds - DON'T MANUALLY REBUILD
+Auto-rebuilds on save. Watch logs:
+  packages-canvas.log   # .dark reload (~10s)
+  build-server.log      # F# build (~1min)
+
+## Tests
+  ./scripts/run-backend-tests
+  ./scripts/run-backend-tests --filter "name"
+  (scripts auto-enter container if needed)
+
+## Adding Builtin (F#)
+  backend/src/BuiltinExecution/Libs/<module>.fs
+  Add to `fns` list, save, wait for rebuild
+
+## Adding CLI Command (Darklang)
+  1. packages/darklang/cli/commands/<name>.dark
+  2. Implement: execute, help, complete
+  3. Add to Registry.allCommands in cli/core.dark
+
+## Log Files (rundir/logs/)
+When something goes wrong, check these logs:
+  cli.log              # CLI runtime issues
+  lsp.log              # LSP input/output
+  packages-canvas.log  # .dark file loading from disk
+  build-server.log     # F# build issues, high-level errors
+  migrations.log       # migration issues (if recently changed)
+
+## Debug
+  eval <expr> to test small pieces
+
+## External Resources
+  ~/vaults/Darklang Dev    # team notes
+  wip.darklang.com         # website WIP
+  blog.darklang.com        # blog"""

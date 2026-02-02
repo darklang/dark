@@ -1,0 +1,33 @@
+module Darklang.Cli.Docs.Packages
+
+let content () : String =
+  """# Packages
+
+## Structure
+  Owner.Module.SubModule.name
+  Darklang.Stdlib.List.map
+  MyOrg.MyApp.Utils.helper
+
+## Navigate
+  tree              # see hierarchy
+  nav <path>        # go to module
+  ls                # list contents
+  search <term>     # find anything
+
+## Create
+  nav MyOrg.MyApp   # go to your module
+  fn name           # create function
+  type name         # create type
+  val name          # create value
+
+## Use
+  Stdlib.List.map list fn
+  Stdlib.Json.parse<T> str
+
+## Files
+  packages/<owner>/<module>/<file>.dark
+
+## Stdlib vs Builtin
+  Stdlib: packages/darklang/stdlib/*.dark
+  Builtins: F# in backend/src/BuiltinExecution/
+  Use `builtins` to list all builtins"""

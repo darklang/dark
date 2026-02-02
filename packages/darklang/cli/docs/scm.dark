@@ -1,0 +1,39 @@
+module Darklang.Cli.Docs.SCM
+
+let content () : String =
+  """# SCM (Source Control)
+
+Darklang has built-in version control for the package tree.
+NOT git - this is for Darklang definitions (fns, types, values).
+
+## Workflow
+  fn myFn           # create/edit function
+  run myFn          # test it
+  status            # see what changed
+  commit "message"  # save changes
+
+## Commands
+  status            # show uncommitted changes
+  commit <msg>      # commit all changes
+  log               # show commit history
+  show <hash>       # show commit details
+  discard <path>    # discard changes to specific item
+
+## What Gets Versioned
+- Function definitions
+- Type definitions
+- Value definitions
+- NOT: runtime state, external files
+
+## Example Session
+  fn fib                    # create fibonacci function
+  (enter code, blank line to finish)
+  run fib 10L               # test it
+  status                    # see "fib" as uncommitted
+  commit "Add fibonacci"    # save it
+  log                       # see commit in history
+
+## Tips
+- Commit often with descriptive messages
+- Use `discard` to undo mistakes before committing
+- `status` shows full paths of changed items"""

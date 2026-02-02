@@ -1,0 +1,27 @@
+module Darklang.Cli.Docs.Enums
+
+let content () : String =
+  """# Enums
+
+## Define
+  type Status = | Pending | Done of Int64
+
+## Construct (need type prefix)
+  Status.Pending
+  Status.Done 42L
+  Option.Some 5L
+  Result.Ok "yes"
+
+## Match (no type prefix)
+  match status with
+  | Pending -> "waiting"
+  | Done n -> $"done: {n}"
+
+  match opt with
+  | Some v -> v
+  | None -> default
+
+## Gotcha: Some with tuple
+  match x with
+  | Some ((a, b)) -> ...    # double parens!
+  | None -> ..."""

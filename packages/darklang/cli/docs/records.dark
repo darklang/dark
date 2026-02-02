@@ -1,0 +1,26 @@
+module Darklang.Cli.Docs.Records
+
+let content () : String =
+  """# Records
+
+## Define
+  type Person = { name: String; age: Int64 }
+
+## Construct (alignment matters!)
+  Person { name = "Jo"; age = 30L }    # OK
+  Person                                # OK
+    { name = "Jo"
+      age = 30L }
+  Person
+  { name = "Jo" }                       # WRONG - { left of type
+
+## Access
+  person.name
+
+## Update
+  Person { person with age = 31L }
+
+## Match (partial OK)
+  match p with
+  | { name = "admin" } -> true
+  | _ -> false"""
