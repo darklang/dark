@@ -301,7 +301,11 @@ module Registry =
           $"Other:\n{ungroupedLines}"
         Stdlib.List.append formattedGroups [ungroupedGroup]
 
-    Stdlib.String.join finalGroups "\n\n"
+    let groupsText = Stdlib.String.join finalGroups "\n\n"
+
+    let footer = "Workflow: fn <name> → run <name> → status → commit\nhelp <command> for details. AI agents: docs for-ai"
+
+    groupsText ++ "\n\n" ++ footer
 
 
   let getCompletions (state: AppState) (input: String) : List<Completion.CompletionItem> =
