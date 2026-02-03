@@ -24,20 +24,27 @@ let rt : RT.PackageManager =
       } }
 
 
-let pt : PT.PackageManager =
-  { findType = withCache PMPT.Type.find
-    findValue = withCache PMPT.Value.find
-    findFn = withCache PMPT.Fn.find
+/// Create a branch-aware PT PackageManager.
+/// Pre-computes the branch chain and captures it in the closures.
+/// Switching branches = call this again with the new branchId.
+let pt (branchId : PT.BranchId) : PT.PackageManager =
+  // Pre-compute the branch chain synchronously at construction time
+  let branchChain =
+    Branches.getBranchChain branchId |> Async.AwaitTask |> Async.RunSynchronously
+
+  { findType = withCache (PMPT.Type.find branchChain)
+    findValue = withCache (PMPT.Value.find branchChain)
+    findFn = withCache (PMPT.Fn.find branchChain)
 
     getType = withCache PMPT.Type.get
     getFn = withCache PMPT.Fn.get
     getValue = withCache PMPT.Value.get
 
-    getTypeLocation = withCache PMPT.Type.getLocation
-    getValueLocation = withCache PMPT.Value.getLocation
-    getFnLocation = withCache PMPT.Fn.getLocation
+    getTypeLocation = withCache (PMPT.Type.getLocation branchChain)
+    getValueLocation = withCache (PMPT.Value.getLocation branchChain)
+    getFnLocation = withCache (PMPT.Fn.getLocation branchChain)
 
-    search = PMPT.search
+    search = PMPT.search branchChain
 
     init = uply { return () } }
 

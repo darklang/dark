@@ -344,10 +344,7 @@ module Type =
       p [ "Cli"; "Scripts" ] "Script" "de1629b6-cdfa-46b1-84c0-e0c60048d93b"
 
     let builtinParamInfo =
-      p
-        [ "Cli"; "BuiltinsList" ]
-        "ParamInfo"
-        "a3b4c5d6-e7f8-9012-3456-789abcdef012"
+      p [ "Cli"; "BuiltinsList" ] "ParamInfo" "a3b4c5d6-e7f8-9012-3456-789abcdef012"
 
     let builtinFunctionInfo =
       p

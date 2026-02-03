@@ -115,6 +115,7 @@ let loadFromDisk
             Task.FromResult(System.Guid.Empty)
           else
             LibPackageManager.Inserts.insertAndApplyOpsWithCommit
+              LibPackageManager.Branches.mainBranchId
               $"Init: canvas {domain}"
               canvas.ops
 

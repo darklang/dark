@@ -10,7 +10,8 @@ type AppState =
     prompt: Prompt.State
     needsFullRedraw: Bool
     packageData: Packages.State
-    currentPage: Page }
+    currentPage: Page
+    currentBranchId: Uuid }
 
 let initState () : AppState =
   AppState
@@ -18,7 +19,8 @@ let initState () : AppState =
       prompt = Prompt.initState ()
       needsFullRedraw = true
       packageData = Packages.initState ()
-      currentPage = Page.MainPrompt }
+      currentPage = Page.MainPrompt
+      currentBranchId = SCM.Branch.mainBranchId () }
 
 type Msg =
   | ProcessInput of String
@@ -73,8 +75,21 @@ module StatusBar =
     let leftPart =
       Colors.colorize (Colors.purpleBg ++ Colors.white ++ Colors.bold) leftText
 
+    // Show current branch name
+    let branchName =
+      match SCM.Branch.get state.currentBranchId with
+      | Some b ->
+        match Stdlib.Dict.get b "name" with
+        | Some n -> n
+        | None -> "main"
+      | None -> "main"
+
+    let branchText = $" {branchName} "
+    let branchPart =
+      Colors.colorize (Colors.grayBg ++ Colors.white) branchText
+
     // Calculate padding
-    let leftLen = Stdlib.String.length leftText
+    let leftLen = Stdlib.String.length leftText + Stdlib.String.length branchText
     let paddingLen = terminalWidth - leftLen
 
     let padding =
@@ -83,7 +98,7 @@ module StatusBar =
       else
         ""
 
-    let statusLine = leftPart ++ padding
+    let statusLine = leftPart ++ branchPart ++ padding
 
     // Save cursor, move to bottom, render, restore cursor
     Stdlib.print
@@ -144,6 +159,9 @@ module Registry =
       ("commit", "Commit uncommitted changes", [], SCM.Commit.execute, SCM.Commit.help, SCM.Commit.complete)
       ("discard", "Discard uncommitted changes", [ "reset" ], SCM.Discard.execute, SCM.Discard.help, SCM.Discard.complete)
       ("show", "Show commit details", [], SCM.Show.execute, SCM.Show.help, SCM.Show.complete)
+      ("branch", "Manage branches", [ "br" ], SCM.Branch.execute, SCM.Branch.help, SCM.Branch.complete)
+      ("rebase", "Rebase current branch onto parent", [], SCM.Rebase.execute, SCM.Rebase.help, SCM.Rebase.complete)
+      ("merge", "Merge current branch into parent", [], SCM.Merge.execute, SCM.Merge.help, SCM.Merge.complete)
       ("builtins", "List all builtin functions", [], BuiltinsList.execute, BuiltinsList.help, BuiltinsList.complete)
       ("find-values", "Find values of a given type", [], Commands.Find.execute, Commands.Find.help, Commands.Find.complete)
       ("http-server", "Start an HTTP server", [], Commands.HttpServer.execute, Commands.HttpServer.help, Commands.HttpServer.complete)
@@ -217,7 +235,7 @@ module Registry =
   // Command groups organized by category (shared between compact and detailed views)
   let commandGroups () : List<(String * List<String>)> =
     [ ("Packages", [ "nav"; "ls"; "view"; "back"; "search"; "fn"; "type" ])
-      ("SCM", [ "status"; "log"; "commit"; "discard"; "show" ])
+      ("SCM", [ "status"; "log"; "commit"; "discard"; "show"; "branch"; "rebase"; "merge" ])
       ("Execution", [ "run"; "eval"; "scripts" ])
       ("Install", [ "install"; "update"; "uninstall"; "version" ])
       ("Utilities", [ "clear"; "help"; "docs"; "quit"; "builtins" ]) ]
@@ -539,10 +557,62 @@ let runInteractiveLoop (state: AppState) : Int64 =
     runInteractiveLoop newState
 
 
-let executeCliCommand (args: List<String>) : Int64 =
-  let initialState = initState ()
+/// Extract --branch <name> from args, returning (branchId, remainingArgs).
+/// If --branch is not specified, defaults to main.
+let private parseBranchFlag (args: List<String>) : (Uuid * List<String>) =
+  // Walk the list looking for "--branch" followed by a name
+  let indexed = Stdlib.List.indexedMap args (fun i a -> (i, a))
 
-  match args with
+  let branchEntry =
+    indexed
+    |> Stdlib.List.findFirst (fun pair ->
+      let (_i, a) = pair
+      a == "--branch")
+
+  match branchEntry with
+  | None -> (SCM.Branch.mainBranchId (), args)
+  | Some flagPair ->
+    let (idx, _flag) = flagPair
+
+    let branchName =
+      match Stdlib.List.getAt args (idx + 1L) with
+      | Some name -> name
+      | None -> ""
+
+    if Stdlib.String.isEmpty branchName then
+      Stdlib.printLine "Warning: --branch requires a name, using main."
+      (SCM.Branch.mainBranchId (), args)
+    else
+      // Remove --branch and its argument from args
+      let filteredArgs =
+        indexed
+        |> Stdlib.List.filter (fun pair ->
+          let (i, _a) = pair
+          i != idx && i != (idx + 1L))
+        |> Stdlib.List.map (fun pair ->
+          let (_i, a) = pair
+          a)
+
+      match SCM.Branch.getByName branchName with
+      | Some b ->
+        let branchId =
+          match Stdlib.Dict.get b "id" with
+          | Some idStr ->
+            match Stdlib.Uuid.parse idStr with
+            | Ok id -> id
+            | Error _ -> SCM.Branch.mainBranchId ()
+          | None -> SCM.Branch.mainBranchId ()
+        (branchId, filteredArgs)
+      | None ->
+        Stdlib.printLine $"Warning: branch '{branchName}' not found, using main."
+        (SCM.Branch.mainBranchId (), filteredArgs)
+
+
+let executeCliCommand (args: List<String>) : Int64 =
+  let (branchId, remainingArgs) = parseBranchFlag args
+  let initialState = { initState () with currentBranchId = branchId }
+
+  match remainingArgs with
   // If someone runs `dark` without args, start the interactive loop
   | [] ->
     // Initialize status bar (sets up scroll region to reserve bottom line)
@@ -552,7 +622,7 @@ let executeCliCommand (args: List<String>) : Int64 =
     runInteractiveLoop initialState
   // Otherwise, just execute command, print result, and exit
   | _ ->
-    let command = args |> Stdlib.String.join " "
+    let command = remainingArgs |> Stdlib.String.join " "
     let finalState = Update.processInput initialState command
     0L
 

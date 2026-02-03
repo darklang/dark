@@ -22,7 +22,7 @@ let resolveTypeId
             modules = modules
             name = name }
 
-      match LanguageTools.PackageManager.Type.find location with
+      match LanguageTools.PackageManager.Type.find Stdlib.Option.Option.None location with
       | Some typeId -> Stdlib.Result.Result.Ok typeId
       | None -> Stdlib.Result.Result.Error $"Type not found: {typePath}"
 

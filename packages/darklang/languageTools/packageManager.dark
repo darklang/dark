@@ -8,9 +8,10 @@ module Darklang.LanguageTools.PackageManager
 
 module Type =
   let find
+    (branchId: Stdlib.Option.Option<Uuid>)
     (location: ProgramTypes.PackageLocation)
     : Stdlib.Option.Option<Uuid> =
-    Builtin.pmFindType location
+    Builtin.pmFindType branchId location
 
   let get
     (id: Uuid)
@@ -34,9 +35,10 @@ module Type =
 
 module Value =
   let find
+    (branchId: Stdlib.Option.Option<Uuid>)
     (location: ProgramTypes.PackageLocation)
     : Stdlib.Option.Option<Uuid> =
-    Builtin.pmFindValue location
+    Builtin.pmFindValue branchId location
 
   let get
     (id: Uuid)
@@ -60,9 +62,10 @@ module Value =
 
 module Function =
   let find
+    (branchId: Stdlib.Option.Option<Uuid>)
     (location: ProgramTypes.PackageLocation)
     : Stdlib.Option.Option<Uuid> =
-    Builtin.pmFindFn location
+    Builtin.pmFindFn branchId location
 
   let get (id: Uuid) : Stdlib.Option.Option<ProgramTypes.PackageFn.PackageFn> =
     Builtin.pmGetFn id
@@ -84,9 +87,10 @@ module Function =
 
 module Search =
   let search
+    (branchId: Stdlib.Option.Option<Uuid>)
     (query: ProgramTypes.Search.SearchQuery)
     : ProgramTypes.Search.SearchResults =
-    let searchResults = Builtin.pmSearch query
+    let searchResults = Builtin.pmSearch branchId query
 
     ProgramTypes.Search.SearchResults
       { submodules = searchResults.submodules
@@ -94,15 +98,17 @@ module Search =
         values = searchResults.values
         fns = searchResults.fns }
 
-// CLEANUP: update this to a value rather than a function, once we have support for value records
-let pm () : ProgramTypes.PackageManager.PackageManager =
+/// Create a PackageManager for the given branch (or main if None)
+let pm
+  (branchId: Stdlib.Option.Option<Uuid>)
+  : ProgramTypes.PackageManager.PackageManager =
   ProgramTypes.PackageManager.PackageManager
-    { findType = PackageManager.Type.find
-      findValue = PackageManager.Value.find
-      findFn = PackageManager.Function.find
+    { findType = PackageManager.Type.find branchId
+      findValue = PackageManager.Value.find branchId
+      findFn = PackageManager.Function.find branchId
 
       getFn = PackageManager.Function.get
       getValue = PackageManager.Value.get
       getType = PackageManager.Type.get
 
-      search = PackageManager.Search.search }
+      search = PackageManager.Search.search branchId }

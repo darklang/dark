@@ -2,6 +2,8 @@ module Darklang.Cli.SCM.Commit
 
 
 let execute (state: AppState) (args: List<String>) : AppState =
+  let branchId = state.currentBranchId
+
   let autoConfirm =
     (Stdlib.List.member_v0 args "--yes") || (Stdlib.List.member_v0 args "-y")
 
@@ -20,7 +22,7 @@ let execute (state: AppState) (args: List<String>) : AppState =
     state
   else
     // Show what will be committed
-    let summary = SCM.PackageOps.getWipSummary ()
+    let summary = SCM.PackageOps.getWipSummary branchId
 
     let total =
       match Stdlib.Dict.get summary "total" with
@@ -68,7 +70,7 @@ let execute (state: AppState) (args: List<String>) : AppState =
           (response == "y") || (response == "Y")
 
       if proceed then
-        match SCM.PackageOps.commit message with
+        match SCM.PackageOps.commit branchId message with
         | Ok commitId ->
           let shortId = Stdlib.String.first (Stdlib.Uuid.toString commitId) 8L
           Stdlib.printLine (Colors.success $"Created commit {shortId}")
@@ -87,7 +89,7 @@ let complete (_state: AppState) (_args: List<String>) : List<Completion.Completi
 
 let help (_state: AppState) : Unit =
   [ "Usage: commit \"message\" [--yes|-y]"
-    "Commit all uncommitted (WIP) changes."
+    "Commit all uncommitted (WIP) changes on the current branch."
     ""
     "Arguments:"
     "  message   Commit message describing the changes"

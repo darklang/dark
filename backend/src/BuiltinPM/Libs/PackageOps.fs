@@ -27,24 +27,25 @@ let fns : List<BuiltInFn> =
   [ { name = fn "scmAddOps" 0
       typeParams = []
       parameters =
-        [ Param.make "ops" (TList(TCustomType(Ok packageOpTypeName, []))) "" ]
+        [ Param.make "branchId" TUuid "Branch to add ops to"
+          Param.make "ops" (TList(TCustomType(Ok packageOpTypeName, []))) "" ]
       returnType = TypeReference.result TInt64 TString
       description =
-        "Add package ops to the database as WIP (uncommitted).
+        "Add package ops to the database as WIP (uncommitted) on the given branch.
         Returns the number of inserted ops on success (duplicates are skipped), or an error message on failure.
         Use scmCommit to commit WIP ops."
       fn =
         let resultOk = Dval.resultOk KTInt64 KTString
         let resultError = Dval.resultError KTInt64 KTString
         (function
-        | _, _, _, [ DList(_vtTODO, ops) ] ->
+        | _, _, _, [ DUuid branchId; DList(_vtTODO, ops) ] ->
           uply {
             try
               let ops = ops |> List.choose PT2DT.PackageOp.fromDT
 
               // All ops are added as WIP - use scmCommit to commit them
               let! insertedCount =
-                LibPackageManager.Inserts.insertAndApplyOpsAsWip ops
+                LibPackageManager.Inserts.insertAndApplyOpsAsWip branchId ops
 
               return resultOk (DInt64 insertedCount)
             with ex ->
@@ -81,14 +82,14 @@ let fns : List<BuiltInFn> =
 
     { name = fn "scmGetWipOps" 0
       typeParams = []
-      parameters = [ Param.make "unit" TUnit "" ]
+      parameters = [ Param.make "branchId" TUuid "Branch ID" ]
       returnType = TList(TCustomType(Ok packageOpTypeName, []))
-      description = "Get all WIP (uncommitted) package ops."
+      description = "Get all WIP (uncommitted) package ops on a branch."
       fn =
         function
-        | _, _, _, [ DUnit ] ->
+        | _, _, _, [ DUuid branchId ] ->
           uply {
-            let! ops = LibPackageManager.Queries.getWipOps ()
+            let! ops = LibPackageManager.Queries.getWipOps branchId
 
             return
               DList(
@@ -104,14 +105,14 @@ let fns : List<BuiltInFn> =
 
     { name = fn "scmGetWipSummary" 0
       typeParams = []
-      parameters = [ Param.make "unit" TUnit "" ]
+      parameters = [ Param.make "branchId" TUuid "Branch ID" ]
       returnType = TDict TInt64
-      description = "Get summary of WIP ops (counts by type)."
+      description = "Get summary of WIP ops on a branch (counts by type)."
       fn =
         function
-        | _, _, _, [ DUnit ] ->
+        | _, _, _, [ DUuid branchId ] ->
           uply {
-            let! summary = LibPackageManager.Queries.getWipSummary ()
+            let! summary = LibPackageManager.Queries.getWipSummary branchId
 
             return
               DDict(
@@ -132,18 +133,20 @@ let fns : List<BuiltInFn> =
 
     { name = fn "scmCommit" 0
       typeParams = []
-      parameters = [ Param.make "message" TString "Commit message" ]
+      parameters =
+        [ Param.make "branchId" TUuid "Branch ID"
+          Param.make "message" TString "Commit message" ]
       returnType = TypeReference.result TUuid TString
       description =
-        "Commit all WIP ops with the given message.
+        "Commit all WIP ops on a branch with the given message.
         Returns the commit ID on success, or an error message on failure."
       fn =
         let resultOk = Dval.resultOk KTUuid KTString
         let resultError = Dval.resultError KTUuid KTString
         (function
-        | _, _, _, [ DString message ] ->
+        | _, _, _, [ DUuid branchId; DString message ] ->
           uply {
-            let! result = LibPackageManager.Inserts.commitWipOps message
+            let! result = LibPackageManager.Inserts.commitWipOps branchId message
 
             match result with
             | Ok commitId -> return resultOk (DUuid commitId)
@@ -157,18 +160,18 @@ let fns : List<BuiltInFn> =
 
     { name = fn "scmDiscard" 0
       typeParams = []
-      parameters = [ Param.make "unit" TUnit "" ]
+      parameters = [ Param.make "branchId" TUuid "Branch ID" ]
       returnType = TypeReference.result TInt64 TString
       description =
-        "Discard all WIP ops.
+        "Discard all WIP ops on a branch.
         Returns the count of discarded ops on success, or an error message on failure."
       fn =
         let resultOk = Dval.resultOk KTInt64 KTString
         let resultError = Dval.resultError KTInt64 KTString
         (function
-        | _, _, _, [ DUnit ] ->
+        | _, _, _, [ DUuid branchId ] ->
           uply {
-            let! result = LibPackageManager.Inserts.discardWipOps ()
+            let! result = LibPackageManager.Inserts.discardWipOps branchId
 
             match result with
             | Ok count -> return resultOk (DInt64 count)
@@ -182,14 +185,16 @@ let fns : List<BuiltInFn> =
 
     { name = fn "scmGetCommits" 0
       typeParams = []
-      parameters = [ Param.make "limit" TInt64 "Maximum commits to return" ]
+      parameters =
+        [ Param.make "branchId" TUuid "Branch ID"
+          Param.make "limit" TInt64 "Maximum commits to return" ]
       returnType = TList(TDict TString)
-      description = "Get commit log ordered by date descending."
+      description = "Get commit log for a branch ordered by date descending."
       fn =
         function
-        | _, _, _, [ DInt64 limit ] ->
+        | _, _, _, [ DUuid branchId; DInt64 limit ] ->
           uply {
-            let! commits = LibPackageManager.Queries.getCommits limit
+            let! commits = LibPackageManager.Queries.getCommits branchId limit
 
             let commitDvals =
               commits

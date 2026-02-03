@@ -41,7 +41,7 @@ let getAllOpsSince
     return!
       Sql.query
         """
-        SELECT id, op_blob, is_wip
+        SELECT id, op_blob, commit_id
         FROM package_ops
         WHERE datetime(created_at) > datetime(@since)
         ORDER BY created_at ASC
@@ -50,7 +50,7 @@ let getAllOpsSince
       |> Sql.executeAsync (fun read ->
         let opId = read.uuid "id"
         let opBlob = read.bytes "op_blob"
-        let isWip = read.int "is_wip" = 1
+        let isWip = (read.uuidOrNone "commit_id").IsNone
         let op = BinarySerialization.PT.PackageOp.deserialize opId opBlob
         (op, isWip))
   }
@@ -214,20 +214,21 @@ let resolveLocations (itemIds : List<uuid>) : Task<List<LocationInfo>> =
 
 
 // ===========================================
-// SCM Queries
+// SCM Queries (branch-scoped)
 // ===========================================
 
-/// Get all WIP ops (commit_id IS NULL)
-let getWipOps () : Task<List<PT.PackageOp>> =
+/// Get all WIP ops on a branch (commit_id IS NULL)
+let getWipOps (branchId : PT.BranchId) : Task<List<PT.PackageOp>> =
   task {
     return!
       Sql.query
         """
         SELECT id, op_blob
         FROM package_ops
-        WHERE commit_id IS NULL
+        WHERE branch_id = @branch_id AND commit_id IS NULL
         ORDER BY created_at ASC
         """
+      |> Sql.parameters [ "branch_id", Sql.uuid branchId ]
       |> Sql.executeAsync (fun read ->
         let opId = read.uuid "id"
         let opBlob = read.bytes "op_blob"
@@ -240,10 +241,10 @@ type WipSummary =
   { types : int64; values : int64; fns : int64; renames : int64; total : int64 }
 
 
-/// Get summary of WIP ops by type
-let getWipSummary () : Task<WipSummary> =
+/// Get summary of WIP ops by type on a branch
+let getWipSummary (branchId : PT.BranchId) : Task<WipSummary> =
   task {
-    let! ops = getWipOps ()
+    let! ops = getWipOps branchId
 
     let types =
       ops
@@ -293,8 +294,8 @@ type Commit =
   { id : uuid; message : string; createdAt : NodaTime.Instant; opCount : int64 }
 
 
-/// Get commits ordered by date descending
-let getCommits (limit : int64) : Task<List<Commit>> =
+/// Get commits on a branch ordered by date descending
+let getCommits (branchId : PT.BranchId) (limit : int64) : Task<List<Commit>> =
   task {
     return!
       Sql.query
@@ -302,10 +303,11 @@ let getCommits (limit : int64) : Task<List<Commit>> =
         SELECT c.id, c.message, c.created_at,
                (SELECT COUNT(*) FROM package_ops WHERE commit_id = c.id) as op_count
         FROM commits c
+        WHERE c.branch_id = @branch_id
         ORDER BY c.created_at DESC
         LIMIT @limit
         """
-      |> Sql.parameters [ "limit", Sql.int64 limit ]
+      |> Sql.parameters [ "branch_id", Sql.uuid branchId; "limit", Sql.int64 limit ]
       |> Sql.executeAsync (fun read ->
         { id = read.uuid "id"
           message = read.string "message"

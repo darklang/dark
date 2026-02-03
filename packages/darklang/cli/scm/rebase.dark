@@ -1,0 +1,47 @@
+module Darklang.Cli.SCM.Rebase
+
+
+let execute (state: AppState) (args: List<String>) : AppState =
+  let showStatus =
+    (Stdlib.List.member_v0 args "--status") || (Stdlib.List.member_v0 args "-s")
+
+  if showStatus then
+    let conflicts = SCM.Rebase.getConflicts state.currentBranchId
+
+    if Stdlib.List.isEmpty conflicts then
+      Stdlib.printLine (Colors.success "No rebase needed, or no conflicts.")
+    else
+      Stdlib.printLine (Colors.warning "Rebase conflicts:")
+      conflicts
+      |> Stdlib.List.iter (fun c -> Stdlib.printLine $"  {c}")
+      Stdlib.printLine ""
+      Stdlib.printLine "Fix these on your branch, then run 'rebase' again."
+
+    state
+  else
+    match SCM.Rebase.rebase state.currentBranchId with
+    | Ok msg ->
+      Stdlib.printLine (Colors.success msg)
+      state
+    | Error conflicts ->
+      Stdlib.printLine (Colors.error "Rebase failed - conflicts found:")
+      conflicts
+      |> Stdlib.List.iter (fun c -> Stdlib.printLine $"  {c}")
+      Stdlib.printLine ""
+      Stdlib.printLine "Fix these on your branch, then run 'rebase' again."
+      state
+
+
+let complete (_state: AppState) (_args: List<String>) : List<Completion.CompletionItem> =
+  [ Completion.simple "--status" ]
+
+
+let help (_state: AppState) : Unit =
+  [ "Usage: rebase [--status|-s]"
+    "Rebase current branch onto parent's latest."
+    ""
+    "Flags:"
+    "  --status, -s   Show if rebase is needed and list conflicts"
+    ""
+    "If conflicts are found, fix your branch's definitions and retry." ]
+  |> Stdlib.printLines

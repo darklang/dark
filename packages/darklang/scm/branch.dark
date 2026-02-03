@@ -1,0 +1,35 @@
+module Darklang.SCM.Branch
+
+/// The well-known main branch UUID
+let mainBranchId () : Uuid =
+  Builtin.scmBranchGetMainId_v0 ()
+
+
+/// Create a new branch from the given parent branch
+let create (name: String) (parentBranchId: Uuid) : Dict<String> =
+  Builtin.scmBranchCreate name parentBranchId
+
+
+/// List all active (non-merged) branches
+let list () : List<Dict<String>> =
+  Builtin.scmBranchList_v0 ()
+
+
+/// Get a branch by ID
+let get (id: Uuid) : Stdlib.Option.Option<Dict<String>> =
+  Builtin.scmBranchGet id
+
+
+/// Get a branch by name
+let getByName (name: String) : Stdlib.Option.Option<Dict<String>> =
+  Builtin.scmBranchGetByName name
+
+
+/// Rename a branch
+let rename (id: Uuid) (newName: String) : Stdlib.Result.Result<Unit, String> =
+  Builtin.scmBranchRename id newName
+
+
+/// Delete a branch (must have no active children)
+let delete (id: Uuid) : Stdlib.Result.Result<Unit, String> =
+  Builtin.scmBranchDelete id

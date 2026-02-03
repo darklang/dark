@@ -102,10 +102,7 @@ let evaluateAllValues
         with ex ->
           errors.Add($"Value {valueId}: exception - {ex.Message}")
 
-      if errors.Count = 0 then
-        return Ok()
-      else
-        return Error(errors |> List.ofSeq)
+      if errors.Count = 0 then return Ok() else return Error(errors |> List.ofSeq)
   }
 
 
@@ -116,7 +113,10 @@ module HandleCommand =
       print $"Reloading {name} canvas..."
 
       let! (canvasId, toplevels) =
-        Canvas.loadFromDisk LibPackageManager.PackageManager.pt name
+        Canvas.loadFromDisk
+          (LibPackageManager.PackageManager.pt
+            LibPackageManager.Branches.mainBranchId)
+          name
 
       print $"Loaded canvas {canvasId} with {List.length toplevels} toplevels"
 
@@ -147,6 +147,7 @@ module HandleCommand =
       // Note: values are stored with NULL rt_dval at this point
       let! commitId =
         LibPackageManager.Inserts.insertAndApplyOpsWithCommit
+          LibPackageManager.Branches.mainBranchId
           "Init: packages loaded from disk"
           ops
 

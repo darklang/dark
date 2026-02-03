@@ -41,10 +41,23 @@ Inside the body, use short names (e.g., `fib` for recursion).
   ls / back         # list / go back
 
 ## SCM (version control)
-  status            # see uncommitted changes
+  status            # see current branch + uncommitted changes
   commit <msg>      # commit changes
   log               # history
-  discard <path>    # undo changes
+  discard           # undo uncommitted changes
+
+## Branches (use --branch flag!)
+Branch context does NOT persist between CLI invocations.
+Always pass --branch when working on non-main branches:
+
+  dark branch create feature
+  dark --branch feature fn "Darklang.Math.fib ..."
+  dark --branch feature status
+  dark --branch feature commit "done"
+  dark --branch feature rebase
+  dark --branch feature merge
+
+Without --branch, commands run on main.
   (see: docs scm)
 
 ## Critical Syntax

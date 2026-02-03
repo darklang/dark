@@ -2,7 +2,20 @@ module Darklang.Cli.SCM.Status
 
 
 let execute (state: AppState) (args: List<String>) : AppState =
-  let summary = SCM.PackageOps.getWipSummary ()
+  let branchId = state.currentBranchId
+
+  // Show current branch name
+  let branchName =
+    match SCM.Branch.get branchId with
+    | Some b ->
+      match Stdlib.Dict.get b "name" with
+      | Some n -> n
+      | None -> "unknown"
+    | None -> "unknown"
+
+  Stdlib.printLine $"On branch {Cli.Colors.cyan}{branchName}{Cli.Colors.reset}"
+
+  let summary = SCM.PackageOps.getWipSummary branchId
 
   let total =
     match Stdlib.Dict.get summary "total" with
@@ -51,8 +64,8 @@ let complete (_state: AppState) (_args: List<String>) : List<Completion.Completi
 
 let help (_state: AppState) : Unit =
   [ "Usage: status"
-    "Show uncommitted (WIP) changes."
+    "Show uncommitted (WIP) changes on the current branch."
     ""
-    "Displays a summary of types, values, and functions that have been"
-    "created or modified but not yet committed." ]
+    "Displays the current branch and a summary of types, values, and"
+    "functions that have been created or modified but not yet committed." ]
   |> Stdlib.printLines

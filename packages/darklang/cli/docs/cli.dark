@@ -3,6 +3,10 @@ module Darklang.Cli.Docs.CLI
 let content () : String =
   """# CLI Commands
 
+## Global Flags
+  --branch <name>   # run command on a specific branch (default: main)
+                    # required for non-interactive use on non-main branches
+
 ## Creating Code (main workflow)
   fn <name>       # create function - USE THIS TO WRITE CODE
   type <name>     # create type
@@ -25,10 +29,18 @@ let content () : String =
   deps <name>     # show dependencies
 
 ## Version Control (SCM)
-  status          # uncommitted changes
-  commit <msg>    # commit
-  log             # history
-  discard <path>  # undo changes
+  status          # current branch + uncommitted changes
+  commit <msg>    # commit on current branch
+  log             # history for current branch
+  show <hash>     # commit details
+  discard         # undo uncommitted changes
+
+## Branches
+  branch          # list branches (* = current)
+  branch create   # create + switch
+  branch switch   # switch to branch
+  rebase          # update from parent
+  merge           # merge into parent
   (see: docs scm)
 
 ## Server

@@ -62,7 +62,7 @@ let createValueInline
       match LanguageTools.Parser.ValueDeclaration.parse valDeclNode with
       | Ok writtenValue ->
         // Convert to ProgramTypes.PackageValue
-        let pm = LanguageTools.PackageManager.pm ()
+        let pm = LanguageTools.PackageManager.pm (Stdlib.Option.Option.Some state.currentBranchId)
 
         let (packageValue, unresolvedNames) =
           LanguageTools.WrittenTypesToProgramTypes.ValueDeclaration.toPackageValuePT
@@ -99,7 +99,7 @@ let createValueInline
               LanguageTools.ProgramTypes.PackageOp.SetValueName (packageValue.id, location) ]
 
           // Add ops as WIP (use 'scm commit' to commit)
-          match SCM.PackageOps.add ops with
+          match SCM.PackageOps.add state.currentBranchId ops with
           | Ok _ ->
             // Show success message
             let fullPath = PrettyPrinter.ProgramTypes.PackageLocation.packageLocation location

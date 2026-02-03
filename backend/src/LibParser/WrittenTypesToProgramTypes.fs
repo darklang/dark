@@ -320,8 +320,10 @@ module Expr =
         | Some basePath ->
           // If the first part of the path is a local binding or function arg, it's field access, not a global
           let firstPart = basePath.head
-          if Set.contains firstPart context.localBindings
-             || Map.containsKey firstPart context.argMap then
+          if
+            Set.contains firstPart context.localBindings
+            || Map.containsKey firstPart context.argMap
+          then
             let! obj = toPT context obj
             return PT.ERecordFieldAccess(id, obj, fieldname)
           else

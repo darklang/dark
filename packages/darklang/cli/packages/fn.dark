@@ -61,7 +61,7 @@ let createFnInline
       match LanguageTools.Parser.FunctionDeclaration.parse fnDeclNode with
       | Ok writtenFn ->
         // Convert to ProgramTypes.PackageFn
-        let pm = LanguageTools.PackageManager.pm ()
+        let pm = LanguageTools.PackageManager.pm (Stdlib.Option.Option.Some state.currentBranchId)
 
         let (packageFn, unresolvedNames) =
           LanguageTools.WrittenTypesToProgramTypes.FunctionDeclaration.toPackageFnPT
@@ -98,7 +98,7 @@ let createFnInline
               LanguageTools.ProgramTypes.PackageOp.SetFnName (packageFn.id, location) ]
 
           // Add ops as WIP (use 'scm commit' to commit)
-          match SCM.PackageOps.add ops with
+          match SCM.PackageOps.add state.currentBranchId ops with
           | Ok _ ->
             // Show success message
             let fullPath = PrettyPrinter.ProgramTypes.PackageLocation.packageLocation location

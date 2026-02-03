@@ -14,6 +14,11 @@ let withIcon (entityType: Packages.EntityType) (text: String) : CompletionItem =
   let icon = Packages.Display.getIcon entityType
   CompletionItem { display = icon ++ "  " ++ text; value = text }
 
+/// Create a completion item with a description shown after the value
+let withDescription (text: String) (description: String) : CompletionItem =
+  let display = text ++ "  " ++ (Colors.dim description)
+  CompletionItem { display = display; value = text }
+
 
 type ParsedInput =
   { commandName: String

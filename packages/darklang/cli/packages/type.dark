@@ -63,7 +63,7 @@ let createTypeInline
       match LanguageTools.Parser.TypeDeclaration.parse typeDeclNode with
       | Ok writtenType ->
         // Convert to ProgramTypes.PackageType
-        let pm = LanguageTools.PackageManager.pm ()
+        let pm = LanguageTools.PackageManager.pm (Stdlib.Option.Option.Some state.currentBranchId)
 
         let (packageType, unresolvedNames) =
           LanguageTools.WrittenTypesToProgramTypes.TypeDeclaration.toPackageTypePT
@@ -96,7 +96,7 @@ let createTypeInline
               LanguageTools.ProgramTypes.PackageOp.SetTypeName (packageType.id, location) ]
 
           // Add ops as WIP (use 'scm commit' to commit)
-          match SCM.PackageOps.add ops with
+          match SCM.PackageOps.add state.currentBranchId ops with
           | Ok _ ->
             // Show success message
             let fullPath = PrettyPrinter.ProgramTypes.PackageLocation.packageLocation location

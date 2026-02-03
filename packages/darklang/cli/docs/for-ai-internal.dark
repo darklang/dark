@@ -7,9 +7,12 @@ let content () : String =
   backend/src/          # F# source
     LibExecution/       # execution engine
     LibParser/          # parser
+    LibPackageManager/  # package DB, branches, SCM ops
     BuiltinExecution/   # builtin impls
+    BuiltinPM/          # package manager builtins (SCM, branches)
   packages/darklang/    # .dark files
     cli/                # CLI code
+    scm/                # SCM library (branch, rebase, merge, packageOps)
     stdlib/             # standard library
   rundir/logs/          # log files
   scripts/              # build scripts
@@ -32,6 +35,21 @@ Auto-rebuilds on save. Watch logs:
   1. packages/darklang/cli/commands/<name>.dark
   2. Implement: execute, help, complete
   3. Add to Registry.allCommands in cli/core.dark
+
+## SCM / Branches Architecture
+  LibPackageManager/Branches.fs    # branch CRUD, getBranchChain
+  LibPackageManager/Rebase.fs      # conflict detection, rebase
+  LibPackageManager/Merge.fs       # merge into parent
+  LibPackageManager/Inserts.fs     # ops take branchId
+  LibPackageManager/ProgramTypes.fs # branch-aware SQL queries
+  LibPackageManager/PackageManager.fs # pt(branchId) constructs PM
+  BuiltinPM/Libs/Branches.fs      # branch builtins
+  BuiltinPM/Libs/Rebase.fs        # rebase builtins
+  BuiltinPM/Libs/Merge.fs         # merge builtins
+
+Key: PackageManager.pt takes a branchId and pre-computes the
+branch chain for name resolution. Items are global (content-addressed),
+locations (name bindings) are branch-scoped.
 
 ## Log Files (rundir/logs/)
 When something goes wrong, check these logs:

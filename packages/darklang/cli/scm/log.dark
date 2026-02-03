@@ -2,6 +2,8 @@ module Darklang.Cli.SCM.Log
 
 
 let execute (state: AppState) (args: List<String>) : AppState =
+  let branchId = state.currentBranchId
+
   let limit =
     match args with
     | [ limitStr ] ->
@@ -10,7 +12,7 @@ let execute (state: AppState) (args: List<String>) : AppState =
       | Error _ -> 20L
     | _ -> 20L
 
-  let commits = SCM.PackageOps.getCommits limit
+  let commits = SCM.PackageOps.getCommits branchId limit
 
   if Stdlib.List.isEmpty commits then
     Stdlib.printLine "No commits yet."
@@ -50,7 +52,7 @@ let complete (_state: AppState) (_args: List<String>) : List<Completion.Completi
 
 let help (_state: AppState) : Unit =
   [ "Usage: log [limit]"
-    "Show commit history."
+    "Show commit history for the current branch."
     ""
     "Arguments:"
     "  limit   Maximum number of commits to show (default: 20)"

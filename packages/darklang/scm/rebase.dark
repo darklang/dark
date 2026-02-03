@@ -1,0 +1,11 @@
+module Darklang.SCM.Rebase
+
+/// Rebase current branch onto parent's latest
+/// Returns Ok message or Error with list of conflicting paths
+let rebase (branchId: Uuid) : Stdlib.Result.Result<String, List<String>> =
+  Builtin.scmRebase branchId
+
+
+/// Get list of conflicting location paths for rebase
+let getConflicts (branchId: Uuid) : List<String> =
+  Builtin.scmGetRebaseConflicts branchId

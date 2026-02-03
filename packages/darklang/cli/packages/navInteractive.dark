@@ -30,7 +30,8 @@ type State =
     mode: Mode
     display: Display
     searchQuery: String
-    allItems: List<NavItem> }
+    allItems: List<NavItem>
+    branchId: Stdlib.Option.Option<Uuid> }
 
 
 // Helper functions
@@ -71,11 +72,11 @@ let buildNavItemsFromResults
 
 
 // Create interactive navigation state for a location
-let buildState (location: PackageLocation) : State =
+let buildState (branchId: Stdlib.Option.Option<Uuid>) (location: PackageLocation) : State =
   let modulePath = modulePathOf location
 
   // Get all entities in this location
-  let results = Query.allDirectDescendants modulePath
+  let results = Query.allDirectDescendants branchId modulePath
   let allItems = buildNavItemsFromResults results modulePath
 
   State
@@ -86,16 +87,17 @@ let buildState (location: PackageLocation) : State =
       mode = Mode.Nav
       display = Display.JustName
       searchQuery = ""
-      allItems = allItems }
+      allItems = allItems
+      branchId = branchId }
 
 // Truncated view for inline display to avoid flooding screen with large modules
-let viewEntityTruncated (location: PackageLocation) : Unit =
+let viewEntityTruncated (branchId: Stdlib.Option.Option<Uuid>) (location: PackageLocation) : Unit =
   let maxItemsPerCategory = 3L
   let maxTotalLines = 12L
 
   match location with
   | Module path ->
-    let results = Query.allDirectDescendants path
+    let results = Query.allDirectDescendants branchId path
     let locationStr = Packages.formatLocation location
     Stdlib.printLine locationStr
 
@@ -134,7 +136,7 @@ let viewEntityTruncated (location: PackageLocation) : Unit =
 
   | _ ->
     // For individual entities, show full view since they're typically small
-    View.viewEntity location
+    View.viewEntity branchId location
 
 // Display the interactive navigation interface
 let display (navState: State) : Unit =
@@ -209,7 +211,7 @@ let display (navState: State) : Unit =
       match Stdlib.List.getAt navState.items navState.selectedIndex with
       | Some selectedItem ->
         Stdlib.printLines [ ""; (Stdlib.String.repeat "─" 60L) ]
-        viewEntityTruncated selectedItem.location
+        viewEntityTruncated navState.branchId selectedItem.location
         Stdlib.printLines [ ""; (Stdlib.String.repeat "─" 60L) ]
       | None -> ()
   | JustName -> ()
@@ -299,7 +301,7 @@ let navigateIntoModule (state: Cli.AppState) (navState: State) : Cli.AppState =
       match selectedItem.entityType with
       | Module ->
         let newState = Nav.navTo state selectedItem.location
-        let newNavState = buildState selectedItem.location
+        let newNavState = buildState navState.branchId selectedItem.location
         { newState with currentPage = Page.InteractiveNav newNavState }
       | _ -> state
     | None -> state
@@ -307,10 +309,10 @@ let navigateIntoModule (state: Cli.AppState) (navState: State) : Cli.AppState =
     state
 
 let navigateToParent (state: Cli.AppState) (navState: State) : Cli.AppState =
-  match Traversal.applySegment navState.currentLocation Traversal.PathSegment.Up with
+  match Traversal.applySegment navState.branchId navState.currentLocation Traversal.PathSegment.Up with
   | Ok parentLocation ->
     let newState = Nav.navTo state parentLocation
-    let newNavState = buildState parentLocation
+    let newNavState = buildState navState.branchId parentLocation
     { newState with currentPage = Page.InteractiveNav newNavState }
   | Error _ -> state
 

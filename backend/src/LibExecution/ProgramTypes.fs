@@ -23,6 +23,9 @@ let assertBuiltin
   assert_ "version can't be negative" [ "version", version ] (version >= 0)
 
 
+/// SCM branch identifier
+type BranchId = uuid
+
 /// Fully-Qualified Type Name
 ///
 /// Used to reference a type defined in a Package or by a User

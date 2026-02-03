@@ -35,11 +35,15 @@ let private executeNamedFn
   (arg : Dval)
   : Task<Dval> =
   task {
-    let! result = Execution.executeFunction exeState namedFn.name namedFn.typeArgs (NEList.singleton arg)
+    let! result =
+      Execution.executeFunction
+        exeState
+        namedFn.name
+        namedFn.typeArgs
+        (NEList.singleton arg)
     match result with
     | Ok dval -> return dval
-    | Error(rte, _callStack) ->
-      return DString $"Handler error: {rte}"
+    | Error(rte, _callStack) -> return DString $"Handler error: {rte}"
   }
 
 
@@ -48,7 +52,11 @@ let fns : List<BuiltInFn> =
       typeParams = []
       parameters =
         [ Param.make "port" TInt64 "TCP port to listen on"
-          Param.makeWithArgs "handler" (TFn(NEList.singleton (TVariable "request"), TVariable "response")) "Handler function: request -> response" [ "request" ] ]
+          Param.makeWithArgs
+            "handler"
+            (TFn(NEList.singleton (TVariable "request"), TVariable "response"))
+            "Handler function: request -> response"
+            [ "request" ] ]
       returnType = TUnit
       description = "Start an HTTP server. Calls handler for each request."
       fn =
@@ -74,8 +82,7 @@ let fns : List<BuiltInFn> =
                     let headers =
                       ctx.Request.Headers
                       |> Seq.collect (fun kvp ->
-                        kvp.Value.ToArray()
-                        |> Array.map (fun v -> (kvp.Key, v)))
+                        kvp.Value.ToArray() |> Array.map (fun v -> (kvp.Key, v)))
                       |> Seq.toList
 
                     let headersWithMethod =
@@ -83,7 +90,8 @@ let fns : List<BuiltInFn> =
 
                     // Build request Dval
                     let url = ctx.Request.GetDisplayUrl()
-                    let requestDval = Http.Request.fromRequest url headersWithMethod body
+                    let requestDval =
+                      Http.Request.fromRequest url headersWithMethod body
 
                     // Call the Darklang handler
                     let! result = executeNamedFn exeState handlerFn requestDval
@@ -95,13 +103,20 @@ let fns : List<BuiltInFn> =
                     for (key, value) in response.headers do
                       ctx.Response.Headers[key] <- StringValues(value)
                     ctx.Response.ContentLength <- int64 response.body.Length
-                    do! ctx.Response.Body.WriteAsync(response.body, 0, response.body.Length)
+                    do!
+                      ctx.Response.Body.WriteAsync(
+                        response.body,
+                        0,
+                        response.body.Length
+                      )
 
                   with ex ->
                     ctx.Response.StatusCode <- 500
-                    let errorBytes = UTF8.toBytes $"Internal server error: {ex.Message}"
+                    let errorBytes =
+                      UTF8.toBytes $"Internal server error: {ex.Message}"
                     ctx.Response.ContentLength <- int64 errorBytes.Length
-                    do! ctx.Response.Body.WriteAsync(errorBytes, 0, errorBytes.Length)
+                    do!
+                      ctx.Response.Body.WriteAsync(errorBytes, 0, errorBytes.Length)
                 })
             )
             |> ignore<IEndpointConventionBuilder>

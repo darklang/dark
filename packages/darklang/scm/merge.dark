@@ -1,0 +1,11 @@
+module Darklang.SCM.Merge
+
+/// Merge branch into its parent
+/// Must be rebased with no WIP and no children
+let merge (branchId: Uuid) : Stdlib.Result.Result<Unit, String> =
+  Builtin.scmMerge branchId
+
+
+/// Check if a branch can be merged
+let canMerge (branchId: Uuid) : Stdlib.Result.Result<Unit, String> =
+  Builtin.scmCanMerge branchId

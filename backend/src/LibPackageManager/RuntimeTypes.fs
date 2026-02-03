@@ -53,8 +53,7 @@ module Value =
           WHERE value_type = @value_type
           """
         |> Sql.parameters [ "value_type", Sql.bytes vtBytes ]
-        |> Sql.executeAsync (fun read ->
-          read.string "id" |> System.Guid.Parse)
+        |> Sql.executeAsync (fun read -> read.string "id" |> System.Guid.Parse)
     }
 
 

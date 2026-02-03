@@ -9,7 +9,7 @@ let execute (state: AppState) (args: List<String>) : AppState =
     state
   | _ ->
     let expr = Stdlib.String.join args " "
-    match Builtin.cliEvaluateExpression expr with
+    match Builtin.cliEvaluateExpression state.currentBranchId expr with
     | Ok result ->
       Stdlib.printLine result
       state

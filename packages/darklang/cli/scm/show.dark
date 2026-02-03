@@ -2,6 +2,8 @@ module Darklang.Cli.SCM.Show
 
 
 let execute (state: AppState) (args: List<String>) : AppState =
+  let branchId = state.currentBranchId
+
   match args with
   | [] ->
     Stdlib.printLine "Usage: show <commit-id>"
@@ -11,7 +13,7 @@ let execute (state: AppState) (args: List<String>) : AppState =
     let fullIdStr =
       if Stdlib.String.length commitIdStr < 36L then
         // Try to find a matching commit
-        let commits = SCM.PackageOps.getCommits 100L
+        let commits = SCM.PackageOps.getCommits branchId 100L
 
         let matching =
           commits

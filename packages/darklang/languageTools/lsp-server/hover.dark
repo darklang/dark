@@ -51,7 +51,7 @@ let handleHoverRequest
     let parsed = doc |> (fun doc -> doc.parsed)
 
     let onMissing = LanguageTools.NameResolver.OnMissing.Allow
-    let pm = LanguageTools.PackageManager.pm ()
+    let pm = LanguageTools.PackageManager.pm Stdlib.Option.Option.None
 
     // Extract owner and modules from URI to provide correct parsing context
     let (owner, scriptName) =

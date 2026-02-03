@@ -2,10 +2,12 @@ module Darklang.Cli.SCM.Discard
 
 
 let execute (state: AppState) (args: List<String>) : AppState =
+  let branchId = state.currentBranchId
+
   let autoConfirm =
     (Stdlib.List.member_v0 args "--yes") || (Stdlib.List.member_v0 args "-y")
 
-  let summary = SCM.PackageOps.getWipSummary ()
+  let summary = SCM.PackageOps.getWipSummary branchId
 
   let total =
     match Stdlib.Dict.get summary "total" with
@@ -53,7 +55,7 @@ let execute (state: AppState) (args: List<String>) : AppState =
         (response == "y") || (response == "Y")
 
     if proceed then
-      match SCM.PackageOps.discard () with
+      match SCM.PackageOps.discard branchId with
       | Ok count ->
         Stdlib.printLine (Colors.success $"Discarded {Builtin.int64ToString count} ops.")
         state
@@ -71,7 +73,7 @@ let complete (_state: AppState) (_args: List<String>) : List<Completion.Completi
 
 let help (_state: AppState) : Unit =
   [ "Usage: discard [--yes|-y]"
-    "Discard all uncommitted (WIP) changes."
+    "Discard all uncommitted (WIP) changes on the current branch."
     ""
     "This permanently deletes all uncommitted changes. Use with caution."
     ""

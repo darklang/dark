@@ -69,7 +69,8 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
     { name = fn "pmFindType" 0
       typeParams = []
       parameters =
-        [ Param.make
+        [ Param.make "branchId" (TypeReference.option TUuid) "Optional branch to search on"
+          Param.make
             "location"
             (TCustomType(Ok PT2DT.PackageLocation.typeName, []))
             "" ]
@@ -78,10 +79,15 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
         "Tries to find a package type, by location, and returns the ID if it exists"
       fn =
         (function
-        | _, _, _, [ location ] ->
+        | _, _, _, [ branchId; location ] ->
           uply {
             let location = PT2DT.PackageLocation.fromDT location
-            let! result = pm.findType location
+            let findPM =
+              match branchId with
+              | DEnum(_, _, _, "Some", [ DUuid id ]) ->
+                LibPackageManager.PackageManager.pt id
+              | _ -> pm
+            let! result = findPM.findType location
             return result |> Option.map DUuid |> Dval.option KTUuid
           }
         | _ -> incorrectArgs ())
@@ -114,7 +120,8 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
     { name = fn "pmFindValue" 0
       typeParams = []
       parameters =
-        [ Param.make
+        [ Param.make "branchId" (TypeReference.option TUuid) "Optional branch to search on"
+          Param.make
             "location"
             (TCustomType(Ok PT2DT.PackageLocation.typeName, []))
             "" ]
@@ -123,10 +130,15 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
         "Tries to find a package value, by location, and returns the ID if it exists"
       fn =
         (function
-        | _, _, _, [ location ] ->
+        | _, _, _, [ branchId; location ] ->
           uply {
             let location = PT2DT.PackageLocation.fromDT location
-            let! result = pm.findValue location
+            let findPM =
+              match branchId with
+              | DEnum(_, _, _, "Some", [ DUuid id ]) ->
+                LibPackageManager.PackageManager.pt id
+              | _ -> pm
+            let! result = findPM.findValue location
             return result |> Option.map DUuid |> Dval.option KTUuid
           }
         | _ -> incorrectArgs ())
@@ -219,7 +231,8 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
     { name = fn "pmFindFn" 0
       typeParams = []
       parameters =
-        [ Param.make
+        [ Param.make "branchId" (TypeReference.option TUuid) "Optional branch to search on"
+          Param.make
             "location"
             (TCustomType(Ok PT2DT.PackageLocation.typeName, []))
             "" ]
@@ -228,10 +241,15 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
         "Tries to find a package function, by location, and returns the ID if it exists"
       fn =
         (function
-        | _, _, _, [ location ] ->
+        | _, _, _, [ branchId; location ] ->
           uply {
             let location = PT2DT.PackageLocation.fromDT location
-            let! result = pm.findFn location
+            let findPM =
+              match branchId with
+              | DEnum(_, _, _, "Some", [ DUuid id ]) ->
+                LibPackageManager.PackageManager.pt id
+              | _ -> pm
+            let! result = findPM.findFn location
             return result |> Option.map DUuid |> Dval.option KTUuid
           }
         | _ -> incorrectArgs ())
@@ -265,18 +283,24 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
     { name = fn "pmSearch" 0
       typeParams = []
       parameters =
-        [ Param.make
+        [ Param.make "branchId" (TypeReference.option TUuid) "Optional branch to search on"
+          Param.make
             "query"
             (TCustomType(Ok PT2DT.Search.SearchQuery.typeName, []))
             "" ]
       returnType = TCustomType(Ok PT2DT.Search.SearchResults.typeName, [])
-      description = "Search for packages based on the given query"
+      description = "Search for packages based on the given query. If branchId is provided, searches on that branch; otherwise uses default."
       fn =
         function
-        | _, _, _, [ query as DRecord(_, _, _, _fields) ] ->
+        | _, _, _, [ branchId; query as DRecord(_, _, _, _fields) ] ->
           uply {
             let searchQuery = PT2DT.Search.SearchQuery.fromDT query
-            let! results = pm.search searchQuery
+            let searchPM =
+              match branchId with
+              | DEnum(_, _, _, "Some", [ DUuid id ]) ->
+                LibPackageManager.PackageManager.pt id
+              | _ -> pm
+            let! results = searchPM.search searchQuery
             return PT2DT.Search.SearchResults.toDT results
           }
         | _ -> incorrectArgs ()

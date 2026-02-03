@@ -124,8 +124,9 @@ let private applyAddFn (fn : PT.PackageFn.PackageFn) : Task<unit> =
   }
 
 /// Apply a Set*Name op to the locations table
-/// commitId = None means WIP, Some id means committed
+/// branchId = branch context, commitId = None means WIP, Some id means committed
 let private applySetName
+  (branchId : PT.BranchId)
   (commitId : Option<uuid>)
   (itemId : uuid)
   (location : PT.PackageLocation)
@@ -149,12 +150,11 @@ let private applySetName
 
     // Insert new location entry with unique location_id
     let locationId = System.Guid.NewGuid()
-    let isWip = Option.isNone commitId
     do!
       Sql.query
         """
-        INSERT INTO locations (location_id, item_id, owner, modules, name, item_type, is_wip, commit_id)
-        VALUES (@location_id, @item_id, @owner, @modules, @name, @item_type, @is_wip, @commit_id)
+        INSERT INTO locations (location_id, item_id, owner, modules, name, item_type, branch_id, commit_id)
+        VALUES (@location_id, @item_id, @owner, @modules, @name, @item_type, @branch_id, @commit_id)
         """
       |> Sql.parameters
         [ "location_id", Sql.uuid locationId
@@ -163,30 +163,41 @@ let private applySetName
           "modules", Sql.string modulesStr
           "name", Sql.string location.name
           "item_type", Sql.string itemType
-          "is_wip", Sql.int (if isWip then 1 else 0)
+          "branch_id", Sql.uuid branchId
           "commit_id", Sql.uuidOrNone commitId ]
       |> Sql.executeStatementAsync
   }
 
 
 /// Apply a single PackageOp to the projection tables
-/// commitId = None means WIP, Some id means committed
-let applyOp (commitId : Option<uuid>) (op : PT.PackageOp) : Task<unit> =
+/// branchId = branch context, commitId = None means WIP, Some id means committed
+let applyOp
+  (branchId : PT.BranchId)
+  (commitId : Option<uuid>)
+  (op : PT.PackageOp)
+  : Task<unit> =
   task {
     match op with
     | PT.PackageOp.AddType typ -> do! applyAddType typ
     | PT.PackageOp.AddValue value -> do! applyAddValue value
     | PT.PackageOp.AddFn fn -> do! applyAddFn fn
-    | PT.PackageOp.SetTypeName(id, loc) -> do! applySetName commitId id loc "type"
-    | PT.PackageOp.SetValueName(id, loc) -> do! applySetName commitId id loc "value"
-    | PT.PackageOp.SetFnName(id, loc) -> do! applySetName commitId id loc "fn"
+    | PT.PackageOp.SetTypeName(id, loc) ->
+      do! applySetName branchId commitId id loc "type"
+    | PT.PackageOp.SetValueName(id, loc) ->
+      do! applySetName branchId commitId id loc "value"
+    | PT.PackageOp.SetFnName(id, loc) ->
+      do! applySetName branchId commitId id loc "fn"
   }
 
 
 /// Apply a list of PackageOps to the projection tables
-/// commitId = None means WIP, Some id means committed
-let applyOps (commitId : Option<uuid>) (ops : List<PT.PackageOp>) : Task<unit> =
+/// branchId = branch context, commitId = None means WIP, Some id means committed
+let applyOps
+  (branchId : PT.BranchId)
+  (commitId : Option<uuid>)
+  (ops : List<PT.PackageOp>)
+  : Task<unit> =
   task {
     for op in ops do
-      do! applyOp commitId op
+      do! applyOp branchId commitId op
   }

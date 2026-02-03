@@ -21,7 +21,7 @@ let parsePTExpr
       | _ -> []
 
     let onMissing = NameResolver.OnMissing.Allow
-    let pm = PackageManager.pm ()
+    let pm = PackageManager.pm Stdlib.Option.Option.None
 
     match exprs with
     | [ expr ] ->

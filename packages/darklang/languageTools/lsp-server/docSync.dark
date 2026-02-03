@@ -36,7 +36,7 @@ let parseAndReportDiagnostics
   : Stdlib.Result.Result<WrittenTypes.ParsedFile, String> =
 
   let onMissing = LanguageTools.NameResolver.OnMissing.Allow
-  let pm = LanguageTools.PackageManager.pm ()
+  let pm = LanguageTools.PackageManager.pm Stdlib.Option.Option.None
 
   let parsed =
     requestText |> Parser.parseToSimplifiedTree |> Parser.parseFromTree

@@ -39,7 +39,10 @@ let private fqTypeNameToString (typeName : FQTypeName.FQTypeName) : string =
     async {
       match typeName with
       | FQTypeName.Package id ->
-        let! typeOption = PM.pt.getType id |> Ply.toTask |> Async.AwaitTask
+        let! typeOption =
+          (PM.pt LibPackageManager.Branches.mainBranchId).getType id
+          |> Ply.toTask
+          |> Async.AwaitTask
 
         match typeOption with
         | Some packageType ->

@@ -10,6 +10,9 @@
   <ItemGroup>
     <None Include="paket.references" />
     <Compile Include="Libs/PackageOps.fs" />
+    <Compile Include="Libs/Branches.fs" />
+    <Compile Include="Libs/Rebase.fs" />
+    <Compile Include="Libs/Merge.fs" />
     <Compile Include="Libs/Packages.fs" />
     <Compile Include="Libs/Scripts.fs" />
     <Compile Include="Libs/Dependencies.fs" />

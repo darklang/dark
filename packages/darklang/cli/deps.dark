@@ -129,11 +129,12 @@ let showDependencies (sourceId: Uuid) (entityName: String) : Unit =
 
 /// Resolve a path to a UUID
 let resolvePath
+  (branchId: Stdlib.Option.Option<Uuid>)
   (currentLocation: Packages.PackageLocation)
   (pathArg: String)
   : Stdlib.Result.Result<(Uuid * String * String), String> =
   // Try to traverse to the location
-  match Packages.Traversal.traverse currentLocation pathArg with
+  match Packages.Traversal.traverse branchId currentLocation pathArg with
   | Error errMsg -> Stdlib.Result.Result.Error errMsg
   | Ok loc ->
     match loc with
@@ -163,6 +164,7 @@ let execute (state: AppState) (args: List<String>) : AppState =
   // Check for --deep flag
   let deep = Stdlib.List.member_v0 args "--deep"
   let filteredArgs = args |> Stdlib.List.filter (fun arg -> arg != "--deep")
+  let branchId = Stdlib.Option.Option.Some state.currentBranchId
 
   match filteredArgs with
   | [] ->
@@ -177,7 +179,7 @@ let execute (state: AppState) (args: List<String>) : AppState =
     state
 
   | ["uses"; pathArg] ->
-    match resolvePath state.packageData.currentLocation pathArg with
+    match resolvePath branchId state.packageData.currentLocation pathArg with
     | Error errMsg ->
       Stdlib.printLine (Colors.error errMsg)
       state
@@ -187,7 +189,7 @@ let execute (state: AppState) (args: List<String>) : AppState =
       state
 
   | ["usedby"; pathArg] ->
-    match resolvePath state.packageData.currentLocation pathArg with
+    match resolvePath branchId state.packageData.currentLocation pathArg with
     | Error errMsg ->
       Stdlib.printLine (Colors.error errMsg)
       state
@@ -203,7 +205,7 @@ let execute (state: AppState) (args: List<String>) : AppState =
 
   | [pathArg] ->
     // Default to showing both uses and usedby
-    match resolvePath state.packageData.currentLocation pathArg with
+    match resolvePath branchId state.packageData.currentLocation pathArg with
     | Error errMsg ->
       Stdlib.printLine (Colors.error errMsg)
       state
@@ -222,23 +224,25 @@ let execute (state: AppState) (args: List<String>) : AppState =
   | _ -> help state
 
 
-let complete (state: AppState) (args: List<String>) : List<String> =
+let complete (state: AppState) (args: List<String>) : List<Completion.CompletionItem> =
+  let branchId = Stdlib.Option.Option.Some state.currentBranchId
   match args with
   | [] ->
-    ["uses"; "usedby"]
+    [Completion.CompletionItem { display = "uses"; value = "uses" }; Completion.CompletionItem { display = "usedby"; value = "usedby" }]
   | ["uses"] ->
-    Packages.Traversal.completePartialPath state.packageData.currentLocation ""
+    Packages.Traversal.completePartialPath branchId state.packageData.currentLocation ""
   | ["usedby"] ->
-    Packages.Traversal.completePartialPath state.packageData.currentLocation ""
+    Packages.Traversal.completePartialPath branchId state.packageData.currentLocation ""
   | ["uses"; partialPath] ->
-    Packages.Traversal.completePartialPath state.packageData.currentLocation partialPath
+    Packages.Traversal.completePartialPath branchId state.packageData.currentLocation partialPath
   | ["usedby"; partialPath] ->
-    Packages.Traversal.completePartialPath state.packageData.currentLocation partialPath
+    Packages.Traversal.completePartialPath branchId state.packageData.currentLocation partialPath
   | [partialPath] ->
     let subcommands =
       ["uses"; "usedby"]
       |> Stdlib.List.filter (fun cmd -> Stdlib.String.startsWith cmd partialPath)
-    let paths = Packages.Traversal.completePartialPath state.packageData.currentLocation partialPath
+      |> Stdlib.List.map (fun cmd -> Completion.CompletionItem { display = cmd; value = cmd })
+    let paths = Packages.Traversal.completePartialPath branchId state.packageData.currentLocation partialPath
     Stdlib.List.append subcommands paths
   | _ -> []
 

@@ -87,7 +87,8 @@ let postOpsFn (req: Stdlib.Http.Request) : Stdlib.Http.Response =
   let bodyStr = Stdlib.String.fromBytesWithReplacement req.body
   match Builtin.jsonParse<List<LanguageTools.ProgramTypes.PackageOp>> bodyStr with
   | Ok ops ->
-    match SCM.PackageOps.add ops with
+    let branchId = SCM.Branch.mainBranchId ()
+    match SCM.PackageOps.add branchId ops with
     | Ok insertedCount ->
       let countStr = Builtin.int64ToString insertedCount
       let responseMsg = $"Successfully received and applied {countStr} ops"

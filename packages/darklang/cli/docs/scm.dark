@@ -9,15 +9,44 @@ NOT git - this is for Darklang definitions (fns, types, values).
 ## Workflow
   fn myFn           # create/edit function
   run myFn          # test it
-  status            # see what changed
+  status            # see what changed (shows current branch)
   commit "message"  # save changes
 
+## Branches
+  branch                  # list branches (* = current)
+  branch create <name>    # create + switch to new branch
+  branch switch <name>    # switch to existing branch
+  branch rename <old> <new>
+  branch delete <name>
+
+Branches inherit committed state from their parent. Your current
+branch sees its own WIP + committed changes, plus committed changes
+from all ancestor branches up to main.
+
+### --branch flag (for non-interactive / AI use)
+Branch context does NOT persist between CLI invocations. In
+interactive mode, `branch switch` works for the session. For
+non-interactive use (AI agents, scripts), pass --branch:
+
+  dark --branch feature status
+  dark --branch feature commit "my changes"
+
+Without --branch, all commands run on main.
+
+## Rebase & Merge
+  rebase            # update branch with parent's latest commits
+  rebase --status   # check for conflicts without rebasing
+  merge             # merge current branch into parent
+  merge --dry-run   # check if merge is possible
+
+Workflow: create branch → make changes → commit → rebase → merge
+
 ## Commands
-  status            # show uncommitted changes
-  commit <msg>      # commit all changes
-  log               # show commit history
+  status            # show current branch + uncommitted changes
+  commit <msg>      # commit all changes on current branch
+  log               # show commit history for current branch
   show <hash>       # show commit details
-  discard <path>    # discard changes to specific item
+  discard           # discard uncommitted changes on current branch
 
 ## What Gets Versioned
 - Function definitions
@@ -25,15 +54,27 @@ NOT git - this is for Darklang definitions (fns, types, values).
 - Value definitions
 - NOT: runtime state, external files
 
-## Example Session
-  fn fib                    # create fibonacci function
-  (enter code, blank line to finish)
-  run fib 10L               # test it
-  status                    # see "fib" as uncommitted
-  commit "Add fibonacci"    # save it
-  log                       # see commit in history
+## Example Session (interactive)
+  branch create feature    # create + switch to feature branch
+  fn fib                   # create fibonacci function
+  run fib 10L              # test it
+  status                   # see "fib" as uncommitted on feature
+  commit "Add fibonacci"   # save it
+  rebase                   # pick up any new commits from parent
+  merge                    # merge feature into parent branch
+
+## Example Session (non-interactive / AI agent)
+  dark branch create feature
+  dark --branch feature fn "Darklang.Math.fib ..."
+  dark --branch feature run fib 10L
+  dark --branch feature status
+  dark --branch feature commit "Add fibonacci"
+  dark --branch feature rebase
+  dark --branch feature merge
 
 ## Tips
 - Commit often with descriptive messages
 - Use `discard` to undo mistakes before committing
-- `status` shows full paths of changed items"""
+- Use branches for experimental work
+- Rebase before merging to avoid conflicts
+- AI agents: always pass --branch for non-main work"""

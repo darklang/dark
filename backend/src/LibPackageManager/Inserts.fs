@@ -28,9 +28,11 @@ let computeOpHash (op : PT.PackageOp) : System.Guid =
 
 
 /// Insert PackageOps into the package_ops table and apply them to projection tables.
+/// branchId = branch context
 /// commitId = None means WIP (commit_id = NULL), Some id means committed
 /// Returns the count of ops actually inserted (duplicates are skipped via INSERT OR IGNORE)
 let insertAndApplyOps
+  (branchId : PT.BranchId)
   (commitId : Option<System.Guid>)
   (ops : List<PT.PackageOp>)
   : Task<int64> =
@@ -38,8 +40,6 @@ let insertAndApplyOps
     if List.isEmpty ops then
       return 0L
     else
-      let isWip = Option.isNone commitId
-
       // Step 1: Insert ops into package_ops table (source of truth)
       let insertStatements =
         ops
@@ -49,14 +49,14 @@ let insertAndApplyOps
 
           let sql =
             """
-            INSERT OR IGNORE INTO package_ops (id, op_blob, is_wip, applied, commit_id)
-            VALUES (@id, @op_blob, @is_wip, @applied, @commit_id)
+            INSERT OR IGNORE INTO package_ops (id, op_blob, branch_id, applied, commit_id)
+            VALUES (@id, @op_blob, @branch_id, @applied, @commit_id)
             """
 
           let parameters =
             [ "id", Sql.uuid opId
               "op_blob", Sql.bytes opBlob
-              "is_wip", Sql.int (if isWip then 1 else 0)
+              "branch_id", Sql.uuid branchId
               "applied", Sql.bool true
               "commit_id", Sql.uuidOrNone commitId ]
 
@@ -74,7 +74,7 @@ let insertAndApplyOps
         |> List.filter (fun (_, affected) -> affected > 0)
         |> List.map fst
 
-      do! PackageOpPlayback.applyOps commitId opsToApply
+      do! PackageOpPlayback.applyOps branchId commitId opsToApply
 
       return insertedCount
   }
@@ -83,6 +83,7 @@ let insertAndApplyOps
 /// Create a new commit and insert ops with that commit_id
 /// Returns the commit ID
 let insertAndApplyOpsWithCommit
+  (branchId : PT.BranchId)
   (message : string)
   (ops : List<PT.PackageOp>)
   : Task<System.Guid> =
@@ -93,14 +94,17 @@ let insertAndApplyOpsWithCommit
     do!
       Sql.query
         """
-        INSERT INTO commits (id, message, created_at)
-        VALUES (@id, @message, datetime('now'))
+        INSERT INTO commits (id, message, branch_id, created_at)
+        VALUES (@id, @message, @branch_id, datetime('now'))
         """
-      |> Sql.parameters [ "id", Sql.uuid commitId; "message", Sql.string message ]
+      |> Sql.parameters
+        [ "id", Sql.uuid commitId
+          "message", Sql.string message
+          "branch_id", Sql.uuid branchId ]
       |> Sql.executeStatementAsync
 
     // Insert ops with the commit_id
-    let! _ = insertAndApplyOps (Some commitId) ops
+    let! _ = insertAndApplyOps branchId (Some commitId) ops
 
     return commitId
   }
@@ -108,18 +112,26 @@ let insertAndApplyOpsWithCommit
 
 /// Insert ops as WIP (commit_id = NULL)
 /// Returns count of inserted ops
-let insertAndApplyOpsAsWip (ops : List<PT.PackageOp>) : Task<int64> =
-  insertAndApplyOps None ops
+let insertAndApplyOpsAsWip
+  (branchId : PT.BranchId)
+  (ops : List<PT.PackageOp>)
+  : Task<int64> =
+  insertAndApplyOps branchId None ops
 
 
-/// Commit all WIP ops by creating a new commit and assigning commit_id
+/// Commit all WIP ops on a branch by creating a new commit and assigning commit_id
 /// Returns the commit ID on success
-let commitWipOps (message : string) : Task<Result<System.Guid, string>> =
+let commitWipOps
+  (branchId : PT.BranchId)
+  (message : string)
+  : Task<Result<System.Guid, string>> =
   task {
     try
-      // Check if there are any WIP ops
+      // Check if there are any WIP ops on this branch
       let! wipCount =
-        Sql.query "SELECT COUNT(*) as cnt FROM package_ops WHERE commit_id IS NULL"
+        Sql.query
+          "SELECT COUNT(*) as cnt FROM package_ops WHERE branch_id = @branch_id AND commit_id IS NULL"
+        |> Sql.parameters [ "branch_id", Sql.uuid branchId ]
         |> Sql.executeAsync (fun read -> read.int64 "cnt")
 
       match wipCount with
@@ -131,33 +143,37 @@ let commitWipOps (message : string) : Task<Result<System.Guid, string>> =
         do!
           Sql.query
             """
-            INSERT INTO commits (id, message, created_at)
-            VALUES (@id, @message, datetime('now'))
+            INSERT INTO commits (id, message, branch_id, created_at)
+            VALUES (@id, @message, @branch_id, datetime('now'))
             """
           |> Sql.parameters
-            [ "id", Sql.uuid commitId; "message", Sql.string message ]
+            [ "id", Sql.uuid commitId
+              "message", Sql.string message
+              "branch_id", Sql.uuid branchId ]
           |> Sql.executeStatementAsync
 
-        // Update all WIP ops to point to this commit
+        // Update all WIP ops on this branch to point to this commit
         do!
           Sql.query
             """
             UPDATE package_ops
-            SET commit_id = @commit_id, is_wip = 0
-            WHERE commit_id IS NULL
+            SET commit_id = @commit_id
+            WHERE branch_id = @branch_id AND commit_id IS NULL
             """
-          |> Sql.parameters [ "commit_id", Sql.uuid commitId ]
+          |> Sql.parameters
+            [ "commit_id", Sql.uuid commitId; "branch_id", Sql.uuid branchId ]
           |> Sql.executeStatementAsync
 
-        // Update all WIP locations to point to this commit
+        // Update all WIP locations on this branch to point to this commit
         do!
           Sql.query
             """
             UPDATE locations
-            SET commit_id = @commit_id, is_wip = 0
-            WHERE commit_id IS NULL
+            SET commit_id = @commit_id
+            WHERE branch_id = @branch_id AND commit_id IS NULL
             """
-          |> Sql.parameters [ "commit_id", Sql.uuid commitId ]
+          |> Sql.parameters
+            [ "commit_id", Sql.uuid commitId; "branch_id", Sql.uuid branchId ]
           |> Sql.executeStatementAsync
 
         return Ok commitId
@@ -167,17 +183,18 @@ let commitWipOps (message : string) : Task<Result<System.Guid, string>> =
   }
 
 
-/// Discard all WIP ops by deleting them and their effects
+/// Discard all WIP ops on a branch by deleting them and their effects
 /// Returns the count of discarded ops
-let discardWipOps () : Task<Result<int64, string>> =
+let discardWipOps (branchId : PT.BranchId) : Task<Result<int64, string>> =
   task {
     try
       // Get count before deleting
       let! wipOps =
         Sql.query
           """
-          SELECT id FROM package_ops WHERE commit_id IS NULL
+          SELECT id FROM package_ops WHERE branch_id = @branch_id AND commit_id IS NULL
           """
+        |> Sql.parameters [ "branch_id", Sql.uuid branchId ]
         |> Sql.executeAsync (fun read -> read.uuid "id")
 
       let count = int64 (List.length wipOps)
@@ -187,12 +204,16 @@ let discardWipOps () : Task<Result<int64, string>> =
       else
         // Delete WIP locations first (foreign key-like cleanup)
         do!
-          Sql.query "DELETE FROM locations WHERE commit_id IS NULL"
+          Sql.query
+            "DELETE FROM locations WHERE branch_id = @branch_id AND commit_id IS NULL"
+          |> Sql.parameters [ "branch_id", Sql.uuid branchId ]
           |> Sql.executeStatementAsync
 
         // Delete WIP ops
         do!
-          Sql.query "DELETE FROM package_ops WHERE commit_id IS NULL"
+          Sql.query
+            "DELETE FROM package_ops WHERE branch_id = @branch_id AND commit_id IS NULL"
+          |> Sql.parameters [ "branch_id", Sql.uuid branchId ]
           |> Sql.executeStatementAsync
 
         // Note: We don't delete from package_types/values/functions because

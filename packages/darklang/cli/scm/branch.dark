@@ -1,0 +1,173 @@
+module Darklang.Cli.SCM.Branch
+
+
+let execute (state: AppState) (args: List<String>) : AppState =
+  match args with
+  | [] | [ "list" ] ->
+    // Show current branch and list all
+    let branches = SCM.Branch.list ()
+    if Stdlib.List.isEmpty branches then
+      Stdlib.printLine "No branches."
+    else
+      let currentId = Stdlib.Uuid.toString state.currentBranchId
+
+      branches
+      |> Stdlib.List.iter (fun b ->
+        let id =
+          match Stdlib.Dict.get b "id" with
+          | Some i -> i
+          | None -> "?"
+
+        let name =
+          match Stdlib.Dict.get b "name" with
+          | Some n -> n
+          | None -> "?"
+
+        let marker =
+          if id == currentId then
+            Colors.success "* "
+          else
+            "  "
+
+        Stdlib.printLine $"{marker}{name}")
+
+    state
+
+  | [ "create"; name ] ->
+    let newBranch = SCM.Branch.create name state.currentBranchId
+
+    let newBranchId =
+      match Stdlib.Dict.get newBranch "id" with
+      | Some idStr ->
+        match Stdlib.Uuid.parse idStr with
+        | Ok id -> id
+        | Error _ -> state.currentBranchId
+      | None -> state.currentBranchId
+
+    Stdlib.printLine (Colors.success $"Created and switched to branch '{name}'")
+    { state with currentBranchId = newBranchId }
+
+  | [ "switch"; name ] ->
+    match SCM.Branch.getByName name with
+    | Some b ->
+      let newBranchId =
+        match Stdlib.Dict.get b "id" with
+        | Some idStr ->
+          match Stdlib.Uuid.parse idStr with
+          | Ok id -> id
+          | Error _ -> state.currentBranchId
+        | None -> state.currentBranchId
+
+      Stdlib.printLine $"Switched to branch '{name}'"
+      { state with currentBranchId = newBranchId }
+    | None ->
+      Stdlib.printLine (Colors.error $"Branch '{name}' not found.")
+      state
+
+  | [ "rename"; oldName; newName ] ->
+    match SCM.Branch.getByName oldName with
+    | Some b ->
+      let branchId =
+        match Stdlib.Dict.get b "id" with
+        | Some idStr ->
+          match Stdlib.Uuid.parse idStr with
+          | Ok id -> Stdlib.Option.Option.Some id
+          | Error _ -> Stdlib.Option.Option.None
+        | None -> Stdlib.Option.Option.None
+
+      match branchId with
+      | Some id ->
+        match SCM.Branch.rename id newName with
+        | Ok _ ->
+          Stdlib.printLine (Colors.success $"Renamed '{oldName}' to '{newName}'")
+        | Error e ->
+          Stdlib.printLine (Colors.error $"Rename failed: {e}")
+      | None ->
+        Stdlib.printLine (Colors.error "Could not parse branch ID.")
+
+      state
+    | None ->
+      Stdlib.printLine (Colors.error $"Branch '{oldName}' not found.")
+      state
+
+  | [ "delete"; name ] ->
+    match SCM.Branch.getByName name with
+    | Some b ->
+      let branchId =
+        match Stdlib.Dict.get b "id" with
+        | Some idStr ->
+          match Stdlib.Uuid.parse idStr with
+          | Ok id -> Stdlib.Option.Option.Some id
+          | Error _ -> Stdlib.Option.Option.None
+        | None -> Stdlib.Option.Option.None
+
+      match branchId with
+      | Some id ->
+        match SCM.Branch.delete id with
+        | Ok _ ->
+          Stdlib.printLine (Colors.success $"Deleted branch '{name}'")
+          // Switch to main if we deleted current branch
+          let currentIdStr = Stdlib.Uuid.toString state.currentBranchId
+          let deletedIdStr =
+            match Stdlib.Dict.get b "id" with
+            | Some i -> i
+            | None -> ""
+
+          if currentIdStr == deletedIdStr then
+            let mainId = SCM.Branch.mainBranchId ()
+            Stdlib.printLine "Switched to main."
+            { state with currentBranchId = mainId }
+          else
+            state
+        | Error e ->
+          Stdlib.printLine (Colors.error $"Delete failed: {e}")
+          state
+      | None ->
+        Stdlib.printLine (Colors.error "Could not parse branch ID.")
+        state
+    | None ->
+      Stdlib.printLine (Colors.error $"Branch '{name}' not found.")
+      state
+
+  | _ ->
+    Stdlib.printLine "Usage: branch [list|create|switch|rename|delete] [args]"
+    state
+
+
+let complete (_state: AppState) (args: List<String>) : List<Completion.CompletionItem> =
+  match args with
+  | [] -> [ "list"; "create"; "switch"; "rename"; "delete" ] |> Stdlib.List.map Completion.simple
+  | [ "switch"; _ ] ->
+    let branches = SCM.Branch.list ()
+    branches
+    |> Stdlib.List.filterMap (fun b ->
+      match Stdlib.Dict.get b "name" with
+      | Some n -> Stdlib.Option.Option.Some (Completion.simple n)
+      | None -> Stdlib.Option.Option.None)
+  | [ "delete"; _ ] ->
+    let branches = SCM.Branch.list ()
+    branches
+    |> Stdlib.List.filterMap (fun b ->
+      match Stdlib.Dict.get b "name" with
+      | Some n -> Stdlib.Option.Option.Some (Completion.simple n)
+      | None -> Stdlib.Option.Option.None)
+  | _ -> []
+
+
+let help (_state: AppState) : Unit =
+  [ "Usage: branch [subcommand] [args]"
+    ""
+    "Subcommands:"
+    "  (none)                  List all branches (* = current)"
+    "  list                    List all branches (* = current)"
+    "  create <name>           Create branch from current, switch to it"
+    "  switch <name>           Switch to existing branch"
+    "  rename <old> <new>      Rename a branch"
+    "  delete <name>           Delete a branch"
+    ""
+    "Note: branch context does not persist between CLI invocations."
+    "In interactive mode, 'branch switch' works for the session."
+    "For non-interactive use, pass --branch <name> as a global flag:"
+    "  dark --branch feature status"
+    "  dark --branch feature commit \"my changes\"" ]
+  |> Stdlib.printLines
