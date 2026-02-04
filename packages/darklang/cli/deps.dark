@@ -1,9 +1,10 @@
 module Darklang.Cli.Deps
 
 /// Resolve UUIDs to display names. Returns a Dict mapping UUID string to name.
-let resolveNames (itemIds: List<Uuid>) : Dict<String> =
-  (Builtin.dependenciesResolveNames itemIds)
-  |> Stdlib.List.fold Stdlib.Dict.empty (fun acc (itemId, displayName) ->
+let resolveNames (branchId: Uuid) (itemIds: List<Uuid>) : Dict<String> =
+  (Builtin.depsResolveLocations branchId itemIds)
+  |> Stdlib.List.fold Stdlib.Dict.empty (fun acc (itemId, location) ->
+    let displayName = PrettyPrinter.ProgramTypes.PackageLocation.packageLocation location
     Stdlib.Dict.set acc (Stdlib.Uuid.toString itemId) displayName)
 
 
@@ -18,8 +19,8 @@ let getName (namesDict: Dict<String>) (id: Uuid) : String =
 
 /// Display dependents (what uses this entity)
 /// Shows approved items + caller's own pending items.
-let showDependents (targetId: Uuid) (entityName: String) : Unit =
-  let dependents = Builtin.dependenciesGetDependents targetId
+let showDependents (branchId: Uuid) (targetId: Uuid) (entityName: String) : Unit =
+  let dependents = Builtin.depsGetDependents targetId
 
   match dependents with
   | [] ->
@@ -30,7 +31,7 @@ let showDependents (targetId: Uuid) (entityName: String) : Unit =
     Stdlib.printLine ""
 
     let ids = deps |> Stdlib.List.map (fun (id, _) -> id)
-    let namesDict = resolveNames ids
+    let namesDict = resolveNames branchId ids
 
     deps
     |> Stdlib.List.iter (fun (sourceId, refType) ->
@@ -56,7 +57,7 @@ let collectTransitiveDependents
     | [] -> accumulated
     | ids ->
       // Batch fetch dependents for all pending IDs at once
-      let batchResults = Builtin.dependenciesGetDependentsBatch ids
+      let batchResults = Builtin.depsGetDependentsBatch ids
 
       // Extract new dependents as (sourceId, refType) tuples
       let newDeps =
@@ -86,7 +87,7 @@ let getTransitiveDependents (targetId: Uuid) : List<Uuid * String> =
 
 
 /// Display all transitive dependents (what could break)
-let showTransitiveDependents (targetId: Uuid) (entityName: String) : Unit =
+let showTransitiveDependents (branchId: Uuid) (targetId: Uuid) (entityName: String) : Unit =
   let allDependents = getTransitiveDependents targetId
 
   match allDependents with
@@ -98,7 +99,7 @@ let showTransitiveDependents (targetId: Uuid) (entityName: String) : Unit =
     Stdlib.printLine ""
 
     let ids = deps |> Stdlib.List.map (fun (id, _) -> id)
-    let namesDict = resolveNames ids
+    let namesDict = resolveNames branchId ids
 
     deps
     |> Stdlib.List.iter (fun (sourceId, refType) ->
@@ -107,8 +108,8 @@ let showTransitiveDependents (targetId: Uuid) (entityName: String) : Unit =
 
 
 /// Display dependencies (what this entity uses)
-let showDependencies (sourceId: Uuid) (entityName: String) : Unit =
-  let dependencies = Builtin.dependenciesGetDependencies sourceId
+let showDependencies (branchId: Uuid) (sourceId: Uuid) (entityName: String) : Unit =
+  let dependencies = Builtin.depsGetDependencies sourceId
 
   match dependencies with
   | [] ->
@@ -119,7 +120,7 @@ let showDependencies (sourceId: Uuid) (entityName: String) : Unit =
     Stdlib.printLine ""
 
     let ids = deps |> Stdlib.List.map (fun (id, _) -> id)
-    let namesDict = resolveNames ids
+    let namesDict = resolveNames branchId ids
 
     deps
     |> Stdlib.List.iter (fun (targetId, refType) ->
@@ -185,7 +186,7 @@ let execute (state: AppState) (args: List<String>) : AppState =
       state
     | Ok result ->
       let (id, name, _entityType) = result
-      showDependencies id name
+      showDependencies branchId id name
       state
 
   | ["usedby"; pathArg] ->
@@ -197,9 +198,9 @@ let execute (state: AppState) (args: List<String>) : AppState =
       let (id, name, _entityType) = result
 
       if deep then
-        showTransitiveDependents id name
+        showTransitiveDependents branchId id name
       else
-        showDependents id name
+        showDependents branchId id name
 
       state
 
@@ -211,13 +212,13 @@ let execute (state: AppState) (args: List<String>) : AppState =
       state
     | Ok result ->
       let (id, name, _entityType) = result
-      showDependencies id name
+      showDependencies branchId id name
       Stdlib.printLine ""
 
       if deep then
-        showTransitiveDependents id name
+        showTransitiveDependents branchId id name
       else
-        showDependents id name
+        showDependents branchId id name
 
       state
 

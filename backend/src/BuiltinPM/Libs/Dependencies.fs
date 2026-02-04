@@ -8,13 +8,34 @@ open LibExecution.Builtin.Shortcuts
 
 module Dval = LibExecution.Dval
 module VT = LibExecution.ValueType
+module PT = LibExecution.ProgramTypes
+module PT2DT = LibExecution.ProgramTypesToDarkTypes
+module PMPT = LibPackageManager.ProgramTypes
 
 
 let tupleVT = VT.tuple VT.uuid VT.string []
 
+/// Try to get location for an item ID, checking all item types (fn, type, value)
+let private getLocationAny
+  (branchChain : List<PT.BranchId>)
+  (id : uuid)
+  : Ply<Option<PT.PackageLocation>> =
+  uply {
+    // Try fn first (most common)
+    match! PMPT.Fn.getLocation branchChain id with
+    | Some loc -> return Some loc
+    | None ->
+      // Try type
+      match! PMPT.Type.getLocation branchChain id with
+      | Some loc -> return Some loc
+      | None ->
+        // Try value
+        return! PMPT.Value.getLocation branchChain id
+  }
+
 
 let fns : List<BuiltInFn> =
-  [ { name = fn "dependenciesGetDependents" 0
+  [ { name = fn "depsGetDependents" 0
       typeParams = []
       parameters = [ Param.make "targetId" TUuid "The UUID to find dependents for" ]
       returnType = TList(TTuple(TUuid, TString, []))
@@ -37,7 +58,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "dependenciesGetDependencies" 0
+    { name = fn "depsGetDependencies" 0
       typeParams = []
       parameters =
         [ Param.make "sourceId" TUuid "The UUID to find dependencies for" ]
@@ -60,7 +81,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "dependenciesGetDependentsBatch" 0
+    { name = fn "depsGetDependentsBatch" 0
       typeParams = []
       parameters =
         [ Param.make "targetIds" (TList TUuid) "List of UUIDs to find dependents for" ]
@@ -99,16 +120,18 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "dependenciesResolveNames" 0
+    { name = fn "depsResolveLocations" 0
       typeParams = []
       parameters =
-        [ Param.make "itemIds" (TList TUuid) "List of item UUIDs to resolve" ]
-      returnType = TList(TTuple(TUuid, TString, []))
+        [ Param.make "branchId" TUuid "Branch ID for location lookup"
+          Param.make "itemIds" (TList TUuid) "List of item UUIDs to resolve" ]
+      returnType =
+        TList(TTuple(TUuid, TCustomType(Ok PT2DT.PackageLocation.typeName, []), []))
       description =
-        "Resolve UUIDs to display names. Returns (itemId, displayName) tuples."
+        "Resolve UUIDs to PackageLocations. Returns (itemId, location) tuples."
       fn =
         (function
-        | _, _, _, [ DList(_, itemIds) ] ->
+        | _, _, _, [ DUuid branchId; DList(_, itemIds) ] ->
           uply {
             let ids =
               itemIds
@@ -117,19 +140,26 @@ let fns : List<BuiltInFn> =
                 | DUuid id -> Some id
                 | _ -> None)
 
-            let! results = LibPackageManager.Queries.resolveLocations ids
+            let! branchChain = LibPackageManager.Branches.getBranchChain branchId
+
+            let! results =
+              ids
+              |> List.map (fun id ->
+                uply {
+                  match! getLocationAny branchChain id with
+                  | Some loc -> return Some(id, loc)
+                  | None -> return None
+                })
+              |> Ply.List.flatten
+              |> Ply.map (List.choose identity)
 
             let dvals =
               results
-              |> List.map (fun loc ->
-                let displayName =
-                  if System.String.IsNullOrEmpty(loc.modules) then
-                    $"{loc.owner}.{loc.name}"
-                  else
-                    $"{loc.owner}.{loc.modules}.{loc.name}"
-                DTuple(DUuid loc.itemId, DString displayName, []))
+              |> List.map (fun (id, loc) ->
+                DTuple(DUuid id, PT2DT.PackageLocation.toDT loc, []))
 
-            return DList(VT.tuple VT.uuid VT.string [], dvals)
+            return
+              DList(VT.tuple VT.uuid PT2DT.PackageLocation.knownType [], dvals)
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
