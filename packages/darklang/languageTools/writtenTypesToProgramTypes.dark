@@ -1851,7 +1851,7 @@ let parsedFileAsSourceFile
     List<Parser.Range * ProgramTypes.NameResolutionError>
   )
   =
-  let pm = LanguageTools.PackageManager.pm (Builtin.scmBranchGetMainId ())
+  let pm = LanguageTools.PackageManager.pm Builtin.scmMainBranchId
   // CLEANUP potentially complain about unparsable stuff?
   match parsedFile with
   | SourceFile source ->

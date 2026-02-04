@@ -46,7 +46,7 @@ type Context =
 module Context =
   let root =
     Context
-      { branchId = SCM.Branch.mainBranchId ()
+      { branchId = SCM.Branch.mainBranchId
         currentModule = Stdlib.Option.Option.None
         currentFunction = Stdlib.Option.Option.None }
 
@@ -1023,11 +1023,11 @@ module BuiltinFn =
     let parameters =
       f.parameters
       |> Stdlib.List.map (fun p ->
-          let params = PrettyPrinter.RuntimeTypes.typeReference (SCM.Branch.mainBranchId ()) p.``type``
+          let params = PrettyPrinter.RuntimeTypes.typeReference (SCM.Branch.mainBranchId) p.``type``
           $"({p.name} : {params})")
       |> Stdlib.String.join ", "
 
-    parameters ++ " -> " ++ (PrettyPrinter.RuntimeTypes.typeReference (SCM.Branch.mainBranchId ()) f.returnType)
+    parameters ++ " -> " ++ (PrettyPrinter.RuntimeTypes.typeReference (SCM.Branch.mainBranchId) f.returnType)
 
 
 module PackageOp =

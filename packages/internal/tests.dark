@@ -45,7 +45,7 @@ let parseSingleTestFromFile
     | Error e -> Stdlib.Result.Result.Error e
     | Ok wtTest ->
       let lineNumber = wtTest.lineNumber
-      let pm = LanguageTools.PackageManager.pm (Builtin.scmBranchGetMainId ())
+      let pm = LanguageTools.PackageManager.pm Builtin.scmMainBranchId
 
       let context =
         LanguageTools.WrittenTypesToProgramTypes.Context

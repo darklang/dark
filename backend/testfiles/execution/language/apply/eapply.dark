@@ -140,7 +140,7 @@ module GenericTypeArgsAreOK =
     [ (Darklang.PrettyPrinter.RuntimeTypes.RuntimeError.ErrorSegment.String "a")
       (Darklang.PrettyPrinter.RuntimeTypes.RuntimeError.ErrorSegment.String "b") ]
 
-  Darklang.PrettyPrinter.RuntimeTypes.RuntimeError.segmentsToString (Darklang.SCM.Branch.mainBranchId ()) segments
+  Darklang.PrettyPrinter.RuntimeTypes.RuntimeError.segmentsToString Darklang.SCM.Branch.mainBranchId segments
   ) = "ab"
 
 

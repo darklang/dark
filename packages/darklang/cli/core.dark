@@ -27,7 +27,7 @@ let initState () : AppState =
   let allAliases = Stdlib.List.fold commands [] (fun acc cmd -> Stdlib.List.append acc cmd.aliases)
   let allOptions = Stdlib.List.append allNames allAliases
 
-  let branchId = SCM.Branch.mainBranchId ()
+  let branchId = SCM.Branch.mainBranchId
   let branchName =
     match SCM.Branch.get branchId with
     | Some b -> b.name
@@ -579,7 +579,7 @@ let private parseBranchFlag (args: List<String>) : (Uuid * List<String>) =
       a == "--branch")
 
   match branchEntry with
-  | None -> (SCM.Branch.mainBranchId (), args)
+  | None -> (SCM.Branch.mainBranchId, args)
   | Some flagPair ->
     let (idx, _flag) = flagPair
 
@@ -590,7 +590,7 @@ let private parseBranchFlag (args: List<String>) : (Uuid * List<String>) =
 
     if Stdlib.String.isEmpty branchName then
       Stdlib.printLine "Warning: --branch requires a name, using main."
-      (SCM.Branch.mainBranchId (), args)
+      (SCM.Branch.mainBranchId, args)
     else
       // Remove --branch and its argument from args
       let filteredArgs =
@@ -603,18 +603,10 @@ let private parseBranchFlag (args: List<String>) : (Uuid * List<String>) =
           a)
 
       match SCM.Branch.getByName branchName with
-      | Some b ->
-        let branchId =
-          match Stdlib.Dict.get b "id" with
-          | Some idStr ->
-            match Stdlib.Uuid.parse idStr with
-            | Ok id -> id
-            | Error _ -> SCM.Branch.mainBranchId ()
-          | None -> SCM.Branch.mainBranchId ()
-        (branchId, filteredArgs)
+      | Some b -> (b.id, filteredArgs)
       | None ->
         Stdlib.printLine $"Warning: branch '{branchName}' not found, using main."
-        (SCM.Branch.mainBranchId (), filteredArgs)
+        (SCM.Branch.mainBranchId, filteredArgs)
 
 
 let executeCliCommand (args: List<String>) : Int64 =

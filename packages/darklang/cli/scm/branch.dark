@@ -50,7 +50,7 @@ let execute (state: AppState) (args: List<String>) : AppState =
       | Ok _ ->
         Stdlib.printLine (Colors.success $"Deleted branch '{name}'")
         if b.id == state.currentBranchId then
-          let mainId = SCM.Branch.mainBranchId ()
+          let mainId = SCM.Branch.mainBranchId
           Stdlib.printLine "Switched to main."
           { state with currentBranchId = mainId; cachedBranchName = "main" }
         else

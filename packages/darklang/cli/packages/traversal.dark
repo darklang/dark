@@ -147,7 +147,7 @@ let searchModulesByPrefix
         entityTypes = []
         exactMatch = false }
 
-  let results = LanguageTools.PackageManager.Search.search (SCM.Branch.mainBranchId ()) query
+  let results = LanguageTools.PackageManager.Search.search (SCM.Branch.mainBranchId) query
 
   // For each result, find the first segment starting with prefix and truncate there
   results.submodules

@@ -142,6 +142,8 @@ let execute
         secrets = []
         dbs = Map.empty }
 
+    let builtins = builtinsToUse branchId
+
     let types =
       List.concat
         [ mod'.types |> List.map PT2RT.PackageType.toRT
@@ -149,8 +151,9 @@ let execute
 
     let values =
       List.concat
-        [ mod'.values |> List.map PT2RT.PackageValue.toRT
-          mod'.submodules.values |> List.map PT2RT.PackageValue.toRT ]
+        [ mod'.values |> List.map (PT2RT.PackageValue.toRT builtins.values)
+          mod'.submodules.values
+          |> List.map (PT2RT.PackageValue.toRT builtins.values) ]
 
     let fns =
       List.concat
@@ -165,7 +168,7 @@ let execute
 
     let state =
       Exe.createState
-        (builtinsToUse branchId)
+        builtins
         pm
         tracing
         parentState.reportException

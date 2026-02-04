@@ -141,18 +141,15 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "scmBranchGetMainId" 0
-      typeParams = []
-      parameters = [ Param.make "unit" TUnit "" ]
-      returnType = TUuid
-      description = "Get the well-known main branch UUID."
-      fn =
-        function
-        | _, _, _, [ DUnit ] -> Ply(DUuid PT.mainBranchId)
-        | _ -> incorrectArgs ()
-      sqlSpec = NotQueryable
-      previewable = Pure
-      deprecated = NotDeprecated } ]
+    ]
 
 
-let builtins : Builtins = LibExecution.Builtin.make [] fns
+let values : List<BuiltInValue> =
+  [ { name = value "scmMainBranchId" 0
+      typ = TUuid
+      description = "The well-known main branch UUID."
+      deprecated = NotDeprecated
+      body = DUuid PT.mainBranchId } ]
+
+
+let builtins : Builtins = LibExecution.Builtin.make values fns

@@ -13,7 +13,7 @@ type Option<'t> = Stdlib.Option.Option<'t>
 let err
   (v: Stdlib.Result.Result<'a, Stdlib.Json.ParseError.ParseError>)
   : Result<'a, String> =
-  v |> Stdlib.Result.mapError (Stdlib.Json.ParseError.toString (Darklang.SCM.Branch.mainBranchId ()))
+  v |> Stdlib.Result.mapError (Stdlib.Json.ParseError.toString Darklang.SCM.Branch.mainBranchId)
 
 
 module Unit =

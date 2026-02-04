@@ -94,7 +94,7 @@ let handleDeleteBranchRequest
 
       logAndSendToClient responseJson
       state
-    else if branchId == SCM.Branch.mainBranchId () then
+    else if branchId == SCM.Branch.mainBranchId then
       let responseJson =
         (JsonRPC.Response.Error.make
           (Stdlib.Option.Option.Some requestID)
@@ -292,8 +292,8 @@ let handleMergeRequest
       | Some branch ->
         match branch.parentBranchId with
         | Some pid -> pid
-        | None -> SCM.Branch.mainBranchId ()
-      | None -> SCM.Branch.mainBranchId ()
+        | None -> SCM.Branch.mainBranchId
+      | None -> SCM.Branch.mainBranchId
 
     let parentName =
       match SCM.Branch.get parentBranchId with

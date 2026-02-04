@@ -194,7 +194,7 @@ let executionStateFor
     let builtins =
       if allowLocalHttpAccess then localBuiltIns pmPT else cloudBuiltIns pmPT
     let state =
-      let pmRT = PT2RT.PackageManager.toRT pmPT
+      let pmRT = PT2RT.PackageManager.toRT builtins.values pmPT
       Exe.createState
         builtins
         pmRT

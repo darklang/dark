@@ -21,7 +21,7 @@ let parsePTExpr
       | _ -> []
 
     let onMissing = NameResolver.OnMissing.Allow
-    let pm = PackageManager.pm (Builtin.scmBranchGetMainId ())
+    let pm = PackageManager.pm Builtin.scmMainBranchId
 
     match exprs with
     | [ expr ] ->

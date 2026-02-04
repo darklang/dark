@@ -42,7 +42,7 @@ let runServerCli (u: Unit) : Int64 =
         LspState
           { initialized = false
             shouldShutdown = false
-            currentBranchId = SCM.Branch.mainBranchId ()
+            currentBranchId = SCM.Branch.mainBranchId
             documentsInScope = Dict { } }
 
     | _ ->
@@ -51,7 +51,7 @@ let runServerCli (u: Unit) : Int64 =
       LspState
         { initialized = false
           shouldShutdown = false
-          currentBranchId = SCM.Branch.mainBranchId ()
+          currentBranchId = SCM.Branch.mainBranchId
           documentsInScope = Dict { } }
 
 

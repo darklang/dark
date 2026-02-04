@@ -11,8 +11,8 @@ type Branch =
 
 
 /// The well-known main branch UUID
-let mainBranchId () : Uuid =
-  Builtin.scmBranchGetMainId_v0 ()
+let mainBranchId: Uuid =
+  Builtin.scmMainBranchId
 
 
 /// Create a new branch from the given parent branch
