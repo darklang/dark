@@ -42,7 +42,7 @@ let executeScript (state: AppState) (scriptPath: String) (args: List<String>) : 
     state
   | Ok script ->
     let scriptSourceCode = Stdlib.String.fromBytesWithReplacement script
-    let result = Builtin.cliParseAndExecuteScript scriptPath scriptSourceCode args
+    let result = Builtin.cliParseAndExecuteScript state.currentBranchId scriptPath scriptSourceCode args
 
     match result with
     | Ok exitCode ->

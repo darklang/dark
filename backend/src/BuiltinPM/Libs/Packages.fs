@@ -30,6 +30,8 @@ module PackageIDs = LibExecution.PackageIDs
 module C2DT = LibExecution.CommonToDarkTypes
 module VT = LibExecution.ValueType
 module RTPM = LibPackageManager.RuntimeTypes
+module PMPT = LibPackageManager.ProgramTypes
+module Branches = LibPackageManager.Branches
 module Execution = LibExecution.Execution
 
 let statsTypeName = FQTypeName.fqPackage PackageIDs.Type.DarkPackages.stats
@@ -79,13 +81,13 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
         "Tries to find a package type, by location, and returns the ID if it exists"
       fn =
         (function
-        | _, _, _, [ DUuid _branchId; location ] ->
+        | _, _, _, [ DUuid branchId; location ] ->
           uply {
             let location = PT2DT.PackageLocation.fromDT location
-            // Use the execution state's PM which includes withExtras overlays.
-            // The branchId is expected to match the PM's branch; when the user
-            // switches branches, the execution state (and PM) are rebuilt.
-            let! result = pm.findType location
+            // Do a fresh lookup using the branchId to get the current branch chain.
+            // This ensures newly-created types on the branch are visible.
+            let! branchChain = Branches.getBranchChain branchId
+            let! result = PMPT.Type.find branchChain location
             return result |> Option.map DUuid |> Dval.option KTUuid
           }
         | _ -> incorrectArgs ())
@@ -128,10 +130,11 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
         "Tries to find a package value, by location, and returns the ID if it exists"
       fn =
         (function
-        | _, _, _, [ DUuid _branchId; location ] ->
+        | _, _, _, [ DUuid branchId; location ] ->
           uply {
             let location = PT2DT.PackageLocation.fromDT location
-            let! result = pm.findValue location
+            let! branchChain = Branches.getBranchChain branchId
+            let! result = PMPT.Value.find branchChain location
             return result |> Option.map DUuid |> Dval.option KTUuid
           }
         | _ -> incorrectArgs ())
@@ -172,8 +175,8 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
             "The ValueType to search for" ]
       returnType = TList TUuid
       description =
-        "Returns a list of value UUIDs that have the given ValueType. " +
-        "Uses exact match on the serialized type for efficient lookup."
+        "Returns a list of value UUIDs that have the given ValueType. "
+        + "Uses exact match on the serialized type for efficient lookup."
       fn =
         (function
         | _, _, _, [ valueTypeDval ] ->
@@ -191,11 +194,12 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
     // Evaluate a package value by its UUID
     { name = fn "pmEvaluateValue" 0
       typeParams = []
-      parameters = [ Param.make "valueId" TUuid "UUID of the package value to evaluate" ]
+      parameters =
+        [ Param.make "valueId" TUuid "UUID of the package value to evaluate" ]
       returnType = TypeReference.option (TVariable "a")
       description =
-        "Evaluates a package value by its UUID and returns the result. " +
-        "Returns None if the value doesn't exist or fails to evaluate."
+        "Evaluates a package value by its UUID and returns the result. "
+        + "Returns None if the value doesn't exist or fails to evaluate."
       fn =
         (function
         | exeState, _, _, [ DUuid valueId ] ->
@@ -234,10 +238,11 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
         "Tries to find a package function, by location, and returns the ID if it exists"
       fn =
         (function
-        | _, _, _, [ DUuid _branchId; location ] ->
+        | _, _, _, [ DUuid branchId; location ] ->
           uply {
             let location = PT2DT.PackageLocation.fromDT location
-            let! result = pm.findFn location
+            let! branchChain = Branches.getBranchChain branchId
+            let! result = PMPT.Fn.find branchChain location
             return result |> Option.map DUuid |> Dval.option KTUuid
           }
         | _ -> incorrectArgs ())
@@ -280,10 +285,11 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
       description = "Search for packages based on the given query."
       fn =
         function
-        | _, _, _, [ DUuid _branchId; query as DRecord(_, _, _, _fields) ] ->
+        | _, _, _, [ DUuid branchId; query as DRecord(_, _, _, _fields) ] ->
           uply {
             let searchQuery = PT2DT.Search.SearchQuery.fromDT query
-            let! results = pm.search searchQuery
+            let! branchChain = Branches.getBranchChain branchId
+            let! results = PMPT.search branchChain searchQuery
             return PT2DT.Search.SearchResults.toDT results
           }
         | _ -> incorrectArgs ()
@@ -295,9 +301,7 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
     // Location lookups
     { name = fn "pmGetLocationByType" 0
       typeParams = []
-      parameters =
-        [ Param.make "branchId" TUuid ""
-          Param.make "id" TUuid "" ]
+      parameters = [ Param.make "branchId" TUuid ""; Param.make "id" TUuid "" ]
       returnType =
         TypeReference.option (TCustomType(Ok PT2DT.PackageLocation.typeName, []))
       description = "Returns the location of a package type by its ID, if it exists"
@@ -319,9 +323,7 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
 
     { name = fn "pmGetLocationByValue" 0
       typeParams = []
-      parameters =
-        [ Param.make "branchId" TUuid ""
-          Param.make "id" TUuid "" ]
+      parameters = [ Param.make "branchId" TUuid ""; Param.make "id" TUuid "" ]
       returnType =
         TypeReference.option (TCustomType(Ok PT2DT.PackageLocation.typeName, []))
       description = "Returns the location of a package value by its ID, if it exists"
@@ -343,9 +345,7 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
 
     { name = fn "pmGetLocationByFn" 0
       typeParams = []
-      parameters =
-        [ Param.make "branchId" TUuid ""
-          Param.make "id" TUuid "" ]
+      parameters = [ Param.make "branchId" TUuid ""; Param.make "id" TUuid "" ]
       returnType =
         TypeReference.option (TCustomType(Ok PT2DT.PackageLocation.typeName, []))
       description =

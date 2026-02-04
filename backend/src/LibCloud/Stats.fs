@@ -31,4 +31,3 @@ type DBStats = Map<tlid, DBStat>
 //     })
 //   |> Task.flatten
 //   |> Task.map Map.ofList
-

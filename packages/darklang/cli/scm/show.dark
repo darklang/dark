@@ -12,8 +12,8 @@ let execute (state: AppState) (args: List<String>) : AppState =
     // Allow partial commit IDs (at least 8 chars)
     let fullIdStr =
       if Stdlib.String.length commitIdStr < 36L then
-        // Try to find a matching commit
-        let commits = SCM.PackageOps.getCommits branchId 100L
+        // Try to find a matching commit (search current branch and ancestors)
+        let commits = SCM.PackageOps.getCommitsWithAncestors branchId 100L
 
         let matching =
           commits

@@ -114,8 +114,7 @@ module HandleCommand =
 
       let! (canvasId, toplevels) =
         Canvas.loadFromDisk
-          (LibPackageManager.PackageManager.pt
-            LibExecution.ProgramTypes.mainBranchId)
+          (LibPackageManager.PackageManager.pt LibExecution.ProgramTypes.mainBranchId)
           name
 
       print $"Loaded canvas {canvasId} with {List.length toplevels} toplevels"

@@ -19,19 +19,19 @@ import { DiffContentProvider } from "./providers/diffContentProvider";
 import { DarklangFileDecorationProvider } from "./providers/fileDecorationProvider";
 import { PackageContentProvider } from "./providers/content/packageContentProvider";
 import { RecentItemsService } from "./services/recentItemsService";
-import { ScmStatusBar } from "./ui/statusbar/scmStatusBar";
+import { ScmStatusBar, BranchInfo } from "./ui/statusbar/scmStatusBar";
 import { HomepagePanel } from "./panels/homepage/homepagePanel";
 
 let client: LanguageClient;
 
-// Default = prod mode (uses 'dark' CLI)
-// DARKLANG_CLI_MODE=debug uses './scripts/run-cli' with --no-log
-const isDebug = process.env.DARKLANG_CLI_MODE === "debug";
-const cwd = isDebug ? "/home/dark/app" : (process.env.HOME || process.env.USERPROFILE || ".");
-const cli = isDebug ? "./scripts/run-cli" : "dark";
+// Shared debug mode state, set during activation
+export let isDebugMode = false;
 
-function createLSPClient(): LanguageClient {
-  const command = isDebug ? "bash" : cli;
+function createLSPClient(isDebug: boolean): LanguageClient {
+  const cwd = isDebug ? "/home/dark/app" : (process.env.HOME || process.env.USERPROFILE || ".");
+  const cli = "./scripts/run-cli";
+
+  const command = isDebug ? "bash" : "dark";
   const args = isDebug
     ? [cli, "--no-log", "run", "@Darklang.LanguageTools.LspServer.runServerCli", "()"]
     : ["run", "@Darklang.LanguageTools.LspServer.runServerCli", "()"];
@@ -64,7 +64,10 @@ function createLSPClient(): LanguageClient {
 }
 
 export async function activate(context: vscode.ExtensionContext) {
-  client = createLSPClient();
+  // Use VS Code's ExtensionMode to detect development mode
+  isDebugMode = context.extensionMode === vscode.ExtensionMode.Development;
+
+  client = createLSPClient(isDebugMode);
   client.start();
   await client.onReady();
 
@@ -113,6 +116,7 @@ export async function activate(context: vscode.ExtensionContext) {
   packageCommands.setPackagesProvider(packagesProvider);
   packageCommands.setPackagesView(packagesView);
   const scriptCommands = new ScriptCommands();
+  scriptCommands.setClient(client);
 
   const reg = (d: vscode.Disposable) => context.subscriptions.push(d);
 
@@ -140,9 +144,27 @@ export async function activate(context: vscode.ExtensionContext) {
     }),
 
     vscode.commands.registerCommand("darklang.scm.status", async () => {
-      const terminal = vscode.window.createTerminal("Darklang SCM");
-      terminal.sendText(`${cli} status`);
-      terminal.show();
+      try {
+        const summary = await client.sendRequest<{ types: number; fns: number; values: number; renames: number; total: number }>("dark/scm/getWipSummary", {});
+        const ops = await client.sendRequest<string[]>("dark/scm/getWipOps", {});
+
+        const lines: string[] = ["Darklang SCM Status", "=".repeat(40), ""];
+        if (summary.total === 0) {
+          lines.push("No uncommitted changes.");
+        } else {
+          lines.push(`${summary.total} uncommitted change(s):`);
+          if (summary.types > 0) lines.push(`  ${summary.types} type(s)`);
+          if (summary.fns > 0) lines.push(`  ${summary.fns} function(s)`);
+          if (summary.values > 0) lines.push(`  ${summary.values} value(s)`);
+          if (summary.renames > 0) lines.push(`  ${summary.renames} rename(s)`);
+          lines.push("", "Operations:", ...ops.map((op, i) => `  ${i + 1}. ${op}`));
+        }
+
+        const doc = await vscode.workspace.openTextDocument({ content: lines.join("\n"), language: "plaintext" });
+        await vscode.window.showTextDocument(doc, { preview: true });
+      } catch (error) {
+        vscode.window.showErrorMessage(`Failed to get status: ${error}`);
+      }
     }),
 
     vscode.commands.registerCommand("darklang.scm.commit", async () => {
@@ -151,18 +173,36 @@ export async function activate(context: vscode.ExtensionContext) {
         placeHolder: "Enter commit message",
       });
       if (message) {
-        const terminal = vscode.window.createTerminal("Darklang SCM");
-        terminal.sendText(`${cli} commit "${message}" --yes`);
-        terminal.show();
-        // Refresh SCM view after a delay
-        setTimeout(() => scmProvider.refresh(), 2000);
+        try {
+          const result = await client.sendRequest<{ success: boolean; commitId: string }>("dark/scm/commit", { message });
+          if (result.success) {
+            vscode.window.showInformationMessage(`Committed: ${result.commitId.substring(0, 8)}`);
+          }
+        } catch (error) {
+          vscode.window.showErrorMessage(`Commit failed: ${error}`);
+        }
       }
     }),
 
     vscode.commands.registerCommand("darklang.scm.log", async () => {
-      const terminal = vscode.window.createTerminal("Darklang SCM");
-      terminal.sendText(`${cli} log`);
-      terminal.show();
+      try {
+        const commits = await client.sendRequest<{ id: string; message: string; createdAt: string; opCount: string; branchName?: string }[]>("dark/scm/getCommits", { limit: 20 });
+
+        const lines: string[] = ["Darklang Commit Log", "=".repeat(40), ""];
+        if (commits.length === 0) {
+          lines.push("No commits yet.");
+        } else {
+          for (const c of commits) {
+            const branch = c.branchName ? `  [${c.branchName}]` : "";
+            lines.push(`${c.id.substring(0, 8)}  ${c.message}  (${c.opCount} ops, ${c.createdAt})${branch}`);
+          }
+        }
+
+        const doc = await vscode.workspace.openTextDocument({ content: lines.join("\n"), language: "plaintext" });
+        await vscode.window.showTextDocument(doc, { preview: true });
+      } catch (error) {
+        vscode.window.showErrorMessage(`Failed to get log: ${error}`);
+      }
     }),
 
     vscode.commands.registerCommand("darklang.scm.discard", async () => {
@@ -172,16 +212,21 @@ export async function activate(context: vscode.ExtensionContext) {
         "Discard"
       );
       if (confirm === "Discard") {
-        const terminal = vscode.window.createTerminal("Darklang SCM");
-        terminal.sendText(`${cli} discard --yes`);
-        terminal.show();
-        // Refresh SCM view after a delay
-        setTimeout(() => scmProvider.refresh(), 2000);
+        try {
+          const result = await client.sendRequest<{ success: boolean; discardedCount: number }>("dark/scm/discard", {});
+          if (result.success) {
+            vscode.window.showInformationMessage(`Discarded ${result.discardedCount} change(s)`);
+          }
+        } catch (error) {
+          vscode.window.showErrorMessage(`Discard failed: ${error}`);
+        }
       }
     }),
 
-    vscode.commands.registerCommand("darklang.scm.showCommit", async (commitId: string) => {
+    vscode.commands.registerCommand("darklang.scm.showCommit", async (commitIdOrNode: string | { commitId?: string }) => {
       try {
+        const commitId = typeof commitIdOrNode === "string" ? commitIdOrNode : commitIdOrNode?.commitId;
+        if (!commitId) { return; }
         const ops = await client.sendRequest<string[]>("dark/scm/getCommitOps", { commitId });
         const content = ops.length > 0
           ? ops.map((op, i) => `${i + 1}. ${op}`).join("\n")
@@ -197,6 +242,159 @@ export async function activate(context: vscode.ExtensionContext) {
       }
     }),
 
+    // Branch commands
+    vscode.commands.registerCommand("darklang.branch.switch", async () => {
+      try {
+        const branches = await client.sendRequest<BranchInfo[]>("dark/getBranches", {});
+        const items = branches.map(b => ({
+          label: b.name,
+          description: b.isActive ? "(current)" : "",
+          branchId: b.id,
+        }));
+
+        const selected = await vscode.window.showQuickPick(items, {
+          placeHolder: "Select a branch to switch to",
+        });
+
+        if (selected && !branches.find(b => b.id === selected.branchId)?.isActive) {
+          await client.sendRequest("dark/switchBranch", { branchId: selected.branchId });
+        }
+      } catch (error) {
+        vscode.window.showErrorMessage(`Failed to switch branch: ${error}`);
+      }
+    }),
+
+    vscode.commands.registerCommand("darklang.branch.create", async () => {
+      const name = await vscode.window.showInputBox({
+        prompt: "Branch name",
+        placeHolder: "Enter new branch name",
+      });
+      if (name) {
+        try {
+          await client.sendRequest("dark/createBranch", { name });
+          vscode.window.showInformationMessage(`Created and switched to branch "${name}"`);
+        } catch (error) {
+          vscode.window.showErrorMessage(`Failed to create branch: ${error}`);
+        }
+      }
+    }),
+
+    vscode.commands.registerCommand("darklang.branch.delete", async () => {
+      try {
+        const branches = await client.sendRequest<BranchInfo[]>("dark/getBranches", {});
+        const deletable = branches.filter(b => !b.isActive && b.name !== "main");
+        if (deletable.length === 0) {
+          vscode.window.showInformationMessage("No branches available to delete");
+          return;
+        }
+
+        const items = deletable.map(b => ({
+          label: b.name,
+          branchId: b.id,
+        }));
+
+        const selected = await vscode.window.showQuickPick(items, {
+          placeHolder: "Select a branch to delete",
+        });
+
+        if (selected) {
+          const confirm = await vscode.window.showWarningMessage(
+            `Delete branch "${selected.label}"?`,
+            { modal: true },
+            "Delete"
+          );
+          if (confirm === "Delete") {
+            await client.sendRequest("dark/deleteBranch", { branchId: selected.branchId });
+            vscode.window.showInformationMessage(`Deleted branch "${selected.label}"`);
+          }
+        }
+      } catch (error) {
+        vscode.window.showErrorMessage(`Failed to delete branch: ${error}`);
+      }
+    }),
+
+    vscode.commands.registerCommand("darklang.branch.rename", async () => {
+      try {
+        const branches = await client.sendRequest<BranchInfo[]>("dark/getBranches", {});
+        const items = branches.filter(b => b.name !== "main").map(b => ({
+          label: b.name,
+          description: b.isActive ? "(current)" : "",
+          branchId: b.id,
+        }));
+
+        if (items.length === 0) {
+          vscode.window.showInformationMessage("No branches available to rename");
+          return;
+        }
+
+        const selected = await vscode.window.showQuickPick(items, {
+          placeHolder: "Select a branch to rename",
+        });
+
+        if (selected) {
+          const newName = await vscode.window.showInputBox({
+            prompt: "New branch name",
+            placeHolder: "Enter new name",
+            value: selected.label,
+          });
+          if (newName && newName !== selected.label) {
+            await client.sendRequest("dark/renameBranch", { branchId: selected.branchId, newName });
+            vscode.window.showInformationMessage(`Renamed branch to "${newName}"`);
+            scmProvider.refresh();
+          }
+        }
+      } catch (error) {
+        vscode.window.showErrorMessage(`Failed to rename branch: ${error}`);
+      }
+    }),
+
+    vscode.commands.registerCommand("darklang.branch.rebase", async () => {
+      try {
+        // Check for conflicts first
+        const status = await client.sendRequest<{ conflicts: string[]; hasConflicts: boolean }>("dark/rebaseStatus", {});
+        if (status.hasConflicts) {
+          const conflicts = status.conflicts.join("\n  ");
+          vscode.window.showWarningMessage(`Rebase has conflicts:\n  ${conflicts}`);
+          return;
+        }
+
+        const result = await client.sendRequest<{ success: boolean; message?: string; conflicts?: string[] }>("dark/rebase", {});
+        if (result.success) {
+          vscode.window.showInformationMessage(result.message || "Rebase successful");
+        } else if (result.conflicts && result.conflicts.length > 0) {
+          const conflicts = result.conflicts.join("\n  ");
+          vscode.window.showWarningMessage(`Rebase failed with conflicts:\n  ${conflicts}`);
+        }
+      } catch (error) {
+        vscode.window.showErrorMessage(`Failed to rebase: ${error}`);
+      }
+    }),
+
+    vscode.commands.registerCommand("darklang.branch.merge", async () => {
+      try {
+        // Check if merge is possible first
+        const check = await client.sendRequest<{ canMerge: boolean; reason?: string }>("dark/canMerge", {});
+        if (!check.canMerge) {
+          vscode.window.showWarningMessage(`Cannot merge: ${check.reason}`);
+          return;
+        }
+
+        const confirm = await vscode.window.showWarningMessage(
+          "Merge current branch into its parent?",
+          { modal: true },
+          "Merge"
+        );
+        if (confirm === "Merge") {
+          const result = await client.sendRequest<{ success: boolean; switchedTo?: { id: string; name: string } }>("dark/merge", {});
+          if (result.success && result.switchedTo) {
+            vscode.window.showInformationMessage(`Merged and switched to "${result.switchedTo.name}"`);
+          }
+        }
+      } catch (error) {
+        vscode.window.showErrorMessage(`Failed to merge: ${error}`);
+      }
+    }),
+
     packagesView,
     packagesProvider,
     scmView,
@@ -204,6 +402,24 @@ export async function activate(context: vscode.ExtensionContext) {
     ...packageCommands.register(),
     ...scriptCommands.register(),
   ].forEach(reg);
+
+  // Wire up status bar to LSP client
+  scmStatusBar.setClient(client);
+
+  // Listen for branch change notifications from the LSP server
+  client.onNotification("dark/branchChanged", (params: any) => {
+    const branchData = Array.isArray(params) ? params[0] : params;
+    if (branchData && branchData.id && branchData.name) {
+      const branch: BranchInfo = { id: branchData.id, name: branchData.name };
+      scmStatusBar.updateBranch(branch);
+      scmProvider.updateBranch(branch);
+    }
+  });
+
+  // Listen for SCM change notifications (refresh views when branch changes)
+  client.onNotification("dark/scm/changed", () => {
+    scmProvider.refresh();
+  });
 
   // Initial SCM refresh to populate status bar
   scmProvider.refresh();

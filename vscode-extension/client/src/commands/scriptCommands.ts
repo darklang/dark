@@ -1,8 +1,12 @@
 import * as vscode from "vscode";
+import { LanguageClient } from "vscode-languageclient/node";
+import { isDebugMode } from "../extension";
 
 export class ScriptCommands {
-  private isDebugMode(): boolean {
-    return process.env.VSCODE_DEBUG_MODE === "true";
+  private client: LanguageClient | null = null;
+
+  public setClient(client: LanguageClient): void {
+    this.client = client;
   }
 
   public register(): vscode.Disposable[] {
@@ -14,7 +18,7 @@ export class ScriptCommands {
     ];
   }
 
-  private runScript(): void {
+  private async runScript(): Promise<void> {
     const editor = vscode.window.activeTextEditor;
     if (!editor) {
       vscode.window.showWarningMessage(
@@ -24,6 +28,20 @@ export class ScriptCommands {
     }
 
     const filePath = editor.document.uri.fsPath;
+
+    // Get current branch name from LSP
+    let branchArg = "";
+    if (this.client) {
+      try {
+        const branches = await this.client.sendRequest<{ id: string; name: string; isActive: boolean }[]>("dark/getBranches", {});
+        const activeBranch = branches.find(b => b.isActive);
+        if (activeBranch && activeBranch.name !== "main") {
+          branchArg = ` --branch "${activeBranch.name}"`;
+        }
+      } catch {
+        // If we can't get branch info, proceed without it
+      }
+    }
 
     let terminal = vscode.window.terminals.find(
       (t) => t.name === "darklang-terminal"
@@ -35,9 +53,9 @@ export class ScriptCommands {
 
     terminal.show();
 
-    const command = this.isDebugMode()
-      ? `cd /home/dark/app && ./scripts/run-cli run "${filePath}" --skip-self-update`
-      : `darklang run "${filePath}" --skip-self-update`;
+    const command = isDebugMode
+      ? `cd /home/dark/app && ./scripts/run-cli${branchArg} run "${filePath}" --skip-self-update`
+      : `darklang${branchArg} run "${filePath}" --skip-self-update`;
 
     terminal.sendText(command);
   }

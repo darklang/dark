@@ -162,7 +162,7 @@ module Registry =
       ("branch", "Manage branches", [ "br" ], SCM.Branch.execute, SCM.Branch.help, SCM.Branch.complete)
       ("rebase", "Rebase current branch onto parent", [], SCM.Rebase.execute, SCM.Rebase.help, SCM.Rebase.complete)
       ("merge", "Merge current branch into parent", [], SCM.Merge.execute, SCM.Merge.help, SCM.Merge.complete)
-      ("builtins", "List all builtin functions", [], BuiltinsList.execute, BuiltinsList.help, BuiltinsList.complete)
+      ("builtins", "List all builtin functions", [], Builtins.execute, Builtins.help, Builtins.complete)
       ("find-values", "Find values of a given type", [], Commands.Find.execute, Commands.Find.help, Commands.Find.complete)
       ("http-server", "Start an HTTP server", [], Commands.HttpServer.execute, Commands.HttpServer.help, Commands.HttpServer.complete)
       ("docs", "Browse in-CLI documentation", [ "doc"; "man" ], Commands.Docs.execute, Commands.Docs.help, Commands.Docs.complete) ]

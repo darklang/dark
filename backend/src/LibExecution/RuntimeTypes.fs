@@ -1080,14 +1080,16 @@ module PackageFn =
 /// not yet in the Cloud PM.
 /// (though, we'll likely demand deps. in the PM before committing something upstream...)
 type PackageManager =
-  { getType : FQTypeName.Package -> Ply<Option<PackageType.PackageType>>
+  {
+    getType : FQTypeName.Package -> Ply<Option<PackageType.PackageType>>
     getValue : FQValueName.Package -> Ply<Option<PackageValue.PackageValue>>
     getFn : FQFnName.Package -> Ply<Option<PackageFn.PackageFn>>
 
     /// Resolve a package fn ID to a human-readable name (for error reporting)
     getFnName : BranchId -> FQFnName.Package -> Ply<string>
 
-    init : Ply<unit> }
+    init : Ply<unit>
+  }
 
   static member empty =
     { getType = (fun _ -> Ply None)

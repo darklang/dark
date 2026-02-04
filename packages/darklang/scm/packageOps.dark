@@ -47,6 +47,12 @@ let getCommits (branchId: Uuid) (limit: Int64) : List<Dict<String>> =
   Builtin.scmGetCommits branchId limit
 
 
+/// Get commit log across the entire branch chain (current + ancestors),
+/// ordered by date descending. Each commit includes branchId and branchName.
+let getCommitsWithAncestors (branchId: Uuid) (limit: Int64) : List<Dict<String>> =
+  Builtin.scmGetCommitsForBranchChain branchId limit
+
+
 /// Get ops for a specific commit
 let getCommitOps (commitId: Uuid) : List<LanguageTools.ProgramTypes.PackageOp> =
   Builtin.scmGetCommitOps commitId

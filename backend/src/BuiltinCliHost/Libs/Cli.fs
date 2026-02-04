@@ -31,11 +31,8 @@ let executePM (exeState : RT.ExecutionState) (branchId : System.Guid) : Ply<Dval
   uply {
     let getPmFnName = FQFnName.Package PackageIDs.Fn.LanguageTools.PackageManager.pm
 
-    // Pass branchId as Option.Some to pm function
-    let branchIdArg = DUuid branchId
-
     let! execResult =
-      Exe.executeFunction exeState getPmFnName [] (NEList.singleton branchIdArg)
+      Exe.executeFunction exeState getPmFnName [] (NEList.singleton (DUuid branchId))
 
     match execResult with
     | Ok dval -> return dval
@@ -228,12 +225,16 @@ let fns : List<BuiltInFn> =
         | exeState,
           _,
           [],
-          [ DUuid branchId; DString filename; DString code; DList(_vtTODO, scriptArgs) ] ->
+          [ DUuid branchId
+            DString filename
+            DString code
+            DList(_vtTODO, scriptArgs) ] ->
           uply {
             // Use branch-specific state for parsing so name resolution uses the right branch
             let branchState = createBranchState exeState branchId
             let! pm = executePM branchState branchId
-            let! parsedScript = parseCliScript branchState pm "CliScript" filename code
+            let! parsedScript =
+              parseCliScript branchState pm "CliScript" filename code
 
             try
               match parsedScript with
@@ -263,8 +264,7 @@ let fns : List<BuiltInFn> =
     { name = fn "cliEvaluateExpression" 0
       typeParams = []
       parameters =
-        [ Param.make "branchId" TUuid ""
-          Param.make "expression" TString "" ]
+        [ Param.make "branchId" TUuid ""; Param.make "expression" TString "" ]
       returnType = TypeReference.result TString ExecutionError.typeRef
       description = "Evaluates a Dark expression and returns the result as a String"
       fn =

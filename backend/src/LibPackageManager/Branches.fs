@@ -136,24 +136,51 @@ let delete (id : PT.BranchId) : Task<Result<unit, string>> =
       return Error "Cannot delete main branch"
     else
       // Check for children
-      let! children =
+      let! childCount =
         Sql.query
           """
           SELECT COUNT(*) as cnt FROM branches
           WHERE parent_branch_id = @id AND merged_at IS NULL
           """
         |> Sql.parameters [ "id", Sql.uuid id ]
-        |> Sql.executeAsync (fun read -> read.int64 "cnt")
+        |> Sql.executeRowAsync (fun read -> read.int64 "cnt")
 
-      match children with
-      | [ cnt ] when cnt > 0L ->
+      if childCount > 0L then
         return Error "Cannot delete branch with active children"
-      | _ ->
-        do!
-          Sql.query "DELETE FROM branches WHERE id = @id"
+      else
+        // Check for dependent data that would cause FK constraint failure
+        let! commitCount =
+          Sql.query "SELECT COUNT(*) as cnt FROM commits WHERE branch_id = @id"
           |> Sql.parameters [ "id", Sql.uuid id ]
-          |> Sql.executeStatementAsync
-        return Ok()
+          |> Sql.executeRowAsync (fun read -> read.int64 "cnt")
+
+        let! uncommittedOpCount =
+          Sql.query
+            "SELECT COUNT(*) as cnt FROM package_ops WHERE branch_id = @id AND commit_id IS NULL"
+          |> Sql.parameters [ "id", Sql.uuid id ]
+          |> Sql.executeRowAsync (fun read -> read.int64 "cnt")
+
+        let! locationCount =
+          Sql.query "SELECT COUNT(*) as cnt FROM locations WHERE branch_id = @id"
+          |> Sql.parameters [ "id", Sql.uuid id ]
+          |> Sql.executeRowAsync (fun read -> read.int64 "cnt")
+
+        if commitCount > 0L || uncommittedOpCount > 0L || locationCount > 0L then
+          let parts =
+            [ if commitCount > 0L then $"{commitCount} commit(s)"
+              if uncommittedOpCount > 0L then
+                $"{uncommittedOpCount} uncommitted change(s)"
+              if locationCount > 0L then $"{locationCount} package location(s)" ]
+          let details = String.concat ", " parts
+          return
+            Error
+              $"Cannot delete branch: it contains {details}. Merge the branch first."
+        else
+          do!
+            Sql.query "DELETE FROM branches WHERE id = @id"
+            |> Sql.parameters [ "id", Sql.uuid id ]
+            |> Sql.executeStatementAsync
+          return Ok()
   }
 
 

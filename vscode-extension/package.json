@@ -2,7 +2,7 @@
   "name": "darklang-vs-code-extension",
   "description": "Darklang VS Code Extension",
   "author": "darklang",
-  "version": "0.0.10",
+  "version": "0.0.11",
   "icon": "./static/logo-dark.png",
   "repository": {
     "type": "git",
@@ -127,6 +127,36 @@
       {
         "command": "darklang.scm.showCommit",
         "title": "Show Commit Details"
+      },
+      {
+        "command": "darklang.branch.switch",
+        "title": "Darklang: Switch Branch",
+        "icon": "$(git-branch)"
+      },
+      {
+        "command": "darklang.branch.create",
+        "title": "Darklang: Create Branch",
+        "icon": "$(add)"
+      },
+      {
+        "command": "darklang.branch.delete",
+        "title": "Darklang: Delete Branch",
+        "icon": "$(trash)"
+      },
+      {
+        "command": "darklang.branch.rename",
+        "title": "Darklang: Rename Branch",
+        "icon": "$(edit)"
+      },
+      {
+        "command": "darklang.branch.rebase",
+        "title": "Darklang: Rebase Branch",
+        "icon": "$(git-merge)"
+      },
+      {
+        "command": "darklang.branch.merge",
+        "title": "Darklang: Merge Branch into Parent",
+        "icon": "$(git-merge)"
       }
     ],
     "menus": {
@@ -151,6 +181,51 @@
           "command": "darklang.openFullModule",
           "when": "view == darklangPackages && viewItem =~ /module/",
           "group": "navigation"
+        },
+        {
+          "command": "darklang.scm.commit",
+          "when": "view == darklangScm && viewItem == scm-status-root",
+          "group": "inline@1"
+        },
+        {
+          "command": "darklang.scm.discard",
+          "when": "view == darklangScm && viewItem == scm-status-root",
+          "group": "inline@2"
+        },
+        {
+          "command": "darklang.scm.log",
+          "when": "view == darklangScm && viewItem == scm-commits-root",
+          "group": "inline"
+        },
+        {
+          "command": "darklang.branch.create",
+          "when": "view == darklangScm && viewItem == scm-branch-root",
+          "group": "inline@1"
+        },
+        {
+          "command": "darklang.branch.rename",
+          "when": "view == darklangScm && viewItem == scm-branch-root",
+          "group": "1_branch@1"
+        },
+        {
+          "command": "darklang.branch.delete",
+          "when": "view == darklangScm && viewItem == scm-branch-root",
+          "group": "1_branch@2"
+        },
+        {
+          "command": "darklang.branch.rebase",
+          "when": "view == darklangScm && viewItem == scm-branch-root",
+          "group": "2_advanced@1"
+        },
+        {
+          "command": "darklang.branch.merge",
+          "when": "view == darklangScm && viewItem == scm-branch-root",
+          "group": "2_advanced@2"
+        },
+        {
+          "command": "darklang.scm.showCommit",
+          "when": "view == darklangScm && viewItem == scm-commit-item",
+          "group": "inline"
         }
       ],
       "view/title": [
@@ -173,6 +248,11 @@
           "command": "darklang.scm.discard",
           "when": "view == darklangScm",
           "group": "navigation@3"
+        },
+        {
+          "command": "darklang.branch.create",
+          "when": "view == darklangScm",
+          "group": "navigation@4"
         }
       ]
     },

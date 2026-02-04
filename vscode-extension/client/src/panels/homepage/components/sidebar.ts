@@ -17,6 +17,7 @@ export interface NavItem {
 export const defaultNavItems: NavItem[] = [
   { page: "dashboard", label: "Dashboard", icon: navIcons.dashboard },
   { page: "packages", label: "Packages", icon: navIcons.packages },
+  { page: "docs", label: "Docs", icon: navIcons.docs },
   { page: "settings", label: "Settings", icon: navIcons.settings },
   {
     page: "changelog",

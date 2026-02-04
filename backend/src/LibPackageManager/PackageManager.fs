@@ -60,15 +60,24 @@ let pt (branchId : PT.BranchId) : PT.PackageManager =
 
     getTypeLocation =
       fun branchId id ->
-        let chain = Branches.getBranchChain branchId |> Async.AwaitTask |> Async.RunSynchronously
+        let chain =
+          Branches.getBranchChain branchId
+          |> Async.AwaitTask
+          |> Async.RunSynchronously
         PMPT.Type.getLocation chain id
     getValueLocation =
       fun branchId id ->
-        let chain = Branches.getBranchChain branchId |> Async.AwaitTask |> Async.RunSynchronously
+        let chain =
+          Branches.getBranchChain branchId
+          |> Async.AwaitTask
+          |> Async.RunSynchronously
         PMPT.Value.getLocation chain id
     getFnLocation =
       fun branchId id ->
-        let chain = Branches.getBranchChain branchId |> Async.AwaitTask |> Async.RunSynchronously
+        let chain =
+          Branches.getBranchChain branchId
+          |> Async.AwaitTask
+          |> Async.RunSynchronously
         PMPT.Fn.getLocation chain id
 
     search = PMPT.search branchChain

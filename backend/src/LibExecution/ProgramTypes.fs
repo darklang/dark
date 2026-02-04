@@ -763,7 +763,8 @@ type PackageManager =
 
     // Reverse lookups for pretty-printing and other tooling
     getTypeLocation : BranchId -> FQTypeName.Package -> Ply<Option<PackageLocation>>
-    getValueLocation : BranchId -> FQValueName.Package -> Ply<Option<PackageLocation>>
+    getValueLocation :
+      BranchId -> FQValueName.Package -> Ply<Option<PackageLocation>>
     getFnLocation : BranchId -> FQFnName.Package -> Ply<Option<PackageLocation>>
 
     init : Ply<unit> }

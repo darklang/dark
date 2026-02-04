@@ -1,4 +1,4 @@
-module Darklang.Cli.BuiltinsList
+module Darklang.Cli.Builtins
 
 // Types for builtin function metadata (must match PackageIDs)
 type ParamInfo =

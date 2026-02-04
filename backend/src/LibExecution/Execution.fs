@@ -40,7 +40,8 @@ let createState
 
     types = { package = pm.getType }
     values = { builtIn = builtins.values; package = pm.getValue }
-    fns = { builtIn = builtins.fns; package = pm.getFn; packageFnName = pm.getFnName } }
+    fns =
+      { builtIn = builtins.fns; package = pm.getFn; packageFnName = pm.getFnName } }
 
 
 let rec callStackForFrame
@@ -151,7 +152,10 @@ let runtimeErrorToString
     let fnName =
       RT.FQFnName.fqPackage
         PackageIDs.Fn.PrettyPrinter.RuntimeTypes.RuntimeError.toString
-    let args = NEList.ofList (RT.DUuid ProgramTypes.mainBranchId) [ RT2DT.RuntimeError.toDT rte ]
+    let args =
+      NEList.ofList
+        (RT.DUuid ProgramTypes.mainBranchId)
+        [ RT2DT.RuntimeError.toDT rte ]
     return! executeFunction state fnName [] args
   }
 
@@ -316,7 +320,11 @@ let rec rteToString
     let rteDval = rteToDval rte
 
     let! rteMessage =
-      executeFunction state errorMessageFn [] (NEList.ofList (RT.DUuid ProgramTypes.mainBranchId) [ rteDval ])
+      executeFunction
+        state
+        errorMessageFn
+        []
+        (NEList.ofList (RT.DUuid ProgramTypes.mainBranchId) [ rteDval ])
 
     match rteMessage with
     | Ok(RT.DString msg) -> return msg

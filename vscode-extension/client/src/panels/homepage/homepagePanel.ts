@@ -7,6 +7,12 @@ import {
   DashboardPinnedItem,
   DashboardRecentItem,
 } from "./pages/dashboardPage";
+import {
+  renderDocsPage,
+  DocsPageData,
+  DocTopic,
+  getDefaultDocsData,
+} from "./pages/docsPage";
 import { renderSidebar, navIcons } from "./components/sidebar";
 import { renderHeader } from "./components/header";
 import { PinnedItemsService } from "../../services/pinnedItemsService";
@@ -15,6 +21,7 @@ import { RecentItemsService } from "../../services/recentItemsService";
 export type PageName =
   | "dashboard"
   | "packages"
+  | "docs"
   | "settings"
   | "changelog";
 
@@ -28,6 +35,7 @@ export class HomepagePanel {
   private readonly _extensionUri: vscode.Uri;
   private _disposables: vscode.Disposable[] = [];
   private _currentPage: PageName = "dashboard";
+  private _docsData: DocsPageData = getDefaultDocsData();
 
   public static createOrShow(extensionUri: vscode.Uri) {
     const column = vscode.window.activeTextEditor
@@ -116,6 +124,14 @@ export class HomepagePanel {
           case "openProject":
             this._handleOpenPackage(message.project, message.itemType);
             return;
+          case "openDocTopic":
+            this._handleOpenDocTopic(message.topic);
+            return;
+          case "docsBack":
+            this._docsData.activeTopic = null;
+            this._docsData.content = null;
+            this._update();
+            return;
         }
       },
       null,
@@ -157,16 +173,19 @@ export class HomepagePanel {
   }
 
   private _handleNavigation(page: string) {
-    const validPages: PageName[] = ["dashboard", "packages", "settings", "changelog"];
+    const validPages: PageName[] = ["dashboard", "packages", "docs", "settings", "changelog"];
 
     if (!validPages.includes(page as PageName)) {
       return;
     }
 
     // Pages that are implemented
-    const implementedPages: PageName[] = ["dashboard", "packages"];
+    const implementedPages: PageName[] = ["dashboard", "packages", "docs"];
     if (implementedPages.includes(page as PageName)) {
       this._currentPage = page as PageName;
+      if (page === "docs" && this._docsData.topics.length === 0) {
+        this._loadDocTopics();
+      }
       this._update();
       return;
     }
@@ -203,6 +222,29 @@ export class HomepagePanel {
     }
   }
 
+  private async _loadDocTopics(): Promise<void> {
+    if (!HomepagePanel._client) return;
+    try {
+      const topics = await HomepagePanel._client.sendRequest<DocTopic[]>("dark/docs/getTopics", {});
+      this._docsData.topics = topics;
+      this._update();
+    } catch (error) {
+      console.error("Failed to load doc topics:", error);
+    }
+  }
+
+  private async _handleOpenDocTopic(topicName: string): Promise<void> {
+    if (!HomepagePanel._client) return;
+    try {
+      const result = await HomepagePanel._client.sendRequest<{ name: string; description: string; content: string }>("dark/docs/getContent", { name: topicName });
+      this._docsData.activeTopic = result.name;
+      this._docsData.content = result.content;
+      this._update();
+    } catch (error) {
+      console.error("Failed to load doc content:", error);
+    }
+  }
+
   public dispose() {
     HomepagePanel.currentPanel = undefined;
 
@@ -226,6 +268,7 @@ export class HomepagePanel {
     const pageTitles: Record<PageName, string> = {
       dashboard: "Dashboard",
       packages: "Packages",
+      docs: "Docs",
       settings: "Settings",
       changelog: "Changelog",
     };
@@ -250,6 +293,8 @@ export class HomepagePanel {
         return renderDashboard(data);
       case "packages":
         return `<iframe src="https://wip.darklang.com/packages" style="width: 100%; height: calc(100vh - 60px); border: none;"></iframe>`;
+      case "docs":
+        return renderDocsPage(this._docsData);
       default:
         return `<div class="dashboard-content"><p>Page not implemented: ${this._currentPage}</p></div>`;
     }
@@ -384,6 +429,24 @@ export class HomepagePanel {
                     treeId: treeId,
                     kind: kind
                 });
+            });
+        });
+
+        // Handle doc topic card clicks
+        document.querySelectorAll('.doc-topic-card').forEach(card => {
+            card.addEventListener('click', () => {
+                const topic = card.getAttribute('data-topic');
+                vscode.postMessage({
+                    command: 'openDocTopic',
+                    topic: topic
+                });
+            });
+        });
+
+        // Handle docs back button
+        document.querySelectorAll('.docs-back-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                vscode.postMessage({ command: 'docsBack' });
             });
         });
 

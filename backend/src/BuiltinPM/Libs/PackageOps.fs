@@ -216,6 +216,43 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
+    { name = fn "scmGetCommitsForBranchChain" 0
+      typeParams = []
+      parameters =
+        [ Param.make "branchId" TUuid "Branch ID"
+          Param.make "limit" TInt64 "Maximum commits to return" ]
+      returnType = TList(TDict TString)
+      description =
+        "Get commit log across the entire branch chain (current + ancestors), ordered by date descending. Each commit includes branchId and branchName."
+      fn =
+        function
+        | _, _, _, [ DUuid branchId; DInt64 limit ] ->
+          uply {
+            let! commits =
+              LibPackageManager.Queries.getCommitsForBranchChain branchId limit
+
+            let commitDvals =
+              commits
+              |> List.map (fun c ->
+                DDict(
+                  VT.string,
+                  Map.ofList
+                    [ "id", DString(string c.id)
+                      "message", DString c.message
+                      "createdAt", DString(c.createdAt.ToString())
+                      "opCount", DString(string c.opCount)
+                      "branchId", DString(string c.branchId)
+                      "branchName", DString c.branchName ]
+                ))
+
+            return DList(VT.dict VT.string, commitDvals)
+          }
+        | _ -> incorrectArgs ()
+      sqlSpec = NotQueryable
+      previewable = Impure
+      deprecated = NotDeprecated }
+
+
     { name = fn "scmGetCommitOps" 0
       typeParams = []
       parameters = [ Param.make "commitId" TUuid "Commit ID" ]

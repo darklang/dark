@@ -1,4 +1,76 @@
 module Darklang.LanguageTools.LspServer.SwitchBranch
 
-// Branches have been removed from the codebase.
-// This module is kept as a stub for now.
+
+/// Handles `dark/switchBranch` requests - switches to a different branch
+let handleSwitchBranchRequest
+  (state: LspState)
+  (requestID: JsonRPC.RequestID)
+  (branchIdStr: String)
+  : LspState =
+  match Stdlib.Uuid.parse branchIdStr with
+  | Ok branchId ->
+    match SCM.Branch.get branchId with
+    | Some branch ->
+      let branchName =
+        match Stdlib.Dict.get branch "name" with
+        | Some n -> n
+        | None -> "unknown"
+
+      let resultJson =
+        Json.Object
+          [ ("id", Json.String (Stdlib.Uuid.toString branchId))
+            ("name", Json.String branchName)
+            ("success", Json.Bool true) ]
+
+      let responseJson =
+        (JsonRPC.Response.Ok.make (Stdlib.Option.Option.Some requestID) resultJson)
+        |> Stdlib.AltJson.format
+
+      logAndSendToClient responseJson
+
+      // Notify client of branch change
+      let notificationJson =
+        Json.Object
+          [ ("id", Json.String (Stdlib.Uuid.toString branchId))
+            ("name", Json.String branchName) ]
+
+      let notification =
+        (JsonRPC.Request.makeNotificationString
+          "dark/branchChanged"
+          (Stdlib.Option.Option.Some(JsonRPC.Request.RequestParams.Array [ notificationJson ])))
+
+      logAndSendToClient notification
+
+      // Notify SCM views to refresh
+      let scmNotification =
+        (JsonRPC.Request.makeNotificationString
+          "dark/scm/changed"
+          Stdlib.Option.Option.None)
+
+      logAndSendToClient scmNotification
+
+      { state with currentBranchId = branchId }
+
+    | None ->
+      let responseJson =
+        (JsonRPC.Response.Error.make
+          (Stdlib.Option.Option.Some requestID)
+          JsonRPC.Response.Error.KnownErrorCodes.invalidRequest
+          "Branch not found"
+          Stdlib.Option.Option.None)
+        |> Stdlib.AltJson.format
+
+      logAndSendToClient responseJson
+      state
+
+  | Error _ ->
+    let responseJson =
+      (JsonRPC.Response.Error.make
+        (Stdlib.Option.Option.Some requestID)
+        JsonRPC.Response.Error.KnownErrorCodes.invalidRequest
+        "Invalid branch ID"
+        Stdlib.Option.Option.None)
+      |> Stdlib.AltJson.format
+
+    logAndSendToClient responseJson
+    state

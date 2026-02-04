@@ -104,7 +104,8 @@ module ReadFile =
 
           let ctx =
             PrettyPrinter.ProgramTypes.Context
-              { currentModule = Stdlib.Option.Option.None
+              { branchId = state.currentBranchId
+                currentModule = Stdlib.Option.Option.None
                 currentFunction = Stdlib.Option.Option.None }
 
           let results =
@@ -479,7 +480,8 @@ module WriteFile =
 
               let ctx =
                 PrettyPrinter.ProgramTypes.Context
-                  { currentModule = Stdlib.Option.Option.None
+                  { branchId = state.currentBranchId
+                    currentModule = Stdlib.Option.Option.None
                     currentFunction = Stdlib.Option.Option.None }
 
               let results =

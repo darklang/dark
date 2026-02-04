@@ -2,7 +2,7 @@ import * as vscode from "vscode";
 import { LanguageClient } from "vscode-languageclient/node";
 
 // SCM tree node types
-type ScmNodeType = "status-root" | "commits-root" | "wip-item" | "commit-item" | "commit-op";
+type ScmNodeType = "branch-root" | "status-root" | "commits-root" | "wip-item" | "wip-op" | "commit-item" | "commit-op";
 
 interface ScmNode {
   id: string;
@@ -11,6 +11,8 @@ interface ScmNode {
   description?: string;
   children?: ScmNode[];
   commitId?: string;
+  branchName?: string;
+  isAncestor?: boolean;
   opData?: any;
 }
 
@@ -27,6 +29,15 @@ interface CommitInfo {
   message: string;
   createdAt: string;
   opCount: string;
+  branchId?: string;
+  branchName?: string;
+}
+
+interface BranchInfo {
+  id: string;
+  name: string;
+  parentBranchId?: string;
+  isActive?: boolean;
 }
 
 export class ScmTreeDataProvider implements vscode.TreeDataProvider<ScmNode>, vscode.Disposable {
@@ -37,8 +48,14 @@ export class ScmTreeDataProvider implements vscode.TreeDataProvider<ScmNode>, vs
   readonly onStatusChanged = this._onStatusChanged.event;
 
   private cachedWipSummary: WipSummary | null = null;
+  private currentBranch: BranchInfo | null = null;
 
   constructor(private client: LanguageClient) {}
+
+  updateBranch(branch: BranchInfo): void {
+    this.currentBranch = branch;
+    this.refresh();
+  }
 
   refresh(): void {
     this.cachedWipSummary = null;
@@ -53,7 +70,9 @@ export class ScmTreeDataProvider implements vscode.TreeDataProvider<ScmNode>, vs
   getTreeItem(element: ScmNode): vscode.TreeItem {
     const item = new vscode.TreeItem(element.label);
 
-    if (element.type === "status-root" || element.type === "commits-root") {
+    if (element.type === "branch-root") {
+      item.collapsibleState = vscode.TreeItemCollapsibleState.None;
+    } else if (element.type === "status-root" || element.type === "commits-root") {
       item.collapsibleState = vscode.TreeItemCollapsibleState.Expanded;
     } else if (element.type === "commit-item") {
       item.collapsibleState = vscode.TreeItemCollapsibleState.Collapsed;
@@ -64,6 +83,14 @@ export class ScmTreeDataProvider implements vscode.TreeDataProvider<ScmNode>, vs
     item.description = element.description;
 
     switch (element.type) {
+      case "branch-root":
+        item.iconPath = new vscode.ThemeIcon("git-branch", new vscode.ThemeColor("charts.blue"));
+        item.contextValue = "scm-branch-root";
+        item.command = {
+          command: "darklang.branch.switch",
+          title: "Switch Branch",
+        };
+        break;
       case "status-root":
         item.iconPath = new vscode.ThemeIcon("git-commit", new vscode.ThemeColor("charts.yellow"));
         item.contextValue = "scm-status-root";
@@ -76,8 +103,16 @@ export class ScmTreeDataProvider implements vscode.TreeDataProvider<ScmNode>, vs
         item.iconPath = new vscode.ThemeIcon("diff-added", new vscode.ThemeColor("charts.green"));
         item.contextValue = "scm-wip-item";
         break;
+      case "wip-op":
+        item.iconPath = new vscode.ThemeIcon("symbol-method", new vscode.ThemeColor("charts.green"));
+        item.contextValue = "scm-wip-op";
+        break;
       case "commit-item":
-        item.iconPath = new vscode.ThemeIcon("git-commit");
+        if (element.isAncestor) {
+          item.iconPath = new vscode.ThemeIcon("git-commit", new vscode.ThemeColor("disabledForeground"));
+        } else {
+          item.iconPath = new vscode.ThemeIcon("git-commit");
+        }
         item.contextValue = "scm-commit-item";
         item.tooltip = `${element.label}\n${element.description}`;
         if (element.commitId) {
@@ -119,12 +154,29 @@ export class ScmTreeDataProvider implements vscode.TreeDataProvider<ScmNode>, vs
   }
 
   private async getRootNodes(): Promise<ScmNode[]> {
+    // Fetch current branch if not cached
+    if (!this.currentBranch) {
+      try {
+        this.currentBranch = await this.client.sendRequest<BranchInfo>("dark/getCurrentBranch", {});
+      } catch {
+        // ignore - will show fallback
+      }
+    }
+
+    const branchName = this.currentBranch?.name ?? "main";
+
     const summary = await this.getWipSummary();
     const statusLabel = summary.total > 0
       ? `Uncommitted Changes (${summary.total})`
       : "Uncommitted Changes";
 
     return [
+      {
+        id: "__branch__",
+        label: `Branch: ${branchName}`,
+        type: "branch-root",
+        description: "click to switch",
+      },
       {
         id: "__status__",
         label: statusLabel,
@@ -158,64 +210,51 @@ export class ScmTreeDataProvider implements vscode.TreeDataProvider<ScmNode>, vs
   }
 
   private async getWipItems(): Promise<ScmNode[]> {
-    const summary = await this.getWipSummary();
-    const items: ScmNode[] = [];
+    try {
+      const ops = await this.client.sendRequest<string[]>("dark/scm/getWipOps", {});
 
-    if (summary.types > 0) {
-      items.push({
-        id: "wip-types",
-        label: `${summary.types} type(s)`,
-        type: "wip-item",
-        description: "new or modified",
-      });
-    }
-    if (summary.fns > 0) {
-      items.push({
-        id: "wip-fns",
-        label: `${summary.fns} function(s)`,
-        type: "wip-item",
-        description: "new or modified",
-      });
-    }
-    if (summary.values > 0) {
-      items.push({
-        id: "wip-values",
-        label: `${summary.values} value(s)`,
-        type: "wip-item",
-        description: "new or modified",
-      });
-    }
-    if (summary.renames > 0) {
-      items.push({
-        id: "wip-renames",
-        label: `${summary.renames} rename(s)`,
-        type: "wip-item",
-      });
-    }
+      if (ops.length === 0) {
+        return [{
+          id: "wip-none",
+          label: "No uncommitted changes",
+          type: "wip-item",
+          description: "all changes committed",
+        }];
+      }
 
-    if (items.length === 0) {
-      items.push({
-        id: "wip-none",
-        label: "No uncommitted changes",
+      return ops.map((op, i) => ({
+        id: `wip-op-${i}`,
+        label: op,
+        type: "wip-op" as ScmNodeType,
+      }));
+    } catch (error) {
+      console.error("Failed to get WIP ops:", error);
+      return [{
+        id: "wip-error",
+        label: "Failed to load changes",
         type: "wip-item",
-        description: "all changes committed",
-      });
+      }];
     }
-
-    return items;
   }
 
   private async getCommitItems(): Promise<ScmNode[]> {
     try {
-      const commits = await this.client.sendRequest<CommitInfo[]>("dark/scm/getCommits", { limit: 10 });
+      const commits = await this.client.sendRequest<CommitInfo[]>("dark/scm/getCommits", { limit: 20 });
+      const currentBranchId = this.currentBranch?.id;
 
-      return commits.map(commit => ({
-        id: `commit-${commit.id}`,
-        label: commit.message,
-        type: "commit-item" as ScmNodeType,
-        description: `${commit.id.substring(0, 8)} · ${commit.opCount} ops`,
-        commitId: commit.id,
-      }));
+      return commits.map(commit => {
+        const isAncestor = currentBranchId != null && commit.branchId != null && commit.branchId !== currentBranchId;
+        const branchLabel = isAncestor && commit.branchName ? ` · ${commit.branchName}` : "";
+        return {
+          id: `commit-${commit.id}`,
+          label: commit.message,
+          type: "commit-item" as ScmNodeType,
+          description: `${commit.id.substring(0, 8)} · ${commit.opCount} ops${branchLabel}`,
+          commitId: commit.id,
+          branchName: commit.branchName,
+          isAncestor,
+        };
+      });
     } catch (error) {
       console.error("Failed to get commits:", error);
       return [{

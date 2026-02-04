@@ -270,8 +270,35 @@ let handleIncomingMessage
         | ("dark/getPendingOps", Some requestId, params) ->
           PendingOps.handleGetPendingOpsRequest state requestId params
 
-        | ("dark/clearBranch", Some requestId, _) ->
-          Branches.handleClearBranchRequest state requestId
+        | ("dark/switchBranch",
+          Some requestId,
+          Some(Object [ ("branchId", String branchIdStr) ])) ->
+          SwitchBranch.handleSwitchBranchRequest state requestId branchIdStr
+
+        | ("dark/deleteBranch",
+          Some requestId,
+          Some(Object [ ("branchId", String branchIdStr) ])) ->
+          Branches.handleDeleteBranchRequest state requestId branchIdStr
+
+        | ("dark/getCurrentBranch", Some requestId, _) ->
+          Branches.handleGetCurrentBranchRequest state requestId
+
+        | ("dark/renameBranch",
+          Some requestId,
+          Some(Object [ ("branchId", String branchIdStr); ("newName", String newName) ])) ->
+          Branches.handleRenameBranchRequest state requestId branchIdStr newName
+
+        | ("dark/rebase", Some requestId, _) ->
+          Branches.handleRebaseRequest state requestId
+
+        | ("dark/rebaseStatus", Some requestId, _) ->
+          Branches.handleRebaseStatusRequest state requestId
+
+        | ("dark/merge", Some requestId, _) ->
+          Branches.handleMergeRequest state requestId
+
+        | ("dark/canMerge", Some requestId, _) ->
+          Branches.handleCanMergeRequest state requestId
 
         | ("dark/listInstances", Some requestId, _) ->
           Sync.handleListInstancesRequest state requestId
@@ -288,8 +315,23 @@ let handleIncomingMessage
         | ("dark/scm/getCommits", Some requestId, _) ->
           Scm.handleGetCommitsRequest state requestId 10L
 
+        | ("dark/scm/getWipOps", Some requestId, _) ->
+          Scm.handleGetWipOpsRequest state requestId
+
+        | ("dark/scm/commit", Some requestId, Some(Object [ ("message", String message) ])) ->
+          Scm.handleCommitRequest state requestId message
+
+        | ("dark/scm/discard", Some requestId, _) ->
+          Scm.handleDiscardRequest state requestId
+
         | ("dark/scm/getCommitOps", Some requestId, Some(Object [ ("commitId", String commitIdStr) ])) ->
           Scm.handleGetCommitOpsRequest state requestId commitIdStr
+
+        | ("dark/docs/getTopics", Some requestId, _) ->
+          Docs.handleGetTopicsRequest state requestId
+
+        | ("dark/docs/getContent", Some requestId, Some(Object [ ("name", String topicName) ])) ->
+          Docs.handleGetContentRequest state requestId topicName
 
         | other ->
           log $"TODO: we don't yet support this method: {r.method}"

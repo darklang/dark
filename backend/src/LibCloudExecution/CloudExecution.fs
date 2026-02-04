@@ -21,8 +21,7 @@ open LibCloud
 
 
 let pmRT = LibPackageManager.PackageManager.rt
-let pmPT =
-  LibPackageManager.PackageManager.pt LibExecution.ProgramTypes.mainBranchId
+let pmPT = LibPackageManager.PackageManager.pt LibExecution.ProgramTypes.mainBranchId
 
 let builtins : RT.Builtins =
   LibExecution.Builtin.combine
