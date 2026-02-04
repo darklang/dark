@@ -79,7 +79,8 @@ let evaluateAllValues
 
           match result with
           | Error(rte, _callStack) ->
-            errors.Add($"Value {valueId}: evaluation failed - {rte}")
+            let! errorStr = Execution.runtimeErrorToString exeState rte
+            errors.Add($"Value {valueId}: evaluation failed - {errorStr}")
           | Ok dval ->
             // Create the RT value and serialize
             let rtValue : RT.PackageValue.PackageValue =

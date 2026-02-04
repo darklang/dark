@@ -1604,3 +1604,23 @@ module Secret =
         value = fields |> D.field "value" |> D.string
         version = fields |> D.field "version" |> D.int32 }
     | _ -> Exception.raiseInternal "Invalid Secret" []
+
+
+// SCM types
+module Branch =
+  let typeName = FQTypeName.fqPackage PackageIDs.Type.SCM.Branch.branch
+  let knownType = KTCustomType(typeName, [])
+
+  let toDT (b : PT.Branch) : Dval =
+    let fields =
+      [ "id", DUuid b.id
+        "name", DString b.name
+        "parentBranchId", b.parentBranchId |> Option.map DUuid |> Dval.option KTUuid
+        "baseCommitId", b.baseCommitId |> Option.map DUuid |> Dval.option KTUuid
+        "createdAt", DDateTime(DarkDateTime.fromInstant b.createdAt)
+        "mergedAt",
+        b.mergedAt
+        |> Option.map (DarkDateTime.fromInstant >> DDateTime)
+        |> Dval.option KTDateTime ]
+      |> Map.ofList
+    DRecord(typeName, typeName, [], fields)

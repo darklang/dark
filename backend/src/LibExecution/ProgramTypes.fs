@@ -30,6 +30,16 @@ type BranchId = uuid
 let mainBranchId : BranchId =
   System.Guid.Parse "89282547-e4e6-4986-bcb6-db74bc6a8c0f"
 
+/// An SCM branch
+type Branch =
+  { id : BranchId
+    name : string
+    parentBranchId : Option<BranchId>
+    baseCommitId : Option<uuid>
+    createdAt : NodaTime.Instant
+    mergedAt : Option<NodaTime.Instant> }
+
+
 /// Fully-Qualified Type Name
 ///
 /// Used to reference a type defined in a Package or by a User

@@ -30,10 +30,7 @@ let initState () : AppState =
   let branchId = SCM.Branch.mainBranchId ()
   let branchName =
     match SCM.Branch.get branchId with
-    | Some b ->
-      match Stdlib.Dict.get b "name" with
-      | Some n -> n
-      | None -> "main"
+    | Some b -> b.name
     | None -> "main"
 
   AppState

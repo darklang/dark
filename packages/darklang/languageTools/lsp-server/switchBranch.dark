@@ -11,15 +11,10 @@ let handleSwitchBranchRequest
   | Ok branchId ->
     match SCM.Branch.get branchId with
     | Some branch ->
-      let branchName =
-        match Stdlib.Dict.get branch "name" with
-        | Some n -> n
-        | None -> "unknown"
-
       let resultJson =
         Json.Object
           [ ("id", Json.String (Stdlib.Uuid.toString branchId))
-            ("name", Json.String branchName)
+            ("name", Json.String branch.name)
             ("success", Json.Bool true) ]
 
       let responseJson =
@@ -32,7 +27,7 @@ let handleSwitchBranchRequest
       let notificationJson =
         Json.Object
           [ ("id", Json.String (Stdlib.Uuid.toString branchId))
-            ("name", Json.String branchName) ]
+            ("name", Json.String branch.name) ]
 
       let notification =
         (JsonRPC.Request.makeNotificationString

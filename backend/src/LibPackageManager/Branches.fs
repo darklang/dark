@@ -15,13 +15,8 @@ module PT = LibExecution.ProgramTypes
 let mainBranchId : PT.BranchId = PT.mainBranchId
 
 
-type Branch =
-  { id : PT.BranchId
-    name : string
-    parentBranchId : Option<PT.BranchId>
-    baseCommitId : Option<uuid>
-    createdAt : NodaTime.Instant
-    mergedAt : Option<NodaTime.Instant> }
+/// Alias for PT.Branch
+type Branch = PT.Branch
 
 
 let private readBranch (read : RowReader) : Branch =

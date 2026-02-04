@@ -1,30 +1,18 @@
 module Darklang.LanguageTools.LspServer.Branches
 
 
-/// Helper to convert a branch dict to JSON with isActive flag
-let branchToJson (branch: Dict<String>) (activeBranchId: Uuid) : Json =
-  let id =
-    match Stdlib.Dict.get branch "id" with
-    | Some i -> i
+/// Helper to convert a branch to JSON with isActive flag
+let branchToJson (branch: SCM.Branch.Branch) (activeBranchId: Uuid) : Json =
+  let parentIdStr =
+    match branch.parentBranchId with
+    | Some pid -> Stdlib.Uuid.toString pid
     | None -> ""
-
-  let name =
-    match Stdlib.Dict.get branch "name" with
-    | Some n -> n
-    | None -> ""
-
-  let parentBranchId =
-    match Stdlib.Dict.get branch "parentBranchId" with
-    | Some p -> p
-    | None -> ""
-
-  let isActive = id == Stdlib.Uuid.toString activeBranchId
 
   Json.Object
-    [ ("id", Json.String id)
-      ("name", Json.String name)
-      ("parentBranchId", Json.String parentBranchId)
-      ("isActive", Json.Bool isActive) ]
+    [ ("id", Json.String (Stdlib.Uuid.toString branch.id))
+      ("name", Json.String branch.name)
+      ("parentBranchId", Json.String parentIdStr)
+      ("isActive", Json.Bool (branch.id == activeBranchId)) ]
 
 
 /// Handles `dark/getBranches` requests - returns list of branches with active flag
@@ -55,20 +43,7 @@ let handleCreateBranchRequest
   : LspState =
   let newBranch = SCM.Branch.create branchName state.currentBranchId
 
-  let newBranchId =
-    match Stdlib.Dict.get newBranch "id" with
-    | Some id ->
-      match Stdlib.Uuid.parse id with
-      | Ok uuid -> uuid
-      | Error _ -> state.currentBranchId
-    | None -> state.currentBranchId
-
-  let newBranchName =
-    match Stdlib.Dict.get newBranch "name" with
-    | Some n -> n
-    | None -> branchName
-
-  let resultJson = branchToJson newBranch newBranchId
+  let resultJson = branchToJson newBranch newBranch.id
 
   let responseJson =
     (JsonRPC.Response.Ok.make (Stdlib.Option.Option.Some requestID) resultJson)
@@ -79,8 +54,8 @@ let handleCreateBranchRequest
   // Notify client of branch change
   let notificationJson =
     Json.Object
-      [ ("id", Json.String (Stdlib.Uuid.toString newBranchId))
-        ("name", Json.String newBranchName) ]
+      [ ("id", Json.String (Stdlib.Uuid.toString newBranch.id))
+        ("name", Json.String newBranch.name) ]
 
   let notification =
     (JsonRPC.Request.makeNotificationString
@@ -97,7 +72,7 @@ let handleCreateBranchRequest
 
   logAndSendToClient scmNotification
 
-  { state with currentBranchId = newBranchId }
+  { state with currentBranchId = newBranch.id }
 
 
 /// Handles `dark/deleteBranch` requests - deletes a branch by ID
@@ -315,20 +290,14 @@ let handleMergeRequest
     let parentBranchId =
       match SCM.Branch.get state.currentBranchId with
       | Some branch ->
-        match Stdlib.Dict.get branch "parentBranchId" with
-        | Some pidStr ->
-          match Stdlib.Uuid.parse pidStr with
-          | Ok pid -> pid
-          | Error _ -> SCM.Branch.mainBranchId ()
+        match branch.parentBranchId with
+        | Some pid -> pid
         | None -> SCM.Branch.mainBranchId ()
       | None -> SCM.Branch.mainBranchId ()
 
     let parentName =
       match SCM.Branch.get parentBranchId with
-      | Some b ->
-        match Stdlib.Dict.get b "name" with
-        | Some n -> n
-        | None -> "main"
+      | Some b -> b.name
       | None -> "main"
 
     let resultJson =

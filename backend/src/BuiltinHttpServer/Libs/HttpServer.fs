@@ -1,4 +1,7 @@
-/// HTTP Server builtin - starts a server and calls a Darklang handler for each request
+/// HTTP Server builtin
+///
+/// Starts a server on the given port
+/// , and defers to Darklang code to handle the request
 ///
 /// The F# side only handles:
 /// - Starting the ASP.NET Core server
@@ -43,7 +46,9 @@ let private executeNamedFn
         (NEList.singleton arg)
     match result with
     | Ok dval -> return dval
-    | Error(rte, _callStack) -> return DString $"Handler error: {rte}"
+    | Error(rte, _callStack) ->
+      let! errorStr = Execution.runtimeErrorToString exeState rte
+      return DString $"Handler error: {errorStr}"
   }
 
 
@@ -54,6 +59,7 @@ let fns : List<BuiltInFn> =
         [ Param.make "port" TInt64 "TCP port to listen on"
           Param.makeWithArgs
             "handler"
+            // CLEANUP real types
             (TFn(NEList.singleton (TVariable "request"), TVariable "response"))
             "Handler function: request -> response"
             [ "request" ] ]
@@ -76,24 +82,24 @@ let fns : List<BuiltInFn> =
                     // Read request body
                     let ms = new System.IO.MemoryStream()
                     do! ctx.Request.Body.CopyToAsync(ms)
-                    let body = ms.ToArray()
+                    let reqBody = ms.ToArray()
 
                     // Get headers, including method as x-http-method
-                    let headers =
+                    let reqHeaders =
                       ctx.Request.Headers
                       |> Seq.collect (fun kvp ->
                         kvp.Value.ToArray() |> Array.map (fun v -> (kvp.Key, v)))
                       |> Seq.toList
-
-                    let headersWithMethod =
-                      ("x-http-method", ctx.Request.Method) :: headers
+                    let reqHeaders =
+                      // CLEANUP should we drop this?
+                      ("x-http-method", ctx.Request.Method) :: reqHeaders
 
                     // Build request Dval
                     let url = ctx.Request.GetDisplayUrl()
                     let requestDval =
-                      Http.Request.fromRequest url headersWithMethod body
+                      Http.Request.fromRequest url reqHeaders reqBody
 
-                    // Call the Darklang handler
+                    // Call the Darklang code
                     let! result = executeNamedFn exeState handlerFn requestDval
 
                     // Convert result to HTTP response

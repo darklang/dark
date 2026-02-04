@@ -1,27 +1,37 @@
 module Darklang.SCM.Branch
 
+/// A branch in the SCM system
+type Branch =
+  { id: Uuid
+    name: String
+    parentBranchId: Stdlib.Option.Option<Uuid>
+    baseCommitId: Stdlib.Option.Option<Uuid>
+    createdAt: DateTime
+    mergedAt: Stdlib.Option.Option<DateTime> }
+
+
 /// The well-known main branch UUID
 let mainBranchId () : Uuid =
   Builtin.scmBranchGetMainId_v0 ()
 
 
 /// Create a new branch from the given parent branch
-let create (name: String) (parentBranchId: Uuid) : Dict<String> =
+let create (name: String) (parentBranchId: Uuid) : Branch =
   Builtin.scmBranchCreate name parentBranchId
 
 
 /// List all active (non-merged) branches
-let list () : List<Dict<String>> =
+let list () : List<Branch> =
   Builtin.scmBranchList_v0 ()
 
 
 /// Get a branch by ID
-let get (id: Uuid) : Stdlib.Option.Option<Dict<String>> =
+let get (id: Uuid) : Stdlib.Option.Option<Branch> =
   Builtin.scmBranchGet id
 
 
 /// Get a branch by name
-let getByName (name: String) : Stdlib.Option.Option<Dict<String>> =
+let getByName (name: String) : Stdlib.Option.Option<Branch> =
   Builtin.scmBranchGetByName name
 
 

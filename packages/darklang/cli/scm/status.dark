@@ -7,10 +7,7 @@ let execute (state: AppState) (args: List<String>) : AppState =
   // Show current branch name
   let branchName =
     match SCM.Branch.get branchId with
-    | Some b ->
-      match Stdlib.Dict.get b "name" with
-      | Some n -> n
-      | None -> "unknown"
+    | Some b -> b.name
     | None -> "unknown"
 
   Stdlib.printLine $"On branch {Cli.Colors.cyan}{branchName}{Cli.Colors.reset}"

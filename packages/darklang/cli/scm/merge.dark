@@ -20,23 +20,14 @@ let execute (state: AppState) (args: List<String>) : AppState =
       // Switch to parent branch
       match SCM.Branch.get state.currentBranchId with
       | Some b ->
-        let parentIdStr =
-          match Stdlib.Dict.get b "parentBranchId" with
-          | Some p -> p
-          | None -> ""
-
-        if Stdlib.String.isEmpty parentIdStr then
+        match b.parentBranchId with
+        | Some parentId ->
+          Stdlib.printLine "Switched to parent branch."
+          { state with currentBranchId = parentId }
+        | None ->
           let mainId = SCM.Branch.mainBranchId ()
           Stdlib.printLine "Switched to main."
           { state with currentBranchId = mainId }
-        else
-          match Stdlib.Uuid.parse parentIdStr with
-          | Ok parentId ->
-            Stdlib.printLine "Switched to parent branch."
-            { state with currentBranchId = parentId }
-          | Error _ ->
-            let mainId = SCM.Branch.mainBranchId ()
-            { state with currentBranchId = mainId }
       | None ->
         // Branch was merged and info might not be available, switch to main
         let mainId = SCM.Branch.mainBranchId ()
