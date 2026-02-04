@@ -29,6 +29,7 @@ let createState
   (tracing : RT.Tracing.Tracing)
   (reportException : RT.ExceptionReporter)
   (notify : RT.Notifier)
+  (branchId : RT.BranchId)
   (program : RT.Program)
   : RT.ExecutionState =
   { tracing = tracing
@@ -36,6 +37,7 @@ let createState
     reportException = reportException
     notify = notify
 
+    branchId = branchId
     program = program
 
     types = { package = pm.getType }
@@ -153,9 +155,7 @@ let runtimeErrorToString
       RT.FQFnName.fqPackage
         PackageIDs.Fn.PrettyPrinter.RuntimeTypes.RuntimeError.toString
     let args =
-      NEList.ofList
-        (RT.DUuid ProgramTypes.mainBranchId)
-        [ RT2DT.RuntimeError.toDT rte ]
+      NEList.ofList (RT.DUuid state.branchId) [ RT2DT.RuntimeError.toDT rte ]
     return! executeFunction state fnName [] args
   }
 
@@ -163,7 +163,42 @@ let getPackageFnName
   (state : RT.ExecutionState)
   (id : RT.FQFnName.Package)
   : Ply<string> =
-  state.fns.packageFnName ProgramTypes.mainBranchId id
+  state.fns.packageFnName state.branchId id
+
+
+let dvalToRepr (state : RT.ExecutionState) (dval : RT.Dval) : Task<string> =
+  task {
+    let fnName = RT.FQFnName.fqPackage PackageIDs.Fn.PrettyPrinter.RuntimeTypes.dval
+    let args = NEList.ofList (RT.DUuid state.branchId) [ RT2DT.Dval.toDT dval ]
+    match! executeFunction state fnName [] args with
+    | Ok(RT.DString s) -> return s
+    | _ -> return string dval
+  }
+
+let typeRefToString
+  (state : RT.ExecutionState)
+  (typeRef : RT.TypeReference)
+  : Task<string> =
+  task {
+    let fnName =
+      RT.FQFnName.fqPackage PackageIDs.Fn.PrettyPrinter.RuntimeTypes.typeReference
+    let args =
+      NEList.ofList (RT.DUuid state.branchId) [ RT2DT.TypeReference.toDT typeRef ]
+    match! executeFunction state fnName [] args with
+    | Ok(RT.DString s) -> return s
+    | _ -> return string typeRef
+  }
+
+let dvalToTypeName (state : RT.ExecutionState) (dval : RT.Dval) : Task<string> =
+  task {
+    let fnName =
+      RT.FQFnName.fqPackage
+        PackageIDs.Fn.PrettyPrinter.RuntimeTypes.Dval.valueTypeName
+    let args = NEList.ofList (RT.DUuid state.branchId) [ RT2DT.Dval.toDT dval ]
+    match! executeFunction state fnName [] args with
+    | Ok(RT.DString s) -> return s
+    | _ -> return string dval
+  }
 
 
 
@@ -324,7 +359,7 @@ let rec rteToString
         state
         errorMessageFn
         []
-        (NEList.ofList (RT.DUuid ProgramTypes.mainBranchId) [ rteDval ])
+        (NEList.ofList (RT.DUuid state.branchId) [ rteDval ])
 
     match rteMessage with
     | Ok(RT.DString msg) -> return msg

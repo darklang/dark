@@ -12,7 +12,24 @@ module VT = LibExecution.ValueType
 module Dval = LibExecution.Dval
 module PT = LibExecution.ProgramTypes
 
+module Exe = LibExecution.Execution
 module DvalReprInternalQueryable = LibExecution.DvalReprInternalQueryable
+
+let toRepr (dval : RT.Dval) : string =
+  let builtins = localBuiltIns pmPT
+  let state =
+    Exe.createState
+      builtins
+      pmRT
+      Exe.noTracing
+      (fun _ _ _ _ -> uply { return () })
+      (fun _ _ _ _ -> uply { return () })
+      PT.mainBranchId
+      { canvasID = System.Guid.NewGuid()
+        internalFnsAllowed = false
+        dbs = Map.empty
+        secrets = [] }
+  (Exe.dvalToRepr state dval).Result
 module DvalReprInternalRoundtrippable = LibExecution.DvalReprInternalRoundtrippable
 module DvalReprInternalHash = LibExecution.DvalReprInternalHash
 
@@ -99,7 +116,7 @@ let testToDeveloperRepr =
     "toDeveloperRepr"
     [ testMany
         "toDeveloperRepr string"
-        DvalReprDeveloper.toRepr
+        toRepr
         [ RT.DFloat(-0.0), "-0.0"
           RT.DFloat(infinity), "Infinity"
           RT.DTuple(RT.DInt64 1, RT.DInt64 2, [ RT.DInt64 3 ]), "(1, 2, 3)"

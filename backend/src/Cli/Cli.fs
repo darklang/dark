@@ -98,7 +98,14 @@ let state (packageManager : RT.PackageManager) =
     =
     uply { printException "Internal error" metadata exn }
 
-  Exe.createState builtins packageManager Exe.noTracing sendException notify program
+  Exe.createState
+    builtins
+    packageManager
+    Exe.noTracing
+    sendException
+    notify
+    PT.mainBranchId
+    program
 
 
 
@@ -154,7 +161,8 @@ let main (args : string[]) =
       1
     | Ok(RT.DInt64 i) -> (int i)
     | Ok dval ->
-      let output = DvalReprDeveloper.toRepr dval
+      let state = state cliPackageManager
+      let output = (Exe.dvalToRepr state dval).Result
       logError $"Error: main function must return an int (returned {output})"
       1
 

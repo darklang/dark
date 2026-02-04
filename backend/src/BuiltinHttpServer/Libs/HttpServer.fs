@@ -97,7 +97,7 @@ let fns : List<BuiltInFn> =
                     let! result = executeNamedFn exeState handlerFn requestDval
 
                     // Convert result to HTTP response
-                    let response = Http.Response.toHttpResponse result
+                    let! response = Http.Response.toHttpResponse exeState result
 
                     ctx.Response.StatusCode <- response.statusCode
                     for (key, value) in response.headers do

@@ -28,7 +28,7 @@ type BranchId = uuid
 
 /// Well-known main branch UUID
 let mainBranchId : BranchId =
-  System.Guid.Parse("00000000-0000-0000-0000-000000000001")
+  System.Guid.Parse "89282547-e4e6-4986-bcb6-db74bc6a8c0f"
 
 /// Fully-Qualified Type Name
 ///
@@ -757,11 +757,14 @@ type PackageManager =
 
     search : Search.SearchQuery -> Ply<Search.SearchResults>
 
+    // CLEANUP why does the PT one even need these?
     getType : FQTypeName.Package -> Ply<Option<PackageType.PackageType>>
     getValue : FQValueName.Package -> Ply<Option<PackageValue.PackageValue>>
     getFn : FQFnName.Package -> Ply<Option<PackageFn.PackageFn>>
 
     // Reverse lookups for pretty-printing and other tooling
+    // TODO: Revisit this given that a single ID might refer to multiple locations,
+    // even per a branch (because... why? not sure or totally convinced either way)).
     getTypeLocation : BranchId -> FQTypeName.Package -> Ply<Option<PackageLocation>>
     getValueLocation :
       BranchId -> FQValueName.Package -> Ply<Option<PackageLocation>>

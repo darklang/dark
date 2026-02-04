@@ -170,6 +170,7 @@ let execute
         tracing
         parentState.reportException
         parentState.notify
+        branchId
         program
 
     match mod'.exprs with
@@ -203,6 +204,7 @@ let createBranchState (parentState : RT.ExecutionState) (branchId : System.Guid)
     Exe.noTracing
     parentState.reportException
     parentState.notify
+    branchId
     program
 
 
@@ -288,7 +290,7 @@ let fns : List<BuiltInFn> =
                   match result with
                   | DString s -> return resultOk (DString s)
                   | _ ->
-                    let asString = DvalReprDeveloper.toRepr result
+                    let! asString = Exe.dvalToRepr exeState result
                     return resultOk (DString asString)
                 | Error(e, callStack) ->
                   let! csString = Exe.callStackString exeState callStack
@@ -304,74 +306,6 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "cliGetBuiltins" 0
-      typeParams = []
-      parameters = [ Param.make "unit" TUnit "" ]
-      returnType =
-        TList(
-          TCustomType(
-            Ok(FQTypeName.fqPackage PackageIDs.Type.Cli.builtinFunctionInfo),
-            []
-          )
-        )
-      description = "Returns a list of all builtin functions with their metadata"
-      fn =
-        (function
-        | exeState, _, [], [ DUnit ] ->
-          uply {
-            let builtinFnTypeName =
-              FQTypeName.fqPackage PackageIDs.Type.Cli.builtinFunctionInfo
-
-            let paramToRecord (param : BuiltInParam) : Dval =
-              let paramTypeName =
-                FQTypeName.fqPackage PackageIDs.Type.Cli.builtinParamInfo
-              let fields =
-                [ ("name", DString param.name)
-                  ("typ", DString(DvalReprDeveloper.typeReference param.typ))
-                  ("description", DString param.description) ]
-                |> Map.ofList
-              DRecord(paramTypeName, paramTypeName, [], fields)
-
-            let builtinParamTypeName =
-              FQTypeName.fqPackage PackageIDs.Type.Cli.builtinParamInfo
-
-            let previewableToString (p : Previewable) : string =
-              match p with
-              | Pure -> "pure"
-              | ImpurePreviewable -> "impure-previewable"
-              | Impure -> "impure"
-
-            let fnToRecord (fn : BuiltInFn) : Dval =
-              let params' =
-                fn.parameters
-                |> List.map paramToRecord
-                |> (fun l -> DList(VT.customType builtinParamTypeName [], l))
-              let fields =
-                [ ("name", DString fn.name.name)
-                  ("version", DInt64(int64 fn.name.version))
-                  ("parameters", params')
-                  ("returnType",
-                   DString(DvalReprDeveloper.typeReference fn.returnType))
-                  ("description", DString fn.description)
-                  ("purity", DString(previewableToString fn.previewable)) ]
-                |> Map.ofList
-              DRecord(builtinFnTypeName, builtinFnTypeName, [], fields)
-
-            let builtins =
-              exeState.fns.builtIn
-              |> Map.values
-              |> List.filter (fun fn ->
-                match fn.deprecated with
-                | NotDeprecated -> true
-                | _ -> false)
-              |> List.sortBy (fun fn -> fn.name.name)
-              |> List.map fnToRecord
-
-            return DList(VT.customType builtinFnTypeName [], builtins)
-          }
-        | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
-      previewable = Pure
-      deprecated = NotDeprecated } ]
+    ]
 
 let builtins = LibExecution.Builtin.make [] fns

@@ -1,0 +1,16 @@
+module Darklang.Stdlib.Builtins
+
+/// Metadata about a parameter of a builtin function
+type ParamInfo =
+  { name: String
+    typ: String
+    description: String }
+
+/// Metadata about a builtin function
+type FunctionInfo =
+  { name: String
+    version: Int64
+    parameters: List<ParamInfo>
+    returnType: String
+    description: String
+    purity: String }

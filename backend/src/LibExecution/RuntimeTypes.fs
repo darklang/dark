@@ -1396,6 +1396,7 @@ and ExecutionState =
     notify : Notifier
 
     // -- Set per-execution --
+    branchId : BranchId
     program : Program
 
     types : Types

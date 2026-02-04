@@ -195,7 +195,14 @@ let executionStateFor
       if allowLocalHttpAccess then localBuiltIns pmPT else cloudBuiltIns pmPT
     let state =
       let pmRT = PT2RT.PackageManager.toRT pmPT
-      Exe.createState builtins pmRT Exe.noTracing exceptionReporter notifier program
+      Exe.createState
+        builtins
+        pmRT
+        Exe.noTracing
+        exceptionReporter
+        notifier
+        PT.mainBranchId
+        program
     let state = { state with test = testContext }
     return state
   }

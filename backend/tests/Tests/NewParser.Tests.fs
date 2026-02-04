@@ -808,7 +808,7 @@ let exprs =
     t
       "record, 3 fields"
       "Tests.Person {name =\"John\"; age = 30L; hasPet = true} "
-      "Person { name = \"John\"; age = 30L; hasPet = true }"
+      "Tests.Person { name = \"John\"; age = 30L; hasPet = true }"
       [ person ]
       []
       []
@@ -817,7 +817,7 @@ let exprs =
     t
       "record with newline as separator"
       "Tests.Person\n {name =\"John\"\n age = 30L\n hasPet = true} "
-      "Person { name = \"John\"; age = 30L; hasPet = true }"
+      "Tests.Person { name = \"John\"; age = 30L; hasPet = true }"
       [ person ]
       []
       []
@@ -827,7 +827,7 @@ let exprs =
     t
       "record with type args"
       "Generic<Tests.Person> { x = Person { name = \"John\"; age = 30L; hasPet = true } }"
-      "Generic<Person> { x = Person { name = \"John\"; age = 30L; hasPet = true } }"
+      "Generic<Tests.Person> { x = Person { name = \"John\"; age = 30L; hasPet = true } }"
       [ person ]
       []
       []
@@ -837,7 +837,7 @@ let exprs =
     t
       "record update 1"
       "{ Tests.Person { name = \"John\"; age = 30L; hasPet = true } with age = 31L }"
-      "{ Person { name = \"John\"; age = 30L; hasPet = true } with age = 31L }"
+      "{ Tests.Person { name = \"John\"; age = 30L; hasPet = true } with age = 31L }"
       [ person ]
       []
       []
@@ -866,7 +866,7 @@ let exprs =
       age = 31L
       hasPet = false })"""
       """let myRec =
-  Person { name = "John"; age = 30L; hasPet = true }
+  Tests.Person { name = "John"; age = 30L; hasPet = true }
 { myRec with name = "Jane"; age = 31L; hasPet = false }"""
       [ person ]
       []
@@ -874,7 +874,7 @@ let exprs =
       false
 
     // enum literal
-    t "simple enum literal" "Tests.MyEnum.A" "MyEnum.A" [ myEnum ] [] [] false
+    t "simple enum literal" "Tests.MyEnum.A" "Tests.MyEnum.A" [ myEnum ] [] [] false
     t
       "enum with type args"
       "Generic<Int64>.A 1L"
@@ -910,7 +910,7 @@ let exprs =
     t
       "custom enum tupled params"
       "Tests.MyEnum.C((1L, 2L))"
-      "MyEnum.C((1L, 2L))"
+      "Tests.MyEnum.C((1L, 2L))"
       [ myEnum ]
       []
       []
@@ -918,7 +918,7 @@ let exprs =
     t
       "custom enum fn params"
       "Tests.MyEnum.D(1L, 2L)"
-      "MyEnum.D(1L, 2L)"
+      "Tests.MyEnum.D(1L, 2L)"
       [ myEnum ]
       []
       []
@@ -930,7 +930,7 @@ let exprs =
   1L,
   2L
 )"""
-      """MyEnum.D(1L, 2L)"""
+      """Tests.MyEnum.D(1L, 2L)"""
       [ myEnum ]
       []
       []
@@ -986,7 +986,7 @@ let exprs =
     t
       "field access 2"
       "(Tests.Person { name =\"Janice\" }).name"
-      "(Person { name = \"Janice\" }).name"
+      "(Tests.Person { name = \"Janice\" }).name"
       [ person ]
       []
       []
@@ -1462,7 +1462,7 @@ else
     t
       "pipe, into enum 2"
       "33L |> Tests.MyEnum.D(21L)"
-      "33L\n|> MyEnum.D(21L)"
+      "33L\n|> Tests.MyEnum.D(21L)"
       [ myEnum ]
       []
       []
@@ -1590,7 +1590,7 @@ else
     t
       "fn call with db reference"
       """Stdlib.DB.set Tests.Person { name = "John"; age = 30L; hasPet = true } "key" TestDB"""
-      """Stdlib.DB.set Person { name = "John"; age = 30L; hasPet = true } "key" TestDB"""
+      """Stdlib.DB.set Tests.Person { name = "John"; age = 30L; hasPet = true } "key" TestDB"""
       [ person ]
       []
       []
@@ -1733,7 +1733,7 @@ let valueDeclarations =
     t
       "record with fields"
       "val myPerson = Tests.Person { name = \"Alice\"; age = 30L; hasPet = true }"
-      "val myPerson = Person { name = \"Alice\"; age = 30L; hasPet = true }"
+      "val myPerson = Tests.Person { name = \"Alice\"; age = 30L; hasPet = true }"
       [ person ]
       []
       []

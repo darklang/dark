@@ -82,7 +82,15 @@ let createState
         printException "[exception]" metadata exn
       }
 
-    return Exe.createState builtins pmRT tracing sendException notify program
+    return
+      Exe.createState
+        builtins
+        pmRT
+        tracing
+        sendException
+        notify
+        PT.mainBranchId
+        program
   }
 
 type ExecutionReason =
@@ -106,7 +114,7 @@ let executeHandler
   (traceID : AT.TraceID.T)
   (inputVars : Map<string, RT.Dval>)
   (reason : ExecutionReason)
-  : Task<RT.Dval * Tracing.TraceResults.T> =
+  : Task<RT.Dval * RT.ExecutionState * Tracing.TraceResults.T> =
   task {
     let tracing = Tracing.create program.canvasID h.tlid traceID
 
@@ -175,7 +183,7 @@ let executeHandler
 
     tracing.storeTraceResults ()
 
-    return (result, tracing.results)
+    return (result, state, tracing.results)
   }
 
 /// We call this reexecuteFunction because it always runs in an existing trace.

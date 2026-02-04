@@ -20,7 +20,7 @@ CREATE TABLE IF NOT EXISTS branches (
 );
 
 -- Well-known main branch
-INSERT OR IGNORE INTO branches (id, name) VALUES ('00000000-0000-0000-0000-000000000001', 'main');
+INSERT OR IGNORE INTO branches (id, name) VALUES ('89282547-e4e6-4986-bcb6-db74bc6a8c0f', 'main');
 
 
 -- Commits table

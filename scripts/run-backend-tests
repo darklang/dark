@@ -82,8 +82,8 @@ fi
 
 TEST_LOG="${LOGS}/fsharp-tests.log"
 > "${TEST_LOG}" # truncate
-echo -e "Test log: ${grey}${TEST_LOG}${reset}"
 
 cd backend
+echo -e "Logging to: ${grey}${TEST_LOG}${reset}"
 DARK_CONFIG_TELEMETRY_EXPORTER=none \
 "${EXE}" ${SPINNER} --colours "${COLOURS}" --junit-summary "${JUNIT_FILE}" "${EXPECTO_ARGS[@]}" 2>&1 | tee "${TEST_LOG}"

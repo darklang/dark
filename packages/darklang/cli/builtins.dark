@@ -1,20 +1,5 @@
 module Darklang.Cli.Builtins
 
-// Types for builtin function metadata (must match PackageIDs)
-type ParamInfo =
-  { name: String
-    typ: String
-    description: String }
-
-type FunctionInfo =
-  { name: String
-    version: Int64
-    parameters: List<ParamInfo>
-    returnType: String
-    description: String
-    purity: String }
-
-
 // Known groups in display order with their display names
 // Format: (prefix, displayName)
 let knownGroups: List<String * String> =
@@ -78,8 +63,8 @@ let isKnownGroup (prefix: String): Bool =
 
 // Sort groups: known groups first in order, then unknown groups alphabetically
 let sortGroups
-  (groups: List<String * List<FunctionInfo>>)
-  : List<String * List<FunctionInfo>> =
+  (groups: List<String * List<Stdlib.Builtins.FunctionInfo>>)
+  : List<String * List<Stdlib.Builtins.FunctionInfo>> =
   let knownPrefixes = Stdlib.List.map knownGroups (fun pair -> Stdlib.Tuple2.first pair)
 
   let knownInOrder =
@@ -101,7 +86,7 @@ let sortGroups
 
 
 let execute (state: AppState) (args: List<String>): AppState =
-  let allBuiltins = Builtin.cliGetBuiltins ()
+  let allBuiltins = Builtin.getBuiltins ()
 
   // Parse flags
   // Workaround: Stdlib.List.any has issues, use findFirst instead

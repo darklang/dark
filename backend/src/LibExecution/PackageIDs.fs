@@ -86,6 +86,11 @@ module Type =
         p [ "ParseError" ] "ParseError" "c990825c-ef78-49a6-b5dd-f69a430722e1"
       let json = p [] "Json" "d80a6028-92e8-4da2-89b3-1cfc5d275024"
 
+    module Builtins =
+      let private p addl = p ("Builtins" :: addl)
+      let paramInfo = p [] "ParamInfo" "a3b4c5d6-e7f8-9012-3456-789abcdef012"
+      let functionInfo = p [] "FunctionInfo" "b4c5d6e7-f809-0123-4567-89abcdef0123"
+
     module Cli =
       let private p addl = p ("Cli" :: addl)
       let executionOutcome =
@@ -343,11 +348,6 @@ module Type =
     let script =
       p [ "Cli"; "Scripts" ] "Script" "de1629b6-cdfa-46b1-84c0-e0c60048d93b"
 
-    let builtinParamInfo =
-      p [ "Cli"; "Builtins" ] "ParamInfo" "a3b4c5d6-e7f8-9012-3456-789abcdef012"
-
-    let builtinFunctionInfo =
-      p [ "Cli"; "Builtins" ] "FunctionInfo" "b4c5d6e7-f809-0123-4567-89abcdef0123"
 
 
   module DarkPackages =
@@ -478,6 +478,13 @@ module Fn =
     module RuntimeTypes =
       let private p addl = p ("RuntimeTypes" :: addl)
       let expr = p [] "expr" "be111b49-95f6-4022-ad68-a64de172f3ee"
+      let dval = p [] "dval" "12e50b3e-dbf1-4de2-ad5e-ec4a0022c72d"
+      let typeReference = p [] "typeReference" "7087781f-f0a4-4ff7-afb8-81e409fd5114"
+
+      module Dval =
+        let private p addl = p ("Dval" :: addl)
+        let valueTypeName =
+          p [] "valueTypeName" "cc7bfeb5-9589-43cb-a6d9-1ed3c6070f7a"
 
       module RuntimeError =
         let private p addl = p ("RuntimeError" :: addl)
