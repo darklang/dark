@@ -105,6 +105,7 @@ module Type =
 
   module Builtins =
     let private p addl = p ("Builtins" :: addl)
+    let purity = p [] "Purity" "c5d6e7f8-0912-3456-789a-bcdef0123456"
     let paramInfo = p [] "ParamInfo" "a3b4c5d6-e7f8-9012-3456-789abcdef012"
     let functionInfo = p [] "FunctionInfo" "b4c5d6e7-f809-0123-4567-89abcdef0123"
 

@@ -181,7 +181,12 @@ let execute (state: AppState) (args: List<String>): AppState =
 
         let puritySuffix =
           if withPurity then
-            $" [{fn.purity}]"
+            let purityStr =
+              match fn.purity with
+              | Pure -> "pure"
+              | ImpurePreviewable -> "impure-previewable"
+              | Impure -> "impure"
+            $" [{purityStr}]"
           else
             ""
 
