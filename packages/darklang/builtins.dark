@@ -1,9 +1,9 @@
-module Darklang.Stdlib.Builtins
+module Darklang.Builtins
 
 /// Metadata about a parameter of a builtin function
 type ParamInfo =
   { name: String
-    typ: String
+    typ: LanguageTools.RuntimeTypes.TypeReference
     description: String }
 
 /// Metadata about a builtin function
@@ -11,6 +11,6 @@ type FunctionInfo =
   { name: String
     version: Int64
     parameters: List<ParamInfo>
-    returnType: String
+    returnType: LanguageTools.RuntimeTypes.TypeReference
     description: String
     purity: String }

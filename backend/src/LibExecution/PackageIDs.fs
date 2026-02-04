@@ -86,11 +86,6 @@ module Type =
         p [ "ParseError" ] "ParseError" "c990825c-ef78-49a6-b5dd-f69a430722e1"
       let json = p [] "Json" "d80a6028-92e8-4da2-89b3-1cfc5d275024"
 
-    module Builtins =
-      let private p addl = p ("Builtins" :: addl)
-      let paramInfo = p [] "ParamInfo" "a3b4c5d6-e7f8-9012-3456-789abcdef012"
-      let functionInfo = p [] "FunctionInfo" "b4c5d6e7-f809-0123-4567-89abcdef0123"
-
     module Cli =
       let private p addl = p ("Cli" :: addl)
       let executionOutcome =
@@ -107,6 +102,11 @@ module Type =
         let key = p [ "Key" ] "Key" "c871205d-d08d-4bfe-afa5-4b207f07182b"
         let keyRead =
           p [ "KeyRead" ] "KeyRead" "14ae96ae-a1cf-4275-aa7e-01437bf5e822"
+
+  module Builtins =
+    let private p addl = p ("Builtins" :: addl)
+    let paramInfo = p [] "ParamInfo" "a3b4c5d6-e7f8-9012-3456-789abcdef012"
+    let functionInfo = p [] "FunctionInfo" "b4c5d6e7-f809-0123-4567-89abcdef0123"
 
   module LanguageTools =
     let private p addl = p ("LanguageTools" :: addl)

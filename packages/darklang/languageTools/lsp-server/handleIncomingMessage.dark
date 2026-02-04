@@ -303,9 +303,6 @@ let handleIncomingMessage
         | ("dark/listInstances", Some requestId, _) ->
           Sync.handleListInstancesRequest state requestId
 
-        | ("dark/listAccounts", Some requestId, _) ->
-          Accounts.handleListAccountsRequest state requestId
-
         | ("dark/scm/getWipSummary", Some requestId, _) ->
           Scm.handleGetWipSummaryRequest state requestId
 

@@ -25,7 +25,7 @@ export type PageName =
   | "settings"
   | "changelog";
 
-/** Homepage Panel - Display Darklang homepage with account info */
+/** Homepage Panel - Display Darklang homepage */
 export class HomepagePanel {
   public static currentPanel: HomepagePanel | undefined;
   public static readonly viewType = "darklangHomepage";
@@ -69,7 +69,7 @@ export class HomepagePanel {
     HomepagePanel.currentPanel = new HomepagePanel(panel, extensionUri);
   }
 
-  /** Set the LSP client for fetching account data */
+  /** Set the LSP client */
   public static setClient(client: LanguageClient): void {
     HomepagePanel._client = client;
   }

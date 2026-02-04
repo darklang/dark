@@ -63,8 +63,8 @@ let isKnownGroup (prefix: String): Bool =
 
 // Sort groups: known groups first in order, then unknown groups alphabetically
 let sortGroups
-  (groups: List<String * List<Stdlib.Builtins.FunctionInfo>>)
-  : List<String * List<Stdlib.Builtins.FunctionInfo>> =
+  (groups: List<String * List<Builtins.FunctionInfo>>)
+  : List<String * List<Builtins.FunctionInfo>> =
   let knownPrefixes = Stdlib.List.map knownGroups (fun pair -> Stdlib.Tuple2.first pair)
 
   let knownInOrder =
@@ -164,9 +164,13 @@ let execute (state: AppState) (args: List<String>): AppState =
 
       fns
       |> Stdlib.List.iter (fun fn ->
+        let branchId = SCM.Branch.mainBranchId ()
+
         let params =
           fn.parameters
-          |> Stdlib.List.map (fun p -> $"{p.name}: {p.typ}")
+          |> Stdlib.List.map (fun p ->
+            let typStr = PrettyPrinter.RuntimeTypes.typeReference branchId p.typ
+            $"{p.name}: {typStr}")
           |> Stdlib.String.join ", "
 
         let versionSuffix =
@@ -181,7 +185,9 @@ let execute (state: AppState) (args: List<String>): AppState =
           else
             ""
 
-        Stdlib.printLine $"  {fn.name}{versionSuffix}({params}) -> {fn.returnType}{puritySuffix}"))
+        let returnTypeStr = PrettyPrinter.RuntimeTypes.typeReference branchId fn.returnType
+
+        Stdlib.printLine $"  {fn.name}{versionSuffix}({params}) -> {returnTypeStr}{puritySuffix}"))
   else
     // Compact output: comma-separated names
     filteredGroups

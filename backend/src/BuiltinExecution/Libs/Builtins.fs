@@ -6,8 +6,8 @@ open LibExecution.Builtin.Shortcuts
 
 module VT = LibExecution.ValueType
 module Dval = LibExecution.Dval
-module Exe = LibExecution.Execution
 module PackageIDs = LibExecution.PackageIDs
+module RT2DT = LibExecution.RuntimeTypesToDarkTypes
 
 
 let fns : List<BuiltInFn> =
@@ -17,7 +17,7 @@ let fns : List<BuiltInFn> =
       returnType =
         TList(
           TCustomType(
-            Ok(FQTypeName.fqPackage PackageIDs.Type.Stdlib.Builtins.functionInfo),
+            Ok(FQTypeName.fqPackage PackageIDs.Type.Builtins.functionInfo),
             []
           )
         )
@@ -27,21 +27,18 @@ let fns : List<BuiltInFn> =
         | exeState, _, [], [ DUnit ] ->
           uply {
             let builtinFnTypeName =
-              FQTypeName.fqPackage PackageIDs.Type.Stdlib.Builtins.functionInfo
+              FQTypeName.fqPackage PackageIDs.Type.Builtins.functionInfo
 
             let paramTypeName =
-              FQTypeName.fqPackage PackageIDs.Type.Stdlib.Builtins.paramInfo
+              FQTypeName.fqPackage PackageIDs.Type.Builtins.paramInfo
 
             let paramToRecord (param : BuiltInParam) =
-              uply {
-                let! typStr = Exe.typeRefToString exeState param.typ
-                let fields =
-                  [ ("name", DString param.name)
-                    ("typ", DString typStr)
-                    ("description", DString param.description) ]
-                  |> Map.ofList
-                return DRecord(paramTypeName, paramTypeName, [], fields)
-              }
+              let fields =
+                [ ("name", DString param.name)
+                  ("typ", RT2DT.TypeReference.toDT param.typ)
+                  ("description", DString param.description) ]
+                |> Map.ofList
+              DRecord(paramTypeName, paramTypeName, [], fields)
 
             let previewableToString (p : Previewable) : string =
               match p with
@@ -50,20 +47,19 @@ let fns : List<BuiltInFn> =
               | Impure -> "impure"
 
             let fnToRecord (fn : BuiltInFn) =
-              uply {
-                let! params' = Ply.List.mapSequentially paramToRecord fn.parameters
-                let params' = DList(VT.customType paramTypeName [], params')
-                let! returnType = Exe.typeRefToString exeState fn.returnType
-                let fields =
-                  [ ("name", DString fn.name.name)
-                    ("version", DInt64(int64 fn.name.version))
-                    ("parameters", params')
-                    ("returnType", DString returnType)
-                    ("description", DString fn.description)
-                    ("purity", DString(previewableToString fn.previewable)) ]
-                  |> Map.ofList
-                return DRecord(builtinFnTypeName, builtinFnTypeName, [], fields)
-              }
+              let params' =
+                fn.parameters
+                |> List.map paramToRecord
+                |> Dval.list (VT.customType paramTypeName [])
+              let fields =
+                [ ("name", DString fn.name.name)
+                  ("version", DInt64(int64 fn.name.version))
+                  ("parameters", params')
+                  ("returnType", RT2DT.TypeReference.toDT fn.returnType)
+                  ("description", DString fn.description)
+                  ("purity", DString(previewableToString fn.previewable)) ]
+                |> Map.ofList
+              DRecord(builtinFnTypeName, builtinFnTypeName, [], fields)
 
             let fns =
               exeState.fns.builtIn
@@ -74,9 +70,12 @@ let fns : List<BuiltInFn> =
                 | _ -> false)
               |> List.sortBy (fun fn -> fn.name.name)
 
-            let! builtins = Ply.List.mapSequentially fnToRecord fns
+            let builtins =
+              fns
+              |> List.map fnToRecord
+              |> Dval.list (VT.customType builtinFnTypeName [])
 
-            return DList(VT.customType builtinFnTypeName [], builtins)
+            return builtins
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable

@@ -49,7 +49,7 @@ module ReadFile =
         | None -> $"Script not found: {scriptName}"
       else
         // Handle package entities
-        let pm = LanguageTools.PackageManager.pm (state.currentBranchId)
+        let pm = LanguageTools.PackageManager.pm state.currentBranchId
 
         let ctx =
           PrettyPrinter.ProgramTypes.Context
@@ -109,7 +109,7 @@ module ReadFile =
                 currentFunction = Stdlib.Option.Option.None }
 
           let results =
-            LanguageTools.PackageManager.Search.search (state.currentBranchId) searchQuery
+            LanguageTools.PackageManager.Search.search state.currentBranchId searchQuery
 
           let definitions =
             LanguageTools.ProgramTypes.Definitions
@@ -334,7 +334,7 @@ module WriteFile =
           | owner :: _rest -> owner
           | _ -> ""
 
-        let pm = LanguageTools.PackageManager.pm (state.currentBranchId)
+        let pm = LanguageTools.PackageManager.pm state.currentBranchId
 
         // Process types
         let typeOps =
@@ -465,7 +465,7 @@ module WriteFile =
           let updatedContent =
             if (Stdlib.List.isEmpty allOps) |> Stdlib.Bool.not then
               // Re-read from package manager to get content with assigned IDs
-              let pm = LanguageTools.PackageManager.pm (state.currentBranchId)
+              let pm = LanguageTools.PackageManager.pm state.currentBranchId
               let location = ProgramTypes.parsePackageLocation nameForLookup
 
               // Build the content from database (same logic as ReadFile)
@@ -485,7 +485,7 @@ module WriteFile =
                     currentFunction = Stdlib.Option.Option.None }
 
               let results =
-                LanguageTools.PackageManager.Search.search (state.currentBranchId) searchQuery
+                LanguageTools.PackageManager.Search.search state.currentBranchId searchQuery
 
               let definitions =
                 LanguageTools.ProgramTypes.Definitions
