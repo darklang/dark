@@ -66,7 +66,7 @@ let builtins : RT.Builtins =
   // Outer CLI uses main branch for its own execution context.
   // User scripts get branch-specific context via cliParseAndExecuteScript.
   LibExecution.Builtin.combine
-    [ BuiltinCliHost.builtinsToUse LibPackageManager.Branches.mainBranchId
+    [ BuiltinCliHost.builtinsToUse PT.mainBranchId
       BuiltinCliHost.builtins
       BuiltinCli.builtins ]
     []

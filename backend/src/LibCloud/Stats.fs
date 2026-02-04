@@ -32,15 +32,3 @@ type DBStats = Map<tlid, DBStat>
 //   |> Task.flatten
 //   |> Task.map Map.ofList
 
-let workerStats (canvasID : CanvasID) (tlid : tlid) : Task<int> =
-  Sql.query
-    "SELECT COUNT(1) AS num
-     FROM queue_events_v0 E
-     INNER JOIN toplevels_v0 TL
-        ON TL.canvas_id = E.canvas_id
-       AND TL.module = E.module
-       AND TL.name = E.name
-     WHERE TL.tlid = @tlid
-       AND TL.canvas_id = @canvasID"
-  |> Sql.parameters [ "tlid", Sql.tlid tlid; "canvasID", Sql.uuid canvasID ]
-  |> Sql.executeRowAsync (fun read -> read.int "num")

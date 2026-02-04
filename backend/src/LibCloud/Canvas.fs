@@ -72,9 +72,6 @@ let allCanvasIDs () : Task<List<CanvasID>> =
   |> Sql.executeAsync (fun read -> read.uuid "id")
 
 
-// Canvases no longer have owners - this is kept for API compatibility
-let getOwner (_id : CanvasID) : Task<Option<UserID>> = Task.FromResult None
-
 /// <summary>
 /// Canvas data - contains metadata along with basic handlers, DBs, etc.
 /// </summary>

@@ -32,7 +32,7 @@ let executePM (exeState : RT.ExecutionState) (branchId : System.Guid) : Ply<Dval
     let getPmFnName = FQFnName.Package PackageIDs.Fn.LanguageTools.PackageManager.pm
 
     // Pass branchId as Option.Some to pm function
-    let branchIdArg = Dval.optionSome KTUuid (DUuid branchId)
+    let branchIdArg = DUuid branchId
 
     let! execResult =
       Exe.executeFunction exeState getPmFnName [] (NEList.singleton branchIdArg)
@@ -127,7 +127,8 @@ let builtinsToUse (branchId : System.Guid) : RT.Builtins =
     [ BuiltinExecution.Builtin.builtins
         BuiltinExecution.Libs.HttpClient.defaultConfig
       BuiltinCli.Builtin.builtins
-      BuiltinPM.Builtin.builtins ptPM ]
+      BuiltinPM.Builtin.builtins ptPM
+      BuiltinHttpServer.Builtin.builtins ]
     []
 
 

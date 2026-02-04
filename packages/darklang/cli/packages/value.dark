@@ -62,7 +62,7 @@ let createValueInline
       match LanguageTools.Parser.ValueDeclaration.parse valDeclNode with
       | Ok writtenValue ->
         // Convert to ProgramTypes.PackageValue
-        let pm = LanguageTools.PackageManager.pm (Stdlib.Option.Option.Some state.currentBranchId)
+        let pm = LanguageTools.PackageManager.pm state.currentBranchId
 
         let (packageValue, unresolvedNames) =
           LanguageTools.WrittenTypesToProgramTypes.ValueDeclaration.toPackageValuePT

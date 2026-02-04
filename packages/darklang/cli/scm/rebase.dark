@@ -12,10 +12,9 @@ let execute (state: AppState) (args: List<String>) : AppState =
       Stdlib.printLine (Colors.success "No rebase needed, or no conflicts.")
     else
       Stdlib.printLine (Colors.warning "Rebase conflicts:")
-      conflicts
-      |> Stdlib.List.iter (fun c -> Stdlib.printLine $"  {c}")
-      Stdlib.printLine ""
-      Stdlib.printLine "Fix these on your branch, then run 'rebase' again."
+      conflicts |> Stdlib.List.iter (fun c -> Stdlib.printLine $"  {c}")
+      [ ""; "Fix these on your branch, then run 'rebase' again." ]
+      |> Stdlib.printLines
 
     state
   else
@@ -25,10 +24,9 @@ let execute (state: AppState) (args: List<String>) : AppState =
       state
     | Error conflicts ->
       Stdlib.printLine (Colors.error "Rebase failed - conflicts found:")
-      conflicts
-      |> Stdlib.List.iter (fun c -> Stdlib.printLine $"  {c}")
-      Stdlib.printLine ""
-      Stdlib.printLine "Fix these on your branch, then run 'rebase' again."
+      conflicts |> Stdlib.List.iter (fun c -> Stdlib.printLine $"  {c}")
+      [ ""; "Fix these on your branch, then run 'rebase' again." ]
+      |> Stdlib.printLines
       state
 
 

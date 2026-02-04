@@ -55,6 +55,7 @@ module ParseError =
     | NotJson
 
   let toString
+    (branchId: Uuid)
     (e: ParseError)
     : String =
     match e with
@@ -62,7 +63,7 @@ module ParseError =
       "Can't parse JSON `"
       ++ json
       ++ "` as type `"
-      ++ PrettyPrinter.RuntimeTypes.typeReference typ
+      ++ PrettyPrinter.RuntimeTypes.typeReference branchId typ
       ++ "` at path: `"
       ++ JsonPath.toString path
       ++ "`"
@@ -80,7 +81,7 @@ module ParseError =
       "Can't parse JSON because argument "
       ++ Int64.toString index
       ++ " (`"
-      ++ PrettyPrinter.RuntimeTypes.typeReference typ
+      ++ PrettyPrinter.RuntimeTypes.typeReference branchId typ
       ++ "`) is missing at path: `"
       ++ JsonPath.toString path
       ++ "`"
@@ -90,7 +91,7 @@ module ParseError =
       "Can't parse JSON as `"
       ++ caseName
       ++ "` is not a known case of type `"
-      ++ PrettyPrinter.RuntimeTypes.typeReference typ
+      ++ PrettyPrinter.RuntimeTypes.typeReference branchId typ
       ++ "` at path: `"
       ++ JsonPath.toString path
       ++ "`"
@@ -100,7 +101,7 @@ module ParseError =
       let cases = cases |> List.map (fun c -> $"`{c}`") |> String.join ", "
 
       $"Can't parse JSON with multiple fields ({cases}) as type `"
-      ++ PrettyPrinter.RuntimeTypes.typeReference typ
+      ++ PrettyPrinter.RuntimeTypes.typeReference branchId typ
       ++ "` at path: `"
       ++ JsonPath.toString path
       ++ "`"

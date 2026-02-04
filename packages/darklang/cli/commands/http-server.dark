@@ -26,7 +26,7 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
       Stdlib.printLine ""
 
       // Use the test router by default
-      Stdlib.HttpServer.serve port Stdlib.HttpServerTest.router
+      Stdlib.HttpServer.serve port DemoData.HttpServerTest.router
 
       state
 
@@ -50,14 +50,14 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
       | "Darklang.Canvas.DarkPackages.router" ->
         Stdlib.HttpServer.serve port Darklang.Canvas.DarkPackages.router
         state
-      | "Darklang.Stdlib.HttpServerTest.router" ->
-        Stdlib.HttpServer.serve port Stdlib.HttpServerTest.router
+      | "Darklang.DemoData.HttpServerTest.router" ->
+        Stdlib.HttpServer.serve port DemoData.HttpServerTest.router
         state
       | _ ->
         Stdlib.printLine (Colors.error $"Unknown router: {routerPath}")
         Stdlib.printLine "Known routers:"
         Stdlib.printLine "  - Darklang.Canvas.DarkPackages.router"
-        Stdlib.printLine "  - Darklang.Stdlib.HttpServerTest.router"
+        Stdlib.printLine "  - Darklang.DemoData.HttpServerTest.router"
         state
 
   | _ ->

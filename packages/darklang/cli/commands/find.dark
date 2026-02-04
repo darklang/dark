@@ -4,6 +4,7 @@ module Darklang.Cli.Commands.Find
 
 /// Resolve a type path to its UUID
 let resolveTypeId
+  (branchId: Uuid)
   (typePath: String)
   : Stdlib.Result.Result<Uuid, String> =
   let parts = Stdlib.String.split typePath "."
@@ -22,7 +23,7 @@ let resolveTypeId
             modules = modules
             name = name }
 
-      match LanguageTools.PackageManager.Type.find Stdlib.Option.Option.None location with
+      match LanguageTools.PackageManager.Type.find branchId location with
       | Some typeId -> Stdlib.Result.Result.Ok typeId
       | None -> Stdlib.Result.Result.Error $"Type not found: {typePath}"
 
@@ -34,12 +35,12 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
     state
 
   | [ typePath ] ->
-    match resolveTypeId typePath with
+    match resolveTypeId state.currentBranchId typePath with
     | Error msg ->
       Stdlib.printLine (Colors.error msg)
       state
     | Ok typeId ->
-      let values = Stdlib.Discovery.findByType "" typeId
+      let values = Stdlib.Discovery.findByType state.currentBranchId "" typeId
 
       if Stdlib.List.isEmpty values then
         Stdlib.printLine (Colors.dimText $"No values of type {typePath}")
@@ -50,12 +51,12 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
       state
 
   | [ typePath; namespace_ ] ->
-    match resolveTypeId typePath with
+    match resolveTypeId state.currentBranchId typePath with
     | Error msg ->
       Stdlib.printLine (Colors.error msg)
       state
     | Ok typeId ->
-      let values = Stdlib.Discovery.findByType namespace_ typeId
+      let values = Stdlib.Discovery.findByType state.currentBranchId namespace_ typeId
 
       if Stdlib.List.isEmpty values then
         Stdlib.printLine (Colors.dimText $"No values of type {typePath} in {namespace_}")

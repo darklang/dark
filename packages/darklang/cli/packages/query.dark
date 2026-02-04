@@ -2,7 +2,7 @@ module Darklang.Cli.Packages.Query
 
 /// Search for all contents (modules, types, values, functions) in a given module path
 let allDirectDescendants
-  (branchId: Stdlib.Option.Option<Uuid>)
+  (branchId: Uuid)
   (modulePath: List<String>)
   : LanguageTools.ProgramTypes.Search.SearchResults =
   let query =
@@ -18,7 +18,7 @@ let allDirectDescendants
 
 /// Search for a specific entity by name in a given module path (exact match)
 let searchExactMatch
-  (branchId: Stdlib.Option.Option<Uuid>)
+  (branchId: Uuid)
   (modulePath: List<String>)
   (entityName: String)
   : LanguageTools.ProgramTypes.Search.SearchResults =

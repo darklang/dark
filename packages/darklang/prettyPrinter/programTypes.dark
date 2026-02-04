@@ -37,15 +37,18 @@ module NameResolutionError =
 // Context for relative name resolution - when we know what module we're currently in,
 // we can shorten names that share the same prefix
 type Context =
-  { currentModule: Stdlib.Option.Option<String>
+  { branchId: Uuid
+    currentModule: Stdlib.Option.Option<String>
     /// Used to resolve ESelf and EArg expressions when pretty-printing function bodies.
     /// When Some, contains (functionName, argMap) where argMap maps parameter names to indices.
     currentFunction: Stdlib.Option.Option<(String * Dict<Int64>)> }
 
-let defaultContext =
-  Context
-    { currentModule = Stdlib.Option.Option.None
-      currentFunction = Stdlib.Option.Option.None }
+module Context =
+  let root =
+    Context
+      { branchId = SCM.Branch.mainBranchId ()
+        currentModule = Stdlib.Option.Option.None
+        currentFunction = Stdlib.Option.Option.None }
 
 let packageNameWithContext
   (ctx: Context)
@@ -91,39 +94,43 @@ let packageName
   (modules: List<String>)
   (name: String)
   : String =
-  packageNameWithContext defaultContext owner modules name
+  packageNameWithContext Context.root owner modules name
 
 
 module FQTypeName =
   module Package =
     let atDefinition
+      (ctx: Context)
       (id: LanguageTools.ProgramTypes.FQTypeName.Package)
       : String =
-      match Builtin.pmGetLocationByType id with
+      match Builtin.pmGetLocationByType ctx.branchId id with
       | Some l -> l.name
       | None -> Stdlib.Uuid.toString id
 
     let fullForReference
+      (ctx: Context)
       (id: LanguageTools.ProgramTypes.FQTypeName.Package)
       : String =
-      match Builtin.pmGetLocationByType id with
+      match Builtin.pmGetLocationByType ctx.branchId id with
       | Some l ->
-        packageName l.owner l.modules l.name
+        packageNameWithContext ctx l.owner l.modules l.name
       | None -> Stdlib.Uuid.toString id
 
 
   let atDefinition
+    (ctx: Context)
     (t: LanguageTools.ProgramTypes.FQTypeName.FQTypeName)
     : String =
     match t with
-    | Package p -> FQTypeName.Package.atDefinition p
+    | Package p -> FQTypeName.Package.atDefinition ctx p
 
   let fullForReference
+    (ctx: Context)
     (t: LanguageTools.ProgramTypes.FQTypeName.FQTypeName)
     : String =
     match t with
     | Package p ->
-      FQTypeName.Package.fullForReference p
+      FQTypeName.Package.fullForReference ctx p
 
 
 module FQValueName =
@@ -144,39 +151,43 @@ module FQValueName =
 
   module Package =
     let atDefinition
+      (ctx: Context)
       (id: LanguageTools.ProgramTypes.FQValueName.Package)
       : String =
-      match Builtin.pmGetLocationByValue id with
+      match Builtin.pmGetLocationByValue ctx.branchId id with
       | Some l -> l.name
       | None -> Stdlib.Uuid.toString id
 
     let fullForReference
+      (ctx: Context)
       (id: LanguageTools.ProgramTypes.FQValueName.Package)
       : String =
-      match Builtin.pmGetLocationByValue id with
+      match Builtin.pmGetLocationByValue ctx.branchId id with
       | Some l ->
-        packageName l.owner l.modules l.name
+        packageNameWithContext ctx l.owner l.modules l.name
       | None -> Stdlib.Uuid.toString id
 
 
 
   let atDefinition
+    (ctx: Context)
     (t: LanguageTools.ProgramTypes.FQValueName.FQValueName)
     : String =
     match t with
     | Builtin b ->
       FQValueName.Builtin.fullForReference b
     | Package p ->
-      FQValueName.Package.atDefinition p
+      FQValueName.Package.atDefinition ctx p
 
   let fullForReference
+    (ctx: Context)
     (t: LanguageTools.ProgramTypes.FQValueName.FQValueName)
     : String =
     match t with
     | Builtin b ->
       FQValueName.Builtin.fullForReference b
     | Package p ->
-      FQValueName.Package.fullForReference p
+      FQValueName.Package.fullForReference ctx p
 
 
 module FQFnName =
@@ -197,40 +208,45 @@ module FQFnName =
 
   module Package =
     let atDefinition
+      (ctx: Context)
       (id: LanguageTools.ProgramTypes.FQFnName.Package)
       : String =
-      match Builtin.pmGetLocationByFn id with
+      match Builtin.pmGetLocationByFn ctx.branchId id with
       | Some l -> l.name
       | None -> Stdlib.Uuid.toString id
 
     let fullForReference
+      (ctx: Context)
       (id: LanguageTools.ProgramTypes.FQFnName.Package)
       : String =
-      match Builtin.pmGetLocationByFn id with
+      match Builtin.pmGetLocationByFn ctx.branchId id with
       | Some l ->
-        packageName l.owner l.modules l.name
+        packageNameWithContext ctx l.owner l.modules l.name
       | None -> Stdlib.Uuid.toString id
 
 
   let atDefinition
+    (ctx: Context)
     (t: LanguageTools.ProgramTypes.FQFnName.FQFnName)
     : String =
     match t with
     | Builtin _b ->
       "why are you trying to print a stdlib type name _definition_?"
-    | Package p -> FQFnName.Package.atDefinition p
+    | Package p -> FQFnName.Package.atDefinition ctx p
 
   let fullForReference
+    (ctx: Context)
     (t: LanguageTools.ProgramTypes.FQFnName.FQFnName)
     : String =
     match t with
     | Builtin b ->
       FQFnName.Builtin.fullForReference b
     | Package p ->
-      FQFnName.Package.fullForReference p
+      FQFnName.Package.fullForReference ctx p
 
 
 let typeReference
+  (ctx: Context)
   (t: LanguageTools.ProgramTypes.TypeReference)
   : String =
   match t with
@@ -255,17 +271,17 @@ let typeReference
   | TUuid -> "Uuid"
 
   | TList inner ->
-    $"List<{typeReference inner}>"
+    $"List<{typeReference ctx inner}>"
 
   | TTuple(first, second, theRest) ->
     (Stdlib.List.append [ first; second ] theRest)
     |> Stdlib.List.map (fun item ->
-      typeReference item)
+      typeReference ctx item)
     |> Stdlib.String.join " * "
     |> fun parts -> "(" ++ parts ++ ")"
 
   | TDict inner ->
-    $"Dict<{typeReference inner}>"
+    $"Dict<{typeReference ctx inner}>"
 
   | TCustomType(typ, args) ->
     let argsPart =
@@ -274,29 +290,29 @@ let typeReference
       | args ->
         args
         |> Stdlib.List.map (fun arg ->
-          typeReference arg)
+          typeReference ctx arg)
         |> Stdlib.String.join ", "
         |> fun parts -> $"<{parts}>"
 
     let typeNamePart =
       match typ with
       | Ok name ->
-        FQTypeName.fullForReference name
+        FQTypeName.fullForReference ctx name
       | Error e -> NameResolutionError.source e
 
     $"{typeNamePart}{argsPart}"
 
   | TDB inner ->
-    $"DB<{typeReference inner}>"
+    $"DB<{typeReference ctx inner}>"
 
   | TFn(args, ret) ->
     let argPart =
       args
       |> Stdlib.List.map (fun arg ->
-        typeReference arg)
+        typeReference ctx arg)
       |> Stdlib.String.join " -> "
 
-    $"{argPart} -> {typeReference ret}"
+    $"{argPart} -> {typeReference ctx ret}"
   | _ ->
     let s = Builtin.Json.serialize<LanguageTools.ProgramTypes.TypeReference> t
 
@@ -430,7 +446,7 @@ let pipeExpr (ctx: Context) (p: LanguageTools.ProgramTypes.PipeExpr) : String =
     let fnNamePart =
       match fnName with
       | Ok name ->
-        FQFnName.fullForReference  name
+        FQFnName.fullForReference ctx name
       | Error e -> NameResolutionError.source e
 
     let typeArgsPart =
@@ -439,7 +455,7 @@ let pipeExpr (ctx: Context) (p: LanguageTools.ProgramTypes.PipeExpr) : String =
       | _ ->
         typeArgs
         |> Stdlib.List.map (fun typeArg ->
-          typeReference  typeArg)
+          typeReference ctx typeArg)
         |> Stdlib.String.join ", "
         |> fun parts -> $"<{parts}>"
 
@@ -462,7 +478,7 @@ let pipeExpr (ctx: Context) (p: LanguageTools.ProgramTypes.PipeExpr) : String =
     let typeNamePart =
       match typeName with
       | Ok name ->
-        FQTypeName.fullForReference  name
+        FQTypeName.fullForReference ctx name
       | Error e -> NameResolutionError.source e
 
     match fields with
@@ -541,7 +557,7 @@ let expr (ctx: Context) (e: LanguageTools.ProgramTypes.Expr) : String =
     let typeNamePart =
       match typeName with
       | Ok name ->
-        FQTypeName.fullForReference  name
+        FQTypeName.fullForReference ctx name
       | Error e -> NameResolutionError.source e
 
     let typeArgsPart =
@@ -550,7 +566,7 @@ let expr (ctx: Context) (e: LanguageTools.ProgramTypes.Expr) : String =
       | _ ->
         typeArgs
         |> Stdlib.List.map (fun typeArg ->
-          typeReference  typeArg)
+          typeReference ctx typeArg)
         |> Stdlib.String.join ", "
         |> fun parts -> $"<{parts}>"
 
@@ -568,7 +584,7 @@ let expr (ctx: Context) (e: LanguageTools.ProgramTypes.Expr) : String =
     let typeNamePart =
       match typeName with
       | Ok name ->
-        FQTypeName.fullForReference  name
+        FQTypeName.fullForReference ctx name
       | Error e -> NameResolutionError.source e
 
     let typeArgsPart =
@@ -577,7 +593,7 @@ let expr (ctx: Context) (e: LanguageTools.ProgramTypes.Expr) : String =
       | _ ->
         typeArgs
         |> Stdlib.List.map (fun typeArg ->
-          typeReference  typeArg)
+          typeReference ctx typeArg)
         |> Stdlib.String.join ", "
         |> fun parts -> $"<{parts}>"
 
@@ -716,7 +732,7 @@ let expr (ctx: Context) (e: LanguageTools.ProgramTypes.Expr) : String =
       let typeArgsPart =
         typeArgs
         |> Stdlib.List.map (fun typeArg ->
-          typeReference  typeArg)
+          typeReference ctx typeArg)
         |> Stdlib.String.join ", "
 
       $"{fnNamePart}<{typeArgsPart}> {argsPart}"
@@ -724,7 +740,7 @@ let expr (ctx: Context) (e: LanguageTools.ProgramTypes.Expr) : String =
   | EFnName(_id, fnName) ->
     match fnName with
     | Ok name ->
-      FQFnName.fullForReference  name
+      FQFnName.fullForReference ctx name
     | Error e -> NameResolutionError.source e
 
   // LanguageTools.ID *
@@ -747,7 +763,7 @@ let expr (ctx: Context) (e: LanguageTools.ProgramTypes.Expr) : String =
   | EValue(_id, value) ->
     match value with
     | Ok name ->
-      FQValueName.fullForReference  name
+      FQValueName.fullForReference ctx name
     | Error e -> NameResolutionError.source e
 
   | EStatement (_id, first, next) ->
@@ -783,20 +799,23 @@ let expr (ctx: Context) (e: LanguageTools.ProgramTypes.Expr) : String =
 
 module TypeDeclaration =
   let recordField
+    (ctx: Context)
     (d: LanguageTools.ProgramTypes.TypeDeclaration.RecordField)
     : String =
     // TODO: /// for description
-    $"{d.name}: {typeReference d.typ}"
+    $"{d.name}: {typeReference ctx d.typ}"
 
   let enumField
+    (ctx: Context)
     (d: LanguageTools.ProgramTypes.TypeDeclaration.EnumField)
     : String =
     match d.label with
-    | None -> typeReference d.typ
+    | None -> typeReference ctx d.typ
     | Some label ->
-      $"{label}: {typeReference d.typ}"
+      $"{label}: {typeReference ctx d.typ}"
 
   let enumCase
+    (ctx: Context)
     (c: LanguageTools.ProgramTypes.TypeDeclaration.EnumCase)
     : String =
     match c.fields with
@@ -805,23 +824,24 @@ module TypeDeclaration =
       let fieldPart =
         fields
         |> Stdlib.List.map (fun field ->
-          TypeDeclaration.enumField field)
+          TypeDeclaration.enumField ctx field)
         |> Stdlib.String.join " * "
 
       $"| {c.name} of {fieldPart}"
 
 
 let customType
+  (ctx: Context)
   (d: LanguageTools.ProgramTypes.TypeDeclaration.TypeDeclaration)
   : String =
   match d.definition with
-  | Alias typeRef -> typeReference typeRef
+  | Alias typeRef -> typeReference ctx typeRef
 
   | Record fields ->
     let fieldsPart =
       fields
       |> Stdlib.List.map (fun field ->
-        TypeDeclaration.recordField field)
+        TypeDeclaration.recordField ctx field)
       |> Stdlib.String.join "\n  "
 
     "{ " ++ (fieldsPart) ++ " }"
@@ -829,7 +849,7 @@ let customType
   | Enum cases ->
     cases
     |> Stdlib.List.map (fun case ->
-      TypeDeclaration.enumCase case)
+      TypeDeclaration.enumCase ctx case)
     |> Stdlib.String.join "\n"
 
 
@@ -860,6 +880,7 @@ let handler (ctx: Context) (h: LanguageTools.ProgramTypes.Handler.Handler) : Str
 
 
 let db
+  (ctx: Context)
   (db: LanguageTools.ProgramTypes.DB)
   : String =
   let versionPart =
@@ -868,7 +889,7 @@ let db
     else
       $"_v{Stdlib.Int32.toString db.version}"
 
-  let typPart = typeReference db.typ
+  let typPart = typeReference ctx db.typ
 
   $"type {db.name}{versionPart} = {typPart}"
 
@@ -881,10 +902,11 @@ let db
 
 
 let packageType
+  (ctx: Context)
   (p: LanguageTools.ProgramTypes.PackageType.PackageType)
   : String =
   // TODO: take care of deprecated
-  let namePart = FQTypeName.Package.atDefinition p.id
+  let namePart = FQTypeName.Package.atDefinition ctx p.id
 
   let typeParamPart =
     match p.declaration.typeParams with
@@ -896,7 +918,7 @@ let packageType
       |> fun parts -> $"<{parts}>"
 
   let defPart =
-    (customType p.declaration)
+    (customType ctx p.declaration)
     |> PrettyPrinter.indent
 
   let docComment = formatDocComment p.description
@@ -908,7 +930,7 @@ let packageValue
   (ctx: Context)
   (p: LanguageTools.ProgramTypes.PackageValue.PackageValue)
   : String =
-  let namePart = FQValueName.Package.atDefinition  p.id
+  let namePart = FQValueName.Package.atDefinition ctx p.id
   let bodyPart = expr ctx p.body
 
   let docComment = formatDocComment p.description
@@ -928,23 +950,25 @@ module PackageLocation =
 
 module PackageFn =
   let parameter
+    (ctx: Context)
     (p: LanguageTools.ProgramTypes.PackageFn.Parameter)
     : String =
     // TODO: /// for description
-    $"({p.name}: {typeReference p.typ})"
+    $"({p.name}: {typeReference ctx p.typ})"
 
 
   let signature
+    (ctx: Context)
     (f: LanguageTools.ProgramTypes.PackageFn.PackageFn)
     : String =
     let params =
       f.parameters
       |> Stdlib.List.map (fun p ->
-        PackageFn.parameter p)
+        PackageFn.parameter ctx p)
       |> Stdlib.String.join ", "
 
     let returnType =
-      typeReference f.returnType
+      typeReference ctx f.returnType
 
     params ++ " -> " ++ returnType
 
@@ -954,7 +978,7 @@ let packageFn
   (p: LanguageTools.ProgramTypes.PackageFn.PackageFn)
   : String =
   // TODO: handle `deprecated`
-  let namePart = FQFnName.Package.atDefinition  p.id
+  let namePart = FQFnName.Package.atDefinition ctx p.id
 
   let typeParamPart =
     match p.typeParams with
@@ -968,10 +992,10 @@ let packageFn
   let paramPart =
     p.parameters
     |> Stdlib.List.map (fun param ->
-      PackageFn.parameter  param)
+      PackageFn.parameter ctx param)
     |> Stdlib.String.join " "
 
-  let retPart = typeReference  p.returnType
+  let retPart = typeReference ctx p.returnType
 
   let argMap =
     p.parameters
@@ -999,11 +1023,11 @@ module BuiltinFn =
     let parameters =
       f.parameters
       |> Stdlib.List.map (fun p ->
-          let params = PrettyPrinter.RuntimeTypes.typeReference p.``type``
+          let params = PrettyPrinter.RuntimeTypes.typeReference (SCM.Branch.mainBranchId ()) p.``type``
           $"({p.name} : {params})")
       |> Stdlib.String.join ", "
 
-    parameters ++ " -> " ++ (PrettyPrinter.RuntimeTypes.typeReference f.returnType)
+    parameters ++ " -> " ++ (PrettyPrinter.RuntimeTypes.typeReference (SCM.Branch.mainBranchId ()) f.returnType)
 
 
 module PackageOp =
@@ -1013,7 +1037,7 @@ module PackageOp =
     match op with
     | AddType typ ->
       let name =
-        FQTypeName.Package.atDefinition typ.id
+        FQTypeName.Package.atDefinition Context.root typ.id
 
       let typeParamPart =
         match typ.declaration.typeParams with
@@ -1038,9 +1062,9 @@ module PackageOp =
 
     | AddFn fn ->
       let name =
-        FQFnName.Package.atDefinition fn.id
+        FQFnName.Package.atDefinition Context.root fn.id
 
-      let signature = PackageFn.signature fn
+      let signature = PackageFn.signature Context.root fn
 
       $"AddFn {name}: {signature}"
 
@@ -1049,7 +1073,7 @@ module PackageOp =
       $"SetFnName → {path}"
 
     | AddValue _value ->
-      let name = FQValueName.Package.atDefinition _value.id
+      let name = FQValueName.Package.atDefinition Context.root _value.id
 
       $"AddValue {name}"
 

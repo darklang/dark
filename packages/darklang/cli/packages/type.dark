@@ -63,7 +63,7 @@ let createTypeInline
       match LanguageTools.Parser.TypeDeclaration.parse typeDeclNode with
       | Ok writtenType ->
         // Convert to ProgramTypes.PackageType
-        let pm = LanguageTools.PackageManager.pm (Stdlib.Option.Option.Some state.currentBranchId)
+        let pm = LanguageTools.PackageManager.pm state.currentBranchId
 
         let (packageType, unresolvedNames) =
           LanguageTools.WrittenTypesToProgramTypes.TypeDeclaration.toPackageTypePT

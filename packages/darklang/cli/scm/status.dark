@@ -51,9 +51,10 @@ let execute (state: AppState) (args: List<String>) : AppState =
     if fns > 0L then
       Stdlib.printLine $"  {Builtin.int64ToString fns} function(s)"
 
-    Stdlib.printLine ""
-    Stdlib.printLine "Use 'commit \"message\"' to commit these changes."
-    Stdlib.printLine "Use 'discard' to discard these changes."
+    [ ""
+      "Use 'commit \"message\"' to commit these changes."
+      "Use 'discard' to discard these changes." ]
+    |> Stdlib.printLines
 
   state
 

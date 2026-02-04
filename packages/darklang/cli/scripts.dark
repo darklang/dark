@@ -120,7 +120,7 @@ let execute (state: AppState) (args: List<String>) : AppState =
         Stdlib.printLine message
         state
       | Error runtimeError ->
-        let prettyError = PrettyPrinter.RuntimeTypes.RuntimeError.toString runtimeError
+        let prettyError = PrettyPrinter.RuntimeTypes.RuntimeError.toString state.currentBranchId runtimeError
         Stdlib.printLine $"Script error: {prettyError}"
         state
     | None ->

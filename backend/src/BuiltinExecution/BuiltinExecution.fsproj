@@ -8,9 +8,6 @@
     <IsTrimmable>true</IsTrimmable>
   </PropertyGroup>
   <ItemGroup>
-    <FrameworkReference Include="Microsoft.AspNetCore.App" />
-  </ItemGroup>
-  <ItemGroup>
     <None Include="paket.references" />
 
     <Compile Include="Libs/NoModule.fs" />
@@ -59,8 +56,6 @@
 
     <Compile Include="Libs/Reflection.fs" />
 
-    <Compile Include="Libs/HttpServer.fs" />
-
     <Compile Include="Builtin.fs" />
   </ItemGroup>
   <ItemGroup>
@@ -69,7 +64,6 @@
     <ProjectReference Include="../DvalReprDeveloper/DvalReprDeveloper.fsproj" />
     <ProjectReference Include="../LibTreeSitter/LibTreeSitter.fsproj" />
     <ProjectReference Include="../LibPackageManager/LibPackageManager.fsproj" />
-    <ProjectReference Include="../LibHttpMiddleware/LibHttpMiddleware.fsproj" />
   </ItemGroup>
   <Import Project="..\..\.paket\Paket.Restore.targets" />
 </Project>

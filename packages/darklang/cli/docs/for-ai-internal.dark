@@ -26,6 +26,9 @@ Auto-rebuilds on save. Watch logs:
   ./scripts/run-backend-tests
   ./scripts/run-backend-tests --filter "name"
   (scripts auto-enter container if needed)
+Tests take a few minutes to run. Output is logged to
+rundir/logs/fsharp-tests.log -- poll that file for "errored in"
+to catch failures early without waiting for the full run.
 
 ## Adding Builtin (F#)
   backend/src/BuiltinExecution/Libs/<module>.fs
@@ -58,6 +61,16 @@ When something goes wrong, check these logs:
   packages-canvas.log  # .dark file loading from disk
   build-server.log     # F# build issues, high-level errors
   migrations.log       # migration issues (if recently changed)
+
+## Name Resolution (see also: `docs for-ai`)
+Test files (backend/testfiles/) are parsed with owner "Tests",
+so Darklang.* names need full qualification or Stdlib.* shortcut:
+  OK:  Stdlib.Json.ParseError.toString     (Stdlib shortcut)
+  OK:  Darklang.SCM.Branch.mainBranchId    (full path)
+  BAD: SCM.Branch.mainBranchId             (won't resolve)
+
+Impl: backend/src/LibParser/NameResolver.fs (F#)
+      packages/darklang/languageTools/nameResolver.dark (Dark)
 
 ## Debug
   eval <expr> to test small pieces

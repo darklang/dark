@@ -12,8 +12,7 @@ module PT = LibExecution.ProgramTypes
 
 
 /// Well-known main branch UUID
-let mainBranchId : PT.BranchId =
-  System.Guid.Parse("00000000-0000-0000-0000-000000000001")
+let mainBranchId : PT.BranchId = PT.mainBranchId
 
 
 type Branch =

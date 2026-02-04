@@ -129,7 +129,7 @@ let showDependencies (sourceId: Uuid) (entityName: String) : Unit =
 
 /// Resolve a path to a UUID
 let resolvePath
-  (branchId: Stdlib.Option.Option<Uuid>)
+  (branchId: Uuid)
   (currentLocation: Packages.PackageLocation)
   (pathArg: String)
   : Stdlib.Result.Result<(Uuid * String * String), String> =
@@ -141,19 +141,19 @@ let resolvePath
     | Module _ ->
       Stdlib.Result.Result.Error "Cannot show dependencies for a module, only for functions, types, or values"
     | Function fnLoc ->
-      match Builtin.pmFindFn fnLoc with
+      match Builtin.pmFindFn branchId fnLoc with
       | Some id ->
         let name = PrettyPrinter.ProgramTypes.PackageLocation.packageLocation fnLoc
         Stdlib.Result.Result.Ok((id, name, "fn"))
       | None -> Stdlib.Result.Result.Error $"Function not found: {PrettyPrinter.ProgramTypes.PackageLocation.packageLocation fnLoc}"
     | Type typeLoc ->
-      match Builtin.pmFindType typeLoc with
+      match Builtin.pmFindType branchId typeLoc with
       | Some id ->
         let name = PrettyPrinter.ProgramTypes.PackageLocation.packageLocation typeLoc
         Stdlib.Result.Result.Ok((id, name, "type"))
       | None -> Stdlib.Result.Result.Error $"Type not found: {PrettyPrinter.ProgramTypes.PackageLocation.packageLocation typeLoc}"
     | Value valueLoc ->
-      match Builtin.pmFindValue valueLoc with
+      match Builtin.pmFindValue branchId valueLoc with
       | Some id ->
         let name = PrettyPrinter.ProgramTypes.PackageLocation.packageLocation valueLoc
         Stdlib.Result.Result.Ok((id, name, "value"))
@@ -164,7 +164,7 @@ let execute (state: AppState) (args: List<String>) : AppState =
   // Check for --deep flag
   let deep = Stdlib.List.member_v0 args "--deep"
   let filteredArgs = args |> Stdlib.List.filter (fun arg -> arg != "--deep")
-  let branchId = Stdlib.Option.Option.Some state.currentBranchId
+  let branchId = state.currentBranchId
 
   match filteredArgs with
   | [] ->
@@ -225,7 +225,7 @@ let execute (state: AppState) (args: List<String>) : AppState =
 
 
 let complete (state: AppState) (args: List<String>) : List<Completion.CompletionItem> =
-  let branchId = Stdlib.Option.Option.Some state.currentBranchId
+  let branchId = state.currentBranchId
   match args with
   | [] ->
     [Completion.CompletionItem { display = "uses"; value = "uses" }; Completion.CompletionItem { display = "usedby"; value = "usedby" }]

@@ -207,7 +207,7 @@ let fns : List<BuiltInFn> =
       description = "Get the well-known main branch UUID."
       fn =
         function
-        | _, _, _, [ DUnit ] -> Ply(DUuid LibPackageManager.Branches.mainBranchId)
+        | _, _, _, [ DUnit ] -> Ply(DUuid PT.mainBranchId)
         | _ -> incorrectArgs ()
       sqlSpec = NotQueryable
       previewable = Pure

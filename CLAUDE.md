@@ -1,5 +1,5 @@
 # Darklang Monorepo
 
-Run: `./scripts/run-cli "docs for-ai"`
+Run: `./scripts/run-cli docs for-ai`
 
-For internal/F# work: `./scripts/run-cli "docs for-ai-internal"`
+For internal/F# work: `./scripts/run-cli docs for-ai-internal`

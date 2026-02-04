@@ -14,7 +14,7 @@ let execute (state: AppState) (args: List<String>) : AppState =
       Stdlib.printLine result
       state
     | Error err ->
-      let prettyError = PrettyPrinter.RuntimeTypes.RuntimeError.toString err
+      let prettyError = PrettyPrinter.RuntimeTypes.RuntimeError.toString state.currentBranchId err
       Stdlib.printLine $"Error: {prettyError}"
       state
 

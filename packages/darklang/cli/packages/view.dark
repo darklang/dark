@@ -1,6 +1,6 @@
 module Darklang.Cli.Packages.View
 
-let viewEntity (branchId: Stdlib.Option.Option<Uuid>) (location: PackageLocation) : Unit =
+let viewEntity (branchId: Uuid) (location: PackageLocation) : Unit =
   match location with
   | Module path ->
     // Display module contents (similar to list but with more detail)
@@ -57,7 +57,12 @@ let viewEntity (branchId: Stdlib.Option.Option<Uuid>) (location: PackageLocation
       let locationStr = Packages.formatLocation location
       Stdlib.printLine $"Type '{locationStr}' not found."
     | item :: _ ->
-      let prettyPrinted = PrettyPrinter.ProgramTypes.packageType item.entity
+      let ctx =
+        PrettyPrinter.ProgramTypes.Context
+          { branchId = branchId
+            currentModule = Stdlib.Option.Option.None
+            currentFunction = Stdlib.Option.Option.None }
+      let prettyPrinted = PrettyPrinter.ProgramTypes.packageType ctx item.entity
       let highlighted = SyntaxHighlighting.highlightCode prettyPrinted
       Stdlib.printLine highlighted
 
@@ -72,7 +77,11 @@ let viewEntity (branchId: Stdlib.Option.Option<Uuid>) (location: PackageLocation
       let locationStr = Packages.formatLocation location
       Stdlib.printLine $"Function '{locationStr}' not found."
     | item :: _ ->
-      let ctx = PrettyPrinter.ProgramTypes.defaultContext
+      let ctx =
+        PrettyPrinter.ProgramTypes.Context
+          { branchId = branchId
+            currentModule = Stdlib.Option.Option.None
+            currentFunction = Stdlib.Option.Option.None }
       let prettyPrinted = PrettyPrinter.ProgramTypes.packageFn ctx item.entity
       let highlighted = SyntaxHighlighting.highlightCode prettyPrinted
       Stdlib.printLine highlighted
@@ -88,7 +97,11 @@ let viewEntity (branchId: Stdlib.Option.Option<Uuid>) (location: PackageLocation
       let locationStr = Packages.formatLocation location
       Stdlib.printLine $"Value '{locationStr}' not found."
     | item :: _ ->
-      let ctx = PrettyPrinter.ProgramTypes.defaultContext
+      let ctx =
+        PrettyPrinter.ProgramTypes.Context
+          { branchId = branchId
+            currentModule = Stdlib.Option.Option.None
+            currentFunction = Stdlib.Option.Option.None }
       let prettyPrinted = PrettyPrinter.ProgramTypes.packageValue ctx item.entity
       let highlighted = SyntaxHighlighting.highlightCode prettyPrinted
       Stdlib.printLine highlighted
@@ -96,7 +109,7 @@ let viewEntity (branchId: Stdlib.Option.Option<Uuid>) (location: PackageLocation
 
 // VIEW command - view modules, functions, types, or constants
 let execute (state: AppState) (args: List<String>) : AppState =
-  let branchId = Stdlib.Option.Option.Some state.currentBranchId
+  let branchId = state.currentBranchId
   match args with
   | [] ->
     // No args - view current location
@@ -116,7 +129,7 @@ let execute (state: AppState) (args: List<String>) : AppState =
     state
 
 let complete (state: AppState) (args: List<String>) : List<Completion.CompletionItem> =
-  let branchId = Stdlib.Option.Option.Some state.currentBranchId
+  let branchId = state.currentBranchId
   match args with
   | [] ->
     Traversal.completePartialPath branchId state.packageData.currentLocation ""

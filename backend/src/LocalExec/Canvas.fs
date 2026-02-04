@@ -41,10 +41,8 @@ let purgeDataFromInternalSqlTables (id : CanvasID) : Task<unit> =
       |> Sql.parameters [ "id", Sql.uuid id ]
       |> Sql.executeStatementAsync
 
-    do! runStmt "DELETE FROM scheduling_rules_v0 WHERE canvas_id = @id"
     do! runStmt "DELETE FROM traces_v0 WHERE canvas_id = @id"
     do! runStmt "DELETE FROM user_data_v0 WHERE canvas_id = @id"
-    do! runStmt "DELETE FROM cron_records_v0 WHERE canvas_id = @id"
     do! runStmt "DELETE FROM toplevels_v0 WHERE canvas_id = @id"
     do! runStmt "DELETE FROM canvases_v0 WHERE id = @id"
     do! runStmt "DELETE FROM domains_v0 WHERE canvas_id = @id"
@@ -115,7 +113,7 @@ let loadFromDisk
             Task.FromResult(System.Guid.Empty)
           else
             LibPackageManager.Inserts.insertAndApplyOpsWithCommit
-              LibPackageManager.Branches.mainBranchId
+              PT.mainBranchId
               $"Init: canvas {domain}"
               canvas.ops
 

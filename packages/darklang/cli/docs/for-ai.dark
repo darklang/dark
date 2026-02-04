@@ -60,6 +60,28 @@ Always pass --branch when working on non-main branches:
 Without --branch, commands run on main.
   (see: docs scm)
 
+## Name Resolution
+Names resolve relative to the current module, searching from
+most-specific to least-specific.
+
+In `module Darklang.Stdlib.List`, writing `Option.Option` tries:
+  1. Darklang.Stdlib.List.Option.Option
+  2. Darklang.Stdlib.Option.Option   <-- found here
+  3. Darklang.Option.Option
+  4. Option.Option
+
+Rules:
+  - Same module: no qualifier needed
+    (in Darklang.Stdlib.List, `map` finds Darklang.Stdlib.List.map)
+  - Parent/sibling modules: use relative name
+    (in Darklang.Stdlib.List, `Option.Option` finds
+     Darklang.Stdlib.Option.Option)
+  - `Stdlib.X` shortcut: always expands to `Darklang.Stdlib.X`
+    (works from any module, even outside Darklang)
+  - `Builtin.X`: resolves to F# builtins (fns/values only, not types)
+  - Cross-owner: must use full path
+    (from Tests.*, write `Darklang.SCM.Branch.mainBranchId`)
+
 ## Critical Syntax
 - Whitespace-sensitive (like Python)
 - NO nested function definitions

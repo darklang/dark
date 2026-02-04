@@ -55,4 +55,5 @@ let handleInitializeRequest
   LspState
     { initialized = true
       shouldShutdown = false
+      currentBranchId = SCM.Branch.mainBranchId ()
       documentsInScope = Dict { } }

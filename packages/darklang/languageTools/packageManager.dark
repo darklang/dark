@@ -8,7 +8,7 @@ module Darklang.LanguageTools.PackageManager
 
 module Type =
   let find
-    (branchId: Stdlib.Option.Option<Uuid>)
+    (branchId: Uuid)
     (location: ProgramTypes.PackageLocation)
     : Stdlib.Option.Option<Uuid> =
     Builtin.pmFindType branchId location
@@ -19,12 +19,13 @@ module Type =
     Builtin.pmGetType id
 
   let getWithLocation
+    (branchId: Uuid)
     (id: Uuid)
     : Stdlib.Option.Option<
       ProgramTypes.LocatedItem<ProgramTypes.PackageType.PackageType>> =
     match Builtin.pmGetType id with
     | Some entity ->
-      match Builtin.pmGetLocationByType id with
+      match Builtin.pmGetLocationByType branchId id with
       | Some location ->
         Stdlib.Option.Option.Some(
           ProgramTypes.LocatedItem { entity = entity; location = location }
@@ -35,7 +36,7 @@ module Type =
 
 module Value =
   let find
-    (branchId: Stdlib.Option.Option<Uuid>)
+    (branchId: Uuid)
     (location: ProgramTypes.PackageLocation)
     : Stdlib.Option.Option<Uuid> =
     Builtin.pmFindValue branchId location
@@ -46,12 +47,13 @@ module Value =
     Builtin.pmGetValue id
 
   let getWithLocation
+    (branchId: Uuid)
     (id: Uuid)
     : Stdlib.Option.Option<
       ProgramTypes.LocatedItem<ProgramTypes.PackageValue.PackageValue>> =
     match Builtin.pmGetValue id with
     | Some entity ->
-      match Builtin.pmGetLocationByValue id with
+      match Builtin.pmGetLocationByValue branchId id with
       | Some location ->
         Stdlib.Option.Option.Some(
           ProgramTypes.LocatedItem { entity = entity; location = location }
@@ -62,7 +64,7 @@ module Value =
 
 module Function =
   let find
-    (branchId: Stdlib.Option.Option<Uuid>)
+    (branchId: Uuid)
     (location: ProgramTypes.PackageLocation)
     : Stdlib.Option.Option<Uuid> =
     Builtin.pmFindFn branchId location
@@ -71,12 +73,13 @@ module Function =
     Builtin.pmGetFn id
 
   let getWithLocation
+    (branchId: Uuid)
     (id: Uuid)
     : Stdlib.Option.Option<
       ProgramTypes.LocatedItem<ProgramTypes.PackageFn.PackageFn>> =
     match Builtin.pmGetFn id with
     | Some entity ->
-      match Builtin.pmGetLocationByFn id with
+      match Builtin.pmGetLocationByFn branchId id with
       | Some location ->
         Stdlib.Option.Option.Some(
           ProgramTypes.LocatedItem { entity = entity; location = location }
@@ -87,7 +90,7 @@ module Function =
 
 module Search =
   let search
-    (branchId: Stdlib.Option.Option<Uuid>)
+    (branchId: Uuid)
     (query: ProgramTypes.Search.SearchQuery)
     : ProgramTypes.Search.SearchResults =
     let searchResults = Builtin.pmSearch branchId query
@@ -98,9 +101,9 @@ module Search =
         values = searchResults.values
         fns = searchResults.fns }
 
-/// Create a PackageManager for the given branch (or main if None)
+/// Create a PackageManager for the given branch
 let pm
-  (branchId: Stdlib.Option.Option<Uuid>)
+  (branchId: Uuid)
   : ProgramTypes.PackageManager.PackageManager =
   ProgramTypes.PackageManager.PackageManager
     { findType = PackageManager.Type.find branchId

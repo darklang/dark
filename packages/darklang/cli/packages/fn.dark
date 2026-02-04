@@ -61,7 +61,7 @@ let createFnInline
       match LanguageTools.Parser.FunctionDeclaration.parse fnDeclNode with
       | Ok writtenFn ->
         // Convert to ProgramTypes.PackageFn
-        let pm = LanguageTools.PackageManager.pm (Stdlib.Option.Option.Some state.currentBranchId)
+        let pm = LanguageTools.PackageManager.pm state.currentBranchId
 
         let (packageFn, unresolvedNames) =
           LanguageTools.WrittenTypesToProgramTypes.FunctionDeclaration.toPackageFnPT

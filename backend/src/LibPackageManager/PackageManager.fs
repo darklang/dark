@@ -17,6 +17,24 @@ let rt : RT.PackageManager =
     getFn = withCache PMRT.Fn.get
     getValue = withCache PMRT.Value.get
 
+    getFnName =
+      fun branchId id ->
+        uply {
+          let branchChain =
+            Branches.getBranchChain branchId
+            |> Async.AwaitTask
+            |> Async.RunSynchronously
+          match! PMPT.Fn.getLocation branchChain id with
+          | Some loc ->
+            let modules = String.concat "." loc.modules
+            let modulesPart = if modules = "" then "" else modules + "."
+            return
+              match loc.owner with
+              | "Darklang" -> $"{modulesPart}{loc.name}"
+              | owner -> $"{owner}.{modulesPart}{loc.name}"
+          | None -> return string id
+        }
+
     init =
       uply {
         //eagerLoad
@@ -40,9 +58,18 @@ let pt (branchId : PT.BranchId) : PT.PackageManager =
     getFn = withCache PMPT.Fn.get
     getValue = withCache PMPT.Value.get
 
-    getTypeLocation = withCache (PMPT.Type.getLocation branchChain)
-    getValueLocation = withCache (PMPT.Value.getLocation branchChain)
-    getFnLocation = withCache (PMPT.Fn.getLocation branchChain)
+    getTypeLocation =
+      fun branchId id ->
+        let chain = Branches.getBranchChain branchId |> Async.AwaitTask |> Async.RunSynchronously
+        PMPT.Type.getLocation chain id
+    getValueLocation =
+      fun branchId id ->
+        let chain = Branches.getBranchChain branchId |> Async.AwaitTask |> Async.RunSynchronously
+        PMPT.Value.getLocation chain id
+    getFnLocation =
+      fun branchId id ->
+        let chain = Branches.getBranchChain branchId |> Async.AwaitTask |> Async.RunSynchronously
+        PMPT.Fn.getLocation chain id
 
     search = PMPT.search branchChain
 
@@ -92,9 +119,9 @@ let createInMemory (ops : List<PT.PackageOp>) : PT.PackageManager =
     getValue = fun id -> Ply(Map.tryFind id valueMap)
     getFn = fun id -> Ply(Map.tryFind id fnMap)
 
-    getTypeLocation = fun id -> Ply(Map.tryFind id typeIdToLoc)
-    getValueLocation = fun id -> Ply(Map.tryFind id valueIdToLoc)
-    getFnLocation = fun id -> Ply(Map.tryFind id fnIdToLoc)
+    getTypeLocation = fun _branchId id -> Ply(Map.tryFind id typeIdToLoc)
+    getValueLocation = fun _branchId id -> Ply(Map.tryFind id valueIdToLoc)
+    getFnLocation = fun _branchId id -> Ply(Map.tryFind id fnIdToLoc)
 
     // no need to support this for in-memory.
     search =
@@ -192,27 +219,27 @@ let combine
         }
 
     getTypeLocation =
-      fun id ->
+      fun branchId id ->
         uply {
-          match! overlay.getTypeLocation id with
+          match! overlay.getTypeLocation branchId id with
           | Some loc -> return Some loc
-          | None -> return! fallback.getTypeLocation id
+          | None -> return! fallback.getTypeLocation branchId id
         }
 
     getValueLocation =
-      fun id ->
+      fun branchId id ->
         uply {
-          match! overlay.getValueLocation id with
+          match! overlay.getValueLocation branchId id with
           | Some loc -> return Some loc
-          | None -> return! fallback.getValueLocation id
+          | None -> return! fallback.getValueLocation branchId id
         }
 
     getFnLocation =
-      fun id ->
+      fun branchId id ->
         uply {
-          match! overlay.getFnLocation id with
+          match! overlay.getFnLocation branchId id with
           | Some loc -> return Some loc
-          | None -> return! fallback.getFnLocation id
+          | None -> return! fallback.getFnLocation branchId id
         }
 
     search =

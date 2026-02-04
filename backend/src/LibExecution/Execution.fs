@@ -40,7 +40,7 @@ let createState
 
     types = { package = pm.getType }
     values = { builtIn = builtins.values; package = pm.getValue }
-    fns = { builtIn = builtins.fns; package = pm.getFn } }
+    fns = { builtIn = builtins.fns; package = pm.getFn; packageFnName = pm.getFnName } }
 
 
 let rec callStackForFrame
@@ -151,29 +151,15 @@ let runtimeErrorToString
     let fnName =
       RT.FQFnName.fqPackage
         PackageIDs.Fn.PrettyPrinter.RuntimeTypes.RuntimeError.toString
-    let args = NEList.singleton (RT2DT.RuntimeError.toDT rte)
+    let args = NEList.ofList (RT.DUuid ProgramTypes.mainBranchId) [ RT2DT.RuntimeError.toDT rte ]
     return! executeFunction state fnName [] args
   }
 
-// CLEANUP not ideal, but useful
 let getPackageFnName
   (state : RT.ExecutionState)
   (id : RT.FQFnName.Package)
   : Ply<string> =
-  uply {
-    let fnName =
-      RT.FQFnName.fqPackage
-        PackageIDs.Fn.PrettyPrinter.ProgramTypes.FQFnName.fullForReference
-    let typeName =
-      RT.FQTypeName.fqPackage
-        PackageIDs.Type.LanguageTools.ProgramTypes.FQFnName.fqFnName
-    let dval = RT.DEnum(typeName, typeName, [], "Package", [ RT.DUuid id ])
-    let args = NEList.singleton dval
-    let! result = executeFunction state fnName [] args
-    match result with
-    | Ok(RT.DString s) -> return s
-    | _ -> return $"{id}"
-  }
+  state.fns.packageFnName ProgramTypes.mainBranchId id
 
 
 
@@ -330,7 +316,7 @@ let rec rteToString
     let rteDval = rteToDval rte
 
     let! rteMessage =
-      executeFunction state errorMessageFn [] (NEList.singleton rteDval)
+      executeFunction state errorMessageFn [] (NEList.ofList (RT.DUuid ProgramTypes.mainBranchId) [ rteDval ])
 
     match rteMessage with
     | Ok(RT.DString msg) -> return msg

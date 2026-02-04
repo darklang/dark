@@ -14,6 +14,7 @@
     <ProjectReference Include="../../src/LibPackageManager/LibPackageManager.fsproj" />
     <ProjectReference Include="../../src/LibCloudExecution/LibCloudExecution.fsproj" />
     <ProjectReference Include="../../src/LibCloud/LibCloud.fsproj" />
+    <ProjectReference Include="../../src/BuiltinHttpServer/BuiltinHttpServer.fsproj" />
   </ItemGroup>
   <ItemGroup>
     <Compile Include="PTShortcuts.fs" />

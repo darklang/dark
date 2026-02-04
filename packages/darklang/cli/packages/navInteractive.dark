@@ -31,7 +31,7 @@ type State =
     display: Display
     searchQuery: String
     allItems: List<NavItem>
-    branchId: Stdlib.Option.Option<Uuid> }
+    branchId: Uuid }
 
 
 // Helper functions
@@ -72,7 +72,7 @@ let buildNavItemsFromResults
 
 
 // Create interactive navigation state for a location
-let buildState (branchId: Stdlib.Option.Option<Uuid>) (location: PackageLocation) : State =
+let buildState (branchId: Uuid) (location: PackageLocation) : State =
   let modulePath = modulePathOf location
 
   // Get all entities in this location
@@ -91,7 +91,7 @@ let buildState (branchId: Stdlib.Option.Option<Uuid>) (location: PackageLocation
       branchId = branchId }
 
 // Truncated view for inline display to avoid flooding screen with large modules
-let viewEntityTruncated (branchId: Stdlib.Option.Option<Uuid>) (location: PackageLocation) : Unit =
+let viewEntityTruncated (branchId: Uuid) (location: PackageLocation) : Unit =
   let maxItemsPerCategory = 3L
   let maxTotalLines = 12L
 
@@ -342,7 +342,7 @@ let performSearch (navState: State) : State =
           entityTypes = []
           exactMatch = false }
 
-    let results = LanguageTools.PackageManager.Search.search query
+    let results = LanguageTools.PackageManager.Search.search navState.branchId query
 
     // Convert search results to NavItems with full paths
     let moduleItems =

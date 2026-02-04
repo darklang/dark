@@ -115,7 +115,7 @@ module HandleCommand =
       let! (canvasId, toplevels) =
         Canvas.loadFromDisk
           (LibPackageManager.PackageManager.pt
-            LibPackageManager.Branches.mainBranchId)
+            LibExecution.ProgramTypes.mainBranchId)
           name
 
       print $"Loaded canvas {canvasId} with {List.length toplevels} toplevels"
@@ -147,7 +147,7 @@ module HandleCommand =
       // Note: values are stored with NULL rt_dval at this point
       let! commitId =
         LibPackageManager.Inserts.insertAndApplyOpsWithCommit
-          LibPackageManager.Branches.mainBranchId
+          LibExecution.ProgramTypes.mainBranchId
           "Init: packages loaded from disk"
           ops
 

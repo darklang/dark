@@ -11,7 +11,7 @@ let executeDarklang () : ModelContextProtocol.ServerBuilder.Tool =
         match Builtin.cliEvaluateExpression code with
         | Ok result -> $"Result: {result}"
         | Error err ->
-            let prettyError = PrettyPrinter.RuntimeTypes.RuntimeError.toString err
+            let prettyError = PrettyPrinter.RuntimeTypes.RuntimeError.toString (SCM.Branch.mainBranchId ()) err
             $"Error: {prettyError}"
   }
 

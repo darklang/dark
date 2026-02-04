@@ -22,12 +22,13 @@ open LibCloud
 
 let pmRT = LibPackageManager.PackageManager.rt
 let pmPT =
-  LibPackageManager.PackageManager.pt LibPackageManager.Branches.mainBranchId
+  LibPackageManager.PackageManager.pt LibExecution.ProgramTypes.mainBranchId
 
 let builtins : RT.Builtins =
   LibExecution.Builtin.combine
     [ BuiltinExecution.Builtin.builtins HttpClient.configuration
       BuiltinPM.Builtin.builtins pmPT
+      BuiltinHttpServer.Builtin.builtins
       BuiltinCloudExecution.Builtin.builtins
       BuiltinDarkInternal.Builtin.builtins ]
     []

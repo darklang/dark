@@ -27,7 +27,7 @@ let findBySuffix
         entityTypes = [ LanguageTools.ProgramTypes.Search.EntityType.Value ]
         exactMatch = false }
 
-  let results = LanguageTools.PackageManager.Search.search query
+  let results = LanguageTools.PackageManager.Search.search branchId query
 
   results.values
   |> Stdlib.List.filterMap (fun v ->
@@ -77,6 +77,7 @@ let buildPathFromLocation
 /// Uses indexed type lookup for efficiency
 /// Optionally filters by namespace prefix
 let findByType
+  (branchId: Uuid)
   (targetNamespace: String)
   (targetTypeId: Uuid)
   : List<DiscoveredValue<'a>> =
@@ -95,7 +96,7 @@ let findByType
   valueIds
   |> Stdlib.List.filterMap (fun valueId ->
     // Get location for this value
-    match Builtin.pmGetLocationByValue valueId with
+    match Builtin.pmGetLocationByValue branchId valueId with
     | Some location ->
       // Check if it's in the target namespace
       let valuePath = Stdlib.List.append [ location.owner ] location.modules
@@ -118,16 +119,18 @@ let findByType
 /// Find all values with a given type, returning just the values
 /// This is a convenience function when you don't need the paths
 let findValuesByType<'a>
+  (branchId: Uuid)
   (targetNamespace: String)
   (targetTypeId: Uuid)
   : List<'a> =
-  (findByType targetNamespace targetTypeId)
+  (findByType branchId targetNamespace targetTypeId)
   |> Stdlib.List.map (fun discovered -> discovered.value)
 
 
 /// Find all values in a targetNamespace, returning path and value pairs
 /// Does not filter by type - returns all values
 let findAllValues
+  (branchId: Uuid)
   (targetNamespace: String)
   : List<DiscoveredValue<'a>> =
   let query =
@@ -138,7 +141,7 @@ let findAllValues
         entityTypes = [ LanguageTools.ProgramTypes.Search.EntityType.Value ]
         exactMatch = false }
 
-  let results = LanguageTools.PackageManager.Search.search query
+  let results = LanguageTools.PackageManager.Search.search branchId query
 
   results.values
   |> Stdlib.List.filterMap (fun v ->

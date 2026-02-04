@@ -56,7 +56,5 @@ let builtins (httpConfig : Libs.HttpClient.Configuration) : Builtins =
       Libs.Crypto.builtins
       Libs.X509.builtins
 
-      Libs.Reflection.builtins
-
-      Libs.HttpServer.builtins ]
+      Libs.Reflection.builtins ]
     fnRenames

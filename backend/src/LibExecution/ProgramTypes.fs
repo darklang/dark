@@ -26,6 +26,10 @@ let assertBuiltin
 /// SCM branch identifier
 type BranchId = uuid
 
+/// Well-known main branch UUID
+let mainBranchId : BranchId =
+  System.Guid.Parse("00000000-0000-0000-0000-000000000001")
+
 /// Fully-Qualified Type Name
 ///
 /// Used to reference a type defined in a Package or by a User
@@ -758,9 +762,9 @@ type PackageManager =
     getFn : FQFnName.Package -> Ply<Option<PackageFn.PackageFn>>
 
     // Reverse lookups for pretty-printing and other tooling
-    getTypeLocation : FQTypeName.Package -> Ply<Option<PackageLocation>>
-    getValueLocation : FQValueName.Package -> Ply<Option<PackageLocation>>
-    getFnLocation : FQFnName.Package -> Ply<Option<PackageLocation>>
+    getTypeLocation : BranchId -> FQTypeName.Package -> Ply<Option<PackageLocation>>
+    getValueLocation : BranchId -> FQValueName.Package -> Ply<Option<PackageLocation>>
+    getFnLocation : BranchId -> FQFnName.Package -> Ply<Option<PackageLocation>>
 
     init : Ply<unit> }
 
@@ -776,9 +780,9 @@ type PackageManager =
       getFn = fun _ -> Ply None
       getValue = fun _ -> Ply None
 
-      getTypeLocation = fun _ -> Ply None
-      getValueLocation = fun _ -> Ply None
-      getFnLocation = fun _ -> Ply None
+      getTypeLocation = fun _ _ -> Ply None
+      getValueLocation = fun _ _ -> Ply None
+      getFnLocation = fun _ _ -> Ply None
 
       init = uply { return () } }
 
@@ -847,22 +851,22 @@ type PackageManager =
           | None -> pm.getFn id
 
       getTypeLocation =
-        fun id ->
+        fun branchId id ->
           match Map.tryFind id typeIdToLocation with
           | Some location -> Ply(Some location)
-          | None -> pm.getTypeLocation id
+          | None -> pm.getTypeLocation branchId id
 
       getValueLocation =
-        fun id ->
+        fun branchId id ->
           match Map.tryFind id valueIdToLocation with
           | Some location -> Ply(Some location)
-          | None -> pm.getValueLocation id
+          | None -> pm.getValueLocation branchId id
 
       getFnLocation =
-        fun id ->
+        fun branchId id ->
           match Map.tryFind id fnIdToLocation with
           | Some location -> Ply(Some location)
-          | None -> pm.getFnLocation id
+          | None -> pm.getFnLocation branchId id
 
       init = pm.init }
 

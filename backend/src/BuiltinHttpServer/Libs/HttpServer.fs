@@ -7,7 +7,7 @@
 /// - Converting Darklang Response back to HTTP
 ///
 /// All routing and handler management lives in Darklang
-module BuiltinExecution.Libs.HttpServer
+module BuiltinHttpServer.Libs.HttpServer
 
 open System
 open System.Threading.Tasks

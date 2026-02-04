@@ -49,7 +49,13 @@ module ReadFile =
         | None -> $"Script not found: {scriptName}"
       else
         // Handle package entities
-        let pm = LanguageTools.PackageManager.pm Stdlib.Option.Option.None
+        let pm = LanguageTools.PackageManager.pm (state.currentBranchId)
+
+        let ctx =
+          PrettyPrinter.ProgramTypes.Context
+            { branchId = state.currentBranchId
+              currentModule = Stdlib.Option.Option.None
+              currentFunction = Stdlib.Option.Option.None }
 
         // Try to find as a specific entity (type, function, or value)
         let entityContent =
@@ -57,16 +63,11 @@ module ReadFile =
           | Some id ->
             match pm.getType id with
             | Some typ ->
-              (PrettyPrinter.ProgramTypes.packageType typ)
+              (PrettyPrinter.ProgramTypes.packageType ctx typ)
               |> Stdlib.Option.Option.Some
             | None -> Stdlib.Option.Option.None
 
           | None ->
-            let ctx =
-              PrettyPrinter.ProgramTypes.Context
-                { currentModule = Stdlib.Option.Option.None
-                  currentFunction = Stdlib.Option.Option.None }
-
             match pm.findFn location with
             | Some id ->
               match pm.getFn id with
@@ -107,7 +108,7 @@ module ReadFile =
                 currentFunction = Stdlib.Option.Option.None }
 
           let results =
-            LanguageTools.PackageManager.Search.search searchQuery
+            LanguageTools.PackageManager.Search.search (state.currentBranchId) searchQuery
 
           let definitions =
             LanguageTools.ProgramTypes.Definitions
@@ -117,7 +118,7 @@ module ReadFile =
                 exprs = [] }
 
           let modules =
-            PrettyPrinter.ModuleDeclaration.toModules definitions
+            PrettyPrinter.ModuleDeclaration.toModules state.currentBranchId definitions
 
           match Stdlib.List.head modules with
           | Some rootModule -> PrettyPrinter.moduleDeclaration ctx rootModule
@@ -332,7 +333,7 @@ module WriteFile =
           | owner :: _rest -> owner
           | _ -> ""
 
-        let pm = LanguageTools.PackageManager.pm Stdlib.Option.Option.None
+        let pm = LanguageTools.PackageManager.pm (state.currentBranchId)
 
         // Process types
         let typeOps =
@@ -448,7 +449,7 @@ module WriteFile =
             (Stdlib.List.append fnOps valueOps)
 
         // Only add ops if there are new items (added as WIP)
-        let branchId = SCM.Branch.mainBranchId ()
+        let branchId = state.currentBranchId
         let addResult =
           if (Stdlib.List.isEmpty allOps) |> Stdlib.Bool.not then
             SCM.PackageOps.add branchId allOps
@@ -463,7 +464,7 @@ module WriteFile =
           let updatedContent =
             if (Stdlib.List.isEmpty allOps) |> Stdlib.Bool.not then
               // Re-read from package manager to get content with assigned IDs
-              let pm = LanguageTools.PackageManager.pm Stdlib.Option.Option.None
+              let pm = LanguageTools.PackageManager.pm (state.currentBranchId)
               let location = ProgramTypes.parsePackageLocation nameForLookup
 
               // Build the content from database (same logic as ReadFile)
@@ -482,7 +483,7 @@ module WriteFile =
                     currentFunction = Stdlib.Option.Option.None }
 
               let results =
-                LanguageTools.PackageManager.Search.search searchQuery
+                LanguageTools.PackageManager.Search.search (state.currentBranchId) searchQuery
 
               let definitions =
                 LanguageTools.ProgramTypes.Definitions
@@ -492,7 +493,7 @@ module WriteFile =
                     exprs = [] }
 
               let modules =
-                PrettyPrinter.ModuleDeclaration.toModules definitions
+                PrettyPrinter.ModuleDeclaration.toModules state.currentBranchId definitions
 
               (match Stdlib.List.head modules with
               | Some rootModule -> PrettyPrinter.moduleDeclaration ctx rootModule

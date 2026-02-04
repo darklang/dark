@@ -1,4 +1,4 @@
-module Darklang.Stdlib.HttpServerTest
+module Darklang.DemoData.HttpServerTest
 
 // Test handlers and router for the HTTP server
 
@@ -33,6 +33,7 @@ let rootHandler: Stdlib.HttpServer.Handler =
       handler = rootHandlerFn }
 
 
+// CLEANUP
 /// All handlers for the test server
 let handlers: List<Stdlib.HttpServer.Handler> =
   [ helloHandler; echoHandler; rootHandler ]

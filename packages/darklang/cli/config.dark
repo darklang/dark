@@ -62,14 +62,15 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
 
   | ["list"] ->
     // List all common config keys
-    Stdlib.printLine "Common configuration keys:"
-    Stdlib.printLine ""
-    Stdlib.printLine "  sync.default_instance    - Default instance for sync service"
-    Stdlib.printLine "  sync.interval_seconds    - Sync check interval (default: 20)"
-    Stdlib.printLine "  sync.auto_start          - Auto-start sync service (default: true)"
-    Stdlib.printLine ""
-    Stdlib.printLine "Use 'config get <key>' to read a value"
-    Stdlib.printLine "Use 'config set <key> <value>' to set a value"
+    [ "Common configuration keys:"
+      ""
+      "  sync.default_instance    - Default instance for sync service"
+      "  sync.interval_seconds    - Sync check interval (default: 20)"
+      "  sync.auto_start          - Auto-start sync service (default: true)"
+      ""
+      "Use 'config get <key>' to read a value"
+      "Use 'config set <key> <value>' to set a value" ]
+    |> Stdlib.printLines
     state
 
   | _ ->

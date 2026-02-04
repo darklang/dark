@@ -73,7 +73,7 @@ let handleGetRootNodesRequest
         ]
         exactMatch = false }
 
-  let searchResults = PackageManager.Search.search searchQuery
+  let searchResults = PackageManager.Search.search (state.currentBranchId) searchQuery
 
   // Extract unique owners from all results
   let owners =
@@ -179,7 +179,7 @@ let handleGetChildNodesRequest
         exactMatch = false }
 
   let searchResults =
-    PackageManager.Search.search searchQuery
+    PackageManager.Search.search (state.currentBranchId) searchQuery
   let treeItems = buildTreeItems searchResults currentPath nodeId
 
   sendTreeViewResponse requestID treeItems

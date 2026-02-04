@@ -33,4 +33,11 @@ let content () : String =
 
 ## Unit
   ()     # value
-  Unit   # type"""
+  Unit   # type
+
+## Printing multiple lines
+  // When printing 3+ lines, prefer printLines over repeated printLine:
+  [ "line 1"
+    "line 2"
+    "line 3"
+  ] |> Stdlib.printLines"""

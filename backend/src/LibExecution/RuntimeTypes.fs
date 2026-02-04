@@ -10,6 +10,8 @@ module LibExecution.RuntimeTypes
 
 open Prelude
 
+type BranchId = uuid
+
 let builtinNamePattern = @"^(__|[a-z])[a-z0-9A-Z_]\w*$"
 let valueNamePattern = @"^[a-z][a-z0-9A-Z_']*$"
 
@@ -1082,12 +1084,16 @@ type PackageManager =
     getValue : FQValueName.Package -> Ply<Option<PackageValue.PackageValue>>
     getFn : FQFnName.Package -> Ply<Option<PackageFn.PackageFn>>
 
+    /// Resolve a package fn ID to a human-readable name (for error reporting)
+    getFnName : BranchId -> FQFnName.Package -> Ply<string>
+
     init : Ply<unit> }
 
   static member empty =
     { getType = (fun _ -> Ply None)
       getFn = (fun _ -> Ply None)
       getValue = (fun _ -> Ply None)
+      getFnName = (fun _ id -> Ply(string id))
 
       init = uply { return () } }
 
@@ -1118,6 +1124,7 @@ type PackageManager =
           match Map.tryFind id fnMap with
           | Some f -> Some f |> Ply
           | None -> pm.getFn id
+      getFnName = pm.getFnName
       init = pm.init }
 
 
@@ -1403,7 +1410,8 @@ and Values =
 
 and Functions =
   { builtIn : Map<FQFnName.Builtin, BuiltInFn>
-    package : FQFnName.Package -> Ply<Option<PackageFn.PackageFn>> }
+    package : FQFnName.Package -> Ply<Option<PackageFn.PackageFn>>
+    packageFnName : BranchId -> FQFnName.Package -> Ply<string> }
 
 
 

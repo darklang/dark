@@ -27,7 +27,7 @@ let hoverInfoForThingAtPosition
   (thingAtPosition: CursorPosition.ThingAtPosition)
   (range: WrittenTypes.Range)
   : HoverInformation.Info =
-  let ctx = PrettyPrinter.ProgramTypes.defaultContext
+  let ctx = PrettyPrinter.ProgramTypes.Context.root
   match thingAtPosition with
   | Keyword keywordName ->
     let metadata = Stdlib.Option.Option.Some("Keyword: " ++ keywordName)
@@ -71,7 +71,7 @@ let hoverInfoForThingAtPosition
     createHoverInfo range description metadata
 
   | PackageFn fqNameList fn description ->
-    let signature = PrettyPrinter.ProgramTypes.PackageFn.signature fn
+    let signature = PrettyPrinter.ProgramTypes.PackageFn.signature ctx fn
 
     let fqName = fqNameList |> Stdlib.String.join "."
 
@@ -91,7 +91,7 @@ let hoverInfoForThingAtPosition
 
 
   | PackageType fqNameList typ description ->
-    let prettyType = PrettyPrinter.ProgramTypes.packageType typ
+    let prettyType = PrettyPrinter.ProgramTypes.packageType ctx typ
 
     let fqName = fqNameList |> Stdlib.String.join "."
 
@@ -874,7 +874,7 @@ let collectFnParameterHoverInfoAtPos
             np.typ)
           |> Stdlib.Tuple2.first
 
-        let typAsString = PrettyPrinter.ProgramTypes.typeReference typ
+        let typAsString = PrettyPrinter.ProgramTypes.typeReference ctx typ
 
         let description =
           Stdlib.Option.Option.Some(

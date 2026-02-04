@@ -13,8 +13,8 @@ module Documentation =
 
 
 module Infra =
-  // check that we can get table sizes (actual count varies with migrations)
-  (Stdlib.Dict.size_v0 (Builtin.darkInternalInfraGetAndLogTableSizes_v0 ()) > 10L) = true
+  // correct number of tables
+  (Stdlib.Dict.size_v0 (Builtin.darkInternalInfraGetAndLogTableSizes_v0 ())) = 16L
 
 
   // server build hash
@@ -28,8 +28,6 @@ module Infra =
    // otherwise it's the first 7 chars of the git hash
    | hash -> (Stdlib.String.length hash) == 7L) = true
 
-
-// Canvas owner test removed - darkInternalCanvasOwner builtin no longer exists
 
 
 module Domains =

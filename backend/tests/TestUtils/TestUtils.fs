@@ -30,7 +30,7 @@ module C2DT = LibExecution.CommonToDarkTypes
 module PT2DT = LibExecution.ProgramTypesToDarkTypes
 
 let pmPT =
-  LibPackageManager.PackageManager.pt LibPackageManager.Branches.mainBranchId
+  LibPackageManager.PackageManager.pt LibExecution.ProgramTypes.mainBranchId
 let pmRT = LibPackageManager.PackageManager.rt
 
 let testOwner : Lazy<Task<UserID>> =
@@ -115,6 +115,7 @@ let builtins
     [ LibTest.builtins
       BuiltinExecution.Builtin.builtins httpConfig
       BuiltinPM.Builtin.builtins pm
+      BuiltinHttpServer.Builtin.builtins
       BuiltinCloudExecution.Builtin.builtins
       BuiltinDarkInternal.Builtin.builtins
       BuiltinCli.Builtin.builtins ]
@@ -1491,7 +1492,7 @@ let unwrapExecutionResult
           state
           errorMessageFn
           []
-          (NEList.singleton rteDval)
+          (NEList.ofList (RT.DUuid PT.mainBranchId) [ rteDval ])
 
       let! cs = LibExecution.Execution.callStackString state callStack
 

@@ -6,7 +6,7 @@ module Darklang.Stdlib.HttpServer
 type Handler =
   { route: String
     method: String
-    handler: Stdlib.Http.Request -> Stdlib.Http.Response }
+    handler: Http.Request -> Http.Response }
 
 
 /// Result of matching a route pattern against a request path
@@ -24,18 +24,18 @@ type RouteSegment =
 
 /// Parse a route pattern into segments
 let parseRouteSegments (route: String) : List<RouteSegment> =
-  let segments = Stdlib.String.split route "/"
+  let segments = String.split route "/"
 
   segments
-  |> Stdlib.List.filterMap (fun seg ->
-    if Stdlib.String.isEmpty seg then
-      Stdlib.Option.Option.None
-    else if Stdlib.String.startsWith seg ":" then
-      Stdlib.Option.Option.Some(RouteSegment.Variable (Stdlib.String.dropFirst seg 1L))
-    else if Stdlib.String.startsWith seg "*" then
-      Stdlib.Option.Option.Some(RouteSegment.Wildcard (Stdlib.String.dropFirst seg 1L))
+  |> List.filterMap (fun seg ->
+    if String.isEmpty seg then
+      Option.Option.None
+    else if String.startsWith seg ":" then
+      Option.Option.Some(RouteSegment.Variable (String.dropFirst seg 1L))
+    else if String.startsWith seg "*" then
+      Option.Option.Some(RouteSegment.Wildcard (String.dropFirst seg 1L))
     else
-      Stdlib.Option.Option.Some(RouteSegment.Literal seg))
+      Option.Option.Some(RouteSegment.Literal seg))
 
 
 /// Match a single route segment against a path segment
@@ -43,28 +43,28 @@ let matchSegment
   (routeSeg: RouteSegment)
   (pathSeg: String)
   (remainingPath: List<String>)
-  : Stdlib.Option.Option<List<String * String>> =
+  : Option.Option<List<String * String>> =
   match routeSeg with
   | Literal expected ->
     if expected == pathSeg then
-      Stdlib.Option.Option.Some []
+      Option.Option.Some []
     else
-      Stdlib.Option.Option.None
-  | Variable name -> Stdlib.Option.Option.Some [ (name, pathSeg) ]
+      Option.Option.None
+  | Variable name -> Option.Option.Some [ (name, pathSeg) ]
   | Wildcard name ->
-    let fullPath = Stdlib.String.join (Stdlib.List.append [ pathSeg ] remainingPath) "/"
-    Stdlib.Option.Option.Some [ (name, fullPath) ]
+    let fullPath = String.join (List.append [ pathSeg ] remainingPath) "/"
+    Option.Option.Some [ (name, fullPath) ]
 
 
 /// Match a request path against a route pattern
 let matchRoute (routePattern: String) (requestPath: String) : RouteMatch =
   let routeSegs = parseRouteSegments routePattern
   let pathSegs =
-    (Stdlib.String.split requestPath "/")
-    |> Stdlib.List.filter (fun s -> Stdlib.Bool.not (Stdlib.String.isEmpty s))
+    (String.split requestPath "/")
+    |> List.filter (fun s -> Bool.not (String.isEmpty s))
 
-  let routeLen = Stdlib.List.length routeSegs
-  let pathLen = Stdlib.List.length pathSegs
+  let routeLen = List.length routeSegs
+  let pathLen = List.length pathSegs
 
   if (routeLen == 0L) && (pathLen == 0L) then
     RouteMatch { matched = true; vars = [] }
@@ -72,21 +72,21 @@ let matchRoute (routePattern: String) (requestPath: String) : RouteMatch =
     RouteMatch { matched = false; vars = [] }
   else
     // Use zipShortest since we already checked lengths are equal
-    let zipped = Stdlib.List.zipShortest routeSegs pathSegs
+    let zipped = List.zipShortest routeSegs pathSegs
 
     let result =
       zipped
-      |> Stdlib.List.fold
-        (Stdlib.Option.Option.Some [])
+      |> List.fold
+        (Option.Option.Some [])
         (fun acc pair ->
           match acc with
-          | None -> Stdlib.Option.Option.None
+          | None -> Option.Option.None
           | Some vars ->
             let (routeSeg, pathSeg) = pair
             match matchSegment routeSeg pathSeg [] with
             | Some newVars ->
-              Stdlib.Option.Option.Some (Stdlib.List.append vars newVars)
-            | None -> Stdlib.Option.Option.None)
+              Option.Option.Some (List.append vars newVars)
+            | None -> Option.Option.None)
 
     match result with
     | Some vars -> RouteMatch { matched = true; vars = vars }
@@ -98,11 +98,11 @@ let findHandler
   (handlers: List<Handler>)
   (method: String)
   (path: String)
-  : Stdlib.Option.Option<Handler * RouteMatch> =
+  : Option.Option<Handler * RouteMatch> =
   // First find a matching handler
   let matchingHandler =
     handlers
-    |> Stdlib.List.findFirst (fun h ->
+    |> List.findFirst (fun h ->
       let methodMatches = (h.method == method) || (h.method == "*")
       let routeMatch = matchRoute h.route path
       methodMatches && routeMatch.matched)
@@ -111,17 +111,17 @@ let findHandler
   match matchingHandler with
   | Some h ->
     let routeMatch = matchRoute h.route path
-    Stdlib.Option.Option.Some ((h, routeMatch))
-  | None -> Stdlib.Option.Option.None
+    Option.Option.Some ((h, routeMatch))
+  | None -> Option.Option.None
 
 
 /// Get the HTTP method from a request (from x-http-method header)
-let getMethod (req: Stdlib.Http.Request) : String =
+let getMethod (req: Http.Request) : String =
   let found =
     req.headers
-    |> Stdlib.List.findFirst (fun pair ->
+    |> List.findFirst (fun pair ->
       let (key, _) = pair
-      Stdlib.String.toLowercase key == "x-http-method")
+      String.toLowercase key == "x-http-method")
 
   match found with
   | Some ((_, value)) -> value
@@ -129,24 +129,24 @@ let getMethod (req: Stdlib.Http.Request) : String =
 
 
 /// Get the path from a request URL
-let getPath (req: Stdlib.Http.Request) : String =
-  let parts = Stdlib.String.split req.url "://"
+let getPath (req: Http.Request) : String =
+  let parts = String.split req.url "://"
 
   let urlWithoutProtocol =
     match parts with
     | [ _; rest ] -> rest
     | _ -> req.url
 
-  let pathParts = Stdlib.String.split urlWithoutProtocol "/"
+  let pathParts = String.split urlWithoutProtocol "/"
 
   match pathParts with
   | [] -> "/"
   | [ _ ] -> "/"
   | _ :: rest ->
-    let pathWithQuery = Stdlib.String.join rest "/"
-    let pathOnlyParts = Stdlib.String.split pathWithQuery "?"
+    let pathWithQuery = String.join rest "/"
+    let pathOnlyParts = String.split pathWithQuery "?"
 
-    match Stdlib.List.head pathOnlyParts with
+    match List.head pathOnlyParts with
     | Some p -> "/" ++ p
     | None -> "/"
 
@@ -155,41 +155,41 @@ let getPath (req: Stdlib.Http.Request) : String =
 /// Returns the response from the first matching handler, or 404
 let routeRequest
   (handlers: List<Handler>)
-  (req: Stdlib.Http.Request)
-  : Stdlib.Http.Response =
+  (req: Http.Request)
+  : Http.Response =
   let method = getMethod req
   let path = getPath req
 
   match findHandler handlers method path with
   | Some ((handler, _routeMatch)) -> handler.handler req
-  | None -> Stdlib.Http.notFound ()
+  | None -> Http.notFound ()
 
 
 /// Extract a path parameter from a request given a route pattern
 /// Example: getPathParam req "/user/:id" "id" returns Some "123" for path "/user/123"
-let getPathParam (req: Stdlib.Http.Request) (routePattern: String) (paramName: String) : Stdlib.Option.Option<String> =
+let getPathParam (req: Http.Request) (routePattern: String) (paramName: String) : Option.Option<String> =
   let path = getPath req
   let routeSegs = parseRouteSegments routePattern
   let pathSegs =
-    (Stdlib.String.split path "/")
-    |> Stdlib.List.filter (fun s -> Stdlib.Bool.not (Stdlib.String.isEmpty s))
+    (String.split path "/")
+    |> List.filter (fun s -> Bool.not (String.isEmpty s))
 
   // Zip and find the matching variable
-  let zipped = Stdlib.List.zipShortest routeSegs pathSegs
+  let zipped = List.zipShortest routeSegs pathSegs
   zipped
-  |> Stdlib.List.findFirst (fun pair ->
+  |> List.findFirst (fun pair ->
     let (routeSeg, _) = pair
     match routeSeg with
     | Variable name -> name == paramName
     | _ -> false)
   |> fun result ->
     match result with
-    | Some ((_, pathValue)) -> Stdlib.Option.Option.Some pathValue
-    | None -> Stdlib.Option.Option.None
+    | Some ((_, pathValue)) -> Option.Option.Some pathValue
+    | None -> Option.Option.None
 
 
 /// Start an HTTP server with a handler function
 /// The handler receives each request and returns a response
 /// This function blocks forever
-let serve (port: Int64) (handler: Stdlib.Http.Request -> Stdlib.Http.Response) : Unit =
+let serve (port: Int64) (handler: Http.Request -> Http.Response) : Unit =
   Builtin.httpServerServe port handler

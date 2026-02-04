@@ -68,10 +68,11 @@ module ModuleDeclaration =
         Stdlib.List.append otherModules [ updatedModule ]
 
   let withType
+    (branchId: Uuid)
     (ms: List<Module>)
     (t: LanguageTools.ProgramTypes.PackageType.PackageType)
     : List<Module> =
-    match Builtin.pmGetLocationByType t.id with
+    match Builtin.pmGetLocationByType branchId t.id with
     | None ->
       [ Module
           { name = "type with unknown location"
@@ -144,10 +145,11 @@ module ModuleDeclaration =
         Stdlib.List.append otherModules [ updatedModule ]
 
   let withFn
+    (branchId: Uuid)
     (ms: List<Module>)
     (f: LanguageTools.ProgramTypes.PackageFn.PackageFn)
     : List<Module> =
-    match Builtin.pmGetLocationByFn f.id with
+    match Builtin.pmGetLocationByFn branchId f.id with
     | None ->
       [ Module
           { name = "fn with unknown location"
@@ -219,10 +221,11 @@ module ModuleDeclaration =
         Stdlib.List.append otherModules [ updatedModule ]
 
   let withValue
+    (branchId: Uuid)
     (ms: List<Module>)
     (v: LanguageTools.ProgramTypes.PackageValue.PackageValue)
     : List<Module> =
-    match Builtin.pmGetLocationByValue v.id with
+    match Builtin.pmGetLocationByValue branchId v.id with
     | None ->
       [ Module
           { name = "value with unknown location"
@@ -298,21 +301,22 @@ module ModuleDeclaration =
 
 
   let toModules
+    (branchId: Uuid)
     (p: LanguageTools.ProgramTypes.Definitions)
     : List<Module> =
     let empty = []
 
     let modulesAfterTypes =
       Stdlib.List.fold p.types empty (fun modules t ->
-        ModuleDeclaration.withType modules t)
+        ModuleDeclaration.withType branchId modules t)
 
     let modulesWithTypesAndFns =
       Stdlib.List.fold p.fns modulesAfterTypes (fun modules f ->
-        ModuleDeclaration.withFn modules f)
+        ModuleDeclaration.withFn branchId modules f)
 
     let modulesWithTypesAndFnsAndValues =
       Stdlib.List.fold p.values modulesWithTypesAndFns (fun modules v ->
-        ModuleDeclaration.withValue modules v)
+        ModuleDeclaration.withValue branchId modules v)
 
     let modulesWithTypesAndFnsAndValuesAndExprs =
       Stdlib.List.fold
@@ -335,7 +339,7 @@ let moduleDeclaration
     | [] -> Stdlib.Option.Option.None
     | types ->
       m.types
-      |> Stdlib.List.map (fun t -> PrettyPrinter.ProgramTypes.packageType t)
+      |> Stdlib.List.map (fun t -> PrettyPrinter.ProgramTypes.packageType ctx t)
       |> Stdlib.String.join "\n\n"
       |> Stdlib.Option.Option.Some
 
@@ -394,7 +398,7 @@ let definitions
   (ctx: PrettyPrinter.ProgramTypes.Context)
   (p: LanguageTools.ProgramTypes.Definitions)
   : String =
-  let modules = ModuleDeclaration.toModules p
+  let modules = ModuleDeclaration.toModules ctx.branchId p
 
   // CLEANUP make ordering 'better' in some way
   modules

@@ -31,12 +31,13 @@ let hardcodedServerCapabilities
     )
 
 let parseAndReportDiagnostics
+  (branchId: Uuid)
   (requestUri: String)
   (requestText: String)
   : Stdlib.Result.Result<WrittenTypes.ParsedFile, String> =
 
   let onMissing = LanguageTools.NameResolver.OnMissing.Allow
-  let pm = LanguageTools.PackageManager.pm Stdlib.Option.Option.None
+  let pm = LanguageTools.PackageManager.pm branchId
 
   let parsed =
     requestText |> Parser.parseToSimplifiedTree |> Parser.parseFromTree
@@ -93,7 +94,7 @@ let handleTextDocumentDidOpen
     LanguageServerProtocol.DocumentSync.TextDocument.DidOpenTextDocumentNotification.DidOpenTextDocumentParams.DidOpenTextDocumentParams)
   : LspState =
 
-  let parsed = parseAndReportDiagnostics request.textDocument.uri request.textDocument.text
+  let parsed = parseAndReportDiagnostics state.currentBranchId request.textDocument.uri request.textDocument.text
 
   let parsedToPT =
     match parsed with
@@ -159,7 +160,7 @@ let handleTextDocumentDidSave
     state
 
   | Some text ->
-    let parsed = parseAndReportDiagnostics request.textDocument.uri text
+    let parsed = parseAndReportDiagnostics state.currentBranchId request.textDocument.uri text
 
     let parsedToPT =
       match parsed with

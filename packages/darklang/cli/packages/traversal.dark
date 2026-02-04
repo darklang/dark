@@ -57,7 +57,7 @@ let getCurrentModulePath (location: PackageLocation) : List<String> =
 
 
 let applySegment
-  (branchId: Stdlib.Option.Option<Uuid>)
+  (branchId: Uuid)
   (location: PackageLocation)
   (segment: PathSegment)
   : Stdlib.Result.Result<PackageLocation, String> =
@@ -92,7 +92,7 @@ let applySegment
 
 // Resolve a name to an actual entity (module, type, fn, or value)
 let resolveEntity
-  (branchId: Stdlib.Option.Option<Uuid>)
+  (branchId: Uuid)
   (basePath: List<String>)
   (name: String)
   : Stdlib.Result.Result<PackageLocation, String> =
@@ -121,7 +121,7 @@ let resolveEntity
 
 
 let applyPath
-  (branchId: Stdlib.Option.Option<Uuid>)
+  (branchId: Uuid)
   (start: PackageLocation)
   (segments: List<PathSegment>)
   : Stdlib.Result.Result<PackageLocation, String> =
@@ -147,7 +147,7 @@ let searchModulesByPrefix
         entityTypes = []
         exactMatch = false }
 
-  let results = LanguageTools.PackageManager.Search.search query
+  let results = LanguageTools.PackageManager.Search.search (SCM.Branch.mainBranchId ()) query
 
   // For each result, find the first segment starting with prefix and truncate there
   results.submodules
@@ -169,7 +169,7 @@ let searchModulesByPrefix
 
 // Get all available items at a location for completion
 let getAvailableItems
-  (branchId: Stdlib.Option.Option<Uuid>)
+  (branchId: Uuid)
   (location: PackageLocation)
   (prefixText: String)
   : List<Cli.Completion.CompletionItem> =
@@ -226,7 +226,7 @@ let getAvailableItems
 
 // Simple completion: traverse exact path, then fuzzy search the last part
 let completePartialPath
-  (branchId: Stdlib.Option.Option<Uuid>)
+  (branchId: Uuid)
   (start: PackageLocation)
   (partialPath: String)
   : List<Cli.Completion.CompletionItem> =
@@ -281,7 +281,7 @@ let completePartialPath
 
 // Main traverse function
 let traverse
-  (branchId: Stdlib.Option.Option<Uuid>)
+  (branchId: Uuid)
   (start: PackageLocation)
   (path: String)
   : Stdlib.Result.Result<PackageLocation, String> =

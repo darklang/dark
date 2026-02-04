@@ -1,2 +1,0 @@
--- Migration obsolete: package schema was rewritten in 20251015_192755_package_schema_rewrite.sql
--- Keeping this file empty so the migration system tracks it as "applied"

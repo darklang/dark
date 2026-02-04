@@ -51,7 +51,7 @@ let executeScript (state: AppState) (scriptPath: String) (args: List<String>) : 
 
       state
     | Error e ->
-      let prettyError = PrettyPrinter.RuntimeTypes.RuntimeError.toString e
+      let prettyError = PrettyPrinter.RuntimeTypes.RuntimeError.toString state.currentBranchId e
 
       Stdlib.printLine $"Script error: {prettyError}"
       state
