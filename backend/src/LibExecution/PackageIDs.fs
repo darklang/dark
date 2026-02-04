@@ -479,6 +479,7 @@ module Fn =
       let private p addl = p ("RuntimeTypes" :: addl)
       let expr = p [] "expr" "be111b49-95f6-4022-ad68-a64de172f3ee"
       let dval = p [] "dval" "12e50b3e-dbf1-4de2-ad5e-ec4a0022c72d"
+      let fnName = p [] "fnName" "a59b42f8-1a50-4637-a1e3-0c32b8e54fd8"
       let typeReference = p [] "typeReference" "7087781f-f0a4-4ff7-afb8-81e409fd5114"
 
       module Dval =

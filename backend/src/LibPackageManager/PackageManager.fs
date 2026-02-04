@@ -17,24 +17,6 @@ let rt : RT.PackageManager =
     getFn = withCache PMRT.Fn.get
     getValue = withCache PMRT.Value.get
 
-    getFnName =
-      fun branchId id ->
-        uply {
-          let branchChain =
-            Branches.getBranchChain branchId
-            |> Async.AwaitTask
-            |> Async.RunSynchronously
-          match! PMPT.Fn.getLocation branchChain id with
-          | Some loc ->
-            let modules = String.concat "." loc.modules
-            let modulesPart = if modules = "" then "" else modules + "."
-            return
-              match loc.owner with
-              | "Darklang" -> $"{modulesPart}{loc.name}"
-              | owner -> $"{owner}.{modulesPart}{loc.name}"
-          | None -> return string id
-        }
-
     init =
       uply {
         //eagerLoad

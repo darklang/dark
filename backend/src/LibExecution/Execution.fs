@@ -42,8 +42,7 @@ let createState
 
     types = { package = pm.getType }
     values = { builtIn = builtins.values; package = pm.getValue }
-    fns =
-      { builtIn = builtins.fns; package = pm.getFn; packageFnName = pm.getFnName } }
+    fns = { builtIn = builtins.fns; package = pm.getFn } }
 
 
 let rec callStackForFrame
@@ -159,11 +158,18 @@ let runtimeErrorToString
     return! executeFunction state fnName [] args
   }
 
-let getPackageFnName
+let fnNameToString
   (state : RT.ExecutionState)
-  (id : RT.FQFnName.Package)
-  : Ply<string> =
-  state.fns.packageFnName state.branchId id
+  (name : RT.FQFnName.FQFnName)
+  : Task<string> =
+  task {
+    let fnName =
+      RT.FQFnName.fqPackage PackageIDs.Fn.PrettyPrinter.RuntimeTypes.fnName
+    let args = NEList.ofList (RT.DUuid state.branchId) [ RT2DT.FQFnName.toDT name ]
+    match! executeFunction state fnName [] args with
+    | Ok(RT.DString s) -> return s
+    | _ -> return string name
+  }
 
 
 let dvalToRepr (state : RT.ExecutionState) (dval : RT.Dval) : Task<string> =
@@ -263,9 +269,9 @@ let executionPointToString
 
     match ep with
     | RT.Source -> return "Source"
-    | RT.Function(RT.FQFnName.Package id) ->
-      let! name = getPackageFnName state id
-      return $"Package Function {name}"
+    | RT.Function(RT.FQFnName.Package _ as name) ->
+      let! prettyName = fnNameToString state name
+      return $"Package Function {prettyName}"
     | RT.Function(RT.FQFnName.Builtin fnName) ->
       return $"Builtin Function {fnName.name}" // TODO actually fetch the fn, etc
     | RT.Lambda(_parent, exprId) -> return ("Lambda " + string exprId)

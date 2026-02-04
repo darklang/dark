@@ -1211,20 +1211,6 @@ module PackageManager =
       getValue = fun id -> pm.getValue id |> Ply.map (Option.map PackageValue.toRT)
       getFn = fun id -> pm.getFn id |> Ply.map (Option.map PackageFn.toRT)
 
-      getFnName =
-        fun branchId id ->
-          uply {
-            match! pm.getFnLocation branchId id with
-            | Some loc ->
-              let modules = String.concat "." loc.modules
-              let modulesPart = if modules = "" then "" else modules + "."
-              return
-                match loc.owner with
-                | "Darklang" -> $"{modulesPart}{loc.name}"
-                | owner -> $"{owner}.{modulesPart}{loc.name}"
-            | None -> return string id
-          }
-
       init = pm.init }
 
 

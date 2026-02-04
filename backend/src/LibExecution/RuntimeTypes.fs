@@ -1080,22 +1080,16 @@ module PackageFn =
 /// not yet in the Cloud PM.
 /// (though, we'll likely demand deps. in the PM before committing something upstream...)
 type PackageManager =
-  {
-    getType : FQTypeName.Package -> Ply<Option<PackageType.PackageType>>
+  { getType : FQTypeName.Package -> Ply<Option<PackageType.PackageType>>
     getValue : FQValueName.Package -> Ply<Option<PackageValue.PackageValue>>
     getFn : FQFnName.Package -> Ply<Option<PackageFn.PackageFn>>
 
-    /// Resolve a package fn ID to a human-readable name (for error reporting)
-    getFnName : BranchId -> FQFnName.Package -> Ply<string>
-
-    init : Ply<unit>
-  }
+    init : Ply<unit> }
 
   static member empty =
     { getType = (fun _ -> Ply None)
       getFn = (fun _ -> Ply None)
       getValue = (fun _ -> Ply None)
-      getFnName = (fun _ id -> Ply(string id))
 
       init = uply { return () } }
 
@@ -1126,7 +1120,6 @@ type PackageManager =
           match Map.tryFind id fnMap with
           | Some f -> Some f |> Ply
           | None -> pm.getFn id
-      getFnName = pm.getFnName
       init = pm.init }
 
 
@@ -1413,8 +1406,7 @@ and Values =
 
 and Functions =
   { builtIn : Map<FQFnName.Builtin, BuiltInFn>
-    package : FQFnName.Package -> Ply<Option<PackageFn.PackageFn>>
-    packageFnName : BranchId -> FQFnName.Package -> Ply<string> }
+    package : FQFnName.Package -> Ply<Option<PackageFn.PackageFn>> }
 
 
 
