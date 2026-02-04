@@ -158,6 +158,12 @@ let runtimeErrorToString
     return! executeFunction state fnName [] args
   }
 
+/// Fallback for when a pretty printer call fails.
+/// Clearly marks the output so it's obvious something went wrong,
+/// while still giving the user the raw F# representation.
+let private prettyPrintFallback (label : string) (raw : obj) : string =
+  $"<pretty-print failed for {label}: {raw}>"
+
 let fnNameToString
   (state : RT.ExecutionState)
   (name : RT.FQFnName.FQFnName)
@@ -168,7 +174,7 @@ let fnNameToString
     let args = NEList.ofList (RT.DUuid state.branchId) [ RT2DT.FQFnName.toDT name ]
     match! executeFunction state fnName [] args with
     | Ok(RT.DString s) -> return s
-    | _ -> return string name
+    | _ -> return prettyPrintFallback "fnName" name
   }
 
 
@@ -178,7 +184,7 @@ let dvalToRepr (state : RT.ExecutionState) (dval : RT.Dval) : Task<string> =
     let args = NEList.ofList (RT.DUuid state.branchId) [ RT2DT.Dval.toDT dval ]
     match! executeFunction state fnName [] args with
     | Ok(RT.DString s) -> return s
-    | _ -> return string dval
+    | _ -> return prettyPrintFallback "dval" dval
   }
 
 let typeRefToString
@@ -192,7 +198,7 @@ let typeRefToString
       NEList.ofList (RT.DUuid state.branchId) [ RT2DT.TypeReference.toDT typeRef ]
     match! executeFunction state fnName [] args with
     | Ok(RT.DString s) -> return s
-    | _ -> return string typeRef
+    | _ -> return prettyPrintFallback "typeRef" typeRef
   }
 
 let dvalToTypeName (state : RT.ExecutionState) (dval : RT.Dval) : Task<string> =
@@ -203,7 +209,7 @@ let dvalToTypeName (state : RT.ExecutionState) (dval : RT.Dval) : Task<string> =
     let args = NEList.ofList (RT.DUuid state.branchId) [ RT2DT.Dval.toDT dval ]
     match! executeFunction state fnName [] args with
     | Ok(RT.DString s) -> return s
-    | _ -> return string dval
+    | _ -> return prettyPrintFallback "typeName" dval
   }
 
 
@@ -369,7 +375,7 @@ let rec rteToString
 
     match rteMessage with
     | Ok(RT.DString msg) -> return msg
-    | Ok(other) -> return string other
+    | Ok(other) -> return prettyPrintFallback "rteToString" other
     | Error(rte, _cs) ->
       debuG "Error converting RTE to string" rte
       return! r rte
