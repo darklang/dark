@@ -45,7 +45,7 @@ let execute (state: AppState) (args: List<String>) : AppState =
       | None -> state.currentBranchId
 
     Stdlib.printLine (Colors.success $"Created and switched to branch '{name}'")
-    { state with currentBranchId = newBranchId }
+    { state with currentBranchId = newBranchId; cachedBranchName = name }
 
   | [ "switch"; name ] ->
     match SCM.Branch.getByName name with
@@ -59,7 +59,7 @@ let execute (state: AppState) (args: List<String>) : AppState =
         | None -> state.currentBranchId
 
       Stdlib.printLine $"Switched to branch '{name}'"
-      { state with currentBranchId = newBranchId }
+      { state with currentBranchId = newBranchId; cachedBranchName = name }
     | None ->
       Stdlib.printLine (Colors.error $"Branch '{name}' not found.")
       state
@@ -116,7 +116,7 @@ let execute (state: AppState) (args: List<String>) : AppState =
           if currentIdStr == deletedIdStr then
             let mainId = SCM.Branch.mainBranchId ()
             Stdlib.printLine "Switched to main."
-            { state with currentBranchId = mainId }
+            { state with currentBranchId = mainId; cachedBranchName = "main" }
           else
             state
         | Error e ->

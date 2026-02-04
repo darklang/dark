@@ -13,6 +13,7 @@ let navTo (state: AppState) (location: PackageLocation): AppState =
     { state with
         needsFullRedraw = true
         prompt = Prompt.Editing.clear state.prompt
+        cachedLocationStr = Packages.formatLocation location
         packageData =
           { state.packageData with
               currentLocation = location

@@ -11,16 +11,41 @@ type AppState =
     needsFullRedraw: Bool
     packageData: Packages.State
     currentPage: Page
-    currentBranchId: Uuid }
+    currentBranchId: Uuid
+    /// Cached location string - only recomputed when location changes
+    cachedLocationStr: String
+    /// Cached command names and aliases for fast completion
+    cachedCommandOptions: List<String>
+    /// Cached branch name for status bar
+    cachedBranchName: String }
 
 let initState () : AppState =
+  let pkgData = Packages.initState ()
+  // Pre-build command options list once at startup
+  let commands = Registry.allCommands ()
+  let allNames = Stdlib.List.map commands (fun cmd -> cmd.name)
+  let allAliases = Stdlib.List.fold commands [] (fun acc cmd -> Stdlib.List.append acc cmd.aliases)
+  let allOptions = Stdlib.List.append allNames allAliases
+
+  let branchId = SCM.Branch.mainBranchId ()
+  let branchName =
+    match SCM.Branch.get branchId with
+    | Some b ->
+      match Stdlib.Dict.get b "name" with
+      | Some n -> n
+      | None -> "main"
+    | None -> "main"
+
   AppState
     { isExiting = false
       prompt = Prompt.initState ()
       needsFullRedraw = true
-      packageData = Packages.initState ()
+      packageData = pkgData
       currentPage = Page.MainPrompt
-      currentBranchId = SCM.Branch.mainBranchId () }
+      currentBranchId = branchId
+      cachedLocationStr = Packages.formatLocation pkgData.currentLocation
+      cachedCommandOptions = allOptions
+      cachedBranchName = branchName }
 
 type Msg =
   | ProcessInput of String
@@ -50,9 +75,8 @@ module View =
     Colors.success message
 
   let formatPromptWithInput (state: AppState) : String =
-    let locationStr = Packages.formatLocation state.packageData.currentLocation
     let hint = Registry.getCompletionHint state state.prompt.text
-    Prompt.Display.formatPromptWithInput locationStr state.prompt.text hint
+    Prompt.Display.formatPromptWithInput state.cachedLocationStr state.prompt.text hint
 
   let formatWelcome () : String = Registry.getCompactCommandList ()
 
@@ -75,16 +99,8 @@ module StatusBar =
     let leftPart =
       Colors.colorize (Colors.purpleBg ++ Colors.white ++ Colors.bold) leftText
 
-    // Show current branch name
-    let branchName =
-      match SCM.Branch.get state.currentBranchId with
-      | Some b ->
-        match Stdlib.Dict.get b "name" with
-        | Some n -> n
-        | None -> "main"
-      | None -> "main"
-
-    let branchText = $" {branchName} "
+    // Use cached branch name
+    let branchText = $" {state.cachedBranchName} "
     let branchPart =
       Colors.colorize (Colors.grayBg ++ Colors.white) branchText
 
@@ -330,18 +346,14 @@ module Registry =
     let parsed = Completion.parseInput input
 
     if parsed.isCompletingCommand then
-      // Completing command name
+      // Completing command name - use cached options
       let partial = Completion.getPartialCompletion parsed
-      let commands = allCommands ()
-      let allNames = Stdlib.List.map commands (fun cmd -> cmd.name)
-      let allAliases = Stdlib.List.fold commands [] (fun acc cmd -> Stdlib.List.append acc cmd.aliases)
-      let allOptions = Stdlib.List.append allNames allAliases
 
       let filtered =
         if Stdlib.String.isEmpty partial then
-          allOptions
+          state.cachedCommandOptions
         else
-          Stdlib.List.filter allOptions (fun name -> Stdlib.String.startsWith name partial)
+          Stdlib.List.filter state.cachedCommandOptions (fun name -> Stdlib.String.startsWith name partial)
 
       filtered |> Stdlib.List.map Completion.simple
     else
@@ -517,9 +529,9 @@ let runInteractiveLoop (state: AppState) : Int64 =
     // Display current page
     match state.currentPage with
     | MainPrompt ->
-      let locationStr = Packages.formatLocation state.packageData.currentLocation
+      // Use cached location string for speed
       let inputStartColumn =
-        Prompt.Display.calculateInputStartColumn locationStr
+        Prompt.Display.calculateInputStartColumn state.cachedLocationStr
 
       if state.needsFullRedraw then
         // Redraw entire prompt line (used after commands that change state)
