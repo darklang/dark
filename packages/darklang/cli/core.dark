@@ -332,7 +332,7 @@ module Registry =
     let parsed = Completion.parseInput input
 
     if parsed.isCompletingCommand then
-      // Completing command name - use cached options
+      // Completing command name
       let partial = Completion.getPartialCompletion parsed
 
       let options = commandOptions ()

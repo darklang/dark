@@ -1,6 +1,90 @@
 module Darklang.Cli.SCM.Branch
 
 
+/// Format annotations for a branch (pending WIP and/or commit count).
+/// Main branch only shows WIP, other branches show both.
+let branchAnnotation
+  (branch: SCM.Branch.Branch)
+  (isMain: Bool)
+  : String =
+  let wip = SCM.PackageOps.getWipSummary branch.id
+
+  let pendingPart =
+    if wip.total > 0L then
+      let total = Stdlib.Int64.toString wip.total
+      [ Colors.warning $"{total} pending" ]
+    else
+      []
+
+  let commitPart =
+    if isMain then
+      []
+    else
+      let commits = SCM.PackageOps.getCommits branch.id 1000L
+      let commitCount = Stdlib.List.length commits
+
+      if commitCount > 0L then
+        let count = Stdlib.Int64.toString commitCount
+        [ Colors.info $"{count} committed" ]
+      else
+        []
+
+  let annotations = Stdlib.List.append pendingPart commitPart
+
+  if Stdlib.List.isEmpty annotations then
+    ""
+  else
+    let joined = Stdlib.String.join annotations ", "
+    $" ({joined})"
+
+
+/// Print a branch and its children recursively as a tree
+let rec printBranchTree
+  (branches: List<SCM.Branch.Branch>)
+  (parentId: Uuid)
+  (currentBranchId: Uuid)
+  (prefix: String)
+  : Unit =
+  let children =
+    branches
+    |> Stdlib.List.filter (fun b ->
+      match b.parentBranchId with
+      | Some pid -> pid == parentId
+      | None -> false)
+
+  let childCount = Stdlib.List.length children
+
+  children
+  |> Stdlib.List.indexedMap (fun i child ->
+    let isLastChild = i == (childCount - 1L)
+
+    let connector =
+      if isLastChild then
+        "└── "
+      else
+        "├── "
+
+    let marker =
+      if child.id == currentBranchId then
+        Colors.success "* "
+      else
+        "  "
+
+    let isMain = child.id == SCM.Branch.mainBranchId
+    let annotation = branchAnnotation child isMain
+
+    Stdlib.printLine $"{prefix}{connector}{marker}{child.name}{annotation}"
+
+    let childPrefix =
+      if isLastChild then
+        prefix ++ "    "
+      else
+        prefix ++ "│   "
+
+    printBranchTree branches child.id currentBranchId childPrefix)
+  |> Stdlib.List.iter (fun _ -> ())
+
+
 let execute (state: AppState) (args: List<String>) : AppState =
   match args with
   | [] | [ "list" ] ->
@@ -8,14 +92,60 @@ let execute (state: AppState) (args: List<String>) : AppState =
     if Stdlib.List.isEmpty branches then
       Stdlib.printLine "No branches."
     else
-      branches
-      |> Stdlib.List.iter (fun b ->
+      // Find the root: main branch (no parent)
+      let mainId = SCM.Branch.mainBranchId
+
+      // Print main first
+      let mainBranch =
+        branches |> Stdlib.List.findFirst (fun b -> b.id == mainId)
+
+      match mainBranch with
+      | Some main ->
         let marker =
-          if b.id == state.currentBranchId then
+          if main.id == state.currentBranchId then
             Colors.success "* "
           else
             "  "
-        Stdlib.printLine $"{marker}{b.name}")
+
+        let annotation = branchAnnotation main true
+        Stdlib.printLine $"{marker}{main.name}{annotation}"
+        printBranchTree branches mainId state.currentBranchId "  "
+
+        // Print any orphan branches (no parent or parent not in list)
+        let branchIds = Stdlib.List.map branches (fun b -> b.id)
+
+        branches
+        |> Stdlib.List.iter (fun b ->
+          let isOrphan =
+            match b.parentBranchId with
+            | None -> b.id != mainId
+            | Some pid ->
+              Stdlib.Bool.not (Stdlib.List.member_v0 branchIds pid)
+
+          if isOrphan then
+            let orphanMarker =
+              if b.id == state.currentBranchId then
+                Colors.success "* "
+              else
+                "  "
+
+            let orphanAnnotation = branchAnnotation b false
+            Stdlib.printLine $"{orphanMarker}{b.name}{orphanAnnotation}"
+            printBranchTree branches b.id state.currentBranchId ""
+          else
+            ())
+
+      | None ->
+        // No main branch found, just list flat
+        branches
+        |> Stdlib.List.iter (fun b ->
+          let marker =
+            if b.id == state.currentBranchId then
+              Colors.success "* "
+            else
+              "  "
+
+          Stdlib.printLine $"{marker}{b.name}")
     state
 
   | [ "create"; name ] ->
