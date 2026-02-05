@@ -11,7 +11,6 @@ let execute (state: AppState) (args: List<String>) : AppState =
     { state with
         needsFullRedraw = true
         prompt = Prompt.Editing.clear state.prompt
-        cachedLocationStr = pathStr
         packageData =
           { state.packageData with
               currentLocation = previousLocation

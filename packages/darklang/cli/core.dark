@@ -11,38 +11,30 @@ type AppState =
     needsFullRedraw: Bool
     packageData: Packages.State
     currentPage: Page
-    currentBranchId: Uuid
-    /// Cached location string - only recomputed when location changes
-    cachedLocationStr: String
-    /// Cached command names and aliases for fast completion
-    cachedCommandOptions: List<String>
-    /// Cached branch name for status bar
-    cachedBranchName: String }
+    currentBranchId: Uuid }
 
-let initState () : AppState =
-  let pkgData = Packages.initState ()
-  // Pre-build command options list once at startup
+let locationStr (state: AppState) : String =
+  Packages.formatLocation state.packageData.currentLocation
+
+let branchName (state: AppState) : String =
+  match SCM.Branch.get state.currentBranchId with
+  | Some b -> b.name
+  | None -> "main"
+
+let commandOptions () : List<String> =
   let commands = Registry.allCommands ()
   let allNames = Stdlib.List.map commands (fun cmd -> cmd.name)
   let allAliases = Stdlib.List.fold commands [] (fun acc cmd -> Stdlib.List.append acc cmd.aliases)
-  let allOptions = Stdlib.List.append allNames allAliases
+  Stdlib.List.append allNames allAliases
 
-  let branchId = SCM.Branch.mainBranchId
-  let branchName =
-    match SCM.Branch.get branchId with
-    | Some b -> b.name
-    | None -> "main"
-
+let initState () : AppState =
   AppState
     { isExiting = false
       prompt = Prompt.initState ()
       needsFullRedraw = true
-      packageData = pkgData
+      packageData = Packages.initState ()
       currentPage = Page.MainPrompt
-      currentBranchId = branchId
-      cachedLocationStr = Packages.formatLocation pkgData.currentLocation
-      cachedCommandOptions = allOptions
-      cachedBranchName = branchName }
+      currentBranchId = SCM.Branch.mainBranchId }
 
 type Msg =
   | ProcessInput of String
@@ -73,7 +65,7 @@ module View =
 
   let formatPromptWithInput (state: AppState) : String =
     let hint = Registry.getCompletionHint state state.prompt.text
-    Prompt.Display.formatPromptWithInput state.cachedLocationStr state.prompt.text hint
+    Prompt.Display.formatPromptWithInput (locationStr state) state.prompt.text hint
 
   let formatWelcome () : String = Registry.getCompactCommandList ()
 
@@ -96,8 +88,7 @@ module StatusBar =
     let leftPart =
       Colors.colorize (Colors.purpleBg ++ Colors.white ++ Colors.bold) leftText
 
-    // Use cached branch name
-    let branchText = $" {state.cachedBranchName} "
+    let branchText = $" {branchName state} "
     let branchPart =
       Colors.colorize (Colors.grayBg ++ Colors.white) branchText
 
@@ -346,11 +337,13 @@ module Registry =
       // Completing command name - use cached options
       let partial = Completion.getPartialCompletion parsed
 
+      let options = commandOptions ()
+
       let filtered =
         if Stdlib.String.isEmpty partial then
-          state.cachedCommandOptions
+          options
         else
-          Stdlib.List.filter state.cachedCommandOptions (fun name -> Stdlib.String.startsWith name partial)
+          Stdlib.List.filter options (fun name -> Stdlib.String.startsWith name partial)
 
       filtered |> Stdlib.List.map Completion.simple
     else
@@ -526,9 +519,8 @@ let runInteractiveLoop (state: AppState) : Int64 =
     // Display current page
     match state.currentPage with
     | MainPrompt ->
-      // Use cached location string for speed
       let inputStartColumn =
-        Prompt.Display.calculateInputStartColumn state.cachedLocationStr
+        Prompt.Display.calculateInputStartColumn (locationStr state)
 
       if state.needsFullRedraw then
         // Redraw entire prompt line (used after commands that change state)
