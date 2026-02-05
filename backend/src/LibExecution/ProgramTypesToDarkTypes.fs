@@ -1643,7 +1643,7 @@ module MergeError =
 
 
 module Commit =
-  let typeName = FQTypeName.fqPackage PackageIDs.Type.SCM.Commit.commit
+  let typeName = FQTypeName.fqPackage PackageIDs.Type.SCM.PackageOps.commit
   let knownType = KTCustomType(typeName, [])
 
   let toDT (c : PT.Commit) : Dval =

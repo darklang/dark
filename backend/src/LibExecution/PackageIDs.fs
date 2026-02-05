@@ -366,8 +366,8 @@ module Type =
       let private p addl = p ("Merge" :: addl)
       let mergeError = p [] "MergeError" "4cd10eaf-49a6-4e83-83cf-450cf408a60b"
 
-    module Commit =
-      let private p addl = p ("Commit" :: addl)
+    module PackageOps =
+      let private p addl = p ("PackageOps" :: addl)
       let commit = p [] "Commit" "9335f0a2-427e-4066-b765-72fb2bcc3237"
 
     module Instances =

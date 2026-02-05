@@ -83,7 +83,7 @@ let handleGetWipOpsRequest
   let opsJson =
     ops
     |> Stdlib.List.map (fun op ->
-      let opStr = PrettyPrinter.ProgramTypes.PackageOp.packageOp op
+      let opStr = PrettyPrinter.ProgramTypes.PackageOp.packageOp state.currentBranchId op
       Stdlib.AltJson.Json.String opStr)
     |> Stdlib.AltJson.Json.Array
 
@@ -191,7 +191,7 @@ let handleGetCommitOpsRequest
 
       ops
       |> Stdlib.List.map (fun op ->
-        let opStr = PrettyPrinter.ProgramTypes.PackageOp.packageOp op
+        let opStr = PrettyPrinter.ProgramTypes.PackageOp.packageOp state.currentBranchId op
         Stdlib.AltJson.Json.String opStr)
       |> Stdlib.AltJson.Json.Array
 

@@ -86,16 +86,18 @@ let handleHoverRequest
     let currentModules =
       if scriptName == "" then [] else Stdlib.String.split scriptName "."
 
+    let ctx =
+      HoverInformation.Context
+        { branchId = state.currentBranchId
+          pm = pmWithExtras
+          owner = owner
+          currentModules = currentModules }
+
     let info =
       match parsed with
       | Ok(SourceFile s) ->
         let decls =
-          HoverInformation.collectNodeHoverInfoAtPos
-            s.declarations
-            position
-            pmWithExtras
-            owner
-            currentModules
+          HoverInformation.collectNodeHoverInfoAtPos ctx s.declarations position
 
         // First try to find a declaration at the position, then try to find expressions
         match decls with
@@ -103,12 +105,7 @@ let handleHoverRequest
         | None ->
           s.exprsToEval
           |> Stdlib.List.filterMap (fun e ->
-            HoverInformation.collectExpressionHoverInfoAtPos
-              e
-              position
-              pmWithExtras
-              owner
-              currentModules)
+            HoverInformation.collectExpressionHoverInfoAtPos ctx e position)
           |> Stdlib.List.head
 
       | _ -> Stdlib.Option.Option.None

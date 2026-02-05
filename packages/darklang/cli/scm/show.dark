@@ -44,7 +44,7 @@ let execute (state: AppState) (args: List<String>) : AppState =
 
         ops
         |> Stdlib.List.iter (fun op ->
-          let opStr = PrettyPrinter.ProgramTypes.PackageOp.packageOp op
+          let opStr = PrettyPrinter.ProgramTypes.PackageOp.packageOp branchId op
           Stdlib.printLine $"  {opStr}")
 
       state

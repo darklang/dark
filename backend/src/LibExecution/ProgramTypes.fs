@@ -23,6 +23,8 @@ let assertBuiltin
   assert_ "version can't be negative" [ "version", version ] (version >= 0)
 
 
+// TODO: consider grouping SCM types (BranchId, Branch, MergeError, Commit) into a
+// SourceControl module to match the Dark package structure (Darklang.SCM.*)
 /// SCM branch identifier
 type BranchId = uuid
 

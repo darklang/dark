@@ -44,11 +44,13 @@ type Context =
     currentFunction: Stdlib.Option.Option<(String * Dict<Int64>)> }
 
 module Context =
-  let root =
+  let forBranch (branchId: Uuid) : Context =
     Context
-      { branchId = SCM.Branch.mainBranchId
+      { branchId = branchId
         currentModule = Stdlib.Option.Option.None
         currentFunction = Stdlib.Option.Option.None }
+
+  let forMain : Context = forBranch SCM.Branch.mainBranchId
 
 let packageNameWithContext
   (ctx: Context)
@@ -94,7 +96,7 @@ let packageName
   (modules: List<String>)
   (name: String)
   : String =
-  packageNameWithContext Context.root owner modules name
+  packageNameWithContext Context.forMain owner modules name
 
 
 module FQTypeName =
@@ -1015,7 +1017,7 @@ let packageFn
 
 
 module BuiltinFn =
-  let signature (f: LanguageTools.BuiltinFunction) : String =
+  let signature (branchId: Uuid) (f: LanguageTools.BuiltinFunction) : String =
     // CLEANUP: it's odd that we have to call the runtime pretty-printer here.
     // Potential solution: update RuntimeTypes (.fs) such that BuiltInFn's returnType and parameters use PT TypeReferences.
     // Main blocker: "RT comes before PT" in LibExecution, and it'd take some wrangling to get it all compiling again if we did that.
@@ -1023,21 +1025,23 @@ module BuiltinFn =
     let parameters =
       f.parameters
       |> Stdlib.List.map (fun p ->
-          let params = PrettyPrinter.RuntimeTypes.typeReference (SCM.Branch.mainBranchId) p.``type``
+          let params = PrettyPrinter.RuntimeTypes.typeReference branchId p.``type``
           $"({p.name} : {params})")
       |> Stdlib.String.join ", "
 
-    parameters ++ " -> " ++ (PrettyPrinter.RuntimeTypes.typeReference (SCM.Branch.mainBranchId) f.returnType)
+    parameters ++ " -> " ++ (PrettyPrinter.RuntimeTypes.typeReference branchId f.returnType)
 
 
 module PackageOp =
   let packageOp
+    (branchId: Uuid)
     (op: LanguageTools.ProgramTypes.PackageOp)
     : String =
+    let ctx = Context.forBranch branchId
     match op with
     | AddType typ ->
       let name =
-        FQTypeName.Package.atDefinition Context.root typ.id
+        FQTypeName.Package.atDefinition ctx typ.id
 
       let typeParamPart =
         match typ.declaration.typeParams with
@@ -1062,9 +1066,9 @@ module PackageOp =
 
     | AddFn fn ->
       let name =
-        FQFnName.Package.atDefinition Context.root fn.id
+        FQFnName.Package.atDefinition ctx fn.id
 
-      let signature = PackageFn.signature Context.root fn
+      let signature = PackageFn.signature ctx fn
 
       $"AddFn {name}: {signature}"
 
@@ -1073,7 +1077,7 @@ module PackageOp =
       $"SetFnName → {path}"
 
     | AddValue _value ->
-      let name = FQValueName.Package.atDefinition Context.root _value.id
+      let name = FQValueName.Package.atDefinition ctx _value.id
 
       $"AddValue {name}"
 
