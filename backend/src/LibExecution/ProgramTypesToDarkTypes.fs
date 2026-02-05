@@ -1624,3 +1624,19 @@ module Branch =
         |> Dval.option KTDateTime ]
       |> Map.ofList
     DRecord(typeName, typeName, [], fields)
+
+
+module MergeError =
+  let typeName = FQTypeName.fqPackage PackageIDs.Type.SCM.Merge.mergeError
+  let knownType = KTCustomType(typeName, [])
+
+  let toDT (e : PT.MergeError) : Dval =
+    let caseName =
+      match e with
+      | PT.MergeError.NotRebased -> "NotRebased"
+      | PT.MergeError.HasWip -> "HasWip"
+      | PT.MergeError.HasChildren -> "HasChildren"
+      | PT.MergeError.NothingToMerge -> "NothingToMerge"
+      | PT.MergeError.NotFound -> "NotFound"
+      | PT.MergeError.IsMainBranch -> "IsMainBranch"
+    DEnum(typeName, typeName, [], caseName, [])

@@ -11,27 +11,18 @@ open LibDB.Db
 module PT = LibExecution.ProgramTypes
 
 
-type MergeError =
-  | NotRebased
-  | HasWip
-  | HasChildren
-  | NothingToMerge
-  | NotFound
-  | IsMainBranch
-
-
 /// Check if a branch can be merged
-let canMerge (branchId : PT.BranchId) : Task<Result<unit, MergeError>> =
+let canMerge (branchId : PT.BranchId) : Task<Result<unit, PT.MergeError>> =
   task {
     if branchId = Branches.mainBranchId then
-      return Error IsMainBranch
+      return Error PT.MergeError.IsMainBranch
     else
       let! branchOpt = Branches.get branchId
       match branchOpt with
-      | None -> return Error NotFound
+      | None -> return Error PT.MergeError.NotFound
       | Some branch ->
         match branch.parentBranchId with
-        | None -> return Error IsMainBranch
+        | None -> return Error PT.MergeError.IsMainBranch
         | Some parentId ->
           // Must be rebased
           let! parentLatest =
@@ -46,7 +37,7 @@ let canMerge (branchId : PT.BranchId) : Task<Result<unit, MergeError>> =
             |> Sql.executeRowOptionAsync (fun read -> read.uuid "id")
 
           if branch.baseCommitId <> parentLatest then
-            return Error NotRebased
+            return Error PT.MergeError.NotRebased
           else
             // Must have no WIP
             let! wipCount =
@@ -59,7 +50,7 @@ let canMerge (branchId : PT.BranchId) : Task<Result<unit, MergeError>> =
               |> Sql.executeAsync (fun read -> read.int64 "cnt")
 
             match wipCount with
-            | [ cnt ] when cnt > 0L -> return Error HasWip
+            | [ cnt ] when cnt > 0L -> return Error PT.MergeError.HasWip
             | _ ->
               // Must have no active children
               let! childCount =
@@ -72,7 +63,7 @@ let canMerge (branchId : PT.BranchId) : Task<Result<unit, MergeError>> =
                 |> Sql.executeAsync (fun read -> read.int64 "cnt")
 
               match childCount with
-              | [ cnt ] when cnt > 0L -> return Error HasChildren
+              | [ cnt ] when cnt > 0L -> return Error PT.MergeError.HasChildren
               | _ ->
                 // Must have commits
                 let! commitCount =
@@ -85,13 +76,13 @@ let canMerge (branchId : PT.BranchId) : Task<Result<unit, MergeError>> =
                   |> Sql.executeAsync (fun read -> read.int64 "cnt")
 
                 match commitCount with
-                | [ 0L ] -> return Error NothingToMerge
+                | [ 0L ] -> return Error PT.MergeError.NothingToMerge
                 | _ -> return Ok()
   }
 
 
 /// Merge a branch into its parent
-let merge (branchId : PT.BranchId) : Task<Result<unit, MergeError>> =
+let merge (branchId : PT.BranchId) : Task<Result<unit, PT.MergeError>> =
   task {
     let! canMergeResult = canMerge branchId
     match canMergeResult with
@@ -99,7 +90,7 @@ let merge (branchId : PT.BranchId) : Task<Result<unit, MergeError>> =
     | Ok() ->
       let! branchOpt = Branches.get branchId
       match branchOpt with
-      | None -> return Error NotFound
+      | None -> return Error PT.MergeError.NotFound
       | Some branch ->
         let parentId =
           branch.parentBranchId |> Option.defaultValue Branches.mainBranchId

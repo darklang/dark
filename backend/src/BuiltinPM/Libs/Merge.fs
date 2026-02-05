@@ -7,6 +7,7 @@ open Prelude
 open LibExecution.RuntimeTypes
 
 module PT = LibExecution.ProgramTypes
+module PT2DT = LibExecution.ProgramTypesToDarkTypes
 module Builtin = LibExecution.Builtin
 module Dval = LibExecution.Dval
 module VT = LibExecution.ValueType
@@ -14,32 +15,23 @@ module VT = LibExecution.ValueType
 open Builtin.Shortcuts
 
 
-let private mergeErrorToString (e : LibPackageManager.Merge.MergeError) : string =
-  match e with
-  | LibPackageManager.Merge.NotRebased -> "Must rebase first"
-  | LibPackageManager.Merge.HasWip -> "Commit or discard WIP first"
-  | LibPackageManager.Merge.HasChildren -> "Merge or delete child branches first"
-  | LibPackageManager.Merge.NothingToMerge -> "Nothing to merge"
-  | LibPackageManager.Merge.NotFound -> "Branch not found"
-  | LibPackageManager.Merge.IsMainBranch -> "Cannot merge main branch"
-
-
 let fns : List<BuiltInFn> =
   [ { name = fn "scmMerge" 0
       typeParams = []
       parameters = [ Param.make "branchId" TUuid "Branch to merge into parent" ]
-      returnType = TypeReference.result TUnit TString
+      returnType =
+        TypeReference.result TUnit (TCustomType(Ok PT2DT.MergeError.typeName, []))
       description = "Merge branch into its parent. Must be rebased with no WIP."
       fn =
-        let resultOk = Dval.resultOk KTUnit KTString
-        let resultError = Dval.resultError KTUnit KTString
+        let resultOk = Dval.resultOk KTUnit PT2DT.MergeError.knownType
+        let resultError = Dval.resultError KTUnit PT2DT.MergeError.knownType
         (function
         | _, _, _, [ DUuid branchId ] ->
           uply {
             let! result = LibPackageManager.Merge.merge branchId
             match result with
             | Ok() -> return resultOk DUnit
-            | Error e -> return resultError (DString(mergeErrorToString e))
+            | Error e -> return resultError (PT2DT.MergeError.toDT e)
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
@@ -50,18 +42,19 @@ let fns : List<BuiltInFn> =
     { name = fn "scmCanMerge" 0
       typeParams = []
       parameters = [ Param.make "branchId" TUuid "Branch to check" ]
-      returnType = TypeReference.result TUnit TString
+      returnType =
+        TypeReference.result TUnit (TCustomType(Ok PT2DT.MergeError.typeName, []))
       description = "Check if a branch can be merged."
       fn =
-        let resultOk = Dval.resultOk KTUnit KTString
-        let resultError = Dval.resultError KTUnit KTString
+        let resultOk = Dval.resultOk KTUnit PT2DT.MergeError.knownType
+        let resultError = Dval.resultError KTUnit PT2DT.MergeError.knownType
         (function
         | _, _, _, [ DUuid branchId ] ->
           uply {
             let! result = LibPackageManager.Merge.canMerge branchId
             match result with
             | Ok() -> return resultOk DUnit
-            | Error e -> return resultError (DString(mergeErrorToString e))
+            | Error e -> return resultError (PT2DT.MergeError.toDT e)
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable

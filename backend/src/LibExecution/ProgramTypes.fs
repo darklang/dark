@@ -40,6 +40,16 @@ type Branch =
     mergedAt : Option<NodaTime.Instant> }
 
 
+/// Error types for merge operations
+type MergeError =
+  | NotRebased
+  | HasWip
+  | HasChildren
+  | NothingToMerge
+  | NotFound
+  | IsMainBranch
+
+
 /// Fully-Qualified Type Name
 ///
 /// Used to reference a type defined in a Package or by a User

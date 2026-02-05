@@ -362,6 +362,10 @@ module Type =
       let private p addl = p ("Branch" :: addl)
       let branch = p [] "Branch" "f1e2d3c4-b5a6-7c8d-9e0f-1a2b3c4d5e6f"
 
+    module Merge =
+      let private p addl = p ("Merge" :: addl)
+      let mergeError = p [] "MergeError" "4cd10eaf-49a6-4e83-83cf-450cf408a60b"
+
     module Instances =
       let private p addl = p ("Instances" :: addl)
       let instance = p [] "Instance" "a2b3c4d5-e6f7-4a5b-9c8d-7e6f5a4b3c2e"
