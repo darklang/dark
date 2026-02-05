@@ -24,8 +24,9 @@ Auto-rebuilds on save. Watch logs:
 
 ## Tests
   ./scripts/run-backend-tests
-  ./scripts/run-backend-tests --filter "name"
-  (scripts auto-enter container if needed)
+  ./scripts/run-backend-tests --filter-test-list "list"   # run a group of tests (e.g. a file)
+  ./scripts/run-backend-tests --filter-test-case "any_v0"  # run a specific test
+  (both filters are a bit finnicky; scripts auto-enter container if needed)
 Tests take a few minutes to run. Output is logged to
 rundir/logs/fsharp-tests.log -- poll that file for "errored in"
 to catch failures early without waiting for the full run.

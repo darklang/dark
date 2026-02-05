@@ -291,7 +291,7 @@ let all (list: List<'a>) (fn: 'a -> Bool) : Bool =
 /// Return {{true}} if any elements in the list meet the function's criteria, else {{false}}
 let any (list: List<'a>) (fn: 'a -> Bool) : Bool =
   match list with
-  | [] -> true
+  | [] -> false
   | head :: tail ->
     if fn head then
       true

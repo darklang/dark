@@ -30,6 +30,13 @@ Stdlib.List.all_v0 [ 1L; 2L ] (fun item -> item < 3L) = true
 Stdlib.List.all_v0 [ 4L ] (fun item -> item < 3L) = false
 Stdlib.List.all_v0 [ 1L; 4L ] (fun item -> item < 3L) = false
 
+Stdlib.List.any_v0 [] (fun item -> item < 3L) = false
+Stdlib.List.any_v0 [ 2L ] (fun item -> item < 3L) = true
+Stdlib.List.any_v0 [ 4L ] (fun item -> item < 3L) = false
+Stdlib.List.any_v0 [ 1L; 2L ] (fun item -> item < 3L) = true
+Stdlib.List.any_v0 [ 4L; 5L ] (fun item -> item < 3L) = false
+Stdlib.List.any_v0 [ 4L; 1L ] (fun item -> item < 3L) = true
+
 
 Stdlib.List.drop_v0 [ "a"; "b"; "c"; "d" ] -3L = [ "a"; "b"; "c"; "d" ]
 Stdlib.List.drop_v0 [ "a"; "b"; "c"; "d" ] 3L = [ "d" ]

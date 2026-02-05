@@ -89,16 +89,8 @@ let execute (state: AppState) (args: List<String>): AppState =
   let allBuiltins = Builtin.getBuiltins ()
 
   // Parse flags
-  // Workaround: Stdlib.List.any has issues, use findFirst instead
-  let withSigs =
-    match Stdlib.List.findFirst args (fun arg -> arg == "--with-sigs") with
-    | Some _ -> true
-    | None -> false
-
-  let withPurity =
-    match Stdlib.List.findFirst args (fun arg -> arg == "--with-purity") with
-    | Some _ -> true
-    | None -> false
+  let withSigs = Stdlib.List.any args (fun arg -> arg == "--with-sigs")
+  let withPurity = Stdlib.List.any args (fun arg -> arg == "--with-purity")
 
   let filterArgs =
     args
@@ -226,41 +218,40 @@ let execute (state: AppState) (args: List<String>): AppState =
     | Some pattern ->
       $"Showing {Stdlib.Int64.toString totalCount} functions matching '{pattern}'"
 
-  Stdlib.printLine ""
-  Stdlib.printLine (Colors.hint summary)
+  [ ""
+    Colors.hint summary ]
+  |> Stdlib.printLines
 
   // Hints about available flags
   if Stdlib.Bool.not withSigs then
     Stdlib.printLine (Colors.hint "Use --with-sigs to see full function signatures")
-  else
-    ()
 
   if Stdlib.Bool.not withPurity then
     Stdlib.printLine (Colors.hint "Use --with-purity to see function purity (pure/impure)")
-  else
-    ()
 
   state
 
 
 let help (state: AppState): AppState =
-  Stdlib.printLine "Usage: builtins [--with-sigs] [--with-purity] [filter]"
-  Stdlib.printLine ""
-  Stdlib.printLine "Lists all builtin functions grouped by category."
-  Stdlib.printLine ""
-  Stdlib.printLine "Options:"
-  Stdlib.printLine "  --with-sigs    Show full function signatures with parameter types"
-  Stdlib.printLine "  --with-purity  Show function purity (pure, impure, impure-previewable)"
-  Stdlib.printLine ""
-  Stdlib.printLine "Arguments:"
-  Stdlib.printLine "  filter         Optional pattern to filter functions by name or group"
-  Stdlib.printLine ""
-  Stdlib.printLine "Examples:"
-  Stdlib.printLine "  builtins                   - List all builtins (compact)"
-  Stdlib.printLine "  builtins --with-sigs       - List all builtins with signatures"
-  Stdlib.printLine "  builtins --with-purity     - List with purity info"
-  Stdlib.printLine "  builtins json              - Filter by 'json'"
-  Stdlib.printLine "  builtins --with-sigs http  - HTTP builtins with signatures"
+  [ "Usage: builtins [--with-sigs] [--with-purity] [filter]"
+    ""
+    "Lists all builtin functions grouped by category."
+    ""
+    "Options:"
+    "  --with-sigs    Show full function signatures with parameter types"
+    "  --with-purity  Show function purity (pure, impure, impure-previewable)"
+    ""
+    "Arguments:"
+    "  filter         Optional pattern to filter functions by name or group"
+    ""
+    "Examples:"
+    "  builtins                   - List all builtins (compact)"
+    "  builtins --with-sigs       - List all builtins with signatures"
+    "  builtins --with-purity     - List with purity info"
+    "  builtins json              - Filter by 'json'"
+    "  builtins --with-sigs http  - HTTP builtins with signatures" ]
+  |> Stdlib.printLines
+
   state
 
 
