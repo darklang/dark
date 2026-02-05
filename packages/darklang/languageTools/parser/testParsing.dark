@@ -20,17 +20,19 @@ let parsePTExpr
       | SourceFile s -> s.exprsToEval
       | _ -> []
 
-    let onMissing = NameResolver.OnMissing.Allow
-    let pm = PackageManager.pm Builtin.scmMainBranchId
+    let ctx =
+      NameResolver.NRContext
+        { onMissing = NameResolver.OnMissing.Allow
+          pm = PackageManager.pm ()
+          branchId = Builtin.scmMainBranchId
+          owner = ""
+          currentModule = [] }
 
     match exprs with
     | [ expr ] ->
       let (expr, _) =
         WrittenTypesToProgramTypes.Expr.toPT
-          onMissing
-          pm
-          ""
-          []
+          ctx
           WrittenTypesToProgramTypes.defaultContext
           expr
 

@@ -12,6 +12,15 @@ type OnMissing =
   | ThrowError
   | Allow
 
+/// Context for name resolution — bundles the 5 parameters that were
+/// previously threaded individually through every function.
+type NRContext =
+  { onMissing: OnMissing
+    pm: ProgramTypes.PackageManager.PackageManager
+    branchId: ProgramTypes.BranchID
+    owner: String
+    currentModule: List<String> }
+
 // TODO: we should probably just return the Result, and let the caller
 // handle the error if they want to...
 let throwIfRelevant
@@ -71,13 +80,11 @@ let namesToTryHelper
 
 /// Generic name resolution that handles the common pattern across Type/Value/Fn resolution
 let resolveGenericName
-  (pm: ProgramTypes.PackageManager.PackageManager)
-  (onMissing: OnMissing)
-  (owner: String)
-  (currentModule: List<String>)
+  (ctx: NRContext)
   (name: WrittenTypes.Name)
   (tryResolve:
     ProgramTypes.PackageManager.PackageManager
+    -> ProgramTypes.BranchID
     -> GenericName
     -> Stdlib.Result.Result<'a, Unit>)
   : ProgramTypes.NameResolution<'a> =
@@ -96,22 +103,23 @@ let resolveGenericName
 
       let result =
         Stdlib.List.fold
-          (namesToTry owner currentModule genericName)
+          (namesToTry ctx.owner ctx.currentModule genericName)
           (Stdlib.Result.Result.Error (ProgramTypes.NameResolutionError.NotFound given))
           (fun currentResult nameToTry ->
             match currentResult with
             | Ok _ -> currentResult
             | Error _ ->
-              match tryResolve pm nameToTry with
+              match tryResolve ctx.pm ctx.branchId nameToTry with
               | Error() -> currentResult
               | Ok success -> Stdlib.Result.Result.Ok success)
 
-      throwIfRelevant onMissing result
+      throwIfRelevant ctx.onMissing result
 
 
 module TypeName =
   let tryResolve
     (pm: ProgramTypes.PackageManager.PackageManager)
+    (branchId: ProgramTypes.BranchID)
     (name: GenericName)
     : Stdlib.Result.Result<ProgramTypes.FQTypeName.FQTypeName, Unit> =
     match name.modules with
@@ -123,7 +131,7 @@ module TypeName =
             modules = modules
             name = name.name }
 
-      match pm.findType location with
+      match pm.findType (branchId, location) with
       | Some id ->
         (ProgramTypes.FQTypeName.FQTypeName.Package id)
         |> Stdlib.Result.Result.Ok
@@ -131,13 +139,10 @@ module TypeName =
 
 
   let resolve
-    (onMissing: OnMissing)
-    (pm: ProgramTypes.PackageManager.PackageManager)
-    (owner: String)
-    (currentModule: List<String>)
+    (ctx: NRContext)
     (name: WrittenTypes.Name)
     : ProgramTypes.NameResolution<ProgramTypes.FQTypeName.FQTypeName> =
-    resolveGenericName pm onMissing owner currentModule name TypeName.tryResolve
+    resolveGenericName ctx name TypeName.tryResolve
 
 
 
@@ -149,6 +154,7 @@ module ValueName =
 
   let tryResolve
     (pm: ProgramTypes.PackageManager.PackageManager)
+    (branchId: ProgramTypes.BranchID)
     (name: GenericName)
     : Stdlib.Result.Result<ProgramTypes.FQValueName.FQValueName, Unit> =
     match name.modules with
@@ -170,7 +176,7 @@ module ValueName =
               modules = modules
               name = name.name }
 
-        match pm.findValue location with
+        match pm.findValue (branchId, location) with
         | Some id ->
           (ProgramTypes.FQValueName.FQValueName.Package id)
           |> Stdlib.Result.Result.Ok
@@ -178,19 +184,17 @@ module ValueName =
 
 
   let resolve
-    (onMissing: OnMissing)
-    (pm: ProgramTypes.PackageManager.PackageManager)
-    (owner: String)
-    (currentModule: List<String>)
+    (ctx: NRContext)
     (name: WrittenTypes.Name)
     : ProgramTypes.NameResolution<ProgramTypes.FQValueName.FQValueName> =
-    resolveGenericName pm onMissing owner currentModule name ValueName.tryResolve
+    resolveGenericName ctx name ValueName.tryResolve
 
 
 
 module FnName =
   let tryResolve
     (pm: ProgramTypes.PackageManager.PackageManager)
+    (branchId: ProgramTypes.BranchID)
     (name: GenericName)
     : Stdlib.Result.Result<ProgramTypes.FQFnName.FQFnName, Unit> =
     match name.modules with
@@ -213,10 +217,7 @@ module FnName =
               modules = modules
               name = name.name }
 
-
-        let found = pm.findFn location
-
-        match found with
+        match pm.findFn (branchId, location) with
         | Some id ->
           (ProgramTypes.FQFnName.FQFnName.Package id)
           |> Stdlib.Result.Result.Ok
@@ -224,10 +225,7 @@ module FnName =
 
 
   let resolve
-    (onMissing: OnMissing)
-    (pm: ProgramTypes.PackageManager.PackageManager)
-    (owner: String)
-    (currentModule: List<String>)
+    (ctx: NRContext)
     (name: WrittenTypes.Name)
     : ProgramTypes.NameResolution<ProgramTypes.FQFnName.FQFnName> =
-    resolveGenericName pm onMissing owner currentModule name FnName.tryResolve
+    resolveGenericName ctx name FnName.tryResolve

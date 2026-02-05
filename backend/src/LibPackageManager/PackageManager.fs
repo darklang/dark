@@ -24,17 +24,24 @@ let rt : RT.PackageManager =
       } }
 
 
-/// Create a branch-aware PT PackageManager.
-/// Pre-computes the branch chain and captures it in the closures.
-/// Switching branches = call this again with the new branchId.
-let pt (branchId : PT.BranchId) : PT.PackageManager =
-  // Pre-compute the branch chain synchronously at construction time
-  let branchChain =
+/// Create a PT PackageManager.
+/// Branch is passed per-lookup, not at construction time.
+let pt : PT.PackageManager =
+  let getBranchChain branchId =
     Branches.getBranchChain branchId |> Async.AwaitTask |> Async.RunSynchronously
 
-  { findType = withCache (PMPT.Type.find branchChain)
-    findValue = withCache (PMPT.Value.find branchChain)
-    findFn = withCache (PMPT.Fn.find branchChain)
+  { findType =
+      fun (branchId, location) ->
+        let chain = getBranchChain branchId
+        withCache (PMPT.Type.find chain) location
+    findValue =
+      fun (branchId, location) ->
+        let chain = getBranchChain branchId
+        withCache (PMPT.Value.find chain) location
+    findFn =
+      fun (branchId, location) ->
+        let chain = getBranchChain branchId
+        withCache (PMPT.Fn.find chain) location
 
     getType = withCache PMPT.Type.get
     getFn = withCache PMPT.Fn.get
@@ -42,27 +49,21 @@ let pt (branchId : PT.BranchId) : PT.PackageManager =
 
     getTypeLocation =
       fun branchId id ->
-        let chain =
-          Branches.getBranchChain branchId
-          |> Async.AwaitTask
-          |> Async.RunSynchronously
+        let chain = getBranchChain branchId
         PMPT.Type.getLocation chain id
     getValueLocation =
       fun branchId id ->
-        let chain =
-          Branches.getBranchChain branchId
-          |> Async.AwaitTask
-          |> Async.RunSynchronously
+        let chain = getBranchChain branchId
         PMPT.Value.getLocation chain id
     getFnLocation =
       fun branchId id ->
-        let chain =
-          Branches.getBranchChain branchId
-          |> Async.AwaitTask
-          |> Async.RunSynchronously
+        let chain = getBranchChain branchId
         PMPT.Fn.getLocation chain id
 
-    search = PMPT.search branchChain
+    search =
+      fun (branchId, query) ->
+        let chain = getBranchChain branchId
+        PMPT.search chain query
 
     init = uply { return () } }
 
@@ -102,9 +103,9 @@ let createInMemory (ops : List<PT.PackageOp>) : PT.PackageManager =
     valueLocations |> Seq.map (fun (loc, id) -> id, loc) |> Map.ofSeq
   let fnIdToLoc = fnLocations |> Seq.map (fun (loc, id) -> id, loc) |> Map.ofSeq
 
-  { findType = fun loc -> Ply(Map.tryFind loc typeLocMap)
-    findValue = fun loc -> Ply(Map.tryFind loc valueLocMap)
-    findFn = fun loc -> Ply(Map.tryFind loc fnLocMap)
+  { findType = fun (_, loc) -> Ply(Map.tryFind loc typeLocMap)
+    findValue = fun (_, loc) -> Ply(Map.tryFind loc valueLocMap)
+    findFn = fun (_, loc) -> Ply(Map.tryFind loc fnLocMap)
 
     getType = fun id -> Ply(Map.tryFind id typeMap)
     getValue = fun id -> Ply(Map.tryFind id valueMap)
@@ -116,7 +117,7 @@ let createInMemory (ops : List<PT.PackageOp>) : PT.PackageManager =
 
     // no need to support this for in-memory.
     search =
-      fun _query ->
+      fun (_, _query) ->
         // Simple in-memory search - just return all items with their locations
         // Could implement proper filtering if needed
         let typesWithLocs =
@@ -162,27 +163,27 @@ let combine
   (fallback : PT.PackageManager)
   : PT.PackageManager =
   { findType =
-      fun loc ->
+      fun (branchId, loc) ->
         uply {
-          match! overlay.findType loc with
+          match! overlay.findType (branchId, loc) with
           | Some id -> return Some id
-          | None -> return! fallback.findType loc
+          | None -> return! fallback.findType (branchId, loc)
         }
 
     findValue =
-      fun loc ->
+      fun (branchId, loc) ->
         uply {
-          match! overlay.findValue loc with
+          match! overlay.findValue (branchId, loc) with
           | Some id -> return Some id
-          | None -> return! fallback.findValue loc
+          | None -> return! fallback.findValue (branchId, loc)
         }
 
     findFn =
-      fun loc ->
+      fun (branchId, loc) ->
         uply {
-          match! overlay.findFn loc with
+          match! overlay.findFn (branchId, loc) with
           | Some id -> return Some id
-          | None -> return! fallback.findFn loc
+          | None -> return! fallback.findFn (branchId, loc)
         }
 
     getType =
@@ -234,11 +235,11 @@ let combine
         }
 
     search =
-      fun query ->
+      fun (branchId, query) ->
         uply {
           // Combine search results from both
-          let! overlayResults = overlay.search query
-          let! fallbackResults = fallback.search query
+          let! overlayResults = overlay.search (branchId, query)
+          let! fallbackResults = fallback.search (branchId, query)
 
           return
             { PT.Search.SearchResults.submodules =
@@ -260,6 +261,7 @@ let combine
 /// Stabilize IDs in ops by matching them against a reference PackageManager
 /// Used during two-phase parsing to ensure IDs from second pass match first pass
 let stabilizeOpsAgainstPM
+  (branchId : PT.BranchId)
   (referencePM : PT.PackageManager)
   (ops : List<PT.PackageOp>)
   : Ply<List<PT.PackageOp>> =
@@ -271,7 +273,7 @@ let stabilizeOpsAgainstPM
           match op with
           | PT.PackageOp.SetTypeName(_, loc) ->
             // Look up stable ID from reference PM
-            let! stableIdOpt = referencePM.findType loc
+            let! stableIdOpt = referencePM.findType (branchId, loc)
             let stableId =
               stableIdOpt |> Option.defaultWith (fun () -> System.Guid.NewGuid())
             return PT.PackageOp.SetTypeName(stableId, loc)
@@ -286,13 +288,13 @@ let stabilizeOpsAgainstPM
             // Look up stable ID from reference PM using that location
             let! stableIdOpt =
               match typLoc with
-              | Some loc -> referencePM.findType loc
+              | Some loc -> referencePM.findType (branchId, loc)
               | None -> Ply(None)
             let stableId = stableIdOpt |> Option.defaultValue typ.id
             return PT.PackageOp.AddType { typ with id = stableId }
 
           | PT.PackageOp.SetValueName(_, loc) ->
-            let! stableIdOpt = referencePM.findValue loc
+            let! stableIdOpt = referencePM.findValue (branchId, loc)
             let stableId =
               stableIdOpt |> Option.defaultWith (fun () -> System.Guid.NewGuid())
             return PT.PackageOp.SetValueName(stableId, loc)
@@ -305,13 +307,13 @@ let stabilizeOpsAgainstPM
                 | _ -> None)
             let! stableIdOpt =
               match valueLoc with
-              | Some loc -> referencePM.findValue loc
+              | Some loc -> referencePM.findValue (branchId, loc)
               | None -> Ply(None)
             let stableId = stableIdOpt |> Option.defaultValue value.id
             return PT.PackageOp.AddValue { value with id = stableId }
 
           | PT.PackageOp.SetFnName(_, loc) ->
-            let! stableIdOpt = referencePM.findFn loc
+            let! stableIdOpt = referencePM.findFn (branchId, loc)
             let stableId =
               stableIdOpt |> Option.defaultWith (fun () -> System.Guid.NewGuid())
             return PT.PackageOp.SetFnName(stableId, loc)
@@ -324,7 +326,7 @@ let stabilizeOpsAgainstPM
                 | _ -> None)
             let! stableIdOpt =
               match fnLoc with
-              | Some loc -> referencePM.findFn loc
+              | Some loc -> referencePM.findFn (branchId, loc)
               | None -> Ply(None)
             let stableId = stableIdOpt |> Option.defaultValue fn.id
             return PT.PackageOp.AddFn { fn with id = stableId }

@@ -66,18 +66,16 @@ let parseDecls
 
 
 let toPT
-  (onMissing: NameResolver.OnMissing)
-  (pm: ProgramTypes.PackageManager.PackageManager)
+  (ctx: NameResolver.NRContext)
   (wt: WTCanvasModule)
   : PTCanvasModule =
+  let ctx = { ctx with owner = wt.owner; currentModule = [] }
+
   let (types, _) =
     wt.types
     |> Stdlib.List.map (fun t ->
       LanguageTools.WrittenTypesToProgramTypes.TypeDeclaration.toPackageTypePT
-        onMissing
-        pm
-        wt.owner
-        []
+        ctx
         t)
     |> Stdlib.List.unzip
 
@@ -85,10 +83,7 @@ let toPT
     wt.values
     |> Stdlib.List.map (fun v ->
       WrittenTypesToProgramTypes.ValueDeclaration.toPackageValuePT
-        onMissing
-        pm
-        wt.owner
-        []
+        ctx
         v)
     |> Stdlib.List.unzip
 
@@ -96,10 +91,7 @@ let toPT
     wt.fns
     |> Stdlib.List.map (fun f ->
       WrittenTypesToProgramTypes.FunctionDeclaration.toPackageFnPT
-        onMissing
-        pm
-        wt.owner
-        []
+        ctx
         f)
     |> Stdlib.List.unzip
 
@@ -107,10 +99,7 @@ let toPT
     wt.exprs
     |> Stdlib.List.map (fun e ->
       LanguageTools.WrittenTypesToProgramTypes.Expr.toPT
-        onMissing
-        pm
-        wt.owner
-        []
+        ctx
         LanguageTools.WrittenTypesToProgramTypes.defaultContext
         e)
     |> Stdlib.List.unzip
@@ -123,29 +112,27 @@ let toPT
 
 
 let parse
-  (owner: String)
+  (ctx: NameResolver.NRContext)
   (canvasName: String)
-  (onMissing: NameResolver.OnMissing)
-  (pm: ProgramTypes.PackageManager.PackageManager)
   (filename: String)
   (source: String)
   : Stdlib.Result.Result<PTCanvasModule, String> =
   match source |> LanguageTools.Parser.TestParsing.initialParse with
   | Error e -> Stdlib.Result.Result.Error e
   | Ok parsedFile ->
-    match parseDecls owner canvasName parsedFile with
+    match parseDecls ctx.owner canvasName parsedFile with
     | Error e -> Stdlib.Result.Result.Error e
     | Ok moduleWT ->
-      let initialParse = toPT onMissing pm moduleWT
+      let initialParse = toPT ctx moduleWT
 
       let pm =
         ProgramTypes.PackageManager.withExtras
-          pm
+          ctx.pm
           initialParse.types
           initialParse.values
           initialParse.fns
 
-      let result = toPT onMissing pm moduleWT
+      let result = toPT { ctx with pm = pm } moduleWT
 
       let adjusted =
         PTCanvasModule

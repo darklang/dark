@@ -80,13 +80,14 @@ let namesToTry
 
 
 /// Generic name resolution that handles the common pattern across Type/Value/Fn resolution
+/// Note: F# parser always uses mainBranchId for package lookups
 let resolveGenericName<'FQName, 'Builtin when 'Builtin : comparison>
   (builtins : Option<Set<'Builtin>>)
   (onMissing : OnMissing)
   (currentModule : List<string>)
   (given : NEList<string>)
   (parseName : string -> Result<string * int, string>)
-  (findInPM : PT.PackageLocation -> Ply<Option<System.Guid>>)
+  (findInPM : (PT.BranchId * PT.PackageLocation) -> Ply<Option<System.Guid>>)
   (makePackageFQName : System.Guid -> 'FQName)
   (makeBuiltinFQName : string * int -> 'FQName)
   (builtinToRT : string * int -> 'Builtin)
@@ -118,7 +119,7 @@ let resolveGenericName<'FQName, 'Builtin when 'Builtin : comparison>
               // Try package manager lookup
               let location : PT.PackageLocation =
                 { owner = owner; modules = modules; name = nameToTry.name }
-              match! findInPM location with
+              match! findInPM (PT.mainBranchId, location) with
               | Some id -> return Ok(makePackageFQName id)
               | None -> return Error()
         }

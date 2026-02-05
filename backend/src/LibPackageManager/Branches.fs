@@ -11,15 +11,7 @@ open LibDB.Db
 module PT = LibExecution.ProgramTypes
 
 
-/// Well-known main branch UUID
-let mainBranchId : PT.BranchId = PT.mainBranchId
-
-
-/// Alias for PT.Branch
-type Branch = PT.Branch
-
-
-let private readBranch (read : RowReader) : Branch =
+let private readBranch (read : RowReader) : PT.Branch =
   { id = read.uuid "id"
     name = read.string "name"
     parentBranchId = read.uuidOrNone "parent_branch_id"
@@ -28,7 +20,7 @@ let private readBranch (read : RowReader) : Branch =
     mergedAt = read.instantOrNone "merged_at" }
 
 
-let create (name : string) (parentBranchId : PT.BranchId) : Task<Branch> =
+let create (name : string) (parentBranchId : PT.BranchId) : Task<PT.Branch> =
   task {
     let id = System.Guid.NewGuid()
 
@@ -67,7 +59,7 @@ let create (name : string) (parentBranchId : PT.BranchId) : Task<Branch> =
   }
 
 
-let get (id : PT.BranchId) : Task<Option<Branch>> =
+let get (id : PT.BranchId) : Task<Option<PT.Branch>> =
   task {
     return!
       Sql.query
@@ -81,7 +73,7 @@ let get (id : PT.BranchId) : Task<Option<Branch>> =
   }
 
 
-let getByName (name : string) : Task<Option<Branch>> =
+let getByName (name : string) : Task<Option<PT.Branch>> =
   task {
     return!
       Sql.query
@@ -95,7 +87,7 @@ let getByName (name : string) : Task<Option<Branch>> =
   }
 
 
-let list () : Task<List<Branch>> =
+let list () : Task<List<PT.Branch>> =
   task {
     return!
       Sql.query
@@ -127,7 +119,7 @@ let rename (id : PT.BranchId) (newName : string) : Task<Result<unit, string>> =
 
 let delete (id : PT.BranchId) : Task<Result<unit, string>> =
   task {
-    if id = mainBranchId then
+    if id = PT.mainBranchId then
       return Error "Cannot delete main branch"
     else
       // Check for children

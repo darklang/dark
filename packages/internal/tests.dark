@@ -45,7 +45,15 @@ let parseSingleTestFromFile
     | Error e -> Stdlib.Result.Result.Error e
     | Ok wtTest ->
       let lineNumber = wtTest.lineNumber
-      let pm = LanguageTools.PackageManager.pm Builtin.scmMainBranchId
+      let pm = LanguageTools.PackageManager.pm ()
+
+      let ctx =
+        LanguageTools.NameResolver.NRContext
+          { onMissing = LanguageTools.NameResolver.OnMissing.ThrowError
+            pm = pm
+            branchId = Builtin.scmMainBranchId
+            owner = ""
+            currentModule = [] }
 
       let context =
         LanguageTools.WrittenTypesToProgramTypes.Context
@@ -54,19 +62,13 @@ let parseSingleTestFromFile
 
       let (actual, _unres) =
         LanguageTools.WrittenTypesToProgramTypes.Expr.toPT
-          LanguageTools.NameResolver.OnMissing.ThrowError
-          pm
-          ""
-          []
+          ctx
           context
           wtTest.actual
 
       let (expected, _unres) =
         LanguageTools.WrittenTypesToProgramTypes.Expr.toPT
-          LanguageTools.NameResolver.OnMissing.ThrowError
-          pm
-          ""
-          []
+          ctx
           context
           wtTest.expected
 

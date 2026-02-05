@@ -223,8 +223,7 @@ let baseDir = "testfiles/execution/"
 let fileTests () : Test =
   // Note: we use this at parse-time - but later we need to use an enhanced one,
   // with the 'extra' things defined in the test modules.
-  let pmPT =
-    LibPackageManager.PackageManager.pt LibExecution.ProgramTypes.mainBranchId
+  let pmPT = LibPackageManager.PackageManager.pt
 
   let parseTestFile fileName =
     LibParser.TestModule.parseTestFile "Tests" (localBuiltIns pmPT) pmPT fileName

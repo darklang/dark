@@ -49,17 +49,18 @@ module ReadFile =
         | None -> $"Script not found: {scriptName}"
       else
         // Handle package entities
-        let pm = LanguageTools.PackageManager.pm state.currentBranchId
+        let pm = LanguageTools.PackageManager.pm ()
+        let branchId = state.currentBranchId
 
         let ctx =
           PrettyPrinter.ProgramTypes.Context
-            { branchId = state.currentBranchId
+            { branchId = branchId
               currentModule = Stdlib.Option.Option.None
               currentFunction = Stdlib.Option.Option.None }
 
         // Try to find as a specific entity (type, function, or value)
         let entityContent =
-          match pm.findType location with
+          match pm.findType (branchId, location) with
           | Some id ->
             match pm.getType id with
             | Some typ ->
@@ -68,7 +69,7 @@ module ReadFile =
             | None -> Stdlib.Option.Option.None
 
           | None ->
-            match pm.findFn location with
+            match pm.findFn (branchId, location) with
             | Some id ->
               match pm.getFn id with
               | Some fn ->
@@ -77,7 +78,7 @@ module ReadFile =
               | None -> Stdlib.Option.Option.None
 
             | None ->
-              match pm.findValue location with
+              match pm.findValue (branchId, location) with
               | Some id ->
                 match pm.getValue id with
                 | Some value ->
@@ -334,7 +335,8 @@ module WriteFile =
           | owner :: _rest -> owner
           | _ -> ""
 
-        let pm = LanguageTools.PackageManager.pm state.currentBranchId
+        let pm = LanguageTools.PackageManager.pm ()
+        let branchId = state.currentBranchId
 
         // Process types
         let typeOps =
@@ -353,17 +355,22 @@ module WriteFile =
                     modules = modules
                     name = typeDecl.name.name })
 
-              let existingTypeId = pm.findType typeLocation
+              let existingTypeId = pm.findType (branchId, typeLocation)
 
               match existingTypeId with
               | Some _id -> []
               | None ->
+                let ctx =
+                  LanguageTools.NameResolver.NRContext
+                    { onMissing = LanguageTools.NameResolver.OnMissing.Allow
+                      pm = pm
+                      branchId = branchId
+                      owner = owner
+                      currentModule = modules }
+
                 let (packageType, _unresolvedNames) =
                   LanguageTools.WrittenTypesToProgramTypes.TypeDeclaration.toPackageTypePT
-                    LanguageTools.NameResolver.OnMissing.Allow
-                    pm
-                    owner
-                    modules
+                    ctx
                     typeDecl
 
                 [ LanguageTools.ProgramTypes.PackageOp.AddType packageType
@@ -389,17 +396,22 @@ module WriteFile =
                     modules = modules
                     name = fnDecl.name.name })
 
-              let existingFnId = pm.findFn fnLocation
+              let existingFnId = pm.findFn (branchId, fnLocation)
 
               match existingFnId with
               | Some _id -> []
               | None ->
+                let ctx =
+                  LanguageTools.NameResolver.NRContext
+                    { onMissing = LanguageTools.NameResolver.OnMissing.Allow
+                      pm = pm
+                      branchId = branchId
+                      owner = owner
+                      currentModule = modules }
+
                 let (packageFn, _unresolvedNames) =
                   LanguageTools.WrittenTypesToProgramTypes.FunctionDeclaration.toPackageFnPT
-                    LanguageTools.NameResolver.OnMissing.Allow
-                    pm
-                    owner
-                    modules
+                    ctx
                     fnDecl
 
                 [ LanguageTools.ProgramTypes.PackageOp.AddFn packageFn
@@ -425,17 +437,22 @@ module WriteFile =
                     modules = modules
                     name = valDecl.name.name })
 
-              let existingValId = pm.findValue valLocation
+              let existingValId = pm.findValue (branchId, valLocation)
 
               match existingValId with
               | Some _id -> []
               | None ->
+                let ctx =
+                  LanguageTools.NameResolver.NRContext
+                    { onMissing = LanguageTools.NameResolver.OnMissing.Allow
+                      pm = pm
+                      branchId = branchId
+                      owner = owner
+                      currentModule = modules }
+
                 let (packageValue, _unresolvedNames) =
                   LanguageTools.WrittenTypesToProgramTypes.ValueDeclaration.toPackageValuePT
-                    LanguageTools.NameResolver.OnMissing.Allow
-                    pm
-                    owner
-                    modules
+                    ctx
                     valDecl
 
                 [ LanguageTools.ProgramTypes.PackageOp.AddValue packageValue
@@ -465,7 +482,7 @@ module WriteFile =
           let updatedContent =
             if (Stdlib.List.isEmpty allOps) |> Stdlib.Bool.not then
               // Re-read from package manager to get content with assigned IDs
-              let pm = LanguageTools.PackageManager.pm state.currentBranchId
+              let pm = LanguageTools.PackageManager.pm ()
               let location = ProgramTypes.parsePackageLocation nameForLookup
 
               // Build the content from database (same logic as ReadFile)

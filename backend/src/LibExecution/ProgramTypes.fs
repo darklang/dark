@@ -783,11 +783,11 @@ module Search =
 /// but there's a chance of Local <-> Cloud not being fully in sync,
 /// for whatever reasons.
 type PackageManager =
-  { findType : PackageLocation -> Ply<Option<FQTypeName.Package>>
-    findValue : PackageLocation -> Ply<Option<FQValueName.Package>>
-    findFn : PackageLocation -> Ply<Option<FQFnName.Package>>
+  { findType : (BranchId * PackageLocation) -> Ply<Option<FQTypeName.Package>>
+    findValue : (BranchId * PackageLocation) -> Ply<Option<FQValueName.Package>>
+    findFn : (BranchId * PackageLocation) -> Ply<Option<FQFnName.Package>>
 
-    search : Search.SearchQuery -> Ply<Search.SearchResults>
+    search : (BranchId * Search.SearchQuery) -> Ply<Search.SearchResults>
 
     // CLEANUP why does the PT one even need these?
     getType : FQTypeName.Package -> Ply<Option<PackageType.PackageType>>
@@ -806,11 +806,12 @@ type PackageManager =
 
 
   static member empty =
-    { findType = fun _ -> Ply None
-      findFn = fun _ -> Ply None
-      findValue = fun _ -> Ply None
+    { findType = fun (_, _) -> Ply None
+      findFn = fun (_, _) -> Ply None
+      findValue = fun (_, _) -> Ply None
 
-      search = fun _ -> Ply { submodules = []; types = []; values = []; fns = [] }
+      search =
+        fun (_, _) -> Ply { submodules = []; types = []; values = []; fns = [] }
 
       getType = fun _ -> Ply None
       getFn = fun _ -> Ply None
@@ -849,24 +850,24 @@ type PackageManager =
     let fnIdToFn = fns |> List.map (fun (f, _) -> f.id, f) |> Map.ofList
 
     { findType =
-        fun location ->
+        fun (branchId, location) ->
           match Map.tryFind location typeLocationToId with
           | Some id -> Ply(Some id)
-          | None -> pm.findType location
+          | None -> pm.findType (branchId, location)
 
       findValue =
-        fun location ->
+        fun (branchId, location) ->
           match Map.tryFind location valueLocationToId with
           | Some id -> Ply(Some id)
-          | None -> pm.findValue location
+          | None -> pm.findValue (branchId, location)
 
       findFn =
-        fun location ->
+        fun (branchId, location) ->
           match Map.tryFind location fnLocationToId with
           | Some id -> Ply(Some id)
-          | None -> pm.findFn location
+          | None -> pm.findFn (branchId, location)
 
-      search = fun query -> pm.search query
+      search = fun (branchId, query) -> pm.search (branchId, query)
 
       getType =
         fun id ->

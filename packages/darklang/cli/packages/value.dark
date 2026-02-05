@@ -62,14 +62,19 @@ let createValueInline
       match LanguageTools.Parser.ValueDeclaration.parse valDeclNode with
       | Ok writtenValue ->
         // Convert to ProgramTypes.PackageValue
-        let pm = LanguageTools.PackageManager.pm state.currentBranchId
+        let pm = LanguageTools.PackageManager.pm ()
+
+        let ctx =
+          LanguageTools.NameResolver.NRContext
+            { onMissing = LanguageTools.NameResolver.OnMissing.Allow
+              pm = pm
+              branchId = state.currentBranchId
+              owner = location.owner
+              currentModule = location.modules }
 
         let (packageValue, unresolvedNames) =
           LanguageTools.WrittenTypesToProgramTypes.ValueDeclaration.toPackageValuePT
-            LanguageTools.NameResolver.OnMissing.Allow
-            pm
-            location.owner
-            location.modules
+            ctx
             writtenValue
 
         // Check for unresolved names

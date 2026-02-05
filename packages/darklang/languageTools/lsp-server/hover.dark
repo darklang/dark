@@ -51,7 +51,7 @@ let handleHoverRequest
     let parsed = doc |> (fun doc -> doc.parsed)
 
     let onMissing = LanguageTools.NameResolver.OnMissing.Allow
-    let pm = LanguageTools.PackageManager.pm state.currentBranchId
+    let pm = LanguageTools.PackageManager.pm ()
 
     // Extract owner and modules from URI to provide correct parsing context
     let (owner, scriptName) =
@@ -77,8 +77,16 @@ let handleHoverRequest
       else
         ("LspHover", "")
 
+    let nrCtx =
+      LanguageTools.NameResolver.NRContext
+        { onMissing = onMissing
+          pm = pm
+          branchId = state.currentBranchId
+          owner = owner
+          currentModule = if scriptName == "" then [] else [ scriptName ] }
+
     let pmWithExtras =
-      match Parser.CliScript.pmWithExtras owner scriptName onMissing pm "" doc.text with
+      match Parser.CliScript.pmWithExtras nrCtx scriptName "" doc.text with
       | Ok pm -> pm
       | Error _ -> pm // fallback to original pm on error
 

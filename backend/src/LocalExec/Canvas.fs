@@ -109,13 +109,10 @@ let loadFromDisk
 
         // Insert+apply canvas types, values, and fns as PackageOps (committed)
         let! _ =
-          if List.isEmpty canvas.ops then
-            Task.FromResult(System.Guid.Empty)
-          else
-            LibPackageManager.Inserts.insertAndApplyOpsWithCommit
-              PT.mainBranchId
-              $"Init: canvas {domain}"
-              canvas.ops
+          LibPackageManager.Inserts.insertAndApplyOpsWithCommit
+            PT.mainBranchId
+            $"Init: canvas {domain}"
+            canvas.ops
 
         return
           (dbs @ handlers) |> List.map (fun tl -> tl, LibCloud.Serialize.NotDeleted)

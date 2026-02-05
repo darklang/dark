@@ -171,8 +171,16 @@ let tryGetFnAndCollectHoverInfo
   let fnNameList = fnName
   let fnName = WrittenTypes.Name.Unresolved range fnName
 
+  let nrCtx =
+    LanguageTools.NameResolver.NRContext
+      { onMissing = onMissing
+        pm = ctx.pm
+        branchId = ctx.branchId
+        owner = ctx.owner
+        currentModule = ctx.currentModules }
+
   let resolvedFn =
-    NameResolver.FnName.resolve onMissing ctx.pm ctx.owner ctx.currentModules fnName
+    NameResolver.FnName.resolve nrCtx fnName
 
   match resolvedFn with
   | Ok fn ->
@@ -225,8 +233,16 @@ let tryGetPkgType
   let onMissing = LanguageTools.NameResolver.OnMissing.Allow
   let typeName = WrittenTypes.Name.Unresolved range typeName
 
+  let nrCtx =
+    LanguageTools.NameResolver.NRContext
+      { onMissing = onMissing
+        pm = ctx.pm
+        branchId = ctx.branchId
+        owner = ctx.owner
+        currentModule = ctx.currentModules }
+
   let resolvedType =
-    NameResolver.TypeName.resolve onMissing ctx.pm ctx.owner ctx.currentModules typeName
+    NameResolver.TypeName.resolve nrCtx typeName
 
   match resolvedType with
   | Ok typ ->
@@ -246,13 +262,16 @@ let tryGetPkgVal
   let onMissing = LanguageTools.NameResolver.OnMissing.Allow
   let valName = WrittenTypes.Name.Unresolved range valName
 
+  let nrCtx =
+    LanguageTools.NameResolver.NRContext
+      { onMissing = onMissing
+        pm = ctx.pm
+        branchId = ctx.branchId
+        owner = ctx.owner
+        currentModule = ctx.currentModules }
+
   let resolvedVal =
-    NameResolver.ValueName.resolve
-      onMissing
-      ctx.pm
-      ctx.owner
-      ctx.currentModules
-      valName
+    NameResolver.ValueName.resolve nrCtx valName
 
   match resolvedVal with
   | Ok value ->
@@ -756,8 +775,6 @@ let collectFnParameterHoverInfoAtPos
   match p with
   | Unit r -> createBuiltinTypeInfoIfInRange ctx r "Unit" position
   | Normal np ->
-    let onMissing = LanguageTools.NameResolver.OnMissing.Allow
-
     // check if we are hovering over a parameter
     match CursorPosition.checkIfPositionWithinRange position np.range with
     | Some r ->
@@ -769,12 +786,17 @@ let collectFnParameterHoverInfoAtPos
         let modules =
           ctx.currentModules |> Stdlib.List.tail |> Stdlib.Option.withDefault []
 
+        let nrCtx =
+          LanguageTools.NameResolver.NRContext
+            { onMissing = LanguageTools.NameResolver.OnMissing.Allow
+              pm = ctx.pm
+              branchId = ctx.branchId
+              owner = ctx.owner
+              currentModule = modules }
+
         let typ =
           (WrittenTypesToProgramTypes.TypeReference.toPT
-            onMissing
-            ctx.pm
-            ctx.owner
-            modules
+            nrCtx
             np.typ)
           |> Stdlib.Tuple2.first
 

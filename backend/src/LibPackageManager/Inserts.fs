@@ -13,6 +13,14 @@ module BinarySerialization = LibBinarySerialization.BinarySerialization
 
 
 /// Compute a content-addressed ID for a PackageOp by hashing its serialized content
+///
+/// TODO this is really hacky.
+/// honestly we should
+/// - make hashing more legit.
+/// - rebrand LibBinarySerialization as LibSerialization
+/// - migrate any remaining hacky JSON serialization things there
+///   (if LibExecution needs them, maybe ExecutionState needs to/from json fns to be part of that context)
+/// - put all sorts of Hashers there -
 let computeOpHash (op : PT.PackageOp) : System.Guid =
   use memoryStream = new System.IO.MemoryStream()
   use binaryWriter = new System.IO.BinaryWriter(memoryStream)

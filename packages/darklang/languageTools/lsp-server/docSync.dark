@@ -37,7 +37,7 @@ let parseAndReportDiagnostics
   : Stdlib.Result.Result<WrittenTypes.ParsedFile, String> =
 
   let onMissing = LanguageTools.NameResolver.OnMissing.Allow
-  let pm = LanguageTools.PackageManager.pm branchId
+  let pm = LanguageTools.PackageManager.pm ()
 
   let parsed =
     requestText |> Parser.parseToSimplifiedTree |> Parser.parseFromTree
@@ -69,8 +69,16 @@ let parseAndReportDiagnostics
       else
         ("LSP", "scriptName")
 
+    let nrCtx =
+      LanguageTools.NameResolver.NRContext
+        { onMissing = onMissing
+          pm = pm
+          branchId = branchId
+          owner = owner
+          currentModule = if scriptName == "" then [] else [ scriptName ] }
+
     let unresolvedNames =
-      match Parser.CliScript.parse owner scriptName onMissing pm "fileName" requestText with
+      match Parser.CliScript.parse nrCtx scriptName "fileName" requestText with
       | Ok ((_ptCliScriptModule, unresolvedNames)) -> unresolvedNames
       | Error err ->
         log $"Parse error: {err}"

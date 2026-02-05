@@ -102,14 +102,14 @@ let processDecls
 
 
 let toPT
-  (onMissing: NameResolver.OnMissing)
-  (pm: ProgramTypes.PackageManager.PackageManager)
+  (ctx: NameResolver.NRContext)
   (wt: WTCliScriptModule)
   : (PTCliScriptModule *
     List<ProgramTypes.PackageOp> *
     List<Parser.Range * ProgramTypes.NameResolutionError>)
   =
   let modules = if wt.name == "" then [] else [ wt.name ]
+  let ctx = { ctx with owner = wt.owner; currentModule = modules }
 
   // Process types and generate ops
   let (types, typeOps, typeUnresolvedNames) =
@@ -118,10 +118,7 @@ let toPT
 
       let (pt, unresolvedNames) =
         LanguageTools.WrittenTypesToProgramTypes.TypeDeclaration.toPackageTypePT
-          onMissing
-          pm
-          wt.owner
-          modules
+          ctx
           t
 
       let location =
@@ -141,10 +138,7 @@ let toPT
 
       let (pv, unresolvedNames) =
         WrittenTypesToProgramTypes.ValueDeclaration.toPackageValuePT
-          onMissing
-          pm
-          wt.owner
-          modules
+          ctx
           v
 
       let location =
@@ -164,10 +158,7 @@ let toPT
 
       let (pf, unresolvedNames) =
         WrittenTypesToProgramTypes.FunctionDeclaration.toPackageFnPT
-          onMissing
-          pm
-          wt.owner
-          modules
+          ctx
           f
 
       let location =
@@ -187,9 +178,7 @@ let toPT
       let extendedModules = Stdlib.List.append modules [ submoduleName ]
 
       WrittenTypesToProgramTypes.moduleDeclarationWithOpsHelper
-        pm
-        wt.owner
-        extendedModules
+        { ctx with currentModule = extendedModules }
         m)
 
 
@@ -197,10 +186,7 @@ let toPT
     wt.exprs
     |> Stdlib.List.map (fun e ->
       LanguageTools.WrittenTypesToProgramTypes.Expr.toPT
-        onMissing
-        pm
-        wt.owner
-        modules
+        ctx
         LanguageTools.WrittenTypesToProgramTypes.defaultContext
         e)
     |> Stdlib.List.unzip
@@ -233,28 +219,26 @@ let toPT
 
 
 let parse
-  (owner: String)
+  (ctx: NameResolver.NRContext)
   (scriptName: String)
-  (onMissing: NameResolver.OnMissing)
-  (pm: ProgramTypes.PackageManager.PackageManager)
   (filename: String)
   (source: String)
   : Stdlib.Result.Result<(PTCliScriptModule * List<Parser.Range * ProgramTypes.NameResolutionError>), String> =
   match source |> LanguageTools.Parser.TestParsing.initialParse with
   | Error e -> Stdlib.Result.Result.Error e
   | Ok parsedFile ->
-    match parseDecls owner scriptName parsedFile with
+    match parseDecls ctx.owner scriptName parsedFile with
     | Error e -> Stdlib.Result.Result.Error e
     | Ok moduleWT ->
       // First pass: parse and generate ops (allowing unresolved names)
       let (initialParse, firstPassOps, _) =
-        toPT NameResolver.OnMissing.Allow pm moduleWT
+        toPT { ctx with onMissing = NameResolver.OnMissing.Allow } moduleWT
 
       // Create PM with first pass ops for second pass
-      let pm = ProgramTypes.PackageManager.withExtraOps pm firstPassOps
+      let pm = ProgramTypes.PackageManager.withExtraOps ctx.pm firstPassOps
 
       // Second pass: re-parse with updated PackageManager
-      let (result, _, unresolvedNames) = toPT onMissing pm moduleWT
+      let (result, _, unresolvedNames) = toPT { ctx with pm = pm } moduleWT
 
       let adjustedTypes =
         (Stdlib.List.zip result.types initialParse.types)
@@ -329,20 +313,18 @@ let parse
 
 
 let pmWithExtras
-  (owner: String)
+  (ctx: NameResolver.NRContext)
   (scriptName: String)
-  (onMissing: NameResolver.OnMissing)
-  (pm: ProgramTypes.PackageManager.PackageManager)
   (filename: String)
   (source: String)
   : Stdlib.Result.Result<ProgramTypes.PackageManager.PackageManager, String> =
   match source |> LanguageTools.Parser.TestParsing.initialParse with
   | Error e -> Stdlib.Result.Result.Error e
   | Ok parsedFile ->
-    match parseDecls owner scriptName parsedFile with
+    match parseDecls ctx.owner scriptName parsedFile with
     | Error e -> Stdlib.Result.Result.Error e
     | Ok moduleWT ->
-      let (_, ops, _) = toPT onMissing pm moduleWT
+      let (_, ops, _) = toPT ctx moduleWT
 
-      (ProgramTypes.PackageManager.withExtraOps pm ops)
+      (ProgramTypes.PackageManager.withExtraOps ctx.pm ops)
       |> Stdlib.Result.Result.Ok

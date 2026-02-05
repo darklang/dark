@@ -61,14 +61,19 @@ let createFnInline
       match LanguageTools.Parser.FunctionDeclaration.parse fnDeclNode with
       | Ok writtenFn ->
         // Convert to ProgramTypes.PackageFn
-        let pm = LanguageTools.PackageManager.pm state.currentBranchId
+        let pm = LanguageTools.PackageManager.pm ()
+
+        let ctx =
+          LanguageTools.NameResolver.NRContext
+            { onMissing = LanguageTools.NameResolver.OnMissing.Allow
+              pm = pm
+              branchId = state.currentBranchId
+              owner = location.owner
+              currentModule = location.modules }
 
         let (packageFn, unresolvedNames) =
           LanguageTools.WrittenTypesToProgramTypes.FunctionDeclaration.toPackageFnPT
-            LanguageTools.NameResolver.OnMissing.Allow
-            pm
-            location.owner
-            location.modules
+            ctx
             writtenFn
 
         // Check for unresolved names

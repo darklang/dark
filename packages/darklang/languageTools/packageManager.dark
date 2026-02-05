@@ -101,17 +101,19 @@ module Search =
         values = searchResults.values
         fns = searchResults.fns }
 
-/// Create a PackageManager for the given branch
-let pm
-  (branchId: Uuid)
-  : ProgramTypes.PackageManager.PackageManager =
+/// Create a PackageManager
+let pm () : ProgramTypes.PackageManager.PackageManager =
   ProgramTypes.PackageManager.PackageManager
-    { findType = PackageManager.Type.find branchId
-      findValue = PackageManager.Value.find branchId
-      findFn = PackageManager.Function.find branchId
+    { findType =
+        fun (branchId, location) -> PackageManager.Type.find branchId location
+      findValue =
+        fun (branchId, location) -> PackageManager.Value.find branchId location
+      findFn =
+        fun (branchId, location) -> PackageManager.Function.find branchId location
 
       getFn = PackageManager.Function.get
       getValue = PackageManager.Value.get
       getType = PackageManager.Type.get
 
-      search = PackageManager.Search.search branchId }
+      search =
+        fun (branchId, query) -> PackageManager.Search.search branchId query }
