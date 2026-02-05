@@ -19,7 +19,7 @@ import { DiffContentProvider } from "./providers/diffContentProvider";
 import { DarklangFileDecorationProvider } from "./providers/fileDecorationProvider";
 import { PackageContentProvider } from "./providers/content/packageContentProvider";
 import { RecentItemsService } from "./services/recentItemsService";
-import { ScmStatusBar, BranchInfo } from "./ui/statusbar/scmStatusBar";
+import { StatusBar, BranchInfo } from "./ui/statusbar/statusBar";
 import { HomepagePanel } from "./panels/homepage/homepagePanel";
 
 let client: LanguageClient;
@@ -77,7 +77,7 @@ export async function activate(context: vscode.ExtensionContext) {
   const contentProvider = new DarkContentProvider(client);
   const diffContentProvider = DiffContentProvider.getInstance();
   const decorationProvider = new DarklangFileDecorationProvider();
-  const scmStatusBar = new ScmStatusBar();
+  const statusBar = new StatusBar();
 
   PackageContentProvider.setClient(client);
   HomepagePanel.setClient(client);
@@ -90,7 +90,7 @@ export async function activate(context: vscode.ExtensionContext) {
 
   // Update status bar when SCM status changes
   scmProvider.onStatusChanged(status => {
-    scmStatusBar.updateStatus(status);
+    statusBar.updateStatus(status);
   });
 
   // Tree views
@@ -121,7 +121,7 @@ export async function activate(context: vscode.ExtensionContext) {
   const reg = (d: vscode.Disposable) => context.subscriptions.push(d);
 
   [
-    scmStatusBar,
+    statusBar,
     vscode.workspace.registerFileSystemProvider("darkfs", fsProvider, { isCaseSensitive: true, isReadonly: false }),
     vscode.workspace.registerTextDocumentContentProvider("dark", contentProvider),
     vscode.workspace.registerTextDocumentContentProvider(DiffContentProvider.scheme, diffContentProvider),
@@ -404,14 +404,14 @@ export async function activate(context: vscode.ExtensionContext) {
   ].forEach(reg);
 
   // Wire up status bar to LSP client
-  scmStatusBar.setClient(client);
+  statusBar.setClient(client);
 
   // Listen for branch change notifications from the LSP server
   client.onNotification("dark/branchChanged", (params: any) => {
     const branchData = Array.isArray(params) ? params[0] : params;
     if (branchData && branchData.id && branchData.name) {
       const branch: BranchInfo = { id: branchData.id, name: branchData.name };
-      scmStatusBar.updateBranch(branch);
+      statusBar.updateBranch(branch);
       scmProvider.updateBranch(branch);
     }
   });

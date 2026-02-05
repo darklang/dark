@@ -1,7 +1,7 @@
 import * as vscode from "vscode";
 import { LanguageClient } from "vscode-languageclient/node";
 
-export interface ScmStatus {
+export interface StatusBarStatus {
   total: number;
   types: number;
   fns: number;
@@ -15,9 +15,9 @@ export interface BranchInfo {
   isActive?: boolean;
 }
 
-export class ScmStatusBar implements vscode.Disposable {
+export class StatusBar implements vscode.Disposable {
   private statusBarItem: vscode.StatusBarItem;
-  private currentStatus: ScmStatus = { total: 0, types: 0, fns: 0, values: 0 };
+  private currentStatus: StatusBarStatus = { total: 0, types: 0, fns: 0, values: 0 };
   private currentBranch: BranchInfo | null = null;
   private client: LanguageClient | null = null;
 
@@ -52,7 +52,7 @@ export class ScmStatusBar implements vscode.Disposable {
     this.updateDisplay();
   }
 
-  updateStatus(status: ScmStatus): void {
+  updateStatus(status: StatusBarStatus): void {
     this.currentStatus = status;
     this.updateDisplay();
   }
