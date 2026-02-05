@@ -8,33 +8,13 @@ let handleGetWipSummaryRequest
   : LspState =
   let summary = SCM.PackageOps.getWipSummary state.currentBranchId
 
-  let types =
-    match Stdlib.Dict.get summary "types" with
-    | Some t -> t
-    | None -> 0L
-
-  let values =
-    match Stdlib.Dict.get summary "values" with
-    | Some v -> v
-    | None -> 0L
-
-  let fns =
-    match Stdlib.Dict.get summary "fns" with
-    | Some f -> f
-    | None -> 0L
-
-  let total =
-    match Stdlib.Dict.get summary "total" with
-    | Some t -> t
-    | None -> 0L
-
   let responseJson =
     Stdlib.AltJson.Json.Object
-      [ ("types", Stdlib.AltJson.Json.Number(Stdlib.Int64.toFloat types))
-        ("values", Stdlib.AltJson.Json.Number(Stdlib.Int64.toFloat values))
-        ("fns", Stdlib.AltJson.Json.Number(Stdlib.Int64.toFloat fns))
-        ("renames", Stdlib.AltJson.Json.Number 0.0)
-        ("total", Stdlib.AltJson.Json.Number(Stdlib.Int64.toFloat total)) ]
+      [ ("types", Stdlib.AltJson.Json.Number(Stdlib.Int64.toFloat summary.types))
+        ("values", Stdlib.AltJson.Json.Number(Stdlib.Int64.toFloat summary.values))
+        ("fns", Stdlib.AltJson.Json.Number(Stdlib.Int64.toFloat summary.fns))
+        ("renames", Stdlib.AltJson.Json.Number(Stdlib.Int64.toFloat summary.renames))
+        ("total", Stdlib.AltJson.Json.Number(Stdlib.Int64.toFloat summary.total)) ]
 
   let response =
     (JsonRPC.Response.Ok.make (Stdlib.Option.Option.Some requestId) responseJson)

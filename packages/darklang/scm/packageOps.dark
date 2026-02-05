@@ -34,10 +34,30 @@ let getWip (branchId: Uuid) : List<LanguageTools.ProgramTypes.PackageOp> =
   Builtin.scmGetWipOps_v0 branchId
 
 
+/// Summary of WIP (uncommitted) changes on a branch
+type WipSummary =
+  { types: Int64
+    values: Int64
+    fns: Int64
+    renames: Int64
+    total: Int64 }
+
+/// Get a count from a Dict, defaulting to 0
+let getCount (d: Dict<Int64>) (key: String) : Int64 =
+  match Stdlib.Dict.get d key with
+  | Some v -> v
+  | None -> 0L
+
 /// Get summary of WIP ops on a branch (counts by type)
-/// Returns a dict with keys: types, values, fns, renames, total
-let getWipSummary (branchId: Uuid) : Dict<Int64> =
-  Builtin.scmGetWipSummary_v0 branchId
+let getWipSummary (branchId: Uuid) : WipSummary =
+  let d = Builtin.scmGetWipSummary_v0 branchId
+
+  WipSummary
+    { types = getCount d "types"
+      values = getCount d "values"
+      fns = getCount d "fns"
+      renames = getCount d "renames"
+      total = getCount d "total" }
 
 
 /// Commit all WIP ops on a branch with the given message
