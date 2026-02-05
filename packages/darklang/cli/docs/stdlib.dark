@@ -1,41 +1,24 @@
 module Darklang.Cli.Docs.Stdlib
 
 let content () : String =
-  """# Stdlib
+  """# Stdlib (Darklang.Stdlib)
+
+The standard library provides common data-structure operations,
+string handling, JSON, HTTP, and other utilities — all written in Dark.
 
 ## Explore
-  builtins         # list all
-  search <term>    # find by name
-  view <fn>        # see signature
+  tree Darklang.Stdlib --depth=2   # browse the module hierarchy
+  search <term>                    # find by name
+  view <fn>                        # see signature + source
 
-## List
-  map filter fold head tail append length
-  findFirst isEmpty reverse flatten
+## Key modules
+  Stdlib.List       Stdlib.String     Stdlib.Option
+  Stdlib.Result     Stdlib.Dict       Stdlib.Int64
+  Stdlib.Json       Stdlib.Http       Stdlib.Uuid
 
-## String
-  length split join contains startsWith
-  trim toLowercase toUppercase replace
+## Shortcut
+  `Stdlib.X` always resolves to `Darklang.Stdlib.X` from any module.
 
-## Option
-  map andThen withDefault isSome isNone
-
-## Result
-  map mapError andThen withDefault isOk isError
-
-## Dict
-  get set remove keys values isEmpty
-
-## Int64
-  add divide mod_ toString parse
-
-## Common
-  Stdlib.Json.parse<T> str
-  Stdlib.Http.get url
-  Stdlib.Uuid.generate ()
-  Stdlib.DateTime.now ()
-  Stdlib.printLine msg
-
-## Param order (list usually first)
-  Stdlib.String.join list separator
+## Param order (collection usually first)
   Stdlib.List.map list fn
-  Stdlib.List.fold list init fn"""
+  Stdlib.String.join list separator"""
