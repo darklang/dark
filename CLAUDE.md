@@ -1,5 +1,40 @@
 # This is the main Darklang monorepo. Please assist in the development of this language+platform.
 
+## CURRENT PROJECT: Faster Package Reloading
+
+**Goal**: Make `./scripts/build/reload-packages` complete in **under 1 second** (currently ~15s).
+
+### Quick Reference
+- **Plan**: See `FASTER_RELOAD_PLAN.md` for full optimization strategy
+- **Measure**: `time ./scripts/build/reload-packages`
+- **Logs**: `./rundir/logs/packages-canvas.log`
+- **Ralph loop**: Run `./ralph` to start automated optimization loop
+
+### Key Files to Modify
+| File | Purpose |
+|------|---------|
+| `backend/src/LocalExec/LoadPackagesFromDisk.fs` | Main loading - add incremental support |
+| `backend/src/LibPackageManager/Purge.fs` | Clearing - make selective |
+| `backend/src/LibPackageManager/Inserts.fs` | Insertion - batch operations |
+| `backend/src/LibPackageManager/PackageOpPlayback.fs` | Application - lazy RT conversion |
+
+### Optimization Priority
+1. **Incremental reload** - Only reload changed .dark files (10x impact)
+2. **Parallelize parsing** - Change `mapSequentially` to parallel (2x impact)
+3. **Lazy RT conversion** - Don't convert PT→RT upfront (1.5x impact)
+4. **Batch DB ops** - Bulk inserts (1.3x impact)
+
+### Testing After Changes
+```bash
+# Rebuild F# (wait for build-server to complete)
+tail -f ./rundir/logs/build-server.log
+
+# Then measure reload time
+time ./scripts/build/reload-packages
+```
+
+---
+
 ## External resources:
 - team notes: ~/vaults/Darklang Dev
 - in-progress website: wip.darklang.com
