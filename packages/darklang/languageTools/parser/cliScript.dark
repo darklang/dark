@@ -312,6 +312,28 @@ let parse
       Stdlib.Result.Result.Ok ((adjusted, unresolvedNames))
 
 
+/// Single-shot parse for CLI use: creates PM and NRContext internally
+/// so that lambdas in the PM stay within the same execution context.
+let parseForCli
+  (branchId: Uuid)
+  (owner: String)
+  (scriptName: String)
+  (filename: String)
+  (source: String)
+  : Stdlib.Result.Result<(PTCliScriptModule * List<Parser.Range * ProgramTypes.NameResolutionError>), String> =
+  let pm = LanguageTools.PackageManager.pm ()
+
+  let ctx =
+    NameResolver.NRContext
+      { onMissing = NameResolver.OnMissing.Allow
+        pm = pm
+        branchId = branchId
+        owner = owner
+        currentModule = [] }
+
+  parse ctx scriptName filename source
+
+
 let pmWithExtras
   (ctx: NameResolver.NRContext)
   (scriptName: String)

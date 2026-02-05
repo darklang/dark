@@ -57,6 +57,11 @@
         "icon": "$(home)"
       },
       {
+        "command": "darklang.openBranchManager",
+        "title": "Darklang: Manage Branches",
+        "icon": "$(git-branch)"
+      },
+      {
         "command": "darklang.runScript",
         "title": "Run Darklang Script"
       },
@@ -253,6 +258,11 @@
           "command": "darklang.branch.create",
           "when": "view == darklangScm",
           "group": "navigation@4"
+        },
+        {
+          "command": "darklang.openBranchManager",
+          "when": "view == darklangScm",
+          "group": "navigation@5"
         }
       ]
     },

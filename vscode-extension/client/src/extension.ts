@@ -23,6 +23,7 @@ import { PackageContentProvider } from "./providers/content/packageContentProvid
 import { RecentItemsService } from "./services/recentItemsService";
 import { StatusBar, BranchInfo } from "./ui/statusbar/statusBar";
 import { HomepagePanel } from "./panels/homepage/homepagePanel";
+import { BranchManagerPanel } from "./panels/branchManager/branchManagerPanel";
 
 let client: LanguageClient;
 
@@ -83,6 +84,7 @@ export async function activate(context: vscode.ExtensionContext) {
 
   PackageContentProvider.setClient(client);
   HomepagePanel.setClient(client);
+  BranchManagerPanel.setClient(client);
 
   // Tree providers
   const packagesProvider = new PackagesTreeDataProvider(client);
@@ -106,10 +108,15 @@ export async function activate(context: vscode.ExtensionContext) {
     showCollapseAll: false,
   });
 
-  // Homepage panel serializer
+  // Panel serializers
   vscode.window.registerWebviewPanelSerializer?.(HomepagePanel.viewType, {
     async deserializeWebviewPanel(panel) {
       HomepagePanel.revive(panel, context.extensionUri);
+    },
+  });
+  vscode.window.registerWebviewPanelSerializer?.(BranchManagerPanel.viewType, {
+    async deserializeWebviewPanel(panel) {
+      BranchManagerPanel.revive(panel);
     },
   });
 
@@ -131,9 +138,12 @@ export async function activate(context: vscode.ExtensionContext) {
     vscode.workspace.registerTextDocumentContentProvider(DiffContentProvider.scheme, diffContentProvider),
     vscode.window.registerFileDecorationProvider(decorationProvider),
 
-    // Homepage command
+    // Panel commands
     vscode.commands.registerCommand("darklang.openHomepage", () => {
       HomepagePanel.createOrShow(context.extensionUri);
+    }),
+    vscode.commands.registerCommand("darklang.openBranchManager", () => {
+      BranchManagerPanel.createOrShow(context.extensionUri);
     }),
 
     // Utility commands
@@ -162,12 +172,14 @@ export async function activate(context: vscode.ExtensionContext) {
       const branch: BranchInfo = { id: branchData.id, name: branchData.name };
       statusBar.updateBranch(branch);
       scmProvider.updateBranch(branch);
+      BranchManagerPanel.refresh();
     }
   });
 
   // Listen for SCM change notifications (refresh views when branch changes)
   client.onNotification("dark/scm/changed", () => {
     scmProvider.refresh();
+    BranchManagerPanel.refresh();
   });
 
   // Initial SCM refresh to populate status bar

@@ -26,35 +26,6 @@ module D = LibExecution.DvalDecoder
 module Utils = BuiltinCliHost.Utils
 
 
-// Get PackageManager instance with error handling
-let executePM (exeState : RT.ExecutionState) (branchId : System.Guid) : Ply<Dval> =
-  uply {
-    let getPmFnName = FQFnName.Package PackageIDs.Fn.LanguageTools.PackageManager.pm
-
-    let! execResult =
-      Exe.executeFunction exeState getPmFnName [] (NEList.singleton (DUuid branchId))
-
-    match execResult with
-    | Ok dval -> return dval
-    | Error(rte, _cs) ->
-      let! rteString = Exe.runtimeErrorToString exeState rte
-      match rteString with
-      | Ok rte ->
-        return Exception.raiseInternal "Error executing pm function" [ "rte", rte ]
-      | Error(nestedRte, _cs) ->
-        return
-          Exception.raiseInternal
-            "Error running runtimeErrorToString"
-            [ "original rte", rte; "nested rte", nestedRte ]
-  }
-
-// Create OnMissing.Allow enum value
-let createOnMissingAllow () : Dval =
-  let onMissingType =
-    FQTypeName.Package
-      PackageIDs.Type.LanguageTools.NameResolver.nameResolverOnMissing
-  DEnum(onMissingType, onMissingType, [], "Allow", [])
-
 // Create exception error from exn
 let createExceptionError (e : exn) : RuntimeError.Error =
   RuntimeError.UncaughtException(
@@ -62,26 +33,26 @@ let createExceptionError (e : exn) : RuntimeError.Error =
     Exception.toMetadata e |> List.map (fun (k, v) -> (k, DString(string v)))
   )
 
-// Parse CLI script code
+// Parse CLI script code using the single-shot parseForCli function.
+// This keeps PM creation and parsing in the same execution context,
+// avoiding issues with lambda instructions crossing VM boundaries.
 let parseCliScript
   (exeState : RT.ExecutionState)
-  (pm : Dval)
+  (branchId : System.Guid)
   (owner : string)
   (scriptName : string)
   (code : string)
   : Ply<Result<Utils.CliScript.PTCliScriptModule, RuntimeError.Error>> =
   uply {
-    let onMissingAllow = createOnMissingAllow ()
-
     let args =
       NEList.ofList
-        (DString owner)
-        [ DString scriptName; onMissingAllow; pm; DString scriptName; DString code ]
+        (DUuid branchId)
+        [ DString owner; DString scriptName; DString scriptName; DString code ]
 
-    let parseCliScriptFnName =
-      FQFnName.Package PackageIDs.Fn.LanguageTools.Parser.CliScript.parseCliScript
+    let parseForCliFnName =
+      FQFnName.Package PackageIDs.Fn.LanguageTools.Parser.CliScript.parseForCli
 
-    let! execResult = Exe.executeFunction exeState parseCliScriptFnName [] args
+    let! execResult = Exe.executeFunction exeState parseForCliFnName [] args
 
     match execResult with
     | Ok dval ->
@@ -237,9 +208,8 @@ let fns : List<BuiltInFn> =
           uply {
             // Use branch-specific state for parsing so name resolution uses the right branch
             let branchState = createBranchState exeState branchId
-            let! pm = executePM branchState branchId
             let! parsedScript =
-              parseCliScript branchState pm "CliScript" filename code
+              parseCliScript branchState branchId "CliScript" filename code
 
             try
               match parsedScript with
@@ -281,9 +251,13 @@ let fns : List<BuiltInFn> =
           uply {
             // Use branch-specific state for parsing so name resolution uses the right branch
             let branchState = createBranchState exeState branchId
-            let! pm = executePM branchState branchId
             let! parsedScript =
-              parseCliScript branchState pm "CliScript" "exprWrapper" expression
+              parseCliScript
+                branchState
+                branchId
+                "CliScript"
+                "exprWrapper"
+                expression
 
             try
               match parsedScript with

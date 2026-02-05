@@ -465,9 +465,11 @@ module RuntimeError =
         match metadata with
         | [] -> []
         | metadata ->
-          let preamble = [ ES.String " with metadata: TODO" ]
-          let todo = [ ES.String "TODO" ]
-          Stdlib.List.append preamble todo
+          let metadataStrings =
+            Stdlib.List.map metadata (fun (key, value) ->
+              ES.String $"\n  {key}: {Builtin.jsonSerialize<Dval> value}")
+
+          Stdlib.List.append [ ES.String "\nMetadata:" ] metadataStrings
 
       Stdlib.List.append
         [ ES.String "Uncaught exception: "; ES.String msg ]

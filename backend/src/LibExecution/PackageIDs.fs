@@ -477,6 +477,7 @@ module Fn =
       module CliScript =
         let private p addl = p ("CliScript" :: addl)
         let parseCliScript = p [] "parse" "e7574db7-f7e6-4263-adc2-a05b14309cbc"
+        let parseForCli = p [] "parseForCli" "43dd8cf5-827e-4ff3-923e-35132e1aa2fa"
 
     module PackageManager =
       let private p addl = p ("PackageManager" :: addl)
