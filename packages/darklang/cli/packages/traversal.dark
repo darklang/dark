@@ -136,6 +136,7 @@ let applyPath
 // Search for modules globally where a segment starts with the prefix
 // Returns only the path up to the matching segment, not descendants
 let searchModulesByPrefix
+  (branchId: Uuid)
   (prefixText: String)
   : List<String> =
   // Search from root with AllDescendants - database returns all matching paths
@@ -147,7 +148,7 @@ let searchModulesByPrefix
         entityTypes = []
         exactMatch = false }
 
-  let results = LanguageTools.PackageManager.Search.search SCM.Branch.mainBranchId query
+  let results = LanguageTools.PackageManager.Search.search branchId query
 
   // For each result, find the first segment starting with prefix and truncate there
   results.submodules
@@ -216,7 +217,7 @@ let getAvailableItems
       ownerMatches
     else
       let fallbackResults =
-        (searchModulesByPrefix prefixText)
+        (searchModulesByPrefix branchId prefixText)
         |> Stdlib.List.map (fun name -> Cli.Completion.withIcon EntityType.Module name)
 
       let combined = Stdlib.List.append primaryResults fallbackResults
