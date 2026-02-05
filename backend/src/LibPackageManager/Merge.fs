@@ -14,7 +14,7 @@ module PT = LibExecution.ProgramTypes
 /// Check if a branch can be merged
 let canMerge (branchId : PT.BranchId) : Task<Result<unit, PT.MergeError>> =
   task {
-    if branchId = Branches.mainBranchId then
+    if branchId = PT.mainBranchId then
       return Error PT.MergeError.IsMainBranch
     else
       let! branchOpt = Branches.get branchId
@@ -92,8 +92,7 @@ let merge (branchId : PT.BranchId) : Task<Result<unit, PT.MergeError>> =
       match branchOpt with
       | None -> return Error PT.MergeError.NotFound
       | Some branch ->
-        let parentId =
-          branch.parentBranchId |> Option.defaultValue Branches.mainBranchId
+        let parentId = branch.parentBranchId |> Option.defaultValue PT.mainBranchId
 
         // For each branch location, deprecate any existing parent location at the same path
         let! branchLocations =

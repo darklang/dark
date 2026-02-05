@@ -63,7 +63,10 @@ let load (builtins : RT.Builtins) : Ply<List<PT.PackageOp>> =
 
     // Adjust IDs in second pass to match first pass (ID stabilization)
     let! adjustedOps =
-      LibPackageManager.PackageManager.stabilizeOpsAgainstPM firstPassPM reParsedOps
+      LibPackageManager.PackageManager.stabilizeOpsAgainstPM
+        PT.mainBranchId
+        firstPassPM
+        reParsedOps
 
     return adjustedOps
   }

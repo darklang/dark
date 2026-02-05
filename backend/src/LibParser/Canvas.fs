@@ -363,6 +363,7 @@ let parse
     let firstPassPM = LibPackageManager.PackageManager.createInMemory firstPassOps
     let! adjustedOps =
       LibPackageManager.PackageManager.stabilizeOpsAgainstPM
+        PT.mainBranchId
         firstPassPM
         secondPass.ops
 

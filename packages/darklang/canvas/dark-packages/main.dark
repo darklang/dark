@@ -110,7 +110,7 @@ let typeFindFn (req: Stdlib.Http.Request) : Stdlib.Http.Response =
     match parseNameToLocation name with
     | Error errorMsg -> Stdlib.Http.response (Stdlib.String.toBytes errorMsg) 400L
     | Ok location ->
-      match Builtin.pmFindType (SCM.Branch.mainBranchId) location with
+      match Builtin.pmFindType SCM.Branch.mainBranchId location with
       | Some foundID ->
         let json = $"\"{Stdlib.Uuid.toString foundID}\""
         Stdlib.Http.response (Stdlib.String.toBytes json) 200L
@@ -162,7 +162,7 @@ let valueFindFn (req: Stdlib.Http.Request) : Stdlib.Http.Response =
   | Some name ->
     match parseNameToLocation name with
     | Ok location ->
-      match Builtin.pmFindValue (SCM.Branch.mainBranchId) location with
+      match Builtin.pmFindValue SCM.Branch.mainBranchId location with
       | Some foundID ->
         let json = $"\"{Stdlib.Uuid.toString foundID}\""
         Stdlib.Http.response (Stdlib.String.toBytes json) 200L
@@ -216,7 +216,7 @@ let functionFindFn (req: Stdlib.Http.Request) : Stdlib.Http.Response =
     match parseNameToLocation name with
     | Error errorMsg -> Stdlib.Http.response (Stdlib.String.toBytes errorMsg) 400L
     | Ok location ->
-      match Builtin.pmFindFn (SCM.Branch.mainBranchId) location with
+      match Builtin.pmFindFn SCM.Branch.mainBranchId location with
       | Some foundID ->
         let json = $"\"{Stdlib.Uuid.toString foundID}\""
         Stdlib.Http.response (Stdlib.String.toBytes json) 200L
@@ -317,7 +317,7 @@ let searchFn (req: Stdlib.Http.Request) : Stdlib.Http.Response =
               entityTypes = entityTypes
               exactMatch = exactMatch }
 
-        let results = Builtin.pmSearch (SCM.Branch.mainBranchId) query
+        let results = Builtin.pmSearch SCM.Branch.mainBranchId query
         let json = results |> Builtin.jsonSerialize<LanguageTools.ProgramTypes.Search.SearchResults>
         Stdlib.Http.response (Stdlib.String.toBytes json) 200L
 
@@ -344,7 +344,7 @@ let locationLookupFn (req: Stdlib.Http.Request) : Stdlib.Http.Response =
             searchDepth = LanguageTools.ProgramTypes.Search.SearchDepth.OnlyDirectDescendants
             entityTypes = []
             exactMatch = false }
-      let results = Builtin.pmSearch (SCM.Branch.mainBranchId) searchQuery
+      let results = Builtin.pmSearch SCM.Branch.mainBranchId searchQuery
       let json = results |> Builtin.jsonSerialize<LanguageTools.ProgramTypes.Search.SearchResults>
       Stdlib.Http.response (Stdlib.String.toBytes json) 200L
     else
@@ -358,7 +358,7 @@ let locationLookupFn (req: Stdlib.Http.Request) : Stdlib.Http.Response =
           { owner = owner; modules = modules; name = entityName }
 
       // Try function first
-      match Builtin.pmFindFn (SCM.Branch.mainBranchId) packageLocation with
+      match Builtin.pmFindFn SCM.Branch.mainBranchId packageLocation with
       | Some fnId ->
         match Builtin.pmGetFn fnId with
         | Some fn ->
@@ -367,7 +367,7 @@ let locationLookupFn (req: Stdlib.Http.Request) : Stdlib.Http.Response =
         | None -> Stdlib.Http.response (Stdlib.String.toBytes "not found") 404L
       | None ->
         // Try type
-        match Builtin.pmFindType (SCM.Branch.mainBranchId) packageLocation with
+        match Builtin.pmFindType SCM.Branch.mainBranchId packageLocation with
         | Some typeId ->
           match Builtin.pmGetType typeId with
           | Some typeDefinition ->
@@ -376,7 +376,7 @@ let locationLookupFn (req: Stdlib.Http.Request) : Stdlib.Http.Response =
           | None -> Stdlib.Http.response (Stdlib.String.toBytes "not found") 404L
         | None ->
           // Try value
-          match Builtin.pmFindValue (SCM.Branch.mainBranchId) packageLocation with
+          match Builtin.pmFindValue SCM.Branch.mainBranchId packageLocation with
           | Some valueId ->
             match Builtin.pmGetValue valueId with
             | Some value ->
@@ -393,7 +393,7 @@ let locationLookupFn (req: Stdlib.Http.Request) : Stdlib.Http.Response =
                   searchDepth = LanguageTools.ProgramTypes.Search.SearchDepth.OnlyDirectDescendants
                   entityTypes = []
                   exactMatch = false }
-            let results = Builtin.pmSearch (SCM.Branch.mainBranchId) searchQuery
+            let results = Builtin.pmSearch SCM.Branch.mainBranchId searchQuery
             let json = results |> Builtin.jsonSerialize<LanguageTools.ProgramTypes.Search.SearchResults>
             Stdlib.Http.response (Stdlib.String.toBytes json) 200L
 

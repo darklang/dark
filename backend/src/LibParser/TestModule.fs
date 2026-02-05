@@ -304,7 +304,10 @@ let parseTestFile
       |> Ply.List.mapSequentially (fun m ->
         uply {
           let! adjustedOps =
-            LibPackageManager.PackageManager.stabilizeOpsAgainstPM firstPassPM m.ops
+            LibPackageManager.PackageManager.stabilizeOpsAgainstPM
+              PT.mainBranchId
+              firstPassPM
+              m.ops
           return { m with ops = adjustedOps }
         })
 

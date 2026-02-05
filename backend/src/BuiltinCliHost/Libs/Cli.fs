@@ -118,7 +118,7 @@ module ExecutionError =
 
 let pmRT = LibPackageManager.PackageManager.rt
 
-let builtinsToUse (branchId : System.Guid) : RT.Builtins =
+let builtinsToUse () : RT.Builtins =
   let ptPM = LibPackageManager.PackageManager.pt
   LibExecution.Builtin.combine
     [ BuiltinExecution.Builtin.builtins
@@ -142,7 +142,7 @@ let execute
         secrets = []
         dbs = Map.empty }
 
-    let builtins = builtinsToUse branchId
+    let builtins = builtinsToUse ()
 
     let types =
       List.concat
@@ -202,7 +202,7 @@ let createBranchState (parentState : RT.ExecutionState) (branchId : System.Guid)
       secrets = []
       dbs = Map.empty }
   Exe.createState
-    (builtinsToUse branchId)
+    (builtinsToUse ())
     pmRT
     Exe.noTracing
     parentState.reportException

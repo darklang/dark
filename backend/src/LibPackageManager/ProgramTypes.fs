@@ -49,232 +49,101 @@ let private buildBranchOrderBy (branchChain : List<PT.BranchId>) : string =
   $"CASE branch_id {caseClauses} END, CASE WHEN commit_id IS NULL THEN 0 ELSE 1 END, created_at DESC"
 
 
+let private findItem
+  (itemType : string)
+  (branchChain : List<PT.BranchId>)
+  (location : PT.PackageLocation)
+  : Ply<Option<uuid>> =
+  uply {
+    let modulesStr = String.concat "." location.modules
+    let (branchFilter, branchParams) = buildBranchFilter branchChain
+    let orderBy = buildBranchOrderBy branchChain
+
+    return!
+      Sql.query
+        $"""
+        SELECT item_id
+        FROM locations
+        WHERE owner = @owner
+          AND modules = @modules
+          AND name = @name
+          AND item_type = '{itemType}'
+          AND deprecated_at IS NULL
+          AND {branchFilter}
+        ORDER BY {orderBy}
+        LIMIT 1
+        """
+      |> Sql.parameters (
+        [ "owner", Sql.string location.owner
+          "modules", Sql.string modulesStr
+          "name", Sql.string location.name ]
+        @ branchParams
+      )
+      |> Sql.executeRowOptionAsync (fun read -> read.uuid "item_id")
+  }
+
+let private getItem<'a>
+  (table : string)
+  (deserialize : uuid -> byte[] -> 'a)
+  (id : uuid)
+  : Ply<Option<'a>> =
+  uply {
+    return!
+      Sql.query
+        $"""
+        SELECT pt_def
+        FROM {table}
+        WHERE id = @id
+        """
+      |> Sql.parameters [ "id", Sql.uuid id ]
+      |> Sql.executeRowOptionAsync (fun read -> read.bytes "pt_def")
+      |> Task.map (Option.map (deserialize id))
+  }
+
+let private getItemLocation
+  (itemType : string)
+  (branchChain : List<PT.BranchId>)
+  (id : uuid)
+  : Ply<Option<PT.PackageLocation>> =
+  uply {
+    let (branchFilter, branchParams) = buildBranchFilter branchChain
+    let orderBy = buildBranchOrderBy branchChain
+
+    return!
+      Sql.query
+        $"""
+        SELECT owner, modules, name
+        FROM locations
+        WHERE item_id = @item_id
+          AND item_type = '{itemType}'
+          AND deprecated_at IS NULL
+          AND {branchFilter}
+        ORDER BY {orderBy}
+        LIMIT 1
+        """
+      |> Sql.parameters ([ "item_id", Sql.uuid id ] @ branchParams)
+      |> Sql.executeRowOptionAsync (fun read ->
+        let modulesStr = read.string "modules"
+        { owner = read.string "owner"
+          modules = modulesStr.Split('.') |> Array.toList
+          name = read.string "name" })
+  }
+
+
 module Type =
-  let find
-    (branchChain : List<PT.BranchId>)
-    (location : PT.PackageLocation)
-    : Ply<Option<PT.FQTypeName.Package>> =
-    uply {
-      let modulesStr = String.concat "." location.modules
-      let (branchFilter, branchParams) = buildBranchFilter branchChain
-      let orderBy = buildBranchOrderBy branchChain
-
-      return!
-        Sql.query
-          $"""
-          SELECT item_id
-          FROM locations
-          WHERE owner = @owner
-            AND modules = @modules
-            AND name = @name
-            AND item_type = 'type'
-            AND deprecated_at IS NULL
-            AND {branchFilter}
-          ORDER BY {orderBy}
-          LIMIT 1
-          """
-        |> Sql.parameters (
-          [ "owner", Sql.string location.owner
-            "modules", Sql.string modulesStr
-            "name", Sql.string location.name ]
-          @ branchParams
-        )
-        |> Sql.executeRowOptionAsync (fun read -> read.uuid "item_id")
-    }
-
-  let get (id : uuid) : Ply<Option<PT.PackageType.PackageType>> =
-    uply {
-      return!
-        Sql.query
-          """
-          SELECT pt_def
-          FROM package_types
-          WHERE id = @id
-          """
-        |> Sql.parameters [ "id", Sql.uuid id ]
-        |> Sql.executeRowOptionAsync (fun read -> read.bytes "pt_def")
-        |> Task.map (Option.map (BinarySerialization.PT.PackageType.deserialize id))
-    }
-
-  let getLocation
-    (branchChain : List<PT.BranchId>)
-    (id : uuid)
-    : Ply<Option<PT.PackageLocation>> =
-    uply {
-      let (branchFilter, branchParams) = buildBranchFilter branchChain
-      let orderBy = buildBranchOrderBy branchChain
-
-      return!
-        Sql.query
-          $"""
-          SELECT owner, modules, name
-          FROM locations
-          WHERE item_id = @item_id
-            AND item_type = 'type'
-            AND deprecated_at IS NULL
-            AND {branchFilter}
-          ORDER BY {orderBy}
-          LIMIT 1
-          """
-        |> Sql.parameters ([ "item_id", Sql.uuid id ] @ branchParams)
-        |> Sql.executeRowOptionAsync (fun read ->
-          let modulesStr = read.string "modules"
-          { owner = read.string "owner"
-            modules = modulesStr.Split('.') |> Array.toList
-            name = read.string "name" })
-    }
-
+  let find = findItem "type"
+  let get = getItem "package_types" BinarySerialization.PT.PackageType.deserialize
+  let getLocation = getItemLocation "type"
 
 module Value =
-  let find
-    (branchChain : List<PT.BranchId>)
-    (location : PT.PackageLocation)
-    : Ply<Option<PT.FQValueName.Package>> =
-    uply {
-      let modulesStr = String.concat "." location.modules
-      let (branchFilter, branchParams) = buildBranchFilter branchChain
-      let orderBy = buildBranchOrderBy branchChain
-
-      return!
-        Sql.query
-          $"""
-          SELECT item_id
-          FROM locations
-          WHERE owner = @owner
-            AND modules = @modules
-            AND name = @name
-            AND item_type = 'value'
-            AND deprecated_at IS NULL
-            AND {branchFilter}
-          ORDER BY {orderBy}
-          LIMIT 1
-          """
-        |> Sql.parameters (
-          [ "owner", Sql.string location.owner
-            "modules", Sql.string modulesStr
-            "name", Sql.string location.name ]
-          @ branchParams
-        )
-        |> Sql.executeRowOptionAsync (fun read -> read.uuid "item_id")
-    }
-
-  let get (id : uuid) : Ply<Option<PT.PackageValue.PackageValue>> =
-    uply {
-      return!
-        Sql.query
-          """
-          SELECT pt_def
-          FROM package_values
-          WHERE id = @id
-          """
-        |> Sql.parameters [ "id", Sql.uuid id ]
-        |> Sql.executeRowOptionAsync (fun read -> read.bytes "pt_def")
-        |> Task.map (Option.map (BinarySerialization.PT.PackageValue.deserialize id))
-    }
-
-  let getLocation
-    (branchChain : List<PT.BranchId>)
-    (id : uuid)
-    : Ply<Option<PT.PackageLocation>> =
-    uply {
-      let (branchFilter, branchParams) = buildBranchFilter branchChain
-      let orderBy = buildBranchOrderBy branchChain
-
-      return!
-        Sql.query
-          $"""
-          SELECT owner, modules, name
-          FROM locations
-          WHERE item_id = @item_id
-            AND item_type = 'value'
-            AND deprecated_at IS NULL
-            AND {branchFilter}
-          ORDER BY {orderBy}
-          LIMIT 1
-          """
-        |> Sql.parameters ([ "item_id", Sql.uuid id ] @ branchParams)
-        |> Sql.executeRowOptionAsync (fun read ->
-          let modulesStr = read.string "modules"
-          { owner = read.string "owner"
-            modules = modulesStr.Split('.') |> Array.toList
-            name = read.string "name" })
-    }
-
+  let find = findItem "value"
+  let get = getItem "package_values" BinarySerialization.PT.PackageValue.deserialize
+  let getLocation = getItemLocation "value"
 
 module Fn =
-  let find
-    (branchChain : List<PT.BranchId>)
-    (location : PT.PackageLocation)
-    : Ply<Option<PT.FQFnName.Package>> =
-    uply {
-      let modulesStr = String.concat "." location.modules
-      let (branchFilter, branchParams) = buildBranchFilter branchChain
-      let orderBy = buildBranchOrderBy branchChain
-
-      return!
-        Sql.query
-          $"""
-          SELECT item_id
-          FROM locations
-          WHERE owner = @owner
-            AND modules = @modules
-            AND name = @name
-            AND item_type = 'fn'
-            AND deprecated_at IS NULL
-            AND {branchFilter}
-          ORDER BY {orderBy}
-          LIMIT 1
-          """
-        |> Sql.parameters (
-          [ "owner", Sql.string location.owner
-            "modules", Sql.string modulesStr
-            "name", Sql.string location.name ]
-          @ branchParams
-        )
-        |> Sql.executeRowOptionAsync (fun read -> read.uuid "item_id")
-    }
-
-  let get (id : uuid) : Ply<Option<PT.PackageFn.PackageFn>> =
-    uply {
-      return!
-        Sql.query
-          """
-          SELECT pt_def
-          FROM package_functions
-          WHERE id = @id
-          """
-        |> Sql.parameters [ "id", Sql.uuid id ]
-        |> Sql.executeRowOptionAsync (fun read -> read.bytes "pt_def")
-        |> Task.map (Option.map (BinarySerialization.PT.PackageFn.deserialize id))
-    }
-
-  let getLocation
-    (branchChain : List<PT.BranchId>)
-    (id : uuid)
-    : Ply<Option<PT.PackageLocation>> =
-    uply {
-      let (branchFilter, branchParams) = buildBranchFilter branchChain
-      let orderBy = buildBranchOrderBy branchChain
-
-      return!
-        Sql.query
-          $"""
-          SELECT owner, modules, name
-          FROM locations
-          WHERE item_id = @item_id
-            AND item_type = 'fn'
-            AND deprecated_at IS NULL
-            AND {branchFilter}
-          ORDER BY {orderBy}
-          LIMIT 1
-          """
-        |> Sql.parameters ([ "item_id", Sql.uuid id ] @ branchParams)
-        |> Sql.executeRowOptionAsync (fun read ->
-          let modulesStr = read.string "modules"
-          { owner = read.string "owner"
-            modules = modulesStr.Split('.') |> Array.toList
-            name = read.string "name" })
-    }
+  let find = findItem "fn"
+  let get = getItem "package_functions" BinarySerialization.PT.PackageFn.deserialize
+  let getLocation = getItemLocation "fn"
 
 
 let search
