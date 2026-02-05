@@ -91,7 +91,9 @@ let evaluateAllValues
               | Ok(RT.DString s) -> s
               | Ok other -> $"{other}"
               | Error(rte2, _) -> $"(could not stringify error: {rte2})"
-            errors.Add($"Value {valueId} ({fullName}): evaluation failed - {errorMsg}")
+            errors.Add(
+              $"Value {valueId} ({fullName}): evaluation failed - {errorMsg}"
+            )
           | Ok dval ->
             // Create the RT value and serialize
             let rtValue : RT.PackageValue.PackageValue =
