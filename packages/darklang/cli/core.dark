@@ -162,7 +162,7 @@ module Registry =
       ("log", "Show commit history", [ "history"; "commits" ], SCM.Log.execute, SCM.Log.help, SCM.Log.complete)
       ("commit", "Commit uncommitted changes", [], SCM.Commit.execute, SCM.Commit.help, SCM.Commit.complete)
       ("discard", "Discard uncommitted changes", [ "reset" ], SCM.Discard.execute, SCM.Discard.help, SCM.Discard.complete)
-      ("show", "Show commit details", [], SCM.Show.execute, SCM.Show.help, SCM.Show.complete)
+      ("show", "Show commit details", [], SCM.ShowCommit.execute, SCM.ShowCommit.help, SCM.ShowCommit.complete)
       ("branch", "Manage branches", [ "br" ], SCM.Branch.execute, SCM.Branch.help, SCM.Branch.complete)
       ("rebase", "Rebase current branch onto parent", [], SCM.Rebase.execute, SCM.Rebase.help, SCM.Rebase.complete)
       ("merge", "Merge current branch into parent", [], SCM.Merge.execute, SCM.Merge.help, SCM.Merge.complete)

@@ -1,4 +1,5 @@
-module Darklang.Cli.SCM.Show
+/// Show the ops in a specific commit
+module Darklang.Cli.SCM.ShowCommit
 
 
 let execute (state: AppState) (args: List<String>) : AppState =
