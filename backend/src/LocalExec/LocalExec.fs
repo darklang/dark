@@ -27,18 +27,24 @@ let evaluateAllValues
   (pm : RT.PackageManager)
   : Ply<Result<unit, string list>> =
   uply {
-    // Get all value IDs with NULL rt_dval
+    // Get all value IDs with NULL rt_dval, with their names for error reporting
     let! unevaluatedValues =
       Sql.query
         """
-        SELECT id, pt_def
-        FROM package_values
-        WHERE rt_dval IS NULL
+        SELECT pv.id, pv.pt_def, l.owner, l.modules, l.name
+        FROM package_values pv
+        LEFT JOIN locations l ON l.item_id = CAST(pv.id AS TEXT) AND l.deprecated_at IS NULL
+        WHERE pv.rt_dval IS NULL
         """
       |> Sql.executeAsync (fun read ->
         let id = read.uuid "id"
         let ptDef = read.bytes "pt_def"
-        (id, ptDef))
+        let owner = read.stringOrNone "owner" |> Option.defaultValue "?"
+        let modules = read.stringOrNone "modules" |> Option.defaultValue ""
+        let name = read.stringOrNone "name" |> Option.defaultValue "?"
+        let fullName =
+          if modules = "" then $"{owner}.{name}" else $"{owner}.{modules}.{name}"
+        (id, ptDef, fullName))
 
     if List.isEmpty unevaluatedValues then
       return Ok()
@@ -66,7 +72,7 @@ let evaluateAllValues
       // Evaluate each value
       let errors = ResizeArray<string>()
 
-      for (valueId, ptDefBytes) in unevaluatedValues do
+      for (valueId, ptDefBytes, fullName) in unevaluatedValues do
         try
           // Deserialize PT definition
           let ptValue = BS.PT.PackageValue.deserialize valueId ptDefBytes
@@ -79,8 +85,13 @@ let evaluateAllValues
 
           match result with
           | Error(rte, _callStack) ->
-            let! errorStr = Execution.runtimeErrorToString exeState rte
-            errors.Add($"Value {valueId}: evaluation failed - {errorStr}")
+            let! errorResult = Execution.runtimeErrorToString exeState rte
+            let errorMsg =
+              match errorResult with
+              | Ok(RT.DString s) -> s
+              | Ok other -> $"{other}"
+              | Error(rte2, _) -> $"(could not stringify error: {rte2})"
+            errors.Add($"Value {valueId} ({fullName}): evaluation failed - {errorMsg}")
           | Ok dval ->
             // Create the RT value and serialize
             let rtValue : RT.PackageValue.PackageValue =
@@ -103,7 +114,7 @@ let evaluateAllValues
                   "value_type", Sql.bytes valueTypeBytes ]
               |> Sql.executeStatementAsync
         with ex ->
-          errors.Add($"Value {valueId}: exception - {ex.Message}")
+          errors.Add($"Value {valueId} ({fullName}): exception - {ex.Message}")
 
       if errors.Count = 0 then return Ok() else return Error(errors |> List.ofSeq)
   }
