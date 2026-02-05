@@ -81,7 +81,7 @@ if [[ -v CI ]]; then
 fi
 
 TEST_LOG="${LOGS}/fsharp-tests.log"
-> "${TEST_LOG}" # truncate
+true > "${TEST_LOG}" # truncate
 
 cd backend
 echo -e "Logging to: ${grey}${TEST_LOG}${reset}"

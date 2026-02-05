@@ -25,7 +25,7 @@ if [[ -z "$MODE" ]]; then
   echo "Select extension mode:"
   echo "  1) release - uses installed 'dark' CLI (for host testing)"
   echo "  2) debug   - uses ./scripts/run-cli (for container testing)"
-  read -p "Enter choice [1/2]: " choice
+  read -rp "Enter choice [1/2]: " choice
   case $choice in
     1) MODE="release" ;;
     2) MODE="debug" ;;
