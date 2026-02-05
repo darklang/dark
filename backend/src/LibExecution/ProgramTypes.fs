@@ -50,6 +50,16 @@ type MergeError =
   | IsMainBranch
 
 
+/// A commit on a branch
+type Commit =
+  { id : uuid
+    message : string
+    createdAt : NodaTime.Instant
+    opCount : int64
+    branchId : BranchId
+    branchName : string }
+
+
 /// Fully-Qualified Type Name
 ///
 /// Used to reference a type defined in a Package or by a User

@@ -158,7 +158,11 @@ let fns : List<BuiltInFn> =
               |> List.map (fun (id, loc) ->
                 DTuple(DUuid id, PT2DT.PackageLocation.toDT loc, []))
 
-            return DList(VT.tuple VT.uuid PT2DT.PackageLocation.knownType [], dvals)
+            return
+              DList(
+                VT.tuple VT.uuid (VT.known PT2DT.PackageLocation.knownType) [],
+                dvals
+              )
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable

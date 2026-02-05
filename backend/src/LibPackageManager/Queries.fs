@@ -289,20 +289,18 @@ let getWipSummary (branchId : PT.BranchId) : Task<WipSummary> =
   }
 
 
-/// A commit record
-type Commit =
-  { id : uuid; message : string; createdAt : NodaTime.Instant; opCount : int64 }
-
-
 /// Get commits on a branch ordered by date descending
-let getCommits (branchId : PT.BranchId) (limit : int64) : Task<List<Commit>> =
+let getCommits (branchId : PT.BranchId) (limit : int64) : Task<List<PT.Commit>> =
   task {
     return!
       Sql.query
         """
         SELECT c.id, c.message, c.created_at,
-               (SELECT COUNT(*) FROM package_ops WHERE commit_id = c.id) as op_count
+               (SELECT COUNT(*) FROM package_ops WHERE commit_id = c.id) as op_count,
+               c.branch_id,
+               b.name as branch_name
         FROM commits c
+        JOIN branches b ON c.branch_id = b.id
         WHERE c.branch_id = @branch_id
         ORDER BY c.created_at DESC
         LIMIT @limit
@@ -312,26 +310,17 @@ let getCommits (branchId : PT.BranchId) (limit : int64) : Task<List<Commit>> =
         { id = read.uuid "id"
           message = read.string "message"
           createdAt = read.instant "created_at"
-          opCount = read.int64 "op_count" })
+          opCount = read.int64 "op_count"
+          branchId = read.uuid "branch_id"
+          branchName = read.string "branch_name" })
   }
 
 
-/// A commit record that also tracks which branch it belongs to
-type ChainCommit =
-  { id : uuid
-    message : string
-    createdAt : NodaTime.Instant
-    opCount : int64
-    branchId : PT.BranchId
-    branchName : string }
-
-
 /// Get commits across the entire branch chain (current + ancestors), ordered by date descending.
-/// Each commit is tagged with the branch it belongs to.
 let getCommitsForBranchChain
   (branchId : PT.BranchId)
   (limit : int64)
-  : Task<List<ChainCommit>> =
+  : Task<List<PT.Commit>> =
   task {
     let! chain = Branches.getBranchChain branchId
 

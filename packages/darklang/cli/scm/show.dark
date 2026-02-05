@@ -18,15 +18,10 @@ let execute (state: AppState) (args: List<String>) : AppState =
         let matching =
           commits
           |> Stdlib.List.filter (fun c ->
-            match Stdlib.Dict.get c "id" with
-            | Some id -> Stdlib.String.startsWith id commitIdStr
-            | None -> false)
+            Stdlib.String.startsWith (Stdlib.Uuid.toString c.id) commitIdStr)
 
         match matching with
-        | [ c ] ->
-          match Stdlib.Dict.get c "id" with
-          | Some id -> id
-          | None -> commitIdStr
+        | [ c ] -> Stdlib.Uuid.toString c.id
         | [] ->
           Stdlib.printLine (Cli.Colors.error "No matching commit found.")
           commitIdStr

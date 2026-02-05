@@ -1,5 +1,16 @@
 module Darklang.SCM.PackageOps
 
+
+/// A commit on a branch
+type Commit =
+  { id: Uuid
+    message: String
+    createdAt: DateTime
+    opCount: Int64
+    branchId: Uuid
+    branchName: String }
+
+
 /// Add a list of package ops to the database as WIP (uncommitted) on the given branch
 ///
 /// Returns the number of inserted ops on success (duplicates are skipped),
@@ -42,14 +53,13 @@ let discard (branchId: Uuid) : Stdlib.Result.Result<Int64, String> =
 
 
 /// Get commit log for a branch ordered by date descending
-/// Each commit is a dict with: id, message, createdAt, opCount
-let getCommits (branchId: Uuid) (limit: Int64) : List<Dict<String>> =
+let getCommits (branchId: Uuid) (limit: Int64) : List<Commit> =
   Builtin.scmGetCommits branchId limit
 
 
 /// Get commit log across the entire branch chain (current + ancestors),
-/// ordered by date descending. Each commit includes branchId and branchName.
-let getCommitsWithAncestors (branchId: Uuid) (limit: Int64) : List<Dict<String>> =
+/// ordered by date descending.
+let getCommitsWithAncestors (branchId: Uuid) (limit: Int64) : List<Commit> =
   Builtin.scmGetCommitsForBranchChain branchId limit
 
 

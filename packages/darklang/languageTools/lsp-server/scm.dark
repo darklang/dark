@@ -55,43 +55,13 @@ let handleGetCommitsRequest
   let commitsJson =
     commits
     |> Stdlib.List.map (fun c ->
-      let id =
-        match Stdlib.Dict.get c "id" with
-        | Some i -> i
-        | None -> ""
-
-      let message =
-        match Stdlib.Dict.get c "message" with
-        | Some m -> m
-        | None -> "(no message)"
-
-      let createdAt =
-        match Stdlib.Dict.get c "createdAt" with
-        | Some d -> d
-        | None -> ""
-
-      let opCount =
-        match Stdlib.Dict.get c "opCount" with
-        | Some o -> o
-        | None -> "0"
-
-      let branchId =
-        match Stdlib.Dict.get c "branchId" with
-        | Some b -> b
-        | None -> ""
-
-      let branchName =
-        match Stdlib.Dict.get c "branchName" with
-        | Some b -> b
-        | None -> ""
-
       Stdlib.AltJson.Json.Object
-        [ ("id", Stdlib.AltJson.Json.String id)
-          ("message", Stdlib.AltJson.Json.String message)
-          ("createdAt", Stdlib.AltJson.Json.String createdAt)
-          ("opCount", Stdlib.AltJson.Json.String opCount)
-          ("branchId", Stdlib.AltJson.Json.String branchId)
-          ("branchName", Stdlib.AltJson.Json.String branchName) ])
+        [ ("id", Stdlib.AltJson.Json.String (Stdlib.Uuid.toString c.id))
+          ("message", Stdlib.AltJson.Json.String c.message)
+          ("createdAt", Stdlib.AltJson.Json.String (Stdlib.DateTime.toString_v0 c.createdAt))
+          ("opCount", Stdlib.AltJson.Json.String (Stdlib.Int64.toString c.opCount))
+          ("branchId", Stdlib.AltJson.Json.String (Stdlib.Uuid.toString c.branchId))
+          ("branchName", Stdlib.AltJson.Json.String c.branchName) ])
 
   let responseJson = Stdlib.AltJson.Json.Array commitsJson
 

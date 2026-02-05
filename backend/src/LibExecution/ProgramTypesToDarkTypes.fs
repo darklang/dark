@@ -165,9 +165,9 @@ module NameResolutionError =
   let toDT (e : PT.NameResolutionError) : Dval =
     let (caseName, fields) =
       match e with
-      | PT.NotFound names ->
+      | PT.NameResolutionError.NotFound names ->
         "NotFound", [ DList(VT.string, List.map Dval.string names) ]
-      | PT.InvalidName names ->
+      | PT.NameResolutionError.InvalidName names ->
         "InvalidName", [ DList(VT.string, List.map Dval.string names) ]
     DEnum(typeName, typeName, [], caseName, fields)
 
@@ -1640,3 +1640,19 @@ module MergeError =
       | PT.MergeError.NotFound -> "NotFound"
       | PT.MergeError.IsMainBranch -> "IsMainBranch"
     DEnum(typeName, typeName, [], caseName, [])
+
+
+module Commit =
+  let typeName = FQTypeName.fqPackage PackageIDs.Type.SCM.Commit.commit
+  let knownType = KTCustomType(typeName, [])
+
+  let toDT (c : PT.Commit) : Dval =
+    let fields =
+      [ "id", DUuid c.id
+        "message", DString c.message
+        "createdAt", DDateTime(DarkDateTime.fromInstant c.createdAt)
+        "opCount", DInt64 c.opCount
+        "branchId", DUuid c.branchId
+        "branchName", DString c.branchName ]
+      |> Map.ofList
+    DRecord(typeName, typeName, [], fields)
