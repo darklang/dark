@@ -62,11 +62,8 @@ let combineLogoAndText (logoStr: String) (textLines: List<String>) (color: Strin
         // Add color to non-empty lines
         color ++ paddedLine ++ Colors.reset)
 
-  // Text lines are already a list - use directly
-  let textLinesList = textLines
-
   let logoHeight = Stdlib.List.length paddedLogoLines
-  let textHeight = Stdlib.List.length textLinesList
+  let textHeight = Stdlib.List.length textLines
 
   // Calculate target height (maximum of both)
   let targetHeight = if logoHeight > textHeight then logoHeight else textHeight
@@ -99,11 +96,11 @@ let combineLogoAndText (logoStr: String) (textLines: List<String>) (color: Strin
       | Ok topEmpty ->
         match Stdlib.List.repeat paddingBottom "" with
         | Ok bottomEmpty ->
-          Stdlib.List.flatten [topEmpty; textLinesList; bottomEmpty]
-        | Error _ -> textLinesList
-      | Error _ -> textLinesList
+          Stdlib.List.flatten [topEmpty; textLines; bottomEmpty]
+        | Error _ -> textLines
+      | Error _ -> textLines
     else
-      textLinesList
+      textLines
 
   // Combine logo and text with spacing
   let spacing = "    " // 4 spaces between logo and text
