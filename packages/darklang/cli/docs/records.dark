@@ -18,9 +18,9 @@ let content () : String =
   person.name
 
 ## Update
-  Person { person with age = 31L }
+  { person with age = 31L }
 
-## Match (partial OK)
+## No pattern matching
+  Records can't be destructured in match. Use a variable and access fields:
   match p with
-  | { name = "admin" } -> true
-  | _ -> false"""
+  | person -> person.name"""
