@@ -8,40 +8,6 @@ type DiscoveredValue<'a> =
   { path: String
     value: 'a }
 
-
-/// Find all values whose names end with a specific suffix
-/// This is a naming-convention approach to discovery
-let findBySuffix
-  (targetNamespace: String)
-  (suffix: String)
-  : List<String> =
-  let query =
-    LanguageTools.ProgramTypes.Search.SearchQuery
-      { currentModule =
-          if Stdlib.String.isEmpty targetNamespace then
-            []
-          else
-            Stdlib.String.split targetNamespace "."
-        text = suffix
-        searchDepth = LanguageTools.ProgramTypes.Search.SearchDepth.AllDescendants
-        entityTypes = [ LanguageTools.ProgramTypes.Search.EntityType.Value ]
-        exactMatch = false }
-
-  let results = LanguageTools.PackageManager.Search.search branchId query
-
-  results.values
-  |> Stdlib.List.filterMap (fun v ->
-    if Stdlib.String.endsWith v.location.name suffix then
-      let fullPath =
-        (Stdlib.List.append [ v.location.owner ] v.location.modules)
-        |> Stdlib.List.append [ v.location.name ]
-        |> Stdlib.String.join "."
-
-      Stdlib.Option.Option.Some fullPath
-    else
-      Stdlib.Option.Option.None)
-
-
 /// Parse namespace string into parts (non-generic helper)
 let parseNamespace (targetNamespace: String) : List<String> =
   if (Stdlib.String.length targetNamespace) == 0L then
@@ -115,44 +81,3 @@ let findByType
         Stdlib.Option.Option.None
     | None -> Stdlib.Option.Option.None)
 
-
-/// Find all values with a given type, returning just the values
-/// This is a convenience function when you don't need the paths
-let findValuesByType<'a>
-  (branchId: Uuid)
-  (targetNamespace: String)
-  (targetTypeId: Uuid)
-  : List<'a> =
-  (findByType branchId targetNamespace targetTypeId)
-  |> Stdlib.List.map (fun discovered -> discovered.value)
-
-
-/// Find all values in a targetNamespace, returning path and value pairs
-/// Does not filter by type - returns all values
-let findAllValues
-  (branchId: Uuid)
-  (targetNamespace: String)
-  : List<DiscoveredValue<'a>> =
-  let query =
-    LanguageTools.ProgramTypes.Search.SearchQuery
-      { currentModule = parseNamespace targetNamespace
-        text = ""
-        searchDepth = LanguageTools.ProgramTypes.Search.SearchDepth.AllDescendants
-        entityTypes = [ LanguageTools.ProgramTypes.Search.EntityType.Value ]
-        exactMatch = false }
-
-  let results = LanguageTools.PackageManager.Search.search branchId query
-
-  results.values
-  |> Stdlib.List.filterMap (fun v ->
-    match Builtin.pmEvaluateValue v.entity.id with
-    | Some evaluatedValue ->
-      let fullPath =
-        (Stdlib.List.append [ v.location.owner ] v.location.modules)
-        |> Stdlib.List.append [ v.location.name ]
-        |> Stdlib.String.join "."
-
-      Stdlib.Option.Option.Some(
-        DiscoveredValue { path = fullPath; value = evaluatedValue }
-      )
-    | None -> Stdlib.Option.Option.None)
