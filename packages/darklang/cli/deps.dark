@@ -169,14 +169,15 @@ let execute (state: AppState) (args: List<String>) : AppState =
 
   match filteredArgs with
   | [] ->
-    Stdlib.printLine (Colors.error "Usage: deps <subcommand> <path>")
-    Stdlib.printLine ""
-    Stdlib.printLine "Subcommands:"
-    Stdlib.printLine "  uses <path>         - Show what the entity uses (dependencies)"
-    Stdlib.printLine "  usedby <path>       - Show what uses the entity (dependents)"
-    Stdlib.printLine ""
-    Stdlib.printLine "Options:"
-    Stdlib.printLine "  --deep              - Show transitive dependents (everything that could break)"
+    [ Colors.error "Usage: deps <subcommand> <path>"
+      ""
+      "Subcommands:"
+      "  uses <path>         - Show what the entity uses (dependencies)"
+      "  usedby <path>       - Show what uses the entity (dependents)"
+      ""
+      "Options:"
+      "  --deep              - Show transitive dependents (everything that could break)" ]
+    |> Stdlib.printLines
     state
 
   | ["uses"; pathArg] ->
