@@ -15,6 +15,7 @@ export class DarkContentProvider implements vscode.TextDocumentContentProvider {
 
   async provideTextDocumentContent(uri: vscode.Uri): Promise<string> {
     try {
+      // TODO: Support AST view via URL query parameter (e.g., ?view=ast)
       return await this.renderSourceFor(uri);
     } catch (error) {
       console.error("Error providing content:", error);

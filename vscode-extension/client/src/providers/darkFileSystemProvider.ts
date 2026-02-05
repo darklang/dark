@@ -5,6 +5,22 @@ import { PackagesTreeDataProvider } from "./treeviews/packagesTreeDataProvider";
 /**
  * FileSystemProvider for darkfs:// URIs
  * Enables editing of package modules with automatic parsing and op generation on save
+ *
+ * TODO: Clean up URI scheme usage
+ * Currently we have:
+ * - dark:// = TextDocumentContentProvider (read-only views like branch overviews)
+ * - darkfs:// = FileSystemProvider (editable, currently requires .dark extension)
+ *
+ * Plan:
+ * 1. Keep both schemes (different schemes = different editability, good UX)
+ * 2. Remove .dark extension requirement from darkfs:// URLs
+ * 3. Update LSP URI parsing to be flexible (no hardcoded .dark stripping)
+ *
+ * After changes:
+ * - dark://package/{path}?view=ast - read-only AST view (future)
+ * - darkfs://package/{path} - editable package source (NO .dark extension)
+ * - darkfs://module/{path} - editable full module (NO .dark extension)
+ * - darkfs://script/{name} - editable script (NO .dark extension)
  */
 export class DarkFileSystemProvider implements vscode.FileSystemProvider {
   private _emitter = new vscode.EventEmitter<vscode.FileChangeEvent[]>();
@@ -24,7 +40,8 @@ export class DarkFileSystemProvider implements vscode.FileSystemProvider {
   }
 
   /**
-   * Refresh all open darkfs:// files by clearing cache and firing change events
+   * Refresh all open darkfs:// files by clearing cache and firing change events.
+   * Called when switching branches to show updated content.
    */
   async refreshAllOpenFiles(): Promise<void> {
     const openDarkfsFiles = vscode.workspace.textDocuments.filter(
@@ -45,6 +62,7 @@ export class DarkFileSystemProvider implements vscode.FileSystemProvider {
   }
 
   watch(_uri: vscode.Uri, _options: { recursive: boolean; excludes: readonly string[]; }): vscode.Disposable {
+    // Watching is not required for our use case
     return new vscode.Disposable(() => {});
   }
 
@@ -112,6 +130,7 @@ export class DarkFileSystemProvider implements vscode.FileSystemProvider {
             `Parsed successfully. Created ${response.ops.length} operation(s).`
           );
 
+          // If LSP returned updated content with IDs, use it immediately
           if (response.updatedContent) {
             const updatedContentBuffer = Buffer.from(response.updatedContent, 'utf-8');
             this.contentCache.set(uri.toString(), new Uint8Array(updatedContentBuffer));
