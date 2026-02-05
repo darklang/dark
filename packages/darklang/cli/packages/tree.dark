@@ -116,10 +116,7 @@ let displayTableOfContents (): Unit =
 
 let execute (state: AppState) (args: List<String>): AppState =
   // Check for --toc flag
-  let showToc =
-    match Stdlib.List.findFirst args (fun arg -> arg == "--toc") with
-    | Some _ -> true
-    | None -> false
+  let showToc = Stdlib.List.any args (fun arg -> arg == "--toc")
 
   if showToc then
     displayTableOfContents ()

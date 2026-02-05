@@ -194,9 +194,7 @@ module Registry =
       let aliasMatches =
         commands
         |> Stdlib.List.filter (fun cmd ->
-          match Stdlib.List.findFirst cmd.aliases (fun alias -> alias == name) with
-          | Some _ -> true
-          | None -> false)
+          Stdlib.List.any cmd.aliases (fun alias -> alias == name))
 
       Stdlib.List.append nameMatches aliasMatches
 
