@@ -1,6 +1,7 @@
 module Darklang.Canvas.DarkPackages
 
 // Package Manager API - serves package metadata
+// WIP: this is intended to replace canvases/dark-packages/main.dark
 
 // Helper functions
 

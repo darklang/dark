@@ -1,3 +1,4 @@
+// Being replaced by packages/darklang/canvas/dark-packages/main.dark
 let branchId = SCM.Branch.mainBranchId
 
 [<HttpHandler("GET", "/ping")>]
