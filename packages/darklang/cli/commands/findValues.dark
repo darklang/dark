@@ -1,4 +1,4 @@
-module Darklang.Cli.Commands.Find
+module Darklang.Cli.Commands.FindValues
 
 // Find all package values of a given type
 
