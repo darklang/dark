@@ -22,103 +22,124 @@ open Utils
 
 /// Evaluate all package values that have NULL rt_dval.
 /// Called after initial package load when all definitions are in the DB.
+///
+/// Uses multi-pass evaluation: values may depend on other values, so we evaluate
+/// in rounds. Each pass evaluates all remaining NULL values; failures are retried
+/// in the next pass (once their dependencies have been evaluated). Stops when all
+/// values are evaluated or a pass makes no progress.
 let evaluateAllValues
   (builtins : RT.Builtins)
   (pm : RT.PackageManager)
   : Ply<Result<unit, string list>> =
   uply {
-    // Get all value IDs with NULL rt_dval, with their names for error reporting
-    let! unevaluatedValues =
-      Sql.query
-        """
-        SELECT pv.id, pv.pt_def, l.owner, l.modules, l.name
-        FROM package_values pv
-        LEFT JOIN locations l ON l.item_id = CAST(pv.id AS TEXT) AND l.deprecated_at IS NULL
-        WHERE pv.rt_dval IS NULL
-        """
-      |> Sql.executeAsync (fun read ->
-        let id = read.uuid "id"
-        let ptDef = read.bytes "pt_def"
-        let owner = read.stringOrNone "owner" |> Option.defaultValue "?"
-        let modules = read.stringOrNone "modules" |> Option.defaultValue ""
-        let name = read.stringOrNone "name" |> Option.defaultValue "?"
-        let fullName =
-          if modules = "" then $"{owner}.{name}" else $"{owner}.{modules}.{name}"
-        (id, ptDef, fullName))
+    // Create execution state for evaluation
+    let program : RT.Program =
+      { canvasID = System.Guid.NewGuid()
+        internalFnsAllowed = false
+        dbs = Map.empty
+        secrets = [] }
 
-    if List.isEmpty unevaluatedValues then
-      return Ok()
-    else
-      // Create execution state for evaluation
-      let program : RT.Program =
-        { canvasID = System.Guid.NewGuid()
-          internalFnsAllowed = false
-          dbs = Map.empty
-          secrets = [] }
+    let notify _ _ _ _ = uply { return () }
+    let sendException _ _ _ _ = uply { return () }
 
-      let notify _ _ _ _ = uply { return () }
-      let sendException _ _ _ _ = uply { return () }
+    let exeState =
+      Execution.createState
+        builtins
+        pm
+        Execution.noTracing
+        sendException
+        notify
+        PT.mainBranchId
+        program
 
-      let exeState =
-        Execution.createState
-          builtins
-          pm
-          Execution.noTracing
-          sendException
-          notify
-          PT.mainBranchId
-          program
+    let maxPasses = 10
+    let mutable pass = 0
+    let mutable keepGoing = true
+    let mutable lastErrors : string list = []
 
-      // Evaluate each value
-      let errors = ResizeArray<string>()
+    while keepGoing do
+      pass <- pass + 1
 
-      for (valueId, ptDefBytes, fullName) in unevaluatedValues do
-        try
-          // Deserialize PT definition
-          let ptValue = BS.PT.PackageValue.deserialize valueId ptDefBytes
+      // Re-query each pass to pick up only values still needing evaluation
+      let! unevaluatedValues =
+        Sql.query
+          """
+          SELECT pv.id, pv.pt_def, l.owner, l.modules, l.name
+          FROM package_values pv
+          LEFT JOIN locations l ON l.item_id = CAST(pv.id AS TEXT) AND l.deprecated_at IS NULL
+          WHERE pv.rt_dval IS NULL
+          """
+        |> Sql.executeAsync (fun read ->
+          let id = read.uuid "id"
+          let ptDef = read.bytes "pt_def"
+          let owner = read.stringOrNone "owner" |> Option.defaultValue "?"
+          let modules = read.stringOrNone "modules" |> Option.defaultValue ""
+          let name = read.stringOrNone "name" |> Option.defaultValue "?"
+          let fullName =
+            if modules = "" then $"{owner}.{name}" else $"{owner}.{modules}.{name}"
+          (id, ptDef, fullName))
 
-          // Convert PT expression to RT instructions
-          let instrs = PT2RT.Expr.toRT Map.empty 0 None ptValue.body
+      if List.isEmpty unevaluatedValues then
+        keepGoing <- false
+        lastErrors <- []
+      else if pass > maxPasses then
+        keepGoing <- false
+        lastErrors <-
+          [ $"Gave up after {maxPasses} passes with {List.length unevaluatedValues} values remaining" ]
+      else
+        let errors = ResizeArray<string>()
+        let mutable successCount = 0
 
-          // Execute the expression
-          let! result = Execution.executeExpr exeState instrs
+        for (valueId, ptDefBytes, fullName) in unevaluatedValues do
+          try
+            let ptValue = BS.PT.PackageValue.deserialize valueId ptDefBytes
+            let instrs = PT2RT.Expr.toRT Map.empty 0 None ptValue.body
+            let! result = Execution.executeExpr exeState instrs
 
-          match result with
-          | Error(rte, _callStack) ->
-            let! errorResult = Execution.runtimeErrorToString exeState rte
-            let errorMsg =
-              match errorResult with
-              | Ok(RT.DString s) -> s
-              | Ok other -> $"{other}"
-              | Error(rte2, _) -> $"(could not stringify error: {rte2})"
-            errors.Add(
-              $"Value {valueId} ({fullName}): evaluation failed - {errorMsg}"
-            )
-          | Ok dval ->
-            // Create the RT value and serialize
-            let rtValue : RT.PackageValue.PackageValue =
-              { id = valueId; body = dval }
-            let rtDvalBytes = BS.RT.PackageValue.serialize valueId rtValue
-            let valueType = RT.Dval.toValueType dval
-            let valueTypeBytes = BS.RT.ValueType.serialize valueType
+            match result with
+            | Error(rte, _callStack) ->
+              let! errorResult = Execution.runtimeErrorToString exeState rte
+              let errorMsg =
+                match errorResult with
+                | Ok(RT.DString s) -> s
+                | Ok other -> $"{other}"
+                | Error(rte2, _) -> $"(could not stringify error: {rte2})"
+              errors.Add(
+                $"Value {valueId} ({fullName}): evaluation failed - {errorMsg}"
+              )
+            | Ok dval ->
+              let rtValue : RT.PackageValue.PackageValue =
+                { id = valueId; body = dval }
+              let rtDvalBytes = BS.RT.PackageValue.serialize valueId rtValue
+              let valueType = RT.Dval.toValueType dval
+              let valueTypeBytes = BS.RT.ValueType.serialize valueType
 
-            // Store the evaluated result
-            do!
-              Sql.query
-                """
-                UPDATE package_values
-                SET rt_dval = @rt_dval, value_type = @value_type
-                WHERE id = @id
-                """
-              |> Sql.parameters
-                [ "id", Sql.uuid valueId
-                  "rt_dval", Sql.bytes rtDvalBytes
-                  "value_type", Sql.bytes valueTypeBytes ]
-              |> Sql.executeStatementAsync
-        with ex ->
-          errors.Add($"Value {valueId} ({fullName}): exception - {ex.Message}")
+              do!
+                Sql.query
+                  """
+                  UPDATE package_values
+                  SET rt_dval = @rt_dval, value_type = @value_type
+                  WHERE id = @id
+                  """
+                |> Sql.parameters
+                  [ "id", Sql.uuid valueId
+                    "rt_dval", Sql.bytes rtDvalBytes
+                    "value_type", Sql.bytes valueTypeBytes ]
+                |> Sql.executeStatementAsync
 
-      if errors.Count = 0 then return Ok() else return Error(errors |> List.ofSeq)
+              successCount <- successCount + 1
+          with ex ->
+            errors.Add($"Value {valueId} ({fullName}): exception - {ex.Message}")
+
+        if successCount = 0 then
+          // No progress — remaining failures are real errors
+          keepGoing <- false
+          lastErrors <- errors |> List.ofSeq
+        else
+          print
+            $"  Value evaluation pass {pass}: {successCount} succeeded, {errors.Count} to retry"
+
+    if List.isEmpty lastErrors then return Ok() else return Error lastErrors
   }
 
 
