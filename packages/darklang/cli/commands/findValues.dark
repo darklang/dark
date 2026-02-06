@@ -40,7 +40,7 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
       Stdlib.printLine (Colors.error msg)
       state
     | Ok typeId ->
-      let values = Stdlib.Discovery.findByType state.currentBranchId "" typeId
+      let values = Stdlib.ValueSearch.findByType state.currentBranchId "" typeId
 
       if Stdlib.List.isEmpty values then
         Stdlib.printLine (Colors.dimText $"No values of type {typePath}")
@@ -56,7 +56,7 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
       Stdlib.printLine (Colors.error msg)
       state
     | Ok typeId ->
-      let values = Stdlib.Discovery.findByType state.currentBranchId namespace_ typeId
+      let values = Stdlib.ValueSearch.findByType state.currentBranchId namespace_ typeId
 
       if Stdlib.List.isEmpty values then
         Stdlib.printLine (Colors.dimText $"No values of type {typePath} in {namespace_}")

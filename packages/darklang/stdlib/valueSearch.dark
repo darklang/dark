@@ -1,10 +1,9 @@
-module Darklang.Stdlib.Discovery
+module Darklang.Stdlib.ValueSearch
 
-// Type-based value discovery
-// Allows finding all package values of a specific type
+// Find package values by type
 
-/// Information about a discovered value
-type DiscoveredValue<'a> =
+/// A value found by type search
+type FoundValue<'a> =
   { path: String
     value: 'a }
 
@@ -46,7 +45,7 @@ let findByType
   (branchId: Uuid)
   (targetNamespace: String)
   (targetTypeId: Uuid)
-  : List<DiscoveredValue<'a>> =
+  : List<FoundValue<'a>> =
   let namespaceParts = parseNamespace targetNamespace
 
   // Construct a ValueType for the custom type
@@ -74,7 +73,7 @@ let findByType
           let fullPath = buildPathFromLocation location.owner location.modules location.name
 
           Stdlib.Option.Option.Some(
-            DiscoveredValue { path = fullPath; value = evaluatedValue }
+            FoundValue { path = fullPath; value = evaluatedValue }
           )
         | None -> Stdlib.Option.Option.None
       else
