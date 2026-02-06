@@ -8,9 +8,6 @@ config/local
 .idea
 .ionide/
 
-# Local task tracking
-todos/
-
 # Build system
 rundir/
 

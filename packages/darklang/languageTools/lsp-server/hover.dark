@@ -23,7 +23,7 @@ let getTextAtRange
 
 let handleHoverRequest
   (state: LspState)
-  (requestId: JsonRPC.RequestId)
+  (requestId: JsonRPC.RequestID)
   (params: LanguageServerProtocol.Hover.HoverRequest.HoverParams.HoverParams)
   : LspState =
   /// Find the document in scope
@@ -77,8 +77,16 @@ let handleHoverRequest
       else
         ("LspHover", "")
 
+    let nrCtx =
+      LanguageTools.NameResolver.NRContext
+        { onMissing = onMissing
+          pm = pm
+          branchId = state.currentBranchId
+          owner = owner
+          currentModule = if scriptName == "" then [] else [ scriptName ] }
+
     let pmWithExtras =
-      match Parser.CliScript.pmWithExtras state.accountID state.branchID owner scriptName onMissing pm "" doc.text with
+      match Parser.CliScript.pmWithExtras nrCtx scriptName "" doc.text with
       | Ok pm -> pm
       | Error _ -> pm // fallback to original pm on error
 
@@ -86,18 +94,18 @@ let handleHoverRequest
     let currentModules =
       if scriptName == "" then [] else Stdlib.String.split scriptName "."
 
+    let ctx =
+      HoverInformation.Context
+        { branchId = state.currentBranchId
+          pm = pmWithExtras
+          owner = owner
+          currentModules = currentModules }
+
     let info =
       match parsed with
       | Ok(SourceFile s) ->
         let decls =
-          HoverInformation.collectNodeHoverInfoAtPos
-            state.accountID
-            state.branchID
-            s.declarations
-            position
-            pmWithExtras
-            owner
-            currentModules
+          HoverInformation.collectNodeHoverInfoAtPos ctx s.declarations position
 
         // First try to find a declaration at the position, then try to find expressions
         match decls with
@@ -105,14 +113,7 @@ let handleHoverRequest
         | None ->
           s.exprsToEval
           |> Stdlib.List.filterMap (fun e ->
-            HoverInformation.collectExpressionHoverInfoAtPos
-              state.accountID
-              state.branchID
-              e
-              position
-              pmWithExtras
-              owner
-              currentModules)
+            HoverInformation.collectExpressionHoverInfoAtPos ctx e position)
           |> Stdlib.List.head
 
       | _ -> Stdlib.Option.Option.None

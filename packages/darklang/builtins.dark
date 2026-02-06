@@ -1,0 +1,22 @@
+module Darklang.Builtins
+
+/// Purity of a builtin function
+type Purity =
+  | Pure
+  | ImpurePreviewable
+  | Impure
+
+/// Metadata about a parameter of a builtin function
+type ParamInfo =
+  { name: String
+    typ: LanguageTools.RuntimeTypes.TypeReference
+    description: String }
+
+/// Metadata about a builtin function
+type FunctionInfo =
+  { name: String
+    version: Int64
+    parameters: List<ParamInfo>
+    returnType: LanguageTools.RuntimeTypes.TypeReference
+    description: String
+    purity: Purity }

@@ -26,5 +26,9 @@ else
 fi
 
 
+grey="\033[1;30m"
+reset="\033[0m"
+
+echo -e "Reloading packages ${grey}(${LOG_CANVAS})${reset}"
 ./scripts/run-local-exec $PUBLISHED_FLAG reload-packages > $LOG_CANVAS 2>&1
-echo -e "Done reloading packages from packages/**/*.dark files to internal SQLite DB"
+echo "Done reloading packages"

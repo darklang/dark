@@ -34,7 +34,6 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
     else
       // Parse and create value immediately
       createValueInline
-        state.currentBranchId
         state.packageData.currentLocation
         location
         inlineDefinition
@@ -42,7 +41,6 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
 
 
 let createValueInline
-  (branchID: Stdlib.Option.Option<Uuid>)
   (currentLocation: Packages.PackageLocation)
   (locationStr: String)
   (expression: String)
@@ -66,14 +64,17 @@ let createValueInline
         // Convert to ProgramTypes.PackageValue
         let pm = LanguageTools.PackageManager.pm ()
 
+        let ctx =
+          LanguageTools.NameResolver.NRContext
+            { onMissing = LanguageTools.NameResolver.OnMissing.Allow
+              pm = pm
+              branchId = state.currentBranchId
+              owner = location.owner
+              currentModule = location.modules }
+
         let (packageValue, unresolvedNames) =
           LanguageTools.WrittenTypesToProgramTypes.ValueDeclaration.toPackageValuePT
-            state.accountID
-            branchID
-            LanguageTools.NameResolver.OnMissing.Allow
-            pm
-            location.owner
-            location.modules
+            ctx
             writtenValue
 
         // Check for unresolved names
@@ -102,12 +103,8 @@ let createValueInline
             [ LanguageTools.ProgramTypes.PackageOp.AddValue packageValue
               LanguageTools.ProgramTypes.PackageOp.SetValueName (packageValue.id, location) ]
 
-          // Push the ops up to the server
-          // Local CLI ops don't need an instanceID to track their origin
-          let instanceID = Stdlib.Option.Option.None
-          let createdBy = state.accountID
-
-          match SCM.PackageOps.add instanceID branchID createdBy ops with
+          // Add ops as WIP (use 'scm commit' to commit)
+          match SCM.PackageOps.add state.currentBranchId ops with
           | Ok _ ->
             // Show success message
             let fullPath = PrettyPrinter.ProgramTypes.PackageLocation.packageLocation location

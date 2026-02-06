@@ -1,4 +1,8 @@
 {
+  "attribution": {
+    "commit": "",
+    "pr": ""
+  },
   "permissions": {
     "allow": [
       "Bash(mkdir:*)",
@@ -10,24 +14,19 @@
       "Bash(/dev/null)",
       "Bash(done)",
       "Bash(timeout:*)",
-
       "WebFetch(domain:github.com)",
       "WebSearch",
-      
       "Bash(dotnet-illink-analyze:*)",
       "Bash(sqlite3:*)",
       "Bash(scripts/run-backend-tests:*)",
-      
       "Bash(./scripts/build/build-release-cli-exes.sh:*)",
       "Bash(./scripts/run-cli:*)",
       "Bash(./scripts/run-backend-tests:*)",
       "Bash(./scripts/build/_dotnet-wrapper:*)",
-
+      "Bash(./scripts/run-in-docker:*)",
       "mcp__darklang-push-notifications__send_ntfy_notification",
       "mcp__push-notifications__send_pushover_notification",
-      "mcp__push-notifications__send_ntfy_notification",
-
-      "Bash(git add:*)"
+      "mcp__push-notifications__send_ntfy_notification"
     ],
     "deny": []
   }

@@ -37,15 +37,6 @@ let nameField m = m |> D.field "name" |> D.string
 let versionField m = m |> D.field "version" |> D.int32
 
 
-module AccountID =
-  let optionToDT : Option<PT.AccountID> -> Dval = C2DT.Option.toDT Dval.uuid KTUuid
-  let optionFromDT : Dval -> Option<PT.AccountID> = C2DT.Option.fromDT D.uuid
-
-module BranchID =
-  let optionToDT : Option<PT.BranchID> -> Dval = C2DT.Option.toDT Dval.uuid KTUuid
-  let optionFromDT : Dval -> Option<PT.BranchID> = C2DT.Option.fromDT D.uuid
-
-
 module FQTypeName =
   let typeName =
     FQTypeName.fqPackage
@@ -174,9 +165,9 @@ module NameResolutionError =
   let toDT (e : PT.NameResolutionError) : Dval =
     let (caseName, fields) =
       match e with
-      | PT.NotFound names ->
+      | PT.NameResolutionError.NotFound names ->
         "NotFound", [ DList(VT.string, List.map Dval.string names) ]
-      | PT.InvalidName names ->
+      | PT.NameResolutionError.InvalidName names ->
         "InvalidName", [ DList(VT.string, List.map Dval.string names) ]
     DEnum(typeName, typeName, [], caseName, fields)
 
@@ -1478,37 +1469,6 @@ module PackageOp =
         "SetValueName", [ DUuid id; PackageLocation.toDT loc ]
       | PT.PackageOp.SetFnName(id, loc) ->
         "SetFnName", [ DUuid id; PackageLocation.toDT loc ]
-      | PT.PackageOp.ApproveItem(itemId, branchId, reviewerId) ->
-        "ApproveItem",
-        [ DUuid itemId
-          branchId |> Option.map DUuid |> Dval.option KTUuid
-          DUuid reviewerId ]
-      | PT.PackageOp.RejectItem(itemId, branchId, reviewerId, reason) ->
-        "RejectItem",
-        [ DUuid itemId
-          branchId |> Option.map DUuid |> Dval.option KTUuid
-          DUuid reviewerId
-          DString reason ]
-      | PT.PackageOp.RequestNamingApproval(requestId,
-                                           createdBy,
-                                           targetNamespace,
-                                           locationIds,
-                                           title,
-                                           description,
-                                           sourceBranchId) ->
-        "RequestNamingApproval",
-        [ DUuid requestId
-          DUuid createdBy
-          DString targetNamespace
-          DList(VT.string, locationIds |> List.map DString)
-          title |> Option.map DString |> Dval.option KTString
-          description |> Option.map DString |> Dval.option KTString
-          sourceBranchId |> Option.map DUuid |> Dval.option KTUuid ]
-      | PT.PackageOp.WithdrawApprovalRequest(requestId, withdrawnBy) ->
-        "WithdrawApprovalRequest", [ DUuid requestId; DUuid withdrawnBy ]
-      | PT.PackageOp.RequestChanges(requestId, locationId, reviewerId, comment) ->
-        "RequestChanges",
-        [ DUuid requestId; DString locationId; DUuid reviewerId; DString comment ]
     DEnum(typeName, typeName, [], caseName, fields)
 
   let fromDT (d : Dval) : PT.PackageOp option =
@@ -1524,74 +1484,6 @@ module PackageOp =
       Some(PT.PackageOp.SetValueName(id, PackageLocation.fromDT loc))
     | DEnum(_, _, [], "SetFnName", [ DUuid id; loc ]) ->
       Some(PT.PackageOp.SetFnName(id, PackageLocation.fromDT loc))
-    | DEnum(_, _, [], "ApproveItem", [ DUuid itemId; branchId; DUuid reviewerId ]) ->
-      let branchId =
-        match branchId with
-        | DEnum(_, _, _, "Some", [ DUuid id ]) -> Some id
-        | _ -> None
-      Some(PT.PackageOp.ApproveItem(itemId, branchId, reviewerId))
-    | DEnum(_,
-            _,
-            [],
-            "RejectItem",
-            [ DUuid itemId; branchId; DUuid reviewerId; DString reason ]) ->
-      let branchId =
-        match branchId with
-        | DEnum(_, _, _, "Some", [ DUuid id ]) -> Some id
-        | _ -> None
-      Some(PT.PackageOp.RejectItem(itemId, branchId, reviewerId, reason))
-    | DEnum(_,
-            _,
-            [],
-            "RequestNamingApproval",
-            [ DUuid requestId
-              DUuid createdBy
-              DString targetNamespace
-              DList(_, locationIds)
-              title
-              description
-              sourceBranchId ]) ->
-      let locationIds =
-        locationIds
-        |> List.map (fun d ->
-          match d with
-          | DString s -> s
-          | _ -> "")
-      let title =
-        match title with
-        | DEnum(_, _, _, "Some", [ DString s ]) -> Some s
-        | _ -> None
-      let description =
-        match description with
-        | DEnum(_, _, _, "Some", [ DString s ]) -> Some s
-        | _ -> None
-      let sourceBranchId =
-        match sourceBranchId with
-        | DEnum(_, _, _, "Some", [ DUuid id ]) -> Some id
-        | _ -> None
-      Some(
-        PT.PackageOp.RequestNamingApproval(
-          requestId,
-          createdBy,
-          targetNamespace,
-          locationIds,
-          title,
-          description,
-          sourceBranchId
-        )
-      )
-    | DEnum(_,
-            _,
-            [],
-            "WithdrawApprovalRequest",
-            [ DUuid requestId; DUuid withdrawnBy ]) ->
-      Some(PT.PackageOp.WithdrawApprovalRequest(requestId, withdrawnBy))
-    | DEnum(_,
-            _,
-            [],
-            "RequestChanges",
-            [ DUuid requestId; DString locationId; DUuid reviewerId; DString comment ]) ->
-      Some(PT.PackageOp.RequestChanges(requestId, locationId, reviewerId, comment))
     | _ -> None
 
 
@@ -1712,3 +1604,55 @@ module Secret =
         value = fields |> D.field "value" |> D.string
         version = fields |> D.field "version" |> D.int32 }
     | _ -> Exception.raiseInternal "Invalid Secret" []
+
+
+// SCM types
+module Branch =
+  let typeName = FQTypeName.fqPackage PackageIDs.Type.SCM.Branch.branch
+  let knownType = KTCustomType(typeName, [])
+
+  let toDT (b : PT.Branch) : Dval =
+    let fields =
+      [ "id", DUuid b.id
+        "name", DString b.name
+        "parentBranchId", b.parentBranchId |> Option.map DUuid |> Dval.option KTUuid
+        "baseCommitId", b.baseCommitId |> Option.map DUuid |> Dval.option KTUuid
+        "createdAt", DDateTime(DarkDateTime.fromInstant b.createdAt)
+        "mergedAt",
+        b.mergedAt
+        |> Option.map (DarkDateTime.fromInstant >> DDateTime)
+        |> Dval.option KTDateTime ]
+      |> Map.ofList
+    DRecord(typeName, typeName, [], fields)
+
+
+module MergeError =
+  let typeName = FQTypeName.fqPackage PackageIDs.Type.SCM.Merge.mergeError
+  let knownType = KTCustomType(typeName, [])
+
+  let toDT (e : PT.MergeError) : Dval =
+    let caseName =
+      match e with
+      | PT.MergeError.NotRebased -> "NotRebased"
+      | PT.MergeError.HasWip -> "HasWip"
+      | PT.MergeError.HasChildren -> "HasChildren"
+      | PT.MergeError.NothingToMerge -> "NothingToMerge"
+      | PT.MergeError.NotFound -> "NotFound"
+      | PT.MergeError.IsMainBranch -> "IsMainBranch"
+    DEnum(typeName, typeName, [], caseName, [])
+
+
+module Commit =
+  let typeName = FQTypeName.fqPackage PackageIDs.Type.SCM.PackageOps.commit
+  let knownType = KTCustomType(typeName, [])
+
+  let toDT (c : PT.Commit) : Dval =
+    let fields =
+      [ "id", DUuid c.id
+        "message", DString c.message
+        "createdAt", DDateTime(DarkDateTime.fromInstant c.createdAt)
+        "opCount", DInt64 c.opCount
+        "branchId", DUuid c.branchId
+        "branchName", DString c.branchName ]
+      |> Map.ofList
+    DRecord(typeName, typeName, [], fields)

@@ -1,14 +1,12 @@
 module Darklang.PrettyPrinter.ProgramTypes
 
 let sourceFile
-  (accountID: Stdlib.Option.Option<Uuid>)
-  (branchID: Stdlib.Option.Option<Uuid>)
+  (branchId: Uuid)
   (source: LanguageTools.ProgramTypes.SourceFile.SourceFile)
   : String =
   let ctx =
     PrettyPrinter.ProgramTypes.Context
-      { accountID = accountID
-        branchID = branchID
+      { branchId = branchId
         currentModule = Stdlib.Option.Option.None
         currentFunction = Stdlib.Option.Option.None }
 
@@ -20,7 +18,7 @@ let sourceFile
         acc |> Stdlib.List.push prettyPrinted
 
       | Type typeDecl ->
-        let prettyPrinted = PrettyPrinter.ProgramTypes.packageType ctx.accountID ctx.branchID typeDecl
+        let prettyPrinted = PrettyPrinter.ProgramTypes.packageType ctx typeDecl
         acc |> Stdlib.List.push prettyPrinted
 
       | Value valDecl ->

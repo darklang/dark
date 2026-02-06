@@ -150,9 +150,6 @@ let t
 
             let! _csString = Exe.callStackString state callStack
 
-            let accountID = Dval.optionNone RT.KTUuid
-            let branchID = Dval.optionNone RT.KTUuid
-
             let! typeChecked =
               let expected =
                 RT.TCustomType(
@@ -172,7 +169,7 @@ let t
                   state
                   errorMessageFn
                   []
-                  (NEList.ofList accountID [ branchID; actual ])
+                  (NEList.ofList (RT.DUuid PT.mainBranchId) [ actual ])
 
               match result with
               | Ok(RT.DEnum(_, _, [], "ErrorString", [ RT.DString _ ])) ->
@@ -190,8 +187,7 @@ let t
                   Exception.raiseInternal
                     ("We received an RTE, and when trying to stringify it, there was another RTE error.
                     There is probably a bug in Darklang.LanguageTools.RuntimeErrors.Error.toString")
-                    [ "originalRTE", DvalReprDeveloper.toRepr actual
-                      "subsequentRTE", DvalReprDeveloper.toRepr rte ]
+                    [ "originalRTE", actual; "subsequentRTE", rte ]
 
             | Error reverseTypeCheckPath ->
               return
@@ -230,13 +226,7 @@ let fileTests () : Test =
   let pmPT = LibPackageManager.PackageManager.pt
 
   let parseTestFile fileName =
-    LibParser.TestModule.parseTestFile
-      None
-      None
-      "Tests"
-      (localBuiltIns pmPT)
-      pmPT
-      fileName
+    LibParser.TestModule.parseTestFile "Tests" (localBuiltIns pmPT) pmPT fileName
 
   System.IO.Directory.GetDirectories(
     baseDir,

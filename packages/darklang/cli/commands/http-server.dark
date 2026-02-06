@@ -1,0 +1,94 @@
+module Darklang.Cli.Commands.HttpServer
+
+// Run an HTTP server
+
+let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
+  match args with
+  | [] ->
+    [ "Usage: http-server <port> [router-path]"
+      ""
+      "Examples:"
+      "  http-server 8080"
+      "  http-server 8080 Darklang.Canvas.DarkPackages.router" ]
+    |> Stdlib.printLines
+
+    state
+
+  | [ portStr ] ->
+    match Stdlib.Int64.parse portStr with
+    | Error _ ->
+      Stdlib.printLine (Colors.error $"Invalid port: {portStr}")
+      state
+    | Ok port ->
+      let portStr_ = Stdlib.Int64.toString port
+
+      [ ""
+        Colors.success $"Listening on http://localhost:{portStr_}"
+        "Press Ctrl+C to stop"
+        "" ]
+      |> Stdlib.printLines
+
+      // Use the test router by default
+      Stdlib.HttpServer.serve port DemoData.HttpServerTest.router
+
+      state
+
+  | [ portStr; routerPath ] ->
+    match Stdlib.Int64.parse portStr with
+    | Error _ ->
+      Stdlib.printLine (Colors.error $"Invalid port: {portStr}")
+      state
+    | Ok port ->
+      let portStr_ = Stdlib.Int64.toString port
+
+      [ $"Starting HTTP server on port {portStr_}..."
+        $"Using router: {routerPath}"
+        ""
+        Colors.success $"Listening on http://localhost:{portStr_}"
+        "Press Ctrl+C to stop"
+        "" ]
+      |> Stdlib.printLines
+
+      // Known routers - Darklang doesn't support dynamic function lookup at runtime
+      match routerPath with
+      | "Darklang.Canvas.DarkPackages.router" ->
+        Stdlib.HttpServer.serve port Darklang.Canvas.DarkPackages.router
+        state
+      | "Darklang.DemoData.HttpServerTest.router" ->
+        Stdlib.HttpServer.serve port DemoData.HttpServerTest.router
+        state
+      | _ ->
+        [ Colors.error $"Unknown router: {routerPath}"
+          "Known routers:"
+          "  - Darklang.Canvas.DarkPackages.router"
+          "  - Darklang.DemoData.HttpServerTest.router" ]
+        |> Stdlib.printLines
+        state
+
+  | _ ->
+    Stdlib.printLine "Usage: http-server <port> [router-path]"
+    state
+
+
+let help (state: Cli.AppState) : Cli.AppState =
+  [ "Start an HTTP server."
+    ""
+    "Usage: http-server <port> [router-path]"
+    ""
+    "Arguments:"
+    "  port         Port to listen on (e.g., 8080)"
+    "  router-path  Optional path to router function (e.g., Darklang.Canvas.DarkPackages.router)"
+    ""
+    "Examples:"
+    "  http-server 8080"
+    "  http-server 8080 Darklang.Canvas.DarkPackages.router" ]
+  |> Stdlib.printLines
+
+  state
+
+
+let complete
+  (state: Cli.AppState)
+  (args: List<String>)
+  : List<Cli.Completion.CompletionItem> =
+  []

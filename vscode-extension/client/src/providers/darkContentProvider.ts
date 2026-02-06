@@ -2,7 +2,6 @@ import * as vscode from "vscode";
 import { UrlPatternRouter, ParsedUrl } from "./urlPatternRouter";
 import { PackageContentProvider } from "./content/packageContentProvider";
 import { LanguageClient } from "vscode-languageclient/node";
-import { BranchStateManager } from "../data/branchStateManager";
 
 export class DarkContentProvider implements vscode.TextDocumentContentProvider {
   private _onDidChange = new vscode.EventEmitter<vscode.Uri>();
@@ -16,10 +15,7 @@ export class DarkContentProvider implements vscode.TextDocumentContentProvider {
 
   async provideTextDocumentContent(uri: vscode.Uri): Promise<string> {
     try {
-      const url = uri.toString();
-
       // TODO: Support AST view via URL query parameter (e.g., ?view=ast)
-      // For now, always render source view
       return await this.renderSourceFor(uri);
     } catch (error) {
       console.error("Error providing content:", error);
@@ -45,15 +41,6 @@ export class DarkContentProvider implements vscode.TextDocumentContentProvider {
       case "package":
         return await PackageContentProvider.getContentAsync(parsedUrl);
 
-      case "branch":
-        return this.getBranchContent(parsedUrl);
-
-      case "instance":
-        // TODO: Implement instance content provider
-        return `# Instance View
-
-Instance content is not yet implemented.`;
-
       default:
         return this.getErrorContent(
           `dark:///${parsedUrl.mode}/${parsedUrl.context || ""}/${
@@ -62,71 +49,6 @@ Instance content is not yet implemented.`;
           `Unsupported URL mode: ${parsedUrl.mode}`,
         );
     }
-  }
-
-  private getBranchContent(parsedUrl: ParsedUrl): string {
-    const { context: branchID } = parsedUrl;
-
-    if (!branchID) {
-      return this.getBranchListContent();
-    }
-
-    return this.getBranchOverviewContent(branchID);
-  }
-
-  private getBranchOverviewContent(branchID: string): string {
-    const branchManager = BranchStateManager.getInstance();
-    const branch = branchManager.getBranches().find(b => b.id === branchID);
-
-    if (!branch) {
-      return `# Branch Not Found
-
-Branch with ID \`${branchID}\` was not found.
-`;
-    }
-
-    const formatDate = (dateStr: string) => {
-      try {
-        return new Date(dateStr).toLocaleString();
-      } catch {
-        return dateStr;
-      }
-    };
-
-    const state = branch.mergedAt ? "merged" : "active";
-
-    return `# Branch: ${branch.name}
-
-## Branch Information
-
-| Field | Value |
-|-------|-------|
-| **ID** | \`${branch.id}\` |
-| **Name** | ${branch.name} |
-| **State** | ${state} |
-| **Created At** | ${formatDate(branch.createdAt)} |
-| **Merged At** | ${
-      branch.mergedAt ? formatDate(branch.mergedAt) : "(not merged)"
-    } |
-
-## Branch Actions
-
-- [🎯 Switch to Branch](command:darklang.branch.switch?${branchID})`;
-  }
-
-  private getBranchListContent(): string {
-    // TODO: Implement branch list view
-    // Should fetch actual branches from BranchStateManager and display them
-    return `# Branches Overview
-
-Branch list view is not yet implemented.
-
-To view a specific branch, use the format: \`dark:///branch/branch-id\`
-
-## Quick Actions
-
-- [🆕 Create New Branch](command:darklang.branch.new)
-- [📋 Manage All Branches](command:darklang.branches.manageAll)`;
   }
 
   public refresh(uri?: vscode.Uri): void {

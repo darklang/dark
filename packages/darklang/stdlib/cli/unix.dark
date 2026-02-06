@@ -87,6 +87,20 @@ let deleteAlias
   | _ -> Result.Result.Error "Unsupported OS or shell"
 
 
+/// Adds a directory to PATH in the user's default shell configuration file.
+/// This is preferred over aliases for commands that need to be available
+/// in non-interactive shells (e.g., when spawned by other programs like VS Code).
+let addToPath
+  (shell: Shell.Shell)
+  (dir: String)
+  : Result.Result<Unit, String> =
+  match shell with
+  | Bash -> Bash.addToPath dir
+  | Zsh -> Zsh.addToPath dir
+  | Fish -> Fish.addToPath dir
+  | _ -> Result.Result.Error "Unsupported shell"
+
+
 /// Gets the home directory of the current user using $HOME environment variable.
 let getHomeDirectory () : Result.Result<String, String> =
   let dir = Cli.execute "echo $HOME"

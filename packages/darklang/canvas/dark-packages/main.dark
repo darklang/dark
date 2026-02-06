@@ -1,0 +1,426 @@
+module Darklang.Canvas.DarkPackages
+
+// Package Manager API - serves package metadata
+// WIP: this is intended to replace canvases/dark-packages/main.dark
+
+// Helper functions
+
+let getQueryParam (req: Stdlib.Http.Request) (key: String) : Stdlib.Option.Option<String> =
+  (Stdlib.Http.Request.queryParams req)
+  |> Stdlib.List.findFirst (fun pair ->
+    let (k, _) = pair
+    k == key)
+  |> fun result ->
+    match result with
+    | Some ((_, value)) -> Stdlib.Option.Option.Some value
+    | None -> Stdlib.Option.Option.None
+
+
+let parseNameToLocation (name: String) : Stdlib.Result.Result<LanguageTools.ProgramTypes.PackageLocation, String> =
+  let parts = Stdlib.String.split name "."
+  let partsLength = Stdlib.List.length parts
+
+  if partsLength < 2L then
+    Stdlib.Result.Result.Error "Invalid name format. Expected 'Owner.Module.Name' or 'Owner.Name'"
+  else
+    let owner = (Stdlib.List.head parts) |> Builtin.unwrap
+    let entityName = (Stdlib.List.last parts) |> Builtin.unwrap
+    let middleParts = (Stdlib.List.tail parts) |> Builtin.unwrap
+    let modules = Stdlib.List.take middleParts (partsLength - 2L)
+
+    (LanguageTools.ProgramTypes.PackageLocation
+      { owner = owner; modules = modules; name = entityName })
+    |> Stdlib.Result.Result.Ok
+
+
+let parseUuidParam (value: String) : Stdlib.Result.Result<Uuid, Stdlib.Http.Response> =
+  match Stdlib.Uuid.parse value with
+  | Ok parsedId -> Stdlib.Result.Result.Ok parsedId
+  | Error _ ->
+    let errorMsg = "Invalid UUID format"
+    let response = Stdlib.Http.response (Stdlib.String.toBytes errorMsg) 400L
+    Stdlib.Result.Result.Error response
+
+
+// Handlers
+
+let pingFn (req: Stdlib.Http.Request) : Stdlib.Http.Response =
+  Stdlib.Http.response (Stdlib.String.toBytes "pong") 200L
+
+let pingHandler: Stdlib.HttpServer.Handler =
+  Stdlib.HttpServer.Handler { route = "/ping"; method = "GET"; handler = pingFn }
+
+
+let statsFn (req: Stdlib.Http.Request) : Stdlib.Http.Response =
+  let stats = Builtin.pmGetStats ()
+  let body =
+    $"Package stats:
+- types: {stats.types |> Builtin.int64ToString}
+- fns: {stats.fns |> Builtin.int64ToString}
+- values: {stats.values |> Builtin.int64ToString}"
+    |> Stdlib.String.toBytes
+  Stdlib.Http.response body 200L
+
+let statsHandler: Stdlib.HttpServer.Handler =
+  Stdlib.HttpServer.Handler { route = "/stats"; method = "GET"; handler = statsFn }
+
+
+let getOpsFn (req: Stdlib.Http.Request) : Stdlib.Http.Response =
+  match getQueryParam req "limit" with
+  | None ->
+    let errorMsg = "Missing required query parameter: 'limit'"
+    Stdlib.Http.response (Stdlib.String.toBytes errorMsg) 400L
+  | Some limitStr ->
+    match Stdlib.Int64.parse limitStr with
+    | Ok limit ->
+      let ops = SCM.PackageOps.getRecent limit
+      let json = ops |> Builtin.jsonSerialize<List<LanguageTools.ProgramTypes.PackageOp>>
+      Stdlib.Http.response (Stdlib.String.toBytes json) 200L
+    | Error _ ->
+      let errorMsg = "Invalid 'limit' parameter. Expected integer."
+      Stdlib.Http.response (Stdlib.String.toBytes errorMsg) 400L
+
+let getOpsHandler: Stdlib.HttpServer.Handler =
+  Stdlib.HttpServer.Handler { route = "/ops"; method = "GET"; handler = getOpsFn }
+
+
+let postOpsFn (req: Stdlib.Http.Request) : Stdlib.Http.Response =
+  let bodyStr = Stdlib.String.fromBytesWithReplacement req.body
+  match Builtin.jsonParse<List<LanguageTools.ProgramTypes.PackageOp>> bodyStr with
+  | Ok ops ->
+    let branchId = SCM.Branch.mainBranchId
+    match SCM.PackageOps.add branchId ops with
+    | Ok insertedCount ->
+      let countStr = Builtin.int64ToString insertedCount
+      let responseMsg = $"Successfully received and applied {countStr} ops"
+      Stdlib.Http.response (Stdlib.String.toBytes responseMsg) 200L
+    | Error errorMsg ->
+      Stdlib.Http.response (Stdlib.String.toBytes errorMsg) 500L
+  | Error _ ->
+    let errorMsg = "Invalid request body. Expected JSON list of PackageOp."
+    Stdlib.Http.response (Stdlib.String.toBytes errorMsg) 400L
+
+let postOpsHandler: Stdlib.HttpServer.Handler =
+  Stdlib.HttpServer.Handler { route = "/ops"; method = "POST"; handler = postOpsFn }
+
+
+let typeFindFn (req: Stdlib.Http.Request) : Stdlib.Http.Response =
+  match Stdlib.HttpServer.getPathParam req "/type/find/:name" "name" with
+  | None -> Stdlib.Http.response (Stdlib.String.toBytes "Missing name parameter") 400L
+  | Some name ->
+    match parseNameToLocation name with
+    | Error errorMsg -> Stdlib.Http.response (Stdlib.String.toBytes errorMsg) 400L
+    | Ok location ->
+      match Builtin.pmFindType SCM.Branch.mainBranchId location with
+      | Some foundID ->
+        let json = $"\"{Stdlib.Uuid.toString foundID}\""
+        Stdlib.Http.response (Stdlib.String.toBytes json) 200L
+      | None -> Stdlib.Http.response (Stdlib.String.toBytes "not found") 404L
+
+let typeFindHandler: Stdlib.HttpServer.Handler =
+  Stdlib.HttpServer.Handler { route = "/type/find/:name"; method = "GET"; handler = typeFindFn }
+
+
+let typeGetFn (req: Stdlib.Http.Request) : Stdlib.Http.Response =
+  match Stdlib.HttpServer.getPathParam req "/type/get/:id" "id" with
+  | None -> Stdlib.Http.response (Stdlib.String.toBytes "Missing id parameter") 400L
+  | Some idStr ->
+    match parseUuidParam idStr with
+    | Error response -> response
+    | Ok parsedId ->
+      match Builtin.pmGetType parsedId with
+      | Some t ->
+        let json = t |> Builtin.jsonSerialize<LanguageTools.ProgramTypes.PackageType.PackageType>
+        Stdlib.Http.response (Stdlib.String.toBytes json) 200L
+      | None -> Stdlib.Http.response (Stdlib.String.toBytes "not found") 404L
+
+let typeGetHandler: Stdlib.HttpServer.Handler =
+  Stdlib.HttpServer.Handler { route = "/type/get/:id"; method = "GET"; handler = typeGetFn }
+
+
+let typeGetWithLocationFn (req: Stdlib.Http.Request) : Stdlib.Http.Response =
+  match Stdlib.HttpServer.getPathParam req "/type/get/with-location/:id" "id" with
+  | None -> Stdlib.Http.response (Stdlib.String.toBytes "Missing id parameter") 400L
+  | Some idStr ->
+    match parseUuidParam idStr with
+    | Error response -> response
+    | Ok parsedId ->
+      match LanguageTools.PackageManager.Type.getWithLocation parsedId with
+      | Some locatedItem ->
+        let json =
+          locatedItem
+          |> Builtin.jsonSerialize<LanguageTools.ProgramTypes.LocatedItem<LanguageTools.ProgramTypes.PackageType.PackageType>>
+        Stdlib.Http.response (Stdlib.String.toBytes json) 200L
+      | None -> Stdlib.Http.response (Stdlib.String.toBytes "not found") 404L
+
+let typeGetWithLocationHandler: Stdlib.HttpServer.Handler =
+  Stdlib.HttpServer.Handler { route = "/type/get/with-location/:id"; method = "GET"; handler = typeGetWithLocationFn }
+
+
+let valueFindFn (req: Stdlib.Http.Request) : Stdlib.Http.Response =
+  match Stdlib.HttpServer.getPathParam req "/value/find/:name" "name" with
+  | None -> Stdlib.Http.response (Stdlib.String.toBytes "Missing name parameter") 400L
+  | Some name ->
+    match parseNameToLocation name with
+    | Ok location ->
+      match Builtin.pmFindValue SCM.Branch.mainBranchId location with
+      | Some foundID ->
+        let json = $"\"{Stdlib.Uuid.toString foundID}\""
+        Stdlib.Http.response (Stdlib.String.toBytes json) 200L
+      | None -> Stdlib.Http.response (Stdlib.String.toBytes "not found") 404L
+    | Error errorMsg -> Stdlib.Http.response (Stdlib.String.toBytes errorMsg) 400L
+
+let valueFindHandler: Stdlib.HttpServer.Handler =
+  Stdlib.HttpServer.Handler { route = "/value/find/:name"; method = "GET"; handler = valueFindFn }
+
+
+let valueGetFn (req: Stdlib.Http.Request) : Stdlib.Http.Response =
+  match Stdlib.HttpServer.getPathParam req "/value/get/:id" "id" with
+  | None -> Stdlib.Http.response (Stdlib.String.toBytes "Missing id parameter") 400L
+  | Some idStr ->
+    match parseUuidParam idStr with
+    | Error response -> response
+    | Ok parsedId ->
+      match Builtin.pmGetValue parsedId with
+      | Some v ->
+        let json = v |> Builtin.jsonSerialize<LanguageTools.ProgramTypes.PackageValue.PackageValue>
+        Stdlib.Http.response (Stdlib.String.toBytes json) 200L
+      | None -> Stdlib.Http.response (Stdlib.String.toBytes "not found") 404L
+
+let valueGetHandler: Stdlib.HttpServer.Handler =
+  Stdlib.HttpServer.Handler { route = "/value/get/:id"; method = "GET"; handler = valueGetFn }
+
+
+let valueGetWithLocationFn (req: Stdlib.Http.Request) : Stdlib.Http.Response =
+  match Stdlib.HttpServer.getPathParam req "/value/get/with-location/:id" "id" with
+  | None -> Stdlib.Http.response (Stdlib.String.toBytes "Missing id parameter") 400L
+  | Some idStr ->
+    match parseUuidParam idStr with
+    | Error response -> response
+    | Ok parsedId ->
+      match LanguageTools.PackageManager.Value.getWithLocation parsedId with
+      | Some locatedItem ->
+        let json =
+          locatedItem
+          |> Builtin.jsonSerialize<LanguageTools.ProgramTypes.LocatedItem<LanguageTools.ProgramTypes.PackageValue.PackageValue>>
+        Stdlib.Http.response (Stdlib.String.toBytes json) 200L
+      | None -> Stdlib.Http.response (Stdlib.String.toBytes "not found") 404L
+
+let valueGetWithLocationHandler: Stdlib.HttpServer.Handler =
+  Stdlib.HttpServer.Handler { route = "/value/get/with-location/:id"; method = "GET"; handler = valueGetWithLocationFn }
+
+
+let functionFindFn (req: Stdlib.Http.Request) : Stdlib.Http.Response =
+  match Stdlib.HttpServer.getPathParam req "/function/find/:name" "name" with
+  | None -> Stdlib.Http.response (Stdlib.String.toBytes "Missing name parameter") 400L
+  | Some name ->
+    match parseNameToLocation name with
+    | Error errorMsg -> Stdlib.Http.response (Stdlib.String.toBytes errorMsg) 400L
+    | Ok location ->
+      match Builtin.pmFindFn SCM.Branch.mainBranchId location with
+      | Some foundID ->
+        let json = $"\"{Stdlib.Uuid.toString foundID}\""
+        Stdlib.Http.response (Stdlib.String.toBytes json) 200L
+      | None -> Stdlib.Http.response (Stdlib.String.toBytes "not found") 404L
+
+let functionFindHandler: Stdlib.HttpServer.Handler =
+  Stdlib.HttpServer.Handler { route = "/function/find/:name"; method = "GET"; handler = functionFindFn }
+
+
+let functionGetFn (req: Stdlib.Http.Request) : Stdlib.Http.Response =
+  match Stdlib.HttpServer.getPathParam req "/function/get/:id" "id" with
+  | None -> Stdlib.Http.response (Stdlib.String.toBytes "Missing id parameter") 400L
+  | Some idStr ->
+    match parseUuidParam idStr with
+    | Error response -> response
+    | Ok parsedId ->
+      match Builtin.pmGetFn parsedId with
+      | Some f ->
+        let json = f |> Builtin.jsonSerialize<LanguageTools.ProgramTypes.PackageFn.PackageFn>
+        Stdlib.Http.response (Stdlib.String.toBytes json) 200L
+      | None -> Stdlib.Http.response (Stdlib.String.toBytes "not found") 404L
+
+let functionGetHandler: Stdlib.HttpServer.Handler =
+  Stdlib.HttpServer.Handler { route = "/function/get/:id"; method = "GET"; handler = functionGetFn }
+
+
+let functionGetWithLocationFn (req: Stdlib.Http.Request) : Stdlib.Http.Response =
+  match Stdlib.HttpServer.getPathParam req "/function/get/with-location/:id" "id" with
+  | None -> Stdlib.Http.response (Stdlib.String.toBytes "Missing id parameter") 400L
+  | Some idStr ->
+    match parseUuidParam idStr with
+    | Error response -> response
+    | Ok parsedId ->
+      match LanguageTools.PackageManager.Function.getWithLocation parsedId with
+      | Some locatedItem ->
+        let json =
+          locatedItem
+          |> Builtin.jsonSerialize<LanguageTools.ProgramTypes.LocatedItem<LanguageTools.ProgramTypes.PackageFn.PackageFn>>
+        Stdlib.Http.response (Stdlib.String.toBytes json) 200L
+      | None -> Stdlib.Http.response (Stdlib.String.toBytes "not found") 404L
+
+let functionGetWithLocationHandler: Stdlib.HttpServer.Handler =
+  Stdlib.HttpServer.Handler { route = "/function/get/with-location/:id"; method = "GET"; handler = functionGetWithLocationFn }
+
+
+let searchFn (req: Stdlib.Http.Request) : Stdlib.Http.Response =
+  match getQueryParam req "modules" with
+  | None ->
+    let errorMsg = "Missing required query parameter: 'modules'"
+    Stdlib.Http.response (Stdlib.String.toBytes errorMsg) 400L
+  | Some modulesStr ->
+    let currentModule = Stdlib.String.split modulesStr "."
+
+    let text =
+      match getQueryParam req "text" with
+      | Some t -> t
+      | None -> ""
+
+    match getQueryParam req "searchDepth" with
+    | None ->
+      let errorMsg = "Missing required query parameter: 'searchDepth'"
+      Stdlib.Http.response (Stdlib.String.toBytes errorMsg) 400L
+    | Some depthStr ->
+      let searchDepth =
+        match depthStr with
+        | "direct" -> LanguageTools.ProgramTypes.Search.SearchDepth.OnlyDirectDescendants
+        | "all" -> LanguageTools.ProgramTypes.Search.SearchDepth.AllDescendants
+        | _ -> LanguageTools.ProgramTypes.Search.SearchDepth.OnlyDirectDescendants
+
+      match getQueryParam req "entityTypes" with
+      | None ->
+        let errorMsg = "Missing required query parameter: 'entityTypes'"
+        Stdlib.Http.response (Stdlib.String.toBytes errorMsg) 400L
+      | Some entityTypesStr ->
+        let entityTypes =
+          (Stdlib.String.split entityTypesStr ",")
+          |> Stdlib.List.filterMap (fun entityType ->
+            match entityType with
+            | "type" -> Stdlib.Option.Option.Some LanguageTools.ProgramTypes.Search.EntityType.Type
+            | "value" -> Stdlib.Option.Option.Some LanguageTools.ProgramTypes.Search.EntityType.Value
+            | "function" -> Stdlib.Option.Option.Some LanguageTools.ProgramTypes.Search.EntityType.Fn
+            | "module" -> Stdlib.Option.Option.Some LanguageTools.ProgramTypes.Search.EntityType.Module
+            | _ -> Stdlib.Option.Option.None)
+
+        let exactMatch =
+          match getQueryParam req "exactMatch" with
+          | None -> false
+          | Some em ->
+            match em with
+            | "true" -> true
+            | _ -> false
+
+        let query =
+          LanguageTools.ProgramTypes.Search.SearchQuery
+            { currentModule = currentModule
+              text = text
+              searchDepth = searchDepth
+              entityTypes = entityTypes
+              exactMatch = exactMatch }
+
+        let results = Builtin.pmSearch SCM.Branch.mainBranchId query
+        let json = results |> Builtin.jsonSerialize<LanguageTools.ProgramTypes.Search.SearchResults>
+        Stdlib.Http.response (Stdlib.String.toBytes json) 200L
+
+let searchHandler: Stdlib.HttpServer.Handler =
+  Stdlib.HttpServer.Handler { route = "/search"; method = "GET"; handler = searchFn }
+
+
+let locationLookupFn (req: Stdlib.Http.Request) : Stdlib.Http.Response =
+  match Stdlib.HttpServer.getPathParam req "/:location" "location" with
+  | None -> Stdlib.Http.response (Stdlib.String.toBytes "Missing location") 400L
+  | Some location ->
+    let parts = Stdlib.String.split location "."
+    let partsLength = Stdlib.List.length parts
+
+    if partsLength < 1L then
+      let errorMsg = "Invalid location format"
+      Stdlib.Http.response (Stdlib.String.toBytes errorMsg) 400L
+    else if partsLength == 1L then
+      let owner = (Stdlib.List.head parts) |> Builtin.unwrap
+      let searchQuery =
+        LanguageTools.ProgramTypes.Search.SearchQuery
+          { currentModule = [ owner ]
+            text = ""
+            searchDepth = LanguageTools.ProgramTypes.Search.SearchDepth.OnlyDirectDescendants
+            entityTypes = []
+            exactMatch = false }
+      let results = Builtin.pmSearch SCM.Branch.mainBranchId searchQuery
+      let json = results |> Builtin.jsonSerialize<LanguageTools.ProgramTypes.Search.SearchResults>
+      Stdlib.Http.response (Stdlib.String.toBytes json) 200L
+    else
+      let owner = (Stdlib.List.head parts) |> Builtin.unwrap
+      let entityName = (Stdlib.List.last parts) |> Builtin.unwrap
+      let middleParts = (Stdlib.List.tail parts) |> Builtin.unwrap
+      let modules = Stdlib.List.take middleParts (partsLength - 2L)
+
+      let packageLocation =
+        LanguageTools.ProgramTypes.PackageLocation
+          { owner = owner; modules = modules; name = entityName }
+
+      // Try function first
+      match Builtin.pmFindFn SCM.Branch.mainBranchId packageLocation with
+      | Some fnId ->
+        match Builtin.pmGetFn fnId with
+        | Some fn ->
+          let json = fn |> Builtin.jsonSerialize<LanguageTools.ProgramTypes.PackageFn.PackageFn>
+          Stdlib.Http.response (Stdlib.String.toBytes json) 200L
+        | None -> Stdlib.Http.response (Stdlib.String.toBytes "not found") 404L
+      | None ->
+        // Try type
+        match Builtin.pmFindType SCM.Branch.mainBranchId packageLocation with
+        | Some typeId ->
+          match Builtin.pmGetType typeId with
+          | Some typeDefinition ->
+            let json = typeDefinition |> Builtin.jsonSerialize<LanguageTools.ProgramTypes.PackageType.PackageType>
+            Stdlib.Http.response (Stdlib.String.toBytes json) 200L
+          | None -> Stdlib.Http.response (Stdlib.String.toBytes "not found") 404L
+        | None ->
+          // Try value
+          match Builtin.pmFindValue SCM.Branch.mainBranchId packageLocation with
+          | Some valueId ->
+            match Builtin.pmGetValue valueId with
+            | Some value ->
+              let json = value |> Builtin.jsonSerialize<LanguageTools.ProgramTypes.PackageValue.PackageValue>
+              Stdlib.Http.response (Stdlib.String.toBytes json) 200L
+            | None -> Stdlib.Http.response (Stdlib.String.toBytes "not found") 404L
+          | None ->
+            // Treat as module query
+            let modulePathParts = Stdlib.List.append modules [ entityName ]
+            let searchQuery =
+              LanguageTools.ProgramTypes.Search.SearchQuery
+                { currentModule = Stdlib.List.append [ owner ] modulePathParts
+                  text = ""
+                  searchDepth = LanguageTools.ProgramTypes.Search.SearchDepth.OnlyDirectDescendants
+                  entityTypes = []
+                  exactMatch = false }
+            let results = Builtin.pmSearch SCM.Branch.mainBranchId searchQuery
+            let json = results |> Builtin.jsonSerialize<LanguageTools.ProgramTypes.Search.SearchResults>
+            Stdlib.Http.response (Stdlib.String.toBytes json) 200L
+
+let locationLookupHandler: Stdlib.HttpServer.Handler =
+  Stdlib.HttpServer.Handler { route = "/:location"; method = "GET"; handler = locationLookupFn }
+
+
+// All handlers - order matters for routing (more specific routes first)
+let handlers: List<Stdlib.HttpServer.Handler> =
+  [ pingHandler
+    statsHandler
+    getOpsHandler
+    postOpsHandler
+    typeFindHandler
+    typeGetWithLocationHandler
+    typeGetHandler
+    valueFindHandler
+    valueGetWithLocationHandler
+    valueGetHandler
+    functionFindHandler
+    functionGetWithLocationHandler
+    functionGetHandler
+    searchHandler
+    locationLookupHandler ]
+
+
+// Router function - the entry point for http-server
+let router (req: Stdlib.Http.Request) : Stdlib.Http.Response =
+  Stdlib.HttpServer.routeRequest handlers req

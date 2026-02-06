@@ -103,6 +103,12 @@ module Type =
         let keyRead =
           p [ "KeyRead" ] "KeyRead" "14ae96ae-a1cf-4275-aa7e-01437bf5e822"
 
+  module Builtins =
+    let private p addl = p ("Builtins" :: addl)
+    let purity = p [] "Purity" "c5d6e7f8-0912-3456-789a-bcdef0123456"
+    let paramInfo = p [] "ParamInfo" "a3b4c5d6-e7f8-9012-3456-789abcdef012"
+    let functionInfo = p [] "FunctionInfo" "b4c5d6e7-f809-0123-4567-89abcdef0123"
+
   module LanguageTools =
     let private p addl = p ("LanguageTools" :: addl)
     let sign = p [] "Sign" "7f0c6dba-6439-4a6c-b689-838cbbd66692"
@@ -344,6 +350,7 @@ module Type =
       p [ "Cli"; "Scripts" ] "Script" "de1629b6-cdfa-46b1-84c0-e0c60048d93b"
 
 
+
   module DarkPackages =
     let stats = p [ "DarkPackages" ] "Stats" "0fcd5847-701c-4da7-9f24-adbe8b5eb397"
 
@@ -354,6 +361,14 @@ module Type =
     module Branch =
       let private p addl = p ("Branch" :: addl)
       let branch = p [] "Branch" "f1e2d3c4-b5a6-7c8d-9e0f-1a2b3c4d5e6f"
+
+    module Merge =
+      let private p addl = p ("Merge" :: addl)
+      let mergeError = p [] "MergeError" "4cd10eaf-49a6-4e83-83cf-450cf408a60b"
+
+    module PackageOps =
+      let private p addl = p ("PackageOps" :: addl)
+      let commit = p [] "Commit" "9335f0a2-427e-4066-b765-72fb2bcc3237"
 
     module Instances =
       let private p addl = p ("Instances" :: addl)
@@ -462,6 +477,7 @@ module Fn =
       module CliScript =
         let private p addl = p ("CliScript" :: addl)
         let parseCliScript = p [] "parse" "e7574db7-f7e6-4263-adc2-a05b14309cbc"
+        let parseForCli = p [] "parseForCli" "43dd8cf5-827e-4ff3-923e-35132e1aa2fa"
 
     module PackageManager =
       let private p addl = p ("PackageManager" :: addl)
@@ -472,6 +488,14 @@ module Fn =
     module RuntimeTypes =
       let private p addl = p ("RuntimeTypes" :: addl)
       let expr = p [] "expr" "be111b49-95f6-4022-ad68-a64de172f3ee"
+      let dval = p [] "dval" "12e50b3e-dbf1-4de2-ad5e-ec4a0022c72d"
+      let fnName = p [] "fnName" "a59b42f8-1a50-4637-a1e3-0c32b8e54fd8"
+      let typeReference = p [] "typeReference" "7087781f-f0a4-4ff7-afb8-81e409fd5114"
+
+      module Dval =
+        let private p addl = p ("Dval" :: addl)
+        let valueTypeName =
+          p [] "valueTypeName" "cc7bfeb5-9589-43cb-a6d9-1ed3c6070f7a"
 
       module RuntimeError =
         let private p addl = p ("RuntimeError" :: addl)

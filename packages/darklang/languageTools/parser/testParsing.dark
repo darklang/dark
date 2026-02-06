@@ -10,9 +10,7 @@ let initialParse
 
 
 // TODO: maybe use a proper type instead of string?
-// TODO: should take accountID
 let parsePTExpr
-  (branchID: Stdlib.Option.Option<ProgramTypes.BranchID>)
   (code: String)
   : Stdlib.Result.Result<ProgramTypes.Expr, String> =
   match code |> TestParsing.initialParse with
@@ -22,19 +20,19 @@ let parsePTExpr
       | SourceFile s -> s.exprsToEval
       | _ -> []
 
-    let onMissing = NameResolver.OnMissing.Allow
-    let pm = PackageManager.pm ()
+    let ctx =
+      NameResolver.NRContext
+        { onMissing = NameResolver.OnMissing.Allow
+          pm = PackageManager.pm ()
+          branchId = Builtin.scmMainBranchId
+          owner = ""
+          currentModule = [] }
 
     match exprs with
     | [ expr ] ->
       let (expr, _) =
         WrittenTypesToProgramTypes.Expr.toPT
-          Stdlib.Option.Option.None
-          branchID
-          onMissing
-          pm
-          ""
-          []
+          ctx
           WrittenTypesToProgramTypes.defaultContext
           expr
 
@@ -46,8 +44,6 @@ let parsePTExpr
 
 
 let parsePTSourceFileWithOps
-  (accountID: Stdlib.Option.Option<Uuid>)
-  (branchID: Stdlib.Option.Option<ProgramTypes.BranchID>)
   (code: String)
   : Stdlib.Result.Result<
     (ProgramTypes.SourceFile.SourceFile * List<ProgramTypes.PackageOp>),
@@ -56,7 +52,7 @@ let parsePTSourceFileWithOps
   match code |> TestParsing.initialParse with
   | Ok parsedFile ->
     let (sourceFile, ops, _unresolvedNames) =
-      parsedFile |> WrittenTypesToProgramTypes.parsedFileAsSourceFile accountID branchID
+      parsedFile |> WrittenTypesToProgramTypes.parsedFileAsSourceFile
 
     (sourceFile, ops) |> Stdlib.Result.Result.Ok
   | Error e -> Stdlib.Result.Result.Error e

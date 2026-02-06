@@ -31,8 +31,7 @@ let hardcodedServerCapabilities
     )
 
 let parseAndReportDiagnostics
-  (accountID: Stdlib.Option.Option<Uuid>)
-  (branchID: Stdlib.Option.Option<ProgramTypes.BranchID>)
+  (branchId: Uuid)
   (requestUri: String)
   (requestText: String)
   : Stdlib.Result.Result<WrittenTypes.ParsedFile, String> =
@@ -70,8 +69,16 @@ let parseAndReportDiagnostics
       else
         ("LSP", "scriptName")
 
+    let nrCtx =
+      LanguageTools.NameResolver.NRContext
+        { onMissing = onMissing
+          pm = pm
+          branchId = branchId
+          owner = owner
+          currentModule = if scriptName == "" then [] else [ scriptName ] }
+
     let unresolvedNames =
-      match Parser.CliScript.parse accountID branchID owner scriptName onMissing pm "fileName" requestText with
+      match Parser.CliScript.parse nrCtx scriptName "fileName" requestText with
       | Ok ((_ptCliScriptModule, unresolvedNames)) -> unresolvedNames
       | Error err ->
         log $"Parse error: {err}"
@@ -95,14 +102,12 @@ let handleTextDocumentDidOpen
     LanguageServerProtocol.DocumentSync.TextDocument.DidOpenTextDocumentNotification.DidOpenTextDocumentParams.DidOpenTextDocumentParams)
   : LspState =
 
-  let accountID = state.accountID
-  let branchID = state.branchID
-  let parsed = parseAndReportDiagnostics accountID branchID request.textDocument.uri request.textDocument.text
+  let parsed = parseAndReportDiagnostics state.currentBranchId request.textDocument.uri request.textDocument.text
 
   let parsedToPT =
     match parsed with
     | Ok parsedFile ->
-      (WrittenTypesToProgramTypes.parsedFileAsSourceFile parsedFile state.accountID branchID)
+      (WrittenTypesToProgramTypes.parsedFileAsSourceFile parsedFile)
       |> Stdlib.Tuple3.first
       |> Stdlib.Option.Option.Some
 
@@ -155,9 +160,6 @@ let handleTextDocumentDidSave
     LanguageServerProtocol.DocumentSync.TextDocument.DidSaveTextDocumentNotification.DidSaveTextDocumentParams.DidSaveTextDocumentParams)
   : LspState =
 
-  let accountID = state.accountID
-  let branchID = state.branchID
-
   match request.text with
   | None ->
     log
@@ -166,12 +168,12 @@ let handleTextDocumentDidSave
     state
 
   | Some text ->
-    let parsed = parseAndReportDiagnostics accountID branchID request.textDocument.uri text
+    let parsed = parseAndReportDiagnostics state.currentBranchId request.textDocument.uri text
 
     let parsedToPT =
       match parsed with
       | Ok parsedFile ->
-        (WrittenTypesToProgramTypes.parsedFileAsSourceFile parsedFile state.accountID branchID)
+        (WrittenTypesToProgramTypes.parsedFileAsSourceFile parsedFile)
         |> Stdlib.Tuple3.first
         |> Stdlib.Option.Option.Some
 

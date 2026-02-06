@@ -6,12 +6,142 @@ open FSharp.Control.Tasks
 
 open Prelude
 
+open Fumble
+open LibDB.Db
+
 module RT = LibExecution.RuntimeTypes
 module PT = LibExecution.ProgramTypes
+module PT2RT = LibExecution.ProgramTypesToRuntimeTypes
+module Execution = LibExecution.Execution
+module BS = LibBinarySerialization.BinarySerialization
 
 module PM = LibPackageManager.PackageManager
 
 open Utils
+
+
+/// Evaluate all package values that have NULL rt_dval.
+/// Called after initial package load when all definitions are in the DB.
+///
+/// Uses multi-pass evaluation: values may depend on other values, so we evaluate
+/// in rounds. Each pass evaluates all remaining NULL values; failures are retried
+/// in the next pass (once their dependencies have been evaluated). Stops when all
+/// values are evaluated or a pass makes no progress.
+let evaluateAllValues
+  (builtins : RT.Builtins)
+  (pm : RT.PackageManager)
+  : Ply<Result<unit, string list>> =
+  uply {
+    // Create execution state for evaluation
+    let program : RT.Program =
+      { canvasID = System.Guid.NewGuid()
+        internalFnsAllowed = false
+        dbs = Map.empty
+        secrets = [] }
+
+    let notify _ _ _ _ = uply { return () }
+    let sendException _ _ _ _ = uply { return () }
+
+    let exeState =
+      Execution.createState
+        builtins
+        pm
+        Execution.noTracing
+        sendException
+        notify
+        PT.mainBranchId
+        program
+
+    let maxPasses = 10
+    let mutable pass = 0
+    let mutable keepGoing = true
+    let mutable lastErrors : string list = []
+
+    while keepGoing do
+      pass <- pass + 1
+
+      // Re-query each pass to pick up only values still needing evaluation
+      let! unevaluatedValues =
+        Sql.query
+          """
+          SELECT pv.id, pv.pt_def, l.owner, l.modules, l.name
+          FROM package_values pv
+          LEFT JOIN locations l ON l.item_id = CAST(pv.id AS TEXT) AND l.deprecated_at IS NULL
+          WHERE pv.rt_dval IS NULL
+          """
+        |> Sql.executeAsync (fun read ->
+          let id = read.uuid "id"
+          let ptDef = read.bytes "pt_def"
+          let owner = read.stringOrNone "owner" |> Option.defaultValue "?"
+          let modules = read.stringOrNone "modules" |> Option.defaultValue ""
+          let name = read.stringOrNone "name" |> Option.defaultValue "?"
+          let fullName =
+            if modules = "" then $"{owner}.{name}" else $"{owner}.{modules}.{name}"
+          (id, ptDef, fullName))
+
+      if List.isEmpty unevaluatedValues then
+        keepGoing <- false
+        lastErrors <- []
+      else if pass > maxPasses then
+        keepGoing <- false
+        lastErrors <-
+          [ $"Gave up after {maxPasses} passes with {List.length unevaluatedValues} values remaining" ]
+      else
+        let errors = ResizeArray<string>()
+        let mutable successCount = 0
+
+        for (valueId, ptDefBytes, fullName) in unevaluatedValues do
+          try
+            let ptValue = BS.PT.PackageValue.deserialize valueId ptDefBytes
+            let instrs = PT2RT.Expr.toRT Map.empty 0 None ptValue.body
+            let! result = Execution.executeExpr exeState instrs
+
+            match result with
+            | Error(rte, _callStack) ->
+              let! errorResult = Execution.runtimeErrorToString exeState rte
+              let errorMsg =
+                match errorResult with
+                | Ok(RT.DString s) -> s
+                | Ok other -> $"{other}"
+                | Error(rte2, _) -> $"(could not stringify error: {rte2})"
+              errors.Add(
+                $"Value {valueId} ({fullName}): evaluation failed - {errorMsg}"
+              )
+            | Ok dval ->
+              let rtValue : RT.PackageValue.PackageValue =
+                { id = valueId; body = dval }
+              let rtDvalBytes = BS.RT.PackageValue.serialize valueId rtValue
+              let valueType = RT.Dval.toValueType dval
+              let valueTypeBytes = BS.RT.ValueType.serialize valueType
+
+              do!
+                Sql.query
+                  """
+                  UPDATE package_values
+                  SET rt_dval = @rt_dval, value_type = @value_type
+                  WHERE id = @id
+                  """
+                |> Sql.parameters
+                  [ "id", Sql.uuid valueId
+                    "rt_dval", Sql.bytes rtDvalBytes
+                    "value_type", Sql.bytes valueTypeBytes ]
+                |> Sql.executeStatementAsync
+
+              successCount <- successCount + 1
+          with ex ->
+            errors.Add($"Value {valueId} ({fullName}): exception - {ex.Message}")
+
+        if successCount = 0 then
+          // No progress — remaining failures are real errors
+          keepGoing <- false
+          lastErrors <- errors |> List.ofSeq
+        else
+          print
+            $"  Value evaluation pass {pass}: {successCount} succeeded, {errors.Count} to retry"
+
+    if List.isEmpty lastErrors then return Ok() else return Error lastErrors
+  }
+
 
 module HandleCommand =
 
@@ -38,7 +168,7 @@ module HandleCommand =
 
   let reloadPackages () : Ply<Result<unit, string>> =
     uply {
-      // first, load the packages from disk, ensuring all parse well
+      // Load packages from disk, ensuring all parse well
       let! ops = LoadPackagesFromDisk.load Builtins.all
 
       // CLEANUP consider checking for duplicates (helps prevent a class of issues)
@@ -47,19 +177,34 @@ module HandleCommand =
       do! LibPackageManager.Purge.purge ()
 
       print "Filling ..."
-      let! _ = LibPackageManager.Inserts.insertAndApplyOps None None None ops
+      // Create an "init" commit with all packages from disk
+      // Note: values are stored with NULL rt_dval at this point
+      let! commitId =
+        LibPackageManager.Inserts.insertAndApplyOpsWithCommit
+          LibExecution.ProgramTypes.mainBranchId
+          "Init: packages loaded from disk"
+          ops
 
-      // Get stats after ops are inserted/applied
-      let! stats = LibPackageManager.Stats.get ()
-      print "Loaded packages from disk "
-      print $"{stats.types} types, {stats.values} values, and {stats.fns} fns"
+      // Evaluate all values now that all definitions are in the DB
+      let! evalResult = evaluateAllValues Builtins.all PM.rt
+      match evalResult with
+      | Error errors ->
+        for e in errors do
+          print $"  Value evaluation error: {e}"
+        return Error "Some values failed to evaluate"
+      | Ok() ->
+        // Get stats after ops are inserted/applied
+        let! stats = LibPackageManager.Stats.get ()
+        print "Loaded packages from disk "
+        print $"{stats.types} types, {stats.values} values, and {stats.fns} fns"
+        print $"Created init commit {commitId}"
 
-      // Reload dark-packages and dark-editor canvases after package reload
-      print "Reloading dark-packages canvas..."
-      let! _ = reloadCanvas "dark-packages"
-      let! _ = reloadCanvas "dark-editor"
+        // Reload dark-packages and dark-editor canvases after package reload
+        print "Reloading dark-packages canvas..."
+        let! _ = reloadCanvas "dark-packages"
+        let! _ = reloadCanvas "dark-editor"
 
-      return Ok()
+        return Ok()
     }
 
   let runMigrations () : Ply<Result<unit, string>> =

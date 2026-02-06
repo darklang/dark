@@ -135,3 +135,16 @@ module RT =
   module PackageFn =
     let serialize id value = makeSerializer RT.PackageFn.write id value
     let deserialize id data = makeDeserializer RT.PackageFn.read id data
+
+  module ValueType =
+    let serialize (vt : LibExecution.RuntimeTypes.ValueType) : byte[] =
+      use stream = new MemoryStream()
+      use w = new BinaryWriter(stream)
+      RT.ValueType.write w vt
+      w.Flush()
+      stream.ToArray()
+
+    let deserialize (data : byte[]) : LibExecution.RuntimeTypes.ValueType =
+      use stream = new MemoryStream(data)
+      use r = new BinaryReader(stream)
+      RT.ValueType.read r

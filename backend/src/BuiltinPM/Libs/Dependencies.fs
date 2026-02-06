@@ -1,6 +1,5 @@
 /// Builtin functions for dependency tracking between package items.
 /// Enables "what calls this?" and "what does this call?" queries.
-/// Shows approved items + caller's own pending items.
 module BuiltinPM.Libs.Dependencies
 
 open Prelude
@@ -9,43 +8,44 @@ open LibExecution.Builtin.Shortcuts
 
 module Dval = LibExecution.Dval
 module VT = LibExecution.ValueType
+module PT = LibExecution.ProgramTypes
+module PT2DT = LibExecution.ProgramTypesToDarkTypes
+module PMPT = LibPackageManager.ProgramTypes
 
 
 let tupleVT = VT.tuple VT.uuid VT.string []
 
+/// Try to get location for an item ID, checking all item types (fn, type, value)
+let private getLocationAny
+  (branchChain : List<PT.BranchId>)
+  (id : uuid)
+  : Ply<Option<PT.PackageLocation>> =
+  uply {
+    // Try fn first (most common)
+    match! PMPT.Fn.getLocation branchChain id with
+    | Some loc -> return Some loc
+    | None ->
+      // Try type
+      match! PMPT.Type.getLocation branchChain id with
+      | Some loc -> return Some loc
+      | None ->
+        // Try value
+        return! PMPT.Value.getLocation branchChain id
+  }
+
 
 let fns : List<BuiltInFn> =
-  [ { name = fn "dependenciesGetDependents" 0
+  [ { name = fn "depsGetDependents" 0
       typeParams = []
-      parameters =
-        [ Param.make
-            "accountID"
-            (TypeReference.option TUuid)
-            "Account ID for visibility filtering"
-          Param.make
-            "branchID"
-            (TypeReference.option TUuid)
-            "Branch ID for visibility filtering"
-          Param.make "targetId" TUuid "The UUID to find dependents for" ]
+      parameters = [ Param.make "targetId" TUuid "The UUID to find dependents for" ]
       returnType = TList(TTuple(TUuid, TString, []))
       description =
-        "Returns items that reference the given UUID (reverse dependencies). Shows approved + caller's pending items."
+        "Returns items that reference the given UUID (reverse dependencies)."
       fn =
         (function
-        | _, _, _, [ accountID; branchID; DUuid targetId ] ->
+        | _, _, _, [ DUuid targetId ] ->
           uply {
-            let accountID =
-              match accountID with
-              | DEnum(_, _, _, "Some", [ DUuid id ]) -> Some id
-              | _ -> None
-
-            let branchID =
-              match branchID with
-              | DEnum(_, _, _, "Some", [ DUuid id ]) -> Some id
-              | _ -> None
-
-            let! results =
-              LibPackageManager.Queries.getDependents accountID branchID targetId
+            let! results = LibPackageManager.Queries.getDependents targetId
 
             let dvals =
               results
@@ -58,7 +58,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "dependenciesGetDependencies" 0
+    { name = fn "depsGetDependencies" 0
       typeParams = []
       parameters =
         [ Param.make "sourceId" TUuid "The UUID to find dependencies for" ]
@@ -81,35 +81,17 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "dependenciesGetDependentsBatch" 0
+    { name = fn "depsGetDependentsBatch" 0
       typeParams = []
       parameters =
-        [ Param.make
-            "accountID"
-            (TypeReference.option TUuid)
-            "Account ID for visibility filtering"
-          Param.make
-            "branchID"
-            (TypeReference.option TUuid)
-            "Branch ID for visibility filtering"
-          Param.make "targetIds" (TList TUuid) "List of UUIDs to find dependents for" ]
+        [ Param.make "targetIds" (TList TUuid) "List of UUIDs to find dependents for" ]
       returnType = TList(TTuple(TUuid, TUuid, [ TString ]))
       description =
-        "Batch lookup of dependents. Returns (dependsOnId, itemId, kind) tuples. Shows approved + caller's pending items."
+        "Batch lookup of dependents. Returns (dependsOnId, itemId, kind) tuples."
       fn =
         (function
-        | _, _, _, [ accountID; branchID; DList(_, targetIds) ] ->
+        | _, _, _, [ DList(_, targetIds) ] ->
           uply {
-            let accountID =
-              match accountID with
-              | DEnum(_, _, _, "Some", [ DUuid id ]) -> Some id
-              | _ -> None
-
-            let branchID =
-              match branchID with
-              | DEnum(_, _, _, "Some", [ DUuid id ]) -> Some id
-              | _ -> None
-
             let ids =
               targetIds
               |> List.choose (fun dval ->
@@ -117,8 +99,7 @@ let fns : List<BuiltInFn> =
                 | DUuid id -> Some id
                 | _ -> None)
 
-            let! results =
-              LibPackageManager.Queries.getDependentsBatch accountID branchID ids
+            let! results = LibPackageManager.Queries.getDependentsBatch ids
 
             let resultVT = VT.tuple VT.uuid VT.uuid [ VT.string ]
 
@@ -139,35 +120,19 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "dependenciesResolveNames" 0
+    { name = fn "depsResolveLocations" 0
       typeParams = []
       parameters =
-        [ Param.make
-            "accountID"
-            (TypeReference.option TUuid)
-            "Account ID for visibility"
-          Param.make
-            "branchID"
-            (TypeReference.option TUuid)
-            "Branch ID for visibility"
+        [ Param.make "branchId" TUuid "Branch ID for location lookup"
           Param.make "itemIds" (TList TUuid) "List of item UUIDs to resolve" ]
-      returnType = TList(TTuple(TUuid, TString, []))
+      returnType =
+        TList(TTuple(TUuid, TCustomType(Ok PT2DT.PackageLocation.typeName, []), []))
       description =
-        "Resolve UUIDs to display names. Returns (itemId, displayName) tuples."
+        "Resolve UUIDs to PackageLocations. Returns (itemId, location) tuples."
       fn =
         (function
-        | _, _, _, [ accountID; branchID; DList(_, itemIds) ] ->
+        | _, _, _, [ DUuid branchId; DList(_, itemIds) ] ->
           uply {
-            let accountID =
-              match accountID with
-              | DEnum(_, _, _, "Some", [ DUuid id ]) -> Some id
-              | _ -> None
-
-            let branchID =
-              match branchID with
-              | DEnum(_, _, _, "Some", [ DUuid id ]) -> Some id
-              | _ -> None
-
             let ids =
               itemIds
               |> List.choose (fun item ->
@@ -175,20 +140,29 @@ let fns : List<BuiltInFn> =
                 | DUuid id -> Some id
                 | _ -> None)
 
+            let! branchChain = LibPackageManager.Branches.getBranchChain branchId
+
             let! results =
-              LibPackageManager.Queries.resolveLocations accountID branchID ids
+              ids
+              |> List.map (fun id ->
+                uply {
+                  match! getLocationAny branchChain id with
+                  | Some loc -> return Some(id, loc)
+                  | None -> return None
+                })
+              |> Ply.List.flatten
+              |> Ply.map (List.choose identity)
 
             let dvals =
               results
-              |> List.map (fun loc ->
-                let displayName =
-                  if System.String.IsNullOrEmpty(loc.modules) then
-                    $"{loc.owner}.{loc.name}"
-                  else
-                    $"{loc.owner}.{loc.modules}.{loc.name}"
-                DTuple(DUuid loc.itemId, DString displayName, []))
+              |> List.map (fun (id, loc) ->
+                DTuple(DUuid id, PT2DT.PackageLocation.toDT loc, []))
 
-            return DList(VT.tuple VT.uuid VT.string [], dvals)
+            return
+              DList(
+                VT.tuple VT.uuid (VT.known PT2DT.PackageLocation.knownType) [],
+                dvals
+              )
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable

@@ -1,0 +1,33 @@
+module Darklang.Cli.Docs.Functions
+
+let content () : String =
+  """# Functions
+
+## Define (module-level only)
+  let add (a: Int64) (b: Int64) : Int64 = a + b
+  let greet (name: String) : String = $"Hi {name}"
+
+## No params
+  let now () : DateTime = Stdlib.DateTime.now ()
+
+## NO NESTED FUNCTIONS
+  # WRONG:
+  let outer () = let inner () = 5L; inner ()
+  # RIGHT:
+  let inner () = 5L
+  let outer () = inner ()
+
+## Call
+  add 1L 2L
+  Stdlib.String.length "hi"
+
+## Lambda
+  fun x -> x + 1L
+  fun (a, b) -> a + b
+
+## Partial application
+  let addFive = Stdlib.Int64.add 5L
+  addFive 3L   # 8L
+
+## Unit return
+  let log (msg: String) : Unit = Stdlib.printLine msg"""

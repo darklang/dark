@@ -100,8 +100,6 @@ let rec parseDecls
 
 
 let parse
-  (accountID : Option<PT.AccountID>)
-  (branchId : Option<PT.BranchID>)
   (builtins : RT.Builtins)
   (pm : PT.PackageManager)
   (onMissing : NR.OnMissing)
@@ -139,8 +137,6 @@ let parse
         modul.fns
         |> Ply.List.mapSequentially (fun fn ->
           WT2PT.PackageFn.toPT
-            accountID
-            branchId
             builtins
             pm
             onMissing
@@ -151,8 +147,6 @@ let parse
         modul.types
         |> Ply.List.mapSequentially (fun typ ->
           WT2PT.PackageType.toPT
-            accountID
-            branchId
             pm
             onMissing
             (WT2PT.PackageType.Name.toModules typ.name)
@@ -162,8 +156,6 @@ let parse
         modul.values
         |> Ply.List.mapSequentially (fun value ->
           WT2PT.PackageValue.toPT
-            accountID
-            branchId
             builtins
             pm
             onMissing

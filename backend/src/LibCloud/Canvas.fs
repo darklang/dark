@@ -18,32 +18,27 @@ module PT2RT = LibExecution.ProgramTypesToRuntimeTypes
 module K8s = LibService.Kubernetes
 
 
-let createWithExactID
-  (id : CanvasID)
-  (owner : UserID)
-  (domain : string)
-  : Task<unit> =
+let createWithExactID (id : CanvasID) (domain : string) : Task<unit> =
   task {
     do!
       Sql.query
         "INSERT INTO canvases_v0
-          (id, account_id)
+          (id)
          VALUES
-          (@id, @owner);
+          (@id);
 
          INSERT INTO domains_v0
            (canvas_id, domain)
          VALUES
            (@id, @domain)"
-      |> Sql.parameters
-        [ "id", Sql.uuid id; "owner", Sql.uuid owner; "domain", Sql.string domain ]
+      |> Sql.parameters [ "id", Sql.uuid id; "domain", Sql.string domain ]
       |> Sql.executeStatementAsync
   }
 
-let create (owner : UserID) (domain : string) : Task<CanvasID> =
+let create (domain : string) : Task<CanvasID> =
   task {
     let id = System.Guid.NewGuid()
-    do! createWithExactID id owner domain
+    do! createWithExactID id domain
     return id
   }
 
@@ -76,14 +71,6 @@ let allCanvasIDs () : Task<List<CanvasID>> =
   Sql.query "SELECT id FROM canvases_v0"
   |> Sql.executeAsync (fun read -> read.uuid "id")
 
-
-let getOwner (id : CanvasID) : Task<Option<UserID>> =
-  Sql.query
-    "SELECT account_id
-    FROM canvases_v0
-    WHERE id = @id"
-  |> Sql.parameters [ "id", Sql.uuid id ]
-  |> Sql.executeRowOptionAsync (fun read -> read.uuid "account_id")
 
 /// <summary>
 /// Canvas data - contains metadata along with basic handlers, DBs, etc.

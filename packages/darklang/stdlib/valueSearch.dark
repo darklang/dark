@@ -1,0 +1,82 @@
+module Darklang.Stdlib.ValueSearch
+
+// Find package values by type
+
+/// A value found by type search
+type FoundValue<'a> =
+  { path: String
+    value: 'a }
+
+/// Parse namespace string into parts (non-generic helper)
+let parseNamespace (targetNamespace: String) : List<String> =
+  if (Stdlib.String.length targetNamespace) == 0L then
+    []
+  else
+    Stdlib.String.split targetNamespace "."
+
+
+/// Check if a value path starts with the namespace parts (non-generic helper)
+let isValueInNamespace
+  (namespaceParts: List<String>)
+  (valuePath: List<String>)
+  : Bool =
+  if (Stdlib.List.length namespaceParts) == 0L then
+    true
+  else
+    (Stdlib.List.take valuePath (Stdlib.List.length namespaceParts))
+    == namespaceParts
+
+
+/// Build full path string from location (non-generic helper)
+let buildPathFromLocation
+  (owner: String)
+  (modules: List<String>)
+  (name: String)
+  : String =
+  (Stdlib.List.append [ owner ] modules)
+  |> Stdlib.List.append [ name ]
+  |> Stdlib.String.join "."
+
+
+/// Find all values that match a specific custom type
+/// Uses indexed type lookup for efficiency
+/// Optionally filters by namespace prefix
+let findByType
+  (branchId: Uuid)
+  (targetNamespace: String)
+  (targetTypeId: Uuid)
+  : List<FoundValue<'a>> =
+  let namespaceParts = parseNamespace targetNamespace
+
+  // Construct a ValueType for the custom type
+  let valueType =
+    LanguageTools.RuntimeTypes.ValueType.Known
+      (LanguageTools.RuntimeTypes.KnownType.KTCustomType
+        (LanguageTools.RuntimeTypes.FQTypeName.FQTypeName.Package targetTypeId)
+        [])
+
+  // Use indexed query to find all value IDs with the target type
+  let valueIds = Builtin.pmFindValuesByValueType valueType
+
+  valueIds
+  |> Stdlib.List.filterMap (fun valueId ->
+    // Get location for this value
+    match Builtin.pmGetLocationByValue branchId valueId with
+    | Some location ->
+      // Check if it's in the target namespace
+      let valuePath = Stdlib.List.append [ location.owner ] location.modules
+
+      if isValueInNamespace namespaceParts valuePath then
+        // Evaluate the value
+        match Builtin.pmEvaluateValue valueId with
+        | Some evaluatedValue ->
+          let fullPath = buildPathFromLocation location.owner location.modules location.name
+
+          Stdlib.Option.Option.Some(
+            FoundValue { path = fullPath; value = evaluatedValue }
+          )
+        | None -> Stdlib.Option.Option.None
+      else
+        Stdlib.Option.Option.None
+    | None -> Stdlib.Option.Option.None)
+

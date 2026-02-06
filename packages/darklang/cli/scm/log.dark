@@ -1,0 +1,56 @@
+module Darklang.Cli.SCM.Log
+
+
+let execute (state: AppState) (args: List<String>) : AppState =
+  let branchId = state.currentBranchId
+
+  let limit =
+    match args with
+    | [ limitStr ] ->
+      match Stdlib.Int64.parse limitStr with
+      | Ok n -> n
+      | Error _ -> 20L
+    | _ -> 20L
+
+  let commits = SCM.PackageOps.getCommitsWithAncestors branchId limit
+
+  let currentBranchIdStr = Stdlib.Uuid.toString branchId
+
+  if Stdlib.List.isEmpty commits then
+    Stdlib.printLine "No commits yet."
+  else
+    commits
+    |> Stdlib.List.iter (fun c ->
+      let id = Stdlib.String.first (Stdlib.Uuid.toString c.id) 8L
+      let createdAt = Stdlib.DateTime.toString_v0 c.createdAt
+      let opCount = Stdlib.Int64.toString c.opCount
+      let commitBranchId = Stdlib.Uuid.toString c.branchId
+
+      let isAncestor = commitBranchId != currentBranchIdStr && commitBranchId != ""
+
+      if isAncestor then
+        Stdlib.printLine $"{Cli.Colors.dim}{id}  {createdAt}  ({opCount} ops)  [{c.branchName}]{Cli.Colors.reset}"
+        Stdlib.printLine $"{Cli.Colors.dim}    {c.message}{Cli.Colors.reset}"
+      else
+        Stdlib.printLine $"{Cli.Colors.cyan}{id}{Cli.Colors.reset}  {createdAt}  ({opCount} ops)"
+        Stdlib.printLine $"    {c.message}"
+
+      Stdlib.printLine "")
+
+  state
+
+
+let complete (_state: AppState) (_args: List<String>) : List<Completion.CompletionItem> =
+  []
+
+
+let help (_state: AppState) : Unit =
+  [ "Usage: log [limit]"
+    "Show commit history for the current branch and its ancestors."
+    "Commits from parent branches are shown dimmed with the branch name."
+    ""
+    "Arguments:"
+    "  limit   Maximum number of commits to show (default: 20)"
+    ""
+    "Use 'show <commit-id>' to see details of a specific commit." ]
+  |> Stdlib.printLines

@@ -41,10 +41,8 @@ let purgeDataFromInternalSqlTables (id : CanvasID) : Task<unit> =
       |> Sql.parameters [ "id", Sql.uuid id ]
       |> Sql.executeStatementAsync
 
-    do! runStmt "DELETE FROM scheduling_rules_v0 WHERE canvas_id = @id"
     do! runStmt "DELETE FROM traces_v0 WHERE canvas_id = @id"
     do! runStmt "DELETE FROM user_data_v0 WHERE canvas_id = @id"
-    do! runStmt "DELETE FROM cron_records_v0 WHERE canvas_id = @id"
     do! runStmt "DELETE FROM toplevels_v0 WHERE canvas_id = @id"
     do! runStmt "DELETE FROM canvases_v0 WHERE id = @id"
     do! runStmt "DELETE FROM domains_v0 WHERE canvas_id = @id"
@@ -57,10 +55,6 @@ let loadFromDisk
   (canvasName : string)
   : Ply<System.Guid * List<LibExecution.ProgramTypes.Toplevel.T>> =
   uply {
-    // Use None for accountID and branchId during local dev - see all approved items
-    let accountID = None
-    let branchId = None
-
     print $"Loading canvas {canvasName} from disk"
 
     let canvasDir = $"canvases/{canvasName}"
@@ -86,28 +80,10 @@ let loadFromDisk
             $"Currently only prepared to parse Darklang (dark-) canvases"
         )
 
-    let! ownerID =
-      task {
-        match! LibCloud.Canvas.getOwner canvasID with
-        | Some id -> return id
-        | None ->
-          match! LibCloud.Account.getUserByName ownerName with
-          | Some ownerID ->
-            do! LibCloud.Canvas.createWithExactID canvasID ownerID domain
-            return ownerID
-          | None ->
-            match! LibCloud.Account.createUser ownerName with
-            | Ok ownerID ->
-              do! LibCloud.Canvas.createWithExactID canvasID ownerID domain
-              return ownerID
-            | Error msg ->
-              return raise (System.Exception $"Failed to create owner: {msg}")
-      }
-
     // TODO this doesn't purge any added types/vals/fns from PM...
     // maybe we should?
     do! purgeDataFromInternalSqlTables canvasID
-    do! LibCloud.Canvas.createWithExactID canvasID ownerID domain
+    do! LibCloud.Canvas.createWithExactID canvasID domain
 
     let! tls =
       uply {
@@ -116,8 +92,6 @@ let loadFromDisk
 
         let! canvas =
           LibParser.Canvas.parse
-            accountID
-            branchId
             ownerName
             canvasName
             Builtins.accessibleByCanvas
@@ -133,9 +107,12 @@ let loadFromDisk
 
         let dbs = canvas.dbs |> List.map PT.Toplevel.TLDB
 
-        // Insert+apply canvas types, values, and fns as PackageOps
+        // Insert+apply canvas types, values, and fns as PackageOps (committed)
         let! _ =
-          LibPackageManager.Inserts.insertAndApplyOps None None None canvas.ops
+          LibPackageManager.Inserts.insertAndApplyOpsWithCommit
+            PT.mainBranchId
+            $"Init: canvas {domain}"
+            canvas.ops
 
         return
           (dbs @ handlers) |> List.map (fun tl -> tl, LibCloud.Serialize.NotDeleted)

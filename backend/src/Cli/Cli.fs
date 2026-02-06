@@ -63,10 +63,10 @@ let info () =
 // ---------------------
 
 let builtins : RT.Builtins =
+  // Outer CLI uses main branch for its own execution context.
+  // User scripts get branch-specific context via cliParseAndExecuteScript.
   LibExecution.Builtin.combine
-    [ BuiltinCliHost.builtinsToUse
-      BuiltinCliHost.Builtin.builtins
-      BuiltinCli.builtins ]
+    [ BuiltinCliHost.builtinsToUse (); BuiltinCliHost.builtins; BuiltinCli.builtins ]
     []
 
 
@@ -96,7 +96,14 @@ let state (packageManager : RT.PackageManager) =
     =
     uply { printException "Internal error" metadata exn }
 
-  Exe.createState builtins packageManager Exe.noTracing sendException notify program
+  Exe.createState
+    builtins
+    packageManager
+    Exe.noTracing
+    sendException
+    notify
+    PT.mainBranchId
+    program
 
 
 
@@ -137,9 +144,7 @@ let main (args : string[]) =
       let errorCallStackStr =
         (LibExecution.Execution.callStackString state callStack).Result
 
-      match
-        (LibExecution.Execution.runtimeErrorToString None None state rte).Result
-      with
+      match (LibExecution.Execution.runtimeErrorToString state rte).Result with
       | Ok(RT.DString s) ->
         logError $"Encountered a Runtime Error:\n{s}\n\n{errorCallStackStr}\n  "
 
@@ -154,7 +159,8 @@ let main (args : string[]) =
       1
     | Ok(RT.DInt64 i) -> (int i)
     | Ok dval ->
-      let output = DvalReprDeveloper.toRepr dval
+      let state = state cliPackageManager
+      let output = (Exe.dvalToRepr state dval).Result
       logError $"Error: main function must return an int (returned {output})"
       1
 

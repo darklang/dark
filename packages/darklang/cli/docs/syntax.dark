@@ -1,0 +1,43 @@
+module Darklang.Cli.Docs.Syntax
+
+let content () : String =
+  """# Syntax
+
+## Basics
+  let x = 5L
+  let add (a: Int64) (b: Int64) : Int64 = a + b
+  if cond then a else b
+  // comment
+
+## Functions (module-level only, no nesting)
+  let greet (name: String) : String = $"Hello, {name}"
+
+## Match
+  match x with
+  | Some v -> v
+  | None -> 0L
+
+## Pipe (parens for complex LHS)
+  (Stdlib.List.range 0L 10L) |> Stdlib.List.map fn
+
+## Lists (semicolon separator)
+  [1L; 2L; 3L]
+
+## Strings
+  "hello" ++ " world"    # concat
+  $"value: {x}"          # interpolation
+
+## Lambda
+  fun x -> x + 1L
+  fun (a, b) -> a + b
+
+## Unit
+  ()     # value
+  Unit   # type
+
+## Printing multiple lines
+  // When printing 3+ lines, prefer printLines over repeated printLine:
+  [ "line 1"
+    "line 2"
+    "line 3"
+  ] |> Stdlib.printLines"""

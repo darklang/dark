@@ -26,39 +26,6 @@ module D = LibExecution.DvalDecoder
 module Utils = BuiltinCliHost.Utils
 
 
-// Get PackageManager instance with error handling
-let executePM
-  (exeState : RT.ExecutionState)
-  (branchID : Option<System.Guid>)
-  : Ply<Dval> =
-  uply {
-    let getPmFnName = FQFnName.Package PackageIDs.Fn.LanguageTools.PackageManager.pm
-
-    let! execResult =
-      Exe.executeFunction exeState getPmFnName [] (NEList.singleton DUnit)
-
-    match execResult with
-    | Ok dval -> return dval
-    | Error(rte, _cs) ->
-      let accountID = None
-      let! rteString = Exe.runtimeErrorToString accountID branchID exeState rte
-      match rteString with
-      | Ok rte ->
-        return Exception.raiseInternal "Error executing pm function" [ "rte", rte ]
-      | Error(nestedRte, _cs) ->
-        return
-          Exception.raiseInternal
-            "Error running runtimeErrorToString"
-            [ "original rte", rte; "nested rte", nestedRte ]
-  }
-
-// Create OnMissing.Allow enum value
-let createOnMissingAllow () : Dval =
-  let onMissingType =
-    FQTypeName.Package
-      PackageIDs.Type.LanguageTools.NameResolver.nameResolverOnMissing
-  DEnum(onMissingType, onMissingType, [], "Allow", [])
-
 // Create exception error from exn
 let createExceptionError (e : exn) : RuntimeError.Error =
   RuntimeError.UncaughtException(
@@ -66,34 +33,26 @@ let createExceptionError (e : exn) : RuntimeError.Error =
     Exception.toMetadata e |> List.map (fun (k, v) -> (k, DString(string v)))
   )
 
-// Parse CLI script code
+// Parse CLI script code using the single-shot parseForCli function.
+// This keeps PM creation and parsing in the same execution context,
+// avoiding issues with lambda instructions crossing VM boundaries.
 let parseCliScript
   (exeState : RT.ExecutionState)
-  (accountID : Option<System.Guid>)
-  (branchID : Option<System.Guid>)
-  (pm : Dval)
+  (branchId : System.Guid)
   (owner : string)
   (scriptName : string)
   (code : string)
   : Ply<Result<Utils.CliScript.PTCliScriptModule, RuntimeError.Error>> =
   uply {
-    let onMissingAllow = createOnMissingAllow ()
-
     let args =
       NEList.ofList
-        (PT2DT.AccountID.optionToDT accountID)
-        [ PT2DT.BranchID.optionToDT branchID
-          DString owner
-          DString scriptName
-          onMissingAllow
-          pm
-          DString scriptName
-          DString code ]
+        (DUuid branchId)
+        [ DString owner; DString scriptName; DString scriptName; DString code ]
 
-    let parseCliScriptFnName =
-      FQFnName.Package PackageIDs.Fn.LanguageTools.Parser.CliScript.parseCliScript
+    let parseForCliFnName =
+      FQFnName.Package PackageIDs.Fn.LanguageTools.Parser.CliScript.parseForCli
 
-    let! execResult = Exe.executeFunction exeState parseCliScriptFnName [] args
+    let! execResult = Exe.executeFunction exeState parseForCliFnName [] args
 
     match execResult with
     | Ok dval ->
@@ -108,7 +67,7 @@ let parseCliScript
             "Invalid error format from parseCliScript"
             [ "dval", dval ]
     | Error(rte, _cs) ->
-      let! rteString = Exe.runtimeErrorToString None branchID exeState rte
+      let! rteString = Exe.runtimeErrorToString exeState rte
       match rteString with
       | Ok errorDval ->
         return
@@ -129,19 +88,21 @@ module ExecutionError =
 
 
 let pmRT = LibPackageManager.PackageManager.rt
-let ptPM = LibPackageManager.PackageManager.pt
 
-let builtinsToUse : RT.Builtins =
+let builtinsToUse () : RT.Builtins =
+  let ptPM = LibPackageManager.PackageManager.pt
   LibExecution.Builtin.combine
     [ BuiltinExecution.Builtin.builtins
         BuiltinExecution.Libs.HttpClient.defaultConfig
       BuiltinCli.Builtin.builtins
-      BuiltinPM.Builtin.builtins ptPM ]
+      BuiltinPM.Builtin.builtins ptPM
+      BuiltinHttpServer.Builtin.builtins ]
     []
 
 
 let execute
   (parentState : RT.ExecutionState)
+  (branchId : System.Guid)
   (mod' : Utils.CliScript.PTCliScriptModule)
   (_args : List<Dval>) // CLEANUP update to List<String>, and extract in builtin
   : Ply<RT.ExecutionResult> =
@@ -152,6 +113,8 @@ let execute
         secrets = []
         dbs = Map.empty }
 
+    let builtins = builtinsToUse ()
+
     let types =
       List.concat
         [ mod'.types |> List.map PT2RT.PackageType.toRT
@@ -159,8 +122,9 @@ let execute
 
     let values =
       List.concat
-        [ mod'.values |> List.map PT2RT.PackageValue.toRT
-          mod'.submodules.values |> List.map PT2RT.PackageValue.toRT ]
+        [ mod'.values |> List.map (PT2RT.PackageValue.toRT builtins.values)
+          mod'.submodules.values
+          |> List.map (PT2RT.PackageValue.toRT builtins.values) ]
 
     let fns =
       List.concat
@@ -175,11 +139,12 @@ let execute
 
     let state =
       Exe.createState
-        builtinsToUse
+        builtins
         pm
         tracing
         parentState.reportException
         parentState.notify
+        branchId
         program
 
     match mod'.exprs with
@@ -200,12 +165,28 @@ let execute
             []
   }
 
+/// Create a branch-specific execution state for parsing
+let createBranchState (parentState : RT.ExecutionState) (branchId : System.Guid) =
+  let program : Program =
+    { canvasID = System.Guid.NewGuid()
+      internalFnsAllowed = false
+      secrets = []
+      dbs = Map.empty }
+  Exe.createState
+    (builtinsToUse ())
+    pmRT
+    Exe.noTracing
+    parentState.reportException
+    parentState.notify
+    branchId
+    program
+
+
 let fns : List<BuiltInFn> =
   [ { name = fn "cliParseAndExecuteScript" 0
       typeParams = []
       parameters =
-        [ Param.make "accountID" (TypeReference.option TUuid) ""
-          Param.make "branchID" (TypeReference.option TUuid) ""
+        [ Param.make "branchId" TUuid ""
           Param.make "filename" TString ""
           Param.make "code" TString ""
           Param.make "args" (TList TString) "" ]
@@ -220,22 +201,20 @@ let fns : List<BuiltInFn> =
         | exeState,
           _,
           [],
-          [ accountID
-            branchID
+          [ DUuid branchId
             DString filename
             DString code
             DList(_vtTODO, scriptArgs) ] ->
           uply {
-            let accountID = PT2DT.AccountID.optionFromDT accountID
-            let branchID = PT2DT.BranchID.optionFromDT branchID
-            let! pm = executePM exeState branchID
+            // Use branch-specific state for parsing so name resolution uses the right branch
+            let branchState = createBranchState exeState branchId
             let! parsedScript =
-              parseCliScript exeState accountID branchID pm "CliScript" filename code
+              parseCliScript branchState branchId "CliScript" filename code
 
             try
               match parsedScript with
               | Ok mod' ->
-                match! execute exeState mod' scriptArgs with
+                match! execute exeState branchId mod' scriptArgs with
                 | Ok(DInt64 i) -> return resultOk (DInt64 i)
                 | Ok result ->
                   return
@@ -260,9 +239,7 @@ let fns : List<BuiltInFn> =
     { name = fn "cliEvaluateExpression" 0
       typeParams = []
       parameters =
-        [ Param.make "accountID" (TypeReference.option TUuid) ""
-          Param.make "branchID" (TypeReference.option TUuid) ""
-          Param.make "expression" TString "" ]
+        [ Param.make "branchId" TUuid ""; Param.make "expression" TString "" ]
       returnType = TypeReference.result TString ExecutionError.typeRef
       description = "Evaluates a Dark expression and returns the result as a String"
       fn =
@@ -270,17 +247,14 @@ let fns : List<BuiltInFn> =
         let resultOk = Dval.resultOk KTString errType
         let resultError = Dval.resultError KTString errType
         (function
-        | exeState, _, [], [ accountID; branchID; DString expression ] ->
+        | exeState, _, [], [ DUuid branchId; DString expression ] ->
           uply {
-            let accountID = PT2DT.AccountID.optionFromDT accountID
-            let branchID = PT2DT.BranchID.optionFromDT branchID
-            let! pm = executePM exeState branchID
+            // Use branch-specific state for parsing so name resolution uses the right branch
+            let branchState = createBranchState exeState branchId
             let! parsedScript =
               parseCliScript
-                exeState
-                accountID
-                branchID
-                pm
+                branchState
+                branchId
                 "CliScript"
                 "exprWrapper"
                 expression
@@ -288,12 +262,12 @@ let fns : List<BuiltInFn> =
             try
               match parsedScript with
               | Ok mod' ->
-                match! execute exeState mod' [] with
+                match! execute exeState branchId mod' [] with
                 | Ok result ->
                   match result with
                   | DString s -> return resultOk (DString s)
                   | _ ->
-                    let asString = DvalReprDeveloper.toRepr result
+                    let! asString = Exe.dvalToRepr exeState result
                     return resultOk (DString asString)
                 | Error(e, callStack) ->
                   let! csString = Exe.callStackString exeState callStack
@@ -306,6 +280,9 @@ let fns : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
-      deprecated = NotDeprecated } ]
+      deprecated = NotDeprecated }
+
+
+    ]
 
 let builtins = LibExecution.Builtin.make [] fns

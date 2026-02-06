@@ -80,6 +80,10 @@ if [[ -v CI ]]; then
   SPINNER="--no-spinner"
 fi
 
+TEST_LOG="${LOGS}/fsharp-tests.log"
+true > "${TEST_LOG}" # truncate
+
 cd backend
+echo -e "Logging to: ${grey}${TEST_LOG}${reset}"
 DARK_CONFIG_TELEMETRY_EXPORTER=none \
-"${EXE}" ${SPINNER} --colours "${COLOURS}" --junit-summary "${JUNIT_FILE}" "${EXPECTO_ARGS[@]}"
+"${EXE}" ${SPINNER} --colours "${COLOURS}" --junit-summary "${JUNIT_FILE}" "${EXPECTO_ARGS[@]}" 2>&1 | tee "${TEST_LOG}"

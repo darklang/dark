@@ -1078,7 +1078,11 @@ module PackageType =
 
 module PackageValue =
   // TODO: do a proper eval (Execution.execute)
-  let rec evalConstantExpr (expr : PT.Expr) : RT.Dval =
+  let rec evalConstantExpr
+    (builtinValues : Map<RT.FQValueName.Builtin, RT.BuiltInValue>)
+    (expr : PT.Expr)
+    : RT.Dval =
+    let recurse = evalConstantExpr builtinValues
     match expr with
     | PT.EUnit _ -> RT.DUnit
     | PT.EBool(_, b) -> RT.DBool b
@@ -1108,18 +1112,18 @@ module PackageValue =
         |> String.concat ""
       RT.DString text
     | PT.EList(_, exprs) ->
-      let values = exprs |> List.map evalConstantExpr
+      let values = exprs |> List.map recurse
       // TODO: determine proper type for the list
       RT.DList(RT.ValueType.Unknown, values)
     | PT.ETuple(_, first, second, rest) ->
-      let firstVal = evalConstantExpr first
-      let secondVal = evalConstantExpr second
-      let restVals = rest |> List.map evalConstantExpr
+      let firstVal = recurse first
+      let secondVal = recurse second
+      let restVals = rest |> List.map recurse
       RT.DTuple(firstVal, secondVal, restVals)
     | PT.EDict(_, entries) ->
       let evalEntries =
         entries
-        |> List.map (fun (key, valueExpr) -> (key, evalConstantExpr valueExpr))
+        |> List.map (fun (key, valueExpr) -> (key, recurse valueExpr))
         |> Map.ofList
       RT.DDict(RT.ValueType.Unknown, evalEntries)
     | PT.EEnum(_, typeName, typeArgs, caseName, fields) ->
@@ -1130,7 +1134,7 @@ module PackageValue =
           Exception.raiseInternal
             "Cannot resolve enum type name in package constant"
             []
-      let fieldValues = fields |> List.map evalConstantExpr
+      let fieldValues = fields |> List.map recurse
 
       // Convert provided type args, or infer for known generic types when empty
       let convertedTypeArgs =
@@ -1170,17 +1174,27 @@ module PackageValue =
             []
       let fieldValues =
         fields
-        |> List.map (fun (fieldName, fieldExpr) ->
-          (fieldName, evalConstantExpr fieldExpr))
+        |> List.map (fun (fieldName, fieldExpr) -> (fieldName, recurse fieldExpr))
         |> Map.ofList
       let convertedTypeArgs = List.map TypeReference.toValueType typeArgs
       RT.DRecord(resolvedTypeName, resolvedTypeName, convertedTypeArgs, fieldValues)
+    | PT.EValue(_, Ok(PT.FQValueName.Builtin builtin)) ->
+      let rtBuiltin = FQValueName.Builtin.toRT builtin
+      match Map.find rtBuiltin builtinValues with
+      | Some v -> v.body
+      | None ->
+        Exception.raiseInternal
+          "Builtin value not found in package constant"
+          [ "builtin", rtBuiltin ]
     | _ ->
       // For more complex expressions, return Unit as fallback
       RT.DUnit
 
-  let toRT (c : PT.PackageValue.PackageValue) : RT.PackageValue.PackageValue =
-    let body = evalConstantExpr c.body
+  let toRT
+    (builtinValues : Map<RT.FQValueName.Builtin, RT.BuiltInValue>)
+    (c : PT.PackageValue.PackageValue)
+    : RT.PackageValue.PackageValue =
+    let body = evalConstantExpr builtinValues c.body
     { id = c.id; body = body }
 
 module PackageFn =
@@ -1206,9 +1220,14 @@ module PackageFn =
 
 
 module PackageManager =
-  let toRT (pm : PT.PackageManager) : RT.PackageManager =
+  let toRT
+    (builtinValues : Map<RT.FQValueName.Builtin, RT.BuiltInValue>)
+    (pm : PT.PackageManager)
+    : RT.PackageManager =
     { getType = fun id -> pm.getType id |> Ply.map (Option.map PackageType.toRT)
-      getValue = fun id -> pm.getValue id |> Ply.map (Option.map PackageValue.toRT)
+      getValue =
+        fun id ->
+          pm.getValue id |> Ply.map (Option.map (PackageValue.toRT builtinValues))
       getFn = fun id -> pm.getFn id |> Ply.map (Option.map PackageFn.toRT)
 
       init = pm.init }

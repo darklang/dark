@@ -28,17 +28,17 @@ type IncomingMessage =
 
   // completions
   | TextDocumentCompletionRequest of
-    requestId: JsonRPC.RequestId *
+    requestId: JsonRPC.RequestID *
     Completions.CompletionRequest.CompletionParams.CompletionParams
 
   // semantic tokens
   | TextDocumentSemanticTokensRequest of
-    requestId: JsonRPC.RequestId *
+    requestId: JsonRPC.RequestID *
     SemanticTokens.SemanticTokensRequest.SemanticTokensParams.SemanticTokensParams
 
   // hover
   | TextDocumentHoverRequest of
-    requestId: JsonRPC.RequestId *
+    requestId: JsonRPC.RequestID *
     Hover.HoverRequest.HoverParams.HoverParams
 
   // diagnostics

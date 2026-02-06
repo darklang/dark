@@ -1,0 +1,36 @@
+module Darklang.Cli.Docs.PatternMatching
+
+let content () : String =
+  """# Pattern Matching
+
+## Basic
+  match x with
+  | 0L -> "zero"
+  | n -> $"other: {n}"
+
+## Enums (no type prefix)
+  | Some v -> v
+  | None -> default
+  | Ok data -> data
+  | Error e -> handle e
+
+## Tuples
+  | (a, b) -> a + b
+
+## Lists
+  | [] -> "empty"
+  | [x] -> "one"
+  | head :: tail -> "many"
+
+## Records
+  Records can't be destructured in match. Use a variable and access fields:
+  | user -> user.name
+
+## Wildcard
+  | _ -> default
+
+## Nested
+  | Some (Ok v) -> v
+
+## Gotcha: Some + tuple
+  | Some ((a, b)) -> ...   # double parens"""

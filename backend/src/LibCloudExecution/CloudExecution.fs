@@ -27,6 +27,7 @@ let builtins : RT.Builtins =
   LibExecution.Builtin.combine
     [ BuiltinExecution.Builtin.builtins HttpClient.configuration
       BuiltinPM.Builtin.builtins pmPT
+      BuiltinHttpServer.Builtin.builtins
       BuiltinCloudExecution.Builtin.builtins
       BuiltinDarkInternal.Builtin.builtins ]
     []
@@ -81,7 +82,15 @@ let createState
         printException "[exception]" metadata exn
       }
 
-    return Exe.createState builtins pmRT tracing sendException notify program
+    return
+      Exe.createState
+        builtins
+        pmRT
+        tracing
+        sendException
+        notify
+        PT.mainBranchId
+        program
   }
 
 type ExecutionReason =
@@ -105,7 +114,7 @@ let executeHandler
   (traceID : AT.TraceID.T)
   (inputVars : Map<string, RT.Dval>)
   (reason : ExecutionReason)
-  : Task<RT.Dval * Tracing.TraceResults.T> =
+  : Task<RT.Dval * RT.ExecutionState * Tracing.TraceResults.T> =
   task {
     let tracing = Tracing.create program.canvasID h.tlid traceID
 
@@ -145,14 +154,14 @@ let executeHandler
         | Error(originalRTE, originalCallStack) ->
           let! originalCallStack = callStackString originalCallStack
 
-          match! Exe.runtimeErrorToString None None state originalRTE with
+          match! Exe.runtimeErrorToString state originalRTE with
           | Ok(RT.DString msg) ->
             let msg = $"Error: {msg}\n\nSource: {originalCallStack}"
             return error msg
           | Ok result -> return result
           | Error(firstErrorRTE, firstErrorCallStack) ->
             let! firstErrorCallStack = callStackString firstErrorCallStack
-            match! Exe.runtimeErrorToString None None state firstErrorRTE with
+            match! Exe.runtimeErrorToString state firstErrorRTE with
             | Ok(RT.DString msg) ->
               return
                 error (
@@ -174,7 +183,7 @@ let executeHandler
 
     tracing.storeTraceResults ()
 
-    return (result, tracing.results)
+    return (result, state, tracing.results)
   }
 
 /// We call this reexecuteFunction because it always runs in an existing trace.

@@ -9,7 +9,6 @@ type PinnedItemKind =
 
 type PinnedItem =
   { itemId: Uuid
-    accountID: String
     kind: PinnedItemKind
     pinnedAt: DateTime
     owner: String
@@ -22,7 +21,6 @@ type PinnedItemsDB = PinnedItem
 
 type PinRequest =
   { itemId: String
-    accountID: String
     kind: String
     owner: String
     modules: String
@@ -30,7 +28,6 @@ type PinRequest =
 
 type PinnedItemResponse =
   { itemId: String
-    accountID: String
     kind: String
     pinnedAt: String
     owner: String
@@ -59,7 +56,6 @@ let kindFromString (s: String) : Stdlib.Option.Option<PinnedItemKind> =
 let toResponse (item: PinnedItem) : PinnedItemResponse =
   PinnedItemResponse
     { itemId = Stdlib.Uuid.toString item.itemId
-      accountID = item.accountID
       kind = kindToString item.kind
       pinnedAt = Stdlib.DateTime.toString item.pinnedAt
       owner = item.owner
@@ -69,20 +65,8 @@ let toResponse (item: PinnedItem) : PinnedItemResponse =
 
 [<HttpHandler("GET", "/pinned")>]
 let _getPinnedHandler _req =
-  let accountID =
-    (Stdlib.Http.Request.queryParam request "accountID")
-    |> Stdlib.Option.withDefault ""
-
   let items = Stdlib.DB.getAll PinnedItemsDB
-
-  // Filter by accountID if provided
-  let filteredItems =
-    if accountID == "" then
-      items
-    else
-      Stdlib.List.filter items (fun item -> item.accountID == accountID)
-
-  let responses = Stdlib.List.map filteredItems (fun item -> toResponse item)
+  let responses = Stdlib.List.map items (fun item -> toResponse item)
   let body = Builtin.jsonSerialize<List<PinnedItemResponse>> responses
 
   Stdlib.Http.responseWithHeaders
@@ -104,16 +88,13 @@ let _pinHandler _req =
         let item =
           PinnedItem
             { itemId = itemUuid
-              accountID = pinReq.accountID
               kind = kind
               pinnedAt = Stdlib.DateTime.now ()
               owner = pinReq.owner
               modules = pinReq.modules
               name = pinReq.name }
 
-        // Use accountID + itemId for uniqueness per account
-        let key = $"{pinReq.accountID}:{pinReq.itemId}"
-        let _ = Stdlib.DB.set item key PinnedItemsDB
+        let _ = Stdlib.DB.set item pinReq.itemId PinnedItemsDB
         Stdlib.Http.response (Stdlib.String.toBytes "") 200L
 
       | Error _ ->
@@ -127,8 +108,7 @@ let _pinHandler _req =
 
 
 type UnpinRequest =
-  { itemId: String
-    accountID: String }
+  { itemId: String }
 
 [<HttpHandler("DELETE", "/pin")>]
 let _unpinHandler _req =
@@ -136,8 +116,7 @@ let _unpinHandler _req =
 
   match Builtin.jsonParse<UnpinRequest> bodyStr with
   | Ok unpinReq ->
-    let key = $"{unpinReq.accountID}:{unpinReq.itemId}"
-    let _ = Stdlib.DB.delete key PinnedItemsDB
+    let _ = Stdlib.DB.delete unpinReq.itemId PinnedItemsDB
     Stdlib.Http.response (Stdlib.String.toBytes "") 200L
   | Error _ ->
     Stdlib.Http.response (Stdlib.String.toBytes "Invalid JSON") 400L

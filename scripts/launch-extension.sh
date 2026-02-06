@@ -1,7 +1,40 @@
 #!/bin/bash
 
-# Launch VS Code extension in pure host environment
-# Run this from the HOST machine, not from inside devcontainer
+# Launch VS Code extension for development/testing
+#
+# Usage:
+#   ./scripts/launch-extension.sh            # Prompts for mode
+#   ./scripts/launch-extension.sh --release  # Uses installed 'dark' CLI (run from host)
+#   ./scripts/launch-extension.sh --debug    # Uses ./scripts/run-cli (run from container)
+
+# Parse arguments
+MODE=""
+for arg in "$@"; do
+  case $arg in
+    --debug)
+      MODE="debug"
+      ;;
+    --release)
+      MODE="release"
+      ;;
+  esac
+done
+
+# If no mode specified, ask
+if [[ -z "$MODE" ]]; then
+  echo "Select extension mode:"
+  echo "  1) release - uses installed 'dark' CLI (for host testing)"
+  echo "  2) debug   - uses ./scripts/run-cli (for container testing)"
+  read -rp "Enter choice [1/2]: " choice
+  case $choice in
+    1) MODE="release" ;;
+    2) MODE="debug" ;;
+    *)
+      echo "Invalid choice. Use --release or --debug flag."
+      exit 1
+      ;;
+  esac
+fi
 
 # Detect workspace root from script location (script is in workspace/scripts/)
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -9,9 +42,15 @@ WORKSPACE_ROOT="$(dirname "$SCRIPT_DIR")"
 EXT_PATH="$WORKSPACE_ROOT/vscode-extension"
 USER_DATA_DIR="/tmp/vscode-extension-dev-$(date +%s)"
 
+echo ""
 echo "Launching extension development host..."
 echo "Extension path: $EXT_PATH"
 echo "User data dir: $USER_DATA_DIR"
+if [[ "$MODE" == "debug" ]]; then
+  echo "Mode: debug (using ./scripts/run-cli)"
+else
+  echo "Mode: release (using 'dark' CLI)"
+fi
 
 # Kill any existing code processes that might interfere
 pkill -f "extensionDevelopmentPath" || true
@@ -51,15 +90,20 @@ EOF
 mkdir -p "$USER_DATA_DIR/User/workspaceStorage/default"
 cat > "$USER_DATA_DIR/User/globalStorage/storage.json" <<EOF
 {
-  "workbench.activity.pinnedViewlets2": "[\\"workbench.view.extension.darklang\\",\\"workbench.view.explorer\\",\\"workbench.view.search\\",\\"workbench.view.scm\\",\\"workbench.view.debug\\",\\"workbench.view.extensions\\"]",
+  "workbench.activity.pinnedViewlets2": "[\"workbench.view.extension.darklang\",\"workbench.view.explorer\",\"workbench.view.search\",\"workbench.view.scm\",\"workbench.view.debug\",\"workbench.view.extensions\"]",
   "workbench.sidebar.activeViewletId": "workbench.view.extension.darklang"
 }
 EOF
 
 # Launch VS Code with extension
-# Return to workspace root and open it as the workspace
 cd "$WORKSPACE_ROOT" || exit
-VSCODE_DEBUG_MODE=true code \
+
+# Set DARKLANG_CLI_MODE if debug mode requested
+if [[ "$MODE" == "debug" ]]; then
+  export DARKLANG_CLI_MODE="debug"
+fi
+
+code \
   --extensionDevelopmentPath="$EXT_PATH" \
   --disable-extensions \
   --disable-extension github.copilot \

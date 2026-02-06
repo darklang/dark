@@ -13,11 +13,8 @@ type LspState =
 
     shouldShutdown: Bool
 
-    /// Account UUID for authorization and PM visibility filtering
-    accountID: Stdlib.Option.Option<Uuid>
-
-    /// The branch context for this LSP session
-    branchID: Stdlib.Option.Option<Uuid>
+    /// Which branch we're working on
+    currentBranchId: Uuid
 
     /// Documents that are currently open in the editor
     /// (i.e. have been `textDocument/didOpen`ed, and not yet `textDocument/didClose`d)

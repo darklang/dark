@@ -11,6 +11,7 @@ import contributionsSvg from "./icons/nav/contributions.svg";
 import tracesSvg from "./icons/nav/traces.svg";
 import settingsSvg from "./icons/nav/settings.svg";
 import changelogSvg from "./icons/nav/changelog.svg";
+import docsSvg from "./icons/nav/docs.svg";
 import logoutSvg from "./icons/nav/logout.svg";
 
 export const navIcons = {
@@ -21,6 +22,7 @@ export const navIcons = {
   "approval-requests": approvalRequestsSvg,
   contributions: contributionsSvg,
   traces: tracesSvg,
+  docs: docsSvg,
   settings: settingsSvg,
   changelog: changelogSvg,
   logout: logoutSvg,

@@ -21,8 +21,6 @@ let initialParse (filename : string) (code : string) : WT.Expr =
 
 /// Returns an incomplete parse of a PT expression
 let parsePTExpr
-  (accountID : Option<PT.AccountID>)
-  (branchId : Option<PT.BranchID>)
   (builtins : RT.Builtins)
   (pm : PT.PackageManager)
   (onMissing : NR.OnMissing)
@@ -32,32 +30,29 @@ let parsePTExpr
   let context =
     { WT2PT.Context.currentFnName = None
       WT2PT.Context.isInFunction = false
-      WT2PT.Context.argMap = Map.empty }
+      WT2PT.Context.argMap = Map.empty
+      WT2PT.Context.localBindings = Set.empty }
   code
   |> initialParse filename
-  |> WT2PT.Expr.toPT accountID branchId builtins pm onMissing [] context
+  |> WT2PT.Expr.toPT builtins pm onMissing [] context
 
 
 let parseSimple
-  (accountID : Option<PT.AccountID>)
-  (branchId : Option<PT.BranchID>)
   (builtins : RT.Builtins)
   (pm : PT.PackageManager)
   (onMissing : NR.OnMissing)
   (filename : string)
   (code : string)
   : Ply<PT.Expr> =
-  parsePTExpr accountID branchId builtins pm onMissing filename code
+  parsePTExpr builtins pm onMissing filename code
 
 
 
 let parsePackageFile
-  (accountID : Option<PT.AccountID>)
-  (branchId : Option<PT.BranchID>)
   (builtins : RT.Builtins)
   (pm : PT.PackageManager)
   (onMissing : NR.OnMissing)
   (path : string)
   (contents : string)
   : Ply<List<PT.PackageOp>> =
-  Package.parse accountID branchId builtins pm onMissing path contents
+  Package.parse builtins pm onMissing path contents

@@ -1,55 +1,53 @@
 module BuiltinPM.Libs.Branches
 
-open System.Threading.Tasks
-open FSharp.Control.Tasks
-
 open Prelude
 open LibExecution.RuntimeTypes
 
-module VT = LibExecution.ValueType
-module Dval = LibExecution.Dval
+module PT = LibExecution.ProgramTypes
 module Builtin = LibExecution.Builtin
-module Branches = LibPackageManager.Branches
-module DarkDateTime = LibExecution.DarkDateTime
-module PackageIDs = LibExecution.PackageIDs
+module D = LibExecution.Dval
+module PT2DT = LibExecution.ProgramTypesToDarkTypes
 
 open Builtin.Shortcuts
 
 
-let branchTypeName = FQTypeName.fqPackage PackageIDs.Type.SCM.Branch.branch
+let private branchType = TCustomType(Ok PT2DT.Branch.typeName, [])
 
-
-let branchToDT (branch : Branches.Branch) : Dval =
-  let fields =
-    [ "id", DUuid branch.id
-      "name", DString branch.name
-      "owner", DUuid branch.owner
-      "createdAt", DDateTime(DarkDateTime.fromInstant branch.createdAt)
-      "mergedAt",
-      branch.mergedAt
-      |> Option.map (DarkDateTime.fromInstant >> DDateTime)
-      |> Dval.option KTDateTime ]
-    |> Map
-
-  DRecord(branchTypeName, branchTypeName, [], fields)
-
-
-// TODO: review/reconsider the accessibility of these fns
 let fns : List<BuiltInFn> =
-  [ { name = fn "scmBranchList" 0
+  [ { name = fn "scmBranchCreate" 0
       typeParams = []
-      parameters = [ Param.make "owner" TUuid "Account ID to filter branches by" ]
-      returnType = TList(TCustomType(Ok branchTypeName, []))
-      description = "List all branches for a specific owner/account"
+      parameters =
+        [ Param.make "name" TString "Branch name"
+          Param.make "parentBranchId" TUuid "Parent branch ID" ]
+      returnType = branchType
+      description = "Create a new branch from the given parent branch."
       fn =
-        (function
-        | _, _, _, [ DUuid owner ] ->
+        function
+        | _, _, _, [ DString name; DUuid parentBranchId ] ->
           uply {
-            let! branches = Branches.list owner
-            let branchVT = VT.customType branchTypeName []
-            return DList(branchVT, branches |> List.map branchToDT)
+            let! branch = LibPackageManager.Branches.create name parentBranchId
+            return PT2DT.Branch.toDT branch
           }
-        | _ -> incorrectArgs ())
+        | _ -> incorrectArgs ()
+      sqlSpec = NotQueryable
+      previewable = Impure
+      deprecated = NotDeprecated }
+
+
+    { name = fn "scmBranchList" 0
+      typeParams = []
+      parameters = [ Param.make "unit" TUnit "" ]
+      returnType = TList branchType
+      description = "List all active (non-merged) branches."
+      fn =
+        function
+        | _, _, _, [ DUnit ] ->
+          uply {
+            let! branches = LibPackageManager.Branches.list ()
+            return
+              branches |> List.map PT2DT.Branch.toDT |> D.list PT2DT.Branch.knownType
+          }
+        | _ -> incorrectArgs ()
       sqlSpec = NotQueryable
       previewable = Impure
       deprecated = NotDeprecated }
@@ -57,78 +55,98 @@ let fns : List<BuiltInFn> =
 
     { name = fn "scmBranchGet" 0
       typeParams = []
-      parameters = [ Param.make "branchID" TUuid "" ]
-      returnType = TypeReference.option (TCustomType(Ok branchTypeName, []))
-      description = "Get a specific branch by ID"
+      parameters = [ Param.make "id" TUuid "Branch ID" ]
+      returnType = TypeReference.option branchType
+      description = "Get a branch by ID."
       fn =
-        (function
-        | _, _, _, [ DUuid branchID ] ->
+        function
+        | _, _, _, [ DUuid id ] ->
           uply {
-            let! branch = Branches.get branchID
+            let! branchOpt = LibPackageManager.Branches.get id
             return
-              branch
-              |> Option.map branchToDT
-              |> Dval.option (KTCustomType(branchTypeName, []))
+              branchOpt
+              |> Option.map PT2DT.Branch.toDT
+              |> D.option PT2DT.Branch.knownType
           }
-        | _ -> incorrectArgs ())
+        | _ -> incorrectArgs ()
       sqlSpec = NotQueryable
       previewable = Impure
       deprecated = NotDeprecated }
 
 
-    { name = fn "scmBranchFindByName" 0
+    { name = fn "scmBranchGetByName" 0
       typeParams = []
-      parameters =
-        [ Param.make "owner" TUuid "Account ID to filter branches by"
-          Param.make "name" TString "" ]
-      returnType = TypeReference.option (TCustomType(Ok branchTypeName, []))
-      description = "Find branch by name for a specific owner"
+      parameters = [ Param.make "name" TString "Branch name" ]
+      returnType = TypeReference.option branchType
+      description = "Get a branch by name."
       fn =
-        (function
-        | _, _, _, [ DUuid owner; DString name ] ->
+        function
+        | _, _, _, [ DString name ] ->
           uply {
-            let! branch = Branches.findByName owner name
+            let! branchOpt = LibPackageManager.Branches.getByName name
             return
-              branch
-              |> Option.map branchToDT
-              |> Dval.option (KTCustomType(branchTypeName, []))
+              branchOpt
+              |> Option.map PT2DT.Branch.toDT
+              |> D.option PT2DT.Branch.knownType
           }
-        | _ -> incorrectArgs ())
+        | _ -> incorrectArgs ()
       sqlSpec = NotQueryable
       previewable = Impure
       deprecated = NotDeprecated }
 
 
-    { name = fn "scmBranchCreate" 0
+    { name = fn "scmBranchRename" 0
       typeParams = []
       parameters =
-        [ Param.make "owner" TUuid "Account ID that will own this branch"
-          Param.make "name" TString "" ]
-      returnType = TypeReference.result (TCustomType(Ok branchTypeName, [])) TString
-      description = "Create a new branch for a specific owner/account"
+        [ Param.make "id" TUuid "Branch ID"
+          Param.make "newName" TString "New name" ]
+      returnType = TypeReference.result TUnit TString
+      description = "Rename a branch."
       fn =
-        (function
-        | _, _, _, [ DUuid owner; DString name ] ->
+        function
+        | _, _, _, [ DUuid id; DString newName ] ->
           uply {
-            let! result = Branches.create owner name
-            match result with
-            | Ok branch ->
-              return
-                Dval.resultOk
-                  (KTCustomType(branchTypeName, []))
-                  KTString
-                  (branchToDT branch)
-            | Error errMsg ->
-              return
-                Dval.resultError
-                  (KTCustomType(branchTypeName, []))
-                  KTString
-                  (DString errMsg)
+            let! result = LibPackageManager.Branches.rename id newName
+            return
+              result
+              |> Result.map (fun () -> DUnit)
+              |> Result.mapError DString
+              |> D.result KTUnit KTString
           }
-        | _ -> incorrectArgs ())
+        | _ -> incorrectArgs ()
+      sqlSpec = NotQueryable
+      previewable = Impure
+      deprecated = NotDeprecated }
+
+
+    { name = fn "scmBranchDelete" 0
+      typeParams = []
+      parameters = [ Param.make "id" TUuid "Branch ID" ]
+      returnType = TypeReference.result TUnit TString
+      description = "Delete a branch (must have no active children)."
+      fn =
+        function
+        | _, _, _, [ DUuid id ] ->
+          uply {
+            let! result = LibPackageManager.Branches.delete id
+            return
+              result
+              |> Result.map (fun () -> DUnit)
+              |> Result.mapError DString
+              |> D.result KTUnit KTString
+          }
+        | _ -> incorrectArgs ()
       sqlSpec = NotQueryable
       previewable = Impure
       deprecated = NotDeprecated } ]
 
 
-let builtins : Builtins = LibExecution.Builtin.make [] fns
+let values : List<BuiltInValue> =
+  [ { name = value "scmMainBranchId" 0
+      typ = TUuid
+      description = "The well-known main branch UUID."
+      deprecated = NotDeprecated
+      body = DUuid PT.mainBranchId } ]
+
+
+let builtins : Builtins = LibExecution.Builtin.make values fns

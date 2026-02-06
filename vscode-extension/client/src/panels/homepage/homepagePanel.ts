@@ -7,25 +7,25 @@ import {
   DashboardPinnedItem,
   DashboardRecentItem,
 } from "./pages/dashboardPage";
+import {
+  renderDocsPage,
+  DocsPageData,
+  DocTopic,
+  getDefaultDocsData,
+} from "./pages/docsPage";
 import { renderSidebar, navIcons } from "./components/sidebar";
 import { renderHeader } from "./components/header";
 import { PinnedItemsService } from "../../services/pinnedItemsService";
 import { RecentItemsService } from "../../services/recentItemsService";
-import { AccountService } from "../../services/accountService";
 
 export type PageName =
   | "dashboard"
   | "packages"
-  | "branches"
-  | "apps"
-  | "approval-requests"
-  | "contributions"
-  | "traces"
+  | "docs"
   | "settings"
-  | "changelog"
-  | "logout";
+  | "changelog";
 
-/** Homepage Panel - Display Darklang homepage with account info */
+/** Homepage Panel - Display Darklang homepage */
 export class HomepagePanel {
   public static currentPanel: HomepagePanel | undefined;
   public static readonly viewType = "darklangHomepage";
@@ -35,7 +35,7 @@ export class HomepagePanel {
   private readonly _extensionUri: vscode.Uri;
   private _disposables: vscode.Disposable[] = [];
   private _currentPage: PageName = "dashboard";
-  private _availableAccounts: string[] = [];
+  private _docsData: DocsPageData = getDefaultDocsData();
 
   public static createOrShow(extensionUri: vscode.Uri) {
     const column = vscode.window.activeTextEditor
@@ -69,7 +69,7 @@ export class HomepagePanel {
     HomepagePanel.currentPanel = new HomepagePanel(panel, extensionUri);
   }
 
-  /** Set the LSP client for fetching account data */
+  /** Set the LSP client */
   public static setClient(client: LanguageClient): void {
     HomepagePanel._client = client;
   }
@@ -88,8 +88,17 @@ export class HomepagePanel {
       RecentItemsService.onDidChange(() => this._update()),
     );
 
-    // Load pinned items and accounts, then update the view
-    Promise.all([PinnedItemsService.load(), this._fetchAvailableAccounts()])
+    // Subscribe to zoom level changes
+    this._disposables.push(
+      vscode.workspace.onDidChangeConfiguration(e => {
+        if (e.affectsConfiguration('window.zoomLevel')) {
+          this._update();
+        }
+      }),
+    );
+
+    // Load pinned items and update the view
+    PinnedItemsService.load()
       .then(() => this._update())
       .catch(err => {
         console.error("Failed to load initial data:", err);
@@ -115,8 +124,13 @@ export class HomepagePanel {
           case "openProject":
             this._handleOpenPackage(message.project, message.itemType);
             return;
-          case "selectAccount":
-            this._handleSelectAccount(message.account);
+          case "openDocTopic":
+            this._handleOpenDocTopic(message.topic);
+            return;
+          case "docsBack":
+            this._docsData.activeTopic = null;
+            this._docsData.content = null;
+            this._update();
             return;
         }
       },
@@ -159,32 +173,19 @@ export class HomepagePanel {
   }
 
   private _handleNavigation(page: string) {
-    const validPages: PageName[] = [
-      "dashboard",
-      "packages",
-      "branches",
-      "apps",
-      "approval-requests",
-      "contributions",
-      "traces",
-      "settings",
-      "changelog",
-      "logout",
-    ];
+    const validPages: PageName[] = ["dashboard", "packages", "docs", "settings", "changelog"];
 
     if (!validPages.includes(page as PageName)) {
       return;
     }
 
-    if (page === "logout") {
-      vscode.window.showInformationMessage("Logout functionality coming soon!");
-      return;
-    }
-
     // Pages that are implemented
-    const pages: PageName[] = ["dashboard", "packages"];
-    if (pages.includes(page as PageName)) {
+    const implementedPages: PageName[] = ["dashboard", "packages", "docs"];
+    if (implementedPages.includes(page as PageName)) {
       this._currentPage = page as PageName;
+      if (page === "docs" && this._docsData.topics.length === 0) {
+        this._loadDocTopics();
+      }
       this._update();
       return;
     }
@@ -221,65 +222,27 @@ export class HomepagePanel {
     }
   }
 
-  /** Fetch available accounts from LSP */
-  private async _fetchAvailableAccounts(): Promise<void> {
-    if (!HomepagePanel._client) {
-      this._availableAccounts = [];
-      return;
-    }
-
+  private async _loadDocTopics(): Promise<void> {
+    if (!HomepagePanel._client) return;
     try {
-      const accounts = await HomepagePanel._client.sendRequest<string[]>(
-        "dark/listAccounts",
-        {},
-      );
-      this._availableAccounts = accounts ?? [];
+      const topics = await HomepagePanel._client.sendRequest<DocTopic[]>("dark/docs/getTopics", {});
+      this._docsData.topics = topics;
+      this._update();
     } catch (error) {
-      console.error("Failed to fetch accounts:", error);
-      this._availableAccounts = [];
+      console.error("Failed to load doc topics:", error);
     }
   }
 
-  /** Handle account selection from dropdown */
-  private async _handleSelectAccount(account: string): Promise<void> {
-    if (!account || account === AccountService.getCurrentAccountId()) {
-      return;
+  private async _handleOpenDocTopic(topicName: string): Promise<void> {
+    if (!HomepagePanel._client) return;
+    try {
+      const result = await HomepagePanel._client.sendRequest<{ name: string; description: string; content: string }>("dark/docs/getContent", { name: topicName });
+      this._docsData.activeTopic = result.name;
+      this._docsData.content = result.content;
+      this._update();
+    } catch (error) {
+      console.error("Failed to load doc content:", error);
     }
-
-    if (HomepagePanel._client) {
-      try {
-        await HomepagePanel._client.sendRequest("dark/setCurrentAccount", {
-          accountID: account,
-        });
-      } catch (error) {
-        console.error("Failed to set account:", error);
-        vscode.window.showErrorMessage("Failed to switch account");
-        return;
-      }
-    }
-
-    // Update centralized account service
-    AccountService.setCurrentAccount(account);
-
-    // Notify the approval commands about the change
-    await vscode.commands.executeCommand(
-      "darklang.approvals.setAccount",
-      account,
-    );
-
-    // Update pinned items for the new account
-    await PinnedItemsService.setCurrentAccount(account);
-
-    this._update();
-    vscode.window.showInformationMessage(`Switched to account: ${account}`);
-  }
-
-  /** Update the current account and refresh the view */
-  public async setCurrentAccount(accountID: string): Promise<void> {
-    AccountService.setCurrentAccount(accountID);
-    // Update pinned items for the new account
-    await PinnedItemsService.setCurrentAccount(accountID);
-    this._update();
   }
 
   public dispose() {
@@ -305,21 +268,15 @@ export class HomepagePanel {
     const pageTitles: Record<PageName, string> = {
       dashboard: "Dashboard",
       packages: "Packages",
-      branches: "Branches",
-      apps: "Apps",
-      "approval-requests": "Approval Requests",
-      contributions: "Contributions",
-      traces: "Traces",
+      docs: "Docs",
       settings: "Settings",
       changelog: "Changelog",
-      logout: "Logout",
     };
 
     return renderHeader({
       title: pageTitles[this._currentPage] || "Dashboard",
       icon: navIcons[this._currentPage] || navIcons.dashboard,
-      currentAccount: AccountService.getCurrentAccountId(),
-      availableAccounts: this._availableAccounts,
+      showAvatar: false,
     });
   }
 
@@ -336,6 +293,8 @@ export class HomepagePanel {
         return renderDashboard(data);
       case "packages":
         return `<iframe src="https://wip.darklang.com/packages" style="width: 100%; height: calc(100vh - 60px); border: none;"></iframe>`;
+      case "docs":
+        return renderDocsPage(this._docsData);
       default:
         return `<div class="dashboard-content"><p>Page not implemented: ${this._currentPage}</p></div>`;
     }
@@ -364,6 +323,10 @@ export class HomepagePanel {
       ),
     );
 
+    // Get zoom level from VS Code config (each unit is ~20% zoom)
+    const zoomLevel = vscode.workspace.getConfiguration('window').get<number>('zoomLevel') || 0;
+    const zoomScale = Math.pow(1.2, zoomLevel);
+
     return `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -371,6 +334,7 @@ export class HomepagePanel {
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Darklang Home</title>
     <link rel="stylesheet" href="${stylesUri}">
+    <style>:root { --zoom-scale: ${zoomScale}; }</style>
 </head>
 <body>
     ${renderSidebar(logoUri.toString(), this._currentPage)}
@@ -468,37 +432,24 @@ export class HomepagePanel {
             });
         });
 
-        // Handle account dropdown
-        const accountSwitcher = document.getElementById('accountSwitcher');
-        const accountDropdown = document.getElementById('accountDropdown');
-
-        // Toggle dropdown on avatar click
-        accountSwitcher?.addEventListener('click', (e) => {
-            e.stopPropagation();
-            accountDropdown?.classList.toggle('show');
-        });
-
-        // Handle account selection
-        document.querySelectorAll('.account-dropdown-item').forEach(item => {
-            item.addEventListener('click', (e) => {
-                e.stopPropagation();
-                const account = item.getAttribute('data-account');
-                if (account) {
-                    vscode.postMessage({
-                        command: 'selectAccount',
-                        account: account
-                    });
-                }
-                accountDropdown?.classList.remove('show');
+        // Handle doc topic card clicks
+        document.querySelectorAll('.doc-topic-card').forEach(card => {
+            card.addEventListener('click', () => {
+                const topic = card.getAttribute('data-topic');
+                vscode.postMessage({
+                    command: 'openDocTopic',
+                    topic: topic
+                });
             });
         });
 
-        // Close dropdown when clicking outside
-        document.addEventListener('click', (e) => {
-            if (!accountSwitcher?.contains(e.target) && !accountDropdown?.contains(e.target)) {
-                accountDropdown?.classList.remove('show');
-            }
+        // Handle docs back button
+        document.querySelectorAll('.docs-back-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                vscode.postMessage({ command: 'docsBack' });
+            });
         });
+
     </script>
 </body>
 </html>`;

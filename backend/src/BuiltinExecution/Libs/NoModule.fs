@@ -7,6 +7,7 @@ open LibExecution.Builtin.Shortcuts
 module PackageIDs = LibExecution.PackageIDs
 module Dval = LibExecution.Dval
 module ValueType = LibExecution.ValueType
+module Exe = LibExecution.Execution
 module RTE = RuntimeError
 
 
@@ -245,11 +246,12 @@ let fns : List<BuiltInFn> =
       description = "Prints the given <param value> to the standard output"
       fn =
         (function
-        | _, _, _, [ DString label; value ] ->
-          // TODO: call upon the Dark equivalent fn instead of relying on DvalReprDeveloper
-          let value = DvalReprDeveloper.toRepr value
-          print $"DEBUG: {label}: {value}"
-          Ply DUnit
+        | exeState, _, _, [ DString label; value ] ->
+          uply {
+            let! repr = Exe.dvalToRepr exeState value
+            print $"DEBUG: {label}: {repr}"
+            return DUnit
+          }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure

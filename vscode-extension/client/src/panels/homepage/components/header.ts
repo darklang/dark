@@ -8,8 +8,6 @@ export interface HeaderConfig {
   showDocs?: boolean;
   showNew?: boolean;
   showAvatar?: boolean;
-  currentAccount?: string;
-  availableAccounts?: string[];
 }
 
 /** Render the header bar */
@@ -20,8 +18,6 @@ export function renderHeader(config: HeaderConfig): string {
     showDocs = true,
     showNew = true,
     showAvatar = true,
-    currentAccount = "",
-    availableAccounts = [],
   } = config;
 
   const docsButton = showDocs
@@ -38,28 +34,9 @@ export function renderHeader(config: HeaderConfig): string {
        </button>`
     : "";
 
-  // Build account dropdown items
-  const dropdownItems = availableAccounts
-    .map(account => {
-      const isSelected = account === currentAccount;
-      return `<div class="account-dropdown-item${isSelected ? " selected" : ""}" data-account="${account}">
-        <span class="account-dropdown-avatar">${account.charAt(0)}</span>
-        <span class="account-dropdown-name">${account}</span>
-        ${isSelected ? '<span class="account-dropdown-check">✓</span>' : ""}
-      </div>`;
-    })
-    .join("");
-
   const avatar = showAvatar
-    ? `<div class="account-switcher-container">
-        <div class="user-avatar" id="accountSwitcher" title="Switch account${currentAccount ? ` (${currentAccount})` : ""}">
+    ? `<div class="user-avatar" title="User">
           ${uiIcons.user}
-          ${currentAccount ? `<span class="account-badge">${currentAccount.charAt(0)}</span>` : ""}
-        </div>
-        <div class="account-dropdown" id="accountDropdown">
-          <div class="account-dropdown-header">Switch Account</div>
-          ${dropdownItems}
-        </div>
        </div>`
     : "";
 

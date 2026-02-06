@@ -62,9 +62,8 @@ let installOrUpdateLatestRelease
     (Stdlib.Cli.PowerShell.grantExecutePermission extractedExecutablePath)
     |> Builtin.unwrap
 
-    (Stdlib.Cli.PowerShell.deleteAlias "dark") |> Builtin.unwrap
-
-    (Stdlib.Cli.PowerShell.addAlias "dark" extractedExecutablePath)
+    // Add bin directory to PATH (works in non-interactive processes)
+    (Stdlib.Cli.PowerShell.addToPath executableDir)
     |> Builtin.unwrap
 
     Stdlib.Result.Result.Ok()
@@ -98,12 +97,8 @@ let installOrUpdateLatestRelease
 
     (Config.updateVersion configPath latestReleaseTag) |> Builtin.unwrap
 
-    (Stdlib.Cli.Unix.deleteAlias host.defaultShell "dark") |> Builtin.unwrap
-
-    (Stdlib.Cli.Unix.addAlias
-      host.defaultShell
-      "dark"
-      extractedExecutablePath)
+    // Add bin directory to PATH (works in non-interactive shells like VS Code)
+    (Stdlib.Cli.Unix.addToPath host.defaultShell executableDir)
     |> Builtin.unwrap
 
     Stdlib.Result.Result.Ok()

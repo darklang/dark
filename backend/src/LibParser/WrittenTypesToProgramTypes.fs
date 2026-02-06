@@ -20,7 +20,10 @@ type Context =
     isInFunction : bool
     // Maps parameter names to their indices within the current function
     // Used to convert EVariable references to EArg when they refer to function parameters
-    argMap : Map<string, int> }
+    argMap : Map<string, int>
+    // Tracks local variable bindings from let and match patterns
+    // Used to prevent resolving local names as global functions/values
+    localBindings : Set<string> }
 
 module InfixFnName =
   let toPT (name : WT.InfixFnName) : PT.InfixFnName =
@@ -41,14 +44,12 @@ module InfixFnName =
 
 module TypeReference =
   let rec toPT
-    (accountID : Option<PT.AccountID>)
-    (branchId : Option<PT.BranchID>)
     (pm : PT.PackageManager)
     (onMissing : NR.OnMissing)
     (currentModule : List<string>)
     (t : WT.TypeReference)
     : Ply<PT.TypeReference> =
-    let toPT = toPT accountID branchId pm onMissing currentModule
+    let toPT = toPT pm onMissing currentModule
     uply {
       match t with
       | WT.TUnit -> return PT.TUnit
@@ -80,7 +81,7 @@ module TypeReference =
       | WT.TDict typ -> return! toPT typ |> Ply.map PT.TDict
 
       | WT.TCustomType(t, typeArgs) ->
-        let! t = NR.resolveTypeName accountID branchId pm onMissing currentModule t
+        let! t = NR.resolveTypeName pm onMissing currentModule t
         let! typeArgs = Ply.List.mapSequentially toPT typeArgs
         return PT.TCustomType(t, typeArgs)
 
@@ -122,7 +123,9 @@ module LetPattern =
                 | _ -> context.currentFnName
               | None -> None
             // Remove this variable from argMap as it's now shadowed by the let binding
-            argMap = Map.remove varName context.argMap }
+            argMap = Map.remove varName context.argMap
+            // Track this as a local binding to prevent resolving it as a global
+            localBindings = Set.add varName context.localBindings }
       (newContext, PT.LPVariable(id, varName))
     | WT.LPTuple(id, first, second, theRest) ->
       let (context1, first') = toPT context first
@@ -157,7 +160,9 @@ module MatchPattern =
                 | _ -> context.currentFnName
               | None -> None
             // Remove this variable from argMap as it's now shadowed by the match pattern
-            argMap = Map.remove varName context.argMap }
+            argMap = Map.remove varName context.argMap
+            // Track this as a local binding to prevent resolving it as a global
+            localBindings = Set.add varName context.localBindings }
       (newContext, PT.MPVariable(id, varName))
     | WT.MPEnum(id, caseName, fieldPats) ->
       let (finalContext, convertedPats) =
@@ -226,8 +231,6 @@ module MatchPattern =
 
 module Expr =
   let resolveTypeName
-    (accountID : Option<PT.AccountID>)
-    (branchId : Option<PT.BranchID>)
     (pm : PT.PackageManager)
     (onMissing : NR.OnMissing)
     (currentModule : List<string>)
@@ -238,11 +241,9 @@ module Expr =
     | [] -> Ply(Error(NRE.InvalidName [ caseName ]))
     | head :: tail ->
       let name = NEList.ofList head tail |> WT.Unresolved
-      NR.resolveTypeName accountID branchId pm onMissing currentModule name
+      NR.resolveTypeName pm onMissing currentModule name
 
   let rec toPT
-    (accountID : Option<PT.AccountID>)
-    (branchId : Option<PT.BranchID>)
     (builtins : RT.Builtins)
     (pm : PT.PackageManager)
     (onMissing : NR.OnMissing)
@@ -250,7 +251,7 @@ module Expr =
     (context : Context)
     (e : WT.Expr)
     : Ply<PT.Expr> =
-    let toPT ctx = toPT accountID branchId builtins pm onMissing currentModule ctx
+    let toPT ctx = toPT builtins pm onMissing currentModule ctx
     uply {
       match e with
       | WT.EChar(id, char) -> return PT.EChar(id, char)
@@ -267,14 +268,7 @@ module Expr =
       | WT.EString(id, segments) ->
         let! segments =
           Ply.List.mapSequentially
-            (stringSegmentToPT
-              accountID
-              branchId
-              builtins
-              pm
-              onMissing
-              currentModule
-              context)
+            (stringSegmentToPT builtins pm onMissing currentModule context)
             segments
         return PT.EString(id, segments)
       | WT.EFloat(id, sign, whole, fraction) ->
@@ -285,11 +279,13 @@ module Expr =
         // Check if this variable is a function argument first
         match Map.tryFind var context.argMap with
         | Some index -> return PT.EArg(id, index)
+        | None when Set.contains var context.localBindings ->
+          // Local binding takes precedence - don't resolve as global
+          return PT.EVariable(id, var)
         | None ->
+          // Try to resolve as a value first
           let! value =
             NR.resolveValueName
-              accountID
-              branchId
               (builtins.values |> Map.keys |> Set)
               pm
               NR.OnMissing.Allow
@@ -297,15 +293,73 @@ module Expr =
               (WT.Unresolved(NEList.singleton var))
           match value with
           | Ok _ as name -> return PT.EValue(id, name)
-          | Error _ -> return PT.EVariable(id, var)
+          | Error _ ->
+            // Try to resolve as a function reference
+            let! fnResult =
+              NR.resolveFnName
+                (builtins.fns |> Map.keys |> Set)
+                pm
+                NR.OnMissing.Allow
+                currentModule
+                (WT.Unresolved(NEList.singleton var))
+            match fnResult with
+            | Ok _ as name -> return PT.EFnName(id, name)
+            | Error _ -> return PT.EVariable(id, var)
       | WT.ERecordFieldAccess(id, obj, fieldname) ->
-        let! obj = toPT context obj
-        return PT.ERecordFieldAccess(id, obj, fieldname)
+        // When we have field access like `Module.fn`, try to resolve as qualified
+        // function or value name first, since the parser treats dotted identifiers
+        // as field access rather than qualified names.
+        let rec extractPath (expr : WT.Expr) : Option<NEList<string>> =
+          match expr with
+          | WT.EVariable(_, name) -> Some(NEList.singleton name)
+          | WT.ERecordFieldAccess(_, inner, field) ->
+            extractPath inner |> Option.map (fun path -> NEList.pushBack field path)
+          | _ -> None
+
+        match extractPath obj with
+        | Some basePath ->
+          // If the first part of the path is a local binding or function arg, it's field access, not a global
+          let firstPart = basePath.head
+          if
+            Set.contains firstPart context.localBindings
+            || Map.containsKey firstPart context.argMap
+          then
+            let! obj = toPT context obj
+            return PT.ERecordFieldAccess(id, obj, fieldname)
+          else
+            let fullPath = NEList.pushBack fieldname basePath
+            // Try to resolve as a value first
+            let! valueResult =
+              NR.resolveValueName
+                (builtins.values |> Map.keys |> Set)
+                pm
+                NR.OnMissing.Allow
+                currentModule
+                (WT.Unresolved fullPath)
+            match valueResult with
+            | Ok _ as name -> return PT.EValue(id, name)
+            | Error _ ->
+              // Try to resolve as a function reference
+              let! fnResult =
+                NR.resolveFnName
+                  (builtins.fns |> Map.keys |> Set)
+                  pm
+                  NR.OnMissing.Allow
+                  currentModule
+                  (WT.Unresolved fullPath)
+              match fnResult with
+              | Ok _ as name -> return PT.EFnName(id, name)
+              | Error _ ->
+                // Fall back to actual field access
+                let! obj = toPT context obj
+                return PT.ERecordFieldAccess(id, obj, fieldname)
+        | None ->
+          // Not a simple path, treat as field access
+          let! obj = toPT context obj
+          return PT.ERecordFieldAccess(id, obj, fieldname)
       | WT.EApply(id, (WT.EFnName(_, name)), [], { head = WT.EPlaceHolder }) ->
         let! fnName =
           NR.resolveFnName
-            accountID
-            branchId
             (builtins.fns |> Map.keys |> Set)
             pm
             NR.OnMissing.Allow
@@ -316,8 +370,6 @@ module Expr =
         | Error _ ->
           let! name =
             NR.resolveValueName
-              accountID
-              branchId
               (builtins.values |> Map.keys |> Set)
               pm
               onMissing
@@ -327,7 +379,7 @@ module Expr =
       | WT.EApply(id, (WT.EFnName(_, name) as fnName), typeArgs, args) ->
         let! processedTypeArgs =
           Ply.List.mapSequentially
-            (TypeReference.toPT accountID branchId pm onMissing currentModule)
+            (TypeReference.toPT pm onMissing currentModule)
             typeArgs
         let! processedArgs = Ply.NEList.mapSequentially (toPT context) args
 
@@ -342,8 +394,6 @@ module Expr =
             else
               let! fnName =
                 NR.resolveFnName
-                  accountID
-                  branchId
                   (builtins.fns |> Map.keys |> Set)
                   pm
                   NR.OnMissing.Allow
@@ -368,8 +418,6 @@ module Expr =
             // Global context, try to resolve as function name first, fall back to variable
             let! fnName =
               NR.resolveFnName
-                accountID
-                branchId
                 (builtins.fns |> Map.keys |> Set)
                 pm
                 NR.OnMissing.Allow
@@ -391,7 +439,7 @@ module Expr =
         let! name = toPT context name
         let! typeArgs =
           Ply.List.mapSequentially
-            (TypeReference.toPT accountID branchId pm onMissing currentModule)
+            (TypeReference.toPT pm onMissing currentModule)
             typeArgs
         let! args = Ply.NEList.mapSequentially (toPT context) args
 
@@ -399,8 +447,6 @@ module Expr =
       | WT.EFnName(id, name) ->
         let! fnName =
           NR.resolveFnName
-            accountID
-            branchId
             (builtins.fns |> Map.keys |> Set)
             pm
             NR.OnMissing.Allow
@@ -409,6 +455,7 @@ module Expr =
         return PT.EFnName(id, fnName)
       | WT.ELambda(id, pats, body) ->
         // Start with a clean argMap to prevent lambda params from being converted to EArg
+        // Keep localBindings - outer scope variables should still be visible inside lambdas
         let lambdaContext = { context with argMap = Map.empty }
         let (finalContext, ptPats) =
           pats
@@ -451,8 +498,7 @@ module Expr =
         let! theRest = Ply.List.mapSequentially (toPT context) theRest
         return PT.ETuple(id, first, second, theRest)
       | WT.ERecord(id, typeName, fields) ->
-        let! typeName =
-          NR.resolveTypeName accountID branchId pm onMissing currentModule typeName
+        let! typeName = NR.resolveTypeName pm onMissing currentModule typeName
         let! fields =
           Ply.List.mapSequentially
             (fun (fieldName, fieldExpr) ->
@@ -477,26 +523,11 @@ module Expr =
         let! expr1 = toPT context expr1
         let! rest =
           Ply.List.mapSequentially
-            (pipeExprToPT
-              accountID
-              branchId
-              builtins
-              pm
-              onMissing
-              currentModule
-              context)
+            (pipeExprToPT builtins pm onMissing currentModule context)
             rest
         return PT.EPipe(pipeID, expr1, rest)
       | WT.EEnum(id, typeName, caseName, exprs) ->
-        let! typeName =
-          resolveTypeName
-            accountID
-            branchId
-            pm
-            onMissing
-            currentModule
-            typeName
-            caseName
+        let! typeName = resolveTypeName pm onMissing currentModule typeName caseName
         let! exprs = Ply.List.mapSequentially (toPT context) exprs
         let typeArgs = [] // TODO
         return PT.EEnum(id, typeName, typeArgs, caseName, exprs)
@@ -548,8 +579,6 @@ module Expr =
     }
 
   and stringSegmentToPT
-    (accountID : Option<PT.AccountID>)
-    (branchId : Option<PT.BranchID>)
     (builtins : RT.Builtins)
     (pm : PT.PackageManager)
     (onMissing : NR.OnMissing)
@@ -560,12 +589,10 @@ module Expr =
     match segment with
     | WT.StringText text -> Ply(PT.StringText text)
     | WT.StringInterpolation expr ->
-      toPT accountID branchId builtins pm onMissing currentModule context expr
+      toPT builtins pm onMissing currentModule context expr
       |> Ply.map (fun interpolated -> PT.StringInterpolation interpolated)
 
   and pipeExprToPT
-    (accountID : Option<PT.AccountID>)
-    (branchId : Option<PT.BranchID>)
     (builtins : RT.Builtins)
     (pm : PT.PackageManager)
     (onMissing : NR.OnMissing)
@@ -573,7 +600,7 @@ module Expr =
     (context : Context)
     (pipeExpr : WT.PipeExpr)
     : Ply<PT.PipeExpr> =
-    let toPT ctx = toPT accountID branchId builtins pm onMissing currentModule ctx
+    let toPT ctx = toPT builtins pm onMissing currentModule ctx
 
     uply {
       match pipeExpr with
@@ -587,8 +614,6 @@ module Expr =
             let! resolved =
               let asUserFnName = WT.Name.Unresolved(NEList.singleton name)
               NR.resolveFnName
-                accountID
-                branchId
                 (builtins.fns |> Map.keys |> Set)
                 pm
                 NR.OnMissing.Allow
@@ -603,8 +628,6 @@ module Expr =
             let! resolved =
               let asUserFnName = WT.Name.Unresolved(NEList.singleton name)
               NR.resolveFnName
-                accountID
-                branchId
                 (builtins.fns |> Map.keys |> Set)
                 pm
                 NR.OnMissing.Allow
@@ -621,8 +644,6 @@ module Expr =
           let! resolved =
             let asUserFnName = WT.Name.Unresolved(NEList.singleton name)
             NR.resolveFnName
-              accountID
-              branchId
               (builtins.fns |> Map.keys |> Set)
               pm
               NR.OnMissing.Allow
@@ -635,6 +656,7 @@ module Expr =
 
       | WT.EPipeLambda(id, pats, body) ->
         // Start with a clean argMap to prevent lambda params from being converted to EArg
+        // Keep localBindings - outer scope variables should still be visible inside lambdas
         let lambdaContext = { context with argMap = Map.empty }
         let (finalContext, ptPats) =
           pats
@@ -664,8 +686,6 @@ module Expr =
         // need to check that first. We do a similar thing converting EFnNames.
         let! fnName =
           NR.resolveFnName
-            accountID
-            branchId
             (builtins.fns |> Map.keys |> Set)
             pm
             NR.OnMissing.Allow
@@ -679,8 +699,6 @@ module Expr =
       | WT.EPipeFnCall(id, name, typeArgs, args) ->
         let! fnName =
           NR.resolveFnName
-            accountID
-            branchId
             (builtins.fns |> Map.keys |> Set)
             pm
             onMissing
@@ -688,21 +706,13 @@ module Expr =
             name
         let! typeArgs =
           Ply.List.mapSequentially
-            (TypeReference.toPT accountID branchId pm onMissing currentModule)
+            (TypeReference.toPT pm onMissing currentModule)
             typeArgs
         let! args = Ply.List.mapSequentially (toPT context) args
         return PT.EPipeFnCall(id, fnName, typeArgs, args)
 
       | WT.EPipeEnum(id, typeName, caseName, fields) ->
-        let! typeName =
-          resolveTypeName
-            accountID
-            branchId
-            pm
-            onMissing
-            currentModule
-            typeName
-            caseName
+        let! typeName = resolveTypeName pm onMissing currentModule typeName caseName
         let! fields = Ply.List.mapSequentially (toPT context) fields
         return PT.EPipeEnum(id, typeName, caseName, fields)
     }
@@ -711,38 +721,30 @@ module Expr =
 module TypeDeclaration =
   module RecordField =
     let toPT
-      (accountID : Option<PT.AccountID>)
-      (branchId : Option<PT.BranchID>)
       (pm : PT.PackageManager)
       (onMissing : NR.OnMissing)
       (currentModule : List<string>)
       (f : WT.TypeDeclaration.RecordField)
       : Ply<PT.TypeDeclaration.RecordField> =
       uply {
-        let! typ =
-          TypeReference.toPT accountID branchId pm onMissing currentModule f.typ
+        let! typ = TypeReference.toPT pm onMissing currentModule f.typ
         return { name = f.name; typ = typ; description = f.description }
       }
 
   module EnumField =
     let toPT
-      (accountID : Option<PT.AccountID>)
-      (branchId : Option<PT.BranchID>)
       (pm : PT.PackageManager)
       (onMissing : NR.OnMissing)
       (currentModule : List<string>)
       (f : WT.TypeDeclaration.EnumField)
       : Ply<PT.TypeDeclaration.EnumField> =
       uply {
-        let! typ =
-          TypeReference.toPT accountID branchId pm onMissing currentModule f.typ
+        let! typ = TypeReference.toPT pm onMissing currentModule f.typ
         return { typ = typ; label = f.label; description = f.description }
       }
 
   module EnumCase =
     let toPT
-      (accountID : Option<PT.AccountID>)
-      (branchId : Option<PT.BranchID>)
       (pm : PT.PackageManager)
       (onMissing : NR.OnMissing)
       (currentModule : List<string>)
@@ -751,15 +753,13 @@ module TypeDeclaration =
       uply {
         let! fields =
           Ply.List.mapSequentially
-            (EnumField.toPT accountID branchId pm onMissing currentModule)
+            (EnumField.toPT pm onMissing currentModule)
             c.fields
         return { name = c.name; fields = fields; description = c.description }
       }
 
   module Definition =
     let toPT
-      (accountID : Option<PT.AccountID>)
-      (branchId : Option<PT.BranchID>)
       (pm : PT.PackageManager)
       (onMissing : NR.OnMissing)
       (currentModule : List<string>)
@@ -768,37 +768,33 @@ module TypeDeclaration =
       uply {
         match d with
         | WT.TypeDeclaration.Alias typ ->
-          let! typ =
-            TypeReference.toPT accountID branchId pm onMissing currentModule typ
+          let! typ = TypeReference.toPT pm onMissing currentModule typ
           return PT.TypeDeclaration.Alias typ
 
         | WT.TypeDeclaration.Record fields ->
           let! fields =
             Ply.NEList.mapSequentially
-              (RecordField.toPT accountID branchId pm onMissing currentModule)
+              (RecordField.toPT pm onMissing currentModule)
               fields
           return PT.TypeDeclaration.Record fields
 
         | WT.TypeDeclaration.Enum cases ->
           let! cases =
             Ply.NEList.mapSequentially
-              (EnumCase.toPT accountID branchId pm onMissing currentModule)
+              (EnumCase.toPT pm onMissing currentModule)
               cases
           return PT.TypeDeclaration.Enum cases
       }
 
 
   let toPT
-    (accountID : Option<PT.AccountID>)
-    (branchId : Option<PT.BranchID>)
     (pm : PT.PackageManager)
     (onMissing : NR.OnMissing)
     (currentModule : List<string>)
     (d : WT.TypeDeclaration.T)
     : Ply<PT.TypeDeclaration.T> =
     uply {
-      let! def =
-        Definition.toPT accountID branchId pm onMissing currentModule d.definition
+      let! def = Definition.toPT pm onMissing currentModule d.definition
       return { typeParams = d.typeParams; definition = def }
     }
 
@@ -819,8 +815,6 @@ module PackageType =
       name.owner :: name.modules
 
   let toPT
-    (accountID : Option<PT.AccountID>)
-    (branchId : Option<PT.BranchID>)
     (pm : PT.PackageManager)
     (onMissing : NR.OnMissing)
     (currentModule : List<string>)
@@ -828,13 +822,7 @@ module PackageType =
     : Ply<PT.PackageType.PackageType> =
     uply {
       let! declaration =
-        TypeDeclaration.toPT
-          accountID
-          branchId
-          pm
-          onMissing
-          currentModule
-          pt.declaration
+        TypeDeclaration.toPT pm onMissing currentModule pt.declaration
       return
         { id = PackageIDs.Type.idForName pt.name.owner pt.name.modules pt.name.name
           description = pt.description
@@ -851,8 +839,6 @@ module PackageValue =
       name.owner :: name.modules
 
   let toPT
-    (accountID : Option<PT.AccountID>)
-    (branchId : Option<PT.BranchID>)
     (builtins : RT.Builtins)
     (pm : PT.PackageManager)
     (onMissing : NR.OnMissing)
@@ -861,17 +847,11 @@ module PackageValue =
     : Ply<PT.PackageValue.PackageValue> =
     uply {
       let context =
-        { currentFnName = None; isInFunction = false; argMap = Map.empty }
-      let! body =
-        Expr.toPT
-          accountID
-          branchId
-          builtins
-          pm
-          onMissing
-          currentModule
-          context
-          c.body
+        { currentFnName = None
+          isInFunction = false
+          argMap = Map.empty
+          localBindings = Set.empty }
+      let! body = Expr.toPT builtins pm onMissing currentModule context c.body
       return
         { id = PackageIDs.Value.idForName c.name.owner c.name.modules c.name.name
           description = c.description
@@ -890,22 +870,17 @@ module PackageFn =
 
   module Parameter =
     let toPT
-      (accountID : Option<PT.AccountID>)
-      (branchId : Option<PT.BranchID>)
       (pm : PT.PackageManager)
       (onMissing : NR.OnMissing)
       (currentModule : List<string>)
       (p : WT.PackageFn.Parameter)
       : Ply<PT.PackageFn.Parameter> =
       uply {
-        let! typ =
-          TypeReference.toPT accountID branchId pm onMissing currentModule p.typ
+        let! typ = TypeReference.toPT pm onMissing currentModule p.typ
         return { name = p.name; typ = typ; description = p.description }
       }
 
   let toPT
-    (accountID : Option<PT.AccountID>)
-    (branchId : Option<PT.BranchID>)
     (builtins : RT.Builtins)
     (pm : PT.PackageManager)
     (onMissing : NR.OnMissing)
@@ -915,16 +890,9 @@ module PackageFn =
     uply {
       let! parameters =
         Ply.NEList.mapSequentially
-          (Parameter.toPT accountID branchId pm onMissing currentModule)
+          (Parameter.toPT pm onMissing currentModule)
           fn.parameters
-      let! returnType =
-        TypeReference.toPT
-          accountID
-          branchId
-          pm
-          onMissing
-          currentModule
-          fn.returnType
+      let! returnType = TypeReference.toPT pm onMissing currentModule fn.returnType
       let argMap =
         fn.parameters
         |> NEList.toList
@@ -933,17 +901,9 @@ module PackageFn =
       let context =
         { currentFnName = Some(currentModule @ [ fn.name.name ])
           isInFunction = true
-          argMap = argMap }
-      let! body =
-        Expr.toPT
-          accountID
-          branchId
-          builtins
-          pm
-          onMissing
-          currentModule
-          context
-          fn.body
+          argMap = argMap
+          localBindings = Set.empty }
+      let! body = Expr.toPT builtins pm onMissing currentModule context fn.body
 
       return
         { id = PackageIDs.Fn.idForName fn.name.owner fn.name.modules fn.name.name
@@ -960,16 +920,13 @@ module PackageFn =
 
 module DB =
   let toPT
-    (accountID : Option<PT.AccountID>)
-    (branchId : Option<PT.BranchID>)
     (pm : PT.PackageManager)
     (onMissing : NR.OnMissing)
     (currentModule : List<string>)
     (db : WT.DB.T)
     : Ply<PT.DB.T> =
     uply {
-      let! typ =
-        TypeReference.toPT accountID branchId pm onMissing currentModule db.typ
+      let! typ = TypeReference.toPT pm onMissing currentModule db.typ
       return { tlid = gid (); name = db.name; version = db.version; typ = typ }
     }
 
@@ -995,8 +952,6 @@ module Handler =
       | WT.Handler.REPL name -> PT.Handler.REPL name
 
   let toPT
-    (accountID : Option<PT.AccountID>)
-    (branchId : Option<PT.BranchID>)
     (builtins : RT.Builtins)
     (pm : PT.PackageManager)
     (onMissing : NR.OnMissing)
@@ -1005,16 +960,10 @@ module Handler =
     : Ply<PT.Handler.T> =
     uply {
       let context =
-        { currentFnName = None; isInFunction = false; argMap = Map.empty }
-      let! ast =
-        Expr.toPT
-          accountID
-          branchId
-          builtins
-          pm
-          onMissing
-          currentModule
-          context
-          h.ast
+        { currentFnName = None
+          isInFunction = false
+          argMap = Map.empty
+          localBindings = Set.empty }
+      let! ast = Expr.toPT builtins pm onMissing currentModule context h.ast
       return { tlid = gid (); ast = ast; spec = Spec.toPT h.spec }
     }

@@ -1,0 +1,58 @@
+module Darklang.LanguageTools.LspServer.Docs
+
+
+/// Handle dark/docs/getTopics request - returns list of doc topics filtered for extension use
+let handleGetTopicsRequest
+  (state: LspState)
+  (requestId: JsonRPC.RequestID)
+  : LspState =
+  let topics = Cli.Commands.Docs.Topics.allTopics ()
+
+  let filtered =
+    topics
+    |> Stdlib.List.filter (fun t ->
+      t.context == "general" || t.context == "vscode")
+
+  let topicsJson =
+    filtered
+    |> Stdlib.List.map (fun t ->
+      Stdlib.AltJson.Json.Object
+        [ ("name", Stdlib.AltJson.Json.String t.name)
+          ("description", Stdlib.AltJson.Json.String t.description)
+          ("context", Stdlib.AltJson.Json.String t.context) ])
+    |> Stdlib.AltJson.Json.Array
+
+  let response =
+    (JsonRPC.Response.Ok.make (Stdlib.Option.Option.Some requestId) topicsJson)
+    |> Stdlib.AltJson.format
+
+  logAndSendToClient response
+  state
+
+
+/// Handle dark/docs/getContent request - returns content for a specific topic
+let handleGetContentRequest
+  (state: LspState)
+  (requestId: JsonRPC.RequestID)
+  (topicName: String)
+  : LspState =
+  let responseJson =
+    match Cli.Commands.Docs.Topics.findTopic topicName with
+    | Some topic ->
+      let contentFn = topic.content
+      Stdlib.AltJson.Json.Object
+        [ ("name", Stdlib.AltJson.Json.String topic.name)
+          ("description", Stdlib.AltJson.Json.String topic.description)
+          ("content", Stdlib.AltJson.Json.String (contentFn ())) ]
+    | None ->
+      Stdlib.AltJson.Json.Object
+        [ ("name", Stdlib.AltJson.Json.String topicName)
+          ("description", Stdlib.AltJson.Json.String "")
+          ("content", Stdlib.AltJson.Json.String "Topic not found.") ]
+
+  let response =
+    (JsonRPC.Response.Ok.make (Stdlib.Option.Option.Some requestId) responseJson)
+    |> Stdlib.AltJson.format
+
+  logAndSendToClient response
+  state

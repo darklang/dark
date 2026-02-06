@@ -1,0 +1,49 @@
+module Darklang.Cli.SCM.Status
+
+
+let execute (state: AppState) (args: List<String>) : AppState =
+  let branchId = state.currentBranchId
+
+  // Show current branch name
+  let branchName =
+    match SCM.Branch.get branchId with
+    | Some b -> b.name
+    | None -> "unknown"
+
+  Stdlib.printLine $"On branch {Cli.Colors.cyan}{branchName}{Cli.Colors.reset}"
+
+  let summary = SCM.PackageOps.getWipSummary branchId
+
+  if summary.total == 0L then
+    Stdlib.printLine "No uncommitted changes."
+  else
+    Stdlib.printLine "Uncommitted changes:"
+
+    if summary.types > 0L then
+      Stdlib.printLine $"  {Builtin.int64ToString summary.types} type(s)"
+
+    if summary.values > 0L then
+      Stdlib.printLine $"  {Builtin.int64ToString summary.values} value(s)"
+
+    if summary.fns > 0L then
+      Stdlib.printLine $"  {Builtin.int64ToString summary.fns} function(s)"
+
+    [ ""
+      "Use 'commit \"message\"' to commit these changes."
+      "Use 'discard' to discard these changes." ]
+    |> Stdlib.printLines
+
+  state
+
+
+let complete (_state: AppState) (_args: List<String>) : List<Completion.CompletionItem> =
+  []
+
+
+let help (_state: AppState) : Unit =
+  [ "Usage: status"
+    "Show uncommitted (WIP) changes on the current branch."
+    ""
+    "Displays the current branch and a summary of types, values, and"
+    "functions that have been created or modified but not yet committed." ]
+  |> Stdlib.printLines

@@ -1,0 +1,26 @@
+module Darklang.Cli.Docs.Records
+
+let content () : String =
+  """# Records
+
+## Define
+  type Person = { name: String; age: Int64 }
+
+## Construct (alignment matters!)
+  Person { name = "Jo"; age = 30L }    # OK
+  Person                                # OK
+    { name = "Jo"
+      age = 30L }
+  Person
+  { name = "Jo" }                       # WRONG - { left of type
+
+## Access
+  person.name
+
+## Update
+  { person with age = 31L }
+
+## No pattern matching
+  Records can't be destructured in match. Use a variable and access fields:
+  match p with
+  | person -> person.name"""

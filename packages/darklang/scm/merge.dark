@@ -1,0 +1,32 @@
+module Darklang.SCM.Merge
+
+/// Error types for merge operations
+type MergeError =
+  | NotRebased
+  | HasWip
+  | HasChildren
+  | NothingToMerge
+  | NotFound
+  | IsMainBranch
+
+
+/// Convert a MergeError to a human-readable string
+let mergeErrorToString (e: MergeError) : String =
+  match e with
+  | NotRebased -> "Must rebase first"
+  | HasWip -> "Commit or discard WIP first"
+  | HasChildren -> "Merge or delete child branches first"
+  | NothingToMerge -> "Nothing to merge"
+  | NotFound -> "Branch not found"
+  | IsMainBranch -> "Cannot merge main branch"
+
+
+/// Merge branch into its parent
+/// Must be rebased with no WIP and no children
+let merge (branchId: Uuid) : Stdlib.Result.Result<Unit, MergeError> =
+  Builtin.scmMerge branchId
+
+
+/// Check if a branch can be merged
+let canMerge (branchId: Uuid) : Stdlib.Result.Result<Unit, MergeError> =
+  Builtin.scmCanMerge branchId

@@ -9,11 +9,9 @@ open LibExecution.RuntimeTypes
 module PT = LibExecution.ProgramTypes
 module PT2DT = LibExecution.ProgramTypesToDarkTypes
 module Builtin = LibExecution.Builtin
-module C2DT = LibExecution.CommonToDarkTypes
-module D = LibExecution.DvalDecoder
-module VT = LibExecution.ValueType
 module PackageIDs = LibExecution.PackageIDs
 module Dval = LibExecution.Dval
+module VT = LibExecution.ValueType
 
 open Builtin.Shortcuts
 
@@ -21,8 +19,7 @@ open Builtin.Shortcuts
 let packageOpTypeName =
   FQTypeName.fqPackage PackageIDs.Type.LanguageTools.ProgramTypes.packageOp
 
-let packageOpBatchTypeName =
-  FQTypeName.fqPackage PackageIDs.Type.LanguageTools.ProgramTypes.packageOpBatch
+let packageOpKT = KTCustomType(packageOpTypeName, [])
 
 
 // TODO: review/reconsider the accessibility of these fns
@@ -30,40 +27,29 @@ let fns : List<BuiltInFn> =
   [ { name = fn "scmAddOps" 0
       typeParams = []
       parameters =
-        [ Param.make "instanceID" (TypeReference.option TUuid) ""
-          Param.make "branchID" (TypeReference.option TUuid) ""
-          Param.make "createdBy" (TypeReference.option TUuid) ""
+        [ Param.make "branchId" TUuid "Branch to add ops to"
           Param.make "ops" (TList(TCustomType(Ok packageOpTypeName, []))) "" ]
       returnType = TypeReference.result TInt64 TString
       description =
-        "Add package ops to the database and apply them to projections.
-        Pass None for instanceID for local ops, or Some(uuid) for ops from remote instances.
-        Pass createdBy to track who created the ops (for approval workflow).
-        Returns the number of inserted ops on success (duplicates are skipped), or an error message on failure."
+        "Add package ops to the database as WIP (uncommitted) on the given branch.
+        Returns the number of inserted ops on success (duplicates are skipped), or an error message on failure.
+        Use scmCommit to commit WIP ops."
       fn =
         let resultOk = Dval.resultOk KTInt64 KTString
         let resultError = Dval.resultError KTInt64 KTString
         (function
-        | _, _, _, [ instanceID; branchID; createdBy; DList(_vtTODO, ops) ] ->
+        | _, _, _, [ DUuid branchId; DList(_vtTODO, ops) ] ->
           uply {
             try
-              // Deserialize dvals
-              let branchID = C2DT.Option.fromDT D.uuid branchID
-              let instanceID = C2DT.Option.fromDT D.uuid instanceID
-              let createdBy = C2DT.Option.fromDT D.uuid createdBy
               let ops = ops |> List.choose PT2DT.PackageOp.fromDT
 
-              // Insert ops with deduplication, get count of actually inserted ops
+              // All ops are added as WIP - use scmCommit to commit them
               let! insertedCount =
-                LibPackageManager.Inserts.insertAndApplyOps
-                  instanceID
-                  branchID
-                  createdBy
-                  ops
+                LibPackageManager.Inserts.insertAndApplyOpsAsWip branchId ops
 
-              return resultOk (DInt64 insertedCount)
+              return resultOk (Dval.int64 insertedCount)
             with ex ->
-              return resultError (DString ex.Message)
+              return resultError (Dval.string ex.Message)
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
@@ -73,46 +59,15 @@ let fns : List<BuiltInFn> =
 
     { name = fn "scmGetRecentOps" 0
       typeParams = []
-      parameters =
-        [ Param.make "branchID" (TypeReference.option TUuid) ""
-          Param.make "limit" TInt64 "" ]
+      parameters = [ Param.make "limit" TInt64 "" ]
       returnType = TList(TCustomType(Ok packageOpTypeName, []))
       description = "Get recent package ops from the database."
       fn =
         function
-        | _, _, _, [ branchID; DInt64 limit ] ->
-          uply {
-            let branchID = C2DT.Option.fromDT D.uuid branchID
-
-            let! ops = LibPackageManager.Queries.getRecentOps branchID limit
-
-            return
-              DList(
-                VT.customType PT2DT.PackageOp.typeName [],
-                ops |> List.map PT2DT.PackageOp.toDT
-              )
-          }
-        | _ -> incorrectArgs ()
-      sqlSpec = NotQueryable
-      previewable = Impure
-      deprecated = NotDeprecated }
-
-
-    { name = fn "scmGetRecentOpsAllBranches" 0
-      typeParams = []
-      parameters = [ Param.make "limit" TInt64 "" ]
-      returnType = TList(TCustomType(Ok packageOpTypeName, []))
-      description = "Get recent package ops from ALL branches (no branch filter)."
-      fn =
-        function
         | _, _, _, [ DInt64 limit ] ->
           uply {
-            let! ops = LibPackageManager.Queries.getRecentOpsAllBranches limit
-            return
-              DList(
-                VT.customType PT2DT.PackageOp.typeName [],
-                ops |> List.map PT2DT.PackageOp.toDT
-              )
+            let! ops = LibPackageManager.Queries.getRecentOps limit
+            return Dval.list packageOpKT (ops |> List.map PT2DT.PackageOp.toDT)
           }
         | _ -> incorrectArgs ()
       sqlSpec = NotQueryable
@@ -120,127 +75,158 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "scmApproveItem" 0
+    { name = fn "scmGetWipOps" 0
       typeParams = []
-      parameters =
-        [ Param.make "branchID" (TypeReference.option TUuid) ""
-          Param.make "itemId" TUuid ""
-          Param.make "reviewerId" TUuid "" ]
-      returnType = TypeReference.result TInt64 TString
-      description =
-        "Approve an item by creating and applying an ApproveItem op.
-        Returns the number of ops inserted (1 on success, 0 if duplicate)."
-      fn =
-        let resultOk = Dval.resultOk KTInt64 KTString
-        let resultError = Dval.resultError KTInt64 KTString
-        (function
-        | _, _, _, [ branchID; DUuid itemId; DUuid reviewerId ] ->
-          uply {
-            try
-              let branchID = C2DT.Option.fromDT D.uuid branchID
-              let op = PT.PackageOp.ApproveItem(itemId, branchID, reviewerId)
-
-              let! insertedCount =
-                LibPackageManager.Inserts.insertAndApplyOps
-                  None // local op, not from sync
-                  branchID
-                  (Some reviewerId)
-                  [ op ]
-
-              return resultOk (DInt64 insertedCount)
-            with ex ->
-              return resultError (DString ex.Message)
-          }
-        | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
-      previewable = Impure
-      deprecated = NotDeprecated }
-
-
-    { name = fn "scmRejectItem" 0
-      typeParams = []
-      parameters =
-        [ Param.make "branchID" (TypeReference.option TUuid) ""
-          Param.make "itemId" TUuid ""
-          Param.make "reviewerId" TUuid ""
-          Param.make "reason" TString "" ]
-      returnType = TypeReference.result TInt64 TString
-      description =
-        "Reject an item by creating and applying a RejectItem op.
-        Returns the number of ops inserted (1 on success, 0 if duplicate)."
-      fn =
-        let resultOk = Dval.resultOk KTInt64 KTString
-        let resultError = Dval.resultError KTInt64 KTString
-        (function
-        | _, _, _, [ branchID; DUuid itemId; DUuid reviewerId; DString reason ] ->
-          uply {
-            try
-              let branchID = C2DT.Option.fromDT D.uuid branchID
-              let op = PT.PackageOp.RejectItem(itemId, branchID, reviewerId, reason)
-
-              let! insertedCount =
-                LibPackageManager.Inserts.insertAndApplyOps
-                  None // local op, not from sync
-                  branchID
-                  (Some reviewerId)
-                  [ op ]
-
-              return resultOk (DInt64 insertedCount)
-            with ex ->
-              return resultError (DString ex.Message)
-          }
-        | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
-      previewable = Impure
-      deprecated = NotDeprecated }
-
-
-    { name = fn "scmGetOpsSince" 0
-      typeParams = []
-      parameters =
-        [ Param.make "targetInstanceID" (TypeReference.option TUuid) ""
-          Param.make "since" TDateTime "" ]
-      returnType = TList(TCustomType(Ok packageOpBatchTypeName, []))
-      description =
-        "Get all package ops (from ALL branches) created since the given timestamp, grouped by branch and instance.
-        Optionally filters for a target instance (pass None to get all ops, or Some(uuid) to exclude ops from that target instance).
-        Returns a list of PackageOpBatch, where each batch contains ops from one branch with the same instanceID."
+      parameters = [ Param.make "branchId" TUuid "Branch ID" ]
+      returnType = TList(TCustomType(Ok packageOpTypeName, []))
+      description = "Get all WIP (uncommitted) package ops on a branch."
       fn =
         function
-        | _, _, _, [ targetInstanceID; DDateTime since ] ->
+        | _, _, _, [ DUuid branchId ] ->
           uply {
-            let targetID = C2DT.Option.fromDT D.uuid targetInstanceID
+            let! ops = LibPackageManager.Queries.getWipOps branchId
+            return Dval.list packageOpKT (ops |> List.map PT2DT.PackageOp.toDT)
+          }
+        | _ -> incorrectArgs ()
+      sqlSpec = NotQueryable
+      previewable = Impure
+      deprecated = NotDeprecated }
 
-            let! opsWithMetadata =
-              LibPackageManager.Queries.getAllOpsSince targetID since
 
-            // Group by (branchID, instanceID)
-            let grouped =
-              opsWithMetadata
-              |> List.groupBy (fun (_, branchID, instanceID) ->
-                (branchID, instanceID))
-              |> Map.toList
+    { name = fn "scmGetWipSummary" 0
+      typeParams = []
+      parameters = [ Param.make "branchId" TUuid "Branch ID" ]
+      returnType = TDict TInt64
+      description = "Get summary of WIP ops on a branch (counts by type)."
+      fn =
+        function
+        | _, _, _, [ DUuid branchId ] ->
+          uply {
+            let! summary = LibPackageManager.Queries.getWipSummary branchId
+            return
+              Dval.dict
+                KTInt64
+                [ "types", Dval.int64 summary.types
+                  "values", Dval.int64 summary.values
+                  "fns", Dval.int64 summary.fns
+                  "renames", Dval.int64 summary.renames
+                  "total", Dval.int64 summary.total ]
+          }
+        | _ -> incorrectArgs ()
+      sqlSpec = NotQueryable
+      previewable = Impure
+      deprecated = NotDeprecated }
 
-            // Convert each group to a PackageOpBatch record
-            let batches =
-              grouped
-              |> List.map (fun ((branchID, instanceID), ops) ->
-                let opsList =
-                  ops
-                  |> List.map (fun (op, _, _) -> PT2DT.PackageOp.toDT op)
-                  |> fun opDvals ->
-                      DList(VT.customType packageOpTypeName [], opDvals)
 
-                let fields =
-                  [ ("branchID", branchID |> Option.map DUuid |> Dval.option KTUuid)
-                    ("instanceID",
-                     instanceID |> Option.map DUuid |> Dval.option KTUuid)
-                    ("ops", opsList) ]
-                  |> Map
+    { name = fn "scmCommit" 0
+      typeParams = []
+      parameters =
+        [ Param.make "branchId" TUuid "Branch ID"
+          Param.make "message" TString "Commit message" ]
+      returnType = TypeReference.result TUuid TString
+      description =
+        "Commit all WIP ops on a branch with the given message.
+        Returns the commit ID on success, or an error message on failure."
+      fn =
+        let resultOk = Dval.resultOk KTUuid KTString
+        let resultError = Dval.resultError KTUuid KTString
+        (function
+        | _, _, _, [ DUuid branchId; DString message ] ->
+          uply {
+            let! result = LibPackageManager.Inserts.commitWipOps branchId message
+            match result with
+            | Ok commitId -> return resultOk (Dval.uuid commitId)
+            | Error msg -> return resultError (Dval.string msg)
+          }
+        | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Impure
+      deprecated = NotDeprecated }
 
-                DRecord(packageOpBatchTypeName, packageOpBatchTypeName, [], fields))
 
-            return DList(VT.customType packageOpBatchTypeName [], batches)
+    { name = fn "scmDiscard" 0
+      typeParams = []
+      parameters = [ Param.make "branchId" TUuid "Branch ID" ]
+      returnType = TypeReference.result TInt64 TString
+      description =
+        "Discard all WIP ops on a branch.
+        Returns the count of discarded ops on success, or an error message on failure."
+      fn =
+        let resultOk = Dval.resultOk KTInt64 KTString
+        let resultError = Dval.resultError KTInt64 KTString
+        (function
+        | _, _, _, [ DUuid branchId ] ->
+          uply {
+            let! result = LibPackageManager.Inserts.discardWipOps branchId
+            match result with
+            | Ok count -> return resultOk (Dval.int64 count)
+            | Error msg -> return resultError (Dval.string msg)
+          }
+        | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Impure
+      deprecated = NotDeprecated }
+
+
+    { name = fn "scmGetCommits" 0
+      typeParams = []
+      parameters =
+        [ Param.make "branchId" TUuid "Branch ID"
+          Param.make "limit" TInt64 "Maximum commits to return" ]
+      returnType = TList(TCustomType(Ok PT2DT.Commit.typeName, []))
+      description = "Get commit log for a branch ordered by date descending."
+      fn =
+        function
+        | _, _, _, [ DUuid branchId; DInt64 limit ] ->
+          uply {
+            let! commits = LibPackageManager.Queries.getCommits branchId limit
+            return
+              Dval.list
+                PT2DT.Commit.knownType
+                (commits |> List.map PT2DT.Commit.toDT)
+          }
+        | _ -> incorrectArgs ()
+      sqlSpec = NotQueryable
+      previewable = Impure
+      deprecated = NotDeprecated }
+
+
+    { name = fn "scmGetCommitsForBranchChain" 0
+      typeParams = []
+      parameters =
+        [ Param.make "branchId" TUuid "Branch ID"
+          Param.make "limit" TInt64 "Maximum commits to return" ]
+      returnType = TList(TCustomType(Ok PT2DT.Commit.typeName, []))
+      description =
+        "Get commit log across the entire branch chain (current + ancestors), ordered by date descending."
+      fn =
+        function
+        | _, _, _, [ DUuid branchId; DInt64 limit ] ->
+          uply {
+            let! commits =
+              LibPackageManager.Queries.getCommitsForBranchChain branchId limit
+            return
+              Dval.list
+                PT2DT.Commit.knownType
+                (commits |> List.map PT2DT.Commit.toDT)
+          }
+        | _ -> incorrectArgs ()
+      sqlSpec = NotQueryable
+      previewable = Impure
+      deprecated = NotDeprecated }
+
+
+    { name = fn "scmGetCommitOps" 0
+      typeParams = []
+      parameters = [ Param.make "commitId" TUuid "Commit ID" ]
+      returnType = TList(TCustomType(Ok packageOpTypeName, []))
+      description = "Get ops for a specific commit."
+      fn =
+        function
+        | _, _, _, [ DUuid commitId ] ->
+          uply {
+            let! ops = LibPackageManager.Queries.getCommitOps commitId
+            return Dval.list packageOpKT (ops |> List.map PT2DT.PackageOp.toDT)
           }
         | _ -> incorrectArgs ()
       sqlSpec = NotQueryable

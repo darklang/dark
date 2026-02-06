@@ -10,6 +10,8 @@ module LibExecution.RuntimeTypes
 
 open Prelude
 
+type BranchId = uuid
+
 let builtinNamePattern = @"^(__|[a-z])[a-z0-9A-Z_]\w*$"
 let valueNamePattern = @"^[a-z][a-z0-9A-Z_']*$"
 
@@ -1387,6 +1389,7 @@ and ExecutionState =
     notify : Notifier
 
     // -- Set per-execution --
+    branchId : BranchId
     program : Program
 
     types : Types

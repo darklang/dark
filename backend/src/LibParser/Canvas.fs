@@ -227,8 +227,6 @@ let parseDecls
 
 
 let toPT
-  (accountID : Option<PT.AccountID>)
-  (branchId : Option<PT.BranchID>)
   (builtins : RT.Builtins)
   (pm : PT.PackageManager)
   (onMissing : NR.OnMissing)
@@ -241,14 +239,7 @@ let toPT
       m.types
       |> Ply.List.mapSequentially (fun wtType ->
         uply {
-          let! ptType =
-            WT2PT.PackageType.toPT
-              accountID
-              branchId
-              pm
-              onMissing
-              currentModule
-              wtType
+          let! ptType = WT2PT.PackageType.toPT pm onMissing currentModule wtType
           let location : PT.PackageLocation =
             { owner = wtType.name.owner
               modules = wtType.name.modules
@@ -264,14 +255,7 @@ let toPT
       |> Ply.List.mapSequentially (fun wtValue ->
         uply {
           let! ptValue =
-            WT2PT.PackageValue.toPT
-              accountID
-              branchId
-              builtins
-              pm
-              onMissing
-              currentModule
-              wtValue
+            WT2PT.PackageValue.toPT builtins pm onMissing currentModule wtValue
           let location : PT.PackageLocation =
             { owner = wtValue.name.owner
               modules = wtValue.name.modules
@@ -286,15 +270,7 @@ let toPT
       m.fns
       |> Ply.List.mapSequentially (fun wtFn ->
         uply {
-          let! ptFn =
-            WT2PT.PackageFn.toPT
-              accountID
-              branchId
-              builtins
-              pm
-              onMissing
-              currentModule
-              wtFn
+          let! ptFn = WT2PT.PackageFn.toPT builtins pm onMissing currentModule wtFn
           let location : PT.PackageLocation =
             { owner = wtFn.name.owner
               modules = wtFn.name.modules
@@ -305,10 +281,7 @@ let toPT
       |> Ply.map List.flatten
 
     let! dbs =
-      m.dbs
-      |> Ply.List.mapSequentially (
-        WT2PT.DB.toPT accountID branchId pm onMissing currentModule
-      )
+      m.dbs |> Ply.List.mapSequentially (WT2PT.DB.toPT pm onMissing currentModule)
 
     let! handlers =
       m.handlers
@@ -318,17 +291,10 @@ let toPT
           let context =
             { WT2PT.Context.currentFnName = None
               WT2PT.Context.isInFunction = false
-              WT2PT.Context.argMap = Map.empty }
+              WT2PT.Context.argMap = Map.empty
+              WT2PT.Context.localBindings = Set.empty }
           let! expr =
-            WT2PT.Expr.toPT
-              accountID
-              branchId
-              builtins
-              pm
-              onMissing
-              (m.owner :: m.name)
-              context
-              expr
+            WT2PT.Expr.toPT builtins pm onMissing (m.owner :: m.name) context expr
           return (spec, expr)
         })
 
@@ -338,15 +304,9 @@ let toPT
         let context =
           { WT2PT.Context.currentFnName = None
             WT2PT.Context.isInFunction = false
-            WT2PT.Context.argMap = Map.empty }
-        WT2PT.Expr.toPT
-          accountID
-          branchId
-          builtins
-          pm
-          onMissing
-          currentModule
-          context
+            WT2PT.Context.argMap = Map.empty
+            WT2PT.Context.localBindings = Set.empty }
+        WT2PT.Expr.toPT builtins pm onMissing currentModule context
       )
 
     let allOps = typeOps @ valueOps @ fnOps
@@ -356,8 +316,6 @@ let toPT
 
 
 let parse
-  (accountID : Option<PT.AccountID>)
-  (branchId : Option<PT.BranchID>)
   (owner : string)
   (canvasName : string)
   (builtins : RT.Builtins)
@@ -392,25 +350,20 @@ let parse
     // Two-phase parsing with ID stabilization:
     // First pass: parse with OnMissing.Allow to allow forward references
     let! firstPass =
-      toPT
-        accountID
-        branchId
-        builtins
-        PT.PackageManager.empty
-        NR.OnMissing.Allow
-        moduleWT
+      toPT builtins PT.PackageManager.empty NR.OnMissing.Allow moduleWT
 
     // Extract ops from first pass for second pass PackageManager
     let firstPassOps = firstPass.ops
 
     // Second pass: re-parse with PackageManager containing first pass results
     let enhancedPM = LibPackageManager.PackageManager.withExtraOps pm firstPassOps
-    let! secondPass = toPT accountID branchId builtins enhancedPM onMissing moduleWT
+    let! secondPass = toPT builtins enhancedPM onMissing moduleWT
 
     // ID stabilization: adjust second pass IDs to match first pass IDs
     let firstPassPM = LibPackageManager.PackageManager.createInMemory firstPassOps
     let! adjustedOps =
       LibPackageManager.PackageManager.stabilizeOpsAgainstPM
+        PT.mainBranchId
         firstPassPM
         secondPass.ops
 

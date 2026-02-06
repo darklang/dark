@@ -1,8 +1,8 @@
 {
   "name": "darklang-vs-code-extension",
-  "description": "Darklang VS Code Extension. This is a work-in-progress, not yet ready for general consumption. Join the Discord to learn more.",
+  "description": "Darklang VS Code Extension",
   "author": "darklang",
-  "version": "0.0.9",
+  "version": "0.0.11",
   "icon": "./static/logo-dark.png",
   "repository": {
     "type": "git",
@@ -10,9 +10,7 @@
   },
   "publisher": "darklang",
   "categories": [],
-  "keywords": [
-    ""
-  ],
+  "keywords": ["darklang"],
   "engines": {
     "vscode": "^1.83.0"
   },
@@ -22,13 +20,8 @@
     "languages": [
       {
         "id": "darklang",
-        "aliases": [
-          "darklang",
-          "dark"
-        ],
-        "extensions": [
-          ".dark"
-        ],
+        "aliases": ["darklang", "dark"],
+        "extensions": [".dark"],
         "configuration": "./language-configuration.json",
         "icon": {
           "light": "./static/logo-light-transparent.svg",
@@ -49,36 +42,25 @@
       "properties": {}
     },
     "semanticTokenTypes": [
-      {
-        "id": "keyword",
-        "description": "Language keywords like 'let' and 'in'"
-      },
-      {
-        "id": "function",
-        "description": "Function names or identifiers"
-      },
-      {
-        "id": "parameter",
-        "description": "Function parameter identifiers"
-      },
-      {
-        "id": "type",
-        "description": "Type names like Int, Bool, etc."
-      },
-      {
-        "id": "string",
-        "description": "String literals"
-      },
-      {
-        "id": "operator",
-        "description": "Operators like +, -"
-      },
-      {
-        "id": "variable",
-        "description": "General variable identifiers"
-      }
+      { "id": "keyword", "description": "Language keywords" },
+      { "id": "function", "description": "Function names" },
+      { "id": "parameter", "description": "Function parameters" },
+      { "id": "type", "description": "Type names" },
+      { "id": "string", "description": "String literals" },
+      { "id": "operator", "description": "Operators" },
+      { "id": "variable", "description": "Variables" }
     ],
     "commands": [
+      {
+        "command": "darklang.openHomepage",
+        "title": "Darklang: Open Homepage",
+        "icon": "$(home)"
+      },
+      {
+        "command": "darklang.openBranchManager",
+        "title": "Darklang: Manage Branches",
+        "icon": "$(git-branch)"
+      },
       {
         "command": "darklang.runScript",
         "title": "Run Darklang Script"
@@ -108,64 +90,6 @@
         "title": "Darklang: Reveal in Packages Tree"
       },
       {
-        "command": "darklang.branch.new",
-        "title": "Start New Branch",
-        "icon": "$(add)"
-      },
-      {
-        "command": "darklang.branch.switch",
-        "title": "Switch Branch",
-        "icon": "$(arrow-swap)"
-      },
-      {
-        "command": "darklang.branch.view",
-        "title": "View Branch Details",
-        "icon": "$(eye)"
-      },
-      {
-        "command": "darklang.branch.rename",
-        "title": "Rename Branch",
-        "icon": "$(edit)"
-      },
-      {
-        "command": "darklang.branch.quickSwitch",
-        "title": "Quick Switch Branch"
-      },
-      {
-        "command": "darklang.branch.clear",
-        "title": "Clear Branch"
-      },
-      {
-        "command": "darklang.branch.showMenu",
-        "title": "Branch Menu",
-        "icon": "$(ellipsis)"
-      },
-      {
-        "command": "darklang.branches.manageAll",
-        "title": "Manage All Branches",
-        "icon": "$(list-flat)"
-      },
-      {
-        "command": "darklang.openHomepage",
-        "title": "Darklang: Open Homepage",
-        "icon": "./static/logo-dark-transparent.svg"
-      },
-      {
-        "command": "darklang.packages.search",
-        "title": "Search Packages",
-        "icon": "$(search)"
-      },
-      {
-        "command": "darklang.packages.clearSearch",
-        "title": "Clear Search",
-        "icon": "$(clear-all)"
-      },
-      {
-        "command": "darklang.changes.review",
-        "title": "Review Changes",
-        "icon": "$(preview)"
-      },
-      {
         "command": "darklang.packages.pin",
         "title": "Pin",
         "icon": "$(pin)"
@@ -176,68 +100,68 @@
         "icon": "$(pinned)"
       },
       {
-        "command": "darklang.approvals.refresh",
-        "title": "Refresh Approvals",
+        "command": "darklang.packages.refresh",
+        "title": "Refresh Packages",
         "icon": "$(refresh)"
       },
       {
-        "command": "darklang.approvals.viewRequest",
-        "title": "View Request Details"
+        "command": "darklang.scm.refresh",
+        "title": "Darklang: Refresh SCM",
+        "icon": "$(refresh)"
       },
       {
-        "command": "darklang.approvals.approve",
-        "title": "Approve",
+        "command": "darklang.scm.status",
+        "title": "Darklang: Show SCM Status",
+        "icon": "$(info)"
+      },
+      {
+        "command": "darklang.scm.commit",
+        "title": "Darklang: Commit Changes",
         "icon": "$(check)"
       },
       {
-        "command": "darklang.approvals.reject",
-        "title": "Reject",
-        "icon": "$(x)"
+        "command": "darklang.scm.log",
+        "title": "Darklang: Show Commit Log",
+        "icon": "$(history)"
       },
       {
-        "command": "darklang.approvals.requestChanges",
-        "title": "Request Changes",
-        "icon": "$(comment)"
-      },
-      {
-        "command": "darklang.approvals.withdraw",
-        "title": "Withdraw Request",
+        "command": "darklang.scm.discard",
+        "title": "Darklang: Discard Changes",
         "icon": "$(trash)"
       },
       {
-        "command": "darklang.approvals.createRequest",
-        "title": "Create Approval Request",
-        "icon": "$(git-pull-request-create)"
+        "command": "darklang.scm.showCommit",
+        "title": "Show Commit Details"
       },
       {
-        "command": "darklang.approvals.quickSubmit",
-        "title": "Submit for Approval",
-        "icon": "$(send)"
+        "command": "darklang.branch.switch",
+        "title": "Darklang: Switch Branch",
+        "icon": "$(git-branch)"
       },
       {
-        "command": "darklang.approvals.quickApprove",
-        "title": "Quick Approve",
-        "icon": "$(check)"
+        "command": "darklang.branch.create",
+        "title": "Darklang: Create Branch",
+        "icon": "$(add)"
       },
       {
-        "command": "darklang.approvals.quickReject",
-        "title": "Quick Reject",
-        "icon": "$(x)"
+        "command": "darklang.branch.delete",
+        "title": "Darklang: Delete Branch",
+        "icon": "$(trash)"
       },
       {
-        "command": "darklang.approvals.approveSelected",
-        "title": "Approve Selected",
-        "icon": "$(check-all)"
+        "command": "darklang.branch.rename",
+        "title": "Darklang: Rename Branch",
+        "icon": "$(edit)"
       },
       {
-        "command": "darklang.approvals.rejectSelected",
-        "title": "Reject Selected",
-        "icon": "$(close-all)"
+        "command": "darklang.branch.rebase",
+        "title": "Darklang: Rebase Branch",
+        "icon": "$(git-merge)"
       },
       {
-        "command": "darklang.approvals.switchAccount",
-        "title": "Switch Account",
-        "icon": "$(account)"
+        "command": "darklang.branch.merge",
+        "title": "Darklang: Merge Branch into Parent",
+        "icon": "$(git-merge)"
       }
     ],
     "menus": {
@@ -264,116 +188,81 @@
           "group": "navigation"
         },
         {
+          "command": "darklang.scm.commit",
+          "when": "view == darklangScm && viewItem == scm-status-root",
+          "group": "inline@1"
+        },
+        {
+          "command": "darklang.scm.discard",
+          "when": "view == darklangScm && viewItem == scm-status-root",
+          "group": "inline@2"
+        },
+        {
+          "command": "darklang.scm.log",
+          "when": "view == darklangScm && viewItem == scm-commits-root",
+          "group": "inline"
+        },
+        {
+          "command": "darklang.branch.create",
+          "when": "view == darklangScm && viewItem == scm-branch-root",
+          "group": "inline@1"
+        },
+        {
           "command": "darklang.branch.rename",
-          "when": "view == darklangWorkspace && viewItem == workspace-branch-root",
-          "group": "inline@1"
+          "when": "view == darklangScm && viewItem == scm-branch-root",
+          "group": "1_branch@1"
         },
         {
-          "command": "darklang.branch.view",
-          "when": "view == darklangWorkspace && viewItem == workspace-branch-root",
-          "group": "inline@2"
+          "command": "darklang.branch.delete",
+          "when": "view == darklangScm && viewItem == scm-branch-root",
+          "group": "1_branch@2"
         },
         {
-          "command": "darklang.branch.new",
-          "when": "view == darklangWorkspace && viewItem == workspace-branch-root",
-          "group": "inline@3"
+          "command": "darklang.branch.rebase",
+          "when": "view == darklangScm && viewItem == scm-branch-root",
+          "group": "2_advanced@1"
         },
         {
-          "command": "darklang.branch.switch",
-          "when": "view == darklangWorkspace && viewItem == branch",
-          "group": "basic@1"
+          "command": "darklang.branch.merge",
+          "when": "view == darklangScm && viewItem == scm-branch-root",
+          "group": "2_advanced@2"
         },
         {
-          "command": "darklang.branch.rename",
-          "when": "view == darklangWorkspace && viewItem == branch-item",
-          "group": "context@1"
-        },
-        {
-          "command": "darklang.approvals.approve",
-          "when": "view == darklangApprovals && viewItem == approval-request-incoming",
-          "group": "inline@1"
-        },
-        {
-          "command": "darklang.approvals.reject",
-          "when": "view == darklangApprovals && viewItem == approval-request-incoming",
-          "group": "inline@2"
-        },
-        {
-          "command": "darklang.approvals.requestChanges",
-          "when": "view == darklangApprovals && viewItem == approval-request-incoming",
-          "group": "inline@3"
-        },
-        {
-          "command": "darklang.approvals.withdraw",
-          "when": "view == darklangApprovals && viewItem == approval-request-outgoing",
-          "group": "inline@1"
-        },
-        {
-          "command": "darklang.approvals.createRequest",
-          "when": "view == darklangApprovals && viewItem == pending-locations-root && darklang.hasMultiNamespaceSelection",
-          "group": "inline@1"
-        },
-        {
-          "command": "darklang.approvals.createRequest",
-          "when": "view == darklangApprovals && viewItem == namespace-group",
-          "group": "inline@2"
-        },
-        {
-          "command": "darklang.approvals.quickSubmit",
-          "when": "view == darklangApprovals && viewItem == pending-location",
-          "group": "inline@1"
-        },
-        {
-          "command": "darklang.approvals.quickApprove",
-          "when": "view == darklangApprovals && viewItem == request-location",
-          "group": "inline@1"
-        },
-        {
-          "command": "darklang.approvals.quickReject",
-          "when": "view == darklangApprovals && viewItem == request-location",
-          "group": "inline@2"
-        },
-        {
-          "command": "darklang.approvals.approve",
-          "when": "view == darklangApprovals && viewItem == pending-location-review",
-          "group": "inline@1"
-        },
-        {
-          "command": "darklang.approvals.reject",
-          "when": "view == darklangApprovals && viewItem == pending-location-review",
-          "group": "inline@2"
+          "command": "darklang.scm.showCommit",
+          "when": "view == darklangScm && viewItem == scm-commit-item",
+          "group": "inline"
         }
       ],
       "view/title": [
         {
-          "command": "darklang.packages.search",
+          "command": "darklang.packages.refresh",
           "when": "view == darklangPackages",
           "group": "navigation@1"
         },
         {
-          "command": "darklang.packages.clearSearch",
-          "when": "view == darklangPackages",
-          "group": "navigation@2"
-        },
-        {
-          "command": "darklang.approvals.refresh",
-          "when": "view == darklangApprovals",
+          "command": "darklang.scm.refresh",
+          "when": "view == darklangScm",
           "group": "navigation@1"
         },
         {
-          "command": "darklang.approvals.approveSelected",
-          "when": "view == darklangApprovals",
+          "command": "darklang.scm.commit",
+          "when": "view == darklangScm",
           "group": "navigation@2"
         },
         {
-          "command": "darklang.approvals.rejectSelected",
-          "when": "view == darklangApprovals",
+          "command": "darklang.scm.discard",
+          "when": "view == darklangScm",
           "group": "navigation@3"
         },
         {
-          "command": "darklang.approvals.createRequest",
-          "when": "view == darklangApprovals",
+          "command": "darklang.branch.create",
+          "when": "view == darklangScm",
           "group": "navigation@4"
+        },
+        {
+          "command": "darklang.openBranchManager",
+          "when": "view == darklangScm",
+          "group": "navigation@5"
         }
       ]
     },
@@ -389,13 +278,8 @@
     "views": {
       "darklang": [
         {
-          "id": "darklangWorkspace",
-          "name": "Workspace",
-          "visibility": "visible"
-        },
-        {
-          "id": "darklangApprovals",
-          "name": "Approvals",
+          "id": "darklangScm",
+          "name": "Source Control",
           "visibility": "visible"
         },
         {

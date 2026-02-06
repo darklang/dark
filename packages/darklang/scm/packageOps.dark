@@ -1,28 +1,88 @@
 module Darklang.SCM.PackageOps
 
-/// Add a list of package ops to the database, applying them immediately
+
+/// A commit on a branch
+type Commit =
+  { id: Uuid
+    message: String
+    createdAt: DateTime
+    opCount: Int64
+    branchId: Uuid
+    branchName: String }
+
+
+/// Add a list of package ops to the database as WIP (uncommitted) on the given branch
 ///
 /// Returns the number of inserted ops on success (duplicates are skipped),
-/// or an error message on failure
+/// or an error message on failure.
+///
+/// Use `commit` to commit WIP ops.
 let add
-  (instanceID: Stdlib.Option.Option<Uuid>)
-  (branchID: Stdlib.Option.Option<Uuid>)
-  (createdBy: Stdlib.Option.Option<Uuid>)
+  (branchId: Uuid)
   (ops: List<LanguageTools.ProgramTypes.PackageOp>)
   : Stdlib.Result.Result<Int64, String> =
-  Builtin.scmAddOps instanceID branchID createdBy ops
+  Builtin.scmAddOps branchId ops
 
 
 /// Get recent package ops from the database
-let getRecent
-  (branchID: Stdlib.Option.Option<Uuid>)
-  (limit: Int64)
-  : List<LanguageTools.ProgramTypes.PackageOp> =
-  Builtin.scmGetRecentOps branchID limit
+let getRecent (limit: Int64) : List<LanguageTools.ProgramTypes.PackageOp> =
+  Builtin.scmGetRecentOps limit
 
 
-/// Get recent package ops from ALL branches (no branch filter)
-let getRecentAllBranches
-  (limit: Int64)
-  : List<LanguageTools.ProgramTypes.PackageOp> =
-  Builtin.scmGetRecentOpsAllBranches limit
+/// Get all WIP (uncommitted) ops on a branch
+let getWip (branchId: Uuid) : List<LanguageTools.ProgramTypes.PackageOp> =
+  Builtin.scmGetWipOps_v0 branchId
+
+
+/// Summary of WIP (uncommitted) changes on a branch
+type WipSummary =
+  { types: Int64
+    values: Int64
+    fns: Int64
+    renames: Int64
+    total: Int64 }
+
+/// Get a count from a Dict, defaulting to 0
+let getCount (d: Dict<Int64>) (key: String) : Int64 =
+  match Stdlib.Dict.get d key with
+  | Some v -> v
+  | None -> 0L
+
+/// Get summary of WIP ops on a branch (counts by type)
+let getWipSummary (branchId: Uuid) : WipSummary =
+  let d = Builtin.scmGetWipSummary_v0 branchId
+
+  WipSummary
+    { types = getCount d "types"
+      values = getCount d "values"
+      fns = getCount d "fns"
+      renames = getCount d "renames"
+      total = getCount d "total" }
+
+
+/// Commit all WIP ops on a branch with the given message
+/// Returns the commit ID on success, or an error message on failure
+let commit (branchId: Uuid) (message: String) : Stdlib.Result.Result<Uuid, String> =
+  Builtin.scmCommit branchId message
+
+
+/// Discard all WIP ops on a branch
+/// Returns the count of discarded ops on success, or an error message on failure
+let discard (branchId: Uuid) : Stdlib.Result.Result<Int64, String> =
+  Builtin.scmDiscard_v0 branchId
+
+
+/// Get commit log for a branch ordered by date descending
+let getCommits (branchId: Uuid) (limit: Int64) : List<Commit> =
+  Builtin.scmGetCommits branchId limit
+
+
+/// Get commit log across the entire branch chain (current + ancestors),
+/// ordered by date descending.
+let getCommitsWithAncestors (branchId: Uuid) (limit: Int64) : List<Commit> =
+  Builtin.scmGetCommitsForBranchChain branchId limit
+
+
+/// Get ops for a specific commit
+let getCommitOps (commitId: Uuid) : List<LanguageTools.ProgramTypes.PackageOp> =
+  Builtin.scmGetCommitOps commitId

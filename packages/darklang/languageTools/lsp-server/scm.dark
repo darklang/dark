@@ -1,0 +1,185 @@
+module Darklang.LanguageTools.LspServer.Scm
+
+
+/// Handle dark/scm/getWipSummary request - returns summary of uncommitted changes
+let handleGetWipSummaryRequest
+  (state: LspState)
+  (requestId: JsonRPC.RequestID)
+  : LspState =
+  let summary = SCM.PackageOps.getWipSummary state.currentBranchId
+
+  let responseJson =
+    Stdlib.AltJson.Json.Object
+      [ ("types", Stdlib.AltJson.Json.Number(Stdlib.Int64.toFloat summary.types))
+        ("values", Stdlib.AltJson.Json.Number(Stdlib.Int64.toFloat summary.values))
+        ("fns", Stdlib.AltJson.Json.Number(Stdlib.Int64.toFloat summary.fns))
+        ("renames", Stdlib.AltJson.Json.Number(Stdlib.Int64.toFloat summary.renames))
+        ("total", Stdlib.AltJson.Json.Number(Stdlib.Int64.toFloat summary.total)) ]
+
+  let response =
+    (JsonRPC.Response.Ok.make (Stdlib.Option.Option.Some requestId) responseJson)
+    |> Stdlib.AltJson.format
+
+  logAndSendToClient response
+  state
+
+
+/// Handle dark/scm/getCommits request - returns recent commits across branch chain
+let handleGetCommitsRequest
+  (state: LspState)
+  (requestId: JsonRPC.RequestID)
+  (limit: Int64)
+  : LspState =
+  let commits = SCM.PackageOps.getCommitsWithAncestors state.currentBranchId limit
+
+  let commitsJson =
+    commits
+    |> Stdlib.List.map (fun c ->
+      Stdlib.AltJson.Json.Object
+        [ ("id", Stdlib.AltJson.Json.String (Stdlib.Uuid.toString c.id))
+          ("message", Stdlib.AltJson.Json.String c.message)
+          ("createdAt", Stdlib.AltJson.Json.String (Stdlib.DateTime.toString_v0 c.createdAt))
+          ("opCount", Stdlib.AltJson.Json.String (Stdlib.Int64.toString c.opCount))
+          ("branchId", Stdlib.AltJson.Json.String (Stdlib.Uuid.toString c.branchId))
+          ("branchName", Stdlib.AltJson.Json.String c.branchName) ])
+
+  let responseJson = Stdlib.AltJson.Json.Array commitsJson
+
+  let response =
+    (JsonRPC.Response.Ok.make (Stdlib.Option.Option.Some requestId) responseJson)
+    |> Stdlib.AltJson.format
+
+  logAndSendToClient response
+  state
+
+
+/// Handle dark/scm/getWipOps request - returns individual WIP operations (pretty-printed)
+let handleGetWipOpsRequest
+  (state: LspState)
+  (requestId: JsonRPC.RequestID)
+  : LspState =
+  let ops = SCM.PackageOps.getWip state.currentBranchId
+
+  let opsJson =
+    ops
+    |> Stdlib.List.map (fun op ->
+      let opStr = PrettyPrinter.ProgramTypes.PackageOp.packageOp state.currentBranchId op
+      Stdlib.AltJson.Json.String opStr)
+    |> Stdlib.AltJson.Json.Array
+
+  let response =
+    (JsonRPC.Response.Ok.make (Stdlib.Option.Option.Some requestId) opsJson)
+    |> Stdlib.AltJson.format
+
+  logAndSendToClient response
+  state
+
+
+/// Handle dark/scm/commit request - commits WIP changes with a message
+let handleCommitRequest
+  (state: LspState)
+  (requestId: JsonRPC.RequestID)
+  (message: String)
+  : LspState =
+  match SCM.PackageOps.commit state.currentBranchId message with
+  | Ok commitId ->
+    let responseJson =
+      Stdlib.AltJson.Json.Object
+        [ ("success", Stdlib.AltJson.Json.Bool true)
+          ("commitId", Stdlib.AltJson.Json.String (Stdlib.Uuid.toString commitId)) ]
+
+    let response =
+      (JsonRPC.Response.Ok.make (Stdlib.Option.Option.Some requestId) responseJson)
+      |> Stdlib.AltJson.format
+
+    logAndSendToClient response
+
+    // Notify SCM views to refresh
+    let scmNotification =
+      (JsonRPC.Request.makeNotificationString
+        "dark/scm/changed"
+        Stdlib.Option.Option.None)
+
+    logAndSendToClient scmNotification
+
+    state
+
+  | Error msg ->
+    let responseJson =
+      (JsonRPC.Response.Error.make
+        (Stdlib.Option.Option.Some requestId)
+        JsonRPC.Response.Error.KnownErrorCodes.invalidRequest
+        msg
+        Stdlib.Option.Option.None)
+      |> Stdlib.AltJson.format
+
+    logAndSendToClient responseJson
+    state
+
+
+/// Handle dark/scm/discard request - discards all WIP changes
+let handleDiscardRequest
+  (state: LspState)
+  (requestId: JsonRPC.RequestID)
+  : LspState =
+  match SCM.PackageOps.discard state.currentBranchId with
+  | Ok count ->
+    let responseJson =
+      Stdlib.AltJson.Json.Object
+        [ ("success", Stdlib.AltJson.Json.Bool true)
+          ("discardedCount", Stdlib.AltJson.Json.Number (Stdlib.Int64.toFloat count)) ]
+
+    let response =
+      (JsonRPC.Response.Ok.make (Stdlib.Option.Option.Some requestId) responseJson)
+      |> Stdlib.AltJson.format
+
+    logAndSendToClient response
+
+    // Notify SCM views to refresh
+    let scmNotification =
+      (JsonRPC.Request.makeNotificationString
+        "dark/scm/changed"
+        Stdlib.Option.Option.None)
+
+    logAndSendToClient scmNotification
+
+    state
+
+  | Error msg ->
+    let responseJson =
+      (JsonRPC.Response.Error.make
+        (Stdlib.Option.Option.Some requestId)
+        JsonRPC.Response.Error.KnownErrorCodes.invalidRequest
+        msg
+        Stdlib.Option.Option.None)
+      |> Stdlib.AltJson.format
+
+    logAndSendToClient responseJson
+    state
+
+
+/// Handle dark/scm/getCommitOps request - returns ops for a specific commit
+let handleGetCommitOpsRequest
+  (state: LspState)
+  (requestId: JsonRPC.RequestID)
+  (commitIdStr: String)
+  : LspState =
+  let responseJson =
+    match Stdlib.Uuid.parse commitIdStr with
+    | Ok commitId ->
+      let ops = SCM.PackageOps.getCommitOps commitId
+
+      ops
+      |> Stdlib.List.map (fun op ->
+        let opStr = PrettyPrinter.ProgramTypes.PackageOp.packageOp state.currentBranchId op
+        Stdlib.AltJson.Json.String opStr)
+      |> Stdlib.AltJson.Json.Array
+
+    | Error _ -> Stdlib.AltJson.Json.Array []
+
+  let response =
+    (JsonRPC.Response.Ok.make (Stdlib.Option.Option.Some requestId) responseJson)
+    |> Stdlib.AltJson.format
+
+  logAndSendToClient response
+  state

@@ -142,6 +142,7 @@ jobs:
           root: "."
           paths:
             - backend/src/LibTreeSitter/lib
+            - tree-sitter-darklang/src
 
   # Build server binaries and run tests
   # Cleanup: consider splitting into (1) build debug (2) prepare .db (3) build release

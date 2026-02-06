@@ -151,7 +151,7 @@ let hardcodedServerCapabilities
 
 let handleSemanticTokensRequest
   (state: LspState)
-  (requestId: JsonRPC.RequestId)
+  (requestId: JsonRPC.RequestID)
   (requestParams:
     LanguageServerProtocol.SemanticTokens.SemanticTokensRequest.SemanticTokensParams.SemanticTokensParams)
   : LspState =

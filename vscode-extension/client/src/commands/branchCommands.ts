@@ -1,157 +1,170 @@
 import * as vscode from "vscode";
-import { StatusBarManager } from "../ui/statusbar/statusBarManager";
-import { WorkspaceTreeDataProvider } from "../providers/treeviews/workspaceTreeDataProvider";
-import { BranchStateManager } from "../data/branchStateManager";
+import { LanguageClient } from "vscode-languageclient/node";
+import { ScmTreeDataProvider } from "../providers/treeviews/scmTreeDataProvider";
+import { BranchInfo } from "../ui/statusbar/statusBar";
 
 export class BranchCommands {
-  private branchStateManager = BranchStateManager.getInstance();
+  private client: LanguageClient;
+  private scmProvider: ScmTreeDataProvider;
 
-  constructor(
-    private statusBarManager: StatusBarManager,
-    private workspaceProvider: WorkspaceTreeDataProvider
-  ) {}
+  constructor(client: LanguageClient, scmProvider: ScmTreeDataProvider) {
+    this.client = client;
+    this.scmProvider = scmProvider;
+  }
 
   register(): vscode.Disposable[] {
     return [
-      // Quick branch switcher (for clicking Branch node)
-      vscode.commands.registerCommand("darklang.branch.quickSwitch", async () => {
-        const branches = this.branchStateManager.getBranches();
-        const currentBranchId = this.branchStateManager.getCurrentBranchId();
-
-        interface BranchQuickPickItem extends vscode.QuickPickItem {
-          id?: string;
-          action?: "manageAll" | "clear";
-        }
-
-        const activeBranches: BranchQuickPickItem[] = branches
-          .filter(b => !b.mergedAt)
-          .map(b => ({
+      vscode.commands.registerCommand("darklang.branch.switch", async () => {
+        try {
+          const branches = await this.client.sendRequest<BranchInfo[]>("dark/getBranches", {});
+          const items = branches.map(b => ({
             label: b.name,
-            id: b.id,
-            description: b.id === currentBranchId ? "● Current" : undefined
+            description: b.isActive ? "(current)" : "",
+            branchId: b.id,
           }));
 
-        // Add separator and options at the end
-        const items: BranchQuickPickItem[] = [
-          ...activeBranches,
-          { label: "", kind: vscode.QuickPickItemKind.Separator },
-          { label: "🚫 Clear Branch Selection", alwaysShow: true, action: "clear" },
-          { label: "📋 Manage All Branches...", alwaysShow: true, action: "manageAll" }
-        ];
+          const selected = await vscode.window.showQuickPick(items, {
+            placeHolder: "Select a branch to switch to",
+          });
 
-        const selected = await vscode.window.showQuickPick(items, {
-          placeHolder: "Switch to branch",
-          matchOnDescription: true
+          if (selected && !branches.find(b => b.id === selected.branchId)?.isActive) {
+            await this.client.sendRequest("dark/switchBranch", { branchId: selected.branchId });
+          }
+        } catch (error) {
+          vscode.window.showErrorMessage(`Failed to switch branch: ${error}`);
+        }
+      }),
+
+      vscode.commands.registerCommand("darklang.branch.create", async () => {
+        const name = await vscode.window.showInputBox({
+          prompt: "Branch name",
+          placeHolder: "Enter new branch name",
         });
-
-        if (selected) {
-          if (selected.action === "manageAll") {
-            vscode.commands.executeCommand("darklang.branches.manageAll");
-          } else if (selected.action === "clear") {
-            await this.branchStateManager.clearCurrentBranch();
-            this.statusBarManager.updateBranch("No Branch");
-            vscode.window.showInformationMessage("Branch selection cleared - viewing all branches");
-          } else if (selected.id) {
-            this.branchStateManager.setCurrentBranchById(selected.id);
-            this.statusBarManager.updateBranch(selected.label);
-            vscode.window.showInformationMessage(`Switched to branch: ${selected.label}`);
+        if (name) {
+          try {
+            await this.client.sendRequest("dark/createBranch", { name });
+            vscode.window.showInformationMessage(`Created and switched to branch "${name}"`);
+          } catch (error) {
+            vscode.window.showErrorMessage(`Failed to create branch: ${error}`);
           }
         }
       }),
 
-      vscode.commands.registerCommand("darklang.branch.new", async () => {
-        const name = await vscode.window.showInputBox({
-          prompt: "Enter branch name",
-          placeHolder: "e.g., feature-user-auth"
-        });
-
-        if (name) {
-          // Refresh branches from server before checking existence
-          await this.branchStateManager.fetchBranches();
-
-          // Check if branch already exists
-          const existing = this.branchStateManager.findByName(name);
-          if (existing) {
-            const choice = await vscode.window.showInformationMessage(
-              `Branch '${name}' already exists.`,
-              "Switch to it"
-            );
-            if (choice === "Switch to it") {
-              this.branchStateManager.setCurrentBranchById(existing.id);
-              this.statusBarManager.updateBranch(name);
-              this.workspaceProvider.refresh();
-              vscode.window.showInformationMessage(`Switched to branch: ${name}`);
-            }
+      vscode.commands.registerCommand("darklang.branch.delete", async () => {
+        try {
+          const branches = await this.client.sendRequest<BranchInfo[]>("dark/getBranches", {});
+          const deletable = branches.filter(b => !b.isActive && b.name !== "main");
+          if (deletable.length === 0) {
+            vscode.window.showInformationMessage("No branches available to delete");
             return;
           }
 
-          const result = await this.branchStateManager.createBranch(name);
-          if (result.branch) {
-            this.statusBarManager.updateBranch(name);
-            this.workspaceProvider.refresh();
-            vscode.window.showInformationMessage(`Created and switched to branch: ${name}`);
-          } else {
-            vscode.window.showErrorMessage(result.error || `Failed to create branch: ${name}`);
-          }
-        }
-      }),
+          const items = deletable.map(b => ({
+            label: b.name,
+            branchId: b.id,
+          }));
 
-      vscode.commands.registerCommand("darklang.branch.switch", (branch) => {
-        // Handle both {label: ...} and {id: ...} formats
-        const branchID = branch?.id;
-        // CLEANUP: do we need branch?.label || branch?.name
-        const branchLabel = branch?.label || branch?.name || branch?.title || "Unknown";
-
-        if (branchID) {
-          this.branchStateManager.setCurrentBranchById(branchID);
-          this.statusBarManager.updateBranch(branchLabel);
-          this.workspaceProvider.refresh();
-          vscode.window.showInformationMessage(`Switched to branch: ${branchLabel}`);
-        } else {
-          console.error('  ERROR: No branchID provided to switch command!');
-        }
-      }),
-
-      vscode.commands.registerCommand("darklang.branch.view", (branch) => {
-        const branchID = branch?.id || this.branchStateManager.getCurrentBranchId();
-        const branchLabel = branch?.label || branch?.name || this.branchStateManager.getCurrentBranchName();
-
-        if (!branchID) {
-          vscode.window.showErrorMessage("No branch is currently selected");
-          return;
-        }
-
-        const virtualUri = vscode.Uri.parse(`dark:///branch/${branchID}?label=${encodeURIComponent(branchLabel)}`);
-        vscode.workspace.openTextDocument(virtualUri).then(doc => {
-          vscode.window.showTextDocument(doc, {
-            preview: false,
-            preserveFocus: false
+          const selected = await vscode.window.showQuickPick(items, {
+            placeHolder: "Select a branch to delete",
           });
-          vscode.window.showInformationMessage(`Viewing branch: ${branchLabel}`);
-        });
+
+          if (selected) {
+            const confirm = await vscode.window.showWarningMessage(
+              `Delete branch "${selected.label}"?`,
+              { modal: true },
+              "Delete"
+            );
+            if (confirm === "Delete") {
+              await this.client.sendRequest("dark/deleteBranch", { branchId: selected.branchId });
+              vscode.window.showInformationMessage(`Deleted branch "${selected.label}"`);
+            }
+          }
+        } catch (error) {
+          vscode.window.showErrorMessage(`Failed to delete branch: ${error}`);
+        }
       }),
 
       vscode.commands.registerCommand("darklang.branch.rename", async () => {
-        const currentName = this.branchStateManager.getCurrentBranchName();
-        const newName = await vscode.window.showInputBox({
-          prompt: "Enter new branch name",
-          value: currentName,
-          placeHolder: "e.g., helpful-owl-42: Add user validation"
-        });
+        try {
+          const branches = await this.client.sendRequest<BranchInfo[]>("dark/getBranches", {});
+          const items = branches.filter(b => b.name !== "main").map(b => ({
+            label: b.name,
+            description: b.isActive ? "(current)" : "",
+            branchId: b.id,
+          }));
 
-        if (newName && newName !== currentName) {
-          // TODO: Implement actual branch rename API call
-          this.statusBarManager.updateBranch(newName);
-          vscode.window.showInformationMessage(`Branch rename not yet implemented`);
+          if (items.length === 0) {
+            vscode.window.showInformationMessage("No branches available to rename");
+            return;
+          }
+
+          const selected = await vscode.window.showQuickPick(items, {
+            placeHolder: "Select a branch to rename",
+          });
+
+          if (selected) {
+            const newName = await vscode.window.showInputBox({
+              prompt: "New branch name",
+              placeHolder: "Enter new name",
+              value: selected.label,
+            });
+            if (newName && newName !== selected.label) {
+              await this.client.sendRequest("dark/renameBranch", { branchId: selected.branchId, newName });
+              vscode.window.showInformationMessage(`Renamed branch to "${newName}"`);
+              this.scmProvider.refresh();
+            }
+          }
+        } catch (error) {
+          vscode.window.showErrorMessage(`Failed to rename branch: ${error}`);
         }
       }),
 
-      vscode.commands.registerCommand("darklang.branch.clear", async () => {
-        await this.branchStateManager.clearCurrentBranch();
-        this.statusBarManager.updateBranch("No Branch");
-        this.workspaceProvider.refresh();
-        vscode.window.showInformationMessage("Branch selection cleared - viewing all branches");
-      })
+      vscode.commands.registerCommand("darklang.branch.rebase", async () => {
+        try {
+          // Check for conflicts first
+          const status = await this.client.sendRequest<{ conflicts: string[]; hasConflicts: boolean }>("dark/rebaseStatus", {});
+          if (status.hasConflicts) {
+            const conflicts = status.conflicts.join("\n  ");
+            vscode.window.showWarningMessage(`Rebase has conflicts:\n  ${conflicts}`);
+            return;
+          }
+
+          const result = await this.client.sendRequest<{ success: boolean; message?: string; conflicts?: string[] }>("dark/rebase", {});
+          if (result.success) {
+            vscode.window.showInformationMessage(result.message || "Rebase successful");
+          } else if (result.conflicts && result.conflicts.length > 0) {
+            const conflicts = result.conflicts.join("\n  ");
+            vscode.window.showWarningMessage(`Rebase failed with conflicts:\n  ${conflicts}`);
+          }
+        } catch (error) {
+          vscode.window.showErrorMessage(`Failed to rebase: ${error}`);
+        }
+      }),
+
+      vscode.commands.registerCommand("darklang.branch.merge", async () => {
+        try {
+          // Check if merge is possible first
+          const check = await this.client.sendRequest<{ canMerge: boolean; reason?: string }>("dark/canMerge", {});
+          if (!check.canMerge) {
+            vscode.window.showWarningMessage(`Cannot merge: ${check.reason}`);
+            return;
+          }
+
+          const confirm = await vscode.window.showWarningMessage(
+            "Merge current branch into its parent?",
+            { modal: true },
+            "Merge"
+          );
+          if (confirm === "Merge") {
+            const result = await this.client.sendRequest<{ success: boolean; switchedTo?: { id: string; name: string } }>("dark/merge", {});
+            if (result.success && result.switchedTo) {
+              vscode.window.showInformationMessage(`Merged and switched to "${result.switchedTo.name}"`);
+            }
+          }
+        } catch (error) {
+          vscode.window.showErrorMessage(`Failed to merge: ${error}`);
+        }
+      }),
     ];
   }
 }

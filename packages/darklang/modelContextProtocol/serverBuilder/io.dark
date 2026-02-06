@@ -20,7 +20,7 @@ let sendJsonResponseWithPath (logFilePath: String) (response: Darklang.ModelCont
 /// Send a successful response with result
 let sendSuccessResponseWithPath
   (logFilePath: String)
-  (requestId: Stdlib.Option.Option<JsonRPC.RequestId>)
+  (requestId: Stdlib.Option.Option<JsonRPC.RequestID>)
   (result: Darklang.ModelContextProtocol.Json)
   : Unit =
   let response = JsonRPC.Response.Ok.make requestId result
@@ -29,7 +29,7 @@ let sendSuccessResponseWithPath
 /// Send an error response
 let sendErrorResponseWithPath
   (logFilePath: String)
-  (requestId: Stdlib.Option.Option<JsonRPC.RequestId>)
+  (requestId: Stdlib.Option.Option<JsonRPC.RequestID>)
   (code: Int64)
   (message: String)
   : Unit =

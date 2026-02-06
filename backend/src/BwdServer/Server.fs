@@ -292,7 +292,7 @@ let runDarkHandler (ctx : HttpContext) : Task<HttpContext> =
           let inputVars = routeVars |> Map |> Map.add "request" request
 
           let! canvas = Canvas.toProgram canvas
-          let! (result, _) =
+          let! (result, exeState, _) =
             CloudExe.executeHandler
               handler
               canvas
@@ -300,7 +300,7 @@ let runDarkHandler (ctx : HttpContext) : Task<HttpContext> =
               inputVars
               (CloudExe.InitialExecution(desc, "request", request))
 
-          let result = LibHttpMiddleware.Response.toHttpResponse result
+          let! result = LibHttpMiddleware.Response.toHttpResponse exeState result
 
           do! writeResponseToContext ctx result.statusCode result.headers result.body
 

@@ -34,42 +34,6 @@ let write (w : BinaryWriter) (op : PackageOp) : unit =
     w.Write(5uy)
     FQFnName.Package.write w id
     PackageLocation.write w location
-  | PackageOp.ApproveItem(itemId, branchId, reviewerId) ->
-    w.Write(6uy)
-    Guid.write w itemId
-    Option.write w Guid.write branchId
-    Guid.write w reviewerId
-  | PackageOp.RejectItem(itemId, branchId, reviewerId, reason) ->
-    w.Write(7uy)
-    Guid.write w itemId
-    Option.write w Guid.write branchId
-    Guid.write w reviewerId
-    String.write w reason
-  | PackageOp.RequestNamingApproval(requestId,
-                                    createdBy,
-                                    targetNamespace,
-                                    locationIds,
-                                    title,
-                                    description,
-                                    sourceBranchId) ->
-    w.Write(8uy)
-    Guid.write w requestId
-    Guid.write w createdBy
-    String.write w targetNamespace
-    List.write w String.write locationIds
-    Option.write w String.write title
-    Option.write w String.write description
-    Option.write w Guid.write sourceBranchId
-  | PackageOp.WithdrawApprovalRequest(requestId, withdrawnBy) ->
-    w.Write(9uy)
-    Guid.write w requestId
-    Guid.write w withdrawnBy
-  | PackageOp.RequestChanges(requestId, locationId, reviewerId, comment) ->
-    w.Write(10uy)
-    Guid.write w requestId
-    String.write w locationId
-    Guid.write w reviewerId
-    String.write w comment
 
 let read (r : BinaryReader) : PackageOp =
   match r.ReadByte() with
@@ -94,44 +58,6 @@ let read (r : BinaryReader) : PackageOp =
     let id = FQFnName.Package.read r
     let location = PackageLocation.read r
     PackageOp.SetFnName(id, location)
-  | 6uy ->
-    let itemId = Guid.read r
-    let branchId = Option.read r Guid.read
-    let reviewerId = Guid.read r
-    PackageOp.ApproveItem(itemId, branchId, reviewerId)
-  | 7uy ->
-    let itemId = Guid.read r
-    let branchId = Option.read r Guid.read
-    let reviewerId = Guid.read r
-    let reason = String.read r
-    PackageOp.RejectItem(itemId, branchId, reviewerId, reason)
-  | 8uy ->
-    let requestId = Guid.read r
-    let createdBy = Guid.read r
-    let targetNamespace = String.read r
-    let locationIds = List.read r String.read
-    let title = Option.read r String.read
-    let description = Option.read r String.read
-    let sourceBranchId = Option.read r Guid.read
-    PackageOp.RequestNamingApproval(
-      requestId,
-      createdBy,
-      targetNamespace,
-      locationIds,
-      title,
-      description,
-      sourceBranchId
-    )
-  | 9uy ->
-    let requestId = Guid.read r
-    let withdrawnBy = Guid.read r
-    PackageOp.WithdrawApprovalRequest(requestId, withdrawnBy)
-  | 10uy ->
-    let requestId = Guid.read r
-    let locationId = String.read r
-    let reviewerId = Guid.read r
-    let comment = String.read r
-    PackageOp.RequestChanges(requestId, locationId, reviewerId, comment)
   | b -> raise (BinaryFormatException(CorruptedData $"Invalid PackageOp tag: {b}"))
 
 

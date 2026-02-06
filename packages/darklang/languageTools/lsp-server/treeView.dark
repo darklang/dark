@@ -36,7 +36,7 @@ let makeTreeItem
 
 /// Helper to send a tree view response
 let sendTreeViewResponse
-  (requestID: JsonRPC.RequestId)
+  (requestID: JsonRPC.RequestID)
   (treeItems: List<TreeItem>)
   : Unit =
   let result =
@@ -55,7 +55,7 @@ let sendTreeViewResponse
 /// handles `dark/getRootNodes` requests
 let handleGetRootNodesRequest
   (state: LspState)
-  (requestID: JsonRPC.RequestId)
+  (requestID: JsonRPC.RequestID)
   : LspState =
   // TODO perf: this is kinda nuts - we search ALL packages just to extract unique owners
   // should have a dedicated SQL query like `SELECT DISTINCT owner FROM locations WHERE deprecated_at IS NULL`
@@ -73,7 +73,7 @@ let handleGetRootNodesRequest
         ]
         exactMatch = false }
 
-  let searchResults = PackageManager.Search.search state.accountID state.branchID searchQuery
+  let searchResults = PackageManager.Search.search state.currentBranchId searchQuery
 
   // Extract unique owners from all results
   let owners =
@@ -156,7 +156,7 @@ let buildTreeItems
 
 let handleGetChildNodesRequest
   (state: LspState)
-  (requestID: JsonRPC.RequestId)
+  (requestID: JsonRPC.RequestID)
   (nodeId: String)
   : LspState =
   // TODO perf: using AllDescendants then filtering in Darklang to get immediate children
@@ -179,7 +179,7 @@ let handleGetChildNodesRequest
         exactMatch = false }
 
   let searchResults =
-    PackageManager.Search.search state.accountID state.branchID searchQuery
+    PackageManager.Search.search state.currentBranchId searchQuery
   let treeItems = buildTreeItems searchResults currentPath nodeId
 
   sendTreeViewResponse requestID treeItems

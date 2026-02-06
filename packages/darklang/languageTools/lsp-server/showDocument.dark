@@ -3,7 +3,7 @@ module Darklang.LanguageTools.LspServer.ShowDocument
 
 let makeShowDocumentRequest
   (uri: String)
-  (requestId: JsonRPC.RequestId)
+  (requestId: JsonRPC.RequestID)
   : String =
   let showDocParams =
     (LanguageServerProtocol.Window.ShowDocument.ShowDocumentRequest.ShowDocumentParams.ShowDocumentParams

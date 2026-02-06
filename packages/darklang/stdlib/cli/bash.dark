@@ -50,3 +50,23 @@ let addAlias
 
     applyBashConfigChanges ()
   | Error e -> Result.Result.Error e
+
+
+/// Add a directory to PATH in .bashrc
+let addToPath (dir: String) : Result.Result<Unit, String> =
+  let exportLine = $"export PATH=\"{dir}:$PATH\""
+
+  match readBashrc () with
+  | Ok content ->
+    // Check if PATH export for this dir already exists (not just any reference to the dir)
+    if String.contains content exportLine then
+      Result.Result.Ok()
+    else
+      let updatedContent = content ++ "\n" ++ exportLine
+      overwriteBashrc updatedContent
+
+      Builtin.printLine
+        "Changes have been made to your .bashrc file. \nTo apply these changes to your current terminal session, please run the following command:\nsource ~/.bashrc\n\n "
+
+      applyBashConfigChanges ()
+  | Error e -> Result.Result.Error e

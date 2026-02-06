@@ -8,11 +8,10 @@ module Darklang.LanguageTools.PackageManager
 
 module Type =
   let find
-    (accountID: Stdlib.Option.Option<Uuid>)
-    (branchID: Stdlib.Option.Option<Uuid>)
+    (branchId: Uuid)
     (location: ProgramTypes.PackageLocation)
     : Stdlib.Option.Option<Uuid> =
-    Builtin.pmFindType accountID branchID location
+    Builtin.pmFindType branchId location
 
   let get
     (id: Uuid)
@@ -20,14 +19,13 @@ module Type =
     Builtin.pmGetType id
 
   let getWithLocation
-    (accountID: Stdlib.Option.Option<Uuid>)
-    (branchID: Stdlib.Option.Option<Uuid>)
+    (branchId: Uuid)
     (id: Uuid)
     : Stdlib.Option.Option<
       ProgramTypes.LocatedItem<ProgramTypes.PackageType.PackageType>> =
     match Builtin.pmGetType id with
     | Some entity ->
-      match Builtin.pmGetLocationByType accountID branchID id with
+      match Builtin.pmGetLocationByType branchId id with
       | Some location ->
         Stdlib.Option.Option.Some(
           ProgramTypes.LocatedItem { entity = entity; location = location }
@@ -38,11 +36,10 @@ module Type =
 
 module Value =
   let find
-    (accountID: Stdlib.Option.Option<Uuid>)
-    (branchID: Stdlib.Option.Option<Uuid>)
+    (branchId: Uuid)
     (location: ProgramTypes.PackageLocation)
     : Stdlib.Option.Option<Uuid> =
-    Builtin.pmFindValue accountID branchID location
+    Builtin.pmFindValue branchId location
 
   let get
     (id: Uuid)
@@ -50,14 +47,13 @@ module Value =
     Builtin.pmGetValue id
 
   let getWithLocation
-    (accountID: Stdlib.Option.Option<Uuid>)
-    (branchID: Stdlib.Option.Option<Uuid>)
+    (branchId: Uuid)
     (id: Uuid)
     : Stdlib.Option.Option<
       ProgramTypes.LocatedItem<ProgramTypes.PackageValue.PackageValue>> =
     match Builtin.pmGetValue id with
     | Some entity ->
-      match Builtin.pmGetLocationByValue accountID branchID id with
+      match Builtin.pmGetLocationByValue branchId id with
       | Some location ->
         Stdlib.Option.Option.Some(
           ProgramTypes.LocatedItem { entity = entity; location = location }
@@ -68,24 +64,22 @@ module Value =
 
 module Function =
   let find
-    (accountID: Stdlib.Option.Option<Uuid>)
-    (branchID: Stdlib.Option.Option<Uuid>)
+    (branchId: Uuid)
     (location: ProgramTypes.PackageLocation)
     : Stdlib.Option.Option<Uuid> =
-    Builtin.pmFindFn accountID branchID location
+    Builtin.pmFindFn branchId location
 
   let get (id: Uuid) : Stdlib.Option.Option<ProgramTypes.PackageFn.PackageFn> =
     Builtin.pmGetFn id
 
   let getWithLocation
-    (accountID: Stdlib.Option.Option<Uuid>)
-    (branchID: Stdlib.Option.Option<Uuid>)
+    (branchId: Uuid)
     (id: Uuid)
     : Stdlib.Option.Option<
       ProgramTypes.LocatedItem<ProgramTypes.PackageFn.PackageFn>> =
     match Builtin.pmGetFn id with
     | Some entity ->
-      match Builtin.pmGetLocationByFn accountID branchID id with
+      match Builtin.pmGetLocationByFn branchId id with
       | Some location ->
         Stdlib.Option.Option.Some(
           ProgramTypes.LocatedItem { entity = entity; location = location }
@@ -96,11 +90,10 @@ module Function =
 
 module Search =
   let search
-    (accountID: Stdlib.Option.Option<Uuid>)
-    (branchID: Stdlib.Option.Option<Uuid>)
+    (branchId: Uuid)
     (query: ProgramTypes.Search.SearchQuery)
     : ProgramTypes.Search.SearchResults =
-    let searchResults = Builtin.pmSearch accountID branchID query
+    let searchResults = Builtin.pmSearch branchId query
 
     ProgramTypes.Search.SearchResults
       { submodules = searchResults.submodules
@@ -108,15 +101,19 @@ module Search =
         values = searchResults.values
         fns = searchResults.fns }
 
-// CLEANUP: update this to a value rather than a function, once we have support for value records
+/// Create a PackageManager
 let pm () : ProgramTypes.PackageManager.PackageManager =
   ProgramTypes.PackageManager.PackageManager
-    { findType = PackageManager.Type.find
-      findValue = PackageManager.Value.find
-      findFn = PackageManager.Function.find
+    { findType =
+        fun (branchId, location) -> PackageManager.Type.find branchId location
+      findValue =
+        fun (branchId, location) -> PackageManager.Value.find branchId location
+      findFn =
+        fun (branchId, location) -> PackageManager.Function.find branchId location
 
       getFn = PackageManager.Function.get
       getValue = PackageManager.Value.get
       getType = PackageManager.Type.get
 
-      search = PackageManager.Search.search }
+      search =
+        fun (branchId, query) -> PackageManager.Search.search branchId query }

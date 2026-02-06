@@ -17,21 +17,7 @@ export interface NavItem {
 export const defaultNavItems: NavItem[] = [
   { page: "dashboard", label: "Dashboard", icon: navIcons.dashboard },
   { page: "packages", label: "Packages", icon: navIcons.packages },
-  { page: "branches", label: "Branches", icon: navIcons.branches },
-  { page: "apps", label: "Apps", icon: navIcons.apps },
-  {
-    page: "approval-requests",
-    label: "Approval Requests",
-    icon: navIcons["approval-requests"],
-    badge: "3",
-  },
-  {
-    page: "contributions",
-    label: "Contributions",
-    icon: navIcons.contributions,
-    badge: "2",
-  },
-  { page: "traces", label: "Traces", icon: navIcons.traces },
+  { page: "docs", label: "Docs", icon: navIcons.docs },
   { page: "settings", label: "Settings", icon: navIcons.settings },
   {
     page: "changelog",
@@ -39,7 +25,6 @@ export const defaultNavItems: NavItem[] = [
     icon: navIcons.changelog,
     tag: "NEW",
   },
-  { page: "logout", label: "Logout", icon: navIcons.logout },
 ];
 
 function renderNavItem(item: NavItem, activePage: PageName): string {

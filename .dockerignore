@@ -31,10 +31,6 @@ config/local
 # CI (not needed in container)
 .circleci/
 
-# Todos (meta)
-todos/
-pre-prompt.md
-
 # Claude
 .claude/
 CLAUDE.md

@@ -37,38 +37,15 @@ let fns : List<BuiltInFn> =
 
     { name = fn "darkInternalCanvasCreate" 0
       typeParams = []
-      parameters = [ Param.make "owner" TUuid ""; Param.make "name" TString "" ]
+      parameters = [ Param.make "name" TString "" ]
       returnType = TUuid
       description = "Creates a new canvas"
       fn =
         (function
-        | _, _, _, [ DUuid owner; DString name ] ->
+        | _, _, _, [ DString name ] ->
           uply {
-            let! canvasID = Canvas.create owner name
+            let! canvasID = Canvas.create name
             return DUuid canvasID
-          }
-        | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
-      previewable = Impure
-      deprecated = NotDeprecated }
-
-
-    { name = fn "darkInternalCanvasOwner" 0
-      typeParams = []
-      parameters = [ Param.make "canvasID" TUuid "" ]
-      returnType = TUuid
-      description = "Get the owner of a canvas"
-      fn =
-        (function
-        | _, _, _, [ DUuid canvasID ] ->
-          uply {
-            let! owner = Canvas.getOwner canvasID
-            return
-              owner
-              |> Exception.unwrapOptionInternal
-                "Canvas owner not found"
-                [ "canvasID", canvasID ]
-              |> DUuid
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable

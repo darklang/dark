@@ -3,7 +3,7 @@ module Darklang.LanguageTools.LspServer
 
 let handleInitializeRequest
   // TODO: (LanguageServerProtocol.Lifecycle.InitializeRequest.InitializeParams.InitializeParams)
-  (requestId: JsonRPC.RequestId)
+  (requestId: JsonRPC.RequestID)
   : LspState =
   let hardcodedInitializeResult =
     LanguageServerProtocol.Lifecycle.InitializeRequest.InitializeResult.InitializeResult
@@ -55,6 +55,5 @@ let handleInitializeRequest
   LspState
     { initialized = true
       shouldShutdown = false
-      accountID = Stdlib.Option.Option.None
-      branchID = Stdlib.Option.Option.None
+      currentBranchId = SCM.Branch.mainBranchId
       documentsInScope = Dict { } }

@@ -1,0 +1,58 @@
+module Darklang.Cli.SCM.Merge
+
+
+let execute (state: AppState) (args: List<String>) : AppState =
+  let dryRun =
+    (Stdlib.List.member_v0 args "--dry-run") || (Stdlib.List.member_v0 args "-n")
+
+  if dryRun then
+    match SCM.Merge.canMerge state.currentBranchId with
+    | Ok _ ->
+      Stdlib.printLine (Colors.success "Branch is ready to merge.")
+      state
+    | Error err ->
+      let msg = SCM.Merge.mergeErrorToString err
+      Stdlib.printLine (Colors.error $"Cannot merge: {msg}")
+      state
+  else
+    match SCM.Merge.merge state.currentBranchId with
+    | Ok _ ->
+      Stdlib.printLine (Colors.success "Branch merged successfully.")
+      // Switch to parent branch
+      match SCM.Branch.get state.currentBranchId with
+      | Some b ->
+        match b.parentBranchId with
+        | Some parentId ->
+          Stdlib.printLine "Switched to parent branch."
+          { state with currentBranchId = parentId }
+        | None ->
+          let mainId = SCM.Branch.mainBranchId
+          Stdlib.printLine "Switched to main."
+          { state with currentBranchId = mainId }
+      | None ->
+        // Branch was merged and info might not be available, switch to main
+        let mainId = SCM.Branch.mainBranchId
+        Stdlib.printLine "Switched to main."
+        { state with currentBranchId = mainId }
+    | Error err ->
+      let msg = SCM.Merge.mergeErrorToString err
+      Stdlib.printLine (Colors.error $"Merge failed: {msg}")
+      state
+
+
+let complete (_state: AppState) (_args: List<String>) : List<Completion.CompletionItem> =
+  [ Completion.simple "--dry-run" ]
+
+
+let help (_state: AppState) : Unit =
+  [ "Usage: merge [--dry-run|-n]"
+    "Merge current branch into its parent."
+    ""
+    "Prerequisites:"
+    "  - Must be rebased (run 'rebase' first)"
+    "  - Must have no WIP (commit or discard first)"
+    "  - Must have no child branches"
+    ""
+    "Flags:"
+    "  --dry-run, -n   Check if merge is possible without doing it" ]
+  |> Stdlib.printLines

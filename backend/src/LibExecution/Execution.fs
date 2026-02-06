@@ -29,6 +29,7 @@ let createState
   (tracing : RT.Tracing.Tracing)
   (reportException : RT.ExceptionReporter)
   (notify : RT.Notifier)
+  (branchId : RT.BranchId)
   (program : RT.Program)
   : RT.ExecutionState =
   { tracing = tracing
@@ -36,6 +37,7 @@ let createState
     reportException = reportException
     notify = notify
 
+    branchId = branchId
     program = program
 
     types = { package = pm.getType }
@@ -144,8 +146,6 @@ let executeFunction
 
 
 let runtimeErrorToString
-  (accountID : Option<uuid>)
-  (branchID : Option<uuid>)
   (state : RT.ExecutionState)
   (rte : RT.RuntimeError.Error)
   : Task<RT.ExecutionResult> =
@@ -153,30 +153,63 @@ let runtimeErrorToString
     let fnName =
       RT.FQFnName.fqPackage
         PackageIDs.Fn.PrettyPrinter.RuntimeTypes.RuntimeError.toString
-    let accountID = accountID |> Option.map Dval.uuid |> Dval.option RT.KTUuid
-    let branchID = branchID |> Option.map Dval.uuid |> Dval.option RT.KTUuid
-    let args = NEList.ofList accountID [ branchID; RT2DT.RuntimeError.toDT rte ]
+    let args =
+      NEList.ofList (RT.DUuid state.branchId) [ RT2DT.RuntimeError.toDT rte ]
     return! executeFunction state fnName [] args
   }
 
-// CLEANUP not ideal, but useful
-let getPackageFnName
+/// Fallback for when a pretty printer call fails.
+/// Clearly marks the output so it's obvious something went wrong,
+/// while still giving the user the raw F# representation.
+let private prettyPrintFallback (label : string) (raw : obj) : string =
+  $"<pretty-print failed for {label}: {raw}>"
+
+let fnNameToString
   (state : RT.ExecutionState)
-  (id : RT.FQFnName.Package)
-  : Ply<string> =
-  uply {
+  (name : RT.FQFnName.FQFnName)
+  : Task<string> =
+  task {
+    let fnName =
+      RT.FQFnName.fqPackage PackageIDs.Fn.PrettyPrinter.RuntimeTypes.fnName
+    let args = NEList.ofList (RT.DUuid state.branchId) [ RT2DT.FQFnName.toDT name ]
+    match! executeFunction state fnName [] args with
+    | Ok(RT.DString s) -> return s
+    | _ -> return prettyPrintFallback "fnName" name
+  }
+
+
+let dvalToRepr (state : RT.ExecutionState) (dval : RT.Dval) : Task<string> =
+  task {
+    let fnName = RT.FQFnName.fqPackage PackageIDs.Fn.PrettyPrinter.RuntimeTypes.dval
+    let args = NEList.ofList (RT.DUuid state.branchId) [ RT2DT.Dval.toDT dval ]
+    match! executeFunction state fnName [] args with
+    | Ok(RT.DString s) -> return s
+    | _ -> return prettyPrintFallback "dval" dval
+  }
+
+let typeRefToString
+  (state : RT.ExecutionState)
+  (typeRef : RT.TypeReference)
+  : Task<string> =
+  task {
+    let fnName =
+      RT.FQFnName.fqPackage PackageIDs.Fn.PrettyPrinter.RuntimeTypes.typeReference
+    let args =
+      NEList.ofList (RT.DUuid state.branchId) [ RT2DT.TypeReference.toDT typeRef ]
+    match! executeFunction state fnName [] args with
+    | Ok(RT.DString s) -> return s
+    | _ -> return prettyPrintFallback "typeRef" typeRef
+  }
+
+let dvalToTypeName (state : RT.ExecutionState) (dval : RT.Dval) : Task<string> =
+  task {
     let fnName =
       RT.FQFnName.fqPackage
-        PackageIDs.Fn.PrettyPrinter.ProgramTypes.FQFnName.fullForReference
-    let typeName =
-      RT.FQTypeName.fqPackage
-        PackageIDs.Type.LanguageTools.ProgramTypes.FQFnName.fqFnName
-    let dval = RT.DEnum(typeName, typeName, [], "Package", [ RT.DUuid id ])
-    let args = NEList.singleton dval
-    let! result = executeFunction state fnName [] args
-    match result with
+        PackageIDs.Fn.PrettyPrinter.RuntimeTypes.Dval.valueTypeName
+    let args = NEList.ofList (RT.DUuid state.branchId) [ RT2DT.Dval.toDT dval ]
+    match! executeFunction state fnName [] args with
     | Ok(RT.DString s) -> return s
-    | _ -> return $"{id}"
+    | _ -> return prettyPrintFallback "typeName" dval
   }
 
 
@@ -242,9 +275,9 @@ let executionPointToString
 
     match ep with
     | RT.Source -> return "Source"
-    | RT.Function(RT.FQFnName.Package id) ->
-      let! name = getPackageFnName state id
-      return $"Package Function {name}"
+    | RT.Function(RT.FQFnName.Package _ as name) ->
+      let! prettyName = fnNameToString state name
+      return $"Package Function {prettyName}"
     | RT.Function(RT.FQFnName.Builtin fnName) ->
       return $"Builtin Function {fnName.name}" // TODO actually fetch the fn, etc
     | RT.Lambda(_parent, exprId) -> return ("Lambda " + string exprId)
@@ -322,14 +355,10 @@ let traceDvals () : Dictionary.T<id, RT.Dval> * RT.Tracing.TraceDval =
 
 let rec rteToString
   (rteToDval : RT.RuntimeError.Error -> RT.Dval)
-  (accountID : option<uuid>)
-  (branchID : option<uuid>)
   (state : RT.ExecutionState)
   (rte : RT.RuntimeError.Error)
   : Ply<string> =
-  let r = rteToString rteToDval accountID branchID state
-  let accountID = accountID |> Option.map Dval.uuid |> Dval.option RT.KTUuid
-  let branchID = branchID |> Option.map Dval.uuid |> Dval.option RT.KTUuid
+  let r = rteToString rteToDval state
   uply {
     let errorMessageFn =
       RT.FQFnName.fqPackage
@@ -342,11 +371,11 @@ let rec rteToString
         state
         errorMessageFn
         []
-        (NEList.ofList accountID [ branchID; rteDval ])
+        (NEList.ofList (RT.DUuid state.branchId) [ rteDval ])
 
     match rteMessage with
     | Ok(RT.DString msg) -> return msg
-    | Ok(other) -> return string other
+    | Ok(other) -> return prettyPrintFallback "rteToString" other
     | Error(rte, _cs) ->
       debuG "Error converting RTE to string" rte
       return! r rte

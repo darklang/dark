@@ -2,11 +2,9 @@ module LibPackageManager.ProgramTypes
 
 open System.Threading.Tasks
 open FSharp.Control.Tasks
-open System.Collections.Concurrent
 
 open Prelude
 
-open Microsoft.Data.Sqlite
 open Fumble
 open LibDB.Db
 
@@ -14,322 +12,179 @@ module PT = LibExecution.ProgramTypes
 module BinarySerialization = LibBinarySerialization.BinarySerialization
 
 
+/// Build a branch-aware SQL WHERE clause and ORDER BY for name resolution.
+/// branchChain = [current; parent; grandparent; ...; main]
+/// Current branch sees WIP + committed, ancestors see committed only.
+let private buildBranchFilter (branchChain : List<PT.BranchId>) =
+  match branchChain with
+  | [] -> ("1 = 0", []) // shouldn't happen
+  | [ single ] ->
+    // Only one branch (main with no chain) - see everything
+    let filter = "(branch_id = @branch_0)"
+    let parms = [ "branch_0", Sql.uuid single ]
+    (filter, parms)
+  | _current :: ancestors ->
+    // Current branch: WIP + committed; ancestors: committed only
+    let branchParams =
+      branchChain |> List.mapi (fun i id -> $"branch_{i}", Sql.uuid id)
+
+    let currentParam = "@branch_0"
+
+    let ancestorParams =
+      ancestors |> List.mapi (fun i _ -> $"@branch_{i + 1}") |> String.concat ", "
+
+    let filter =
+      $"(branch_id = {currentParam} OR (branch_id IN ({ancestorParams}) AND commit_id IS NOT NULL))"
+
+    // Note: ORDER BY is appended by the caller via buildBranchOrderBy
+    (filter, branchParams)
+
+
+let private buildBranchOrderBy (branchChain : List<PT.BranchId>) : string =
+  let caseClauses =
+    branchChain
+    |> List.mapi (fun i _ -> $"WHEN @branch_{i} THEN {i}")
+    |> String.concat " "
+
+  $"CASE branch_id {caseClauses} END, CASE WHEN commit_id IS NULL THEN 0 ELSE 1 END, created_at DESC"
+
+
+let private findItem
+  (itemType : string)
+  (branchChain : List<PT.BranchId>)
+  (location : PT.PackageLocation)
+  : Ply<Option<uuid>> =
+  uply {
+    let modulesStr = String.concat "." location.modules
+    let (branchFilter, branchParams) = buildBranchFilter branchChain
+    let orderBy = buildBranchOrderBy branchChain
+
+    return!
+      Sql.query
+        $"""
+        SELECT item_id
+        FROM locations
+        WHERE owner = @owner
+          AND modules = @modules
+          AND name = @name
+          AND item_type = '{itemType}'
+          AND deprecated_at IS NULL
+          AND {branchFilter}
+        ORDER BY {orderBy}
+        LIMIT 1
+        """
+      |> Sql.parameters (
+        [ "owner", Sql.string location.owner
+          "modules", Sql.string modulesStr
+          "name", Sql.string location.name ]
+        @ branchParams
+      )
+      |> Sql.executeRowOptionAsync (fun read -> read.uuid "item_id")
+  }
+
+let private getItem<'a>
+  (table : string)
+  (deserialize : uuid -> byte[] -> 'a)
+  (id : uuid)
+  : Ply<Option<'a>> =
+  uply {
+    return!
+      Sql.query
+        $"""
+        SELECT pt_def
+        FROM {table}
+        WHERE id = @id
+        """
+      |> Sql.parameters [ "id", Sql.uuid id ]
+      |> Sql.executeRowOptionAsync (fun read -> read.bytes "pt_def")
+      |> Task.map (Option.map (deserialize id))
+  }
+
+let private getItemLocation
+  (itemType : string)
+  (branchChain : List<PT.BranchId>)
+  (id : uuid)
+  : Ply<Option<PT.PackageLocation>> =
+  uply {
+    let (branchFilter, branchParams) = buildBranchFilter branchChain
+    let orderBy = buildBranchOrderBy branchChain
+
+    return!
+      Sql.query
+        $"""
+        SELECT owner, modules, name
+        FROM locations
+        WHERE item_id = @item_id
+          AND item_type = '{itemType}'
+          AND deprecated_at IS NULL
+          AND {branchFilter}
+        ORDER BY {orderBy}
+        LIMIT 1
+        """
+      |> Sql.parameters ([ "item_id", Sql.uuid id ] @ branchParams)
+      |> Sql.executeRowOptionAsync (fun read ->
+        let modulesStr = read.string "modules"
+        { owner = read.string "owner"
+          modules = modulesStr.Split('.') |> Array.toList
+          name = read.string "name" })
+  }
+
+
 module Type =
-  let find
-    ((accountID, branchID, location) :
-      Option<PT.AccountID> * Option<PT.BranchID> * PT.PackageLocation)
-    : Ply<Option<PT.FQTypeName.Package>> =
-    uply {
-      let modulesStr = String.concat "." location.modules
-
-      return!
-        Sql.query
-          """
-          SELECT item_id
-          FROM locations
-          WHERE owner = @owner
-            AND modules = @modules
-            AND name = @name
-            AND item_type = 'type'
-            AND deprecated_at IS NULL
-            AND (approval_status = 'approved' OR (@accountID IS NOT NULL AND created_by = @accountID))
-            AND (branch_id IS NULL OR branch_id = @branch_id)
-          ORDER BY created_at DESC
-          LIMIT 1
-          """
-        |> Sql.parameters
-          [ "owner", Sql.string location.owner
-            "modules", Sql.string modulesStr
-            "name", Sql.string location.name
-            "branch_id",
-            (match branchID with
-             | Some id -> Sql.uuid id
-             | None -> Sql.dbnull)
-            "accountID",
-            (match accountID with
-             | Some id -> Sql.uuid id
-             | None -> Sql.dbnull) ]
-        |> Sql.executeRowOptionAsync (fun read -> read.uuid "item_id")
-    }
-
-  let get (id : uuid) : Ply<Option<PT.PackageType.PackageType>> =
-    uply {
-      return!
-        Sql.query
-          """
-          SELECT pt_def
-          FROM package_types
-          WHERE id = @id
-          """
-        |> Sql.parameters [ "id", Sql.uuid id ]
-        |> Sql.executeRowOptionAsync (fun read -> read.bytes "pt_def")
-        |> Task.map (Option.map (BinarySerialization.PT.PackageType.deserialize id))
-    }
-
-  let getLocation
-    ((accountID, branchID, id) : Option<PT.AccountID> * Option<PT.BranchID> * uuid)
-    : Ply<Option<PT.PackageLocation>> =
-    uply {
-      return!
-        Sql.query
-          """
-          SELECT owner, modules, name
-          FROM locations
-          WHERE item_id = @item_id
-            AND item_type = 'type'
-            AND deprecated_at IS NULL
-            AND (approval_status = 'approved' OR (@accountID IS NOT NULL AND created_by = @accountID))
-            AND (branch_id IS NULL OR branch_id = @branch_id)
-          ORDER BY created_at DESC
-          LIMIT 1
-          """
-        |> Sql.parameters
-          [ "item_id", Sql.uuid id
-            "branch_id",
-            (match branchID with
-             | Some id -> Sql.uuid id
-             | None -> Sql.dbnull)
-            "accountID",
-            (match accountID with
-             | Some id -> Sql.uuid id
-             | None -> Sql.dbnull) ]
-        |> Sql.executeRowOptionAsync (fun read ->
-          let modulesStr = read.string "modules"
-          { owner = read.string "owner"
-            modules = modulesStr.Split('.') |> Array.toList
-            name = read.string "name" })
-    }
-
+  let find = findItem "type"
+  let get = getItem "package_types" BinarySerialization.PT.PackageType.deserialize
+  let getLocation = getItemLocation "type"
 
 module Value =
-  let find
-    ((accountID, branchID, location) :
-      Option<PT.AccountID> * Option<PT.BranchID> * PT.PackageLocation)
-    : Ply<Option<PT.FQValueName.Package>> =
-    uply {
-      let modulesStr = String.concat "." location.modules
-
-      return!
-        Sql.query
-          """
-          SELECT item_id
-          FROM locations
-          WHERE owner = @owner
-            AND modules = @modules
-            AND name = @name
-            AND item_type = 'value'
-            AND deprecated_at IS NULL
-            AND (approval_status = 'approved' OR (@accountID IS NOT NULL AND created_by = @accountID))
-            AND (branch_id IS NULL OR branch_id = @branch_id)
-          ORDER BY created_at DESC
-          LIMIT 1
-          """
-        |> Sql.parameters
-          [ "owner", Sql.string location.owner
-            "modules", Sql.string modulesStr
-            "name", Sql.string location.name
-            "branch_id",
-            (match branchID with
-             | Some id -> Sql.uuid id
-             | None -> Sql.dbnull)
-            "accountID",
-            (match accountID with
-             | Some id -> Sql.uuid id
-             | None -> Sql.dbnull) ]
-        |> Sql.executeRowOptionAsync (fun read -> read.uuid "item_id")
-    }
-
-  let get (id : uuid) : Ply<Option<PT.PackageValue.PackageValue>> =
-    uply {
-      return!
-        Sql.query
-          """
-          SELECT pt_def
-          FROM package_values
-          WHERE id = @id
-          """
-        |> Sql.parameters [ "id", Sql.uuid id ]
-        |> Sql.executeRowOptionAsync (fun read -> read.bytes "pt_def")
-        |> Task.map (Option.map (BinarySerialization.PT.PackageValue.deserialize id))
-    }
-
-  let getLocation
-    ((accountID, branchID, id) : Option<PT.AccountID> * Option<PT.BranchID> * uuid)
-    : Ply<Option<PT.PackageLocation>> =
-    uply {
-      return!
-        Sql.query
-          """
-          SELECT owner, modules, name
-          FROM locations
-          WHERE item_id = @item_id
-            AND item_type = 'value'
-            AND deprecated_at IS NULL
-            AND (approval_status = 'approved' OR (@accountID IS NOT NULL AND created_by = @accountID))
-            AND (branch_id IS NULL OR branch_id = @branch_id)
-          ORDER BY created_at DESC
-          LIMIT 1
-          """
-        |> Sql.parameters
-          [ "item_id", Sql.uuid id
-            "branch_id",
-            (match branchID with
-             | Some id -> Sql.uuid id
-             | None -> Sql.dbnull)
-            "accountID",
-            (match accountID with
-             | Some id -> Sql.uuid id
-             | None -> Sql.dbnull) ]
-        |> Sql.executeRowOptionAsync (fun read ->
-          let modulesStr = read.string "modules"
-          { owner = read.string "owner"
-            modules = modulesStr.Split('.') |> Array.toList
-            name = read.string "name" })
-    }
-
+  let find = findItem "value"
+  let get = getItem "package_values" BinarySerialization.PT.PackageValue.deserialize
+  let getLocation = getItemLocation "value"
 
 module Fn =
-  let find
-    ((accountID, branchID, location) :
-      Option<PT.AccountID> * Option<PT.BranchID> * PT.PackageLocation)
-    : Ply<Option<PT.FQFnName.Package>> =
-    uply {
-      let modulesStr = String.concat "." location.modules
-
-      return!
-        Sql.query
-          """
-          SELECT item_id
-          FROM locations
-          WHERE owner = @owner
-            AND modules = @modules
-            AND name = @name
-            AND item_type = 'fn'
-            AND deprecated_at IS NULL
-            AND (approval_status = 'approved' OR (@accountID IS NOT NULL AND created_by = @accountID))
-            AND (branch_id IS NULL OR branch_id = @branch_id)
-          ORDER BY created_at DESC
-          LIMIT 1
-          """
-        |> Sql.parameters
-          [ "owner", Sql.string location.owner
-            "modules", Sql.string modulesStr
-            "name", Sql.string location.name
-            "branch_id",
-            (match branchID with
-             | Some id -> Sql.uuid id
-             | None -> Sql.dbnull)
-            "accountID",
-            (match accountID with
-             | Some id -> Sql.uuid id
-             | None -> Sql.dbnull) ]
-        |> Sql.executeRowOptionAsync (fun read -> read.uuid "item_id")
-    }
-
-  let get (id : uuid) : Ply<Option<PT.PackageFn.PackageFn>> =
-    uply {
-      return!
-        Sql.query
-          """
-          SELECT pt_def
-          FROM package_functions
-          WHERE id = @id
-          """
-        |> Sql.parameters [ "id", Sql.uuid id ]
-        |> Sql.executeRowOptionAsync (fun read -> read.bytes "pt_def")
-        |> Task.map (Option.map (BinarySerialization.PT.PackageFn.deserialize id))
-    }
-
-  let getLocation
-    ((accountID, branchID, id) : Option<PT.AccountID> * Option<PT.BranchID> * uuid)
-    : Ply<Option<PT.PackageLocation>> =
-    uply {
-      return!
-        Sql.query
-          """
-          SELECT owner, modules, name
-          FROM locations
-          WHERE item_id = @item_id
-            AND item_type = 'fn'
-            AND deprecated_at IS NULL
-            AND (approval_status = 'approved' OR (@accountID IS NOT NULL AND created_by = @accountID))
-            AND (branch_id IS NULL OR branch_id = @branch_id)
-          ORDER BY created_at DESC
-          LIMIT 1
-          """
-        |> Sql.parameters
-          [ "item_id", Sql.uuid id
-            "branch_id",
-            (match branchID with
-             | Some id -> Sql.uuid id
-             | None -> Sql.dbnull)
-            "accountID",
-            (match accountID with
-             | Some id -> Sql.uuid id
-             | None -> Sql.dbnull) ]
-        |> Sql.executeRowOptionAsync (fun read ->
-          let modulesStr = read.string "modules"
-          { owner = read.string "owner"
-            modules = modulesStr.Split('.') |> Array.toList
-            name = read.string "name" })
-    }
-
+  let find = findItem "fn"
+  let get = getItem "package_functions" BinarySerialization.PT.PackageFn.deserialize
+  let getLocation = getItemLocation "fn"
 
 
 let search
-  ((accountID, branchID, query) :
-    Option<PT.AccountID> * Option<PT.BranchID> * PT.Search.SearchQuery)
+  (branchChain : List<PT.BranchId>)
+  (query : PT.Search.SearchQuery)
   : Ply<PT.Search.SearchResults> =
   uply {
     let currentModule = String.concat "." query.currentModule
+    let (branchFilter, branchParams) = buildBranchFilter branchChain
 
     let! submodules =
       let (submoduleCondition, sqlParams) =
         if query.exactMatch then
-          // For exact search, we want direct children only
           if System.String.IsNullOrEmpty query.text then
-            // Looking for entities IN currentModule (to check if module exists)
             let parts = currentModule.Split('.') |> Array.toList
             match parts with
-            | [ owner ] ->
-              // Top-level module like "Darklang" - look for entities owned by it
-              ("""(owner = @owner)""", [ "owner", Sql.string owner ])
+            | [ owner ] -> ("""(owner = @owner)""", [ "owner", Sql.string owner ])
             | owner :: moduleParts ->
-              // Nested module - extract owner and modules parts
               let modulesPath = String.concat "." moduleParts
               ("""(owner = @owner AND modules = @modulesPath)""",
                [ "owner", Sql.string owner; "modulesPath", Sql.string modulesPath ])
-            | [] ->
-              // Root - should not happen, but handle gracefully
-              ("""(1 = 1)""", [])
+            | [] -> ("""(1 = 1)""", [])
           else
-            // Looking for a specific named submodule
             ("""(modules = @currentModule || '.' || @searchText)
                OR (owner || '.' || modules = @currentModule || '.' || @searchText)""",
              [ "currentModule", Sql.string currentModule
                "searchText", Sql.string query.text ])
-        else if
-          // Fuzzy logic - handle root case specially
-          System.String.IsNullOrEmpty currentModule
-        then
+        else if System.String.IsNullOrEmpty currentModule then
           match query.searchDepth with
           | PT.Search.SearchDepth.OnlyDirectDescendants ->
-            // At root with OnlyDirectDescendants - search for owners that match the text
             ("""(owner LIKE '%' || @searchText || '%')""",
              [ "searchText", Sql.string query.text ])
           | PT.Search.SearchDepth.AllDescendants ->
-            // At root with AllDescendants - search all modules recursively
             ("""((owner LIKE '%' || @searchText || '%')
                   OR (modules LIKE '%' || @searchText || '%')
                   OR (owner || '.' || modules LIKE '%' || @searchText || '%'))""",
              [ "searchText", Sql.string query.text ])
         else
-          // Not at root - fuzzy logic with depth control
           let directChildPattern = currentModule + ".%"
           match query.searchDepth with
           | PT.Search.SearchDepth.OnlyDirectDescendants ->
-            // For OnlyDirectDescendants, we want modules that start with currentModule + "."
-            // but don't have any additional "." after that (i.e., direct children only)
             ("""((modules LIKE @directChildPattern AND modules NOT LIKE @nestedPattern AND modules LIKE '%' || @searchText || '%')
                   OR (owner || '.' || modules LIKE @directChildPattern AND owner || '.' || modules NOT LIKE @nestedPattern AND owner || '.' || modules LIKE '%' || @searchText || '%'))""",
              [ "currentModule", Sql.string currentModule
@@ -337,62 +192,21 @@ let search
                "nestedPattern", Sql.string (currentModule + ".%.%")
                "searchText", Sql.string query.text ])
           | PT.Search.SearchDepth.AllDescendants ->
-            // For AllDescendants, we want all modules that start with currentModule + "."
-            // regardless of how many levels deep they are
             ("""((modules LIKE @directChildPattern AND modules LIKE '%' || @searchText || '%')
                   OR (owner || '.' || modules LIKE @directChildPattern AND owner || '.' || modules LIKE '%' || @searchText || '%'))""",
              [ "currentModule", Sql.string currentModule
                "directChildPattern", Sql.string directChildPattern
                "searchText", Sql.string query.text ])
 
-      // When searching with a branch:
-      // Visibility rules:
-      // 1. Approved items are visible to everyone
-      // 2. Pending items are visible to their creator (when accountID matches created_by)
-      // 3. Branch-specific items are visible when viewing that branch
-      // 4. If branch-specific is deprecated, exclude both versions
       $"""
       SELECT DISTINCT owner, modules
       FROM locations l
       WHERE l.deprecated_at IS NULL
-        AND (l.approval_status = 'approved' OR (@accountID IS NOT NULL AND l.created_by = @accountID))
-        AND (l.branch_id IS NULL OR l.branch_id = @branch_id)
         AND {submoduleCondition}
-        -- Exclude if there's a deprecated branch-specific version shadowing this
-        AND NOT EXISTS (
-          SELECT 1 FROM locations l2
-          WHERE l2.owner = l.owner
-            AND l2.modules = l.modules
-            AND l2.name = l.name
-            AND l2.item_type = l.item_type
-            AND l2.branch_id = @branch_id
-            AND l2.deprecated_at IS NOT NULL
-            AND l.branch_id IS NULL
-        )
-        -- If both NULL and branch-specific exist, only show branch-specific
-        AND NOT EXISTS (
-          SELECT 1 FROM locations l3
-          WHERE l3.owner = l.owner
-            AND l3.modules = l.modules
-            AND l3.name = l.name
-            AND l3.item_type = l.item_type
-            AND l3.branch_id = @branch_id
-            AND l3.deprecated_at IS NULL
-            AND l.branch_id IS NULL
-        )
+        AND {branchFilter}
       """
       |> Sql.query
-      |> Sql.parameters (
-        [ "branch_id",
-          (match branchID with
-           | Some id -> Sql.uuid id
-           | None -> Sql.dbnull)
-          "accountID",
-          (match accountID with
-           | Some id -> Sql.uuid id
-           | None -> Sql.dbnull) ]
-        @ sqlParams
-      )
+      |> Sql.parameters (sqlParams @ branchParams)
       |> Sql.executeAsync (fun read ->
         let owner = read.string "owner"
         let modulesStr = read.string "modules"
@@ -409,71 +223,36 @@ let search
         else
           "l.name LIKE '%' || @searchText || '%'"
 
-      // Location filter depends on depth and current location
       let locationCondition =
         if
           System.String.IsNullOrEmpty currentModule
           && query.searchDepth = PT.Search.SearchDepth.AllDescendants
         then
-          // At root with AllDescendants - search everywhere
           "1 = 1"
         else if System.String.IsNullOrEmpty currentModule then
-          // At root with OnlyDirectDescendants - search in direct children only
           "((l.modules = @modules) OR (l.owner || '.' || l.modules = @fqname))"
         else
-          // Not at root - search in specified module path
           match query.searchDepth with
           | PT.Search.SearchDepth.OnlyDirectDescendants ->
             "((l.modules = @modules) OR (l.owner || '.' || l.modules = @fqname))"
           | PT.Search.SearchDepth.AllDescendants ->
-            // Search in current module and all descendants
             "((l.modules = @modules) OR (l.owner || '.' || l.modules = @fqname) OR (l.modules LIKE @modules || '.%') OR (l.owner || '.' || l.modules LIKE @fqname || '.%'))"
 
-      // Approved items visible to all, pending items visible to creator
       $"SELECT c.id, c.pt_def, l.owner, l.modules, l.name\n"
       + $"FROM locations l\n"
       + $"JOIN {contentTable} c ON l.item_id = c.id\n"
       + "WHERE l.deprecated_at IS NULL\n"
-      + "  AND (l.approval_status = 'approved' OR (@accountID IS NOT NULL AND l.created_by = @accountID))\n"
-      + "  AND (l.branch_id IS NULL OR l.branch_id = @branch_id)\n"
       + $"  AND l.item_type = '{itemType}'\n"
       + $"  AND ({locationCondition})\n"
       + $"  AND {nameCondition}\n"
-      + "  -- Exclude if there's a deprecated branch-specific version shadowing this\n"
-      + "  AND NOT EXISTS (\n"
-      + "    SELECT 1 FROM locations l2\n"
-      + "    WHERE l2.owner = l.owner\n"
-      + "      AND l2.modules = l.modules\n"
-      + "      AND l2.name = l.name\n"
-      + $"      AND l2.item_type = '{itemType}'\n"
-      + "      AND l2.branch_id = @branch_id\n"
-      + "      AND l2.deprecated_at IS NOT NULL\n"
-      + "      AND l.branch_id IS NULL\n"
-      + "  )\n"
-      + "  -- If both NULL and branch-specific exist, only show branch-specific\n"
-      + "  AND NOT EXISTS (\n"
-      + "    SELECT 1 FROM locations l3\n"
-      + "    WHERE l3.owner = l.owner\n"
-      + "      AND l3.modules = l.modules\n"
-      + "      AND l3.name = l.name\n"
-      + $"      AND l3.item_type = '{itemType}'\n"
-      + "      AND l3.branch_id = @branch_id\n"
-      + "      AND l3.deprecated_at IS NULL\n"
-      + "      AND l.branch_id IS NULL\n"
-      + "  )"
+      + $"  AND {branchFilter}"
       |> Sql.query
-      |> Sql.parameters
-        [ "branch_id",
-          (match branchID with
-           | Some id -> Sql.uuid id
-           | None -> Sql.dbnull)
-          "accountID",
-          (match accountID with
-           | Some id -> Sql.uuid id
-           | None -> Sql.dbnull)
-          "modules", Sql.string currentModule
+      |> Sql.parameters (
+        [ "modules", Sql.string currentModule
           "fqname", Sql.string currentModule
           "searchText", Sql.string query.text ]
+        @ branchParams
+      )
       |> Sql.executeAsync (fun read ->
         let id = read.uuid "id"
         let definition = read.bytes "pt_def"

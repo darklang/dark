@@ -48,21 +48,15 @@ let nameToTestDomain (name : string) : string =
   |> FsRegEx.replace "[-_]+" "-"
   |> fun s -> $"{s}.dlio.localhost"
 
-let initializeCanvasForOwner
-  (ownerID : UserID)
-  (name : string)
-  : Task<CanvasID * string> =
+let initializeCanvasForOwner (name : string) : Task<CanvasID * string> =
   task {
     let domain = nameToTestDomain name
-    let! canvasID = Canvas.create ownerID domain
+    let! canvasID = Canvas.create domain
     return (canvasID, domain)
   }
 
 let initializeTestCanvas' (name : string) : Task<CanvasID * string> =
-  task {
-    let! owner = testOwner.Force()
-    return! initializeCanvasForOwner owner name
-  }
+  initializeCanvasForOwner name
 
 let initializeTestCanvas (name : string) : Task<CanvasID> =
   task {
@@ -120,6 +114,7 @@ let builtins
     [ LibTest.builtins
       BuiltinExecution.Builtin.builtins httpConfig
       BuiltinPM.Builtin.builtins pm
+      BuiltinHttpServer.Builtin.builtins
       BuiltinCloudExecution.Builtin.builtins
       BuiltinDarkInternal.Builtin.builtins
       BuiltinCli.Builtin.builtins ]
@@ -199,8 +194,15 @@ let executionStateFor
     let builtins =
       if allowLocalHttpAccess then localBuiltIns pmPT else cloudBuiltIns pmPT
     let state =
-      let pmRT = PT2RT.PackageManager.toRT pmPT
-      Exe.createState builtins pmRT Exe.noTracing exceptionReporter notifier program
+      let pmRT = PT2RT.PackageManager.toRT builtins.values pmPT
+      Exe.createState
+        builtins
+        pmRT
+        Exe.noTracing
+        exceptionReporter
+        notifier
+        PT.mainBranchId
+        program
     let state = { state with test = testContext }
     return state
   }
@@ -1477,7 +1479,6 @@ let configureLogging
   |> ignore<IServiceCollection>
 
 
-// TODO: should unwrapExecutionResult take branchID?
 let unwrapExecutionResult
   (state : RT.ExecutionState)
   (exeResult : RT.ExecutionResult)
@@ -1490,16 +1491,14 @@ let unwrapExecutionResult
         RT.FQFnName.fqPackage
           PackageIDs.Fn.PrettyPrinter.RuntimeTypes.RuntimeError.toString
 
-      let rte = RT2DT.RuntimeError.toDT rte
-
-      let branchID = Dval.optionNone RT.KTUuid
+      let rteDval = RT2DT.RuntimeError.toDT rte
 
       let! rteMessage =
         LibExecution.Execution.executeFunction
           state
           errorMessageFn
           []
-          (NEList.ofList branchID [ rte ])
+          (NEList.ofList (RT.DUuid PT.mainBranchId) [ rteDval ])
 
       let! cs = LibExecution.Execution.callStackString state callStack
 
@@ -1508,7 +1507,7 @@ let unwrapExecutionResult
       | _ -> return RT.DString(string rteMessage)
   }
 
-let parsePTExpr (branchID : Option<PT.BranchID>) (code : string) : Task<PT.Expr> =
+let parsePTExpr (code : string) : Task<PT.Expr> =
   uply {
     let! (state : RT.ExecutionState) =
       let canvasID = System.Guid.NewGuid()
@@ -1517,9 +1516,7 @@ let parsePTExpr (branchID : Option<PT.BranchID>) (code : string) : Task<PT.Expr>
     let name =
       RT.FQFnName.FQFnName.Package PackageIDs.Fn.LanguageTools.Parser.parsePTExpr
 
-    let branchID = branchID |> Option.map RT.DUuid |> Dval.option RT.KTUuid
-
-    let args = NEList.doubleton branchID (RT.DString code)
+    let args = NEList.singleton (RT.DString code)
     let! execResult = LibExecution.Execution.executeFunction state name [] args
 
     match execResult with
