@@ -84,7 +84,12 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
       let results = LanguageTools.PackageManager.Search.search state.currentBranchId query
 
       // Display results
-      let submodulesCount = Stdlib.List.length results.submodules
+      // Only count submodules when no entity type filter is specified
+      let submodulesCount =
+        if Stdlib.List.isEmpty entityTypes then
+          Stdlib.List.length results.submodules
+        else
+          0L
 
       let totalResults =
         (Stdlib.List.length results.types)
@@ -99,8 +104,8 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
         Stdlib.printLine (Colors.boldText $"Search results for: {queryText}")
         Stdlib.printLine ""
 
-        // Display submodules
-        if Stdlib.Bool.not (Stdlib.List.isEmpty results.submodules) then
+        // Display submodules (only when no entity type filter is specified)
+        if (Stdlib.List.isEmpty entityTypes) && (Stdlib.Bool.not (Stdlib.List.isEmpty results.submodules)) then
           Stdlib.printLine (Display.getSectionHeader "module")
           results.submodules
           |> Stdlib.List.iter (fun modulePath ->
