@@ -321,6 +321,9 @@ module Type =
       let packageOp = p [] "PackageOp" "7d8e9f0a-1b2c-3d4e-5f6a-7b8c9d0e1f2a"
       let packageOpBatch =
         p [] "PackageOpBatch" "9f1a2b3c-4d5e-6f7a-8b9c-0d1e2f3a4b5c"
+      let itemKind = p [] "ItemKind" "c4131178-1b36-4eed-936b-b45c866481e7"
+      let propagateRepoint =
+        p [] "PropagateRepoint" "681d68c2-e020-4533-946c-2a3cc82c9154"
 
       let secret = p [] "Secret" "37427120-d71d-41f2-b094-68757570bc41"
       let db = p [] "DB" "7f219668-f8ac-4b17-a404-1171985dadf9"

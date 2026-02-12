@@ -408,6 +408,20 @@ module PackageFn =
 //     fns: List<PackageFn.PackageFn> }
 
 
+/// The kind of package item (function, type, or value)
+type ItemKind =
+  | Fn
+  | Type
+  | Value
+
+/// A single repoint operation within a PropagateUpdate
+type PropagateRepoint =
+  { location: PackageLocation
+    itemKind: ItemKind
+    fromUUID: Uuid
+    toUUID: Uuid }
+
+
 type PackageOp =
   | AddType of PackageType.PackageType
   | AddValue of PackageValue.PackageValue
@@ -415,6 +429,22 @@ type PackageOp =
   | SetTypeName of FQTypeName.Package * PackageLocation
   | SetValueName of FQValueName.Package * PackageLocation
   | SetFnName of FQFnName.Package * PackageLocation
+  // Propagation: when a definition is updated, propagate the change to all dependents
+  | PropagateUpdate of
+      propagationId: Uuid *
+      sourceLocation: PackageLocation *
+      sourceItemKind: ItemKind *
+      fromSourceUUIDs: List<Uuid> *
+      toSourceUUID: Uuid *
+      repoints: List<PropagateRepoint>
+  // Revert a propagation: restore previous versions atomically
+  | RevertPropagation of
+      revertId: Uuid *
+      revertedPropagationIds: List<Uuid> *
+      sourceLocation: PackageLocation *
+      sourceItemKind: ItemKind *
+      restoredSourceUUID: Uuid *
+      revertedRepoints: List<PropagateRepoint>
 
 
 module Search =

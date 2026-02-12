@@ -44,6 +44,9 @@ let main (args : string array) : int =
         Tests.NewParser.tests
         Tests.HttpClient.tests
 
+        // package manager
+        Tests.Propagation.tests
+
         (*
         TODO backfill the following tests we neglected to write during a big refactor:
         - op playback

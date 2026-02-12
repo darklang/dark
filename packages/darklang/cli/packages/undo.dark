@@ -1,0 +1,253 @@
+module Darklang.Cli.Packages.Undo
+
+// Undo WIP changes to a fn/type/value, stepping back one version at a time.
+// Each undo reverts one propagation step. Once the committed version is reached,
+// further undo is refused.
+
+
+/// Build a version stack by walking WIP ops in order.
+/// Returns a list of UUIDs where the last element is the current WIP version.
+/// An empty stack means the current version is the committed one.
+let buildVersionStack
+  (wipOps: List<LanguageTools.ProgramTypes.PackageOp>)
+  (location: LanguageTools.ProgramTypes.PackageLocation)
+  (itemKind: LanguageTools.ProgramTypes.ItemKind)
+  : List<Uuid> =
+  wipOps
+  |> Stdlib.List.fold [] (fun stack op ->
+    match (op, itemKind) with
+    | (SetFnName (id, loc), Fn)
+    | (SetTypeName (id, loc), Type)
+    | (SetValueName (id, loc), Value) ->
+      if loc == location then
+        Stdlib.List.append stack [id]
+      else
+        stack
+    | (RevertPropagation (_, _, srcLoc, srcItemKind, restoredUUID, _), _) ->
+      if srcLoc == location && srcItemKind == itemKind then
+        // Pop back to restoredUUID: keep entries up to and including it
+        if Stdlib.List.member_v0 stack restoredUUID then
+          let before = Stdlib.List.takeWhile stack (fun id -> id != restoredUUID)
+          Stdlib.List.append before [restoredUUID]
+        else
+          // Restored to committed — clear the stack
+          []
+      else
+        stack
+    | _ -> stack)
+
+
+let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
+  let branchId = state.currentBranchId
+  let autoConfirm =
+    (Stdlib.List.member_v0 args "--yes") || (Stdlib.List.member_v0 args "-y")
+  let args =
+    args
+    |> Stdlib.List.filter (fun a -> a != "--yes" && a != "-y")
+
+  match args with
+  | [] ->
+    help state
+
+  | [itemType] ->
+    Stdlib.printLine (Colors.error "Error: Missing name argument")
+    Stdlib.printLine ""
+    Stdlib.printLine "Usage: undo <fn|type|value> <name> [--yes|-y]"
+    state
+
+  | itemTypeStr :: name :: _ ->
+    let itemKindOpt = Propagate.itemKindFromString itemTypeStr
+
+    match itemKindOpt with
+    | Some itemKind ->
+      // Parse the location
+      match Location.parseRelativeTo state.packageData.currentLocation name with
+      | Ok location ->
+        let fullPath =
+          PrettyPrinter.ProgramTypes.PackageLocation.packageLocation location
+
+        let wipOps = SCM.PackageOps.getWip branchId
+        let versionStack = buildVersionStack wipOps location itemKind
+
+        match Stdlib.List.reverse versionStack with
+        | [] ->
+          Stdlib.printLine "Nothing to undo — current version is already committed"
+          state
+
+        | currentUUID :: rest ->
+          let targetUUID = Stdlib.List.head rest
+          let isToCommitted = targetUUID == Stdlib.Option.Option.None
+
+          // Find the PropagateUpdate for the current version
+          let myPropInfo =
+            wipOps
+            |> Stdlib.List.filterMap (fun op ->
+              match op with
+              | PropagateUpdate (propId, srcLoc, _, _, toUUID, repoints) ->
+                if srcLoc == location && toUUID == currentUUID then
+                  let pair = (propId, repoints)
+                  Stdlib.Option.Option.Some pair
+                else
+                  Stdlib.Option.Option.None
+              | _ -> Stdlib.Option.Option.None)
+
+          let myPropagationIds =
+            myPropInfo
+            |> Stdlib.List.map (fun entry ->
+              let (propId, _) = entry
+              propId)
+
+          let myRepoints =
+            myPropInfo
+            |> Stdlib.List.map (fun entry ->
+              let (_, repoints) = entry
+              repoints)
+            |> Stdlib.List.flatten
+
+          // Partition repoints: revertable vs overlapping with other propagations
+          // First, collect propagation IDs that have been reverted so we skip them
+          let revertedPropagationIds =
+            wipOps
+            |> Stdlib.List.filterMap (fun op ->
+              match op with
+              | RevertPropagation (_, revertedIds, _, _, _, _) ->
+                Stdlib.Option.Option.Some revertedIds
+              | _ -> Stdlib.Option.Option.None)
+            |> Stdlib.List.flatten
+
+          let otherRepointLocations =
+            wipOps
+            |> Stdlib.List.filterMap (fun op ->
+              match op with
+              | PropagateUpdate (propId, srcLoc, _, _, _, repoints) ->
+                if srcLoc != location &&
+                    Stdlib.Bool.not (Stdlib.List.member_v0 revertedPropagationIds propId) then
+                  Stdlib.Option.Option.Some
+                    (repoints |> Stdlib.List.map (fun r -> r.location))
+                else
+                  Stdlib.Option.Option.None
+              | _ -> Stdlib.Option.Option.None)
+            |> Stdlib.List.flatten
+
+          let revertable =
+            myRepoints
+            |> Stdlib.List.filter (fun r ->
+              Stdlib.Bool.not
+                (Stdlib.List.member_v0 otherRepointLocations r.location))
+
+          let overlapping =
+            myRepoints
+            |> Stdlib.List.filter (fun r ->
+              Stdlib.List.member_v0 otherRepointLocations r.location)
+
+          // Resolve names before undo (locations get deprecated by undo)
+          let repointNamesDict =
+            match myRepoints with
+            | [] -> Stdlib.Dict.empty
+            | _ ->
+              let ids =
+                myRepoints
+                |> Stdlib.List.map (fun r -> r.toUUID)
+                |> Stdlib.List.unique
+              Deps.resolveNames branchId ids
+
+          // Show affected dependents and confirm
+          let proceed =
+            match myRepoints with
+            | [] -> true
+            | _ ->
+              let count = Stdlib.List.length myRepoints
+
+              Stdlib.printLine
+                $"  This will revert {Stdlib.Int64.toString count} dependent(s):"
+
+              myRepoints
+              |> Stdlib.List.iter (fun r ->
+                let name = Deps.getName repointNamesDict r.toUUID
+                let kindStr = Propagate.itemKindToString r.itemKind
+                Stdlib.printLine $"    [{kindStr}] {name}")
+
+              if autoConfirm then
+                true
+              else
+                Stdlib.printLine ""
+                Stdlib.print (Colors.warning "Proceed? (y/n): ")
+                let response = Builtin.stdinReadLine ()
+                (response == "y") || (response == "Y")
+
+          if proceed then
+            match
+              Builtin.pmAtomicUndo branchId revertable location itemKind myPropagationIds targetUUID
+            with
+            | Error errMsg ->
+              Stdlib.printLine (Colors.error errMsg)
+              state
+            | Ok result ->
+              let (_revertId, restoredUUID) = result
+
+              revertable
+              |> Stdlib.List.iter (fun r ->
+                let name = Deps.getName repointNamesDict r.toUUID
+                let kindStr = Propagate.itemKindToString r.itemKind
+                Stdlib.printLine $"  Reverted [{kindStr}] {name}")
+
+              let itemTypeStr = Propagate.itemKindToString itemKind
+
+              if isToCommitted then
+                Stdlib.printLine
+                  (Colors.success $"Restored committed version of {itemTypeStr} {fullPath}")
+              else
+                Stdlib.printLine
+                  (Colors.success $"Restored previous version of {itemTypeStr} {fullPath}")
+
+              // Re-propagate overlapping dependents
+              match overlapping with
+              | [] -> ()
+              | _ ->
+                Propagate.autoPropagateAfterUpdate branchId location restoredUUID itemKind
+
+              Stdlib.printLine ""
+              state
+          else
+            Stdlib.printLine "Undo cancelled."
+            state
+      | Error msg ->
+        Stdlib.printLine (Colors.error $"Invalid location: {msg}")
+        state
+    | None ->
+      Stdlib.printLine (Colors.error $"Error: Invalid item type '{itemTypeStr}'")
+      Stdlib.printLine "Must be one of: fn, type, value"
+      state
+
+let help (state: Cli.AppState) : Cli.AppState =
+  [ "Undo WIP changes to a function, type, or value"
+    ""
+    "Usage: undo <fn|type|value> <name> [--yes|-y]"
+    ""
+    "Steps back one version at a time, reverting the associated propagation."
+    "Each call undoes one update. Once the committed version is reached,"
+    "further undo is refused."
+    ""
+    "If dependents exist, shows them and asks for confirmation before proceeding."
+    ""
+    "Flags:"
+    "  --yes, -y   Skip confirmation prompt"
+    ""
+    "Examples:"
+    "  undo fn Darklang.Foo.bar"
+    "  undo type Darklang.MyModule.Status"
+    "  undo value Darklang.Config.maxRetries"
+    "" ]
+  |> Stdlib.printLines
+
+  state
+
+
+let complete (_state: Cli.AppState) (args: List<String>) : List<Cli.Completion.CompletionItem> =
+  match args with
+  | [] -> ["fn"; "type"; "value"] |> Stdlib.List.map Cli.Completion.simple
+  | [partial] ->
+    ["fn"; "type"; "value"]
+    |> Stdlib.List.filter (fun item -> Stdlib.String.startsWith item partial)
+    |> Stdlib.List.map Cli.Completion.simple
+  | _ -> []

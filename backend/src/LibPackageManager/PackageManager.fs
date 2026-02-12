@@ -89,6 +89,35 @@ let createInMemory (ops : List<PT.PackageOp>) : PT.PackageManager =
     | PT.PackageOp.AddFn f -> fns.Add(f)
     | PT.PackageOp.SetFnName(id, loc) -> fnLocations.Add(loc, id)
 
+    // After propagation, dependents have new UUIDs.
+    // For each repoint, update the location to point to toUUID (the new version)
+    | PT.PackageOp.PropagateUpdate(_, _, _, _, _, repoints) ->
+      for repoint in repoints do
+        match repoint.itemKind with
+        | PT.ItemKind.Type -> typeLocations.Add(repoint.location, repoint.toUUID)
+        | PT.ItemKind.Value -> valueLocations.Add(repoint.location, repoint.toUUID)
+        | PT.ItemKind.Fn -> fnLocations.Add(repoint.location, repoint.toUUID)
+
+    // For each repoint, point the location back to fromUUID (the old version).
+    // Then also restore the source item's location to its pre-propagation UUID
+    | PT.PackageOp.RevertPropagation(_,
+                                     _,
+                                     sourceLocation,
+                                     sourceItemKind,
+                                     restoredSourceUUID,
+                                     revertedRepoints) ->
+      // Reverse the repoints: locations go back to fromUUID
+      for repoint in revertedRepoints do
+        match repoint.itemKind with
+        | PT.ItemKind.Type -> typeLocations.Add(repoint.location, repoint.fromUUID)
+        | PT.ItemKind.Value -> valueLocations.Add(repoint.location, repoint.fromUUID)
+        | PT.ItemKind.Fn -> fnLocations.Add(repoint.location, repoint.fromUUID)
+      // Restore source location to committed UUID
+      match sourceItemKind with
+      | PT.ItemKind.Type -> typeLocations.Add(sourceLocation, restoredSourceUUID)
+      | PT.ItemKind.Value -> valueLocations.Add(sourceLocation, restoredSourceUUID)
+      | PT.ItemKind.Fn -> fnLocations.Add(sourceLocation, restoredSourceUUID)
+
   // Convert to immutable maps for efficient lookup
   let typeMap = types |> Seq.map (fun t -> t.id, t) |> Map.ofSeq
   let valueMap = values |> Seq.map (fun v -> v.id, v) |> Map.ofSeq
@@ -330,6 +359,9 @@ let stabilizeOpsAgainstPM
               | None -> Ply(None)
             let stableId = stableIdOpt |> Option.defaultValue fn.id
             return PT.PackageOp.AddFn { fn with id = stableId }
+
+          | PT.PackageOp.PropagateUpdate _ -> return op
+          | PT.PackageOp.RevertPropagation _ -> return op
         }
       result <- stabilizedOp :: result
     return result

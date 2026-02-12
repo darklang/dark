@@ -23,6 +23,7 @@
     <Compile Include="Purge.fs" />
     <Compile Include="DependencyExtractor.fs" />
     <Compile Include="Branches.fs" />
+    <Compile Include="AstTransformer.fs" />
     <Compile Include="PackageOpPlayback.fs" />
     <Compile Include="Inserts.fs" />
     <Compile Include="Queries.fs" />
@@ -30,6 +31,7 @@
     <Compile Include="Merge.fs" />
     <Compile Include="Stats.fs" />
     <Compile Include="ProgramTypes.fs" />
+    <Compile Include="Propagation.fs" />
     <Compile Include="RuntimeTypes.fs" />
     <Compile Include="PackageManager.fs" />
     <Compile Include="Scripts.fs" />

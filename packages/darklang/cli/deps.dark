@@ -20,7 +20,7 @@ let getName (namesDict: Dict<String>) (id: Uuid) : String =
 /// Display dependents (what uses this entity)
 /// Shows approved items + caller's own pending items.
 let showDependents (branchId: Uuid) (targetId: Uuid) (entityName: String) : Unit =
-  let dependents = Builtin.depsGetDependents targetId
+  let dependents = Builtin.depsGetDependents branchId targetId
 
   match dependents with
   | [] ->
@@ -42,6 +42,7 @@ let showDependents (branchId: Uuid) (targetId: Uuid) (entityName: String) : Unit
 /// Helper for transitive traversal - collects dependents using batched queries.
 /// Processes multiple pending IDs per iteration to minimize DB round-trips.
 let collectTransitiveDependents
+  (branchId: Uuid)
   (processed: List<Uuid>)
   (pending: List<Uuid>)
   (accumulated: List<Uuid * String>)
@@ -57,7 +58,7 @@ let collectTransitiveDependents
     | [] -> accumulated
     | ids ->
       // Batch fetch dependents for all pending IDs at once
-      let batchResults = Builtin.depsGetDependentsBatch ids
+      let batchResults = Builtin.depsGetDependentsBatch branchId ids
 
       // Extract new dependents as (sourceId, refType) tuples
       let newDeps =
@@ -77,18 +78,18 @@ let collectTransitiveDependents
       let newProcessed = Stdlib.List.append processed ids
       let newAccumulated = Stdlib.List.append accumulated newDeps
 
-      collectTransitiveDependents newProcessed newIds newAccumulated
+      collectTransitiveDependents branchId newProcessed newIds newAccumulated
 
 
 /// Get all transitive dependents (everything that could break if this changes)
-let getTransitiveDependents (targetId: Uuid) : List<Uuid * String> =
-  (collectTransitiveDependents [] [ targetId ] [])
+let getTransitiveDependents (branchId: Uuid) (targetId: Uuid) : List<Uuid * String> =
+  (collectTransitiveDependents branchId [] [ targetId ] [])
   |> Stdlib.List.unique
 
 
 /// Display all transitive dependents (what could break)
 let showTransitiveDependents (branchId: Uuid) (targetId: Uuid) (entityName: String) : Unit =
-  let allDependents = getTransitiveDependents targetId
+  let allDependents = getTransitiveDependents branchId targetId
 
   match allDependents with
   | [] ->
@@ -109,7 +110,7 @@ let showTransitiveDependents (branchId: Uuid) (targetId: Uuid) (entityName: Stri
 
 /// Display dependencies (what this entity uses)
 let showDependencies (branchId: Uuid) (sourceId: Uuid) (entityName: String) : Unit =
-  let dependencies = Builtin.depsGetDependencies sourceId
+  let dependencies = Builtin.depsGetDependencies branchId sourceId
 
   match dependencies with
   | [] ->

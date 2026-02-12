@@ -123,49 +123,65 @@ let private applyAddFn (fn : PT.PackageFn.PackageFn) : Task<unit> =
     do! updateDependencies fn.id refs
   }
 
-/// Apply a Set*Name op to the locations table
+/// Apply a Set*Name op to the locations table atomically.
 /// branchId = branch context, commitId = None means WIP, Some id means committed
 let private applySetName
   (branchId : PT.BranchId)
   (commitId : Option<uuid>)
   (itemId : uuid)
   (location : PT.PackageLocation)
-  (itemType : string)
+  (itemKind : PT.ItemKind)
   : Task<unit> =
   task {
     let modulesStr = String.concat "." location.modules
-
-    // First, deprecate any existing location for this item
-    // (handles moves: old location gets deprecated, new location created)
-    do!
-      Sql.query
-        """
-        UPDATE locations
-        SET deprecated_at = datetime('now')
-        WHERE item_id = @item_id
-          AND deprecated_at IS NULL
-        """
-      |> Sql.parameters [ "item_id", Sql.uuid itemId ]
-      |> Sql.executeStatementAsync
-
-    // Insert new location entry with unique location_id
+    let itemTypeStr = itemKind.toString ()
     let locationId = System.Guid.NewGuid()
-    do!
-      Sql.query
-        """
-        INSERT INTO locations (location_id, item_id, owner, modules, name, item_type, branch_id, commit_id)
-        VALUES (@location_id, @item_id, @owner, @modules, @name, @item_type, @branch_id, @commit_id)
-        """
-      |> Sql.parameters
-        [ "location_id", Sql.uuid locationId
-          "item_id", Sql.uuid itemId
-          "owner", Sql.string location.owner
-          "modules", Sql.string modulesStr
-          "name", Sql.string location.name
-          "item_type", Sql.string itemType
-          "branch_id", Sql.uuid branchId
-          "commit_id", Sql.uuidOrNone commitId ]
-      |> Sql.executeStatementAsync
+
+    // Execute all three operations atomically:
+    // 1. Deprecate any existing location for this item (handles moves)
+    // 2. Deprecate any existing location at same path (handles updates)
+    // 3. Insert new location entry
+    let statements =
+      [ ("""
+         UPDATE locations
+         SET deprecated_at = datetime('now')
+         WHERE item_id = @item_id
+           AND branch_id = @branch_id
+           AND deprecated_at IS NULL
+         """,
+         [ [ "item_id", Sql.uuid itemId; "branch_id", Sql.uuid branchId ] ])
+
+        ("""
+         UPDATE locations
+         SET deprecated_at = datetime('now')
+         WHERE owner = @owner
+           AND modules = @modules
+           AND name = @name
+           AND item_type = @item_type
+           AND deprecated_at IS NULL
+           AND branch_id = @branch_id
+         """,
+         [ [ "owner", Sql.string location.owner
+             "modules", Sql.string modulesStr
+             "name", Sql.string location.name
+             "item_type", Sql.string itemTypeStr
+             "branch_id", Sql.uuid branchId ] ])
+
+        ("""
+         INSERT INTO locations (location_id, item_id, owner, modules, name, item_type, branch_id, commit_id)
+         VALUES (@location_id, @item_id, @owner, @modules, @name, @item_type, @branch_id, @commit_id)
+         """,
+         [ [ "location_id", Sql.uuid locationId
+             "item_id", Sql.uuid itemId
+             "owner", Sql.string location.owner
+             "modules", Sql.string modulesStr
+             "name", Sql.string location.name
+             "item_type", Sql.string itemTypeStr
+             "branch_id", Sql.uuid branchId
+             "commit_id", Sql.uuidOrNone commitId ] ]) ]
+
+    let _ = Sql.executeTransactionSync statements
+    ()
   }
 
 
@@ -182,11 +198,101 @@ let applyOp
     | PT.PackageOp.AddValue value -> do! applyAddValue value
     | PT.PackageOp.AddFn fn -> do! applyAddFn fn
     | PT.PackageOp.SetTypeName(id, loc) ->
-      do! applySetName branchId commitId id loc "type"
+      do! applySetName branchId commitId id loc PT.ItemKind.Type
     | PT.PackageOp.SetValueName(id, loc) ->
-      do! applySetName branchId commitId id loc "value"
+      do! applySetName branchId commitId id loc PT.ItemKind.Value
     | PT.PackageOp.SetFnName(id, loc) ->
-      do! applySetName branchId commitId id loc "fn"
+      do! applySetName branchId commitId id loc PT.ItemKind.Fn
+    | PT.PackageOp.PropagateUpdate _ ->
+      // Location changes are already handled by the individual SetFnName/SetTypeName/
+      // SetValueName ops that accompany this op in the propagation batch.
+      // Applying them here too would create duplicate location entries.
+      ()
+    | PT.PackageOp.RevertPropagation(_,
+                                     _,
+                                     sourceLocation,
+                                     sourceItemKind,
+                                     restoredSourceUUID,
+                                     revertedRepoints) ->
+      // Build all SQL statements for atomic execution
+      let mutable statements = []
+
+      // For each reverted repoint: deprecate toUUID, un-deprecate fromUUID
+      // Skip repoints for the source item — those are handled by the dedicated
+      // source-handling block below (avoids redundant double-toggle in mutual recursion)
+      let dependentRepoints =
+        revertedRepoints
+        |> List.filter (fun r ->
+          r.location <> sourceLocation || r.itemKind <> sourceItemKind)
+
+      for repoint in dependentRepoints do
+        statements <-
+          statements
+          @ [ ("""
+               UPDATE locations
+               SET deprecated_at = datetime('now')
+               WHERE item_id = @item_id
+                 AND branch_id = @branch_id
+                 AND deprecated_at IS NULL
+               """,
+               [ [ "item_id", Sql.uuid repoint.toUUID
+                   "branch_id", Sql.uuid branchId ] ])
+
+              ("""
+               UPDATE locations
+               SET deprecated_at = NULL
+               WHERE location_id = (
+                 SELECT location_id FROM locations
+                 WHERE item_id = @item_id
+                   AND branch_id = @branch_id
+                   AND deprecated_at IS NOT NULL
+                 ORDER BY deprecated_at DESC
+                 LIMIT 1
+               )
+               """,
+               [ [ "item_id", Sql.uuid repoint.fromUUID
+                   "branch_id", Sql.uuid branchId ] ]) ]
+
+      // Undo source: deprecate WIP location, un-deprecate committed location
+      let modulesStr = String.concat "." sourceLocation.modules
+      let itemTypeStr = sourceItemKind.toString ()
+
+      statements <-
+        statements
+        @ [ ("""
+             UPDATE locations
+             SET deprecated_at = datetime('now')
+             WHERE owner = @owner
+               AND modules = @modules
+               AND name = @name
+               AND item_type = @item_type
+               AND branch_id = @branch_id
+               AND deprecated_at IS NULL
+               AND commit_id IS NULL
+             """,
+             [ [ "owner", Sql.string sourceLocation.owner
+                 "modules", Sql.string modulesStr
+                 "name", Sql.string sourceLocation.name
+                 "item_type", Sql.string itemTypeStr
+                 "branch_id", Sql.uuid branchId ] ])
+
+            ("""
+             UPDATE locations
+             SET deprecated_at = NULL
+             WHERE location_id = (
+               SELECT location_id FROM locations
+               WHERE item_id = @item_id
+                 AND branch_id = @branch_id
+                 AND deprecated_at IS NOT NULL
+               ORDER BY deprecated_at DESC
+               LIMIT 1
+             )
+             """,
+             [ [ "item_id", Sql.uuid restoredSourceUUID
+                 "branch_id", Sql.uuid branchId ] ]) ]
+
+      let _ = Sql.executeTransactionSync statements
+      ()
   }
 
 

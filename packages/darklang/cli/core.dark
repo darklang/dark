@@ -169,7 +169,8 @@ module Registry =
       ("builtins", "List all builtin functions", [], Builtins.execute, Builtins.help, Builtins.complete)
       ("find-values", "Find values of a given type", [], Commands.FindValues.execute, Commands.FindValues.help, Commands.FindValues.complete)
       ("http-server", "Start an HTTP server", [], Commands.HttpServer.execute, Commands.HttpServer.help, Commands.HttpServer.complete)
-      ("docs", "Browse in-CLI documentation", [ "doc"; "man" ], Commands.Docs.execute, Commands.Docs.help, Commands.Docs.complete) ]
+      ("docs", "Browse in-CLI documentation", [ "doc"; "man" ], Commands.Docs.execute, Commands.Docs.help, Commands.Docs.complete)
+      ("undo", "Undo WIP changes to a fn/type/value", [], Packages.Undo.execute, Packages.Undo.help, Packages.Undo.complete) ]
     |> Stdlib.List.map(
       // CLEANUP nitpicky: swap help and complete
       fun (name, desc, aliases, execute, help, complete) ->
@@ -236,7 +237,7 @@ module Registry =
 
   // Command groups organized by category (shared between compact and detailed views)
   let commandGroups () : List<(String * List<String>)> =
-    [ ("Packages", [ "nav"; "ls"; "view"; "back"; "search"; "fn"; "type" ])
+    [ ("Packages", [ "nav"; "ls"; "view"; "back"; "search"; "fn"; "type"; "val"; "undo" ])
       ("SCM", [ "status"; "log"; "commit"; "discard"; "show"; "branch"; "rebase"; "merge" ])
       ("Execution", [ "run"; "eval"; "scripts" ])
       ("Install", [ "install"; "update"; "uninstall"; "version" ])

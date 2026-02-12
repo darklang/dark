@@ -80,21 +80,29 @@ let createTypeInline
 
         // Check for unresolved names
         if (Stdlib.List.isEmpty unresolvedNames) |> Stdlib.Bool.not then
-          Stdlib.printLine (Colors.error "Error: Unresolved type references")
+          Stdlib.printLine (Colors.error "Error: Unresolved references")
           Stdlib.printLine ""
 
           unresolvedNames
           |> Stdlib.List.iter (fun (range, err) ->
+            let lineNum = (range.start.row + 1L) |> Stdlib.Int64.toString
+            let colNum = range.start.column |> Stdlib.Int64.toString
             match err with
-            | TypeNotFound names ->
+            | NotFound names ->
               let nameStr = Stdlib.String.join names "."
-              Stdlib.printLine $"  - Type not found: {nameStr}"
-            | _ -> Stdlib.printLine $"  - Unresolved name at {range}")
+              Stdlib.printLine $"  - Not found: {nameStr} (line {lineNum}, column {colNum})"
+            | InvalidName names ->
+              let nameStr = Stdlib.String.join names "."
+              Stdlib.printLine $"  - Invalid name: {nameStr} (line {lineNum}, column {colNum})")
 
           Stdlib.printLine ""
           state
         // no unresolved names - keep going
         else
+          // Check if this is an update (has previous versions)
+          let previousUUIDs = Propagate.getAllPreviousUUIDs state.currentBranchId location LanguageTools.ProgramTypes.ItemKind.Type
+          let isUpdate = (Stdlib.List.isEmpty previousUUIDs) |> Stdlib.Bool.not
+
           // Create ops: AddType and SetTypeName
           let ops =
             [ LanguageTools.ProgramTypes.PackageOp.AddType packageType
@@ -105,10 +113,15 @@ let createTypeInline
           | Ok _ ->
             // Show success message
             let fullPath = PrettyPrinter.ProgramTypes.PackageLocation.packageLocation location
+            let action = if isUpdate then "Updated" else "Created"
 
-            [ ""; (Colors.success $"✓ Created type: {fullPath}"); "" ]
-            |> Stdlib.printLines
+            Stdlib.printLine ""
+            Stdlib.printLine (Colors.success $"✓ {action} type: {fullPath}")
 
+            // Auto-propagate if this is an update
+            Propagate.autoPropagateAfterUpdate state.currentBranchId location packageType.id LanguageTools.ProgramTypes.ItemKind.Type
+
+            Stdlib.printLine ""
             state
 
           | Error msg ->
@@ -140,9 +153,12 @@ let createTypeInline
 
 let help (state: Cli.AppState) : Cli.AppState =
   [
-    "Create a new type"
+    "Create or update a type"
     ""
     "Usage: type <location> <definition>"
+    ""
+    "When updating an existing type, dependents are automatically updated"
+    "to use the new version."
     ""
     "Examples:"
     "  # Simple enum:"

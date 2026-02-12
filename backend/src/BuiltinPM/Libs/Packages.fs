@@ -21,6 +21,9 @@ open Prelude
 open LibExecution.RuntimeTypes
 open LibExecution.Builtin.Shortcuts
 
+open Fumble
+open LibDB.Db
+
 module Dval = LibExecution.Dval
 module D = LibExecution.DvalDecoder
 module PT = LibExecution.ProgramTypes
@@ -35,6 +38,8 @@ module Branches = LibPackageManager.Branches
 module Execution = LibExecution.Execution
 
 let statsTypeName = FQTypeName.fqPackage PackageIDs.Type.DarkPackages.stats
+
+let private repointListKT = KTList(ValueType.Known PT2DT.PropagateRepoint.knownType)
 
 
 // TODO: review/reconsider the accessibility of these fns
@@ -359,6 +364,228 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
               result
               |> Option.map PT2DT.PackageLocation.toDT
               |> Dval.option (KTCustomType(PT2DT.PackageLocation.typeName, []))
+          }
+        | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Impure
+      deprecated = NotDeprecated }
+
+
+    // Get ALL previous (deprecated) UUIDs at a location - used for propagation
+    { name = fn "pmGetAllPreviousUUIDs" 0
+      typeParams = []
+      parameters =
+        [ Param.make "branchId" TUuid ""
+          Param.make
+            "location"
+            (TCustomType(Ok PT2DT.PackageLocation.typeName, []))
+            ""
+          Param.make
+            "itemKind"
+            (TCustomType(Ok PT2DT.ItemKind.typeName, []))
+            "fn, type, or value" ]
+      returnType = TList TUuid
+      description =
+        "Returns all UUIDs that have ever been at a location across the branch chain"
+      fn =
+        (function
+        | _, _, _, [ DUuid branchId; location; itemKindDval ] ->
+          uply {
+            let location = PT2DT.PackageLocation.fromDT location
+            let itemKind = PT2DT.ItemKind.fromDT itemKindDval
+            let modulesStr = location.modules |> String.concat "."
+            let! branchChain = Branches.getBranchChain branchId
+            let! result =
+              LibPackageManager.Queries.getAllPreviousUUIDs
+                branchChain
+                location.owner
+                modulesStr
+                location.name
+                (itemKind.toString ())
+            return result |> List.map DUuid |> Dval.list KTUuid
+          }
+        | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Impure
+      deprecated = NotDeprecated }
+
+
+    // Execute propagation of an update to all dependents
+    { name = fn "pmPropagate" 0
+      typeParams = []
+      parameters =
+        [ Param.make "branchId" TUuid ""
+          Param.make
+            "sourceLocation"
+            (TCustomType(Ok PT2DT.PackageLocation.typeName, []))
+            "Location of the updated item"
+          Param.make
+            "sourceItemKind"
+            (TCustomType(Ok PT2DT.ItemKind.typeName, []))
+            "fn, type, or value"
+          Param.make
+            "fromSourceUUIDs"
+            (TList TUuid)
+            "All deprecated UUIDs at this location"
+          Param.make "toSourceUUID" TUuid "New UUID of the source item" ]
+      returnType =
+        TypeReference.result
+          (TTuple(
+            TUuid,
+            TList(TCustomType(Ok PT2DT.PropagateRepoint.typeName, [])),
+            []
+          ))
+          TString
+      description =
+        "Propagates an update to all dependents, creating new versions with updated references. Returns (propagationId, repoints)."
+      fn =
+        (function
+        | _,
+          _,
+          _,
+          [ DUuid branchId
+            sourceLocation
+            sourceItemKindDval
+            DList(_, fromSourceUUIDs)
+            DUuid toSourceUUID ] ->
+          uply {
+            let sourceLocation = PT2DT.PackageLocation.fromDT sourceLocation
+            let sourceItemKind = PT2DT.ItemKind.fromDT sourceItemKindDval
+            let fromSourceUUIDs = fromSourceUUIDs |> List.map D.uuid
+
+            let! result =
+              LibPackageManager.Propagation.propagate
+                branchId
+                sourceLocation
+                sourceItemKind
+                fromSourceUUIDs
+                toSourceUUID
+
+            let tupleKT =
+              KTTuple(ValueType.Known KTUuid, ValueType.Known repointListKT, [])
+
+            match result with
+            | Ok(Some(propagationResult, ops)) ->
+              let! _ = LibPackageManager.Inserts.insertAndApplyOps branchId None ops
+              ()
+
+              let repointsDval =
+                propagationResult.repoints
+                |> List.map PT2DT.PropagateRepoint.toDT
+                |> Dval.list PT2DT.PropagateRepoint.knownType
+
+              let resultTuple =
+                DTuple(DUuid propagationResult.propagationId, repointsDval, [])
+              return Dval.resultOk tupleKT KTString resultTuple
+            | Ok None ->
+              // No dependents found - return empty result with empty UUID
+              let resultTuple =
+                DTuple(
+                  DUuid System.Guid.Empty,
+                  Dval.list PT2DT.PropagateRepoint.knownType [],
+                  []
+                )
+              return Dval.resultOk tupleKT KTString resultTuple
+            | Error errMsg ->
+              return Dval.resultError tupleKT KTString (DString errMsg)
+          }
+        | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Impure
+      deprecated = NotDeprecated }
+
+
+    // Atomic undo: revert repoints + restore source version in one operation
+    // Supports incremental undo: targetUUID specifies which version to restore.
+    // If targetUUID is None, finds and restores the committed version (final step).
+    { name = fn "pmAtomicUndo" 0
+      typeParams = []
+      parameters =
+        [ Param.make "branchId" TUuid ""
+          Param.make
+            "revertableRepoints"
+            (TList(TCustomType(Ok PT2DT.PropagateRepoint.typeName, [])))
+            "Repoints to revert directly"
+          Param.make
+            "sourceLocation"
+            (TCustomType(Ok PT2DT.PackageLocation.typeName, []))
+            "Location of the item being undone"
+          Param.make
+            "sourceItemKind"
+            (TCustomType(Ok PT2DT.ItemKind.typeName, []))
+            "fn, type, or value"
+          Param.make "propagationIds" (TList TUuid) "Propagation IDs being reverted"
+          Param.make
+            "targetUUID"
+            (TypeReference.option TUuid)
+            "UUID to restore. None = find committed UUID" ]
+      returnType = TypeReference.result (TTuple(TUuid, TUuid, [])) TString
+      description =
+        "Atomically reverts repoints and restores a source version. "
+        + "If targetUUID is Some, restores that specific version. "
+        + "If targetUUID is None, finds and restores the committed version. "
+        + "Creates a RevertPropagation op that persists in the op log. "
+        + "Returns (revertId, restoredUUID) on success."
+      fn =
+        (function
+        | _,
+          _,
+          _,
+          [ DUuid branchId
+            DList(_, repoints)
+            sourceLocation
+            sourceItemKindDval
+            DList(_, propagationIds)
+            targetUUIDDval ] ->
+          uply {
+            let repoints = repoints |> List.map PT2DT.PropagateRepoint.fromDT
+            let sourceLocation = PT2DT.PackageLocation.fromDT sourceLocation
+            let sourceItemKind = PT2DT.ItemKind.fromDT sourceItemKindDval
+            let propagationIds = propagationIds |> List.map D.uuid
+            let modulesStr = sourceLocation.modules |> String.concat "."
+
+            let tupleKT = KTTuple(ValueType.Known KTUuid, ValueType.Known KTUuid, [])
+
+            // Determine the UUID to restore: explicit target or find committed
+            let! restoredUUIDResult =
+              match C2DT.Option.fromDT D.uuid targetUUIDDval with
+              | Some targetUUID -> uply { return Ok targetUUID }
+              | None ->
+                uply {
+                  let! result =
+                    LibPackageManager.Inserts.findCommittedUUID
+                      branchId
+                      sourceLocation.owner
+                      modulesStr
+                      sourceLocation.name
+                      (sourceItemKind.toString ())
+                  return result |> Result.map fst
+                }
+
+            match restoredUUIDResult with
+            | Error errMsg ->
+              return Dval.resultError tupleKT KTString (DString errMsg)
+            | Ok restoredUUID ->
+              let revertId = System.Guid.NewGuid()
+
+              let revertOp =
+                PT.PackageOp.RevertPropagation(
+                  revertId,
+                  propagationIds,
+                  sourceLocation,
+                  sourceItemKind,
+                  restoredUUID,
+                  repoints
+                )
+
+              let! _ =
+                LibPackageManager.Inserts.insertAndApplyOps
+                  branchId
+                  None
+                  [ revertOp ]
+
+              let resultTuple = DTuple(DUuid revertId, DUuid restoredUUID, [])
+              return Dval.resultOk tupleKT KTString resultTuple
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
