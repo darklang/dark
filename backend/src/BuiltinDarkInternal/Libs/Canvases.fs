@@ -44,7 +44,7 @@ let fns : List<BuiltInFn> =
         (function
         | _, _, _, [ DString name ] ->
           uply {
-            let! canvasID = Canvas.create name
+            let! canvasID = Canvas.create None name
             return DUuid canvasID
           }
         | _ -> incorrectArgs ())

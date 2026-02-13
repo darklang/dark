@@ -22,8 +22,26 @@ module PackageIDs = LibExecution.PackageIDs
 module Json = BuiltinExecution.Libs.Json
 module C2DT = LibExecution.CommonToDarkTypes
 module D = LibExecution.DvalDecoder
-
 module Utils = BuiltinCliHost.Utils
+module Canvas = LibCloud.Canvas
+
+
+// Load canvas ID and DBs for an account
+let loadCanvasAndDBs
+  (accountID : Option<System.Guid>)
+  : Ply<Option<CanvasID> * Map<string, RT.DB.T>> =
+  uply {
+    match accountID with
+    | None -> return (None, Map.empty)
+    | Some accID ->
+      let! canvases = Canvas.getCanvasesForAccount accID
+      match canvases with
+      | canvasID :: _ ->
+        let! canvas = Canvas.loadAllDBs canvasID
+        let! program = Canvas.toProgram canvas
+        return (Some canvasID, program.dbs)
+      | [] -> return (None, Map.empty)
+  }
 
 
 // Create exception error from exn
@@ -96,7 +114,8 @@ let builtinsToUse () : RT.Builtins =
         BuiltinExecution.Libs.HttpClient.defaultConfig
       BuiltinCli.Builtin.builtins
       BuiltinPM.Builtin.builtins ptPM
-      BuiltinHttpServer.Builtin.builtins ]
+      BuiltinHttpServer.Builtin.builtins
+      BuiltinCloudExecution.Builtin.builtins ]
     []
 
 
@@ -105,13 +124,15 @@ let execute
   (branchId : System.Guid)
   (mod' : Utils.CliScript.PTCliScriptModule)
   (_args : List<Dval>) // CLEANUP update to List<String>, and extract in builtin
+  (canvasID : Option<CanvasID>)
+  (dbs : Map<string, RT.DB.T>)
   : Ply<RT.ExecutionResult> =
   uply {
     let (program : Program) =
-      { canvasID = System.Guid.NewGuid()
+      { canvasID = canvasID |> Option.defaultValue (System.Guid.NewGuid())
         internalFnsAllowed = false
         secrets = []
-        dbs = Map.empty }
+        dbs = dbs }
 
     let builtins = builtinsToUse ()
 
@@ -186,7 +207,8 @@ let fns : List<BuiltInFn> =
   [ { name = fn "cliParseAndExecuteScript" 0
       typeParams = []
       parameters =
-        [ Param.make "branchId" TUuid ""
+        [ Param.make "accountID" (TypeReference.option TUuid) ""
+          Param.make "branchId" TUuid ""
           Param.make "filename" TString ""
           Param.make "code" TString ""
           Param.make "args" (TList TString) "" ]
@@ -201,20 +223,24 @@ let fns : List<BuiltInFn> =
         | exeState,
           _,
           [],
-          [ DUuid branchId
+          [ accountIDDval
+            DUuid branchId
             DString filename
             DString code
             DList(_vtTODO, scriptArgs) ] ->
           uply {
+            let accountID = C2DT.Option.fromDT D.uuid accountIDDval
             // Use branch-specific state for parsing so name resolution uses the right branch
             let branchState = createBranchState exeState branchId
             let! parsedScript =
               parseCliScript branchState branchId "CliScript" filename code
 
             try
+              let! (canvasID, dbs) = loadCanvasAndDBs accountID
+
               match parsedScript with
               | Ok mod' ->
-                match! execute exeState branchId mod' scriptArgs with
+                match! execute exeState branchId mod' scriptArgs canvasID dbs with
                 | Ok(DInt64 i) -> return resultOk (DInt64 i)
                 | Ok result ->
                   return
@@ -239,7 +265,9 @@ let fns : List<BuiltInFn> =
     { name = fn "cliEvaluateExpression" 0
       typeParams = []
       parameters =
-        [ Param.make "branchId" TUuid ""; Param.make "expression" TString "" ]
+        [ Param.make "accountID" (TypeReference.option TUuid) ""
+          Param.make "branchId" TUuid ""
+          Param.make "expression" TString "" ]
       returnType = TypeReference.result TString ExecutionError.typeRef
       description = "Evaluates a Dark expression and returns the result as a String"
       fn =
@@ -247,8 +275,9 @@ let fns : List<BuiltInFn> =
         let resultOk = Dval.resultOk KTString errType
         let resultError = Dval.resultError KTString errType
         (function
-        | exeState, _, [], [ DUuid branchId; DString expression ] ->
+        | exeState, _, [], [ accountIDDval; DUuid branchId; DString expression ] ->
           uply {
+            let accountID = C2DT.Option.fromDT D.uuid accountIDDval
             // Use branch-specific state for parsing so name resolution uses the right branch
             let branchState = createBranchState exeState branchId
             let! parsedScript =
@@ -260,9 +289,11 @@ let fns : List<BuiltInFn> =
                 expression
 
             try
+              let! (canvasID, dbs) = loadCanvasAndDBs accountID
+
               match parsedScript with
               | Ok mod' ->
-                match! execute exeState branchId mod' [] with
+                match! execute exeState branchId mod' [] canvasID dbs with
                 | Ok result ->
                   match result with
                   | DString s -> return resultOk (DString s)

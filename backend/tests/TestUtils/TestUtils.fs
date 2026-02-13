@@ -51,7 +51,7 @@ let nameToTestDomain (name : string) : string =
 let initializeCanvasForOwner (name : string) : Task<CanvasID * string> =
   task {
     let domain = nameToTestDomain name
-    let! canvasID = Canvas.create domain
+    let! canvasID = Canvas.create None domain
     return (canvasID, domain)
   }
 

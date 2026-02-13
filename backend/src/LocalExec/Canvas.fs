@@ -83,7 +83,7 @@ let loadFromDisk
     // TODO this doesn't purge any added types/vals/fns from PM...
     // maybe we should?
     do! purgeDataFromInternalSqlTables canvasID
-    do! LibCloud.Canvas.createWithExactID canvasID domain
+    do! LibCloud.Canvas.createWithExactID canvasID None domain
 
     let! tls =
       uply {
