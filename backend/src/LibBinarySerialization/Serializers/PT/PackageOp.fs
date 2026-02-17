@@ -34,6 +34,46 @@ let write (w : BinaryWriter) (op : PackageOp) : unit =
     w.Write(5uy)
     FQFnName.Package.write w id
     PackageLocation.write w location
+  | PackageOp.PropagateUpdate(propagationId,
+                              sourceLocation,
+                              sourceItemKind,
+                              fromSourceUUIDs,
+                              toSourceUUID,
+                              repoints) ->
+    w.Write(6uy)
+    Guid.write w propagationId
+    PackageLocation.write w sourceLocation
+    String.write w (sourceItemKind.toString ())
+    List.write w (fun w id -> Guid.write w id) fromSourceUUIDs
+    Guid.write w toSourceUUID
+    List.write
+      w
+      (fun w (r : PropagateRepoint) ->
+        PackageLocation.write w r.location
+        String.write w (r.itemKind.toString ())
+        Guid.write w r.fromUUID
+        Guid.write w r.toUUID)
+      repoints
+  | PackageOp.RevertPropagation(revertId,
+                                revertedPropagationIds,
+                                sourceLocation,
+                                sourceItemKind,
+                                restoredSourceUUID,
+                                revertedRepoints) ->
+    w.Write(7uy)
+    Guid.write w revertId
+    List.write w (fun w id -> Guid.write w id) revertedPropagationIds
+    PackageLocation.write w sourceLocation
+    String.write w (sourceItemKind.toString ())
+    Guid.write w restoredSourceUUID
+    List.write
+      w
+      (fun w (r : PropagateRepoint) ->
+        PackageLocation.write w r.location
+        String.write w (r.itemKind.toString ())
+        Guid.write w r.fromUUID
+        Guid.write w r.toUUID)
+      revertedRepoints
 
 let read (r : BinaryReader) : PackageOp =
   match r.ReadByte() with
@@ -58,6 +98,46 @@ let read (r : BinaryReader) : PackageOp =
     let id = FQFnName.Package.read r
     let location = PackageLocation.read r
     PackageOp.SetFnName(id, location)
+  | 6uy ->
+    let propagationId = Guid.read r
+    let sourceLocation = PackageLocation.read r
+    let sourceItemKind = String.read r |> ItemKind.fromString
+    let fromSourceUUIDs = List.read r (fun r -> Guid.read r)
+    let toSourceUUID = Guid.read r
+    let repoints =
+      List.read r (fun r ->
+        { location = PackageLocation.read r
+          itemKind = String.read r |> ItemKind.fromString
+          fromUUID = Guid.read r
+          toUUID = Guid.read r })
+    PackageOp.PropagateUpdate(
+      propagationId,
+      sourceLocation,
+      sourceItemKind,
+      fromSourceUUIDs,
+      toSourceUUID,
+      repoints
+    )
+  | 7uy ->
+    let revertId = Guid.read r
+    let revertedPropagationIds = List.read r (fun r -> Guid.read r)
+    let sourceLocation = PackageLocation.read r
+    let sourceItemKind = String.read r |> ItemKind.fromString
+    let restoredSourceUUID = Guid.read r
+    let revertedRepoints =
+      List.read r (fun r ->
+        { location = PackageLocation.read r
+          itemKind = String.read r |> ItemKind.fromString
+          fromUUID = Guid.read r
+          toUUID = Guid.read r })
+    PackageOp.RevertPropagation(
+      revertId,
+      revertedPropagationIds,
+      sourceLocation,
+      sourceItemKind,
+      restoredSourceUUID,
+      revertedRepoints
+    )
   | b -> raise (BinaryFormatException(CorruptedData $"Invalid PackageOp tag: {b}"))
 
 

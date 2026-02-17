@@ -184,6 +184,7 @@ module Registry =
       ("find-values", "Find values of a given type", [], Commands.FindValues.execute, Commands.FindValues.help, Commands.FindValues.complete)
       ("http-server", "Start an HTTP server", [], Commands.HttpServer.execute, Commands.HttpServer.help, Commands.HttpServer.complete)
       ("docs", "Browse in-CLI documentation", [ "doc"; "man" ], Commands.Docs.execute, Commands.Docs.help, Commands.Docs.complete)
+      ("undo", "Undo WIP changes to a fn/type/value", [], Packages.Undo.execute, Packages.Undo.help, Packages.Undo.complete) ]
       ("db", "Manage databases", [], Packages.DB.execute, Packages.DB.help, Packages.DB.complete) ]
     |> Stdlib.List.map(
       // CLEANUP nitpicky: swap help and complete

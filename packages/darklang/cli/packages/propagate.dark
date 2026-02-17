@@ -1,0 +1,270 @@
+module Darklang.Cli.Packages.Propagate
+
+// Auto-propagation helpers for fn/type/val commands
+//
+// Note: the signature comparison helpers below exist because propagation does a blind
+// UUID swap with no type-checking. With content-addressable content, this goes
+// away — UUIDs only change when content changes, and dependents get type-checked
+// against the new definition directly.
+
+/// Convert an ItemKind to its display string
+let itemKindToString (kind: LanguageTools.ProgramTypes.ItemKind) : String =
+  match kind with
+  | Fn -> "fn"
+  | Type -> "type"
+  | Value -> "value"
+
+/// Parse a string to an ItemKind
+let itemKindFromString (s: String) : Stdlib.Option.Option<LanguageTools.ProgramTypes.ItemKind> =
+  match s with
+  | "fn" -> Stdlib.Option.Option.Some LanguageTools.ProgramTypes.ItemKind.Fn
+  | "type" -> Stdlib.Option.Option.Some LanguageTools.ProgramTypes.ItemKind.Type
+  | "value" -> Stdlib.Option.Option.Some LanguageTools.ProgramTypes.ItemKind.Value
+  | _ -> Stdlib.Option.Option.None
+
+/// Get ALL UUIDs that have ever been at a location (across the branch chain).
+/// Returns empty list if no entries exist (i.e., this is a brand new item).
+/// Callers should filter out the current UUID to get only previous versions.
+let getAllPreviousUUIDs
+  (branchId: Uuid)
+  (location: LanguageTools.ProgramTypes.PackageLocation)
+  (itemKind: LanguageTools.ProgramTypes.ItemKind)
+  : List<Uuid> =
+  Builtin.pmGetAllPreviousUUIDs branchId location itemKind
+
+
+/// Resolve a type UUID to its location name for comparison purposes.
+/// Two UUIDs that point to the same named location are considered equal.
+let resolveTypeName
+  (branchId: Uuid)
+  (id: LanguageTools.ProgramTypes.FQTypeName.Package)
+  : Stdlib.Option.Option<LanguageTools.ProgramTypes.PackageLocation> =
+  Builtin.pmGetLocationByType branchId id
+
+
+/// Compare two lists element-wise; returns false if lengths differ.
+let listsEqual (xs: List<'a>) (ys: List<'a>) (eq: 'a -> 'a -> Bool) : Bool =
+  let checks = Stdlib.List.map2 xs ys (fun a b -> eq a b)
+  let results = Stdlib.Option.withDefault checks []
+  (Stdlib.List.length xs == Stdlib.List.length ys)
+  && (Stdlib.List.all results (fun x -> x))
+
+
+/// Structurally compare two TypeReferences, resolving UUIDs to names.
+/// Returns true if they are semantically equal (same structure, same named types).
+let typeReferenceEqual
+  (branchId: Uuid)
+  (a: LanguageTools.ProgramTypes.TypeReference)
+  (b: LanguageTools.ProgramTypes.TypeReference)
+  : Bool =
+  match (a, b) with
+  | (TVariable nameA, TVariable nameB) -> nameA == nameB
+  | (TUnit, TUnit) -> true
+  | (TBool, TBool) -> true
+  | (TInt8, TInt8) -> true
+  | (TUInt8, TUInt8) -> true
+  | (TInt16, TInt16) -> true
+  | (TUInt16, TUInt16) -> true
+  | (TInt32, TInt32) -> true
+  | (TUInt32, TUInt32) -> true
+  | (TInt64, TInt64) -> true
+  | (TUInt64, TUInt64) -> true
+  | (TInt128, TInt128) -> true
+  | (TUInt128, TUInt128) -> true
+  | (TFloat, TFloat) -> true
+  | (TChar, TChar) -> true
+  | (TString, TString) -> true
+  | (TDateTime, TDateTime) -> true
+  | (TUuid, TUuid) -> true
+
+  | (TList innerA, TList innerB) ->
+    typeReferenceEqual branchId innerA innerB
+
+  | (TDict innerA, TDict innerB) ->
+    typeReferenceEqual branchId innerA innerB
+
+  | (TDB innerA, TDB innerB) ->
+    typeReferenceEqual branchId innerA innerB
+
+  | (TTuple (firstA, secondA, restA), TTuple (firstB, secondB, restB)) ->
+    (typeReferenceEqual branchId firstA firstB)
+    && (typeReferenceEqual branchId secondA secondB)
+    && (listsEqual restA restB (fun a b -> typeReferenceEqual branchId a b))
+
+  | (TCustomType (typA, argsA), TCustomType (typB, argsB)) ->
+    let namesEqual =
+      match (typA, typB) with
+      | (Ok (Package idA), Ok (Package idB)) ->
+        let locA = resolveTypeName branchId idA
+        let locB = resolveTypeName branchId idB
+        match (locA, locB) with
+        | (Some lA, Some lB) -> lA == lB
+        | _ -> idA == idB
+      | (Error eA, Error eB) -> eA == eB
+      | _ -> false
+
+    namesEqual
+    && (listsEqual argsA argsB (fun a b -> typeReferenceEqual branchId a b))
+
+  | (TFn (argsA, retA), TFn (argsB, retB)) ->
+    (listsEqual argsA argsB (fun a b -> typeReferenceEqual branchId a b))
+    && (typeReferenceEqual branchId retA retB)
+
+  | _ -> false
+
+
+/// Compare two function signatures structurally (type params, parameter names/types, return type).
+let fnSignatureEqual
+  (branchId: Uuid)
+  (oldF: LanguageTools.ProgramTypes.PackageFn.PackageFn)
+  (newF: LanguageTools.ProgramTypes.PackageFn.PackageFn)
+  : Bool =
+  let typeParamsEqual = oldF.typeParams == newF.typeParams
+
+  let paramsEqual =
+    listsEqual oldF.parameters newF.parameters (fun oldP newP ->
+      oldP.name == newP.name && typeReferenceEqual branchId oldP.typ newP.typ)
+
+  let returnEqual = typeReferenceEqual branchId oldF.returnType newF.returnType
+
+  typeParamsEqual && paramsEqual && returnEqual
+
+
+/// Compare two type declarations structurally (type params and definition).
+let typeDeclarationEqual
+  (branchId: Uuid)
+  (oldD: LanguageTools.ProgramTypes.TypeDeclaration.TypeDeclaration)
+  (newD: LanguageTools.ProgramTypes.TypeDeclaration.TypeDeclaration)
+  : Bool =
+  let typeParamsEqual = oldD.typeParams == newD.typeParams
+
+  let defEqual =
+    match (oldD.definition, newD.definition) with
+    | (Alias oldT, Alias newT) ->
+      typeReferenceEqual branchId oldT newT
+
+    | (Record oldFields, Record newFields) ->
+      listsEqual oldFields newFields (fun oldF newF ->
+        oldF.name == newF.name && typeReferenceEqual branchId oldF.typ newF.typ)
+
+    | (Enum oldCases, Enum newCases) ->
+      listsEqual oldCases newCases (fun oldC newC ->
+        oldC.name == newC.name
+        && listsEqual oldC.fields newC.fields (fun oldF newF ->
+          oldF.label == newF.label
+          && typeReferenceEqual branchId oldF.typ newF.typ))
+
+    | _ -> false // different definition kinds (e.g. Record vs Enum)
+
+  typeParamsEqual && defEqual
+
+
+/// Check if the signature of an item changed between old and new versions.
+/// If so, print a warning since callers were updated via blind UUID swap
+/// and may not compile with the new signature.
+///
+/// Uses structural comparison that resolves type UUIDs to names, so changes
+/// that only differ in UUIDs pointing to the same name are not flagged.
+/// Pretty-printer is only used for displaying the warning message.
+let warnIfSignatureChanged
+  (branchId: Uuid)
+  (itemKind: LanguageTools.ProgramTypes.ItemKind)
+  (previousUUID: Uuid)
+  (currentUUID: Uuid)
+  : Bool =
+  let ctx = PrettyPrinter.ProgramTypes.Context.forBranch branchId
+
+  match itemKind with
+  | Fn ->
+    let oldFn = Builtin.pmGetFn previousUUID
+    let newFn = Builtin.pmGetFn currentUUID
+
+    match (oldFn, newFn) with
+    | (Some oldF, Some newF) ->
+      if Stdlib.Bool.not (fnSignatureEqual branchId oldF newF) then
+        let oldSig = PrettyPrinter.ProgramTypes.PackageFn.signature ctx oldF
+        let newSig = PrettyPrinter.ProgramTypes.PackageFn.signature ctx newF
+        Stdlib.printLine (Colors.warning "  Warning: function signature changed")
+        Stdlib.printLine (Colors.warning $"    was: {oldSig}")
+        Stdlib.printLine (Colors.warning $"    now: {newSig}")
+        true
+      else
+        false
+    | _ -> false
+
+  | Type ->
+    let oldType = Builtin.pmGetType previousUUID
+    let newType = Builtin.pmGetType currentUUID
+
+    match (oldType, newType) with
+    | (Some oldT, Some newT) ->
+      if Stdlib.Bool.not (typeDeclarationEqual branchId oldT.declaration newT.declaration) then
+        let oldDef = PrettyPrinter.ProgramTypes.customType ctx oldT.declaration
+        let newDef = PrettyPrinter.ProgramTypes.customType ctx newT.declaration
+        Stdlib.printLine (Colors.warning "  Warning: type definition changed")
+        Stdlib.printLine (Colors.warning $"    was: {oldDef}")
+        Stdlib.printLine (Colors.warning $"    now: {newDef}")
+        true
+      else
+        false
+    | _ -> false
+
+  | Value -> false // values don't have signatures
+
+
+/// Auto-propagate after creating/updating a definition
+/// Called by fn/type/val commands after successful creation
+let autoPropagateAfterUpdate
+  (branchId: Uuid)
+  (location: LanguageTools.ProgramTypes.PackageLocation)
+  (currentUUID: Uuid)
+  (itemKind: LanguageTools.ProgramTypes.ItemKind)
+  : Unit =
+  // getAllPreviousUUIDs returns ALL UUIDs at this location across the branch chain
+  // (including the current one), so filter out currentUUID to get only previous versions.
+  let previousUUIDs =
+    (getAllPreviousUUIDs branchId location itemKind)
+    |> Stdlib.List.filter (fun id -> id != currentUUID)
+
+  match previousUUIDs with
+  | [] -> ()  // New item, nothing to propagate
+  | _ ->
+    // Warn if signature changed (use most recent previous UUID for comparison)
+    let signatureChanged =
+      match Stdlib.List.head previousUUIDs with
+      | Some prevUUID -> warnIfSignatureChanged branchId itemKind prevUUID currentUUID
+      | None -> false
+
+    match Builtin.pmPropagate branchId location itemKind previousUUIDs currentUUID with
+    | Ok resultTuple ->
+      let (propagationId, repoints) = resultTuple
+
+      match repoints with
+      | [] ->
+        Stdlib.printLine "  No dependents to propagate to"
+      | _ ->
+        let count = Stdlib.List.length repoints
+        Stdlib.printLine $"  Propagated to {Stdlib.Int64.toString count} dependents:"
+
+        let ids = repoints |> Stdlib.List.map (fun r -> r.toUUID) |> Stdlib.List.unique
+        let namesDict = Deps.resolveNames branchId ids
+
+        repoints
+        |> Stdlib.List.iter (fun repoint ->
+          let name = Deps.getName namesDict repoint.toUUID
+          let kindStr = itemKindToString repoint.itemKind
+          Stdlib.printLine $"    [{kindStr}] {name}")
+
+        if signatureChanged then
+          Stdlib.printLine ""
+          Stdlib.printLine
+            (Colors.warning "  These callers may need manual updates. To review:")
+
+          repoints
+          |> Stdlib.List.iter (fun repoint ->
+            let name = Deps.getName namesDict repoint.toUUID
+            let kindStr = itemKindToString repoint.itemKind
+            Stdlib.printLine (Colors.hint $"    view {kindStr} {name}"))
+
+    | Error errMsg ->
+      Stdlib.printLine (Colors.error $"  Auto-propagation failed: {errMsg}")

@@ -11,6 +11,7 @@ module VT = LibExecution.ValueType
 module PT = LibExecution.ProgramTypes
 module PT2DT = LibExecution.ProgramTypesToDarkTypes
 module PMPT = LibPackageManager.ProgramTypes
+module Branches = LibPackageManager.Branches
 
 
 let tupleVT = VT.tuple VT.uuid VT.string []
@@ -37,19 +38,24 @@ let private getLocationAny
 let fns : List<BuiltInFn> =
   [ { name = fn "depsGetDependents" 0
       typeParams = []
-      parameters = [ Param.make "targetId" TUuid "The UUID to find dependents for" ]
+      parameters =
+        [ Param.make "branchId" TUuid "Branch context for scoping"
+          Param.make "targetId" TUuid "The UUID to find dependents for" ]
       returnType = TList(TTuple(TUuid, TString, []))
       description =
-        "Returns items that reference the given UUID (reverse dependencies)."
+        "Returns items that reference the given UUID (reverse dependencies), scoped to the branch chain."
       fn =
         (function
-        | _, _, _, [ DUuid targetId ] ->
+        | _, _, _, [ DUuid branchId; DUuid targetId ] ->
           uply {
-            let! results = LibPackageManager.Queries.getDependents targetId
+            let! branchChain = Branches.getBranchChain branchId
+            let! results =
+              LibPackageManager.Queries.getDependents branchChain targetId
 
             let dvals =
               results
-              |> List.map (fun ref -> DTuple(DUuid ref.itemId, DString ref.kind, []))
+              |> List.map (fun ref ->
+                DTuple(DUuid ref.itemId, DString(ref.itemKind.toString ()), []))
             return DList(tupleVT, dvals)
           }
         | _ -> incorrectArgs ())
@@ -61,18 +67,22 @@ let fns : List<BuiltInFn> =
     { name = fn "depsGetDependencies" 0
       typeParams = []
       parameters =
-        [ Param.make "sourceId" TUuid "The UUID to find dependencies for" ]
+        [ Param.make "branchId" TUuid "Branch context for scoping"
+          Param.make "sourceId" TUuid "The UUID to find dependencies for" ]
       returnType = TList(TTuple(TUuid, TString, []))
       description =
-        "Returns all UUIDs that the given item references (forward dependencies)"
+        "Returns all UUIDs that the given item references (forward dependencies), scoped to the branch chain."
       fn =
         (function
-        | _, _, _, [ DUuid sourceId ] ->
+        | _, _, _, [ DUuid branchId; DUuid sourceId ] ->
           uply {
-            let! results = LibPackageManager.Queries.getDependencies sourceId
+            let! branchChain = Branches.getBranchChain branchId
+            let! results =
+              LibPackageManager.Queries.getDependencies branchChain sourceId
             let dvals =
               results
-              |> List.map (fun ref -> DTuple(DUuid ref.itemId, DString ref.kind, []))
+              |> List.map (fun ref ->
+                DTuple(DUuid ref.itemId, DString(ref.itemKind.toString ()), []))
             return DList(tupleVT, dvals)
           }
         | _ -> incorrectArgs ())
@@ -84,14 +94,16 @@ let fns : List<BuiltInFn> =
     { name = fn "depsGetDependentsBatch" 0
       typeParams = []
       parameters =
-        [ Param.make "targetIds" (TList TUuid) "List of UUIDs to find dependents for" ]
+        [ Param.make "branchId" TUuid "Branch context for scoping"
+          Param.make "targetIds" (TList TUuid) "List of UUIDs to find dependents for" ]
       returnType = TList(TTuple(TUuid, TUuid, [ TString ]))
       description =
-        "Batch lookup of dependents. Returns (dependsOnId, itemId, kind) tuples."
+        "Batch lookup of dependents, scoped to the branch chain. Returns (dependsOnId, itemId, kind) tuples."
       fn =
         (function
-        | _, _, _, [ DList(_, targetIds) ] ->
+        | _, _, _, [ DUuid branchId; DList(_, targetIds) ] ->
           uply {
+            let! branchChain = Branches.getBranchChain branchId
             let ids =
               targetIds
               |> List.choose (fun dval ->
@@ -99,7 +111,8 @@ let fns : List<BuiltInFn> =
                 | DUuid id -> Some id
                 | _ -> None)
 
-            let! results = LibPackageManager.Queries.getDependentsBatch ids
+            let! results =
+              LibPackageManager.Queries.getDependentsBatch branchChain ids
 
             let resultVT = VT.tuple VT.uuid VT.uuid [ VT.string ]
 
@@ -109,7 +122,7 @@ let fns : List<BuiltInFn> =
                 DTuple(
                   DUuid dep.dependsOnId,
                   DUuid dep.itemId,
-                  [ DString dep.kind ]
+                  [ DString(dep.itemKind.toString ()) ]
                 ))
 
             return DList(resultVT, dvals)

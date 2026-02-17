@@ -624,6 +624,53 @@ type PackageOp =
   | SetTypeName of id : FQTypeName.Package * location : PackageLocation
   | SetValueName of id : FQValueName.Package * location : PackageLocation
   | SetFnName of id : FQFnName.Package * location : PackageLocation
+
+
+  // Propagation: when a definition is updated, propagate the change to all dependents
+  | PropagateUpdate of
+    propagationId : uuid *
+    sourceLocation : PackageLocation *
+    sourceItemKind : ItemKind *
+    fromSourceUUIDs : List<uuid> *
+    toSourceUUID : uuid *
+    repoints : List<PropagateRepoint>
+
+  // Revert a propagation: restore previous versions atomically
+  | RevertPropagation of
+    revertId : uuid *
+    revertedPropagationIds : List<uuid> *
+    sourceLocation : PackageLocation *
+    sourceItemKind : ItemKind *
+    restoredSourceUUID : uuid *
+    revertedRepoints : List<PropagateRepoint>
+
+/// The kind of package item (function, type, or value)
+and ItemKind =
+  | Fn
+  | Type
+  | Value
+
+  /// Convert from database string representation
+  static member fromString(s : string) : ItemKind =
+    match s with
+    | "fn" -> Fn
+    | "type" -> Type
+    | "value" -> Value
+    | _ -> Exception.raiseInternal $"Unknown item kind: {s}" []
+
+  /// Convert to database string representation
+  /// CLEANUP might be appropriate to either migrate these fns to LibSerialization,
+  // or replace them w/ _binary_ serializer equivs (but, then DB is less queryable by humans directly)
+  member this.toString() : string =
+    match this with
+    | Fn -> "fn"
+    | Type -> "type"
+    | Value -> "value"
+
+// A single repoint operation within a PropagateUpdate
+and PropagateRepoint =
+  { location : PackageLocation; itemKind : ItemKind; fromUUID : uuid; toUUID : uuid }
+
 // DB should have _history_ of old item names, but only one active PackageLocation
 
 

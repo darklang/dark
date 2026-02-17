@@ -1313,6 +1313,49 @@ module PackageLocation =
     | _ -> Exception.raiseInternal "Invalid PackageLocation" []
 
 
+module ItemKind =
+  let typeName =
+    FQTypeName.fqPackage PackageIDs.Type.LanguageTools.ProgramTypes.itemKind
+
+  let toDT (k : PT.ItemKind) : Dval =
+    let (caseName, fields) =
+      match k with
+      | PT.ItemKind.Fn -> "Fn", []
+      | PT.ItemKind.Type -> "Type", []
+      | PT.ItemKind.Value -> "Value", []
+    DEnum(typeName, typeName, [], caseName, fields)
+
+  let fromDT (d : Dval) : PT.ItemKind =
+    match d with
+    | DEnum(_, _, [], "Fn", []) -> PT.ItemKind.Fn
+    | DEnum(_, _, [], "Type", []) -> PT.ItemKind.Type
+    | DEnum(_, _, [], "Value", []) -> PT.ItemKind.Value
+    | _ -> Exception.raiseInternal "Invalid ItemKind" []
+
+
+module PropagateRepoint =
+  let typeName =
+    FQTypeName.fqPackage PackageIDs.Type.LanguageTools.ProgramTypes.propagateRepoint
+  let knownType = KTCustomType(typeName, [])
+
+  let toDT (r : PT.PropagateRepoint) : Dval =
+    let fields =
+      [ "location", PackageLocation.toDT r.location
+        "itemKind", ItemKind.toDT r.itemKind
+        "fromUUID", DUuid r.fromUUID
+        "toUUID", DUuid r.toUUID ]
+    DRecord(typeName, typeName, [], Map fields)
+
+  let fromDT (d : Dval) : PT.PropagateRepoint =
+    match d with
+    | DRecord(_, _, _, fields) ->
+      { location = fields |> D.field "location" |> PackageLocation.fromDT
+        itemKind = fields |> D.field "itemKind" |> ItemKind.fromDT
+        fromUUID = fields |> D.field "fromUUID" |> D.uuid
+        toUUID = fields |> D.field "toUUID" |> D.uuid }
+    | _ -> Exception.raiseInternal "Invalid PropagateRepoint" []
+
+
 module LocatedItem =
   let typeName =
     FQTypeName.fqPackage PackageIDs.Type.LanguageTools.ProgramTypes.locatedItem
@@ -1469,6 +1512,38 @@ module PackageOp =
         "SetValueName", [ DUuid id; PackageLocation.toDT loc ]
       | PT.PackageOp.SetFnName(id, loc) ->
         "SetFnName", [ DUuid id; PackageLocation.toDT loc ]
+      | PT.PackageOp.PropagateUpdate(propagationId,
+                                     sourceLocation,
+                                     sourceItemKind,
+                                     fromSourceUUIDs,
+                                     toSourceUUID,
+                                     repoints) ->
+        "PropagateUpdate",
+        [ DUuid propagationId
+          PackageLocation.toDT sourceLocation
+          ItemKind.toDT sourceItemKind
+          DList(VT.uuid, List.map DUuid fromSourceUUIDs)
+          DUuid toSourceUUID
+          DList(
+            VT.known PropagateRepoint.knownType,
+            List.map PropagateRepoint.toDT repoints
+          ) ]
+      | PT.PackageOp.RevertPropagation(revertId,
+                                       revertedPropagationIds,
+                                       sourceLocation,
+                                       sourceItemKind,
+                                       restoredSourceUUID,
+                                       revertedRepoints) ->
+        "RevertPropagation",
+        [ DUuid revertId
+          DList(VT.uuid, List.map DUuid revertedPropagationIds)
+          PackageLocation.toDT sourceLocation
+          ItemKind.toDT sourceItemKind
+          DUuid restoredSourceUUID
+          DList(
+            VT.known PropagateRepoint.knownType,
+            List.map PropagateRepoint.toDT revertedRepoints
+          ) ]
     DEnum(typeName, typeName, [], caseName, fields)
 
   let fromDT (d : Dval) : PT.PackageOp option =
@@ -1484,6 +1559,46 @@ module PackageOp =
       Some(PT.PackageOp.SetValueName(id, PackageLocation.fromDT loc))
     | DEnum(_, _, [], "SetFnName", [ DUuid id; loc ]) ->
       Some(PT.PackageOp.SetFnName(id, PackageLocation.fromDT loc))
+    | DEnum(_,
+            _,
+            [],
+            "PropagateUpdate",
+            [ DUuid propagationId
+              sourceLocation
+              sourceItemKind
+              DList(_, fromSourceUUIDs)
+              DUuid toSourceUUID
+              DList(_, repoints) ]) ->
+      Some(
+        PT.PackageOp.PropagateUpdate(
+          propagationId,
+          PackageLocation.fromDT sourceLocation,
+          ItemKind.fromDT sourceItemKind,
+          List.map D.uuid fromSourceUUIDs,
+          toSourceUUID,
+          List.map PropagateRepoint.fromDT repoints
+        )
+      )
+    | DEnum(_,
+            _,
+            [],
+            "RevertPropagation",
+            [ DUuid revertId
+              DList(_, revertedPropagationIds)
+              sourceLocation
+              sourceItemKind
+              DUuid restoredSourceUUID
+              DList(_, revertedRepoints) ]) ->
+      Some(
+        PT.PackageOp.RevertPropagation(
+          revertId,
+          List.map D.uuid revertedPropagationIds,
+          PackageLocation.fromDT sourceLocation,
+          ItemKind.fromDT sourceItemKind,
+          restoredSourceUUID,
+          List.map PropagateRepoint.fromDT revertedRepoints
+        )
+      )
     | _ -> None
 
 

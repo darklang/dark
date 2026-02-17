@@ -59,44 +59,70 @@ let getAllOpsSince
 /// A dependency relationship between package items.
 /// For dependents: itemId is the item that has the dependency.
 /// For dependencies: itemId is what the item depends on.
-type PackageDep = { itemId : uuid; kind : string } // "fn", "type", "value"
+type PackageDep = { itemId : uuid; itemKind : PT.ItemKind }
 
 
 /// Get items that depend on the given UUID (reverse dependencies / "what uses this?")
-let getDependents (dependsOnId : uuid) : Task<List<PackageDep>> =
+let getDependents
+  (branchChain : List<PT.BranchId>)
+  (dependsOnId : uuid)
+  : Task<List<PackageDep>> =
   task {
-    return!
-      Sql.query
-        """
-        SELECT DISTINCT pd.item_id, l.item_type
-        FROM package_dependencies pd
-        INNER JOIN locations l ON pd.item_id = l.item_id
-        WHERE pd.depends_on_id = @depends_on_id
-          AND l.deprecated_at IS NULL
-        ORDER BY pd.item_id
-        """
-      |> Sql.parameters [ "depends_on_id", Sql.uuid dependsOnId ]
-      |> Sql.executeAsync (fun read ->
-        { itemId = read.uuid "item_id"; kind = read.string "item_type" })
+    if List.isEmpty branchChain then
+      return []
+    else
+      let branchParams = branchChain |> List.mapi (fun i id -> $"b_{i}", Sql.uuid id)
+
+      let branchInClause =
+        branchChain |> List.mapi (fun i _ -> $"@b_{i}") |> String.concat ", "
+
+      return!
+        Sql.query
+          $"""
+          SELECT DISTINCT pd.item_id, l.item_type
+          FROM package_dependencies pd
+          INNER JOIN locations l ON pd.item_id = l.item_id
+          WHERE pd.depends_on_id = @depends_on_id
+            AND l.deprecated_at IS NULL
+            AND l.branch_id IN ({branchInClause})
+          ORDER BY pd.item_id
+          """
+        |> Sql.parameters ([ "depends_on_id", Sql.uuid dependsOnId ] @ branchParams)
+        |> Sql.executeAsync (fun read ->
+          { itemId = read.uuid "item_id"
+            itemKind = read.string "item_type" |> PT.ItemKind.fromString })
   }
 
 
 /// Get UUIDs that the given item depends on (forward dependencies / "what does this use?" / uses)
-let getDependencies (itemId : uuid) : Task<List<PackageDep>> =
+let getDependencies
+  (branchChain : List<PT.BranchId>)
+  (itemId : uuid)
+  : Task<List<PackageDep>> =
   task {
-    return!
-      Sql.query
-        """
-        SELECT DISTINCT pd.depends_on_id, l.item_type
-        FROM package_dependencies pd
-        INNER JOIN locations l ON pd.depends_on_id = l.item_id
-        WHERE pd.item_id = @item_id
-          AND l.deprecated_at IS NULL
-        ORDER BY pd.depends_on_id
-        """
-      |> Sql.parameters [ "item_id", Sql.uuid itemId ]
-      |> Sql.executeAsync (fun read ->
-        { itemId = read.uuid "depends_on_id"; kind = read.string "item_type" })
+    if List.isEmpty branchChain then
+      return []
+    else
+      let branchParams = branchChain |> List.mapi (fun i id -> $"b_{i}", Sql.uuid id)
+
+      let branchInClause =
+        branchChain |> List.mapi (fun i _ -> $"@b_{i}") |> String.concat ", "
+
+      return!
+        Sql.query
+          $"""
+          SELECT DISTINCT pd.depends_on_id, l.item_type
+          FROM package_dependencies pd
+          INNER JOIN locations l ON pd.depends_on_id = l.item_id
+          WHERE pd.item_id = @item_id
+            AND l.deprecated_at IS NULL
+            AND l.branch_id IN ({branchInClause})
+          ORDER BY pd.depends_on_id
+          """
+        |> Sql.parameters ([ "item_id", Sql.uuid itemId ] @ branchParams)
+        |> Sql.executeAsync (fun read ->
+          { itemId = read.uuid "depends_on_id"
+            itemKind = read.string "item_type" |> PT.ItemKind.fromString })
   }
 
 
@@ -104,22 +130,27 @@ let getDependencies (itemId : uuid) : Task<List<PackageDep>> =
 type BatchDependent =
   { dependsOnId : uuid // The item that was queried (what is being depended on)
     itemId : uuid // The item that has the dependency
-    kind : string }
-
+    itemKind : PT.ItemKind }
 
 /// Batch lookup of dependents for a chunk of dependency IDs
 let private getDependentsBatchChunk
+  (branchChain : List<PT.BranchId>)
   (dependsOnIds : List<uuid>)
   : Task<List<BatchDependent>> =
   task {
-    if List.isEmpty dependsOnIds then
+    if List.isEmpty dependsOnIds || List.isEmpty branchChain then
       return []
     else
-      // Build parameterized IN clause
+      // Build parameterized IN clauses
       let depParams = dependsOnIds |> List.mapi (fun i id -> $"dep_{i}", Sql.uuid id)
 
       let inClause =
         dependsOnIds |> List.mapi (fun i _ -> $"@dep_{i}") |> String.concat ", "
+
+      let branchParams = branchChain |> List.mapi (fun i id -> $"b_{i}", Sql.uuid id)
+
+      let branchInClause =
+        branchChain |> List.mapi (fun i _ -> $"@b_{i}") |> String.concat ", "
 
       let sql =
         $"""
@@ -128,22 +159,26 @@ let private getDependentsBatchChunk
           INNER JOIN locations l ON pd.item_id = l.item_id
           WHERE pd.depends_on_id IN ({inClause})
             AND l.deprecated_at IS NULL
+            AND l.branch_id IN ({branchInClause})
           ORDER BY pd.depends_on_id, pd.item_id
           """
 
       return!
         Sql.query sql
-        |> Sql.parameters depParams
+        |> Sql.parameters (depParams @ branchParams)
         |> Sql.executeAsync (fun read ->
           { dependsOnId = read.uuid "depends_on_id"
             itemId = read.uuid "item_id"
-            kind = read.string "item_type" })
+            itemKind = read.string "item_type" |> PT.ItemKind.fromString })
   }
 
 
 /// Batch lookup of dependents for multiple dependency IDs.
 /// Chunks requests to avoid SQLite expression tree depth limits.
-let getDependentsBatch (dependsOnIds : List<uuid>) : Task<List<BatchDependent>> =
+let getDependentsBatch
+  (branchChain : List<PT.BranchId>)
+  (dependsOnIds : List<uuid>)
+  : Task<List<BatchDependent>> =
   task {
     if List.isEmpty dependsOnIds then
       return []
@@ -152,62 +187,8 @@ let getDependentsBatch (dependsOnIds : List<uuid>) : Task<List<BatchDependent>> 
       // Chunk into batches of 100 to stay well under the limit
       let chunks = dependsOnIds |> List.chunkBySize 100
 
-      let! results = chunks |> List.map getDependentsBatchChunk |> Task.flatten
-
-      return results |> List.concat
-  }
-
-
-/// Location info for batch lookup results
-type LocationInfo =
-  { itemId : uuid
-    itemType : string
-    owner : string
-    modules : string
-    name : string }
-
-
-/// Batch lookup of locations for a chunk of item IDs
-let private resolveLocationsBatchChunk
-  (itemIds : List<uuid>)
-  : Task<List<LocationInfo>> =
-  task {
-    if List.isEmpty itemIds then
-      return []
-    else
-      let itemParams = itemIds |> List.mapi (fun i id -> $"id_{i}", Sql.uuid id)
-      let inClause =
-        itemIds |> List.mapi (fun i _ -> $"@id_{i}") |> String.concat ", "
-
-      return!
-        Sql.query
-          $"""
-          SELECT item_id, item_type, owner, modules, name
-          FROM locations
-          WHERE item_id IN ({inClause})
-            AND deprecated_at IS NULL
-          """
-        |> Sql.parameters itemParams
-        |> Sql.executeAsync (fun read ->
-          { itemId = read.uuid "item_id"
-            itemType = read.string "item_type"
-            owner = read.string "owner"
-            modules = read.string "modules"
-            name = read.string "name" })
-  }
-
-
-/// Resolve UUIDs to location info (owner, modules, name).
-/// Returns locations for all items found.
-let resolveLocations (itemIds : List<uuid>) : Task<List<LocationInfo>> =
-  task {
-    if List.isEmpty itemIds then
-      return []
-    else
-      // SQLite has a limit on IN clause (~1000 params)
-      let chunks = itemIds |> List.chunkBySize 500
-
-      let! results = chunks |> List.map resolveLocationsBatchChunk |> Task.flatten
+      let! results =
+        chunks |> List.map (getDependentsBatchChunk branchChain) |> Task.flatten
 
       return results |> List.concat
   }
@@ -280,12 +261,10 @@ let getWipSummary (branchId : PT.BranchId) : Task<WipSummary> =
       |> List.length
       |> int64
 
+    let total = ops |> List.length |> int64
+
     return
-      { types = types
-        values = values
-        fns = fns
-        renames = renames
-        total = types + values + fns }
+      { types = types; values = values; fns = fns; renames = renames; total = total }
   }
 
 
@@ -372,4 +351,54 @@ let getCommitOps (commitId : uuid) : Task<List<PT.PackageOp>> =
         let opId = read.uuid "id"
         let opBlob = read.bytes "op_blob"
         BinarySerialization.PT.PackageOp.deserialize opId opBlob)
+  }
+
+
+// ===========================================
+// Propagation Queries
+// ===========================================
+
+/// Gets all UUIDs that have ever been at a location across the branch chain.
+/// Returns all distinct item_ids (active or deprecated) at this location.
+/// Callers should filter out the "current" UUID to get only previous versions.
+///
+/// This is chain-aware so that the first update on a branch correctly finds the
+/// parent's active version as a "previous" UUID (enabling propagation).
+let getAllPreviousUUIDs
+  (branchChain : List<PT.BranchId>)
+  (owner : string)
+  (modules : string)
+  (name : string)
+  (itemType : string)
+  : Task<List<uuid>> =
+  task {
+    if List.isEmpty branchChain then
+      return []
+    else
+      let branchParams = branchChain |> List.mapi (fun i id -> $"b_{i}", Sql.uuid id)
+
+      let branchInClause =
+        branchChain |> List.mapi (fun i _ -> $"@b_{i}") |> String.concat ", "
+
+      return!
+        Sql.query
+          $"""
+          SELECT item_id
+          FROM locations
+          WHERE owner = @owner
+            AND modules = @modules
+            AND name = @name
+            AND item_type = @item_type
+            AND branch_id IN ({branchInClause})
+          GROUP BY item_id
+          ORDER BY MAX(CASE WHEN deprecated_at IS NULL THEN '9999-12-31' ELSE deprecated_at END) DESC
+          """
+        |> Sql.parameters (
+          [ "owner", Sql.string owner
+            "modules", Sql.string modules
+            "name", Sql.string name
+            "item_type", Sql.string itemType ]
+          @ branchParams
+        )
+        |> Sql.executeAsync (fun read -> read.uuid "item_id")
   }
