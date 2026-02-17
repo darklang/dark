@@ -44,6 +44,7 @@ let rec private transformTypeRef
   (mapping : UuidMapping)
   (typeRef : PT.TypeReference)
   : PT.TypeReference =
+  /// CLEANUP introduce `let r = ...`
   match typeRef with
   | PT.TUnit
   | PT.TBool
