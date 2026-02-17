@@ -1,0 +1,792 @@
+/// Anthropic Claude API - Chat
+/// Request types, configuration, and API call functions
+module Darklang.Anthropic.Chat
+
+type Json = Stdlib.AltJson.Json
+
+
+// ---------------------------------------------------------------------------
+// CONFIGURATION TYPES
+// ---------------------------------------------------------------------------
+
+type ServiceTier =
+  | Auto
+  | StandardOnly
+
+module ServiceTier =
+  let toString (tier: ServiceTier) : String =
+    match tier with
+    | Auto -> "auto"
+    | StandardOnly -> "standard_only"
+
+  let parse (s: String) : Stdlib.Option.Option<ServiceTier> =
+    match s with
+    | "auto" -> Stdlib.Option.Option.Some ServiceTier.Auto
+    | "standard_only" -> Stdlib.Option.Option.Some ServiceTier.StandardOnly
+    | _ -> Stdlib.Option.Option.None
+
+type Effort =
+  | Low
+  | Medium
+  | High
+  | Max
+
+module Effort =
+  let toString (effort: Effort) : String =
+    match effort with
+    | Low -> "low"
+    | Medium -> "medium"
+    | High -> "high"
+    | Max -> "max"
+
+  let parse (s: String) : Stdlib.Option.Option<Effort> =
+    match s with
+    | "low" -> Stdlib.Option.Option.Some Effort.Low
+    | "medium" -> Stdlib.Option.Option.Some Effort.Medium
+    | "high" -> Stdlib.Option.Option.Some Effort.High
+    | "max" -> Stdlib.Option.Option.Some Effort.Max
+    | _ -> Stdlib.Option.Option.None
+
+type ThinkingType =
+  | Enabled
+  | Disabled
+  | Adaptive
+
+module ThinkingType =
+  let toString (t: ThinkingType) : String =
+    match t with
+    | Enabled -> "enabled"
+    | Disabled -> "disabled"
+    | Adaptive -> "adaptive"
+
+  let parse (s: String) : Stdlib.Option.Option<ThinkingType> =
+    match s with
+    | "enabled" -> Stdlib.Option.Option.Some ThinkingType.Enabled
+    | "disabled" -> Stdlib.Option.Option.Some ThinkingType.Disabled
+    | "adaptive" -> Stdlib.Option.Option.Some ThinkingType.Adaptive
+    | _ -> Stdlib.Option.Option.None
+
+type ThinkingConfig =
+  { ``type``: ThinkingType
+    budget_tokens: Stdlib.Option.Option<Int64> }
+
+let thinkingEnabled (budgetTokens: Int64) : ThinkingConfig =
+  ThinkingConfig
+    { ``type`` = ThinkingType.Enabled
+      budget_tokens = Stdlib.Option.Option.Some budgetTokens }
+
+let thinkingDisabled () : ThinkingConfig =
+  ThinkingConfig
+    { ``type`` = ThinkingType.Disabled
+      budget_tokens = Stdlib.Option.Option.None }
+
+/// Adaptive thinking - recommended for Opus 4.6
+/// Automatically manages thinking budget based on task complexity
+let thinkingAdaptive () : ThinkingConfig =
+  ThinkingConfig
+    { ``type`` = ThinkingType.Adaptive
+      budget_tokens = Stdlib.Option.Option.None }
+
+
+type OutputFormatType =
+  | JsonSchema
+  | Text
+
+module OutputFormatType =
+  let toString (t: OutputFormatType) : String =
+    match t with
+    | JsonSchema -> "json_schema"
+    | Text -> "text"
+
+  let parse (s: String) : Stdlib.Option.Option<OutputFormatType> =
+    match s with
+    | "json_schema" -> Stdlib.Option.Option.Some OutputFormatType.JsonSchema
+    | "text" -> Stdlib.Option.Option.Some OutputFormatType.Text
+    | _ -> Stdlib.Option.Option.None
+
+type OutputFormat =
+  { ``type``: OutputFormatType
+    schema: Stdlib.Option.Option<Json> }
+
+type OutputConfig =
+  { format: OutputFormat
+    effort: Stdlib.Option.Option<Effort> }
+
+/// Create a JSON schema output config without effort level
+let jsonSchemaOutput (schema: Json) : OutputConfig =
+  OutputConfig
+    { format =
+        OutputFormat
+          { ``type`` = OutputFormatType.JsonSchema
+            schema = Stdlib.Option.Option.Some schema }
+      effort = Stdlib.Option.Option.None }
+
+/// Create a JSON schema output config with effort level
+let jsonSchemaOutputWithEffort
+  (schema: Json)
+  (effort: Effort)
+  : OutputConfig =
+  OutputConfig
+    { format =
+        OutputFormat
+          { ``type`` = OutputFormatType.JsonSchema
+            schema = Stdlib.Option.Option.Some schema }
+      effort = Stdlib.Option.Option.Some effort }
+
+/// Create a text output config
+let textOutput () : OutputConfig =
+  OutputConfig
+    { format =
+        OutputFormat
+          { ``type`` = OutputFormatType.Text
+            schema = Stdlib.Option.Option.None }
+      effort = Stdlib.Option.Option.None }
+
+
+type Metadata =
+  { user_id: Stdlib.Option.Option<String> }
+
+let metadata (userId: String) : Metadata =
+  Metadata { user_id = Stdlib.Option.Option.Some userId }
+
+
+// ---------------------------------------------------------------------------
+// REQUEST TYPES
+// ---------------------------------------------------------------------------
+
+type SimpleRequest =
+  { model: String
+    max_tokens: Int64
+    system: Stdlib.Option.Option<String>
+    messages: List<Content.SimpleMessage>
+    tools: Stdlib.Option.Option<List<Json>>
+    tool_choice: Stdlib.Option.Option<Tools.ToolChoice>
+    temperature: Stdlib.Option.Option<Float>
+    top_p: Stdlib.Option.Option<Float>
+    top_k: Stdlib.Option.Option<Int64>
+    stop_sequences: Stdlib.Option.Option<List<String>>
+    stream: Stdlib.Option.Option<Bool>
+    thinking: Stdlib.Option.Option<ThinkingConfig>
+    metadata: Stdlib.Option.Option<Metadata>
+    service_tier: Stdlib.Option.Option<String>
+    output_config: Stdlib.Option.Option<OutputConfig>
+    inference_geo: Stdlib.Option.Option<String> }
+
+type BlockRequest =
+  { model: String
+    max_tokens: Int64
+    system: Stdlib.Option.Option<List<Content.SystemBlock>>
+    messages: List<Content.BlockMessage>
+    tools: Stdlib.Option.Option<List<Json>>
+    tool_choice: Stdlib.Option.Option<Tools.ToolChoice>
+    temperature: Stdlib.Option.Option<Float>
+    top_p: Stdlib.Option.Option<Float>
+    top_k: Stdlib.Option.Option<Int64>
+    stop_sequences: Stdlib.Option.Option<List<String>>
+    stream: Stdlib.Option.Option<Bool>
+    thinking: Stdlib.Option.Option<ThinkingConfig>
+    metadata: Stdlib.Option.Option<Metadata>
+    service_tier: Stdlib.Option.Option<String>
+    output_config: Stdlib.Option.Option<OutputConfig>
+    inference_geo: Stdlib.Option.Option<String> }
+
+
+// ---------------------------------------------------------------------------
+// RESPONSE PARSING
+// ---------------------------------------------------------------------------
+
+let parseContentBlock (json: Json) : Content.ContentBlock =
+  match json with
+  | Object fields ->
+    // Get content as string first, then try as JSON value if that fails
+    let contentStr = JsonHelpers.getString "content" fields
+    let contentJsonVal =
+      match contentStr with
+      | Some _ -> Stdlib.Option.Option.None  // Already got string content
+      | None -> JsonHelpers.getValue "content" fields  // Try getting as JSON (for arrays)
+
+    // Parse citations from JSON into typed List<Citation>
+    let citationsList =
+      match JsonHelpers.getValue "citations" fields with
+      | Some citationsJson ->
+        let parsed = Content.Citation.parseArray citationsJson
+        if Stdlib.List.isEmpty parsed then
+          Stdlib.Option.Option.None
+        else
+          Stdlib.Option.Option.Some parsed
+      | None -> Stdlib.Option.Option.None
+
+    Content.ContentBlock
+      { ``type`` =
+          match JsonHelpers.getString "type" fields with
+          | Some t -> Content.ContentType.parse t
+          | None -> Content.ContentType.Unknown "unknown"
+        text = JsonHelpers.getString "text" fields
+        id = JsonHelpers.getString "id" fields
+        name = JsonHelpers.getString "name" fields
+        input = JsonHelpers.getValue "input" fields
+        tool_use_id = JsonHelpers.getString "tool_use_id" fields
+        content = contentStr
+        contentJson = contentJsonVal
+        is_error = JsonHelpers.getBool "is_error" fields
+        source = JsonHelpers.getValue "source" fields
+        title = JsonHelpers.getString "title" fields
+        context = JsonHelpers.getString "context" fields
+        thinking = JsonHelpers.getString "thinking" fields
+        signature = JsonHelpers.getString "signature" fields
+        data = JsonHelpers.getString "data" fields
+        cache_control = Stdlib.Option.Option.None
+        citations_enabled = Stdlib.Option.Option.None  // Input field only, not in responses
+        citations = citationsList
+        url = JsonHelpers.getString "url" fields
+        page_age = JsonHelpers.getString "page_age" fields
+        encrypted_content = JsonHelpers.getString "encrypted_content" fields }
+  | _ ->
+    Content.ContentBlock
+      { ``type`` = Content.ContentType.Unknown "unknown"
+        text = Stdlib.Option.Option.None
+        id = Stdlib.Option.Option.None
+        name = Stdlib.Option.Option.None
+        input = Stdlib.Option.Option.None
+        tool_use_id = Stdlib.Option.Option.None
+        content = Stdlib.Option.Option.None
+        contentJson = Stdlib.Option.Option.None
+        is_error = Stdlib.Option.Option.None
+        source = Stdlib.Option.Option.None
+        title = Stdlib.Option.Option.None
+        context = Stdlib.Option.Option.None
+        thinking = Stdlib.Option.Option.None
+        signature = Stdlib.Option.Option.None
+        data = Stdlib.Option.Option.None
+        cache_control = Stdlib.Option.Option.None
+        citations_enabled = Stdlib.Option.Option.None
+        citations = Stdlib.Option.Option.None
+        url = Stdlib.Option.Option.None
+        page_age = Stdlib.Option.Option.None
+        encrypted_content = Stdlib.Option.Option.None }
+
+let parseResponse (json: Json) : Stdlib.Result.Result<Response.Response, String> =
+  match json with
+  | Object fields ->
+    let usageFields = JsonHelpers.getObject "usage" fields
+
+    let cacheCreation = JsonHelpers.getInt "cache_creation_input_tokens" usageFields
+    let cacheRead = JsonHelpers.getInt "cache_read_input_tokens" usageFields
+
+    // Parse nested cache_creation object
+    let cacheCreationObj = JsonHelpers.getObject "cache_creation" usageFields
+    let cacheCreationUsage =
+      let e5m = JsonHelpers.getInt "ephemeral_5m_input_tokens" cacheCreationObj
+      let e1h = JsonHelpers.getInt "ephemeral_1h_input_tokens" cacheCreationObj
+      if e5m == 0L && e1h == 0L then
+        Stdlib.Option.Option.None
+      else
+        Stdlib.Option.Option.Some(
+          Response.CacheCreationUsage
+            { ephemeral_5m_input_tokens =
+                if e5m == 0L then Stdlib.Option.Option.None
+                else Stdlib.Option.Option.Some e5m
+              ephemeral_1h_input_tokens =
+                if e1h == 0L then Stdlib.Option.Option.None
+                else Stdlib.Option.Option.Some e1h })
+
+    // Parse nested server_tool_use object
+    let serverToolObj = JsonHelpers.getObject "server_tool_use" usageFields
+    let serverToolUsage =
+      let webSearchReqs = JsonHelpers.getInt "web_search_requests" serverToolObj
+      if webSearchReqs == 0L then
+        Stdlib.Option.Option.None
+      else
+        Stdlib.Option.Option.Some(
+          Response.ServerToolUsage
+            { web_search_requests = Stdlib.Option.Option.Some webSearchReqs })
+
+    let usage =
+      Response.Usage
+        { input_tokens = JsonHelpers.getInt "input_tokens" usageFields
+          output_tokens = JsonHelpers.getInt "output_tokens" usageFields
+          cache_creation_input_tokens =
+            if cacheCreation == 0L then
+              Stdlib.Option.Option.None
+            else
+              Stdlib.Option.Option.Some cacheCreation
+          cache_read_input_tokens =
+            if cacheRead == 0L then
+              Stdlib.Option.Option.None
+            else
+              Stdlib.Option.Option.Some cacheRead
+          cache_creation = cacheCreationUsage
+          server_tool_use = serverToolUsage
+          service_tier = JsonHelpers.getString "service_tier" usageFields
+          inference_geo = JsonHelpers.getString "inference_geo" usageFields }
+
+    let contentArray = JsonHelpers.getArray "content" fields
+    let contentBlocks = Stdlib.List.map contentArray (fun block -> parseContentBlock block)
+
+    let stopReason =
+      match JsonHelpers.getString "stop_reason" fields with
+      | Some s -> Stdlib.Option.Option.Some(Response.StopReason.parse s)
+      | None -> Stdlib.Option.Option.None
+
+    let role =
+      match JsonHelpers.getString "role" fields with
+      | Some s ->
+        match Content.Role.parse s with
+        | Some r -> r
+        | None -> Content.Role.Assistant
+      | None -> Content.Role.Assistant
+
+    Stdlib.Result.Result.Ok(
+      Response.Response
+        { id =
+            match JsonHelpers.getString "id" fields with
+            | Some s -> s
+            | None -> ""
+          ``type`` =
+            match JsonHelpers.getString "type" fields with
+            | Some s -> s
+            | None -> "message"
+          role = role
+          content = contentBlocks
+          model =
+            match JsonHelpers.getString "model" fields with
+            | Some s -> s
+            | None -> ""
+          stop_reason = stopReason
+          stop_sequence = JsonHelpers.getString "stop_sequence" fields
+          usage = usage }
+    )
+  | _ -> Stdlib.Result.Result.Error "Invalid response format"
+
+let handleResponse
+  (response: Stdlib.Result.Result<Stdlib.HttpClient.Response, Stdlib.HttpClient.RequestError>)
+  : Stdlib.Result.Result<Response.Response, Response.ApiError> =
+  match response with
+  | Ok r ->
+    let bodyStr = Stdlib.String.fromBytesWithReplacement r.body
+
+    if r.statusCode == 200L then
+      match Stdlib.AltJson.parse bodyStr with
+      | Ok json ->
+        match parseResponse json with
+        | Ok resp -> Stdlib.Result.Result.Ok resp
+        | Error msg -> Stdlib.Result.Result.Error(Response.ApiError.InvalidResponse msg)
+      | Error _ ->
+        Stdlib.Result.Result.Error(Response.ApiError.InvalidResponse "Failed to parse response JSON")
+    else
+      Stdlib.Result.Result.Error(Response.ApiError.fromHttpResponse r.statusCode bodyStr)
+  | Error e ->
+    Stdlib.Result.Result.Error(Response.ApiError.fromHttpError e)
+
+
+// ---------------------------------------------------------------------------
+// REQUEST BUILDER
+// Fluent API for building and sending requests
+// ---------------------------------------------------------------------------
+
+/// Message content - either simple strings or content blocks
+type MessageContent =
+  | Simple of List<Content.SimpleMessage>
+  | Blocks of List<Content.BlockMessage>
+
+/// System prompt - either a string or structured blocks
+type SystemContent =
+  | Text of String
+  | Blocks of List<Content.SystemBlock>
+
+/// Request configuration with sensible defaults
+type Request =
+  { model: Models.Model
+    maxTokens: Int64
+    messages: MessageContent
+    system: Stdlib.Option.Option<SystemContent>
+    tools: Stdlib.Option.Option<List<Json>>
+    toolChoice: Stdlib.Option.Option<Tools.ToolChoice>
+    temperature: Stdlib.Option.Option<Float>
+    topP: Stdlib.Option.Option<Float>
+    topK: Stdlib.Option.Option<Int64>
+    stopSequences: Stdlib.Option.Option<List<String>>
+    thinking: Stdlib.Option.Option<ThinkingConfig>
+    metadata: Stdlib.Option.Option<Metadata>
+    serviceTier: Stdlib.Option.Option<ServiceTier>
+    outputConfig: Stdlib.Option.Option<OutputConfig>
+    inferenceGeo: Stdlib.Option.Option<String> }
+
+module Request =
+  /// Create a new request with required fields and sensible defaults
+  let create () : Request =
+    Request
+      { model = Models.Model.latest
+        maxTokens = 4096L
+        messages = MessageContent.Simple []
+        system = Stdlib.Option.Option.None
+        tools = Stdlib.Option.Option.None
+        toolChoice = Stdlib.Option.Option.None
+        temperature = Stdlib.Option.Option.None
+        topP = Stdlib.Option.Option.None
+        topK = Stdlib.Option.Option.None
+        stopSequences = Stdlib.Option.Option.None
+        thinking = Stdlib.Option.Option.None
+        metadata = Stdlib.Option.Option.None
+        serviceTier = Stdlib.Option.Option.None
+        outputConfig = Stdlib.Option.Option.None
+        inferenceGeo = Stdlib.Option.Option.None }
+
+  /// Set the model
+  let withModel (req: Request) (model: Models.Model) : Request =
+    { req with model = model }
+
+  /// Set the model using a string (for custom/new models)
+  let withModelString (req: Request) (model: String) : Request =
+    { req with model = Models.Model.Custom model }
+
+  /// Set max tokens
+  let withMaxTokens (req: Request) (tokens: Int64) : Request =
+    { req with maxTokens = tokens }
+
+  /// Set simple text messages
+  let withMessages (req: Request) (msgs: List<Content.SimpleMessage>) : Request =
+    { req with messages = MessageContent.Simple msgs }
+
+  /// Set block-based messages
+  let withBlockMessages (req: Request) (msgs: List<Content.BlockMessage>) : Request =
+    { req with messages = MessageContent.Blocks msgs }
+
+  /// Add a single user message (convenience)
+  let withUserMessage (req: Request) (text: String) : Request =
+    { req with messages = MessageContent.Simple [ Content.userMessage text ] }
+
+  /// Set system prompt as text
+  let withSystem (req: Request) (prompt: String) : Request =
+    { req with system = Stdlib.Option.Option.Some(SystemContent.Text prompt) }
+
+  /// Set system prompt as blocks (for caching)
+  let withSystemBlocks (req: Request) (blocks: List<Content.SystemBlock>) : Request =
+    { req with system = Stdlib.Option.Option.Some(SystemContent.Blocks blocks) }
+
+  /// Add tools (as pre-built JSON)
+  let withToolsJson (req: Request) (tools: List<Json>) : Request =
+    { req with tools = Stdlib.Option.Option.Some tools }
+
+  /// Add tools
+  let withTools (req: Request) (tools: List<Tools.Tool>) : Request =
+    let toolsJson = Stdlib.List.map tools (fun t -> Tools.toolToJson t)
+    { req with tools = Stdlib.Option.Option.Some toolsJson }
+
+  /// Set tool choice
+  let withToolChoice (req: Request) (choice: Tools.ToolChoice) : Request =
+    { req with toolChoice = Stdlib.Option.Option.Some choice }
+
+  /// Force a specific tool to be used
+  let withForceTool (req: Request) (toolName: String) : Request =
+    { req with toolChoice = Stdlib.Option.Option.Some(Tools.toolChoiceTool toolName) }
+
+  /// Set temperature
+  let withTemperature (req: Request) (temp: Float) : Request =
+    { req with temperature = Stdlib.Option.Option.Some temp }
+
+  /// Set top_p
+  let withTopP (req: Request) (p: Float) : Request =
+    { req with topP = Stdlib.Option.Option.Some p }
+
+  /// Set top_k
+  let withTopK (req: Request) (k: Int64) : Request =
+    { req with topK = Stdlib.Option.Option.Some k }
+
+  /// Set stop sequences
+  let withStopSequences (req: Request) (seqs: List<String>) : Request =
+    { req with stopSequences = Stdlib.Option.Option.Some seqs }
+
+  /// Enable thinking with a budget
+  let withThinking (req: Request) (budgetTokens: Int64) : Request =
+    { req with thinking = Stdlib.Option.Option.Some(thinkingEnabled budgetTokens) }
+
+  /// Enable adaptive thinking (for Opus 4.6)
+  let withAdaptiveThinking (req: Request) : Request =
+    { req with thinking = Stdlib.Option.Option.Some(thinkingAdaptive ()) }
+
+  /// Set metadata
+  let withMetadata (req: Request) (meta: Metadata) : Request =
+    { req with metadata = Stdlib.Option.Option.Some meta }
+
+  /// Set user ID for metadata
+  let withUserId (req: Request) (userId: String) : Request =
+    { req with metadata = Stdlib.Option.Option.Some(metadata userId) }
+
+  /// Set service tier
+  let withServiceTier (req: Request) (tier: ServiceTier) : Request =
+    { req with serviceTier = Stdlib.Option.Option.Some tier }
+
+  /// Set output config for JSON schema output
+  let withOutputConfig (req: Request) (config: OutputConfig) : Request =
+    { req with outputConfig = Stdlib.Option.Option.Some config }
+
+  /// Set JSON schema output format
+  let withJsonSchema (req: Request) (schema: Json) : Request =
+    { req with outputConfig = Stdlib.Option.Option.Some(jsonSchemaOutput schema) }
+
+  /// Set JSON schema output format with effort level
+  let withJsonSchemaAndEffort (req: Request) (schema: Json) (effort: Effort) : Request =
+    { req with outputConfig = Stdlib.Option.Option.Some(jsonSchemaOutputWithEffort schema effort) }
+
+  /// Set inference geographic region
+  let withInferenceGeo (req: Request) (geo: String) : Request =
+    { req with inferenceGeo = Stdlib.Option.Option.Some geo }
+
+  // --- Internal: Build JSON from request ---
+
+  let thinkingToJson (th: ThinkingConfig) : Json =
+    Models.JsonBuilder.empty
+    |> Models.JsonBuilder.addString "type" (ThinkingType.toString th.``type``)
+    |> Models.JsonBuilder.addOptionalInt "budget_tokens" th.budget_tokens
+    |> Models.JsonBuilder.toJson
+
+  let toJson (req: Request) : Json =
+    let modelStr = Models.Model.toString req.model
+
+    // Build messages JSON
+    let messagesJson =
+      match req.messages with
+      | Simple msgs ->
+        Json.Array(
+          Stdlib.List.map msgs (fun m ->
+            Json.Object
+              [ ("role", Json.String(Content.Role.toString m.role))
+                ("content", Json.String m.content) ]))
+      | Blocks msgs ->
+        Json.Array(Stdlib.List.map msgs (fun msg -> Content.blockMessageToJson msg))
+
+    // Build system JSON
+    let systemJson =
+      match req.system with
+      | Some(Text s) -> Stdlib.Option.Option.Some(Json.String s)
+      | Some(Blocks blocks) ->
+        Stdlib.Option.Option.Some(
+          Json.Array(Stdlib.List.map blocks (fun b -> Content.systemBlockToJson b)))
+      | None -> Stdlib.Option.Option.None
+
+    // Build tools JSON
+    let toolsJson =
+      match req.tools with
+      | Some t -> Stdlib.Option.Option.Some(Json.Array t)
+      | None -> Stdlib.Option.Option.None
+
+    // Build tool_choice JSON
+    let toolChoiceJson =
+      match req.toolChoice with
+      | Some tc -> Stdlib.Option.Option.Some(Tools.toolChoiceToJson tc)
+      | None -> Stdlib.Option.Option.None
+
+    // Build thinking JSON
+    let thinkingJson =
+      match req.thinking with
+      | Some th -> Stdlib.Option.Option.Some(thinkingToJson th)
+      | None -> Stdlib.Option.Option.None
+
+    // Build stop_sequences JSON
+    let stopSeqJson =
+      match req.stopSequences with
+      | Some seqs -> Stdlib.Option.Option.Some(Json.Array(Stdlib.List.map seqs (fun s -> Json.String s)))
+      | None -> Stdlib.Option.Option.None
+
+    // Build metadata JSON
+    let metaJson =
+      match req.metadata with
+      | Some m ->
+        Stdlib.Option.Option.Some(
+          Models.JsonBuilder.empty
+          |> Models.JsonBuilder.addOptionalString "user_id" m.user_id
+          |> Models.JsonBuilder.toJson)
+      | None -> Stdlib.Option.Option.None
+
+    // Build service_tier string
+    let serviceTierStr =
+      match req.serviceTier with
+      | Some tier -> Stdlib.Option.Option.Some(ServiceTier.toString tier)
+      | None -> Stdlib.Option.Option.None
+
+    // Build output JSON
+    let outputJson =
+      match req.outputConfig with
+      | Some config ->
+        let formatJson =
+          Models.JsonBuilder.empty
+          |> Models.JsonBuilder.addString "type" (OutputFormatType.toString config.format.``type``)
+          |> Models.JsonBuilder.addOptionalJson "schema" config.format.schema
+          |> Models.JsonBuilder.toJson
+
+        let outputFields =
+          Models.JsonBuilder.empty
+          |> Models.JsonBuilder.addJson "format" formatJson
+
+        let withEffort =
+          match config.effort with
+          | Some e ->
+            Models.JsonBuilder.addString outputFields "effort" (Effort.toString e)
+          | None -> outputFields
+
+        Stdlib.Option.Option.Some(Models.JsonBuilder.toJson withEffort)
+      | None -> Stdlib.Option.Option.None
+
+    // Assemble the full request
+    Models.JsonBuilder.empty
+    |> Models.JsonBuilder.addString "model" modelStr
+    |> Models.JsonBuilder.addInt "max_tokens" req.maxTokens
+    |> Models.JsonBuilder.addJson "messages" messagesJson
+    |> Models.JsonBuilder.addOptionalJson "system" systemJson
+    |> Models.JsonBuilder.addOptionalJson "tools" toolsJson
+    |> Models.JsonBuilder.addOptionalJson "tool_choice" toolChoiceJson
+    |> Models.JsonBuilder.addOptionalNumber "temperature" req.temperature
+    |> Models.JsonBuilder.addOptionalNumber "top_p" req.topP
+    |> Models.JsonBuilder.addOptionalInt "top_k" req.topK
+    |> Models.JsonBuilder.addOptionalJson "stop_sequences" stopSeqJson
+    |> Models.JsonBuilder.addOptionalJson "thinking" thinkingJson
+    |> Models.JsonBuilder.addOptionalJson "metadata" metaJson
+    |> Models.JsonBuilder.addOptionalString "service_tier" serviceTierStr
+    |> Models.JsonBuilder.addOptionalJson "output_config" outputJson
+    |> Models.JsonBuilder.addOptionalString "inference_geo" req.inferenceGeo
+    |> Models.JsonBuilder.toJson
+
+  /// Convert request to JSON for token counting (excludes max_tokens)
+  let toJsonForTokenCount (req: Request) : Json =
+    let modelStr = Models.Model.toString req.model
+
+    // Build messages JSON
+    let messagesJson =
+      match req.messages with
+      | Simple msgs ->
+        Json.Array(
+          Stdlib.List.map msgs (fun m ->
+            Json.Object
+              [ ("role", Json.String(Content.Role.toString m.role))
+                ("content", Json.String m.content) ]))
+      | Blocks msgs ->
+        Json.Array(Stdlib.List.map msgs (fun msg -> Content.blockMessageToJson msg))
+
+    // Build system JSON
+    let systemJson =
+      match req.system with
+      | Some(Text s) -> Stdlib.Option.Option.Some(Json.String s)
+      | Some(Blocks blocks) ->
+        Stdlib.Option.Option.Some(
+          Json.Array(Stdlib.List.map blocks (fun b -> Content.systemBlockToJson b)))
+      | None -> Stdlib.Option.Option.None
+
+    // Build tools JSON
+    let toolsJson =
+      match req.tools with
+      | Some t -> Stdlib.Option.Option.Some(Json.Array t)
+      | None -> Stdlib.Option.Option.None
+
+    // Assemble the request (without max_tokens for token counting)
+    Models.JsonBuilder.empty
+    |> Models.JsonBuilder.addString "model" modelStr
+    |> Models.JsonBuilder.addJson "messages" messagesJson
+    |> Models.JsonBuilder.addOptionalJson "system" systemJson
+    |> Models.JsonBuilder.addOptionalJson "tools" toolsJson
+    |> Models.JsonBuilder.toJson
+
+  /// Send the request and get a response
+  let send (apiKey: String) (req: Request) : Stdlib.Result.Result<Response.Response, Response.ApiError> =
+    let requestJson = toJson req
+    let reqBody = Stdlib.AltJson.format requestJson
+    let headers = Models.getHeaders apiKey
+    let response =
+      Stdlib.HttpClient.post Models.apiEndpoint headers (Stdlib.String.toBytes reqBody)
+    handleResponse response
+
+  /// Send and extract just the text (convenience)
+  let sendText (apiKey: String) (req: Request) : Stdlib.Result.Result<String, String> =
+    match send apiKey req with
+    | Ok response ->
+      match Response.extractText response with
+      | Some text -> Stdlib.Result.Result.Ok text
+      | None -> Stdlib.Result.Result.Error "No text content in response"
+    | Error e -> Stdlib.Result.Result.Error(Response.ApiError.toString e)
+
+
+// ---------------------------------------------------------------------------
+// CONVENIENCE FUNCTIONS
+// Quick helpers for common use cases
+// ---------------------------------------------------------------------------
+
+/// Simple one-shot prompt
+let prompt (apiKey: String) (userPrompt: String) : Stdlib.Result.Result<String, String> =
+  let req =
+    (Request.create ())
+    |> Request.withUserMessage userPrompt
+  Request.sendText apiKey req
+
+/// Prompt with a system message
+let promptWithSystem
+  (apiKey: String)
+  (systemPrompt: String)
+  (userPrompt: String)
+  : Stdlib.Result.Result<String, String> =
+  let req =
+    (Request.create ())
+    |> Request.withSystem systemPrompt
+    |> Request.withUserMessage userPrompt
+  Request.sendText apiKey req
+
+
+// ---------------------------------------------------------------------------
+// TOKEN COUNTING
+// Count tokens before sending a request
+// ---------------------------------------------------------------------------
+
+type TokenCountResult =
+  { input_tokens: Int64
+    cache_creation_input_tokens: Int64
+    cache_read_input_tokens: Int64 }
+
+let parseTokenCountResponse
+  (json: Json)
+  : Stdlib.Result.Result<TokenCountResult, String> =
+  match json with
+  | Object fields ->
+    Stdlib.Result.Result.Ok(
+      TokenCountResult
+        { input_tokens = JsonHelpers.getInt "input_tokens" fields
+          cache_creation_input_tokens = JsonHelpers.getInt "cache_creation_input_tokens" fields
+          cache_read_input_tokens = JsonHelpers.getInt "cache_read_input_tokens" fields })
+  | _ -> Stdlib.Result.Result.Error "Invalid token count response format"
+
+/// Count tokens for a request without sending it
+let countTokens
+  (apiKey: String)
+  (req: Request)
+  : Stdlib.Result.Result<TokenCountResult, Response.ApiError> =
+  let requestJson = Request.toJsonForTokenCount req
+  let reqBody = Stdlib.AltJson.format requestJson
+  let headers = Models.getHeaders apiKey
+
+  let response =
+    Stdlib.HttpClient.post Models.tokenCountEndpoint headers (Stdlib.String.toBytes reqBody)
+
+  match response with
+  | Ok r ->
+    let bodyStr = Stdlib.String.fromBytesWithReplacement r.body
+
+    if r.statusCode == 200L then
+      match Stdlib.AltJson.parse bodyStr with
+      | Ok json ->
+        match parseTokenCountResponse json with
+        | Ok result -> Stdlib.Result.Result.Ok result
+        | Error msg -> Stdlib.Result.Result.Error(Response.ApiError.InvalidResponse msg)
+      | Error _ ->
+        Stdlib.Result.Result.Error(Response.ApiError.InvalidResponse "Failed to parse token count JSON")
+    else
+      Stdlib.Result.Result.Error(Response.ApiError.fromHttpResponse r.statusCode bodyStr)
+  | Error e ->
+    Stdlib.Result.Result.Error(Response.ApiError.fromHttpError e)
+
+/// Count tokens for a simple user message
+let countTokensForPrompt
+  (apiKey: String)
+  (userPrompt: String)
+  : Stdlib.Result.Result<TokenCountResult, Response.ApiError> =
+  let req =
+    (Request.create ())
+    |> Request.withUserMessage userPrompt
+  countTokens apiKey req

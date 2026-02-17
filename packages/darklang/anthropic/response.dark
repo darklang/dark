@@ -1,0 +1,335 @@
+/// Anthropic Claude API - Response
+/// Response types, stop reasons, and parsing/extraction helpers
+module Darklang.Anthropic.Response
+
+type Json = Stdlib.AltJson.Json
+
+
+// ---------------------------------------------------------------------------
+// STOP REASONS
+// ---------------------------------------------------------------------------
+
+type StopReason =
+  | EndTurn
+  | MaxTokens
+  | StopSequence
+  | ToolUse
+  | PauseTurn
+  | Refusal
+  | Unknown of String
+
+module StopReason =
+  let toString (r: StopReason) : String =
+    match r with
+    | EndTurn -> "end_turn"
+    | MaxTokens -> "max_tokens"
+    | StopSequence -> "stop_sequence"
+    | ToolUse -> "tool_use"
+    | PauseTurn -> "pause_turn"
+    | Refusal -> "refusal"
+    | Unknown s -> s
+
+  let parse (s: String) : StopReason =
+    match s with
+    | "end_turn" -> StopReason.EndTurn
+    | "max_tokens" -> StopReason.MaxTokens
+    | "stop_sequence" -> StopReason.StopSequence
+    | "tool_use" -> StopReason.ToolUse
+    | "pause_turn" -> StopReason.PauseTurn
+    | "refusal" -> StopReason.Refusal
+    | _ -> StopReason.Unknown s
+
+// Legacy function (use StopReason.parse instead)
+let parseStopReason (s: String) : StopReason = StopReason.parse s
+
+
+// ---------------------------------------------------------------------------
+// USAGE
+// Token usage information
+// ---------------------------------------------------------------------------
+
+/// Detailed cache creation breakdown
+type CacheCreationUsage =
+  { ephemeral_5m_input_tokens: Stdlib.Option.Option<Int64>
+    ephemeral_1h_input_tokens: Stdlib.Option.Option<Int64> }
+
+/// Server tool usage tracking
+type ServerToolUsage =
+  { web_search_requests: Stdlib.Option.Option<Int64> }
+
+type Usage =
+  { input_tokens: Int64
+    output_tokens: Int64
+    cache_creation_input_tokens: Stdlib.Option.Option<Int64>
+    cache_read_input_tokens: Stdlib.Option.Option<Int64>
+    cache_creation: Stdlib.Option.Option<CacheCreationUsage>
+    server_tool_use: Stdlib.Option.Option<ServerToolUsage>
+    service_tier: Stdlib.Option.Option<String>
+    inference_geo: Stdlib.Option.Option<String> }
+
+
+// ---------------------------------------------------------------------------
+// RESPONSE
+// API response structure
+// ---------------------------------------------------------------------------
+
+type Response =
+  { id: String
+    ``type``: String
+    role: Content.Role
+    content: List<Content.ContentBlock>
+    model: String
+    stop_reason: Stdlib.Option.Option<StopReason>
+    stop_sequence: Stdlib.Option.Option<String>
+    usage: Usage }
+
+
+// ---------------------------------------------------------------------------
+// ERROR TYPES
+// ---------------------------------------------------------------------------
+
+/// Specific error types for API failures
+/// Based on https://docs.anthropic.com/en/api/errors
+type ApiError =
+  | NetworkError
+  | Timeout
+  | BadUrl of String
+  | BadHeader of String
+  | BadBody of String
+  | RateLimited
+  | InvalidRequest of String
+  | AuthenticationError of String
+  | PermissionDenied of String
+  | NotFoundError of String
+  | RequestTooLarge of String
+  | ServerError of String
+  | Overloaded of String
+  | InvalidResponse of String
+  | UnknownError of statusCode: Int64 * body: String
+
+module ApiError =
+  /// Convert an ApiError to a human-readable string
+  let toString (err: ApiError) : String =
+    match err with
+    | NetworkError -> "Network error: failed to connect"
+    | Timeout -> "Request timed out"
+    | BadUrl url -> "Invalid URL: " ++ url
+    | BadHeader h -> "Invalid header: " ++ h
+    | BadBody b -> "Invalid request body: " ++ b
+    | RateLimited -> "Rate limited"
+    | InvalidRequest msg -> "Invalid request: " ++ msg
+    | AuthenticationError msg -> "Authentication failed: " ++ msg
+    | PermissionDenied msg -> "Permission denied: " ++ msg
+    | NotFoundError msg -> "Not found: " ++ msg
+    | RequestTooLarge msg -> "Request too large: " ++ msg
+    | ServerError msg -> "Server error: " ++ msg
+    | Overloaded msg -> "API overloaded: " ++ msg
+    | InvalidResponse msg -> "Invalid response: " ++ msg
+    | UnknownError(statusCode, body) ->
+      "HTTP " ++ Stdlib.Int64.toString statusCode ++ " error: " ++ body
+
+  /// Check if the error is retryable
+  let isRetryable (err: ApiError) : Bool =
+    match err with
+    | NetworkError -> true
+    | Timeout -> true
+    | RateLimited -> true
+    | ServerError _ -> true
+    | Overloaded _ -> true
+    | _ -> false
+
+  /// Parse an HTTP status code and body into an ApiError
+  let fromHttpResponse (statusCode: Int64) (body: String) : ApiError =
+    match statusCode with
+    | 400L -> ApiError.InvalidRequest body
+    | 401L -> ApiError.AuthenticationError body
+    | 403L -> ApiError.PermissionDenied body
+    | 404L -> ApiError.NotFoundError body
+    | 413L -> ApiError.RequestTooLarge body
+    | 429L -> ApiError.RateLimited
+    | 500L -> ApiError.ServerError body
+    | 529L -> ApiError.Overloaded body
+    | _ when statusCode >= 500L -> ApiError.ServerError body
+    | _ -> ApiError.UnknownError(statusCode, body)
+
+  /// Convert an HttpClient.RequestError to an ApiError
+  let fromHttpError (err: Stdlib.HttpClient.RequestError) : ApiError =
+    match err with
+    | NetworkError -> ApiError.NetworkError
+    | BadUrl url -> ApiError.BadUrl url
+    | Timeout -> ApiError.Timeout
+    | BadHeader h -> ApiError.BadHeader h
+    | BadBody b -> ApiError.BadBody b
+
+
+// ---------------------------------------------------------------------------
+// EXTRACTED TOOL USE
+// For convenient access to tool calls from response
+// ---------------------------------------------------------------------------
+
+type ExtractedToolUse =
+  { id: String
+    name: String
+    input: Json }
+
+
+// ---------------------------------------------------------------------------
+// STOP REASON HELPERS
+// ---------------------------------------------------------------------------
+
+let getStopReason (response: Response) : Stdlib.Option.Option<StopReason> =
+  response.stop_reason
+
+/// Returns true if the stop reason indicates the agent loop should terminate
+let isTerminal (reason: StopReason) : Bool =
+  match reason with
+  | ToolUse -> false
+  | EndTurn -> true
+  | StopSequence -> true
+  | MaxTokens -> true
+  | PauseTurn -> true
+  | Refusal -> true
+  | Unknown _ -> true
+
+/// Returns true if the stop reason indicates successful completion
+let isSuccess (reason: StopReason) : Bool =
+  match reason with
+  | EndTurn -> true
+  | StopSequence -> true
+  | _ -> false
+
+/// Returns true if the stop reason indicates an error or problem
+let isError (reason: StopReason) : Bool =
+  match reason with
+  | Refusal -> true
+  | MaxTokens -> true
+  | _ -> false
+
+
+// ---------------------------------------------------------------------------
+// RESPONSE STATE HELPERS
+// ---------------------------------------------------------------------------
+
+let isComplete (response: Response) : Bool =
+  match getStopReason response with
+  | Some reason -> reason == StopReason.EndTurn
+  | None -> false
+
+let hasToolUse (response: Response) : Bool =
+  match getStopReason response with
+  | Some reason -> reason == StopReason.ToolUse
+  | None -> false
+
+let hitMaxTokens (response: Response) : Bool =
+  match getStopReason response with
+  | Some reason -> reason == StopReason.MaxTokens
+  | None -> false
+
+let wasRefused (response: Response) : Bool =
+  match getStopReason response with
+  | Some reason -> reason == StopReason.Refusal
+  | None -> false
+
+let isPaused (response: Response) : Bool =
+  match getStopReason response with
+  | Some reason -> reason == StopReason.PauseTurn
+  | None -> false
+
+
+// ---------------------------------------------------------------------------
+// CONTENT EXTRACTION
+// ---------------------------------------------------------------------------
+
+let extractText (response: Response) : Stdlib.Option.Option<String> =
+  let texts =
+    response.content
+    |> Stdlib.List.filterMap (fun block ->
+      if block.``type`` == Content.ContentType.Text then
+        block.text
+      else
+        Stdlib.Option.Option.None)
+
+  match texts with
+  | [] -> Stdlib.Option.Option.None
+  | _ -> Stdlib.Option.Option.Some(Stdlib.String.join texts "")
+
+/// Returns the response text, or empty string if none
+let getText (response: Response) : String =
+  (extractText response) |> Stdlib.Option.withDefault ""
+
+let extractToolUses (response: Response) : List<ExtractedToolUse> =
+  response.content
+  |> Stdlib.List.filterMap (fun block ->
+    if block.``type`` == Content.ContentType.ToolUse then
+      match (block.id, block.name, block.input) with
+      | (Some id, Some name, Some input) ->
+        Stdlib.Option.Option.Some(
+          ExtractedToolUse { id = id; name = name; input = input }
+        )
+      | _ -> Stdlib.Option.Option.None
+    else
+      Stdlib.Option.Option.None)
+
+let extractThinking (response: Response) : Stdlib.Option.Option<String> =
+  let thinkingBlocks =
+    response.content
+    |> Stdlib.List.filterMap (fun block ->
+      if block.``type`` == Content.ContentType.Thinking then
+        block.thinking
+      else
+        Stdlib.Option.Option.None)
+
+  match thinkingBlocks with
+  | [] -> Stdlib.Option.Option.None
+  | _ -> Stdlib.Option.Option.Some(Stdlib.String.join thinkingBlocks "\n\n")
+
+let hasThinking (response: Response) : Bool =
+  response.content
+  |> Stdlib.List.any (fun block -> block.``type`` == Content.ContentType.Thinking)
+
+/// Extract all citations from response content blocks
+let extractCitations (response: Response) : List<Content.Citation> =
+  response.content
+  |> Stdlib.List.filterMap (fun block -> block.citations)
+  |> Stdlib.List.flatten
+
+/// Check if response has any citations
+let hasCitations (response: Response) : Bool =
+  response.content
+  |> Stdlib.List.any (fun block ->
+    match block.citations with
+    | Some citations -> Stdlib.Bool.not (Stdlib.List.isEmpty citations)
+    | None -> false)
+
+/// Get all citations of a specific type
+let getCitationsByType
+  (response: Response)
+  (citationType: Content.CitationType)
+  : List<Content.Citation> =
+  let allCitations = extractCitations response
+  Stdlib.List.filter allCitations (fun c -> c.``type`` == citationType)
+
+/// Get all web search citations
+let getWebSearchCitations (response: Response) : List<Content.Citation> =
+  getCitationsByType response Content.CitationType.WebSearchResultLocation
+
+/// Get all document citations (char_location or page_location)
+let getDocumentCitations (response: Response) : List<Content.Citation> =
+  let charCitations = getCitationsByType response Content.CitationType.CharLocation
+  let pageCitations = getCitationsByType response Content.CitationType.PageLocation
+  Stdlib.List.append charCitations pageCitations
+
+
+// ---------------------------------------------------------------------------
+// UTILITY HELPERS
+// ---------------------------------------------------------------------------
+
+let toAssistantBlocks (response: Response) : List<Content.ContentBlock> =
+  response.content
+
+let totalTokens (response: Response) : Int64 =
+  Stdlib.Int64.add response.usage.input_tokens response.usage.output_tokens
+
+let cacheHitTokens (response: Response) : Int64 =
+  response.usage.cache_read_input_tokens
+  |> Stdlib.Option.withDefault 0L

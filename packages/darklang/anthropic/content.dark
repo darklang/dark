@@ -1,0 +1,1294 @@
+/// Anthropic Claude API - Content
+/// Content blocks, messages, and their builders
+module Darklang.Anthropic.Content
+
+type Json = Stdlib.AltJson.Json
+
+
+// ---------------------------------------------------------------------------
+// ROLE TYPE
+// ---------------------------------------------------------------------------
+
+type Role =
+  | User
+  | Assistant
+
+module Role =
+  let toString (role: Role) : String =
+    match role with
+    | User -> "user"
+    | Assistant -> "assistant"
+
+  let parse (s: String) : Stdlib.Option.Option<Role> =
+    if s == "user" then Stdlib.Option.Option.Some Role.User
+    else if s == "assistant" then Stdlib.Option.Option.Some Role.Assistant
+    else Stdlib.Option.Option.None
+
+
+// ---------------------------------------------------------------------------
+// CONTENT TYPE
+// ---------------------------------------------------------------------------
+
+type ContentType =
+  | Text
+  | Image
+  | Document
+  | ToolUse
+  | ToolResult
+  | Thinking
+  | RedactedThinking
+  | ServerToolUse
+  | WebSearchToolResult
+  | WebSearchResult
+  | SearchResult
+  | Unknown of String
+
+module ContentType =
+  let toString (ct: ContentType) : String =
+    match ct with
+    | Text -> "text"
+    | Image -> "image"
+    | Document -> "document"
+    | ToolUse -> "tool_use"
+    | ToolResult -> "tool_result"
+    | Thinking -> "thinking"
+    | RedactedThinking -> "redacted_thinking"
+    | ServerToolUse -> "server_tool_use"
+    | WebSearchToolResult -> "web_search_tool_result"
+    | WebSearchResult -> "web_search_result"
+    | SearchResult -> "search_result"
+    | Unknown s -> s
+
+  let parse (s: String) : ContentType =
+    match s with
+    | "text" -> ContentType.Text
+    | "image" -> ContentType.Image
+    | "document" -> ContentType.Document
+    | "tool_use" -> ContentType.ToolUse
+    | "tool_result" -> ContentType.ToolResult
+    | "thinking" -> ContentType.Thinking
+    | "redacted_thinking" -> ContentType.RedactedThinking
+    | "server_tool_use" -> ContentType.ServerToolUse
+    | "web_search_tool_result" -> ContentType.WebSearchToolResult
+    | "web_search_result" -> ContentType.WebSearchResult
+    | "search_result" -> ContentType.SearchResult
+    | _ -> ContentType.Unknown s
+
+
+// ---------------------------------------------------------------------------
+// CITATION TYPES
+// For document and web search citations
+// (Defined before ContentBlock so it can be used in citations field)
+// ---------------------------------------------------------------------------
+
+type CitationType =
+  | CharLocation
+  | PageLocation
+  | ContentBlockLocation
+  | WebSearchResultLocation
+  | SearchResultLocation
+
+module CitationType =
+  let toString (ct: CitationType) : String =
+    match ct with
+    | CharLocation -> "char_location"
+    | PageLocation -> "page_location"
+    | ContentBlockLocation -> "content_block_location"
+    | WebSearchResultLocation -> "web_search_result_location"
+    | SearchResultLocation -> "search_result_location"
+
+  let parse (s: String) : Stdlib.Option.Option<CitationType> =
+    match s with
+    | "char_location" -> Stdlib.Option.Option.Some CitationType.CharLocation
+    | "page_location" -> Stdlib.Option.Option.Some CitationType.PageLocation
+    | "content_block_location" ->
+      Stdlib.Option.Option.Some CitationType.ContentBlockLocation
+    | "web_search_result_location" ->
+      Stdlib.Option.Option.Some CitationType.WebSearchResultLocation
+    | "search_result_location" ->
+      Stdlib.Option.Option.Some CitationType.SearchResultLocation
+    | _ -> Stdlib.Option.Option.None
+
+type Citation =
+  { ``type``: CitationType
+    cited_text: String
+    // For char_location
+    document_index: Stdlib.Option.Option<Int64>
+    document_title: Stdlib.Option.Option<String>
+    start_char_index: Stdlib.Option.Option<Int64>
+    end_char_index: Stdlib.Option.Option<Int64>
+    // For page_location
+    start_page_number: Stdlib.Option.Option<Int64>
+    end_page_number: Stdlib.Option.Option<Int64>
+    // For content_block_location and search_result_location
+    start_block_index: Stdlib.Option.Option<Int64>
+    end_block_index: Stdlib.Option.Option<Int64>
+    // For web_search_result_location
+    encrypted_index: Stdlib.Option.Option<String>
+    url: Stdlib.Option.Option<String>
+    title: Stdlib.Option.Option<String>
+    // For search_result_location
+    search_result_index: Stdlib.Option.Option<Int64>
+    source: Stdlib.Option.Option<String> }
+
+
+// ---------------------------------------------------------------------------
+// CONTENT BLOCKS
+// Single unified type handles all content block variants
+// ---------------------------------------------------------------------------
+
+type ContentBlock =
+  { ``type``: ContentType
+    // Text content
+    text: Stdlib.Option.Option<String>
+    // Tool use
+    id: Stdlib.Option.Option<String>
+    name: Stdlib.Option.Option<String>
+    input: Stdlib.Option.Option<Json>
+    // Tool result
+    tool_use_id: Stdlib.Option.Option<String>
+    content: Stdlib.Option.Option<String>
+    contentJson: Stdlib.Option.Option<Json>  // For array content (e.g., web_search_tool_result)
+    is_error: Stdlib.Option.Option<Bool>
+    // Image/Document source
+    source: Stdlib.Option.Option<Json>
+    // Document-specific
+    title: Stdlib.Option.Option<String>
+    context: Stdlib.Option.Option<String>
+    // Thinking
+    thinking: Stdlib.Option.Option<String>
+    signature: Stdlib.Option.Option<String>
+    data: Stdlib.Option.Option<String>
+    // Caching
+    cache_control: Stdlib.Option.Option<Models.CacheControl>
+    // Citations config (input) - enables citation generation for documents
+    citations_enabled: Stdlib.Option.Option<Bool>
+    // Citations data (output) - typed list of Citation from API response
+    citations: Stdlib.Option.Option<List<Citation>>
+    // Web search result fields
+    url: Stdlib.Option.Option<String>
+    page_age: Stdlib.Option.Option<String>
+    encrypted_content: Stdlib.Option.Option<String> }
+
+let citationCharLocation
+  (citedText: String)
+  (docIndex: Int64)
+  (docTitle: String)
+  (startChar: Int64)
+  (endChar: Int64)
+  : Citation =
+  Citation
+    { ``type`` = CitationType.CharLocation
+      cited_text = citedText
+      document_index = Stdlib.Option.Option.Some docIndex
+      document_title = Stdlib.Option.Option.Some docTitle
+      start_char_index = Stdlib.Option.Option.Some startChar
+      end_char_index = Stdlib.Option.Option.Some endChar
+      start_page_number = Stdlib.Option.Option.None
+      end_page_number = Stdlib.Option.Option.None
+      start_block_index = Stdlib.Option.Option.None
+      end_block_index = Stdlib.Option.Option.None
+      encrypted_index = Stdlib.Option.Option.None
+      url = Stdlib.Option.Option.None
+      title = Stdlib.Option.Option.None
+      search_result_index = Stdlib.Option.Option.None
+      source = Stdlib.Option.Option.None }
+
+let citationPageLocation
+  (citedText: String)
+  (docIndex: Int64)
+  (docTitle: String)
+  (startPage: Int64)
+  (endPage: Int64)
+  : Citation =
+  Citation
+    { ``type`` = CitationType.PageLocation
+      cited_text = citedText
+      document_index = Stdlib.Option.Option.Some docIndex
+      document_title = Stdlib.Option.Option.Some docTitle
+      start_char_index = Stdlib.Option.Option.None
+      end_char_index = Stdlib.Option.Option.None
+      start_page_number = Stdlib.Option.Option.Some startPage
+      end_page_number = Stdlib.Option.Option.Some endPage
+      start_block_index = Stdlib.Option.Option.None
+      end_block_index = Stdlib.Option.Option.None
+      encrypted_index = Stdlib.Option.Option.None
+      url = Stdlib.Option.Option.None
+      title = Stdlib.Option.Option.None
+      search_result_index = Stdlib.Option.Option.None
+      source = Stdlib.Option.Option.None }
+
+let citationWebSearchResult
+  (citedText: String)
+  (encryptedIndex: String)
+  (resultTitle: String)
+  (resultUrl: String)
+  : Citation =
+  Citation
+    { ``type`` = CitationType.WebSearchResultLocation
+      cited_text = citedText
+      document_index = Stdlib.Option.Option.None
+      document_title = Stdlib.Option.Option.None
+      start_char_index = Stdlib.Option.Option.None
+      end_char_index = Stdlib.Option.Option.None
+      start_page_number = Stdlib.Option.Option.None
+      end_page_number = Stdlib.Option.Option.None
+      start_block_index = Stdlib.Option.Option.None
+      end_block_index = Stdlib.Option.Option.None
+      encrypted_index = Stdlib.Option.Option.Some encryptedIndex
+      url = Stdlib.Option.Option.Some resultUrl
+      title = Stdlib.Option.Option.Some resultTitle
+      search_result_index = Stdlib.Option.Option.None
+      source = Stdlib.Option.Option.None }
+
+let citationContentBlockLocation
+  (citedText: String)
+  (startBlockIndex: Int64)
+  (endBlockIndex: Int64)
+  : Citation =
+  Citation
+    { ``type`` = CitationType.ContentBlockLocation
+      cited_text = citedText
+      document_index = Stdlib.Option.Option.None
+      document_title = Stdlib.Option.Option.None
+      start_char_index = Stdlib.Option.Option.None
+      end_char_index = Stdlib.Option.Option.None
+      start_page_number = Stdlib.Option.Option.None
+      end_page_number = Stdlib.Option.Option.None
+      start_block_index = Stdlib.Option.Option.Some startBlockIndex
+      end_block_index = Stdlib.Option.Option.Some endBlockIndex
+      encrypted_index = Stdlib.Option.Option.None
+      url = Stdlib.Option.Option.None
+      title = Stdlib.Option.Option.None
+      search_result_index = Stdlib.Option.Option.None
+      source = Stdlib.Option.Option.None }
+
+let citationSearchResultLocation
+  (citedText: String)
+  (searchResultIndex: Int64)
+  (resultSource: String)
+  : Citation =
+  Citation
+    { ``type`` = CitationType.SearchResultLocation
+      cited_text = citedText
+      document_index = Stdlib.Option.Option.None
+      document_title = Stdlib.Option.Option.None
+      start_char_index = Stdlib.Option.Option.None
+      end_char_index = Stdlib.Option.Option.None
+      start_page_number = Stdlib.Option.Option.None
+      end_page_number = Stdlib.Option.Option.None
+      start_block_index = Stdlib.Option.Option.None
+      end_block_index = Stdlib.Option.Option.None
+      encrypted_index = Stdlib.Option.Option.None
+      url = Stdlib.Option.Option.None
+      title = Stdlib.Option.Option.None
+      search_result_index = Stdlib.Option.Option.Some searchResultIndex
+      source = Stdlib.Option.Option.Some resultSource }
+
+
+// ---------------------------------------------------------------------------
+// CITATION PARSING
+// Parse JSON citations from API responses into typed Citation structures
+// ---------------------------------------------------------------------------
+
+module Citation =
+  /// Parse a single citation from JSON
+  let parse (json: Json) : Stdlib.Option.Option<Citation> =
+    match json with
+    | Object fields ->
+      let typeStr = JsonHelpers.getString "type" fields
+      let citedText = JsonHelpers.getString "cited_text" fields
+
+      match (typeStr, citedText) with
+      | (Some t, Some text) ->
+        match CitationType.parse t with
+        | Some citationType ->
+          Stdlib.Option.Option.Some(
+            Citation
+              { ``type`` = citationType
+                cited_text = text
+                document_index = JsonHelpers.getIntOption "document_index" fields
+                document_title = JsonHelpers.getString "document_title" fields
+                start_char_index = JsonHelpers.getIntOption "start_char_index" fields
+                end_char_index = JsonHelpers.getIntOption "end_char_index" fields
+                start_page_number = JsonHelpers.getIntOption "start_page_number" fields
+                end_page_number = JsonHelpers.getIntOption "end_page_number" fields
+                start_block_index = JsonHelpers.getIntOption "start_block_index" fields
+                end_block_index = JsonHelpers.getIntOption "end_block_index" fields
+                encrypted_index = JsonHelpers.getString "encrypted_index" fields
+                url = JsonHelpers.getString "url" fields
+                title = JsonHelpers.getString "title" fields
+                search_result_index = JsonHelpers.getIntOption "search_result_index" fields
+                source = JsonHelpers.getString "source" fields })
+        | None -> Stdlib.Option.Option.None
+      | _ -> Stdlib.Option.Option.None
+    | _ -> Stdlib.Option.Option.None
+
+  /// Parse an array of citations from JSON
+  let parseArray (json: Json) : List<Citation> =
+    match json with
+    | Array items ->
+      Stdlib.List.filterMap items (fun item -> parse item)
+    | _ -> []
+
+  /// Convert Citation to JSON for serialization
+  let toJson (citation: Citation) : Json =
+    Models.JsonBuilder.empty
+    |> Models.JsonBuilder.addString "type" (CitationType.toString citation.``type``)
+    |> Models.JsonBuilder.addString "cited_text" citation.cited_text
+    |> Models.JsonBuilder.addOptionalInt "document_index" citation.document_index
+    |> Models.JsonBuilder.addOptionalString "document_title" citation.document_title
+    |> Models.JsonBuilder.addOptionalInt "start_char_index" citation.start_char_index
+    |> Models.JsonBuilder.addOptionalInt "end_char_index" citation.end_char_index
+    |> Models.JsonBuilder.addOptionalInt "start_page_number" citation.start_page_number
+    |> Models.JsonBuilder.addOptionalInt "end_page_number" citation.end_page_number
+    |> Models.JsonBuilder.addOptionalInt "start_block_index" citation.start_block_index
+    |> Models.JsonBuilder.addOptionalInt "end_block_index" citation.end_block_index
+    |> Models.JsonBuilder.addOptionalString "encrypted_index" citation.encrypted_index
+    |> Models.JsonBuilder.addOptionalString "url" citation.url
+    |> Models.JsonBuilder.addOptionalString "title" citation.title
+    |> Models.JsonBuilder.addOptionalInt "search_result_index" citation.search_result_index
+    |> Models.JsonBuilder.addOptionalString "source" citation.source
+    |> Models.JsonBuilder.toJson
+
+
+// ---------------------------------------------------------------------------
+// SYSTEM BLOCKS
+// For structured system prompts
+// ---------------------------------------------------------------------------
+
+type SystemBlock =
+  { ``type``: ContentType
+    text: String
+    cache_control: Stdlib.Option.Option<Models.CacheControl> }
+
+let systemBlock (text: String) : SystemBlock =
+  SystemBlock
+    { ``type`` = ContentType.Text
+      text = text
+      cache_control = Stdlib.Option.Option.None }
+
+let systemBlockCached (text: String) (cache: Models.CacheControl) : SystemBlock =
+  SystemBlock
+    { ``type`` = ContentType.Text
+      text = text
+      cache_control = Stdlib.Option.Option.Some cache }
+
+
+// ---------------------------------------------------------------------------
+// MESSAGES
+// Simple string messages and block-based messages
+// ---------------------------------------------------------------------------
+
+type SimpleMessage =
+  { role: Role
+    content: String }
+
+type BlockMessage =
+  { role: Role
+    content: List<ContentBlock> }
+
+let userMessage (content: String) : SimpleMessage =
+  SimpleMessage { role = Role.User; content = content }
+
+let assistantMessage (content: String) : SimpleMessage =
+  SimpleMessage { role = Role.Assistant; content = content }
+
+let userBlockMessage (blocks: List<ContentBlock>) : BlockMessage =
+  BlockMessage { role = Role.User; content = blocks }
+
+let assistantBlockMessage (blocks: List<ContentBlock>) : BlockMessage =
+  BlockMessage { role = Role.Assistant; content = blocks }
+
+
+// ---------------------------------------------------------------------------
+// CONTENT BLOCK BUILDERS
+// ---------------------------------------------------------------------------
+
+let emptyBlock (blockType: ContentType) : ContentBlock =
+  ContentBlock
+    { ``type`` = blockType
+      text = Stdlib.Option.Option.None
+      id = Stdlib.Option.Option.None
+      name = Stdlib.Option.Option.None
+      input = Stdlib.Option.Option.None
+      tool_use_id = Stdlib.Option.Option.None
+      content = Stdlib.Option.Option.None
+      contentJson = Stdlib.Option.Option.None
+      is_error = Stdlib.Option.Option.None
+      source = Stdlib.Option.Option.None
+      title = Stdlib.Option.Option.None
+      context = Stdlib.Option.Option.None
+      thinking = Stdlib.Option.Option.None
+      signature = Stdlib.Option.Option.None
+      data = Stdlib.Option.Option.None
+      cache_control = Stdlib.Option.Option.None
+      citations_enabled = Stdlib.Option.Option.None
+      citations = Stdlib.Option.Option.None
+      url = Stdlib.Option.Option.None
+      page_age = Stdlib.Option.Option.None
+      encrypted_content = Stdlib.Option.Option.None }
+
+
+// --- Text Blocks ---
+
+let textBlock (text: String) : ContentBlock =
+  ContentBlock
+    { ``type`` = ContentType.Text
+      text = Stdlib.Option.Option.Some text
+      id = Stdlib.Option.Option.None
+      name = Stdlib.Option.Option.None
+      input = Stdlib.Option.Option.None
+      tool_use_id = Stdlib.Option.Option.None
+      content = Stdlib.Option.Option.None
+      contentJson = Stdlib.Option.Option.None
+      is_error = Stdlib.Option.Option.None
+      source = Stdlib.Option.Option.None
+      title = Stdlib.Option.Option.None
+      context = Stdlib.Option.Option.None
+      thinking = Stdlib.Option.Option.None
+      signature = Stdlib.Option.Option.None
+      data = Stdlib.Option.Option.None
+      cache_control = Stdlib.Option.Option.None
+      citations_enabled = Stdlib.Option.Option.None
+      citations = Stdlib.Option.Option.None
+      url = Stdlib.Option.Option.None
+      page_age = Stdlib.Option.Option.None
+      encrypted_content = Stdlib.Option.Option.None }
+
+let textBlockCached (text: String) (cache: Models.CacheControl) : ContentBlock =
+  ContentBlock
+    { ``type`` = ContentType.Text
+      text = Stdlib.Option.Option.Some text
+      id = Stdlib.Option.Option.None
+      name = Stdlib.Option.Option.None
+      input = Stdlib.Option.Option.None
+      tool_use_id = Stdlib.Option.Option.None
+      content = Stdlib.Option.Option.None
+      contentJson = Stdlib.Option.Option.None
+      is_error = Stdlib.Option.Option.None
+      source = Stdlib.Option.Option.None
+      title = Stdlib.Option.Option.None
+      context = Stdlib.Option.Option.None
+      thinking = Stdlib.Option.Option.None
+      signature = Stdlib.Option.Option.None
+      data = Stdlib.Option.Option.None
+      cache_control = Stdlib.Option.Option.Some cache
+      citations_enabled = Stdlib.Option.Option.None
+      citations = Stdlib.Option.Option.None
+      url = Stdlib.Option.Option.None
+      page_age = Stdlib.Option.Option.None
+      encrypted_content = Stdlib.Option.Option.None }
+
+
+// --- Image Blocks ---
+
+let imageBlockBase64 (mediaType: String) (base64Data: String) : ContentBlock =
+  let source =
+    Json.Object
+      [ ("type", Json.String "base64")
+        ("media_type", Json.String mediaType)
+        ("data", Json.String base64Data) ]
+
+  ContentBlock
+    { ``type`` = ContentType.Image
+      text = Stdlib.Option.Option.None
+      id = Stdlib.Option.Option.None
+      name = Stdlib.Option.Option.None
+      input = Stdlib.Option.Option.None
+      tool_use_id = Stdlib.Option.Option.None
+      content = Stdlib.Option.Option.None
+      contentJson = Stdlib.Option.Option.None
+      is_error = Stdlib.Option.Option.None
+      source = Stdlib.Option.Option.Some source
+      title = Stdlib.Option.Option.None
+      context = Stdlib.Option.Option.None
+      thinking = Stdlib.Option.Option.None
+      signature = Stdlib.Option.Option.None
+      data = Stdlib.Option.Option.None
+      cache_control = Stdlib.Option.Option.None
+      citations_enabled = Stdlib.Option.Option.None
+      citations = Stdlib.Option.Option.None
+      url = Stdlib.Option.Option.None
+      page_age = Stdlib.Option.Option.None
+      encrypted_content = Stdlib.Option.Option.None }
+
+let imageBlockUrl (url: String) : ContentBlock =
+  let source =
+    Json.Object
+      [ ("type", Json.String "url")
+        ("url", Json.String url) ]
+
+  ContentBlock
+    { ``type`` = ContentType.Image
+      text = Stdlib.Option.Option.None
+      id = Stdlib.Option.Option.None
+      name = Stdlib.Option.Option.None
+      input = Stdlib.Option.Option.None
+      tool_use_id = Stdlib.Option.Option.None
+      content = Stdlib.Option.Option.None
+      contentJson = Stdlib.Option.Option.None
+      is_error = Stdlib.Option.Option.None
+      source = Stdlib.Option.Option.Some source
+      title = Stdlib.Option.Option.None
+      context = Stdlib.Option.Option.None
+      thinking = Stdlib.Option.Option.None
+      signature = Stdlib.Option.Option.None
+      data = Stdlib.Option.Option.None
+      cache_control = Stdlib.Option.Option.None
+      citations_enabled = Stdlib.Option.Option.None
+      citations = Stdlib.Option.Option.None
+      url = Stdlib.Option.Option.None
+      page_age = Stdlib.Option.Option.None
+      encrypted_content = Stdlib.Option.Option.None }
+
+
+// --- Document Blocks ---
+
+let documentBlockPdf (base64Data: String) : ContentBlock =
+  let source =
+    Json.Object
+      [ ("type", Json.String "base64")
+        ("media_type", Json.String "application/pdf")
+        ("data", Json.String base64Data) ]
+
+  ContentBlock
+    { ``type`` = ContentType.Document
+      text = Stdlib.Option.Option.None
+      id = Stdlib.Option.Option.None
+      name = Stdlib.Option.Option.None
+      input = Stdlib.Option.Option.None
+      tool_use_id = Stdlib.Option.Option.None
+      content = Stdlib.Option.Option.None
+      contentJson = Stdlib.Option.Option.None
+      is_error = Stdlib.Option.Option.None
+      source = Stdlib.Option.Option.Some source
+      title = Stdlib.Option.Option.None
+      context = Stdlib.Option.Option.None
+      thinking = Stdlib.Option.Option.None
+      signature = Stdlib.Option.Option.None
+      data = Stdlib.Option.Option.None
+      cache_control = Stdlib.Option.Option.None
+      citations_enabled = Stdlib.Option.Option.None
+      citations = Stdlib.Option.Option.None
+      url = Stdlib.Option.Option.None
+      page_age = Stdlib.Option.Option.None
+      encrypted_content = Stdlib.Option.Option.None }
+
+let documentBlockPdfWithTitle
+  (base64Data: String)
+  (docTitle: String)
+  : ContentBlock =
+  let source =
+    Json.Object
+      [ ("type", Json.String "base64")
+        ("media_type", Json.String "application/pdf")
+        ("data", Json.String base64Data) ]
+
+  ContentBlock
+    { ``type`` = ContentType.Document
+      text = Stdlib.Option.Option.None
+      id = Stdlib.Option.Option.None
+      name = Stdlib.Option.Option.None
+      input = Stdlib.Option.Option.None
+      tool_use_id = Stdlib.Option.Option.None
+      content = Stdlib.Option.Option.None
+      contentJson = Stdlib.Option.Option.None
+      is_error = Stdlib.Option.Option.None
+      source = Stdlib.Option.Option.Some source
+      title = Stdlib.Option.Option.Some docTitle
+      context = Stdlib.Option.Option.None
+      thinking = Stdlib.Option.Option.None
+      signature = Stdlib.Option.Option.None
+      data = Stdlib.Option.Option.None
+      cache_control = Stdlib.Option.Option.None
+      citations_enabled = Stdlib.Option.Option.None
+      citations = Stdlib.Option.Option.None
+      url = Stdlib.Option.Option.None
+      page_age = Stdlib.Option.Option.None
+      encrypted_content = Stdlib.Option.Option.None }
+
+/// Create a PDF document block from a URL
+/// The URL must point to a publicly accessible PDF file
+let documentBlockPdfUrl (pdfUrl: String) : ContentBlock =
+  let source =
+    Json.Object
+      [ ("type", Json.String "url")
+        ("url", Json.String pdfUrl) ]
+
+  ContentBlock
+    { ``type`` = ContentType.Document
+      text = Stdlib.Option.Option.None
+      id = Stdlib.Option.Option.None
+      name = Stdlib.Option.Option.None
+      input = Stdlib.Option.Option.None
+      tool_use_id = Stdlib.Option.Option.None
+      content = Stdlib.Option.Option.None
+      contentJson = Stdlib.Option.Option.None
+      is_error = Stdlib.Option.Option.None
+      source = Stdlib.Option.Option.Some source
+      title = Stdlib.Option.Option.None
+      context = Stdlib.Option.Option.None
+      thinking = Stdlib.Option.Option.None
+      signature = Stdlib.Option.Option.None
+      data = Stdlib.Option.Option.None
+      cache_control = Stdlib.Option.Option.None
+      citations_enabled = Stdlib.Option.Option.None
+      citations = Stdlib.Option.Option.None
+      url = Stdlib.Option.Option.None
+      page_age = Stdlib.Option.Option.None
+      encrypted_content = Stdlib.Option.Option.None }
+
+/// Create a PDF document block from a URL with a title
+/// The URL must point to a publicly accessible PDF file
+let documentBlockPdfUrlWithTitle (pdfUrl: String) (docTitle: String) : ContentBlock =
+  let source =
+    Json.Object
+      [ ("type", Json.String "url")
+        ("url", Json.String pdfUrl) ]
+
+  ContentBlock
+    { ``type`` = ContentType.Document
+      text = Stdlib.Option.Option.None
+      id = Stdlib.Option.Option.None
+      name = Stdlib.Option.Option.None
+      input = Stdlib.Option.Option.None
+      tool_use_id = Stdlib.Option.Option.None
+      content = Stdlib.Option.Option.None
+      contentJson = Stdlib.Option.Option.None
+      is_error = Stdlib.Option.Option.None
+      source = Stdlib.Option.Option.Some source
+      title = Stdlib.Option.Option.Some docTitle
+      context = Stdlib.Option.Option.None
+      thinking = Stdlib.Option.Option.None
+      signature = Stdlib.Option.Option.None
+      data = Stdlib.Option.Option.None
+      cache_control = Stdlib.Option.Option.None
+      citations_enabled = Stdlib.Option.Option.None
+      citations = Stdlib.Option.Option.None
+      url = Stdlib.Option.Option.None
+      page_age = Stdlib.Option.Option.None
+      encrypted_content = Stdlib.Option.Option.None }
+
+/// Create a PDF document block from a URL with title and context
+/// Context provides additional information about the document for better understanding
+let documentBlockPdfUrlFull
+  (pdfUrl: String)
+  (docTitle: String)
+  (docContext: String)
+  : ContentBlock =
+  let source =
+    Json.Object
+      [ ("type", Json.String "url")
+        ("url", Json.String pdfUrl) ]
+
+  ContentBlock
+    { ``type`` = ContentType.Document
+      text = Stdlib.Option.Option.None
+      id = Stdlib.Option.Option.None
+      name = Stdlib.Option.Option.None
+      input = Stdlib.Option.Option.None
+      tool_use_id = Stdlib.Option.Option.None
+      content = Stdlib.Option.Option.None
+      contentJson = Stdlib.Option.Option.None
+      is_error = Stdlib.Option.Option.None
+      source = Stdlib.Option.Option.Some source
+      title = Stdlib.Option.Option.Some docTitle
+      context = Stdlib.Option.Option.Some docContext
+      thinking = Stdlib.Option.Option.None
+      signature = Stdlib.Option.Option.None
+      data = Stdlib.Option.Option.None
+      cache_control = Stdlib.Option.Option.None
+      citations_enabled = Stdlib.Option.Option.None
+      citations = Stdlib.Option.Option.None
+      url = Stdlib.Option.Option.None
+      page_age = Stdlib.Option.Option.None
+      encrypted_content = Stdlib.Option.Option.None }
+
+let documentBlockText (text: String) : ContentBlock =
+  let source =
+    Json.Object
+      [ ("type", Json.String "text")
+        ("media_type", Json.String "text/plain")
+        ("data", Json.String text) ]
+
+  ContentBlock
+    { ``type`` = ContentType.Document
+      text = Stdlib.Option.Option.None
+      id = Stdlib.Option.Option.None
+      name = Stdlib.Option.Option.None
+      input = Stdlib.Option.Option.None
+      tool_use_id = Stdlib.Option.Option.None
+      content = Stdlib.Option.Option.None
+      contentJson = Stdlib.Option.Option.None
+      is_error = Stdlib.Option.Option.None
+      source = Stdlib.Option.Option.Some source
+      title = Stdlib.Option.Option.None
+      context = Stdlib.Option.Option.None
+      thinking = Stdlib.Option.Option.None
+      signature = Stdlib.Option.Option.None
+      data = Stdlib.Option.Option.None
+      cache_control = Stdlib.Option.Option.None
+      citations_enabled = Stdlib.Option.Option.None
+      citations = Stdlib.Option.Option.None
+      url = Stdlib.Option.Option.None
+      page_age = Stdlib.Option.Option.None
+      encrypted_content = Stdlib.Option.Option.None }
+
+let documentBlockUrl (url: String) : ContentBlock =
+  let source =
+    Json.Object
+      [ ("type", Json.String "url")
+        ("url", Json.String url) ]
+
+  ContentBlock
+    { ``type`` = ContentType.Document
+      text = Stdlib.Option.Option.None
+      id = Stdlib.Option.Option.None
+      name = Stdlib.Option.Option.None
+      input = Stdlib.Option.Option.None
+      tool_use_id = Stdlib.Option.Option.None
+      content = Stdlib.Option.Option.None
+      contentJson = Stdlib.Option.Option.None
+      is_error = Stdlib.Option.Option.None
+      source = Stdlib.Option.Option.Some source
+      title = Stdlib.Option.Option.None
+      context = Stdlib.Option.Option.None
+      thinking = Stdlib.Option.Option.None
+      signature = Stdlib.Option.Option.None
+      data = Stdlib.Option.Option.None
+      cache_control = Stdlib.Option.Option.None
+      citations_enabled = Stdlib.Option.Option.None
+      citations = Stdlib.Option.Option.None
+      url = Stdlib.Option.Option.None
+      page_age = Stdlib.Option.Option.None
+      encrypted_content = Stdlib.Option.Option.None }
+
+
+// --- Document Blocks with Citations ---
+// These builders create document blocks with citation extraction enabled
+// Citations allow Claude to provide precise references to document content
+
+/// Create a PDF document block with citations enabled
+/// When enabled, Claude will include citations referencing the document in responses
+let documentBlockPdfWithCitations (base64Data: String) : ContentBlock =
+  let source =
+    Json.Object
+      [ ("type", Json.String "base64")
+        ("media_type", Json.String "application/pdf")
+        ("data", Json.String base64Data) ]
+
+  ContentBlock
+    { ``type`` = ContentType.Document
+      text = Stdlib.Option.Option.None
+      id = Stdlib.Option.Option.None
+      name = Stdlib.Option.Option.None
+      input = Stdlib.Option.Option.None
+      tool_use_id = Stdlib.Option.Option.None
+      content = Stdlib.Option.Option.None
+      contentJson = Stdlib.Option.Option.None
+      is_error = Stdlib.Option.Option.None
+      source = Stdlib.Option.Option.Some source
+      title = Stdlib.Option.Option.None
+      context = Stdlib.Option.Option.None
+      thinking = Stdlib.Option.Option.None
+      signature = Stdlib.Option.Option.None
+      data = Stdlib.Option.Option.None
+      cache_control = Stdlib.Option.Option.None
+      citations_enabled = Stdlib.Option.Option.Some true
+      citations = Stdlib.Option.Option.None
+      url = Stdlib.Option.Option.None
+      page_age = Stdlib.Option.Option.None
+      encrypted_content = Stdlib.Option.Option.None }
+
+/// Create a PDF document block with title and citations enabled
+let documentBlockPdfWithTitleAndCitations
+  (base64Data: String)
+  (docTitle: String)
+  : ContentBlock =
+  let source =
+    Json.Object
+      [ ("type", Json.String "base64")
+        ("media_type", Json.String "application/pdf")
+        ("data", Json.String base64Data) ]
+
+  ContentBlock
+    { ``type`` = ContentType.Document
+      text = Stdlib.Option.Option.None
+      id = Stdlib.Option.Option.None
+      name = Stdlib.Option.Option.None
+      input = Stdlib.Option.Option.None
+      tool_use_id = Stdlib.Option.Option.None
+      content = Stdlib.Option.Option.None
+      contentJson = Stdlib.Option.Option.None
+      is_error = Stdlib.Option.Option.None
+      source = Stdlib.Option.Option.Some source
+      title = Stdlib.Option.Option.Some docTitle
+      context = Stdlib.Option.Option.None
+      thinking = Stdlib.Option.Option.None
+      signature = Stdlib.Option.Option.None
+      data = Stdlib.Option.Option.None
+      cache_control = Stdlib.Option.Option.None
+      citations_enabled = Stdlib.Option.Option.Some true
+      citations = Stdlib.Option.Option.None
+      url = Stdlib.Option.Option.None
+      page_age = Stdlib.Option.Option.None
+      encrypted_content = Stdlib.Option.Option.None }
+
+/// Create a PDF document block from URL with citations enabled
+let documentBlockPdfUrlWithCitations (pdfUrl: String) : ContentBlock =
+  let source =
+    Json.Object
+      [ ("type", Json.String "url")
+        ("url", Json.String pdfUrl) ]
+
+  ContentBlock
+    { ``type`` = ContentType.Document
+      text = Stdlib.Option.Option.None
+      id = Stdlib.Option.Option.None
+      name = Stdlib.Option.Option.None
+      input = Stdlib.Option.Option.None
+      tool_use_id = Stdlib.Option.Option.None
+      content = Stdlib.Option.Option.None
+      contentJson = Stdlib.Option.Option.None
+      is_error = Stdlib.Option.Option.None
+      source = Stdlib.Option.Option.Some source
+      title = Stdlib.Option.Option.None
+      context = Stdlib.Option.Option.None
+      thinking = Stdlib.Option.Option.None
+      signature = Stdlib.Option.Option.None
+      data = Stdlib.Option.Option.None
+      cache_control = Stdlib.Option.Option.None
+      citations_enabled = Stdlib.Option.Option.Some true
+      citations = Stdlib.Option.Option.None
+      url = Stdlib.Option.Option.None
+      page_age = Stdlib.Option.Option.None
+      encrypted_content = Stdlib.Option.Option.None }
+
+/// Create a PDF document block from URL with title and citations enabled
+let documentBlockPdfUrlWithTitleAndCitations
+  (pdfUrl: String)
+  (docTitle: String)
+  : ContentBlock =
+  let source =
+    Json.Object
+      [ ("type", Json.String "url")
+        ("url", Json.String pdfUrl) ]
+
+  ContentBlock
+    { ``type`` = ContentType.Document
+      text = Stdlib.Option.Option.None
+      id = Stdlib.Option.Option.None
+      name = Stdlib.Option.Option.None
+      input = Stdlib.Option.Option.None
+      tool_use_id = Stdlib.Option.Option.None
+      content = Stdlib.Option.Option.None
+      contentJson = Stdlib.Option.Option.None
+      is_error = Stdlib.Option.Option.None
+      source = Stdlib.Option.Option.Some source
+      title = Stdlib.Option.Option.Some docTitle
+      context = Stdlib.Option.Option.None
+      thinking = Stdlib.Option.Option.None
+      signature = Stdlib.Option.Option.None
+      data = Stdlib.Option.Option.None
+      cache_control = Stdlib.Option.Option.None
+      citations_enabled = Stdlib.Option.Option.Some true
+      citations = Stdlib.Option.Option.None
+      url = Stdlib.Option.Option.None
+      page_age = Stdlib.Option.Option.None
+      encrypted_content = Stdlib.Option.Option.None }
+
+/// Create a text document block with citations enabled
+let documentBlockTextWithCitations (text: String) : ContentBlock =
+  let source =
+    Json.Object
+      [ ("type", Json.String "text")
+        ("media_type", Json.String "text/plain")
+        ("data", Json.String text) ]
+
+  ContentBlock
+    { ``type`` = ContentType.Document
+      text = Stdlib.Option.Option.None
+      id = Stdlib.Option.Option.None
+      name = Stdlib.Option.Option.None
+      input = Stdlib.Option.Option.None
+      tool_use_id = Stdlib.Option.Option.None
+      content = Stdlib.Option.Option.None
+      contentJson = Stdlib.Option.Option.None
+      is_error = Stdlib.Option.Option.None
+      source = Stdlib.Option.Option.Some source
+      title = Stdlib.Option.Option.None
+      context = Stdlib.Option.Option.None
+      thinking = Stdlib.Option.Option.None
+      signature = Stdlib.Option.Option.None
+      data = Stdlib.Option.Option.None
+      cache_control = Stdlib.Option.Option.None
+      citations_enabled = Stdlib.Option.Option.Some true
+      citations = Stdlib.Option.Option.None
+      url = Stdlib.Option.Option.None
+      page_age = Stdlib.Option.Option.None
+      encrypted_content = Stdlib.Option.Option.None }
+
+/// Create a text document block with title and citations enabled
+let documentBlockTextWithTitleAndCitations
+  (text: String)
+  (docTitle: String)
+  : ContentBlock =
+  let source =
+    Json.Object
+      [ ("type", Json.String "text")
+        ("media_type", Json.String "text/plain")
+        ("data", Json.String text) ]
+
+  ContentBlock
+    { ``type`` = ContentType.Document
+      text = Stdlib.Option.Option.None
+      id = Stdlib.Option.Option.None
+      name = Stdlib.Option.Option.None
+      input = Stdlib.Option.Option.None
+      tool_use_id = Stdlib.Option.Option.None
+      content = Stdlib.Option.Option.None
+      contentJson = Stdlib.Option.Option.None
+      is_error = Stdlib.Option.Option.None
+      source = Stdlib.Option.Option.Some source
+      title = Stdlib.Option.Option.Some docTitle
+      context = Stdlib.Option.Option.None
+      thinking = Stdlib.Option.Option.None
+      signature = Stdlib.Option.Option.None
+      data = Stdlib.Option.Option.None
+      cache_control = Stdlib.Option.Option.None
+      citations_enabled = Stdlib.Option.Option.Some true
+      citations = Stdlib.Option.Option.None
+      url = Stdlib.Option.Option.None
+      page_age = Stdlib.Option.Option.None
+      encrypted_content = Stdlib.Option.Option.None }
+
+
+// --- Tool Use Block ---
+
+let toolUseBlock (id: String) (name: String) (input: Json) : ContentBlock =
+  ContentBlock
+    { ``type`` = ContentType.ToolUse
+      text = Stdlib.Option.Option.None
+      id = Stdlib.Option.Option.Some id
+      name = Stdlib.Option.Option.Some name
+      input = Stdlib.Option.Option.Some input
+      tool_use_id = Stdlib.Option.Option.None
+      content = Stdlib.Option.Option.None
+      contentJson = Stdlib.Option.Option.None
+      is_error = Stdlib.Option.Option.None
+      source = Stdlib.Option.Option.None
+      title = Stdlib.Option.Option.None
+      context = Stdlib.Option.Option.None
+      thinking = Stdlib.Option.Option.None
+      signature = Stdlib.Option.Option.None
+      data = Stdlib.Option.Option.None
+      cache_control = Stdlib.Option.Option.None
+      citations_enabled = Stdlib.Option.Option.None
+      citations = Stdlib.Option.Option.None
+      url = Stdlib.Option.Option.None
+      page_age = Stdlib.Option.Option.None
+      encrypted_content = Stdlib.Option.Option.None }
+
+
+// --- Tool Result Block ---
+
+let toolResultBlock
+  (toolUseId: String)
+  (resultContent: String)
+  (isError: Bool)
+  : ContentBlock =
+  ContentBlock
+    { ``type`` = ContentType.ToolResult
+      text = Stdlib.Option.Option.None
+      id = Stdlib.Option.Option.None
+      name = Stdlib.Option.Option.None
+      input = Stdlib.Option.Option.None
+      tool_use_id = Stdlib.Option.Option.Some toolUseId
+      content = Stdlib.Option.Option.Some resultContent
+      contentJson = Stdlib.Option.Option.None
+      is_error =
+        if isError then
+          Stdlib.Option.Option.Some true
+        else
+          Stdlib.Option.Option.None
+      source = Stdlib.Option.Option.None
+      title = Stdlib.Option.Option.None
+      context = Stdlib.Option.Option.None
+      thinking = Stdlib.Option.Option.None
+      signature = Stdlib.Option.Option.None
+      data = Stdlib.Option.Option.None
+      cache_control = Stdlib.Option.Option.None
+      citations_enabled = Stdlib.Option.Option.None
+      citations = Stdlib.Option.Option.None
+      url = Stdlib.Option.Option.None
+      page_age = Stdlib.Option.Option.None
+      encrypted_content = Stdlib.Option.Option.None }
+
+
+// ---------------------------------------------------------------------------
+// TOOL RESULT CONTENT (for multi-part tool results)
+// Tool results can contain arrays of content blocks
+// ---------------------------------------------------------------------------
+
+type ToolResultContentType =
+  | Text
+  | Image
+  | Document
+  | SearchResult
+
+module ToolResultContentType =
+  let toString (t: ToolResultContentType) : String =
+    match t with
+    | Text -> "text"
+    | Image -> "image"
+    | Document -> "document"
+    | SearchResult -> "search_result"
+
+type ToolResultContent =
+  { ``type``: ToolResultContentType
+    // For text
+    text: Stdlib.Option.Option<String>
+    // For image/document
+    source: Stdlib.Option.Option<Json>
+    // For search_result
+    title: Stdlib.Option.Option<String>
+    resultSource: Stdlib.Option.Option<String>
+    content: Stdlib.Option.Option<List<Json>> }
+
+let toolResultText (text: String) : ToolResultContent =
+  ToolResultContent
+    { ``type`` = ToolResultContentType.Text
+      text = Stdlib.Option.Option.Some text
+      source = Stdlib.Option.Option.None
+      title = Stdlib.Option.Option.None
+      resultSource = Stdlib.Option.Option.None
+      content = Stdlib.Option.Option.None }
+
+let toolResultImage (mediaType: String) (base64Data: String) : ToolResultContent =
+  let imageSource =
+    Json.Object
+      [ ("type", Json.String "base64")
+        ("media_type", Json.String mediaType)
+        ("data", Json.String base64Data) ]
+
+  ToolResultContent
+    { ``type`` = ToolResultContentType.Image
+      text = Stdlib.Option.Option.None
+      source = Stdlib.Option.Option.Some imageSource
+      title = Stdlib.Option.Option.None
+      resultSource = Stdlib.Option.Option.None
+      content = Stdlib.Option.Option.None }
+
+let toolResultSearchResult
+  (resultTitle: String)
+  (resultSource: String)
+  (contentBlocks: List<Json>)
+  : ToolResultContent =
+  ToolResultContent
+    { ``type`` = ToolResultContentType.SearchResult
+      text = Stdlib.Option.Option.None
+      source = Stdlib.Option.Option.None
+      title = Stdlib.Option.Option.Some resultTitle
+      resultSource = Stdlib.Option.Option.Some resultSource
+      content = Stdlib.Option.Option.Some contentBlocks }
+
+let toolResultContentToJson (trc: ToolResultContent) : Json =
+  let baseFields = [ ("type", Json.String(ToolResultContentType.toString trc.``type``)) ]
+
+  let withText =
+    match trc.text with
+    | Some t -> Stdlib.List.append baseFields [ ("text", Json.String t) ]
+    | None -> baseFields
+
+  let withSource =
+    match trc.source with
+    | Some s -> Stdlib.List.append withText [ ("source", s) ]
+    | None -> withText
+
+  let withTitle =
+    match trc.title with
+    | Some t -> Stdlib.List.append withSource [ ("title", Json.String t) ]
+    | None -> withSource
+
+  let withResultSource =
+    match trc.resultSource with
+    | Some s -> Stdlib.List.append withTitle [ ("source", Json.String s) ]
+    | None -> withTitle
+
+  let withContent =
+    match trc.content with
+    | Some c -> Stdlib.List.append withResultSource [ ("content", Json.Array c) ]
+    | None -> withResultSource
+
+  Json.Object withContent
+
+/// Create a tool result block with multiple content parts
+let toolResultBlockWithContent
+  (toolUseId: String)
+  (contentParts: List<ToolResultContent>)
+  (isError: Bool)
+  : Json =
+  let contentJson =
+    Stdlib.List.map contentParts (fun part -> toolResultContentToJson part)
+
+  let baseFields =
+    [ ("type", Json.String "tool_result")
+      ("tool_use_id", Json.String toolUseId)
+      ("content", Json.Array contentJson) ]
+
+  let withError =
+    if isError then
+      Stdlib.List.append baseFields [ ("is_error", Json.Bool true) ]
+    else
+      baseFields
+
+  Json.Object withError
+
+
+// --- Thinking Block ---
+
+let thinkingBlock (thinking: String) (signature: String) : ContentBlock =
+  ContentBlock
+    { ``type`` = ContentType.Thinking
+      text = Stdlib.Option.Option.None
+      id = Stdlib.Option.Option.None
+      name = Stdlib.Option.Option.None
+      input = Stdlib.Option.Option.None
+      tool_use_id = Stdlib.Option.Option.None
+      content = Stdlib.Option.Option.None
+      contentJson = Stdlib.Option.Option.None
+      is_error = Stdlib.Option.Option.None
+      source = Stdlib.Option.Option.None
+      title = Stdlib.Option.Option.None
+      context = Stdlib.Option.Option.None
+      thinking = Stdlib.Option.Option.Some thinking
+      signature = Stdlib.Option.Option.Some signature
+      data = Stdlib.Option.Option.None
+      cache_control = Stdlib.Option.Option.None
+      citations_enabled = Stdlib.Option.Option.None
+      citations = Stdlib.Option.Option.None
+      url = Stdlib.Option.Option.None
+      page_age = Stdlib.Option.Option.None
+      encrypted_content = Stdlib.Option.Option.None }
+
+
+// ---------------------------------------------------------------------------
+// JSON SERIALIZATION
+// ---------------------------------------------------------------------------
+
+let contentBlockToJson (block: ContentBlock) : Json =
+  let baseFields = [ ("type", Json.String (ContentType.toString block.``type``)) ]
+
+  let withText =
+    match block.text with
+    | Some t -> Stdlib.List.append baseFields [ ("text", Json.String t) ]
+    | None -> baseFields
+
+  let withId =
+    match block.id with
+    | Some i -> Stdlib.List.append withText [ ("id", Json.String i) ]
+    | None -> withText
+
+  let withName =
+    match block.name with
+    | Some n -> Stdlib.List.append withId [ ("name", Json.String n) ]
+    | None -> withId
+
+  let withInput =
+    match block.input with
+    | Some inp -> Stdlib.List.append withName [ ("input", inp) ]
+    | None -> withName
+
+  let withToolUseId =
+    match block.tool_use_id with
+    | Some tid -> Stdlib.List.append withInput [ ("tool_use_id", Json.String tid) ]
+    | None -> withInput
+
+  let withContent =
+    match block.content with
+    | Some c -> Stdlib.List.append withToolUseId [ ("content", Json.String c) ]
+    | None -> withToolUseId
+
+  let withIsError =
+    match block.is_error with
+    | Some e -> Stdlib.List.append withContent [ ("is_error", Json.Bool e) ]
+    | None -> withContent
+
+  let withSource =
+    match block.source with
+    | Some s -> Stdlib.List.append withIsError [ ("source", s) ]
+    | None -> withIsError
+
+  let withTitle =
+    match block.title with
+    | Some t -> Stdlib.List.append withSource [ ("title", Json.String t) ]
+    | None -> withSource
+
+  let withContext =
+    match block.context with
+    | Some c -> Stdlib.List.append withTitle [ ("context", Json.String c) ]
+    | None -> withTitle
+
+  let withThinking =
+    match block.thinking with
+    | Some th -> Stdlib.List.append withContext [ ("thinking", Json.String th) ]
+    | None -> withContext
+
+  let withSignature =
+    match block.signature with
+    | Some s -> Stdlib.List.append withThinking [ ("signature", Json.String s) ]
+    | None -> withThinking
+
+  let withCacheControl =
+    match block.cache_control with
+    | Some cc ->
+      let cacheJson = Models.cacheControlToJson cc
+      Stdlib.List.append withSignature [ ("cache_control", cacheJson) ]
+    | None -> withSignature
+
+  // Serialize citations_enabled as {"citations": {"enabled": true}}
+  let withCitationsConfig =
+    match block.citations_enabled with
+    | Some enabled ->
+      let citationsConfig = Json.Object [ ("enabled", Json.Bool enabled) ]
+      Stdlib.List.append withCacheControl [ ("citations", citationsConfig) ]
+    | None -> withCacheControl
+
+  let withUrl =
+    match block.url with
+    | Some u -> Stdlib.List.append withCitationsConfig [ ("url", Json.String u) ]
+    | None -> withCitationsConfig
+
+  let withPageAge =
+    match block.page_age with
+    | Some pa -> Stdlib.List.append withUrl [ ("page_age", Json.String pa) ]
+    | None -> withUrl
+
+  let withEncryptedContent =
+    match block.encrypted_content with
+    | Some ec -> Stdlib.List.append withPageAge [ ("encrypted_content", Json.String ec) ]
+    | None -> withPageAge
+
+  Json.Object withEncryptedContent
+
+let blockMessageToJson (msg: BlockMessage) : Json =
+  let blocksJson = Stdlib.List.map msg.content (fun block -> contentBlockToJson block)
+
+  Json.Object
+    [ ("role", Json.String (Role.toString msg.role))
+      ("content", Json.Array blocksJson) ]
+
+let systemBlockToJson (block: SystemBlock) : Json =
+  let baseFields =
+    [ ("type", Json.String (ContentType.toString block.``type``))
+      ("text", Json.String block.text) ]
+
+  let withCache =
+    match block.cache_control with
+    | Some cc ->
+      let cacheJson = Models.cacheControlToJson cc
+      Stdlib.List.append baseFields [ ("cache_control", cacheJson) ]
+    | None -> baseFields
+
+  Json.Object withCache

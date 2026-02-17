@@ -1,0 +1,297 @@
+/// Anthropic Claude API - Models and Configuration
+module Darklang.Anthropic.Models
+
+
+// ---------------------------------------------------------------------------
+// MODEL TYPE
+// Available Claude model identifiers
+// ---------------------------------------------------------------------------
+
+type Model =
+  // Claude 4.6 (newest)
+  | Opus46
+  // Claude 4.5
+  | Opus45
+  | Sonnet45
+  | Haiku45
+  // Claude 4.1
+  | Opus41
+  // Claude 4
+  | Sonnet4
+  | Opus4
+  // Claude 3.7
+  | Sonnet37
+  | Sonnet37Latest
+  // Claude 3.5
+  | Sonnet35
+  | Sonnet35Latest
+  | Haiku35
+  | Haiku35Latest
+  // Claude 3 (legacy)
+  | Haiku3
+  // Custom model string (for new models not yet in enum)
+  | Custom of String
+
+module Model =
+  let toString (m: Model) : String =
+    match m with
+    | Opus46 -> "claude-opus-4-6"
+    | Opus45 -> "claude-opus-4-5-20251101"
+    | Sonnet45 -> "claude-sonnet-4-5-20250929"
+    | Haiku45 -> "claude-haiku-4-5-20251001"
+    | Opus41 -> "claude-opus-4-1-20250805"
+    | Sonnet4 -> "claude-sonnet-4-20250514"
+    | Opus4 -> "claude-opus-4-20250514"
+    | Sonnet37 -> "claude-3-7-sonnet-20250219"
+    | Sonnet37Latest -> "claude-3-7-sonnet-latest"
+    | Sonnet35 -> "claude-3-5-sonnet-20241022"
+    | Sonnet35Latest -> "claude-3-5-sonnet-latest"
+    | Haiku35 -> "claude-3-5-haiku-20241022"
+    | Haiku35Latest -> "claude-3-5-haiku-latest"
+    | Haiku3 -> "claude-3-haiku-20240307"
+    | Custom s -> s
+
+  let parse (s: String) : Model =
+    match s with
+    | "claude-opus-4-6" -> Model.Opus46
+    | "claude-opus-4-5-20251101" -> Model.Opus45
+    | "claude-sonnet-4-5-20250929" -> Model.Sonnet45
+    | "claude-haiku-4-5-20251001" -> Model.Haiku45
+    | "claude-opus-4-1-20250805" -> Model.Opus41
+    | "claude-sonnet-4-20250514" -> Model.Sonnet4
+    | "claude-opus-4-20250514" -> Model.Opus4
+    | "claude-3-7-sonnet-20250219" -> Model.Sonnet37
+    | "claude-3-7-sonnet-latest" -> Model.Sonnet37Latest
+    | "claude-3-5-sonnet-20241022" -> Model.Sonnet35
+    | "claude-3-5-sonnet-latest" -> Model.Sonnet35Latest
+    | "claude-3-5-haiku-20241022" -> Model.Haiku35
+    | "claude-3-5-haiku-latest" -> Model.Haiku35Latest
+    | "claude-3-haiku-20240307" -> Model.Haiku3
+    | _ -> Model.Custom s
+
+  /// Recommended default model (balanced speed/quality)
+  let latest : Model = Model.Sonnet45
+
+  /// Fast model for simple tasks
+  let fast : Model = Model.Haiku45
+
+  /// Most capable model for complex reasoning
+  let smart : Model = Model.Opus46
+
+// Legacy string constants (deprecated, use Model enum instead)
+let opus46 = "claude-opus-4-6"
+let opus45 = "claude-opus-4-5-20251101"
+let sonnet45 = "claude-sonnet-4-5-20250929"
+let haiku45 = "claude-haiku-4-5-20251001"
+let opus41 = "claude-opus-4-1-20250805"
+let sonnet4 = "claude-sonnet-4-20250514"
+let opus4 = "claude-opus-4-20250514"
+let sonnet37 = "claude-3-7-sonnet-20250219"
+let sonnet37Latest = "claude-3-7-sonnet-latest"
+let sonnet35 = "claude-3-5-sonnet-20241022"
+let sonnet35Latest = "claude-3-5-sonnet-latest"
+let haiku35 = "claude-3-5-haiku-20241022"
+let haiku35Latest = "claude-3-5-haiku-latest"
+let haiku3 = "claude-3-haiku-20240307"
+let latest = "claude-sonnet-4-5-20250929"
+let latestFast = "claude-haiku-4-5-20251001"
+let latestSmart = "claude-opus-4-6"
+
+
+// ---------------------------------------------------------------------------
+// API CONFIGURATION
+// API endpoints and request headers
+// ---------------------------------------------------------------------------
+
+let apiEndpoint = "https://api.anthropic.com/v1/messages"
+let tokenCountEndpoint = "https://api.anthropic.com/v1/messages/count_tokens"
+let apiVersion = "2023-06-01"
+
+let getHeaders (apiKey: String) : List<(String * String)> =
+  [ ("x-api-key", apiKey)
+    ("anthropic-version", apiVersion)
+    ("content-type", "application/json") ]
+
+/// Get headers with beta features enabled
+let getHeadersWithBeta
+  (apiKey: String)
+  (betaFeatures: List<String>)
+  : List<(String * String)> =
+  let baseHeaders = getHeaders apiKey
+
+  match betaFeatures with
+  | [] -> baseHeaders
+  | _ ->
+    let betaValue = Stdlib.String.join betaFeatures ","
+    Stdlib.List.append baseHeaders [ ("anthropic-beta", betaValue) ]
+
+/// Common beta feature flags
+module BetaFeatures =
+  /// Computer use for most models (computer_20250124)
+  let computerUse = "computer-use-2025-01-24"
+  /// Computer use for Opus 4.6/4.5 (computer_20251124) - includes zoom capability
+  let computerUseOpus = "computer-use-2025-11-24"
+  let mcp = "mcp-2025-03-26"
+  let codeExecution = "code-execution-2025-08-25"
+  let maxTokens128k = "max-tokens-3-5-sonnet-2024-07-15"
+  let tokenCounting = "token-counting-2024-11-01"
+  let messagesBatches = "message-batches-2024-09-24"
+  let promptCaching = "prompt-caching-2024-07-31"
+  let context1m = "context-1m-2025-08-07"
+  let output128k = "output-128k-2025-02-19"
+  let interleavedThinking = "interleaved-thinking-2025-05-14"
+  let webFetch = "web-fetch-2025-09-10"
+
+
+// ---------------------------------------------------------------------------
+// CACHE CONTROL
+// Prompt caching configuration
+// ---------------------------------------------------------------------------
+
+type CacheType =
+  | Ephemeral
+
+module CacheType =
+  let toString (t: CacheType) : String =
+    match t with
+    | Ephemeral -> "ephemeral"
+
+  let parse (s: String) : Stdlib.Option.Option<CacheType> =
+    match s with
+    | "ephemeral" -> Stdlib.Option.Option.Some CacheType.Ephemeral
+    | _ -> Stdlib.Option.Option.None
+
+type CacheTTL =
+  | FiveMinutes
+  | OneHour
+
+module CacheTTL =
+  let toString (ttl: CacheTTL) : String =
+    match ttl with
+    | FiveMinutes -> "5m"
+    | OneHour -> "1h"
+
+  let parse (s: String) : Stdlib.Option.Option<CacheTTL> =
+    match s with
+    | "5m" -> Stdlib.Option.Option.Some CacheTTL.FiveMinutes
+    | "1h" -> Stdlib.Option.Option.Some CacheTTL.OneHour
+    | _ -> Stdlib.Option.Option.None
+
+type CacheControl =
+  { ``type``: CacheType
+    ttl: Stdlib.Option.Option<CacheTTL> }
+
+let cacheEphemeral (ttl: CacheTTL) : CacheControl =
+  CacheControl
+    { ``type`` = CacheType.Ephemeral
+      ttl = Stdlib.Option.Option.Some ttl }
+
+let cache5min () : CacheControl = cacheEphemeral CacheTTL.FiveMinutes
+
+let cache1hour () : CacheControl = cacheEphemeral CacheTTL.OneHour
+
+let cacheControlToJson (cc: CacheControl) : Stdlib.AltJson.Json =
+  Stdlib.AltJson.Json.Object
+    (JsonBuilder.empty
+     |> JsonBuilder.addString "type" (CacheType.toString cc.``type``)
+     |> JsonBuilder.addOptionalString "ttl" (Stdlib.Option.map cc.ttl (fun t -> CacheTTL.toString t)))
+
+
+// ---------------------------------------------------------------------------
+// JSON BUILDER
+// Utilities for building JSON objects with optional fields
+// ---------------------------------------------------------------------------
+
+module JsonBuilder =
+  type Fields = List<(String * Stdlib.AltJson.Json)>
+
+  /// Start with an empty JSON object
+  let empty : Fields = []
+
+  /// Add a required string field
+  let addString (fields: Fields) (key: String) (value: String) : Fields =
+    Stdlib.List.append fields [ (key, Stdlib.AltJson.Json.String value) ]
+
+  /// Add a required number field
+  let addNumber (fields: Fields) (key: String) (value: Float) : Fields =
+    Stdlib.List.append fields [ (key, Stdlib.AltJson.Json.Number value) ]
+
+  /// Add a required int field (converts to float for JSON)
+  let addInt (fields: Fields) (key: String) (value: Int64) : Fields =
+    Stdlib.List.append fields [ (key, Stdlib.AltJson.Json.Number (Stdlib.Int64.toFloat value)) ]
+
+  /// Add a required bool field
+  let addBool (fields: Fields) (key: String) (value: Bool) : Fields =
+    Stdlib.List.append fields [ (key, Stdlib.AltJson.Json.Bool value) ]
+
+  /// Add a required JSON value field
+  let addJson (fields: Fields) (key: String) (value: Stdlib.AltJson.Json) : Fields =
+    Stdlib.List.append fields [ (key, value) ]
+
+  /// Add a required array field
+  let addArray (fields: Fields) (key: String) (value: List<Stdlib.AltJson.Json>) : Fields =
+    Stdlib.List.append fields [ (key, Stdlib.AltJson.Json.Array value) ]
+
+  /// Add an optional string field (only adds if Some)
+  let addOptionalString
+    (fields: Fields)
+    (key: String)
+    (value: Stdlib.Option.Option<String>)
+    : Fields =
+    match value with
+    | Some v -> Stdlib.List.append fields [ (key, Stdlib.AltJson.Json.String v) ]
+    | None -> fields
+
+  /// Add an optional number field (only adds if Some)
+  let addOptionalNumber
+    (fields: Fields)
+    (key: String)
+    (value: Stdlib.Option.Option<Float>)
+    : Fields =
+    match value with
+    | Some v -> Stdlib.List.append fields [ (key, Stdlib.AltJson.Json.Number v) ]
+    | None -> fields
+
+  /// Add an optional int field (only adds if Some)
+  let addOptionalInt
+    (fields: Fields)
+    (key: String)
+    (value: Stdlib.Option.Option<Int64>)
+    : Fields =
+    match value with
+    | Some v -> Stdlib.List.append fields [ (key, Stdlib.AltJson.Json.Number (Stdlib.Int64.toFloat v)) ]
+    | None -> fields
+
+  /// Add an optional bool field (only adds if Some)
+  let addOptionalBool
+    (fields: Fields)
+    (key: String)
+    (value: Stdlib.Option.Option<Bool>)
+    : Fields =
+    match value with
+    | Some v -> Stdlib.List.append fields [ (key, Stdlib.AltJson.Json.Bool v) ]
+    | None -> fields
+
+  /// Add an optional JSON value field (only adds if Some)
+  let addOptionalJson
+    (fields: Fields)
+    (key: String)
+    (value: Stdlib.Option.Option<Stdlib.AltJson.Json>)
+    : Fields =
+    match value with
+    | Some v -> Stdlib.List.append fields [ (key, v) ]
+    | None -> fields
+
+  /// Add an optional array field (only adds if Some)
+  let addOptionalArray
+    (fields: Fields)
+    (key: String)
+    (value: Stdlib.Option.Option<List<Stdlib.AltJson.Json>>)
+    : Fields =
+    match value with
+    | Some v -> Stdlib.List.append fields [ (key, Stdlib.AltJson.Json.Array v) ]
+    | None -> fields
+
+  /// Convert fields to a JSON object
+  let toJson (fields: Fields) : Stdlib.AltJson.Json =
+    Stdlib.AltJson.Json.Object fields
