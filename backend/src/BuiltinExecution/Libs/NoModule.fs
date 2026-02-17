@@ -255,6 +255,25 @@ let fns : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
+      deprecated = NotDeprecated }
+
+
+    /// CLEANUP not sure why we need this - feels like an extra step. (package -> builtin -> package)
+    { name = fn "toRepr" 0
+      typeParams = []
+      parameters = [ Param.make "value" (TVariable "a") "The value to convert." ]
+      returnType = TString
+      description = "Returns a string representation of the given <param value>"
+      fn =
+        (function
+        | exeState, _, _, [ value ] ->
+          uply {
+            let! repr = Exe.dvalToRepr exeState value
+            return DString repr
+          }
+        | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Pure
       deprecated = NotDeprecated } ]
 
 

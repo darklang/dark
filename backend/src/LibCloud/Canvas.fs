@@ -18,27 +18,34 @@ module PT2RT = LibExecution.ProgramTypesToRuntimeTypes
 module K8s = LibService.Kubernetes
 
 
-let createWithExactID (id : CanvasID) (domain : string) : Task<unit> =
+let createWithExactID
+  (id : CanvasID)
+  (accountID : Option<UserID>)
+  (domain : string)
+  : Task<unit> =
   task {
     do!
       Sql.query
         "INSERT INTO canvases_v0
-          (id)
+          (id, account_id)
          VALUES
-          (@id);
+          (@id, @accountID);
 
          INSERT INTO domains_v0
            (canvas_id, domain)
          VALUES
            (@id, @domain)"
-      |> Sql.parameters [ "id", Sql.uuid id; "domain", Sql.string domain ]
+      |> Sql.parameters
+        [ "id", Sql.uuid id
+          "accountID", Sql.uuidOrNone accountID
+          "domain", Sql.string domain ]
       |> Sql.executeStatementAsync
   }
 
-let create (domain : string) : Task<CanvasID> =
+let create (accountID : Option<UserID>) (domain : string) : Task<CanvasID> =
   task {
     let id = System.Guid.NewGuid()
-    do! createWithExactID id domain
+    do! createWithExactID id accountID domain
     return id
   }
 
@@ -71,6 +78,30 @@ let allCanvasIDs () : Task<List<CanvasID>> =
   Sql.query "SELECT id FROM canvases_v0"
   |> Sql.executeAsync (fun read -> read.uuid "id")
 
+
+let getOwner (id : CanvasID) : Task<Option<UserID>> =
+  Sql.query
+    "SELECT account_id
+    FROM canvases_v0
+    WHERE id = @id"
+  |> Sql.parameters [ "id", Sql.uuid id ]
+  |> Sql.executeRowOptionAsync (fun read -> read.uuid "account_id")
+
+let getCanvasesForAccount (accountID : UserID) : Task<List<CanvasID>> =
+  Sql.query
+    "SELECT id
+    FROM canvases_v0
+    WHERE account_id = @accountID"
+  |> Sql.parameters [ "accountID", Sql.uuid accountID ]
+  |> Sql.executeAsync (fun read -> read.uuid "id")
+
+let getOrCreateForAccount (accountID : UserID) (domain : string) : Task<CanvasID> =
+  task {
+    let! existing = getCanvasesForAccount accountID
+    match existing with
+    | canvasID :: _ -> return canvasID
+    | [] -> return! create (Some accountID) domain
+  }
 
 /// <summary>
 /// Canvas data - contains metadata along with basic handlers, DBs, etc.
@@ -345,7 +376,7 @@ let saveTLIDs
                 PTParser.Handler.Spec.toName spec,
                 PTParser.Handler.Spec.toModifier spec
               )
-          | PT.Toplevel.TLDB _ -> None
+          | PT.Toplevel.TLDB db -> Some("", db.name, "")
 
         let (module_, name, modifier) =
           // Only save info used to find handlers when the handler has not been deleted

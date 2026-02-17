@@ -1,0 +1,462 @@
+module Darklang.Cli.Packages.DB
+
+
+let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
+  match args with
+  | [] -> help state
+  | [ "help" ] -> help state
+  | [ "list" ] -> listDBs state
+  | [ "view"; dbName ] -> viewDB state dbName
+  | [ "get"; dbName; key ] -> getDBValue state dbName key
+  | [ "delete"; dbName; key ] -> deleteDBValue state dbName key
+  | [ "drop"; dbName ] -> dropDB state dbName
+  | "set" :: dbName :: key :: valueParts
+    when Stdlib.Bool.not (Stdlib.List.isEmpty valueParts) ->
+    let valueExpr = Stdlib.String.join valueParts " "
+    setDBValue state dbName key valueExpr
+  | "query" :: dbName :: filterParts
+    when Stdlib.Bool.not (Stdlib.List.isEmpty filterParts) ->
+    let filterExpr = Stdlib.String.join filterParts " "
+    queryDB state dbName filterExpr
+
+  | [ dbName ] ->
+    Stdlib.printLine (Colors.error "Error: Type name required")
+    Stdlib.printLine ""
+    Stdlib.printLine "Usage: db <DbName> <TypeName>"
+    Stdlib.printLine ""
+    Stdlib.printLine "Example: db UsersDB MyApp.User"
+    state
+
+  | [ dbName; typeName ] ->
+    createDB state dbName typeName
+
+  | _ ->
+    Stdlib.printLine (Colors.error "Error: Invalid command")
+    Stdlib.printLine ""
+    Stdlib.printLine "Run 'db help' for usage information"
+    state
+
+
+let getCanvasID (state: Cli.AppState) : Stdlib.Option.Option<Uuid> =
+  match state.accountID with
+  | None -> Stdlib.Option.Option.None
+  | Some accountID ->
+    let domain = $"{state.accountName}.darklang.localhost"
+    Stdlib.Option.Option.Some
+      (Builtin.darkInternalCanvasGetOrCreateForAccount accountID domain)
+
+
+let requireCanvas (state: Cli.AppState) : Stdlib.Result.Result<Uuid, String> =
+  match getCanvasID state with
+  | Some id -> Stdlib.Result.Result.Ok id
+  | None -> Stdlib.Result.Result.Error "No account ID available. Please set DARK_ACCOUNT environment variable."
+
+
+let getDBTypeName
+  (state: Cli.AppState)
+  (dbName: String)
+  : Stdlib.Option.Option<String> =
+  match getCanvasID state with
+  | None -> Stdlib.Option.Option.None
+  | Some canvasID ->
+    let dbs = Builtin.darkInternalCanvasDBListAll canvasID state.currentBranchId
+
+    dbs
+    |> Stdlib.List.filterMap (fun db ->
+      let (name, typeName) = db
+
+      if name == dbName then
+        Stdlib.Option.Option.Some typeName
+      else
+        Stdlib.Option.Option.None)
+    |> Stdlib.List.head
+
+
+let getDBFieldNames
+  (state: Cli.AppState)
+  (typeName: String)
+  : List<String> =
+  match
+    Location.parseRelativeTo state.packageData.currentLocation typeName
+  with
+  | Error _ -> []
+  | Ok loc ->
+    match Builtin.pmFindType state.currentBranchId loc with
+    | None -> []
+    | Some typeId ->
+      match Builtin.pmGetType typeId with
+      | None -> []
+      | Some pkgType ->
+        match pkgType.declaration.definition with
+        | Record fields -> Stdlib.List.map fields (fun f -> f.name)
+        | _ -> []
+
+
+let listDBs (state: Cli.AppState) : Cli.AppState =
+  match requireCanvas state with
+  | Error msg ->
+    Stdlib.printLine (Colors.error $"Error: {msg}")
+    state
+
+  | Ok canvasID ->
+    let dbs = Builtin.darkInternalCanvasDBListAll canvasID state.currentBranchId
+
+    match dbs with
+    | [] ->
+      Stdlib.printLine ""
+      Stdlib.printLine "No databases in your canvas."
+      Stdlib.printLine ""
+      Stdlib.printLine "Create one with: db <DbName> <TypeName>"
+      Stdlib.printLine ""
+      state
+
+    | _ ->
+      Stdlib.printLine ""
+      Stdlib.printLine "Databases in your canvas:"
+      Stdlib.printLine ""
+
+      // Print table header
+      let nameHeader =
+        (Stdlib.String.padEnd "Name" " " 20L) |> Builtin.unwrap
+
+      let typeHeader = "Type"
+
+      Stdlib.printLine $"{nameHeader}{typeHeader}"
+      Stdlib.printLine (Stdlib.String.repeat "─" 60L)
+
+      // Print each DB
+      dbs
+      |> Stdlib.List.iter (fun db ->
+        let (name, typeName) = db
+
+        let nameCol =
+          (Stdlib.String.padEnd name " " 20L) |> Builtin.unwrap
+
+        Stdlib.printLine $"{nameCol}{typeName}")
+
+      Stdlib.printLine ""
+      state
+
+
+let viewDB (state: Cli.AppState) (dbName: String) : Cli.AppState =
+  match getDBTypeName state dbName with
+  | None ->
+    Stdlib.printLine (Colors.error $"Error: Database not found: {dbName}")
+    state
+  | Some typeName ->
+    let fieldNames = getDBFieldNames state typeName
+
+    // Build eval expression that returns rows as "key|||field1|||field2" joined by newlines
+    let fieldAccessors =
+      fieldNames
+      |> Stdlib.List.map (fun f ->
+        "(Builtin.toRepr value." ++ f ++ ")")
+      |> Stdlib.String.join " ++ \"|||\" ++ "
+
+    let rowExpr =
+      if Stdlib.List.isEmpty fieldNames then
+        "key ++ \"|||\" ++ (Builtin.toRepr value)"
+      else
+        "key ++ \"|||\" ++ " ++ fieldAccessors
+
+    let nl = "\n"
+    let expr =
+      "let entries = Stdlib.Dict.toList (Stdlib.DB.getAllWithKeys "
+      ++ dbName
+      ++ ")"
+      ++ nl ++ "Stdlib.List.map entries (fun entry ->"
+      ++ nl ++ "  let key = Stdlib.Tuple2.first entry"
+      ++ nl ++ "  let value = Stdlib.Tuple2.second entry"
+      ++ nl ++ "  " ++ rowExpr ++ ")"
+      ++ nl ++ "|> Stdlib.String.join \"<<<ROW>>>\""
+
+    match Builtin.cliEvaluateExpression state.accountID state.currentBranchId expr with
+    | Ok result ->
+      Stdlib.printLine ""
+
+      let colWidth = 15L
+
+      // Print header
+      let keyHeader =
+        (Stdlib.String.padEnd "Key" " " colWidth) |> Builtin.unwrap
+
+      let fieldHeaders =
+        fieldNames
+        |> Stdlib.List.map (fun name ->
+          (Stdlib.String.padEnd name " " colWidth) |> Builtin.unwrap)
+        |> Stdlib.String.join ""
+
+      Stdlib.printLine $"{keyHeader}{fieldHeaders}"
+
+      let totalWidth =
+        colWidth
+        + (Stdlib.Int64.multiply (Stdlib.List.length fieldNames) colWidth)
+
+      Stdlib.printLine (Stdlib.String.repeat "─" totalWidth)
+
+      if Stdlib.String.isEmpty result then
+        Stdlib.printLine "  (empty)"
+        Stdlib.printLine ""
+        Stdlib.printLine "0 row(s)"
+      else
+        let rows = Stdlib.String.split result "<<<ROW>>>"
+
+        rows
+        |> Stdlib.List.iter (fun row ->
+          let parts = Stdlib.String.split row "|||"
+
+          let formatted =
+            parts
+            |> Stdlib.List.map (fun part ->
+              (Stdlib.String.padEnd part " " colWidth) |> Builtin.unwrap)
+            |> Stdlib.String.join ""
+
+          Stdlib.printLine formatted)
+
+        Stdlib.printLine ""
+
+        let rowCount = Stdlib.List.length rows
+        Stdlib.printLine $"{Stdlib.Int64.toString rowCount} row(s)"
+
+      Stdlib.printLine ""
+      state
+
+    | Error err ->
+      let prettyError =
+        PrettyPrinter.RuntimeTypes.RuntimeError.toString
+          state.currentBranchId
+          err
+
+      Stdlib.printLine (Colors.error $"Error: {prettyError}")
+      state
+
+
+let getDBValue
+  (state: Cli.AppState)
+  (dbName: String)
+  (key: String)
+  : Cli.AppState =
+  let expr = $"Stdlib.DB.get \"{key}\" {dbName}"
+
+  match Builtin.cliEvaluateExpression state.accountID state.currentBranchId expr with
+  | Ok result ->
+    Stdlib.printLine result
+    state
+  | Error err ->
+    let prettyError =
+      PrettyPrinter.RuntimeTypes.RuntimeError.toString
+        state.currentBranchId
+        err
+
+    Stdlib.printLine (Colors.error $"Error: {prettyError}")
+    state
+
+
+let setDBValue
+  (state: Cli.AppState)
+  (dbName: String)
+  (key: String)
+  (valueExpr: String)
+  : Cli.AppState =
+  match getDBTypeName state dbName with
+  | None ->
+    Stdlib.printLine (Colors.error $"Error: Database not found: {dbName}")
+    state
+  | Some typeName ->
+    let expr =
+      $"Stdlib.DB.set ({typeName} {valueExpr}) \"{key}\" {dbName}"
+
+    match Builtin.cliEvaluateExpression state.accountID state.currentBranchId expr with
+    | Ok _ ->
+      Stdlib.printLine (Colors.success $"Set {key} in {dbName}")
+      state
+    | Error err ->
+      let prettyError =
+        PrettyPrinter.RuntimeTypes.RuntimeError.toString
+          state.currentBranchId
+          err
+
+      Stdlib.printLine (Colors.error $"Error: {prettyError}")
+      state
+
+
+let deleteDBValue
+  (state: Cli.AppState)
+  (dbName: String)
+  (key: String)
+  : Cli.AppState =
+  let expr = $"Stdlib.DB.delete \"{key}\" {dbName}"
+
+  match Builtin.cliEvaluateExpression state.accountID state.currentBranchId expr with
+  | Ok _ ->
+    Stdlib.printLine (Colors.success $"Deleted {key} from {dbName}")
+    state
+  | Error err ->
+    let prettyError =
+      PrettyPrinter.RuntimeTypes.RuntimeError.toString
+        state.currentBranchId
+        err
+
+    Stdlib.printLine (Colors.error $"Error: {prettyError}")
+    state
+
+
+let queryDB
+  (state: Cli.AppState)
+  (dbName: String)
+  (filterExpr: String)
+  : Cli.AppState =
+  let expr = $"Stdlib.DB.query {dbName} ({filterExpr})"
+
+  match Builtin.cliEvaluateExpression state.accountID state.currentBranchId expr with
+  | Ok result ->
+    Stdlib.printLine result
+    state
+  | Error err ->
+    let prettyError =
+      PrettyPrinter.RuntimeTypes.RuntimeError.toString
+        state.currentBranchId
+        err
+
+    Stdlib.printLine (Colors.error $"Error: {prettyError}")
+    state
+
+
+let dropDB (state: Cli.AppState) (dbName: String) : Cli.AppState =
+  match requireCanvas state with
+  | Error msg ->
+    Stdlib.printLine (Colors.error $"Error: {msg}")
+    state
+
+  | Ok canvasID ->
+    match Builtin.darkInternalCanvasDBDrop canvasID dbName with
+    | Ok () ->
+      Stdlib.printLine (Colors.success $"Dropped database: {dbName}")
+      state
+    | Error msg ->
+      Stdlib.printLine (Colors.error $"Error: {msg}")
+      state
+
+
+let createDB (state: Cli.AppState) (dbName: String) (typeName: String) : Cli.AppState =
+  match requireCanvas state with
+  | Error msg ->
+    Stdlib.printLine (Colors.error $"Error: {msg}")
+    state
+
+  | Ok canvasID ->
+    match Location.parseRelativeTo state.packageData.currentLocation typeName with
+    | Error msg ->
+      Stdlib.printLine (Colors.error $"Error: Invalid type name: {msg}")
+      state
+
+    | Ok typeLocation ->
+      match Builtin.pmFindType state.currentBranchId typeLocation with
+      | None ->
+        let fullTypeName =
+          PrettyPrinter.ProgramTypes.PackageLocation.packageLocation typeLocation
+
+        Stdlib.printLine (Colors.error $"Error: Type not found: {fullTypeName}")
+        Stdlib.printLine ""
+        Stdlib.printLine "Make sure the type exists before creating a database for it."
+        state
+
+      | Some typeID ->
+        match Builtin.darkInternalCanvasDBCreate canvasID dbName typeID with
+        | Ok tlid ->
+          let fullTypeName =
+            PrettyPrinter.ProgramTypes.PackageLocation.packageLocation typeLocation
+
+          Stdlib.printLine ""
+          Stdlib.printLine
+            (Colors.success $"Created database: {dbName} (type: {fullTypeName})")
+
+          Stdlib.printLine ""
+          state
+
+        | Error msg ->
+          Stdlib.printLine (Colors.error $"Error: Failed to create database: {msg}")
+          state
+
+
+let help (state: Cli.AppState) : Cli.AppState =
+  [ "Database commands"
+    ""
+    "Usage:"
+    "  db list                                List all databases in your canvas"
+    "  db view <DbName>                       View contents of a database"
+    "  db get <DbName> <key>                  Get a single row by key"
+    "  db set <DbName> <key> <value_expr>     Set a value (Dark expression syntax)"
+    "  db delete <DbName> <key>               Delete a row by key"
+    "  db query <DbName> <filter_expr>        Query rows matching a filter"
+    "  db drop <DbName>                       Drop (permanently delete) a database"
+    "  db <DbName> <TypeName>                 Create a new database"
+    ""
+    "The value in 'db set' should be a Dark record expression (without the type name)."
+    "The type name is automatically prepended based on the DB's type."
+    ""
+    "Examples:"
+    "  db list"
+    "  db Users MyApp.User                                                                 # Create DB"
+    "  db set Users alice '{ name = \"Alice\"; age = 30; email = \"alice@example.com\" }'  # Set a value"
+    "  db view Users                                                                       # View all rows"
+    "  db get Users alice                                                                  # Get one row"
+    "  db delete Users alice                                                               # Delete a row"
+    "  db query Users 'fun u -> u.age > 25'                                                # Query rows"
+    "  db drop Users                                                                       # Drop the DB"
+    ""
+    "The database will be created in your account's canvas."
+    "" ]
+  |> Stdlib.printLines
+
+  state
+
+
+let getDBNamesForCompletion (state: Cli.AppState) : List<String> =
+  match getCanvasID state with
+  | None -> []
+  | Some canvasID ->
+    (Builtin.darkInternalCanvasDBListAll canvasID state.currentBranchId)
+    |> Stdlib.List.map (fun db ->
+      let (name, _) = db
+      name)
+
+
+let completeDBName
+  (state: Cli.AppState)
+  (partial: String)
+  : List<Cli.Completion.CompletionItem> =
+  (getDBNamesForCompletion state)
+  |> Stdlib.List.filter (fun name -> Stdlib.String.startsWith name partial)
+  |> Stdlib.List.map Cli.Completion.simple
+
+
+let complete
+  (state: Cli.AppState)
+  (args: List<String>)
+  : List<Cli.Completion.CompletionItem> =
+  let subcommands = [ "list"; "view"; "get"; "set"; "delete"; "drop"; "query"; "help" ]
+
+  match args with
+  | [] ->
+    subcommands |> Stdlib.List.map Cli.Completion.simple
+
+  | [ partial ] ->
+    subcommands
+    |> Stdlib.List.filter (fun cmd -> Stdlib.String.startsWith cmd partial)
+    |> Stdlib.List.map Cli.Completion.simple
+
+  | [ "view" ] -> completeDBName state ""
+  | [ "view"; partial ] -> completeDBName state partial
+  | [ "get" ] -> completeDBName state ""
+  | [ "get"; partial ] -> completeDBName state partial
+  | [ "set" ] -> completeDBName state ""
+  | [ "set"; partial ] -> completeDBName state partial
+  | [ "delete" ] -> completeDBName state ""
+  | [ "delete"; partial ] -> completeDBName state partial
+  | [ "drop" ] -> completeDBName state ""
+  | [ "drop"; partial ] -> completeDBName state partial
+  | [ "query" ] -> completeDBName state ""
+  | [ "query"; partial ] -> completeDBName state partial
+
+  | _ -> []

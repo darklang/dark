@@ -1,0 +1,13 @@
+CREATE TABLE IF NOT EXISTS
+accounts_v0
+( id TEXT PRIMARY KEY
+, name TEXT NOT NULL UNIQUE
+, created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+ALTER TABLE canvases_v0 ADD COLUMN account_id TEXT;
+
+-- Seed accounts
+INSERT OR IGNORE INTO accounts_v0 (id, name) VALUES ('00000000-0000-0000-0000-000000000001', 'Darklang');
+INSERT OR IGNORE INTO accounts_v0 (id, name) VALUES ('00000000-0000-0000-0000-000000000002', 'Stachu');
+INSERT OR IGNORE INTO accounts_v0 (id, name) VALUES ('00000000-0000-0000-0000-000000000003', 'Feriel');
