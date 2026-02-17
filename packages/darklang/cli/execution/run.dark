@@ -42,7 +42,7 @@ let executeScript (state: AppState) (scriptPath: String) (args: List<String>) : 
     state
   | Ok script ->
     let scriptSourceCode = Stdlib.String.fromBytesWithReplacement script
-    let result = Builtin.cliParseAndExecuteScript state.currentBranchId scriptPath scriptSourceCode args
+    let result = Builtin.cliParseAndExecuteScript state.accountID state.currentBranchId scriptPath scriptSourceCode args
 
     match result with
     | Ok exitCode ->
@@ -61,7 +61,7 @@ let executeScript (state: AppState) (scriptPath: String) (args: List<String>) : 
 let executeFunction (state: AppState) (fnName: String) (args: List<String>) : AppState =
   let fullExpr = $"{fnName} {Stdlib.String.join args " "}"
 
-  match Builtin.cliEvaluateExpression state.currentBranchId fullExpr with
+  match Builtin.cliEvaluateExpression state.accountID state.currentBranchId fullExpr with
   | Ok result ->
     Stdlib.printLine result
     state
