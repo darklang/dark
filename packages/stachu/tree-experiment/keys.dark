@@ -1,0 +1,158 @@
+module Stachu.TreeExperiment.App
+
+/// Handle keyboard input in navigate mode.
+let handleNavigateKey
+  (appState: Darklang.Cli.AppState)
+  (treeState: Stachu.TreeExperiment.State)
+  (key: Stdlib.Cli.Stdin.Key.Key)
+  (modifiers: Stdlib.Cli.Stdin.Modifiers.Modifiers)
+  (keyChar: Stdlib.Option.Option<String>)
+  : Darklang.Cli.AppState =
+  match key with
+  | Escape ->
+    // Exit tree outliner - return to main prompt
+    Stdlib.print "\u001b[?1049l"
+    { appState with
+        currentPage = Darklang.Cli.Page.MainPrompt
+        needsFullRedraw = true }
+  | UpArrow ->
+    let newTree =
+      if modifiers.ctrl then
+        Stachu.TreeExperiment.moveNodeUp treeState
+      else
+        Stachu.TreeExperiment.moveCursorUp treeState
+    { appState with
+        currentPage = Darklang.Cli.Page.Outliner newTree
+        needsFullRedraw = true }
+  | DownArrow ->
+    let newTree =
+      if modifiers.ctrl then
+        Stachu.TreeExperiment.moveNodeDown treeState
+      else
+        Stachu.TreeExperiment.moveCursorDown treeState
+    { appState with
+        currentPage = Darklang.Cli.Page.Outliner newTree
+        needsFullRedraw = true }
+  | Enter ->
+    let newTree = Stachu.TreeExperiment.enterEditMode treeState
+    { appState with
+        currentPage = Darklang.Cli.Page.Outliner newTree
+        needsFullRedraw = true }
+  | Tab ->
+    let newTree =
+      if modifiers.shift then
+        Stachu.TreeExperiment.outdentNode treeState
+      else
+        Stachu.TreeExperiment.indentNode treeState
+    { appState with
+        currentPage = Darklang.Cli.Page.Outliner newTree
+        needsFullRedraw = true }
+  | Spacebar ->
+    let newTree = Stachu.TreeExperiment.toggleCollapse treeState
+    { appState with
+        currentPage = Darklang.Cli.Page.Outliner newTree
+        needsFullRedraw = true }
+  | Backspace ->
+    let newTree = Stachu.TreeExperiment.deleteNode treeState
+    { appState with
+        currentPage = Darklang.Cli.Page.Outliner newTree
+        needsFullRedraw = true }
+  | Delete ->
+    let newTree = Stachu.TreeExperiment.deleteNode treeState
+    { appState with
+        currentPage = Darklang.Cli.Page.Outliner newTree
+        needsFullRedraw = true }
+  | _ ->
+    match keyChar with
+    | Some "o" ->
+      let newTree = Stachu.TreeExperiment.insertAfter treeState
+      { appState with
+          currentPage = Darklang.Cli.Page.Outliner newTree
+          needsFullRedraw = true }
+    | _ -> appState
+
+
+/// Handle keyboard input in edit mode.
+let handleEditKey
+  (appState: Darklang.Cli.AppState)
+  (treeState: Stachu.TreeExperiment.State)
+  (key: Stdlib.Cli.Stdin.Key.Key)
+  (_modifiers: Stdlib.Cli.Stdin.Modifiers.Modifiers)
+  (keyChar: Stdlib.Option.Option<String>)
+  : Darklang.Cli.AppState =
+  let updatedTree =
+    match key with
+    | Escape ->
+      Stachu.TreeExperiment.finishEditing treeState
+    | Enter ->
+      Stachu.TreeExperiment.finishEditing treeState
+    | Backspace ->
+      Stachu.TreeExperiment.editBackspace treeState
+    | LeftArrow ->
+      Stachu.TreeExperiment.editMoveLeft treeState
+    | RightArrow ->
+      Stachu.TreeExperiment.editMoveRight treeState
+    | _ ->
+      match keyChar with
+      | Some ch ->
+        Stachu.TreeExperiment.editInsertChar treeState ch
+      | None -> treeState
+
+  { appState with
+      currentPage = Darklang.Cli.Page.Outliner updatedTree
+      needsFullRedraw = true }
+
+
+/// Main key handler: dispatches based on current mode.
+let handleKey
+  (appState: Darklang.Cli.AppState)
+  (treeState: Stachu.TreeExperiment.State)
+  (key: Stdlib.Cli.Stdin.Key.Key)
+  (modifiers: Stdlib.Cli.Stdin.Modifiers.Modifiers)
+  (keyChar: Stdlib.Option.Option<String>)
+  : Darklang.Cli.AppState =
+  match treeState.mode with
+  | Navigate ->
+    handleNavigateKey appState treeState key modifiers keyChar
+  | Editing (_, _) ->
+    handleEditKey appState treeState key modifiers keyChar
+
+
+/// Execute the outliner command: enter the tree outliner.
+let execute (state: Darklang.Cli.AppState) (_args: List<String>) : Darklang.Cli.AppState =
+  Stdlib.print "\u001b[?1049h"
+  let treeState = Stachu.TreeExperiment.initState ()
+  { state with
+      currentPage = Darklang.Cli.Page.Outliner treeState
+      needsFullRedraw = true }
+
+
+/// Show help for outliner command.
+let help (_state: Darklang.Cli.AppState) : Darklang.Cli.AppState =
+  [ "Usage: outliner"
+    "Interactive tree outliner (Dynalist-style)."
+    ""
+    "Navigate mode:"
+    "  Up/Down      Move between items"
+    "  Enter        Edit selected item"
+    "  Tab          Indent (make child of previous sibling)"
+    "  Shift+Tab    Outdent (move to parent's level)"
+    "  o            New sibling below"
+    "  Space        Toggle collapse/expand"
+    "  Ctrl+Up      Move item up among siblings"
+    "  Ctrl+Down    Move item down among siblings"
+    "  Backspace    Delete empty item"
+    "  Escape       Exit to main CLI"
+    ""
+    "Edit mode:"
+    "  Type         Insert characters"
+    "  Left/Right   Move cursor"
+    "  Backspace    Delete before cursor"
+    "  Enter/Esc    Finish editing"
+  ] |> Stdlib.printLines
+  _state
+
+
+/// Tab completion for outliner (no arguments).
+let complete (_state: Darklang.Cli.AppState) (_args: List<String>) : List<Darklang.Cli.Completion.CompletionItem> =
+  []

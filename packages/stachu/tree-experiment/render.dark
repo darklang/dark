@@ -1,0 +1,104 @@
+module Stachu.TreeExperiment.Render
+
+/// Render the tree outliner to the alternate screen buffer.
+let display (state: Stachu.TreeExperiment.State) : Unit =
+  let flat = Stachu.TreeExperiment.flattenVisible state.root
+  let totalItems = Stdlib.List.length flat
+
+  // Reserve 3 lines: title + blank + help bar
+  let viewportHeight = Darklang.Cli.Terminal.getViewportHeight 4L
+  let termWidth = Darklang.Cli.Terminal.getWidth ()
+
+  // Scroll offset: keep cursor in view
+  let scrollOffset =
+    if state.cursor < 0L then
+      0L
+    else if state.cursor >= viewportHeight then
+      Darklang.Cli.Terminal.clampScrollOffset
+        (state.cursor - viewportHeight + 1L)
+        totalItems
+        viewportHeight
+    else
+      0L
+
+  // Clear screen and position at top
+  Stdlib.print "\u001b[?25l\u001b[2J\u001b[H"
+
+  // Title
+  let titleText = " Outliner "
+  let title = Darklang.Cli.Colors.colorize (Darklang.Cli.Colors.purpleBg ++ Darklang.Cli.Colors.white ++ Darklang.Cli.Colors.bold) titleText
+
+  let modeText = Stachu.TreeExperiment.modeText state.mode
+  let modeColor = Stachu.TreeExperiment.modeColor state.mode
+
+  let modeIndicator = Darklang.Cli.Colors.colorize modeColor modeText
+  Stdlib.printLine (title ++ " " ++ modeIndicator)
+  Stdlib.printLine ""
+
+  // Visible items
+  let visibleItems =
+    flat
+    |> Stdlib.List.drop scrollOffset
+    |> Stdlib.List.take viewportHeight
+
+  visibleItems
+  |> Stdlib.List.indexedMap (fun relIdx pair ->
+    let (node, depth) = pair
+    let absoluteIdx = scrollOffset + relIdx
+    let isSelected = absoluteIdx == state.cursor
+
+    // Indentation (2 spaces per level)
+    let indent = Stdlib.String.repeat "  " depth
+
+    // Bullet style
+    let bullet =
+      if node.collapsed && (Stdlib.Bool.not (Stdlib.List.isEmpty node.children)) then
+        Darklang.Cli.Colors.colorize Darklang.Cli.Colors.yellow ">"
+      else if Stdlib.Bool.not (Stdlib.List.isEmpty node.children) then
+        Darklang.Cli.Colors.colorize Darklang.Cli.Colors.dim "-"
+      else
+        Darklang.Cli.Colors.colorize Darklang.Cli.Colors.dim "*"
+
+    // Text content
+    let displayText = Stachu.TreeExperiment.nodeDisplayText state.mode isSelected node.text
+
+    // Collapse indicator
+    let childCount = Stdlib.List.length node.children
+    let collapseHint =
+      if node.collapsed && childCount > 0L then
+        let countStr = Stdlib.Int64.toString childCount
+        Darklang.Cli.Colors.colorize Darklang.Cli.Colors.dim $" ({countStr} hidden)"
+      else
+        ""
+
+    // Selection highlight
+    let line = $"{indent}{bullet} {displayText}{collapseHint}"
+    if isSelected then
+      if Stachu.TreeExperiment.isEditing state.mode then
+        Stdlib.printLine (Darklang.Cli.Colors.colorize Darklang.Cli.Colors.green line)
+      else
+        Stdlib.printLine (Darklang.Cli.Colors.colorize Darklang.Cli.Colors.selection line)
+    else
+      Stdlib.printLine line)
+
+  // Pad remaining viewport lines
+  let renderedCount = Stdlib.List.length visibleItems
+  let padLines = viewportHeight - renderedCount
+  if padLines > 0L then
+    (Stdlib.List.range 1L padLines)
+    |> Stdlib.List.iter (fun _i -> Stdlib.printLine "")
+
+  // Help bar at bottom
+  let helpText = Stachu.TreeExperiment.modeHelpText state.mode
+
+  Stdlib.printLine ""
+  let helpLen = Stdlib.String.length helpText
+  let helpPadding =
+    if termWidth > helpLen then
+      Stdlib.String.repeat " " (termWidth - helpLen)
+    else
+      ""
+  Stdlib.print (Darklang.Cli.Colors.colorize (Darklang.Cli.Colors.grayBg ++ Darklang.Cli.Colors.white) (helpText ++ helpPadding))
+
+  // Show cursor
+  Stdlib.print "\u001b[?25h"
