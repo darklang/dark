@@ -659,6 +659,8 @@ and ItemKind =
     | _ -> Exception.raiseInternal $"Unknown item kind: {s}" []
 
   /// Convert to database string representation
+  /// CLEANUP might be appropriate to either migrate these fns to LibSerialization,
+  // or replace them w/ _binary_ serializer equivs (but, then DB is less queryable by humans directly)
   member this.toString() : string =
     match this with
     | Fn -> "fn"
