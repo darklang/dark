@@ -1,5 +1,5 @@
 # Darklang Monorepo
 
-Run: `./scripts/run-cli docs for-ai`
-
-For internal/F# work: `./scripts/run-cli docs for-ai-internal`
+Start by reading both docs:
+- `./scripts/run-cli docs for-ai` — language syntax, naming, workflow
+- `./scripts/run-cli docs for-ai-internal` — monorepo structure, builds, tests
