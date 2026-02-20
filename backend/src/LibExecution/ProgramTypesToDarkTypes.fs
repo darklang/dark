@@ -300,6 +300,7 @@ module LetPattern =
     let (caseName, fields) =
       match p with
       | PT.LPVariable(id, name) -> "LPVariable", [ DInt64(int64 id); DString name ]
+      | PT.LPWildcard id -> "LPWildcard", [ DInt64(int64 id) ]
       | PT.LPUnit id -> "LPUnit", [ DInt64(int64 id) ]
       | PT.LPTuple(id, first, second, theRest) ->
         "LPTuple",
@@ -315,6 +316,7 @@ module LetPattern =
     match d with
     | DEnum(_, _, [], "LPVariable", [ DInt64 id; DString name ]) ->
       PT.LPVariable(uint64 id, name)
+    | DEnum(_, _, [], "LPWildcard", [ DInt64 id ]) -> PT.LPWildcard(uint64 id)
     | DEnum(_, _, [], "LPUnit", [ DInt64 id ]) -> PT.LPUnit(uint64 id)
     | DEnum(_,
             _,

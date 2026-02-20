@@ -28,6 +28,7 @@ let rec checkAndExtractLetPattern
 
   match pat, dv with
   | LPVariable extractTo, dv -> true, [ (extractTo, dv) ]
+  | LPWildcard, _ -> true, []
   | LPUnit, DUnit -> true, []
   | LPTuple(first, second, theRest), DTuple(firstVal, secondVal, theRestVal) ->
     match r first firstVal, r second secondVal with

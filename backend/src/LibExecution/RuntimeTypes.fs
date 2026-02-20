@@ -280,8 +280,8 @@ type LetPattern =
   /// `let x = 1`
   | LPVariable of extractTo : Register
 
-  // /// `let _ = 1`
-  // | LPIgnored
+  /// `let _ = 1`
+  | LPWildcard
 
   /// `let (x, y) = (1, 2)`
   | LPTuple of first : LetPattern * second : LetPattern * theRest : List<LetPattern>

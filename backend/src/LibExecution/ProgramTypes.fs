@@ -167,8 +167,8 @@ type LetPattern =
   /// `let x = 1`
   | LPVariable of id * name : string
 
-  // /// `let _ignored = 1`
-  // | LPIgnored
+  /// `let _ = 1`
+  | LPWildcard of id
 
   // /// let (x) = 1
   //| LPParens of inner : LetPattern
@@ -187,6 +187,7 @@ module LetPattern =
   let rec symbolsUsed (pattern : LetPattern) : Set<string> =
     match pattern with
     | LPVariable(_, name) -> Set.singleton name
+    | LPWildcard _ -> Set.empty
     | LPTuple(_, first, second, rest) ->
       Set.unionMany
         [ symbolsUsed first
@@ -197,6 +198,7 @@ module LetPattern =
   let toID (pattern : LetPattern) : id =
     match pattern with
     | LPVariable(id, _)
+    | LPWildcard id
     | LPTuple(id, _, _, _)
     | LPUnit id -> id
 

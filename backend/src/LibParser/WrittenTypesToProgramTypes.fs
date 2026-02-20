@@ -127,6 +127,7 @@ module LetPattern =
             // Track this as a local binding to prevent resolving it as a global
             localBindings = Set.add varName context.localBindings }
       (newContext, PT.LPVariable(id, varName))
+    | WT.LPWildcard id -> (context, PT.LPWildcard id)
     | WT.LPTuple(id, first, second, theRest) ->
       let (context1, first') = toPT context first
       let (context2, second') = toPT context1 second

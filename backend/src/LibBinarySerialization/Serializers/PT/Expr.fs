@@ -96,6 +96,9 @@ module LetPattern =
       write w first
       write w second
       List.write w write rest
+    | LPWildcard id ->
+      w.Write 3uy
+      w.Write id
 
   let rec read (r : BinaryReader) : LetPattern =
     match r.ReadByte() with
@@ -112,6 +115,9 @@ module LetPattern =
       let second = read r
       let rest = List.read r read
       LPTuple(id, first, second, rest)
+    | 3uy ->
+      let id = r.ReadUInt64()
+      LPWildcard id
     | b ->
       raise (BinaryFormatException(CorruptedData $"Invalid LetPattern tag: {b}"))
 
