@@ -1,5 +1,6 @@
 #! /usr/bin/env bash
-. ./scripts/devcontainer/_assert-in-container "$0" "$@"
+# Note: This script can run in lightweight CI containers (doesn't need dark-base)
+# Requirements: curl, jq, bash
 
 set -euo pipefail
 
@@ -86,7 +87,7 @@ fi
 upload_url=$(echo $response | jq -r .upload_url | sed -e "s/{?name,label}//")
 
 ## Upload all files in the clis directory
-FILES_DIR="/home/dark/app/clis"
+FILES_DIR="${CLIS_DIR:-./clis}"
 FILES_FOUND=false
 
 for FILE_PATH in "$FILES_DIR"/*; do
