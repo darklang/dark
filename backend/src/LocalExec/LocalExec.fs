@@ -13,7 +13,7 @@ module RT = LibExecution.RuntimeTypes
 module PT = LibExecution.ProgramTypes
 module PT2RT = LibExecution.ProgramTypesToRuntimeTypes
 module Execution = LibExecution.Execution
-module BS = LibBinarySerialization.BinarySerialization
+module BS = LibSerialization.Binary.Serialization
 
 module PM = LibPackageManager.PackageManager
 

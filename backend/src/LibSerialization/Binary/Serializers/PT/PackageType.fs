@@ -1,4 +1,4 @@
-module LibBinarySerialization.Serializers.PT.PackageType
+module LibSerialization.Binary.Serializers.PT.PackageType
 
 open System
 open System.IO
@@ -6,9 +6,8 @@ open Prelude
 
 open LibExecution.ProgramTypes
 
-open LibBinarySerialization.BinaryFormat
-open LibBinarySerialization.Serializers.Common
-open LibBinarySerialization.Serializers.PT.Common
+open LibSerialization.Binary.Serializers.Common
+open LibSerialization.Binary.Serializers.PT.Common
 
 
 module TypeDeclaration =
@@ -69,12 +68,7 @@ module TypeDeclaration =
       | 0uy -> TypeDeclaration.Alias(TypeReference.read r)
       | 1uy -> TypeDeclaration.Record(NEList.read RecordField.read r)
       | 2uy -> TypeDeclaration.Enum(NEList.read EnumCase.read r)
-      | b ->
-        raise (
-          BinaryFormatException(
-            CorruptedData $"Invalid TypeDeclaration.Definition tag: {b}"
-          )
-        )
+      | b -> raiseFormatError $"Invalid TypeDeclaration.Definition tag: {b}"
 
 
   let write (w : BinaryWriter) (d : TypeDeclaration.T) : unit =

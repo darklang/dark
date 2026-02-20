@@ -1,5 +1,5 @@
 /// Custom binary serialization for Dark values
-module LibBinarySerialization.BinarySerialization
+module LibSerialization.Binary.Serialization
 
 open System
 open System.IO
@@ -10,9 +10,9 @@ open Prelude
 module RT = LibExecution.RuntimeTypes
 module PT = LibExecution.ProgramTypes
 
-open LibBinarySerialization.BinaryFormat
-open LibBinarySerialization.Serializers.Common
-open LibBinarySerialization.Serializers
+open LibSerialization.Binary.BaseFormat
+open LibSerialization.Binary.Serializers.Common
+open LibSerialization.Binary.Serializers
 
 
 let wrap (id : string) (f : unit -> 'a) : 'a =
@@ -81,13 +81,13 @@ module PT =
   module PackageLocation =
     let serialize id value =
       makeSerializer
-        LibBinarySerialization.Serializers.PT.Common.PackageLocation.write
+        LibSerialization.Binary.Serializers.PT.Common.PackageLocation.write
         id
         value
 
     let deserialize id data =
       makeDeserializer
-        LibBinarySerialization.Serializers.PT.Common.PackageLocation.read
+        LibSerialization.Binary.Serializers.PT.Common.PackageLocation.read
         id
         data
 

@@ -1,13 +1,12 @@
-module LibBinarySerialization.Serializers.PT.TypeReference
+module LibSerialization.Binary.Serializers.PT.TypeReference
 
 open System.IO
 open Prelude
 
 open LibExecution.ProgramTypes
 
-open LibBinarySerialization.BinaryFormat
-open LibBinarySerialization.Serializers.Common
-open LibBinarySerialization.Serializers.PT.Common
+open LibSerialization.Binary.Serializers.Common
+open LibSerialization.Binary.Serializers.PT.Common
 
 
 let rec write (w : BinaryWriter) (t : TypeReference) : unit =
@@ -94,5 +93,4 @@ let rec read (r : BinaryReader) : TypeReference =
     let second = read r
     let rest = List.read r read
     TTuple(first, second, rest)
-  | b ->
-    raise (BinaryFormatException(CorruptedData $"Invalid TypeReference tag: {b}"))
+  | b -> raiseFormatError $"Invalid TypeReference tag: {b}"

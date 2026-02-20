@@ -1,4 +1,4 @@
-module LibBinarySerialization.Serializers.PT.PackageFn
+module LibSerialization.Binary.Serializers.PT.PackageFn
 
 open System
 open System.IO
@@ -6,9 +6,8 @@ open Prelude
 
 open LibExecution.ProgramTypes
 
-open LibBinarySerialization.BinaryFormat
-open LibBinarySerialization.Serializers.Common
-open LibBinarySerialization.Serializers.PT.Common
+open LibSerialization.Binary.Serializers.Common
+open LibSerialization.Binary.Serializers.PT.Common
 
 
 module Parameter =
@@ -26,8 +25,8 @@ module Parameter =
 
 let write (w : BinaryWriter) (p : PackageFn.PackageFn) : unit =
   Guid.write w p.id
-  LibBinarySerialization.Serializers.PT.Expr.Expr.write w p.body
-  LibBinarySerialization.Serializers.Common.List.write w String.write p.typeParams
+  LibSerialization.Binary.Serializers.PT.Expr.Expr.write w p.body
+  LibSerialization.Binary.Serializers.Common.List.write w String.write p.typeParams
   NEList.write Parameter.write w p.parameters
   TypeReference.write w p.returnType
   String.write w p.description
@@ -35,8 +34,8 @@ let write (w : BinaryWriter) (p : PackageFn.PackageFn) : unit =
 
 let read (r : BinaryReader) : PackageFn.PackageFn =
   let id = Guid.read r
-  let body = LibBinarySerialization.Serializers.PT.Expr.Expr.read r
-  let typeParams = LibBinarySerialization.Serializers.Common.List.read r String.read
+  let body = LibSerialization.Binary.Serializers.PT.Expr.Expr.read r
+  let typeParams = LibSerialization.Binary.Serializers.Common.List.read r String.read
   let parameters = NEList.read Parameter.read r
   let returnType = TypeReference.read r
   let description = String.read r

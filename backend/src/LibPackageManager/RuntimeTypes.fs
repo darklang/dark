@@ -7,7 +7,7 @@ open Fumble
 open LibDB.Db
 
 module RT = LibExecution.RuntimeTypes
-module BinarySerialization = LibBinarySerialization.BinarySerialization
+module BS = LibSerialization.Binary.Serialization
 
 
 module Type =
@@ -22,7 +22,7 @@ module Type =
           """
         |> Sql.parameters [ "id", Sql.uuid id ]
         |> Sql.executeRowOptionAsync (fun read -> read.bytes "rt_def")
-        |> Task.map (Option.map (BinarySerialization.RT.PackageType.deserialize id))
+        |> Task.map (Option.map (BS.RT.PackageType.deserialize id))
     }
 
 
@@ -38,13 +38,13 @@ module Value =
           """
         |> Sql.parameters [ "id", Sql.uuid id ]
         |> Sql.executeRowOptionAsync (fun read -> read.bytes "rt_dval")
-        |> Task.map (Option.map (BinarySerialization.RT.PackageValue.deserialize id))
+        |> Task.map (Option.map (BS.RT.PackageValue.deserialize id))
     }
 
   /// Find all value IDs that have the given ValueType (exact match)
   let findByValueType (vt : RT.ValueType) : Ply<List<uuid>> =
     uply {
-      let vtBytes = BinarySerialization.RT.ValueType.serialize vt
+      let vtBytes = BS.RT.ValueType.serialize vt
       return!
         Sql.query
           """
@@ -69,5 +69,5 @@ module Fn =
           """
         |> Sql.parameters [ "id", Sql.uuid id ]
         |> Sql.executeRowOptionAsync (fun read -> read.bytes "rt_instrs")
-        |> Task.map (Option.map (BinarySerialization.RT.PackageFn.deserialize id))
+        |> Task.map (Option.map (BS.RT.PackageFn.deserialize id))
     }

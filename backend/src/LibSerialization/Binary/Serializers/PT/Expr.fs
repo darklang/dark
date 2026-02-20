@@ -1,4 +1,4 @@
-module rec LibBinarySerialization.Serializers.PT.Expr
+module rec LibSerialization.Binary.Serializers.PT.Expr
 
 open System
 open System.IO
@@ -6,9 +6,8 @@ open Prelude
 
 open LibExecution.ProgramTypes
 
-open LibBinarySerialization.BinaryFormat
-open LibBinarySerialization.Serializers.Common
-open LibBinarySerialization.Serializers.PT.Common
+open LibSerialization.Binary.Serializers.Common
+open LibSerialization.Binary.Serializers.PT.Common
 
 
 module InfixFnName =
@@ -43,8 +42,7 @@ module InfixFnName =
     | 10uy -> ComparisonEquals
     | 11uy -> ComparisonNotEquals
     | 12uy -> StringConcat
-    | b ->
-      raise (BinaryFormatException(CorruptedData $"Invalid InfixFnName tag: {b}"))
+    | b -> raiseFormatError $"Invalid InfixFnName tag: {b}"
 
 
 module BinaryOperation =
@@ -57,10 +55,7 @@ module BinaryOperation =
     match r.ReadByte() with
     | 0uy -> BinOpAnd
     | 1uy -> BinOpOr
-    | b ->
-      raise (
-        BinaryFormatException(CorruptedData $"Invalid BinaryOperation tag: {b}")
-      )
+    | b -> raiseFormatError $"Invalid BinaryOperation tag: {b}"
 
 
 module Infix =
@@ -77,7 +72,7 @@ module Infix =
     match r.ReadByte() with
     | 0uy -> InfixFnCall(InfixFnName.read r)
     | 1uy -> BinOp(BinaryOperation.read r)
-    | b -> raise (BinaryFormatException(CorruptedData $"Invalid Infix tag: {b}"))
+    | b -> raiseFormatError $"Invalid Infix tag: {b}"
 
 
 module LetPattern =
@@ -112,8 +107,7 @@ module LetPattern =
       let second = read r
       let rest = List.read r read
       LPTuple(id, first, second, rest)
-    | b ->
-      raise (BinaryFormatException(CorruptedData $"Invalid LetPattern tag: {b}"))
+    | b -> raiseFormatError $"Invalid LetPattern tag: {b}"
 
 
 module MatchPattern =
@@ -300,8 +294,7 @@ module MatchPattern =
       let id = r.ReadUInt64()
       let patterns = NEList.read read r
       MPOr(id, patterns)
-    | b ->
-      raise (BinaryFormatException(CorruptedData $"Invalid MatchPattern tag: {b}"))
+    | b -> raiseFormatError $"Invalid MatchPattern tag: {b}"
 
 
 module StringSegment =
@@ -318,8 +311,7 @@ module StringSegment =
     match r.ReadByte() with
     | 0uy -> StringText(String.read r)
     | 1uy -> StringInterpolation(Expr.read r)
-    | b ->
-      raise (BinaryFormatException(CorruptedData $"Invalid StringSegment tag: {b}"))
+    | b -> raiseFormatError $"Invalid StringSegment tag: {b}"
 
 
 module MatchCase =
@@ -395,7 +387,7 @@ module PipeExpr =
       let caseName = String.read r
       let fields = List.read r Expr.read
       EPipeEnum(id, typeName, caseName, fields)
-    | b -> raise (BinaryFormatException(CorruptedData $"Invalid PipeExpr tag: {b}"))
+    | b -> raiseFormatError $"Invalid PipeExpr tag: {b}"
 
 
 module Expr =
@@ -755,4 +747,4 @@ module Expr =
       let id = r.ReadUInt64()
       let index = r.ReadInt32()
       EArg(id, index)
-    | b -> raise (BinaryFormatException(CorruptedData $"Invalid Expr tag: {b}"))
+    | b -> raiseFormatError $"Invalid Expr tag: {b}"

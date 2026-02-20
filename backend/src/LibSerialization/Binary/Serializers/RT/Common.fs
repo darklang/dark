@@ -1,4 +1,4 @@
-module LibBinarySerialization.Serializers.RT.Common
+module LibSerialization.Binary.Serializers.RT.Common
 
 open System
 open System.IO
@@ -6,8 +6,7 @@ open Prelude
 
 open LibExecution.RuntimeTypes
 
-open LibBinarySerialization.BinaryFormat
-open LibBinarySerialization.Serializers.Common
+open LibSerialization.Binary.Serializers.Common
 
 module NameResolutionError =
   let rec write (w : BinaryWriter) (error : NameResolutionError) =
@@ -27,10 +26,7 @@ module NameResolutionError =
     | 1uy ->
       let names = List.read r String.read
       InvalidName names
-    | b ->
-      raise (
-        BinaryFormatException(CorruptedData $"Invalid NameResolutionError tag: {b}")
-      )
+    | b -> raiseFormatError $"Invalid NameResolutionError tag: {b}"
 
 
 module NameResolution =
@@ -56,8 +52,7 @@ module NameResolution =
     | 1uy ->
       let error = NameResolutionError.read r
       Error(error)
-    | b ->
-      raise (BinaryFormatException(CorruptedData $"Invalid NameResolution tag: {b}"))
+    | b -> raiseFormatError $"Invalid NameResolution tag: {b}"
 
 
 module FQTypeName =
@@ -90,7 +85,7 @@ module FQFnName =
     | 1uy ->
       let id = Guid.read r
       FQFnName.Package id
-    | b -> raise (BinaryFormatException(CorruptedData $"Invalid FQFnName tag: {b}"))
+    | b -> raiseFormatError $"Invalid FQFnName tag: {b}"
 
 
 module FQValueName =
@@ -113,8 +108,7 @@ module FQValueName =
     | 1uy ->
       let id = Guid.read r
       FQValueName.Package id
-    | b ->
-      raise (BinaryFormatException(CorruptedData $"Invalid FQValueName tag: {b}"))
+    | b -> raiseFormatError $"Invalid FQValueName tag: {b}"
 
 
 module Sign =
@@ -127,4 +121,4 @@ module Sign =
     match r.ReadByte() with
     | 0uy -> Positive
     | 1uy -> Negative
-    | b -> raise (BinaryFormatException(CorruptedData $"Invalid Sign tag: {b}"))
+    | b -> raiseFormatError $"Invalid Sign tag: {b}"

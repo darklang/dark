@@ -15,7 +15,7 @@ open LibDB.Db
 module PT = LibExecution.ProgramTypes
 module RT = LibExecution.RuntimeTypes
 module PT2RT = LibExecution.ProgramTypesToRuntimeTypes
-module BS = LibBinarySerialization.BinarySerialization
+module BS = LibSerialization.Binary.Serialization
 module DE = LibPackageManager.DependencyExtractor
 
 

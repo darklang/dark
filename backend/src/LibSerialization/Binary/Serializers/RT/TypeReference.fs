@@ -1,4 +1,4 @@
-module LibBinarySerialization.Serializers.RT.TypeReference
+module LibSerialization.Binary.Serializers.RT.TypeReference
 
 open System
 open System.IO
@@ -6,9 +6,8 @@ open Prelude
 
 open LibExecution.RuntimeTypes
 
-open LibBinarySerialization.BinaryFormat
-open LibBinarySerialization.Serializers.Common
-open LibBinarySerialization.Serializers.RT.Common
+open LibSerialization.Binary.Serializers.Common
+open LibSerialization.Binary.Serializers.RT.Common
 
 
 let rec write (w : BinaryWriter) (t : TypeReference) : unit =
@@ -92,5 +91,4 @@ let rec read (r : BinaryReader) : TypeReference =
     TCustomType(typeName, typeArgs)
   | 22uy -> TVariable(String.read r)
   | 23uy -> TDB(read r)
-  | b ->
-    raise (BinaryFormatException(CorruptedData $"Invalid TypeReference tag: {b}"))
+  | b -> raiseFormatError $"Invalid TypeReference tag: {b}"

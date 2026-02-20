@@ -1,4 +1,4 @@
-module LibBinarySerialization.Serializers.PT.PackageOp
+module LibSerialization.Binary.Serializers.PT.PackageOp
 
 open System
 open System.IO
@@ -6,22 +6,21 @@ open Prelude
 
 open LibExecution.ProgramTypes
 
-open LibBinarySerialization.BinaryFormat
-open LibBinarySerialization.Serializers.Common
-open LibBinarySerialization.Serializers.PT.Common
+open LibSerialization.Binary.Serializers.Common
+open LibSerialization.Binary.Serializers.PT.Common
 
 
 let write (w : BinaryWriter) (op : PackageOp) : unit =
   match op with
   | PackageOp.AddType typ ->
     w.Write(0uy)
-    LibBinarySerialization.Serializers.PT.PackageType.write w typ
+    LibSerialization.Binary.Serializers.PT.PackageType.write w typ
   | PackageOp.AddValue value ->
     w.Write(1uy)
-    LibBinarySerialization.Serializers.PT.PackageValue.write w value
+    LibSerialization.Binary.Serializers.PT.PackageValue.write w value
   | PackageOp.AddFn fn ->
     w.Write(2uy)
-    LibBinarySerialization.Serializers.PT.PackageFn.write w fn
+    LibSerialization.Binary.Serializers.PT.PackageFn.write w fn
   | PackageOp.SetTypeName(id, location) ->
     w.Write(3uy)
     FQTypeName.Package.write w id
@@ -78,13 +77,13 @@ let write (w : BinaryWriter) (op : PackageOp) : unit =
 let read (r : BinaryReader) : PackageOp =
   match r.ReadByte() with
   | 0uy ->
-    let typ = LibBinarySerialization.Serializers.PT.PackageType.read r
+    let typ = LibSerialization.Binary.Serializers.PT.PackageType.read r
     PackageOp.AddType typ
   | 1uy ->
-    let value = LibBinarySerialization.Serializers.PT.PackageValue.read r
+    let value = LibSerialization.Binary.Serializers.PT.PackageValue.read r
     PackageOp.AddValue value
   | 2uy ->
-    let fn = LibBinarySerialization.Serializers.PT.PackageFn.read r
+    let fn = LibSerialization.Binary.Serializers.PT.PackageFn.read r
     PackageOp.AddFn fn
   | 3uy ->
     let id = FQTypeName.Package.read r
@@ -138,7 +137,7 @@ let read (r : BinaryReader) : PackageOp =
       restoredSourceUUID,
       revertedRepoints
     )
-  | b -> raise (BinaryFormatException(CorruptedData $"Invalid PackageOp tag: {b}"))
+  | b -> raiseFormatError $"Invalid PackageOp tag: {b}"
 
 
 let serialize (id : uuid) (op : PackageOp) : byte array =
@@ -153,9 +152,5 @@ let deserialize (id : uuid) (bytes : byte array) : PackageOp =
   use binaryReader = new BinaryReader(memoryStream)
   let readId = Guid.read binaryReader
   if readId <> id then
-    raise (
-      BinaryFormatException(
-        CorruptedData $"PackageOp id mismatch: expected {id}, got {readId}"
-      )
-    )
+    raiseFormatError $"PackageOp id mismatch: expected {id}, got {readId}"
   read binaryReader

@@ -9,7 +9,7 @@ open Fumble
 open LibDB.Db
 
 module PT = LibExecution.ProgramTypes
-module BinarySerialization = LibBinarySerialization.BinarySerialization
+module BS = LibSerialization.Binary.Serialization
 
 
 /// Get recent package ops from the database
@@ -27,7 +27,7 @@ let getRecentOps (limit : int64) : Task<List<PT.PackageOp>> =
       |> Sql.executeAsync (fun read ->
         let opId = read.uuid "id"
         let opBlob = read.bytes "op_blob"
-        BinarySerialization.PT.PackageOp.deserialize opId opBlob)
+        BS.PT.PackageOp.deserialize opId opBlob)
   }
 
 
@@ -51,7 +51,7 @@ let getAllOpsSince
         let opId = read.uuid "id"
         let opBlob = read.bytes "op_blob"
         let isWip = (read.uuidOrNone "commit_id").IsNone
-        let op = BinarySerialization.PT.PackageOp.deserialize opId opBlob
+        let op = BS.PT.PackageOp.deserialize opId opBlob
         (op, isWip))
   }
 
@@ -213,7 +213,7 @@ let getWipOps (branchId : PT.BranchId) : Task<List<PT.PackageOp>> =
       |> Sql.executeAsync (fun read ->
         let opId = read.uuid "id"
         let opBlob = read.bytes "op_blob"
-        BinarySerialization.PT.PackageOp.deserialize opId opBlob)
+        BS.PT.PackageOp.deserialize opId opBlob)
   }
 
 
@@ -350,7 +350,7 @@ let getCommitOps (commitId : uuid) : Task<List<PT.PackageOp>> =
       |> Sql.executeAsync (fun read ->
         let opId = read.uuid "id"
         let opBlob = read.bytes "op_blob"
-        BinarySerialization.PT.PackageOp.deserialize opId opBlob)
+        BS.PT.PackageOp.deserialize opId opBlob)
   }
 
 

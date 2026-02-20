@@ -1,5 +1,5 @@
 // TODO tidy this file
-module rec LibBinarySerialization.Serializers.RT.Instructions
+module rec LibSerialization.Binary.Serializers.RT.Instructions
 
 open System
 open System.IO
@@ -7,9 +7,8 @@ open Prelude
 
 open LibExecution.RuntimeTypes
 
-open LibBinarySerialization.BinaryFormat
-open LibBinarySerialization.Serializers.Common
-open LibBinarySerialization.Serializers.RT.Common
+open LibSerialization.Binary.Serializers.Common
+open LibSerialization.Binary.Serializers.RT.Common
 
 
 module LetPattern =
@@ -34,8 +33,7 @@ module LetPattern =
       let theRest = List.read r read
       LPTuple(first, second, theRest)
     | 2uy -> LPUnit
-    | b ->
-      raise (BinaryFormatException(CorruptedData $"Invalid LetPattern tag: {b}"))
+    | b -> raiseFormatError $"Invalid LetPattern tag: {b}"
 
 
 module MatchPattern =
@@ -146,8 +144,7 @@ module MatchPattern =
     | 20uy ->
       let patterns = NEList.read read r
       MPOr(patterns)
-    | b ->
-      raise (BinaryFormatException(CorruptedData $"Invalid MatchPattern tag: {b}"))
+    | b -> raiseFormatError $"Invalid MatchPattern tag: {b}"
 
 
 module LambdaImpl =
@@ -193,8 +190,7 @@ module StringSegment =
     match r.ReadByte() with
     | 0uy -> Text(String.read r)
     | 1uy -> Interpolated(r.ReadInt32())
-    | b ->
-      raise (BinaryFormatException(CorruptedData $"Invalid StringSegment tag: {b}"))
+    | b -> raiseFormatError $"Invalid StringSegment tag: {b}"
 
 
 module Instruction =
@@ -434,8 +430,7 @@ module Instruction =
     | 22uy ->
       let reg = r.ReadInt32()
       CheckIfFirstExprIsUnit(reg)
-    | b ->
-      raise (BinaryFormatException(CorruptedData $"Invalid Instruction tag: {b}"))
+    | b -> raiseFormatError $"Invalid Instruction tag: {b}"
 
 
 let write (w : BinaryWriter) (instrs : Instructions) =

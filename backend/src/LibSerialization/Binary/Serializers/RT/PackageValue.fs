@@ -1,4 +1,4 @@
-module LibBinarySerialization.Serializers.RT.PackageValue
+module LibSerialization.Binary.Serializers.RT.PackageValue
 
 open System
 open System.IO
@@ -6,9 +6,8 @@ open Prelude
 
 open LibExecution.RuntimeTypes
 
-open LibBinarySerialization.BinaryFormat
-open LibBinarySerialization.Serializers.Common
-open LibBinarySerialization.Serializers.RT.Common
+open LibSerialization.Binary.Serializers.Common
+open LibSerialization.Binary.Serializers.RT.Common
 
 let write (w : BinaryWriter) (c : PackageValue.PackageValue) : unit =
   Guid.write w c.id

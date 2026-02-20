@@ -9,24 +9,23 @@ open Fumble
 open LibDB.Db
 
 module PT = LibExecution.ProgramTypes
-module BinarySerialization = LibBinarySerialization.BinarySerialization
+module BS = LibSerialization.Binary.Serialization
 
 
 /// Compute a content-addressed ID for a PackageOp by hashing its serialized content
 ///
 /// TODO this is really hacky.
 /// honestly we should
-/// - make hashing more legit.
-/// - rebrand LibBinarySerialization as LibSerialization
-/// - migrate any remaining hacky JSON serialization things there
+/// - make hashing more legit (move to LibSerialization.Hashing)
+/// - migrate any remaining hacky JSON serialization things to LibSerialization
 ///   (if LibExecution needs them, maybe ExecutionState needs to/from json fns to be part of that context)
-/// - put all sorts of Hashers there -
+/// - put all sorts of Hashers there
 let computeOpHash (op : PT.PackageOp) : System.Guid =
   use memoryStream = new System.IO.MemoryStream()
   use binaryWriter = new System.IO.BinaryWriter(memoryStream)
 
   // Serialize just the op content (without an ID)
-  LibBinarySerialization.Serializers.PT.PackageOp.write binaryWriter op
+  LibSerialization.Binary.Serializers.PT.PackageOp.write binaryWriter op
 
   let opBytes = memoryStream.ToArray()
   let hashBytes = System.Security.Cryptography.SHA256.HashData(opBytes)
@@ -70,7 +69,7 @@ let insertAndApplyOps
         ops
         |> List.map (fun op ->
           let opId = computeOpHash op
-          let opBlob = BinarySerialization.PT.PackageOp.serialize opId op
+          let opBlob = BS.PT.PackageOp.serialize opId op
           (opId, op, opBlob, batchPropagationId))
 
       let insertStatements =

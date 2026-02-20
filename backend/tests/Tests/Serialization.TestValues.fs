@@ -12,7 +12,7 @@ module PT = LibExecution.ProgramTypes
 module Dval = LibExecution.Dval
 module RT = LibExecution.RuntimeTypes
 
-module BinarySerialization = LibBinarySerialization.BinarySerialization
+module BS = LibSerialization.Binary.Serialization
 
 let instant = NodaTime.Instant.parse "2022-07-04T17:46:57Z"
 

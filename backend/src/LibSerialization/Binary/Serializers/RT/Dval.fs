@@ -1,5 +1,5 @@
 // TODO tidy this file
-module LibBinarySerialization.Serializers.RT.Dval
+module LibSerialization.Binary.Serializers.RT.Dval
 
 open System
 open System.IO
@@ -7,9 +7,8 @@ open Prelude
 
 open LibExecution.RuntimeTypes
 
-open LibBinarySerialization.BinaryFormat
-open LibBinarySerialization.Serializers.Common
-open LibBinarySerialization.Serializers.RT.Common
+open LibSerialization.Binary.Serializers.Common
+open LibSerialization.Binary.Serializers.RT.Common
 
 
 // Forward declarations for mutual recursion
@@ -195,7 +194,7 @@ and readValueTypeImpl (r : BinaryReader) : ValueType =
   match r.ReadByte() with
   | 0uy -> ValueType.Unknown
   | 1uy -> ValueType.Known(readKnownType r)
-  | b -> raise (BinaryFormatException(CorruptedData $"Invalid ValueType tag: {b}"))
+  | b -> raiseFormatError $"Invalid ValueType tag: {b}"
 
 and readKnownType (r : BinaryReader) : KnownType =
   match r.ReadByte() with
@@ -232,13 +231,13 @@ and readKnownType (r : BinaryReader) : KnownType =
     let typeArgs = List.read r readValueType
     KTCustomType(fqTypeName, typeArgs)
   | 22uy -> KTDict(readValueType r)
-  | b -> raise (BinaryFormatException(CorruptedData $"Invalid KnownType tag: {b}"))
+  | b -> raiseFormatError $"Invalid KnownType tag: {b}"
 
 and readApplicableImpl (r : BinaryReader) : Applicable =
   match r.ReadByte() with
   | 0uy -> AppLambda(readApplicableLambda r)
   | 1uy -> AppNamedFn(readApplicableNamedFn r)
-  | b -> raise (BinaryFormatException(CorruptedData $"Invalid Applicable tag: {b}"))
+  | b -> raiseFormatError $"Invalid Applicable tag: {b}"
 
 and readApplicableLambda (r : BinaryReader) : ApplicableLambda =
   let exprId = r.ReadUInt64()
@@ -314,7 +313,7 @@ and readDvalImpl (r : BinaryReader) : Dval =
     DEnum(sourceTypeName, runtimeTypeName, typeArgs, caseName, fields)
   | 22uy -> DApplicable(readApplicable r)
   | 23uy -> DDB(String.read r)
-  | b -> raise (BinaryFormatException(CorruptedData $"Invalid Dval tag: {b}"))
+  | b -> raiseFormatError $"Invalid Dval tag: {b}"
 
 
 // Export modules for compatibility

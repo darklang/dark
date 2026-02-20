@@ -14,7 +14,7 @@
   <ItemGroup>
     <ProjectReference Include="../Prelude/Prelude.fsproj" />
     <ProjectReference Include="../LibExecution/LibExecution.fsproj" />
-    <ProjectReference Include="../LibBinarySerialization/LibBinarySerialization.fsproj" />
+    <ProjectReference Include="../LibSerialization/LibSerialization.fsproj" />
     <ProjectReference Include="../LibService/LibService.fsproj" />
     <ProjectReference Include="../LibDB/LibDB.fsproj" />
   </ItemGroup>

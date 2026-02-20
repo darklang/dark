@@ -1,4 +1,4 @@
-module LibBinarySerialization.Serializers.RT.PackageFn
+module LibSerialization.Binary.Serializers.RT.PackageFn
 
 open System
 open System.IO
@@ -6,9 +6,8 @@ open Prelude
 
 open LibExecution.RuntimeTypes
 
-open LibBinarySerialization.BinaryFormat
-open LibBinarySerialization.Serializers.Common
-open LibBinarySerialization.Serializers.RT.Common
+open LibSerialization.Binary.Serializers.Common
+open LibSerialization.Binary.Serializers.RT.Common
 
 
 module Parameter =

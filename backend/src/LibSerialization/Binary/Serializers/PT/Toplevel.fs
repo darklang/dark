@@ -1,13 +1,12 @@
-module LibBinarySerialization.Serializers.PT.Toplevel
+module LibSerialization.Binary.Serializers.PT.Toplevel
 
 open System.IO
 open Prelude
 
 open LibExecution.ProgramTypes
 
-open LibBinarySerialization.BinaryFormat
-open LibBinarySerialization.Serializers.Common
-open LibBinarySerialization.Serializers.PT.Common
+open LibSerialization.Binary.Serializers.Common
+open LibSerialization.Binary.Serializers.PT.Common
 
 module Handler =
   module CronInterval =
@@ -28,8 +27,7 @@ module Handler =
       | 3uy -> Handler.EveryHour
       | 4uy -> Handler.Every12Hours
       | 5uy -> Handler.EveryMinute
-      | b ->
-        raise (BinaryFormatException(CorruptedData $"Invalid CronInterval tag: {b}"))
+      | b -> raiseFormatError $"Invalid CronInterval tag: {b}"
 
 
   module Spec =
@@ -62,18 +60,17 @@ module Handler =
         let route = String.read r
         let method = String.read r
         Handler.HTTP(route, method)
-      | b ->
-        raise (BinaryFormatException(CorruptedData $"Invalid Handler.Spec tag: {b}"))
+      | b -> raiseFormatError $"Invalid Handler.Spec tag: {b}"
 
 
   let write (w : BinaryWriter) (h : Handler.T) : unit =
     w.Write h.tlid
-    LibBinarySerialization.Serializers.PT.Expr.Expr.write w h.ast
+    LibSerialization.Binary.Serializers.PT.Expr.Expr.write w h.ast
     (Spec.write) w h.spec
 
   let read (r : BinaryReader) : Handler.T =
     let tlid = r.ReadUInt64()
-    let ast = LibBinarySerialization.Serializers.PT.Expr.Expr.read r
+    let ast = LibSerialization.Binary.Serializers.PT.Expr.Expr.read r
     let spec = (Spec.read) r
     { tlid = tlid; ast = ast; spec = spec }
 
@@ -106,4 +103,4 @@ let read (r : BinaryReader) : Toplevel.T =
   match r.ReadByte() with
   | 0uy -> Toplevel.TLDB(DB.read r)
   | 1uy -> Toplevel.TLHandler(Handler.read r)
-  | b -> raise (BinaryFormatException(CorruptedData $"Invalid Toplevel tag: {b}"))
+  | b -> raiseFormatError $"Invalid Toplevel tag: {b}"

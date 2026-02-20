@@ -10,7 +10,7 @@ open LibDB.Db
 
 open Prelude
 
-module BinarySerialization = LibBinarySerialization.BinarySerialization
+module BS = LibSerialization.Binary.Serialization
 module PT = LibExecution.ProgramTypes
 module PTParser = LibExecution.ProgramTypesParser
 module RT = LibExecution.RuntimeTypes
@@ -388,8 +388,7 @@ let saveTLIDs
           else
             None, None, None
 
-        let serializedToplevel =
-          BinarySerialization.PT.Toplevel.serialize (PT.Toplevel.toTLID tl) tl
+        let serializedToplevel = BS.PT.Toplevel.serialize (PT.Toplevel.toTLID tl) tl
 
         let deleted =
           match deleted with

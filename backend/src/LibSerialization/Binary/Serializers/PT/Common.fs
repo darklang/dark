@@ -1,4 +1,4 @@
-module LibBinarySerialization.Serializers.PT.Common
+module LibSerialization.Binary.Serializers.PT.Common
 
 open System
 open System.IO
@@ -6,8 +6,7 @@ open Prelude
 
 open LibExecution.ProgramTypes
 
-open LibBinarySerialization.BinaryFormat
-open LibBinarySerialization.Serializers.Common
+open LibSerialization.Binary.Serializers.Common
 
 
 module Sign =
@@ -20,7 +19,7 @@ module Sign =
     match r.ReadByte() with
     | 0uy -> Positive
     | 1uy -> Negative
-    | b -> raise (BinaryFormatException(CorruptedData $"Invalid Sign tag: {b}"))
+    | b -> raiseFormatError $"Invalid Sign tag: {b}"
 
 
 module NameResolutionError =
@@ -37,10 +36,7 @@ module NameResolutionError =
     match r.ReadByte() with
     | 0uy -> NotFound(List.read r String.read)
     | 1uy -> InvalidName(List.read r String.read)
-    | b ->
-      raise (
-        BinaryFormatException(CorruptedData $"Invalid NameResolutionError tag: {b}")
-      )
+    | b -> raiseFormatError $"Invalid NameResolutionError tag: {b}"
 
 
 module NameResolution =
@@ -61,8 +57,7 @@ module NameResolution =
     match r.ReadByte() with
     | 0uy -> Ok(readValue r)
     | 1uy -> Error(NameResolutionError.read r)
-    | b ->
-      raise (BinaryFormatException(CorruptedData $"Invalid NameResolution tag: {b}"))
+    | b -> raiseFormatError $"Invalid NameResolution tag: {b}"
 
 
 module FQTypeName =
@@ -81,8 +76,7 @@ module FQTypeName =
   let read (r : BinaryReader) : FQTypeName.FQTypeName =
     match r.ReadByte() with
     | 0uy -> FQTypeName.Package(Package.read r)
-    | b ->
-      raise (BinaryFormatException(CorruptedData $"Invalid FQTypeName tag: {b}"))
+    | b -> raiseFormatError $"Invalid FQTypeName tag: {b}"
 
 
 module FQValueName =
@@ -115,8 +109,7 @@ module FQValueName =
     match r.ReadByte() with
     | 0uy -> FQValueName.Builtin(Builtin.read r)
     | 1uy -> FQValueName.Package(Package.read r)
-    | b ->
-      raise (BinaryFormatException(CorruptedData $"Invalid FQValueName tag: {b}"))
+    | b -> raiseFormatError $"Invalid FQValueName tag: {b}"
 
 
 module FQFnName =
@@ -149,7 +142,7 @@ module FQFnName =
     match r.ReadByte() with
     | 0uy -> FQFnName.Builtin(Builtin.read r)
     | 1uy -> FQFnName.Package(Package.read r)
-    | b -> raise (BinaryFormatException(CorruptedData $"Invalid FQFnName tag: {b}"))
+    | b -> raiseFormatError $"Invalid FQFnName tag: {b}"
 
 
 module Deprecation =
@@ -179,8 +172,7 @@ module Deprecation =
     | 1uy -> RenamedTo(readNameFn r)
     | 2uy -> ReplacedBy(readNameFn r)
     | 3uy -> DeprecatedBecause(String.read r)
-    | b ->
-      raise (BinaryFormatException(CorruptedData $"Invalid Deprecation tag: {b}"))
+    | b -> raiseFormatError $"Invalid Deprecation tag: {b}"
 
 
 module PackageLocation =

@@ -1,4 +1,4 @@
-module LibBinarySerialization.Serializers.RT.ValueType
+module LibSerialization.Binary.Serializers.RT.ValueType
 
 open System
 open System.IO
@@ -6,9 +6,8 @@ open Prelude
 
 open LibExecution.RuntimeTypes
 
-open LibBinarySerialization.BinaryFormat
-open LibBinarySerialization.Serializers.Common
-open LibBinarySerialization.Serializers.RT.Common
+open LibSerialization.Binary.Serializers.Common
+open LibSerialization.Binary.Serializers.RT.Common
 
 
 let rec write (w : BinaryWriter) (v : ValueType) : unit =
@@ -64,7 +63,7 @@ let rec read (r : BinaryReader) : ValueType =
   match r.ReadByte() with
   | 0uy -> ValueType.Unknown
   | 1uy -> ValueType.Known(readKnownType r)
-  | b -> raise (BinaryFormatException(CorruptedData $"Invalid ValueType tag: {b}"))
+  | b -> raiseFormatError $"Invalid ValueType tag: {b}"
 
 and readKnownType (r : BinaryReader) : KnownType =
   match r.ReadByte() with
@@ -101,4 +100,4 @@ and readKnownType (r : BinaryReader) : KnownType =
     let typeArgs = List.read r read
     KTCustomType(typeName, typeArgs)
   | 22uy -> KTDict(read r)
-  | b -> raise (BinaryFormatException(CorruptedData $"Invalid KnownType tag: {b}"))
+  | b -> raiseFormatError $"Invalid KnownType tag: {b}"

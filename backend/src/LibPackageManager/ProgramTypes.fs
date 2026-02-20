@@ -9,7 +9,7 @@ open Fumble
 open LibDB.Db
 
 module PT = LibExecution.ProgramTypes
-module BinarySerialization = LibBinarySerialization.BinarySerialization
+module BS = LibSerialization.Binary.Serialization
 
 
 /// Build a branch-aware SQL WHERE clause and ORDER BY for name resolution.
@@ -132,17 +132,17 @@ let private getItemLocation
 
 module Type =
   let find = findItem "type"
-  let get = getItem "package_types" BinarySerialization.PT.PackageType.deserialize
+  let get = getItem "package_types" BS.PT.PackageType.deserialize
   let getLocation = getItemLocation "type"
 
 module Value =
   let find = findItem "value"
-  let get = getItem "package_values" BinarySerialization.PT.PackageValue.deserialize
+  let get = getItem "package_values" BS.PT.PackageValue.deserialize
   let getLocation = getItemLocation "value"
 
 module Fn =
   let find = findItem "fn"
-  let get = getItem "package_functions" BinarySerialization.PT.PackageFn.deserialize
+  let get = getItem "package_functions" BS.PT.PackageFn.deserialize
   let getLocation = getItemLocation "fn"
 
 
@@ -271,28 +271,19 @@ let search
 
     let! types =
       if isEntityRequested PT.Search.EntityType.Type then
-        makeEntityQuery
-          "type"
-          "package_types"
-          BinarySerialization.PT.PackageType.deserialize
+        makeEntityQuery "type" "package_types" BS.PT.PackageType.deserialize
       else
         Task.FromResult<List<PT.LocatedItem<PT.PackageType.PackageType>>> []
 
     let! values =
       if isEntityRequested PT.Search.EntityType.Value then
-        makeEntityQuery
-          "value"
-          "package_values"
-          BinarySerialization.PT.PackageValue.deserialize
+        makeEntityQuery "value" "package_values" BS.PT.PackageValue.deserialize
       else
         Task.FromResult<List<PT.LocatedItem<PT.PackageValue.PackageValue>>> []
 
     let! fns =
       if isEntityRequested PT.Search.EntityType.Fn then
-        makeEntityQuery
-          "fn"
-          "package_functions"
-          BinarySerialization.PT.PackageFn.deserialize
+        makeEntityQuery "fn" "package_functions" BS.PT.PackageFn.deserialize
       else
         Task.FromResult<List<PT.LocatedItem<PT.PackageFn.PackageFn>>> []
 

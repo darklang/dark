@@ -1,5 +1,5 @@
 /// Low-level binary read/write primitives
-module LibBinarySerialization.Serializers.Common
+module LibSerialization.Binary.Serializers.Common
 
 open System
 open System.IO
@@ -7,7 +7,11 @@ open System.Text
 open System.Numerics
 open Prelude
 
-open LibBinarySerialization.BinaryFormat
+open LibSerialization.Binary.BaseFormat
+
+
+/// Helper for serializer files to raise format errors without opening BaseFormat
+let raiseFormatError msg = raise (BinaryFormatException(CorruptedData msg))
 
 
 module Header =

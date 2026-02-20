@@ -1,4 +1,4 @@
-module LibBinarySerialization.Serializers.RT.PackageType
+module LibSerialization.Binary.Serializers.RT.PackageType
 
 open System
 open System.IO
@@ -6,9 +6,8 @@ open Prelude
 
 open LibExecution.RuntimeTypes
 
-open LibBinarySerialization.BinaryFormat
-open LibBinarySerialization.Serializers.Common
-open LibBinarySerialization.Serializers.RT.Common
+open LibSerialization.Binary.Serializers.Common
+open LibSerialization.Binary.Serializers.RT.Common
 
 
 module RecordField =
@@ -51,12 +50,7 @@ module Definition =
     | 0uy -> TypeDeclaration.Alias(TypeReference.read r)
     | 1uy -> TypeDeclaration.Record(NEList.read RecordField.read r)
     | 2uy -> TypeDeclaration.Enum(NEList.read EnumCase.read r)
-    | b ->
-      raise (
-        BinaryFormatException(
-          CorruptedData $"Invalid TypeDeclaration.Definition tag: {b}"
-        )
-      )
+    | b -> raiseFormatError $"Invalid TypeDeclaration.Definition tag: {b}"
 
 
 module TypeDeclaration =
