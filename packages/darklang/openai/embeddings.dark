@@ -1,0 +1,297 @@
+/// OpenAI Embeddings - Generate text embeddings
+/// https://platform.openai.com/docs/api-reference/embeddings
+module Darklang.OpenAI.Embeddings
+
+type Json = Stdlib.AltJson.Json
+
+/// Encoding format for embeddings
+type EncodingFormat =
+  | Float
+  | Base64
+
+/// Convert encoding format to string
+let encodingFormatToString (format: EncodingFormat) : String =
+  match format with
+  | Float -> "float"
+  | Base64 -> "base64"
+
+/// Embedding request options
+type Options =
+  { model: String
+    input: String
+    /// Number of dimensions (only for text-embedding-3 models)
+    /// Allows shortening embeddings for storage efficiency
+    dimensions: Stdlib.Option.Option<Int64>
+    /// Encoding format (float or base64)
+    encodingFormat: Stdlib.Option.Option<EncodingFormat>
+    /// End-user ID for abuse detection
+    user: Stdlib.Option.Option<String> }
+
+/// Create default options
+let defaultOptions (input: String) : Options =
+  Options
+    { model = Models.textEmbedding3Small
+      input = input
+      dimensions = Stdlib.Option.Option.None
+      encodingFormat = Stdlib.Option.Option.None
+      user = Stdlib.Option.Option.None }
+
+/// Set model
+let withModel (opts: Options) (model: String) : Options =
+  { opts with model = model }
+
+/// Set dimensions (only for text-embedding-3 models)
+let withDimensions (opts: Options) (dims: Int64) : Options =
+  { opts with dimensions = Stdlib.Option.Option.Some dims }
+
+/// Set encoding format
+let withEncodingFormat (opts: Options) (format: EncodingFormat) : Options =
+  { opts with encodingFormat = Stdlib.Option.Option.Some format }
+
+/// Set user ID
+let withUser (opts: Options) (userId: String) : Options =
+  { opts with user = Stdlib.Option.Option.Some userId }
+
+/// Token usage information
+type Usage =
+  { promptTokens: Int64
+    totalTokens: Int64 }
+
+/// Represents an embedding vector returned by embedding endpoint
+type Embedding =
+  { embedding: List<Float>
+    index: Int64
+    object_: String }
+
+/// Response from creating embeddings
+type CreateEmbeddingResponse =
+  { data: List<Embedding>
+    model: String
+    object_: String
+    usage: Usage }
+
+/// Parse an embedding object from JSON
+let parseEmbedding (item: Json) : Stdlib.Option.Option<Embedding> =
+  match item with
+  | Object itemFields ->
+    match (Darklang.Anthropic.JsonHelpers.getValue "embedding" itemFields,
+           Darklang.Anthropic.JsonHelpers.getInt "index" itemFields,
+           Darklang.Anthropic.JsonHelpers.getString "object" itemFields) with
+    | (Some (Array embeddingArray), Some index, Some obj) ->
+      let floats =
+        Stdlib.List.filterMap embeddingArray (fun v ->
+          match v with
+          | Number n -> Stdlib.Option.Option.Some n
+          | _ -> Stdlib.Option.Option.None)
+      Stdlib.Option.Option.Some(
+        Embedding { embedding = floats; index = index; object_ = obj })
+    | _ -> Stdlib.Option.Option.None
+  | _ -> Stdlib.Option.Option.None
+
+/// Parse usage from JSON fields
+let parseUsage (fields: List<(String * Json)>) : Stdlib.Option.Option<Usage> =
+  match Darklang.Anthropic.JsonHelpers.getValue "usage" fields with
+  | Some (Object usageFields) ->
+    match (Darklang.Anthropic.JsonHelpers.getInt "prompt_tokens" usageFields,
+           Darklang.Anthropic.JsonHelpers.getInt "total_tokens" usageFields) with
+    | (Some promptTokens, Some totalTokens) ->
+      Stdlib.Option.Option.Some(
+        Usage { promptTokens = promptTokens; totalTokens = totalTokens })
+    | _ -> Stdlib.Option.Option.None
+  | _ -> Stdlib.Option.Option.None
+
+/// Generate embeddings with full options
+let createWithOptions
+  (apiKey: String)
+  (opts: Options)
+  : Stdlib.Result.Result<CreateEmbeddingResponse, String> =
+  // Validate API key
+  if apiKey == "" then
+    Stdlib.Result.Result.Error "API key cannot be empty"
+  else
+    let baseFields =
+      [ ("model", Json.String opts.model)
+        ("input", Json.String opts.input) ]
+
+    let withDims =
+      match opts.dimensions with
+      | Some d -> Stdlib.List.append baseFields [ ("dimensions", Json.Number(Stdlib.Int64.toFloat d)) ]
+      | None -> baseFields
+
+    let withEncoding =
+      match opts.encodingFormat with
+      | Some f -> Stdlib.List.append withDims [ ("encoding_format", Json.String(encodingFormatToString f)) ]
+      | None -> withDims
+
+    let withUser_ =
+      match opts.user with
+      | Some u -> Stdlib.List.append withEncoding [ ("user", Json.String u) ]
+      | None -> withEncoding
+
+    let requestJson = Json.Object withUser_
+    let body = Stdlib.AltJson.format requestJson
+    let headers = Config.getHeaders apiKey
+    let url = Config.baseUrl ++ "/embeddings"
+
+    match Stdlib.HttpClient.post url headers (Stdlib.String.toBytes body) with
+    | Error e -> Stdlib.Result.Result.Error("HTTP request failed: " ++ Stdlib.HttpClient.toString e)
+    | Ok response ->
+      let bodyStr = Stdlib.String.fromBytesWithReplacement response.body
+
+      match response.statusCode with
+      | code when code >= 200L && code < 300L ->
+        match Stdlib.AltJson.parse bodyStr with
+        | Ok (Object fields) ->
+          let dataArray = Darklang.Anthropic.JsonHelpers.getArray "data" fields
+          let embeddings = Stdlib.List.filterMap dataArray parseEmbedding
+
+          match (Darklang.Anthropic.JsonHelpers.getString "model" fields,
+                 Darklang.Anthropic.JsonHelpers.getString "object" fields,
+                 parseUsage fields) with
+          | (Some model, Some obj, Some usage) ->
+            Stdlib.Result.Result.Ok(
+              CreateEmbeddingResponse
+                { data = embeddings
+                  model = model
+                  object_ = obj
+                  usage = usage })
+          | _ -> Stdlib.Result.Result.Error "Missing required fields in response"
+        | _ -> Stdlib.Result.Result.Error "Invalid response format"
+      | 401L -> Stdlib.Result.Result.Error "Authentication failed: Invalid API key"
+      | 429L -> Stdlib.Result.Result.Error "Rate limit exceeded"
+      | _ -> Stdlib.Result.Result.Error("API error: " ++ bodyStr)
+
+/// Generate embeddings for text
+let create
+  (apiKey: String)
+  (input: String)
+  : Stdlib.Result.Result<CreateEmbeddingResponse, String> =
+  createWithOptions apiKey (defaultOptions input)
+
+/// Generate embeddings with a specific model
+let createWithModel
+  (apiKey: String)
+  (model: String)
+  (input: String)
+  : Stdlib.Result.Result<CreateEmbeddingResponse, String> =
+  let opts = (defaultOptions input) |> withModel model
+  createWithOptions apiKey opts
+
+/// Generate embeddings with specific dimensions (for text-embedding-3 models)
+let createWithDimensions
+  (apiKey: String)
+  (model: String)
+  (input: String)
+  (dimensions: Int64)
+  : Stdlib.Result.Result<CreateEmbeddingResponse, String> =
+  let opts =
+    (defaultOptions input)
+    |> withModel model
+    |> withDimensions dimensions
+  createWithOptions apiKey opts
+
+/// Batch embedding options
+type BatchOptions =
+  { model: String
+    inputs: List<String>
+    /// Number of dimensions (only for text-embedding-3 models)
+    dimensions: Stdlib.Option.Option<Int64>
+    /// Encoding format (float or base64)
+    encodingFormat: Stdlib.Option.Option<EncodingFormat>
+    /// End-user ID for abuse detection
+    user: Stdlib.Option.Option<String> }
+
+/// Create default batch options
+let defaultBatchOptions (inputs: List<String>) : BatchOptions =
+  BatchOptions
+    { model = Models.textEmbedding3Small
+      inputs = inputs
+      dimensions = Stdlib.Option.Option.None
+      encodingFormat = Stdlib.Option.Option.None
+      user = Stdlib.Option.Option.None }
+
+/// Set model for batch options
+let withBatchModel (opts: BatchOptions) (model: String) : BatchOptions =
+  { opts with model = model }
+
+/// Set dimensions for batch options
+let withBatchDimensions (opts: BatchOptions) (dims: Int64) : BatchOptions =
+  { opts with dimensions = Stdlib.Option.Option.Some dims }
+
+/// Generate embeddings for multiple texts with full options
+let createBatchWithOptions
+  (apiKey: String)
+  (opts: BatchOptions)
+  : Stdlib.Result.Result<CreateEmbeddingResponse, String> =
+  if apiKey == "" then
+    Stdlib.Result.Result.Error "API key cannot be empty"
+  else
+    let inputsJson = Stdlib.List.map opts.inputs (fun s -> Json.String s)
+
+    let baseFields =
+      [ ("model", Json.String opts.model)
+        ("input", Json.Array inputsJson) ]
+
+    let withDims =
+      match opts.dimensions with
+      | Some d -> Stdlib.List.append baseFields [ ("dimensions", Json.Number(Stdlib.Int64.toFloat d)) ]
+      | None -> baseFields
+
+    let withEncoding =
+      match opts.encodingFormat with
+      | Some f -> Stdlib.List.append withDims [ ("encoding_format", Json.String(encodingFormatToString f)) ]
+      | None -> withDims
+
+    let withUser_ =
+      match opts.user with
+      | Some u -> Stdlib.List.append withEncoding [ ("user", Json.String u) ]
+      | None -> withEncoding
+
+    let requestJson = Json.Object withUser_
+    let body = Stdlib.AltJson.format requestJson
+    let headers = Config.getHeaders apiKey
+    let url = Config.baseUrl ++ "/embeddings"
+
+    match Stdlib.HttpClient.post url headers (Stdlib.String.toBytes body) with
+    | Error e -> Stdlib.Result.Result.Error("HTTP request failed: " ++ Stdlib.HttpClient.toString e)
+    | Ok response ->
+      let bodyStr = Stdlib.String.fromBytesWithReplacement response.body
+
+      match response.statusCode with
+      | code when code >= 200L && code < 300L ->
+        match Stdlib.AltJson.parse bodyStr with
+        | Ok (Object fields) ->
+          let dataArray = Darklang.Anthropic.JsonHelpers.getArray "data" fields
+          let embeddings = Stdlib.List.filterMap dataArray parseEmbedding
+
+          match (Darklang.Anthropic.JsonHelpers.getString "model" fields,
+                 Darklang.Anthropic.JsonHelpers.getString "object" fields,
+                 parseUsage fields) with
+          | (Some model, Some obj, Some usage) ->
+            Stdlib.Result.Result.Ok(
+              CreateEmbeddingResponse
+                { data = embeddings
+                  model = model
+                  object_ = obj
+                  usage = usage })
+          | _ -> Stdlib.Result.Result.Error "Missing required fields in response"
+        | _ -> Stdlib.Result.Result.Error "Invalid response format"
+      | 401L -> Stdlib.Result.Result.Error "Authentication failed: Invalid API key"
+      | 429L -> Stdlib.Result.Result.Error "Rate limit exceeded"
+      | _ -> Stdlib.Result.Result.Error("API error: " ++ bodyStr)
+
+/// Generate embeddings for multiple texts (uses text-embedding-3-small)
+let createBatch
+  (apiKey: String)
+  (inputs: List<String>)
+  : Stdlib.Result.Result<CreateEmbeddingResponse, String> =
+  createBatchWithOptions apiKey (defaultBatchOptions inputs)
+
+/// Generate embeddings for multiple texts with a specific model
+let createBatchWithModel
+  (apiKey: String)
+  (model: String)
+  (inputs: List<String>)
+  : Stdlib.Result.Result<CreateEmbeddingResponse, String> =
+  let opts = (defaultBatchOptions inputs) |> withBatchModel model
+  createBatchWithOptions apiKey opts

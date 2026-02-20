@@ -1,0 +1,551 @@
+/// OpenAI Images - Image generation, editing, and variations API
+/// https://platform.openai.com/docs/api-reference/images
+///
+/// TODO:
+/// - Add ImageGenPartialImageEvent type
+/// - Add ImageGenCompletedEvent type
+/// - Add ImageGenStreamEvent type (union of partial and completed)
+/// - Add ImageEditPartialImageEvent type
+/// - Add ImageEditCompletedEvent type
+/// - Add ImageEditStreamEvent type (union of partial and completed)
+/// - Add streaming generation function for partial image delivery
+/// - Add streaming edit function for partial image delivery
+/// - Add ImagesResponse type with response-level fields (created, background, etc.)
+/// - Update generateWithOptions to return full ImagesResponse
+/// - Add source field support to image types/requests
+module Darklang.OpenAI.Images
+
+type Json = Stdlib.AltJson.Json
+
+/// Image size options
+module Size =
+  // GPT Image / DALL-E 3 sizes
+  let square1024 : String = "1024x1024"
+  let landscape : String = "1792x1024"
+  let portrait : String = "1024x1792"
+  // GPT Image additional sizes
+  let landscapeWide : String = "1536x1024"
+  let portraitTall : String = "1024x1536"
+  let auto : String = "auto"
+  // DALL-E 2 sizes (deprecated May 2026)
+  let square256 : String = "256x256"
+  let square512 : String = "512x512"
+
+/// Image quality options
+module Quality =
+  // DALL-E 3 quality
+  let standard : String = "standard"
+  let hd : String = "hd"
+  // GPT Image quality levels
+  let low : String = "low"
+  let medium : String = "medium"
+  let high : String = "high"
+
+/// Image style options (DALL-E 3 only)
+module Style =
+  let vivid : String = "vivid"
+  let natural : String = "natural"
+
+/// Output format for GPT Image models
+type OutputFormat =
+  | Png
+  | Jpeg
+  | Webp
+
+/// Convert output format to string
+let outputFormatToString (format: OutputFormat) : String =
+  match format with
+  | Png -> "png"
+  | Jpeg -> "jpeg"
+  | Webp -> "webp"
+
+/// Background type for GPT Image models
+type Background =
+  | Transparent
+  | Opaque
+  | Auto
+
+/// Convert background to string
+let backgroundToString (bg: Background) : String =
+  match bg with
+  | Transparent -> "transparent"
+  | Opaque -> "opaque"
+  | Auto -> "auto"
+
+/// Check if model is a GPT Image model
+let isGptImageModel (model: String) : Bool =
+  Stdlib.String.startsWith model "gpt-image"
+
+/// Image generation options (supports both DALL-E and GPT Image models)
+type Options =
+  { model: String
+    prompt: String
+    size: String
+    /// Quality: "standard"/"hd" for DALL-E 3, "low"/"medium"/"high" for GPT Image
+    quality: String
+    /// Style: only for DALL-E 3
+    style: Stdlib.Option.Option<String>
+    n: Int64
+    /// Output format: only for GPT Image models (png, jpeg, webp)
+    outputFormat: Stdlib.Option.Option<OutputFormat>
+    /// Background: only for GPT Image models (transparent, opaque, auto)
+    background: Stdlib.Option.Option<Background>
+    /// Output compression: only for GPT Image models with jpeg/webp (0-100)
+    outputCompression: Stdlib.Option.Option<Int64>
+    /// User ID for abuse detection
+    user: Stdlib.Option.Option<String> }
+
+/// Create default options for DALL-E 3 (deprecated May 2026)
+let defaultOptions (prompt: String) : Options =
+  Options
+    { model = Darklang.OpenAI.Models.dalle3
+      prompt = prompt
+      size = Size.square1024
+      quality = Quality.standard
+      style = Stdlib.Option.Option.Some Style.vivid
+      n = 1L
+      outputFormat = Stdlib.Option.Option.None
+      background = Stdlib.Option.Option.None
+      outputCompression = Stdlib.Option.Option.None
+      user = Stdlib.Option.Option.None }
+
+/// Create default options for GPT Image 1 (recommended)
+let gptImageOptions (prompt: String) : Options =
+  Options
+    { model = Darklang.OpenAI.Models.gptImage1
+      prompt = prompt
+      size = Size.auto
+      quality = Quality.medium
+      style = Stdlib.Option.Option.None
+      n = 1L
+      outputFormat = Stdlib.Option.Option.Some OutputFormat.Png
+      background = Stdlib.Option.Option.Some Background.Auto
+      outputCompression = Stdlib.Option.Option.None
+      user = Stdlib.Option.Option.None }
+
+/// Set model
+let withModel (opts: Options) (model: String) : Options =
+  { opts with model = model }
+
+/// Set size
+let withSize (opts: Options) (size: String) : Options =
+  { opts with size = size }
+
+/// Set quality
+let withQuality (opts: Options) (quality: String) : Options =
+  { opts with quality = quality }
+
+/// Set style (DALL-E 3 only)
+let withStyle (opts: Options) (style: String) : Options =
+  { opts with style = Stdlib.Option.Option.Some style }
+
+/// Set count
+let withN (opts: Options) (count: Int64) : Options =
+  { opts with n = count }
+
+/// Set output format (GPT Image only)
+let withOutputFormat (opts: Options) (format: OutputFormat) : Options =
+  { opts with outputFormat = Stdlib.Option.Option.Some format }
+
+/// Set background (GPT Image only)
+let withBackground (opts: Options) (bg: Background) : Options =
+  { opts with background = Stdlib.Option.Option.Some bg }
+
+/// Set transparent background (GPT Image only)
+let withTransparentBackground (opts: Options) : Options =
+  { opts with
+      background = Stdlib.Option.Option.Some Background.Transparent
+      outputFormat = Stdlib.Option.Option.Some OutputFormat.Png }
+
+/// Set output compression 0-100 (GPT Image only, jpeg/webp)
+let withOutputCompression (opts: Options) (compression: Int64) : Options =
+  { opts with outputCompression = Stdlib.Option.Option.Some compression }
+
+/// Set user ID
+let withUser (opts: Options) (userId: String) : Options =
+  { opts with user = Stdlib.Option.Option.Some userId }
+
+/// Content moderation result for GPT Image models
+type ImageModeration =
+  { /// Whether the image was flagged by content moderation
+    flagged: Bool
+    /// Categories that were flagged (if any)
+    categories: List<String> }
+
+/// Image generation response
+type GeneratedImage =
+  { /// URL (for DALL-E models) or empty for GPT Image
+    url: String
+    /// Base64 encoded image data (for GPT Image models)
+    b64Json: Stdlib.Option.Option<String>
+    /// Revised prompt (if model revised it)
+    revisedPrompt: Stdlib.Option.Option<String>
+    /// Content moderation result (GPT Image models only)
+    moderation: Stdlib.Option.Option<ImageModeration> }
+
+/// Parse moderation from response item
+let parseModeration (itemFields: List<(String * Json)>) : Stdlib.Option.Option<ImageModeration> =
+  match Darklang.Anthropic.JsonHelpers.getValue "moderation" itemFields with
+  | Some (Object modFields) ->
+    let flagged =
+      Stdlib.Option.withDefault
+        (Darklang.Anthropic.JsonHelpers.getBool "flagged" modFields)
+        false
+    let categories =
+      match Darklang.Anthropic.JsonHelpers.getValue "categories" modFields with
+      | Some (Array cats) ->
+        Stdlib.List.filterMap cats (fun c ->
+          match c with
+          | Object catFields ->
+            // Each category object has "category" and "flagged" fields
+            match (Darklang.Anthropic.JsonHelpers.getString "category" catFields,
+                   Darklang.Anthropic.JsonHelpers.getBool "flagged" catFields) with
+            | (Some catName, Some true) -> Stdlib.Option.Option.Some catName
+            | _ -> Stdlib.Option.Option.None
+          | _ -> Stdlib.Option.Option.None)
+      | _ -> []
+    Stdlib.Option.Option.Some(ImageModeration { flagged = flagged; categories = categories })
+  | _ -> Stdlib.Option.Option.None
+
+/// Generate an image with full options
+let generateWithOptions
+  (apiKey: String)
+  (options: Options)
+  : Stdlib.Result.Result<List<GeneratedImage>, String> =
+  // Validate API key
+  if apiKey == "" then
+    Stdlib.Result.Result.Error "API key cannot be empty"
+  else
+    let isGpt = isGptImageModel options.model
+
+    // Build base fields
+    let baseFields =
+      [ ("model", Json.String options.model)
+        ("prompt", Json.String options.prompt)
+        ("size", Json.String options.size)
+        ("quality", Json.String options.quality)
+        ("n", Json.Number(Stdlib.Int64.toFloat options.n)) ]
+
+    // Add style for DALL-E 3
+    let withStyle_ =
+      match options.style with
+      | Some s ->
+        if Stdlib.Bool.not isGpt then
+          Stdlib.List.append baseFields [ ("style", Json.String s) ]
+        else
+          baseFields
+      | None -> baseFields
+
+    // Add output_format for GPT Image
+    let withOutputFormat_ =
+      match options.outputFormat with
+      | Some f ->
+        if isGpt then
+          Stdlib.List.append withStyle_ [ ("output_format", Json.String(outputFormatToString f)) ]
+        else
+          withStyle_
+      | None -> withStyle_
+
+    // Add background for GPT Image
+    let withBackground_ =
+      match options.background with
+      | Some bg ->
+        if isGpt then
+          Stdlib.List.append withOutputFormat_ [ ("background", Json.String(backgroundToString bg)) ]
+        else
+          withOutputFormat_
+      | None -> withOutputFormat_
+
+    // Add output_compression for GPT Image
+    let withCompression_ =
+      match options.outputCompression with
+      | Some c ->
+        if isGpt then
+          Stdlib.List.append withBackground_ [ ("output_compression", Json.Number(Stdlib.Int64.toFloat c)) ]
+        else
+          withBackground_
+      | None -> withBackground_
+
+    // Add user
+    let withUser_ =
+      match options.user with
+      | Some u -> Stdlib.List.append withCompression_ [ ("user", Json.String u) ]
+      | None -> withCompression_
+
+    let requestJson = Json.Object withUser_
+    let body = Stdlib.AltJson.format requestJson
+    let headers = Darklang.OpenAI.Config.getHeaders apiKey
+    let url = Darklang.OpenAI.Config.baseUrl ++ "/images/generations"
+
+    match Stdlib.HttpClient.post url headers (Stdlib.String.toBytes body) with
+    | Error e -> Stdlib.Result.Result.Error("HTTP request failed: " ++ Stdlib.HttpClient.toString e)
+    | Ok response ->
+      let bodyStr = Stdlib.String.fromBytesWithReplacement response.body
+
+      match response.statusCode with
+      | code when code >= 200L && code < 300L ->
+        match Stdlib.AltJson.parse bodyStr with
+        | Ok (Object fields) ->
+          let dataArray = Darklang.Anthropic.JsonHelpers.getArray "data" fields
+          let images =
+            Stdlib.List.filterMap dataArray (fun item ->
+              match item with
+              | Object itemFields ->
+                let urlOpt = Darklang.Anthropic.JsonHelpers.getString "url" itemFields
+                let b64Opt = Darklang.Anthropic.JsonHelpers.getString "b64_json" itemFields
+                let revisedPrompt = Darklang.Anthropic.JsonHelpers.getString "revised_prompt" itemFields
+                let moderation = parseModeration itemFields
+
+                // Return image if we have either URL or base64
+                match (urlOpt, b64Opt) with
+                | (Some u, _) ->
+                  Stdlib.Option.Option.Some(
+                    GeneratedImage { url = u; b64Json = b64Opt; revisedPrompt = revisedPrompt; moderation = moderation })
+                | (None, Some b64) ->
+                  Stdlib.Option.Option.Some(
+                    GeneratedImage { url = ""; b64Json = Stdlib.Option.Option.Some b64; revisedPrompt = revisedPrompt; moderation = moderation })
+                | (None, None) -> Stdlib.Option.Option.None
+              | _ -> Stdlib.Option.Option.None)
+          Stdlib.Result.Result.Ok images
+        | _ -> Stdlib.Result.Result.Error "Invalid response format"
+      | 401L -> Stdlib.Result.Result.Error "Authentication failed: Invalid API key"
+      | 429L -> Stdlib.Result.Result.Error "Rate limit exceeded"
+      | _ -> Stdlib.Result.Result.Error("API error: " ++ bodyStr)
+
+/// Generate an image with default DALL-E 3 settings (returns URL)
+let generate
+  (apiKey: String)
+  (prompt: String)
+  : Stdlib.Result.Result<String, String> =
+  let options = defaultOptions prompt
+
+  match generateWithOptions apiKey options with
+  | Ok images ->
+    match Stdlib.List.head images with
+    | Some img -> Stdlib.Result.Result.Ok img.url
+    | None -> Stdlib.Result.Result.Error "No images generated"
+  | Error e -> Stdlib.Result.Result.Error e
+
+/// Generate an HD image with DALL-E 3
+let generateHD
+  (apiKey: String)
+  (prompt: String)
+  : Stdlib.Result.Result<String, String> =
+  let options = { (defaultOptions prompt) with quality = Quality.hd }
+
+  match generateWithOptions apiKey options with
+  | Ok images ->
+    match Stdlib.List.head images with
+    | Some img -> Stdlib.Result.Result.Ok img.url
+    | None -> Stdlib.Result.Result.Error "No images generated"
+  | Error e -> Stdlib.Result.Result.Error e
+
+/// Generate an image with GPT Image 1 (recommended, returns base64)
+let generateWithGptImage
+  (apiKey: String)
+  (prompt: String)
+  : Stdlib.Result.Result<String, String> =
+  let options = gptImageOptions prompt
+
+  match generateWithOptions apiKey options with
+  | Ok images ->
+    match Stdlib.List.head images with
+    | Some img ->
+      match img.b64Json with
+      | Some b64 -> Stdlib.Result.Result.Ok b64
+      | None ->
+        if img.url != "" then
+          Stdlib.Result.Result.Ok img.url
+        else
+          Stdlib.Result.Result.Error "No image data in response"
+    | None -> Stdlib.Result.Result.Error "No images generated"
+  | Error e -> Stdlib.Result.Result.Error e
+
+/// Generate an image with transparent background (GPT Image)
+let generateTransparent
+  (apiKey: String)
+  (prompt: String)
+  : Stdlib.Result.Result<String, String> =
+  let options = (gptImageOptions prompt) |> withTransparentBackground
+
+  match generateWithOptions apiKey options with
+  | Ok images ->
+    match Stdlib.List.head images with
+    | Some img ->
+      match img.b64Json with
+      | Some b64 -> Stdlib.Result.Result.Ok b64
+      | None -> Stdlib.Result.Result.Error "No image data in response"
+    | None -> Stdlib.Result.Result.Error "No images generated"
+  | Error e -> Stdlib.Result.Result.Error e
+
+// =============================================================================
+// IMAGE EDITING (Inpainting)
+// =============================================================================
+
+/// Image edit options
+type EditOptions =
+  { model: String
+    /// The prompt describing the desired edit
+    prompt: String
+    /// Image to edit (base64 encoded PNG, must be square and < 4MB)
+    image: String
+    /// Optional mask (base64 encoded PNG, transparent areas indicate where to edit)
+    mask: Stdlib.Option.Option<String>
+    size: String
+    n: Int64
+    user: Stdlib.Option.Option<String> }
+
+/// Create default edit options
+let defaultEditOptions (prompt: String) (imageBase64: String) : EditOptions =
+  EditOptions
+    { model = Darklang.OpenAI.Models.gptImage1
+      prompt = prompt
+      image = imageBase64
+      mask = Stdlib.Option.Option.None
+      size = Size.square1024
+      n = 1L
+      user = Stdlib.Option.Option.None }
+
+/// Edit options with mask
+let withMask (opts: EditOptions) (maskBase64: String) : EditOptions =
+  { opts with mask = Stdlib.Option.Option.Some maskBase64 }
+
+/// Edit an image (inpainting)
+/// Note: The image and mask must be base64-encoded PNG files
+let edit
+  (apiKey: String)
+  (options: EditOptions)
+  : Stdlib.Result.Result<List<GeneratedImage>, String> =
+  // Validate API key
+  if apiKey == "" then
+    Stdlib.Result.Result.Error "API key cannot be empty"
+  else
+    let baseFields =
+      [ ("model", Json.String options.model)
+        ("prompt", Json.String options.prompt)
+        ("image", Json.String options.image)
+        ("size", Json.String options.size)
+        ("n", Json.Number(Stdlib.Int64.toFloat options.n)) ]
+
+    let withMask_ =
+      match options.mask with
+      | Some m -> Stdlib.List.append baseFields [ ("mask", Json.String m) ]
+      | None -> baseFields
+
+    let withUser_ =
+      match options.user with
+      | Some u -> Stdlib.List.append withMask_ [ ("user", Json.String u) ]
+      | None -> withMask_
+
+    let requestJson = Json.Object withUser_
+    let body = Stdlib.AltJson.format requestJson
+    let headers = Darklang.OpenAI.Config.getHeaders apiKey
+    let url = Darklang.OpenAI.Config.baseUrl ++ "/images/edits"
+
+    match Stdlib.HttpClient.post url headers (Stdlib.String.toBytes body) with
+    | Error e -> Stdlib.Result.Result.Error("HTTP request failed: " ++ Stdlib.HttpClient.toString e)
+    | Ok response ->
+      let bodyStr = Stdlib.String.fromBytesWithReplacement response.body
+
+      match response.statusCode with
+      | code when code >= 200L && code < 300L ->
+        match Stdlib.AltJson.parse bodyStr with
+        | Ok (Object fields) ->
+          let dataArray = Darklang.Anthropic.JsonHelpers.getArray "data" fields
+          let images =
+            Stdlib.List.filterMap dataArray (fun item ->
+              match item with
+              | Object itemFields ->
+                let urlOpt = Darklang.Anthropic.JsonHelpers.getString "url" itemFields
+                let b64Opt = Darklang.Anthropic.JsonHelpers.getString "b64_json" itemFields
+                let moderation = parseModeration itemFields
+                match (urlOpt, b64Opt) with
+                | (Some u, _) ->
+                  Stdlib.Option.Option.Some(
+                    GeneratedImage { url = u; b64Json = b64Opt; revisedPrompt = Stdlib.Option.Option.None; moderation = moderation })
+                | (None, Some b64) ->
+                  Stdlib.Option.Option.Some(
+                    GeneratedImage { url = ""; b64Json = Stdlib.Option.Option.Some b64; revisedPrompt = Stdlib.Option.Option.None; moderation = moderation })
+                | _ -> Stdlib.Option.Option.None
+              | _ -> Stdlib.Option.Option.None)
+          Stdlib.Result.Result.Ok images
+        | _ -> Stdlib.Result.Result.Error "Invalid response format"
+      | 401L -> Stdlib.Result.Result.Error "Authentication failed: Invalid API key"
+      | 429L -> Stdlib.Result.Result.Error "Rate limit exceeded"
+      | _ -> Stdlib.Result.Result.Error("API error: " ++ bodyStr)
+
+// =============================================================================
+// IMAGE VARIATIONS (DALL-E 2 only, deprecated May 2026)
+// =============================================================================
+
+/// Image variation options
+type VariationOptions =
+  { /// Image to create variations of (base64 encoded PNG, must be square and < 4MB)
+    image: String
+    /// Model (only dall-e-2 supported)
+    model: String
+    size: String
+    n: Int64
+    user: Stdlib.Option.Option<String> }
+
+/// Create default variation options
+let defaultVariationOptions (imageBase64: String) : VariationOptions =
+  VariationOptions
+    { image = imageBase64
+      model = Darklang.OpenAI.Models.dalle2
+      size = Size.square1024
+      n = 1L
+      user = Stdlib.Option.Option.None }
+
+/// Create variations of an image (DALL-E 2 only)
+/// Note: This endpoint only works with DALL-E 2 and is deprecated (sunset May 2026)
+let createVariations
+  (apiKey: String)
+  (options: VariationOptions)
+  : Stdlib.Result.Result<List<GeneratedImage>, String> =
+  // Validate API key
+  if apiKey == "" then
+    Stdlib.Result.Result.Error "API key cannot be empty"
+  else
+    let baseFields =
+      [ ("image", Json.String options.image)
+        ("model", Json.String options.model)
+        ("size", Json.String options.size)
+        ("n", Json.Number(Stdlib.Int64.toFloat options.n)) ]
+
+    let withUser_ =
+      match options.user with
+      | Some u -> Stdlib.List.append baseFields [ ("user", Json.String u) ]
+      | None -> baseFields
+
+    let requestJson = Json.Object withUser_
+    let body = Stdlib.AltJson.format requestJson
+    let headers = Darklang.OpenAI.Config.getHeaders apiKey
+    let url = Darklang.OpenAI.Config.baseUrl ++ "/images/variations"
+
+    match Stdlib.HttpClient.post url headers (Stdlib.String.toBytes body) with
+    | Error e -> Stdlib.Result.Result.Error("HTTP request failed: " ++ Stdlib.HttpClient.toString e)
+    | Ok response ->
+      let bodyStr = Stdlib.String.fromBytesWithReplacement response.body
+
+      match response.statusCode with
+      | code when code >= 200L && code < 300L ->
+        match Stdlib.AltJson.parse bodyStr with
+        | Ok (Object fields) ->
+          let dataArray = Darklang.Anthropic.JsonHelpers.getArray "data" fields
+          let images =
+            Stdlib.List.filterMap dataArray (fun item ->
+              match item with
+              | Object itemFields ->
+                let urlOpt = Darklang.Anthropic.JsonHelpers.getString "url" itemFields
+                match urlOpt with
+                | Some u ->
+                  Stdlib.Option.Option.Some(
+                    GeneratedImage { url = u; b64Json = Stdlib.Option.Option.None; revisedPrompt = Stdlib.Option.Option.None; moderation = Stdlib.Option.Option.None })
+                | None -> Stdlib.Option.Option.None
+              | _ -> Stdlib.Option.Option.None)
+          Stdlib.Result.Result.Ok images
+        | _ -> Stdlib.Result.Result.Error "Invalid response format"
+      | 401L -> Stdlib.Result.Result.Error "Authentication failed: Invalid API key"
+      | 429L -> Stdlib.Result.Result.Error "Rate limit exceeded"
+      | _ -> Stdlib.Result.Result.Error("API error: " ++ bodyStr)

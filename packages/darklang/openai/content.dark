@@ -1,0 +1,152 @@
+/// OpenAI Content - Content types for multi-modal messages
+/// See: https://platform.openai.com/docs/guides/images-vision
+/// See: https://platform.openai.com/docs/guides/audio
+module Darklang.OpenAI.Content
+
+type Json = Stdlib.AltJson.Json
+
+
+// =============================================================================
+// IMAGE DETAIL
+// =============================================================================
+
+/// Image detail level for vision requests
+type ImageDetail =
+  | Auto
+  | Low
+  | High
+
+/// Convert image detail to string
+let imageDetailToString (detail: ImageDetail) : String =
+  match detail with
+  | Auto -> "auto"
+  | Low -> "low"
+  | High -> "high"
+
+
+// =============================================================================
+// INPUT AUDIO
+// =============================================================================
+
+/// Audio format for input audio content
+type InputAudioFormat =
+  | Wav
+  | Mp3
+
+/// Convert input audio format to string
+let inputAudioFormatToString (format: InputAudioFormat) : String =
+  match format with
+  | Wav -> "wav"
+  | Mp3 -> "mp3"
+
+/// Input audio data for audio content parts
+type InputAudio =
+  { data: String  // Base64 encoded audio data
+    format: InputAudioFormat }
+
+
+// =============================================================================
+// CONTENT PARTS
+// =============================================================================
+
+/// Content part types for multi-modal messages
+/// ChatCompletionContentPart = Text | Image | InputAudio | Refusal
+type ContentPart =
+  /// Text content (ChatCompletionContentPartText)
+  | Text of String
+  /// Image from URL (ChatCompletionContentPartImage)
+  | ImageUrl of url: String * detail: ImageDetail
+  /// Image from base64 data (ChatCompletionContentPartImage)
+  | ImageBase64 of mediaType: String * data: String * detail: ImageDetail
+  /// Audio input (ChatCompletionContentPartInputAudio)
+  | InputAudio of InputAudio
+  /// Refusal content from assistant (ChatCompletionContentPartRefusal)
+  | Refusal of String
+
+/// Convert content part to JSON
+let contentPartToJson (part: ContentPart) : Json =
+  match part with
+  | Text t ->
+    Json.Object
+      [ ("type", Json.String "text")
+        ("text", Json.String t) ]
+  | ImageUrl(url, detail) ->
+    Json.Object
+      [ ("type", Json.String "image_url")
+        ("image_url",
+         Json.Object
+           [ ("url", Json.String url)
+             ("detail", Json.String(imageDetailToString detail)) ]) ]
+  | ImageBase64(mediaType, data, detail) ->
+    let dataUrl = "data:" ++ mediaType ++ ";base64," ++ data
+    Json.Object
+      [ ("type", Json.String "image_url")
+        ("image_url",
+         Json.Object
+           [ ("url", Json.String dataUrl)
+             ("detail", Json.String(imageDetailToString detail)) ]) ]
+  | InputAudio audio ->
+    Json.Object
+      [ ("type", Json.String "input_audio")
+        ("input_audio",
+         Json.Object
+           [ ("data", Json.String audio.data)
+             ("format", Json.String(inputAudioFormatToString audio.format)) ]) ]
+  | Refusal r ->
+    Json.Object
+      [ ("type", Json.String "refusal")
+        ("refusal", Json.String r) ]
+
+/// Parse content part from JSON (for response parsing)
+let parseContentPart (json: Json) : Stdlib.Option.Option<ContentPart> =
+  match json with
+  | Object fields ->
+    match Darklang.Anthropic.JsonHelpers.getString "type" fields with
+    | Some "text" ->
+      match Darklang.Anthropic.JsonHelpers.getString "text" fields with
+      | Some t -> Stdlib.Option.Option.Some(ContentPart.Text t)
+      | None -> Stdlib.Option.Option.None
+    | Some "refusal" ->
+      match Darklang.Anthropic.JsonHelpers.getString "refusal" fields with
+      | Some r -> Stdlib.Option.Option.Some(ContentPart.Refusal r)
+      | None -> Stdlib.Option.Option.None
+    | _ -> Stdlib.Option.Option.None
+  | _ -> Stdlib.Option.Option.None
+
+
+// =============================================================================
+// CONTENT PART CONSTRUCTORS
+// =============================================================================
+
+/// Create a text content part
+let text (t: String) : ContentPart = ContentPart.Text t
+
+/// Create an image URL content part with auto detail
+let imageUrl (url: String) : ContentPart = ContentPart.ImageUrl(url, ImageDetail.Auto)
+
+/// Create an image URL content part with specific detail level
+let imageUrlWithDetail (url: String) (detail: ImageDetail) : ContentPart =
+  ContentPart.ImageUrl(url, detail)
+
+/// Create a base64 image content part with auto detail
+let imageBase64 (mediaType: String) (data: String) : ContentPart =
+  ContentPart.ImageBase64(mediaType, data, ImageDetail.Auto)
+
+/// Create a base64 image content part with specific detail level
+let imageBase64WithDetail (mediaType: String) (data: String) (detail: ImageDetail) : ContentPart =
+  ContentPart.ImageBase64(mediaType, data, detail)
+
+/// Create an audio input content part (wav format)
+let inputAudioWav (base64Data: String) : ContentPart =
+  ContentPart.InputAudio(InputAudio { data = base64Data; format = InputAudioFormat.Wav })
+
+/// Create an audio input content part (mp3 format)
+let inputAudioMp3 (base64Data: String) : ContentPart =
+  ContentPart.InputAudio(InputAudio { data = base64Data; format = InputAudioFormat.Mp3 })
+
+/// Create an audio input content part with specific format
+let inputAudio (base64Data: String) (format: InputAudioFormat) : ContentPart =
+  ContentPart.InputAudio(InputAudio { data = base64Data; format = format })
+
+/// Create a refusal content part (typically from assistant response)
+let refusal (r: String) : ContentPart = ContentPart.Refusal r

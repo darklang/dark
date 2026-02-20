@@ -1,0 +1,22 @@
+/// OpenAI Service Tier - Request processing priority options
+/// https://platform.openai.com/docs/guides/priority-processing
+/// https://platform.openai.com/docs/guides/flex-processing
+/// https://platform.openai.com/docs/api-reference/chat-streaming
+module Darklang.OpenAI.ServiceTier
+
+/// Service tier options for request processing priority
+type Tier =
+  | Auto     // Use project settings
+  | Default  // Standard processing
+  | Flex     // Lower priority, may have higher latency
+  | Priority // Higher priority processing
+  | Scale    // High-throughput processing for large workloads
+
+/// Convert service tier to string
+let toString (tier: Tier) : String =
+  match tier with
+  | Auto -> "auto"
+  | Default -> "default"
+  | Flex -> "flex"
+  | Priority -> "priority"
+  | Scale -> "scale"

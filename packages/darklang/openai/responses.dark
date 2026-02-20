@@ -1,0 +1,1081 @@
+/// OpenAI Responses API - Agent development with built-in tools
+/// See: https://platform.openai.com/docs/api-reference/responses
+module Darklang.OpenAI.Responses
+
+type Json = Stdlib.AltJson.Json
+
+// ===========================================================================
+// Status Module
+// ===========================================================================
+
+module Status =
+  /// Response status enum
+  type ResponseStatus =
+    | Completed
+    | InProgress
+    | Failed
+    | Cancelled
+    | Queued
+
+  /// Convert status to string
+  let toString (status: ResponseStatus) : String =
+    match status with
+    | Completed -> "completed"
+    | InProgress -> "in_progress"
+    | Failed -> "failed"
+    | Cancelled -> "cancelled"
+    | Queued -> "queued"
+
+  /// Parse status from string
+  let fromString (s: String) : ResponseStatus =
+    match s with
+    | "completed" -> ResponseStatus.Completed
+    | "in_progress" -> ResponseStatus.InProgress
+    | "failed" -> ResponseStatus.Failed
+    | "cancelled" -> ResponseStatus.Cancelled
+    | "queued" -> ResponseStatus.Queued
+    | _ -> ResponseStatus.Failed
+
+
+// ===========================================================================
+// InputItem Module
+// ===========================================================================
+
+module InputItem =
+  /// Role for input messages
+  type Role =
+    | User
+    | Assistant
+    | System
+    | Developer
+
+  /// Convert role to string
+  let roleToString (role: Role) : String =
+    match role with
+    | User -> "user"
+    | Assistant -> "assistant"
+    | System -> "system"
+    | Developer -> "developer"
+
+  /// Parse role from string
+  let parseRole (s: String) : Role =
+    match s with
+    | "user" -> Role.User
+    | "assistant" -> Role.Assistant
+    | "system" -> Role.System
+    | "developer" -> Role.Developer
+    | _ -> Role.User
+
+  /// Content part for messages
+  type ContentPart =
+    | Text of String
+    | InputImage of url: String * detail: String
+    | InputFile of fileId: String
+
+  /// Convert content part to JSON
+  let contentPartToJson (part: ContentPart) : Json =
+    match part with
+    | Text t ->
+      Json.Object
+        [ ("type", Json.String "input_text")
+          ("text", Json.String t) ]
+    | InputImage(url, detail) ->
+      Json.Object
+        [ ("type", Json.String "input_image")
+          ("image_url", Json.String url)
+          ("detail", Json.String detail) ]
+    | InputFile fileId ->
+      Json.Object
+        [ ("type", Json.String "input_file")
+          ("file_id", Json.String fileId) ]
+
+  /// Input item types
+  type InputItem =
+    | Message of role: Role * content: List<ContentPart>
+    | FunctionCallOutput of callId: String * output: String
+    | ItemReference of id: String
+
+  /// Convert input item to JSON
+  let toJson (item: InputItem) : Json =
+    match item with
+    | Message(role, content) ->
+      let contentJson = Stdlib.List.map content contentPartToJson
+      Json.Object
+        [ ("type", Json.String "message")
+          ("role", Json.String(roleToString role))
+          ("content", Json.Array contentJson) ]
+    | FunctionCallOutput(callId, output) ->
+      Json.Object
+        [ ("type", Json.String "function_call_output")
+          ("call_id", Json.String callId)
+          ("output", Json.String output) ]
+    | ItemReference id ->
+      Json.Object
+        [ ("type", Json.String "item_reference")
+          ("id", Json.String id) ]
+
+  /// Create a text content part
+  let text (t: String) : ContentPart = ContentPart.Text t
+
+  /// Create an image content part
+  let image (url: String) : ContentPart = ContentPart.InputImage(url, "auto")
+
+  /// Create an image content part with detail
+  let imageWithDetail (url: String) (detail: String) : ContentPart =
+    ContentPart.InputImage(url, detail)
+
+  /// Create a file content part
+  let file (fileId: String) : ContentPart = ContentPart.InputFile fileId
+
+  /// Create a user message
+  let userMessage (content: String) : InputItem =
+    InputItem.Message(Role.User, [ text content ])
+
+  /// Create an assistant message
+  let assistantMessage (content: String) : InputItem =
+    InputItem.Message(Role.Assistant, [ text content ])
+
+  /// Create a system message
+  let systemMessage (content: String) : InputItem =
+    InputItem.Message(Role.System, [ text content ])
+
+  /// Create a developer message
+  let developerMessage (content: String) : InputItem =
+    InputItem.Message(Role.Developer, [ text content ])
+
+  /// Create a function call output
+  let functionOutput (callId: String) (output: String) : InputItem =
+    InputItem.FunctionCallOutput(callId, output)
+
+
+// ===========================================================================
+// OutputItem Module
+// ===========================================================================
+
+module OutputItem =
+  /// Output content types
+  type OutputContent =
+    | OutputText of text: String * annotations: List<Json>
+    | Refusal of refusal: String
+
+  /// Output item types
+  type OutputItem =
+    | Message of id: String * role: String * content: List<OutputContent> * status: String
+    | FunctionCall of id: String * callId: String * name: String * arguments: String * status: String
+    | WebSearchCall of id: String * status: String
+    | FileSearchCall of id: String * status: String * results: List<Json>
+    | CodeInterpreterCall of id: String * status: String * outputs: List<Json>
+    | ComputerCall of id: String * callId: String * action: Json * status: String
+    | Reasoning of id: String * summary: List<Json>
+
+  /// Parse output content from JSON
+  let parseOutputContent (json: Json) : Stdlib.Option.Option<OutputContent> =
+    match json with
+    | Object fields ->
+      let contentType = Darklang.Anthropic.JsonHelpers.getString "type" fields
+      match contentType with
+      | Some "output_text" ->
+        let text = Stdlib.Option.withDefault (Darklang.Anthropic.JsonHelpers.getString "text" fields) ""
+        let annotations = Darklang.Anthropic.JsonHelpers.getArray "annotations" fields
+        Stdlib.Option.Option.Some(OutputContent.OutputText(text, annotations))
+      | Some "refusal" ->
+        let refusal = Stdlib.Option.withDefault (Darklang.Anthropic.JsonHelpers.getString "refusal" fields) ""
+        Stdlib.Option.Option.Some(OutputContent.Refusal refusal)
+      | _ -> Stdlib.Option.Option.None
+    | _ -> Stdlib.Option.Option.None
+
+  /// Parse output item from JSON
+  let parseOutputItem (json: Json) : Stdlib.Option.Option<OutputItem> =
+    match json with
+    | Object fields ->
+      let itemType = Darklang.Anthropic.JsonHelpers.getString "type" fields
+      let id = Stdlib.Option.withDefault (Darklang.Anthropic.JsonHelpers.getString "id" fields) ""
+      let status = Stdlib.Option.withDefault (Darklang.Anthropic.JsonHelpers.getString "status" fields) ""
+
+      match itemType with
+      | Some "message" ->
+        let role = Stdlib.Option.withDefault (Darklang.Anthropic.JsonHelpers.getString "role" fields) "assistant"
+        let contentArray = Darklang.Anthropic.JsonHelpers.getArray "content" fields
+        let content = Stdlib.List.filterMap contentArray parseOutputContent
+        Stdlib.Option.Option.Some(OutputItem.Message(id, role, content, status))
+
+      | Some "function_call" ->
+        let callId = Stdlib.Option.withDefault (Darklang.Anthropic.JsonHelpers.getString "call_id" fields) ""
+        let name = Stdlib.Option.withDefault (Darklang.Anthropic.JsonHelpers.getString "name" fields) ""
+        let arguments = Stdlib.Option.withDefault (Darklang.Anthropic.JsonHelpers.getString "arguments" fields) "{}"
+        Stdlib.Option.Option.Some(OutputItem.FunctionCall(id, callId, name, arguments, status))
+
+      | Some "web_search_call" ->
+        Stdlib.Option.Option.Some(OutputItem.WebSearchCall(id, status))
+
+      | Some "file_search_call" ->
+        let results = Darklang.Anthropic.JsonHelpers.getArray "results" fields
+        Stdlib.Option.Option.Some(OutputItem.FileSearchCall(id, status, results))
+
+      | Some "code_interpreter_call" ->
+        let outputs = Darklang.Anthropic.JsonHelpers.getArray "outputs" fields
+        Stdlib.Option.Option.Some(OutputItem.CodeInterpreterCall(id, status, outputs))
+
+      | Some "computer_call" ->
+        let callId = Stdlib.Option.withDefault (Darklang.Anthropic.JsonHelpers.getString "call_id" fields) ""
+        let action = Stdlib.Option.withDefault (Darklang.Anthropic.JsonHelpers.getValue "action" fields) (Json.Object [])
+        Stdlib.Option.Option.Some(OutputItem.ComputerCall(id, callId, action, status))
+
+      | Some "reasoning" ->
+        let summary = Darklang.Anthropic.JsonHelpers.getArray "summary" fields
+        Stdlib.Option.Option.Some(OutputItem.Reasoning(id, summary))
+
+      | _ -> Stdlib.Option.Option.None
+    | _ -> Stdlib.Option.Option.None
+
+
+// ===========================================================================
+// BuiltInTools Module
+// ===========================================================================
+
+module BuiltInTools =
+  /// File search tool configuration
+  type FileSearchTool =
+    { vectorStoreIds: List<String>
+      maxNumResults: Stdlib.Option.Option<Int64>
+      rankingOptions: Stdlib.Option.Option<Json> }
+
+  /// Code interpreter tool configuration
+  type CodeInterpreterTool =
+    { container: Stdlib.Option.Option<String>
+      fileIds: List<String> }
+
+  /// Computer use tool configuration
+  type ComputerUseTool =
+    { displayWidth: Int64
+      displayHeight: Int64
+      environment: Stdlib.Option.Option<String> }
+
+  /// Built-in tool types
+  type BuiltInTool =
+    | WebSearch of Darklang.OpenAI.WebSearch.WebSearchTool
+    | FileSearch of FileSearchTool
+    | CodeInterpreter of CodeInterpreterTool
+    | ComputerUse of ComputerUseTool
+    | Function of Tools.Tool
+
+  /// Convert built-in tool to JSON
+  let toJson (tool: BuiltInTool) : Json =
+    match tool with
+    | WebSearch opts ->
+      Darklang.OpenAI.WebSearch.toJson opts
+
+    | FileSearch opts ->
+      let fields =
+        [ ("type", Json.String "file_search")
+          ("vector_store_ids", Json.Array(Stdlib.List.map opts.vectorStoreIds (fun s -> Json.String s))) ]
+
+      let withMaxResults =
+        match opts.maxNumResults with
+        | Some n -> Stdlib.List.append fields [ ("max_num_results", Json.Number(Stdlib.Int64.toFloat n)) ]
+        | None -> fields
+
+      let withRanking =
+        match opts.rankingOptions with
+        | Some opts -> Stdlib.List.append withMaxResults [ ("ranking_options", opts) ]
+        | None -> withMaxResults
+
+      Json.Object withRanking
+
+    | CodeInterpreter opts ->
+      let fields = [ ("type", Json.String "code_interpreter") ]
+
+      let withContainer =
+        match opts.container with
+        | Some c -> Stdlib.List.append fields [ ("container", Json.String c) ]
+        | None -> fields
+
+      let withFiles =
+        if Stdlib.List.isEmpty opts.fileIds then
+          withContainer
+        else
+          Stdlib.List.append withContainer
+            [ ("file_ids", Json.Array(Stdlib.List.map opts.fileIds (fun s -> Json.String s))) ]
+
+      Json.Object withFiles
+
+    | ComputerUse opts ->
+      let fields =
+        [ ("type", Json.String "computer_use_preview")
+          ("display_width", Json.Number(Stdlib.Int64.toFloat opts.displayWidth))
+          ("display_height", Json.Number(Stdlib.Int64.toFloat opts.displayHeight)) ]
+
+      let withEnv =
+        match opts.environment with
+        | Some env -> Stdlib.List.append fields [ ("environment", Json.String env) ]
+        | None -> fields
+
+      Json.Object withEnv
+
+    | Function tool -> Tools.toJson tool
+
+  /// Create a web search tool with defaults
+  let webSearch () : BuiltInTool =
+    BuiltInTool.WebSearch(Darklang.OpenAI.WebSearch.defaultTool)
+
+  /// Create a web search tool with user location
+  let webSearchWithLocation (loc: Darklang.OpenAI.WebSearch.UserLocation) : BuiltInTool =
+    BuiltInTool.WebSearch(Darklang.OpenAI.WebSearch.withUserLocation loc)
+
+  /// Create a web search tool with domain filters
+  let webSearchWithFilters (filters: Darklang.OpenAI.WebSearch.DomainFilters) : BuiltInTool =
+    BuiltInTool.WebSearch(Darklang.OpenAI.WebSearch.withFilters filters)
+
+  /// Create a web search tool with custom configuration
+  let webSearchWithConfig (config: Darklang.OpenAI.WebSearch.WebSearchTool) : BuiltInTool =
+    BuiltInTool.WebSearch(config)
+
+  /// Create a file search tool
+  let fileSearch (vectorStoreIds: List<String>) : BuiltInTool =
+    BuiltInTool.FileSearch(
+      FileSearchTool
+        { vectorStoreIds = vectorStoreIds
+          maxNumResults = Stdlib.Option.Option.None
+          rankingOptions = Stdlib.Option.Option.None })
+
+  /// Create a code interpreter tool
+  let codeInterpreter () : BuiltInTool =
+    BuiltInTool.CodeInterpreter(
+      CodeInterpreterTool
+        { container = Stdlib.Option.Option.None
+          fileIds = [] })
+
+  /// Create a code interpreter tool with file IDs
+  let codeInterpreterWithFiles (fileIds: List<String>) : BuiltInTool =
+    BuiltInTool.CodeInterpreter(
+      CodeInterpreterTool
+        { container = Stdlib.Option.Option.None
+          fileIds = fileIds })
+
+  /// Create a computer use tool
+  let computerUse (width: Int64) (height: Int64) : BuiltInTool =
+    BuiltInTool.ComputerUse(
+      ComputerUseTool
+        { displayWidth = width
+          displayHeight = height
+          environment = Stdlib.Option.Option.None })
+
+  /// Wrap an existing function tool
+  let functionTool (tool: Tools.Tool) : BuiltInTool =
+    BuiltInTool.Function tool
+
+
+// ===========================================================================
+// TextConfig Module
+// ===========================================================================
+
+/// Text output format configuration for the Responses API
+/// See: https://platform.openai.com/docs/api-reference/responses/create#responses-create-text
+/// See: https://platform.openai.com/docs/guides/structured-outputs
+///
+/// NOTE: This module is for the Responses API which uses the flat structure:
+///   {"type": "json_schema", "name": "...", "schema": {...}, "strict": true}
+///
+/// For the Chat Completions API (older), use Darklang.OpenAI.ResponseFormat which uses nested structure:
+///   {"type": "json_schema", "json_schema": {"name": "...", "schema": {...}, "strict": true}}
+module TextConfig =
+  /// Text output format configuration
+  type TextFormat =
+    | Text
+    | JsonObject
+    | JsonSchema of name: String * description: Stdlib.Option.Option<String> * schema: Json * strict: Bool
+
+  /// Convert text format to JSON
+  let formatToJson (format: TextFormat) : Json =
+    match format with
+    | Text ->
+      Json.Object [ ("type", Json.String "text") ]
+    | JsonObject ->
+      Json.Object [ ("type", Json.String "json_object") ]
+    | JsonSchema(name, description, schema, strict) ->
+      let baseFields =
+        [ ("type", Json.String "json_schema")
+          ("name", Json.String name) ]
+
+      let withDescription =
+        match description with
+        | Some d -> Stdlib.List.append baseFields [ ("description", Json.String d) ]
+        | None -> baseFields
+
+      Json.Object
+        (Stdlib.List.append
+          withDescription
+          [ ("schema", schema)
+            ("strict", Json.Bool strict) ])
+
+
+// ===========================================================================
+// ReasoningConfig Module
+// ===========================================================================
+
+module ReasoningConfig =
+  /// Reasoning effort levels
+  type ReasoningEffort =
+    | Low
+    | Medium
+    | High
+
+  /// Convert effort to string
+  let effortToString (effort: ReasoningEffort) : String =
+    match effort with
+    | Low -> "low"
+    | Medium -> "medium"
+    | High -> "high"
+
+  /// Reasoning configuration
+  type Config =
+    { effort: ReasoningEffort
+      summary: Stdlib.Option.Option<String> }
+
+  /// Convert config to JSON
+  let toJson (config: Config) : Json =
+    let fields = [ ("effort", Json.String(effortToString config.effort)) ]
+
+    let withSummary =
+      match config.summary with
+      | Some s -> Stdlib.List.append fields [ ("summary", Json.String s) ]
+      | None -> fields
+
+    Json.Object withSummary
+
+
+// ===========================================================================
+// Input Type
+// ===========================================================================
+
+/// Input can be simple text or a list of input items
+type Input =
+  | SimpleText of String
+  | Items of List<InputItem.InputItem>
+
+/// Convert input to JSON
+let inputToJson (input: Input) : Json =
+  match input with
+  | SimpleText s -> Json.String s
+  | Items items ->
+    let itemsJson = Stdlib.List.map items InputItem.toJson
+    Json.Array itemsJson
+
+
+// ===========================================================================
+// Request Type
+// ===========================================================================
+
+/// Request for creating a response
+type Request =
+  { model: String
+    input: Input
+    instructions: Stdlib.Option.Option<String>
+    tools: List<BuiltInTools.BuiltInTool>
+    toolChoice: Stdlib.Option.Option<Tools.ToolChoice>
+    parallelToolCalls: Stdlib.Option.Option<Bool>
+    previousResponseId: Stdlib.Option.Option<String>
+    maxOutputTokens: Stdlib.Option.Option<Int64>
+    temperature: Stdlib.Option.Option<Float>
+    topP: Stdlib.Option.Option<Float>
+    text: Stdlib.Option.Option<TextConfig.TextFormat>
+    reasoning: Stdlib.Option.Option<ReasoningConfig.Config>
+    metadata: Stdlib.Option.Option<List<(String * String)>>
+    store: Stdlib.Option.Option<Bool>
+    truncation: Stdlib.Option.Option<String>
+    maxToolCalls: Stdlib.Option.Option<Int64> }
+
+/// Create a new request with defaults
+let createRequest () : Request =
+  Request
+    { model = Models.gpt4o
+      input = Input.SimpleText ""
+      instructions = Stdlib.Option.Option.None
+      tools = []
+      toolChoice = Stdlib.Option.Option.None
+      parallelToolCalls = Stdlib.Option.Option.None
+      previousResponseId = Stdlib.Option.Option.None
+      maxOutputTokens = Stdlib.Option.Option.None
+      temperature = Stdlib.Option.Option.None
+      topP = Stdlib.Option.Option.None
+      text = Stdlib.Option.Option.None
+      reasoning = Stdlib.Option.Option.None
+      metadata = Stdlib.Option.Option.None
+      store = Stdlib.Option.Option.None
+      truncation = Stdlib.Option.Option.None
+      maxToolCalls = Stdlib.Option.Option.None }
+
+// ===========================================================================
+// Request Builder Functions
+// ===========================================================================
+
+/// Set model
+let withModel (req: Request) (model: String) : Request =
+  { req with model = model }
+
+/// Set input as simple text
+let withInput (req: Request) (text: String) : Request =
+  { req with input = Input.SimpleText text }
+
+/// Set input as list of items
+let withInputItems (req: Request) (items: List<InputItem.InputItem>) : Request =
+  { req with input = Input.Items items }
+
+/// Set instructions (system prompt)
+let withInstructions (req: Request) (instructions: String) : Request =
+  { req with instructions = Stdlib.Option.Option.Some instructions }
+
+/// Add a built-in tool
+let withTool (req: Request) (tool: BuiltInTools.BuiltInTool) : Request =
+  { req with tools = Stdlib.List.append req.tools [ tool ] }
+
+/// Add multiple tools
+let withTools (req: Request) (tools: List<BuiltInTools.BuiltInTool>) : Request =
+  { req with tools = Stdlib.List.append req.tools tools }
+
+/// Add web search tool
+let withWebSearch (req: Request) : Request =
+  withTool req (BuiltInTools.webSearch ())
+
+/// Add web search tool with context size
+let withWebSearchContext (req: Request) (size: String) : Request =
+  withTool req (BuiltInTools.webSearchWithContext size)
+
+/// Add file search tool
+let withFileSearch (req: Request) (vectorStoreIds: List<String>) : Request =
+  withTool req (BuiltInTools.fileSearch vectorStoreIds)
+
+/// Add code interpreter tool
+let withCodeInterpreter (req: Request) : Request =
+  withTool req (BuiltInTools.codeInterpreter ())
+
+/// Add code interpreter with files
+let withCodeInterpreterFiles (req: Request) (fileIds: List<String>) : Request =
+  withTool req (BuiltInTools.codeInterpreterWithFiles fileIds)
+
+/// Add computer use tool
+let withComputerUse (req: Request) (width: Int64) (height: Int64) : Request =
+  withTool req (BuiltInTools.computerUse width height)
+
+/// Add function tools from existing Tools.Tool list
+let withFunctionTools (req: Request) (tools: List<Tools.Tool>) : Request =
+  let builtInTools = Stdlib.List.map tools BuiltInTools.functionTool
+  withTools req builtInTools
+
+/// Set tool choice
+let withToolChoice (req: Request) (choice: Tools.ToolChoice) : Request =
+  { req with toolChoice = Stdlib.Option.Option.Some choice }
+
+/// Enable or disable parallel tool calls
+let withParallelToolCalls (req: Request) (enabled: Bool) : Request =
+  { req with parallelToolCalls = Stdlib.Option.Option.Some enabled }
+
+/// Set previous response ID for conversation continuation
+let withPreviousResponseId (req: Request) (id: String) : Request =
+  { req with previousResponseId = Stdlib.Option.Option.Some id }
+
+/// Set max output tokens
+let withMaxOutputTokens (req: Request) (tokens: Int64) : Request =
+  { req with maxOutputTokens = Stdlib.Option.Option.Some tokens }
+
+/// Set temperature
+let withTemperature (req: Request) (temp: Float) : Request =
+  { req with temperature = Stdlib.Option.Option.Some temp }
+
+/// Set top_p
+let withTopP (req: Request) (topP: Float) : Request =
+  { req with topP = Stdlib.Option.Option.Some topP }
+
+/// Set text format to JSON mode
+let withJsonMode (req: Request) : Request =
+  { req with text = Stdlib.Option.Option.Some TextConfig.TextFormat.JsonObject }
+
+/// Set text format to JSON schema
+let withJsonSchema
+  (req: Request)
+  (name: String)
+  (description: Stdlib.Option.Option<String>)
+  (schema: Json)
+  : Request =
+  { req with text = Stdlib.Option.Option.Some(TextConfig.TextFormat.JsonSchema(name, description, schema, true)) }
+
+/// Set reasoning effort
+let withReasoningEffort (req: Request) (effort: ReasoningConfig.ReasoningEffort) : Request =
+  let config =
+    ReasoningConfig.Config
+      { effort = effort
+        summary = Stdlib.Option.Option.None }
+  { req with reasoning = Stdlib.Option.Option.Some config }
+
+/// Set metadata
+let withMetadata (req: Request) (pairs: List<(String * String)>) : Request =
+  { req with metadata = Stdlib.Option.Option.Some pairs }
+
+/// Enable or disable storage
+let withStore (req: Request) (store: Bool) : Request =
+  { req with store = Stdlib.Option.Option.Some store }
+
+/// Set truncation strategy
+let withTruncation (req: Request) (strategy: String) : Request =
+  { req with truncation = Stdlib.Option.Option.Some strategy }
+
+/// Set max tool calls
+let withMaxToolCalls (req: Request) (max: Int64) : Request =
+  { req with maxToolCalls = Stdlib.Option.Option.Some max }
+
+
+// ===========================================================================
+// Build Request JSON
+// ===========================================================================
+
+/// Build request JSON
+let buildRequestJson (req: Request) : Json =
+  let baseFields =
+    [ ("model", Json.String req.model)
+      ("input", inputToJson req.input) ]
+
+  let withInstructions_ =
+    match req.instructions with
+    | Some i -> Stdlib.List.append baseFields [ ("instructions", Json.String i) ]
+    | None -> baseFields
+
+  let withTools_ =
+    if Stdlib.List.isEmpty req.tools then
+      withInstructions_
+    else
+      let toolsJson = Stdlib.List.map req.tools BuiltInTools.toJson
+      Stdlib.List.append withInstructions_ [ ("tools", Json.Array toolsJson) ]
+
+  let withToolChoice_ =
+    match req.toolChoice with
+    | Some choice -> Stdlib.List.append withTools_ [ ("tool_choice", Tools.toolChoiceToJson choice) ]
+    | None -> withTools_
+
+  let withParallelToolCalls_ =
+    match req.parallelToolCalls with
+    | Some enabled -> Stdlib.List.append withToolChoice_ [ ("parallel_tool_calls", Json.Bool enabled) ]
+    | None -> withToolChoice_
+
+  let withPreviousResponseId_ =
+    match req.previousResponseId with
+    | Some id -> Stdlib.List.append withParallelToolCalls_ [ ("previous_response_id", Json.String id) ]
+    | None -> withParallelToolCalls_
+
+  let withMaxOutputTokens_ =
+    match req.maxOutputTokens with
+    | Some t -> Stdlib.List.append withPreviousResponseId_ [ ("max_output_tokens", Json.Number(Stdlib.Int64.toFloat t)) ]
+    | None -> withPreviousResponseId_
+
+  let withTemp_ =
+    match req.temperature with
+    | Some t -> Stdlib.List.append withMaxOutputTokens_ [ ("temperature", Json.Number t) ]
+    | None -> withMaxOutputTokens_
+
+  let withTopP_ =
+    match req.topP with
+    | Some p -> Stdlib.List.append withTemp_ [ ("top_p", Json.Number p) ]
+    | None -> withTemp_
+
+  let withText_ =
+    match req.text with
+    | Some format -> Stdlib.List.append withTopP_ [ ("text", TextConfig.formatToJson format) ]
+    | None -> withTopP_
+
+  let withReasoning_ =
+    match req.reasoning with
+    | Some config -> Stdlib.List.append withText_ [ ("reasoning", ReasoningConfig.toJson config) ]
+    | None -> withText_
+
+  let withMetadata_ =
+    match req.metadata with
+    | Some pairs ->
+      let metaJson = Stdlib.List.map pairs (fun (k, v) -> (k, Json.String v))
+      Stdlib.List.append withReasoning_ [ ("metadata", Json.Object metaJson) ]
+    | None -> withReasoning_
+
+  let withStore_ =
+    match req.store with
+    | Some s -> Stdlib.List.append withMetadata_ [ ("store", Json.Bool s) ]
+    | None -> withMetadata_
+
+  let withTruncation_ =
+    match req.truncation with
+    | Some strategy -> Stdlib.List.append withStore_ [ ("truncation", Json.String strategy) ]
+    | None -> withStore_
+
+  let withMaxToolCalls_ =
+    match req.maxToolCalls with
+    | Some m -> Stdlib.List.append withTruncation_ [ ("max_tool_calls", Json.Number(Stdlib.Int64.toFloat m)) ]
+    | None -> withTruncation_
+
+  Json.Object withMaxToolCalls_
+
+
+// ===========================================================================
+// Response Type
+// ===========================================================================
+
+/// Usage information
+type Usage =
+  { inputTokens: Int64
+    outputTokens: Int64
+    totalTokens: Int64
+    inputTokensDetails: Stdlib.Option.Option<Json>
+    outputTokensDetails: Stdlib.Option.Option<Json> }
+
+/// Response error
+type ResponseError =
+  { code: String
+    message: String }
+
+/// Response from the Responses API
+type Response =
+  { id: String
+    object_: String
+    model: String
+    createdAt: Int64
+    status: Status.ResponseStatus
+    output: List<OutputItem.OutputItem>
+    usage: Stdlib.Option.Option<Usage>
+    error: Stdlib.Option.Option<ResponseError> }
+
+/// Parse usage from JSON
+let parseUsage (fields: List<(String * Json)>) : Stdlib.Option.Option<Usage> =
+  if Stdlib.List.isEmpty fields then
+    Stdlib.Option.Option.None
+  else
+    Stdlib.Option.Option.Some(
+      Usage
+        { inputTokens = Darklang.Anthropic.JsonHelpers.getInt "input_tokens" fields
+          outputTokens = Darklang.Anthropic.JsonHelpers.getInt "output_tokens" fields
+          totalTokens = Darklang.Anthropic.JsonHelpers.getInt "total_tokens" fields
+          inputTokensDetails = Darklang.Anthropic.JsonHelpers.getValue "input_tokens_details" fields
+          outputTokensDetails = Darklang.Anthropic.JsonHelpers.getValue "output_tokens_details" fields })
+
+/// Parse error from JSON
+let parseError (fields: List<(String * Json)>) : Stdlib.Option.Option<ResponseError> =
+  if Stdlib.List.isEmpty fields then
+    Stdlib.Option.Option.None
+  else
+    let code = Stdlib.Option.withDefault (Darklang.Anthropic.JsonHelpers.getString "code" fields) ""
+    let message = Stdlib.Option.withDefault (Darklang.Anthropic.JsonHelpers.getString "message" fields) ""
+    Stdlib.Option.Option.Some(ResponseError { code = code; message = message })
+
+/// Parse response JSON
+let parseResponse (json: Json) : Stdlib.Result.Result<Response, String> =
+  match json with
+  | Object fields ->
+    let id = Stdlib.Option.withDefault (Darklang.Anthropic.JsonHelpers.getString "id" fields) ""
+    let object_ = Stdlib.Option.withDefault (Darklang.Anthropic.JsonHelpers.getString "object" fields) "response"
+    let model = Stdlib.Option.withDefault (Darklang.Anthropic.JsonHelpers.getString "model" fields) ""
+    let createdAt = Darklang.Anthropic.JsonHelpers.getInt "created_at" fields
+    let statusStr = Stdlib.Option.withDefault (Darklang.Anthropic.JsonHelpers.getString "status" fields) "completed"
+    let status = Status.fromString statusStr
+
+    let outputArray = Darklang.Anthropic.JsonHelpers.getArray "output" fields
+    let output = Stdlib.List.filterMap outputArray OutputItem.parseOutputItem
+
+    let usageFields = Darklang.Anthropic.JsonHelpers.getObject "usage" fields
+    let usage = parseUsage usageFields
+
+    let errorFields = Darklang.Anthropic.JsonHelpers.getObject "error" fields
+    let error = parseError errorFields
+
+    Stdlib.Result.Result.Ok(
+      Response
+        { id = id
+          object_ = object_
+          model = model
+          createdAt = createdAt
+          status = status
+          output = output
+          usage = usage
+          error = error })
+  | _ -> Stdlib.Result.Result.Error "Invalid response format"
+
+
+// ===========================================================================
+// API Functions
+// ===========================================================================
+
+/// Send a response request
+let send
+  (apiKey: String)
+  (req: Request)
+  : Stdlib.Result.Result<Response, String> =
+  if apiKey == "" then
+    Stdlib.Result.Result.Error "API key cannot be empty"
+  else
+    let requestJson = buildRequestJson req
+    let body = Stdlib.AltJson.format requestJson
+    let headers = Config.getHeaders apiKey
+    let url = Config.baseUrl ++ "/responses"
+
+    match Stdlib.HttpClient.post url headers (Stdlib.String.toBytes body) with
+    | Error e -> Stdlib.Result.Result.Error("HTTP request failed: " ++ Stdlib.HttpClient.toString e)
+    | Ok response ->
+      let bodyStr = Stdlib.String.fromBytesWithReplacement response.body
+
+      match response.statusCode with
+      | code when code >= 200L && code < 300L ->
+        match Stdlib.AltJson.parse bodyStr with
+        | Ok json -> parseResponse json
+        | Error e -> Stdlib.Result.Result.Error("Failed to parse response: " ++ e)
+      | 401L -> Stdlib.Result.Result.Error "Authentication failed: Invalid API key"
+      | 429L -> Stdlib.Result.Result.Error "Rate limit exceeded"
+      | code when code >= 500L -> Stdlib.Result.Result.Error("OpenAI server error: " ++ bodyStr)
+      | _ ->
+        match Stdlib.AltJson.parse bodyStr with
+        | Ok (Object fields) ->
+          let errorFields = Darklang.Anthropic.JsonHelpers.getObject "error" fields
+          let message =
+            Stdlib.Option.withDefault
+              (Darklang.Anthropic.JsonHelpers.getString "message" errorFields)
+              bodyStr
+          Stdlib.Result.Result.Error("API error: " ++ message)
+        | _ -> Stdlib.Result.Result.Error("API error: " ++ bodyStr)
+
+/// Retrieve a response by ID
+let get
+  (apiKey: String)
+  (responseId: String)
+  : Stdlib.Result.Result<Response, String> =
+  if apiKey == "" then
+    Stdlib.Result.Result.Error "API key cannot be empty"
+  else
+    let headers = Config.getHeaders apiKey
+    let url = Config.baseUrl ++ "/responses/" ++ responseId
+
+    match Stdlib.HttpClient.get url headers with
+    | Error e -> Stdlib.Result.Result.Error("HTTP request failed: " ++ Stdlib.HttpClient.toString e)
+    | Ok response ->
+      let bodyStr = Stdlib.String.fromBytesWithReplacement response.body
+
+      match response.statusCode with
+      | code when code >= 200L && code < 300L ->
+        match Stdlib.AltJson.parse bodyStr with
+        | Ok json -> parseResponse json
+        | Error e -> Stdlib.Result.Result.Error("Failed to parse response: " ++ e)
+      | 401L -> Stdlib.Result.Result.Error "Authentication failed: Invalid API key"
+      | 404L -> Stdlib.Result.Result.Error("Response not found: " ++ responseId)
+      | 429L -> Stdlib.Result.Result.Error "Rate limit exceeded"
+      | _ -> Stdlib.Result.Result.Error("API error: " ++ bodyStr)
+
+/// Delete a response by ID
+let delete
+  (apiKey: String)
+  (responseId: String)
+  : Stdlib.Result.Result<Unit, String> =
+  if apiKey == "" then
+    Stdlib.Result.Result.Error "API key cannot be empty"
+  else
+    let headers = Config.getHeaders apiKey
+    let url = Config.baseUrl ++ "/responses/" ++ responseId
+
+    match Stdlib.HttpClient.delete url headers with
+    | Error e -> Stdlib.Result.Result.Error("HTTP request failed: " ++ Stdlib.HttpClient.toString e)
+    | Ok response ->
+      let bodyStr = Stdlib.String.fromBytesWithReplacement response.body
+
+      match response.statusCode with
+      | code when code >= 200L && code < 300L ->
+        Stdlib.Result.Result.Ok()
+      | 401L -> Stdlib.Result.Result.Error "Authentication failed: Invalid API key"
+      | 404L -> Stdlib.Result.Result.Error("Response not found: " ++ responseId)
+      | 429L -> Stdlib.Result.Result.Error "Rate limit exceeded"
+      | _ -> Stdlib.Result.Result.Error("API error: " ++ bodyStr)
+
+/// Input items response
+type InputItemsResponse =
+  { object_: String
+    data: List<Json>
+    firstId: Stdlib.Option.Option<String>
+    lastId: Stdlib.Option.Option<String>
+    hasMore: Bool }
+
+/// List input items for a response
+let listInputItems
+  (apiKey: String)
+  (responseId: String)
+  : Stdlib.Result.Result<InputItemsResponse, String> =
+  if apiKey == "" then
+    Stdlib.Result.Result.Error "API key cannot be empty"
+  else
+    let headers = Config.getHeaders apiKey
+    let url = Config.baseUrl ++ "/responses/" ++ responseId ++ "/input_items"
+
+    match Stdlib.HttpClient.get url headers with
+    | Error e -> Stdlib.Result.Result.Error("HTTP request failed: " ++ Stdlib.HttpClient.toString e)
+    | Ok response ->
+      let bodyStr = Stdlib.String.fromBytesWithReplacement response.body
+
+      match response.statusCode with
+      | code when code >= 200L && code < 300L ->
+        match Stdlib.AltJson.parse bodyStr with
+        | Ok (Object fields) ->
+          let object_ = Stdlib.Option.withDefault (Darklang.Anthropic.JsonHelpers.getString "object" fields) "list"
+          let data = Darklang.Anthropic.JsonHelpers.getArray "data" fields
+          let firstId = Darklang.Anthropic.JsonHelpers.getString "first_id" fields
+          let lastId = Darklang.Anthropic.JsonHelpers.getString "last_id" fields
+          let hasMore = Stdlib.Option.withDefault (Darklang.Anthropic.JsonHelpers.getBool "has_more" fields) false
+
+          Stdlib.Result.Result.Ok(
+            InputItemsResponse
+              { object_ = object_
+                data = data
+                firstId = firstId
+                lastId = lastId
+                hasMore = hasMore })
+        | _ -> Stdlib.Result.Result.Error "Invalid response format"
+      | 401L -> Stdlib.Result.Result.Error "Authentication failed: Invalid API key"
+      | 404L -> Stdlib.Result.Result.Error("Response not found: " ++ responseId)
+      | 429L -> Stdlib.Result.Result.Error "Rate limit exceeded"
+      | _ -> Stdlib.Result.Result.Error("API error: " ++ bodyStr)
+
+
+// ===========================================================================
+// Convenience Functions
+// ===========================================================================
+
+/// Simple create with just a prompt
+let create
+  (apiKey: String)
+  (prompt: String)
+  : Stdlib.Result.Result<String, String> =
+  let req = (createRequest ()) |> withInput prompt
+
+  match send apiKey req with
+  | Ok r -> extractText r
+  | Error e -> Stdlib.Result.Result.Error e
+
+/// Create with a specific model
+let createWithModel
+  (apiKey: String)
+  (model: String)
+  (prompt: String)
+  : Stdlib.Result.Result<String, String> =
+  let req =
+    (createRequest ())
+    |> withModel model
+    |> withInput prompt
+
+  match send apiKey req with
+  | Ok r -> extractText r
+  | Error e -> Stdlib.Result.Result.Error e
+
+/// Create with instructions (system prompt)
+let createWithInstructions
+  (apiKey: String)
+  (instructions: String)
+  (prompt: String)
+  : Stdlib.Result.Result<String, String> =
+  let req =
+    (createRequest ())
+    |> withInstructions instructions
+    |> withInput prompt
+
+  match send apiKey req with
+  | Ok r -> extractText r
+  | Error e -> Stdlib.Result.Result.Error e
+
+/// Create with function tools
+let createWithTools
+  (apiKey: String)
+  (tools: List<Tools.Tool>)
+  (prompt: String)
+  : Stdlib.Result.Result<Response, String> =
+  let req =
+    (createRequest ())
+    |> withFunctionTools tools
+    |> withInput prompt
+
+  send apiKey req
+
+/// Create with web search enabled
+let createWithWebSearch
+  (apiKey: String)
+  (prompt: String)
+  : Stdlib.Result.Result<String, String> =
+  let req =
+    (createRequest ())
+    |> withWebSearch
+    |> withInput prompt
+
+  match send apiKey req with
+  | Ok r -> extractText r
+  | Error e -> Stdlib.Result.Result.Error e
+
+/// Continue a conversation using previous response ID
+let continueConversation
+  (apiKey: String)
+  (previousResponseId: String)
+  (prompt: String)
+  : Stdlib.Result.Result<Response, String> =
+  let req =
+    (createRequest ())
+    |> withPreviousResponseId previousResponseId
+    |> withInput prompt
+
+  send apiKey req
+
+
+// ===========================================================================
+// Response Helper Functions
+// ===========================================================================
+
+/// Extract text content from a response
+let extractText (response: Response) : Stdlib.Result.Result<String, String> =
+  let texts =
+    response.output
+    |> Stdlib.List.filterMap (fun item ->
+      match item with
+      | Message(_, _, content, _) ->
+        let messageTexts =
+          content
+          |> Stdlib.List.filterMap (fun c ->
+            match c with
+            | OutputText(text, _) -> Stdlib.Option.Option.Some text
+            | _ -> Stdlib.Option.Option.None)
+        if Stdlib.List.isEmpty messageTexts then
+          Stdlib.Option.Option.None
+        else
+          Stdlib.Option.Option.Some(Stdlib.String.join messageTexts "")
+      | _ -> Stdlib.Option.Option.None)
+
+  if Stdlib.List.isEmpty texts then
+    Stdlib.Result.Result.Error "No text content in response"
+  else
+    Stdlib.Result.Result.Ok(Stdlib.String.join texts "")
+
+/// Extract function calls from a response
+/// Returns list of (callId, name, arguments)
+let extractFunctionCalls (response: Response) : List<(String * String * String)> =
+  response.output
+  |> Stdlib.List.filterMap (fun item ->
+    match item with
+    | FunctionCall(_, callId, name, arguments, _) ->
+      Stdlib.Option.Option.Some((callId, name, arguments))
+    | _ -> Stdlib.Option.Option.None)
+
+/// Check if response has function calls
+let hasFunctionCalls (response: Response) : Bool =
+  Stdlib.List.any response.output (fun item ->
+    match item with
+    | FunctionCall(_, _, _, _, _) -> true
+    | _ -> false)
+
+/// Check if response is completed
+let isCompleted (response: Response) : Bool =
+  match response.status with
+  | Completed -> true
+  | _ -> false
+
+/// Check if response has an error
+let hasError (response: Response) : Bool =
+  match response.error with
+  | Some _ -> true
+  | None -> false
+
+/// Get the response ID (useful for conversation continuation)
+let getResponseId (response: Response) : String =
+  response.id

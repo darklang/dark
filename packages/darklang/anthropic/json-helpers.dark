@@ -74,6 +74,21 @@ let getIntOption
   | None -> Stdlib.Option.Option.None
 
 
+/// Get a float number value from a JSON object's fields
+let getNumber
+  (key: String)
+  (fields: List<(String * Json)>)
+  : Stdlib.Option.Option<Float> =
+  let found = Stdlib.List.findFirst fields (fun (k, _) -> k == key)
+
+  match found with
+  | Some pair ->
+    match Stdlib.Tuple2.second pair with
+    | Number n -> Stdlib.Option.Option.Some n
+    | _ -> Stdlib.Option.Option.None
+  | None -> Stdlib.Option.Option.None
+
+
 /// Get an array value from a JSON object's fields (returns [] if not found)
 let getArray (key: String) (fields: List<(String * Json)>) : List<Json> =
   let found = Stdlib.List.findFirst fields (fun (k, _) -> k == key)

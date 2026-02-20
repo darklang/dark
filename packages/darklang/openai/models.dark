@@ -1,0 +1,304 @@
+/// OpenAI Models API
+/// https://platform.openai.com/docs/api-reference/models
+module Darklang.OpenAI.Models
+
+type Json = Stdlib.AltJson.Json
+
+
+// =============================================================================
+// TYPES
+// =============================================================================
+
+/// Describes an OpenAI model offering that can be used with the API.
+type Model =
+  { id: String        // The model identifier, which can be referenced in the API endpoints
+    created: Int64    // The Unix timestamp (in seconds) when the model was created
+    object_: String   // The object type, which is always "model"
+    ownedBy: String } // The organization that owns the model
+
+/// Response from deleting a fine-tuned model
+type ModelDeleted =
+  { id: String
+    deleted: Bool
+    object_: String }
+
+
+// =============================================================================
+// MODELS API
+// =============================================================================
+
+/// List available models
+/// GET /models
+let list
+  (apiKey: String)
+  : Stdlib.Result.Result<List<Model>, String> =
+  if apiKey == "" then
+    Stdlib.Result.Result.Error "API key cannot be empty"
+  else
+    let headers = Darklang.OpenAI.Config.getHeaders apiKey
+    let url = Darklang.OpenAI.Config.baseUrl ++ "/models"
+
+    match Stdlib.HttpClient.get url headers with
+    | Ok response ->
+      let bodyStr = Stdlib.String.fromBytesWithReplacement response.body
+
+      match response.statusCode with
+      | code when code >= 200L && code < 300L ->
+        match Stdlib.AltJson.parse bodyStr with
+        | Ok (Object fields) ->
+          let dataArray = Darklang.Anthropic.JsonHelpers.getArray "data" fields
+          let models =
+            Stdlib.List.filterMap dataArray (fun item ->
+              match item with
+              | Object itemFields ->
+                match (Darklang.Anthropic.JsonHelpers.getString "id" itemFields,
+                       Darklang.Anthropic.JsonHelpers.getInt "created" itemFields,
+                       Darklang.Anthropic.JsonHelpers.getString "object" itemFields,
+                       Darklang.Anthropic.JsonHelpers.getString "owned_by" itemFields) with
+                | (Some id, Some created, Some obj, Some ownedBy) ->
+                  Stdlib.Option.Option.Some(
+                    Model { id = id; created = created; object_ = obj; ownedBy = ownedBy })
+                | _ -> Stdlib.Option.Option.None
+              | _ -> Stdlib.Option.Option.None)
+          Stdlib.Result.Result.Ok models
+        | _ -> Stdlib.Result.Result.Error "Invalid response format"
+      | 401L -> Stdlib.Result.Result.Error "Authentication failed: Invalid API key"
+      | 429L -> Stdlib.Result.Result.Error "Rate limit exceeded"
+      | _ -> Stdlib.Result.Result.Error("API error: " ++ bodyStr)
+    | Error e -> Stdlib.Result.Result.Error("HTTP request failed: " ++ Stdlib.HttpClient.toString e)
+
+/// Retrieve a specific model
+/// GET /models/{model}
+let get
+  (apiKey: String)
+  (modelId: String)
+  : Stdlib.Result.Result<Model, String> =
+  if apiKey == "" then
+    Stdlib.Result.Result.Error "API key cannot be empty"
+  else
+    let headers = Darklang.OpenAI.Config.getHeaders apiKey
+    let url = Darklang.OpenAI.Config.baseUrl ++ "/models/" ++ modelId
+
+    match Stdlib.HttpClient.get url headers with
+    | Ok response ->
+      let bodyStr = Stdlib.String.fromBytesWithReplacement response.body
+
+      match response.statusCode with
+      | code when code >= 200L && code < 300L ->
+        match Stdlib.AltJson.parse bodyStr with
+        | Ok (Object fields) ->
+          match (Darklang.Anthropic.JsonHelpers.getString "id" fields,
+                 Darklang.Anthropic.JsonHelpers.getInt "created" fields,
+                 Darklang.Anthropic.JsonHelpers.getString "object" fields,
+                 Darklang.Anthropic.JsonHelpers.getString "owned_by" fields) with
+          | (Some id, Some created, Some obj, Some ownedBy) ->
+            Stdlib.Result.Result.Ok(
+              Model { id = id; created = created; object_ = obj; ownedBy = ownedBy })
+          | _ -> Stdlib.Result.Result.Error "Invalid model response format"
+        | _ -> Stdlib.Result.Result.Error "Invalid response format"
+      | 401L -> Stdlib.Result.Result.Error "Authentication failed: Invalid API key"
+      | 404L -> Stdlib.Result.Result.Error("Model not found: " ++ modelId)
+      | 429L -> Stdlib.Result.Result.Error "Rate limit exceeded"
+      | _ -> Stdlib.Result.Result.Error("API error: " ++ bodyStr)
+    | Error e -> Stdlib.Result.Result.Error("HTTP request failed: " ++ Stdlib.HttpClient.toString e)
+
+/// Delete a fine-tuned model
+/// DELETE /models/{model}
+let delete
+  (apiKey: String)
+  (modelId: String)
+  : Stdlib.Result.Result<ModelDeleted, String> =
+  if apiKey == "" then
+    Stdlib.Result.Result.Error "API key cannot be empty"
+  else
+    let headers = Darklang.OpenAI.Config.getHeaders apiKey
+    let url = Darklang.OpenAI.Config.baseUrl ++ "/models/" ++ modelId
+
+    match Stdlib.HttpClient.delete url headers with
+    | Ok response ->
+      let bodyStr = Stdlib.String.fromBytesWithReplacement response.body
+
+      match response.statusCode with
+      | code when code >= 200L && code < 300L ->
+        match Stdlib.AltJson.parse bodyStr with
+        | Ok (Object fields) ->
+          match (Darklang.Anthropic.JsonHelpers.getString "id" fields,
+                 Darklang.Anthropic.JsonHelpers.getBool "deleted" fields,
+                 Darklang.Anthropic.JsonHelpers.getString "object" fields) with
+          | (Some id, Some deleted, Some obj) ->
+            Stdlib.Result.Result.Ok(
+              ModelDeleted { id = id; deleted = deleted; object_ = obj })
+          | _ -> Stdlib.Result.Result.Error "Invalid delete response format"
+        | _ -> Stdlib.Result.Result.Error "Invalid response format"
+      | 401L -> Stdlib.Result.Result.Error "Authentication failed: Invalid API key"
+      | 404L -> Stdlib.Result.Result.Error("Model not found: " ++ modelId)
+      | 429L -> Stdlib.Result.Result.Error "Rate limit exceeded"
+      | _ -> Stdlib.Result.Result.Error("API error: " ++ bodyStr)
+    | Error e -> Stdlib.Result.Result.Error("HTTP request failed: " ++ Stdlib.HttpClient.toString e)
+
+
+// =============================================================================
+// MODEL CONSTANTS
+// https://platform.openai.com/docs/models
+// =============================================================================
+
+// GPT-5 family (flagship, Dec 2025)
+// https://platform.openai.com/docs/models
+let gpt5 = "gpt-5"
+let gpt51 = "gpt-5.1"
+let gpt52 = "gpt-5.2"
+let gpt5Mini = "gpt-5-mini"
+
+// GPT-4.1 family (Apr 2025)
+// https://openai.com/index/gpt-4-1/
+let gpt41 = "gpt-4.1-2025-04-14"
+let gpt41Mini = "gpt-4.1-mini-2025-04-14"
+let gpt41Nano = "gpt-4.1-nano-2025-04-14"
+
+// GPT-4o family (legacy, largely replaced by GPT-4.1 in API)
+let gpt4o = "gpt-4o"
+let gpt4oLatest = "gpt-4o-2024-11-20"
+let gpt4oMini = "gpt-4o-mini"
+
+// O-series (reasoning models)
+// https://platform.openai.com/docs/guides/reasoning
+// https://openai.com/index/introducing-o3-and-o4-mini/
+// Note: These don't support temperature, top_p, presence_penalty, frequency_penalty
+// They require max_completion_tokens instead of max_tokens
+let o1 = "o1"
+let o1Pro = "o1-pro"
+let o3 = "o3"
+let o3Mini = "o3-mini"
+let o3Pro = "o3-pro"
+let o4Mini = "o4-mini"
+
+// O-series (deep research models)
+let o3DeepResearch = "o3-deep-research"
+let o4MiniDeepResearch = "o4-mini-deep-research"
+
+// GPT-4 Turbo (legacy)
+let gpt4Turbo = "gpt-4-turbo"
+
+// Embeddings
+let textEmbedding3Small = "text-embedding-3-small"
+let textEmbedding3Large = "text-embedding-3-large"
+let textEmbeddingAda002 = "text-embedding-ada-002"
+
+// Audio - Text-to-Speech
+// https://openai.com/index/introducing-our-next-generation-audio-models/
+let tts1 = "tts-1"
+let tts1Hd = "tts-1-hd"
+let gpt4oMiniTts = "gpt-4o-mini-tts"
+let gpt4oMiniTtsSnapshot = "gpt-4o-mini-tts-2025-12-15"
+
+// Audio - Speech-to-Text (Transcription)
+// https://developers.openai.com/api/docs/guides/speech-to-text/
+let whisper1 = "whisper-1"
+let gpt4oTranscribe = "gpt-4o-transcribe"
+let gpt4oMiniTranscribe = "gpt-4o-mini-transcribe"
+let gpt4oMiniTranscribeSnapshot = "gpt-4o-mini-transcribe-2025-12-15"
+let gpt4oTranscribeDiarize = "gpt-4o-transcribe-diarize"
+
+// Audio - Chat with audio input/output
+let gpt4oAudioPreview = "gpt-4o-audio-preview"
+let gpt4oMiniAudioPreview = "gpt-4o-mini-audio-preview"
+
+// Images - GPT Image (recommended)
+// https://platform.openai.com/docs/guides/image-generation
+let gptImage1 = "gpt-image-1"
+let gptImage15 = "gpt-image-1.5"
+let gptImage1Mini = "gpt-image-1-mini"
+
+// Images - DALL-E (deprecated, sunset May 12, 2026)
+// https://platform.openai.com/docs/deprecations
+let dalle3 = "dall-e-3"
+let dalle2 = "dall-e-2"
+
+// Default model for chat
+let default_ = gpt4o
+
+
+// =============================================================================
+// MODEL CAPABILITIES
+// =============================================================================
+
+/// Reasoning effort levels for reasoning models
+/// Controls how many reasoning tokens the model uses before responding
+/// Supported values: low, medium, high (minimal only for GPT-5)
+type ReasoningEffort =
+  | Low      // Faster responses, fewer reasoning tokens
+  | Medium   // Balanced (default)
+  | High     // More thorough reasoning, higher latency/cost
+
+/// Convert reasoning effort to string
+let reasoningEffortToString (effort: ReasoningEffort) : String =
+  match effort with
+  | Low -> "low"
+  | Medium -> "medium"
+  | High -> "high"
+
+/// Model capabilities for validation
+type ModelCapabilities =
+  { supportsTemperature: Bool
+    supportsTools: Bool
+    supportsStreaming: Bool
+    supportsSystemPrompt: Bool
+    requiresMaxCompletionTokens: Bool
+    supportsReasoningEffort: Bool
+    supportsStop: Bool }
+
+/// Check if a model is a reasoning model (o1, o3, o4 series)
+/// https://platform.openai.com/docs/guides/reasoning
+/// Reasoning models don't support: temperature, top_p, presence_penalty, frequency_penalty
+/// They require max_completion_tokens instead of max_tokens
+let isReasoningModel (model: String) : Bool =
+  Stdlib.String.startsWith model "o1" ||
+  Stdlib.String.startsWith model "o3" ||
+  Stdlib.String.startsWith model "o4"
+
+/// Check if a model is o3 or o4-mini variant (these support tools but don't support stop sequences)
+/// Includes deep research variants
+let isO3OrO4Mini (model: String) : Bool =
+  Stdlib.String.startsWith model "o3" ||
+  Stdlib.String.startsWith model "o4-mini"
+
+/// Check if a model is a GPT-5 series model
+let isGpt5Model (model: String) : Bool =
+  Stdlib.String.startsWith model "gpt-5"
+
+/// Get capabilities for a model
+/// https://platform.openai.com/docs/guides/reasoning
+/// Note: o3 and o4-mini support tools and can receive instructions via the developer role
+let getCapabilities (model: String) : ModelCapabilities =
+  if isReasoningModel model then
+    // o3 and o4-mini now support tool use
+    let toolSupport = isO3OrO4Mini model
+    ModelCapabilities
+      { supportsTemperature = false
+        supportsTools = toolSupport
+        supportsStreaming = false
+        // Use developer role instead of system for reasoning models
+        supportsSystemPrompt = false
+        requiresMaxCompletionTokens = true
+        supportsReasoningEffort = true
+        // o3 and o4-mini don't support stop sequences
+        supportsStop = Stdlib.Bool.not (isO3OrO4Mini model) }
+  else if isGpt5Model model then
+    // GPT-5 series supports all standard features plus reasoning effort
+    ModelCapabilities
+      { supportsTemperature = true
+        supportsTools = true
+        supportsStreaming = true
+        supportsSystemPrompt = true
+        requiresMaxCompletionTokens = false
+        supportsReasoningEffort = true  // GPT-5 supports reasoning effort
+        supportsStop = true }
+  else
+    ModelCapabilities
+      { supportsTemperature = true
+        supportsTools = true
+        supportsStreaming = true
+        supportsSystemPrompt = true
+        requiresMaxCompletionTokens = false
+        supportsReasoningEffort = false
+        supportsStop = true }

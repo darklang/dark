@@ -39,7 +39,7 @@ let branchAnnotation
 
 
 /// Print a branch and its children recursively as a tree
-let rec printBranchTree
+let printBranchTree
   (branches: List<SCM.Branch.Branch>)
   (parentId: Uuid)
   (currentBranchId: Uuid)

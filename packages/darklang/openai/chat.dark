@@ -1,0 +1,1649 @@
+/// OpenAI Chat - Chat Completions API
+/// See: https://platform.openai.com/docs/api-reference/chat
+///
+/// TODO: Add streaming support
+///   - ChatCompletionChunk type for streamed responses
+///   - ChatCompletionStreamOptions (include_usage, include_obfuscation)
+///   - sendStream function that returns an iterator/stream of chunks
+///   - Delta types for incremental content, tool calls, etc.
+module Darklang.OpenAI.Chat
+
+type Json = Stdlib.AltJson.Json
+
+
+// =============================================================================
+// ROLES (ChatCompletionRole)
+// =============================================================================
+
+/// Role for chat messages
+/// "developer" | "system" | "user" | "assistant" | "tool" | "function"
+type Role =
+  | Developer
+  | System
+  | User
+  | Assistant
+  | Tool
+  | Function  // Deprecated but still in spec
+
+/// Convert role to string
+let roleToString (role: Role) : String =
+  match role with
+  | Developer -> "developer"
+  | System -> "system"
+  | User -> "user"
+  | Assistant -> "assistant"
+  | Tool -> "tool"
+  | Function -> "function"
+
+/// Parse role from string
+let parseRole (s: String) : Stdlib.Result.Result<Role, String> =
+  match s with
+  | "developer" -> Stdlib.Result.Result.Ok Role.Developer
+  | "system" -> Stdlib.Result.Result.Ok Role.System
+  | "user" -> Stdlib.Result.Result.Ok Role.User
+  | "assistant" -> Stdlib.Result.Result.Ok Role.Assistant
+  | "tool" -> Stdlib.Result.Result.Ok Role.Tool
+  | "function" -> Stdlib.Result.Result.Ok Role.Function
+  | other -> Stdlib.Result.Result.Error("Unknown role: " ++ other)
+
+
+// =============================================================================
+// MODALITIES (ChatCompletionModality)
+// =============================================================================
+
+/// Output modality for chat completions
+/// "text" | "audio"
+type Modality =
+  | Text
+  | Audio
+
+/// Convert modality to string
+let modalityToString (m: Modality) : String =
+  match m with
+  | Text -> "text"
+  | Audio -> "audio"
+
+
+// =============================================================================
+// AUDIO PARAMETERS (ChatCompletionAudioParam)
+// =============================================================================
+
+/// Audio output format for responses
+type AudioOutputFormat =
+  | Wav
+  | Mp3
+  | Flac
+  | Opus
+  | Pcm16
+
+/// Convert audio output format to string
+let audioOutputFormatToString (format: AudioOutputFormat) : String =
+  match format with
+  | Wav -> "wav"
+  | Mp3 -> "mp3"
+  | Flac -> "flac"
+  | Opus -> "opus"
+  | Pcm16 -> "pcm16"
+
+/// Audio parameters for requesting audio output
+/// Required when audio output is requested with modalities: ["audio"]
+type AudioParam =
+  { voice: String  // Voice to use (e.g., "alloy", "echo", "fable", etc.)
+    format: AudioOutputFormat }
+
+/// Create audio parameters
+let makeAudioParam (voice: String) (format: AudioOutputFormat) : AudioParam =
+  AudioParam { voice = voice; format = format }
+
+/// Convert audio param to JSON
+let audioParamToJson (param: AudioParam) : Json =
+  Json.Object
+    [ ("voice", Json.String param.voice)
+      ("format", Json.String(audioOutputFormatToString param.format)) ]
+
+
+// =============================================================================
+// AUDIO RESPONSE (ChatCompletionAudio)
+// =============================================================================
+
+/// Audio response data from the model
+type AudioResponse =
+  { id: String          // Unique identifier for the audio
+    data: String        // Base64-encoded audio data
+    expiresAt: Int64    // Unix timestamp when audio expires
+    transcript: String } // Transcript of the audio
+
+/// Parse audio response from JSON
+let parseAudioResponse (fields: List<(String * Json)>) : Stdlib.Option.Option<AudioResponse> =
+  match (Darklang.Anthropic.JsonHelpers.getString "id" fields,
+         Darklang.Anthropic.JsonHelpers.getString "data" fields,
+         Darklang.Anthropic.JsonHelpers.getIntOption "expires_at" fields,
+         Darklang.Anthropic.JsonHelpers.getString "transcript" fields) with
+  | (Some id, Some data, Some expiresAt, Some transcript) ->
+    Stdlib.Option.Option.Some(
+      AudioResponse { id = id; data = data; expiresAt = expiresAt; transcript = transcript })
+  | _ -> Stdlib.Option.Option.None
+
+
+// =============================================================================
+// TOKEN LOG PROBABILITIES (ChatCompletionTokenLogprob)
+// =============================================================================
+
+/// Top log probability entry
+type TopLogprob =
+  { token: String
+    logprob: Float
+    bytes: Stdlib.Option.Option<List<Int64>> }
+
+/// Token log probability
+type TokenLogprob =
+  { token: String
+    logprob: Float
+    bytes: Stdlib.Option.Option<List<Int64>>
+    topLogprobs: List<TopLogprob> }
+
+/// Log probabilities for a choice
+type Logprobs =
+  { content: Stdlib.Option.Option<List<TokenLogprob>>
+    refusal: Stdlib.Option.Option<List<TokenLogprob>> }
+
+
+// =============================================================================
+// MESSAGES (ChatCompletionMessageParam variants)
+// =============================================================================
+
+/// Developer message (ChatCompletionDeveloperMessageParam)
+/// Instructions with higher priority than user messages
+type DeveloperMessage =
+  { content: String
+    name: Stdlib.Option.Option<String> }
+
+/// System message (ChatCompletionSystemMessageParam)
+/// Instructions for the model (use developer for o1+ models)
+type SystemMessage =
+  { content: String
+    name: Stdlib.Option.Option<String> }
+
+/// User message (ChatCompletionUserMessageParam)
+/// Message from the end user
+type UserMessage =
+  { content: UserMessageContent
+    name: Stdlib.Option.Option<String> }
+
+/// User message content - text or multi-modal
+type UserMessageContent =
+  | TextContent of String
+  | PartsContent of List<Darklang.OpenAI.Content.ContentPart>
+
+/// Assistant message (ChatCompletionAssistantMessageParam)
+/// Message from the model
+type AssistantMessage =
+  { content: Stdlib.Option.Option<String>
+    name: Stdlib.Option.Option<String>
+    refusal: Stdlib.Option.Option<String>
+    toolCalls: Stdlib.Option.Option<List<Darklang.OpenAI.Tools.ToolCall>>
+    audio: Stdlib.Option.Option<AssistantAudioRef> }
+
+/// Reference to previously generated audio for multi-turn
+type AssistantAudioRef =
+  { id: String }
+
+/// Tool message (ChatCompletionToolMessageParam)
+/// Result of a tool call
+type ToolMessage =
+  { content: String
+    toolCallId: String }
+
+/// Function message (ChatCompletionFunctionMessageParam) - Deprecated
+type FunctionMessage =
+  { content: String
+    name: String }
+
+/// Union type for all chat messages
+type ChatMessage =
+  | Developer of DeveloperMessage
+  | System of SystemMessage
+  | User of UserMessage
+  | Assistant of AssistantMessage
+  | Tool of ToolMessage
+  | Function of FunctionMessage  // Deprecated
+
+
+// =============================================================================
+// MESSAGE CONSTRUCTORS
+// =============================================================================
+
+/// Create a developer message
+let developerMessage (content: String) : ChatMessage =
+  ChatMessage.Developer(DeveloperMessage { content = content; name = Stdlib.Option.Option.None })
+
+/// Create a developer message with name
+let developerMessageWithName (content: String) (name: String) : ChatMessage =
+  ChatMessage.Developer(DeveloperMessage { content = content; name = Stdlib.Option.Option.Some name })
+
+/// Create a system message
+let systemMessage (content: String) : ChatMessage =
+  ChatMessage.System(SystemMessage { content = content; name = Stdlib.Option.Option.None })
+
+/// Create a system message with name
+let systemMessageWithName (content: String) (name: String) : ChatMessage =
+  ChatMessage.System(SystemMessage { content = content; name = Stdlib.Option.Option.Some name })
+
+/// Create a user message with text content
+let userMessage (content: String) : ChatMessage =
+  ChatMessage.User(
+    UserMessage
+      { content = UserMessageContent.TextContent content
+        name = Stdlib.Option.Option.None })
+
+/// Create a user message with name
+let userMessageWithName (content: String) (name: String) : ChatMessage =
+  ChatMessage.User(
+    UserMessage
+      { content = UserMessageContent.TextContent content
+        name = Stdlib.Option.Option.Some name })
+
+/// Create a multi-modal user message
+let multiModalMessage (parts: List<Darklang.OpenAI.Content.ContentPart>) : ChatMessage =
+  ChatMessage.User(
+    UserMessage
+      { content = UserMessageContent.PartsContent parts
+        name = Stdlib.Option.Option.None })
+
+/// Create a multi-modal user message with name
+let multiModalMessageWithName (parts: List<Darklang.OpenAI.Content.ContentPart>) (name: String) : ChatMessage =
+  ChatMessage.User(
+    UserMessage
+      { content = UserMessageContent.PartsContent parts
+        name = Stdlib.Option.Option.Some name })
+
+/// Create an assistant message with text content
+let assistantMessage (content: String) : ChatMessage =
+  ChatMessage.Assistant(
+    AssistantMessage
+      { content = Stdlib.Option.Option.Some content
+        name = Stdlib.Option.Option.None
+        refusal = Stdlib.Option.Option.None
+        toolCalls = Stdlib.Option.Option.None
+        audio = Stdlib.Option.Option.None })
+
+/// Create an assistant message with tool calls
+let assistantToolCallMessage (toolCalls: List<Darklang.OpenAI.Tools.ToolCall>) : ChatMessage =
+  ChatMessage.Assistant(
+    AssistantMessage
+      { content = Stdlib.Option.Option.None
+        name = Stdlib.Option.Option.None
+        refusal = Stdlib.Option.Option.None
+        toolCalls = Stdlib.Option.Option.Some toolCalls
+        audio = Stdlib.Option.Option.None })
+
+/// Create an assistant message with both content and tool calls
+let assistantMessageWithToolCalls (content: String) (toolCalls: List<Darklang.OpenAI.Tools.ToolCall>) : ChatMessage =
+  ChatMessage.Assistant(
+    AssistantMessage
+      { content = Stdlib.Option.Option.Some content
+        name = Stdlib.Option.Option.None
+        refusal = Stdlib.Option.Option.None
+        toolCalls = Stdlib.Option.Option.Some toolCalls
+        audio = Stdlib.Option.Option.None })
+
+/// Create an assistant message referencing previous audio
+let assistantAudioMessage (audioId: String) : ChatMessage =
+  ChatMessage.Assistant(
+    AssistantMessage
+      { content = Stdlib.Option.Option.None
+        name = Stdlib.Option.Option.None
+        refusal = Stdlib.Option.Option.None
+        toolCalls = Stdlib.Option.Option.None
+        audio = Stdlib.Option.Option.Some(AssistantAudioRef { id = audioId }) })
+
+/// Create a tool result message
+let toolMessage (toolCallId: String) (content: String) : ChatMessage =
+  ChatMessage.Tool(ToolMessage { content = content; toolCallId = toolCallId })
+
+/// Create a function result message (deprecated, use toolMessage)
+let functionMessage (name: String) (content: String) : ChatMessage =
+  ChatMessage.Function(FunctionMessage { content = content; name = name })
+
+
+// =============================================================================
+// MESSAGE JSON CONVERSION
+// =============================================================================
+
+/// Convert user message content to JSON
+let userMessageContentToJson (content: UserMessageContent) : Json =
+  match content with
+  | TextContent s -> Json.String s
+  | PartsContent parts ->
+    Json.Array(Stdlib.List.map parts Darklang.OpenAI.Content.contentPartToJson)
+
+/// Convert tool call to JSON for request (Chat API format)
+let toolCallToRequestJson (tc: Darklang.OpenAI.Tools.ToolCall) : Json =
+  match tc with
+  | FunctionCall fc ->
+    Json.Object
+      [ ("id", Json.String fc.id)
+        ("type", Json.String "function")
+        ("function",
+         Json.Object
+           [ ("name", Json.String fc.name)
+             ("arguments", Json.String fc.arguments) ]) ]
+  | CustomCall cc ->
+    Json.Object
+      [ ("id", Json.String cc.id)
+        ("type", Json.String "custom")
+        ("custom",
+         Json.Object
+           [ ("name", Json.String cc.name)
+             ("input", Json.String cc.input) ]) ]
+
+/// Convert a message to JSON
+let messageToJson (msg: ChatMessage) : Json =
+  match msg with
+  | Developer m ->
+    let fields =
+      [ ("role", Json.String "developer")
+        ("content", Json.String m.content) ]
+    let withName =
+      match m.name with
+      | Some n -> Stdlib.List.append fields [ ("name", Json.String n) ]
+      | None -> fields
+    Json.Object withName
+
+  | System m ->
+    let fields =
+      [ ("role", Json.String "system")
+        ("content", Json.String m.content) ]
+    let withName =
+      match m.name with
+      | Some n -> Stdlib.List.append fields [ ("name", Json.String n) ]
+      | None -> fields
+    Json.Object withName
+
+  | User m ->
+    let fields =
+      [ ("role", Json.String "user")
+        ("content", userMessageContentToJson m.content) ]
+    let withName =
+      match m.name with
+      | Some n -> Stdlib.List.append fields [ ("name", Json.String n) ]
+      | None -> fields
+    Json.Object withName
+
+  | Assistant m ->
+    let fields = [ ("role", Json.String "assistant") ]
+    let withContent =
+      match m.content with
+      | Some c -> Stdlib.List.append fields [ ("content", Json.String c) ]
+      | None -> Stdlib.List.append fields [ ("content", Json.Null) ]
+    let withRefusal =
+      match m.refusal with
+      | Some r -> Stdlib.List.append withContent [ ("refusal", Json.String r) ]
+      | None -> withContent
+    let withToolCalls =
+      match m.toolCalls with
+      | Some tcs ->
+        let tcsJson = Stdlib.List.map tcs toolCallToRequestJson
+        Stdlib.List.append withRefusal [ ("tool_calls", Json.Array tcsJson) ]
+      | None -> withRefusal
+    let withAudio =
+      match m.audio with
+      | Some a -> Stdlib.List.append withToolCalls [ ("audio", Json.Object [ ("id", Json.String a.id) ]) ]
+      | None -> withToolCalls
+    let withName =
+      match m.name with
+      | Some n -> Stdlib.List.append withAudio [ ("name", Json.String n) ]
+      | None -> withAudio
+    Json.Object withName
+
+  | Tool m ->
+    Json.Object
+      [ ("role", Json.String "tool")
+        ("content", Json.String m.content)
+        ("tool_call_id", Json.String m.toolCallId) ]
+
+  | Function m ->
+    Json.Object
+      [ ("role", Json.String "function")
+        ("content", Json.String m.content)
+        ("name", Json.String m.name) ]
+
+
+// =============================================================================
+// REQUEST (ChatCompletionRequest)
+// =============================================================================
+
+/// Chat completion request
+type Request =
+  { // Required
+    model: String
+    messages: List<ChatMessage>
+    // Tools
+    tools: List<Darklang.OpenAI.Tools.Tool>
+    toolChoice: Stdlib.Option.Option<Darklang.OpenAI.Tools.ToolChoice>
+    parallelToolCalls: Stdlib.Option.Option<Bool>
+    // Response format
+    responseFormat: Stdlib.Option.Option<Darklang.OpenAI.ResponseFormat.Format>
+    // Audio
+    modalities: Stdlib.Option.Option<List<Modality>>
+    audio: Stdlib.Option.Option<AudioParam>
+    // Token limits
+    maxTokens: Stdlib.Option.Option<Int64>  // Deprecated
+    maxCompletionTokens: Stdlib.Option.Option<Int64>
+    // Sampling parameters
+    temperature: Stdlib.Option.Option<Float>
+    topP: Stdlib.Option.Option<Float>
+    frequencyPenalty: Stdlib.Option.Option<Float>
+    presencePenalty: Stdlib.Option.Option<Float>
+    stop: Stdlib.Option.Option<List<String>>
+    // Reasoning (o-series, GPT-5)
+    reasoningEffort: Stdlib.Option.Option<Darklang.OpenAI.Models.ReasoningEffort>
+    // Service options
+    serviceTier: Stdlib.Option.Option<Darklang.OpenAI.ServiceTier.Tier>
+    store: Stdlib.Option.Option<Bool>
+    metadata: Stdlib.Option.Option<List<(String * String)>>
+    // Generation options
+    n: Stdlib.Option.Option<Int64>
+    seed: Stdlib.Option.Option<Int64>
+    user: Stdlib.Option.Option<String>
+    // Log probabilities
+    logprobs: Stdlib.Option.Option<Bool>
+    topLogprobs: Stdlib.Option.Option<Int64>
+    logitBias: Stdlib.Option.Option<List<(String * Int64)>>
+    // Advanced features
+    webSearchOptions: Stdlib.Option.Option<Darklang.OpenAI.WebSearch.WebSearchTool>
+    prediction: Stdlib.Option.Option<Darklang.OpenAI.Prediction.PredictedOutput> }
+
+
+// =============================================================================
+// REQUEST BUILDER
+// =============================================================================
+
+/// Create a new request with defaults
+let createRequest () : Request =
+  Request
+    { model = Darklang.OpenAI.Models.gpt4o
+      messages = []
+      tools = []
+      toolChoice = Stdlib.Option.Option.None
+      parallelToolCalls = Stdlib.Option.Option.None
+      responseFormat = Stdlib.Option.Option.None
+      modalities = Stdlib.Option.Option.None
+      audio = Stdlib.Option.Option.None
+      maxTokens = Stdlib.Option.Option.None
+      maxCompletionTokens = Stdlib.Option.Option.None
+      temperature = Stdlib.Option.Option.None
+      topP = Stdlib.Option.Option.None
+      frequencyPenalty = Stdlib.Option.Option.None
+      presencePenalty = Stdlib.Option.Option.None
+      stop = Stdlib.Option.Option.None
+      reasoningEffort = Stdlib.Option.Option.None
+      serviceTier = Stdlib.Option.Option.None
+      store = Stdlib.Option.Option.None
+      metadata = Stdlib.Option.Option.None
+      n = Stdlib.Option.Option.None
+      seed = Stdlib.Option.Option.None
+      user = Stdlib.Option.Option.None
+      logprobs = Stdlib.Option.Option.None
+      topLogprobs = Stdlib.Option.Option.None
+      logitBias = Stdlib.Option.Option.None
+      webSearchOptions = Stdlib.Option.Option.None
+      prediction = Stdlib.Option.Option.None }
+
+/// Set model
+let withModel (req: Request) (model: String) : Request =
+  { req with model = model }
+
+/// Add a message
+let withMessage (req: Request) (msg: ChatMessage) : Request =
+  { req with messages = Stdlib.List.append req.messages [ msg ] }
+
+/// Add a user message
+let withUserMessage (req: Request) (content: String) : Request =
+  withMessage req (userMessage content)
+
+/// Add a system message
+let withSystemMessage (req: Request) (content: String) : Request =
+  withMessage req (systemMessage content)
+
+/// Add an assistant message
+let withAssistantMessage (req: Request) (content: String) : Request =
+  withMessage req (assistantMessage content)
+
+/// Add a developer message
+let withDeveloperMessage (req: Request) (content: String) : Request =
+  withMessage req (developerMessage content)
+
+/// Add a multi-modal message
+let withMultiModalMessage (req: Request) (parts: List<Darklang.OpenAI.Content.ContentPart>) : Request =
+  withMessage req (multiModalMessage parts)
+
+/// Add an image message
+let withImageMessage (req: Request) (imageUrl: String) (prompt: String) : Request =
+  withMultiModalMessage req [ Darklang.OpenAI.Content.imageUrl imageUrl; Darklang.OpenAI.Content.text prompt ]
+
+/// Add a tool result
+let withToolResult (req: Request) (toolCallId: String) (content: String) : Request =
+  withMessage req (toolMessage toolCallId content)
+
+/// Add an assistant message with tool calls (for multi-turn)
+let withAssistantToolCalls (req: Request) (toolCalls: List<Darklang.OpenAI.Tools.ToolCall>) : Request =
+  withMessage req (assistantToolCallMessage toolCalls)
+
+/// Set tools
+let withTools (req: Request) (tools: List<Darklang.OpenAI.Tools.Tool>) : Request =
+  { req with tools = Stdlib.List.append req.tools tools }
+
+/// Set tool choice
+let withToolChoice (req: Request) (choice: Darklang.OpenAI.Tools.ToolChoice) : Request =
+  { req with toolChoice = Stdlib.Option.Option.Some choice }
+
+/// Set parallel tool calls
+let withParallelToolCalls (req: Request) (enabled: Bool) : Request =
+  { req with parallelToolCalls = Stdlib.Option.Option.Some enabled }
+
+/// Set response format
+let withResponseFormat (req: Request) (format: Darklang.OpenAI.ResponseFormat.Format) : Request =
+  { req with responseFormat = Stdlib.Option.Option.Some format }
+
+/// Enable JSON mode
+let withJsonMode (req: Request) : Request =
+  withResponseFormat req Darklang.OpenAI.ResponseFormat.jsonObject
+
+/// Set output modalities
+let withModalities (req: Request) (mods: List<Modality>) : Request =
+  { req with modalities = Stdlib.Option.Option.Some mods }
+
+/// Enable audio output
+let withAudioOutput (req: Request) (voice: String) (format: AudioOutputFormat) : Request =
+  let withMods = { req with modalities = Stdlib.Option.Option.Some [ Modality.Text; Modality.Audio ] }
+  { withMods with audio = Stdlib.Option.Option.Some(AudioParam { voice = voice; format = format }) }
+
+/// Set audio parameters
+let withAudioParam (req: Request) (param: AudioParam) : Request =
+  { req with audio = Stdlib.Option.Option.Some param }
+
+/// Set max tokens (deprecated, use withMaxCompletionTokens)
+let withMaxTokens (req: Request) (tokens: Int64) : Request =
+  { req with maxTokens = Stdlib.Option.Option.Some tokens }
+
+/// Set max completion tokens
+let withMaxCompletionTokens (req: Request) (tokens: Int64) : Request =
+  { req with maxCompletionTokens = Stdlib.Option.Option.Some tokens }
+
+/// Set temperature
+let withTemperature (req: Request) (temp: Float) : Request =
+  { req with temperature = Stdlib.Option.Option.Some temp }
+
+/// Set top_p
+let withTopP (req: Request) (topP: Float) : Request =
+  { req with topP = Stdlib.Option.Option.Some topP }
+
+/// Set frequency penalty
+let withFrequencyPenalty (req: Request) (penalty: Float) : Request =
+  { req with frequencyPenalty = Stdlib.Option.Option.Some penalty }
+
+/// Set presence penalty
+let withPresencePenalty (req: Request) (penalty: Float) : Request =
+  { req with presencePenalty = Stdlib.Option.Option.Some penalty }
+
+/// Set stop sequences
+let withStop (req: Request) (sequences: List<String>) : Request =
+  { req with stop = Stdlib.Option.Option.Some sequences }
+
+/// Set reasoning effort
+let withReasoningEffort (req: Request) (effort: Darklang.OpenAI.Models.ReasoningEffort) : Request =
+  { req with reasoningEffort = Stdlib.Option.Option.Some effort }
+
+/// Set service tier
+let withServiceTier (req: Request) (tier: Darklang.OpenAI.ServiceTier.Tier) : Request =
+  { req with serviceTier = Stdlib.Option.Option.Some tier }
+
+/// Enable storage
+let withStore (req: Request) (store: Bool) : Request =
+  { req with store = Stdlib.Option.Option.Some store }
+
+/// Set metadata
+let withMetadata (req: Request) (pairs: List<(String * String)>) : Request =
+  { req with metadata = Stdlib.Option.Option.Some pairs }
+
+/// Set number of completions
+let withN (req: Request) (count: Int64) : Request =
+  { req with n = Stdlib.Option.Option.Some count }
+
+/// Set seed
+let withSeed (req: Request) (seed: Int64) : Request =
+  { req with seed = Stdlib.Option.Option.Some seed }
+
+/// Set user ID
+let withUser (req: Request) (userId: String) : Request =
+  { req with user = Stdlib.Option.Option.Some userId }
+
+/// Enable log probabilities
+let withLogprobs (req: Request) (enabled: Bool) : Request =
+  { req with logprobs = Stdlib.Option.Option.Some enabled }
+
+/// Set top log probabilities count
+let withTopLogprobs (req: Request) (count: Int64) : Request =
+  { req with topLogprobs = Stdlib.Option.Option.Some count }
+
+/// Set logit bias
+let withLogitBias (req: Request) (biases: List<(String * Int64)>) : Request =
+  { req with logitBias = Stdlib.Option.Option.Some biases }
+
+/// Enable web search
+let withWebSearch (req: Request) (options: Darklang.OpenAI.WebSearch.WebSearchTool) : Request =
+  { req with webSearchOptions = Stdlib.Option.Option.Some options }
+
+/// Enable web search with defaults
+let withWebSearchEnabled (req: Request) : Request =
+  withWebSearch req Darklang.OpenAI.WebSearch.defaultTool
+
+/// Set prediction
+let withPrediction (req: Request) (prediction: Darklang.OpenAI.Prediction.PredictedOutput) : Request =
+  { req with prediction = Stdlib.Option.Option.Some prediction }
+
+/// Set predicted content
+let withPredictedContent (req: Request) (content: String) : Request =
+  withPrediction req (Darklang.OpenAI.Prediction.create content)
+
+
+// =============================================================================
+// REQUEST VALIDATION
+// =============================================================================
+
+/// Validate request against model capabilities
+let validateRequest (req: Request) : Stdlib.Result.Result<Unit, String> =
+  let caps = Darklang.OpenAI.Models.getCapabilities req.model
+
+  // Check temperature
+  let tempCheck =
+    match req.temperature with
+    | Some _ ->
+      if caps.supportsTemperature then
+        Stdlib.Result.Result.Ok()
+      else
+        Stdlib.Result.Result.Error(
+          "Model " ++ req.model ++ " does not support temperature parameter")
+    | None -> Stdlib.Result.Result.Ok()
+
+  // Check tools
+  let toolsCheck =
+    if Stdlib.List.isEmpty req.tools then
+      Stdlib.Result.Result.Ok()
+    else if caps.supportsTools then
+      Stdlib.Result.Result.Ok()
+    else
+      Stdlib.Result.Result.Error("Model " ++ req.model ++ " does not support tools")
+
+  // Check top_p
+  let topPCheck =
+    match req.topP with
+    | Some _ ->
+      if caps.supportsTemperature then
+        Stdlib.Result.Result.Ok()
+      else
+        Stdlib.Result.Result.Error(
+          "Model " ++ req.model ++ " does not support top_p parameter")
+    | None -> Stdlib.Result.Result.Ok()
+
+  // Check presence penalty
+  let presenceCheck =
+    match req.presencePenalty with
+    | Some _ ->
+      if caps.supportsTemperature then
+        Stdlib.Result.Result.Ok()
+      else
+        Stdlib.Result.Result.Error(
+          "Model " ++ req.model ++ " does not support presence_penalty parameter")
+    | None -> Stdlib.Result.Result.Ok()
+
+  // Check frequency penalty
+  let frequencyCheck =
+    match req.frequencyPenalty with
+    | Some _ ->
+      if caps.supportsTemperature then
+        Stdlib.Result.Result.Ok()
+      else
+        Stdlib.Result.Result.Error(
+          "Model " ++ req.model ++ " does not support frequency_penalty parameter")
+    | None -> Stdlib.Result.Result.Ok()
+
+  // Check stop sequences
+  let stopCheck =
+    match req.stop with
+    | Some _ ->
+      if caps.supportsStop then
+        Stdlib.Result.Result.Ok()
+      else
+        Stdlib.Result.Result.Error("Model " ++ req.model ++ " does not support stop sequences")
+    | None -> Stdlib.Result.Result.Ok()
+
+  // Combine checks
+  match tempCheck with
+  | Error e -> Stdlib.Result.Result.Error e
+  | Ok _ ->
+    match toolsCheck with
+    | Error e -> Stdlib.Result.Result.Error e
+    | Ok _ ->
+      match topPCheck with
+      | Error e -> Stdlib.Result.Result.Error e
+      | Ok _ ->
+        match presenceCheck with
+        | Error e -> Stdlib.Result.Result.Error e
+        | Ok _ ->
+          match frequencyCheck with
+          | Error e -> Stdlib.Result.Result.Error e
+          | Ok _ -> stopCheck
+
+
+// =============================================================================
+// REQUEST JSON BUILD
+// =============================================================================
+
+/// Build request JSON
+let buildRequestJson (req: Request) : Json =
+  let messagesJson = Stdlib.List.map req.messages messageToJson
+  let caps = Darklang.OpenAI.Models.getCapabilities req.model
+
+  let fields =
+    [ ("model", Json.String req.model)
+      ("messages", Json.Array messagesJson) ]
+
+  // Tools
+  let withTools_ =
+    if Stdlib.List.isEmpty req.tools || (Stdlib.Bool.not caps.supportsTools) then
+      fields
+    else
+      let toolsJson = Stdlib.List.map req.tools Darklang.OpenAI.Tools.toJson
+      Stdlib.List.append fields [ ("tools", Json.Array toolsJson) ]
+
+  let withToolChoice_ =
+    match req.toolChoice with
+    | Some choice ->
+      if caps.supportsTools then
+        Stdlib.List.append withTools_ [ ("tool_choice", Darklang.OpenAI.Tools.toolChoiceToJson choice) ]
+      else
+        withTools_
+    | None -> withTools_
+
+  let withParallelToolCalls_ =
+    match req.parallelToolCalls with
+    | Some enabled ->
+      Stdlib.List.append withToolChoice_ [ ("parallel_tool_calls", Json.Bool enabled) ]
+    | None -> withToolChoice_
+
+  // Response format
+  let withResponseFormat_ =
+    match req.responseFormat with
+    | Some format ->
+      Stdlib.List.append withParallelToolCalls_ [ ("response_format", Darklang.OpenAI.ResponseFormat.toJson format) ]
+    | None -> withParallelToolCalls_
+
+  // Modalities
+  let withModalities_ =
+    match req.modalities with
+    | Some mods ->
+      let modsJson = Stdlib.List.map mods (fun m -> Json.String(modalityToString m))
+      Stdlib.List.append withResponseFormat_ [ ("modalities", Json.Array modsJson) ]
+    | None -> withResponseFormat_
+
+  // Audio
+  let withAudio_ =
+    match req.audio with
+    | Some param ->
+      Stdlib.List.append withModalities_ [ ("audio", audioParamToJson param) ]
+    | None -> withModalities_
+
+  // Max tokens
+  let withMaxTokens_ =
+    if caps.requiresMaxCompletionTokens then
+      match req.maxCompletionTokens with
+      | Some t ->
+        Stdlib.List.append withAudio_ [ ("max_completion_tokens", Json.Number(Stdlib.Int64.toFloat t)) ]
+      | None ->
+        match req.maxTokens with
+        | Some t ->
+          Stdlib.List.append withAudio_ [ ("max_completion_tokens", Json.Number(Stdlib.Int64.toFloat t)) ]
+        | None -> withAudio_
+    else
+      match req.maxCompletionTokens with
+      | Some t ->
+        Stdlib.List.append withAudio_ [ ("max_completion_tokens", Json.Number(Stdlib.Int64.toFloat t)) ]
+      | None ->
+        match req.maxTokens with
+        | Some t ->
+          Stdlib.List.append withAudio_ [ ("max_tokens", Json.Number(Stdlib.Int64.toFloat t)) ]
+        | None -> withAudio_
+
+  // Reasoning effort
+  let withReasoningEffort_ =
+    match req.reasoningEffort with
+    | Some effort ->
+      if caps.supportsReasoningEffort then
+        Stdlib.List.append withMaxTokens_ [ ("reasoning_effort", Json.String(Darklang.OpenAI.Models.reasoningEffortToString effort)) ]
+      else
+        withMaxTokens_
+    | None -> withMaxTokens_
+
+  // Temperature
+  let withTemp_ =
+    match req.temperature with
+    | Some t ->
+      if caps.supportsTemperature then
+        Stdlib.List.append withReasoningEffort_ [ ("temperature", Json.Number t) ]
+      else
+        withReasoningEffort_
+    | None -> withReasoningEffort_
+
+  // Top P
+  let withTopP_ =
+    match req.topP with
+    | Some p ->
+      if caps.supportsTemperature then
+        Stdlib.List.append withTemp_ [ ("top_p", Json.Number p) ]
+      else
+        withTemp_
+    | None -> withTemp_
+
+  // Frequency penalty
+  let withFreqPenalty_ =
+    match req.frequencyPenalty with
+    | Some p ->
+      if caps.supportsTemperature then
+        Stdlib.List.append withTopP_ [ ("frequency_penalty", Json.Number p) ]
+      else
+        withTopP_
+    | None -> withTopP_
+
+  // Presence penalty
+  let withPresPenalty_ =
+    match req.presencePenalty with
+    | Some p ->
+      if caps.supportsTemperature then
+        Stdlib.List.append withFreqPenalty_ [ ("presence_penalty", Json.Number p) ]
+      else
+        withFreqPenalty_
+    | None -> withFreqPenalty_
+
+  // Stop
+  let withStop_ =
+    match req.stop with
+    | Some stops ->
+      if caps.supportsStop then
+        let stopsJson = Stdlib.List.map stops (fun s -> Json.String s)
+        Stdlib.List.append withPresPenalty_ [ ("stop", Json.Array stopsJson) ]
+      else
+        withPresPenalty_
+    | None -> withPresPenalty_
+
+  // Service tier
+  let withServiceTier_ =
+    match req.serviceTier with
+    | Some tier ->
+      Stdlib.List.append withStop_ [ ("service_tier", Json.String(Darklang.OpenAI.ServiceTier.toString tier)) ]
+    | None -> withStop_
+
+  // Store
+  let withStore_ =
+    match req.store with
+    | Some s ->
+      Stdlib.List.append withServiceTier_ [ ("store", Json.Bool s) ]
+    | None -> withServiceTier_
+
+  // Metadata
+  let withMetadata_ =
+    match req.metadata with
+    | Some pairs ->
+      let metaJson = Stdlib.List.map pairs (fun (k, v) -> (k, Json.String v))
+      Stdlib.List.append withStore_ [ ("metadata", Json.Object metaJson) ]
+    | None -> withStore_
+
+  // N
+  let withN_ =
+    match req.n with
+    | Some count ->
+      Stdlib.List.append withMetadata_ [ ("n", Json.Number(Stdlib.Int64.toFloat count)) ]
+    | None -> withMetadata_
+
+  // Seed
+  let withSeed_ =
+    match req.seed with
+    | Some s ->
+      Stdlib.List.append withN_ [ ("seed", Json.Number(Stdlib.Int64.toFloat s)) ]
+    | None -> withN_
+
+  // User
+  let withUser_ =
+    match req.user with
+    | Some u ->
+      Stdlib.List.append withSeed_ [ ("user", Json.String u) ]
+    | None -> withSeed_
+
+  // Logprobs
+  let withLogprobs_ =
+    match req.logprobs with
+    | Some enabled ->
+      Stdlib.List.append withUser_ [ ("logprobs", Json.Bool enabled) ]
+    | None -> withUser_
+
+  // Top logprobs
+  let withTopLogprobs_ =
+    match req.topLogprobs with
+    | Some count ->
+      Stdlib.List.append withLogprobs_ [ ("top_logprobs", Json.Number(Stdlib.Int64.toFloat count)) ]
+    | None -> withLogprobs_
+
+  // Logit bias
+  let withLogitBias_ =
+    match req.logitBias with
+    | Some biases ->
+      let biasJson = Stdlib.List.map biases (fun (k, v) -> (k, Json.Number(Stdlib.Int64.toFloat v)))
+      Stdlib.List.append withTopLogprobs_ [ ("logit_bias", Json.Object biasJson) ]
+    | None -> withTopLogprobs_
+
+  // Web search
+  let withWebSearch_ =
+    match req.webSearchOptions with
+    | Some opts ->
+      Stdlib.List.append withLogitBias_ [ ("web_search_options", Darklang.OpenAI.WebSearch.toJson opts) ]
+    | None -> withLogitBias_
+
+  // Prediction
+  let withPrediction_ =
+    match req.prediction with
+    | Some pred ->
+      Stdlib.List.append withWebSearch_ [ ("prediction", Darklang.OpenAI.Prediction.toJson pred) ]
+    | None -> withWebSearch_
+
+  Json.Object withPrediction_
+
+
+// =============================================================================
+// RESPONSE TYPES (ChatCompletion)
+// =============================================================================
+
+/// Message in a chat completion response (ChatCompletionMessage)
+type ResponseMessage =
+  { role: Role
+    content: Stdlib.Option.Option<String>
+    refusal: Stdlib.Option.Option<String>
+    toolCalls: List<Darklang.OpenAI.Tools.ToolCall>
+    audio: Stdlib.Option.Option<AudioResponse> }
+
+/// A choice in the chat completion (part of ChatCompletion.choices)
+type Choice =
+  { index: Int64
+    message: ResponseMessage
+    finishReason: String
+    logprobs: Stdlib.Option.Option<Logprobs> }
+
+/// Token usage information
+type Usage =
+  { promptTokens: Int64
+    completionTokens: Int64
+    totalTokens: Int64
+    /// Reasoning tokens (o-series models)
+    reasoningTokens: Int64
+    /// Cached prompt tokens
+    cachedTokens: Int64 }
+
+/// Chat completion response (ChatCompletion)
+type Response =
+  { id: String
+    object_: String  // "chat.completion"
+    created: Int64
+    model: String
+    choices: List<Choice>
+    usage: Usage
+    serviceTier: Stdlib.Option.Option<String>
+    systemFingerprint: Stdlib.Option.Option<String> }
+
+
+// =============================================================================
+// RESPONSE PARSING
+// =============================================================================
+
+/// Parse a tool call from Chat API response format
+let parseToolCallFromChat (tc: Json) : Stdlib.Result.Result<Darklang.OpenAI.Tools.ToolCall, String> =
+  match tc with
+  | Object tcFields ->
+    let idOpt = Darklang.Anthropic.JsonHelpers.getString "id" tcFields
+    let typeOpt = Darklang.Anthropic.JsonHelpers.getString "type" tcFields
+
+    match (idOpt, typeOpt) with
+    | (Some id, Some "function") ->
+      let funcFields = Darklang.Anthropic.JsonHelpers.getObject "function" tcFields
+      let nameOpt = Darklang.Anthropic.JsonHelpers.getString "name" funcFields
+      let argsStrOpt = Darklang.Anthropic.JsonHelpers.getString "arguments" funcFields
+
+      match nameOpt with
+      | Some name ->
+        let argsStr = Stdlib.Option.withDefault argsStrOpt "{}"
+        Stdlib.Result.Result.Ok(
+          Darklang.OpenAI.Tools.ToolCall.FunctionCall(
+            Darklang.OpenAI.Tools.FunctionToolCall
+              { id = id
+                callId = id
+                status = Darklang.OpenAI.Tools.ToolCallStatus.Completed
+                name = name
+                arguments = argsStr }))
+      | None -> Stdlib.Result.Result.Error "Tool call missing 'function.name'"
+
+    | (Some id, Some "custom") ->
+      let customFields = Darklang.Anthropic.JsonHelpers.getObject "custom" tcFields
+      let nameOpt = Darklang.Anthropic.JsonHelpers.getString "name" customFields
+      let inputOpt = Darklang.Anthropic.JsonHelpers.getString "input" customFields
+
+      match nameOpt with
+      | Some name ->
+        let input = Stdlib.Option.withDefault inputOpt ""
+        Stdlib.Result.Result.Ok(
+          Darklang.OpenAI.Tools.ToolCall.CustomCall(
+            Darklang.OpenAI.Tools.CustomToolCall
+              { id = id
+                callId = id
+                status = Darklang.OpenAI.Tools.ToolCallStatus.Completed
+                name = name
+                input = input }))
+      | None -> Stdlib.Result.Result.Error "Tool call missing 'custom.name'"
+
+    | (None, _) -> Stdlib.Result.Result.Error "Tool call missing 'id'"
+    | (_, None) -> Stdlib.Result.Result.Error "Tool call missing 'type'"
+    | _ -> Stdlib.Result.Result.Error "Unknown tool call type"
+  | _ -> Stdlib.Result.Result.Error "Tool call is not a JSON object"
+
+/// Parse tool calls from message fields
+let parseToolCalls (messageFields: List<(String * Json)>) : Stdlib.Result.Result<List<Darklang.OpenAI.Tools.ToolCall>, String> =
+  match Darklang.Anthropic.JsonHelpers.getValue "tool_calls" messageFields with
+  | Some (Array toolCalls) ->
+    let results = Stdlib.List.map toolCalls parseToolCallFromChat
+    let errors =
+      Stdlib.List.filterMap results (fun r ->
+        match r with
+        | Error e -> Stdlib.Option.Option.Some e
+        | Ok _ -> Stdlib.Option.Option.None)
+    if Stdlib.List.isEmpty errors then
+      let successes =
+        Stdlib.List.filterMap results (fun r ->
+          match r with
+          | Ok tc -> Stdlib.Option.Option.Some tc
+          | Error _ -> Stdlib.Option.Option.None)
+      Stdlib.Result.Result.Ok successes
+    else
+      Stdlib.Result.Result.Error("Failed to parse tool calls: " ++ Stdlib.String.join errors ", ")
+  | Some _ -> Stdlib.Result.Result.Error "tool_calls field is not an array"
+  | None -> Stdlib.Result.Result.Ok []
+
+/// Parse a response message
+let parseResponseMessage (messageFields: List<(String * Json)>) : Stdlib.Result.Result<ResponseMessage, String> =
+  let roleStr = Stdlib.Option.withDefault (Darklang.Anthropic.JsonHelpers.getString "role" messageFields) "assistant"
+  let role =
+    match parseRole roleStr with
+    | Ok r -> r
+    | Error _ -> Role.Assistant
+
+  let content = Darklang.Anthropic.JsonHelpers.getString "content" messageFields
+  let refusal = Darklang.Anthropic.JsonHelpers.getString "refusal" messageFields
+
+  match parseToolCalls messageFields with
+  | Error e -> Stdlib.Result.Result.Error e
+  | Ok toolCalls ->
+    let audioFields = Darklang.Anthropic.JsonHelpers.getObject "audio" messageFields
+    let audio =
+      if Stdlib.List.isEmpty audioFields then
+        Stdlib.Option.Option.None
+      else
+        parseAudioResponse audioFields
+
+    Stdlib.Result.Result.Ok(
+      ResponseMessage
+        { role = role
+          content = content
+          refusal = refusal
+          toolCalls = toolCalls
+          audio = audio })
+
+/// Parse a choice
+let parseChoice (choiceJson: Json) : Stdlib.Result.Result<Choice, String> =
+  match choiceJson with
+  | Object choiceFields ->
+    let index = Darklang.Anthropic.JsonHelpers.getInt "index" choiceFields
+    let finishReason =
+      Stdlib.Option.withDefault
+        (Darklang.Anthropic.JsonHelpers.getString "finish_reason" choiceFields)
+        "stop"
+    let messageFields = Darklang.Anthropic.JsonHelpers.getObject "message" choiceFields
+
+    match parseResponseMessage messageFields with
+    | Error e -> Stdlib.Result.Result.Error e
+    | Ok message ->
+      // TODO: Parse logprobs if needed
+      Stdlib.Result.Result.Ok(
+        Choice
+          { index = index
+            message = message
+            finishReason = finishReason
+            logprobs = Stdlib.Option.Option.None })
+  | _ -> Stdlib.Result.Result.Error "Choice is not a JSON object"
+
+/// Parse usage information
+let parseUsage (usageFields: List<(String * Json)>) : Usage =
+  let promptTokens = Darklang.Anthropic.JsonHelpers.getInt "prompt_tokens" usageFields
+  let completionTokens = Darklang.Anthropic.JsonHelpers.getInt "completion_tokens" usageFields
+  let totalTokens = Darklang.Anthropic.JsonHelpers.getInt "total_tokens" usageFields
+
+  let completionDetails = Darklang.Anthropic.JsonHelpers.getObject "completion_tokens_details" usageFields
+  let reasoningTokens = Darklang.Anthropic.JsonHelpers.getInt "reasoning_tokens" completionDetails
+
+  let promptDetails = Darklang.Anthropic.JsonHelpers.getObject "prompt_tokens_details" usageFields
+  let cachedTokens = Darklang.Anthropic.JsonHelpers.getInt "cached_tokens" promptDetails
+
+  Usage
+    { promptTokens = promptTokens
+      completionTokens = completionTokens
+      totalTokens = totalTokens
+      reasoningTokens = reasoningTokens
+      cachedTokens = cachedTokens }
+
+/// Parse full response
+let parseResponse (json: Json) : Stdlib.Result.Result<Response, String> =
+  match json with
+  | Object fields ->
+    let id = Stdlib.Option.withDefault (Darklang.Anthropic.JsonHelpers.getString "id" fields) ""
+    let object_ = Stdlib.Option.withDefault (Darklang.Anthropic.JsonHelpers.getString "object" fields) "chat.completion"
+    let created = Darklang.Anthropic.JsonHelpers.getInt "created" fields
+    let model = Stdlib.Option.withDefault (Darklang.Anthropic.JsonHelpers.getString "model" fields) ""
+
+    let choicesArray = Darklang.Anthropic.JsonHelpers.getArray "choices" fields
+    let choiceResults = Stdlib.List.map choicesArray parseChoice
+
+    let errors =
+      Stdlib.List.filterMap choiceResults (fun r ->
+        match r with
+        | Error e -> Stdlib.Option.Option.Some e
+        | Ok _ -> Stdlib.Option.Option.None)
+
+    if Stdlib.Bool.not (Stdlib.List.isEmpty errors) then
+      Stdlib.Result.Result.Error("Failed to parse choices: " ++ Stdlib.String.join errors ", ")
+    else
+      let choices =
+        Stdlib.List.filterMap choiceResults (fun r ->
+          match r with
+          | Ok c -> Stdlib.Option.Option.Some c
+          | Error _ -> Stdlib.Option.Option.None)
+
+      let usageFields = Darklang.Anthropic.JsonHelpers.getObject "usage" fields
+      let usage = parseUsage usageFields
+
+      let serviceTier = Darklang.Anthropic.JsonHelpers.getString "service_tier" fields
+      let systemFingerprint = Darklang.Anthropic.JsonHelpers.getString "system_fingerprint" fields
+
+      Stdlib.Result.Result.Ok(
+        Response
+          { id = id
+            object_ = object_
+            created = created
+            model = model
+            choices = choices
+            usage = usage
+            serviceTier = serviceTier
+            systemFingerprint = systemFingerprint })
+  | _ -> Stdlib.Result.Result.Error "Invalid response format"
+
+
+// =============================================================================
+// CREATE CHAT COMPLETION
+// POST /chat/completions
+// =============================================================================
+
+/// Send a chat completion request
+let send (apiKey: String) (req: Request) : Stdlib.Result.Result<Response, String> =
+  if apiKey == "" then
+    Stdlib.Result.Result.Error "API key cannot be empty"
+  else
+    match validateRequest req with
+    | Error e -> Stdlib.Result.Result.Error e
+    | Ok _ ->
+      let requestJson = buildRequestJson req
+      let body = Stdlib.AltJson.format requestJson
+      let headers = Darklang.OpenAI.Config.getHeaders apiKey
+      let url = Darklang.OpenAI.Config.baseUrl ++ "/chat/completions"
+
+      match Stdlib.HttpClient.post url headers (Stdlib.String.toBytes body) with
+      | Error e -> Stdlib.Result.Result.Error("HTTP request failed: " ++ Stdlib.HttpClient.toString e)
+      | Ok response ->
+        let bodyStr = Stdlib.String.fromBytesWithReplacement response.body
+
+        match response.statusCode with
+        | code when code >= 200L && code < 300L ->
+          match Stdlib.AltJson.parse bodyStr with
+          | Ok json -> parseResponse json
+          | Error e -> Stdlib.Result.Result.Error("Failed to parse response: " ++ e)
+        | 401L -> Stdlib.Result.Result.Error "Authentication failed: Invalid API key"
+        | 429L -> Stdlib.Result.Result.Error "Rate limit exceeded"
+        | code when code >= 500L -> Stdlib.Result.Result.Error("OpenAI server error: " ++ bodyStr)
+        | _ ->
+          match Stdlib.AltJson.parse bodyStr with
+          | Ok (Object fields) ->
+            match Darklang.Anthropic.JsonHelpers.getObject "error" fields with
+            | [] -> Stdlib.Result.Result.Error("API error: " ++ bodyStr)
+            | errorFields ->
+              let message =
+                Stdlib.Option.withDefault
+                  (Darklang.Anthropic.JsonHelpers.getString "message" errorFields)
+                  bodyStr
+              Stdlib.Result.Result.Error("API error: " ++ message)
+          | _ -> Stdlib.Result.Result.Error("API error: " ++ bodyStr)
+
+
+// =============================================================================
+// CHAT COMPLETION CRUD OPERATIONS
+// =============================================================================
+
+/// Deleted chat completion response (ChatCompletionDeleted)
+type ChatCompletionDeleted =
+  { id: String
+    object_: String  // "chat.completion.deleted"
+    deleted: Bool }
+
+/// Stored message in a chat completion (ChatCompletionStoreMessage)
+/// Matches ChatCompletionMessage structure
+type StoredMessage =
+  { role: Role
+    content: Stdlib.Option.Option<String>
+    refusal: Stdlib.Option.Option<String>
+    toolCalls: List<Darklang.OpenAI.Tools.ToolCall>
+    audio: Stdlib.Option.Option<AudioResponse> }
+
+/// List chat completions
+/// GET /chat/completions
+let list
+  (apiKey: String)
+  (limit: Stdlib.Option.Option<Int64>)
+  (after: Stdlib.Option.Option<String>)
+  (order: Stdlib.Option.Option<String>)
+  : Stdlib.Result.Result<List<Response>, String> =
+  if apiKey == "" then
+    Stdlib.Result.Result.Error "API key cannot be empty"
+  else
+    let headers = Darklang.OpenAI.Config.getHeaders apiKey
+    let baseUrl = Darklang.OpenAI.Config.baseUrl ++ "/chat/completions"
+
+    let queryParams =
+      let params = []
+      let withLimit =
+        match limit with
+        | Some l -> Stdlib.List.append params [ ("limit", Stdlib.Int64.toString l) ]
+        | None -> params
+      let withAfter =
+        match after with
+        | Some a -> Stdlib.List.append withLimit [ ("after", a) ]
+        | None -> withLimit
+      let withOrder =
+        match order with
+        | Some o -> Stdlib.List.append withAfter [ ("order", o) ]
+        | None -> withAfter
+      withOrder
+
+    let url =
+      if Stdlib.List.isEmpty queryParams then
+        baseUrl
+      else
+        let paramParts = Stdlib.List.map queryParams (fun (k, v) -> k ++ "=" ++ v)
+        let paramStr = Stdlib.String.join paramParts "&"
+        baseUrl ++ "?" ++ paramStr
+
+    match Stdlib.HttpClient.get url headers with
+    | Error e -> Stdlib.Result.Result.Error("HTTP request failed: " ++ Stdlib.HttpClient.toString e)
+    | Ok response ->
+      let bodyStr = Stdlib.String.fromBytesWithReplacement response.body
+
+      match response.statusCode with
+      | code when code >= 200L && code < 300L ->
+        match Stdlib.AltJson.parse bodyStr with
+        | Ok (Object fields) ->
+          let dataArray = Darklang.Anthropic.JsonHelpers.getArray "data" fields
+          let results = Stdlib.List.map dataArray parseResponse
+          let errors =
+            Stdlib.List.filterMap results (fun r ->
+              match r with
+              | Error e -> Stdlib.Option.Option.Some e
+              | Ok _ -> Stdlib.Option.Option.None)
+          if Stdlib.List.isEmpty errors then
+            let successes =
+              Stdlib.List.filterMap results (fun r ->
+                match r with
+                | Ok resp -> Stdlib.Option.Option.Some resp
+                | Error _ -> Stdlib.Option.Option.None)
+            Stdlib.Result.Result.Ok successes
+          else
+            Stdlib.Result.Result.Error("Failed to parse completions: " ++ Stdlib.String.join errors ", ")
+        | _ -> Stdlib.Result.Result.Error "Invalid response format"
+      | 401L -> Stdlib.Result.Result.Error "Authentication failed: Invalid API key"
+      | 429L -> Stdlib.Result.Result.Error "Rate limit exceeded"
+      | _ -> Stdlib.Result.Result.Error("API error: " ++ bodyStr)
+
+/// Get a chat completion by ID
+/// GET /chat/completions/{completion_id}
+let get (apiKey: String) (completionId: String) : Stdlib.Result.Result<Response, String> =
+  if apiKey == "" then
+    Stdlib.Result.Result.Error "API key cannot be empty"
+  else
+    let headers = Darklang.OpenAI.Config.getHeaders apiKey
+    let url = Darklang.OpenAI.Config.baseUrl ++ "/chat/completions/" ++ completionId
+
+    match Stdlib.HttpClient.get url headers with
+    | Error e -> Stdlib.Result.Result.Error("HTTP request failed: " ++ Stdlib.HttpClient.toString e)
+    | Ok response ->
+      let bodyStr = Stdlib.String.fromBytesWithReplacement response.body
+
+      match response.statusCode with
+      | code when code >= 200L && code < 300L ->
+        match Stdlib.AltJson.parse bodyStr with
+        | Ok json -> parseResponse json
+        | Error e -> Stdlib.Result.Result.Error("Failed to parse response: " ++ e)
+      | 401L -> Stdlib.Result.Result.Error "Authentication failed: Invalid API key"
+      | 404L -> Stdlib.Result.Result.Error("Chat completion not found: " ++ completionId)
+      | 429L -> Stdlib.Result.Result.Error "Rate limit exceeded"
+      | _ -> Stdlib.Result.Result.Error("API error: " ++ bodyStr)
+
+/// Update a chat completion's metadata
+/// POST /chat/completions/{completion_id}
+let update
+  (apiKey: String)
+  (completionId: String)
+  (metadata: List<(String * String)>)
+  : Stdlib.Result.Result<Response, String> =
+  if apiKey == "" then
+    Stdlib.Result.Result.Error "API key cannot be empty"
+  else
+    let headers = Darklang.OpenAI.Config.getHeaders apiKey
+    let url = Darklang.OpenAI.Config.baseUrl ++ "/chat/completions/" ++ completionId
+
+    let metaJson = Stdlib.List.map metadata (fun (k, v) -> (k, Json.String v))
+    let requestJson = Json.Object [ ("metadata", Json.Object metaJson) ]
+    let body = Stdlib.AltJson.format requestJson
+
+    match Stdlib.HttpClient.post url headers (Stdlib.String.toBytes body) with
+    | Error e -> Stdlib.Result.Result.Error("HTTP request failed: " ++ Stdlib.HttpClient.toString e)
+    | Ok response ->
+      let bodyStr = Stdlib.String.fromBytesWithReplacement response.body
+
+      match response.statusCode with
+      | code when code >= 200L && code < 300L ->
+        match Stdlib.AltJson.parse bodyStr with
+        | Ok json -> parseResponse json
+        | Error e -> Stdlib.Result.Result.Error("Failed to parse response: " ++ e)
+      | 401L -> Stdlib.Result.Result.Error "Authentication failed: Invalid API key"
+      | 404L -> Stdlib.Result.Result.Error("Chat completion not found: " ++ completionId)
+      | 429L -> Stdlib.Result.Result.Error "Rate limit exceeded"
+      | _ -> Stdlib.Result.Result.Error("API error: " ++ bodyStr)
+
+/// Delete a chat completion
+/// DELETE /chat/completions/{completion_id}
+let delete (apiKey: String) (completionId: String) : Stdlib.Result.Result<ChatCompletionDeleted, String> =
+  if apiKey == "" then
+    Stdlib.Result.Result.Error "API key cannot be empty"
+  else
+    let headers = Darklang.OpenAI.Config.getHeaders apiKey
+    let url = Darklang.OpenAI.Config.baseUrl ++ "/chat/completions/" ++ completionId
+
+    match Stdlib.HttpClient.delete url headers with
+    | Error e -> Stdlib.Result.Result.Error("HTTP request failed: " ++ Stdlib.HttpClient.toString e)
+    | Ok response ->
+      let bodyStr = Stdlib.String.fromBytesWithReplacement response.body
+
+      match response.statusCode with
+      | code when code >= 200L && code < 300L ->
+        match Stdlib.AltJson.parse bodyStr with
+        | Ok (Object fields) ->
+          match (Darklang.Anthropic.JsonHelpers.getString "id" fields,
+                 Darklang.Anthropic.JsonHelpers.getString "object" fields,
+                 Darklang.Anthropic.JsonHelpers.getBool "deleted" fields) with
+          | (Some id, Some obj, Some deleted) ->
+            Stdlib.Result.Result.Ok(
+              ChatCompletionDeleted { id = id; object_ = obj; deleted = deleted })
+          | _ -> Stdlib.Result.Result.Error "Invalid delete response format"
+        | _ -> Stdlib.Result.Result.Error "Invalid response format"
+      | 401L -> Stdlib.Result.Result.Error "Authentication failed: Invalid API key"
+      | 404L -> Stdlib.Result.Result.Error("Chat completion not found: " ++ completionId)
+      | 429L -> Stdlib.Result.Result.Error "Rate limit exceeded"
+      | _ -> Stdlib.Result.Result.Error("API error: " ++ bodyStr)
+
+/// Parse a stored message from JSON fields
+let parseStoredMessage (msgFields: List<(String * Json)>) : Stdlib.Result.Result<StoredMessage, String> =
+  let roleStr = Stdlib.Option.withDefault (Darklang.Anthropic.JsonHelpers.getString "role" msgFields) "user"
+  let role =
+    match parseRole roleStr with
+    | Ok r -> r
+    | Error _ -> Role.User
+
+  let content = Darklang.Anthropic.JsonHelpers.getString "content" msgFields
+  let refusal = Darklang.Anthropic.JsonHelpers.getString "refusal" msgFields
+
+  match parseToolCalls msgFields with
+  | Error e -> Stdlib.Result.Result.Error e
+  | Ok toolCalls ->
+    let audioFields = Darklang.Anthropic.JsonHelpers.getObject "audio" msgFields
+    let audio =
+      if Stdlib.List.isEmpty audioFields then
+        Stdlib.Option.Option.None
+      else
+        parseAudioResponse audioFields
+
+    Stdlib.Result.Result.Ok(
+      StoredMessage
+        { role = role
+          content = content
+          refusal = refusal
+          toolCalls = toolCalls
+          audio = audio })
+
+/// Get messages from a stored chat completion
+/// GET /chat/completions/{completion_id}/messages
+let getMessages
+  (apiKey: String)
+  (completionId: String)
+  : Stdlib.Result.Result<List<StoredMessage>, String> =
+  if apiKey == "" then
+    Stdlib.Result.Result.Error "API key cannot be empty"
+  else
+    let headers = Darklang.OpenAI.Config.getHeaders apiKey
+    let url = Darklang.OpenAI.Config.baseUrl ++ "/chat/completions/" ++ completionId ++ "/messages"
+
+    match Stdlib.HttpClient.get url headers with
+    | Error e -> Stdlib.Result.Result.Error("HTTP request failed: " ++ Stdlib.HttpClient.toString e)
+    | Ok response ->
+      let bodyStr = Stdlib.String.fromBytesWithReplacement response.body
+
+      match response.statusCode with
+      | code when code >= 200L && code < 300L ->
+        match Stdlib.AltJson.parse bodyStr with
+        | Ok (Object fields) ->
+          let dataArray = Darklang.Anthropic.JsonHelpers.getArray "data" fields
+          let results =
+            Stdlib.List.map dataArray (fun item ->
+              match item with
+              | Object msgFields -> parseStoredMessage msgFields
+              | _ -> Stdlib.Result.Result.Error "Message is not a JSON object")
+
+          let errors =
+            Stdlib.List.filterMap results (fun r ->
+              match r with
+              | Error e -> Stdlib.Option.Option.Some e
+              | Ok _ -> Stdlib.Option.Option.None)
+
+          if Stdlib.List.isEmpty errors then
+            let messages =
+              Stdlib.List.filterMap results (fun r ->
+                match r with
+                | Ok msg -> Stdlib.Option.Option.Some msg
+                | Error _ -> Stdlib.Option.Option.None)
+            Stdlib.Result.Result.Ok messages
+          else
+            Stdlib.Result.Result.Error("Failed to parse messages: " ++ Stdlib.String.join errors ", ")
+        | _ -> Stdlib.Result.Result.Error "Invalid response format"
+      | 401L -> Stdlib.Result.Result.Error "Authentication failed: Invalid API key"
+      | 404L -> Stdlib.Result.Result.Error("Chat completion not found: " ++ completionId)
+      | 429L -> Stdlib.Result.Result.Error "Rate limit exceeded"
+      | _ -> Stdlib.Result.Result.Error("API error: " ++ bodyStr)
+
+
+// =============================================================================
+// CONVENIENCE FUNCTIONS
+// =============================================================================
+
+/// Get the first choice's content from a response
+let getContent (resp: Response) : Stdlib.Option.Option<String> =
+  match Stdlib.List.head resp.choices with
+  | Some choice -> choice.message.content
+  | None -> Stdlib.Option.Option.None
+
+/// Get tool calls from the first choice
+let getToolCalls (resp: Response) : List<Darklang.OpenAI.Tools.ToolCall> =
+  match Stdlib.List.head resp.choices with
+  | Some choice -> choice.message.toolCalls
+  | None -> []
+
+/// Get audio from the first choice
+let getAudio (resp: Response) : Stdlib.Option.Option<AudioResponse> =
+  match Stdlib.List.head resp.choices with
+  | Some choice -> choice.message.audio
+  | None -> Stdlib.Option.Option.None
+
+/// Simple chat completion with just a prompt
+let complete (apiKey: String) (prompt: String) : Stdlib.Result.Result<String, String> =
+  let req = (createRequest ()) |> withUserMessage prompt
+
+  match send apiKey req with
+  | Ok r ->
+    match getContent r with
+    | Some c -> Stdlib.Result.Result.Ok c
+    | None -> Stdlib.Result.Result.Error "No content in response"
+  | Error e -> Stdlib.Result.Result.Error e
+
+/// Chat completion with a specific model
+let completeWithModel
+  (apiKey: String)
+  (model: String)
+  (prompt: String)
+  : Stdlib.Result.Result<String, String> =
+  let req =
+    (createRequest ())
+    |> withModel model
+    |> withUserMessage prompt
+
+  match send apiKey req with
+  | Ok r ->
+    match getContent r with
+    | Some c -> Stdlib.Result.Result.Ok c
+    | None -> Stdlib.Result.Result.Error "No content in response"
+  | Error e -> Stdlib.Result.Result.Error e
+
+/// Chat completion with system prompt
+let completeWithSystem
+  (apiKey: String)
+  (systemPrompt: String)
+  (userPrompt: String)
+  : Stdlib.Result.Result<String, String> =
+  let req =
+    (createRequest ())
+    |> withSystemMessage systemPrompt
+    |> withUserMessage userPrompt
+
+  match send apiKey req with
+  | Ok r ->
+    match getContent r with
+    | Some c -> Stdlib.Result.Result.Ok c
+    | None -> Stdlib.Result.Result.Error "No content in response"
+  | Error e -> Stdlib.Result.Result.Error e
+
+/// Chat completion with tools
+let completeWithTools
+  (apiKey: String)
+  (tools: List<Darklang.OpenAI.Tools.Tool>)
+  (prompt: String)
+  : Stdlib.Result.Result<Response, String> =
+  let req =
+    (createRequest ())
+    |> withTools tools
+    |> withUserMessage prompt
+
+  send apiKey req
+
+/// Chat completion with an image
+let completeWithImage
+  (apiKey: String)
+  (imageUrl: String)
+  (prompt: String)
+  : Stdlib.Result.Result<String, String> =
+  let req =
+    (createRequest ())
+    |> withImageMessage imageUrl prompt
+
+  match send apiKey req with
+  | Ok r ->
+    match getContent r with
+    | Some c -> Stdlib.Result.Result.Ok c
+    | None -> Stdlib.Result.Result.Error "No content in response"
+  | Error e -> Stdlib.Result.Result.Error e
+
+/// Chat completion with JSON mode
+let completeJson (apiKey: String) (prompt: String) : Stdlib.Result.Result<Json, String> =
+  let req =
+    (createRequest ())
+    |> withJsonMode
+    |> withUserMessage prompt
+
+  match send apiKey req with
+  | Ok r ->
+    match getContent r with
+    | Some c ->
+      match Stdlib.AltJson.parse c with
+      | Ok json -> Stdlib.Result.Result.Ok json
+      | Error e -> Stdlib.Result.Result.Error("Failed to parse JSON: " ++ e)
+    | None -> Stdlib.Result.Result.Error "No content in response"
+  | Error e -> Stdlib.Result.Result.Error e
+
+/// Chat completion with audio input
+let completeWithAudioInput
+  (apiKey: String)
+  (audioData: String)
+  (format: Darklang.OpenAI.Content.InputAudioFormat)
+  (prompt: String)
+  : Stdlib.Result.Result<String, String> =
+  let parts =
+    [ Darklang.OpenAI.Content.inputAudio audioData format
+      Darklang.OpenAI.Content.text prompt ]
+
+  let req =
+    (createRequest ())
+    |> withModel Darklang.OpenAI.Models.gpt4oAudioPreview
+    |> withMultiModalMessage parts
+
+  match send apiKey req with
+  | Ok r ->
+    match getContent r with
+    | Some c -> Stdlib.Result.Result.Ok c
+    | None -> Stdlib.Result.Result.Error "No content in response"
+  | Error e -> Stdlib.Result.Result.Error e
+
+/// Chat completion with audio output
+let completeWithAudioOutput
+  (apiKey: String)
+  (voice: String)
+  (prompt: String)
+  : Stdlib.Result.Result<AudioResponse, String> =
+  let req =
+    (createRequest ())
+    |> withModel Darklang.OpenAI.Models.gpt4oAudioPreview
+    |> withAudioOutput voice AudioOutputFormat.Mp3
+    |> withUserMessage prompt
+
+  match send apiKey req with
+  | Ok r ->
+    match getAudio r with
+    | Some audio -> Stdlib.Result.Result.Ok audio
+    | None -> Stdlib.Result.Result.Error "No audio in response"
+  | Error e -> Stdlib.Result.Result.Error e

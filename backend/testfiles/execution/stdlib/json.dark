@@ -1380,34 +1380,6 @@ module Package =
   Stdlib.Json.parse<Darklang.LanguageTools.Sign> "{\"Positive\":[]}" = Result.Ok
     Darklang.LanguageTools.Sign.Positive
 
-
-  Stdlib.Json.serialize<Darklang.OpenAI.Completion.ResponseChoice> (
-    Darklang.OpenAI.Completion.ResponseChoice { text = "hello" }
-  ) = "{\"text\":\"hello\"}"
-
-  Stdlib.Json.parse<Darklang.OpenAI.Completion.ResponseChoice>
-    "{\"text\":\"hello\"}" = Result.Ok(
-    Darklang.OpenAI.Completion.ResponseChoice { text = "hello" }
-  )
-
-  Stdlib.Json.serialize<Darklang.OpenAI.Completion.Request> (
-    Darklang.OpenAI.Completion.Request
-      { model = "davinci"
-        prompt = "test"
-        max_tokens = 5L
-        temperature = 0.7 }
-  ) = "{\"max_tokens\":5,\"model\":\"davinci\",\"prompt\":\"test\",\"temperature\":0.7}"
-
-  Stdlib.Json.parse<Darklang.OpenAI.Completion.Request>
-    "{\"max_tokens\":5,\"model\":\"davinci\",\"prompt\":\"test\",\"temperature\":0.7}" = Result
-    .Ok(
-      Darklang.OpenAI.Completion.Request
-        { model = "davinci"
-          prompt = "test"
-          max_tokens = 5L
-          temperature = 0.7 }
-    )
-
   // TODO use types that actually still dexist
   // Stdlib.Json.serialize<Darklang.LanguageTools.RuntimeErrors.NameResolution.ErrorType> (
   //   Darklang.LanguageTools.RuntimeErrors.NameResolution.ErrorType.InvalidPackageName
