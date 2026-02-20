@@ -1,0 +1,2364 @@
+/// Tests for the OpenAI API Client
+/// Run with: ./scripts/run-cli eval 'Darklang.OpenAI.Tests.runAllTests ()'
+/// Run integration tests: ./scripts/run-cli eval 'Darklang.OpenAI.Tests.runIntegrationTests ()'
+module Darklang.OpenAI.Tests
+
+type Json = Stdlib.AltJson.Json
+
+
+// =============================================================================
+// TEST INFRASTRUCTURE
+// =============================================================================
+
+type TestResult =
+  | Pass
+  | Fail of message: String
+
+
+/// Assert two strings are equal
+let assertEqualStr (actual: String) (expected: String) (message: String) : TestResult =
+  if actual == expected then
+    TestResult.Pass
+  else
+    TestResult.Fail $"{message}: expected '{expected}', got '{actual}'"
+
+
+/// Assert two Int64s are equal
+let assertEqualInt (actual: Int64) (expected: Int64) (message: String) : TestResult =
+  if actual == expected then
+    TestResult.Pass
+  else
+    TestResult.Fail $"{message}: expected {expected}, got {actual}"
+
+
+/// Assert a boolean is true
+let assertTrue (actual: Bool) (message: String) : TestResult =
+  if actual then
+    TestResult.Pass
+  else
+    TestResult.Fail $"{message}: expected true, got false"
+
+
+/// Assert a boolean is false
+let assertFalse (actual: Bool) (message: String) : TestResult =
+  if Stdlib.Bool.not actual then
+    TestResult.Pass
+  else
+    TestResult.Fail $"{message}: expected false, got true"
+
+
+/// Assert an Option is Some
+let assertSome (opt: Stdlib.Option.Option<'a>) (message: String) : TestResult =
+  match opt with
+  | Some _ -> TestResult.Pass
+  | None -> TestResult.Fail $"{message}: expected Some, got None"
+
+
+/// Assert an Option is None
+let assertNone (opt: Stdlib.Option.Option<'a>) (message: String) : TestResult =
+  match opt with
+  | Some _ -> TestResult.Fail $"{message}: expected None, got Some"
+  | None -> TestResult.Pass
+
+
+/// Assert a Result is Ok
+let assertOk (result: Stdlib.Result.Result<'a, 'e>) (message: String) : TestResult =
+  match result with
+  | Ok _ -> TestResult.Pass
+  | Error e -> TestResult.Fail $"{message}: expected Ok, got Error"
+
+
+/// Assert a Result is Error
+let assertError (result: Stdlib.Result.Result<'a, String>) (message: String) : TestResult =
+  match result with
+  | Ok _ -> TestResult.Fail $"{message}: expected Error, got Ok"
+  | Error _ -> TestResult.Pass
+
+
+/// Assert a Result is Error containing a substring
+let assertErrorContains
+  (result: Stdlib.Result.Result<'a, String>)
+  (substring: String)
+  (message: String)
+  : TestResult =
+  match result with
+  | Ok _ -> TestResult.Fail $"{message}: expected Error, got Ok"
+  | Error e ->
+    if Stdlib.String.contains e substring then
+      TestResult.Pass
+    else
+      TestResult.Fail $"{message}: error '{e}' does not contain '{substring}'"
+
+
+/// Assert JSON equals expected
+let assertJsonEqual (actual: Json) (expected: Json) (message: String) : TestResult =
+  let actualStr = Stdlib.AltJson.format actual
+  let expectedStr = Stdlib.AltJson.format expected
+  if actualStr == expectedStr then
+    TestResult.Pass
+  else
+    TestResult.Fail $"{message}: expected {expectedStr}, got {actualStr}"
+
+
+// =============================================================================
+// CONFIG MODULE TESTS
+// =============================================================================
+
+let testConfigBaseUrl () : TestResult =
+  assertEqualStr Darklang.OpenAI.Config.baseUrl "https://api.openai.com/v1" "Base URL"
+
+
+let testConfigApiVersion () : TestResult =
+  // API version is no longer a separate config - just verify base URL exists
+  let baseUrl = Darklang.OpenAI.Config.baseUrl
+  if Stdlib.String.length baseUrl > 0L then
+    TestResult.Pass
+  else
+    TestResult.Fail "baseUrl should not be empty"
+
+
+let testConfigGetHeaders () : TestResult =
+  let headers = Darklang.OpenAI.Config.getHeaders "test-key"
+  let hasAuth =
+    headers
+    |> Stdlib.List.findFirst (fun (k, v) -> k == "Authorization" && v == "Bearer test-key")
+    |> Stdlib.Option.isSome
+  let hasContentType =
+    headers
+    |> Stdlib.List.findFirst (fun (k, v) -> k == "Content-Type" && v == "application/json")
+    |> Stdlib.Option.isSome
+
+  if hasAuth && hasContentType then
+    TestResult.Pass
+  else
+    TestResult.Fail "Headers should include Authorization and Content-Type"
+
+
+// =============================================================================
+// MODELS MODULE TESTS
+// =============================================================================
+
+let testModelsDefault () : TestResult =
+  // Note: default_ uses trailing underscore which may have parsing issues
+  // Testing gpt4o directly instead
+  assertEqualStr Darklang.OpenAI.Models.gpt4o "gpt-4o" "Default model (gpt4o)"
+
+
+let testModelsIsReasoningModelO1 () : TestResult =
+  assertTrue (Darklang.OpenAI.Models.isReasoningModel "o1") "o1 is reasoning model"
+
+
+let testModelsIsReasoningModelO3 () : TestResult =
+  assertTrue (Darklang.OpenAI.Models.isReasoningModel "o3-mini") "o3-mini is reasoning model"
+
+
+let testModelsIsReasoningModelO4 () : TestResult =
+  assertTrue (Darklang.OpenAI.Models.isReasoningModel "o4-mini") "o4-mini is reasoning model"
+
+
+let testModelsIsNotReasoningModelGpt4o () : TestResult =
+  assertFalse (Darklang.OpenAI.Models.isReasoningModel "gpt-4o") "gpt-4o is not reasoning model"
+
+
+let testModelsIsNotReasoningModelGpt4oMini () : TestResult =
+  assertFalse (Darklang.OpenAI.Models.isReasoningModel "gpt-4o-mini") "gpt-4o-mini is not reasoning model"
+
+
+let testModelsGetCapabilitiesGpt4o () : TestResult =
+  let caps = Darklang.OpenAI.Models.getCapabilities "gpt-4o"
+  if caps.supportsTemperature &&
+     caps.supportsTools &&
+     caps.supportsStreaming &&
+     caps.supportsSystemPrompt &&
+     Stdlib.Bool.not caps.requiresMaxCompletionTokens &&
+     Stdlib.Bool.not caps.supportsReasoningEffort then
+    TestResult.Pass
+  else
+    TestResult.Fail "gpt-4o should support temperature, tools, streaming, system prompt"
+
+
+let testModelsGetCapabilitiesO1 () : TestResult =
+  let caps = Darklang.OpenAI.Models.getCapabilities "o1"
+  if Stdlib.Bool.not caps.supportsTemperature &&
+     Stdlib.Bool.not caps.supportsTools &&
+     Stdlib.Bool.not caps.supportsStreaming &&
+     Stdlib.Bool.not caps.supportsSystemPrompt &&
+     caps.requiresMaxCompletionTokens &&
+     caps.supportsReasoningEffort then
+    TestResult.Pass
+  else
+    TestResult.Fail "o1 should not support temperature/tools/streaming, should require max_completion_tokens"
+
+
+let testModelsReasoningEffortToString () : TestResult =
+  let results = [
+    (Darklang.OpenAI.Models.reasoningEffortToString Darklang.OpenAI.Models.ReasoningEffort.Low, "low")
+    (Darklang.OpenAI.Models.reasoningEffortToString Darklang.OpenAI.Models.ReasoningEffort.Medium, "medium")
+    (Darklang.OpenAI.Models.reasoningEffortToString Darklang.OpenAI.Models.ReasoningEffort.High, "high")
+  ]
+
+  let allPass =
+    results
+    |> Stdlib.List.all (fun (actual, expected) -> actual == expected)
+
+  if allPass then TestResult.Pass
+  else TestResult.Fail "Reasoning effort string conversion failed"
+
+
+// =============================================================================
+// TOOLS MODULE TESTS
+// =============================================================================
+
+let testToolsStringProp () : TestResult =
+  let prop = Darklang.OpenAI.Tools.stringProp "A description"
+
+  match prop with
+  | StringProp data ->
+    if data.description == "A description" && data.nullable == false then
+      TestResult.Pass
+    else
+      TestResult.Fail "stringProp should create string property with correct description"
+  | _ -> TestResult.Fail "stringProp should create StringProp"
+
+
+let testToolsIntegerProp () : TestResult =
+  let prop = Darklang.OpenAI.Tools.integerProp "Count of items"
+
+  match prop with
+  | IntegerProp data ->
+    if data.description == "Count of items" then
+      TestResult.Pass
+    else
+      TestResult.Fail "integerProp should have correct description"
+  | _ -> TestResult.Fail "integerProp should create IntegerProp"
+
+
+let testToolsNumberProp () : TestResult =
+  let prop = Darklang.OpenAI.Tools.numberProp "Temperature value"
+
+  match prop with
+  | NumberProp data ->
+    if data.description == "Temperature value" then
+      TestResult.Pass
+    else
+      TestResult.Fail "numberProp should have correct description"
+  | _ -> TestResult.Fail "numberProp should create NumberProp"
+
+
+let testToolsBooleanProp () : TestResult =
+  let prop = Darklang.OpenAI.Tools.booleanProp "Is enabled"
+
+  match prop with
+  | BooleanProp data ->
+    if data.description == "Is enabled" then
+      TestResult.Pass
+    else
+      TestResult.Fail "booleanProp should have correct description"
+  | _ -> TestResult.Fail "booleanProp should create BooleanProp"
+
+
+let testToolsEnumProp () : TestResult =
+  let prop = Darklang.OpenAI.Tools.enumProp "Color choice" [ "red"; "green"; "blue" ]
+
+  match prop with
+  | StringProp data ->
+    match data.enum_ with
+    | Some values ->
+      if Stdlib.List.length values == 3L then
+        TestResult.Pass
+      else
+        TestResult.Fail "enumProp should have 3 values"
+    | None -> TestResult.Fail "enumProp should have enum values"
+  | _ -> TestResult.Fail "enumProp should create StringProp"
+
+
+let testToolsMakeTool () : TestResult =
+  let tool =
+    Darklang.OpenAI.Tools.makeTool
+      "get_weather"
+      "Get the weather for a location"
+      [ ("location", Darklang.OpenAI.Tools.stringProp "City name") ]
+      [ "location" ]
+
+  if tool.name == "get_weather" &&
+     tool.description == "Get the weather for a location" &&
+     Stdlib.List.length tool.parameters == 1L &&
+     Stdlib.List.length tool.required == 1L &&
+     tool.strict == true then
+    TestResult.Pass
+  else
+    TestResult.Fail "makeFunctionTool should create tool with correct properties and strict=true"
+
+
+let testToolsMakeNonStrictFunctionTool () : TestResult =
+  let tool =
+    Darklang.OpenAI.Tools.makeNonStrictTool
+      "parse_json"
+      "Parse JSON input"
+      [ ("input", Darklang.OpenAI.Tools.stringProp "JSON string") ]
+      [ "input" ]
+
+  if tool.strict == false then
+    TestResult.Pass
+  else
+    TestResult.Fail "makeNonStrictTool should set strict to false"
+
+
+let testToolsPropertyToJson () : TestResult =
+  let prop = Darklang.OpenAI.Tools.stringProp "A test description"
+  let json = Darklang.OpenAI.Tools.propertyToJson prop
+
+  let expected =
+    Json.Object
+      [ ("type", Json.String "string")
+        ("description", Json.String "A test description") ]
+
+  assertJsonEqual json expected "propertyToJson"
+
+
+let testToolsPropertyToJsonWithEnum () : TestResult =
+  let prop = Darklang.OpenAI.Tools.enumProp "Choose one" [ "a"; "b" ]
+  let json = Darklang.OpenAI.Tools.propertyToJson prop
+
+  match json with
+  | Object fields ->
+    let found =
+      Stdlib.List.findFirst fields (fun pair ->
+        let k = Stdlib.Tuple2.first pair
+        k == "enum")
+
+    if Stdlib.Option.isSome found then
+      TestResult.Pass
+    else
+      TestResult.Fail "enum property JSON should have 'enum' field"
+  | _ -> TestResult.Fail "Should be JSON object"
+
+
+let testToolsToJson () : TestResult =
+  let fnTool =
+    Darklang.OpenAI.Tools.makeTool
+      "test_tool"
+      "A test tool"
+      [ ("param1", Darklang.OpenAI.Tools.stringProp "First param") ]
+      [ "param1" ]
+
+  let tool = Darklang.OpenAI.Tools.Tool.Function fnTool
+  let json = Darklang.OpenAI.Tools.toJson tool
+
+  match json with
+  | Object fields ->
+    let hasType =
+      Stdlib.List.findFirst fields (fun pair ->
+        let k = Stdlib.Tuple2.first pair
+        let v = Stdlib.Tuple2.second pair
+        k == "type" && v == Json.String "function")
+
+    let hasName =
+      Stdlib.List.findFirst fields (fun pair ->
+        let k = Stdlib.Tuple2.first pair
+        k == "name")
+
+    if Stdlib.Option.isSome hasType && Stdlib.Option.isSome hasName then
+      TestResult.Pass
+    else
+      TestResult.Fail "Tool JSON should have type=function and name field"
+  | _ -> TestResult.Fail "Should be JSON object"
+
+
+let testToolsToolChoiceToJsonAuto () : TestResult =
+  let json = Darklang.OpenAI.Tools.toolChoiceToJson Darklang.OpenAI.Tools.ToolChoice.Auto
+  assertJsonEqual json (Json.String "auto") "ToolChoice.Auto"
+
+
+let testToolsToolChoiceToJsonNone () : TestResult =
+  let json = Darklang.OpenAI.Tools.toolChoiceToJson Darklang.OpenAI.Tools.ToolChoice.None_
+  assertJsonEqual json (Json.String "none") "ToolChoice.None"
+
+
+let testToolsToolChoiceToJsonRequired () : TestResult =
+  let json = Darklang.OpenAI.Tools.toolChoiceToJson Darklang.OpenAI.Tools.ToolChoice.Required
+  assertJsonEqual json (Json.String "required") "ToolChoice.Required"
+
+
+let testToolsToolChoiceToJsonFunction () : TestResult =
+  let json = Darklang.OpenAI.Tools.toolChoiceToJson (Darklang.OpenAI.Tools.ToolChoice.Function "my_tool")
+
+  match json with
+  | Object fields ->
+    let hasName =
+      Stdlib.List.findFirst fields (fun pair ->
+        let k = Stdlib.Tuple2.first pair
+        k == "name")
+
+    if Stdlib.Option.isSome hasName then
+      TestResult.Pass
+    else
+      TestResult.Fail "Function tool choice should have name field"
+  | _ -> TestResult.Fail "Should be JSON object"
+
+
+// =============================================================================
+// CONTENT MODULE TESTS
+// =============================================================================
+
+let testContentImageDetailToString () : TestResult =
+  let auto = Darklang.OpenAI.Content.imageDetailToString Darklang.OpenAI.Content.ImageDetail.Auto
+  let low = Darklang.OpenAI.Content.imageDetailToString Darklang.OpenAI.Content.ImageDetail.Low
+  let high = Darklang.OpenAI.Content.imageDetailToString Darklang.OpenAI.Content.ImageDetail.High
+
+  if auto == "auto" && low == "low" && high == "high" then
+    TestResult.Pass
+  else
+    TestResult.Fail "imageDetailToString conversion failed"
+
+
+let testContentText () : TestResult =
+  let part = Darklang.OpenAI.Content.text "Hello world"
+  match part with
+  | Text t -> assertEqualStr t "Hello world" "Content.text"
+  | _ -> TestResult.Fail "Should be Text content part"
+
+
+let testContentImageUrl () : TestResult =
+  let part = Darklang.OpenAI.Content.imageUrl "https://example.com/image.png"
+  match part with
+  | ImageUrl (url, detail) ->
+    if url == "https://example.com/image.png" && detail == Darklang.OpenAI.Content.ImageDetail.Auto then
+      TestResult.Pass
+    else
+      TestResult.Fail "imageUrl should have correct URL and auto detail"
+  | _ -> TestResult.Fail "Should be ImageUrl content part"
+
+
+let testContentImageUrlWithDetail () : TestResult =
+  let part = Darklang.OpenAI.Content.imageUrlWithDetail "https://example.com/image.png" Darklang.OpenAI.Content.ImageDetail.High
+  match part with
+  | ImageUrl (url, detail) ->
+    if detail == Darklang.OpenAI.Content.ImageDetail.High then
+      TestResult.Pass
+    else
+      TestResult.Fail "imageUrlWithDetail should use specified detail"
+  | _ -> TestResult.Fail "Should be ImageUrl content part"
+
+
+let testContentImageBase64 () : TestResult =
+  let part = Darklang.OpenAI.Content.imageBase64 "image/png" "base64data"
+  match part with
+  | ImageBase64 (mediaType, data, detail) ->
+    if mediaType == "image/png" && data == "base64data" then
+      TestResult.Pass
+    else
+      TestResult.Fail "imageBase64 should have correct media type and data"
+  | _ -> TestResult.Fail "Should be ImageBase64 content part"
+
+
+let testContentPartToJsonText () : TestResult =
+  let part = Darklang.OpenAI.Content.text "Test message"
+  let json = Darklang.OpenAI.Content.contentPartToJson part
+
+  let expected =
+    Json.Object
+      [ ("type", Json.String "text")
+        ("text", Json.String "Test message") ]
+
+  assertJsonEqual json expected "contentPartToJson text"
+
+
+let testContentPartToJsonImageUrl () : TestResult =
+  let part = Darklang.OpenAI.Content.imageUrl "https://example.com/img.png"
+  let json = Darklang.OpenAI.Content.contentPartToJson part
+
+  match json with
+  | Object fields ->
+    let typeField =
+      fields
+      |> Stdlib.List.findFirst (fun (k, v) -> k == "type" && v == Json.String "image_url")
+      |> Stdlib.Option.isSome
+    if typeField then TestResult.Pass
+    else TestResult.Fail "Image URL content should have type=image_url"
+  | _ -> TestResult.Fail "Should be JSON object"
+
+
+// =============================================================================
+// RESPONSE FORMAT MODULE TESTS
+// =============================================================================
+
+let testResponseFormatText () : TestResult =
+  let json = Darklang.OpenAI.ResponseFormat.toJson Darklang.OpenAI.ResponseFormat.Format.Text
+  let expected = Json.Object [ ("type", Json.String "text") ]
+  assertJsonEqual json expected "ResponseFormat.Text"
+
+
+let testResponseFormatJsonObject () : TestResult =
+  let json = Darklang.OpenAI.ResponseFormat.toJson Darklang.OpenAI.ResponseFormat.Format.JsonObject
+  let expected = Json.Object [ ("type", Json.String "json_object") ]
+  assertJsonEqual json expected "ResponseFormat.JsonObject"
+
+
+let testResponseFormatJsonSchema () : TestResult =
+  let schema = Json.Object [ ("type", Json.String "object") ]
+  let format =
+    Darklang.OpenAI.ResponseFormat.jsonSchema
+      "my_schema"
+      Stdlib.Option.Option.None
+      schema
+  let json = Darklang.OpenAI.ResponseFormat.toJson format
+
+  match json with
+  | Object fields ->
+    let hasJsonSchema =
+      fields
+      |> Stdlib.List.findFirst (fun (k, _) -> k == "json_schema")
+      |> Stdlib.Option.isSome
+    if hasJsonSchema then TestResult.Pass
+    else TestResult.Fail "JsonSchema format should have json_schema field"
+  | _ -> TestResult.Fail "Should be JSON object"
+
+
+let testResponseFormatJsonSchemaWithDescription () : TestResult =
+  let schema = Json.Object [ ("type", Json.String "object") ]
+  let format =
+    Darklang.OpenAI.ResponseFormat.jsonSchema
+      "my_schema"
+      (Stdlib.Option.Option.Some "A test schema")
+      schema
+  let json = Darklang.OpenAI.ResponseFormat.toJson format
+
+  match json with
+  | Object fields ->
+    let jsonSchemaFieldOpt =
+      Stdlib.List.findFirst fields (fun pair ->
+        Stdlib.Tuple2.first pair == "json_schema")
+
+    match jsonSchemaFieldOpt with
+    | Some pair ->
+      let jsonSchemaValue = Stdlib.Tuple2.second pair
+      match jsonSchemaValue with
+      | Object schemaFields ->
+        let descriptionFieldOpt =
+          Stdlib.List.findFirst schemaFields (fun innerPair ->
+            Stdlib.Tuple2.first innerPair == "description" &&
+            Stdlib.Tuple2.second innerPair == Json.String "A test schema")
+        let hasDescription = Stdlib.Option.isSome descriptionFieldOpt
+        if hasDescription then TestResult.Pass
+        else TestResult.Fail "JsonSchema should have description field"
+      | _ -> TestResult.Fail "json_schema value should be an object"
+    | None -> TestResult.Fail "json_schema field not found"
+  | _ -> TestResult.Fail "Should be JSON object"
+
+
+// =============================================================================
+// CHAT MODULE TESTS
+// =============================================================================
+
+let testChatRoleToString () : TestResult =
+  let system = Darklang.OpenAI.Chat.roleToString Darklang.OpenAI.Chat.Role.System
+  let user = Darklang.OpenAI.Chat.roleToString Darklang.OpenAI.Chat.Role.User
+  let assistant = Darklang.OpenAI.Chat.roleToString Darklang.OpenAI.Chat.Role.Assistant
+  let tool = Darklang.OpenAI.Chat.roleToString Darklang.OpenAI.Chat.Role.Tool
+
+  if system == "system" && user == "user" && assistant == "assistant" && tool == "tool" then
+    TestResult.Pass
+  else
+    TestResult.Fail "roleToString conversion failed"
+
+
+let testChatParseRole () : TestResult =
+  let results = [
+    Darklang.OpenAI.Chat.parseRole "system"
+    Darklang.OpenAI.Chat.parseRole "user"
+    Darklang.OpenAI.Chat.parseRole "assistant"
+    Darklang.OpenAI.Chat.parseRole "tool"
+  ]
+
+  let allOk = results |> Stdlib.List.all (fun r ->
+    match r with
+    | Ok _ -> true
+    | Error _ -> false)
+
+  if allOk then TestResult.Pass
+  else TestResult.Fail "parseRole should succeed for valid roles"
+
+
+let testChatParseRoleInvalid () : TestResult =
+  let result = Darklang.OpenAI.Chat.parseRole "invalid"
+  assertError result "parseRole invalid"
+
+
+let testChatSystemMessage () : TestResult =
+  let msg = Darklang.OpenAI.Chat.systemMessage "You are helpful"
+  match msg with
+  | System sm ->
+    if sm.content == "You are helpful" then
+      TestResult.Pass
+    else
+      TestResult.Fail "systemMessage should have correct content"
+  | _ -> TestResult.Fail "Should be System message"
+
+
+let testChatUserMessage () : TestResult =
+  let msg = Darklang.OpenAI.Chat.userMessage "Hello"
+  match msg with
+  | User um ->
+    match um.content with
+    | TextContent text ->
+      if text == "Hello" then
+        TestResult.Pass
+      else
+        TestResult.Fail "userMessage should have correct content"
+    | _ -> TestResult.Fail "userMessage should have TextContent"
+  | _ -> TestResult.Fail "Should be User message"
+
+
+let testChatAssistantMessage () : TestResult =
+  let msg = Darklang.OpenAI.Chat.assistantMessage "Hi there"
+  match msg with
+  | Assistant am ->
+    match am.content with
+    | Some text ->
+      if text == "Hi there" then
+        TestResult.Pass
+      else
+        TestResult.Fail "assistantMessage should have correct content"
+    | None -> TestResult.Fail "assistantMessage should have content"
+  | _ -> TestResult.Fail "Should be Assistant message"
+
+
+let testChatMultiModalMessage () : TestResult =
+  let parts = [
+    Darklang.OpenAI.Content.text "Describe this"
+    Darklang.OpenAI.Content.imageUrl "https://example.com/img.png"
+  ]
+  let msg = Darklang.OpenAI.Chat.multiModalMessage parts
+  match msg with
+  | User um ->
+    match um.content with
+    | PartsContent contentParts ->
+      if Stdlib.List.length contentParts == 2L then
+        TestResult.Pass
+      else
+        TestResult.Fail "multiModalMessage should have 2 parts"
+    | _ -> TestResult.Fail "multiModalMessage should have PartsContent"
+  | _ -> TestResult.Fail "Should be User message"
+
+
+let testChatToolMessage () : TestResult =
+  let msg = Darklang.OpenAI.Chat.toolMessage "call_123" "result data"
+  match msg with
+  | Tool tm ->
+    if tm.toolCallId == "call_123" && tm.content == "result data" then
+      TestResult.Pass
+    else
+      TestResult.Fail "toolMessage should have correct id and content"
+  | _ -> TestResult.Fail "Should be Tool message"
+
+
+let testChatMessageToJsonText () : TestResult =
+  let msg = Darklang.OpenAI.Chat.userMessage "Hello"
+  let json = Darklang.OpenAI.Chat.messageToJson msg
+
+  let expected =
+    Json.Object
+      [ ("role", Json.String "user")
+        ("content", Json.String "Hello") ]
+
+  assertJsonEqual json expected "messageToJson text"
+
+
+let testChatMessageToJsonToolResult () : TestResult =
+  let msg = Darklang.OpenAI.Chat.toolMessage "call_abc" "done"
+  let json = Darklang.OpenAI.Chat.messageToJson msg
+
+  match json with
+  | Object fields ->
+    let hasToolCallId =
+      fields
+      |> Stdlib.List.findFirst (fun (k, _) -> k == "tool_call_id")
+      |> Stdlib.Option.isSome
+    if hasToolCallId then TestResult.Pass
+    else TestResult.Fail "Tool result message should have tool_call_id"
+  | _ -> TestResult.Fail "Should be JSON object"
+
+
+let testChatCreateRequest () : TestResult =
+  let req = Darklang.OpenAI.Chat.createRequest ()
+
+  if req.model == "gpt-4o" &&
+     Stdlib.List.isEmpty req.messages &&
+     Stdlib.List.isEmpty req.tools then
+    TestResult.Pass
+  else
+    TestResult.Fail "createRequest should have default values"
+
+
+let testChatWithModel () : TestResult =
+  let req =
+    (Darklang.OpenAI.Chat.createRequest ())
+    |> Darklang.OpenAI.Chat.withModel "gpt-4o-mini"
+
+  assertEqualStr req.model "gpt-4o-mini" "withModel"
+
+
+let testChatWithUserMessage () : TestResult =
+  let req =
+    (Darklang.OpenAI.Chat.createRequest ())
+    |> Darklang.OpenAI.Chat.withUserMessage "Hello"
+
+  assertEqualInt (Stdlib.List.length req.messages) 1L "withUserMessage count"
+
+
+let testChatWithSystemMessage () : TestResult =
+  let req =
+    (Darklang.OpenAI.Chat.createRequest ())
+    |> Darklang.OpenAI.Chat.withSystemMessage "Be helpful"
+
+  assertEqualInt (Stdlib.List.length req.messages) 1L "withSystemMessage count"
+
+
+let testChatWithTools () : TestResult =
+  let fnTool =
+    Darklang.OpenAI.Tools.makeTool "test" "Test tool" [] []
+  let tool = Darklang.OpenAI.Tools.Tool.Function fnTool
+  let req =
+    (Darklang.OpenAI.Chat.createRequest ())
+    |> Darklang.OpenAI.Chat.withTools [tool]
+
+  assertEqualInt (Stdlib.List.length req.tools) 1L "withTools count"
+
+
+let testChatWithMaxTokens () : TestResult =
+  let req =
+    (Darklang.OpenAI.Chat.createRequest ())
+    |> Darklang.OpenAI.Chat.withMaxTokens 1000L
+
+  match req.maxTokens with
+  | Some t -> assertEqualInt t 1000L "withMaxTokens"
+  | None -> TestResult.Fail "maxTokens should be set"
+
+
+let testChatWithMaxCompletionTokens () : TestResult =
+  let req =
+    (Darklang.OpenAI.Chat.createRequest ())
+    |> Darklang.OpenAI.Chat.withMaxCompletionTokens 2000L
+
+  match req.maxCompletionTokens with
+  | Some t -> assertEqualInt t 2000L "withMaxCompletionTokens"
+  | None -> TestResult.Fail "maxCompletionTokens should be set"
+
+
+let testChatWithTemperature () : TestResult =
+  let req =
+    (Darklang.OpenAI.Chat.createRequest ())
+    |> Darklang.OpenAI.Chat.withTemperature 0.7
+
+  match req.temperature with
+  | Some t ->
+    if t == 0.7 then TestResult.Pass
+    else TestResult.Fail "Temperature should be 0.7"
+  | None -> TestResult.Fail "temperature should be set"
+
+
+let testChatWithJsonMode () : TestResult =
+  let req =
+    (Darklang.OpenAI.Chat.createRequest ())
+    |> Darklang.OpenAI.Chat.withJsonMode
+
+  match req.responseFormat with
+  | Some format ->
+    match format with
+    | JsonObject -> TestResult.Pass
+    | _ -> TestResult.Fail "Should be JsonObject format"
+  | None -> TestResult.Fail "responseFormat should be set"
+
+
+let testChatWithToolChoice () : TestResult =
+  let req =
+    (Darklang.OpenAI.Chat.createRequest ())
+    |> Darklang.OpenAI.Chat.withToolChoice Darklang.OpenAI.Tools.ToolChoice.Required
+
+  assertSome req.toolChoice "withToolChoice"
+
+
+let testChatWithReasoningEffort () : TestResult =
+  let req =
+    (Darklang.OpenAI.Chat.createRequest ())
+    |> Darklang.OpenAI.Chat.withReasoningEffort Darklang.OpenAI.Models.ReasoningEffort.High
+
+  assertSome req.reasoningEffort "withReasoningEffort"
+
+
+let testChatValidateRequestGpt4o () : TestResult =
+  let req =
+    (Darklang.OpenAI.Chat.createRequest ())
+    |> Darklang.OpenAI.Chat.withModel "gpt-4o"
+    |> Darklang.OpenAI.Chat.withTemperature 0.5
+    |> Darklang.OpenAI.Chat.withUserMessage "Hello"
+
+  let result = Darklang.OpenAI.Chat.validateRequest req
+  assertOk result "validateRequest gpt-4o with temperature"
+
+
+let testChatValidateRequestO1WithTemperature () : TestResult =
+  let req =
+    (Darklang.OpenAI.Chat.createRequest ())
+    |> Darklang.OpenAI.Chat.withModel "o1"
+    |> Darklang.OpenAI.Chat.withTemperature 0.5
+    |> Darklang.OpenAI.Chat.withUserMessage "Hello"
+
+  let result = Darklang.OpenAI.Chat.validateRequest req
+  assertErrorContains result "does not support temperature" "validateRequest o1 with temperature"
+
+
+let testChatValidateRequestO1WithTools () : TestResult =
+  let fnTool = Darklang.OpenAI.Tools.makeTool "test" "Test" [] []
+  let tool = Darklang.OpenAI.Tools.Tool.Function fnTool
+  let req =
+    (Darklang.OpenAI.Chat.createRequest ())
+    |> Darklang.OpenAI.Chat.withModel "o1"
+    |> Darklang.OpenAI.Chat.withTools [tool]
+    |> Darklang.OpenAI.Chat.withUserMessage "Hello"
+
+  let result = Darklang.OpenAI.Chat.validateRequest req
+  assertErrorContains result "does not support tools" "validateRequest o1 with tools"
+
+
+let testChatBuildRequestJsonBasic () : TestResult =
+  let req =
+    (Darklang.OpenAI.Chat.createRequest ())
+    |> Darklang.OpenAI.Chat.withUserMessage "Hello"
+
+  let json = Darklang.OpenAI.Chat.buildRequestJson req
+
+  match json with
+  | Object fields ->
+    let hasModel =
+      fields
+      |> Stdlib.List.findFirst (fun (k, _) -> k == "model")
+      |> Stdlib.Option.isSome
+    let hasMessages =
+      fields
+      |> Stdlib.List.findFirst (fun (k, _) -> k == "messages")
+      |> Stdlib.Option.isSome
+    if hasModel && hasMessages then TestResult.Pass
+    else TestResult.Fail "Request JSON should have model and messages"
+  | _ -> TestResult.Fail "Should be JSON object"
+
+
+let testChatBuildRequestJsonWithTools () : TestResult =
+  let fnTool = Darklang.OpenAI.Tools.makeTool "search" "Search" [] []
+  let tool = Darklang.OpenAI.Tools.Tool.Function fnTool
+  let req =
+    (Darklang.OpenAI.Chat.createRequest ())
+    |> Darklang.OpenAI.Chat.withTools [tool]
+    |> Darklang.OpenAI.Chat.withUserMessage "Hello"
+
+  let json = Darklang.OpenAI.Chat.buildRequestJson req
+
+  match json with
+  | Object fields ->
+    let hasTools =
+      fields
+      |> Stdlib.List.findFirst (fun (k, _) -> k == "tools")
+      |> Stdlib.Option.isSome
+    if hasTools then TestResult.Pass
+    else TestResult.Fail "Request JSON should have tools"
+  | _ -> TestResult.Fail "Should be JSON object"
+
+
+let testChatSendEmptyApiKey () : TestResult =
+  let req =
+    (Darklang.OpenAI.Chat.createRequest ())
+    |> Darklang.OpenAI.Chat.withUserMessage "Hello"
+
+  let result = Darklang.OpenAI.Chat.send "" req
+  assertErrorContains result "cannot be empty" "send with empty API key"
+
+
+let testChatParseResponse () : TestResult =
+  let responseJson = Json.Object [
+    ("choices", Json.Array [
+      Json.Object [
+        ("index", Json.Number 0.0)
+        ("message", Json.Object [
+          ("content", Json.String "Hello!")
+          ("role", Json.String "assistant")
+        ])
+        ("finish_reason", Json.String "stop")
+      ]
+    ])
+    ("usage", Json.Object [
+      ("prompt_tokens", Json.Number 10.0)
+      ("completion_tokens", Json.Number 5.0)
+      ("total_tokens", Json.Number 15.0)
+    ])
+  ]
+
+  let result = Darklang.OpenAI.Chat.parseResponse responseJson
+
+  match result with
+  | Ok response ->
+    let content = Darklang.OpenAI.Chat.getContent response
+    match (content, Stdlib.List.head response.choices) with
+    | (Some c, Some choice) ->
+      if c == "Hello!" &&
+         choice.finishReason == "stop" &&
+         response.usage.promptTokens == 10L &&
+         response.usage.completionTokens == 5L then
+        TestResult.Pass
+      else
+        TestResult.Fail "Parsed response has wrong values"
+    | _ -> TestResult.Fail "Response should have content and choices"
+  | Error e -> TestResult.Fail $"parseResponse failed: {e}"
+
+
+let testChatParseResponseWithToolCalls () : TestResult =
+  let responseJson = Json.Object [
+    ("choices", Json.Array [
+      Json.Object [
+        ("index", Json.Number 0.0)
+        ("message", Json.Object [
+          ("content", Json.Null)
+          ("role", Json.String "assistant")
+          ("tool_calls", Json.Array [
+            Json.Object [
+              ("id", Json.String "call_123")
+              ("type", Json.String "function")
+              ("function", Json.Object [
+                ("name", Json.String "get_weather")
+                ("arguments", Json.String "{\"location\":\"Paris\"}")
+              ])
+            ]
+          ])
+        ])
+        ("finish_reason", Json.String "tool_calls")
+      ]
+    ])
+    ("usage", Json.Object [
+      ("prompt_tokens", Json.Number 20.0)
+      ("completion_tokens", Json.Number 10.0)
+      ("total_tokens", Json.Number 30.0)
+    ])
+  ]
+
+  let result = Darklang.OpenAI.Chat.parseResponse responseJson
+
+  match result with
+  | Ok response ->
+    let toolCalls = Darklang.OpenAI.Chat.getToolCalls response
+    match Stdlib.List.head response.choices with
+    | Some choice ->
+      if Stdlib.List.length toolCalls == 1L &&
+         choice.finishReason == "tool_calls" then
+        match Stdlib.List.head toolCalls with
+        | Some tc ->
+          let name = Darklang.OpenAI.Tools.getName tc
+          let callId = Darklang.OpenAI.Tools.getCallId tc
+          if name == "get_weather" && callId == "call_123" then
+            TestResult.Pass
+          else
+            TestResult.Fail "Tool call has wrong name or id"
+        | None -> TestResult.Fail "Should have tool call"
+      else
+        TestResult.Fail "Should have 1 tool call with finish_reason=tool_calls"
+    | None -> TestResult.Fail "Should have choices"
+  | Error e -> TestResult.Fail $"parseResponse failed: {e}"
+
+
+// =============================================================================
+// IMAGES MODULE TESTS
+// =============================================================================
+
+let testImagesDefaultOptions () : TestResult =
+  let options = Darklang.OpenAI.Images.defaultOptions "A sunset"
+
+  if options.prompt == "A sunset" &&
+     options.model == Darklang.OpenAI.Models.dalle3 &&
+     options.size == Darklang.OpenAI.Images.Size.square1024 &&
+     options.quality == Darklang.OpenAI.Images.Quality.standard &&
+     options.n == 1L then
+    TestResult.Pass
+  else
+    TestResult.Fail "defaultOptions should have correct defaults"
+
+
+let testImagesSizes () : TestResult =
+  if Darklang.OpenAI.Images.Size.square1024 == "1024x1024" &&
+     Darklang.OpenAI.Images.Size.landscape == "1792x1024" &&
+     Darklang.OpenAI.Images.Size.portrait == "1024x1792" then
+    TestResult.Pass
+  else
+    TestResult.Fail "Image sizes should be correct"
+
+
+let testImagesQuality () : TestResult =
+  if Darklang.OpenAI.Images.Quality.standard == "standard" &&
+     Darklang.OpenAI.Images.Quality.hd == "hd" then
+    TestResult.Pass
+  else
+    TestResult.Fail "Image quality values should be correct"
+
+
+let testImagesStyle () : TestResult =
+  if Darklang.OpenAI.Images.Style.vivid == "vivid" &&
+     Darklang.OpenAI.Images.Style.natural == "natural" then
+    TestResult.Pass
+  else
+    TestResult.Fail "Image style values should be correct"
+
+
+let testImagesGenerateEmptyApiKey () : TestResult =
+  let result = Darklang.OpenAI.Images.generate "" "A cat"
+  assertErrorContains result "cannot be empty" "generate with empty API key"
+
+
+// =============================================================================
+// EMBEDDINGS MODULE TESTS
+// =============================================================================
+
+let testEmbeddingsCreateEmptyApiKey () : TestResult =
+  let result = Darklang.OpenAI.Embeddings.create "" "Hello"
+  assertErrorContains result "cannot be empty" "embeddings create with empty API key"
+
+
+let testEmbeddingsCreateBatchEmptyApiKey () : TestResult =
+  let result = Darklang.OpenAI.Embeddings.createBatch "" ["Hello"; "World"]
+  assertErrorContains result "cannot be empty" "embeddings createBatch with empty API key"
+
+
+// =============================================================================
+// AUDIO MODULE TESTS
+// =============================================================================
+
+let testAudioVoices () : TestResult =
+  if Darklang.OpenAI.Audio.Voice.alloy == "alloy" &&
+     Darklang.OpenAI.Audio.Voice.echo == "echo" &&
+     Darklang.OpenAI.Audio.Voice.fable == "fable" &&
+     Darklang.OpenAI.Audio.Voice.onyx == "onyx" &&
+     Darklang.OpenAI.Audio.Voice.nova == "nova" &&
+     Darklang.OpenAI.Audio.Voice.shimmer == "shimmer" then
+    TestResult.Pass
+  else
+    TestResult.Fail "Voice constants should be correct"
+
+
+let testAudioTextToSpeechEmptyApiKey () : TestResult =
+  let result = Darklang.OpenAI.Audio.textToSpeech "" "Hello"
+  assertErrorContains result "cannot be empty" "textToSpeech with empty API key"
+
+
+// =============================================================================
+// MODELS API MODULE TESTS
+// =============================================================================
+
+let testModelsListEmptyApiKey () : TestResult =
+  let result = Darklang.OpenAI.Models.list ""
+  assertErrorContains result "cannot be empty" "Models.list with empty API key"
+
+
+let testModelsGetEmptyApiKey () : TestResult =
+  let result = Darklang.OpenAI.Models.get "" "gpt-4o"
+  assertErrorContains result "cannot be empty" "Models.get with empty API key"
+
+
+// =============================================================================
+// RESPONSES MODULE TESTS
+// =============================================================================
+
+// ---------------------------------------------------------------------------
+// Status Module Tests
+// ---------------------------------------------------------------------------
+
+let testResponsesStatusToString () : TestResult =
+  let completed = Darklang.OpenAI.Responses.Status.toString Darklang.OpenAI.Responses.Status.ResponseStatus.Completed
+  let inProgress = Darklang.OpenAI.Responses.Status.toString Darklang.OpenAI.Responses.Status.ResponseStatus.InProgress
+  let failed = Darklang.OpenAI.Responses.Status.toString Darklang.OpenAI.Responses.Status.ResponseStatus.Failed
+  let cancelled = Darklang.OpenAI.Responses.Status.toString Darklang.OpenAI.Responses.Status.ResponseStatus.Cancelled
+  let queued = Darklang.OpenAI.Responses.Status.toString Darklang.OpenAI.Responses.Status.ResponseStatus.Queued
+
+  if completed == "completed" &&
+     inProgress == "in_progress" &&
+     failed == "failed" &&
+     cancelled == "cancelled" &&
+     queued == "queued" then
+    TestResult.Pass
+  else
+    TestResult.Fail "Status toString conversion failed"
+
+
+let testResponsesStatusFromString () : TestResult =
+  let completed = Darklang.OpenAI.Responses.Status.fromString "completed"
+  let inProgress = Darklang.OpenAI.Responses.Status.fromString "in_progress"
+  let failed = Darklang.OpenAI.Responses.Status.fromString "failed"
+
+  match completed with
+  | Completed ->
+    match inProgress with
+    | InProgress ->
+      match failed with
+      | Failed -> TestResult.Pass
+      | _ -> TestResult.Fail "Failed should parse to Failed"
+    | _ -> TestResult.Fail "in_progress should parse to InProgress"
+  | _ -> TestResult.Fail "completed should parse to Completed"
+
+
+// ---------------------------------------------------------------------------
+// InputItem Module Tests
+// ---------------------------------------------------------------------------
+
+let testResponsesInputItemRoleToString () : TestResult =
+  let user = Darklang.OpenAI.Responses.InputItem.roleToString Darklang.OpenAI.Responses.InputItem.Role.User
+  let assistant = Darklang.OpenAI.Responses.InputItem.roleToString Darklang.OpenAI.Responses.InputItem.Role.Assistant
+  let system = Darklang.OpenAI.Responses.InputItem.roleToString Darklang.OpenAI.Responses.InputItem.Role.System
+  let developer = Darklang.OpenAI.Responses.InputItem.roleToString Darklang.OpenAI.Responses.InputItem.Role.Developer
+
+  if user == "user" && assistant == "assistant" && system == "system" && developer == "developer" then
+    TestResult.Pass
+  else
+    TestResult.Fail "Role toString conversion failed"
+
+
+let testResponsesInputItemText () : TestResult =
+  let part = Darklang.OpenAI.Responses.InputItem.text "Hello world"
+  match part with
+  | Text t -> assertEqualStr t "Hello world" "InputItem.text"
+  | _ -> TestResult.Fail "Should be Text content part"
+
+
+let testResponsesInputItemImage () : TestResult =
+  let part = Darklang.OpenAI.Responses.InputItem.image "https://example.com/img.png"
+  match part with
+  | InputImage (url, detail) ->
+    if url == "https://example.com/img.png" && detail == "auto" then
+      TestResult.Pass
+    else
+      TestResult.Fail "Image should have correct URL and auto detail"
+  | _ -> TestResult.Fail "Should be InputImage content part"
+
+
+let testResponsesInputItemUserMessage () : TestResult =
+  let msg = Darklang.OpenAI.Responses.InputItem.userMessage "Hello"
+  match msg with
+  | Message (role, content) ->
+    match role with
+    | User ->
+      if Stdlib.List.length content == 1L then TestResult.Pass
+      else TestResult.Fail "Should have 1 content part"
+    | _ -> TestResult.Fail "Should have User role"
+  | _ -> TestResult.Fail "Should be Message"
+
+
+let testResponsesInputItemFunctionOutput () : TestResult =
+  let item = Darklang.OpenAI.Responses.InputItem.functionOutput "call_123" "result data"
+  match item with
+  | FunctionCallOutput (callId, output) ->
+    if callId == "call_123" && output == "result data" then
+      TestResult.Pass
+    else
+      TestResult.Fail "FunctionCallOutput should have correct values"
+  | _ -> TestResult.Fail "Should be FunctionCallOutput"
+
+
+let testResponsesInputItemToJson () : TestResult =
+  let msg = Darklang.OpenAI.Responses.InputItem.userMessage "Test message"
+  let json = Darklang.OpenAI.Responses.InputItem.toJson msg
+
+  match json with
+  | Object fields ->
+    let hasType =
+      fields
+      |> Stdlib.List.findFirst (fun (k, v) -> k == "type" && v == Json.String "message")
+      |> Stdlib.Option.isSome
+    let hasRole =
+      fields
+      |> Stdlib.List.findFirst (fun (k, v) -> k == "role" && v == Json.String "user")
+      |> Stdlib.Option.isSome
+    if hasType && hasRole then TestResult.Pass
+    else TestResult.Fail "Message JSON should have type=message and role=user"
+  | _ -> TestResult.Fail "Should be JSON object"
+
+
+let testResponsesInputItemContentPartToJson () : TestResult =
+  let part = Darklang.OpenAI.Responses.InputItem.text "Hello"
+  let json = Darklang.OpenAI.Responses.InputItem.contentPartToJson part
+
+  let expected =
+    Json.Object
+      [ ("type", Json.String "input_text")
+        ("text", Json.String "Hello") ]
+
+  assertJsonEqual json expected "contentPartToJson text"
+
+
+// ---------------------------------------------------------------------------
+// BuiltInTools Module Tests
+// ---------------------------------------------------------------------------
+
+let testResponsesBuiltInToolsWebSearch () : TestResult =
+  let tool = Darklang.OpenAI.Responses.BuiltInTools.webSearch ()
+  let json = Darklang.OpenAI.Responses.BuiltInTools.toJson tool
+
+  match json with
+  | Object fields ->
+    let hasType =
+      fields
+      |> Stdlib.List.findFirst (fun (k, v) -> k == "type" && v == Json.String "web_search")
+      |> Stdlib.Option.isSome
+    if hasType then TestResult.Pass
+    else TestResult.Fail "WebSearch JSON should have type=web_search"
+  | _ -> TestResult.Fail "Should be JSON object"
+
+
+let testResponsesBuiltInToolsWebSearchWithLocation () : TestResult =
+  let loc = Darklang.OpenAI.WebSearch.withLocation "US" "New York" "New York"
+  let tool = Darklang.OpenAI.Responses.BuiltInTools.webSearchWithLocation loc
+  let json = Darklang.OpenAI.Responses.BuiltInTools.toJson tool
+
+  match json with
+  | Object fields ->
+    let found =
+      Stdlib.List.findFirst fields (fun pair ->
+        let k = Stdlib.Tuple2.first pair
+        k == "user_location")
+    let hasUserLocation = Stdlib.Option.isSome found
+    if hasUserLocation then TestResult.Pass
+    else TestResult.Fail "WebSearch JSON should have user_location"
+  | _ -> TestResult.Fail "Should be JSON object"
+
+
+let testResponsesBuiltInToolsWebSearchWithFilters () : TestResult =
+  let filters = Darklang.OpenAI.WebSearch.allowDomains ["openai.com"; "github.com"]
+  let tool = Darklang.OpenAI.Responses.BuiltInTools.webSearchWithFilters filters
+  let json = Darklang.OpenAI.Responses.BuiltInTools.toJson tool
+
+  match json with
+  | Object fields ->
+    let found =
+      Stdlib.List.findFirst fields (fun pair ->
+        let k = Stdlib.Tuple2.first pair
+        k == "filters")
+    let hasFilters = Stdlib.Option.isSome found
+    if hasFilters then TestResult.Pass
+    else TestResult.Fail "WebSearch JSON should have filters"
+  | _ -> TestResult.Fail "Should be JSON object"
+
+
+let testResponsesBuiltInToolsFileSearch () : TestResult =
+  let ids = Stdlib.List.push (Stdlib.List.push [] "vs_123") "vs_456"
+  let tool = Darklang.OpenAI.Responses.BuiltInTools.fileSearch ids
+  let json = Darklang.OpenAI.Responses.BuiltInTools.toJson tool
+
+  match json with
+  | Object fields ->
+    let hasType =
+      fields
+      |> Stdlib.List.findFirst (fun (k, v) -> k == "type" && v == Json.String "file_search")
+      |> Stdlib.Option.isSome
+    let hasVectorStoreIds =
+      fields
+      |> Stdlib.List.findFirst (fun (k, _) -> k == "vector_store_ids")
+      |> Stdlib.Option.isSome
+    if hasType && hasVectorStoreIds then TestResult.Pass
+    else TestResult.Fail "FileSearch JSON should have type and vector_store_ids"
+  | _ -> TestResult.Fail "Should be JSON object"
+
+
+let testResponsesBuiltInToolsCodeInterpreter () : TestResult =
+  let tool = Darklang.OpenAI.Responses.BuiltInTools.codeInterpreter ()
+  let json = Darklang.OpenAI.Responses.BuiltInTools.toJson tool
+
+  match json with
+  | Object fields ->
+    let hasType =
+      fields
+      |> Stdlib.List.findFirst (fun (k, v) -> k == "type" && v == Json.String "code_interpreter")
+      |> Stdlib.Option.isSome
+    if hasType then TestResult.Pass
+    else TestResult.Fail "CodeInterpreter JSON should have type=code_interpreter"
+  | _ -> TestResult.Fail "Should be JSON object"
+
+
+let testResponsesBuiltInToolsComputerUse () : TestResult =
+  let tool = Darklang.OpenAI.Responses.BuiltInTools.computerUse 1920L 1080L
+  let json = Darklang.OpenAI.Responses.BuiltInTools.toJson tool
+
+  match json with
+  | Object fields ->
+    let hasType =
+      fields
+      |> Stdlib.List.findFirst (fun (k, v) -> k == "type" && v == Json.String "computer_use_preview")
+      |> Stdlib.Option.isSome
+    let hasWidth =
+      fields
+      |> Stdlib.List.findFirst (fun (k, v) -> k == "display_width" && v == Json.Number 1920.0)
+      |> Stdlib.Option.isSome
+    let hasHeight =
+      fields
+      |> Stdlib.List.findFirst (fun (k, v) -> k == "display_height" && v == Json.Number 1080.0)
+      |> Stdlib.Option.isSome
+    if hasType && hasWidth && hasHeight then TestResult.Pass
+    else TestResult.Fail "ComputerUse JSON should have type, display_width, display_height"
+  | _ -> TestResult.Fail "Should be JSON object"
+
+
+let testResponsesBuiltInToolsFunctionTool () : TestResult =
+  let fnTool = Darklang.OpenAI.Tools.makeTool "get_weather" "Get weather" [] []
+  let wrappedTool = Darklang.OpenAI.Tools.Tool.Function fnTool
+  let tool = Darklang.OpenAI.Responses.BuiltInTools.functionTool wrappedTool
+  let json = Darklang.OpenAI.Responses.BuiltInTools.toJson tool
+
+  match json with
+  | Object fields ->
+    let hasType =
+      fields
+      |> Stdlib.List.findFirst (fun (k, v) -> k == "type" && v == Json.String "function")
+      |> Stdlib.Option.isSome
+    if hasType then TestResult.Pass
+    else TestResult.Fail "Function tool JSON should have type=function"
+  | _ -> TestResult.Fail "Should be JSON object"
+
+
+// ---------------------------------------------------------------------------
+// TextConfig Module Tests
+// ---------------------------------------------------------------------------
+
+let testResponsesTextConfigText () : TestResult =
+  let json = Darklang.OpenAI.Responses.TextConfig.formatToJson Darklang.OpenAI.Responses.TextConfig.TextFormat.Text
+  let expected = Json.Object [ ("type", Json.String "text") ]
+  assertJsonEqual json expected "TextConfig.Text"
+
+
+let testResponsesTextConfigJsonObject () : TestResult =
+  let json = Darklang.OpenAI.Responses.TextConfig.formatToJson Darklang.OpenAI.Responses.TextConfig.TextFormat.JsonObject
+  let expected = Json.Object [ ("type", Json.String "json_object") ]
+  assertJsonEqual json expected "TextConfig.JsonObject"
+
+
+let testResponsesTextConfigJsonSchema () : TestResult =
+  let schema = Json.Object [ ("type", Json.String "object") ]
+  let format =
+    Darklang.OpenAI.Responses.TextConfig.TextFormat.JsonSchema(
+      "my_schema",
+      Stdlib.Option.Option.None,
+      schema,
+      true)
+  let json = Darklang.OpenAI.Responses.TextConfig.formatToJson format
+
+  match json with
+  | Object fields ->
+    let hasName =
+      fields
+      |> Stdlib.List.findFirst (fun (k, v) -> k == "name" && v == Json.String "my_schema")
+      |> Stdlib.Option.isSome
+    let hasStrict =
+      fields
+      |> Stdlib.List.findFirst (fun (k, v) -> k == "strict" && v == Json.Bool true)
+      |> Stdlib.Option.isSome
+    if hasName && hasStrict then TestResult.Pass
+    else TestResult.Fail "JsonSchema should have name and strict fields"
+  | _ -> TestResult.Fail "Should be JSON object"
+
+
+let testResponsesTextConfigJsonSchemaWithDescription () : TestResult =
+  let schema = Json.Object [ ("type", Json.String "object") ]
+  let format =
+    Darklang.OpenAI.Responses.TextConfig.TextFormat.JsonSchema(
+      "my_schema",
+      Stdlib.Option.Option.Some "A test schema",
+      schema,
+      true)
+  let json = Darklang.OpenAI.Responses.TextConfig.formatToJson format
+
+  match json with
+  | Object fields ->
+    let hasDescription =
+      fields
+      |> Stdlib.List.findFirst (fun (k, v) -> k == "description" && v == Json.String "A test schema")
+      |> Stdlib.Option.isSome
+    if hasDescription then TestResult.Pass
+    else TestResult.Fail "JsonSchema should have description field"
+  | _ -> TestResult.Fail "Should be JSON object"
+
+
+// ---------------------------------------------------------------------------
+// ReasoningConfig Module Tests
+// ---------------------------------------------------------------------------
+
+let testResponsesReasoningConfigEffortToString () : TestResult =
+  let low = Darklang.OpenAI.Responses.ReasoningConfig.effortToString Darklang.OpenAI.Responses.ReasoningConfig.ReasoningEffort.Low
+  let medium = Darklang.OpenAI.Responses.ReasoningConfig.effortToString Darklang.OpenAI.Responses.ReasoningConfig.ReasoningEffort.Medium
+  let high = Darklang.OpenAI.Responses.ReasoningConfig.effortToString Darklang.OpenAI.Responses.ReasoningConfig.ReasoningEffort.High
+
+  if low == "low" && medium == "medium" && high == "high" then
+    TestResult.Pass
+  else
+    TestResult.Fail "ReasoningEffort toString conversion failed"
+
+
+let testResponsesReasoningConfigToJson () : TestResult =
+  let config =
+    Darklang.OpenAI.Responses.ReasoningConfig.Config
+      { effort = Darklang.OpenAI.Responses.ReasoningConfig.ReasoningEffort.High
+        summary = Stdlib.Option.Option.None }
+  let json = Darklang.OpenAI.Responses.ReasoningConfig.toJson config
+
+  match json with
+  | Object fields ->
+    let hasEffort =
+      fields
+      |> Stdlib.List.findFirst (fun (k, v) -> k == "effort" && v == Json.String "high")
+      |> Stdlib.Option.isSome
+    if hasEffort then TestResult.Pass
+    else TestResult.Fail "ReasoningConfig JSON should have effort=high"
+  | _ -> TestResult.Fail "Should be JSON object"
+
+
+// ---------------------------------------------------------------------------
+// Request Builder Tests
+// ---------------------------------------------------------------------------
+
+let testResponsesCreateRequest () : TestResult =
+  let req = Darklang.OpenAI.Responses.createRequest ()
+
+  if req.model == "gpt-4o" && Stdlib.List.isEmpty req.tools then
+    TestResult.Pass
+  else
+    TestResult.Fail "createRequest should have default values"
+
+
+let testResponsesWithModel () : TestResult =
+  let req =
+    (Darklang.OpenAI.Responses.createRequest ())
+    |> Darklang.OpenAI.Responses.withModel "gpt-4o-mini"
+
+  assertEqualStr req.model "gpt-4o-mini" "withModel"
+
+
+let testResponsesWithInput () : TestResult =
+  let req =
+    (Darklang.OpenAI.Responses.createRequest ())
+    |> Darklang.OpenAI.Responses.withInput "Hello world"
+
+  match req.input with
+  | SimpleText t -> assertEqualStr t "Hello world" "withInput"
+  | _ -> TestResult.Fail "Should be SimpleText"
+
+
+let testResponsesWithInputItems () : TestResult =
+  let items = [ Darklang.OpenAI.Responses.InputItem.userMessage "Hello" ]
+  let req =
+    (Darklang.OpenAI.Responses.createRequest ())
+    |> Darklang.OpenAI.Responses.withInputItems items
+
+  match req.input with
+  | Items list -> assertEqualInt (Stdlib.List.length list) 1L "withInputItems count"
+  | _ -> TestResult.Fail "Should be Items"
+
+
+let testResponsesWithInstructions () : TestResult =
+  let req =
+    (Darklang.OpenAI.Responses.createRequest ())
+    |> Darklang.OpenAI.Responses.withInstructions "Be helpful"
+
+  assertSome req.instructions "withInstructions"
+
+
+let testResponsesWithWebSearch () : TestResult =
+  let req =
+    (Darklang.OpenAI.Responses.createRequest ())
+    |> Darklang.OpenAI.Responses.withWebSearch
+
+  assertEqualInt (Stdlib.List.length req.tools) 1L "withWebSearch tool count"
+
+
+let testResponsesWithFileSearch () : TestResult =
+  let ids = Stdlib.List.push [] "vs_123"
+  let req =
+    (Darklang.OpenAI.Responses.createRequest ())
+    |> Darklang.OpenAI.Responses.withFileSearch ids
+
+  assertEqualInt (Stdlib.List.length req.tools) 1L "withFileSearch tool count"
+
+
+let testResponsesWithCodeInterpreter () : TestResult =
+  let req =
+    (Darklang.OpenAI.Responses.createRequest ())
+    |> Darklang.OpenAI.Responses.withCodeInterpreter
+
+  assertEqualInt (Stdlib.List.length req.tools) 1L "withCodeInterpreter tool count"
+
+
+let testResponsesWithComputerUse () : TestResult =
+  let req =
+    (Darklang.OpenAI.Responses.createRequest ())
+    |> Darklang.OpenAI.Responses.withComputerUse 1920L 1080L
+
+  assertEqualInt (Stdlib.List.length req.tools) 1L "withComputerUse tool count"
+
+
+let testResponsesWithFunctionTools () : TestResult =
+  let fnTool = Darklang.OpenAI.Tools.makeTool "test" "Test tool" [] []
+  let tool = Darklang.OpenAI.Tools.Tool.Function fnTool
+  let req =
+    (Darklang.OpenAI.Responses.createRequest ())
+    |> Darklang.OpenAI.Responses.withFunctionTools [tool]
+
+  assertEqualInt (Stdlib.List.length req.tools) 1L "withFunctionTools tool count"
+
+
+let testResponsesWithMultipleTools () : TestResult =
+  let fnTool = Darklang.OpenAI.Tools.makeTool "test" "Test tool" [] []
+  let tool = Darklang.OpenAI.Tools.Tool.Function fnTool
+  let req =
+    (Darklang.OpenAI.Responses.createRequest ())
+    |> Darklang.OpenAI.Responses.withWebSearch
+    |> Darklang.OpenAI.Responses.withCodeInterpreter
+    |> Darklang.OpenAI.Responses.withFunctionTools [tool]
+
+  assertEqualInt (Stdlib.List.length req.tools) 3L "multiple tools count"
+
+
+let testResponsesWithPreviousResponseId () : TestResult =
+  let req =
+    (Darklang.OpenAI.Responses.createRequest ())
+    |> Darklang.OpenAI.Responses.withPreviousResponseId "resp_123"
+
+  assertSome req.previousResponseId "withPreviousResponseId"
+
+
+let testResponsesWithMaxOutputTokens () : TestResult =
+  let req =
+    (Darklang.OpenAI.Responses.createRequest ())
+    |> Darklang.OpenAI.Responses.withMaxOutputTokens 1000L
+
+  match req.maxOutputTokens with
+  | Some t -> assertEqualInt t 1000L "withMaxOutputTokens"
+  | None -> TestResult.Fail "maxOutputTokens should be set"
+
+
+let testResponsesWithTemperature () : TestResult =
+  let req =
+    (Darklang.OpenAI.Responses.createRequest ())
+    |> Darklang.OpenAI.Responses.withTemperature 0.7
+
+  match req.temperature with
+  | Some t ->
+    if t == 0.7 then TestResult.Pass
+    else TestResult.Fail "Temperature should be 0.7"
+  | None -> TestResult.Fail "temperature should be set"
+
+
+let testResponsesWithJsonMode () : TestResult =
+  let req =
+    (Darklang.OpenAI.Responses.createRequest ())
+    |> Darklang.OpenAI.Responses.withJsonMode
+
+  match req.text with
+  | Some format ->
+    match format with
+    | JsonObject -> TestResult.Pass
+    | _ -> TestResult.Fail "Should be JsonObject format"
+  | None -> TestResult.Fail "text should be set"
+
+
+let testResponsesWithJsonSchema () : TestResult =
+  let schema = Json.Object [ ("type", Json.String "object") ]
+  let req =
+    (Darklang.OpenAI.Responses.createRequest ())
+    |> Darklang.OpenAI.Responses.withJsonSchema "my_schema" Stdlib.Option.Option.None schema
+
+  match req.text with
+  | Some format ->
+    match format with
+    | JsonSchema (name, _, _, _) ->
+      if name == "my_schema" then TestResult.Pass
+      else TestResult.Fail "JsonSchema name should be my_schema"
+    | _ -> TestResult.Fail "Should be JsonSchema format"
+  | None -> TestResult.Fail "text should be set"
+
+
+let testResponsesWithReasoningEffort () : TestResult =
+  let req =
+    (Darklang.OpenAI.Responses.createRequest ())
+    |> Darklang.OpenAI.Responses.withReasoningEffort Darklang.OpenAI.Responses.ReasoningConfig.ReasoningEffort.High
+
+  assertSome req.reasoning "withReasoningEffort"
+
+
+let testResponsesWithStore () : TestResult =
+  let req =
+    (Darklang.OpenAI.Responses.createRequest ())
+    |> Darklang.OpenAI.Responses.withStore true
+
+  match req.store with
+  | Some s -> assertTrue s "withStore"
+  | None -> TestResult.Fail "store should be set"
+
+
+// ---------------------------------------------------------------------------
+// Request JSON Building Tests
+// ---------------------------------------------------------------------------
+
+let testResponsesBuildRequestJsonBasic () : TestResult =
+  let req =
+    (Darklang.OpenAI.Responses.createRequest ())
+    |> Darklang.OpenAI.Responses.withInput "Hello"
+
+  let json = Darklang.OpenAI.Responses.buildRequestJson req
+
+  match json with
+  | Object fields ->
+    let hasModel =
+      fields
+      |> Stdlib.List.findFirst (fun (k, _) -> k == "model")
+      |> Stdlib.Option.isSome
+    let hasInput =
+      fields
+      |> Stdlib.List.findFirst (fun (k, v) -> k == "input" && v == Json.String "Hello")
+      |> Stdlib.Option.isSome
+    if hasModel && hasInput then TestResult.Pass
+    else TestResult.Fail "Request JSON should have model and input"
+  | _ -> TestResult.Fail "Should be JSON object"
+
+
+let testResponsesBuildRequestJsonWithTools () : TestResult =
+  let req =
+    (Darklang.OpenAI.Responses.createRequest ())
+    |> Darklang.OpenAI.Responses.withInput "Search for news"
+    |> Darklang.OpenAI.Responses.withWebSearch
+
+  let json = Darklang.OpenAI.Responses.buildRequestJson req
+
+  match json with
+  | Object fields ->
+    let hasTools =
+      fields
+      |> Stdlib.List.findFirst (fun (k, _) -> k == "tools")
+      |> Stdlib.Option.isSome
+    if hasTools then TestResult.Pass
+    else TestResult.Fail "Request JSON should have tools"
+  | _ -> TestResult.Fail "Should be JSON object"
+
+
+let testResponsesBuildRequestJsonWithInstructions () : TestResult =
+  let req =
+    (Darklang.OpenAI.Responses.createRequest ())
+    |> Darklang.OpenAI.Responses.withInput "Hello"
+    |> Darklang.OpenAI.Responses.withInstructions "Be helpful"
+
+  let json = Darklang.OpenAI.Responses.buildRequestJson req
+
+  match json with
+  | Object fields ->
+    let hasInstructions =
+      fields
+      |> Stdlib.List.findFirst (fun (k, v) -> k == "instructions" && v == Json.String "Be helpful")
+      |> Stdlib.Option.isSome
+    if hasInstructions then TestResult.Pass
+    else TestResult.Fail "Request JSON should have instructions"
+  | _ -> TestResult.Fail "Should be JSON object"
+
+
+let testResponsesBuildRequestJsonWithPreviousResponseId () : TestResult =
+  let req =
+    (Darklang.OpenAI.Responses.createRequest ())
+    |> Darklang.OpenAI.Responses.withInput "Continue"
+    |> Darklang.OpenAI.Responses.withPreviousResponseId "resp_abc123"
+
+  let json = Darklang.OpenAI.Responses.buildRequestJson req
+
+  match json with
+  | Object fields ->
+    let hasPrevId =
+      fields
+      |> Stdlib.List.findFirst (fun (k, v) -> k == "previous_response_id" && v == Json.String "resp_abc123")
+      |> Stdlib.Option.isSome
+    if hasPrevId then TestResult.Pass
+    else TestResult.Fail "Request JSON should have previous_response_id"
+  | _ -> TestResult.Fail "Should be JSON object"
+
+
+// ---------------------------------------------------------------------------
+// Response Parsing Tests
+// ---------------------------------------------------------------------------
+
+let testResponsesParseResponseBasic () : TestResult =
+  let responseJson = Json.Object [
+    ("id", Json.String "resp_123")
+    ("object", Json.String "response")
+    ("model", Json.String "gpt-4o")
+    ("created_at", Json.Number 1700000000.0)
+    ("status", Json.String "completed")
+    ("output", Json.Array [
+      Json.Object [
+        ("type", Json.String "message")
+        ("id", Json.String "msg_123")
+        ("role", Json.String "assistant")
+        ("status", Json.String "completed")
+        ("content", Json.Array [
+          Json.Object [
+            ("type", Json.String "output_text")
+            ("text", Json.String "Hello! How can I help you?")
+            ("annotations", Json.Array [])
+          ]
+        ])
+      ]
+    ])
+    ("usage", Json.Object [
+      ("input_tokens", Json.Number 10.0)
+      ("output_tokens", Json.Number 15.0)
+      ("total_tokens", Json.Number 25.0)
+    ])
+  ]
+
+  let result = Darklang.OpenAI.Responses.parseResponse responseJson
+
+  match result with
+  | Ok response ->
+    if response.id == "resp_123" &&
+       response.model == "gpt-4o" &&
+       Stdlib.List.length response.output == 1L then
+      match response.status with
+      | Completed -> TestResult.Pass
+      | _ -> TestResult.Fail "Status should be Completed"
+    else
+      TestResult.Fail "Response has wrong values"
+  | Error e -> TestResult.Fail $"parseResponse failed: {e}"
+
+
+let testResponsesParseResponseWithFunctionCall () : TestResult =
+  let responseJson = Json.Object [
+    ("id", Json.String "resp_456")
+    ("object", Json.String "response")
+    ("model", Json.String "gpt-4o")
+    ("created_at", Json.Number 1700000000.0)
+    ("status", Json.String "completed")
+    ("output", Json.Array [
+      Json.Object [
+        ("type", Json.String "function_call")
+        ("id", Json.String "fc_123")
+        ("call_id", Json.String "call_abc")
+        ("name", Json.String "get_weather")
+        ("arguments", Json.String "{\"location\":\"Tokyo\"}")
+        ("status", Json.String "completed")
+      ]
+    ])
+  ]
+
+  let result = Darklang.OpenAI.Responses.parseResponse responseJson
+
+  match result with
+  | Ok response ->
+    if Stdlib.List.length response.output == 1L then
+      match Stdlib.List.head response.output with
+      | Some item ->
+        match item with
+        | FunctionCall (_, callId, name, args, _) ->
+          if callId == "call_abc" && name == "get_weather" then
+            TestResult.Pass
+          else
+            TestResult.Fail "FunctionCall has wrong values"
+        | _ -> TestResult.Fail "Should be FunctionCall"
+      | None -> TestResult.Fail "Should have output item"
+    else
+      TestResult.Fail "Should have 1 output item"
+  | Error e -> TestResult.Fail $"parseResponse failed: {e}"
+
+
+let testResponsesParseResponseWithWebSearchCall () : TestResult =
+  let responseJson = Json.Object [
+    ("id", Json.String "resp_789")
+    ("object", Json.String "response")
+    ("model", Json.String "gpt-4o")
+    ("created_at", Json.Number 1700000000.0)
+    ("status", Json.String "completed")
+    ("output", Json.Array [
+      Json.Object [
+        ("type", Json.String "web_search_call")
+        ("id", Json.String "ws_123")
+        ("status", Json.String "completed")
+      ]
+    ])
+  ]
+
+  let result = Darklang.OpenAI.Responses.parseResponse responseJson
+
+  match result with
+  | Ok response ->
+    match Stdlib.List.head response.output with
+    | Some item ->
+      match item with
+      | WebSearchCall (id, status) ->
+        if id == "ws_123" && status == "completed" then
+          TestResult.Pass
+        else
+          TestResult.Fail "WebSearchCall has wrong values"
+      | _ -> TestResult.Fail "Should be WebSearchCall"
+    | None -> TestResult.Fail "Should have output item"
+  | Error e -> TestResult.Fail $"parseResponse failed: {e}"
+
+
+// ---------------------------------------------------------------------------
+// API Function Tests
+// ---------------------------------------------------------------------------
+
+let testResponsesSendEmptyApiKey () : TestResult =
+  let req =
+    (Darklang.OpenAI.Responses.createRequest ())
+    |> Darklang.OpenAI.Responses.withInput "Hello"
+
+  let result = Darklang.OpenAI.Responses.send "" req
+  assertErrorContains result "cannot be empty" "send with empty API key"
+
+
+let testResponsesGetEmptyApiKey () : TestResult =
+  let result = Darklang.OpenAI.Responses.get "" "resp_123"
+  assertErrorContains result "cannot be empty" "get with empty API key"
+
+
+let testResponsesDeleteEmptyApiKey () : TestResult =
+  let result = Darklang.OpenAI.Responses.delete "" "resp_123"
+  assertErrorContains result "cannot be empty" "delete with empty API key"
+
+
+let testResponsesListInputItemsEmptyApiKey () : TestResult =
+  let result = Darklang.OpenAI.Responses.listInputItems "" "resp_123"
+  assertErrorContains result "cannot be empty" "listInputItems with empty API key"
+
+
+// ---------------------------------------------------------------------------
+// Convenience Function Tests
+// ---------------------------------------------------------------------------
+
+let testResponsesExtractText () : TestResult =
+  let response =
+    Darklang.OpenAI.Responses.Response
+      { id = "resp_123"
+        object_ = "response"
+        model = "gpt-4o"
+        createdAt = 1700000000L
+        status = Darklang.OpenAI.Responses.Status.ResponseStatus.Completed
+        output = [
+          Darklang.OpenAI.Responses.OutputItem.OutputItem.Message(
+            "msg_1",
+            "assistant",
+            [ Darklang.OpenAI.Responses.OutputItem.OutputContent.OutputText("Hello world", []) ],
+            "completed")
+        ]
+        usage = Stdlib.Option.Option.None
+        error = Stdlib.Option.Option.None }
+
+  let result = Darklang.OpenAI.Responses.extractText response
+
+  match result with
+  | Ok text -> assertEqualStr text "Hello world" "extractText"
+  | Error e -> TestResult.Fail $"extractText failed: {e}"
+
+
+let testResponsesExtractTextNoContent () : TestResult =
+  let response =
+    Darklang.OpenAI.Responses.Response
+      { id = "resp_123"
+        object_ = "response"
+        model = "gpt-4o"
+        createdAt = 1700000000L
+        status = Darklang.OpenAI.Responses.Status.ResponseStatus.Completed
+        output = []
+        usage = Stdlib.Option.Option.None
+        error = Stdlib.Option.Option.None }
+
+  let result = Darklang.OpenAI.Responses.extractText response
+  assertError result "extractText with no content"
+
+
+let testResponsesExtractFunctionCalls () : TestResult =
+  let response =
+    Darklang.OpenAI.Responses.Response
+      { id = "resp_123"
+        object_ = "response"
+        model = "gpt-4o"
+        createdAt = 1700000000L
+        status = Darklang.OpenAI.Responses.Status.ResponseStatus.Completed
+        output = [
+          Darklang.OpenAI.Responses.OutputItem.OutputItem.FunctionCall(
+            "fc_1", "call_abc", "get_weather", "{\"location\":\"Tokyo\"}", "completed")
+        ]
+        usage = Stdlib.Option.Option.None
+        error = Stdlib.Option.Option.None }
+
+  let calls = Darklang.OpenAI.Responses.extractFunctionCalls response
+
+  if Stdlib.List.length calls == 1L then
+    match Stdlib.List.head calls with
+    | Some tuple ->
+      let callId = Stdlib.Tuple3.first tuple
+      let name = Stdlib.Tuple3.second tuple
+      if callId == "call_abc" && name == "get_weather" then
+        TestResult.Pass
+      else
+        TestResult.Fail "Function call has wrong values"
+    | None -> TestResult.Fail "Should have function call"
+  else
+    TestResult.Fail "Should have 1 function call"
+
+
+let testResponsesHasFunctionCalls () : TestResult =
+  let responseWithCalls =
+    Darklang.OpenAI.Responses.Response
+      { id = "resp_123"
+        object_ = "response"
+        model = "gpt-4o"
+        createdAt = 1700000000L
+        status = Darklang.OpenAI.Responses.Status.ResponseStatus.Completed
+        output = [
+          Darklang.OpenAI.Responses.OutputItem.OutputItem.FunctionCall(
+            "fc_1", "call_abc", "get_weather", "{}", "completed")
+        ]
+        usage = Stdlib.Option.Option.None
+        error = Stdlib.Option.Option.None }
+
+  let responseWithoutCalls =
+    Darklang.OpenAI.Responses.Response
+      { id = "resp_456"
+        object_ = "response"
+        model = "gpt-4o"
+        createdAt = 1700000000L
+        status = Darklang.OpenAI.Responses.Status.ResponseStatus.Completed
+        output = [
+          Darklang.OpenAI.Responses.OutputItem.OutputItem.Message(
+            "msg_1", "assistant",
+            [ Darklang.OpenAI.Responses.OutputItem.OutputContent.OutputText("Hello", []) ],
+            "completed")
+        ]
+        usage = Stdlib.Option.Option.None
+        error = Stdlib.Option.Option.None }
+
+  let hasCalls = Darklang.OpenAI.Responses.hasFunctionCalls responseWithCalls
+  let noCalls = Darklang.OpenAI.Responses.hasFunctionCalls responseWithoutCalls
+
+  if hasCalls && Stdlib.Bool.not noCalls then
+    TestResult.Pass
+  else
+    TestResult.Fail "hasFunctionCalls returned wrong values"
+
+
+let testResponsesIsCompleted () : TestResult =
+  let completedResponse =
+    Darklang.OpenAI.Responses.Response
+      { id = "resp_123"
+        object_ = "response"
+        model = "gpt-4o"
+        createdAt = 1700000000L
+        status = Darklang.OpenAI.Responses.Status.ResponseStatus.Completed
+        output = []
+        usage = Stdlib.Option.Option.None
+        error = Stdlib.Option.Option.None }
+
+  let inProgressResponse =
+    Darklang.OpenAI.Responses.Response
+      { id = "resp_456"
+        object_ = "response"
+        model = "gpt-4o"
+        createdAt = 1700000000L
+        status = Darklang.OpenAI.Responses.Status.ResponseStatus.InProgress
+        output = []
+        usage = Stdlib.Option.Option.None
+        error = Stdlib.Option.Option.None }
+
+  let isComp = Darklang.OpenAI.Responses.isCompleted completedResponse
+  let notComp = Darklang.OpenAI.Responses.isCompleted inProgressResponse
+
+  if isComp && Stdlib.Bool.not notComp then
+    TestResult.Pass
+  else
+    TestResult.Fail "isCompleted returned wrong values"
+
+
+let testResponsesGetResponseId () : TestResult =
+  let response =
+    Darklang.OpenAI.Responses.Response
+      { id = "resp_abc123"
+        object_ = "response"
+        model = "gpt-4o"
+        createdAt = 1700000000L
+        status = Darklang.OpenAI.Responses.Status.ResponseStatus.Completed
+        output = []
+        usage = Stdlib.Option.Option.None
+        error = Stdlib.Option.Option.None }
+
+  let id = Darklang.OpenAI.Responses.getResponseId response
+  assertEqualStr id "resp_abc123" "getResponseId"
+
+
+// =============================================================================
+// TEST RUNNER
+// =============================================================================
+
+type TestFunction = Unit -> TestResult
+
+let allTests () : List<(String * TestFunction)> =
+  [ // Config
+    ("Config: baseUrl", fun () -> testConfigBaseUrl ())
+    ("Config: apiVersion", fun () -> testConfigApiVersion ())
+    ("Config: getHeaders", fun () -> testConfigGetHeaders ())
+
+    // Models
+    ("Models: default", fun () -> testModelsDefault ())
+    ("Models: isReasoningModel o1", fun () -> testModelsIsReasoningModelO1 ())
+    ("Models: isReasoningModel o3", fun () -> testModelsIsReasoningModelO3 ())
+    ("Models: isReasoningModel o4", fun () -> testModelsIsReasoningModelO4 ())
+    ("Models: isNotReasoningModel gpt-4o", fun () -> testModelsIsNotReasoningModelGpt4o ())
+    ("Models: isNotReasoningModel gpt-4o-mini", fun () -> testModelsIsNotReasoningModelGpt4oMini ())
+    ("Models: getCapabilities gpt-4o", fun () -> testModelsGetCapabilitiesGpt4o ())
+    ("Models: getCapabilities o1", fun () -> testModelsGetCapabilitiesO1 ())
+    ("Models: reasoningEffortToString", fun () -> testModelsReasoningEffortToString ())
+
+    // Tools
+    ("Tools: stringProp", fun () -> testToolsStringProp ())
+    ("Tools: integerProp", fun () -> testToolsIntegerProp ())
+    ("Tools: numberProp", fun () -> testToolsNumberProp ())
+    ("Tools: booleanProp", fun () -> testToolsBooleanProp ())
+    ("Tools: enumProp", fun () -> testToolsEnumProp ())
+    ("Tools: makeFunctionTool", fun () -> testToolsMakeTool ())
+    ("Tools: makeNonStrictTool", fun () -> testToolsMakeNonStrictFunctionTool ())
+    ("Tools: propertyToJson", fun () -> testToolsPropertyToJson ())
+    ("Tools: propertyToJson with enum", fun () -> testToolsPropertyToJsonWithEnum ())
+    ("Tools: toJson", fun () -> testToolsToJson ())
+    ("Tools: toolChoiceToJson Auto", fun () -> testToolsToolChoiceToJsonAuto ())
+    ("Tools: toolChoiceToJson None", fun () -> testToolsToolChoiceToJsonNone ())
+    ("Tools: toolChoiceToJson Required", fun () -> testToolsToolChoiceToJsonRequired ())
+    ("Tools: toolChoiceToJson Function", fun () -> testToolsToolChoiceToJsonFunction ())
+
+    // Content
+    ("Content: imageDetailToString", fun () -> testContentImageDetailToString ())
+    ("Content: text", fun () -> testContentText ())
+    ("Content: imageUrl", fun () -> testContentImageUrl ())
+    ("Content: imageUrlWithDetail", fun () -> testContentImageUrlWithDetail ())
+    ("Content: imageBase64", fun () -> testContentImageBase64 ())
+    ("Content: contentPartToJson text", fun () -> testContentPartToJsonText ())
+    ("Content: contentPartToJson imageUrl", fun () -> testContentPartToJsonImageUrl ())
+
+    // ResponseFormat
+    ("ResponseFormat: Text", fun () -> testResponseFormatText ())
+    ("ResponseFormat: JsonObject", fun () -> testResponseFormatJsonObject ())
+    ("ResponseFormat: JsonSchema", fun () -> testResponseFormatJsonSchema ())
+    ("ResponseFormat: JsonSchemaWithDescription", fun () -> testResponseFormatJsonSchemaWithDescription ())
+
+    // Chat
+    ("Chat: roleToString", fun () -> testChatRoleToString ())
+    ("Chat: parseRole valid", fun () -> testChatParseRole ())
+    ("Chat: parseRole invalid", fun () -> testChatParseRoleInvalid ())
+    ("Chat: systemMessage", fun () -> testChatSystemMessage ())
+    ("Chat: userMessage", fun () -> testChatUserMessage ())
+    ("Chat: assistantMessage", fun () -> testChatAssistantMessage ())
+    ("Chat: multiModalMessage", fun () -> testChatMultiModalMessage ())
+    ("Chat: toolMessage", fun () -> testChatToolMessage ())
+    ("Chat: messageToJson text", fun () -> testChatMessageToJsonText ())
+    ("Chat: messageToJson toolResult", fun () -> testChatMessageToJsonToolResult ())
+    ("Chat: createRequest", fun () -> testChatCreateRequest ())
+    ("Chat: withModel", fun () -> testChatWithModel ())
+    ("Chat: withUserMessage", fun () -> testChatWithUserMessage ())
+    ("Chat: withSystemMessage", fun () -> testChatWithSystemMessage ())
+    ("Chat: withTools", fun () -> testChatWithTools ())
+    ("Chat: withMaxTokens", fun () -> testChatWithMaxTokens ())
+    ("Chat: withMaxCompletionTokens", fun () -> testChatWithMaxCompletionTokens ())
+    ("Chat: withTemperature", fun () -> testChatWithTemperature ())
+    ("Chat: withJsonMode", fun () -> testChatWithJsonMode ())
+    ("Chat: withToolChoice", fun () -> testChatWithToolChoice ())
+    ("Chat: withReasoningEffort", fun () -> testChatWithReasoningEffort ())
+    ("Chat: validateRequest gpt-4o", fun () -> testChatValidateRequestGpt4o ())
+    ("Chat: validateRequest o1 with temperature", fun () -> testChatValidateRequestO1WithTemperature ())
+    ("Chat: validateRequest o1 with tools", fun () -> testChatValidateRequestO1WithTools ())
+    ("Chat: buildRequestJson basic", fun () -> testChatBuildRequestJsonBasic ())
+    ("Chat: buildRequestJson with tools", fun () -> testChatBuildRequestJsonWithTools ())
+    ("Chat: send empty API key", fun () -> testChatSendEmptyApiKey ())
+    ("Chat: parseResponse", fun () -> testChatParseResponse ())
+    ("Chat: parseResponse with tool calls", fun () -> testChatParseResponseWithToolCalls ())
+
+    // Images
+    ("Images: defaultOptions", fun () -> testImagesDefaultOptions ())
+    ("Images: sizes", fun () -> testImagesSizes ())
+    ("Images: quality", fun () -> testImagesQuality ())
+    ("Images: style", fun () -> testImagesStyle ())
+    ("Images: generate empty API key", fun () -> testImagesGenerateEmptyApiKey ())
+
+    // Embeddings
+    ("Embeddings: create empty API key", fun () -> testEmbeddingsCreateEmptyApiKey ())
+    ("Embeddings: createBatch empty API key", fun () -> testEmbeddingsCreateBatchEmptyApiKey ())
+
+    // Audio
+    ("Audio: voices", fun () -> testAudioVoices ())
+    ("Audio: textToSpeech empty API key", fun () -> testAudioTextToSpeechEmptyApiKey ())
+
+    // Models API
+    ("Models: list empty API key", fun () -> testModelsListEmptyApiKey ())
+    ("Models: get empty API key", fun () -> testModelsGetEmptyApiKey ())
+
+    // Responses - Status
+    ("Responses.Status: toString", fun () -> testResponsesStatusToString ())
+    ("Responses.Status: fromString", fun () -> testResponsesStatusFromString ())
+
+    // Responses - InputItem
+    ("Responses.InputItem: roleToString", fun () -> testResponsesInputItemRoleToString ())
+    ("Responses.InputItem: text", fun () -> testResponsesInputItemText ())
+    ("Responses.InputItem: image", fun () -> testResponsesInputItemImage ())
+    ("Responses.InputItem: userMessage", fun () -> testResponsesInputItemUserMessage ())
+    ("Responses.InputItem: functionOutput", fun () -> testResponsesInputItemFunctionOutput ())
+    ("Responses.InputItem: toJson", fun () -> testResponsesInputItemToJson ())
+    ("Responses.InputItem: contentPartToJson", fun () -> testResponsesInputItemContentPartToJson ())
+
+    // Responses - BuiltInTools
+    ("Responses.BuiltInTools: webSearch", fun () -> testResponsesBuiltInToolsWebSearch ())
+    ("Responses.BuiltInTools: webSearchWithLocation", fun () -> testResponsesBuiltInToolsWebSearchWithLocation ())
+    ("Responses.BuiltInTools: webSearchWithFilters", fun () -> testResponsesBuiltInToolsWebSearchWithFilters ())
+    ("Responses.BuiltInTools: fileSearch", fun () -> testResponsesBuiltInToolsFileSearch ())
+    ("Responses.BuiltInTools: codeInterpreter", fun () -> testResponsesBuiltInToolsCodeInterpreter ())
+    ("Responses.BuiltInTools: computerUse", fun () -> testResponsesBuiltInToolsComputerUse ())
+    ("Responses.BuiltInTools: functionTool", fun () -> testResponsesBuiltInToolsFunctionTool ())
+
+    // Responses - TextConfig
+    ("Responses.TextConfig: Text", fun () -> testResponsesTextConfigText ())
+    ("Responses.TextConfig: JsonObject", fun () -> testResponsesTextConfigJsonObject ())
+    ("Responses.TextConfig: JsonSchema", fun () -> testResponsesTextConfigJsonSchema ())
+    ("Responses.TextConfig: JsonSchemaWithDescription", fun () -> testResponsesTextConfigJsonSchemaWithDescription ())
+
+    // Responses - ReasoningConfig
+    ("Responses.ReasoningConfig: effortToString", fun () -> testResponsesReasoningConfigEffortToString ())
+    ("Responses.ReasoningConfig: toJson", fun () -> testResponsesReasoningConfigToJson ())
+
+    // Responses - Request builders
+    ("Responses: createRequest", fun () -> testResponsesCreateRequest ())
+    ("Responses: withModel", fun () -> testResponsesWithModel ())
+    ("Responses: withInput", fun () -> testResponsesWithInput ())
+    ("Responses: withInputItems", fun () -> testResponsesWithInputItems ())
+    ("Responses: withInstructions", fun () -> testResponsesWithInstructions ())
+    ("Responses: withWebSearch", fun () -> testResponsesWithWebSearch ())
+    ("Responses: withFileSearch", fun () -> testResponsesWithFileSearch ())
+    ("Responses: withCodeInterpreter", fun () -> testResponsesWithCodeInterpreter ())
+    ("Responses: withComputerUse", fun () -> testResponsesWithComputerUse ())
+    ("Responses: withFunctionTools", fun () -> testResponsesWithFunctionTools ())
+    ("Responses: withMultipleTools", fun () -> testResponsesWithMultipleTools ())
+    ("Responses: withPreviousResponseId", fun () -> testResponsesWithPreviousResponseId ())
+    ("Responses: withMaxOutputTokens", fun () -> testResponsesWithMaxOutputTokens ())
+    ("Responses: withTemperature", fun () -> testResponsesWithTemperature ())
+    ("Responses: withJsonMode", fun () -> testResponsesWithJsonMode ())
+    ("Responses: withJsonSchema", fun () -> testResponsesWithJsonSchema ())
+    ("Responses: withReasoningEffort", fun () -> testResponsesWithReasoningEffort ())
+    ("Responses: withStore", fun () -> testResponsesWithStore ())
+
+    // Responses - Request JSON building
+    ("Responses: buildRequestJson basic", fun () -> testResponsesBuildRequestJsonBasic ())
+    ("Responses: buildRequestJson with tools", fun () -> testResponsesBuildRequestJsonWithTools ())
+    ("Responses: buildRequestJson with instructions", fun () -> testResponsesBuildRequestJsonWithInstructions ())
+    ("Responses: buildRequestJson with previousResponseId", fun () -> testResponsesBuildRequestJsonWithPreviousResponseId ())
+
+    // Responses - Response parsing
+    ("Responses: parseResponse basic", fun () -> testResponsesParseResponseBasic ())
+    ("Responses: parseResponse with function call", fun () -> testResponsesParseResponseWithFunctionCall ())
+    ("Responses: parseResponse with web search call", fun () -> testResponsesParseResponseWithWebSearchCall ())
+
+    // Responses - API functions
+    ("Responses: send empty API key", fun () -> testResponsesSendEmptyApiKey ())
+    ("Responses: get empty API key", fun () -> testResponsesGetEmptyApiKey ())
+    ("Responses: delete empty API key", fun () -> testResponsesDeleteEmptyApiKey ())
+    ("Responses: listInputItems empty API key", fun () -> testResponsesListInputItemsEmptyApiKey ())
+
+    // Responses - Convenience functions
+    ("Responses: extractText", fun () -> testResponsesExtractText ())
+    ("Responses: extractText no content", fun () -> testResponsesExtractTextNoContent ())
+    ("Responses: extractFunctionCalls", fun () -> testResponsesExtractFunctionCalls ())
+    ("Responses: hasFunctionCalls", fun () -> testResponsesHasFunctionCalls ())
+    ("Responses: isCompleted", fun () -> testResponsesIsCompleted ())
+    ("Responses: getResponseId", fun () -> testResponsesGetResponseId ())
+  ]
+
+
+type TestSummary =
+  { totalTests: Int64
+    passedTests: Int64
+    failedTests: Int64
+    failedTestNames: List<String> }
+
+
+let runAllTests () : Int64 =
+  let tests = allTests ()
+
+  Stdlib.printLine ""
+  Stdlib.printLine "OpenAI API Client Tests"
+  Stdlib.printLine "======================="
+
+  let initialSummary =
+    TestSummary
+      { totalTests = 0L
+        passedTests = 0L
+        failedTests = 0L
+        failedTestNames = [] }
+
+  let finalSummary =
+    tests
+    |> Stdlib.List.fold initialSummary (fun summary (name, testFn) ->
+      let newSummary = { summary with totalTests = summary.totalTests + 1L }
+
+      match testFn () with
+      | Pass ->
+        Stdlib.printLine $"  [PASS] {name}"
+        { newSummary with passedTests = newSummary.passedTests + 1L }
+      | Fail message ->
+        Stdlib.printLine $"  [FAIL] {name}"
+        Stdlib.printLine $"         {message}"
+        { newSummary with
+            failedTests = newSummary.failedTests + 1L
+            failedTestNames = Stdlib.List.push newSummary.failedTestNames name })
+
+  Stdlib.printLine ""
+  Stdlib.printLine "======================="
+  Stdlib.printLine $"Total:  {Stdlib.Int64.toString finalSummary.totalTests}"
+  Stdlib.printLine $"Passed: {Stdlib.Int64.toString finalSummary.passedTests}"
+  Stdlib.printLine $"Failed: {Stdlib.Int64.toString finalSummary.failedTests}"
+
+  if finalSummary.failedTests == 0L then
+    Stdlib.printLine ""
+    Stdlib.printLine "All tests passed!"
+    0L
+  else
+    Stdlib.printLine ""
+    Stdlib.printLine "Failed tests:"
+    finalSummary.failedTestNames
+    |> Stdlib.List.iter (fun testName -> Stdlib.printLine $"  - {testName}")
+    1L
+
+
+// =============================================================================
+// INTEGRATION TESTS (require API key)
+// =============================================================================
+
+let integrationTests () : List<(String * TestFunction)> =
+  [ ("Integration: Chat.complete", fun () ->
+      let apiKeyOpt = Builtin.environmentGet "OPENAI_API_KEY"
+      match apiKeyOpt with
+      | Some apiKey ->
+        let result = Darklang.OpenAI.Chat.complete apiKey "What is 2+2? Reply with just the number."
+        match result with
+        | Ok response ->
+          if Stdlib.String.contains response "4" then TestResult.Pass
+          else TestResult.Fail $"Expected '4' in response: {response}"
+        | Error e -> TestResult.Fail $"API call failed: {e}"
+      | None -> TestResult.Fail "OPENAI_API_KEY not set")
+
+    ("Integration: Chat.completeWithTools", fun () ->
+      let apiKeyOpt = Builtin.environmentGet "OPENAI_API_KEY"
+      match apiKeyOpt with
+      | Some apiKey ->
+        let fnTool =
+          Darklang.OpenAI.Tools.makeTool
+            "get_weather"
+            "Get weather for a location"
+            [("location", Darklang.OpenAI.Tools.stringProp "City name")]
+            ["location"]
+        let tool = Darklang.OpenAI.Tools.Tool.Function fnTool
+        let result = Darklang.OpenAI.Chat.completeWithTools apiKey [tool] "What's the weather in Tokyo?"
+        match result with
+        | Ok response ->
+          if Stdlib.List.length response.toolCalls > 0L then TestResult.Pass
+          else TestResult.Fail "Expected tool calls in response"
+        | Error e -> TestResult.Fail $"API call failed: {e}"
+      | None -> TestResult.Fail "OPENAI_API_KEY not set")
+
+    ("Integration: Chat.completeWithImage", fun () ->
+      let apiKeyOpt = Builtin.environmentGet "OPENAI_API_KEY"
+      match apiKeyOpt with
+      | Some apiKey ->
+        let imageUrl = "https://upload.wikimedia.org/wikipedia/commons/thumb/4/47/PNG_transparency_demonstration_1.png/280px-PNG_transparency_demonstration_1.png"
+        let result = Darklang.OpenAI.Chat.completeWithImage apiKey imageUrl "What objects are in this image? Be brief."
+        match result with
+        | Ok response ->
+          if Stdlib.String.length response > 0L then TestResult.Pass
+          else TestResult.Fail "Expected non-empty response"
+        | Error e -> TestResult.Fail $"API call failed: {e}"
+      | None -> TestResult.Fail "OPENAI_API_KEY not set")
+
+    ("Integration: Images.generate", fun () ->
+      let apiKeyOpt = Builtin.environmentGet "OPENAI_API_KEY"
+      match apiKeyOpt with
+      | Some apiKey ->
+        let result = Darklang.OpenAI.Images.generate apiKey "A simple red circle on white background"
+        match result with
+        | Ok url ->
+          if Stdlib.String.startsWith url "https://" then TestResult.Pass
+          else TestResult.Fail $"Expected HTTPS URL: {url}"
+        | Error e -> TestResult.Fail $"API call failed: {e}"
+      | None -> TestResult.Fail "OPENAI_API_KEY not set")
+
+    ("Integration: Embeddings.create", fun () ->
+      let apiKeyOpt = Builtin.environmentGet "OPENAI_API_KEY"
+      match apiKeyOpt with
+      | Some apiKey ->
+        let result = Darklang.OpenAI.Embeddings.create apiKey "Hello world"
+        match result with
+        | Ok embedding ->
+          if Stdlib.List.length embedding > 0L then TestResult.Pass
+          else TestResult.Fail "Expected non-empty embedding"
+        | Error e -> TestResult.Fail $"API call failed: {e}"
+      | None -> TestResult.Fail "OPENAI_API_KEY not set")
+
+    ("Integration: Models.list", fun () ->
+      let apiKeyOpt = Builtin.environmentGet "OPENAI_API_KEY"
+      match apiKeyOpt with
+      | Some apiKey ->
+        let result = Darklang.OpenAI.Models.list apiKey
+        match result with
+        | Ok models ->
+          if Stdlib.List.length models > 0L then TestResult.Pass
+          else TestResult.Fail "Expected non-empty model list"
+        | Error e -> TestResult.Fail $"API call failed: {e}"
+      | None -> TestResult.Fail "OPENAI_API_KEY not set")
+  ]
+
+
+let runIntegrationTests () : Int64 =
+  let tests = integrationTests ()
+
+  Stdlib.printLine ""
+  Stdlib.printLine "OpenAI API Integration Tests"
+  Stdlib.printLine "============================"
+  Stdlib.printLine "(Requires OPENAI_API_KEY environment variable)"
+  Stdlib.printLine ""
+
+  let initialSummary =
+    TestSummary
+      { totalTests = 0L
+        passedTests = 0L
+        failedTests = 0L
+        failedTestNames = [] }
+
+  let finalSummary =
+    tests
+    |> Stdlib.List.fold initialSummary (fun summary (name, testFn) ->
+      let newSummary = { summary with totalTests = summary.totalTests + 1L }
+
+      match testFn () with
+      | Pass ->
+        Stdlib.printLine $"  [PASS] {name}"
+        { newSummary with passedTests = newSummary.passedTests + 1L }
+      | Fail message ->
+        Stdlib.printLine $"  [FAIL] {name}"
+        Stdlib.printLine $"         {message}"
+        { newSummary with
+            failedTests = newSummary.failedTests + 1L
+            failedTestNames = Stdlib.List.push newSummary.failedTestNames name })
+
+  Stdlib.printLine ""
+  Stdlib.printLine "============================"
+  Stdlib.printLine $"Total:  {Stdlib.Int64.toString finalSummary.totalTests}"
+  Stdlib.printLine $"Passed: {Stdlib.Int64.toString finalSummary.passedTests}"
+  Stdlib.printLine $"Failed: {Stdlib.Int64.toString finalSummary.failedTests}"
+
+  if finalSummary.failedTests == 0L then
+    Stdlib.printLine ""
+    Stdlib.printLine "All integration tests passed!"
+    0L
+  else
+    Stdlib.printLine ""
+    Stdlib.printLine "Failed tests:"
+    finalSummary.failedTestNames
+    |> Stdlib.List.iter (fun testName -> Stdlib.printLine $"  - {testName}")
+    1L

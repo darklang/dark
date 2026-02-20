@@ -1,0 +1,527 @@
+/// Anthropic Claude API - Message Batches
+/// Batch processing for large volumes of requests at 50% cost reduction
+/// See: https://docs.anthropic.com/en/docs/build-with-claude/batch-processing
+module Darklang.Anthropic.Batch
+
+type Json = Stdlib.AltJson.Json
+
+
+// ---------------------------------------------------------------------------
+// ENDPOINTS
+// ---------------------------------------------------------------------------
+
+let batchEndpoint = "https://api.anthropic.com/v1/messages/batches"
+
+let batchEndpointWithId (batchId: String) : String =
+  batchEndpoint ++ "/" ++ batchId
+
+let batchCancelEndpoint (batchId: String) : String =
+  (batchEndpointWithId batchId) ++ "/cancel"
+
+let batchResultsEndpoint (batchId: String) : String =
+  (batchEndpointWithId batchId) ++ "/results"
+
+
+// ---------------------------------------------------------------------------
+// BATCH STATUS TYPES
+// ---------------------------------------------------------------------------
+
+type BatchProcessingStatus =
+  | InProgress
+  | Ended
+  | Canceling
+
+module BatchProcessingStatus =
+  let toString (status: BatchProcessingStatus) : String =
+    match status with
+    | InProgress -> "in_progress"
+    | Ended -> "ended"
+    | Canceling -> "canceling"
+
+  let parse (s: String) : Stdlib.Option.Option<BatchProcessingStatus> =
+    match s with
+    | "in_progress" -> Stdlib.Option.Option.Some BatchProcessingStatus.InProgress
+    | "ended" -> Stdlib.Option.Option.Some BatchProcessingStatus.Ended
+    | "canceling" -> Stdlib.Option.Option.Some BatchProcessingStatus.Canceling
+    | _ -> Stdlib.Option.Option.None
+
+
+// ---------------------------------------------------------------------------
+// BATCH RESULT TYPES
+// ---------------------------------------------------------------------------
+
+type BatchResultType =
+  | Succeeded
+  | Errored
+  | Canceled
+  | Expired
+
+module BatchResultType =
+  let toString (t: BatchResultType) : String =
+    match t with
+    | Succeeded -> "succeeded"
+    | Errored -> "errored"
+    | Canceled -> "canceled"
+    | Expired -> "expired"
+
+  let parse (s: String) : Stdlib.Option.Option<BatchResultType> =
+    match s with
+    | "succeeded" -> Stdlib.Option.Option.Some BatchResultType.Succeeded
+    | "errored" -> Stdlib.Option.Option.Some BatchResultType.Errored
+    | "canceled" -> Stdlib.Option.Option.Some BatchResultType.Canceled
+    | "expired" -> Stdlib.Option.Option.Some BatchResultType.Expired
+    | _ -> Stdlib.Option.Option.None
+
+
+// ---------------------------------------------------------------------------
+// REQUEST COUNTS
+// ---------------------------------------------------------------------------
+
+type BatchRequestCounts =
+  { processing: Int64
+    succeeded: Int64
+    errored: Int64
+    canceled: Int64
+    expired: Int64 }
+
+
+// ---------------------------------------------------------------------------
+// MESSAGE BATCH (Response type)
+// ---------------------------------------------------------------------------
+
+type MessageBatch =
+  { id: String
+    ``type``: String
+    processing_status: BatchProcessingStatus
+    request_counts: BatchRequestCounts
+    ended_at: Stdlib.Option.Option<String>
+    created_at: String
+    expires_at: String
+    cancel_initiated_at: Stdlib.Option.Option<String>
+    results_url: Stdlib.Option.Option<String> }
+
+
+// ---------------------------------------------------------------------------
+// BATCH REQUEST (Input type)
+// ---------------------------------------------------------------------------
+
+/// A single request within a batch
+type BatchRequest =
+  { custom_id: String
+    params: Json }
+
+/// Create a batch request from a custom_id and a Chat.Request
+let batchRequest (customId: String) (request: Chat.Request) : BatchRequest =
+  BatchRequest
+    { custom_id = customId
+      params = Chat.Request.toJson request }
+
+/// Create a batch request from a custom_id and pre-built JSON params
+let batchRequestJson (customId: String) (params: Json) : BatchRequest =
+  BatchRequest
+    { custom_id = customId
+      params = params }
+
+
+// ---------------------------------------------------------------------------
+// BATCH RESULT (Individual result from results endpoint)
+// ---------------------------------------------------------------------------
+
+/// Error information for errored requests
+type BatchError =
+  { ``type``: String
+    message: String }
+
+/// Result of a single request in a batch
+type BatchResultContent =
+  | Succeeded of Response.Response
+  | Errored of BatchError
+  | Canceled
+  | Expired
+
+/// Individual response from batch results
+type BatchIndividualResponse =
+  { custom_id: String
+    result: BatchResultContent }
+
+
+// ---------------------------------------------------------------------------
+// LIST RESPONSE
+// ---------------------------------------------------------------------------
+
+type BatchListResponse =
+  { data: List<MessageBatch>
+    has_more: Bool
+    first_id: Stdlib.Option.Option<String>
+    last_id: Stdlib.Option.Option<String> }
+
+
+// ---------------------------------------------------------------------------
+// RESPONSE PARSING
+// ---------------------------------------------------------------------------
+
+let parseRequestCounts (fields: List<(String * Json)>) : BatchRequestCounts =
+  BatchRequestCounts
+    { processing = JsonHelpers.getInt "processing" fields
+      succeeded = JsonHelpers.getInt "succeeded" fields
+      errored = JsonHelpers.getInt "errored" fields
+      canceled = JsonHelpers.getInt "canceled" fields
+      expired = JsonHelpers.getInt "expired" fields }
+
+let parseMessageBatch (json: Json) : Stdlib.Result.Result<MessageBatch, String> =
+  match json with
+  | Object fields ->
+    let statusStr = JsonHelpers.getString "processing_status" fields
+    let status =
+      match statusStr with
+      | Some s ->
+        match BatchProcessingStatus.parse s with
+        | Some st -> st
+        | None -> BatchProcessingStatus.InProgress
+      | None -> BatchProcessingStatus.InProgress
+
+    let requestCountsFields = JsonHelpers.getObject "request_counts" fields
+
+    Stdlib.Result.Result.Ok(
+      MessageBatch
+        { id =
+            match JsonHelpers.getString "id" fields with
+            | Some s -> s
+            | None -> ""
+          ``type`` =
+            match JsonHelpers.getString "type" fields with
+            | Some s -> s
+            | None -> "message_batch"
+          processing_status = status
+          request_counts = parseRequestCounts requestCountsFields
+          ended_at = JsonHelpers.getString "ended_at" fields
+          created_at =
+            match JsonHelpers.getString "created_at" fields with
+            | Some s -> s
+            | None -> ""
+          expires_at =
+            match JsonHelpers.getString "expires_at" fields with
+            | Some s -> s
+            | None -> ""
+          cancel_initiated_at = JsonHelpers.getString "cancel_initiated_at" fields
+          results_url = JsonHelpers.getString "results_url" fields }
+    )
+  | _ -> Stdlib.Result.Result.Error "Invalid batch response format"
+
+let parseBatchListResponse
+  (json: Json)
+  : Stdlib.Result.Result<BatchListResponse, String> =
+  match json with
+  | Object fields ->
+    let dataArray = JsonHelpers.getArray "data" fields
+    let batches =
+      Stdlib.List.filterMap dataArray (fun item ->
+        match parseMessageBatch item with
+        | Ok batch -> Stdlib.Option.Option.Some batch
+        | Error _ -> Stdlib.Option.Option.None)
+
+    Stdlib.Result.Result.Ok(
+      BatchListResponse
+        { data = batches
+          has_more = (JsonHelpers.getBool "has_more" fields) |> Stdlib.Option.withDefault false
+          first_id = JsonHelpers.getString "first_id" fields
+          last_id = JsonHelpers.getString "last_id" fields }
+    )
+  | _ -> Stdlib.Result.Result.Error "Invalid batch list response format"
+
+let parseBatchError (fields: List<(String * Json)>) : BatchError =
+  BatchError
+    { ``type`` =
+        match JsonHelpers.getString "type" fields with
+        | Some s -> s
+        | None -> "unknown"
+      message =
+        match JsonHelpers.getString "message" fields with
+        | Some s -> s
+        | None -> "" }
+
+let parseBatchIndividualResponse
+  (json: Json)
+  : Stdlib.Result.Result<BatchIndividualResponse, String> =
+  match json with
+  | Object fields ->
+    let customId =
+      match JsonHelpers.getString "custom_id" fields with
+      | Some s -> s
+      | None -> ""
+
+    let resultFields = JsonHelpers.getObject "result" fields
+    let resultType = JsonHelpers.getString "type" resultFields
+
+    let resultContent =
+      match resultType with
+      | Some "succeeded" ->
+        // Parse the message field
+        let messageFields = JsonHelpers.getObject "message" resultFields
+        match Chat.parseResponse (Json.Object messageFields) with
+        | Ok response -> BatchResultContent.Succeeded response
+        | Error _ -> BatchResultContent.Errored(BatchError { ``type`` = "parse_error"; message = "Failed to parse message" })
+      | Some "errored" ->
+        let errorFields = JsonHelpers.getObject "error" resultFields
+        BatchResultContent.Errored(parseBatchError errorFields)
+      | Some "canceled" -> BatchResultContent.Canceled
+      | Some "expired" -> BatchResultContent.Expired
+      | _ -> BatchResultContent.Errored(BatchError { ``type`` = "unknown"; message = "Unknown result type" })
+
+    Stdlib.Result.Result.Ok(
+      BatchIndividualResponse
+        { custom_id = customId
+          result = resultContent }
+    )
+  | _ -> Stdlib.Result.Result.Error "Invalid batch result format"
+
+
+// ---------------------------------------------------------------------------
+// JSON SERIALIZATION
+// ---------------------------------------------------------------------------
+
+let batchRequestToJson (req: BatchRequest) : Json =
+  Json.Object
+    [ ("custom_id", Json.String req.custom_id)
+      ("params", req.params) ]
+
+
+// ---------------------------------------------------------------------------
+// HTTP RESPONSE HANDLING
+// ---------------------------------------------------------------------------
+
+let handleBatchResponse
+  (response: Stdlib.Result.Result<Stdlib.HttpClient.Response, Stdlib.HttpClient.RequestError>)
+  : Stdlib.Result.Result<MessageBatch, Response.ApiError> =
+  match response with
+  | Ok r ->
+    let bodyStr = Stdlib.String.fromBytesWithReplacement r.body
+
+    if r.statusCode == 200L || r.statusCode == 201L then
+      match Stdlib.AltJson.parse bodyStr with
+      | Ok json ->
+        match parseMessageBatch json with
+        | Ok batch -> Stdlib.Result.Result.Ok batch
+        | Error msg -> Stdlib.Result.Result.Error(Response.ApiError.InvalidResponse msg)
+      | Error _ ->
+        Stdlib.Result.Result.Error(Response.ApiError.InvalidResponse "Failed to parse batch JSON")
+    else
+      Stdlib.Result.Result.Error(Response.ApiError.fromHttpResponse r.statusCode bodyStr)
+  | Error e ->
+    Stdlib.Result.Result.Error(Response.ApiError.fromHttpError e)
+
+let handleListResponse
+  (response: Stdlib.Result.Result<Stdlib.HttpClient.Response, Stdlib.HttpClient.RequestError>)
+  : Stdlib.Result.Result<BatchListResponse, Response.ApiError> =
+  match response with
+  | Ok r ->
+    let bodyStr = Stdlib.String.fromBytesWithReplacement r.body
+
+    if r.statusCode == 200L then
+      match Stdlib.AltJson.parse bodyStr with
+      | Ok json ->
+        match parseBatchListResponse json with
+        | Ok listResp -> Stdlib.Result.Result.Ok listResp
+        | Error msg -> Stdlib.Result.Result.Error(Response.ApiError.InvalidResponse msg)
+      | Error _ ->
+        Stdlib.Result.Result.Error(Response.ApiError.InvalidResponse "Failed to parse batch list JSON")
+    else
+      Stdlib.Result.Result.Error(Response.ApiError.fromHttpResponse r.statusCode bodyStr)
+  | Error e ->
+    Stdlib.Result.Result.Error(Response.ApiError.fromHttpError e)
+
+
+// ---------------------------------------------------------------------------
+// API FUNCTIONS
+// ---------------------------------------------------------------------------
+
+/// Create a new message batch
+/// Batches can contain up to 100,000 requests or 256 MB, whichever is reached first
+let createBatch
+  (apiKey: String)
+  (requests: List<BatchRequest>)
+  : Stdlib.Result.Result<MessageBatch, Response.ApiError> =
+  let requestsJson = Stdlib.List.map requests (fun req -> batchRequestToJson req)
+  let bodyJson = Json.Object [ ("requests", Json.Array requestsJson) ]
+  let reqBody = Stdlib.AltJson.format bodyJson
+  let headers = Models.getHeaders apiKey
+
+  let response =
+    Stdlib.HttpClient.post batchEndpoint headers (Stdlib.String.toBytes reqBody)
+
+  handleBatchResponse response
+
+/// Retrieve the status of a message batch
+let retrieveBatch
+  (apiKey: String)
+  (batchId: String)
+  : Stdlib.Result.Result<MessageBatch, Response.ApiError> =
+  let headers = Models.getHeaders apiKey
+  let response = Stdlib.HttpClient.get (batchEndpointWithId batchId) headers
+  handleBatchResponse response
+
+/// List all message batches in the workspace
+/// Returns paginated results; use after_id for pagination
+let listBatches
+  (apiKey: String)
+  (limit: Stdlib.Option.Option<Int64>)
+  (afterId: Stdlib.Option.Option<String>)
+  : Stdlib.Result.Result<BatchListResponse, Response.ApiError> =
+  let headers = Models.getHeaders apiKey
+
+  // Build query parameters
+  let queryParams =
+    []
+    |> (fun params ->
+      match limit with
+      | Some l -> Stdlib.List.append params [ ("limit", Stdlib.Int64.toString l) ]
+      | None -> params)
+    |> (fun params ->
+      match afterId with
+      | Some id -> Stdlib.List.append params [ ("after_id", id) ]
+      | None -> params)
+
+  let queryString =
+    if Stdlib.List.isEmpty queryParams then
+      ""
+    else
+      let pairs =
+        Stdlib.List.map queryParams (fun pair ->
+          let key = Stdlib.Tuple2.first pair
+          let value = Stdlib.Tuple2.second pair
+          key ++ "=" ++ value)
+      "?" ++ (Stdlib.String.join pairs "&")
+
+  let response = Stdlib.HttpClient.get (batchEndpoint ++ queryString) headers
+  handleListResponse response
+
+/// Cancel a message batch that is currently processing
+/// The batch will transition to "canceling" status
+let cancelBatch
+  (apiKey: String)
+  (batchId: String)
+  : Stdlib.Result.Result<MessageBatch, Response.ApiError> =
+  let headers = Models.getHeaders apiKey
+
+  let response =
+    Stdlib.HttpClient.post (batchCancelEndpoint batchId) headers []
+
+  handleBatchResponse response
+
+/// Get the results of a completed batch
+/// Results are returned as a list of individual responses
+/// Note: Results are only available for 29 days after batch creation
+let getBatchResults
+  (apiKey: String)
+  (batchId: String)
+  : Stdlib.Result.Result<List<BatchIndividualResponse>, Response.ApiError> =
+  let headers = Models.getHeaders apiKey
+  let response = Stdlib.HttpClient.get (batchResultsEndpoint batchId) headers
+
+  match response with
+  | Ok r ->
+    let bodyStr = Stdlib.String.fromBytesWithReplacement r.body
+
+    if r.statusCode == 200L then
+      // Results are in JSONL format (newline-delimited JSON)
+      let allLines = Stdlib.String.splitOnNewline bodyStr
+      let lines = Stdlib.List.filter allLines (fun line -> Stdlib.Bool.not (Stdlib.String.isEmpty line))
+
+      let results =
+        Stdlib.List.filterMap lines (fun line ->
+          match Stdlib.AltJson.parse line with
+          | Ok json ->
+            match parseBatchIndividualResponse json with
+            | Ok result -> Stdlib.Option.Option.Some result
+            | Error _ -> Stdlib.Option.Option.None
+          | Error _ -> Stdlib.Option.Option.None)
+
+      Stdlib.Result.Result.Ok results
+    else
+      Stdlib.Result.Result.Error(Response.ApiError.fromHttpResponse r.statusCode bodyStr)
+  | Error e ->
+    Stdlib.Result.Result.Error(Response.ApiError.fromHttpError e)
+
+/// Get results from the results_url of a completed batch
+/// Use this when you have a MessageBatch with a results_url
+let getBatchResultsFromUrl
+  (apiKey: String)
+  (resultsUrl: String)
+  : Stdlib.Result.Result<List<BatchIndividualResponse>, Response.ApiError> =
+  let headers = Models.getHeaders apiKey
+  let response = Stdlib.HttpClient.get resultsUrl headers
+
+  match response with
+  | Ok r ->
+    let bodyStr = Stdlib.String.fromBytesWithReplacement r.body
+
+    if r.statusCode == 200L then
+      // Results are in JSONL format (newline-delimited JSON)
+      let allLines = Stdlib.String.splitOnNewline bodyStr
+      let lines = Stdlib.List.filter allLines (fun line -> Stdlib.Bool.not (Stdlib.String.isEmpty line))
+
+      let results =
+        Stdlib.List.filterMap lines (fun line ->
+          match Stdlib.AltJson.parse line with
+          | Ok json ->
+            match parseBatchIndividualResponse json with
+            | Ok result -> Stdlib.Option.Option.Some result
+            | Error _ -> Stdlib.Option.Option.None
+          | Error _ -> Stdlib.Option.Option.None)
+
+      Stdlib.Result.Result.Ok results
+    else
+      Stdlib.Result.Result.Error(Response.ApiError.fromHttpResponse r.statusCode bodyStr)
+  | Error e ->
+    Stdlib.Result.Result.Error(Response.ApiError.fromHttpError e)
+
+
+// ---------------------------------------------------------------------------
+// CONVENIENCE HELPERS
+// ---------------------------------------------------------------------------
+
+/// Check if a batch has finished processing
+let isComplete (batch: MessageBatch) : Bool =
+  batch.processing_status == BatchProcessingStatus.Ended
+
+/// Check if a batch is still processing
+let isProcessing (batch: MessageBatch) : Bool =
+  batch.processing_status == BatchProcessingStatus.InProgress
+
+/// Check if a batch is being canceled
+let isCanceling (batch: MessageBatch) : Bool =
+  batch.processing_status == BatchProcessingStatus.Canceling
+
+/// Get the total number of requests in a batch
+let totalRequests (batch: MessageBatch) : Int64 =
+  let counts = batch.request_counts
+  counts.processing
+  |> Stdlib.Int64.add counts.succeeded
+  |> Stdlib.Int64.add counts.errored
+  |> Stdlib.Int64.add counts.canceled
+  |> Stdlib.Int64.add counts.expired
+
+/// Get only the successful results from a batch results list
+let getSuccessfulResults
+  (results: List<BatchIndividualResponse>)
+  : List<(String * Response.Response)> =
+  Stdlib.List.filterMap results (fun r ->
+    match r.result with
+    | Succeeded response ->
+      Stdlib.Option.Option.Some(r.custom_id, response)
+    | _ -> Stdlib.Option.Option.None)
+
+/// Get only the errored results from a batch results list
+let getErroredResults
+  (results: List<BatchIndividualResponse>)
+  : List<(String * BatchError)> =
+  Stdlib.List.filterMap results (fun r ->
+    match r.result with
+    | Errored error ->
+      Stdlib.Option.Option.Some(r.custom_id, error)
+    | _ -> Stdlib.Option.Option.None)
+
+/// Check if an error is retryable (server errors can be retried)
+let isRetryableError (error: BatchError) : Bool =
+  // Server errors can be retried, invalid_request errors need fixing
+  error.``type`` != "invalid_request"

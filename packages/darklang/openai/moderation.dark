@@ -1,0 +1,260 @@
+/// OpenAI Moderation - Content moderation API
+/// https://developers.openai.com/api/reference/resources/moderations
+module Darklang.OpenAI.Moderation
+
+type Json = Stdlib.AltJson.Json
+
+/// Moderation models
+module ModerationModel =
+  /// Multimodal moderation (text + images), best accuracy
+  let omniModerationLatest : String = "omni-moderation-latest"
+  let omniModeration20240926 : String = "omni-moderation-2024-09-26"
+  /// Legacy text-only moderation
+  let textModerationLatest : String = "text-moderation-latest"
+  let textModerationStable : String = "text-moderation-stable"
+
+/// Moderation categories
+type Categories =
+  { harassment: Bool
+    harassmentThreatening: Bool
+    hate: Bool
+    hateThreatening: Bool
+    selfHarm: Bool
+    selfHarmIntent: Bool
+    selfHarmInstructions: Bool
+    sexual: Bool
+    sexualMinors: Bool
+    violence: Bool
+    violenceGraphic: Bool
+    /// Illicit content (omni-moderation only)
+    illicit: Bool
+    /// Illicit violent content (omni-moderation only)
+    illicitViolent: Bool }
+
+/// Moderation category scores (0.0 to 1.0)
+type CategoryScores =
+  { harassment: Float
+    harassmentThreatening: Float
+    hate: Float
+    hateThreatening: Float
+    selfHarm: Float
+    selfHarmIntent: Float
+    selfHarmInstructions: Float
+    sexual: Float
+    sexualMinors: Float
+    violence: Float
+    violenceGraphic: Float
+    illicit: Float
+    illicitViolent: Float }
+
+/// Input types that triggered each category (omni-moderation only)
+type CategoryAppliedInputTypes =
+  { harassment: List<String>
+    harassmentThreatening: List<String>
+    hate: List<String>
+    hateThreatening: List<String>
+    selfHarm: List<String>
+    selfHarmIntent: List<String>
+    selfHarmInstructions: List<String>
+    sexual: List<String>
+    sexualMinors: List<String>
+    violence: List<String>
+    violenceGraphic: List<String>
+    illicit: List<String>
+    illicitViolent: List<String> }
+
+/// Moderation result for a single input
+type ModerationResult =
+  { flagged: Bool
+    categories: Categories
+    categoryScores: CategoryScores
+    categoryAppliedInputTypes: CategoryAppliedInputTypes }
+
+/// Helper to get bool from JSON fields with default false
+let getBoolField (fields: List<(String * Json)>) (key: String) : Bool =
+  Stdlib.Option.withDefault (Darklang.Anthropic.JsonHelpers.getBool key fields) false
+
+/// Helper to get number from JSON fields with default 0.0
+let getNumberField (fields: List<(String * Json)>) (key: String) : Float =
+  Stdlib.Option.withDefault (Darklang.Anthropic.JsonHelpers.getNumber key fields) 0.0
+
+/// Helper to get string array from JSON fields with default empty list
+let getStringArrayField (fields: List<(String * Json)>) (key: String) : List<String> =
+  let arr = Darklang.Anthropic.JsonHelpers.getArray key fields
+  Stdlib.List.filterMap arr (fun item ->
+    match item with
+    | String s -> Stdlib.Option.Option.Some s
+    | _ -> Stdlib.Option.Option.None)
+
+/// Parse categories from JSON
+let parseCategories (fields: List<(String * Json)>) : Categories =
+  Categories
+    { harassment = getBoolField fields "harassment"
+      harassmentThreatening = getBoolField fields "harassment/threatening"
+      hate = getBoolField fields "hate"
+      hateThreatening = getBoolField fields "hate/threatening"
+      selfHarm = getBoolField fields "self-harm"
+      selfHarmIntent = getBoolField fields "self-harm/intent"
+      selfHarmInstructions = getBoolField fields "self-harm/instructions"
+      sexual = getBoolField fields "sexual"
+      sexualMinors = getBoolField fields "sexual/minors"
+      violence = getBoolField fields "violence"
+      violenceGraphic = getBoolField fields "violence/graphic"
+      illicit = getBoolField fields "illicit"
+      illicitViolent = getBoolField fields "illicit/violent" }
+
+/// Parse category scores from JSON
+let parseCategoryScores (fields: List<(String * Json)>) : CategoryScores =
+  CategoryScores
+    { harassment = getNumberField fields "harassment"
+      harassmentThreatening = getNumberField fields "harassment/threatening"
+      hate = getNumberField fields "hate"
+      hateThreatening = getNumberField fields "hate/threatening"
+      selfHarm = getNumberField fields "self-harm"
+      selfHarmIntent = getNumberField fields "self-harm/intent"
+      selfHarmInstructions = getNumberField fields "self-harm/instructions"
+      sexual = getNumberField fields "sexual"
+      sexualMinors = getNumberField fields "sexual/minors"
+      violence = getNumberField fields "violence"
+      violenceGraphic = getNumberField fields "violence/graphic"
+      illicit = getNumberField fields "illicit"
+      illicitViolent = getNumberField fields "illicit/violent" }
+
+/// Parse category applied input types from JSON
+let parseCategoryAppliedInputTypes (fields: List<(String * Json)>) : CategoryAppliedInputTypes =
+  CategoryAppliedInputTypes
+    { harassment = getStringArrayField fields "harassment"
+      harassmentThreatening = getStringArrayField fields "harassment/threatening"
+      hate = getStringArrayField fields "hate"
+      hateThreatening = getStringArrayField fields "hate/threatening"
+      selfHarm = getStringArrayField fields "self-harm"
+      selfHarmIntent = getStringArrayField fields "self-harm/intent"
+      selfHarmInstructions = getStringArrayField fields "self-harm/instructions"
+      sexual = getStringArrayField fields "sexual"
+      sexualMinors = getStringArrayField fields "sexual/minors"
+      violence = getStringArrayField fields "violence"
+      violenceGraphic = getStringArrayField fields "violence/graphic"
+      illicit = getStringArrayField fields "illicit"
+      illicitViolent = getStringArrayField fields "illicit/violent" }
+
+/// Moderate text with a specific model
+let moderateWithModel
+  (apiKey: String)
+  (model: String)
+  (input: String)
+  : Stdlib.Result.Result<ModerationResult, String> =
+  // Validate API key
+  if apiKey == "" then
+    Stdlib.Result.Result.Error "API key cannot be empty"
+  else
+    let requestJson =
+      Json.Object
+        [ ("model", Json.String model)
+          ("input", Json.String input) ]
+
+    let body = Stdlib.AltJson.format requestJson
+    let headers = Config.getHeaders apiKey
+    let url = Config.baseUrl ++ "/moderations"
+
+    match Stdlib.HttpClient.post url headers (Stdlib.String.toBytes body) with
+    | Error e -> Stdlib.Result.Result.Error("HTTP request failed: " ++ Stdlib.HttpClient.toString e)
+    | Ok response ->
+      let bodyStr = Stdlib.String.fromBytesWithReplacement response.body
+
+      match response.statusCode with
+      | code when code >= 200L && code < 300L ->
+        match Stdlib.AltJson.parse bodyStr with
+        | Ok (Object fields) ->
+          let results = Darklang.Anthropic.JsonHelpers.getArray "results" fields
+          match Stdlib.List.head results with
+          | Some (Object resultFields) ->
+            let flagged =
+              Stdlib.Option.withDefault
+                (Darklang.Anthropic.JsonHelpers.getBool "flagged" resultFields)
+                false
+            let categoriesFields = Darklang.Anthropic.JsonHelpers.getObject "categories" resultFields
+            let scoresFields = Darklang.Anthropic.JsonHelpers.getObject "category_scores" resultFields
+            let inputTypesFields = Darklang.Anthropic.JsonHelpers.getObject "category_applied_input_types" resultFields
+
+            Stdlib.Result.Result.Ok(
+              ModerationResult
+                { flagged = flagged
+                  categories = parseCategories categoriesFields
+                  categoryScores = parseCategoryScores scoresFields
+                  categoryAppliedInputTypes = parseCategoryAppliedInputTypes inputTypesFields })
+          | _ -> Stdlib.Result.Result.Error "No results in response"
+        | _ -> Stdlib.Result.Result.Error "Invalid response format"
+      | 401L -> Stdlib.Result.Result.Error "Authentication failed: Invalid API key"
+      | 429L -> Stdlib.Result.Result.Error "Rate limit exceeded"
+      | _ -> Stdlib.Result.Result.Error("API error: " ++ bodyStr)
+
+/// Moderate text content
+let moderateText
+  (apiKey: String)
+  (input: String)
+  : Stdlib.Result.Result<ModerationResult, String> =
+  moderateWithModel apiKey ModerationModel.omniModerationLatest input
+
+/// Moderate multiple texts
+let moderateBatch
+  (apiKey: String)
+  (inputs: List<String>)
+  : Stdlib.Result.Result<List<ModerationResult>, String> =
+  // Validate API key
+  if apiKey == "" then
+    Stdlib.Result.Result.Error "API key cannot be empty"
+  else
+    let inputsJson = Stdlib.List.map inputs (fun s -> Json.String s)
+
+    let requestJson =
+      Json.Object
+        [ ("model", Json.String ModerationModel.omniModerationLatest)
+          ("input", Json.Array inputsJson) ]
+
+    let body = Stdlib.AltJson.format requestJson
+    let headers = Config.getHeaders apiKey
+    let url = Config.baseUrl ++ "/moderations"
+
+    match Stdlib.HttpClient.post url headers (Stdlib.String.toBytes body) with
+    | Error e -> Stdlib.Result.Result.Error("HTTP request failed: " ++ Stdlib.HttpClient.toString e)
+    | Ok response ->
+      let bodyStr = Stdlib.String.fromBytesWithReplacement response.body
+
+      match response.statusCode with
+      | code when code >= 200L && code < 300L ->
+        match Stdlib.AltJson.parse bodyStr with
+        | Ok (Object fields) ->
+          let results = Darklang.Anthropic.JsonHelpers.getArray "results" fields
+          let parsedResults =
+            Stdlib.List.filterMap results (fun r ->
+              match r with
+              | Object resultFields ->
+                let flagged =
+                  Stdlib.Option.withDefault
+                    (Darklang.Anthropic.JsonHelpers.getBool "flagged" resultFields)
+                    false
+                let categoriesFields = Darklang.Anthropic.JsonHelpers.getObject "categories" resultFields
+                let scoresFields = Darklang.Anthropic.JsonHelpers.getObject "category_scores" resultFields
+                let inputTypesFields = Darklang.Anthropic.JsonHelpers.getObject "category_applied_input_types" resultFields
+
+                Stdlib.Option.Option.Some(
+                  ModerationResult
+                    { flagged = flagged
+                      categories = parseCategories categoriesFields
+                      categoryScores = parseCategoryScores scoresFields
+                      categoryAppliedInputTypes = parseCategoryAppliedInputTypes inputTypesFields })
+              | _ -> Stdlib.Option.Option.None)
+          Stdlib.Result.Result.Ok parsedResults
+        | _ -> Stdlib.Result.Result.Error "Invalid response format"
+      | 401L -> Stdlib.Result.Result.Error "Authentication failed: Invalid API key"
+      | 429L -> Stdlib.Result.Result.Error "Rate limit exceeded"
+      | _ -> Stdlib.Result.Result.Error("API error: " ++ bodyStr)
+
+/// Check if content is flagged (simple convenience function)
+let isFlagged
+  (apiKey: String)
+  (input: String)
+  : Stdlib.Result.Result<Bool, String> =
+  match moderateText apiKey input with
+  | Ok result -> Stdlib.Result.Result.Ok result.flagged
+  | Error e -> Stdlib.Result.Result.Error e

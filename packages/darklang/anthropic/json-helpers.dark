@@ -1,0 +1,116 @@
+/// Anthropic Claude API - JSON Parsing Helpers
+/// Shared utilities for parsing JSON objects from API responses
+module Darklang.Anthropic.JsonHelpers
+
+type Json = Stdlib.AltJson.Json
+
+
+/// Get a string value from a JSON object's fields
+let getString
+  (key: String)
+  (fields: List<(String * Json)>)
+  : Stdlib.Option.Option<String> =
+  let found = Stdlib.List.findFirst fields (fun (k, _) -> k == key)
+
+  match found with
+  | Some pair ->
+    match Stdlib.Tuple2.second pair with
+    | String s -> Stdlib.Option.Option.Some s
+    | _ -> Stdlib.Option.Option.None
+  | None -> Stdlib.Option.Option.None
+
+
+/// Get a boolean value from a JSON object's fields
+let getBool
+  (key: String)
+  (fields: List<(String * Json)>)
+  : Stdlib.Option.Option<Bool> =
+  let found = Stdlib.List.findFirst fields (fun (k, _) -> k == key)
+
+  match found with
+  | Some pair ->
+    match Stdlib.Tuple2.second pair with
+    | Bool b -> Stdlib.Option.Option.Some b
+    | _ -> Stdlib.Option.Option.None
+  | None -> Stdlib.Option.Option.None
+
+
+/// Get a raw JSON value from a JSON object's fields
+let getValue
+  (key: String)
+  (fields: List<(String * Json)>)
+  : Stdlib.Option.Option<Json> =
+  let found = Stdlib.List.findFirst fields (fun (k, _) -> k == key)
+
+  match found with
+  | Some pair -> Stdlib.Option.Option.Some(Stdlib.Tuple2.second pair)
+  | None -> Stdlib.Option.Option.None
+
+
+/// Get an integer value from a JSON object's fields (returns 0 if not found)
+let getInt (key: String) (fields: List<(String * Json)>) : Int64 =
+  let found = Stdlib.List.findFirst fields (fun (k, _) -> k == key)
+
+  match found with
+  | Some pair ->
+    match Stdlib.Tuple2.second pair with
+    | Number n -> Stdlib.Float.truncate n
+    | _ -> 0L
+  | None -> 0L
+
+
+/// Get an optional integer value from a JSON object's fields
+let getIntOption
+  (key: String)
+  (fields: List<(String * Json)>)
+  : Stdlib.Option.Option<Int64> =
+  let found = Stdlib.List.findFirst fields (fun (k, _) -> k == key)
+
+  match found with
+  | Some pair ->
+    match Stdlib.Tuple2.second pair with
+    | Number n -> Stdlib.Option.Option.Some(Stdlib.Float.truncate n)
+    | _ -> Stdlib.Option.Option.None
+  | None -> Stdlib.Option.Option.None
+
+
+/// Get a float number value from a JSON object's fields
+let getNumber
+  (key: String)
+  (fields: List<(String * Json)>)
+  : Stdlib.Option.Option<Float> =
+  let found = Stdlib.List.findFirst fields (fun (k, _) -> k == key)
+
+  match found with
+  | Some pair ->
+    match Stdlib.Tuple2.second pair with
+    | Number n -> Stdlib.Option.Option.Some n
+    | _ -> Stdlib.Option.Option.None
+  | None -> Stdlib.Option.Option.None
+
+
+/// Get an array value from a JSON object's fields (returns [] if not found)
+let getArray (key: String) (fields: List<(String * Json)>) : List<Json> =
+  let found = Stdlib.List.findFirst fields (fun (k, _) -> k == key)
+
+  match found with
+  | Some pair ->
+    match Stdlib.Tuple2.second pair with
+    | Array items -> items
+    | _ -> []
+  | None -> []
+
+
+/// Get a nested object's fields from a JSON object (returns [] if not found)
+let getObject
+  (key: String)
+  (fields: List<(String * Json)>)
+  : List<(String * Json)> =
+  let found = Stdlib.List.findFirst fields (fun (k, _) -> k == key)
+
+  match found with
+  | Some pair ->
+    match Stdlib.Tuple2.second pair with
+    | Object nestedFields -> nestedFields
+    | _ -> []
+  | None -> []

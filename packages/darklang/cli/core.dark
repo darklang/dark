@@ -574,7 +574,7 @@ let runInteractiveLoop (state: AppState) : Int64 =
 
 /// Extract --branch <name> from args, returning (branchId, remainingArgs).
 /// If --branch is not specified, defaults to main.
-let private parseBranchFlag (args: List<String>) : (Uuid * List<String>) =
+let parseBranchFlag (args: List<String>) : (Uuid * List<String>) =
   // Walk the list looking for "--branch" followed by a name
   let indexed = Stdlib.List.indexedMap args (fun i a -> (i, a))
 
@@ -627,9 +627,8 @@ let executeCliCommand (args: List<String>) : Int64 =
 
     Stdlib.printLine (View.formatWelcome ())
     runInteractiveLoop initialState
-  // Otherwise, just execute command, print result, and exit
-  | _ ->
-    let command = remainingArgs |> Stdlib.String.join " "
-    let finalState = Update.processInput initialState command
+  // Otherwise, execute command directly (shell already split args correctly)
+  | commandName :: commandArgs ->
+    let _ = Registry.executeCommand commandName initialState commandArgs
     0L
 

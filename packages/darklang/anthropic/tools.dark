@@ -1,0 +1,849 @@
+/// Anthropic Claude API - Tools
+/// Types and builders for client tools, server tools, and tool choice
+module Darklang.Anthropic.Tools
+
+type Json = Stdlib.AltJson.Json
+
+
+// ---------------------------------------------------------------------------
+// PROPERTY DEFINITIONS
+// For building tool input schemas
+// ---------------------------------------------------------------------------
+
+type PropertyDef =
+  { ``type``: String
+    description: Stdlib.Option.Option<String>
+    enum: Stdlib.Option.Option<List<String>> }
+
+let stringProp (description: String) : PropertyDef =
+  PropertyDef
+    { ``type`` = "string"
+      description = Stdlib.Option.Option.Some description
+      enum = Stdlib.Option.Option.None }
+
+let enumProp (description: String) (values: List<String>) : PropertyDef =
+  PropertyDef
+    { ``type`` = "string"
+      description = Stdlib.Option.Option.Some description
+      enum = Stdlib.Option.Option.Some values }
+
+let intProp (description: String) : PropertyDef =
+  PropertyDef
+    { ``type`` = "integer"
+      description = Stdlib.Option.Option.Some description
+      enum = Stdlib.Option.Option.None }
+
+let numberProp (description: String) : PropertyDef =
+  PropertyDef
+    { ``type`` = "number"
+      description = Stdlib.Option.Option.Some description
+      enum = Stdlib.Option.Option.None }
+
+let boolProp (description: String) : PropertyDef =
+  PropertyDef
+    { ``type`` = "boolean"
+      description = Stdlib.Option.Option.Some description
+      enum = Stdlib.Option.Option.None }
+
+
+// ---------------------------------------------------------------------------
+// CLIENT TOOLS
+// Custom tools that your application handles
+// ---------------------------------------------------------------------------
+
+type ToolInputSchema =
+  { ``type``: String
+    properties: Dict<PropertyDef>
+    required: Stdlib.Option.Option<List<String>> }
+
+type Tool =
+  { name: String
+    description: String
+    input_schema: ToolInputSchema
+    cache_control: Stdlib.Option.Option<Models.CacheControl>
+    strict: Stdlib.Option.Option<Bool>
+    eager_input_streaming: Stdlib.Option.Option<Bool> }
+
+let makeTool
+  (name: String)
+  (description: String)
+  (properties: Dict<PropertyDef>)
+  (required: List<String>)
+  : Tool =
+  Tool
+    { name = name
+      description = description
+      input_schema =
+        ToolInputSchema
+          { ``type`` = "object"
+            properties = properties
+            required = Stdlib.Option.Option.Some required }
+      cache_control = Stdlib.Option.Option.None
+      strict = Stdlib.Option.Option.None
+      eager_input_streaming = Stdlib.Option.Option.None }
+
+/// Create a tool with strict schema validation enabled
+let makeToolStrict
+  (name: String)
+  (description: String)
+  (properties: Dict<PropertyDef>)
+  (required: List<String>)
+  : Tool =
+  Tool
+    { name = name
+      description = description
+      input_schema =
+        ToolInputSchema
+          { ``type`` = "object"
+            properties = properties
+            required = Stdlib.Option.Option.Some required }
+      cache_control = Stdlib.Option.Option.None
+      strict = Stdlib.Option.Option.Some true
+      eager_input_streaming = Stdlib.Option.Option.None }
+
+let makeToolCached
+  (name: String)
+  (description: String)
+  (properties: Dict<PropertyDef>)
+  (required: List<String>)
+  (cache: Models.CacheControl)
+  : Tool =
+  Tool
+    { name = name
+      description = description
+      input_schema =
+        ToolInputSchema
+          { ``type`` = "object"
+            properties = properties
+            required = Stdlib.Option.Option.Some required }
+      cache_control = Stdlib.Option.Option.Some cache
+      strict = Stdlib.Option.Option.None
+      eager_input_streaming = Stdlib.Option.Option.None }
+
+let toolToJson (tool: Tool) : Json =
+  let propsList = Stdlib.Dict.toList tool.input_schema.properties
+
+  let propsJson =
+    Stdlib.List.map propsList (fun pair ->
+      let key = Stdlib.Tuple2.first pair
+      let prop = Stdlib.Tuple2.second pair
+
+      let propFields =
+        [ ("type", Json.String prop.``type``) ]
+
+      let withDesc =
+        match prop.description with
+        | Some d -> Stdlib.List.append propFields [ ("description", Json.String d) ]
+        | None -> propFields
+
+      let withEnum =
+        match prop.enum with
+        | Some values ->
+          let enumArray = Stdlib.List.map values (fun v -> Json.String v)
+          Stdlib.List.append withDesc [ ("enum", Json.Array enumArray) ]
+        | None -> withDesc
+
+      (key, Json.Object withEnum))
+
+  let inputSchemaJson =
+    Json.Object
+      [ ("type", Json.String tool.input_schema.``type``)
+        ("properties", Json.Object propsJson)
+        ("required",
+         match tool.input_schema.required with
+         | Some reqs ->
+           Json.Array(Stdlib.List.map reqs (fun r -> Json.String r))
+         | None -> Json.Array []) ]
+
+  let baseFields =
+    [ ("name", Json.String tool.name)
+      ("description", Json.String tool.description)
+      ("input_schema", inputSchemaJson) ]
+
+  let withCache =
+    match tool.cache_control with
+    | Some cc ->
+      let cacheJson = Models.cacheControlToJson cc
+      Stdlib.List.append baseFields [ ("cache_control", cacheJson) ]
+    | None -> baseFields
+
+  let withStrict =
+    match tool.strict with
+    | Some s -> Stdlib.List.append withCache [ ("strict", Json.Bool s) ]
+    | None -> withCache
+
+  let withStreaming =
+    match tool.eager_input_streaming with
+    | Some s -> Stdlib.List.append withStrict [ ("eager_input_streaming", Json.Bool s) ]
+    | None -> withStrict
+
+  Json.Object withStreaming
+
+
+// ---------------------------------------------------------------------------
+// TOOL CHOICE
+// Controls how the model selects tools
+// ---------------------------------------------------------------------------
+
+type ToolChoiceType =
+  | Auto
+  | Any
+  | Tool
+  | None
+
+module ToolChoiceType =
+  let toString (t: ToolChoiceType) : String =
+    match t with
+    | Auto -> "auto"
+    | Any -> "any"
+    | Tool -> "tool"
+    | None -> "none"
+
+  let parse (s: String) : Stdlib.Option.Option<ToolChoiceType> =
+    match s with
+    | "auto" -> Stdlib.Option.Option.Some ToolChoiceType.Auto
+    | "any" -> Stdlib.Option.Option.Some ToolChoiceType.Any
+    | "tool" -> Stdlib.Option.Option.Some ToolChoiceType.Tool
+    | "none" -> Stdlib.Option.Option.Some ToolChoiceType.None
+    | _ -> Stdlib.Option.Option.None
+
+type ToolChoice =
+  { ``type``: ToolChoiceType
+    name: Stdlib.Option.Option<String>
+    disable_parallel_tool_use: Stdlib.Option.Option<Bool> }
+
+let toolChoiceAuto () : ToolChoice =
+  ToolChoice
+    { ``type`` = ToolChoiceType.Auto
+      name = Stdlib.Option.Option.None
+      disable_parallel_tool_use = Stdlib.Option.Option.None }
+
+let toolChoiceAny () : ToolChoice =
+  ToolChoice
+    { ``type`` = ToolChoiceType.Any
+      name = Stdlib.Option.Option.None
+      disable_parallel_tool_use = Stdlib.Option.Option.None }
+
+let toolChoiceTool (toolName: String) : ToolChoice =
+  ToolChoice
+    { ``type`` = ToolChoiceType.Tool
+      name = Stdlib.Option.Option.Some toolName
+      disable_parallel_tool_use = Stdlib.Option.Option.None }
+
+let toolChoiceNone () : ToolChoice =
+  ToolChoice
+    { ``type`` = ToolChoiceType.None
+      name = Stdlib.Option.Option.None
+      disable_parallel_tool_use = Stdlib.Option.Option.None }
+
+let toolChoiceSequential () : ToolChoice =
+  ToolChoice
+    { ``type`` = ToolChoiceType.Auto
+      name = Stdlib.Option.Option.None
+      disable_parallel_tool_use = Stdlib.Option.Option.Some true }
+
+let toolChoiceToJson (tc: ToolChoice) : Json =
+  Models.JsonBuilder.empty
+  |> Models.JsonBuilder.addString "type" (ToolChoiceType.toString tc.``type``)
+  |> Models.JsonBuilder.addOptionalString "name" tc.name
+  |> Models.JsonBuilder.addOptionalBool "disable_parallel_tool_use" tc.disable_parallel_tool_use
+  |> Models.JsonBuilder.toJson
+
+
+// ---------------------------------------------------------------------------
+// WEB SEARCH TOOL (Server Tool)
+// Built-in web search capability
+// ---------------------------------------------------------------------------
+
+type WebSearchUserLocation =
+  { ``type``: String
+    city: Stdlib.Option.Option<String>
+    country: Stdlib.Option.Option<String>
+    region: Stdlib.Option.Option<String>
+    timezone: Stdlib.Option.Option<String> }
+
+type WebSearchTool =
+  { ``type``: String
+    name: String
+    max_uses: Stdlib.Option.Option<Int64>
+    allowed_domains: Stdlib.Option.Option<List<String>>
+    blocked_domains: Stdlib.Option.Option<List<String>>
+    user_location: Stdlib.Option.Option<WebSearchUserLocation> }
+
+let webSearchTool () : WebSearchTool =
+  WebSearchTool
+    { ``type`` = "web_search_20250305"
+      name = "web_search"
+      max_uses = Stdlib.Option.Option.None
+      allowed_domains = Stdlib.Option.Option.None
+      blocked_domains = Stdlib.Option.Option.None
+      user_location = Stdlib.Option.Option.None }
+
+let webSearchToolWithLimit (maxUses: Int64) : WebSearchTool =
+  WebSearchTool
+    { ``type`` = "web_search_20250305"
+      name = "web_search"
+      max_uses = Stdlib.Option.Option.Some maxUses
+      allowed_domains = Stdlib.Option.Option.None
+      blocked_domains = Stdlib.Option.Option.None
+      user_location = Stdlib.Option.Option.None }
+
+let webSearchToolWithDomains
+  (allowed: List<String>)
+  (maxUses: Stdlib.Option.Option<Int64>)
+  : WebSearchTool =
+  WebSearchTool
+    { ``type`` = "web_search_20250305"
+      name = "web_search"
+      max_uses = maxUses
+      allowed_domains = Stdlib.Option.Option.Some allowed
+      blocked_domains = Stdlib.Option.Option.None
+      user_location = Stdlib.Option.Option.None }
+
+let webSearchToJson (tool: WebSearchTool) : Json =
+  let baseFields =
+    [ ("type", Json.String tool.``type``)
+      ("name", Json.String tool.name) ]
+
+  let withMaxUses =
+    match tool.max_uses with
+    | Some n ->
+      Stdlib.List.append baseFields [ ("max_uses", Json.Number (Stdlib.Int64.toFloat n)) ]
+    | None -> baseFields
+
+  let withAllowed =
+    match tool.allowed_domains with
+    | Some domains ->
+      let domainsJson = Stdlib.List.map domains (fun d -> Json.String d)
+      Stdlib.List.append withMaxUses [ ("allowed_domains", Json.Array domainsJson) ]
+    | None -> withMaxUses
+
+  let withBlocked =
+    match tool.blocked_domains with
+    | Some domains ->
+      let domainsJson = Stdlib.List.map domains (fun d -> Json.String d)
+      Stdlib.List.append withAllowed [ ("blocked_domains", Json.Array domainsJson) ]
+    | None -> withAllowed
+
+  let withLocation =
+    match tool.user_location with
+    | Some loc ->
+      let locFields = [ ("type", Json.String loc.``type``) ]
+
+      let locWithCity =
+        match loc.city with
+        | Some c -> Stdlib.List.append locFields [ ("city", Json.String c) ]
+        | None -> locFields
+
+      let locWithCountry =
+        match loc.country with
+        | Some c -> Stdlib.List.append locWithCity [ ("country", Json.String c) ]
+        | None -> locWithCity
+
+      let locWithRegion =
+        match loc.region with
+        | Some r -> Stdlib.List.append locWithCountry [ ("region", Json.String r) ]
+        | None -> locWithCountry
+
+      let locWithTimezone =
+        match loc.timezone with
+        | Some t -> Stdlib.List.append locWithRegion [ ("timezone", Json.String t) ]
+        | None -> locWithRegion
+
+      Stdlib.List.append withBlocked [ ("user_location", Json.Object locWithTimezone) ]
+    | None -> withBlocked
+
+  Json.Object withLocation
+
+
+// ---------------------------------------------------------------------------
+// TEXT EDITOR TOOL (Server Tool)
+// Built-in file editing capability for agentic workflows
+// Available versions:
+//   - 20250124: Original version (name: str_replace_editor)
+//   - 20250429: Updated version (name: str_replace_based_edit_tool)
+//   - 20250728: Latest with max_characters support
+// ---------------------------------------------------------------------------
+
+type TextEditorTool =
+  { ``type``: String
+    name: String
+    max_characters: Stdlib.Option.Option<Int64> }
+
+/// Latest text editor tool (20250728) - recommended
+let textEditorTool () : TextEditorTool =
+  TextEditorTool
+    { ``type`` = "text_editor_20250728"
+      name = "str_replace_based_edit_tool"
+      max_characters = Stdlib.Option.Option.None }
+
+/// Latest text editor with character limit
+let textEditorToolWithLimit (maxChars: Int64) : TextEditorTool =
+  TextEditorTool
+    { ``type`` = "text_editor_20250728"
+      name = "str_replace_based_edit_tool"
+      max_characters = Stdlib.Option.Option.Some maxChars }
+
+/// Text editor version 20250429
+let textEditorToolV2 () : TextEditorTool =
+  TextEditorTool
+    { ``type`` = "text_editor_20250429"
+      name = "str_replace_based_edit_tool"
+      max_characters = Stdlib.Option.Option.None }
+
+/// Original text editor version 20250124
+let textEditorToolV1 () : TextEditorTool =
+  TextEditorTool
+    { ``type`` = "text_editor_20250124"
+      name = "str_replace_editor"
+      max_characters = Stdlib.Option.Option.None }
+
+let textEditorToJson (tool: TextEditorTool) : Json =
+  let baseFields =
+    [ ("type", Json.String tool.``type``)
+      ("name", Json.String tool.name) ]
+
+  let withMaxChars =
+    match tool.max_characters with
+    | Some n ->
+      Stdlib.List.append baseFields [ ("max_characters", Json.Number (Stdlib.Int64.toFloat n)) ]
+    | None -> baseFields
+
+  Json.Object withMaxChars
+
+
+// ---------------------------------------------------------------------------
+// BASH TOOL (Server Tool)
+// Built-in command execution capability for agentic workflows
+// ---------------------------------------------------------------------------
+
+type BashTool =
+  { ``type``: String
+    name: String }
+
+let bashTool () : BashTool =
+  BashTool
+    { ``type`` = "bash_20250124"
+      name = "bash" }
+
+let bashToJson (tool: BashTool) : Json =
+  Json.Object
+    [ ("type", Json.String tool.``type``)
+      ("name", Json.String tool.name) ]
+
+
+// ---------------------------------------------------------------------------
+// COMPUTER USE TOOL (Server Tool)
+// Built-in computer interaction capability for agentic workflows
+// Versions:
+//   - 20251124: Opus 4.6/4.5 with zoom action (beta: computer-use-2025-11-24)
+//   - 20250124: Other models (beta: computer-use-2025-01-24)
+// ---------------------------------------------------------------------------
+
+type ComputerTool =
+  { ``type``: String
+    name: String
+    display_width_px: Int64
+    display_height_px: Int64
+    display_number: Stdlib.Option.Option<Int64>
+    enable_zoom: Stdlib.Option.Option<Bool> }
+
+/// Computer tool for most models (20250124)
+let computerTool (width: Int64) (height: Int64) : ComputerTool =
+  ComputerTool
+    { ``type`` = "computer_20250124"
+      name = "computer"
+      display_width_px = width
+      display_height_px = height
+      display_number = Stdlib.Option.Option.None
+      enable_zoom = Stdlib.Option.Option.None }
+
+/// Computer tool for most models with display number
+let computerToolWithDisplay
+  (width: Int64)
+  (height: Int64)
+  (displayNum: Int64)
+  : ComputerTool =
+  ComputerTool
+    { ``type`` = "computer_20250124"
+      name = "computer"
+      display_width_px = width
+      display_height_px = height
+      display_number = Stdlib.Option.Option.Some displayNum
+      enable_zoom = Stdlib.Option.Option.None }
+
+/// Computer tool for Opus 4.6/4.5 (20251124) - includes zoom capability
+let computerToolOpus (width: Int64) (height: Int64) : ComputerTool =
+  ComputerTool
+    { ``type`` = "computer_20251124"
+      name = "computer"
+      display_width_px = width
+      display_height_px = height
+      display_number = Stdlib.Option.Option.None
+      enable_zoom = Stdlib.Option.Option.None }
+
+/// Computer tool for Opus 4.6/4.5 with zoom enabled
+let computerToolOpusWithZoom (width: Int64) (height: Int64) : ComputerTool =
+  ComputerTool
+    { ``type`` = "computer_20251124"
+      name = "computer"
+      display_width_px = width
+      display_height_px = height
+      display_number = Stdlib.Option.Option.None
+      enable_zoom = Stdlib.Option.Option.Some true }
+
+/// Computer tool for Opus 4.6/4.5 with all options
+let computerToolOpusFull
+  (width: Int64)
+  (height: Int64)
+  (displayNum: Int64)
+  (enableZoom: Bool)
+  : ComputerTool =
+  ComputerTool
+    { ``type`` = "computer_20251124"
+      name = "computer"
+      display_width_px = width
+      display_height_px = height
+      display_number = Stdlib.Option.Option.Some displayNum
+      enable_zoom = Stdlib.Option.Option.Some enableZoom }
+
+let computerToJson (tool: ComputerTool) : Json =
+  let baseFields =
+    [ ("type", Json.String tool.``type``)
+      ("name", Json.String tool.name)
+      ("display_width_px", Json.Number(Stdlib.Int64.toFloat tool.display_width_px))
+      ("display_height_px", Json.Number(Stdlib.Int64.toFloat tool.display_height_px)) ]
+
+  let withDisplay =
+    match tool.display_number with
+    | Some n ->
+      Stdlib.List.append baseFields [ ("display_number", Json.Number(Stdlib.Int64.toFloat n)) ]
+    | None -> baseFields
+
+  let withZoom =
+    match tool.enable_zoom with
+    | Some z ->
+      Stdlib.List.append withDisplay [ ("enable_zoom", Json.Bool z) ]
+    | None -> withDisplay
+
+  Json.Object withZoom
+
+
+// ---------------------------------------------------------------------------
+// CODE EXECUTION TOOL (Server Tool)
+// Built-in sandboxed code execution capability
+// Version 20250825: Bash + file operations (current)
+// Version 20250522: Python only (legacy)
+// Beta header: code-execution-2025-08-25
+// ---------------------------------------------------------------------------
+
+type CodeExecutionTool =
+  { ``type``: String
+    name: String }
+
+/// Current code execution tool (20250825) - Bash + file operations
+let codeExecutionTool () : CodeExecutionTool =
+  CodeExecutionTool
+    { ``type`` = "code_execution_20250825"
+      name = "code_execution" }
+
+/// Legacy code execution tool (20250522) - Python only
+let codeExecutionToolLegacy () : CodeExecutionTool =
+  CodeExecutionTool
+    { ``type`` = "code_execution_20250522"
+      name = "code_execution" }
+
+let codeExecutionToJson (tool: CodeExecutionTool) : Json =
+  Json.Object
+    [ ("type", Json.String tool.``type``)
+      ("name", Json.String tool.name) ]
+
+
+// ---------------------------------------------------------------------------
+// MCP TOOL (Server Tool)
+// Model Context Protocol integration
+// ---------------------------------------------------------------------------
+
+type McpTool =
+  { ``type``: String
+    name: String
+    server_label: String
+    server_url: String
+    allowed_tools: Stdlib.Option.Option<List<String>>
+    authorization_token: Stdlib.Option.Option<String> }
+
+let mcpTool (serverLabel: String) (serverUrl: String) : McpTool =
+  McpTool
+    { ``type`` = "mcp_20250326"
+      name = "mcp"
+      server_label = serverLabel
+      server_url = serverUrl
+      allowed_tools = Stdlib.Option.Option.None
+      authorization_token = Stdlib.Option.Option.None }
+
+let mcpToolWithAuth
+  (serverLabel: String)
+  (serverUrl: String)
+  (authToken: String)
+  : McpTool =
+  McpTool
+    { ``type`` = "mcp_20250326"
+      name = "mcp"
+      server_label = serverLabel
+      server_url = serverUrl
+      allowed_tools = Stdlib.Option.Option.None
+      authorization_token = Stdlib.Option.Option.Some authToken }
+
+let mcpToJson (tool: McpTool) : Json =
+  let baseFields =
+    [ ("type", Json.String tool.``type``)
+      ("name", Json.String tool.name)
+      ("server_label", Json.String tool.server_label)
+      ("server_url", Json.String tool.server_url) ]
+
+  let withAllowed =
+    match tool.allowed_tools with
+    | Some tools ->
+      let toolsJson = Stdlib.List.map tools (fun t -> Json.String t)
+      Stdlib.List.append baseFields [ ("allowed_tools", Json.Array toolsJson) ]
+    | None -> baseFields
+
+  let withAuth =
+    match tool.authorization_token with
+    | Some token ->
+      Stdlib.List.append withAllowed [ ("authorization_token", Json.String token) ]
+    | None -> withAllowed
+
+  Json.Object withAuth
+
+
+// ---------------------------------------------------------------------------
+// WEB SEARCH TOOL RESULT ERROR
+// Error types returned in web search tool results
+// ---------------------------------------------------------------------------
+
+type WebSearchErrorCode =
+  | InvalidInput
+  | Unavailable
+  | MaxUsesExceeded
+  | TooManyRequests
+  | QueryTooLong
+  | RequestTooLarge
+
+module WebSearchErrorCode =
+  let toString (code: WebSearchErrorCode) : String =
+    match code with
+    | InvalidInput -> "invalid_input"
+    | Unavailable -> "unavailable"
+    | MaxUsesExceeded -> "max_uses_exceeded"
+    | TooManyRequests -> "too_many_requests"
+    | QueryTooLong -> "query_too_long"
+    | RequestTooLarge -> "request_too_large"
+
+  let parse (s: String) : Stdlib.Option.Option<WebSearchErrorCode> =
+    match s with
+    | "invalid_input" -> Stdlib.Option.Option.Some WebSearchErrorCode.InvalidInput
+    | "unavailable" -> Stdlib.Option.Option.Some WebSearchErrorCode.Unavailable
+    | "max_uses_exceeded" -> Stdlib.Option.Option.Some WebSearchErrorCode.MaxUsesExceeded
+    | "too_many_requests" -> Stdlib.Option.Option.Some WebSearchErrorCode.TooManyRequests
+    | "query_too_long" -> Stdlib.Option.Option.Some WebSearchErrorCode.QueryTooLong
+    | "request_too_large" -> Stdlib.Option.Option.Some WebSearchErrorCode.RequestTooLarge
+    | _ -> Stdlib.Option.Option.None
+
+  let isRetryable (code: WebSearchErrorCode) : Bool =
+    match code with
+    | TooManyRequests -> true
+    | Unavailable -> true
+    | _ -> false
+
+
+// ---------------------------------------------------------------------------
+// WEB FETCH TOOL (Server Tool)
+// Built-in web page/PDF content fetching capability
+// Beta header: web-fetch-2025-09-10
+// ---------------------------------------------------------------------------
+
+type WebFetchCitations =
+  { enabled: Bool }
+
+type WebFetchTool =
+  { ``type``: String
+    name: String
+    max_uses: Stdlib.Option.Option<Int64>
+    allowed_domains: Stdlib.Option.Option<List<String>>
+    blocked_domains: Stdlib.Option.Option<List<String>>
+    citations: Stdlib.Option.Option<WebFetchCitations>
+    max_content_tokens: Stdlib.Option.Option<Int64> }
+
+/// Basic web fetch tool with no options
+let webFetchTool () : WebFetchTool =
+  WebFetchTool
+    { ``type`` = "web_fetch_20250910"
+      name = "web_fetch"
+      max_uses = Stdlib.Option.Option.None
+      allowed_domains = Stdlib.Option.Option.None
+      blocked_domains = Stdlib.Option.Option.None
+      citations = Stdlib.Option.Option.None
+      max_content_tokens = Stdlib.Option.Option.None }
+
+/// Web fetch tool with usage limit
+let webFetchToolWithLimit (maxUses: Int64) : WebFetchTool =
+  WebFetchTool
+    { ``type`` = "web_fetch_20250910"
+      name = "web_fetch"
+      max_uses = Stdlib.Option.Option.Some maxUses
+      allowed_domains = Stdlib.Option.Option.None
+      blocked_domains = Stdlib.Option.Option.None
+      citations = Stdlib.Option.Option.None
+      max_content_tokens = Stdlib.Option.Option.None }
+
+/// Web fetch tool with citations enabled
+let webFetchToolWithCitations () : WebFetchTool =
+  WebFetchTool
+    { ``type`` = "web_fetch_20250910"
+      name = "web_fetch"
+      max_uses = Stdlib.Option.Option.None
+      allowed_domains = Stdlib.Option.Option.None
+      blocked_domains = Stdlib.Option.Option.None
+      citations = Stdlib.Option.Option.Some(WebFetchCitations { enabled = true })
+      max_content_tokens = Stdlib.Option.Option.None }
+
+/// Web fetch tool with allowed domains filter
+let webFetchToolWithAllowedDomains (domains: List<String>) : WebFetchTool =
+  WebFetchTool
+    { ``type`` = "web_fetch_20250910"
+      name = "web_fetch"
+      max_uses = Stdlib.Option.Option.None
+      allowed_domains = Stdlib.Option.Option.Some domains
+      blocked_domains = Stdlib.Option.Option.None
+      citations = Stdlib.Option.Option.None
+      max_content_tokens = Stdlib.Option.Option.None }
+
+/// Web fetch tool with blocked domains filter
+let webFetchToolWithBlockedDomains (domains: List<String>) : WebFetchTool =
+  WebFetchTool
+    { ``type`` = "web_fetch_20250910"
+      name = "web_fetch"
+      max_uses = Stdlib.Option.Option.None
+      allowed_domains = Stdlib.Option.Option.None
+      blocked_domains = Stdlib.Option.Option.Some domains
+      citations = Stdlib.Option.Option.None
+      max_content_tokens = Stdlib.Option.Option.None }
+
+/// Web fetch tool with content token limit
+let webFetchToolWithContentLimit (maxTokens: Int64) : WebFetchTool =
+  WebFetchTool
+    { ``type`` = "web_fetch_20250910"
+      name = "web_fetch"
+      max_uses = Stdlib.Option.Option.None
+      allowed_domains = Stdlib.Option.Option.None
+      blocked_domains = Stdlib.Option.Option.None
+      citations = Stdlib.Option.Option.None
+      max_content_tokens = Stdlib.Option.Option.Some maxTokens }
+
+/// Fully configurable web fetch tool
+let webFetchToolFull
+  (maxUses: Stdlib.Option.Option<Int64>)
+  (allowedDomains: Stdlib.Option.Option<List<String>>)
+  (blockedDomains: Stdlib.Option.Option<List<String>>)
+  (enableCitations: Bool)
+  (maxContentTokens: Stdlib.Option.Option<Int64>)
+  : WebFetchTool =
+  WebFetchTool
+    { ``type`` = "web_fetch_20250910"
+      name = "web_fetch"
+      max_uses = maxUses
+      allowed_domains = allowedDomains
+      blocked_domains = blockedDomains
+      citations =
+        if enableCitations then
+          Stdlib.Option.Option.Some(WebFetchCitations { enabled = true })
+        else
+          Stdlib.Option.Option.None
+      max_content_tokens = maxContentTokens }
+
+let webFetchToJson (tool: WebFetchTool) : Json =
+  let baseFields =
+    [ ("type", Json.String tool.``type``)
+      ("name", Json.String tool.name) ]
+
+  let withMaxUses =
+    match tool.max_uses with
+    | Some n ->
+      Stdlib.List.append baseFields [ ("max_uses", Json.Number (Stdlib.Int64.toFloat n)) ]
+    | None -> baseFields
+
+  let withAllowed =
+    match tool.allowed_domains with
+    | Some domains ->
+      let domainsJson = Stdlib.List.map domains (fun d -> Json.String d)
+      Stdlib.List.append withMaxUses [ ("allowed_domains", Json.Array domainsJson) ]
+    | None -> withMaxUses
+
+  let withBlocked =
+    match tool.blocked_domains with
+    | Some domains ->
+      let domainsJson = Stdlib.List.map domains (fun d -> Json.String d)
+      Stdlib.List.append withAllowed [ ("blocked_domains", Json.Array domainsJson) ]
+    | None -> withAllowed
+
+  let withCitations =
+    match tool.citations with
+    | Some c ->
+      let citationsJson = Json.Object [ ("enabled", Json.Bool c.enabled) ]
+      Stdlib.List.append withBlocked [ ("citations", citationsJson) ]
+    | None -> withBlocked
+
+  let withMaxContent =
+    match tool.max_content_tokens with
+    | Some n ->
+      Stdlib.List.append withCitations [ ("max_content_tokens", Json.Number (Stdlib.Int64.toFloat n)) ]
+    | None -> withCitations
+
+  Json.Object withMaxContent
+
+
+// ---------------------------------------------------------------------------
+// WEB FETCH TOOL RESULT ERROR
+// Error types returned in web fetch tool results
+// ---------------------------------------------------------------------------
+
+type WebFetchErrorCode =
+  | InvalidInput
+  | UrlTooLong
+  | UrlNotAllowed
+  | UrlNotAccessible
+  | TooManyRequests
+  | UnsupportedContentType
+  | MaxUsesExceeded
+  | Unavailable
+
+module WebFetchErrorCode =
+  let toString (code: WebFetchErrorCode) : String =
+    match code with
+    | InvalidInput -> "invalid_input"
+    | UrlTooLong -> "url_too_long"
+    | UrlNotAllowed -> "url_not_allowed"
+    | UrlNotAccessible -> "url_not_accessible"
+    | TooManyRequests -> "too_many_requests"
+    | UnsupportedContentType -> "unsupported_content_type"
+    | MaxUsesExceeded -> "max_uses_exceeded"
+    | Unavailable -> "unavailable"
+
+  let parse (s: String) : Stdlib.Option.Option<WebFetchErrorCode> =
+    match s with
+    | "invalid_input" -> Stdlib.Option.Option.Some WebFetchErrorCode.InvalidInput
+    | "url_too_long" -> Stdlib.Option.Option.Some WebFetchErrorCode.UrlTooLong
+    | "url_not_allowed" -> Stdlib.Option.Option.Some WebFetchErrorCode.UrlNotAllowed
+    | "url_not_accessible" -> Stdlib.Option.Option.Some WebFetchErrorCode.UrlNotAccessible
+    | "too_many_requests" -> Stdlib.Option.Option.Some WebFetchErrorCode.TooManyRequests
+    | "unsupported_content_type" -> Stdlib.Option.Option.Some WebFetchErrorCode.UnsupportedContentType
+    | "max_uses_exceeded" -> Stdlib.Option.Option.Some WebFetchErrorCode.MaxUsesExceeded
+    | "unavailable" -> Stdlib.Option.Option.Some WebFetchErrorCode.Unavailable
+    | _ -> Stdlib.Option.Option.None
+
+  let isRetryable (code: WebFetchErrorCode) : Bool =
+    match code with
+    | TooManyRequests -> true
+    | Unavailable -> true
+    | _ -> false

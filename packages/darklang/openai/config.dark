@@ -1,0 +1,8 @@
+/// OpenAI API Configuration
+module Darklang.OpenAI.Config
+
+let baseUrl : String = "https://api.openai.com/v1"
+
+let getHeaders (apiKey: String) : List<(String * String)> =
+  [ ("Authorization", "Bearer " ++ apiKey)
+    ("Content-Type", "application/json") ]

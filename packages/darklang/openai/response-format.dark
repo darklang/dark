@@ -1,0 +1,60 @@
+/// OpenAI Response Format - Structured output configuration for Chat Completions API
+/// See: https://platform.openai.com/docs/api-reference/chat/create#chat-create-response_format
+///
+/// NOTE: This module is for the Chat Completions API which uses the nested json_schema structure:
+///   {"type": "json_schema", "json_schema": {"name": "...", "schema": {...}, "strict": true}}
+///
+/// For the Responses API (newer), use Darklang.OpenAI.Responses.TextConfig which uses the flat structure:
+///   {"type": "json_schema", "name": "...", "schema": {...}, "strict": true}
+module Darklang.OpenAI.ResponseFormat
+
+type Json = Stdlib.AltJson.Json
+
+// TODO: Add schema validation helpers to ensure schemas follow OpenAI's restrictions:
+//   - additionalProperties: false on all objects
+//   - All fields marked as required
+//   - Max 5000 properties, 10 nesting levels
+//   - Root must be an object (not anyOf)
+// See: https://platform.openai.com/docs/guides/structured-outputs#supported-schemas
+// TODO: Consider adding a non-strict mode option for JSON mode with schema
+
+/// Response format types
+type Format =
+  | Text
+  | JsonObject
+  | JsonSchema of String * Stdlib.Option.Option<String> * Json  // (name, description, schema)
+
+/// Convert to JSON
+let toJson (format: Format) : Json =
+  match format with
+  | Text ->
+    Json.Object [ ("type", Json.String "text") ]
+  | JsonObject ->
+    Json.Object [ ("type", Json.String "json_object") ]
+  | JsonSchema(name, description, schema) ->
+    let descriptionFields =
+      match description with
+      | Some d -> [ ("description", Json.String d) ]
+      | None -> []
+
+    Json.Object
+      [ ("type", Json.String "json_schema")
+        ("json_schema",
+         Json.Object
+           (Stdlib.List.append
+             [ ("name", Json.String name) ]
+             (Stdlib.List.append
+               descriptionFields
+               [ ("schema", schema)
+                 ("strict", Json.Bool true) ]))) ]
+
+/// Create JSON object response format
+let jsonObject : Format = Format.JsonObject
+
+/// Create JSON schema response format
+let jsonSchema
+  (name: String)
+  (description: Stdlib.Option.Option<String>)
+  (schema: Json)
+  : Format =
+  Format.JsonSchema(name, description, schema)

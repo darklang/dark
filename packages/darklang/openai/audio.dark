@@ -1,0 +1,513 @@
+/// OpenAI Audio - Speech-to-text and text-to-speech
+///
+/// TODO: Missing features from OpenAI Audio API:
+///
+/// Transcriptions:
+/// - DiarizedJson response format
+/// - TranscriptionInclude option ("logprobs")
+/// - TranscriptionSegment type (id, avg_logprob, compression_ratio, end, no_speech_prob, seek, start, temperature, text, tokens)
+/// - TranscriptionWord type (end, start, word)
+/// - TranscriptionVerbose type (duration, language, text, segments, words)
+/// - TranscriptionDiarized type (duration, segments, task, text, logprobs, usage)
+/// - TranscriptionDiarizedSegment type (id, end, speaker, start, text, type)
+/// - logprobs and usage fields in Transcription result
+///
+/// Translations:
+/// - TranslationVerbose type (duration, language, text, segments)
+///
+/// Voices:
+/// - Custom voices API (POST /audio/voices)
+/// - Voice consents CRUD API (/audio/voice_consents)
+///
+/// Source: https://platform.openai.com/docs/api-reference/audio
+module Darklang.OpenAI.Audio
+
+type Json = Stdlib.AltJson.Json
+
+// =========================================================================
+// TRANSCRIPTIONS (Speech-to-Text)
+// =========================================================================
+
+/// Transcription response format
+type TranscriptionFormat =
+  | Json         // Default JSON response
+  | Text         // Plain text
+  | Srt          // SubRip subtitle format
+  | VerboseJson  // Detailed JSON with timestamps
+  | Vtt          // WebVTT subtitle format
+
+/// Convert transcription format to string
+let transcriptionFormatToString (format: TranscriptionFormat) : String =
+  match format with
+  | Json -> "json"
+  | Text -> "text"
+  | Srt -> "srt"
+  | VerboseJson -> "verbose_json"
+  | Vtt -> "vtt"
+
+/// Timestamp granularity options
+type TimestampGranularity =
+  | Word
+  | Segment
+
+/// Convert timestamp granularity to string
+let timestampGranularityToString (gran: TimestampGranularity) : String =
+  match gran with
+  | Word -> "word"
+  | Segment -> "segment"
+
+/// Transcription options
+type TranscriptionOptions =
+  { /// Model to use (whisper-1, gpt-4o-transcribe, gpt-4o-mini-transcribe)
+    model: String
+    /// Audio data (base64 encoded)
+    audioData: String
+    /// Audio file name with extension (e.g., "audio.mp3")
+    fileName: String
+    /// Language code (ISO-639-1, e.g., "en", "es", "fr")
+    language: Stdlib.Option.Option<String>
+    /// Prompt to guide the model's style
+    prompt: Stdlib.Option.Option<String>
+    /// Response format
+    responseFormat: Stdlib.Option.Option<TranscriptionFormat>
+    /// Temperature (0 to 1)
+    temperature: Stdlib.Option.Option<Float>
+    /// Timestamp granularities (requires verbose_json format)
+    timestampGranularities: Stdlib.Option.Option<List<TimestampGranularity>> }
+
+/// Transcription result
+type TranscriptionResult =
+  { text: String
+    /// Language detected (verbose_json only)
+    language: Stdlib.Option.Option<String>
+    /// Duration in seconds (verbose_json only)
+    duration: Stdlib.Option.Option<Float> }
+
+/// Create default transcription options
+let defaultTranscriptionOptions (audioData: String) (fileName: String) : TranscriptionOptions =
+  TranscriptionOptions
+    { model = Models.whisper1
+      audioData = audioData
+      fileName = fileName
+      language = Stdlib.Option.Option.None
+      prompt = Stdlib.Option.Option.None
+      responseFormat = Stdlib.Option.Option.None
+      temperature = Stdlib.Option.Option.None
+      timestampGranularities = Stdlib.Option.Option.None }
+
+/// Create transcription options with GPT-4o transcribe (better accuracy)
+let gptTranscribeOptions (audioData: String) (fileName: String) : TranscriptionOptions =
+  TranscriptionOptions
+    { model = Models.gpt4oTranscribe
+      audioData = audioData
+      fileName = fileName
+      language = Stdlib.Option.Option.None
+      prompt = Stdlib.Option.Option.None
+      responseFormat = Stdlib.Option.Option.None
+      temperature = Stdlib.Option.Option.None
+      timestampGranularities = Stdlib.Option.Option.None }
+
+/// Set transcription model
+let withTranscriptionModel (opts: TranscriptionOptions) (model: String) : TranscriptionOptions =
+  { opts with model = model }
+
+/// Set language
+let withLanguage (opts: TranscriptionOptions) (language: String) : TranscriptionOptions =
+  { opts with language = Stdlib.Option.Option.Some language }
+
+/// Set prompt
+let withPrompt (opts: TranscriptionOptions) (prompt: String) : TranscriptionOptions =
+  { opts with prompt = Stdlib.Option.Option.Some prompt }
+
+/// Set transcription response format
+let withTranscriptionFormat (opts: TranscriptionOptions) (format: TranscriptionFormat) : TranscriptionOptions =
+  { opts with responseFormat = Stdlib.Option.Option.Some format }
+
+/// Set transcription temperature
+let withTranscriptionTemperature (opts: TranscriptionOptions) (temp: Float) : TranscriptionOptions =
+  { opts with temperature = Stdlib.Option.Option.Some temp }
+
+/// Set timestamp granularities (requires verbose_json format)
+let withTimestampGranularities (opts: TranscriptionOptions) (grans: List<TimestampGranularity>) : TranscriptionOptions =
+  { opts with timestampGranularities = Stdlib.Option.Option.Some grans }
+
+/// Transcribe audio with full options
+let transcribeWithOptions
+  (apiKey: String)
+  (opts: TranscriptionOptions)
+  : Stdlib.Result.Result<TranscriptionResult, String> =
+  // Validate API key
+  if apiKey == "" then
+    Stdlib.Result.Result.Error "API key cannot be empty"
+  else
+    let baseFields =
+      [ ("model", Json.String opts.model)
+        ("file", Json.String opts.audioData)
+        ("file_name", Json.String opts.fileName) ]
+
+    let withLang =
+      match opts.language with
+      | Some l -> Stdlib.List.append baseFields [ ("language", Json.String l) ]
+      | None -> baseFields
+
+    let withPrompt_ =
+      match opts.prompt with
+      | Some p -> Stdlib.List.append withLang [ ("prompt", Json.String p) ]
+      | None -> withLang
+
+    let withFormat =
+      match opts.responseFormat with
+      | Some f -> Stdlib.List.append withPrompt_ [ ("response_format", Json.String(transcriptionFormatToString f)) ]
+      | None -> withPrompt_
+
+    let withTemp =
+      match opts.temperature with
+      | Some t -> Stdlib.List.append withFormat [ ("temperature", Json.Number t) ]
+      | None -> withFormat
+
+    let withGranularities =
+      match opts.timestampGranularities with
+      | Some grans ->
+        let gransJson = Stdlib.List.map grans (fun g -> Json.String(timestampGranularityToString g))
+        Stdlib.List.append withTemp [ ("timestamp_granularities", Json.Array gransJson) ]
+      | None -> withTemp
+
+    let requestJson = Json.Object withGranularities
+    let body = Stdlib.AltJson.format requestJson
+    let headers = Config.getHeaders apiKey
+    let url = Config.baseUrl ++ "/audio/transcriptions"
+
+    match Stdlib.HttpClient.post url headers (Stdlib.String.toBytes body) with
+    | Error e -> Stdlib.Result.Result.Error("HTTP request failed: " ++ Stdlib.HttpClient.toString e)
+    | Ok response ->
+      let bodyStr = Stdlib.String.fromBytesWithReplacement response.body
+
+      match response.statusCode with
+      | code when code >= 200L && code < 300L ->
+        // Check if response is plain text (text/srt/vtt format)
+        match opts.responseFormat with
+        | Some Text | Some Srt | Some Vtt ->
+          Stdlib.Result.Result.Ok(
+            TranscriptionResult
+              { text = bodyStr
+                language = Stdlib.Option.Option.None
+                duration = Stdlib.Option.Option.None })
+        | _ ->
+          // JSON response
+          match Stdlib.AltJson.parse bodyStr with
+          | Ok (Object fields) ->
+            let text =
+              Stdlib.Option.withDefault
+                (Darklang.Anthropic.JsonHelpers.getString "text" fields)
+                ""
+            let language = Darklang.Anthropic.JsonHelpers.getString "language" fields
+            let duration = Darklang.Anthropic.JsonHelpers.getNumber "duration" fields
+            Stdlib.Result.Result.Ok(
+              TranscriptionResult
+                { text = text
+                  language = language
+                  duration = duration })
+          | _ -> Stdlib.Result.Result.Error "Invalid response format"
+      | 401L -> Stdlib.Result.Result.Error "Authentication failed: Invalid API key"
+      | 429L -> Stdlib.Result.Result.Error "Rate limit exceeded"
+      | _ -> Stdlib.Result.Result.Error("API error: " ++ bodyStr)
+
+/// Simple transcription with Whisper
+let transcribe
+  (apiKey: String)
+  (audioData: String)
+  (fileName: String)
+  : Stdlib.Result.Result<String, String> =
+  let opts = defaultTranscriptionOptions audioData fileName
+
+  match transcribeWithOptions apiKey opts with
+  | Ok result -> Stdlib.Result.Result.Ok result.text
+  | Error e -> Stdlib.Result.Result.Error e
+
+/// Transcribe with GPT-4o (better accuracy)
+let transcribeWithGpt
+  (apiKey: String)
+  (audioData: String)
+  (fileName: String)
+  : Stdlib.Result.Result<String, String> =
+  let opts = gptTranscribeOptions audioData fileName
+
+  match transcribeWithOptions apiKey opts with
+  | Ok result -> Stdlib.Result.Result.Ok result.text
+  | Error e -> Stdlib.Result.Result.Error e
+
+// =========================================================================
+// TRANSLATIONS (Audio to English)
+// =========================================================================
+
+/// Translation options
+type TranslationOptions =
+  { /// Model (only whisper-1 supported)
+    model: String
+    /// Audio data (base64 encoded)
+    audioData: String
+    /// Audio file name with extension
+    fileName: String
+    /// Prompt to guide the model
+    prompt: Stdlib.Option.Option<String>
+    /// Response format
+    responseFormat: Stdlib.Option.Option<TranscriptionFormat>
+    /// Temperature (0 to 1)
+    temperature: Stdlib.Option.Option<Float> }
+
+/// Create default translation options
+let defaultTranslationOptions (audioData: String) (fileName: String) : TranslationOptions =
+  TranslationOptions
+    { model = Models.whisper1
+      audioData = audioData
+      fileName = fileName
+      prompt = Stdlib.Option.Option.None
+      responseFormat = Stdlib.Option.Option.None
+      temperature = Stdlib.Option.Option.None }
+
+/// Set translation prompt
+let withTranslationPrompt (opts: TranslationOptions) (prompt: String) : TranslationOptions =
+  { opts with prompt = Stdlib.Option.Option.Some prompt }
+
+/// Set translation response format
+let withTranslationFormat (opts: TranslationOptions) (format: TranscriptionFormat) : TranslationOptions =
+  { opts with responseFormat = Stdlib.Option.Option.Some format }
+
+/// Translate audio to English with full options
+let translateWithOptions
+  (apiKey: String)
+  (opts: TranslationOptions)
+  : Stdlib.Result.Result<String, String> =
+  // Validate API key
+  if apiKey == "" then
+    Stdlib.Result.Result.Error "API key cannot be empty"
+  else
+    let baseFields =
+      [ ("model", Json.String opts.model)
+        ("file", Json.String opts.audioData)
+        ("file_name", Json.String opts.fileName) ]
+
+    let withPrompt_ =
+      match opts.prompt with
+      | Some p -> Stdlib.List.append baseFields [ ("prompt", Json.String p) ]
+      | None -> baseFields
+
+    let withFormat =
+      match opts.responseFormat with
+      | Some f -> Stdlib.List.append withPrompt_ [ ("response_format", Json.String(transcriptionFormatToString f)) ]
+      | None -> withPrompt_
+
+    let withTemp =
+      match opts.temperature with
+      | Some t -> Stdlib.List.append withFormat [ ("temperature", Json.Number t) ]
+      | None -> withFormat
+
+    let requestJson = Json.Object withTemp
+    let body = Stdlib.AltJson.format requestJson
+    let headers = Config.getHeaders apiKey
+    let url = Config.baseUrl ++ "/audio/translations"
+
+    match Stdlib.HttpClient.post url headers (Stdlib.String.toBytes body) with
+    | Error e -> Stdlib.Result.Result.Error("HTTP request failed: " ++ Stdlib.HttpClient.toString e)
+    | Ok response ->
+      let bodyStr = Stdlib.String.fromBytesWithReplacement response.body
+
+      match response.statusCode with
+      | code when code >= 200L && code < 300L ->
+        // Check if response is plain text
+        match opts.responseFormat with
+        | Some Text | Some Srt | Some Vtt ->
+          Stdlib.Result.Result.Ok bodyStr
+        | _ ->
+          // JSON response
+          match Stdlib.AltJson.parse bodyStr with
+          | Ok (Object fields) ->
+            let text =
+              Stdlib.Option.withDefault
+                (Darklang.Anthropic.JsonHelpers.getString "text" fields)
+                ""
+            Stdlib.Result.Result.Ok text
+          | _ -> Stdlib.Result.Result.Error "Invalid response format"
+      | 401L -> Stdlib.Result.Result.Error "Authentication failed: Invalid API key"
+      | 429L -> Stdlib.Result.Result.Error "Rate limit exceeded"
+      | _ -> Stdlib.Result.Result.Error("API error: " ++ bodyStr)
+
+/// Translate audio to English (simple)
+let translate
+  (apiKey: String)
+  (audioData: String)
+  (fileName: String)
+  : Stdlib.Result.Result<String, String> =
+  translateWithOptions apiKey (defaultTranslationOptions audioData fileName)
+
+// =========================================================================
+// SPEECH (Text-to-Speech)
+// =========================================================================
+
+/// TTS voice options
+module Voice =
+  // Standard voices (all models)
+  let alloy : String = "alloy"
+  let echo : String = "echo"
+  let fable : String = "fable"
+  let onyx : String = "onyx"
+  let nova : String = "nova"
+  let shimmer : String = "shimmer"
+  // Additional voices (tts-1, tts-1-hd, gpt-4o-mini-tts)
+  let ash : String = "ash"
+  let coral : String = "coral"
+  let sage : String = "sage"
+  // gpt-4o-mini-tts additional voices
+  let ballad : String = "ballad"
+  let verse : String = "verse"
+
+/// TTS response format options
+type SpeechResponseFormat =
+  | Mp3    // Default, general use
+  | Opus   // Low latency, streaming
+  | Aac    // Digital audio compression
+  | Flac   // Lossless compression
+  | Wav    // Uncompressed, low latency
+  | Pcm    // Raw samples, 24kHz 16-bit
+
+/// Convert response format to string
+let speechResponseFormatToString (format: SpeechResponseFormat) : String =
+  match format with
+  | Mp3 -> "mp3"
+  | Opus -> "opus"
+  | Aac -> "aac"
+  | Flac -> "flac"
+  | Wav -> "wav"
+  | Pcm -> "pcm"
+
+/// TTS request options
+type SpeechOptions =
+  { model: String
+    input: String
+    voice: String
+    /// Response format (mp3, opus, aac, flac, wav, pcm)
+    responseFormat: Stdlib.Option.Option<SpeechResponseFormat>
+    /// Speed (0.25 to 4.0, default 1.0)
+    speed: Stdlib.Option.Option<Float>
+    /// Instructions for voice control (gpt-4o-mini-tts only)
+    /// Example: "Speak in a cheerful and positive tone."
+    instructions: Stdlib.Option.Option<String> }
+
+/// Create default speech options
+let defaultSpeechOptions (text: String) : SpeechOptions =
+  SpeechOptions
+    { model = Models.tts1
+      input = text
+      voice = Voice.alloy
+      responseFormat = Stdlib.Option.Option.None
+      speed = Stdlib.Option.Option.None
+      instructions = Stdlib.Option.Option.None }
+
+/// Create speech options with gpt-4o-mini-tts (supports instructions)
+let gptTtsOptions (text: String) : SpeechOptions =
+  SpeechOptions
+    { model = Models.gpt4oMiniTts
+      input = text
+      voice = Voice.alloy
+      responseFormat = Stdlib.Option.Option.None
+      speed = Stdlib.Option.Option.None
+      instructions = Stdlib.Option.Option.None }
+
+/// Set model
+let withModel (opts: SpeechOptions) (model: String) : SpeechOptions =
+  { opts with model = model }
+
+/// Set voice
+let withVoice (opts: SpeechOptions) (voice: String) : SpeechOptions =
+  { opts with voice = voice }
+
+/// Set response format
+let withResponseFormat (opts: SpeechOptions) (format: SpeechResponseFormat) : SpeechOptions =
+  { opts with responseFormat = Stdlib.Option.Option.Some format }
+
+/// Set speed (0.25 to 4.0)
+let withSpeed (opts: SpeechOptions) (speed: Float) : SpeechOptions =
+  { opts with speed = Stdlib.Option.Option.Some speed }
+
+/// Set instructions (gpt-4o-mini-tts only)
+let withInstructions (opts: SpeechOptions) (instructions: String) : SpeechOptions =
+  { opts with instructions = Stdlib.Option.Option.Some instructions }
+
+/// Generate speech with full options
+let speechWithOptions
+  (apiKey: String)
+  (opts: SpeechOptions)
+  : Stdlib.Result.Result<List<UInt8>, String> =
+  // Validate API key
+  if apiKey == "" then
+    Stdlib.Result.Result.Error "API key cannot be empty"
+  else
+    let baseFields =
+      [ ("model", Json.String opts.model)
+        ("input", Json.String opts.input)
+        ("voice", Json.String opts.voice) ]
+
+    let withFormat =
+      match opts.responseFormat with
+      | Some f -> Stdlib.List.append baseFields [ ("response_format", Json.String(speechResponseFormatToString f)) ]
+      | None -> baseFields
+
+    let withSpeed_ =
+      match opts.speed with
+      | Some s -> Stdlib.List.append withFormat [ ("speed", Json.Number s) ]
+      | None -> withFormat
+
+    // Instructions only for gpt-4o-mini-tts
+    let withInstructions_ =
+      match opts.instructions with
+      | Some i ->
+        if Stdlib.String.contains opts.model "gpt-4o" then
+          Stdlib.List.append withSpeed_ [ ("instructions", Json.String i) ]
+        else
+          withSpeed_
+      | None -> withSpeed_
+
+    let requestJson = Json.Object withInstructions_
+    let body = Stdlib.AltJson.format requestJson
+    let headers = Config.getHeaders apiKey
+    let url = Config.baseUrl ++ "/audio/speech"
+
+    match Stdlib.HttpClient.post url headers (Stdlib.String.toBytes body) with
+    | Error e -> Stdlib.Result.Result.Error("HTTP request failed: " ++ Stdlib.HttpClient.toString e)
+    | Ok response ->
+      match response.statusCode with
+      | code when code >= 200L && code < 300L -> Stdlib.Result.Result.Ok response.body
+      | 401L -> Stdlib.Result.Result.Error "Authentication failed: Invalid API key"
+      | 429L -> Stdlib.Result.Result.Error "Rate limit exceeded"
+      | _ ->
+        let bodyStr = Stdlib.String.fromBytesWithReplacement response.body
+        Stdlib.Result.Result.Error("API error: " ++ bodyStr)
+
+/// Generate speech from text (returns audio bytes, default mp3)
+let textToSpeech
+  (apiKey: String)
+  (text: String)
+  : Stdlib.Result.Result<List<UInt8>, String> =
+  speechWithOptions apiKey (defaultSpeechOptions text)
+
+/// Generate speech with a specific voice
+let textToSpeechWithVoice
+  (apiKey: String)
+  (voice: String)
+  (text: String)
+  : Stdlib.Result.Result<List<UInt8>, String> =
+  let opts = (defaultSpeechOptions text) |> withVoice voice
+  speechWithOptions apiKey opts
+
+/// Generate speech with instructions (gpt-4o-mini-tts)
+let textToSpeechWithInstructions
+  (apiKey: String)
+  (voice: String)
+  (instructions: String)
+  (text: String)
+  : Stdlib.Result.Result<List<UInt8>, String> =
+  let opts =
+    (gptTtsOptions text)
+    |> withVoice voice
+    |> withInstructions instructions
+  speechWithOptions apiKey opts
