@@ -1,0 +1,118 @@
+module Darklang.Stdlib.Cli.Sqlite
+
+/// Executes a SQL statement (INSERT, UPDATE, DELETE, CREATE, etc.) against
+/// the SQLite database at the specified path. Returns the number of rows affected
+/// wrapped in a Result.
+///
+/// Example:
+///   Stdlib.Cli.Sqlite.execute "test.db" "CREATE TABLE users (id INTEGER, name TEXT)"
+///   // Result.Ok 0L
+///
+///   Stdlib.Cli.Sqlite.execute "test.db" "INSERT INTO users VALUES (1, 'Alice')"
+///   // Result.Ok 1L
+let execute (path: String) (sql: String) : Stdlib.Result.Result<Int64, String> =
+  Builtin.sqliteExecute path sql
+
+
+/// Executes a SELECT query against the SQLite database at the specified path
+/// and returns all matching rows as a list of dictionaries. Each dictionary
+/// represents a row with column names as keys.
+///
+/// Example:
+///   Stdlib.Cli.Sqlite.query "test.db" "SELECT * FROM users"
+///   // Result.Ok [ { "id": 1L, "name": "Alice" }, { "id": 2L, "name": "Bob" } ]
+let query
+  (path: String)
+  (sql: String)
+  : Stdlib.Result.Result<List<Dict<String>>, String> =
+  Builtin.sqliteQuery path sql
+
+
+/// Executes a SELECT query against the SQLite database at the specified path
+/// and returns the first matching row as an Option of dictionary. Returns None
+/// if no rows match.
+///
+/// Example:
+///   Stdlib.Cli.Sqlite.queryOne "test.db" "SELECT * FROM users WHERE id = 1"
+///   // Result.Ok (Some { "id": 1L, "name": "Alice" })
+///
+///   Stdlib.Cli.Sqlite.queryOne "test.db" "SELECT * FROM users WHERE id = 999"
+///   // Result.Ok None
+let queryOne
+  (path: String)
+  (sql: String)
+  : Stdlib.Result.Result<Stdlib.Option.Option<Dict<String>>, String> =
+  Builtin.sqliteQueryOne path sql
+
+
+/// Creates a new table with the specified name and columns.
+/// This is a helper function that wraps the execute function.
+///
+/// Example:
+///   Stdlib.Cli.Sqlite.createTable
+///     "test.db"
+///     "users"
+///     "id INTEGER PRIMARY KEY, name TEXT NOT NULL, email TEXT"
+///   // Result.Ok 0L
+let createTable
+  (path: String)
+  (tableName: String)
+  (columns: String)
+  : Stdlib.Result.Result<Int64, String> =
+  let sql = $"CREATE TABLE IF NOT EXISTS {tableName} ({columns})"
+  execute path sql
+
+
+/// Inserts a row into the specified table.
+/// This is a helper function that wraps the execute function.
+///
+/// Example:
+///   Stdlib.Cli.Sqlite.insert
+///     "test.db"
+///     "users"
+///     "name, email"
+///     "'Alice', 'alice@example.com'"
+///   // Result.Ok 1L
+let insert
+  (path: String)
+  (tableName: String)
+  (columns: String)
+  (values: String)
+  : Stdlib.Result.Result<Int64, String> =
+  let sql = $"INSERT INTO {tableName} ({columns}) VALUES ({values})"
+  execute path sql
+
+
+/// Updates rows in the specified table that match the given condition.
+/// This is a helper function that wraps the execute function.
+///
+/// Example:
+///   Stdlib.Cli.Sqlite.update
+///     "test.db"
+///     "users"
+///     "email = 'newemail@example.com'"
+///     "id = 1"
+///   // Result.Ok 1L
+let update
+  (path: String)
+  (tableName: String)
+  (setClause: String)
+  (whereClause: String)
+  : Stdlib.Result.Result<Int64, String> =
+  let sql = $"UPDATE {tableName} SET {setClause} WHERE {whereClause}"
+  execute path sql
+
+
+/// Deletes rows from the specified table that match the given condition.
+/// This is a helper function that wraps the execute function.
+///
+/// Example:
+///   Stdlib.Cli.Sqlite.delete "test.db" "users" "id = 1"
+///   // Result.Ok 1L
+let delete
+  (path: String)
+  (tableName: String)
+  (whereClause: String)
+  : Stdlib.Result.Result<Int64, String> =
+  let sql = $"DELETE FROM {tableName} WHERE {whereClause}"
+  execute path sql

@@ -15,6 +15,7 @@ let builtins =
       Libs.Execution.builtins
       Libs.Output.builtins
       Libs.Process.builtins
+      Libs.Sqlite.builtins
       Libs.Stdin.builtins
       Libs.Time.builtins
       Libs.Terminal.builtins ]
