@@ -11,6 +11,7 @@ let underline = "\u001b[4m"
 let clearLine = "\u001b[K"
 let carriageReturn = "\r"
 let moveCursorToColumn (col: Int64) : String = $"\u001b[{Stdlib.Int64.toString col}G"
+let moveCursorUp (n: Int64) : String = $"\u001b[{Stdlib.Int64.toString n}A"
 let saveCursor = "\u001b[s"
 let restoreCursor = "\u001b[u"
 /// Move cursor to absolute position (row, col). Used to jump to the status bar without disrupting where the user is typing.

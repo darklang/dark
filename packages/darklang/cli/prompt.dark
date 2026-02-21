@@ -6,7 +6,9 @@ type State =
     cursorPosition: Int64
     commandHistory: List<String>
     historyIndex: Int64
-    savedPrompt: String }
+    savedPrompt: String
+    /// Tracks text length from last display update, used to calculate cursor row for long lines
+    previousTextLength: Int64 }
 
 let initState () : State =
   State
@@ -14,12 +16,14 @@ let initState () : State =
       cursorPosition = 0L
       commandHistory = []
       historyIndex = -1L
-      savedPrompt = "" }
+      savedPrompt = ""
+      previousTextLength = 0L }
 
 
 module Editing =
   /// Insert text at cursor position
   let insertAtCursor (state: State) (char: String) : State =
+    let prevLen = Stdlib.String.length state.text
     let beforeCursor = Stdlib.String.slice state.text 0L state.cursorPosition
     let afterCursor = Stdlib.String.dropFirst state.text state.cursorPosition
     let newText = beforeCursor ++ char ++ afterCursor
@@ -27,18 +31,21 @@ module Editing =
         text = newText
         cursorPosition = state.cursorPosition + (Stdlib.String.length char)
         historyIndex = -1L
-        savedPrompt = "" }
+        savedPrompt = ""
+        previousTextLength = prevLen }
 
   /// Delete character before cursor (backspace)
   let deleteBeforeCursor (state: State) : State =
     if state.cursorPosition > 0L then
+      let prevLen = Stdlib.String.length state.text
       let beforeCursor = Stdlib.String.slice state.text 0L (state.cursorPosition - 1L)
       let afterCursor = Stdlib.String.dropFirst state.text state.cursorPosition
       let newText = beforeCursor ++ afterCursor
       { state with
           text = newText
           cursorPosition = state.cursorPosition - 1L
-          historyIndex = -1L }
+          historyIndex = -1L
+          previousTextLength = prevLen }
     else
       state
 
@@ -47,10 +54,11 @@ module Editing =
     let textLength = Stdlib.String.length state.text
 
     if state.cursorPosition < textLength then
+      let prevLen = textLength
       let beforeCursor = Stdlib.String.slice state.text 0L state.cursorPosition
       let afterCursor = Stdlib.String.dropFirst state.text (state.cursorPosition + 1L)
       let newText = beforeCursor ++ afterCursor
-      { state with text = newText; historyIndex = -1L }
+      { state with text = newText; historyIndex = -1L; previousTextLength = prevLen }
     else
       state
 
@@ -76,15 +84,18 @@ module Editing =
 
   /// Clear the prompt text
   let clear (state: State) : State =
+    let prevLen = Stdlib.String.length state.text
     { state with
         text = ""
         cursorPosition = 0L
-        historyIndex = -1L }
+        historyIndex = -1L
+        previousTextLength = prevLen }
 
   /// Set the prompt text and move cursor to end
   let setText (state: State) (text: String) : State =
+    let prevLen = Stdlib.String.length state.text
     let textLength = Stdlib.String.length text
-    { state with text = text; cursorPosition = textLength }
+    { state with text = text; cursorPosition = textLength; previousTextLength = prevLen }
 
 
 module History =
@@ -102,6 +113,7 @@ module History =
   /// Navigate to previous command in history
   let navigatePrevious (state: State) : State =
     if Stdlib.Bool.not (Stdlib.List.isEmpty state.commandHistory) then
+      let prevLen = Stdlib.String.length state.text
       let historyLength = Stdlib.List.length state.commandHistory
       let newIndex =
         if state.historyIndex == -1L then
@@ -123,7 +135,8 @@ module History =
             text = command
             cursorPosition = commandLength
             historyIndex = newIndex
-            savedPrompt = newSavedPrompt }
+            savedPrompt = newSavedPrompt
+            previousTextLength = prevLen }
       | None ->
         state
     else
@@ -132,6 +145,7 @@ module History =
   /// Navigate to next command in history
   let navigateNext (state: State) : State =
     if Stdlib.Bool.not (Stdlib.List.isEmpty state.commandHistory) && state.historyIndex >= 0L then
+      let prevLen = Stdlib.String.length state.text
       let newIndex =
         if state.historyIndex > 0L then
           state.historyIndex - 1L
@@ -142,7 +156,8 @@ module History =
         { state with
             text = state.savedPrompt
             cursorPosition = restoredPromptLength
-            historyIndex = newIndex }
+            historyIndex = newIndex
+            previousTextLength = prevLen }
       else
         match Stdlib.List.getAt state.commandHistory newIndex with
         | Some command ->
@@ -150,7 +165,8 @@ module History =
           { state with
               text = command
               cursorPosition = commandLength
-              historyIndex = newIndex }
+              historyIndex = newIndex
+              previousTextLength = prevLen }
         | None ->
           state
     else
