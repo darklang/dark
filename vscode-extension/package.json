@@ -36,6 +36,13 @@
         "path": "./syntaxes/darklang.tmLanguage.json"
       }
     ],
+    "themes": [
+      {
+        "label": "Darklang Classic",
+        "uiTheme": "vs-dark",
+        "path": "./themes/darklang-classic-color-theme.json"
+      }
+    ],
     "configuration": {
       "type": "object",
       "title": "Darklang Extension Config",
