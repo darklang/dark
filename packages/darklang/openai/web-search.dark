@@ -1,0 +1,351 @@
+/// OpenAI Web Search Tool - Ground responses with real-time web data
+/// See: https://platform.openai.com/docs/guides/tools-web-search
+module Darklang.OpenAI.WebSearch
+
+type Json = Stdlib.AltJson.Json
+
+
+// =============================================================================
+// User Location
+// =============================================================================
+
+/// Approximate user location for localized search results
+/// All fields are optional - provide as many as needed for accuracy
+type UserLocation =
+  { /// Two-letter ISO country code (e.g., "US", "GB", "DE")
+    country: Stdlib.Option.Option<String>
+    /// City name as free text (e.g., "London", "San Francisco")
+    city: Stdlib.Option.Option<String>
+    /// Region/state name as free text (e.g., "California", "London")
+    region: Stdlib.Option.Option<String>
+    /// IANA timezone (e.g., "America/Chicago", "Europe/London")
+    timezone: Stdlib.Option.Option<String> }
+
+
+// -----------------------------------------------------------------------------
+// User Location Constructors
+// -----------------------------------------------------------------------------
+
+/// Create an empty user location (no location data)
+let emptyLocation : UserLocation =
+  UserLocation
+    { country = Stdlib.Option.Option.None
+      city = Stdlib.Option.Option.None
+      region = Stdlib.Option.Option.None
+      timezone = Stdlib.Option.Option.None }
+
+/// Create a user location with country only
+let withCountry (country: String) : UserLocation =
+  UserLocation
+    { country = Stdlib.Option.Option.Some country
+      city = Stdlib.Option.Option.None
+      region = Stdlib.Option.Option.None
+      timezone = Stdlib.Option.Option.None }
+
+/// Create a user location with country, city, and region
+let withLocation (country: String) (city: String) (region: String) : UserLocation =
+  UserLocation
+    { country = Stdlib.Option.Option.Some country
+      city = Stdlib.Option.Option.Some city
+      region = Stdlib.Option.Option.Some region
+      timezone = Stdlib.Option.Option.None }
+
+/// Create a full user location with all fields
+let withFullLocation
+  (country: String)
+  (city: String)
+  (region: String)
+  (timezone: String)
+  : UserLocation =
+  UserLocation
+    { country = Stdlib.Option.Option.Some country
+      city = Stdlib.Option.Option.Some city
+      region = Stdlib.Option.Option.Some region
+      timezone = Stdlib.Option.Option.Some timezone }
+
+/// Add timezone to an existing location
+let addTimezone (tz: String) (loc: UserLocation) : UserLocation =
+  UserLocation
+    { country = loc.country
+      city = loc.city
+      region = loc.region
+      timezone = Stdlib.Option.Option.Some tz }
+
+
+// -----------------------------------------------------------------------------
+// User Location JSON Conversion
+// -----------------------------------------------------------------------------
+
+/// Convert user location to JSON
+/// Output format: {"type": "approximate", "country": "GB", "city": "London", ...}
+let userLocationToJson (loc: UserLocation) : Json =
+  let fields = [ ("type", Json.String "approximate") ]
+
+  let withCountry =
+    match loc.country with
+    | Some c -> Stdlib.List.append fields [ ("country", Json.String c) ]
+    | None -> fields
+
+  let withCity =
+    match loc.city with
+    | Some c -> Stdlib.List.append withCountry [ ("city", Json.String c) ]
+    | None -> withCountry
+
+  let withRegion =
+    match loc.region with
+    | Some r -> Stdlib.List.append withCity [ ("region", Json.String r) ]
+    | None -> withCity
+
+  let withTimezone =
+    match loc.timezone with
+    | Some tz -> Stdlib.List.append withRegion [ ("timezone", Json.String tz) ]
+    | None -> withRegion
+
+  Json.Object withTimezone
+
+
+// =============================================================================
+// Domain Filters
+// =============================================================================
+
+/// Domain filtering for web search results
+/// Limits search results to specific domains (allow-list)
+type DomainFilters =
+  { /// List of allowed domains (up to 100)
+    /// Omit HTTP/HTTPS prefix (e.g., "openai.com" not "https://openai.com")
+    /// Subdomains are automatically included
+    allowedDomains: List<String> }
+
+
+// -----------------------------------------------------------------------------
+// Domain Filters Constructors
+// -----------------------------------------------------------------------------
+
+/// Create domain filters with allowed domains
+let allowDomains (domains: List<String>) : DomainFilters =
+  DomainFilters { allowedDomains = domains }
+
+/// Create domain filters for a single domain
+let allowDomain (domain: String) : DomainFilters =
+  DomainFilters { allowedDomains = [ domain ] }
+
+
+// -----------------------------------------------------------------------------
+// Domain Filters JSON Conversion
+// -----------------------------------------------------------------------------
+
+/// Convert domain filters to JSON
+/// Output format: {"allowed_domains": ["example.com", "openai.com"]}
+let domainFiltersToJson (filters: DomainFilters) : Json =
+  let domainsJson =
+    Stdlib.List.map filters.allowedDomains (fun d -> Json.String d)
+
+  Json.Object [ ("allowed_domains", Json.Array domainsJson) ]
+
+
+// =============================================================================
+// Web Search Tool
+// =============================================================================
+
+/// Web search tool configuration
+/// Use this to add web search capability to API requests
+type WebSearchTool =
+  { /// User location for localized search results
+    userLocation: Stdlib.Option.Option<UserLocation>
+    /// Domain filters to restrict search results
+    filters: Stdlib.Option.Option<DomainFilters>
+    /// Whether to allow live internet access (default: true)
+    /// Set to false to use only cached/indexed results
+    externalWebAccess: Stdlib.Option.Option<Bool> }
+
+
+// -----------------------------------------------------------------------------
+// Web Search Tool Constructors
+// -----------------------------------------------------------------------------
+
+/// Create a default web search tool (no filters, live access)
+let defaultTool : WebSearchTool =
+  WebSearchTool
+    { userLocation = Stdlib.Option.Option.None
+      filters = Stdlib.Option.Option.None
+      externalWebAccess = Stdlib.Option.Option.None }
+
+/// Create a web search tool with user location
+let withUserLocation (loc: UserLocation) : WebSearchTool =
+  WebSearchTool
+    { userLocation = Stdlib.Option.Option.Some loc
+      filters = Stdlib.Option.Option.None
+      externalWebAccess = Stdlib.Option.Option.None }
+
+/// Create a web search tool with domain filters
+let withFilters (f: DomainFilters) : WebSearchTool =
+  WebSearchTool
+    { userLocation = Stdlib.Option.Option.None
+      filters = Stdlib.Option.Option.Some f
+      externalWebAccess = Stdlib.Option.Option.None }
+
+/// Create a web search tool in offline/cache-only mode
+let offlineMode : WebSearchTool =
+  WebSearchTool
+    { userLocation = Stdlib.Option.Option.None
+      filters = Stdlib.Option.Option.None
+      externalWebAccess = Stdlib.Option.Option.Some false }
+
+
+// -----------------------------------------------------------------------------
+// Web Search Tool Builder Functions
+// -----------------------------------------------------------------------------
+
+/// Add user location to an existing tool configuration
+let addUserLocation (loc: UserLocation) (tool: WebSearchTool) : WebSearchTool =
+  WebSearchTool
+    { userLocation = Stdlib.Option.Option.Some loc
+      filters = tool.filters
+      externalWebAccess = tool.externalWebAccess }
+
+/// Add domain filters to an existing tool configuration
+let addFilters (f: DomainFilters) (tool: WebSearchTool) : WebSearchTool =
+  WebSearchTool
+    { userLocation = tool.userLocation
+      filters = Stdlib.Option.Option.Some f
+      externalWebAccess = tool.externalWebAccess }
+
+/// Set external web access mode
+let setExternalWebAccess (enabled: Bool) (tool: WebSearchTool) : WebSearchTool =
+  WebSearchTool
+    { userLocation = tool.userLocation
+      filters = tool.filters
+      externalWebAccess = Stdlib.Option.Option.Some enabled }
+
+
+// -----------------------------------------------------------------------------
+// Web Search Tool JSON Conversion
+// -----------------------------------------------------------------------------
+
+/// Convert web search tool to JSON for API request
+/// Output format:
+/// {
+///   "type": "web_search",
+///   "user_location": {...},
+///   "filters": {...},
+///   "external_web_access": true
+/// }
+let toJson (tool: WebSearchTool) : Json =
+  let fields = [ ("type", Json.String "web_search") ]
+
+  let withLocation =
+    match tool.userLocation with
+    | Some loc ->
+      Stdlib.List.append fields [ ("user_location", userLocationToJson loc) ]
+    | None -> fields
+
+  let withFilters =
+    match tool.filters with
+    | Some f ->
+      Stdlib.List.append withLocation [ ("filters", domainFiltersToJson f) ]
+    | None -> withLocation
+
+  let withAccess =
+    match tool.externalWebAccess with
+    | Some enabled ->
+      Stdlib.List.append withFilters [ ("external_web_access", Json.Bool enabled) ]
+    | None -> withFilters
+
+  Json.Object withAccess
+
+
+// =============================================================================
+// Web Search Call Response Parsing
+// =============================================================================
+
+/// Action types for web search calls
+type WebSearchAction =
+  /// Standard web search (incurs tool call cost)
+  | Search of SearchActionData
+  /// Opening a page (supported in reasoning models)
+  | OpenPage
+  /// Searching within a page (supported in reasoning models)
+  | FindInPage
+
+type SearchActionData =
+  { /// Search queries used (may not always be present)
+    queries: Stdlib.Option.Option<List<String>>
+    /// Sources retrieved during the search
+    sources: Stdlib.Option.Option<List<String>> }
+
+/// Web search call from model response
+type WebSearchCall =
+  { /// Unique identifier for this search call
+    id: String
+    /// Status of the search call
+    status: String
+    /// The action taken during the search
+    action: Stdlib.Option.Option<WebSearchAction> }
+
+
+// -----------------------------------------------------------------------------
+// URL Citation
+// -----------------------------------------------------------------------------
+
+/// URL citation annotation from web search results
+type UrlCitation =
+  { /// Start index in the text where citation appears
+    startIndex: Int64
+    /// End index in the text where citation ends
+    endIndex: Int64
+    /// The cited URL
+    url: String
+    /// Title of the cited source
+    title: String }
+
+/// Helper to get a JSON field value from object fields
+let getJsonField
+  (fields: List<(String * Json)>)
+  (key: String)
+  : Stdlib.Option.Option<Json> =
+  let found =
+    Stdlib.List.findFirst fields (fun pair ->
+      let k = Stdlib.Tuple2.first pair
+      k == key)
+
+  Stdlib.Option.map found (fun pair -> Stdlib.Tuple2.second pair)
+
+/// Helper to extract an Int64 from a JSON Number
+let jsonToInt64 (json: Json) : Stdlib.Option.Option<Int64> =
+  match json with
+  | Number n -> Stdlib.Option.Option.Some(Stdlib.Int64.fromFloat n)
+  | _ -> Stdlib.Option.Option.None
+
+/// Helper to extract a String from JSON
+let jsonToString (json: Json) : Stdlib.Option.Option<String> =
+  match json with
+  | String s -> Stdlib.Option.Option.Some s
+  | _ -> Stdlib.Option.Option.None
+
+/// Parse a URL citation from JSON
+let parseUrlCitation (json: Json) : Stdlib.Option.Option<UrlCitation> =
+  match json with
+  | Object fields ->
+    let startIndexJson = getJsonField fields "start_index"
+    let startIndex = Stdlib.Option.andThen startIndexJson (fun v -> jsonToInt64 v)
+
+    let endIndexJson = getJsonField fields "end_index"
+    let endIndex = Stdlib.Option.andThen endIndexJson (fun v -> jsonToInt64 v)
+
+    let urlJson = getJsonField fields "url"
+    let url = Stdlib.Option.andThen urlJson (fun v -> jsonToString v)
+
+    let titleJson = getJsonField fields "title"
+    let title = Stdlib.Option.andThen titleJson (fun v -> jsonToString v)
+
+    match (startIndex, endIndex, url, title) with
+    | (Some si, Some ei, Some u, Some t) ->
+      Stdlib.Option.Option.Some(
+        UrlCitation
+          { startIndex = si
+            endIndex = ei
+            url = u
+            title = t }
+      )
+    | _ -> Stdlib.Option.Option.None
+  | _ -> Stdlib.Option.Option.None
