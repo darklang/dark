@@ -29,18 +29,32 @@ module Role =
 // CONTENT TYPE
 // ---------------------------------------------------------------------------
 
+/// Content block types that can appear in messages
+/// Top-level types appear directly in messages.content array
+/// Nested types (inside tool results) are parsed via contentJson field
 type ContentType =
+  // Core content types
   | Text
   | Image
   | Document
+  // Tool interactions
   | ToolUse
   | ToolResult
+  | ServerToolUse
+  // Extended thinking
   | Thinking
   | RedactedThinking
-  | ServerToolUse
+  // Server tool results (top-level containers)
   | WebSearchToolResult
-  | WebSearchResult
+  | WebFetchToolResult
+  | CodeExecutionToolResult
+  | ToolSearchToolResult
+  // Nested result type (inside WebSearchToolResult)
   | SearchResult
+  // Other content types
+  | ToolReference
+  | ContainerUpload
+  // Fallback for unknown types
   | Unknown of String
 
 module ContentType =
@@ -51,12 +65,16 @@ module ContentType =
     | Document -> "document"
     | ToolUse -> "tool_use"
     | ToolResult -> "tool_result"
+    | ServerToolUse -> "server_tool_use"
     | Thinking -> "thinking"
     | RedactedThinking -> "redacted_thinking"
-    | ServerToolUse -> "server_tool_use"
     | WebSearchToolResult -> "web_search_tool_result"
-    | WebSearchResult -> "web_search_result"
+    | WebFetchToolResult -> "web_fetch_tool_result"
+    | CodeExecutionToolResult -> "code_execution_tool_result"
+    | ToolSearchToolResult -> "tool_search_tool_result"
     | SearchResult -> "search_result"
+    | ToolReference -> "tool_reference"
+    | ContainerUpload -> "container_upload"
     | Unknown s -> s
 
   let parse (s: String) : ContentType =
@@ -66,13 +84,123 @@ module ContentType =
     | "document" -> ContentType.Document
     | "tool_use" -> ContentType.ToolUse
     | "tool_result" -> ContentType.ToolResult
+    | "server_tool_use" -> ContentType.ServerToolUse
     | "thinking" -> ContentType.Thinking
     | "redacted_thinking" -> ContentType.RedactedThinking
-    | "server_tool_use" -> ContentType.ServerToolUse
     | "web_search_tool_result" -> ContentType.WebSearchToolResult
-    | "web_search_result" -> ContentType.WebSearchResult
+    | "web_fetch_tool_result" -> ContentType.WebFetchToolResult
+    | "code_execution_tool_result" -> ContentType.CodeExecutionToolResult
+    | "tool_search_tool_result" -> ContentType.ToolSearchToolResult
     | "search_result" -> ContentType.SearchResult
+    | "tool_reference" -> ContentType.ToolReference
+    | "container_upload" -> ContentType.ContainerUpload
     | _ -> ContentType.Unknown s
+
+
+// ---------------------------------------------------------------------------
+// CALLER TYPES
+// Indicates how a tool was invoked (directly by model or by server tool)
+// ---------------------------------------------------------------------------
+
+type CallerType =
+  | Direct
+  | CodeExecution20250825 of String  // tool_id
+  | CodeExecution20260120 of String  // tool_id
+
+module CallerType =
+  let toJson (caller: CallerType) : Stdlib.AltJson.Json =
+    match caller with
+    | Direct ->
+      Stdlib.AltJson.Json.Object [ ("type", Stdlib.AltJson.Json.String "direct") ]
+    | CodeExecution20250825 toolId ->
+      Stdlib.AltJson.Json.Object
+        [ ("type", Stdlib.AltJson.Json.String "code_execution_20250825")
+          ("tool_id", Stdlib.AltJson.Json.String toolId) ]
+    | CodeExecution20260120 toolId ->
+      Stdlib.AltJson.Json.Object
+        [ ("type", Stdlib.AltJson.Json.String "code_execution_20260120")
+          ("tool_id", Stdlib.AltJson.Json.String toolId) ]
+
+  let parse (json: Stdlib.AltJson.Json) : Stdlib.Option.Option<CallerType> =
+    match json with
+    | Object fields ->
+      let typeStr = JsonHelpers.getString "type" fields
+      match typeStr with
+      | Some "direct" -> Stdlib.Option.Option.Some CallerType.Direct
+      | Some "code_execution_20250825" ->
+        match JsonHelpers.getString "tool_id" fields with
+        | Some toolId -> Stdlib.Option.Option.Some(CallerType.CodeExecution20250825 toolId)
+        | None -> Stdlib.Option.Option.None
+      | Some "code_execution_20260120" ->
+        match JsonHelpers.getString "tool_id" fields with
+        | Some toolId -> Stdlib.Option.Option.Some(CallerType.CodeExecution20260120 toolId)
+        | None -> Stdlib.Option.Option.None
+      | _ -> Stdlib.Option.Option.None
+    | _ -> Stdlib.Option.Option.None
+
+
+// ---------------------------------------------------------------------------
+// TOOL RESULT ERROR TYPES
+// Error codes returned by various server tools
+// ---------------------------------------------------------------------------
+
+/// Common error codes shared across multiple tool types
+type ToolErrorCode =
+  // Common errors
+  | InvalidToolInput
+  | Unavailable
+  | TooManyRequests
+  | MaxUsesExceeded
+  | ExecutionTimeExceeded
+  // Web search specific
+  | QueryTooLong
+  | RequestTooLarge
+  // Web fetch specific
+  | UrlTooLong
+  | UrlNotAllowed
+  | UrlNotAccessible
+  | UnsupportedContentType
+  // Code execution specific
+  | OutputFileTooLarge
+  // Text editor specific
+  | FileNotFound
+  // Unknown error
+  | Unknown of String
+
+module ToolErrorCode =
+  let toString (code: ToolErrorCode) : String =
+    match code with
+    | InvalidToolInput -> "invalid_tool_input"
+    | Unavailable -> "unavailable"
+    | TooManyRequests -> "too_many_requests"
+    | MaxUsesExceeded -> "max_uses_exceeded"
+    | ExecutionTimeExceeded -> "execution_time_exceeded"
+    | QueryTooLong -> "query_too_long"
+    | RequestTooLarge -> "request_too_large"
+    | UrlTooLong -> "url_too_long"
+    | UrlNotAllowed -> "url_not_allowed"
+    | UrlNotAccessible -> "url_not_accessible"
+    | UnsupportedContentType -> "unsupported_content_type"
+    | OutputFileTooLarge -> "output_file_too_large"
+    | FileNotFound -> "file_not_found"
+    | Unknown s -> s
+
+  let parse (s: String) : ToolErrorCode =
+    match s with
+    | "invalid_tool_input" -> ToolErrorCode.InvalidToolInput
+    | "unavailable" -> ToolErrorCode.Unavailable
+    | "too_many_requests" -> ToolErrorCode.TooManyRequests
+    | "max_uses_exceeded" -> ToolErrorCode.MaxUsesExceeded
+    | "execution_time_exceeded" -> ToolErrorCode.ExecutionTimeExceeded
+    | "query_too_long" -> ToolErrorCode.QueryTooLong
+    | "request_too_large" -> ToolErrorCode.RequestTooLarge
+    | "url_too_long" -> ToolErrorCode.UrlTooLong
+    | "url_not_allowed" -> ToolErrorCode.UrlNotAllowed
+    | "url_not_accessible" -> ToolErrorCode.UrlNotAccessible
+    | "unsupported_content_type" -> ToolErrorCode.UnsupportedContentType
+    | "output_file_too_large" -> ToolErrorCode.OutputFileTooLarge
+    | "file_not_found" -> ToolErrorCode.FileNotFound
+    | _ -> ToolErrorCode.Unknown s
 
 
 // ---------------------------------------------------------------------------
@@ -129,7 +257,9 @@ type Citation =
     title: Stdlib.Option.Option<String>
     // For search_result_location
     search_result_index: Stdlib.Option.Option<Int64>
-    source: Stdlib.Option.Option<String> }
+    source: Stdlib.Option.Option<String>
+    // For output citations (response from API)
+    file_id: Stdlib.Option.Option<String> }
 
 
 // ---------------------------------------------------------------------------
@@ -168,7 +298,36 @@ type ContentBlock =
     // Web search result fields
     url: Stdlib.Option.Option<String>
     page_age: Stdlib.Option.Option<String>
-    encrypted_content: Stdlib.Option.Option<String> }
+    encrypted_content: Stdlib.Option.Option<String>
+    // Caller - indicates how tool was invoked (direct or via server tool)
+    caller: Stdlib.Option.Option<CallerType>
+    // Code execution result fields
+    stdout: Stdlib.Option.Option<String>
+    stderr: Stdlib.Option.Option<String>
+    encrypted_stdout: Stdlib.Option.Option<String>  // For PFC + web_search results
+    return_code: Stdlib.Option.Option<Int64>
+    // Code execution output / container upload
+    file_id: Stdlib.Option.Option<String>
+    // Web fetch result fields
+    retrieved_at: Stdlib.Option.Option<String>  // ISO 8601 timestamp
+    // Text editor result fields
+    file_type: Stdlib.Option.Option<String>  // "text" | "image" | "pdf"
+    start_line: Stdlib.Option.Option<Int64>
+    num_lines: Stdlib.Option.Option<Int64>
+    total_lines: Stdlib.Option.Option<Int64>
+    is_file_update: Stdlib.Option.Option<Bool>
+    old_start: Stdlib.Option.Option<Int64>
+    old_lines: Stdlib.Option.Option<Int64>
+    new_start: Stdlib.Option.Option<Int64>
+    new_lines: Stdlib.Option.Option<Int64>
+    lines: Stdlib.Option.Option<List<String>>
+    // Tool search result fields
+    tool_references: Stdlib.Option.Option<List<Json>>
+    // Tool reference fields
+    tool_name: Stdlib.Option.Option<String>
+    // Error fields for tool results
+    error_code: Stdlib.Option.Option<String>
+    error_message: Stdlib.Option.Option<String> }
 
 let citationCharLocation
   (citedText: String)
@@ -192,7 +351,8 @@ let citationCharLocation
       url = Stdlib.Option.Option.None
       title = Stdlib.Option.Option.None
       search_result_index = Stdlib.Option.Option.None
-      source = Stdlib.Option.Option.None }
+      source = Stdlib.Option.Option.None
+      file_id = Stdlib.Option.Option.None }
 
 let citationPageLocation
   (citedText: String)
@@ -216,7 +376,8 @@ let citationPageLocation
       url = Stdlib.Option.Option.None
       title = Stdlib.Option.Option.None
       search_result_index = Stdlib.Option.Option.None
-      source = Stdlib.Option.Option.None }
+      source = Stdlib.Option.Option.None
+      file_id = Stdlib.Option.Option.None }
 
 let citationWebSearchResult
   (citedText: String)
@@ -239,7 +400,8 @@ let citationWebSearchResult
       url = Stdlib.Option.Option.Some resultUrl
       title = Stdlib.Option.Option.Some resultTitle
       search_result_index = Stdlib.Option.Option.None
-      source = Stdlib.Option.Option.None }
+      source = Stdlib.Option.Option.None
+      file_id = Stdlib.Option.Option.None }
 
 let citationContentBlockLocation
   (citedText: String)
@@ -261,7 +423,8 @@ let citationContentBlockLocation
       url = Stdlib.Option.Option.None
       title = Stdlib.Option.Option.None
       search_result_index = Stdlib.Option.Option.None
-      source = Stdlib.Option.Option.None }
+      source = Stdlib.Option.Option.None
+      file_id = Stdlib.Option.Option.None }
 
 let citationSearchResultLocation
   (citedText: String)
@@ -283,7 +446,8 @@ let citationSearchResultLocation
       url = Stdlib.Option.Option.None
       title = Stdlib.Option.Option.None
       search_result_index = Stdlib.Option.Option.Some searchResultIndex
-      source = Stdlib.Option.Option.Some resultSource }
+      source = Stdlib.Option.Option.Some resultSource
+      file_id = Stdlib.Option.Option.None }
 
 
 // ---------------------------------------------------------------------------
@@ -319,7 +483,8 @@ module Citation =
                 url = JsonHelpers.getString "url" fields
                 title = JsonHelpers.getString "title" fields
                 search_result_index = JsonHelpers.getIntOption "search_result_index" fields
-                source = JsonHelpers.getString "source" fields })
+                source = JsonHelpers.getString "source" fields
+                file_id = JsonHelpers.getString "file_id" fields })
         | None -> Stdlib.Option.Option.None
       | _ -> Stdlib.Option.Option.None
     | _ -> Stdlib.Option.Option.None
@@ -349,6 +514,7 @@ module Citation =
     |> Models.JsonBuilder.addOptionalString "title" citation.title
     |> Models.JsonBuilder.addOptionalInt "search_result_index" citation.search_result_index
     |> Models.JsonBuilder.addOptionalString "source" citation.source
+    |> Models.JsonBuilder.addOptionalString "file_id" citation.file_id
     |> Models.JsonBuilder.toJson
 
 
@@ -427,7 +593,28 @@ let emptyBlock (blockType: ContentType) : ContentBlock =
       citations = Stdlib.Option.Option.None
       url = Stdlib.Option.Option.None
       page_age = Stdlib.Option.Option.None
-      encrypted_content = Stdlib.Option.Option.None }
+      encrypted_content = Stdlib.Option.Option.None
+      caller = Stdlib.Option.Option.None
+      stdout = Stdlib.Option.Option.None
+      stderr = Stdlib.Option.Option.None
+      encrypted_stdout = Stdlib.Option.Option.None
+      return_code = Stdlib.Option.Option.None
+      file_id = Stdlib.Option.Option.None
+      retrieved_at = Stdlib.Option.Option.None
+      file_type = Stdlib.Option.Option.None
+      start_line = Stdlib.Option.Option.None
+      num_lines = Stdlib.Option.Option.None
+      total_lines = Stdlib.Option.Option.None
+      is_file_update = Stdlib.Option.Option.None
+      old_start = Stdlib.Option.Option.None
+      old_lines = Stdlib.Option.Option.None
+      new_start = Stdlib.Option.Option.None
+      new_lines = Stdlib.Option.Option.None
+      lines = Stdlib.Option.Option.None
+      tool_references = Stdlib.Option.Option.None
+      tool_name = Stdlib.Option.Option.None
+      error_code = Stdlib.Option.Option.None
+      error_message = Stdlib.Option.Option.None }
 
 
 // --- Text Blocks ---
@@ -454,7 +641,28 @@ let textBlock (text: String) : ContentBlock =
       citations = Stdlib.Option.Option.None
       url = Stdlib.Option.Option.None
       page_age = Stdlib.Option.Option.None
-      encrypted_content = Stdlib.Option.Option.None }
+      encrypted_content = Stdlib.Option.Option.None
+      caller = Stdlib.Option.Option.None
+      stdout = Stdlib.Option.Option.None
+      stderr = Stdlib.Option.Option.None
+      encrypted_stdout = Stdlib.Option.Option.None
+      return_code = Stdlib.Option.Option.None
+      file_id = Stdlib.Option.Option.None
+      retrieved_at = Stdlib.Option.Option.None
+      file_type = Stdlib.Option.Option.None
+      start_line = Stdlib.Option.Option.None
+      num_lines = Stdlib.Option.Option.None
+      total_lines = Stdlib.Option.Option.None
+      is_file_update = Stdlib.Option.Option.None
+      old_start = Stdlib.Option.Option.None
+      old_lines = Stdlib.Option.Option.None
+      new_start = Stdlib.Option.Option.None
+      new_lines = Stdlib.Option.Option.None
+      lines = Stdlib.Option.Option.None
+      tool_references = Stdlib.Option.Option.None
+      tool_name = Stdlib.Option.Option.None
+      error_code = Stdlib.Option.Option.None
+      error_message = Stdlib.Option.Option.None }
 
 let textBlockCached (text: String) (cache: Models.CacheControl) : ContentBlock =
   ContentBlock
@@ -478,7 +686,28 @@ let textBlockCached (text: String) (cache: Models.CacheControl) : ContentBlock =
       citations = Stdlib.Option.Option.None
       url = Stdlib.Option.Option.None
       page_age = Stdlib.Option.Option.None
-      encrypted_content = Stdlib.Option.Option.None }
+      encrypted_content = Stdlib.Option.Option.None
+      caller = Stdlib.Option.Option.None
+      stdout = Stdlib.Option.Option.None
+      stderr = Stdlib.Option.Option.None
+      encrypted_stdout = Stdlib.Option.Option.None
+      return_code = Stdlib.Option.Option.None
+      file_id = Stdlib.Option.Option.None
+      retrieved_at = Stdlib.Option.Option.None
+      file_type = Stdlib.Option.Option.None
+      start_line = Stdlib.Option.Option.None
+      num_lines = Stdlib.Option.Option.None
+      total_lines = Stdlib.Option.Option.None
+      is_file_update = Stdlib.Option.Option.None
+      old_start = Stdlib.Option.Option.None
+      old_lines = Stdlib.Option.Option.None
+      new_start = Stdlib.Option.Option.None
+      new_lines = Stdlib.Option.Option.None
+      lines = Stdlib.Option.Option.None
+      tool_references = Stdlib.Option.Option.None
+      tool_name = Stdlib.Option.Option.None
+      error_code = Stdlib.Option.Option.None
+      error_message = Stdlib.Option.Option.None }
 
 
 // --- Image Blocks ---
@@ -511,7 +740,28 @@ let imageBlockBase64 (mediaType: String) (base64Data: String) : ContentBlock =
       citations = Stdlib.Option.Option.None
       url = Stdlib.Option.Option.None
       page_age = Stdlib.Option.Option.None
-      encrypted_content = Stdlib.Option.Option.None }
+      encrypted_content = Stdlib.Option.Option.None
+      caller = Stdlib.Option.Option.None
+      stdout = Stdlib.Option.Option.None
+      stderr = Stdlib.Option.Option.None
+      encrypted_stdout = Stdlib.Option.Option.None
+      return_code = Stdlib.Option.Option.None
+      file_id = Stdlib.Option.Option.None
+      retrieved_at = Stdlib.Option.Option.None
+      file_type = Stdlib.Option.Option.None
+      start_line = Stdlib.Option.Option.None
+      num_lines = Stdlib.Option.Option.None
+      total_lines = Stdlib.Option.Option.None
+      is_file_update = Stdlib.Option.Option.None
+      old_start = Stdlib.Option.Option.None
+      old_lines = Stdlib.Option.Option.None
+      new_start = Stdlib.Option.Option.None
+      new_lines = Stdlib.Option.Option.None
+      lines = Stdlib.Option.Option.None
+      tool_references = Stdlib.Option.Option.None
+      tool_name = Stdlib.Option.Option.None
+      error_code = Stdlib.Option.Option.None
+      error_message = Stdlib.Option.Option.None }
 
 let imageBlockUrl (url: String) : ContentBlock =
   let source =
@@ -540,7 +790,28 @@ let imageBlockUrl (url: String) : ContentBlock =
       citations = Stdlib.Option.Option.None
       url = Stdlib.Option.Option.None
       page_age = Stdlib.Option.Option.None
-      encrypted_content = Stdlib.Option.Option.None }
+      encrypted_content = Stdlib.Option.Option.None
+      caller = Stdlib.Option.Option.None
+      stdout = Stdlib.Option.Option.None
+      stderr = Stdlib.Option.Option.None
+      encrypted_stdout = Stdlib.Option.Option.None
+      return_code = Stdlib.Option.Option.None
+      file_id = Stdlib.Option.Option.None
+      retrieved_at = Stdlib.Option.Option.None
+      file_type = Stdlib.Option.Option.None
+      start_line = Stdlib.Option.Option.None
+      num_lines = Stdlib.Option.Option.None
+      total_lines = Stdlib.Option.Option.None
+      is_file_update = Stdlib.Option.Option.None
+      old_start = Stdlib.Option.Option.None
+      old_lines = Stdlib.Option.Option.None
+      new_start = Stdlib.Option.Option.None
+      new_lines = Stdlib.Option.Option.None
+      lines = Stdlib.Option.Option.None
+      tool_references = Stdlib.Option.Option.None
+      tool_name = Stdlib.Option.Option.None
+      error_code = Stdlib.Option.Option.None
+      error_message = Stdlib.Option.Option.None }
 
 
 // --- Document Blocks ---
@@ -573,7 +844,28 @@ let documentBlockPdf (base64Data: String) : ContentBlock =
       citations = Stdlib.Option.Option.None
       url = Stdlib.Option.Option.None
       page_age = Stdlib.Option.Option.None
-      encrypted_content = Stdlib.Option.Option.None }
+      encrypted_content = Stdlib.Option.Option.None
+      caller = Stdlib.Option.Option.None
+      stdout = Stdlib.Option.Option.None
+      stderr = Stdlib.Option.Option.None
+      encrypted_stdout = Stdlib.Option.Option.None
+      return_code = Stdlib.Option.Option.None
+      file_id = Stdlib.Option.Option.None
+      retrieved_at = Stdlib.Option.Option.None
+      file_type = Stdlib.Option.Option.None
+      start_line = Stdlib.Option.Option.None
+      num_lines = Stdlib.Option.Option.None
+      total_lines = Stdlib.Option.Option.None
+      is_file_update = Stdlib.Option.Option.None
+      old_start = Stdlib.Option.Option.None
+      old_lines = Stdlib.Option.Option.None
+      new_start = Stdlib.Option.Option.None
+      new_lines = Stdlib.Option.Option.None
+      lines = Stdlib.Option.Option.None
+      tool_references = Stdlib.Option.Option.None
+      tool_name = Stdlib.Option.Option.None
+      error_code = Stdlib.Option.Option.None
+      error_message = Stdlib.Option.Option.None }
 
 let documentBlockPdfWithTitle
   (base64Data: String)
@@ -606,7 +898,28 @@ let documentBlockPdfWithTitle
       citations = Stdlib.Option.Option.None
       url = Stdlib.Option.Option.None
       page_age = Stdlib.Option.Option.None
-      encrypted_content = Stdlib.Option.Option.None }
+      encrypted_content = Stdlib.Option.Option.None
+      caller = Stdlib.Option.Option.None
+      stdout = Stdlib.Option.Option.None
+      stderr = Stdlib.Option.Option.None
+      encrypted_stdout = Stdlib.Option.Option.None
+      return_code = Stdlib.Option.Option.None
+      file_id = Stdlib.Option.Option.None
+      retrieved_at = Stdlib.Option.Option.None
+      file_type = Stdlib.Option.Option.None
+      start_line = Stdlib.Option.Option.None
+      num_lines = Stdlib.Option.Option.None
+      total_lines = Stdlib.Option.Option.None
+      is_file_update = Stdlib.Option.Option.None
+      old_start = Stdlib.Option.Option.None
+      old_lines = Stdlib.Option.Option.None
+      new_start = Stdlib.Option.Option.None
+      new_lines = Stdlib.Option.Option.None
+      lines = Stdlib.Option.Option.None
+      tool_references = Stdlib.Option.Option.None
+      tool_name = Stdlib.Option.Option.None
+      error_code = Stdlib.Option.Option.None
+      error_message = Stdlib.Option.Option.None }
 
 /// Create a PDF document block from a URL
 /// The URL must point to a publicly accessible PDF file
@@ -637,7 +950,28 @@ let documentBlockPdfUrl (pdfUrl: String) : ContentBlock =
       citations = Stdlib.Option.Option.None
       url = Stdlib.Option.Option.None
       page_age = Stdlib.Option.Option.None
-      encrypted_content = Stdlib.Option.Option.None }
+      encrypted_content = Stdlib.Option.Option.None
+      caller = Stdlib.Option.Option.None
+      stdout = Stdlib.Option.Option.None
+      stderr = Stdlib.Option.Option.None
+      encrypted_stdout = Stdlib.Option.Option.None
+      return_code = Stdlib.Option.Option.None
+      file_id = Stdlib.Option.Option.None
+      retrieved_at = Stdlib.Option.Option.None
+      file_type = Stdlib.Option.Option.None
+      start_line = Stdlib.Option.Option.None
+      num_lines = Stdlib.Option.Option.None
+      total_lines = Stdlib.Option.Option.None
+      is_file_update = Stdlib.Option.Option.None
+      old_start = Stdlib.Option.Option.None
+      old_lines = Stdlib.Option.Option.None
+      new_start = Stdlib.Option.Option.None
+      new_lines = Stdlib.Option.Option.None
+      lines = Stdlib.Option.Option.None
+      tool_references = Stdlib.Option.Option.None
+      tool_name = Stdlib.Option.Option.None
+      error_code = Stdlib.Option.Option.None
+      error_message = Stdlib.Option.Option.None }
 
 /// Create a PDF document block from a URL with a title
 /// The URL must point to a publicly accessible PDF file
@@ -668,7 +1002,28 @@ let documentBlockPdfUrlWithTitle (pdfUrl: String) (docTitle: String) : ContentBl
       citations = Stdlib.Option.Option.None
       url = Stdlib.Option.Option.None
       page_age = Stdlib.Option.Option.None
-      encrypted_content = Stdlib.Option.Option.None }
+      encrypted_content = Stdlib.Option.Option.None
+      caller = Stdlib.Option.Option.None
+      stdout = Stdlib.Option.Option.None
+      stderr = Stdlib.Option.Option.None
+      encrypted_stdout = Stdlib.Option.Option.None
+      return_code = Stdlib.Option.Option.None
+      file_id = Stdlib.Option.Option.None
+      retrieved_at = Stdlib.Option.Option.None
+      file_type = Stdlib.Option.Option.None
+      start_line = Stdlib.Option.Option.None
+      num_lines = Stdlib.Option.Option.None
+      total_lines = Stdlib.Option.Option.None
+      is_file_update = Stdlib.Option.Option.None
+      old_start = Stdlib.Option.Option.None
+      old_lines = Stdlib.Option.Option.None
+      new_start = Stdlib.Option.Option.None
+      new_lines = Stdlib.Option.Option.None
+      lines = Stdlib.Option.Option.None
+      tool_references = Stdlib.Option.Option.None
+      tool_name = Stdlib.Option.Option.None
+      error_code = Stdlib.Option.Option.None
+      error_message = Stdlib.Option.Option.None }
 
 /// Create a PDF document block from a URL with title and context
 /// Context provides additional information about the document for better understanding
@@ -703,7 +1058,28 @@ let documentBlockPdfUrlFull
       citations = Stdlib.Option.Option.None
       url = Stdlib.Option.Option.None
       page_age = Stdlib.Option.Option.None
-      encrypted_content = Stdlib.Option.Option.None }
+      encrypted_content = Stdlib.Option.Option.None
+      caller = Stdlib.Option.Option.None
+      stdout = Stdlib.Option.Option.None
+      stderr = Stdlib.Option.Option.None
+      encrypted_stdout = Stdlib.Option.Option.None
+      return_code = Stdlib.Option.Option.None
+      file_id = Stdlib.Option.Option.None
+      retrieved_at = Stdlib.Option.Option.None
+      file_type = Stdlib.Option.Option.None
+      start_line = Stdlib.Option.Option.None
+      num_lines = Stdlib.Option.Option.None
+      total_lines = Stdlib.Option.Option.None
+      is_file_update = Stdlib.Option.Option.None
+      old_start = Stdlib.Option.Option.None
+      old_lines = Stdlib.Option.Option.None
+      new_start = Stdlib.Option.Option.None
+      new_lines = Stdlib.Option.Option.None
+      lines = Stdlib.Option.Option.None
+      tool_references = Stdlib.Option.Option.None
+      tool_name = Stdlib.Option.Option.None
+      error_code = Stdlib.Option.Option.None
+      error_message = Stdlib.Option.Option.None }
 
 let documentBlockText (text: String) : ContentBlock =
   let source =
@@ -733,7 +1109,28 @@ let documentBlockText (text: String) : ContentBlock =
       citations = Stdlib.Option.Option.None
       url = Stdlib.Option.Option.None
       page_age = Stdlib.Option.Option.None
-      encrypted_content = Stdlib.Option.Option.None }
+      encrypted_content = Stdlib.Option.Option.None
+      caller = Stdlib.Option.Option.None
+      stdout = Stdlib.Option.Option.None
+      stderr = Stdlib.Option.Option.None
+      encrypted_stdout = Stdlib.Option.Option.None
+      return_code = Stdlib.Option.Option.None
+      file_id = Stdlib.Option.Option.None
+      retrieved_at = Stdlib.Option.Option.None
+      file_type = Stdlib.Option.Option.None
+      start_line = Stdlib.Option.Option.None
+      num_lines = Stdlib.Option.Option.None
+      total_lines = Stdlib.Option.Option.None
+      is_file_update = Stdlib.Option.Option.None
+      old_start = Stdlib.Option.Option.None
+      old_lines = Stdlib.Option.Option.None
+      new_start = Stdlib.Option.Option.None
+      new_lines = Stdlib.Option.Option.None
+      lines = Stdlib.Option.Option.None
+      tool_references = Stdlib.Option.Option.None
+      tool_name = Stdlib.Option.Option.None
+      error_code = Stdlib.Option.Option.None
+      error_message = Stdlib.Option.Option.None }
 
 let documentBlockUrl (url: String) : ContentBlock =
   let source =
@@ -762,7 +1159,28 @@ let documentBlockUrl (url: String) : ContentBlock =
       citations = Stdlib.Option.Option.None
       url = Stdlib.Option.Option.None
       page_age = Stdlib.Option.Option.None
-      encrypted_content = Stdlib.Option.Option.None }
+      encrypted_content = Stdlib.Option.Option.None
+      caller = Stdlib.Option.Option.None
+      stdout = Stdlib.Option.Option.None
+      stderr = Stdlib.Option.Option.None
+      encrypted_stdout = Stdlib.Option.Option.None
+      return_code = Stdlib.Option.Option.None
+      file_id = Stdlib.Option.Option.None
+      retrieved_at = Stdlib.Option.Option.None
+      file_type = Stdlib.Option.Option.None
+      start_line = Stdlib.Option.Option.None
+      num_lines = Stdlib.Option.Option.None
+      total_lines = Stdlib.Option.Option.None
+      is_file_update = Stdlib.Option.Option.None
+      old_start = Stdlib.Option.Option.None
+      old_lines = Stdlib.Option.Option.None
+      new_start = Stdlib.Option.Option.None
+      new_lines = Stdlib.Option.Option.None
+      lines = Stdlib.Option.Option.None
+      tool_references = Stdlib.Option.Option.None
+      tool_name = Stdlib.Option.Option.None
+      error_code = Stdlib.Option.Option.None
+      error_message = Stdlib.Option.Option.None }
 
 
 // --- Document Blocks with Citations ---
@@ -799,7 +1217,28 @@ let documentBlockPdfWithCitations (base64Data: String) : ContentBlock =
       citations = Stdlib.Option.Option.None
       url = Stdlib.Option.Option.None
       page_age = Stdlib.Option.Option.None
-      encrypted_content = Stdlib.Option.Option.None }
+      encrypted_content = Stdlib.Option.Option.None
+      caller = Stdlib.Option.Option.None
+      stdout = Stdlib.Option.Option.None
+      stderr = Stdlib.Option.Option.None
+      encrypted_stdout = Stdlib.Option.Option.None
+      return_code = Stdlib.Option.Option.None
+      file_id = Stdlib.Option.Option.None
+      retrieved_at = Stdlib.Option.Option.None
+      file_type = Stdlib.Option.Option.None
+      start_line = Stdlib.Option.Option.None
+      num_lines = Stdlib.Option.Option.None
+      total_lines = Stdlib.Option.Option.None
+      is_file_update = Stdlib.Option.Option.None
+      old_start = Stdlib.Option.Option.None
+      old_lines = Stdlib.Option.Option.None
+      new_start = Stdlib.Option.Option.None
+      new_lines = Stdlib.Option.Option.None
+      lines = Stdlib.Option.Option.None
+      tool_references = Stdlib.Option.Option.None
+      tool_name = Stdlib.Option.Option.None
+      error_code = Stdlib.Option.Option.None
+      error_message = Stdlib.Option.Option.None }
 
 /// Create a PDF document block with title and citations enabled
 let documentBlockPdfWithTitleAndCitations
@@ -833,7 +1272,28 @@ let documentBlockPdfWithTitleAndCitations
       citations = Stdlib.Option.Option.None
       url = Stdlib.Option.Option.None
       page_age = Stdlib.Option.Option.None
-      encrypted_content = Stdlib.Option.Option.None }
+      encrypted_content = Stdlib.Option.Option.None
+      caller = Stdlib.Option.Option.None
+      stdout = Stdlib.Option.Option.None
+      stderr = Stdlib.Option.Option.None
+      encrypted_stdout = Stdlib.Option.Option.None
+      return_code = Stdlib.Option.Option.None
+      file_id = Stdlib.Option.Option.None
+      retrieved_at = Stdlib.Option.Option.None
+      file_type = Stdlib.Option.Option.None
+      start_line = Stdlib.Option.Option.None
+      num_lines = Stdlib.Option.Option.None
+      total_lines = Stdlib.Option.Option.None
+      is_file_update = Stdlib.Option.Option.None
+      old_start = Stdlib.Option.Option.None
+      old_lines = Stdlib.Option.Option.None
+      new_start = Stdlib.Option.Option.None
+      new_lines = Stdlib.Option.Option.None
+      lines = Stdlib.Option.Option.None
+      tool_references = Stdlib.Option.Option.None
+      tool_name = Stdlib.Option.Option.None
+      error_code = Stdlib.Option.Option.None
+      error_message = Stdlib.Option.Option.None }
 
 /// Create a PDF document block from URL with citations enabled
 let documentBlockPdfUrlWithCitations (pdfUrl: String) : ContentBlock =
@@ -863,7 +1323,28 @@ let documentBlockPdfUrlWithCitations (pdfUrl: String) : ContentBlock =
       citations = Stdlib.Option.Option.None
       url = Stdlib.Option.Option.None
       page_age = Stdlib.Option.Option.None
-      encrypted_content = Stdlib.Option.Option.None }
+      encrypted_content = Stdlib.Option.Option.None
+      caller = Stdlib.Option.Option.None
+      stdout = Stdlib.Option.Option.None
+      stderr = Stdlib.Option.Option.None
+      encrypted_stdout = Stdlib.Option.Option.None
+      return_code = Stdlib.Option.Option.None
+      file_id = Stdlib.Option.Option.None
+      retrieved_at = Stdlib.Option.Option.None
+      file_type = Stdlib.Option.Option.None
+      start_line = Stdlib.Option.Option.None
+      num_lines = Stdlib.Option.Option.None
+      total_lines = Stdlib.Option.Option.None
+      is_file_update = Stdlib.Option.Option.None
+      old_start = Stdlib.Option.Option.None
+      old_lines = Stdlib.Option.Option.None
+      new_start = Stdlib.Option.Option.None
+      new_lines = Stdlib.Option.Option.None
+      lines = Stdlib.Option.Option.None
+      tool_references = Stdlib.Option.Option.None
+      tool_name = Stdlib.Option.Option.None
+      error_code = Stdlib.Option.Option.None
+      error_message = Stdlib.Option.Option.None }
 
 /// Create a PDF document block from URL with title and citations enabled
 let documentBlockPdfUrlWithTitleAndCitations
@@ -896,7 +1377,28 @@ let documentBlockPdfUrlWithTitleAndCitations
       citations = Stdlib.Option.Option.None
       url = Stdlib.Option.Option.None
       page_age = Stdlib.Option.Option.None
-      encrypted_content = Stdlib.Option.Option.None }
+      encrypted_content = Stdlib.Option.Option.None
+      caller = Stdlib.Option.Option.None
+      stdout = Stdlib.Option.Option.None
+      stderr = Stdlib.Option.Option.None
+      encrypted_stdout = Stdlib.Option.Option.None
+      return_code = Stdlib.Option.Option.None
+      file_id = Stdlib.Option.Option.None
+      retrieved_at = Stdlib.Option.Option.None
+      file_type = Stdlib.Option.Option.None
+      start_line = Stdlib.Option.Option.None
+      num_lines = Stdlib.Option.Option.None
+      total_lines = Stdlib.Option.Option.None
+      is_file_update = Stdlib.Option.Option.None
+      old_start = Stdlib.Option.Option.None
+      old_lines = Stdlib.Option.Option.None
+      new_start = Stdlib.Option.Option.None
+      new_lines = Stdlib.Option.Option.None
+      lines = Stdlib.Option.Option.None
+      tool_references = Stdlib.Option.Option.None
+      tool_name = Stdlib.Option.Option.None
+      error_code = Stdlib.Option.Option.None
+      error_message = Stdlib.Option.Option.None }
 
 /// Create a text document block with citations enabled
 let documentBlockTextWithCitations (text: String) : ContentBlock =
@@ -927,7 +1429,28 @@ let documentBlockTextWithCitations (text: String) : ContentBlock =
       citations = Stdlib.Option.Option.None
       url = Stdlib.Option.Option.None
       page_age = Stdlib.Option.Option.None
-      encrypted_content = Stdlib.Option.Option.None }
+      encrypted_content = Stdlib.Option.Option.None
+      caller = Stdlib.Option.Option.None
+      stdout = Stdlib.Option.Option.None
+      stderr = Stdlib.Option.Option.None
+      encrypted_stdout = Stdlib.Option.Option.None
+      return_code = Stdlib.Option.Option.None
+      file_id = Stdlib.Option.Option.None
+      retrieved_at = Stdlib.Option.Option.None
+      file_type = Stdlib.Option.Option.None
+      start_line = Stdlib.Option.Option.None
+      num_lines = Stdlib.Option.Option.None
+      total_lines = Stdlib.Option.Option.None
+      is_file_update = Stdlib.Option.Option.None
+      old_start = Stdlib.Option.Option.None
+      old_lines = Stdlib.Option.Option.None
+      new_start = Stdlib.Option.Option.None
+      new_lines = Stdlib.Option.Option.None
+      lines = Stdlib.Option.Option.None
+      tool_references = Stdlib.Option.Option.None
+      tool_name = Stdlib.Option.Option.None
+      error_code = Stdlib.Option.Option.None
+      error_message = Stdlib.Option.Option.None }
 
 /// Create a text document block with title and citations enabled
 let documentBlockTextWithTitleAndCitations
@@ -961,7 +1484,28 @@ let documentBlockTextWithTitleAndCitations
       citations = Stdlib.Option.Option.None
       url = Stdlib.Option.Option.None
       page_age = Stdlib.Option.Option.None
-      encrypted_content = Stdlib.Option.Option.None }
+      encrypted_content = Stdlib.Option.Option.None
+      caller = Stdlib.Option.Option.None
+      stdout = Stdlib.Option.Option.None
+      stderr = Stdlib.Option.Option.None
+      encrypted_stdout = Stdlib.Option.Option.None
+      return_code = Stdlib.Option.Option.None
+      file_id = Stdlib.Option.Option.None
+      retrieved_at = Stdlib.Option.Option.None
+      file_type = Stdlib.Option.Option.None
+      start_line = Stdlib.Option.Option.None
+      num_lines = Stdlib.Option.Option.None
+      total_lines = Stdlib.Option.Option.None
+      is_file_update = Stdlib.Option.Option.None
+      old_start = Stdlib.Option.Option.None
+      old_lines = Stdlib.Option.Option.None
+      new_start = Stdlib.Option.Option.None
+      new_lines = Stdlib.Option.Option.None
+      lines = Stdlib.Option.Option.None
+      tool_references = Stdlib.Option.Option.None
+      tool_name = Stdlib.Option.Option.None
+      error_code = Stdlib.Option.Option.None
+      error_message = Stdlib.Option.Option.None }
 
 
 // --- Tool Use Block ---
@@ -988,7 +1532,28 @@ let toolUseBlock (id: String) (name: String) (input: Json) : ContentBlock =
       citations = Stdlib.Option.Option.None
       url = Stdlib.Option.Option.None
       page_age = Stdlib.Option.Option.None
-      encrypted_content = Stdlib.Option.Option.None }
+      encrypted_content = Stdlib.Option.Option.None
+      caller = Stdlib.Option.Option.None
+      stdout = Stdlib.Option.Option.None
+      stderr = Stdlib.Option.Option.None
+      encrypted_stdout = Stdlib.Option.Option.None
+      return_code = Stdlib.Option.Option.None
+      file_id = Stdlib.Option.Option.None
+      retrieved_at = Stdlib.Option.Option.None
+      file_type = Stdlib.Option.Option.None
+      start_line = Stdlib.Option.Option.None
+      num_lines = Stdlib.Option.Option.None
+      total_lines = Stdlib.Option.Option.None
+      is_file_update = Stdlib.Option.Option.None
+      old_start = Stdlib.Option.Option.None
+      old_lines = Stdlib.Option.Option.None
+      new_start = Stdlib.Option.Option.None
+      new_lines = Stdlib.Option.Option.None
+      lines = Stdlib.Option.Option.None
+      tool_references = Stdlib.Option.Option.None
+      tool_name = Stdlib.Option.Option.None
+      error_code = Stdlib.Option.Option.None
+      error_message = Stdlib.Option.Option.None }
 
 
 // --- Tool Result Block ---
@@ -1023,7 +1588,28 @@ let toolResultBlock
       citations = Stdlib.Option.Option.None
       url = Stdlib.Option.Option.None
       page_age = Stdlib.Option.Option.None
-      encrypted_content = Stdlib.Option.Option.None }
+      encrypted_content = Stdlib.Option.Option.None
+      caller = Stdlib.Option.Option.None
+      stdout = Stdlib.Option.Option.None
+      stderr = Stdlib.Option.Option.None
+      encrypted_stdout = Stdlib.Option.Option.None
+      return_code = Stdlib.Option.Option.None
+      file_id = Stdlib.Option.Option.None
+      retrieved_at = Stdlib.Option.Option.None
+      file_type = Stdlib.Option.Option.None
+      start_line = Stdlib.Option.Option.None
+      num_lines = Stdlib.Option.Option.None
+      total_lines = Stdlib.Option.Option.None
+      is_file_update = Stdlib.Option.Option.None
+      old_start = Stdlib.Option.Option.None
+      old_lines = Stdlib.Option.Option.None
+      new_start = Stdlib.Option.Option.None
+      new_lines = Stdlib.Option.Option.None
+      lines = Stdlib.Option.Option.None
+      tool_references = Stdlib.Option.Option.None
+      tool_name = Stdlib.Option.Option.None
+      error_code = Stdlib.Option.Option.None
+      error_message = Stdlib.Option.Option.None }
 
 
 // ---------------------------------------------------------------------------
@@ -1170,7 +1756,110 @@ let thinkingBlock (thinking: String) (signature: String) : ContentBlock =
       citations = Stdlib.Option.Option.None
       url = Stdlib.Option.Option.None
       page_age = Stdlib.Option.Option.None
-      encrypted_content = Stdlib.Option.Option.None }
+      encrypted_content = Stdlib.Option.Option.None
+      caller = Stdlib.Option.Option.None
+      stdout = Stdlib.Option.Option.None
+      stderr = Stdlib.Option.Option.None
+      encrypted_stdout = Stdlib.Option.Option.None
+      return_code = Stdlib.Option.Option.None
+      file_id = Stdlib.Option.Option.None
+      retrieved_at = Stdlib.Option.Option.None
+      file_type = Stdlib.Option.Option.None
+      start_line = Stdlib.Option.Option.None
+      num_lines = Stdlib.Option.Option.None
+      total_lines = Stdlib.Option.Option.None
+      is_file_update = Stdlib.Option.Option.None
+      old_start = Stdlib.Option.Option.None
+      old_lines = Stdlib.Option.Option.None
+      new_start = Stdlib.Option.Option.None
+      new_lines = Stdlib.Option.Option.None
+      lines = Stdlib.Option.Option.None
+      tool_references = Stdlib.Option.Option.None
+      tool_name = Stdlib.Option.Option.None
+      error_code = Stdlib.Option.Option.None
+      error_message = Stdlib.Option.Option.None }
+
+
+// --- Redacted Thinking Block ---
+
+/// Create a redacted thinking block (for when thinking is redacted in responses)
+let redactedThinkingBlock (data: String) : ContentBlock =
+  let block = emptyBlock ContentType.RedactedThinking
+  ContentBlock { block with data = Stdlib.Option.Option.Some data }
+
+
+// --- Tool Reference Block ---
+
+/// Create a tool reference block (used in tool search results)
+let toolReferenceBlock (toolName: String) : ContentBlock =
+  let block = emptyBlock ContentType.ToolReference
+  ContentBlock { block with tool_name = Stdlib.Option.Option.Some toolName }
+
+
+// --- Container Upload Block ---
+
+/// Create a container upload block (for file references in containers)
+let containerUploadBlock (fileId: String) : ContentBlock =
+  let block = emptyBlock ContentType.ContainerUpload
+  ContentBlock { block with file_id = Stdlib.Option.Option.Some fileId }
+
+
+// --- Server Tool Use Block ---
+
+/// Create a server tool use block
+let serverToolUseBlock (id: String) (name: String) (input: Json) : ContentBlock =
+  let block = emptyBlock ContentType.ServerToolUse
+  ContentBlock
+    { block with
+        id = Stdlib.Option.Option.Some id
+        name = Stdlib.Option.Option.Some name
+        input = Stdlib.Option.Option.Some input }
+
+/// Create a server tool use block with caller
+let serverToolUseBlockWithCaller
+  (id: String)
+  (name: String)
+  (input: Json)
+  (caller: CallerType)
+  : ContentBlock =
+  let block = emptyBlock ContentType.ServerToolUse
+  ContentBlock
+    { block with
+        id = Stdlib.Option.Option.Some id
+        name = Stdlib.Option.Option.Some name
+        input = Stdlib.Option.Option.Some input
+        caller = Stdlib.Option.Option.Some caller }
+
+
+// --- Tool Use Block with Caller ---
+
+/// Create a tool use block with caller information
+let toolUseBlockWithCaller
+  (id: String)
+  (name: String)
+  (input: Json)
+  (caller: CallerType)
+  : ContentBlock =
+  let block = emptyBlock ContentType.ToolUse
+  ContentBlock
+    { block with
+        id = Stdlib.Option.Option.Some id
+        name = Stdlib.Option.Option.Some name
+        input = Stdlib.Option.Option.Some input
+        caller = Stdlib.Option.Option.Some caller }
+
+
+// --- Document Block with ContentBlockSource ---
+
+/// Create a document block with content block source (inline content)
+let documentBlockContent (contentBlocks: String) : ContentBlock =
+  let source =
+    Json.Object
+      [ ("type", Json.String "content")
+        ("content", Json.String contentBlocks) ]
+
+  let block = emptyBlock ContentType.Document
+  ContentBlock { block with source = Stdlib.Option.Option.Some source }
 
 
 // ---------------------------------------------------------------------------
@@ -1270,7 +1959,114 @@ let contentBlockToJson (block: ContentBlock) : Json =
     | Some ec -> Stdlib.List.append withPageAge [ ("encrypted_content", Json.String ec) ]
     | None -> withPageAge
 
-  Json.Object withEncryptedContent
+  let withCaller =
+    match block.caller with
+    | Some c -> Stdlib.List.append withEncryptedContent [ ("caller", CallerType.toJson c) ]
+    | None -> withEncryptedContent
+
+  let withStdout =
+    match block.stdout with
+    | Some s -> Stdlib.List.append withCaller [ ("stdout", Json.String s) ]
+    | None -> withCaller
+
+  let withStderr =
+    match block.stderr with
+    | Some s -> Stdlib.List.append withStdout [ ("stderr", Json.String s) ]
+    | None -> withStdout
+
+  let withEncryptedStdout =
+    match block.encrypted_stdout with
+    | Some s -> Stdlib.List.append withStderr [ ("encrypted_stdout", Json.String s) ]
+    | None -> withStderr
+
+  let withReturnCode =
+    match block.return_code with
+    | Some rc -> Stdlib.List.append withEncryptedStdout [ ("return_code", Json.Number (Stdlib.Int64.toFloat rc)) ]
+    | None -> withEncryptedStdout
+
+  let withFileId =
+    match block.file_id with
+    | Some fid -> Stdlib.List.append withReturnCode [ ("file_id", Json.String fid) ]
+    | None -> withReturnCode
+
+  let withRetrievedAt =
+    match block.retrieved_at with
+    | Some ra -> Stdlib.List.append withFileId [ ("retrieved_at", Json.String ra) ]
+    | None -> withFileId
+
+  let withFileType =
+    match block.file_type with
+    | Some ft -> Stdlib.List.append withRetrievedAt [ ("file_type", Json.String ft) ]
+    | None -> withRetrievedAt
+
+  let withStartLine =
+    match block.start_line with
+    | Some sl -> Stdlib.List.append withFileType [ ("start_line", Json.Number (Stdlib.Int64.toFloat sl)) ]
+    | None -> withFileType
+
+  let withNumLines =
+    match block.num_lines with
+    | Some nl -> Stdlib.List.append withStartLine [ ("num_lines", Json.Number (Stdlib.Int64.toFloat nl)) ]
+    | None -> withStartLine
+
+  let withTotalLines =
+    match block.total_lines with
+    | Some tl -> Stdlib.List.append withNumLines [ ("total_lines", Json.Number (Stdlib.Int64.toFloat tl)) ]
+    | None -> withNumLines
+
+  let withIsFileUpdate =
+    match block.is_file_update with
+    | Some ifu -> Stdlib.List.append withTotalLines [ ("is_file_update", Json.Bool ifu) ]
+    | None -> withTotalLines
+
+  let withOldStart =
+    match block.old_start with
+    | Some os -> Stdlib.List.append withIsFileUpdate [ ("old_start", Json.Number (Stdlib.Int64.toFloat os)) ]
+    | None -> withIsFileUpdate
+
+  let withOldLines =
+    match block.old_lines with
+    | Some ol -> Stdlib.List.append withOldStart [ ("old_lines", Json.Number (Stdlib.Int64.toFloat ol)) ]
+    | None -> withOldStart
+
+  let withNewStart =
+    match block.new_start with
+    | Some ns -> Stdlib.List.append withOldLines [ ("new_start", Json.Number (Stdlib.Int64.toFloat ns)) ]
+    | None -> withOldLines
+
+  let withNewLines =
+    match block.new_lines with
+    | Some nl -> Stdlib.List.append withNewStart [ ("new_lines", Json.Number (Stdlib.Int64.toFloat nl)) ]
+    | None -> withNewStart
+
+  let withLines =
+    match block.lines with
+    | Some ls ->
+      let linesJson = Stdlib.List.map ls (fun l -> Json.String l)
+      Stdlib.List.append withNewLines [ ("lines", Json.Array linesJson) ]
+    | None -> withNewLines
+
+  let withToolReferences =
+    match block.tool_references with
+    | Some tr -> Stdlib.List.append withLines [ ("tool_references", Json.Array tr) ]
+    | None -> withLines
+
+  let withToolName =
+    match block.tool_name with
+    | Some tn -> Stdlib.List.append withToolReferences [ ("tool_name", Json.String tn) ]
+    | None -> withToolReferences
+
+  let withErrorCode =
+    match block.error_code with
+    | Some ec -> Stdlib.List.append withToolName [ ("error_code", Json.String ec) ]
+    | None -> withToolName
+
+  let withErrorMessage =
+    match block.error_message with
+    | Some em -> Stdlib.List.append withErrorCode [ ("error_message", Json.String em) ]
+    | None -> withErrorCode
+
+  Json.Object withErrorMessage
 
 let blockMessageToJson (msg: BlockMessage) : Json =
   let blocksJson = Stdlib.List.map msg.content (fun block -> contentBlockToJson block)
