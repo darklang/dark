@@ -1,6 +1,6 @@
-/// Anthropic Claude API - JSON Parsing Helpers
-/// Shared utilities for parsing JSON objects from API responses
-module Darklang.Anthropic.JsonHelpers
+/// Shared JSON Parsing Helpers
+/// Utilities for parsing JSON objects from API responses
+module Darklang.LLM.Internal.JsonHelpers
 
 type Json = Stdlib.AltJson.Json
 
@@ -70,6 +70,21 @@ let getIntOption
   | Some pair ->
     match Stdlib.Tuple2.second pair with
     | Number n -> Stdlib.Option.Option.Some(Stdlib.Float.truncate n)
+    | _ -> Stdlib.Option.Option.None
+  | None -> Stdlib.Option.Option.None
+
+
+/// Get a float number value from a JSON object's fields
+let getNumber
+  (key: String)
+  (fields: List<(String * Json)>)
+  : Stdlib.Option.Option<Float> =
+  let found = Stdlib.List.findFirst fields (fun (k, _) -> k == key)
+
+  match found with
+  | Some pair ->
+    match Stdlib.Tuple2.second pair with
+    | Number n -> Stdlib.Option.Option.Some n
     | _ -> Stdlib.Option.Option.None
   | None -> Stdlib.Option.Option.None
 

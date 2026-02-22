@@ -1,0 +1,677 @@
+/// OpenAI Tools - Tool definitions for function calling
+/// See: https://platform.openai.com/docs/guides/function-calling
+module Darklang.OpenAI.Tools
+
+type Json = Stdlib.AltJson.Json
+
+// TODO: Add support for context-free grammars (Lark and Regex) for custom tools
+// TODO: Add support for streaming events (response.function_call_arguments.delta, etc.)
+// TODO: Add support for images/files in tool call output
+
+
+// =============================================================================
+// Property Definitions (JSON Schema)
+// =============================================================================
+
+/// Property definition for tool parameters using JSON Schema
+/// Supports all types needed for OpenAI function calling including:
+/// - Scalar types (string, integer, number, boolean)
+/// - Enum constraints
+/// - Nullable types for optional fields in strict mode
+/// - Arrays with typed items
+/// - Nested objects with their own properties
+type Property =
+  | StringProp of StringPropData
+  | IntegerProp of IntegerPropData
+  | NumberProp of NumberPropData
+  | BooleanProp of BooleanPropData
+  | ArrayProp of ArrayPropData
+  | ObjectProp of ObjectPropData
+
+type StringPropData =
+  { description: String
+    enum_: Stdlib.Option.Option<List<String>>
+    nullable: Bool }
+
+type IntegerPropData =
+  { description: String
+    nullable: Bool }
+
+type NumberPropData =
+  { description: String
+    nullable: Bool }
+
+type BooleanPropData =
+  { description: String
+    nullable: Bool }
+
+type ArrayPropData =
+  { description: String
+    items: Property
+    nullable: Bool }
+
+type ObjectPropData =
+  { description: String
+    properties: List<(String * Property)>
+    required: List<String>
+    nullable: Bool }
+
+
+// -----------------------------------------------------------------------------
+// Property Constructors
+// -----------------------------------------------------------------------------
+
+/// Create a string property
+let stringProp (description: String) : Property =
+  Property.StringProp(
+    StringPropData
+      { description = description
+        enum_ = Stdlib.Option.Option.None
+        nullable = false }
+  )
+
+/// Create a nullable string property (for optional fields in strict mode)
+let stringPropNullable (description: String) : Property =
+  Property.StringProp(
+    StringPropData
+      { description = description
+        enum_ = Stdlib.Option.Option.None
+        nullable = true }
+  )
+
+/// Create an enum property (string with allowed values)
+let enumProp (description: String) (values: List<String>) : Property =
+  Property.StringProp(
+    StringPropData
+      { description = description
+        enum_ = Stdlib.Option.Option.Some values
+        nullable = false }
+  )
+
+/// Create a nullable enum property
+let enumPropNullable (description: String) (values: List<String>) : Property =
+  Property.StringProp(
+    StringPropData
+      { description = description
+        enum_ = Stdlib.Option.Option.Some values
+        nullable = true }
+  )
+
+/// Create an integer property
+let integerProp (description: String) : Property =
+  Property.IntegerProp(IntegerPropData { description = description; nullable = false })
+
+/// Create a nullable integer property
+let integerPropNullable (description: String) : Property =
+  Property.IntegerProp(IntegerPropData { description = description; nullable = true })
+
+/// Create a number property
+let numberProp (description: String) : Property =
+  Property.NumberProp(NumberPropData { description = description; nullable = false })
+
+/// Create a nullable number property
+let numberPropNullable (description: String) : Property =
+  Property.NumberProp(NumberPropData { description = description; nullable = true })
+
+/// Create a boolean property
+let booleanProp (description: String) : Property =
+  Property.BooleanProp(BooleanPropData { description = description; nullable = false })
+
+/// Create a nullable boolean property
+let booleanPropNullable (description: String) : Property =
+  Property.BooleanProp(BooleanPropData { description = description; nullable = true })
+
+/// Create an array property with typed items
+let arrayProp (description: String) (items: Property) : Property =
+  Property.ArrayProp(
+    ArrayPropData
+      { description = description
+        items = items
+        nullable = false }
+  )
+
+/// Create a nullable array property
+let arrayPropNullable (description: String) (items: Property) : Property =
+  Property.ArrayProp(
+    ArrayPropData
+      { description = description
+        items = items
+        nullable = true }
+  )
+
+/// Create a nested object property
+let objectProp
+  (description: String)
+  (properties: List<(String * Property)>)
+  (required: List<String>)
+  : Property =
+  Property.ObjectProp(
+    ObjectPropData
+      { description = description
+        properties = properties
+        required = required
+        nullable = false }
+  )
+
+/// Create a nullable nested object property
+let objectPropNullable
+  (description: String)
+  (properties: List<(String * Property)>)
+  (required: List<String>)
+  : Property =
+  Property.ObjectProp(
+    ObjectPropData
+      { description = description
+        properties = properties
+        required = required
+        nullable = true }
+  )
+
+
+// -----------------------------------------------------------------------------
+// Property JSON Conversion
+// -----------------------------------------------------------------------------
+
+/// Convert a type string to JSON, handling nullable types
+/// Non-nullable: "string"
+/// Nullable: ["string", "null"]
+let typeToJson (typeName: String) (nullable: Bool) : Json =
+  if nullable then
+    Json.Array [ Json.String typeName; Json.String "null" ]
+  else
+    Json.String typeName
+
+/// Convert property to JSON Schema
+let rec propertyToJson (prop: Property) : Json =
+  match prop with
+  | StringProp data ->
+    let fields =
+      [ ("type", typeToJson "string" data.nullable)
+        ("description", Json.String data.description) ]
+
+    let withEnum =
+      match data.enum_ with
+      | Some values ->
+        let enumJson = Stdlib.List.map values (fun v -> Json.String v)
+        Stdlib.List.append fields [ ("enum", Json.Array enumJson) ]
+      | None -> fields
+
+    Json.Object withEnum
+
+  | IntegerProp data ->
+    Json.Object
+      [ ("type", typeToJson "integer" data.nullable)
+        ("description", Json.String data.description) ]
+
+  | NumberProp data ->
+    Json.Object
+      [ ("type", typeToJson "number" data.nullable)
+        ("description", Json.String data.description) ]
+
+  | BooleanProp data ->
+    Json.Object
+      [ ("type", typeToJson "boolean" data.nullable)
+        ("description", Json.String data.description) ]
+
+  | ArrayProp data ->
+    Json.Object
+      [ ("type", typeToJson "array" data.nullable)
+        ("description", Json.String data.description)
+        ("items", propertyToJson data.items) ]
+
+  | ObjectProp data ->
+    let propertiesJson =
+      Stdlib.List.map data.properties (fun pair ->
+        (Stdlib.Tuple2.first pair, propertyToJson (Stdlib.Tuple2.second pair)))
+
+    let requiredJson =
+      Stdlib.List.map data.required (fun r -> Json.String r)
+
+    Json.Object
+      [ ("type", typeToJson "object" data.nullable)
+        ("description", Json.String data.description)
+        ("properties", Json.Object propertiesJson)
+        ("required", Json.Array requiredJson)
+        ("additionalProperties", Json.Bool false) ]
+
+
+// =============================================================================
+// Function Tools (JSON Schema-based)
+// =============================================================================
+
+/// Function tool definition for function calling
+type FunctionTool =
+  { name: String
+    description: String
+    parameters: List<(String * Property)>
+    required: List<String>
+    strict: Bool }
+
+/// Create a function tool (strict mode enabled by default)
+/// Strict mode is recommended by OpenAI because:
+/// - additionalProperties is set to false
+/// - Function calls will reliably adhere to the schema
+/// - All fields must be in required (use nullable types for optional fields)
+let makeTool
+  (name: String)
+  (description: String)
+  (parameters: List<(String * Property)>)
+  (required: List<String>)
+  : FunctionTool =
+  FunctionTool
+    { name = name
+      description = description
+      parameters = parameters
+      required = required
+      strict = true }
+
+/// Create a function tool with strict mode disabled
+/// Only use this if you need JSON Schema features not supported in strict mode
+/// See: https://platform.openai.com/docs/guides/structured-outputs#supported-schemas
+let makeNonStrictTool
+  (name: String)
+  (description: String)
+  (parameters: List<(String * Property)>)
+  (required: List<String>)
+  : FunctionTool =
+  FunctionTool
+    { name = name
+      description = description
+      parameters = parameters
+      required = required
+      strict = false }
+
+/// Convert function tool to JSON for API request
+/// Output format (matching docs field order):
+/// {
+///   "type": "function",
+///   "name": "get_weather",
+///   "description": "...",
+///   "strict": true,
+///   "parameters": { "type": "object", "properties": {...}, "required": [...] }
+/// }
+let functionToolToJson (tool: FunctionTool) : Json =
+  let propertiesJson =
+    Stdlib.List.map tool.parameters (fun pair ->
+      (Stdlib.Tuple2.first pair, propertyToJson (Stdlib.Tuple2.second pair)))
+
+  let requiredJson =
+    Stdlib.List.map tool.required (fun r -> Json.String r)
+
+  let parametersFields =
+    [ ("type", Json.String "object")
+      ("properties", Json.Object propertiesJson)
+      ("required", Json.Array requiredJson) ]
+
+  let parametersJson =
+    if tool.strict then
+      Json.Object(
+        Stdlib.List.append
+          parametersFields
+          [ ("additionalProperties", Json.Bool false) ]
+      )
+    else
+      Json.Object parametersFields
+
+  // Build tool object with field order matching docs: type, name, description, strict, parameters
+  let baseFields =
+    [ ("type", Json.String "function")
+      ("name", Json.String tool.name)
+      ("description", Json.String tool.description) ]
+
+  let withStrict =
+    if tool.strict then
+      Stdlib.List.append baseFields [ ("strict", Json.Bool true) ]
+    else
+      baseFields
+
+  let withParameters =
+    Stdlib.List.append withStrict [ ("parameters", parametersJson) ]
+
+  Json.Object withParameters
+
+
+// =============================================================================
+// Custom Tools (Free-form text input)
+// =============================================================================
+
+/// Custom tool definition
+/// Unlike function tools, custom tools receive arbitrary text input from the model
+/// instead of structured JSON arguments
+type CustomTool =
+  { name: String
+    description: String }
+
+/// Create a custom tool
+/// The model will pass free-form text as input instead of JSON
+let makeCustomTool (name: String) (description: String) : CustomTool =
+  CustomTool { name = name; description = description }
+
+/// Convert custom tool to JSON for API request
+/// Output format:
+/// {
+///   "type": "custom",
+///   "name": "code_exec",
+///   "description": "Executes arbitrary Python code."
+/// }
+let customToolToJson (tool: CustomTool) : Json =
+  Json.Object
+    [ ("type", Json.String "custom")
+      ("name", Json.String tool.name)
+      ("description", Json.String tool.description) ]
+
+
+// =============================================================================
+// Tool (Union of all tool types)
+// =============================================================================
+
+/// A tool that can be passed to the API
+type Tool =
+  | Function of FunctionTool
+  | Custom of CustomTool
+
+/// Convert any tool to JSON
+let toJson (tool: Tool) : Json =
+  match tool with
+  | Function ft -> functionToolToJson ft
+  | Custom ct -> customToolToJson ct
+
+/// Convert a list of tools to JSON array
+let toJsonList (tools: List<Tool>) : Json =
+  Json.Array(Stdlib.List.map tools (fun t -> toJson t))
+
+/// Helper to wrap a function tool
+let functionTool (ft: FunctionTool) : Tool =
+  Tool.Function ft
+
+/// Helper to wrap a custom tool
+let customTool (ct: CustomTool) : Tool =
+  Tool.Custom ct
+
+
+// =============================================================================
+// Tool Choice
+// =============================================================================
+
+/// Mode for allowed tools selection
+type AllowedToolsMode =
+  | AutoMode
+  | RequiredMode
+
+/// Tool choice options for controlling function calling behavior
+type ToolChoice =
+  /// Model decides whether to call functions (default)
+  | Auto
+  /// Model will not call any functions
+  | None_
+  /// Model must call one or more functions
+  | Required
+  /// Model must call this specific function
+  | Function of String
+  /// Restrict tool calls to a subset of available tools
+  | AllowedTools of AllowedToolsData
+
+type AllowedToolsData =
+  { mode: AllowedToolsMode
+    tools: List<String> }
+
+/// Create an allowed tools choice
+/// Restricts which tools the model can use without modifying the tools list
+let allowedTools (mode: AllowedToolsMode) (toolNames: List<String>) : ToolChoice =
+  ToolChoice.AllowedTools(
+    AllowedToolsData { mode = mode; tools = toolNames }
+  )
+
+/// Convert tool choice to JSON
+let toolChoiceToJson (choice: ToolChoice) : Json =
+  match choice with
+  | Auto -> Json.String "auto"
+  | None_ -> Json.String "none"
+  | Required -> Json.String "required"
+  | Function name ->
+    Json.Object [ ("type", Json.String "function"); ("name", Json.String name) ]
+  | AllowedTools data ->
+    let modeStr =
+      match data.mode with
+      | AutoMode -> "auto"
+      | RequiredMode -> "required"
+
+    let toolsJson =
+      Stdlib.List.map data.tools (fun name ->
+        Json.Object
+          [ ("type", Json.String "function")
+            ("name", Json.String name) ])
+
+    Json.Object
+      [ ("type", Json.String "allowed_tools")
+        ("mode", Json.String modeStr)
+        ("tools", Json.Array toolsJson) ]
+
+
+// =============================================================================
+// Request Options
+// =============================================================================
+
+/// Options for tool calling in a request
+type ToolRequestOptions =
+  { tools: List<Tool>
+    toolChoice: Stdlib.Option.Option<ToolChoice>
+    parallelToolCalls: Bool }
+
+/// Create default tool request options
+/// parallelToolCalls defaults to true (model can call multiple functions in one turn)
+let makeToolRequestOptions (tools: List<Tool>) : ToolRequestOptions =
+  ToolRequestOptions
+    { tools = tools
+      toolChoice = Stdlib.Option.Option.None
+      parallelToolCalls = true }
+
+/// Create tool request options with parallel calls disabled
+/// Use this to ensure exactly zero or one tool is called per turn
+let makeSequentialToolRequestOptions (tools: List<Tool>) : ToolRequestOptions =
+  ToolRequestOptions
+    { tools = tools
+      toolChoice = Stdlib.Option.Option.None
+      parallelToolCalls = false }
+
+/// Set the tool choice for request options
+let withToolChoice
+  (choice: ToolChoice)
+  (options: ToolRequestOptions)
+  : ToolRequestOptions =
+  ToolRequestOptions
+    { tools = options.tools
+      toolChoice = Stdlib.Option.Option.Some choice
+      parallelToolCalls = options.parallelToolCalls }
+
+/// Convert tool request options to JSON fields (to be merged into request)
+/// Returns a list of (key, value) pairs to add to the request object
+let toolRequestOptionsToJsonFields
+  (options: ToolRequestOptions)
+  : List<(String * Json)> =
+  let toolsField = [ ("tools", toJsonList options.tools) ]
+
+  let choiceField =
+    match options.toolChoice with
+    | Some choice -> [ ("tool_choice", toolChoiceToJson choice) ]
+    | None -> []
+
+  let parallelField =
+    if options.parallelToolCalls then
+      []
+    else
+      [ ("parallel_tool_calls", Json.Bool false) ]
+
+  Stdlib.List.flatten [ toolsField; choiceField; parallelField ]
+
+
+// =============================================================================
+// Tool Calls (Response Parsing)
+// =============================================================================
+
+/// Status of a tool call
+type ToolCallStatus =
+  | Completed
+  | InProgress
+  | Failed
+
+/// Function tool call from model response
+type FunctionToolCall =
+  { id: String
+    callId: String
+    status: ToolCallStatus
+    name: String
+    arguments: String }
+
+/// Custom tool call from model response
+type CustomToolCall =
+  { id: String
+    callId: String
+    status: ToolCallStatus
+    name: String
+    input: String }
+
+/// Tool call from model response (union of function and custom)
+type ToolCall =
+  | FunctionCall of FunctionToolCall
+  | CustomCall of CustomToolCall
+
+/// Get the call_id from any tool call (needed for sending results back)
+let getCallId (toolCall: ToolCall) : String =
+  match toolCall with
+  | FunctionCall fc -> fc.callId
+  | CustomCall cc -> cc.callId
+
+/// Get the name from any tool call
+let getName (toolCall: ToolCall) : String =
+  match toolCall with
+  | FunctionCall fc -> fc.name
+  | CustomCall cc -> cc.name
+
+/// Parse status string to ToolCallStatus
+let parseStatus (statusStr: String) : ToolCallStatus =
+  match statusStr with
+  | "completed" -> ToolCallStatus.Completed
+  | "in_progress" -> ToolCallStatus.InProgress
+  | "failed" -> ToolCallStatus.Failed
+  | _ -> ToolCallStatus.Completed // Default to completed
+
+/// Helper to get a string field from JSON object fields
+let getStringField
+  (fields: List<(String * Json)>)
+  (key: String)
+  : Stdlib.Option.Option<String> =
+  let found =
+    Stdlib.List.findFirst fields (fun pair ->
+      let k = Stdlib.Tuple2.first pair
+      k == key)
+
+  Stdlib.Option.andThen found (fun pair ->
+    let v = Stdlib.Tuple2.second pair
+
+    match v with
+    | String s -> Stdlib.Option.Option.Some s
+    | _ -> Stdlib.Option.Option.None)
+
+/// Parse a function tool call from JSON response
+let parseFunctionToolCall (json: Json) : Stdlib.Option.Option<FunctionToolCall> =
+  match json with
+  | Object fields ->
+    let id = getStringField fields "id"
+    let callId = getStringField fields "call_id"
+    let name = getStringField fields "name"
+    let arguments = getStringField fields "arguments"
+
+    let statusStr = getStringField fields "status"
+
+    let statusMapped =
+      Stdlib.Option.map statusStr (fun s -> parseStatus s)
+
+    let status = Stdlib.Option.withDefault statusMapped ToolCallStatus.Completed
+
+    match (id, callId, name, arguments) with
+    | (Some id, Some callId, Some name, Some arguments) ->
+      Stdlib.Option.Option.Some(
+        FunctionToolCall
+          { id = id
+            callId = callId
+            status = status
+            name = name
+            arguments = arguments }
+      )
+    | _ -> Stdlib.Option.Option.None
+  | _ -> Stdlib.Option.Option.None
+
+/// Parse a custom tool call from JSON response
+let parseCustomToolCall (json: Json) : Stdlib.Option.Option<CustomToolCall> =
+  match json with
+  | Object fields ->
+    let id = getStringField fields "id"
+    let callId = getStringField fields "call_id"
+    let name = getStringField fields "name"
+    let input = getStringField fields "input"
+
+    let statusStr = getStringField fields "status"
+
+    let statusMapped =
+      Stdlib.Option.map statusStr (fun s -> parseStatus s)
+
+    let status = Stdlib.Option.withDefault statusMapped ToolCallStatus.Completed
+
+    match (id, callId, name, input) with
+    | (Some id, Some callId, Some name, Some input) ->
+      Stdlib.Option.Option.Some(
+        CustomToolCall
+          { id = id
+            callId = callId
+            status = status
+            name = name
+            input = input }
+      )
+    | _ -> Stdlib.Option.Option.None
+  | _ -> Stdlib.Option.Option.None
+
+/// Parse a tool call from JSON, detecting type from the "type" field
+let parseToolCall (json: Json) : Stdlib.Option.Option<ToolCall> =
+  match json with
+  | Object fields ->
+    match getStringField fields "type" with
+    | Some "function_call" ->
+      let parsed = parseFunctionToolCall json
+      Stdlib.Option.map parsed (fun fc -> ToolCall.FunctionCall fc)
+    | Some "custom_tool_call" ->
+      let parsed = parseCustomToolCall json
+      Stdlib.Option.map parsed (fun cc -> ToolCall.CustomCall cc)
+    | _ -> Stdlib.Option.Option.None
+  | _ -> Stdlib.Option.Option.None
+
+
+// =============================================================================
+// Tool Call Output (Sending Results Back)
+// =============================================================================
+
+/// Tool call output to send back to the model
+type ToolCallOutput =
+  { callId: String
+    output: String }
+
+/// Create a tool call output from a call_id and result string
+let makeToolCallOutput (callId: String) (output: String) : ToolCallOutput =
+  ToolCallOutput { callId = callId; output = output }
+
+/// Create a tool call output from a ToolCall and result string
+let makeToolCallOutputFromCall (toolCall: ToolCall) (output: String) : ToolCallOutput =
+  ToolCallOutput { callId = getCallId toolCall; output = output }
+
+/// Convert tool call output to JSON for API request
+/// Output format:
+/// {
+///   "type": "function_call_output",
+///   "call_id": "call_12345xyz",
+///   "output": "..."
+/// }
+let toolCallOutputToJson (output: ToolCallOutput) : Json =
+  Json.Object
+    [ ("type", Json.String "function_call_output")
+      ("call_id", Json.String output.callId)
+      ("output", Json.String output.output) ]

@@ -1,0 +1,20 @@
+/// OpenAI Prediction - Predicted output for faster responses
+module Darklang.OpenAI.Prediction
+
+type Json = Stdlib.AltJson.Json
+
+/// Predicted output configuration for faster responses
+/// when large parts of the response are known ahead of time
+type PredictedOutput =
+  { /// The content that is expected in the response
+    content: String }
+
+/// Create a prediction
+let create (content: String) : PredictedOutput =
+  PredictedOutput { content = content }
+
+/// Convert to JSON
+let toJson (pred: PredictedOutput) : Json =
+  Json.Object
+    [ ("type", Json.String "content")
+      ("content", Json.String pred.content) ]
