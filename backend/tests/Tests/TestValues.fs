@@ -17,6 +17,7 @@ module PM =
   module Types =
     let make id definition : PT.PackageType.PackageType =
       { id = id
+        hash = PT.ContentHash ""
         declaration = { typeParams = []; definition = definition }
         description = "TODO"
         deprecated = PT.NotDeprecated }
@@ -672,6 +673,7 @@ let pm : PT.PackageManager =
   let valueMap =
     let value : PT.PackageValue.PackageValue =
       { id = Expressions.Values.Package.MySpecialNumber.id
+        hash = PT.ContentHash ""
         description = "TODO"
         deprecated = PT.NotDeprecated
         body = PT.EInt64(gid (), 17L) }
@@ -680,6 +682,7 @@ let pm : PT.PackageManager =
   let fnMap =
     let inner : PT.PackageFn.PackageFn =
       { id = Expressions.Fns.Package.Inner.id
+        hash = PT.ContentHash ""
         typeParams = [ "x"; "y" ]
         parameters =
           NEList.ofList
@@ -692,6 +695,7 @@ let pm : PT.PackageManager =
 
     let outer : PT.PackageFn.PackageFn =
       { id = Expressions.Fns.Package.Outer.id
+        hash = PT.ContentHash ""
         typeParams = [ "x"; "y" ]
         parameters =
           NEList.ofList
@@ -711,6 +715,7 @@ let pm : PT.PackageManager =
 
     let myAdd : PT.PackageFn.PackageFn =
       { id = Expressions.Fns.Package.MyAdd.id
+        hash = PT.ContentHash ""
         typeParams = []
         parameters =
           NEList.ofList
@@ -723,6 +728,7 @@ let pm : PT.PackageManager =
 
     let fact : PT.PackageFn.PackageFn =
       { id = Expressions.Fns.Package.Fact.id
+        hash = PT.ContentHash ""
         typeParams = []
         parameters =
           NEList.ofList { name = "a"; typ = PT.TInt64; description = "TODO" } []
@@ -750,6 +756,7 @@ let pm : PT.PackageManager =
     //   else 1 + addUpTo (n - 1)
     let recursion : PT.PackageFn.PackageFn =
       { id = Expressions.Fns.Package.Recursion.id
+        hash = PT.ContentHash ""
         typeParams = []
         parameters =
           NEList.ofList { name = "n"; typ = PT.TInt64; description = "TODO" } []
@@ -779,6 +786,7 @@ let pm : PT.PackageManager =
 
     let myFnThatTakesALambda : PT.PackageFn.PackageFn =
       { id = Expressions.Fns.Package.MyFnThatTakesALambda.id
+        hash = PT.ContentHash ""
         typeParams = []
         parameters =
           NEList.ofList
@@ -794,6 +802,7 @@ let pm : PT.PackageManager =
 
     let myFnThatReturnsUnit : PT.PackageFn.PackageFn =
       { id = Expressions.Fns.Package.MyFnThatReturnsUnit.id
+        hash = PT.ContentHash ""
         typeParams = []
         parameters =
           NEList.ofList { name = "unit"; typ = PT.TUnit; description = "TODO" } []

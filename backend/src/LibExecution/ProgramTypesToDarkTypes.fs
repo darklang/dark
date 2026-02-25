@@ -1209,6 +1209,7 @@ module PackageType =
   let toDT (p : PT.PackageType.PackageType) : Dval =
     let fields =
       [ "id", DUuid p.id
+        "hash", ContentHash.toDT p.hash
         "declaration", TypeDeclaration.toDT p.declaration
         "description", DString p.description
         "deprecated",
@@ -1220,6 +1221,7 @@ module PackageType =
     match d with
     | DRecord(_, _, _, fields) ->
       { id = fields |> D.field "id" |> D.uuid
+        hash = fields |> D.field "hash" |> ContentHash.fromDT
         declaration = fields |> D.field "declaration" |> TypeDeclaration.fromDT
         description = fields |> D.field "description" |> D.string
         deprecated =
@@ -1235,6 +1237,7 @@ module PackageValue =
   let toDT (p : PT.PackageValue.PackageValue) : Dval =
     let fields =
       [ "id", DUuid p.id
+        "hash", ContentHash.toDT p.hash
         "body", Expr.toDT p.body
         "description", DString p.description
         "deprecated",
@@ -1245,6 +1248,7 @@ module PackageValue =
     match d with
     | DRecord(_, _, _, fields) ->
       { id = fields |> D.field "id" |> D.uuid
+        hash = fields |> D.field "hash" |> ContentHash.fromDT
         body = fields |> D.field "body" |> Expr.fromDT
         description = fields |> D.field "description" |> D.string
         deprecated =
@@ -1284,6 +1288,7 @@ module PackageFn =
   let toDT (p : PT.PackageFn.PackageFn) : Dval =
     let fields =
       [ ("id", DUuid p.id)
+        ("hash", ContentHash.toDT p.hash)
         ("body", Expr.toDT p.body)
         ("typeParams", DList(VT.string, List.map DString p.typeParams))
         ("parameters",
@@ -1302,6 +1307,7 @@ module PackageFn =
     match d with
     | DRecord(_, _, _, fields) ->
       { id = fields |> D.field "id" |> D.uuid
+        hash = fields |> D.field "hash" |> ContentHash.fromDT
         body = fields |> D.field "body" |> Expr.fromDT
         typeParams = fields |> D.field "typeParams" |> D.list D.string
         parameters =
@@ -1756,7 +1762,8 @@ module Branch =
       [ "id", DUuid b.id
         "name", DString b.name
         "parentBranchId", b.parentBranchId |> Option.map DUuid |> Dval.option KTUuid
-        "baseCommitId", b.baseCommitId |> Option.map DUuid |> Dval.option KTUuid
+        "baseCommitId",
+        b.baseCommitId |> Option.map ContentHash.toDT |> Dval.option KTString
         "createdAt", DDateTime(DarkDateTime.fromInstant b.createdAt)
         "mergedAt",
         b.mergedAt
@@ -1788,7 +1795,7 @@ module Commit =
 
   let toDT (c : PT.Commit) : Dval =
     let fields =
-      [ "id", DUuid c.id
+      [ "id", ContentHash.toDT c.id
         "message", DString c.message
         "createdAt", DDateTime(DarkDateTime.fromInstant c.createdAt)
         "opCount", DInt64 c.opCount

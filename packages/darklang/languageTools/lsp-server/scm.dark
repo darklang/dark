@@ -36,7 +36,7 @@ let handleGetCommitsRequest
     commits
     |> Stdlib.List.map (fun c ->
       Stdlib.AltJson.Json.Object
-        [ ("id", Stdlib.AltJson.Json.String (Stdlib.Uuid.toString c.id))
+        [ ("id", Stdlib.AltJson.Json.String c.id)
           ("message", Stdlib.AltJson.Json.String c.message)
           ("createdAt", Stdlib.AltJson.Json.String (Stdlib.DateTime.toString_v0 c.createdAt))
           ("opCount", Stdlib.AltJson.Json.String (Stdlib.Int64.toString c.opCount))
@@ -82,11 +82,11 @@ let handleCommitRequest
   (message: String)
   : LspState =
   match SCM.PackageOps.commit state.currentBranchId message with
-  | Ok commitId ->
+  | Ok commitHash ->
     let responseJson =
       Stdlib.AltJson.Json.Object
         [ ("success", Stdlib.AltJson.Json.Bool true)
-          ("commitId", Stdlib.AltJson.Json.String (Stdlib.Uuid.toString commitId)) ]
+          ("commitId", Stdlib.AltJson.Json.String commitHash) ]
 
     let response =
       (JsonRPC.Response.Ok.make (Stdlib.Option.Option.Some requestId) responseJson)
@@ -165,17 +165,13 @@ let handleGetCommitOpsRequest
   (commitIdStr: String)
   : LspState =
   let responseJson =
-    match Stdlib.Uuid.parse commitIdStr with
-    | Ok commitId ->
-      let ops = SCM.PackageOps.getCommitOps commitId
+    let ops = SCM.PackageOps.getCommitOps commitIdStr
 
-      ops
-      |> Stdlib.List.map (fun op ->
-        let opStr = PrettyPrinter.ProgramTypes.PackageOp.packageOp state.currentBranchId op
-        Stdlib.AltJson.Json.String opStr)
-      |> Stdlib.AltJson.Json.Array
-
-    | Error _ -> Stdlib.AltJson.Json.Array []
+    ops
+    |> Stdlib.List.map (fun op ->
+      let opStr = PrettyPrinter.ProgramTypes.PackageOp.packageOp state.currentBranchId op
+      Stdlib.AltJson.Json.String opStr)
+    |> Stdlib.AltJson.Json.Array
 
   let response =
     (JsonRPC.Response.Ok.make (Stdlib.Option.Option.Some requestId) responseJson)

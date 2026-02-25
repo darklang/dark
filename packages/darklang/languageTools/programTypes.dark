@@ -380,6 +380,7 @@ module TypeDeclaration =
 module PackageType =
   type PackageType =
     { id: FQTypeName.Package
+      hash: String
       declaration: TypeDeclaration.TypeDeclaration
       description: String
       deprecated: Deprecation<FQTypeName.FQTypeName> }
@@ -387,6 +388,7 @@ module PackageType =
 module PackageValue =
   type PackageValue =
     { id: Uuid
+      hash: String
       body: Expr
       description: String
       deprecated: Deprecation<FQValueName.FQValueName> }
@@ -399,6 +401,7 @@ module PackageFn =
 
   type PackageFn =
     { id: FQFnName.Package
+      hash: String
       body: Expr
       typeParams: List<String>
       parameters: List<Parameter>

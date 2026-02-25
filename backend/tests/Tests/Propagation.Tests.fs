@@ -259,12 +259,14 @@ let private makeType
   (definition : PT.TypeDeclaration.Definition)
   : PT.PackageType.PackageType =
   { id = System.Guid.NewGuid()
+    hash = PT.ContentHash ""
     declaration = { typeParams = []; definition = definition }
     description = ""
     deprecated = PT.NotDeprecated }
 
 let private makeValue (body : PT.Expr) : PT.PackageValue.PackageValue =
   { id = System.Guid.NewGuid()
+    hash = PT.ContentHash ""
     body = body
     description = ""
     deprecated = PT.NotDeprecated }

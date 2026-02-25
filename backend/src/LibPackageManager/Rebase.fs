@@ -18,7 +18,7 @@ type RebaseConflict =
 /// Get location paths modified on a branch since a given commit
 let private getLocationPathsModifiedSince
   (branchId : PT.BranchId)
-  (sinceCommitId : Option<uuid>)
+  (sinceCommitId : Option<PT.ContentHash>)
   : Task<List<RebaseConflict>> =
   task {
     match sinceCommitId with
@@ -39,7 +39,7 @@ let private getLocationPathsModifiedSince
             modules = read.string "modules"
             name = read.string "name"
             itemType = read.string "item_type" })
-    | Some commitId ->
+    | Some(PT.ContentHash commitHashStr) ->
       // Locations committed after the base commit
       return!
         Sql.query
@@ -53,7 +53,8 @@ let private getLocationPathsModifiedSince
             AND c.created_at > (SELECT created_at FROM commits WHERE id = @since_commit_id)
           """
         |> Sql.parameters
-          [ "branch_id", Sql.uuid branchId; "since_commit_id", Sql.uuid commitId ]
+          [ "branch_id", Sql.uuid branchId
+            "since_commit_id", Sql.string commitHashStr ]
         |> Sql.executeAsync (fun read ->
           { owner = read.string "owner"
             modules = read.string "modules"
@@ -115,7 +116,7 @@ let rebase (branchId : PT.BranchId) : Task<Result<string, List<RebaseConflict>>>
             LIMIT 1
             """
           |> Sql.parameters [ "parent_id", Sql.uuid parentId ]
-          |> Sql.executeRowOptionAsync (fun read -> read.uuid "id")
+          |> Sql.executeRowOptionAsync (fun read -> PT.ContentHash(read.string "id"))
 
         if branch.baseCommitId = parentLatest then
           return Ok "Already up to date"
@@ -127,6 +128,11 @@ let rebase (branchId : PT.BranchId) : Task<Result<string, List<RebaseConflict>>>
             return Error conflicts
           else
             // Update base_commit_id
+            let baseCommitIdParam =
+              match parentLatest with
+              | Some(PT.ContentHash h) -> Sql.string h
+              | None -> Sql.dbnull
+
             do!
               Sql.query
                 """
@@ -135,8 +141,7 @@ let rebase (branchId : PT.BranchId) : Task<Result<string, List<RebaseConflict>>>
                 WHERE id = @id
                 """
               |> Sql.parameters
-                [ "id", Sql.uuid branchId
-                  "base_commit_id", Sql.uuidOrNone parentLatest ]
+                [ "id", Sql.uuid branchId; "base_commit_id", baseCommitIdParam ]
               |> Sql.executeStatementAsync
 
             return Ok "Rebased successfully"

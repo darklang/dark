@@ -38,6 +38,7 @@ CREATE INDEX IF NOT EXISTS idx_commits_branch ON commits(branch_id, created_at D
 -- (content-addressed, no naming, no branch)
 CREATE TABLE IF NOT EXISTS package_types (
   id TEXT PRIMARY KEY,
+  hash TEXT NOT NULL,
   pt_def BLOB NOT NULL,
   rt_def BLOB NOT NULL,
   created_at TEXT NOT NULL DEFAULT (datetime('now'))
@@ -45,6 +46,7 @@ CREATE TABLE IF NOT EXISTS package_types (
 
 CREATE TABLE IF NOT EXISTS package_values (
   id TEXT PRIMARY KEY,
+  hash TEXT NOT NULL,
   pt_def BLOB NOT NULL,
   rt_dval BLOB,  -- NULL until evaluated. CLEANUP once we're bootstrapped, can be tidied
   value_type BLOB, -- for finding values of a given ValueType
@@ -54,6 +56,7 @@ CREATE INDEX IF NOT EXISTS idx_package_values_type ON package_values(value_type)
 
 CREATE TABLE IF NOT EXISTS package_functions (
   id TEXT PRIMARY KEY,
+  hash TEXT NOT NULL,
   pt_def BLOB NOT NULL,
   rt_instrs BLOB NOT NULL,
   created_at TEXT NOT NULL DEFAULT (datetime('now'))

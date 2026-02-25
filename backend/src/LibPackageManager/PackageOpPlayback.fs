@@ -17,6 +17,7 @@ module RT = LibExecution.RuntimeTypes
 module PT2RT = LibExecution.ProgramTypesToRuntimeTypes
 module BS = LibSerialization.Binary.Serialization
 module DE = LibPackageManager.DependencyExtractor
+module Hashing = LibSerialization.Hashing
 
 
 /// Update dependencies for an item atomically.
@@ -57,17 +58,23 @@ let private updateDependencies
 /// Apply a single AddType op to the package_types table
 let private applyAddType (typ : PT.PackageType.PackageType) : Task<unit> =
   task {
+    // Compute content hash and set it on the type
+    let hash = Hashing.computeTypeHash Hashing.Normal typ
+    let typ = { typ with hash = hash }
+    let (PT.ContentHash hashStr) = hash
+
     let ptDef = BS.PT.PackageType.serialize typ.id typ
     let rtDef = typ |> PT2RT.PackageType.toRT |> BS.RT.PackageType.serialize typ.id
 
     do!
       Sql.query
         """
-        INSERT OR REPLACE INTO package_types (id, pt_def, rt_def)
-        VALUES (@id, @pt_def, @rt_def)
+        INSERT OR REPLACE INTO package_types (id, hash, pt_def, rt_def)
+        VALUES (@id, @hash, @pt_def, @rt_def)
         """
       |> Sql.parameters
         [ "id", Sql.uuid typ.id
+          "hash", Sql.string hashStr
           "pt_def", Sql.bytes ptDef
           "rt_def", Sql.bytes rtDef ]
       |> Sql.executeStatementAsync
@@ -82,6 +89,11 @@ let private applyAddType (typ : PT.PackageType.PackageType) : Task<unit> =
 /// They are evaluated in Phase 3 by LocalExec.evaluateAllValues after all ops are applied.
 let private applyAddValue (value : PT.PackageValue.PackageValue) : Task<unit> =
   task {
+    // Compute content hash and set it on the value
+    let hash = Hashing.computeValueHash Hashing.Normal value
+    let value = { value with hash = hash }
+    let (PT.ContentHash hashStr) = hash
+
     let ptDef = BS.PT.PackageValue.serialize value.id value
 
     // Store NULL for rt_dval and value_type - they're populated by evaluateAllValues
@@ -89,10 +101,13 @@ let private applyAddValue (value : PT.PackageValue.PackageValue) : Task<unit> =
     do!
       Sql.query
         """
-        INSERT OR REPLACE INTO package_values (id, pt_def, rt_dval, value_type)
-        VALUES (@id, @pt_def, NULL, NULL)
+        INSERT OR REPLACE INTO package_values (id, hash, pt_def, rt_dval, value_type)
+        VALUES (@id, @hash, @pt_def, NULL, NULL)
         """
-      |> Sql.parameters [ "id", Sql.uuid value.id; "pt_def", Sql.bytes ptDef ]
+      |> Sql.parameters
+        [ "id", Sql.uuid value.id
+          "hash", Sql.string hashStr
+          "pt_def", Sql.bytes ptDef ]
       |> Sql.executeStatementAsync
 
     // Extract and store dependency references atomically
@@ -103,17 +118,23 @@ let private applyAddValue (value : PT.PackageValue.PackageValue) : Task<unit> =
 /// Apply a single AddFn op to the package_functions table
 let private applyAddFn (fn : PT.PackageFn.PackageFn) : Task<unit> =
   task {
+    // Compute content hash and set it on the fn
+    let hash = Hashing.computeFnHash Hashing.Normal fn
+    let fn = { fn with hash = hash }
+    let (PT.ContentHash hashStr) = hash
+
     let ptDef = BS.PT.PackageFn.serialize fn.id fn
     let rtInstrs = fn |> PT2RT.PackageFn.toRT |> BS.RT.PackageFn.serialize fn.id
 
     do!
       Sql.query
         """
-        INSERT OR REPLACE INTO package_functions (id, pt_def, rt_instrs)
-        VALUES (@id, @pt_def, @rt_instrs)
+        INSERT OR REPLACE INTO package_functions (id, hash, pt_def, rt_instrs)
+        VALUES (@id, @hash, @pt_def, @rt_instrs)
         """
       |> Sql.parameters
         [ "id", Sql.uuid fn.id
+          "hash", Sql.string hashStr
           "pt_def", Sql.bytes ptDef
           "rt_instrs", Sql.bytes rtInstrs ]
       |> Sql.executeStatementAsync
@@ -127,7 +148,7 @@ let private applyAddFn (fn : PT.PackageFn.PackageFn) : Task<unit> =
 /// branchId = branch context, commitId = None means WIP, Some id means committed
 let private applySetName
   (branchId : PT.BranchId)
-  (commitId : Option<uuid>)
+  (commitId : Option<string>)
   (itemId : uuid)
   (location : PT.PackageLocation)
   (itemKind : PT.ItemKind)
@@ -136,6 +157,11 @@ let private applySetName
     let modulesStr = String.concat "." location.modules
     let itemTypeStr = itemKind.toString ()
     let locationId = System.Guid.NewGuid()
+
+    let commitIdParam =
+      match commitId with
+      | Some s -> Sql.string s
+      | None -> Sql.dbnull
 
     // Execute all three operations atomically:
     // 1. Deprecate any existing location for this item (handles moves)
@@ -178,7 +204,7 @@ let private applySetName
              "name", Sql.string location.name
              "item_type", Sql.string itemTypeStr
              "branch_id", Sql.uuid branchId
-             "commit_id", Sql.uuidOrNone commitId ] ]) ]
+             "commit_id", commitIdParam ] ]) ]
 
     let _ = Sql.executeTransactionSync statements
     ()
@@ -189,7 +215,7 @@ let private applySetName
 /// branchId = branch context, commitId = None means WIP, Some id means committed
 let applyOp
   (branchId : PT.BranchId)
-  (commitId : Option<uuid>)
+  (commitId : Option<string>)
   (op : PT.PackageOp)
   : Task<unit> =
   task {
@@ -300,7 +326,7 @@ let applyOp
 /// branchId = branch context, commitId = None means WIP, Some id means committed
 let applyOps
   (branchId : PT.BranchId)
-  (commitId : Option<uuid>)
+  (commitId : Option<string>)
   (ops : List<PT.PackageOp>)
   : Task<unit> =
   task {

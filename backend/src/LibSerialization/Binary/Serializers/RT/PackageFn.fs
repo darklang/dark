@@ -23,6 +23,7 @@ module Parameter =
 
 let write (w : BinaryWriter) (fn : PackageFn.PackageFn) =
   Guid.write w fn.id
+  String.write w fn.hash
   List.write w String.write fn.typeParams
   NEList.write Parameter.write w fn.parameters
   TypeReference.write w fn.returnType
@@ -30,11 +31,13 @@ let write (w : BinaryWriter) (fn : PackageFn.PackageFn) =
 
 let read (r : BinaryReader) : PackageFn.PackageFn =
   let id = Guid.read r
+  let hash = String.read r
   let typeParams = List.read r String.read
   let parameters = NEList.read Parameter.read r
   let returnType = TypeReference.read r
   let body = Instructions.read r
   { id = id
+    hash = hash
     typeParams = typeParams
     parameters = parameters
     returnType = returnType

@@ -10,19 +10,19 @@ let execute (state: AppState) (args: List<String>) : AppState =
     Stdlib.printLine "Usage: show <commit-id>"
     state
   | [ commitIdStr ] ->
-    // Allow partial commit IDs (at least 8 chars)
+    // Allow partial commit IDs (prefix matching)
     let fullIdStr =
-      if Stdlib.String.length commitIdStr < 36L then
+      if Stdlib.String.length commitIdStr < 64L then
         // Try to find a matching commit (search current branch and ancestors)
         let commits = SCM.PackageOps.getCommitsWithAncestors branchId 100L
 
         let matching =
           commits
           |> Stdlib.List.filter (fun c ->
-            Stdlib.String.startsWith (Stdlib.Uuid.toString c.id) commitIdStr)
+            Stdlib.String.startsWith c.id commitIdStr)
 
         match matching with
-        | [ c ] -> Stdlib.Uuid.toString c.id
+        | [ c ] -> c.id
         | [] ->
           Stdlib.printLine (Cli.Colors.error "No matching commit found.")
           commitIdStr
@@ -32,26 +32,21 @@ let execute (state: AppState) (args: List<String>) : AppState =
       else
         commitIdStr
 
-    match Stdlib.Uuid.parse fullIdStr with
-    | Ok commitId ->
-      let ops = SCM.PackageOps.getCommitOps commitId
+    let ops = SCM.PackageOps.getCommitOps fullIdStr
 
-      if Stdlib.List.isEmpty ops then
-        Stdlib.printLine "Commit not found or has no ops."
-      else
-        let shortId = Stdlib.String.first fullIdStr 8L
-        Stdlib.printLine $"Commit {Cli.Colors.cyan}{shortId}{Cli.Colors.reset}:"
-        Stdlib.printLine ""
+    if Stdlib.List.isEmpty ops then
+      Stdlib.printLine "Commit not found or has no ops."
+    else
+      let shortId = Stdlib.String.first fullIdStr 8L
+      Stdlib.printLine $"Commit {Cli.Colors.cyan}{shortId}{Cli.Colors.reset}:"
+      Stdlib.printLine ""
 
-        ops
-        |> Stdlib.List.iter (fun op ->
-          let opStr = PrettyPrinter.ProgramTypes.PackageOp.packageOp branchId op
-          Stdlib.printLine $"  {opStr}")
+      ops
+      |> Stdlib.List.iter (fun op ->
+        let opStr = PrettyPrinter.ProgramTypes.PackageOp.packageOp branchId op
+        Stdlib.printLine $"  {opStr}")
 
-      state
-    | Error _ ->
-      Stdlib.printLine (Cli.Colors.error "Invalid commit ID format.")
-      state
+    state
   | _ ->
     Stdlib.printLine "Usage: show <commit-id>"
     state

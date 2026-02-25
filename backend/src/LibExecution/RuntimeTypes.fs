@@ -1073,16 +1073,17 @@ module Dval =
 // ------------
 // TODO reference things by hash, not ID
 module PackageType =
-  type PackageType = { id : uuid; declaration : TypeDeclaration.T }
+  type PackageType = { id : uuid; hash : string; declaration : TypeDeclaration.T }
 
 module PackageValue =
-  type PackageValue = { id : uuid; body : Dval }
+  type PackageValue = { id : uuid; hash : string; body : Dval }
 
 module PackageFn =
   type Parameter = { name : string; typ : TypeReference }
 
   type PackageFn =
     { id : uuid
+      hash : string
       typeParams : List<string>
       parameters : NEList<Parameter>
       returnType : TypeReference

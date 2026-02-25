@@ -62,6 +62,7 @@ let queryableRoundtripsSuccessfullyInRecord
             if id = typeID then
               let packageType : RT.PackageType.PackageType =
                 { id = typeID
+                  hash = ""
                   declaration =
                     { typeParams = []
                       definition =

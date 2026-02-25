@@ -89,6 +89,7 @@ let testPackageFn
   (body : PT.Expr)
   : PT.PackageFn.PackageFn =
   { id = System.Guid.NewGuid()
+    hash = PT.ContentHash ""
     body = body
     description = ""
     typeParams = typeParams

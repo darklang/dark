@@ -124,19 +124,21 @@ let fns : List<BuiltInFn> =
       parameters =
         [ Param.make "branchId" TUuid "Branch ID"
           Param.make "message" TString "Commit message" ]
-      returnType = TypeReference.result TUuid TString
+      returnType = TypeReference.result TString TString
       description =
         "Commit all WIP ops on a branch with the given message.
-        Returns the commit ID on success, or an error message on failure."
+        Returns the commit hash on success, or an error message on failure."
       fn =
-        let resultOk = Dval.resultOk KTUuid KTString
-        let resultError = Dval.resultError KTUuid KTString
+        let resultOk = Dval.resultOk KTString KTString
+        let resultError = Dval.resultError KTString KTString
         (function
         | _, _, _, [ DUuid branchId; DString message ] ->
           uply {
             let! result = LibPackageManager.Inserts.commitWipOps branchId message
             match result with
-            | Ok commitId -> return resultOk (Dval.uuid commitId)
+            | Ok commitHash ->
+              let (PT.ContentHash h) = commitHash
+              return resultOk (Dval.string h)
             | Error msg -> return resultError (Dval.string msg)
           }
         | _ -> incorrectArgs ())
@@ -219,14 +221,15 @@ let fns : List<BuiltInFn> =
 
     { name = fn "scmGetCommitOps" 0
       typeParams = []
-      parameters = [ Param.make "commitId" TUuid "Commit ID" ]
+      parameters = [ Param.make "commitId" TString "Commit hash" ]
       returnType = TList(TCustomType(NR.ok packageOpTypeName, []))
       description = "Get ops for a specific commit."
       fn =
         function
-        | _, _, _, [ DUuid commitId ] ->
+        | _, _, _, [ DString commitId ] ->
           uply {
-            let! ops = LibPackageManager.Queries.getCommitOps commitId
+            let! ops =
+              LibPackageManager.Queries.getCommitOps (PT.ContentHash commitId)
             return Dval.list packageOpKT (ops |> List.map PT2DT.PackageOp.toDT)
           }
         | _ -> incorrectArgs ()

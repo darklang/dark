@@ -39,6 +39,8 @@
     <Compile Include="Binary/Serializers/RT/PackageFn.fs" />
 
     <Compile Include="Binary/Serialization.fs" />
+
+    <Compile Include="Hashing.fs" />
   </ItemGroup>
   <Import Project="..\..\.paket\Paket.Restore.targets" />
 </Project>

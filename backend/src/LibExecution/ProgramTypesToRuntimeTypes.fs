@@ -1086,7 +1086,8 @@ module TypeDeclaration =
 // --
 module PackageType =
   let toRT (t : PT.PackageType.PackageType) : RT.PackageType.PackageType =
-    { id = t.id; declaration = TypeDeclaration.toRT t.declaration }
+    let (PT.ContentHash h) = t.hash
+    { id = t.id; hash = h; declaration = TypeDeclaration.toRT t.declaration }
 
 module PackageValue =
   // TODO: do a proper eval (Execution.execute)
@@ -1207,7 +1208,8 @@ module PackageValue =
     (c : PT.PackageValue.PackageValue)
     : RT.PackageValue.PackageValue =
     let body = evalConstantExpr builtinValues c.body
-    { id = c.id; body = body }
+    let (PT.ContentHash h) = c.hash
+    { id = c.id; hash = h; body = body }
 
 module PackageFn =
   module Parameter =
@@ -1215,7 +1217,9 @@ module PackageFn =
       { name = p.name; typ = TypeReference.toRT p.typ }
 
   let toRT (f : PT.PackageFn.PackageFn) : RT.PackageFn.PackageFn =
+    let (PT.ContentHash h) = f.hash
     { id = f.id
+      hash = h
       body =
         let (rcAfterParams, symbols) : (int * Map<string, int>) =
           f.parameters

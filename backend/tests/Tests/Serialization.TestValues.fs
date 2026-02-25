@@ -138,15 +138,18 @@ module RuntimeTypes =
 
   // RT test values for binary serialization
   let packageTypes : List<RT.PackageType.PackageType> =
-    [ { id = uuid; declaration = typeDeclarations[0] }
+    [ { id = uuid; hash = "abc123"; declaration = typeDeclarations[0] }
       { id = System.Guid.Parse "42d72f73-0f99-5a9b-949c-b95705ae7c4d"
+        hash = "def456"
         declaration = typeDeclarations[1] } ]
 
   let packageValues : List<RT.PackageValue.PackageValue> =
-    [ { id = uuid; body = RT.DString "Hello RT PackageValue" }
+    [ { id = uuid; hash = "val1"; body = RT.DString "Hello RT PackageValue" }
       { id = System.Guid.Parse "52d72f73-0f99-5a9b-949c-b95705ae7c4d"
+        hash = "val2"
         body = RT.DInt64 42L }
       { id = System.Guid.Parse "62d72f73-0f99-5a9b-949c-b95705ae7c4d"
+        hash = "val3"
         body = RT.DBool true } ]
 
   let instructions : List<RT.Instructions> =
@@ -160,11 +163,13 @@ module RuntimeTypes =
 
   let packageFns : List<RT.PackageFn.PackageFn> =
     [ { id = uuid
+        hash = "fn1"
         typeParams = []
         parameters = NEList.singleton { name = "x"; typ = RT.TInt64 }
         returnType = RT.TInt64
         body = instructions[0] }
       { id = System.Guid.Parse "72d72f73-0f99-5a9b-949c-b95705ae7c4d"
+        hash = "fn2"
         typeParams = [ "T" ]
         parameters =
           NEList.ofList
@@ -713,6 +718,7 @@ module ProgramTypes =
 
   let packageFn : PackageFn.PackageFn =
     { id = uuid
+      hash = ContentHash ""
       body = expr
       typeParams = [ "a" ]
       parameters =
@@ -726,6 +732,7 @@ module ProgramTypes =
 
   let packageType : PackageType.PackageType =
     { id = uuid
+      hash = ContentHash ""
       declaration =
         { typeParams = [ "a" ]
           definition =
@@ -745,6 +752,7 @@ module ProgramTypes =
 
   let packageValue : PT.PackageValue.PackageValue =
     { id = uuid
+      hash = PT.ContentHash ""
       body = constValue
       description = "test"
       deprecated = PT.NotDeprecated }

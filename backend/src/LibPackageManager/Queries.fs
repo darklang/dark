@@ -286,7 +286,7 @@ let getCommits (branchId : PT.BranchId) (limit : int64) : Task<List<PT.Commit>> 
         """
       |> Sql.parameters [ "branch_id", Sql.uuid branchId; "limit", Sql.int64 limit ]
       |> Sql.executeAsync (fun read ->
-        { id = read.uuid "id"
+        { id = PT.ContentHash(read.string "id")
           message = read.string "message"
           createdAt = read.instant "created_at"
           opCount = read.int64 "op_count"
@@ -326,7 +326,7 @@ let getCommitsForBranchChain
           """
         |> Sql.parameters (branchParams @ [ "limit", Sql.int64 limit ])
         |> Sql.executeAsync (fun read ->
-          { id = read.uuid "id"
+          { id = PT.ContentHash(read.string "id")
             message = read.string "message"
             createdAt = read.instant "created_at"
             opCount = read.int64 "op_count"
@@ -336,8 +336,9 @@ let getCommitsForBranchChain
 
 
 /// Get ops for a specific commit
-let getCommitOps (commitId : uuid) : Task<List<PT.PackageOp>> =
+let getCommitOps (commitId : PT.ContentHash) : Task<List<PT.PackageOp>> =
   task {
+    let (PT.ContentHash commitIdStr) = commitId
     return!
       Sql.query
         """
@@ -346,7 +347,7 @@ let getCommitOps (commitId : uuid) : Task<List<PT.PackageOp>> =
         WHERE commit_id = @commit_id
         ORDER BY created_at ASC
         """
-      |> Sql.parameters [ "commit_id", Sql.uuid commitId ]
+      |> Sql.parameters [ "commit_id", Sql.string commitIdStr ]
       |> Sql.executeAsync (fun read ->
         let opId = read.uuid "id"
         let opBlob = read.bytes "op_blob"

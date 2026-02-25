@@ -5,7 +5,7 @@ type Branch =
   { id: Uuid
     name: String
     parentBranchId: Stdlib.Option.Option<Uuid>
-    baseCommitId: Stdlib.Option.Option<Uuid>
+    baseCommitId: Stdlib.Option.Option<String>
     createdAt: DateTime
     mergedAt: Stdlib.Option.Option<DateTime> }
 

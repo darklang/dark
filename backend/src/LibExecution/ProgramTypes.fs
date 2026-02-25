@@ -28,6 +28,9 @@ let assertBuiltin
 type ContentHash = ContentHash of string
 
 module ContentHash =
+  /// Placeholder for items whose hash hasn't been computed yet
+  let empty : ContentHash = ContentHash ""
+
   let fromSHA256Bytes (bytes : byte array) : ContentHash =
     ContentHash(System.Convert.ToHexString(bytes).ToLowerInvariant())
 
@@ -51,7 +54,7 @@ type Branch =
   { id : BranchId
     name : string
     parentBranchId : Option<BranchId>
-    baseCommitId : Option<uuid>
+    baseCommitId : Option<ContentHash>
     createdAt : NodaTime.Instant
     mergedAt : Option<NodaTime.Instant> }
 
@@ -68,7 +71,7 @@ type MergeError =
 
 /// A commit on a branch
 type Commit =
-  { id : uuid
+  { id : ContentHash
     message : string
     createdAt : NodaTime.Instant
     opCount : int64
@@ -606,6 +609,7 @@ module PackageType =
   // really this just begs a series of questions about the PackageManager...
   type PackageType =
     { id : FQTypeName.Package
+      hash : ContentHash
       declaration : TypeDeclaration.T
       description : string
       deprecated : Deprecation<FQTypeName.FQTypeName> }
@@ -614,6 +618,7 @@ module PackageType =
 module PackageValue =
   type PackageValue =
     { id : uuid
+      hash : ContentHash
       description : string
       deprecated : Deprecation<FQValueName.FQValueName>
       body : Expr }
@@ -624,6 +629,7 @@ module PackageFn =
 
   type PackageFn =
     { id : FQFnName.Package
+      hash : ContentHash
       body : Expr
       typeParams : List<string>
       parameters : NEList<Parameter>

@@ -12,25 +12,12 @@ module PT = LibExecution.ProgramTypes
 module BS = LibSerialization.Binary.Serialization
 
 
-/// Compute a content-addressed ID for a PackageOp by hashing its serialized content
-///
-/// TODO this is really hacky.
-/// honestly we should
-/// - make hashing more legit (move to LibSerialization.Hashing)
-/// - migrate any remaining hacky JSON serialization things to LibSerialization
-///   (if LibExecution needs them, maybe ExecutionState needs to/from json fns to be part of that context)
-/// - put all sorts of Hashers there
+/// Compute a content-addressed ID for a PackageOp.
+/// Returns a UUID derived from the ContentHash (first 16 bytes) for DB compatibility.
 let computeOpHash (op : PT.PackageOp) : System.Guid =
-  use memoryStream = new System.IO.MemoryStream()
-  use binaryWriter = new System.IO.BinaryWriter(memoryStream)
-
-  // Serialize just the op content (without an ID)
-  LibSerialization.Binary.Serializers.PT.PackageOp.write binaryWriter op
-
-  let opBytes = memoryStream.ToArray()
-  let hashBytes = System.Security.Cryptography.SHA256.HashData(opBytes)
-
-  // Take first 16 bytes to make a UUID
+  let (PT.ContentHash h) = LibSerialization.Hashing.computeOpHash op
+  // Convert hex string back to bytes, take first 16 for UUID
+  let hashBytes = System.Convert.FromHexString(h)
   System.Guid(hashBytes[0..15])
 
 
@@ -47,7 +34,7 @@ let computeOpHash (op : PT.PackageOp) : System.Guid =
 /// This ensures that if step 2 fails, we can identify unapplied ops and retry/rollback.
 let insertAndApplyOps
   (branchId : PT.BranchId)
-  (commitId : Option<System.Guid>)
+  (commitId : Option<string>)
   (ops : List<PT.PackageOp>)
   : Task<int64> =
   task {
@@ -81,12 +68,17 @@ let insertAndApplyOps
             VALUES (@id, @op_blob, @branch_id, @applied, @commit_id, @propagation_id)
             """
 
+          let commitIdParam =
+            match commitId with
+            | Some s -> Sql.string s
+            | None -> Sql.dbnull
+
           let parameters =
             [ "id", Sql.uuid opId
               "op_blob", Sql.bytes opBlob
               "branch_id", Sql.uuid branchId
               "applied", Sql.bool false // Insert as unapplied
-              "commit_id", Sql.uuidOrNone commitId
+              "commit_id", commitIdParam
               "propagation_id",
               (match propagationId with
                | Some id -> Sql.uuid id
@@ -133,14 +125,29 @@ let insertAndApplyOps
 
 
 /// Create a new commit and insert ops with that commit_id
-/// Returns the commit ID
+/// Returns the commit ContentHash
 let insertAndApplyOpsWithCommit
   (branchId : PT.BranchId)
   (message : string)
   (ops : List<PT.PackageOp>)
-  : Task<System.Guid> =
+  : Task<PT.ContentHash> =
   task {
-    let commitId = System.Guid.NewGuid()
+    // Get parent commit hash
+    let! parentHash =
+      Sql.query
+        """
+        SELECT id FROM commits
+        WHERE branch_id = @branch_id
+        ORDER BY created_at DESC
+        LIMIT 1
+        """
+      |> Sql.parameters [ "branch_id", Sql.uuid branchId ]
+      |> Sql.executeRowOptionAsync (fun read -> PT.ContentHash(read.string "id"))
+
+    // Compute content-addressed commit hash
+    let opHashes = ops |> List.map LibSerialization.Hashing.computeOpHash
+    let commitHash = LibSerialization.Hashing.computeCommitHash parentHash opHashes
+    let (PT.ContentHash commitHashStr) = commitHash
 
     // Create the commit record
     do!
@@ -150,15 +157,15 @@ let insertAndApplyOpsWithCommit
         VALUES (@id, @message, @branch_id, datetime('now'))
         """
       |> Sql.parameters
-        [ "id", Sql.uuid commitId
+        [ "id", Sql.string commitHashStr
           "message", Sql.string message
           "branch_id", Sql.uuid branchId ]
       |> Sql.executeStatementAsync
 
     // Insert ops with the commit_id
-    let! _ = insertAndApplyOps branchId (Some commitId) ops
+    let! _ = insertAndApplyOps branchId (Some commitHashStr) ops
 
-    return commitId
+    return commitHash
   }
 
 
@@ -171,25 +178,55 @@ let insertAndApplyOpsAsWip
   insertAndApplyOps branchId None ops
 
 
-/// Commit all WIP ops on a branch by creating a new commit and assigning commit_id
-/// Returns the commit ID on success
+/// Commit all WIP ops on a branch by creating a new commit and assigning commit_id.
+/// Commit ID is a content-addressed hash of (parentHash + sorted opHashes).
+/// Returns the commit ContentHash on success.
 let commitWipOps
   (branchId : PT.BranchId)
   (message : string)
-  : Task<Result<System.Guid, string>> =
+  : Task<Result<PT.ContentHash, string>> =
   task {
     try
-      // Check if there are any WIP ops on this branch
-      let! wipCount =
+      // Get WIP ops with their hashes
+      let! wipOps =
         Sql.query
-          "SELECT COUNT(*) as cnt FROM package_ops WHERE branch_id = @branch_id AND commit_id IS NULL"
+          """
+          SELECT id, op_blob
+          FROM package_ops
+          WHERE branch_id = @branch_id AND commit_id IS NULL
+          ORDER BY created_at ASC
+          """
         |> Sql.parameters [ "branch_id", Sql.uuid branchId ]
-        |> Sql.executeAsync (fun read -> read.int64 "cnt")
+        |> Sql.executeAsync (fun read ->
+          let opId = read.uuid "id"
+          let opBlob = read.bytes "op_blob"
+          let op = BS.PT.PackageOp.deserialize opId opBlob
+          (opId, op))
 
-      match wipCount with
-      | [ 0L ] -> return Error "Nothing to commit"
-      | [ _ ] ->
-        let commitId = System.Guid.NewGuid()
+      if List.isEmpty wipOps then
+        return Error "Nothing to commit"
+      else
+        // Get parent commit hash (latest commit on this branch)
+        let! parentHash =
+          Sql.query
+            """
+            SELECT id FROM commits
+            WHERE branch_id = @branch_id
+            ORDER BY created_at DESC
+            LIMIT 1
+            """
+          |> Sql.parameters [ "branch_id", Sql.uuid branchId ]
+          |> Sql.executeRowOptionAsync (fun read -> PT.ContentHash(read.string "id"))
+
+        // Compute op hashes
+        let opHashes =
+          wipOps
+          |> List.map (fun (_, op) -> LibSerialization.Hashing.computeOpHash op)
+
+        // Compute content-addressed commit hash
+        let commitHash =
+          LibSerialization.Hashing.computeCommitHash parentHash opHashes
+        let (PT.ContentHash commitHashStr) = commitHash
 
         // Execute all three operations atomically:
         // 1. Create commit record
@@ -200,7 +237,7 @@ let commitWipOps
              INSERT INTO commits (id, message, branch_id, created_at)
              VALUES (@id, @message, @branch_id, datetime('now'))
              """,
-             [ [ "id", Sql.uuid commitId
+             [ [ "id", Sql.string commitHashStr
                  "message", Sql.string message
                  "branch_id", Sql.uuid branchId ] ])
 
@@ -209,19 +246,20 @@ let commitWipOps
              SET commit_id = @commit_id
              WHERE branch_id = @branch_id AND commit_id IS NULL
              """,
-             [ [ "commit_id", Sql.uuid commitId; "branch_id", Sql.uuid branchId ] ])
+             [ [ "commit_id", Sql.string commitHashStr
+                 "branch_id", Sql.uuid branchId ] ])
 
             ("""
              UPDATE locations
              SET commit_id = @commit_id
              WHERE branch_id = @branch_id AND commit_id IS NULL
              """,
-             [ [ "commit_id", Sql.uuid commitId; "branch_id", Sql.uuid branchId ] ]) ]
+             [ [ "commit_id", Sql.string commitHashStr
+                 "branch_id", Sql.uuid branchId ] ]) ]
 
         let _ = Sql.executeTransactionSync statements
 
-        return Ok commitId
-      | _ -> return Error "Unexpected query result"
+        return Ok commitHash
     with ex ->
       return Error ex.Message
   }

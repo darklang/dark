@@ -1392,6 +1392,7 @@ module TypeDeclaration =
     (ProgramTypes.PackageType.PackageType
       // TODO: when relevant, use PackageRefs defined in F# land
       { id = Stdlib.Uuid.generate ()
+        hash = ""
         description = d.description
         declaration = declaration
         deprecated = ProgramTypes.Deprecation.NotDeprecated },
@@ -1409,6 +1410,7 @@ module ValueDeclaration =
 
     (ProgramTypes.PackageValue.PackageValue
       { id = Stdlib.Uuid.generate ()
+        hash = ""
         body = body
         description = d.description
         deprecated = ProgramTypes.Deprecation.NotDeprecated },
@@ -1478,6 +1480,7 @@ module FunctionDeclaration =
     (ProgramTypes.PackageFn.PackageFn
       // TODO: when relevant, use PackageRefs defined in F# land
       { id = Stdlib.Uuid.generate ()
+        hash = ""
         typeParams = typeParams
         parameters = params
         returnType = rtyp

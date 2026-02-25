@@ -109,7 +109,7 @@ let evaluateAllValues
               )
             | Ok dval ->
               let rtValue : RT.PackageValue.PackageValue =
-                { id = valueId; body = dval }
+                { id = valueId; hash = ""; body = dval }
               let rtDvalBytes = BS.RT.PackageValue.serialize valueId rtValue
               let valueType = RT.Dval.toValueType dval
               let valueTypeBytes = BS.RT.ValueType.serialize valueType
@@ -197,7 +197,9 @@ module HandleCommand =
         let! stats = LibPackageManager.Stats.get ()
         print "Loaded packages from disk "
         print $"{stats.types} types, {stats.values} values, and {stats.fns} fns"
-        print $"Created init commit {commitId}"
+        let (LibExecution.ProgramTypes.ContentHash commitIdStr) = commitId
+        let shortHash = commitIdStr[..6]
+        print $"Created init commit {shortHash}"
 
         // Reload dark-packages and dark-editor canvases after package reload
         print "Reloading dark-packages canvas..."

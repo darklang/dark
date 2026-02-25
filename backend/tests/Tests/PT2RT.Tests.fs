@@ -1626,6 +1626,7 @@ module PackageFn =
     testTask name {
       let fn : PT.PackageFn.PackageFn =
         { id = guuid ()
+          hash = PT.ContentHash ""
           body = expr
           typeParams = typeParams
           parameters = params' |> NEList.ofListUnsafe "" []
