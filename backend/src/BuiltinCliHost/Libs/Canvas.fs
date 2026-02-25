@@ -54,7 +54,8 @@ let fns : List<BuiltInFn> =
                   version = 0
                   typ =
                     PT.TypeReference.TCustomType(
-                      Ok(PT.FQTypeName.Package typeID),
+                      { originalName = []
+                        resolved = Ok(PT.FQTypeName.Package typeID) },
                       []
                     ) }
 
@@ -110,7 +111,7 @@ let fns : List<BuiltInFn> =
                 uply {
                   let! typeName =
                     match db.typ with
-                    | PT.TypeReference.TCustomType(Ok(PT.FQTypeName.Package typeID),
+                    | PT.TypeReference.TCustomType({ resolved = Ok(PT.FQTypeName.Package typeID) },
                                                    _) ->
                       uply {
                         let! loc = pm.getTypeLocation branchId typeID

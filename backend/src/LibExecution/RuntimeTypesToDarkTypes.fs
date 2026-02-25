@@ -139,17 +139,15 @@ module NameResolutionError =
   let toDT (nre : NameResolutionError) : Dval =
     let (caseName, fields) =
       match nre with
-      | NotFound names -> "NotFound", [ DList(VT.string, List.map DString names) ]
-      | InvalidName names ->
-        "InvalidName", [ DList(VT.string, List.map DString names) ]
+      | NotFound -> "NotFound", []
+      | InvalidName -> "InvalidName", []
 
     DEnum(typeName, typeName, [], caseName, fields)
 
   let fromDT (d : Dval) : NameResolutionError =
     match d with
-    | DEnum(_, _, [], "NotFound", [ names ]) -> names |> D.list D.string |> NotFound
-    | DEnum(_, _, [], "InvalidName", [ names ]) ->
-      names |> D.list D.string |> InvalidName
+    | DEnum(_, _, [], "NotFound", []) -> NotFound
+    | DEnum(_, _, [], "InvalidName", []) -> InvalidName
     | _ -> Exception.raiseInternal "Invalid NameResolutionError" []
 
 
@@ -160,13 +158,34 @@ module NameResolution =
   let toDT
     (nameValueType : KnownType)
     (f : 'p -> Dval)
-    (result : NameResolution<'p>)
+    (nr : NameResolution<'p>)
     : Dval =
-    let errType = KTCustomType(typeName, [])
-    C2DT.Result.toDT nameValueType errType result f NameResolutionError.toDT
+    let originalName = DList(VT.string, List.map DString nr.originalName)
+    let resolved =
+      C2DT.Result.toDT
+        nameValueType
+        (KTCustomType(NameResolutionError.typeName, []))
+        nr.resolved
+        f
+        NameResolutionError.toDT
+    DRecord(
+      typeName,
+      typeName,
+      [],
+      Map [ "originalName", originalName; "resolved", resolved ]
+    )
 
   let fromDT (f : Dval -> 'a) (d : Dval) : NameResolution<'a> =
-    C2DT.Result.fromDT f d NameResolutionError.fromDT
+    match d with
+    | DRecord(_, _, _, fields) ->
+      let originalName = fields |> D.field "originalName" |> D.list D.string
+      let resolved =
+        C2DT.Result.fromDT
+          f
+          (fields |> D.field "resolved")
+          NameResolutionError.fromDT
+      { originalName = originalName; resolved = resolved }
+    | _ -> Exception.raiseInternal "Invalid NameResolution" []
 
 
 module TypeReference =
@@ -1332,8 +1351,9 @@ module RuntimeError =
         "IfConditionNotBool",
         [ Dval.toDT actualValue; ValueType.toDT actualValueType ]
       | RuntimeError.Match e -> "Match", [ Matches.toDT e ]
-      | RuntimeError.ParseTimeNameResolution e ->
-        "ParseTimeNameResolution", [ NameResolutionError.toDT e ]
+      | RuntimeError.ParseTimeNameResolution(names, e) ->
+        "ParseTimeNameResolution",
+        [ DList(VT.string, names |> List.map DString); NameResolutionError.toDT e ]
       | RuntimeError.TypeNotFound name -> "TypeNotFound", [ FQTypeName.toDT name ]
       | RuntimeError.ValueNotFound name -> "ValueNotFound", [ FQValueName.toDT name ]
       | RuntimeError.FnNotFound name -> "FnNotFound", [ FQFnName.toDT name ]
@@ -1380,8 +1400,18 @@ module RuntimeError =
         ValueType.fromDT actualValueType
       )
     | DEnum(_, _, [], "Match", [ e ]) -> RuntimeError.Match(Matches.fromDT e)
-    | DEnum(_, _, [], "ParseTimeNameResolution", [ e ]) ->
-      RuntimeError.ParseTimeNameResolution(NameResolutionError.fromDT e)
+    | DEnum(_, _, [], "ParseTimeNameResolution", [ names; e ]) ->
+      let namesList =
+        match names with
+        | DList(_, items) ->
+          items
+          |> List.map (fun d ->
+            match d with
+            | DString s -> s
+            | _ ->
+              Exception.raiseInternal "Invalid name in ParseTimeNameResolution" [])
+        | _ -> Exception.raiseInternal "Invalid names in ParseTimeNameResolution" []
+      RuntimeError.ParseTimeNameResolution(namesList, NameResolutionError.fromDT e)
     | DEnum(_, _, [], "TypeNotFound", [ name ]) ->
       RuntimeError.TypeNotFound(FQTypeName.fromDT name)
     | DEnum(_, _, [], "ValueNotFound", [ name ]) ->

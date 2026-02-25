@@ -23,6 +23,7 @@ module Exe = LibExecution.Execution
 module PackageRefs = LibExecution.PackageRefs
 module Dval = LibExecution.Dval
 module NR = LibParser.NameResolver
+module RTNR = LibExecution.RuntimeTypes.NameResolution
 module Canvas = LibCloud.Canvas
 module Serialize = LibCloud.Serialize
 
@@ -153,7 +154,7 @@ let t
             let! typeChecked =
               let expected =
                 RT.TCustomType(
-                  Ok(
+                  RTNR.ok (
                     RT.FQTypeName.fqPackage
                       PackageRefs.Type.LanguageTools.RuntimeTypes.RuntimeError.error
                   ),

@@ -1208,7 +1208,7 @@ let interestingDvals : List<string * RT.Dval * RT.TypeReference> =
            "headers", Dval.list (KTTuple(VT.string, VT.string, [])) []
            "body", Dval.list KTUInt8 [] ]
      ),
-     TCustomType(Ok(FQTypeName.Package uuid), []))
+     TCustomType(NameResolution.ok (FQTypeName.Package uuid), []))
 
     ("enum",
      DEnum(
@@ -1218,7 +1218,10 @@ let interestingDvals : List<string * RT.Dval * RT.TypeReference> =
        "String",
        [ DString "test" ]
      ),
-     TCustomType(Ok(FQTypeName.Package PackageRefs.Type.Stdlib.AltJson.json), []))
+     TCustomType(
+       NameResolution.ok (FQTypeName.Package PackageRefs.Type.Stdlib.AltJson.json),
+       []
+     ))
 
     // TODO: extract what's useful in here, and create smaller tests for each
     ("record2",
@@ -1228,7 +1231,7 @@ let interestingDvals : List<string * RT.Dval * RT.TypeReference> =
        [ VT.unknown; VT.bool ],
        Map.ofList [ ("type", DString "weird"); ("value", DUnit) ]
      ),
-     TCustomType(Ok(FQTypeName.Package uuid), []))
+     TCustomType(NameResolution.ok (FQTypeName.Package uuid), []))
     ("record3",
      DRecord(
        FQTypeName.Package uuid,
@@ -1236,7 +1239,7 @@ let interestingDvals : List<string * RT.Dval * RT.TypeReference> =
        [],
        Map.ofList [ ("type", DString "weird"); ("value", DString "x") ]
      ),
-     TCustomType(Ok(FQTypeName.Package uuid), []))
+     TCustomType(NameResolution.ok (FQTypeName.Package uuid), []))
     // More Json.NET tests
     ("record4",
      DRecord(
@@ -1245,7 +1248,7 @@ let interestingDvals : List<string * RT.Dval * RT.TypeReference> =
        [ VT.bool; VT.char; (VT.customType (FQTypeName.Package uuid)) [] ],
        Map.ofList [ "foo\\\\bar", Dval.int64 5 ]
      ),
-     TCustomType(Ok(FQTypeName.Package uuid), []))
+     TCustomType(NameResolution.ok (FQTypeName.Package uuid), []))
     ("record5",
      DRecord(
        FQTypeName.Package uuid,
@@ -1253,7 +1256,7 @@ let interestingDvals : List<string * RT.Dval * RT.TypeReference> =
        [],
        Map.ofList [ "$type", Dval.int64 5 ]
      ),
-     TCustomType(Ok(FQTypeName.Package uuid), []))
+     TCustomType(NameResolution.ok (FQTypeName.Package uuid), []))
     ("dict", DDict(VT.unknown, Map [ "foo", Dval.int64 5 ]), TDict TInt64)
     ("dict3",
      DDict(VT.unknown, Map [ ("type", DString "weird"); ("value", DString "x") ]),

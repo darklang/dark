@@ -735,7 +735,7 @@ let execute (exeState : ExecutionState) (vm : VMState) : Ply<Dval> =
                       executionPoint = Function(FQFnName.Package fn.id) }
                     |> Some
 
-        | RaiseNRE nre -> raiseRTE (RTE.ParseTimeNameResolution nre)
+        | RaiseNRE(names, nre) -> raiseRTE (RTE.ParseTimeNameResolution(names, nre))
 
         // CLEANUP: consider renaming this to something like "RequireExprToReturnUnit"
         | CheckIfFirstExprIsUnit reg ->

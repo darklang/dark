@@ -15,6 +15,7 @@ module RT = LibExecution.RuntimeTypes
 module PT2DT = LibExecution.ProgramTypesToDarkTypes
 module RT2DT = LibExecution.RuntimeTypesToDarkTypes
 module PackageRefs = LibExecution.PackageRefs
+module NR = LibExecution.RuntimeTypes.NameResolution
 
 
 module V = SerializationTestValues
@@ -45,7 +46,7 @@ module RoundtripTests =
         LibExecution.TypeChecker.unify
           types
           Map.empty
-          (RT.TCustomType(Ok typeName, []))
+          (RT.TCustomType(NR.ok typeName, []))
           firstDT
         |> Ply.toTask
 

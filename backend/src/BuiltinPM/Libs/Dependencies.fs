@@ -10,6 +10,7 @@ module Dval = LibExecution.Dval
 module VT = LibExecution.ValueType
 module PT = LibExecution.ProgramTypes
 module PT2DT = LibExecution.ProgramTypesToDarkTypes
+module NR = LibExecution.RuntimeTypes.NameResolution
 module PMPT = LibPackageManager.ProgramTypes
 module Branches = LibPackageManager.Branches
 
@@ -139,7 +140,9 @@ let fns : List<BuiltInFn> =
         [ Param.make "branchId" TUuid "Branch ID for location lookup"
           Param.make "itemIds" (TList TUuid) "List of item UUIDs to resolve" ]
       returnType =
-        TList(TTuple(TUuid, TCustomType(Ok PT2DT.PackageLocation.typeName, []), []))
+        TList(
+          TTuple(TUuid, TCustomType(NR.ok PT2DT.PackageLocation.typeName, []), [])
+        )
       description =
         "Resolve UUIDs to PackageLocations. Returns (itemId, location) tuples."
       fn =

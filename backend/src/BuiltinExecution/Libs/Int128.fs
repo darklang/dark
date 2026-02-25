@@ -297,7 +297,9 @@ let fns : List<BuiltInFn> =
         TypeReference.result
           TInt128
           (TCustomType(
-            Ok(FQTypeName.fqPackage PackageRefs.Type.Stdlib.int128ParseError),
+            { originalName = []
+              resolved =
+                Ok(FQTypeName.fqPackage PackageRefs.Type.Stdlib.int128ParseError) },
             []
           ))
       description = "Returns the <type Int128> value of a <type String>"

@@ -12,6 +12,7 @@ open LibExecution.Builtin.Shortcuts
 
 module PT = LibExecution.ProgramTypes
 module RT = LibExecution.RuntimeTypes
+module NR = LibExecution.RuntimeTypes.NameResolution
 module VT = LibExecution.ValueType
 module Dval = LibExecution.Dval
 module PT2RT = LibExecution.ProgramTypesToRuntimeTypes
@@ -102,7 +103,7 @@ let parseCliScript
 
 module ExecutionError =
   let fqTypeName = FQTypeName.fqPackage PackageRefs.Type.Cli.executionError
-  let typeRef = TCustomType(Ok fqTypeName, [])
+  let typeRef = TCustomType(NR.ok fqTypeName, [])
 
 
 let pmRT = LibPackageManager.PackageManager.rt

@@ -303,8 +303,9 @@ module Instruction =
       w.Write(thingToApply : int)
       List.write w TypeReference.write typeArgs
       NEList.write (fun w reg -> w.Write(reg : int)) w args
-    | RaiseNRE error ->
+    | RaiseNRE(names, error) ->
       w.Write 20uy
+      List.write w String.write names
       NameResolutionError.write w error
     | VarNotFound(targetRegIfSecretOrDB, name) ->
       w.Write 21uy
@@ -421,8 +422,9 @@ module Instruction =
       let args = NEList.read (fun r -> r.ReadInt32()) r
       Apply(createTo, thingToApply, typeArgs, args)
     | 20uy ->
+      let names = List.read r String.read
       let error = NameResolutionError.read r
-      RaiseNRE(error)
+      RaiseNRE(names, error)
     | 21uy ->
       let targetRegIfSecretOrDB = r.ReadInt32()
       let name = String.read r

@@ -11,6 +11,7 @@ open LibTreeSitter
 module VT = LibExecution.ValueType
 module Dval = LibExecution.Dval
 module IDs = LibExecution.PackageRefs.Type.LanguageTools.Parser
+module NR = LibExecution.RuntimeTypes.NameResolution
 
 
 let pointTypeName = FQTypeName.fqPackage IDs.point
@@ -21,7 +22,7 @@ let fns : List<BuiltInFn> =
   [ { name = fn "parserParseToSimplifiedTree" 0
       typeParams = []
       parameters = [ Param.make "sourceCode" TString "" ]
-      returnType = TCustomType(Ok parsedNodeTypeName, [])
+      returnType = TCustomType(NR.ok parsedNodeTypeName, [])
       description = "Parses some Darklang code"
       fn =
         (function

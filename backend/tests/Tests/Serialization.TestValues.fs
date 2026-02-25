@@ -11,6 +11,7 @@ open TestUtils.TestUtils
 module PT = LibExecution.ProgramTypes
 module Dval = LibExecution.Dval
 module RT = LibExecution.RuntimeTypes
+module RTNR = LibExecution.RuntimeTypes.NameResolution
 
 module BS = LibSerialization.Binary.Serialization
 
@@ -57,7 +58,7 @@ module RuntimeTypes =
 
       RT.TFn(NEList.singleton RT.TBool, RT.TBool)
 
-      RT.TCustomType(Ok(RT.FQTypeName.Package uuid), [ RT.TBool ])
+      RT.TCustomType(RTNR.ok (RT.FQTypeName.Package uuid), [ RT.TBool ])
 
       RT.TDB RT.TBool
 
@@ -261,8 +262,8 @@ module ProgramTypes =
         TTuple(TBool, TBool, [ TBool ])
         TDict TBool
         TDB TBool
-        TCustomType(Ok(FQTypeName.Package uuid), [ TBool ])
-        TCustomType(Ok(FQTypeName.Package uuid), [ TBool ])
+        TCustomType(NameResolution.ok (FQTypeName.Package uuid), [ TBool ])
+        TCustomType(NameResolution.ok (FQTypeName.Package uuid), [ TBool ])
         TVariable "test"
         TFn(NEList.singleton TBool, TBool) ]
     )
@@ -321,7 +322,7 @@ module ProgramTypes =
                           id,
                           EFnName(
                             id,
-                            Ok(
+                            NameResolution.ok (
                               FQFnName.Builtin
                                 { name = "int64ToString"; version = 0 }
                             )
@@ -368,7 +369,7 @@ module ProgramTypes =
                                 id,
                                 EFnName(
                                   id,
-                                  Ok(
+                                  NameResolution.ok (
                                     FQFnName.Builtin
                                       { name = "int64Add"; version = 0 }
                                   )
@@ -389,7 +390,7 @@ module ProgramTypes =
                         LPVariable(id, "r"),
                         ERecord(
                           id,
-                          Ok(FQTypeName.Package uuid),
+                          NameResolution.ok (FQTypeName.Package uuid),
                           [ TUnit ],
                           [ ("field",
                              EPipe(
@@ -413,7 +414,7 @@ module ProgramTypes =
                                  )
                                  EPipeFnCall(
                                    id,
-                                   Ok(
+                                   NameResolution.ok (
                                      FQFnName.Builtin
                                        { name = "int64Add"; version = 0 }
                                    ),
@@ -424,7 +425,7 @@ module ProgramTypes =
                             ("enum",
                              EEnum(
                                id,
-                               Ok(FQTypeName.Package uuid),
+                               NameResolution.ok (FQTypeName.Package uuid),
                                [ TUnit ],
                                "Error",
                                []
@@ -447,7 +448,7 @@ module ProgramTypes =
                                 id,
                                 EFnName(
                                   id,
-                                  Ok(
+                                  NameResolution.ok (
                                     FQFnName.Builtin
                                       { name = "modFunction"; version = 2 }
                                   )

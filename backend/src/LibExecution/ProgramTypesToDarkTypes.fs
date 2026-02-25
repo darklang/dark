@@ -166,39 +166,53 @@ module NameResolutionError =
   let toDT (e : PT.NameResolutionError) : Dval =
     let (caseName, fields) =
       match e with
-      | PT.NameResolutionError.NotFound names ->
-        "NotFound", [ DList(VT.string, List.map Dval.string names) ]
-      | PT.NameResolutionError.InvalidName names ->
-        "InvalidName", [ DList(VT.string, List.map Dval.string names) ]
+      | PT.NameResolutionError.NotFound -> "NotFound", []
+      | PT.NameResolutionError.InvalidName -> "InvalidName", []
     DEnum(typeName, typeName, [], caseName, fields)
 
   let fromDT (d : Dval) : PT.NameResolutionError =
     match d with
-    | DEnum(_, _, [], "NotFound", [ names ]) ->
-      PT.NameResolutionError.NotFound(names |> D.list D.string)
-
-    | DEnum(_, _, [], "InvalidName", [ names ]) ->
-      PT.NameResolutionError.InvalidName(names |> D.list D.string)
-
+    | DEnum(_, _, [], "NotFound", []) -> PT.NameResolutionError.NotFound
+    | DEnum(_, _, [], "InvalidName", []) -> PT.NameResolutionError.InvalidName
     | _ -> Exception.raiseInternal "Invalid NameResolutionError" []
 
 
 
 module NameResolution =
+  let typeName =
+    FQTypeName.fqPackage PackageRefs.Type.LanguageTools.ProgramTypes.nameResolution
+
   let toDT
     (nameValueType : KnownType)
     (f : 'p -> Dval)
-    (result : PT.NameResolution<'p>)
+    (nr : PT.NameResolution<'p>)
     : Dval =
-    C2DT.Result.toDT
-      nameValueType
-      NameResolutionError.knownType
-      result
-      f
-      NameResolutionError.toDT
+    let originalName = DList(VT.string, List.map Dval.string nr.originalName)
+    let resolved =
+      C2DT.Result.toDT
+        nameValueType
+        NameResolutionError.knownType
+        nr.resolved
+        f
+        NameResolutionError.toDT
+    DRecord(
+      typeName,
+      typeName,
+      [],
+      Map [ "originalName", originalName; "resolved", resolved ]
+    )
 
   let fromDT (f : Dval -> 'a) (d : Dval) : PT.NameResolution<'a> =
-    C2DT.Result.fromDT f d NameResolutionError.fromDT
+    match d with
+    | DRecord(_, _, _, fields) ->
+      let originalName = fields |> D.field "originalName" |> D.list D.string
+      let resolved =
+        C2DT.Result.fromDT
+          f
+          (fields |> D.field "resolved")
+          NameResolutionError.fromDT
+      { originalName = originalName; resolved = resolved }
+    | _ -> Exception.raiseInternal "Invalid NameResolution" []
 
 
 module TypeReference =

@@ -238,7 +238,7 @@ module Expr =
     (caseName : string) // used for errors
     : Ply<PT.NameResolution<PT.FQTypeName.FQTypeName>> =
     match names with
-    | [] -> Ply(Error(NRE.InvalidName [ caseName ]))
+    | [] -> Ply({ originalName = [ caseName ]; resolved = Error NRE.InvalidName })
     | head :: tail ->
       let name = NEList.ofList head tail |> WT.Unresolved
       NR.resolveTypeName pm onMissing currentModule name
@@ -291,8 +291,8 @@ module Expr =
               NR.OnMissing.Allow
               currentModule
               (WT.Unresolved(NEList.singleton var))
-          match value with
-          | Ok _ as name -> return PT.EValue(id, name)
+          match value.resolved with
+          | Ok _ -> return PT.EValue(id, value)
           | Error _ ->
             // Try to resolve as a function reference
             let! fnResult =
@@ -302,8 +302,8 @@ module Expr =
                 NR.OnMissing.Allow
                 currentModule
                 (WT.Unresolved(NEList.singleton var))
-            match fnResult with
-            | Ok _ as name -> return PT.EFnName(id, name)
+            match fnResult.resolved with
+            | Ok _ -> return PT.EFnName(id, fnResult)
             | Error _ -> return PT.EVariable(id, var)
       | WT.ERecordFieldAccess(id, obj, fieldname) ->
         // When we have field access like `Module.fn`, try to resolve as qualified
@@ -336,8 +336,8 @@ module Expr =
                 NR.OnMissing.Allow
                 currentModule
                 (WT.Unresolved fullPath)
-            match valueResult with
-            | Ok _ as name -> return PT.EValue(id, name)
+            match valueResult.resolved with
+            | Ok _ -> return PT.EValue(id, valueResult)
             | Error _ ->
               // Try to resolve as a function reference
               let! fnResult =
@@ -347,8 +347,8 @@ module Expr =
                   NR.OnMissing.Allow
                   currentModule
                   (WT.Unresolved fullPath)
-              match fnResult with
-              | Ok _ as name -> return PT.EFnName(id, name)
+              match fnResult.resolved with
+              | Ok _ -> return PT.EFnName(id, fnResult)
               | Error _ ->
                 // Fall back to actual field access
                 let! obj = toPT context obj
@@ -365,17 +365,17 @@ module Expr =
             NR.OnMissing.Allow
             currentModule
             name
-        match fnName with
-        | Ok _ as name -> return PT.EFnName(id, name)
+        match fnName.resolved with
+        | Ok _ -> return PT.EFnName(id, fnName)
         | Error _ ->
-          let! name =
+          let! valueName =
             NR.resolveValueName
               (builtins.values |> Map.keys |> Set)
               pm
               onMissing
               currentModule
               name
-          return PT.EValue(id, name)
+          return PT.EValue(id, valueName)
       | WT.EApply(id, (WT.EFnName(_, name) as fnName), typeArgs, args) ->
         let! processedTypeArgs =
           Ply.List.mapSequentially
@@ -400,8 +400,8 @@ module Expr =
                   currentModule
                   name
               let expr =
-                match fnName with
-                | Ok resolvedName -> PT.EFnName(id, Ok resolvedName)
+                match fnName.resolved with
+                | Ok _ -> PT.EFnName(id, fnName)
                 | Error _ ->
                   match Map.tryFind varName context.argMap with
                   | Some index -> PT.EArg(id, index)
@@ -424,8 +424,8 @@ module Expr =
                 currentModule
                 name
             let expr =
-              match fnName with
-              | Ok resolvedName -> PT.EFnName(id, Ok resolvedName)
+              match fnName.resolved with
+              | Ok _ -> PT.EFnName(id, fnName)
               | Error _ ->
                 match Map.tryFind varName context.argMap with
                 | Some index -> PT.EArg(id, index)
@@ -620,8 +620,8 @@ module Expr =
                 currentModule
                 asUserFnName
             return
-              match resolved with
-              | Ok name -> PT.EPipeFnCall(id, Ok name, [], [])
+              match resolved.resolved with
+              | Ok _ -> PT.EPipeFnCall(id, resolved, [], [])
               | Error _ -> PT.EPipeVariable(id, name, [])
           | _ ->
             // Not a self-reference - try function resolution first, fall back to variable
@@ -634,8 +634,8 @@ module Expr =
                 currentModule
                 asUserFnName
             return
-              match resolved with
-              | Ok name -> PT.EPipeFnCall(id, Ok name, [], [])
+              match resolved.resolved with
+              | Ok _ -> PT.EPipeFnCall(id, resolved, [], [])
               | Error _ -> PT.EPipeVariable(id, name, [])
         | None when context.isInFunction ->
           // When inside a function with no self context, prioritize variables to allow shadowing
@@ -650,8 +650,8 @@ module Expr =
               currentModule
               asUserFnName
           return
-            match resolved with
-            | Ok name -> PT.EPipeFnCall(id, Ok name, [], [])
+            match resolved.resolved with
+            | Ok _ -> PT.EPipeFnCall(id, resolved, [], [])
             | Error _ -> PT.EPipeVariable(id, name, [])
 
       | WT.EPipeLambda(id, pats, body) ->
@@ -692,8 +692,8 @@ module Expr =
             currentModule
             name
         let! args = Ply.List.mapSequentially (toPT context) args
-        match fnName with
-        | Ok name -> return PT.EPipeFnCall(id, Ok name, [], args)
+        match fnName.resolved with
+        | Ok _ -> return PT.EPipeFnCall(id, fnName, [], args)
         | Error _ -> return PT.EPipeVariable(id, varName, args)
 
       | WT.EPipeFnCall(id, name, typeArgs, args) ->

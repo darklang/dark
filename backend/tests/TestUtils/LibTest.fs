@@ -49,7 +49,7 @@ let fns : List<BuiltInFn> =
       parameters = [ Param.make "errorMessage" TString "" ]
       returnType =
         TCustomType(
-          Ok(
+          NameResolution.ok (
             FQTypeName.Package
               PackageRefs.Type.PrettyPrinter.RuntimeTypes.RuntimeError.errorMessage
           ),
@@ -88,7 +88,7 @@ let fns : List<BuiltInFn> =
       parameters = [ Param.make "errorString" TString "" ]
       returnType =
         TCustomType(
-          Ok(
+          NameResolution.ok (
             FQTypeName.Package
               PackageRefs.Type.PrettyPrinter.RuntimeTypes.RuntimeError.errorMessage
           ),

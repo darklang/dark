@@ -32,6 +32,7 @@ module RT2DT = LibExecution.RuntimeTypesToDarkTypes
 module PackageRefs = LibExecution.PackageRefs
 module C2DT = LibExecution.CommonToDarkTypes
 module VT = LibExecution.ValueType
+module NR = LibExecution.RuntimeTypes.NameResolution
 module RTPM = LibPackageManager.RuntimeTypes
 module PMPT = LibPackageManager.ProgramTypes
 module Branches = LibPackageManager.Branches
@@ -47,7 +48,7 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
   [ { name = fn "pmGetStats" 0
       typeParams = []
       parameters = [ Param.make "unit" TUnit "" ]
-      returnType = TCustomType(Ok statsTypeName, [])
+      returnType = TCustomType(NR.ok statsTypeName, [])
       description = "Returns high-level stats of what's in the Package Manager"
       fn =
         function
@@ -79,7 +80,7 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
         [ Param.make "branchId" TUuid "Branch to search on"
           Param.make
             "location"
-            (TCustomType(Ok PT2DT.PackageLocation.typeName, []))
+            (TCustomType(NR.ok PT2DT.PackageLocation.typeName, []))
             "" ]
       returnType = TypeReference.option TUuid
       description =
@@ -105,7 +106,7 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
       typeParams = []
       parameters = [ Param.make "id" TUuid "" ]
       returnType =
-        TypeReference.option (TCustomType(Ok PT2DT.PackageType.typeName, []))
+        TypeReference.option (TCustomType(NR.ok PT2DT.PackageType.typeName, []))
       description = "Returns a package type, by id, if it exists"
       fn =
         let optType = KTCustomType(PT2DT.PackageType.typeName, [])
@@ -128,7 +129,7 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
         [ Param.make "branchId" TUuid "Branch to search on"
           Param.make
             "location"
-            (TCustomType(Ok PT2DT.PackageLocation.typeName, []))
+            (TCustomType(NR.ok PT2DT.PackageLocation.typeName, []))
             "" ]
       returnType = TypeReference.option TUuid
       description =
@@ -152,7 +153,7 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
       typeParams = []
       parameters = [ Param.make "id" TUuid "" ]
       returnType =
-        TypeReference.option (TCustomType(Ok PT2DT.PackageValue.typeName, []))
+        TypeReference.option (TCustomType(NR.ok PT2DT.PackageValue.typeName, []))
       description = "Returns a package value, by id, if it exists"
       fn =
         (function
@@ -176,7 +177,7 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
       parameters =
         [ Param.make
             "valueType"
-            (TCustomType(Ok RT2DT.ValueType.typeName, []))
+            (TCustomType(NR.ok RT2DT.ValueType.typeName, []))
             "The ValueType to search for" ]
       returnType = TList TUuid
       description =
@@ -236,7 +237,7 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
         [ Param.make "branchId" TUuid "Branch to search on"
           Param.make
             "location"
-            (TCustomType(Ok PT2DT.PackageLocation.typeName, []))
+            (TCustomType(NR.ok PT2DT.PackageLocation.typeName, []))
             "" ]
       returnType = TypeReference.option TUuid
       description =
@@ -260,7 +261,7 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
       typeParams = []
       parameters = [ Param.make "id" TUuid "" ]
       returnType =
-        TypeReference.option (TCustomType(Ok PT2DT.PackageFn.typeName, []))
+        TypeReference.option (TCustomType(NR.ok PT2DT.PackageFn.typeName, []))
       description = "Returns a package function, by id, if it exists"
       fn =
         (function
@@ -284,9 +285,9 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
         [ Param.make "branchId" TUuid "Branch to search on"
           Param.make
             "query"
-            (TCustomType(Ok PT2DT.Search.SearchQuery.typeName, []))
+            (TCustomType(NR.ok PT2DT.Search.SearchQuery.typeName, []))
             "" ]
-      returnType = TCustomType(Ok PT2DT.Search.SearchResults.typeName, [])
+      returnType = TCustomType(NR.ok PT2DT.Search.SearchResults.typeName, [])
       description = "Search for packages based on the given query."
       fn =
         function
@@ -308,7 +309,7 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
       typeParams = []
       parameters = [ Param.make "branchId" TUuid ""; Param.make "id" TUuid "" ]
       returnType =
-        TypeReference.option (TCustomType(Ok PT2DT.PackageLocation.typeName, []))
+        TypeReference.option (TCustomType(NR.ok PT2DT.PackageLocation.typeName, []))
       description = "Returns the location of a package type by its ID, if it exists"
       fn =
         (function
@@ -330,7 +331,7 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
       typeParams = []
       parameters = [ Param.make "branchId" TUuid ""; Param.make "id" TUuid "" ]
       returnType =
-        TypeReference.option (TCustomType(Ok PT2DT.PackageLocation.typeName, []))
+        TypeReference.option (TCustomType(NR.ok PT2DT.PackageLocation.typeName, []))
       description = "Returns the location of a package value by its ID, if it exists"
       fn =
         (function
@@ -352,7 +353,7 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
       typeParams = []
       parameters = [ Param.make "branchId" TUuid ""; Param.make "id" TUuid "" ]
       returnType =
-        TypeReference.option (TCustomType(Ok PT2DT.PackageLocation.typeName, []))
+        TypeReference.option (TCustomType(NR.ok PT2DT.PackageLocation.typeName, []))
       description =
         "Returns the location of a package function by its ID, if it exists"
       fn =
@@ -378,11 +379,11 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
         [ Param.make "branchId" TUuid ""
           Param.make
             "location"
-            (TCustomType(Ok PT2DT.PackageLocation.typeName, []))
+            (TCustomType(NR.ok PT2DT.PackageLocation.typeName, []))
             ""
           Param.make
             "itemKind"
-            (TCustomType(Ok PT2DT.ItemKind.typeName, []))
+            (TCustomType(NR.ok PT2DT.ItemKind.typeName, []))
             "fn, type, or value" ]
       returnType = TList TUuid
       description =
@@ -417,11 +418,11 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
         [ Param.make "branchId" TUuid ""
           Param.make
             "sourceLocation"
-            (TCustomType(Ok PT2DT.PackageLocation.typeName, []))
+            (TCustomType(NR.ok PT2DT.PackageLocation.typeName, []))
             "Location of the updated item"
           Param.make
             "sourceItemKind"
-            (TCustomType(Ok PT2DT.ItemKind.typeName, []))
+            (TCustomType(NR.ok PT2DT.ItemKind.typeName, []))
             "fn, type, or value"
           Param.make
             "fromSourceUUIDs"
@@ -432,7 +433,7 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
         TypeReference.result
           (TTuple(
             TUuid,
-            TList(TCustomType(Ok PT2DT.PropagateRepoint.typeName, [])),
+            TList(TCustomType(NR.ok PT2DT.PropagateRepoint.typeName, [])),
             []
           ))
           TString
@@ -504,15 +505,15 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
         [ Param.make "branchId" TUuid ""
           Param.make
             "revertableRepoints"
-            (TList(TCustomType(Ok PT2DT.PropagateRepoint.typeName, [])))
+            (TList(TCustomType(NR.ok PT2DT.PropagateRepoint.typeName, [])))
             "Repoints to revert directly"
           Param.make
             "sourceLocation"
-            (TCustomType(Ok PT2DT.PackageLocation.typeName, []))
+            (TCustomType(NR.ok PT2DT.PackageLocation.typeName, []))
             "Location of the item being undone"
           Param.make
             "sourceItemKind"
-            (TCustomType(Ok PT2DT.ItemKind.typeName, []))
+            (TCustomType(NR.ok PT2DT.ItemKind.typeName, []))
             "fn, type, or value"
           Param.make "propagationIds" (TList TUuid) "Propagation IDs being reverted"
           Param.make

@@ -16,7 +16,9 @@ let fns : List<BuiltInFn> =
       returnType =
         TDict(
           TCustomType(
-            Ok(FQTypeName.Package PackageRefs.Type.Internal.Infra.tableSize),
+            { originalName = []
+              resolved =
+                Ok(FQTypeName.Package PackageRefs.Type.Internal.Infra.tableSize) },
             []
           )
         )

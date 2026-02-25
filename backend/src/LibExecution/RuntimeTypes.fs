@@ -97,10 +97,15 @@ module FQFnName =
 
 /// TODO include "ParseTime" in name (requires a lot of boring work in many files)
 type NameResolutionError =
-  | NotFound of List<string>
-  | InvalidName of List<string>
+  | NotFound
+  | InvalidName
 
-type NameResolution<'a> = Result<'a, NameResolutionError>
+type NameResolution<'a> =
+  { originalName : List<string>; resolved : Result<'a, NameResolutionError> }
+
+module NameResolution =
+  let ok (value : 'a) : NameResolution<'a> =
+    { originalName = []; resolved = Ok value }
 
 
 /// A KnownType represents the type of a dval.
@@ -433,7 +438,7 @@ type Instruction =
     args : NEList<Register>
 
   // == Errors ==
-  | RaiseNRE of NameResolutionError
+  | RaiseNRE of List<string> * NameResolutionError
 
   | VarNotFound of targetRegIfSecretOrDB : Register * name : string
 
@@ -861,7 +866,7 @@ module RuntimeError =
 
     | Match of Matches.Error
 
-    | ParseTimeNameResolution of NameResolutionError
+    | ParseTimeNameResolution of originalName : List<string> * NameResolutionError
 
     | TypeNotFound of name : FQTypeName.FQTypeName
     | FnNotFound of name : FQFnName.FQFnName
@@ -1473,14 +1478,22 @@ module Types =
 
 module TypeReference =
   let result (t1 : TypeReference) (t2 : TypeReference) : TypeReference =
-    TCustomType(Ok(FQTypeName.fqPackage PackageRefs.Type.Stdlib.result), [ t1; t2 ])
+    TCustomType(
+      { originalName = []
+        resolved = Ok(FQTypeName.fqPackage PackageRefs.Type.Stdlib.result) },
+      [ t1; t2 ]
+    )
 
   let option (t : TypeReference) : TypeReference =
-    TCustomType(Ok(FQTypeName.fqPackage PackageRefs.Type.Stdlib.option), [ t ])
+    TCustomType(
+      { originalName = []
+        resolved = Ok(FQTypeName.fqPackage PackageRefs.Type.Stdlib.option) },
+      [ t ]
+    )
 
   let rec unwrapAlias (types : Types) (typ : TypeReference) : Ply<TypeReference> =
     match typ with
-    | TCustomType(Ok outerTypeName, outerTypeArgs) ->
+    | TCustomType({ resolved = Ok outerTypeName }, outerTypeArgs) ->
       uply {
         match! Types.find types outerTypeName with
         | Some { definition = TypeDeclaration.Alias typ; typeParams = typeParams } ->
@@ -1530,12 +1543,12 @@ module TypeReference =
         let! inner = r inner
         return ValueType.Known(KTDict inner)
 
-      | TCustomType(Ok typeName, typeArgs) ->
+      | TCustomType({ resolved = Ok typeName }, typeArgs) ->
         let! typeArgs = typeArgs |> Ply.List.mapSequentially r
         return KTCustomType(typeName, typeArgs) |> ValueType.Known
 
-      | TCustomType(Error nre, _) ->
-        return raiseUntargetedRTE (RuntimeError.ParseTimeNameResolution nre)
+      | TCustomType({ originalName = names; resolved = Error nre }, _) ->
+        return raiseUntargetedRTE (RuntimeError.ParseTimeNameResolution(names, nre))
 
       | TVariable name ->
         return tst |> Map.get name |> Option.defaultValue ValueType.Unknown
@@ -1581,7 +1594,7 @@ module TypeReference =
     | KTTuple(first, second, rest) ->
       TTuple(fromVT first, fromVT second, List.map fromVT rest)
     | KTCustomType(typeName, typeArgs) ->
-      TCustomType(Ok typeName, List.map fromVT typeArgs)
+      TCustomType(NameResolution.ok typeName, List.map fromVT typeArgs)
     | KTFn(args, ret) -> TFn(NEList.map fromVT args, fromVT ret)
     | KTDB inner -> TDB(fromVT inner)
 

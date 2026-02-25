@@ -83,15 +83,14 @@ let createValueInline
           Stdlib.printLine ""
 
           unresolvedNames
-          |> Stdlib.List.iter (fun (range, err) ->
+          |> Stdlib.List.iter (fun (range, originalName, err) ->
             let lineNum = (range.start.row + 1L) |> Stdlib.Int64.toString
             let colNum = range.start.column |> Stdlib.Int64.toString
+            let nameStr = Stdlib.String.join originalName "."
             match err with
-            | NotFound names ->
-              let nameStr = Stdlib.String.join names "."
+            | NotFound ->
               Stdlib.printLine $"  - Not found: {nameStr} (line {lineNum}, column {colNum})"
-            | InvalidName names ->
-              let nameStr = Stdlib.String.join names "."
+            | InvalidName ->
               Stdlib.printLine $"  - Invalid name: {nameStr} (line {lineNum}, column {colNum})")
 
           Stdlib.printLine ""

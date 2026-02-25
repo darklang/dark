@@ -8,6 +8,7 @@ open Prelude
 open LibExecution.RuntimeTypes
 module Builtin = LibExecution.Builtin
 module PackageRefs = LibExecution.PackageRefs
+module NR = LibExecution.RuntimeTypes.NameResolution
 
 open Builtin.Shortcuts
 
@@ -17,7 +18,7 @@ let fns : List<BuiltInFn> =
       parameters = [ Param.make "unit" TUnit "" ]
       returnType =
         let typeName = FQTypeName.fqPackage PackageRefs.Type.Stdlib.Cli.Stdin.keyRead
-        TCustomType(Ok typeName, [])
+        TCustomType(NR.ok typeName, [])
       description = "Reads a single line from the standard input."
       fn =
         (function

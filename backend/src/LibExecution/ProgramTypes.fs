@@ -157,10 +157,15 @@ module FQFnName =
 // information.
 
 type NameResolutionError =
-  | NotFound of List<string>
-  | InvalidName of List<string>
+  | NotFound
+  | InvalidName
 
-type NameResolution<'a> = Result<'a, NameResolutionError>
+type NameResolution<'a> =
+  { originalName : List<string>; resolved : Result<'a, NameResolutionError> }
+
+module NameResolution =
+  let ok (value : 'a) : NameResolution<'a> =
+    { originalName = []; resolved = Ok value }
 
 
 type LetPattern =

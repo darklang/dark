@@ -7,6 +7,7 @@ open LibExecution.Builtin.Shortcuts
 module Dval = LibExecution.Dval
 module PackageRefs = LibExecution.PackageRefs
 module RT2DT = LibExecution.RuntimeTypesToDarkTypes
+module NR = LibExecution.RuntimeTypes.NameResolution
 
 
 /// Converters from F# builtin types to Dark types
@@ -56,7 +57,7 @@ let fns : List<BuiltInFn> =
   [ { name = fn "getBuiltins" 0
       typeParams = []
       parameters = [ Param.make "unit" TUnit "" ]
-      returnType = TList(TCustomType(Ok(ToDarkTypes.FunctionInfo.typeName), []))
+      returnType = TList(TCustomType(NR.ok ToDarkTypes.FunctionInfo.typeName, []))
       description = "Returns a list of all builtin functions with their metadata"
       fn =
         (function

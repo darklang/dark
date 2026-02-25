@@ -11,6 +11,7 @@ module PT2DT = LibExecution.ProgramTypesToDarkTypes
 module Builtin = LibExecution.Builtin
 module Dval = LibExecution.Dval
 module VT = LibExecution.ValueType
+module NR = LibExecution.RuntimeTypes.NameResolution
 
 open Builtin.Shortcuts
 
@@ -20,7 +21,7 @@ let fns : List<BuiltInFn> =
       typeParams = []
       parameters = [ Param.make "branchId" TUuid "Branch to merge into parent" ]
       returnType =
-        TypeReference.result TUnit (TCustomType(Ok PT2DT.MergeError.typeName, []))
+        TypeReference.result TUnit (TCustomType(NR.ok PT2DT.MergeError.typeName, []))
       description = "Merge branch into its parent. Must be rebased with no WIP."
       fn =
         let resultOk = Dval.resultOk KTUnit PT2DT.MergeError.knownType
@@ -43,7 +44,7 @@ let fns : List<BuiltInFn> =
       typeParams = []
       parameters = [ Param.make "branchId" TUuid "Branch to check" ]
       returnType =
-        TypeReference.result TUnit (TCustomType(Ok PT2DT.MergeError.typeName, []))
+        TypeReference.result TUnit (TCustomType(NR.ok PT2DT.MergeError.typeName, []))
       description = "Check if a branch can be merged."
       fn =
         let resultOk = Dval.resultOk KTUnit PT2DT.MergeError.knownType

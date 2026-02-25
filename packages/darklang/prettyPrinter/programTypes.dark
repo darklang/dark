@@ -23,15 +23,16 @@ let formatDocComment (description: String) : String =
 
 
 module NameResolutionError =
-  let source (nre: LanguageTools.ProgramTypes.NameResolutionError) : String =
-    match nre with
-    | NotFound names
-    | InvalidName names -> Stdlib.String.join names "."
+  let source (originalName: List<String>) : String =
+    Stdlib.String.join originalName "."
 
-  let error (nre: LanguageTools.ProgramTypes.NameResolutionError) : String =
+  let error
+    (originalName: List<String>)
+    (nre: LanguageTools.ProgramTypes.NameResolutionError)
+    : String =
     match nre with
-    | NotFound names -> Stdlib.String.join names "." ++ " not found"
-    | InvalidName names -> Stdlib.String.join names "." ++ " is not a valid name"
+    | NotFound -> Stdlib.String.join originalName "." ++ " not found"
+    | InvalidName -> Stdlib.String.join originalName "." ++ " is not a valid name"
 
 
 // Context for relative name resolution - when we know what module we're currently in,
@@ -297,10 +298,10 @@ let typeReference
         |> fun parts -> $"<{parts}>"
 
     let typeNamePart =
-      match typ with
+      match typ.resolved with
       | Ok name ->
         FQTypeName.fullForReference ctx name
-      | Error e -> NameResolutionError.source e
+      | Error _ -> NameResolutionError.source typ.originalName
 
     $"{typeNamePart}{argsPart}"
 
@@ -446,10 +447,10 @@ let pipeExpr (ctx: Context) (p: LanguageTools.ProgramTypes.PipeExpr) : String =
 
   | EPipeFnCall(_id, fnName, typeArgs, args) ->
     let fnNamePart =
-      match fnName with
+      match fnName.resolved with
       | Ok name ->
         FQFnName.fullForReference ctx name
-      | Error e -> NameResolutionError.source e
+      | Error _ -> NameResolutionError.source fnName.originalName
 
     let typeArgsPart =
       match typeArgs with
@@ -478,10 +479,10 @@ let pipeExpr (ctx: Context) (p: LanguageTools.ProgramTypes.PipeExpr) : String =
   // fields: List<LanguageTools.ProgramTypes.Expr>
   | EPipeEnum(_id, typeName, caseName, fields) ->
     let typeNamePart =
-      match typeName with
+      match typeName.resolved with
       | Ok name ->
         FQTypeName.fullForReference ctx name
-      | Error e -> NameResolutionError.source e
+      | Error _ -> NameResolutionError.source typeName.originalName
 
     match fields with
     | [] -> $"{typeNamePart}.{caseName}"
@@ -557,10 +558,10 @@ let expr (ctx: Context) (e: LanguageTools.ProgramTypes.Expr) : String =
 
   | ERecord(_id, typeName, typeArgs, fields) ->
     let typeNamePart =
-      match typeName with
+      match typeName.resolved with
       | Ok name ->
         FQTypeName.fullForReference ctx name
-      | Error e -> NameResolutionError.source e
+      | Error _ -> NameResolutionError.source typeName.originalName
 
     let typeArgsPart =
       match typeArgs with
@@ -584,10 +585,10 @@ let expr (ctx: Context) (e: LanguageTools.ProgramTypes.Expr) : String =
 
   | EEnum(_id, typeName, typeArgs, caseName, fields) ->
     let typeNamePart =
-      match typeName with
+      match typeName.resolved with
       | Ok name ->
         FQTypeName.fullForReference ctx name
-      | Error e -> NameResolutionError.source e
+      | Error _ -> NameResolutionError.source typeName.originalName
 
     let typeArgsPart =
       match typeArgs with
@@ -740,10 +741,10 @@ let expr (ctx: Context) (e: LanguageTools.ProgramTypes.Expr) : String =
       $"{fnNamePart}<{typeArgsPart}> {argsPart}"
 
   | EFnName(_id, fnName) ->
-    match fnName with
+    match fnName.resolved with
     | Ok name ->
       FQFnName.fullForReference ctx name
-    | Error e -> NameResolutionError.source e
+    | Error _ -> NameResolutionError.source fnName.originalName
 
   // LanguageTools.ID *
   // record: LanguageTools.ProgramTypes.Expr *
@@ -763,10 +764,10 @@ let expr (ctx: Context) (e: LanguageTools.ProgramTypes.Expr) : String =
     $"{{ {recordPart} with {updatePart} }}"
 
   | EValue(_id, value) ->
-    match value with
+    match value.resolved with
     | Ok name ->
       FQValueName.fullForReference ctx name
-    | Error e -> NameResolutionError.source e
+    | Error _ -> NameResolutionError.source value.originalName
 
   | EStatement (_id, first, next) ->
     let firstPart = expr ctx first

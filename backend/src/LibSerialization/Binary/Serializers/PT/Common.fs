@@ -25,17 +25,13 @@ module Sign =
 module NameResolutionError =
   let write (w : BinaryWriter) (error : NameResolutionError) =
     match error with
-    | NotFound items ->
-      w.Write(0uy)
-      List.write w String.write items
-    | InvalidName items ->
-      w.Write(1uy)
-      List.write w String.write items
+    | NotFound -> w.Write(0uy)
+    | InvalidName -> w.Write(1uy)
 
   let read (r : BinaryReader) : NameResolutionError =
     match r.ReadByte() with
-    | 0uy -> NotFound(List.read r String.read)
-    | 1uy -> InvalidName(List.read r String.read)
+    | 0uy -> NotFound
+    | 1uy -> InvalidName
     | b -> raiseFormatError $"Invalid NameResolutionError tag: {b}"
 
 
@@ -43,9 +39,10 @@ module NameResolution =
   let write
     (writeValue : BinaryWriter -> 'a -> unit)
     (w : BinaryWriter)
-    (result : NameResolution<'a>)
+    (nr : NameResolution<'a>)
     =
-    match result with
+    List.write w String.write nr.originalName
+    match nr.resolved with
     | Ok value ->
       w.Write(0uy)
       writeValue w value
@@ -54,10 +51,13 @@ module NameResolution =
       NameResolutionError.write w error
 
   let read (readValue : BinaryReader -> 'a) (r : BinaryReader) : NameResolution<'a> =
-    match r.ReadByte() with
-    | 0uy -> Ok(readValue r)
-    | 1uy -> Error(NameResolutionError.read r)
-    | b -> raiseFormatError $"Invalid NameResolution tag: {b}"
+    let originalName = List.read r String.read
+    let resolved =
+      match r.ReadByte() with
+      | 0uy -> Ok(readValue r)
+      | 1uy -> Error(NameResolutionError.read r)
+      | b -> raiseFormatError $"Invalid NameResolution tag: {b}"
+    { originalName = originalName; resolved = resolved }
 
 
 module FQTypeName =

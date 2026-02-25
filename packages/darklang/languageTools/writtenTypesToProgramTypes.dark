@@ -26,7 +26,7 @@ module Identifiers =
       (i: WrittenTypes.QualifiedTypeIdentifier)
       : (ProgramTypes.NameResolution<ProgramTypes.FQTypeName.FQTypeName> *
         List<ProgramTypes.TypeReference> *
-        List<Parser.Range * ProgramTypes.NameResolutionError>)
+        List<Parser.Range * List<String> * ProgramTypes.NameResolutionError>)
       =
       let (typeArgs, typeArgsUnresolvedNames) =
         i.typeArgs
@@ -44,12 +44,12 @@ module Identifiers =
           ctx
           (WrittenTypes.Name.Unresolved(i.range, nameToResolve))
 
-      match typeName with
+      match typeName.resolved with
       | Error e ->
         let unresolvedNames =
           Stdlib.List.flatten
             [ typeArgsUnresolvedNames |> Stdlib.List.flatten
-              [ (i.range, e) ] ]
+              [ (i.range, typeName.originalName, e) ] ]
 
         (typeName, typeArgs, unresolvedNames)
 
@@ -69,12 +69,12 @@ module Identifiers =
         ProgramTypes.NameResolution<ProgramTypes.FQValueName.FQValueName>
       | Fn of ProgramTypes.NameResolution<ProgramTypes.FQFnName.FQFnName>
 
-    // CLEANUP: why do we return a Result here? NameResolution already is a Result type
+    // CLEANUP: why do we return a Result here? NameResolution already wraps a Result
     let toPT
       (ctx: NameResolver.NRContext)
       (v: WrittenTypes.QualifiedValueOrFnIdentifier)
       : (Stdlib.Result.Result<ValueOrFn, ProgramTypes.NameResolution<ProgramTypes.FQValueName.FQValueName>> *
-        List<Parser.Range * ProgramTypes.NameResolutionError>)
+        List<Parser.Range * List<String> * ProgramTypes.NameResolutionError>)
       =
       let nameToResolve =
         Stdlib.List.append
@@ -91,18 +91,18 @@ module Identifiers =
           ctx
           (WrittenTypes.Name.Unresolved(v.range, nameToResolve))
 
-      match isFn with
+      match isFn.resolved with
       | Ok _ ->
         let isFn = isFn |> ValueOrFn.Fn |> Stdlib.Result.Result.Ok
         (isFn, [])
       | Error _ ->
-        match isValue with
+        match isValue.resolved with
         | Ok _ ->
           let isValue =
             isValue |> ValueOrFn.Value |> Stdlib.Result.Result.Ok
 
           (isValue, [])
-        | Error e -> (Stdlib.Result.Result.Error isValue, [ (v.range, e) ])
+        | Error e -> (Stdlib.Result.Result.Error isValue, [ (v.range, isValue.originalName, e) ])
 
   module Fn =
     let toPT (fn: WrittenTypes.FnIdentifier) : String = fn.name
@@ -112,7 +112,7 @@ module Identifiers =
       (ctx: NameResolver.NRContext)
       (i: WrittenTypes.QualifiedFnIdentifier)
       : (ProgramTypes.NameResolution<ProgramTypes.FQFnName.FQFnName> *
-        List<Parser.Range * ProgramTypes.NameResolutionError>)
+        List<Parser.Range * List<String> * ProgramTypes.NameResolutionError>)
       =
       let nameToResolve =
         Stdlib.List.append
@@ -124,8 +124,8 @@ module Identifiers =
           ctx
           (WrittenTypes.Name.Unresolved(i.range, nameToResolve))
 
-      match fnName with
-      | Error e -> (fnName, [ (i.range, e) ])
+      match fnName.resolved with
+      | Error e -> (fnName, [ (i.range, fnName.originalName, e) ])
       | _ -> (fnName, [])
 
 
@@ -135,7 +135,7 @@ module TypeReference =
       (ctx: NameResolver.NRContext)
       (t: WrittenTypes.TypeReference.Builtin)
       : (ProgramTypes.TypeReference *
-        List<Parser.Range * ProgramTypes.NameResolutionError>)
+        List<Parser.Range * List<String> * ProgramTypes.NameResolutionError>)
       =
       match t with
       | TUnit _range -> (ProgramTypes.TypeReference.TUnit, [])
@@ -213,7 +213,7 @@ module TypeReference =
     (ctx: NameResolver.NRContext)
     (t: WrittenTypes.TypeReference.TypeReference)
     : (ProgramTypes.TypeReference *
-      List<Parser.Range * ProgramTypes.NameResolutionError>)
+      List<Parser.Range * List<String> * ProgramTypes.NameResolutionError>)
     =
     match t with
     | Builtin b -> Builtin.toPT ctx b
@@ -369,7 +369,7 @@ module Expr =
       (context: Context)
       (pipeExpr: WrittenTypes.PipeExpr)
       : (ProgramTypes.PipeExpr *
-        List<Parser.Range * ProgramTypes.NameResolutionError>)
+        List<Parser.Range * List<String> * ProgramTypes.NameResolutionError>)
       =
       match pipeExpr with
       | EPipeInfix(_, (_, infix), right) ->
@@ -443,13 +443,13 @@ module Expr =
               let (fnName, _fnUnresolvedNames) =
                 Identifiers.QualifiedFn.toPT ctx fn
 
-              match fnName with
+              match fnName.resolved with
               | Ok _ ->
                 (ProgramTypes.PipeExpr.EPipeFnCall(gid (), fnName, typeArgs, args),
                   unresolvedNames)
               | Error e ->
                 let unresolvedNames =
-                  Stdlib.List.append unresolvedNames [ (fn.range, e) ]
+                  Stdlib.List.append unresolvedNames [ (fn.range, fnName.originalName, e) ]
 
                 (ProgramTypes.PipeExpr.EPipeFnCall(gid (), fnName, typeArgs, args),
                   unresolvedNames)
@@ -466,13 +466,13 @@ module Expr =
           let (fnName, _fnUnresolvedNames) =
             Identifiers.QualifiedFn.toPT ctx fn
 
-          match fnName with
+          match fnName.resolved with
           | Ok _ ->
             (ProgramTypes.PipeExpr.EPipeFnCall(gid (), fnName, typeArgs, args),
               unresolvedNames)
           | Error e ->
             let unresolvedNames =
-              Stdlib.List.append unresolvedNames [ (fn.range, e) ]
+              Stdlib.List.append unresolvedNames [ (fn.range, fnName.originalName, e) ]
 
             (ProgramTypes.PipeExpr.EPipeFnCall(gid (), fnName, typeArgs, args),
               unresolvedNames)
@@ -482,7 +482,7 @@ module Expr =
     (context: Context)
     (e: WrittenTypes.Expr)
     : (ProgramTypes.Expr *
-      List<Parser.Range * ProgramTypes.NameResolutionError>)
+      List<Parser.Range * List<String> * ProgramTypes.NameResolutionError>)
     =
     match e with
     // simple
@@ -650,7 +650,7 @@ module Expr =
         let unresolved = WrittenTypes.Name.Unresolved(range, [ var ])
         let value =
           NameResolver.ValueName.resolve ctx unresolved
-        match value with
+        match value.resolved with
         | Ok _ -> (ProgramTypes.Expr.EValue(gid (), value), [])
         | Error _ -> (ProgramTypes.Expr.EVariable (gid ()) var, [])
 
@@ -789,7 +789,7 @@ module Expr =
       let (resolvedFnName, unresolvedNames) =
         Identifiers.QualifiedFn.toPT ctx fnName
 
-      match resolvedFnName with
+      match resolvedFnName.resolved with
       | Error _ when Stdlib.List.isEmpty fnName.modules ->
         // If function resolution failed and it's an unqualified name, treat as variable
         (ProgramTypes.Expr.EVariable(gid (), fnName.fn.name), [])
@@ -1094,7 +1094,7 @@ module ModuleDeclaration =
     (ctx: NameResolver.NRContext)
     (submodule: WrittenTypes.ModuleDeclaration.ModuleDeclaration)
     : (ProgramTypes.Definitions *
-      List<Parser.Range * ProgramTypes.NameResolutionError>)
+      List<Parser.Range * List<String> * ProgramTypes.NameResolutionError>)
     =
     let (_, m) = submodule.name
     let ctx = { ctx with currentModule = Stdlib.List.append ctx.currentModule [ m ] }
@@ -1182,7 +1182,7 @@ module ModuleDeclaration =
     (ctx: NameResolver.NRContext)
     (d: WrittenTypes.ModuleDeclaration.ModuleDeclaration)
     : (ProgramTypes.Definitions *
-      List<Parser.Range * ProgramTypes.NameResolutionError>)
+      List<Parser.Range * List<String> * ProgramTypes.NameResolutionError>)
     =
     let (_, owner) = d.name
     let ctx = { ctx with owner = owner }
@@ -1280,7 +1280,7 @@ module TypeDeclaration =
       (ctx: NameResolver.NRContext)
       (f: WrittenTypes.TypeDeclaration.RecordField)
       : (ProgramTypes.TypeDeclaration.RecordField *
-        List<Parser.Range * ProgramTypes.NameResolutionError>)
+        List<Parser.Range * List<String> * ProgramTypes.NameResolutionError>)
       =
       let (_, name) = f.name
 
@@ -1299,7 +1299,7 @@ module TypeDeclaration =
       (ctx: NameResolver.NRContext)
       (f: WrittenTypes.TypeDeclaration.EnumField)
       : (ProgramTypes.TypeDeclaration.EnumField *
-        List<Parser.Range * ProgramTypes.NameResolutionError>)
+        List<Parser.Range * List<String> * ProgramTypes.NameResolutionError>)
       =
       let label = f.label |> Stdlib.Option.map Stdlib.Tuple2.second
 
@@ -1317,7 +1317,7 @@ module TypeDeclaration =
       (ctx: NameResolver.NRContext)
       (c: WrittenTypes.TypeDeclaration.EnumCase)
       : (ProgramTypes.TypeDeclaration.EnumCase *
-        List<Parser.Range * ProgramTypes.NameResolutionError>)
+        List<Parser.Range * List<String> * ProgramTypes.NameResolutionError>)
       =
       let (_, name) = c.name
 
@@ -1337,7 +1337,7 @@ module TypeDeclaration =
       (ctx: NameResolver.NRContext)
       (d: WrittenTypes.TypeDeclaration.Definition)
       : (ProgramTypes.TypeDeclaration.Definition *
-        List<Parser.Range * ProgramTypes.NameResolutionError>)
+        List<Parser.Range * List<String> * ProgramTypes.NameResolutionError>)
       =
       match d with
       | Alias typ ->
@@ -1369,7 +1369,7 @@ module TypeDeclaration =
     (ctx: NameResolver.NRContext)
     (d: WrittenTypes.TypeDeclaration.TypeDeclaration)
     : (ProgramTypes.TypeDeclaration.TypeDeclaration *
-      List<Parser.Range * ProgramTypes.NameResolutionError>)
+      List<Parser.Range * List<String> * ProgramTypes.NameResolutionError>)
     =
     let (def, unresolvedNames) =
       Definition.toPT ctx d.definition
@@ -1385,7 +1385,7 @@ module TypeDeclaration =
     (ctx: NameResolver.NRContext)
     (d: WrittenTypes.TypeDeclaration.TypeDeclaration)
     : (ProgramTypes.PackageType.PackageType *
-      List<Parser.Range * ProgramTypes.NameResolutionError>)
+      List<Parser.Range * List<String> * ProgramTypes.NameResolutionError>)
     =
     let (declaration, unresolvedNames) = toPT ctx d
 
@@ -1403,7 +1403,7 @@ module ValueDeclaration =
     (ctx: NameResolver.NRContext)
     (d: WrittenTypes.ValueDeclaration.ValueDeclaration)
     : (ProgramTypes.PackageValue.PackageValue *
-      List<Parser.Range * ProgramTypes.NameResolutionError>)
+      List<Parser.Range * List<String> * ProgramTypes.NameResolutionError>)
     =
     let (body, unresolvedNames) = Expr.toPT ctx defaultContext d.body
 
@@ -1421,7 +1421,7 @@ module FunctionDeclaration =
       (ctx: NameResolver.NRContext)
       (p: WrittenTypes.FnDeclaration.Parameter)
       : (ProgramTypes.PackageFn.Parameter *
-        List<Parser.Range * ProgramTypes.NameResolutionError>)
+        List<Parser.Range * List<String> * ProgramTypes.NameResolutionError>)
       =
       match p with
       | Unit p ->
@@ -1445,7 +1445,7 @@ module FunctionDeclaration =
     (ctx: NameResolver.NRContext)
     (fn: WrittenTypes.FnDeclaration.FnDeclaration)
     : (ProgramTypes.PackageFn.PackageFn *
-      List<Parser.Range * ProgramTypes.NameResolutionError>)
+      List<Parser.Range * List<String> * ProgramTypes.NameResolutionError>)
     =
     let typeParams =
       fn.typeParams |> Stdlib.List.map (fun p -> p |> Stdlib.Tuple2.second)
@@ -1492,7 +1492,7 @@ let moduleDeclarationWithOpsHelper
   (m: WrittenTypes.ModuleDeclaration.ModuleDeclaration)
   : (ProgramTypes.Definitions *
     List<ProgramTypes.PackageOp> *
-    List<Parser.Range * ProgramTypes.NameResolutionError>)
+    List<Parser.Range * List<String> * ProgramTypes.NameResolutionError>)
   =
   // Process types
   let typeResults =
@@ -1655,7 +1655,7 @@ let declarationsToPT
   (d: WrittenTypes.SourceFile.SourceFileDeclaration)
   : (ProgramTypes.SourceFile.Declaration *
     List<ProgramTypes.PackageOp> *
-    List<Parser.Range * ProgramTypes.NameResolutionError>)
+    List<Parser.Range * List<String> * ProgramTypes.NameResolutionError>)
   =
   match d with
   | Type t ->
@@ -1723,7 +1723,7 @@ let parsedFileAsSourceFile
   : (
     ProgramTypes.SourceFile.SourceFile *
     List<ProgramTypes.PackageOp> *
-    List<Parser.Range * ProgramTypes.NameResolutionError>
+    List<Parser.Range * List<String> * ProgramTypes.NameResolutionError>
   )
   =
   let pm = LanguageTools.PackageManager.pm ()

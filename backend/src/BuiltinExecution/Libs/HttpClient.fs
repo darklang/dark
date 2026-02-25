@@ -11,6 +11,7 @@ open LibExecution
 open LibExecution.RuntimeTypes
 module VT = ValueType
 module RTE = RuntimeError
+module NR = LibExecution.RuntimeTypes.NameResolution
 
 type Method = HttpMethod
 
@@ -392,8 +393,8 @@ let fns (config : Configuration) : List<BuiltInFn> =
           Param.make "body" (TList TUInt8) "" ]
       returnType =
         TypeReference.result
-          (TCustomType(Ok responseOKType, []))
-          (TCustomType(Ok responseErrorType, []))
+          (TCustomType(NR.ok responseOKType, []))
+          (TCustomType(NR.ok responseErrorType, []))
       description =
         "Make blocking HTTP call to <param uri>. Returns a <type Result> where
       the response is wrapped in {{ Ok }} if a response was successfully

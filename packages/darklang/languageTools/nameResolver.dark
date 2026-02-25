@@ -27,11 +27,13 @@ let throwIfRelevant
   (onMissing: OnMissing)
   (result: ProgramTypes.NameResolution<'a>)
   : ProgramTypes.NameResolution<'a> =
-  result
-  |> Stdlib.Result.mapError (fun err ->
-    match onMissing with
-    | ThrowError -> err // TODO: something
-    | Allow -> err)
+  { result with
+      resolved =
+        result.resolved
+        |> Stdlib.Result.mapError (fun err ->
+          match onMissing with
+          | ThrowError -> err // TODO: something
+          | Allow -> err) }
 
 
 type GenericName =
@@ -96,15 +98,17 @@ let resolveGenericName
     // TODO: handle versions... (parse out the _v[n] part if present)
     match name with
     | None ->
-      Stdlib.Result.Result.Error (ProgramTypes.NameResolutionError.InvalidName given)
+      ProgramTypes.NameResolution
+        { originalName = given
+          resolved = Stdlib.Result.Result.Error ProgramTypes.NameResolutionError.InvalidName }
     | Some name ->
       let genericName =
         GenericName { modules = modules; name = name; version = 0 }
 
-      let result =
+      let resolved =
         Stdlib.List.fold
           (namesToTry ctx.owner ctx.currentModule genericName)
-          (Stdlib.Result.Result.Error (ProgramTypes.NameResolutionError.NotFound given))
+          (Stdlib.Result.Result.Error ProgramTypes.NameResolutionError.NotFound)
           (fun currentResult nameToTry ->
             match currentResult with
             | Ok _ -> currentResult
@@ -113,7 +117,11 @@ let resolveGenericName
               | Error() -> currentResult
               | Ok success -> Stdlib.Result.Result.Ok success)
 
-      throwIfRelevant ctx.onMissing result
+      let nr =
+        ProgramTypes.NameResolution
+          { originalName = given; resolved = resolved }
+
+      throwIfRelevant ctx.onMissing nr
 
 
 module TypeName =

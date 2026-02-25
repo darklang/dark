@@ -8,6 +8,7 @@ module VT = LibExecution.ValueType
 module Dval = LibExecution.Dval
 module PackageRefs = LibExecution.PackageRefs
 module RTE = RuntimeError
+module NR = LibExecution.RuntimeTypes.NameResolution
 
 
 module ParseError =
@@ -342,7 +343,7 @@ let fns : List<BuiltInFn> =
       parameters = [ Param.make "s" TString "" ]
       returnType =
         let errorType = FQTypeName.fqPackage PackageRefs.Type.Stdlib.int64ParseError
-        TypeReference.result TInt64 (TCustomType(Ok errorType, []))
+        TypeReference.result TInt64 (TCustomType(NR.ok errorType, []))
       description = "Returns the <type Int64> value of a <type String>"
       fn =
         let typeName = FQTypeName.fqPackage PackageRefs.Type.Stdlib.int64ParseError

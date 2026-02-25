@@ -21,7 +21,7 @@ let private extractFromNameResolution
   (nr : PT.NameResolution<'a>)
   (extractPackageId : 'a -> Option<uuid>)
   : List<Dependency> =
-  match nr with
+  match nr.resolved with
   | Ok resolved ->
     match extractPackageId resolved with
     | Some id -> [ id ]

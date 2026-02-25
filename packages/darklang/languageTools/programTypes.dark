@@ -24,10 +24,12 @@ module FQFnName =
 
 
 type NameResolutionError =
-  | NotFound of List<String>
-  | InvalidName of List<String>
+  | NotFound
+  | InvalidName
 
-type NameResolution<'a> = Stdlib.Result.Result<'a, NameResolutionError>
+type NameResolution<'a> =
+  { originalName: List<String>
+    resolved: Stdlib.Result.Result<'a, NameResolutionError> }
 
 
 /// Darklang's available types (int, List<T>, user-defined types, etc.)

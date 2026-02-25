@@ -14,6 +14,7 @@ module PT = LibExecution.ProgramTypes
 
 module Exe = LibExecution.Execution
 module DvalReprInternalQueryable = LibExecution.DvalReprInternalQueryable
+module NR = LibExecution.RuntimeTypes.NameResolution
 
 let toRepr (dval : RT.Dval) : string =
   let builtins = localBuiltIns pmPT
@@ -53,7 +54,7 @@ let queryableRoundtripsSuccessfullyInRecord
     let typeID = System.Guid.Parse "82ac8d1c-86ef-45d4-be66-052050739a38"
     let typeName = RT.FQTypeName.Package typeID
     let record = RT.DRecord(typeName, typeName, [], Map.ofList [ "field", dv ])
-    let typeRef = RT.TCustomType(Ok typeName, [])
+    let typeRef = RT.TCustomType(NR.ok typeName, [])
 
     let types : RT.Types =
       { package =

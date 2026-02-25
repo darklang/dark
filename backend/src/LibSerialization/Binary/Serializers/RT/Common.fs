@@ -11,21 +11,13 @@ open LibSerialization.Binary.Serializers.Common
 module NameResolutionError =
   let rec write (w : BinaryWriter) (error : NameResolutionError) =
     match error with
-    | NotFound names ->
-      w.Write 0uy
-      List.write w String.write names
-    | InvalidName names ->
-      w.Write 1uy
-      List.write w String.write names
+    | NotFound -> w.Write 0uy
+    | InvalidName -> w.Write 1uy
 
   and read (r : BinaryReader) : NameResolutionError =
     match r.ReadByte() with
-    | 0uy ->
-      let names = List.read r String.read
-      NotFound names
-    | 1uy ->
-      let names = List.read r String.read
-      InvalidName names
+    | 0uy -> NotFound
+    | 1uy -> InvalidName
     | b -> raiseFormatError $"Invalid NameResolutionError tag: {b}"
 
 
@@ -35,7 +27,8 @@ module NameResolution =
     (w : BinaryWriter)
     (nr : NameResolution<'inner>)
     : unit =
-    match nr with
+    List.write w String.write nr.originalName
+    match nr.resolved with
     | Ok name ->
       w.Write 0uy
       writeInner w name
@@ -47,12 +40,15 @@ module NameResolution =
     (readInner : BinaryReader -> 'inner)
     (r : BinaryReader)
     : NameResolution<'inner> =
-    match r.ReadByte() with
-    | 0uy -> Ok(readInner r)
-    | 1uy ->
-      let error = NameResolutionError.read r
-      Error(error)
-    | b -> raiseFormatError $"Invalid NameResolution tag: {b}"
+    let originalName = List.read r String.read
+    let resolved =
+      match r.ReadByte() with
+      | 0uy -> Ok(readInner r)
+      | 1uy ->
+        let error = NameResolutionError.read r
+        Error(error)
+      | b -> raiseFormatError $"Invalid NameResolution tag: {b}"
+    { originalName = originalName; resolved = resolved }
 
 
 module FQTypeName =

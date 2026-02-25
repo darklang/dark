@@ -89,7 +89,9 @@ let fns : List<BuiltInFn> =
       returnType =
         TypeReference.result
           (TCustomType(
-            Ok(FQTypeName.Package PackageRefs.Type.Internal.Canvas.program),
+            { originalName = []
+              resolved =
+                Ok(FQTypeName.Package PackageRefs.Type.Internal.Canvas.program) },
             []
           ))
           TString

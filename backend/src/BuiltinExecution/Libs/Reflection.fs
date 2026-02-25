@@ -14,10 +14,12 @@ let fns : List<BuiltInFn> =
       parameters = [ Param.make "dv" (TVariable "a") "" ]
       returnType =
         TCustomType(
-          Ok(
-            FQTypeName.fqPackage
-              LibExecution.PackageRefs.Type.LanguageTools.RuntimeTypes.dval
-          ),
+          { originalName = []
+            resolved =
+              Ok(
+                FQTypeName.fqPackage
+                  LibExecution.PackageRefs.Type.LanguageTools.RuntimeTypes.dval
+              ) },
           []
         )
       description = "Returns a meta representation of the real underlying dval"

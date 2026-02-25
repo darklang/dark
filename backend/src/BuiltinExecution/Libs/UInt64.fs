@@ -276,7 +276,9 @@ let fns : List<BuiltInFn> =
         TypeReference.result
           TUInt64
           (TCustomType(
-            Ok(FQTypeName.fqPackage PackageRefs.Type.Stdlib.uint64ParseError),
+            { originalName = []
+              resolved =
+                Ok(FQTypeName.fqPackage PackageRefs.Type.Stdlib.uint64ParseError) },
             []
           ))
       description = "Returns the <type UInt64> value of a <type String>"

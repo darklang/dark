@@ -12,6 +12,7 @@ module Builtin = LibExecution.Builtin
 module PackageRefs = LibExecution.PackageRefs
 module Dval = LibExecution.Dval
 module VT = LibExecution.ValueType
+module NR = LibExecution.RuntimeTypes.NameResolution
 
 open Builtin.Shortcuts
 
@@ -28,7 +29,7 @@ let fns : List<BuiltInFn> =
       typeParams = []
       parameters =
         [ Param.make "branchId" TUuid "Branch to add ops to"
-          Param.make "ops" (TList(TCustomType(Ok packageOpTypeName, []))) "" ]
+          Param.make "ops" (TList(TCustomType(NR.ok packageOpTypeName, []))) "" ]
       returnType = TypeReference.result TInt64 TString
       description =
         "Add package ops to the database as WIP (uncommitted) on the given branch.
@@ -60,7 +61,7 @@ let fns : List<BuiltInFn> =
     { name = fn "scmGetRecentOps" 0
       typeParams = []
       parameters = [ Param.make "limit" TInt64 "" ]
-      returnType = TList(TCustomType(Ok packageOpTypeName, []))
+      returnType = TList(TCustomType(NR.ok packageOpTypeName, []))
       description = "Get recent package ops from the database."
       fn =
         function
@@ -78,7 +79,7 @@ let fns : List<BuiltInFn> =
     { name = fn "scmGetWipOps" 0
       typeParams = []
       parameters = [ Param.make "branchId" TUuid "Branch ID" ]
-      returnType = TList(TCustomType(Ok packageOpTypeName, []))
+      returnType = TList(TCustomType(NR.ok packageOpTypeName, []))
       description = "Get all WIP (uncommitted) package ops on a branch."
       fn =
         function
@@ -173,7 +174,7 @@ let fns : List<BuiltInFn> =
       parameters =
         [ Param.make "branchId" TUuid "Branch ID"
           Param.make "limit" TInt64 "Maximum commits to return" ]
-      returnType = TList(TCustomType(Ok PT2DT.Commit.typeName, []))
+      returnType = TList(TCustomType(NR.ok PT2DT.Commit.typeName, []))
       description = "Get commit log for a branch ordered by date descending."
       fn =
         function
@@ -196,7 +197,7 @@ let fns : List<BuiltInFn> =
       parameters =
         [ Param.make "branchId" TUuid "Branch ID"
           Param.make "limit" TInt64 "Maximum commits to return" ]
-      returnType = TList(TCustomType(Ok PT2DT.Commit.typeName, []))
+      returnType = TList(TCustomType(NR.ok PT2DT.Commit.typeName, []))
       description =
         "Get commit log across the entire branch chain (current + ancestors), ordered by date descending."
       fn =
@@ -219,7 +220,7 @@ let fns : List<BuiltInFn> =
     { name = fn "scmGetCommitOps" 0
       typeParams = []
       parameters = [ Param.make "commitId" TUuid "Commit ID" ]
-      returnType = TList(TCustomType(Ok packageOpTypeName, []))
+      returnType = TList(TCustomType(NR.ok packageOpTypeName, []))
       description = "Get ops for a specific commit."
       fn =
         function

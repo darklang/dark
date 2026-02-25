@@ -12,6 +12,7 @@ module Dval = LibExecution.Dval
 module TypeChecker = LibExecution.TypeChecker
 module PackageRefs = LibExecution.PackageRefs
 module RTE = RuntimeError
+module NR = LibExecution.RuntimeTypes.NameResolution
 
 
 // parsing
@@ -509,7 +510,7 @@ let parse
       |> Ply.List.flatten
       |> Ply.map (TypeChecker.DvalCreator.dict threadID VT.unknownTODO)
 
-    | TCustomType(Ok typeName, typeArgs), jsonValueKind ->
+    | TCustomType({ resolved = Ok typeName }, typeArgs), jsonValueKind ->
       uply {
         let! typeArgsVT =
           typeArgs |> Ply.List.mapSequentially (TypeReference.toVT types tst)
@@ -735,7 +736,7 @@ let fns : List<BuiltInFn> =
       returnType =
         TypeReference.result
           (TVariable "a")
-          (TCustomType(Ok ParseError.typeName, []))
+          (TCustomType(NR.ok ParseError.typeName, []))
       description =
         "Parses a JSON string <param json> as a Dark value, matching the type <typeParam a>"
       fn =

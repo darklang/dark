@@ -7,11 +7,12 @@ module PT = LibExecution.ProgramTypes
 module Builtin = LibExecution.Builtin
 module D = LibExecution.Dval
 module PT2DT = LibExecution.ProgramTypesToDarkTypes
+module NR = LibExecution.RuntimeTypes.NameResolution
 
 open Builtin.Shortcuts
 
 
-let private branchType = TCustomType(Ok PT2DT.Branch.typeName, [])
+let private branchType = TCustomType(NR.ok PT2DT.Branch.typeName, [])
 
 let fns : List<BuiltInFn> =
   [ { name = fn "scmBranchCreate" 0

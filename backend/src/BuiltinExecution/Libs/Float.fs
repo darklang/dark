@@ -282,7 +282,9 @@ let fns : List<BuiltInFn> =
         TypeReference.result
           TFloat
           (TCustomType(
-            Ok(FQTypeName.fqPackage PackageRefs.Type.Stdlib.floatParseError),
+            { originalName = []
+              resolved =
+                Ok(FQTypeName.fqPackage PackageRefs.Type.Stdlib.floatParseError) },
             []
           ))
       description =

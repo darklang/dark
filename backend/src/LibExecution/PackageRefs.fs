@@ -249,6 +249,9 @@ module Type =
       let nameResolutionError =
         p [] "NameResolutionError" "de779c1d-bebc-43d9-bb3d-4c160cca62eb"
 
+      let nameResolution =
+        p [] "NameResolution" "ffeb2943-db46-4eee-a347-56277f284d71"
+
       module FQTypeName =
         let private p addl = p ("FQTypeName" :: addl)
         let package = p [] "Package" "ad2b1288-5005-4943-a03b-caa8056a2aee"

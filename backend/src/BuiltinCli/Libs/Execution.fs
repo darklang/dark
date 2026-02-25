@@ -14,6 +14,7 @@ module VT = LibExecution.ValueType
 module Dval = LibExecution.Dval
 module Builtin = LibExecution.Builtin
 module PackageRefs = LibExecution.PackageRefs
+module NR = LibExecution.RuntimeTypes.NameResolution
 open Builtin.Shortcuts
 open System.Runtime.InteropServices
 
@@ -154,7 +155,7 @@ let fns : List<BuiltInFn> =
       description = "Runs a process; return exitCode, stdout, and stderr"
       typeParams = []
       parameters = [ Param.make "command" TString "The command to execute" ]
-      returnType = TCustomType(Ok executionOutcomeTypeName, [])
+      returnType = TCustomType(NR.ok executionOutcomeTypeName, [])
       fn =
         function
         | _, _, _, [ DString command ] ->
@@ -191,7 +192,8 @@ let fns : List<BuiltInFn> =
       description = "Returns the operating system name (e.g. Windows, OSX, Linux)"
       typeParams = []
       parameters = [ Param.make "unit" TUnit "" ]
-      returnType = TypeReference.result (TCustomType(Ok OS.osTypeName, [])) TString
+      returnType =
+        TypeReference.result (TCustomType(NR.ok OS.osTypeName, [])) TString
       fn =
         function
         | _, _, _, [ DUnit ] ->
@@ -268,7 +270,7 @@ let fns : List<BuiltInFn> =
       returnType =
         let typeName =
           FQTypeName.fqPackage PackageRefs.Type.Stdlib.Cli.executionOutcome
-        TCustomType(Ok typeName, [])
+        TCustomType(NR.ok typeName, [])
       fn =
         function
         | _, _, _, [ DInt64 processId; DString input ] ->
@@ -372,7 +374,7 @@ let fns : List<BuiltInFn> =
       returnType =
         let typeName =
           FQTypeName.fqPackage PackageRefs.Type.Stdlib.Cli.executionOutcome
-        TCustomType(Ok typeName, [])
+        TCustomType(NR.ok typeName, [])
       fn =
         function
         | _, _, _, [ DInt64 processId ] ->

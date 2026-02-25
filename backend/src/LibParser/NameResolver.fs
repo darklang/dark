@@ -32,16 +32,18 @@ let throwIfRelevant
   (onMissing : OnMissing)
   (currentModule : List<string>)
   (given : NEList<string>)
-  (result : PT.NameResolution<'a>)
+  (nr : PT.NameResolution<'a>)
   : PT.NameResolution<'a> =
-  result
-  |> Result.mapError (fun err ->
-    match onMissing with
-    | OnMissing.ThrowError ->
-      Exception.raiseInternal
-        "Unresolved name when not allowed"
-        [ "error", err; "given", given; "currentModule", currentModule ]
-    | OnMissing.Allow -> err)
+  { nr with
+      resolved =
+        nr.resolved
+        |> Result.mapError (fun err ->
+          match onMissing with
+          | OnMissing.ThrowError ->
+            Exception.raiseInternal
+              "Unresolved name when not allowed"
+              [ "error", err; "given", given; "currentModule", currentModule ]
+          | OnMissing.Allow -> err) }
 
 
 type GenericName = { modules : List<string>; name : string; version : int }
@@ -93,11 +95,13 @@ let resolveGenericName<'FQName, 'Builtin when 'Builtin : comparison>
   (builtinToRT : string * int -> 'Builtin)
   : Ply<PT.NameResolution<'FQName>> =
   uply {
-    let notFoundError = Error(NRE.NotFound(NEList.toList given))
+    let originalName = NEList.toList given
+    let notFoundError = Error NRE.NotFound
     let (modules, name) = NEList.splitLast given
 
     match parseName name with
-    | Error _ -> return Error(NRE.InvalidName(NEList.toList given))
+    | Error _ ->
+      return { originalName = originalName; resolved = Error NRE.InvalidName }
     | Ok(name, version) ->
       let genericName = { modules = modules; name = name; version = version }
 
@@ -138,7 +142,12 @@ let resolveGenericName<'FQName, 'Builtin when 'Builtin : comparison>
           notFoundError
           (namesToTry currentModule genericName)
 
-      return throwIfRelevant onMissing currentModule given result
+      return
+        throwIfRelevant
+          onMissing
+          currentModule
+          given
+          { originalName = originalName; resolved = result }
   }
 
 
@@ -182,7 +191,11 @@ let resolveValueName
   : Ply<PT.NameResolution<PT.FQValueName.FQValueName>> =
   match name with
   | WT.KnownBuiltin(name, version) ->
-    Ok(PT.FQValueName.fqBuiltIn name version) |> Ply
+    Ply(
+      { originalName = [ name ]
+        resolved = Ok(PT.FQValueName.fqBuiltIn name version) }
+      : PT.NameResolution<_>
+    )
   | WT.Unresolved given ->
     resolveGenericName
       (Some builtins)
@@ -204,7 +217,11 @@ let resolveFnName
   (name : WT.Name)
   : Ply<PT.NameResolution<PT.FQFnName.FQFnName>> =
   match name with
-  | WT.KnownBuiltin(n, v) -> Ok(PT.FQFnName.fqBuiltIn n v) |> Ply
+  | WT.KnownBuiltin(n, v) ->
+    Ply(
+      { originalName = [ n ]; resolved = Ok(PT.FQFnName.fqBuiltIn n v) }
+      : PT.NameResolution<_>
+    )
   | WT.Unresolved given ->
     resolveGenericName
       (Some builtinFns)

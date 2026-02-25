@@ -88,10 +88,10 @@ let rec unifyValueType
             (Ok tst)
             (List.zip expected actual)
 
-    | TCustomType(Error err, _), _ ->
-      return RTE.ParseTimeNameResolution err |> raiseUntargetedRTE
+    | TCustomType({ originalName = names; resolved = Error err }, _), _ ->
+      return RTE.ParseTimeNameResolution(names, err) |> raiseUntargetedRTE
 
-    | TCustomType(Ok typeNameT, typeArgsT), actual ->
+    | TCustomType({ resolved = Ok typeNameT }, typeArgsT), actual ->
       // CLEANUP can't we assume aliases are already unwrapped?
       // if so, we can tidy this case quite a bit
       match! Types.find types typeNameT with
@@ -189,7 +189,7 @@ let rec resolveType
       | TypeDeclaration.Alias aliasedType ->
         let! resolvedType = TypeReference.unwrapAlias types aliasedType
         match resolvedType with
-        | TCustomType(Ok innerTypeName, innerTypeArgs) ->
+        | TCustomType({ resolved = Ok innerTypeName }, innerTypeArgs) ->
           match! Types.find types innerTypeName with
           | None -> return RTE.TypeNotFound innerTypeName |> raiseRTE threadID
           | Some targetDecl ->

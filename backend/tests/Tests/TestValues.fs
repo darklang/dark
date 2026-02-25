@@ -4,6 +4,7 @@ open Prelude
 open TestUtils.TestUtils
 
 module PT = LibExecution.ProgramTypes
+module NR = LibExecution.ProgramTypes.NameResolution
 module PackageRefs = LibExecution.PackageRefs
 module RT = LibExecution.RuntimeTypes
 
@@ -33,7 +34,7 @@ module PM =
           make
             nested
             [ { name = "outer"
-                typ = PT.TCustomType(Ok(PT.FQTypeName.fqPackage singleField), [])
+                typ = PT.TCustomType(NR.ok (PT.FQTypeName.fqPackage singleField), [])
                 description = "TODO" } ] ]
 
     module Enums =
@@ -215,10 +216,10 @@ module Expressions =
             whenCondition =
               Some(
                 eApply
-                  (PT.EFnName(gid (), Ok(PT.FQFnName.fqBuiltIn "equals" 0)))
+                  (PT.EFnName(gid (), NR.ok (PT.FQFnName.fqBuiltIn "equals" 0)))
                   []
                   [ eApply
-                      (PT.EFnName(gid (), Ok(PT.FQFnName.fqBuiltIn "int64Mod" 0)))
+                      (PT.EFnName(gid (), NR.ok (PT.FQFnName.fqBuiltIn "int64Mod" 0)))
                       []
                       [ eVar "x"; eInt64 2 ]
                     eInt64 0 ]
@@ -357,7 +358,7 @@ module Expressions =
             whenCondition =
               Some(
                 eApply
-                  (PT.EFnName(gid (), Ok(PT.FQFnName.fqBuiltIn "equals" 0)))
+                  (PT.EFnName(gid (), NR.ok (PT.FQFnName.fqBuiltIn "equals" 0)))
                   []
                   [ eVar "x"; eInt64 1 ]
               )

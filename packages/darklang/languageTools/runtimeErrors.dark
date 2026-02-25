@@ -154,7 +154,7 @@ type Error =
 
   | Match of Matches.Error
 
-  | ParseTimeNameResolution of NameResolutionError
+  | ParseTimeNameResolution of originalName: List<String> * error: NameResolutionError
 
   | TypeNotFound of name: FQTypeName.FQTypeName
   | FnNotFound of name: FQFnName.FQFnName

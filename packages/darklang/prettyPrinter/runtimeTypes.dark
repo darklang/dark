@@ -4,14 +4,14 @@ let nameResolutionError
   (nre: LanguageTools.RuntimeTypes.NameResolutionError)
   : String =
   match nre with
-  | NotFound names -> (Stdlib.String.join names ".") ++ " not found"
-  | InvalidName names -> (Stdlib.String.join names ".") ++ " is not a valid name"
+  | NotFound -> "not found"
+  | InvalidName -> "invalid name"
 
 let nameResolution<'a>
   (nr: LanguageTools.RuntimeTypes.NameResolution<'a>)
   (f: 'a -> String)
   : String =
-  match nr with
+  match nr.resolved with
   | Ok a -> f a
   | Error e -> nameResolutionError e
 
@@ -162,7 +162,7 @@ let typeReference
         |> fun parts -> $"<{parts}>"
 
     let typeNamePart =
-      match typ with
+      match typ.resolved with
       | Ok name -> typeName branchId name
       | Error e -> nameResolutionError e
 

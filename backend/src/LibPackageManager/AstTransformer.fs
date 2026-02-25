@@ -17,12 +17,12 @@ let private transformNameResolution
   (transform : uuid -> 'a) // rebuild the value from a new UUID
   (getPackageId : 'a -> Option<uuid>) // extracts the UUID from a resolved name
   : PT.NameResolution<'a> =
-  match nr with
+  match nr.resolved with
   | Ok resolved ->
     match getPackageId resolved with
     | Some id ->
       let newId = replaceUuid mapping id
-      if newId = id then nr else Ok(transform newId)
+      if newId = id then nr else { nr with resolved = Ok(transform newId) }
     | None -> nr
   | Error _ -> nr
 
