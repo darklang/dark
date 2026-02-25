@@ -23,6 +23,28 @@ module Roundtripping =
       (fun value -> value |> roundtrip |> (=) value)
       (List.map (fun x -> x, true) values)
 
+module ContentHashTests =
+  open LibExecution.ProgramTypes
+
+  let roundtripTest =
+    test "ContentHash binary roundtrip" {
+      let hash = Values.contentHash
+      let roundtripped =
+        hash
+        |> BS.PT.ContentHash.serialize "contentHash"
+        |> BS.PT.ContentHash.deserialize "contentHash"
+      Expect.equal roundtripped hash "roundtrip should preserve ContentHash"
+    }
+
+  let toShortStringTest =
+    test "ContentHash.toShortString returns 7 chars" {
+      let (ContentHash h) = Values.contentHash
+      let short = ContentHash.toShortString Values.contentHash
+      Expect.equal short (h[..6]) "toShortString should return first 7 chars"
+      Expect.equal short.Length 7 "toShortString length should be 7"
+    }
+
+
 module PT =
   let packageLocationTests =
     Roundtripping.testRoundtripMany
@@ -178,6 +200,10 @@ let tests =
   testList
     "Binary Serialization"
     [ testList
+        "ContentHash"
+        [ ContentHashTests.roundtripTest; ContentHashTests.toShortStringTest ]
+
+      testList
         "PT Roundtrip Tests"
         [ PT.packageLocationTests
           PT.packageTypeTests

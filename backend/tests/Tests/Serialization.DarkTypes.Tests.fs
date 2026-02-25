@@ -88,7 +88,15 @@ module RoundtripTests =
     let pkg (id : uuid) = RT.FQTypeName.fqPackage id
 
     let tests =
-      [ testRoundtripList
+      [ testRoundtrip
+          "PT.ContentHash"
+          (pkg PackageRefs.Type.LanguageTools.ProgramTypes.contentHash)
+          V.contentHash
+          PT2DT.ContentHash.toDT
+          PT2DT.ContentHash.fromDT
+          None
+
+        testRoundtripList
           "PT.PackageLocation"
           (pkg PackageRefs.Type.LanguageTools.ProgramTypes.packageLocation)
           V.ProgramTypes.packageLocations

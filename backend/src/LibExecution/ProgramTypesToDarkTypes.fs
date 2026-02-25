@@ -30,6 +30,15 @@ module Sign =
     | _ -> Exception.raiseInternal "Invalid sign" []
 
 
+module ContentHash =
+  let toDT (PT.ContentHash h) : Dval = DString h
+
+  let fromDT (d : Dval) : PT.ContentHash =
+    match d with
+    | DString h -> PT.ContentHash h
+    | _ -> Exception.raiseInternal "Invalid ContentHash" []
+
+
 // TODO: should these be elsewhere?
 let ownerField m = m |> D.field "owner" |> D.string
 let modulesField m = m |> D.field "modules" |> D.list D.string

@@ -8,6 +8,11 @@ open LibExecution.RuntimeTypes
 
 open LibSerialization.Binary.Serializers.Common
 
+module ContentHash =
+  let write (w : BinaryWriter) (ContentHash h : ContentHash) = String.write w h
+  let read (r : BinaryReader) : ContentHash = ContentHash(String.read r)
+
+
 module NameResolutionError =
   let rec write (w : BinaryWriter) (error : NameResolutionError) =
     match error with

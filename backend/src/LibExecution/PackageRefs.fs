@@ -246,6 +246,8 @@ module Type =
     module ProgramTypes =
       let private p addl = p ("ProgramTypes" :: addl)
 
+      let contentHash = p [] "ContentHash" "af205a02-f647-4deb-98ff-aa04e9c023e3"
+
       let nameResolutionError =
         p [] "NameResolutionError" "de779c1d-bebc-43d9-bb3d-4c160cca62eb"
 

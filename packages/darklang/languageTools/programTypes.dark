@@ -338,6 +338,9 @@ let parsePackageLocation (nameToParse: String): PackageLocation =
 
 type BranchID = Uuid
 
+/// Content-addressed hash for package items (hex-encoded SHA-256)
+type ContentHash = String
+
 /// A package entity paired with its location
 type LocatedItem<'entity> =
   { entity: 'entity

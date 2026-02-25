@@ -9,6 +9,11 @@ open LibExecution.ProgramTypes
 open LibSerialization.Binary.Serializers.Common
 
 
+module ContentHash =
+  let write (w : BinaryWriter) (ContentHash h : ContentHash) = String.write w h
+  let read (r : BinaryReader) : ContentHash = ContentHash(String.read r)
+
+
 module Sign =
   let write (w : BinaryWriter) (sign : Sign) =
     match sign with

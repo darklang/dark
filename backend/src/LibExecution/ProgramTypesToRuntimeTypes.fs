@@ -8,6 +8,10 @@ module RT = RuntimeTypes
 module VT = ValueType
 module PT = ProgramTypes
 
+module ContentHash =
+  let toRT (PT.ContentHash h) : RT.ContentHash = RT.ContentHash h
+
+
 module FQTypeName =
   module Package =
     let toRT (p : PT.FQTypeName.Package) : RT.FQTypeName.Package = p
