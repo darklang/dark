@@ -1,0 +1,32 @@
+/// Git Commit Agent
+/// Analyzes staged changes and generates conventional commit messages
+/// Run with: ./scripts/run-cli eval 'Darklang.LLM.Examples.GitCommit.generate ()'
+module Darklang.LLM.Examples.GitCommit
+
+
+let systemPrompt =
+  "You are a Git Commit Message Agent. Analyze staged changes and generate a conventional commit message.
+
+Format: <type>(<scope>): <short description>
+
+Types: feat, fix, docs, style, refactor, test, chore
+Keep the first line under 72 characters."
+
+
+/// Create the git commit agent
+let agent =
+  (Darklang.LLM.Agent.create ())
+  |> Darklang.LLM.Agent.withSystemPrompt systemPrompt
+  |> Darklang.LLM.Agent.withShellTool "get_staged_files" "Get files staged for commit" "git diff --cached --name-only"
+  |> Darklang.LLM.Agent.withShellTool "get_diff" "Get diff of staged changes" "git diff --cached"
+  |> Darklang.LLM.Agent.withShellTool "get_recent_commits" "Get last 5 commits for style" "git log --oneline -n 5"
+  |> Darklang.LLM.Agent.withMaxTokens 500L
+  |> Darklang.LLM.Agent.withMaxTurns 5L
+  |> Darklang.LLM.Agent.withTemperature 0.3
+
+
+/// Generate a commit message
+let generate () : String =
+  match Darklang.LLM.Agent.run agent "Analyze staged changes and generate a commit message." with
+  | Ok result -> result.response
+  | Error e -> $"Error: {e}"

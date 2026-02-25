@@ -1,0 +1,71 @@
+/// Image Describer Agent
+/// Describes images using Claude's vision capabilities
+/// Run with: ./scripts/run-cli eval 'Darklang.LLM.Examples.ImageDescriber.describeUrl "https://example.com/image.jpg"'
+module Darklang.LLM.Examples.ImageDescriber
+
+
+let systemPrompt =
+  "You are an Image Analysis Agent. Describe images concisely.
+Format: **Subject:** [Main subject] **Details:** [Key details] **Context:** [Setting/mood]"
+
+
+/// Describe an image from a URL (uses direct Anthropic API for image blocks)
+let describeUrl (imageUrl: String) : String =
+  match Stdlib.Env.get "ANTHROPIC_API_KEY" with
+  | None -> "Error: ANTHROPIC_API_KEY not set"
+  | Some apiKey ->
+    let imageBlock = Darklang.Anthropic.Content.imageBlockUrl imageUrl
+    let textBlock = Darklang.Anthropic.Content.textBlock "Describe this image."
+    let userMessage = Darklang.Anthropic.Content.userBlockMessage [ imageBlock; textBlock ]
+
+    let request =
+      (Darklang.Anthropic.Chat.Request.create ())
+      |> Darklang.Anthropic.Chat.Request.withModelString Darklang.LLM.Models.Anthropic.sonnet45.id
+      |> Darklang.Anthropic.Chat.Request.withMaxTokens 500L
+      |> Darklang.Anthropic.Chat.Request.withBlockMessages [ userMessage ]
+      |> Darklang.Anthropic.Chat.Request.withSystem systemPrompt
+
+    match Darklang.Anthropic.Chat.Request.send apiKey request with
+    | Ok response -> Darklang.Anthropic.Response.getText response
+    | Error e -> $"Error: {Darklang.Anthropic.Response.ApiError.toString e}"
+
+
+/// Describe an image from base64 data
+let describeBase64 (mediaType: String) (base64Data: String) : String =
+  match Stdlib.Env.get "ANTHROPIC_API_KEY" with
+  | None -> "Error: ANTHROPIC_API_KEY not set"
+  | Some apiKey ->
+    let imageBlock = Darklang.Anthropic.Content.imageBlockBase64 mediaType base64Data
+    let textBlock = Darklang.Anthropic.Content.textBlock "Describe this image."
+    let userMessage = Darklang.Anthropic.Content.userBlockMessage [ imageBlock; textBlock ]
+
+    let request =
+      (Darklang.Anthropic.Chat.Request.create ())
+      |> Darklang.Anthropic.Chat.Request.withModelString Darklang.LLM.Models.Anthropic.sonnet45.id
+      |> Darklang.Anthropic.Chat.Request.withMaxTokens 500L
+      |> Darklang.Anthropic.Chat.Request.withBlockMessages [ userMessage ]
+      |> Darklang.Anthropic.Chat.Request.withSystem systemPrompt
+
+    match Darklang.Anthropic.Chat.Request.send apiKey request with
+    | Ok response -> Darklang.Anthropic.Response.getText response
+    | Error e -> $"Error: {Darklang.Anthropic.Response.ApiError.toString e}"
+
+
+/// Ask a question about an image
+let askAboutImage (imageUrl: String) (question: String) : String =
+  match Stdlib.Env.get "ANTHROPIC_API_KEY" with
+  | None -> "Error: ANTHROPIC_API_KEY not set"
+  | Some apiKey ->
+    let imageBlock = Darklang.Anthropic.Content.imageBlockUrl imageUrl
+    let textBlock = Darklang.Anthropic.Content.textBlock question
+    let userMessage = Darklang.Anthropic.Content.userBlockMessage [ imageBlock; textBlock ]
+
+    let request =
+      (Darklang.Anthropic.Chat.Request.create ())
+      |> Darklang.Anthropic.Chat.Request.withModelString Darklang.LLM.Models.Anthropic.sonnet45.id
+      |> Darklang.Anthropic.Chat.Request.withMaxTokens 500L
+      |> Darklang.Anthropic.Chat.Request.withBlockMessages [ userMessage ]
+
+    match Darklang.Anthropic.Chat.Request.send apiKey request with
+    | Ok response -> Darklang.Anthropic.Response.getText response
+    | Error e -> $"Error: {Darklang.Anthropic.Response.ApiError.toString e}"

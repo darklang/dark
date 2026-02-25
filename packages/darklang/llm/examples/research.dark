@@ -1,0 +1,78 @@
+/// Research Agent
+/// Comprehensive research with web search, extended thinking, and citations
+/// Run with: ./scripts/run-cli eval 'Darklang.LLM.Examples.Research.research "quantum computing"'
+module Darklang.LLM.Examples.Research
+
+
+let systemPrompt =
+  "You are a Research Assistant. Research topics using web search, think critically, and cite sources.
+Format: ## Research: [Topic] → ### Summary → ### Key Findings → ### Analysis → ### Sources"
+
+
+/// Full research agent with thinking and web search
+let agent =
+  (Darklang.LLM.Agent.create ())
+  |> Darklang.LLM.Agent.withSystemPrompt systemPrompt
+  |> Darklang.LLM.Agent.useSonnet
+  |> Darklang.LLM.Agent.withWebSearch
+  |> Darklang.LLM.Agent.withWebFetchCitations
+  |> Darklang.LLM.Agent.withThinking 4000L
+  |> Darklang.LLM.Agent.withMaxTokens 8000L
+  |> Darklang.LLM.Agent.withMaxTurns 3L
+
+
+/// Quick research agent (no thinking, faster)
+let quickAgent =
+  (Darklang.LLM.Agent.create ())
+  |> Darklang.LLM.Agent.withSystemPrompt systemPrompt
+  |> Darklang.LLM.Agent.useHaiku
+  |> Darklang.LLM.Agent.withWebSearch
+  |> Darklang.LLM.Agent.withMaxTokens 2000L
+  |> Darklang.LLM.Agent.withMaxTurns 2L
+
+
+/// Research a topic thoroughly
+let research (topic: String) : String =
+  match Darklang.LLM.Agent.run agent $"Research this topic thoroughly: {topic}" with
+  | Ok result -> result.response
+  | Error e -> $"Error: {e}"
+
+
+/// Quick research (faster, less thorough)
+let quickResearch (topic: String) : String =
+  match Darklang.LLM.Agent.run quickAgent $"Research this topic: {topic}" with
+  | Ok result -> result.response
+  | Error e -> $"Error: {e}"
+
+
+/// Research and show the thinking process
+let researchShowReasoning (topic: String) : String =
+  match Darklang.LLM.Agent.run agent $"Research this topic thoroughly: {topic}" with
+  | Ok result ->
+    let thinking =
+      match result.thinking with
+      | Some t -> $"## Reasoning\n\n{t}\n\n---\n\n"
+      | None -> ""
+
+    let sources =
+      if Stdlib.List.isEmpty result.webSearchResults then ""
+      else
+        let srcList = Stdlib.List.map result.webSearchResults (fun s -> $"- [{s.title}]({s.url})")
+        "\n\n## Sources\n" ++ (Stdlib.String.join srcList "\n")
+
+    thinking ++ result.response ++ sources
+  | Error e -> $"Error: {e}"
+
+
+/// Answer a specific research question
+let answerQuestion (question: String) : String =
+  match Darklang.LLM.Agent.run agent $"Research and answer: {question}" with
+  | Ok result -> result.response
+  | Error e -> $"Error: {e}"
+
+
+/// Compare two topics
+let compare (topic1: String) (topic2: String) : String =
+  match Darklang.LLM.Agent.run agent $"Compare: 1. {topic1} vs 2. {topic2}" with
+  | Ok result -> result.response
+  | Error e -> $"Error: {e}"

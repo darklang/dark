@@ -1,0 +1,147 @@
+/// LLM Agent Basics
+/// Simple examples showing zero-config usage and model selection
+/// Run with: ./scripts/run-cli eval 'Darklang.LLM.Examples.Basics.ask "What is 2+2?"'
+module Darklang.LLM.Examples.Basics
+
+
+// ZERO-CONFIG USAGE
+
+/// Ask a simple question - uses default provider (Anthropic Sonnet)
+let ask (question: String) : String =
+  match Darklang.LLM.Agent.ask question with
+  | Ok response -> response
+  | Error e -> $"Error: {e}"
+
+
+/// Ask with a specific model
+let askWith (modelName: String) (question: String) : String =
+  let model =
+    match modelName with
+    | "haiku" -> Darklang.LLM.Models.Anthropic.haiku45
+    | "sonnet" -> Darklang.LLM.Models.Anthropic.sonnet45
+    | "opus" -> Darklang.LLM.Models.Anthropic.opus46
+    | "gpt4o" -> Darklang.LLM.Models.OpenAI.gpt4o
+    | "gpt4o-mini" -> Darklang.LLM.Models.OpenAI.gpt4oMini
+    | _ -> Darklang.LLM.Models.Anthropic.sonnet45
+
+  match Darklang.LLM.Agent.askWith model question with
+  | Ok response -> response
+  | Error e -> $"Error: {e}"
+
+
+
+// PROVIDER SWITCHING
+
+/// Use Anthropic Claude
+let withAnthropic (question: String) : String =
+  let agent =
+    (Darklang.LLM.Agent.create ())
+    |> Darklang.LLM.Agent.withModel Darklang.LLM.Models.Anthropic.sonnet45
+
+  match Darklang.LLM.Agent.chat agent question with
+  | Ok response -> response
+  | Error e -> $"Error: {e}"
+
+
+/// Use OpenAI GPT
+let withOpenAI (question: String) : String =
+  let agent =
+    (Darklang.LLM.Agent.create ())
+    |> Darklang.LLM.Agent.withModel Darklang.LLM.Models.OpenAI.gpt4o
+
+  match Darklang.LLM.Agent.chat agent question with
+  | Ok response -> response
+  | Error e -> $"Error: {e}"
+
+
+/// Use local Ollama
+let withOllama (question: String) : String =
+  let agent =
+    (Darklang.LLM.Agent.create ())
+    |> Darklang.LLM.Agent.withModel Darklang.LLM.Models.Local.llama3
+
+  match Darklang.LLM.Agent.chat agent question with
+  | Ok response -> response
+  | Error e -> $"Error: {e}"
+
+
+
+// MODEL TIERS (Fast vs Balanced vs Smart)
+
+/// Use fast model (Haiku) - good for simple tasks
+let fast (question: String) : String =
+  let agent =
+    (Darklang.LLM.Agent.create ())
+    |> Darklang.LLM.Agent.withModel Darklang.LLM.Models.Anthropic.haiku45
+    |> Darklang.LLM.Agent.withMaxTokens 500L
+
+  match Darklang.LLM.Agent.chat agent question with
+  | Ok response -> response
+  | Error e -> $"Error: {e}"
+
+
+/// Use balanced model (Sonnet) - good for most tasks
+let balanced (question: String) : String =
+  let agent =
+    (Darklang.LLM.Agent.create ())
+    |> Darklang.LLM.Agent.withModel Darklang.LLM.Models.Anthropic.sonnet45
+    |> Darklang.LLM.Agent.withMaxTokens 2000L
+
+  match Darklang.LLM.Agent.chat agent question with
+  | Ok response -> response
+  | Error e -> $"Error: {e}"
+
+
+/// Use smart model (Opus) - good for complex reasoning
+let smart (question: String) : String =
+  let agent =
+    (Darklang.LLM.Agent.create ())
+    |> Darklang.LLM.Agent.withModel Darklang.LLM.Models.Anthropic.opus46
+    |> Darklang.LLM.Agent.withMaxTokens 4000L
+
+  match Darklang.LLM.Agent.chat agent question with
+  | Ok response -> response
+  | Error e -> $"Error: {e}"
+
+
+
+// COMMON CONFIGURATIONS
+
+/// Quick summarization
+let summarize (text: String) : String =
+  let agent =
+    (Darklang.LLM.Agent.create ())
+    |> Darklang.LLM.Agent.withModel Darklang.LLM.Models.Anthropic.haiku45
+    |> Darklang.LLM.Agent.withSystemPrompt "Summarize the following text in 2-3 sentences."
+    |> Darklang.LLM.Agent.withMaxTokens 200L
+    |> Darklang.LLM.Agent.withTemperature 0.3
+
+  match Darklang.LLM.Agent.chat agent text with
+  | Ok response -> response
+  | Error e -> $"Error: {e}"
+
+
+/// Creative writing
+let creative (prompt: String) : String =
+  let agent =
+    (Darklang.LLM.Agent.create ())
+    |> Darklang.LLM.Agent.withSystemPrompt "You are a creative writer. Be imaginative and expressive."
+    |> Darklang.LLM.Agent.withMaxTokens 1000L
+    |> Darklang.LLM.Agent.withTemperature 0.9
+
+  match Darklang.LLM.Agent.chat agent prompt with
+  | Ok response -> response
+  | Error e -> $"Error: {e}"
+
+
+/// Precise factual response
+let factual (question: String) : String =
+  let agent =
+    (Darklang.LLM.Agent.create ())
+    |> Darklang.LLM.Agent.withSystemPrompt "Provide accurate, factual information. Be concise and precise."
+    |> Darklang.LLM.Agent.withMaxTokens 500L
+    |> Darklang.LLM.Agent.withTemperature 0.1
+
+  match Darklang.LLM.Agent.chat agent question with
+  | Ok response -> response
+  | Error e -> $"Error: {e}"

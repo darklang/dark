@@ -1,0 +1,17 @@
+/// Ollama Translator
+/// Translates words using Ollama
+/// Run with: ./scripts/run-cli eval 'Darklang.LLM.Examples.OllamaTranslator.translate "hello" "Spanish"'
+module Darklang.LLM.Examples.OllamaTranslator
+
+
+/// Translate a word to a target language
+let translate (word: String) (language: String) : String =
+  let agent =
+    (Darklang.LLM.Agent.create ())
+    |> Darklang.LLM.Agent.withModel Darklang.LLM.Models.Local.llama3
+    |> Darklang.LLM.Agent.withSystemPrompt "You are a translator. Reply with ONLY the translated word, nothing else."
+    |> Darklang.LLM.Agent.withMaxTokens 50L
+
+  match Darklang.LLM.Agent.run agent $"Translate '{word}' to {language}" with
+  | Ok result -> result.response
+  | Error e -> $"Error: {e}"
