@@ -1,0 +1,49 @@
+/// Ollama Provider
+/// Local LLM inference using Ollama (OpenAI-compatible API)
+///
+/// Usage:
+///   Darklang.LLM.Providers.Ollama.create ()  // Default localhost:11434
+///   Darklang.LLM.Providers.Ollama.createWithUrl "http://myserver:11434"
+module Darklang.LLM.Providers.Ollama
+
+type Provider = Darklang.LLM.Provider.Provider
+
+
+// CONFIGURATION
+
+/// Ollama configuration
+let config () : Darklang.LLM.Providers.OpenAI.Config =
+  let baseUrl =
+    match Stdlib.Env.get "OLLAMA_BASE_URL" with
+    | Some url -> url
+    | None -> "http://localhost:11434"
+
+  Darklang.LLM.Providers.OpenAI.Config
+    { apiKey = Stdlib.Option.Option.None
+      baseUrl = baseUrl ++ "/v1/chat/completions"
+      providerId = "ollama"
+      providerName = "Ollama (Local)"
+      maxContextTokens = 128000L }
+
+
+/// Configuration with custom base URL
+let configWithUrl (baseUrl: String) : Darklang.LLM.Providers.OpenAI.Config =
+  Darklang.LLM.Providers.OpenAI.Config
+    { apiKey = Stdlib.Option.Option.None
+      baseUrl = baseUrl ++ "/v1/chat/completions"
+      providerId = "ollama"
+      providerName = "Ollama (Local)"
+      maxContextTokens = 128000L }
+
+
+
+// PROVIDER FACTORIES
+
+/// Create an Ollama provider with default configuration (localhost:11434)
+let create () : Provider =
+  Darklang.LLM.Providers.OpenAI.createWithConfig (config ())
+
+
+/// Create an Ollama provider with custom base URL
+let createWithUrl (baseUrl: String) : Provider =
+  Darklang.LLM.Providers.OpenAI.createWithConfig (configWithUrl baseUrl)

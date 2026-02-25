@@ -1,0 +1,44 @@
+/// Shared API Key Management
+/// Provides consistent API key validation and retrieval across providers.
+///
+/// This module centralizes API key handling for all LLM providers.
+module Darklang.LLM.Internal.ApiKeys
+
+
+/// Validate that an API key is not empty
+let validate (apiKey: String) : Stdlib.Result.Result<Unit, String> =
+  if apiKey == "" then
+    Stdlib.Result.Result.Error "API key cannot be empty"
+  else
+    Stdlib.Result.Result.Ok()
+
+
+/// Get an API key from an environment variable
+/// Returns a descriptive error message if not set.
+let fromEnv (envVar: String) (providerName: String) : Stdlib.Result.Result<String, String> =
+  match Stdlib.Env.get envVar with
+  | Some key ->
+    match validate key with
+    | Ok _ -> Stdlib.Result.Result.Ok key
+    | Error e -> Stdlib.Result.Result.Error e
+  | None ->
+    Stdlib.Result.Result.Error(
+      envVar ++ " environment variable is not set. Please set it to your " ++ providerName ++ " API key.")
+
+
+/// Get an optional API key from environment (for providers that don't require keys)
+let fromEnvOptional (envVar: String) : Stdlib.Option.Option<String> =
+  match Stdlib.Env.get envVar with
+  | Some key ->
+    if key == "" then
+      Stdlib.Option.Option.None
+    else
+      Stdlib.Option.Option.Some key
+  | None -> Stdlib.Option.Option.None
+
+
+/// Validate and return a provided API key
+let validateKey (apiKey: String) : Stdlib.Result.Result<String, String> =
+  match validate apiKey with
+  | Ok _ -> Stdlib.Result.Result.Ok apiKey
+  | Error e -> Stdlib.Result.Result.Error e

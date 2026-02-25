@@ -1,0 +1,112 @@
+/// JSON Builder Helpers
+/// Utilities for constructing JSON request bodies with optional fields.
+///
+/// This module reduces boilerplate in request building across providers.
+module Darklang.LLM.Internal.JsonBuilder
+
+type Json = Stdlib.AltJson.Json
+
+
+/// Start building a JSON object with initial fields
+let start (fields: List<(String * Json)>) : List<(String * Json)> =
+  fields
+
+
+/// Add a string field
+let addString (key: String) (value: String) (fields: List<(String * Json)>) : List<(String * Json)> =
+  Stdlib.List.append fields [ (key, Json.String value) ]
+
+
+/// Add an integer field
+let addInt (key: String) (value: Int64) (fields: List<(String * Json)>) : List<(String * Json)> =
+  Stdlib.List.append fields [ (key, Json.Number(Stdlib.Int64.toFloat value)) ]
+
+
+/// Add a float field
+let addFloat (key: String) (value: Float) (fields: List<(String * Json)>) : List<(String * Json)> =
+  Stdlib.List.append fields [ (key, Json.Number value) ]
+
+
+/// Add a boolean field
+let addBool (key: String) (value: Bool) (fields: List<(String * Json)>) : List<(String * Json)> =
+  Stdlib.List.append fields [ (key, Json.Bool value) ]
+
+
+/// Add a JSON value field
+let addJson (key: String) (value: Json) (fields: List<(String * Json)>) : List<(String * Json)> =
+  Stdlib.List.append fields [ (key, value) ]
+
+
+/// Add an array field
+let addArray (key: String) (values: List<Json>) (fields: List<(String * Json)>) : List<(String * Json)> =
+  Stdlib.List.append fields [ (key, Json.Array values) ]
+
+
+/// Add an optional string field (only adds if Some)
+let addStringOpt
+  (key: String)
+  (value: Stdlib.Option.Option<String>)
+  (fields: List<(String * Json)>)
+  : List<(String * Json)> =
+  match value with
+  | Some v -> Stdlib.List.append fields [ (key, Json.String v) ]
+  | None -> fields
+
+
+/// Add an optional integer field (only adds if Some)
+let addIntOpt
+  (key: String)
+  (value: Stdlib.Option.Option<Int64>)
+  (fields: List<(String * Json)>)
+  : List<(String * Json)> =
+  match value with
+  | Some v -> Stdlib.List.append fields [ (key, Json.Number(Stdlib.Int64.toFloat v)) ]
+  | None -> fields
+
+
+/// Add an optional float field (only adds if Some)
+let addFloatOpt
+  (key: String)
+  (value: Stdlib.Option.Option<Float>)
+  (fields: List<(String * Json)>)
+  : List<(String * Json)> =
+  match value with
+  | Some v -> Stdlib.List.append fields [ (key, Json.Number v) ]
+  | None -> fields
+
+
+/// Add an array field only if non-empty
+let addArrayIfNotEmpty
+  (key: String)
+  (values: List<Json>)
+  (fields: List<(String * Json)>)
+  : List<(String * Json)> =
+  if Stdlib.List.isEmpty values then
+    fields
+  else
+    Stdlib.List.append fields [ (key, Json.Array values) ]
+
+
+/// Add a nested object field
+let addObject
+  (key: String)
+  (objectFields: List<(String * Json)>)
+  (fields: List<(String * Json)>)
+  : List<(String * Json)> =
+  Stdlib.List.append fields [ (key, Json.Object objectFields) ]
+
+
+/// Add an optional nested object field (only adds if Some)
+let addObjectOpt
+  (key: String)
+  (value: Stdlib.Option.Option<List<(String * Json)>>)
+  (fields: List<(String * Json)>)
+  : List<(String * Json)> =
+  match value with
+  | Some objectFields -> Stdlib.List.append fields [ (key, Json.Object objectFields) ]
+  | None -> fields
+
+
+/// Finalize the builder into a JSON object
+let build (fields: List<(String * Json)>) : Json =
+  Json.Object fields

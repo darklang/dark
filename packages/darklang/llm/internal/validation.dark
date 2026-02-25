@@ -1,0 +1,109 @@
+/// Input Validation
+/// Validates LLM request parameters to catch errors early.
+///
+/// This module provides validation for common parameters to prevent
+/// invalid requests from reaching the API.
+module Darklang.LLM.Internal.Validation
+
+
+/// Validate max tokens is within reasonable bounds
+/// Returns the value if valid, or a clamped value with no error (lenient mode)
+let validateMaxTokens (tokens: Int64) (maxAllowed: Int64) : Int64 =
+  if tokens < 1L then
+    1L
+  else if tokens > maxAllowed then
+    maxAllowed
+  else
+    tokens
+
+
+/// Validate max tokens strictly, returning error if out of bounds
+let validateMaxTokensStrict
+  (tokens: Int64)
+  (maxAllowed: Int64)
+  : Stdlib.Result.Result<Int64, String> =
+  if tokens < 1L then
+    Stdlib.Result.Result.Error "maxTokens must be at least 1"
+  else if tokens > maxAllowed then
+    Stdlib.Result.Result.Error(
+      "maxTokens exceeds maximum allowed: " ++ Stdlib.Int64.toString maxAllowed)
+  else
+    Stdlib.Result.Result.Ok tokens
+
+
+/// Validate temperature for Anthropic (0.0 to 1.0)
+/// Returns clamped value (lenient mode)
+let validateTemperatureAnthropic (temp: Float) : Float =
+  if Stdlib.Float.lessThan temp 0.0 then
+    0.0
+  else if Stdlib.Float.greaterThan temp 1.0 then
+    1.0
+  else
+    temp
+
+
+/// Validate temperature for OpenAI (0.0 to 2.0)
+/// Returns clamped value (lenient mode)
+let validateTemperatureOpenAI (temp: Float) : Float =
+  if Stdlib.Float.lessThan temp 0.0 then
+    0.0
+  else if Stdlib.Float.greaterThan temp 2.0 then
+    2.0
+  else
+    temp
+
+
+/// Validate temperature with a custom max (provider-specific)
+let validateTemperature (temp: Float) (maxTemp: Float) : Float =
+  if Stdlib.Float.lessThan temp 0.0 then
+    0.0
+  else if Stdlib.Float.greaterThan temp maxTemp then
+    maxTemp
+  else
+    temp
+
+
+/// Validate max turns is reasonable
+let validateMaxTurns (turns: Int64) : Int64 =
+  if turns < 1L then
+    1L
+  else if turns > 100L then
+    100L
+  else
+    turns
+
+
+/// Validate a tool name is valid (non-empty, no special characters)
+let validateToolName (name: String) : Stdlib.Result.Result<String, String> =
+  if name == "" then
+    Stdlib.Result.Result.Error "Tool name cannot be empty"
+  else if Stdlib.String.contains name " " then
+    Stdlib.Result.Result.Error "Tool name cannot contain spaces"
+  else
+    Stdlib.Result.Result.Ok name
+
+
+/// Validate a system prompt is not excessively long
+/// This is a soft limit to catch obvious mistakes
+let validateSystemPrompt (prompt: String) (maxChars: Int64) : String =
+  let length = Stdlib.String.length prompt
+  if length > maxChars then
+    Stdlib.String.slice prompt 0L maxChars
+  else
+    prompt
+
+
+/// Check if a message list is valid (non-empty, reasonable size)
+let validateMessages
+  (messages: List<'a>)
+  (maxMessages: Int64)
+  : Stdlib.Result.Result<List<'a>, String> =
+  let count = Stdlib.List.length messages
+  if count == 0L then
+    Stdlib.Result.Result.Error "Messages list cannot be empty"
+  else if count > maxMessages then
+    Stdlib.Result.Result.Error(
+      "Too many messages: " ++ Stdlib.Int64.toString count ++
+      " (max: " ++ Stdlib.Int64.toString maxMessages ++ ")")
+  else
+    Stdlib.Result.Result.Ok messages

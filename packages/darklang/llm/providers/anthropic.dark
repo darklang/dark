@@ -1,0 +1,891 @@
+/// Anthropic Claude Provider
+/// Adapts the Anthropic Claude API to the generic LLM provider interface.
+///
+/// This provider uses the existing Darklang.Anthropic module internally,
+/// translating between the generic Provider types and Anthropic-specific types.
+module Darklang.LLM.Providers.Anthropic
+
+type Json = Stdlib.AltJson.Json
+type Provider = Darklang.LLM.Provider.Provider
+type Request = Darklang.LLM.Provider.Request
+type Response = Darklang.LLM.Provider.Response
+type ProviderError = Darklang.LLM.Provider.ProviderError
+
+
+// CONFIGURATION
+
+type Config =
+  { apiKey: String
+    baseUrl: String }
+
+/// Get default configuration from environment
+/// Returns Error if ANTHROPIC_API_KEY is not set
+let defaultConfig () : Stdlib.Result.Result<Config, String> =
+  match Darklang.LLM.Internal.ApiKeys.fromEnv "ANTHROPIC_API_KEY" "Anthropic" with
+  | Ok apiKey ->
+    Stdlib.Result.Result.Ok(
+      Config { apiKey = apiKey; baseUrl = "https://api.anthropic.com/v1/messages" })
+  | Error e -> Stdlib.Result.Result.Error e
+
+
+/// Validate that an API key is not empty
+let validateApiKey (apiKey: String) : Stdlib.Result.Result<Unit, String> =
+  Darklang.LLM.Internal.ApiKeys.validate apiKey
+
+
+
+// REQUEST TRANSFORMATION
+// Convert generic Request to Anthropic format
+
+/// Convert a generic ToolParameter to Anthropic PropertyDef
+let parameterToPropertyDef
+  (param: Darklang.LLM.Provider.ToolParameter)
+  : (String * Darklang.Anthropic.Tools.PropertyDef) =
+  let propDef =
+    Darklang.Anthropic.Tools.PropertyDef
+      { ``type`` = param.paramType
+        description = Stdlib.Option.Option.Some param.description
+        enum = param.enumValues }
+  (param.name, propDef)
+
+/// Convert a generic ToolSchema to Anthropic tool JSON
+let toolSchemaToJson (tool: Darklang.LLM.Provider.ToolSchema) : Json =
+  let properties =
+    tool.parameters
+    |> Stdlib.List.map parameterToPropertyDef
+    |> Stdlib.Dict.fromListOverwritingDuplicates
+
+  let required =
+    tool.parameters
+    |> Stdlib.List.filter (fun p -> p.required)
+    |> Stdlib.List.map (fun p -> p.name)
+
+  let inputSchema =
+    Darklang.Anthropic.Tools.ToolInputSchema
+      { ``type`` = "object"
+        properties = properties
+        required =
+          if Stdlib.List.isEmpty required then
+            Stdlib.Option.Option.None
+          else
+            Stdlib.Option.Option.Some required }
+
+  let anthropicTool =
+    Darklang.Anthropic.Tools.Tool
+      { name = tool.name
+        description = tool.description
+        input_schema = inputSchema
+        cache_control = Stdlib.Option.Option.None
+        strict = Stdlib.Option.Option.None
+        eager_input_streaming = Stdlib.Option.Option.None }
+
+  Darklang.Anthropic.Tools.toolToJson anthropicTool
+
+
+/// Convert an image source to Anthropic JSON format
+let imageSourceToJson (source: Darklang.LLM.Provider.ImageSource) : Json =
+  match source with
+  | Base64(mediaType, data) ->
+    Json.Object
+      [ ("type", Json.String "base64")
+        ("media_type", Json.String mediaType)
+        ("data", Json.String data) ]
+  | Url url ->
+    Json.Object
+      [ ("type", Json.String "url")
+        ("url", Json.String url) ]
+
+/// Convert a content block to Anthropic JSON format
+let contentBlockToJson (block: Darklang.LLM.Provider.ContentBlock) : Json =
+  match block with
+  | Text t ->
+    Json.Object
+      [ ("type", Json.String "text")
+        ("content", Json.String t) ]
+  | Image source ->
+    Json.Object
+      [ ("type", Json.String "image")
+        ("source", imageSourceToJson source) ]
+  | ToolResult(toolUseId, content, isError) ->
+    let fields =
+      [ ("type", Json.String "tool_result")
+        ("tool_use_id", Json.String toolUseId)
+        ("content", Json.String content) ]
+
+    let withError =
+      if isError then
+        Stdlib.List.append fields [ ("is_error", Json.Bool true) ]
+      else
+        fields
+
+    Json.Object withError
+  | ToolUse(id, name, arguments) ->
+    Json.Object
+      [ ("type", Json.String "tool_use")
+        ("id", Json.String id)
+        ("name", Json.String name)
+        ("input", arguments) ]
+
+/// Check if message has only simple text content
+let isSimpleTextMessage (msg: Darklang.LLM.Provider.Message) : Bool =
+  match msg.contentBlocks with
+  | [ Text _ ] -> true
+  | [] -> true
+  | _ -> false
+
+/// Convert a message to Anthropic JSON format (handles images and tool results)
+let messageToJson (msg: Darklang.LLM.Provider.Message) : Json =
+  let role =
+    match msg.role with
+    | User -> "user"
+    | Assistant -> "assistant"
+    | System -> "user" // System handled separately
+
+  if isSimpleTextMessage msg then
+    // Simple text message - use string content
+    Json.Object
+      [ ("role", Json.String role)
+        ("content", Json.String msg.content) ]
+  else
+    // Rich content - use content array
+    let contentArray =
+      Stdlib.List.map msg.contentBlocks (fun block ->
+        match block with
+        | Text t ->
+          Json.Object
+            [ ("type", Json.String "text")
+              ("text", Json.String t) ]
+        | Image source ->
+          Json.Object
+            [ ("type", Json.String "image")
+              ("source", imageSourceToJson source) ]
+        | ToolResult(toolUseId, content, isError) ->
+          let fields =
+            [ ("type", Json.String "tool_result")
+              ("tool_use_id", Json.String toolUseId)
+              ("content", Json.String content) ]
+
+          let withError =
+            if isError then
+              Stdlib.List.append fields [ ("is_error", Json.Bool true) ]
+            else
+              fields
+
+          Json.Object withError
+        | ToolUse(id, name, arguments) ->
+          Json.Object
+            [ ("type", Json.String "tool_use")
+              ("id", Json.String id)
+              ("name", Json.String name)
+              ("input", arguments) ])
+
+    Json.Object
+      [ ("role", Json.String role)
+        ("content", Json.Array contentArray) ]
+
+/// Convert generic messages to Anthropic SimpleMessage format (legacy, for simple text)
+let messagesToAnthropic
+  (messages: List<Darklang.LLM.Provider.Message>)
+  : List<Darklang.Anthropic.Content.SimpleMessage> =
+  Stdlib.List.map messages (fun msg ->
+    let role =
+      match msg.role with
+      | User -> Darklang.Anthropic.Content.Role.User
+      | Assistant -> Darklang.Anthropic.Content.Role.Assistant
+      | System -> Darklang.Anthropic.Content.Role.User // System handled separately
+
+    Darklang.Anthropic.Content.SimpleMessage
+      { role = role
+        content = msg.content })
+
+/// Convert messages to Anthropic JSON format (supports images and rich content)
+let messagesToJson (messages: List<Darklang.LLM.Provider.Message>) : List<Json> =
+  Stdlib.List.map messages messageToJson
+
+
+/// Build the Anthropic API request
+let buildRequest (config: Config) (req: Request) : Json =
+  // Use the new messagesToJson that supports images and rich content
+  let messagesJson = messagesToJson req.messages
+
+  let tools =
+    if Stdlib.List.isEmpty req.tools then
+      []
+    else
+      Stdlib.List.map req.tools toolSchemaToJson
+
+  // Build JSON using the builder pattern
+  let fields =
+    Darklang.Anthropic.Models.JsonBuilder.empty
+    |> Darklang.Anthropic.Models.JsonBuilder.addString "model" req.model
+    |> Darklang.Anthropic.Models.JsonBuilder.addInt "max_tokens" req.maxTokens
+
+  let withMessages =
+    Stdlib.List.append fields [ ("messages", Json.Array messagesJson) ]
+
+  // Add system prompt if present
+  let withSystem =
+    match req.systemPrompt with
+    | Some s -> Stdlib.List.append withMessages [ ("system", Json.String s) ]
+    | None -> withMessages
+
+  // Add tools if present
+  let withTools =
+    if Stdlib.List.isEmpty tools then
+      withSystem
+    else
+      Stdlib.List.append withSystem [ ("tools", Json.Array tools) ]
+
+  // Add temperature if present
+  let withTemp =
+    match req.temperature with
+    | Some t -> Stdlib.List.append withTools [ ("temperature", Json.Number t) ]
+    | None -> withTools
+
+  Json.Object withTemp
+
+
+
+// RESPONSE TRANSFORMATION
+// Convert Anthropic response to generic Response
+
+/// Parse Anthropic stop_reason to generic StopReason
+let parseStopReason (reason: String) : Darklang.LLM.Provider.StopReason =
+  match reason with
+  | "end_turn" -> Darklang.LLM.Provider.StopReason.EndTurn
+  | "tool_use" -> Darklang.LLM.Provider.StopReason.ToolUse
+  | "max_tokens" -> Darklang.LLM.Provider.StopReason.MaxTokens
+  | "stop_sequence" -> Darklang.LLM.Provider.StopReason.StopSequence
+  | other -> Darklang.LLM.Provider.StopReason.Error other
+
+
+/// Extract text content from Anthropic response
+let extractTextContent (contentArray: List<Json>) : String =
+  contentArray
+  |> Stdlib.List.filterMap (fun block ->
+    match block with
+    | Object fields ->
+      let blockType = Darklang.LLM.Internal.JsonHelpers.getString "type" fields
+      match blockType with
+      | Some "text" -> Darklang.LLM.Internal.JsonHelpers.getString "text" fields
+      | _ -> Stdlib.Option.Option.None
+    | _ -> Stdlib.Option.Option.None)
+  |> Stdlib.String.join ""
+
+
+/// Extract tool calls from Anthropic response
+let extractToolCalls (contentArray: List<Json>) : List<Darklang.LLM.Provider.ToolCall> =
+  contentArray
+  |> Stdlib.List.filterMap (fun block ->
+    match block with
+    | Object fields ->
+      let blockType = Darklang.LLM.Internal.JsonHelpers.getString "type" fields
+      match blockType with
+      | Some "tool_use" ->
+        let id = Darklang.LLM.Internal.JsonHelpers.getString "id" fields
+        let name = Darklang.LLM.Internal.JsonHelpers.getString "name" fields
+        let input = Darklang.LLM.Internal.JsonHelpers.getValue "input" fields
+
+        match (id, name, input) with
+        | (Some i, Some n, Some inp) ->
+          Stdlib.Option.Option.Some(
+            Darklang.LLM.Provider.ToolCall { id = i; name = n; arguments = inp })
+        | _ -> Stdlib.Option.Option.None
+      | _ -> Stdlib.Option.Option.None
+    | _ -> Stdlib.Option.Option.None)
+
+
+/// Extract usage from Anthropic response (includes cache tokens)
+let extractUsage (fields: List<(String * Json)>) : Darklang.LLM.Provider.Usage =
+  let usageFields = Darklang.LLM.Internal.JsonHelpers.getObject "usage" fields
+  let inputTokens = Darklang.LLM.Internal.JsonHelpers.getInt "input_tokens" usageFields
+  let outputTokens = Darklang.LLM.Internal.JsonHelpers.getInt "output_tokens" usageFields
+  let cacheCreationTokens = Darklang.LLM.Internal.JsonHelpers.getInt "cache_creation_input_tokens" usageFields
+  let cacheReadTokens = Darklang.LLM.Internal.JsonHelpers.getInt "cache_read_input_tokens" usageFields
+
+  Darklang.LLM.Provider.Usage
+    { inputTokens = inputTokens
+      outputTokens = outputTokens
+      cacheCreationTokens = cacheCreationTokens
+      cacheReadTokens = cacheReadTokens }
+
+
+/// Parse full Anthropic response to generic Response
+let parseResponse (json: Json) : Stdlib.Result.Result<Response, ProviderError> =
+  match json with
+  | Object fields ->
+    // Get content array
+    let contentArray = Darklang.LLM.Internal.JsonHelpers.getArray "content" fields
+
+    // Extract text
+    let content = extractTextContent contentArray
+
+    // Extract tool calls
+    let toolCalls = extractToolCalls contentArray
+
+    // Extract stop reason
+    let stopReason =
+      match Darklang.LLM.Internal.JsonHelpers.getString "stop_reason" fields with
+      | Some r -> parseStopReason r
+      | None -> Darklang.LLM.Provider.StopReason.EndTurn
+
+    // Extract usage
+    let usage = extractUsage fields
+
+    Stdlib.Result.Result.Ok(
+      Darklang.LLM.Provider.Response
+        { content = content
+          stopReason = stopReason
+          toolCalls = toolCalls
+          usage = usage
+          raw = json })
+
+  | _ ->
+    Stdlib.Result.Result.Error(
+      Darklang.LLM.Provider.ProviderError.InvalidRequestError "Invalid JSON response")
+
+
+
+// HTTP REQUEST
+
+/// Send request to Anthropic API
+let sendRequest
+  (config: Config)
+  (req: Request)
+  : Stdlib.Result.Result<Response, ProviderError> =
+  let requestJson = buildRequest config req
+  let body = Stdlib.AltJson.format requestJson
+
+  let headers =
+    [ ("x-api-key", config.apiKey)
+      ("anthropic-version", "2023-06-01")
+      ("content-type", "application/json") ]
+
+  let httpResult =
+    Stdlib.HttpClient.post config.baseUrl headers (Stdlib.String.toBytes body)
+
+  match httpResult with
+  | Error e ->
+    Stdlib.Result.Result.Error(
+      Darklang.LLM.Provider.ProviderError.NetworkError(
+        Stdlib.HttpClient.toString e))
+
+  | Ok response ->
+    let bodyStr = Stdlib.String.fromBytesWithReplacement response.body
+
+    Darklang.LLM.Internal.HttpErrors.handleResponse
+      response.statusCode
+      bodyStr
+      (fun body ->
+        match Stdlib.AltJson.parse body with
+        | Ok json -> parseResponse json
+        | Error e ->
+          Stdlib.Result.Result.Error(
+            Darklang.LLM.Provider.ProviderError.InvalidRequestError e))
+
+
+
+// TOOL RESULT FORMATTING
+
+/// Format tool results for Anthropic's expected format
+/// Anthropic expects all tool results in a single user message with content array
+let formatToolResults
+  (results: List<Darklang.LLM.Provider.ToolResult>)
+  : List<Darklang.LLM.Provider.Message> =
+  // Anthropic expects tool results as content blocks within a single user message
+  let contentBlocks =
+    Stdlib.List.map results (fun r ->
+      Darklang.LLM.Provider.ContentBlock.ToolResult(r.toolCallId, r.content, r.isError))
+
+  // Create a combined text content for backwards compatibility
+  let textContent =
+    results
+    |> Stdlib.List.map (fun r -> r.content)
+    |> Stdlib.String.join "\n"
+
+  // Return as single message with rich content blocks
+  [ Darklang.LLM.Provider.Message
+      { role = Darklang.LLM.Provider.Role.User
+        content = textContent
+        contentBlocks = contentBlocks } ]
+
+
+
+// EXTENDED REQUEST BUILDING
+// For Anthropic-specific features: thinking, web search, web fetch, tool choice
+
+/// Convert generic ToolChoice to Anthropic tool_choice JSON
+let toolChoiceToJson
+  (choice: Darklang.LLM.Provider.ToolChoice)
+  (disableParallel: Bool)
+  : Json =
+  let baseFields =
+    match choice with
+    | Auto -> [ ("type", Json.String "auto") ]
+    | Any -> [ ("type", Json.String "any") ]
+    | Specific name ->
+      [ ("type", Json.String "tool")
+        ("name", Json.String name) ]
+    | None -> [ ("type", Json.String "none") ]
+
+  let withDisableParallel =
+    if disableParallel then
+      Stdlib.List.append baseFields [ ("disable_parallel_tool_use", Json.Bool true) ]
+    else
+      baseFields
+
+  Json.Object withDisableParallel
+
+
+/// Convert ThinkingConfig to Anthropic thinking JSON
+let thinkingConfigToJson (config: Darklang.LLM.Provider.ThinkingConfig) : Json =
+  match config with
+  | Disabled ->
+    Json.Object [ ("type", Json.String "disabled") ]
+  | Enabled budgetTokens ->
+    Json.Object
+      [ ("type", Json.String "enabled")
+        ("budget_tokens", Json.Number(Stdlib.Int64.toFloat budgetTokens)) ]
+  | Adaptive ->
+    Json.Object [ ("type", Json.String "adaptive") ]
+
+
+/// Build domain constraint fields (maxUses, allowedDomains, blockedDomains)
+/// Shared by web_search and web_fetch config builders
+let buildDomainConstraints
+  (baseFields: List<(String * Json)>)
+  (maxUses: Stdlib.Option.Option<Int64>)
+  (allowedDomains: Stdlib.Option.Option<List<String>>)
+  (blockedDomains: Stdlib.Option.Option<List<String>>)
+  : List<(String * Json)> =
+  let withMaxUses =
+    match maxUses with
+    | Some n -> Stdlib.List.append baseFields [ ("max_uses", Json.Number(Stdlib.Int64.toFloat n)) ]
+    | None -> baseFields
+
+  let withAllowed =
+    match allowedDomains with
+    | Some domains ->
+      let domainsJson = Stdlib.List.map domains (fun d -> Json.String d)
+      Stdlib.List.append withMaxUses [ ("allowed_domains", Json.Array domainsJson) ]
+    | None -> withMaxUses
+
+  match blockedDomains with
+  | Some domains ->
+    let domainsJson = Stdlib.List.map domains (fun d -> Json.String d)
+    Stdlib.List.append withAllowed [ ("blocked_domains", Json.Array domainsJson) ]
+  | None -> withAllowed
+
+
+/// Convert WebSearchConfig to Anthropic web_search tool JSON
+let webSearchConfigToJson (config: Darklang.LLM.Provider.WebSearchConfig) : Json =
+  let baseFields =
+    [ ("type", Json.String "web_search_20250305")
+      ("name", Json.String "web_search") ]
+
+  let fields = buildDomainConstraints baseFields config.maxUses config.allowedDomains config.blockedDomains
+  Json.Object fields
+
+
+/// Convert WebFetchConfig to Anthropic web_fetch tool JSON
+let webFetchConfigToJson (config: Darklang.LLM.Provider.WebFetchConfig) : Json =
+  let baseFields =
+    [ ("type", Json.String "web_fetch_20250910")
+      ("name", Json.String "web_fetch") ]
+
+  let fields = buildDomainConstraints baseFields config.maxUses config.allowedDomains config.blockedDomains
+
+  let withCitations =
+    if config.enableCitations then
+      Stdlib.List.append fields [ ("citations", Json.Object [ ("enabled", Json.Bool true) ]) ]
+    else
+      fields
+
+  Json.Object withCitations
+
+
+/// Build an extended request with Anthropic-specific features
+let buildExtendedRequest
+  (config: Config)
+  (req: Request)
+  (ext: Darklang.LLM.Provider.RequestExtensions)
+  : Json =
+  // Use the new messagesToJson that supports images and rich content
+  let messagesJson = messagesToJson req.messages
+
+  // Build client tools
+  let clientTools =
+    if Stdlib.List.isEmpty req.tools then
+      []
+    else
+      Stdlib.List.map req.tools toolSchemaToJson
+
+  // Build server tools (web search, web fetch)
+  let serverTools =
+    let webSearchTool =
+      match ext.webSearch with
+      | Some config -> [ webSearchConfigToJson config ]
+      | None -> []
+
+    let webFetchTool =
+      match ext.webFetch with
+      | Some config -> [ webFetchConfigToJson config ]
+      | None -> []
+
+    Stdlib.List.append webSearchTool webFetchTool
+
+  // Combine all tools
+  let allTools = Stdlib.List.append clientTools serverTools
+
+  // Build base fields
+  let fields =
+    Darklang.Anthropic.Models.JsonBuilder.empty
+    |> Darklang.Anthropic.Models.JsonBuilder.addString "model" req.model
+    |> Darklang.Anthropic.Models.JsonBuilder.addInt "max_tokens" req.maxTokens
+
+  let withMessages =
+    Stdlib.List.append fields [ ("messages", Json.Array messagesJson) ]
+
+  // Add system prompt if present
+  let withSystem =
+    match req.systemPrompt with
+    | Some s -> Stdlib.List.append withMessages [ ("system", Json.String s) ]
+    | None -> withMessages
+
+  // Add tools if present
+  let withTools =
+    if Stdlib.List.isEmpty allTools then
+      withSystem
+    else
+      Stdlib.List.append withSystem [ ("tools", Json.Array allTools) ]
+
+  // Add tool choice if present
+  let withToolChoice =
+    match ext.toolChoice with
+    | Some choice ->
+      let choiceJson = toolChoiceToJson choice ext.disableParallelToolUse
+      Stdlib.List.append withTools [ ("tool_choice", choiceJson) ]
+    | None ->
+      if ext.disableParallelToolUse then
+        let choiceJson = toolChoiceToJson Darklang.LLM.Provider.ToolChoice.Auto true
+        Stdlib.List.append withTools [ ("tool_choice", choiceJson) ]
+      else
+        withTools
+
+  // Add thinking if present
+  let withThinking =
+    match ext.thinking with
+    | Some config ->
+      let thinkingJson = thinkingConfigToJson config
+      Stdlib.List.append withToolChoice [ ("thinking", thinkingJson) ]
+    | None -> withToolChoice
+
+  // Add temperature if present
+  let withTemp =
+    match req.temperature with
+    | Some t -> Stdlib.List.append withThinking [ ("temperature", Json.Number t) ]
+    | None -> withThinking
+
+  Json.Object withTemp
+
+
+
+// EXTENDED RESPONSE PARSING
+// Extract thinking, web search results, and citations
+
+/// Extract thinking content from Anthropic response
+let extractThinking (contentArray: List<Json>) : Stdlib.Option.Option<String> =
+  let thinkingBlocks =
+    contentArray
+    |> Stdlib.List.filterMap (fun block ->
+      match block with
+      | Object fields ->
+        let blockType = Darklang.LLM.Internal.JsonHelpers.getString "type" fields
+        match blockType with
+        | Some "thinking" -> Darklang.LLM.Internal.JsonHelpers.getString "thinking" fields
+        | _ -> Stdlib.Option.Option.None
+      | _ -> Stdlib.Option.Option.None)
+
+  if Stdlib.List.isEmpty thinkingBlocks then
+    Stdlib.Option.Option.None
+  else
+    Stdlib.Option.Option.Some(Stdlib.String.join thinkingBlocks "\n\n")
+
+
+/// Extract web search results from Anthropic response
+let extractWebSearchResults
+  (contentArray: List<Json>)
+  : List<Darklang.LLM.Provider.WebSearchResult> =
+  contentArray
+  |> Stdlib.List.filterMap (fun block ->
+    match block with
+    | Object fields ->
+      let blockType = Darklang.LLM.Internal.JsonHelpers.getString "type" fields
+      match blockType with
+      | Some "web_search_tool_result" ->
+        // Get the content array inside the result
+        let resultContent = Darklang.LLM.Internal.JsonHelpers.getArray "content" fields
+
+        let results =
+          resultContent
+          |> Stdlib.List.filterMap (fun item ->
+            match item with
+            | Object itemFields ->
+              let itemType = Darklang.LLM.Internal.JsonHelpers.getString "type" itemFields
+              match itemType with
+              | Some "web_search_result" ->
+                let url =
+                  Stdlib.Option.withDefault
+                    (Darklang.LLM.Internal.JsonHelpers.getString "url" itemFields)
+                    ""
+
+                let title =
+                  Stdlib.Option.withDefault
+                    (Darklang.LLM.Internal.JsonHelpers.getString "title" itemFields)
+                    ""
+
+                let pageAge =
+                  Darklang.LLM.Internal.JsonHelpers.getString "page_age" itemFields
+
+                Stdlib.Option.Option.Some(
+                  Darklang.LLM.Provider.WebSearchResult
+                    { url = url
+                      title = title
+                      pageAge = pageAge })
+              | _ -> Stdlib.Option.Option.None
+            | _ -> Stdlib.Option.Option.None)
+
+        if Stdlib.List.isEmpty results then
+          Stdlib.Option.Option.None
+        else
+          Stdlib.Option.Option.Some results
+      | _ -> Stdlib.Option.Option.None
+    | _ -> Stdlib.Option.Option.None)
+  |> Stdlib.List.flatten
+
+
+/// Extract citations from a text block
+let extractCitationsFromBlock (fields: List<(String * Json)>) : List<Darklang.LLM.Provider.Citation> =
+  let citationsArray = Darklang.LLM.Internal.JsonHelpers.getArray "citations" fields
+
+  citationsArray
+  |> Stdlib.List.filterMap (fun citation ->
+    match citation with
+    | Object citFields ->
+      let citationType =
+        Stdlib.Option.withDefault
+          (Darklang.LLM.Internal.JsonHelpers.getString "type" citFields)
+          "unknown"
+
+      Stdlib.Option.Option.Some(
+        Darklang.LLM.Provider.Citation
+          { citationType = citationType
+            url = Darklang.LLM.Internal.JsonHelpers.getString "url" citFields
+            title = Darklang.LLM.Internal.JsonHelpers.getString "title" citFields
+            citedText = Darklang.LLM.Internal.JsonHelpers.getString "cited_text" citFields
+            startIndex =
+              let idx = Darklang.LLM.Internal.JsonHelpers.getInt "start_index" citFields
+              if idx == 0L then Stdlib.Option.Option.None
+              else Stdlib.Option.Option.Some idx
+            endIndex =
+              let idx = Darklang.LLM.Internal.JsonHelpers.getInt "end_index" citFields
+              if idx == 0L then Stdlib.Option.Option.None
+              else Stdlib.Option.Option.Some idx })
+    | _ -> Stdlib.Option.Option.None)
+
+
+/// Extract all citations from Anthropic response
+let extractCitations (contentArray: List<Json>) : List<Darklang.LLM.Provider.Citation> =
+  contentArray
+  |> Stdlib.List.filterMap (fun block ->
+    match block with
+    | Object fields ->
+      let blockType = Darklang.LLM.Internal.JsonHelpers.getString "type" fields
+      match blockType with
+      | Some "text" ->
+        let citations = extractCitationsFromBlock fields
+        if Stdlib.List.isEmpty citations then
+          Stdlib.Option.Option.None
+        else
+          Stdlib.Option.Option.Some citations
+      | _ -> Stdlib.Option.Option.None
+    | _ -> Stdlib.Option.Option.None)
+  |> Stdlib.List.flatten
+
+
+/// Parse extended Anthropic response
+let parseExtendedResponse
+  (json: Json)
+  : Stdlib.Result.Result<Darklang.LLM.Provider.ResponseExtended, ProviderError> =
+  match json with
+  | Object fields ->
+    // Get content array
+    let contentArray = Darklang.LLM.Internal.JsonHelpers.getArray "content" fields
+
+    // Extract text
+    let content = extractTextContent contentArray
+
+    // Extract tool calls
+    let toolCalls = extractToolCalls contentArray
+
+    // Extract stop reason
+    let stopReason =
+      match Darklang.LLM.Internal.JsonHelpers.getString "stop_reason" fields with
+      | Some r -> parseStopReason r
+      | None -> Darklang.LLM.Provider.StopReason.EndTurn
+
+    // Extract usage
+    let usage = extractUsage fields
+
+    // Extract thinking
+    let thinking = extractThinking contentArray
+
+    // Extract web search results
+    let webSearchResults = extractWebSearchResults contentArray
+
+    // Extract citations
+    let citations = extractCitations contentArray
+
+    Stdlib.Result.Result.Ok(
+      Darklang.LLM.Provider.ResponseExtended
+        { content = content
+          stopReason = stopReason
+          toolCalls = toolCalls
+          usage = usage
+          raw = json
+          thinking = thinking
+          webSearchResults = webSearchResults
+          citations = citations
+          // Anthropic doesn't have system fingerprint
+          systemFingerprint = Stdlib.Option.Option.None })
+
+  | _ ->
+    Stdlib.Result.Result.Error(
+      Darklang.LLM.Provider.ProviderError.InvalidRequestError "Invalid JSON response")
+
+
+
+// EXTENDED HTTP REQUEST
+
+/// Get required beta headers for extended features
+let getBetaHeaders (ext: Darklang.LLM.Provider.RequestExtensions) : List<String> =
+  let webSearchBeta =
+    match ext.webSearch with
+    | Some _ -> [ "web-search-2025-03-05" ]
+    | None -> []
+
+  let webFetchBeta =
+    match ext.webFetch with
+    | Some _ -> [ "web-fetch-2025-09-10" ]
+    | None -> []
+
+  // 1M context window beta for Opus 4.6 and Sonnet 4.6
+  let contextBeta =
+    if ext.extendedContext then
+      [ "context-1m-2025-08-07" ]
+    else
+      []
+
+  Stdlib.List.append (Stdlib.List.append webSearchBeta webFetchBeta) contextBeta
+
+
+/// Send extended request to Anthropic API
+let sendExtendedRequest
+  (config: Config)
+  (req: Request)
+  (ext: Darklang.LLM.Provider.RequestExtensions)
+  : Stdlib.Result.Result<Darklang.LLM.Provider.ResponseExtended, ProviderError> =
+  let requestJson = buildExtendedRequest config req ext
+  let body = Stdlib.AltJson.format requestJson
+
+  // Get required beta headers
+  let betas = getBetaHeaders ext
+
+  let baseHeaders =
+    [ ("x-api-key", config.apiKey)
+      ("anthropic-version", "2023-06-01")
+      ("content-type", "application/json") ]
+
+  let headers =
+    if Stdlib.List.isEmpty betas then
+      baseHeaders
+    else
+      let betaValue = Stdlib.String.join betas ","
+      Stdlib.List.append baseHeaders [ ("anthropic-beta", betaValue) ]
+
+  let httpResult =
+    Stdlib.HttpClient.post config.baseUrl headers (Stdlib.String.toBytes body)
+
+  match httpResult with
+  | Error e ->
+    Stdlib.Result.Result.Error(
+      Darklang.LLM.Provider.ProviderError.NetworkError(
+        Stdlib.HttpClient.toString e))
+
+  | Ok response ->
+    let bodyStr = Stdlib.String.fromBytesWithReplacement response.body
+
+    Darklang.LLM.Internal.HttpErrors.handleResponse
+      response.statusCode
+      bodyStr
+      (fun body ->
+        match Stdlib.AltJson.parse body with
+        | Ok json -> parseExtendedResponse json
+        | Error e ->
+          Stdlib.Result.Result.Error(
+            Darklang.LLM.Provider.ProviderError.InvalidRequestError e))
+
+
+
+// PROVIDER FACTORY
+
+/// Internal helper to build a provider from validated config
+let buildProvider (config: Config) : Provider =
+  Darklang.LLM.Provider.Provider
+    { id = "anthropic"
+      name = "Anthropic Claude"
+      send = (fun req -> sendRequest config req)
+      sendExtended = (fun req ext -> sendExtendedRequest config req ext)
+      formatToolResults = formatToolResults
+      capabilities =
+        Darklang.LLM.Provider.Capabilities
+          { supportsTools = true
+            supportsStreaming = false
+            supportsSystemPrompt = true
+            supportsImages = true
+            maxContextTokens = 200000L } }
+
+
+/// Create an Anthropic provider with default configuration
+/// Returns Error if ANTHROPIC_API_KEY environment variable is not set
+let create () : Stdlib.Result.Result<Provider, String> =
+  match defaultConfig () with
+  | Ok config -> Stdlib.Result.Result.Ok(buildProvider config)
+  | Error e -> Stdlib.Result.Result.Error e
+
+
+/// Create an Anthropic provider with default configuration
+/// Panics if ANTHROPIC_API_KEY environment variable is not set
+/// Use this when you want fail-fast behavior at startup
+let createOrFail () : Provider =
+  match defaultConfig () with
+  | Ok config -> buildProvider config
+  | Error e -> Builtin.panic e
+
+
+/// Create an Anthropic provider with custom API key
+/// Returns Error if the API key is empty
+let createWithKey (apiKey: String) : Stdlib.Result.Result<Provider, String> =
+  match validateApiKey apiKey with
+  | Ok _ ->
+    let config = Config { apiKey = apiKey; baseUrl = "https://api.anthropic.com/v1/messages" }
+    Stdlib.Result.Result.Ok(buildProvider config)
+  | Error e -> Stdlib.Result.Result.Error e
+
+
+/// Create an Anthropic provider with full configuration
+/// Returns Error if the API key in the config is empty
+let createWithConfig (config: Config) : Stdlib.Result.Result<Provider, String> =
+  match validateApiKey config.apiKey with
+  | Ok _ -> Stdlib.Result.Result.Ok(buildProvider config)
+  | Error e -> Stdlib.Result.Result.Error e
