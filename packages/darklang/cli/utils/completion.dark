@@ -16,7 +16,7 @@ let withIcon (entityType: Packages.EntityType) (text: String) : CompletionItem =
 
 /// Create a completion item with a description shown after the value
 let withDescription (text: String) (description: String) : CompletionItem =
-  let display = text ++ "  " ++ (Colors.dim description)
+  let display = text ++ "  " ++ (Colors.dimText description)
   CompletionItem { display = display; value = text }
 
 
