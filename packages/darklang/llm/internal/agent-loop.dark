@@ -1,0 +1,321 @@
+/// Internal Agent Loop Implementation
+/// Shared loop logic for all agent types.
+/// This module is internal - users should use Agent instead.
+module Darklang.LLM.Internal.AgentLoop
+
+type Json = Stdlib.AltJson.Json
+type Provider = Darklang.LLM.Provider.Provider
+type Model = Darklang.LLM.Models.Model
+type Message = Darklang.LLM.Provider.Message
+
+
+// SHARED TOOL TYPES
+
+/// Output from a tool execution
+type ToolOutput =
+  | Text of String
+  | Json of Json
+
+module ToolOutput =
+  let text (s: String) : ToolOutput = ToolOutput.Text s
+
+  let json (j: Json) : ToolOutput = ToolOutput.Json j
+
+  let toString (output: ToolOutput) : String =
+    match output with
+    | Text s -> s
+    | Json j -> Stdlib.AltJson.format j
+
+
+/// A tool with handler function
+type Tool =
+  { schema: Darklang.LLM.Provider.ToolSchema
+    handler: Json -> Stdlib.Result.Result<ToolOutput, String> }
+
+
+/// Record of a tool invocation
+type ToolCall =
+  { name: String
+    input: Json
+    output: ToolOutput
+    isError: Bool }
+
+
+
+// SHARED AGENT CONFIG
+
+/// Core agent configuration shared by all agent types
+type AgentConfig =
+  { model: Model
+    systemPrompt: Stdlib.Option.Option<String>
+    tools: List<Tool>
+    maxTokens: Int64
+    maxTurns: Int64
+    temperature: Stdlib.Option.Option<Float> }
+
+
+/// Default agent configuration
+let defaultConfig : AgentConfig =
+  AgentConfig
+    { model = Darklang.LLM.Models.Anthropic.sonnet45
+      systemPrompt = Stdlib.Option.Option.None
+      tools = []
+      maxTokens = 4096L
+      maxTurns = 10L
+      temperature = Stdlib.Option.Option.None }
+
+
+
+// AGENT RESULT
+
+/// Result of running an agent (with optional extended data)
+type AgentResult =
+  { response: String
+    toolCalls: List<ToolCall>
+    turns: Int64
+    usage: Darklang.LLM.Provider.Usage
+    // Extended data (populated when available from provider)
+    thinking: Stdlib.Option.Option<String>
+    webSearchResults: List<Darklang.LLM.Provider.WebSearchResult>
+    citations: List<Darklang.LLM.Provider.Citation>
+    // OpenAI-specific: system fingerprint for reproducibility
+    systemFingerprint: Stdlib.Option.Option<String> }
+
+
+/// Create an agent result
+let createResult
+  (response: String)
+  (toolCalls: List<ToolCall>)
+  (turns: Int64)
+  (usage: Darklang.LLM.Provider.Usage)
+  (thinking: Stdlib.Option.Option<String>)
+  (webSearchResults: List<Darklang.LLM.Provider.WebSearchResult>)
+  (citations: List<Darklang.LLM.Provider.Citation>)
+  (systemFingerprint: Stdlib.Option.Option<String>)
+  : AgentResult =
+  AgentResult
+    { response = response
+      toolCalls = toolCalls
+      turns = turns
+      usage = usage
+      thinking = thinking
+      webSearchResults = webSearchResults
+      citations = citations
+      systemFingerprint = systemFingerprint }
+
+
+
+// TOOL EXECUTION
+
+/// Execute a tool by name
+let executeTool
+  (tools: List<Tool>)
+  (name: String)
+  (input: Json)
+  : (ToolOutput * Bool) =
+  let found = Stdlib.List.findFirst tools (fun t -> t.schema.name == name)
+
+  match found with
+  | Some tool ->
+    match tool.handler input with
+    | Ok output -> (output, false)
+    | Error err -> (ToolOutput.Text err, true)
+  | None ->
+    (ToolOutput.Text("Tool not found: " ++ name), true)
+
+
+/// Process tool calls from a response and return results
+let processToolCalls
+  (tools: List<Tool>)
+  (providerToolCalls: List<Darklang.LLM.Provider.ToolCall>)
+  : List<(Darklang.LLM.Provider.ToolResult * ToolCall)> =
+  Stdlib.List.map providerToolCalls (fun tc ->
+    let (output, isError) = executeTool tools tc.name tc.arguments
+
+    let toolCall =
+      ToolCall
+        { name = tc.name
+          input = tc.arguments
+          output = output
+          isError = isError }
+
+    let providerResult =
+      Darklang.LLM.Provider.ToolResult
+        { toolCallId = tc.id
+          content = ToolOutput.toString output
+          isError = isError }
+
+    (providerResult, toolCall))
+
+
+
+// LOOP STATE
+
+type LoopState =
+  { messages: List<Message>
+    toolCalls: List<ToolCall>
+    turn: Int64
+    totalUsage: Darklang.LLM.Provider.Usage
+    isDone: Bool
+    // Extended data accumulation
+    thinking: Stdlib.Option.Option<String>
+    webSearchResults: List<Darklang.LLM.Provider.WebSearchResult>
+    citations: List<Darklang.LLM.Provider.Citation>
+    // OpenAI-specific
+    systemFingerprint: Stdlib.Option.Option<String>
+    result: Stdlib.Option.Option<Stdlib.Result.Result<AgentResult, String>> }
+
+
+/// Create initial loop state
+let initialState (userMessage: String) : LoopState =
+  LoopState
+    { messages = [ Darklang.LLM.Provider.userMessage userMessage ]
+      toolCalls = []
+      turn = 1L
+      totalUsage = Darklang.LLM.Provider.emptyUsage
+      isDone = false
+      thinking = Stdlib.Option.Option.None
+      webSearchResults = []
+      citations = []
+      systemFingerprint = Stdlib.Option.Option.None
+      result = Stdlib.Option.Option.None }
+
+
+/// Create initial loop state with history
+let initialStateWithHistory (history: List<Message>) (userMessage: String) : LoopState =
+  let messages =
+    Stdlib.List.append history [ Darklang.LLM.Provider.userMessage userMessage ]
+
+  LoopState
+    { messages = messages
+      toolCalls = []
+      turn = 1L
+      totalUsage = Darklang.LLM.Provider.emptyUsage
+      isDone = false
+      thinking = Stdlib.Option.Option.None
+      webSearchResults = []
+      citations = []
+      systemFingerprint = Stdlib.Option.Option.None
+      result = Stdlib.Option.Option.None }
+
+
+
+// REQUEST BUILDING
+
+/// Build a provider request from agent config and state
+let buildRequest (config: AgentConfig) (state: LoopState) : Darklang.LLM.Provider.Request =
+  let toolSchemas = Stdlib.List.map config.tools (fun t -> t.schema)
+
+  let req1 = Darklang.LLM.Provider.createRequest config.model.id
+  let req2 = Darklang.LLM.Provider.withMessages state.messages req1
+  let req3 = Darklang.LLM.Provider.withTools toolSchemas req2
+  let request = Darklang.LLM.Provider.withMaxTokens config.maxTokens req3
+
+  let requestWithSystem =
+    match config.systemPrompt with
+    | Some s -> Darklang.LLM.Provider.withSystemPrompt s request
+    | None -> request
+
+  match config.temperature with
+  | Some t -> Darklang.LLM.Provider.withTemperature t requestWithSystem
+  | None -> requestWithSystem
+
+
+
+// AGENT LOOP
+
+/// Accumulate thinking from response
+let accumulateThinking
+  (prev: Stdlib.Option.Option<String>)
+  (curr: Stdlib.Option.Option<String>)
+  : Stdlib.Option.Option<String> =
+  match (prev, curr) with
+  | (Some p, Some c) -> Stdlib.Option.Option.Some(p ++ "\n\n---\n\n" ++ c)
+  | (Some p, None) -> Stdlib.Option.Option.Some p
+  | (None, Some c) -> Stdlib.Option.Option.Some c
+  | (None, None) -> Stdlib.Option.Option.None
+
+
+/// Run the agent loop until completion (with retry for transient errors)
+let runExtendedLoop
+  (provider: Provider)
+  (config: AgentConfig)
+  (extensions: Darklang.LLM.Provider.RequestExtensions)
+  (state: LoopState)
+  : Stdlib.Result.Result<AgentResult, String> =
+  // Use retry logic for the send operation
+  let request = buildRequest config state
+
+  let result =
+    Darklang.LLM.Provider.retryRequest (fun () -> provider.sendExtended request extensions)
+
+  match result with
+  | Error e ->
+    Stdlib.Result.Result.Error(Darklang.LLM.Provider.ProviderError.toString e)
+  | Ok response ->
+    let newUsage = Darklang.LLM.Provider.addUsage state.totalUsage response.usage
+
+    // Accumulate extended data
+    let accumulatedThinking = accumulateThinking state.thinking response.thinking
+    let accumulatedSearches =
+      Stdlib.List.append state.webSearchResults response.webSearchResults
+    let accumulatedCitations =
+      Stdlib.List.append state.citations response.citations
+    // Use latest system fingerprint (prefer response if present)
+    let latestFingerprint =
+      match response.systemFingerprint with
+      | Some _ -> response.systemFingerprint
+      | None -> state.systemFingerprint
+
+    match response.stopReason with
+    | ToolUse ->
+      // Execute tools and continue
+      let toolResults = processToolCalls config.tools response.toolCalls
+
+      let newToolCalls =
+        Stdlib.List.append
+          state.toolCalls
+          (Stdlib.List.map toolResults (fun (_, tc) -> tc))
+
+      // Create assistant message WITH tool_use blocks (required by Anthropic)
+      let assistantMsg =
+        Darklang.LLM.Provider.assistantMessageWithToolUses response.content response.toolCalls
+      let providerResults = Stdlib.List.map toolResults (fun (pr, _) -> pr)
+      let toolResultMsgs = provider.formatToolResults providerResults
+
+      let updatedMessages =
+        Stdlib.List.append
+          (Stdlib.List.append state.messages [ assistantMsg ])
+          toolResultMsgs
+
+      let newState =
+        LoopState
+          { messages = updatedMessages
+            toolCalls = newToolCalls
+            turn = state.turn + 1L
+            totalUsage = newUsage
+            isDone = false
+            thinking = accumulatedThinking
+            webSearchResults = accumulatedSearches
+            citations = accumulatedCitations
+            systemFingerprint = latestFingerprint
+            result = Stdlib.Option.Option.None }
+
+      if newState.turn > config.maxTurns then
+        Stdlib.Result.Result.Error
+          $"Max turns exceeded ({Stdlib.Int64.toString newState.turn}/{Stdlib.Int64.toString config.maxTurns})"
+      else
+        runExtendedLoop provider config extensions newState
+
+    | _ ->
+      // Terminal state - return result
+      Stdlib.Result.Result.Ok(
+        createResult
+          response.content
+          state.toolCalls
+          state.turn
+          newUsage
+          accumulatedThinking
+          accumulatedSearches
+          accumulatedCitations
+          latestFingerprint)

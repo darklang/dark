@@ -1,0 +1,597 @@
+/// LLM Agent Framework
+/// A high-level, provider-agnostic framework for building AI agents.
+///
+/// Usage:
+///   // Simple one-shot
+///   Agent.ask "What is 2+2?"
+///
+///   // Configured agent with any provider
+///   Agent.create ()
+///   |> Agent.withModel Models.Anthropic.opus46
+///   |> Agent.withSystemPrompt "You are helpful."
+///   |> Agent.run "Solve this problem..."
+///
+///   // Anthropic-specific features
+///   Agent.create ()
+///   |> Agent.withModel Models.Anthropic.opus46
+///   |> Agent.withThinking 8000L
+///   |> Agent.withWebSearch
+///   |> Agent.run "Research this topic..."
+///
+///   // OpenAI-specific features
+///   Agent.create ()
+///   |> Agent.withModel Models.OpenAI.gpt4o
+///   |> Agent.withJsonMode
+///   |> Agent.withSeed 42L
+///   |> Agent.run "Extract data as JSON..."
+module Darklang.LLM.Agent
+
+type Json = Stdlib.AltJson.Json
+type Model = Darklang.LLM.Models.Model
+type Message = Darklang.LLM.Provider.Message
+
+// core types aliases
+type ToolOutput = Darklang.LLM.Internal.AgentLoop.ToolOutput
+type Tool = Darklang.LLM.Internal.AgentLoop.Tool
+type ToolCall = Darklang.LLM.Internal.AgentLoop.ToolCall
+type AgentResult = Darklang.LLM.Internal.AgentLoop.AgentResult
+
+module ToolOutput =
+  let text (s: String) : ToolOutput = Darklang.LLM.Internal.AgentLoop.ToolOutput.Text s
+  let json (j: Json) : ToolOutput = Darklang.LLM.Internal.AgentLoop.ToolOutput.Json j
+  let toString (output: ToolOutput) : String =
+    match output with
+    | Text s -> s
+    | Json j -> Stdlib.AltJson.format j
+
+
+
+// TOOL CREATION
+
+/// Create a tool with parameters
+let makeTool
+  (name: String)
+  (description: String)
+  (parameters: List<Darklang.LLM.Provider.ToolParameter>)
+  (handler: Json -> Stdlib.Result.Result<ToolOutput, String>)
+  : Tool =
+  Darklang.LLM.Internal.AgentLoop.Tool
+    { schema =
+        Darklang.LLM.Provider.ToolSchema
+          { name = name
+            description = description
+            parameters = parameters }
+      handler = handler }
+
+
+// AGENT TYPE
+type Agent =
+  { model: Model
+    systemPrompt: Stdlib.Option.Option<String>
+    tools: List<Tool>
+    maxTokens: Int64
+    maxTurns: Int64
+    temperature: Stdlib.Option.Option<Float>
+    // Shared provider features
+    toolChoice: Stdlib.Option.Option<Darklang.LLM.Provider.ToolChoice>
+    disableParallelToolUse: Bool
+    // Anthropic-specific features
+    thinking: Stdlib.Option.Option<Darklang.LLM.Provider.ThinkingConfig>
+    webSearch: Stdlib.Option.Option<Darklang.LLM.Provider.WebSearchConfig>
+    webFetch: Stdlib.Option.Option<Darklang.LLM.Provider.WebFetchConfig>
+    extendedContext: Bool
+    // OpenAI-specific features
+    responseFormat: Stdlib.Option.Option<Darklang.LLM.Provider.ResponseFormat>
+    seed: Stdlib.Option.Option<Int64>
+    presencePenalty: Stdlib.Option.Option<Float>
+    frequencyPenalty: Stdlib.Option.Option<Float>
+    topP: Stdlib.Option.Option<Float> }
+
+
+
+// CREATION
+
+/// Create an agent with default settings
+let create () : Agent =
+  Agent
+    { model = Darklang.LLM.Models.Anthropic.sonnet45
+      systemPrompt = Stdlib.Option.Option.None
+      tools = []
+      maxTokens = 4096L
+      maxTurns = 10L
+      temperature = Stdlib.Option.Option.None
+      toolChoice = Stdlib.Option.Option.None
+      disableParallelToolUse = false
+      thinking = Stdlib.Option.Option.None
+      webSearch = Stdlib.Option.Option.None
+      webFetch = Stdlib.Option.Option.None
+      extendedContext = false
+      responseFormat = Stdlib.Option.Option.None
+      seed = Stdlib.Option.Option.None
+      presencePenalty = Stdlib.Option.Option.None
+      frequencyPenalty = Stdlib.Option.Option.None
+      topP = Stdlib.Option.Option.None }
+
+
+/// Create an agent for a specific task
+let forTask (task: String) : Agent =
+  (create ()) |> withSystemPrompt ("You are an AI assistant. Your task: " ++ task)
+
+
+
+// BASIC CONFIGURATION
+
+/// Set system prompt
+let withSystemPrompt (agent: Agent) (prompt: String) : Agent =
+  { agent with systemPrompt = Stdlib.Option.Option.Some prompt }
+
+/// Set model
+let withModel (agent: Agent) (model: Model) : Agent =
+  { agent with model = model }
+
+/// Add a single tool
+let withTool (agent: Agent) (tool: Tool) : Agent =
+  { agent with tools = Stdlib.List.append agent.tools [ tool ] }
+
+/// Add multiple tools
+let withTools (agent: Agent) (tools: List<Tool>) : Agent =
+  { agent with tools = Stdlib.List.append agent.tools tools }
+
+/// Set max tokens per response
+let withMaxTokens (agent: Agent) (tokens: Int64) : Agent =
+  let validated = Darklang.LLM.Internal.Validation.validateMaxTokens tokens agent.model.outputTokens
+  { agent with maxTokens = validated }
+
+/// Set max agentic turns
+let withMaxTurns (agent: Agent) (turns: Int64) : Agent =
+  let validated = Darklang.LLM.Internal.Validation.validateMaxTurns turns
+  { agent with maxTurns = validated }
+
+/// Set temperature
+let withTemperature (agent: Agent) (temp: Float) : Agent =
+  let maxTemp = if agent.model.providerId == "openai" then 2.0 else 1.0
+  let validated = Darklang.LLM.Internal.Validation.validateTemperature temp maxTemp
+  { agent with temperature = Stdlib.Option.Option.Some validated }
+
+
+
+// INLINE TOOL HELPERS
+
+/// Add a shell command as a tool
+let withShellTool
+  (agent: Agent)
+  (name: String)
+  (description: String)
+  (command: String)
+  : Agent =
+  let tool =
+    makeTool name description [] (fun _input ->
+      let result = Stdlib.Cli.execute command
+      if result.exitCode == 0L then
+        let output = if result.stdout == "" then "(no output)" else result.stdout
+        Stdlib.Result.Result.Ok(ToolOutput.Text output)
+      else
+        Stdlib.Result.Result.Error
+          $"Command failed (exit {Stdlib.Int64.toString result.exitCode}): {result.stderr}")
+  { agent with tools = Stdlib.List.append agent.tools [ tool ] }
+
+
+/// Add file system tools (read, write, list, search)
+let withFileTools (agent: Agent) : Agent =
+  { agent with tools = Stdlib.List.append agent.tools Darklang.LLM.Tools.FileSystem.all }
+
+
+
+// TOOL CHOICE
+
+/// Set tool choice behavior
+let withToolChoice (agent: Agent) (choice: Darklang.LLM.Provider.ToolChoice) : Agent =
+  { agent with toolChoice = Stdlib.Option.Option.Some choice }
+
+/// Force the model to use a specific tool
+let withSpecificTool (agent: Agent) (toolName: String) : Agent =
+  { agent with
+      toolChoice = Stdlib.Option.Option.Some(Darklang.LLM.Provider.ToolChoice.Specific toolName) }
+
+/// Force the model to use any tool (must use one)
+let withForceTool (agent: Agent) : Agent =
+  { agent with toolChoice = Stdlib.Option.Option.Some Darklang.LLM.Provider.ToolChoice.Any }
+
+/// Disable parallel tool use (force sequential execution)
+let withSequentialTools (agent: Agent) : Agent =
+  { agent with disableParallelToolUse = true }
+
+/// Enable parallel tool use (default)
+let withParallelTools (agent: Agent) : Agent =
+  { agent with disableParallelToolUse = false }
+
+
+// ANTHROPIC-SPECIFIC: EXTENDED THINKING
+
+/// Enable extended thinking with a token budget (Anthropic only)
+let withThinking (agent: Agent) (budgetTokens: Int64) : Agent =
+  { agent with
+      thinking =
+        Stdlib.Option.Option.Some(Darklang.LLM.Provider.ThinkingConfig.Enabled budgetTokens) }
+
+/// Enable adaptive thinking - model decides when and how much to think (Anthropic only)
+let withAdaptiveThinking (agent: Agent) : Agent =
+  { agent with
+      thinking = Stdlib.Option.Option.Some Darklang.LLM.Provider.ThinkingConfig.Adaptive }
+
+
+
+// ANTHROPIC-SPECIFIC: WEB SEARCH
+
+/// Enable web search with default settings (Anthropic only)
+let withWebSearch (agent: Agent) : Agent =
+  { agent with webSearch = Stdlib.Option.Option.Some Darklang.LLM.Provider.defaultWebSearch }
+
+/// Enable web search with custom configuration (Anthropic only)
+let withWebSearchConfig (agent: Agent) (config: Darklang.LLM.Provider.WebSearchConfig) : Agent =
+  { agent with webSearch = Stdlib.Option.Option.Some config }
+
+/// Enable web search limited to specific domains (Anthropic only)
+let withWebSearchDomains (agent: Agent) (domains: List<String>) : Agent =
+  { agent with
+      webSearch =
+        Stdlib.Option.Option.Some(
+          Darklang.LLM.Provider.WebSearchConfig
+            { maxUses = Stdlib.Option.Option.None
+              allowedDomains = Stdlib.Option.Option.Some domains
+              blockedDomains = Stdlib.Option.Option.None }) }
+
+/// Enable web search with a maximum number of searches (Anthropic only)
+let withWebSearchLimit (agent: Agent) (maxUses: Int64) : Agent =
+  { agent with
+      webSearch =
+        Stdlib.Option.Option.Some(
+          Darklang.LLM.Provider.WebSearchConfig
+            { maxUses = Stdlib.Option.Option.Some maxUses
+              allowedDomains = Stdlib.Option.Option.None
+              blockedDomains = Stdlib.Option.Option.None }) }
+
+
+
+// ANTHROPIC-SPECIFIC: WEB FETCH
+
+/// Enable web fetch with default settings (Anthropic only)
+let withWebFetch (agent: Agent) : Agent =
+  { agent with webFetch = Stdlib.Option.Option.Some Darklang.LLM.Provider.defaultWebFetch }
+
+/// Enable web fetch with citations (Anthropic only)
+let withWebFetchCitations (agent: Agent) : Agent =
+  { agent with
+      webFetch =
+        Stdlib.Option.Option.Some(
+          Darklang.LLM.Provider.WebFetchConfig
+            { maxUses = Stdlib.Option.Option.None
+              allowedDomains = Stdlib.Option.Option.None
+              blockedDomains = Stdlib.Option.Option.None
+              enableCitations = true }) }
+
+/// Enable web fetch with custom configuration (Anthropic only)
+let withWebFetchConfig (agent: Agent) (config: Darklang.LLM.Provider.WebFetchConfig) : Agent =
+  { agent with webFetch = Stdlib.Option.Option.Some config }
+
+/// Enable web fetch limited to specific domains (Anthropic only)
+let withWebFetchDomains (agent: Agent) (domains: List<String>) : Agent =
+  { agent with
+      webFetch =
+        Stdlib.Option.Option.Some(
+          Darklang.LLM.Provider.WebFetchConfig
+            { maxUses = Stdlib.Option.Option.None
+              allowedDomains = Stdlib.Option.Option.Some domains
+              blockedDomains = Stdlib.Option.Option.None
+              enableCitations = false }) }
+
+/// Enable extended context window - 1M tokens for Claude 4.6 models (Anthropic only)
+let withExtendedContext (agent: Agent) : Agent =
+  { agent with extendedContext = true }
+
+
+
+// OPENAI-SPECIFIC: JSON MODE / STRUCTURED OUTPUTS
+
+/// Enable JSON mode - forces the model to output valid JSON (OpenAI only)
+/// Note: You should also instruct the model to output JSON in your prompt
+let withJsonMode (agent: Agent) : Agent =
+  { agent with responseFormat = Stdlib.Option.Option.Some Darklang.LLM.Provider.ResponseFormat.JsonObject }
+
+/// Disable JSON mode, return to text output (OpenAI only)
+let withTextMode (agent: Agent) : Agent =
+  { agent with responseFormat = Stdlib.Option.Option.Some Darklang.LLM.Provider.ResponseFormat.Text }
+
+/// Enable structured outputs with a JSON schema (OpenAI only)
+/// The model will conform its output to the provided schema
+let withJsonSchema (agent: Agent) (schema: Json) : Agent =
+  { agent with responseFormat = Stdlib.Option.Option.Some(Darklang.LLM.Provider.ResponseFormat.JsonSchema schema) }
+
+
+
+// OPENAI-SPECIFIC: REPRODUCIBILITY
+
+/// Set a seed for reproducible outputs (OpenAI only)
+/// Using the same seed with the same parameters should give similar results
+let withSeed (agent: Agent) (seed: Int64) : Agent =
+  { agent with seed = Stdlib.Option.Option.Some seed }
+
+
+
+// OPENAI-SPECIFIC: PENALTY CONTROLS
+
+/// Set presence penalty -2.0 to 2.0 (OpenAI only)
+/// Positive values encourage the model to talk about new topics
+let withPresencePenalty (agent: Agent) (penalty: Float) : Agent =
+  { agent with presencePenalty = Stdlib.Option.Option.Some penalty }
+
+/// Set frequency penalty -2.0 to 2.0 (OpenAI only)
+/// Positive values discourage repeating the same words
+let withFrequencyPenalty (agent: Agent) (penalty: Float) : Agent =
+  { agent with frequencyPenalty = Stdlib.Option.Option.Some penalty }
+
+/// Set top_p (nucleus sampling, 0.0 to 1.0) (OpenAI only)
+/// Alternative to temperature for controlling randomness
+let withTopP (agent: Agent) (topP: Float) : Agent =
+  { agent with topP = Stdlib.Option.Option.Some topP }
+
+
+
+// MODEL SHORTCUT HELPERS
+
+/// Use Anthropic Sonnet (balanced)
+let useSonnet (agent: Agent) : Agent =
+  { agent with model = Darklang.LLM.Models.Anthropic.sonnet45 }
+
+/// Use Anthropic Opus (most capable)
+let useOpus (agent: Agent) : Agent =
+  { agent with model = Darklang.LLM.Models.Anthropic.opus46 }
+
+/// Use Anthropic Haiku (fastest)
+let useHaiku (agent: Agent) : Agent =
+  { agent with model = Darklang.LLM.Models.Anthropic.haiku45 }
+
+/// Use OpenAI GPT-4o (balanced)
+let useGPT4o (agent: Agent) : Agent =
+  { agent with model = Darklang.LLM.Models.OpenAI.gpt4o }
+
+/// Use OpenAI GPT-4o Mini (fast)
+let useGPT4oMini (agent: Agent) : Agent =
+  { agent with model = Darklang.LLM.Models.OpenAI.gpt4oMini }
+
+
+
+// VALIDATION
+
+/// Check if a model is an Anthropic model
+let isAnthropicModel (model: Model) : Bool =
+  model.providerId == "anthropic"
+
+/// Check if a model is an OpenAI model
+let isOpenAIModel (model: Model) : Bool =
+  model.providerId == "openai"
+
+/// Check if a model is an OpenAI reasoning model (o1, o3 series)
+/// Reasoning models don't support: temperature, top_p, presence_penalty, frequency_penalty, tools
+let isReasoningModel (model: Model) : Bool =
+  Stdlib.String.startsWith model.id "o1" || Stdlib.String.startsWith model.id "o3"
+
+
+
+// Validation Helpers
+
+/// Check that an optional feature is supported by the current provider
+let checkProviderSupports
+  (option: Stdlib.Option.Option<'a>)
+  (isCorrectProvider: Bool)
+  (featureName: String)
+  (providerName: String)
+  (modelId: String)
+  : Stdlib.Result.Result<Unit, String> =
+  match option with
+  | Some _ ->
+    if isCorrectProvider then
+      Stdlib.Result.Result.Ok()
+    else
+      Stdlib.Result.Result.Error(
+        $"{featureName} is only supported by {providerName} models, but model is {modelId}")
+  | None -> Stdlib.Result.Result.Ok()
+
+/// Check that a bool feature is supported by the current provider
+let checkProviderSupportsFlag
+  (enabled: Bool)
+  (isCorrectProvider: Bool)
+  (featureName: String)
+  (providerName: String)
+  (modelId: String)
+  : Stdlib.Result.Result<Unit, String> =
+  if enabled then
+    if isCorrectProvider then
+      Stdlib.Result.Result.Ok()
+    else
+      Stdlib.Result.Result.Error(
+        $"{featureName} is only supported by {providerName} models, but model is {modelId}")
+  else
+    Stdlib.Result.Result.Ok()
+
+/// Check that an optional feature is not used on reasoning models
+let checkReasoningModelExcludes
+  (option: Stdlib.Option.Option<'a>)
+  (isReasoning: Bool)
+  (featureName: String)
+  (modelId: String)
+  : Stdlib.Result.Result<Unit, String> =
+  if isReasoning then
+    match option with
+    | Some _ ->
+      Stdlib.Result.Result.Error(
+        $"Model {modelId} does not support {featureName} (reasoning model)")
+    | None -> Stdlib.Result.Result.Ok()
+  else
+    Stdlib.Result.Result.Ok()
+
+
+/// Validate agent configuration before running
+/// Returns Error if the agent uses provider-specific features with incompatible models
+let validateAgent (agent: Agent) : Stdlib.Result.Result<Unit, String> =
+  let isAnthropic = isAnthropicModel agent.model
+  let isOpenAI = isOpenAIModel agent.model
+  let isReasoning = isReasoningModel agent.model
+  let modelId = agent.model.id
+
+  // Anthropic-only features
+  (checkProviderSupports agent.thinking isAnthropic "withThinking" "Anthropic" modelId)
+  |> Stdlib.Result.andThen (fun _ ->
+    checkProviderSupports agent.webSearch isAnthropic "withWebSearch" "Anthropic" modelId)
+  |> Stdlib.Result.andThen (fun _ ->
+    checkProviderSupports agent.webFetch isAnthropic "withWebFetch" "Anthropic" modelId)
+  |> Stdlib.Result.andThen (fun _ ->
+    checkProviderSupportsFlag agent.extendedContext isAnthropic "withExtendedContext" "Anthropic" modelId)
+  // OpenAI-only features
+  |> Stdlib.Result.andThen (fun _ ->
+    checkProviderSupports agent.responseFormat isOpenAI "withJsonMode/withJsonSchema" "OpenAI" modelId)
+  |> Stdlib.Result.andThen (fun _ ->
+    checkProviderSupports agent.seed isOpenAI "withSeed" "OpenAI" modelId)
+  |> Stdlib.Result.andThen (fun _ ->
+    checkProviderSupports agent.presencePenalty isOpenAI "withPresencePenalty" "OpenAI" modelId)
+  |> Stdlib.Result.andThen (fun _ ->
+    checkProviderSupports agent.frequencyPenalty isOpenAI "withFrequencyPenalty" "OpenAI" modelId)
+  |> Stdlib.Result.andThen (fun _ ->
+    checkProviderSupports agent.topP isOpenAI "withTopP" "OpenAI" modelId)
+  // Reasoning model restrictions
+  |> Stdlib.Result.andThen (fun _ ->
+    checkReasoningModelExcludes agent.temperature isReasoning "temperature" modelId)
+  |> Stdlib.Result.andThen (fun _ ->
+    checkReasoningModelExcludes agent.topP isReasoning "top_p" modelId)
+  |> Stdlib.Result.andThen (fun _ ->
+    checkReasoningModelExcludes agent.presencePenalty isReasoning "presence_penalty" modelId)
+  |> Stdlib.Result.andThen (fun _ ->
+    checkReasoningModelExcludes agent.frequencyPenalty isReasoning "frequency_penalty" modelId)
+  |> Stdlib.Result.andThen (fun _ ->
+    if isReasoning && Stdlib.Bool.not (Stdlib.List.isEmpty agent.tools) then
+      Stdlib.Result.Result.Error $"Model {modelId} does not support tools (reasoning model)"
+    else
+      Stdlib.Result.Result.Ok ())
+
+
+
+// EXECUTION
+
+/// Convert agent to internal config
+let agentConfig (agent: Agent) : Darklang.LLM.Internal.AgentLoop.AgentConfig =
+  Darklang.LLM.Internal.AgentLoop.AgentConfig
+    { model = agent.model
+      systemPrompt = agent.systemPrompt
+      tools = agent.tools
+      maxTokens = agent.maxTokens
+      maxTurns = agent.maxTurns
+      temperature = agent.temperature }
+
+
+/// Build request extensions from agent configuration
+let agentExtensions (agent: Agent) : Darklang.LLM.Provider.RequestExtensions =
+  Darklang.LLM.Provider.RequestExtensions
+    { toolChoice = agent.toolChoice
+      thinking = agent.thinking
+      webSearch = agent.webSearch
+      webFetch = agent.webFetch
+      disableParallelToolUse = agent.disableParallelToolUse
+      extendedContext = agent.extendedContext
+      responseFormat = agent.responseFormat
+      seed = agent.seed
+      presencePenalty = agent.presencePenalty
+      frequencyPenalty = agent.frequencyPenalty
+      topP = agent.topP }
+
+
+/// Run an agent with a user message
+/// Validates configuration before running and returns clear errors for mismatched features
+let run
+  (agent: Agent)
+  (userMessage: String)
+  : Stdlib.Result.Result<AgentResult, String> =
+  // Validate agent configuration first
+  match validateAgent agent with
+  | Ok _ ->
+    match Darklang.LLM.Provider.forModel agent.model with
+    | Ok provider ->
+      let state = Darklang.LLM.Internal.AgentLoop.initialState userMessage
+      Darklang.LLM.Internal.AgentLoop.runExtendedLoop provider (agentConfig agent) (agentExtensions agent) state
+    | Error e -> Stdlib.Result.Result.Error e
+  | Error e -> Stdlib.Result.Result.Error e
+
+
+/// Run an agent and return just the response text
+let chat
+  (agent: Agent)
+  (userMessage: String)
+  : Stdlib.Result.Result<String, String> =
+  (run agent userMessage) |> Stdlib.Result.map (fun r -> r.response)
+
+
+/// Run with existing message history
+let runWithHistory
+  (agent: Agent)
+  (history: List<Message>)
+  (userMessage: String)
+  : Stdlib.Result.Result<AgentResult, String> =
+  // Validate agent configuration first
+  match validateAgent agent with
+  | Ok _ ->
+    match Darklang.LLM.Provider.forModel agent.model with
+    | Ok provider ->
+      let state = Darklang.LLM.Internal.AgentLoop.initialStateWithHistory history userMessage
+      Darklang.LLM.Internal.AgentLoop.runExtendedLoop provider (agentConfig agent) (agentExtensions agent) state
+    | Error e -> Stdlib.Result.Result.Error e
+  | Error e -> Stdlib.Result.Result.Error e
+
+
+/// Chat with existing message history
+let chatWithHistory
+  (agent: Agent)
+  (history: List<Message>)
+  (userMessage: String)
+  : Stdlib.Result.Result<String, String> =
+  (runWithHistory agent history userMessage) |> Stdlib.Result.map (fun r -> r.response)
+
+
+/// Simple one-shot question
+let ask (question: String) : Stdlib.Result.Result<String, String> =
+  (create ()) |> chat question
+
+
+/// Simple one-shot question with specific model
+let askWith (model: Model) (question: String) : Stdlib.Result.Result<String, String> =
+  (create ()) |> withModel model |> chat question
+
+
+
+// CONVENIENCE FUNCTIONS
+
+/// One-shot question with thinking enabled (Anthropic)
+let askWithThinking
+  (budgetTokens: Int64)
+  (question: String)
+  : Stdlib.Result.Result<AgentResult, String> =
+  (create ()) |> withThinking budgetTokens |> run question
+
+
+/// One-shot question with web search (Anthropic)
+let askWithWebSearch (question: String) : Stdlib.Result.Result<AgentResult, String> =
+  (create ()) |> withWebSearch |> run question
+
+
+/// One-shot question with JSON mode (OpenAI)
+let askJson (question: String) : Stdlib.Result.Result<String, String> =
+  (create ())
+  |> withModel Darklang.LLM.Models.OpenAI.gpt4o
+  |> withJsonMode
+  |> chat question
+
+
+/// One-shot question with reproducible seed (OpenAI)
+let askWithSeed (seed: Int64) (question: String) : Stdlib.Result.Result<String, String> =
+  (create ())
+  |> withModel Darklang.LLM.Models.OpenAI.gpt4o
+  |> withSeed seed
+  |> chat question
