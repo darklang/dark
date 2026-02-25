@@ -804,7 +804,7 @@ module TypeDeclaration =
 //
 // CLEANUP: expose the equivalent of this via some Builtin for the Darklang WT2PT stuff?
 // I suppose that's only really needed when we do the switch-over.
-module PackageIDs = LibExecution.PackageIDs
+module PackageRefs = LibExecution.PackageRefs
 
 module PackageType =
   module Name =
@@ -824,7 +824,7 @@ module PackageType =
       let! declaration =
         TypeDeclaration.toPT pm onMissing currentModule pt.declaration
       return
-        { id = PackageIDs.Type.idForName pt.name.owner pt.name.modules pt.name.name
+        { id = PackageRefs.Type.idForName pt.name.owner pt.name.modules pt.name.name
           description = pt.description
           declaration = declaration
           deprecated = PT.NotDeprecated }
@@ -853,7 +853,7 @@ module PackageValue =
           localBindings = Set.empty }
       let! body = Expr.toPT builtins pm onMissing currentModule context c.body
       return
-        { id = PackageIDs.Value.idForName c.name.owner c.name.modules c.name.name
+        { id = PackageRefs.Value.idForName c.name.owner c.name.modules c.name.name
           description = c.description
           deprecated = PT.NotDeprecated
           body = body }
@@ -906,7 +906,7 @@ module PackageFn =
       let! body = Expr.toPT builtins pm onMissing currentModule context fn.body
 
       return
-        { id = PackageIDs.Fn.idForName fn.name.owner fn.name.modules fn.name.name
+        { id = PackageRefs.Fn.idForName fn.name.owner fn.name.modules fn.name.name
           parameters = parameters
           returnType = returnType
           description = fn.description

@@ -4,7 +4,7 @@ open Prelude
 open TestUtils.TestUtils
 
 module PT = LibExecution.ProgramTypes
-module PackageIDs = LibExecution.PackageIDs
+module PackageRefs = LibExecution.PackageRefs
 module RT = LibExecution.RuntimeTypes
 
 open TestUtils.PTShortcuts

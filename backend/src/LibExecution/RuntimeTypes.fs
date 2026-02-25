@@ -1473,10 +1473,10 @@ module Types =
 
 module TypeReference =
   let result (t1 : TypeReference) (t2 : TypeReference) : TypeReference =
-    TCustomType(Ok(FQTypeName.fqPackage PackageIDs.Type.Stdlib.result), [ t1; t2 ])
+    TCustomType(Ok(FQTypeName.fqPackage PackageRefs.Type.Stdlib.result), [ t1; t2 ])
 
   let option (t : TypeReference) : TypeReference =
-    TCustomType(Ok(FQTypeName.fqPackage PackageIDs.Type.Stdlib.option), [ t ])
+    TCustomType(Ok(FQTypeName.fqPackage PackageRefs.Type.Stdlib.option), [ t ])
 
   let rec unwrapAlias (types : Types) (typ : TypeReference) : Ply<TypeReference> =
     match typ with

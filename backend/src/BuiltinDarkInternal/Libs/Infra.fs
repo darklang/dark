@@ -6,7 +6,7 @@ open LibExecution.RuntimeTypes
 open LibExecution.Builtin.Shortcuts
 
 module Dval = LibExecution.Dval
-module PackageIDs = LibExecution.PackageIDs
+module PackageRefs = LibExecution.PackageRefs
 
 
 let fns : List<BuiltInFn> =
@@ -16,7 +16,7 @@ let fns : List<BuiltInFn> =
       returnType =
         TDict(
           TCustomType(
-            Ok(FQTypeName.Package PackageIDs.Type.Internal.Infra.tableSize),
+            Ok(FQTypeName.Package PackageRefs.Type.Internal.Infra.tableSize),
             []
           )
         )
@@ -29,7 +29,7 @@ let fns : List<BuiltInFn> =
             let! tableStats = LibDB.Db.tableStats ()
 
             let typeName =
-              FQTypeName.Package PackageIDs.Type.Internal.Infra.tableSize
+              FQTypeName.Package PackageRefs.Type.Internal.Infra.tableSize
 
             return
               tableStats

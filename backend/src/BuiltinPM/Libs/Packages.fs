@@ -29,7 +29,7 @@ module D = LibExecution.DvalDecoder
 module PT = LibExecution.ProgramTypes
 module PT2DT = LibExecution.ProgramTypesToDarkTypes
 module RT2DT = LibExecution.RuntimeTypesToDarkTypes
-module PackageIDs = LibExecution.PackageIDs
+module PackageRefs = LibExecution.PackageRefs
 module C2DT = LibExecution.CommonToDarkTypes
 module VT = LibExecution.ValueType
 module RTPM = LibPackageManager.RuntimeTypes
@@ -37,7 +37,7 @@ module PMPT = LibPackageManager.ProgramTypes
 module Branches = LibPackageManager.Branches
 module Execution = LibExecution.Execution
 
-let statsTypeName = FQTypeName.fqPackage PackageIDs.Type.DarkPackages.stats
+let statsTypeName = FQTypeName.fqPackage PackageRefs.Type.DarkPackages.stats
 
 let private repointListKT = KTList(ValueType.Known PT2DT.PropagateRepoint.knownType)
 

@@ -6,15 +6,15 @@ open LibExecution.Builtin.Shortcuts
 
 module VT = LibExecution.ValueType
 module Dval = LibExecution.Dval
-module PackageIDs = LibExecution.PackageIDs
+module PackageRefs = LibExecution.PackageRefs
 module RT2DT = LibExecution.RuntimeTypesToDarkTypes
 
 
-let builtinValue = FQTypeName.fqPackage PackageIDs.Type.LanguageTools.builtinValue
+let builtinValue = FQTypeName.fqPackage PackageRefs.Type.LanguageTools.builtinValue
 
 let builtinFnParam =
-  FQTypeName.fqPackage PackageIDs.Type.LanguageTools.builtinFnParam
-let builtinFn = FQTypeName.fqPackage PackageIDs.Type.LanguageTools.builtinFn
+  FQTypeName.fqPackage PackageRefs.Type.LanguageTools.builtinFnParam
+let builtinFn = FQTypeName.fqPackage PackageRefs.Type.LanguageTools.builtinFn
 
 let fns : List<BuiltInFn> =
   [ { name = fn "languageToolsAllBuiltinValues" 0

@@ -5,14 +5,14 @@ open LibExecution.RuntimeTypes
 open LibExecution.Builtin.Shortcuts
 
 module Dval = LibExecution.Dval
-module PackageIDs = LibExecution.PackageIDs
+module PackageRefs = LibExecution.PackageRefs
 module RT2DT = LibExecution.RuntimeTypesToDarkTypes
 
 
 /// Converters from F# builtin types to Dark types
 module ToDarkTypes =
   module Purity =
-    let typeName = FQTypeName.fqPackage PackageIDs.Type.Builtins.purity
+    let typeName = FQTypeName.fqPackage PackageRefs.Type.Builtins.purity
 
     let toDT (p : Previewable) : Dval =
       let caseName =
@@ -23,7 +23,7 @@ module ToDarkTypes =
       DEnum(typeName, typeName, [], caseName, [])
 
   module ParamInfo =
-    let typeName = FQTypeName.fqPackage PackageIDs.Type.Builtins.paramInfo
+    let typeName = FQTypeName.fqPackage PackageRefs.Type.Builtins.paramInfo
 
     let toDT (param : BuiltInParam) : Dval =
       let fields =
@@ -34,7 +34,7 @@ module ToDarkTypes =
       DRecord(typeName, typeName, [], fields)
 
   module FunctionInfo =
-    let typeName = FQTypeName.fqPackage PackageIDs.Type.Builtins.functionInfo
+    let typeName = FQTypeName.fqPackage PackageRefs.Type.Builtins.functionInfo
 
     let toDT (fn : BuiltInFn) : Dval =
       let params' =

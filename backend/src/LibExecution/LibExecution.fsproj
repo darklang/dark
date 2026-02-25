@@ -17,7 +17,7 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="DarkDateTime.fs" />
-    <Compile Include="PackageIDs.fs" />
+    <Compile Include="PackageRefs.fs" />
     <!-- Runtime /-->
     <Compile Include="RuntimeTypes.fs" />
     <Compile Include="ValueType.fs" />

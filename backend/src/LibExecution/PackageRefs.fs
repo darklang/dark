@@ -11,7 +11,7 @@
 /// If you need to generate some UUIDs, https://www.uuidgenerator.net is useful.
 ///
 /// Note: all of these types are assumed to be owned by the Darklang user
-module LibExecution.PackageIDs
+module LibExecution.PackageRefs
 
 open Prelude
 

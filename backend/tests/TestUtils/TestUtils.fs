@@ -19,13 +19,13 @@ module AT = LibExecution.AnalysisTypes
 module PT2RT = LibExecution.ProgramTypesToRuntimeTypes
 module RT2DT = LibExecution.RuntimeTypesToDarkTypes
 module D = LibExecution.DvalDecoder
-module PackageIDs = LibExecution.PackageIDs
+module PackageRefs = LibExecution.PackageRefs
 module Exe = LibExecution.Execution
 
 module Account = LibCloud.Account
 module Canvas = LibCloud.Canvas
 
-module PackageIDs = LibExecution.PackageIDs
+module PackageRefs = LibExecution.PackageRefs
 module C2DT = LibExecution.CommonToDarkTypes
 module PT2DT = LibExecution.ProgramTypesToDarkTypes
 
@@ -1212,13 +1212,13 @@ let interestingDvals : List<string * RT.Dval * RT.TypeReference> =
 
     ("enum",
      DEnum(
-       FQTypeName.Package PackageIDs.Type.Stdlib.AltJson.json,
-       FQTypeName.Package PackageIDs.Type.Stdlib.AltJson.json,
+       FQTypeName.Package PackageRefs.Type.Stdlib.AltJson.json,
+       FQTypeName.Package PackageRefs.Type.Stdlib.AltJson.json,
        [],
        "String",
        [ DString "test" ]
      ),
-     TCustomType(Ok(FQTypeName.Package PackageIDs.Type.Stdlib.AltJson.json), []))
+     TCustomType(Ok(FQTypeName.Package PackageRefs.Type.Stdlib.AltJson.json), []))
 
     // TODO: extract what's useful in here, and create smaller tests for each
     ("record2",
@@ -1489,7 +1489,7 @@ let unwrapExecutionResult
     | Error(rte, callStack) ->
       let errorMessageFn =
         RT.FQFnName.fqPackage
-          PackageIDs.Fn.PrettyPrinter.RuntimeTypes.RuntimeError.toString
+          PackageRefs.Fn.PrettyPrinter.RuntimeTypes.RuntimeError.toString
 
       let rteDval = RT2DT.RuntimeError.toDT rte
 
@@ -1514,7 +1514,7 @@ let parsePTExpr (code : string) : Task<PT.Expr> =
       executionStateFor pmPT canvasID false false Map.empty
 
     let name =
-      RT.FQFnName.FQFnName.Package PackageIDs.Fn.LanguageTools.Parser.parsePTExpr
+      RT.FQFnName.FQFnName.Package PackageRefs.Fn.LanguageTools.Parser.parsePTExpr
 
     let args = NEList.singleton (RT.DString code)
     let! execResult = LibExecution.Execution.executeFunction state name [] args

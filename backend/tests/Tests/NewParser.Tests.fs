@@ -19,7 +19,7 @@ open TestUtils.TestUtils
 module PT = LibExecution.ProgramTypes
 module RT = LibExecution.RuntimeTypes
 module Dval = LibExecution.Dval
-module PackageIDs = LibExecution.PackageIDs
+module PackageRefs = LibExecution.PackageRefs
 
 // Test package type definitions as tuples with locations
 
@@ -35,10 +35,10 @@ let t
   =
   let parseFnName =
     RT.FQFnName.FQFnName.Package
-      PackageIDs.Fn.LanguageTools.Parser.parsePTSourceFileWithOps
+      PackageRefs.Fn.LanguageTools.Parser.parsePTSourceFileWithOps
 
   let prettyPrintFnName =
-    RT.FQFnName.FQFnName.Package PackageIDs.Fn.PrettyPrinter.ProgramTypes.sourceFile
+    RT.FQFnName.FQFnName.Package PackageRefs.Fn.PrettyPrinter.ProgramTypes.sourceFile
 
   testTask name {
     // First phase: parse with base PM to get PackageOps

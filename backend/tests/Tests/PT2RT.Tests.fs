@@ -8,7 +8,7 @@ module PT = LibExecution.ProgramTypes
 module RT = LibExecution.RuntimeTypes
 module VT = LibExecution.ValueType
 module PT2RT = LibExecution.ProgramTypesToRuntimeTypes
-module PackageIDs = LibExecution.PackageIDs
+module PackageRefs = LibExecution.PackageRefs
 
 module E = TestValues.Expressions
 module PM = TestValues.PM

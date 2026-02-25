@@ -11,7 +11,7 @@ module Dval = LibExecution.Dval
 module PT = LibExecution.ProgramTypes
 module PT2RT = LibExecution.ProgramTypesToRuntimeTypes
 module Exe = LibExecution.Execution
-module PackageIDs = LibExecution.PackageIDs
+module PackageRefs = LibExecution.PackageRefs
 module BuiltinCli = BuiltinCli.Builtin
 
 // Dual logging (console + cli.log file)
@@ -115,7 +115,7 @@ let execute
   : Task<RT.ExecutionResult> =
   task {
     let state = state packageManager
-    let fnName = RT.FQFnName.fqPackage PackageIDs.Fn.Cli.executeCliCommand
+    let fnName = RT.FQFnName.fqPackage PackageRefs.Fn.Cli.executeCliCommand
     let args =
       args |> List.map RT.DString |> Dval.list RT.KTString |> NEList.singleton
     let! result = Exe.executeFunction state fnName [] args

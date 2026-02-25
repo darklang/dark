@@ -9,7 +9,7 @@ open LibExecution.RuntimeTypes
 module PT = LibExecution.ProgramTypes
 module PT2DT = LibExecution.ProgramTypesToDarkTypes
 module Builtin = LibExecution.Builtin
-module PackageIDs = LibExecution.PackageIDs
+module PackageRefs = LibExecution.PackageRefs
 module Dval = LibExecution.Dval
 module VT = LibExecution.ValueType
 
@@ -17,7 +17,7 @@ open Builtin.Shortcuts
 
 
 let packageOpTypeName =
-  FQTypeName.fqPackage PackageIDs.Type.LanguageTools.ProgramTypes.packageOp
+  FQTypeName.fqPackage PackageRefs.Type.LanguageTools.ProgramTypes.packageOp
 
 let packageOpKT = KTCustomType(packageOpTypeName, [])
 

@@ -13,14 +13,14 @@ module Dval = LibExecution.Dval
 module Exe = LibExecution.Execution
 module RT = LibExecution.RuntimeTypes
 module VT = LibExecution.ValueType
-module PackageIDs = LibExecution.PackageIDs
+module PackageRefs = LibExecution.PackageRefs
 
 
 let lowercaseHeaderKeys (headers : List<string * string>) : List<string * string> =
   headers |> List.map (fun (k, v) -> (String.toLowercase k, v))
 
 module Request =
-  let typ = RT.FQTypeName.fqPackage PackageIDs.Type.Stdlib.Http.request
+  let typ = RT.FQTypeName.fqPackage PackageRefs.Type.Stdlib.Http.request
 
   let fromRequest
     (uri : string)
@@ -114,7 +114,7 @@ module Response =
     task {
       match result with
       | RT.DRecord(RT.FQTypeName.Package id, _, [], fields) ->
-        if id = PackageIDs.Type.Stdlib.Http.response then
+        if id = PackageRefs.Type.Stdlib.Http.response then
           return parseHttpResponseFields fields
         else
           return! wrongTypeResponse state result

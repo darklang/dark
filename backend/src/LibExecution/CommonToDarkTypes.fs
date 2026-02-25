@@ -1,7 +1,7 @@
 module LibExecution.CommonToDarkTypes
 
 open RuntimeTypes
-module PackageIDs = LibExecution.PackageIDs
+module PackageRefs = LibExecution.PackageRefs
 
 
 module Option =
@@ -15,12 +15,12 @@ module Option =
   let fromDT (f : Dval -> 'a) (d : Dval) : Option<'a> =
     match d with
     | DEnum(FQTypeName.Package id, _, _, "Some", [ value ]) when
-      id = PackageIDs.Type.Stdlib.option
+      id = PackageRefs.Type.Stdlib.option
       ->
       Some(f value)
 
     | DEnum(FQTypeName.Package id, _, _, "None", []) when
-      id = PackageIDs.Type.Stdlib.option
+      id = PackageRefs.Type.Stdlib.option
       ->
       None
 

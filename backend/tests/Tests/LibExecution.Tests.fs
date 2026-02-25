@@ -20,7 +20,7 @@ module PT = LibExecution.ProgramTypes
 module PT2RT = LibExecution.ProgramTypesToRuntimeTypes
 module RT2DT = LibExecution.RuntimeTypesToDarkTypes
 module Exe = LibExecution.Execution
-module PackageIDs = LibExecution.PackageIDs
+module PackageRefs = LibExecution.PackageRefs
 module Dval = LibExecution.Dval
 module NR = LibParser.NameResolver
 module Canvas = LibCloud.Canvas
@@ -146,7 +146,7 @@ let t
             let actual = RT2DT.RuntimeError.toDT allegedRTE
             let errorMessageFn =
               RT.FQFnName.fqPackage
-                PackageIDs.Fn.PrettyPrinter.RuntimeTypes.RuntimeError.toErrorMessage
+                PackageRefs.Fn.PrettyPrinter.RuntimeTypes.RuntimeError.toErrorMessage
 
             let! _csString = Exe.callStackString state callStack
 
@@ -155,7 +155,7 @@ let t
                 RT.TCustomType(
                   Ok(
                     RT.FQTypeName.fqPackage
-                      PackageIDs.Type.LanguageTools.RuntimeTypes.RuntimeError.error
+                      PackageRefs.Type.LanguageTools.RuntimeTypes.RuntimeError.error
                   ),
                   []
                 )

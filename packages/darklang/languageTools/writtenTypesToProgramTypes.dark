@@ -1390,7 +1390,7 @@ module TypeDeclaration =
     let (declaration, unresolvedNames) = toPT ctx d
 
     (ProgramTypes.PackageType.PackageType
-      // TODO: when relevant, use PackageIDs defined in F# land
+      // TODO: when relevant, use PackageRefs defined in F# land
       { id = Stdlib.Uuid.generate ()
         description = d.description
         declaration = declaration
@@ -1476,7 +1476,7 @@ module FunctionDeclaration =
           bdUnresolvedNames ]
 
     (ProgramTypes.PackageFn.PackageFn
-      // TODO: when relevant, use PackageIDs defined in F# land
+      // TODO: when relevant, use PackageRefs defined in F# land
       { id = Stdlib.Uuid.generate ()
         typeParams = typeParams
         parameters = params

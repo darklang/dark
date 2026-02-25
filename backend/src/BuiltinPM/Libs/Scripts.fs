@@ -10,12 +10,12 @@ module VT = LibExecution.ValueType
 module Dval = LibExecution.Dval
 module Builtin = LibExecution.Builtin
 module Scripts = LibPackageManager.Scripts
-module PackageIDs = LibExecution.PackageIDs
+module PackageRefs = LibExecution.PackageRefs
 
 open Builtin.Shortcuts
 
 
-let scriptTypeName = FQTypeName.fqPackage PackageIDs.Type.Cli.script
+let scriptTypeName = FQTypeName.fqPackage PackageRefs.Type.Cli.script
 let scriptType = TCustomType(Ok scriptTypeName, [])
 
 
