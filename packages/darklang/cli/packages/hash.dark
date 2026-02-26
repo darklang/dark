@@ -1,7 +1,17 @@
 module Darklang.Cli.Packages.Hash
 
+let formatHash (hash: String) (long: Bool) : String =
+  if long then hash
+  else Stdlib.String.first hash 8L
+
 let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
-  match args with
+  let long =
+    Stdlib.List.any args (fun a -> a == "--long" || a == "--full")
+
+  let filteredArgs =
+    args |> Stdlib.List.filter (fun a -> a != "--long" && a != "--full")
+
+  match filteredArgs with
   | [] ->
     Stdlib.printLine "Usage: hash <location>"
     state
@@ -15,30 +25,32 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
       // Try type, fn, value in order
       match Builtin.pmFindType branchId location with
       | Some hash ->
-        Stdlib.printLine $"type {hash}"
+        Stdlib.printLine $"type {formatHash hash long}"
         state
       | None ->
         match Builtin.pmFindFn branchId location with
         | Some hash ->
-          Stdlib.printLine $"fn {hash}"
+          Stdlib.printLine $"fn {formatHash hash long}"
           state
         | None ->
           match Builtin.pmFindValue branchId location with
           | Some hash ->
-            Stdlib.printLine $"value {hash}"
+            Stdlib.printLine $"value {formatHash hash long}"
             state
           | None ->
             Stdlib.printLine (Colors.error "Not found at this location")
             state
 
 let help (state: Cli.AppState) : Cli.AppState =
-  [ "Usage: hash <location>"
+  [ "Usage: hash [--long] <location>"
     "Show the content hash of a package type, function, or value."
+    "By default shows a short (8-char) hash; use --long or --full for the full hash."
     ""
     "Examples:"
-    "  hash MyType        -- hash of type at current location"
-    "  hash Module.myFn   -- hash of fn in submodule"
-    "  hash /Owner.M.x    -- hash at absolute path" ]
+    "  hash MyType          -- short hash of type at current location"
+    "  hash --long MyType   -- full hash"
+    "  hash Module.myFn     -- hash of fn in submodule"
+    "  hash /Owner.M.x      -- hash at absolute path" ]
   |> Stdlib.printLines
 
   state
