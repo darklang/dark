@@ -727,10 +727,10 @@ module Fn =
       module CliScript =
         let private p addl = p ("CliScript" :: addl)
         let parseCliScript =
-          let hash = "c76ff9a7943ad271cf48e7b51cc9ded6e6b7aca86b5736a5eb9bf50dbaf1665e"
+          let hash = "6bac75ecd4d6a9bf8fce5a5f6304d568611d00e1ed4b7403e652b9b9e6d75c27"
           p [] "parse" hash
         let parseForCli =
-          let hash = "c96b6d7f2c2d33cc6453cbf33d45defa03b073f90370a4691866d1661c53d6be"
+          let hash = "c829f609c8eee4faeb7a37c168397bb027dfa00dad3cbf7fce40e0da5bfd3684"
           p [] "parseForCli" hash
 
     module PackageManager =

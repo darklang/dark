@@ -24,8 +24,49 @@ let packageOpKT = KTCustomType(packageOpTypeName, [])
 
 
 // TODO: review/reconsider the accessibility of these fns
-let fns : List<BuiltInFn> =
-  [ { name = fn "scmAddOps" 0
+let fns (pm : PT.PackageManager) : List<BuiltInFn> =
+  [ { name = fn "pmStabilizeHashes" 0
+      typeParams = []
+      parameters =
+        [ Param.make "ops" (TList(TCustomType(NR.ok packageOpTypeName, []))) "" ]
+      returnType = TList(TCustomType(NR.ok packageOpTypeName, []))
+      description =
+        "Compute real content-addressed hashes for package ops (SCC-aware)."
+      fn =
+        (function
+        | _, _, _, [ DList(_vt, ops) ] ->
+          uply {
+            let ptOps = ops |> List.choose PT2DT.PackageOp.fromDT
+            let stabilized =
+              LibPackageManager.HashStabilization.computeRealHashes ptOps
+            return Dval.list packageOpKT (stabilized |> List.map PT2DT.PackageOp.toDT)
+          }
+        | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Pure
+      deprecated = NotDeprecated }
+
+
+    { name = fn "pmRefreshWipHashes" 0
+      typeParams = []
+      parameters = [ Param.make "branchId" TUuid "" ]
+      returnType = TInt64
+      description =
+        "Re-resolve and re-hash all WIP items on a branch. Returns count of changed items."
+      fn =
+        (function
+        | _, _, _, [ DUuid branchId ] ->
+          uply {
+            let! changes = LibPackageManager.WipRefresh.refresh pm branchId
+            return Dval.int64 changes
+          }
+        | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Impure
+      deprecated = NotDeprecated }
+
+
+    { name = fn "scmAddOps" 0
       typeParams = []
       parameters =
         [ Param.make "branchId" TUuid "Branch to add ops to"
@@ -47,6 +88,10 @@ let fns : List<BuiltInFn> =
               // All ops are added as WIP - use scmCommit to commit them
               let! insertedCount =
                 LibPackageManager.Inserts.insertAndApplyOpsAsWip branchId ops
+
+              // Auto-refresh existing WIP items: re-resolve names and
+              // recompute SCC-aware hashes now that new items exist
+              let! _refreshed = LibPackageManager.WipRefresh.refresh pm branchId
 
               return resultOk (Dval.int64 insertedCount)
             with ex ->
@@ -237,4 +282,4 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated } ]
 
 
-let builtins : Builtins = LibExecution.Builtin.make [] fns
+let builtins (pm : PT.PackageManager) : Builtins = LibExecution.Builtin.make [] (fns pm)

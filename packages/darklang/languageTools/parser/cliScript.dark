@@ -240,7 +240,10 @@ let parse
       let (initialParse, firstPassOps, _) =
         toPT { ctx with onMissing = NameResolver.OnMissing.Allow } moduleWT
 
-      // Create PM with first pass ops for second pass
+      // Stabilize first-pass ops so PM has real content-addressed hashes
+      let firstPassOps = Builtin.pmStabilizeHashes firstPassOps
+
+      // Create PM with stabilized first pass ops for second pass
       let pm = ProgramTypes.PackageManager.withExtraOps ctx.pm firstPassOps
 
       // Second pass: re-parse with updated PackageManager
