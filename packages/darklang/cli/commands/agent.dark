@@ -150,80 +150,80 @@ let confirmCommand (cmd: String) : Bool =
   response == "y" || response == "Y"
 
 let runCliCommand
-  (branchName: String)
+  (branchArg: String)
   (writeMode: WriteMode)
-  (rawCommand: String)
+  (rawCmd: String)
   : Stdlib.Result.Result<Darklang.LLM.Agent.ToolOutput, String> =
-  let trimmed = Stdlib.String.trim rawCommand
+  let cmd = Stdlib.String.trim rawCmd
 
-  let validated =
-    match (Stdlib.String.isEmpty trimmed, hasUnsafeChars trimmed, Stdlib.String.contains trimmed "--branch") with
-    | (true, _, _) -> Stdlib.Result.Result.Error "command required"
-    | (_, true, _) -> Stdlib.Result.Result.Error "unsafe characters in command"
-    | (_, _, true) -> Stdlib.Result.Result.Error "Do not pass --branch; agent manages branch context automatically"
-    | _ -> Stdlib.Result.Result.Ok trimmed
+  if Stdlib.String.isEmpty cmd then
+    Stdlib.Result.Result.Error "command required"
+  else if hasUnsafeChars cmd then
+    Stdlib.Result.Result.Error "unsafe characters in command"
+  else if Stdlib.String.contains cmd "--branch" then
+    Stdlib.Result.Result.Error "Do not pass --branch; agent manages branch context automatically"
+  else
 
-  Stdlib.Result.andThen validated (fun cmd ->
-    let parts = cmd |> Stdlib.String.split " " |> Stdlib.List.filter (fun s -> s != "")
+  let parts = cmd |> Stdlib.String.split " " |> Stdlib.List.filter (fun s -> s != "")
 
-    match parts with
-    | [] -> Stdlib.Result.Result.Error "command required"
-    | commandName :: _ ->
-      let isWriteCommand = Stdlib.List.member_v0 writeCommands commandName
-      let writesAllowed = writeMode != WriteMode.Denied
+  match parts with
+  | [] -> Stdlib.Result.Result.Error "command required"
+  | commandName :: _ ->
+    let isWriteCommand = Stdlib.List.member_v0 writeCommands commandName
+    let writesAllowed = writeMode != WriteMode.Denied
 
-      let allCommands = Stdlib.List.append readOnlyCommands writeCommands
-      let commandExists = Stdlib.List.member_v0 allCommands commandName
+    let allCommands = Stdlib.List.append readOnlyCommands writeCommands
+    let commandExists = Stdlib.List.member_v0 allCommands commandName
 
-      // Check confirmation for write commands (avoid calling confirmCommand for read-only)
-      let userRejected =
-        if isWriteCommand && writeMode == WriteMode.Confirm then
-          Stdlib.Bool.not (confirmCommand cmd)
-        else
-          false
-
-      if Stdlib.Bool.not commandExists then
-        Stdlib.Result.Result.Error $"unknown command: {commandName}"
-      else if isWriteCommand && (Stdlib.Bool.not writesAllowed) then
-        Stdlib.Result.Result.Error "write commands not allowed in read-only mode"
-      else if userRejected then
-        Stdlib.Result.Result.Error "command rejected by user"
+    // Check confirmation for write commands
+    let userRejected =
+      if isWriteCommand && writeMode == WriteMode.Confirm then
+        Stdlib.Bool.not (confirmCommand cmd)
       else
-        match findCliExecutable with
-        | None -> Stdlib.Result.Result.Error "Could not find CLI executable"
-        | Some exe ->
-          let fullCmd = $"{exe} {branchName} {cmd}"
-          Stdlib.printLine (Colors.dimText $"[agent] cli> {cmd}")
-          let result = Stdlib.Cli.execute fullCmd
+        false
 
-          match result.exitCode with
-          | 0L ->
-            let output = if result.stdout == "" then "(no output)" else result.stdout
-            if Stdlib.String.startsWith (Stdlib.String.trim output) "Error:" then
-              Stdlib.Result.Result.Error (Stdlib.String.trim output)
-            else
-              let preview = if (Stdlib.String.length output) > 100L then (Stdlib.String.slice output 0L 100L) ++ "..." else output
-              Stdlib.printLine (Colors.dimText $"  -> {preview}")
-              Stdlib.Result.Result.Ok (Darklang.LLM.Agent.ToolOutput.text output)
-          | exitCode ->
-            let details = if result.stderr != "" then result.stderr else if result.stdout != "" then result.stdout else "no output"
-            let errorMsg = $"CLI command failed (exit {Stdlib.Int64.toString exitCode}): {Stdlib.String.trim details}"
-            Stdlib.printLine (Colors.error $"  -> {errorMsg}")
-            Stdlib.Result.Result.Error errorMsg)
+    if Stdlib.Bool.not commandExists then
+      Stdlib.Result.Result.Error ("unknown command: " ++ commandName)
+    else if isWriteCommand && (Stdlib.Bool.not writesAllowed) then
+      Stdlib.Result.Result.Error "write commands not allowed in read-only mode"
+    else if userRejected then
+      Stdlib.Result.Result.Error "command rejected by user"
+    else
+      match findCliExecutable with
+      | None -> Stdlib.Result.Result.Error "Could not find CLI executable"
+      | Some exe ->
+        let fullCmd = exe ++ " " ++ branchArg ++ " " ++ cmd
+        Stdlib.printLine (Colors.dimText ("[agent] cli> " ++ cmd))
+        let result = Stdlib.Cli.execute fullCmd
+
+        match result.exitCode with
+        | 0L ->
+          let output = if result.stdout == "" then "(no output)" else result.stdout
+          if Stdlib.String.startsWith (Stdlib.String.trim output) "Error:" then
+            Stdlib.Result.Result.Error (Stdlib.String.trim output)
+          else
+            let preview = if (Stdlib.String.length output) > 100L then (Stdlib.String.slice output 0L 100L) ++ "..." else output
+            Stdlib.printLine (Colors.dimText ("  -> " ++ preview))
+            Stdlib.Result.Result.Ok (Darklang.LLM.Agent.ToolOutput.text output)
+        | exitCode ->
+          let details = if result.stderr != "" then result.stderr else if result.stdout != "" then result.stdout else "no output"
+          let errorMsg = "CLI command failed (exit " ++ (Stdlib.Int64.toString exitCode) ++ "): " ++ (Stdlib.String.trim details)
+          Stdlib.printLine (Colors.error ("  -> " ++ errorMsg))
+          Stdlib.Result.Result.Error errorMsg
+
 
 /// Creates the tool the LLM calls to execute CLI commands
 let makeCliTool (branchName: String) (writeMode: WriteMode) : Darklang.LLM.Agent.Tool =
   let writesEnabled = writeMode != WriteMode.Denied
   let description = if writesEnabled then toolDescriptionWriteEnabled else toolDescriptionReadOnly
-  let bn = "--branch " ++ branchName
-  let wm = writeMode
+  let branchArg = "--branch " ++ branchName
   Darklang.LLM.Agent.makeTool "cli" description
     [ Darklang.LLM.Provider.stringParam "command" "CLI command to run" ]
     (fun input ->
       match input with
       | Object fields ->
         match Darklang.LLM.Internal.JsonHelpers.getString "command" fields with
-        | Some cmd -> runCliCommand bn wm cmd
+        | Some cmd -> runCliCommand branchArg writeMode cmd
         | None -> Stdlib.Result.Result.Error "command required"
       | _ -> Stdlib.Result.Result.Error "invalid input")
 
