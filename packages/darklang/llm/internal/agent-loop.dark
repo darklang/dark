@@ -74,6 +74,8 @@ type AgentResult =
     toolCalls: List<ToolCall>
     turns: Int64
     usage: Darklang.LLM.Provider.Usage
+    // Full message history including tool calls/results (for multi-turn conversations)
+    messages: List<Message>
     // Extended data (populated when available from provider)
     thinking: Stdlib.Option.Option<String>
     webSearchResults: List<Darklang.LLM.Provider.WebSearchResult>
@@ -88,6 +90,7 @@ let createResult
   (toolCalls: List<ToolCall>)
   (turns: Int64)
   (usage: Darklang.LLM.Provider.Usage)
+  (messages: List<Message>)
   (thinking: Stdlib.Option.Option<String>)
   (webSearchResults: List<Darklang.LLM.Provider.WebSearchResult>)
   (citations: List<Darklang.LLM.Provider.Citation>)
@@ -98,6 +101,7 @@ let createResult
       toolCalls = toolCalls
       turns = turns
       usage = usage
+      messages = messages
       thinking = thinking
       webSearchResults = webSearchResults
       citations = citations
@@ -308,13 +312,19 @@ let runExtendedLoop
         runExtendedLoop provider config extensions newState
 
     | _ ->
-      // Terminal state - return result
+      // Terminal state - return result with full message history
+      let finalMessages =
+        Stdlib.List.append
+          state.messages
+          [ Darklang.LLM.Provider.assistantMessage response.content ]
+
       Stdlib.Result.Result.Ok(
         createResult
           response.content
           state.toolCalls
           state.turn
           newUsage
+          finalMessages
           accumulatedThinking
           accumulatedSearches
           accumulatedCitations

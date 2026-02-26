@@ -318,10 +318,8 @@ let runInteractiveLoop
       Stdlib.printLine ""
       Stdlib.printLine (Colors.info "agent> ")
       Stdlib.printLine response.response
-      let userMsg = Darklang.LLM.Provider.userMessage input
-      let assistantMsg = Darklang.LLM.Provider.assistantMessage response.response
-      let newHistory = Stdlib.List.append history [ userMsg; assistantMsg ]
-      let _ = runInteractiveLoop agent newHistory
+      // Use full message history including tool calls/results for context continuity
+      let _ = runInteractiveLoop agent response.messages
       ()
     | Error e ->
       Stdlib.printLine (Colors.carriageReturn ++ Colors.clearLine ++ Colors.error e)
