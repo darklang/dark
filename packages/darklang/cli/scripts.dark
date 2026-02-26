@@ -136,41 +136,20 @@ let execute (state: AppState) (args: List<String>) : AppState =
 
 let complete (_state: AppState) (args: List<String>) : List<Completion.CompletionItem> =
   match args with
-  // if hitting `tab` right after typing `scripts`, recommend subcommands
+  // Recommend subcommands
   | [] ->
     ["list"; "view"; "add"; "edit"; "delete"; "run"]
     |> Stdlib.List.map Completion.simple
-
-  // no completions here
-  | ["list"] | ["add"] -> []
-
-  // we're referencing some specific script - recommend names
+  // Referencing a specific script - recommend names
   | ["view"] | ["edit"] | ["delete"] | ["run"] ->
-    // Complete script names
     let scripts = Builtin.pmScriptsList ()
     scripts
     |> Stdlib.List.map (fun s -> s.name)
     |> Stdlib.List.map Completion.simple
-
-  | [subcommand] ->
-    // Partial subcommand completion
-    ["list"; "view"; "add"; "edit"; "delete"; "run"]
-    |> Stdlib.List.filter (fun cmd -> Stdlib.String.startsWith cmd subcommand)
-    |> Stdlib.List.map Completion.simple
-
-  | ["view"; _] | ["delete"; _] | ["run"; _] ->
-    // CLEANUP why are we ignoring them?
-    // We should be recommending based on the names available
-    []
-
-  | ["edit"; _scriptName] ->
-    // For edit with script name, could show current content hint but keep simple
-    []
-
-  | "add" :: _ | "edit" :: _ :: _ ->
-    // For add or edit with content, no completion needed
-    []
-
+  // No completions for these
+  | ["list"] | ["add"] -> []
+  // For add or edit with content, no completion needed
+  | "add" :: _ | "edit" :: _ :: _ -> []
   | _ -> []
 
 
