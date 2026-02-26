@@ -1,25 +1,23 @@
 module Darklang.Cli.Deps
 
-/// Resolve UUIDs to display names. Returns a Dict mapping UUID string to name.
-let resolveNames (branchId: Uuid) (itemIds: List<Uuid>) : Dict<String> =
+/// Resolve hashes to display names. Returns a Dict mapping hash string to name.
+let resolveNames (branchId: Uuid) (itemIds: List<String>) : Dict<String> =
   (Builtin.depsResolveLocations branchId itemIds)
   |> Stdlib.List.fold Stdlib.Dict.empty (fun acc (itemId, location) ->
     let displayName = PrettyPrinter.ProgramTypes.PackageLocation.packageLocation location
-    Stdlib.Dict.set acc (Stdlib.Uuid.toString itemId) displayName)
+    Stdlib.Dict.set acc itemId displayName)
 
 
-/// Get displayable name for an item, using precomputed names dict or falling back to UUID
-let getName (namesDict: Dict<String>) (id: Uuid) : String =
-  let key = Stdlib.Uuid.toString id
-
-  match Stdlib.Dict.get namesDict key with
+/// Get displayable name for an item, using precomputed names dict or falling back to hash
+let getName (namesDict: Dict<String>) (id: String) : String =
+  match Stdlib.Dict.get namesDict id with
   | Some name -> name
-  | None -> key
+  | None -> id
 
 
 /// Display dependents (what uses this entity)
 /// Shows approved items + caller's own pending items.
-let showDependents (branchId: Uuid) (targetId: Uuid) (entityName: String) : Unit =
+let showDependents (branchId: Uuid) (targetId: String) (entityName: String) : Unit =
   let dependents = Builtin.depsGetDependents branchId targetId
 
   match dependents with
@@ -43,10 +41,10 @@ let showDependents (branchId: Uuid) (targetId: Uuid) (entityName: String) : Unit
 /// Processes multiple pending IDs per iteration to minimize DB round-trips.
 let collectTransitiveDependents
   (branchId: Uuid)
-  (processed: List<Uuid>)
-  (pending: List<Uuid>)
-  (accumulated: List<Uuid * String>)
-  : List<Uuid * String> =
+  (processed: List<String>)
+  (pending: List<String>)
+  (accumulated: List<String * String>)
+  : List<String * String> =
   match pending with
   | [] -> accumulated
   | _ ->
@@ -82,13 +80,13 @@ let collectTransitiveDependents
 
 
 /// Get all transitive dependents (everything that could break if this changes)
-let getTransitiveDependents (branchId: Uuid) (targetId: Uuid) : List<Uuid * String> =
+let getTransitiveDependents (branchId: Uuid) (targetId: String) : List<String * String> =
   (collectTransitiveDependents branchId [] [ targetId ] [])
   |> Stdlib.List.unique
 
 
 /// Display all transitive dependents (what could break)
-let showTransitiveDependents (branchId: Uuid) (targetId: Uuid) (entityName: String) : Unit =
+let showTransitiveDependents (branchId: Uuid) (targetId: String) (entityName: String) : Unit =
   let allDependents = getTransitiveDependents branchId targetId
 
   match allDependents with
@@ -109,7 +107,7 @@ let showTransitiveDependents (branchId: Uuid) (targetId: Uuid) (entityName: Stri
 
 
 /// Display dependencies (what this entity uses)
-let showDependencies (branchId: Uuid) (sourceId: Uuid) (entityName: String) : Unit =
+let showDependencies (branchId: Uuid) (sourceId: String) (entityName: String) : Unit =
   let dependencies = Builtin.depsGetDependencies branchId sourceId
 
   match dependencies with
@@ -129,12 +127,12 @@ let showDependencies (branchId: Uuid) (sourceId: Uuid) (entityName: String) : Un
       Stdlib.printLine $"  [{refType}] {name}")
 
 
-/// Resolve a path to a UUID
+/// Resolve a path to a hash
 let resolvePath
   (branchId: Uuid)
   (currentLocation: Packages.PackageLocation)
   (pathArg: String)
-  : Stdlib.Result.Result<(Uuid * String * String), String> =
+  : Stdlib.Result.Result<(String * String * String), String> =
   // Try to traverse to the location
   match Packages.Traversal.traverse branchId currentLocation pathArg with
   | Error errMsg -> Stdlib.Result.Result.Error errMsg

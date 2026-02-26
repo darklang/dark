@@ -23,34 +23,35 @@ module Hashing = LibSerialization.Hashing
 /// Update dependencies for an item atomically.
 /// Clears existing dependencies and stores new ones in a single operation.
 let private updateDependencies
-  (itemId : uuid)
+  (itemHash : string)
   (deps : List<DE.Dependency>)
   : Task<unit> =
   task {
     if List.isEmpty deps then
       // Just delete, no inserts needed
       do!
-        Sql.query "DELETE FROM package_dependencies WHERE item_id = @item_id"
-        |> Sql.parameters [ "item_id", Sql.uuid itemId ]
+        Sql.query "DELETE FROM package_dependencies WHERE item_hash = @item_hash"
+        |> Sql.parameters [ "item_hash", Sql.string itemHash ]
         |> Sql.executeStatementAsync
     else
       // Build a single SQL script: DELETE + batched INSERTs
       // SQLite executes multi-statement scripts atomically within one call
       let insertValues =
         deps
-        |> List.mapi (fun i _ -> $"(@item_id, @depends_on_{i})")
+        |> List.mapi (fun i _ -> $"(@item_hash, @depends_on_{i})")
         |> String.concat ", "
 
       let insertParams =
-        deps |> List.mapi (fun i dep -> $"depends_on_{i}", Sql.uuid dep)
+        deps
+        |> List.mapi (fun i (ContentHash dep) -> $"depends_on_{i}", Sql.string dep)
 
       let sql =
-        $"DELETE FROM package_dependencies WHERE item_id = @item_id; "
-        + $"INSERT OR IGNORE INTO package_dependencies (item_id, depends_on_id) VALUES {insertValues}"
+        $"DELETE FROM package_dependencies WHERE item_hash = @item_hash; "
+        + $"INSERT OR IGNORE INTO package_dependencies (item_hash, depends_on_hash) VALUES {insertValues}"
 
       do!
         Sql.query sql
-        |> Sql.parameters ([ "item_id", Sql.uuid itemId ] @ insertParams)
+        |> Sql.parameters ([ "item_hash", Sql.string itemHash ] @ insertParams)
         |> Sql.executeStatementAsync
   }
 
@@ -58,30 +59,33 @@ let private updateDependencies
 /// Apply a single AddType op to the package_types table
 let private applyAddType (typ : PT.PackageType.PackageType) : Task<unit> =
   task {
-    // Compute content hash and set it on the type
-    let hash = Hashing.computeTypeHash Hashing.Normal typ
+    // Use the hash already set on the item (computed by LoadPackagesFromDisk
+    // or Propagation with SCC awareness). Only recompute if hash is empty.
+    let hash =
+      match typ.hash with
+      | ContentHash "" -> Hashing.computeTypeHash Hashing.Normal typ
+      | h -> h
     let typ = { typ with hash = hash }
-    let (PT.ContentHash hashStr) = hash
+    let (ContentHash hashStr) = hash
 
-    let ptDef = BS.PT.PackageType.serialize typ.id typ
-    let rtDef = typ |> PT2RT.PackageType.toRT |> BS.RT.PackageType.serialize typ.id
+    let ptDef = BS.PT.PackageType.serialize hash typ
+    let rtDef = typ |> PT2RT.PackageType.toRT |> BS.RT.PackageType.serialize hash
 
     do!
       Sql.query
         """
-        INSERT OR REPLACE INTO package_types (id, hash, pt_def, rt_def)
-        VALUES (@id, @hash, @pt_def, @rt_def)
+        INSERT OR REPLACE INTO package_types (hash, pt_def, rt_def)
+        VALUES (@hash, @pt_def, @rt_def)
         """
       |> Sql.parameters
-        [ "id", Sql.uuid typ.id
-          "hash", Sql.string hashStr
+        [ "hash", Sql.string hashStr
           "pt_def", Sql.bytes ptDef
           "rt_def", Sql.bytes rtDef ]
       |> Sql.executeStatementAsync
 
     // Extract and store dependency references atomically
     let refs = DE.extractFromType typ
-    do! updateDependencies typ.id refs
+    do! updateDependencies hashStr refs
   }
 
 /// Apply a single AddValue op to the package_values table
@@ -89,67 +93,74 @@ let private applyAddType (typ : PT.PackageType.PackageType) : Task<unit> =
 /// They are evaluated in Phase 3 by LocalExec.evaluateAllValues after all ops are applied.
 let private applyAddValue (value : PT.PackageValue.PackageValue) : Task<unit> =
   task {
-    // Compute content hash and set it on the value
-    let hash = Hashing.computeValueHash Hashing.Normal value
+    let hash =
+      match value.hash with
+      | ContentHash "" -> Hashing.computeValueHash Hashing.Normal value
+      | h -> h
     let value = { value with hash = hash }
-    let (PT.ContentHash hashStr) = hash
+    let (ContentHash hashStr) = hash
 
-    let ptDef = BS.PT.PackageValue.serialize value.id value
+    let ptDef = BS.PT.PackageValue.serialize hash value
 
     // Store NULL for rt_dval and value_type - they're populated by evaluateAllValues
-    // after all packages are loaded (so cross-package references resolve correctly)
+    // after all packages are loaded (so cross-package references resolve correctly).
+    // Use ON CONFLICT(hash) since values are content-addressed.
     do!
       Sql.query
         """
-        INSERT OR REPLACE INTO package_values (id, hash, pt_def, rt_dval, value_type)
-        VALUES (@id, @hash, @pt_def, NULL, NULL)
+        INSERT INTO package_values (hash, pt_def, rt_dval, value_type)
+        VALUES (@hash, @pt_def, NULL, NULL)
+        ON CONFLICT(hash) DO UPDATE SET
+          pt_def = excluded.pt_def
         """
-      |> Sql.parameters
-        [ "id", Sql.uuid value.id
-          "hash", Sql.string hashStr
-          "pt_def", Sql.bytes ptDef ]
+      |> Sql.parameters [ "hash", Sql.string hashStr; "pt_def", Sql.bytes ptDef ]
       |> Sql.executeStatementAsync
 
     // Extract and store dependency references atomically
+    // Use hash string for consistency with locations.item_hash
     let refs = DE.extractFromValue value
-    do! updateDependencies value.id refs
+    do! updateDependencies hashStr refs
   }
 
 /// Apply a single AddFn op to the package_functions table
 let private applyAddFn (fn : PT.PackageFn.PackageFn) : Task<unit> =
   task {
-    // Compute content hash and set it on the fn
-    let hash = Hashing.computeFnHash Hashing.Normal fn
+    let hash =
+      match fn.hash with
+      | ContentHash "" -> Hashing.computeFnHash Hashing.Normal fn
+      | h -> h
     let fn = { fn with hash = hash }
-    let (PT.ContentHash hashStr) = hash
+    let (ContentHash hashStr) = hash
 
-    let ptDef = BS.PT.PackageFn.serialize fn.id fn
-    let rtInstrs = fn |> PT2RT.PackageFn.toRT |> BS.RT.PackageFn.serialize fn.id
+    let ptDef = BS.PT.PackageFn.serialize hash fn
+    let rtInstrs = fn |> PT2RT.PackageFn.toRT |> BS.RT.PackageFn.serialize hash
 
     do!
       Sql.query
         """
-        INSERT OR REPLACE INTO package_functions (id, hash, pt_def, rt_instrs)
-        VALUES (@id, @hash, @pt_def, @rt_instrs)
+        INSERT OR REPLACE INTO package_functions (hash, pt_def, rt_instrs)
+        VALUES (@hash, @pt_def, @rt_instrs)
         """
       |> Sql.parameters
-        [ "id", Sql.uuid fn.id
-          "hash", Sql.string hashStr
+        [ "hash", Sql.string hashStr
           "pt_def", Sql.bytes ptDef
           "rt_instrs", Sql.bytes rtInstrs ]
       |> Sql.executeStatementAsync
 
     // Extract and store dependency references atomically
     let refs = DE.extractFromFn fn
-    do! updateDependencies fn.id refs
+    do! updateDependencies hashStr refs
   }
 
 /// Apply a Set*Name op to the locations table atomically.
 /// branchId = branch context, commitId = None means WIP, Some id means committed
+/// isRename = true when this SetName is a standalone rename (not paired with Add*),
+///   meaning old locations for the same hash should be deprecated.
 let private applySetName
   (branchId : PT.BranchId)
   (commitId : Option<string>)
-  (itemId : uuid)
+  (isRename : bool)
+  (itemHash : ContentHash)
   (location : PT.PackageLocation)
   (itemKind : PT.ItemKind)
   : Task<unit> =
@@ -157,27 +168,16 @@ let private applySetName
     let modulesStr = String.concat "." location.modules
     let itemTypeStr = itemKind.toString ()
     let locationId = System.Guid.NewGuid()
+    let (ContentHash itemHashStr) = itemHash
 
     let commitIdParam =
       match commitId with
       | Some s -> Sql.string s
       | None -> Sql.dbnull
 
-    // Execute all three operations atomically:
-    // 1. Deprecate any existing location for this item (handles moves)
-    // 2. Deprecate any existing location at same path (handles updates)
-    // 3. Insert new location entry
-    let statements =
+    // 1. Deprecate any existing location at the target path (handles updates)
+    let mutable statements =
       [ ("""
-         UPDATE locations
-         SET deprecated_at = datetime('now')
-         WHERE item_id = @item_id
-           AND branch_id = @branch_id
-           AND deprecated_at IS NULL
-         """,
-         [ [ "item_id", Sql.uuid itemId; "branch_id", Sql.uuid branchId ] ])
-
-        ("""
          UPDATE locations
          SET deprecated_at = datetime('now')
          WHERE owner = @owner
@@ -191,20 +191,41 @@ let private applySetName
              "modules", Sql.string modulesStr
              "name", Sql.string location.name
              "item_type", Sql.string itemTypeStr
-             "branch_id", Sql.uuid branchId ] ])
+             "branch_id", Sql.uuid branchId ] ]) ]
 
-        ("""
-         INSERT INTO locations (location_id, item_id, owner, modules, name, item_type, branch_id, commit_id)
-         VALUES (@location_id, @item_id, @owner, @modules, @name, @item_type, @branch_id, @commit_id)
-         """,
-         [ [ "location_id", Sql.uuid locationId
-             "item_id", Sql.uuid itemId
-             "owner", Sql.string location.owner
-             "modules", Sql.string modulesStr
-             "name", Sql.string location.name
-             "item_type", Sql.string itemTypeStr
-             "branch_id", Sql.uuid branchId
-             "commit_id", commitIdParam ] ]) ]
+    // 2. If this is a rename (standalone SetName, not paired with Add*),
+    //    also deprecate old locations pointing to the same hash.
+    //    We do NOT do this for Add+SetName pairs because multiple items can
+    //    legitimately share the same content hash (e.g. Int8.ParseError and
+    //    Int16.ParseError have identical definitions).
+    if isRename then
+      statements <-
+        statements
+        @ [ ("""
+             UPDATE locations
+             SET deprecated_at = datetime('now')
+             WHERE item_hash = @item_hash
+               AND branch_id = @branch_id
+               AND deprecated_at IS NULL
+             """,
+             [ [ "item_hash", Sql.string itemHashStr
+                 "branch_id", Sql.uuid branchId ] ]) ]
+
+    // 3. Insert new location entry
+    statements <-
+      statements
+      @ [ ("""
+           INSERT INTO locations (location_id, item_hash, owner, modules, name, item_type, branch_id, commit_id)
+           VALUES (@location_id, @item_hash, @owner, @modules, @name, @item_type, @branch_id, @commit_id)
+           """,
+           [ [ "location_id", Sql.uuid locationId
+               "item_hash", Sql.string itemHashStr
+               "owner", Sql.string location.owner
+               "modules", Sql.string modulesStr
+               "name", Sql.string location.name
+               "item_type", Sql.string itemTypeStr
+               "branch_id", Sql.uuid branchId
+               "commit_id", commitIdParam ] ]) ]
 
     let _ = Sql.executeTransactionSync statements
     ()
@@ -213,9 +234,12 @@ let private applySetName
 
 /// Apply a single PackageOp to the projection tables
 /// branchId = branch context, commitId = None means WIP, Some id means committed
-let applyOp
+/// addedHashes = hashes of items added by Add* ops earlier in this batch
+///   (used to distinguish "add + name" from "rename")
+let private applyOp
   (branchId : PT.BranchId)
   (commitId : Option<string>)
+  (addedHashes : Set<ContentHash>)
   (op : PT.PackageOp)
   : Task<unit> =
   task {
@@ -224,11 +248,14 @@ let applyOp
     | PT.PackageOp.AddValue value -> do! applyAddValue value
     | PT.PackageOp.AddFn fn -> do! applyAddFn fn
     | PT.PackageOp.SetTypeName(id, loc) ->
-      do! applySetName branchId commitId id loc PT.ItemKind.Type
+      let isRename = not (Set.contains id addedHashes)
+      do! applySetName branchId commitId isRename id loc PT.ItemKind.Type
     | PT.PackageOp.SetValueName(id, loc) ->
-      do! applySetName branchId commitId id loc PT.ItemKind.Value
+      let isRename = not (Set.contains id addedHashes)
+      do! applySetName branchId commitId isRename id loc PT.ItemKind.Value
     | PT.PackageOp.SetFnName(id, loc) ->
-      do! applySetName branchId commitId id loc PT.ItemKind.Fn
+      let isRename = not (Set.contains id addedHashes)
+      do! applySetName branchId commitId isRename id loc PT.ItemKind.Fn
     | PT.PackageOp.PropagateUpdate _ ->
       // Location changes are already handled by the individual SetFnName/SetTypeName/
       // SetValueName ops that accompany this op in the propagation batch.
@@ -238,12 +265,12 @@ let applyOp
                                      _,
                                      sourceLocation,
                                      sourceItemKind,
-                                     restoredSourceUUID,
+                                     restoredSourceHash,
                                      revertedRepoints) ->
       // Build all SQL statements for atomic execution
       let mutable statements = []
 
-      // For each reverted repoint: deprecate toUUID, un-deprecate fromUUID
+      // For each reverted repoint: deprecate toHash, un-deprecate fromHash
       // Skip repoints for the source item — those are handled by the dedicated
       // source-handling block below (avoids redundant double-toggle in mutual recursion)
       let dependentRepoints =
@@ -252,16 +279,18 @@ let applyOp
           r.location <> sourceLocation || r.itemKind <> sourceItemKind)
 
       for repoint in dependentRepoints do
+        let (ContentHash toHashStr) = repoint.toHash
+        let (ContentHash fromHashStr) = repoint.fromHash
         statements <-
           statements
           @ [ ("""
                UPDATE locations
                SET deprecated_at = datetime('now')
-               WHERE item_id = @item_id
+               WHERE item_hash = @item_hash
                  AND branch_id = @branch_id
                  AND deprecated_at IS NULL
                """,
-               [ [ "item_id", Sql.uuid repoint.toUUID
+               [ [ "item_hash", Sql.string toHashStr
                    "branch_id", Sql.uuid branchId ] ])
 
               ("""
@@ -269,19 +298,20 @@ let applyOp
                SET deprecated_at = NULL
                WHERE location_id = (
                  SELECT location_id FROM locations
-                 WHERE item_id = @item_id
+                 WHERE item_hash = @item_hash
                    AND branch_id = @branch_id
                    AND deprecated_at IS NOT NULL
                  ORDER BY deprecated_at DESC
                  LIMIT 1
                )
                """,
-               [ [ "item_id", Sql.uuid repoint.fromUUID
+               [ [ "item_hash", Sql.string fromHashStr
                    "branch_id", Sql.uuid branchId ] ]) ]
 
       // Undo source: deprecate WIP location, un-deprecate committed location
       let modulesStr = String.concat "." sourceLocation.modules
       let itemTypeStr = sourceItemKind.toString ()
+      let (ContentHash restoredSourceHashStr) = restoredSourceHash
 
       statements <-
         statements
@@ -307,19 +337,33 @@ let applyOp
              SET deprecated_at = NULL
              WHERE location_id = (
                SELECT location_id FROM locations
-               WHERE item_id = @item_id
+               WHERE item_hash = @item_hash
                  AND branch_id = @branch_id
                  AND deprecated_at IS NOT NULL
                ORDER BY deprecated_at DESC
                LIMIT 1
              )
              """,
-             [ [ "item_id", Sql.uuid restoredSourceUUID
+             [ [ "item_hash", Sql.string restoredSourceHashStr
                  "branch_id", Sql.uuid branchId ] ]) ]
 
       let _ = Sql.executeTransactionSync statements
       ()
   }
+
+
+/// Collect hashes from Add* ops to distinguish "add + name" from "rename".
+/// When SetName references a hash that was added in the same batch, it's
+/// giving a name to a new item. Otherwise it's a rename (move).
+let private collectAddedHashes (ops : List<PT.PackageOp>) : Set<ContentHash> =
+  ops
+  |> List.choose (fun op ->
+    match op with
+    | PT.PackageOp.AddType t -> Some t.hash
+    | PT.PackageOp.AddValue v -> Some v.hash
+    | PT.PackageOp.AddFn f -> Some f.hash
+    | _ -> None)
+  |> Set.ofList
 
 
 /// Apply a list of PackageOps to the projection tables
@@ -330,6 +374,7 @@ let applyOps
   (ops : List<PT.PackageOp>)
   : Task<unit> =
   task {
+    let addedHashes = collectAddedHashes ops
     for op in ops do
-      do! applyOp branchId commitId op
+      do! applyOp branchId commitId addedHashes op
   }

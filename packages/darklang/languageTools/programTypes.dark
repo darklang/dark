@@ -3,12 +3,12 @@ module Darklang.LanguageTools.ProgramTypes
 
 /// Used to name where type/function/etc lives, eg a User module, or a Package module.
 module FQTypeName =
-  type Package = Uuid
+  type Package = String
   type FQTypeName = Package of Package
 
 module FQValueName =
   type Builtin = { name: String; version: Int32 }
-  type Package = Uuid
+  type Package = String
 
   type FQValueName =
     | Builtin of Builtin
@@ -16,7 +16,7 @@ module FQValueName =
 
 module FQFnName =
   type Builtin = { name: String; version: Int32 }
-  type Package = Uuid
+  type Package = String
 
   type FQFnName =
     | Builtin of Builtin
@@ -379,16 +379,14 @@ module TypeDeclaration =
 // Package space
 module PackageType =
   type PackageType =
-    { id: FQTypeName.Package
-      hash: String
+    { hash: String
       declaration: TypeDeclaration.TypeDeclaration
       description: String
       deprecated: Deprecation<FQTypeName.FQTypeName> }
 
 module PackageValue =
   type PackageValue =
-    { id: Uuid
-      hash: String
+    { hash: String
       body: Expr
       description: String
       deprecated: Deprecation<FQValueName.FQValueName> }
@@ -400,8 +398,7 @@ module PackageFn =
       description: String }
 
   type PackageFn =
-    { id: FQFnName.Package
-      hash: String
+    { hash: String
       body: Expr
       typeParams: List<String>
       parameters: List<Parameter>
@@ -532,32 +529,32 @@ module PackageManager =
       { findType =
           fun (branchId, location) ->
             match types |> Stdlib.List.findFirst (fun t -> t.location == location) with
-            | Some t -> Stdlib.Option.Option.Some t.entity.id
+            | Some t -> Stdlib.Option.Option.Some t.entity.hash
             | None -> pm.findType (branchId, location)
         findValue =
           fun (branchId, location) ->
             match values |> Stdlib.List.findFirst (fun v -> v.location == location) with
-            | Some v -> Stdlib.Option.Option.Some v.entity.id
+            | Some v -> Stdlib.Option.Option.Some v.entity.hash
             | None -> pm.findValue (branchId, location)
         findFn =
           fun (branchId, location) ->
             match fns |> Stdlib.List.findFirst (fun f -> f.location == location) with
-            | Some f -> Stdlib.Option.Option.Some f.entity.id
+            | Some f -> Stdlib.Option.Option.Some f.entity.hash
             | None -> pm.findFn (branchId, location)
 
         getType =
           fun id ->
-            match types |> Stdlib.List.findFirst (fun t -> t.entity.id == id) with
+            match types |> Stdlib.List.findFirst (fun t -> t.entity.hash == id) with
             | Some t -> Stdlib.Option.Option.Some t.entity
             | None -> pm.getType id
         getValue =
           fun id ->
-            match values |> Stdlib.List.findFirst (fun v -> v.entity.id == id) with
+            match values |> Stdlib.List.findFirst (fun v -> v.entity.hash == id) with
             | Some v -> Stdlib.Option.Option.Some v.entity
             | None -> pm.getValue id
         getFn =
           fun id ->
-            match fns |> Stdlib.List.findFirst (fun f -> f.entity.id == id) with
+            match fns |> Stdlib.List.findFirst (fun f -> f.entity.hash == id) with
             | Some f -> Stdlib.Option.Option.Some f.entity
             | None -> pm.getFn id
 
@@ -573,21 +570,21 @@ module PackageManager =
       ops
       |> Stdlib.List.filterMap (fun op ->
         match op with
-        | AddType t -> Stdlib.Option.Option.Some((t.id, t))
+        | AddType t -> Stdlib.Option.Option.Some((t.hash, t))
         | _ -> Stdlib.Option.Option.None)
 
     let valuesByID =
       ops
       |> Stdlib.List.filterMap (fun op ->
         match op with
-        | AddValue v -> Stdlib.Option.Option.Some((v.id, v))
+        | AddValue v -> Stdlib.Option.Option.Some((v.hash, v))
         | _ -> Stdlib.Option.Option.None)
 
     let fnsByID =
       ops
       |> Stdlib.List.filterMap (fun op ->
         match op with
-        | AddFn f -> Stdlib.Option.Option.Some((f.id, f))
+        | AddFn f -> Stdlib.Option.Option.Some((f.hash, f))
         | _ -> Stdlib.Option.Option.None)
 
     let typeLocationMap =

@@ -3,8 +3,7 @@ module Darklang.Cli.Packages.Propagate
 // Auto-propagation helpers for fn/type/val commands
 //
 // Note: the signature comparison helpers below exist because propagation does a blind
-// UUID swap with no type-checking. With content-addressable content, this goes
-// away — UUIDs only change when content changes, and dependents get type-checked
+// hash swap with no type-checking. Dependents get type-checked
 // against the new definition directly.
 
 /// Convert an ItemKind to its display string
@@ -22,19 +21,19 @@ let itemKindFromString (s: String) : Stdlib.Option.Option<LanguageTools.ProgramT
   | "value" -> Stdlib.Option.Option.Some LanguageTools.ProgramTypes.ItemKind.Value
   | _ -> Stdlib.Option.Option.None
 
-/// Get ALL UUIDs that have ever been at a location (across the branch chain).
+/// Get ALL hashes that have ever been at a location (across the branch chain).
 /// Returns empty list if no entries exist (i.e., this is a brand new item).
-/// Callers should filter out the current UUID to get only previous versions.
-let getAllPreviousUUIDs
+/// Callers should filter out the current hash to get only previous versions.
+let getAllPreviousHashes
   (branchId: Uuid)
   (location: LanguageTools.ProgramTypes.PackageLocation)
   (itemKind: LanguageTools.ProgramTypes.ItemKind)
-  : List<Uuid> =
-  Builtin.pmGetAllPreviousUUIDs branchId location itemKind
+  : List<String> =
+  Builtin.pmGetAllPreviousHashes branchId location itemKind
 
 
-/// Resolve a type UUID to its location name for comparison purposes.
-/// Two UUIDs that point to the same named location are considered equal.
+/// Resolve a type hash to its location name for comparison purposes.
+/// Two hashes that point to the same named location are considered equal.
 let resolveTypeName
   (branchId: Uuid)
   (id: LanguageTools.ProgramTypes.FQTypeName.Package)
@@ -50,7 +49,7 @@ let listsEqual (xs: List<'a>) (ys: List<'a>) (eq: 'a -> 'a -> Bool) : Bool =
   && (Stdlib.List.all results (fun x -> x))
 
 
-/// Structurally compare two TypeReferences, resolving UUIDs to names.
+/// Structurally compare two TypeReferences, resolving hashes to names.
 /// Returns true if they are semantically equal (same structure, same named types).
 let typeReferenceEqual
   (branchId: Uuid)
@@ -160,24 +159,24 @@ let typeDeclarationEqual
 
 
 /// Check if the signature of an item changed between old and new versions.
-/// If so, print a warning since callers were updated via blind UUID swap
+/// If so, print a warning since callers were updated via blind hash swap
 /// and may not compile with the new signature.
 ///
-/// Uses structural comparison that resolves type UUIDs to names, so changes
-/// that only differ in UUIDs pointing to the same name are not flagged.
+/// Uses structural comparison that resolves type hashes to names, so changes
+/// that only differ in hashes pointing to the same name are not flagged.
 /// Pretty-printer is only used for displaying the warning message.
 let warnIfSignatureChanged
   (branchId: Uuid)
   (itemKind: LanguageTools.ProgramTypes.ItemKind)
-  (previousUUID: Uuid)
-  (currentUUID: Uuid)
+  (previousHash: String)
+  (currentHash: String)
   : Bool =
   let ctx = PrettyPrinter.ProgramTypes.Context.forBranch branchId
 
   match itemKind with
   | Fn ->
-    let oldFn = Builtin.pmGetFn previousUUID
-    let newFn = Builtin.pmGetFn currentUUID
+    let oldFn = Builtin.pmGetFn previousHash
+    let newFn = Builtin.pmGetFn currentHash
 
     match (oldFn, newFn) with
     | (Some oldF, Some newF) ->
@@ -193,8 +192,8 @@ let warnIfSignatureChanged
     | _ -> false
 
   | Type ->
-    let oldType = Builtin.pmGetType previousUUID
-    let newType = Builtin.pmGetType currentUUID
+    let oldType = Builtin.pmGetType previousHash
+    let newType = Builtin.pmGetType currentHash
 
     match (oldType, newType) with
     | (Some oldT, Some newT) ->
@@ -217,25 +216,25 @@ let warnIfSignatureChanged
 let autoPropagateAfterUpdate
   (branchId: Uuid)
   (location: LanguageTools.ProgramTypes.PackageLocation)
-  (currentUUID: Uuid)
+  (currentHash: String)
   (itemKind: LanguageTools.ProgramTypes.ItemKind)
   : Unit =
-  // getAllPreviousUUIDs returns ALL UUIDs at this location across the branch chain
-  // (including the current one), so filter out currentUUID to get only previous versions.
-  let previousUUIDs =
-    (getAllPreviousUUIDs branchId location itemKind)
-    |> Stdlib.List.filter (fun id -> id != currentUUID)
+  // getAllPreviousHashes returns ALL hashes at this location across the branch chain
+  // (including the current one), so filter out currentHash to get only previous versions.
+  let previousHashes =
+    (getAllPreviousHashes branchId location itemKind)
+    |> Stdlib.List.filter (fun id -> id != currentHash)
 
-  match previousUUIDs with
+  match previousHashes with
   | [] -> ()  // New item, nothing to propagate
   | _ ->
-    // Warn if signature changed (use most recent previous UUID for comparison)
+    // Warn if signature changed (use most recent previous hash for comparison)
     let signatureChanged =
-      match Stdlib.List.head previousUUIDs with
-      | Some prevUUID -> warnIfSignatureChanged branchId itemKind prevUUID currentUUID
+      match Stdlib.List.head previousHashes with
+      | Some prevHash -> warnIfSignatureChanged branchId itemKind prevHash currentHash
       | None -> false
 
-    match Builtin.pmPropagate branchId location itemKind previousUUIDs currentUUID with
+    match Builtin.pmPropagate branchId location itemKind previousHashes currentHash with
     | Ok resultTuple ->
       let (propagationId, repoints) = resultTuple
 
@@ -246,12 +245,12 @@ let autoPropagateAfterUpdate
         let count = Stdlib.List.length repoints
         Stdlib.printLine $"  Propagated to {Stdlib.Int64.toString count} dependents:"
 
-        let ids = repoints |> Stdlib.List.map (fun r -> r.toUUID) |> Stdlib.List.unique
+        let ids = repoints |> Stdlib.List.map (fun r -> r.toHash) |> Stdlib.List.unique
         let namesDict = Deps.resolveNames branchId ids
 
         repoints
         |> Stdlib.List.iter (fun repoint ->
-          let name = Deps.getName namesDict repoint.toUUID
+          let name = Deps.getName namesDict repoint.toHash
           let kindStr = itemKindToString repoint.itemKind
           Stdlib.printLine $"    [{kindStr}] {name}")
 
@@ -262,7 +261,7 @@ let autoPropagateAfterUpdate
 
           repoints
           |> Stdlib.List.iter (fun repoint ->
-            let name = Deps.getName namesDict repoint.toUUID
+            let name = Deps.getName namesDict repoint.toHash
             let kindStr = itemKindToString repoint.itemKind
             Stdlib.printLine (Colors.hint $"    view {kindStr} {name}"))
 

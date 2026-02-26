@@ -36,6 +36,23 @@ else
   LOCALEXEC=Build/out/LocalExec/Debug/net8.0/LocalExec
 fi
 
+# Wait for compiled binaries to exist (build may be in progress)
+for ((i=1;i<=3000;i++)); do
+  if [[ ! -f "backend/${EXE}" ]] || [[ ! -f "backend/${LOCALEXEC}" ]]; then
+    if [[ $((i % 100)) -eq 1 ]]; then
+      echo "Waiting for compiled binaries..."
+    fi
+    sleep 0.1
+  else
+    break
+  fi
+done
+
+if [[ ! -f "backend/${EXE}" ]]; then
+  echo "ERROR: Test binary not found at backend/${EXE}"
+  echo "Is the F# build running? Check rundir/logs/build-server.log"
+  exit 1
+fi
 
 LOGS="${DARK_CONFIG_RUNDIR}/logs"
 

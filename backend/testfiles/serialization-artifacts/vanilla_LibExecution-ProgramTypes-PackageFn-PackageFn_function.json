@@ -1,8 +1,7 @@
 {
-  "id": "31d72f73-0f99-5a9b-949c-b95705ae7c4d",
   "hash": {
     "ContentHash": [
-      ""
+      "abcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890"
     ]
   },
   "body": {
@@ -312,7 +311,11 @@
                                                               "Ok": [
                                                                 {
                                                                   "Package": [
-                                                                    "31d72f73-0f99-5a9b-949c-b95705ae7c4d"
+                                                                    {
+                                                                      "ContentHash": [
+                                                                        "abcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890"
+                                                                      ]
+                                                                    }
                                                                   ]
                                                                 }
                                                               ]
@@ -333,7 +336,11 @@
                                                               "Ok": [
                                                                 {
                                                                   "Package": [
-                                                                    "31d72f73-0f99-5a9b-949c-b95705ae7c4d"
+                                                                    {
+                                                                      "ContentHash": [
+                                                                        "abcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890"
+                                                                      ]
+                                                                    }
                                                                   ]
                                                                 }
                                                               ]
@@ -596,7 +603,11 @@
                                                   "Ok": [
                                                     {
                                                       "Package": [
-                                                        "31d72f73-0f99-5a9b-949c-b95705ae7c4d"
+                                                        {
+                                                          "ContentHash": [
+                                                            "abcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890"
+                                                          ]
+                                                        }
                                                       ]
                                                     }
                                                   ]
@@ -739,7 +750,11 @@
                                                           "Ok": [
                                                             {
                                                               "Package": [
-                                                                "31d72f73-0f99-5a9b-949c-b95705ae7c4d"
+                                                                {
+                                                                  "ContentHash": [
+                                                                    "abcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890"
+                                                                  ]
+                                                                }
                                                               ]
                                                             }
                                                           ]
@@ -1650,7 +1665,11 @@
                     "Ok": [
                       {
                         "Package": [
-                          "31d72f73-0f99-5a9b-949c-b95705ae7c4d"
+                          {
+                            "ContentHash": [
+                              "abcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890"
+                            ]
+                          }
                         ]
                       }
                     ]
@@ -1671,7 +1690,11 @@
                     "Ok": [
                       {
                         "Package": [
-                          "31d72f73-0f99-5a9b-949c-b95705ae7c4d"
+                          {
+                            "ContentHash": [
+                              "abcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890"
+                            ]
+                          }
                         ]
                       }
                     ]
@@ -1796,7 +1819,11 @@
                 "Ok": [
                   {
                     "Package": [
-                      "31d72f73-0f99-5a9b-949c-b95705ae7c4d"
+                      {
+                        "ContentHash": [
+                          "abcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890"
+                        ]
+                      }
                     ]
                   }
                 ]
@@ -1817,7 +1844,11 @@
                 "Ok": [
                   {
                     "Package": [
-                      "31d72f73-0f99-5a9b-949c-b95705ae7c4d"
+                      {
+                        "ContentHash": [
+                          "abcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890"
+                        ]
+                      }
                     ]
                   }
                 ]

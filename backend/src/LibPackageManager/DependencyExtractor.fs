@@ -7,19 +7,19 @@ open Prelude
 module PT = LibExecution.ProgramTypes
 
 
-/// A dependency is just the UUID of what's being depended on.
+/// A dependency is the ContentHash of what's being depended on.
 // TODO: track the _type_ of the thing we're dependant on.
 // Likely `type PackageItem = | Type of ID | Value of ID | Fn of ID`
 // and `type Dependency = | PackageItem of PackageItem`.
 // Later, we might extend dependency-tracking to include Secrets and DBs
 // that are referenced, as well as other things that can be referenced.
 // And we may track the _purity_ of the dependencies in the same space.
-type Dependency = uuid
+type Dependency = ContentHash
 
-/// Extract package UUID from a NameResolution if it resolved to a Package
+/// Extract package ContentHash from a NameResolution if it resolved to a Package
 let private extractFromNameResolution
   (nr : PT.NameResolution<'a>)
-  (extractPackageId : 'a -> Option<uuid>)
+  (extractPackageId : 'a -> Option<ContentHash>)
   : List<Dependency> =
   match nr.resolved with
   | Ok resolved ->
@@ -29,21 +29,23 @@ let private extractFromNameResolution
   | Error _ -> []
 
 
-/// Extract package UUID from FQFnName
-let private extractFnId (fn : PT.FQFnName.FQFnName) : Option<uuid> =
+/// Extract package ContentHash from FQFnName
+let private extractFnId (fn : PT.FQFnName.FQFnName) : Option<ContentHash> =
   match fn with
   | PT.FQFnName.Package id -> Some id
   | PT.FQFnName.Builtin _ -> None
 
 
-/// Extract package UUID from FQTypeName
-let private extractTypeId (typ : PT.FQTypeName.FQTypeName) : Option<uuid> =
+/// Extract package ContentHash from FQTypeName
+let private extractTypeId (typ : PT.FQTypeName.FQTypeName) : Option<ContentHash> =
   match typ with
   | PT.FQTypeName.Package id -> Some id
 
 
-/// Extract package UUID from FQValueName
-let private extractValueId (value : PT.FQValueName.FQValueName) : Option<uuid> =
+/// Extract package ContentHash from FQValueName
+let private extractValueId
+  (value : PT.FQValueName.FQValueName)
+  : Option<ContentHash> =
   match value with
   | PT.FQValueName.Package id -> Some id
   | PT.FQValueName.Builtin _ -> None
@@ -51,7 +53,7 @@ let private extractValueId (value : PT.FQValueName.FQValueName) : Option<uuid> =
 
 /// Extract dependencies from a Deprecation field
 let private extractFromDeprecation
-  (extractId : 'a -> Option<uuid>)
+  (extractId : 'a -> Option<ContentHash>)
   (dep : PT.Deprecation<'a>)
   : List<Dependency> =
   match dep with

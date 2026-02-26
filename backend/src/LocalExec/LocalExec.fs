@@ -64,20 +64,20 @@ let evaluateAllValues
       let! unevaluatedValues =
         Sql.query
           """
-          SELECT pv.id, pv.pt_def, l.owner, l.modules, l.name
+          SELECT pv.hash, pv.pt_def, l.owner, l.modules, l.name
           FROM package_values pv
-          LEFT JOIN locations l ON l.item_id = CAST(pv.id AS TEXT) AND l.deprecated_at IS NULL
+          LEFT JOIN locations l ON l.item_hash = pv.hash AND l.deprecated_at IS NULL
           WHERE pv.rt_dval IS NULL
           """
         |> Sql.executeAsync (fun read ->
-          let id = read.uuid "id"
+          let hash = ContentHash(read.string "hash")
           let ptDef = read.bytes "pt_def"
           let owner = read.stringOrNone "owner" |> Option.defaultValue "?"
           let modules = read.stringOrNone "modules" |> Option.defaultValue ""
           let name = read.stringOrNone "name" |> Option.defaultValue "?"
           let fullName =
             if modules = "" then $"{owner}.{name}" else $"{owner}.{modules}.{name}"
-          (id, ptDef, fullName))
+          (hash, ptDef, fullName))
 
       if List.isEmpty unevaluatedValues then
         keepGoing <- false
@@ -90,9 +90,9 @@ let evaluateAllValues
         let errors = ResizeArray<string>()
         let mutable successCount = 0
 
-        for (valueId, ptDefBytes, fullName) in unevaluatedValues do
+        for (valueHash, ptDefBytes, fullName) in unevaluatedValues do
           try
-            let ptValue = BS.PT.PackageValue.deserialize valueId ptDefBytes
+            let ptValue = BS.PT.PackageValue.deserialize valueHash ptDefBytes
             let instrs = PT2RT.Expr.toRT Map.empty 0 None ptValue.body
             let! result = Execution.executeExpr exeState instrs
 
@@ -105,12 +105,13 @@ let evaluateAllValues
                 | Ok other -> $"{other}"
                 | Error(rte2, _) -> $"(could not stringify error: {rte2})"
               errors.Add(
-                $"Value {valueId} ({fullName}): evaluation failed - {errorMsg}"
+                $"Value {valueHash} ({fullName}): evaluation failed - {errorMsg}"
               )
             | Ok dval ->
               let rtValue : RT.PackageValue.PackageValue =
-                { id = valueId; hash = ""; body = dval }
-              let rtDvalBytes = BS.RT.PackageValue.serialize valueId rtValue
+                { hash = valueHash; body = dval }
+              let (ContentHash hashStr) = valueHash
+              let rtDvalBytes = BS.RT.PackageValue.serialize valueHash rtValue
               let valueType = RT.Dval.toValueType dval
               let valueTypeBytes = BS.RT.ValueType.serialize valueType
 
@@ -119,17 +120,17 @@ let evaluateAllValues
                   """
                   UPDATE package_values
                   SET rt_dval = @rt_dval, value_type = @value_type
-                  WHERE id = @id
+                  WHERE hash = @hash
                   """
                 |> Sql.parameters
-                  [ "id", Sql.uuid valueId
+                  [ "hash", Sql.string hashStr
                     "rt_dval", Sql.bytes rtDvalBytes
                     "value_type", Sql.bytes valueTypeBytes ]
                 |> Sql.executeStatementAsync
 
               successCount <- successCount + 1
           with ex ->
-            errors.Add($"Value {valueId} ({fullName}): exception - {ex.Message}")
+            errors.Add($"Value {valueHash} ({fullName}): exception - {ex.Message}")
 
         if successCount = 0 then
           // No progress — remaining failures are real errors
@@ -197,7 +198,7 @@ module HandleCommand =
         let! stats = LibPackageManager.Stats.get ()
         print "Loaded packages from disk "
         print $"{stats.types} types, {stats.values} values, and {stats.fns} fns"
-        let (LibExecution.ProgramTypes.ContentHash commitIdStr) = commitId
+        let (ContentHash commitIdStr) = commitId
         let shortHash = commitIdStr[..6]
         print $"Created init commit {shortHash}"
 

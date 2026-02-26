@@ -11,6 +11,7 @@ module PT2RT = LibExecution.ProgramTypesToRuntimeTypes
 module PT = LibExecution.ProgramTypes
 module RT = LibExecution.RuntimeTypes
 module NR = NameResolver
+module Hashing = LibSerialization.Hashing
 
 open Utils
 
@@ -163,33 +164,38 @@ let parse
             value)
 
       // Generate PackageOps from parsed items
+      // Compute a deterministic name-based placeholder hash for Set*Name ops.
+      // Each item needs a unique key so computeRealHashes' maps work correctly.
+      // The real content hash replaces this in LoadPackagesFromDisk.computeRealHashes.
+      let nameBasedHash (loc : PT.PackageLocation) : ContentHash =
+        let modulesStr = String.concat "." loc.modules
+        let nameKey = $"{loc.owner}.{modulesStr}.{loc.name}"
+        let nameBytes =
+          System.Security.Cryptography.SHA256.HashData(
+            System.Text.Encoding.UTF8.GetBytes(nameKey)
+          )
+        ContentHash(
+          System.BitConverter.ToString(nameBytes).Replace("-", "").ToLowerInvariant()
+        )
+
       let ops : List<PT.PackageOp> =
         [ // Add all types and their locations
           for (wtType, ptType) in List.zip modul.types types do
             yield PT.PackageOp.AddType ptType
-            yield
-              PT.PackageOp.SetTypeName(
-                ptType.id,
-                WT2PT.PackageType.Name.toLocation wtType.name
-              )
+            let loc = WT2PT.PackageType.Name.toLocation wtType.name
+            yield PT.PackageOp.SetTypeName(nameBasedHash loc, loc)
 
           // Add all values and their locations
           for (wtValue, ptValue) in List.zip modul.values values do
             yield PT.PackageOp.AddValue ptValue
-            yield
-              PT.PackageOp.SetValueName(
-                ptValue.id,
-                WT2PT.PackageValue.Name.toLocation wtValue.name
-              )
+            let loc = WT2PT.PackageValue.Name.toLocation wtValue.name
+            yield PT.PackageOp.SetValueName(nameBasedHash loc, loc)
 
           // Add all functions and their locations
           for (wtFn, ptFn) in List.zip modul.fns fns do
             yield PT.PackageOp.AddFn ptFn
-            yield
-              PT.PackageOp.SetFnName(
-                ptFn.id,
-                WT2PT.PackageFn.Name.toLocation wtFn.name
-              ) ]
+            let loc = WT2PT.PackageFn.Name.toLocation wtFn.name
+            yield PT.PackageOp.SetFnName(nameBasedHash loc, loc) ]
 
       return ops
 

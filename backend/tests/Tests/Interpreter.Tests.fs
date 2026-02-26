@@ -581,7 +581,7 @@ module Fns =
           E.Fns.Package.MyAdd.unapplied
           (RT.DApplicable(
             RT.AppNamedFn
-              { name = RT.FQFnName.fqPackage E.Fns.Package.MyAdd.id
+              { name = RT.FQFnName.fqPackage E.Fns.Package.MyAdd.hash
                 typeSymbolTable = Map.empty
                 typeArgs = []
                 argsSoFar = [] }
@@ -593,7 +593,7 @@ module Fns =
           E.Fns.Package.MyAdd.partiallyApplied
           (RT.DApplicable(
             RT.AppNamedFn
-              { name = RT.FQFnName.fqPackage E.Fns.Package.MyAdd.id
+              { name = RT.FQFnName.fqPackage E.Fns.Package.MyAdd.hash
                 typeSymbolTable = Map.empty
                 typeArgs = []
                 argsSoFar = [ RT.DInt64 1 ] }
@@ -613,7 +613,7 @@ module Fns =
           E.Fns.Package.Fact.unapplied
           (RT.DApplicable(
             RT.AppNamedFn
-              { name = RT.FQFnName.fqPackage E.Fns.Package.Fact.id
+              { name = RT.FQFnName.fqPackage E.Fns.Package.Fact.hash
                 typeSymbolTable = Map.empty
                 typeArgs = []
                 argsSoFar = [] }

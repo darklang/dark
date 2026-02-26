@@ -824,8 +824,7 @@ module PackageType =
       let! declaration =
         TypeDeclaration.toPT pm onMissing currentModule pt.declaration
       return
-        { id = PackageRefs.Type.idForName pt.name.owner pt.name.modules pt.name.name
-          hash = PT.ContentHash ""
+        { hash = ContentHash ""
           description = pt.description
           declaration = declaration
           deprecated = PT.NotDeprecated }
@@ -854,8 +853,7 @@ module PackageValue =
           localBindings = Set.empty }
       let! body = Expr.toPT builtins pm onMissing currentModule context c.body
       return
-        { id = PackageRefs.Value.idForName c.name.owner c.name.modules c.name.name
-          hash = PT.ContentHash ""
+        { hash = ContentHash ""
           description = c.description
           deprecated = PT.NotDeprecated
           body = body }
@@ -908,8 +906,7 @@ module PackageFn =
       let! body = Expr.toPT builtins pm onMissing currentModule context fn.body
 
       return
-        { id = PackageRefs.Fn.idForName fn.name.owner fn.name.modules fn.name.name
-          hash = PT.ContentHash ""
+        { hash = ContentHash ""
           parameters = parameters
           returnType = returnType
           description = fn.description

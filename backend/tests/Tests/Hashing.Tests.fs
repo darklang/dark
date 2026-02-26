@@ -18,15 +18,13 @@ let private makeFn (body : PT.Expr) : PT.PackageFn.PackageFn =
 let private makeType
   (def : PT.TypeDeclaration.Definition)
   : PT.PackageType.PackageType =
-  { id = System.Guid.NewGuid()
-    hash = PT.ContentHash ""
+  { hash = ContentHash ""
     declaration = { typeParams = []; definition = def }
     description = ""
     deprecated = PT.NotDeprecated }
 
 let private makeValue (body : PT.Expr) : PT.PackageValue.PackageValue =
-  { id = System.Guid.NewGuid()
-    hash = PT.ContentHash ""
+  { hash = ContentHash ""
     body = body
     description = ""
     deprecated = PT.NotDeprecated }
@@ -68,18 +66,6 @@ let tests =
             let h1 = Hashing.computeTypeHash Hashing.Normal typ1
             let h2 = Hashing.computeTypeHash Hashing.Normal typ2
             Expect.notEqual h1 h2 "different types should hash differently"
-          }
-
-          test "id does not affect hash" {
-            let def =
-              PT.TypeDeclaration.Record(
-                NEList.singleton { name = "a"; typ = PT.TBool; description = "" }
-              )
-            let typ1 = { makeType def with id = System.Guid.NewGuid() }
-            let typ2 = { makeType def with id = System.Guid.NewGuid() }
-            let h1 = Hashing.computeTypeHash Hashing.Normal typ1
-            let h2 = Hashing.computeTypeHash Hashing.Normal typ2
-            Expect.equal h1 h2 "different ids should not affect hash"
           }
 
           test "description does not affect hash" {
@@ -137,7 +123,7 @@ let tests =
             let fn = makeFn (eInt64 1)
             let op = PT.PackageOp.AddFn fn
             let hash = Hashing.computeOpHash op
-            let (PT.ContentHash h) = hash
+            let (ContentHash h) = hash
             Expect.isTrue (h.Length = 64) "should be 64 hex chars (SHA-256)"
           }
 
@@ -153,32 +139,32 @@ let tests =
       testList
         "computeCommitHash"
         [ test "determinism" {
-            let opHash1 = PT.ContentHash "aabb"
-            let opHash2 = PT.ContentHash "ccdd"
-            let parent = Some(PT.ContentHash "0011")
+            let opHash1 = ContentHash "aabb"
+            let opHash2 = ContentHash "ccdd"
+            let parent = Some(ContentHash "0011")
             let h1 = Hashing.computeCommitHash parent [ opHash1; opHash2 ]
             let h2 = Hashing.computeCommitHash parent [ opHash1; opHash2 ]
             Expect.equal h1 h2 "same inputs should give same commit hash"
           }
 
           test "op order independence (sorted internally)" {
-            let opHash1 = PT.ContentHash "aabb"
-            let opHash2 = PT.ContentHash "ccdd"
-            let parent = Some(PT.ContentHash "0011")
+            let opHash1 = ContentHash "aabb"
+            let opHash2 = ContentHash "ccdd"
+            let parent = Some(ContentHash "0011")
             let h1 = Hashing.computeCommitHash parent [ opHash1; opHash2 ]
             let h2 = Hashing.computeCommitHash parent [ opHash2; opHash1 ]
             Expect.equal h1 h2 "op order should not matter"
           }
 
           test "different parent gives different hash" {
-            let ops = [ PT.ContentHash "aabb" ]
-            let h1 = Hashing.computeCommitHash (Some(PT.ContentHash "0011")) ops
-            let h2 = Hashing.computeCommitHash (Some(PT.ContentHash "0022")) ops
+            let ops = [ ContentHash "aabb" ]
+            let h1 = Hashing.computeCommitHash (Some(ContentHash "0011")) ops
+            let h2 = Hashing.computeCommitHash (Some(ContentHash "0022")) ops
             Expect.notEqual h1 h2 "different parent should give different hash"
           }
 
           test "empty commit (no ops, just parent)" {
-            let parent = Some(PT.ContentHash "0011")
+            let parent = Some(ContentHash "0011")
             let h1 = Hashing.computeCommitHash parent []
             let h2 = Hashing.computeCommitHash parent []
             Expect.equal h1 h2 "empty commit should be deterministic"
@@ -236,19 +222,20 @@ let tests =
       testList
         "SCC batch hashing"
         [ test "two mutually-recursive types get stable hashes" {
-            let id1 = System.Guid.NewGuid()
-            let id2 = System.Guid.NewGuid()
+            let id1 = ContentHash "test-scc-type-1"
+            let id2 = ContentHash "test-scc-type-2"
             let typ1 =
-              { (makeType (PT.TypeDeclaration.Alias PT.TInt64)) with id = id1 }
+              { (makeType (PT.TypeDeclaration.Alias PT.TInt64)) with hash = id1 }
             let typ2 =
-              { (makeType (PT.TypeDeclaration.Alias PT.TString)) with id = id2 }
+              { (makeType (PT.TypeDeclaration.Alias PT.TString)) with hash = id2 }
 
+            // Maps keyed by FQN; tuple value is (item, oldContentHash)
             let types =
-              [ (id1, (typ1, "Test.A")); (id2, (typ2, "Test.B")) ] |> Map.ofList
+              [ ("Test.A", (typ1, id1)); ("Test.B", (typ2, id2)) ] |> Map.ofList
 
-            let getDeps id =
-              if id = id1 then [ id2 ]
-              elif id = id2 then [ id1 ]
+            let getDeps fqn =
+              if fqn = "Test.A" then [ "Test.B" ]
+              elif fqn = "Test.B" then [ "Test.A" ]
               else []
 
             let hashes1 =
@@ -258,7 +245,7 @@ let tests =
 
             Expect.equal hashes1 hashes2 "SCC hashes should be deterministic"
             Expect.notEqual
-              (Map.find id1 hashes1)
-              (Map.find id2 hashes1)
+              (Map.find "Test.A" hashes1)
+              (Map.find "Test.B" hashes1)
               "different items in SCC should have different hashes"
           } ] ]

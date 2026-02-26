@@ -15,7 +15,7 @@ module BS = LibSerialization.Binary.Serialization
 /// Compute a content-addressed ID for a PackageOp.
 /// Returns a UUID derived from the ContentHash (first 16 bytes) for DB compatibility.
 let computeOpHash (op : PT.PackageOp) : System.Guid =
-  let (PT.ContentHash h) = LibSerialization.Hashing.computeOpHash op
+  let (ContentHash h) = LibSerialization.Hashing.computeOpHash op
   // Convert hex string back to bytes, take first 16 for UUID
   let hashBytes = System.Convert.FromHexString(h)
   System.Guid(hashBytes[0..15])
@@ -130,7 +130,7 @@ let insertAndApplyOpsWithCommit
   (branchId : PT.BranchId)
   (message : string)
   (ops : List<PT.PackageOp>)
-  : Task<PT.ContentHash> =
+  : Task<ContentHash> =
   task {
     // Get parent commit hash
     let! parentHash =
@@ -142,12 +142,12 @@ let insertAndApplyOpsWithCommit
         LIMIT 1
         """
       |> Sql.parameters [ "branch_id", Sql.uuid branchId ]
-      |> Sql.executeRowOptionAsync (fun read -> PT.ContentHash(read.string "id"))
+      |> Sql.executeRowOptionAsync (fun read -> ContentHash(read.string "id"))
 
     // Compute content-addressed commit hash
     let opHashes = ops |> List.map LibSerialization.Hashing.computeOpHash
     let commitHash = LibSerialization.Hashing.computeCommitHash parentHash opHashes
-    let (PT.ContentHash commitHashStr) = commitHash
+    let (ContentHash commitHashStr) = commitHash
 
     // Create the commit record
     do!
@@ -184,7 +184,7 @@ let insertAndApplyOpsAsWip
 let commitWipOps
   (branchId : PT.BranchId)
   (message : string)
-  : Task<Result<PT.ContentHash, string>> =
+  : Task<Result<ContentHash, string>> =
   task {
     try
       // Get WIP ops with their hashes
@@ -216,7 +216,7 @@ let commitWipOps
             LIMIT 1
             """
           |> Sql.parameters [ "branch_id", Sql.uuid branchId ]
-          |> Sql.executeRowOptionAsync (fun read -> PT.ContentHash(read.string "id"))
+          |> Sql.executeRowOptionAsync (fun read -> ContentHash(read.string "id"))
 
         // Compute op hashes
         let opHashes =
@@ -226,7 +226,7 @@ let commitWipOps
         // Compute content-addressed commit hash
         let commitHash =
           LibSerialization.Hashing.computeCommitHash parentHash opHashes
-        let (PT.ContentHash commitHashStr) = commitHash
+        let (ContentHash commitHashStr) = commitHash
 
         // Execute all three operations atomically:
         // 1. Create commit record
@@ -265,24 +265,24 @@ let commitWipOps
   }
 
 
-/// Find the committed UUID at a location, checking the current branch first,
+/// Find the committed ContentHash at a location, checking the current branch first,
 /// then falling back to ancestor branches.
-/// Returns Ok(uuid, locationIdOpt) where locationIdOpt is Some for same-branch
+/// Returns Ok(contentHash, locationIdOpt) where locationIdOpt is Some for same-branch
 /// committed locations (that need un-deprecating) or None for ancestor locations
 /// (which are already active on the parent).
-let findCommittedUUID
+let findCommittedHash
   (branchId : PT.BranchId)
   (owner : string)
   (modules : string)
   (name : string)
   (itemType : string)
-  : Task<Result<uuid * Option<uuid>, string>> =
+  : Task<Result<ContentHash * Option<uuid>, string>> =
   task {
     // First: look for deprecated committed location on current branch
     let! committedLocations =
       Sql.query
         """
-        SELECT location_id, item_id
+        SELECT location_id, item_hash
         FROM locations
         WHERE owner = @owner
           AND modules = @modules
@@ -301,10 +301,10 @@ let findCommittedUUID
           "item_type", Sql.string itemType
           "branch_id", Sql.uuid branchId ]
       |> Sql.executeAsync (fun read ->
-        (read.uuid "location_id", read.uuid "item_id"))
+        (read.uuid "location_id", ContentHash(read.string "item_hash")))
 
     match committedLocations with
-    | (locationId, itemId) :: _ -> return Ok(itemId, Some locationId)
+    | (locationId, itemHash) :: _ -> return Ok(itemHash, Some locationId)
     | [] ->
       // Fall back to ancestor branches for an active committed location.
       // The parent's location was never deprecated by applySetName
@@ -324,7 +324,7 @@ let findCommittedUUID
         let! ancestorLocations =
           Sql.query
             $"""
-            SELECT item_id
+            SELECT item_hash
             FROM locations
             WHERE owner = @owner
               AND modules = @modules
@@ -341,10 +341,10 @@ let findCommittedUUID
               "item_type", Sql.string itemType ]
             @ branchParams
           )
-          |> Sql.executeAsync (fun read -> read.uuid "item_id")
+          |> Sql.executeAsync (fun read -> ContentHash(read.string "item_hash"))
 
         match ancestorLocations with
-        | itemId :: _ -> return Ok(itemId, None)
+        | itemHash :: _ -> return Ok(itemHash, None)
         | [] -> return Error "No committed version found to restore"
   }
 

@@ -60,15 +60,17 @@ module PT =
       "packageTypes"
       (fun typ ->
         typ
-        |> BS.PT.PackageType.serialize typ.id
-        |> BS.PT.PackageType.deserialize typ.id)
+        |> BS.PT.PackageType.serialize typ.hash
+        |> BS.PT.PackageType.deserialize typ.hash)
       Values.ProgramTypes.packageTypes
 
   let packageFnTests =
     Roundtripping.testRoundtripMany
       "packageFns"
       (fun fn ->
-        fn |> BS.PT.PackageFn.serialize fn.id |> BS.PT.PackageFn.deserialize fn.id)
+        fn
+        |> BS.PT.PackageFn.serialize fn.hash
+        |> BS.PT.PackageFn.deserialize fn.hash)
       Values.ProgramTypes.packageFns
 
   let packageValTests =
@@ -76,8 +78,8 @@ module PT =
       "packageVals"
       (fun c ->
         c
-        |> BS.PT.PackageValue.serialize c.id
-        |> BS.PT.PackageValue.deserialize c.id)
+        |> BS.PT.PackageValue.serialize c.hash
+        |> BS.PT.PackageValue.deserialize c.hash)
       Values.ProgramTypes.packageValues
 
   let toplevelTests =
@@ -94,7 +96,9 @@ module RT =
     Roundtripping.testRoundtripMany
       "packageTypes"
       (fun t ->
-        t |> BS.RT.PackageType.serialize t.id |> BS.RT.PackageType.deserialize t.id)
+        t
+        |> BS.RT.PackageType.serialize t.hash
+        |> BS.RT.PackageType.deserialize t.hash)
       Values.RuntimeTypes.packageTypes
 
   let packageValueTests =
@@ -102,15 +106,17 @@ module RT =
       "packageValues"
       (fun c ->
         c
-        |> BS.RT.PackageValue.serialize c.id
-        |> BS.RT.PackageValue.deserialize c.id)
+        |> BS.RT.PackageValue.serialize c.hash
+        |> BS.RT.PackageValue.deserialize c.hash)
       Values.RuntimeTypes.packageValues
 
   let packageFnTests =
     Roundtripping.testRoundtripMany
       "packageFns"
       (fun fn ->
-        fn |> BS.RT.PackageFn.serialize fn.id |> BS.RT.PackageFn.deserialize fn.id)
+        fn
+        |> BS.RT.PackageFn.serialize fn.hash
+        |> BS.RT.PackageFn.deserialize fn.hash)
       Values.RuntimeTypes.packageFns
 
   let dvalTests =

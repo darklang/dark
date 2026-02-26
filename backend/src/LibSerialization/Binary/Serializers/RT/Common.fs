@@ -59,11 +59,11 @@ module NameResolution =
 module FQTypeName =
   let write (w : BinaryWriter) (n : FQTypeName.FQTypeName) : unit =
     match n with
-    | FQTypeName.Package id -> Guid.write w id
+    | FQTypeName.Package h -> ContentHash.write w h
 
   let read (r : BinaryReader) : FQTypeName.FQTypeName =
-    let id = Guid.read r
-    FQTypeName.Package id
+    let h = ContentHash.read r
+    FQTypeName.Package h
 
 
 module FQFnName =
@@ -73,9 +73,9 @@ module FQFnName =
       w.Write 0uy
       String.write w b.name
       w.Write b.version
-    | FQFnName.Package id ->
+    | FQFnName.Package h ->
       w.Write 1uy
-      Guid.write w id
+      ContentHash.write w h
 
   let read (r : BinaryReader) : FQFnName.FQFnName =
     match r.ReadByte() with
@@ -84,8 +84,8 @@ module FQFnName =
       let version = r.ReadInt32()
       FQFnName.Builtin { name = name; version = version }
     | 1uy ->
-      let id = Guid.read r
-      FQFnName.Package id
+      let h = ContentHash.read r
+      FQFnName.Package h
     | b -> raiseFormatError $"Invalid FQFnName tag: {b}"
 
 
@@ -96,9 +96,9 @@ module FQValueName =
       w.Write 0uy
       String.write w builtin.name
       w.Write builtin.version
-    | FQValueName.Package id ->
+    | FQValueName.Package h ->
       w.Write 1uy
-      Guid.write w id
+      ContentHash.write w h
 
   let read (r : BinaryReader) : FQValueName.FQValueName =
     match r.ReadByte() with
@@ -107,8 +107,8 @@ module FQValueName =
       let version = r.ReadInt32()
       FQValueName.Builtin { name = name; version = version }
     | 1uy ->
-      let id = Guid.read r
-      FQValueName.Package id
+      let h = ContentHash.read r
+      FQValueName.Package h
     | b -> raiseFormatError $"Invalid FQValueName tag: {b}"
 
 

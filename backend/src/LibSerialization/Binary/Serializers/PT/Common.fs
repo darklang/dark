@@ -67,9 +67,9 @@ module NameResolution =
 
 module FQTypeName =
   module Package =
-    let write (w : BinaryWriter) (p : FQTypeName.Package) = Guid.write w p
+    let write (w : BinaryWriter) (p : FQTypeName.Package) = ContentHash.write w p
 
-    let read (r : BinaryReader) : FQTypeName.Package = Guid.read r
+    let read (r : BinaryReader) : FQTypeName.Package = ContentHash.read r
 
 
   let write (w : BinaryWriter) (name : FQTypeName.FQTypeName) =
@@ -96,9 +96,9 @@ module FQValueName =
       { name = name; version = version }
 
   module Package =
-    let write (w : BinaryWriter) (p : FQValueName.Package) = Guid.write w p
+    let write (w : BinaryWriter) (p : FQValueName.Package) = ContentHash.write w p
 
-    let read (r : BinaryReader) : FQValueName.Package = Guid.read r
+    let read (r : BinaryReader) : FQValueName.Package = ContentHash.read r
 
 
   let write (w : BinaryWriter) (n : FQValueName.FQValueName) =
@@ -129,9 +129,9 @@ module FQFnName =
       { name = name; version = version }
 
   module Package =
-    let write (w : BinaryWriter) (p : FQFnName.Package) = Guid.write w p
+    let write (w : BinaryWriter) (p : FQFnName.Package) = ContentHash.write w p
 
-    let read (r : BinaryReader) : FQFnName.Package = Guid.read r
+    let read (r : BinaryReader) : FQFnName.Package = ContentHash.read r
 
 
   let write (w : BinaryWriter) (n : FQFnName.FQFnName) =

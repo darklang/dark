@@ -24,6 +24,7 @@
     <Compile Include="DependencyExtractor.fs" />
     <Compile Include="Branches.fs" />
     <Compile Include="AstTransformer.fs" />
+    <Compile Include="HashStabilization.fs" />
     <Compile Include="PackageOpPlayback.fs" />
     <Compile Include="Inserts.fs" />
     <Compile Include="Queries.fs" />

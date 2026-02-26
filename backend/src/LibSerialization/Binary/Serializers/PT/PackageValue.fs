@@ -10,20 +10,14 @@ open LibSerialization.Binary.Serializers.Common
 open LibSerialization.Binary.Serializers.PT.Common
 
 let write (w : BinaryWriter) (v : PackageValue.PackageValue) : unit =
-  Guid.write w v.id
   ContentHash.write w v.hash
   LibSerialization.Binary.Serializers.PT.Expr.Expr.write w v.body
   String.write w v.description
   Deprecation.write w FQValueName.write v.deprecated
 
 let read (r : BinaryReader) : PackageValue.PackageValue =
-  let id = Guid.read r
   let hash = ContentHash.read r
   let body = LibSerialization.Binary.Serializers.PT.Expr.Expr.read r
   let description = String.read r
   let deprecated = Deprecation.read r FQValueName.read
-  { id = id
-    hash = hash
-    body = body
-    description = description
-    deprecated = deprecated }
+  { hash = hash; body = body; description = description; deprecated = deprecated }

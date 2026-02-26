@@ -11,63 +11,66 @@ module BS = LibSerialization.Binary.Serialization
 
 
 module Type =
-  let get (id : uuid) : Ply<Option<RT.PackageType.PackageType>> =
+  let get (id : ContentHash) : Ply<Option<RT.PackageType.PackageType>> =
     uply {
+      let (ContentHash idStr) = id
       return!
         Sql.query
           """
           SELECT rt_def
           FROM package_types
-          WHERE id = @id
+          WHERE hash = @hash
           """
-        |> Sql.parameters [ "id", Sql.uuid id ]
+        |> Sql.parameters [ "hash", Sql.string idStr ]
         |> Sql.executeRowOptionAsync (fun read -> read.bytes "rt_def")
         |> Task.map (Option.map (BS.RT.PackageType.deserialize id))
     }
 
 
 module Value =
-  let get (id : uuid) : Ply<Option<RT.PackageValue.PackageValue>> =
+  let get (id : ContentHash) : Ply<Option<RT.PackageValue.PackageValue>> =
     uply {
+      let (ContentHash idStr) = id
       return!
         Sql.query
           """
           SELECT rt_dval
           FROM package_values
-          WHERE id = @id
+          WHERE hash = @hash
           """
-        |> Sql.parameters [ "id", Sql.uuid id ]
+        |> Sql.parameters [ "hash", Sql.string idStr ]
         |> Sql.executeRowOptionAsync (fun read -> read.bytes "rt_dval")
         |> Task.map (Option.map (BS.RT.PackageValue.deserialize id))
     }
 
-  /// Find all value IDs that have the given ValueType (exact match)
-  let findByValueType (vt : RT.ValueType) : Ply<List<uuid>> =
+  /// Find all value hashes that have the given ValueType (exact match)
+  let findByValueType (vt : RT.ValueType) : Ply<List<ContentHash>> =
     uply {
       let vtBytes = BS.RT.ValueType.serialize vt
       return!
         Sql.query
           """
-          SELECT id
+          SELECT hash
           FROM package_values
           WHERE value_type = @value_type
           """
         |> Sql.parameters [ "value_type", Sql.bytes vtBytes ]
-        |> Sql.executeAsync (fun read -> read.string "id" |> System.Guid.Parse)
+        |> Sql.executeAsync (fun read -> ContentHash(read.string "hash"))
     }
 
 
 module Fn =
-  let get (id : uuid) : Ply<Option<RT.PackageFn.PackageFn>> =
+  let get (id : ContentHash) : Ply<Option<RT.PackageFn.PackageFn>> =
     uply {
+      let (ContentHash idStr) = id
       return!
         Sql.query
           """
           SELECT rt_instrs
           FROM package_functions
-          WHERE id = @id
+          WHERE hash = @hash
           """
-        |> Sql.parameters [ "id", Sql.uuid id ]
+        |> Sql.parameters [ "hash", Sql.string idStr ]
         |> Sql.executeRowOptionAsync (fun read -> read.bytes "rt_instrs")
         |> Task.map (Option.map (BS.RT.PackageFn.deserialize id))
     }

@@ -10,19 +10,6 @@ module LibExecution.RuntimeTypes
 
 open Prelude
 
-/// Content-addressed hash for package items.
-/// Hex-encoded SHA-256 digest, wrapped for type safety.
-type ContentHash = ContentHash of string
-
-module ContentHash =
-  let fromSHA256Bytes (bytes : byte array) : ContentHash =
-    ContentHash(System.Convert.ToHexString(bytes).ToLowerInvariant())
-
-  let toHexString (ContentHash h) : string = h
-
-  /// First 7 hex chars, like git's short SHA
-  let toShortString (ContentHash h) : string = h[..6]
-
 
 type BranchId = uuid
 
@@ -42,14 +29,14 @@ let assertBuiltin
 ///
 /// Used to reference a type defined in a Package
 module FQTypeName =
-  /// The id of a type in the package manager
-  type Package = uuid
+  /// The content hash of a type in the package manager
+  type Package = ContentHash
 
   type FQTypeName = Package of Package
 
-  let package (id : uuid) : Package = id
+  let package (h : ContentHash) : Package = h
 
-  let fqPackage (id : uuid) : FQTypeName = Package id
+  let fqPackage (h : ContentHash) : FQTypeName = Package h
 
 
 /// A Fully-Qualified Value Name
@@ -59,8 +46,8 @@ module FQValueName =
   /// A value built into the runtime
   type Builtin = { name : string; version : int }
 
-  /// The id of a value in the package manager
-  type Package = uuid
+  /// The content hash of a value in the package manager
+  type Package = ContentHash
 
   type FQValueName =
     | Builtin of Builtin
@@ -73,9 +60,9 @@ module FQValueName =
     assertBuiltin name version assertValueName
     { name = name; version = version }
 
-  let package (id : uuid) : Package = id
+  let package (h : ContentHash) : Package = h
 
-  let fqPackage (id : uuid) : FQValueName = Package id
+  let fqPackage (h : ContentHash) : FQValueName = Package h
 
 
 /// A Fully-Qualified Function Name
@@ -85,7 +72,7 @@ module FQFnName =
   /// A function built into the runtime
   type Builtin = { name : string; version : int }
 
-  type Package = uuid
+  type Package = ContentHash
 
   type FQFnName =
     | Builtin of Builtin
@@ -98,12 +85,12 @@ module FQFnName =
     assertBuiltin name version assertBuiltinFnName
     { name = name; version = version }
 
-  let package (id : uuid) = id
+  let package (h : ContentHash) = h
 
   let fqBuiltin (name : string) (version : int) : FQFnName =
     Builtin { name = name; version = version }
 
-  let fqPackage (id : uuid) : FQFnName = Package id
+  let fqPackage (h : ContentHash) : FQFnName = Package h
 
 
   let isInternalFn (fnName : Builtin) : bool = fnName.name.Contains "darkInternal"
@@ -1071,19 +1058,17 @@ module Dval =
 // ------------
 // Package-Space
 // ------------
-// TODO reference things by hash, not ID
 module PackageType =
-  type PackageType = { id : uuid; hash : string; declaration : TypeDeclaration.T }
+  type PackageType = { hash : ContentHash; declaration : TypeDeclaration.T }
 
 module PackageValue =
-  type PackageValue = { id : uuid; hash : string; body : Dval }
+  type PackageValue = { hash : ContentHash; body : Dval }
 
 module PackageFn =
   type Parameter = { name : string; typ : TypeReference }
 
   type PackageFn =
-    { id : uuid
-      hash : string
+    { hash : ContentHash
       typeParams : List<string>
       parameters : NEList<Parameter>
       returnType : TypeReference
@@ -1121,9 +1106,9 @@ type PackageManager =
     (fns : List<PackageFn.PackageFn>)
     (pm : PackageManager)
     : PackageManager =
-    let typeMap = types |> List.map (fun t -> t.id, t) |> Map.ofList
-    let valueMap = values |> List.map (fun v -> v.id, v) |> Map.ofList
-    let fnMap = fns |> List.map (fun f -> f.id, f) |> Map.ofList
+    let typeMap = types |> List.map (fun t -> t.hash, t) |> Map.ofList
+    let valueMap = values |> List.map (fun v -> v.hash, v) |> Map.ofList
+    let fnMap = fns |> List.map (fun f -> f.hash, f) |> Map.ofList
 
     { getType =
         fun id ->

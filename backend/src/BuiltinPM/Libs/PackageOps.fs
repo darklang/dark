@@ -137,7 +137,7 @@ let fns : List<BuiltInFn> =
             let! result = LibPackageManager.Inserts.commitWipOps branchId message
             match result with
             | Ok commitHash ->
-              let (PT.ContentHash h) = commitHash
+              let (ContentHash h) = commitHash
               return resultOk (Dval.string h)
             | Error msg -> return resultError (Dval.string msg)
           }
@@ -228,8 +228,7 @@ let fns : List<BuiltInFn> =
         function
         | _, _, _, [ DString commitId ] ->
           uply {
-            let! ops =
-              LibPackageManager.Queries.getCommitOps (PT.ContentHash commitId)
+            let! ops = LibPackageManager.Queries.getCommitOps (ContentHash commitId)
             return Dval.list packageOpKT (ops |> List.map PT2DT.PackageOp.toDT)
           }
         | _ -> incorrectArgs ()

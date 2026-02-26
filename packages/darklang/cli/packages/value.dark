@@ -98,13 +98,13 @@ let createValueInline
         // no unresolved names - keep going
         else
           // Check if this is an update (has previous versions)
-          let previousUUIDs = Propagate.getAllPreviousUUIDs state.currentBranchId location LanguageTools.ProgramTypes.ItemKind.Value
-          let isUpdate = (Stdlib.List.isEmpty previousUUIDs) |> Stdlib.Bool.not
+          let previousHashes = Propagate.getAllPreviousHashes state.currentBranchId location LanguageTools.ProgramTypes.ItemKind.Value
+          let isUpdate = (Stdlib.List.isEmpty previousHashes) |> Stdlib.Bool.not
 
           // Create ops: AddValue and SetValueName
           let ops =
             [ LanguageTools.ProgramTypes.PackageOp.AddValue packageValue
-              LanguageTools.ProgramTypes.PackageOp.SetValueName (packageValue.id, location) ]
+              LanguageTools.ProgramTypes.PackageOp.SetValueName (packageValue.hash, location) ]
 
           // Add ops as WIP (use 'scm commit' to commit)
           match SCM.PackageOps.add state.currentBranchId ops with
@@ -117,7 +117,7 @@ let createValueInline
             Stdlib.printLine (Colors.success $"✓ {action} value: {fullPath}")
 
             // Auto-propagate if this is an update
-            Propagate.autoPropagateAfterUpdate state.currentBranchId location packageValue.id LanguageTools.ProgramTypes.ItemKind.Value
+            Propagate.autoPropagateAfterUpdate state.currentBranchId location packageValue.hash LanguageTools.ProgramTypes.ItemKind.Value
 
             Stdlib.printLine ""
             state

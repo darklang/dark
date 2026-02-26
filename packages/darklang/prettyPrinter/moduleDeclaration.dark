@@ -72,7 +72,7 @@ module ModuleDeclaration =
     (ms: List<Module>)
     (t: LanguageTools.ProgramTypes.PackageType.PackageType)
     : List<Module> =
-    match Builtin.pmGetLocationByType branchId t.id with
+    match Builtin.pmGetLocationByType branchId t.hash with
     | None ->
       [ Module
           { name = "type with unknown location"
@@ -149,7 +149,7 @@ module ModuleDeclaration =
     (ms: List<Module>)
     (f: LanguageTools.ProgramTypes.PackageFn.PackageFn)
     : List<Module> =
-    match Builtin.pmGetLocationByFn branchId f.id with
+    match Builtin.pmGetLocationByFn branchId f.hash with
     | None ->
       [ Module
           { name = "fn with unknown location"
@@ -225,7 +225,7 @@ module ModuleDeclaration =
     (ms: List<Module>)
     (v: LanguageTools.ProgramTypes.PackageValue.PackageValue)
     : List<Module> =
-    match Builtin.pmGetLocationByValue branchId v.id with
+    match Builtin.pmGetLocationByValue branchId v.hash with
     | None ->
       [ Module
           { name = "value with unknown location"

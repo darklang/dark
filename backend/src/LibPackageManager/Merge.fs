@@ -34,8 +34,7 @@ let canMerge (branchId : PT.BranchId) : Task<Result<unit, PT.MergeError>> =
               LIMIT 1
               """
             |> Sql.parameters [ "parent_id", Sql.uuid parentId ]
-            |> Sql.executeRowOptionAsync (fun read ->
-              PT.ContentHash(read.string "id"))
+            |> Sql.executeRowOptionAsync (fun read -> ContentHash(read.string "id"))
 
           if branch.baseCommitId <> parentLatest then
             return Error PT.MergeError.NotRebased

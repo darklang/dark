@@ -15,6 +15,17 @@ let gid () : Int64 =
 let gtlid () : UInt64 =
   Stdlib.UInt64.random 0UL 9223372036854775807UL
 
+/// Compute a unique location-based placeholder hash for parsed items.
+/// This ensures each item gets a distinct key in createInMemory maps,
+/// since the parser generates hash="" for all items.
+let locationPlaceholderHash
+  (owner: String)
+  (modules: List<String>)
+  (name: String)
+  : String =
+  let modulesPart = Stdlib.String.join modules "."
+  $"{owner}.{modulesPart}.{name}"
+
 
 module Identifiers =
   module Type =
@@ -1390,9 +1401,7 @@ module TypeDeclaration =
     let (declaration, unresolvedNames) = toPT ctx d
 
     (ProgramTypes.PackageType.PackageType
-      // TODO: when relevant, use PackageRefs defined in F# land
-      { id = Stdlib.Uuid.generate ()
-        hash = ""
+      { hash = ""
         description = d.description
         declaration = declaration
         deprecated = ProgramTypes.Deprecation.NotDeprecated },
@@ -1409,8 +1418,7 @@ module ValueDeclaration =
     let (body, unresolvedNames) = Expr.toPT ctx defaultContext d.body
 
     (ProgramTypes.PackageValue.PackageValue
-      { id = Stdlib.Uuid.generate ()
-        hash = ""
+      { hash = ""
         body = body
         description = d.description
         deprecated = ProgramTypes.Deprecation.NotDeprecated },
@@ -1478,9 +1486,7 @@ module FunctionDeclaration =
           bdUnresolvedNames ]
 
     (ProgramTypes.PackageFn.PackageFn
-      // TODO: when relevant, use PackageRefs defined in F# land
-      { id = Stdlib.Uuid.generate ()
-        hash = ""
+      { hash = ""
         typeParams = typeParams
         parameters = params
         returnType = rtyp
@@ -1508,13 +1514,15 @@ let moduleDeclarationWithOpsHelper
         let (pt, unresolvedNames) =
           TypeDeclaration.toPackageTypePT ctx t
 
+        let pt = { pt with hash = locationPlaceholderHash ctx.owner ctx.currentModule typeName }
+
         let location =
           ProgramTypes.PackageLocation
             { owner = ctx.owner; modules = ctx.currentModule; name = typeName }
 
         let ops =
           [ ProgramTypes.PackageOp.AddType pt
-            ProgramTypes.PackageOp.SetTypeName(pt.id, location) ]
+            ProgramTypes.PackageOp.SetTypeName(pt.hash, location) ]
 
         Stdlib.Option.Option.Some((pt, ops, unresolvedNames))
       | _ -> Stdlib.Option.Option.None)
@@ -1536,13 +1544,15 @@ let moduleDeclarationWithOpsHelper
         let (pv, unresolvedNames) =
           ValueDeclaration.toPackageValuePT ctx v
 
+        let pv = { pv with hash = locationPlaceholderHash ctx.owner ctx.currentModule valueName }
+
         let location =
           ProgramTypes.PackageLocation
             { owner = ctx.owner; modules = ctx.currentModule; name = valueName }
 
         let ops =
           [ ProgramTypes.PackageOp.AddValue pv
-            ProgramTypes.PackageOp.SetValueName(pv.id, location) ]
+            ProgramTypes.PackageOp.SetValueName(pv.hash, location) ]
 
         Stdlib.Option.Option.Some((pv, ops, unresolvedNames))
       | _ -> Stdlib.Option.Option.None)
@@ -1564,13 +1574,15 @@ let moduleDeclarationWithOpsHelper
         let (pf, unresolvedNames) =
           FunctionDeclaration.toPackageFnPT ctx f
 
+        let pf = { pf with hash = locationPlaceholderHash ctx.owner ctx.currentModule fnName }
+
         let location =
           ProgramTypes.PackageLocation
             { owner = ctx.owner; modules = ctx.currentModule; name = fnName }
 
         let ops =
           [ ProgramTypes.PackageOp.AddFn pf
-            ProgramTypes.PackageOp.SetFnName(pf.id, location) ]
+            ProgramTypes.PackageOp.SetFnName(pf.hash, location) ]
 
         Stdlib.Option.Option.Some((pf, ops, unresolvedNames))
       | _ -> Stdlib.Option.Option.None)
@@ -1667,13 +1679,15 @@ let declarationsToPT
     let (t, unresolvedNames) =
       TypeDeclaration.toPackageTypePT ctx t
 
+    let t = { t with hash = locationPlaceholderHash ctx.owner ctx.currentModule typeName }
+
     let location =
       ProgramTypes.PackageLocation
         { owner = ctx.owner; modules = ctx.currentModule; name = typeName }
 
     let ops =
       [ ProgramTypes.PackageOp.AddType t
-        ProgramTypes.PackageOp.SetTypeName(t.id, location) ]
+        ProgramTypes.PackageOp.SetTypeName(t.hash, location) ]
 
     (ProgramTypes.SourceFile.Declaration.Type t, ops, unresolvedNames)
 
@@ -1683,13 +1697,15 @@ let declarationsToPT
     let (v, unresolvedNames) =
       ValueDeclaration.toPackageValuePT ctx v
 
+    let v = { v with hash = locationPlaceholderHash ctx.owner ctx.currentModule valueName }
+
     let location =
       ProgramTypes.PackageLocation
         { owner = ctx.owner; modules = ctx.currentModule; name = valueName }
 
     let ops =
       [ ProgramTypes.PackageOp.AddValue v
-        ProgramTypes.PackageOp.SetValueName(v.id, location) ]
+        ProgramTypes.PackageOp.SetValueName(v.hash, location) ]
 
     (ProgramTypes.SourceFile.Declaration.Value v, ops, unresolvedNames)
 
@@ -1700,13 +1716,15 @@ let declarationsToPT
     let (f, unresolvedNames) =
       FunctionDeclaration.toPackageFnPT ctx f
 
+    let f = { f with hash = locationPlaceholderHash ctx.owner ctx.currentModule fnName }
+
     let location =
       ProgramTypes.PackageLocation
         { owner = ctx.owner; modules = ctx.currentModule; name = fnName }
 
     let ops =
       [ ProgramTypes.PackageOp.AddFn f
-        ProgramTypes.PackageOp.SetFnName(f.id, location) ]
+        ProgramTypes.PackageOp.SetFnName(f.hash, location) ]
 
     (ProgramTypes.SourceFile.Declaration.Function f, ops, unresolvedNames)
 

@@ -12,6 +12,7 @@ module WT = WrittenTypes
 module FS2WT = FSharpToWrittenTypes
 module WT2PT = WrittenTypesToProgramTypes
 module NR = NameResolver
+module Hashing = LibSerialization.Hashing
 
 open Utils
 open ParserException
@@ -244,9 +245,10 @@ let toPT
             { owner = wtType.name.owner
               modules = wtType.name.modules
               name = wtType.name.name }
+          let hash = Hashing.computeTypeHash Hashing.Normal ptType
           return
             [ PT.PackageOp.AddType ptType
-              PT.PackageOp.SetTypeName(ptType.id, location) ]
+              PT.PackageOp.SetTypeName(hash, location) ]
         })
       |> Ply.map List.flatten
 
@@ -262,7 +264,10 @@ let toPT
               name = wtValue.name.name }
           return
             [ PT.PackageOp.AddValue ptValue
-              PT.PackageOp.SetValueName(ptValue.id, location) ]
+              PT.PackageOp.SetValueName(
+                Hashing.computeValueHash Hashing.Normal ptValue,
+                location
+              ) ]
         })
       |> Ply.map List.flatten
 
@@ -275,8 +280,8 @@ let toPT
             { owner = wtFn.name.owner
               modules = wtFn.name.modules
               name = wtFn.name.name }
-          return
-            [ PT.PackageOp.AddFn ptFn; PT.PackageOp.SetFnName(ptFn.id, location) ]
+          let hash = Hashing.computeFnHash Hashing.Normal ptFn
+          return [ PT.PackageOp.AddFn ptFn; PT.PackageOp.SetFnName(hash, location) ]
         })
       |> Ply.map List.flatten
 

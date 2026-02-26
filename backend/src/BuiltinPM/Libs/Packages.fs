@@ -82,7 +82,7 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
             "location"
             (TCustomType(NR.ok PT2DT.PackageLocation.typeName, []))
             "" ]
-      returnType = TypeReference.option TUuid
+      returnType = TypeReference.option TString
       description =
         "Tries to find a package type, by location, and returns the ID if it exists"
       fn =
@@ -94,7 +94,10 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
             // This ensures newly-created types on the branch are visible.
             let! branchChain = Branches.getBranchChain branchId
             let! result = PMPT.Type.find branchChain location
-            return result |> Option.map DUuid |> Dval.option KTUuid
+            return
+              result
+              |> Option.map (fun (ContentHash h) -> DString h)
+              |> Dval.option KTString
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
@@ -104,16 +107,16 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
 
     { name = fn "pmGetType" 0
       typeParams = []
-      parameters = [ Param.make "id" TUuid "" ]
+      parameters = [ Param.make "id" TString "" ]
       returnType =
         TypeReference.option (TCustomType(NR.ok PT2DT.PackageType.typeName, []))
       description = "Returns a package type, by id, if it exists"
       fn =
         let optType = KTCustomType(PT2DT.PackageType.typeName, [])
         (function
-        | _, _, _, [ DUuid id ] ->
+        | _, _, _, [ DString hashStr ] ->
           uply {
-            let! result = pm.getType id
+            let! result = pm.getType (ContentHash hashStr)
             return result |> Option.map PT2DT.PackageType.toDT |> Dval.option optType
           }
         | _ -> incorrectArgs ())
@@ -131,7 +134,7 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
             "location"
             (TCustomType(NR.ok PT2DT.PackageLocation.typeName, []))
             "" ]
-      returnType = TypeReference.option TUuid
+      returnType = TypeReference.option TString
       description =
         "Tries to find a package value, by location, and returns the ID if it exists"
       fn =
@@ -141,7 +144,10 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
             let location = PT2DT.PackageLocation.fromDT location
             let! branchChain = Branches.getBranchChain branchId
             let! result = PMPT.Value.find branchChain location
-            return result |> Option.map DUuid |> Dval.option KTUuid
+            return
+              result
+              |> Option.map (fun (ContentHash h) -> DString h)
+              |> Dval.option KTString
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
@@ -151,15 +157,15 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
 
     { name = fn "pmGetValue" 0
       typeParams = []
-      parameters = [ Param.make "id" TUuid "" ]
+      parameters = [ Param.make "id" TString "" ]
       returnType =
         TypeReference.option (TCustomType(NR.ok PT2DT.PackageValue.typeName, []))
       description = "Returns a package value, by id, if it exists"
       fn =
         (function
-        | _, _, _, [ DUuid id ] ->
+        | _, _, _, [ DString hashStr ] ->
           uply {
-            let! result = pm.getValue id
+            let! result = pm.getValue (ContentHash hashStr)
             return
               result
               |> Option.map PT2DT.PackageValue.toDT
@@ -179,9 +185,9 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
             "valueType"
             (TCustomType(NR.ok RT2DT.ValueType.typeName, []))
             "The ValueType to search for" ]
-      returnType = TList TUuid
+      returnType = TList TString
       description =
-        "Returns a list of value UUIDs that have the given ValueType. "
+        "Returns a list of value hashes that have the given ValueType. "
         + "Uses exact match on the serialized type for efficient lookup."
       fn =
         (function
@@ -189,7 +195,11 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
           uply {
             let vt = RT2DT.ValueType.fromDT valueTypeDval
             let! valueIds = RTPM.Value.findByValueType vt
-            return DList(VT.uuid, valueIds |> List.map DUuid)
+            return
+              DList(
+                VT.string,
+                valueIds |> List.map (fun (ContentHash h) -> DString h)
+              )
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
@@ -201,16 +211,16 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
     { name = fn "pmEvaluateValue" 0
       typeParams = []
       parameters =
-        [ Param.make "valueId" TUuid "UUID of the package value to evaluate" ]
+        [ Param.make "valueId" TString "Hash of the package value to evaluate" ]
       returnType = TypeReference.option (TVariable "a")
       description =
-        "Evaluates a package value by its UUID and returns the result. "
+        "Evaluates a package value by its hash and returns the result. "
         + "Returns None if the value doesn't exist or fails to evaluate."
       fn =
         (function
-        | exeState, _, _, [ DUuid valueId ] ->
+        | exeState, _, _, [ DString hashStr ] ->
           uply {
-            let valueName = FQValueName.Package valueId
+            let valueName = FQValueName.Package(ContentHash hashStr)
             let instrs : Instructions =
               { registerCount = 1
                 instructions = [ LoadValue(0, valueName) ]
@@ -239,7 +249,7 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
             "location"
             (TCustomType(NR.ok PT2DT.PackageLocation.typeName, []))
             "" ]
-      returnType = TypeReference.option TUuid
+      returnType = TypeReference.option TString
       description =
         "Tries to find a package function, by location, and returns the ID if it exists"
       fn =
@@ -249,7 +259,10 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
             let location = PT2DT.PackageLocation.fromDT location
             let! branchChain = Branches.getBranchChain branchId
             let! result = PMPT.Fn.find branchChain location
-            return result |> Option.map DUuid |> Dval.option KTUuid
+            return
+              result
+              |> Option.map (fun (ContentHash h) -> DString h)
+              |> Dval.option KTString
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
@@ -259,15 +272,15 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
 
     { name = fn "pmGetFn" 0
       typeParams = []
-      parameters = [ Param.make "id" TUuid "" ]
+      parameters = [ Param.make "id" TString "" ]
       returnType =
         TypeReference.option (TCustomType(NR.ok PT2DT.PackageFn.typeName, []))
       description = "Returns a package function, by id, if it exists"
       fn =
         (function
-        | _, _, _, [ DUuid id ] ->
+        | _, _, _, [ DString hashStr ] ->
           uply {
-            let! result = pm.getFn id
+            let! result = pm.getFn (ContentHash hashStr)
             return
               result
               |> Option.map PT2DT.PackageFn.toDT
@@ -304,18 +317,18 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    // Location lookups
+    // Location lookups (singular — returns first match)
     { name = fn "pmGetLocationByType" 0
       typeParams = []
-      parameters = [ Param.make "branchId" TUuid ""; Param.make "id" TUuid "" ]
+      parameters = [ Param.make "branchId" TUuid ""; Param.make "id" TString "" ]
       returnType =
         TypeReference.option (TCustomType(NR.ok PT2DT.PackageLocation.typeName, []))
       description = "Returns the location of a package type by its ID, if it exists"
       fn =
         (function
-        | _, _, _, [ DUuid branchId; DUuid id ] ->
+        | _, _, _, [ DUuid branchId; DString hashStr ] ->
           uply {
-            let! result = pm.getTypeLocation branchId id
+            let! result = pm.getTypeLocation branchId (ContentHash hashStr)
             return
               result
               |> Option.map PT2DT.PackageLocation.toDT
@@ -329,15 +342,15 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
 
     { name = fn "pmGetLocationByValue" 0
       typeParams = []
-      parameters = [ Param.make "branchId" TUuid ""; Param.make "id" TUuid "" ]
+      parameters = [ Param.make "branchId" TUuid ""; Param.make "id" TString "" ]
       returnType =
         TypeReference.option (TCustomType(NR.ok PT2DT.PackageLocation.typeName, []))
       description = "Returns the location of a package value by its ID, if it exists"
       fn =
         (function
-        | _, _, _, [ DUuid branchId; DUuid id ] ->
+        | _, _, _, [ DUuid branchId; DString hashStr ] ->
           uply {
-            let! result = pm.getValueLocation branchId id
+            let! result = pm.getValueLocation branchId (ContentHash hashStr)
             return
               result
               |> Option.map PT2DT.PackageLocation.toDT
@@ -351,16 +364,16 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
 
     { name = fn "pmGetLocationByFn" 0
       typeParams = []
-      parameters = [ Param.make "branchId" TUuid ""; Param.make "id" TUuid "" ]
+      parameters = [ Param.make "branchId" TUuid ""; Param.make "id" TString "" ]
       returnType =
         TypeReference.option (TCustomType(NR.ok PT2DT.PackageLocation.typeName, []))
       description =
         "Returns the location of a package function by its ID, if it exists"
       fn =
         (function
-        | _, _, _, [ DUuid branchId; DUuid id ] ->
+        | _, _, _, [ DUuid branchId; DString hashStr ] ->
           uply {
-            let! result = pm.getFnLocation branchId id
+            let! result = pm.getFnLocation branchId (ContentHash hashStr)
             return
               result
               |> Option.map PT2DT.PackageLocation.toDT
@@ -372,8 +385,75 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    // Get ALL previous (deprecated) UUIDs at a location - used for propagation
-    { name = fn "pmGetAllPreviousUUIDs" 0
+    // Location lookups (plural — returns ALL locations for ambiguity detection)
+    { name = fn "pmGetLocationsByType" 0
+      typeParams = []
+      parameters = [ Param.make "branchId" TUuid ""; Param.make "id" TString "" ]
+      returnType =
+        TList(TCustomType(NR.ok PT2DT.PackageLocation.typeName, []))
+      description = "Returns all locations of a package type by its hash"
+      fn =
+        (function
+        | _, _, _, [ DUuid branchId; DString hashStr ] ->
+          uply {
+            let! result = pm.getTypeLocations branchId (ContentHash hashStr)
+            return
+              result
+              |> List.map PT2DT.PackageLocation.toDT
+              |> Dval.list (KTCustomType(PT2DT.PackageLocation.typeName, []))
+          }
+        | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Impure
+      deprecated = NotDeprecated }
+
+
+    { name = fn "pmGetLocationsByValue" 0
+      typeParams = []
+      parameters = [ Param.make "branchId" TUuid ""; Param.make "id" TString "" ]
+      returnType =
+        TList(TCustomType(NR.ok PT2DT.PackageLocation.typeName, []))
+      description = "Returns all locations of a package value by its hash"
+      fn =
+        (function
+        | _, _, _, [ DUuid branchId; DString hashStr ] ->
+          uply {
+            let! result = pm.getValueLocations branchId (ContentHash hashStr)
+            return
+              result
+              |> List.map PT2DT.PackageLocation.toDT
+              |> Dval.list (KTCustomType(PT2DT.PackageLocation.typeName, []))
+          }
+        | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Impure
+      deprecated = NotDeprecated }
+
+
+    { name = fn "pmGetLocationsByFn" 0
+      typeParams = []
+      parameters = [ Param.make "branchId" TUuid ""; Param.make "id" TString "" ]
+      returnType =
+        TList(TCustomType(NR.ok PT2DT.PackageLocation.typeName, []))
+      description = "Returns all locations of a package function by its hash"
+      fn =
+        (function
+        | _, _, _, [ DUuid branchId; DString hashStr ] ->
+          uply {
+            let! result = pm.getFnLocations branchId (ContentHash hashStr)
+            return
+              result
+              |> List.map PT2DT.PackageLocation.toDT
+              |> Dval.list (KTCustomType(PT2DT.PackageLocation.typeName, []))
+          }
+        | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Impure
+      deprecated = NotDeprecated }
+
+
+    // Get ALL previous (deprecated) hashes at a location - used for propagation
+    { name = fn "pmGetAllPreviousHashes" 0
       typeParams = []
       parameters =
         [ Param.make "branchId" TUuid ""
@@ -385,9 +465,9 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
             "itemKind"
             (TCustomType(NR.ok PT2DT.ItemKind.typeName, []))
             "fn, type, or value" ]
-      returnType = TList TUuid
+      returnType = TList TString
       description =
-        "Returns all UUIDs that have ever been at a location across the branch chain"
+        "Returns all hashes that have ever been at a location across the branch chain"
       fn =
         (function
         | _, _, _, [ DUuid branchId; location; itemKindDval ] ->
@@ -397,13 +477,16 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
             let modulesStr = location.modules |> String.concat "."
             let! branchChain = Branches.getBranchChain branchId
             let! result =
-              LibPackageManager.Queries.getAllPreviousUUIDs
+              LibPackageManager.Queries.getAllPreviousHashes
                 branchChain
                 location.owner
                 modulesStr
                 location.name
                 (itemKind.toString ())
-            return result |> List.map DUuid |> Dval.list KTUuid
+            return
+              result
+              |> List.map (fun (ContentHash h) -> DString h)
+              |> Dval.list KTString
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
@@ -425,10 +508,10 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
             (TCustomType(NR.ok PT2DT.ItemKind.typeName, []))
             "fn, type, or value"
           Param.make
-            "fromSourceUUIDs"
-            (TList TUuid)
-            "All deprecated UUIDs at this location"
-          Param.make "toSourceUUID" TUuid "New UUID of the source item" ]
+            "fromSourceHashes"
+            (TList TString)
+            "All deprecated hashes at this location"
+          Param.make "toSourceHash" TString "New hash of the source item" ]
       returnType =
         TypeReference.result
           (TTuple(
@@ -447,20 +530,25 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
           [ DUuid branchId
             sourceLocation
             sourceItemKindDval
-            DList(_, fromSourceUUIDs)
-            DUuid toSourceUUID ] ->
+            DList(_, fromSourceHashes)
+            DString toSourceHashStr ] ->
           uply {
             let sourceLocation = PT2DT.PackageLocation.fromDT sourceLocation
             let sourceItemKind = PT2DT.ItemKind.fromDT sourceItemKindDval
-            let fromSourceUUIDs = fromSourceUUIDs |> List.map D.uuid
+            let fromSourceHashes =
+              fromSourceHashes
+              |> List.map (fun dv ->
+                match dv with
+                | DString s -> ContentHash s
+                | _ -> ContentHash "")
 
             let! result =
               LibPackageManager.Propagation.propagate
                 branchId
                 sourceLocation
                 sourceItemKind
-                fromSourceUUIDs
-                toSourceUUID
+                fromSourceHashes
+                (ContentHash toSourceHashStr)
 
             let tupleKT =
               KTTuple(ValueType.Known KTUuid, ValueType.Known repointListKT, [])
@@ -497,8 +585,8 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
 
 
     // Atomic undo: revert repoints + restore source version in one operation
-    // Supports incremental undo: targetUUID specifies which version to restore.
-    // If targetUUID is None, finds and restores the committed version (final step).
+    // Supports incremental undo: targetHash specifies which version to restore.
+    // If targetHash is None, finds and restores the committed version (final step).
     { name = fn "pmAtomicUndo" 0
       typeParams = []
       parameters =
@@ -517,16 +605,16 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
             "fn, type, or value"
           Param.make "propagationIds" (TList TUuid) "Propagation IDs being reverted"
           Param.make
-            "targetUUID"
-            (TypeReference.option TUuid)
-            "UUID to restore. None = find committed UUID" ]
-      returnType = TypeReference.result (TTuple(TUuid, TUuid, [])) TString
+            "targetHash"
+            (TypeReference.option TString)
+            "Hash to restore. None = find committed hash" ]
+      returnType = TypeReference.result (TTuple(TUuid, TString, [])) TString
       description =
         "Atomically reverts repoints and restores a source version. "
-        + "If targetUUID is Some, restores that specific version. "
-        + "If targetUUID is None, finds and restores the committed version. "
+        + "If targetHash is Some, restores that specific version. "
+        + "If targetHash is None, finds and restores the committed version. "
         + "Creates a RevertPropagation op that persists in the op log. "
-        + "Returns (revertId, restoredUUID) on success."
+        + "Returns (revertId, restoredHash) on success."
       fn =
         (function
         | _,
@@ -537,7 +625,7 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
             sourceLocation
             sourceItemKindDval
             DList(_, propagationIds)
-            targetUUIDDval ] ->
+            targetHashDval ] ->
           uply {
             let repoints = repoints |> List.map PT2DT.PropagateRepoint.fromDT
             let sourceLocation = PT2DT.PackageLocation.fromDT sourceLocation
@@ -545,16 +633,17 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
             let propagationIds = propagationIds |> List.map D.uuid
             let modulesStr = sourceLocation.modules |> String.concat "."
 
-            let tupleKT = KTTuple(ValueType.Known KTUuid, ValueType.Known KTUuid, [])
+            let tupleKT =
+              KTTuple(ValueType.Known KTUuid, ValueType.Known KTString, [])
 
-            // Determine the UUID to restore: explicit target or find committed
-            let! restoredUUIDResult =
-              match C2DT.Option.fromDT D.uuid targetUUIDDval with
-              | Some targetUUID -> uply { return Ok targetUUID }
+            // Determine the hash to restore: explicit target or find committed
+            let! restoredHashResult =
+              match C2DT.Option.fromDT D.string targetHashDval with
+              | Some targetHashStr -> uply { return Ok(ContentHash targetHashStr) }
               | None ->
                 uply {
                   let! result =
-                    LibPackageManager.Inserts.findCommittedUUID
+                    LibPackageManager.Inserts.findCommittedHash
                       branchId
                       sourceLocation.owner
                       modulesStr
@@ -563,10 +652,10 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
                   return result |> Result.map fst
                 }
 
-            match restoredUUIDResult with
+            match restoredHashResult with
             | Error errMsg ->
               return Dval.resultError tupleKT KTString (DString errMsg)
-            | Ok restoredUUID ->
+            | Ok restoredHash ->
               let revertId = System.Guid.NewGuid()
 
               let revertOp =
@@ -575,7 +664,7 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
                   propagationIds,
                   sourceLocation,
                   sourceItemKind,
-                  restoredUUID,
+                  restoredHash,
                   repoints
                 )
 
@@ -585,7 +674,12 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
                   None
                   [ revertOp ]
 
-              let resultTuple = DTuple(DUuid revertId, DUuid restoredUUID, [])
+              let resultTuple =
+                DTuple(
+                  DUuid revertId,
+                  DString(ContentHash.toHexString restoredHash),
+                  []
+                )
               return Dval.resultOk tupleKT KTString resultTuple
           }
         | _ -> incorrectArgs ())

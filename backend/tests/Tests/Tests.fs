@@ -66,7 +66,8 @@ let main (args : string array) : int =
         Tests.DarkTypesSerialization.tests
 
         // cross-cutting
-        Tests.LibExecution.tests.Force() ]
+        Tests.LibExecution.tests.Force()
+        ]
 
     let cancelationTokenSource = new System.Threading.CancellationTokenSource()
     let bwdServerTestsTask = Tests.BwdServer.init cancelationTokenSource.Token

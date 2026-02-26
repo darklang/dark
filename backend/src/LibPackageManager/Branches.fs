@@ -15,7 +15,7 @@ let private readBranch (read : RowReader) : PT.Branch =
   { id = read.uuid "id"
     name = read.string "name"
     parentBranchId = read.uuidOrNone "parent_branch_id"
-    baseCommitId = read.stringOrNone "base_commit_id" |> Option.map PT.ContentHash
+    baseCommitId = read.stringOrNone "base_commit_id" |> Option.map ContentHash
     createdAt = read.instant "created_at"
     mergedAt = read.instantOrNone "merged_at" }
 
@@ -34,11 +34,11 @@ let create (name : string) (parentBranchId : PT.BranchId) : Task<PT.Branch> =
         LIMIT 1
         """
       |> Sql.parameters [ "parent_id", Sql.uuid parentBranchId ]
-      |> Sql.executeRowOptionAsync (fun read -> PT.ContentHash(read.string "id"))
+      |> Sql.executeRowOptionAsync (fun read -> ContentHash(read.string "id"))
 
     let baseCommitIdParam =
       match baseCommitId with
-      | Some(PT.ContentHash h) -> Sql.string h
+      | Some(ContentHash h) -> Sql.string h
       | None -> Sql.dbnull
 
     do!

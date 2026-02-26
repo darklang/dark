@@ -85,13 +85,13 @@ let eInfix (op : Infix) (left : Expr) (right : Expr) : Expr =
 let eBuiltinValue (name : string) (version : int) : Expr =
   EValue(gid (), NameResolution.ok (FQValueName.fqBuiltIn name version))
 
-let ePackageValue (id : uuid) : Expr =
+let ePackageValue (id : ContentHash) : Expr =
   EValue(gid (), NameResolution.ok (FQValueName.fqPackage id))
 
 let eBuiltinFn (name : string) (version : int) : Expr =
   EFnName(gid (), NameResolution.ok (FQFnName.fqBuiltIn name version))
 
-let ePackageFn (id : uuid) : Expr =
+let ePackageFn (id : ContentHash) : Expr =
   EFnName(gid (), NameResolution.ok (FQFnName.fqPackage id))
 
 let eLambda id (pats : List<LetPattern>) (body : Expr) : Expr =

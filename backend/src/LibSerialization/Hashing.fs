@@ -18,19 +18,24 @@ module Common = LibSerialization.Binary.Serializers.Common
 module PTC = LibSerialization.Binary.Serializers.PT.Common
 module ExprS = LibSerialization.Binary.Serializers.PT.Expr
 
-// Local helpers to avoid F# resolving PT.ContentHash to the type instead of the module
-let private contentHashFromSHA256Bytes (bytes : byte array) : PT.ContentHash =
-  PT.ContentHash(System.Convert.ToHexString(bytes).ToLowerInvariant())
-
-let private contentHashToHexString (PT.ContentHash h) : string = h
-
-
 /// Controls how package references are written during hashing.
-/// Normal: write resolved UUIDs (standard case)
-/// SccNameRef: for intra-SCC refs, write FQN string instead of UUID
+/// `resolvedDeps` maps old ContentHash → finalized ContentHash for
+/// dependencies in already-processed SCCs (topological order).
+/// `sccNames` maps intra-SCC ContentHash → FQN string for cycle-breaking.
 type HashRefMode =
-  | Normal
-  | SccNameRef of Map<uuid, string>
+  { resolvedDeps : Map<ContentHash, ContentHash>
+    sccNames : Map<ContentHash, string> }
+
+let Normal = { resolvedDeps = Map.empty; sccNames = Map.empty }
+
+/// Resolve a ContentHash: first apply finalized deps, then check SCC names.
+let private resolveHash (mode : HashRefMode) (hash : ContentHash) : ContentHash =
+  mode.resolvedDeps |> Map.tryFind hash |> Option.defaultValue hash
+
+let private isSccRef (mode : HashRefMode) (hash : ContentHash) : Option<string> =
+  let resolved = resolveHash mode hash
+  Map.tryFind resolved mode.sccNames
+
 
 
 // =====================
@@ -53,7 +58,7 @@ let writeCanonicalNameResolution
     PTC.NameResolutionError.write w error
 
 
-/// Write FQTypeName, checking HashRefMode for SCC substitution
+/// Write FQTypeName, resolving deps and checking SCC substitution
 let writeCanonicalFQTypeName
   (mode : HashRefMode)
   (w : BinaryWriter)
@@ -61,16 +66,16 @@ let writeCanonicalFQTypeName
   =
   match name with
   | PT.FQTypeName.Package p ->
-    match mode with
-    | SccNameRef sccMap when Map.containsKey p sccMap ->
+    match isSccRef mode p with
+    | Some fqn ->
       w.Write(1uy) // SCC name-ref tag
-      Common.String.write w (Map.findUnsafe p sccMap)
-    | _ ->
+      Common.String.write w fqn
+    | None ->
       w.Write(0uy)
-      PTC.FQTypeName.Package.write w p
+      PTC.FQTypeName.Package.write w (resolveHash mode p)
 
 
-/// Write FQFnName, checking HashRefMode for SCC substitution
+/// Write FQFnName, resolving deps and checking SCC substitution
 let writeCanonicalFQFnName
   (mode : HashRefMode)
   (w : BinaryWriter)
@@ -81,16 +86,16 @@ let writeCanonicalFQFnName
     w.Write(0uy)
     PTC.FQFnName.Builtin.write w b
   | PT.FQFnName.Package p ->
-    match mode with
-    | SccNameRef sccMap when Map.containsKey p sccMap ->
+    match isSccRef mode p with
+    | Some fqn ->
       w.Write(2uy) // SCC name-ref tag
-      Common.String.write w (Map.findUnsafe p sccMap)
-    | _ ->
+      Common.String.write w fqn
+    | None ->
       w.Write(1uy)
-      PTC.FQFnName.Package.write w p
+      PTC.FQFnName.Package.write w (resolveHash mode p)
 
 
-/// Write FQValueName, checking HashRefMode for SCC substitution
+/// Write FQValueName, resolving deps and checking SCC substitution
 let writeCanonicalFQValueName
   (mode : HashRefMode)
   (w : BinaryWriter)
@@ -101,13 +106,13 @@ let writeCanonicalFQValueName
     w.Write(0uy)
     PTC.FQValueName.Builtin.write w b
   | PT.FQValueName.Package p ->
-    match mode with
-    | SccNameRef sccMap when Map.containsKey p sccMap ->
+    match isSccRef mode p with
+    | Some fqn ->
       w.Write(2uy) // SCC name-ref tag
-      Common.String.write w (Map.findUnsafe p sccMap)
-    | _ ->
+      Common.String.write w fqn
+    | None ->
       w.Write(1uy)
-      PTC.FQValueName.Package.write w p
+      PTC.FQValueName.Package.write w (resolveHash mode p)
 
 
 /// Canonical TypeReference: delegates to existing structure but uses
@@ -513,12 +518,12 @@ let writeCanonicalTypeDeclaration
 // =====================
 
 /// Serialize to bytes using a writer function, then SHA-256 hash to ContentHash
-let private hashWithWriter (writerFn : BinaryWriter -> unit) : PT.ContentHash =
+let private hashWithWriter (writerFn : BinaryWriter -> unit) : ContentHash =
   use ms = new MemoryStream()
   use w = new BinaryWriter(ms)
   writerFn w
   let bytes = ms.ToArray()
-  SHA256.HashData(bytes) |> contentHashFromSHA256Bytes
+  SHA256.HashData(bytes) |> ContentHash.fromSHA256Bytes
 
 
 // =====================
@@ -529,17 +534,14 @@ let private hashWithWriter (writerFn : BinaryWriter -> unit) : PT.ContentHash =
 let computeTypeHash
   (mode : HashRefMode)
   (t : PT.PackageType.PackageType)
-  : PT.ContentHash =
+  : ContentHash =
   hashWithWriter (fun w ->
     w.Write(0uy) // tag: type
     writeCanonicalTypeDeclaration mode w t.declaration)
 
 
 /// Hash a PackageFn (skip id, description, deprecated, param descriptions)
-let computeFnHash
-  (mode : HashRefMode)
-  (fn : PT.PackageFn.PackageFn)
-  : PT.ContentHash =
+let computeFnHash (mode : HashRefMode) (fn : PT.PackageFn.PackageFn) : ContentHash =
   hashWithWriter (fun w ->
     w.Write(1uy) // tag: fn
     writeCanonicalExpr mode w fn.body
@@ -552,26 +554,26 @@ let computeFnHash
 let computeValueHash
   (mode : HashRefMode)
   (v : PT.PackageValue.PackageValue)
-  : PT.ContentHash =
+  : ContentHash =
   hashWithWriter (fun w ->
     w.Write(2uy) // tag: value
     writeCanonicalExpr mode w v.body)
 
 
 /// Hash a PackageOp (reuse existing PackageOp.write — ops have no metadata to skip)
-let computeOpHash (op : PT.PackageOp) : PT.ContentHash =
+let computeOpHash (op : PT.PackageOp) : ContentHash =
   hashWithWriter (fun w ->
     LibSerialization.Binary.Serializers.PT.PackageOp.write w op)
 
 
 /// Hash a commit: hash(parentHash + sorted(opHashes))
 let computeCommitHash
-  (parentHash : PT.ContentHash option)
-  (opHashes : List<PT.ContentHash>)
-  : PT.ContentHash =
+  (parentHash : ContentHash option)
+  (opHashes : List<ContentHash>)
+  : ContentHash =
   hashWithWriter (fun w ->
     Common.Option.write w PTC.ContentHash.write parentHash
-    let sorted = opHashes |> List.map contentHashToHexString |> List.sort
+    let sorted = opHashes |> List.map ContentHash.toHexString |> List.sort
     Common.List.write w Common.String.write sorted)
 
 
@@ -645,21 +647,27 @@ let findSCCs
 // =====================
 
 type private ItemInfo =
-  | TypeItem of PT.PackageType.PackageType * string
-  | FnItem of PT.PackageFn.PackageFn * string
-  | ValueItem of PT.PackageValue.PackageValue * string
+  | TypeItem of PT.PackageType.PackageType * string * ContentHash
+  | FnItem of PT.PackageFn.PackageFn * string * ContentHash
+  | ValueItem of PT.PackageValue.PackageValue * string * ContentHash
 
 let private getItemFQN (item : ItemInfo) : string =
   match item with
-  | TypeItem(_, fqn) -> fqn
-  | FnItem(_, fqn) -> fqn
-  | ValueItem(_, fqn) -> fqn
+  | TypeItem(_, fqn, _) -> fqn
+  | FnItem(_, fqn, _) -> fqn
+  | ValueItem(_, fqn, _) -> fqn
 
-let private computeItemHash (mode : HashRefMode) (item : ItemInfo) : PT.ContentHash =
+let private getItemOldHash (item : ItemInfo) : ContentHash =
   match item with
-  | TypeItem(t, _) -> computeTypeHash mode t
-  | FnItem(fn, _) -> computeFnHash mode fn
-  | ValueItem(v, _) -> computeValueHash mode v
+  | TypeItem(_, _, h) -> h
+  | FnItem(_, _, h) -> h
+  | ValueItem(_, _, h) -> h
+
+let private computeItemHash (mode : HashRefMode) (item : ItemInfo) : ContentHash =
+  match item with
+  | TypeItem(t, _, _) -> computeTypeHash mode t
+  | FnItem(fn, _, _) -> computeFnHash mode fn
+  | ValueItem(v, _, _) -> computeValueHash mode v
 
 let private serializeItemCanonical
   (mode : HashRefMode)
@@ -668,72 +676,90 @@ let private serializeItemCanonical
   use ms = new MemoryStream()
   use w = new BinaryWriter(ms)
   match item with
-  | TypeItem(t, _) ->
+  | TypeItem(t, _, _) ->
     w.Write(0uy)
     writeCanonicalTypeDeclaration mode w t.declaration
-  | FnItem(fn, _) ->
+  | FnItem(fn, _, _) ->
     w.Write(1uy)
     writeCanonicalExpr mode w fn.body
     Common.List.write w Common.String.write fn.typeParams
     Common.NEList.write (writeCanonicalParameter mode) w fn.parameters
     writeCanonicalTypeReference mode w fn.returnType
-  | ValueItem(v, _) ->
+  | ValueItem(v, _, _) ->
     w.Write(2uy)
     writeCanonicalExpr mode w v.body
   ms.ToArray()
 
 
-/// Given a set of package items and their dependencies, compute hashes
-/// handling SCCs via batch hashing with name-ref substitution.
+/// Given a set of package items (keyed by FQN) and their dependencies, compute
+/// hashes handling SCCs via batch hashing with name-ref substitution.
+/// Maps are keyed by FQN (string) to avoid collisions when multiple items share
+/// the same ContentHash (e.g. type aliases with unresolved refs on first parse).
+/// The ContentHash in each tuple is the item's current/old hash.
 let computeHashesWithSCCs
-  (types : Map<uuid, PT.PackageType.PackageType * string>)
-  (fns : Map<uuid, PT.PackageFn.PackageFn * string>)
-  (values : Map<uuid, PT.PackageValue.PackageValue * string>)
-  (getDeps : uuid -> List<uuid>)
-  : Map<uuid, PT.ContentHash> =
+  (types : Map<string, PT.PackageType.PackageType * ContentHash>)
+  (fns : Map<string, PT.PackageFn.PackageFn * ContentHash>)
+  (values : Map<string, PT.PackageValue.PackageValue * ContentHash>)
+  (getDeps : string -> List<string>)
+  : Map<string, ContentHash> =
 
-  // Build unified item map
+  // Build unified item map (keyed by FQN)
   let items =
     Map.fold
-      (fun acc id (t, fqn) -> Map.add id (TypeItem(t, fqn)) acc)
+      (fun acc fqn (t, oldHash) -> Map.add fqn (TypeItem(t, fqn, oldHash)) acc)
       Map.empty
       types
-    |> Map.fold (fun acc id (fn, fqn) -> Map.add id (FnItem(fn, fqn)) acc)
+    |> Map.fold
+      (fun acc fqn (fn, oldHash) -> Map.add fqn (FnItem(fn, fqn, oldHash)) acc)
     <| fns
-    |> Map.fold (fun acc id (v, fqn) -> Map.add id (ValueItem(v, fqn)) acc)
+    |> Map.fold
+      (fun acc fqn (v, oldHash) -> Map.add fqn (ValueItem(v, fqn, oldHash)) acc)
     <| values
 
   let allIds = items |> Map.keys |> Seq.toList
 
-  // Detect SCCs
+  // Detect SCCs (operating on FQN strings as node IDs)
   let sccs = findSCCs allIds getDeps
 
-  // Compute hashes per SCC
-  let mutable hashMap = Map.empty<uuid, PT.ContentHash>
+  // FQN → finalHash result map
+  let mutable hashMap = Map.empty<string, ContentHash>
+  // oldContentHash → finalHash for the canonical serializer's resolvedDeps
+  let mutable resolvedDepsMap = Map.empty<ContentHash, ContentHash>
 
   for scc in sccs do
     let sccIds = scc.head :: scc.tail
 
-    if List.length sccIds = 1 then
-      // Single-item SCC: hash normally
-      let id = scc.head
-      let item = Map.findUnsafe id items
-      let hash = computeItemHash Normal item
-      hashMap <- Map.add id hash hashMap
+    // A size-1 SCC without a self-loop is a true singleton — hash normally.
+    // A size-1 SCC WITH a self-loop (e.g. recursive type Expr referencing itself)
+    // must use SccNameRef mode, otherwise the hash depends on the previous
+    // iteration's hash and never converges.
+    let hasSelfLoop =
+      List.length sccIds = 1 && getDeps scc.head |> List.contains scc.head
+
+    if List.length sccIds = 1 && not hasSelfLoop then
+      // Single-item SCC without self-reference: hash with finalized deps
+      let fqn = scc.head
+      let item = Map.findUnsafe fqn items
+      let mode = { resolvedDeps = resolvedDepsMap; sccNames = Map.empty }
+      let hash = computeItemHash mode item
+      hashMap <- Map.add fqn hash hashMap
+      resolvedDepsMap <- Map.add (getItemOldHash item) hash resolvedDepsMap
     else
-      // Multi-item SCC: batch hash with FQN substitution
-      // Build uuid→FQN map for intra-SCC references
+      // Multi-item SCC: batch hash with FQN substitution + finalized deps
+      // sccNames maps old ContentHash → FQN for cycle-breaking in canonical serializer
       let sccNameMap =
         sccIds
-        |> List.map (fun id -> id, getItemFQN (Map.findUnsafe id items))
+        |> List.map (fun fqn ->
+          let item = Map.findUnsafe fqn items
+          getItemOldHash item, fqn)
         |> Map.ofList
 
-      let mode = SccNameRef sccNameMap
+      let mode = { resolvedDeps = resolvedDepsMap; sccNames = sccNameMap }
 
       // Sort by FQN for determinism
       let sortedItems =
         sccIds
-        |> List.map (fun id -> (id, Map.findUnsafe id items))
+        |> List.map (fun fqn -> (fqn, Map.findUnsafe fqn items))
         |> List.sortBy (fun (_, item) -> getItemFQN item)
 
       // Concatenate canonical bytes of all items in the SCC
@@ -742,15 +768,16 @@ let computeHashesWithSCCs
         |> List.map (fun (_, item) -> serializeItemCanonical mode item)
         |> Array.concat
 
-      let groupHash = SHA256.HashData(groupBytes) |> contentHashFromSHA256Bytes
+      let groupHash = SHA256.HashData(groupBytes) |> ContentHash.fromSHA256Bytes
 
       // Each item's hash = hash(groupHash + FQN)
-      for (id, item) in sortedItems do
-        let fqn = getItemFQN item
+      for (fqn, item) in sortedItems do
+        let itemFQN = getItemFQN item
         let itemHash =
           hashWithWriter (fun w ->
             PTC.ContentHash.write w groupHash
-            Common.String.write w fqn)
-        hashMap <- Map.add id itemHash hashMap
+            Common.String.write w itemFQN)
+        hashMap <- Map.add fqn itemHash hashMap
+        resolvedDepsMap <- Map.add (getItemOldHash item) itemHash resolvedDepsMap
 
   hashMap

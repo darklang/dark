@@ -20,6 +20,7 @@
     <ProjectReference Include="../LibCloud/LibCloud.fsproj" />
     <ProjectReference Include="../LibDB/LibDB.fsproj" />
     <ProjectReference Include="../LibPackageManager/LibPackageManager.fsproj" />
+    <ProjectReference Include="../LibSerialization/LibSerialization.fsproj" />
 
     <ProjectReference Include="../BuiltinExecution/BuiltinExecution.fsproj" />
     <ProjectReference Include="../BuiltinCli/BuiltinCli.fsproj" />

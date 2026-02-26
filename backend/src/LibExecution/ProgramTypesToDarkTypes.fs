@@ -31,11 +31,11 @@ module Sign =
 
 
 module ContentHash =
-  let toDT (PT.ContentHash h) : Dval = DString h
+  let toDT (ContentHash h) : Dval = DString h
 
-  let fromDT (d : Dval) : PT.ContentHash =
+  let fromDT (d : Dval) : ContentHash =
     match d with
-    | DString h -> PT.ContentHash h
+    | DString h -> ContentHash h
     | _ -> Exception.raiseInternal "Invalid ContentHash" []
 
 
@@ -57,12 +57,9 @@ module FQTypeName =
       FQTypeName.fqPackage
         PackageRefs.Type.LanguageTools.ProgramTypes.FQTypeName.package
 
-    let toDT (u : PT.FQTypeName.Package) : Dval = DUuid u
+    let toDT (u : PT.FQTypeName.Package) : Dval = ContentHash.toDT u
 
-    let fromDT (d : Dval) : PT.FQTypeName.Package =
-      match d with
-      | DUuid u -> u
-      | _ -> Exception.raiseInternal "Invalid FQTypeName.Package" []
+    let fromDT (d : Dval) : PT.FQTypeName.Package = ContentHash.fromDT d
 
 
   let toDT (u : PT.FQTypeName.FQTypeName) : Dval =
@@ -99,12 +96,9 @@ module FQFnName =
       | _ -> Exception.raiseInternal "Invalid FQFnName.Builtin" []
 
   module Package =
-    let toDT (u : PT.FQFnName.Package) : Dval = DUuid u
+    let toDT (u : PT.FQFnName.Package) : Dval = ContentHash.toDT u
 
-    let fromDT (d : Dval) : PT.FQFnName.Package =
-      match d with
-      | DUuid u -> u
-      | _ -> Exception.raiseInternal "Invalid FQFnName.Package" []
+    let fromDT (d : Dval) : PT.FQFnName.Package = ContentHash.fromDT d
 
 
   let toDT (u : PT.FQFnName.FQFnName) : Dval =
@@ -142,12 +136,9 @@ module FQValueName =
       | _ -> Exception.raiseInternal "Invalid FQValueName.Builtin" []
 
   module Package =
-    let toDT (u : PT.FQValueName.Package) : Dval = DUuid u
+    let toDT (u : PT.FQValueName.Package) : Dval = ContentHash.toDT u
 
-    let fromDT (d : Dval) : PT.FQValueName.Package =
-      match d with
-      | DUuid u -> u
-      | _ -> Exception.raiseInternal "Invalid FQValueName.Package" []
+    let fromDT (d : Dval) : PT.FQValueName.Package = ContentHash.fromDT d
 
   let toDT (u : PT.FQValueName.FQValueName) : Dval =
     let (caseName, fields) =
@@ -1208,8 +1199,7 @@ module PackageType =
 
   let toDT (p : PT.PackageType.PackageType) : Dval =
     let fields =
-      [ "id", DUuid p.id
-        "hash", ContentHash.toDT p.hash
+      [ "hash", ContentHash.toDT p.hash
         "declaration", TypeDeclaration.toDT p.declaration
         "description", DString p.description
         "deprecated",
@@ -1220,8 +1210,7 @@ module PackageType =
   let fromDT (d : Dval) : PT.PackageType.PackageType =
     match d with
     | DRecord(_, _, _, fields) ->
-      { id = fields |> D.field "id" |> D.uuid
-        hash = fields |> D.field "hash" |> ContentHash.fromDT
+      { hash = fields |> D.field "hash" |> ContentHash.fromDT
         declaration = fields |> D.field "declaration" |> TypeDeclaration.fromDT
         description = fields |> D.field "description" |> D.string
         deprecated =
@@ -1236,8 +1225,7 @@ module PackageValue =
 
   let toDT (p : PT.PackageValue.PackageValue) : Dval =
     let fields =
-      [ "id", DUuid p.id
-        "hash", ContentHash.toDT p.hash
+      [ "hash", ContentHash.toDT p.hash
         "body", Expr.toDT p.body
         "description", DString p.description
         "deprecated",
@@ -1247,8 +1235,7 @@ module PackageValue =
   let fromDT (d : Dval) : PT.PackageValue.PackageValue =
     match d with
     | DRecord(_, _, _, fields) ->
-      { id = fields |> D.field "id" |> D.uuid
-        hash = fields |> D.field "hash" |> ContentHash.fromDT
+      { hash = fields |> D.field "hash" |> ContentHash.fromDT
         body = fields |> D.field "body" |> Expr.fromDT
         description = fields |> D.field "description" |> D.string
         deprecated =
@@ -1287,8 +1274,7 @@ module PackageFn =
 
   let toDT (p : PT.PackageFn.PackageFn) : Dval =
     let fields =
-      [ ("id", DUuid p.id)
-        ("hash", ContentHash.toDT p.hash)
+      [ ("hash", ContentHash.toDT p.hash)
         ("body", Expr.toDT p.body)
         ("typeParams", DList(VT.string, List.map DString p.typeParams))
         ("parameters",
@@ -1306,8 +1292,7 @@ module PackageFn =
   let fromDT (d : Dval) : PT.PackageFn.PackageFn =
     match d with
     | DRecord(_, _, _, fields) ->
-      { id = fields |> D.field "id" |> D.uuid
-        hash = fields |> D.field "hash" |> ContentHash.fromDT
+      { hash = fields |> D.field "hash" |> ContentHash.fromDT
         body = fields |> D.field "body" |> Expr.fromDT
         typeParams = fields |> D.field "typeParams" |> D.list D.string
         parameters =
@@ -1373,8 +1358,8 @@ module PropagateRepoint =
     let fields =
       [ "location", PackageLocation.toDT r.location
         "itemKind", ItemKind.toDT r.itemKind
-        "fromUUID", DUuid r.fromUUID
-        "toUUID", DUuid r.toUUID ]
+        "fromHash", ContentHash.toDT r.fromHash
+        "toHash", ContentHash.toDT r.toHash ]
     DRecord(typeName, typeName, [], Map fields)
 
   let fromDT (d : Dval) : PT.PropagateRepoint =
@@ -1382,8 +1367,8 @@ module PropagateRepoint =
     | DRecord(_, _, _, fields) ->
       { location = fields |> D.field "location" |> PackageLocation.fromDT
         itemKind = fields |> D.field "itemKind" |> ItemKind.fromDT
-        fromUUID = fields |> D.field "fromUUID" |> D.uuid
-        toUUID = fields |> D.field "toUUID" |> D.uuid }
+        fromHash = fields |> D.field "fromHash" |> ContentHash.fromDT
+        toHash = fields |> D.field "toHash" |> ContentHash.fromDT }
     | _ -> Exception.raiseInternal "Invalid PropagateRepoint" []
 
 
@@ -1537,24 +1522,24 @@ module PackageOp =
       | PT.PackageOp.AddType t -> "AddType", [ PackageType.toDT t ]
       | PT.PackageOp.AddValue v -> "AddValue", [ PackageValue.toDT v ]
       | PT.PackageOp.AddFn f -> "AddFn", [ PackageFn.toDT f ]
-      | PT.PackageOp.SetTypeName(id, loc) ->
-        "SetTypeName", [ DUuid id; PackageLocation.toDT loc ]
-      | PT.PackageOp.SetValueName(id, loc) ->
-        "SetValueName", [ DUuid id; PackageLocation.toDT loc ]
-      | PT.PackageOp.SetFnName(id, loc) ->
-        "SetFnName", [ DUuid id; PackageLocation.toDT loc ]
+      | PT.PackageOp.SetTypeName(hash, loc) ->
+        "SetTypeName", [ ContentHash.toDT hash; PackageLocation.toDT loc ]
+      | PT.PackageOp.SetValueName(hash, loc) ->
+        "SetValueName", [ ContentHash.toDT hash; PackageLocation.toDT loc ]
+      | PT.PackageOp.SetFnName(hash, loc) ->
+        "SetFnName", [ ContentHash.toDT hash; PackageLocation.toDT loc ]
       | PT.PackageOp.PropagateUpdate(propagationId,
                                      sourceLocation,
                                      sourceItemKind,
-                                     fromSourceUUIDs,
-                                     toSourceUUID,
+                                     fromSourceHashes,
+                                     toSourceHash,
                                      repoints) ->
         "PropagateUpdate",
         [ DUuid propagationId
           PackageLocation.toDT sourceLocation
           ItemKind.toDT sourceItemKind
-          DList(VT.uuid, List.map DUuid fromSourceUUIDs)
-          DUuid toSourceUUID
+          DList(VT.string, List.map ContentHash.toDT fromSourceHashes)
+          ContentHash.toDT toSourceHash
           DList(
             VT.known PropagateRepoint.knownType,
             List.map PropagateRepoint.toDT repoints
@@ -1563,14 +1548,14 @@ module PackageOp =
                                        revertedPropagationIds,
                                        sourceLocation,
                                        sourceItemKind,
-                                       restoredSourceUUID,
+                                       restoredSourceHash,
                                        revertedRepoints) ->
         "RevertPropagation",
         [ DUuid revertId
           DList(VT.uuid, List.map DUuid revertedPropagationIds)
           PackageLocation.toDT sourceLocation
           ItemKind.toDT sourceItemKind
-          DUuid restoredSourceUUID
+          ContentHash.toDT restoredSourceHash
           DList(
             VT.known PropagateRepoint.knownType,
             List.map PropagateRepoint.toDT revertedRepoints
@@ -1584,12 +1569,21 @@ module PackageOp =
     | DEnum(_, _, [], "AddValue", [ v ]) ->
       Some(PT.PackageOp.AddValue(PackageValue.fromDT v))
     | DEnum(_, _, [], "AddFn", [ f ]) -> Some(PT.PackageOp.AddFn(PackageFn.fromDT f))
-    | DEnum(_, _, [], "SetTypeName", [ DUuid id; loc ]) ->
-      Some(PT.PackageOp.SetTypeName(id, PackageLocation.fromDT loc))
-    | DEnum(_, _, [], "SetValueName", [ DUuid id; loc ]) ->
-      Some(PT.PackageOp.SetValueName(id, PackageLocation.fromDT loc))
-    | DEnum(_, _, [], "SetFnName", [ DUuid id; loc ]) ->
-      Some(PT.PackageOp.SetFnName(id, PackageLocation.fromDT loc))
+    | DEnum(_, _, [], "SetTypeName", [ hash; loc ]) ->
+      Some(
+        PT.PackageOp.SetTypeName(ContentHash.fromDT hash, PackageLocation.fromDT loc)
+      )
+    | DEnum(_, _, [], "SetValueName", [ hash; loc ]) ->
+      Some(
+        PT.PackageOp.SetValueName(
+          ContentHash.fromDT hash,
+          PackageLocation.fromDT loc
+        )
+      )
+    | DEnum(_, _, [], "SetFnName", [ hash; loc ]) ->
+      Some(
+        PT.PackageOp.SetFnName(ContentHash.fromDT hash, PackageLocation.fromDT loc)
+      )
     | DEnum(_,
             _,
             [],
@@ -1597,16 +1591,16 @@ module PackageOp =
             [ DUuid propagationId
               sourceLocation
               sourceItemKind
-              DList(_, fromSourceUUIDs)
-              DUuid toSourceUUID
+              DList(_, fromSourceHashes)
+              toSourceHash
               DList(_, repoints) ]) ->
       Some(
         PT.PackageOp.PropagateUpdate(
           propagationId,
           PackageLocation.fromDT sourceLocation,
           ItemKind.fromDT sourceItemKind,
-          List.map D.uuid fromSourceUUIDs,
-          toSourceUUID,
+          List.map ContentHash.fromDT fromSourceHashes,
+          ContentHash.fromDT toSourceHash,
           List.map PropagateRepoint.fromDT repoints
         )
       )
@@ -1618,7 +1612,7 @@ module PackageOp =
               DList(_, revertedPropagationIds)
               sourceLocation
               sourceItemKind
-              DUuid restoredSourceUUID
+              restoredSourceHash
               DList(_, revertedRepoints) ]) ->
       Some(
         PT.PackageOp.RevertPropagation(
@@ -1626,7 +1620,7 @@ module PackageOp =
           List.map D.uuid revertedPropagationIds,
           PackageLocation.fromDT sourceLocation,
           ItemKind.fromDT sourceItemKind,
-          restoredSourceUUID,
+          ContentHash.fromDT restoredSourceHash,
           List.map PropagateRepoint.fromDT revertedRepoints
         )
       )

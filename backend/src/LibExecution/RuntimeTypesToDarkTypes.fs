@@ -26,11 +26,11 @@ module FQTypeName =
       FQTypeName.Package
         PackageRefs.Type.LanguageTools.RuntimeTypes.FQTypeName.package
 
-    let toDT (u : FQTypeName.Package) : Dval = DUuid u
+    let toDT (ContentHash h : FQTypeName.Package) : Dval = DString h
 
     let fromDT (d : Dval) : FQTypeName.Package =
       match d with
-      | DUuid u -> u
+      | DString h -> ContentHash h
       | _ -> Exception.raiseInternal "Invalid FQTypeName.Package" []
 
 
@@ -67,11 +67,11 @@ module FQValueName =
       | _ -> Exception.raiseInternal "Invalid FQValueName.Builtin" []
 
   module Package =
-    let toDT (u : FQValueName.Package) : Dval = DUuid u
+    let toDT (ContentHash h : FQValueName.Package) : Dval = DString h
 
     let fromDT (d : Dval) : FQValueName.Package =
       match d with
-      | DUuid id -> id
+      | DString h -> ContentHash h
       | _ -> Exception.raiseInternal "Invalid FQValueName.Package" []
 
   let toDT (u : FQValueName.FQValueName) : Dval =
@@ -108,11 +108,11 @@ module FQFnName =
       | _ -> Exception.raiseInternal "Invalid FQFnName.Builtin" []
 
   module Package =
-    let toDT (u : FQFnName.Package) : Dval = DUuid u
+    let toDT (ContentHash h : FQFnName.Package) : Dval = DString h
 
     let fromDT (d : Dval) : FQFnName.Package =
       match d with
-      | DUuid u -> u
+      | DString h -> ContentHash h
       | _ -> Exception.raiseInternal "Invalid FQFnName.Package" []
 
 

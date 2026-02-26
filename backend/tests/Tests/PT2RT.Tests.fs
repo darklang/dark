@@ -1022,7 +1022,7 @@ module Expr =
           (1,
            [ RT.LoadValue(
                0,
-               RT.FQValueName.Package E.Values.Package.MySpecialNumber.id
+               RT.FQValueName.Package E.Values.Package.MySpecialNumber.hash
              ) ],
            0)
       let tests = testList "Package" [ mySpecialNumber ]
@@ -1439,7 +1439,7 @@ module Expr =
                  0,
                  RT.DApplicable(
                    RT.AppNamedFn
-                     { name = RT.FQFnName.fqPackage E.Fns.Package.MyAdd.id
+                     { name = RT.FQFnName.fqPackage E.Fns.Package.MyAdd.hash
                        typeSymbolTable = Map.empty
                        typeArgs = []
                        argsSoFar = [] }
@@ -1457,7 +1457,7 @@ module Expr =
                  1,
                  RT.DApplicable(
                    RT.AppNamedFn
-                     { name = RT.FQFnName.fqPackage E.Fns.Package.MyAdd.id
+                     { name = RT.FQFnName.fqPackage E.Fns.Package.MyAdd.hash
                        typeSymbolTable = Map.empty
                        typeArgs = []
                        argsSoFar = [] }
@@ -1477,7 +1477,7 @@ module Expr =
                  2,
                  RT.DApplicable(
                    RT.AppNamedFn
-                     { name = RT.FQFnName.fqPackage E.Fns.Package.MyAdd.id
+                     { name = RT.FQFnName.fqPackage E.Fns.Package.MyAdd.hash
                        typeSymbolTable = Map.empty
                        typeArgs = []
                        argsSoFar = [] }
@@ -1524,7 +1524,8 @@ module Expr =
                  RT.DApplicable(
                    RT.AppNamedFn
                      { name =
-                         RT.FQFnName.fqPackage E.Fns.Package.MyFnThatTakesALambda.id
+                         RT.FQFnName.fqPackage
+                           E.Fns.Package.MyFnThatTakesALambda.hash
                        typeSymbolTable = Map.empty
                        typeArgs = []
                        argsSoFar = [] }
@@ -1547,7 +1548,7 @@ module Expr =
                  2,
                  RT.DApplicable(
                    RT.AppNamedFn
-                     { name = RT.FQFnName.fqPackage E.Fns.Package.Outer.id
+                     { name = RT.FQFnName.fqPackage E.Fns.Package.Outer.hash
                        typeSymbolTable = Map.empty
                        typeArgs = []
                        argsSoFar = [] }
@@ -1625,8 +1626,7 @@ module PackageFn =
   let t name typeParams params' returnType expr expected =
     testTask name {
       let fn : PT.PackageFn.PackageFn =
-        { id = guuid ()
-          hash = PT.ContentHash ""
+        { hash = ContentHash ""
           body = expr
           typeParams = typeParams
           parameters = params' |> NEList.ofListUnsafe "" []

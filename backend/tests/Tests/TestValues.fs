@@ -15,9 +15,8 @@ open TestUtils.PTShortcuts
 
 module PM =
   module Types =
-    let make id definition : PT.PackageType.PackageType =
-      { id = id
-        hash = PT.ContentHash ""
+    let make hash definition : PT.PackageType.PackageType =
+      { hash = hash
         declaration = { typeParams = []; definition = definition }
         description = "TODO"
         deprecated = PT.NotDeprecated }
@@ -26,8 +25,8 @@ module PM =
       let make id fields =
         make id (PT.TypeDeclaration.Record(NEList.ofListUnsafe "" [] fields))
 
-      let singleField = System.Guid.NewGuid()
-      let nested = System.Guid.NewGuid()
+      let singleField = ContentHash "test-record-singleField"
+      let nested = ContentHash "test-record-nested"
 
       let all : List<PT.PackageType.PackageType> =
         [ make singleField [ { name = "key"; typ = PT.TBool; description = "TODO" } ]
@@ -39,9 +38,9 @@ module PM =
                 description = "TODO" } ] ]
 
     module Enums =
-      let withoutFields = guuid ()
-      let withFields = guuid ()
-      let resultId = guuid ()
+      let withoutFields = ContentHash "test-enum-withoutFields"
+      let withFields = ContentHash "test-enum-withFields"
+      let resultId = ContentHash "test-enum-resultId"
       let make id cases =
         make id (PT.TypeDeclaration.Enum(NEList.ofListUnsafe "" [] cases))
 
@@ -492,8 +491,8 @@ module Expressions =
     module Package =
       module MySpecialNumber =
         // 17
-        let id = System.Guid.Parse "1823ae7e-cc59-4843-a884-18591398abb0"
-        let usage = ePackageValue id
+        let hash = ContentHash "1823ae7ecc594843a88418591398abb0"
+        let usage = ePackageValue hash
 
 
   module Infix =
@@ -587,21 +586,21 @@ module Expressions =
 
     module Package =
       module MyAdd =
-        let id = System.Guid.Parse "a180ed3b-e8ee-42e5-b3c6-9e7ca32ee273"
+        let hash = ContentHash "a180ed3b-e8ee-42e5-b3c6-9e7ca32ee273"
 
-        let unapplied = ePackageFn id
+        let unapplied = ePackageFn hash
         let partiallyApplied = eApply unapplied [] [ eInt64 1 ]
         let fullyApplied = eApply unapplied [] [ eInt64 1; eInt64 2 ]
 
       module Inner =
-        let id = System.Guid.Parse "f38c8f89-7472-436f-8d38-2093e2e83fb7"
+        let hash = ContentHash "f38c8f89-7472-436f-8d38-2093e2e83fb7"
 
-        let unapplied = ePackageFn id
+        let unapplied = ePackageFn hash
       //let applied = eApply unapplied [] [ eInt64 1 ]
 
       module Outer =
-        let id = System.Guid.Parse "6732ba1d-fae1-4a7e-91ea-d9f0eab6f3c7"
-        let unapplied = ePackageFn id
+        let hash = ContentHash "6732ba1d-fae1-4a7e-91ea-d9f0eab6f3c7"
+        let unapplied = ePackageFn hash
         let applied =
           eApply
             unapplied
@@ -610,21 +609,21 @@ module Expressions =
 
 
       module Fact =
-        let id = System.Guid.Parse "34c0c7bb-2bfa-4dc3-85f9-b965ba3c7880"
-        let unapplied = ePackageFn id
+        let hash = ContentHash "34c0c7bb-2bfa-4dc3-85f9-b965ba3c7880"
+        let unapplied = ePackageFn hash
         let appliedWith2 = eApply unapplied [] [ eInt64 2 ]
         let appliedWith20 = eApply unapplied [] [ eInt64 20 ]
 
       module Recursion =
-        let id = System.Guid.Parse "02036aff-7ae5-4e7c-8f95-f42936044542"
-        let unapplied = ePackageFn id
+        let hash = ContentHash "02036aff-7ae5-4e7c-8f95-f42936044542"
+        let unapplied = ePackageFn hash
         let applied = eApply unapplied [] [ eInt64 30000 ]
 
 
       module MyFnThatTakesALambda =
         let lambdaID = gid ()
-        let id = System.Guid.Parse "25179761-0259-4d52-a505-d75f0738e45c"
-        let unapplied = ePackageFn id
+        let hash = ContentHash "25179761-0259-4d52-a505-d75f0738e45c"
+        let unapplied = ePackageFn hash
 
         let fullyApplied =
           let list = eList [ eInt64 1L; eInt64 2L ]
@@ -646,8 +645,8 @@ module Expressions =
           eApply unapplied [] [ eInt64 4L; lambda ]
 
       module MyFnThatReturnsUnit =
-        let id = System.Guid.Parse "6a47744f-7390-48f6-9822-7a76b9ee174b"
-        let applied = eApply (ePackageFn id) [] [ (eUnit ()) ]
+        let hash = ContentHash "6a47744f-7390-48f6-9822-7a76b9ee174b"
+        let applied = eApply (ePackageFn hash) [] [ (eUnit ()) ]
 
   module Statements =
     let simple = eStatement (eUnit ()) (eInt64 1)
@@ -668,21 +667,19 @@ module Expressions =
 
 // Build a PM with test packages
 let pm : PT.PackageManager =
-  let typeMap = PM.Types.all |> List.map (fun t -> t.id, t) |> Map.ofList
+  let typeMap = PM.Types.all |> List.map (fun t -> t.hash, t) |> Map.ofList
 
   let valueMap =
     let value : PT.PackageValue.PackageValue =
-      { id = Expressions.Values.Package.MySpecialNumber.id
-        hash = PT.ContentHash ""
+      { hash = Expressions.Values.Package.MySpecialNumber.hash
         description = "TODO"
         deprecated = PT.NotDeprecated
         body = PT.EInt64(gid (), 17L) }
-    [ value ] |> List.map (fun v -> v.id, v) |> Map.ofList
+    [ value ] |> List.map (fun v -> v.hash, v) |> Map.ofList
 
   let fnMap =
     let inner : PT.PackageFn.PackageFn =
-      { id = Expressions.Fns.Package.Inner.id
-        hash = PT.ContentHash ""
+      { hash = Expressions.Fns.Package.Inner.hash
         typeParams = [ "x"; "y" ]
         parameters =
           NEList.ofList
@@ -694,8 +691,7 @@ let pm : PT.PackageManager =
         deprecated = PT.NotDeprecated }
 
     let outer : PT.PackageFn.PackageFn =
-      { id = Expressions.Fns.Package.Outer.id
-        hash = PT.ContentHash ""
+      { hash = Expressions.Fns.Package.Outer.hash
         typeParams = [ "x"; "y" ]
         parameters =
           NEList.ofList
@@ -706,7 +702,7 @@ let pm : PT.PackageManager =
           eLet
             (lpVar "ignored")
             (eApply
-              (ePackageFn Expressions.Fns.Package.Inner.id)
+              (ePackageFn Expressions.Fns.Package.Inner.hash)
               [ PT.TString; PT.TBool ]
               [ eStr [ strText "hi" ]; eBool true ])
             (eVar "x")
@@ -714,8 +710,7 @@ let pm : PT.PackageManager =
         deprecated = PT.NotDeprecated }
 
     let myAdd : PT.PackageFn.PackageFn =
-      { id = Expressions.Fns.Package.MyAdd.id
-        hash = PT.ContentHash ""
+      { hash = Expressions.Fns.Package.MyAdd.hash
         typeParams = []
         parameters =
           NEList.ofList
@@ -727,8 +722,7 @@ let pm : PT.PackageManager =
         deprecated = PT.NotDeprecated }
 
     let fact : PT.PackageFn.PackageFn =
-      { id = Expressions.Fns.Package.Fact.id
-        hash = PT.ContentHash ""
+      { hash = Expressions.Fns.Package.Fact.hash
         typeParams = []
         parameters =
           NEList.ofList { name = "a"; typ = PT.TInt64; description = "TODO" } []
@@ -743,7 +737,7 @@ let pm : PT.PackageManager =
                 []
                 [ eVar "a"
                   (eApply
-                    (ePackageFn Expressions.Fns.Package.Fact.id)
+                    (ePackageFn Expressions.Fns.Package.Fact.hash)
                     []
                     [ eApply (eBuiltinFn "int64Subtract" 0) [] [ eVar "a"; eInt64 1 ] ]) ]
             ))
@@ -755,8 +749,7 @@ let pm : PT.PackageManager =
     //   if n <= 0 then 0
     //   else 1 + addUpTo (n - 1)
     let recursion : PT.PackageFn.PackageFn =
-      { id = Expressions.Fns.Package.Recursion.id
-        hash = PT.ContentHash ""
+      { hash = Expressions.Fns.Package.Recursion.hash
         typeParams = []
         parameters =
           NEList.ofList { name = "n"; typ = PT.TInt64; description = "TODO" } []
@@ -774,7 +767,7 @@ let pm : PT.PackageManager =
                 []
                 [ eInt64 1L
                   (eApply
-                    (ePackageFn Expressions.Fns.Package.Recursion.id)
+                    (ePackageFn Expressions.Fns.Package.Recursion.hash)
                     []
                     [ eApply
                         (eBuiltinFn "int64Subtract" 0)
@@ -785,8 +778,7 @@ let pm : PT.PackageManager =
         deprecated = PT.NotDeprecated }
 
     let myFnThatTakesALambda : PT.PackageFn.PackageFn =
-      { id = Expressions.Fns.Package.MyFnThatTakesALambda.id
-        hash = PT.ContentHash ""
+      { hash = Expressions.Fns.Package.MyFnThatTakesALambda.hash
         typeParams = []
         parameters =
           NEList.ofList
@@ -801,8 +793,7 @@ let pm : PT.PackageManager =
         deprecated = PT.NotDeprecated }
 
     let myFnThatReturnsUnit : PT.PackageFn.PackageFn =
-      { id = Expressions.Fns.Package.MyFnThatReturnsUnit.id
-        hash = PT.ContentHash ""
+      { hash = Expressions.Fns.Package.MyFnThatReturnsUnit.hash
         typeParams = []
         parameters =
           NEList.ofList { name = "unit"; typ = PT.TUnit; description = "TODO" } []
@@ -818,7 +809,7 @@ let pm : PT.PackageManager =
       recursion
       myFnThatTakesALambda
       myFnThatReturnsUnit ]
-    |> List.map (fun f -> f.id, f)
+    |> List.map (fun f -> f.hash, f)
     |> Map.ofList
 
   { PT.PackageManager.empty with

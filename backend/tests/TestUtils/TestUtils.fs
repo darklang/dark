@@ -88,8 +88,10 @@ let testPackageFn
   (returnType : PT.TypeReference)
   (body : PT.Expr)
   : PT.PackageFn.PackageFn =
-  { id = System.Guid.NewGuid()
-    hash = PT.ContentHash ""
+  let uniqueHash =
+    System.Guid.NewGuid().ToString("N") + System.Guid.NewGuid().ToString("N")
+    |> ContentHash
+  { hash = uniqueHash
     body = body
     description = ""
     typeParams = typeParams
@@ -1170,7 +1172,8 @@ let naughtyStrings : List<string * string> =
 
 
 let interestingDvals : List<string * RT.Dval * RT.TypeReference> =
-  let uuid = System.Guid.Parse "dca045b1-e2af-41d8-ad1b-35261b25a426"
+  let hash =
+    ContentHash "dca045b1e2af41d8ad1b35261b25a426dca045b1e2af41d8ad1b35261b25a426"
 
   [ ("float", DFloat 7.2, TFloat)
     ("float2", DFloat -7.2, TFloat)
@@ -1201,15 +1204,15 @@ let interestingDvals : List<string * RT.Dval * RT.TypeReference> =
 
     ("record",
      DRecord(
-       FQTypeName.Package uuid,
-       FQTypeName.Package uuid,
+       FQTypeName.Package hash,
+       FQTypeName.Package hash,
        [],
        Map.ofList
          [ "url", DString "https://darklang.com"
            "headers", Dval.list (KTTuple(VT.string, VT.string, [])) []
            "body", Dval.list KTUInt8 [] ]
      ),
-     TCustomType(NameResolution.ok (FQTypeName.Package uuid), []))
+     TCustomType(NameResolution.ok (FQTypeName.Package hash), []))
 
     ("enum",
      DEnum(
@@ -1227,37 +1230,37 @@ let interestingDvals : List<string * RT.Dval * RT.TypeReference> =
     // TODO: extract what's useful in here, and create smaller tests for each
     ("record2",
      DRecord(
-       FQTypeName.Package uuid,
-       FQTypeName.Package uuid,
+       FQTypeName.Package hash,
+       FQTypeName.Package hash,
        [ VT.unknown; VT.bool ],
        Map.ofList [ ("type", DString "weird"); ("value", DUnit) ]
      ),
-     TCustomType(NameResolution.ok (FQTypeName.Package uuid), []))
+     TCustomType(NameResolution.ok (FQTypeName.Package hash), []))
     ("record3",
      DRecord(
-       FQTypeName.Package uuid,
-       FQTypeName.Package uuid,
+       FQTypeName.Package hash,
+       FQTypeName.Package hash,
        [],
        Map.ofList [ ("type", DString "weird"); ("value", DString "x") ]
      ),
-     TCustomType(NameResolution.ok (FQTypeName.Package uuid), []))
+     TCustomType(NameResolution.ok (FQTypeName.Package hash), []))
     // More Json.NET tests
     ("record4",
      DRecord(
-       FQTypeName.Package uuid,
-       FQTypeName.Package uuid,
-       [ VT.bool; VT.char; (VT.customType (FQTypeName.Package uuid)) [] ],
+       FQTypeName.Package hash,
+       FQTypeName.Package hash,
+       [ VT.bool; VT.char; (VT.customType (FQTypeName.Package hash)) [] ],
        Map.ofList [ "foo\\\\bar", Dval.int64 5 ]
      ),
-     TCustomType(NameResolution.ok (FQTypeName.Package uuid), []))
+     TCustomType(NameResolution.ok (FQTypeName.Package hash), []))
     ("record5",
      DRecord(
-       FQTypeName.Package uuid,
-       FQTypeName.Package uuid,
+       FQTypeName.Package hash,
+       FQTypeName.Package hash,
        [],
        Map.ofList [ "$type", Dval.int64 5 ]
      ),
-     TCustomType(NameResolution.ok (FQTypeName.Package uuid), []))
+     TCustomType(NameResolution.ok (FQTypeName.Package hash), []))
     ("dict", DDict(VT.unknown, Map [ "foo", Dval.int64 5 ]), TDict TInt64)
     ("dict3",
      DDict(VT.unknown, Map [ ("type", DString "weird"); ("value", DString "x") ]),
@@ -1508,7 +1511,8 @@ let unwrapExecutionResult
 
       match rteMessage with
       | Ok(RT.DString msg) -> return RT.DString(msg + "\n" + cs)
-      | _ -> return RT.DString(string rteMessage)
+      | Ok dval -> return RT.DString($"Error (pretty-printed as non-string): {dval}\n{cs}")
+      | Error(rte2, _) -> return RT.DString($"Error (pretty-printer also failed): {rte}\nPretty-printer error: {rte2}\n{cs}")
   }
 
 let parsePTExpr (code : string) : Task<PT.Expr> =

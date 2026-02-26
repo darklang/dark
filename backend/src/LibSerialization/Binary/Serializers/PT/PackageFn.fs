@@ -24,7 +24,6 @@ module Parameter =
 
 
 let write (w : BinaryWriter) (p : PackageFn.PackageFn) : unit =
-  Guid.write w p.id
   ContentHash.write w p.hash
   LibSerialization.Binary.Serializers.PT.Expr.Expr.write w p.body
   LibSerialization.Binary.Serializers.Common.List.write w String.write p.typeParams
@@ -34,7 +33,6 @@ let write (w : BinaryWriter) (p : PackageFn.PackageFn) : unit =
   Deprecation.write w FQFnName.write p.deprecated
 
 let read (r : BinaryReader) : PackageFn.PackageFn =
-  let id = Guid.read r
   let hash = ContentHash.read r
   let body = LibSerialization.Binary.Serializers.PT.Expr.Expr.read r
   let typeParams = LibSerialization.Binary.Serializers.Common.List.read r String.read
@@ -42,8 +40,7 @@ let read (r : BinaryReader) : PackageFn.PackageFn =
   let returnType = TypeReference.read r
   let description = String.read r
   let deprecated = Deprecation.read r FQFnName.read
-  { id = id
-    hash = hash
+  { hash = hash
     body = body
     typeParams = typeParams
     parameters = parameters

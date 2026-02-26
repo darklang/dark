@@ -6,12 +6,12 @@ type Option = Stdlib.Option.Option
 // </aliases>
 
 module FQTypeName =
-  type Package = Uuid
+  type Package = String
   type FQTypeName = Package of Package
 
 module FQValueName =
   type Builtin = { name: String; version: Int32 }
-  type Package = Uuid
+  type Package = String
 
   type FQValueName =
     | Builtin of Builtin
@@ -19,7 +19,7 @@ module FQValueName =
 
 module FQFnName =
   type Builtin = { name: String; version: Int32 }
-  type Package = Uuid
+  type Package = String
 
   type FQFnName =
     | Builtin of Builtin

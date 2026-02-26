@@ -23,22 +23,6 @@ let assertBuiltin
   assert_ "version can't be negative" [ "version", version ] (version >= 0)
 
 
-/// Content-addressed hash for package items.
-/// Hex-encoded SHA-256 digest, wrapped for type safety.
-type ContentHash = ContentHash of string
-
-module ContentHash =
-  /// Placeholder for items whose hash hasn't been computed yet
-  let empty : ContentHash = ContentHash ""
-
-  let fromSHA256Bytes (bytes : byte array) : ContentHash =
-    ContentHash(System.Convert.ToHexString(bytes).ToLowerInvariant())
-
-  let toHexString (ContentHash h) : string = h
-
-  /// First 7 hex chars, like git's short SHA
-  let toShortString (ContentHash h) : string = h[..6]
-
 
 // TODO: consider grouping SCM types (BranchId, Branch, MergeError, Commit) into a
 // SourceControl module to match the Dark package structure (Darklang.SCM.*)
@@ -83,14 +67,16 @@ type Commit =
 ///
 /// Used to reference a type defined in a Package or by a User
 module FQTypeName =
-  /// The id of a type in the package manager
-  type Package = uuid
+  /// The content hash of a type in the package manager.
+  /// Determined purely by structural content (see LibSerialization.Hashing).
+  /// Must NEVER depend on location, name, or any other metadata.
+  type Package = ContentHash
 
   type FQTypeName = Package of Package
 
-  let package (id : uuid) : Package = id
+  let package (h : ContentHash) : Package = h
 
-  let fqPackage (id : uuid) : FQTypeName = Package id
+  let fqPackage (h : ContentHash) : FQTypeName = Package h
 
 
 
@@ -101,8 +87,8 @@ module FQValueName =
   /// A value built into the runtime
   type Builtin = { name : string; version : int }
 
-  /// The id of a value in the package manager
-  type Package = uuid
+  /// The content hash of a value in the package manager
+  type Package = ContentHash
 
   type FQValueName =
     | Builtin of Builtin
@@ -119,9 +105,9 @@ module FQValueName =
   let fqBuiltIn (name : string) (version : int) : FQValueName =
     Builtin(builtIn name version)
 
-  let package (id : uuid) : Package = id
+  let package (h : ContentHash) : Package = h
 
-  let fqPackage (id : uuid) : FQValueName = Package id
+  let fqPackage (h : ContentHash) : FQValueName = Package h
 
 
 
@@ -133,8 +119,8 @@ module FQFnName =
   /// A function built into the runtime
   type Builtin = { name : string; version : int }
 
-  /// The id of a function in the package manager
-  type Package = uuid
+  /// The content hash of a function in the package manager
+  type Package = ContentHash
 
   type FQFnName =
     | Builtin of Builtin
@@ -150,9 +136,9 @@ module FQFnName =
   let fqBuiltIn (name : string) (version : int) : FQFnName =
     Builtin(builtIn name version)
 
-  let package (id : uuid) : Package = id
+  let package (h : ContentHash) : Package = h
 
-  let fqPackage (id : uuid) : FQFnName = Package id
+  let fqPackage (h : ContentHash) : FQFnName = Package h
 
 
 // In ProgramTypes, names (FnNames, TypeNames, ValueNames) have already been
@@ -315,7 +301,6 @@ type TypeReference =
   /// e.g. `Result<Int64, String>` is represented as `TCustomType("Result", [TInt64, TString])`
   /// `typeArgs` is the list of type arguments, if any
   | TCustomType of
-    // TODO: this reference should be by-hash
     NameResolution<FQTypeName.FQTypeName> *
     typeArgs : List<TypeReference>
 
@@ -425,7 +410,6 @@ type Expr =
   /// `SomeRecord { field1: value; field2: value }`
   | ERecord of
     id *
-    // TODO: this reference should be by-hash
     typeName : NameResolution<FQTypeName.FQTypeName> *
     typeArgs : List<TypeReference> *
     // User is allowed type `Name {}` even if that's an error
@@ -450,7 +434,6 @@ type Expr =
   ///   `EEnum(Some UserType.MyEnum, "C", [EInt64(1), EString("title")]`
   | EEnum of
     id *
-    // TODO: this reference should be by-hash
     typeName : NameResolution<FQTypeName.FQTypeName> *
     typeArgs : List<TypeReference> *
     caseName : string *
@@ -458,7 +441,6 @@ type Expr =
 
   | EValue of
     id *
-    // TODO: this reference should be by-hash
     NameResolution<FQValueName.FQValueName>
 
   | EStatement of id * first : Expr * next : Expr
@@ -488,7 +470,6 @@ and PipeExpr =
   /// `1 |> Option.Some`
   | EPipeEnum of
     id *
-    // TODO: this reference should be by-hash
     typeName : NameResolution<FQTypeName.FQTypeName> *
     caseName : string *
     fields : List<Expr>
@@ -608,8 +589,7 @@ module PackageType =
   // OK but what do we do about /// comments?
   // really this just begs a series of questions about the PackageManager...
   type PackageType =
-    { id : FQTypeName.Package
-      hash : ContentHash
+    { hash : ContentHash
       declaration : TypeDeclaration.T
       description : string
       deprecated : Deprecation<FQTypeName.FQTypeName> }
@@ -617,8 +597,7 @@ module PackageType =
 
 module PackageValue =
   type PackageValue =
-    { id : uuid
-      hash : ContentHash
+    { hash : ContentHash
       description : string
       deprecated : Deprecation<FQValueName.FQValueName>
       body : Expr }
@@ -628,8 +607,7 @@ module PackageFn =
   type Parameter = { name : string; typ : TypeReference; description : string }
 
   type PackageFn =
-    { id : FQFnName.Package
-      hash : ContentHash
+    { hash : ContentHash
       body : Expr
       typeParams : List<string>
       parameters : NEList<Parameter>
@@ -656,8 +634,8 @@ type PackageOp =
     propagationId : uuid *
     sourceLocation : PackageLocation *
     sourceItemKind : ItemKind *
-    fromSourceUUIDs : List<uuid> *
-    toSourceUUID : uuid *
+    fromSourceHashes : List<ContentHash> *
+    toSourceHash : ContentHash *
     repoints : List<PropagateRepoint>
 
   // Revert a propagation: restore previous versions atomically
@@ -666,7 +644,7 @@ type PackageOp =
     revertedPropagationIds : List<uuid> *
     sourceLocation : PackageLocation *
     sourceItemKind : ItemKind *
-    restoredSourceUUID : uuid *
+    restoredSourceHash : ContentHash *
     revertedRepoints : List<PropagateRepoint>
 
 /// The kind of package item (function, type, or value)
@@ -694,7 +672,10 @@ and ItemKind =
 
 // A single repoint operation within a PropagateUpdate
 and PropagateRepoint =
-  { location : PackageLocation; itemKind : ItemKind; fromUUID : uuid; toUUID : uuid }
+  { location : PackageLocation
+    itemKind : ItemKind
+    fromHash : ContentHash
+    toHash : ContentHash }
 
 // DB should have _history_ of old item names, but only one active PackageLocation
 
@@ -867,12 +848,16 @@ type PackageManager =
     getFn : FQFnName.Package -> Ply<Option<PackageFn.PackageFn>>
 
     // Reverse lookups for pretty-printing and other tooling
-    // TODO: Revisit this given that a single ID might refer to multiple locations,
-    // even per a branch (because... why? not sure or totally convinced either way)).
     getTypeLocation : BranchId -> FQTypeName.Package -> Ply<Option<PackageLocation>>
     getValueLocation :
       BranchId -> FQValueName.Package -> Ply<Option<PackageLocation>>
     getFnLocation : BranchId -> FQFnName.Package -> Ply<Option<PackageLocation>>
+
+    // Plural reverse lookups — returns ALL locations for a hash (for ambiguity detection)
+    getTypeLocations : BranchId -> FQTypeName.Package -> Ply<List<PackageLocation>>
+    getValueLocations :
+      BranchId -> FQValueName.Package -> Ply<List<PackageLocation>>
+    getFnLocations : BranchId -> FQFnName.Package -> Ply<List<PackageLocation>>
 
     init : Ply<unit> }
 
@@ -893,6 +878,10 @@ type PackageManager =
       getValueLocation = fun _ _ -> Ply None
       getFnLocation = fun _ _ -> Ply None
 
+      getTypeLocations = fun _ _ -> Ply []
+      getValueLocations = fun _ _ -> Ply []
+      getFnLocations = fun _ _ -> Ply []
+
       init = uply { return () } }
 
 
@@ -905,77 +894,118 @@ type PackageManager =
     (pm : PackageManager)
     : PackageManager =
 
-    let typeLocationToId =
-      types |> List.map (fun (t, loc) -> loc, t.id) |> Map.ofList
-    let typeIdToLocation =
-      types |> List.map (fun (t, loc) -> t.id, loc) |> Map.ofList
-    let typeIdToType = types |> List.map (fun (t, _) -> t.id, t) |> Map.ofList
+    let typeLocationToHash =
+      types |> List.map (fun (t, loc) -> loc, t.hash) |> Map.ofList
+    let typeHashToLocation =
+      types |> List.map (fun (t, loc) -> t.hash, loc) |> Map.ofList
+    let typeHashToLocations =
+      types
+      |> List.fold (fun acc (t, loc) ->
+        let existing = Map.tryFind t.hash acc |> Option.defaultValue []
+        Map.add t.hash (existing @ [ loc ]) acc) Map.empty
+    let typeHashToType = types |> List.map (fun (t, _) -> t.hash, t) |> Map.ofList
 
-    let valueLocationToId =
-      values |> List.map (fun (v, loc) -> loc, v.id) |> Map.ofList
-    let valueIdToLocation =
-      values |> List.map (fun (v, loc) -> v.id, loc) |> Map.ofList
-    let valueIdToValue = values |> List.map (fun (v, _) -> v.id, v) |> Map.ofList
+    let valueLocationToHash =
+      values |> List.map (fun (v, loc) -> loc, v.hash) |> Map.ofList
+    let valueHashToLocation =
+      values |> List.map (fun (v, loc) -> v.hash, loc) |> Map.ofList
+    let valueHashToLocations =
+      values
+      |> List.fold (fun acc (v, loc) ->
+        let existing = Map.tryFind v.hash acc |> Option.defaultValue []
+        Map.add v.hash (existing @ [ loc ]) acc) Map.empty
+    let valueHashToValue = values |> List.map (fun (v, _) -> v.hash, v) |> Map.ofList
 
-    let fnLocationToId = fns |> List.map (fun (f, loc) -> loc, f.id) |> Map.ofList
-    let fnIdToLocation = fns |> List.map (fun (f, loc) -> f.id, loc) |> Map.ofList
-    let fnIdToFn = fns |> List.map (fun (f, _) -> f.id, f) |> Map.ofList
+    let fnLocationToHash =
+      fns |> List.map (fun (f, loc) -> loc, f.hash) |> Map.ofList
+    let fnHashToLocation =
+      fns |> List.map (fun (f, loc) -> f.hash, loc) |> Map.ofList
+    let fnHashToLocations =
+      fns
+      |> List.fold (fun acc (f, loc) ->
+        let existing = Map.tryFind f.hash acc |> Option.defaultValue []
+        Map.add f.hash (existing @ [ loc ]) acc) Map.empty
+    let fnHashToFn = fns |> List.map (fun (f, _) -> f.hash, f) |> Map.ofList
 
     { findType =
         fun (branchId, location) ->
-          match Map.tryFind location typeLocationToId with
-          | Some id -> Ply(Some id)
+          match Map.tryFind location typeLocationToHash with
+          | Some hash -> Ply(Some hash)
           | None -> pm.findType (branchId, location)
 
       findValue =
         fun (branchId, location) ->
-          match Map.tryFind location valueLocationToId with
-          | Some id -> Ply(Some id)
+          match Map.tryFind location valueLocationToHash with
+          | Some hash -> Ply(Some hash)
           | None -> pm.findValue (branchId, location)
 
       findFn =
         fun (branchId, location) ->
-          match Map.tryFind location fnLocationToId with
-          | Some id -> Ply(Some id)
+          match Map.tryFind location fnLocationToHash with
+          | Some hash -> Ply(Some hash)
           | None -> pm.findFn (branchId, location)
 
       search = fun (branchId, query) -> pm.search (branchId, query)
 
       getType =
-        fun id ->
-          match Map.tryFind id typeIdToType with
+        fun hash ->
+          match Map.tryFind hash typeHashToType with
           | Some t -> Ply(Some t)
-          | None -> pm.getType id
+          | None -> pm.getType hash
 
       getValue =
-        fun id ->
-          match Map.tryFind id valueIdToValue with
+        fun hash ->
+          match Map.tryFind hash valueHashToValue with
           | Some v -> Ply(Some v)
-          | None -> pm.getValue id
+          | None -> pm.getValue hash
 
       getFn =
-        fun id ->
-          match Map.tryFind id fnIdToFn with
+        fun hash ->
+          match Map.tryFind hash fnHashToFn with
           | Some f -> Ply(Some f)
-          | None -> pm.getFn id
+          | None -> pm.getFn hash
 
       getTypeLocation =
-        fun branchId id ->
-          match Map.tryFind id typeIdToLocation with
+        fun branchId hash ->
+          match Map.tryFind hash typeHashToLocation with
           | Some location -> Ply(Some location)
-          | None -> pm.getTypeLocation branchId id
+          | None -> pm.getTypeLocation branchId hash
 
       getValueLocation =
-        fun branchId id ->
-          match Map.tryFind id valueIdToLocation with
+        fun branchId hash ->
+          match Map.tryFind hash valueHashToLocation with
           | Some location -> Ply(Some location)
-          | None -> pm.getValueLocation branchId id
+          | None -> pm.getValueLocation branchId hash
 
       getFnLocation =
-        fun branchId id ->
-          match Map.tryFind id fnIdToLocation with
+        fun branchId hash ->
+          match Map.tryFind hash fnHashToLocation with
           | Some location -> Ply(Some location)
-          | None -> pm.getFnLocation branchId id
+          | None -> pm.getFnLocation branchId hash
+
+      getTypeLocations =
+        fun branchId hash ->
+          uply {
+            let local = Map.tryFind hash typeHashToLocations |> Option.defaultValue []
+            let! fallback = pm.getTypeLocations branchId hash
+            return local @ fallback
+          }
+
+      getValueLocations =
+        fun branchId hash ->
+          uply {
+            let local = Map.tryFind hash valueHashToLocations |> Option.defaultValue []
+            let! fallback = pm.getValueLocations branchId hash
+            return local @ fallback
+          }
+
+      getFnLocations =
+        fun branchId hash ->
+          uply {
+            let local = Map.tryFind hash fnHashToLocations |> Option.defaultValue []
+            let! fallback = pm.getFnLocations branchId hash
+            return local @ fallback
+          }
 
       init = pm.init }
 
