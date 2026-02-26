@@ -709,11 +709,11 @@ let computeHashesWithSCCs
       (fun acc fqn (t, oldHash) -> Map.add fqn (TypeItem(t, fqn, oldHash)) acc)
       Map.empty
       types
-    |> Map.fold
-      (fun acc fqn (fn, oldHash) -> Map.add fqn (FnItem(fn, fqn, oldHash)) acc)
+    |> Map.fold (fun acc fqn (fn, oldHash) ->
+      Map.add fqn (FnItem(fn, fqn, oldHash)) acc)
     <| fns
-    |> Map.fold
-      (fun acc fqn (v, oldHash) -> Map.add fqn (ValueItem(v, fqn, oldHash)) acc)
+    |> Map.fold (fun acc fqn (v, oldHash) ->
+      Map.add fqn (ValueItem(v, fqn, oldHash)) acc)
     <| values
 
   let allIds = items |> Map.keys |> Seq.toList

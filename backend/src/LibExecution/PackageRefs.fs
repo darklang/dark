@@ -108,13 +108,16 @@ module Type =
 
         module JsonPath =
           let part =
-            let hash = "cfa1c52ae5a0fc661c15db09bfb3e6c129904020cc6346a04399f24deac5c7e9"
+            let hash =
+              "cfa1c52ae5a0fc661c15db09bfb3e6c129904020cc6346a04399f24deac5c7e9"
             p [ "JsonPath"; "Part" ] "Part" hash
         let jsonPath =
-          let hash = "a9475a0792181ea56248a4fb7ad5a711dfcbb3931a543f46a041709d8cdc6133"
+          let hash =
+            "a9475a0792181ea56248a4fb7ad5a711dfcbb3931a543f46a041709d8cdc6133"
           p [] "JsonPath" hash
         let parseError =
-          let hash = "843e851b01435213b27134405e9a8d988468ee2af1a06e622b0dc2229eaf6745"
+          let hash =
+            "843e851b01435213b27134405e9a8d988468ee2af1a06e622b0dc2229eaf6745"
           p [] "ParseError" hash
 
     module AltJson =
@@ -135,19 +138,23 @@ module Type =
       module OS =
         let private p addl = p ("OS" :: addl)
         let os =
-          let hash = "b7c0e15d61d6652c5be3cdc9360637524332b72aec228c3a771e2f3f88a8a1fe"
+          let hash =
+            "b7c0e15d61d6652c5be3cdc9360637524332b72aec228c3a771e2f3f88a8a1fe"
           p [] "OS" hash
 
       module Stdin =
         let private p addl = p ("Stdin" :: addl)
         let modifiers =
-          let hash = "5473100a8e7309f3438b5ef92a99fba6518d937b3de96d2c3e4169a21e097100"
+          let hash =
+            "5473100a8e7309f3438b5ef92a99fba6518d937b3de96d2c3e4169a21e097100"
           p [ "Modifiers" ] "Modifiers" hash
         let key =
-          let hash = "788e35c44bf7b0546cfce602a673dcc38ee2a2e84680e6e8df39f5c281325085"
+          let hash =
+            "788e35c44bf7b0546cfce602a673dcc38ee2a2e84680e6e8df39f5c281325085"
           p [ "Key" ] "Key" hash
         let keyRead =
-          let hash = "216897425c81dd012bc812dd2a7238b327486f88cc3f615cb626d1b3d234e587"
+          let hash =
+            "216897425c81dd012bc812dd2a7238b327486f88cc3f615cb626d1b3d234e587"
           p [ "KeyRead" ] "KeyRead" hash
 
   module Builtins =
@@ -195,7 +202,8 @@ module Type =
       module CliScript =
         let private p addl = p ("CliScript" :: addl)
         let pTCliScriptModule =
-          let hash = "03ebedc002f56014c02f681bd90b873968c4d8d38b59075411401c7a37d17b62"
+          let hash =
+            "03ebedc002f56014c02f681bd90b873968c4d8d38b59075411401c7a37d17b62"
           p [] "PTCliScriptModule" hash
 
 
@@ -221,37 +229,46 @@ module Type =
       module FQTypeName =
         let private p addl = p ("FQTypeName" :: addl)
         let package =
-          let hash = "8092fe01b9ce31a49ce380fc2fe1ee6b6b7d5c15c5f1ecb6ad98c60c4273a435"
+          let hash =
+            "8092fe01b9ce31a49ce380fc2fe1ee6b6b7d5c15c5f1ecb6ad98c60c4273a435"
           p [] "Package" hash
         let builtin =
-          let hash = "bd575864526cda832d5e94fa3e827d98681766f1ecb8885e0b5dac1af0cde23a"
+          let hash =
+            "bd575864526cda832d5e94fa3e827d98681766f1ecb8885e0b5dac1af0cde23a"
           p [] "Builtin" hash
         let fqTypeName =
-          let hash = "593dbef1b81d45243efe5c73d94b13caaa337425de5884e2e2fd39ecaaf7d0c7"
+          let hash =
+            "593dbef1b81d45243efe5c73d94b13caaa337425de5884e2e2fd39ecaaf7d0c7"
           p [] "FQTypeName" hash
 
       module FQValueName =
         let private p addl = p ("FQValueName" :: addl)
         let package =
-          let hash = "8092fe01b9ce31a49ce380fc2fe1ee6b6b7d5c15c5f1ecb6ad98c60c4273a435"
+          let hash =
+            "8092fe01b9ce31a49ce380fc2fe1ee6b6b7d5c15c5f1ecb6ad98c60c4273a435"
           p [] "Package" hash
         let builtin =
-          let hash = "bd575864526cda832d5e94fa3e827d98681766f1ecb8885e0b5dac1af0cde23a"
+          let hash =
+            "bd575864526cda832d5e94fa3e827d98681766f1ecb8885e0b5dac1af0cde23a"
           p [] "Builtin" hash
         let fqValueName =
-          let hash = "95bdec1ebde43fe053994ba303fc007a0d3255c4c1a34a72340ebe6c97df9204"
+          let hash =
+            "95bdec1ebde43fe053994ba303fc007a0d3255c4c1a34a72340ebe6c97df9204"
           p [] "FQValueName" hash
 
       module FQFnName =
         let private p addl = p ("FQFnName" :: addl)
         let package =
-          let hash = "8092fe01b9ce31a49ce380fc2fe1ee6b6b7d5c15c5f1ecb6ad98c60c4273a435"
+          let hash =
+            "8092fe01b9ce31a49ce380fc2fe1ee6b6b7d5c15c5f1ecb6ad98c60c4273a435"
           p [] "Package" hash
         let builtin =
-          let hash = "bd575864526cda832d5e94fa3e827d98681766f1ecb8885e0b5dac1af0cde23a"
+          let hash =
+            "bd575864526cda832d5e94fa3e827d98681766f1ecb8885e0b5dac1af0cde23a"
           p [] "Builtin" hash
         let fqFnName =
-          let hash = "95bdec1ebde43fe053994ba303fc007a0d3255c4c1a34a72340ebe6c97df9204"
+          let hash =
+            "95bdec1ebde43fe053994ba303fc007a0d3255c4c1a34a72340ebe6c97df9204"
           p [] "FQFnName" hash
 
       let nameResolutionError =
@@ -307,88 +324,106 @@ module Type =
         module TypeCheckers =
           let private p addl = p ("TypeCheckers" :: addl)
           let pathPart =
-            let hash = "27857bb74fd7bb9def0d1a7e58bdc858bbc56f6037a3665459b2189486a5309a"
+            let hash =
+              "27857bb74fd7bb9def0d1a7e58bdc858bbc56f6037a3665459b2189486a5309a"
             p [] "PathPart" hash
           let path =
-            let hash = "735322d4b3cb0f40e936ed45e429d85d2f876062c5667bf01ea418457e543c27"
+            let hash =
+              "735322d4b3cb0f40e936ed45e429d85d2f876062c5667bf01ea418457e543c27"
             p [] "Path" hash
           let error =
-            let hash = "19e134caa3ecb61f20f8a7cf7f1ee4ac385e6417327f894d31179cb91a9c8e4a"
+            let hash =
+              "19e134caa3ecb61f20f8a7cf7f1ee4ac385e6417327f894d31179cb91a9c8e4a"
             p [] "Error" hash
 
         module Bools =
           let error =
-            let hash = "2c4fec5380d7bd949189388a3a5b9268880e5252f378e559266f005b8731bbb6"
+            let hash =
+              "2c4fec5380d7bd949189388a3a5b9268880e5252f378e559266f005b8731bbb6"
             p [ "Bools" ] "Error" hash
 
         module Ints =
           let error =
-            let hash = "a3c5852ebe977e62763b25487608bce2ed1903a832e035993c99fb45b5a56fdf"
+            let hash =
+              "a3c5852ebe977e62763b25487608bce2ed1903a832e035993c99fb45b5a56fdf"
             p [ "Ints" ] "Error" hash
 
         module Strings =
           let error =
-            let hash = "4065445cac4f03cc63d507749a2c9ca8bbe6f78415e9d00f847f729d3fa0e9d1"
+            let hash =
+              "4065445cac4f03cc63d507749a2c9ca8bbe6f78415e9d00f847f729d3fa0e9d1"
             p [ "Strings" ] "Error" hash
 
         module Lists =
           let private p addl = p ("Lists" :: addl)
           let error =
-            let hash = "14b116e589789e2effe97e598b98cb071a2f0d53cde1b80caf3c4a2ec3e9fafc"
+            let hash =
+              "14b116e589789e2effe97e598b98cb071a2f0d53cde1b80caf3c4a2ec3e9fafc"
             p [] "Error" hash
 
         module Dicts =
           let error =
-            let hash = "011d37992ad30148858cf8c9eaf9a38cd709b020e144fa718e6ccd85b2352135"
+            let hash =
+              "011d37992ad30148858cf8c9eaf9a38cd709b020e144fa718e6ccd85b2352135"
             p [ "Dicts" ] "Error" hash
 
         module Lets =
           let error =
-            let hash = "ada72d1d039cc23504898933b705da3d2537e8cd5618812e6105daaa2973eccb"
+            let hash =
+              "ada72d1d039cc23504898933b705da3d2537e8cd5618812e6105daaa2973eccb"
             p [ "Lets" ] "Error" hash
 
         module Matches =
           let error =
-            let hash = "c31d81b343ba5debb1cfdc9977f8908c1280d6ad40bf09430142534f6bd9c981"
+            let hash =
+              "c31d81b343ba5debb1cfdc9977f8908c1280d6ad40bf09430142534f6bd9c981"
             p [ "Matches" ] "Error" hash
 
         module Enums =
           let error =
-            let hash = "533b70051f6898c01e017f37b668be277818aa4d97321b71b958136fe89c6f69"
+            let hash =
+              "533b70051f6898c01e017f37b668be277818aa4d97321b71b958136fe89c6f69"
             p [ "Enums" ] "Error" hash
 
         module Records =
           let error =
-            let hash = "71a94d192184bfe7350fbce77baf53ed319802c31f7722bf18c40b14ef934e88"
+            let hash =
+              "71a94d192184bfe7350fbce77baf53ed319802c31f7722bf18c40b14ef934e88"
             p [ "Records" ] "Error" hash
 
         module Applications =
           let error =
-            let hash = "45d69d587df92aba8ffb29f195aa4443287557c1e509518484911fb46214ab31"
+            let hash =
+              "45d69d587df92aba8ffb29f195aa4443287557c1e509518484911fb46214ab31"
             p [ "Applications" ] "Error" hash
 
         module Statements =
           let error =
-            let hash = "5f27ed0633c2da02ce7209f502dd6e9b81cc26ad8153843dc7942475ae0544e4"
+            let hash =
+              "5f27ed0633c2da02ce7209f502dd6e9b81cc26ad8153843dc7942475ae0544e4"
             p [ "Statements" ] "Error" hash
 
         module Unwraps =
           let error =
-            let hash = "f26d39705defad33988746197a9e671c442dd167d10d62ebcb1968eb479945a4"
+            let hash =
+              "f26d39705defad33988746197a9e671c442dd167d10d62ebcb1968eb479945a4"
             p [ "Unwraps" ] "Error" hash
 
         module Jsons =
           let error =
-            let hash = "4481deccfef0f84cbb36d6fd0223a866d68af44220c9f346da16ee8b4213c7a9"
+            let hash =
+              "4481deccfef0f84cbb36d6fd0223a866d68af44220c9f346da16ee8b4213c7a9"
             p [ "Jsons" ] "Error" hash
 
         module CLIs =
           let error =
-            let hash = "ecc74d38cd91b77efe57dc67d3957ed361676bc89fc1e6c05a87bb655cff0594"
+            let hash =
+              "ecc74d38cd91b77efe57dc67d3957ed361676bc89fc1e6c05a87bb655cff0594"
             p [ "CLIs" ] "Error" hash
 
         let error =
-          let hash = "99ebdfc7df009829301853d2038c3cf5b4ddc5d1c69cd018487fe3cb7febdc58"
+          let hash =
+            "99ebdfc7df009829301853d2038c3cf5b4ddc5d1c69cd018487fe3cb7febdc58"
           p [] "Error" hash
 
     module ProgramTypes =
@@ -409,34 +444,42 @@ module Type =
       module FQTypeName =
         let private p addl = p ("FQTypeName" :: addl)
         let package =
-          let hash = "8092fe01b9ce31a49ce380fc2fe1ee6b6b7d5c15c5f1ecb6ad98c60c4273a435"
+          let hash =
+            "8092fe01b9ce31a49ce380fc2fe1ee6b6b7d5c15c5f1ecb6ad98c60c4273a435"
           p [] "Package" hash
         let fqTypeName =
-          let hash = "593dbef1b81d45243efe5c73d94b13caaa337425de5884e2e2fd39ecaaf7d0c7"
+          let hash =
+            "593dbef1b81d45243efe5c73d94b13caaa337425de5884e2e2fd39ecaaf7d0c7"
           p [] "FQTypeName" hash
 
       module FQValueName =
         let private p addl = p ("FQValueName" :: addl)
         let builtin =
-          let hash = "bd575864526cda832d5e94fa3e827d98681766f1ecb8885e0b5dac1af0cde23a"
+          let hash =
+            "bd575864526cda832d5e94fa3e827d98681766f1ecb8885e0b5dac1af0cde23a"
           p [] "Builtin" hash
         let package =
-          let hash = "8092fe01b9ce31a49ce380fc2fe1ee6b6b7d5c15c5f1ecb6ad98c60c4273a435"
+          let hash =
+            "8092fe01b9ce31a49ce380fc2fe1ee6b6b7d5c15c5f1ecb6ad98c60c4273a435"
           p [] "Package" hash
         let fqValueName =
-          let hash = "95bdec1ebde43fe053994ba303fc007a0d3255c4c1a34a72340ebe6c97df9204"
+          let hash =
+            "95bdec1ebde43fe053994ba303fc007a0d3255c4c1a34a72340ebe6c97df9204"
           p [] "FQValueName" hash
 
       module FQFnName =
         let private p addl = p ("FQFnName" :: addl)
         let builtin =
-          let hash = "bd575864526cda832d5e94fa3e827d98681766f1ecb8885e0b5dac1af0cde23a"
+          let hash =
+            "bd575864526cda832d5e94fa3e827d98681766f1ecb8885e0b5dac1af0cde23a"
           p [] "Builtin" hash
         let package =
-          let hash = "8092fe01b9ce31a49ce380fc2fe1ee6b6b7d5c15c5f1ecb6ad98c60c4273a435"
+          let hash =
+            "8092fe01b9ce31a49ce380fc2fe1ee6b6b7d5c15c5f1ecb6ad98c60c4273a435"
           p [] "Package" hash
         let fqFnName =
-          let hash = "95bdec1ebde43fe053994ba303fc007a0d3255c4c1a34a72340ebe6c97df9204"
+          let hash =
+            "95bdec1ebde43fe053994ba303fc007a0d3255c4c1a34a72340ebe6c97df9204"
           p [] "FQFnName" hash
 
       let typeReference =
@@ -485,64 +528,80 @@ module Type =
       module TypeDeclaration =
         let private p addl = p ("TypeDeclaration" :: addl)
         let recordField =
-          let hash = "b1b77c46cf5a190630f3114037828193736fd2440dd2503cb3c5b3156b361453"
+          let hash =
+            "b1b77c46cf5a190630f3114037828193736fd2440dd2503cb3c5b3156b361453"
           p [] "RecordField" hash
         let enumField =
-          let hash = "f6b386314c9d99715cf24ab0d9a543580302be25719e7123a92c77ce1eb1b490"
+          let hash =
+            "f6b386314c9d99715cf24ab0d9a543580302be25719e7123a92c77ce1eb1b490"
           p [] "EnumField" hash
         let enumCase =
-          let hash = "f05132a9f1a01079e110f2dd716d5b805f5c9f8938e585873087bd157b852986"
+          let hash =
+            "f05132a9f1a01079e110f2dd716d5b805f5c9f8938e585873087bd157b852986"
           p [] "EnumCase" hash
         let definition =
-          let hash = "f5346abc23fb2f9fcd41964b6695f79e7db0d1d0282be6816641ab3eda7b286d"
+          let hash =
+            "f5346abc23fb2f9fcd41964b6695f79e7db0d1d0282be6816641ab3eda7b286d"
           p [] "Definition" hash
         let typeDeclaration =
-          let hash = "7bf0edb27b606d9ef0a70339d0ab02a1fedc7ab6744551bd42fe7cca0f8deb9f"
+          let hash =
+            "7bf0edb27b606d9ef0a70339d0ab02a1fedc7ab6744551bd42fe7cca0f8deb9f"
           p [] "TypeDeclaration" hash
 
       module PackageType =
         let private p addl = p ("PackageType" :: addl)
         let name =
-          let hash = "5ff0b8dd494650769dffcf327f6984b40759547a4b53320e800d2f83eec62028"
+          let hash =
+            "5ff0b8dd494650769dffcf327f6984b40759547a4b53320e800d2f83eec62028"
           p [] "Name" hash
         let packageType =
-          let hash = "de0b2843a023665c137bf739443c5d78e8760cd13ba88458b3970dab809cf5a3"
+          let hash =
+            "de0b2843a023665c137bf739443c5d78e8760cd13ba88458b3970dab809cf5a3"
           p [] "PackageType" hash
 
       module PackageValue =
         let private p addl = p ("PackageValue" :: addl)
         let name =
-          let hash = "b7601a971f5c9af203906fb0c73689e61406d38ad59e14e2b0b3c2a06b8c3e0b"
+          let hash =
+            "b7601a971f5c9af203906fb0c73689e61406d38ad59e14e2b0b3c2a06b8c3e0b"
           p [] "Name" hash
         let packageValue =
-          let hash = "7a0f278c9c6c4323d43fde4ba888913e5a89faf5003acaf4a804c0fd5226c273"
+          let hash =
+            "7a0f278c9c6c4323d43fde4ba888913e5a89faf5003acaf4a804c0fd5226c273"
           p [] "PackageValue" hash
 
       module PackageFn =
         let private p addl = p ("PackageFn" :: addl)
         let name =
-          let hash = "c0c5a6430d1b022a614c712fe75c1a14f12fb56704c80ede29b3e5ab691f135c"
+          let hash =
+            "c0c5a6430d1b022a614c712fe75c1a14f12fb56704c80ede29b3e5ab691f135c"
           p [] "Name" hash
         let parameter =
-          let hash = "b1b77c46cf5a190630f3114037828193736fd2440dd2503cb3c5b3156b361453"
+          let hash =
+            "b1b77c46cf5a190630f3114037828193736fd2440dd2503cb3c5b3156b361453"
           p [] "Parameter" hash
         let packageFn =
-          let hash = "d9d944903aba83c528200a64d5d57c6890e2debced634eb3c1a583b1445ae92e"
+          let hash =
+            "d9d944903aba83c528200a64d5d57c6890e2debced634eb3c1a583b1445ae92e"
           p [] "PackageFn" hash
 
       module Search =
         let private p addl = p ("Search" :: addl)
         let entityType =
-          let hash = "7824e28c37f8b4f994c3f3752e682fb58229e66743c83ae7a6e4f29515cb4f6a"
+          let hash =
+            "7824e28c37f8b4f994c3f3752e682fb58229e66743c83ae7a6e4f29515cb4f6a"
           p [] "EntityType" hash
         let searchDepth =
-          let hash = "364316241bbd776a630ac9c3f92927d3a634ef4446b9d45258a8436a254781ec"
+          let hash =
+            "364316241bbd776a630ac9c3f92927d3a634ef4446b9d45258a8436a254781ec"
           p [] "SearchDepth" hash
         let searchQuery =
-          let hash = "854b4d7e83fd11abeada159881bda7adfc1b6596220da9f564779d0ff221e453"
+          let hash =
+            "854b4d7e83fd11abeada159881bda7adfc1b6596220da9f564779d0ff221e453"
           p [] "SearchQuery" hash
         let searchResults =
-          let hash = "7557575be405dc61e055c1d3ee751eee82b3a375134f21a39de083ea0cbb48ab"
+          let hash =
+            "7557575be405dc61e055c1d3ee751eee82b3a375134f21a39de083ea0cbb48ab"
           p [] "SearchResults" hash
 
       let packageOp =
@@ -568,13 +627,16 @@ module Type =
       module Handler =
         let private p addl = p ("Handler" :: addl)
         let cronInterval =
-          let hash = "5ccec4b619b5c44a34f85dcef3f37ec7bfdb23fe3b989087c406be91ca295429"
+          let hash =
+            "5ccec4b619b5c44a34f85dcef3f37ec7bfdb23fe3b989087c406be91ca295429"
           p [] "CronInterval" hash
         let spec =
-          let hash = "30d826f29e292f9e7db4c4ab184c619017f8fbd36463bea8f10b627f06aeae00"
+          let hash =
+            "30d826f29e292f9e7db4c4ab184c619017f8fbd36463bea8f10b627f06aeae00"
           p [] "Spec" hash
         let handler =
-          let hash = "04e1af2c3cc2c2555d61481ef3febe6cb393d96d60545a7dcb54629b07d7651c"
+          let hash =
+            "04e1af2c3cc2c2555d61481ef3febe6cb393d96d60545a7dcb54629b07d7651c"
           p [] "Handler" hash
 
   module PrettyPrinter =
@@ -584,7 +646,8 @@ module Type =
       module RuntimeError =
         let private p addl = p ("RuntimeError" :: addl)
         let errorMessage =
-          let hash = "2314408c9017bab823414db19433005893a4d09e6235a41011e3ab1f5ae79818"
+          let hash =
+            "2314408c9017bab823414db19433005893a4d09e6235a41011e3ab1f5ae79818"
           p [] "ErrorMessage" hash
 
   module Cli =
@@ -709,7 +772,8 @@ module Fn =
       module FnName =
         let private p addl = p ("FnName" :: addl)
         let resolve =
-          let hash = "33b1abe1fc67c03de59bb86437e506fda91a445416568824899f058e4a86d81a"
+          let hash =
+            "33b1abe1fc67c03de59bb86437e506fda91a445416568824899f058e4a86d81a"
           p [] "resolve" hash
 
 
@@ -727,10 +791,12 @@ module Fn =
       module CliScript =
         let private p addl = p ("CliScript" :: addl)
         let parseCliScript =
-          let hash = "6bac75ecd4d6a9bf8fce5a5f6304d568611d00e1ed4b7403e652b9b9e6d75c27"
+          let hash =
+            "6bac75ecd4d6a9bf8fce5a5f6304d568611d00e1ed4b7403e652b9b9e6d75c27"
           p [] "parse" hash
         let parseForCli =
-          let hash = "c829f609c8eee4faeb7a37c168397bb027dfa00dad3cbf7fce40e0da5bfd3684"
+          let hash =
+            "c829f609c8eee4faeb7a37c168397bb027dfa00dad3cbf7fce40e0da5bfd3684"
           p [] "parseForCli" hash
 
     module PackageManager =
@@ -759,16 +825,19 @@ module Fn =
       module Dval =
         let private p addl = p ("Dval" :: addl)
         let valueTypeName =
-          let hash = "ba4236bae32639615f24b9c7a32be0999d2a8c6a15a924a14ce47723818832ac"
+          let hash =
+            "ba4236bae32639615f24b9c7a32be0999d2a8c6a15a924a14ce47723818832ac"
           p [] "valueTypeName" hash
 
       module RuntimeError =
         let private p addl = p ("RuntimeError" :: addl)
         let toString =
-          let hash = "cf5980dfd14c144a5e75fc4be0c1918b667d172700bb93ef9292fc18e5dba8a3"
+          let hash =
+            "cf5980dfd14c144a5e75fc4be0c1918b667d172700bb93ef9292fc18e5dba8a3"
           p [] "toString" hash
         let toErrorMessage =
-          let hash = "35309aed7e05bdeac8e53b970078b47b13ddd5758157bd788b642ca5a1febfc2"
+          let hash =
+            "35309aed7e05bdeac8e53b970078b47b13ddd5758157bd788b642ca5a1febfc2"
           p [] "toErrorMessage" hash
 
     module ProgramTypes =
@@ -780,12 +849,13 @@ module Fn =
       module FQFnName =
         let private p addl = p ("FQFnName" :: addl)
         let fullForReference =
-          let hash = "3556d4ff043ae17b0af32f196ec10c21b97c995b273790640ae81535da2bd56e"
+          let hash =
+            "3556d4ff043ae17b0af32f196ec10c21b97c995b273790640ae81535da2bd56e"
           p [] "fullForReference" hash
 
   module Cli =
     let executeCliCommand =
-      let hash = "dbd296111dcf0b8bcdc59e221eb6f605611e158ce5bec168af61f885eba72894"
+      let hash = "d482fe465ff73d9f2fec4b17c07509ed66c43eeea8b9b78bf283f0e6cf8467b0"
       p [ "Cli" ] "executeCliCommand" hash
 
   module Internal =

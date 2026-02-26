@@ -225,9 +225,12 @@ let createInMemory (ops : List<PT.PackageOp>) : PT.PackageManager =
     getValueLocation = fun _branchId id -> Ply(Map.tryFind id valueIdToLoc)
     getFnLocation = fun _branchId id -> Ply(Map.tryFind id fnIdToLoc)
 
-    getTypeLocations = fun _branchId id -> Ply(Map.tryFind id typeIdToLocs |> Option.defaultValue [])
-    getValueLocations = fun _branchId id -> Ply(Map.tryFind id valueIdToLocs |> Option.defaultValue [])
-    getFnLocations = fun _branchId id -> Ply(Map.tryFind id fnIdToLocs |> Option.defaultValue [])
+    getTypeLocations =
+      fun _branchId id -> Ply(Map.tryFind id typeIdToLocs |> Option.defaultValue [])
+    getValueLocations =
+      fun _branchId id -> Ply(Map.tryFind id valueIdToLocs |> Option.defaultValue [])
+    getFnLocations =
+      fun _branchId id -> Ply(Map.tryFind id fnIdToLocs |> Option.defaultValue [])
 
     // no need to support this for in-memory.
     search =

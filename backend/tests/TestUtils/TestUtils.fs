@@ -1511,8 +1511,13 @@ let unwrapExecutionResult
 
       match rteMessage with
       | Ok(RT.DString msg) -> return RT.DString(msg + "\n" + cs)
-      | Ok dval -> return RT.DString($"Error (pretty-printed as non-string): {dval}\n{cs}")
-      | Error(rte2, _) -> return RT.DString($"Error (pretty-printer also failed): {rte}\nPretty-printer error: {rte2}\n{cs}")
+      | Ok dval ->
+        return RT.DString($"Error (pretty-printed as non-string): {dval}\n{cs}")
+      | Error(rte2, _) ->
+        return
+          RT.DString(
+            $"Error (pretty-printer also failed): {rte}\nPretty-printer error: {rte2}\n{cs}"
+          )
   }
 
 let parsePTExpr (code : string) : Task<PT.Expr> =

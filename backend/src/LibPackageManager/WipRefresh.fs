@@ -30,8 +30,7 @@ let private reResolveAllItems
         match remaining with
         | PT.PackageOp.AddType t :: PT.PackageOp.SetTypeName(hash, loc) :: rest ->
           let! reResolved =
-            NRR.reResolveType pm branchId loc.owner loc.modules t
-            |> Ply.toTask
+            NRR.reResolveType pm branchId loc.owner loc.modules t |> Ply.toTask
 
           result.Add(PT.PackageOp.AddType reResolved)
           result.Add(PT.PackageOp.SetTypeName(hash, loc))
@@ -71,10 +70,7 @@ let private reResolveAllItems
 /// 3. Run HashStabilization.computeRealHashes
 /// 4. If any hashes changed, discard old WIP and re-insert
 /// 5. Return count of changed items
-let refresh
-  (pm : PT.PackageManager)
-  (branchId : System.Guid)
-  : Task<int64> =
+let refresh (pm : PT.PackageManager) (branchId : System.Guid) : Task<int64> =
   task {
     // 1. Get WIP ops
     let! wipOps = Queries.getWipOps branchId

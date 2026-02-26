@@ -389,8 +389,7 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
     { name = fn "pmGetLocationsByType" 0
       typeParams = []
       parameters = [ Param.make "branchId" TUuid ""; Param.make "id" TString "" ]
-      returnType =
-        TList(TCustomType(NR.ok PT2DT.PackageLocation.typeName, []))
+      returnType = TList(TCustomType(NR.ok PT2DT.PackageLocation.typeName, []))
       description = "Returns all locations of a package type by its hash"
       fn =
         (function
@@ -411,8 +410,7 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
     { name = fn "pmGetLocationsByValue" 0
       typeParams = []
       parameters = [ Param.make "branchId" TUuid ""; Param.make "id" TString "" ]
-      returnType =
-        TList(TCustomType(NR.ok PT2DT.PackageLocation.typeName, []))
+      returnType = TList(TCustomType(NR.ok PT2DT.PackageLocation.typeName, []))
       description = "Returns all locations of a package value by its hash"
       fn =
         (function
@@ -433,8 +431,7 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
     { name = fn "pmGetLocationsByFn" 0
       typeParams = []
       parameters = [ Param.make "branchId" TUuid ""; Param.make "id" TString "" ]
-      returnType =
-        TList(TCustomType(NR.ok PT2DT.PackageLocation.typeName, []))
+      returnType = TList(TCustomType(NR.ok PT2DT.PackageLocation.typeName, []))
       description = "Returns all locations of a package function by its hash"
       fn =
         (function

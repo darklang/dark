@@ -95,12 +95,9 @@ let computeRealHashes (ops : List<PT.PackageOp>) : List<PT.PackageOp> =
   // Build maps keyed by FQN to avoid collisions when multiple items
   // share the same ContentHash (e.g. type aliases with unresolved refs).
   // Value tuple: (item, oldContentHash)
-  let typeMap =
-    types |> Seq.map (fun (id, t, fqn) -> (fqn, (t, id))) |> Map.ofSeq
-  let fnMap =
-    fns |> Seq.map (fun (id, f, fqn) -> (fqn, (f, id))) |> Map.ofSeq
-  let valueMap =
-    values |> Seq.map (fun (id, v, fqn) -> (fqn, (v, id))) |> Map.ofSeq
+  let typeMap = types |> Seq.map (fun (id, t, fqn) -> (fqn, (t, id))) |> Map.ofSeq
+  let fnMap = fns |> Seq.map (fun (id, f, fqn) -> (fqn, (f, id))) |> Map.ofSeq
+  let valueMap = values |> Seq.map (fun (id, v, fqn) -> (fqn, (v, id))) |> Map.ofSeq
 
   // Reverse lookup: ContentHash → FQNs for converting AST deps to FQN deps
   let hashToFqns : Map<ContentHash, List<string>> =

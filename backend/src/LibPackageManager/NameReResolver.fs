@@ -18,8 +18,7 @@ module PT = LibExecution.ProgramTypes
 // Name resolution helpers (mirrors LibParser.NameResolver logic)
 // --------------------------------------------------------------------------
 
-type private GenericName =
-  { modules : List<string>; name : string; version : int }
+type private GenericName = { modules : List<string>; name : string; version : int }
 
 /// Generate candidate fully-qualified names to try, from most specific to
 /// least specific. Mirrors LibParser.NameResolver.namesToTry.
@@ -31,8 +30,7 @@ let private namesToTry
     match List.splitLast modulesToPrepend with
     | None -> [ given ]
     | Some(allButLast, _) ->
-      let newNameToTry =
-        { given with modules = modulesToPrepend @ given.modules }
+      let newNameToTry = { given with modules = modulesToPrepend @ given.modules }
       newNameToTry :: loop allButLast
 
   let addl =
@@ -94,8 +92,7 @@ let private reResolveNameResolution
         match parseName lastName with
         | Error _ -> return nr
         | Ok(name, version) ->
-          let genericName =
-            { modules = modules; name = name; version = version }
+          let genericName = { modules = modules; name = name; version = version }
 
           let candidates = namesToTry contextModules genericName
 
@@ -218,13 +215,16 @@ let rec private reResolveTypeRef
     | PT.TTuple(first, second, rest) ->
       let! first = reResolveTypeRef branchId contextModules pm first
       let! second = reResolveTypeRef branchId contextModules pm second
-      let! rest = Ply.List.mapSequentially (reResolveTypeRef branchId contextModules pm) rest
+      let! rest =
+        Ply.List.mapSequentially (reResolveTypeRef branchId contextModules pm) rest
       return PT.TTuple(first, second, rest)
 
     | PT.TCustomType(nr, typeArgs) ->
       let! nr = reResolveTypeName branchId contextModules pm.findType nr
       let! typeArgs =
-        Ply.List.mapSequentially (reResolveTypeRef branchId contextModules pm) typeArgs
+        Ply.List.mapSequentially
+          (reResolveTypeRef branchId contextModules pm)
+          typeArgs
       return PT.TCustomType(nr, typeArgs)
 
     | PT.TFn(args, ret) ->
@@ -296,7 +296,9 @@ and private reResolvePipeExpr
     | PT.EPipeFnCall(id, nr, typeArgs, args) ->
       let! nr = reResolveFnName branchId contextModules pm.findFn nr
       let! typeArgs =
-        Ply.List.mapSequentially (reResolveTypeRef branchId contextModules pm) typeArgs
+        Ply.List.mapSequentially
+          (reResolveTypeRef branchId contextModules pm)
+          typeArgs
       let! args =
         Ply.List.mapSequentially (reResolveExpr branchId contextModules pm) args
       return PT.EPipeFnCall(id, nr, typeArgs, args)
@@ -365,9 +367,7 @@ and private reResolveExpr
     | PT.EPipe(id, lhs, parts) ->
       let! lhs = reResolveExpr branchId contextModules pm lhs
       let! parts =
-        Ply.List.mapSequentially
-          (reResolvePipeExpr branchId contextModules pm)
-          parts
+        Ply.List.mapSequentially (reResolvePipeExpr branchId contextModules pm) parts
       return PT.EPipe(id, lhs, parts)
 
     | PT.EMatch(id, arg, cases) ->
@@ -409,7 +409,9 @@ and private reResolveExpr
     | PT.EApply(id, fnExpr, typeArgs, args) ->
       let! fnExpr = reResolveExpr branchId contextModules pm fnExpr
       let! typeArgs =
-        Ply.List.mapSequentially (reResolveTypeRef branchId contextModules pm) typeArgs
+        Ply.List.mapSequentially
+          (reResolveTypeRef branchId contextModules pm)
+          typeArgs
       let! args =
         Ply.NEList.mapSequentially (reResolveExpr branchId contextModules pm) args
       return PT.EApply(id, fnExpr, typeArgs, args)
@@ -430,7 +432,9 @@ and private reResolveExpr
     | PT.ERecord(id, nr, typeArgs, fields) ->
       let! nr = reResolveTypeName branchId contextModules pm.findType nr
       let! typeArgs =
-        Ply.List.mapSequentially (reResolveTypeRef branchId contextModules pm) typeArgs
+        Ply.List.mapSequentially
+          (reResolveTypeRef branchId contextModules pm)
+          typeArgs
       let! fields =
         Ply.List.mapSequentially
           (fun (name, expr) ->
@@ -460,7 +464,9 @@ and private reResolveExpr
     | PT.EEnum(id, nr, typeArgs, caseName, fields) ->
       let! nr = reResolveTypeName branchId contextModules pm.findType nr
       let! typeArgs =
-        Ply.List.mapSequentially (reResolveTypeRef branchId contextModules pm) typeArgs
+        Ply.List.mapSequentially
+          (reResolveTypeRef branchId contextModules pm)
+          typeArgs
       let! fields =
         Ply.List.mapSequentially (reResolveExpr branchId contextModules pm) fields
       return PT.EEnum(id, nr, typeArgs, caseName, fields)
@@ -539,9 +545,7 @@ let reResolveType
     let! definition =
       reResolveTypeDefinition branchId contextModules pm t.declaration.definition
 
-    return
-      { t with
-          declaration = { t.declaration with definition = definition } }
+    return { t with declaration = { t.declaration with definition = definition } }
   }
 
 
@@ -569,11 +573,7 @@ let reResolveFn
 
     let! returnType = reResolveTypeRef branchId contextModules pm f.returnType
 
-    return
-      { f with
-          body = body
-          parameters = parameters
-          returnType = returnType }
+    return { f with body = body; parameters = parameters; returnType = returnType }
   }
 
 

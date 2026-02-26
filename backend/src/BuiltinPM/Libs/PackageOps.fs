@@ -39,30 +39,12 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
             let ptOps = ops |> List.choose PT2DT.PackageOp.fromDT
             let stabilized =
               LibPackageManager.HashStabilization.computeRealHashes ptOps
-            return Dval.list packageOpKT (stabilized |> List.map PT2DT.PackageOp.toDT)
+            return
+              Dval.list packageOpKT (stabilized |> List.map PT2DT.PackageOp.toDT)
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure
-      deprecated = NotDeprecated }
-
-
-    { name = fn "pmRefreshWipHashes" 0
-      typeParams = []
-      parameters = [ Param.make "branchId" TUuid "" ]
-      returnType = TInt64
-      description =
-        "Re-resolve and re-hash all WIP items on a branch. Returns count of changed items."
-      fn =
-        (function
-        | _, _, _, [ DUuid branchId ] ->
-          uply {
-            let! changes = LibPackageManager.WipRefresh.refresh pm branchId
-            return Dval.int64 changes
-          }
-        | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
-      previewable = Impure
       deprecated = NotDeprecated }
 
 
@@ -282,4 +264,5 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
       deprecated = NotDeprecated } ]
 
 
-let builtins (pm : PT.PackageManager) : Builtins = LibExecution.Builtin.make [] (fns pm)
+let builtins (pm : PT.PackageManager) : Builtins =
+  LibExecution.Builtin.make [] (fns pm)
