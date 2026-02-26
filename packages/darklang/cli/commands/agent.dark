@@ -175,17 +175,24 @@ let runCliCommand
       let allCommands = Stdlib.List.append readOnlyCommands writeCommands
       let commandExists = Stdlib.List.member_v0 allCommands commandName
 
+      // Check confirmation for write commands (avoid calling confirmCommand for read-only)
+      let userRejected =
+        if isWriteCommand && writeMode == WriteMode.Confirm then
+          Stdlib.Bool.not (confirmCommand cmd)
+        else
+          false
+
       if Stdlib.Bool.not commandExists then
         Stdlib.Result.Result.Error $"unknown command: {commandName}"
       else if isWriteCommand && (Stdlib.Bool.not writesAllowed) then
         Stdlib.Result.Result.Error "write commands not allowed in read-only mode"
-      else if isWriteCommand && writeMode == WriteMode.Confirm && (Stdlib.Bool.not (confirmCommand cmd)) then
+      else if userRejected then
         Stdlib.Result.Result.Error "command rejected by user"
       else
         match findCliExecutable with
         | None -> Stdlib.Result.Result.Error "Could not find CLI executable"
         | Some exe ->
-          let fullCmd = $"{exe} --branch {branchName} {cmd}"
+          let fullCmd = $"{exe} {branchName} {cmd}"
           Stdlib.printLine (Colors.dimText $"[agent] cli> {cmd}")
           let result = Stdlib.Cli.execute fullCmd
 
@@ -208,13 +215,15 @@ let runCliCommand
 let makeCliTool (branchName: String) (writeMode: WriteMode) : Darklang.LLM.Agent.Tool =
   let writesEnabled = writeMode != WriteMode.Denied
   let description = if writesEnabled then toolDescriptionWriteEnabled else toolDescriptionReadOnly
+  let bn = "--branch " ++ branchName
+  let wm = writeMode
   Darklang.LLM.Agent.makeTool "cli" description
     [ Darklang.LLM.Provider.stringParam "command" "CLI command to run" ]
     (fun input ->
       match input with
       | Object fields ->
         match Darklang.LLM.Internal.JsonHelpers.getString "command" fields with
-        | Some cmd -> runCliCommand branchName writeMode cmd
+        | Some cmd -> runCliCommand bn wm cmd
         | None -> Stdlib.Result.Result.Error "command required"
       | _ -> Stdlib.Result.Result.Error "invalid input")
 
@@ -286,7 +295,8 @@ let runAgent (state: Cli.AppState) (provider: String) (requestedProvider: Stdlib
   let branchName = currentBranchName state
   let agent = createAgent model branchName writeMode
   printAgentInfo provider requestedProvider model branchName
-  Stdlib.printLine (Colors.dimText $"[agent] mode: {writeModeLabel writeMode}")
+  let modeLabel = writeModeLabel writeMode
+  Stdlib.printLine (Colors.dimText $"[agent] mode: {modeLabel}")
   printResult (Darklang.LLM.Agent.run agent task)
 
 let runInteractiveLoop
@@ -322,7 +332,8 @@ let runInteractive (state: Cli.AppState) (provider: String) (requestedProvider: 
   let branchName = currentBranchName state
   let agent = createAgent model branchName writeMode
   printAgentInfo provider requestedProvider model branchName
-  Stdlib.printLine (Colors.dimText $"[agent] mode: {writeModeLabel writeMode}")
+  let modeLabel = writeModeLabel writeMode
+  Stdlib.printLine (Colors.dimText $"[agent] mode: {modeLabel}")
   Stdlib.printLine (Colors.dimText "[agent] interactive mode. Type ':q' to exit.")
   runInteractiveLoop agent []
 

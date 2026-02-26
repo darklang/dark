@@ -182,7 +182,7 @@ let typeToJson (typeName: String) (nullable: Bool) : Json =
     Json.String typeName
 
 /// Convert property to JSON Schema
-let rec propertyToJson (prop: Property) : Json =
+let propertyToJson (prop: Property) : Json =
   match prop with
   | StringProp data ->
     let fields =
