@@ -13,7 +13,7 @@ open Prelude
 
 module PT = LibExecution.ProgramTypes
 module HS = LibPackageManager.HashStabilization
-module NRR = LibPackageManager.NameReResolver
+module DR = LibPackageManager.DeferredResolver
 
 
 /// Re-resolve all items in Add+SetName pairs, using the location for context
@@ -30,7 +30,7 @@ let private reResolveAllItems
         match remaining with
         | PT.PackageOp.AddType t :: PT.PackageOp.SetTypeName(hash, loc) :: rest ->
           let! reResolved =
-            NRR.reResolveType pm branchId loc.owner loc.modules t |> Ply.toTask
+            DR.reResolveType pm branchId loc.owner loc.modules t |> Ply.toTask
 
           result.Add(PT.PackageOp.AddType reResolved)
           result.Add(PT.PackageOp.SetTypeName(hash, loc))
@@ -38,7 +38,7 @@ let private reResolveAllItems
 
         | PT.PackageOp.AddFn f :: PT.PackageOp.SetFnName(hash, loc) :: rest ->
           let! reResolved =
-            NRR.reResolveFn pm branchId loc.owner loc.modules f |> Ply.toTask
+            DR.reResolveFn pm branchId loc.owner loc.modules f |> Ply.toTask
 
           result.Add(PT.PackageOp.AddFn reResolved)
           result.Add(PT.PackageOp.SetFnName(hash, loc))
@@ -46,7 +46,7 @@ let private reResolveAllItems
 
         | PT.PackageOp.AddValue v :: PT.PackageOp.SetValueName(hash, loc) :: rest ->
           let! reResolved =
-            NRR.reResolveValue pm branchId loc.owner loc.modules v |> Ply.toTask
+            DR.reResolveValue pm branchId loc.owner loc.modules v |> Ply.toTask
 
           result.Add(PT.PackageOp.AddValue reResolved)
           result.Add(PT.PackageOp.SetValueName(hash, loc))

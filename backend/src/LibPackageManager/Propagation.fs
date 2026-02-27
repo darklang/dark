@@ -214,9 +214,9 @@ let private createAllItems
       let mutable allOps : List<PT.PackageOp> = []
       let mutable error : string option = None
 
-      // Process each dependent in BFS order (discovered layer by layer from source).
-      // Items closer to the source are processed first, so when we process an item
-      // that depends on another dependent, that dependent's hash is already in the mapping.
+      // Dependents are processed in BFS order from discoverDependents, which
+      // guarantees that all transitive dependencies of item N are processed
+      // before N itself, so the hash mapping is complete when each item is visited.
       for dep in dependents do
         if error.IsNone then
           let! result =

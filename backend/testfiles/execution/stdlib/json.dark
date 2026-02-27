@@ -1300,11 +1300,8 @@ module UserDefinedRecords =
             e2 = 5L } })
 
   module Errors =
-    // TODO: With content-addressed hashing, the type name in this error message
-    // is non-deterministic when structurally identical types exist (Person, Person1, Person2).
-    // Uncomment when pretty printer uses originalName from NameResolution.
-    // (Stdlib.Json.parse<Person> "[]") |> err = Result.Error
-    //   "Can't parse JSON `[]` as type `Person` at path: `root`"
+    (Stdlib.Json.parse<Person> "[]") |> err = Result.Error
+      "Can't parse JSON `[]` as type `Person` at path: `root`"
 
     // Extra fields are allowed, but missing fields are not
     (Stdlib.Json.parse<Person> "{\"notAField\": 5}") |> err = Result.Error

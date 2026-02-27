@@ -397,17 +397,6 @@ let combine
       } }
 
 
-/// No-op: all content hashes are computed at parse time from content.
-/// Kept for API compatibility with callers (TestModule.fs, Canvas.fs).
-/// TODO: remove callers and this function.
-let stabilizeOpsAgainstPM
-  (_branchId : PT.BranchId)
-  (_referencePM : PT.PackageManager)
-  (ops : List<PT.PackageOp>)
-  : Ply<List<PT.PackageOp>> =
-  Ply ops
-
-
 /// Create an in-memory PackageManager from PackageOps
 /// (at time of writing, only really useful for tests and from-disk parsing)
 let withExtraOps

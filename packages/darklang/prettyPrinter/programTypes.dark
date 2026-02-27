@@ -22,6 +22,11 @@ let formatDocComment (description: String) : String =
     |> fun s -> s ++ "\n"
 
 
+/// Format a content hash for display when PM lookup fails.
+/// Shows first 8 chars to keep output readable.
+let shortHash (hash: String) : String =
+  $"<hash:{Stdlib.String.first hash 8L}>"
+
 module NameResolutionError =
   let source (originalName: List<String>) : String =
     Stdlib.String.join originalName "."
@@ -108,7 +113,7 @@ module FQTypeName =
       : String =
       match Builtin.pmGetLocationByType ctx.branchId id with
       | Some l -> l.name
-      | None -> id
+      | None -> shortHash id
 
     let fullForReference
       (ctx: Context)
@@ -117,7 +122,7 @@ module FQTypeName =
       match Builtin.pmGetLocationByType ctx.branchId id with
       | Some l ->
         packageNameWithContext ctx l.owner l.modules l.name
-      | None -> id
+      | None -> shortHash id
 
 
   let atDefinition
@@ -159,7 +164,7 @@ module FQValueName =
       : String =
       match Builtin.pmGetLocationByValue ctx.branchId id with
       | Some l -> l.name
-      | None -> id
+      | None -> shortHash id
 
     let fullForReference
       (ctx: Context)
@@ -168,7 +173,7 @@ module FQValueName =
       match Builtin.pmGetLocationByValue ctx.branchId id with
       | Some l ->
         packageNameWithContext ctx l.owner l.modules l.name
-      | None -> id
+      | None -> shortHash id
 
 
 
@@ -216,7 +221,7 @@ module FQFnName =
       : String =
       match Builtin.pmGetLocationByFn ctx.branchId id with
       | Some l -> l.name
-      | None -> id
+      | None -> shortHash id
 
     let fullForReference
       (ctx: Context)
@@ -225,7 +230,7 @@ module FQFnName =
       match Builtin.pmGetLocationByFn ctx.branchId id with
       | Some l ->
         packageNameWithContext ctx l.owner l.modules l.name
-      | None -> id
+      | None -> shortHash id
 
 
   let atDefinition

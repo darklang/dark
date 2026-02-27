@@ -19,12 +19,17 @@ module PTC = LibSerialization.Binary.Serializers.PT.Common
 module ExprS = LibSerialization.Binary.Serializers.PT.Expr
 
 /// Controls how package references are written during hashing.
-/// `resolvedDeps` maps old ContentHash → finalized ContentHash for
-/// dependencies in already-processed SCCs (topological order).
-/// `sccNames` maps intra-SCC ContentHash → FQN string for cycle-breaking.
 type HashRefMode =
-  { resolvedDeps : Map<ContentHash, ContentHash>
-    sccNames : Map<ContentHash, string> }
+  {
+    /// Deps from already-processed SCCs (topological order);
+    /// their hashes are final and can be used directly.
+    resolvedDeps : Map<ContentHash, ContentHash>
+
+    /// Items within the current SCC whose hashes can't be known yet
+    /// (circular dependency); use FQN strings instead of hashes to
+    /// break the circularity.
+    sccNames : Map<ContentHash, string>
+  }
 
 let Normal = { resolvedDeps = Map.empty; sccNames = Map.empty }
 

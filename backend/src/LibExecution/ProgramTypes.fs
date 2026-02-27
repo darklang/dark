@@ -576,6 +576,40 @@ type PackageLocation =
     modules : List<string>
     name : string }
 
+  member this.toFQN() : string =
+    let modulesStr = this.modules |> String.concat "."
+    $"{this.owner}.{modulesStr}.{this.name}"
+
+/// Shared name resolution utilities used by both the parser (NameResolver)
+/// and the runtime deferred resolver (DeferredResolver). Changes here must
+/// be kept in sync with both consumers.
+module NameLookup =
+  type GenericName = { modules : List<string>; name : string; version : int }
+
+  /// Generate candidate fully-qualified names to try, from most specific to
+  /// least specific.
+  ///
+  /// Given the name `Option.Option` while in module `Darklang.Stdlib`, tries:
+  ///   Darklang.Stdlib.Option.Option, Darklang.Option.Option, Option.Option
+  let namesToTry
+    (currentModule : List<string>)
+    (given : GenericName)
+    : List<GenericName> =
+    let rec loop (modulesToPrepend : List<string>) : List<GenericName> =
+      match List.splitLast modulesToPrepend with
+      | None -> [ given ]
+      | Some(allButLast, _) ->
+        let newNameToTry = { given with modules = modulesToPrepend @ given.modules }
+        newNameToTry :: loop allButLast
+
+    // handle explicit Stdlib.etc shortcut
+    let addl =
+      match given.modules with
+      | "Stdlib" :: _ -> [ { given with modules = "Darklang" :: given.modules } ]
+      | _ -> []
+
+    (loop currentModule) @ addl
+
 
 module PackageType =
   // CLEANUP most of the time, the deprecation status isn't a useful thing in F# land.

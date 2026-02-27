@@ -67,27 +67,21 @@ let computeRealHashes (ops : List<PT.PackageOp>) : List<PT.PackageOp> =
     | PT.PackageOp.SetTypeName(id, loc) ->
       match pendingType with
       | Some t ->
-        let modulesStr = loc.modules |> String.concat "."
-        let fqn = $"{loc.owner}.{modulesStr}.{loc.name}"
-        types.Add((id, t, fqn))
+        types.Add((id, t, loc.toFQN ()))
         pendingType <- None
       | None -> ()
     | PT.PackageOp.AddFn f -> pendingFn <- Some f
     | PT.PackageOp.SetFnName(id, loc) ->
       match pendingFn with
       | Some f ->
-        let modulesStr = loc.modules |> String.concat "."
-        let fqn = $"{loc.owner}.{modulesStr}.{loc.name}"
-        fns.Add((id, f, fqn))
+        fns.Add((id, f, loc.toFQN ()))
         pendingFn <- None
       | None -> ()
     | PT.PackageOp.AddValue v -> pendingValue <- Some v
     | PT.PackageOp.SetValueName(id, loc) ->
       match pendingValue with
       | Some v ->
-        let modulesStr = loc.modules |> String.concat "."
-        let fqn = $"{loc.owner}.{modulesStr}.{loc.name}"
-        values.Add((id, v, fqn))
+        values.Add((id, v, loc.toFQN ()))
         pendingValue <- None
       | None -> ()
     | _ -> ()
@@ -162,9 +156,7 @@ let computeRealHashes (ops : List<PT.PackageOp>) : List<PT.PackageOp> =
   let rec processOps (remaining : List<PT.PackageOp>) (acc : List<PT.PackageOp>) =
     match remaining with
     | PT.PackageOp.AddType t :: PT.PackageOp.SetTypeName(id, loc) :: rest ->
-      let modulesStr = loc.modules |> String.concat "."
-      let fqn = $"{loc.owner}.{modulesStr}.{loc.name}"
-      let hash = Map.tryFind fqn fqnHashMap |> Option.defaultValue id
+      let hash = Map.tryFind (loc.toFQN ()) fqnHashMap |> Option.defaultValue id
       let transformed = { AT.transformType oldToNewHash t with hash = hash }
       processOps
         rest
@@ -172,17 +164,13 @@ let computeRealHashes (ops : List<PT.PackageOp>) : List<PT.PackageOp> =
          :: PT.PackageOp.AddType transformed
          :: acc)
     | PT.PackageOp.AddFn f :: PT.PackageOp.SetFnName(id, loc) :: rest ->
-      let modulesStr = loc.modules |> String.concat "."
-      let fqn = $"{loc.owner}.{modulesStr}.{loc.name}"
-      let hash = Map.tryFind fqn fqnHashMap |> Option.defaultValue id
+      let hash = Map.tryFind (loc.toFQN ()) fqnHashMap |> Option.defaultValue id
       let transformed = { AT.transformFn oldToNewHash f with hash = hash }
       processOps
         rest
         (PT.PackageOp.SetFnName(hash, loc) :: PT.PackageOp.AddFn transformed :: acc)
     | PT.PackageOp.AddValue v :: PT.PackageOp.SetValueName(id, loc) :: rest ->
-      let modulesStr = loc.modules |> String.concat "."
-      let fqn = $"{loc.owner}.{modulesStr}.{loc.name}"
-      let hash = Map.tryFind fqn fqnHashMap |> Option.defaultValue id
+      let hash = Map.tryFind (loc.toFQN ()) fqnHashMap |> Option.defaultValue id
       let transformed = { AT.transformValue oldToNewHash v with hash = hash }
       processOps
         rest

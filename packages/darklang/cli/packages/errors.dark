@@ -1,0 +1,33 @@
+module Darklang.Cli.Packages.Errors
+
+
+/// Prints unresolved name errors and returns true if there were any errors.
+/// Used by fn.dark, type.dark, and value.dark after name resolution.
+let reportUnresolvedNames
+  (unresolvedNames:
+    List<LanguageTools.Parser.Range
+      * List<String>
+      * LanguageTools.ProgramTypes.NameResolutionError>)
+  : Bool =
+  if (Stdlib.List.isEmpty unresolvedNames) |> Stdlib.Bool.not then
+    Stdlib.printLine (Colors.error "Error: Unresolved references")
+    Stdlib.printLine ""
+
+    unresolvedNames
+    |> Stdlib.List.iter (fun (range, originalName, err) ->
+      let lineNum = (range.start.row + 1L) |> Stdlib.Int64.toString
+      let colNum = range.start.column |> Stdlib.Int64.toString
+      let nameStr = Stdlib.String.join originalName "."
+
+      match err with
+      | NotFound ->
+        Stdlib.printLine
+          $"  - Not found: {nameStr} (line {lineNum}, column {colNum})"
+      | InvalidName ->
+        Stdlib.printLine
+          $"  - Invalid name: {nameStr} (line {lineNum}, column {colNum})")
+
+    Stdlib.printLine ""
+    true
+  else
+    false

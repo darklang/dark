@@ -46,39 +46,9 @@ let throwIfRelevant
           | OnMissing.Allow -> err) }
 
 
-type GenericName = { modules : List<string>; name : string; version : int }
+type GenericName = PT.NameLookup.GenericName
 
-/// If we're 'given' the name `Option.Option`
-/// and we're parsing in `Darklang.Stdlib`,
-///
-/// We should look for the thing in the following places:
-/// - Darklang.Stdlib.Option.Option
-/// - Darklang.Option.Option
-/// - Option.Option
-/// , in that order (most specific first).
-///
-/// TODO?: accept an Option<string> of the _owner_ as well.
-/// I think that'll be useful in many contexts to help resolve names...
-let namesToTry
-  (currentModule : List<string>)
-  (given : GenericName)
-  : List<GenericName> =
-  let rec loop (modulesToPrepend : List<string>) : List<GenericName> =
-    match List.splitLast modulesToPrepend with
-    | None -> [ given ]
-
-    | Some(allButLast, _last) ->
-      let newNameToTry = { given with modules = modulesToPrepend @ given.modules }
-      newNameToTry :: loop allButLast
-
-  // handle explicit Stdlib.etc shortcut
-  let addl =
-    match given.modules with
-    | "Stdlib" :: _ -> [ { given with modules = "Darklang" :: given.modules } ]
-    // TODO: additional shortcuts for Option and Result, at least?
-    | _ -> []
-
-  (loop currentModule) @ addl
+let namesToTry = PT.NameLookup.namesToTry
 
 
 /// Generic name resolution that handles the common pattern across Type/Value/Fn resolution
@@ -103,7 +73,8 @@ let resolveGenericName<'FQName, 'Builtin when 'Builtin : comparison>
     | Error _ ->
       return { originalName = originalName; resolved = Error NRE.InvalidName }
     | Ok(name, version) ->
-      let genericName = { modules = modules; name = name; version = version }
+      let genericName : GenericName =
+        { modules = modules; name = name; version = version }
 
       let tryResolve (nameToTry : GenericName) : Ply<Result<'FQName, unit>> =
         uply {

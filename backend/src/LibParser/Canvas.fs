@@ -352,25 +352,14 @@ let parse
 
     let moduleWT = parseDecls owner canvasName decls
 
-    // Two-phase parsing with ID stabilization:
+    // Two-phase parsing:
     // First pass: parse with OnMissing.Allow to allow forward references
     let! firstPass =
       toPT builtins PT.PackageManager.empty NR.OnMissing.Allow moduleWT
 
-    // Extract ops from first pass for second pass PackageManager
-    let firstPassOps = firstPass.ops
-
     // Second pass: re-parse with PackageManager containing first pass results
-    let enhancedPM = LibPackageManager.PackageManager.withExtraOps pm firstPassOps
+    let enhancedPM = LibPackageManager.PackageManager.withExtraOps pm firstPass.ops
     let! secondPass = toPT builtins enhancedPM onMissing moduleWT
 
-    // ID stabilization: adjust second pass IDs to match first pass IDs
-    let firstPassPM = LibPackageManager.PackageManager.createInMemory firstPassOps
-    let! adjustedOps =
-      LibPackageManager.PackageManager.stabilizeOpsAgainstPM
-        PT.mainBranchId
-        firstPassPM
-        secondPass.ops
-
-    return { secondPass with ops = adjustedOps }
+    return secondPass
   }

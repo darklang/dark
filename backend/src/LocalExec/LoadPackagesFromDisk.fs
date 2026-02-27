@@ -91,15 +91,10 @@ let load (builtins : RT.Builtins) : Ply<List<PT.PackageOp>> =
         let itemLocs =
           newOps
           |> List.choose (function
-            | PT.PackageOp.SetTypeName(hash, loc) ->
-              let mods = String.concat "." loc.modules
-              Some(hash, "type", $"{loc.owner}.{mods}.{loc.name}")
-            | PT.PackageOp.SetFnName(hash, loc) ->
-              let mods = String.concat "." loc.modules
-              Some(hash, "fn", $"{loc.owner}.{mods}.{loc.name}")
+            | PT.PackageOp.SetTypeName(hash, loc) -> Some(hash, "type", loc.toFQN ())
+            | PT.PackageOp.SetFnName(hash, loc) -> Some(hash, "fn", loc.toFQN ())
             | PT.PackageOp.SetValueName(hash, loc) ->
-              let mods = String.concat "." loc.modules
-              Some(hash, "value", $"{loc.owner}.{mods}.{loc.name}")
+              Some(hash, "value", loc.toFQN ())
             | _ -> None)
         let changes =
           List.zip prevHashes newHashes

@@ -200,7 +200,6 @@ WHERE owner = 'Darklang'
     ('LanguageTools.PackageManager', 'pm', 'fn'),
 
     -- Fn.PrettyPrinter
-    ('PrettyPrinter.RuntimeTypes', 'expr', 'fn'),
     ('PrettyPrinter.RuntimeTypes', 'dval', 'fn'),
     ('PrettyPrinter.RuntimeTypes', 'fnName', 'fn'),
     ('PrettyPrinter.RuntimeTypes', 'typeReference', 'fn'),

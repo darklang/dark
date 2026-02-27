@@ -220,6 +220,54 @@ let tests =
 
 
       testList
+        "placeholder hashes (toFQN-based)"
+        [ test "same location gives same FQN" {
+            let loc : PT.PackageLocation =
+              { owner = "Test"; modules = [ "Mod" ]; name = "Foo" }
+            Expect.equal (loc.toFQN ()) (loc.toFQN ()) "FQN should be deterministic"
+          }
+
+          test "different locations give different FQNs" {
+            let loc1 : PT.PackageLocation =
+              { owner = "Test"; modules = [ "Mod" ]; name = "Foo" }
+            let loc2 : PT.PackageLocation =
+              { owner = "Test"; modules = [ "Mod" ]; name = "Bar" }
+            Expect.notEqual
+              (loc1.toFQN ())
+              (loc2.toFQN ())
+              "different names should differ"
+          }
+
+          test "FQN format matches expected pattern" {
+            let loc : PT.PackageLocation =
+              { owner = "Darklang"; modules = [ "Stdlib"; "List" ]; name = "map" }
+            Expect.equal
+              (loc.toFQN ())
+              "Darklang.Stdlib.List.map"
+              "FQN should be owner.modules.name"
+          }
+
+          test "FQN-based SHA-256 produces valid content hash" {
+            let loc : PT.PackageLocation =
+              { owner = "Test"; modules = [ "Mod" ]; name = "Foo" }
+            let nameKey = loc.toFQN ()
+            let nameBytes =
+              System.Security.Cryptography.SHA256.HashData(
+                System.Text.Encoding.UTF8.GetBytes(nameKey)
+              )
+            let hash =
+              ContentHash(
+                System.BitConverter
+                  .ToString(nameBytes)
+                  .Replace("-", "")
+                  .ToLowerInvariant()
+              )
+            let (ContentHash h) = hash
+            Expect.isTrue (h.Length = 64) "should be 64 hex chars (SHA-256)"
+          } ]
+
+
+      testList
         "SCC batch hashing"
         [ test "two mutually-recursive types get stable hashes" {
             let id1 = ContentHash "test-scc-type-1"
@@ -248,4 +296,180 @@ let tests =
               (Map.find "Test.A" hashes1)
               (Map.find "Test.B" hashes1)
               "different items in SCC should have different hashes"
+          }
+
+
+          test "3-node cycle A->B->C->A gets stable hashes" {
+            let idA = ContentHash "test-3cycle-A"
+            let idB = ContentHash "test-3cycle-B"
+            let idC = ContentHash "test-3cycle-C"
+            let typA =
+              { (makeType (PT.TypeDeclaration.Alias PT.TInt64)) with hash = idA }
+            let typB =
+              { (makeType (PT.TypeDeclaration.Alias PT.TString)) with hash = idB }
+            let typC =
+              { (makeType (PT.TypeDeclaration.Alias PT.TBool)) with hash = idC }
+
+            let types =
+              [ ("Test.A", (typA, idA))
+                ("Test.B", (typB, idB))
+                ("Test.C", (typC, idC)) ]
+              |> Map.ofList
+
+            // A->B->C->A cycle
+            let getDeps fqn =
+              if fqn = "Test.A" then [ "Test.B" ]
+              elif fqn = "Test.B" then [ "Test.C" ]
+              elif fqn = "Test.C" then [ "Test.A" ]
+              else []
+
+            let hashes1 =
+              Hashing.computeHashesWithSCCs types Map.empty Map.empty getDeps
+            let hashes2 =
+              Hashing.computeHashesWithSCCs types Map.empty Map.empty getDeps
+
+            // Deterministic
+            Expect.equal hashes1 hashes2 "3-node SCC hashes should be deterministic"
+
+            // All three items should get distinct hashes despite being in the same SCC
+            let hashA = Map.find "Test.A" hashes1
+            let hashB = Map.find "Test.B" hashes1
+            let hashC = Map.find "Test.C" hashes1
+            Expect.notEqual hashA hashB "A and B should have different hashes"
+            Expect.notEqual hashB hashC "B and C should have different hashes"
+            Expect.notEqual hashA hashC "A and C should have different hashes"
+          }
+
+
+          test "3-node cycle is order-independent" {
+            let idA = ContentHash "test-3cycle-A"
+            let idB = ContentHash "test-3cycle-B"
+            let idC = ContentHash "test-3cycle-C"
+            let typA =
+              { (makeType (PT.TypeDeclaration.Alias PT.TInt64)) with hash = idA }
+            let typB =
+              { (makeType (PT.TypeDeclaration.Alias PT.TString)) with hash = idB }
+            let typC =
+              { (makeType (PT.TypeDeclaration.Alias PT.TBool)) with hash = idC }
+
+            let getDeps fqn =
+              if fqn = "Test.A" then [ "Test.B" ]
+              elif fqn = "Test.B" then [ "Test.C" ]
+              elif fqn = "Test.C" then [ "Test.A" ]
+              else []
+
+            // Declaration order 1: A, B, C
+            let types1 =
+              [ ("Test.A", (typA, idA))
+                ("Test.B", (typB, idB))
+                ("Test.C", (typC, idC)) ]
+              |> Map.ofList
+
+            // Declaration order 2: C, A, B
+            let types2 =
+              [ ("Test.C", (typC, idC))
+                ("Test.A", (typA, idA))
+                ("Test.B", (typB, idB)) ]
+              |> Map.ofList
+
+            let hashes1 =
+              Hashing.computeHashesWithSCCs types1 Map.empty Map.empty getDeps
+            let hashes2 =
+              Hashing.computeHashesWithSCCs types2 Map.empty Map.empty getDeps
+
+            Expect.equal
+              (Map.find "Test.A" hashes1)
+              (Map.find "Test.A" hashes2)
+              "A hash should be same regardless of declaration order"
+            Expect.equal
+              (Map.find "Test.B" hashes1)
+              (Map.find "Test.B" hashes2)
+              "B hash should be same regardless of declaration order"
+            Expect.equal
+              (Map.find "Test.C" hashes1)
+              (Map.find "Test.C" hashes2)
+              "C hash should be same regardless of declaration order"
+          }
+
+
+          test "self-recursive type does not infinite loop and gets stable hash" {
+            let idT = ContentHash "test-self-recursive"
+            // A type that references itself (like a linked list node)
+            let typ =
+              { (makeType (
+                  PT.TypeDeclaration.Record(
+                    NEList.ofListUnsafe
+                      ""
+                      []
+                      [ { name = "value"; typ = PT.TInt64; description = "" }
+                        { name = "next"
+                          typ =
+                            PT.TCustomType(
+                              PT.NameResolution.ok (PT.FQTypeName.fqPackage idT),
+                              []
+                            )
+                          description = "" } ]
+                  )
+                )) with
+                  hash = idT }
+
+            let types = [ ("Test.T", (typ, idT)) ] |> Map.ofList
+
+            // Self-loop: T depends on T
+            let getDeps fqn = if fqn = "Test.T" then [ "Test.T" ] else []
+
+            let hashes1 =
+              Hashing.computeHashesWithSCCs types Map.empty Map.empty getDeps
+            let hashes2 =
+              Hashing.computeHashesWithSCCs types Map.empty Map.empty getDeps
+
+            // Should terminate and produce deterministic results
+            Expect.equal
+              hashes1
+              hashes2
+              "self-recursive type hash should be deterministic"
+
+            // Should produce a valid hash
+            let (ContentHash h) = Map.findUnsafe "Test.T" hashes1
+            Expect.isTrue (h.Length = 64) "should be 64 hex chars (SHA-256)"
+          }
+
+
+          test "mixed cycle: type and fn that mutually depend on each other" {
+            let idTyp = ContentHash "test-mixed-type"
+            let idFn = ContentHash "test-mixed-fn"
+
+            // A type that (via getDeps) depends on the function
+            let typ =
+              { (makeType (PT.TypeDeclaration.Alias PT.TInt64)) with hash = idTyp }
+
+            // A function that (via getDeps) depends on the type
+            let fn = { (makeFn (eInt64 42)) with hash = idFn }
+
+            let types = [ ("Test.MyType", (typ, idTyp)) ] |> Map.ofList
+            let fns = [ ("Test.myFn", (fn, idFn)) ] |> Map.ofList
+
+            // MyType depends on myFn, myFn depends on MyType
+            let getDeps fqn =
+              if fqn = "Test.MyType" then [ "Test.myFn" ]
+              elif fqn = "Test.myFn" then [ "Test.MyType" ]
+              else []
+
+            let hashes1 = Hashing.computeHashesWithSCCs types fns Map.empty getDeps
+            let hashes2 = Hashing.computeHashesWithSCCs types fns Map.empty getDeps
+
+            // Deterministic
+            Expect.equal hashes1 hashes2 "mixed SCC hashes should be deterministic"
+
+            // Type and fn should get distinct hashes
+            Expect.notEqual
+              (Map.find "Test.MyType" hashes1)
+              (Map.find "Test.myFn" hashes1)
+              "type and fn in mixed SCC should have different hashes"
+
+            // Both hashes should be valid SHA-256
+            let (ContentHash hTyp) = Map.findUnsafe "Test.MyType" hashes1
+            let (ContentHash hFn) = Map.findUnsafe "Test.myFn" hashes1
+            Expect.isTrue (hTyp.Length = 64) "type hash should be 64 hex chars"
+            Expect.isTrue (hFn.Length = 64) "fn hash should be 64 hex chars"
           } ] ]

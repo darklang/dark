@@ -168,8 +168,7 @@ let parse
       // Each item needs a unique key so computeRealHashes' maps work correctly.
       // The real content hash replaces this in LoadPackagesFromDisk.computeRealHashes.
       let nameBasedHash (loc : PT.PackageLocation) : ContentHash =
-        let modulesStr = String.concat "." loc.modules
-        let nameKey = $"{loc.owner}.{modulesStr}.{loc.name}"
+        let nameKey = loc.toFQN ()
         let nameBytes =
           System.Security.Cryptography.SHA256.HashData(
             System.Text.Encoding.UTF8.GetBytes(nameKey)

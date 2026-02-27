@@ -78,22 +78,7 @@ let createValueInline
             writtenValue
 
         // Check for unresolved names
-        if (Stdlib.List.isEmpty unresolvedNames) |> Stdlib.Bool.not then
-          Stdlib.printLine (Colors.error "Error: Unresolved references")
-          Stdlib.printLine ""
-
-          unresolvedNames
-          |> Stdlib.List.iter (fun (range, originalName, err) ->
-            let lineNum = (range.start.row + 1L) |> Stdlib.Int64.toString
-            let colNum = range.start.column |> Stdlib.Int64.toString
-            let nameStr = Stdlib.String.join originalName "."
-            match err with
-            | NotFound ->
-              Stdlib.printLine $"  - Not found: {nameStr} (line {lineNum}, column {colNum})"
-            | InvalidName ->
-              Stdlib.printLine $"  - Invalid name: {nameStr} (line {lineNum}, column {colNum})")
-
-          Stdlib.printLine ""
+        if Errors.reportUnresolvedNames unresolvedNames then
           state
         // no unresolved names - keep going
         else

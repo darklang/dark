@@ -7,7 +7,7 @@
 ///
 /// Parallel structure to AstTransformer.fs, but instead of replacing hashes,
 /// it resolves Error names to Ok via PM lookups.
-module LibPackageManager.NameReResolver
+module LibPackageManager.DeferredResolver
 
 open Prelude
 
@@ -15,30 +15,12 @@ module PT = LibExecution.ProgramTypes
 
 
 // --------------------------------------------------------------------------
-// Name resolution helpers (mirrors LibParser.NameResolver logic)
+// Name resolution helpers (shared logic in PT.NameLookup)
 // --------------------------------------------------------------------------
 
-type private GenericName = { modules : List<string>; name : string; version : int }
+type GenericName = PT.NameLookup.GenericName
 
-/// Generate candidate fully-qualified names to try, from most specific to
-/// least specific. Mirrors LibParser.NameResolver.namesToTry.
-let private namesToTry
-  (currentModule : List<string>)
-  (given : GenericName)
-  : List<GenericName> =
-  let rec loop (modulesToPrepend : List<string>) : List<GenericName> =
-    match List.splitLast modulesToPrepend with
-    | None -> [ given ]
-    | Some(allButLast, _) ->
-      let newNameToTry = { given with modules = modulesToPrepend @ given.modules }
-      newNameToTry :: loop allButLast
-
-  let addl =
-    match given.modules with
-    | "Stdlib" :: _ -> [ { given with modules = "Darklang" :: given.modules } ]
-    | _ -> []
-
-  (loop currentModule) @ addl
+let private namesToTry = PT.NameLookup.namesToTry
 
 
 /// Parse a type name: just the name, version is always 0
@@ -92,13 +74,14 @@ let private reResolveNameResolution
         match parseName lastName with
         | Error _ -> return nr
         | Ok(name, version) ->
-          let genericName = { modules = modules; name = name; version = version }
+          let genericName : GenericName =
+            { modules = modules; name = name; version = version }
 
           let candidates = namesToTry contextModules genericName
 
           let! result =
             Ply.List.foldSequentially
-              (fun acc candidate ->
+              (fun acc (candidate : GenericName) ->
                 match acc with
                 | Some _ -> Ply acc
                 | None ->
