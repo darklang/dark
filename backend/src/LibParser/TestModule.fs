@@ -18,10 +18,7 @@ type WTExpected =
   | WTExpectedError of string
 
 type WTTest =
-  { name : string
-    lineNumber : int
-    actual : WT.Expr
-    expected : WTExpected }
+  { name : string; lineNumber : int; actual : WT.Expr; expected : WTExpected }
 
 type WTModule =
   { name : List<string>
@@ -39,10 +36,7 @@ type PTExpected =
   | PTExpectedError of string
 
 type PTTest =
-  { name : string
-    lineNumber : int
-    actual : PT.Expr
-    expected : PTExpected }
+  { name : string; lineNumber : int; actual : PT.Expr; expected : PTExpected }
 
 type PTModule =
   { name : List<string>
@@ -99,15 +93,19 @@ let parseTest (ast : SynExpr) : WTTest =
         convert actualExpr, WTExpectedError(String.normalize errorMessage)
       // Also support direct shape where RHS parses as `error "msg"`
       | _,
-        SynExpr.App(_, _, SynExpr.Ident marker, SynExpr.Const(SynConst.String(errorMessage, _, _), _), _)
-        when marker.idText = "error"
-        ->
+        SynExpr.App(_,
+                    _,
+                    SynExpr.Ident marker,
+                    SynExpr.Const(SynConst.String(errorMessage, _, _), _),
+                    _) when marker.idText = "error" ->
         convert actual, WTExpectedError(String.normalize errorMessage)
       // Back-compat for existing SQL compiler tests that used Builtin.testDerrorSqlMessage
       | _,
-        SynExpr.App(_, _, fnExpr, SynExpr.Const(SynConst.String(errorMessage, _, _), _), _)
-        when isBuiltinTestDerrorSqlMessage fnExpr
-        ->
+        SynExpr.App(_,
+                    _,
+                    fnExpr,
+                    SynExpr.Const(SynConst.String(errorMessage, _, _), _),
+                    _) when isBuiltinTestDerrorSqlMessage fnExpr ->
         let msg = LibExecution.RTQueryCompiler.errorTemplate + errorMessage
         convert actual, WTExpectedError(String.normalize msg)
       | _ -> convert actual, WTExpectedExpr(convert expectedExpr)
@@ -302,13 +300,14 @@ let toPT
                 // Back-compat for SQL compiler tests:
                 // `x = Builtin.testDerrorSqlMessage "..."` should assert on error message text.
                 | PT.EApply(_,
-                            PT.EFnName(
-                              _,
-                              Ok(PT.FQFnName.Builtin { name = "testDerrorSqlMessage"; version = 0 })
-                            ),
+                            PT.EFnName(_,
+                                       Ok(PT.FQFnName.Builtin { name = "testDerrorSqlMessage"
+                                                                version = 0 })),
                             [],
-                            { head = PT.EString(_, [ PT.StringText errorMessage ]); tail = [] }) ->
-                  let msg = LibExecution.RTQueryCompiler.errorTemplate + errorMessage
+                            { head = PT.EString(_, [ PT.StringText errorMessage ])
+                              tail = [] }) ->
+                  let msg =
+                    LibExecution.RTQueryCompiler.errorTemplate + errorMessage
                   return PTExpected.PTExpectedError(String.normalize msg)
                 | _ -> return PTExpected.PTExpectedExpr expected
               | WTExpectedError msg -> return PTExpected.PTExpectedError msg

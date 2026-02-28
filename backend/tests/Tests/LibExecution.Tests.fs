@@ -101,8 +101,7 @@ let runtimeErrorMessage
       return
         Exception.raiseInternal
           "Alleged RTE was not an RTE  (failed type-check)"
-          [ "reverseTypeCheckPath", reverseTypeCheckPath
-            "allegedRTE", allegedRTE ]
+          [ "reverseTypeCheckPath", reverseTypeCheckPath; "allegedRTE", allegedRTE ]
   }
 
 
@@ -181,14 +180,14 @@ let t
             let! expected = Exe.executeExpr state expected
             return Some expected
           }
-        | LibParser.TestModule.PTExpected.PTExpectedError _ ->
-          Task.FromResult None
+        | LibParser.TestModule.PTExpected.PTExpectedError _ -> Task.FromResult None
 
       if System.Environment.GetEnvironmentVariable "DEBUG" <> null then
         debuGList "results" (Dictionary.toList results |> List.sortBy fst)
 
       let actual = Result.map normalizeDvalResult actual
-      let expectedValueResult = expectedValueResult |> Option.map (Result.map normalizeDvalResult)
+      let expectedValueResult =
+        expectedValueResult |> Option.map (Result.map normalizeDvalResult)
 
       match expected with
       | LibParser.TestModule.PTExpected.PTExpectedExpr _ ->
@@ -201,7 +200,8 @@ let t
             Expect.isTrue canonical "expected is canonicalized"
 
         match expectedValueResult with
-        | None -> return Expect.isTrue false "expected value result should be present"
+        | None ->
+          return Expect.isTrue false "expected value result should be present"
         | Some expected ->
           let expectedErrorMessage =
             match expected with
@@ -215,7 +215,8 @@ let t
           | Some expectedMsg ->
             match actual with
             | Error(allegedRTE, callStack) ->
-              let! actualMsg = runtimeErrorMessage state allegedRTE callStack |> Ply.toTask
+              let! actualMsg =
+                runtimeErrorMessage state allegedRTE callStack |> Ply.toTask
               return Expect.equal actualMsg expectedMsg ""
             | Ok actual ->
               return
@@ -227,9 +228,11 @@ let t
             match actual, expected with
             | Ok actual, Ok expected ->
               return
-                Expect.RT.equalDval actual expected (msg (Some expected) (Some actual))
-            | _ ->
-              return Expect.equal actual expected (msg None None)
+                Expect.RT.equalDval
+                  actual
+                  expected
+                  (msg (Some expected) (Some actual))
+            | _ -> return Expect.equal actual expected (msg None None)
 
       | LibParser.TestModule.PTExpected.PTExpectedError expectedError ->
         match actual with
@@ -241,7 +244,8 @@ let t
               None
               $"Expected runtime error `{expectedError}` but expression returned a value.\n\nTest location: {filename}:{lineNumber}"
         | Error(allegedRTE, callStack) ->
-          let! actualError = runtimeErrorMessage state allegedRTE callStack |> Ply.toTask
+          let! actualError =
+            runtimeErrorMessage state allegedRTE callStack |> Ply.toTask
           return Expect.equal actualError expectedError ""
     with
     | :? Expecto.AssertException as e -> Exception.reraise e
