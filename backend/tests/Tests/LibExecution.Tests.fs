@@ -50,7 +50,7 @@ let setupDBs (canvasID : CanvasID) (dbs : List<PT.DB.T>) : Task<unit> =
 
 let runtimeErrorMessage
   (state : RT.ExecutionState)
-  (allegedRTE : RT.RuntimeError)
+  (allegedRTE : RT.RuntimeError.Error)
   (callStack : RT.CallStack)
   : Ply<string> =
   uply {
@@ -173,15 +173,16 @@ let t
       let actual = actual |> PT2RT.Expr.toRT Map.empty 0 None
       let! (actual : RT.ExecutionResult) = Exe.executeExpr state actual
 
-      let! expectedValueResult : Option<RT.ExecutionResult> =
-        uply {
-          match expected with
-          | LibParser.TestModule.PTExpected.ExpectedExpr expected ->
+      let! expectedValueResult =
+        match expected with
+        | LibParser.TestModule.PTExpected.PTExpectedExpr expected ->
+          task {
             let expected = expected |> PT2RT.Expr.toRT Map.empty 0 None
             let! expected = Exe.executeExpr state expected
             return Some expected
-          | LibParser.TestModule.PTExpected.ExpectedError _ -> return None
-        }
+          }
+        | LibParser.TestModule.PTExpected.PTExpectedError _ ->
+          Task.FromResult None
 
       if System.Environment.GetEnvironmentVariable "DEBUG" <> null then
         debuGList "results" (Dictionary.toList results |> List.sortBy fst)
@@ -190,7 +191,7 @@ let t
       let expectedValueResult = expectedValueResult |> Option.map (Result.map normalizeDvalResult)
 
       match expected with
-      | LibParser.TestModule.PTExpected.ExpectedExpr _ ->
+      | LibParser.TestModule.PTExpected.PTExpectedExpr _ ->
         match actual with
         | Error _ -> ()
         | Ok actual ->
@@ -202,13 +203,35 @@ let t
         match expectedValueResult with
         | None -> return Expect.isTrue false "expected value result should be present"
         | Some expected ->
-          match actual, expected with
-          | Ok actual, Ok expected ->
-            return
-              Expect.RT.equalDval actual expected (msg (Some expected) (Some actual))
-          | _ -> return Expect.equal actual expected (msg None None)
+          let expectedErrorMessage =
+            match expected with
+            | Ok(RT.DEnum(_, _, _, "ErrorString", fields)) ->
+              match fields with
+              | RT.DString msg :: _ -> Some msg
+              | _ -> None
+            | _ -> None
 
-      | LibParser.TestModule.PTExpected.ExpectedError expectedError ->
+          match expectedErrorMessage with
+          | Some expectedMsg ->
+            match actual with
+            | Error(allegedRTE, callStack) ->
+              let! actualMsg = runtimeErrorMessage state allegedRTE callStack |> Ply.toTask
+              return Expect.equal actualMsg expectedMsg ""
+            | Ok actual ->
+              return
+                Expect.equal
+                  (Some $"value: {actual}")
+                  None
+                  $"Expected runtime error `{expectedMsg}` but expression returned a value.\n\nTest location: {filename}:{lineNumber}"
+          | None ->
+            match actual, expected with
+            | Ok actual, Ok expected ->
+              return
+                Expect.RT.equalDval actual expected (msg (Some expected) (Some actual))
+            | _ ->
+              return Expect.equal actual expected (msg None None)
+
+      | LibParser.TestModule.PTExpected.PTExpectedError expectedError ->
         match actual with
         | Ok actual ->
           let actual = normalizeDvalResult actual
