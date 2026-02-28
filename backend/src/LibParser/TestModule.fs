@@ -54,8 +54,22 @@ module UserDB =
       Exception.raiseInternal $"Unsupported db definition" [ "typeDef", typeDef ]
 
 
+let private expectedRuntimeErrorExpr (errorMessage : string) : WT.Expr =
+  let fnName =
+    WT.Unresolved(NEList.ofList "Builtin" [ "testDerrorMessage" ])
+
+  WT.EApply(
+    gid (),
+    WT.EFnName(gid (), fnName),
+    [],
+    NEList.singleton (
+      WT.EString(gid (), [ WT.StringText(String.normalize errorMessage) ])
+    )
+  )
+
 /// Extracts a test from a SynExpr.
-/// The test must be in the format `expected = actual`, otherwise an exception is raised
+/// The test must be in the format `actual = expected` or `actual error="msg"`,
+/// otherwise an exception is raised.
 let parseTest (ast : SynExpr) : WTTest =
   let convert (x : SynExpr) : WT.Expr = FS2WT.Expr.fromSynExpr x
 
@@ -67,13 +81,25 @@ let parseTest (ast : SynExpr) : WTTest =
                             SynExpr.LongIdent(_, SynLongIdent([ ident ], _, _), _, _),
                             actual,
                             _),
-                expected,
+                expectedExpr,
                 range) when ident.idText = "op_Equality" ->
+    let actual, expected =
+      match actual, expectedExpr with
+      | SynExpr.App(_, _, actualExpr, SynExpr.Ident marker, _),
+        SynExpr.Const(SynConst.String(errorMessage, _, _), _) when
+        marker.idText = "error"
+        ->
+        convert actualExpr, expectedRuntimeErrorExpr errorMessage
+      | _ -> convert actual, convert expectedExpr
+
     { name = "test"
       lineNumber = range.Start.Line
-      actual = convert actual
-      expected = convert expected }
-  | _ -> Exception.raiseInternal "Test case not in format `x = y`" [ "ast", ast ]
+      actual = actual
+      expected = expected }
+  | _ ->
+    Exception.raiseInternal
+      "Test case not in format `x = y` or `x error=\"msg\"`"
+      [ "ast", ast ]
 
 
 let parseFile

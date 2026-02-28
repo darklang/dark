@@ -1,0 +1,3 @@
+(Builtin.testRuntimeError "runtime from syntax") error="Uncaught exception: runtime from syntax"
+
+(5.7 != 6L) error="Cannot perform equality check on Float and Int64"
