@@ -199,11 +199,10 @@ let execute (state: AppState) (args: List<String>) : AppState =
 
 let complete (_state: AppState) (args: List<String>) : List<Completion.CompletionItem> =
   match args with
-  | [] -> [ "list"; "create"; "switch"; "rename"; "delete" ] |> Stdlib.List.map Completion.simple
-  | [ "switch"; _ ] ->
-    let branches = SCM.Branch.list ()
-    Stdlib.List.map branches (fun b -> Completion.simple b.name)
-  | [ "delete"; _ ] ->
+  | [] ->
+    [ "list"; "create"; "switch"; "rename"; "delete" ]
+    |> Stdlib.List.map Completion.simple
+  | [ "switch" ] | [ "delete" ] ->
     let branches = SCM.Branch.list ()
     Stdlib.List.map branches (fun b -> Completion.simple b.name)
   | _ -> []

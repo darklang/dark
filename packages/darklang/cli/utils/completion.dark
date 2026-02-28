@@ -28,6 +28,7 @@ type ParsedInput =
 
 let parseInput (input: String) : ParsedInput =
   let trimmed = Stdlib.String.trim input
+  let endsWithSpace = Stdlib.String.endsWith input " "
 
   if Stdlib.String.isEmpty trimmed then
     ParsedInput { commandName = ""; args = []; isCompletingCommand = true }
@@ -38,8 +39,16 @@ let parseInput (input: String) : ParsedInput =
 
     match words with
     | [] -> ParsedInput { commandName = ""; args = []; isCompletingCommand = true }
-    | [command] -> ParsedInput { commandName = command; args = []; isCompletingCommand = true }
-    | command :: args -> ParsedInput { commandName = command; args = args; isCompletingCommand = false }
+    | [command] ->
+      if endsWithSpace then
+        ParsedInput { commandName = command; args = []; isCompletingCommand = false }
+      else
+        ParsedInput { commandName = command; args = []; isCompletingCommand = true }
+    | command :: rest ->
+      if endsWithSpace then
+        ParsedInput { commandName = command; args = Stdlib.List.append rest [""]; isCompletingCommand = false }
+      else
+        ParsedInput { commandName = command; args = rest; isCompletingCommand = false }
 
 
 let getPartialCompletion (parsed: ParsedInput) : String =

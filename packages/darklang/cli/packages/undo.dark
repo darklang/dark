@@ -246,8 +246,4 @@ let help (state: Cli.AppState) : Cli.AppState =
 let complete (_state: Cli.AppState) (args: List<String>) : List<Cli.Completion.CompletionItem> =
   match args with
   | [] -> ["fn"; "type"; "value"] |> Stdlib.List.map Cli.Completion.simple
-  | [partial] ->
-    ["fn"; "type"; "value"]
-    |> Stdlib.List.filter (fun item -> Stdlib.String.startsWith item partial)
-    |> Stdlib.List.map Cli.Completion.simple
   | _ -> []

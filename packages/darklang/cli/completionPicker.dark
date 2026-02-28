@@ -14,7 +14,10 @@ let create (promptText: String) (items: List<Completion.CompletionItem>) : State
   let parsed = Completion.parseInput promptText
   let commandPrefix =
     if parsed.isCompletingCommand then ""
-    else parsed.commandName ++ " "
+    else
+      let completedArgs = Stdlib.List.dropLast parsed.args
+      let parts = Stdlib.List.append [parsed.commandName] completedArgs
+      (Stdlib.String.join parts " ") ++ " "
 
   State
     { items = items
