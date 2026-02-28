@@ -3,56 +3,26 @@ module Error =
     (Stdlib.Option.Option.Some 10L)
     "not an option"
     (fun (a, b) -> "1")
-   ) = (Builtin.testDerrorMessage "Darklang.Stdlib.Option.map2's 2nd parameter `option2` expects Darklang.Stdlib.Option.Option<_>, but got String (\"not an option\")")
+   ) = error="Darklang.Stdlib.Option.map2's 2nd parameter `option2` expects Darklang.Stdlib.Option.Option<_>, but got String (\"not an option\")"
 
 
 // Check we get previous errors before later ones
 (Stdlib.List.map_v0 [ 1L; 2L; 3L; 4L; 5L ] (fun x -> Builtin.testRuntimeError "X"))
-|> Stdlib.List.fakeFunction = Builtin.testDerrorMessage "Uncaught exception: X"
-
-
-
+|> Stdlib.List.fakeFunction = error="Uncaught exception: X"
 module ErrorPropagation =
-  Stdlib.List.head (Builtin.testRuntimeError "test") =
-    Builtin.testDerrorMessage "Uncaught exception: test"
-
-  (if Builtin.testRuntimeError "test" then 5L else 6L) =
-    Builtin.testDerrorMessage "Uncaught exception: test"
-
-  (Stdlib.List.head (Builtin.testRuntimeError "test")).field =
-    Builtin.testDerrorMessage "Uncaught exception: test"
-
-  [ 5L; 6L; Stdlib.List.head (Builtin.testRuntimeError "test") ] =
-    Builtin.testDerrorMessage "Uncaught exception: test"
-
-  [ 5L; 6L; Builtin.testRuntimeError "test" ] =
-    Builtin.testDerrorMessage "Uncaught exception: test"
-
-
-  5L |> (+) (Builtin.testRuntimeError "test") |> (+) 3564L =
-    Builtin.testDerrorMessage "Uncaught exception: test"
-
-  5L |> (+) (Builtin.testRuntimeError "test") =
-    Builtin.testDerrorMessage "Uncaught exception: test"
-
-  ("test" |> Builtin.testRuntimeError) =
-    Builtin.testDerrorMessage "Uncaught exception: test"
-
-  Stdlib.Option.Option.Some(Builtin.testRuntimeError "test") =
-    Builtin.testDerrorMessage "Uncaught exception: test"
-
-  Stdlib.Result.Result.Error(Builtin.testRuntimeError "test") =
-    Builtin.testDerrorMessage "Uncaught exception: test"
-
-  Stdlib.Result.Result.Ok(Builtin.testRuntimeError "test") =
-    Builtin.testDerrorMessage "Uncaught exception: test"
-
-
+  Stdlib.List.head (Builtin.testRuntimeError "test") = error="Uncaught exception: test"
+  (if Builtin.testRuntimeError "test" then 5L else 6L) = error="Uncaught exception: test"
+  (Stdlib.List.head (Builtin.testRuntimeError "test")).field = error="Uncaught exception: test"
+  [ 5L; 6L; Stdlib.List.head (Builtin.testRuntimeError "test") ] = error="Uncaught exception: test"
+  [ 5L; 6L; Builtin.testRuntimeError "test" ] = error="Uncaught exception: test"
+  5L |> (+) (Builtin.testRuntimeError "test") |> (+) 3564L = error="Uncaught exception: test"
+  5L |> (+) (Builtin.testRuntimeError "test") = error="Uncaught exception: test"
+  ("test" |> Builtin.testRuntimeError) = error="Uncaught exception: test"
+  Stdlib.Option.Option.Some(Builtin.testRuntimeError "test") = error="Uncaught exception: test"
+  Stdlib.Result.Result.Error(Builtin.testRuntimeError "test") = error="Uncaught exception: test"
+  Stdlib.Result.Result.Ok(Builtin.testRuntimeError "test") = error="Uncaught exception: test"
   // pipe into error
-  ("test" |> Builtin.testRuntimeError |> (++) "3") =
-    Builtin.testDerrorMessage "Uncaught exception: test"
-
-
+  ("test" |> Builtin.testRuntimeError |> (++) "3") = error="Uncaught exception: test"
   type EPRec =
     { i: Int64
       m: Int64
@@ -63,4 +33,4 @@ module ErrorPropagation =
     { i = Builtin.testRuntimeError "1"
       m = 5L
       j = Stdlib.List.head (Builtin.testRuntimeError "2")
-      n = 6L } = Builtin.testDerrorMessage "Uncaught exception: 1"
+      n = 6L } = error="Uncaught exception: 1"

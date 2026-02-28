@@ -5,8 +5,7 @@ type AnEnum = | A | B | C
 
 Cols2 { col1 = 1L; col2 = 3L } = Cols2 { col1 = 1L; col2 = 3L }
 
-Cols2 { col1 = 2L; col2 = Builtin.testRuntimeError "test" } =
-  (Builtin.testDerrorMessage "Uncaught exception: test")
+Cols2 { col1 = 2L; col2 = Builtin.testRuntimeError "test" } = error="Uncaught exception: test"
 
 
 module WithTypeArgs =
@@ -25,31 +24,23 @@ module WithTypeArgs =
 
 
 module InvalidCols =
-  Cols1 { col1 = 1L; col1 = 2L } =
-    (Builtin.testDerrorMessage "Duplicate field `col1`")
+  Cols1 { col1 = 1L; col1 = 2L } = error="Duplicate field `col1`"
 
-  Cols2 { col1 = 2L; ___ = 3L } =
-    (Builtin.testDerrorMessage "Empty key in record creation")
+  Cols2 { col1 = 2L; ___ = 3L } = error="Empty key in record creation"
 
-  Cols2 { col1 = 2L } =
-    (Builtin.testDerrorMessage "Missing field `col2`")
+  Cols2 { col1 = 2L } = error="Missing field `col2`"
 
-  Cols2 { col1 = 2L; other = 3L } =
-    (Builtin.testDerrorMessage "No field named `other`")
+  Cols2 { col1 = 2L; other = 3L } = error="No field named `other`"
 
-  Cols2 { col1 = 2L; col2 = 3L; col3 = 4L } =
-    (Builtin.testDerrorMessage "No field named `col3`")
+  Cols2 { col1 = 2L; col2 = 3L; col3 = 4L } = error="No field named `col3`"
 
-  Cols1 { col1 = "" } =
-    (Builtin.testDerrorMessage "Failed to create record. Expected Int64 for field `col1`, but got \"\" (a String)")
+  Cols1 { col1 = "" } = error="Failed to create record. Expected Int64 for field `col1`, but got \"\" (a String)"
 
 
 module InvalidType =
-  (MyNonExistantType { col1 = 2L }) =
-    (Builtin.testDerrorMessage "MyNonExistantType not found")
+  (MyNonExistantType { col1 = 2L }) = error="MyNonExistantType not found"
 
-  AnEnum { col1 = 2L } =
-    (Builtin.testDerrorMessage "Expected a record, but AnEnum is not one")
+  AnEnum { col1 = 2L } = error="Expected a record, but AnEnum is not one"
 
 module Polymorphism =
   type MyRecord<'a> = { col1: 'a; col2: Int64 }
@@ -96,13 +87,10 @@ module Update =
 
   module Invalid =
     (let myRec = RecordForUpdateMultiple { x = 4L; y = 1L; z = 0L }
-     { myRec with z = 3L; x = 42L; y = 11L; p = 10L }) =
-      (Builtin.testDerrorMessage "No field named `p`")
+     { myRec with z = 3L; x = 42L; y = 11L; p = 10L }) = error="No field named `p`"
 
     (let myRec = RecordForUpdate { x = 4L; y = 1L }
-     { myRec with other = 2L }) =
-      (Builtin.testDerrorMessage "No field named `other`")
+     { myRec with other = 2L }) = error="No field named `other`"
 
     (let myRec = RecordForUpdate { x = 4L; y = 1L }
-     { myRec with y = "2" }) =
-      (Builtin.testDerrorMessage "Failed to create updated record. Expected Int64 for field `y`, but got \"2\" (a String)")
+     { myRec with y = "2" }) = error="Failed to create updated record. Expected Int64 for field `y`, but got \"2\" (a String)"

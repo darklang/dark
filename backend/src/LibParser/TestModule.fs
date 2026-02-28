@@ -13,8 +13,15 @@ module NR = NameResolver
 
 open Utils
 
+type WTExpected =
+  | ExpectedExpr of WT.Expr
+  | ExpectedError of string
+
 type WTTest =
-  { name : string; lineNumber : int; actual : WT.Expr; expected : WT.Expr }
+  { name : string
+    lineNumber : int
+    actual : WT.Expr
+    expected : WTExpected }
 
 type WTModule =
   { name : List<string>
@@ -27,8 +34,15 @@ type WTModule =
 let emptyWTModule =
   { name = []; types = []; values = []; fns = []; dbs = []; tests = [] }
 
+type PTExpected =
+  | ExpectedExpr of PT.Expr
+  | ExpectedError of string
+
 type PTTest =
-  { name : string; lineNumber : int; actual : PT.Expr; expected : PT.Expr }
+  { name : string
+    lineNumber : int
+    actual : PT.Expr
+    expected : PTExpected }
 
 type PTModule =
   { name : List<string>
@@ -54,21 +68,8 @@ module UserDB =
       Exception.raiseInternal $"Unsupported db definition" [ "typeDef", typeDef ]
 
 
-let private expectedRuntimeErrorExpr (errorMessage : string) : WT.Expr =
-  let fnName =
-    WT.Unresolved(NEList.ofList "Builtin" [ "testDerrorMessage" ])
-
-  WT.EApply(
-    gid (),
-    WT.EFnName(gid (), fnName),
-    [],
-    NEList.singleton (
-      WT.EString(gid (), [ WT.StringText(String.normalize errorMessage) ])
-    )
-  )
-
 /// Extracts a test from a SynExpr.
-/// The test must be in the format `actual = expected` or `actual error="msg"`,
+/// The test must be in the format `actual = expected` or `actual = error="msg"`,
 /// otherwise an exception is raised.
 let parseTest (ast : SynExpr) : WTTest =
   let convert (x : SynExpr) : WT.Expr = FS2WT.Expr.fromSynExpr x
@@ -84,13 +85,12 @@ let parseTest (ast : SynExpr) : WTTest =
                 expectedExpr,
                 range) when ident.idText = "op_Equality" ->
     let actual, expected =
-      match actual, expectedExpr with
-      | SynExpr.App(_, _, actualExpr, SynExpr.Ident marker, _),
-        SynExpr.Const(SynConst.String(errorMessage, _, _), _) when
-        marker.idText = "error"
+      match expectedExpr with
+      | SynExpr.App(_, _, SynExpr.Ident marker, SynExpr.Const(SynConst.String(errorMessage, _, _), _), _)
+        when marker.idText = "error"
         ->
-        convert actualExpr, expectedRuntimeErrorExpr errorMessage
-      | _ -> convert actual, convert expectedExpr
+        convert actual, ExpectedError(String.normalize errorMessage)
+      | _ -> convert actual, ExpectedExpr(convert expectedExpr)
 
     { name = "test"
       lineNumber = range.Start.Line
@@ -98,7 +98,7 @@ let parseTest (ast : SynExpr) : WTTest =
       expected = expected }
   | _ ->
     Exception.raiseInternal
-      "Test case not in format `x = y` or `x error=\"msg\"`"
+      "Test case not in format `x = y` or `x = error=\"msg\"`"
       [ "ast", ast ]
 
 
@@ -273,7 +273,14 @@ let toPT
               WT2PT.Context.localBindings = Set.empty }
           let exprToPT = WT2PT.Expr.toPT builtins pm onMissing currentModule context
           let! actual = exprToPT test.actual
-          let! expected = exprToPT test.expected
+          let! expected =
+            uply {
+              match test.expected with
+              | ExpectedExpr expected ->
+                let! expected = exprToPT expected
+                return PTExpected.ExpectedExpr expected
+              | ExpectedError msg -> return PTExpected.ExpectedError msg
+            }
           return
             { PTTest.actual = actual
               expected = expected

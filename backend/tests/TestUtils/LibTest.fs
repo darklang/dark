@@ -44,31 +44,7 @@ let values : List<BuiltInValue> =
       deprecated = NotDeprecated } ]
 
 let fns : List<BuiltInFn> =
-  [ { name = fn "testDerrorMessage" 0
-      typeParams = []
-      parameters = [ Param.make "errorMessage" TString "" ]
-      returnType =
-        TCustomType(
-          Ok(
-            FQTypeName.Package
-              PackageIDs.Type.PrettyPrinter.RuntimeTypes.RuntimeError.errorMessage
-          ),
-          []
-        )
-      description = "Return a value representing a runtime type error"
-      fn =
-        (function
-        | _, _, _, [ DString error ] ->
-          let typeName =
-            FQTypeName.Package
-              PackageIDs.Type.PrettyPrinter.RuntimeTypes.RuntimeError.errorMessage
-          DEnum(typeName, typeName, [], "ErrorString", [ DString error ]) |> Ply
-        | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
-      previewable = Pure
-      deprecated = NotDeprecated }
-
-    { name = fn "testRuntimeError" 0
+  [ { name = fn "testRuntimeError" 0
       typeParams = []
       parameters = [ Param.make "errorString" TString "" ]
       returnType = TInt64

@@ -19,13 +19,11 @@ Stdlib.UInt32.add_v0 88ul 9ul = 97ul
 Stdlib.UInt32.add_v0 1ul 0ul = 1ul
 Stdlib.UInt32.add_v0 4294967294ul 1ul = 4294967295ul
 
-Stdlib.UInt32.add_v0 4294967295ul 1ul = Builtin.testDerrorMessage "Encountered out-of-range value for type of Int"
-
+Stdlib.UInt32.add_v0 4294967295ul 1ul = error="Encountered out-of-range value for type of Int"
 Stdlib.UInt32.subtract_v0 10ul 9ul = 1ul
 Stdlib.UInt32.subtract_v0 88ul 9ul = 79ul
 
-Stdlib.UInt32.subtract_v0 0ul 1ul = Builtin.testDerrorMessage "Encountered out-of-range value for type of Int"
-
+Stdlib.UInt32.subtract_v0 0ul 1ul = error="Encountered out-of-range value for type of Int"
 Stdlib.UInt32.subtract_v0 1ul 0ul = 1ul
 Stdlib.UInt32.subtract_v0 4294967295ul 1ul = 4294967294ul
 
@@ -33,25 +31,21 @@ Stdlib.UInt32.multiply_v0 8ul 8ul = 64ul
 Stdlib.UInt32.multiply_v0 8ul 0ul = 0ul
 Stdlib.UInt32.multiply_v0 2147483647ul 2ul = 4294967294ul
 
-Stdlib.UInt32.multiply_v0 2147483648ul 2ul = Builtin.testDerrorMessage "Encountered out-of-range value for type of Int"
-
+Stdlib.UInt32.multiply_v0 2147483648ul 2ul = error="Encountered out-of-range value for type of Int"
 Stdlib.UInt32.power_v0 2ul 3ul = 8ul
 Stdlib.UInt32.power_v0 0ul 1ul = 0ul
 Stdlib.UInt32.power_v0 1ul 0ul = 1ul
 Stdlib.UInt32.power_v0 0ul 0ul = 1ul
 Stdlib.UInt32.power_v0 1ul 255ul = 1ul
 
-Stdlib.UInt32.power_v0 65536ul 2ul = Builtin.testDerrorMessage "Encountered out-of-range value for type of Int"
-
-
+Stdlib.UInt32.power_v0 65536ul 2ul = error="Encountered out-of-range value for type of Int"
 Stdlib.UInt32.divide_v0 10ul 5ul = 2ul
 Stdlib.UInt32.divide_v0 17ul 3ul = 5ul
 Stdlib.UInt32.divide_v0 8ul 5ul = 1ul
 Stdlib.UInt32.divide_v0 0ul 1ul = 0ul
 Stdlib.UInt32.divide_v0 4294967295ul 2ul = 2147483647ul
 
-Stdlib.UInt32.divide_v0 1ul 0ul = Builtin.testDerrorMessage "Cannot divide by 0"
-
+Stdlib.UInt32.divide_v0 1ul 0ul = error="Cannot divide by 0"
 Stdlib.UInt32.greaterThan_v0 20ul 1ul = true
 
 Stdlib.UInt32.greaterThanOrEqualTo_v0 0ul 1ul = false
@@ -95,9 +89,7 @@ Stdlib.UInt32.mod_v0 1ul 2ul = 1ul
 Stdlib.UInt32.mod_v0 32768ul 53ul = 14ul
 Stdlib.UInt32.mod_v0 4294967295ul 3ul = 0ul
 
-Stdlib.UInt32.mod_v0 5ul 0ul = Builtin.testDerrorMessage "Cannot evaluate modulus against 0"
-
-
+Stdlib.UInt32.mod_v0 5ul 0ul = error="Cannot evaluate modulus against 0"
 (Stdlib.List.range_v0 1L 5L)
 |> Stdlib.List.map_v0 (fun x -> Stdlib.UInt32.random 1ul 2ul)
 |> Stdlib.List.map_v0 (fun x ->
@@ -132,8 +124,7 @@ Stdlib.UInt32.mod_v0 5ul 0ul = Builtin.testDerrorMessage "Cannot evaluate modulu
 
 Stdlib.UInt32.sum_v0 [ 1ul; 2ul ] = 3ul
 
-Stdlib.UInt32.sum_v0 [ 1ul; 4294967295ul ] = Builtin.testDerrorMessage "Encountered out-of-range value for type of Int"
-
+Stdlib.UInt32.sum_v0 [ 1ul; 4294967295ul ] = error="Encountered out-of-range value for type of Int"
 // out of range
 Stdlib.UInt32.parse_v0 "-129" = Stdlib.Result.Result.Error Stdlib.UInt32.ParseError.OutOfRange
 

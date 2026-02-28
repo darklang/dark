@@ -19,11 +19,9 @@ Stdlib.List.append_v0 [] [] = []
 
 
 // CLEANUP the following tests should fail on having mixed types
-[1; 2.3] = Builtin.testDerrorMessage "Cannot add a Float (2.3) to a list of Int32. Failed at index 1."
-[(1,10); 10; (3,30)] = Builtin.testDerrorMessage "Cannot add an Int32 (10) to a list of (Int32 * Int32). Failed at index 1."
-[(1,10); (2,20); (3,30,40)] = Builtin.testDerrorMessage "Cannot add an (Int32 * Int32 * Int32) ((3, 30, 40)) to a list of (Int32 * Int32). Failed at index 2."
-
-
+[1; 2.3] = error="Cannot add a Float (2.3) to a list of Int32. Failed at index 1."
+[(1,10); 10; (3,30)] = error="Cannot add an Int32 (10) to a list of (Int32 * Int32). Failed at index 1."
+[(1,10); (2,20); (3,30,40)] = error="Cannot add an (Int32 * Int32 * Int32) ((3, 30, 40)) to a list of (Int32 * Int32). Failed at index 2."
 Stdlib.List.all_v0 [] (fun item -> item < 3L) = true
 Stdlib.List.all_v0 [ 2L ] (fun item -> item < 3L) = true
 Stdlib.List.all_v0 [ 1L; 2L ] (fun item -> item < 3L) = true
@@ -52,7 +50,7 @@ Stdlib.List.drop_v0 [ 5L; 4L; 3L; 2L; 1L ] 5L = []
 Stdlib.List.drop_v0 [ 5L ] 4L = []
 Stdlib.List.drop_v0 [] 4L = []
 
-Stdlib.List.dropWhile_v0 [ 1L; 2L; 3L; 4L ] (fun item -> 0L - 1L) = Builtin.testDerrorMessage "Encountered a condition that must be a Bool, but got an Int64 (-1)"
+Stdlib.List.dropWhile_v0 [ 1L; 2L; 3L; 4L ] (fun item -> 0L - 1L) = error="Encountered a condition that must be a Bool, but got an Int64 (-1)"
 Stdlib.List.dropWhile_v0 [ 1L; 2L; 3L; 4L ] (fun item -> item < 3L) = [ 3L; 4L ]
 Stdlib.List.dropWhile_v0 [ 1L; 2L; 3L; 4L ] (fun item -> item >= 1L) = []
 Stdlib.List.dropWhile_v0 [ 1L; 5L; 2L; 2L ] (fun item -> item < 3L) = [ 5L; 2L; 2L ]
@@ -90,11 +88,8 @@ Stdlib.List.filter [ 1L; 2L; 3L ] (fun item ->
   match item with
   | 1L -> Stdlib.Option.Option.None
   | 2L -> false
-  | 3L -> true) = Builtin.testDerrorMessage "Encountered a condition that must be a Bool, but got a Darklang.Stdlib.Option.Option<_> (Darklang.Stdlib.Option.Option<_>.None)"
-
-Stdlib.List.filter [ true; false; true ] (fun item -> "a") =
-  Builtin.testDerrorMessage "Encountered a condition that must be a Bool, but got a String (\"a\")"
-
+  | 3L -> true) = error="Encountered a condition that must be a Bool, but got a Darklang.Stdlib.Option.Option<_> (Darklang.Stdlib.Option.Option<_>.None)"
+Stdlib.List.filter [ true; false; true ] (fun item -> "a") = error="Encountered a condition that must be a Bool, but got a String (\"a\")"
 Stdlib.List.filter [ 1L; 2L; 3L ] (fun item ->
   match item with
   | 1L -> true
@@ -123,12 +118,8 @@ Stdlib.List.findFirst [ 1L; -33L; 3L; -2L; 12L ] (fun x -> (x < 0L && x % 2L == 
 module Flatten =
   Stdlib.List.flatten_v0 [ [ 1L ]; [ 2L ]; [ 3L ] ] = [ 1L; 2L; 3L ]
 
-  Stdlib.List.flatten_v0 [ 1; 2; 3 ] =
-    Builtin.testDerrorMessage "Darklang.Stdlib.List.flatten's 1st parameter `list` expects List<List<_>>, but got List<Int32> ([\n  1, 2, 3\n])"
-
-  Stdlib.List.flatten_v0 [ [ 1L ]; [ [ 2L; 3L ] ] ] =
-   Builtin.testDerrorMessage "Cannot add a List<List<Int64>> ([\n  [\n    2, 3\n  ]\n]) to a list of List<Int64>. Failed at index 1."
-
+  Stdlib.List.flatten_v0 [ 1; 2; 3 ] = error="Darklang.Stdlib.List.flatten's 1st parameter `list` expects List<List<_>>, but got List<Int32> ([\n  1, 2, 3\n])"
+  Stdlib.List.flatten_v0 [ [ 1L ]; [ [ 2L; 3L ] ] ] = error="Cannot add a List<List<Int64>> ([\n  [\n    2, 3\n  ]\n]) to a list of List<Int64>. Failed at index 1."
   Stdlib.List.flatten_v0 [ [ [] ] ] = [ [] ]
   Stdlib.List.flatten_v0 [ [] ] = []
   Stdlib.List.flatten_v0 [] = []
@@ -155,9 +146,7 @@ module GetAt =
 module Head =
   Stdlib.List.head [ 1L; 2L; 3L ] = Stdlib.Option.Option.Some 1L
 
-  Stdlib.List.head [ Builtin.testRuntimeError "test" ] =
-    Builtin.testDerrorMessage "Uncaught exception: test"
-
+  Stdlib.List.head [ Builtin.testRuntimeError "test" ] = error="Uncaught exception: test"
   Stdlib.List.head [] = Stdlib.Option.Option.None
 
 module IndexedMap =
@@ -174,24 +163,17 @@ module Interleave =
   Stdlib.List.interleave_v0 [] [ 4L; 5L; 6L ] = [ 4L; 5L; 6L ]
   Stdlib.List.interleave_v0 [] [] = []
 
-  Stdlib.List.interleave_v0 [ "a"; "b"; "c" ] [ 0L ] =
-    Builtin.testDerrorMessage "Darklang.Stdlib.List.interleave's 2nd parameter `lB` expects List<String>, but got List<Int64> ([\n  0\n])"
-
+  Stdlib.List.interleave_v0 [ "a"; "b"; "c" ] [ 0L ] = error="Darklang.Stdlib.List.interleave's 2nd parameter `lB` expects List<String>, but got List<Int64> ([\n  0\n])"
 module Interpose =
   Stdlib.List.interpose_v0 [ 1L; 2L; 3L ] 5L = [ 1L; 5L; 2L; 5L; 3L ]
   Stdlib.List.interpose_v0 [ 1L ] 5L = [ 1L ]
   Stdlib.List.interpose_v0 [] 5L = []
 
-  Stdlib.List.interpose_v0 [ "a"; "b"; "c" ] 0L =
-    Builtin.testDerrorMessage "Darklang.Stdlib.List.interpose's 2nd parameter `sep` expects String, but got Int64 (0)"
-
-
+  Stdlib.List.interpose_v0 [ "a"; "b"; "c" ] 0L = error="Darklang.Stdlib.List.interpose's 2nd parameter `sep` expects String, but got Int64 (0)"
 module Last =
   Stdlib.List.last [ 1L; 2L; 3L ] = Stdlib.Option.Option.Some 3L
 
-  Stdlib.List.last [ Builtin.testRuntimeError "test" ] =
-    Builtin.testDerrorMessage "Uncaught exception: test"
-
+  Stdlib.List.last [ Builtin.testRuntimeError "test" ] = error="Uncaught exception: test"
   Stdlib.List.last [] = Stdlib.Option.Option.None
 
 module Map =
@@ -230,16 +212,12 @@ module Partition =
     | 1L | 3L -> true
     | 2L -> false) = ([ 1L; 3L ], [ 2L ])
 
-  Stdlib.List.partition_v0 [ true; false; true ] (fun item -> "a") =
-    Builtin.testDerrorMessage "Encountered a condition that must be a Bool, but got a String (\"a\")"
-
-
+  Stdlib.List.partition_v0 [ true; false; true ] (fun item -> "a") = error="Encountered a condition that must be a Bool, but got a String (\"a\")"
   Stdlib.List.partition_v0 [ 1L; 2L; 3L ] (fun item ->
     match item with
     | 1L -> Stdlib.Option.Option.None
     | 2L -> false
-    | 3L -> true) = Builtin.testDerrorMessage "Encountered a condition that must be a Bool, but got a Darklang.Stdlib.Option.Option<_> (Darklang.Stdlib.Option.Option<_>.None)"
-
+    | 3L -> true) = error="Encountered a condition that must be a Bool, but got a Darklang.Stdlib.Option.Option<_> (Darklang.Stdlib.Option.Option<_>.None)"
 Stdlib.List.pushBack_v0 [ 2L; 3L ] 1L = [ 2L; 3L; 1L ]
 Stdlib.List.pushBack_v0 [] 1L = [ 1L ]
 
@@ -249,9 +227,7 @@ Stdlib.List.push_v0 [] 1L = [ 1L ]
 Stdlib.List.randomElement_v0 [ 1L ] = Stdlib.Option.Option.Some 1L
 Stdlib.List.randomElement_v0 [] = Stdlib.Option.Option.None
 
-Stdlib.List.randomElement_v0 [ Builtin.testRuntimeError "test" ] =
-  Builtin.testDerrorMessage "Uncaught exception: test"
-
+Stdlib.List.randomElement_v0 [ Builtin.testRuntimeError "test" ] = error="Uncaught exception: test"
 Stdlib.List.range_v0 -1L 0L = [ -1L; 0L ]
 Stdlib.List.range_v0 -5L 5L = [ -5L; -4L; -3L; -2L; -1L; 0L; 1L; 2L; 3L; 4L; 5L ]
 Stdlib.List.range_v0 5L 0L = []
@@ -277,16 +253,12 @@ Stdlib.List.sort_v0 [ 6L; 2L; 8L; 3L ] = [ 2L; 3L; 6L; 8L ]
 Stdlib.List.sort_v0 [] = []
 
 // CLEANUP: it should be a type error on the function not returning an Int64
-Stdlib.List.sortByComparator_v0 [ 3L; 1L; 2L ] (fun a b -> 0.1) =
-  Builtin.testDerrorMessage "Cannot perform equality check on Float and Int64"
-
+Stdlib.List.sortByComparator_v0 [ 3L; 1L; 2L ] (fun a b -> 0.1) = error="Cannot perform equality check on Float and Int64"
 Stdlib.List.sortByComparator_v0 [ 3L; 1L; 2L ] (fun a b -> 3L) =
   Stdlib.Result.Result.Error "Expected comparator function to return -1, 0, or 1, but it returned 3"
 
 // CLEANUP: it should be a type error on the function not returning an Int64
-Stdlib.List.sortByComparator_v0 [ 1L; 2L; 3L ] (fun a b -> "㧑༷釺") =
-  Builtin.testDerrorMessage "Cannot perform equality check on String and Int64"
-
+Stdlib.List.sortByComparator_v0 [ 1L; 2L; 3L ] (fun a b -> "㧑༷釺") = error="Cannot perform equality check on String and Int64"
 Stdlib.List.sortByComparator_v0 [ 3L; 1L; 2L ] (fun a b ->
   if Stdlib.Int64.lessThan_v0 a b then -1L else 1L) = Stdlib.Result.Result.Ok
   [ 1L; 2L; 3L ]
@@ -304,7 +276,7 @@ Stdlib.List.sortByComparator_v0
 // - it seems to be from the perspective of the lambda
 //   (I'm a lambda and I'm expecting 2 arguments, but I got 1!!)
 //   rather than from the perspective of the function it's being used in
-// Stdlib.List.sortByComparator_v0 [ 6.0; 2.0 ] (fun x -> x) = Builtin.testDerrorMessage
+// Stdlib.List.sortByComparator_v0 [ 6.0; 2.0 ] (fun x -> x) = error=
 //   "Expected 1 arguments, got 2"
 
 Stdlib.List.tail_v0 [ 10L; 20L; 30L; 40L ] = Stdlib.Option.Option.Some[ 20L; 30L; 40L ]
@@ -319,8 +291,7 @@ Stdlib.List.take_v0 [ 5L ] 4L = [ 5L ]
 Stdlib.List.take_v0 [] 4L = []
 
 //TODO: better error message
-Stdlib.List.takeWhile_v0 [ 1L; 2L; 3L; 4L ] (fun item -> 0L - 1L) = Builtin.testDerrorMessage "Encountered a condition that must be a Bool, but got an Int64 (-1)"
-
+Stdlib.List.takeWhile_v0 [ 1L; 2L; 3L; 4L ] (fun item -> 0L - 1L) = error="Encountered a condition that must be a Bool, but got an Int64 (-1)"
 Stdlib.List.takeWhile_v0 [ 1L; 2L; 3L; 4L ] (fun item -> item < 1L) = []
 Stdlib.List.takeWhile_v0 [ 1L; 2L; 3L; 4L ] (fun item -> item < 3L) = [ 1L; 2L ]
 Stdlib.List.takeWhile_v0 [ 1L; 5L; 2L; 2L ] (fun item -> item < 3L) = [ 1L ]
@@ -332,8 +303,7 @@ Stdlib.List.uniqueBy_v0 [ 1L; 2L; 3L; 4L ] (fun x -> x) = [ 1L; 2L; 3L; 4L ]
 Stdlib.List.uniqueBy_v0 [ 1L; 1L; 1L; 1L ] (fun x -> x) = [ 1L ]
 Stdlib.List.uniqueBy_v0 [ 7L; 42L; 7L; 2L; 10L ] (fun x -> x) = [ 2L; 7L; 10L; 42L ]
 Stdlib.List.uniqueBy_v0 [] (fun x -> x) = []
-Stdlib.List.uniqueBy_v0 [ 6L; 2.0 ] (fun x -> x) = Builtin.testDerrorMessage "Cannot add a Float (2.0) to a list of Int64. Failed at index 1."
-
+Stdlib.List.uniqueBy_v0 [ 6L; 2.0 ] (fun x -> x) = error="Cannot add a Float (2.0) to a list of Int64. Failed at index 1."
 Stdlib.List.unique_v0 [ 1L; 2L; 3L; 4L ] = [ 1L; 2L; 3L; 4L ]
 Stdlib.List.unique_v0 [ 1L; 1L; 1L; 1L ] = [ 1L ]
 Stdlib.List.unique_v0 [ 7L; 42L; 7L; 2L; 10L ] = [ 2L; 7L; 10L; 42L ]
@@ -357,8 +327,7 @@ module Zipping =
   Stdlib.List.zip_v0 [ 10L; 20L; 30L ] [ 1L; 2L; 3L ] = Stdlib.Option.Option.Some [ (10L, 1L); (20L, 2L); (30L, 3L) ]
   Stdlib.List.zip_v0 [ 10L; 20L ] [ 1L; 2L; 3L ] = Stdlib.Option.Option.None
   Stdlib.List.zip_v0 [] [] = Stdlib.Option.Option.Some []
-  Stdlib.List.zip_v0 [ Builtin.testRuntimeError "msg" ] [ Some "" ] = Builtin.testDerrorMessage "Uncaught exception: msg"
-
+  Stdlib.List.zip_v0 [ Builtin.testRuntimeError "msg" ] [ Some "" ] = error="Uncaught exception: msg"
 module GroupByWithKey =
   Stdlib.List.groupByWithKey_v0 [ 1L; 2L; 3L; 4L; 5L ] (fun x ->
     Stdlib.Int64.mod_v0 x 2L) = [ (1L, [ 1L; 3L; 5L ]); (0L, [ 2L; 4L ]) ]

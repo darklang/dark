@@ -3,11 +3,8 @@ module Empty =
 
 
 module ConstructionErrors =
-  Dict { a = 1; a = 2 } = Builtin.testDerrorMessage "Cannot add two dictionary entries with the same key `a`"
-
-  Dict { a = 1; b = "two" } = Builtin.testDerrorMessage "Cannot add a String (\"two\") to a dict of Int32. Failed at key `b`."
-
-
+  Dict { a = 1; a = 2 } = error="Cannot add two dictionary entries with the same key `a`"
+  Dict { a = 1; b = "two" } = error="Cannot add a String (\"two\") to a dict of Int32. Failed at key `b`."
 module FilterMap =
   Stdlib.Dict.filterMap (Dict { }) (fun key value -> 0L) = (Dict { })
 
@@ -28,10 +25,7 @@ module FilterMap =
   //       false
   //     else
   //       Stdlib.Option.Option.Some(key ++ value))
-  // ) = Builtin.testDerrorMessage "Darklang.Stdlib.Option.map's 1st argument (`option`) should be a Darklang.Stdlib.Option.Option<'a>. However, a Bool (false) was passed instead."
-
-
-
+  // ) = error="Darklang.Stdlib.Option.map's 1st argument (`option`) should be a Darklang.Stdlib.Option.Option<'a>. However, a Bool (false) was passed instead."
 module Filter =
   (Stdlib.Dict.filter
     (Dict { key1 = "val1"; key2 = "val2" })
@@ -42,10 +36,7 @@ module Filter =
 
   Stdlib.Dict.filter (Dict { }) (fun k v -> 0L) = (Dict { })
 
-  Stdlib.Dict.filter (Dict { a = 1L; b = 2L; c = 3L }) (fun k v -> 2L) =
-    Builtin.testDerrorMessage "Encountered a condition that must be a Bool, but got an Int64 (2)"
-
-
+  Stdlib.Dict.filter (Dict { a = 1L; b = 2L; c = 3L }) (fun k v -> 2L) = error="Encountered a condition that must be a Bool, but got an Int64 (2)"
 module FromListOverwritingDuplicates =
   Stdlib.Dict.fromListOverwritingDuplicates_v0 [] = (Dict { })
 
@@ -55,18 +46,11 @@ module FromListOverwritingDuplicates =
   Stdlib.Dict.fromListOverwritingDuplicates_v0 [ ("a", 1L); ("b", 2L); ("c", 3L) ] =
     (Dict { c = 3L; b = 2L; a = 1L })
 
-  Stdlib.Dict.fromListOverwritingDuplicates_v0 [ Builtin.testRuntimeError "err" ] =
-    Builtin.testDerrorMessage "Uncaught exception: err"
-
+  Stdlib.Dict.fromListOverwritingDuplicates_v0 [ Builtin.testRuntimeError "err" ] = error="Uncaught exception: err"
   // CLEANUP improve the error message to:
   //   In Dict.fromListOverwritingDuplicates's 1st argument (`entries`), the nested value `entries[1]` should be a (String, 'b). However, an Int64 (2) was passed instead.
-  Stdlib.Dict.fromListOverwritingDuplicates_v0 [ (1L, 2L) ] =
-    Builtin.testDerrorMessage "Darklang.Stdlib.Dict.fromListOverwritingDuplicates's 1st parameter `entries` expects List<(String * _)>, but got List<(Int64 * Int64)> ([\n  (1, 2)\n])"
-
-  Stdlib.Dict.fromListOverwritingDuplicates_v0 [ 1L ] =
-    Builtin.testDerrorMessage "Darklang.Stdlib.Dict.fromListOverwritingDuplicates's 1st parameter `entries` expects List<(String * _)>, but got List<Int64> ([\n  1\n])"
-
-
+  Stdlib.Dict.fromListOverwritingDuplicates_v0 [ (1L, 2L) ] = error="Darklang.Stdlib.Dict.fromListOverwritingDuplicates's 1st parameter `entries` expects List<(String * _)>, but got List<(Int64 * Int64)> ([\n  (1, 2)\n])"
+  Stdlib.Dict.fromListOverwritingDuplicates_v0 [ 1L ] = error="Darklang.Stdlib.Dict.fromListOverwritingDuplicates's 1st parameter `entries` expects List<(String * _)>, but got List<Int64> ([\n  1\n])"
 module FromList =
   Stdlib.Dict.fromList_v0 [] = Stdlib.Option.Option.Some(Dict { })
 
@@ -79,15 +63,10 @@ module FromList =
   Stdlib.Dict.fromList_v0 [ ("Content-Length", "0"); ("Server", "dark") ] =
     Stdlib.Option.Option.Some(Dict { ``Content-Length`` = "0"; Server = "dark" })
 
-  Stdlib.Dict.fromList_v0 [ Builtin.testRuntimeError "err" ] =
-    Builtin.testDerrorMessage "Uncaught exception: err"
-
+  Stdlib.Dict.fromList_v0 [ Builtin.testRuntimeError "err" ] = error="Uncaught exception: err"
   // CLEANUP improve the error message to
   //  "In Dict.fromList's 1st argument (`entries`), the nested value `entries[0][0]` should be a String. However, an Int64 (1) was passed instead.\n\nExpected: String\nActual: an Int64: 1"
-  Stdlib.Dict.fromList_v0 [ (1L, 1L) ] =
-    Builtin.testDerrorMessage "Darklang.Stdlib.Dict.fromList's 1st parameter `entries` expects List<(String * _)>, but got List<(Int64 * Int64)> ([\n  (1, 1)\n])"
-
-
+  Stdlib.Dict.fromList_v0 [ (1L, 1L) ] = error="Darklang.Stdlib.Dict.fromList's 1st parameter `entries` expects List<(String * _)>, but got List<(Int64 * Int64)> ([\n  (1, 1)\n])"
 module Get =
   Stdlib.Dict.get (Dict { key1 = "val1" }) "key1" = Stdlib.Option.Option.Some "val1"
 
@@ -143,18 +122,10 @@ module Set =
   Stdlib.Dict.set_v0 (Dict { key1 = "val1" }) "key2" "val2" =
     (Dict { key1 = "val1"; key2 = "val2" })
 
-  Stdlib.Dict.set_v0 (Dict { key1 = "val1before" }) "key1" "val1after" =
-    Builtin.testDerrorMessage "Cannot add two dictionary entries with the same key `key1`"
-
-  Stdlib.Dict.set_v0 (Dict { key1 = "val1"; key2 = "val2" }) "key2" "newVal2" =
-    Builtin.testDerrorMessage "Cannot add two dictionary entries with the same key `key2`"
-
-  Dict { key1 = "val1"; key2 = 2L } =
-    Builtin.testDerrorMessage "Cannot add an Int64 (2) to a dict of String. Failed at key `key2`."
-
-  Stdlib.Dict.set_v0 (Dict { key1 = "val1" }) "key2" 2L =
-    Builtin.testDerrorMessage "Darklang.Stdlib.Dict.set's 3rd parameter `val` expects String, but got Int64 (2)"
-
+  Stdlib.Dict.set_v0 (Dict { key1 = "val1before" }) "key1" "val1after" = error="Cannot add two dictionary entries with the same key `key1`"
+  Stdlib.Dict.set_v0 (Dict { key1 = "val1"; key2 = "val2" }) "key2" "newVal2" = error="Cannot add two dictionary entries with the same key `key2`"
+  Dict { key1 = "val1"; key2 = 2L } = error="Cannot add an Int64 (2) to a dict of String. Failed at key `key2`."
+  Stdlib.Dict.set_v0 (Dict { key1 = "val1" }) "key2" 2L = error="Darklang.Stdlib.Dict.set's 3rd parameter `val` expects String, but got Int64 (2)"
   Stdlib.Dict.set_v0 (Dict { }) "key1" "val1" =
     (Dict { key1 = "val1" })
 
@@ -166,9 +137,7 @@ module SetOverridingDuplicates =
   Stdlib.Dict.setOverridingDuplicates_v0 (Dict { key1 = "val1" }) "key2" "val2" =
     (Dict { key1 = "val1"; key2 = "val2" })
 
-  Stdlib.Dict.setOverridingDuplicates_v0 (Dict { key1 = "val1" }) "key2" 2L =
-    Builtin.testDerrorMessage "Darklang.Stdlib.Dict.setOverridingDuplicates's 3rd parameter `val` expects String, but got Int64 (2)"
-
+  Stdlib.Dict.setOverridingDuplicates_v0 (Dict { key1 = "val1" }) "key2" 2L = error="Darklang.Stdlib.Dict.setOverridingDuplicates's 3rd parameter `val` expects String, but got Int64 (2)"
   // (where this differs from .set)
   Stdlib.Dict.setOverridingDuplicates_v0 (Dict { key1 = "val1before" }) "key1" "val1after" =
     (Dict { key1 = "val1after" })

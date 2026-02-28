@@ -448,7 +448,7 @@ module Roundtrip =
 // //   // (Stdlib.DB.set (XY { x = "x"; y = "v" }) "i" XDB) = Builtin.Test.runtimeError "Found but did not expect: [y]"
 
 // //   (Stdlib.DB.set (XY { x = "x"; y = "v" }) "i" XDB) =
-// //     Builtin.testDerrorMessage "DB XDB's value should be a X. However, a XY (XY {  x: ...) was passed instead.\n\nExpected: X\nActual: a XY: XY {\n  x: \"x\",\n  y: \"v\"\n}"
+// // = error="DB XDB's value should be a X. However, a XY (XY {  x: ...) was passed instead.\n\nExpected: X\nActual: a XY: XY {\n  x: \"x\",\n  y: \"v\"\n}"
 
 
 

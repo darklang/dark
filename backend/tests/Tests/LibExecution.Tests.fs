@@ -48,13 +48,70 @@ let setupDBs (canvasID : CanvasID) (dbs : List<PT.DB.T>) : Task<unit> =
     do! Canvas.saveTLIDs canvasID tls
   }
 
+let runtimeErrorMessage
+  (state : RT.ExecutionState)
+  (allegedRTE : RT.RuntimeError)
+  (callStack : RT.CallStack)
+  : Ply<string> =
+  uply {
+    let actual = RT2DT.RuntimeError.toDT allegedRTE
+    let errorMessageFn =
+      RT.FQFnName.fqPackage
+        PackageIDs.Fn.PrettyPrinter.RuntimeTypes.RuntimeError.toErrorMessage
+
+    let! _csString = Exe.callStackString state callStack
+
+    let! typeChecked =
+      let expected =
+        RT.TCustomType(
+          Ok(
+            RT.FQTypeName.fqPackage
+              PackageIDs.Type.LanguageTools.RuntimeTypes.RuntimeError.error
+          ),
+          []
+        )
+      LibExecution.TypeChecker.unify state.types Map.empty expected actual
+
+    match typeChecked with
+    | Ok _ ->
+      let! result =
+        LibExecution.Execution.executeFunction
+          state
+          errorMessageFn
+          []
+          (NEList.ofList (RT.DUuid PT.mainBranchId) [ actual ])
+
+      match result with
+      | Ok(RT.DEnum(_, _, [], "ErrorString", [ RT.DString msg ])) -> return msg
+      | Ok _ ->
+        return
+          Exception.raiseInternal
+            "We received an RTE, and when trying to stringify it, got a non-ErrorString response. Instead we got"
+            [ "result", result ]
+      | Error(rte, _cs) ->
+        let rte = RT2DT.RuntimeError.toDT rte
+        print $"{state.test.exceptionReports}"
+        return
+          Exception.raiseInternal
+            ("We received an RTE, and when trying to stringify it, there was another RTE error.
+                    There is probably a bug in Darklang.LanguageTools.RuntimeErrors.Error.toString")
+            [ "originalRTE", actual; "subsequentRTE", rte ]
+
+    | Error reverseTypeCheckPath ->
+      return
+        Exception.raiseInternal
+          "Alleged RTE was not an RTE  (failed type-check)"
+          [ "reverseTypeCheckPath", reverseTypeCheckPath
+            "allegedRTE", allegedRTE ]
+  }
+
 
 let t
   (internalFnsAllowed : bool)
   (canvasName : string)
   (pmPT : PT.PackageManager)
   (actual : PT.Expr)
-  (expected : PT.Expr)
+  (expected : LibParser.TestModule.PTExpected)
   (filename : string)
   (lineNumber : int)
   (dbs : List<PT.DB.T>)
@@ -101,9 +158,6 @@ let t
 
         $"\n\n{lhs}\n\n{rhs}\n\nTest location: {bold}{underline}{filename}:{lineNumber}{reset}"
 
-      let expected = expected |> PT2RT.Expr.toRT Map.empty 0 None
-      let! expected = Exe.executeExpr state expected
-
       // Initialize
       if workers <> [] then do! setupWorkers canvasID workers
       if dbs <> [] then do! setupDBs canvasID dbs
@@ -119,90 +173,53 @@ let t
       let actual = actual |> PT2RT.Expr.toRT Map.empty 0 None
       let! (actual : RT.ExecutionResult) = Exe.executeExpr state actual
 
+      let! expectedValueResult : Option<RT.ExecutionResult> =
+        uply {
+          match expected with
+          | LibParser.TestModule.PTExpected.ExpectedExpr expected ->
+            let expected = expected |> PT2RT.Expr.toRT Map.empty 0 None
+            let! expected = Exe.executeExpr state expected
+            return Some expected
+          | LibParser.TestModule.PTExpected.ExpectedError _ -> return None
+        }
+
       if System.Environment.GetEnvironmentVariable "DEBUG" <> null then
         debuGList "results" (Dictionary.toList results |> List.sortBy fst)
 
       let actual = Result.map normalizeDvalResult actual
-      let expected = Result.map normalizeDvalResult expected
+      let expectedValueResult = expectedValueResult |> Option.map (Result.map normalizeDvalResult)
 
-      match actual with
-      | Error _ -> ()
-      | Ok actual ->
-        let canonical = Expect.isCanonical actual
-        if not canonical then
-          debugDval actual |> debuG "not canonicalized"
-          Expect.isTrue canonical "expected is canonicalized"
+      match expected with
+      | LibParser.TestModule.PTExpected.ExpectedExpr _ ->
+        match actual with
+        | Error _ -> ()
+        | Ok actual ->
+          let canonical = Expect.isCanonical actual
+          if not canonical then
+            debugDval actual |> debuG "not canonicalized"
+            Expect.isTrue canonical "expected is canonicalized"
 
-      // CLEANUP consider not doing the toErrorMessage call
-      // just test the actual RuntimeError Dval,
-      // and have separate tests around pretty-printing the error
-      let! actual =
-        uply {
-          match actual with
-          | Ok _ -> return actual
+        match expectedValueResult with
+        | None -> return Expect.isTrue false "expected value result should be present"
+        | Some expected ->
+          match actual, expected with
+          | Ok actual, Ok expected ->
+            return
+              Expect.RT.equalDval actual expected (msg (Some expected) (Some actual))
+          | _ -> return Expect.equal actual expected (msg None None)
 
-          // "alleged" because sometimes we incorrectly construct an RTE... (should be rare, and only during big refactors)
-          | Error(allegedRTE, callStack) ->
-            let actual = RT2DT.RuntimeError.toDT allegedRTE
-            let errorMessageFn =
-              RT.FQFnName.fqPackage
-                PackageIDs.Fn.PrettyPrinter.RuntimeTypes.RuntimeError.toErrorMessage
-
-            let! _csString = Exe.callStackString state callStack
-
-            let! typeChecked =
-              let expected =
-                RT.TCustomType(
-                  Ok(
-                    RT.FQTypeName.fqPackage
-                      PackageIDs.Type.LanguageTools.RuntimeTypes.RuntimeError.error
-                  ),
-                  []
-                )
-              LibExecution.TypeChecker.unify state.types Map.empty expected actual
-
-            match typeChecked with
-            | Ok _ ->
-              // The result was correctly a RuntimeError, try to stringify it
-              let! result =
-                LibExecution.Execution.executeFunction
-                  state
-                  errorMessageFn
-                  []
-                  (NEList.ofList (RT.DUuid PT.mainBranchId) [ actual ])
-
-              match result with
-              | Ok(RT.DEnum(_, _, [], "ErrorString", [ RT.DString _ ])) ->
-                //debuG "callStack" csString
-                return result
-              | Ok _ ->
-                return
-                  Exception.raiseInternal
-                    "We received an RTE, and when trying to stringify it, got a non-ErrorString response. Instead we got"
-                    [ "result", result ]
-              | Error(rte, _cs) ->
-                let rte = RT2DT.RuntimeError.toDT rte
-                print $"{state.test.exceptionReports}"
-                return
-                  Exception.raiseInternal
-                    ("We received an RTE, and when trying to stringify it, there was another RTE error.
-                    There is probably a bug in Darklang.LanguageTools.RuntimeErrors.Error.toString")
-                    [ "originalRTE", actual; "subsequentRTE", rte ]
-
-            | Error reverseTypeCheckPath ->
-              return
-                Exception.raiseInternal
-                  "Alleged RTE was not an RTE  (failed type-check)"
-                  [ "reverseTypeCheckPath", reverseTypeCheckPath
-                    "allegedRTE", allegedRTE ]
-        }
-        |> Ply.toTask
-
-      match actual, expected with
-      | Ok actual, Ok expected ->
-        return
-          Expect.RT.equalDval actual expected (msg (Some expected) (Some actual))
-      | _ -> return Expect.equal actual expected (msg None None)
+      | LibParser.TestModule.PTExpected.ExpectedError expectedError ->
+        match actual with
+        | Ok actual ->
+          let actual = normalizeDvalResult actual
+          return
+            Expect.equal
+              (Some $"value: {actual}")
+              None
+              $"Expected runtime error `{expectedError}` but expression returned a value.\n\nTest location: {filename}:{lineNumber}"
+        | Error(allegedRTE, callStack) ->
+          let! actualError = runtimeErrorMessage state allegedRTE callStack |> Ply.toTask
+          return Expect.equal actualError expectedError ""
     with
     | :? Expecto.AssertException as e -> Exception.reraise e
     | e ->

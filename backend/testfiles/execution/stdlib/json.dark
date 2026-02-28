@@ -872,15 +872,8 @@ module BadTypes =
   // Stdlib.Json.parse<'a> "5" = Result.Ok []
   // Stdlib.Json.serialize<'a> 5 = Result.Error "dunno what happens"
 
-  Stdlib.Json.parse<Int64 -> Int64> "{}" =
-    Builtin.testDerrorMessage
-      "Unsupported type in JSON: (Int64) -> Int64. Some types are not supported in Json serialization, and cannot be used as arguments to Builtin.jsonParse or Builtin.jsonSerialize"
-
-  Stdlib.Json.serialize<Int64 -> Int64> (fun i -> 5) =
-    Builtin.testDerrorMessage
-      "Cannot serialize (lambda) into JSON"
-
-
+  Stdlib.Json.parse<Int64 -> Int64> "{}" = error="Unsupported type in JSON: (Int64) -> Int64. Some types are not supported in Json serialization, and cannot be used as arguments to Builtin.jsonParse or Builtin.jsonSerialize"
+  Stdlib.Json.serialize<Int64 -> Int64> (fun i -> 5) = error="Cannot serialize (lambda) into JSON"
 module List =
   type MyString = String
 
@@ -928,10 +921,7 @@ module List =
       Dict { name = "Charlie"; role = "user" } ]
 
   module Errors =
-    Stdlib.Json.serialize<List<Int64>> [ 1L, 2L, "three" ] =
-      Builtin.testDerrorMessage
-        "Darklang.Stdlib.Json.serialize's 1st parameter `value` expects List<Int64>, but got (Int64 * Int64 * String) ((1, 2, \"three\"))"
-
+    Stdlib.Json.serialize<List<Int64>> [ 1L, 2L, "three" ] = error="Darklang.Stdlib.Json.serialize's 1st parameter `value` expects List<Int64>, but got (Int64 * Int64 * String) ((1, 2, \"three\"))"
     (Stdlib.Json.parse<List<Int64>> "[1, 2, \"three\"]") |> err =
       Result.Error "Can't parse JSON `\"three\"` as type `Int64` at path: `root[2]`"
 
@@ -1342,9 +1332,7 @@ module UserDefinedAliases =
   type Person1 = { Name: String; Age: Int64 }
   type Person2 = { Name: String; Age: Int64 }
 
-  Stdlib.Json.serialize<Person2> (Person1 { Name = "Bob"; Age = 42L }) = Builtin.testDerrorMessage
-    "Darklang.Stdlib.Json.serialize's 1st parameter `value` expects UserDefinedAliases.Person2, but got UserDefinedAliases.Person1 (UserDefinedAliases.Person1 {\n  Age: 42,\n  Name: \"Bob\"\n})"
-
+  Stdlib.Json.serialize<Person2> (Person1 { Name = "Bob"; Age = 42L }) = error="Darklang.Stdlib.Json.serialize's 1st parameter `value` expects UserDefinedAliases.Person2, but got UserDefinedAliases.Person1 (UserDefinedAliases.Person1 {\n  Age: 42,\n  Name: \"Bob\"\n})"
   type StringResult<'a> = Result<'a, String>
 
   Stdlib.Json.serialize<StringResult<Int64>> (Result.Ok 1L) = "{\"Ok\":[1]}"
@@ -1352,11 +1340,7 @@ module UserDefinedAliases =
   Stdlib.Json.serialize<StringResult<Int64>> (Result.Error "err") = "{\"Error\":[\"err\"]}"
 
   // This test currently slips by the typechecker, and so we get an internal exception
-  Stdlib.Json.serialize<StringResult<Int64>> (Result.Error 1L) =
-    Builtin.testDerrorMessage
-      "Darklang.Stdlib.Json.serialize's 1st parameter `value` expects Darklang.Stdlib.Result.Result<Int64, String>, but got Darklang.Stdlib.Result.Result<_, Int64> (Darklang.Stdlib.Result.Result<_, Int64>.Error(1))"
-
-
+  Stdlib.Json.serialize<StringResult<Int64>> (Result.Error 1L) = error="Darklang.Stdlib.Json.serialize's 1st parameter `value` expects Darklang.Stdlib.Result.Result<Int64, String>, but got Darklang.Stdlib.Result.Result<_, Int64> (Darklang.Stdlib.Result.Result<_, Int64>.Error(1))"
 module Package =
   Stdlib.Json.serialize<Option<Int64>> Option.None = "{\"None\":[]}"
 
