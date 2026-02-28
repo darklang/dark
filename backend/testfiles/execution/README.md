@@ -17,7 +17,9 @@ The implementation of the tests is in `LibExecution.Tests.fs`.
 All tests must be of the format `x = y` (or `x <> y`, though that's rarely
 used), that is, they must have a single expression on the left, one on the
 right, and an equals sign in between. For runtime errors, you can use
-`x = error="message"` to assert the exact error message.
+`x = error="message"` to assert an exact runtime error message.
+`x = sqlerror="message"` to assert a DB query compiler error message
+(the SQL compiler prefix is added automatically).
 You can use parens around multiple expressions to group them into a single
 expression, eg `(5 |> toString)`.
 

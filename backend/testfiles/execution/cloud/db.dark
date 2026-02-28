@@ -749,12 +749,10 @@ module FindAll =
   //   "Variable `x` should be an Int64. However, a String (\"not int\") was passed instead.\n\nExpected: (x: Int64)\nActual: a String: \"not int\""
 
   // lambda doesnt return a bool
-  friendsError (fun p -> "x") = Builtin.testDerrorSqlMessage
-    "Incorrect type in String \"x\", expected Bool, but got a String"
+  friendsError (fun p -> "x") = sqlerror="Incorrect type in String \"x\", expected Bool, but got a String"
 
   // bad variable name
-  friendsError (fun p -> let x = 32L in true && p.height > y) = Builtin.testDerrorSqlMessage
-    "This variable is not defined: y"
+  friendsError (fun p -> let x = 32L in true && p.height > y) = sqlerror="This variable is not defined: y"
 
   // sql injection
   (friendsError (fun p -> "; select * from users;" == p.name)) = []
