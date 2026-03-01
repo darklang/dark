@@ -301,8 +301,7 @@ let toPT
                 let! expected = exprToPT expected
                 return PTExpected.PTExpectedExpr expected
               | WTExpectedError msg -> return PTExpected.PTExpectedError msg
-              | WTExpectedSqlError msg ->
-                return PTExpected.PTExpectedSqlError msg
+              | WTExpectedSqlError msg -> return PTExpected.PTExpectedSqlError msg
             }
           return
             { PTTest.actual = actual
