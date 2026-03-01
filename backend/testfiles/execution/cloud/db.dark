@@ -745,7 +745,7 @@ module FindAll =
   // This requires passing DB schema info to validate that variables have
   // compatible types when compared with DB fields.
   // (let x = "not int"
-  //  friends (fun p -> p.height > x)) = Builtin.testDerrorSqlMessage
+  //  friends (fun p -> p.height > x)) = sqlerror=
   //   "Variable `x` should be an Int64. However, a String (\"not int\") was passed instead.\n\nExpected: (x: Int64)\nActual: a String: \"not int\""
 
   // lambda doesnt return a bool
