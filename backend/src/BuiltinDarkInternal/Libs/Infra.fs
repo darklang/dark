@@ -18,7 +18,7 @@ let fns : List<BuiltInFn> =
           TCustomType(
             { originalName = []
               resolved =
-                Ok(FQTypeName.Package PackageRefs.Type.Internal.Infra.tableSize) },
+                Ok(FQTypeName.fqPackage PackageRefs.Type.Internal.Infra.tableSize) },
             []
           )
         )
@@ -31,7 +31,7 @@ let fns : List<BuiltInFn> =
             let! tableStats = LibDB.Db.tableStats ()
 
             let typeName =
-              FQTypeName.Package PackageRefs.Type.Internal.Infra.tableSize
+              FQTypeName.fqPackage PackageRefs.Type.Internal.Infra.tableSize
 
             return
               tableStats

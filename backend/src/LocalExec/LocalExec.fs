@@ -5,6 +5,7 @@ open System.Threading.Tasks
 open FSharp.Control.Tasks
 
 open Prelude
+open LibExecution.ProgramTypes
 
 open Fumble
 open LibDB.Db
@@ -108,10 +109,11 @@ let evaluateAllValues
                 $"Value {valueHash} ({fullName}): evaluation failed - {errorMsg}"
               )
             | Ok dval ->
+              let rtHash = PT2RT.ContentHash.toRT valueHash
               let rtValue : RT.PackageValue.PackageValue =
-                { hash = valueHash; body = dval }
+                { hash = rtHash; body = dval }
               let (ContentHash defHash) = valueHash
-              let rtDvalBytes = BS.RT.PackageValue.serialize valueHash rtValue
+              let rtDvalBytes = BS.RT.PackageValue.serialize rtHash rtValue
               let valueType = RT.Dval.toValueType dval
               let valueTypeBytes = BS.RT.ValueType.serialize valueType
 

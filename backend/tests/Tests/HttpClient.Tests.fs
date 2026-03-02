@@ -116,8 +116,7 @@ let parseSingleTestFromFile
       executionStateFor pmPT canvasID false false Map.empty
 
     let name =
-      RT.FQFnName.FQFnName.Package
-        PackageRefs.Fn.Internal.Test.parseSingleTestFromFile
+      RT.FQFnName.fqPackage PackageRefs.Fn.Internal.Test.parseSingleTestFromFile
 
     let args = NEList.ofList (RT.DString filename) [ RT.DString test ]
     let! execResult = LibExecution.Execution.executeFunction state name [] args

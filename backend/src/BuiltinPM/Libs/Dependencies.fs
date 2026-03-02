@@ -20,7 +20,7 @@ let tupleVT = VT.tuple VT.string VT.string []
 /// Try to get location for an item ID, checking all item types (fn, type, value)
 let private getLocationAny
   (branchChain : List<PT.BranchId>)
-  (id : ContentHash)
+  (id : PT.ContentHash)
   : Ply<Option<PT.PackageLocation>> =
   uply {
     // Try fn first (most common)
@@ -53,12 +53,12 @@ let fns : List<BuiltInFn> =
             let! results =
               LibPackageManager.Queries.getDependents
                 branchChain
-                (ContentHash target)
+                (PT.ContentHash target)
 
             let dvals =
               results
               |> List.map (fun ref ->
-                let (ContentHash h) = ref.itemHash
+                let (PT.ContentHash h) = ref.itemHash
                 DTuple(DString h, DString(ref.itemKind.toString ()), []))
             return DList(tupleVT, dvals)
           }
@@ -84,11 +84,11 @@ let fns : List<BuiltInFn> =
             let! results =
               LibPackageManager.Queries.getDependencies
                 branchChain
-                (ContentHash source)
+                (PT.ContentHash source)
             let dvals =
               results
               |> List.map (fun ref ->
-                let (ContentHash h) = ref.itemHash
+                let (PT.ContentHash h) = ref.itemHash
                 DTuple(DString h, DString(ref.itemKind.toString ()), []))
             return DList(tupleVT, dvals)
           }
@@ -118,7 +118,7 @@ let fns : List<BuiltInFn> =
               targets
               |> List.choose (fun dval ->
                 match dval with
-                | DString s -> Some(ContentHash s)
+                | DString s -> Some(PT.ContentHash s)
                 | _ -> None)
 
             let! results =
@@ -129,8 +129,8 @@ let fns : List<BuiltInFn> =
             let dvals =
               results
               |> List.map (fun dep ->
-                let (ContentHash dependsOn) = dep.dependsOnHash
-                let (ContentHash itemH) = dep.itemHash
+                let (PT.ContentHash dependsOn) = dep.dependsOnHash
+                let (PT.ContentHash itemH) = dep.itemHash
                 DTuple(
                   DString dependsOn,
                   DString itemH,
@@ -164,7 +164,7 @@ let fns : List<BuiltInFn> =
               itemHashes
               |> List.choose (fun item ->
                 match item with
-                | DString s -> Some(ContentHash s)
+                | DString s -> Some(PT.ContentHash s)
                 | _ -> None)
 
             let! branchChain = LibPackageManager.Branches.getBranchChain branchId
@@ -183,7 +183,7 @@ let fns : List<BuiltInFn> =
             let dvals =
               results
               |> List.map (fun (hash, loc) ->
-                let (ContentHash h) = hash
+                let (PT.ContentHash h) = hash
                 DTuple(DString h, PT2DT.PackageLocation.toDT loc, []))
 
             return

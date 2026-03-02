@@ -27,6 +27,14 @@ let assertBuiltin
 // TODO: consider grouping SCM types (BranchId, Branch, MergeError, Commit) into a
 // SourceControl module to match the Dark package structure (Darklang.SCM.*)
 /// SCM branch identifier
+/// Content-addressed hash for package items.
+/// Hex-encoded SHA-256 digest of the structure (not name/location).
+type ContentHash = ContentHash of string
+
+module ContentHash =
+  let empty : ContentHash = ContentHash ""
+  let toHexString (ContentHash h) : string = h
+
 type BranchId = uuid
 
 /// Well-known main branch UUID
@@ -71,9 +79,9 @@ module FQTypeName =
 
   type FQTypeName = Package of Package
 
-  let package (h : ContentHash) : Package = h
+  let package (h : string) : Package = ContentHash h
 
-  let fqPackage (h : ContentHash) : FQTypeName = Package h
+  let fqPackage (h : string) : FQTypeName = Package(ContentHash h)
 
 
 
@@ -102,9 +110,9 @@ module FQValueName =
   let fqBuiltIn (name : string) (version : int) : FQValueName =
     Builtin(builtIn name version)
 
-  let package (h : ContentHash) : Package = h
+  let package (h : string) : Package = ContentHash h
 
-  let fqPackage (h : ContentHash) : FQValueName = Package h
+  let fqPackage (h : string) : FQValueName = Package(ContentHash h)
 
 
 
@@ -133,9 +141,9 @@ module FQFnName =
   let fqBuiltIn (name : string) (version : int) : FQFnName =
     Builtin(builtIn name version)
 
-  let package (h : ContentHash) : Package = h
+  let package (h : string) : Package = ContentHash h
 
-  let fqPackage (h : ContentHash) : FQFnName = Package h
+  let fqPackage (h : string) : FQFnName = Package(ContentHash h)
 
 
 // In ProgramTypes, names (FnNames, TypeNames, ValueNames) have already been

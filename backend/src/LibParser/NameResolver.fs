@@ -2,6 +2,7 @@
 module LibParser.NameResolver
 
 open Prelude
+open LibExecution.ProgramTypes
 
 module FS2WT = FSharpToWrittenTypes
 module WT = WrittenTypes

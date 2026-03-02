@@ -1,6 +1,7 @@
 module LibPackageManager.HashStabilization
 
 open Prelude
+open LibExecution.ProgramTypes
 
 module PT = LibExecution.ProgramTypes
 module DE = LibPackageManager.DependencyExtractor

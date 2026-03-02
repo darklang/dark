@@ -2,6 +2,7 @@
 module LibParser.WrittenTypesToProgramTypes
 
 open Prelude
+open LibExecution.ProgramTypes
 
 module WT = WrittenTypes
 module PT = LibExecution.ProgramTypes

@@ -5,7 +5,7 @@ open Prelude
 open LibExecution.ProgramTypes
 
 
-let typeNamePkg id = FQTypeName.fqPackage id
+let typeNamePkg hash = FQTypeName.fqPackage hash
 
 
 let eUnit () : Expr = EUnit(gid ())
@@ -85,14 +85,14 @@ let eInfix (op : Infix) (left : Expr) (right : Expr) : Expr =
 let eBuiltinValue (name : string) (version : int) : Expr =
   EValue(gid (), NameResolution.ok (FQValueName.fqBuiltIn name version))
 
-let ePackageValue (id : ContentHash) : Expr =
-  EValue(gid (), NameResolution.ok (FQValueName.fqPackage id))
+let ePackageValue hash : Expr =
+  EValue(gid (), NameResolution.ok (FQValueName.fqPackage hash))
 
 let eBuiltinFn (name : string) (version : int) : Expr =
   EFnName(gid (), NameResolution.ok (FQFnName.fqBuiltIn name version))
 
-let ePackageFn (id : ContentHash) : Expr =
-  EFnName(gid (), NameResolution.ok (FQFnName.fqPackage id))
+let ePackageFn hash : Expr =
+  EFnName(gid (), NameResolution.ok (FQFnName.fqPackage hash))
 
 let eLambda id (pats : List<LetPattern>) (body : Expr) : Expr =
   let pats = NEList.ofListUnsafe "eLambda" [] pats

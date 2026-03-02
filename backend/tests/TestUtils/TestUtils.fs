@@ -90,7 +90,7 @@ let testPackageFn
   : PT.PackageFn.PackageFn =
   let uniqueHash =
     System.Guid.NewGuid().ToString("N") + System.Guid.NewGuid().ToString("N")
-    |> ContentHash
+    |> PT.ContentHash
   { hash = uniqueHash
     body = body
     description = ""
@@ -1216,14 +1216,14 @@ let interestingDvals : List<string * RT.Dval * RT.TypeReference> =
 
     ("enum",
      DEnum(
-       FQTypeName.Package PackageRefs.Type.Stdlib.AltJson.json,
-       FQTypeName.Package PackageRefs.Type.Stdlib.AltJson.json,
+       FQTypeName.fqPackage PackageRefs.Type.Stdlib.AltJson.json,
+       FQTypeName.fqPackage PackageRefs.Type.Stdlib.AltJson.json,
        [],
        "String",
        [ DString "test" ]
      ),
      TCustomType(
-       NameResolution.ok (FQTypeName.Package PackageRefs.Type.Stdlib.AltJson.json),
+       NameResolution.ok (FQTypeName.fqPackage PackageRefs.Type.Stdlib.AltJson.json),
        []
      ))
 
@@ -1526,8 +1526,7 @@ let parsePTExpr (code : string) : Task<PT.Expr> =
       let canvasID = System.Guid.NewGuid()
       executionStateFor pmPT canvasID false false Map.empty
 
-    let name =
-      RT.FQFnName.FQFnName.Package PackageRefs.Fn.LanguageTools.Parser.parsePTExpr
+    let name = RT.FQFnName.fqPackage PackageRefs.Fn.LanguageTools.Parser.parsePTExpr
 
     let args = NEList.singleton (RT.DString code)
     let! execResult = LibExecution.Execution.executeFunction state name [] args

@@ -3,6 +3,7 @@
 module LibPackageManager.DependencyExtractor
 
 open Prelude
+open LibExecution.ProgramTypes
 
 module PT = LibExecution.ProgramTypes
 

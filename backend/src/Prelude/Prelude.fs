@@ -53,20 +53,7 @@ type uuid = System.Guid
 type CanvasID = uuid
 type UserID = uuid
 
-/// Content-addressed hash for package items.
-/// Hex-encoded SHA-256 digest, wrapped for type safety.
-type ContentHash = ContentHash of string
 
-module ContentHash =
-  let empty : ContentHash = ContentHash ""
-
-  let fromSHA256Bytes (bytes : byte array) : ContentHash =
-    ContentHash(System.Convert.ToHexString(bytes).ToLowerInvariant())
-
-  let toHexString (ContentHash h) : string = h
-
-  /// First 7 hex chars, like git's short SHA
-  let toShortString (ContentHash h) : string = h[..6]
 type tlid = uint64
 type id = uint64
 

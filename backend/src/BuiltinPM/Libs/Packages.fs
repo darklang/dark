@@ -96,7 +96,7 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
             let! result = PMPT.Type.find branchChain location
             return
               result
-              |> Option.map (fun (ContentHash h) -> DString h)
+              |> Option.map (fun (PT.ContentHash h) -> DString h)
               |> Dval.option KTString
           }
         | _ -> incorrectArgs ())
@@ -116,7 +116,7 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
         (function
         | _, _, _, [ DString hash ] ->
           uply {
-            let! result = pm.getType (ContentHash hash)
+            let! result = pm.getType (PT.ContentHash hash)
             return result |> Option.map PT2DT.PackageType.toDT |> Dval.option optType
           }
         | _ -> incorrectArgs ())
@@ -146,7 +146,7 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
             let! result = PMPT.Value.find branchChain location
             return
               result
-              |> Option.map (fun (ContentHash h) -> DString h)
+              |> Option.map (fun (PT.ContentHash h) -> DString h)
               |> Dval.option KTString
           }
         | _ -> incorrectArgs ())
@@ -165,7 +165,7 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
         (function
         | _, _, _, [ DString hash ] ->
           uply {
-            let! result = pm.getValue (ContentHash hash)
+            let! result = pm.getValue (PT.ContentHash hash)
             return
               result
               |> Option.map PT2DT.PackageValue.toDT
@@ -261,7 +261,7 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
             let! result = PMPT.Fn.find branchChain location
             return
               result
-              |> Option.map (fun (ContentHash h) -> DString h)
+              |> Option.map (fun (PT.ContentHash h) -> DString h)
               |> Dval.option KTString
           }
         | _ -> incorrectArgs ())
@@ -280,7 +280,7 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
         (function
         | _, _, _, [ DString hash ] ->
           uply {
-            let! result = pm.getFn (ContentHash hash)
+            let! result = pm.getFn (PT.ContentHash hash)
             return
               result
               |> Option.map PT2DT.PackageFn.toDT
@@ -328,7 +328,7 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
         (function
         | _, _, _, [ DUuid branchId; DString hash ] ->
           uply {
-            let! result = pm.getTypeLocation branchId (ContentHash hash)
+            let! result = pm.getTypeLocation branchId (PT.ContentHash hash)
             return
               result
               |> Option.map PT2DT.PackageLocation.toDT
@@ -350,7 +350,7 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
         (function
         | _, _, _, [ DUuid branchId; DString hash ] ->
           uply {
-            let! result = pm.getValueLocation branchId (ContentHash hash)
+            let! result = pm.getValueLocation branchId (PT.ContentHash hash)
             return
               result
               |> Option.map PT2DT.PackageLocation.toDT
@@ -373,7 +373,7 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
         (function
         | _, _, _, [ DUuid branchId; DString hash ] ->
           uply {
-            let! result = pm.getFnLocation branchId (ContentHash hash)
+            let! result = pm.getFnLocation branchId (PT.ContentHash hash)
             return
               result
               |> Option.map PT2DT.PackageLocation.toDT
@@ -395,7 +395,7 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
         (function
         | _, _, _, [ DUuid branchId; DString hash ] ->
           uply {
-            let! result = pm.getTypeLocations branchId (ContentHash hash)
+            let! result = pm.getTypeLocations branchId (PT.ContentHash hash)
             return
               result
               |> List.map PT2DT.PackageLocation.toDT
@@ -416,7 +416,7 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
         (function
         | _, _, _, [ DUuid branchId; DString hash ] ->
           uply {
-            let! result = pm.getValueLocations branchId (ContentHash hash)
+            let! result = pm.getValueLocations branchId (PT.ContentHash hash)
             return
               result
               |> List.map PT2DT.PackageLocation.toDT
@@ -437,7 +437,7 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
         (function
         | _, _, _, [ DUuid branchId; DString hash ] ->
           uply {
-            let! result = pm.getFnLocations branchId (ContentHash hash)
+            let! result = pm.getFnLocations branchId (PT.ContentHash hash)
             return
               result
               |> List.map PT2DT.PackageLocation.toDT
@@ -482,7 +482,7 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
                 (itemKind.toString ())
             return
               result
-              |> List.map (fun (ContentHash h) -> DString h)
+              |> List.map (fun (PT.ContentHash h) -> DString h)
               |> Dval.list KTString
           }
         | _ -> incorrectArgs ())
@@ -536,8 +536,8 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
               fromSourceHashes
               |> List.map (fun dv ->
                 match dv with
-                | DString s -> ContentHash s
-                | _ -> ContentHash "")
+                | DString s -> PT.ContentHash s
+                | _ -> PT.ContentHash "")
 
             let! result =
               LibPackageManager.Propagation.propagate
@@ -545,7 +545,7 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
                 sourceLocation
                 sourceItemKind
                 fromSourceHashes
-                (ContentHash toSourceHashStr)
+                (PT.ContentHash toSourceHashStr)
 
             let tupleKT =
               KTTuple(ValueType.Known KTUuid, ValueType.Known repointListKT, [])
@@ -636,7 +636,8 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
             // Determine the hash to restore: explicit target or find committed
             let! restoredHashResult =
               match C2DT.Option.fromDT D.string targetHashDval with
-              | Some targetHashStr -> uply { return Ok(ContentHash targetHashStr) }
+              | Some targetHashStr ->
+                uply { return Ok(PT.ContentHash targetHashStr) }
               | None ->
                 uply {
                   let! result =
@@ -672,11 +673,7 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
                   [ revertOp ]
 
               let resultTuple =
-                DTuple(
-                  DUuid revertId,
-                  DString(ContentHash.toHexString restoredHash),
-                  []
-                )
+                DTuple(DUuid revertId, PT2DT.ContentHash.toDT restoredHash, [])
               return Dval.resultOk tupleKT KTString resultTuple
           }
         | _ -> incorrectArgs ())

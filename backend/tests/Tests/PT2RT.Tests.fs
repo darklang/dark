@@ -1022,7 +1022,7 @@ module Expr =
           (1,
            [ RT.LoadValue(
                0,
-               RT.FQValueName.Package E.Values.Package.MySpecialNumber.hash
+               RT.FQValueName.fqPackage E.Values.Package.MySpecialNumber.hash
              ) ],
            0)
       let tests = testList "Package" [ mySpecialNumber ]
@@ -1626,7 +1626,7 @@ module PackageFn =
   let t name typeParams params' returnType expr expected =
     testTask name {
       let fn : PT.PackageFn.PackageFn =
-        { hash = ContentHash ""
+        { hash = PT.ContentHash ""
           body = expr
           typeParams = typeParams
           parameters = params' |> NEList.ofListUnsafe "" []

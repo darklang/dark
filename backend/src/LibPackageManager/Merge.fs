@@ -4,6 +4,7 @@ open System.Threading.Tasks
 open FSharp.Control.Tasks
 
 open Prelude
+open LibExecution.ProgramTypes
 
 open Fumble
 open LibDB.Db
@@ -34,7 +35,8 @@ let canMerge (branchId : PT.BranchId) : Task<Result<unit, PT.MergeError>> =
               LIMIT 1
               """
             |> Sql.parameters [ "parent_id", Sql.uuid parentId ]
-            |> Sql.executeRowOptionAsync (fun read -> ContentHash(read.string "hash"))
+            |> Sql.executeRowOptionAsync (fun read ->
+              ContentHash(read.string "hash"))
 
           if branch.baseCommitHash <> parentLatest then
             return Error PT.MergeError.NotRebased

@@ -1,6 +1,6 @@
 # Branch Cleanups: `hash-based-refs-finally`
 
-- [ ] ContentHash should be in LibExe, not Prelude
+- [x] ContentHash should be in LibExe, not Prelude
   like many other things, it may be appropriate to define this in both RT.fs and PT.fs.
 
 - [ ] in .dark, you've kinda stripped the nestedness of ContentHash and instead are using a raw String - stop that.

@@ -55,7 +55,7 @@ let fns : List<BuiltInFn> =
                   typ =
                     PT.TypeReference.TCustomType(
                       { originalName = []
-                        resolved = Ok(PT.FQTypeName.Package(ContentHash typeHash)) },
+                        resolved = Ok(PT.FQTypeName.Package(PT.ContentHash typeHash)) },
                       []
                     ) }
 

@@ -1,6 +1,7 @@
 module LibPackageManager.RuntimeTypes
 
 open Prelude
+open LibExecution.RuntimeTypes
 
 open Microsoft.Data.Sqlite
 open Fumble

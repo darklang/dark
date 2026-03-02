@@ -1,6 +1,7 @@
 module LibPackageManager.PackageManager
 
 open Prelude
+open LibExecution.ProgramTypes
 
 module RT = LibExecution.RuntimeTypes
 module PT = LibExecution.ProgramTypes

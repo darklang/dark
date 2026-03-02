@@ -91,7 +91,7 @@ let fns : List<BuiltInFn> =
           (TCustomType(
             { originalName = []
               resolved =
-                Ok(FQTypeName.Package PackageRefs.Type.Internal.Canvas.program) },
+                Ok(FQTypeName.fqPackage PackageRefs.Type.Internal.Canvas.program) },
             []
           ))
           TString
@@ -128,7 +128,7 @@ let fns : List<BuiltInFn> =
             //   |> Dval.list VT.unknownTODO
 
             let typeName =
-              FQTypeName.Package PackageRefs.Type.Internal.Canvas.program
+              FQTypeName.fqPackage PackageRefs.Type.Internal.Canvas.program
             return
               DRecord(typeName, typeName, [], Map [])
               |> Dval.resultOk (KTCustomType(typeName, [])) KTString

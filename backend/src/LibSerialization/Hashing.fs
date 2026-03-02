@@ -11,6 +11,7 @@ module rec LibSerialization.Hashing
 open System.IO
 open System.Security.Cryptography
 open Prelude
+open LibExecution.ProgramTypes
 module PT = LibExecution.ProgramTypes
 
 // Re-use leaf serializers from existing binary serializers
@@ -522,13 +523,16 @@ let writeCanonicalTypeDeclaration
 // Hash computation helpers
 // =====================
 
+let private fromSHA256Bytes (bytes : byte array) : ContentHash =
+  ContentHash(System.Convert.ToHexString(bytes).ToLowerInvariant())
+
 /// Serialize to bytes using a writer function, then SHA-256 hash to ContentHash
 let private hashWithWriter (writerFn : BinaryWriter -> unit) : ContentHash =
   use ms = new MemoryStream()
   use w = new BinaryWriter(ms)
   writerFn w
   let bytes = ms.ToArray()
-  SHA256.HashData(bytes) |> ContentHash.fromSHA256Bytes
+  SHA256.HashData(bytes) |> fromSHA256Bytes
 
 
 // =====================
@@ -773,7 +777,7 @@ let computeHashesWithSCCs
         |> List.map (fun (_, item) -> serializeItemCanonical mode item)
         |> Array.concat
 
-      let groupHash = SHA256.HashData(groupBytes) |> ContentHash.fromSHA256Bytes
+      let groupHash = SHA256.HashData(groupBytes) |> fromSHA256Bytes
 
       // Each item's hash = hash(groupHash + FQN)
       for (fqn, item) in sortedItems do

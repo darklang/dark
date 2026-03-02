@@ -31,11 +31,11 @@ module Sign =
 
 
 module ContentHash =
-  let toDT (ContentHash h) : Dval = DString h
+  let toDT (PT.ContentHash h) : Dval = DString h
 
-  let fromDT (d : Dval) : ContentHash =
+  let fromDT (d : Dval) : PT.ContentHash =
     match d with
-    | DString h -> ContentHash h
+    | DString h -> PT.ContentHash h
     | _ -> Exception.raiseInternal "Invalid ContentHash" []
 
 

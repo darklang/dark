@@ -21,11 +21,13 @@ module Propagation = LibPackageManager.Propagation
 let private loc (name : string) : PT.PackageLocation =
   { owner = "Test"; modules = [ "Prop" ]; name = name }
 
+let private hashStr (PT.ContentHash h) = h
+
 let private makeFn (body : PT.Expr) : PT.PackageFn.PackageFn =
   testPackageFn [] (NEList.singleton "x") PT.TInt64 body
 
-let private callFn (fnId : ContentHash) : PT.Expr =
-  eApply (ePackageFn fnId) [] [ eVar "x" ]
+let private callFn (fnId : PT.ContentHash) : PT.Expr =
+  eApply (ePackageFn (hashStr fnId)) [] [ eVar "x" ]
 
 let private addFnAt
   (branchId : PT.BranchId)
@@ -56,8 +58,8 @@ let private discardAndDeleteBranch (branchId : PT.BranchId) : Task<unit> =
 let private propagateOrFail
   (branchId : PT.BranchId)
   (location : PT.PackageLocation)
-  (fromHashes : List<ContentHash>)
-  (toHash : ContentHash)
+  (fromHashes : List<PT.ContentHash>)
+  (toHash : PT.ContentHash)
   : Task<Propagation.PropagationResult * List<PT.PackageOp>> =
   task {
     let! result =
@@ -264,9 +266,9 @@ let testCallersOnDifferentVersions =
 
 
 /// Generate a unique 64-hex-char content hash (matching SHA-256 format).
-let private uniqueContentHash () : ContentHash =
+let private uniqueContentHash () : PT.ContentHash =
   let bytes = System.Security.Cryptography.RandomNumberGenerator.GetBytes(32)
-  ContentHash(
+  PT.ContentHash(
     System.BitConverter.ToString(bytes).Replace("-", "").ToLowerInvariant()
   )
 
@@ -372,7 +374,7 @@ let testMutualRecursion =
       makeFn (
         eInfix
           (PT.InfixFnCall PT.ArithmeticPlus)
-          (eApply (ePackageFn fnB1.hash) [] [ eVar "x" ])
+          (eApply (ePackageFn (hashStr fnB1.hash)) [] [ eVar "x" ])
           (eInt64 1L)
       )
     do! addFnAt branchId (loc "mrA") fnA3
@@ -1190,7 +1192,7 @@ let testTypePropagation =
     do! addTypeAt branchId (loc "myStatus") typeV1
 
     // Create a fn that references the type via EEnum
-    let fnBody = eEnum (PT.FQTypeName.fqPackage typeV1.hash) [] "Active" []
+    let fnBody = eEnum (typeNamePkg (hashStr typeV1.hash)) [] "Active" []
     let callerFn = makeFn fnBody
     do! addFnAt branchId (loc "makeStatus") callerFn
 
@@ -1248,7 +1250,7 @@ let testValuePropagation =
     do! addValueAt branchId (loc "myConst") valueV1
 
     // Create a fn that uses the value
-    let callerFn = makeFn (ePackageValue valueV1.hash)
+    let callerFn = makeFn (ePackageValue (hashStr valueV1.hash))
     do! addFnAt branchId (loc "useConst") callerFn
 
     // Update value: 99L
@@ -1299,8 +1301,8 @@ let testDiamondUndoPropagation =
       makeFn (
         eInfix
           (PT.InfixFnCall PT.ArithmeticPlus)
-          (eApply (ePackageFn fnB.hash) [] [ eVar "x" ])
-          (eApply (ePackageFn fnC.hash) [] [ eVar "x" ])
+          (eApply (ePackageFn (hashStr fnB.hash)) [] [ eVar "x" ])
+          (eApply (ePackageFn (hashStr fnC.hash)) [] [ eVar "x" ])
       )
     do! addFnAt branchId (loc "diaD") fnD
 
@@ -1772,7 +1774,7 @@ let testMutualRecursionUndo =
       makeFn (
         eInfix
           (PT.InfixFnCall PT.ArithmeticPlus)
-          (eApply (ePackageFn fnB1.hash) [] [ eVar "x" ])
+          (eApply (ePackageFn (hashStr fnB1.hash)) [] [ eVar "x" ])
           (eInt64 1L)
       )
     do! addFnAt branchId (loc "muA") fnA3

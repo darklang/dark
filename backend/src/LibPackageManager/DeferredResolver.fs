@@ -10,6 +10,7 @@
 module LibPackageManager.DeferredResolver
 
 open Prelude
+open LibExecution.ProgramTypes
 
 module PT = LibExecution.ProgramTypes
 

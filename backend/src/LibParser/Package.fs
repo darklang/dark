@@ -3,6 +3,7 @@ module internal LibParser.Package
 open FSharp.Compiler.Syntax
 
 open Prelude
+open LibExecution.ProgramTypes
 
 module FS2WT = FSharpToWrittenTypes
 module WT = WrittenTypes

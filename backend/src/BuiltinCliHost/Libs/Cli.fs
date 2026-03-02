@@ -69,7 +69,7 @@ let parseCliScript
         [ DString owner; DString scriptName; DString scriptName; DString code ]
 
     let parseForCliFnName =
-      FQFnName.Package PackageRefs.Fn.LanguageTools.Parser.CliScript.parseForCli
+      FQFnName.fqPackage PackageRefs.Fn.LanguageTools.Parser.CliScript.parseForCli
 
     let! execResult = Exe.executeFunction exeState parseForCliFnName [] args
 

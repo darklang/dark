@@ -50,7 +50,7 @@ let fns : List<BuiltInFn> =
       returnType =
         TCustomType(
           NameResolution.ok (
-            FQTypeName.Package
+            FQTypeName.fqPackage
               PackageRefs.Type.PrettyPrinter.RuntimeTypes.RuntimeError.errorMessage
           ),
           []
@@ -60,7 +60,7 @@ let fns : List<BuiltInFn> =
         (function
         | _, _, _, [ DString error ] ->
           let typeName =
-            FQTypeName.Package
+            FQTypeName.fqPackage
               PackageRefs.Type.PrettyPrinter.RuntimeTypes.RuntimeError.errorMessage
           DEnum(typeName, typeName, [], "ErrorString", [ DString error ]) |> Ply
         | _ -> incorrectArgs ())
@@ -89,7 +89,7 @@ let fns : List<BuiltInFn> =
       returnType =
         TCustomType(
           NameResolution.ok (
-            FQTypeName.Package
+            FQTypeName.fqPackage
               PackageRefs.Type.PrettyPrinter.RuntimeTypes.RuntimeError.errorMessage
           ),
           []
@@ -100,7 +100,7 @@ let fns : List<BuiltInFn> =
         | _, _, _, [ DString errorString ] ->
           let msg = LibExecution.RTQueryCompiler.errorTemplate + errorString
           let typeName =
-            FQTypeName.Package
+            FQTypeName.fqPackage
               PackageRefs.Type.PrettyPrinter.RuntimeTypes.RuntimeError.errorMessage
           DEnum(typeName, typeName, [], "ErrorString", [ DString msg ]) |> Ply
         | _ -> incorrectArgs ())

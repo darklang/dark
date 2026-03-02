@@ -31,11 +31,10 @@ open Prelude
 
 
 module Type =
-  let mutable private _lookup = Map []
-  let private p modules name (id : string) : ContentHash =
-    let hash = ContentHash id
-    _lookup <- _lookup |> Map.add (modules, name) hash
-    hash
+  let mutable private _lookup : Map<string list * string, string> = Map []
+  let private p modules name (id : string) : string =
+    _lookup <- _lookup |> Map.add (modules, name) id
+    id
 
   module Stdlib =
     let private p addl = p ("Stdlib" :: addl)
@@ -52,33 +51,15 @@ module Type =
       "ab0a98d41aabb3799b3209709a093f3e0ccc6ec79853bb333bfe7cafc8813333"
 
     let int8ParseError = intParseErrorHash |> p [ "Int8" ] "ParseError"
-    let uint8ParseError =
-      intParseErrorHash
-      |> p [ "UInt8" ] "ParseError"
-    let int16ParseError =
-      intParseErrorHash
-      |> p [ "Int16" ] "ParseError"
-    let uint16ParseError =
-      intParseErrorHash
-      |> p [ "UInt16" ] "ParseError"
-    let int32ParseError =
-      intParseErrorHash
-      |> p [ "Int32" ] "ParseError"
-    let uint32ParseError =
-      intParseErrorHash
-      |> p [ "UInt32" ] "ParseError"
-    let int64ParseError =
-      intParseErrorHash
-      |> p [ "Int64" ] "ParseError"
-    let uint64ParseError =
-      intParseErrorHash
-      |> p [ "UInt64" ] "ParseError"
-    let int128ParseError =
-      intParseErrorHash
-      |> p [ "Int128" ] "ParseError"
-    let uint128ParseError =
-      intParseErrorHash
-      |> p [ "UInt128" ] "ParseError"
+    let uint8ParseError = intParseErrorHash |> p [ "UInt8" ] "ParseError"
+    let int16ParseError = intParseErrorHash |> p [ "Int16" ] "ParseError"
+    let uint16ParseError = intParseErrorHash |> p [ "UInt16" ] "ParseError"
+    let int32ParseError = intParseErrorHash |> p [ "Int32" ] "ParseError"
+    let uint32ParseError = intParseErrorHash |> p [ "UInt32" ] "ParseError"
+    let int64ParseError = intParseErrorHash |> p [ "Int64" ] "ParseError"
+    let uint64ParseError = intParseErrorHash |> p [ "UInt64" ] "ParseError"
+    let int128ParseError = intParseErrorHash |> p [ "Int128" ] "ParseError"
+    let uint128ParseError = intParseErrorHash |> p [ "UInt128" ] "ParseError"
     let floatParseError =
       "e342cc59c22ca41ab61c5bb375c04c6dbb31592d5a79491593a3b2bc522fb86b"
       |> p [ "Float" ] "ParseError"
@@ -582,12 +563,11 @@ module Type =
         |> p [ "Infra" ] "TableSize"
 
 module Fn =
-  let mutable private _lookup = Map []
+  let mutable private _lookup : Map<string list * string, string> = Map []
 
-  let private p modules name (id : string) : ContentHash =
-    let hash = ContentHash id
-    _lookup <- _lookup |> Map.add (modules, name) hash
-    hash
+  let private p modules name (id : string) : string =
+    _lookup <- _lookup |> Map.add (modules, name) id
+    id
 
   module Stdlib =
     let private p addl = p ("Stdlib" :: addl)

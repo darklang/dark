@@ -15,8 +15,11 @@ module RTNR = LibExecution.RuntimeTypes.NameResolution
 
 module BS = LibSerialization.Binary.Serialization
 
-let contentHash =
-  ContentHash "abcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890"
+let private contentHashStr =
+  "abcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890"
+
+let contentHashRT = RT.ContentHash contentHashStr
+let contentHashPT = PT.ContentHash contentHashStr
 
 let instant = NodaTime.Instant.parse "2022-07-04T17:46:57Z"
 
@@ -28,15 +31,15 @@ let tlids : List<tlid> = [ 1UL; 0UL; uint64 -1L ]
 
 module RuntimeTypes =
   let fqTypeNames : List<RT.FQTypeName.FQTypeName> =
-    [ RT.FQTypeName.Package contentHash ]
+    [ RT.FQTypeName.Package contentHashRT ]
 
   let fqFnNames : List<RT.FQFnName.FQFnName> =
     [ RT.FQFnName.Builtin { name = "aB"; version = 1 }
-      RT.FQFnName.Package contentHash ]
+      RT.FQFnName.Package contentHashRT ]
 
   let fqValueNames : List<RT.FQValueName.FQValueName> =
     [ RT.FQValueName.Builtin { name = "aB"; version = 1 }
-      RT.FQValueName.Package contentHash ]
+      RT.FQValueName.Package contentHashRT ]
 
   let typeReferences : List<RT.TypeReference> =
     [ RT.TUnit
@@ -63,7 +66,7 @@ module RuntimeTypes =
 
       RT.TFn(NEList.singleton RT.TBool, RT.TBool)
 
-      RT.TCustomType(RTNR.ok (RT.FQTypeName.Package contentHash), [ RT.TBool ])
+      RT.TCustomType(RTNR.ok (RT.FQTypeName.Package contentHashRT), [ RT.TBool ])
 
       RT.TDB RT.TBool
 
@@ -109,7 +112,7 @@ module RuntimeTypes =
     sampleDvals |> List.map (fun (_, (dv, _)) -> dv)
 
   let dval : RT.Dval =
-    let typeName = RT.FQTypeName.Package contentHash
+    let typeName = RT.FQTypeName.Package contentHashRT
     sampleDvals
     |> List.map (fun (name, (dv, _)) -> name, dv)
     |> fun fields -> RT.DRecord(typeName, typeName, [], Map fields)
@@ -140,13 +143,13 @@ module RuntimeTypes =
 
   // RT test values for binary serialization
   let packageTypes : List<RT.PackageType.PackageType> =
-    [ { hash = ContentHash "abc123"; declaration = typeDeclarations[0] }
-      { hash = ContentHash "def456"; declaration = typeDeclarations[1] } ]
+    [ { hash = RT.ContentHash "abc123"; declaration = typeDeclarations[0] }
+      { hash = RT.ContentHash "def456"; declaration = typeDeclarations[1] } ]
 
   let packageValues : List<RT.PackageValue.PackageValue> =
-    [ { hash = ContentHash "val1"; body = RT.DString "Hello RT PackageValue" }
-      { hash = ContentHash "val2"; body = RT.DInt64 42L }
-      { hash = ContentHash "val3"; body = RT.DBool true } ]
+    [ { hash = RT.ContentHash "val1"; body = RT.DString "Hello RT PackageValue" }
+      { hash = RT.ContentHash "val2"; body = RT.DInt64 42L }
+      { hash = RT.ContentHash "val3"; body = RT.DBool true } ]
 
   let instructions : List<RT.Instructions> =
     [ { registerCount = 1; instructions = [ RT.CopyVal(0, 1) ]; resultIn = 0 }
@@ -158,12 +161,12 @@ module RuntimeTypes =
         resultIn = 1 } ]
 
   let packageFns : List<RT.PackageFn.PackageFn> =
-    [ { hash = ContentHash "fn1"
+    [ { hash = RT.ContentHash "fn1"
         typeParams = []
         parameters = NEList.singleton { name = "x"; typ = RT.TInt64 }
         returnType = RT.TInt64
         body = instructions[0] }
-      { hash = ContentHash "fn2"
+      { hash = RT.ContentHash "fn2"
         typeParams = [ "T" ]
         parameters =
           NEList.ofList
@@ -202,7 +205,7 @@ module ProgramTypes =
 
   let fqFnNames : List<FQFnName.FQFnName> =
     [ FQFnName.Builtin { name = "int64Increment"; version = 1 }
-      FQFnName.Package contentHash ]
+      FQFnName.Package contentHashPT ]
 
 
   let letPatterns : List<LetPattern> =
@@ -264,8 +267,8 @@ module ProgramTypes =
         TTuple(TBool, TBool, [ TBool ])
         TDict TBool
         TDB TBool
-        TCustomType(NameResolution.ok (FQTypeName.Package contentHash), [ TBool ])
-        TCustomType(NameResolution.ok (FQTypeName.Package contentHash), [ TBool ])
+        TCustomType(NameResolution.ok (FQTypeName.Package contentHashPT), [ TBool ])
+        TCustomType(NameResolution.ok (FQTypeName.Package contentHashPT), [ TBool ])
         TVariable "test"
         TFn(NEList.singleton TBool, TBool) ]
     )
@@ -392,7 +395,7 @@ module ProgramTypes =
                         LPVariable(id, "r"),
                         ERecord(
                           id,
-                          NameResolution.ok (FQTypeName.Package contentHash),
+                          NameResolution.ok (FQTypeName.Package contentHashPT),
                           [ TUnit ],
                           [ ("field",
                              EPipe(
@@ -427,7 +430,7 @@ module ProgramTypes =
                             ("enum",
                              EEnum(
                                id,
-                               NameResolution.ok (FQTypeName.Package contentHash),
+                               NameResolution.ok (FQTypeName.Package contentHashPT),
                                [ TUnit ],
                                "Error",
                                []
@@ -711,7 +714,7 @@ module ProgramTypes =
   // (also make sure we roundtrip test them)
 
   let packageFn : PackageFn.PackageFn =
-    { hash = contentHash
+    { hash = contentHashPT
       body = expr
       typeParams = [ "a" ]
       parameters =
@@ -724,7 +727,7 @@ module ProgramTypes =
   let packageFns = [ packageFn ]
 
   let packageType : PackageType.PackageType =
-    { hash = contentHash
+    { hash = contentHashPT
       declaration =
         { typeParams = [ "a" ]
           definition =

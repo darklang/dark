@@ -14,12 +14,12 @@ module Option =
   /// Convert a Darklang Option<'a> (DEnum) to F# Option<'a>
   let fromDT (f : Dval -> 'a) (d : Dval) : Option<'a> =
     match d with
-    | DEnum(FQTypeName.Package hash, _, _, "Some", [ value ]) when
+    | DEnum(FQTypeName.Package(ContentHash hash), _, _, "Some", [ value ]) when
       hash = PackageRefs.Type.Stdlib.option
       ->
       Some(f value)
 
-    | DEnum(FQTypeName.Package hash, _, _, "None", []) when
+    | DEnum(FQTypeName.Package(ContentHash hash), _, _, "None", []) when
       hash = PackageRefs.Type.Stdlib.option
       ->
       None

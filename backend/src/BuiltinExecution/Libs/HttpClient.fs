@@ -426,7 +426,7 @@ let fns (config : Configuration) : List<BuiltInFn> =
                   | notAPair ->
                     return
                       RTE.Applications.FnParameterNotExpectedType(
-                        FQFnName.Package PackageRefs.Fn.Stdlib.HttpClient.request,
+                        FQFnName.fqPackage PackageRefs.Fn.Stdlib.HttpClient.request,
                         2,
                         "headers",
                         VT.list (VT.tuple VT.string VT.string []),

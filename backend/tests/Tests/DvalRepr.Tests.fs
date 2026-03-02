@@ -52,7 +52,8 @@ let queryableRoundtripsSuccessfullyInRecord
 
   task {
     let typeHash =
-      ContentHash "82ac8d1c86ef45d4be66052050739a3882ac8d1c86ef45d4be66052050739a38"
+      RT.ContentHash
+        "82ac8d1c86ef45d4be66052050739a3882ac8d1c86ef45d4be66052050739a38"
     let typeName = RT.FQTypeName.Package typeHash
     let record = RT.DRecord(typeName, typeName, [], Map.ofList [ "field", dv ])
     let typeRef = RT.TCustomType(NR.ok typeName, [])

@@ -2,6 +2,7 @@
 module LibPackageManager.AstTransformer
 
 open Prelude
+open LibExecution.ProgramTypes
 
 module PT = LibExecution.ProgramTypes
 

@@ -28,20 +28,12 @@ module ContentHashTests =
 
   let roundtripTest =
     test "ContentHash binary roundtrip" {
-      let hash = Values.contentHash
+      let hash = Values.contentHashPT
       let roundtripped =
         hash
         |> BS.PT.ContentHash.serialize "contentHash"
         |> BS.PT.ContentHash.deserialize "contentHash"
       Expect.equal roundtripped hash "roundtrip should preserve ContentHash"
-    }
-
-  let toShortStringTest =
-    test "ContentHash.toShortString returns 7 chars" {
-      let (ContentHash h) = Values.contentHash
-      let short = ContentHash.toShortString Values.contentHash
-      Expect.equal short (h[..6]) "toShortString should return first 7 chars"
-      Expect.equal short.Length 7 "toShortString length should be 7"
     }
 
 
@@ -205,9 +197,7 @@ let generateTestFiles () =
 let tests =
   testList
     "Binary Serialization"
-    [ testList
-        "ContentHash"
-        [ ContentHashTests.roundtripTest; ContentHashTests.toShortStringTest ]
+    [ testList "ContentHash" [ ContentHashTests.roundtripTest ]
 
       testList
         "PT Roundtrip Tests"
