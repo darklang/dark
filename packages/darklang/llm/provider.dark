@@ -56,26 +56,24 @@ type Message =
     /// Rich content blocks (for images, tool results, etc.)
     contentBlocks: List<ContentBlock> }
 
-/// Create a user message with text
-let userMessage (content: String) : Message =
+/// Create a text message with a given role
+let textMessage (role: Role) (content: String) : Message =
   Message
-    { role = Role.User
+    { role = role
       content = content
       contentBlocks = [ ContentBlock.Text content ] }
+
+/// Create a user message with text
+let userMessage (content: String) : Message =
+  textMessage Role.User content
 
 /// Create an assistant message with text
 let assistantMessage (content: String) : Message =
-  Message
-    { role = Role.Assistant
-      content = content
-      contentBlocks = [ ContentBlock.Text content ] }
+  textMessage Role.Assistant content
 
 /// Create a system message
 let systemMessage (content: String) : Message =
-  Message
-    { role = Role.System
-      content = content
-      contentBlocks = [ ContentBlock.Text content ] }
+  textMessage Role.System content
 
 /// Create a user message with an image from URL
 let imageUrlMessage (url: String) (text: String) : Message =
@@ -133,13 +131,6 @@ let assistantMessageWithToolUses (content: String) (toolCalls: List<ToolCall>) :
       content = content
       contentBlocks = Stdlib.List.append textBlock toolUseBlocks }
 
-/// Check if a message has rich content (images or tool results)
-let hasRichContent (msg: Message) : Bool =
-  Stdlib.List.any msg.contentBlocks (fun block ->
-    match block with
-    | Text _ -> false
-    | _ -> true)
-
 
 
 // TOOL DEFINITIONS
@@ -153,50 +144,40 @@ type ToolParameter =
     required: Bool
     enumValues: Stdlib.Option.Option<List<String>> }
 
-/// Create a required string parameter
-let stringParam (name: String) (description: String) : ToolParameter =
+/// Create a tool parameter
+let makeParam
+  (name: String)
+  (paramType: String)
+  (description: String)
+  (required: Bool)
+  (enumValues: Stdlib.Option.Option<List<String>>)
+  : ToolParameter =
   ToolParameter
     { name = name
-      paramType = "string"
+      paramType = paramType
       description = description
-      required = true
-      enumValues = Stdlib.Option.Option.None }
+      required = required
+      enumValues = enumValues }
+
+/// Create a required string parameter
+let stringParam (name: String) (description: String) : ToolParameter =
+  makeParam name "string" description true Stdlib.Option.Option.None
 
 /// Create an optional string parameter
 let optionalStringParam (name: String) (description: String) : ToolParameter =
-  ToolParameter
-    { name = name
-      paramType = "string"
-      description = description
-      required = false
-      enumValues = Stdlib.Option.Option.None }
+  makeParam name "string" description false Stdlib.Option.Option.None
 
 /// Create a required enum parameter
 let enumParam (name: String) (description: String) (values: List<String>) : ToolParameter =
-  ToolParameter
-    { name = name
-      paramType = "string"
-      description = description
-      required = true
-      enumValues = Stdlib.Option.Option.Some values }
+  makeParam name "string" description true (Stdlib.Option.Option.Some values)
 
 /// Create a required integer parameter
 let intParam (name: String) (description: String) : ToolParameter =
-  ToolParameter
-    { name = name
-      paramType = "integer"
-      description = description
-      required = true
-      enumValues = Stdlib.Option.Option.None }
+  makeParam name "integer" description true Stdlib.Option.Option.None
 
 /// Create a required boolean parameter
 let boolParam (name: String) (description: String) : ToolParameter =
-  ToolParameter
-    { name = name
-      paramType = "boolean"
-      description = description
-      required = true
-      enumValues = Stdlib.Option.Option.None }
+  makeParam name "boolean" description true Stdlib.Option.Option.None
 
 
 /// Schema definition for a tool
@@ -253,23 +234,23 @@ let createRequest (model: String) : Request =
       stopSequences = [] }
 
 /// Add messages to a request
-let withMessages (messages: List<Message>) (req: Request) : Request =
+let withMessages (req: Request) (messages: List<Message>) : Request =
   { req with messages = messages }
 
 /// Add a system prompt to a request
-let withSystemPrompt (prompt: String) (req: Request) : Request =
+let withSystemPrompt (req: Request) (prompt: String) : Request =
   { req with systemPrompt = Stdlib.Option.Option.Some prompt }
 
 /// Add tools to a request
-let withTools (tools: List<ToolSchema>) (req: Request) : Request =
+let withTools (req: Request) (tools: List<ToolSchema>) : Request =
   { req with tools = tools }
 
 /// Set max tokens for a request
-let withMaxTokens (tokens: Int64) (req: Request) : Request =
+let withMaxTokens (req: Request) (tokens: Int64) : Request =
   { req with maxTokens = tokens }
 
 /// Set temperature for a request
-let withTemperature (temp: Float) (req: Request) : Request =
+let withTemperature (req: Request) (temp: Float) : Request =
   { req with temperature = Stdlib.Option.Option.Some temp }
 
 
@@ -438,39 +419,26 @@ let doRetryAttempt
   if state.isDone then
     state
   else if state.attempt >= config.maxRetries then
-    match state.lastError with
-    | Some e ->
-      RetryState
-        { attempt = state.attempt
-          lastError = state.lastError
-          result = Stdlib.Option.Option.Some(Stdlib.Result.Result.Error e)
-          isDone = true }
-    | None ->
-      // Should not happen, but handle gracefully
-      RetryState
-        { attempt = state.attempt
-          lastError = state.lastError
-          result = Stdlib.Option.Option.Some(Stdlib.Result.Result.Error(ProviderError.Unknown "Max retries with no error"))
-          isDone = true }
+    let err =
+      match state.lastError with
+      | Some e -> e
+      | None -> ProviderError.Unknown "Max retries with no error"
+    { state with
+        result = Stdlib.Option.Option.Some(Stdlib.Result.Result.Error err)
+        isDone = true }
   else
-    // Execute the request (no delay - retries happen immediately)
     match sendFn () with
     | Ok result ->
-      RetryState
-        { attempt = state.attempt
-          lastError = state.lastError
+      { state with
           result = Stdlib.Option.Option.Some(Stdlib.Result.Result.Ok result)
           isDone = true }
     | Error e ->
       if ProviderError.isRetryable e then
-        RetryState
-          { attempt = state.attempt + 1L
-            lastError = Stdlib.Option.Option.Some e
-            result = Stdlib.Option.Option.None
-            isDone = false }
+        { state with
+            attempt = state.attempt + 1L
+            lastError = Stdlib.Option.Option.Some e }
       else
-        RetryState
-          { attempt = state.attempt
+        { state with
             lastError = Stdlib.Option.Option.Some e
             result = Stdlib.Option.Option.Some(Stdlib.Result.Result.Error e)
             isDone = true }
@@ -490,8 +458,8 @@ let runRetryLoop
   else
     runRetryLoop config sendFn newState
 
-/// Retry a request with exponential backoff for transient errors
-let retryWithBackoff
+/// Retry a request for transient errors (no backoff delay)
+let retry
   (config: RetryConfig)
   (sendFn: Unit -> Stdlib.Result.Result<'a, ProviderError>)
   : Stdlib.Result.Result<'a, ProviderError> =
@@ -507,7 +475,7 @@ let retryWithBackoff
 let retryRequest
   (sendFn: Unit -> Stdlib.Result.Result<'a, ProviderError>)
   : Stdlib.Result.Result<'a, ProviderError> =
-  retryWithBackoff defaultRetryConfig sendFn
+  retry defaultRetryConfig sendFn
 
 
 
@@ -638,22 +606,11 @@ type ResponseExtended =
 // PROVIDER LOOKUP
 
 /// Get the provider for a model based on its providerId
-/// Returns Error if required API keys are not set
+/// Returns Error if required API keys are not set or provider is unknown
 let forModel (model: Darklang.LLM.Models.Model) : Stdlib.Result.Result<Provider, String> =
   match model.providerId with
   | "anthropic" -> Darklang.LLM.Providers.Anthropic.create ()
   | "openai" -> Darklang.LLM.Providers.OpenAI.create ()
   | "ollama" -> Stdlib.Result.Result.Ok(Darklang.LLM.Providers.Ollama.create ())
   | "local" -> Stdlib.Result.Result.Ok(Darklang.LLM.Providers.Ollama.create ())
-  | _ -> Darklang.LLM.Providers.Anthropic.create ()
-
-
-/// Get the provider for a model, panicking if API keys are not set
-/// Use this when you want fail-fast behavior at startup
-let forModelOrFail (model: Darklang.LLM.Models.Model) : Provider =
-  match model.providerId with
-  | "anthropic" -> Darklang.LLM.Providers.Anthropic.createOrFail ()
-  | "openai" -> Darklang.LLM.Providers.OpenAI.createOrFail ()
-  | "ollama" -> Darklang.LLM.Providers.Ollama.create ()
-  | "local" -> Darklang.LLM.Providers.Ollama.create ()
-  | _ -> Darklang.LLM.Providers.Anthropic.createOrFail ()
+  | other -> Stdlib.Result.Result.Error $"Unknown provider: {other}"

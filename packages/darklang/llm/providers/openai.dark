@@ -31,7 +31,7 @@ type Config =
 /// OpenAI API configuration
 /// Returns Error if OPENAI_API_KEY environment variable is not set
 let openaiConfig () : Stdlib.Result.Result<Config, String> =
-  match Darklang.LLM.Internal.ApiKeys.fromEnv "OPENAI_API_KEY" "OpenAI" with
+  match Internal.ApiKeys.fromEnv "OPENAI_API_KEY" "OpenAI" with
   | Ok apiKey ->
     Stdlib.Result.Result.Ok(
       Config
@@ -50,7 +50,7 @@ let azureConfig
   (deploymentName: String)
   (apiVersion: String)
   : Stdlib.Result.Result<Config, String> =
-  match Darklang.LLM.Internal.ApiKeys.fromEnv "AZURE_OPENAI_API_KEY" "Azure OpenAI" with
+  match Internal.ApiKeys.fromEnv "AZURE_OPENAI_API_KEY" "Azure OpenAI" with
   | Ok apiKey ->
     Stdlib.Result.Result.Ok(
       Config
@@ -72,17 +72,13 @@ let customConfig (baseUrl: String) (name: String) (maxTokens: Int64) : Config =
       maxContextTokens = maxTokens }
 
 
-/// Validate that an API key is not empty (for explicit key arguments)
-let validateApiKey (apiKey: String) : Stdlib.Result.Result<Unit, String> =
-  Darklang.LLM.Internal.ApiKeys.validate apiKey
-
 
 
 // REQUEST TRANSFORMATION
 // Convert generic Request to OpenAI format
 
 /// Convert a generic ToolParameter to OpenAI property format
-let parameterToProperty (param: Darklang.LLM.Provider.ToolParameter) : (String * Json) =
+let parameterToProperty (param: Provider.ToolParameter) : (String * Json) =
   let baseProp =
     [ ("type", Json.String param.paramType)
       ("description", Json.String param.description) ]
@@ -98,7 +94,7 @@ let parameterToProperty (param: Darklang.LLM.Provider.ToolParameter) : (String *
 
 
 /// Convert a generic ToolSchema to OpenAI function format
-let toolSchemaToJson (tool: Darklang.LLM.Provider.ToolSchema) : Json =
+let toolSchemaToJson (tool: Provider.ToolSchema) : Json =
   let properties =
     tool.parameters
     |> Stdlib.List.map parameterToProperty
@@ -123,76 +119,45 @@ let toolSchemaToJson (tool: Darklang.LLM.Provider.ToolSchema) : Json =
            ("parameters", parameters) ]) ]
 
 
-/// Image detail level configuration
-type ImageDetail =
-  | Auto
-  | Low
-  | High
-
-/// Convert image detail to string
-let imageDetailToString (detail: ImageDetail) : String =
-  match detail with
-  | Auto -> "auto"
-  | Low -> "low"
-  | High -> "high"
-
-/// Default image detail level
-let defaultImageDetail : ImageDetail = ImageDetail.Auto
-
 /// Convert an image source to OpenAI image_url format
-let imageSourceToOpenAI (source: Darklang.LLM.Provider.ImageSource) : Json =
-  imageSourceToOpenAIWithDetail source defaultImageDetail
+let imageSourceToOpenAI (source: Provider.ImageSource) : Json =
+  let url =
+    match source with
+    | Base64(mediaType, data) -> "data:" ++ mediaType ++ ";base64," ++ data
+    | Url u -> u
 
-/// Convert an image source to OpenAI image_url format with configurable detail
-let imageSourceToOpenAIWithDetail (source: Darklang.LLM.Provider.ImageSource) (detail: ImageDetail) : Json =
-  let detailStr = imageDetailToString detail
-  match source with
-  | Base64(mediaType, data) ->
-    Json.Object
-      [ ("type", Json.String "image_url")
-        ("image_url",
-         Json.Object
-           [ ("url", Json.String("data:" ++ mediaType ++ ";base64," ++ data))
-             ("detail", Json.String detailStr) ]) ]
-  | Url url ->
-    Json.Object
-      [ ("type", Json.String "image_url")
-        ("image_url",
-         Json.Object
-           [ ("url", Json.String url)
-             ("detail", Json.String detailStr) ]) ]
+  Json.Object
+    [ ("type", Json.String "image_url")
+      ("image_url",
+       Json.Object
+         [ ("url", Json.String url)
+           ("detail", Json.String "auto") ]) ]
 
-/// Check if message has only simple text content
-let isSimpleTextMessage (msg: Darklang.LLM.Provider.Message) : Bool =
-  match msg.contentBlocks with
-  | [ Text _ ] -> true
-  | [] -> true
-  | _ ->
-    // Check if all blocks are text or tool results (tool results handled separately)
-    Stdlib.List.all msg.contentBlocks (fun block ->
+/// Convert a single message to OpenAI JSON format (handles images)
+let messageToOpenAI (msg: Provider.Message) : List<Json> =
+  let hasToolResults =
+    Stdlib.List.any msg.contentBlocks (fun block ->
       match block with
-      | Text _ -> true
       | ToolResult(_, _, _) -> true
       | _ -> false)
 
-/// Check if message is a tool result message
-let isToolResultMessage (msg: Darklang.LLM.Provider.Message) : Bool =
-  Stdlib.List.any msg.contentBlocks (fun block ->
-    match block with
-    | ToolResult(_, _, _) -> true
-    | _ -> false)
+  let hasToolUses =
+    Stdlib.List.any msg.contentBlocks (fun block ->
+      match block with
+      | ToolUse(_, _, _) -> true
+      | _ -> false)
 
-/// Check if message has tool use blocks (assistant calling tools)
-let hasToolUseBlocks (msg: Darklang.LLM.Provider.Message) : Bool =
-  Stdlib.List.any msg.contentBlocks (fun block ->
-    match block with
-    | ToolUse(_, _, _) -> true
-    | _ -> false)
+  let isSimpleText =
+    match msg.contentBlocks with
+    | [ Text _ ] | [] -> true
+    | _ ->
+      Stdlib.List.all msg.contentBlocks (fun block ->
+        match block with
+        | Text _ | ToolResult(_, _, _) -> true
+        | _ -> false)
 
-/// Convert a single message to OpenAI JSON format (handles images)
-let messageToOpenAI (msg: Darklang.LLM.Provider.Message) : List<Json> =
   // Handle tool result messages specially - convert to role "tool"
-  if isToolResultMessage msg then
+  if hasToolResults then
     Stdlib.List.filterMap msg.contentBlocks (fun block ->
       match block with
       | ToolResult(toolCallId, content, _isError) ->
@@ -203,7 +168,7 @@ let messageToOpenAI (msg: Darklang.LLM.Provider.Message) : List<Json> =
               ("content", Json.String content) ])
       | _ -> Stdlib.Option.Option.None)
   // Handle assistant messages with tool calls
-  else if hasToolUseBlocks msg then
+  else if hasToolUses then
     let toolCalls =
       Stdlib.List.filterMap msg.contentBlocks (fun block ->
         match block with
@@ -228,10 +193,10 @@ let messageToOpenAI (msg: Darklang.LLM.Provider.Message) : List<Json> =
         [ ("role", Json.String "assistant")
           ("content", content)
           ("tool_calls", Json.Array toolCalls) ] ]
-  else if isSimpleTextMessage msg then
+  else if isSimpleText then
     // Simple text message
     [ Json.Object
-        [ ("role", Json.String(Darklang.LLM.Provider.Role.toString msg.role))
+        [ ("role", Json.String(Provider.Role.toString msg.role))
           ("content", Json.String msg.content) ] ]
   else
     // Rich content with images
@@ -248,7 +213,7 @@ let messageToOpenAI (msg: Darklang.LLM.Provider.Message) : List<Json> =
         | _ -> Stdlib.Option.Option.None)
 
     [ Json.Object
-        [ ("role", Json.String(Darklang.LLM.Provider.Role.toString msg.role))
+        [ ("role", Json.String(Provider.Role.toString msg.role))
           ("content", Json.Array contentArray) ] ]
 
 /// Convert generic messages to OpenAI format (supports images and tool results)
@@ -271,67 +236,36 @@ let messagesToOpenAI (req: Request) : List<Json> =
   Stdlib.List.append systemMessages userMessages
 
 
-/// Build the OpenAI API request
-let buildRequest (req: Request) : Json =
-  let messages = messagesToOpenAI req
-
-  let tools =
-    if Stdlib.List.isEmpty req.tools then
-      []
-    else
-      Stdlib.List.map req.tools toolSchemaToJson
-
-  let baseFields =
-    [ ("model", Json.String req.model)
-      ("max_tokens", Json.Number (Stdlib.Int64.toFloat req.maxTokens))
-      ("messages", Json.Array messages) ]
-
-  // Add tools if present
-  let withTools =
-    if Stdlib.List.isEmpty tools then
-      baseFields
-    else
-      Stdlib.List.append baseFields [ ("tools", Json.Array tools) ]
-
-  // Add temperature if present
-  let withTemp =
-    match req.temperature with
-    | Some t -> Stdlib.List.append withTools [ ("temperature", Json.Number t) ]
-    | None -> withTools
-
-  Json.Object withTemp
-
-
 
 // RESPONSE TRANSFORMATION
 // Convert OpenAI response to generic Response
 
 /// Parse OpenAI finish_reason to generic StopReason
-let parseFinishReason (reason: String) : Darklang.LLM.Provider.StopReason =
+let parseFinishReason (reason: String) : Provider.StopReason =
   match reason with
-  | "stop" -> Darklang.LLM.Provider.StopReason.EndTurn
-  | "tool_calls" -> Darklang.LLM.Provider.StopReason.ToolUse
-  | "length" -> Darklang.LLM.Provider.StopReason.MaxTokens
-  | "content_filter" -> Darklang.LLM.Provider.StopReason.ContentFiltered
-  | other -> Darklang.LLM.Provider.StopReason.Error other
+  | "stop" -> Provider.StopReason.EndTurn
+  | "tool_calls" -> Provider.StopReason.ToolUse
+  | "length" -> Provider.StopReason.MaxTokens
+  | "content_filter" -> Provider.StopReason.ContentFiltered
+  | other -> Provider.StopReason.Error other
 
 
 /// Extract tool calls from OpenAI message
-let extractToolCalls (messageFields: List<(String * Json)>) : List<Darklang.LLM.Provider.ToolCall> =
-  match Darklang.LLM.Internal.JsonHelpers.getValue "tool_calls" messageFields with
+let extractToolCalls (messageFields: List<(String * Json)>) : List<Provider.ToolCall> =
+  match Stdlib.AltJson.Helpers.getValue "tool_calls" messageFields with
   | Some (Array toolCalls) ->
     Stdlib.List.filterMap toolCalls (fun tc ->
       match tc with
       | Object tcFields ->
-        let id = Darklang.LLM.Internal.JsonHelpers.getString "id" tcFields
+        let id = Stdlib.AltJson.Helpers.getString "id" tcFields
 
         let functionFields =
-          Darklang.LLM.Internal.JsonHelpers.getObject "function" tcFields
+          Stdlib.AltJson.Helpers.getObject "function" tcFields
 
-        let name = Darklang.LLM.Internal.JsonHelpers.getString "name" functionFields
+        let name = Stdlib.AltJson.Helpers.getString "name" functionFields
 
         let arguments =
-          match Darklang.LLM.Internal.JsonHelpers.getString "arguments" functionFields with
+          match Stdlib.AltJson.Helpers.getString "arguments" functionFields with
           | Some argsStr ->
             match Stdlib.AltJson.parse argsStr with
             | Ok j -> Stdlib.Option.Option.Some j
@@ -341,7 +275,7 @@ let extractToolCalls (messageFields: List<(String * Json)>) : List<Darklang.LLM.
         match (id, name, arguments) with
         | (Some i, Some n, Some args) ->
           Stdlib.Option.Option.Some(
-            Darklang.LLM.Provider.ToolCall { id = i; name = n; arguments = args })
+            Provider.ToolCall { id = i; name = n; arguments = args })
         | _ -> Stdlib.Option.Option.None
       | _ -> Stdlib.Option.Option.None)
   | _ -> []
@@ -350,67 +284,21 @@ let extractToolCalls (messageFields: List<(String * Json)>) : List<Darklang.LLM.
 /// Extract usage from OpenAI response
 /// OpenAI supports prompt caching with up to 75% discount for GPT-4.1 models
 /// Cached tokens are returned under prompt_tokens_details.cached_tokens
-let extractUsage (fields: List<(String * Json)>) : Darklang.LLM.Provider.Usage =
-  let usageFields = Darklang.LLM.Internal.JsonHelpers.getObject "usage" fields
-  let promptTokens = Darklang.LLM.Internal.JsonHelpers.getInt "prompt_tokens" usageFields
-  let completionTokens = Darklang.LLM.Internal.JsonHelpers.getInt "completion_tokens" usageFields
+let extractUsage (fields: List<(String * Json)>) : Provider.Usage =
+  let usageFields = Stdlib.AltJson.Helpers.getObject "usage" fields
+  let promptTokens = Stdlib.AltJson.Helpers.getInt "prompt_tokens" usageFields
+  let completionTokens = Stdlib.AltJson.Helpers.getInt "completion_tokens" usageFields
 
   // Extract cached tokens from prompt_tokens_details if present
-  let promptDetails = Darklang.LLM.Internal.JsonHelpers.getObject "prompt_tokens_details" usageFields
-  let cachedTokens = Darklang.LLM.Internal.JsonHelpers.getInt "cached_tokens" promptDetails
+  let promptDetails = Stdlib.AltJson.Helpers.getObject "prompt_tokens_details" usageFields
+  let cachedTokens = Stdlib.AltJson.Helpers.getInt "cached_tokens" promptDetails
 
-  Darklang.LLM.Provider.Usage
+  Provider.Usage
     { inputTokens = promptTokens
       outputTokens = completionTokens
       cacheCreationTokens = 0L  // OpenAI doesn't track cache creation separately
       cacheReadTokens = cachedTokens }
 
-
-/// Parse full OpenAI response to generic Response
-let parseResponse (json: Json) : Stdlib.Result.Result<Response, ProviderError> =
-  match json with
-  | Object fields ->
-    // Get first choice
-    let choices = Darklang.LLM.Internal.JsonHelpers.getArray "choices" fields
-
-    match Stdlib.List.head choices with
-    | Some (Object choiceFields) ->
-      // Get finish reason
-      let finishReason =
-        match Darklang.LLM.Internal.JsonHelpers.getString "finish_reason" choiceFields with
-        | Some r -> parseFinishReason r
-        | None -> Darklang.LLM.Provider.StopReason.EndTurn
-
-      // Get message
-      let messageFields = Darklang.LLM.Internal.JsonHelpers.getObject "message" choiceFields
-
-      // Get content (may be null for tool calls)
-      let content =
-        Stdlib.Option.withDefault
-          (Darklang.LLM.Internal.JsonHelpers.getString "content" messageFields)
-          ""
-
-      // Get tool calls
-      let toolCalls = extractToolCalls messageFields
-
-      // Get usage
-      let usage = extractUsage fields
-
-      Stdlib.Result.Result.Ok(
-        Darklang.LLM.Provider.Response
-          { content = content
-            stopReason = finishReason
-            toolCalls = toolCalls
-            usage = usage
-            raw = json })
-
-    | _ ->
-      Stdlib.Result.Result.Error(
-        Darklang.LLM.Provider.ProviderError.InvalidRequestError "No choices in response")
-
-  | _ ->
-    Stdlib.Result.Result.Error(
-      Darklang.LLM.Provider.ProviderError.InvalidRequestError "Invalid JSON response")
 
 
 
@@ -429,37 +317,6 @@ let buildHeaders (config: Config) : List<(String * String)> =
   | None -> baseHeaders
 
 
-/// Send request to OpenAI-compatible API
-let sendRequest
-  (config: Config)
-  (req: Request)
-  : Stdlib.Result.Result<Response, ProviderError> =
-  let requestJson = buildRequest req
-  let body = Stdlib.AltJson.format requestJson
-  let headers = buildHeaders config
-
-  let httpResult =
-    Stdlib.HttpClient.post config.baseUrl headers (Stdlib.String.toBytes body)
-
-  match httpResult with
-  | Error e ->
-    Stdlib.Result.Result.Error(
-      Darklang.LLM.Provider.ProviderError.NetworkError(
-        Stdlib.HttpClient.toString e))
-
-  | Ok response ->
-    let bodyStr = Stdlib.String.fromBytesWithReplacement response.body
-
-    Darklang.LLM.Internal.HttpErrors.handleResponse
-      response.statusCode
-      bodyStr
-      (fun body ->
-        match Stdlib.AltJson.parse body with
-        | Ok json -> parseResponse json
-        | Error e ->
-          Stdlib.Result.Result.Error(
-            Darklang.LLM.Provider.ProviderError.InvalidRequestError e))
-
 
 
 // TOOL RESULT FORMATTING
@@ -467,17 +324,17 @@ let sendRequest
 /// Format tool results for OpenAI's expected format
 /// OpenAI expects tool results as SEPARATE messages with role "tool"
 let formatToolResults
-  (results: List<Darklang.LLM.Provider.ToolResult>)
-  : List<Darklang.LLM.Provider.Message> =
+  (results: List<Provider.ToolResult>)
+  : List<Provider.Message> =
   // OpenAI requires each tool result as a separate message with role "tool"
   // We use the contentBlocks to store the ToolResult, which will be
   // converted to role "tool" when building the request
   Stdlib.List.map results (fun r ->
-    Darklang.LLM.Provider.Message
-      { role = Darklang.LLM.Provider.Role.User // Will be converted to "tool"
+    Provider.Message
+      { role = Provider.Role.User // Will be converted to "tool"
         content = r.content
         contentBlocks =
-          [ Darklang.LLM.Provider.ContentBlock.ToolResult(r.toolCallId, r.content, r.isError) ] })
+          [ Provider.ContentBlock.ToolResult(r.toolCallId, r.content, r.isError) ] })
 
 
 
@@ -487,7 +344,7 @@ let formatToolResults
 
 /// Convert ToolChoice to OpenAI tool_choice JSON
 let toolChoiceToJson
-  (choice: Darklang.LLM.Provider.ToolChoice)
+  (choice: Provider.ToolChoice)
   : Json =
   match choice with
   | Auto -> Json.String "auto"
@@ -499,7 +356,7 @@ let toolChoiceToJson
   | None -> Json.String "none"
 
 /// Convert ResponseFormat to OpenAI JSON
-let responseFormatToJson (format: Darklang.LLM.Provider.ResponseFormat) : Json =
+let responseFormatToJson (format: Provider.ResponseFormat) : Json =
   match format with
   | Text -> Json.Object [ ("type", Json.String "text") ]
   | JsonObject -> Json.Object [ ("type", Json.String "json_object") ]
@@ -512,7 +369,7 @@ let responseFormatToJson (format: Darklang.LLM.Provider.ResponseFormat) : Json =
 /// Build request with extended options (full OpenAI support)
 let buildExtendedRequest
   (req: Request)
-  (ext: Darklang.LLM.Provider.RequestExtensions)
+  (ext: Provider.RequestExtensions)
   : Json =
   let messages = messagesToOpenAI req
 
@@ -590,30 +447,30 @@ let buildExtendedRequest
 
 
 /// Parse response to extended format (with OpenAI-specific systemFingerprint)
-let parseExtendedResponse (json: Json) : Stdlib.Result.Result<Darklang.LLM.Provider.ResponseExtended, ProviderError> =
+let parseExtendedResponse (json: Json) : Stdlib.Result.Result<Provider.ResponseExtended, ProviderError> =
   match json with
   | Object fields ->
     // Get system fingerprint (OpenAI-specific)
-    let systemFingerprint = Darklang.LLM.Internal.JsonHelpers.getString "system_fingerprint" fields
+    let systemFingerprint = Stdlib.AltJson.Helpers.getString "system_fingerprint" fields
 
     // Get first choice
-    let choices = Darklang.LLM.Internal.JsonHelpers.getArray "choices" fields
+    let choices = Stdlib.AltJson.Helpers.getArray "choices" fields
 
     match Stdlib.List.head choices with
     | Some (Object choiceFields) ->
       // Get finish reason
       let finishReason =
-        match Darklang.LLM.Internal.JsonHelpers.getString "finish_reason" choiceFields with
+        match Stdlib.AltJson.Helpers.getString "finish_reason" choiceFields with
         | Some r -> parseFinishReason r
-        | None -> Darklang.LLM.Provider.StopReason.EndTurn
+        | None -> Provider.StopReason.EndTurn
 
       // Get message
-      let messageFields = Darklang.LLM.Internal.JsonHelpers.getObject "message" choiceFields
+      let messageFields = Stdlib.AltJson.Helpers.getObject "message" choiceFields
 
       // Get content (may be null for tool calls)
       let content =
         Stdlib.Option.withDefault
-          (Darklang.LLM.Internal.JsonHelpers.getString "content" messageFields)
+          (Stdlib.AltJson.Helpers.getString "content" messageFields)
           ""
 
       // Get tool calls
@@ -623,7 +480,7 @@ let parseExtendedResponse (json: Json) : Stdlib.Result.Result<Darklang.LLM.Provi
       let usage = extractUsage fields
 
       Stdlib.Result.Result.Ok(
-        Darklang.LLM.Provider.ResponseExtended
+        Provider.ResponseExtended
           { content = content
             stopReason = finishReason
             toolCalls = toolCalls
@@ -638,19 +495,19 @@ let parseExtendedResponse (json: Json) : Stdlib.Result.Result<Darklang.LLM.Provi
 
     | _ ->
       Stdlib.Result.Result.Error(
-        Darklang.LLM.Provider.ProviderError.InvalidRequestError "No choices in response")
+        Provider.ProviderError.InvalidRequestError "No choices in response")
 
   | _ ->
     Stdlib.Result.Result.Error(
-      Darklang.LLM.Provider.ProviderError.InvalidRequestError "Invalid JSON response")
+      Provider.ProviderError.InvalidRequestError "Invalid JSON response")
 
 
 /// Send extended request to OpenAI-compatible API
 let sendExtendedRequest
   (config: Config)
   (req: Request)
-  (ext: Darklang.LLM.Provider.RequestExtensions)
-  : Stdlib.Result.Result<Darklang.LLM.Provider.ResponseExtended, ProviderError> =
+  (ext: Provider.RequestExtensions)
+  : Stdlib.Result.Result<Provider.ResponseExtended, ProviderError> =
   let requestJson = buildExtendedRequest req ext
   let body = Stdlib.AltJson.format requestJson
   let headers = buildHeaders config
@@ -661,30 +518,21 @@ let sendExtendedRequest
   match httpResult with
   | Error e ->
     Stdlib.Result.Result.Error(
-      Darklang.LLM.Provider.ProviderError.NetworkError(
+      Provider.ProviderError.NetworkError(
         Stdlib.HttpClient.toString e))
 
   | Ok response ->
     let bodyStr = Stdlib.String.fromBytesWithReplacement response.body
-    if response.statusCode >= 200L && response.statusCode < 300L then
-      match Stdlib.AltJson.parse bodyStr with
-      | Ok json -> parseExtendedResponse json
-      | Error e ->
-        Stdlib.Result.Result.Error(
-          Darklang.LLM.Provider.ProviderError.InvalidRequestError e)
-    else if response.statusCode == 401L then
-      Stdlib.Result.Result.Error(
-        Darklang.LLM.Provider.ProviderError.AuthenticationError "Invalid API key")
-    else if response.statusCode == 429L then
-      Stdlib.Result.Result.Error(
-        Darklang.LLM.Provider.ProviderError.RateLimitError "Rate limit exceeded")
-    else if response.statusCode >= 500L then
-      Stdlib.Result.Result.Error(
-        Darklang.LLM.Provider.ProviderError.ServerError bodyStr)
-    else
-      Stdlib.Result.Result.Error(
-        Darklang.LLM.Provider.ProviderError.Unknown(
-          "HTTP " ++ Stdlib.Int64.toString response.statusCode ++ ": " ++ bodyStr))
+
+    Internal.HttpErrors.handleResponse
+      response.statusCode
+      bodyStr
+      (fun body ->
+        match Stdlib.AltJson.parse body with
+        | Ok json -> parseExtendedResponse json
+        | Error e ->
+          Stdlib.Result.Result.Error(
+            Provider.ProviderError.InvalidRequestError e))
 
 
 
@@ -692,14 +540,22 @@ let sendExtendedRequest
 
 /// Internal helper to build a provider from config
 let buildProvider (config: Config) (supportsImages: Bool) : Provider =
-  Darklang.LLM.Provider.Provider
+  Provider.Provider
     { id = config.providerId
       name = config.providerName
-      send = (fun req -> sendRequest config req)
+      send = (fun req ->
+        (sendExtendedRequest config req Provider.emptyExtensions)
+        |> Stdlib.Result.map (fun ext ->
+          Provider.Response
+            { content = ext.content
+              stopReason = ext.stopReason
+              toolCalls = ext.toolCalls
+              usage = ext.usage
+              raw = ext.raw }))
       sendExtended = (fun req ext -> sendExtendedRequest config req ext)
       formatToolResults = formatToolResults
       capabilities =
-        Darklang.LLM.Provider.Capabilities
+        Provider.Capabilities
           { supportsTools = true
             supportsStreaming = false
             supportsSystemPrompt = true
@@ -715,27 +571,16 @@ let create () : Stdlib.Result.Result<Provider, String> =
   | Error e -> Stdlib.Result.Result.Error e
 
 
-/// Create an OpenAI provider with default configuration
-/// Panics if OPENAI_API_KEY environment variable is not set
-/// Use this when you want fail-fast behavior at startup
-let createOrFail () : Provider =
-  match openaiConfig () with
-  | Ok config -> buildProvider config true
-  | Error e -> Builtin.panic e
-
 
 /// Create an OpenAI provider with custom API key
 /// Returns Error if the API key is empty
 let createWithKey (apiKey: String) : Stdlib.Result.Result<Provider, String> =
-  match validateApiKey apiKey with
+  match Internal.ApiKeys.validate apiKey with
   | Ok _ ->
     let config =
-      Config
-        { apiKey = Stdlib.Option.Option.Some apiKey
-          baseUrl = "https://api.openai.com/v1/chat/completions"
-          providerId = "openai"
-          providerName = "OpenAI"
-          maxContextTokens = 128000L }
+      { (customConfig "https://api.openai.com/v1/chat/completions" "OpenAI" 128000L) with
+          apiKey = Stdlib.Option.Option.Some apiKey
+          providerId = "openai" }
     Stdlib.Result.Result.Ok(buildProvider config true)
   | Error e -> Stdlib.Result.Result.Error e
 
@@ -761,14 +606,10 @@ let createCustomWithKey
   (apiKey: String)
   (maxTokens: Int64)
   : Stdlib.Result.Result<Provider, String> =
-  match validateApiKey apiKey with
+  match Internal.ApiKeys.validate apiKey with
   | Ok _ ->
     let config =
-      Config
-        { apiKey = Stdlib.Option.Option.Some apiKey
-          baseUrl = baseUrl
-          providerId = "custom"
-          providerName = name
-          maxContextTokens = maxTokens }
+      { (customConfig baseUrl name maxTokens) with
+          apiKey = Stdlib.Option.Option.Some apiKey }
     Stdlib.Result.Result.Ok(buildProvider config false)
   | Error e -> Stdlib.Result.Result.Error e

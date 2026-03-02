@@ -166,7 +166,7 @@ let renderSearchResult (state: SearchState) : String =
 let handleRead (input: Json) : Stdlib.Result.Result<ToolOutput, String> =
   match input with
   | Object fields ->
-    match Darklang.LLM.Internal.JsonHelpers.getString "path" fields with
+    match Stdlib.AltJson.Helpers.getString "path" fields with
     | Some path ->
       match resolveSafePath path with
       | Error e -> Stdlib.Result.Result.Error e
@@ -183,8 +183,8 @@ let handleRead (input: Json) : Stdlib.Result.Result<ToolOutput, String> =
 let handleWrite (input: Json) : Stdlib.Result.Result<ToolOutput, String> =
   match input with
   | Object fields ->
-    match (Darklang.LLM.Internal.JsonHelpers.getString "path" fields,
-           Darklang.LLM.Internal.JsonHelpers.getString "content" fields) with
+    match (Stdlib.AltJson.Helpers.getString "path" fields,
+           Stdlib.AltJson.Helpers.getString "content" fields) with
     | (Some path, Some content) ->
       match resolveSafePath path with
       | Error e -> Stdlib.Result.Result.Error e
@@ -200,7 +200,7 @@ let handleList (input: Json) : Stdlib.Result.Result<ToolOutput, String> =
   let path =
     match input with
     | Object fields ->
-      match Darklang.LLM.Internal.JsonHelpers.getString "path" fields with
+      match Stdlib.AltJson.Helpers.getString "path" fields with
       | Some p -> p
       | None -> "."
     | _ -> "."
@@ -217,13 +217,13 @@ let handleList (input: Json) : Stdlib.Result.Result<ToolOutput, String> =
 let handleSearch (input: Json) : Stdlib.Result.Result<ToolOutput, String> =
   match input with
   | Object fields ->
-    match Darklang.LLM.Internal.JsonHelpers.getString "pattern" fields with
+    match Stdlib.AltJson.Helpers.getString "pattern" fields with
     | Some pattern ->
       if pattern == "" then
         Stdlib.Result.Result.Error "pattern required"
       else
         let path =
-          match Darklang.LLM.Internal.JsonHelpers.getString "path" fields with
+          match Stdlib.AltJson.Helpers.getString "path" fields with
           | Some p -> p
           | None -> "."
 
@@ -253,49 +253,49 @@ let handleSearch (input: Json) : Stdlib.Result.Result<ToolOutput, String> =
 
 /// Tool for reading file contents
 let readTool : Tool =
-  Darklang.LLM.Internal.AgentLoop.Tool
+  Internal.AgentLoop.Tool
     { schema =
-        Darklang.LLM.Provider.ToolSchema
+        Provider.ToolSchema
           { name = "read_file"
             description = "Read the contents of a file"
-            parameters = [ Darklang.LLM.Provider.stringParam "path" "Path to the file" ] }
+            parameters = [ Provider.stringParam "path" "Path to the file" ] }
       handler = handleRead }
 
 
 /// Tool for writing file contents
 let writeTool : Tool =
-  Darklang.LLM.Internal.AgentLoop.Tool
+  Internal.AgentLoop.Tool
     { schema =
-        Darklang.LLM.Provider.ToolSchema
+        Provider.ToolSchema
           { name = "write_file"
             description = "Write content to a file"
             parameters =
-              [ Darklang.LLM.Provider.stringParam "path" "Path to the file"
-                Darklang.LLM.Provider.stringParam "content" "Content to write" ] }
+              [ Provider.stringParam "path" "Path to the file"
+                Provider.stringParam "content" "Content to write" ] }
       handler = handleWrite }
 
 
 /// Tool for listing directory contents
 let listTool : Tool =
-  Darklang.LLM.Internal.AgentLoop.Tool
+  Internal.AgentLoop.Tool
     { schema =
-        Darklang.LLM.Provider.ToolSchema
+        Provider.ToolSchema
           { name = "list_directory"
             description = "List files in a directory"
-            parameters = [ Darklang.LLM.Provider.optionalStringParam "path" "Directory path (default: current)" ] }
+            parameters = [ Provider.optionalStringParam "path" "Directory path (default: current)" ] }
       handler = handleList }
 
 
 /// Tool for searching file contents
 let searchTool : Tool =
-  Darklang.LLM.Internal.AgentLoop.Tool
+  Internal.AgentLoop.Tool
     { schema =
-        Darklang.LLM.Provider.ToolSchema
+        Provider.ToolSchema
           { name = "search_files"
             description = "Search for text in files"
             parameters =
-              [ Darklang.LLM.Provider.stringParam "pattern" "Text pattern to search for"
-                Darklang.LLM.Provider.optionalStringParam "path" "Directory to search (default: current)" ] }
+              [ Provider.stringParam "pattern" "Text pattern to search for"
+                Provider.optionalStringParam "path" "Directory to search (default: current)" ] }
       handler = handleSearch }
 
 

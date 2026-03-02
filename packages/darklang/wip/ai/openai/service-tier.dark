@@ -2,7 +2,7 @@
 /// https://platform.openai.com/docs/guides/priority-processing
 /// https://platform.openai.com/docs/guides/flex-processing
 /// https://platform.openai.com/docs/api-reference/chat-streaming
-module Darklang.OpenAI.ServiceTier
+module Darklang.WIP.AI.OpenAI.ServiceTier
 
 /// Service tier options for request processing priority
 type Tier =

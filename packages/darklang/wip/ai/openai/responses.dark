@@ -1,6 +1,6 @@
 /// OpenAI Responses API - Agent development with built-in tools
 /// See: https://platform.openai.com/docs/api-reference/responses
-module Darklang.OpenAI.Responses
+module Darklang.WIP.AI.OpenAI.Responses
 
 type Json = Stdlib.AltJson.Json
 
@@ -172,14 +172,14 @@ module OutputItem =
   let parseOutputContent (json: Json) : Stdlib.Option.Option<OutputContent> =
     match json with
     | Object fields ->
-      let contentType = Darklang.LLM.Internal.JsonHelpers.getString "type" fields
+      let contentType = Stdlib.AltJson.Helpers.getString "type" fields
       match contentType with
       | Some "output_text" ->
-        let text = Stdlib.Option.withDefault (Darklang.LLM.Internal.JsonHelpers.getString "text" fields) ""
-        let annotations = Darklang.LLM.Internal.JsonHelpers.getArray "annotations" fields
+        let text = Stdlib.Option.withDefault (Stdlib.AltJson.Helpers.getString "text" fields) ""
+        let annotations = Stdlib.AltJson.Helpers.getArray "annotations" fields
         Stdlib.Option.Option.Some(OutputContent.OutputText(text, annotations))
       | Some "refusal" ->
-        let refusal = Stdlib.Option.withDefault (Darklang.LLM.Internal.JsonHelpers.getString "refusal" fields) ""
+        let refusal = Stdlib.Option.withDefault (Stdlib.AltJson.Helpers.getString "refusal" fields) ""
         Stdlib.Option.Option.Some(OutputContent.Refusal refusal)
       | _ -> Stdlib.Option.Option.None
     | _ -> Stdlib.Option.Option.None
@@ -188,41 +188,41 @@ module OutputItem =
   let parseOutputItem (json: Json) : Stdlib.Option.Option<OutputItem> =
     match json with
     | Object fields ->
-      let itemType = Darklang.LLM.Internal.JsonHelpers.getString "type" fields
-      let id = Stdlib.Option.withDefault (Darklang.LLM.Internal.JsonHelpers.getString "id" fields) ""
-      let status = Stdlib.Option.withDefault (Darklang.LLM.Internal.JsonHelpers.getString "status" fields) ""
+      let itemType = Stdlib.AltJson.Helpers.getString "type" fields
+      let id = Stdlib.Option.withDefault (Stdlib.AltJson.Helpers.getString "id" fields) ""
+      let status = Stdlib.Option.withDefault (Stdlib.AltJson.Helpers.getString "status" fields) ""
 
       match itemType with
       | Some "message" ->
-        let role = Stdlib.Option.withDefault (Darklang.LLM.Internal.JsonHelpers.getString "role" fields) "assistant"
-        let contentArray = Darklang.LLM.Internal.JsonHelpers.getArray "content" fields
+        let role = Stdlib.Option.withDefault (Stdlib.AltJson.Helpers.getString "role" fields) "assistant"
+        let contentArray = Stdlib.AltJson.Helpers.getArray "content" fields
         let content = Stdlib.List.filterMap contentArray parseOutputContent
         Stdlib.Option.Option.Some(OutputItem.Message(id, role, content, status))
 
       | Some "function_call" ->
-        let callId = Stdlib.Option.withDefault (Darklang.LLM.Internal.JsonHelpers.getString "call_id" fields) ""
-        let name = Stdlib.Option.withDefault (Darklang.LLM.Internal.JsonHelpers.getString "name" fields) ""
-        let arguments = Stdlib.Option.withDefault (Darklang.LLM.Internal.JsonHelpers.getString "arguments" fields) "{}"
+        let callId = Stdlib.Option.withDefault (Stdlib.AltJson.Helpers.getString "call_id" fields) ""
+        let name = Stdlib.Option.withDefault (Stdlib.AltJson.Helpers.getString "name" fields) ""
+        let arguments = Stdlib.Option.withDefault (Stdlib.AltJson.Helpers.getString "arguments" fields) "{}"
         Stdlib.Option.Option.Some(OutputItem.FunctionCall(id, callId, name, arguments, status))
 
       | Some "web_search_call" ->
         Stdlib.Option.Option.Some(OutputItem.WebSearchCall(id, status))
 
       | Some "file_search_call" ->
-        let results = Darklang.LLM.Internal.JsonHelpers.getArray "results" fields
+        let results = Stdlib.AltJson.Helpers.getArray "results" fields
         Stdlib.Option.Option.Some(OutputItem.FileSearchCall(id, status, results))
 
       | Some "code_interpreter_call" ->
-        let outputs = Darklang.LLM.Internal.JsonHelpers.getArray "outputs" fields
+        let outputs = Stdlib.AltJson.Helpers.getArray "outputs" fields
         Stdlib.Option.Option.Some(OutputItem.CodeInterpreterCall(id, status, outputs))
 
       | Some "computer_call" ->
-        let callId = Stdlib.Option.withDefault (Darklang.LLM.Internal.JsonHelpers.getString "call_id" fields) ""
-        let action = Stdlib.Option.withDefault (Darklang.LLM.Internal.JsonHelpers.getValue "action" fields) (Json.Object [])
+        let callId = Stdlib.Option.withDefault (Stdlib.AltJson.Helpers.getString "call_id" fields) ""
+        let action = Stdlib.Option.withDefault (Stdlib.AltJson.Helpers.getValue "action" fields) (Json.Object [])
         Stdlib.Option.Option.Some(OutputItem.ComputerCall(id, callId, action, status))
 
       | Some "reasoning" ->
-        let summary = Darklang.LLM.Internal.JsonHelpers.getArray "summary" fields
+        let summary = Stdlib.AltJson.Helpers.getArray "summary" fields
         Stdlib.Option.Option.Some(OutputItem.Reasoning(id, summary))
 
       | _ -> Stdlib.Option.Option.None
@@ -253,7 +253,7 @@ module BuiltInTools =
 
   /// Built-in tool types
   type BuiltInTool =
-    | WebSearch of Darklang.OpenAI.WebSearch.WebSearchTool
+    | WebSearch of WebSearch.WebSearchTool
     | FileSearch of FileSearchTool
     | CodeInterpreter of CodeInterpreterTool
     | ComputerUse of ComputerUseTool
@@ -263,7 +263,7 @@ module BuiltInTools =
   let toJson (tool: BuiltInTool) : Json =
     match tool with
     | WebSearch opts ->
-      Darklang.OpenAI.WebSearch.toJson opts
+      WebSearch.toJson opts
 
     | FileSearch opts ->
       let fields =
@@ -316,18 +316,18 @@ module BuiltInTools =
 
   /// Create a web search tool with defaults
   let webSearch () : BuiltInTool =
-    BuiltInTool.WebSearch(Darklang.OpenAI.WebSearch.defaultTool)
+    BuiltInTool.WebSearch(WebSearch.defaultTool)
 
   /// Create a web search tool with user location
-  let webSearchWithLocation (loc: Darklang.OpenAI.WebSearch.UserLocation) : BuiltInTool =
-    BuiltInTool.WebSearch(Darklang.OpenAI.WebSearch.withUserLocation loc)
+  let webSearchWithLocation (loc: WebSearch.UserLocation) : BuiltInTool =
+    BuiltInTool.WebSearch(WebSearch.withUserLocation loc)
 
   /// Create a web search tool with domain filters
-  let webSearchWithFilters (filters: Darklang.OpenAI.WebSearch.DomainFilters) : BuiltInTool =
-    BuiltInTool.WebSearch(Darklang.OpenAI.WebSearch.withFilters filters)
+  let webSearchWithFilters (filters: WebSearch.DomainFilters) : BuiltInTool =
+    BuiltInTool.WebSearch(WebSearch.withFilters filters)
 
   /// Create a web search tool with custom configuration
-  let webSearchWithConfig (config: Darklang.OpenAI.WebSearch.WebSearchTool) : BuiltInTool =
+  let webSearchWithConfig (config: WebSearch.WebSearchTool) : BuiltInTool =
     BuiltInTool.WebSearch(config)
 
   /// Create a file search tool
@@ -376,7 +376,7 @@ module BuiltInTools =
 /// NOTE: This module is for the Responses API which uses the flat structure:
 ///   {"type": "json_schema", "name": "...", "schema": {...}, "strict": true}
 ///
-/// For the Chat Completions API (older), use Darklang.OpenAI.ResponseFormat which uses nested structure:
+/// For the Chat Completions API (older), use ResponseFormat which uses nested structure:
 ///   {"type": "json_schema", "json_schema": {"name": "...", "schema": {...}, "strict": true}}
 module TextConfig =
   /// Text output format configuration
@@ -757,42 +757,42 @@ let parseUsage (fields: List<(String * Json)>) : Stdlib.Option.Option<Usage> =
   else
     Stdlib.Option.Option.Some(
       Usage
-        { inputTokens = Darklang.LLM.Internal.JsonHelpers.getInt "input_tokens" fields
-          outputTokens = Darklang.LLM.Internal.JsonHelpers.getInt "output_tokens" fields
-          totalTokens = Darklang.LLM.Internal.JsonHelpers.getInt "total_tokens" fields
-          inputTokensDetails = Darklang.LLM.Internal.JsonHelpers.getValue "input_tokens_details" fields
-          outputTokensDetails = Darklang.LLM.Internal.JsonHelpers.getValue "output_tokens_details" fields })
+        { inputTokens = Stdlib.AltJson.Helpers.getInt "input_tokens" fields
+          outputTokens = Stdlib.AltJson.Helpers.getInt "output_tokens" fields
+          totalTokens = Stdlib.AltJson.Helpers.getInt "total_tokens" fields
+          inputTokensDetails = Stdlib.AltJson.Helpers.getValue "input_tokens_details" fields
+          outputTokensDetails = Stdlib.AltJson.Helpers.getValue "output_tokens_details" fields })
 
 /// Parse error from JSON
 let parseError (fields: List<(String * Json)>) : Stdlib.Option.Option<ResponseError> =
   if Stdlib.List.isEmpty fields then
     Stdlib.Option.Option.None
   else
-    let code = Stdlib.Option.withDefault (Darklang.LLM.Internal.JsonHelpers.getString "code" fields) ""
-    let message = Stdlib.Option.withDefault (Darklang.LLM.Internal.JsonHelpers.getString "message" fields) ""
+    let code = Stdlib.Option.withDefault (Stdlib.AltJson.Helpers.getString "code" fields) ""
+    let message = Stdlib.Option.withDefault (Stdlib.AltJson.Helpers.getString "message" fields) ""
     Stdlib.Option.Option.Some(ResponseError { code = code; message = message })
 
 /// Parse response JSON
 let parseResponse (json: Json) : Stdlib.Result.Result<Response, String> =
   match json with
   | Object fields ->
-    let id = Stdlib.Option.withDefault (Darklang.LLM.Internal.JsonHelpers.getString "id" fields) ""
-    let object_ = Stdlib.Option.withDefault (Darklang.LLM.Internal.JsonHelpers.getString "object" fields) "response"
-    let model = Stdlib.Option.withDefault (Darklang.LLM.Internal.JsonHelpers.getString "model" fields) ""
-    let createdAt = Darklang.LLM.Internal.JsonHelpers.getInt "created_at" fields
-    let statusStr = Stdlib.Option.withDefault (Darklang.LLM.Internal.JsonHelpers.getString "status" fields) "completed"
+    let id = Stdlib.Option.withDefault (Stdlib.AltJson.Helpers.getString "id" fields) ""
+    let object_ = Stdlib.Option.withDefault (Stdlib.AltJson.Helpers.getString "object" fields) "response"
+    let model = Stdlib.Option.withDefault (Stdlib.AltJson.Helpers.getString "model" fields) ""
+    let createdAt = Stdlib.AltJson.Helpers.getInt "created_at" fields
+    let statusStr = Stdlib.Option.withDefault (Stdlib.AltJson.Helpers.getString "status" fields) "completed"
     let status = Status.fromString statusStr
 
-    let outputArray = Darklang.LLM.Internal.JsonHelpers.getArray "output" fields
+    let outputArray = Stdlib.AltJson.Helpers.getArray "output" fields
     let output = Stdlib.List.filterMap outputArray OutputItem.parseOutputItem
 
-    let usageFields = Darklang.LLM.Internal.JsonHelpers.getObject "usage" fields
+    let usageFields = Stdlib.AltJson.Helpers.getObject "usage" fields
     let usage = parseUsage usageFields
 
-    let errorFields = Darklang.LLM.Internal.JsonHelpers.getObject "error" fields
+    let errorFields = Stdlib.AltJson.Helpers.getObject "error" fields
     let error = parseError errorFields
 
-    let serviceTier = Darklang.LLM.Internal.JsonHelpers.getString "service_tier" fields
+    let serviceTier = Stdlib.AltJson.Helpers.getString "service_tier" fields
 
     Stdlib.Result.Result.Ok(
       Response
@@ -841,10 +841,10 @@ let send
       | _ ->
         match Stdlib.AltJson.parse bodyStr with
         | Ok (Object fields) ->
-          let errorFields = Darklang.LLM.Internal.JsonHelpers.getObject "error" fields
+          let errorFields = Stdlib.AltJson.Helpers.getObject "error" fields
           let message =
             Stdlib.Option.withDefault
-              (Darklang.LLM.Internal.JsonHelpers.getString "message" errorFields)
+              (Stdlib.AltJson.Helpers.getString "message" errorFields)
               bodyStr
           Stdlib.Result.Result.Error("API error: " ++ message)
         | _ -> Stdlib.Result.Result.Error("API error: " ++ bodyStr)
@@ -927,11 +927,11 @@ let listInputItems
       | code when code >= 200L && code < 300L ->
         match Stdlib.AltJson.parse bodyStr with
         | Ok (Object fields) ->
-          let object_ = Stdlib.Option.withDefault (Darklang.LLM.Internal.JsonHelpers.getString "object" fields) "list"
-          let data = Darklang.LLM.Internal.JsonHelpers.getArray "data" fields
-          let firstId = Darklang.LLM.Internal.JsonHelpers.getString "first_id" fields
-          let lastId = Darklang.LLM.Internal.JsonHelpers.getString "last_id" fields
-          let hasMore = Stdlib.Option.withDefault (Darklang.LLM.Internal.JsonHelpers.getBool "has_more" fields) false
+          let object_ = Stdlib.Option.withDefault (Stdlib.AltJson.Helpers.getString "object" fields) "list"
+          let data = Stdlib.AltJson.Helpers.getArray "data" fields
+          let firstId = Stdlib.AltJson.Helpers.getString "first_id" fields
+          let lastId = Stdlib.AltJson.Helpers.getString "last_id" fields
+          let hasMore = Stdlib.Option.withDefault (Stdlib.AltJson.Helpers.getBool "has_more" fields) false
 
           Stdlib.Result.Result.Ok(
             InputItemsResponse

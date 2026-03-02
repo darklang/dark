@@ -1,6 +1,6 @@
 /// Anthropic Claude API - Response
 /// Response types, stop reasons, and parsing/extraction helpers
-module Darklang.Anthropic.Response
+module Darklang.WIP.AI.Anthropic.Response
 
 type Json = Stdlib.AltJson.Json
 

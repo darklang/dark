@@ -190,7 +190,6 @@ let runCliCommand
       Stdlib.Result.Result.Error "command rejected by user"
     else
       match findCliExecutable with
-      | None -> Stdlib.Result.Result.Error "Could not find CLI executable"
       | Some exe ->
         let fullCmd = exe ++ " " ++ branchArg ++ " " ++ cmd
         Stdlib.printLine (Colors.dimText ("[agent] cli> " ++ cmd))
@@ -210,6 +209,7 @@ let runCliCommand
           let errorMsg = "CLI command failed (exit " ++ (Stdlib.Int64.toString exitCode) ++ "): " ++ (Stdlib.String.trim details)
           Stdlib.printLine (Colors.error ("  -> " ++ errorMsg))
           Stdlib.Result.Result.Error errorMsg
+      | None -> Stdlib.Result.Result.Error "Could not find CLI executable"
 
 
 /// Creates the tool the LLM calls to execute CLI commands
@@ -222,7 +222,7 @@ let makeCliTool (branchName: String) (writeMode: WriteMode) : Darklang.LLM.Agent
     (fun input ->
       match input with
       | Object fields ->
-        match Darklang.LLM.Internal.JsonHelpers.getString "command" fields with
+        match Stdlib.AltJson.Helpers.getString "command" fields with
         | Some cmd -> runCliCommand branchArg writeMode cmd
         | None -> Stdlib.Result.Result.Error "command required"
       | _ -> Stdlib.Result.Result.Error "invalid input")

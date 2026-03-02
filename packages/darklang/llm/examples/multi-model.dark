@@ -14,15 +14,15 @@ type ModelResponse =
 
 /// Ask a single model and get response with stats
 let askModel
-  (model: Darklang.LLM.Models.Model)
+  (model: Models.Model)
   (prompt: String)
   : Stdlib.Result.Result<ModelResponse, String> =
   let agent =
-    (Darklang.LLM.Agent.create ())
-    |> Darklang.LLM.Agent.withModel model
-    |> Darklang.LLM.Agent.withMaxTokens 500L
+    (Agent.create ())
+    |> Agent.withModel model
+    |> Agent.withMaxTokens 500L
 
-  match Darklang.LLM.Agent.run agent prompt with
+  match Agent.run agent prompt with
   | Ok result ->
     Stdlib.Result.Result.Ok(
       ModelResponse
@@ -40,31 +40,40 @@ let formatResult (name: String) (result: Stdlib.Result.Result<ModelResponse, Str
   | Error e -> $"## {name}\nError: {e}"
 
 
+/// Compare a list of named models
+let compareModels (models: List<(String * Models.Model)>) (prompt: String) : String =
+  models
+  |> Stdlib.List.map (fun (name, model) -> formatResult name (askModel model prompt))
+  |> Stdlib.String.join "\n\n---\n\n"
+
+
 /// Compare Haiku vs Sonnet responses
 let compare (prompt: String) : String =
-  let haiku = formatResult "Haiku" (askModel Darklang.LLM.Models.Anthropic.haiku45 prompt)
-  let sonnet = formatResult "Sonnet" (askModel Darklang.LLM.Models.Anthropic.sonnet45 prompt)
-  $"{haiku}\n\n---\n\n{sonnet}"
+  compareModels
+    [ ("Haiku", Models.Anthropic.haiku45)
+      ("Sonnet", Models.Anthropic.sonnet45) ]
+    prompt
 
 
 /// Compare all three Anthropic models
 let compareAll (prompt: String) : String =
-  let haiku = formatResult "Haiku" (askModel Darklang.LLM.Models.Anthropic.haiku45 prompt)
-  let sonnet = formatResult "Sonnet" (askModel Darklang.LLM.Models.Anthropic.sonnet45 prompt)
-  let opus = formatResult "Opus" (askModel Darklang.LLM.Models.Anthropic.opus46 prompt)
-  $"{haiku}\n\n---\n\n{sonnet}\n\n---\n\n{opus}"
+  compareModels
+    [ ("Haiku", Models.Anthropic.haiku45)
+      ("Sonnet", Models.Anthropic.sonnet45)
+      ("Opus", Models.Anthropic.opus46) ]
+    prompt
 
 
 /// Ask a specific model by name
 let ask (modelName: String) (prompt: String) : String =
   let model =
     match modelName with
-    | "haiku" -> Darklang.LLM.Models.Anthropic.haiku45
-    | "sonnet" -> Darklang.LLM.Models.Anthropic.sonnet45
-    | "opus" -> Darklang.LLM.Models.Anthropic.opus46
-    | "gpt4o" -> Darklang.LLM.Models.OpenAI.gpt4o
-    | "gpt4o-mini" -> Darklang.LLM.Models.OpenAI.gpt4oMini
-    | _ -> Darklang.LLM.Models.Anthropic.sonnet45
+    | "haiku" -> Models.Anthropic.haiku45
+    | "sonnet" -> Models.Anthropic.sonnet45
+    | "opus" -> Models.Anthropic.opus46
+    | "gpt4o" -> Models.OpenAI.gpt4o
+    | "gpt4o-mini" -> Models.OpenAI.gpt4oMini
+    | _ -> Models.Anthropic.sonnet45
 
   match askModel model prompt with
   | Ok r -> r.response
@@ -73,13 +82,15 @@ let ask (modelName: String) (prompt: String) : String =
 
 /// Compare across providers (Anthropic vs OpenAI)
 let compareProviders (prompt: String) : String =
-  let sonnet = formatResult "Anthropic Sonnet" (askModel Darklang.LLM.Models.Anthropic.sonnet45 prompt)
-  let gpt4o = formatResult "OpenAI GPT-4o" (askModel Darklang.LLM.Models.OpenAI.gpt4o prompt)
-  $"{sonnet}\n\n---\n\n{gpt4o}"
+  compareModels
+    [ ("Anthropic Sonnet", Models.Anthropic.sonnet45)
+      ("OpenAI GPT-4o", Models.OpenAI.gpt4o) ]
+    prompt
 
 
 /// Compare fast models across providers
 let compareFast (prompt: String) : String =
-  let haiku = formatResult "Anthropic Haiku" (askModel Darklang.LLM.Models.Anthropic.haiku45 prompt)
-  let mini = formatResult "OpenAI GPT-4o Mini" (askModel Darklang.LLM.Models.OpenAI.gpt4oMini prompt)
-  $"{haiku}\n\n---\n\n{mini}"
+  compareModels
+    [ ("Anthropic Haiku", Models.Anthropic.haiku45)
+      ("OpenAI GPT-4o Mini", Models.OpenAI.gpt4oMini) ]
+    prompt

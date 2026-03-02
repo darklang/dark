@@ -1,6 +1,6 @@
 /// OpenAI Embeddings - Generate text embeddings
 /// https://platform.openai.com/docs/api-reference/embeddings
-module Darklang.OpenAI.Embeddings
+module Darklang.WIP.AI.OpenAI.Embeddings
 
 type Json = Stdlib.AltJson.Json
 
@@ -74,9 +74,9 @@ type CreateEmbeddingResponse =
 let parseEmbedding (item: Json) : Stdlib.Option.Option<Embedding> =
   match item with
   | Object itemFields ->
-    match (Darklang.LLM.Internal.JsonHelpers.getValue "embedding" itemFields,
-           Darklang.LLM.Internal.JsonHelpers.getInt "index" itemFields,
-           Darklang.LLM.Internal.JsonHelpers.getString "object" itemFields) with
+    match (Stdlib.AltJson.Helpers.getValue "embedding" itemFields,
+           Stdlib.AltJson.Helpers.getInt "index" itemFields,
+           Stdlib.AltJson.Helpers.getString "object" itemFields) with
     | (Some (Array embeddingArray), Some index, Some obj) ->
       let floats =
         Stdlib.List.filterMap embeddingArray (fun v ->
@@ -90,10 +90,10 @@ let parseEmbedding (item: Json) : Stdlib.Option.Option<Embedding> =
 
 /// Parse usage from JSON fields
 let parseUsage (fields: List<(String * Json)>) : Stdlib.Option.Option<Usage> =
-  match Darklang.LLM.Internal.JsonHelpers.getValue "usage" fields with
+  match Stdlib.AltJson.Helpers.getValue "usage" fields with
   | Some (Object usageFields) ->
-    match (Darklang.LLM.Internal.JsonHelpers.getInt "prompt_tokens" usageFields,
-           Darklang.LLM.Internal.JsonHelpers.getInt "total_tokens" usageFields) with
+    match (Stdlib.AltJson.Helpers.getInt "prompt_tokens" usageFields,
+           Stdlib.AltJson.Helpers.getInt "total_tokens" usageFields) with
     | (Some promptTokens, Some totalTokens) ->
       Stdlib.Option.Option.Some(
         Usage { promptTokens = promptTokens; totalTokens = totalTokens })
@@ -142,11 +142,11 @@ let createWithOptions
       | code when code >= 200L && code < 300L ->
         match Stdlib.AltJson.parse bodyStr with
         | Ok (Object fields) ->
-          let dataArray = Darklang.LLM.Internal.JsonHelpers.getArray "data" fields
+          let dataArray = Stdlib.AltJson.Helpers.getArray "data" fields
           let embeddings = Stdlib.List.filterMap dataArray parseEmbedding
 
-          match (Darklang.LLM.Internal.JsonHelpers.getString "model" fields,
-                 Darklang.LLM.Internal.JsonHelpers.getString "object" fields,
+          match (Stdlib.AltJson.Helpers.getString "model" fields,
+                 Stdlib.AltJson.Helpers.getString "object" fields,
                  parseUsage fields) with
           | (Some model, Some obj, Some usage) ->
             Stdlib.Result.Result.Ok(
@@ -261,11 +261,11 @@ let createBatchWithOptions
       | code when code >= 200L && code < 300L ->
         match Stdlib.AltJson.parse bodyStr with
         | Ok (Object fields) ->
-          let dataArray = Darklang.LLM.Internal.JsonHelpers.getArray "data" fields
+          let dataArray = Stdlib.AltJson.Helpers.getArray "data" fields
           let embeddings = Stdlib.List.filterMap dataArray parseEmbedding
 
-          match (Darklang.LLM.Internal.JsonHelpers.getString "model" fields,
-                 Darklang.LLM.Internal.JsonHelpers.getString "object" fields,
+          match (Stdlib.AltJson.Helpers.getString "model" fields,
+                 Stdlib.AltJson.Helpers.getString "object" fields,
                  parseUsage fields) with
           | (Some model, Some obj, Some usage) ->
             Stdlib.Result.Result.Ok(

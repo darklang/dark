@@ -1,7 +1,7 @@
 /// OpenAI Content - Content types for multi-modal messages
 /// See: https://platform.openai.com/docs/guides/images-vision
 /// See: https://platform.openai.com/docs/guides/audio
-module Darklang.OpenAI.Content
+module Darklang.WIP.AI.OpenAI.Content
 
 type Json = Stdlib.AltJson.Json
 
@@ -101,13 +101,13 @@ let contentPartToJson (part: ContentPart) : Json =
 let parseContentPart (json: Json) : Stdlib.Option.Option<ContentPart> =
   match json with
   | Object fields ->
-    match Darklang.LLM.Internal.JsonHelpers.getString "type" fields with
+    match Stdlib.AltJson.Helpers.getString "type" fields with
     | Some "text" ->
-      match Darklang.LLM.Internal.JsonHelpers.getString "text" fields with
+      match Stdlib.AltJson.Helpers.getString "text" fields with
       | Some t -> Stdlib.Option.Option.Some(ContentPart.Text t)
       | None -> Stdlib.Option.Option.None
     | Some "refusal" ->
-      match Darklang.LLM.Internal.JsonHelpers.getString "refusal" fields with
+      match Stdlib.AltJson.Helpers.getString "refusal" fields with
       | Some r -> Stdlib.Option.Option.Some(ContentPart.Refusal r)
       | None -> Stdlib.Option.Option.None
     | _ -> Stdlib.Option.Option.None

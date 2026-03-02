@@ -1,6 +1,16 @@
 /// LLM Agent Framework
 /// A high-level, provider-agnostic framework for building AI agents.
 ///
+/// Architecture:
+///   CLI commands (Darklang.Cli.Commands.Agent) use ONLY this Darklang.LLM.* layer.
+///   They never import provider-specific bindings directly.
+///
+///   Darklang.Cli.Commands.Agent          -- CLI entry point
+///     -> Darklang.LLM.Agent              -- this module: config builder + run/chat
+///     -> Darklang.LLM.Internal.AgentLoop -- tool-call loop, retries
+///     -> Darklang.LLM.Provider           -- provider-agnostic request/response types
+///     -> Darklang.LLM.Providers.*        -- per-provider adapters (Anthropic, OpenAI, Ollama)
+///
 /// Usage:
 ///   // Simple one-shot
 ///   Agent.ask "What is 2+2?"
@@ -112,10 +122,6 @@ let create () : Agent =
       frequencyPenalty = Stdlib.Option.Option.None
       topP = Stdlib.Option.Option.None }
 
-
-/// Create an agent for a specific task
-let forTask (task: String) : Agent =
-  (create ()) |> withSystemPrompt ("You are an AI assistant. Your task: " ++ task)
 
 
 
@@ -236,20 +242,16 @@ let withWebSearchDomains (agent: Agent) (domains: List<String>) : Agent =
   { agent with
       webSearch =
         Stdlib.Option.Option.Some(
-          Darklang.LLM.Provider.WebSearchConfig
-            { maxUses = Stdlib.Option.Option.None
-              allowedDomains = Stdlib.Option.Option.Some domains
-              blockedDomains = Stdlib.Option.Option.None }) }
+          { Darklang.LLM.Provider.defaultWebSearch with
+              allowedDomains = Stdlib.Option.Option.Some domains }) }
 
 /// Enable web search with a maximum number of searches (Anthropic only)
 let withWebSearchLimit (agent: Agent) (maxUses: Int64) : Agent =
   { agent with
       webSearch =
         Stdlib.Option.Option.Some(
-          Darklang.LLM.Provider.WebSearchConfig
-            { maxUses = Stdlib.Option.Option.Some maxUses
-              allowedDomains = Stdlib.Option.Option.None
-              blockedDomains = Stdlib.Option.Option.None }) }
+          { Darklang.LLM.Provider.defaultWebSearch with
+              maxUses = Stdlib.Option.Option.Some maxUses }) }
 
 
 
@@ -264,11 +266,7 @@ let withWebFetchCitations (agent: Agent) : Agent =
   { agent with
       webFetch =
         Stdlib.Option.Option.Some(
-          Darklang.LLM.Provider.WebFetchConfig
-            { maxUses = Stdlib.Option.Option.None
-              allowedDomains = Stdlib.Option.Option.None
-              blockedDomains = Stdlib.Option.Option.None
-              enableCitations = true }) }
+          { Darklang.LLM.Provider.defaultWebFetch with enableCitations = true }) }
 
 /// Enable web fetch with custom configuration (Anthropic only)
 let withWebFetchConfig (agent: Agent) (config: Darklang.LLM.Provider.WebFetchConfig) : Agent =
@@ -279,11 +277,8 @@ let withWebFetchDomains (agent: Agent) (domains: List<String>) : Agent =
   { agent with
       webFetch =
         Stdlib.Option.Option.Some(
-          Darklang.LLM.Provider.WebFetchConfig
-            { maxUses = Stdlib.Option.Option.None
-              allowedDomains = Stdlib.Option.Option.Some domains
-              blockedDomains = Stdlib.Option.Option.None
-              enableCitations = false }) }
+          { Darklang.LLM.Provider.defaultWebFetch with
+              allowedDomains = Stdlib.Option.Option.Some domains }) }
 
 /// Enable extended context window - 1M tokens for Claude 4.6 models (Anthropic only)
 let withExtendedContext (agent: Agent) : Agent =
@@ -363,70 +358,30 @@ let useGPT4oMini (agent: Agent) : Agent =
 
 // VALIDATION
 
-/// Check if a model is an Anthropic model
-let isAnthropicModel (model: Model) : Bool =
-  model.providerId == "anthropic"
-
-/// Check if a model is an OpenAI model
-let isOpenAIModel (model: Model) : Bool =
-  model.providerId == "openai"
-
-/// Check if a model is an OpenAI reasoning model (o1, o3 series)
-/// Reasoning models don't support: temperature, top_p, presence_penalty, frequency_penalty, tools
-let isReasoningModel (model: Model) : Bool =
-  Stdlib.String.startsWith model.id "o1" || Stdlib.String.startsWith model.id "o3"
-
-
-
-// Validation Helpers
-
-/// Check that an optional feature is supported by the current provider
-let checkProviderSupports
-  (option: Stdlib.Option.Option<'a>)
+/// Check that a feature is only used with a compatible provider
+let checkFeatureSupported
+  (isActive: Bool)
   (isCorrectProvider: Bool)
   (featureName: String)
   (providerName: String)
   (modelId: String)
   : Stdlib.Result.Result<Unit, String> =
-  match option with
-  | Some _ ->
-    if isCorrectProvider then
-      Stdlib.Result.Result.Ok()
-    else
-      Stdlib.Result.Result.Error(
-        $"{featureName} is only supported by {providerName} models, but model is {modelId}")
-  | None -> Stdlib.Result.Result.Ok()
-
-/// Check that a bool feature is supported by the current provider
-let checkProviderSupportsFlag
-  (enabled: Bool)
-  (isCorrectProvider: Bool)
-  (featureName: String)
-  (providerName: String)
-  (modelId: String)
-  : Stdlib.Result.Result<Unit, String> =
-  if enabled then
-    if isCorrectProvider then
-      Stdlib.Result.Result.Ok()
-    else
-      Stdlib.Result.Result.Error(
-        $"{featureName} is only supported by {providerName} models, but model is {modelId}")
+  if isActive && (Stdlib.Bool.not isCorrectProvider) then
+    Stdlib.Result.Result.Error(
+      $"{featureName} is only supported by {providerName} models, but model is {modelId}")
   else
     Stdlib.Result.Result.Ok()
 
 /// Check that an optional feature is not used on reasoning models
-let checkReasoningModelExcludes
-  (option: Stdlib.Option.Option<'a>)
+let checkReasoningExcludes
+  (isActive: Bool)
   (isReasoning: Bool)
   (featureName: String)
   (modelId: String)
   : Stdlib.Result.Result<Unit, String> =
-  if isReasoning then
-    match option with
-    | Some _ ->
-      Stdlib.Result.Result.Error(
-        $"Model {modelId} does not support {featureName} (reasoning model)")
-    | None -> Stdlib.Result.Result.Ok()
+  if isActive && isReasoning then
+    Stdlib.Result.Result.Error(
+      $"Model {modelId} does not support {featureName} (reasoning model)")
   else
     Stdlib.Result.Result.Ok()
 
@@ -434,39 +389,40 @@ let checkReasoningModelExcludes
 /// Validate agent configuration before running
 /// Returns Error if the agent uses provider-specific features with incompatible models
 let validateAgent (agent: Agent) : Stdlib.Result.Result<Unit, String> =
-  let isAnthropic = isAnthropicModel agent.model
-  let isOpenAI = isOpenAIModel agent.model
-  let isReasoning = isReasoningModel agent.model
+  let isAnthropic = agent.model.providerId == "anthropic"
+  let isOpenAI = agent.model.providerId == "openai"
+  let isReasoning =
+    Stdlib.String.startsWith agent.model.id "o1" || Stdlib.String.startsWith agent.model.id "o3"
   let modelId = agent.model.id
 
   // Anthropic-only features
-  (checkProviderSupports agent.thinking isAnthropic "withThinking" "Anthropic" modelId)
+  (checkFeatureSupported (Stdlib.Option.isSome agent.thinking) isAnthropic "withThinking" "Anthropic" modelId)
   |> Stdlib.Result.andThen (fun _ ->
-    checkProviderSupports agent.webSearch isAnthropic "withWebSearch" "Anthropic" modelId)
+    checkFeatureSupported (Stdlib.Option.isSome agent.webSearch) isAnthropic "withWebSearch" "Anthropic" modelId)
   |> Stdlib.Result.andThen (fun _ ->
-    checkProviderSupports agent.webFetch isAnthropic "withWebFetch" "Anthropic" modelId)
+    checkFeatureSupported (Stdlib.Option.isSome agent.webFetch) isAnthropic "withWebFetch" "Anthropic" modelId)
   |> Stdlib.Result.andThen (fun _ ->
-    checkProviderSupportsFlag agent.extendedContext isAnthropic "withExtendedContext" "Anthropic" modelId)
+    checkFeatureSupported agent.extendedContext isAnthropic "withExtendedContext" "Anthropic" modelId)
   // OpenAI-only features
   |> Stdlib.Result.andThen (fun _ ->
-    checkProviderSupports agent.responseFormat isOpenAI "withJsonMode/withJsonSchema" "OpenAI" modelId)
+    checkFeatureSupported (Stdlib.Option.isSome agent.responseFormat) isOpenAI "withJsonMode/withJsonSchema" "OpenAI" modelId)
   |> Stdlib.Result.andThen (fun _ ->
-    checkProviderSupports agent.seed isOpenAI "withSeed" "OpenAI" modelId)
+    checkFeatureSupported (Stdlib.Option.isSome agent.seed) isOpenAI "withSeed" "OpenAI" modelId)
   |> Stdlib.Result.andThen (fun _ ->
-    checkProviderSupports agent.presencePenalty isOpenAI "withPresencePenalty" "OpenAI" modelId)
+    checkFeatureSupported (Stdlib.Option.isSome agent.presencePenalty) isOpenAI "withPresencePenalty" "OpenAI" modelId)
   |> Stdlib.Result.andThen (fun _ ->
-    checkProviderSupports agent.frequencyPenalty isOpenAI "withFrequencyPenalty" "OpenAI" modelId)
+    checkFeatureSupported (Stdlib.Option.isSome agent.frequencyPenalty) isOpenAI "withFrequencyPenalty" "OpenAI" modelId)
   |> Stdlib.Result.andThen (fun _ ->
-    checkProviderSupports agent.topP isOpenAI "withTopP" "OpenAI" modelId)
+    checkFeatureSupported (Stdlib.Option.isSome agent.topP) isOpenAI "withTopP" "OpenAI" modelId)
   // Reasoning model restrictions
   |> Stdlib.Result.andThen (fun _ ->
-    checkReasoningModelExcludes agent.temperature isReasoning "temperature" modelId)
+    checkReasoningExcludes (Stdlib.Option.isSome agent.temperature) isReasoning "temperature" modelId)
   |> Stdlib.Result.andThen (fun _ ->
-    checkReasoningModelExcludes agent.topP isReasoning "top_p" modelId)
+    checkReasoningExcludes (Stdlib.Option.isSome agent.topP) isReasoning "top_p" modelId)
   |> Stdlib.Result.andThen (fun _ ->
-    checkReasoningModelExcludes agent.presencePenalty isReasoning "presence_penalty" modelId)
+    checkReasoningExcludes (Stdlib.Option.isSome agent.presencePenalty) isReasoning "presence_penalty" modelId)
   |> Stdlib.Result.andThen (fun _ ->
-    checkReasoningModelExcludes agent.frequencyPenalty isReasoning "frequency_penalty" modelId)
+    checkReasoningExcludes (Stdlib.Option.isSome agent.frequencyPenalty) isReasoning "frequency_penalty" modelId)
   |> Stdlib.Result.andThen (fun _ ->
     if isReasoning && Stdlib.Bool.not (Stdlib.List.isEmpty agent.tools) then
       Stdlib.Result.Result.Error $"Model {modelId} does not support tools (reasoning model)"
@@ -477,31 +433,43 @@ let validateAgent (agent: Agent) : Stdlib.Result.Result<Unit, String> =
 
 // EXECUTION
 
-/// Convert agent to internal config
-let agentConfig (agent: Agent) : Darklang.LLM.Internal.AgentLoop.AgentConfig =
-  Darklang.LLM.Internal.AgentLoop.AgentConfig
-    { model = agent.model
-      systemPrompt = agent.systemPrompt
-      tools = agent.tools
-      maxTokens = agent.maxTokens
-      maxTurns = agent.maxTurns
-      temperature = agent.temperature }
+/// Run with existing message history
+let runWithHistory
+  (agent: Agent)
+  (history: List<Message>)
+  (userMessage: String)
+  : Stdlib.Result.Result<AgentResult, String> =
+  match validateAgent agent with
+  | Ok _ ->
+    match Darklang.LLM.Provider.forModel agent.model with
+    | Ok provider ->
+      let config =
+        Darklang.LLM.Internal.AgentLoop.AgentConfig
+          { model = agent.model
+            systemPrompt = agent.systemPrompt
+            tools = agent.tools
+            maxTokens = agent.maxTokens
+            maxTurns = agent.maxTurns
+            temperature = agent.temperature }
 
+      let extensions =
+        Darklang.LLM.Provider.RequestExtensions
+          { toolChoice = agent.toolChoice
+            thinking = agent.thinking
+            webSearch = agent.webSearch
+            webFetch = agent.webFetch
+            disableParallelToolUse = agent.disableParallelToolUse
+            extendedContext = agent.extendedContext
+            responseFormat = agent.responseFormat
+            seed = agent.seed
+            presencePenalty = agent.presencePenalty
+            frequencyPenalty = agent.frequencyPenalty
+            topP = agent.topP }
 
-/// Build request extensions from agent configuration
-let agentExtensions (agent: Agent) : Darklang.LLM.Provider.RequestExtensions =
-  Darklang.LLM.Provider.RequestExtensions
-    { toolChoice = agent.toolChoice
-      thinking = agent.thinking
-      webSearch = agent.webSearch
-      webFetch = agent.webFetch
-      disableParallelToolUse = agent.disableParallelToolUse
-      extendedContext = agent.extendedContext
-      responseFormat = agent.responseFormat
-      seed = agent.seed
-      presencePenalty = agent.presencePenalty
-      frequencyPenalty = agent.frequencyPenalty
-      topP = agent.topP }
+      let state = Darklang.LLM.Internal.AgentLoop.initialState history userMessage
+      Darklang.LLM.Internal.AgentLoop.runExtendedLoop provider config extensions state
+    | Error e -> Stdlib.Result.Result.Error e
+  | Error e -> Stdlib.Result.Result.Error e
 
 
 /// Run an agent with a user message
@@ -510,15 +478,7 @@ let run
   (agent: Agent)
   (userMessage: String)
   : Stdlib.Result.Result<AgentResult, String> =
-  // Validate agent configuration first
-  match validateAgent agent with
-  | Ok _ ->
-    match Darklang.LLM.Provider.forModel agent.model with
-    | Ok provider ->
-      let state = Darklang.LLM.Internal.AgentLoop.initialState userMessage
-      Darklang.LLM.Internal.AgentLoop.runExtendedLoop provider (agentConfig agent) (agentExtensions agent) state
-    | Error e -> Stdlib.Result.Result.Error e
-  | Error e -> Stdlib.Result.Result.Error e
+  runWithHistory agent [] userMessage
 
 
 /// Run an agent and return just the response text
@@ -527,23 +487,6 @@ let chat
   (userMessage: String)
   : Stdlib.Result.Result<String, String> =
   (run agent userMessage) |> Stdlib.Result.map (fun r -> r.response)
-
-
-/// Run with existing message history
-let runWithHistory
-  (agent: Agent)
-  (history: List<Message>)
-  (userMessage: String)
-  : Stdlib.Result.Result<AgentResult, String> =
-  // Validate agent configuration first
-  match validateAgent agent with
-  | Ok _ ->
-    match Darklang.LLM.Provider.forModel agent.model with
-    | Ok provider ->
-      let state = Darklang.LLM.Internal.AgentLoop.initialStateWithHistory history userMessage
-      Darklang.LLM.Internal.AgentLoop.runExtendedLoop provider (agentConfig agent) (agentExtensions agent) state
-    | Error e -> Stdlib.Result.Result.Error e
-  | Error e -> Stdlib.Result.Result.Error e
 
 
 /// Chat with existing message history

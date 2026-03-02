@@ -1,6 +1,6 @@
 /// OpenAI Models API
 /// https://platform.openai.com/docs/api-reference/models
-module Darklang.OpenAI.Models
+module Darklang.WIP.AI.OpenAI.Models
 
 type Json = Stdlib.AltJson.Json
 
@@ -35,8 +35,8 @@ let list
   if apiKey == "" then
     Stdlib.Result.Result.Error "API key cannot be empty"
   else
-    let headers = Darklang.OpenAI.Config.getHeaders apiKey
-    let url = Darklang.OpenAI.Config.baseUrl ++ "/models"
+    let headers = Config.getHeaders apiKey
+    let url = Config.baseUrl ++ "/models"
 
     match Stdlib.HttpClient.get url headers with
     | Ok response ->
@@ -46,15 +46,15 @@ let list
       | code when code >= 200L && code < 300L ->
         match Stdlib.AltJson.parse bodyStr with
         | Ok (Object fields) ->
-          let dataArray = Darklang.LLM.Internal.JsonHelpers.getArray "data" fields
+          let dataArray = Stdlib.AltJson.Helpers.getArray "data" fields
           let models =
             Stdlib.List.filterMap dataArray (fun item ->
               match item with
               | Object itemFields ->
-                match (Darklang.LLM.Internal.JsonHelpers.getString "id" itemFields,
-                       Darklang.LLM.Internal.JsonHelpers.getInt "created" itemFields,
-                       Darklang.LLM.Internal.JsonHelpers.getString "object" itemFields,
-                       Darklang.LLM.Internal.JsonHelpers.getString "owned_by" itemFields) with
+                match (Stdlib.AltJson.Helpers.getString "id" itemFields,
+                       Stdlib.AltJson.Helpers.getInt "created" itemFields,
+                       Stdlib.AltJson.Helpers.getString "object" itemFields,
+                       Stdlib.AltJson.Helpers.getString "owned_by" itemFields) with
                 | (Some id, Some created, Some obj, Some ownedBy) ->
                   Stdlib.Option.Option.Some(
                     Model { id = id; created = created; object_ = obj; ownedBy = ownedBy })
@@ -76,8 +76,8 @@ let get
   if apiKey == "" then
     Stdlib.Result.Result.Error "API key cannot be empty"
   else
-    let headers = Darklang.OpenAI.Config.getHeaders apiKey
-    let url = Darklang.OpenAI.Config.baseUrl ++ "/models/" ++ modelId
+    let headers = Config.getHeaders apiKey
+    let url = Config.baseUrl ++ "/models/" ++ modelId
 
     match Stdlib.HttpClient.get url headers with
     | Ok response ->
@@ -87,10 +87,10 @@ let get
       | code when code >= 200L && code < 300L ->
         match Stdlib.AltJson.parse bodyStr with
         | Ok (Object fields) ->
-          match (Darklang.LLM.Internal.JsonHelpers.getString "id" fields,
-                 Darklang.LLM.Internal.JsonHelpers.getInt "created" fields,
-                 Darklang.LLM.Internal.JsonHelpers.getString "object" fields,
-                 Darklang.LLM.Internal.JsonHelpers.getString "owned_by" fields) with
+          match (Stdlib.AltJson.Helpers.getString "id" fields,
+                 Stdlib.AltJson.Helpers.getInt "created" fields,
+                 Stdlib.AltJson.Helpers.getString "object" fields,
+                 Stdlib.AltJson.Helpers.getString "owned_by" fields) with
           | (Some id, Some created, Some obj, Some ownedBy) ->
             Stdlib.Result.Result.Ok(
               Model { id = id; created = created; object_ = obj; ownedBy = ownedBy })
@@ -111,8 +111,8 @@ let delete
   if apiKey == "" then
     Stdlib.Result.Result.Error "API key cannot be empty"
   else
-    let headers = Darklang.OpenAI.Config.getHeaders apiKey
-    let url = Darklang.OpenAI.Config.baseUrl ++ "/models/" ++ modelId
+    let headers = Config.getHeaders apiKey
+    let url = Config.baseUrl ++ "/models/" ++ modelId
 
     match Stdlib.HttpClient.delete url headers with
     | Ok response ->
@@ -122,9 +122,9 @@ let delete
       | code when code >= 200L && code < 300L ->
         match Stdlib.AltJson.parse bodyStr with
         | Ok (Object fields) ->
-          match (Darklang.LLM.Internal.JsonHelpers.getString "id" fields,
-                 Darklang.LLM.Internal.JsonHelpers.getBool "deleted" fields,
-                 Darklang.LLM.Internal.JsonHelpers.getString "object" fields) with
+          match (Stdlib.AltJson.Helpers.getString "id" fields,
+                 Stdlib.AltJson.Helpers.getBool "deleted" fields,
+                 Stdlib.AltJson.Helpers.getString "object" fields) with
           | (Some id, Some deleted, Some obj) ->
             Stdlib.Result.Result.Ok(
               ModelDeleted { id = id; deleted = deleted; object_ = obj })

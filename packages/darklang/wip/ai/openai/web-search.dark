@@ -1,6 +1,6 @@
 /// OpenAI Web Search Tool - Ground responses with real-time web data
 /// See: https://platform.openai.com/docs/guides/tools-web-search
-module Darklang.OpenAI.WebSearch
+module Darklang.WIP.AI.OpenAI.WebSearch
 
 type Json = Stdlib.AltJson.Json
 

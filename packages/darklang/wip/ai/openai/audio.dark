@@ -1,0 +1,1191 @@
+/// OpenAI Audio - Speech-to-text, translations, text-to-speech, and voice management
+///
+/// Source: https://platform.openai.com/docs/api-reference/audio
+module Darklang.WIP.AI.OpenAI.Audio
+
+type Json = Stdlib.AltJson.Json
+
+
+module Transport =
+  let stripContentType (headers: List<(String * String)>) : List<(String * String)> =
+    Stdlib.List.filter headers (fun h ->
+      let key = Stdlib.String.toLowercase (Stdlib.Tuple2.first h)
+      key != "content-type")
+
+  let authHeaders (apiKey: String) : List<(String * String)> =
+    stripContentType (Config.getHeaders apiKey)
+
+  let withContentType
+    (contentType: String)
+    (headers: List<(String * String)>)
+    : List<(String * String)> =
+    Stdlib.List.append headers [ ("Content-Type", contentType) ]
+
+  let postJson
+    (apiKey: String)
+    (path: String)
+    (json: Json)
+    : Stdlib.Result.Result<Stdlib.HttpClient.Response, String> =
+    let url = Config.baseUrl ++ path
+    let headers = withContentType "application/json" (authHeaders apiKey)
+    let body = Stdlib.String.toBytes (Stdlib.AltJson.format json)
+
+    match Stdlib.HttpClient.post url headers body with
+    | Ok response -> Stdlib.Result.Result.Ok response
+    | Error e -> Stdlib.Result.Result.Error("HTTP request failed: " ++ Stdlib.HttpClient.toString e)
+
+  let postBytes
+    (apiKey: String)
+    (path: String)
+    (contentType: String)
+    (body: List<UInt8>)
+    : Stdlib.Result.Result<Stdlib.HttpClient.Response, String> =
+    let url = Config.baseUrl ++ path
+    let headers = withContentType contentType (authHeaders apiKey)
+
+    match Stdlib.HttpClient.post url headers body with
+    | Ok response -> Stdlib.Result.Result.Ok response
+    | Error e -> Stdlib.Result.Result.Error("HTTP request failed: " ++ Stdlib.HttpClient.toString e)
+
+  let get
+    (apiKey: String)
+    (path: String)
+    : Stdlib.Result.Result<Stdlib.HttpClient.Response, String> =
+    let url = Config.baseUrl ++ path
+    let headers = authHeaders apiKey
+
+    match Stdlib.HttpClient.get url headers with
+    | Ok response -> Stdlib.Result.Result.Ok response
+    | Error e -> Stdlib.Result.Result.Error("HTTP request failed: " ++ Stdlib.HttpClient.toString e)
+
+  let delete
+    (apiKey: String)
+    (path: String)
+    : Stdlib.Result.Result<Stdlib.HttpClient.Response, String> =
+    let url = Config.baseUrl ++ path
+    let headers = authHeaders apiKey
+
+    match Stdlib.HttpClient.request "DELETE" url headers [] with
+    | Ok response -> Stdlib.Result.Result.Ok response
+    | Error e -> Stdlib.Result.Result.Error("HTTP request failed: " ++ Stdlib.HttpClient.toString e)
+
+  let mapStatusError (response: Stdlib.HttpClient.Response) : Stdlib.Option.Option<String> =
+    match response.statusCode with
+    | code when code >= 200L && code < 300L -> Stdlib.Option.Option.None
+    | 401L -> Stdlib.Option.Option.Some "Authentication failed: Invalid API key"
+    | 429L -> Stdlib.Option.Option.Some "Rate limit exceeded"
+    | _ ->
+      let bodyStr = Stdlib.String.fromBytesWithReplacement response.body
+      Stdlib.Option.Option.Some("API error: " ++ bodyStr)
+
+
+module Shared =
+  type MultipartRequest =
+    { contentType: String
+      body: List<UInt8> }
+
+  let appendStringField
+    (fields: List<(String * Json)>)
+    (key: String)
+    (value: Stdlib.Option.Option<String>)
+    : List<(String * Json)> =
+    match value with
+    | Some v -> Stdlib.List.append fields [ (key, Json.String v) ]
+    | None -> fields
+
+  let appendNumberField
+    (fields: List<(String * Json)>)
+    (key: String)
+    (value: Stdlib.Option.Option<Float>)
+    : List<(String * Json)> =
+    match value with
+    | Some v -> Stdlib.List.append fields [ (key, Json.Number v) ]
+    | None -> fields
+
+  let appendBoolField
+    (fields: List<(String * Json)>)
+    (key: String)
+    (value: Stdlib.Option.Option<Bool>)
+    : List<(String * Json)> =
+    match value with
+    | Some v -> Stdlib.List.append fields [ (key, Json.Bool v) ]
+    | None -> fields
+
+  let textPart
+    (boundary: String)
+    (name: String)
+    (value: String)
+    : List<UInt8> =
+    let header =
+      "--"
+      ++ boundary
+      ++ "\r\n"
+      ++ "Content-Disposition: form-data; name=\""
+      ++ name
+      ++ "\"\r\n\r\n"
+      ++ value
+      ++ "\r\n"
+
+    Stdlib.String.toBytes header
+
+  let filePart
+    (boundary: String)
+    (name: String)
+    (fileName: String)
+    (contentType: String)
+    (fileBytes: List<UInt8>)
+    : List<UInt8> =
+    let header =
+      "--"
+      ++ boundary
+      ++ "\r\n"
+      ++ "Content-Disposition: form-data; name=\""
+      ++ name
+      ++ "\"; filename=\""
+      ++ fileName
+      ++ "\"\r\n"
+      ++ "Content-Type: "
+      ++ contentType
+      ++ "\r\n\r\n"
+
+    Stdlib.List.append
+      (Stdlib.String.toBytes header)
+      (Stdlib.List.append fileBytes (Stdlib.String.toBytes "\r\n"))
+
+  let guessMimeType (fileName: String) : String =
+    if Stdlib.String.endsWith fileName ".wav" then
+      "audio/wav"
+    else if Stdlib.String.endsWith fileName ".mp3" then
+      "audio/mpeg"
+    else if Stdlib.String.endsWith fileName ".m4a" then
+      "audio/mp4"
+    else if Stdlib.String.endsWith fileName ".flac" then
+      "audio/flac"
+    else if Stdlib.String.endsWith fileName ".ogg" then
+      "audio/ogg"
+    else
+      "application/octet-stream"
+
+  let buildMultipartBody
+    (textFields: List<(String * String)>)
+    (arrayFields: List<(String * List<String>)>)
+    (fileFieldName: String)
+    (fileName: String)
+    (fileDataBase64: String)
+    : Stdlib.Result.Result<MultipartRequest, String> =
+    match Stdlib.Base64.decode fileDataBase64 with
+    | Error e -> Stdlib.Result.Result.Error("Invalid base64 audio data: " ++ e)
+    | Ok fileBytes ->
+      let boundary = "darklang-openai-audio-boundary"
+
+      let withTextFields =
+        Stdlib.List.fold textFields [] (fun acc field ->
+          let name = Stdlib.Tuple2.first field
+          let value = Stdlib.Tuple2.second field
+          Stdlib.List.append acc (textPart boundary name value))
+
+      let withArrayFields =
+        Stdlib.List.fold arrayFields withTextFields (fun acc pair ->
+          let key = Stdlib.Tuple2.first pair
+          let values = Stdlib.Tuple2.second pair
+
+          Stdlib.List.fold values acc (fun acc2 value ->
+            Stdlib.List.append acc2 (textPart boundary key value)))
+
+      let withFilePart =
+        Stdlib.List.append
+          withArrayFields
+          (filePart boundary fileFieldName fileName (guessMimeType fileName) fileBytes)
+
+      let closing = Stdlib.String.toBytes("--" ++ boundary ++ "--\r\n")
+      let body = Stdlib.List.append withFilePart closing
+
+      Stdlib.Result.Result.Ok(
+        MultipartRequest
+          { contentType = "multipart/form-data; boundary=" ++ boundary
+            body = body })
+
+
+module Transcriptions =
+  type TranscriptionFormat =
+    | Json
+    | Text
+    | Srt
+    | VerboseJson
+    | Vtt
+    | DiarizedJson
+
+  let transcriptionFormatToString (format: TranscriptionFormat) : String =
+    match format with
+    | Json -> "json"
+    | Text -> "text"
+    | Srt -> "srt"
+    | VerboseJson -> "verbose_json"
+    | Vtt -> "vtt"
+    | DiarizedJson -> "diarized_json"
+
+  type TimestampGranularity =
+    | Word
+    | Segment
+
+  let timestampGranularityToString (gran: TimestampGranularity) : String =
+    match gran with
+    | Word -> "word"
+    | Segment -> "segment"
+
+  type TranscriptionInclude =
+    | Logprobs
+
+  let transcriptionIncludeToString (include: TranscriptionInclude) : String =
+    match include with
+    | Logprobs -> "logprobs"
+
+  type StreamMode =
+    | NoStream
+    | Stream
+
+  let streamModeToString (mode: StreamMode) : String =
+    match mode with
+    | NoStream -> "false"
+    | Stream -> "true"
+
+  type ChunkingStrategy =
+    | Auto
+    | Static
+
+  let chunkingStrategyToString (chunking: ChunkingStrategy) : String =
+    match chunking with
+    | Auto -> "auto"
+    | Static -> "static"
+
+  type TranscriptionWord =
+    { start: Float
+      end_: Float
+      word: String }
+
+  type TranscriptionSegment =
+    { id: Stdlib.Option.Option<Int64>
+      start: Float
+      end_: Float
+      text: String
+      avgLogprob: Stdlib.Option.Option<Float>
+      compressionRatio: Stdlib.Option.Option<Float>
+      noSpeechProb: Stdlib.Option.Option<Float>
+      temperature: Stdlib.Option.Option<Float>
+      seek: Stdlib.Option.Option<Int64>
+      tokens: List<Int64> }
+
+  type TranscriptionLogprob =
+    { token: String
+      logprob: Float
+      bytes: List<Int64> }
+
+  type Usage =
+    { promptTokens: Int64
+      totalTokens: Int64 }
+
+  type TranscriptionJson =
+    { text: String
+      language: Stdlib.Option.Option<String>
+      duration: Stdlib.Option.Option<Float>
+      logprobs: List<TranscriptionLogprob>
+      usage: Stdlib.Option.Option<Usage> }
+
+  type TranscriptionVerbose =
+    { duration: Stdlib.Option.Option<Float>
+      language: Stdlib.Option.Option<String>
+      text: String
+      segments: List<TranscriptionSegment>
+      words: List<TranscriptionWord>
+      logprobs: List<TranscriptionLogprob>
+      usage: Stdlib.Option.Option<Usage> }
+
+  type TranscriptionDiarizedSegment =
+    { id: Int64
+      start: Float
+      end_: Float
+      speaker: String
+      text: String
+      type_: String }
+
+  type TranscriptionDiarized =
+    { duration: Stdlib.Option.Option<Float>
+      task: Stdlib.Option.Option<String>
+      text: String
+      segments: List<TranscriptionDiarizedSegment>
+      logprobs: List<TranscriptionLogprob>
+      usage: Stdlib.Option.Option<Usage> }
+
+  type TranscriptionResponse =
+    | TextResult of String
+    | JsonResult of TranscriptionJson
+    | VerboseResult of TranscriptionVerbose
+    | DiarizedResult of TranscriptionDiarized
+
+  type Options =
+    { model: String
+      audioData: String
+      fileName: String
+      language: Stdlib.Option.Option<String>
+      prompt: Stdlib.Option.Option<String>
+      responseFormat: Stdlib.Option.Option<TranscriptionFormat>
+      temperature: Stdlib.Option.Option<Float>
+      timestampGranularities: Stdlib.Option.Option<List<TimestampGranularity>>
+      include: Stdlib.Option.Option<List<TranscriptionInclude>>
+      stream: StreamMode
+      chunkingStrategy: Stdlib.Option.Option<ChunkingStrategy> }
+
+  let defaultOptions (audioData: String) (fileName: String) : Options =
+    Options
+      { model = Models.whisper1
+        audioData = audioData
+        fileName = fileName
+        language = Stdlib.Option.Option.None
+        prompt = Stdlib.Option.Option.None
+        responseFormat = Stdlib.Option.Option.None
+        temperature = Stdlib.Option.Option.None
+        timestampGranularities = Stdlib.Option.Option.None
+        include = Stdlib.Option.Option.None
+        stream = StreamMode.NoStream
+        chunkingStrategy = Stdlib.Option.Option.None }
+
+  let gptOptions (audioData: String) (fileName: String) : Options =
+    { (defaultOptions audioData fileName) with model = Models.gpt4oTranscribe }
+
+  let withModel (opts: Options) (model: String) : Options =
+    { opts with model = model }
+
+  let withLanguage (opts: Options) (language: String) : Options =
+    { opts with language = Stdlib.Option.Option.Some language }
+
+  let withPrompt (opts: Options) (prompt: String) : Options =
+    { opts with prompt = Stdlib.Option.Option.Some prompt }
+
+  let withFormat (opts: Options) (format: TranscriptionFormat) : Options =
+    { opts with responseFormat = Stdlib.Option.Option.Some format }
+
+  let withTemperature (opts: Options) (temp: Float) : Options =
+    { opts with temperature = Stdlib.Option.Option.Some temp }
+
+  let withTimestampGranularities (opts: Options) (grans: List<TimestampGranularity>) : Options =
+    { opts with timestampGranularities = Stdlib.Option.Option.Some grans }
+
+  let withInclude (opts: Options) (include: List<TranscriptionInclude>) : Options =
+    { opts with include = Stdlib.Option.Option.Some include }
+
+  let withStream (opts: Options) (stream: StreamMode) : Options =
+    { opts with stream = stream }
+
+  let withChunkingStrategy (opts: Options) (chunking: ChunkingStrategy) : Options =
+    { opts with chunkingStrategy = Stdlib.Option.Option.Some chunking }
+
+  let parseLogprobs
+    (fields: List<(String * Json)>)
+    : List<TranscriptionLogprob> =
+    let raw = Stdlib.AltJson.Helpers.getArray "logprobs" fields
+
+    Stdlib.List.filterMap raw (fun item ->
+      match item with
+      | Object logprobFields ->
+        let bytesList =
+          Stdlib.List.filterMap
+            (Stdlib.AltJson.Helpers.getArray "bytes" logprobFields)
+            (fun b ->
+              match b with
+              | Number n -> Stdlib.Option.Option.Some(Stdlib.Int64.fromFloat n)
+              | _ -> Stdlib.Option.Option.None)
+
+        match (Stdlib.AltJson.Helpers.getString "token" logprobFields,
+               Stdlib.AltJson.Helpers.getNumber "logprob" logprobFields) with
+        | (Some token, Some logprob) ->
+          Stdlib.Option.Option.Some(
+            TranscriptionLogprob
+              { token = token
+                logprob = logprob
+                bytes = bytesList })
+        | _ -> Stdlib.Option.Option.None
+      | _ -> Stdlib.Option.Option.None)
+
+  let parseUsage
+    (fields: List<(String * Json)>)
+    : Stdlib.Option.Option<Usage> =
+    match Stdlib.AltJson.Helpers.getValue "usage" fields with
+    | Some (Object usageFields) ->
+      match (Stdlib.AltJson.Helpers.getIntOption "prompt_tokens" usageFields,
+             Stdlib.AltJson.Helpers.getIntOption "total_tokens" usageFields) with
+      | (Some promptTokens, Some totalTokens) ->
+        Stdlib.Option.Option.Some(
+          Usage
+            { promptTokens = promptTokens
+              totalTokens = totalTokens })
+      | _ -> Stdlib.Option.Option.None
+    | _ -> Stdlib.Option.Option.None
+
+  let parseWord (item: Json) : Stdlib.Option.Option<TranscriptionWord> =
+    match item with
+    | Object fields ->
+      match (Stdlib.AltJson.Helpers.getNumber "start" fields,
+             Stdlib.AltJson.Helpers.getNumber "end" fields,
+             Stdlib.AltJson.Helpers.getString "word" fields) with
+      | (Some start, Some end_, Some word) ->
+        Stdlib.Option.Option.Some(
+          TranscriptionWord
+            { start = start
+              end_ = end_
+              word = word })
+      | _ -> Stdlib.Option.Option.None
+    | _ -> Stdlib.Option.Option.None
+
+  let parseSegment (item: Json) : Stdlib.Option.Option<TranscriptionSegment> =
+    match item with
+    | Object fields ->
+      let tokens =
+        Stdlib.List.filterMap
+          (Stdlib.AltJson.Helpers.getArray "tokens" fields)
+          (fun t ->
+            match t with
+            | Number n -> Stdlib.Option.Option.Some(Stdlib.Int64.fromFloat n)
+            | _ -> Stdlib.Option.Option.None)
+
+      match (Stdlib.AltJson.Helpers.getNumber "start" fields,
+             Stdlib.AltJson.Helpers.getNumber "end" fields,
+             Stdlib.AltJson.Helpers.getString "text" fields) with
+      | (Some start, Some end_, Some text) ->
+        Stdlib.Option.Option.Some(
+          TranscriptionSegment
+            { id = Stdlib.AltJson.Helpers.getIntOption "id" fields
+              start = start
+              end_ = end_
+              text = text
+              avgLogprob = Stdlib.AltJson.Helpers.getNumber "avg_logprob" fields
+              compressionRatio = Stdlib.AltJson.Helpers.getNumber "compression_ratio" fields
+              noSpeechProb = Stdlib.AltJson.Helpers.getNumber "no_speech_prob" fields
+              temperature = Stdlib.AltJson.Helpers.getNumber "temperature" fields
+              seek = Stdlib.AltJson.Helpers.getIntOption "seek" fields
+              tokens = tokens })
+      | _ -> Stdlib.Option.Option.None
+    | _ -> Stdlib.Option.Option.None
+
+  let parseDiarizedSegment
+    (item: Json)
+    : Stdlib.Option.Option<TranscriptionDiarizedSegment> =
+    match item with
+    | Object fields ->
+      match (Stdlib.AltJson.Helpers.getInt "id" fields,
+             Stdlib.AltJson.Helpers.getNumber "start" fields,
+             Stdlib.AltJson.Helpers.getNumber "end" fields,
+             Stdlib.AltJson.Helpers.getString "speaker" fields,
+             Stdlib.AltJson.Helpers.getString "text" fields,
+             Stdlib.AltJson.Helpers.getString "type" fields) with
+      | (Some id, Some start, Some end_, Some speaker, Some text, Some type_) ->
+        Stdlib.Option.Option.Some(
+          TranscriptionDiarizedSegment
+            { id = id
+              start = start
+              end_ = end_
+              speaker = speaker
+              text = text
+              type_ = type_ })
+      | _ -> Stdlib.Option.Option.None
+    | _ -> Stdlib.Option.Option.None
+
+  let parseResponse
+    (bodyStr: String)
+    (responseFormat: Stdlib.Option.Option<TranscriptionFormat>)
+    : Stdlib.Result.Result<TranscriptionResponse, String> =
+    match responseFormat with
+    | Some Text | Some Srt | Some Vtt ->
+      Stdlib.Result.Result.Ok(TranscriptionResponse.TextResult bodyStr)
+    | _ ->
+      match Stdlib.AltJson.parse bodyStr with
+      | Ok (Object fields) ->
+        let text =
+          Stdlib.Option.withDefault (Stdlib.AltJson.Helpers.getString "text" fields) ""
+
+        let logprobs = parseLogprobs fields
+        let usage = parseUsage fields
+
+        let words =
+          Stdlib.List.filterMap (Stdlib.AltJson.Helpers.getArray "words" fields) parseWord
+
+        let segments =
+          Stdlib.List.filterMap (Stdlib.AltJson.Helpers.getArray "segments" fields) parseSegment
+
+        let diarizedSegments =
+          Stdlib.List.filterMap
+            (Stdlib.AltJson.Helpers.getArray "segments" fields)
+            parseDiarizedSegment
+
+        if (match responseFormat with | Some DiarizedJson -> true | _ -> false) || Stdlib.Bool.not (Stdlib.List.isEmpty diarizedSegments) then
+          Stdlib.Result.Result.Ok(
+            TranscriptionResponse.DiarizedResult(
+              TranscriptionDiarized
+                { duration = Stdlib.AltJson.Helpers.getNumber "duration" fields
+                  task = Stdlib.AltJson.Helpers.getString "task" fields
+                  text = text
+                  segments = diarizedSegments
+                  logprobs = logprobs
+                  usage = usage }))
+        else if
+          (match responseFormat with | Some VerboseJson -> true | _ -> false)
+          || Stdlib.Bool.not (Stdlib.List.isEmpty segments)
+          || Stdlib.Bool.not (Stdlib.List.isEmpty words)
+        then
+          Stdlib.Result.Result.Ok(
+            TranscriptionResponse.VerboseResult(
+              TranscriptionVerbose
+                { duration = Stdlib.AltJson.Helpers.getNumber "duration" fields
+                  language = Stdlib.AltJson.Helpers.getString "language" fields
+                  text = text
+                  segments = segments
+                  words = words
+                  logprobs = logprobs
+                  usage = usage }))
+        else
+          Stdlib.Result.Result.Ok(
+            TranscriptionResponse.JsonResult(
+              TranscriptionJson
+                { text = text
+                  language = Stdlib.AltJson.Helpers.getString "language" fields
+                  duration = Stdlib.AltJson.Helpers.getNumber "duration" fields
+                  logprobs = logprobs
+                  usage = usage }))
+      | _ -> Stdlib.Result.Result.Error "Invalid response format"
+
+  let buildMultipartRequest
+    (opts: Options)
+    : Stdlib.Result.Result<Shared.MultipartRequest, String> =
+    let formatField =
+      match opts.responseFormat with
+      | Some f -> Stdlib.Option.Option.Some(transcriptionFormatToString f)
+      | None -> Stdlib.Option.Option.None
+
+    let tempField =
+      match opts.temperature with
+      | Some t -> Stdlib.Option.Option.Some(Stdlib.Float.toString t)
+      | None -> Stdlib.Option.Option.None
+
+    let chunkingField =
+      match opts.chunkingStrategy with
+      | Some c -> Stdlib.Option.Option.Some(chunkingStrategyToString c)
+      | None -> Stdlib.Option.Option.None
+
+    let baseFields =
+      [ ("model", opts.model)
+        ("stream", streamModeToString opts.stream) ]
+
+    let withLanguage =
+      match opts.language with
+      | Some l -> Stdlib.List.append baseFields [ ("language", l) ]
+      | None -> baseFields
+
+    let withPrompt =
+      match opts.prompt with
+      | Some p -> Stdlib.List.append withLanguage [ ("prompt", p) ]
+      | None -> withLanguage
+
+    let withFormat =
+      match formatField with
+      | Some f -> Stdlib.List.append withPrompt [ ("response_format", f) ]
+      | None -> withPrompt
+
+    let withTemp =
+      match tempField with
+      | Some t -> Stdlib.List.append withFormat [ ("temperature", t) ]
+      | None -> withFormat
+
+    let textFields =
+      match chunkingField with
+      | Some c -> Stdlib.List.append withTemp [ ("chunking_strategy", c) ]
+      | None -> withTemp
+
+    let timestampFields =
+      match opts.timestampGranularities with
+      | Some grans ->
+        let values = Stdlib.List.map grans timestampGranularityToString
+        [ ("timestamp_granularities[]", values) ]
+      | None -> []
+
+    let includeFields =
+      match opts.include with
+      | Some includes ->
+        let values = Stdlib.List.map includes transcriptionIncludeToString
+        [ ("include[]", values) ]
+      | None -> []
+
+    let arrayFields = Stdlib.List.append timestampFields includeFields
+
+    Shared.buildMultipartBody textFields arrayFields "file" opts.fileName opts.audioData
+
+  let sendWithOptions
+    (apiKey: String)
+    (opts: Options)
+    : Stdlib.Result.Result<TranscriptionResponse, String> =
+    if apiKey == "" then
+      Stdlib.Result.Result.Error "API key cannot be empty"
+    else
+      match buildMultipartRequest opts with
+      | Error e -> Stdlib.Result.Result.Error e
+      | Ok request ->
+        match Transport.postBytes apiKey "/audio/transcriptions" request.contentType request.body with
+        | Error e -> Stdlib.Result.Result.Error e
+        | Ok response ->
+          match Transport.mapStatusError response with
+          | Some e -> Stdlib.Result.Result.Error e
+          | None ->
+            let bodyStr = Stdlib.String.fromBytesWithReplacement response.body
+            parseResponse bodyStr opts.responseFormat
+
+  let transcribe
+    (apiKey: String)
+    (audioData: String)
+    (fileName: String)
+    : Stdlib.Result.Result<String, String> =
+    let opts = defaultOptions audioData fileName
+
+    match sendWithOptions apiKey opts with
+    | Ok (TextResult text) -> Stdlib.Result.Result.Ok text
+    | Ok (JsonResult json) -> Stdlib.Result.Result.Ok json.text
+    | Ok (VerboseResult verbose) -> Stdlib.Result.Result.Ok verbose.text
+    | Ok (DiarizedResult diarized) -> Stdlib.Result.Result.Ok diarized.text
+    | Error e -> Stdlib.Result.Result.Error e
+
+  let transcribeWithGpt
+    (apiKey: String)
+    (audioData: String)
+    (fileName: String)
+    : Stdlib.Result.Result<String, String> =
+    let opts = gptOptions audioData fileName
+
+    match sendWithOptions apiKey opts with
+    | Ok (TextResult text) -> Stdlib.Result.Result.Ok text
+    | Ok (JsonResult json) -> Stdlib.Result.Result.Ok json.text
+    | Ok (VerboseResult verbose) -> Stdlib.Result.Result.Ok verbose.text
+    | Ok (DiarizedResult diarized) -> Stdlib.Result.Result.Ok diarized.text
+    | Error e -> Stdlib.Result.Result.Error e
+
+
+module Translations =
+  type TranslationFormat =
+    | Json
+    | Text
+    | Srt
+    | VerboseJson
+    | Vtt
+
+  let translationFormatToString (format: TranslationFormat) : String =
+    match format with
+    | Json -> "json"
+    | Text -> "text"
+    | Srt -> "srt"
+    | VerboseJson -> "verbose_json"
+    | Vtt -> "vtt"
+
+  type TranslationJson =
+    { text: String }
+
+  type TranslationVerbose =
+    { duration: Stdlib.Option.Option<Float>
+      language: Stdlib.Option.Option<String>
+      text: String
+      segments: List<Transcriptions.TranscriptionSegment> }
+
+  type TranslationResponse =
+    | TextResult of String
+    | JsonResult of TranslationJson
+    | VerboseResult of TranslationVerbose
+
+  type Options =
+    { model: String
+      audioData: String
+      fileName: String
+      prompt: Stdlib.Option.Option<String>
+      responseFormat: Stdlib.Option.Option<TranslationFormat>
+      temperature: Stdlib.Option.Option<Float> }
+
+  let defaultOptions (audioData: String) (fileName: String) : Options =
+    Options
+      { model = Models.whisper1
+        audioData = audioData
+        fileName = fileName
+        prompt = Stdlib.Option.Option.None
+        responseFormat = Stdlib.Option.Option.None
+        temperature = Stdlib.Option.Option.None }
+
+  let withPrompt (opts: Options) (prompt: String) : Options =
+    { opts with prompt = Stdlib.Option.Option.Some prompt }
+
+  let withFormat (opts: Options) (format: TranslationFormat) : Options =
+    { opts with responseFormat = Stdlib.Option.Option.Some format }
+
+  let withTemperature (opts: Options) (temp: Float) : Options =
+    { opts with temperature = Stdlib.Option.Option.Some temp }
+
+  let parseResponse
+    (bodyStr: String)
+    (responseFormat: Stdlib.Option.Option<TranslationFormat>)
+    : Stdlib.Result.Result<TranslationResponse, String> =
+    match responseFormat with
+    | Some Text | Some Srt | Some Vtt ->
+      Stdlib.Result.Result.Ok(TranslationResponse.TextResult bodyStr)
+    | _ ->
+      match Stdlib.AltJson.parse bodyStr with
+      | Ok (Object fields) ->
+        let text =
+          Stdlib.Option.withDefault (Stdlib.AltJson.Helpers.getString "text" fields) ""
+
+        let segments =
+          Stdlib.List.filterMap
+            (Stdlib.AltJson.Helpers.getArray "segments" fields)
+            (fun item ->
+              match item with
+              | Object segmentFields ->
+                match (Stdlib.AltJson.Helpers.getNumber "start" segmentFields,
+                       Stdlib.AltJson.Helpers.getNumber "end" segmentFields,
+                       Stdlib.AltJson.Helpers.getString "text" segmentFields) with
+                | (Some start, Some end_, Some segText) ->
+                  Stdlib.Option.Option.Some(
+                    Transcriptions.TranscriptionSegment
+                      { id = Stdlib.AltJson.Helpers.getIntOption "id" segmentFields
+                        start = start
+                        end_ = end_
+                        text = segText
+                        avgLogprob = Stdlib.Option.Option.None
+                        compressionRatio = Stdlib.Option.Option.None
+                        noSpeechProb = Stdlib.Option.Option.None
+                        temperature = Stdlib.Option.Option.None
+                        seek = Stdlib.Option.Option.None
+                        tokens = [] })
+                | _ -> Stdlib.Option.Option.None
+              | _ -> Stdlib.Option.Option.None)
+
+        if (match responseFormat with | Some VerboseJson -> true | _ -> false) || Stdlib.Bool.not (Stdlib.List.isEmpty segments) then
+          Stdlib.Result.Result.Ok(
+            TranslationResponse.VerboseResult(
+              TranslationVerbose
+                { duration = Stdlib.AltJson.Helpers.getNumber "duration" fields
+                  language = Stdlib.AltJson.Helpers.getString "language" fields
+                  text = text
+                  segments = segments }))
+        else
+          Stdlib.Result.Result.Ok(
+            TranslationResponse.JsonResult(TranslationJson { text = text }))
+      | _ -> Stdlib.Result.Result.Error "Invalid response format"
+
+  let buildMultipartRequest
+    (opts: Options)
+    : Stdlib.Result.Result<Shared.MultipartRequest, String> =
+    let baseFields = [ ("model", opts.model) ]
+
+    let withPrompt =
+      match opts.prompt with
+      | Some p -> Stdlib.List.append baseFields [ ("prompt", p) ]
+      | None -> baseFields
+
+    let withFormat =
+      match opts.responseFormat with
+      | Some f -> Stdlib.List.append withPrompt [ ("response_format", translationFormatToString f) ]
+      | None -> withPrompt
+
+    let textFields =
+      match opts.temperature with
+      | Some t -> Stdlib.List.append withFormat [ ("temperature", Stdlib.Float.toString t) ]
+      | None -> withFormat
+
+    Shared.buildMultipartBody textFields [] "file" opts.fileName opts.audioData
+
+  let sendWithOptions
+    (apiKey: String)
+    (opts: Options)
+    : Stdlib.Result.Result<TranslationResponse, String> =
+    if apiKey == "" then
+      Stdlib.Result.Result.Error "API key cannot be empty"
+    else
+      match buildMultipartRequest opts with
+      | Error e -> Stdlib.Result.Result.Error e
+      | Ok request ->
+        match Transport.postBytes apiKey "/audio/translations" request.contentType request.body with
+        | Error e -> Stdlib.Result.Result.Error e
+        | Ok response ->
+          match Transport.mapStatusError response with
+          | Some e -> Stdlib.Result.Result.Error e
+          | None ->
+            let bodyStr = Stdlib.String.fromBytesWithReplacement response.body
+            parseResponse bodyStr opts.responseFormat
+
+  let translate
+    (apiKey: String)
+    (audioData: String)
+    (fileName: String)
+    : Stdlib.Result.Result<String, String> =
+    match sendWithOptions apiKey (defaultOptions audioData fileName) with
+    | Ok (TextResult text) -> Stdlib.Result.Result.Ok text
+    | Ok (JsonResult json) -> Stdlib.Result.Result.Ok json.text
+    | Ok (VerboseResult verbose) -> Stdlib.Result.Result.Ok verbose.text
+    | Error e -> Stdlib.Result.Result.Error e
+
+
+module Speech =
+  module Voice =
+    let alloy : String = "alloy"
+    let echo : String = "echo"
+    let fable : String = "fable"
+    let onyx : String = "onyx"
+    let nova : String = "nova"
+    let shimmer : String = "shimmer"
+    let ash : String = "ash"
+    let coral : String = "coral"
+    let sage : String = "sage"
+    let ballad : String = "ballad"
+    let verse : String = "verse"
+
+  type ResponseFormat =
+    | Mp3
+    | Opus
+    | Aac
+    | Flac
+    | Wav
+    | Pcm
+
+  let responseFormatToString (format: ResponseFormat) : String =
+    match format with
+    | Mp3 -> "mp3"
+    | Opus -> "opus"
+    | Aac -> "aac"
+    | Flac -> "flac"
+    | Wav -> "wav"
+    | Pcm -> "pcm"
+
+  type Options =
+    { model: String
+      input: String
+      voice: String
+      responseFormat: Stdlib.Option.Option<ResponseFormat>
+      speed: Stdlib.Option.Option<Float>
+      instructions: Stdlib.Option.Option<String> }
+
+  let defaultOptions (text: String) : Options =
+    Options
+      { model = Models.tts1
+        input = text
+        voice = Voice.alloy
+        responseFormat = Stdlib.Option.Option.None
+        speed = Stdlib.Option.Option.None
+        instructions = Stdlib.Option.Option.None }
+
+  let gptTtsOptions (text: String) : Options =
+    { (defaultOptions text) with model = Models.gpt4oMiniTts }
+
+  let withModel (opts: Options) (model: String) : Options =
+    { opts with model = model }
+
+  let withVoice (opts: Options) (voice: String) : Options =
+    { opts with voice = voice }
+
+  let withResponseFormat (opts: Options) (format: ResponseFormat) : Options =
+    { opts with responseFormat = Stdlib.Option.Option.Some format }
+
+  let withSpeed (opts: Options) (speed: Float) : Options =
+    { opts with speed = Stdlib.Option.Option.Some speed }
+
+  let withInstructions (opts: Options) (instructions: String) : Options =
+    { opts with instructions = Stdlib.Option.Option.Some instructions }
+
+  let buildRequestJson (opts: Options) : Json =
+    let baseFields =
+      [ ("model", Json.String opts.model)
+        ("input", Json.String opts.input)
+        ("voice", Json.String opts.voice) ]
+
+    let withFormat =
+      match opts.responseFormat with
+      | Some f ->
+        Stdlib.List.append
+          baseFields
+          [ ("response_format", Json.String(responseFormatToString f)) ]
+      | None -> baseFields
+
+    let withSpeed =
+      Shared.appendNumberField withFormat "speed" opts.speed
+
+    let withInstructions =
+      match opts.instructions with
+      | Some i ->
+        if Stdlib.String.contains opts.model "gpt-4o" then
+          Stdlib.List.append withSpeed [ ("instructions", Json.String i) ]
+        else
+          withSpeed
+      | None -> withSpeed
+
+    Json.Object withInstructions
+
+  let sendWithOptions
+    (apiKey: String)
+    (opts: Options)
+    : Stdlib.Result.Result<List<UInt8>, String> =
+    if apiKey == "" then
+      Stdlib.Result.Result.Error "API key cannot be empty"
+    else
+      let request = buildRequestJson opts
+
+      match Transport.postJson apiKey "/audio/speech" request with
+      | Error e -> Stdlib.Result.Result.Error e
+      | Ok response ->
+        match Transport.mapStatusError response with
+        | Some e -> Stdlib.Result.Result.Error e
+        | None -> Stdlib.Result.Result.Ok response.body
+
+  let textToSpeech
+    (apiKey: String)
+    (text: String)
+    : Stdlib.Result.Result<List<UInt8>, String> =
+    sendWithOptions apiKey (defaultOptions text)
+
+  let textToSpeechWithVoice
+    (apiKey: String)
+    (voice: String)
+    (text: String)
+    : Stdlib.Result.Result<List<UInt8>, String> =
+    let opts = withVoice (defaultOptions text) voice
+    sendWithOptions apiKey opts
+
+  let textToSpeechWithInstructions
+    (apiKey: String)
+    (voice: String)
+    (instructions: String)
+    (text: String)
+    : Stdlib.Result.Result<List<UInt8>, String> =
+    let withVoice_ = withVoice (gptTtsOptions text) voice
+    let opts = withInstructions withVoice_ instructions
+
+    sendWithOptions apiKey opts
+
+
+module Voices =
+  type CreateOptions =
+    { name: String
+      audioData: String
+      fileName: String
+      description: Stdlib.Option.Option<String>
+      consentId: Stdlib.Option.Option<String> }
+
+  type Voice =
+    { id: String
+      name: String
+      description: Stdlib.Option.Option<String>
+      createdAt: Stdlib.Option.Option<Int64>
+      status: Stdlib.Option.Option<String> }
+
+  let createOptions
+    (name: String)
+    (audioData: String)
+    (fileName: String)
+    : CreateOptions =
+    CreateOptions
+      { name = name
+        audioData = audioData
+        fileName = fileName
+        description = Stdlib.Option.Option.None
+        consentId = Stdlib.Option.Option.None }
+
+  let withDescription (opts: CreateOptions) (description: String) : CreateOptions =
+    { opts with description = Stdlib.Option.Option.Some description }
+
+  let withConsentId (opts: CreateOptions) (consentId: String) : CreateOptions =
+    { opts with consentId = Stdlib.Option.Option.Some consentId }
+
+  let parseVoice
+    (fields: List<(String * Json)>)
+    : Stdlib.Result.Result<Voice, String> =
+    match (Stdlib.AltJson.Helpers.getString "id" fields,
+           Stdlib.AltJson.Helpers.getString "name" fields) with
+    | (Some id, Some name) ->
+      Stdlib.Result.Result.Ok(
+        Voice
+          { id = id
+            name = name
+            description = Stdlib.AltJson.Helpers.getString "description" fields
+            createdAt = Stdlib.AltJson.Helpers.getIntOption "created_at" fields
+            status = Stdlib.AltJson.Helpers.getString "status" fields })
+    | _ -> Stdlib.Result.Result.Error "Invalid voice response format"
+
+  let create
+    (apiKey: String)
+    (opts: CreateOptions)
+    : Stdlib.Result.Result<Voice, String> =
+    if apiKey == "" then
+      Stdlib.Result.Result.Error "API key cannot be empty"
+    else
+      let baseFields = [ ("name", opts.name) ]
+
+      let withDescription =
+        match opts.description with
+        | Some d -> Stdlib.List.append baseFields [ ("description", d) ]
+        | None -> baseFields
+
+      let textFields =
+        match opts.consentId with
+        | Some c -> Stdlib.List.append withDescription [ ("voice_consent_id", c) ]
+        | None -> withDescription
+
+      match Shared.buildMultipartBody textFields [] "file" opts.fileName opts.audioData with
+      | Error e -> Stdlib.Result.Result.Error e
+      | Ok request ->
+        match Transport.postBytes apiKey "/audio/voices" request.contentType request.body with
+        | Error e -> Stdlib.Result.Result.Error e
+        | Ok response ->
+          match Transport.mapStatusError response with
+          | Some e -> Stdlib.Result.Result.Error e
+          | None ->
+            let bodyStr = Stdlib.String.fromBytesWithReplacement response.body
+
+            match Stdlib.AltJson.parse bodyStr with
+            | Ok (Object fields) -> parseVoice fields
+            | _ -> Stdlib.Result.Result.Error "Invalid response format"
+
+
+module VoiceConsents =
+  type Consent =
+    { id: String
+      status: Stdlib.Option.Option<String>
+      createdAt: Stdlib.Option.Option<Int64>
+      name: Stdlib.Option.Option<String>
+      text: Stdlib.Option.Option<String> }
+
+  type CreateOptions =
+    { name: String
+      text: String
+      audioData: String
+      fileName: String }
+
+  type DeleteResult =
+    { id: String
+      deleted: Bool }
+
+  let createOptions
+    (name: String)
+    (text: String)
+    (audioData: String)
+    (fileName: String)
+    : CreateOptions =
+    CreateOptions
+      { name = name
+        text = text
+        audioData = audioData
+        fileName = fileName }
+
+  let parseConsent
+    (fields: List<(String * Json)>)
+    : Stdlib.Option.Option<Consent> =
+    match Stdlib.AltJson.Helpers.getString "id" fields with
+    | Some id ->
+      Stdlib.Option.Option.Some(
+        Consent
+          { id = id
+            status = Stdlib.AltJson.Helpers.getString "status" fields
+            createdAt = Stdlib.AltJson.Helpers.getIntOption "created_at" fields
+            name = Stdlib.AltJson.Helpers.getString "name" fields
+            text = Stdlib.AltJson.Helpers.getString "text" fields })
+    | None -> Stdlib.Option.Option.None
+
+  let create
+    (apiKey: String)
+    (opts: CreateOptions)
+    : Stdlib.Result.Result<Consent, String> =
+    if apiKey == "" then
+      Stdlib.Result.Result.Error "API key cannot be empty"
+    else
+      let textFields =
+        [ ("name", opts.name)
+          ("text", opts.text) ]
+
+      match Shared.buildMultipartBody textFields [] "file" opts.fileName opts.audioData with
+      | Error e -> Stdlib.Result.Result.Error e
+      | Ok request ->
+        match Transport.postBytes apiKey "/audio/voice_consents" request.contentType request.body with
+        | Error e -> Stdlib.Result.Result.Error e
+        | Ok response ->
+          match Transport.mapStatusError response with
+          | Some e -> Stdlib.Result.Result.Error e
+          | None ->
+            let bodyStr = Stdlib.String.fromBytesWithReplacement response.body
+
+            match Stdlib.AltJson.parse bodyStr with
+            | Ok (Object fields) ->
+              match parseConsent fields with
+              | Some consent -> Stdlib.Result.Result.Ok consent
+              | None -> Stdlib.Result.Result.Error "Invalid consent response format"
+            | _ -> Stdlib.Result.Result.Error "Invalid response format"
+
+  let list
+    (apiKey: String)
+    : Stdlib.Result.Result<List<Consent>, String> =
+    if apiKey == "" then
+      Stdlib.Result.Result.Error "API key cannot be empty"
+    else
+      match Transport.get apiKey "/audio/voice_consents" with
+      | Error e -> Stdlib.Result.Result.Error e
+      | Ok response ->
+        match Transport.mapStatusError response with
+        | Some e -> Stdlib.Result.Result.Error e
+        | None ->
+          let bodyStr = Stdlib.String.fromBytesWithReplacement response.body
+
+          match Stdlib.AltJson.parse bodyStr with
+          | Ok (Object fields) ->
+            let data = Stdlib.AltJson.Helpers.getArray "data" fields
+
+            let parsed =
+              Stdlib.List.filterMap data (fun item ->
+                match item with
+                | Object consentFields -> parseConsent consentFields
+                | _ -> Stdlib.Option.Option.None)
+
+            Stdlib.Result.Result.Ok parsed
+          | _ -> Stdlib.Result.Result.Error "Invalid response format"
+
+  let get
+    (apiKey: String)
+    (consentId: String)
+    : Stdlib.Result.Result<Consent, String> =
+    if apiKey == "" then
+      Stdlib.Result.Result.Error "API key cannot be empty"
+    else
+      match Transport.get apiKey ("/audio/voice_consents/" ++ consentId) with
+      | Error e -> Stdlib.Result.Result.Error e
+      | Ok response ->
+        match Transport.mapStatusError response with
+        | Some e -> Stdlib.Result.Result.Error e
+        | None ->
+          let bodyStr = Stdlib.String.fromBytesWithReplacement response.body
+
+          match Stdlib.AltJson.parse bodyStr with
+          | Ok (Object fields) ->
+            match parseConsent fields with
+            | Some consent -> Stdlib.Result.Result.Ok consent
+            | None -> Stdlib.Result.Result.Error "Invalid consent response format"
+          | _ -> Stdlib.Result.Result.Error "Invalid response format"
+
+  let delete
+    (apiKey: String)
+    (consentId: String)
+    : Stdlib.Result.Result<DeleteResult, String> =
+    if apiKey == "" then
+      Stdlib.Result.Result.Error "API key cannot be empty"
+    else
+      match Transport.delete apiKey ("/audio/voice_consents/" ++ consentId) with
+      | Error e -> Stdlib.Result.Result.Error e
+      | Ok response ->
+        match Transport.mapStatusError response with
+        | Some e -> Stdlib.Result.Result.Error e
+        | None ->
+          let bodyStr = Stdlib.String.fromBytesWithReplacement response.body
+
+          match Stdlib.AltJson.parse bodyStr with
+          | Ok (Object fields) ->
+            match (Stdlib.AltJson.Helpers.getString "id" fields,
+                   Stdlib.AltJson.Helpers.getBool "deleted" fields) with
+            | (Some id, Some deleted) ->
+              Stdlib.Result.Result.Ok(DeleteResult { id = id; deleted = deleted })
+            | _ -> Stdlib.Result.Result.Error "Invalid delete response format"
+          | _ -> Stdlib.Result.Result.Error "Invalid response format"

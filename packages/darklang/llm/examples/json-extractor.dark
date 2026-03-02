@@ -3,7 +3,14 @@
 /// Run with: ./scripts/run-cli eval 'Darklang.LLM.Examples.JsonExtractor.extractContact "..."'
 module Darklang.LLM.Examples.JsonExtractor
 
-type Json = Stdlib.AltJson.Json
+/// Shared config: GPT-4o-mini with JSON mode at temperature 0.0
+let jsonExtractorAgent (systemPrompt: String) (maxTokens: Int64) : Agent.Agent =
+  (Agent.create ())
+  |> Agent.withSystemPrompt systemPrompt
+  |> Agent.useGPT4oMini
+  |> Agent.withJsonMode
+  |> Agent.withTemperature 0.0
+  |> Agent.withMaxTokens maxTokens
 
 
 // CONTACT EXTRACTION
@@ -12,20 +19,19 @@ let contactPrompt =
   "Extract contact info as JSON: {name, email, phone, company, title, address}. Use null for missing fields."
 
 
-let contactAgent =
-  (Darklang.LLM.Agent.create ())
-  |> Darklang.LLM.Agent.withSystemPrompt contactPrompt
-  |> Darklang.LLM.Agent.useGPT4oMini
-  |> Darklang.LLM.Agent.withJsonMode
-  |> Darklang.LLM.Agent.withTemperature 0.0
-  |> Darklang.LLM.Agent.withMaxTokens 500L
+let contactAgent = jsonExtractorAgent contactPrompt 500L
+
+
+/// Run an extraction agent with a prompt prefix
+let runExtraction (agent: Agent.Agent) (prefix: String) (text: String) : String =
+  match Agent.run agent $"{prefix}:\n\n{text}" with
+  | Ok result -> result.response
+  | Error e -> $"{{\"error\": \"{e}\"}}"
 
 
 /// Extract contact information from text
 let extractContact (text: String) : String =
-  match Darklang.LLM.Agent.run contactAgent $"Extract contact info from:\n\n{text}" with
-  | Ok result -> result.response
-  | Error e -> $"{{\"error\": \"{e}\"}}"
+  runExtraction contactAgent "Extract contact info from" text
 
 
 /// Parsed contact info
@@ -44,12 +50,12 @@ let extractContactParsed (text: String) : Stdlib.Result.Result<ContactInfo, Stri
   | Ok (Object fields) ->
     Stdlib.Result.Result.Ok(
       ContactInfo
-        { name = Darklang.LLM.Internal.JsonHelpers.getString "name" fields
-          email = Darklang.LLM.Internal.JsonHelpers.getString "email" fields
-          phone = Darklang.LLM.Internal.JsonHelpers.getString "phone" fields
-          company = Darklang.LLM.Internal.JsonHelpers.getString "company" fields
-          title = Darklang.LLM.Internal.JsonHelpers.getString "title" fields
-          address = Darklang.LLM.Internal.JsonHelpers.getString "address" fields })
+        { name = Stdlib.AltJson.Helpers.getString "name" fields
+          email = Stdlib.AltJson.Helpers.getString "email" fields
+          phone = Stdlib.AltJson.Helpers.getString "phone" fields
+          company = Stdlib.AltJson.Helpers.getString "company" fields
+          title = Stdlib.AltJson.Helpers.getString "title" fields
+          address = Stdlib.AltJson.Helpers.getString "address" fields })
   | Ok _ -> Stdlib.Result.Result.Error "Expected JSON object"
 
 
@@ -60,20 +66,12 @@ let eventPrompt =
   "Extract event info as JSON: {title, date (YYYY-MM-DD), time (HH:MM), location, description, attendees:[]}."
 
 
-let eventAgent =
-  (Darklang.LLM.Agent.create ())
-  |> Darklang.LLM.Agent.withSystemPrompt eventPrompt
-  |> Darklang.LLM.Agent.useGPT4oMini
-  |> Darklang.LLM.Agent.withJsonMode
-  |> Darklang.LLM.Agent.withTemperature 0.0
-  |> Darklang.LLM.Agent.withMaxTokens 500L
+let eventAgent = jsonExtractorAgent eventPrompt 500L
 
 
 /// Extract event information from text
 let extractEvent (text: String) : String =
-  match Darklang.LLM.Agent.run eventAgent $"Extract event info from:\n\n{text}" with
-  | Ok result -> result.response
-  | Error e -> $"{{\"error\": \"{e}\"}}"
+  runExtraction eventAgent "Extract event info from" text
 
 
 
@@ -83,20 +81,12 @@ let entityPrompt =
   "Extract named entities as JSON: {people:[], organizations:[], locations:[], dates:[], amounts:[]}."
 
 
-let entityAgent =
-  (Darklang.LLM.Agent.create ())
-  |> Darklang.LLM.Agent.withSystemPrompt entityPrompt
-  |> Darklang.LLM.Agent.useGPT4oMini
-  |> Darklang.LLM.Agent.withJsonMode
-  |> Darklang.LLM.Agent.withTemperature 0.0
-  |> Darklang.LLM.Agent.withMaxTokens 1000L
+let entityAgent = jsonExtractorAgent entityPrompt 1000L
 
 
 /// Extract named entities from text
 let extractEntities (text: String) : String =
-  match Darklang.LLM.Agent.run entityAgent $"Extract entities from:\n\n{text}" with
-  | Ok result -> result.response
-  | Error e -> $"{{\"error\": \"{e}\"}}"
+  runExtraction entityAgent "Extract entities from" text
 
 
 
@@ -106,35 +96,20 @@ let sentimentPrompt =
   "Analyze sentiment as JSON: {overall_sentiment, confidence (0-1), emotions:[], key_phrases:[], summary}."
 
 
-let sentimentAgent =
-  (Darklang.LLM.Agent.create ())
-  |> Darklang.LLM.Agent.withSystemPrompt sentimentPrompt
-  |> Darklang.LLM.Agent.useGPT4oMini
-  |> Darklang.LLM.Agent.withJsonMode
-  |> Darklang.LLM.Agent.withTemperature 0.0
-  |> Darklang.LLM.Agent.withMaxTokens 500L
+let sentimentAgent = jsonExtractorAgent sentimentPrompt 500L
 
 
 /// Analyze sentiment of text
 let analyzeSentiment (text: String) : String =
-  match Darklang.LLM.Agent.run sentimentAgent $"Analyze sentiment:\n\n{text}" with
-  | Ok result -> result.response
-  | Error e -> $"{{\"error\": \"{e}\"}}"
+  runExtraction sentimentAgent "Analyze sentiment" text
 
 
 
 // GENERIC EXTRACTION
 
-/// Extract data using a custom schema description
+/// Extract data using a custom schema description (uses GPT-4o for complex schemas)
 let extractWithSchema (schemaDescription: String) (text: String) : String =
   let agent =
-    (Darklang.LLM.Agent.create ())
-    |> Darklang.LLM.Agent.withSystemPrompt $"Extract data as JSON matching: {schemaDescription}"
-    |> Darklang.LLM.Agent.useGPT4o
-    |> Darklang.LLM.Agent.withJsonMode
-    |> Darklang.LLM.Agent.withTemperature 0.0
-    |> Darklang.LLM.Agent.withMaxTokens 2000L
-
-  match Darklang.LLM.Agent.run agent $"Extract from:\n\n{text}" with
-  | Ok result -> result.response
-  | Error e -> $"{{\"error\": \"{e}\"}}"
+    (jsonExtractorAgent $"Extract data as JSON matching: {schemaDescription}" 2000L)
+    |> Agent.useGPT4o
+  runExtraction agent "Extract from" text

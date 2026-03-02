@@ -6,7 +6,7 @@
 ///   - ChatCompletionStreamOptions (include_usage, include_obfuscation)
 ///   - sendStream function that returns an iterator/stream of chunks
 ///   - Delta types for incremental content, tool calls, etc.
-module Darklang.OpenAI.Chat
+module Darklang.WIP.AI.OpenAI.Chat
 
 type Json = Stdlib.AltJson.Json
 
@@ -115,10 +115,10 @@ type AudioResponse =
 
 /// Parse audio response from JSON
 let parseAudioResponse (fields: List<(String * Json)>) : Stdlib.Option.Option<AudioResponse> =
-  match (Darklang.LLM.Internal.JsonHelpers.getString "id" fields,
-         Darklang.LLM.Internal.JsonHelpers.getString "data" fields,
-         Darklang.LLM.Internal.JsonHelpers.getIntOption "expires_at" fields,
-         Darklang.LLM.Internal.JsonHelpers.getString "transcript" fields) with
+  match (Stdlib.AltJson.Helpers.getString "id" fields,
+         Stdlib.AltJson.Helpers.getString "data" fields,
+         Stdlib.AltJson.Helpers.getIntOption "expires_at" fields,
+         Stdlib.AltJson.Helpers.getString "transcript" fields) with
   | (Some id, Some data, Some expiresAt, Some transcript) ->
     Stdlib.Option.Option.Some(
       AudioResponse { id = id; data = data; expiresAt = expiresAt; transcript = transcript })
@@ -173,7 +173,7 @@ type UserMessage =
 /// User message content - text or multi-modal
 type UserMessageContent =
   | TextContent of String
-  | PartsContent of List<Darklang.OpenAI.Content.ContentPart>
+  | PartsContent of List<Content.ContentPart>
 
 /// Assistant message (ChatCompletionAssistantMessageParam)
 /// Message from the model
@@ -181,7 +181,7 @@ type AssistantMessage =
   { content: Stdlib.Option.Option<String>
     name: Stdlib.Option.Option<String>
     refusal: Stdlib.Option.Option<String>
-    toolCalls: Stdlib.Option.Option<List<Darklang.OpenAI.Tools.ToolCall>>
+    toolCalls: Stdlib.Option.Option<List<Tools.ToolCall>>
     audio: Stdlib.Option.Option<AssistantAudioRef> }
 
 /// Reference to previously generated audio for multi-turn
@@ -244,14 +244,14 @@ let userMessageWithName (content: String) (name: String) : ChatMessage =
         name = Stdlib.Option.Option.Some name })
 
 /// Create a multi-modal user message
-let multiModalMessage (parts: List<Darklang.OpenAI.Content.ContentPart>) : ChatMessage =
+let multiModalMessage (parts: List<Content.ContentPart>) : ChatMessage =
   ChatMessage.User(
     UserMessage
       { content = UserMessageContent.PartsContent parts
         name = Stdlib.Option.Option.None })
 
 /// Create a multi-modal user message with name
-let multiModalMessageWithName (parts: List<Darklang.OpenAI.Content.ContentPart>) (name: String) : ChatMessage =
+let multiModalMessageWithName (parts: List<Content.ContentPart>) (name: String) : ChatMessage =
   ChatMessage.User(
     UserMessage
       { content = UserMessageContent.PartsContent parts
@@ -268,7 +268,7 @@ let assistantMessage (content: String) : ChatMessage =
         audio = Stdlib.Option.Option.None })
 
 /// Create an assistant message with tool calls
-let assistantToolCallMessage (toolCalls: List<Darklang.OpenAI.Tools.ToolCall>) : ChatMessage =
+let assistantToolCallMessage (toolCalls: List<Tools.ToolCall>) : ChatMessage =
   ChatMessage.Assistant(
     AssistantMessage
       { content = Stdlib.Option.Option.None
@@ -278,7 +278,7 @@ let assistantToolCallMessage (toolCalls: List<Darklang.OpenAI.Tools.ToolCall>) :
         audio = Stdlib.Option.Option.None })
 
 /// Create an assistant message with both content and tool calls
-let assistantMessageWithToolCalls (content: String) (toolCalls: List<Darklang.OpenAI.Tools.ToolCall>) : ChatMessage =
+let assistantMessageWithToolCalls (content: String) (toolCalls: List<Tools.ToolCall>) : ChatMessage =
   ChatMessage.Assistant(
     AssistantMessage
       { content = Stdlib.Option.Option.Some content
@@ -315,10 +315,10 @@ let userMessageContentToJson (content: UserMessageContent) : Json =
   match content with
   | TextContent s -> Json.String s
   | PartsContent parts ->
-    Json.Array(Stdlib.List.map parts Darklang.OpenAI.Content.contentPartToJson)
+    Json.Array(Stdlib.List.map parts Content.contentPartToJson)
 
 /// Convert tool call to JSON for request (Chat API format)
-let toolCallToRequestJson (tc: Darklang.OpenAI.Tools.ToolCall) : Json =
+let toolCallToRequestJson (tc: Tools.ToolCall) : Json =
   match tc with
   | FunctionCall fc ->
     Json.Object
@@ -419,11 +419,11 @@ type Request =
     model: String
     messages: List<ChatMessage>
     // Tools
-    tools: List<Darklang.OpenAI.Tools.Tool>
-    toolChoice: Stdlib.Option.Option<Darklang.OpenAI.Tools.ToolChoice>
+    tools: List<Tools.Tool>
+    toolChoice: Stdlib.Option.Option<Tools.ToolChoice>
     parallelToolCalls: Stdlib.Option.Option<Bool>
     // Response format
-    responseFormat: Stdlib.Option.Option<Darklang.OpenAI.ResponseFormat.Format>
+    responseFormat: Stdlib.Option.Option<ResponseFormat.Format>
     // Audio
     modalities: Stdlib.Option.Option<List<Modality>>
     audio: Stdlib.Option.Option<AudioParam>
@@ -437,11 +437,11 @@ type Request =
     presencePenalty: Stdlib.Option.Option<Float>
     stop: Stdlib.Option.Option<List<String>>
     // Reasoning (o-series, GPT-5)
-    reasoningEffort: Stdlib.Option.Option<Darklang.OpenAI.Models.ReasoningEffort>
+    reasoningEffort: Stdlib.Option.Option<Models.ReasoningEffort>
     // Service options
     store: Stdlib.Option.Option<Bool>
     metadata: Stdlib.Option.Option<List<(String * String)>>
-    serviceTier: Stdlib.Option.Option<Darklang.OpenAI.ServiceTier.Tier>
+    serviceTier: Stdlib.Option.Option<ServiceTier.Tier>
     // Generation options
     n: Stdlib.Option.Option<Int64>
     seed: Stdlib.Option.Option<Int64>
@@ -451,8 +451,8 @@ type Request =
     topLogprobs: Stdlib.Option.Option<Int64>
     logitBias: Stdlib.Option.Option<List<(String * Int64)>>
     // Advanced features
-    webSearchOptions: Stdlib.Option.Option<Darklang.OpenAI.WebSearch.WebSearchTool>
-    prediction: Stdlib.Option.Option<Darklang.OpenAI.Prediction.PredictedOutput> }
+    webSearchOptions: Stdlib.Option.Option<WebSearch.WebSearchTool>
+    prediction: Stdlib.Option.Option<Prediction.PredictedOutput> }
 
 
 // =============================================================================
@@ -462,7 +462,7 @@ type Request =
 /// Create a new request with defaults
 let createRequest () : Request =
   Request
-    { model = Darklang.OpenAI.Models.gpt4o
+    { model = Models.gpt4o
       messages = []
       tools = []
       toolChoice = Stdlib.Option.Option.None
@@ -515,27 +515,27 @@ let withDeveloperMessage (req: Request) (content: String) : Request =
   withMessage req (developerMessage content)
 
 /// Add a multi-modal message
-let withMultiModalMessage (req: Request) (parts: List<Darklang.OpenAI.Content.ContentPart>) : Request =
+let withMultiModalMessage (req: Request) (parts: List<Content.ContentPart>) : Request =
   withMessage req (multiModalMessage parts)
 
 /// Add an image message
 let withImageMessage (req: Request) (imageUrl: String) (prompt: String) : Request =
-  withMultiModalMessage req [ Darklang.OpenAI.Content.imageUrl imageUrl; Darklang.OpenAI.Content.text prompt ]
+  withMultiModalMessage req [ Content.imageUrl imageUrl; Content.text prompt ]
 
 /// Add a tool result
 let withToolResult (req: Request) (toolCallId: String) (content: String) : Request =
   withMessage req (toolMessage toolCallId content)
 
 /// Add an assistant message with tool calls (for multi-turn)
-let withAssistantToolCalls (req: Request) (toolCalls: List<Darklang.OpenAI.Tools.ToolCall>) : Request =
+let withAssistantToolCalls (req: Request) (toolCalls: List<Tools.ToolCall>) : Request =
   withMessage req (assistantToolCallMessage toolCalls)
 
 /// Set tools
-let withTools (req: Request) (tools: List<Darklang.OpenAI.Tools.Tool>) : Request =
+let withTools (req: Request) (tools: List<Tools.Tool>) : Request =
   { req with tools = Stdlib.List.append req.tools tools }
 
 /// Set tool choice
-let withToolChoice (req: Request) (choice: Darklang.OpenAI.Tools.ToolChoice) : Request =
+let withToolChoice (req: Request) (choice: Tools.ToolChoice) : Request =
   { req with toolChoice = Stdlib.Option.Option.Some choice }
 
 /// Set parallel tool calls
@@ -543,12 +543,12 @@ let withParallelToolCalls (req: Request) (enabled: Bool) : Request =
   { req with parallelToolCalls = Stdlib.Option.Option.Some enabled }
 
 /// Set response format
-let withResponseFormat (req: Request) (format: Darklang.OpenAI.ResponseFormat.Format) : Request =
+let withResponseFormat (req: Request) (format: ResponseFormat.Format) : Request =
   { req with responseFormat = Stdlib.Option.Option.Some format }
 
 /// Enable JSON mode
 let withJsonMode (req: Request) : Request =
-  withResponseFormat req Darklang.OpenAI.ResponseFormat.jsonObject
+  withResponseFormat req ResponseFormat.jsonObject
 
 /// Set output modalities
 let withModalities (req: Request) (mods: List<Modality>) : Request =
@@ -592,7 +592,7 @@ let withStop (req: Request) (sequences: List<String>) : Request =
   { req with stop = Stdlib.Option.Option.Some sequences }
 
 /// Set reasoning effort
-let withReasoningEffort (req: Request) (effort: Darklang.OpenAI.Models.ReasoningEffort) : Request =
+let withReasoningEffort (req: Request) (effort: Models.ReasoningEffort) : Request =
   { req with reasoningEffort = Stdlib.Option.Option.Some effort }
 
 /// Enable storage
@@ -604,7 +604,7 @@ let withMetadata (req: Request) (pairs: List<(String * String)>) : Request =
   { req with metadata = Stdlib.Option.Option.Some pairs }
 
 /// Set service tier (auto, default, flex, priority, scale)
-let withServiceTier (req: Request) (tier: Darklang.OpenAI.ServiceTier.Tier) : Request =
+let withServiceTier (req: Request) (tier: ServiceTier.Tier) : Request =
   { req with serviceTier = Stdlib.Option.Option.Some tier }
 
 /// Set number of completions
@@ -632,20 +632,20 @@ let withLogitBias (req: Request) (biases: List<(String * Int64)>) : Request =
   { req with logitBias = Stdlib.Option.Option.Some biases }
 
 /// Enable web search
-let withWebSearch (req: Request) (options: Darklang.OpenAI.WebSearch.WebSearchTool) : Request =
+let withWebSearch (req: Request) (options: WebSearch.WebSearchTool) : Request =
   { req with webSearchOptions = Stdlib.Option.Option.Some options }
 
 /// Enable web search with defaults
 let withWebSearchEnabled (req: Request) : Request =
-  withWebSearch req Darklang.OpenAI.WebSearch.defaultTool
+  withWebSearch req WebSearch.defaultTool
 
 /// Set prediction
-let withPrediction (req: Request) (prediction: Darklang.OpenAI.Prediction.PredictedOutput) : Request =
+let withPrediction (req: Request) (prediction: Prediction.PredictedOutput) : Request =
   { req with prediction = Stdlib.Option.Option.Some prediction }
 
 /// Set predicted content
 let withPredictedContent (req: Request) (content: String) : Request =
-  withPrediction req (Darklang.OpenAI.Prediction.create content)
+  withPrediction req (Prediction.create content)
 
 
 // =============================================================================
@@ -654,7 +654,7 @@ let withPredictedContent (req: Request) (content: String) : Request =
 
 /// Validate request against model capabilities
 let validateRequest (req: Request) : Stdlib.Result.Result<Unit, String> =
-  let caps = Darklang.OpenAI.Models.getCapabilities req.model
+  let caps = Models.getCapabilities req.model
 
   // Check temperature
   let tempCheck =
@@ -744,7 +744,7 @@ let validateRequest (req: Request) : Stdlib.Result.Result<Unit, String> =
 /// Build request JSON
 let buildRequestJson (req: Request) : Json =
   let messagesJson = Stdlib.List.map req.messages messageToJson
-  let caps = Darklang.OpenAI.Models.getCapabilities req.model
+  let caps = Models.getCapabilities req.model
 
   let fields =
     [ ("model", Json.String req.model)
@@ -755,14 +755,14 @@ let buildRequestJson (req: Request) : Json =
     if Stdlib.List.isEmpty req.tools || (Stdlib.Bool.not caps.supportsTools) then
       fields
     else
-      let toolsJson = Stdlib.List.map req.tools Darklang.OpenAI.Tools.toJson
+      let toolsJson = Stdlib.List.map req.tools Tools.toJson
       Stdlib.List.append fields [ ("tools", Json.Array toolsJson) ]
 
   let withToolChoice_ =
     match req.toolChoice with
     | Some choice ->
       if caps.supportsTools then
-        Stdlib.List.append withTools_ [ ("tool_choice", Darklang.OpenAI.Tools.toolChoiceToJson choice) ]
+        Stdlib.List.append withTools_ [ ("tool_choice", Tools.toolChoiceToJson choice) ]
       else
         withTools_
     | None -> withTools_
@@ -777,7 +777,7 @@ let buildRequestJson (req: Request) : Json =
   let withResponseFormat_ =
     match req.responseFormat with
     | Some format ->
-      Stdlib.List.append withParallelToolCalls_ [ ("response_format", Darklang.OpenAI.ResponseFormat.toJson format) ]
+      Stdlib.List.append withParallelToolCalls_ [ ("response_format", ResponseFormat.toJson format) ]
     | None -> withParallelToolCalls_
 
   // Modalities
@@ -821,7 +821,7 @@ let buildRequestJson (req: Request) : Json =
     match req.reasoningEffort with
     | Some effort ->
       if caps.supportsReasoningEffort then
-        Stdlib.List.append withMaxTokens_ [ ("reasoning_effort", Json.String(Darklang.OpenAI.Models.reasoningEffortToString effort)) ]
+        Stdlib.List.append withMaxTokens_ [ ("reasoning_effort", Json.String(Models.reasoningEffortToString effort)) ]
       else
         withMaxTokens_
     | None -> withMaxTokens_
@@ -896,7 +896,7 @@ let buildRequestJson (req: Request) : Json =
   let withServiceTier_ =
     match req.serviceTier with
     | Some tier ->
-      Stdlib.List.append withMetadata_ [ ("service_tier", Json.String(Darklang.OpenAI.ServiceTier.toString tier)) ]
+      Stdlib.List.append withMetadata_ [ ("service_tier", Json.String(ServiceTier.toString tier)) ]
     | None -> withMetadata_
 
   // N
@@ -946,14 +946,14 @@ let buildRequestJson (req: Request) : Json =
   let withWebSearch_ =
     match req.webSearchOptions with
     | Some opts ->
-      Stdlib.List.append withLogitBias_ [ ("web_search_options", Darklang.OpenAI.WebSearch.toJson opts) ]
+      Stdlib.List.append withLogitBias_ [ ("web_search_options", WebSearch.toJson opts) ]
     | None -> withLogitBias_
 
   // Prediction
   let withPrediction_ =
     match req.prediction with
     | Some pred ->
-      Stdlib.List.append withWebSearch_ [ ("prediction", Darklang.OpenAI.Prediction.toJson pred) ]
+      Stdlib.List.append withWebSearch_ [ ("prediction", Prediction.toJson pred) ]
     | None -> withWebSearch_
 
   Json.Object withPrediction_
@@ -968,7 +968,7 @@ type ResponseMessage =
   { role: Role
     content: Stdlib.Option.Option<String>
     refusal: Stdlib.Option.Option<String>
-    toolCalls: List<Darklang.OpenAI.Tools.ToolCall>
+    toolCalls: List<Tools.ToolCall>
     audio: Stdlib.Option.Option<AudioResponse> }
 
 /// A choice in the chat completion (part of ChatCompletion.choices)
@@ -1005,45 +1005,45 @@ type Response =
 // =============================================================================
 
 /// Parse a tool call from Chat API response format
-let parseToolCallFromChat (tc: Json) : Stdlib.Result.Result<Darklang.OpenAI.Tools.ToolCall, String> =
+let parseToolCallFromChat (tc: Json) : Stdlib.Result.Result<Tools.ToolCall, String> =
   match tc with
   | Object tcFields ->
-    let idOpt = Darklang.LLM.Internal.JsonHelpers.getString "id" tcFields
-    let typeOpt = Darklang.LLM.Internal.JsonHelpers.getString "type" tcFields
+    let idOpt = Stdlib.AltJson.Helpers.getString "id" tcFields
+    let typeOpt = Stdlib.AltJson.Helpers.getString "type" tcFields
 
     match (idOpt, typeOpt) with
     | (Some id, Some "function") ->
-      let funcFields = Darklang.LLM.Internal.JsonHelpers.getObject "function" tcFields
-      let nameOpt = Darklang.LLM.Internal.JsonHelpers.getString "name" funcFields
-      let argsStrOpt = Darklang.LLM.Internal.JsonHelpers.getString "arguments" funcFields
+      let funcFields = Stdlib.AltJson.Helpers.getObject "function" tcFields
+      let nameOpt = Stdlib.AltJson.Helpers.getString "name" funcFields
+      let argsStrOpt = Stdlib.AltJson.Helpers.getString "arguments" funcFields
 
       match nameOpt with
       | Some name ->
         let argsStr = Stdlib.Option.withDefault argsStrOpt "{}"
         Stdlib.Result.Result.Ok(
-          Darklang.OpenAI.Tools.ToolCall.FunctionCall(
-            Darklang.OpenAI.Tools.FunctionToolCall
+          Tools.ToolCall.FunctionCall(
+            Tools.FunctionToolCall
               { id = id
                 callId = id
-                status = Darklang.OpenAI.Tools.ToolCallStatus.Completed
+                status = Tools.ToolCallStatus.Completed
                 name = name
                 arguments = argsStr }))
       | None -> Stdlib.Result.Result.Error "Tool call missing 'function.name'"
 
     | (Some id, Some "custom") ->
-      let customFields = Darklang.LLM.Internal.JsonHelpers.getObject "custom" tcFields
-      let nameOpt = Darklang.LLM.Internal.JsonHelpers.getString "name" customFields
-      let inputOpt = Darklang.LLM.Internal.JsonHelpers.getString "input" customFields
+      let customFields = Stdlib.AltJson.Helpers.getObject "custom" tcFields
+      let nameOpt = Stdlib.AltJson.Helpers.getString "name" customFields
+      let inputOpt = Stdlib.AltJson.Helpers.getString "input" customFields
 
       match nameOpt with
       | Some name ->
         let input = Stdlib.Option.withDefault inputOpt ""
         Stdlib.Result.Result.Ok(
-          Darklang.OpenAI.Tools.ToolCall.CustomCall(
-            Darklang.OpenAI.Tools.CustomToolCall
+          Tools.ToolCall.CustomCall(
+            Tools.CustomToolCall
               { id = id
                 callId = id
-                status = Darklang.OpenAI.Tools.ToolCallStatus.Completed
+                status = Tools.ToolCallStatus.Completed
                 name = name
                 input = input }))
       | None -> Stdlib.Result.Result.Error "Tool call missing 'custom.name'"
@@ -1054,8 +1054,8 @@ let parseToolCallFromChat (tc: Json) : Stdlib.Result.Result<Darklang.OpenAI.Tool
   | _ -> Stdlib.Result.Result.Error "Tool call is not a JSON object"
 
 /// Parse tool calls from message fields
-let parseToolCalls (messageFields: List<(String * Json)>) : Stdlib.Result.Result<List<Darklang.OpenAI.Tools.ToolCall>, String> =
-  match Darklang.LLM.Internal.JsonHelpers.getValue "tool_calls" messageFields with
+let parseToolCalls (messageFields: List<(String * Json)>) : Stdlib.Result.Result<List<Tools.ToolCall>, String> =
+  match Stdlib.AltJson.Helpers.getValue "tool_calls" messageFields with
   | Some (Array toolCalls) ->
     let results = Stdlib.List.map toolCalls parseToolCallFromChat
     let errors =
@@ -1077,19 +1077,19 @@ let parseToolCalls (messageFields: List<(String * Json)>) : Stdlib.Result.Result
 
 /// Parse a response message
 let parseResponseMessage (messageFields: List<(String * Json)>) : Stdlib.Result.Result<ResponseMessage, String> =
-  let roleStr = Stdlib.Option.withDefault (Darklang.LLM.Internal.JsonHelpers.getString "role" messageFields) "assistant"
+  let roleStr = Stdlib.Option.withDefault (Stdlib.AltJson.Helpers.getString "role" messageFields) "assistant"
   let role =
     match parseRole roleStr with
     | Ok r -> r
     | Error _ -> Role.Assistant
 
-  let content = Darklang.LLM.Internal.JsonHelpers.getString "content" messageFields
-  let refusal = Darklang.LLM.Internal.JsonHelpers.getString "refusal" messageFields
+  let content = Stdlib.AltJson.Helpers.getString "content" messageFields
+  let refusal = Stdlib.AltJson.Helpers.getString "refusal" messageFields
 
   match parseToolCalls messageFields with
   | Error e -> Stdlib.Result.Result.Error e
   | Ok toolCalls ->
-    let audioFields = Darklang.LLM.Internal.JsonHelpers.getObject "audio" messageFields
+    let audioFields = Stdlib.AltJson.Helpers.getObject "audio" messageFields
     let audio =
       if Stdlib.List.isEmpty audioFields then
         Stdlib.Option.Option.None
@@ -1108,12 +1108,12 @@ let parseResponseMessage (messageFields: List<(String * Json)>) : Stdlib.Result.
 let parseChoice (choiceJson: Json) : Stdlib.Result.Result<Choice, String> =
   match choiceJson with
   | Object choiceFields ->
-    let index = Darklang.LLM.Internal.JsonHelpers.getInt "index" choiceFields
+    let index = Stdlib.AltJson.Helpers.getInt "index" choiceFields
     let finishReason =
       Stdlib.Option.withDefault
-        (Darklang.LLM.Internal.JsonHelpers.getString "finish_reason" choiceFields)
+        (Stdlib.AltJson.Helpers.getString "finish_reason" choiceFields)
         "stop"
-    let messageFields = Darklang.LLM.Internal.JsonHelpers.getObject "message" choiceFields
+    let messageFields = Stdlib.AltJson.Helpers.getObject "message" choiceFields
 
     match parseResponseMessage messageFields with
     | Error e -> Stdlib.Result.Result.Error e
@@ -1129,15 +1129,15 @@ let parseChoice (choiceJson: Json) : Stdlib.Result.Result<Choice, String> =
 
 /// Parse usage information
 let parseUsage (usageFields: List<(String * Json)>) : Usage =
-  let promptTokens = Darklang.LLM.Internal.JsonHelpers.getInt "prompt_tokens" usageFields
-  let completionTokens = Darklang.LLM.Internal.JsonHelpers.getInt "completion_tokens" usageFields
-  let totalTokens = Darklang.LLM.Internal.JsonHelpers.getInt "total_tokens" usageFields
+  let promptTokens = Stdlib.AltJson.Helpers.getInt "prompt_tokens" usageFields
+  let completionTokens = Stdlib.AltJson.Helpers.getInt "completion_tokens" usageFields
+  let totalTokens = Stdlib.AltJson.Helpers.getInt "total_tokens" usageFields
 
-  let completionDetails = Darklang.LLM.Internal.JsonHelpers.getObject "completion_tokens_details" usageFields
-  let reasoningTokens = Darklang.LLM.Internal.JsonHelpers.getInt "reasoning_tokens" completionDetails
+  let completionDetails = Stdlib.AltJson.Helpers.getObject "completion_tokens_details" usageFields
+  let reasoningTokens = Stdlib.AltJson.Helpers.getInt "reasoning_tokens" completionDetails
 
-  let promptDetails = Darklang.LLM.Internal.JsonHelpers.getObject "prompt_tokens_details" usageFields
-  let cachedTokens = Darklang.LLM.Internal.JsonHelpers.getInt "cached_tokens" promptDetails
+  let promptDetails = Stdlib.AltJson.Helpers.getObject "prompt_tokens_details" usageFields
+  let cachedTokens = Stdlib.AltJson.Helpers.getInt "cached_tokens" promptDetails
 
   Usage
     { promptTokens = promptTokens
@@ -1150,12 +1150,12 @@ let parseUsage (usageFields: List<(String * Json)>) : Usage =
 let parseResponse (json: Json) : Stdlib.Result.Result<Response, String> =
   match json with
   | Object fields ->
-    let id = Stdlib.Option.withDefault (Darklang.LLM.Internal.JsonHelpers.getString "id" fields) ""
-    let object_ = Stdlib.Option.withDefault (Darklang.LLM.Internal.JsonHelpers.getString "object" fields) "chat.completion"
-    let created = Darklang.LLM.Internal.JsonHelpers.getInt "created" fields
-    let model = Stdlib.Option.withDefault (Darklang.LLM.Internal.JsonHelpers.getString "model" fields) ""
+    let id = Stdlib.Option.withDefault (Stdlib.AltJson.Helpers.getString "id" fields) ""
+    let object_ = Stdlib.Option.withDefault (Stdlib.AltJson.Helpers.getString "object" fields) "chat.completion"
+    let created = Stdlib.AltJson.Helpers.getInt "created" fields
+    let model = Stdlib.Option.withDefault (Stdlib.AltJson.Helpers.getString "model" fields) ""
 
-    let choicesArray = Darklang.LLM.Internal.JsonHelpers.getArray "choices" fields
+    let choicesArray = Stdlib.AltJson.Helpers.getArray "choices" fields
     let choiceResults = Stdlib.List.map choicesArray parseChoice
 
     let errors =
@@ -1173,11 +1173,11 @@ let parseResponse (json: Json) : Stdlib.Result.Result<Response, String> =
           | Ok c -> Stdlib.Option.Option.Some c
           | Error _ -> Stdlib.Option.Option.None)
 
-      let usageFields = Darklang.LLM.Internal.JsonHelpers.getObject "usage" fields
+      let usageFields = Stdlib.AltJson.Helpers.getObject "usage" fields
       let usage = parseUsage usageFields
 
-      let serviceTier = Darklang.LLM.Internal.JsonHelpers.getString "service_tier" fields
-      let systemFingerprint = Darklang.LLM.Internal.JsonHelpers.getString "system_fingerprint" fields
+      let serviceTier = Stdlib.AltJson.Helpers.getString "service_tier" fields
+      let systemFingerprint = Stdlib.AltJson.Helpers.getString "system_fingerprint" fields
 
       Stdlib.Result.Result.Ok(
         Response
@@ -1207,8 +1207,8 @@ let send (apiKey: String) (req: Request) : Stdlib.Result.Result<Response, String
     | Ok _ ->
       let requestJson = buildRequestJson req
       let body = Stdlib.AltJson.format requestJson
-      let headers = Darklang.OpenAI.Config.getHeaders apiKey
-      let url = Darklang.OpenAI.Config.baseUrl ++ "/chat/completions"
+      let headers = Config.getHeaders apiKey
+      let url = Config.baseUrl ++ "/chat/completions"
 
       match Stdlib.HttpClient.post url headers (Stdlib.String.toBytes body) with
       | Error e -> Stdlib.Result.Result.Error("HTTP request failed: " ++ Stdlib.HttpClient.toString e)
@@ -1226,12 +1226,12 @@ let send (apiKey: String) (req: Request) : Stdlib.Result.Result<Response, String
         | _ ->
           match Stdlib.AltJson.parse bodyStr with
           | Ok (Object fields) ->
-            match Darklang.LLM.Internal.JsonHelpers.getObject "error" fields with
+            match Stdlib.AltJson.Helpers.getObject "error" fields with
             | [] -> Stdlib.Result.Result.Error("API error: " ++ bodyStr)
             | errorFields ->
               let message =
                 Stdlib.Option.withDefault
-                  (Darklang.LLM.Internal.JsonHelpers.getString "message" errorFields)
+                  (Stdlib.AltJson.Helpers.getString "message" errorFields)
                   bodyStr
               Stdlib.Result.Result.Error("API error: " ++ message)
           | _ -> Stdlib.Result.Result.Error("API error: " ++ bodyStr)
@@ -1253,7 +1253,7 @@ type StoredMessage =
   { role: Role
     content: Stdlib.Option.Option<String>
     refusal: Stdlib.Option.Option<String>
-    toolCalls: List<Darklang.OpenAI.Tools.ToolCall>
+    toolCalls: List<Tools.ToolCall>
     audio: Stdlib.Option.Option<AudioResponse> }
 
 /// List chat completions
@@ -1267,8 +1267,8 @@ let list
   if apiKey == "" then
     Stdlib.Result.Result.Error "API key cannot be empty"
   else
-    let headers = Darklang.OpenAI.Config.getHeaders apiKey
-    let baseUrl = Darklang.OpenAI.Config.baseUrl ++ "/chat/completions"
+    let headers = Config.getHeaders apiKey
+    let baseUrl = Config.baseUrl ++ "/chat/completions"
 
     let queryParams =
       let params = []
@@ -1303,7 +1303,7 @@ let list
       | code when code >= 200L && code < 300L ->
         match Stdlib.AltJson.parse bodyStr with
         | Ok (Object fields) ->
-          let dataArray = Darklang.LLM.Internal.JsonHelpers.getArray "data" fields
+          let dataArray = Stdlib.AltJson.Helpers.getArray "data" fields
           let results = Stdlib.List.map dataArray parseResponse
           let errors =
             Stdlib.List.filterMap results (fun r ->
@@ -1330,8 +1330,8 @@ let get (apiKey: String) (completionId: String) : Stdlib.Result.Result<Response,
   if apiKey == "" then
     Stdlib.Result.Result.Error "API key cannot be empty"
   else
-    let headers = Darklang.OpenAI.Config.getHeaders apiKey
-    let url = Darklang.OpenAI.Config.baseUrl ++ "/chat/completions/" ++ completionId
+    let headers = Config.getHeaders apiKey
+    let url = Config.baseUrl ++ "/chat/completions/" ++ completionId
 
     match Stdlib.HttpClient.get url headers with
     | Error e -> Stdlib.Result.Result.Error("HTTP request failed: " ++ Stdlib.HttpClient.toString e)
@@ -1358,8 +1358,8 @@ let update
   if apiKey == "" then
     Stdlib.Result.Result.Error "API key cannot be empty"
   else
-    let headers = Darklang.OpenAI.Config.getHeaders apiKey
-    let url = Darklang.OpenAI.Config.baseUrl ++ "/chat/completions/" ++ completionId
+    let headers = Config.getHeaders apiKey
+    let url = Config.baseUrl ++ "/chat/completions/" ++ completionId
 
     let metaJson = Stdlib.List.map metadata (fun (k, v) -> (k, Json.String v))
     let requestJson = Json.Object [ ("metadata", Json.Object metaJson) ]
@@ -1386,8 +1386,8 @@ let delete (apiKey: String) (completionId: String) : Stdlib.Result.Result<ChatCo
   if apiKey == "" then
     Stdlib.Result.Result.Error "API key cannot be empty"
   else
-    let headers = Darklang.OpenAI.Config.getHeaders apiKey
-    let url = Darklang.OpenAI.Config.baseUrl ++ "/chat/completions/" ++ completionId
+    let headers = Config.getHeaders apiKey
+    let url = Config.baseUrl ++ "/chat/completions/" ++ completionId
 
     match Stdlib.HttpClient.delete url headers with
     | Error e -> Stdlib.Result.Result.Error("HTTP request failed: " ++ Stdlib.HttpClient.toString e)
@@ -1398,9 +1398,9 @@ let delete (apiKey: String) (completionId: String) : Stdlib.Result.Result<ChatCo
       | code when code >= 200L && code < 300L ->
         match Stdlib.AltJson.parse bodyStr with
         | Ok (Object fields) ->
-          match (Darklang.LLM.Internal.JsonHelpers.getString "id" fields,
-                 Darklang.LLM.Internal.JsonHelpers.getString "object" fields,
-                 Darklang.LLM.Internal.JsonHelpers.getBool "deleted" fields) with
+          match (Stdlib.AltJson.Helpers.getString "id" fields,
+                 Stdlib.AltJson.Helpers.getString "object" fields,
+                 Stdlib.AltJson.Helpers.getBool "deleted" fields) with
           | (Some id, Some obj, Some deleted) ->
             Stdlib.Result.Result.Ok(
               ChatCompletionDeleted { id = id; object_ = obj; deleted = deleted })
@@ -1413,19 +1413,19 @@ let delete (apiKey: String) (completionId: String) : Stdlib.Result.Result<ChatCo
 
 /// Parse a stored message from JSON fields
 let parseStoredMessage (msgFields: List<(String * Json)>) : Stdlib.Result.Result<StoredMessage, String> =
-  let roleStr = Stdlib.Option.withDefault (Darklang.LLM.Internal.JsonHelpers.getString "role" msgFields) "user"
+  let roleStr = Stdlib.Option.withDefault (Stdlib.AltJson.Helpers.getString "role" msgFields) "user"
   let role =
     match parseRole roleStr with
     | Ok r -> r
     | Error _ -> Role.User
 
-  let content = Darklang.LLM.Internal.JsonHelpers.getString "content" msgFields
-  let refusal = Darklang.LLM.Internal.JsonHelpers.getString "refusal" msgFields
+  let content = Stdlib.AltJson.Helpers.getString "content" msgFields
+  let refusal = Stdlib.AltJson.Helpers.getString "refusal" msgFields
 
   match parseToolCalls msgFields with
   | Error e -> Stdlib.Result.Result.Error e
   | Ok toolCalls ->
-    let audioFields = Darklang.LLM.Internal.JsonHelpers.getObject "audio" msgFields
+    let audioFields = Stdlib.AltJson.Helpers.getObject "audio" msgFields
     let audio =
       if Stdlib.List.isEmpty audioFields then
         Stdlib.Option.Option.None
@@ -1449,8 +1449,8 @@ let getMessages
   if apiKey == "" then
     Stdlib.Result.Result.Error "API key cannot be empty"
   else
-    let headers = Darklang.OpenAI.Config.getHeaders apiKey
-    let url = Darklang.OpenAI.Config.baseUrl ++ "/chat/completions/" ++ completionId ++ "/messages"
+    let headers = Config.getHeaders apiKey
+    let url = Config.baseUrl ++ "/chat/completions/" ++ completionId ++ "/messages"
 
     match Stdlib.HttpClient.get url headers with
     | Error e -> Stdlib.Result.Result.Error("HTTP request failed: " ++ Stdlib.HttpClient.toString e)
@@ -1461,7 +1461,7 @@ let getMessages
       | code when code >= 200L && code < 300L ->
         match Stdlib.AltJson.parse bodyStr with
         | Ok (Object fields) ->
-          let dataArray = Darklang.LLM.Internal.JsonHelpers.getArray "data" fields
+          let dataArray = Stdlib.AltJson.Helpers.getArray "data" fields
           let results =
             Stdlib.List.map dataArray (fun item ->
               match item with
@@ -1501,7 +1501,7 @@ let getContent (resp: Response) : Stdlib.Option.Option<String> =
   | None -> Stdlib.Option.Option.None
 
 /// Get tool calls from the first choice
-let getToolCalls (resp: Response) : List<Darklang.OpenAI.Tools.ToolCall> =
+let getToolCalls (resp: Response) : List<Tools.ToolCall> =
   match Stdlib.List.head resp.choices with
   | Some choice -> choice.message.toolCalls
   | None -> []
@@ -1562,7 +1562,7 @@ let completeWithSystem
 /// Chat completion with tools
 let completeWithTools
   (apiKey: String)
-  (tools: List<Darklang.OpenAI.Tools.Tool>)
+  (tools: List<Tools.Tool>)
   (prompt: String)
   : Stdlib.Result.Result<Response, String> =
   let req =
@@ -1610,16 +1610,16 @@ let completeJson (apiKey: String) (prompt: String) : Stdlib.Result.Result<Json, 
 let completeWithAudioInput
   (apiKey: String)
   (audioData: String)
-  (format: Darklang.OpenAI.Content.InputAudioFormat)
+  (format: Content.InputAudioFormat)
   (prompt: String)
   : Stdlib.Result.Result<String, String> =
   let parts =
-    [ Darklang.OpenAI.Content.inputAudio audioData format
-      Darklang.OpenAI.Content.text prompt ]
+    [ Content.inputAudio audioData format
+      Content.text prompt ]
 
   let req =
     (createRequest ())
-    |> withModel Darklang.OpenAI.Models.gpt4oAudioPreview
+    |> withModel Models.gpt4oAudioPreview
     |> withMultiModalMessage parts
 
   match send apiKey req with
@@ -1637,7 +1637,7 @@ let completeWithAudioOutput
   : Stdlib.Result.Result<AudioResponse, String> =
   let req =
     (createRequest ())
-    |> withModel Darklang.OpenAI.Models.gpt4oAudioPreview
+    |> withModel Models.gpt4oAudioPreview
     |> withAudioOutput voice AudioOutputFormat.Mp3
     |> withUserMessage prompt
 

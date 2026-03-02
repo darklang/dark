@@ -13,7 +13,7 @@
 /// - Add ImagesResponse type with response-level fields (created, background, etc.)
 /// - Update generateWithOptions to return full ImagesResponse
 /// - Add source field support to image types/requests
-module Darklang.OpenAI.Images
+module Darklang.WIP.AI.OpenAI.Images
 
 type Json = Stdlib.AltJson.Json
 
@@ -98,7 +98,7 @@ type Options =
 /// Create default options for DALL-E 3 (deprecated May 2026)
 let defaultOptions (prompt: String) : Options =
   Options
-    { model = Darklang.OpenAI.Models.dalle3
+    { model = Models.dalle3
       prompt = prompt
       size = Size.square1024
       quality = Quality.standard
@@ -112,7 +112,7 @@ let defaultOptions (prompt: String) : Options =
 /// Create default options for GPT Image 1 (recommended)
 let gptImageOptions (prompt: String) : Options =
   Options
-    { model = Darklang.OpenAI.Models.gptImage1
+    { model = Models.gptImage1
       prompt = prompt
       size = Size.auto
       quality = Quality.medium
@@ -185,21 +185,21 @@ type GeneratedImage =
 
 /// Parse moderation from response item
 let parseModeration (itemFields: List<(String * Json)>) : Stdlib.Option.Option<ImageModeration> =
-  match Darklang.LLM.Internal.JsonHelpers.getValue "moderation" itemFields with
+  match Stdlib.AltJson.Helpers.getValue "moderation" itemFields with
   | Some (Object modFields) ->
     let flagged =
       Stdlib.Option.withDefault
-        (Darklang.LLM.Internal.JsonHelpers.getBool "flagged" modFields)
+        (Stdlib.AltJson.Helpers.getBool "flagged" modFields)
         false
     let categories =
-      match Darklang.LLM.Internal.JsonHelpers.getValue "categories" modFields with
+      match Stdlib.AltJson.Helpers.getValue "categories" modFields with
       | Some (Array cats) ->
         Stdlib.List.filterMap cats (fun c ->
           match c with
           | Object catFields ->
             // Each category object has "category" and "flagged" fields
-            match (Darklang.LLM.Internal.JsonHelpers.getString "category" catFields,
-                   Darklang.LLM.Internal.JsonHelpers.getBool "flagged" catFields) with
+            match (Stdlib.AltJson.Helpers.getString "category" catFields,
+                   Stdlib.AltJson.Helpers.getBool "flagged" catFields) with
             | (Some catName, Some true) -> Stdlib.Option.Option.Some catName
             | _ -> Stdlib.Option.Option.None
           | _ -> Stdlib.Option.Option.None)
@@ -274,8 +274,8 @@ let generateWithOptions
 
     let requestJson = Json.Object withUser_
     let body = Stdlib.AltJson.format requestJson
-    let headers = Darklang.OpenAI.Config.getHeaders apiKey
-    let url = Darklang.OpenAI.Config.baseUrl ++ "/images/generations"
+    let headers = Config.getHeaders apiKey
+    let url = Config.baseUrl ++ "/images/generations"
 
     match Stdlib.HttpClient.post url headers (Stdlib.String.toBytes body) with
     | Error e -> Stdlib.Result.Result.Error("HTTP request failed: " ++ Stdlib.HttpClient.toString e)
@@ -286,14 +286,14 @@ let generateWithOptions
       | code when code >= 200L && code < 300L ->
         match Stdlib.AltJson.parse bodyStr with
         | Ok (Object fields) ->
-          let dataArray = Darklang.LLM.Internal.JsonHelpers.getArray "data" fields
+          let dataArray = Stdlib.AltJson.Helpers.getArray "data" fields
           let images =
             Stdlib.List.filterMap dataArray (fun item ->
               match item with
               | Object itemFields ->
-                let urlOpt = Darklang.LLM.Internal.JsonHelpers.getString "url" itemFields
-                let b64Opt = Darklang.LLM.Internal.JsonHelpers.getString "b64_json" itemFields
-                let revisedPrompt = Darklang.LLM.Internal.JsonHelpers.getString "revised_prompt" itemFields
+                let urlOpt = Stdlib.AltJson.Helpers.getString "url" itemFields
+                let b64Opt = Stdlib.AltJson.Helpers.getString "b64_json" itemFields
+                let revisedPrompt = Stdlib.AltJson.Helpers.getString "revised_prompt" itemFields
                 let moderation = parseModeration itemFields
 
                 // Return image if we have either URL or base64
@@ -398,7 +398,7 @@ type EditOptions =
 /// Create default edit options
 let defaultEditOptions (prompt: String) (imageBase64: String) : EditOptions =
   EditOptions
-    { model = Darklang.OpenAI.Models.gptImage1
+    { model = Models.gptImage1
       prompt = prompt
       image = imageBase64
       mask = Stdlib.Option.Option.None
@@ -439,8 +439,8 @@ let edit
 
     let requestJson = Json.Object withUser_
     let body = Stdlib.AltJson.format requestJson
-    let headers = Darklang.OpenAI.Config.getHeaders apiKey
-    let url = Darklang.OpenAI.Config.baseUrl ++ "/images/edits"
+    let headers = Config.getHeaders apiKey
+    let url = Config.baseUrl ++ "/images/edits"
 
     match Stdlib.HttpClient.post url headers (Stdlib.String.toBytes body) with
     | Error e -> Stdlib.Result.Result.Error("HTTP request failed: " ++ Stdlib.HttpClient.toString e)
@@ -451,13 +451,13 @@ let edit
       | code when code >= 200L && code < 300L ->
         match Stdlib.AltJson.parse bodyStr with
         | Ok (Object fields) ->
-          let dataArray = Darklang.LLM.Internal.JsonHelpers.getArray "data" fields
+          let dataArray = Stdlib.AltJson.Helpers.getArray "data" fields
           let images =
             Stdlib.List.filterMap dataArray (fun item ->
               match item with
               | Object itemFields ->
-                let urlOpt = Darklang.LLM.Internal.JsonHelpers.getString "url" itemFields
-                let b64Opt = Darklang.LLM.Internal.JsonHelpers.getString "b64_json" itemFields
+                let urlOpt = Stdlib.AltJson.Helpers.getString "url" itemFields
+                let b64Opt = Stdlib.AltJson.Helpers.getString "b64_json" itemFields
                 let moderation = parseModeration itemFields
                 match (urlOpt, b64Opt) with
                 | (Some u, _) ->
@@ -492,7 +492,7 @@ type VariationOptions =
 let defaultVariationOptions (imageBase64: String) : VariationOptions =
   VariationOptions
     { image = imageBase64
-      model = Darklang.OpenAI.Models.dalle2
+      model = Models.dalle2
       size = Size.square1024
       n = 1L
       user = Stdlib.Option.Option.None }
@@ -520,8 +520,8 @@ let createVariations
 
     let requestJson = Json.Object withUser_
     let body = Stdlib.AltJson.format requestJson
-    let headers = Darklang.OpenAI.Config.getHeaders apiKey
-    let url = Darklang.OpenAI.Config.baseUrl ++ "/images/variations"
+    let headers = Config.getHeaders apiKey
+    let url = Config.baseUrl ++ "/images/variations"
 
     match Stdlib.HttpClient.post url headers (Stdlib.String.toBytes body) with
     | Error e -> Stdlib.Result.Result.Error("HTTP request failed: " ++ Stdlib.HttpClient.toString e)
@@ -532,12 +532,12 @@ let createVariations
       | code when code >= 200L && code < 300L ->
         match Stdlib.AltJson.parse bodyStr with
         | Ok (Object fields) ->
-          let dataArray = Darklang.LLM.Internal.JsonHelpers.getArray "data" fields
+          let dataArray = Stdlib.AltJson.Helpers.getArray "data" fields
           let images =
             Stdlib.List.filterMap dataArray (fun item ->
               match item with
               | Object itemFields ->
-                let urlOpt = Darklang.LLM.Internal.JsonHelpers.getString "url" itemFields
+                let urlOpt = Stdlib.AltJson.Helpers.getString "url" itemFields
                 match urlOpt with
                 | Some u ->
                   Stdlib.Option.Option.Some(

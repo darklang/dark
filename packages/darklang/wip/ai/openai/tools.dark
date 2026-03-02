@@ -1,6 +1,6 @@
 /// OpenAI Tools - Tool definitions for function calling
 /// See: https://platform.openai.com/docs/guides/function-calling
-module Darklang.OpenAI.Tools
+module Darklang.WIP.AI.OpenAI.Tools
 
 type Json = Stdlib.AltJson.Json
 

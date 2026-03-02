@@ -1,11 +1,11 @@
 /// Anthropic API Integration Tests
-/// These tests make REAL API calls and require ANTHROPIC_API_KEY to be set.
+/// Note: these tests are ran manually and make real API calls, so they require ANTHROPIC_API_KEY to be set.
 ///
 /// After setting the env var, run with:
-///   ./scripts/run-cli eval "Darklang.Anthropic.IntegrationTests.runAllTests ()"
+///   ./scripts/run-cli eval "Darklang.WIP.AI.Anthropic.IntegrationTests.runAllTests ()"
 
 /// Note: The batch results test polls for up to 60 seconds, so the full suite may take a few minutes.
-module Darklang.Anthropic.IntegrationTests
+module Darklang.WIP.AI.Anthropic.IntegrationTests
 
 type Json = Stdlib.AltJson.Json
 
@@ -38,20 +38,20 @@ module DirectApiTests =
     | None -> TestResult.Skipped "ANTHROPIC_API_KEY not set"
     | Some apiKey ->
       let req =
-        (Darklang.Anthropic.Chat.Request.create ())
-        |> Darklang.Anthropic.Chat.Request.withModel Darklang.Anthropic.Models.Model.Haiku35
-        |> Darklang.Anthropic.Chat.Request.withMaxTokens 50L
-        |> Darklang.Anthropic.Chat.Request.withUserMessage "Say 'test passed'"
+        (Chat.Request.create ())
+        |> Chat.Request.withModel Models.Model.Haiku35
+        |> Chat.Request.withMaxTokens 50L
+        |> Chat.Request.withUserMessage "Say 'test passed'"
 
-      match Darklang.Anthropic.Chat.Request.send apiKey req with
+      match Chat.Request.send apiKey req with
       | Ok response ->
-        let text = Darklang.Anthropic.Response.getText response
+        let text = Response.getText response
         if Stdlib.String.length text > 0L then
           TestResult.Pass
         else
           TestResult.Fail "Empty response text"
       | Error e ->
-        TestResult.Fail $"API error: {Darklang.Anthropic.Response.ApiError.toString e}"
+        TestResult.Fail $"API error: {Response.ApiError.toString e}"
 
   /// Test response parsing
   let testResponseParsing () : TestResult =
@@ -59,26 +59,26 @@ module DirectApiTests =
     | None -> TestResult.Skipped "ANTHROPIC_API_KEY not set"
     | Some apiKey ->
       let req =
-        (Darklang.Anthropic.Chat.Request.create ())
-        |> Darklang.Anthropic.Chat.Request.withModel Darklang.Anthropic.Models.Model.Haiku35
-        |> Darklang.Anthropic.Chat.Request.withMaxTokens 50L
-        |> Darklang.Anthropic.Chat.Request.withUserMessage "Reply with: hello"
+        (Chat.Request.create ())
+        |> Chat.Request.withModel Models.Model.Haiku35
+        |> Chat.Request.withMaxTokens 50L
+        |> Chat.Request.withUserMessage "Reply with: hello"
 
-      match Darklang.Anthropic.Chat.Request.send apiKey req with
+      match Chat.Request.send apiKey req with
       | Ok response ->
         let hasStopReason =
-          match Darklang.Anthropic.Response.getStopReason response with
+          match Response.getStopReason response with
           | Some _ -> true
           | None -> false
         let hasUsage = response.usage.input_tokens > 0L
-        let isComplete = Darklang.Anthropic.Response.isComplete response
+        let isComplete = Response.isComplete response
 
         if hasStopReason && hasUsage && isComplete then
           TestResult.Pass
         else
           TestResult.Fail $"Missing expected response fields. StopReason: {hasStopReason}, Usage: {hasUsage}, Complete: {isComplete}"
       | Error e ->
-        TestResult.Fail $"API error: {Darklang.Anthropic.Response.ApiError.toString e}"
+        TestResult.Fail $"API error: {Response.ApiError.toString e}"
 
   let allTests () : List<String * TestFunction> =
     [ ("Direct API: Chat.Request.send", fun () -> testDirectChatSend ())
@@ -97,31 +97,31 @@ module TokenCountingTests =
     | None -> TestResult.Skipped "ANTHROPIC_API_KEY not set"
     | Some apiKey ->
       let req =
-        (Darklang.Anthropic.Chat.Request.create ())
-        |> Darklang.Anthropic.Chat.Request.withUserMessage "Hello, how are you today?"
+        (Chat.Request.create ())
+        |> Chat.Request.withUserMessage "Hello, how are you today?"
 
-      match Darklang.Anthropic.Chat.countTokens apiKey req with
+      match Chat.countTokens apiKey req with
       | Ok result ->
         if result.input_tokens > 0L then
           TestResult.Pass
         else
           TestResult.Fail $"Expected positive token count, got {result.input_tokens}"
       | Error e ->
-        TestResult.Fail $"Token count error: {Darklang.Anthropic.Response.ApiError.toString e}"
+        TestResult.Fail $"Token count error: {Response.ApiError.toString e}"
 
   /// Test token counting for prompt convenience function
   let testCountTokensForPrompt () : TestResult =
     match getApiKey () with
     | None -> TestResult.Skipped "ANTHROPIC_API_KEY not set"
     | Some apiKey ->
-      match Darklang.Anthropic.Chat.countTokensForPrompt apiKey "What is 2+2?" with
+      match Chat.countTokensForPrompt apiKey "What is 2+2?" with
       | Ok result ->
         if result.input_tokens > 0L then
           TestResult.Pass
         else
           TestResult.Fail "Expected positive token count"
       | Error e ->
-        TestResult.Fail $"Token count error: {Darklang.Anthropic.Response.ApiError.toString e}"
+        TestResult.Fail $"Token count error: {Response.ApiError.toString e}"
 
   /// Test that longer prompts have more tokens
   let testTokenCountScaling () : TestResult =
@@ -131,16 +131,16 @@ module TokenCountingTests =
       let shortPrompt = "Hi"
       let longPrompt = "This is a much longer prompt that should have significantly more tokens than the short one above."
 
-      match Darklang.Anthropic.Chat.countTokensForPrompt apiKey shortPrompt with
+      match Chat.countTokensForPrompt apiKey shortPrompt with
       | Ok shortResult ->
-        match Darklang.Anthropic.Chat.countTokensForPrompt apiKey longPrompt with
+        match Chat.countTokensForPrompt apiKey longPrompt with
         | Ok longResult ->
           if longResult.input_tokens > shortResult.input_tokens then
             TestResult.Pass
           else
             TestResult.Fail $"Expected long prompt ({longResult.input_tokens}) > short prompt ({shortResult.input_tokens})"
-        | Error e -> TestResult.Fail $"Long prompt error: {Darklang.Anthropic.Response.ApiError.toString e}"
-      | Error e -> TestResult.Fail $"Short prompt error: {Darklang.Anthropic.Response.ApiError.toString e}"
+        | Error e -> TestResult.Fail $"Long prompt error: {Response.ApiError.toString e}"
+      | Error e -> TestResult.Fail $"Short prompt error: {Response.ApiError.toString e}"
 
   let allTests () : List<String * TestFunction> =
     [ ("TokenCounting: basic count", fun () -> testCountTokens ())
@@ -171,22 +171,22 @@ module JsonSchemaTests =
             ("additionalProperties", Json.Bool false) ]
 
       let req =
-        (Darklang.Anthropic.Chat.Request.create ())
-        |> Darklang.Anthropic.Chat.Request.withModel Darklang.Anthropic.Models.Model.Sonnet45
-        |> Darklang.Anthropic.Chat.Request.withMaxTokens 200L
-        |> Darklang.Anthropic.Chat.Request.withJsonSchema schema
-        |> Darklang.Anthropic.Chat.Request.withUserMessage "Generate a JSON object for a person named Alice who is 30 years old."
+        (Chat.Request.create ())
+        |> Chat.Request.withModel Models.Model.Sonnet45
+        |> Chat.Request.withMaxTokens 200L
+        |> Chat.Request.withJsonSchema schema
+        |> Chat.Request.withUserMessage "Generate a JSON object for a person named Alice who is 30 years old."
 
-      match Darklang.Anthropic.Chat.Request.send apiKey req with
+      match Chat.Request.send apiKey req with
       | Ok response ->
-        let text = Darklang.Anthropic.Response.getText response
+        let text = Response.getText response
         // Check that response contains expected JSON structure indicators
         if Stdlib.String.contains text "Alice" && Stdlib.String.contains text "30" then
           TestResult.Pass
         else
           TestResult.Fail $"Expected JSON with Alice and 30: {text}"
       | Error e ->
-        TestResult.Fail $"API error: {Darklang.Anthropic.Response.ApiError.toString e}"
+        TestResult.Fail $"API error: {Response.ApiError.toString e}"
 
   let allTests () : List<String * TestFunction> =
     [ ("JsonSchema: structured output", fun () -> testJsonSchemaOutput ()) ]
@@ -204,22 +204,22 @@ module StopSequenceTests =
     | None -> TestResult.Skipped "ANTHROPIC_API_KEY not set"
     | Some apiKey ->
       let req =
-        (Darklang.Anthropic.Chat.Request.create ())
-        |> Darklang.Anthropic.Chat.Request.withModel Darklang.Anthropic.Models.Model.Haiku35
-        |> Darklang.Anthropic.Chat.Request.withMaxTokens 100L
-        |> Darklang.Anthropic.Chat.Request.withStopSequences [ "STOP" ]
-        |> Darklang.Anthropic.Chat.Request.withUserMessage "Count from 1 to 10, then write STOP, then continue to 20."
+        (Chat.Request.create ())
+        |> Chat.Request.withModel Models.Model.Haiku35
+        |> Chat.Request.withMaxTokens 100L
+        |> Chat.Request.withStopSequences [ "STOP" ]
+        |> Chat.Request.withUserMessage "Count from 1 to 10, then write STOP, then continue to 20."
 
-      match Darklang.Anthropic.Chat.Request.send apiKey req with
+      match Chat.Request.send apiKey req with
       | Ok response ->
         // Check stop reason is stop_sequence
-        match Darklang.Anthropic.Response.getStopReason response with
+        match Response.getStopReason response with
         | Some reason ->
-          if reason == Darklang.Anthropic.Response.StopReason.StopSequence then
+          if reason == Response.StopReason.StopSequence then
             TestResult.Pass
           else
             // Model might not always trigger stop sequence, but response should not contain numbers after STOP
-            let text = Darklang.Anthropic.Response.getText response
+            let text = Response.getText response
             if Stdlib.String.contains text "11" || Stdlib.String.contains text "12" then
               TestResult.Fail $"Expected to stop before 11/12: {text}"
             else
@@ -227,7 +227,7 @@ module StopSequenceTests =
         | None ->
           TestResult.Fail "No stop reason returned"
       | Error e ->
-        TestResult.Fail $"API error: {Darklang.Anthropic.Response.ApiError.toString e}"
+        TestResult.Fail $"API error: {Response.ApiError.toString e}"
 
   let allTests () : List<String * TestFunction> =
     [ ("StopSequence: stops at sequence", fun () -> testStopSequence ()) ]
@@ -244,21 +244,21 @@ module ServerToolTests =
     match getApiKey () with
     | None -> TestResult.Skipped "ANTHROPIC_API_KEY not set"
     | Some apiKey ->
-      let codeExecTool = Darklang.Anthropic.Tools.codeExecutionTool ()
-      let toolJson = Darklang.Anthropic.Tools.codeExecutionToJson codeExecTool
+      let codeExecTool = Tools.codeExecutionTool ()
+      let toolJson = Tools.codeExecutionToJson codeExecTool
 
       let req =
-        (Darklang.Anthropic.Chat.Request.create ())
-        |> Darklang.Anthropic.Chat.Request.withModel Darklang.Anthropic.Models.Model.Sonnet45
-        |> Darklang.Anthropic.Chat.Request.withMaxTokens 1000L
-        |> Darklang.Anthropic.Chat.Request.withToolsJson [ toolJson ]
-        |> Darklang.Anthropic.Chat.Request.withUserMessage "Use code execution to calculate 15 * 23 and tell me the result."
+        (Chat.Request.create ())
+        |> Chat.Request.withModel Models.Model.Sonnet45
+        |> Chat.Request.withMaxTokens 1000L
+        |> Chat.Request.withToolsJson [ toolJson ]
+        |> Chat.Request.withUserMessage "Use code execution to calculate 15 * 23 and tell me the result."
 
-      match Darklang.Anthropic.Chat.Request.send apiKey req with
+      match Chat.Request.send apiKey req with
       | Ok response ->
         // Check if tool was used or we got a response
-        let hasToolUse = Darklang.Anthropic.Response.hasToolUse response
-        let text = Darklang.Anthropic.Response.getText response
+        let hasToolUse = Response.hasToolUse response
+        let text = Response.getText response
         if hasToolUse || Stdlib.String.contains text "345" then
           TestResult.Pass
         else
@@ -268,34 +268,34 @@ module ServerToolTests =
           else
             TestResult.Fail "No tool use and no response"
       | Error e ->
-        TestResult.Fail $"API error: {Darklang.Anthropic.Response.ApiError.toString e}"
+        TestResult.Fail $"API error: {Response.ApiError.toString e}"
 
   /// Test bash server tool
   let testBashTool () : TestResult =
     match getApiKey () with
     | None -> TestResult.Skipped "ANTHROPIC_API_KEY not set"
     | Some apiKey ->
-      let bashTool = Darklang.Anthropic.Tools.bashTool ()
-      let toolJson = Darklang.Anthropic.Tools.bashToJson bashTool
+      let bashTool = Tools.bashTool ()
+      let toolJson = Tools.bashToJson bashTool
 
       let req =
-        (Darklang.Anthropic.Chat.Request.create ())
-        |> Darklang.Anthropic.Chat.Request.withModel Darklang.Anthropic.Models.Model.Sonnet45
-        |> Darklang.Anthropic.Chat.Request.withMaxTokens 1000L
-        |> Darklang.Anthropic.Chat.Request.withToolsJson [ toolJson ]
-        |> Darklang.Anthropic.Chat.Request.withUserMessage "Use the bash tool to run 'echo hello' and tell me the output."
+        (Chat.Request.create ())
+        |> Chat.Request.withModel Models.Model.Sonnet45
+        |> Chat.Request.withMaxTokens 1000L
+        |> Chat.Request.withToolsJson [ toolJson ]
+        |> Chat.Request.withUserMessage "Use the bash tool to run 'echo hello' and tell me the output."
 
-      match Darklang.Anthropic.Chat.Request.send apiKey req with
+      match Chat.Request.send apiKey req with
       | Ok response ->
-        let hasToolUse = Darklang.Anthropic.Response.hasToolUse response
-        let text = Darklang.Anthropic.Response.getText response
+        let hasToolUse = Response.hasToolUse response
+        let text = Response.getText response
         if hasToolUse || Stdlib.String.length text > 0L then
           TestResult.Pass
         else
           TestResult.Fail "No tool use and no response"
       | Error e ->
         // Bash tool might require specific beta access
-        let errStr = Darklang.Anthropic.Response.ApiError.toString e
+        let errStr = Response.ApiError.toString e
         if Stdlib.String.contains errStr "beta" || Stdlib.String.contains errStr "access" then
           TestResult.Skipped "Bash tool not available"
         else
@@ -306,27 +306,27 @@ module ServerToolTests =
     match getApiKey () with
     | None -> TestResult.Skipped "ANTHROPIC_API_KEY not set"
     | Some apiKey ->
-      let textEditorTool = Darklang.Anthropic.Tools.textEditorTool ()
-      let toolJson = Darklang.Anthropic.Tools.textEditorToJson textEditorTool
+      let textEditorTool = Tools.textEditorTool ()
+      let toolJson = Tools.textEditorToJson textEditorTool
 
       let req =
-        (Darklang.Anthropic.Chat.Request.create ())
-        |> Darklang.Anthropic.Chat.Request.withModel Darklang.Anthropic.Models.Model.Sonnet45
-        |> Darklang.Anthropic.Chat.Request.withMaxTokens 1000L
-        |> Darklang.Anthropic.Chat.Request.withToolsJson [ toolJson ]
-        |> Darklang.Anthropic.Chat.Request.withUserMessage "Use the text editor to view the contents of /etc/hostname"
+        (Chat.Request.create ())
+        |> Chat.Request.withModel Models.Model.Sonnet45
+        |> Chat.Request.withMaxTokens 1000L
+        |> Chat.Request.withToolsJson [ toolJson ]
+        |> Chat.Request.withUserMessage "Use the text editor to view the contents of /etc/hostname"
 
-      match Darklang.Anthropic.Chat.Request.send apiKey req with
+      match Chat.Request.send apiKey req with
       | Ok response ->
-        let hasToolUse = Darklang.Anthropic.Response.hasToolUse response
-        let text = Darklang.Anthropic.Response.getText response
+        let hasToolUse = Response.hasToolUse response
+        let text = Response.getText response
         if hasToolUse || Stdlib.String.length text > 0L then
           TestResult.Pass
         else
           TestResult.Fail "No tool use and no response"
       | Error e ->
         // Text editor tool might require specific beta access
-        let errStr = Darklang.Anthropic.Response.ApiError.toString e
+        let errStr = Response.ApiError.toString e
         if Stdlib.String.contains errStr "beta" || Stdlib.String.contains errStr "access" then
           TestResult.Skipped "Text editor tool not available"
         else
@@ -349,52 +349,52 @@ module WebFetchTests =
     match getApiKey () with
     | None -> TestResult.Skipped "ANTHROPIC_API_KEY not set"
     | Some apiKey ->
-      let webFetchTool = Darklang.Anthropic.Tools.webFetchTool ()
-      let toolJson = Darklang.Anthropic.Tools.webFetchToJson webFetchTool
+      let webFetchTool = Tools.webFetchTool ()
+      let toolJson = Tools.webFetchToJson webFetchTool
 
       let req =
-        (Darklang.Anthropic.Chat.Request.create ())
-        |> Darklang.Anthropic.Chat.Request.withModel Darklang.Anthropic.Models.Model.Sonnet45
-        |> Darklang.Anthropic.Chat.Request.withMaxTokens 1000L
-        |> Darklang.Anthropic.Chat.Request.withToolsJson [ toolJson ]
-        |> Darklang.Anthropic.Chat.Request.withUserMessage "Fetch the content from https://example.com and summarize it."
+        (Chat.Request.create ())
+        |> Chat.Request.withModel Models.Model.Sonnet45
+        |> Chat.Request.withMaxTokens 1000L
+        |> Chat.Request.withToolsJson [ toolJson ]
+        |> Chat.Request.withUserMessage "Fetch the content from https://example.com and summarize it."
 
-      match Darklang.Anthropic.Chat.Request.send apiKey req with
+      match Chat.Request.send apiKey req with
       | Ok response ->
-        let hasToolUse = Darklang.Anthropic.Response.hasToolUse response
-        let text = Darklang.Anthropic.Response.getText response
+        let hasToolUse = Response.hasToolUse response
+        let text = Response.getText response
         // Either tool was called or we got a text response
         if hasToolUse || Stdlib.String.length text > 0L then
           TestResult.Pass
         else
           TestResult.Fail "No tool use and no response"
       | Error e ->
-        TestResult.Fail $"API error: {Darklang.Anthropic.Response.ApiError.toString e}"
+        TestResult.Fail $"API error: {Response.ApiError.toString e}"
 
   /// Test web fetch with citations - verify typed citations are returned
   let testWebFetchWithCitations () : TestResult =
     match getApiKey () with
     | None -> TestResult.Skipped "ANTHROPIC_API_KEY not set"
     | Some apiKey ->
-      let webFetchTool = Darklang.Anthropic.Tools.webFetchToolWithCitations ()
-      let toolJson = Darklang.Anthropic.Tools.webFetchToJson webFetchTool
+      let webFetchTool = Tools.webFetchToolWithCitations ()
+      let toolJson = Tools.webFetchToJson webFetchTool
 
       let req =
-        (Darklang.Anthropic.Chat.Request.create ())
-        |> Darklang.Anthropic.Chat.Request.withModel Darklang.Anthropic.Models.Model.Sonnet45
-        |> Darklang.Anthropic.Chat.Request.withMaxTokens 1000L
-        |> Darklang.Anthropic.Chat.Request.withToolsJson [ toolJson ]
-        |> Darklang.Anthropic.Chat.Request.withUserMessage "Fetch https://example.com and tell me the title. Include a citation."
+        (Chat.Request.create ())
+        |> Chat.Request.withModel Models.Model.Sonnet45
+        |> Chat.Request.withMaxTokens 1000L
+        |> Chat.Request.withToolsJson [ toolJson ]
+        |> Chat.Request.withUserMessage "Fetch https://example.com and tell me the title. Include a citation."
 
-      match Darklang.Anthropic.Chat.Request.send apiKey req with
+      match Chat.Request.send apiKey req with
       | Ok response ->
         // Verify we get a response
         let hasContent =
-          Stdlib.String.length (Darklang.Anthropic.Response.getText response) > 0L ||
-          Darklang.Anthropic.Response.hasToolUse response
+          Stdlib.String.length (Response.getText response) > 0L ||
+          Response.hasToolUse response
         if hasContent then
           // If citations are present, verify they're typed correctly
-          let citations = Darklang.Anthropic.Response.extractCitations response
+          let citations = Response.extractCitations response
           if Stdlib.List.isEmpty citations then
             // Citations may not always be returned, that's OK
             TestResult.Pass
@@ -412,7 +412,7 @@ module WebFetchTests =
         else
           TestResult.Fail "No response"
       | Error e ->
-        TestResult.Fail $"API error: {Darklang.Anthropic.Response.ApiError.toString e}"
+        TestResult.Fail $"API error: {Response.ApiError.toString e}"
 
   let allTests () : List<String * TestFunction> =
     [ ("WebFetch: basic fetch", fun () -> testWebFetch ())
@@ -433,21 +433,21 @@ module VisionTests =
       // 1x1 red pixel PNG in base64
       let redPixelPng = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8DwHwAFBQIAX8jx0gAAAABJRU5ErkJggg=="
 
-      let imageBlock = Darklang.Anthropic.Content.imageBlockBase64 "image/png" redPixelPng
-      let textBlock = Darklang.Anthropic.Content.textBlock "What color is this image? Reply with just the color name."
+      let imageBlock = Content.imageBlockBase64 "image/png" redPixelPng
+      let textBlock = Content.textBlock "What color is this image? Reply with just the color name."
 
       let userMessage =
-        Darklang.Anthropic.Content.userBlockMessage [ imageBlock; textBlock ]
+        Content.userBlockMessage [ imageBlock; textBlock ]
 
       let req =
-        (Darklang.Anthropic.Chat.Request.create ())
-        |> Darklang.Anthropic.Chat.Request.withModel Darklang.Anthropic.Models.Model.Sonnet45
-        |> Darklang.Anthropic.Chat.Request.withMaxTokens 50L
-        |> Darklang.Anthropic.Chat.Request.withBlockMessages [ userMessage ]
+        (Chat.Request.create ())
+        |> Chat.Request.withModel Models.Model.Sonnet45
+        |> Chat.Request.withMaxTokens 50L
+        |> Chat.Request.withBlockMessages [ userMessage ]
 
-      match Darklang.Anthropic.Chat.Request.send apiKey req with
+      match Chat.Request.send apiKey req with
       | Ok response ->
-        let text = Stdlib.String.toLowercase (Darklang.Anthropic.Response.getText response)
+        let text = Stdlib.String.toLowercase (Response.getText response)
         // Should recognize red color
         if Stdlib.String.contains text "red" ||
            Stdlib.String.contains text "pink" ||
@@ -460,7 +460,7 @@ module VisionTests =
           else
             TestResult.Fail $"Unexpected response: {text}"
       | Error e ->
-        TestResult.Fail $"API error: {Darklang.Anthropic.Response.ApiError.toString e}"
+        TestResult.Fail $"API error: {Response.ApiError.toString e}"
 
   /// Test image from URL
   let testImageUrl () : TestResult =
@@ -468,21 +468,21 @@ module VisionTests =
     | None -> TestResult.Skipped "ANTHROPIC_API_KEY not set"
     | Some apiKey ->
       // Use a well-known public image
-      let imageBlock = Darklang.Anthropic.Content.imageBlockUrl "https://www.google.com/images/branding/googlelogo/2x/googlelogo_color_272x92dp.png"
-      let textBlock = Darklang.Anthropic.Content.textBlock "What company logo is this? Reply with just the company name."
+      let imageBlock = Content.imageBlockUrl "https://www.google.com/images/branding/googlelogo/2x/googlelogo_color_272x92dp.png"
+      let textBlock = Content.textBlock "What company logo is this? Reply with just the company name."
 
       let userMessage =
-        Darklang.Anthropic.Content.userBlockMessage [ imageBlock; textBlock ]
+        Content.userBlockMessage [ imageBlock; textBlock ]
 
       let req =
-        (Darklang.Anthropic.Chat.Request.create ())
-        |> Darklang.Anthropic.Chat.Request.withModel Darklang.Anthropic.Models.Model.Sonnet45
-        |> Darklang.Anthropic.Chat.Request.withMaxTokens 50L
-        |> Darklang.Anthropic.Chat.Request.withBlockMessages [ userMessage ]
+        (Chat.Request.create ())
+        |> Chat.Request.withModel Models.Model.Sonnet45
+        |> Chat.Request.withMaxTokens 50L
+        |> Chat.Request.withBlockMessages [ userMessage ]
 
-      match Darklang.Anthropic.Chat.Request.send apiKey req with
+      match Chat.Request.send apiKey req with
       | Ok response ->
-        let text = Stdlib.String.toLowercase (Darklang.Anthropic.Response.getText response)
+        let text = Stdlib.String.toLowercase (Response.getText response)
         if Stdlib.String.contains text "google" then
           TestResult.Pass
         else
@@ -492,7 +492,7 @@ module VisionTests =
           else
             TestResult.Fail $"No response: {text}"
       | Error e ->
-        TestResult.Fail $"API error: {Darklang.Anthropic.Response.ApiError.toString e}"
+        TestResult.Fail $"API error: {Response.ApiError.toString e}"
 
   /// Test PDF document input
   let testPdfInput () : TestResult =
@@ -503,21 +503,21 @@ module VisionTests =
       // This is a tiny valid PDF file
       let minimalPdf = "JVBERi0xLjEKMSAwIG9iago8PCAvVHlwZSAvQ2F0YWxvZyAvUGFnZXMgMiAwIFIgPj4KZW5kb2JqCjIgMCBvYmoKPDwgL1R5cGUgL1BhZ2VzIC9LaWRzIFszIDAgUl0gL0NvdW50IDEgPj4KZW5kb2JqCjMgMCBvYmoKPDwgL1R5cGUgL1BhZ2UgL1BhcmVudCAyIDAgUiAvTWVkaWFCb3ggWzAgMCA2MTIgNzkyXQovQ29udGVudHMgNCAwIFIgL1Jlc291cmNlcyA8PCAvRm9udCA8PCAvRjEgNSAwIFIgPj4gPj4gPj4KZW5kb2JqCjQgMCBvYmoKPDwgL0xlbmd0aCA0NCA+PgpzdHJlYW0KQlQKL0YxIDI0IFRmCjEwMCA3MDAgVGQKKEhlbGxvKSBUagpFVAplbmRzdHJlYW0KZW5kb2JqCjUgMCBvYmoKPDwgL1R5cGUgL0ZvbnQgL1N1YnR5cGUgL1R5cGUxIC9CYXNlRm9udCAvSGVsdmV0aWNhID4+CmVuZG9iagp4cmVmCjAgNgowMDAwMDAwMDAwIDY1NTM1IGYgCjAwMDAwMDAwMDkgMDAwMDAgbiAKMDAwMDAwMDA1OCAwMDAwMCBuIAowMDAwMDAwMTE1IDAwMDAwIG4gCjAwMDAwMDAyNzAgMDAwMDAgbiAKMDAwMDAwMDM2MyAwMDAwMCBuIAp0cmFpbGVyCjw8IC9TaXplIDYgL1Jvb3QgMSAwIFIgPj4Kc3RhcnR4cmVmCjQ0MwolJUVPRgo="
 
-      let pdfBlock = Darklang.Anthropic.Content.documentBlockPdf minimalPdf
-      let textBlock = Darklang.Anthropic.Content.textBlock "What text is in this PDF document?"
+      let pdfBlock = Content.documentBlockPdf minimalPdf
+      let textBlock = Content.textBlock "What text is in this PDF document?"
 
       let userMessage =
-        Darklang.Anthropic.Content.userBlockMessage [ pdfBlock; textBlock ]
+        Content.userBlockMessage [ pdfBlock; textBlock ]
 
       let req =
-        (Darklang.Anthropic.Chat.Request.create ())
-        |> Darklang.Anthropic.Chat.Request.withModel Darklang.Anthropic.Models.Model.Sonnet45
-        |> Darklang.Anthropic.Chat.Request.withMaxTokens 100L
-        |> Darklang.Anthropic.Chat.Request.withBlockMessages [ userMessage ]
+        (Chat.Request.create ())
+        |> Chat.Request.withModel Models.Model.Sonnet45
+        |> Chat.Request.withMaxTokens 100L
+        |> Chat.Request.withBlockMessages [ userMessage ]
 
-      match Darklang.Anthropic.Chat.Request.send apiKey req with
+      match Chat.Request.send apiKey req with
       | Ok response ->
-        let text = Stdlib.String.toLowercase (Darklang.Anthropic.Response.getText response)
+        let text = Stdlib.String.toLowercase (Response.getText response)
         // Should recognize "Hello" from the PDF
         if Stdlib.String.contains text "hello" then
           TestResult.Pass
@@ -528,7 +528,7 @@ module VisionTests =
           else
             TestResult.Fail $"Empty response: {text}"
       | Error e ->
-        TestResult.Fail $"API error: {Darklang.Anthropic.Response.ApiError.toString e}"
+        TestResult.Fail $"API error: {Response.ApiError.toString e}"
 
   /// Test PDF document input via URL
   let testPdfUrl () : TestResult =
@@ -538,28 +538,28 @@ module VisionTests =
       // Use arxiv paper - "Attention Is All You Need"
       let pdfUrl = "https://arxiv.org/pdf/1706.03762.pdf"
 
-      let pdfBlock = Darklang.Anthropic.Content.documentBlockPdfUrl pdfUrl
-      let textBlock = Darklang.Anthropic.Content.textBlock "Briefly describe what this PDF contains."
+      let pdfBlock = Content.documentBlockPdfUrl pdfUrl
+      let textBlock = Content.textBlock "Briefly describe what this PDF contains."
 
       let userMessage =
-        Darklang.Anthropic.Content.userBlockMessage [ pdfBlock; textBlock ]
+        Content.userBlockMessage [ pdfBlock; textBlock ]
 
       let req =
-        (Darklang.Anthropic.Chat.Request.create ())
-        |> Darklang.Anthropic.Chat.Request.withModel Darklang.Anthropic.Models.Model.Sonnet45
-        |> Darklang.Anthropic.Chat.Request.withMaxTokens 200L
-        |> Darklang.Anthropic.Chat.Request.withBlockMessages [ userMessage ]
+        (Chat.Request.create ())
+        |> Chat.Request.withModel Models.Model.Sonnet45
+        |> Chat.Request.withMaxTokens 200L
+        |> Chat.Request.withBlockMessages [ userMessage ]
 
-      match Darklang.Anthropic.Chat.Request.send apiKey req with
+      match Chat.Request.send apiKey req with
       | Ok response ->
-        let text = Darklang.Anthropic.Response.getText response
+        let text = Response.getText response
         if Stdlib.String.length text > 0L then
           TestResult.Pass
         else
           TestResult.Fail "Empty response for PDF URL"
       | Error e ->
         // PDF URL might not be accessible from Anthropic's servers, treat as skip
-        let errStr = Darklang.Anthropic.Response.ApiError.toString e
+        let errStr = Response.ApiError.toString e
         let errLower = Stdlib.String.toLowercase errStr
         if Stdlib.String.contains errLower "url" ||
            Stdlib.String.contains errLower "download" ||
@@ -577,27 +577,27 @@ module VisionTests =
       // Use arxiv paper - "Attention Is All You Need"
       let pdfUrl = "https://arxiv.org/pdf/1706.03762.pdf"
 
-      let pdfBlock = Darklang.Anthropic.Content.documentBlockPdfUrlWithTitle pdfUrl "Transformer Paper"
-      let textBlock = Darklang.Anthropic.Content.textBlock "What is the title of this paper?"
+      let pdfBlock = Content.documentBlockPdfUrlWithTitle pdfUrl "Transformer Paper"
+      let textBlock = Content.textBlock "What is the title of this paper?"
 
       let userMessage =
-        Darklang.Anthropic.Content.userBlockMessage [ pdfBlock; textBlock ]
+        Content.userBlockMessage [ pdfBlock; textBlock ]
 
       let req =
-        (Darklang.Anthropic.Chat.Request.create ())
-        |> Darklang.Anthropic.Chat.Request.withModel Darklang.Anthropic.Models.Model.Sonnet45
-        |> Darklang.Anthropic.Chat.Request.withMaxTokens 100L
-        |> Darklang.Anthropic.Chat.Request.withBlockMessages [ userMessage ]
+        (Chat.Request.create ())
+        |> Chat.Request.withModel Models.Model.Sonnet45
+        |> Chat.Request.withMaxTokens 100L
+        |> Chat.Request.withBlockMessages [ userMessage ]
 
-      match Darklang.Anthropic.Chat.Request.send apiKey req with
+      match Chat.Request.send apiKey req with
       | Ok response ->
-        let text = Darklang.Anthropic.Response.getText response
+        let text = Response.getText response
         if Stdlib.String.length text > 0L then
           TestResult.Pass
         else
           TestResult.Fail "Empty response"
       | Error e ->
-        let errStr = Darklang.Anthropic.Response.ApiError.toString e
+        let errStr = Response.ApiError.toString e
         let errLower = Stdlib.String.toLowercase errStr
         if Stdlib.String.contains errLower "url" ||
            Stdlib.String.contains errLower "download" ||
@@ -629,15 +629,15 @@ module AdaptiveThinkingTests =
     | None -> TestResult.Skipped "ANTHROPIC_API_KEY not set"
     | Some apiKey ->
       let req =
-        (Darklang.Anthropic.Chat.Request.create ())
-        |> Darklang.Anthropic.Chat.Request.withModel Darklang.Anthropic.Models.Model.Opus46
-        |> Darklang.Anthropic.Chat.Request.withMaxTokens 2000L
-        |> Darklang.Anthropic.Chat.Request.withAdaptiveThinking
-        |> Darklang.Anthropic.Chat.Request.withUserMessage "What is the square root of 144? Think through this carefully."
+        (Chat.Request.create ())
+        |> Chat.Request.withModel Models.Model.Opus46
+        |> Chat.Request.withMaxTokens 2000L
+        |> Chat.Request.withAdaptiveThinking
+        |> Chat.Request.withUserMessage "What is the square root of 144? Think through this carefully."
 
-      match Darklang.Anthropic.Chat.Request.send apiKey req with
+      match Chat.Request.send apiKey req with
       | Ok response ->
-        let text = Darklang.Anthropic.Response.getText response
+        let text = Response.getText response
         // Should get correct answer
         if Stdlib.String.contains text "12" then
           TestResult.Pass
@@ -649,7 +649,7 @@ module AdaptiveThinkingTests =
             TestResult.Fail $"Unexpected response: {text}"
       | Error e ->
         // Opus might not be available - skip rather than fail
-        let errStr = Darklang.Anthropic.Response.ApiError.toString e
+        let errStr = Response.ApiError.toString e
         if Stdlib.String.contains errStr "model" || Stdlib.String.contains errStr "access" then
           TestResult.Skipped "Opus 4.6 not available"
         else
@@ -671,20 +671,20 @@ module ServiceTierTests =
     | None -> TestResult.Skipped "ANTHROPIC_API_KEY not set"
     | Some apiKey ->
       let req =
-        (Darklang.Anthropic.Chat.Request.create ())
-        |> Darklang.Anthropic.Chat.Request.withModel Darklang.Anthropic.Models.Model.Haiku35
-        |> Darklang.Anthropic.Chat.Request.withMaxTokens 50L
-        |> Darklang.Anthropic.Chat.Request.withServiceTier Darklang.Anthropic.Chat.ServiceTier.StandardOnly
-        |> Darklang.Anthropic.Chat.Request.withUserMessage "Say OK"
+        (Chat.Request.create ())
+        |> Chat.Request.withModel Models.Model.Haiku35
+        |> Chat.Request.withMaxTokens 50L
+        |> Chat.Request.withServiceTier Chat.ServiceTier.StandardOnly
+        |> Chat.Request.withUserMessage "Say OK"
 
-      match Darklang.Anthropic.Chat.Request.send apiKey req with
+      match Chat.Request.send apiKey req with
       | Ok response ->
-        if Stdlib.String.length (Darklang.Anthropic.Response.getText response) > 0L then
+        if Stdlib.String.length (Response.getText response) > 0L then
           TestResult.Pass
         else
           TestResult.Fail "Empty response"
       | Error e ->
-        TestResult.Fail $"API error: {Darklang.Anthropic.Response.ApiError.toString e}"
+        TestResult.Fail $"API error: {Response.ApiError.toString e}"
 
   /// Test auto service tier
   let testAutoTier () : TestResult =
@@ -692,20 +692,20 @@ module ServiceTierTests =
     | None -> TestResult.Skipped "ANTHROPIC_API_KEY not set"
     | Some apiKey ->
       let req =
-        (Darklang.Anthropic.Chat.Request.create ())
-        |> Darklang.Anthropic.Chat.Request.withModel Darklang.Anthropic.Models.Model.Haiku35
-        |> Darklang.Anthropic.Chat.Request.withMaxTokens 50L
-        |> Darklang.Anthropic.Chat.Request.withServiceTier Darklang.Anthropic.Chat.ServiceTier.Auto
-        |> Darklang.Anthropic.Chat.Request.withUserMessage "Say OK"
+        (Chat.Request.create ())
+        |> Chat.Request.withModel Models.Model.Haiku35
+        |> Chat.Request.withMaxTokens 50L
+        |> Chat.Request.withServiceTier Chat.ServiceTier.Auto
+        |> Chat.Request.withUserMessage "Say OK"
 
-      match Darklang.Anthropic.Chat.Request.send apiKey req with
+      match Chat.Request.send apiKey req with
       | Ok response ->
-        if Stdlib.String.length (Darklang.Anthropic.Response.getText response) > 0L then
+        if Stdlib.String.length (Response.getText response) > 0L then
           TestResult.Pass
         else
           TestResult.Fail "Empty response"
       | Error e ->
-        TestResult.Fail $"API error: {Darklang.Anthropic.Response.ApiError.toString e}"
+        TestResult.Fail $"API error: {Response.ApiError.toString e}"
 
   let allTests () : List<String * TestFunction> =
     [ ("ServiceTier: standard only", fun () -> testStandardTier ())
@@ -724,20 +724,20 @@ module SamplingParameterTests =
     | None -> TestResult.Skipped "ANTHROPIC_API_KEY not set"
     | Some apiKey ->
       let req =
-        (Darklang.Anthropic.Chat.Request.create ())
-        |> Darklang.Anthropic.Chat.Request.withModel Darklang.Anthropic.Models.Model.Haiku35
-        |> Darklang.Anthropic.Chat.Request.withMaxTokens 50L
-        |> Darklang.Anthropic.Chat.Request.withTopP 0.9
-        |> Darklang.Anthropic.Chat.Request.withUserMessage "Say OK"
+        (Chat.Request.create ())
+        |> Chat.Request.withModel Models.Model.Haiku35
+        |> Chat.Request.withMaxTokens 50L
+        |> Chat.Request.withTopP 0.9
+        |> Chat.Request.withUserMessage "Say OK"
 
-      match Darklang.Anthropic.Chat.Request.send apiKey req with
+      match Chat.Request.send apiKey req with
       | Ok response ->
-        if Stdlib.String.length (Darklang.Anthropic.Response.getText response) > 0L then
+        if Stdlib.String.length (Response.getText response) > 0L then
           TestResult.Pass
         else
           TestResult.Fail "Empty response"
       | Error e ->
-        TestResult.Fail $"API error: {Darklang.Anthropic.Response.ApiError.toString e}"
+        TestResult.Fail $"API error: {Response.ApiError.toString e}"
 
   /// Test top_k parameter
   let testTopK () : TestResult =
@@ -745,20 +745,20 @@ module SamplingParameterTests =
     | None -> TestResult.Skipped "ANTHROPIC_API_KEY not set"
     | Some apiKey ->
       let req =
-        (Darklang.Anthropic.Chat.Request.create ())
-        |> Darklang.Anthropic.Chat.Request.withModel Darklang.Anthropic.Models.Model.Haiku35
-        |> Darklang.Anthropic.Chat.Request.withMaxTokens 50L
-        |> Darklang.Anthropic.Chat.Request.withTopK 40L
-        |> Darklang.Anthropic.Chat.Request.withUserMessage "Say OK"
+        (Chat.Request.create ())
+        |> Chat.Request.withModel Models.Model.Haiku35
+        |> Chat.Request.withMaxTokens 50L
+        |> Chat.Request.withTopK 40L
+        |> Chat.Request.withUserMessage "Say OK"
 
-      match Darklang.Anthropic.Chat.Request.send apiKey req with
+      match Chat.Request.send apiKey req with
       | Ok response ->
-        if Stdlib.String.length (Darklang.Anthropic.Response.getText response) > 0L then
+        if Stdlib.String.length (Response.getText response) > 0L then
           TestResult.Pass
         else
           TestResult.Fail "Empty response"
       | Error e ->
-        TestResult.Fail $"API error: {Darklang.Anthropic.Response.ApiError.toString e}"
+        TestResult.Fail $"API error: {Response.ApiError.toString e}"
 
   /// Test combined top_p and top_k
   let testTopPAndTopK () : TestResult =
@@ -766,21 +766,21 @@ module SamplingParameterTests =
     | None -> TestResult.Skipped "ANTHROPIC_API_KEY not set"
     | Some apiKey ->
       let req =
-        (Darklang.Anthropic.Chat.Request.create ())
-        |> Darklang.Anthropic.Chat.Request.withModel Darklang.Anthropic.Models.Model.Haiku35
-        |> Darklang.Anthropic.Chat.Request.withMaxTokens 50L
-        |> Darklang.Anthropic.Chat.Request.withTopP 0.95
-        |> Darklang.Anthropic.Chat.Request.withTopK 50L
-        |> Darklang.Anthropic.Chat.Request.withUserMessage "Say OK"
+        (Chat.Request.create ())
+        |> Chat.Request.withModel Models.Model.Haiku35
+        |> Chat.Request.withMaxTokens 50L
+        |> Chat.Request.withTopP 0.95
+        |> Chat.Request.withTopK 50L
+        |> Chat.Request.withUserMessage "Say OK"
 
-      match Darklang.Anthropic.Chat.Request.send apiKey req with
+      match Chat.Request.send apiKey req with
       | Ok response ->
-        if Stdlib.String.length (Darklang.Anthropic.Response.getText response) > 0L then
+        if Stdlib.String.length (Response.getText response) > 0L then
           TestResult.Pass
         else
           TestResult.Fail "Empty response"
       | Error e ->
-        TestResult.Fail $"API error: {Darklang.Anthropic.Response.ApiError.toString e}"
+        TestResult.Fail $"API error: {Response.ApiError.toString e}"
 
   let allTests () : List<String * TestFunction> =
     [ ("Sampling: top_p", fun () -> testTopP ())
@@ -800,20 +800,20 @@ module MetadataTests =
     | None -> TestResult.Skipped "ANTHROPIC_API_KEY not set"
     | Some apiKey ->
       let req =
-        (Darklang.Anthropic.Chat.Request.create ())
-        |> Darklang.Anthropic.Chat.Request.withModel Darklang.Anthropic.Models.Model.Haiku35
-        |> Darklang.Anthropic.Chat.Request.withMaxTokens 50L
-        |> Darklang.Anthropic.Chat.Request.withUserId "test-user-12345"
-        |> Darklang.Anthropic.Chat.Request.withUserMessage "Say OK"
+        (Chat.Request.create ())
+        |> Chat.Request.withModel Models.Model.Haiku35
+        |> Chat.Request.withMaxTokens 50L
+        |> Chat.Request.withUserId "test-user-12345"
+        |> Chat.Request.withUserMessage "Say OK"
 
-      match Darklang.Anthropic.Chat.Request.send apiKey req with
+      match Chat.Request.send apiKey req with
       | Ok response ->
-        if Stdlib.String.length (Darklang.Anthropic.Response.getText response) > 0L then
+        if Stdlib.String.length (Response.getText response) > 0L then
           TestResult.Pass
         else
           TestResult.Fail "Empty response"
       | Error e ->
-        TestResult.Fail $"API error: {Darklang.Anthropic.Response.ApiError.toString e}"
+        TestResult.Fail $"API error: {Response.ApiError.toString e}"
 
   let allTests () : List<String * TestFunction> =
     [ ("Metadata: user_id", fun () -> testUserId ()) ]
@@ -831,41 +831,41 @@ module BatchTests =
     | None -> TestResult.Skipped "ANTHROPIC_API_KEY not set"
     | Some apiKey ->
       let req1 =
-        (Darklang.Anthropic.Chat.Request.create ())
-        |> Darklang.Anthropic.Chat.Request.withModel Darklang.Anthropic.Models.Model.Haiku35
-        |> Darklang.Anthropic.Chat.Request.withMaxTokens 50L
-        |> Darklang.Anthropic.Chat.Request.withUserMessage "Say hello"
+        (Chat.Request.create ())
+        |> Chat.Request.withModel Models.Model.Haiku35
+        |> Chat.Request.withMaxTokens 50L
+        |> Chat.Request.withUserMessage "Say hello"
 
       let req2 =
-        (Darklang.Anthropic.Chat.Request.create ())
-        |> Darklang.Anthropic.Chat.Request.withModel Darklang.Anthropic.Models.Model.Haiku35
-        |> Darklang.Anthropic.Chat.Request.withMaxTokens 50L
-        |> Darklang.Anthropic.Chat.Request.withUserMessage "Say goodbye"
+        (Chat.Request.create ())
+        |> Chat.Request.withModel Models.Model.Haiku35
+        |> Chat.Request.withMaxTokens 50L
+        |> Chat.Request.withUserMessage "Say goodbye"
 
       let batchRequests =
-        [ Darklang.Anthropic.Batch.batchRequest "test-1" req1
-          Darklang.Anthropic.Batch.batchRequest "test-2" req2 ]
+        [ Batch.batchRequest "test-1" req1
+          Batch.batchRequest "test-2" req2 ]
 
-      match Darklang.Anthropic.Batch.createBatch apiKey batchRequests with
+      match Batch.createBatch apiKey batchRequests with
       | Ok batch ->
         if Stdlib.String.startsWith batch.id "msgbatch_" then
           TestResult.Pass
         else
           TestResult.Fail $"Unexpected batch ID format: {batch.id}"
       | Error e ->
-        TestResult.Fail $"Batch creation error: {Darklang.Anthropic.Response.ApiError.toString e}"
+        TestResult.Fail $"Batch creation error: {Response.ApiError.toString e}"
 
   /// Test listing batches
   let testListBatches () : TestResult =
     match getApiKey () with
     | None -> TestResult.Skipped "ANTHROPIC_API_KEY not set"
     | Some apiKey ->
-      match Darklang.Anthropic.Batch.listBatches apiKey (Stdlib.Option.Option.Some 5L) Stdlib.Option.Option.None with
+      match Batch.listBatches apiKey (Stdlib.Option.Option.Some 5L) Stdlib.Option.Option.None with
       | Ok response ->
         // Just verify we got a valid response (list could be empty)
         TestResult.Pass
       | Error e ->
-        TestResult.Fail $"List batches error: {Darklang.Anthropic.Response.ApiError.toString e}"
+        TestResult.Fail $"List batches error: {Response.ApiError.toString e}"
 
   /// Test retrieving a batch (uses a batch created in testCreateBatch)
   let testRetrieveBatch () : TestResult =
@@ -874,26 +874,26 @@ module BatchTests =
     | Some apiKey ->
       // First create a batch to retrieve
       let req =
-        (Darklang.Anthropic.Chat.Request.create ())
-        |> Darklang.Anthropic.Chat.Request.withModel Darklang.Anthropic.Models.Model.Haiku35
-        |> Darklang.Anthropic.Chat.Request.withMaxTokens 50L
-        |> Darklang.Anthropic.Chat.Request.withUserMessage "Say test"
+        (Chat.Request.create ())
+        |> Chat.Request.withModel Models.Model.Haiku35
+        |> Chat.Request.withMaxTokens 50L
+        |> Chat.Request.withUserMessage "Say test"
 
-      let batchRequests = [ Darklang.Anthropic.Batch.batchRequest "retrieve-test" req ]
+      let batchRequests = [ Batch.batchRequest "retrieve-test" req ]
 
-      match Darklang.Anthropic.Batch.createBatch apiKey batchRequests with
+      match Batch.createBatch apiKey batchRequests with
       | Ok createdBatch ->
         // Now retrieve it
-        match Darklang.Anthropic.Batch.retrieveBatch apiKey createdBatch.id with
+        match Batch.retrieveBatch apiKey createdBatch.id with
         | Ok retrievedBatch ->
           if retrievedBatch.id == createdBatch.id then
             TestResult.Pass
           else
             TestResult.Fail $"Batch ID mismatch: expected {createdBatch.id}, got {retrievedBatch.id}"
         | Error e ->
-          TestResult.Fail $"Retrieve batch error: {Darklang.Anthropic.Response.ApiError.toString e}"
+          TestResult.Fail $"Retrieve batch error: {Response.ApiError.toString e}"
       | Error e ->
-        TestResult.Fail $"Create batch error: {Darklang.Anthropic.Response.ApiError.toString e}"
+        TestResult.Fail $"Create batch error: {Response.ApiError.toString e}"
 
   /// Test batch status helpers
   let testBatchStatusHelpers () : TestResult =
@@ -901,26 +901,26 @@ module BatchTests =
     | None -> TestResult.Skipped "ANTHROPIC_API_KEY not set"
     | Some apiKey ->
       let req =
-        (Darklang.Anthropic.Chat.Request.create ())
-        |> Darklang.Anthropic.Chat.Request.withModel Darklang.Anthropic.Models.Model.Haiku35
-        |> Darklang.Anthropic.Chat.Request.withMaxTokens 50L
-        |> Darklang.Anthropic.Chat.Request.withUserMessage "Test"
+        (Chat.Request.create ())
+        |> Chat.Request.withModel Models.Model.Haiku35
+        |> Chat.Request.withMaxTokens 50L
+        |> Chat.Request.withUserMessage "Test"
 
-      let batchRequests = [ Darklang.Anthropic.Batch.batchRequest "helper-test" req ]
+      let batchRequests = [ Batch.batchRequest "helper-test" req ]
 
-      match Darklang.Anthropic.Batch.createBatch apiKey batchRequests with
+      match Batch.createBatch apiKey batchRequests with
       | Ok batch ->
         // New batch should be in_progress or ended (if very fast)
-        let isProcessing = Darklang.Anthropic.Batch.isProcessing batch
-        let isComplete = Darklang.Anthropic.Batch.isComplete batch
-        let total = Darklang.Anthropic.Batch.totalRequests batch
+        let isProcessing = Batch.isProcessing batch
+        let isComplete = Batch.isComplete batch
+        let total = Batch.totalRequests batch
 
         if (isProcessing || isComplete) && total >= 1L then
           TestResult.Pass
         else
           TestResult.Fail $"Unexpected batch state: processing={isProcessing}, complete={isComplete}, total={total}"
       | Error e ->
-        TestResult.Fail $"Create batch error: {Darklang.Anthropic.Response.ApiError.toString e}"
+        TestResult.Fail $"Create batch error: {Response.ApiError.toString e}"
 
   /// Helper to poll batch status until complete
   /// Polls up to maxAttempts times with 2 second delays between attempts
@@ -928,7 +928,7 @@ module BatchTests =
     (apiKey: String)
     (batchId: String)
     (maxAttempts: Int64)
-    : Stdlib.Result.Result<Darklang.Anthropic.Batch.MessageBatch, String> =
+    : Stdlib.Result.Result<Batch.MessageBatch, String> =
     let attempts = Stdlib.List.range 1L maxAttempts
 
     Stdlib.List.fold
@@ -938,16 +938,16 @@ module BatchTests =
         match acc with
         | Ok batch -> Stdlib.Result.Result.Ok batch  // Already complete, short circuit
         | Error _ ->
-          match Darklang.Anthropic.Batch.retrieveBatch apiKey batchId with
+          match Batch.retrieveBatch apiKey batchId with
           | Ok currentBatch ->
-            if Darklang.Anthropic.Batch.isComplete currentBatch then
+            if Batch.isComplete currentBatch then
               Stdlib.Result.Result.Ok currentBatch
             else
               // Wait 2 seconds before next poll
               let _ = Builtin.timeSleep 2000.0
               Stdlib.Result.Result.Error "Still processing"
           | Error e ->
-            Stdlib.Result.Result.Error (Darklang.Anthropic.Response.ApiError.toString e))
+            Stdlib.Result.Result.Error (Response.ApiError.toString e))
 
   /// Test getting batch results (polls with 2s delays, up to 60s total)
   let testGetBatchResults () : TestResult =
@@ -955,31 +955,31 @@ module BatchTests =
     | None -> TestResult.Skipped "ANTHROPIC_API_KEY not set"
     | Some apiKey ->
       let req =
-        (Darklang.Anthropic.Chat.Request.create ())
-        |> Darklang.Anthropic.Chat.Request.withModel Darklang.Anthropic.Models.Model.Haiku35
-        |> Darklang.Anthropic.Chat.Request.withMaxTokens 50L
-        |> Darklang.Anthropic.Chat.Request.withUserMessage "Reply with just: OK"
+        (Chat.Request.create ())
+        |> Chat.Request.withModel Models.Model.Haiku35
+        |> Chat.Request.withMaxTokens 50L
+        |> Chat.Request.withUserMessage "Reply with just: OK"
 
-      let batchRequests = [ Darklang.Anthropic.Batch.batchRequest "results-test" req ]
+      let batchRequests = [ Batch.batchRequest "results-test" req ]
 
-      match Darklang.Anthropic.Batch.createBatch apiKey batchRequests with
+      match Batch.createBatch apiKey batchRequests with
       | Ok batch ->
         match pollBatchUntilComplete apiKey batch.id 30L with
         | Ok completedBatch ->
-          match Darklang.Anthropic.Batch.getBatchResults apiKey completedBatch.id with
+          match Batch.getBatchResults apiKey completedBatch.id with
           | Ok results ->
-            let successfulResults = Darklang.Anthropic.Batch.getSuccessfulResults results
+            let successfulResults = Batch.getSuccessfulResults results
             if Stdlib.List.length successfulResults >= 1L then
               TestResult.Pass
             else
               TestResult.Fail "No successful results found"
           | Error e ->
-            TestResult.Fail $"Get results error: {Darklang.Anthropic.Response.ApiError.toString e}"
+            TestResult.Fail $"Get results error: {Response.ApiError.toString e}"
         | Error msg ->
           // Batch might take too long, skip instead of fail
           TestResult.Skipped $"Batch did not complete in time: {msg}"
       | Error e ->
-        TestResult.Fail $"Create batch error: {Darklang.Anthropic.Response.ApiError.toString e}"
+        TestResult.Fail $"Create batch error: {Response.ApiError.toString e}"
 
   let allTests () : List<String * TestFunction> =
     [ ("Batch: create batch", fun () -> testCreateBatch ())
@@ -1008,19 +1008,19 @@ module PromptCachingTests =
         (Stdlib.String.repeat "This is filler text to make the prompt large enough for caching. " 200L)
 
       let cachedBlock =
-        Darklang.Anthropic.Content.systemBlockCached
+        Content.systemBlockCached
           largeSystemPrompt
-          (Darklang.Anthropic.Models.cache5min ())
+          (Models.cache5min ())
 
       // First request - should create cache
       let req1 =
-        (Darklang.Anthropic.Chat.Request.create ())
-        |> Darklang.Anthropic.Chat.Request.withModel Darklang.Anthropic.Models.Model.Sonnet45
-        |> Darklang.Anthropic.Chat.Request.withMaxTokens 50L
-        |> Darklang.Anthropic.Chat.Request.withSystemBlocks [ cachedBlock ]
-        |> Darklang.Anthropic.Chat.Request.withUserMessage "Say hello"
+        (Chat.Request.create ())
+        |> Chat.Request.withModel Models.Model.Sonnet45
+        |> Chat.Request.withMaxTokens 50L
+        |> Chat.Request.withSystemBlocks [ cachedBlock ]
+        |> Chat.Request.withUserMessage "Say hello"
 
-      match Darklang.Anthropic.Chat.Request.send apiKey req1 with
+      match Chat.Request.send apiKey req1 with
       | Ok response1 ->
         // Check cache_creation_input_tokens
         let cacheCreated =
@@ -1030,13 +1030,13 @@ module PromptCachingTests =
 
         // Second request - should read from cache
         let req2 =
-          (Darklang.Anthropic.Chat.Request.create ())
-          |> Darklang.Anthropic.Chat.Request.withModel Darklang.Anthropic.Models.Model.Sonnet45
-          |> Darklang.Anthropic.Chat.Request.withMaxTokens 50L
-          |> Darklang.Anthropic.Chat.Request.withSystemBlocks [ cachedBlock ]
-          |> Darklang.Anthropic.Chat.Request.withUserMessage "Say goodbye"
+          (Chat.Request.create ())
+          |> Chat.Request.withModel Models.Model.Sonnet45
+          |> Chat.Request.withMaxTokens 50L
+          |> Chat.Request.withSystemBlocks [ cachedBlock ]
+          |> Chat.Request.withUserMessage "Say goodbye"
 
-        match Darklang.Anthropic.Chat.Request.send apiKey req2 with
+        match Chat.Request.send apiKey req2 with
         | Ok response2 ->
           let cacheRead =
             match response2.usage.cache_read_input_tokens with
@@ -1048,15 +1048,15 @@ module PromptCachingTests =
             TestResult.Pass
           else
             // Caching might not always work (depends on API), pass if we got responses
-            if Stdlib.String.length (Darklang.Anthropic.Response.getText response1) > 0L &&
-               Stdlib.String.length (Darklang.Anthropic.Response.getText response2) > 0L then
+            if Stdlib.String.length (Response.getText response1) > 0L &&
+               Stdlib.String.length (Response.getText response2) > 0L then
               TestResult.Pass
             else
               TestResult.Fail "No cache activity detected and empty responses"
         | Error e ->
-          TestResult.Fail $"Second request error: {Darklang.Anthropic.Response.ApiError.toString e}"
+          TestResult.Fail $"Second request error: {Response.ApiError.toString e}"
       | Error e ->
-        TestResult.Fail $"First request error: {Darklang.Anthropic.Response.ApiError.toString e}"
+        TestResult.Fail $"First request error: {Response.ApiError.toString e}"
 
   let allTests () : List<String * TestFunction> =
     [ ("Caching: prompt caching", fun () -> testPromptCaching ()) ]

@@ -25,20 +25,3 @@ let fromEnv (envVar: String) (providerName: String) : Stdlib.Result.Result<Strin
     Stdlib.Result.Result.Error(
       envVar ++ " environment variable is not set. Please set it to your " ++ providerName ++ " API key.")
 
-
-/// Get an optional API key from environment (for providers that don't require keys)
-let fromEnvOptional (envVar: String) : Stdlib.Option.Option<String> =
-  match Stdlib.Env.get envVar with
-  | Some key ->
-    if key == "" then
-      Stdlib.Option.Option.None
-    else
-      Stdlib.Option.Option.Some key
-  | None -> Stdlib.Option.Option.None
-
-
-/// Validate and return a provided API key
-let validateKey (apiKey: String) : Stdlib.Result.Result<String, String> =
-  match validate apiKey with
-  | Ok _ -> Stdlib.Result.Result.Ok apiKey
-  | Error e -> Stdlib.Result.Result.Error e

@@ -1,5 +1,7 @@
 /// OpenAI API Configuration
-module Darklang.OpenAI.Config
+/// WIP: Direct API bindings that are experimental and may become outdated.
+/// For most use cases, prefer `Darklang.LLM.Agent`.
+module Darklang.WIP.AI.OpenAI.Config
 
 let baseUrl : String = "https://api.openai.com/v1"
 

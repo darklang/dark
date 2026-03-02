@@ -1,6 +1,6 @@
 /// Anthropic Claude API - Tools
 /// Types and builders for client tools, server tools, and tool choice
-module Darklang.Anthropic.Tools
+module Darklang.WIP.AI.Anthropic.Tools
 
 type Json = Stdlib.AltJson.Json
 
@@ -243,11 +243,11 @@ let toolChoiceSequential () : ToolChoice =
       disable_parallel_tool_use = Stdlib.Option.Option.Some true }
 
 let toolChoiceToJson (tc: ToolChoice) : Json =
-  Models.JsonBuilder.empty
-  |> Models.JsonBuilder.addString "type" (ToolChoiceType.toString tc.``type``)
-  |> Models.JsonBuilder.addOptionalString "name" tc.name
-  |> Models.JsonBuilder.addOptionalBool "disable_parallel_tool_use" tc.disable_parallel_tool_use
-  |> Models.JsonBuilder.toJson
+  Stdlib.AltJson.Builder.empty
+  |> Stdlib.AltJson.Builder.addString "type" (ToolChoiceType.toString tc.``type``)
+  |> Stdlib.AltJson.Builder.addOptionalString "name" tc.name
+  |> Stdlib.AltJson.Builder.addOptionalBool "disable_parallel_tool_use" tc.disable_parallel_tool_use
+  |> Stdlib.AltJson.Builder.toJson
 
 
 // ---------------------------------------------------------------------------

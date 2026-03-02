@@ -1,5 +1,7 @@
 /// Anthropic Claude API - Models and Configuration
-module Darklang.Anthropic.Models
+/// WIP: Direct API bindings that are experimental and may become outdated.
+/// For most use cases, prefer `Darklang.LLM.Agent`.
+module Darklang.WIP.AI.Anthropic.Models
 
 
 // ---------------------------------------------------------------------------
@@ -196,106 +198,6 @@ let cache1hour () : CacheControl = cacheEphemeral CacheTTL.OneHour
 
 let cacheControlToJson (cc: CacheControl) : Stdlib.AltJson.Json =
   Stdlib.AltJson.Json.Object
-    (JsonBuilder.empty
-     |> JsonBuilder.addString "type" (CacheType.toString cc.``type``)
-     |> JsonBuilder.addOptionalString "ttl" (Stdlib.Option.map cc.ttl (fun t -> CacheTTL.toString t)))
-
-
-// ---------------------------------------------------------------------------
-// JSON BUILDER
-// Utilities for building JSON objects with optional fields
-// ---------------------------------------------------------------------------
-
-module JsonBuilder =
-  type Fields = List<(String * Stdlib.AltJson.Json)>
-
-  /// Start with an empty JSON object
-  let empty : Fields = []
-
-  /// Add a required string field
-  let addString (fields: Fields) (key: String) (value: String) : Fields =
-    Stdlib.List.append fields [ (key, Stdlib.AltJson.Json.String value) ]
-
-  /// Add a required number field
-  let addNumber (fields: Fields) (key: String) (value: Float) : Fields =
-    Stdlib.List.append fields [ (key, Stdlib.AltJson.Json.Number value) ]
-
-  /// Add a required int field (converts to float for JSON)
-  let addInt (fields: Fields) (key: String) (value: Int64) : Fields =
-    Stdlib.List.append fields [ (key, Stdlib.AltJson.Json.Number (Stdlib.Int64.toFloat value)) ]
-
-  /// Add a required bool field
-  let addBool (fields: Fields) (key: String) (value: Bool) : Fields =
-    Stdlib.List.append fields [ (key, Stdlib.AltJson.Json.Bool value) ]
-
-  /// Add a required JSON value field
-  let addJson (fields: Fields) (key: String) (value: Stdlib.AltJson.Json) : Fields =
-    Stdlib.List.append fields [ (key, value) ]
-
-  /// Add a required array field
-  let addArray (fields: Fields) (key: String) (value: List<Stdlib.AltJson.Json>) : Fields =
-    Stdlib.List.append fields [ (key, Stdlib.AltJson.Json.Array value) ]
-
-  /// Add an optional string field (only adds if Some)
-  let addOptionalString
-    (fields: Fields)
-    (key: String)
-    (value: Stdlib.Option.Option<String>)
-    : Fields =
-    match value with
-    | Some v -> Stdlib.List.append fields [ (key, Stdlib.AltJson.Json.String v) ]
-    | None -> fields
-
-  /// Add an optional number field (only adds if Some)
-  let addOptionalNumber
-    (fields: Fields)
-    (key: String)
-    (value: Stdlib.Option.Option<Float>)
-    : Fields =
-    match value with
-    | Some v -> Stdlib.List.append fields [ (key, Stdlib.AltJson.Json.Number v) ]
-    | None -> fields
-
-  /// Add an optional int field (only adds if Some)
-  let addOptionalInt
-    (fields: Fields)
-    (key: String)
-    (value: Stdlib.Option.Option<Int64>)
-    : Fields =
-    match value with
-    | Some v -> Stdlib.List.append fields [ (key, Stdlib.AltJson.Json.Number (Stdlib.Int64.toFloat v)) ]
-    | None -> fields
-
-  /// Add an optional bool field (only adds if Some)
-  let addOptionalBool
-    (fields: Fields)
-    (key: String)
-    (value: Stdlib.Option.Option<Bool>)
-    : Fields =
-    match value with
-    | Some v -> Stdlib.List.append fields [ (key, Stdlib.AltJson.Json.Bool v) ]
-    | None -> fields
-
-  /// Add an optional JSON value field (only adds if Some)
-  let addOptionalJson
-    (fields: Fields)
-    (key: String)
-    (value: Stdlib.Option.Option<Stdlib.AltJson.Json>)
-    : Fields =
-    match value with
-    | Some v -> Stdlib.List.append fields [ (key, v) ]
-    | None -> fields
-
-  /// Add an optional array field (only adds if Some)
-  let addOptionalArray
-    (fields: Fields)
-    (key: String)
-    (value: Stdlib.Option.Option<List<Stdlib.AltJson.Json>>)
-    : Fields =
-    match value with
-    | Some v -> Stdlib.List.append fields [ (key, Stdlib.AltJson.Json.Array v) ]
-    | None -> fields
-
-  /// Convert fields to a JSON object
-  let toJson (fields: Fields) : Stdlib.AltJson.Json =
-    Stdlib.AltJson.Json.Object fields
+    (Stdlib.AltJson.Builder.empty
+     |> Stdlib.AltJson.Builder.addString "type" (CacheType.toString cc.``type``)
+     |> Stdlib.AltJson.Builder.addOptionalString "ttl" (Stdlib.Option.map cc.ttl (fun t -> CacheTTL.toString t)))

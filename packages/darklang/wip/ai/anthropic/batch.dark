@@ -1,7 +1,7 @@
 /// Anthropic Claude API - Message Batches
 /// Batch processing for large volumes of requests at 50% cost reduction
 /// See: https://docs.anthropic.com/en/docs/build-with-claude/batch-processing
-module Darklang.Anthropic.Batch
+module Darklang.WIP.AI.Anthropic.Batch
 
 type Json = Stdlib.AltJson.Json
 

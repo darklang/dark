@@ -20,18 +20,13 @@ let mapStatusToError (statusCode: Int64) (body: String) : ProviderError =
   | code -> ProviderError.Unknown("HTTP " ++ Stdlib.Int64.toString code ++ ": " ++ body)
 
 
-/// Check if an HTTP status code indicates success (2xx)
-let isSuccess (statusCode: Int64) : Bool =
-  statusCode >= 200L && statusCode < 300L
-
-
 /// Handle an HTTP response, returning Ok for success or mapped error
 let handleResponse
   (statusCode: Int64)
   (body: String)
   (parseSuccess: String -> Stdlib.Result.Result<'a, ProviderError>)
   : Stdlib.Result.Result<'a, ProviderError> =
-  if isSuccess statusCode then
+  if statusCode >= 200L && statusCode < 300L then
     parseSuccess body
   else
     Stdlib.Result.Result.Error(mapStatusToError statusCode body)

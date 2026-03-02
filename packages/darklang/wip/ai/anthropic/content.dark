@@ -1,6 +1,6 @@
 /// Anthropic Claude API - Content
 /// Content blocks, messages, and their builders
-module Darklang.Anthropic.Content
+module Darklang.WIP.AI.Anthropic.Content
 
 type Json = Stdlib.AltJson.Json
 
@@ -498,24 +498,24 @@ module Citation =
 
   /// Convert Citation to JSON for serialization
   let toJson (citation: Citation) : Json =
-    Models.JsonBuilder.empty
-    |> Models.JsonBuilder.addString "type" (CitationType.toString citation.``type``)
-    |> Models.JsonBuilder.addString "cited_text" citation.cited_text
-    |> Models.JsonBuilder.addOptionalInt "document_index" citation.document_index
-    |> Models.JsonBuilder.addOptionalString "document_title" citation.document_title
-    |> Models.JsonBuilder.addOptionalInt "start_char_index" citation.start_char_index
-    |> Models.JsonBuilder.addOptionalInt "end_char_index" citation.end_char_index
-    |> Models.JsonBuilder.addOptionalInt "start_page_number" citation.start_page_number
-    |> Models.JsonBuilder.addOptionalInt "end_page_number" citation.end_page_number
-    |> Models.JsonBuilder.addOptionalInt "start_block_index" citation.start_block_index
-    |> Models.JsonBuilder.addOptionalInt "end_block_index" citation.end_block_index
-    |> Models.JsonBuilder.addOptionalString "encrypted_index" citation.encrypted_index
-    |> Models.JsonBuilder.addOptionalString "url" citation.url
-    |> Models.JsonBuilder.addOptionalString "title" citation.title
-    |> Models.JsonBuilder.addOptionalInt "search_result_index" citation.search_result_index
-    |> Models.JsonBuilder.addOptionalString "source" citation.source
-    |> Models.JsonBuilder.addOptionalString "file_id" citation.file_id
-    |> Models.JsonBuilder.toJson
+    Stdlib.AltJson.Builder.empty
+    |> Stdlib.AltJson.Builder.addString "type" (CitationType.toString citation.``type``)
+    |> Stdlib.AltJson.Builder.addString "cited_text" citation.cited_text
+    |> Stdlib.AltJson.Builder.addOptionalInt "document_index" citation.document_index
+    |> Stdlib.AltJson.Builder.addOptionalString "document_title" citation.document_title
+    |> Stdlib.AltJson.Builder.addOptionalInt "start_char_index" citation.start_char_index
+    |> Stdlib.AltJson.Builder.addOptionalInt "end_char_index" citation.end_char_index
+    |> Stdlib.AltJson.Builder.addOptionalInt "start_page_number" citation.start_page_number
+    |> Stdlib.AltJson.Builder.addOptionalInt "end_page_number" citation.end_page_number
+    |> Stdlib.AltJson.Builder.addOptionalInt "start_block_index" citation.start_block_index
+    |> Stdlib.AltJson.Builder.addOptionalInt "end_block_index" citation.end_block_index
+    |> Stdlib.AltJson.Builder.addOptionalString "encrypted_index" citation.encrypted_index
+    |> Stdlib.AltJson.Builder.addOptionalString "url" citation.url
+    |> Stdlib.AltJson.Builder.addOptionalString "title" citation.title
+    |> Stdlib.AltJson.Builder.addOptionalInt "search_result_index" citation.search_result_index
+    |> Stdlib.AltJson.Builder.addOptionalString "source" citation.source
+    |> Stdlib.AltJson.Builder.addOptionalString "file_id" citation.file_id
+    |> Stdlib.AltJson.Builder.toJson
 
 
 // ---------------------------------------------------------------------------

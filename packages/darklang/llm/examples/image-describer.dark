@@ -9,63 +9,42 @@ let systemPrompt =
 Format: **Subject:** [Main subject] **Details:** [Key details] **Context:** [Setting/mood]"
 
 
-/// Describe an image from a URL (uses direct Anthropic API for image blocks)
-let describeUrl (imageUrl: String) : String =
+/// Send an image request to the Anthropic API
+let sendImageRequest
+  (imageBlock: Darklang.WIP.AI.Anthropic.Content.ContentBlock)
+  (text: String)
+  (useSystemPrompt: Bool)
+  : String =
   match Stdlib.Env.get "ANTHROPIC_API_KEY" with
   | None -> "Error: ANTHROPIC_API_KEY not set"
   | Some apiKey ->
-    let imageBlock = Darklang.Anthropic.Content.imageBlockUrl imageUrl
-    let textBlock = Darklang.Anthropic.Content.textBlock "Describe this image."
-    let userMessage = Darklang.Anthropic.Content.userBlockMessage [ imageBlock; textBlock ]
+    let textBlock = Darklang.WIP.AI.Anthropic.Content.textBlock text
+    let userMessage = Darklang.WIP.AI.Anthropic.Content.userBlockMessage [ imageBlock; textBlock ]
 
     let request =
-      (Darklang.Anthropic.Chat.Request.create ())
-      |> Darklang.Anthropic.Chat.Request.withModelString Darklang.LLM.Models.Anthropic.sonnet45.id
-      |> Darklang.Anthropic.Chat.Request.withMaxTokens 500L
-      |> Darklang.Anthropic.Chat.Request.withBlockMessages [ userMessage ]
-      |> Darklang.Anthropic.Chat.Request.withSystem systemPrompt
+      (Darklang.WIP.AI.Anthropic.Chat.Request.create ())
+      |> Darklang.WIP.AI.Anthropic.Chat.Request.withModelString Darklang.LLM.Models.Anthropic.sonnet45.id
+      |> Darklang.WIP.AI.Anthropic.Chat.Request.withMaxTokens 500L
+      |> Darklang.WIP.AI.Anthropic.Chat.Request.withBlockMessages [ userMessage ]
 
-    match Darklang.Anthropic.Chat.Request.send apiKey request with
-    | Ok response -> Darklang.Anthropic.Response.getText response
-    | Error e -> $"Error: {Darklang.Anthropic.Response.ApiError.toString e}"
+    let request =
+      if useSystemPrompt then
+        request |> Darklang.WIP.AI.Anthropic.Chat.Request.withSystem systemPrompt
+      else request
 
+    match Darklang.WIP.AI.Anthropic.Chat.Request.send apiKey request with
+    | Ok response -> Darklang.WIP.AI.Anthropic.Response.getText response
+    | Error e -> $"Error: {Darklang.WIP.AI.Anthropic.Response.ApiError.toString e}"
+
+
+/// Describe an image from a URL
+let describeUrl (imageUrl: String) : String =
+  sendImageRequest (Darklang.WIP.AI.Anthropic.Content.imageBlockUrl imageUrl) "Describe this image." true
 
 /// Describe an image from base64 data
 let describeBase64 (mediaType: String) (base64Data: String) : String =
-  match Stdlib.Env.get "ANTHROPIC_API_KEY" with
-  | None -> "Error: ANTHROPIC_API_KEY not set"
-  | Some apiKey ->
-    let imageBlock = Darklang.Anthropic.Content.imageBlockBase64 mediaType base64Data
-    let textBlock = Darklang.Anthropic.Content.textBlock "Describe this image."
-    let userMessage = Darklang.Anthropic.Content.userBlockMessage [ imageBlock; textBlock ]
-
-    let request =
-      (Darklang.Anthropic.Chat.Request.create ())
-      |> Darklang.Anthropic.Chat.Request.withModelString Darklang.LLM.Models.Anthropic.sonnet45.id
-      |> Darklang.Anthropic.Chat.Request.withMaxTokens 500L
-      |> Darklang.Anthropic.Chat.Request.withBlockMessages [ userMessage ]
-      |> Darklang.Anthropic.Chat.Request.withSystem systemPrompt
-
-    match Darklang.Anthropic.Chat.Request.send apiKey request with
-    | Ok response -> Darklang.Anthropic.Response.getText response
-    | Error e -> $"Error: {Darklang.Anthropic.Response.ApiError.toString e}"
-
+  sendImageRequest (Darklang.WIP.AI.Anthropic.Content.imageBlockBase64 mediaType base64Data) "Describe this image." true
 
 /// Ask a question about an image
 let askAboutImage (imageUrl: String) (question: String) : String =
-  match Stdlib.Env.get "ANTHROPIC_API_KEY" with
-  | None -> "Error: ANTHROPIC_API_KEY not set"
-  | Some apiKey ->
-    let imageBlock = Darklang.Anthropic.Content.imageBlockUrl imageUrl
-    let textBlock = Darklang.Anthropic.Content.textBlock question
-    let userMessage = Darklang.Anthropic.Content.userBlockMessage [ imageBlock; textBlock ]
-
-    let request =
-      (Darklang.Anthropic.Chat.Request.create ())
-      |> Darklang.Anthropic.Chat.Request.withModelString Darklang.LLM.Models.Anthropic.sonnet45.id
-      |> Darklang.Anthropic.Chat.Request.withMaxTokens 500L
-      |> Darklang.Anthropic.Chat.Request.withBlockMessages [ userMessage ]
-
-    match Darklang.Anthropic.Chat.Request.send apiKey request with
-    | Ok response -> Darklang.Anthropic.Response.getText response
-    | Error e -> $"Error: {Darklang.Anthropic.Response.ApiError.toString e}"
+  sendImageRequest (Darklang.WIP.AI.Anthropic.Content.imageBlockUrl imageUrl) question false

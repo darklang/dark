@@ -4,9 +4,9 @@
 /// NOTE: This module is for the Chat Completions API which uses the nested json_schema structure:
 ///   {"type": "json_schema", "json_schema": {"name": "...", "schema": {...}, "strict": true}}
 ///
-/// For the Responses API (newer), use Darklang.OpenAI.Responses.TextConfig which uses the flat structure:
+/// For the Responses API (newer), use Responses.TextConfig which uses the flat structure:
 ///   {"type": "json_schema", "name": "...", "schema": {...}, "strict": true}
-module Darklang.OpenAI.ResponseFormat
+module Darklang.WIP.AI.OpenAI.ResponseFormat
 
 type Json = Stdlib.AltJson.Json
 

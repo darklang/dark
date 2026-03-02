@@ -1,6 +1,6 @@
 /// Anthropic Claude API - Chat
 /// Request types, configuration, and API call functions
-module Darklang.Anthropic.Chat
+module Darklang.WIP.AI.Anthropic.Chat
 
 type Json = Stdlib.AltJson.Json
 
@@ -536,10 +536,10 @@ module Request =
   // --- Internal: Build JSON from request ---
 
   let thinkingToJson (th: ThinkingConfig) : Json =
-    Models.JsonBuilder.empty
-    |> Models.JsonBuilder.addString "type" (ThinkingType.toString th.``type``)
-    |> Models.JsonBuilder.addOptionalInt "budget_tokens" th.budget_tokens
-    |> Models.JsonBuilder.toJson
+    Stdlib.AltJson.Builder.empty
+    |> Stdlib.AltJson.Builder.addString "type" (ThinkingType.toString th.``type``)
+    |> Stdlib.AltJson.Builder.addOptionalInt "budget_tokens" th.budget_tokens
+    |> Stdlib.AltJson.Builder.toJson
 
   let toJson (req: Request) : Json =
     let modelStr = Models.Model.toString req.model
@@ -594,9 +594,9 @@ module Request =
       match req.metadata with
       | Some m ->
         Stdlib.Option.Option.Some(
-          Models.JsonBuilder.empty
-          |> Models.JsonBuilder.addOptionalString "user_id" m.user_id
-          |> Models.JsonBuilder.toJson)
+          Stdlib.AltJson.Builder.empty
+          |> Stdlib.AltJson.Builder.addOptionalString "user_id" m.user_id
+          |> Stdlib.AltJson.Builder.toJson)
       | None -> Stdlib.Option.Option.None
 
     // Build service_tier string
@@ -610,42 +610,42 @@ module Request =
       match req.outputConfig with
       | Some config ->
         let formatJson =
-          Models.JsonBuilder.empty
-          |> Models.JsonBuilder.addString "type" (OutputFormatType.toString config.format.``type``)
-          |> Models.JsonBuilder.addOptionalJson "schema" config.format.schema
-          |> Models.JsonBuilder.toJson
+          Stdlib.AltJson.Builder.empty
+          |> Stdlib.AltJson.Builder.addString "type" (OutputFormatType.toString config.format.``type``)
+          |> Stdlib.AltJson.Builder.addOptionalJson "schema" config.format.schema
+          |> Stdlib.AltJson.Builder.toJson
 
         let outputFields =
-          Models.JsonBuilder.empty
-          |> Models.JsonBuilder.addJson "format" formatJson
+          Stdlib.AltJson.Builder.empty
+          |> Stdlib.AltJson.Builder.addJson "format" formatJson
 
         let withEffort =
           match config.effort with
           | Some e ->
-            Models.JsonBuilder.addString outputFields "effort" (Effort.toString e)
+            Stdlib.AltJson.Builder.addString outputFields "effort" (Effort.toString e)
           | None -> outputFields
 
-        Stdlib.Option.Option.Some(Models.JsonBuilder.toJson withEffort)
+        Stdlib.Option.Option.Some(Stdlib.AltJson.Builder.toJson withEffort)
       | None -> Stdlib.Option.Option.None
 
     // Assemble the full request
-    Models.JsonBuilder.empty
-    |> Models.JsonBuilder.addString "model" modelStr
-    |> Models.JsonBuilder.addInt "max_tokens" req.maxTokens
-    |> Models.JsonBuilder.addJson "messages" messagesJson
-    |> Models.JsonBuilder.addOptionalJson "system" systemJson
-    |> Models.JsonBuilder.addOptionalJson "tools" toolsJson
-    |> Models.JsonBuilder.addOptionalJson "tool_choice" toolChoiceJson
-    |> Models.JsonBuilder.addOptionalNumber "temperature" req.temperature
-    |> Models.JsonBuilder.addOptionalNumber "top_p" req.topP
-    |> Models.JsonBuilder.addOptionalInt "top_k" req.topK
-    |> Models.JsonBuilder.addOptionalJson "stop_sequences" stopSeqJson
-    |> Models.JsonBuilder.addOptionalJson "thinking" thinkingJson
-    |> Models.JsonBuilder.addOptionalJson "metadata" metaJson
-    |> Models.JsonBuilder.addOptionalString "service_tier" serviceTierStr
-    |> Models.JsonBuilder.addOptionalJson "output_config" outputJson
-    |> Models.JsonBuilder.addOptionalString "inference_geo" req.inferenceGeo
-    |> Models.JsonBuilder.toJson
+    Stdlib.AltJson.Builder.empty
+    |> Stdlib.AltJson.Builder.addString "model" modelStr
+    |> Stdlib.AltJson.Builder.addInt "max_tokens" req.maxTokens
+    |> Stdlib.AltJson.Builder.addJson "messages" messagesJson
+    |> Stdlib.AltJson.Builder.addOptionalJson "system" systemJson
+    |> Stdlib.AltJson.Builder.addOptionalJson "tools" toolsJson
+    |> Stdlib.AltJson.Builder.addOptionalJson "tool_choice" toolChoiceJson
+    |> Stdlib.AltJson.Builder.addOptionalNumber "temperature" req.temperature
+    |> Stdlib.AltJson.Builder.addOptionalNumber "top_p" req.topP
+    |> Stdlib.AltJson.Builder.addOptionalInt "top_k" req.topK
+    |> Stdlib.AltJson.Builder.addOptionalJson "stop_sequences" stopSeqJson
+    |> Stdlib.AltJson.Builder.addOptionalJson "thinking" thinkingJson
+    |> Stdlib.AltJson.Builder.addOptionalJson "metadata" metaJson
+    |> Stdlib.AltJson.Builder.addOptionalString "service_tier" serviceTierStr
+    |> Stdlib.AltJson.Builder.addOptionalJson "output_config" outputJson
+    |> Stdlib.AltJson.Builder.addOptionalString "inference_geo" req.inferenceGeo
+    |> Stdlib.AltJson.Builder.toJson
 
   /// Convert request to JSON for token counting (excludes max_tokens)
   let toJsonForTokenCount (req: Request) : Json =
@@ -679,12 +679,12 @@ module Request =
       | None -> Stdlib.Option.Option.None
 
     // Assemble the request (without max_tokens for token counting)
-    Models.JsonBuilder.empty
-    |> Models.JsonBuilder.addString "model" modelStr
-    |> Models.JsonBuilder.addJson "messages" messagesJson
-    |> Models.JsonBuilder.addOptionalJson "system" systemJson
-    |> Models.JsonBuilder.addOptionalJson "tools" toolsJson
-    |> Models.JsonBuilder.toJson
+    Stdlib.AltJson.Builder.empty
+    |> Stdlib.AltJson.Builder.addString "model" modelStr
+    |> Stdlib.AltJson.Builder.addJson "messages" messagesJson
+    |> Stdlib.AltJson.Builder.addOptionalJson "system" systemJson
+    |> Stdlib.AltJson.Builder.addOptionalJson "tools" toolsJson
+    |> Stdlib.AltJson.Builder.toJson
 
   /// Send the request and get a response
   let send (apiKey: String) (req: Request) : Stdlib.Result.Result<Response.Response, Response.ApiError> =

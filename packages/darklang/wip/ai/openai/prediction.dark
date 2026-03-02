@@ -1,5 +1,5 @@
 /// OpenAI Prediction - Predicted output for faster responses
-module Darklang.OpenAI.Prediction
+module Darklang.WIP.AI.OpenAI.Prediction
 
 type Json = Stdlib.AltJson.Json
 
