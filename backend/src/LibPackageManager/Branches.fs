@@ -15,7 +15,7 @@ let private readBranch (read : RowReader) : PT.Branch =
   { id = read.uuid "id"
     name = read.string "name"
     parentBranchId = read.uuidOrNone "parent_branch_id"
-    baseCommitId = read.stringOrNone "base_commit_id" |> Option.map ContentHash
+    baseCommitHash = read.stringOrNone "base_commit_id" |> Option.map ContentHash
     createdAt = read.instant "created_at"
     mergedAt = read.instantOrNone "merged_at" }
 
@@ -25,7 +25,7 @@ let create (name : string) (parentBranchId : PT.BranchId) : Task<PT.Branch> =
     let id = System.Guid.NewGuid()
 
     // Get parent's latest commit as base
-    let! baseCommitId =
+    let! baseCommitHash =
       Sql.query
         """
         SELECT id FROM commits
@@ -36,8 +36,8 @@ let create (name : string) (parentBranchId : PT.BranchId) : Task<PT.Branch> =
       |> Sql.parameters [ "parent_id", Sql.uuid parentBranchId ]
       |> Sql.executeRowOptionAsync (fun read -> ContentHash(read.string "id"))
 
-    let baseCommitIdParam =
-      match baseCommitId with
+    let baseCommitHashParam =
+      match baseCommitHash with
       | Some(ContentHash h) -> Sql.string h
       | None -> Sql.dbnull
 
@@ -51,14 +51,14 @@ let create (name : string) (parentBranchId : PT.BranchId) : Task<PT.Branch> =
         [ "id", Sql.uuid id
           "name", Sql.string name
           "parent_id", Sql.uuid parentBranchId
-          "base_commit_id", baseCommitIdParam ]
+          "base_commit_id", baseCommitHashParam ]
       |> Sql.executeStatementAsync
 
     return
       { id = id
         name = name
         parentBranchId = Some parentBranchId
-        baseCommitId = baseCommitId
+        baseCommitHash = baseCommitHash
         createdAt = NodaTime.SystemClock.Instance.GetCurrentInstant()
         mergedAt = None }
   }

@@ -84,5 +84,5 @@ let getCommitsWithAncestors (branchId: Uuid) (limit: Int64) : List<Commit> =
 
 
 /// Get ops for a specific commit
-let getCommitOps (commitId: String) : List<LanguageTools.ProgramTypes.PackageOp> =
-  Builtin.scmGetCommitOps commitId
+let getCommitOps (commitHash: String) : List<LanguageTools.ProgramTypes.PackageOp> =
+  Builtin.scmGetCommitOps commitHash

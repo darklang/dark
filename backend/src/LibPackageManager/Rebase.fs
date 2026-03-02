@@ -18,10 +18,10 @@ type RebaseConflict =
 /// Get location paths modified on a branch since a given commit
 let private getLocationPathsModifiedSince
   (branchId : PT.BranchId)
-  (sinceCommitId : Option<ContentHash>)
+  (sinceCommitHash : Option<ContentHash>)
   : Task<List<RebaseConflict>> =
   task {
-    match sinceCommitId with
+    match sinceCommitHash with
     | None ->
       // No base commit - all committed locations on this branch are "modified"
       return!
@@ -74,9 +74,9 @@ let getConflicts (branchId : PT.BranchId) : Task<List<RebaseConflict>> =
       | None -> return [] // main branch, nothing to rebase
       | Some parentId ->
         let branchLocations =
-          getLocationPathsModifiedSince branchId branch.baseCommitId
+          getLocationPathsModifiedSince branchId branch.baseCommitHash
         let parentLocations =
-          getLocationPathsModifiedSince parentId branch.baseCommitId
+          getLocationPathsModifiedSince parentId branch.baseCommitHash
 
         let! branchLocs = branchLocations
         let! parentLocs = parentLocations
@@ -118,7 +118,7 @@ let rebase (branchId : PT.BranchId) : Task<Result<string, List<RebaseConflict>>>
           |> Sql.parameters [ "parent_id", Sql.uuid parentId ]
           |> Sql.executeRowOptionAsync (fun read -> ContentHash(read.string "id"))
 
-        if branch.baseCommitId = parentLatest then
+        if branch.baseCommitHash = parentLatest then
           return Ok "Already up to date"
         else
           // Check for conflicts
@@ -128,7 +128,7 @@ let rebase (branchId : PT.BranchId) : Task<Result<string, List<RebaseConflict>>>
             return Error conflicts
           else
             // Update base_commit_id
-            let baseCommitIdParam =
+            let baseCommitHashParam =
               match parentLatest with
               | Some(ContentHash h) -> Sql.string h
               | None -> Sql.dbnull
@@ -141,7 +141,7 @@ let rebase (branchId : PT.BranchId) : Task<Result<string, List<RebaseConflict>>>
                 WHERE id = @id
                 """
               |> Sql.parameters
-                [ "id", Sql.uuid branchId; "base_commit_id", baseCommitIdParam ]
+                [ "id", Sql.uuid branchId; "base_commit_id", baseCommitHashParam ]
               |> Sql.executeStatementAsync
 
             return Ok "Rebased successfully"

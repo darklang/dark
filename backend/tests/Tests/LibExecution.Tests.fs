@@ -237,7 +237,6 @@ let fileTests () : Test =
   |> Array.map (fun dir ->
     System.IO.Directory.GetFiles(dir, "*.dark")
     |> Array.toList
-    //|> List.filter(String.endsWith "tuple.dark")
     |> List.map (fun file ->
       let filename = System.IO.Path.GetFileName file
       let testName = System.IO.Path.GetFileNameWithoutExtension file

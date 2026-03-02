@@ -66,7 +66,7 @@ let private applyAddType (typ : PT.PackageType.PackageType) : Task<unit> =
       | ContentHash "" -> Hashing.computeTypeHash Hashing.Normal typ
       | h -> h
     let typ = { typ with hash = hash }
-    let (ContentHash hashStr) = hash
+    let (ContentHash hash) = hash
 
     let ptDef = BS.PT.PackageType.serialize hash typ
     let rtDef = typ |> PT2RT.PackageType.toRT |> BS.RT.PackageType.serialize hash
@@ -78,14 +78,14 @@ let private applyAddType (typ : PT.PackageType.PackageType) : Task<unit> =
         VALUES (@hash, @pt_def, @rt_def)
         """
       |> Sql.parameters
-        [ "hash", Sql.string hashStr
+        [ "hash", Sql.string hash
           "pt_def", Sql.bytes ptDef
           "rt_def", Sql.bytes rtDef ]
       |> Sql.executeStatementAsync
 
     // Extract and store dependency references atomically
     let refs = DE.extractFromType typ
-    do! updateDependencies hashStr refs
+    do! updateDependencies hash refs
   }
 
 /// Apply a single AddValue op to the package_values table
@@ -98,7 +98,7 @@ let private applyAddValue (value : PT.PackageValue.PackageValue) : Task<unit> =
       | ContentHash "" -> Hashing.computeValueHash Hashing.Normal value
       | h -> h
     let value = { value with hash = hash }
-    let (ContentHash hashStr) = hash
+    let (ContentHash hash) = hash
 
     let ptDef = BS.PT.PackageValue.serialize hash value
 
@@ -113,13 +113,13 @@ let private applyAddValue (value : PT.PackageValue.PackageValue) : Task<unit> =
         ON CONFLICT(hash) DO UPDATE SET
           pt_def = excluded.pt_def
         """
-      |> Sql.parameters [ "hash", Sql.string hashStr; "pt_def", Sql.bytes ptDef ]
+      |> Sql.parameters [ "hash", Sql.string hash; "pt_def", Sql.bytes ptDef ]
       |> Sql.executeStatementAsync
 
     // Extract and store dependency references atomically
     // Use hash string for consistency with locations.item_hash
     let refs = DE.extractFromValue value
-    do! updateDependencies hashStr refs
+    do! updateDependencies hash refs
   }
 
 /// Apply a single AddFn op to the package_functions table
@@ -130,7 +130,7 @@ let private applyAddFn (fn : PT.PackageFn.PackageFn) : Task<unit> =
       | ContentHash "" -> Hashing.computeFnHash Hashing.Normal fn
       | h -> h
     let fn = { fn with hash = hash }
-    let (ContentHash hashStr) = hash
+    let (ContentHash hash) = hash
 
     let ptDef = BS.PT.PackageFn.serialize hash fn
     let rtInstrs = fn |> PT2RT.PackageFn.toRT |> BS.RT.PackageFn.serialize hash
@@ -142,23 +142,23 @@ let private applyAddFn (fn : PT.PackageFn.PackageFn) : Task<unit> =
         VALUES (@hash, @pt_def, @rt_instrs)
         """
       |> Sql.parameters
-        [ "hash", Sql.string hashStr
+        [ "hash", Sql.string hash
           "pt_def", Sql.bytes ptDef
           "rt_instrs", Sql.bytes rtInstrs ]
       |> Sql.executeStatementAsync
 
     // Extract and store dependency references atomically
     let refs = DE.extractFromFn fn
-    do! updateDependencies hashStr refs
+    do! updateDependencies hash refs
   }
 
 /// Apply a Set*Name op to the locations table atomically.
-/// branchId = branch context, commitId = None means WIP, Some id means committed
+/// branchId = branch context, commitHash = None means WIP, Some id means committed
 /// isRename = true when this SetName is a standalone rename (not paired with Add*),
 ///   meaning old locations for the same hash should be deprecated.
 let private applySetName
   (branchId : PT.BranchId)
-  (commitId : Option<string>)
+  (commitHash : Option<string>)
   (isRename : bool)
   (itemHash : ContentHash)
   (location : PT.PackageLocation)
@@ -170,8 +170,8 @@ let private applySetName
     let locationId = System.Guid.NewGuid()
     let (ContentHash itemHashStr) = itemHash
 
-    let commitIdParam =
-      match commitId with
+    let commitHashParam =
+      match commitHash with
       | Some s -> Sql.string s
       | None -> Sql.dbnull
 
@@ -225,7 +225,7 @@ let private applySetName
                "name", Sql.string location.name
                "item_type", Sql.string itemTypeStr
                "branch_id", Sql.uuid branchId
-               "commit_id", commitIdParam ] ]) ]
+               "commit_id", commitHashParam ] ]) ]
 
     let _ = Sql.executeTransactionSync statements
     ()
@@ -233,12 +233,12 @@ let private applySetName
 
 
 /// Apply a single PackageOp to the projection tables
-/// branchId = branch context, commitId = None means WIP, Some id means committed
+/// branchId = branch context, commitHash = None means WIP, Some id means committed
 /// addedHashes = hashes of items added by Add* ops earlier in this batch
 ///   (used to distinguish "add + name" from "rename")
 let private applyOp
   (branchId : PT.BranchId)
-  (commitId : Option<string>)
+  (commitHash : Option<string>)
   (addedHashes : Set<ContentHash>)
   (op : PT.PackageOp)
   : Task<unit> =
@@ -249,13 +249,13 @@ let private applyOp
     | PT.PackageOp.AddFn fn -> do! applyAddFn fn
     | PT.PackageOp.SetTypeName(id, loc) ->
       let isRename = not (Set.contains id addedHashes)
-      do! applySetName branchId commitId isRename id loc PT.ItemKind.Type
+      do! applySetName branchId commitHash isRename id loc PT.ItemKind.Type
     | PT.PackageOp.SetValueName(id, loc) ->
       let isRename = not (Set.contains id addedHashes)
-      do! applySetName branchId commitId isRename id loc PT.ItemKind.Value
+      do! applySetName branchId commitHash isRename id loc PT.ItemKind.Value
     | PT.PackageOp.SetFnName(id, loc) ->
       let isRename = not (Set.contains id addedHashes)
-      do! applySetName branchId commitId isRename id loc PT.ItemKind.Fn
+      do! applySetName branchId commitHash isRename id loc PT.ItemKind.Fn
     | PT.PackageOp.PropagateUpdate _ ->
       // Location changes are already handled by the individual SetFnName/SetTypeName/
       // SetValueName ops that accompany this op in the propagation batch.
@@ -367,14 +367,14 @@ let private collectAddedHashes (ops : List<PT.PackageOp>) : Set<ContentHash> =
 
 
 /// Apply a list of PackageOps to the projection tables
-/// branchId = branch context, commitId = None means WIP, Some id means committed
+/// branchId = branch context, commitHash = None means WIP, Some id means committed
 let applyOps
   (branchId : PT.BranchId)
-  (commitId : Option<string>)
+  (commitHash : Option<string>)
   (ops : List<PT.PackageOp>)
   : Task<unit> =
   task {
     let addedHashes = collectAddedHashes ops
     for op in ops do
-      do! applyOp branchId commitId addedHashes op
+      do! applyOp branchId commitHash addedHashes op
   }

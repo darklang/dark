@@ -26,7 +26,7 @@ let fns : List<BuiltInFn> =
       description = "Creates a new database in the specified canvas"
       fn =
         (function
-        | _, _, _, [ DUuid canvasID; DString dbName; DString typeHashStr ] ->
+        | _, _, _, [ DUuid canvasID; DString dbName; DString typeHash ] ->
           uply {
             // Check for existing DB with the same name
             let! existing =
@@ -55,7 +55,7 @@ let fns : List<BuiltInFn> =
                   typ =
                     PT.TypeReference.TCustomType(
                       { originalName = []
-                        resolved = Ok(PT.FQTypeName.Package(ContentHash typeHashStr)) },
+                        resolved = Ok(PT.FQTypeName.Package(ContentHash typeHash)) },
                       []
                     ) }
 

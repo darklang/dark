@@ -1,28 +1,28 @@
-/// All Darklang code exists in package space, referenced by content hash. In many
-/// places throughout our F# codebase, we reference these hashes (i.e. in order to
-/// return an `Option` from a function, we need to know the hash of the `Option`
-/// package type).
+/// All Darklang code exists in package space, referenced by a hash of the content.
+/// In many places throughout our F# codebase, we reference these package items.
 ///
-/// So, we define their hashes here, and reference via those hashes. When parsing, we
-/// have a lookup of name -> hash handy; if a parsed definition matches one of those
-/// names, we ensure that we use the corresponding hash when saving it to the DB.
+/// e.g. in order to return an `Option` from a Builtin, we need to know the hash of
+/// the `Option` package type when constructing the `DEnum` value.
 ///
-/// Some tests exist to ensure each of these hashes is unique.
+/// So, we record their hashes here, and reference via those hashes.
 ///
-/// When .dark package files change, hashes may shift. Run
-///   scripts/check-packagerefs.sh
-/// to fetch current hashes from data.db and compare against this file.
+/// As we reference newer/updated Darklang code, we need to adjust this file.
+/// Run `scripts/check-packagerefs.sh` to fetch current hashes from data.db and
+/// compare against this file if any hashes seem off.
 ///
 /// Note: all of these types are assumed to be owned by the Darklang user
+///
+/// TODO make a LocalExec script that produces a report for quicker updating:
+/// it can look at ALL Package items referenced in PackageRefs,
+/// query the DB for the current hash,
+/// and identify/report which hashes need updating in the .fs file.
+/// I suspect the _lookup mutables will need to  be exposed some way --
+/// maybe a getAll() fn per each module, just for this use. then, we won't need the
+/// .sh script. update this file to mention the ./scripts/run-local-exec script
+/// w/ this option, at the end.
 module LibExecution.PackageRefs
 
 open Prelude
-
-
-// The way this is set up, we provide the name of the package item, with the ID.
-// Doing this at once helps things to be legible, and makes sure you don't forget
-// to add it to a separate lookup table. Maybe it's not ideal to use mutation so
-// much, but it seems kinda reasonable.
 
 
 module Type =
@@ -42,35 +42,37 @@ module Type =
       "c58cf283d0e5d6634a76fa30ea5b0d29e615e1c4fe1cc2bfca27077cd72bc072"
       |> p [ "Option" ] "Option"
 
-    let int8ParseError =
+    // (same shape for all of these)
+    let intParseErrorHash =
       "ab0a98d41aabb3799b3209709a093f3e0ccc6ec79853bb333bfe7cafc8813333"
-      |> p [ "Int8" ] "ParseError"
+
+    let int8ParseError = intParseErrorHash |> p [ "Int8" ] "ParseError"
     let uint8ParseError =
-      "ab0a98d41aabb3799b3209709a093f3e0ccc6ec79853bb333bfe7cafc8813333"
+      intParseErrorHash
       |> p [ "UInt8" ] "ParseError"
     let int16ParseError =
-      "ab0a98d41aabb3799b3209709a093f3e0ccc6ec79853bb333bfe7cafc8813333"
+      intParseErrorHash
       |> p [ "Int16" ] "ParseError"
     let uint16ParseError =
-      "ab0a98d41aabb3799b3209709a093f3e0ccc6ec79853bb333bfe7cafc8813333"
+      intParseErrorHash
       |> p [ "UInt16" ] "ParseError"
     let int32ParseError =
-      "ab0a98d41aabb3799b3209709a093f3e0ccc6ec79853bb333bfe7cafc8813333"
+      intParseErrorHash
       |> p [ "Int32" ] "ParseError"
     let uint32ParseError =
-      "ab0a98d41aabb3799b3209709a093f3e0ccc6ec79853bb333bfe7cafc8813333"
+      intParseErrorHash
       |> p [ "UInt32" ] "ParseError"
     let int64ParseError =
-      "ab0a98d41aabb3799b3209709a093f3e0ccc6ec79853bb333bfe7cafc8813333"
+      intParseErrorHash
       |> p [ "Int64" ] "ParseError"
     let uint64ParseError =
-      "ab0a98d41aabb3799b3209709a093f3e0ccc6ec79853bb333bfe7cafc8813333"
+      intParseErrorHash
       |> p [ "UInt64" ] "ParseError"
     let int128ParseError =
-      "ab0a98d41aabb3799b3209709a093f3e0ccc6ec79853bb333bfe7cafc8813333"
+      intParseErrorHash
       |> p [ "Int128" ] "ParseError"
     let uint128ParseError =
-      "ab0a98d41aabb3799b3209709a093f3e0ccc6ec79853bb333bfe7cafc8813333"
+      intParseErrorHash
       |> p [ "UInt128" ] "ParseError"
     let floatParseError =
       "e342cc59c22ca41ab61c5bb375c04c6dbb31592d5a79491593a3b2bc522fb86b"

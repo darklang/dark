@@ -110,7 +110,7 @@ let evaluateAllValues
             | Ok dval ->
               let rtValue : RT.PackageValue.PackageValue =
                 { hash = valueHash; body = dval }
-              let (ContentHash hashStr) = valueHash
+              let (ContentHash defHash) = valueHash
               let rtDvalBytes = BS.RT.PackageValue.serialize valueHash rtValue
               let valueType = RT.Dval.toValueType dval
               let valueTypeBytes = BS.RT.ValueType.serialize valueType
@@ -123,7 +123,7 @@ let evaluateAllValues
                   WHERE hash = @hash
                   """
                 |> Sql.parameters
-                  [ "hash", Sql.string hashStr
+                  [ "hash", Sql.string defHash
                     "rt_dval", Sql.bytes rtDvalBytes
                     "value_type", Sql.bytes valueTypeBytes ]
                 |> Sql.executeStatementAsync
@@ -180,7 +180,7 @@ module HandleCommand =
       print "Filling ..."
       // Create an "init" commit with all packages from disk
       // Note: values are stored with NULL rt_dval at this point
-      let! commitId =
+      let! commitHash =
         LibPackageManager.Inserts.insertAndApplyOpsWithCommit
           LibExecution.ProgramTypes.mainBranchId
           "Init: packages loaded from disk"
@@ -198,8 +198,8 @@ module HandleCommand =
         let! stats = LibPackageManager.Stats.get ()
         print "Loaded packages from disk "
         print $"{stats.types} types, {stats.values} values, and {stats.fns} fns"
-        let (ContentHash commitIdStr) = commitId
-        let shortHash = commitIdStr[..6]
+        let (ContentHash commitHashStr) = commitHash
+        let shortHash = commitHashStr[..6]
         print $"Created init commit {shortHash}"
 
         // Reload dark-packages and dark-editor canvases after package reload

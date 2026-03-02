@@ -38,7 +38,7 @@ type Branch =
   { id : BranchId
     name : string
     parentBranchId : Option<BranchId>
-    baseCommitId : Option<ContentHash>
+    baseCommitHash : Option<ContentHash>
     createdAt : NodaTime.Instant
     mergedAt : Option<NodaTime.Instant> }
 
@@ -67,9 +67,6 @@ type Commit =
 ///
 /// Used to reference a type defined in a Package or by a User
 module FQTypeName =
-  /// The content hash of a type in the package manager.
-  /// Determined purely by structural content (see LibSerialization.Hashing).
-  /// Must NEVER depend on location, name, or any other metadata.
   type Package = ContentHash
 
   type FQTypeName = Package of Package
@@ -621,7 +618,7 @@ module PackageType =
   // OK but what do we do about /// comments?
   // really this just begs a series of questions about the PackageManager...
   type PackageType =
-    { hash : ContentHash
+    { hash : FQTypeName.Package
       declaration : TypeDeclaration.T
       description : string
       deprecated : Deprecation<FQTypeName.FQTypeName> }
@@ -629,7 +626,7 @@ module PackageType =
 
 module PackageValue =
   type PackageValue =
-    { hash : ContentHash
+    { hash : FQValueName.Package
       description : string
       deprecated : Deprecation<FQValueName.FQValueName>
       body : Expr }
@@ -639,7 +636,7 @@ module PackageFn =
   type Parameter = { name : string; typ : TypeReference; description : string }
 
   type PackageFn =
-    { hash : ContentHash
+    { hash : FQFnName.Package
       body : Expr
       typeParams : List<string>
       parameters : NEList<Parameter>

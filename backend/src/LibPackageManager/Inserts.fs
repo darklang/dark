@@ -23,7 +23,7 @@ let computeOpHash (op : PT.PackageOp) : System.Guid =
 
 /// Insert PackageOps into the package_ops table and apply them to projection tables.
 /// branchId = branch context
-/// commitId = None means WIP (commit_id = NULL), Some id means committed
+/// commitHash = None means WIP (commit_id = NULL), Some id means committed
 /// Returns the count of ops actually inserted (duplicates are skipped via INSERT OR IGNORE)
 ///
 /// Uses a two-phase approach for consistency:
@@ -34,7 +34,7 @@ let computeOpHash (op : PT.PackageOp) : System.Guid =
 /// This ensures that if step 2 fails, we can identify unapplied ops and retry/rollback.
 let insertAndApplyOps
   (branchId : PT.BranchId)
-  (commitId : Option<string>)
+  (commitHash : Option<string>)
   (ops : List<PT.PackageOp>)
   : Task<int64> =
   task {
@@ -68,8 +68,8 @@ let insertAndApplyOps
             VALUES (@id, @op_blob, @branch_id, @applied, @commit_id, @propagation_id)
             """
 
-          let commitIdParam =
-            match commitId with
+          let commitHashParam =
+            match commitHash with
             | Some s -> Sql.string s
             | None -> Sql.dbnull
 
@@ -78,7 +78,7 @@ let insertAndApplyOps
               "op_blob", Sql.bytes opBlob
               "branch_id", Sql.uuid branchId
               "applied", Sql.bool false // Insert as unapplied
-              "commit_id", commitIdParam
+              "commit_id", commitHashParam
               "propagation_id",
               (match propagationId with
                | Some id -> Sql.uuid id
@@ -101,7 +101,7 @@ let insertAndApplyOps
       let insertedOpIds =
         insertedOpsWithIds |> List.map (fun (opId, _, _, _) -> opId)
 
-      do! PackageOpPlayback.applyOps branchId commitId opsToApply
+      do! PackageOpPlayback.applyOps branchId commitHash opsToApply
 
       // Mark ops as applied (non-critical - ops are already applied)
       if not (List.isEmpty insertedOpIds) then

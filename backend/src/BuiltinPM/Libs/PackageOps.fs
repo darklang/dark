@@ -248,14 +248,14 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
 
     { name = fn "scmGetCommitOps" 0
       typeParams = []
-      parameters = [ Param.make "commitId" TString "Commit hash" ]
+      parameters = [ Param.make "commitHash" TString "Commit hash" ]
       returnType = TList(TCustomType(NR.ok packageOpTypeName, []))
       description = "Get ops for a specific commit."
       fn =
         function
-        | _, _, _, [ DString commitId ] ->
+        | _, _, _, [ DString commitHash ] ->
           uply {
-            let! ops = LibPackageManager.Queries.getCommitOps (ContentHash commitId)
+            let! ops = LibPackageManager.Queries.getCommitOps (ContentHash commitHash)
             return Dval.list packageOpKT (ops |> List.map PT2DT.PackageOp.toDT)
           }
         | _ -> incorrectArgs ()

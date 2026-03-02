@@ -4,8 +4,6 @@
 /// CLEANUP we could realistically expand upon this a bit,
 ///   excluding things like enum field names, fn param names, etc.
 ///   (referring back to PT by index or something)
-///
-/// CLEANUP there's some useful "reference things by hash" work to be done.
 module LibExecution.RuntimeTypes
 
 open Prelude

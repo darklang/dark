@@ -65,7 +65,7 @@ type PackageDep = { itemHash : ContentHash; itemKind : PT.ItemKind }
 /// Get items that depend on the given ContentHash (reverse dependencies / "what uses this?")
 let getDependents
   (branchChain : List<PT.BranchId>)
-  (dependsOnId : ContentHash)
+  (dependsOnHash : ContentHash)
   : Task<List<PackageDep>> =
   task {
     if List.isEmpty branchChain then
@@ -76,7 +76,7 @@ let getDependents
       let branchInClause =
         branchChain |> List.mapi (fun i _ -> $"@b_{i}") |> String.concat ", "
 
-      let (ContentHash dependsOnIdStr) = dependsOnId
+      let (ContentHash dependsOnHash) = dependsOnHash
 
       return!
         Sql.query
@@ -90,7 +90,7 @@ let getDependents
           ORDER BY pd.item_hash
           """
         |> Sql.parameters (
-          [ "depends_on_hash", Sql.string dependsOnIdStr ] @ branchParams
+          [ "depends_on_hash", Sql.string dependsOnHash ] @ branchParams
         )
         |> Sql.executeAsync (fun read ->
           { itemHash = ContentHash(read.string "item_hash")
@@ -134,26 +134,26 @@ let getDependencies
 
 /// Batch result including the dependency target that was queried
 type BatchDependent =
-  { dependsOnId : ContentHash // The item that was queried (what is being depended on)
+  { dependsOnHash : ContentHash // The item that was queried (what is being depended on)
     itemHash : ContentHash // The item that has the dependency
     itemKind : PT.ItemKind }
 
 /// Batch lookup of dependents for a chunk of dependency IDs
 let private getDependentsBatchChunk
   (branchChain : List<PT.BranchId>)
-  (dependsOnIds : List<ContentHash>)
+  (dependsOnHashes : List<ContentHash>)
   : Task<List<BatchDependent>> =
   task {
-    if List.isEmpty dependsOnIds || List.isEmpty branchChain then
+    if List.isEmpty dependsOnHashes || List.isEmpty branchChain then
       return []
     else
       // Build parameterized IN clauses
       let depParams =
-        dependsOnIds
+        dependsOnHashes
         |> List.mapi (fun i (ContentHash idStr) -> $"dep_{i}", Sql.string idStr)
 
       let inClause =
-        dependsOnIds |> List.mapi (fun i _ -> $"@dep_{i}") |> String.concat ", "
+        dependsOnHashes |> List.mapi (fun i _ -> $"@dep_{i}") |> String.concat ", "
 
       let branchParams = branchChain |> List.mapi (fun i id -> $"b_{i}", Sql.uuid id)
 
@@ -175,7 +175,7 @@ let private getDependentsBatchChunk
         Sql.query sql
         |> Sql.parameters (depParams @ branchParams)
         |> Sql.executeAsync (fun read ->
-          { dependsOnId = ContentHash(read.string "depends_on_hash")
+          { dependsOnHash = ContentHash(read.string "depends_on_hash")
             itemHash = ContentHash(read.string "item_hash")
             itemKind = read.string "item_type" |> PT.ItemKind.fromString })
   }
@@ -185,15 +185,15 @@ let private getDependentsBatchChunk
 /// Chunks requests to avoid SQLite expression tree depth limits.
 let getDependentsBatch
   (branchChain : List<PT.BranchId>)
-  (dependsOnIds : List<ContentHash>)
+  (dependsOnHashes : List<ContentHash>)
   : Task<List<BatchDependent>> =
   task {
-    if List.isEmpty dependsOnIds then
+    if List.isEmpty dependsOnHashes then
       return []
     else
       // SQLite has a limit on expression tree depth (~1000)
       // Chunk into batches of 100 to stay well under the limit
-      let chunks = dependsOnIds |> List.chunkBySize 100
+      let chunks = dependsOnHashes |> List.chunkBySize 100
 
       let! results =
         chunks |> List.map (getDependentsBatchChunk branchChain) |> Task.flatten
@@ -344,9 +344,9 @@ let getCommitsForBranchChain
 
 
 /// Get ops for a specific commit
-let getCommitOps (commitId : ContentHash) : Task<List<PT.PackageOp>> =
+let getCommitOps (commitHash : ContentHash) : Task<List<PT.PackageOp>> =
   task {
-    let (ContentHash commitIdStr) = commitId
+    let (ContentHash commitHashStr) = commitHash
     return!
       Sql.query
         """
@@ -355,7 +355,7 @@ let getCommitOps (commitId : ContentHash) : Task<List<PT.PackageOp>> =
         WHERE commit_id = @commit_id
         ORDER BY created_at ASC
         """
-      |> Sql.parameters [ "commit_id", Sql.string commitIdStr ]
+      |> Sql.parameters [ "commit_id", Sql.string commitHashStr ]
       |> Sql.executeAsync (fun read ->
         let opId = read.uuid "id"
         let opBlob = read.bytes "op_blob"

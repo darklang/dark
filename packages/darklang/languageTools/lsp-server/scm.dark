@@ -86,7 +86,7 @@ let handleCommitRequest
     let responseJson =
       Stdlib.AltJson.Json.Object
         [ ("success", Stdlib.AltJson.Json.Bool true)
-          ("commitId", Stdlib.AltJson.Json.String commitHash) ]
+          ("commitHash", Stdlib.AltJson.Json.String commitHash) ]
 
     let response =
       (JsonRPC.Response.Ok.make (Stdlib.Option.Option.Some requestId) responseJson)
@@ -162,10 +162,10 @@ let handleDiscardRequest
 let handleGetCommitOpsRequest
   (state: LspState)
   (requestId: JsonRPC.RequestID)
-  (commitIdStr: String)
+  (commitHashStr: String)
   : LspState =
   let responseJson =
-    let ops = SCM.PackageOps.getCommitOps commitIdStr
+    let ops = SCM.PackageOps.getCommitOps commitHashStr
 
     ops
     |> Stdlib.List.map (fun op ->

@@ -321,8 +321,8 @@ let handleIncomingMessage
         | ("dark/scm/discard", Some requestId, _) ->
           Scm.handleDiscardRequest state requestId
 
-        | ("dark/scm/getCommitOps", Some requestId, Some(Object [ ("commitId", String commitIdStr) ])) ->
-          Scm.handleGetCommitOpsRequest state requestId commitIdStr
+        | ("dark/scm/getCommitOps", Some requestId, Some(Object [ ("commitHash", String commitHashStr) ])) ->
+          Scm.handleGetCommitOpsRequest state requestId commitHashStr
 
         | ("dark/docs/getTopics", Some requestId, _) ->
           Docs.handleGetTopicsRequest state requestId

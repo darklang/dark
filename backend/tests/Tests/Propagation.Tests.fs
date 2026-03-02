@@ -337,7 +337,7 @@ let private commitAll (branchId : PT.BranchId) (msg : string) =
   task {
     let! result = Inserts.commitWipOps branchId msg
     match result with
-    | Ok commitId -> return commitId
+    | Ok commitHash -> return commitHash
     | Error e -> return failtest $"commit failed: {e}"
   }
 

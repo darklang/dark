@@ -379,14 +379,14 @@ module TypeDeclaration =
 // Package space
 module PackageType =
   type PackageType =
-    { hash: String
+    { hash: FQTypeName.Package
       declaration: TypeDeclaration.TypeDeclaration
       description: String
       deprecated: Deprecation<FQTypeName.FQTypeName> }
 
 module PackageValue =
   type PackageValue =
-    { hash: String
+    { hash: FQValueName.Package
       body: Expr
       description: String
       deprecated: Deprecation<FQValueName.FQValueName> }
@@ -398,19 +398,21 @@ module PackageFn =
       description: String }
 
   type PackageFn =
-    { hash: String
+    { hash: FQFnName.Package
       body: Expr
       typeParams: List<String>
       parameters: List<Parameter>
       returnType: TypeReference
-      description: String
-      deprecated: Deprecation<FQFnName.FQFnName> }
 
-// CLEANUP: Packages type commented out - only used during loading process
-// type Packages =
-//   { types: List<PackageType.PackageType>
-//     values: List<PackageValue.PackageValue>
-//     fns: List<PackageFn.PackageFn> }
+      // TODO these don't belong in this -- shouldn't relate to the 'structural definition'
+      // maybe Comments are just special Values that we respect
+      // type Comment = { What; Text }
+      //
+      //being deprecated is outside of the shape, basically.
+      // it's like... computed. like cyclomatic complexity or hash or whatever
+      description: String
+      deprecated: Deprecation<FQFnName.FQFnName>}
+
 
 
 /// The kind of package item (function, type, or value)

@@ -1756,8 +1756,8 @@ module Branch =
       [ "id", DUuid b.id
         "name", DString b.name
         "parentBranchId", b.parentBranchId |> Option.map DUuid |> Dval.option KTUuid
-        "baseCommitId",
-        b.baseCommitId |> Option.map ContentHash.toDT |> Dval.option KTString
+        "baseCommitHash",
+        b.baseCommitHash |> Option.map ContentHash.toDT |> Dval.option KTString
         "createdAt", DDateTime(DarkDateTime.fromInstant b.createdAt)
         "mergedAt",
         b.mergedAt
