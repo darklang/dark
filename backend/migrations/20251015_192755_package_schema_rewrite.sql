@@ -13,7 +13,7 @@ CREATE TABLE IF NOT EXISTS branches (
 
   -- fork point on parent
   -- note: the FK is added after `commits` table is added
-  base_commit_id TEXT,
+  base_commit_hash TEXT,
 
   created_at TIMESTAMP NOT NULL DEFAULT (datetime('now')),
   merged_at TIMESTAMP -- NULL until merged
@@ -25,7 +25,7 @@ INSERT OR IGNORE INTO branches (id, name) VALUES ('89282547-e4e6-4986-bcb6-db74b
 
 -- Commits table
 CREATE TABLE IF NOT EXISTS commits (
-  id TEXT PRIMARY KEY,
+  hash TEXT PRIMARY KEY,
   message TEXT NOT NULL,
   branch_id TEXT NOT NULL REFERENCES branches(id),
   created_at TIMESTAMP NOT NULL DEFAULT (datetime('now'))
@@ -70,7 +70,7 @@ CREATE TABLE IF NOT EXISTS locations (
   name TEXT NOT NULL,
   item_type TEXT NOT NULL,  -- 'fn', 'type', or 'value'
   branch_id TEXT NOT NULL REFERENCES branches(id),
-  commit_id TEXT REFERENCES commits(id),  -- NULL = WIP
+  commit_hash TEXT REFERENCES commits(hash),  -- NULL = WIP
   created_at TIMESTAMP NOT NULL DEFAULT (datetime('now')),
   deprecated_at TIMESTAMP NULL
 );
@@ -84,12 +84,12 @@ CREATE INDEX IF NOT EXISTS idx_locations_module
 
 CREATE INDEX IF NOT EXISTS idx_locations_wip
   ON locations(branch_id)
-  WHERE commit_id IS NULL;
+  WHERE commit_hash IS NULL;
 
 CREATE INDEX IF NOT EXISTS idx_locations_owner_modules
   ON locations(owner, modules);
 
-CREATE INDEX IF NOT EXISTS idx_locations_commit ON locations(commit_id);
+CREATE INDEX IF NOT EXISTS idx_locations_commit_hash ON locations(commit_hash);
 
 
 -- Package ops: the source of truth for all package changes (branch-scoped)
@@ -97,18 +97,18 @@ CREATE TABLE IF NOT EXISTS package_ops (
   id TEXT PRIMARY KEY,
   op_blob BLOB NOT NULL,
   branch_id TEXT NOT NULL REFERENCES branches(id),
-  commit_id TEXT REFERENCES commits(id),  -- NULL = WIP
+  commit_hash TEXT REFERENCES commits(hash),  -- NULL = WIP
   applied INTEGER NOT NULL DEFAULT 0,
   created_at TIMESTAMP NOT NULL DEFAULT (datetime('now'))
 );
 
 CREATE INDEX IF NOT EXISTS idx_package_ops_wip
   ON package_ops(branch_id)
-  WHERE commit_id IS NULL;
+  WHERE commit_hash IS NULL;
 
 CREATE INDEX IF NOT EXISTS idx_package_ops_created ON package_ops(created_at);
 CREATE INDEX IF NOT EXISTS idx_package_ops_applied ON package_ops(applied) WHERE applied = 0;
-CREATE INDEX IF NOT EXISTS idx_package_ops_commit ON package_ops(commit_id);
+CREATE INDEX IF NOT EXISTS idx_package_ops_commit_hash ON package_ops(commit_hash);
 
 -- Dependency tracking
 CREATE TABLE IF NOT EXISTS package_dependencies (

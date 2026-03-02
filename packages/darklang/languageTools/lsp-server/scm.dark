@@ -36,7 +36,7 @@ let handleGetCommitsRequest
     commits
     |> Stdlib.List.map (fun c ->
       Stdlib.AltJson.Json.Object
-        [ ("id", Stdlib.AltJson.Json.String c.id)
+        [ ("hash", Stdlib.AltJson.Json.String c.hash)
           ("message", Stdlib.AltJson.Json.String c.message)
           ("createdAt", Stdlib.AltJson.Json.String (Stdlib.DateTime.toString_v0 c.createdAt))
           ("opCount", Stdlib.AltJson.Json.String (Stdlib.Int64.toString c.opCount))

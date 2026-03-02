@@ -30,7 +30,7 @@ let private getLocationPathsModifiedSince
           SELECT DISTINCT owner, modules, name, item_type
           FROM locations
           WHERE branch_id = @branch_id
-            AND commit_id IS NOT NULL
+            AND commit_hash IS NOT NULL
             AND deprecated_at IS NULL
           """
         |> Sql.parameters [ "branch_id", Sql.uuid branchId ]
@@ -46,15 +46,15 @@ let private getLocationPathsModifiedSince
           """
           SELECT DISTINCT l.owner, l.modules, l.name, l.item_type
           FROM locations l
-          JOIN commits c ON l.commit_id = c.id
+          JOIN commits c ON l.commit_hash = c.hash
           WHERE l.branch_id = @branch_id
-            AND l.commit_id IS NOT NULL
+            AND l.commit_hash IS NOT NULL
             AND l.deprecated_at IS NULL
-            AND c.created_at > (SELECT created_at FROM commits WHERE id = @since_commit_id)
+            AND c.created_at > (SELECT created_at FROM commits WHERE hash = @since_commit_hash)
           """
         |> Sql.parameters
           [ "branch_id", Sql.uuid branchId
-            "since_commit_id", Sql.string commitHashStr ]
+            "since_commit_hash", Sql.string commitHashStr ]
         |> Sql.executeAsync (fun read ->
           { owner = read.string "owner"
             modules = read.string "modules"
@@ -96,7 +96,7 @@ let getConflicts (branchId : PT.BranchId) : Task<List<RebaseConflict>> =
   }
 
 
-/// Perform rebase: verify no conflicts, update base_commit_id to parent's latest
+/// Perform rebase: verify no conflicts, update base_commit_hash to parent's latest
 let rebase (branchId : PT.BranchId) : Task<Result<string, List<RebaseConflict>>> =
   task {
     let! branchOpt = Branches.get branchId
@@ -110,13 +110,13 @@ let rebase (branchId : PT.BranchId) : Task<Result<string, List<RebaseConflict>>>
         let! parentLatest =
           Sql.query
             """
-            SELECT id FROM commits
+            SELECT hash FROM commits
             WHERE branch_id = @parent_id
             ORDER BY created_at DESC
             LIMIT 1
             """
           |> Sql.parameters [ "parent_id", Sql.uuid parentId ]
-          |> Sql.executeRowOptionAsync (fun read -> ContentHash(read.string "id"))
+          |> Sql.executeRowOptionAsync (fun read -> ContentHash(read.string "hash"))
 
         if branch.baseCommitHash = parentLatest then
           return Ok "Already up to date"
@@ -127,7 +127,7 @@ let rebase (branchId : PT.BranchId) : Task<Result<string, List<RebaseConflict>>>
           if not (List.isEmpty conflicts) then
             return Error conflicts
           else
-            // Update base_commit_id
+            // Update base_commit_hash
             let baseCommitHashParam =
               match parentLatest with
               | Some(ContentHash h) -> Sql.string h
@@ -137,11 +137,11 @@ let rebase (branchId : PT.BranchId) : Task<Result<string, List<RebaseConflict>>>
               Sql.query
                 """
                 UPDATE branches
-                SET base_commit_id = @base_commit_id
+                SET base_commit_hash = @base_commit_hash
                 WHERE id = @id
                 """
               |> Sql.parameters
-                [ "id", Sql.uuid branchId; "base_commit_id", baseCommitHashParam ]
+                [ "id", Sql.uuid branchId; "base_commit_hash", baseCommitHashParam ]
               |> Sql.executeStatementAsync
 
             return Ok "Rebased successfully"

@@ -41,7 +41,7 @@ let getAllOpsSince
     return!
       Sql.query
         """
-        SELECT id, op_blob, commit_id
+        SELECT id, op_blob, commit_hash
         FROM package_ops
         WHERE datetime(created_at) > datetime(@since)
         ORDER BY created_at ASC
@@ -50,7 +50,7 @@ let getAllOpsSince
       |> Sql.executeAsync (fun read ->
         let opId = read.uuid "id"
         let opBlob = read.bytes "op_blob"
-        let isWip = (read.uuidOrNone "commit_id").IsNone
+        let isWip = (read.uuidOrNone "commit_hash").IsNone
         let op = BS.PT.PackageOp.deserialize opId opBlob
         (op, isWip))
   }
@@ -206,7 +206,7 @@ let getDependentsBatch
 // SCM Queries (branch-scoped)
 // ===========================================
 
-/// Get all WIP ops on a branch (commit_id IS NULL)
+/// Get all WIP ops on a branch (commit_hash IS NULL)
 let getWipOps (branchId : PT.BranchId) : Task<List<PT.PackageOp>> =
   task {
     return!
@@ -214,7 +214,7 @@ let getWipOps (branchId : PT.BranchId) : Task<List<PT.PackageOp>> =
         """
         SELECT id, op_blob
         FROM package_ops
-        WHERE branch_id = @branch_id AND commit_id IS NULL
+        WHERE branch_id = @branch_id AND commit_hash IS NULL
         ORDER BY created_at ASC
         """
       |> Sql.parameters [ "branch_id", Sql.uuid branchId ]
@@ -282,8 +282,8 @@ let getCommits (branchId : PT.BranchId) (limit : int64) : Task<List<PT.Commit>> 
     return!
       Sql.query
         """
-        SELECT c.id, c.message, c.created_at,
-               (SELECT COUNT(*) FROM package_ops WHERE commit_id = c.id) as op_count,
+        SELECT c.hash, c.message, c.created_at,
+               (SELECT COUNT(*) FROM package_ops WHERE commit_hash = c.hash) as op_count,
                c.branch_id,
                b.name as branch_name
         FROM commits c
@@ -294,7 +294,7 @@ let getCommits (branchId : PT.BranchId) (limit : int64) : Task<List<PT.Commit>> 
         """
       |> Sql.parameters [ "branch_id", Sql.uuid branchId; "limit", Sql.int64 limit ]
       |> Sql.executeAsync (fun read ->
-        { id = ContentHash(read.string "id")
+        { hash = ContentHash(read.string "hash")
           message = read.string "message"
           createdAt = read.instant "created_at"
           opCount = read.int64 "op_count"
@@ -322,8 +322,8 @@ let getCommitsForBranchChain
       return!
         Sql.query
           $"""
-          SELECT c.id, c.message, c.created_at,
-                 (SELECT COUNT(*) FROM package_ops WHERE commit_id = c.id) as op_count,
+          SELECT c.hash, c.message, c.created_at,
+                 (SELECT COUNT(*) FROM package_ops WHERE commit_hash = c.hash) as op_count,
                  c.branch_id,
                  b.name as branch_name
           FROM commits c
@@ -334,7 +334,7 @@ let getCommitsForBranchChain
           """
         |> Sql.parameters (branchParams @ [ "limit", Sql.int64 limit ])
         |> Sql.executeAsync (fun read ->
-          { id = ContentHash(read.string "id")
+          { hash = ContentHash(read.string "hash")
             message = read.string "message"
             createdAt = read.instant "created_at"
             opCount = read.int64 "op_count"
@@ -352,10 +352,10 @@ let getCommitOps (commitHash : ContentHash) : Task<List<PT.PackageOp>> =
         """
         SELECT id, op_blob
         FROM package_ops
-        WHERE commit_id = @commit_id
+        WHERE commit_hash = @commit_hash
         ORDER BY created_at ASC
         """
-      |> Sql.parameters [ "commit_id", Sql.string commitHashStr ]
+      |> Sql.parameters [ "commit_hash", Sql.string commitHashStr ]
       |> Sql.executeAsync (fun read ->
         let opId = read.uuid "id"
         let opBlob = read.bytes "op_blob"

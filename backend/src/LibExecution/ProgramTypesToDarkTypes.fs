@@ -1789,7 +1789,7 @@ module Commit =
 
   let toDT (c : PT.Commit) : Dval =
     let fields =
-      [ "id", ContentHash.toDT c.id
+      [ "hash", ContentHash.toDT c.hash
         "message", DString c.message
         "createdAt", DDateTime(DarkDateTime.fromInstant c.createdAt)
         "opCount", DInt64 c.opCount

@@ -15,7 +15,7 @@ let private readBranch (read : RowReader) : PT.Branch =
   { id = read.uuid "id"
     name = read.string "name"
     parentBranchId = read.uuidOrNone "parent_branch_id"
-    baseCommitHash = read.stringOrNone "base_commit_id" |> Option.map ContentHash
+    baseCommitHash = read.stringOrNone "base_commit_hash" |> Option.map ContentHash
     createdAt = read.instant "created_at"
     mergedAt = read.instantOrNone "merged_at" }
 
@@ -28,13 +28,13 @@ let create (name : string) (parentBranchId : PT.BranchId) : Task<PT.Branch> =
     let! baseCommitHash =
       Sql.query
         """
-        SELECT id FROM commits
+        SELECT hash FROM commits
         WHERE branch_id = @parent_id
         ORDER BY created_at DESC
         LIMIT 1
         """
       |> Sql.parameters [ "parent_id", Sql.uuid parentBranchId ]
-      |> Sql.executeRowOptionAsync (fun read -> ContentHash(read.string "id"))
+      |> Sql.executeRowOptionAsync (fun read -> ContentHash(read.string "hash"))
 
     let baseCommitHashParam =
       match baseCommitHash with
@@ -44,14 +44,14 @@ let create (name : string) (parentBranchId : PT.BranchId) : Task<PT.Branch> =
     do!
       Sql.query
         """
-        INSERT INTO branches (id, name, parent_branch_id, base_commit_id, created_at)
-        VALUES (@id, @name, @parent_id, @base_commit_id, datetime('now'))
+        INSERT INTO branches (id, name, parent_branch_id, base_commit_hash, created_at)
+        VALUES (@id, @name, @parent_id, @base_commit_hash, datetime('now'))
         """
       |> Sql.parameters
         [ "id", Sql.uuid id
           "name", Sql.string name
           "parent_id", Sql.uuid parentBranchId
-          "base_commit_id", baseCommitHashParam ]
+          "base_commit_hash", baseCommitHashParam ]
       |> Sql.executeStatementAsync
 
     return
@@ -69,7 +69,7 @@ let get (id : PT.BranchId) : Task<Option<PT.Branch>> =
     return!
       Sql.query
         """
-        SELECT id, name, parent_branch_id, base_commit_id, created_at, merged_at
+        SELECT id, name, parent_branch_id, base_commit_hash, created_at, merged_at
         FROM branches
         WHERE id = @id
         """
@@ -83,7 +83,7 @@ let getByName (name : string) : Task<Option<PT.Branch>> =
     return!
       Sql.query
         """
-        SELECT id, name, parent_branch_id, base_commit_id, created_at, merged_at
+        SELECT id, name, parent_branch_id, base_commit_hash, created_at, merged_at
         FROM branches
         WHERE name = @name
         """
@@ -97,7 +97,7 @@ let list () : Task<List<PT.Branch>> =
     return!
       Sql.query
         """
-        SELECT id, name, parent_branch_id, base_commit_id, created_at, merged_at
+        SELECT id, name, parent_branch_id, base_commit_hash, created_at, merged_at
         FROM branches
         WHERE merged_at IS NULL
         ORDER BY created_at ASC
@@ -148,7 +148,7 @@ let delete (id : PT.BranchId) : Task<Result<unit, string>> =
 
         let! uncommittedOpCount =
           Sql.query
-            "SELECT COUNT(*) as cnt FROM package_ops WHERE branch_id = @id AND commit_id IS NULL"
+            "SELECT COUNT(*) as cnt FROM package_ops WHERE branch_id = @id AND commit_hash IS NULL"
           |> Sql.parameters [ "id", Sql.uuid id ]
           |> Sql.executeRowAsync (fun read -> read.int64 "cnt")
 

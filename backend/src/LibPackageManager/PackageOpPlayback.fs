@@ -215,8 +215,8 @@ let private applySetName
     statements <-
       statements
       @ [ ("""
-           INSERT INTO locations (location_id, item_hash, owner, modules, name, item_type, branch_id, commit_id)
-           VALUES (@location_id, @item_hash, @owner, @modules, @name, @item_type, @branch_id, @commit_id)
+           INSERT INTO locations (location_id, item_hash, owner, modules, name, item_type, branch_id, commit_hash)
+           VALUES (@location_id, @item_hash, @owner, @modules, @name, @item_type, @branch_id, @commit_hash)
            """,
            [ [ "location_id", Sql.uuid locationId
                "item_hash", Sql.string itemHashStr
@@ -225,7 +225,7 @@ let private applySetName
                "name", Sql.string location.name
                "item_type", Sql.string itemTypeStr
                "branch_id", Sql.uuid branchId
-               "commit_id", commitHashParam ] ]) ]
+               "commit_hash", commitHashParam ] ]) ]
 
     let _ = Sql.executeTransactionSync statements
     ()
@@ -324,7 +324,7 @@ let private applyOp
                AND item_type = @item_type
                AND branch_id = @branch_id
                AND deprecated_at IS NULL
-               AND commit_id IS NULL
+               AND commit_hash IS NULL
              """,
              [ [ "owner", Sql.string sourceLocation.owner
                  "modules", Sql.string modulesStr

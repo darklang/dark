@@ -197,7 +197,7 @@ module Type =
       module CliScript =
         let private p addl = p ("CliScript" :: addl)
         let pTCliScriptModule =
-          "03ebedc002f56014c02f681bd90b873968c4d8d38b59075411401c7a37d17b62"
+          "8a560d134ca3c70379667e004bf874ddb49bc623763490cc9f23a6c27cf138b1"
           |> p [] "PTCliScriptModule"
 
 
@@ -309,10 +309,10 @@ module Type =
         module TypeCheckers =
           let private p addl = p ("TypeCheckers" :: addl)
           let pathPart =
-            "27857bb74fd7bb9def0d1a7e58bdc858bbc56f6037a3665459b2189486a5309a"
+            "52ad9cf66bcb0fc9f33f6fad39edee2538df67fe5ffa00eb9e3f03335b0c6fe8"
             |> p [] "PathPart"
           let path =
-            "735322d4b3cb0f40e936ed45e429d85d2f876062c5667bf01ea418457e543c27"
+            "250c9f72b96e64f9a93f461037c25d4a4c2e747ac5653872e16344944bb34b75"
             |> p [] "Path"
           let error =
             "19e134caa3ecb61f20f8a7cf7f1ee4ac385e6417327f894d31179cb91a9c8e4a"
@@ -508,7 +508,7 @@ module Type =
           "5ff0b8dd494650769dffcf327f6984b40759547a4b53320e800d2f83eec62028"
           |> p [] "Name"
         let packageType =
-          "de0b2843a023665c137bf739443c5d78e8760cd13ba88458b3970dab809cf5a3"
+          "a7b1638022e3a52f99608824dc24b2d43b27b69a940c5705b5fa1c17ac9b7a97"
           |> p [] "PackageType"
 
       module PackageValue =
@@ -517,7 +517,7 @@ module Type =
           "b7601a971f5c9af203906fb0c73689e61406d38ad59e14e2b0b3c2a06b8c3e0b"
           |> p [] "Name"
         let packageValue =
-          "7a0f278c9c6c4323d43fde4ba888913e5a89faf5003acaf4a804c0fd5226c273"
+          "3e6690848e90934ec0b54a3d4836b256c290d155c1430ca194084e3af60d8b55"
           |> p [] "PackageValue"
 
       module PackageFn =
@@ -529,7 +529,7 @@ module Type =
           "b1b77c46cf5a190630f3114037828193736fd2440dd2503cb3c5b3156b361453"
           |> p [] "Parameter"
         let packageFn =
-          "d9d944903aba83c528200a64d5d57c6890e2debced634eb3c1a583b1445ae92e"
+          "48badb6834c1160b15bab0e922643d64cd02d1cb8b1253a298bac57fcb7844a5"
           |> p [] "PackageFn"
 
       module Search =
@@ -544,11 +544,11 @@ module Type =
           "854b4d7e83fd11abeada159881bda7adfc1b6596220da9f564779d0ff221e453"
           |> p [] "SearchQuery"
         let searchResults =
-          "7557575be405dc61e055c1d3ee751eee82b3a375134f21a39de083ea0cbb48ab"
+          "2c8aec01c7e9011b08965504bb9538a8e1b0fb5c89d882cbe2cf214dea0d2578"
           |> p [] "SearchResults"
 
       let packageOp =
-        "e480777599d1cbe69e36517d1507bd1048f6322971f6b5a9bd8c60f1fbdebd4c"
+        "d09c4e42fd19399047304a92e0127e0ad009e7989537200cd1ca1107cd7c184e"
         |> p [] "PackageOp"
       let packageOpBatch =
         "5735c5cf716a7b1e0133d4f1ac9e77b36680966eecad8a13bd9e1f8f4836f456"
@@ -612,7 +612,7 @@ module Type =
     module Branch =
       let private p addl = p ("Branch" :: addl)
       let branch =
-        "07ab66ad0375f0fcdc81c9112a737c1e143499f7a1acd3bba50b1dd5a5da8160"
+        "c0591dbfe3e3e85a30ed1d8d7a37609d6bde3fd395ab9ac2fb1db18a9c017316"
         |> p [] "Branch"
 
     module Merge =
@@ -624,7 +624,7 @@ module Type =
     module PackageOps =
       let private p addl = p ("PackageOps" :: addl)
       let commit =
-        "1fcb03395ef96353c26dcd00b3581b8f9885b5e9bbb90885695a22e6fcc5b7d5"
+        "4db1546d4553ff70bed6fad7512002e76d0490203eb0db039693837a20632300"
         |> p [] "Commit"
 
     module Instances =
@@ -711,7 +711,7 @@ module Fn =
       module FnName =
         let private p addl = p ("FnName" :: addl)
         let resolve =
-          "33b1abe1fc67c03de59bb86437e506fda91a445416568824899f058e4a86d81a"
+          "ab4d41834d1b93e4b70ad3336b1bdf6421ffd12e5aae89201d013e6998c3ad9e"
           |> p [] "resolve"
 
 
@@ -719,26 +719,26 @@ module Fn =
     module Parser =
       let private p addl = p ("Parser" :: addl)
       let parsePTExpr =
-        "1de96dfbfda4c8c3a013791a85e6fd2f995a9b9d6dc948ea463d0e6ee4a7c5ed"
+        "38c347f32f7c4ab838bcd1509740a6452fee43695386917b72ba20187950e7ed"
         |> p [ "TestParsing" ] "parsePTExpr"
 
       let parsePTSourceFileWithOps =
-        "1ec354db0b01bec1197572ed7ede5ee7f4fc9ff7e23fa152d9d70851ae6616e5"
+        "2dc1c6242c880b763438e5892c33f710d855517c148c8443299579de0fdbaff9"
         |> p [ "TestParsing" ] "parsePTSourceFileWithOps"
 
       module CliScript =
         let private p addl = p ("CliScript" :: addl)
         let parseCliScript =
-          "6bac75ecd4d6a9bf8fce5a5f6304d568611d00e1ed4b7403e652b9b9e6d75c27"
+          "79ceb35986de78bd707b8149bbb7cab210d46db4a4a6fb5d9a1491224fa688d5"
           |> p [] "parse"
         let parseForCli =
-          "c829f609c8eee4faeb7a37c168397bb027dfa00dad3cbf7fce40e0da5bfd3684"
+          "a755d091ad133e5accb48c2dfa4da2f81c0ec0e3fd61b0bbb96e0155829f4d4a"
           |> p [] "parseForCli"
 
     module PackageManager =
       let private p addl = p ("PackageManager" :: addl)
       let pm =
-        "8cc83fbf658b8fc5b20dd966ec41f608161c0fb5bf7e698c18ed0a9198839dfb"
+        "a273cb24cb1261d88f2038fdb4f2301ee8a4106dc4c0a2104ff70d028e15981d"
         |> p [] "pm"
 
   module PrettyPrinter =
@@ -773,7 +773,7 @@ module Fn =
     module ProgramTypes =
       let private p addl = p ("ProgramTypes" :: addl)
       let sourceFile =
-        "4412b78aac07f8803d43eb7b27e154046550a0ad354890bfdd3c7785b4bd1ec4"
+        "eb85a0913ca5686b50e3bce441e9e2f84dd5d7f4f1a93105c3b2f278ebe05160"
         |> p [] "sourceFile"
 
       module FQFnName =
@@ -784,7 +784,7 @@ module Fn =
 
   module Cli =
     let executeCliCommand =
-      "11cd02c85a0cdf5a843ebb45e49758d18d3b9123c8a8b1d859e14105b47be2e9"
+      "466960e20e328e3a7326d6931b2b2cbbb412abcb7a2792f09461bc2c907a6e3e"
       |> p [ "Cli" ] "executeCliCommand"
 
   module Internal =
@@ -792,5 +792,5 @@ module Fn =
     module Test =
       let private p addl = p ("Test" :: addl)
       let parseSingleTestFromFile =
-        "d7dea178e3d51a524f0492ec1dc95442ab964b183114ed924b2b70a673e87023"
+        "196585aa881800bd014c5f9650a72abb93d207a86d592cd0f1e144b45361a88a"
         |> p [] "parseSingleTestFromFile"

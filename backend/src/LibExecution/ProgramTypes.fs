@@ -55,7 +55,7 @@ type MergeError =
 
 /// A commit on a branch
 type Commit =
-  { id : ContentHash
+  { hash : ContentHash
     message : string
     createdAt : NodaTime.Instant
     opCount : int64

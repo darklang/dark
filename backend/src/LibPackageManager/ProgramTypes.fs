@@ -34,7 +34,7 @@ let private buildBranchFilter (branchChain : List<PT.BranchId>) =
       ancestors |> List.mapi (fun i _ -> $"@branch_{i + 1}") |> String.concat ", "
 
     let filter =
-      $"(branch_id = {currentParam} OR (branch_id IN ({ancestorParams}) AND commit_id IS NOT NULL))"
+      $"(branch_id = {currentParam} OR (branch_id IN ({ancestorParams}) AND commit_hash IS NOT NULL))"
 
     // Note: ORDER BY is appended by the caller via buildBranchOrderBy
     (filter, branchParams)
@@ -46,7 +46,7 @@ let private buildBranchOrderBy (branchChain : List<PT.BranchId>) : string =
     |> List.mapi (fun i _ -> $"WHEN @branch_{i} THEN {i}")
     |> String.concat " "
 
-  $"CASE branch_id {caseClauses} END, CASE WHEN commit_id IS NULL THEN 0 ELSE 1 END, created_at DESC"
+  $"CASE branch_id {caseClauses} END, CASE WHEN commit_hash IS NULL THEN 0 ELSE 1 END, created_at DESC"
 
 
 let private findItem

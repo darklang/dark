@@ -10,7 +10,7 @@ interface ScmNode {
   type: ScmNodeType;
   description?: string;
   children?: ScmNode[];
-  commitId?: string;
+  commitHash?: string;
   branchName?: string;
   isAncestor?: boolean;
   opData?: any;
@@ -115,11 +115,11 @@ export class ScmTreeDataProvider implements vscode.TreeDataProvider<ScmNode>, vs
         }
         item.contextValue = "scm-commit-item";
         item.tooltip = `${element.label}\n${element.description}`;
-        if (element.commitId) {
+        if (element.commitHash) {
           item.command = {
             command: "darklang.scm.showCommit",
             title: "Show Commit",
-            arguments: [element.commitId],
+            arguments: [element.commitHash],
           };
         }
         break;
@@ -146,8 +146,8 @@ export class ScmTreeDataProvider implements vscode.TreeDataProvider<ScmNode>, vs
       return this.getCommitItems();
     }
 
-    if (element.type === "commit-item" && element.commitId) {
-      return this.getCommitOps(element.commitId);
+    if (element.type === "commit-item" && element.commitHash) {
+      return this.getCommitOps(element.commitHash);
     }
 
     return element.children || [];
@@ -246,11 +246,11 @@ export class ScmTreeDataProvider implements vscode.TreeDataProvider<ScmNode>, vs
         const isAncestor = currentBranchId != null && commit.branchId != null && commit.branchId !== currentBranchId;
         const branchLabel = isAncestor && commit.branchName ? ` · ${commit.branchName}` : "";
         return {
-          id: `commit-${commit.id}`,
+          id: `commit-${commit.hash}`,
           label: commit.message,
           type: "commit-item" as ScmNodeType,
-          description: `${commit.id.substring(0, 8)} · ${commit.opCount} ops${branchLabel}`,
-          commitId: commit.id,
+          description: `${commit.hash.substring(0, 8)} · ${commit.opCount} ops${branchLabel}`,
+          commitHash: commit.hash,
           branchName: commit.branchName,
           isAncestor,
         };
@@ -265,12 +265,12 @@ export class ScmTreeDataProvider implements vscode.TreeDataProvider<ScmNode>, vs
     }
   }
 
-  private async getCommitOps(commitId: string): Promise<ScmNode[]> {
+  private async getCommitOps(commitHash: string): Promise<ScmNode[]> {
     try {
-      const ops = await this.client.sendRequest<string[]>("dark/scm/getCommitOps", { commitId });
+      const ops = await this.client.sendRequest<string[]>("dark/scm/getCommitOps", { commitHash });
 
       return ops.slice(0, 20).map((op, i) => ({
-        id: `commit-${commitId}-op-${i}`,
+        id: `commit-${commitHash}-op-${i}`,
         label: op,
         type: "commit-op" as ScmNodeType,
       }));

@@ -1,10 +1,37 @@
 # Branch Cleanups: `hash-based-refs-finally`
 
-Remaining cleanup opportunities from reviewing the full branch diff.
+- [ ] ContentHash should be in LibExe, not Prelude
+  like many other things, it may be appropriate to define this in both RT.fs and PT.fs.
 
----
+- [ ] in .dark, you've kinda stripped the nestedness of ContentHash and instead are using a raw String - stop that.
 
-## Bugs
+- [ ] rename ContentHash to just Hash
+  add a /// comment at `type Hash = ` to note that the type is intended to be used for hashes of the _structure_ of some other value, not relying on temporary things like the name, etc.
+  'content hash' -> hash
+  contentHash->hash
+  look up every other use of 'content'
+  make sure no 'id' bound to one of these
+
+- [ ] verify that all PackageRefs are actually used
+  any more redundancies we should consolidate like we did the int parse error hash?
+
+
+- [ ] I hate that NameLookup leaked, somehow, into ProgramTYpes.fs -- that's supposed to be for core types. why was this done? report back and tell me my options (tell me in this file)
+
+- [ ] why do we still have getTypeLocation when we now have getTypeLocations?
+
+- [ ] let's break down Hashing.fs a bit -- create a dir and a few files - for base format,
+relatedly -- so many fns in there are framed as 'cononicalWriteX' -- well, aren't they _all_ sort of canonical, and isn't it pretty much _always_ write (rather thanr ead)? Feels redundatn. I suspect there's some general cleanup taht can/should be done. maybe we should do it in the file first, and then tidy after.
+
+- [ ] why is backend/tests/Tests/NewParser.Tests.fs have empty content hashes? I guess I'm slightly surprised things are working - if any by-hash refs are happening at runtime, they wouldn't be found, right?
+
+- [ ] packages/darklang/cli/deps.dark still has some things named 'id' that should be 'hash'
+
+- [ ] it seems packages/darklang/cli/packages/hash.dark has its own one-off pretty printing of hashes (formatHash) but can't/shouldn't we use something that exists in stdlib?
+
+- [ ] packages/darklang/cli/packages/hash.dark has custom fallback for "look for type, otherwise look for value, otherwise look for fn" - isn't there a way to tidy this? I suspect we have something more gneeric like a stdlib fn that's "look for anything _at this location_ and in the reponse incldue what kind of thing it is" we could (re)use.
+
+- [ ] research/report: what is the List<String> I've seen recently added in various bits of code in packages/darklang/languageTools/writtenTypesToProgramTypes.dark ? If we really need that, maybe let's create an alias for the type so reading things is more clear?
 
 - [ ] **`StringSegment.fromDT` case mismatch** — `RuntimeTypesToDarkTypes.fs:400`
   writes `"Interpolated"` but line 406 matches `"Interpolation"`. Deserialization
@@ -19,10 +46,6 @@ Remaining cleanup opportunities from reviewing the full branch diff.
   and should be `String` with hash-based names. (`propagationId` and `revertId`
   are operation IDs and can stay as `Uuid`.)
 
-- [ ] **`cliScript.dark` accesses `.id` on package items** — Lines 258, 266, 274,
-  289, 297, 305 do `{ newType with id = originalType.id }` but the types now have
-  `.hash`, not `.id`.
-
 - [ ] **`WipRefresh.fs:95-100` changedCount is 2x actual** — Uses symmetric
   difference of old/new hash sets, which counts each changed item twice (old hash
   + new hash). Should be `Set.count / 2` or count locations whose hash changed.
@@ -30,10 +53,6 @@ Remaining cleanup opportunities from reviewing the full branch diff.
 - [ ] **`evalConstantExpr` silently returns `DUnit` for unrecognized expressions**
   — `ProgramTypesToRuntimeTypes.fs:1198` has a catch-all `| _ -> RT.DUnit` that
   swallows unknown expression types. Should error instead.
-
----
-
-## High Priority
 
 - [ ] **Dead ResizeArrays in `PackageManager.fs:89-103`** — `createInMemory`
   populates `types`, `values`, `fns` ResizeArrays but never reads them. The actual
@@ -64,10 +83,6 @@ Remaining cleanup opportunities from reviewing the full branch diff.
   Move to a design doc.
 
 - [ ] **Commented-out `Packages` type in `programTypes.dark:409-413`** — Dead code.
-
----
-
-## Medium Priority
 
 - [ ] **Unify Add*/Set*Name op scanning** — Three sites scan ops looking for
   Add*/Set*Name pairs: `collectAddedHashes` (PackageOpPlayback.fs),
@@ -106,9 +121,6 @@ Remaining cleanup opportunities from reviewing the full branch diff.
   ancestry with one SQL query per ancestor. A recursive CTE would fetch the chain
   in a single query.
 
-- [ ] **Stale UUID comment** — `Packages.fs:210` says "Evaluate a package value
-  by its UUID" but now operates on content hashes.
-
 - [ ] **Unused imports across BuiltinPM** — `Packages.fs:24-25` (`open Fumble`,
   `open LibDB.Db`), `Merge.fs:3-4`, `Scripts.fs:3-4`, `PackageOps.fs:3-4` all
   have unused `System.Threading.Tasks`/`FSharp.Control.Tasks` imports.
@@ -131,46 +143,15 @@ Remaining cleanup opportunities from reviewing the full branch diff.
   The `EApply` case repeats the same "parse typeArgs, parse args, construct
   EApply" block ~8 times. Factor into a helper.
 
----
-
-## Low Priority / Style
-
 - [ ] **Mutable `statements` list in `PackageOpPlayback.applySetName`** —
   Classic imperative SQL statement building. Probably leave as-is.
 
 - [ ] **`computeOpHash` in `Inserts.fs` converts hash→UUID** — Lossy truncation
   for DB compatibility. Plan for a dedicated migration PR.
 
-- [ ] **Stale CLEANUP comment in `RuntimeTypes.fs:8`** — "there's some useful
-  'reference things by hash' work to be done" — this branch *is* that work.
-  Remove or update.
-
-- [ ] **Dead `[<Measure>] type register` in `RuntimeTypes.fs:278`** — Unused.
-
-- [ ] **Commented-out `LetPattern` variants in `ProgramTypes.fs:177-183`** —
-  `LPIgnored` and `LPParens` should be tracked as issues, not comments.
-
-- [ ] **Commented-out `typeNamePattern` in `ProgramTypes.fs:12`** — Dead code.
-
-- [ ] **Commented-out `deprecation` in `prettyPrinter/programTypes.dark:830-841`**
-  — Dead code per comment.
-
-- [ ] **Catch-all expr case in `prettyPrinter/programTypes.dark:824-828`** —
-  Comment says "CLEANUP: remove this case before shipping to users".
-
-- [ ] **`ContentHash.empty` edge case** — `Prelude.fs:61`: `ContentHash ""`
-  is not a valid SHA-256 digest. `toShortString` at line 69 will crash on
-  it. Consider removing or adding a guard.
-
 - [ ] **`PackageLocation.toFQN()` with empty modules** — `ProgramTypes.fs:574`:
   if `modules` is `[]`, produces `"owner..name"` (double dot). Document the
   invariant or add validation.
-
-- [ ] **Three TODO comments about renaming `typeName`/`valueName`/`fnName`** in
-  `prettyPrinter/runtimeTypes.dark:66,93,122` — to `fqtypeName`/etc.
-
-- [ ] **`prepareProcessCommand` duplication in `Execution.fs:57-68`** — Linux
-  and OSX branches are identical. Collapse.
 
 ---
 

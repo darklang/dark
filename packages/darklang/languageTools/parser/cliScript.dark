@@ -255,7 +255,7 @@ let parse
           zipped
           |> Stdlib.List.map (fun tuple ->
             let (newType, originalType) = tuple
-            { newType with id = originalType.id }))
+            { newType with hash = originalType.hash }))
 
       let adjustedValues =
         (Stdlib.List.zip result.values initialParse.values)
@@ -263,7 +263,7 @@ let parse
           zipped
           |> Stdlib.List.map (fun tuple ->
             let (newValue, originalValue) = tuple
-            { newValue with id = originalValue.id }))
+            { newValue with hash = originalValue.hash }))
 
       let adjustedFns =
         (Stdlib.List.zip result.fns initialParse.fns)
@@ -271,7 +271,7 @@ let parse
           zipped
           |> Stdlib.List.map (fun tuple ->
             let (newFn, originalFn) = tuple
-            { newFn with id = originalFn.id }))
+            { newFn with hash = originalFn.hash }))
 
       let adjustedSubmodules =
         (Stdlib.List.zip result.submodules initialParse.submodules)
@@ -286,7 +286,7 @@ let parse
                 z
                 |> Stdlib.List.map (fun t ->
                   let (newT, origT) = t
-                  { newT with id = origT.id }))
+                  { newT with hash = origT.hash }))
 
             let subValues =
               (Stdlib.List.zip newSub.values originalSub.values)
@@ -294,7 +294,7 @@ let parse
                 z
                 |> Stdlib.List.map (fun v ->
                   let (newV, origV) = v
-                  { newV with id = origV.id }))
+                  { newV with hash = origV.hash }))
 
             let subFns =
               (Stdlib.List.zip newSub.fns originalSub.fns)
@@ -302,7 +302,7 @@ let parse
                 z
                 |> Stdlib.List.map (fun f ->
                   let (newF, origF) = f
-                  { newF with id = origF.id }))
+                  { newF with hash = origF.hash }))
 
             ProgramTypes.Definitions
               { types = subTypes
