@@ -12,6 +12,11 @@
 ///
 /// Note: all of these types are assumed to be owned by the Darklang user
 ///
+/// TODO: some bindings share the same hash (e.g. floatParseError/uuidParseError,
+/// Http.response/HttpClient.response, and many RT/PT pairs like fqTypeName,
+/// fqValueName, nameResolution, builtin). Could consolidate with shared constants
+/// like we did with intParseErrorHash.
+///
 /// TODO make a LocalExec script that produces a report for quicker updating:
 /// it can look at ALL Package items referenced in PackageRefs,
 /// query the DB for the current hash,
@@ -112,9 +117,6 @@ module Type =
           let part =
             "cfa1c52ae5a0fc661c15db09bfb3e6c129904020cc6346a04399f24deac5c7e9"
             |> p [ "JsonPath"; "Part" ] "Part"
-        let jsonPath =
-          "a9475a0792181ea56248a4fb7ad5a711dfcbb3931a543f46a041709d8cdc6133"
-          |> p [] "JsonPath"
         let parseError =
           "843e851b01435213b27134405e9a8d988468ee2af1a06e622b0dc2229eaf6745"
           |> p [] "ParseError"
@@ -201,23 +203,6 @@ module Type =
           |> p [] "PTCliScriptModule"
 
 
-    module NameResolver =
-      let private p addl = p ("NameResolver" :: addl)
-      let nameResolverOnMissing =
-        "d496dc2a14c8c7d25097db090c8b7f54027be4dc831a023df6c8084822d408a5"
-        |> p [] "OnMissing"
-
-
-    module WrittenTypes =
-      let private p addl = p ("WrittenTypes" :: addl)
-      let name =
-        "754df89d6942b9625091bf0b80f54386e61a3392e44f4435fdbea9b975212440"
-        |> p [] "Name"
-      let range =
-        "d4d21c6b436f82ac5b3ab3f5268d1dd7d42cc204814a3e648539cd3af6578559"
-        |> p [] "Range"
-
-
     module RuntimeTypes =
       let private p addl = p ("RuntimeTypes" :: addl)
       module FQTypeName =
@@ -225,18 +210,12 @@ module Type =
         let package =
           "8092fe01b9ce31a49ce380fc2fe1ee6b6b7d5c15c5f1ecb6ad98c60c4273a435"
           |> p [] "Package"
-        let builtin =
-          "bd575864526cda832d5e94fa3e827d98681766f1ecb8885e0b5dac1af0cde23a"
-          |> p [] "Builtin"
         let fqTypeName =
           "593dbef1b81d45243efe5c73d94b13caaa337425de5884e2e2fd39ecaaf7d0c7"
           |> p [] "FQTypeName"
 
       module FQValueName =
         let private p addl = p ("FQValueName" :: addl)
-        let package =
-          "8092fe01b9ce31a49ce380fc2fe1ee6b6b7d5c15c5f1ecb6ad98c60c4273a435"
-          |> p [] "Package"
         let builtin =
           "bd575864526cda832d5e94fa3e827d98681766f1ecb8885e0b5dac1af0cde23a"
           |> p [] "Builtin"
@@ -246,9 +225,6 @@ module Type =
 
       module FQFnName =
         let private p addl = p ("FQFnName" :: addl)
-        let package =
-          "8092fe01b9ce31a49ce380fc2fe1ee6b6b7d5c15c5f1ecb6ad98c60c4273a435"
-          |> p [] "Package"
         let builtin =
           "bd575864526cda832d5e94fa3e827d98681766f1ecb8885e0b5dac1af0cde23a"
           |> p [] "Builtin"
@@ -266,18 +242,12 @@ module Type =
       let typeReference =
         "3e01ed7c66abe2152f3d1f92cc5f7ad3d16dafda0b4222d8038e07615585203e"
         |> p [] "TypeReference"
-      let param =
-        "2f53b3137b8c59ab62e57c6e6c4ea2c0b9463c18dc48ee644f5969fd53811eb0"
-        |> p [] "Param"
       let letPattern =
         "490a27236fb548b21d2ddd743c1bdeada212a75b0c33dd1f8cc0eb5873fb9fe8"
         |> p [] "LetPattern"
       let matchPattern =
         "fe3783a863d78392faf65c588d8a03c074fa5d290113f60fb6933226ff09cfaa"
         |> p [] "MatchPattern"
-      let matchCase =
-        "89e4eb85ea5c04ad023ccca1f6689e916616828058dc6c4f4b21cbbcf398ae89"
-        |> p [] "MatchCase"
       let stringSegment =
         "5e2fd40f810657a36daabb43d9519966924a23aa04b6cb5bbaecdc71c7c8886d"
         |> p [] "StringSegment"
@@ -305,18 +275,6 @@ module Type =
 
       module RuntimeError =
         let private p addl = p ("RuntimeError" :: addl)
-
-        module TypeCheckers =
-          let private p addl = p ("TypeCheckers" :: addl)
-          let pathPart =
-            "52ad9cf66bcb0fc9f33f6fad39edee2538df67fe5ffa00eb9e3f03335b0c6fe8"
-            |> p [] "PathPart"
-          let path =
-            "250c9f72b96e64f9a93f461037c25d4a4c2e747ac5653872e16344944bb34b75"
-            |> p [] "Path"
-          let error =
-            "19e134caa3ecb61f20f8a7cf7f1ee4ac385e6417327f894d31179cb91a9c8e4a"
-            |> p [] "Error"
 
         module Bools =
           let error =
@@ -422,9 +380,6 @@ module Type =
         let builtin =
           "bd575864526cda832d5e94fa3e827d98681766f1ecb8885e0b5dac1af0cde23a"
           |> p [] "Builtin"
-        let package =
-          "8092fe01b9ce31a49ce380fc2fe1ee6b6b7d5c15c5f1ecb6ad98c60c4273a435"
-          |> p [] "Package"
         let fqValueName =
           "95bdec1ebde43fe053994ba303fc007a0d3255c4c1a34a72340ebe6c97df9204"
           |> p [] "FQValueName"
@@ -434,9 +389,6 @@ module Type =
         let builtin =
           "bd575864526cda832d5e94fa3e827d98681766f1ecb8885e0b5dac1af0cde23a"
           |> p [] "Builtin"
-        let package =
-          "8092fe01b9ce31a49ce380fc2fe1ee6b6b7d5c15c5f1ecb6ad98c60c4273a435"
-          |> p [] "Package"
         let fqFnName =
           "95bdec1ebde43fe053994ba303fc007a0d3255c4c1a34a72340ebe6c97df9204"
           |> p [] "FQFnName"
@@ -504,27 +456,18 @@ module Type =
 
       module PackageType =
         let private p addl = p ("PackageType" :: addl)
-        let name =
-          "5ff0b8dd494650769dffcf327f6984b40759547a4b53320e800d2f83eec62028"
-          |> p [] "Name"
         let packageType =
           "a7b1638022e3a52f99608824dc24b2d43b27b69a940c5705b5fa1c17ac9b7a97"
           |> p [] "PackageType"
 
       module PackageValue =
         let private p addl = p ("PackageValue" :: addl)
-        let name =
-          "b7601a971f5c9af203906fb0c73689e61406d38ad59e14e2b0b3c2a06b8c3e0b"
-          |> p [] "Name"
         let packageValue =
           "3e6690848e90934ec0b54a3d4836b256c290d155c1430ca194084e3af60d8b55"
           |> p [] "PackageValue"
 
       module PackageFn =
         let private p addl = p ("PackageFn" :: addl)
-        let name =
-          "c0c5a6430d1b022a614c712fe75c1a14f12fb56704c80ede29b3e5ab691f135c"
-          |> p [] "Name"
         let parameter =
           "b1b77c46cf5a190630f3114037828193736fd2440dd2503cb3c5b3156b361453"
           |> p [] "Parameter"
@@ -550,9 +493,6 @@ module Type =
       let packageOp =
         "d09c4e42fd19399047304a92e0127e0ad009e7989537200cd1ca1107cd7c184e"
         |> p [] "PackageOp"
-      let packageOpBatch =
-        "5735c5cf716a7b1e0133d4f1ac9e77b36680966eecad8a13bd9e1f8f4836f456"
-        |> p [] "PackageOpBatch"
       let itemKind =
         "642ec69245ff338e71dae980d8c7b1cac623b6b49fdd92375df3f90d06cc862f"
         |> p [] "ItemKind"
@@ -627,33 +567,6 @@ module Type =
         "4db1546d4553ff70bed6fad7512002e76d0490203eb0db039693837a20632300"
         |> p [] "Commit"
 
-    module Instances =
-      let private p addl = p ("Instances" :: addl)
-      let instance =
-        "d92c9ba4ed9ee47b468fe5207fd9deb90b3f99baff725f13db5542377f1c4a45"
-        |> p [] "Instance"
-
-    module Approvals =
-      let private p addl = p ("Approvals" :: addl)
-      let approvalStatus =
-        "f54e8be072a3b85e55db6cadc83ce36b5320cfe48715370aea4bb357671667d2"
-        |> p [] "ApprovalStatus"
-      let approvalRequestStatus =
-        "ad1ea5777bea5af81f162541430eff94dda22b41a7302392ab890f74c81ed49f"
-        |> p [] "ApprovalRequestStatus"
-      let approvalRequest =
-        "91936c247d449a3b57f6a91d4af875aeeb81aa5f951775052ad4b06d3e995f45"
-        |> p [] "ApprovalRequest"
-      let requestItem =
-        "2d35eaa09b47d0b31b63a31bc1f0112175dfdde1fe9024f4d56301f184c3f7c7"
-        |> p [] "RequestItem"
-      let pendingLocationDetails =
-        "a5e6d4d40bb0d919c667529f0bfc511d35ef0df14fb1b81eb0fd48254f0f7199"
-        |> p [] "PendingLocationDetails"
-      let requestItemWithDetails =
-        "c346af7a450d8409e9281427e59247ed58ea7b6c6d5f0c9f4d111cadd956c9dd"
-        |> p [] "RequestItemWithDetails"
-
 
   module Internal =
     let private p addl = p ("Internal" :: addl)
@@ -662,25 +575,11 @@ module Type =
       let program =
         "13f07569930836064de1ea40e233c6aacc82ccfe80818cef96ca74a68a2c01ff"
         |> p [] "Program"
-      let secret =
-        "e48530853244d328a390b20a02e568c0782e0e65e6a9e78ae41cfa26c1461527"
-        |> p [] "Secret"
 
     module Infra =
       let tableSize =
         "e03ffd7442bd76f6e62f0d72da3be80cedf0371d55685eb88c5798186488053f"
         |> p [ "Infra" ] "TableSize"
-
-    module Worker =
-      let scheduleRule =
-        "ac7adfd78a92f8f3a98c5cd053b9e00fa2fa3f4c69bc0e0b288640cfcb296273"
-        |> p [ "Worker" ] "ScheduleRule"
-
-    module Test =
-      let private p addl = p ("Test" :: addl)
-      let ptTest =
-        "2e999789ca7bc21bed2acf37046608125910b6c5bb6f886559e3abdae3c6b4d2"
-        |> p [] "PTTest"
 
 module Fn =
   let mutable private _lookup = Map []
@@ -693,11 +592,6 @@ module Fn =
   module Stdlib =
     let private p addl = p ("Stdlib" :: addl)
 
-    module List =
-      let map =
-        "39840eb85e41c0a11dd9e18d9225ac3850b50a881af27caac0a10b0e58c3a485"
-        |> p [ "List" ] "map"
-
     module HttpClient =
       let request =
         "dfd9e14b5c6658a83dd41a68edb145766790b61182e6ac93d6618cd778bc5c7b"
@@ -706,16 +600,6 @@ module Fn =
 
   module LanguageTools =
     let private p addl = p ("LanguageTools" :: addl)
-    module NameResolver =
-      let private p addl = p ("NameResolver" :: addl)
-      module FnName =
-        let private p addl = p ("FnName" :: addl)
-        let resolve =
-          "ab4d41834d1b93e4b70ad3336b1bdf6421ffd12e5aae89201d013e6998c3ad9e"
-          |> p [] "resolve"
-
-
-
     module Parser =
       let private p addl = p ("Parser" :: addl)
       let parsePTExpr =
@@ -728,18 +612,9 @@ module Fn =
 
       module CliScript =
         let private p addl = p ("CliScript" :: addl)
-        let parseCliScript =
-          "79ceb35986de78bd707b8149bbb7cab210d46db4a4a6fb5d9a1491224fa688d5"
-          |> p [] "parse"
         let parseForCli =
           "a755d091ad133e5accb48c2dfa4da2f81c0ec0e3fd61b0bbb96e0155829f4d4a"
           |> p [] "parseForCli"
-
-    module PackageManager =
-      let private p addl = p ("PackageManager" :: addl)
-      let pm =
-        "a273cb24cb1261d88f2038fdb4f2301ee8a4106dc4c0a2104ff70d028e15981d"
-        |> p [] "pm"
 
   module PrettyPrinter =
     let private p addl = p ("PrettyPrinter" :: addl)
@@ -775,12 +650,6 @@ module Fn =
       let sourceFile =
         "eb85a0913ca5686b50e3bce441e9e2f84dd5d7f4f1a93105c3b2f278ebe05160"
         |> p [] "sourceFile"
-
-      module FQFnName =
-        let private p addl = p ("FQFnName" :: addl)
-        let fullForReference =
-          "91a551bc9f7db8cd9c75c4263f675899e458d012c218cca127d3a6071c2f5146"
-          |> p [] "fullForReference"
 
   module Cli =
     let executeCliCommand =

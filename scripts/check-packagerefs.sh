@@ -9,6 +9,7 @@ sqlite3 "$DB" << 'SQL'
 SELECT modules, name, item_hash, item_type
 FROM locations
 WHERE owner = 'Darklang'
+  AND deprecated_at IS NULL
   AND (modules, name, item_type) IN (
     -- Type.Stdlib
     ('Stdlib.Result', 'Result', 'type'),
@@ -32,7 +33,6 @@ WHERE owner = 'Darklang'
     ('Stdlib.HttpClient', 'RequestError', 'type'),
     ('Stdlib.HttpClient', 'Response', 'type'),
     ('Stdlib.Json.ParseError.JsonPath.Part', 'Part', 'type'),
-    ('Stdlib.Json.ParseError', 'JsonPath', 'type'),
     ('Stdlib.Json.ParseError', 'ParseError', 'type'),
     ('Stdlib.AltJson.ParseError', 'ParseError', 'type'),
     ('Stdlib.AltJson', 'Json', 'type'),
@@ -56,27 +56,19 @@ WHERE owner = 'Darklang'
     ('LanguageTools.Parser', 'Range', 'type'),
     ('LanguageTools.Parser', 'ParsedNode', 'type'),
     ('LanguageTools.Parser.CliScript', 'PTCliScriptModule', 'type'),
-    ('LanguageTools.NameResolver', 'OnMissing', 'type'),
-    ('LanguageTools.WrittenTypes', 'Name', 'type'),
-    ('LanguageTools.WrittenTypes', 'Range', 'type'),
 
     -- Type.LanguageTools.RuntimeTypes
     ('LanguageTools.RuntimeTypes.FQTypeName', 'Package', 'type'),
-    ('LanguageTools.RuntimeTypes.FQTypeName', 'Builtin', 'type'),
     ('LanguageTools.RuntimeTypes.FQTypeName', 'FQTypeName', 'type'),
-    ('LanguageTools.RuntimeTypes.FQValueName', 'Package', 'type'),
     ('LanguageTools.RuntimeTypes.FQValueName', 'Builtin', 'type'),
     ('LanguageTools.RuntimeTypes.FQValueName', 'FQValueName', 'type'),
-    ('LanguageTools.RuntimeTypes.FQFnName', 'Package', 'type'),
     ('LanguageTools.RuntimeTypes.FQFnName', 'Builtin', 'type'),
     ('LanguageTools.RuntimeTypes.FQFnName', 'FQFnName', 'type'),
     ('LanguageTools.RuntimeTypes', 'NameResolutionError', 'type'),
     ('LanguageTools.RuntimeTypes', 'NameResolution', 'type'),
     ('LanguageTools.RuntimeTypes', 'TypeReference', 'type'),
-    ('LanguageTools.RuntimeTypes', 'Param', 'type'),
     ('LanguageTools.RuntimeTypes', 'LetPattern', 'type'),
     ('LanguageTools.RuntimeTypes', 'MatchPattern', 'type'),
-    ('LanguageTools.RuntimeTypes', 'MatchCase', 'type'),
     ('LanguageTools.RuntimeTypes', 'StringSegment', 'type'),
     ('LanguageTools.RuntimeTypes', 'Dval', 'type'),
     ('LanguageTools.RuntimeTypes', 'KnownType', 'type'),
@@ -86,11 +78,6 @@ WHERE owner = 'Darklang'
     ('LanguageTools.RuntimeTypes', 'Applicable', 'type'),
 
     -- Type.LanguageTools.RuntimeTypes.RuntimeError
-    ('LanguageTools.RuntimeTypes.RuntimeError.TypeCheckers', 'PathPart', 'type'),
-    ('LanguageTools.RuntimeTypes.RuntimeError.TypeCheckers', 'Path', 'type'),
-    ('LanguageTools.RuntimeTypes.RuntimeError.TypeCheckers', 'Error', 'type'),
-    ('LanguageTools.RuntimeTypes.RuntimeError.TypeChecking', 'TypeCheckPathPart', 'type'),
-    ('LanguageTools.RuntimeTypes.RuntimeError.TypeChecking', 'ReverseTypeCheckPath', 'type'),
     ('LanguageTools.RuntimeTypes.RuntimeError.Bools', 'Error', 'type'),
     ('LanguageTools.RuntimeTypes.RuntimeError.Ints', 'Error', 'type'),
     ('LanguageTools.RuntimeTypes.RuntimeError.Strings', 'Error', 'type'),
@@ -114,10 +101,8 @@ WHERE owner = 'Darklang'
     ('LanguageTools.ProgramTypes.FQTypeName', 'Package', 'type'),
     ('LanguageTools.ProgramTypes.FQTypeName', 'FQTypeName', 'type'),
     ('LanguageTools.ProgramTypes.FQValueName', 'Builtin', 'type'),
-    ('LanguageTools.ProgramTypes.FQValueName', 'Package', 'type'),
     ('LanguageTools.ProgramTypes.FQValueName', 'FQValueName', 'type'),
     ('LanguageTools.ProgramTypes.FQFnName', 'Builtin', 'type'),
-    ('LanguageTools.ProgramTypes.FQFnName', 'Package', 'type'),
     ('LanguageTools.ProgramTypes.FQFnName', 'FQFnName', 'type'),
     ('LanguageTools.ProgramTypes', 'TypeReference', 'type'),
     ('LanguageTools.ProgramTypes', 'LetPattern', 'type'),
@@ -137,11 +122,8 @@ WHERE owner = 'Darklang'
     ('LanguageTools.ProgramTypes.TypeDeclaration', 'EnumCase', 'type'),
     ('LanguageTools.ProgramTypes.TypeDeclaration', 'Definition', 'type'),
     ('LanguageTools.ProgramTypes.TypeDeclaration', 'TypeDeclaration', 'type'),
-    ('LanguageTools.ProgramTypes.PackageType', 'Name', 'type'),
     ('LanguageTools.ProgramTypes.PackageType', 'PackageType', 'type'),
-    ('LanguageTools.ProgramTypes.PackageValue', 'Name', 'type'),
     ('LanguageTools.ProgramTypes.PackageValue', 'PackageValue', 'type'),
-    ('LanguageTools.ProgramTypes.PackageFn', 'Name', 'type'),
     ('LanguageTools.ProgramTypes.PackageFn', 'Parameter', 'type'),
     ('LanguageTools.ProgramTypes.PackageFn', 'PackageFn', 'type'),
     ('LanguageTools.ProgramTypes.Search', 'EntityType', 'type'),
@@ -149,7 +131,6 @@ WHERE owner = 'Darklang'
     ('LanguageTools.ProgramTypes.Search', 'SearchQuery', 'type'),
     ('LanguageTools.ProgramTypes.Search', 'SearchResults', 'type'),
     ('LanguageTools.ProgramTypes', 'PackageOp', 'type'),
-    ('LanguageTools.ProgramTypes', 'PackageOpBatch', 'type'),
     ('LanguageTools.ProgramTypes', 'ItemKind', 'type'),
     ('LanguageTools.ProgramTypes', 'PropagateRepoint', 'type'),
     ('LanguageTools.ProgramTypes', 'Secret', 'type'),
@@ -172,32 +153,18 @@ WHERE owner = 'Darklang'
     ('SCM.Branch', 'Branch', 'type'),
     ('SCM.Merge', 'MergeError', 'type'),
     ('SCM.PackageOps', 'Commit', 'type'),
-    ('SCM.Instances', 'Instance', 'type'),
-    ('SCM.Approvals', 'ApprovalStatus', 'type'),
-    ('SCM.Approvals', 'ApprovalRequestStatus', 'type'),
-    ('SCM.Approvals', 'ApprovalRequest', 'type'),
-    ('SCM.Approvals', 'RequestItem', 'type'),
-    ('SCM.Approvals', 'PendingLocationDetails', 'type'),
-    ('SCM.Approvals', 'RequestItemWithDetails', 'type'),
 
     -- Type.Internal
     ('Internal.Canvas', 'Program', 'type'),
-    ('Internal.Canvas', 'Secret', 'type'),
     ('Internal.Infra', 'TableSize', 'type'),
-    ('Internal.Worker', 'ScheduleRule', 'type'),
-    ('Internal.Test', 'PTTest', 'type'),
 
     -- Fn.Stdlib
-    ('Stdlib.List', 'map', 'fn'),
     ('Stdlib.HttpClient', 'request', 'fn'),
 
     -- Fn.LanguageTools
-    ('LanguageTools.NameResolver.FnName', 'resolve', 'fn'),
     ('LanguageTools.Parser.TestParsing', 'parsePTExpr', 'fn'),
     ('LanguageTools.Parser.TestParsing', 'parsePTSourceFileWithOps', 'fn'),
-    ('LanguageTools.Parser.CliScript', 'parse', 'fn'),
     ('LanguageTools.Parser.CliScript', 'parseForCli', 'fn'),
-    ('LanguageTools.PackageManager', 'pm', 'fn'),
 
     -- Fn.PrettyPrinter
     ('PrettyPrinter.RuntimeTypes', 'dval', 'fn'),
@@ -207,7 +174,6 @@ WHERE owner = 'Darklang'
     ('PrettyPrinter.RuntimeTypes.RuntimeError', 'toString', 'fn'),
     ('PrettyPrinter.RuntimeTypes.RuntimeError', 'toErrorMessage', 'fn'),
     ('PrettyPrinter.ProgramTypes', 'sourceFile', 'fn'),
-    ('PrettyPrinter.ProgramTypes.FQFnName', 'fullForReference', 'fn'),
 
     -- Fn.Cli
     ('Cli', 'executeCliCommand', 'fn'),

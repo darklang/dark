@@ -12,9 +12,6 @@
   look up every other use of 'content'
   make sure no 'id' bound to one of these
 
-- [ ] verify that all PackageRefs are actually used
-  any more redundancies we should consolidate like we did the int parse error hash?
-
 
 - [ ] I hate that NameLookup leaked, somehow, into ProgramTYpes.fs -- that's supposed to be for core types. why was this done? report back and tell me my options (tell me in this file)
 
