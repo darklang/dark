@@ -6,10 +6,7 @@ type Something = { ID: Id; Data: String }
 Something { ID = "2"; Data = "test" } = Something { ID = "2"; Data = "test" }
 
 // CELANUP: would be better if this noted that `Id` is an alias for `String`
-Something { ID = 2L; Data = "test" } =
-  Builtin.testDerrorMessage "Failed to create record. Expected String for field `ID`, but got 2 (an Int64)"
-
-
+Something { ID = 2L; Data = "test" } = error="Failed to create record. Expected String for field `ID`, but got 2 (an Int64)"
 module SimpleRecordAlias =
   type Person = { name: String }
   type MyPerson = Person
@@ -39,8 +36,7 @@ module NestedAlias =
 
   getUserID (("Alice", "EMP123")) = "EMP123"
 
-  getUserID (("Alice", 123L)) =
-    (Builtin.testDerrorMessage "NestedAlias.getUserID's 1st parameter `credential` expects (String * String), but got (String * Int64) ((\"Alice\", 123))")
+  getUserID (("Alice", 123L)) = error="NestedAlias.getUserID's 1st parameter `credential` expects (String * String), but got (String * Int64) ((\"Alice\", 123))"
 
   type UserProfile =
     { credential: UserCredential
@@ -91,13 +87,10 @@ module RecordWithTypeArgs =
   // These tests aren't working because the _old_ parser doesn't support type args in record values
   // OK that's probably fine, but something to circle back to (CLEANUP) once we're over to the new parser.
   // Inner<String, Int64> { a = "test"; b = 5L } = Inner { a = "test"; b = 5L }
-  // Inner<String, Int64> { a = "test"; b = "five" } = Builtin.testDerrorMessage "TODO: error message"
+  // Inner<String, Int64> { a = "test"; b = "five" } = error="TODO: error message"
+  Outer2 { a = 5L; b = 6L } = error="Failed to create record. Expected String for field `a`, but got 5 (an Int64)"
 
-  Outer2 { a = 5L; b = 6L } =
-    (Builtin.testDerrorMessage "Failed to create record. Expected String for field `a`, but got 5 (an Int64)")
-
-  Outer1 { a = "a"; b = "b" } =
-    (Builtin.testDerrorMessage "Failed to create record. Expected Int64 for field `b`, but got \"b\" (a String)")
+  Outer1 { a = "a"; b = "b" } = error="Failed to create record. Expected Int64 for field `b`, but got \"b\" (a String)"
 
 
 module RecordWithTypeArgsDifferentName =
@@ -110,11 +103,9 @@ module RecordWithTypeArgsDifferentName =
   MostOutest { a = 5L; b = "string" } =
     Inner { a = 5L; b = "string" }
 
-  MostOutest { a = "not allowed"; b = "string" } =
-    (Builtin.testDerrorMessage "Failed to create record. Expected Int64 for field `a`, but got \"not allow... (a String)")
+  MostOutest { a = "not allowed"; b = "string" } = error="Failed to create record. Expected Int64 for field `a`, but got \"not allow... (a String)"
 
-  MostOutest { a = 5L; b = 6L } =
-    (Builtin.testDerrorMessage "Failed to create record. Expected String for field `b`, but got 6 (an Int64)")
+  MostOutest { a = 5L; b = 6L } = error="Failed to create record. Expected String for field `b`, but got 6 (an Int64)"
 
 
 module RecordWithRecursiveTypeArgs =
@@ -163,11 +154,9 @@ module EnumWithTypeArgs =
   Outer2.A "str" = Outer1.A "str"
   Outer2.B 5L = Outer1.B 5L
 
-  Outer2.A 5L =
-    (Builtin.testDerrorMessage "Failed to create enum. Expected String for field 0 in `A`, but got Int64 (5)")
+  Outer2.A 5L = error="Failed to create enum. Expected String for field 0 in `A`, but got Int64 (5)"
 
-  Outer1.B "b" =
-    (Builtin.testDerrorMessage "Failed to create enum. Expected Int64 for field 0 in `B`, but got String (\"b\")")
+  Outer1.B "b" = error="Failed to create enum. Expected Int64 for field 0 in `B`, but got String (\"b\")"
 
 
 module EnumWithTypeArgsDifferentName =
@@ -183,11 +172,9 @@ module EnumWithTypeArgsDifferentName =
   MostOutest.A 5L = Inner.A 5L
   MostOutest.B "test" = Inner.B "test"
 
-  MostOutest.A "not allowed" =
-    (Builtin.testDerrorMessage "Failed to create enum. Expected Int64 for field 0 in `A`, but got String (\"not allowed\")")
+  MostOutest.A "not allowed" = error="Failed to create enum. Expected Int64 for field 0 in `A`, but got String (\"not allowed\")"
 
-  MostOutest.B 6L =
-    (Builtin.testDerrorMessage "Failed to create enum. Expected String for field 0 in `B`, but got Int64 (6)")
+  MostOutest.B 6L = error="Failed to create enum. Expected String for field 0 in `B`, but got Int64 (6)"
 
 
 module EnumWithRecursiveTypeArgs =

@@ -13,8 +13,13 @@ module NR = NameResolver
 
 open Utils
 
+type WTExpected =
+  | WTExpectedExpr of WT.Expr
+  | WTExpectedError of string
+  | WTExpectedSqlError of string
+
 type WTTest =
-  { name : string; lineNumber : int; actual : WT.Expr; expected : WT.Expr }
+  { name : string; lineNumber : int; actual : WT.Expr; expected : WTExpected }
 
 type WTModule =
   { name : List<string>
@@ -27,8 +32,13 @@ type WTModule =
 let emptyWTModule =
   { name = []; types = []; values = []; fns = []; dbs = []; tests = [] }
 
+type PTExpected =
+  | PTExpectedExpr of PT.Expr
+  | PTExpectedError of string
+  | PTExpectedSqlError of string
+
 type PTTest =
-  { name : string; lineNumber : int; actual : PT.Expr; expected : PT.Expr }
+  { name : string; lineNumber : int; actual : PT.Expr; expected : PTExpected }
 
 type PTModule =
   { name : List<string>
@@ -55,7 +65,9 @@ module UserDB =
 
 
 /// Extracts a test from a SynExpr.
-/// The test must be in the format `expected = actual`, otherwise an exception is raised
+/// The test must be in the format `actual = expected`, `actual = error="msg"`,
+/// or `actual = sqlerror="msg"`,
+/// otherwise an exception is raised.
 let parseTest (ast : SynExpr) : WTTest =
   let convert (x : SynExpr) : WT.Expr = FS2WT.Expr.fromSynExpr x
 
@@ -67,13 +79,48 @@ let parseTest (ast : SynExpr) : WTTest =
                             SynExpr.LongIdent(_, SynLongIdent([ ident ], _, _), _, _),
                             actual,
                             _),
-                expected,
+                expectedExpr,
                 range) when ident.idText = "op_Equality" ->
+    let actual, expected =
+      match actual, expectedExpr with
+      // `x = error="msg"` is parsed as `(x = error) = "msg"`
+      | SynExpr.App(_, _, actualExpr, SynExpr.Ident marker, _),
+        SynExpr.Const(SynConst.String(errorMessage, _, _), _) when
+        marker.idText = "error"
+        ->
+        convert actualExpr, WTExpectedError(String.normalize errorMessage)
+      // `x = sqlerror="msg"` is parsed as `(x = sqlerror) = "msg"`
+      | SynExpr.App(_, _, actualExpr, SynExpr.Ident marker, _),
+        SynExpr.Const(SynConst.String(errorMessage, _, _), _) when
+        marker.idText = "sqlerror"
+        ->
+        convert actualExpr, WTExpectedSqlError(String.normalize errorMessage)
+      // Also support direct shape where RHS parses as `error "msg"`
+      | _,
+        SynExpr.App(_,
+                    _,
+                    SynExpr.Ident marker,
+                    SynExpr.Const(SynConst.String(errorMessage, _, _), _),
+                    _) when marker.idText = "error" ->
+        convert actual, WTExpectedError(String.normalize errorMessage)
+      // Also support direct shape where RHS parses as `sqlerror "msg"`
+      | _,
+        SynExpr.App(_,
+                    _,
+                    SynExpr.Ident marker,
+                    SynExpr.Const(SynConst.String(errorMessage, _, _), _),
+                    _) when marker.idText = "sqlerror" ->
+        convert actual, WTExpectedSqlError(String.normalize errorMessage)
+      | _ -> convert actual, WTExpectedExpr(convert expectedExpr)
+
     { name = "test"
       lineNumber = range.Start.Line
-      actual = convert actual
-      expected = convert expected }
-  | _ -> Exception.raiseInternal "Test case not in format `x = y`" [ "ast", ast ]
+      actual = actual
+      expected = expected }
+  | _ ->
+    Exception.raiseInternal
+      "Test case not in format `x = y`, `x = error=\"msg\"`, or `x = sqlerror=\"msg\"`"
+      [ "ast", ast ]
 
 
 let parseFile
@@ -247,7 +294,15 @@ let toPT
               WT2PT.Context.localBindings = Set.empty }
           let exprToPT = WT2PT.Expr.toPT builtins pm onMissing currentModule context
           let! actual = exprToPT test.actual
-          let! expected = exprToPT test.expected
+          let! expected =
+            uply {
+              match test.expected with
+              | WTExpectedExpr expected ->
+                let! expected = exprToPT expected
+                return PTExpected.PTExpectedExpr expected
+              | WTExpectedError msg -> return PTExpected.PTExpectedError msg
+              | WTExpectedSqlError msg -> return PTExpected.PTExpectedSqlError msg
+            }
           return
             { PTTest.actual = actual
               expected = expected
