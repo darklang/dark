@@ -45,13 +45,6 @@ module ContentHash =
     | _ -> Exception.raiseInternal "Invalid ContentHash" []
 
 
-// TODO: should these be elsewhere?
-let ownerField m = m |> D.field "owner" |> D.string
-let modulesField m = m |> D.field "modules" |> D.list D.string
-let nameField m = m |> D.field "name" |> D.string
-let versionField m = m |> D.field "version" |> D.int32
-
-
 module FQTypeName =
   let typeName =
     FQTypeName.fqPackage
@@ -98,7 +91,7 @@ module FQFnName =
     let fromDT (d : Dval) : PT.FQFnName.Builtin =
       match d with
       | DRecord(_, _, _, fields) ->
-        { name = nameField fields; version = versionField fields }
+        { name = C2DT.nameField fields; version = C2DT.versionField fields }
       | _ -> Exception.raiseInternal "Invalid FQFnName.Builtin" []
 
   module Package =
@@ -138,7 +131,7 @@ module FQValueName =
     let fromDT (d : Dval) : PT.FQValueName.Builtin =
       match d with
       | DRecord(_, _, _, fields) ->
-        { name = nameField fields; version = versionField fields }
+        { name = C2DT.nameField fields; version = C2DT.versionField fields }
       | _ -> Exception.raiseInternal "Invalid FQValueName.Builtin" []
 
   module Package =
@@ -1329,9 +1322,9 @@ module PackageLocation =
   let fromDT (d : Dval) : PT.PackageLocation =
     match d with
     | DRecord(_, _, _, fields) ->
-      { owner = ownerField fields
-        modules = modulesField fields
-        name = nameField fields }
+      { owner = C2DT.ownerField fields
+        modules = C2DT.modulesField fields
+        name = C2DT.nameField fields }
     | _ -> Exception.raiseInternal "Invalid PackageLocation" []
 
 

@@ -9,11 +9,6 @@ module D = DvalDecoder
 module C2DT = LibExecution.CommonToDarkTypes
 
 
-let ownerField m = m |> D.field "owner" |> D.string
-let modulesField m = m |> D.field "modules" |> D.list D.string
-let nameField m = m |> D.field "name" |> D.string
-let versionField m = m |> D.field "version" |> D.int32
-
 
 module ContentHash =
   let typeName =
@@ -85,7 +80,7 @@ module FQValueName =
     let fromDT (d : Dval) : FQValueName.Builtin =
       match d with
       | DRecord(_, _, _, fields) ->
-        { name = nameField fields; version = versionField fields }
+        { name = C2DT.nameField fields; version = C2DT.versionField fields }
       | _ -> Exception.raiseInternal "Invalid FQValueName.Builtin" []
 
   module Package =
@@ -135,7 +130,7 @@ module FQFnName =
     let fromDT (d : Dval) : FQFnName.Builtin =
       match d with
       | DRecord(_, _, _, fields) ->
-        { name = nameField fields; version = versionField fields }
+        { name = C2DT.nameField fields; version = C2DT.versionField fields }
       | _ -> Exception.raiseInternal "Invalid FQFnName.Builtin" []
 
   module Package =

@@ -35,10 +35,6 @@ relatedly -- so many fns in there are framed as 'cononicalWriteX' -- well, aren'
 - [x] **`WipRefresh.fs:95-100` changedCount is 2x actual** — fixed: use
   `Set.difference newHashes oldHashes` instead of symmetric difference.
 
-- [ ] **`evalConstantExpr` silently returns `DUnit` for unrecognized expressions**
-  — `ProgramTypesToRuntimeTypes.fs:1198` has a catch-all `| _ -> RT.DUnit` that
-  swallows unknown expression types. Should error instead.
-
 - [ ] **Dead ResizeArrays in `PackageManager.fs:89-103`** — `createInMemory`
   populates `types`, `values`, `fns` ResizeArrays but never reads them. The actual
   maps are built by a separate loop at lines 138-181. Remove the dead arrays.
@@ -85,9 +81,8 @@ relatedly -- so many fns in there are framed as 'cononicalWriteX' -- well, aren'
   `getTypePackageId`/`getFnPackageId`/`getValuePackageId` are identical to
   `extractTypeId`/`extractFnId`/`extractValueId`. Extract to shared module.
 
-- [ ] **Duplicated `ownerField`/`modulesField`/`nameField` helpers** —
-  `ProgramTypesToDarkTypes.fs` and `RuntimeTypesToDarkTypes.fs` both define
-  identical helper functions. Extract to `CommonToDarkTypes.fs`.
+- [x] **Duplicated `ownerField`/`modulesField`/`nameField` helpers** —
+  fixed: moved to `CommonToDarkTypes.fs`, both files now delegate to `C2DT.*`.
 
 - [ ] **O(n^2) list appends in `Propagation.fs:210-231`** — `repoints <- repoints
   @ [repoint]` and `allOps <- allOps @ ops` in a loop. Use `ResizeArray` or

@@ -2,6 +2,13 @@ module LibExecution.CommonToDarkTypes
 
 open RuntimeTypes
 module PackageRefs = LibExecution.PackageRefs
+module D = LibExecution.DvalDecoder
+
+
+let ownerField m = m |> D.field "owner" |> D.string
+let modulesField m = m |> D.field "modules" |> D.list D.string
+let nameField m = m |> D.field "name" |> D.string
+let versionField m = m |> D.field "version" |> D.int32
 
 
 module Option =
