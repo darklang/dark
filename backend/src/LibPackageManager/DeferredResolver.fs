@@ -23,31 +23,38 @@ type GenericName = PT.NameLookup.GenericName
 
 let private namesToTry = PT.NameLookup.namesToTry
 
+let private typeNameRegex =
+  System.Text.RegularExpressions.Regex(
+    @"^[A-Z][a-z0-9A-Z_']*$",
+    System.Text.RegularExpressions.RegexOptions.Compiled
+  )
+
+let private fnVersionedRegex =
+  System.Text.RegularExpressions.Regex(
+    @"^([a-z][a-z0-9A-Z_']*?)_v(\d+)$",
+    System.Text.RegularExpressions.RegexOptions.Compiled
+  )
+
+let private fnUnversionedRegex =
+  System.Text.RegularExpressions.Regex(
+    @"^([a-z][a-z0-9A-Z_']*?)$",
+    System.Text.RegularExpressions.RegexOptions.Compiled
+  )
+
 
 /// Parse a type name: just the name, version is always 0
 let private parseTypeName (name : string) : Result<string * int, string> =
-  if
-    System.Text.RegularExpressions.Regex.IsMatch(name, @"^[A-Z][a-z0-9A-Z_']*$")
-  then
-    Ok(name, 0)
-  else
-    Error "Bad type name"
+  if typeNameRegex.IsMatch(name) then Ok(name, 0) else Error "Bad type name"
 
 
 /// Parse a fn/value name: extract optional _vN suffix
 let private parseFnOrValueName (name : string) : Result<string * int, string> =
-  let m =
-    System.Text.RegularExpressions.Regex.Match(
-      name,
-      @"^([a-z][a-z0-9A-Z_']*?)_v(\d+)$"
-    )
+  let m = fnVersionedRegex.Match(name)
 
   if m.Success then
     Ok(m.Groups[1].Value, int m.Groups[2].Value)
   else
-    let m2 =
-      System.Text.RegularExpressions.Regex.Match(name, @"^([a-z][a-z0-9A-Z_']*?)$")
-
+    let m2 = fnUnversionedRegex.Match(name)
     if m2.Success then Ok(m2.Groups[1].Value, 0) else Error "Bad fn/value name"
 
 

@@ -809,265 +809,69 @@ module Expr =
         (ProgramTypes.Expr.EFnName(gid (), resolvedFnName), unresolvedNames)
 
     | EApply(_, fn, typeArgs, args) ->
-      match fn with
-      | EVariable(_, varName) ->
+      // Parse typeArgs and args once (shared across all branches)
+      let (typeArgs, tpUnresolvedNames) =
+        typeArgs
+        |> Stdlib.List.map (fun t -> TypeReference.toPT ctx t)
+        |> Stdlib.List.unzip
+
+      let (args, argsUnresolvedNames) =
+        args
+        |> Stdlib.List.map (fun a -> toPT ctx context a)
+        |> Stdlib.List.unzip
+
+      let baseUnresolved =
+        Stdlib.List.flatten
+          [ tpUnresolvedNames |> Stdlib.List.flatten
+            argsUnresolvedNames |> Stdlib.List.flatten ]
+
+      // Determine if this is a self-recursive call, and resolve the fn expr
+      let isSelfCall =
         match context.currentFnName with
+        | None -> false
         | Some currentFnName ->
-          let functionName = Stdlib.List.last currentFnName
-          match functionName with
-          | Some fnName when varName == fnName ->
-            let (typeArgs, tpUnresolvedNames) =
-              typeArgs
-              |> Stdlib.List.map (fun t ->
-                TypeReference.toPT ctx t)
-              |> Stdlib.List.unzip
-
-            let (args, argsUnresolvedNames) =
-              args
-              |> Stdlib.List.map (fun a -> toPT ctx context a)
-              |> Stdlib.List.unzip
-
-            let unresolvedNames =
-              Stdlib.List.flatten
-                [ tpUnresolvedNames |> Stdlib.List.flatten
-                  argsUnresolvedNames |> Stdlib.List.flatten ]
-
-            (ProgramTypes.Expr.EApply(gid (), ProgramTypes.Expr.ESelf(gid ()), typeArgs, args), unresolvedNames)
-          | _ ->
-            let (fn, fnUnresolvedNames) = toPT ctx context fn
-
-            let (typeArgs, tpUnresolvedNames) =
-              typeArgs
-              |> Stdlib.List.map (fun t ->
-                TypeReference.toPT ctx t)
-              |> Stdlib.List.unzip
-
-            let (args, argsUnresolvedNames) =
-              args
-              |> Stdlib.List.map (fun a -> toPT ctx context a)
-              |> Stdlib.List.unzip
-
-            let unresolvedNames =
-              Stdlib.List.flatten
-                [ tpUnresolvedNames |> Stdlib.List.flatten
-                  argsUnresolvedNames |> Stdlib.List.flatten
-                  fnUnresolvedNames ]
-
-            (ProgramTypes.Expr.EApply(gid (), fn, typeArgs, args), unresolvedNames)
-        | None ->
-          // No self context, process normally
-          let (fn, fnUnresolvedNames) = toPT ctx context fn
-
-          let (typeArgs, tpUnresolvedNames) =
-            typeArgs
-            |> Stdlib.List.map (fun t ->
-              TypeReference.toPT ctx t)
-            |> Stdlib.List.unzip
-
-          let (args, argsUnresolvedNames) =
-            args
-            |> Stdlib.List.map (fun a -> toPT ctx context a)
-            |> Stdlib.List.unzip
-
-          let unresolvedNames =
-            Stdlib.List.flatten
-              [ tpUnresolvedNames |> Stdlib.List.flatten
-                argsUnresolvedNames |> Stdlib.List.flatten
-                fnUnresolvedNames ]
-
-          (ProgramTypes.Expr.EApply(gid (), fn, typeArgs, args), unresolvedNames)
-      | EFnName(_, fnName) ->
-        match context.currentFnName with
-        | Some currentFnName ->
-          // Check if this qualified function name matches the self function
-          let qualifiedName =
-            Stdlib.List.append
-              (Stdlib.List.map fnName.modules (fun (m, _) -> m.name))
-              [ fnName.fn.name ]
-          let fullQualifiedName =
-            if Stdlib.List.isEmpty fnName.modules then
-              Stdlib.List.append ctx.currentModule [ fnName.fn.name ]
-            else
-              let moduleNames = Stdlib.List.map fnName.modules (fun (m, _) -> m.name)
-              let fnName = fnName.fn.name
-
-              let currentModuleBaseName = Stdlib.List.last ctx.currentModule
-              match currentModuleBaseName with
-              | Some baseName when moduleNames == [ baseName ] ->
-                Stdlib.List.append ctx.currentModule [ fnName ]
-              | _ ->
-                Stdlib.List.append ctx.currentModule qualifiedName
-
-          if fullQualifiedName == currentFnName then
-            let (typeArgs, tpUnresolvedNames) =
-              typeArgs
-              |> Stdlib.List.map (fun t ->
-                TypeReference.toPT ctx t)
-              |> Stdlib.List.unzip
-
-            let (args, argsUnresolvedNames) =
-              args
-              |> Stdlib.List.map (fun a -> toPT ctx context a)
-              |> Stdlib.List.unzip
-
-            let unresolvedNames =
-              Stdlib.List.flatten
-                [ tpUnresolvedNames |> Stdlib.List.flatten
-                  argsUnresolvedNames |> Stdlib.List.flatten ]
-
-            (ProgramTypes.Expr.EApply(gid (), ProgramTypes.Expr.ESelf(gid ()), typeArgs, args), unresolvedNames)
-          else
-            let (fn, fnUnresolvedNames) = toPT ctx context fn
-
-            let (typeArgs, tpUnresolvedNames) =
-              typeArgs
-              |> Stdlib.List.map (fun t ->
-                TypeReference.toPT ctx t)
-              |> Stdlib.List.unzip
-
-            let (args, argsUnresolvedNames) =
-              args
-              |> Stdlib.List.map (fun a -> toPT ctx context a)
-              |> Stdlib.List.unzip
-
-            let unresolvedNames =
-              Stdlib.List.flatten
-                [ tpUnresolvedNames |> Stdlib.List.flatten
-                  argsUnresolvedNames |> Stdlib.List.flatten
-                  fnUnresolvedNames ]
-
-            (ProgramTypes.Expr.EApply(gid (), fn, typeArgs, args), unresolvedNames)
-        | None ->
           match fn with
-          | EFnName(_, fnName) when Stdlib.List.isEmpty fnName.modules ->
-            let (args, argsUnresolvedNames) =
-              args
-              |> Stdlib.List.map (fun a -> toPT ctx context a)
-              |> Stdlib.List.unzip
+          | EVariable(_, varName) ->
+            (Stdlib.List.last currentFnName) == Stdlib.Option.Option.Some varName
+          | EFnName(_, fnName) ->
+            let qualifiedName =
+              Stdlib.List.append
+                (Stdlib.List.map fnName.modules (fun (m, _) -> m.name))
+                [ fnName.fn.name ]
+            let fullQualifiedName =
+              if Stdlib.List.isEmpty fnName.modules then
+                Stdlib.List.append ctx.currentModule [ fnName.fn.name ]
+              else
+                let moduleNames = Stdlib.List.map fnName.modules (fun (m, _) -> m.name)
+                let fnName = fnName.fn.name
+                let currentModuleBaseName = Stdlib.List.last ctx.currentModule
+                match currentModuleBaseName with
+                | Some baseName when moduleNames == [ baseName ] ->
+                  Stdlib.List.append ctx.currentModule [ fnName ]
+                | _ ->
+                  Stdlib.List.append ctx.currentModule qualifiedName
+            fullQualifiedName == currentFnName
+          | EValueOrFn(_, id) ->
+            let qualifiedName =
+              Stdlib.List.append
+                (Stdlib.List.map id.modules (fun (m, _) -> m.name))
+                [ id.valueOrFn.name ]
+            (Stdlib.List.append ctx.currentModule qualifiedName) == currentFnName
+          | _ -> false
 
-            let (typeArgs, tpUnresolvedNames) =
-              typeArgs
-              |> Stdlib.List.map (fun t ->
-                TypeReference.toPT ctx t)
-              |> Stdlib.List.unzip
-
-            let unresolvedNames =
-              Stdlib.List.flatten
-                [ tpUnresolvedNames |> Stdlib.List.flatten
-                  argsUnresolvedNames |> Stdlib.List.flatten ]
-
-            (ProgramTypes.Expr.EApply(gid (), ProgramTypes.Expr.EVariable(gid (), fnName.fn.name), typeArgs, args), unresolvedNames)
+      if isSelfCall then
+        (ProgramTypes.Expr.EApply(gid (), ProgramTypes.Expr.ESelf(gid ()), typeArgs, args), baseUnresolved)
+      else
+        // Special case: unqualified EFnName with no currentFnName → treat as EVariable
+        let (fnExpr, fnUnresolvedNames) =
+          match fn with
+          | EFnName(_, fnName) when (Stdlib.List.isEmpty fnName.modules) && (context.currentFnName == Stdlib.Option.Option.None) ->
+            (ProgramTypes.Expr.EVariable(gid (), fnName.fn.name), [])
           | _ ->
-            let (fn, fnUnresolvedNames) = toPT ctx context fn
+            toPT ctx context fn
 
-            let (typeArgs, tpUnresolvedNames) =
-              typeArgs
-              |> Stdlib.List.map (fun t ->
-                TypeReference.toPT ctx t)
-              |> Stdlib.List.unzip
-
-            let (args, argsUnresolvedNames) =
-              args
-              |> Stdlib.List.map (fun a -> toPT ctx context a)
-              |> Stdlib.List.unzip
-
-            let unresolvedNames =
-              Stdlib.List.flatten
-                [ tpUnresolvedNames |> Stdlib.List.flatten
-                  argsUnresolvedNames |> Stdlib.List.flatten
-                  fnUnresolvedNames ]
-
-            (ProgramTypes.Expr.EApply(gid (), fn, typeArgs, args), unresolvedNames)
-      | EValueOrFn(_, id) ->
-        match context.currentFnName with
-        | Some currentFnName ->
-          let qualifiedName =
-            Stdlib.List.append
-              (Stdlib.List.map id.modules (fun (m, _) -> m.name))
-              [ id.valueOrFn.name ]
-          let fullQualifiedName = Stdlib.List.append ctx.currentModule qualifiedName
-
-          if fullQualifiedName == currentFnName then
-            let (typeArgs, tpUnresolvedNames) =
-              typeArgs
-              |> Stdlib.List.map (fun t ->
-                TypeReference.toPT ctx t)
-              |> Stdlib.List.unzip
-
-            let (args, argsUnresolvedNames) =
-              args
-              |> Stdlib.List.map (fun a -> toPT ctx context a)
-              |> Stdlib.List.unzip
-
-            let unresolvedNames =
-              Stdlib.List.flatten
-                [ tpUnresolvedNames |> Stdlib.List.flatten
-                  argsUnresolvedNames |> Stdlib.List.flatten ]
-
-            (ProgramTypes.Expr.EApply(gid (), ProgramTypes.Expr.ESelf(gid ()), typeArgs, args), unresolvedNames)
-          else
-            let (fn, fnUnresolvedNames) = toPT ctx context fn
-
-            let (typeArgs, tpUnresolvedNames) =
-              typeArgs
-              |> Stdlib.List.map (fun t ->
-                TypeReference.toPT ctx t)
-              |> Stdlib.List.unzip
-
-            let (args, argsUnresolvedNames) =
-              args
-              |> Stdlib.List.map (fun a -> toPT ctx context a)
-              |> Stdlib.List.unzip
-
-            let unresolvedNames =
-              Stdlib.List.flatten
-                [ tpUnresolvedNames |> Stdlib.List.flatten
-                  argsUnresolvedNames |> Stdlib.List.flatten
-                  fnUnresolvedNames ]
-
-            (ProgramTypes.Expr.EApply(gid (), fn, typeArgs, args), unresolvedNames)
-        | None ->
-          let (fn, fnUnresolvedNames) = toPT ctx context fn
-
-          let (typeArgs, tpUnresolvedNames) =
-            typeArgs
-            |> Stdlib.List.map (fun t ->
-              TypeReference.toPT ctx t)
-            |> Stdlib.List.unzip
-
-          let (args, argsUnresolvedNames) =
-            args
-            |> Stdlib.List.map (fun a -> toPT ctx context a)
-            |> Stdlib.List.unzip
-
-          let unresolvedNames =
-            Stdlib.List.flatten
-              [ tpUnresolvedNames |> Stdlib.List.flatten
-                argsUnresolvedNames |> Stdlib.List.flatten
-                fnUnresolvedNames ]
-
-          (ProgramTypes.Expr.EApply(gid (), fn, typeArgs, args), unresolvedNames)
-      | _ ->
-        let (fn, fnUnresolvedNames) = toPT ctx context fn
-
-        let (typeArgs, tpUnresolvedNames) =
-          typeArgs
-          |> Stdlib.List.map (fun t ->
-            TypeReference.toPT ctx t)
-          |> Stdlib.List.unzip
-
-        let (args, argsUnresolvedNames) =
-          args
-          |> Stdlib.List.map (fun a -> toPT ctx context a)
-          |> Stdlib.List.unzip
-
-        let unresolvedNames =
-          Stdlib.List.flatten
-            [ tpUnresolvedNames |> Stdlib.List.flatten
-              argsUnresolvedNames |> Stdlib.List.flatten
-              fnUnresolvedNames ]
-
-        (ProgramTypes.Expr.EApply(gid (), fn, typeArgs, args), unresolvedNames)
+        let unresolvedNames = Stdlib.List.append baseUnresolved fnUnresolvedNames
+        (ProgramTypes.Expr.EApply(gid (), fnExpr, typeArgs, args), unresolvedNames)
 
     | EStatement (_, first, next) ->
       let (first, firstUnresolvedNames) = toPT ctx context first

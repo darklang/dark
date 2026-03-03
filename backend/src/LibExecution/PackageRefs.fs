@@ -588,17 +588,17 @@ module Fn =
     module Parser =
       let private p addl = p ("Parser" :: addl)
       let parsePTExpr =
-        "6d7b792909b697bc16da8b10052e0687e879d580e5d4e770e5f30f0547455858"
+        "c712857936387e79f146b921fc7a9e8d0c58f2580bb35cb46b24e12a04d0415b"
         |> p [ "TestParsing" ] "parsePTExpr"
 
       let parsePTSourceFileWithOps =
-        "73bef382f69c36633670f0efd1b2144bc663e326d3026add295a8310c448c9ee"
+        "99010a449ffe3f11152ba3655180e28aa9f7429c48605a91967f3098b6a21bff"
         |> p [ "TestParsing" ] "parsePTSourceFileWithOps"
 
       module CliScript =
         let private p addl = p ("CliScript" :: addl)
         let parseForCli =
-          "b24d677b38ce9829d863cdb1ef6353dc85c1e73f06534f325e75a9f42d9073d6"
+          "4f2ca4481bd02c833b6034e222d2c6b5cee8ef6a5da0b2fb3902f7586ea1f853"
           |> p [] "parseForCli"
 
   module PrettyPrinter =
@@ -638,7 +638,7 @@ module Fn =
 
   module Cli =
     let executeCliCommand =
-      "961a55337d50cb7aa5b7279c74bde3f22ec8c83138b435b947aa823328f31349"
+      "41c9bee784c6623e6aa215a04676644e51d65e2075c7276448800e13c687df61"
       |> p [ "Cli" ] "executeCliCommand"
 
   module Internal =
@@ -646,5 +646,5 @@ module Fn =
     module Test =
       let private p addl = p ("Test" :: addl)
       let parseSingleTestFromFile =
-        "fc7c9beb4b09c703689c0213e91ece6c295743545c743902a48817d97bee3deb"
+        "391e32a3d58dd7958ec4b5f08dc4fef03107d1e3ed28f395fd78b06f532a7811"
         |> p [] "parseSingleTestFromFile"

@@ -91,11 +91,9 @@ let refresh (pm : PT.PackageManager) (branchId : System.Guid) : Task<int64> =
       if oldHashes = newHashes then
         return 0L
       else
-        // Count changed items
+        // Count changed items (items that got a new hash)
         let changedCount =
-          Set.union
-            (Set.difference oldHashes newHashes)
-            (Set.difference newHashes oldHashes)
+          Set.difference newHashes oldHashes
           |> Set.count
           |> int64
 

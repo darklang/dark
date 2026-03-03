@@ -29,18 +29,11 @@ relatedly -- so many fns in there are framed as 'cononicalWriteX' -- well, aren'
   writes `"Interpolated"` but line 406 matches `"Interpolation"`. Deserialization
   of interpolated string segments will always fail.
 
-- [ ] **`PropagateRepoint` and `PackageOp` still use UUID names/types for
-  package item refs** — `programTypes.dark:423-427`: `PropagateRepoint` has
-  `fromUUID: Uuid` / `toUUID: Uuid` but CLI consumers access `.toHash`.
-  `PackageOp.PropagateUpdate` (lines 438-444): `fromSourceUUIDs: List<Uuid>`,
-  `toSourceUUID: Uuid`. `RevertPropagation` (lines 446-452):
-  `restoredSourceUUID: Uuid`. All of these refer to package item content hashes
-  and should be `String` with hash-based names. (`propagationId` and `revertId`
-  are operation IDs and can stay as `Uuid`.)
+- [x] **`PropagateRepoint` and `PackageOp` still use UUID names/types for
+  package item refs** — fixed: now uses `ContentHash` with hash-based names.
 
-- [ ] **`WipRefresh.fs:95-100` changedCount is 2x actual** — Uses symmetric
-  difference of old/new hash sets, which counts each changed item twice (old hash
-  + new hash). Should be `Set.count / 2` or count locations whose hash changed.
+- [x] **`WipRefresh.fs:95-100` changedCount is 2x actual** — fixed: use
+  `Set.difference newHashes oldHashes` instead of symmetric difference.
 
 - [ ] **`evalConstantExpr` silently returns `DUnit` for unrecognized expressions**
   — `ProgramTypesToRuntimeTypes.fs:1198` has a catch-all `| _ -> RT.DUnit` that
@@ -50,13 +43,11 @@ relatedly -- so many fns in there are framed as 'cononicalWriteX' -- well, aren'
   populates `types`, `values`, `fns` ResizeArrays but never reads them. The actual
   maps are built by a separate loop at lines 138-181. Remove the dead arrays.
 
-- [ ] **Regex compiled on every call in `DeferredResolver.fs:27-50`** —
-  `parseTypeName` and `parseFnOrValueName` compile regex patterns on every
-  invocation. Extract to module-level compiled `Regex` instances.
+- [x] **Regex compiled on every call in `DeferredResolver.fs:27-50`** —
+  fixed: extracted to module-level compiled `Regex` instances.
 
-- [ ] **Dead `_lookup` mutable maps in `PackageRefs.fs:29-32, 684-688`** — Both
-  `Type._lookup` and `Fn._lookup` are populated but never read anywhere. Remove
-  or add a comment explaining if they're for debugging.
+- [x] **Dead `_lookup` mutable maps in `PackageRefs.fs:29-32, 684-688`** —
+  intentional: infrastructure for future LocalExec hash-checking tool (see TODO comment).
 
 - [ ] **Dead `extractFromLetPattern` in `DependencyExtractor.fs:125`** — Always
   returns `[]`. Called at line 232 but contributes nothing. Remove.
@@ -131,9 +122,9 @@ relatedly -- so many fns in there are framed as 'cononicalWriteX' -- well, aren'
   Skips binary format comparison with comment about changing format. Track
   re-enablement.
 
-- [ ] **Massive duplication in `writtenTypesToProgramTypes.dark:811-1070`** —
-  The `EApply` case repeats the same "parse typeArgs, parse args, construct
-  EApply" block ~8 times. Factor into a helper.
+- [x] **Massive duplication in `writtenTypesToProgramTypes.dark:811-1070`** —
+  fixed: hoisted typeArgs/args parsing above the branching, reduced self-call
+  detection to a single `isSelfCall` bool. ~260 lines → ~60.
 
 - [ ] **Mutable `statements` list in `PackageOpPlayback.applySetName`** —
   Classic imperative SQL statement building. Probably leave as-is.
