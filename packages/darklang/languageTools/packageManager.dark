@@ -6,12 +6,56 @@
 module Darklang.LanguageTools.PackageManager
 
 
-/// Given a list of locations for a hash, pick the best one.
-/// Currently takes the first; can be made smarter with context later.
+/// Context for choosing among multiple locations that share the same content hash.
+/// When a hash maps to multiple named locations (e.g. Person and Person2 are
+/// structurally identical), we use context to pick the best display name.
+type PickContext =
+  { currentModule: List<String> }
+
+module PickContext =
+  let empty : PickContext =
+    PickContext { currentModule = [] }
+
+/// Count how many leading segments of two lists match.
+let countMatchingPrefix (a: List<String>) (b: List<String>) : Int64 =
+  match (a, b) with
+  | (aHead :: aTail, bHead :: bTail) ->
+    if aHead == bHead then
+      1L + (countMatchingPrefix aTail bTail)
+    else
+      0L
+  | _ -> 0L
+
+/// Given a list of locations for a hash, pick the best one using context.
+/// Scoring: most matching prefix segments with currentModule, then shortest path,
+/// then original ordering (SQL order: branch priority, commit status, recency).
 let pickLocation
+  (ctx: PickContext)
   (locations: List<ProgramTypes.PackageLocation>)
   : Stdlib.Option.Option<ProgramTypes.PackageLocation> =
-  Stdlib.List.head locations
+  match locations with
+  | [] -> Stdlib.Option.Option.None
+  | [ single ] -> Stdlib.Option.Option.Some single
+  | first :: rest ->
+    let firstPath = Stdlib.List.push first.modules first.owner
+    let firstScore = countMatchingPrefix ctx.currentModule firstPath
+    let firstLen = Stdlib.List.length firstPath
+
+    let (_, _, bestLoc) =
+      Stdlib.List.fold rest (firstScore, firstLen, first) (fun acc loc ->
+        let (bestScore, bestLen, bestLoc) = acc
+        let locPath = Stdlib.List.push loc.modules loc.owner
+        let score = countMatchingPrefix ctx.currentModule locPath
+        let len = Stdlib.List.length locPath
+
+        if score > bestScore then
+          (score, len, loc)
+        else if score == bestScore && len < bestLen then
+          (score, len, loc)
+        else
+          (bestScore, bestLen, bestLoc))
+
+    Stdlib.Option.Option.Some bestLoc
 
 
 module Type =
@@ -33,7 +77,7 @@ module Type =
       ProgramTypes.LocatedItem<ProgramTypes.PackageType.PackageType>> =
     match Builtin.pmGetType hash with
     | Some entity ->
-      match PackageManager.pickLocation (Builtin.pmGetLocationsByType branchId hash) with
+      match PackageManager.pickLocation PackageManager.PickContext.empty (Builtin.pmGetLocationsByType branchId hash) with
       | Some location ->
         Stdlib.Option.Option.Some(
           ProgramTypes.LocatedItem { entity = entity; location = location }
@@ -61,7 +105,7 @@ module Value =
       ProgramTypes.LocatedItem<ProgramTypes.PackageValue.PackageValue>> =
     match Builtin.pmGetValue hash with
     | Some entity ->
-      match PackageManager.pickLocation (Builtin.pmGetLocationsByValue branchId hash) with
+      match PackageManager.pickLocation PackageManager.PickContext.empty (Builtin.pmGetLocationsByValue branchId hash) with
       | Some location ->
         Stdlib.Option.Option.Some(
           ProgramTypes.LocatedItem { entity = entity; location = location }
@@ -89,7 +133,7 @@ module Function =
       ProgramTypes.LocatedItem<ProgramTypes.PackageFn.PackageFn>> =
     match Builtin.pmGetFn hash with
     | Some entity ->
-      match PackageManager.pickLocation (Builtin.pmGetLocationsByFn branchId hash) with
+      match PackageManager.pickLocation PackageManager.PickContext.empty (Builtin.pmGetLocationsByFn branchId hash) with
       | Some location ->
         Stdlib.Option.Option.Some(
           ProgramTypes.LocatedItem { entity = entity; location = location }

@@ -1300,6 +1300,8 @@ module UserDefinedRecords =
             e2 = 5L } })
 
   module Errors =
+    // Person shares its content hash with UserDefinedAliases.Person2 (identical structure),
+    // but pickLocation now prefers the shorter path.
     (Stdlib.Json.parse<Person> "[]") |> err = Result.Error
       "Can't parse JSON `[]` as type `Person` at path: `root`"
 

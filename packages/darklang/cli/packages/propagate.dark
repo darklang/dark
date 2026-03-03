@@ -39,6 +39,7 @@ let resolveTypeName
   (hash: LanguageTools.ProgramTypes.FQTypeName.Package)
   : Stdlib.Option.Option<LanguageTools.ProgramTypes.PackageLocation> =
   Darklang.LanguageTools.PackageManager.pickLocation
+    Darklang.LanguageTools.PackageManager.PickContext.empty
     (Builtin.pmGetLocationsByType branchId hash)
 
 

@@ -72,7 +72,7 @@ module ModuleDeclaration =
     (ms: List<Module>)
     (t: LanguageTools.ProgramTypes.PackageType.PackageType)
     : List<Module> =
-    match Darklang.LanguageTools.PackageManager.pickLocation (Builtin.pmGetLocationsByType branchId t.hash) with
+    match Darklang.LanguageTools.PackageManager.pickLocation Darklang.LanguageTools.PackageManager.PickContext.empty (Builtin.pmGetLocationsByType branchId t.hash) with
     | Some location ->
       let fullPath = Stdlib.List.push location.modules location.owner
       withTypeHelper ms t fullPath
@@ -149,7 +149,7 @@ module ModuleDeclaration =
     (ms: List<Module>)
     (f: LanguageTools.ProgramTypes.PackageFn.PackageFn)
     : List<Module> =
-    match Darklang.LanguageTools.PackageManager.pickLocation (Builtin.pmGetLocationsByFn branchId f.hash) with
+    match Darklang.LanguageTools.PackageManager.pickLocation Darklang.LanguageTools.PackageManager.PickContext.empty (Builtin.pmGetLocationsByFn branchId f.hash) with
     | Some location ->
       let fullPath = Stdlib.List.push location.modules location.owner
       withFnHelper ms f fullPath
@@ -225,7 +225,7 @@ module ModuleDeclaration =
     (ms: List<Module>)
     (v: LanguageTools.ProgramTypes.PackageValue.PackageValue)
     : List<Module> =
-    match Darklang.LanguageTools.PackageManager.pickLocation (Builtin.pmGetLocationsByValue branchId v.hash) with
+    match Darklang.LanguageTools.PackageManager.pickLocation Darklang.LanguageTools.PackageManager.PickContext.empty (Builtin.pmGetLocationsByValue branchId v.hash) with
     | Some location ->
       let fullPath = Stdlib.List.push location.modules location.owner
       withValueHelper ms v fullPath

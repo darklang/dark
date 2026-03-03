@@ -57,6 +57,13 @@ module Context =
 
   let forMain : Context = forBranch SCM.Branch.mainBranchId
 
+  let toPickContext (ctx: Context) : LanguageTools.PackageManager.PickContext =
+    LanguageTools.PackageManager.PickContext
+      { currentModule =
+          match ctx.currentModule with
+          | Some m -> Stdlib.String.split m "."
+          | None -> [] }
+
 let packageNameWithContext
   (ctx: Context)
   (owner: String)
@@ -110,7 +117,7 @@ module FQTypeName =
       (ctx: Context)
       (hash: LanguageTools.ProgramTypes.FQTypeName.Package)
       : String =
-      match Darklang.LanguageTools.PackageManager.pickLocation (Builtin.pmGetLocationsByType ctx.branchId hash) with
+      match Darklang.LanguageTools.PackageManager.pickLocation (Context.toPickContext ctx) (Builtin.pmGetLocationsByType ctx.branchId hash) with
       | Some l -> l.name
       | None -> shortHash hash
 
@@ -118,7 +125,7 @@ module FQTypeName =
       (ctx: Context)
       (hash: LanguageTools.ProgramTypes.FQTypeName.Package)
       : String =
-      match Darklang.LanguageTools.PackageManager.pickLocation (Builtin.pmGetLocationsByType ctx.branchId hash) with
+      match Darklang.LanguageTools.PackageManager.pickLocation (Context.toPickContext ctx) (Builtin.pmGetLocationsByType ctx.branchId hash) with
       | Some l ->
         packageNameWithContext ctx l.owner l.modules l.name
       | None -> shortHash hash
@@ -161,7 +168,7 @@ module FQValueName =
       (ctx: Context)
       (hash: LanguageTools.ProgramTypes.FQValueName.Package)
       : String =
-      match Darklang.LanguageTools.PackageManager.pickLocation (Builtin.pmGetLocationsByValue ctx.branchId hash) with
+      match Darklang.LanguageTools.PackageManager.pickLocation (Context.toPickContext ctx) (Builtin.pmGetLocationsByValue ctx.branchId hash) with
       | Some l -> l.name
       | None -> shortHash hash
 
@@ -169,7 +176,7 @@ module FQValueName =
       (ctx: Context)
       (hash: LanguageTools.ProgramTypes.FQValueName.Package)
       : String =
-      match Darklang.LanguageTools.PackageManager.pickLocation (Builtin.pmGetLocationsByValue ctx.branchId hash) with
+      match Darklang.LanguageTools.PackageManager.pickLocation (Context.toPickContext ctx) (Builtin.pmGetLocationsByValue ctx.branchId hash) with
       | Some l ->
         packageNameWithContext ctx l.owner l.modules l.name
       | None -> shortHash hash
@@ -218,7 +225,7 @@ module FQFnName =
       (ctx: Context)
       (hash: LanguageTools.ProgramTypes.FQFnName.Package)
       : String =
-      match Darklang.LanguageTools.PackageManager.pickLocation (Builtin.pmGetLocationsByFn ctx.branchId hash) with
+      match Darklang.LanguageTools.PackageManager.pickLocation (Context.toPickContext ctx) (Builtin.pmGetLocationsByFn ctx.branchId hash) with
       | Some l -> l.name
       | None -> shortHash hash
 
@@ -226,7 +233,7 @@ module FQFnName =
       (ctx: Context)
       (hash: LanguageTools.ProgramTypes.FQFnName.Package)
       : String =
-      match Darklang.LanguageTools.PackageManager.pickLocation (Builtin.pmGetLocationsByFn ctx.branchId hash) with
+      match Darklang.LanguageTools.PackageManager.pickLocation (Context.toPickContext ctx) (Builtin.pmGetLocationsByFn ctx.branchId hash) with
       | Some l ->
         packageNameWithContext ctx l.owner l.modules l.name
       | None -> shortHash hash
