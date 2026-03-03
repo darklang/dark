@@ -8,7 +8,9 @@
   look up every other use of 'content'
   make sure no 'id' bound to one of these
 
-- [ ] I hate that NameLookup leaked, somehow, into ProgramTYpes.fs -- that's supposed to be for core types. why was this done? report back and tell me my options (tell me in this file)
+- [x] I hate that NameLookup leaked, somehow, into ProgramTYpes.fs -- that's supposed to be for core types. why was this done? report back and tell me my options (tell me in this file)
+  fixed: moved to `LibPackageManager/NameLookup.fs`. Both consumers (NameResolver,
+  DeferredResolver) can see it since LibParser depends on LibPackageManager.
 
 - [x] why do we still have getTypeLocation when we now have getTypeLocations?
   fixed: removed singular getLocation/getTypeLocation/getValueLocation/getFnLocation

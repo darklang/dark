@@ -47,9 +47,9 @@ let throwIfRelevant
           | OnMissing.Allow -> err) }
 
 
-type GenericName = PT.NameLookup.GenericName
+type GenericName = LibPackageManager.NameLookup.GenericName
 
-let namesToTry = PT.NameLookup.namesToTry
+let namesToTry = LibPackageManager.NameLookup.namesToTry
 
 
 /// Generic name resolution that handles the common pattern across Type/Value/Fn resolution

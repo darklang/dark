@@ -25,6 +25,7 @@
     <Compile Include="Branches.fs" />
     <Compile Include="AstTransformer.fs" />
     <Compile Include="HashStabilization.fs" />
+    <Compile Include="NameLookup.fs" />
     <Compile Include="DeferredResolver.fs" />
     <Compile Include="PackageOpPlayback.fs" />
     <Compile Include="Inserts.fs" />

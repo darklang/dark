@@ -16,12 +16,12 @@ module PT = LibExecution.ProgramTypes
 
 
 // --------------------------------------------------------------------------
-// Name resolution helpers (shared logic in PT.NameLookup)
+// Name resolution helpers (shared logic in NameLookup.fs)
 // --------------------------------------------------------------------------
 
-type GenericName = PT.NameLookup.GenericName
+type GenericName = NameLookup.GenericName
 
-let private namesToTry = PT.NameLookup.namesToTry
+let private namesToTry = NameLookup.namesToTry
 
 let private typeNameRegex =
   System.Text.RegularExpressions.Regex(
