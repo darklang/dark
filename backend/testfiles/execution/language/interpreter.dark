@@ -11,7 +11,7 @@
 
 // Just to show off, let's increase the size of the list
 //   (CLEANUP include this -- it's just a bit slow right now.)
-// ((Stdlib.List.repeat_v0 3480L 1L)
-//  |> Builtin.unwrap
-//  |> Stdlib.List.map (fun _f -> 1)
-//  |> Stdlib.List.length) = 3480L
+((Stdlib.List.repeat_v0 3480L 1L)
+ |> Builtin.unwrap
+ |> Stdlib.List.map (fun _f -> 1)
+ |> Stdlib.List.length) = 3480L

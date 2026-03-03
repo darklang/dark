@@ -101,9 +101,9 @@ Stdlib.Dict.map_v0
 
 
 // CLEANUP include this once we've switched over to the new parser.
-// module LambdaInRecordField =
-//   type RecordWithFn = { fn: Int64 -> Int64 }
+module LambdaInRecordField =
+  type RecordWithFn = { fn: Int64 -> Int64 }
 
-//   // check: can we apply a function from a record field directly?
-//   (let record = RecordWithFn { fn = fun x -> x + 1L }
-//    (record.fn 6L)) = 7L
+  // check: can we apply a function from a record field directly?
+  (let record = RecordWithFn { fn = fun x -> x + 1L }
+   (record.fn 6L)) = 7L
