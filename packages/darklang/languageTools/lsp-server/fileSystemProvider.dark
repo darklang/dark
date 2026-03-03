@@ -60,33 +60,25 @@ module ReadFile =
 
         // Try to find as a specific entity (type, function, or value)
         let entityContent =
-          match pm.findType (branchId, location) with
-          | Some id ->
-            match pm.getType id with
-            | Some typ ->
-              (PrettyPrinter.ProgramTypes.packageType ctx typ)
-              |> Stdlib.Option.Option.Some
-            | None -> Stdlib.Option.Option.None
-
-          | None ->
-            match pm.findFn (branchId, location) with
-            | Some id ->
-              match pm.getFn id with
-              | Some fn ->
-                (PrettyPrinter.ProgramTypes.packageFn ctx fn)
-                |> Stdlib.Option.Option.Some
-              | None -> Stdlib.Option.Option.None
-
-            | None ->
-              match pm.findValue (branchId, location) with
-              | Some id ->
-                match pm.getValue id with
-                | Some value ->
-                  (PrettyPrinter.ProgramTypes.packageValue ctx value)
-                  |> Stdlib.Option.Option.Some
-                | None -> Stdlib.Option.Option.None
-
-              | None -> Stdlib.Option.Option.None
+          match LanguageTools.PackageManager.findAny branchId location with
+          | Some ((hash, kind)) ->
+            match kind with
+            | Type ->
+              (pm.getType hash)
+              |> Stdlib.Option.andThen (fun typ ->
+                Stdlib.Option.Option.Some(
+                  PrettyPrinter.ProgramTypes.packageType ctx typ))
+            | Fn ->
+              (pm.getFn hash)
+              |> Stdlib.Option.andThen (fun fn ->
+                Stdlib.Option.Option.Some(
+                  PrettyPrinter.ProgramTypes.packageFn ctx fn))
+            | Value ->
+              (pm.getValue hash)
+              |> Stdlib.Option.andThen (fun value ->
+                Stdlib.Option.Option.Some(
+                  PrettyPrinter.ProgramTypes.packageValue ctx value))
+          | None -> Stdlib.Option.Option.None
 
         match entityContent with
         | Some content -> content

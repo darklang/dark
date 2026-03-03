@@ -345,6 +345,11 @@ let contentHashToString (hash: ContentHash) : String =
   match hash with
   | ContentHash h -> h
 
+/// First 8 hex chars, for human-readable display
+let contentHashToShort (hash: ContentHash) : String =
+  let h = contentHashToString hash
+  Stdlib.String.first h 8L
+
 /// A package entity paired with its location
 type LocatedItem<'entity> =
   { entity: 'entity

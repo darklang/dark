@@ -349,34 +349,30 @@ let locationLookupFn (req: Stdlib.Http.Request) : Stdlib.Http.Response =
         LanguageTools.ProgramTypes.PackageLocation
           { owner = owner; modules = modules; name = entityName }
 
-      // Try function first
-      match Builtin.pmFindFn SCM.Branch.mainBranchId packageLocation with
-      | Some fnHash ->
-        match Builtin.pmGetFn fnHash with
-        | Some fn ->
-          let json = fn |> Builtin.jsonSerialize<LanguageTools.ProgramTypes.PackageFn.PackageFn>
+      match LanguageTools.PackageManager.findAny SCM.Branch.mainBranchId packageLocation with
+      | Some ((hash, kind)) ->
+        let jsonOpt =
+          match kind with
+          | Fn ->
+            (Builtin.pmGetFn hash)
+            |> Stdlib.Option.map (fun fn ->
+              Builtin.jsonSerialize<LanguageTools.ProgramTypes.PackageFn.PackageFn> fn)
+          | Type ->
+            (Builtin.pmGetType hash)
+            |> Stdlib.Option.map (fun t ->
+              Builtin.jsonSerialize<LanguageTools.ProgramTypes.PackageType.PackageType> t)
+          | Value ->
+            (Builtin.pmGetValue hash)
+            |> Stdlib.Option.map (fun v ->
+              Builtin.jsonSerialize<LanguageTools.ProgramTypes.PackageValue.PackageValue> v)
+
+        match jsonOpt with
+        | Some json ->
           Stdlib.Http.response (Stdlib.String.toBytes json) 200L
-        | None -> Stdlib.Http.response (Stdlib.String.toBytes "not found") 404L
-      | None ->
-        // Try type
-        match Builtin.pmFindType SCM.Branch.mainBranchId packageLocation with
-        | Some typeHash ->
-          match Builtin.pmGetType typeHash with
-          | Some typeDefinition ->
-            let json = typeDefinition |> Builtin.jsonSerialize<LanguageTools.ProgramTypes.PackageType.PackageType>
-            Stdlib.Http.response (Stdlib.String.toBytes json) 200L
-          | None -> Stdlib.Http.response (Stdlib.String.toBytes "not found") 404L
         | None ->
-          // Try value
-          match Builtin.pmFindValue SCM.Branch.mainBranchId packageLocation with
-          | Some valueHash ->
-            match Builtin.pmGetValue valueHash with
-            | Some value ->
-              let json = value |> Builtin.jsonSerialize<LanguageTools.ProgramTypes.PackageValue.PackageValue>
-              Stdlib.Http.response (Stdlib.String.toBytes json) 200L
-            | None -> Stdlib.Http.response (Stdlib.String.toBytes "not found") 404L
-          | None ->
-            // Treat as module query
+          Stdlib.Http.response (Stdlib.String.toBytes "not found") 404L
+      | None ->
+        // Treat as module query
             let modulePathParts = Stdlib.List.append modules [ entityName ]
             let searchQuery =
               LanguageTools.ProgramTypes.Search.SearchQuery

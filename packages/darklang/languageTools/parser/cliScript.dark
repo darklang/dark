@@ -90,8 +90,8 @@ let parseDecls
 /// Helper to process a list of declarations and split results into separate lists (entities, ops, unresolved names)
 let processDecls
   (items: List<'a>)
-  (processFn: 'a -> ('entity * List<ProgramTypes.PackageOp> * List<Parser.Range * List<String> * ProgramTypes.NameResolutionError>))
-  : (List<'entity> * List<List<ProgramTypes.PackageOp>> * List<List<Parser.Range * List<String> * ProgramTypes.NameResolutionError>>) =
+  (processFn: 'a -> ('entity * List<ProgramTypes.PackageOp> * List<WrittenTypes.UnresolvedName>))
+  : (List<'entity> * List<List<ProgramTypes.PackageOp>> * List<List<WrittenTypes.UnresolvedName>>) =
   let results = items |> Stdlib.List.map processFn
 
   let entities = results |> Stdlib.List.map (fun (e, _, _) -> e)
@@ -106,7 +106,7 @@ let toPT
   (wt: WTCliScriptModule)
   : (PTCliScriptModule *
     List<ProgramTypes.PackageOp> *
-    List<Parser.Range * List<String> * ProgramTypes.NameResolutionError>)
+    List<WrittenTypes.UnresolvedName>)
   =
   let modules = if wt.name == "" then [] else [ wt.name ]
   let ctx = { ctx with owner = wt.owner; currentModule = modules }
@@ -229,7 +229,7 @@ let parse
   (scriptName: String)
   (filename: String)
   (source: String)
-  : Stdlib.Result.Result<(PTCliScriptModule * List<Parser.Range * List<String> * ProgramTypes.NameResolutionError>), String> =
+  : Stdlib.Result.Result<(PTCliScriptModule * List<WrittenTypes.UnresolvedName>), String> =
   match source |> LanguageTools.Parser.TestParsing.initialParse with
   | Error e -> Stdlib.Result.Result.Error e
   | Ok parsedFile ->
@@ -329,7 +329,7 @@ let parseForCli
   (scriptName: String)
   (filename: String)
   (source: String)
-  : Stdlib.Result.Result<(PTCliScriptModule * List<Parser.Range * List<String> * ProgramTypes.NameResolutionError>), String> =
+  : Stdlib.Result.Result<(PTCliScriptModule * List<WrittenTypes.UnresolvedName>), String> =
   let pm = LanguageTools.PackageManager.pm ()
 
   let ctx =

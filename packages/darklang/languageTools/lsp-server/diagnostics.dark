@@ -4,7 +4,7 @@ module Darklang.LanguageTools.LspServer.Diagnostics
 let gatherAndReportDiagnostics
   (requestUri: String)
   (parsedText: WrittenTypes.SourceFile.SourceFile)
-  (unresolvedNames: List<Parser.Range * List<String> * ProgramTypes.NameResolutionError>)
+  (unresolvedNames: List<WrittenTypes.UnresolvedName>)
   : Unit =
   let warningDiagnostics =
     unresolvedNames

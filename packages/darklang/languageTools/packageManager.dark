@@ -98,6 +98,26 @@ module Function =
     | None -> Stdlib.Option.Option.None
 
 
+/// Find any item (type, fn, or value) at a location.
+/// Returns the hash and what kind of item it is.
+let findAny
+  (branchId: Uuid)
+  (location: ProgramTypes.PackageLocation)
+  : Stdlib.Option.Option<(ProgramTypes.ContentHash * ProgramTypes.ItemKind)> =
+  match Builtin.pmFindType branchId location with
+  | Some hash ->
+    Stdlib.Option.Option.Some((hash, ProgramTypes.ItemKind.Type))
+  | None ->
+    match Builtin.pmFindFn branchId location with
+    | Some hash ->
+      Stdlib.Option.Option.Some((hash, ProgramTypes.ItemKind.Fn))
+    | None ->
+      match Builtin.pmFindValue branchId location with
+      | Some hash ->
+        Stdlib.Option.Option.Some((hash, ProgramTypes.ItemKind.Value))
+      | None -> Stdlib.Option.Option.None
+
+
 module Search =
   let search
     (branchId: Uuid)

@@ -23,10 +23,8 @@ let formatDocComment (description: String) : String =
 
 
 /// Format a content hash for display when PM lookup fails.
-/// Shows first 8 chars to keep output readable.
 let shortHash (hash: LanguageTools.ProgramTypes.ContentHash) : String =
-  let h = Darklang.LanguageTools.ProgramTypes.contentHashToString hash
-  $"<hash:{Stdlib.String.first h 8L}>"
+  $"<hash:{Darklang.LanguageTools.ProgramTypes.contentHashToShort hash}>"
 
 module NameResolutionError =
   let source (originalName: List<String>) : String =

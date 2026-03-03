@@ -235,7 +235,7 @@ module Type =
         "fe3783a863d78392faf65c588d8a03c074fa5d290113f60fb6933226ff09cfaa"
         |> p [] "MatchPattern"
       let stringSegment =
-        "5e2fd40f810657a36daabb43d9519966924a23aa04b6cb5bbaecdc71c7c8886d"
+        "86eaa93bc696be49b5364f28639578af59bb87db370d5d9c58ac5e4824e9d0dc"
         |> p [] "StringSegment"
 
       let dval =
@@ -588,17 +588,17 @@ module Fn =
     module Parser =
       let private p addl = p ("Parser" :: addl)
       let parsePTExpr =
-        "c712857936387e79f146b921fc7a9e8d0c58f2580bb35cb46b24e12a04d0415b"
+        "2d32cdf65e44339b81658bbc2d40565006938932b8fcf210b6f21ed5031c75d4"
         |> p [ "TestParsing" ] "parsePTExpr"
 
       let parsePTSourceFileWithOps =
-        "99010a449ffe3f11152ba3655180e28aa9f7429c48605a91967f3098b6a21bff"
+        "0a5788de95e2c171a9d7477b29e26912ffe0b838b05a170aae0e935b12c6d9be"
         |> p [ "TestParsing" ] "parsePTSourceFileWithOps"
 
       module CliScript =
         let private p addl = p ("CliScript" :: addl)
         let parseForCli =
-          "4f2ca4481bd02c833b6034e222d2c6b5cee8ef6a5da0b2fb3902f7586ea1f853"
+          "00b4177e81d699e8db4bd8612b2ab5844eb94c494493e9a081adeb8059b5c9d6"
           |> p [] "parseForCli"
 
   module PrettyPrinter =
@@ -633,12 +633,12 @@ module Fn =
     module ProgramTypes =
       let private p addl = p ("ProgramTypes" :: addl)
       let sourceFile =
-        "5f51c40d0f71df49392b3436dcc754aa3c7e43bbcb748f417b317332c214f620"
+        "d7273c063739d2ce11336294411486d2724929f18ca15b47b224e74acaefe969"
         |> p [] "sourceFile"
 
   module Cli =
     let executeCliCommand =
-      "73f808c6a73548884310442d871c9c0c7ae13df1010757680f7ae1bf1a7e4421"
+      "69847c4dc5872042ecfef6c9fb31124c2e734e184a48d99bee36e71cb3cb05f7"
       |> p [ "Cli" ] "executeCliCommand"
 
   module Internal =
@@ -646,5 +646,5 @@ module Fn =
     module Test =
       let private p addl = p ("Test" :: addl)
       let parseSingleTestFromFile =
-        "391e32a3d58dd7958ec4b5f08dc4fef03107d1e3ed28f395fd78b06f532a7811"
+        "16b4591958e61e6f9605d97785439fff3407bfa1fb8d172f3ccb30a773a8e209"
         |> p [] "parseSingleTestFromFile"

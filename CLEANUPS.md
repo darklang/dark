@@ -6,12 +6,6 @@
   contentHash->hash
   look up every other use of 'content'
   make sure no 'id' bound to one of these
-- [ ] let's break down Hashing.fs a bit -- create a dir and a few files - for base format,
-relatedly -- so many fns in there are framed as 'cononicalWriteX' -- well, aren't they _all_ sort of canonical, and isn't it pretty much _always_ write (rather thanr ead)? Feels redundatn. I suspect there's some general cleanup taht can/should be done. maybe we should do it in the file first, and then tidy after.
-- [ ] why is backend/tests/Tests/NewParser.Tests.fs have empty content hashes? I guess I'm slightly surprised things are working - if any by-hash refs are happening at runtime, they wouldn't be found, right?
-- [ ] it seems packages/darklang/cli/packages/hash.dark has its own one-off pretty printing of hashes (formatHash) but can't/shouldn't we use something that exists in stdlib?
-- [ ] packages/darklang/cli/packages/hash.dark has custom fallback for "look for type, otherwise look for value, otherwise look for fn" - isn't there a way to tidy this? I suspect we have something more gneeric like a stdlib fn that's "look for anything _at this location_ and in the reponse incldue what kind of thing it is" we could (re)use.
-- [ ] research/report: what is the List<String> I've seen recently added in various bits of code in packages/darklang/languageTools/writtenTypesToProgramTypes.dark ? If we really need that, maybe let's create an alias for the type so reading things is more clear?
 - [ ] **`StringSegment.fromDT` case mismatch** — `RuntimeTypesToDarkTypes.fs:400`
   writes `"Interpolated"` but line 406 matches `"Interpolation"`. Deserialization
   of interpolated string segments will always fail.
