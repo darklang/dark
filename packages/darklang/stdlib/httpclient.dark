@@ -102,6 +102,7 @@ let request
 /// Calls <param onChunk> for each chunk of raw byte data received.
 /// Returns a <type Result> with status code and headers when complete,
 /// or an error if the request failed.
+/// Return false from <param onChunk> to stop streaming early.
 ///
 /// For SSE (Server-Sent Events) streams (e.g. OpenAI, LLM APIs), use
 /// requestSSE instead, which handles SSE protocol parsing automatically.
@@ -110,7 +111,7 @@ let requestStreaming
   (uri: String)
   (headers: List<(String * String)>)
   (body: List<UInt8>)
-  (onChunk: StreamChunk -> Unit)
+  (onChunk: StreamChunk -> Bool)
   : Stdlib.Result.Result<StreamingResponse, RequestError> =
   Builtin.httpClientRequestStreaming method uri headers body onChunk
 
@@ -119,6 +120,7 @@ let requestStreaming
 /// Parses the SSE protocol and calls <param onEvent> for each parsed event.
 /// Returns a <type Result> with status code and headers when complete,
 /// or an error if the request failed.
+/// Return false from <param onEvent> to stop streaming early.
 ///
 /// This is ideal for streaming LLM responses (OpenAI, Anthropic, etc.)
 /// where the server sends events in the SSE format.
@@ -127,7 +129,7 @@ let requestSSE
   (uri: String)
   (headers: List<(String * String)>)
   (body: List<UInt8>)
-  (onEvent: SSEChunk -> Unit)
+  (onEvent: SSEChunk -> Bool)
   : Stdlib.Result.Result<StreamingResponse, RequestError> =
   Builtin.httpClientRequestSSE method uri headers body onEvent
 
