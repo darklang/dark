@@ -175,21 +175,21 @@ let createInMemory (ops : List<PT.PackageOp>) : PT.PackageManager =
     |> Seq.fold
       (fun acc (loc, id) ->
         let existing = Map.tryFind id acc |> Option.defaultValue []
-        Map.add id (existing @ [ loc ]) acc)
+        Map.add id (loc :: existing) acc)
       Map.empty
   let valueIdToLocs =
     valueLocations
     |> Seq.fold
       (fun acc (loc, id) ->
         let existing = Map.tryFind id acc |> Option.defaultValue []
-        Map.add id (existing @ [ loc ]) acc)
+        Map.add id (loc :: existing) acc)
       Map.empty
   let fnIdToLocs =
     fnLocations
     |> Seq.fold
       (fun acc (loc, id) ->
         let existing = Map.tryFind id acc |> Option.defaultValue []
-        Map.add id (existing @ [ loc ]) acc)
+        Map.add id (loc :: existing) acc)
       Map.empty
 
   { findType = fun (_, loc) -> Ply(Map.tryFind loc typeLocMap)

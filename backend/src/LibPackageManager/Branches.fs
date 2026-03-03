@@ -190,27 +190,19 @@ let setMerged (id : PT.BranchId) : Task<unit> =
 
 
 /// Returns [current; parent; grandparent; ...; main]
-/// Used by name resolution queries to walk the branch chain
+/// Used by name resolution queries to walk the branch chain.
+/// Uses a recursive CTE to fetch the entire chain in a single query.
 let getBranchChain (id : PT.BranchId) : Task<List<PT.BranchId>> =
-  task {
-    let mutable chain = [ id ]
-    let mutable currentId = id
-
-    let mutable keepGoing = true
-    while keepGoing do
-      let! parentOpt =
-        Sql.query
-          """
-          SELECT parent_branch_id FROM branches WHERE id = @id
-          """
-        |> Sql.parameters [ "id", Sql.uuid currentId ]
-        |> Sql.executeRowOptionAsync (fun read -> read.uuidOrNone "parent_branch_id")
-
-      match parentOpt with
-      | Some(Some parentId) ->
-        chain <- chain @ [ parentId ]
-        currentId <- parentId
-      | _ -> keepGoing <- false
-
-    return chain
-  }
+  Sql.query
+    """
+    WITH RECURSIVE chain(id) AS (
+      SELECT @id
+      UNION ALL
+      SELECT b.parent_branch_id
+      FROM branches b JOIN chain c ON b.id = c.id
+      WHERE b.parent_branch_id IS NOT NULL
+    )
+    SELECT id FROM chain
+    """
+  |> Sql.parameters [ "id", Sql.uuid id ]
+  |> Sql.executeAsync (fun read -> read.uuid "id")

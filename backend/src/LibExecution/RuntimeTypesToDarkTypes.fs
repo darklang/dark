@@ -436,7 +436,7 @@ module StringSegment =
   let fromDT (regFromDT : Dval -> Register) (d : Dval) : StringSegment =
     match d with
     | DEnum(_, _, [], "Text", [ DString text ]) -> Text text
-    | DEnum(_, _, [], "Interpolation", [ reg ]) -> Interpolated(regFromDT reg)
+    | DEnum(_, _, [], "Interpolated", [ reg ]) -> Interpolated(regFromDT reg)
     | _ -> Exception.raiseInternal "Invalid StringSegment" []
 
 

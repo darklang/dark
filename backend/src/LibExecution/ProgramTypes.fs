@@ -653,6 +653,26 @@ type PackageOp =
     restoredSourceHash : ContentHash *
     revertedRepoints : List<PropagateRepoint>
 
+//   | MoveItem of item: uuid * from : Location * to_: Location
+//   // we can punt this for now, I think
+//   //| MoveModule of from: Location * to_: Location // hmm what about the _timing_ of this?
+//   // maybe this isn't supported, and we instead need _many_ moveItem
+
+//   // TODO: support a _reason_ for deprecation
+//   // , and an optional pointer to some sort of replacement
+//   | DeprecateFn of hash: FQFnName.Package
+//   | DeprecateValue of hash: FQValueName.Package
+//   | DeprecateType of hash: FQTypeName.Package
+
+
+// prob belongs in LibMatter
+// type BranchMergeConflict =
+//   | TypeIntroducedButNotReferenced of FQTypeName.Package
+//   | ...IntroducedButNotReferenced of ...
+
+
+
+
 /// The kind of package item (function, type, or value)
 and ItemKind =
   | Fn
@@ -682,117 +702,6 @@ and PropagateRepoint =
     itemKind : ItemKind
     fromHash : ContentHash
     toHash : ContentHash }
-
-// DB should have _history_ of old item names, but only one active PackageLocation
-
-
-//   | MoveItem of item: uuid * from : Location * to_: Location
-//   // we can punt this for now, I think
-//   //| MoveModule of from: Location * to_: Location // hmm what about the _timing_ of this?
-//   // maybe this isn't supported, and we instead need _many_ moveItem
-
-//   // TODO: support a _reason_ for deprecation
-//   // , and an optional pointer to some sort of replacement
-//   | DeprecateFn of hash: FQFnName.Package
-//   | DeprecateValue of hash: FQValueName.Package
-//   | DeprecateType of hash: FQTypeName.Package
-
-
-// prob belongs in LibMatter
-// type BranchMergeConflict =
-//   | TypeIntroducedButNotReferenced of FQTypeName.Package
-//   | ...IntroducedButNotReferenced of ...
-
-
-
-(*
-how do we search for things at a location (find me all at Darklang.Stdlib)
-
-select id, owner, modules, name, item_type
-from locations
-where ... Darklang.Stdlib ???
-  and item_type = 'type'
-
-when/how would the item_type fields get populated?
-Short answer: while Ops are played out
-*)
-
-// I don't think we delete Location records upon something being deprecated.
-
-// We should _generally prevent_ duplicates of owner+modules+name + (deprecated=true)
-// Locations table would have a constraint? (warning)
-
-// Ops table needs to record when the Op was saved
-
-
-// Locations: | id  | owner | modules     | name  | workspace ID | createdAt | deprecatedAt |
-
-
-// Search: give me everything in Darklang.Stdlib
-
-// select * from locations where owner = darklang and modules like "stdlib%"
-// select * from locations where location like "Darklang.Stdlib%"
-
-// scenario: Move fn from filter to filter1
-//    | abc | Dark  | Stdlib.List | filter  | oct 1 | null        | null
-//    | abc | Dark  | Stdlib.List | filter  | oct 1 | oct 4       | 7cb
-//    | abc | Dark  | Stdlib.List | filter1 | oct 4 | null        | 7cb
-//    | abc | Dark  | Stdlib.List | filter1 | oct 4 | null        | 6df
-
-// WHat happens when we merge a session:
-// For each record in the DB that has our session ID,
-// remove the old equivalent session=null records
-// set the session id to null for our records
-// ?
-
-// constraint on : id * sessionID
-// we need some sql trick like: if a session ID is passed in, then use the session-specific record where available
-
-// general principle: anything affected by a session should have sessino-speific records in the DB
-// whether something has been moved, or deprecated, or whatever
-
-
-// if, in my session, I deprecate List.filter
-// and then add List.filter2
-// then I expect a search to _not_ return List.filter
-// but this schema doesn't support htat.
-// (nvm it work s- we just need to create another record w/ the deprecation)
-
-
-// Locations table needs some recording of timing
-// a Version field or a createdAt field or something
-// oh, then maybe we have deprecatedAt rather than deprecated: bool
-
-
-// Q: how do we revert things?
-// scenario: we merged a branch, and later realized it's problematic.
-// (quick note: should be rare - so, notable DB rebuild is OK, maybe?)
-
-//reminder: source of truth is NOT locations table, but is the package_ops table
-// a branch being merged causes the Locations and Packages tables to update
-// and a revert of that branch needs some complicated process
-
-// Maybe we can't revert a merge of a branch
-// BUT we can generate a branch that reverts the merge
-// a bunch of Deprecations and name-assignments
-
-
-
-// Darklang.Stdlib.List
-// -> Darklang.Stdlib.Lists
-
-
-// // Darklang.Stdlib.List
-// // -> Darklang.Stdlib.Lists
-//   Move([ID] {"Darklang"; ["Stdlib"] "List"} {"Darklang"; ["Stdlib"] "Lists"})
-
-
-// // Darklang.Stdlib.List.filter
-// // -> Darklang.Stdlib.List.filter2
-//   Move([ID] {"Darklang"; ["Stdlib"; "List"] "filter"} {"Darklang"; ["Stdlib"; "List"] "filter2"})
-
-// // if filter2 already exists, then we have a conflict!
-// // 2 things at the same Location
 
 
 /// A package entity paired with its location

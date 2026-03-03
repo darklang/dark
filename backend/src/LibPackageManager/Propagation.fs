@@ -212,7 +212,7 @@ let private createAllItems
         fromSourceHashes |> List.map (fun id -> (id, toSourceHash)) |> Map.ofList
 
       let mutable repoints : List<PT.PropagateRepoint> = []
-      let mutable allOps : List<PT.PackageOp> = []
+      let mutable allOpsRev : List<List<PT.PackageOp>> = []
       let mutable error : string option = None
 
       // Dependents are processed in BFS order from discoverDependents, which
@@ -227,8 +227,12 @@ let private createAllItems
           | Error e -> error <- Some e
           | Ok(repoint, ops, newHash) ->
             mapping <- Map.add dep.itemHash newHash mapping
-            repoints <- repoints @ [ repoint ]
-            allOps <- allOps @ ops
+            repoints <- repoint :: repoints
+            allOpsRev <- ops :: allOpsRev
+
+      // Reverse to restore BFS processing order
+      let repoints = List.rev repoints
+      let allOps = allOpsRev |> List.rev |> List.concat
 
       match error with
       | Some e -> return Error e
