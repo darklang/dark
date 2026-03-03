@@ -419,7 +419,315 @@ let testsFromFiles version =
   |> Array.toList
   |> List.map (makeTest version)
 
+
+// ---------------
+// F# unit tests for streaming behavior.
+// These test the actual chunk/event content delivered via callbacks,
+// which the .test file framework cannot verify.
+// ---------------
+module StreamingUnit =
+  module HC = BuiltinExecution.Libs.HttpClient
+
+  let httpConfig : HC.Configuration = { HC.defaultConfig with timeoutInMs = 5000 }
+
+  let httpClient = HC.BaseClient.create httpConfig
+
+  /// Register a test case in the mock server and return the URL to hit
+  let registerTestCase
+    (name : string)
+    (responseStatus : int)
+    (contentType : string)
+    (body : string)
+    : string =
+    let bodyBytes = UTF8.toBytes body
+    let responseHeaders =
+      [ ("Date", "xxx")
+        ("Content-Type", contentType)
+        ("Content-Length", string bodyBytes.Length) ]
+    testCases[$"v0/{name}"] <-
+      { expectedRequest = { status = ""; headers = []; body = [||] }
+        actualRequest = None
+        responseToReturn =
+          { status = $"HTTP/1.1 {responseStatus} OK"
+            headers = responseHeaders
+            body = bodyBytes } }
+    $"http://{host}/v0/{name}"
+
+  let getRequest (url : string) : HC.Request =
+    { url = url; method = System.Net.Http.HttpMethod.Get; headers = []; body = [||] }
+
+  /// Collect all StreamChunks, always continuing
+  let collectStreamChunks
+    (url : string)
+    : Task<HC.StreamingResult * ResizeArray<HC.StreamChunk.StreamChunk>> =
+    task {
+      let chunks = ResizeArray()
+      let! result =
+        HC.makeStreamingRequest httpConfig httpClient (getRequest url) (fun chunk ->
+          task {
+            chunks.Add(chunk)
+            return true
+          })
+      return result, chunks
+    }
+
+  /// Collect all SSEChunks, always continuing
+  let collectSSEChunks
+    (url : string)
+    : Task<HC.StreamingResult * ResizeArray<HC.SSEChunk.SSEChunk>> =
+    task {
+      let chunks = ResizeArray()
+      let! result =
+        HC.makeSSERequest httpConfig httpClient (getRequest url) (fun chunk ->
+          task {
+            chunks.Add(chunk)
+            return true
+          })
+      return result, chunks
+    }
+
+  /// Extract SSEEvent values from a list of SSEChunks
+  let sseEvents (chunks : ResizeArray<HC.SSEChunk.SSEChunk>) : HC.SSEEvent list =
+    chunks
+    |> Seq.choose (function
+      | HC.SSEChunk.Event evt -> Some evt
+      | _ -> None)
+    |> Seq.toList
+
+  let expectOk (result : HC.StreamingResult) : unit =
+    match result with
+    | Ok _ -> ()
+    | Error e -> Expect.isTrue false $"expected Ok, got Error: {e}"
+
+  let expectLastChunkIsStreamDone
+    (chunks : ResizeArray<HC.StreamChunk.StreamChunk>)
+    =
+    Expect.isGreaterThan chunks.Count 0 "expected at least one chunk"
+    Expect.equal (Seq.last chunks) HC.StreamChunk.Done "last chunk is Done"
+
+  let expectLastChunkIsSSEDone (chunks : ResizeArray<HC.SSEChunk.SSEChunk>) =
+    Expect.isGreaterThan chunks.Count 0 "expected at least one chunk"
+    Expect.equal (Seq.last chunks) HC.SSEChunk.Done "last chunk is Done"
+
+
+  // --- Raw streaming tests ---
+
+  let rawStreamingTests =
+    testList
+      "raw streaming"
+      [ testTask "delivers Data chunks with correct bytes" {
+          let url = registerTestCase "stream-unit-data" 200 "text/plain" "Hello!"
+          let! result, chunks = collectStreamChunks url
+          expectOk result
+
+          let allBytes =
+            chunks
+            |> Seq.choose (function
+              | HC.StreamChunk.Data bytes -> Some bytes
+              | _ -> None)
+            |> Seq.collect Array.toSeq
+            |> Seq.toArray
+          Expect.equal allBytes (UTF8.toBytes "Hello!") "data bytes match"
+          expectLastChunkIsStreamDone chunks
+        }
+
+        testTask "Done is delivered even with empty body" {
+          let url = registerTestCase "stream-unit-done" 200 "text/plain" ""
+          let! result, chunks = collectStreamChunks url
+          expectOk result
+          expectLastChunkIsStreamDone chunks
+        }
+
+        testTask "early stop prevents further Data chunks" {
+          let largeBody = String.replicate 20000 "x"
+          let url =
+            registerTestCase "stream-unit-early-stop" 200 "text/plain" largeBody
+          let chunks = ResizeArray()
+          let! result =
+            HC.makeStreamingRequest
+              httpConfig
+              httpClient
+              (getRequest url)
+              (fun chunk ->
+                task {
+                  chunks.Add(chunk)
+                  match chunk with
+                  | HC.StreamChunk.Data _ -> return false
+                  | _ -> return true
+                })
+          expectOk result
+
+          let dataCount =
+            chunks
+            |> Seq.filter (function
+              | HC.StreamChunk.Data _ -> true
+              | _ -> false)
+            |> Seq.length
+          Expect.equal dataCount 1 "only one Data chunk after early stop"
+          expectLastChunkIsStreamDone chunks
+        }
+
+        testTask "all Data chunks come before Done" {
+          let url = registerTestCase "stream-unit-ordering" 200 "text/plain" "abc"
+          let! result, chunks = collectStreamChunks url
+          expectOk result
+
+          let chunkList = chunks |> Seq.toList
+          let doneIdx =
+            chunkList |> List.findIndex (fun c -> c = HC.StreamChunk.Done)
+          chunkList
+          |> List.iteri (fun i c ->
+            match c with
+            | HC.StreamChunk.Data _ ->
+              Expect.isLessThan
+                i
+                doneIdx
+                $"Data chunk at index {i} should precede Done at {doneIdx}"
+            | _ -> ())
+        } ]
+
+
+  // --- SSE streaming tests ---
+
+  let sseStreamingTests =
+    testList
+      "SSE streaming"
+      [ testTask "parses basic SSE events with correct data" {
+          let body = "data: hello\n\ndata: world\n\n"
+          let url = registerTestCase "sse-unit-basic" 200 "text/event-stream" body
+          let! result, chunks = collectSSEChunks url
+
+          match result with
+          | Ok(r : HC.StreamingResponse) ->
+            Expect.equal r.statusCode 200 "status code"
+          | Error e -> Expect.isTrue false $"expected Ok, got Error: {e}"
+
+          let events = sseEvents chunks
+          Expect.equal events.Length 2 "two events parsed"
+          Expect.equal events[0].data "hello" "first event data"
+          Expect.equal events[1].data "world" "second event data"
+          expectLastChunkIsSSEDone chunks
+        }
+
+        testTask "parses event type and id fields" {
+          let body =
+            "event: start\nid: 1\ndata: begin\n\nevent: update\nid: 2\ndata: middle\n\n"
+          let url = registerTestCase "sse-unit-fields" 200 "text/event-stream" body
+          let! result, chunks = collectSSEChunks url
+          expectOk result
+
+          let events = sseEvents chunks
+          Expect.equal events.Length 2 "two events"
+          Expect.equal events[0].eventType "start" "first event type"
+          Expect.equal events[0].id "1" "first event id"
+          Expect.equal events[0].data "begin" "first event data"
+          Expect.equal events[1].eventType "update" "second event type"
+          Expect.equal events[1].id "2" "second event id"
+          Expect.equal events[1].data "middle" "second event data"
+        }
+
+        testTask "joins multi-line data with newlines" {
+          let body = "data: line one\ndata: line two\ndata: line three\n\n"
+          let url =
+            registerTestCase "sse-unit-multiline" 200 "text/event-stream" body
+          let! result, chunks = collectSSEChunks url
+          expectOk result
+
+          let events = sseEvents chunks
+          Expect.equal events.Length 1 "one event"
+          Expect.equal
+            events[0].data
+            "line one\nline two\nline three"
+            "multi-line data joined with newlines"
+        }
+
+        testTask "Done is always the last chunk" {
+          let body = "data: hello\n\n"
+          let url = registerTestCase "sse-unit-done" 200 "text/event-stream" body
+          let! result, chunks = collectSSEChunks url
+          expectOk result
+          expectLastChunkIsSSEDone chunks
+        }
+
+        testTask "early stop prevents further events" {
+          let body = "data: first\n\ndata: second\n\ndata: third\n\n"
+          let url =
+            registerTestCase "sse-unit-early-stop" 200 "text/event-stream" body
+          let chunks = ResizeArray()
+          let! result =
+            HC.makeSSERequest httpConfig httpClient (getRequest url) (fun chunk ->
+              task {
+                chunks.Add(chunk)
+                match chunk with
+                | HC.SSEChunk.Event _ -> return false
+                | _ -> return true
+              })
+          expectOk result
+
+          let eventCount =
+            chunks
+            |> Seq.filter (function
+              | HC.SSEChunk.Event _ -> true
+              | _ -> false)
+            |> Seq.length
+          Expect.equal eventCount 1 "only one event after early stop"
+          expectLastChunkIsSSEDone chunks
+        }
+
+        testTask "comments are ignored" {
+          let body =
+            ": this is a comment\ndata: hello\n\n: another comment\ndata: world\n\n"
+          let url = registerTestCase "sse-unit-comments" 200 "text/event-stream" body
+          let! result, chunks = collectSSEChunks url
+          expectOk result
+
+          let events = sseEvents chunks
+          Expect.equal events.Length 2 "comments don't produce events"
+          Expect.equal events[0].data "hello" "first event data"
+          Expect.equal events[1].data "world" "second event data"
+        }
+
+        testTask "default event type is message" {
+          let body = "data: hello\n\n"
+          let url =
+            registerTestCase "sse-unit-default-type" 200 "text/event-stream" body
+          let! result, chunks = collectSSEChunks url
+          expectOk result
+
+          let events = sseEvents chunks
+          Expect.equal events[0].eventType "message" "default event type is message"
+        }
+
+        testTask "pending event emitted at end of stream without trailing blank line" {
+          let body = "data: no trailing newline"
+          let url =
+            registerTestCase "sse-unit-pending-eof" 200 "text/event-stream" body
+          let! result, chunks = collectSSEChunks url
+          expectOk result
+
+          let events = sseEvents chunks
+          Expect.equal events.Length 1 "pending event emitted at EOF"
+          Expect.equal events[0].data "no trailing newline" "pending event data"
+        }
+
+        testTask "id persists across events" {
+          let body = "id: 42\ndata: first\n\ndata: second\n\n"
+          let url =
+            registerTestCase "sse-unit-id-persist" 200 "text/event-stream" body
+          let! result, chunks = collectSSEChunks url
+          expectOk result
+
+          let events = sseEvents chunks
+          Expect.equal events.Length 2 "two events"
+          Expect.equal events[0].id "42" "first event has id"
+          Expect.equal events[1].id "42" "id persists to second event"
+        } ]
+
+  let tests = testList "streaming unit" [ rawStreamingTests; sseStreamingTests ]
+
+
 let tests =
-  versions
-  |> List.map (fun v -> testList v (testsFromFiles v))
+  [ versions |> List.map (fun v -> testList v (testsFromFiles v))
+    [ StreamingUnit.tests ] ]
+  |> List.concat
   |> testList "HttpClient"

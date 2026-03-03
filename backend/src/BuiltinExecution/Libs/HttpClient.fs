@@ -473,7 +473,8 @@ let private setupStreamingRequest
           httpRequest.method,
           reqUri,
           Content = new ByteArrayContent(httpRequest.body),
-          Version = System.Net.HttpVersion.Version11
+          Version = System.Net.HttpVersion.Version30,
+          VersionPolicy = HttpVersionPolicy.RequestVersionOrLower
         )
 
       let headerResults =
@@ -626,7 +627,10 @@ let makeStreamingRequest
             totalBytes <- totalBytes + int64 bytesRead
             let chunk = Array.sub buffer 0 bytesRead
             let! shouldContinue = onChunk (StreamChunk.Data chunk)
-            if not shouldContinue then reading <- false
+            if not shouldContinue then
+              reading <- false
+              let! _ = onChunk StreamChunk.Done
+              ()
 
         config.telemetryAddTag "response.total_bytes" totalBytes
 
@@ -668,7 +672,7 @@ let makeSSERequest
         let mutable lastEventId = ""
 
         while reading do
-          let! line = reader.ReadLineAsync()
+          let! line = reader.ReadLineAsync(cancellationToken)
           if isNull line then
             // EOF — dispatch any accumulated event, then Done.
             // Per W3C SSE spec: if the data buffer is empty, the event is not dispatched.
@@ -683,10 +687,9 @@ let makeSSERequest
               if not shouldContinue then reading <- false
               dataLines.Clear()
               eventType <- ""
-            if reading then
-              reading <- false
-              let! _ = onEvent SSEChunk.Done
-              ()
+            if reading then reading <- false
+            let! _ = onEvent SSEChunk.Done
+            ()
           else
             totalBytes <- totalBytes + int64 line.Length
             if line = "" then
@@ -698,7 +701,10 @@ let makeSSERequest
                     eventType = (if eventType = "" then "message" else eventType)
                     id = lastEventId }
                 let! shouldContinue = onEvent (SSEChunk.Event evt)
-                if not shouldContinue then reading <- false
+                if not shouldContinue then
+                  reading <- false
+                  let! _ = onEvent SSEChunk.Done
+                  ()
                 dataLines.Clear()
                 eventType <- ""
             else if line.StartsWith(":") then
@@ -821,6 +827,7 @@ let private streamingRequestHandler
                 | Error(rte, cs) ->
                   callbackError <- Some(rte, cs)
                   return false
+                | Ok(DBool false) -> return false
                 | Ok _ -> return true
               }
 
@@ -1006,9 +1013,9 @@ let fns (config : Configuration) : List<BuiltInFn> =
                   []
                 )
               ),
-              TUnit
+              TBool
             ))
-            "Callback function called for each chunk of raw bytes"
+            "Callback function called for each chunk of raw bytes. Return false to stop."
             [ "chunk" ] ]
       returnType =
         TypeReference.result
@@ -1054,9 +1061,9 @@ let fns (config : Configuration) : List<BuiltInFn> =
                   []
                 )
               ),
-              TUnit
+              TBool
             ))
-            "Callback function called for each SSE event"
+            "Callback function called for each SSE event. Return false to stop."
             [ "chunk" ] ]
       returnType =
         TypeReference.result
