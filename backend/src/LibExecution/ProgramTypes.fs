@@ -884,13 +884,7 @@ type PackageManager =
     getValue : FQValueName.Package -> Ply<Option<PackageValue.PackageValue>>
     getFn : FQFnName.Package -> Ply<Option<PackageFn.PackageFn>>
 
-    // Reverse lookups for pretty-printing and other tooling
-    getTypeLocation : BranchId -> FQTypeName.Package -> Ply<Option<PackageLocation>>
-    getValueLocation :
-      BranchId -> FQValueName.Package -> Ply<Option<PackageLocation>>
-    getFnLocation : BranchId -> FQFnName.Package -> Ply<Option<PackageLocation>>
-
-    // Plural reverse lookups — returns ALL locations for a hash (for ambiguity detection)
+    // Reverse lookups — returns ALL locations for a hash
     getTypeLocations : BranchId -> FQTypeName.Package -> Ply<List<PackageLocation>>
     getValueLocations : BranchId -> FQValueName.Package -> Ply<List<PackageLocation>>
     getFnLocations : BranchId -> FQFnName.Package -> Ply<List<PackageLocation>>
@@ -910,10 +904,6 @@ type PackageManager =
       getFn = fun _ -> Ply None
       getValue = fun _ -> Ply None
 
-      getTypeLocation = fun _ _ -> Ply None
-      getValueLocation = fun _ _ -> Ply None
-      getFnLocation = fun _ _ -> Ply None
-
       getTypeLocations = fun _ _ -> Ply []
       getValueLocations = fun _ _ -> Ply []
       getFnLocations = fun _ _ -> Ply []
@@ -932,8 +922,6 @@ type PackageManager =
 
     let typeLocationToHash =
       types |> List.map (fun (t, loc) -> loc, t.hash) |> Map.ofList
-    let typeHashToLocation =
-      types |> List.map (fun (t, loc) -> t.hash, loc) |> Map.ofList
     let typeHashToLocations =
       types
       |> List.fold
@@ -945,8 +933,6 @@ type PackageManager =
 
     let valueLocationToHash =
       values |> List.map (fun (v, loc) -> loc, v.hash) |> Map.ofList
-    let valueHashToLocation =
-      values |> List.map (fun (v, loc) -> v.hash, loc) |> Map.ofList
     let valueHashToLocations =
       values
       |> List.fold
@@ -958,8 +944,6 @@ type PackageManager =
 
     let fnLocationToHash =
       fns |> List.map (fun (f, loc) -> loc, f.hash) |> Map.ofList
-    let fnHashToLocation =
-      fns |> List.map (fun (f, loc) -> f.hash, loc) |> Map.ofList
     let fnHashToLocations =
       fns
       |> List.fold
@@ -1006,24 +990,6 @@ type PackageManager =
           match Map.tryFind hash fnHashToFn with
           | Some f -> Ply(Some f)
           | None -> pm.getFn hash
-
-      getTypeLocation =
-        fun branchId hash ->
-          match Map.tryFind hash typeHashToLocation with
-          | Some location -> Ply(Some location)
-          | None -> pm.getTypeLocation branchId hash
-
-      getValueLocation =
-        fun branchId hash ->
-          match Map.tryFind hash valueHashToLocation with
-          | Some location -> Ply(Some location)
-          | None -> pm.getValueLocation branchId hash
-
-      getFnLocation =
-        fun branchId hash ->
-          match Map.tryFind hash fnHashToLocation with
-          | Some location -> Ply(Some location)
-          | None -> pm.getFnLocation branchId hash
 
       getTypeLocations =
         fun branchId hash ->

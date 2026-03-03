@@ -114,15 +114,15 @@ let fns : List<BuiltInFn> =
                     | PT.TypeReference.TCustomType({ resolved = Ok(PT.FQTypeName.Package typeID) },
                                                    _) ->
                       uply {
-                        let! loc = pm.getTypeLocation branchId typeID
-                        match loc with
-                        | Some location ->
+                        let! locs = pm.getTypeLocations branchId typeID
+                        match locs with
+                        | location :: _ ->
                           let parts =
                             [ location.owner ]
                             @ location.modules
                             @ [ location.name ]
                           return String.concat "." parts
-                        | None -> return typeID.ToString()
+                        | [] -> return typeID.ToString()
                       }
                     | _ -> Ply "unknown"
                   return DTuple(DString db.name, DString typeName, [])

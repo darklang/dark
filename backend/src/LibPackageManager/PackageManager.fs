@@ -48,19 +48,6 @@ let pt : PT.PackageManager =
     getFn = withCache PMPT.Fn.get
     getValue = withCache PMPT.Value.get
 
-    getTypeLocation =
-      fun branchId id ->
-        let chain = getBranchChain branchId
-        PMPT.Type.getLocation chain id
-    getValueLocation =
-      fun branchId id ->
-        let chain = getBranchChain branchId
-        PMPT.Value.getLocation chain id
-    getFnLocation =
-      fun branchId id ->
-        let chain = getBranchChain branchId
-        PMPT.Fn.getLocation chain id
-
     getTypeLocations =
       fun branchId id ->
         let chain = getBranchChain branchId
@@ -185,12 +172,6 @@ let createInMemory (ops : List<PT.PackageOp>) : PT.PackageManager =
   let valueLocMap = Map.ofSeq valueLocations
   let fnLocMap = Map.ofSeq fnLocations
 
-  // Build reverse maps (id → location, singular: last wins)
-  let typeIdToLoc = typeLocations |> Seq.map (fun (loc, id) -> id, loc) |> Map.ofSeq
-  let valueIdToLoc =
-    valueLocations |> Seq.map (fun (loc, id) -> id, loc) |> Map.ofSeq
-  let fnIdToLoc = fnLocations |> Seq.map (fun (loc, id) -> id, loc) |> Map.ofSeq
-
   // Build reverse multi-maps (id → all locations)
   let typeIdToLocs =
     typeLocations
@@ -222,10 +203,6 @@ let createInMemory (ops : List<PT.PackageOp>) : PT.PackageManager =
     getValue = fun id -> Ply(Map.tryFind id valueMap)
     getFn = fun id -> Ply(Map.tryFind id fnMap)
 
-    getTypeLocation = fun _branchId id -> Ply(Map.tryFind id typeIdToLoc)
-    getValueLocation = fun _branchId id -> Ply(Map.tryFind id valueIdToLoc)
-    getFnLocation = fun _branchId id -> Ply(Map.tryFind id fnIdToLoc)
-
     getTypeLocations =
       fun _branchId id -> Ply(Map.tryFind id typeIdToLocs |> Option.defaultValue [])
     getValueLocations =
@@ -242,28 +219,28 @@ let createInMemory (ops : List<PT.PackageOp>) : PT.PackageManager =
           typeMap
           |> Map.toList
           |> List.choose (fun (hash, t) ->
-            match Map.tryFind hash typeIdToLoc with
-            | Some loc ->
+            match Map.tryFind hash typeIdToLocs |> Option.defaultValue [] with
+            | loc :: _ ->
               Option.Some({ entity = t; location = loc } : PT.LocatedItem<_>)
-            | None -> Option.None)
+            | [] -> Option.None)
 
         let valuesWithLocs =
           valueMap
           |> Map.toList
           |> List.choose (fun (hash, v) ->
-            match Map.tryFind hash valueIdToLoc with
-            | Some loc ->
+            match Map.tryFind hash valueIdToLocs |> Option.defaultValue [] with
+            | loc :: _ ->
               Option.Some({ entity = v; location = loc } : PT.LocatedItem<_>)
-            | None -> Option.None)
+            | [] -> Option.None)
 
         let fnsWithLocs =
           fnMap
           |> Map.toList
           |> List.choose (fun (hash, f) ->
-            match Map.tryFind hash fnIdToLoc with
-            | Some loc ->
+            match Map.tryFind hash fnIdToLocs |> Option.defaultValue [] with
+            | loc :: _ ->
               Option.Some({ entity = f; location = loc } : PT.LocatedItem<_>)
-            | None -> Option.None)
+            | [] -> Option.None)
 
         Ply
           { PT.Search.SearchResults.submodules = []
@@ -326,30 +303,6 @@ let combine
           match! overlay.getFn id with
           | Some f -> return Some f
           | None -> return! fallback.getFn id
-        }
-
-    getTypeLocation =
-      fun branchId id ->
-        uply {
-          match! overlay.getTypeLocation branchId id with
-          | Some loc -> return Some loc
-          | None -> return! fallback.getTypeLocation branchId id
-        }
-
-    getValueLocation =
-      fun branchId id ->
-        uply {
-          match! overlay.getValueLocation branchId id with
-          | Some loc -> return Some loc
-          | None -> return! fallback.getValueLocation branchId id
-        }
-
-    getFnLocation =
-      fun branchId id ->
-        uply {
-          match! overlay.getFnLocation branchId id with
-          | Some loc -> return Some loc
-          | None -> return! fallback.getFnLocation branchId id
         }
 
     getTypeLocations =

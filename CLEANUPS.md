@@ -10,7 +10,9 @@
 
 - [ ] I hate that NameLookup leaked, somehow, into ProgramTYpes.fs -- that's supposed to be for core types. why was this done? report back and tell me my options (tell me in this file)
 
-- [ ] why do we still have getTypeLocation when we now have getTypeLocations?
+- [x] why do we still have getTypeLocation when we now have getTypeLocations?
+  fixed: removed singular getLocation/getTypeLocation/getValueLocation/getFnLocation
+  and the 3 singular builtins. All callers now use getLocations + pickLocation helper.
 
 - [ ] let's break down Hashing.fs a bit -- create a dir and a few files - for base format,
 relatedly -- so many fns in there are framed as 'cononicalWriteX' -- well, aren't they _all_ sort of canonical, and isn't it pretty much _always_ write (rather thanr ead)? Feels redundatn. I suspect there's some general cleanup taht can/should be done. maybe we should do it in the file first, and then tidy after.

@@ -38,7 +38,8 @@ let resolveTypeName
   (branchId: Uuid)
   (hash: LanguageTools.ProgramTypes.FQTypeName.Package)
   : Stdlib.Option.Option<LanguageTools.ProgramTypes.PackageLocation> =
-  Builtin.pmGetLocationByType branchId hash
+  Darklang.LanguageTools.PackageManager.pickLocation
+    (Builtin.pmGetLocationsByType branchId hash)
 
 
 /// Compare two lists element-wise; returns false if lengths differ.

@@ -18,22 +18,23 @@ module Branches = LibPackageManager.Branches
 let contentHashVT = VT.known PT2DT.ContentHash.knownType
 let tupleVT = VT.tuple contentHashVT VT.string []
 
-/// Try to get location for an item ID, checking all item types (fn, type, value)
+/// Try to get location for an item hash, checking all item types (fn, type, value)
 let private getLocationAny
   (branchChain : List<PT.BranchId>)
   (hash : PT.ContentHash)
   : Ply<Option<PT.PackageLocation>> =
   uply {
     // Try fn first (most common)
-    match! PMPT.Fn.getLocation branchChain hash with
-    | Some loc -> return Some loc
-    | None ->
+    match! PMPT.Fn.getLocations branchChain hash with
+    | loc :: _ -> return Some loc
+    | [] ->
       // Try type
-      match! PMPT.Type.getLocation branchChain hash with
-      | Some loc -> return Some loc
-      | None ->
+      match! PMPT.Type.getLocations branchChain hash with
+      | loc :: _ -> return Some loc
+      | [] ->
         // Try value
-        return! PMPT.Value.getLocation branchChain hash
+        let! locs = PMPT.Value.getLocations branchChain hash
+        return List.tryHead locs
   }
 
 

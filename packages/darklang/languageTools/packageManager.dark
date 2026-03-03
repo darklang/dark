@@ -6,6 +6,14 @@
 module Darklang.LanguageTools.PackageManager
 
 
+/// Given a list of locations for a hash, pick the best one.
+/// Currently takes the first; can be made smarter with context later.
+let pickLocation
+  (locations: List<ProgramTypes.PackageLocation>)
+  : Stdlib.Option.Option<ProgramTypes.PackageLocation> =
+  Stdlib.List.head locations
+
+
 module Type =
   let find
     (branchId: Uuid)
@@ -25,7 +33,7 @@ module Type =
       ProgramTypes.LocatedItem<ProgramTypes.PackageType.PackageType>> =
     match Builtin.pmGetType hash with
     | Some entity ->
-      match Builtin.pmGetLocationByType branchId hash with
+      match PackageManager.pickLocation (Builtin.pmGetLocationsByType branchId hash) with
       | Some location ->
         Stdlib.Option.Option.Some(
           ProgramTypes.LocatedItem { entity = entity; location = location }
@@ -53,7 +61,7 @@ module Value =
       ProgramTypes.LocatedItem<ProgramTypes.PackageValue.PackageValue>> =
     match Builtin.pmGetValue hash with
     | Some entity ->
-      match Builtin.pmGetLocationByValue branchId hash with
+      match PackageManager.pickLocation (Builtin.pmGetLocationsByValue branchId hash) with
       | Some location ->
         Stdlib.Option.Option.Some(
           ProgramTypes.LocatedItem { entity = entity; location = location }
@@ -81,7 +89,7 @@ module Function =
       ProgramTypes.LocatedItem<ProgramTypes.PackageFn.PackageFn>> =
     match Builtin.pmGetFn hash with
     | Some entity ->
-      match Builtin.pmGetLocationByFn branchId hash with
+      match PackageManager.pickLocation (Builtin.pmGetLocationsByFn branchId hash) with
       | Some location ->
         Stdlib.Option.Option.Some(
           ProgramTypes.LocatedItem { entity = entity; location = location }

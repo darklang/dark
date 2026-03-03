@@ -103,36 +103,6 @@ let private getItem<'a>
       |> Task.map (Option.map (deserialize hash))
   }
 
-let private getItemLocation
-  (itemType : string)
-  (branchChain : List<PT.BranchId>)
-  (hash : ContentHash)
-  : Ply<Option<PT.PackageLocation>> =
-  uply {
-    let (ContentHash hashStr) = hash
-    let (branchFilter, branchParams) = buildBranchFilter branchChain
-    let orderBy = buildBranchOrderBy branchChain
-
-    return!
-      Sql.query
-        $"""
-        SELECT owner, modules, name
-        FROM locations
-        WHERE item_hash = @item_hash
-          AND item_type = '{itemType}'
-          AND deprecated_at IS NULL
-          AND {branchFilter}
-        ORDER BY {orderBy}
-        LIMIT 1
-        """
-      |> Sql.parameters ([ "item_hash", Sql.string hashStr ] @ branchParams)
-      |> Sql.executeRowOptionAsync (fun read ->
-        let modulesStr = read.string "modules"
-        { owner = read.string "owner"
-          modules = modulesStr.Split('.') |> Array.toList
-          name = read.string "name" })
-  }
-
 let private getItemLocations
   (itemType : string)
   (branchChain : List<PT.BranchId>)
@@ -166,19 +136,16 @@ let private getItemLocations
 module Type =
   let find = findItem "type"
   let get = getItem "package_types" "hash" BS.PT.PackageType.deserialize
-  let getLocation = getItemLocation "type"
   let getLocations = getItemLocations "type"
 
 module Value =
   let find = findItem "value"
   let get = getItem "package_values" "hash" BS.PT.PackageValue.deserialize
-  let getLocation = getItemLocation "value"
   let getLocations = getItemLocations "value"
 
 module Fn =
   let find = findItem "fn"
   let get = getItem "package_functions" "hash" BS.PT.PackageFn.deserialize
-  let getLocation = getItemLocation "fn"
   let getLocations = getItemLocations "fn"
 
 

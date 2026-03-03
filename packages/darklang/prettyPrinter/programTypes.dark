@@ -112,7 +112,7 @@ module FQTypeName =
       (ctx: Context)
       (hash: LanguageTools.ProgramTypes.FQTypeName.Package)
       : String =
-      match Builtin.pmGetLocationByType ctx.branchId hash with
+      match Darklang.LanguageTools.PackageManager.pickLocation (Builtin.pmGetLocationsByType ctx.branchId hash) with
       | Some l -> l.name
       | None -> shortHash hash
 
@@ -120,7 +120,7 @@ module FQTypeName =
       (ctx: Context)
       (hash: LanguageTools.ProgramTypes.FQTypeName.Package)
       : String =
-      match Builtin.pmGetLocationByType ctx.branchId hash with
+      match Darklang.LanguageTools.PackageManager.pickLocation (Builtin.pmGetLocationsByType ctx.branchId hash) with
       | Some l ->
         packageNameWithContext ctx l.owner l.modules l.name
       | None -> shortHash hash
@@ -163,7 +163,7 @@ module FQValueName =
       (ctx: Context)
       (hash: LanguageTools.ProgramTypes.FQValueName.Package)
       : String =
-      match Builtin.pmGetLocationByValue ctx.branchId hash with
+      match Darklang.LanguageTools.PackageManager.pickLocation (Builtin.pmGetLocationsByValue ctx.branchId hash) with
       | Some l -> l.name
       | None -> shortHash hash
 
@@ -171,7 +171,7 @@ module FQValueName =
       (ctx: Context)
       (hash: LanguageTools.ProgramTypes.FQValueName.Package)
       : String =
-      match Builtin.pmGetLocationByValue ctx.branchId hash with
+      match Darklang.LanguageTools.PackageManager.pickLocation (Builtin.pmGetLocationsByValue ctx.branchId hash) with
       | Some l ->
         packageNameWithContext ctx l.owner l.modules l.name
       | None -> shortHash hash
@@ -220,7 +220,7 @@ module FQFnName =
       (ctx: Context)
       (hash: LanguageTools.ProgramTypes.FQFnName.Package)
       : String =
-      match Builtin.pmGetLocationByFn ctx.branchId hash with
+      match Darklang.LanguageTools.PackageManager.pickLocation (Builtin.pmGetLocationsByFn ctx.branchId hash) with
       | Some l -> l.name
       | None -> shortHash hash
 
@@ -228,7 +228,7 @@ module FQFnName =
       (ctx: Context)
       (hash: LanguageTools.ProgramTypes.FQFnName.Package)
       : String =
-      match Builtin.pmGetLocationByFn ctx.branchId hash with
+      match Darklang.LanguageTools.PackageManager.pickLocation (Builtin.pmGetLocationsByFn ctx.branchId hash) with
       | Some l ->
         packageNameWithContext ctx l.owner l.modules l.name
       | None -> shortHash hash

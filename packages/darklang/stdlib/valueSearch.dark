@@ -64,7 +64,7 @@ let findByType
   valueHashes
   |> Stdlib.List.filterMap (fun valueHash ->
     // Get location for this value
-    match Builtin.pmGetLocationByValue branchId valueHash with
+    match Darklang.LanguageTools.PackageManager.pickLocation (Builtin.pmGetLocationsByValue branchId valueHash) with
     | Some location ->
       // Check if it's in the target namespace
       let valuePath = Stdlib.List.append [ location.owner ] location.modules

@@ -23,7 +23,7 @@ type PropagationResult =
 type private ItemProcessingContext<'T> =
   { itemKind : PT.ItemKind
     getItem : ContentHash -> Ply<Option<'T>> // Given a ContentHash, fetch the full item definition
-    getLocation : ContentHash -> Ply<Option<PT.PackageLocation>> // Given a ContentHash, look up the item's PackageLocation
+    getLocations : ContentHash -> Ply<List<PT.PackageLocation>> // Given a ContentHash, look up the item's PackageLocations
     transform : Map<ContentHash, ContentHash> -> 'T -> 'T // Transforms the item by replacing old hashes with new hashes based on the mapping
     computeHash : 'T -> ContentHash // Compute content hash for the transformed item
     withNewId : ContentHash -> 'T -> 'T // Assigns a new ContentHash to the item
@@ -36,7 +36,7 @@ let private fnContext
   : ItemProcessingContext<PT.PackageFn.PackageFn> =
   { itemKind = PT.ItemKind.Fn
     getItem = PMTypes.Fn.get
-    getLocation = PMTypes.Fn.getLocation branchChain
+    getLocations = PMTypes.Fn.getLocations branchChain
     transform = AstTransformer.transformFn
     computeHash = Hashing.computeFnHash Hashing.Normal
     withNewId = fun hash fn -> { fn with hash = hash }
@@ -49,7 +49,7 @@ let private typeContext
   : ItemProcessingContext<PT.PackageType.PackageType> =
   { itemKind = PT.ItemKind.Type
     getItem = PMTypes.Type.get
-    getLocation = PMTypes.Type.getLocation branchChain
+    getLocations = PMTypes.Type.getLocations branchChain
     transform = AstTransformer.transformType
     computeHash = Hashing.computeTypeHash Hashing.Normal
     withNewId = fun hash typ -> { typ with hash = hash }
@@ -62,7 +62,7 @@ let private valueContext
   : ItemProcessingContext<PT.PackageValue.PackageValue> =
   { itemKind = PT.ItemKind.Value
     getItem = PMTypes.Value.get
-    getLocation = PMTypes.Value.getLocation branchChain
+    getLocations = PMTypes.Value.getLocations branchChain
     transform = AstTransformer.transformValue
     computeHash = Hashing.computeValueHash Hashing.Normal
     withNewId = fun hash value -> { value with hash = hash }
@@ -89,9 +89,9 @@ let private processItem<'T>
       let newHash = ctx.computeHash transformed
       let newItem = ctx.withNewId newHash transformed
 
-      let! locOpt = ctx.getLocation itemHash
-      match locOpt with
-      | Some loc ->
+      let! locs = ctx.getLocations itemHash
+      match locs with
+      | loc :: _ ->
         let addOp = ctx.makeAddOp newItem
         let setNameOp = ctx.makeSetNameOp (newHash, loc)
         return
@@ -103,7 +103,7 @@ let private processItem<'T>
             [ addOp; setNameOp ],
             newHash
           )
-      | None -> return Error $"Location for {kindName} {itemHash} not found"
+      | [] -> return Error $"Location for {kindName} {itemHash} not found"
     | None -> return Error $"{kindName} {itemHash} not found"
   }
 
