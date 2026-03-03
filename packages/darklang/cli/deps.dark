@@ -3,11 +3,11 @@ module Darklang.Cli.Deps
 /// Resolve hashes to display names. Returns a Dict mapping hash string to name.
 let resolveNames
   (branchId: Uuid)
-  (itemIds: List<LanguageTools.ProgramTypes.ContentHash>)
+  (itemHashes: List<LanguageTools.ProgramTypes.ContentHash>)
   : Dict<String> =
-  (Builtin.depsResolveLocations branchId itemIds)
-  |> Stdlib.List.fold Stdlib.Dict.empty (fun acc (itemId, location) ->
-    let h = Darklang.LanguageTools.ProgramTypes.contentHashToString itemId
+  (Builtin.depsResolveLocations branchId itemHashes)
+  |> Stdlib.List.fold Stdlib.Dict.empty (fun acc (itemHash, location) ->
+    let h = Darklang.LanguageTools.ProgramTypes.contentHashToString itemHash
     let displayName = PrettyPrinter.ProgramTypes.PackageLocation.packageLocation location
     Stdlib.Dict.set acc h displayName)
 
@@ -40,17 +40,17 @@ let showDependents
     Stdlib.printLine $"Found {Stdlib.Int64.toString count} dependents of {entityName}:"
     Stdlib.printLine ""
 
-    let ids = deps |> Stdlib.List.map (fun (id, _) -> id)
-    let namesDict = resolveNames branchId ids
+    let hashes = deps |> Stdlib.List.map (fun (hash, _) -> hash)
+    let namesDict = resolveNames branchId hashes
 
     deps
-    |> Stdlib.List.iter (fun (sourceId, refType) ->
-      let name = getName namesDict sourceId
+    |> Stdlib.List.iter (fun (sourceHash, refType) ->
+      let name = getName namesDict sourceHash
       Stdlib.printLine $"  [{refType}] {name}")
 
 
 /// Helper for transitive traversal - collects dependents using batched queries.
-/// Processes multiple pending IDs per iteration to minimize DB round-trips.
+/// Processes multiple pending hashes per iteration to minimize DB round-trips.
 let collectTransitiveDependents
   (branchId: Uuid)
   (processed: List<LanguageTools.ProgramTypes.ContentHash>)
@@ -60,53 +60,50 @@ let collectTransitiveDependents
   match pending with
   | [] -> accumulated
   | _ ->
-    // Filter out already-processed IDs
     let toProcess =
-      pending |> Stdlib.List.filter (fun id -> Stdlib.Bool.not (Stdlib.List.member_v0 processed id))
+      pending |> Stdlib.List.filter (fun hash -> Stdlib.Bool.not (Stdlib.List.member_v0 processed hash))
 
     match toProcess with
     | [] -> accumulated
-    | ids ->
-      // Batch fetch dependents for all pending IDs at once
-      let batchResults = Builtin.depsGetDependentsBatch branchId ids
+    | hashes ->
+      // Batch fetch dependents for all pending hashes at once
+      let batchResults = Builtin.depsGetDependentsBatch branchId hashes
 
-      // Extract new dependents as (sourceId, refType) tuples
       let newDeps =
         batchResults
         |> Stdlib.List.map (fun result ->
-          let (_targetId, sourceId, refType) = result
-          (sourceId, refType))
+          let (_targetHash, sourceHash, refType) = result
+          (sourceHash, refType))
 
-      // Get unique new IDs to process next
-      let newIds =
+      let newHashes =
         batchResults
         |> Stdlib.List.map (fun result ->
-          let (_targetId, sourceId, _refType) = result
-          sourceId)
+          let (_targetHash, sourceHash, _refType) = result
+          sourceHash)
         |> Stdlib.List.unique
 
-      let newProcessed = Stdlib.List.append processed ids
+      let newProcessed = Stdlib.List.append processed hashes
       let newAccumulated = Stdlib.List.append accumulated newDeps
 
-      collectTransitiveDependents branchId newProcessed newIds newAccumulated
+      collectTransitiveDependents branchId newProcessed newHashes newAccumulated
 
 
 /// Get all transitive dependents (everything that could break if this changes)
 let getTransitiveDependents
   (branchId: Uuid)
-  (targetId: LanguageTools.ProgramTypes.ContentHash)
+  (targetHash: LanguageTools.ProgramTypes.ContentHash)
   : List<LanguageTools.ProgramTypes.ContentHash * String> =
-  (collectTransitiveDependents branchId [] [ targetId ] [])
+  (collectTransitiveDependents branchId [] [ targetHash ] [])
   |> Stdlib.List.unique
 
 
 /// Display all transitive dependents (what could break)
 let showTransitiveDependents
   (branchId: Uuid)
-  (targetId: LanguageTools.ProgramTypes.ContentHash)
+  (targetHash: LanguageTools.ProgramTypes.ContentHash)
   (entityName: String)
   : Unit =
-  let allDependents = getTransitiveDependents branchId targetId
+  let allDependents = getTransitiveDependents branchId targetHash
 
   match allDependents with
   | [] ->
@@ -116,12 +113,12 @@ let showTransitiveDependents
     Stdlib.printLine $"Found {Stdlib.Int64.toString count} items that could break if {entityName} changes:"
     Stdlib.printLine ""
 
-    let ids = deps |> Stdlib.List.map (fun (id, _) -> id)
-    let namesDict = resolveNames branchId ids
+    let hashes = deps |> Stdlib.List.map (fun (hash, _) -> hash)
+    let namesDict = resolveNames branchId hashes
 
     deps
-    |> Stdlib.List.iter (fun (sourceId, refType) ->
-      let name = getName namesDict sourceId
+    |> Stdlib.List.iter (fun (sourceHash, refType) ->
+      let name = getName namesDict sourceHash
       Stdlib.printLine $"  [{refType}] {name}")
 
 
@@ -141,12 +138,12 @@ let showDependencies
     Stdlib.printLine $"Found {Stdlib.Int64.toString count} dependencies of {entityName}:"
     Stdlib.printLine ""
 
-    let ids = deps |> Stdlib.List.map (fun (id, _) -> id)
-    let namesDict = resolveNames branchId ids
+    let hashes = deps |> Stdlib.List.map (fun (hash, _) -> hash)
+    let namesDict = resolveNames branchId hashes
 
     deps
-    |> Stdlib.List.iter (fun (targetId, refType) ->
-      let name = getName namesDict targetId
+    |> Stdlib.List.iter (fun (targetHash, refType) ->
+      let name = getName namesDict targetHash
       Stdlib.printLine $"  [{refType}] {name}")
 
 

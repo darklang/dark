@@ -73,22 +73,17 @@ let pt : PT.PackageManager =
 /// This builds internal maps by applying each op sequentially.
 /// Used for transient state during parsing, testing, etc.
 let createInMemory (ops : List<PT.PackageOp>) : PT.PackageManager =
-  // Build maps by applying each op
-  let types = ResizeArray<PT.PackageType.PackageType>()
-  let values = ResizeArray<PT.PackageValue.PackageValue>()
-  let fns = ResizeArray<PT.PackageFn.PackageFn>()
+  // Build location maps by applying each op
   let typeLocations = ResizeArray<PT.PackageLocation * ContentHash>()
   let valueLocations = ResizeArray<PT.PackageLocation * ContentHash>()
   let fnLocations = ResizeArray<PT.PackageLocation * ContentHash>()
 
   for op in ops do
     match op with
-    | PT.PackageOp.AddType t -> types.Add(t)
     | PT.PackageOp.SetTypeName(hash, loc) -> typeLocations.Add(loc, hash)
-    | PT.PackageOp.AddValue v -> values.Add(v)
     | PT.PackageOp.SetValueName(hash, loc) -> valueLocations.Add(loc, hash)
-    | PT.PackageOp.AddFn f -> fns.Add(f)
     | PT.PackageOp.SetFnName(hash, loc) -> fnLocations.Add(loc, hash)
+    | PT.PackageOp.AddType _ | PT.PackageOp.AddValue _ | PT.PackageOp.AddFn _ -> ()
 
     // After propagation, dependents have new hashes.
     // For each repoint, update the location to point to toHash (the new version)

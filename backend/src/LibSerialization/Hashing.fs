@@ -6,6 +6,9 @@
 ///
 /// Includes Tarjan's SCC detection for handling mutually-recursive definitions
 /// and batch SCC hashing with FQN-based name substitution.
+///
+/// TODO the name of a fn's argument shouldn't relate to the hash.
+/// To to that end, need to adjust PT and such to model `| EArg of pos: Int` or something
 module rec LibSerialization.Hashing
 
 open System.IO
