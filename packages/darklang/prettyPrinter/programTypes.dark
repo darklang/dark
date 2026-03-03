@@ -22,9 +22,9 @@ let formatDocComment (description: String) : String =
     |> fun s -> s ++ "\n"
 
 
-/// Format a content hash for display when PM lookup fails.
-let shortHash (hash: LanguageTools.ProgramTypes.ContentHash) : String =
-  $"<hash:{Darklang.LanguageTools.ProgramTypes.contentHashToShort hash}>"
+/// Format a hash for display when PM lookup fails.
+let shortHash (hash: LanguageTools.ProgramTypes.Hash) : String =
+  $"<hash:{Darklang.LanguageTools.ProgramTypes.hashToShort hash}>"
 
 module NameResolutionError =
   let source (originalName: List<String>) : String =
@@ -269,7 +269,7 @@ module NameResolution =
     (ctx: Context)
     (locations: List<LanguageTools.ProgramTypes.PackageLocation>)
     (originalName: List<String>)
-    (hash: LanguageTools.ProgramTypes.ContentHash)
+    (hash: LanguageTools.ProgramTypes.Hash)
     : String =
     match locations with
     | [ single ] -> packageNameWithContext ctx single.owner single.modules single.name
@@ -279,7 +279,7 @@ module NameResolution =
       | [] ->
         match locations with
         | l :: _ -> packageNameWithContext ctx l.owner l.modules l.name
-        | [] -> Darklang.LanguageTools.ProgramTypes.contentHashToString hash
+        | [] -> Darklang.LanguageTools.ProgramTypes.hashToString hash
 
   let typeName
     (ctx: Context)

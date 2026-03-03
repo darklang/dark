@@ -8,9 +8,9 @@ open LibExecution.RuntimeTypes
 
 open LibSerialization.Binary.Serializers.Common
 
-module ContentHash =
-  let write (w : BinaryWriter) (ContentHash h : ContentHash) = String.write w h
-  let read (r : BinaryReader) : ContentHash = ContentHash(String.read r)
+module Hash =
+  let write (w : BinaryWriter) (Hash h : Hash) = String.write w h
+  let read (r : BinaryReader) : Hash = Hash(String.read r)
 
 
 module NameResolutionError =
@@ -59,10 +59,10 @@ module NameResolution =
 module FQTypeName =
   let write (w : BinaryWriter) (n : FQTypeName.FQTypeName) : unit =
     match n with
-    | FQTypeName.Package h -> ContentHash.write w h
+    | FQTypeName.Package h -> Hash.write w h
 
   let read (r : BinaryReader) : FQTypeName.FQTypeName =
-    let h = ContentHash.read r
+    let h = Hash.read r
     FQTypeName.Package h
 
 
@@ -75,7 +75,7 @@ module FQFnName =
       w.Write b.version
     | FQFnName.Package h ->
       w.Write 1uy
-      ContentHash.write w h
+      Hash.write w h
 
   let read (r : BinaryReader) : FQFnName.FQFnName =
     match r.ReadByte() with
@@ -84,7 +84,7 @@ module FQFnName =
       let version = r.ReadInt32()
       FQFnName.Builtin { name = name; version = version }
     | 1uy ->
-      let h = ContentHash.read r
+      let h = Hash.read r
       FQFnName.Package h
     | b -> raiseFormatError $"Invalid FQFnName tag: {b}"
 
@@ -98,7 +98,7 @@ module FQValueName =
       w.Write builtin.version
     | FQValueName.Package h ->
       w.Write 1uy
-      ContentHash.write w h
+      Hash.write w h
 
   let read (r : BinaryReader) : FQValueName.FQValueName =
     match r.ReadByte() with
@@ -107,7 +107,7 @@ module FQValueName =
       let version = r.ReadInt32()
       FQValueName.Builtin { name = name; version = version }
     | 1uy ->
-      let h = ContentHash.read r
+      let h = Hash.read r
       FQValueName.Package h
     | b -> raiseFormatError $"Invalid FQValueName tag: {b}"
 

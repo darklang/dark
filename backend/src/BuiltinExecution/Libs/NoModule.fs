@@ -193,19 +193,19 @@ let fns : List<BuiltInFn> =
           match dval with
 
           // Success: extract `Some` out of an Option
-          | DEnum(FQTypeName.Package(ContentHash id), _, _, "Some", [ value ]) when
+          | DEnum(FQTypeName.Package(Hash id), _, _, "Some", [ value ]) when
             id = PackageRefs.Type.Stdlib.option
             ->
             Ply value
 
           // Success: extract `Ok` out of a Result
-          | DEnum(FQTypeName.Package(ContentHash id), _, _, "Ok", [ value ]) when
+          | DEnum(FQTypeName.Package(Hash id), _, _, "Ok", [ value ]) when
             id = PackageRefs.Type.Stdlib.result
             ->
             Ply value
 
           // Error: expected Some, got None
-          | DEnum(FQTypeName.Package(ContentHash id), _, _, "None", []) when
+          | DEnum(FQTypeName.Package(Hash id), _, _, "None", []) when
             id = PackageRefs.Type.Stdlib.option
             ->
             RuntimeError.Unwraps.GotNone
@@ -213,7 +213,7 @@ let fns : List<BuiltInFn> =
             |> raiseRTE vm.threadID
 
           // Error: expected Ok, got Error
-          | DEnum(FQTypeName.Package(ContentHash id), _, _, "Error", [ value ]) when
+          | DEnum(FQTypeName.Package(Hash id), _, _, "Error", [ value ]) when
             id = PackageRefs.Type.Stdlib.result
             ->
             RuntimeError.Unwraps.GotError value

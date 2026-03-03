@@ -48,9 +48,9 @@ let load (builtins : RT.Builtins) : Ply<List<PT.PackageOp>> =
       |> Ply.map List.flatten
     debuG "phase 1" $"done, {List.length firstPassOps} ops"
 
-    // -- Phase 2: Iterative re-parse until content hashes converge --
+    // -- Phase 2: Iterative re-parse until hashes converge --
     // Each pass resolves names using the previous pass's PM, then
-    // remaps Set*Name IDs and computes SCC-aware content hashes.
+    // remaps Set*Name IDs and computes SCC-aware hashes.
     // Typically converges in 2-3 passes. Cap at 50.
     debuG "phase 2" "starting hash convergence loop"
     let mutable currentOps = HS.computeRealHashes firstPassOps
@@ -102,7 +102,7 @@ let load (builtins : RT.Builtins) : Ply<List<PT.PackageOp>> =
           |> List.mapi (fun i (prev, next) -> (i, prev, next))
           |> List.filter (fun (_, prev, next) -> prev <> next)
         let firstChanges = changes |> List.truncate 5
-        for (i, (ContentHash prev), (ContentHash next)) in firstChanges do
+        for (i, (Hash prev), (Hash next)) in firstChanges do
           let (_, kind, name) = List.item i itemLocs
           let prevShort = prev.Substring(0, 7)
           let nextShort = next.Substring(0, 7)

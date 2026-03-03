@@ -67,8 +67,8 @@ let private reResolveNameResolution
   (branchId : PT.BranchId)
   (contextModules : List<string>)
   (nr : PT.NameResolution<'a>)
-  (findInPM : (PT.BranchId * PT.PackageLocation) -> Ply<Option<ContentHash>>)
-  (makePackage : ContentHash -> 'a)
+  (findInPM : (PT.BranchId * PT.PackageLocation) -> Ply<Option<Hash>>)
+  (makePackage : Hash -> 'a)
   (parseName : string -> Result<string * int, string>)
   : Ply<PT.NameResolution<'a>> =
   match nr.resolved with
@@ -120,7 +120,7 @@ let private reResolveNameResolution
 let private reResolveTypeName
   (branchId : PT.BranchId)
   (contextModules : List<string>)
-  (findType : (PT.BranchId * PT.PackageLocation) -> Ply<Option<ContentHash>>)
+  (findType : (PT.BranchId * PT.PackageLocation) -> Ply<Option<Hash>>)
   (nr : PT.NameResolution<PT.FQTypeName.FQTypeName>)
   : Ply<PT.NameResolution<PT.FQTypeName.FQTypeName>> =
   reResolveNameResolution
@@ -135,7 +135,7 @@ let private reResolveTypeName
 let private reResolveFnName
   (branchId : PT.BranchId)
   (contextModules : List<string>)
-  (findFn : (PT.BranchId * PT.PackageLocation) -> Ply<Option<ContentHash>>)
+  (findFn : (PT.BranchId * PT.PackageLocation) -> Ply<Option<Hash>>)
   (nr : PT.NameResolution<PT.FQFnName.FQFnName>)
   : Ply<PT.NameResolution<PT.FQFnName.FQFnName>> =
   reResolveNameResolution
@@ -150,7 +150,7 @@ let private reResolveFnName
 let private reResolveValueName
   (branchId : PT.BranchId)
   (contextModules : List<string>)
-  (findValue : (PT.BranchId * PT.PackageLocation) -> Ply<Option<ContentHash>>)
+  (findValue : (PT.BranchId * PT.PackageLocation) -> Ply<Option<Hash>>)
   (nr : PT.NameResolution<PT.FQValueName.FQValueName>)
   : Ply<PT.NameResolution<PT.FQValueName.FQValueName>> =
   reResolveNameResolution

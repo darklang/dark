@@ -1,6 +1,6 @@
 {
   "hash": {
-    "ContentHash": [
+    "Hash": [
       "abcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890"
     ]
   },
@@ -110,7 +110,7 @@
                                 {
                                   "Package": [
                                     {
-                                      "ContentHash": [
+                                      "Hash": [
                                         "abcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890"
                                       ]
                                     }
@@ -135,7 +135,7 @@
                                 {
                                   "Package": [
                                     {
-                                      "ContentHash": [
+                                      "Hash": [
                                         "abcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890"
                                       ]
                                     }

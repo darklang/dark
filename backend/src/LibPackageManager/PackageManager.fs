@@ -74,9 +74,9 @@ let pt : PT.PackageManager =
 /// Used for transient state during parsing, testing, etc.
 let createInMemory (ops : List<PT.PackageOp>) : PT.PackageManager =
   // Build location maps by applying each op
-  let typeLocations = ResizeArray<PT.PackageLocation * ContentHash>()
-  let valueLocations = ResizeArray<PT.PackageLocation * ContentHash>()
-  let fnLocations = ResizeArray<PT.PackageLocation * ContentHash>()
+  let typeLocations = ResizeArray<PT.PackageLocation * Hash>()
+  let valueLocations = ResizeArray<PT.PackageLocation * Hash>()
+  let fnLocations = ResizeArray<PT.PackageLocation * Hash>()
 
   for op in ops do
     match op with
@@ -117,11 +117,11 @@ let createInMemory (ops : List<PT.PackageOp>) : PT.PackageManager =
       | PT.ItemKind.Fn -> fnLocations.Add(sourceLocation, restoredSourceHash)
 
   // Convert to immutable maps for efficient lookup.
-  // All items (types, fns, values) are keyed by their content hash.
+  // All items (types, fns, values) are keyed by their hash.
   // The ops contain Add*(item) followed by Set*Name(hash, loc);
-  // we pair them to build ContentHash -> item maps.
+  // we pair them to build Hash -> item maps.
   let typeMap =
-    let mutable map = Map.empty<ContentHash, PT.PackageType.PackageType>
+    let mutable map = Map.empty<Hash, PT.PackageType.PackageType>
     let mutable pendingType : Option<PT.PackageType.PackageType> = None
     for op in ops do
       match op with
@@ -136,7 +136,7 @@ let createInMemory (ops : List<PT.PackageOp>) : PT.PackageManager =
     map
 
   let fnMap =
-    let mutable map = Map.empty<ContentHash, PT.PackageFn.PackageFn>
+    let mutable map = Map.empty<Hash, PT.PackageFn.PackageFn>
     let mutable pendingFn : Option<PT.PackageFn.PackageFn> = None
     for op in ops do
       match op with
@@ -151,7 +151,7 @@ let createInMemory (ops : List<PT.PackageOp>) : PT.PackageManager =
     map
 
   let valueMap =
-    let mutable map = Map.empty<ContentHash, PT.PackageValue.PackageValue>
+    let mutable map = Map.empty<Hash, PT.PackageValue.PackageValue>
     let mutable pendingValue : Option<PT.PackageValue.PackageValue> = None
     for op in ops do
       match op with

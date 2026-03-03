@@ -114,7 +114,7 @@ module Response =
     task {
       match result with
       | RT.DRecord(RT.FQTypeName.Package hash, _, [], fields) ->
-        if hash = RT.ContentHash PackageRefs.Type.Stdlib.Http.response then
+        if hash = RT.Hash PackageRefs.Type.Stdlib.Http.response then
           return parseHttpResponseFields fields
         else
           return! wrongTypeResponse state result

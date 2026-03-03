@@ -28,7 +28,7 @@ let getAllPreviousHashes
   (branchId: Uuid)
   (location: LanguageTools.ProgramTypes.PackageLocation)
   (itemKind: LanguageTools.ProgramTypes.ItemKind)
-  : List<LanguageTools.ProgramTypes.ContentHash> =
+  : List<LanguageTools.ProgramTypes.Hash> =
   Builtin.pmGetAllPreviousHashes branchId location itemKind
 
 
@@ -170,8 +170,8 @@ let typeDeclarationEqual
 let warnIfSignatureChanged
   (branchId: Uuid)
   (itemKind: LanguageTools.ProgramTypes.ItemKind)
-  (previousHash: LanguageTools.ProgramTypes.ContentHash)
-  (currentHash: LanguageTools.ProgramTypes.ContentHash)
+  (previousHash: LanguageTools.ProgramTypes.Hash)
+  (currentHash: LanguageTools.ProgramTypes.Hash)
   : Bool =
   let ctx = PrettyPrinter.ProgramTypes.Context.forBranch branchId
 
@@ -218,7 +218,7 @@ let warnIfSignatureChanged
 let autoPropagateAfterUpdate
   (branchId: Uuid)
   (location: LanguageTools.ProgramTypes.PackageLocation)
-  (currentHash: LanguageTools.ProgramTypes.ContentHash)
+  (currentHash: LanguageTools.ProgramTypes.Hash)
   (itemKind: LanguageTools.ProgramTypes.ItemKind)
   : Unit =
   // getAllPreviousHashes returns ALL hashes at this location across the branch chain

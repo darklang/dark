@@ -23,17 +23,15 @@ module Roundtripping =
       (fun value -> value |> roundtrip |> (=) value)
       (List.map (fun x -> x, true) values)
 
-module ContentHashTests =
+module HashTests =
   open LibExecution.ProgramTypes
 
   let roundtripTest =
-    test "ContentHash binary roundtrip" {
-      let hash = Values.contentHashPT
+    test "Hash binary roundtrip" {
+      let hash = Values.hashPT
       let roundtripped =
-        hash
-        |> BS.PT.ContentHash.serialize "contentHash"
-        |> BS.PT.ContentHash.deserialize "contentHash"
-      Expect.equal roundtripped hash "roundtrip should preserve ContentHash"
+        hash |> BS.PT.Hash.serialize "hash" |> BS.PT.Hash.deserialize "hash"
+      Expect.equal roundtripped hash "roundtrip should preserve Hash"
     }
 
 
@@ -197,7 +195,7 @@ let generateTestFiles () =
 let tests =
   testList
     "Binary Serialization"
-    [ testList "ContentHash" [ ContentHashTests.roundtripTest ]
+    [ testList "Hash" [ HashTests.roundtripTest ]
 
       testList
         "PT Roundtrip Tests"

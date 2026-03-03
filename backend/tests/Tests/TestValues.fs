@@ -16,7 +16,7 @@ open TestUtils.PTShortcuts
 module PM =
   module Types =
     let make hash definition : PT.PackageType.PackageType =
-      { hash = PT.ContentHash hash
+      { hash = PT.Hash hash
         declaration = { typeParams = []; definition = definition }
         description = "TODO"
         deprecated = PT.NotDeprecated }
@@ -671,7 +671,7 @@ let pm : PT.PackageManager =
 
   let valueMap =
     let value : PT.PackageValue.PackageValue =
-      { hash = PT.ContentHash Expressions.Values.Package.MySpecialNumber.hash
+      { hash = PT.Hash Expressions.Values.Package.MySpecialNumber.hash
         description = "TODO"
         deprecated = PT.NotDeprecated
         body = PT.EInt64(gid (), 17L) }
@@ -679,7 +679,7 @@ let pm : PT.PackageManager =
 
   let fnMap =
     let inner : PT.PackageFn.PackageFn =
-      { hash = PT.ContentHash Expressions.Fns.Package.Inner.hash
+      { hash = PT.Hash Expressions.Fns.Package.Inner.hash
         typeParams = [ "x"; "y" ]
         parameters =
           NEList.ofList
@@ -691,7 +691,7 @@ let pm : PT.PackageManager =
         deprecated = PT.NotDeprecated }
 
     let outer : PT.PackageFn.PackageFn =
-      { hash = PT.ContentHash Expressions.Fns.Package.Outer.hash
+      { hash = PT.Hash Expressions.Fns.Package.Outer.hash
         typeParams = [ "x"; "y" ]
         parameters =
           NEList.ofList
@@ -710,7 +710,7 @@ let pm : PT.PackageManager =
         deprecated = PT.NotDeprecated }
 
     let myAdd : PT.PackageFn.PackageFn =
-      { hash = PT.ContentHash Expressions.Fns.Package.MyAdd.hash
+      { hash = PT.Hash Expressions.Fns.Package.MyAdd.hash
         typeParams = []
         parameters =
           NEList.ofList
@@ -722,7 +722,7 @@ let pm : PT.PackageManager =
         deprecated = PT.NotDeprecated }
 
     let fact : PT.PackageFn.PackageFn =
-      { hash = PT.ContentHash Expressions.Fns.Package.Fact.hash
+      { hash = PT.Hash Expressions.Fns.Package.Fact.hash
         typeParams = []
         parameters =
           NEList.ofList { name = "a"; typ = PT.TInt64; description = "TODO" } []
@@ -749,7 +749,7 @@ let pm : PT.PackageManager =
     //   if n <= 0 then 0
     //   else 1 + addUpTo (n - 1)
     let recursion : PT.PackageFn.PackageFn =
-      { hash = PT.ContentHash Expressions.Fns.Package.Recursion.hash
+      { hash = PT.Hash Expressions.Fns.Package.Recursion.hash
         typeParams = []
         parameters =
           NEList.ofList { name = "n"; typ = PT.TInt64; description = "TODO" } []
@@ -778,7 +778,7 @@ let pm : PT.PackageManager =
         deprecated = PT.NotDeprecated }
 
     let myFnThatTakesALambda : PT.PackageFn.PackageFn =
-      { hash = PT.ContentHash Expressions.Fns.Package.MyFnThatTakesALambda.hash
+      { hash = PT.Hash Expressions.Fns.Package.MyFnThatTakesALambda.hash
         typeParams = []
         parameters =
           NEList.ofList
@@ -793,7 +793,7 @@ let pm : PT.PackageManager =
         deprecated = PT.NotDeprecated }
 
     let myFnThatReturnsUnit : PT.PackageFn.PackageFn =
-      { hash = PT.ContentHash Expressions.Fns.Package.MyFnThatReturnsUnit.hash
+      { hash = PT.Hash Expressions.Fns.Package.MyFnThatReturnsUnit.hash
         typeParams = []
         parameters =
           NEList.ofList { name = "unit"; typ = PT.TUnit; description = "TODO" } []

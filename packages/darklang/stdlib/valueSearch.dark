@@ -44,14 +44,14 @@ let buildPathFromLocation
 let findByType
   (branchId: Uuid)
   (targetNamespace: String)
-  (targetTypeHash: LanguageTools.ProgramTypes.ContentHash)
+  (targetTypeHash: LanguageTools.ProgramTypes.Hash)
   : List<FoundValue<'a>> =
   let namespaceParts = parseNamespace targetNamespace
 
   // Construct a ValueType for the custom type
   let rtHash =
-    Darklang.LanguageTools.RuntimeTypes.ContentHash.ContentHash
-      (Darklang.LanguageTools.ProgramTypes.contentHashToString targetTypeHash)
+    Darklang.LanguageTools.RuntimeTypes.Hash.Hash
+      (Darklang.LanguageTools.ProgramTypes.hashToString targetTypeHash)
   let valueType =
     LanguageTools.RuntimeTypes.ValueType.Known
       (LanguageTools.RuntimeTypes.KnownType.KTCustomType

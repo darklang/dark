@@ -8,12 +8,12 @@ module RT = RuntimeTypes
 module VT = ValueType
 module PT = ProgramTypes
 
-module ContentHash =
-  let toRT (PT.ContentHash h) : RT.ContentHash = RT.ContentHash h
+module Hash =
+  let toRT (PT.Hash h) : RT.Hash = RT.Hash h
 
 module FQTypeName =
   module Package =
-    let toRT (p : PT.FQTypeName.Package) : RT.FQTypeName.Package = ContentHash.toRT p
+    let toRT (p : PT.FQTypeName.Package) : RT.FQTypeName.Package = Hash.toRT p
 
   let toRT (fqtn : PT.FQTypeName.FQTypeName) : RT.FQTypeName.FQTypeName =
     match fqtn with
@@ -26,8 +26,7 @@ module FQValueName =
       { name = c.name; version = c.version }
 
   module Package =
-    let toRT (p : PT.FQValueName.Package) : RT.FQValueName.Package =
-      ContentHash.toRT p
+    let toRT (p : PT.FQValueName.Package) : RT.FQValueName.Package = Hash.toRT p
 
   let toRT (name : PT.FQValueName.FQValueName) : RT.FQValueName.FQValueName =
     match name with
@@ -41,7 +40,7 @@ module FQFnName =
       { name = s.name; version = s.version }
 
   module Package =
-    let toRT (p : PT.FQFnName.Package) : RT.FQFnName.Package = ContentHash.toRT p
+    let toRT (p : PT.FQFnName.Package) : RT.FQFnName.Package = Hash.toRT p
 
   let toRT (fqfn : PT.FQFnName.FQFnName) : RT.FQFnName.FQFnName =
     match fqfn with
@@ -1086,8 +1085,7 @@ module TypeDeclaration =
 // --
 module PackageType =
   let toRT (t : PT.PackageType.PackageType) : RT.PackageType.PackageType =
-    { hash = ContentHash.toRT t.hash
-      declaration = TypeDeclaration.toRT t.declaration }
+    { hash = Hash.toRT t.hash; declaration = TypeDeclaration.toRT t.declaration }
 
 module PackageValue =
   // TODO: do a proper eval (Execution.execute)
@@ -1155,14 +1153,14 @@ module PackageValue =
         | [] ->
           // Only infer for well-known generic types when no type args provided
           match resolvedTypeName with
-          | RT.FQTypeName.Package(RT.ContentHash hash) when
+          | RT.FQTypeName.Package(RT.Hash hash) when
             hash = PackageRefs.Type.Stdlib.option
             ->
             match caseName, fieldValues with
             | "Some", [ fieldValue ] -> [ RT.Dval.toValueType fieldValue ]
             | "None", [] -> [ RT.ValueType.Unknown ]
             | _ -> []
-          | RT.FQTypeName.Package(RT.ContentHash hash) when
+          | RT.FQTypeName.Package(RT.Hash hash) when
             hash = PackageRefs.Type.Stdlib.result
             ->
             match caseName, fieldValues with
@@ -1212,7 +1210,7 @@ module PackageValue =
     (c : PT.PackageValue.PackageValue)
     : RT.PackageValue.PackageValue =
     let body = evalConstantExpr builtinValues c.body
-    { hash = ContentHash.toRT c.hash; body = body }
+    { hash = Hash.toRT c.hash; body = body }
 
 module PackageFn =
   module Parameter =
@@ -1220,7 +1218,7 @@ module PackageFn =
       { name = p.name; typ = TypeReference.toRT p.typ }
 
   let toRT (f : PT.PackageFn.PackageFn) : RT.PackageFn.PackageFn =
-    { hash = ContentHash.toRT f.hash
+    { hash = Hash.toRT f.hash
       body =
         let (rcAfterParams, symbols) : (int * Map<string, int>) =
           f.parameters
@@ -1241,7 +1239,7 @@ module PackageManager =
     (builtinValues : Map<RT.FQValueName.Builtin, RT.BuiltInValue>)
     (pm : PT.PackageManager)
     : RT.PackageManager =
-    let toPT (RT.ContentHash h) : PT.ContentHash = PT.ContentHash h
+    let toPT (RT.Hash h) : PT.Hash = PT.Hash h
     { getType =
         fun id -> pm.getType (toPT id) |> Ply.map (Option.map PackageType.toRT)
       getValue =

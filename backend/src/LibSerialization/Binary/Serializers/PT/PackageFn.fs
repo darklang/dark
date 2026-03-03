@@ -24,7 +24,7 @@ module Parameter =
 
 
 let write (w : BinaryWriter) (p : PackageFn.PackageFn) : unit =
-  ContentHash.write w p.hash
+  Hash.write w p.hash
   LibSerialization.Binary.Serializers.PT.Expr.Expr.write w p.body
   LibSerialization.Binary.Serializers.Common.List.write w String.write p.typeParams
   NEList.write Parameter.write w p.parameters
@@ -33,7 +33,7 @@ let write (w : BinaryWriter) (p : PackageFn.PackageFn) : unit =
   Deprecation.write w FQFnName.write p.deprecated
 
 let read (r : BinaryReader) : PackageFn.PackageFn =
-  let hash = ContentHash.read r
+  let hash = Hash.read r
   let body = LibSerialization.Binary.Serializers.PT.Expr.Expr.read r
   let typeParams = LibSerialization.Binary.Serializers.Common.List.read r String.read
   let parameters = NEList.read Parameter.read r

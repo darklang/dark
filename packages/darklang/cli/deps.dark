@@ -3,11 +3,11 @@ module Darklang.Cli.Deps
 /// Resolve hashes to display names. Returns a Dict mapping hash string to name.
 let resolveNames
   (branchId: Uuid)
-  (itemHashes: List<LanguageTools.ProgramTypes.ContentHash>)
+  (itemHashes: List<LanguageTools.ProgramTypes.Hash>)
   : Dict<String> =
   (Builtin.depsResolveLocations branchId itemHashes)
   |> Stdlib.List.fold Stdlib.Dict.empty (fun acc (itemHash, location) ->
-    let h = Darklang.LanguageTools.ProgramTypes.contentHashToString itemHash
+    let h = Darklang.LanguageTools.ProgramTypes.hashToString itemHash
     let displayName = PrettyPrinter.ProgramTypes.PackageLocation.packageLocation location
     Stdlib.Dict.set acc h displayName)
 
@@ -15,9 +15,9 @@ let resolveNames
 /// Get displayable name for an item, using precomputed names dict or falling back to hash
 let getName
   (namesDict: Dict<String>)
-  (hash: LanguageTools.ProgramTypes.ContentHash)
+  (hash: LanguageTools.ProgramTypes.Hash)
   : String =
-  let h = Darklang.LanguageTools.ProgramTypes.contentHashToString hash
+  let h = Darklang.LanguageTools.ProgramTypes.hashToString hash
   match Stdlib.Dict.get namesDict h with
   | Some name -> name
   | None -> h
@@ -27,7 +27,7 @@ let getName
 /// Shows approved items + caller's own pending items.
 let showDependents
   (branchId: Uuid)
-  (targetHash: LanguageTools.ProgramTypes.ContentHash)
+  (targetHash: LanguageTools.ProgramTypes.Hash)
   (entityName: String)
   : Unit =
   let dependents = Builtin.depsGetDependents branchId targetHash
@@ -53,10 +53,10 @@ let showDependents
 /// Processes multiple pending hashes per iteration to minimize DB round-trips.
 let collectTransitiveDependents
   (branchId: Uuid)
-  (processed: List<LanguageTools.ProgramTypes.ContentHash>)
-  (pending: List<LanguageTools.ProgramTypes.ContentHash>)
-  (accumulated: List<LanguageTools.ProgramTypes.ContentHash * String>)
-  : List<LanguageTools.ProgramTypes.ContentHash * String> =
+  (processed: List<LanguageTools.ProgramTypes.Hash>)
+  (pending: List<LanguageTools.ProgramTypes.Hash>)
+  (accumulated: List<LanguageTools.ProgramTypes.Hash * String>)
+  : List<LanguageTools.ProgramTypes.Hash * String> =
   match pending with
   | [] -> accumulated
   | _ ->
@@ -91,8 +91,8 @@ let collectTransitiveDependents
 /// Get all transitive dependents (everything that could break if this changes)
 let getTransitiveDependents
   (branchId: Uuid)
-  (targetHash: LanguageTools.ProgramTypes.ContentHash)
-  : List<LanguageTools.ProgramTypes.ContentHash * String> =
+  (targetHash: LanguageTools.ProgramTypes.Hash)
+  : List<LanguageTools.ProgramTypes.Hash * String> =
   (collectTransitiveDependents branchId [] [ targetHash ] [])
   |> Stdlib.List.unique
 
@@ -100,7 +100,7 @@ let getTransitiveDependents
 /// Display all transitive dependents (what could break)
 let showTransitiveDependents
   (branchId: Uuid)
-  (targetHash: LanguageTools.ProgramTypes.ContentHash)
+  (targetHash: LanguageTools.ProgramTypes.Hash)
   (entityName: String)
   : Unit =
   let allDependents = getTransitiveDependents branchId targetHash
@@ -125,7 +125,7 @@ let showTransitiveDependents
 /// Display dependencies (what this entity uses)
 let showDependencies
   (branchId: Uuid)
-  (sourceHash: LanguageTools.ProgramTypes.ContentHash)
+  (sourceHash: LanguageTools.ProgramTypes.Hash)
   (entityName: String)
   : Unit =
   let dependencies = Builtin.depsGetDependencies branchId sourceHash
@@ -152,7 +152,7 @@ let resolvePath
   (branchId: Uuid)
   (currentLocation: Packages.PackageLocation)
   (pathArg: String)
-  : Stdlib.Result.Result<(LanguageTools.ProgramTypes.ContentHash * String * String), String> =
+  : Stdlib.Result.Result<(LanguageTools.ProgramTypes.Hash * String * String), String> =
   // Try to traverse to the location
   match Packages.Traversal.traverse branchId currentLocation pathArg with
   | Error errMsg -> Stdlib.Result.Result.Error errMsg

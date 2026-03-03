@@ -3,12 +3,12 @@ module Darklang.LanguageTools.ProgramTypes
 
 /// Used to name where type/function/etc lives, eg a User module, or a Package module.
 module FQTypeName =
-  type Package = ContentHash
+  type Package = Hash
   type FQTypeName = Package of Package
 
 module FQValueName =
   type Builtin = { name: String; version: Int32 }
-  type Package = ContentHash
+  type Package = Hash
 
   type FQValueName =
     | Builtin of Builtin
@@ -16,7 +16,7 @@ module FQValueName =
 
 module FQFnName =
   type Builtin = { name: String; version: Int32 }
-  type Package = ContentHash
+  type Package = Hash
 
   type FQFnName =
     | Builtin of Builtin
@@ -339,15 +339,15 @@ let parsePackageLocation (nameToParse: String): PackageLocation =
 type BranchID = Uuid
 
 /// Content-addressed hash for package items (hex-encoded SHA-256)
-type ContentHash = | ContentHash of String
+type Hash = | Hash of String
 
-let contentHashToString (hash: ContentHash) : String =
+let hashToString (hash: Hash) : String =
   match hash with
-  | ContentHash h -> h
+  | Hash h -> h
 
 /// First 8 hex chars, for human-readable display
-let contentHashToShort (hash: ContentHash) : String =
-  let h = contentHashToString hash
+let hashToShort (hash: Hash) : String =
+  let h = hashToString hash
   Stdlib.String.first h 8L
 
 /// A package entity paired with its location
@@ -434,8 +434,8 @@ type ItemKind =
 type PropagateRepoint =
   { location: PackageLocation
     itemKind: ItemKind
-    fromHash: ContentHash
-    toHash: ContentHash }
+    fromHash: Hash
+    toHash: Hash }
 
 
 type PackageOp =
@@ -450,8 +450,8 @@ type PackageOp =
       propagationId: Uuid *
       sourceLocation: PackageLocation *
       sourceItemKind: ItemKind *
-      fromSourceHashes: List<ContentHash> *
-      toSourceHash: ContentHash *
+      fromSourceHashes: List<Hash> *
+      toSourceHash: Hash *
       repoints: List<PropagateRepoint>
   // Revert a propagation: restore previous versions atomically
   | RevertPropagation of
@@ -459,7 +459,7 @@ type PackageOp =
       revertedPropagationIds: List<Uuid> *
       sourceLocation: PackageLocation *
       sourceItemKind: ItemKind *
-      restoredSourceHash: ContentHash *
+      restoredSourceHash: Hash *
       revertedRepoints: List<PropagateRepoint>
 
 

@@ -93,7 +93,7 @@ let t
 
 let person : (PT.PackageType.PackageType * PT.PackageLocation) =
   let packageType : PT.PackageType.PackageType =
-    { hash = PT.ContentHash ""
+    { hash = PT.Hash ""
       description = ""
       deprecated = PT.NotDeprecated
       declaration =
@@ -114,7 +114,7 @@ let person : (PT.PackageType.PackageType * PT.PackageLocation) =
 
 let myString : (PT.PackageType.PackageType * PT.PackageLocation) =
   let packageType : PT.PackageType.PackageType =
-    { hash = PT.ContentHash ""
+    { hash = PT.Hash ""
       description = ""
       deprecated = PT.NotDeprecated
       declaration =
@@ -126,7 +126,7 @@ let myString : (PT.PackageType.PackageType * PT.PackageLocation) =
 
 let pet : (PT.PackageType.PackageType * PT.PackageLocation) =
   let packageType : PT.PackageType.PackageType =
-    { hash = PT.ContentHash ""
+    { hash = PT.Hash ""
       description = ""
       deprecated = PT.NotDeprecated
       declaration =
@@ -137,7 +137,7 @@ let pet : (PT.PackageType.PackageType * PT.PackageLocation) =
 
 let myEnum : (PT.PackageType.PackageType * PT.PackageLocation) =
   let packageType : PT.PackageType.PackageType =
-    { hash = PT.ContentHash ""
+    { hash = PT.Hash ""
       description = ""
       deprecated = PT.NotDeprecated
       declaration =

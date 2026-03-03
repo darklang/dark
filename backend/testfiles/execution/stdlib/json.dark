@@ -1345,7 +1345,7 @@ module UserDefinedAliases =
   type Person2 = { Name: String; Age: Int64 }
 
   // With content-addressed hashing, Person1 and Person2 are structurally
-  // identical and share the same ContentHash, so they're the same type.
+  // identical and share the same Hash, so they're the same type.
   Stdlib.Json.serialize<Person2> (Person1 { Name = "Bob"; Age = 42L }) = """{"Age":42,"Name":"Bob"}"""
 
   type StringResult<'a> = Result<'a, String>

@@ -65,10 +65,10 @@ module TypeDeclaration =
 
 
 let write (w : BinaryWriter) (t : PackageType.PackageType) =
-  ContentHash.write w t.hash
+  Hash.write w t.hash
   TypeDeclaration.write w t.declaration
 
 let read (r : BinaryReader) : PackageType.PackageType =
-  let hash = ContentHash.read r
+  let hash = Hash.read r
   let declaration = TypeDeclaration.read r
   { hash = hash; declaration = declaration }

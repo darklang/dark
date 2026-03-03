@@ -12,9 +12,9 @@ module BS = LibSerialization.Binary.Serialization
 
 
 module Type =
-  let get (hash : ContentHash) : Ply<Option<RT.PackageType.PackageType>> =
+  let get (hash : Hash) : Ply<Option<RT.PackageType.PackageType>> =
     uply {
-      let (ContentHash hashStr) = hash
+      let (Hash hashStr) = hash
       return!
         Sql.query
           """
@@ -29,9 +29,9 @@ module Type =
 
 
 module Value =
-  let get (hash : ContentHash) : Ply<Option<RT.PackageValue.PackageValue>> =
+  let get (hash : Hash) : Ply<Option<RT.PackageValue.PackageValue>> =
     uply {
-      let (ContentHash hashStr) = hash
+      let (Hash hashStr) = hash
       return!
         Sql.query
           """
@@ -45,7 +45,7 @@ module Value =
     }
 
   /// Find all value hashes that have the given ValueType (exact match)
-  let findByValueType (vt : RT.ValueType) : Ply<List<ContentHash>> =
+  let findByValueType (vt : RT.ValueType) : Ply<List<Hash>> =
     uply {
       let vtBytes = BS.RT.ValueType.serialize vt
       return!
@@ -56,14 +56,14 @@ module Value =
           WHERE value_type = @value_type
           """
         |> Sql.parameters [ "value_type", Sql.bytes vtBytes ]
-        |> Sql.executeAsync (fun read -> ContentHash(read.string "hash"))
+        |> Sql.executeAsync (fun read -> Hash(read.string "hash"))
     }
 
 
 module Fn =
-  let get (hash : ContentHash) : Ply<Option<RT.PackageFn.PackageFn>> =
+  let get (hash : Hash) : Ply<Option<RT.PackageFn.PackageFn>> =
     uply {
-      let (ContentHash hashStr) = hash
+      let (Hash hashStr) = hash
       return!
         Sql.query
           """

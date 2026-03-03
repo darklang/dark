@@ -167,14 +167,14 @@ let parse
       // Generate PackageOps from parsed items
       // Compute a deterministic name-based placeholder hash for Set*Name ops.
       // Each item needs a unique key so computeRealHashes' maps work correctly.
-      // The real content hash replaces this in LoadPackagesFromDisk.computeRealHashes.
-      let nameBasedHash (loc : PT.PackageLocation) : ContentHash =
+      // The real hash replaces this in LoadPackagesFromDisk.computeRealHashes.
+      let nameBasedHash (loc : PT.PackageLocation) : Hash =
         let nameKey = loc.toFQN ()
         let nameBytes =
           System.Security.Cryptography.SHA256.HashData(
             System.Text.Encoding.UTF8.GetBytes(nameKey)
           )
-        ContentHash(
+        Hash(
           System.BitConverter.ToString(nameBytes).Replace("-", "").ToLowerInvariant()
         )
 

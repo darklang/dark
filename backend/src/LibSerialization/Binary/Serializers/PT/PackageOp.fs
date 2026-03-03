@@ -43,15 +43,15 @@ let write (w : BinaryWriter) (op : PackageOp) : unit =
     Guid.write w propagationId
     PackageLocation.write w sourceLocation
     String.write w (sourceItemKind.toString ())
-    List.write w ContentHash.write fromSourceHashes
-    ContentHash.write w toSourceHash
+    List.write w Hash.write fromSourceHashes
+    Hash.write w toSourceHash
     List.write
       w
       (fun w (r : PropagateRepoint) ->
         PackageLocation.write w r.location
         String.write w (r.itemKind.toString ())
-        ContentHash.write w r.fromHash
-        ContentHash.write w r.toHash)
+        Hash.write w r.fromHash
+        Hash.write w r.toHash)
       repoints
   | PackageOp.RevertPropagation(revertId,
                                 revertedPropagationIds,
@@ -64,14 +64,14 @@ let write (w : BinaryWriter) (op : PackageOp) : unit =
     List.write w (fun w id -> Guid.write w id) revertedPropagationIds
     PackageLocation.write w sourceLocation
     String.write w (sourceItemKind.toString ())
-    ContentHash.write w restoredSourceHash
+    Hash.write w restoredSourceHash
     List.write
       w
       (fun w (r : PropagateRepoint) ->
         PackageLocation.write w r.location
         String.write w (r.itemKind.toString ())
-        ContentHash.write w r.fromHash
-        ContentHash.write w r.toHash)
+        Hash.write w r.fromHash
+        Hash.write w r.toHash)
       revertedRepoints
 
 let read (r : BinaryReader) : PackageOp =
@@ -101,14 +101,14 @@ let read (r : BinaryReader) : PackageOp =
     let propagationId = Guid.read r
     let sourceLocation = PackageLocation.read r
     let sourceItemKind = String.read r |> ItemKind.fromString
-    let fromSourceHashes = List.read r ContentHash.read
-    let toSourceHash = ContentHash.read r
+    let fromSourceHashes = List.read r Hash.read
+    let toSourceHash = Hash.read r
     let repoints =
       List.read r (fun r ->
         { location = PackageLocation.read r
           itemKind = String.read r |> ItemKind.fromString
-          fromHash = ContentHash.read r
-          toHash = ContentHash.read r })
+          fromHash = Hash.read r
+          toHash = Hash.read r })
     PackageOp.PropagateUpdate(
       propagationId,
       sourceLocation,
@@ -122,13 +122,13 @@ let read (r : BinaryReader) : PackageOp =
     let revertedPropagationIds = List.read r (fun r -> Guid.read r)
     let sourceLocation = PackageLocation.read r
     let sourceItemKind = String.read r |> ItemKind.fromString
-    let restoredSourceHash = ContentHash.read r
+    let restoredSourceHash = Hash.read r
     let revertedRepoints =
       List.read r (fun r ->
         { location = PackageLocation.read r
           itemKind = String.read r |> ItemKind.fromString
-          fromHash = ContentHash.read r
-          toHash = ContentHash.read r })
+          fromHash = Hash.read r
+          toHash = Hash.read r })
     PackageOp.RevertPropagation(
       revertId,
       revertedPropagationIds,

@@ -10,20 +10,20 @@ module C2DT = LibExecution.CommonToDarkTypes
 
 
 
-module ContentHash =
+module Hash =
   let typeName =
-    FQTypeName.fqPackage PackageRefs.Type.LanguageTools.RuntimeTypes.contentHash
+    FQTypeName.fqPackage PackageRefs.Type.LanguageTools.RuntimeTypes.hash
   let knownType = KTCustomType(typeName, [])
 
-  let toDT (RuntimeTypes.ContentHash h) : Dval =
-    DEnum(typeName, typeName, [], "ContentHash", [ DString h ])
+  let toDT (RuntimeTypes.Hash h) : Dval =
+    DEnum(typeName, typeName, [], "Hash", [ DString h ])
 
-  let fromDT (d : Dval) : RuntimeTypes.ContentHash =
+  let fromDT (d : Dval) : RuntimeTypes.Hash =
     match d with
-    | DEnum(_, _, [], "ContentHash", [ DString h ]) -> RuntimeTypes.ContentHash h
-    | _ -> Exception.raiseInternal "Invalid RT ContentHash" []
+    | DEnum(_, _, [], "Hash", [ DString h ]) -> RuntimeTypes.Hash h
+    | _ -> Exception.raiseInternal "Invalid RT Hash" []
 
-let contentHashTypeName = ContentHash.typeName
+let hashTypeName = Hash.typeName
 
 module FQTypeName =
   let typeName =
@@ -36,18 +36,12 @@ module FQTypeName =
       FQTypeName.fqPackage
         PackageRefs.Type.LanguageTools.RuntimeTypes.FQTypeName.package
 
-    let toDT (ContentHash h : FQTypeName.Package) : Dval =
-      DEnum(
-        contentHashTypeName,
-        contentHashTypeName,
-        [],
-        "ContentHash",
-        [ DString h ]
-      )
+    let toDT (Hash h : FQTypeName.Package) : Dval =
+      DEnum(hashTypeName, hashTypeName, [], "Hash", [ DString h ])
 
     let fromDT (d : Dval) : FQTypeName.Package =
       match d with
-      | DEnum(_, _, [], "ContentHash", [ DString h ]) -> ContentHash h
+      | DEnum(_, _, [], "Hash", [ DString h ]) -> Hash h
       | _ -> Exception.raiseInternal "Invalid FQTypeName.Package" []
 
 
@@ -84,18 +78,12 @@ module FQValueName =
       | _ -> Exception.raiseInternal "Invalid FQValueName.Builtin" []
 
   module Package =
-    let toDT (ContentHash h : FQValueName.Package) : Dval =
-      DEnum(
-        contentHashTypeName,
-        contentHashTypeName,
-        [],
-        "ContentHash",
-        [ DString h ]
-      )
+    let toDT (Hash h : FQValueName.Package) : Dval =
+      DEnum(hashTypeName, hashTypeName, [], "Hash", [ DString h ])
 
     let fromDT (d : Dval) : FQValueName.Package =
       match d with
-      | DEnum(_, _, [], "ContentHash", [ DString h ]) -> ContentHash h
+      | DEnum(_, _, [], "Hash", [ DString h ]) -> Hash h
       | _ -> Exception.raiseInternal "Invalid FQValueName.Package" []
 
   let toDT (u : FQValueName.FQValueName) : Dval =
@@ -134,18 +122,12 @@ module FQFnName =
       | _ -> Exception.raiseInternal "Invalid FQFnName.Builtin" []
 
   module Package =
-    let toDT (ContentHash h : FQFnName.Package) : Dval =
-      DEnum(
-        contentHashTypeName,
-        contentHashTypeName,
-        [],
-        "ContentHash",
-        [ DString h ]
-      )
+    let toDT (Hash h : FQFnName.Package) : Dval =
+      DEnum(hashTypeName, hashTypeName, [], "Hash", [ DString h ])
 
     let fromDT (d : Dval) : FQFnName.Package =
       match d with
-      | DEnum(_, _, [], "ContentHash", [ DString h ]) -> ContentHash h
+      | DEnum(_, _, [], "Hash", [ DString h ]) -> Hash h
       | _ -> Exception.raiseInternal "Invalid FQFnName.Package" []
 
 

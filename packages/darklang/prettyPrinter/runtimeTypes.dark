@@ -37,18 +37,18 @@ let packageName
 let resolvePackageHash
   (ctx: LanguageTools.PackageManager.PickContext)
   (locations: List<LanguageTools.ProgramTypes.PackageLocation>)
-  (hash: LanguageTools.RuntimeTypes.ContentHash)
+  (hash: LanguageTools.RuntimeTypes.Hash)
   : String =
   match Darklang.LanguageTools.PackageManager.pickLocation ctx locations with
   | Some l -> packageName l.owner l.modules l.name
-  | None -> Darklang.LanguageTools.RuntimeTypes.contentHashToString hash
+  | None -> Darklang.LanguageTools.RuntimeTypes.hashToString hash
 
 /// Like resolvePackageHash but prefers originalName when ambiguous (multiple locations).
 let resolvePackageHashWithOriginalName
   (ctx: LanguageTools.PackageManager.PickContext)
   (locations: List<LanguageTools.ProgramTypes.PackageLocation>)
   (originalName: List<String>)
-  (hash: LanguageTools.RuntimeTypes.ContentHash)
+  (hash: LanguageTools.RuntimeTypes.Hash)
   : String =
   match locations with
   | [ single ] -> packageName single.owner single.modules single.name

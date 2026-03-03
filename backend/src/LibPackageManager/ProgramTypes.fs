@@ -54,7 +54,7 @@ let private findItem
   (itemType : string)
   (branchChain : List<PT.BranchId>)
   (location : PT.PackageLocation)
-  : Ply<Option<ContentHash>> =
+  : Ply<Option<Hash>> =
   uply {
     let modulesStr = String.concat "." location.modules
     let (branchFilter, branchParams) = buildBranchFilter branchChain
@@ -80,17 +80,17 @@ let private findItem
           "name", Sql.string location.name ]
         @ branchParams
       )
-      |> Sql.executeRowOptionAsync (fun read -> ContentHash(read.string "item_hash"))
+      |> Sql.executeRowOptionAsync (fun read -> Hash(read.string "item_hash"))
   }
 
 let private getItem<'a>
   (table : string)
   (lookupColumn : string)
-  (deserialize : ContentHash -> byte[] -> 'a)
-  (hash : ContentHash)
+  (deserialize : Hash -> byte[] -> 'a)
+  (hash : Hash)
   : Ply<Option<'a>> =
   uply {
-    let (ContentHash hashStr) = hash
+    let (Hash hashStr) = hash
     return!
       Sql.query
         $"""
@@ -106,10 +106,10 @@ let private getItem<'a>
 let private getItemLocations
   (itemType : string)
   (branchChain : List<PT.BranchId>)
-  (hash : ContentHash)
+  (hash : Hash)
   : Ply<List<PT.PackageLocation>> =
   uply {
-    let (ContentHash hashStr) = hash
+    let (Hash hashStr) = hash
     let (branchFilter, branchParams) = buildBranchFilter branchChain
     let orderBy = buildBranchOrderBy branchChain
 
@@ -262,7 +262,7 @@ let search
         @ branchParams
       )
       |> Sql.executeAsync (fun read ->
-        let hash = ContentHash(read.string "lookup_id")
+        let hash = Hash(read.string "lookup_id")
         let definition = read.bytes "pt_def"
         let owner = read.string "owner"
         let modulesStr = read.string "modules"

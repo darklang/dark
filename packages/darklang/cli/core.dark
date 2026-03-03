@@ -172,7 +172,7 @@ module Registry =
       ("let", "Create a new value (alias for val)", [], Packages.Value.execute, Packages.Value.help, Packages.Value.complete)
       ("fn", "Create a new function", [ "function" ], Packages.Fn.execute, Packages.Fn.help, Packages.Fn.complete)
       ("type", "Create a new type", [], Packages.Type.execute, Packages.Type.help, Packages.Type.complete)
-      ("hash", "Show content hash of a package item", [], Packages.Hash.execute, Packages.Hash.help, Packages.Hash.complete)
+      ("hash", "Show hash of a package item", [], Packages.Hash.execute, Packages.Hash.help, Packages.Hash.complete)
       // SCM commands
       ("status", "Show uncommitted changes", [ "wip"; "changes" ], SCM.Status.execute, SCM.Status.help, SCM.Status.complete)
       ("log", "Show commit history", [ "history"; "commits" ], SCM.Log.execute, SCM.Log.help, SCM.Log.complete)

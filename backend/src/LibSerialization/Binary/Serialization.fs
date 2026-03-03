@@ -78,16 +78,16 @@ let makeDeserializer<'T, 'ID> (reader : BinaryReader -> 'T) : 'ID -> byte[] -> '
 
 
 module PT =
-  module ContentHash =
+  module Hash =
     let serialize id value =
       makeSerializer
-        LibSerialization.Binary.Serializers.PT.Common.ContentHash.write
+        LibSerialization.Binary.Serializers.PT.Common.Hash.write
         id
         value
 
     let deserialize id data =
       makeDeserializer
-        LibSerialization.Binary.Serializers.PT.Common.ContentHash.read
+        LibSerialization.Binary.Serializers.PT.Common.Hash.read
         id
         data
 

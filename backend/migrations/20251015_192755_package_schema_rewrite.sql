@@ -61,7 +61,7 @@ CREATE TABLE IF NOT EXISTS package_functions (
 
 
 -- Locations table: branch-scoped name resolution
--- Maps (owner, modules, name) -> content hash within a branch context
+-- Maps (owner, modules, name) -> hash within a branch context
 CREATE TABLE IF NOT EXISTS locations (
   location_id TEXT PRIMARY KEY,
   item_hash TEXT NOT NULL,

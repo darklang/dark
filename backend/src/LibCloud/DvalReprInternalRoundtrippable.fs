@@ -24,7 +24,7 @@ module FormatV0 =
   //    change RT.Dval.
 
   module FQTypeName =
-    type Package = RT.ContentHash
+    type Package = RT.Hash
 
     type FQTypeName = Package of Package
 

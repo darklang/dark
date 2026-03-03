@@ -90,7 +90,7 @@ let testPackageFn
   : PT.PackageFn.PackageFn =
   let uniqueHash =
     System.Guid.NewGuid().ToString("N") + System.Guid.NewGuid().ToString("N")
-    |> PT.ContentHash
+    |> PT.Hash
   { hash = uniqueHash
     body = body
     description = ""
@@ -980,6 +980,15 @@ module Expect =
       //     branches
       //     branches'
 
+      | EPipe(_, lhs, parts), EPipe(_, lhs', parts') ->
+        eq ("lhs" :: path) lhs lhs'
+        check path (List.length parts) (List.length parts')
+        List.iteri2
+          (fun i l r ->
+            pipeExprEqualityBaseFn checkIDs (string i :: path) l r errorFn)
+          parts
+          parts'
+
       // exhaustiveness check
       | EUnit _, _
       | EInt8 _, _
@@ -1012,7 +1021,7 @@ module Expect =
       | EEnum _, _
       | ELambda _, _
       | EInfix _, _
-      | EPipe _, _ // TODO: make case above
+      | EPipe _, _
       | EMatch _, _
       | EStatement _, _
       | ESelf _, _ -> check path actual expected
@@ -1172,8 +1181,7 @@ let naughtyStrings : List<string * string> =
 
 
 let interestingDvals : List<string * RT.Dval * RT.TypeReference> =
-  let hash =
-    ContentHash "dca045b1e2af41d8ad1b35261b25a426dca045b1e2af41d8ad1b35261b25a426"
+  let hash = Hash "dca045b1e2af41d8ad1b35261b25a426dca045b1e2af41d8ad1b35261b25a426"
 
   [ ("float", DFloat 7.2, TFloat)
     ("float2", DFloat -7.2, TFloat)

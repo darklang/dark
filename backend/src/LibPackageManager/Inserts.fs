@@ -15,10 +15,10 @@ open LibSerialization.Hashing
 
 
 /// Compute a content-addressed ID for a PackageOp.
-/// Returns a UUID derived from the ContentHash (first 16 bytes) for DB compatibility.
-/// TODO: consider whether package_ops.id should store the full content hash instead of a truncated UUID.
+/// Returns a UUID derived from the Hash (first 16 bytes) for DB compatibility.
+/// TODO: consider whether package_ops.id should store the full hash instead of a truncated UUID.
 let computeOpHash (op : PT.PackageOp) : System.Guid =
-  let (ContentHash h) = Hashing.computeOpHash op
+  let (Hash h) = Hashing.computeOpHash op
   // Convert hex string back to bytes, take first 16 for UUID
   let hashBytes = System.Convert.FromHexString(h)
   System.Guid(hashBytes[0..15])
@@ -128,12 +128,12 @@ let insertAndApplyOps
 
 
 /// Create a new commit and insert ops with that commit_hash
-/// Returns the commit ContentHash
+/// Returns the commit Hash
 let insertAndApplyOpsWithCommit
   (branchId : PT.BranchId)
   (message : string)
   (ops : List<PT.PackageOp>)
-  : Task<ContentHash> =
+  : Task<Hash> =
   task {
     // Get parent commit hash
     let! parentHash =
@@ -145,12 +145,12 @@ let insertAndApplyOpsWithCommit
         LIMIT 1
         """
       |> Sql.parameters [ "branch_id", Sql.uuid branchId ]
-      |> Sql.executeRowOptionAsync (fun read -> ContentHash(read.string "hash"))
+      |> Sql.executeRowOptionAsync (fun read -> Hash(read.string "hash"))
 
     // Compute content-addressed commit hash
     let opHashes = ops |> List.map Hashing.computeOpHash
     let commitHash = Hashing.computeCommitHash parentHash opHashes
-    let (ContentHash commitHashStr) = commitHash
+    let (Hash commitHashStr) = commitHash
 
     // Create the commit record
     do!
@@ -183,11 +183,11 @@ let insertAndApplyOpsAsWip
 
 /// Commit all WIP ops on a branch by creating a new commit and assigning commit_hash.
 /// Commit hash is content-addressed: hash(parentHash + sorted opHashes).
-/// Returns the commit ContentHash on success.
+/// Returns the commit Hash on success.
 let commitWipOps
   (branchId : PT.BranchId)
   (message : string)
-  : Task<Result<ContentHash, string>> =
+  : Task<Result<Hash, string>> =
   task {
     try
       // Get WIP ops with their hashes
@@ -219,14 +219,14 @@ let commitWipOps
             LIMIT 1
             """
           |> Sql.parameters [ "branch_id", Sql.uuid branchId ]
-          |> Sql.executeRowOptionAsync (fun read -> ContentHash(read.string "hash"))
+          |> Sql.executeRowOptionAsync (fun read -> Hash(read.string "hash"))
 
         // Compute op hashes
         let opHashes = wipOps |> List.map (fun (_, op) -> Hashing.computeOpHash op)
 
         // Compute content-addressed commit hash
         let commitHash = Hashing.computeCommitHash parentHash opHashes
-        let (ContentHash commitHashStr) = commitHash
+        let (Hash commitHashStr) = commitHash
 
         // Execute all three operations atomically:
         // 1. Create commit record
@@ -265,9 +265,9 @@ let commitWipOps
   }
 
 
-/// Find the committed ContentHash at a location, checking the current branch first,
+/// Find the committed Hash at a location, checking the current branch first,
 /// then falling back to ancestor branches.
-/// Returns Ok(contentHash, locationIdOpt) where locationIdOpt is Some for same-branch
+/// Returns Ok(hash, locationIdOpt) where locationIdOpt is Some for same-branch
 /// committed locations (that need un-deprecating) or None for ancestor locations
 /// (which are already active on the parent).
 let findCommittedHash
@@ -276,7 +276,7 @@ let findCommittedHash
   (modules : string)
   (name : string)
   (itemType : string)
-  : Task<Result<ContentHash * Option<uuid>, string>> =
+  : Task<Result<Hash * Option<uuid>, string>> =
   task {
     // First: look for deprecated committed location on current branch
     let! committedLocations =
@@ -301,7 +301,7 @@ let findCommittedHash
           "item_type", Sql.string itemType
           "branch_id", Sql.uuid branchId ]
       |> Sql.executeAsync (fun read ->
-        (read.uuid "location_id", ContentHash(read.string "item_hash")))
+        (read.uuid "location_id", Hash(read.string "item_hash")))
 
     match committedLocations with
     | (locationId, itemHash) :: _ -> return Ok(itemHash, Some locationId)
@@ -341,7 +341,7 @@ let findCommittedHash
               "item_type", Sql.string itemType ]
             @ branchParams
           )
-          |> Sql.executeAsync (fun read -> ContentHash(read.string "item_hash"))
+          |> Sql.executeAsync (fun read -> Hash(read.string "item_hash"))
 
         match ancestorLocations with
         | itemHash :: _ -> return Ok(itemHash, None)

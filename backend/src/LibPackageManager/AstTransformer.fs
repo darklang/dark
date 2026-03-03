@@ -7,16 +7,16 @@ open LibExecution.ProgramTypes
 module PT = LibExecution.ProgramTypes
 
 
-type HashMapping = Map<ContentHash, ContentHash>
+type HashMapping = Map<Hash, Hash>
 
-let private replaceHash (mapping : HashMapping) (hash : ContentHash) : ContentHash =
+let private replaceHash (mapping : HashMapping) (hash : Hash) : Hash =
   mapping |> Map.tryFind hash |> Option.defaultValue hash
 
 let private transformNameResolution
   (mapping : HashMapping)
   (nr : PT.NameResolution<'a>)
-  (transform : ContentHash -> 'a) // rebuild the value from a new ContentHash
-  (getPackageId : 'a -> Option<ContentHash>) // extracts the ContentHash from a resolved name
+  (transform : Hash -> 'a) // rebuild the value from a new Hash
+  (getPackageId : 'a -> Option<Hash>) // extracts the Hash from a resolved name
   : PT.NameResolution<'a> =
   match nr.resolved with
   | Ok resolved ->
@@ -27,20 +27,16 @@ let private transformNameResolution
     | None -> nr
   | Error _ -> nr
 
-let private getFnPackageHash (fn : PT.FQFnName.FQFnName) : Option<ContentHash> =
+let private getFnPackageHash (fn : PT.FQFnName.FQFnName) : Option<Hash> =
   match fn with
   | PT.FQFnName.Package hash -> Some hash
   | PT.FQFnName.Builtin _ -> None
 
-let private getTypePackageHash
-  (typ : PT.FQTypeName.FQTypeName)
-  : Option<ContentHash> =
+let private getTypePackageHash (typ : PT.FQTypeName.FQTypeName) : Option<Hash> =
   match typ with
   | PT.FQTypeName.Package hash -> Some hash
 
-let private getValuePackageHash
-  (value : PT.FQValueName.FQValueName)
-  : Option<ContentHash> =
+let private getValuePackageHash (value : PT.FQValueName.FQValueName) : Option<Hash> =
   match value with
   | PT.FQValueName.Package hash -> Some hash
   | PT.FQValueName.Builtin _ -> None
@@ -97,8 +93,8 @@ let rec private transformTypeRef
 /// When that item gets a new UUID during propagation, we must rewrite the reference.
 let private transformDeprecation
   (mapping : HashMapping)
-  (transform : ContentHash -> 'a)
-  (getPackageId : 'a -> Option<ContentHash>)
+  (transform : Hash -> 'a)
+  (getPackageId : 'a -> Option<Hash>)
   (dep : PT.Deprecation<'a>)
   : PT.Deprecation<'a> =
   match dep with

@@ -2,11 +2,11 @@ module Darklang.Cli.Commands.FindValues
 
 // Find all package values of a given type
 
-/// Resolve a type path to its content hash
+/// Resolve a type path to its hash
 let resolveTypeHash
   (branchId: Uuid)
   (typePath: String)
-  : Stdlib.Result.Result<LanguageTools.ProgramTypes.ContentHash, String> =
+  : Stdlib.Result.Result<LanguageTools.ProgramTypes.Hash, String> =
   let parts = Stdlib.String.split typePath "."
 
   match Stdlib.List.reverse parts with

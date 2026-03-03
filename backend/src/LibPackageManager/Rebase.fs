@@ -19,7 +19,7 @@ type RebaseConflict =
 /// Get location paths modified on a branch since a given commit
 let private getLocationPathsModifiedSince
   (branchId : PT.BranchId)
-  (sinceCommitHash : Option<ContentHash>)
+  (sinceCommitHash : Option<Hash>)
   : Task<List<RebaseConflict>> =
   task {
     match sinceCommitHash with
@@ -40,7 +40,7 @@ let private getLocationPathsModifiedSince
             modules = read.string "modules"
             name = read.string "name"
             itemType = read.string "item_type" })
-    | Some(ContentHash commitHashStr) ->
+    | Some(Hash commitHashStr) ->
       // Locations committed after the base commit
       return!
         Sql.query
@@ -117,7 +117,7 @@ let rebase (branchId : PT.BranchId) : Task<Result<string, List<RebaseConflict>>>
             LIMIT 1
             """
           |> Sql.parameters [ "parent_id", Sql.uuid parentId ]
-          |> Sql.executeRowOptionAsync (fun read -> ContentHash(read.string "hash"))
+          |> Sql.executeRowOptionAsync (fun read -> Hash(read.string "hash"))
 
         if branch.baseCommitHash = parentLatest then
           return Ok "Already up to date"
@@ -131,7 +131,7 @@ let rebase (branchId : PT.BranchId) : Task<Result<string, List<RebaseConflict>>>
             // Update base_commit_hash
             let baseCommitHashParam =
               match parentLatest with
-              | Some(ContentHash h) -> Sql.string h
+              | Some(Hash h) -> Sql.string h
               | None -> Sql.dbnull
 
             do!

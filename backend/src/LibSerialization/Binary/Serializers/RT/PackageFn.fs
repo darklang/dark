@@ -22,14 +22,14 @@ module Parameter =
 
 
 let write (w : BinaryWriter) (fn : PackageFn.PackageFn) =
-  ContentHash.write w fn.hash
+  Hash.write w fn.hash
   List.write w String.write fn.typeParams
   NEList.write Parameter.write w fn.parameters
   TypeReference.write w fn.returnType
   Instructions.write w fn.body
 
 let read (r : BinaryReader) : PackageFn.PackageFn =
-  let hash = ContentHash.read r
+  let hash = Hash.read r
   let typeParams = List.read r String.read
   let parameters = NEList.read Parameter.read r
   let returnType = TypeReference.read r

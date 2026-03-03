@@ -27,13 +27,12 @@ let assertBuiltin
 // TODO: consider grouping SCM types (BranchId, Branch, MergeError, Commit) into a
 // SourceControl module to match the Dark package structure (Darklang.SCM.*)
 /// SCM branch identifier
-/// Content-addressed hash for package items.
-/// Hex-encoded SHA-256 digest of the structure (not name/location).
-type ContentHash = ContentHash of string
+/// Structural hash of a package item's content (shape, not name/location).
+type Hash = Hash of string
 
-module ContentHash =
-  let empty : ContentHash = ContentHash ""
-  let toHexString (ContentHash h) : string = h
+module Hash =
+  let empty : Hash = Hash ""
+  let toHexString (Hash h) : string = h
 
 type BranchId = uuid
 
@@ -46,7 +45,7 @@ type Branch =
   { id : BranchId
     name : string
     parentBranchId : Option<BranchId>
-    baseCommitHash : Option<ContentHash>
+    baseCommitHash : Option<Hash>
     createdAt : NodaTime.Instant
     mergedAt : Option<NodaTime.Instant> }
 
@@ -63,7 +62,7 @@ type MergeError =
 
 /// A commit on a branch
 type Commit =
-  { hash : ContentHash
+  { hash : Hash
     message : string
     createdAt : NodaTime.Instant
     opCount : int64
@@ -75,13 +74,13 @@ type Commit =
 ///
 /// Used to reference a type defined in a Package or by a User
 module FQTypeName =
-  type Package = ContentHash
+  type Package = Hash
 
   type FQTypeName = Package of Package
 
-  let package (h : string) : Package = ContentHash h
+  let package (h : string) : Package = Hash h
 
-  let fqPackage (h : string) : FQTypeName = Package(ContentHash h)
+  let fqPackage (h : string) : FQTypeName = Package(Hash h)
 
 
 
@@ -92,8 +91,8 @@ module FQValueName =
   /// A value built into the runtime
   type Builtin = { name : string; version : int }
 
-  /// The content hash of a value in the package manager
-  type Package = ContentHash
+  /// The hash of a value in the package manager
+  type Package = Hash
 
   type FQValueName =
     | Builtin of Builtin
@@ -110,9 +109,9 @@ module FQValueName =
   let fqBuiltIn (name : string) (version : int) : FQValueName =
     Builtin(builtIn name version)
 
-  let package (h : string) : Package = ContentHash h
+  let package (h : string) : Package = Hash h
 
-  let fqPackage (h : string) : FQValueName = Package(ContentHash h)
+  let fqPackage (h : string) : FQValueName = Package(Hash h)
 
 
 
@@ -124,8 +123,8 @@ module FQFnName =
   /// A function built into the runtime
   type Builtin = { name : string; version : int }
 
-  /// The content hash of a function in the package manager
-  type Package = ContentHash
+  /// The hash of a function in the package manager
+  type Package = Hash
 
   type FQFnName =
     | Builtin of Builtin
@@ -141,9 +140,9 @@ module FQFnName =
   let fqBuiltIn (name : string) (version : int) : FQFnName =
     Builtin(builtIn name version)
 
-  let package (h : string) : Package = ContentHash h
+  let package (h : string) : Package = Hash h
 
-  let fqPackage (h : string) : FQFnName = Package(ContentHash h)
+  let fqPackage (h : string) : FQFnName = Package(Hash h)
 
 
 // In ProgramTypes, names (FnNames, TypeNames, ValueNames) have already been
@@ -640,8 +639,8 @@ type PackageOp =
     propagationId : uuid *
     sourceLocation : PackageLocation *
     sourceItemKind : ItemKind *
-    fromSourceHashes : List<ContentHash> *
-    toSourceHash : ContentHash *
+    fromSourceHashes : List<Hash> *
+    toSourceHash : Hash *
     repoints : List<PropagateRepoint>
 
   // Revert a propagation: restore previous versions atomically
@@ -650,7 +649,7 @@ type PackageOp =
     revertedPropagationIds : List<uuid> *
     sourceLocation : PackageLocation *
     sourceItemKind : ItemKind *
-    restoredSourceHash : ContentHash *
+    restoredSourceHash : Hash *
     revertedRepoints : List<PropagateRepoint>
 
 //   | MoveItem of item: uuid * from : Location * to_: Location
@@ -698,10 +697,7 @@ and ItemKind =
 
 // A single repoint operation within a PropagateUpdate
 and PropagateRepoint =
-  { location : PackageLocation
-    itemKind : ItemKind
-    fromHash : ContentHash
-    toHash : ContentHash }
+  { location : PackageLocation; itemKind : ItemKind; fromHash : Hash; toHash : Hash }
 
 
 /// A package entity paired with its location

@@ -21,7 +21,7 @@ let fns : List<BuiltInFn> =
       parameters =
         [ Param.make "canvasID" TUuid "The canvas to add the DB to"
           Param.make "dbName" TString "Name of the database"
-          Param.make "typeHash" TString "ContentHash of the type stored in this DB" ]
+          Param.make "typeHash" TString "Hash of the type stored in this DB" ]
       returnType = TypeReference.result TUInt64 TString
       description = "Creates a new database in the specified canvas"
       fn =
@@ -55,7 +55,7 @@ let fns : List<BuiltInFn> =
                   typ =
                     PT.TypeReference.TCustomType(
                       { originalName = []
-                        resolved = Ok(PT.FQTypeName.Package(PT.ContentHash typeHash)) },
+                        resolved = Ok(PT.FQTypeName.Package(PT.Hash typeHash)) },
                       []
                     ) }
 

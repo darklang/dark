@@ -825,7 +825,7 @@ module PackageType =
       let! declaration =
         TypeDeclaration.toPT pm onMissing currentModule pt.declaration
       return
-        { hash = ContentHash ""
+        { hash = Hash ""
           description = pt.description
           declaration = declaration
           deprecated = PT.NotDeprecated }
@@ -854,7 +854,7 @@ module PackageValue =
           localBindings = Set.empty }
       let! body = Expr.toPT builtins pm onMissing currentModule context c.body
       return
-        { hash = ContentHash ""
+        { hash = Hash ""
           description = c.description
           deprecated = PT.NotDeprecated
           body = body }
@@ -907,7 +907,7 @@ module PackageFn =
       let! body = Expr.toPT builtins pm onMissing currentModule context fn.body
 
       return
-        { hash = ContentHash ""
+        { hash = Hash ""
           parameters = parameters
           returnType = returnType
           description = fn.description

@@ -82,13 +82,13 @@ module TypeDeclaration =
 
 
 let write (w : BinaryWriter) (t : PackageType.PackageType) : unit =
-  ContentHash.write w t.hash
+  Hash.write w t.hash
   TypeDeclaration.write w t.declaration
   String.write w t.description
   Deprecation.write w FQTypeName.write t.deprecated
 
 let read (r : BinaryReader) : PackageType.PackageType =
-  let hash = ContentHash.read r
+  let hash = Hash.read r
   let declaration = TypeDeclaration.read r
   let description = String.read r
   let deprecated = Deprecation.read r FQTypeName.read

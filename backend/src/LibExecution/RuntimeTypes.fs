@@ -11,13 +11,12 @@ open Prelude
 
 type BranchId = uuid
 
-/// Content-addressed hash for package items.
-/// Hex-encoded SHA-256 digest of the structure (not name/location).
-type ContentHash = ContentHash of string
+/// Structural hash of a package item's content (shape, not name/location).
+type Hash = Hash of string
 
-module ContentHash =
-  let empty : ContentHash = ContentHash ""
-  let toHexString (ContentHash h) : string = h
+module Hash =
+  let empty : Hash = Hash ""
+  let toHexString (Hash h) : string = h
 
 let builtinNamePattern = @"^(__|[a-z])[a-z0-9A-Z_]\w*$"
 let valueNamePattern = @"^[a-z][a-z0-9A-Z_']*$"
@@ -35,14 +34,14 @@ let assertBuiltin
 ///
 /// Used to reference a type defined in a Package
 module FQTypeName =
-  /// The content hash of a type in the package manager
-  type Package = ContentHash
+  /// The hash of a type in the package manager
+  type Package = Hash
 
   type FQTypeName = Package of Package
 
-  let package (h : string) : Package = ContentHash h
+  let package (h : string) : Package = Hash h
 
-  let fqPackage (h : string) : FQTypeName = Package(ContentHash h)
+  let fqPackage (h : string) : FQTypeName = Package(Hash h)
 
 
 /// A Fully-Qualified Value Name
@@ -52,8 +51,8 @@ module FQValueName =
   /// A value built into the runtime
   type Builtin = { name : string; version : int }
 
-  /// The content hash of a value in the package manager
-  type Package = ContentHash
+  /// The hash of a value in the package manager
+  type Package = Hash
 
   type FQValueName =
     | Builtin of Builtin
@@ -66,9 +65,9 @@ module FQValueName =
     assertBuiltin name version assertValueName
     { name = name; version = version }
 
-  let package (h : string) : Package = ContentHash h
+  let package (h : string) : Package = Hash h
 
-  let fqPackage (h : string) : FQValueName = Package(ContentHash h)
+  let fqPackage (h : string) : FQValueName = Package(Hash h)
 
 
 /// A Fully-Qualified Function Name
@@ -78,7 +77,7 @@ module FQFnName =
   /// A function built into the runtime
   type Builtin = { name : string; version : int }
 
-  type Package = ContentHash
+  type Package = Hash
 
   type FQFnName =
     | Builtin of Builtin
@@ -91,12 +90,12 @@ module FQFnName =
     assertBuiltin name version assertBuiltinFnName
     { name = name; version = version }
 
-  let package (h : string) : Package = ContentHash h
+  let package (h : string) : Package = Hash h
 
   let fqBuiltin (name : string) (version : int) : FQFnName =
     Builtin { name = name; version = version }
 
-  let fqPackage (h : string) : FQFnName = Package(ContentHash h)
+  let fqPackage (h : string) : FQFnName = Package(Hash h)
 
 
   let isInternalFn (fnName : Builtin) : bool = fnName.name.Contains "darkInternal"
@@ -1065,16 +1064,16 @@ module Dval =
 // Package-Space
 // ------------
 module PackageType =
-  type PackageType = { hash : ContentHash; declaration : TypeDeclaration.T }
+  type PackageType = { hash : Hash; declaration : TypeDeclaration.T }
 
 module PackageValue =
-  type PackageValue = { hash : ContentHash; body : Dval }
+  type PackageValue = { hash : Hash; body : Dval }
 
 module PackageFn =
   type Parameter = { name : string; typ : TypeReference }
 
   type PackageFn =
-    { hash : ContentHash
+    { hash : Hash
       typeParams : List<string>
       parameters : NEList<Parameter>
       returnType : TypeReference

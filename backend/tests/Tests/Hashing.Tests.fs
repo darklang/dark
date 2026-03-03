@@ -18,16 +18,13 @@ let private makeFn (body : PT.Expr) : PT.PackageFn.PackageFn =
 let private makeType
   (def : PT.TypeDeclaration.Definition)
   : PT.PackageType.PackageType =
-  { hash = PT.ContentHash ""
+  { hash = PT.Hash ""
     declaration = { typeParams = []; definition = def }
     description = ""
     deprecated = PT.NotDeprecated }
 
 let private makeValue (body : PT.Expr) : PT.PackageValue.PackageValue =
-  { hash = PT.ContentHash ""
-    body = body
-    description = ""
-    deprecated = PT.NotDeprecated }
+  { hash = PT.Hash ""; body = body; description = ""; deprecated = PT.NotDeprecated }
 
 
 // ── Tests ────────────────────────────────────────────────────────────────
@@ -119,11 +116,11 @@ let tests =
 
       testList
         "computeOpHash"
-        [ test "returns ContentHash" {
+        [ test "returns Hash" {
             let fn = makeFn (eInt64 1)
             let op = PT.PackageOp.AddFn fn
             let hash = Hashing.computeOpHash op
-            let (PT.ContentHash h) = hash
+            let (PT.Hash h) = hash
             Expect.isTrue (h.Length = 64) "should be 64 hex chars (SHA-256)"
           }
 
@@ -139,32 +136,32 @@ let tests =
       testList
         "computeCommitHash"
         [ test "determinism" {
-            let opHash1 = PT.ContentHash "aabb"
-            let opHash2 = PT.ContentHash "ccdd"
-            let parent = Some(PT.ContentHash "0011")
+            let opHash1 = PT.Hash "aabb"
+            let opHash2 = PT.Hash "ccdd"
+            let parent = Some(PT.Hash "0011")
             let h1 = Hashing.computeCommitHash parent [ opHash1; opHash2 ]
             let h2 = Hashing.computeCommitHash parent [ opHash1; opHash2 ]
             Expect.equal h1 h2 "same inputs should give same commit hash"
           }
 
           test "op order independence (sorted internally)" {
-            let opHash1 = PT.ContentHash "aabb"
-            let opHash2 = PT.ContentHash "ccdd"
-            let parent = Some(PT.ContentHash "0011")
+            let opHash1 = PT.Hash "aabb"
+            let opHash2 = PT.Hash "ccdd"
+            let parent = Some(PT.Hash "0011")
             let h1 = Hashing.computeCommitHash parent [ opHash1; opHash2 ]
             let h2 = Hashing.computeCommitHash parent [ opHash2; opHash1 ]
             Expect.equal h1 h2 "op order should not matter"
           }
 
           test "different parent gives different hash" {
-            let ops = [ PT.ContentHash "aabb" ]
-            let h1 = Hashing.computeCommitHash (Some(PT.ContentHash "0011")) ops
-            let h2 = Hashing.computeCommitHash (Some(PT.ContentHash "0022")) ops
+            let ops = [ PT.Hash "aabb" ]
+            let h1 = Hashing.computeCommitHash (Some(PT.Hash "0011")) ops
+            let h2 = Hashing.computeCommitHash (Some(PT.Hash "0022")) ops
             Expect.notEqual h1 h2 "different parent should give different hash"
           }
 
           test "empty commit (no ops, just parent)" {
-            let parent = Some(PT.ContentHash "0011")
+            let parent = Some(PT.Hash "0011")
             let h1 = Hashing.computeCommitHash parent []
             let h2 = Hashing.computeCommitHash parent []
             Expect.equal h1 h2 "empty commit should be deterministic"
@@ -247,7 +244,7 @@ let tests =
               "FQN should be owner.modules.name"
           }
 
-          test "FQN-based SHA-256 produces valid content hash" {
+          test "FQN-based SHA-256 produces valid hash" {
             let loc : PT.PackageLocation =
               { owner = "Test"; modules = [ "Mod" ]; name = "Foo" }
             let nameKey = loc.toFQN ()
@@ -256,13 +253,13 @@ let tests =
                 System.Text.Encoding.UTF8.GetBytes(nameKey)
               )
             let hash =
-              PT.ContentHash(
+              PT.Hash(
                 System.BitConverter
                   .ToString(nameBytes)
                   .Replace("-", "")
                   .ToLowerInvariant()
               )
-            let (PT.ContentHash h) = hash
+            let (PT.Hash h) = hash
             Expect.isTrue (h.Length = 64) "should be 64 hex chars (SHA-256)"
           } ]
 
@@ -270,14 +267,14 @@ let tests =
       testList
         "SCC batch hashing"
         [ test "two mutually-recursive types get stable hashes" {
-            let id1 = PT.ContentHash "test-scc-type-1"
-            let id2 = PT.ContentHash "test-scc-type-2"
+            let id1 = PT.Hash "test-scc-type-1"
+            let id2 = PT.Hash "test-scc-type-2"
             let typ1 =
               { (makeType (PT.TypeDeclaration.Alias PT.TInt64)) with hash = id1 }
             let typ2 =
               { (makeType (PT.TypeDeclaration.Alias PT.TString)) with hash = id2 }
 
-            // Maps keyed by FQN; tuple value is (item, oldContentHash)
+            // Maps keyed by FQN; tuple value is (item, oldHash)
             let types =
               [ ("Test.A", (typ1, id1)); ("Test.B", (typ2, id2)) ] |> Map.ofList
 
@@ -300,9 +297,9 @@ let tests =
 
 
           test "3-node cycle A->B->C->A gets stable hashes" {
-            let idA = PT.ContentHash "test-3cycle-A"
-            let idB = PT.ContentHash "test-3cycle-B"
-            let idC = PT.ContentHash "test-3cycle-C"
+            let idA = PT.Hash "test-3cycle-A"
+            let idB = PT.Hash "test-3cycle-B"
+            let idC = PT.Hash "test-3cycle-C"
             let typA =
               { (makeType (PT.TypeDeclaration.Alias PT.TInt64)) with hash = idA }
             let typB =
@@ -342,9 +339,9 @@ let tests =
 
 
           test "3-node cycle is order-independent" {
-            let idA = PT.ContentHash "test-3cycle-A"
-            let idB = PT.ContentHash "test-3cycle-B"
-            let idC = PT.ContentHash "test-3cycle-C"
+            let idA = PT.Hash "test-3cycle-A"
+            let idB = PT.Hash "test-3cycle-B"
+            let idC = PT.Hash "test-3cycle-C"
             let typA =
               { (makeType (PT.TypeDeclaration.Alias PT.TInt64)) with hash = idA }
             let typB =
@@ -394,7 +391,7 @@ let tests =
 
           test "self-recursive type does not infinite loop and gets stable hash" {
             let idTStr = "test-self-recursive"
-            let idT = PT.ContentHash idTStr
+            let idT = PT.Hash idTStr
             // A type that references itself (like a linked list node)
             let typ =
               { (makeType (
@@ -431,14 +428,14 @@ let tests =
               "self-recursive type hash should be deterministic"
 
             // Should produce a valid hash
-            let (PT.ContentHash h) = Map.findUnsafe "Test.T" hashes1
+            let (PT.Hash h) = Map.findUnsafe "Test.T" hashes1
             Expect.isTrue (h.Length = 64) "should be 64 hex chars (SHA-256)"
           }
 
 
           test "mixed cycle: type and fn that mutually depend on each other" {
-            let idTyp = PT.ContentHash "test-mixed-type"
-            let idFn = PT.ContentHash "test-mixed-fn"
+            let idTyp = PT.Hash "test-mixed-type"
+            let idFn = PT.Hash "test-mixed-fn"
 
             // A type that (via getDeps) depends on the function
             let typ =
@@ -469,8 +466,8 @@ let tests =
               "type and fn in mixed SCC should have different hashes"
 
             // Both hashes should be valid SHA-256
-            let (PT.ContentHash hTyp) = Map.findUnsafe "Test.MyType" hashes1
-            let (PT.ContentHash hFn) = Map.findUnsafe "Test.myFn" hashes1
+            let (PT.Hash hTyp) = Map.findUnsafe "Test.MyType" hashes1
+            let (PT.Hash hFn) = Map.findUnsafe "Test.myFn" hashes1
             Expect.isTrue (hTyp.Length = 64) "type hash should be 64 hex chars"
             Expect.isTrue (hFn.Length = 64) "fn hash should be 64 hex chars"
           } ] ]

@@ -5,19 +5,19 @@ module Darklang.LanguageTools.RuntimeTypes
 type Option = Stdlib.Option.Option
 // </aliases>
 
-type ContentHash = | ContentHash of String
+type Hash = | Hash of String
 
-let contentHashToString (hash: ContentHash) : String =
+let hashToString (hash: Hash) : String =
   match hash with
-  | ContentHash h -> h
+  | Hash h -> h
 
 module FQTypeName =
-  type Package = ContentHash
+  type Package = Hash
   type FQTypeName = Package of Package
 
 module FQValueName =
   type Builtin = { name: String; version: Int32 }
-  type Package = ContentHash
+  type Package = Hash
 
   type FQValueName =
     | Builtin of Builtin
@@ -25,7 +25,7 @@ module FQValueName =
 
 module FQFnName =
   type Builtin = { name: String; version: Int32 }
-  type Package = ContentHash
+  type Package = Hash
 
   type FQFnName =
     | Builtin of Builtin

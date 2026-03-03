@@ -1,8 +1,8 @@
 module Darklang.Cli.Packages.Hash
 
-let formatHash (hash: LanguageTools.ProgramTypes.ContentHash) (long: Bool) : String =
-  if long then Darklang.LanguageTools.ProgramTypes.contentHashToString hash
-  else Darklang.LanguageTools.ProgramTypes.contentHashToShort hash
+let formatHash (hash: LanguageTools.ProgramTypes.Hash) (long: Bool) : String =
+  if long then Darklang.LanguageTools.ProgramTypes.hashToString hash
+  else Darklang.LanguageTools.ProgramTypes.hashToShort hash
 
 let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
   let long =
@@ -39,7 +39,7 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
 
 let help (state: Cli.AppState) : Cli.AppState =
   [ "Usage: hash [--long] <location>"
-    "Show the content hash of a package type, function, or value."
+    "Show the hash of a package type, function, or value."
     "By default shows a short (8-char) hash; use --long or --full for the full hash."
     ""
     "Examples:"

@@ -1,5 +1,5 @@
 /// Propagates package item updates to all dependents by creating new versions
-/// with updated ContentHash references.
+/// with updated Hash references.
 module LibPackageManager.Propagation
 
 open System.Threading.Tasks
@@ -22,13 +22,13 @@ type PropagationResult =
 /// Item-specific operations for retrieving, transforming, and creating ops
 type private ItemProcessingContext<'T> =
   { itemKind : PT.ItemKind
-    getItem : ContentHash -> Ply<Option<'T>> // Given a ContentHash, fetch the full item definition
-    getLocations : ContentHash -> Ply<List<PT.PackageLocation>> // Given a ContentHash, look up the item's PackageLocations
-    transform : Map<ContentHash, ContentHash> -> 'T -> 'T // Transforms the item by replacing old hashes with new hashes based on the mapping
-    computeHash : 'T -> ContentHash // Compute content hash for the transformed item
-    withNewId : ContentHash -> 'T -> 'T // Assigns a new ContentHash to the item
+    getItem : Hash -> Ply<Option<'T>> // Given a Hash, fetch the full item definition
+    getLocations : Hash -> Ply<List<PT.PackageLocation>> // Given a Hash, look up the item's PackageLocations
+    transform : Map<Hash, Hash> -> 'T -> 'T // Transforms the item by replacing old hashes with new hashes based on the mapping
+    computeHash : 'T -> Hash // Compute hash for the transformed item
+    withNewId : Hash -> 'T -> 'T // Assigns a new Hash to the item
     makeAddOp : 'T -> PT.PackageOp // Creates an Add op for the item
-    makeSetNameOp : ContentHash * PT.PackageLocation -> PT.PackageOp } // Creates a SetName op for the item
+    makeSetNameOp : Hash * PT.PackageLocation -> PT.PackageOp } // Creates a SetName op for the item
 
 
 let private fnContext
@@ -70,22 +70,22 @@ let private valueContext
     makeSetNameOp = PT.PackageOp.SetValueName }
 
 
-/// Creates a new version of an item with transformed ContentHash references.
-/// Computes the real content hash from the transformed content.
+/// Creates a new version of an item with transformed Hash references.
+/// Computes the real hash from the transformed content.
 /// Returns (repoint, ops, newHash) so the caller can build the mapping incrementally.
 let private processItem<'T>
   (ctx : ItemProcessingContext<'T>)
-  (itemHash : ContentHash)
-  (mapping : Map<ContentHash, ContentHash>)
-  : Task<Result<PT.PropagateRepoint * List<PT.PackageOp> * ContentHash, string>> =
+  (itemHash : Hash)
+  (mapping : Map<Hash, Hash>)
+  : Task<Result<PT.PropagateRepoint * List<PT.PackageOp> * Hash, string>> =
   task {
     let kindName = ctx.itemKind.toString ()
     let! itemOpt = ctx.getItem itemHash
     match itemOpt with
     | Some item ->
-      // Transform the item: rewrite all ContentHash references in its body using the mapping
+      // Transform the item: rewrite all Hash references in its body using the mapping
       let transformed = ctx.transform mapping item
-      // Compute the real content hash from the transformed content
+      // Compute the real hash from the transformed content
       let newHash = ctx.computeHash transformed
       let newItem = ctx.withNewId newHash transformed
 
@@ -111,13 +111,13 @@ let private processItem<'T>
 /// Phase 1: Discover all items that need to be updated (transitive dependents)
 let private discoverDependents
   (branchChain : List<PT.BranchId>)
-  (fromSourceHashes : List<ContentHash>)
-  (toSourceHash : ContentHash)
+  (fromSourceHashes : List<Hash>)
+  (toSourceHash : Hash)
   : Task<List<PMQueries.PackageDep>> =
   task {
     let rec loop
-      (pending : List<ContentHash>)
-      (processed : Set<ContentHash>)
+      (pending : List<Hash>)
+      (processed : Set<Hash>)
       (accumulated : List<PMQueries.PackageDep>)
       =
       task {
@@ -161,8 +161,8 @@ let private discoverDependents
 /// Check if source item needs to be updated (for mutual recursion)
 let private sourceNeedsUpdate
   (branchChain : List<PT.BranchId>)
-  (toSourceHash : ContentHash)
-  (oldHashesBeingReplaced : Set<ContentHash>)
+  (toSourceHash : Hash)
+  (oldHashesBeingReplaced : Set<Hash>)
   : Task<bool> =
   task {
     // "what does the source item reference"
@@ -178,10 +178,10 @@ let private sourceNeedsUpdate
 /// Helper to dispatch processItem based on item kind
 let private processItemByKind
   (branchChain : List<PT.BranchId>)
-  (itemHash : ContentHash)
+  (itemHash : Hash)
   (itemKind : PT.ItemKind)
-  (mapping : Map<ContentHash, ContentHash>)
-  : Task<Result<PT.PropagateRepoint * List<PT.PackageOp> * ContentHash, string>> =
+  (mapping : Map<Hash, Hash>)
+  : Task<Result<PT.PropagateRepoint * List<PT.PackageOp> * Hash, string>> =
   task {
     match itemKind with
     | PT.ItemKind.Fn -> return! processItem (fnContext branchChain) itemHash mapping
@@ -192,17 +192,17 @@ let private processItemByKind
   }
 
 
-/// Phase 2 & 3: Process dependents sequentially, computing real content hashes
+/// Phase 2 & 3: Process dependents sequentially, computing real hashes
 /// incrementally. Each item is transformed using the mapping-so-far (which grows
 /// as each item's real hash is computed), ensuring that references to already-
-/// processed dependents use their correct content hashes.
+/// processed dependents use their correct hashes.
 let private createAllItems
   (branchChain : List<PT.BranchId>)
-  (fromSourceHashes : List<ContentHash>)
-  (toSourceHash : ContentHash)
+  (fromSourceHashes : List<Hash>)
+  (toSourceHash : Hash)
   (dependents : List<PMQueries.PackageDep>)
   (sourceItemKind : PT.ItemKind)
-  : Task<Result<List<PT.PropagateRepoint> * List<PT.PackageOp> * ContentHash, string>> =
+  : Task<Result<List<PT.PropagateRepoint> * List<PT.PackageOp> * Hash, string>> =
   task {
     match dependents with
     | [] -> return Ok([], [], toSourceHash)
@@ -264,8 +264,8 @@ let propagate
   (branchId : PT.BranchId)
   (sourceLocation : PT.PackageLocation)
   (sourceItemKind : PT.ItemKind)
-  (fromSourceHashes : List<ContentHash>)
-  (toSourceHash : ContentHash)
+  (fromSourceHashes : List<Hash>)
+  (toSourceHash : Hash)
   : Task<Result<Option<PropagationResult * List<PT.PackageOp>>, string>> =
   task {
     // Fetch branch chain once for all queries

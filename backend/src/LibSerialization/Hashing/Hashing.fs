@@ -28,11 +28,11 @@ module Hashing =
   // Hash computation helpers
   // =====================
 
-  let private fromSHA256Bytes (bytes : byte array) : ContentHash =
-    ContentHash(System.Convert.ToHexString(bytes).ToLowerInvariant())
+  let private fromSHA256Bytes (bytes : byte array) : Hash =
+    Hash(System.Convert.ToHexString(bytes).ToLowerInvariant())
 
-  /// Serialize to bytes using a writer function, then SHA-256 hash to ContentHash
-  let private hashWithWriter (writerFn : BinaryWriter -> unit) : ContentHash =
+  /// Serialize to bytes using a writer function, then SHA-256 hash to Hash
+  let private hashWithWriter (writerFn : BinaryWriter -> unit) : Hash =
     use ms = new MemoryStream()
     use w = new BinaryWriter(ms)
     writerFn w
@@ -45,18 +45,12 @@ module Hashing =
   // =====================
 
   /// Hash a PackageType (skip id, description, deprecated)
-  let computeTypeHash
-    (mode : HashRefMode)
-    (t : PT.PackageType.PackageType)
-    : ContentHash =
+  let computeTypeHash (mode : HashRefMode) (t : PT.PackageType.PackageType) : Hash =
     hashWithWriter (fun w -> Canonical.writeType mode w t)
 
 
   /// Hash a PackageFn (skip id, description, deprecated, param descriptions)
-  let computeFnHash
-    (mode : HashRefMode)
-    (fn : PT.PackageFn.PackageFn)
-    : ContentHash =
+  let computeFnHash (mode : HashRefMode) (fn : PT.PackageFn.PackageFn) : Hash =
     hashWithWriter (fun w -> Canonical.writeFn mode w fn)
 
 
@@ -64,24 +58,21 @@ module Hashing =
   let computeValueHash
     (mode : HashRefMode)
     (v : PT.PackageValue.PackageValue)
-    : ContentHash =
+    : Hash =
     hashWithWriter (fun w -> Canonical.writeValue mode w v)
 
 
   /// Hash a PackageOp (reuse existing PackageOp.write — ops have no metadata to skip)
-  let computeOpHash (op : PT.PackageOp) : ContentHash =
+  let computeOpHash (op : PT.PackageOp) : Hash =
     hashWithWriter (fun w ->
       LibSerialization.Binary.Serializers.PT.PackageOp.write w op)
 
 
   /// Hash a commit: hash(parentHash + sorted(opHashes))
-  let computeCommitHash
-    (parentHash : ContentHash option)
-    (opHashes : List<ContentHash>)
-    : ContentHash =
+  let computeCommitHash (parentHash : Hash option) (opHashes : List<Hash>) : Hash =
     hashWithWriter (fun w ->
-      Common.Option.write w PTC.ContentHash.write parentHash
-      let sorted = opHashes |> List.map ContentHash.toHexString |> List.sort
+      Common.Option.write w PTC.Hash.write parentHash
+      let sorted = opHashes |> List.map Hash.toHexString |> List.sort
       Common.List.write w Common.String.write sorted)
 
 
@@ -155,9 +146,9 @@ module Hashing =
   // =====================
 
   type private ItemInfo =
-    | TypeItem of PT.PackageType.PackageType * string * ContentHash
-    | FnItem of PT.PackageFn.PackageFn * string * ContentHash
-    | ValueItem of PT.PackageValue.PackageValue * string * ContentHash
+    | TypeItem of PT.PackageType.PackageType * string * Hash
+    | FnItem of PT.PackageFn.PackageFn * string * Hash
+    | ValueItem of PT.PackageValue.PackageValue * string * Hash
 
   let private getItemFQN (item : ItemInfo) : string =
     match item with
@@ -165,13 +156,13 @@ module Hashing =
     | FnItem(_, fqn, _) -> fqn
     | ValueItem(_, fqn, _) -> fqn
 
-  let private getItemOldHash (item : ItemInfo) : ContentHash =
+  let private getItemOldHash (item : ItemInfo) : Hash =
     match item with
     | TypeItem(_, _, h) -> h
     | FnItem(_, _, h) -> h
     | ValueItem(_, _, h) -> h
 
-  let private computeItemHash (mode : HashRefMode) (item : ItemInfo) : ContentHash =
+  let private computeItemHash (mode : HashRefMode) (item : ItemInfo) : Hash =
     match item with
     | TypeItem(t, _, _) -> computeTypeHash mode t
     | FnItem(fn, _, _) -> computeFnHash mode fn
@@ -193,14 +184,14 @@ module Hashing =
   /// Given a set of package items (keyed by FQN) and their dependencies, compute
   /// hashes handling SCCs via batch hashing with name-ref substitution.
   /// Maps are keyed by FQN (string) to avoid collisions when multiple items share
-  /// the same ContentHash (e.g. type aliases with unresolved refs on first parse).
-  /// The ContentHash in each tuple is the item's current/old hash.
+  /// the same Hash (e.g. type aliases with unresolved refs on first parse).
+  /// The Hash in each tuple is the item's current/old hash.
   let computeHashesWithSCCs
-    (types : Map<string, PT.PackageType.PackageType * ContentHash>)
-    (fns : Map<string, PT.PackageFn.PackageFn * ContentHash>)
-    (values : Map<string, PT.PackageValue.PackageValue * ContentHash>)
+    (types : Map<string, PT.PackageType.PackageType * Hash>)
+    (fns : Map<string, PT.PackageFn.PackageFn * Hash>)
+    (values : Map<string, PT.PackageValue.PackageValue * Hash>)
     (getDeps : string -> List<string>)
-    : Map<string, ContentHash> =
+    : Map<string, Hash> =
 
     // Build unified item map (keyed by FQN)
     let items =
@@ -221,9 +212,9 @@ module Hashing =
     let sccs = findSCCs allIds getDeps
 
     // FQN → finalHash result map
-    let mutable hashMap = Map.empty<string, ContentHash>
-    // oldContentHash → finalHash for the canonical serializer's resolvedDeps
-    let mutable resolvedDepsMap = Map.empty<ContentHash, ContentHash>
+    let mutable hashMap = Map.empty<string, Hash>
+    // oldHash → finalHash for the canonical serializer's resolvedDeps
+    let mutable resolvedDepsMap = Map.empty<Hash, Hash>
 
     for scc in sccs do
       let sccIds = scc.head :: scc.tail
@@ -248,7 +239,7 @@ module Hashing =
         resolvedDepsMap <- Map.add (getItemOldHash item) hash resolvedDepsMap
       else
         // Multi-item SCC: batch hash with FQN substitution + finalized deps
-        // sccNames maps old ContentHash → FQN for cycle-breaking in canonical serializer
+        // sccNames maps old Hash → FQN for cycle-breaking in canonical serializer
         let sccNameMap =
           sccIds
           |> List.map (fun fqn ->
@@ -278,7 +269,7 @@ module Hashing =
           let itemFQN = getItemFQN item
           let itemHash =
             hashWithWriter (fun w ->
-              PTC.ContentHash.write w groupHash
+              PTC.Hash.write w groupHash
               Common.String.write w itemFQN)
           hashMap <- Map.add fqn itemHash hashMap
           resolvedDepsMap <- Map.add (getItemOldHash item) itemHash resolvedDepsMap

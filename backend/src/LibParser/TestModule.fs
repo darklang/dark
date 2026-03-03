@@ -290,7 +290,7 @@ let parseTestFile
 
     let firstPassOps = firstPassModules |> List.collect _.ops
 
-    // Iteratively re-parse until ALL content hashes converge.
+    // Iteratively re-parse until ALL hashes converge.
     // Same approach as LoadPackagesFromDisk: remapSetNames + computeRealHashes.
     let mutable currentOps = HS.computeRealHashes firstPassOps
     let mutable currentModules = firstPassModules

@@ -43,8 +43,7 @@ let private updateDependencies
         |> String.concat ", "
 
       let insertParams =
-        deps
-        |> List.mapi (fun i (ContentHash dep) -> $"depends_on_{i}", Sql.string dep)
+        deps |> List.mapi (fun i (Hash dep) -> $"depends_on_{i}", Sql.string dep)
 
       let sql =
         $"DELETE FROM package_dependencies WHERE item_hash = @item_hash; "
@@ -64,10 +63,10 @@ let private applyAddType (typ : PT.PackageType.PackageType) : Task<unit> =
     // or Propagation with SCC awareness). Only recompute if hash is empty.
     let hash =
       match typ.hash with
-      | ContentHash "" -> Hashing.computeTypeHash Hashing.Normal typ
+      | Hash "" -> Hashing.computeTypeHash Hashing.Normal typ
       | h -> h
     let typ = { typ with hash = hash }
-    let (ContentHash hash) = hash
+    let (Hash hash) = hash
 
     let ptDef = BS.PT.PackageType.serialize hash typ
     let rtDef = typ |> PT2RT.PackageType.toRT |> BS.RT.PackageType.serialize hash
@@ -96,10 +95,10 @@ let private applyAddValue (value : PT.PackageValue.PackageValue) : Task<unit> =
   task {
     let hash =
       match value.hash with
-      | ContentHash "" -> Hashing.computeValueHash Hashing.Normal value
+      | Hash "" -> Hashing.computeValueHash Hashing.Normal value
       | h -> h
     let value = { value with hash = hash }
-    let (ContentHash hash) = hash
+    let (Hash hash) = hash
 
     let ptDef = BS.PT.PackageValue.serialize hash value
 
@@ -128,10 +127,10 @@ let private applyAddFn (fn : PT.PackageFn.PackageFn) : Task<unit> =
   task {
     let hash =
       match fn.hash with
-      | ContentHash "" -> Hashing.computeFnHash Hashing.Normal fn
+      | Hash "" -> Hashing.computeFnHash Hashing.Normal fn
       | h -> h
     let fn = { fn with hash = hash }
-    let (ContentHash hash) = hash
+    let (Hash hash) = hash
 
     let ptDef = BS.PT.PackageFn.serialize hash fn
     let rtInstrs = fn |> PT2RT.PackageFn.toRT |> BS.RT.PackageFn.serialize hash
@@ -161,7 +160,7 @@ let private applySetName
   (branchId : PT.BranchId)
   (commitHash : Option<string>)
   (isRename : bool)
-  (itemHash : ContentHash)
+  (itemHash : Hash)
   (location : PT.PackageLocation)
   (itemKind : PT.ItemKind)
   : Task<unit> =
@@ -169,7 +168,7 @@ let private applySetName
     let modulesStr = String.concat "." location.modules
     let itemTypeStr = itemKind.toString ()
     let locationId = System.Guid.NewGuid()
-    let (ContentHash itemHashStr) = itemHash
+    let (Hash itemHashStr) = itemHash
 
     let commitHashParam =
       match commitHash with
@@ -197,7 +196,7 @@ let private applySetName
     // 2. If this is a rename (standalone SetName, not paired with Add*),
     //    also deprecate old locations pointing to the same hash.
     //    We do NOT do this for Add+SetName pairs because multiple items can
-    //    legitimately share the same content hash (e.g. Int8.ParseError and
+    //    legitimately share the same hash (e.g. Int8.ParseError and
     //    Int16.ParseError have identical definitions).
     if isRename then
       statements <-
@@ -240,7 +239,7 @@ let private applySetName
 let private applyOp
   (branchId : PT.BranchId)
   (commitHash : Option<string>)
-  (addedHashes : Set<ContentHash>)
+  (addedHashes : Set<Hash>)
   (op : PT.PackageOp)
   : Task<unit> =
   task {
@@ -280,8 +279,8 @@ let private applyOp
           r.location <> sourceLocation || r.itemKind <> sourceItemKind)
 
       for repoint in dependentRepoints do
-        let (ContentHash toHashStr) = repoint.toHash
-        let (ContentHash fromHashStr) = repoint.fromHash
+        let (Hash toHashStr) = repoint.toHash
+        let (Hash fromHashStr) = repoint.fromHash
         statements <-
           statements
           @ [ ("""
@@ -312,7 +311,7 @@ let private applyOp
       // Undo source: deprecate WIP location, un-deprecate committed location
       let modulesStr = String.concat "." sourceLocation.modules
       let itemTypeStr = sourceItemKind.toString ()
-      let (ContentHash restoredSourceHashStr) = restoredSourceHash
+      let (Hash restoredSourceHashStr) = restoredSourceHash
 
       statements <-
         statements
@@ -356,7 +355,7 @@ let private applyOp
 /// Collect hashes from Add* ops to distinguish "add + name" from "rename".
 /// When SetName references a hash that was added in the same batch, it's
 /// giving a name to a new item. Otherwise it's a rename (move).
-let private collectAddedHashes (ops : List<PT.PackageOp>) : Set<ContentHash> =
+let private collectAddedHashes (ops : List<PT.PackageOp>) : Set<Hash> =
   ops
   |> List.choose (fun op ->
     match op with

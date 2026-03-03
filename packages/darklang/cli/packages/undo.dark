@@ -12,7 +12,7 @@ let buildVersionStack
   (wipOps: List<LanguageTools.ProgramTypes.PackageOp>)
   (location: LanguageTools.ProgramTypes.PackageLocation)
   (itemKind: LanguageTools.ProgramTypes.ItemKind)
-  : List<LanguageTools.ProgramTypes.ContentHash> =
+  : List<LanguageTools.ProgramTypes.Hash> =
   wipOps
   |> Stdlib.List.fold [] (fun stack op ->
     match (op, itemKind) with

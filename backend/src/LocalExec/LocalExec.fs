@@ -71,7 +71,7 @@ let evaluateAllValues
           WHERE pv.rt_dval IS NULL
           """
         |> Sql.executeAsync (fun read ->
-          let hash = ContentHash(read.string "hash")
+          let hash = Hash(read.string "hash")
           let ptDef = read.bytes "pt_def"
           let owner = read.stringOrNone "owner" |> Option.defaultValue "?"
           let modules = read.stringOrNone "modules" |> Option.defaultValue ""
@@ -109,10 +109,10 @@ let evaluateAllValues
                 $"Value {valueHash} ({fullName}): evaluation failed - {errorMsg}"
               )
             | Ok dval ->
-              let rtHash = PT2RT.ContentHash.toRT valueHash
+              let rtHash = PT2RT.Hash.toRT valueHash
               let rtValue : RT.PackageValue.PackageValue =
                 { hash = rtHash; body = dval }
-              let (ContentHash defHash) = valueHash
+              let (Hash defHash) = valueHash
               let rtDvalBytes = BS.RT.PackageValue.serialize rtHash rtValue
               let valueType = RT.Dval.toValueType dval
               let valueTypeBytes = BS.RT.ValueType.serialize valueType
@@ -200,7 +200,7 @@ module HandleCommand =
         let! stats = LibPackageManager.Stats.get ()
         print "Loaded packages from disk "
         print $"{stats.types} types, {stats.values} values, and {stats.fns} fns"
-        let (ContentHash commitHashStr) = commitHash
+        let (Hash commitHashStr) = commitHash
         let shortHash = commitHashStr[..6]
         print $"Created init commit {shortHash}"
 

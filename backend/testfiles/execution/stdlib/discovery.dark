@@ -2,4 +2,4 @@
 (Builtin.pmFindValuesByValueType Darklang.LanguageTools.RuntimeTypes.ValueType.Unknown) = []
 
 // pmEvaluateValue returns None for unknown value
-(Builtin.pmEvaluateValue (Darklang.LanguageTools.ProgramTypes.ContentHash.ContentHash "0000000000000000000000000000000000000000000000000000000000000000")) = Stdlib.Option.Option.None
+(Builtin.pmEvaluateValue (Darklang.LanguageTools.ProgramTypes.Hash.Hash "0000000000000000000000000000000000000000000000000000000000000000")) = Stdlib.Option.Option.None

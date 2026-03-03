@@ -60,13 +60,13 @@ let getAllOpsSince
 /// A dependency relationship between package items.
 /// For dependents: itemHash is the item that has the dependency.
 /// For dependencies: itemHash is what the item depends on.
-type PackageDep = { itemHash : ContentHash; itemKind : PT.ItemKind }
+type PackageDep = { itemHash : Hash; itemKind : PT.ItemKind }
 
 
-/// Get items that depend on the given ContentHash (reverse dependencies / "what uses this?")
+/// Get items that depend on the given Hash (reverse dependencies / "what uses this?")
 let getDependents
   (branchChain : List<PT.BranchId>)
-  (dependsOnHash : ContentHash)
+  (dependsOnHash : Hash)
   : Task<List<PackageDep>> =
   task {
     if List.isEmpty branchChain then
@@ -77,7 +77,7 @@ let getDependents
       let branchInClause =
         branchChain |> List.mapi (fun i _ -> $"@b_{i}") |> String.concat ", "
 
-      let (ContentHash dependsOnHash) = dependsOnHash
+      let (Hash dependsOnHash) = dependsOnHash
 
       return!
         Sql.query
@@ -94,15 +94,15 @@ let getDependents
           [ "depends_on_hash", Sql.string dependsOnHash ] @ branchParams
         )
         |> Sql.executeAsync (fun read ->
-          { itemHash = ContentHash(read.string "item_hash")
+          { itemHash = Hash(read.string "item_hash")
             itemKind = read.string "item_type" |> PT.ItemKind.fromString })
   }
 
 
-/// Get ContentHashes that the given item depends on (forward dependencies / "what does this use?" / uses)
+/// Get Hashes that the given item depends on (forward dependencies / "what does this use?" / uses)
 let getDependencies
   (branchChain : List<PT.BranchId>)
-  (itemHash : ContentHash)
+  (itemHash : Hash)
   : Task<List<PackageDep>> =
   task {
     if List.isEmpty branchChain then
@@ -113,7 +113,7 @@ let getDependencies
       let branchInClause =
         branchChain |> List.mapi (fun i _ -> $"@b_{i}") |> String.concat ", "
 
-      let (ContentHash itemHashStr) = itemHash
+      let (Hash itemHashStr) = itemHash
 
       return!
         Sql.query
@@ -128,21 +128,21 @@ let getDependencies
           """
         |> Sql.parameters ([ "item_hash", Sql.string itemHashStr ] @ branchParams)
         |> Sql.executeAsync (fun read ->
-          { itemHash = ContentHash(read.string "depends_on_hash")
+          { itemHash = Hash(read.string "depends_on_hash")
             itemKind = read.string "item_type" |> PT.ItemKind.fromString })
   }
 
 
 /// Batch result including the dependency target that was queried
 type BatchDependent =
-  { dependsOnHash : ContentHash // The item that was queried (what is being depended on)
-    itemHash : ContentHash // The item that has the dependency
+  { dependsOnHash : Hash // The item that was queried (what is being depended on)
+    itemHash : Hash // The item that has the dependency
     itemKind : PT.ItemKind }
 
 /// Batch lookup of dependents for a chunk of dependency IDs
 let private getDependentsBatchChunk
   (branchChain : List<PT.BranchId>)
-  (dependsOnHashes : List<ContentHash>)
+  (dependsOnHashes : List<Hash>)
   : Task<List<BatchDependent>> =
   task {
     if List.isEmpty dependsOnHashes || List.isEmpty branchChain then
@@ -151,7 +151,7 @@ let private getDependentsBatchChunk
       // Build parameterized IN clauses
       let depParams =
         dependsOnHashes
-        |> List.mapi (fun i (ContentHash idStr) -> $"dep_{i}", Sql.string idStr)
+        |> List.mapi (fun i (Hash idStr) -> $"dep_{i}", Sql.string idStr)
 
       let inClause =
         dependsOnHashes |> List.mapi (fun i _ -> $"@dep_{i}") |> String.concat ", "
@@ -176,8 +176,8 @@ let private getDependentsBatchChunk
         Sql.query sql
         |> Sql.parameters (depParams @ branchParams)
         |> Sql.executeAsync (fun read ->
-          { dependsOnHash = ContentHash(read.string "depends_on_hash")
-            itemHash = ContentHash(read.string "item_hash")
+          { dependsOnHash = Hash(read.string "depends_on_hash")
+            itemHash = Hash(read.string "item_hash")
             itemKind = read.string "item_type" |> PT.ItemKind.fromString })
   }
 
@@ -186,7 +186,7 @@ let private getDependentsBatchChunk
 /// Chunks requests to avoid SQLite expression tree depth limits.
 let getDependentsBatch
   (branchChain : List<PT.BranchId>)
-  (dependsOnHashes : List<ContentHash>)
+  (dependsOnHashes : List<Hash>)
   : Task<List<BatchDependent>> =
   task {
     if List.isEmpty dependsOnHashes then
@@ -295,7 +295,7 @@ let getCommits (branchId : PT.BranchId) (limit : int64) : Task<List<PT.Commit>> 
         """
       |> Sql.parameters [ "branch_id", Sql.uuid branchId; "limit", Sql.int64 limit ]
       |> Sql.executeAsync (fun read ->
-        { hash = ContentHash(read.string "hash")
+        { hash = Hash(read.string "hash")
           message = read.string "message"
           createdAt = read.instant "created_at"
           opCount = read.int64 "op_count"
@@ -335,7 +335,7 @@ let getCommitsForBranchChain
           """
         |> Sql.parameters (branchParams @ [ "limit", Sql.int64 limit ])
         |> Sql.executeAsync (fun read ->
-          { hash = ContentHash(read.string "hash")
+          { hash = Hash(read.string "hash")
             message = read.string "message"
             createdAt = read.instant "created_at"
             opCount = read.int64 "op_count"
@@ -345,9 +345,9 @@ let getCommitsForBranchChain
 
 
 /// Get ops for a specific commit
-let getCommitOps (commitHash : ContentHash) : Task<List<PT.PackageOp>> =
+let getCommitOps (commitHash : Hash) : Task<List<PT.PackageOp>> =
   task {
-    let (ContentHash commitHashStr) = commitHash
+    let (Hash commitHashStr) = commitHash
     return!
       Sql.query
         """
@@ -368,7 +368,7 @@ let getCommitOps (commitHash : ContentHash) : Task<List<PT.PackageOp>> =
 // Propagation Queries
 // ===========================================
 
-/// Gets all ContentHashes that have ever been at a location across the branch chain.
+/// Gets all Hashes that have ever been at a location across the branch chain.
 /// Returns all distinct item_hashs (active or deprecated) at this location.
 /// Callers should filter out the "current" hash to get only previous versions.
 ///
@@ -380,7 +380,7 @@ let getAllPreviousHashes
   (modules : string)
   (name : string)
   (itemType : string)
-  : Task<List<ContentHash>> =
+  : Task<List<Hash>> =
   task {
     if List.isEmpty branchChain then
       return []
@@ -410,5 +410,5 @@ let getAllPreviousHashes
             "item_type", Sql.string itemType ]
           @ branchParams
         )
-        |> Sql.executeAsync (fun read -> ContentHash(read.string "item_hash"))
+        |> Sql.executeAsync (fun read -> Hash(read.string "item_hash"))
   }

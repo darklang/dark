@@ -9,9 +9,9 @@ open LibExecution.ProgramTypes
 open LibSerialization.Binary.Serializers.Common
 
 
-module ContentHash =
-  let write (w : BinaryWriter) (ContentHash h : ContentHash) = String.write w h
-  let read (r : BinaryReader) : ContentHash = ContentHash(String.read r)
+module Hash =
+  let write (w : BinaryWriter) (Hash h : Hash) = String.write w h
+  let read (r : BinaryReader) : Hash = Hash(String.read r)
 
 
 module Sign =
@@ -67,9 +67,9 @@ module NameResolution =
 
 module FQTypeName =
   module Package =
-    let write (w : BinaryWriter) (p : FQTypeName.Package) = ContentHash.write w p
+    let write (w : BinaryWriter) (p : FQTypeName.Package) = Hash.write w p
 
-    let read (r : BinaryReader) : FQTypeName.Package = ContentHash.read r
+    let read (r : BinaryReader) : FQTypeName.Package = Hash.read r
 
 
   let write (w : BinaryWriter) (name : FQTypeName.FQTypeName) =
@@ -96,9 +96,9 @@ module FQValueName =
       { name = name; version = version }
 
   module Package =
-    let write (w : BinaryWriter) (p : FQValueName.Package) = ContentHash.write w p
+    let write (w : BinaryWriter) (p : FQValueName.Package) = Hash.write w p
 
-    let read (r : BinaryReader) : FQValueName.Package = ContentHash.read r
+    let read (r : BinaryReader) : FQValueName.Package = Hash.read r
 
 
   let write (w : BinaryWriter) (n : FQValueName.FQValueName) =
@@ -129,9 +129,9 @@ module FQFnName =
       { name = name; version = version }
 
   module Package =
-    let write (w : BinaryWriter) (p : FQFnName.Package) = ContentHash.write w p
+    let write (w : BinaryWriter) (p : FQFnName.Package) = Hash.write w p
 
-    let read (r : BinaryReader) : FQFnName.Package = ContentHash.read r
+    let read (r : BinaryReader) : FQFnName.Package = Hash.read r
 
 
   let write (w : BinaryWriter) (n : FQFnName.FQFnName) =

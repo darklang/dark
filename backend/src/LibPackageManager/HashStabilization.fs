@@ -32,25 +32,21 @@ let remapSetNames
   |> List.map (function
     | PT.PackageOp.SetTypeName(_, loc) ->
       let hash =
-        prevHashes
-        |> Map.tryFind ("type", loc)
-        |> Option.defaultValue (ContentHash "")
+        prevHashes |> Map.tryFind ("type", loc) |> Option.defaultValue (Hash "")
       PT.PackageOp.SetTypeName(hash, loc)
     | PT.PackageOp.SetFnName(_, loc) ->
       let hash =
-        prevHashes |> Map.tryFind ("fn", loc) |> Option.defaultValue (ContentHash "")
+        prevHashes |> Map.tryFind ("fn", loc) |> Option.defaultValue (Hash "")
       PT.PackageOp.SetFnName(hash, loc)
     | PT.PackageOp.SetValueName(_, loc) ->
       let hash =
-        prevHashes
-        |> Map.tryFind ("value", loc)
-        |> Option.defaultValue (ContentHash "")
+        prevHashes |> Map.tryFind ("value", loc) |> Option.defaultValue (Hash "")
       PT.PackageOp.SetValueName(hash, loc)
     | other -> other)
 
 
-/// Post-process parsed ops to compute real content hashes using SCC-aware hashing.
-/// Expects Set*Name IDs to match the ContentHash references in items' ASTs
+/// Post-process parsed ops to compute real hashes using SCC-aware hashing.
+/// Expects Set*Name IDs to match the Hash references in items' ASTs
 /// (either placeholder IDs on first pass, or previous hashes via remapSetNames).
 let computeRealHashes (ops : List<PT.PackageOp>) : List<PT.PackageOp> =
   // Extract items paired with their Set*Name IDs and FQNs
@@ -58,9 +54,9 @@ let computeRealHashes (ops : List<PT.PackageOp>) : List<PT.PackageOp> =
   let mutable pendingFn : Option<PT.PackageFn.PackageFn> = None
   let mutable pendingValue : Option<PT.PackageValue.PackageValue> = None
 
-  let types = ResizeArray<ContentHash * PT.PackageType.PackageType * string>()
-  let fns = ResizeArray<ContentHash * PT.PackageFn.PackageFn * string>()
-  let values = ResizeArray<ContentHash * PT.PackageValue.PackageValue * string>()
+  let types = ResizeArray<Hash * PT.PackageType.PackageType * string>()
+  let fns = ResizeArray<Hash * PT.PackageFn.PackageFn * string>()
+  let values = ResizeArray<Hash * PT.PackageValue.PackageValue * string>()
 
   for op in ops do
     match op with
@@ -88,17 +84,17 @@ let computeRealHashes (ops : List<PT.PackageOp>) : List<PT.PackageOp> =
     | _ -> ()
 
   // Build maps keyed by FQN to avoid collisions when multiple items
-  // share the same ContentHash (e.g. type aliases with unresolved refs).
-  // Value tuple: (item, oldContentHash)
+  // share the same Hash (e.g. type aliases with unresolved refs).
+  // Value tuple: (item, oldHash)
   let typeMap =
     types |> Seq.map (fun (hash, t, fqn) -> (fqn, (t, hash))) |> Map.ofSeq
   let fnMap = fns |> Seq.map (fun (hash, f, fqn) -> (fqn, (f, hash))) |> Map.ofSeq
   let valueMap =
     values |> Seq.map (fun (hash, v, fqn) -> (fqn, (v, hash))) |> Map.ofSeq
 
-  // Reverse lookup: ContentHash → FQNs for converting AST deps to FQN deps
-  let hashToFqns : Map<ContentHash, List<string>> =
-    let mutable result = Map.empty<ContentHash, List<string>>
+  // Reverse lookup: Hash → FQNs for converting AST deps to FQN deps
+  let hashToFqns : Map<Hash, List<string>> =
+    let mutable result = Map.empty<Hash, List<string>>
     for (h, _, fqn) in types do
       let existing = Map.tryFind h result |> Option.defaultValue []
       result <- Map.add h (fqn :: existing) result
@@ -126,7 +122,7 @@ let computeRealHashes (ops : List<PT.PackageOp>) : List<PT.PackageOp> =
           match Map.tryFind fqn valueMap with
           | Some(v, _) -> DE.extractFromValue v
           | None -> []
-    // Map ContentHash deps to FQNs, filtering to items in this batch
+    // Map Hash deps to FQNs, filtering to items in this batch
     deps
     |> List.collect (fun hash ->
       hashToFqns |> Map.tryFind hash |> Option.defaultValue [])
@@ -135,10 +131,10 @@ let computeRealHashes (ops : List<PT.PackageOp>) : List<PT.PackageOp> =
   // Compute hashes with SCC awareness (keyed by FQN)
   let fqnHashMap = Hashing.computeHashesWithSCCs typeMap fnMap valueMap getDeps
 
-  // Build old ContentHash → new ContentHash mapping for AT.transform*
-  let oldToNewHash : Map<ContentHash, ContentHash> =
-    let mutable result = Map.empty<ContentHash, ContentHash>
-    let addMappings (items : ResizeArray<ContentHash * _ * string>) =
+  // Build old Hash → new Hash mapping for AT.transform*
+  let oldToNewHash : Map<Hash, Hash> =
+    let mutable result = Map.empty<Hash, Hash>
+    let addMappings (items : ResizeArray<Hash * _ * string>) =
       for (oldHash, _, fqn) in items do
         match Map.tryFind fqn fqnHashMap with
         | Some newHash -> result <- Map.add oldHash newHash result
@@ -191,8 +187,8 @@ let computeRealHashes (ops : List<PT.PackageOp>) : List<PT.PackageOp> =
   processOps ops []
 
 
-/// Extract all content hashes from Set*Name ops (for convergence checking).
-let extractAllHashes (ops : List<PT.PackageOp>) : List<ContentHash> =
+/// Extract all hashes from Set*Name ops (for convergence checking).
+let extractAllHashes (ops : List<PT.PackageOp>) : List<Hash> =
   ops
   |> List.choose (function
     | PT.PackageOp.SetTypeName(hash, _) -> Some hash

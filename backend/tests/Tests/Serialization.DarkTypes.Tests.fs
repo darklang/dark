@@ -89,11 +89,11 @@ module RoundtripTests =
 
     let tests =
       [ testRoundtrip
-          "PT.ContentHash"
-          (pkg PackageRefs.Type.LanguageTools.ProgramTypes.contentHash)
-          V.contentHashPT
-          PT2DT.ContentHash.toDT
-          PT2DT.ContentHash.fromDT
+          "PT.Hash"
+          (pkg PackageRefs.Type.LanguageTools.ProgramTypes.hash)
+          V.hashPT
+          PT2DT.Hash.toDT
+          PT2DT.Hash.fromDT
           None
 
         testRoundtripList

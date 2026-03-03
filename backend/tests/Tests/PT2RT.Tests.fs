@@ -1626,7 +1626,7 @@ module PackageFn =
   let t name typeParams params' returnType expr expected =
     testTask name {
       let fn : PT.PackageFn.PackageFn =
-        { hash = PT.ContentHash ""
+        { hash = PT.Hash ""
           body = expr
           typeParams = typeParams
           parameters = params' |> NEList.ofListUnsafe "" []

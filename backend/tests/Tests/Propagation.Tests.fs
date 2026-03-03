@@ -21,12 +21,12 @@ module Propagation = LibPackageManager.Propagation
 let private loc (name : string) : PT.PackageLocation =
   { owner = "Test"; modules = [ "Prop" ]; name = name }
 
-let private hashStr (PT.ContentHash h) = h
+let private hashStr (PT.Hash h) = h
 
 let private makeFn (body : PT.Expr) : PT.PackageFn.PackageFn =
   testPackageFn [] (NEList.singleton "x") PT.TInt64 body
 
-let private callFn (fnId : PT.ContentHash) : PT.Expr =
+let private callFn (fnId : PT.Hash) : PT.Expr =
   eApply (ePackageFn (hashStr fnId)) [] [ eVar "x" ]
 
 let private addFnAt
@@ -58,8 +58,8 @@ let private discardAndDeleteBranch (branchId : PT.BranchId) : Task<unit> =
 let private propagateOrFail
   (branchId : PT.BranchId)
   (location : PT.PackageLocation)
-  (fromHashes : List<PT.ContentHash>)
-  (toHash : PT.ContentHash)
+  (fromHashes : List<PT.Hash>)
+  (toHash : PT.Hash)
   : Task<Propagation.PropagationResult * List<PT.PackageOp>> =
   task {
     let! result =
@@ -265,23 +265,21 @@ let testCallersOnDifferentVersions =
   }
 
 
-/// Generate a unique 64-hex-char content hash (matching SHA-256 format).
-let private uniqueContentHash () : PT.ContentHash =
+/// Generate a unique 64-hex-char hash (matching SHA-256 format).
+let private uniqueHash () : PT.Hash =
   let bytes = System.Security.Cryptography.RandomNumberGenerator.GetBytes(32)
-  PT.ContentHash(
-    System.BitConverter.ToString(bytes).Replace("-", "").ToLowerInvariant()
-  )
+  PT.Hash(System.BitConverter.ToString(bytes).Replace("-", "").ToLowerInvariant())
 
 let private makeType
   (definition : PT.TypeDeclaration.Definition)
   : PT.PackageType.PackageType =
-  { hash = uniqueContentHash ()
+  { hash = uniqueHash ()
     declaration = { typeParams = []; definition = definition }
     description = ""
     deprecated = PT.NotDeprecated }
 
 let private makeValue (body : PT.Expr) : PT.PackageValue.PackageValue =
-  { hash = uniqueContentHash ()
+  { hash = uniqueHash ()
     body = body
     description = ""
     deprecated = PT.NotDeprecated }

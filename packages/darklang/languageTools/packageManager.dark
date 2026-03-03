@@ -6,7 +6,7 @@
 module Darklang.LanguageTools.PackageManager
 
 
-/// Context for choosing among multiple locations that share the same content hash.
+/// Context for choosing among multiple locations that share the same hash.
 /// When a hash maps to multiple named locations (e.g. Person and Person2 are
 /// structurally identical), we use context to pick the best display name.
 type PickContext =
@@ -147,7 +147,7 @@ module Function =
 let findAny
   (branchId: Uuid)
   (location: ProgramTypes.PackageLocation)
-  : Stdlib.Option.Option<(ProgramTypes.ContentHash * ProgramTypes.ItemKind)> =
+  : Stdlib.Option.Option<(ProgramTypes.Hash * ProgramTypes.ItemKind)> =
   match Builtin.pmFindType branchId location with
   | Some hash ->
     Stdlib.Option.Option.Some((hash, ProgramTypes.ItemKind.Type))

@@ -79,8 +79,7 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
             "location"
             (TCustomType(NR.ok PT2DT.PackageLocation.typeName, []))
             "" ]
-      returnType =
-        TypeReference.option (TCustomType(NR.ok PT2DT.ContentHash.typeName, []))
+      returnType = TypeReference.option (TCustomType(NR.ok PT2DT.Hash.typeName, []))
       description =
         "Tries to find a package type, by location, and returns the ID if it exists"
       fn =
@@ -94,8 +93,8 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
             let! result = PMPT.Type.find branchChain location
             return
               result
-              |> Option.map PT2DT.ContentHash.toDT
-              |> Dval.option PT2DT.ContentHash.knownType
+              |> Option.map PT2DT.Hash.toDT
+              |> Dval.option PT2DT.Hash.knownType
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
@@ -106,7 +105,7 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
     { name = fn "pmGetType" 0
       typeParams = []
       parameters =
-        [ Param.make "hash" (TCustomType(NR.ok PT2DT.ContentHash.typeName, [])) "" ]
+        [ Param.make "hash" (TCustomType(NR.ok PT2DT.Hash.typeName, [])) "" ]
       returnType =
         TypeReference.option (TCustomType(NR.ok PT2DT.PackageType.typeName, []))
       description = "Returns a package type, by hash, if it exists"
@@ -115,7 +114,7 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
         (function
         | _, _, _, [ hashDval ] ->
           uply {
-            let hash = PT2DT.ContentHash.fromDT hashDval
+            let hash = PT2DT.Hash.fromDT hashDval
             let! result = pm.getType hash
             return result |> Option.map PT2DT.PackageType.toDT |> Dval.option optType
           }
@@ -134,8 +133,7 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
             "location"
             (TCustomType(NR.ok PT2DT.PackageLocation.typeName, []))
             "" ]
-      returnType =
-        TypeReference.option (TCustomType(NR.ok PT2DT.ContentHash.typeName, []))
+      returnType = TypeReference.option (TCustomType(NR.ok PT2DT.Hash.typeName, []))
       description =
         "Tries to find a package value, by location, and returns the ID if it exists"
       fn =
@@ -147,8 +145,8 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
             let! result = PMPT.Value.find branchChain location
             return
               result
-              |> Option.map PT2DT.ContentHash.toDT
-              |> Dval.option PT2DT.ContentHash.knownType
+              |> Option.map PT2DT.Hash.toDT
+              |> Dval.option PT2DT.Hash.knownType
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
@@ -159,7 +157,7 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
     { name = fn "pmGetValue" 0
       typeParams = []
       parameters =
-        [ Param.make "hash" (TCustomType(NR.ok PT2DT.ContentHash.typeName, [])) "" ]
+        [ Param.make "hash" (TCustomType(NR.ok PT2DT.Hash.typeName, [])) "" ]
       returnType =
         TypeReference.option (TCustomType(NR.ok PT2DT.PackageValue.typeName, []))
       description = "Returns a package value, by hash, if it exists"
@@ -167,7 +165,7 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
         (function
         | _, _, _, [ hashDval ] ->
           uply {
-            let hash = PT2DT.ContentHash.fromDT hashDval
+            let hash = PT2DT.Hash.fromDT hashDval
             let! result = pm.getValue hash
             return
               result
@@ -188,7 +186,7 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
             "valueType"
             (TCustomType(NR.ok RT2DT.ValueType.typeName, []))
             "The ValueType to search for" ]
-      returnType = TList(TCustomType(NR.ok PT2DT.ContentHash.typeName, []))
+      returnType = TList(TCustomType(NR.ok PT2DT.Hash.typeName, []))
       description =
         "Returns a list of value hashes that have the given ValueType. "
         + "Uses exact match on the serialized type for efficient lookup."
@@ -200,8 +198,8 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
             let! valueIds = RTPM.Value.findByValueType vt
             return
               DList(
-                VT.known PT2DT.ContentHash.knownType,
-                valueIds |> List.map RT2DT.ContentHash.toDT
+                VT.known PT2DT.Hash.knownType,
+                valueIds |> List.map RT2DT.Hash.toDT
               )
           }
         | _ -> incorrectArgs ())
@@ -216,7 +214,7 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
       parameters =
         [ Param.make
             "valueHash"
-            (TCustomType(NR.ok PT2DT.ContentHash.typeName, []))
+            (TCustomType(NR.ok PT2DT.Hash.typeName, []))
             "Hash of the package value to evaluate" ]
       returnType = TypeReference.option (TVariable "a")
       description =
@@ -226,8 +224,8 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
         (function
         | exeState, _, _, [ hashDval ] ->
           uply {
-            let (PT.ContentHash hash) = PT2DT.ContentHash.fromDT hashDval
-            let valueName = FQValueName.Package(ContentHash hash)
+            let (PT.Hash hash) = PT2DT.Hash.fromDT hashDval
+            let valueName = FQValueName.Package(Hash hash)
             let instrs : Instructions =
               { registerCount = 1
                 instructions = [ LoadValue(0, valueName) ]
@@ -256,8 +254,7 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
             "location"
             (TCustomType(NR.ok PT2DT.PackageLocation.typeName, []))
             "" ]
-      returnType =
-        TypeReference.option (TCustomType(NR.ok PT2DT.ContentHash.typeName, []))
+      returnType = TypeReference.option (TCustomType(NR.ok PT2DT.Hash.typeName, []))
       description =
         "Tries to find a package function, by location, and returns the ID if it exists"
       fn =
@@ -269,8 +266,8 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
             let! result = PMPT.Fn.find branchChain location
             return
               result
-              |> Option.map PT2DT.ContentHash.toDT
-              |> Dval.option PT2DT.ContentHash.knownType
+              |> Option.map PT2DT.Hash.toDT
+              |> Dval.option PT2DT.Hash.knownType
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
@@ -281,7 +278,7 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
     { name = fn "pmGetFn" 0
       typeParams = []
       parameters =
-        [ Param.make "hash" (TCustomType(NR.ok PT2DT.ContentHash.typeName, [])) "" ]
+        [ Param.make "hash" (TCustomType(NR.ok PT2DT.Hash.typeName, [])) "" ]
       returnType =
         TypeReference.option (TCustomType(NR.ok PT2DT.PackageFn.typeName, []))
       description = "Returns a package function, by hash, if it exists"
@@ -289,7 +286,7 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
         (function
         | _, _, _, [ hashDval ] ->
           uply {
-            let hash = PT2DT.ContentHash.fromDT hashDval
+            let hash = PT2DT.Hash.fromDT hashDval
             let! result = pm.getFn hash
             return
               result
@@ -332,14 +329,14 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
       typeParams = []
       parameters =
         [ Param.make "branchId" TUuid ""
-          Param.make "hash" (TCustomType(NR.ok PT2DT.ContentHash.typeName, [])) "" ]
+          Param.make "hash" (TCustomType(NR.ok PT2DT.Hash.typeName, [])) "" ]
       returnType = TList(TCustomType(NR.ok PT2DT.PackageLocation.typeName, []))
       description = "Returns all locations of a package type by its hash"
       fn =
         (function
         | _, _, _, [ DUuid branchId; hashDval ] ->
           uply {
-            let hash = PT2DT.ContentHash.fromDT hashDval
+            let hash = PT2DT.Hash.fromDT hashDval
             let! result = pm.getTypeLocations branchId hash
             return
               result
@@ -356,14 +353,14 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
       typeParams = []
       parameters =
         [ Param.make "branchId" TUuid ""
-          Param.make "hash" (TCustomType(NR.ok PT2DT.ContentHash.typeName, [])) "" ]
+          Param.make "hash" (TCustomType(NR.ok PT2DT.Hash.typeName, [])) "" ]
       returnType = TList(TCustomType(NR.ok PT2DT.PackageLocation.typeName, []))
       description = "Returns all locations of a package value by its hash"
       fn =
         (function
         | _, _, _, [ DUuid branchId; hashDval ] ->
           uply {
-            let hash = PT2DT.ContentHash.fromDT hashDval
+            let hash = PT2DT.Hash.fromDT hashDval
             let! result = pm.getValueLocations branchId hash
             return
               result
@@ -380,14 +377,14 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
       typeParams = []
       parameters =
         [ Param.make "branchId" TUuid ""
-          Param.make "hash" (TCustomType(NR.ok PT2DT.ContentHash.typeName, [])) "" ]
+          Param.make "hash" (TCustomType(NR.ok PT2DT.Hash.typeName, [])) "" ]
       returnType = TList(TCustomType(NR.ok PT2DT.PackageLocation.typeName, []))
       description = "Returns all locations of a package function by its hash"
       fn =
         (function
         | _, _, _, [ DUuid branchId; hashDval ] ->
           uply {
-            let hash = PT2DT.ContentHash.fromDT hashDval
+            let hash = PT2DT.Hash.fromDT hashDval
             let! result = pm.getFnLocations branchId hash
             return
               result
@@ -413,7 +410,7 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
             "itemKind"
             (TCustomType(NR.ok PT2DT.ItemKind.typeName, []))
             "fn, type, or value" ]
-      returnType = TList(TCustomType(NR.ok PT2DT.ContentHash.typeName, []))
+      returnType = TList(TCustomType(NR.ok PT2DT.Hash.typeName, []))
       description =
         "Returns all hashes that have ever been at a location across the branch chain"
       fn =
@@ -432,9 +429,7 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
                 location.name
                 (itemKind.toString ())
             return
-              result
-              |> List.map PT2DT.ContentHash.toDT
-              |> Dval.list PT2DT.ContentHash.knownType
+              result |> List.map PT2DT.Hash.toDT |> Dval.list PT2DT.Hash.knownType
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
@@ -457,11 +452,11 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
             "fn, type, or value"
           Param.make
             "fromSourceHashes"
-            (TList(TCustomType(NR.ok PT2DT.ContentHash.typeName, [])))
+            (TList(TCustomType(NR.ok PT2DT.Hash.typeName, [])))
             "All deprecated hashes at this location"
           Param.make
             "toSourceHash"
-            (TCustomType(NR.ok PT2DT.ContentHash.typeName, []))
+            (TCustomType(NR.ok PT2DT.Hash.typeName, []))
             "New hash of the source item" ]
       returnType =
         TypeReference.result
@@ -486,8 +481,7 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
           uply {
             let sourceLocation = PT2DT.PackageLocation.fromDT sourceLocation
             let sourceItemKind = PT2DT.ItemKind.fromDT sourceItemKindDval
-            let fromSourceHashes =
-              fromSourceHashDvals |> List.map PT2DT.ContentHash.fromDT
+            let fromSourceHashes = fromSourceHashDvals |> List.map PT2DT.Hash.fromDT
 
             let! result =
               LibPackageManager.Propagation.propagate
@@ -495,7 +489,7 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
                 sourceLocation
                 sourceItemKind
                 fromSourceHashes
-                (PT2DT.ContentHash.fromDT toSourceHashDval)
+                (PT2DT.Hash.fromDT toSourceHashDval)
 
             let tupleKT =
               KTTuple(ValueType.Known KTUuid, ValueType.Known repointListKT, [])
@@ -553,11 +547,11 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
           Param.make "propagationIds" (TList TUuid) "Propagation IDs being reverted"
           Param.make
             "targetHash"
-            (TypeReference.option (TCustomType(NR.ok PT2DT.ContentHash.typeName, [])))
+            (TypeReference.option (TCustomType(NR.ok PT2DT.Hash.typeName, [])))
             "Hash to restore. None = find committed hash" ]
       returnType =
         TypeReference.result
-          (TTuple(TUuid, TCustomType(NR.ok PT2DT.ContentHash.typeName, []), []))
+          (TTuple(TUuid, TCustomType(NR.ok PT2DT.Hash.typeName, []), []))
           TString
       description =
         "Atomically reverts repoints and restores a source version. "
@@ -586,13 +580,13 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
             let tupleKT =
               KTTuple(
                 ValueType.Known KTUuid,
-                ValueType.Known PT2DT.ContentHash.knownType,
+                ValueType.Known PT2DT.Hash.knownType,
                 []
               )
 
             // Determine the hash to restore: explicit target or find committed
             let! restoredHashResult =
-              match C2DT.Option.fromDT PT2DT.ContentHash.fromDT targetHashDval with
+              match C2DT.Option.fromDT PT2DT.Hash.fromDT targetHashDval with
               | Some targetHash -> uply { return Ok targetHash }
               | None ->
                 uply {
@@ -629,7 +623,7 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
                   [ revertOp ]
 
               let resultTuple =
-                DTuple(DUuid revertId, PT2DT.ContentHash.toDT restoredHash, [])
+                DTuple(DUuid revertId, PT2DT.Hash.toDT restoredHash, [])
               return Dval.resultOk tupleKT KTString resultTuple
           }
         | _ -> incorrectArgs ())

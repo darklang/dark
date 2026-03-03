@@ -21,21 +21,21 @@ type HashRefMode =
   {
     /// Deps from already-processed SCCs (topological order);
     /// their hashes are final and can be used directly.
-    resolvedDeps : Map<ContentHash, ContentHash>
+    resolvedDeps : Map<Hash, Hash>
 
     /// Items within the current SCC whose hashes can't be known yet
     /// (circular dependency); use FQN strings instead of hashes to
     /// break the circularity.
-    sccNames : Map<ContentHash, string>
+    sccNames : Map<Hash, string>
   }
 
 let Normal = { resolvedDeps = Map.empty; sccNames = Map.empty }
 
-/// Resolve a ContentHash: first apply finalized deps, then check SCC names.
-let private resolveHash (mode : HashRefMode) (hash : ContentHash) : ContentHash =
+/// Resolve a Hash: first apply finalized deps, then check SCC names.
+let private resolveHash (mode : HashRefMode) (hash : Hash) : Hash =
   mode.resolvedDeps |> Map.tryFind hash |> Option.defaultValue hash
 
-let private isSccRef (mode : HashRefMode) (hash : ContentHash) : Option<string> =
+let private isSccRef (mode : HashRefMode) (hash : Hash) : Option<string> =
   let resolved = resolveHash mode hash
   Map.tryFind resolved mode.sccNames
 
