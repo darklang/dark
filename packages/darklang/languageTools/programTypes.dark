@@ -3,12 +3,12 @@ module Darklang.LanguageTools.ProgramTypes
 
 /// Used to name where type/function/etc lives, eg a User module, or a Package module.
 module FQTypeName =
-  type Package = String
+  type Package = ContentHash
   type FQTypeName = Package of Package
 
 module FQValueName =
   type Builtin = { name: String; version: Int32 }
-  type Package = String
+  type Package = ContentHash
 
   type FQValueName =
     | Builtin of Builtin
@@ -16,7 +16,7 @@ module FQValueName =
 
 module FQFnName =
   type Builtin = { name: String; version: Int32 }
-  type Package = String
+  type Package = ContentHash
 
   type FQFnName =
     | Builtin of Builtin
@@ -339,7 +339,11 @@ let parsePackageLocation (nameToParse: String): PackageLocation =
 type BranchID = Uuid
 
 /// Content-addressed hash for package items (hex-encoded SHA-256)
-type ContentHash = String
+type ContentHash = | ContentHash of String
+
+let contentHashToString (hash: ContentHash) : String =
+  match hash with
+  | ContentHash h -> h
 
 /// A package entity paired with its location
 type LocatedItem<'entity> =
@@ -425,8 +429,8 @@ type ItemKind =
 type PropagateRepoint =
   { location: PackageLocation
     itemKind: ItemKind
-    fromUUID: Uuid
-    toUUID: Uuid }
+    fromHash: ContentHash
+    toHash: ContentHash }
 
 
 type PackageOp =
@@ -441,8 +445,8 @@ type PackageOp =
       propagationId: Uuid *
       sourceLocation: PackageLocation *
       sourceItemKind: ItemKind *
-      fromSourceUUIDs: List<Uuid> *
-      toSourceUUID: Uuid *
+      fromSourceHashes: List<ContentHash> *
+      toSourceHash: ContentHash *
       repoints: List<PropagateRepoint>
   // Revert a propagation: restore previous versions atomically
   | RevertPropagation of
@@ -450,7 +454,7 @@ type PackageOp =
       revertedPropagationIds: List<Uuid> *
       sourceLocation: PackageLocation *
       sourceItemKind: ItemKind *
-      restoredSourceUUID: Uuid *
+      restoredSourceHash: ContentHash *
       revertedRepoints: List<PropagateRepoint>
 
 
@@ -593,21 +597,21 @@ module PackageManager =
       ops
       |> Stdlib.List.filterMap (fun op ->
         match op with
-        | SetTypeName (id, loc) -> Stdlib.Option.Option.Some((loc, id))
+        | SetTypeName (hash, loc) -> Stdlib.Option.Option.Some((loc, hash))
         | _ -> Stdlib.Option.Option.None)
 
     let valueLocationMap =
       ops
       |> Stdlib.List.filterMap (fun op ->
         match op with
-        | SetValueName (id, loc) -> Stdlib.Option.Option.Some((loc, id))
+        | SetValueName (hash, loc) -> Stdlib.Option.Option.Some((loc, hash))
         | _ -> Stdlib.Option.Option.None)
 
     let fnLocationMap =
       ops
       |> Stdlib.List.filterMap (fun op ->
         match op with
-        | SetFnName (id, loc) -> Stdlib.Option.Option.Some((loc, id))
+        | SetFnName (hash, loc) -> Stdlib.Option.Option.Some((loc, hash))
         | _ -> Stdlib.Option.Option.None)
 
     // Create PackageManager that looks up in ops first, then falls back to basePM

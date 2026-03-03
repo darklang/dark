@@ -24,8 +24,9 @@ let formatDocComment (description: String) : String =
 
 /// Format a content hash for display when PM lookup fails.
 /// Shows first 8 chars to keep output readable.
-let shortHash (hash: String) : String =
-  $"<hash:{Stdlib.String.first hash 8L}>"
+let shortHash (hash: LanguageTools.ProgramTypes.ContentHash) : String =
+  let h = Darklang.LanguageTools.ProgramTypes.contentHashToString hash
+  $"<hash:{Stdlib.String.first h 8L}>"
 
 module NameResolutionError =
   let source (originalName: List<String>) : String =
@@ -109,20 +110,20 @@ module FQTypeName =
   module Package =
     let atDefinition
       (ctx: Context)
-      (id: LanguageTools.ProgramTypes.FQTypeName.Package)
+      (hash: LanguageTools.ProgramTypes.FQTypeName.Package)
       : String =
-      match Builtin.pmGetLocationByType ctx.branchId id with
+      match Builtin.pmGetLocationByType ctx.branchId hash with
       | Some l -> l.name
-      | None -> shortHash id
+      | None -> shortHash hash
 
     let fullForReference
       (ctx: Context)
-      (id: LanguageTools.ProgramTypes.FQTypeName.Package)
+      (hash: LanguageTools.ProgramTypes.FQTypeName.Package)
       : String =
-      match Builtin.pmGetLocationByType ctx.branchId id with
+      match Builtin.pmGetLocationByType ctx.branchId hash with
       | Some l ->
         packageNameWithContext ctx l.owner l.modules l.name
-      | None -> shortHash id
+      | None -> shortHash hash
 
 
   let atDefinition
@@ -160,20 +161,20 @@ module FQValueName =
   module Package =
     let atDefinition
       (ctx: Context)
-      (id: LanguageTools.ProgramTypes.FQValueName.Package)
+      (hash: LanguageTools.ProgramTypes.FQValueName.Package)
       : String =
-      match Builtin.pmGetLocationByValue ctx.branchId id with
+      match Builtin.pmGetLocationByValue ctx.branchId hash with
       | Some l -> l.name
-      | None -> shortHash id
+      | None -> shortHash hash
 
     let fullForReference
       (ctx: Context)
-      (id: LanguageTools.ProgramTypes.FQValueName.Package)
+      (hash: LanguageTools.ProgramTypes.FQValueName.Package)
       : String =
-      match Builtin.pmGetLocationByValue ctx.branchId id with
+      match Builtin.pmGetLocationByValue ctx.branchId hash with
       | Some l ->
         packageNameWithContext ctx l.owner l.modules l.name
-      | None -> shortHash id
+      | None -> shortHash hash
 
 
 
@@ -217,20 +218,20 @@ module FQFnName =
   module Package =
     let atDefinition
       (ctx: Context)
-      (id: LanguageTools.ProgramTypes.FQFnName.Package)
+      (hash: LanguageTools.ProgramTypes.FQFnName.Package)
       : String =
-      match Builtin.pmGetLocationByFn ctx.branchId id with
+      match Builtin.pmGetLocationByFn ctx.branchId hash with
       | Some l -> l.name
-      | None -> shortHash id
+      | None -> shortHash hash
 
     let fullForReference
       (ctx: Context)
-      (id: LanguageTools.ProgramTypes.FQFnName.Package)
+      (hash: LanguageTools.ProgramTypes.FQFnName.Package)
       : String =
-      match Builtin.pmGetLocationByFn ctx.branchId id with
+      match Builtin.pmGetLocationByFn ctx.branchId hash with
       | Some l ->
         packageNameWithContext ctx l.owner l.modules l.name
-      | None -> shortHash id
+      | None -> shortHash hash
 
 
   let atDefinition
@@ -263,7 +264,7 @@ module NameResolution =
     (ctx: Context)
     (locations: List<LanguageTools.ProgramTypes.PackageLocation>)
     (originalName: List<String>)
-    (hash: String)
+    (hash: LanguageTools.ProgramTypes.ContentHash)
     : String =
     match locations with
     | [ single ] -> packageNameWithContext ctx single.owner single.modules single.name
@@ -273,7 +274,7 @@ module NameResolution =
       | [] ->
         match locations with
         | l :: _ -> packageNameWithContext ctx l.owner l.modules l.name
-        | [] -> hash
+        | [] -> Darklang.LanguageTools.ProgramTypes.contentHashToString hash
 
   let typeName
     (ctx: Context)

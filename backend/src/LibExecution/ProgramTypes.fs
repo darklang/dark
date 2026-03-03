@@ -661,9 +661,9 @@ type PackageOp =
   | AddFn of fn : PackageFn.PackageFn
 
   // Location operations - bind names to content
-  | SetTypeName of id : FQTypeName.Package * location : PackageLocation
-  | SetValueName of id : FQValueName.Package * location : PackageLocation
-  | SetFnName of id : FQFnName.Package * location : PackageLocation
+  | SetTypeName of hash : FQTypeName.Package * location : PackageLocation
+  | SetValueName of hash : FQValueName.Package * location : PackageLocation
+  | SetFnName of hash : FQFnName.Package * location : PackageLocation
 
 
   // Propagation: when a definition is updated, propagate the change to all dependents
@@ -724,9 +724,9 @@ and PropagateRepoint =
 
 //   // TODO: support a _reason_ for deprecation
 //   // , and an optional pointer to some sort of replacement
-//   | DeprecateFn of id: FQFnName.Package
-//   | DeprecateValue of id: FQValueName.Package
-//   | DeprecateType of id: FQTypeName.Package
+//   | DeprecateFn of hash: FQFnName.Package
+//   | DeprecateValue of hash: FQValueName.Package
+//   | DeprecateType of hash: FQTypeName.Package
 
 
 // prob belongs in LibMatter

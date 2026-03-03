@@ -12,9 +12,9 @@ module BS = LibSerialization.Binary.Serialization
 
 
 module Type =
-  let get (id : ContentHash) : Ply<Option<RT.PackageType.PackageType>> =
+  let get (hash : ContentHash) : Ply<Option<RT.PackageType.PackageType>> =
     uply {
-      let (ContentHash idStr) = id
+      let (ContentHash hashStr) = hash
       return!
         Sql.query
           """
@@ -22,16 +22,16 @@ module Type =
           FROM package_types
           WHERE hash = @hash
           """
-        |> Sql.parameters [ "hash", Sql.string idStr ]
+        |> Sql.parameters [ "hash", Sql.string hashStr ]
         |> Sql.executeRowOptionAsync (fun read -> read.bytes "rt_def")
-        |> Task.map (Option.map (BS.RT.PackageType.deserialize id))
+        |> Task.map (Option.map (BS.RT.PackageType.deserialize hash))
     }
 
 
 module Value =
-  let get (id : ContentHash) : Ply<Option<RT.PackageValue.PackageValue>> =
+  let get (hash : ContentHash) : Ply<Option<RT.PackageValue.PackageValue>> =
     uply {
-      let (ContentHash idStr) = id
+      let (ContentHash hashStr) = hash
       return!
         Sql.query
           """
@@ -39,9 +39,9 @@ module Value =
           FROM package_values
           WHERE hash = @hash
           """
-        |> Sql.parameters [ "hash", Sql.string idStr ]
+        |> Sql.parameters [ "hash", Sql.string hashStr ]
         |> Sql.executeRowOptionAsync (fun read -> read.bytes "rt_dval")
-        |> Task.map (Option.map (BS.RT.PackageValue.deserialize id))
+        |> Task.map (Option.map (BS.RT.PackageValue.deserialize hash))
     }
 
   /// Find all value hashes that have the given ValueType (exact match)
@@ -61,9 +61,9 @@ module Value =
 
 
 module Fn =
-  let get (id : ContentHash) : Ply<Option<RT.PackageFn.PackageFn>> =
+  let get (hash : ContentHash) : Ply<Option<RT.PackageFn.PackageFn>> =
     uply {
-      let (ContentHash idStr) = id
+      let (ContentHash hashStr) = hash
       return!
         Sql.query
           """
@@ -71,7 +71,7 @@ module Fn =
           FROM package_functions
           WHERE hash = @hash
           """
-        |> Sql.parameters [ "hash", Sql.string idStr ]
+        |> Sql.parameters [ "hash", Sql.string hashStr ]
         |> Sql.executeRowOptionAsync (fun read -> read.bytes "rt_instrs")
-        |> Task.map (Option.map (BS.RT.PackageFn.deserialize id))
+        |> Task.map (Option.map (BS.RT.PackageFn.deserialize hash))
     }

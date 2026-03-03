@@ -10,22 +10,22 @@ module Type =
   let find
     (branchId: Uuid)
     (location: ProgramTypes.PackageLocation)
-    : Stdlib.Option.Option<String> =
+    : Stdlib.Option.Option<ProgramTypes.FQTypeName.Package> =
     Builtin.pmFindType branchId location
 
   let get
-    (id: String)
+    (hash: ProgramTypes.FQTypeName.Package)
     : Stdlib.Option.Option<ProgramTypes.PackageType.PackageType> =
-    Builtin.pmGetType id
+    Builtin.pmGetType hash
 
   let getWithLocation
     (branchId: Uuid)
-    (id: String)
+    (hash: ProgramTypes.FQTypeName.Package)
     : Stdlib.Option.Option<
       ProgramTypes.LocatedItem<ProgramTypes.PackageType.PackageType>> =
-    match Builtin.pmGetType id with
+    match Builtin.pmGetType hash with
     | Some entity ->
-      match Builtin.pmGetLocationByType branchId id with
+      match Builtin.pmGetLocationByType branchId hash with
       | Some location ->
         Stdlib.Option.Option.Some(
           ProgramTypes.LocatedItem { entity = entity; location = location }
@@ -38,22 +38,22 @@ module Value =
   let find
     (branchId: Uuid)
     (location: ProgramTypes.PackageLocation)
-    : Stdlib.Option.Option<String> =
+    : Stdlib.Option.Option<ProgramTypes.FQValueName.Package> =
     Builtin.pmFindValue branchId location
 
   let get
-    (id: String)
+    (hash: ProgramTypes.FQValueName.Package)
     : Stdlib.Option.Option<ProgramTypes.PackageValue.PackageValue> =
-    Builtin.pmGetValue id
+    Builtin.pmGetValue hash
 
   let getWithLocation
     (branchId: Uuid)
-    (id: String)
+    (hash: ProgramTypes.FQValueName.Package)
     : Stdlib.Option.Option<
       ProgramTypes.LocatedItem<ProgramTypes.PackageValue.PackageValue>> =
-    match Builtin.pmGetValue id with
+    match Builtin.pmGetValue hash with
     | Some entity ->
-      match Builtin.pmGetLocationByValue branchId id with
+      match Builtin.pmGetLocationByValue branchId hash with
       | Some location ->
         Stdlib.Option.Option.Some(
           ProgramTypes.LocatedItem { entity = entity; location = location }
@@ -66,20 +66,22 @@ module Function =
   let find
     (branchId: Uuid)
     (location: ProgramTypes.PackageLocation)
-    : Stdlib.Option.Option<String> =
+    : Stdlib.Option.Option<ProgramTypes.FQFnName.Package> =
     Builtin.pmFindFn branchId location
 
-  let get (id: String) : Stdlib.Option.Option<ProgramTypes.PackageFn.PackageFn> =
-    Builtin.pmGetFn id
+  let get
+    (hash: ProgramTypes.FQFnName.Package)
+    : Stdlib.Option.Option<ProgramTypes.PackageFn.PackageFn> =
+    Builtin.pmGetFn hash
 
   let getWithLocation
     (branchId: Uuid)
-    (id: String)
+    (hash: ProgramTypes.FQFnName.Package)
     : Stdlib.Option.Option<
       ProgramTypes.LocatedItem<ProgramTypes.PackageFn.PackageFn>> =
-    match Builtin.pmGetFn id with
+    match Builtin.pmGetFn hash with
     | Some entity ->
-      match Builtin.pmGetLocationByFn branchId id with
+      match Builtin.pmGetLocationByFn branchId hash with
       | Some location ->
         Stdlib.Option.Option.Some(
           ProgramTypes.LocatedItem { entity = entity; location = location }

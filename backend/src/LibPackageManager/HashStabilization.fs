@@ -65,24 +65,24 @@ let computeRealHashes (ops : List<PT.PackageOp>) : List<PT.PackageOp> =
   for op in ops do
     match op with
     | PT.PackageOp.AddType t -> pendingType <- Some t
-    | PT.PackageOp.SetTypeName(id, loc) ->
+    | PT.PackageOp.SetTypeName(hash, loc) ->
       match pendingType with
       | Some t ->
-        types.Add((id, t, loc.toFQN ()))
+        types.Add((hash, t, loc.toFQN ()))
         pendingType <- None
       | None -> ()
     | PT.PackageOp.AddFn f -> pendingFn <- Some f
-    | PT.PackageOp.SetFnName(id, loc) ->
+    | PT.PackageOp.SetFnName(hash, loc) ->
       match pendingFn with
       | Some f ->
-        fns.Add((id, f, loc.toFQN ()))
+        fns.Add((hash, f, loc.toFQN ()))
         pendingFn <- None
       | None -> ()
     | PT.PackageOp.AddValue v -> pendingValue <- Some v
-    | PT.PackageOp.SetValueName(id, loc) ->
+    | PT.PackageOp.SetValueName(hash, loc) ->
       match pendingValue with
       | Some v ->
-        values.Add((id, v, loc.toFQN ()))
+        values.Add((hash, v, loc.toFQN ()))
         pendingValue <- None
       | None -> ()
     | _ -> ()
@@ -90,22 +90,22 @@ let computeRealHashes (ops : List<PT.PackageOp>) : List<PT.PackageOp> =
   // Build maps keyed by FQN to avoid collisions when multiple items
   // share the same ContentHash (e.g. type aliases with unresolved refs).
   // Value tuple: (item, oldContentHash)
-  let typeMap = types |> Seq.map (fun (id, t, fqn) -> (fqn, (t, id))) |> Map.ofSeq
-  let fnMap = fns |> Seq.map (fun (id, f, fqn) -> (fqn, (f, id))) |> Map.ofSeq
-  let valueMap = values |> Seq.map (fun (id, v, fqn) -> (fqn, (v, id))) |> Map.ofSeq
+  let typeMap = types |> Seq.map (fun (hash, t, fqn) -> (fqn, (t, hash))) |> Map.ofSeq
+  let fnMap = fns |> Seq.map (fun (hash, f, fqn) -> (fqn, (f, hash))) |> Map.ofSeq
+  let valueMap = values |> Seq.map (fun (hash, v, fqn) -> (fqn, (v, hash))) |> Map.ofSeq
 
   // Reverse lookup: ContentHash → FQNs for converting AST deps to FQN deps
   let hashToFqns : Map<ContentHash, List<string>> =
     let mutable result = Map.empty<ContentHash, List<string>>
-    for (id, _, fqn) in types do
-      let existing = Map.tryFind id result |> Option.defaultValue []
-      result <- Map.add id (fqn :: existing) result
-    for (id, _, fqn) in fns do
-      let existing = Map.tryFind id result |> Option.defaultValue []
-      result <- Map.add id (fqn :: existing) result
-    for (id, _, fqn) in values do
-      let existing = Map.tryFind id result |> Option.defaultValue []
-      result <- Map.add id (fqn :: existing) result
+    for (h, _, fqn) in types do
+      let existing = Map.tryFind h result |> Option.defaultValue []
+      result <- Map.add h (fqn :: existing) result
+    for (h, _, fqn) in fns do
+      let existing = Map.tryFind h result |> Option.defaultValue []
+      result <- Map.add h (fqn :: existing) result
+    for (h, _, fqn) in values do
+      let existing = Map.tryFind h result |> Option.defaultValue []
+      result <- Map.add h (fqn :: existing) result
     result
 
   // Build dependency graph using FQNs
@@ -156,26 +156,26 @@ let computeRealHashes (ops : List<PT.PackageOp>) : List<PT.PackageOp> =
   // then set it on both the Add* item and the Set*Name op.
   let rec processOps (remaining : List<PT.PackageOp>) (acc : List<PT.PackageOp>) =
     match remaining with
-    | PT.PackageOp.AddType t :: PT.PackageOp.SetTypeName(id, loc) :: rest ->
-      let hash = Map.tryFind (loc.toFQN ()) fqnHashMap |> Option.defaultValue id
-      let transformed = { AT.transformType oldToNewHash t with hash = hash }
+    | PT.PackageOp.AddType t :: PT.PackageOp.SetTypeName(oldHash, loc) :: rest ->
+      let newHash = Map.tryFind (loc.toFQN ()) fqnHashMap |> Option.defaultValue oldHash
+      let transformed = { AT.transformType oldToNewHash t with hash = newHash }
       processOps
         rest
-        (PT.PackageOp.SetTypeName(hash, loc)
+        (PT.PackageOp.SetTypeName(newHash, loc)
          :: PT.PackageOp.AddType transformed
          :: acc)
-    | PT.PackageOp.AddFn f :: PT.PackageOp.SetFnName(id, loc) :: rest ->
-      let hash = Map.tryFind (loc.toFQN ()) fqnHashMap |> Option.defaultValue id
-      let transformed = { AT.transformFn oldToNewHash f with hash = hash }
+    | PT.PackageOp.AddFn f :: PT.PackageOp.SetFnName(oldHash, loc) :: rest ->
+      let newHash = Map.tryFind (loc.toFQN ()) fqnHashMap |> Option.defaultValue oldHash
+      let transformed = { AT.transformFn oldToNewHash f with hash = newHash }
       processOps
         rest
-        (PT.PackageOp.SetFnName(hash, loc) :: PT.PackageOp.AddFn transformed :: acc)
-    | PT.PackageOp.AddValue v :: PT.PackageOp.SetValueName(id, loc) :: rest ->
-      let hash = Map.tryFind (loc.toFQN ()) fqnHashMap |> Option.defaultValue id
-      let transformed = { AT.transformValue oldToNewHash v with hash = hash }
+        (PT.PackageOp.SetFnName(newHash, loc) :: PT.PackageOp.AddFn transformed :: acc)
+    | PT.PackageOp.AddValue v :: PT.PackageOp.SetValueName(oldHash, loc) :: rest ->
+      let newHash = Map.tryFind (loc.toFQN ()) fqnHashMap |> Option.defaultValue oldHash
+      let transformed = { AT.transformValue oldToNewHash v with hash = newHash }
       processOps
         rest
-        (PT.PackageOp.SetValueName(hash, loc)
+        (PT.PackageOp.SetValueName(newHash, loc)
          :: PT.PackageOp.AddValue transformed
          :: acc)
     | op :: rest -> processOps rest (op :: acc)

@@ -28,7 +28,7 @@ let getAllPreviousHashes
   (branchId: Uuid)
   (location: LanguageTools.ProgramTypes.PackageLocation)
   (itemKind: LanguageTools.ProgramTypes.ItemKind)
-  : List<String> =
+  : List<LanguageTools.ProgramTypes.ContentHash> =
   Builtin.pmGetAllPreviousHashes branchId location itemKind
 
 
@@ -36,9 +36,9 @@ let getAllPreviousHashes
 /// Two hashes that point to the same named location are considered equal.
 let resolveTypeName
   (branchId: Uuid)
-  (id: LanguageTools.ProgramTypes.FQTypeName.Package)
+  (hash: LanguageTools.ProgramTypes.FQTypeName.Package)
   : Stdlib.Option.Option<LanguageTools.ProgramTypes.PackageLocation> =
-  Builtin.pmGetLocationByType branchId id
+  Builtin.pmGetLocationByType branchId hash
 
 
 /// Compare two lists element-wise; returns false if lengths differ.
@@ -168,8 +168,8 @@ let typeDeclarationEqual
 let warnIfSignatureChanged
   (branchId: Uuid)
   (itemKind: LanguageTools.ProgramTypes.ItemKind)
-  (previousHash: String)
-  (currentHash: String)
+  (previousHash: LanguageTools.ProgramTypes.ContentHash)
+  (currentHash: LanguageTools.ProgramTypes.ContentHash)
   : Bool =
   let ctx = PrettyPrinter.ProgramTypes.Context.forBranch branchId
 
@@ -216,7 +216,7 @@ let warnIfSignatureChanged
 let autoPropagateAfterUpdate
   (branchId: Uuid)
   (location: LanguageTools.ProgramTypes.PackageLocation)
-  (currentHash: String)
+  (currentHash: LanguageTools.ProgramTypes.ContentHash)
   (itemKind: LanguageTools.ProgramTypes.ItemKind)
   : Unit =
   // getAllPreviousHashes returns ALL hashes at this location across the branch chain

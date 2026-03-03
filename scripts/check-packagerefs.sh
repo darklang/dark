@@ -58,6 +58,7 @@ WHERE owner = 'Darklang'
     ('LanguageTools.Parser.CliScript', 'PTCliScriptModule', 'type'),
 
     -- Type.LanguageTools.RuntimeTypes
+    ('LanguageTools.RuntimeTypes', 'ContentHash', 'type'),
     ('LanguageTools.RuntimeTypes.FQTypeName', 'Package', 'type'),
     ('LanguageTools.RuntimeTypes.FQTypeName', 'FQTypeName', 'type'),
     ('LanguageTools.RuntimeTypes.FQValueName', 'Builtin', 'type'),

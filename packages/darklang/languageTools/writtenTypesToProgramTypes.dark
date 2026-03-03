@@ -22,9 +22,9 @@ let locationPlaceholderHash
   (owner: String)
   (modules: List<String>)
   (name: String)
-  : String =
+  : ProgramTypes.ContentHash =
   let modulesPart = Stdlib.String.join modules "."
-  $"{owner}.{modulesPart}.{name}"
+  ProgramTypes.ContentHash.ContentHash $"{owner}.{modulesPart}.{name}"
 
 
 module Identifiers =
@@ -1401,7 +1401,7 @@ module TypeDeclaration =
     let (declaration, unresolvedNames) = toPT ctx d
 
     (ProgramTypes.PackageType.PackageType
-      { hash = ""
+      { hash = ProgramTypes.ContentHash.ContentHash ""
         description = d.description
         declaration = declaration
         deprecated = ProgramTypes.Deprecation.NotDeprecated },
@@ -1418,7 +1418,7 @@ module ValueDeclaration =
     let (body, unresolvedNames) = Expr.toPT ctx defaultContext d.body
 
     (ProgramTypes.PackageValue.PackageValue
-      { hash = ""
+      { hash = ProgramTypes.ContentHash.ContentHash ""
         body = body
         description = d.description
         deprecated = ProgramTypes.Deprecation.NotDeprecated },
@@ -1486,7 +1486,7 @@ module FunctionDeclaration =
           bdUnresolvedNames ]
 
     (ProgramTypes.PackageFn.PackageFn
-      { hash = ""
+      { hash = ProgramTypes.ContentHash.ContentHash ""
         typeParams = typeParams
         parameters = params
         returnType = rtyp

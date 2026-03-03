@@ -112,8 +112,9 @@ let typeFindFn (req: Stdlib.Http.Request) : Stdlib.Http.Response =
     | Error errorMsg -> Stdlib.Http.response (Stdlib.String.toBytes errorMsg) 400L
     | Ok location ->
       match Builtin.pmFindType SCM.Branch.mainBranchId location with
-      | Some foundID ->
-        let json = $"\"{Stdlib.Uuid.toString foundID}\""
+      | Some foundHash ->
+        let h = Darklang.LanguageTools.ProgramTypes.contentHashToString foundHash
+        let json = $"\"{h}\""
         Stdlib.Http.response (Stdlib.String.toBytes json) 200L
       | None -> Stdlib.Http.response (Stdlib.String.toBytes "not found") 404L
 
@@ -125,14 +126,12 @@ let typeGetFn (req: Stdlib.Http.Request) : Stdlib.Http.Response =
   match Stdlib.HttpServer.getPathParam req "/type/get/:id" "id" with
   | None -> Stdlib.Http.response (Stdlib.String.toBytes "Missing id parameter") 400L
   | Some idStr ->
-    match parseUuidParam idStr with
-    | Error response -> response
-    | Ok parsedId ->
-      match Builtin.pmGetType parsedId with
-      | Some t ->
-        let json = t |> Builtin.jsonSerialize<LanguageTools.ProgramTypes.PackageType.PackageType>
-        Stdlib.Http.response (Stdlib.String.toBytes json) 200L
-      | None -> Stdlib.Http.response (Stdlib.String.toBytes "not found") 404L
+    let hash = Darklang.LanguageTools.ProgramTypes.ContentHash.ContentHash idStr
+    match Builtin.pmGetType hash with
+    | Some t ->
+      let json = t |> Builtin.jsonSerialize<LanguageTools.ProgramTypes.PackageType.PackageType>
+      Stdlib.Http.response (Stdlib.String.toBytes json) 200L
+    | None -> Stdlib.Http.response (Stdlib.String.toBytes "not found") 404L
 
 let typeGetHandler: Stdlib.HttpServer.Handler =
   Stdlib.HttpServer.Handler { route = "/type/get/:id"; method = "GET"; handler = typeGetFn }
@@ -142,16 +141,14 @@ let typeGetWithLocationFn (req: Stdlib.Http.Request) : Stdlib.Http.Response =
   match Stdlib.HttpServer.getPathParam req "/type/get/with-location/:id" "id" with
   | None -> Stdlib.Http.response (Stdlib.String.toBytes "Missing id parameter") 400L
   | Some idStr ->
-    match parseUuidParam idStr with
-    | Error response -> response
-    | Ok parsedId ->
-      match LanguageTools.PackageManager.Type.getWithLocation parsedId with
-      | Some locatedItem ->
-        let json =
-          locatedItem
-          |> Builtin.jsonSerialize<LanguageTools.ProgramTypes.LocatedItem<LanguageTools.ProgramTypes.PackageType.PackageType>>
-        Stdlib.Http.response (Stdlib.String.toBytes json) 200L
-      | None -> Stdlib.Http.response (Stdlib.String.toBytes "not found") 404L
+    let hash = Darklang.LanguageTools.ProgramTypes.ContentHash.ContentHash idStr
+    match LanguageTools.PackageManager.Type.getWithLocation SCM.Branch.mainBranchId hash with
+    | Some locatedItem ->
+      let json =
+        locatedItem
+        |> Builtin.jsonSerialize<LanguageTools.ProgramTypes.LocatedItem<LanguageTools.ProgramTypes.PackageType.PackageType>>
+      Stdlib.Http.response (Stdlib.String.toBytes json) 200L
+    | None -> Stdlib.Http.response (Stdlib.String.toBytes "not found") 404L
 
 let typeGetWithLocationHandler: Stdlib.HttpServer.Handler =
   Stdlib.HttpServer.Handler { route = "/type/get/with-location/:id"; method = "GET"; handler = typeGetWithLocationFn }
@@ -164,8 +161,9 @@ let valueFindFn (req: Stdlib.Http.Request) : Stdlib.Http.Response =
     match parseNameToLocation name with
     | Ok location ->
       match Builtin.pmFindValue SCM.Branch.mainBranchId location with
-      | Some foundID ->
-        let json = $"\"{Stdlib.Uuid.toString foundID}\""
+      | Some foundHash ->
+        let h = Darklang.LanguageTools.ProgramTypes.contentHashToString foundHash
+        let json = $"\"{h}\""
         Stdlib.Http.response (Stdlib.String.toBytes json) 200L
       | None -> Stdlib.Http.response (Stdlib.String.toBytes "not found") 404L
     | Error errorMsg -> Stdlib.Http.response (Stdlib.String.toBytes errorMsg) 400L
@@ -178,10 +176,8 @@ let valueGetFn (req: Stdlib.Http.Request) : Stdlib.Http.Response =
   match Stdlib.HttpServer.getPathParam req "/value/get/:id" "id" with
   | None -> Stdlib.Http.response (Stdlib.String.toBytes "Missing id parameter") 400L
   | Some idStr ->
-    match parseUuidParam idStr with
-    | Error response -> response
-    | Ok parsedId ->
-      match Builtin.pmGetValue parsedId with
+    let hash = Darklang.LanguageTools.ProgramTypes.ContentHash.ContentHash idStr
+    match Builtin.pmGetValue hash with
       | Some v ->
         let json = v |> Builtin.jsonSerialize<LanguageTools.ProgramTypes.PackageValue.PackageValue>
         Stdlib.Http.response (Stdlib.String.toBytes json) 200L
@@ -195,10 +191,8 @@ let valueGetWithLocationFn (req: Stdlib.Http.Request) : Stdlib.Http.Response =
   match Stdlib.HttpServer.getPathParam req "/value/get/with-location/:id" "id" with
   | None -> Stdlib.Http.response (Stdlib.String.toBytes "Missing id parameter") 400L
   | Some idStr ->
-    match parseUuidParam idStr with
-    | Error response -> response
-    | Ok parsedId ->
-      match LanguageTools.PackageManager.Value.getWithLocation parsedId with
+    let hash = Darklang.LanguageTools.ProgramTypes.ContentHash.ContentHash idStr
+    match LanguageTools.PackageManager.Value.getWithLocation SCM.Branch.mainBranchId hash with
       | Some locatedItem ->
         let json =
           locatedItem
@@ -218,8 +212,9 @@ let functionFindFn (req: Stdlib.Http.Request) : Stdlib.Http.Response =
     | Error errorMsg -> Stdlib.Http.response (Stdlib.String.toBytes errorMsg) 400L
     | Ok location ->
       match Builtin.pmFindFn SCM.Branch.mainBranchId location with
-      | Some foundID ->
-        let json = $"\"{Stdlib.Uuid.toString foundID}\""
+      | Some foundHash ->
+        let h = Darklang.LanguageTools.ProgramTypes.contentHashToString foundHash
+        let json = $"\"{h}\""
         Stdlib.Http.response (Stdlib.String.toBytes json) 200L
       | None -> Stdlib.Http.response (Stdlib.String.toBytes "not found") 404L
 
@@ -231,10 +226,8 @@ let functionGetFn (req: Stdlib.Http.Request) : Stdlib.Http.Response =
   match Stdlib.HttpServer.getPathParam req "/function/get/:id" "id" with
   | None -> Stdlib.Http.response (Stdlib.String.toBytes "Missing id parameter") 400L
   | Some idStr ->
-    match parseUuidParam idStr with
-    | Error response -> response
-    | Ok parsedId ->
-      match Builtin.pmGetFn parsedId with
+    let hash = Darklang.LanguageTools.ProgramTypes.ContentHash.ContentHash idStr
+    match Builtin.pmGetFn hash with
       | Some f ->
         let json = f |> Builtin.jsonSerialize<LanguageTools.ProgramTypes.PackageFn.PackageFn>
         Stdlib.Http.response (Stdlib.String.toBytes json) 200L
@@ -248,10 +241,8 @@ let functionGetWithLocationFn (req: Stdlib.Http.Request) : Stdlib.Http.Response 
   match Stdlib.HttpServer.getPathParam req "/function/get/with-location/:id" "id" with
   | None -> Stdlib.Http.response (Stdlib.String.toBytes "Missing id parameter") 400L
   | Some idStr ->
-    match parseUuidParam idStr with
-    | Error response -> response
-    | Ok parsedId ->
-      match LanguageTools.PackageManager.Function.getWithLocation parsedId with
+    let hash = Darklang.LanguageTools.ProgramTypes.ContentHash.ContentHash idStr
+    match LanguageTools.PackageManager.Function.getWithLocation SCM.Branch.mainBranchId hash with
       | Some locatedItem ->
         let json =
           locatedItem
@@ -360,8 +351,8 @@ let locationLookupFn (req: Stdlib.Http.Request) : Stdlib.Http.Response =
 
       // Try function first
       match Builtin.pmFindFn SCM.Branch.mainBranchId packageLocation with
-      | Some fnId ->
-        match Builtin.pmGetFn fnId with
+      | Some fnHash ->
+        match Builtin.pmGetFn fnHash with
         | Some fn ->
           let json = fn |> Builtin.jsonSerialize<LanguageTools.ProgramTypes.PackageFn.PackageFn>
           Stdlib.Http.response (Stdlib.String.toBytes json) 200L
@@ -369,8 +360,8 @@ let locationLookupFn (req: Stdlib.Http.Request) : Stdlib.Http.Response =
       | None ->
         // Try type
         match Builtin.pmFindType SCM.Branch.mainBranchId packageLocation with
-        | Some typeId ->
-          match Builtin.pmGetType typeId with
+        | Some typeHash ->
+          match Builtin.pmGetType typeHash with
           | Some typeDefinition ->
             let json = typeDefinition |> Builtin.jsonSerialize<LanguageTools.ProgramTypes.PackageType.PackageType>
             Stdlib.Http.response (Stdlib.String.toBytes json) 200L
@@ -378,8 +369,8 @@ let locationLookupFn (req: Stdlib.Http.Request) : Stdlib.Http.Response =
         | None ->
           // Try value
           match Builtin.pmFindValue SCM.Branch.mainBranchId packageLocation with
-          | Some valueId ->
-            match Builtin.pmGetValue valueId with
+          | Some valueHash ->
+            match Builtin.pmGetValue valueHash with
             | Some value ->
               let json = value |> Builtin.jsonSerialize<LanguageTools.ProgramTypes.PackageValue.PackageValue>
               Stdlib.Http.response (Stdlib.String.toBytes json) 200L

@@ -1,24 +1,36 @@
 module Darklang.Cli.Deps
 
 /// Resolve hashes to display names. Returns a Dict mapping hash string to name.
-let resolveNames (branchId: Uuid) (itemIds: List<String>) : Dict<String> =
+let resolveNames
+  (branchId: Uuid)
+  (itemIds: List<LanguageTools.ProgramTypes.ContentHash>)
+  : Dict<String> =
   (Builtin.depsResolveLocations branchId itemIds)
   |> Stdlib.List.fold Stdlib.Dict.empty (fun acc (itemId, location) ->
+    let h = Darklang.LanguageTools.ProgramTypes.contentHashToString itemId
     let displayName = PrettyPrinter.ProgramTypes.PackageLocation.packageLocation location
-    Stdlib.Dict.set acc itemId displayName)
+    Stdlib.Dict.set acc h displayName)
 
 
 /// Get displayable name for an item, using precomputed names dict or falling back to hash
-let getName (namesDict: Dict<String>) (id: String) : String =
-  match Stdlib.Dict.get namesDict id with
+let getName
+  (namesDict: Dict<String>)
+  (hash: LanguageTools.ProgramTypes.ContentHash)
+  : String =
+  let h = Darklang.LanguageTools.ProgramTypes.contentHashToString hash
+  match Stdlib.Dict.get namesDict h with
   | Some name -> name
-  | None -> id
+  | None -> h
 
 
 /// Display dependents (what uses this entity)
 /// Shows approved items + caller's own pending items.
-let showDependents (branchId: Uuid) (targetId: String) (entityName: String) : Unit =
-  let dependents = Builtin.depsGetDependents branchId targetId
+let showDependents
+  (branchId: Uuid)
+  (targetHash: LanguageTools.ProgramTypes.ContentHash)
+  (entityName: String)
+  : Unit =
+  let dependents = Builtin.depsGetDependents branchId targetHash
 
   match dependents with
   | [] ->
@@ -41,10 +53,10 @@ let showDependents (branchId: Uuid) (targetId: String) (entityName: String) : Un
 /// Processes multiple pending IDs per iteration to minimize DB round-trips.
 let collectTransitiveDependents
   (branchId: Uuid)
-  (processed: List<String>)
-  (pending: List<String>)
-  (accumulated: List<String * String>)
-  : List<String * String> =
+  (processed: List<LanguageTools.ProgramTypes.ContentHash>)
+  (pending: List<LanguageTools.ProgramTypes.ContentHash>)
+  (accumulated: List<LanguageTools.ProgramTypes.ContentHash * String>)
+  : List<LanguageTools.ProgramTypes.ContentHash * String> =
   match pending with
   | [] -> accumulated
   | _ ->
@@ -80,13 +92,20 @@ let collectTransitiveDependents
 
 
 /// Get all transitive dependents (everything that could break if this changes)
-let getTransitiveDependents (branchId: Uuid) (targetId: String) : List<String * String> =
+let getTransitiveDependents
+  (branchId: Uuid)
+  (targetId: LanguageTools.ProgramTypes.ContentHash)
+  : List<LanguageTools.ProgramTypes.ContentHash * String> =
   (collectTransitiveDependents branchId [] [ targetId ] [])
   |> Stdlib.List.unique
 
 
 /// Display all transitive dependents (what could break)
-let showTransitiveDependents (branchId: Uuid) (targetId: String) (entityName: String) : Unit =
+let showTransitiveDependents
+  (branchId: Uuid)
+  (targetId: LanguageTools.ProgramTypes.ContentHash)
+  (entityName: String)
+  : Unit =
   let allDependents = getTransitiveDependents branchId targetId
 
   match allDependents with
@@ -107,8 +126,12 @@ let showTransitiveDependents (branchId: Uuid) (targetId: String) (entityName: St
 
 
 /// Display dependencies (what this entity uses)
-let showDependencies (branchId: Uuid) (sourceId: String) (entityName: String) : Unit =
-  let dependencies = Builtin.depsGetDependencies branchId sourceId
+let showDependencies
+  (branchId: Uuid)
+  (sourceHash: LanguageTools.ProgramTypes.ContentHash)
+  (entityName: String)
+  : Unit =
+  let dependencies = Builtin.depsGetDependencies branchId sourceHash
 
   match dependencies with
   | [] ->
@@ -132,7 +155,7 @@ let resolvePath
   (branchId: Uuid)
   (currentLocation: Packages.PackageLocation)
   (pathArg: String)
-  : Stdlib.Result.Result<(String * String * String), String> =
+  : Stdlib.Result.Result<(LanguageTools.ProgramTypes.ContentHash * String * String), String> =
   // Try to traverse to the location
   match Packages.Traversal.traverse branchId currentLocation pathArg with
   | Error errMsg -> Stdlib.Result.Result.Error errMsg
@@ -142,21 +165,21 @@ let resolvePath
       Stdlib.Result.Result.Error "Cannot show dependencies for a module, only for functions, types, or values"
     | Function fnLoc ->
       match Builtin.pmFindFn branchId fnLoc with
-      | Some id ->
+      | Some hash ->
         let name = PrettyPrinter.ProgramTypes.PackageLocation.packageLocation fnLoc
-        Stdlib.Result.Result.Ok((id, name, "fn"))
+        Stdlib.Result.Result.Ok((hash, name, "fn"))
       | None -> Stdlib.Result.Result.Error $"Function not found: {PrettyPrinter.ProgramTypes.PackageLocation.packageLocation fnLoc}"
     | Type typeLoc ->
       match Builtin.pmFindType branchId typeLoc with
-      | Some id ->
+      | Some hash ->
         let name = PrettyPrinter.ProgramTypes.PackageLocation.packageLocation typeLoc
-        Stdlib.Result.Result.Ok((id, name, "type"))
+        Stdlib.Result.Result.Ok((hash, name, "type"))
       | None -> Stdlib.Result.Result.Error $"Type not found: {PrettyPrinter.ProgramTypes.PackageLocation.packageLocation typeLoc}"
     | Value valueLoc ->
       match Builtin.pmFindValue branchId valueLoc with
-      | Some id ->
+      | Some hash ->
         let name = PrettyPrinter.ProgramTypes.PackageLocation.packageLocation valueLoc
-        Stdlib.Result.Result.Ok((id, name, "value"))
+        Stdlib.Result.Result.Ok((hash, name, "value"))
       | None -> Stdlib.Result.Result.Error $"Value not found: {PrettyPrinter.ProgramTypes.PackageLocation.packageLocation valueLoc}"
 
 
@@ -185,8 +208,8 @@ let execute (state: AppState) (args: List<String>) : AppState =
       Stdlib.printLine (Colors.error errMsg)
       state
     | Ok result ->
-      let (id, name, _entityType) = result
-      showDependencies branchId id name
+      let (hash, name, _entityType) = result
+      showDependencies branchId hash name
       state
 
   | ["usedby"; pathArg] ->
@@ -195,12 +218,12 @@ let execute (state: AppState) (args: List<String>) : AppState =
       Stdlib.printLine (Colors.error errMsg)
       state
     | Ok result ->
-      let (id, name, _entityType) = result
+      let (hash, name, _entityType) = result
 
       if deep then
-        showTransitiveDependents branchId id name
+        showTransitiveDependents branchId hash name
       else
-        showDependents branchId id name
+        showDependents branchId hash name
 
       state
 
@@ -211,14 +234,14 @@ let execute (state: AppState) (args: List<String>) : AppState =
       Stdlib.printLine (Colors.error errMsg)
       state
     | Ok result ->
-      let (id, name, _entityType) = result
-      showDependencies branchId id name
+      let (hash, name, _entityType) = result
+      showDependencies branchId hash name
       Stdlib.printLine ""
 
       if deep then
-        showTransitiveDependents branchId id name
+        showTransitiveDependents branchId hash name
       else
-        showDependents branchId id name
+        showDependents branchId hash name
 
       state
 

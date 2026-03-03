@@ -1,8 +1,9 @@
 module Darklang.Cli.Packages.Hash
 
-let formatHash (hash: String) (long: Bool) : String =
-  if long then hash
-  else Stdlib.String.first hash 8L
+let formatHash (hash: LanguageTools.ProgramTypes.ContentHash) (long: Bool) : String =
+  let h = Darklang.LanguageTools.ProgramTypes.contentHashToString hash
+  if long then h
+  else Stdlib.String.first h 8L
 
 let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
   let long =

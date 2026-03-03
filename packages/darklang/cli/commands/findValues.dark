@@ -2,11 +2,11 @@ module Darklang.Cli.Commands.FindValues
 
 // Find all package values of a given type
 
-/// Resolve a type path to its UUID
-let resolveTypeId
+/// Resolve a type path to its content hash
+let resolveTypeHash
   (branchId: Uuid)
   (typePath: String)
-  : Stdlib.Result.Result<Uuid, String> =
+  : Stdlib.Result.Result<LanguageTools.ProgramTypes.ContentHash, String> =
   let parts = Stdlib.String.split typePath "."
 
   match Stdlib.List.reverse parts with
@@ -24,7 +24,7 @@ let resolveTypeId
             name = name }
 
       match LanguageTools.PackageManager.Type.find branchId location with
-      | Some typeId -> Stdlib.Result.Result.Ok typeId
+      | Some typeHash -> Stdlib.Result.Result.Ok typeHash
       | None -> Stdlib.Result.Result.Error $"Type not found: {typePath}"
 
 
@@ -35,12 +35,12 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
     state
 
   | [ typePath ] ->
-    match resolveTypeId state.currentBranchId typePath with
+    match resolveTypeHash state.currentBranchId typePath with
     | Error msg ->
       Stdlib.printLine (Colors.error msg)
       state
-    | Ok typeId ->
-      let values = Stdlib.ValueSearch.findByType state.currentBranchId "" typeId
+    | Ok typeHash ->
+      let values = Stdlib.ValueSearch.findByType state.currentBranchId "" typeHash
 
       if Stdlib.List.isEmpty values then
         Stdlib.printLine (Colors.dimText $"No values of type {typePath}")
@@ -51,12 +51,12 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
       state
 
   | [ typePath; namespace_ ] ->
-    match resolveTypeId state.currentBranchId typePath with
+    match resolveTypeHash state.currentBranchId typePath with
     | Error msg ->
       Stdlib.printLine (Colors.error msg)
       state
-    | Ok typeId ->
-      let values = Stdlib.ValueSearch.findByType state.currentBranchId namespace_ typeId
+    | Ok typeHash ->
+      let values = Stdlib.ValueSearch.findByType state.currentBranchId namespace_ typeHash
 
       if Stdlib.List.isEmpty values then
         Stdlib.printLine (Colors.dimText $"No values of type {typePath} in {namespace_}")

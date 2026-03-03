@@ -113,8 +113,8 @@ module Response =
     : Task<HttpResponse> =
     task {
       match result with
-      | RT.DRecord(RT.FQTypeName.Package id, _, [], fields) ->
-        if id = RT.ContentHash PackageRefs.Type.Stdlib.Http.response then
+      | RT.DRecord(RT.FQTypeName.Package hash, _, [], fields) ->
+        if hash = RT.ContentHash PackageRefs.Type.Stdlib.Http.response then
           return parseHttpResponseFields fields
         else
           return! wrongTypeResponse state result

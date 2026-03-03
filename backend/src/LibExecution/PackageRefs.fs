@@ -99,7 +99,7 @@ module Type =
             "cfa1c52ae5a0fc661c15db09bfb3e6c129904020cc6346a04399f24deac5c7e9"
             |> p [ "JsonPath"; "Part" ] "Part"
         let parseError =
-          "843e851b01435213b27134405e9a8d988468ee2af1a06e622b0dc2229eaf6745"
+          "019fd6f48d9dafa3c33f1b034c9d2df5a757ac14254b78497c04025f27e9825b"
           |> p [] "ParseError"
 
     module AltJson =
@@ -141,10 +141,10 @@ module Type =
       "871e4962a7f55a23f35c21043f6759a09aa382972f3b5ca48d279d764695920e"
       |> p [] "Purity"
     let paramInfo =
-      "dab46d3abb6707d146e8fdd6904c6c91e7a73f7522cd081f7e32eccd31a2a725"
+      "1d06416e22df3d29b2b30d3af9772a89b7eeb21e0dafe841d3d9c9819c83aa70"
       |> p [] "ParamInfo"
     let functionInfo =
-      "57dfcf233ecbe6b216f4a38e5d1bb852d34aece0232e7c71a1f17b281ed8a2da"
+      "b24f53b16ba7b82cc84d4d710670ce34fc5f98a43ef1ef9151468c93aa2d2b44"
       |> p [] "FunctionInfo"
 
   module LanguageTools =
@@ -155,13 +155,13 @@ module Type =
 
     // TODO: where do these actually belong? are they used, even?
     let builtinValue =
-      "ce73096c08e8f876c52dba1fd74e55dbb62a28852d6e60a2516c4c026207133d"
+      "ae2162370a6d0c94403866b64729510f6a2e042ec4d95dbb6bc4d20e9ab3cbed"
       |> p [] "BuiltinValue"
     let builtinFnParam =
-      "afc1223c6c35e8d62f4db8c5b93fe343536b194f5ef6d1040e05f8d731459b38"
+      "6d231562692d8a5dd2753490a132dc8cc6e3194870c2b615ed0d6316e3c9dcef"
       |> p [] "BuiltinFunctionParameter"
     let builtinFn =
-      "3ebb4c86a0a14cb3a84c81576908066b4a607329a12239e6d7ab510837443446"
+      "ef5d8a17ac2ad9943069758ee09fda3e1d3d5dd698373a1a3b005590eb74a109"
       |> p [] "BuiltinFunction"
 
 
@@ -180,19 +180,24 @@ module Type =
       module CliScript =
         let private p addl = p ("CliScript" :: addl)
         let pTCliScriptModule =
-          "8a560d134ca3c70379667e004bf874ddb49bc623763490cc9f23a6c27cf138b1"
+          "33181fd8d669fbf579ac6d0e4b174d99f2be3a93ab3071e8d725d48ffcd7431b"
           |> p [] "PTCliScriptModule"
 
 
     module RuntimeTypes =
       let private p addl = p ("RuntimeTypes" :: addl)
+
+      let contentHash =
+        "647a721ce3543dd4763a1ffec5edc4aacaefd814d9edbc63a62e2f23a83e500c"
+        |> p [] "ContentHash"
+
       module FQTypeName =
         let private p addl = p ("FQTypeName" :: addl)
         let package =
-          "8092fe01b9ce31a49ce380fc2fe1ee6b6b7d5c15c5f1ecb6ad98c60c4273a435"
+          "6c3786ef4c88c87f3adcaced1c7be56a3bab4441b68dea13ace4f49dd412b221"
           |> p [] "Package"
         let fqTypeName =
-          "593dbef1b81d45243efe5c73d94b13caaa337425de5884e2e2fd39ecaaf7d0c7"
+          "ea1a4c449ce36404904c4d025ffea5a6479b02894afebf63d3f53d2b2358edd7"
           |> p [] "FQTypeName"
 
       module FQValueName =
@@ -201,7 +206,7 @@ module Type =
           "bd575864526cda832d5e94fa3e827d98681766f1ecb8885e0b5dac1af0cde23a"
           |> p [] "Builtin"
         let fqValueName =
-          "95bdec1ebde43fe053994ba303fc007a0d3255c4c1a34a72340ebe6c97df9204"
+          "d77fea1769eaea1113585d613124fbf8462e2b96fdd72962a2bf1e3740fe8dbf"
           |> p [] "FQValueName"
 
       module FQFnName =
@@ -210,7 +215,7 @@ module Type =
           "bd575864526cda832d5e94fa3e827d98681766f1ecb8885e0b5dac1af0cde23a"
           |> p [] "Builtin"
         let fqFnName =
-          "95bdec1ebde43fe053994ba303fc007a0d3255c4c1a34a72340ebe6c97df9204"
+          "d77fea1769eaea1113585d613124fbf8462e2b96fdd72962a2bf1e3740fe8dbf"
           |> p [] "FQFnName"
 
       let nameResolutionError =
@@ -221,7 +226,7 @@ module Type =
         |> p [] "NameResolution"
 
       let typeReference =
-        "3e01ed7c66abe2152f3d1f92cc5f7ad3d16dafda0b4222d8038e07615585203e"
+        "24d0357bf07607b1da5a6487dd0f7d0634064b5e1f3103e70b6f07d524ade4c9"
         |> p [] "TypeReference"
       let letPattern =
         "490a27236fb548b21d2ddd743c1bdeada212a75b0c33dd1f8cc0eb5873fb9fe8"
@@ -234,23 +239,23 @@ module Type =
         |> p [] "StringSegment"
 
       let dval =
-        "45dd9d48f6c0e0364884ed1a3b85446ed9761f0bd95885c4d08b71d2b2963e1d"
+        "505c12170c2e57c167f35b02f404c5ff9c9fa786066bfbf741090b8fef3876b4"
         |> p [] "Dval"
       let knownType =
-        "2faeeff43f773ba4b522ca9346961148e3f65134039c06e8f47cb927d5abc5dc"
+        "3167b287baedfa63d85529ce7cf4209a5eeade19650c061deececd715ed93b8f"
         |> p [] "KnownType"
       let valueType =
-        "58f6ec12f38c83245126422a4d81032ea743e07bb53acb3548c8ef2cdfa3154b"
+        "4ca559c40352d23747502e9895b89f361bec29078f4e20cda9a85ebb373c1fb3"
         |> p [] "ValueType"
 
       let applicableNamedFn =
-        "03410751eaa6d062191f2440b1b0a5a34e7c0d8a94aef504be66f314aa947b26"
+        "c8f0fa40c69da74949e74f04a082fb8c5c93ed504f194ed7ce06c94f55c7bac7"
         |> p [] "ApplicableNamedFn"
       let applicableLambda =
-        "527ca58594e3389c02f00f9d7785f5b49e35db0d6b4eedadaa4d678b8ccc1ecf"
+        "1035e8af20c9ce12e9baa78593aabe30ec38f9d3abd7be5242fd629368e07c7d"
         |> p [] "ApplicableLambda"
       let applicable =
-        "45aad3685f9e5913f68339e1c5c7c73cc13e53019adb675053d995713e7879f3"
+        "5a6fd2eeeaf169b7cdbe5b3c52a2c8f34837df05670d9bb422f6f442667a5b6c"
         |> p [] "Applicable"
 
 
@@ -259,7 +264,7 @@ module Type =
 
         module Bools =
           let error =
-            "2c4fec5380d7bd949189388a3a5b9268880e5252f378e559266f005b8731bbb6"
+            "ce2b9beedab8cc8d2313a7505e34a6d5bfb2d6e56843ccaac45eaea943eae728"
             |> p [ "Bools" ] "Error"
 
         module Ints =
@@ -269,74 +274,74 @@ module Type =
 
         module Strings =
           let error =
-            "4065445cac4f03cc63d507749a2c9ca8bbe6f78415e9d00f847f729d3fa0e9d1"
+            "5b9e9c4cdfef8fff6876677d0a562603021df6f34b7f96dbb8e050c9dc27d6a0"
             |> p [ "Strings" ] "Error"
 
         module Lists =
           let private p addl = p ("Lists" :: addl)
           let error =
-            "14b116e589789e2effe97e598b98cb071a2f0d53cde1b80caf3c4a2ec3e9fafc"
+            "996b557c0661d0658cdd0bfdcc115ab80b21d62fa6c7bf40642999d4fb99dec9"
             |> p [] "Error"
 
         module Dicts =
           let error =
-            "011d37992ad30148858cf8c9eaf9a38cd709b020e144fa718e6ccd85b2352135"
+            "20b0c8b2e2d303465a7c34589fe4ce588b51d5296c79284cba8cf57998c14245"
             |> p [ "Dicts" ] "Error"
 
         module Lets =
           let error =
-            "ada72d1d039cc23504898933b705da3d2537e8cd5618812e6105daaa2973eccb"
+            "6409a3289e80a52984bbc3ddee80a901351eb4acc700605b96f7e6a99e08f30d"
             |> p [ "Lets" ] "Error"
 
         module Matches =
           let error =
-            "c31d81b343ba5debb1cfdc9977f8908c1280d6ad40bf09430142534f6bd9c981"
+            "9eb3751ff348aef1eaa34849aaf42e92d66ca3b0fdd091b0efefbd33667bb090"
             |> p [ "Matches" ] "Error"
 
         module Enums =
           let error =
-            "533b70051f6898c01e017f37b668be277818aa4d97321b71b958136fe89c6f69"
+            "a0e83770db9a3ac712ba3f36f8518ac37914870e0adc3140d24a88bf19ce5fa0"
             |> p [ "Enums" ] "Error"
 
         module Records =
           let error =
-            "71a94d192184bfe7350fbce77baf53ed319802c31f7722bf18c40b14ef934e88"
+            "05c6f433673cbb16c6b3a67853f5ec2d876d3b5954e35cbb49d2d2b249889ac2"
             |> p [ "Records" ] "Error"
 
         module Applications =
           let error =
-            "45d69d587df92aba8ffb29f195aa4443287557c1e509518484911fb46214ab31"
+            "e22dce3fa3419b82c15fcc64db9d71731ff77c69f52df80d6c3d7b60fabb3f30"
             |> p [ "Applications" ] "Error"
 
         module Statements =
           let error =
-            "5f27ed0633c2da02ce7209f502dd6e9b81cc26ad8153843dc7942475ae0544e4"
+            "a9de23ae9af0ae26c3fe0f12552a8cd1c472eaef45c0714de1c529dbe7201279"
             |> p [ "Statements" ] "Error"
 
         module Unwraps =
           let error =
-            "f26d39705defad33988746197a9e671c442dd167d10d62ebcb1968eb479945a4"
+            "ef642be9c8aba0843257432d5c15c49c29ef5ea3b7c20d6230f6719c1019a96e"
             |> p [ "Unwraps" ] "Error"
 
         module Jsons =
           let error =
-            "4481deccfef0f84cbb36d6fd0223a866d68af44220c9f346da16ee8b4213c7a9"
+            "b2228404bf9dd81342e1703b901aaecd5ef7c5576a17836b0f54c87ab9c15848"
             |> p [ "Jsons" ] "Error"
 
         module CLIs =
           let error =
-            "ecc74d38cd91b77efe57dc67d3957ed361676bc89fc1e6c05a87bb655cff0594"
+            "46129ff3f211b74493307bdc093c6cbff2ce72e1ff53b8414c8f042838b46a69"
             |> p [ "CLIs" ] "Error"
 
         let error =
-          "99ebdfc7df009829301853d2038c3cf5b4ddc5d1c69cd018487fe3cb7febdc58"
+          "6577110343da270c01b34bad15f5fd112478d42a6fd10c1702afdb5794e47fac"
           |> p [] "Error"
 
     module ProgramTypes =
       let private p addl = p ("ProgramTypes" :: addl)
 
       let contentHash =
-        "8092fe01b9ce31a49ce380fc2fe1ee6b6b7d5c15c5f1ecb6ad98c60c4273a435"
+        "647a721ce3543dd4763a1ffec5edc4aacaefd814d9edbc63a62e2f23a83e500c"
         |> p [] "ContentHash"
 
       let nameResolutionError =
@@ -350,10 +355,10 @@ module Type =
       module FQTypeName =
         let private p addl = p ("FQTypeName" :: addl)
         let package =
-          "8092fe01b9ce31a49ce380fc2fe1ee6b6b7d5c15c5f1ecb6ad98c60c4273a435"
+          "6c3786ef4c88c87f3adcaced1c7be56a3bab4441b68dea13ace4f49dd412b221"
           |> p [] "Package"
         let fqTypeName =
-          "593dbef1b81d45243efe5c73d94b13caaa337425de5884e2e2fd39ecaaf7d0c7"
+          "ea1a4c449ce36404904c4d025ffea5a6479b02894afebf63d3f53d2b2358edd7"
           |> p [] "FQTypeName"
 
       module FQValueName =
@@ -362,7 +367,7 @@ module Type =
           "bd575864526cda832d5e94fa3e827d98681766f1ecb8885e0b5dac1af0cde23a"
           |> p [] "Builtin"
         let fqValueName =
-          "95bdec1ebde43fe053994ba303fc007a0d3255c4c1a34a72340ebe6c97df9204"
+          "d77fea1769eaea1113585d613124fbf8462e2b96fdd72962a2bf1e3740fe8dbf"
           |> p [] "FQValueName"
 
       module FQFnName =
@@ -371,11 +376,11 @@ module Type =
           "bd575864526cda832d5e94fa3e827d98681766f1ecb8885e0b5dac1af0cde23a"
           |> p [] "Builtin"
         let fqFnName =
-          "95bdec1ebde43fe053994ba303fc007a0d3255c4c1a34a72340ebe6c97df9204"
+          "d77fea1769eaea1113585d613124fbf8462e2b96fdd72962a2bf1e3740fe8dbf"
           |> p [] "FQFnName"
 
       let typeReference =
-        "7b125e2ee86f8eb978c01b2b59268f1d61c38f33f37154a8aa5462df19bd4af2"
+        "f4e39ed39e48e03205117fd2d970055ac7e1de943efe32a7ae1e323dbb9ccd82"
         |> p [] "TypeReference"
 
       let letPattern =
@@ -385,10 +390,10 @@ module Type =
         "8cbb963c52eecc0ef51692d9991e7c010812c6448b172b4af8db70e3b38171fd"
         |> p [] "MatchPattern"
       let matchCase =
-        "73647cea52ab37f274f8483cac1e4ad1545c41d9837dfe6431b9524bd1355bbc"
+        "efcd4f3f42c628093e5c91a9a3a0e1848f0a41a7f9e8b2dfdbfe242a8f79f5cc"
         |> p [] "MatchCase"
       let stringSegment =
-        "b613711b5c977f9c4a3ddb48954283409640b69f4ca4fd2019257d9ed7576f56"
+        "86eaa93bc696be49b5364f28639578af59bb87db370d5d9c58ac5e4824e9d0dc"
         |> p [] "StringSegment"
       let binaryOperation =
         "94a439540f7cd066316843e3124648fec75d8e650b7256bb08d428ec0f9d1b5e"
@@ -400,10 +405,10 @@ module Type =
         "5d7718518eae19f5a08888b7f211fddf2c4ac4f8822454ff789750d705e37979"
         |> p [] "Infix"
       let pipeExpr =
-        "9577329df15f0255e738e24116847b85cf31217a7a1a98c39a0e8ff6ce03d917"
+        "e239c8f1d20fdbfe704d21ed952beddf81b79cb1ad6c7c559b96bdeb62a205e0"
         |> p [] "PipeExpr"
       let expr =
-        "e6cb6d2c1219dda2e0b06e641fee4370867f51f5ce72ade773813a267a26c513"
+        "09b8f8b1fcf41c11d185833930d46856044c7864b48d666813cb64a377e2b5c2"
         |> p [] "Expr"
 
       let deprecation =
@@ -420,40 +425,40 @@ module Type =
       module TypeDeclaration =
         let private p addl = p ("TypeDeclaration" :: addl)
         let recordField =
-          "b1b77c46cf5a190630f3114037828193736fd2440dd2503cb3c5b3156b361453"
+          "86fde2d0b203cfd97ca8aa60eb480aac720870765875d956d3fad65260bde8d1"
           |> p [] "RecordField"
         let enumField =
-          "f6b386314c9d99715cf24ab0d9a543580302be25719e7123a92c77ce1eb1b490"
+          "0bfec4b32eabf055fd61d13695c1a6e81215101a9cc12dc962aa1ea2af1ac268"
           |> p [] "EnumField"
         let enumCase =
-          "f05132a9f1a01079e110f2dd716d5b805f5c9f8938e585873087bd157b852986"
+          "a610aaf85898b9abf1f04ee7146468c81b15ac29d0edd75242c9ee96539a2de5"
           |> p [] "EnumCase"
         let definition =
-          "f5346abc23fb2f9fcd41964b6695f79e7db0d1d0282be6816641ab3eda7b286d"
+          "c47c39c9a35986b14268678e6d8618ae92670ba65c391d66b036a7b645fafada"
           |> p [] "Definition"
         let typeDeclaration =
-          "7bf0edb27b606d9ef0a70339d0ab02a1fedc7ab6744551bd42fe7cca0f8deb9f"
+          "0cd7cfb31660f202fd80fac0a16a9188e0cf7f42f69bc71479ba28026a0263e8"
           |> p [] "TypeDeclaration"
 
       module PackageType =
         let private p addl = p ("PackageType" :: addl)
         let packageType =
-          "a7b1638022e3a52f99608824dc24b2d43b27b69a940c5705b5fa1c17ac9b7a97"
+          "e40e85501105924d7f0ea2fd7be8aaf7de0e681ae8766a93ff23c63f96357ad1"
           |> p [] "PackageType"
 
       module PackageValue =
         let private p addl = p ("PackageValue" :: addl)
         let packageValue =
-          "3e6690848e90934ec0b54a3d4836b256c290d155c1430ca194084e3af60d8b55"
+          "5720274623f8edee4c3603b4a4cfef5c9e9bc7cb683c0a7f91f5081f2a1ec818"
           |> p [] "PackageValue"
 
       module PackageFn =
         let private p addl = p ("PackageFn" :: addl)
         let parameter =
-          "b1b77c46cf5a190630f3114037828193736fd2440dd2503cb3c5b3156b361453"
+          "86fde2d0b203cfd97ca8aa60eb480aac720870765875d956d3fad65260bde8d1"
           |> p [] "Parameter"
         let packageFn =
-          "48badb6834c1160b15bab0e922643d64cd02d1cb8b1253a298bac57fcb7844a5"
+          "8400cd7fc39b65267dab4165a953ad60ec0c89a6480d25208c14b6abf4a0583f"
           |> p [] "PackageFn"
 
       module Search =
@@ -468,24 +473,24 @@ module Type =
           "854b4d7e83fd11abeada159881bda7adfc1b6596220da9f564779d0ff221e453"
           |> p [] "SearchQuery"
         let searchResults =
-          "2c8aec01c7e9011b08965504bb9538a8e1b0fb5c89d882cbe2cf214dea0d2578"
+          "dcc04f0f19fad37326849140b9b7d298bb7c23bfcf78b9bdb03405254edaef69"
           |> p [] "SearchResults"
 
       let packageOp =
-        "d09c4e42fd19399047304a92e0127e0ad009e7989537200cd1ca1107cd7c184e"
+        "574523dd30a02156f25e0e599adf2ee4327e50b6dfe635940fe19b83251ad932"
         |> p [] "PackageOp"
       let itemKind =
         "642ec69245ff338e71dae980d8c7b1cac623b6b49fdd92375df3f90d06cc862f"
         |> p [] "ItemKind"
       let propagateRepoint =
-        "e547cf6954711fccc03281d5eaaaa44695d3490f1a30b0fa84ba3b4c8cb53425"
+        "f27add8bc029c2dfec1d38e680fcafa0a8462785c4215fc4a6aa1d87f171711d"
         |> p [] "PropagateRepoint"
 
       let secret =
         "e48530853244d328a390b20a02e568c0782e0e65e6a9e78ae41cfa26c1461527"
         |> p [] "Secret"
       let db =
-        "09b6f46f05cdfabc3c13fdcb2620e6e41642aa933e7f60f4b9c2e42b99d69d0a"
+        "8959f06e26a32d744cf2604ae9757db5d2fb2ebe6e19211af948ec8eaf419de0"
         |> p [] "DB"
 
       module Handler =
@@ -497,7 +502,7 @@ module Type =
           "30d826f29e292f9e7db4c4ab184c619017f8fbd36463bea8f10b627f06aeae00"
           |> p [] "Spec"
         let handler =
-          "04e1af2c3cc2c2555d61481ef3febe6cb393d96d60545a7dcb54629b07d7651c"
+          "3edf2e3b99307b6aa43f52cfa69c8d33282e295bc2bfb304342a696d4c18ee74"
           |> p [] "Handler"
 
   module PrettyPrinter =
@@ -583,17 +588,17 @@ module Fn =
     module Parser =
       let private p addl = p ("Parser" :: addl)
       let parsePTExpr =
-        "38c347f32f7c4ab838bcd1509740a6452fee43695386917b72ba20187950e7ed"
+        "6d7b792909b697bc16da8b10052e0687e879d580e5d4e770e5f30f0547455858"
         |> p [ "TestParsing" ] "parsePTExpr"
 
       let parsePTSourceFileWithOps =
-        "2dc1c6242c880b763438e5892c33f710d855517c148c8443299579de0fdbaff9"
+        "73bef382f69c36633670f0efd1b2144bc663e326d3026add295a8310c448c9ee"
         |> p [ "TestParsing" ] "parsePTSourceFileWithOps"
 
       module CliScript =
         let private p addl = p ("CliScript" :: addl)
         let parseForCli =
-          "a755d091ad133e5accb48c2dfa4da2f81c0ec0e3fd61b0bbb96e0155829f4d4a"
+          "b24d677b38ce9829d863cdb1ef6353dc85c1e73f06534f325e75a9f42d9073d6"
           |> p [] "parseForCli"
 
   module PrettyPrinter =
@@ -601,39 +606,39 @@ module Fn =
     module RuntimeTypes =
       let private p addl = p ("RuntimeTypes" :: addl)
       let dval =
-        "3092e1e709803fcbfa38833c35755d161f385e530190fdbad12d99dc92f6761e"
+        "27dc43f1c0b447fc56a0758e5d1cc9a56e0b0b06524b31b32ae6da08ca278d9e"
         |> p [] "dval"
       let fnName =
-        "7c43b7f750ee56883c61746a5f5cb42e2878d79c1998c25e5dc3f4089da14713"
+        "9723e87fb0ad3a611482f57ca7aa09356c1700f905c35694d75a6e9a32e51b9a"
         |> p [] "fnName"
       let typeReference =
-        "283fc2f25df0a3c31f99ec07dcca86769513fd0bc6d424f2855d23dee3da9df2"
+        "5a16babd9b658d67b37a998d92ba0d630688f350a9e0fd9bbccc50a361b4760a"
         |> p [] "typeReference"
 
       module Dval =
         let private p addl = p ("Dval" :: addl)
         let valueTypeName =
-          "ba4236bae32639615f24b9c7a32be0999d2a8c6a15a924a14ce47723818832ac"
+          "7ae9d57f7f4b8cf3e62a5bb9ddab530b8a26e52e1248745465b73f4ba144d876"
           |> p [] "valueTypeName"
 
       module RuntimeError =
         let private p addl = p ("RuntimeError" :: addl)
         let toString =
-          "cf5980dfd14c144a5e75fc4be0c1918b667d172700bb93ef9292fc18e5dba8a3"
+          "2e93aa55061ff9c09c662a613df2307e31cb382adc97ce729212f4db7428eb5b"
           |> p [] "toString"
         let toErrorMessage =
-          "35309aed7e05bdeac8e53b970078b47b13ddd5758157bd788b642ca5a1febfc2"
+          "679c2753ad53b18b4e925ddf89a6cebaed7583ed01b60132cb9b539e097b7c05"
           |> p [] "toErrorMessage"
 
     module ProgramTypes =
       let private p addl = p ("ProgramTypes" :: addl)
       let sourceFile =
-        "eb85a0913ca5686b50e3bce441e9e2f84dd5d7f4f1a93105c3b2f278ebe05160"
+        "6d152b9c65894bddf2dbac578073773fc805097aa09dfba2feb5d3ce00bf1ec2"
         |> p [] "sourceFile"
 
   module Cli =
     let executeCliCommand =
-      "466960e20e328e3a7326d6931b2b2cbbb412abcb7a2792f09461bc2c907a6e3e"
+      "961a55337d50cb7aa5b7279c74bde3f22ec8c83138b435b947aa823328f31349"
       |> p [ "Cli" ] "executeCliCommand"
 
   module Internal =
@@ -641,5 +646,5 @@ module Fn =
     module Test =
       let private p addl = p ("Test" :: addl)
       let parseSingleTestFromFile =
-        "196585aa881800bd014c5f9650a72abb93d207a86d592cd0f1e144b45361a88a"
+        "fc7c9beb4b09c703689c0213e91ece6c295743545c743902a48817d97bee3deb"
         |> p [] "parseSingleTestFromFile"

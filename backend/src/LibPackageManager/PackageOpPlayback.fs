@@ -248,15 +248,15 @@ let private applyOp
     | PT.PackageOp.AddType typ -> do! applyAddType typ
     | PT.PackageOp.AddValue value -> do! applyAddValue value
     | PT.PackageOp.AddFn fn -> do! applyAddFn fn
-    | PT.PackageOp.SetTypeName(id, loc) ->
-      let isRename = not (Set.contains id addedHashes)
-      do! applySetName branchId commitHash isRename id loc PT.ItemKind.Type
-    | PT.PackageOp.SetValueName(id, loc) ->
-      let isRename = not (Set.contains id addedHashes)
-      do! applySetName branchId commitHash isRename id loc PT.ItemKind.Value
-    | PT.PackageOp.SetFnName(id, loc) ->
-      let isRename = not (Set.contains id addedHashes)
-      do! applySetName branchId commitHash isRename id loc PT.ItemKind.Fn
+    | PT.PackageOp.SetTypeName(hash, loc) ->
+      let isRename = not (Set.contains hash addedHashes)
+      do! applySetName branchId commitHash isRename hash loc PT.ItemKind.Type
+    | PT.PackageOp.SetValueName(hash, loc) ->
+      let isRename = not (Set.contains hash addedHashes)
+      do! applySetName branchId commitHash isRename hash loc PT.ItemKind.Value
+    | PT.PackageOp.SetFnName(hash, loc) ->
+      let isRename = not (Set.contains hash addedHashes)
+      do! applySetName branchId commitHash isRename hash loc PT.ItemKind.Fn
     | PT.PackageOp.PropagateUpdate _ ->
       // Location changes are already handled by the individual SetFnName/SetTypeName/
       // SetValueName ops that accompany this op in the propagation batch.

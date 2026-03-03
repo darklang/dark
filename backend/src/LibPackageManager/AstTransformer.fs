@@ -9,8 +9,8 @@ module PT = LibExecution.ProgramTypes
 
 type HashMapping = Map<ContentHash, ContentHash>
 
-let private replaceHash (mapping : HashMapping) (id : ContentHash) : ContentHash =
-  mapping |> Map.tryFind id |> Option.defaultValue id
+let private replaceHash (mapping : HashMapping) (hash : ContentHash) : ContentHash =
+  mapping |> Map.tryFind hash |> Option.defaultValue hash
 
 let private transformNameResolution
   (mapping : HashMapping)
@@ -21,26 +21,26 @@ let private transformNameResolution
   match nr.resolved with
   | Ok resolved ->
     match getPackageId resolved with
-    | Some id ->
-      let newId = replaceHash mapping id
-      if newId = id then nr else { nr with resolved = Ok(transform newId) }
+    | Some hash ->
+      let newHash = replaceHash mapping hash
+      if newHash = hash then nr else { nr with resolved = Ok(transform newHash) }
     | None -> nr
   | Error _ -> nr
 
-let private getFnPackageId (fn : PT.FQFnName.FQFnName) : Option<ContentHash> =
+let private getFnPackageHash (fn : PT.FQFnName.FQFnName) : Option<ContentHash> =
   match fn with
-  | PT.FQFnName.Package id -> Some id
+  | PT.FQFnName.Package hash -> Some hash
   | PT.FQFnName.Builtin _ -> None
 
-let private getTypePackageId (typ : PT.FQTypeName.FQTypeName) : Option<ContentHash> =
+let private getTypePackageHash (typ : PT.FQTypeName.FQTypeName) : Option<ContentHash> =
   match typ with
-  | PT.FQTypeName.Package id -> Some id
+  | PT.FQTypeName.Package hash -> Some hash
 
-let private getValuePackageId
+let private getValuePackageHash
   (value : PT.FQValueName.FQValueName)
   : Option<ContentHash> =
   match value with
-  | PT.FQValueName.Package id -> Some id
+  | PT.FQValueName.Package hash -> Some hash
   | PT.FQValueName.Builtin _ -> None
 
 let rec private transformTypeRef
@@ -81,7 +81,7 @@ let rec private transformTypeRef
 
   | PT.TCustomType(nr, typeArgs) ->
     PT.TCustomType(
-      transformNameResolution mapping nr PT.FQTypeName.Package getTypePackageId,
+      transformNameResolution mapping nr PT.FQTypeName.Package getTypePackageHash,
       typeArgs |> List.map (transformTypeRef mapping)
     )
 
@@ -141,7 +141,7 @@ and private transformPipeExpr
   | PT.EPipeFnCall(id, nr, typeArgs, args) ->
     PT.EPipeFnCall(
       id,
-      transformNameResolution mapping nr PT.FQFnName.Package getFnPackageId,
+      transformNameResolution mapping nr PT.FQFnName.Package getFnPackageHash,
       typeArgs |> List.map (transformTypeRef mapping),
       args |> List.map (transformExpr mapping)
     )
@@ -149,7 +149,7 @@ and private transformPipeExpr
   | PT.EPipeEnum(id, nr, caseName, fields) ->
     PT.EPipeEnum(
       id,
-      transformNameResolution mapping nr PT.FQTypeName.Package getTypePackageId,
+      transformNameResolution mapping nr PT.FQTypeName.Package getTypePackageHash,
       caseName,
       fields |> List.map (transformExpr mapping)
     )
@@ -229,7 +229,7 @@ and private transformExpr (mapping : HashMapping) (expr : PT.Expr) : PT.Expr =
   | PT.EFnName(id, nr) ->
     PT.EFnName(
       id,
-      transformNameResolution mapping nr PT.FQFnName.Package getFnPackageId
+      transformNameResolution mapping nr PT.FQFnName.Package getFnPackageHash
     )
 
   | PT.ELambda(id, pats, body) -> PT.ELambda(id, pats, transformExpr mapping body)
@@ -240,7 +240,7 @@ and private transformExpr (mapping : HashMapping) (expr : PT.Expr) : PT.Expr =
   | PT.ERecord(id, nr, typeArgs, fields) ->
     PT.ERecord(
       id,
-      transformNameResolution mapping nr PT.FQTypeName.Package getTypePackageId,
+      transformNameResolution mapping nr PT.FQTypeName.Package getTypePackageHash,
       typeArgs |> List.map (transformTypeRef mapping),
       fields |> List.map (fun (name, expr) -> (name, transformExpr mapping expr))
     )
@@ -258,7 +258,7 @@ and private transformExpr (mapping : HashMapping) (expr : PT.Expr) : PT.Expr =
   | PT.EEnum(id, nr, typeArgs, caseName, fields) ->
     PT.EEnum(
       id,
-      transformNameResolution mapping nr PT.FQTypeName.Package getTypePackageId,
+      transformNameResolution mapping nr PT.FQTypeName.Package getTypePackageHash,
       typeArgs |> List.map (transformTypeRef mapping),
       caseName,
       fields |> List.map (transformExpr mapping)
@@ -267,7 +267,7 @@ and private transformExpr (mapping : HashMapping) (expr : PT.Expr) : PT.Expr =
   | PT.EValue(id, nr) ->
     PT.EValue(
       id,
-      transformNameResolution mapping nr PT.FQValueName.Package getValuePackageId
+      transformNameResolution mapping nr PT.FQValueName.Package getValuePackageHash
     )
 
   | PT.EStatement(id, first, next) ->
@@ -284,7 +284,7 @@ let transformFn
         |> NEList.map (fun p -> { p with typ = transformTypeRef mapping p.typ })
       returnType = transformTypeRef mapping fn.returnType
       deprecated =
-        transformDeprecation mapping PT.FQFnName.Package getFnPackageId fn.deprecated }
+        transformDeprecation mapping PT.FQFnName.Package getFnPackageHash fn.deprecated }
 
 let transformValue
   (mapping : HashMapping)
@@ -296,7 +296,7 @@ let transformValue
         transformDeprecation
           mapping
           PT.FQValueName.Package
-          getValuePackageId
+          getValuePackageHash
           value.deprecated }
 
 let private transformTypeDefinition
@@ -334,5 +334,5 @@ let transformType
         transformDeprecation
           mapping
           PT.FQTypeName.Package
-          getTypePackageId
+          getTypePackageHash
           typ.deprecated }

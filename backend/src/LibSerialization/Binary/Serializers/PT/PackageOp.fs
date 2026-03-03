@@ -21,17 +21,17 @@ let write (w : BinaryWriter) (op : PackageOp) : unit =
   | PackageOp.AddFn fn ->
     w.Write(2uy)
     LibSerialization.Binary.Serializers.PT.PackageFn.write w fn
-  | PackageOp.SetTypeName(id, location) ->
+  | PackageOp.SetTypeName(hash, location) ->
     w.Write(3uy)
-    FQTypeName.Package.write w id
+    FQTypeName.Package.write w hash
     PackageLocation.write w location
-  | PackageOp.SetValueName(id, location) ->
+  | PackageOp.SetValueName(hash, location) ->
     w.Write(4uy)
-    FQValueName.Package.write w id
+    FQValueName.Package.write w hash
     PackageLocation.write w location
-  | PackageOp.SetFnName(id, location) ->
+  | PackageOp.SetFnName(hash, location) ->
     w.Write(5uy)
-    FQFnName.Package.write w id
+    FQFnName.Package.write w hash
     PackageLocation.write w location
   | PackageOp.PropagateUpdate(propagationId,
                               sourceLocation,
@@ -86,17 +86,17 @@ let read (r : BinaryReader) : PackageOp =
     let fn = LibSerialization.Binary.Serializers.PT.PackageFn.read r
     PackageOp.AddFn fn
   | 3uy ->
-    let id = FQTypeName.Package.read r
+    let hash = FQTypeName.Package.read r
     let location = PackageLocation.read r
-    PackageOp.SetTypeName(id, location)
+    PackageOp.SetTypeName(hash, location)
   | 4uy ->
-    let id = FQValueName.Package.read r
+    let hash = FQValueName.Package.read r
     let location = PackageLocation.read r
-    PackageOp.SetValueName(id, location)
+    PackageOp.SetValueName(hash, location)
   | 5uy ->
-    let id = FQFnName.Package.read r
+    let hash = FQFnName.Package.read r
     let location = PackageLocation.read r
-    PackageOp.SetFnName(id, location)
+    PackageOp.SetFnName(hash, location)
   | 6uy ->
     let propagationId = Guid.read r
     let sourceLocation = PackageLocation.read r

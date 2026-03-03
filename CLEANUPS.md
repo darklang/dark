@@ -1,9 +1,5 @@
 # Branch Cleanups: `hash-based-refs-finally`
 
-- [x] ContentHash should be in LibExe, not Prelude
-  like many other things, it may be appropriate to define this in both RT.fs and PT.fs.
-
-- [ ] in .dark, you've kinda stripped the nestedness of ContentHash and instead are using a raw String - stop that.
 
 - [ ] rename ContentHash to just Hash
   add a /// comment at `type Hash = ` to note that the type is intended to be used for hashes of the _structure_ of some other value, not relying on temporary things like the name, etc.
@@ -11,7 +7,6 @@
   contentHash->hash
   look up every other use of 'content'
   make sure no 'id' bound to one of these
-
 
 - [ ] I hate that NameLookup leaked, somehow, into ProgramTYpes.fs -- that's supposed to be for core types. why was this done? report back and tell me my options (tell me in this file)
 

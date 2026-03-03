@@ -87,29 +87,29 @@ let private getItem<'a>
   (table : string)
   (lookupColumn : string)
   (deserialize : ContentHash -> byte[] -> 'a)
-  (id : ContentHash)
+  (hash : ContentHash)
   : Ply<Option<'a>> =
   uply {
-    let (ContentHash idStr) = id
+    let (ContentHash hashStr) = hash
     return!
       Sql.query
         $"""
         SELECT pt_def
         FROM {table}
-        WHERE {lookupColumn} = @id
+        WHERE {lookupColumn} = @hash
         """
-      |> Sql.parameters [ "id", Sql.string idStr ]
+      |> Sql.parameters [ "hash", Sql.string hashStr ]
       |> Sql.executeRowOptionAsync (fun read -> read.bytes "pt_def")
-      |> Task.map (Option.map (deserialize id))
+      |> Task.map (Option.map (deserialize hash))
   }
 
 let private getItemLocation
   (itemType : string)
   (branchChain : List<PT.BranchId>)
-  (id : ContentHash)
+  (hash : ContentHash)
   : Ply<Option<PT.PackageLocation>> =
   uply {
-    let (ContentHash idStr) = id
+    let (ContentHash hashStr) = hash
     let (branchFilter, branchParams) = buildBranchFilter branchChain
     let orderBy = buildBranchOrderBy branchChain
 
@@ -125,7 +125,7 @@ let private getItemLocation
         ORDER BY {orderBy}
         LIMIT 1
         """
-      |> Sql.parameters ([ "item_hash", Sql.string idStr ] @ branchParams)
+      |> Sql.parameters ([ "item_hash", Sql.string hashStr ] @ branchParams)
       |> Sql.executeRowOptionAsync (fun read ->
         let modulesStr = read.string "modules"
         { owner = read.string "owner"
@@ -136,10 +136,10 @@ let private getItemLocation
 let private getItemLocations
   (itemType : string)
   (branchChain : List<PT.BranchId>)
-  (id : ContentHash)
+  (hash : ContentHash)
   : Ply<List<PT.PackageLocation>> =
   uply {
-    let (ContentHash idStr) = id
+    let (ContentHash hashStr) = hash
     let (branchFilter, branchParams) = buildBranchFilter branchChain
     let orderBy = buildBranchOrderBy branchChain
 
@@ -154,7 +154,7 @@ let private getItemLocations
           AND {branchFilter}
         ORDER BY {orderBy}
         """
-      |> Sql.parameters ([ "item_hash", Sql.string idStr ] @ branchParams)
+      |> Sql.parameters ([ "item_hash", Sql.string hashStr ] @ branchParams)
       |> Sql.executeAsync (fun read ->
         let modulesStr = read.string "modules"
         { owner = read.string "owner"
@@ -295,12 +295,12 @@ let search
         @ branchParams
       )
       |> Sql.executeAsync (fun read ->
-        let id = ContentHash(read.string "lookup_id")
+        let hash = ContentHash(read.string "lookup_id")
         let definition = read.bytes "pt_def"
         let owner = read.string "owner"
         let modulesStr = read.string "modules"
         let name = read.string "name"
-        let entity = deserializeFn id definition
+        let entity = deserializeFn hash definition
         let location : PT.PackageLocation =
           { owner = owner
             modules = modulesStr.Split('.') |> Array.toList

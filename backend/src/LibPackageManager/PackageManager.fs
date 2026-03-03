@@ -97,11 +97,11 @@ let createInMemory (ops : List<PT.PackageOp>) : PT.PackageManager =
   for op in ops do
     match op with
     | PT.PackageOp.AddType t -> types.Add(t)
-    | PT.PackageOp.SetTypeName(id, loc) -> typeLocations.Add(loc, id)
+    | PT.PackageOp.SetTypeName(hash, loc) -> typeLocations.Add(loc, hash)
     | PT.PackageOp.AddValue v -> values.Add(v)
-    | PT.PackageOp.SetValueName(id, loc) -> valueLocations.Add(loc, id)
+    | PT.PackageOp.SetValueName(hash, loc) -> valueLocations.Add(loc, hash)
     | PT.PackageOp.AddFn f -> fns.Add(f)
-    | PT.PackageOp.SetFnName(id, loc) -> fnLocations.Add(loc, id)
+    | PT.PackageOp.SetFnName(hash, loc) -> fnLocations.Add(loc, hash)
 
     // After propagation, dependents have new hashes.
     // For each repoint, update the location to point to toHash (the new version)

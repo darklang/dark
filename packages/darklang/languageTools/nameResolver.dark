@@ -140,8 +140,8 @@ module TypeName =
             name = name.name }
 
       match pm.findType (branchId, location) with
-      | Some id ->
-        (ProgramTypes.FQTypeName.FQTypeName.Package id)
+      | Some hash ->
+        (ProgramTypes.FQTypeName.FQTypeName.Package hash)
         |> Stdlib.Result.Result.Ok
       | None -> Stdlib.Result.Result.Error()
 
@@ -185,8 +185,8 @@ module ValueName =
               name = name.name }
 
         match pm.findValue (branchId, location) with
-        | Some id ->
-          (ProgramTypes.FQValueName.FQValueName.Package id)
+        | Some hash ->
+          (ProgramTypes.FQValueName.FQValueName.Package hash)
           |> Stdlib.Result.Result.Ok
         | None -> Stdlib.Result.Result.Error()
 
@@ -226,8 +226,8 @@ module FnName =
               name = name.name }
 
         match pm.findFn (branchId, location) with
-        | Some id ->
-          (ProgramTypes.FQFnName.FQFnName.Package id)
+        | Some hash ->
+          (ProgramTypes.FQFnName.FQFnName.Package hash)
           |> Stdlib.Result.Result.Ok
         | None -> Stdlib.Result.Result.Error()
 

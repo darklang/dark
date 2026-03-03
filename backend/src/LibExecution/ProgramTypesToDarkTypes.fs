@@ -31,11 +31,17 @@ module Sign =
 
 
 module ContentHash =
-  let toDT (PT.ContentHash h) : Dval = DString h
+  let typeName =
+    FQTypeName.fqPackage PackageRefs.Type.LanguageTools.ProgramTypes.contentHash
+
+  let knownType = KTCustomType(typeName, [])
+
+  let toDT (PT.ContentHash h) : Dval =
+    DEnum(typeName, typeName, [], "ContentHash", [ DString h ])
 
   let fromDT (d : Dval) : PT.ContentHash =
     match d with
-    | DString h -> PT.ContentHash h
+    | DEnum(_, _, [], "ContentHash", [ DString h ]) -> PT.ContentHash h
     | _ -> Exception.raiseInternal "Invalid ContentHash" []
 
 
@@ -1538,7 +1544,10 @@ module PackageOp =
         [ DUuid propagationId
           PackageLocation.toDT sourceLocation
           ItemKind.toDT sourceItemKind
-          DList(VT.string, List.map ContentHash.toDT fromSourceHashes)
+          DList(
+            VT.known ContentHash.knownType,
+            List.map ContentHash.toDT fromSourceHashes
+          )
           ContentHash.toDT toSourceHash
           DList(
             VT.known PropagateRepoint.knownType,

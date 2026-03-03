@@ -83,8 +83,8 @@ let getDBFieldNames
   | Ok loc ->
     match Builtin.pmFindType state.currentBranchId loc with
     | None -> []
-    | Some typeId ->
-      match Builtin.pmGetType typeId with
+    | Some typeHash ->
+      match Builtin.pmGetType typeHash with
       | None -> []
       | Some pkgType ->
         match pkgType.declaration.definition with
@@ -361,8 +361,8 @@ let createDB (state: Cli.AppState) (dbName: String) (typeName: String) : Cli.App
         Stdlib.printLine "Make sure the type exists before creating a database for it."
         state
 
-      | Some typeID ->
-        match Builtin.darkInternalCanvasDBCreate canvasID dbName typeID with
+      | Some typeHash ->
+        match Builtin.darkInternalCanvasDBCreate canvasID dbName typeHash with
         | Ok tlid ->
           let fullTypeName =
             PrettyPrinter.ProgramTypes.PackageLocation.packageLocation typeLocation
