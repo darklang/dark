@@ -130,8 +130,8 @@ module StatusBar =
     let terminalHeight = Terminal.getHeight ()
     // Reset scroll region and clear the status bar line
     Stdlib.print
-      (Colors.resetScrollRegion
-       ++ Colors.saveCursor
+      (Colors.saveCursor
+       ++ Colors.resetScrollRegion
        ++ Colors.moveCursorTo terminalHeight 1L
        ++ Colors.clearLine
        ++ Colors.restoreCursor)
@@ -424,6 +424,12 @@ module Commands =
 
 
 let handleKeyInput (state: AppState) (key: Stdlib.Cli.Stdin.Key.Key) (modifiers: Stdlib.Cli.Stdin.Modifiers.Modifiers) (keyChar: Stdlib.Option.Option<String>) : AppState =
+  // Ctrl+C exits from any page
+  if modifiers.ctrl && key == Stdlib.Cli.Stdin.Key.Key.C then
+    Stdlib.printLine ""
+    { state with isExiting = true }
+  else
+
   match state.currentPage with
   | MainPrompt ->
     // Normal command mode key handling

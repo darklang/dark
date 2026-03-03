@@ -23,8 +23,10 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, _, _, [ DUnit ] ->
-          // CLEANUP rename cki to something better
+          // Treat Ctrl+C as input so the Dark code can handle it gracefully
+          Console.TreatControlCAsInput <- true
           let readKey = Console.ReadKey true
+          Console.TreatControlCAsInput <- false
 
           let altHeld =
             (readKey.Modifiers &&& ConsoleModifiers.Alt) <> ConsoleModifiers.None
