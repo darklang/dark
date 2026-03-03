@@ -7,6 +7,7 @@ open TestUtils.TestUtils
 open TestUtils.PTShortcuts
 
 module PT = LibExecution.ProgramTypes
+module PackageLocation = LibPackageManager.PackageLocation
 open LibSerialization.Hashing
 
 
@@ -221,7 +222,10 @@ let tests =
         [ test "same location gives same FQN" {
             let loc : PT.PackageLocation =
               { owner = "Test"; modules = [ "Mod" ]; name = "Foo" }
-            Expect.equal (loc.toFQN ()) (loc.toFQN ()) "FQN should be deterministic"
+            Expect.equal
+              (PackageLocation.toFQN loc)
+              (PackageLocation.toFQN loc)
+              "FQN should be deterministic"
           }
 
           test "different locations give different FQNs" {
@@ -230,8 +234,8 @@ let tests =
             let loc2 : PT.PackageLocation =
               { owner = "Test"; modules = [ "Mod" ]; name = "Bar" }
             Expect.notEqual
-              (loc1.toFQN ())
-              (loc2.toFQN ())
+              (PackageLocation.toFQN loc1)
+              (PackageLocation.toFQN loc2)
               "different names should differ"
           }
 
@@ -239,7 +243,7 @@ let tests =
             let loc : PT.PackageLocation =
               { owner = "Darklang"; modules = [ "Stdlib"; "List" ]; name = "map" }
             Expect.equal
-              (loc.toFQN ())
+              (PackageLocation.toFQN loc)
               "Darklang.Stdlib.List.map"
               "FQN should be owner.modules.name"
           }
@@ -247,7 +251,7 @@ let tests =
           test "FQN-based SHA-256 produces valid hash" {
             let loc : PT.PackageLocation =
               { owner = "Test"; modules = [ "Mod" ]; name = "Foo" }
-            let nameKey = loc.toFQN ()
+            let nameKey = PackageLocation.toFQN loc
             let nameBytes =
               System.Security.Cryptography.SHA256.HashData(
                 System.Text.Encoding.UTF8.GetBytes(nameKey)

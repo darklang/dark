@@ -12,6 +12,7 @@ module PT = LibExecution.ProgramTypes
 module PT2DT = LibExecution.ProgramTypesToDarkTypes
 module NR = LibParser.NameResolver
 module HS = LibPackageManager.HashStabilization
+module PackageLocation = LibPackageManager.PackageLocation
 
 open Utils
 
@@ -92,10 +93,12 @@ let load (builtins : RT.Builtins) : Ply<List<PT.PackageOp>> =
         let itemLocs =
           newOps
           |> List.choose (function
-            | PT.PackageOp.SetTypeName(hash, loc) -> Some(hash, "type", loc.toFQN ())
-            | PT.PackageOp.SetFnName(hash, loc) -> Some(hash, "fn", loc.toFQN ())
+            | PT.PackageOp.SetTypeName(hash, loc) ->
+              Some(hash, "type", PackageLocation.toFQN loc)
+            | PT.PackageOp.SetFnName(hash, loc) ->
+              Some(hash, "fn", PackageLocation.toFQN loc)
             | PT.PackageOp.SetValueName(hash, loc) ->
-              Some(hash, "value", loc.toFQN ())
+              Some(hash, "value", PackageLocation.toFQN loc)
             | _ -> None)
         let changes =
           List.zip prevHashes newHashes

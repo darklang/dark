@@ -580,10 +580,6 @@ type PackageLocation =
     modules : List<string>
     name : string }
 
-  member this.toFQN() : string =
-    let modulesStr = this.modules |> String.concat "."
-    $"{this.owner}.{modulesStr}.{this.name}"
-
 module PackageType =
   // CLEANUP most of the time, the deprecation status isn't a useful thing in F# land.
   // We can (largely) migrate the Deprecation (action) of something, and trim this down to what matters: just the declaration

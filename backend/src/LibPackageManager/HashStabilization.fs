@@ -64,21 +64,21 @@ let computeRealHashes (ops : List<PT.PackageOp>) : List<PT.PackageOp> =
     | PT.PackageOp.SetTypeName(hash, loc) ->
       match pendingType with
       | Some t ->
-        types.Add((hash, t, loc.toFQN ()))
+        types.Add((hash, t, PackageLocation.toFQN loc))
         pendingType <- None
       | None -> ()
     | PT.PackageOp.AddFn f -> pendingFn <- Some f
     | PT.PackageOp.SetFnName(hash, loc) ->
       match pendingFn with
       | Some f ->
-        fns.Add((hash, f, loc.toFQN ()))
+        fns.Add((hash, f, PackageLocation.toFQN loc))
         pendingFn <- None
       | None -> ()
     | PT.PackageOp.AddValue v -> pendingValue <- Some v
     | PT.PackageOp.SetValueName(hash, loc) ->
       match pendingValue with
       | Some v ->
-        values.Add((hash, v, loc.toFQN ()))
+        values.Add((hash, v, PackageLocation.toFQN loc))
         pendingValue <- None
       | None -> ()
     | _ -> ()
@@ -156,7 +156,8 @@ let computeRealHashes (ops : List<PT.PackageOp>) : List<PT.PackageOp> =
     match remaining with
     | PT.PackageOp.AddType t :: PT.PackageOp.SetTypeName(oldHash, loc) :: rest ->
       let newHash =
-        Map.tryFind (loc.toFQN ()) fqnHashMap |> Option.defaultValue oldHash
+        Map.tryFind (PackageLocation.toFQN loc) fqnHashMap
+        |> Option.defaultValue oldHash
       let transformed = { AT.transformType oldToNewHash t with hash = newHash }
       processOps
         rest
@@ -165,7 +166,8 @@ let computeRealHashes (ops : List<PT.PackageOp>) : List<PT.PackageOp> =
          :: acc)
     | PT.PackageOp.AddFn f :: PT.PackageOp.SetFnName(oldHash, loc) :: rest ->
       let newHash =
-        Map.tryFind (loc.toFQN ()) fqnHashMap |> Option.defaultValue oldHash
+        Map.tryFind (PackageLocation.toFQN loc) fqnHashMap
+        |> Option.defaultValue oldHash
       let transformed = { AT.transformFn oldToNewHash f with hash = newHash }
       processOps
         rest
@@ -174,7 +176,8 @@ let computeRealHashes (ops : List<PT.PackageOp>) : List<PT.PackageOp> =
          :: acc)
     | PT.PackageOp.AddValue v :: PT.PackageOp.SetValueName(oldHash, loc) :: rest ->
       let newHash =
-        Map.tryFind (loc.toFQN ()) fqnHashMap |> Option.defaultValue oldHash
+        Map.tryFind (PackageLocation.toFQN loc) fqnHashMap
+        |> Option.defaultValue oldHash
       let transformed = { AT.transformValue oldToNewHash v with hash = newHash }
       processOps
         rest

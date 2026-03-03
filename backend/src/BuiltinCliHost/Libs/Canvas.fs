@@ -13,6 +13,7 @@ module VT = LibExecution.ValueType
 module Canvas = LibCloud.Canvas
 module Serialize = LibCloud.Serialize
 module Account = LibCloud.Account
+module PackageLocation = LibPackageManager.PackageLocation
 
 
 let fns : List<BuiltInFn> =
@@ -116,12 +117,7 @@ let fns : List<BuiltInFn> =
                       uply {
                         let! locs = pm.getTypeLocations branchId typeID
                         match locs with
-                        | location :: _ ->
-                          let parts =
-                            [ location.owner ]
-                            @ location.modules
-                            @ [ location.name ]
-                          return String.concat "." parts
+                        | location :: _ -> return PackageLocation.toFQN location
                         | [] -> return typeID.ToString()
                       }
                     | _ -> Ply "unknown"

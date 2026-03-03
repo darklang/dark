@@ -19,6 +19,7 @@
     <ProjectReference Include="../LibDB/LibDB.fsproj" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="PackageLocation.fs" />
     <Compile Include="Caching.fs" />
     <Compile Include="Purge.fs" />
     <Compile Include="DependencyExtractor.fs" />

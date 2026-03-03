@@ -12,6 +12,7 @@ module PT2RT = LibExecution.ProgramTypesToRuntimeTypes
 module PT = LibExecution.ProgramTypes
 module RT = LibExecution.RuntimeTypes
 module NR = NameResolver
+module PackageLocation = LibPackageManager.PackageLocation
 open LibSerialization.Hashing
 
 open Utils
@@ -169,7 +170,7 @@ let parse
       // Each item needs a unique key so computeRealHashes' maps work correctly.
       // The real hash replaces this in LoadPackagesFromDisk.computeRealHashes.
       let nameBasedHash (loc : PT.PackageLocation) : Hash =
-        let nameKey = loc.toFQN ()
+        let nameKey = PackageLocation.toFQN loc
         let nameBytes =
           System.Security.Cryptography.SHA256.HashData(
             System.Text.Encoding.UTF8.GetBytes(nameKey)
