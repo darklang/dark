@@ -12,7 +12,7 @@ module WT = WrittenTypes
 module FS2WT = FSharpToWrittenTypes
 module WT2PT = WrittenTypesToProgramTypes
 module NR = NameResolver
-module Hashing = LibSerialization.Hashing
+open LibSerialization.Hashing
 
 open Utils
 open ParserException

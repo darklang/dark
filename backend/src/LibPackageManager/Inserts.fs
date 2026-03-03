@@ -11,12 +11,14 @@ open LibDB.Db
 
 module PT = LibExecution.ProgramTypes
 module BS = LibSerialization.Binary.Serialization
+open LibSerialization.Hashing
 
 
 /// Compute a content-addressed ID for a PackageOp.
 /// Returns a UUID derived from the ContentHash (first 16 bytes) for DB compatibility.
+/// TODO: consider whether package_ops.id should store the full content hash instead of a truncated UUID.
 let computeOpHash (op : PT.PackageOp) : System.Guid =
-  let (ContentHash h) = LibSerialization.Hashing.computeOpHash op
+  let (ContentHash h) = Hashing.computeOpHash op
   // Convert hex string back to bytes, take first 16 for UUID
   let hashBytes = System.Convert.FromHexString(h)
   System.Guid(hashBytes[0..15])
@@ -146,8 +148,8 @@ let insertAndApplyOpsWithCommit
       |> Sql.executeRowOptionAsync (fun read -> ContentHash(read.string "hash"))
 
     // Compute content-addressed commit hash
-    let opHashes = ops |> List.map LibSerialization.Hashing.computeOpHash
-    let commitHash = LibSerialization.Hashing.computeCommitHash parentHash opHashes
+    let opHashes = ops |> List.map Hashing.computeOpHash
+    let commitHash = Hashing.computeCommitHash parentHash opHashes
     let (ContentHash commitHashStr) = commitHash
 
     // Create the commit record
@@ -220,13 +222,10 @@ let commitWipOps
           |> Sql.executeRowOptionAsync (fun read -> ContentHash(read.string "hash"))
 
         // Compute op hashes
-        let opHashes =
-          wipOps
-          |> List.map (fun (_, op) -> LibSerialization.Hashing.computeOpHash op)
+        let opHashes = wipOps |> List.map (fun (_, op) -> Hashing.computeOpHash op)
 
         // Compute content-addressed commit hash
-        let commitHash =
-          LibSerialization.Hashing.computeCommitHash parentHash opHashes
+        let commitHash = Hashing.computeCommitHash parentHash opHashes
         let (ContentHash commitHashStr) = commitHash
 
         // Execute all three operations atomically:

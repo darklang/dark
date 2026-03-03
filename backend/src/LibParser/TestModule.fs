@@ -10,7 +10,7 @@ module WT2PT = WrittenTypesToProgramTypes
 module PT = LibExecution.ProgramTypes
 module RT = LibExecution.RuntimeTypes
 module NR = NameResolver
-module Hashing = LibSerialization.Hashing
+open LibSerialization.Hashing
 module HS = LibPackageManager.HashStabilization
 
 open Utils

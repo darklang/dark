@@ -7,7 +7,7 @@ open TestUtils.TestUtils
 open TestUtils.PTShortcuts
 
 module PT = LibExecution.ProgramTypes
-module Hashing = LibSerialization.Hashing
+open LibSerialization.Hashing
 
 
 // ── Helpers ──────────────────────────────────────────────────────────────

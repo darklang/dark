@@ -18,7 +18,7 @@ module RT = LibExecution.RuntimeTypes
 module PT2RT = LibExecution.ProgramTypesToRuntimeTypes
 module BS = LibSerialization.Binary.Serialization
 module DE = LibPackageManager.DependencyExtractor
-module Hashing = LibSerialization.Hashing
+open LibSerialization.Hashing
 
 
 /// Update dependencies for an item atomically.

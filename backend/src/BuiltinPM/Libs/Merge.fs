@@ -1,8 +1,5 @@
 module BuiltinPM.Libs.Merge
 
-open System.Threading.Tasks
-open FSharp.Control.Tasks
-
 open Prelude
 open LibExecution.RuntimeTypes
 

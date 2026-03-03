@@ -9,7 +9,7 @@ open Prelude
 open LibExecution.ProgramTypes
 
 module PT = LibExecution.ProgramTypes
-module Hashing = LibSerialization.Hashing
+open LibSerialization.Hashing
 
 module PMQueries = Queries
 module PMTypes = ProgramTypes

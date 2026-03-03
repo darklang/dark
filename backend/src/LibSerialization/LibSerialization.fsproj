@@ -40,7 +40,8 @@
 
     <Compile Include="Binary/Serialization.fs" />
 
-    <Compile Include="Hashing.fs" />
+    <Compile Include="Hashing/Canonical.fs" />
+    <Compile Include="Hashing/Hashing.fs" />
   </ItemGroup>
   <Import Project="..\..\.paket\Paket.Restore.targets" />
 </Project>

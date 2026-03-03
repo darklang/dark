@@ -83,7 +83,9 @@ let createInMemory (ops : List<PT.PackageOp>) : PT.PackageManager =
     | PT.PackageOp.SetTypeName(hash, loc) -> typeLocations.Add(loc, hash)
     | PT.PackageOp.SetValueName(hash, loc) -> valueLocations.Add(loc, hash)
     | PT.PackageOp.SetFnName(hash, loc) -> fnLocations.Add(loc, hash)
-    | PT.PackageOp.AddType _ | PT.PackageOp.AddValue _ | PT.PackageOp.AddFn _ -> ()
+    | PT.PackageOp.AddType _
+    | PT.PackageOp.AddValue _
+    | PT.PackageOp.AddFn _ -> ()
 
     // After propagation, dependents have new hashes.
     // For each repoint, update the location to point to toHash (the new version)

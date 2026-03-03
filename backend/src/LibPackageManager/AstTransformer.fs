@@ -32,7 +32,9 @@ let private getFnPackageHash (fn : PT.FQFnName.FQFnName) : Option<ContentHash> =
   | PT.FQFnName.Package hash -> Some hash
   | PT.FQFnName.Builtin _ -> None
 
-let private getTypePackageHash (typ : PT.FQTypeName.FQTypeName) : Option<ContentHash> =
+let private getTypePackageHash
+  (typ : PT.FQTypeName.FQTypeName)
+  : Option<ContentHash> =
   match typ with
   | PT.FQTypeName.Package hash -> Some hash
 
@@ -284,7 +286,11 @@ let transformFn
         |> NEList.map (fun p -> { p with typ = transformTypeRef mapping p.typ })
       returnType = transformTypeRef mapping fn.returnType
       deprecated =
-        transformDeprecation mapping PT.FQFnName.Package getFnPackageHash fn.deprecated }
+        transformDeprecation
+          mapping
+          PT.FQFnName.Package
+          getFnPackageHash
+          fn.deprecated }
 
 let transformValue
   (mapping : HashMapping)

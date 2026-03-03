@@ -9,7 +9,6 @@ module PT = LibExecution.ProgramTypes
 module VT = LibExecution.ValueType
 module PT2DT = LibExecution.ProgramTypesToDarkTypes
 module PackageRefs = LibExecution.PackageRefs
-module DvalDecoder = LibExecution.DvalDecoder
 
 open LibExecution.RuntimeTypes
 

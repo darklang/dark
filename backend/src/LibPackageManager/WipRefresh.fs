@@ -92,10 +92,7 @@ let refresh (pm : PT.PackageManager) (branchId : System.Guid) : Task<int64> =
         return 0L
       else
         // Count changed items (items that got a new hash)
-        let changedCount =
-          Set.difference newHashes oldHashes
-          |> Set.count
-          |> int64
+        let changedCount = Set.difference newHashes oldHashes |> Set.count |> int64
 
         // 5. Discard old WIP and re-insert updated ops
         let! discardResult = Inserts.discardWipOps branchId

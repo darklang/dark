@@ -38,7 +38,9 @@ let private getFnPackageHash (fn : PT.FQFnName.FQFnName) : Option<ContentHash> =
 
 
 /// Extract package ContentHash from FQTypeName
-let private getTypePackageHash (typ : PT.FQTypeName.FQTypeName) : Option<ContentHash> =
+let private getTypePackageHash
+  (typ : PT.FQTypeName.FQTypeName)
+  : Option<ContentHash> =
   match typ with
   | PT.FQTypeName.Package hash -> Some hash
 
