@@ -626,8 +626,7 @@ module Expr =
             match tryLetPatternFromSynPat generatedPat with
             | Some generatedLetPat ->
               let rewrittenPats =
-                (leadingPats |> List.map LetPattern.fromSynPat)
-                @ [ generatedLetPat ]
+                (leadingPats |> List.map LetPattern.fromSynPat) @ [ generatedLetPat ]
                 |> NEList.ofListUnsafe "Empty lambda args" []
               Some(WT.ELambda(id, rewrittenPats, c rhs))
             | None -> None
