@@ -90,8 +90,6 @@ module RequestError =
 type RequestResult = Result<Response, RequestError.RequestError>
 
 
-// STREAMING TYPES
-
 /// Result of initiating a streaming request (headers only, body streams later)
 type StreamingResponse = { statusCode : int; headers : Headers.T }
 
@@ -103,7 +101,8 @@ module StreamChunk =
     | Error of string
 
   let toDT (chunk : StreamChunk) : Dval =
-    let typeName = FQTypeName.fqPackage PackageIDs.Type.Stdlib.HttpClient.streamChunk
+    let typeName =
+      FQTypeName.fqPackage PackageRefs.Type.Stdlib.HttpClient.streamChunk
     let (caseName, fields) =
       match chunk with
       | Data bytes -> "Data", [ Dval.byteArrayToDvalList bytes ]
@@ -121,12 +120,12 @@ module SSEChunk =
     | Error of string
 
   let toDT (chunk : SSEChunk) : Dval =
-    let typeName = FQTypeName.fqPackage PackageIDs.Type.Stdlib.HttpClient.sseChunk
+    let typeName = FQTypeName.fqPackage PackageRefs.Type.Stdlib.HttpClient.sseChunk
     let (caseName, fields) =
       match chunk with
       | Event evt ->
         let evtTypeName =
-          FQTypeName.fqPackage PackageIDs.Type.Stdlib.HttpClient.sseEvent
+          FQTypeName.fqPackage PackageRefs.Type.Stdlib.HttpClient.sseEvent
         let evtDval =
           DRecord(
             evtTypeName,
@@ -667,16 +666,14 @@ let makeSSERequest
         let mutable totalBytes = 0L
 
         // Accumulated SSE event fields
-        let mutable dataLines = System.Collections.Generic.List<string>()
+        let mutable dataLines = ResizeArray<string>()
         let mutable eventType = ""
         let mutable lastEventId = ""
 
-        while reading do
-          let! line = reader.ReadLineAsync(cancellationToken)
-          if isNull line then
-            // EOF — dispatch any accumulated event, then Done.
-            // Per W3C SSE spec: if the data buffer is empty, the event is not dispatched.
-            // This means event/id-only frames (no data: field) are intentionally dropped.
+        /// Dispatch accumulated event if data is present, then clear for next event.
+        /// Returns false if the callback signalled early stop.
+        let dispatchEvent () =
+          task {
             if dataLines.Count > 0 then
               let data = System.String.Join("\n", dataLines)
               let evt =
@@ -684,9 +681,21 @@ let makeSSERequest
                   eventType = (if eventType = "" then "message" else eventType)
                   id = lastEventId }
               let! shouldContinue = onEvent (SSEChunk.Event evt)
-              if not shouldContinue then reading <- false
               dataLines.Clear()
               eventType <- ""
+              return shouldContinue
+            else
+              return true
+          }
+
+        while reading do
+          let! line = reader.ReadLineAsync(cancellationToken)
+          if isNull line then
+            // EOF — dispatch any accumulated event, then Done.
+            // Per W3C SSE spec: if the data buffer is empty, the event is not dispatched.
+            // This means event/id-only frames (no data: field) are intentionally dropped.
+            let! shouldContinue = dispatchEvent ()
+            if not shouldContinue then reading <- false
             if reading then reading <- false
             let! _ = onEvent SSEChunk.Done
             ()
@@ -694,19 +703,11 @@ let makeSSERequest
             totalBytes <- totalBytes + int64 line.Length
             if line = "" then
               // Empty line = event boundary
-              if dataLines.Count > 0 then
-                let data = System.String.Join("\n", dataLines)
-                let evt =
-                  { data = data
-                    eventType = (if eventType = "" then "message" else eventType)
-                    id = lastEventId }
-                let! shouldContinue = onEvent (SSEChunk.Event evt)
-                if not shouldContinue then
-                  reading <- false
-                  let! _ = onEvent SSEChunk.Done
-                  ()
-                dataLines.Clear()
-                eventType <- ""
+              let! shouldContinue = dispatchEvent ()
+              if not shouldContinue then
+                reading <- false
+                let! _ = onEvent SSEChunk.Done
+                ()
             else if line.StartsWith(":") then
               ()
             else
@@ -747,7 +748,7 @@ open LibExecution.Builtin.Shortcuts
 let private streamingRequestHandler
   (config : Configuration)
   (httpClient : HttpClient)
-  (packageFnId : System.Guid)
+  (packageFnId : string)
   (chunkToDval : 'chunk -> Dval)
   (makeRequest :
     Configuration
@@ -757,7 +758,7 @@ let private streamingRequestHandler
       -> Task<StreamingResult>)
   =
   let streamingResponseType =
-    FQTypeName.fqPackage PackageIDs.Type.Stdlib.HttpClient.streamingResponse
+    FQTypeName.fqPackage PackageRefs.Type.Stdlib.HttpClient.streamingResponse
   let responseTypeOK = KTCustomType(streamingResponseType, [])
   let responseTypeErr = KTCustomType(responseErrorType, [])
   let resultOk = Dval.resultOk responseTypeOK responseTypeErr
@@ -783,7 +784,7 @@ let private streamingRequestHandler
             | notAPair ->
               return
                 RTE.Applications.FnParameterNotExpectedType(
-                  FQFnName.Package packageFnId,
+                  FQFnName.fqPackage packageFnId,
                   2,
                   "headers",
                   VT.list (VT.tuple VT.string VT.string []),
@@ -1006,9 +1007,9 @@ let fns (config : Configuration) : List<BuiltInFn> =
             (TFn(
               NEList.singleton (
                 TCustomType(
-                  Ok(
+                  NR.ok (
                     FQTypeName.fqPackage
-                      PackageIDs.Type.Stdlib.HttpClient.streamChunk
+                      PackageRefs.Type.Stdlib.HttpClient.streamChunk
                   ),
                   []
                 )
@@ -1020,13 +1021,13 @@ let fns (config : Configuration) : List<BuiltInFn> =
       returnType =
         TypeReference.result
           (TCustomType(
-            Ok(
+            NR.ok (
               FQTypeName.fqPackage
-                PackageIDs.Type.Stdlib.HttpClient.streamingResponse
+                PackageRefs.Type.Stdlib.HttpClient.streamingResponse
             ),
             []
           ))
-          (TCustomType(Ok responseErrorType, []))
+          (TCustomType(NR.ok responseErrorType, []))
       description =
         "Make streaming HTTP call to <param uri>. Delivers raw bytes as they arrive.
         Calls <param onChunk> for each chunk of data received. Returns a <type Result>
@@ -1036,7 +1037,7 @@ let fns (config : Configuration) : List<BuiltInFn> =
         streamingRequestHandler
           config
           httpClient
-          PackageIDs.Fn.Stdlib.HttpClient.requestStreaming
+          PackageRefs.Fn.Stdlib.HttpClient.requestStreaming
           StreamChunk.toDT
           makeStreamingRequest
       sqlSpec = NotQueryable
@@ -1057,7 +1058,9 @@ let fns (config : Configuration) : List<BuiltInFn> =
             (TFn(
               NEList.singleton (
                 TCustomType(
-                  Ok(FQTypeName.fqPackage PackageIDs.Type.Stdlib.HttpClient.sseChunk),
+                  NR.ok (
+                    FQTypeName.fqPackage PackageRefs.Type.Stdlib.HttpClient.sseChunk
+                  ),
                   []
                 )
               ),
@@ -1068,13 +1071,13 @@ let fns (config : Configuration) : List<BuiltInFn> =
       returnType =
         TypeReference.result
           (TCustomType(
-            Ok(
+            NR.ok (
               FQTypeName.fqPackage
-                PackageIDs.Type.Stdlib.HttpClient.streamingResponse
+                PackageRefs.Type.Stdlib.HttpClient.streamingResponse
             ),
             []
           ))
-          (TCustomType(Ok responseErrorType, []))
+          (TCustomType(NR.ok responseErrorType, []))
       description =
         "Make SSE (Server-Sent Events) streaming HTTP call to <param uri>.
         Parses the SSE protocol and calls <param onEvent> for each parsed event.
@@ -1084,7 +1087,7 @@ let fns (config : Configuration) : List<BuiltInFn> =
         streamingRequestHandler
           config
           httpClient
-          PackageIDs.Fn.Stdlib.HttpClient.requestSSE
+          PackageRefs.Fn.Stdlib.HttpClient.requestSSE
           SSEChunk.toDT
           makeSSERequest
       sqlSpec = NotQueryable
