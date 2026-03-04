@@ -421,11 +421,9 @@ let testsFromFiles version =
 
 
 // ---------------
-// F# unit tests for streaming behavior.
-// These test the actual chunk/event content delivered via callbacks,
-// which the .test file framework cannot verify.
+// Test chunk/event content delivered via streaming callbacks
 // ---------------
-module StreamingUnit =
+module StreamingCallbackTests =
   module HC = BuiltinExecution.Libs.HttpClient
 
   let httpConfig : HC.Configuration = { HC.defaultConfig with timeoutInMs = 5000 }
@@ -497,7 +495,7 @@ module StreamingUnit =
   let expectOk (result : HC.StreamingResult) : unit =
     match result with
     | Ok _ -> ()
-    | Error e -> Expect.isTrue false $"expected Ok, got Error: {e}"
+    | Error e -> failtest $"expected Ok, got Error: {e}"
 
   let expectLastChunkIsStreamDone
     (chunks : ResizeArray<HC.StreamChunk.StreamChunk>)
@@ -533,9 +531,11 @@ module StreamingUnit =
 
         testTask "Done is delivered even with empty body" {
           let url = registerTestCase "stream-unit-done" 200 "text/plain" ""
-          let! result, chunks = collectStreamChunks url
+          let! (result, chunks : ResizeArray<HC.StreamChunk.StreamChunk>) =
+            collectStreamChunks url
           expectOk result
-          expectLastChunkIsStreamDone chunks
+          Expect.equal chunks.Count 1 "only Done chunk for empty body"
+          Expect.equal chunks[0] HC.StreamChunk.Done "the single chunk is Done"
         }
 
         testTask "early stop prevents further Data chunks" {
@@ -565,25 +565,6 @@ module StreamingUnit =
             |> Seq.length
           Expect.equal dataCount 1 "only one Data chunk after early stop"
           expectLastChunkIsStreamDone chunks
-        }
-
-        testTask "all Data chunks come before Done" {
-          let url = registerTestCase "stream-unit-ordering" 200 "text/plain" "abc"
-          let! result, chunks = collectStreamChunks url
-          expectOk result
-
-          let chunkList = chunks |> Seq.toList
-          let doneIdx =
-            chunkList |> List.findIndex (fun c -> c = HC.StreamChunk.Done)
-          chunkList
-          |> List.iteri (fun i c ->
-            match c with
-            | HC.StreamChunk.Data _ ->
-              Expect.isLessThan
-                i
-                doneIdx
-                $"Data chunk at index {i} should precede Done at {doneIdx}"
-            | _ -> ())
         } ]
 
 
@@ -596,11 +577,7 @@ module StreamingUnit =
           let body = "data: hello\n\ndata: world\n\n"
           let url = registerTestCase "sse-unit-basic" 200 "text/event-stream" body
           let! result, chunks = collectSSEChunks url
-
-          match result with
-          | Ok(r : HC.StreamingResponse) ->
-            Expect.equal r.statusCode 200 "status code"
-          | Error e -> Expect.isTrue false $"expected Ok, got Error: {e}"
+          expectOk result
 
           let events = sseEvents chunks
           Expect.equal events.Length 2 "two events parsed"
@@ -624,6 +601,7 @@ module StreamingUnit =
           Expect.equal events[1].eventType "update" "second event type"
           Expect.equal events[1].id "2" "second event id"
           Expect.equal events[1].data "middle" "second event data"
+          expectLastChunkIsSSEDone chunks
         }
 
         testTask "joins multi-line data with newlines" {
@@ -639,13 +617,6 @@ module StreamingUnit =
             events[0].data
             "line one\nline two\nline three"
             "multi-line data joined with newlines"
-        }
-
-        testTask "Done is always the last chunk" {
-          let body = "data: hello\n\n"
-          let url = registerTestCase "sse-unit-done" 200 "text/event-stream" body
-          let! result, chunks = collectSSEChunks url
-          expectOk result
           expectLastChunkIsSSEDone chunks
         }
 
@@ -685,6 +656,7 @@ module StreamingUnit =
           Expect.equal events.Length 2 "comments don't produce events"
           Expect.equal events[0].data "hello" "first event data"
           Expect.equal events[1].data "world" "second event data"
+          expectLastChunkIsSSEDone chunks
         }
 
         testTask "default event type is message" {
@@ -696,6 +668,7 @@ module StreamingUnit =
 
           let events = sseEvents chunks
           Expect.equal events[0].eventType "message" "default event type is message"
+          expectLastChunkIsSSEDone chunks
         }
 
         testTask "pending event emitted at end of stream without trailing blank line" {
@@ -708,6 +681,7 @@ module StreamingUnit =
           let events = sseEvents chunks
           Expect.equal events.Length 1 "pending event emitted at EOF"
           Expect.equal events[0].data "no trailing newline" "pending event data"
+          expectLastChunkIsSSEDone chunks
         }
 
         testTask "id persists across events" {
@@ -721,13 +695,14 @@ module StreamingUnit =
           Expect.equal events.Length 2 "two events"
           Expect.equal events[0].id "42" "first event has id"
           Expect.equal events[1].id "42" "id persists to second event"
+          expectLastChunkIsSSEDone chunks
         } ]
 
-  let tests = testList "streaming unit" [ rawStreamingTests; sseStreamingTests ]
+  let tests = testList "streaming callbacks" [ rawStreamingTests; sseStreamingTests ]
 
 
 let tests =
   [ versions |> List.map (fun v -> testList v (testsFromFiles v))
-    [ StreamingUnit.tests ] ]
+    [ StreamingCallbackTests.tests ] ]
   |> List.concat
   |> testList "HttpClient"
