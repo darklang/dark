@@ -13,6 +13,9 @@
     <None Include="paket.references" />
   </ItemGroup>
   <ItemGroup>
+    <EmbeddedResource Include="package-ref-hashes.txt" />
+  </ItemGroup>
+  <ItemGroup>
     <ProjectReference Include="../Prelude/Prelude.fsproj" />
   </ItemGroup>
   <ItemGroup>

@@ -37,6 +37,7 @@
     <Compile Include="LoadPackagesFromDisk.fs" />
     <Compile Include="Canvas.fs" />
     <Compile Include="Migrations.fs" />
+    <Compile Include="PackageRefsGenerator.fs" />
     <Compile Include="LocalExec.fs" />
   </ItemGroup>
   <Import Project="..\..\.paket\Paket.Restore.targets" />
