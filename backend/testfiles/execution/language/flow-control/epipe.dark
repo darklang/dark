@@ -24,8 +24,8 @@ let userFn () : Int64 = 6L
 (let x = fun a -> a + 1L in (5L |> x |> x |> (+) 3L)) = 10L
 
 // CLEANUP this is OK now.
-// (let x = fun a b -> a + 1L in (7L |> x)) =
-// = error="Expected 2 arguments, got 1"
+(let partial = (let x = fun a b -> a + 1L in (7L |> x))
+ (partial 999L)) = 8L
 
 // only lambda might be placed into the variable used in the middle of the pipe
 (let x = 1L in (5L |> x |> (+) 3L)) = error="Expected something we could apply to, such as a lambda or function, but got an Int64 (1)"

@@ -514,35 +514,35 @@ module TokenizeExpression =
 
 
 
-  // TODO bring this back - an RTE pops up when trying to access a .range field, somewhere in impl
-  // (seems to be in both of these tests, so probably relevant to _record_ stuff, not field access)
-  // ("MyRecord {fieldOne = 1L; fieldTwo = 2L} " |> tokenize) =
-  //   [ (TokenType.TypeName, (0L, 0L),  (0L, 8L))
-  //     (TokenType.Symbol,   (0L, 9L),  (0L, 10L))
-  //     (TokenType.Property, (0L, 10L), (0L, 18L))
-  //     (TokenType.Symbol,   (0L, 19L), (0L, 20L))
-  //     (TokenType.Number,   (0L, 21L), (0L, 22L))
-  //     (TokenType.Symbol,   (0L, 22L), (0L, 23L))
-  //     (TokenType.Property, (0L, 25L), (0L, 33L))
-  //     (TokenType.Symbol,   (0L, 34L), (0L, 35L))
-  //     (TokenType.Number,   (0L, 36L), (0L, 37L))
-  //     (TokenType.Symbol,   (0L, 37L), (0L, 38L))
-  //     (TokenType.Symbol,   (0L, 38L), (0L, 39L)) ]
+  // Record/record-update tokenization regression coverage.
+  // A previous .range-related RTE in this area makes this worth keeping explicit.
+  ("MyRecord {fieldOne = 1L; fieldTwo = 2L} " |> tokenize) =
+    [ (TokenType.TypeName, (0L, 0L),  (0L, 8L))
+      (TokenType.Symbol,   (0L, 9L),  (0L, 10L))
+      (TokenType.Property, (0L, 10L), (0L, 18L))
+      (TokenType.Symbol,   (0L, 19L), (0L, 20L))
+      (TokenType.Number,   (0L, 21L), (0L, 22L))
+      (TokenType.Symbol,   (0L, 22L), (0L, 23L))
+      (TokenType.Property, (0L, 25L), (0L, 33L))
+      (TokenType.Symbol,   (0L, 34L), (0L, 35L))
+      (TokenType.Number,   (0L, 36L), (0L, 37L))
+      (TokenType.Symbol,   (0L, 37L), (0L, 38L))
+      (TokenType.Symbol,   (0L, 38L), (0L, 39L)) ]
 
-  // ("{ RecordForUpdate { x = true; y = false } with y = true }" |> tokenize) =
-  //   [ (TokenType.TypeName, (0L, 2L),  (0L, 17L))
-  //     (TokenType.Symbol,   (0L, 18L), (0L, 19L))
-  //     (TokenType.Property, (0L, 20L), (0L, 21L))
-  //     (TokenType.Symbol,   (0L, 22L), (0L, 23L))
-  //     (TokenType.Keyword,  (0L, 24L), (0L, 28L))
-  //     (TokenType.Property, (0L, 30L), (0L, 31L))
-  //     (TokenType.Symbol,   (0L, 32L), (0L, 33L))
-  //     (TokenType.Keyword,  (0L, 34L), (0L, 39L))
-  //     (TokenType.Symbol,   (0L, 40L), (0L, 41L))
-  //     (TokenType.Keyword,  (0L, 42L), (0L, 46L))
-  //     (TokenType.Property, (0L, 47L), (0L, 48L))
-  //     (TokenType.Symbol,   (0L, 49L), (0L, 50L))
-  //     (TokenType.Keyword,  (0L, 51L), (0L, 55L)) ]
+  ("{ RecordForUpdate { x = true; y = false } with y = true }" |> tokenize) =
+    [ (TokenType.TypeName, (0L, 2L),  (0L, 17L))
+      (TokenType.Symbol,   (0L, 18L), (0L, 19L))
+      (TokenType.Property, (0L, 20L), (0L, 21L))
+      (TokenType.Symbol,   (0L, 22L), (0L, 23L))
+      (TokenType.Keyword,  (0L, 24L), (0L, 28L))
+      (TokenType.Property, (0L, 30L), (0L, 31L))
+      (TokenType.Symbol,   (0L, 32L), (0L, 33L))
+      (TokenType.Keyword,  (0L, 34L), (0L, 39L))
+      (TokenType.Symbol,   (0L, 40L), (0L, 41L))
+      (TokenType.Keyword,  (0L, 42L), (0L, 46L))
+      (TokenType.Property, (0L, 47L), (0L, 48L))
+      (TokenType.Symbol,   (0L, 49L), (0L, 50L))
+      (TokenType.Keyword,  (0L, 51L), (0L, 55L)) ]
 
   ("MyEnum.A(1L)" |> tokenize) =
     [ (TokenType.TypeName, (0L, 0L), (0L, 6L))

@@ -68,21 +68,19 @@
  let transformer = fun ((str1), str2) -> str1 ++ str2
  Stdlib.List.map_v0 sing transformer) = [ "12"; "34" ]
 
-// TODO:
-// There is weird parser behavior for nested tuples with more than one member.
-// We will need to check the case with a new parser like the Treesitter.
-//
-// (let triplets = [ ((1, "one"), true); ((2,"two"), false) ]
+// Nested tuple lambda destructuring regression test.
+// Keep this coverage in place to catch parser/lowering regressions.
+(let triplets = [ ((1L, "one"), true); ((2L,"two"), false) ]
 
-//  let transformer =
-//    fun ((num, str), flag) ->
-//      if flag then
-//        $"{Stdlib.Int64.toString num}:{str}:TRUE"
-//      else
-//        $"{Stdlib.Int64.toString num}:{str}:FALSE"
+ let transformer =
+   fun ((num, str), flag) ->
+     if flag then
+       $"{Stdlib.Int64.toString num}:{str}:TRUE"
+     else
+       $"{Stdlib.Int64.toString num}:{str}:FALSE"
 
-//  Stdlib.List.map_v0 triplets transformer) =
-//   [ "1:one:TRUE"; "2:two:FALSE" ]
+ Stdlib.List.map_v0 triplets transformer) =
+  [ "1:one:TRUE"; "2:two:FALSE" ]
 
 (let triplets = [ (1L, "one", true); (2L, "two", false) ]
  let transformer = fun (num, str) -> $"{Stdlib.Int64.toString num}:{str}"
@@ -100,10 +98,10 @@ Stdlib.Dict.map_v0
     (Dict { key2 = "key2val22"; key1 = "key1val12" })
 
 
-// CLEANUP include this once we've switched over to the new parser.
-// module LambdaInRecordField =
-//   type RecordWithFn = { fn: Int64 -> Int64 }
+// Regression check: applying a function directly from a record field.
+module LambdaInRecordField =
+  type RecordWithFn = { fn: Int64 -> Int64 }
 
-//   // check: can we apply a function from a record field directly?
-//   (let record = RecordWithFn { fn = fun x -> x + 1L }
-//    (record.fn 6L)) = 7L
+  // check: can we apply a function from a record field directly?
+  (let record = RecordWithFn { fn = fun x -> x + 1L }
+   (record.fn 6L)) = 7L
