@@ -4,13 +4,19 @@
 /// CLEANUP we could realistically expand upon this a bit,
 ///   excluding things like enum field names, fn param names, etc.
 ///   (referring back to PT by index or something)
-///
-/// CLEANUP there's some useful "reference things by hash" work to be done.
 module LibExecution.RuntimeTypes
 
 open Prelude
 
+
 type BranchId = uuid
+
+/// Structural hash of a package item's content (shape, not name/location).
+type Hash = Hash of string
+
+module Hash =
+  let empty : Hash = Hash ""
+  let toHexString (Hash h) : string = h
 
 let builtinNamePattern = @"^(__|[a-z])[a-z0-9A-Z_]\w*$"
 let valueNamePattern = @"^[a-z][a-z0-9A-Z_']*$"
@@ -28,14 +34,14 @@ let assertBuiltin
 ///
 /// Used to reference a type defined in a Package
 module FQTypeName =
-  /// The id of a type in the package manager
-  type Package = uuid
+  /// The hash of a type in the package manager
+  type Package = Hash
 
   type FQTypeName = Package of Package
 
-  let package (id : uuid) : Package = id
+  let package (h : string) : Package = Hash h
 
-  let fqPackage (id : uuid) : FQTypeName = Package id
+  let fqPackage (h : string) : FQTypeName = Package(Hash h)
 
 
 /// A Fully-Qualified Value Name
@@ -45,8 +51,8 @@ module FQValueName =
   /// A value built into the runtime
   type Builtin = { name : string; version : int }
 
-  /// The id of a value in the package manager
-  type Package = uuid
+  /// The hash of a value in the package manager
+  type Package = Hash
 
   type FQValueName =
     | Builtin of Builtin
@@ -59,9 +65,9 @@ module FQValueName =
     assertBuiltin name version assertValueName
     { name = name; version = version }
 
-  let package (id : uuid) : Package = id
+  let package (h : string) : Package = Hash h
 
-  let fqPackage (id : uuid) : FQValueName = Package id
+  let fqPackage (h : string) : FQValueName = Package(Hash h)
 
 
 /// A Fully-Qualified Function Name
@@ -71,7 +77,7 @@ module FQFnName =
   /// A function built into the runtime
   type Builtin = { name : string; version : int }
 
-  type Package = uuid
+  type Package = Hash
 
   type FQFnName =
     | Builtin of Builtin
@@ -84,12 +90,12 @@ module FQFnName =
     assertBuiltin name version assertBuiltinFnName
     { name = name; version = version }
 
-  let package (id : uuid) = id
+  let package (h : string) : Package = Hash h
 
   let fqBuiltin (name : string) (version : int) : FQFnName =
     Builtin { name = name; version = version }
 
-  let fqPackage (id : uuid) : FQFnName = Package id
+  let fqPackage (h : string) : FQFnName = Package(Hash h)
 
 
   let isInternalFn (fnName : Builtin) : bool = fnName.name.Contains "darkInternal"
@@ -97,10 +103,15 @@ module FQFnName =
 
 /// TODO include "ParseTime" in name (requires a lot of boring work in many files)
 type NameResolutionError =
-  | NotFound of List<string>
-  | InvalidName of List<string>
+  | NotFound
+  | InvalidName
 
-type NameResolution<'a> = Result<'a, NameResolutionError>
+type NameResolution<'a> =
+  { originalName : List<string>; resolved : Result<'a, NameResolutionError> }
+
+module NameResolution =
+  let ok (value : 'a) : NameResolution<'a> =
+    { originalName = []; resolved = Ok value }
 
 
 /// A KnownType represents the type of a dval.
@@ -433,7 +444,7 @@ type Instruction =
     args : NEList<Register>
 
   // == Errors ==
-  | RaiseNRE of NameResolutionError
+  | RaiseNRE of List<string> * NameResolutionError
 
   | VarNotFound of targetRegIfSecretOrDB : Register * name : string
 
@@ -861,7 +872,7 @@ module RuntimeError =
 
     | Match of Matches.Error
 
-    | ParseTimeNameResolution of NameResolutionError
+    | ParseTimeNameResolution of originalName : List<string> * NameResolutionError
 
     | TypeNotFound of name : FQTypeName.FQTypeName
     | FnNotFound of name : FQFnName.FQFnName
@@ -1052,18 +1063,17 @@ module Dval =
 // ------------
 // Package-Space
 // ------------
-// TODO reference things by hash, not ID
 module PackageType =
-  type PackageType = { id : uuid; declaration : TypeDeclaration.T }
+  type PackageType = { hash : Hash; declaration : TypeDeclaration.T }
 
 module PackageValue =
-  type PackageValue = { id : uuid; body : Dval }
+  type PackageValue = { hash : Hash; body : Dval }
 
 module PackageFn =
   type Parameter = { name : string; typ : TypeReference }
 
   type PackageFn =
-    { id : uuid
+    { hash : Hash
       typeParams : List<string>
       parameters : NEList<Parameter>
       returnType : TypeReference
@@ -1101,9 +1111,9 @@ type PackageManager =
     (fns : List<PackageFn.PackageFn>)
     (pm : PackageManager)
     : PackageManager =
-    let typeMap = types |> List.map (fun t -> t.id, t) |> Map.ofList
-    let valueMap = values |> List.map (fun v -> v.id, v) |> Map.ofList
-    let fnMap = fns |> List.map (fun f -> f.id, f) |> Map.ofList
+    let typeMap = types |> List.map (fun t -> t.hash, t) |> Map.ofList
+    let valueMap = values |> List.map (fun v -> v.hash, v) |> Map.ofList
+    let fnMap = fns |> List.map (fun f -> f.hash, f) |> Map.ofList
 
     { getType =
         fun id ->
@@ -1473,14 +1483,22 @@ module Types =
 
 module TypeReference =
   let result (t1 : TypeReference) (t2 : TypeReference) : TypeReference =
-    TCustomType(Ok(FQTypeName.fqPackage PackageIDs.Type.Stdlib.result), [ t1; t2 ])
+    TCustomType(
+      { originalName = []
+        resolved = Ok(FQTypeName.fqPackage PackageRefs.Type.Stdlib.result) },
+      [ t1; t2 ]
+    )
 
   let option (t : TypeReference) : TypeReference =
-    TCustomType(Ok(FQTypeName.fqPackage PackageIDs.Type.Stdlib.option), [ t ])
+    TCustomType(
+      { originalName = []
+        resolved = Ok(FQTypeName.fqPackage PackageRefs.Type.Stdlib.option) },
+      [ t ]
+    )
 
   let rec unwrapAlias (types : Types) (typ : TypeReference) : Ply<TypeReference> =
     match typ with
-    | TCustomType(Ok outerTypeName, outerTypeArgs) ->
+    | TCustomType({ resolved = Ok outerTypeName }, outerTypeArgs) ->
       uply {
         match! Types.find types outerTypeName with
         | Some { definition = TypeDeclaration.Alias typ; typeParams = typeParams } ->
@@ -1530,12 +1548,12 @@ module TypeReference =
         let! inner = r inner
         return ValueType.Known(KTDict inner)
 
-      | TCustomType(Ok typeName, typeArgs) ->
+      | TCustomType({ resolved = Ok typeName }, typeArgs) ->
         let! typeArgs = typeArgs |> Ply.List.mapSequentially r
         return KTCustomType(typeName, typeArgs) |> ValueType.Known
 
-      | TCustomType(Error nre, _) ->
-        return raiseUntargetedRTE (RuntimeError.ParseTimeNameResolution nre)
+      | TCustomType({ originalName = names; resolved = Error nre }, _) ->
+        return raiseUntargetedRTE (RuntimeError.ParseTimeNameResolution(names, nre))
 
       | TVariable name ->
         return tst |> Map.get name |> Option.defaultValue ValueType.Unknown
@@ -1581,7 +1599,7 @@ module TypeReference =
     | KTTuple(first, second, rest) ->
       TTuple(fromVT first, fromVT second, List.map fromVT rest)
     | KTCustomType(typeName, typeArgs) ->
-      TCustomType(Ok typeName, List.map fromVT typeArgs)
+      TCustomType(NameResolution.ok typeName, List.map fromVT typeArgs)
     | KTFn(args, ret) -> TFn(NEList.map fromVT args, fromVT ret)
     | KTDB inner -> TDB(fromVT inner)
 

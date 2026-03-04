@@ -1290,6 +1290,8 @@ module UserDefinedRecords =
             e2 = 5L } })
 
   module Errors =
+    // Person shares its content hash with UserDefinedAliases.Person2 (identical structure),
+    // but pickLocation now prefers the shorter path.
     (Stdlib.Json.parse<Person> "[]") |> err = Result.Error
       "Can't parse JSON `[]` as type `Person` at path: `root`"
 
@@ -1332,7 +1334,10 @@ module UserDefinedAliases =
   type Person1 = { Name: String; Age: Int64 }
   type Person2 = { Name: String; Age: Int64 }
 
-  Stdlib.Json.serialize<Person2> (Person1 { Name = "Bob"; Age = 42L }) = error="Darklang.Stdlib.Json.serialize's 1st parameter `value` expects UserDefinedAliases.Person2, but got UserDefinedAliases.Person1 (UserDefinedAliases.Person1 {\n  Age: 42,\n  Name: \"Bob\"\n})"
+  // With content-addressed hashing, Person1 and Person2 are structurally
+  // identical and share the same Hash, so they're the same type.
+  Stdlib.Json.serialize<Person2> (Person1 { Name = "Bob"; Age = 42L }) = """{"Age":42,"Name":"Bob"}"""
+
   type StringResult<'a> = Result<'a, String>
 
   Stdlib.Json.serialize<StringResult<Int64>> (Result.Ok 1L) = "{\"Ok\":[1]}"

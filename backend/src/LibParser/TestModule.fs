@@ -10,6 +10,8 @@ module WT2PT = WrittenTypesToProgramTypes
 module PT = LibExecution.ProgramTypes
 module RT = LibExecution.RuntimeTypes
 module NR = NameResolver
+open LibSerialization.Hashing
+module HS = LibPackageManager.HashStabilization
 
 open Utils
 
@@ -242,10 +244,11 @@ let toPT
       |> Ply.List.mapSequentially (fun wtType ->
         uply {
           let! ptType = WT2PT.PackageType.toPT pm onMissing currentModule wtType
+          let hash = Hashing.computeTypeHash Hashing.Normal ptType
           return
             [ PT.PackageOp.AddType ptType
               PT.PackageOp.SetTypeName(
-                ptType.id,
+                hash,
                 WT2PT.PackageType.Name.toLocation wtType.name
               ) ]
         })
@@ -260,7 +263,7 @@ let toPT
           return
             [ PT.PackageOp.AddValue ptValue
               PT.PackageOp.SetValueName(
-                ptValue.id,
+                Hashing.computeValueHash Hashing.Normal ptValue,
                 WT2PT.PackageValue.Name.toLocation wtValue.name
               ) ]
         })
@@ -271,10 +274,11 @@ let toPT
       |> Ply.List.mapSequentially (fun wtFn ->
         uply {
           let! ptFn = WT2PT.PackageFn.toPT builtins pm onMissing currentModule wtFn
+          let hash = Hashing.computeFnHash Hashing.Normal ptFn
           return
             [ PT.PackageOp.AddFn ptFn
               PT.PackageOp.SetFnName(
-                ptFn.id,
+                hash,
                 WT2PT.PackageFn.Name.toLocation wtFn.name
               ) ]
         })
@@ -317,7 +321,6 @@ let toPT
 
 
 
-// Helper functions for two-phase parsing (must be defined before parseTestFile)
 let parseTestFile
   (owner : string)
   (builtins : RT.Builtins)
@@ -325,7 +328,6 @@ let parseTestFile
   (filename : string)
   : Ply<List<PTModule>> =
   uply {
-    // test modules should always allow NREs
     let onMissing = NR.OnMissing.Allow
 
     let modulesWT =
@@ -334,37 +336,49 @@ let parseTestFile
       |> parseAsFSharpSourceFile filename
       |> parseFile owner
 
-    // First pass: parse with OnMissing.Allow to allow unresolved names
+    // First pass: parse with empty PM, then compute real SCC-aware hashes
     let! firstPassModules =
       modulesWT
       |> Ply.List.mapSequentially (
         toPT owner builtins PT.PackageManager.empty onMissing
       )
 
-    // Extract ops from first pass for second pass PackageManager
     let firstPassOps = firstPassModules |> List.collect _.ops
 
-    // Second pass: re-parse with PackageManager containing first pass results
-    let enhancedPM = LibPackageManager.PackageManager.withExtraOps pm firstPassOps
-    let! reParsedModules =
-      modulesWT
-      |> Ply.List.mapSequentially (toPT owner builtins enhancedPM onMissing)
+    // Iteratively re-parse until ALL hashes converge.
+    // Same approach as LoadPackagesFromDisk: remapSetNames + computeRealHashes.
+    let mutable currentOps = HS.computeRealHashes firstPassOps
+    let mutable currentModules = firstPassModules
+    let mutable prevHashes = []
+    let mutable converged = false
+    let mutable iteration = 0
+    while not converged && iteration < 50 do
+      iteration <- iteration + 1
+      let enhancedPM = LibPackageManager.PackageManager.withExtraOps pm currentOps
+      let! newModules =
+        modulesWT
+        |> Ply.List.mapSequentially (toPT owner builtins enhancedPM onMissing)
+      let newRawOps = newModules |> List.collect _.ops
+      let remapped = HS.remapSetNames newRawOps currentOps
+      let newOps = HS.computeRealHashes remapped
+      let newHashes = HS.extractAllHashes newOps
+      converged <- newHashes = prevHashes
+      prevHashes <- newHashes
+      currentOps <- newOps
+      currentModules <- newModules
 
-    // ID stabilization: adjust second pass IDs to match first pass IDs
-    let firstPassPM = LibPackageManager.PackageManager.createInMemory firstPassOps
+    // currentModules has correct test expressions (parsed with converged PM)
+    // but its ops are from raw parsing (not through computeRealHashes).
+    // Replace each module's ops with the corresponding converged ops.
+    // Op count per module is preserved by remapSetNames + computeRealHashes.
+    let mutable opsRemaining = currentOps
+    let result =
+      currentModules
+      |> List.map (fun m ->
+        let count = List.length m.ops
+        let (these, rest) = List.splitAt count opsRemaining
+        opsRemaining <- rest
+        { m with ops = these })
 
-    // Adjust IDs in each module's ops
-    let! adjustedModules =
-      reParsedModules
-      |> Ply.List.mapSequentially (fun m ->
-        uply {
-          let! adjustedOps =
-            LibPackageManager.PackageManager.stabilizeOpsAgainstPM
-              PT.mainBranchId
-              firstPassPM
-              m.ops
-          return { m with ops = adjustedOps }
-        })
-
-    return adjustedModules
+    return result
   }

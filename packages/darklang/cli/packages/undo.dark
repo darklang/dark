@@ -6,13 +6,13 @@ module Darklang.Cli.Packages.Undo
 
 
 /// Build a version stack by walking WIP ops in order.
-/// Returns a list of UUIDs where the last element is the current WIP version.
+/// Returns a list of hashes where the last element is the current WIP version.
 /// An empty stack means the current version is the committed one.
 let buildVersionStack
   (wipOps: List<LanguageTools.ProgramTypes.PackageOp>)
   (location: LanguageTools.ProgramTypes.PackageLocation)
   (itemKind: LanguageTools.ProgramTypes.ItemKind)
-  : List<Uuid> =
+  : List<LanguageTools.ProgramTypes.Hash> =
   wipOps
   |> Stdlib.List.fold [] (fun stack op ->
     match (op, itemKind) with
@@ -23,12 +23,12 @@ let buildVersionStack
         Stdlib.List.append stack [id]
       else
         stack
-    | (RevertPropagation (_, _, srcLoc, srcItemKind, restoredUUID, _), _) ->
+    | (RevertPropagation (_, _, srcLoc, srcItemKind, restoredHash, _), _) ->
       if srcLoc == location && srcItemKind == itemKind then
-        // Pop back to restoredUUID: keep entries up to and including it
-        if Stdlib.List.member_v0 stack restoredUUID then
-          let before = Stdlib.List.takeWhile stack (fun id -> id != restoredUUID)
-          Stdlib.List.append before [restoredUUID]
+        // Pop back to restoredHash: keep entries up to and including it
+        if Stdlib.List.member_v0 stack restoredHash then
+          let before = Stdlib.List.takeWhile stack (fun id -> id != restoredHash)
+          Stdlib.List.append before [restoredHash]
         else
           // Restored to committed — clear the stack
           []
@@ -74,17 +74,17 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
           Stdlib.printLine "Nothing to undo — current version is already committed"
           state
 
-        | currentUUID :: rest ->
-          let targetUUID = Stdlib.List.head rest
-          let isToCommitted = targetUUID == Stdlib.Option.Option.None
+        | currentHash :: rest ->
+          let targetHash = Stdlib.List.head rest
+          let isToCommitted = targetHash == Stdlib.Option.Option.None
 
           // Find the PropagateUpdate for the current version
           let myPropInfo =
             wipOps
             |> Stdlib.List.filterMap (fun op ->
               match op with
-              | PropagateUpdate (propId, srcLoc, _, _, toUUID, repoints) ->
-                if srcLoc == location && toUUID == currentUUID then
+              | PropagateUpdate (propId, srcLoc, _, _, toHash, repoints) ->
+                if srcLoc == location && toHash == currentHash then
                   let pair = (propId, repoints)
                   Stdlib.Option.Option.Some pair
                 else
@@ -147,7 +147,7 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
             | _ ->
               let ids =
                 myRepoints
-                |> Stdlib.List.map (fun r -> r.toUUID)
+                |> Stdlib.List.map (fun r -> r.toHash)
                 |> Stdlib.List.unique
               Deps.resolveNames branchId ids
 
@@ -163,7 +163,7 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
 
               myRepoints
               |> Stdlib.List.iter (fun r ->
-                let name = Deps.getName repointNamesDict r.toUUID
+                let name = Deps.getName repointNamesDict r.toHash
                 let kindStr = Propagate.itemKindToString r.itemKind
                 Stdlib.printLine $"    [{kindStr}] {name}")
 
@@ -177,17 +177,17 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
 
           if proceed then
             match
-              Builtin.pmAtomicUndo branchId revertable location itemKind myPropagationIds targetUUID
+              Builtin.pmAtomicUndo branchId revertable location itemKind myPropagationIds targetHash
             with
             | Error errMsg ->
               Stdlib.printLine (Colors.error errMsg)
               state
             | Ok result ->
-              let (_revertId, restoredUUID) = result
+              let (_revertId, restoredHash) = result
 
               revertable
               |> Stdlib.List.iter (fun r ->
-                let name = Deps.getName repointNamesDict r.toUUID
+                let name = Deps.getName repointNamesDict r.toHash
                 let kindStr = Propagate.itemKindToString r.itemKind
                 Stdlib.printLine $"  Reverted [{kindStr}] {name}")
 
@@ -204,7 +204,7 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
               match overlapping with
               | [] -> ()
               | _ ->
-                Propagate.autoPropagateAfterUpdate branchId location restoredUUID itemKind
+                Propagate.autoPropagateAfterUpdate branchId location restoredHash itemKind
 
               Stdlib.printLine ""
               state

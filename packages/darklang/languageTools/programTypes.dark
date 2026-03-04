@@ -3,12 +3,12 @@ module Darklang.LanguageTools.ProgramTypes
 
 /// Used to name where type/function/etc lives, eg a User module, or a Package module.
 module FQTypeName =
-  type Package = Uuid
+  type Package = Hash
   type FQTypeName = Package of Package
 
 module FQValueName =
   type Builtin = { name: String; version: Int32 }
-  type Package = Uuid
+  type Package = Hash
 
   type FQValueName =
     | Builtin of Builtin
@@ -16,7 +16,7 @@ module FQValueName =
 
 module FQFnName =
   type Builtin = { name: String; version: Int32 }
-  type Package = Uuid
+  type Package = Hash
 
   type FQFnName =
     | Builtin of Builtin
@@ -24,10 +24,12 @@ module FQFnName =
 
 
 type NameResolutionError =
-  | NotFound of List<String>
-  | InvalidName of List<String>
+  | NotFound
+  | InvalidName
 
-type NameResolution<'a> = Stdlib.Result.Result<'a, NameResolutionError>
+type NameResolution<'a> =
+  { originalName: List<String>
+    resolved: Stdlib.Result.Result<'a, NameResolutionError> }
 
 
 /// Darklang's available types (int, List<T>, user-defined types, etc.)
@@ -336,6 +338,18 @@ let parsePackageLocation (nameToParse: String): PackageLocation =
 
 type BranchID = Uuid
 
+/// Content-addressed hash for package items (hex-encoded SHA-256)
+type Hash = | Hash of String
+
+let hashToString (hash: Hash) : String =
+  match hash with
+  | Hash h -> h
+
+/// First 8 hex chars, for human-readable display
+let hashToShort (hash: Hash) : String =
+  let h = hashToString hash
+  Stdlib.String.first h 8L
+
 /// A package entity paired with its location
 type LocatedItem<'entity> =
   { entity: 'entity
@@ -374,14 +388,14 @@ module TypeDeclaration =
 // Package space
 module PackageType =
   type PackageType =
-    { id: FQTypeName.Package
+    { hash: FQTypeName.Package
       declaration: TypeDeclaration.TypeDeclaration
       description: String
       deprecated: Deprecation<FQTypeName.FQTypeName> }
 
 module PackageValue =
   type PackageValue =
-    { id: Uuid
+    { hash: FQValueName.Package
       body: Expr
       description: String
       deprecated: Deprecation<FQValueName.FQValueName> }
@@ -393,19 +407,21 @@ module PackageFn =
       description: String }
 
   type PackageFn =
-    { id: FQFnName.Package
+    { hash: FQFnName.Package
       body: Expr
       typeParams: List<String>
       parameters: List<Parameter>
       returnType: TypeReference
-      description: String
-      deprecated: Deprecation<FQFnName.FQFnName> }
 
-// CLEANUP: Packages type commented out - only used during loading process
-// type Packages =
-//   { types: List<PackageType.PackageType>
-//     values: List<PackageValue.PackageValue>
-//     fns: List<PackageFn.PackageFn> }
+      // TODO these don't belong in this -- shouldn't relate to the 'structural definition'
+      // maybe Comments are just special Values that we respect
+      // type Comment = { What; Text }
+      //
+      //being deprecated is outside of the shape, basically.
+      // it's like... computed. like cyclomatic complexity or hash or whatever
+      description: String
+      deprecated: Deprecation<FQFnName.FQFnName>}
+
 
 
 /// The kind of package item (function, type, or value)
@@ -418,8 +434,8 @@ type ItemKind =
 type PropagateRepoint =
   { location: PackageLocation
     itemKind: ItemKind
-    fromUUID: Uuid
-    toUUID: Uuid }
+    fromHash: Hash
+    toHash: Hash }
 
 
 type PackageOp =
@@ -434,8 +450,8 @@ type PackageOp =
       propagationId: Uuid *
       sourceLocation: PackageLocation *
       sourceItemKind: ItemKind *
-      fromSourceUUIDs: List<Uuid> *
-      toSourceUUID: Uuid *
+      fromSourceHashes: List<Hash> *
+      toSourceHash: Hash *
       repoints: List<PropagateRepoint>
   // Revert a propagation: restore previous versions atomically
   | RevertPropagation of
@@ -443,7 +459,7 @@ type PackageOp =
       revertedPropagationIds: List<Uuid> *
       sourceLocation: PackageLocation *
       sourceItemKind: ItemKind *
-      restoredSourceUUID: Uuid *
+      restoredSourceHash: Hash *
       revertedRepoints: List<PropagateRepoint>
 
 
@@ -524,32 +540,32 @@ module PackageManager =
       { findType =
           fun (branchId, location) ->
             match types |> Stdlib.List.findFirst (fun t -> t.location == location) with
-            | Some t -> Stdlib.Option.Option.Some t.entity.id
+            | Some t -> Stdlib.Option.Option.Some t.entity.hash
             | None -> pm.findType (branchId, location)
         findValue =
           fun (branchId, location) ->
             match values |> Stdlib.List.findFirst (fun v -> v.location == location) with
-            | Some v -> Stdlib.Option.Option.Some v.entity.id
+            | Some v -> Stdlib.Option.Option.Some v.entity.hash
             | None -> pm.findValue (branchId, location)
         findFn =
           fun (branchId, location) ->
             match fns |> Stdlib.List.findFirst (fun f -> f.location == location) with
-            | Some f -> Stdlib.Option.Option.Some f.entity.id
+            | Some f -> Stdlib.Option.Option.Some f.entity.hash
             | None -> pm.findFn (branchId, location)
 
         getType =
           fun id ->
-            match types |> Stdlib.List.findFirst (fun t -> t.entity.id == id) with
+            match types |> Stdlib.List.findFirst (fun t -> t.entity.hash == id) with
             | Some t -> Stdlib.Option.Option.Some t.entity
             | None -> pm.getType id
         getValue =
           fun id ->
-            match values |> Stdlib.List.findFirst (fun v -> v.entity.id == id) with
+            match values |> Stdlib.List.findFirst (fun v -> v.entity.hash == id) with
             | Some v -> Stdlib.Option.Option.Some v.entity
             | None -> pm.getValue id
         getFn =
           fun id ->
-            match fns |> Stdlib.List.findFirst (fun f -> f.entity.id == id) with
+            match fns |> Stdlib.List.findFirst (fun f -> f.entity.hash == id) with
             | Some f -> Stdlib.Option.Option.Some f.entity
             | None -> pm.getFn id
 
@@ -565,42 +581,42 @@ module PackageManager =
       ops
       |> Stdlib.List.filterMap (fun op ->
         match op with
-        | AddType t -> Stdlib.Option.Option.Some((t.id, t))
+        | AddType t -> Stdlib.Option.Option.Some((t.hash, t))
         | _ -> Stdlib.Option.Option.None)
 
     let valuesByID =
       ops
       |> Stdlib.List.filterMap (fun op ->
         match op with
-        | AddValue v -> Stdlib.Option.Option.Some((v.id, v))
+        | AddValue v -> Stdlib.Option.Option.Some((v.hash, v))
         | _ -> Stdlib.Option.Option.None)
 
     let fnsByID =
       ops
       |> Stdlib.List.filterMap (fun op ->
         match op with
-        | AddFn f -> Stdlib.Option.Option.Some((f.id, f))
+        | AddFn f -> Stdlib.Option.Option.Some((f.hash, f))
         | _ -> Stdlib.Option.Option.None)
 
     let typeLocationMap =
       ops
       |> Stdlib.List.filterMap (fun op ->
         match op with
-        | SetTypeName (id, loc) -> Stdlib.Option.Option.Some((loc, id))
+        | SetTypeName (hash, loc) -> Stdlib.Option.Option.Some((loc, hash))
         | _ -> Stdlib.Option.Option.None)
 
     let valueLocationMap =
       ops
       |> Stdlib.List.filterMap (fun op ->
         match op with
-        | SetValueName (id, loc) -> Stdlib.Option.Option.Some((loc, id))
+        | SetValueName (hash, loc) -> Stdlib.Option.Option.Some((loc, hash))
         | _ -> Stdlib.Option.Option.None)
 
     let fnLocationMap =
       ops
       |> Stdlib.List.filterMap (fun op ->
         match op with
-        | SetFnName (id, loc) -> Stdlib.Option.Option.Some((loc, id))
+        | SetFnName (hash, loc) -> Stdlib.Option.Option.Some((loc, hash))
         | _ -> Stdlib.Option.Option.None)
 
     // Create PackageManager that looks up in ops first, then falls back to basePM

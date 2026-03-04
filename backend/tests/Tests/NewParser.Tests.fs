@@ -19,7 +19,7 @@ open TestUtils.TestUtils
 module PT = LibExecution.ProgramTypes
 module RT = LibExecution.RuntimeTypes
 module Dval = LibExecution.Dval
-module PackageIDs = LibExecution.PackageIDs
+module PackageRefs = LibExecution.PackageRefs
 
 // Test package type definitions as tuples with locations
 
@@ -34,11 +34,11 @@ let t
   (allowUnresolved : bool)
   =
   let parseFnName =
-    RT.FQFnName.FQFnName.Package
-      PackageIDs.Fn.LanguageTools.Parser.parsePTSourceFileWithOps
+    RT.FQFnName.fqPackage
+      PackageRefs.Fn.LanguageTools.Parser.parsePTSourceFileWithOps
 
   let prettyPrintFnName =
-    RT.FQFnName.FQFnName.Package PackageIDs.Fn.PrettyPrinter.ProgramTypes.sourceFile
+    RT.FQFnName.fqPackage PackageRefs.Fn.PrettyPrinter.ProgramTypes.sourceFile
 
   testTask name {
     // First phase: parse with base PM to get PackageOps
@@ -93,7 +93,7 @@ let t
 
 let person : (PT.PackageType.PackageType * PT.PackageLocation) =
   let packageType : PT.PackageType.PackageType =
-    { id = System.Guid.NewGuid()
+    { hash = PT.Hash ""
       description = ""
       deprecated = PT.NotDeprecated
       declaration =
@@ -114,7 +114,7 @@ let person : (PT.PackageType.PackageType * PT.PackageLocation) =
 
 let myString : (PT.PackageType.PackageType * PT.PackageLocation) =
   let packageType : PT.PackageType.PackageType =
-    { id = System.Guid.NewGuid()
+    { hash = PT.Hash ""
       description = ""
       deprecated = PT.NotDeprecated
       declaration =
@@ -126,7 +126,7 @@ let myString : (PT.PackageType.PackageType * PT.PackageLocation) =
 
 let pet : (PT.PackageType.PackageType * PT.PackageLocation) =
   let packageType : PT.PackageType.PackageType =
-    { id = System.Guid.NewGuid()
+    { hash = PT.Hash ""
       description = ""
       deprecated = PT.NotDeprecated
       declaration =
@@ -137,7 +137,7 @@ let pet : (PT.PackageType.PackageType * PT.PackageLocation) =
 
 let myEnum : (PT.PackageType.PackageType * PT.PackageLocation) =
   let packageType : PT.PackageType.PackageType =
-    { id = System.Guid.NewGuid()
+    { hash = PT.Hash ""
       description = ""
       deprecated = PT.NotDeprecated
       declaration =

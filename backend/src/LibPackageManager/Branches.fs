@@ -4,6 +4,7 @@ open System.Threading.Tasks
 open FSharp.Control.Tasks
 
 open Prelude
+open LibExecution.ProgramTypes
 
 open Fumble
 open LibDB.Db
@@ -15,7 +16,7 @@ let private readBranch (read : RowReader) : PT.Branch =
   { id = read.uuid "id"
     name = read.string "name"
     parentBranchId = read.uuidOrNone "parent_branch_id"
-    baseCommitId = read.uuidOrNone "base_commit_id"
+    baseCommitHash = read.stringOrNone "base_commit_hash" |> Option.map Hash
     createdAt = read.instant "created_at"
     mergedAt = read.instantOrNone "merged_at" }
 
@@ -25,35 +26,40 @@ let create (name : string) (parentBranchId : PT.BranchId) : Task<PT.Branch> =
     let id = System.Guid.NewGuid()
 
     // Get parent's latest commit as base
-    let! baseCommitId =
+    let! baseCommitHash =
       Sql.query
         """
-        SELECT id FROM commits
+        SELECT hash FROM commits
         WHERE branch_id = @parent_id
         ORDER BY created_at DESC
         LIMIT 1
         """
       |> Sql.parameters [ "parent_id", Sql.uuid parentBranchId ]
-      |> Sql.executeRowOptionAsync (fun read -> read.uuid "id")
+      |> Sql.executeRowOptionAsync (fun read -> Hash(read.string "hash"))
+
+    let baseCommitHashParam =
+      match baseCommitHash with
+      | Some(Hash h) -> Sql.string h
+      | None -> Sql.dbnull
 
     do!
       Sql.query
         """
-        INSERT INTO branches (id, name, parent_branch_id, base_commit_id, created_at)
-        VALUES (@id, @name, @parent_id, @base_commit_id, datetime('now'))
+        INSERT INTO branches (id, name, parent_branch_id, base_commit_hash, created_at)
+        VALUES (@id, @name, @parent_id, @base_commit_hash, datetime('now'))
         """
       |> Sql.parameters
         [ "id", Sql.uuid id
           "name", Sql.string name
           "parent_id", Sql.uuid parentBranchId
-          "base_commit_id", Sql.uuidOrNone baseCommitId ]
+          "base_commit_hash", baseCommitHashParam ]
       |> Sql.executeStatementAsync
 
     return
       { id = id
         name = name
         parentBranchId = Some parentBranchId
-        baseCommitId = baseCommitId
+        baseCommitHash = baseCommitHash
         createdAt = NodaTime.SystemClock.Instance.GetCurrentInstant()
         mergedAt = None }
   }
@@ -64,7 +70,7 @@ let get (id : PT.BranchId) : Task<Option<PT.Branch>> =
     return!
       Sql.query
         """
-        SELECT id, name, parent_branch_id, base_commit_id, created_at, merged_at
+        SELECT id, name, parent_branch_id, base_commit_hash, created_at, merged_at
         FROM branches
         WHERE id = @id
         """
@@ -78,7 +84,7 @@ let getByName (name : string) : Task<Option<PT.Branch>> =
     return!
       Sql.query
         """
-        SELECT id, name, parent_branch_id, base_commit_id, created_at, merged_at
+        SELECT id, name, parent_branch_id, base_commit_hash, created_at, merged_at
         FROM branches
         WHERE name = @name
         """
@@ -92,7 +98,7 @@ let list () : Task<List<PT.Branch>> =
     return!
       Sql.query
         """
-        SELECT id, name, parent_branch_id, base_commit_id, created_at, merged_at
+        SELECT id, name, parent_branch_id, base_commit_hash, created_at, merged_at
         FROM branches
         WHERE merged_at IS NULL
         ORDER BY created_at ASC
@@ -143,7 +149,7 @@ let delete (id : PT.BranchId) : Task<Result<unit, string>> =
 
         let! uncommittedOpCount =
           Sql.query
-            "SELECT COUNT(*) as cnt FROM package_ops WHERE branch_id = @id AND commit_id IS NULL"
+            "SELECT COUNT(*) as cnt FROM package_ops WHERE branch_id = @id AND commit_hash IS NULL"
           |> Sql.parameters [ "id", Sql.uuid id ]
           |> Sql.executeRowAsync (fun read -> read.int64 "cnt")
 
@@ -184,27 +190,19 @@ let setMerged (id : PT.BranchId) : Task<unit> =
 
 
 /// Returns [current; parent; grandparent; ...; main]
-/// Used by name resolution queries to walk the branch chain
+/// Used by name resolution queries to walk the branch chain.
+/// Uses a recursive CTE to fetch the entire chain in a single query.
 let getBranchChain (id : PT.BranchId) : Task<List<PT.BranchId>> =
-  task {
-    let mutable chain = [ id ]
-    let mutable currentId = id
-
-    let mutable keepGoing = true
-    while keepGoing do
-      let! parentOpt =
-        Sql.query
-          """
-          SELECT parent_branch_id FROM branches WHERE id = @id
-          """
-        |> Sql.parameters [ "id", Sql.uuid currentId ]
-        |> Sql.executeRowOptionAsync (fun read -> read.uuidOrNone "parent_branch_id")
-
-      match parentOpt with
-      | Some(Some parentId) ->
-        chain <- chain @ [ parentId ]
-        currentId <- parentId
-      | _ -> keepGoing <- false
-
-    return chain
-  }
+  Sql.query
+    """
+    WITH RECURSIVE chain(id) AS (
+      SELECT @id
+      UNION ALL
+      SELECT b.parent_branch_id
+      FROM branches b JOIN chain c ON b.id = c.id
+      WHERE b.parent_branch_id IS NOT NULL
+    )
+    SELECT id FROM chain
+    """
+  |> Sql.parameters [ "id", Sql.uuid id ]
+  |> Sql.executeAsync (fun read -> read.uuid "id")

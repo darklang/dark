@@ -44,31 +44,34 @@ let buildPathFromLocation
 let findByType
   (branchId: Uuid)
   (targetNamespace: String)
-  (targetTypeId: Uuid)
+  (targetTypeHash: LanguageTools.ProgramTypes.Hash)
   : List<FoundValue<'a>> =
   let namespaceParts = parseNamespace targetNamespace
 
   // Construct a ValueType for the custom type
+  let rtHash =
+    Darklang.LanguageTools.RuntimeTypes.Hash.Hash
+      (Darklang.LanguageTools.ProgramTypes.hashToString targetTypeHash)
   let valueType =
     LanguageTools.RuntimeTypes.ValueType.Known
       (LanguageTools.RuntimeTypes.KnownType.KTCustomType
-        (LanguageTools.RuntimeTypes.FQTypeName.FQTypeName.Package targetTypeId)
+        (LanguageTools.RuntimeTypes.FQTypeName.FQTypeName.Package rtHash)
         [])
 
-  // Use indexed query to find all value IDs with the target type
-  let valueIds = Builtin.pmFindValuesByValueType valueType
+  // Use indexed query to find all value hashes with the target type
+  let valueHashes = Builtin.pmFindValuesByValueType valueType
 
-  valueIds
-  |> Stdlib.List.filterMap (fun valueId ->
+  valueHashes
+  |> Stdlib.List.filterMap (fun valueHash ->
     // Get location for this value
-    match Builtin.pmGetLocationByValue branchId valueId with
+    match Darklang.LanguageTools.PackageManager.pickLocation Darklang.LanguageTools.PackageManager.PickContext.empty (Builtin.pmGetLocationsByValue branchId valueHash) with
     | Some location ->
       // Check if it's in the target namespace
       let valuePath = Stdlib.List.append [ location.owner ] location.modules
 
       if isValueInNamespace namespaceParts valuePath then
         // Evaluate the value
-        match Builtin.pmEvaluateValue valueId with
+        match Builtin.pmEvaluateValue valueHash with
         | Some evaluatedValue ->
           let fullPath = buildPathFromLocation location.owner location.modules location.name
 

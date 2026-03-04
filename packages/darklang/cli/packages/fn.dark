@@ -77,34 +77,18 @@ let createFnInline
             writtenFn
 
         // Check for unresolved names
-        if (Stdlib.List.isEmpty unresolvedNames) |> Stdlib.Bool.not then
-          Stdlib.printLine (Colors.error "Error: Unresolved references")
-          Stdlib.printLine ""
-
-          unresolvedNames
-          |> Stdlib.List.iter (fun (range, err) ->
-            let lineNum = (range.start.row + 1L) |> Stdlib.Int64.toString
-            let colNum = range.start.column |> Stdlib.Int64.toString
-            match err with
-            | NotFound names ->
-              let nameStr = Stdlib.String.join names "."
-              Stdlib.printLine $"  - Not found: {nameStr} (line {lineNum}, column {colNum})"
-            | InvalidName names ->
-              let nameStr = Stdlib.String.join names "."
-              Stdlib.printLine $"  - Invalid name: {nameStr} (line {lineNum}, column {colNum})")
-
-          Stdlib.printLine ""
+        if Errors.reportUnresolvedNames unresolvedNames then
           state
         // no unresolved names - keep going
         else
           // Check if this is an update (has previous versions)
-          let previousUUIDs = Propagate.getAllPreviousUUIDs state.currentBranchId location LanguageTools.ProgramTypes.ItemKind.Fn
-          let isUpdate = (Stdlib.List.isEmpty previousUUIDs) |> Stdlib.Bool.not
+          let previousHashes = Propagate.getAllPreviousHashes state.currentBranchId location LanguageTools.ProgramTypes.ItemKind.Fn
+          let isUpdate = (Stdlib.List.isEmpty previousHashes) |> Stdlib.Bool.not
 
           // Create ops: AddFn and SetFnName
           let ops =
             [ LanguageTools.ProgramTypes.PackageOp.AddFn packageFn
-              LanguageTools.ProgramTypes.PackageOp.SetFnName (packageFn.id, location) ]
+              LanguageTools.ProgramTypes.PackageOp.SetFnName (packageFn.hash, location) ]
 
           // Add ops as WIP (use 'scm commit' to commit)
           match SCM.PackageOps.add state.currentBranchId ops with
@@ -117,7 +101,7 @@ let createFnInline
             Stdlib.printLine (Colors.success $"✓ {action} function: {fullPath}")
 
             // Auto-propagate if this is an update
-            Propagate.autoPropagateAfterUpdate state.currentBranchId location packageFn.id LanguageTools.ProgramTypes.ItemKind.Fn
+            Propagate.autoPropagateAfterUpdate state.currentBranchId location packageFn.hash LanguageTools.ProgramTypes.ItemKind.Fn
 
             Stdlib.printLine ""
             state

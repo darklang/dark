@@ -203,16 +203,19 @@
                                                     "EFnName": [
                                                       123,
                                                       {
-                                                        "Ok": [
-                                                          {
-                                                            "Builtin": [
-                                                              {
-                                                                "name": "int64ToString",
-                                                                "version": 0
-                                                              }
-                                                            ]
-                                                          }
-                                                        ]
+                                                        "originalName": [],
+                                                        "resolved": {
+                                                          "Ok": [
+                                                            {
+                                                              "Builtin": [
+                                                                {
+                                                                  "name": "int64ToString",
+                                                                  "version": 0
+                                                                }
+                                                              ]
+                                                            }
+                                                          ]
+                                                        }
                                                       }
                                                     ]
                                                   },
@@ -301,13 +304,20 @@
                                                           {
                                                             "TCustomType": [
                                                               {
-                                                                "Ok": [
-                                                                  {
-                                                                    "Package": [
-                                                                      "31d72f73-0f99-5a9b-949c-b95705ae7c4d"
-                                                                    ]
-                                                                  }
-                                                                ]
+                                                                "originalName": [],
+                                                                "resolved": {
+                                                                  "Ok": [
+                                                                    {
+                                                                      "Package": [
+                                                                        {
+                                                                          "Hash": [
+                                                                            "abcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890"
+                                                                          ]
+                                                                        }
+                                                                      ]
+                                                                    }
+                                                                  ]
+                                                                }
                                                               },
                                                               [
                                                                 {
@@ -319,13 +329,20 @@
                                                           {
                                                             "TCustomType": [
                                                               {
-                                                                "Ok": [
-                                                                  {
-                                                                    "Package": [
-                                                                      "31d72f73-0f99-5a9b-949c-b95705ae7c4d"
-                                                                    ]
-                                                                  }
-                                                                ]
+                                                                "originalName": [],
+                                                                "resolved": {
+                                                                  "Ok": [
+                                                                    {
+                                                                      "Package": [
+                                                                        {
+                                                                          "Hash": [
+                                                                            "abcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890"
+                                                                          ]
+                                                                        }
+                                                                      ]
+                                                                    }
+                                                                  ]
+                                                                }
                                                               },
                                                               [
                                                                 {
@@ -500,16 +517,19 @@
                                                                 "EFnName": [
                                                                   123,
                                                                   {
-                                                                    "Ok": [
-                                                                      {
-                                                                        "Builtin": [
-                                                                          {
-                                                                            "name": "int64Add",
-                                                                            "version": 0
-                                                                          }
-                                                                        ]
-                                                                      }
-                                                                    ]
+                                                                    "originalName": [],
+                                                                    "resolved": {
+                                                                      "Ok": [
+                                                                        {
+                                                                          "Builtin": [
+                                                                            {
+                                                                              "name": "int64Add",
+                                                                              "version": 0
+                                                                            }
+                                                                          ]
+                                                                        }
+                                                                      ]
+                                                                    }
                                                                   }
                                                                 ]
                                                               },
@@ -576,13 +596,20 @@
                                                 "ERecord": [
                                                   123,
                                                   {
-                                                    "Ok": [
-                                                      {
-                                                        "Package": [
-                                                          "31d72f73-0f99-5a9b-949c-b95705ae7c4d"
-                                                        ]
-                                                      }
-                                                    ]
+                                                    "originalName": [],
+                                                    "resolved": {
+                                                      "Ok": [
+                                                        {
+                                                          "Package": [
+                                                            {
+                                                              "Hash": [
+                                                                "abcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890"
+                                                              ]
+                                                            }
+                                                          ]
+                                                        }
+                                                      ]
+                                                    }
                                                   },
                                                   [
                                                     {
@@ -675,16 +702,19 @@
                                                               "EPipeFnCall": [
                                                                 123,
                                                                 {
-                                                                  "Ok": [
-                                                                    {
-                                                                      "Builtin": [
-                                                                        {
-                                                                          "name": "int64Add",
-                                                                          "version": 0
-                                                                        }
-                                                                      ]
-                                                                    }
-                                                                  ]
+                                                                  "originalName": [],
+                                                                  "resolved": {
+                                                                    "Ok": [
+                                                                      {
+                                                                        "Builtin": [
+                                                                          {
+                                                                            "name": "int64Add",
+                                                                            "version": 0
+                                                                          }
+                                                                        ]
+                                                                      }
+                                                                    ]
+                                                                  }
                                                                 },
                                                                 [],
                                                                 [
@@ -713,13 +743,20 @@
                                                         "EEnum": [
                                                           123,
                                                           {
-                                                            "Ok": [
-                                                              {
-                                                                "Package": [
-                                                                  "31d72f73-0f99-5a9b-949c-b95705ae7c4d"
-                                                                ]
-                                                              }
-                                                            ]
+                                                            "originalName": [],
+                                                            "resolved": {
+                                                              "Ok": [
+                                                                {
+                                                                  "Package": [
+                                                                    {
+                                                                      "Hash": [
+                                                                        "abcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890"
+                                                                      ]
+                                                                    }
+                                                                  ]
+                                                                }
+                                                              ]
+                                                            }
                                                           },
                                                           [
                                                             {
@@ -784,16 +821,19 @@
                                                                 "EFnName": [
                                                                   123,
                                                                   {
-                                                                    "Ok": [
-                                                                      {
-                                                                        "Builtin": [
-                                                                          {
-                                                                            "name": "modFunction",
-                                                                            "version": 2
-                                                                          }
-                                                                        ]
-                                                                      }
-                                                                    ]
+                                                                    "originalName": [],
+                                                                    "resolved": {
+                                                                      "Ok": [
+                                                                        {
+                                                                          "Builtin": [
+                                                                            {
+                                                                              "name": "modFunction",
+                                                                              "version": 2
+                                                                            }
+                                                                          ]
+                                                                        }
+                                                                      ]
+                                                                    }
                                                                   }
                                                                 ]
                                                               },

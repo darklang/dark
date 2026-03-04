@@ -27,6 +27,7 @@ Auto-rebuilds on save. Watch logs:
   ./scripts/run-backend-tests --filter-test-list "list"   # run a group of tests (e.g. a file)
   ./scripts/run-backend-tests --filter-test-case "any_v0"  # run a specific test
   (both filters are a bit finnicky; scripts auto-enter container if needed)
+IMPORTANT: Never run multiple instances of run-backend-tests in parallel.
 Tests take a few minutes to run. Output is logged to
 rundir/logs/fsharp-tests.log -- poll that file for "errored in"
 to catch failures early without waiting for the full run.
@@ -74,7 +75,8 @@ Impl: backend/src/LibParser/NameResolver.fs (F#)
       packages/darklang/languageTools/nameResolver.dark (Dark)
 
 ## Debug
-  eval <expr> to test small pieces
+  Builtin.debug "label" value   # prints DEBUG: label: <repr> to stdout
+  eval <expr>                   # test small pieces (uses tree-sitter parser, not F# parser)
 
 ## External Resources
   ~/vaults/Darklang Dev    # team notes

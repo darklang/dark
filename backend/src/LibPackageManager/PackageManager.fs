@@ -1,6 +1,7 @@
 module LibPackageManager.PackageManager
 
 open Prelude
+open LibExecution.ProgramTypes
 
 module RT = LibExecution.RuntimeTypes
 module PT = LibExecution.ProgramTypes
@@ -47,18 +48,18 @@ let pt : PT.PackageManager =
     getFn = withCache PMPT.Fn.get
     getValue = withCache PMPT.Value.get
 
-    getTypeLocation =
+    getTypeLocations =
       fun branchId id ->
         let chain = getBranchChain branchId
-        PMPT.Type.getLocation chain id
-    getValueLocation =
+        PMPT.Type.getLocations chain id
+    getValueLocations =
       fun branchId id ->
         let chain = getBranchChain branchId
-        PMPT.Value.getLocation chain id
-    getFnLocation =
+        PMPT.Value.getLocations chain id
+    getFnLocations =
       fun branchId id ->
         let chain = getBranchChain branchId
-        PMPT.Fn.getLocation chain id
+        PMPT.Fn.getLocations chain id
 
     search =
       fun (branchId, query) ->
@@ -72,65 +73,124 @@ let pt : PT.PackageManager =
 /// This builds internal maps by applying each op sequentially.
 /// Used for transient state during parsing, testing, etc.
 let createInMemory (ops : List<PT.PackageOp>) : PT.PackageManager =
-  // Build maps by applying each op
-  let types = ResizeArray<PT.PackageType.PackageType>()
-  let values = ResizeArray<PT.PackageValue.PackageValue>()
-  let fns = ResizeArray<PT.PackageFn.PackageFn>()
-  let typeLocations = ResizeArray<PT.PackageLocation * uuid>()
-  let valueLocations = ResizeArray<PT.PackageLocation * uuid>()
-  let fnLocations = ResizeArray<PT.PackageLocation * uuid>()
+  // Build location maps by applying each op
+  let typeLocations = ResizeArray<PT.PackageLocation * Hash>()
+  let valueLocations = ResizeArray<PT.PackageLocation * Hash>()
+  let fnLocations = ResizeArray<PT.PackageLocation * Hash>()
 
   for op in ops do
     match op with
-    | PT.PackageOp.AddType t -> types.Add(t)
-    | PT.PackageOp.SetTypeName(id, loc) -> typeLocations.Add(loc, id)
-    | PT.PackageOp.AddValue v -> values.Add(v)
-    | PT.PackageOp.SetValueName(id, loc) -> valueLocations.Add(loc, id)
-    | PT.PackageOp.AddFn f -> fns.Add(f)
-    | PT.PackageOp.SetFnName(id, loc) -> fnLocations.Add(loc, id)
+    | PT.PackageOp.SetTypeName(hash, loc) -> typeLocations.Add(loc, hash)
+    | PT.PackageOp.SetValueName(hash, loc) -> valueLocations.Add(loc, hash)
+    | PT.PackageOp.SetFnName(hash, loc) -> fnLocations.Add(loc, hash)
+    | PT.PackageOp.AddType _
+    | PT.PackageOp.AddValue _
+    | PT.PackageOp.AddFn _ -> ()
 
-    // After propagation, dependents have new UUIDs.
-    // For each repoint, update the location to point to toUUID (the new version)
+    // After propagation, dependents have new hashes.
+    // For each repoint, update the location to point to toHash (the new version)
     | PT.PackageOp.PropagateUpdate(_, _, _, _, _, repoints) ->
       for repoint in repoints do
         match repoint.itemKind with
-        | PT.ItemKind.Type -> typeLocations.Add(repoint.location, repoint.toUUID)
-        | PT.ItemKind.Value -> valueLocations.Add(repoint.location, repoint.toUUID)
-        | PT.ItemKind.Fn -> fnLocations.Add(repoint.location, repoint.toUUID)
+        | PT.ItemKind.Type -> typeLocations.Add(repoint.location, repoint.toHash)
+        | PT.ItemKind.Value -> valueLocations.Add(repoint.location, repoint.toHash)
+        | PT.ItemKind.Fn -> fnLocations.Add(repoint.location, repoint.toHash)
 
-    // For each repoint, point the location back to fromUUID (the old version).
-    // Then also restore the source item's location to its pre-propagation UUID
+    // For each repoint, point the location back to fromHash (the old version).
+    // Then also restore the source item's location to its pre-propagation hash
     | PT.PackageOp.RevertPropagation(_,
                                      _,
                                      sourceLocation,
                                      sourceItemKind,
-                                     restoredSourceUUID,
+                                     restoredSourceHash,
                                      revertedRepoints) ->
-      // Reverse the repoints: locations go back to fromUUID
+      // Reverse the repoints: locations go back to fromHash
       for repoint in revertedRepoints do
         match repoint.itemKind with
-        | PT.ItemKind.Type -> typeLocations.Add(repoint.location, repoint.fromUUID)
-        | PT.ItemKind.Value -> valueLocations.Add(repoint.location, repoint.fromUUID)
-        | PT.ItemKind.Fn -> fnLocations.Add(repoint.location, repoint.fromUUID)
-      // Restore source location to committed UUID
+        | PT.ItemKind.Type -> typeLocations.Add(repoint.location, repoint.fromHash)
+        | PT.ItemKind.Value -> valueLocations.Add(repoint.location, repoint.fromHash)
+        | PT.ItemKind.Fn -> fnLocations.Add(repoint.location, repoint.fromHash)
+      // Restore source location to committed hash
       match sourceItemKind with
-      | PT.ItemKind.Type -> typeLocations.Add(sourceLocation, restoredSourceUUID)
-      | PT.ItemKind.Value -> valueLocations.Add(sourceLocation, restoredSourceUUID)
-      | PT.ItemKind.Fn -> fnLocations.Add(sourceLocation, restoredSourceUUID)
+      | PT.ItemKind.Type -> typeLocations.Add(sourceLocation, restoredSourceHash)
+      | PT.ItemKind.Value -> valueLocations.Add(sourceLocation, restoredSourceHash)
+      | PT.ItemKind.Fn -> fnLocations.Add(sourceLocation, restoredSourceHash)
 
-  // Convert to immutable maps for efficient lookup
-  let typeMap = types |> Seq.map (fun t -> t.id, t) |> Map.ofSeq
-  let valueMap = values |> Seq.map (fun v -> v.id, v) |> Map.ofSeq
-  let fnMap = fns |> Seq.map (fun f -> f.id, f) |> Map.ofSeq
+  // Convert to immutable maps for efficient lookup.
+  // All items (types, fns, values) are keyed by their hash.
+  // The ops contain Add*(item) followed by Set*Name(hash, loc);
+  // we pair them to build Hash -> item maps.
+  let typeMap =
+    let mutable map = Map.empty<Hash, PT.PackageType.PackageType>
+    let mutable pendingType : Option<PT.PackageType.PackageType> = None
+    for op in ops do
+      match op with
+      | PT.PackageOp.AddType t -> pendingType <- Some t
+      | PT.PackageOp.SetTypeName(hash, _loc) ->
+        match pendingType with
+        | Some t ->
+          map <- Map.add hash { t with hash = hash } map
+          pendingType <- None
+        | None -> ()
+      | _ -> ()
+    map
+
+  let fnMap =
+    let mutable map = Map.empty<Hash, PT.PackageFn.PackageFn>
+    let mutable pendingFn : Option<PT.PackageFn.PackageFn> = None
+    for op in ops do
+      match op with
+      | PT.PackageOp.AddFn f -> pendingFn <- Some f
+      | PT.PackageOp.SetFnName(hash, _loc) ->
+        match pendingFn with
+        | Some f ->
+          map <- Map.add hash { f with hash = hash } map
+          pendingFn <- None
+        | None -> ()
+      | _ -> ()
+    map
+
+  let valueMap =
+    let mutable map = Map.empty<Hash, PT.PackageValue.PackageValue>
+    let mutable pendingValue : Option<PT.PackageValue.PackageValue> = None
+    for op in ops do
+      match op with
+      | PT.PackageOp.AddValue v -> pendingValue <- Some v
+      | PT.PackageOp.SetValueName(hash, _loc) ->
+        match pendingValue with
+        | Some v ->
+          map <- Map.add hash { v with hash = hash } map
+          pendingValue <- None
+        | None -> ()
+      | _ -> ()
+    map
+
   let typeLocMap = Map.ofSeq typeLocations
   let valueLocMap = Map.ofSeq valueLocations
   let fnLocMap = Map.ofSeq fnLocations
 
-  // Build reverse maps (id → location)
-  let typeIdToLoc = typeLocations |> Seq.map (fun (loc, id) -> id, loc) |> Map.ofSeq
-  let valueIdToLoc =
-    valueLocations |> Seq.map (fun (loc, id) -> id, loc) |> Map.ofSeq
-  let fnIdToLoc = fnLocations |> Seq.map (fun (loc, id) -> id, loc) |> Map.ofSeq
+  // Build reverse multi-maps (id → all locations)
+  let typeIdToLocs =
+    typeLocations
+    |> Seq.fold
+      (fun acc (loc, id) ->
+        let existing = Map.tryFind id acc |> Option.defaultValue []
+        Map.add id (loc :: existing) acc)
+      Map.empty
+  let valueIdToLocs =
+    valueLocations
+    |> Seq.fold
+      (fun acc (loc, id) ->
+        let existing = Map.tryFind id acc |> Option.defaultValue []
+        Map.add id (loc :: existing) acc)
+      Map.empty
+  let fnIdToLocs =
+    fnLocations
+    |> Seq.fold
+      (fun acc (loc, id) ->
+        let existing = Map.tryFind id acc |> Option.defaultValue []
+        Map.add id (loc :: existing) acc)
+      Map.empty
 
   { findType = fun (_, loc) -> Ply(Map.tryFind loc typeLocMap)
     findValue = fun (_, loc) -> Ply(Map.tryFind loc valueLocMap)
@@ -140,9 +200,12 @@ let createInMemory (ops : List<PT.PackageOp>) : PT.PackageManager =
     getValue = fun id -> Ply(Map.tryFind id valueMap)
     getFn = fun id -> Ply(Map.tryFind id fnMap)
 
-    getTypeLocation = fun _branchId id -> Ply(Map.tryFind id typeIdToLoc)
-    getValueLocation = fun _branchId id -> Ply(Map.tryFind id valueIdToLoc)
-    getFnLocation = fun _branchId id -> Ply(Map.tryFind id fnIdToLoc)
+    getTypeLocations =
+      fun _branchId id -> Ply(Map.tryFind id typeIdToLocs |> Option.defaultValue [])
+    getValueLocations =
+      fun _branchId id -> Ply(Map.tryFind id valueIdToLocs |> Option.defaultValue [])
+    getFnLocations =
+      fun _branchId id -> Ply(Map.tryFind id fnIdToLocs |> Option.defaultValue [])
 
     // no need to support this for in-memory.
     search =
@@ -150,31 +213,31 @@ let createInMemory (ops : List<PT.PackageOp>) : PT.PackageManager =
         // Simple in-memory search - just return all items with their locations
         // Could implement proper filtering if needed
         let typesWithLocs =
-          types
-          |> Seq.toList
-          |> List.choose (fun t ->
-            match Map.tryFind t.id typeIdToLoc with
-            | Some loc ->
+          typeMap
+          |> Map.toList
+          |> List.choose (fun (hash, t) ->
+            match Map.tryFind hash typeIdToLocs |> Option.defaultValue [] with
+            | loc :: _ ->
               Option.Some({ entity = t; location = loc } : PT.LocatedItem<_>)
-            | None -> Option.None)
+            | [] -> Option.None)
 
         let valuesWithLocs =
-          values
-          |> Seq.toList
-          |> List.choose (fun v ->
-            match Map.tryFind v.id valueIdToLoc with
-            | Some loc ->
+          valueMap
+          |> Map.toList
+          |> List.choose (fun (hash, v) ->
+            match Map.tryFind hash valueIdToLocs |> Option.defaultValue [] with
+            | loc :: _ ->
               Option.Some({ entity = v; location = loc } : PT.LocatedItem<_>)
-            | None -> Option.None)
+            | [] -> Option.None)
 
         let fnsWithLocs =
-          fns
-          |> Seq.toList
-          |> List.choose (fun f ->
-            match Map.tryFind f.id fnIdToLoc with
-            | Some loc ->
+          fnMap
+          |> Map.toList
+          |> List.choose (fun (hash, f) ->
+            match Map.tryFind hash fnIdToLocs |> Option.defaultValue [] with
+            | loc :: _ ->
               Option.Some({ entity = f; location = loc } : PT.LocatedItem<_>)
-            | None -> Option.None)
+            | [] -> Option.None)
 
         Ply
           { PT.Search.SearchResults.submodules = []
@@ -239,28 +302,28 @@ let combine
           | None -> return! fallback.getFn id
         }
 
-    getTypeLocation =
+    getTypeLocations =
       fun branchId id ->
         uply {
-          match! overlay.getTypeLocation branchId id with
-          | Some loc -> return Some loc
-          | None -> return! fallback.getTypeLocation branchId id
+          let! overlayLocs = overlay.getTypeLocations branchId id
+          let! fallbackLocs = fallback.getTypeLocations branchId id
+          return overlayLocs @ fallbackLocs
         }
 
-    getValueLocation =
+    getValueLocations =
       fun branchId id ->
         uply {
-          match! overlay.getValueLocation branchId id with
-          | Some loc -> return Some loc
-          | None -> return! fallback.getValueLocation branchId id
+          let! overlayLocs = overlay.getValueLocations branchId id
+          let! fallbackLocs = fallback.getValueLocations branchId id
+          return overlayLocs @ fallbackLocs
         }
 
-    getFnLocation =
+    getFnLocations =
       fun branchId id ->
         uply {
-          match! overlay.getFnLocation branchId id with
-          | Some loc -> return Some loc
-          | None -> return! fallback.getFnLocation branchId id
+          let! overlayLocs = overlay.getFnLocations branchId id
+          let! fallbackLocs = fallback.getFnLocations branchId id
+          return overlayLocs @ fallbackLocs
         }
 
     search =
@@ -283,89 +346,6 @@ let combine
         do! overlay.init
         do! fallback.init
       } }
-
-
-// TODO can we (somehow) abstract the algorithm of: phase 1, id stabilization, reparse for phase 2
-
-/// Stabilize IDs in ops by matching them against a reference PackageManager
-/// Used during two-phase parsing to ensure IDs from second pass match first pass
-let stabilizeOpsAgainstPM
-  (branchId : PT.BranchId)
-  (referencePM : PT.PackageManager)
-  (ops : List<PT.PackageOp>)
-  : Ply<List<PT.PackageOp>> =
-  uply {
-    let mutable result = []
-    for op in List.rev ops do
-      let! stabilizedOp =
-        uply {
-          match op with
-          | PT.PackageOp.SetTypeName(_, loc) ->
-            // Look up stable ID from reference PM
-            let! stableIdOpt = referencePM.findType (branchId, loc)
-            let stableId =
-              stableIdOpt |> Option.defaultWith (fun () -> System.Guid.NewGuid())
-            return PT.PackageOp.SetTypeName(stableId, loc)
-
-          | PT.PackageOp.AddType typ ->
-            // Find location for this type in current ops
-            let typLoc =
-              ops
-              |> List.tryPick (function
-                | PT.PackageOp.SetTypeName(id, loc) when id = typ.id -> Some loc
-                | _ -> None)
-            // Look up stable ID from reference PM using that location
-            let! stableIdOpt =
-              match typLoc with
-              | Some loc -> referencePM.findType (branchId, loc)
-              | None -> Ply(None)
-            let stableId = stableIdOpt |> Option.defaultValue typ.id
-            return PT.PackageOp.AddType { typ with id = stableId }
-
-          | PT.PackageOp.SetValueName(_, loc) ->
-            let! stableIdOpt = referencePM.findValue (branchId, loc)
-            let stableId =
-              stableIdOpt |> Option.defaultWith (fun () -> System.Guid.NewGuid())
-            return PT.PackageOp.SetValueName(stableId, loc)
-
-          | PT.PackageOp.AddValue value ->
-            let valueLoc =
-              ops
-              |> List.tryPick (function
-                | PT.PackageOp.SetValueName(id, loc) when id = value.id -> Some loc
-                | _ -> None)
-            let! stableIdOpt =
-              match valueLoc with
-              | Some loc -> referencePM.findValue (branchId, loc)
-              | None -> Ply(None)
-            let stableId = stableIdOpt |> Option.defaultValue value.id
-            return PT.PackageOp.AddValue { value with id = stableId }
-
-          | PT.PackageOp.SetFnName(_, loc) ->
-            let! stableIdOpt = referencePM.findFn (branchId, loc)
-            let stableId =
-              stableIdOpt |> Option.defaultWith (fun () -> System.Guid.NewGuid())
-            return PT.PackageOp.SetFnName(stableId, loc)
-
-          | PT.PackageOp.AddFn fn ->
-            let fnLoc =
-              ops
-              |> List.tryPick (function
-                | PT.PackageOp.SetFnName(id, loc) when id = fn.id -> Some loc
-                | _ -> None)
-            let! stableIdOpt =
-              match fnLoc with
-              | Some loc -> referencePM.findFn (branchId, loc)
-              | None -> Ply(None)
-            let stableId = stableIdOpt |> Option.defaultValue fn.id
-            return PT.PackageOp.AddFn { fn with id = stableId }
-
-          | PT.PackageOp.PropagateUpdate _ -> return op
-          | PT.PackageOp.RevertPropagation _ -> return op
-        }
-      result <- stabilizedOp :: result
-    return result
-  }
 
 
 /// Create an in-memory PackageManager from PackageOps

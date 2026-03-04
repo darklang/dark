@@ -12,6 +12,7 @@ module WT = WrittenTypes
 module FS2WT = FSharpToWrittenTypes
 module WT2PT = WrittenTypesToProgramTypes
 module NR = NameResolver
+open LibSerialization.Hashing
 
 open Utils
 open ParserException
@@ -244,9 +245,10 @@ let toPT
             { owner = wtType.name.owner
               modules = wtType.name.modules
               name = wtType.name.name }
+          let hash = Hashing.computeTypeHash Hashing.Normal ptType
           return
             [ PT.PackageOp.AddType ptType
-              PT.PackageOp.SetTypeName(ptType.id, location) ]
+              PT.PackageOp.SetTypeName(hash, location) ]
         })
       |> Ply.map List.flatten
 
@@ -262,7 +264,10 @@ let toPT
               name = wtValue.name.name }
           return
             [ PT.PackageOp.AddValue ptValue
-              PT.PackageOp.SetValueName(ptValue.id, location) ]
+              PT.PackageOp.SetValueName(
+                Hashing.computeValueHash Hashing.Normal ptValue,
+                location
+              ) ]
         })
       |> Ply.map List.flatten
 
@@ -275,8 +280,8 @@ let toPT
             { owner = wtFn.name.owner
               modules = wtFn.name.modules
               name = wtFn.name.name }
-          return
-            [ PT.PackageOp.AddFn ptFn; PT.PackageOp.SetFnName(ptFn.id, location) ]
+          let hash = Hashing.computeFnHash Hashing.Normal ptFn
+          return [ PT.PackageOp.AddFn ptFn; PT.PackageOp.SetFnName(hash, location) ]
         })
       |> Ply.map List.flatten
 
@@ -347,25 +352,14 @@ let parse
 
     let moduleWT = parseDecls owner canvasName decls
 
-    // Two-phase parsing with ID stabilization:
+    // Two-phase parsing:
     // First pass: parse with OnMissing.Allow to allow forward references
     let! firstPass =
       toPT builtins PT.PackageManager.empty NR.OnMissing.Allow moduleWT
 
-    // Extract ops from first pass for second pass PackageManager
-    let firstPassOps = firstPass.ops
-
     // Second pass: re-parse with PackageManager containing first pass results
-    let enhancedPM = LibPackageManager.PackageManager.withExtraOps pm firstPassOps
+    let enhancedPM = LibPackageManager.PackageManager.withExtraOps pm firstPass.ops
     let! secondPass = toPT builtins enhancedPM onMissing moduleWT
 
-    // ID stabilization: adjust second pass IDs to match first pass IDs
-    let firstPassPM = LibPackageManager.PackageManager.createInMemory firstPassOps
-    let! adjustedOps =
-      LibPackageManager.PackageManager.stabilizeOpsAgainstPM
-        PT.mainBranchId
-        firstPassPM
-        secondPass.ops
-
-    return { secondPass with ops = adjustedOps }
+    return secondPass
   }

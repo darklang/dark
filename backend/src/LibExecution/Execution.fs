@@ -152,7 +152,7 @@ let runtimeErrorToString
   task {
     let fnName =
       RT.FQFnName.fqPackage
-        PackageIDs.Fn.PrettyPrinter.RuntimeTypes.RuntimeError.toString
+        PackageRefs.Fn.PrettyPrinter.RuntimeTypes.RuntimeError.toString
     let args =
       NEList.ofList (RT.DUuid state.branchId) [ RT2DT.RuntimeError.toDT rte ]
     return! executeFunction state fnName [] args
@@ -170,7 +170,7 @@ let fnNameToString
   : Task<string> =
   task {
     let fnName =
-      RT.FQFnName.fqPackage PackageIDs.Fn.PrettyPrinter.RuntimeTypes.fnName
+      RT.FQFnName.fqPackage PackageRefs.Fn.PrettyPrinter.RuntimeTypes.fnName
     let args = NEList.ofList (RT.DUuid state.branchId) [ RT2DT.FQFnName.toDT name ]
     match! executeFunction state fnName [] args with
     | Ok(RT.DString s) -> return s
@@ -180,7 +180,7 @@ let fnNameToString
 
 let dvalToRepr (state : RT.ExecutionState) (dval : RT.Dval) : Task<string> =
   task {
-    let fnName = RT.FQFnName.fqPackage PackageIDs.Fn.PrettyPrinter.RuntimeTypes.dval
+    let fnName = RT.FQFnName.fqPackage PackageRefs.Fn.PrettyPrinter.RuntimeTypes.dval
     let args = NEList.ofList (RT.DUuid state.branchId) [ RT2DT.Dval.toDT dval ]
     match! executeFunction state fnName [] args with
     | Ok(RT.DString s) -> return s
@@ -193,7 +193,7 @@ let typeRefToString
   : Task<string> =
   task {
     let fnName =
-      RT.FQFnName.fqPackage PackageIDs.Fn.PrettyPrinter.RuntimeTypes.typeReference
+      RT.FQFnName.fqPackage PackageRefs.Fn.PrettyPrinter.RuntimeTypes.typeReference
     let args =
       NEList.ofList (RT.DUuid state.branchId) [ RT2DT.TypeReference.toDT typeRef ]
     match! executeFunction state fnName [] args with
@@ -205,7 +205,7 @@ let dvalToTypeName (state : RT.ExecutionState) (dval : RT.Dval) : Task<string> =
   task {
     let fnName =
       RT.FQFnName.fqPackage
-        PackageIDs.Fn.PrettyPrinter.RuntimeTypes.Dval.valueTypeName
+        PackageRefs.Fn.PrettyPrinter.RuntimeTypes.Dval.valueTypeName
     let args = NEList.ofList (RT.DUuid state.branchId) [ RT2DT.Dval.toDT dval ]
     match! executeFunction state fnName [] args with
     | Ok(RT.DString s) -> return s
@@ -240,7 +240,7 @@ let dvalToTypeName (state : RT.ExecutionState) (dval : RT.Dval) : Task<string> =
 //     let prettyPrint (expr : RT.Expr) : Ply<string> =
 //       uply {
 //         let fnName =
-//           RT.FQFnName.fqPackage PackageIDs.Fn.PrettyPrinter.RuntimeTypes.expr
+//           RT.FQFnName.fqPackage PackageRefs.Fn.PrettyPrinter.RuntimeTypes.expr
 //         let args = NEList.singleton (RuntimeTypesToDarkTypes.Expr.toDT expr)
 
 //         match! executeFunction state fnName [] args with
@@ -362,7 +362,7 @@ let rec rteToString
   uply {
     let errorMessageFn =
       RT.FQFnName.fqPackage
-        PackageIDs.Fn.PrettyPrinter.RuntimeTypes.RuntimeError.toErrorMessage
+        PackageRefs.Fn.PrettyPrinter.RuntimeTypes.RuntimeError.toErrorMessage
 
     let rteDval = rteToDval rte
 

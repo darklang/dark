@@ -48,9 +48,9 @@ export class ScmCommands {
         });
         if (message) {
           try {
-            const result = await this.client.sendRequest<{ success: boolean; commitId: string }>("dark/scm/commit", { message });
+            const result = await this.client.sendRequest<{ success: boolean; commitHash: string }>("dark/scm/commit", { message });
             if (result.success) {
-              vscode.window.showInformationMessage(`Committed: ${result.commitId.substring(0, 8)}`);
+              vscode.window.showInformationMessage(`Committed: ${result.commitHash.substring(0, 8)}`);
             }
           } catch (error) {
             vscode.window.showErrorMessage(`Commit failed: ${error}`);
@@ -60,7 +60,7 @@ export class ScmCommands {
 
       vscode.commands.registerCommand("darklang.scm.log", async () => {
         try {
-          const commits = await this.client.sendRequest<{ id: string; message: string; createdAt: string; opCount: string; branchName?: string }[]>("dark/scm/getCommits", { limit: 20 });
+          const commits = await this.client.sendRequest<{ hash: string; message: string; createdAt: string; opCount: string; branchName?: string }[]>("dark/scm/getCommits", { limit: 20 });
 
           const lines: string[] = ["Darklang Commit Log", "=".repeat(40), ""];
           if (commits.length === 0) {
@@ -68,7 +68,7 @@ export class ScmCommands {
           } else {
             for (const c of commits) {
               const branch = c.branchName ? `  [${c.branchName}]` : "";
-              lines.push(`${c.id.substring(0, 8)}  ${c.message}  (${c.opCount} ops, ${c.createdAt})${branch}`);
+              lines.push(`${c.hash.substring(0, 8)}  ${c.message}  (${c.opCount} ops, ${c.createdAt})${branch}`);
             }
           }
 
@@ -97,17 +97,17 @@ export class ScmCommands {
         }
       }),
 
-      vscode.commands.registerCommand("darklang.scm.showCommit", async (commitIdOrNode: string | { commitId?: string }) => {
+      vscode.commands.registerCommand("darklang.scm.showCommit", async (commitHashOrNode: string | { commitHash?: string }) => {
         try {
-          const commitId = typeof commitIdOrNode === "string" ? commitIdOrNode : commitIdOrNode?.commitId;
-          if (!commitId) { return; }
-          const ops = await this.client.sendRequest<string[]>("dark/scm/getCommitOps", { commitId });
+          const commitHash = typeof commitHashOrNode === "string" ? commitHashOrNode : commitHashOrNode?.commitHash;
+          if (!commitHash) { return; }
+          const ops = await this.client.sendRequest<string[]>("dark/scm/getCommitOps", { commitHash });
           const content = ops.length > 0
             ? ops.map((op, i) => `${i + 1}. ${op}`).join("\n")
             : "No operations in this commit.";
 
           const doc = await vscode.workspace.openTextDocument({
-            content: `Commit: ${commitId}\n${"=".repeat(50)}\n\n${content}`,
+            content: `Commit: ${commitHash}\n${"=".repeat(50)}\n\n${content}`,
             language: "plaintext"
           });
           await vscode.window.showTextDocument(doc, { preview: true });

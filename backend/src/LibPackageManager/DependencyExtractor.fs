@@ -3,67 +3,68 @@
 module LibPackageManager.DependencyExtractor
 
 open Prelude
+open LibExecution.ProgramTypes
 
 module PT = LibExecution.ProgramTypes
 
 
-/// A dependency is just the UUID of what's being depended on.
+/// A dependency is the Hash of what's being depended on.
 // TODO: track the _type_ of the thing we're dependant on.
 // Likely `type PackageItem = | Type of ID | Value of ID | Fn of ID`
 // and `type Dependency = | PackageItem of PackageItem`.
 // Later, we might extend dependency-tracking to include Secrets and DBs
 // that are referenced, as well as other things that can be referenced.
 // And we may track the _purity_ of the dependencies in the same space.
-type Dependency = uuid
+type Dependency = Hash
 
-/// Extract package UUID from a NameResolution if it resolved to a Package
+/// Extract package Hash from a NameResolution if it resolved to a Package
 let private extractFromNameResolution
   (nr : PT.NameResolution<'a>)
-  (extractPackageId : 'a -> Option<uuid>)
+  (getPackageHash : 'a -> Option<Hash>)
   : List<Dependency> =
-  match nr with
+  match nr.resolved with
   | Ok resolved ->
-    match extractPackageId resolved with
-    | Some id -> [ id ]
+    match getPackageHash resolved with
+    | Some hash -> [ hash ]
     | None -> []
   | Error _ -> []
 
 
-/// Extract package UUID from FQFnName
-let private extractFnId (fn : PT.FQFnName.FQFnName) : Option<uuid> =
+/// Extract package Hash from FQFnName
+let private getFnPackageHash (fn : PT.FQFnName.FQFnName) : Option<Hash> =
   match fn with
-  | PT.FQFnName.Package id -> Some id
+  | PT.FQFnName.Package hash -> Some hash
   | PT.FQFnName.Builtin _ -> None
 
 
-/// Extract package UUID from FQTypeName
-let private extractTypeId (typ : PT.FQTypeName.FQTypeName) : Option<uuid> =
+/// Extract package Hash from FQTypeName
+let private getTypePackageHash (typ : PT.FQTypeName.FQTypeName) : Option<Hash> =
   match typ with
-  | PT.FQTypeName.Package id -> Some id
+  | PT.FQTypeName.Package hash -> Some hash
 
 
-/// Extract package UUID from FQValueName
-let private extractValueId (value : PT.FQValueName.FQValueName) : Option<uuid> =
+/// Extract package Hash from FQValueName
+let private getValuePackageHash (value : PT.FQValueName.FQValueName) : Option<Hash> =
   match value with
-  | PT.FQValueName.Package id -> Some id
+  | PT.FQValueName.Package hash -> Some hash
   | PT.FQValueName.Builtin _ -> None
 
 
 /// Extract dependencies from a Deprecation field
 let private extractFromDeprecation
-  (extractId : 'a -> Option<uuid>)
+  (getPackageHash : 'a -> Option<Hash>)
   (dep : PT.Deprecation<'a>)
   : List<Dependency> =
   match dep with
   | PT.NotDeprecated -> []
   | PT.DeprecatedBecause _ -> []
   | PT.RenamedTo name ->
-    match extractId name with
-    | Some id -> [ id ]
+    match getPackageHash name with
+    | Some hash -> [ hash ]
     | None -> []
   | PT.ReplacedBy name ->
-    match extractId name with
-    | Some id -> [ id ]
+    match getPackageHash name with
+    | Some hash -> [ hash ]
     | None -> []
 
 
@@ -101,7 +102,7 @@ let rec private extractFromTypeRef (typeRef : PT.TypeReference) : List<Dependenc
 
   | PT.TCustomType(nr, typeArgs) ->
     List.concat
-      [ extractFromNameResolution nr extractTypeId
+      [ extractFromNameResolution nr getTypePackageHash
         typeArgs |> List.collect extractFromTypeRef ]
 
   | PT.TFn(args, ret) ->
@@ -117,10 +118,6 @@ let rec private extractFromStringSegment
   match segment with
   | PT.StringText _ -> []
   | PT.StringInterpolation expr -> extractFromExpr expr
-
-
-/// Extract references from a LetPattern (no references in patterns themselves)
-and private extractFromLetPattern (_pat : PT.LetPattern) : List<Dependency> = []
 
 
 /// Extract references from a MatchPattern (no type references in match patterns)
@@ -176,13 +173,13 @@ and private extractFromPipeExpr (pipeExpr : PT.PipeExpr) : List<Dependency> =
 
   | PT.EPipeFnCall(_, nr, typeArgs, args) ->
     List.concat
-      [ extractFromNameResolution nr extractFnId
+      [ extractFromNameResolution nr getFnPackageHash
         typeArgs |> List.collect extractFromTypeRef
         args |> List.collect extractFromExpr ]
 
   | PT.EPipeEnum(_, nr, _, fields) ->
     List.concat
-      [ extractFromNameResolution nr extractTypeId
+      [ extractFromNameResolution nr getTypePackageHash
         fields |> List.collect extractFromExpr ]
 
   | PT.EPipeVariable(_, _, args) -> args |> List.collect extractFromExpr
@@ -225,9 +222,8 @@ and extractFromExpr (expr : PT.Expr) : List<Dependency> =
   | PT.EMatch(_, arg, cases) ->
     List.concat [ extractFromExpr arg; cases |> List.collect extractFromMatchCase ]
 
-  | PT.ELet(_, pat, value, body) ->
-    List.concat
-      [ extractFromLetPattern pat; extractFromExpr value; extractFromExpr body ]
+  | PT.ELet(_, _pat, value, body) ->
+    List.concat [ extractFromExpr value; extractFromExpr body ]
 
   // Basic structures
   | PT.EList(_, items) -> items |> List.collect extractFromExpr
@@ -247,7 +243,7 @@ and extractFromExpr (expr : PT.Expr) : List<Dependency> =
         typeArgs |> List.collect extractFromTypeRef
         args |> NEList.toList |> List.collect extractFromExpr ]
 
-  | PT.EFnName(_, nr) -> extractFromNameResolution nr extractFnId
+  | PT.EFnName(_, nr) -> extractFromNameResolution nr getFnPackageHash
 
   | PT.ELambda(_, _, body) -> extractFromExpr body
 
@@ -257,7 +253,7 @@ and extractFromExpr (expr : PT.Expr) : List<Dependency> =
   // Records and custom types
   | PT.ERecord(_, nr, typeArgs, fields) ->
     List.concat
-      [ extractFromNameResolution nr extractTypeId
+      [ extractFromNameResolution nr getTypePackageHash
         typeArgs |> List.collect extractFromTypeRef
         fields |> List.collect (snd >> extractFromExpr) ]
 
@@ -270,11 +266,11 @@ and extractFromExpr (expr : PT.Expr) : List<Dependency> =
 
   | PT.EEnum(_, nr, typeArgs, _, fields) ->
     List.concat
-      [ extractFromNameResolution nr extractTypeId
+      [ extractFromNameResolution nr getTypePackageHash
         typeArgs |> List.collect extractFromTypeRef
         fields |> List.collect extractFromExpr ]
 
-  | PT.EValue(_, nr) -> extractFromNameResolution nr extractValueId
+  | PT.EValue(_, nr) -> extractFromNameResolution nr getValuePackageHash
 
   | PT.EStatement(_, first, next) ->
     List.concat [ extractFromExpr first; extractFromExpr next ]
@@ -289,7 +285,7 @@ let extractFromFn (fn : PT.PackageFn.PackageFn) : List<Dependency> =
       |> NEList.toList
       |> List.collect (fun p -> extractFromTypeRef p.typ)
       extractFromTypeRef fn.returnType
-      extractFromDeprecation extractFnId fn.deprecated ]
+      extractFromDeprecation getFnPackageHash fn.deprecated ]
   |> List.distinct
 
 
@@ -297,7 +293,7 @@ let extractFromFn (fn : PT.PackageFn.PackageFn) : List<Dependency> =
 let extractFromValue (value : PT.PackageValue.PackageValue) : List<Dependency> =
   List.concat
     [ extractFromExpr value.body
-      extractFromDeprecation extractValueId value.deprecated ]
+      extractFromDeprecation getValuePackageHash value.deprecated ]
   |> List.distinct
 
 
@@ -320,5 +316,5 @@ let extractFromType (typ : PT.PackageType.PackageType) : List<Dependency> =
 
   List.concat
     [ extractFromDefinition typ.declaration.definition
-      extractFromDeprecation extractTypeId typ.deprecated ]
+      extractFromDeprecation getTypePackageHash typ.deprecated ]
   |> List.distinct

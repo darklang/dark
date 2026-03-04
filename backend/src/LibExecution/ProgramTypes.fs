@@ -23,9 +23,17 @@ let assertBuiltin
   assert_ "version can't be negative" [ "version", version ] (version >= 0)
 
 
+
 // TODO: consider grouping SCM types (BranchId, Branch, MergeError, Commit) into a
 // SourceControl module to match the Dark package structure (Darklang.SCM.*)
 /// SCM branch identifier
+/// Structural hash of a package item's content (shape, not name/location).
+type Hash = Hash of string
+
+module Hash =
+  let empty : Hash = Hash ""
+  let toHexString (Hash h) : string = h
+
 type BranchId = uuid
 
 /// Well-known main branch UUID
@@ -37,7 +45,7 @@ type Branch =
   { id : BranchId
     name : string
     parentBranchId : Option<BranchId>
-    baseCommitId : Option<uuid>
+    baseCommitHash : Option<Hash>
     createdAt : NodaTime.Instant
     mergedAt : Option<NodaTime.Instant> }
 
@@ -54,7 +62,7 @@ type MergeError =
 
 /// A commit on a branch
 type Commit =
-  { id : uuid
+  { hash : Hash
     message : string
     createdAt : NodaTime.Instant
     opCount : int64
@@ -66,14 +74,13 @@ type Commit =
 ///
 /// Used to reference a type defined in a Package or by a User
 module FQTypeName =
-  /// The id of a type in the package manager
-  type Package = uuid
+  type Package = Hash
 
   type FQTypeName = Package of Package
 
-  let package (id : uuid) : Package = id
+  let package (h : string) : Package = Hash h
 
-  let fqPackage (id : uuid) : FQTypeName = Package id
+  let fqPackage (h : string) : FQTypeName = Package(Hash h)
 
 
 
@@ -84,8 +91,8 @@ module FQValueName =
   /// A value built into the runtime
   type Builtin = { name : string; version : int }
 
-  /// The id of a value in the package manager
-  type Package = uuid
+  /// The hash of a value in the package manager
+  type Package = Hash
 
   type FQValueName =
     | Builtin of Builtin
@@ -102,9 +109,9 @@ module FQValueName =
   let fqBuiltIn (name : string) (version : int) : FQValueName =
     Builtin(builtIn name version)
 
-  let package (id : uuid) : Package = id
+  let package (h : string) : Package = Hash h
 
-  let fqPackage (id : uuid) : FQValueName = Package id
+  let fqPackage (h : string) : FQValueName = Package(Hash h)
 
 
 
@@ -116,8 +123,8 @@ module FQFnName =
   /// A function built into the runtime
   type Builtin = { name : string; version : int }
 
-  /// The id of a function in the package manager
-  type Package = uuid
+  /// The hash of a function in the package manager
+  type Package = Hash
 
   type FQFnName =
     | Builtin of Builtin
@@ -133,9 +140,9 @@ module FQFnName =
   let fqBuiltIn (name : string) (version : int) : FQFnName =
     Builtin(builtIn name version)
 
-  let package (id : uuid) : Package = id
+  let package (h : string) : Package = Hash h
 
-  let fqPackage (id : uuid) : FQFnName = Package id
+  let fqPackage (h : string) : FQFnName = Package(Hash h)
 
 
 // In ProgramTypes, names (FnNames, TypeNames, ValueNames) have already been
@@ -157,10 +164,15 @@ module FQFnName =
 // information.
 
 type NameResolutionError =
-  | NotFound of List<string>
-  | InvalidName of List<string>
+  | NotFound
+  | InvalidName
 
-type NameResolution<'a> = Result<'a, NameResolutionError>
+type NameResolution<'a> =
+  { originalName : List<string>; resolved : Result<'a, NameResolutionError> }
+
+module NameResolution =
+  let ok (value : 'a) : NameResolution<'a> =
+    { originalName = []; resolved = Ok value }
 
 
 type LetPattern =
@@ -293,7 +305,6 @@ type TypeReference =
   /// e.g. `Result<Int64, String>` is represented as `TCustomType("Result", [TInt64, TString])`
   /// `typeArgs` is the list of type arguments, if any
   | TCustomType of
-    // TODO: this reference should be by-hash
     NameResolution<FQTypeName.FQTypeName> *
     typeArgs : List<TypeReference>
 
@@ -403,7 +414,6 @@ type Expr =
   /// `SomeRecord { field1: value; field2: value }`
   | ERecord of
     id *
-    // TODO: this reference should be by-hash
     typeName : NameResolution<FQTypeName.FQTypeName> *
     typeArgs : List<TypeReference> *
     // User is allowed type `Name {}` even if that's an error
@@ -428,16 +438,12 @@ type Expr =
   ///   `EEnum(Some UserType.MyEnum, "C", [EInt64(1), EString("title")]`
   | EEnum of
     id *
-    // TODO: this reference should be by-hash
     typeName : NameResolution<FQTypeName.FQTypeName> *
     typeArgs : List<TypeReference> *
     caseName : string *
     fields : List<Expr>
 
-  | EValue of
-    id *
-    // TODO: this reference should be by-hash
-    NameResolution<FQValueName.FQValueName>
+  | EValue of id * NameResolution<FQValueName.FQValueName>
 
   | EStatement of id * first : Expr * next : Expr
 
@@ -466,7 +472,6 @@ and PipeExpr =
   /// `1 |> Option.Some`
   | EPipeEnum of
     id *
-    // TODO: this reference should be by-hash
     typeName : NameResolution<FQTypeName.FQTypeName> *
     caseName : string *
     fields : List<Expr>
@@ -575,7 +580,6 @@ type PackageLocation =
     modules : List<string>
     name : string }
 
-
 module PackageType =
   // CLEANUP most of the time, the deprecation status isn't a useful thing in F# land.
   // We can (largely) migrate the Deprecation (action) of something, and trim this down to what matters: just the declaration
@@ -586,7 +590,7 @@ module PackageType =
   // OK but what do we do about /// comments?
   // really this just begs a series of questions about the PackageManager...
   type PackageType =
-    { id : FQTypeName.Package
+    { hash : FQTypeName.Package
       declaration : TypeDeclaration.T
       description : string
       deprecated : Deprecation<FQTypeName.FQTypeName> }
@@ -594,7 +598,7 @@ module PackageType =
 
 module PackageValue =
   type PackageValue =
-    { id : uuid
+    { hash : FQValueName.Package
       description : string
       deprecated : Deprecation<FQValueName.FQValueName>
       body : Expr }
@@ -604,7 +608,7 @@ module PackageFn =
   type Parameter = { name : string; typ : TypeReference; description : string }
 
   type PackageFn =
-    { id : FQFnName.Package
+    { hash : FQFnName.Package
       body : Expr
       typeParams : List<string>
       parameters : NEList<Parameter>
@@ -621,9 +625,9 @@ type PackageOp =
   | AddFn of fn : PackageFn.PackageFn
 
   // Location operations - bind names to content
-  | SetTypeName of id : FQTypeName.Package * location : PackageLocation
-  | SetValueName of id : FQValueName.Package * location : PackageLocation
-  | SetFnName of id : FQFnName.Package * location : PackageLocation
+  | SetTypeName of hash : FQTypeName.Package * location : PackageLocation
+  | SetValueName of hash : FQValueName.Package * location : PackageLocation
+  | SetFnName of hash : FQFnName.Package * location : PackageLocation
 
 
   // Propagation: when a definition is updated, propagate the change to all dependents
@@ -631,8 +635,8 @@ type PackageOp =
     propagationId : uuid *
     sourceLocation : PackageLocation *
     sourceItemKind : ItemKind *
-    fromSourceUUIDs : List<uuid> *
-    toSourceUUID : uuid *
+    fromSourceHashes : List<Hash> *
+    toSourceHash : Hash *
     repoints : List<PropagateRepoint>
 
   // Revert a propagation: restore previous versions atomically
@@ -641,8 +645,28 @@ type PackageOp =
     revertedPropagationIds : List<uuid> *
     sourceLocation : PackageLocation *
     sourceItemKind : ItemKind *
-    restoredSourceUUID : uuid *
+    restoredSourceHash : Hash *
     revertedRepoints : List<PropagateRepoint>
+
+//   | MoveItem of item: uuid * from : Location * to_: Location
+//   // we can punt this for now, I think
+//   //| MoveModule of from: Location * to_: Location // hmm what about the _timing_ of this?
+//   // maybe this isn't supported, and we instead need _many_ moveItem
+
+//   // TODO: support a _reason_ for deprecation
+//   // , and an optional pointer to some sort of replacement
+//   | DeprecateFn of hash: FQFnName.Package
+//   | DeprecateValue of hash: FQValueName.Package
+//   | DeprecateType of hash: FQTypeName.Package
+
+
+// prob belongs in LibMatter
+// type BranchMergeConflict =
+//   | TypeIntroducedButNotReferenced of FQTypeName.Package
+//   | ...IntroducedButNotReferenced of ...
+
+
+
 
 /// The kind of package item (function, type, or value)
 and ItemKind =
@@ -669,118 +693,7 @@ and ItemKind =
 
 // A single repoint operation within a PropagateUpdate
 and PropagateRepoint =
-  { location : PackageLocation; itemKind : ItemKind; fromUUID : uuid; toUUID : uuid }
-
-// DB should have _history_ of old item names, but only one active PackageLocation
-
-
-//   | MoveItem of item: uuid * from : Location * to_: Location
-//   // we can punt this for now, I think
-//   //| MoveModule of from: Location * to_: Location // hmm what about the _timing_ of this?
-//   // maybe this isn't supported, and we instead need _many_ moveItem
-
-//   // TODO: support a _reason_ for deprecation
-//   // , and an optional pointer to some sort of replacement
-//   | DeprecateFn of id: FQFnName.Package
-//   | DeprecateValue of id: FQValueName.Package
-//   | DeprecateType of id: FQTypeName.Package
-
-
-// prob belongs in LibMatter
-// type BranchMergeConflict =
-//   | TypeIntroducedButNotReferenced of FQTypeName.Package
-//   | ...IntroducedButNotReferenced of ...
-
-
-
-(*
-how do we search for things at a location (find me all at Darklang.Stdlib)
-
-select id, owner, modules, name, item_type
-from locations
-where ... Darklang.Stdlib ???
-  and item_type = 'type'
-
-when/how would the item_type fields get populated?
-Short answer: while Ops are played out
-*)
-
-// I don't think we delete Location records upon something being deprecated.
-
-// We should _generally prevent_ duplicates of owner+modules+name + (deprecated=true)
-// Locations table would have a constraint? (warning)
-
-// Ops table needs to record when the Op was saved
-
-
-// Locations: | id  | owner | modules     | name  | workspace ID | createdAt | deprecatedAt |
-
-
-// Search: give me everything in Darklang.Stdlib
-
-// select * from locations where owner = darklang and modules like "stdlib%"
-// select * from locations where location like "Darklang.Stdlib%"
-
-// scenario: Move fn from filter to filter1
-//    | abc | Dark  | Stdlib.List | filter  | oct 1 | null        | null
-//    | abc | Dark  | Stdlib.List | filter  | oct 1 | oct 4       | 7cb
-//    | abc | Dark  | Stdlib.List | filter1 | oct 4 | null        | 7cb
-//    | abc | Dark  | Stdlib.List | filter1 | oct 4 | null        | 6df
-
-// WHat happens when we merge a session:
-// For each record in the DB that has our session ID,
-// remove the old equivalent session=null records
-// set the session id to null for our records
-// ?
-
-// constraint on : id * sessionID
-// we need some sql trick like: if a session ID is passed in, then use the session-specific record where available
-
-// general principle: anything affected by a session should have sessino-speific records in the DB
-// whether something has been moved, or deprecated, or whatever
-
-
-// if, in my session, I deprecate List.filter
-// and then add List.filter2
-// then I expect a search to _not_ return List.filter
-// but this schema doesn't support htat.
-// (nvm it work s- we just need to create another record w/ the deprecation)
-
-
-// Locations table needs some recording of timing
-// a Version field or a createdAt field or something
-// oh, then maybe we have deprecatedAt rather than deprecated: bool
-
-
-// Q: how do we revert things?
-// scenario: we merged a branch, and later realized it's problematic.
-// (quick note: should be rare - so, notable DB rebuild is OK, maybe?)
-
-//reminder: source of truth is NOT locations table, but is the package_ops table
-// a branch being merged causes the Locations and Packages tables to update
-// and a revert of that branch needs some complicated process
-
-// Maybe we can't revert a merge of a branch
-// BUT we can generate a branch that reverts the merge
-// a bunch of Deprecations and name-assignments
-
-
-
-// Darklang.Stdlib.List
-// -> Darklang.Stdlib.Lists
-
-
-// // Darklang.Stdlib.List
-// // -> Darklang.Stdlib.Lists
-//   Move([ID] {"Darklang"; ["Stdlib"] "List"} {"Darklang"; ["Stdlib"] "Lists"})
-
-
-// // Darklang.Stdlib.List.filter
-// // -> Darklang.Stdlib.List.filter2
-//   Move([ID] {"Darklang"; ["Stdlib"; "List"] "filter"} {"Darklang"; ["Stdlib"; "List"] "filter2"})
-
-// // if filter2 already exists, then we have a conflict!
-// // 2 things at the same Location
+  { location : PackageLocation; itemKind : ItemKind; fromHash : Hash; toHash : Hash }
 
 
 /// A package entity paired with its location
@@ -841,13 +754,10 @@ type PackageManager =
     getValue : FQValueName.Package -> Ply<Option<PackageValue.PackageValue>>
     getFn : FQFnName.Package -> Ply<Option<PackageFn.PackageFn>>
 
-    // Reverse lookups for pretty-printing and other tooling
-    // TODO: Revisit this given that a single ID might refer to multiple locations,
-    // even per a branch (because... why? not sure or totally convinced either way)).
-    getTypeLocation : BranchId -> FQTypeName.Package -> Ply<Option<PackageLocation>>
-    getValueLocation :
-      BranchId -> FQValueName.Package -> Ply<Option<PackageLocation>>
-    getFnLocation : BranchId -> FQFnName.Package -> Ply<Option<PackageLocation>>
+    // Reverse lookups — returns ALL locations for a hash
+    getTypeLocations : BranchId -> FQTypeName.Package -> Ply<List<PackageLocation>>
+    getValueLocations : BranchId -> FQValueName.Package -> Ply<List<PackageLocation>>
+    getFnLocations : BranchId -> FQFnName.Package -> Ply<List<PackageLocation>>
 
     init : Ply<unit> }
 
@@ -864,9 +774,9 @@ type PackageManager =
       getFn = fun _ -> Ply None
       getValue = fun _ -> Ply None
 
-      getTypeLocation = fun _ _ -> Ply None
-      getValueLocation = fun _ _ -> Ply None
-      getFnLocation = fun _ _ -> Ply None
+      getTypeLocations = fun _ _ -> Ply []
+      getValueLocations = fun _ _ -> Ply []
+      getFnLocations = fun _ _ -> Ply []
 
       init = uply { return () } }
 
@@ -880,77 +790,102 @@ type PackageManager =
     (pm : PackageManager)
     : PackageManager =
 
-    let typeLocationToId =
-      types |> List.map (fun (t, loc) -> loc, t.id) |> Map.ofList
-    let typeIdToLocation =
-      types |> List.map (fun (t, loc) -> t.id, loc) |> Map.ofList
-    let typeIdToType = types |> List.map (fun (t, _) -> t.id, t) |> Map.ofList
+    let typeLocationToHash =
+      types |> List.map (fun (t, loc) -> loc, t.hash) |> Map.ofList
+    let typeHashToLocations =
+      types
+      |> List.fold
+        (fun acc (t, loc) ->
+          let existing = Map.tryFind t.hash acc |> Option.defaultValue []
+          Map.add t.hash (existing @ [ loc ]) acc)
+        Map.empty
+    let typeHashToType = types |> List.map (fun (t, _) -> t.hash, t) |> Map.ofList
 
-    let valueLocationToId =
-      values |> List.map (fun (v, loc) -> loc, v.id) |> Map.ofList
-    let valueIdToLocation =
-      values |> List.map (fun (v, loc) -> v.id, loc) |> Map.ofList
-    let valueIdToValue = values |> List.map (fun (v, _) -> v.id, v) |> Map.ofList
+    let valueLocationToHash =
+      values |> List.map (fun (v, loc) -> loc, v.hash) |> Map.ofList
+    let valueHashToLocations =
+      values
+      |> List.fold
+        (fun acc (v, loc) ->
+          let existing = Map.tryFind v.hash acc |> Option.defaultValue []
+          Map.add v.hash (existing @ [ loc ]) acc)
+        Map.empty
+    let valueHashToValue = values |> List.map (fun (v, _) -> v.hash, v) |> Map.ofList
 
-    let fnLocationToId = fns |> List.map (fun (f, loc) -> loc, f.id) |> Map.ofList
-    let fnIdToLocation = fns |> List.map (fun (f, loc) -> f.id, loc) |> Map.ofList
-    let fnIdToFn = fns |> List.map (fun (f, _) -> f.id, f) |> Map.ofList
+    let fnLocationToHash =
+      fns |> List.map (fun (f, loc) -> loc, f.hash) |> Map.ofList
+    let fnHashToLocations =
+      fns
+      |> List.fold
+        (fun acc (f, loc) ->
+          let existing = Map.tryFind f.hash acc |> Option.defaultValue []
+          Map.add f.hash (existing @ [ loc ]) acc)
+        Map.empty
+    let fnHashToFn = fns |> List.map (fun (f, _) -> f.hash, f) |> Map.ofList
 
     { findType =
         fun (branchId, location) ->
-          match Map.tryFind location typeLocationToId with
-          | Some id -> Ply(Some id)
+          match Map.tryFind location typeLocationToHash with
+          | Some hash -> Ply(Some hash)
           | None -> pm.findType (branchId, location)
 
       findValue =
         fun (branchId, location) ->
-          match Map.tryFind location valueLocationToId with
-          | Some id -> Ply(Some id)
+          match Map.tryFind location valueLocationToHash with
+          | Some hash -> Ply(Some hash)
           | None -> pm.findValue (branchId, location)
 
       findFn =
         fun (branchId, location) ->
-          match Map.tryFind location fnLocationToId with
-          | Some id -> Ply(Some id)
+          match Map.tryFind location fnLocationToHash with
+          | Some hash -> Ply(Some hash)
           | None -> pm.findFn (branchId, location)
 
       search = fun (branchId, query) -> pm.search (branchId, query)
 
       getType =
-        fun id ->
-          match Map.tryFind id typeIdToType with
+        fun hash ->
+          match Map.tryFind hash typeHashToType with
           | Some t -> Ply(Some t)
-          | None -> pm.getType id
+          | None -> pm.getType hash
 
       getValue =
-        fun id ->
-          match Map.tryFind id valueIdToValue with
+        fun hash ->
+          match Map.tryFind hash valueHashToValue with
           | Some v -> Ply(Some v)
-          | None -> pm.getValue id
+          | None -> pm.getValue hash
 
       getFn =
-        fun id ->
-          match Map.tryFind id fnIdToFn with
+        fun hash ->
+          match Map.tryFind hash fnHashToFn with
           | Some f -> Ply(Some f)
-          | None -> pm.getFn id
+          | None -> pm.getFn hash
 
-      getTypeLocation =
-        fun branchId id ->
-          match Map.tryFind id typeIdToLocation with
-          | Some location -> Ply(Some location)
-          | None -> pm.getTypeLocation branchId id
+      getTypeLocations =
+        fun branchId hash ->
+          uply {
+            let local =
+              Map.tryFind hash typeHashToLocations |> Option.defaultValue []
+            let! fallback = pm.getTypeLocations branchId hash
+            return local @ fallback
+          }
 
-      getValueLocation =
-        fun branchId id ->
-          match Map.tryFind id valueIdToLocation with
-          | Some location -> Ply(Some location)
-          | None -> pm.getValueLocation branchId id
+      getValueLocations =
+        fun branchId hash ->
+          uply {
+            let local =
+              Map.tryFind hash valueHashToLocations |> Option.defaultValue []
+            let! fallback = pm.getValueLocations branchId hash
+            return local @ fallback
+          }
 
-      getFnLocation =
-        fun branchId id ->
-          match Map.tryFind id fnIdToLocation with
-          | Some location -> Ply(Some location)
-          | None -> pm.getFnLocation branchId id
+      getFnLocations =
+        fun branchId hash ->
+          uply {
+            let local = Map.tryFind hash fnHashToLocations |> Option.defaultValue []
+            let! fallback = pm.getFnLocations branchId hash
+            return local @ fallback
+          }
 
       init = pm.init }
 

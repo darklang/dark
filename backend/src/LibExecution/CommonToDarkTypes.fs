@@ -1,7 +1,14 @@
 module LibExecution.CommonToDarkTypes
 
 open RuntimeTypes
-module PackageIDs = LibExecution.PackageIDs
+module PackageRefs = LibExecution.PackageRefs
+module D = LibExecution.DvalDecoder
+
+
+let ownerField m = m |> D.field "owner" |> D.string
+let modulesField m = m |> D.field "modules" |> D.list D.string
+let nameField m = m |> D.field "name" |> D.string
+let versionField m = m |> D.field "version" |> D.int32
 
 
 module Option =
@@ -14,13 +21,13 @@ module Option =
   /// Convert a Darklang Option<'a> (DEnum) to F# Option<'a>
   let fromDT (f : Dval -> 'a) (d : Dval) : Option<'a> =
     match d with
-    | DEnum(FQTypeName.Package id, _, _, "Some", [ value ]) when
-      id = PackageIDs.Type.Stdlib.option
+    | DEnum(FQTypeName.Package(Hash hash), _, _, "Some", [ value ]) when
+      hash = PackageRefs.Type.Stdlib.option
       ->
       Some(f value)
 
-    | DEnum(FQTypeName.Package id, _, _, "None", []) when
-      id = PackageIDs.Type.Stdlib.option
+    | DEnum(FQTypeName.Package(Hash hash), _, _, "None", []) when
+      hash = PackageRefs.Type.Stdlib.option
       ->
       None
 

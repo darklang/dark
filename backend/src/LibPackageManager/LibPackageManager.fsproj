@@ -14,16 +14,20 @@
   <ItemGroup>
     <ProjectReference Include="../Prelude/Prelude.fsproj" />
     <ProjectReference Include="../LibExecution/LibExecution.fsproj" />
-    <ProjectReference Include="../LibBinarySerialization/LibBinarySerialization.fsproj" />
+    <ProjectReference Include="../LibSerialization/LibSerialization.fsproj" />
     <ProjectReference Include="../LibConfig/LibConfig.fsproj" />
     <ProjectReference Include="../LibDB/LibDB.fsproj" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="PackageLocation.fs" />
     <Compile Include="Caching.fs" />
     <Compile Include="Purge.fs" />
     <Compile Include="DependencyExtractor.fs" />
     <Compile Include="Branches.fs" />
     <Compile Include="AstTransformer.fs" />
+    <Compile Include="HashStabilization.fs" />
+    <Compile Include="NameLookup.fs" />
+    <Compile Include="DeferredResolver.fs" />
     <Compile Include="PackageOpPlayback.fs" />
     <Compile Include="Inserts.fs" />
     <Compile Include="Queries.fs" />
@@ -31,6 +35,7 @@
     <Compile Include="Merge.fs" />
     <Compile Include="Stats.fs" />
     <Compile Include="ProgramTypes.fs" />
+    <Compile Include="WipRefresh.fs" />
     <Compile Include="Propagation.fs" />
     <Compile Include="RuntimeTypes.fs" />
     <Compile Include="PackageManager.fs" />

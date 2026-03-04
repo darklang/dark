@@ -5,7 +5,7 @@ open Prelude
 open LibExecution.ProgramTypes
 
 
-let typeNamePkg id = FQTypeName.fqPackage id
+let typeNamePkg hash = FQTypeName.fqPackage hash
 
 
 let eUnit () : Expr = EUnit(gid ())
@@ -62,7 +62,7 @@ let eRecord
   (typeArgs : List<TypeReference>)
   (fields : List<string * Expr>)
   : Expr =
-  ERecord(gid (), Ok typeName, typeArgs, fields)
+  ERecord(gid (), NameResolution.ok typeName, typeArgs, fields)
 
 let eFieldAccess (expr : Expr) (fieldName : string) : Expr =
   ERecordFieldAccess(gid (), expr, fieldName)
@@ -76,21 +76,23 @@ let eEnum
   (caseName : string)
   (args : Expr list)
   : Expr =
-  EEnum(gid (), Ok typeName, typeArgs, caseName, args)
+  EEnum(gid (), NameResolution.ok typeName, typeArgs, caseName, args)
 
 
 let eInfix (op : Infix) (left : Expr) (right : Expr) : Expr =
   EInfix(gid (), op, left, right)
 
 let eBuiltinValue (name : string) (version : int) : Expr =
-  EValue(gid (), Ok(FQValueName.fqBuiltIn name version))
+  EValue(gid (), NameResolution.ok (FQValueName.fqBuiltIn name version))
 
-let ePackageValue (id : uuid) : Expr = EValue(gid (), Ok(FQValueName.fqPackage id))
+let ePackageValue hash : Expr =
+  EValue(gid (), NameResolution.ok (FQValueName.fqPackage hash))
 
 let eBuiltinFn (name : string) (version : int) : Expr =
-  EFnName(gid (), Ok(FQFnName.fqBuiltIn name version))
+  EFnName(gid (), NameResolution.ok (FQFnName.fqBuiltIn name version))
 
-let ePackageFn (id : uuid) : Expr = EFnName(gid (), Ok(FQFnName.fqPackage id))
+let ePackageFn hash : Expr =
+  EFnName(gid (), NameResolution.ok (FQFnName.fqPackage hash))
 
 let eLambda id (pats : List<LetPattern>) (body : Expr) : Expr =
   let pats = NEList.ofListUnsafe "eLambda" [] pats
@@ -119,7 +121,7 @@ let pFnCall
   (typeArgs : List<TypeReference>)
   (args : List<Expr>)
   : PipeExpr =
-  EPipeFnCall(id, Ok fn, typeArgs, args)
+  EPipeFnCall(id, NameResolution.ok fn, typeArgs, args)
 
 let pEnum
   id
@@ -127,7 +129,7 @@ let pEnum
   (caseName : string)
   (fields : List<Expr>)
   : PipeExpr =
-  EPipeEnum(id, Ok typeName, caseName, fields)
+  EPipeEnum(id, NameResolution.ok typeName, caseName, fields)
 
 let pVariable id (varName : string) (args : List<Expr>) : PipeExpr =
   EPipeVariable(id, varName, args)

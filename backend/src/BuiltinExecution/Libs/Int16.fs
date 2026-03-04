@@ -6,8 +6,9 @@ open LibExecution.Builtin.Shortcuts
 
 module VT = LibExecution.ValueType
 module Dval = LibExecution.Dval
-module PackageIDs = LibExecution.PackageIDs
+module PackageRefs = LibExecution.PackageRefs
 module RTE = RuntimeError
+module NR = LibExecution.RuntimeTypes.NameResolution
 
 module ParseError =
   type ParseError =
@@ -20,7 +21,7 @@ module ParseError =
       | BadFormat -> "BadFormat", []
       | OutOfRange -> "OutOfRange", []
 
-    let typeName = FQTypeName.fqPackage PackageIDs.Type.Stdlib.int16ParseError
+    let typeName = FQTypeName.fqPackage PackageRefs.Type.Stdlib.int16ParseError
     DEnum(typeName, typeName, [], caseName, fields)
 
 
@@ -328,11 +329,11 @@ let fns : List<BuiltInFn> =
       typeParams = []
       parameters = [ Param.make "s" TString "" ]
       returnType =
-        let errorType = FQTypeName.fqPackage PackageIDs.Type.Stdlib.int16ParseError
-        TypeReference.result TInt16 (TCustomType(Ok errorType, []))
+        let errorType = FQTypeName.fqPackage PackageRefs.Type.Stdlib.int16ParseError
+        TypeReference.result TInt16 (TCustomType(NR.ok errorType, []))
       description = "Returns the <type Int16> value of a <type String>"
       fn =
-        let typeName = FQTypeName.fqPackage PackageIDs.Type.Stdlib.int16ParseError
+        let typeName = FQTypeName.fqPackage PackageRefs.Type.Stdlib.int16ParseError
         let resultOk = Dval.resultOk KTInt16 (KTCustomType(typeName, []))
         let resultError = Dval.resultError KTInt16 (KTCustomType(typeName, []))
         (function

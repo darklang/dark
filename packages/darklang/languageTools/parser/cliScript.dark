@@ -90,8 +90,8 @@ let parseDecls
 /// Helper to process a list of declarations and split results into separate lists (entities, ops, unresolved names)
 let processDecls
   (items: List<'a>)
-  (processFn: 'a -> ('entity * List<ProgramTypes.PackageOp> * List<Parser.Range * ProgramTypes.NameResolutionError>))
-  : (List<'entity> * List<List<ProgramTypes.PackageOp>> * List<List<Parser.Range * ProgramTypes.NameResolutionError>>) =
+  (processFn: 'a -> ('entity * List<ProgramTypes.PackageOp> * List<WrittenTypes.UnresolvedName>))
+  : (List<'entity> * List<List<ProgramTypes.PackageOp>> * List<List<WrittenTypes.UnresolvedName>>) =
   let results = items |> Stdlib.List.map processFn
 
   let entities = results |> Stdlib.List.map (fun (e, _, _) -> e)
@@ -106,7 +106,7 @@ let toPT
   (wt: WTCliScriptModule)
   : (PTCliScriptModule *
     List<ProgramTypes.PackageOp> *
-    List<Parser.Range * ProgramTypes.NameResolutionError>)
+    List<WrittenTypes.UnresolvedName>)
   =
   let modules = if wt.name == "" then [] else [ wt.name ]
   let ctx = { ctx with owner = wt.owner; currentModule = modules }
@@ -121,13 +121,15 @@ let toPT
           ctx
           t
 
+      let pt = { pt with hash = WrittenTypesToProgramTypes.locationPlaceholderHash wt.owner modules typeName }
+
       let location =
         ProgramTypes.PackageLocation
           { owner = wt.owner; modules = modules; name = typeName }
 
       let ops =
         [ ProgramTypes.PackageOp.AddType pt
-          ProgramTypes.PackageOp.SetTypeName(pt.id, location) ]
+          ProgramTypes.PackageOp.SetTypeName(pt.hash, location) ]
 
       (pt, ops, unresolvedNames))
 
@@ -141,13 +143,15 @@ let toPT
           ctx
           v
 
+      let pv = { pv with hash = WrittenTypesToProgramTypes.locationPlaceholderHash wt.owner modules valueName }
+
       let location =
         ProgramTypes.PackageLocation
           { owner = wt.owner; modules = modules; name = valueName }
 
       let ops =
         [ ProgramTypes.PackageOp.AddValue pv
-          ProgramTypes.PackageOp.SetValueName(pv.id, location) ]
+          ProgramTypes.PackageOp.SetValueName(pv.hash, location) ]
 
       (pv, ops, unresolvedNames))
 
@@ -161,13 +165,15 @@ let toPT
           ctx
           f
 
+      let pf = { pf with hash = WrittenTypesToProgramTypes.locationPlaceholderHash wt.owner modules fnName }
+
       let location =
         ProgramTypes.PackageLocation
           { owner = wt.owner; modules = modules; name = fnName }
 
       let ops =
         [ ProgramTypes.PackageOp.AddFn pf
-          ProgramTypes.PackageOp.SetFnName(pf.id, location) ]
+          ProgramTypes.PackageOp.SetFnName(pf.hash, location) ]
 
       (pf, ops, unresolvedNames))
 
@@ -223,7 +229,7 @@ let parse
   (scriptName: String)
   (filename: String)
   (source: String)
-  : Stdlib.Result.Result<(PTCliScriptModule * List<Parser.Range * ProgramTypes.NameResolutionError>), String> =
+  : Stdlib.Result.Result<(PTCliScriptModule * List<WrittenTypes.UnresolvedName>), String> =
   match source |> LanguageTools.Parser.TestParsing.initialParse with
   | Error e -> Stdlib.Result.Result.Error e
   | Ok parsedFile ->
@@ -234,7 +240,10 @@ let parse
       let (initialParse, firstPassOps, _) =
         toPT { ctx with onMissing = NameResolver.OnMissing.Allow } moduleWT
 
-      // Create PM with first pass ops for second pass
+      // Stabilize first-pass ops so PM has real content-addressed hashes
+      let firstPassOps = Builtin.pmStabilizeHashes firstPassOps
+
+      // Create PM with stabilized first pass ops for second pass
       let pm = ProgramTypes.PackageManager.withExtraOps ctx.pm firstPassOps
 
       // Second pass: re-parse with updated PackageManager
@@ -246,7 +255,7 @@ let parse
           zipped
           |> Stdlib.List.map (fun tuple ->
             let (newType, originalType) = tuple
-            { newType with id = originalType.id }))
+            { newType with hash = originalType.hash }))
 
       let adjustedValues =
         (Stdlib.List.zip result.values initialParse.values)
@@ -254,7 +263,7 @@ let parse
           zipped
           |> Stdlib.List.map (fun tuple ->
             let (newValue, originalValue) = tuple
-            { newValue with id = originalValue.id }))
+            { newValue with hash = originalValue.hash }))
 
       let adjustedFns =
         (Stdlib.List.zip result.fns initialParse.fns)
@@ -262,7 +271,7 @@ let parse
           zipped
           |> Stdlib.List.map (fun tuple ->
             let (newFn, originalFn) = tuple
-            { newFn with id = originalFn.id }))
+            { newFn with hash = originalFn.hash }))
 
       let adjustedSubmodules =
         (Stdlib.List.zip result.submodules initialParse.submodules)
@@ -277,7 +286,7 @@ let parse
                 z
                 |> Stdlib.List.map (fun t ->
                   let (newT, origT) = t
-                  { newT with id = origT.id }))
+                  { newT with hash = origT.hash }))
 
             let subValues =
               (Stdlib.List.zip newSub.values originalSub.values)
@@ -285,7 +294,7 @@ let parse
                 z
                 |> Stdlib.List.map (fun v ->
                   let (newV, origV) = v
-                  { newV with id = origV.id }))
+                  { newV with hash = origV.hash }))
 
             let subFns =
               (Stdlib.List.zip newSub.fns originalSub.fns)
@@ -293,7 +302,7 @@ let parse
                 z
                 |> Stdlib.List.map (fun f ->
                   let (newF, origF) = f
-                  { newF with id = origF.id }))
+                  { newF with hash = origF.hash }))
 
             ProgramTypes.Definitions
               { types = subTypes
@@ -320,7 +329,7 @@ let parseForCli
   (scriptName: String)
   (filename: String)
   (source: String)
-  : Stdlib.Result.Result<(PTCliScriptModule * List<Parser.Range * ProgramTypes.NameResolutionError>), String> =
+  : Stdlib.Result.Result<(PTCliScriptModule * List<WrittenTypes.UnresolvedName>), String> =
   let pm = LanguageTools.PackageManager.pm ()
 
   let ctx =

@@ -22,16 +22,21 @@ let formatDocComment (description: String) : String =
     |> fun s -> s ++ "\n"
 
 
-module NameResolutionError =
-  let source (nre: LanguageTools.ProgramTypes.NameResolutionError) : String =
-    match nre with
-    | NotFound names
-    | InvalidName names -> Stdlib.String.join names "."
+/// Format a hash for display when PM lookup fails.
+let shortHash (hash: LanguageTools.ProgramTypes.Hash) : String =
+  $"<hash:{Darklang.LanguageTools.ProgramTypes.hashToShort hash}>"
 
-  let error (nre: LanguageTools.ProgramTypes.NameResolutionError) : String =
+module NameResolutionError =
+  let source (originalName: List<String>) : String =
+    Stdlib.String.join originalName "."
+
+  let error
+    (originalName: List<String>)
+    (nre: LanguageTools.ProgramTypes.NameResolutionError)
+    : String =
     match nre with
-    | NotFound names -> Stdlib.String.join names "." ++ " not found"
-    | InvalidName names -> Stdlib.String.join names "." ++ " is not a valid name"
+    | NotFound -> Stdlib.String.join originalName "." ++ " not found"
+    | InvalidName -> Stdlib.String.join originalName "." ++ " is not a valid name"
 
 
 // Context for relative name resolution - when we know what module we're currently in,
@@ -51,6 +56,13 @@ module Context =
         currentFunction = Stdlib.Option.Option.None }
 
   let forMain : Context = forBranch SCM.Branch.mainBranchId
+
+  let toPickContext (ctx: Context) : LanguageTools.PackageManager.PickContext =
+    LanguageTools.PackageManager.PickContext
+      { currentModule =
+          match ctx.currentModule with
+          | Some m -> Stdlib.String.split m "."
+          | None -> [] }
 
 let packageNameWithContext
   (ctx: Context)
@@ -103,20 +115,20 @@ module FQTypeName =
   module Package =
     let atDefinition
       (ctx: Context)
-      (id: LanguageTools.ProgramTypes.FQTypeName.Package)
+      (hash: LanguageTools.ProgramTypes.FQTypeName.Package)
       : String =
-      match Builtin.pmGetLocationByType ctx.branchId id with
+      match Darklang.LanguageTools.PackageManager.pickLocation (Context.toPickContext ctx) (Builtin.pmGetLocationsByType ctx.branchId hash) with
       | Some l -> l.name
-      | None -> Stdlib.Uuid.toString id
+      | None -> shortHash hash
 
     let fullForReference
       (ctx: Context)
-      (id: LanguageTools.ProgramTypes.FQTypeName.Package)
+      (hash: LanguageTools.ProgramTypes.FQTypeName.Package)
       : String =
-      match Builtin.pmGetLocationByType ctx.branchId id with
+      match Darklang.LanguageTools.PackageManager.pickLocation (Context.toPickContext ctx) (Builtin.pmGetLocationsByType ctx.branchId hash) with
       | Some l ->
         packageNameWithContext ctx l.owner l.modules l.name
-      | None -> Stdlib.Uuid.toString id
+      | None -> shortHash hash
 
 
   let atDefinition
@@ -154,20 +166,20 @@ module FQValueName =
   module Package =
     let atDefinition
       (ctx: Context)
-      (id: LanguageTools.ProgramTypes.FQValueName.Package)
+      (hash: LanguageTools.ProgramTypes.FQValueName.Package)
       : String =
-      match Builtin.pmGetLocationByValue ctx.branchId id with
+      match Darklang.LanguageTools.PackageManager.pickLocation (Context.toPickContext ctx) (Builtin.pmGetLocationsByValue ctx.branchId hash) with
       | Some l -> l.name
-      | None -> Stdlib.Uuid.toString id
+      | None -> shortHash hash
 
     let fullForReference
       (ctx: Context)
-      (id: LanguageTools.ProgramTypes.FQValueName.Package)
+      (hash: LanguageTools.ProgramTypes.FQValueName.Package)
       : String =
-      match Builtin.pmGetLocationByValue ctx.branchId id with
+      match Darklang.LanguageTools.PackageManager.pickLocation (Context.toPickContext ctx) (Builtin.pmGetLocationsByValue ctx.branchId hash) with
       | Some l ->
         packageNameWithContext ctx l.owner l.modules l.name
-      | None -> Stdlib.Uuid.toString id
+      | None -> shortHash hash
 
 
 
@@ -211,20 +223,20 @@ module FQFnName =
   module Package =
     let atDefinition
       (ctx: Context)
-      (id: LanguageTools.ProgramTypes.FQFnName.Package)
+      (hash: LanguageTools.ProgramTypes.FQFnName.Package)
       : String =
-      match Builtin.pmGetLocationByFn ctx.branchId id with
+      match Darklang.LanguageTools.PackageManager.pickLocation (Context.toPickContext ctx) (Builtin.pmGetLocationsByFn ctx.branchId hash) with
       | Some l -> l.name
-      | None -> Stdlib.Uuid.toString id
+      | None -> shortHash hash
 
     let fullForReference
       (ctx: Context)
-      (id: LanguageTools.ProgramTypes.FQFnName.Package)
+      (hash: LanguageTools.ProgramTypes.FQFnName.Package)
       : String =
-      match Builtin.pmGetLocationByFn ctx.branchId id with
+      match Darklang.LanguageTools.PackageManager.pickLocation (Context.toPickContext ctx) (Builtin.pmGetLocationsByFn ctx.branchId hash) with
       | Some l ->
         packageNameWithContext ctx l.owner l.modules l.name
-      | None -> Stdlib.Uuid.toString id
+      | None -> shortHash hash
 
 
   let atDefinition
@@ -245,6 +257,67 @@ module FQFnName =
       FQFnName.Builtin.fullForReference b
     | Package p ->
       FQFnName.Package.fullForReference ctx p
+
+
+/// Ambiguity-aware helpers for NameResolution display.
+/// Uses PM-resolved name when unambiguous, falls back to originalName when ambiguous.
+module NameResolution =
+  /// Given PM locations for a package hash and the user's original name,
+  /// pick the best display name. Unambiguous (single location) -> use it.
+  /// Ambiguous -> fall back to originalName, then first location, then raw hash.
+  let resolvePackageHash
+    (ctx: Context)
+    (locations: List<LanguageTools.ProgramTypes.PackageLocation>)
+    (originalName: List<String>)
+    (hash: LanguageTools.ProgramTypes.Hash)
+    : String =
+    match locations with
+    | [ single ] -> packageNameWithContext ctx single.owner single.modules single.name
+    | _ ->
+      match originalName with
+      | _ :: _ -> Stdlib.String.join originalName "."
+      | [] ->
+        match locations with
+        | l :: _ -> packageNameWithContext ctx l.owner l.modules l.name
+        | [] -> Darklang.LanguageTools.ProgramTypes.hashToString hash
+
+  let typeName
+    (ctx: Context)
+    (nr: LanguageTools.ProgramTypes.NameResolution<LanguageTools.ProgramTypes.FQTypeName.FQTypeName>)
+    : String =
+    match nr.resolved with
+    | Ok name ->
+      match name with
+      | Package hash ->
+        let locations = Builtin.pmGetLocationsByType ctx.branchId hash
+        resolvePackageHash ctx locations nr.originalName hash
+    | Error _ -> NameResolutionError.source nr.originalName
+
+  let fnName
+    (ctx: Context)
+    (nr: LanguageTools.ProgramTypes.NameResolution<LanguageTools.ProgramTypes.FQFnName.FQFnName>)
+    : String =
+    match nr.resolved with
+    | Ok name ->
+      match name with
+      | Builtin b -> FQFnName.Builtin.fullForReference b
+      | Package hash ->
+        let locations = Builtin.pmGetLocationsByFn ctx.branchId hash
+        resolvePackageHash ctx locations nr.originalName hash
+    | Error _ -> NameResolutionError.source nr.originalName
+
+  let valueName
+    (ctx: Context)
+    (nr: LanguageTools.ProgramTypes.NameResolution<LanguageTools.ProgramTypes.FQValueName.FQValueName>)
+    : String =
+    match nr.resolved with
+    | Ok name ->
+      match name with
+      | Builtin b -> FQValueName.Builtin.fullForReference b
+      | Package hash ->
+        let locations = Builtin.pmGetLocationsByValue ctx.branchId hash
+        resolvePackageHash ctx locations nr.originalName hash
+    | Error _ -> NameResolutionError.source nr.originalName
 
 
 let typeReference
@@ -296,11 +369,7 @@ let typeReference
         |> Stdlib.String.join ", "
         |> fun parts -> $"<{parts}>"
 
-    let typeNamePart =
-      match typ with
-      | Ok name ->
-        FQTypeName.fullForReference ctx name
-      | Error e -> NameResolutionError.source e
+    let typeNamePart = NameResolution.typeName ctx typ
 
     $"{typeNamePart}{argsPart}"
 
@@ -445,11 +514,7 @@ let pipeExpr (ctx: Context) (p: LanguageTools.ProgramTypes.PipeExpr) : String =
     $"({infixPart}) {exprPart}"
 
   | EPipeFnCall(_id, fnName, typeArgs, args) ->
-    let fnNamePart =
-      match fnName with
-      | Ok name ->
-        FQFnName.fullForReference ctx name
-      | Error e -> NameResolutionError.source e
+    let fnNamePart = NameResolution.fnName ctx fnName
 
     let typeArgsPart =
       match typeArgs with
@@ -477,11 +542,7 @@ let pipeExpr (ctx: Context) (p: LanguageTools.ProgramTypes.PipeExpr) : String =
   // caseName: String *
   // fields: List<LanguageTools.ProgramTypes.Expr>
   | EPipeEnum(_id, typeName, caseName, fields) ->
-    let typeNamePart =
-      match typeName with
-      | Ok name ->
-        FQTypeName.fullForReference ctx name
-      | Error e -> NameResolutionError.source e
+    let typeNamePart = NameResolution.typeName ctx typeName
 
     match fields with
     | [] -> $"{typeNamePart}.{caseName}"
@@ -556,11 +617,7 @@ let expr (ctx: Context) (e: LanguageTools.ProgramTypes.Expr) : String =
     |> fun parts -> "(" ++ parts ++ ")"
 
   | ERecord(_id, typeName, typeArgs, fields) ->
-    let typeNamePart =
-      match typeName with
-      | Ok name ->
-        FQTypeName.fullForReference ctx name
-      | Error e -> NameResolutionError.source e
+    let typeNamePart = NameResolution.typeName ctx typeName
 
     let typeArgsPart =
       match typeArgs with
@@ -583,11 +640,7 @@ let expr (ctx: Context) (e: LanguageTools.ProgramTypes.Expr) : String =
     $"{typeNamePart}{typeArgsPart} {fieldPart}"
 
   | EEnum(_id, typeName, typeArgs, caseName, fields) ->
-    let typeNamePart =
-      match typeName with
-      | Ok name ->
-        FQTypeName.fullForReference ctx name
-      | Error e -> NameResolutionError.source e
+    let typeNamePart = NameResolution.typeName ctx typeName
 
     let typeArgsPart =
       match typeArgs with
@@ -740,10 +793,7 @@ let expr (ctx: Context) (e: LanguageTools.ProgramTypes.Expr) : String =
       $"{fnNamePart}<{typeArgsPart}> {argsPart}"
 
   | EFnName(_id, fnName) ->
-    match fnName with
-    | Ok name ->
-      FQFnName.fullForReference ctx name
-    | Error e -> NameResolutionError.source e
+    NameResolution.fnName ctx fnName
 
   // LanguageTools.ID *
   // record: LanguageTools.ProgramTypes.Expr *
@@ -763,10 +813,7 @@ let expr (ctx: Context) (e: LanguageTools.ProgramTypes.Expr) : String =
     $"{{ {recordPart} with {updatePart} }}"
 
   | EValue(_id, value) ->
-    match value with
-    | Ok name ->
-      FQValueName.fullForReference ctx name
-    | Error e -> NameResolutionError.source e
+    NameResolution.valueName ctx value
 
   | EStatement (_id, first, next) ->
     let firstPart = expr ctx first
@@ -908,7 +955,7 @@ let packageType
   (p: LanguageTools.ProgramTypes.PackageType.PackageType)
   : String =
   // TODO: take care of deprecated
-  let namePart = FQTypeName.Package.atDefinition ctx p.id
+  let namePart = FQTypeName.Package.atDefinition ctx p.hash
 
   let typeParamPart =
     match p.declaration.typeParams with
@@ -932,7 +979,7 @@ let packageValue
   (ctx: Context)
   (p: LanguageTools.ProgramTypes.PackageValue.PackageValue)
   : String =
-  let namePart = FQValueName.Package.atDefinition ctx p.id
+  let namePart = FQValueName.Package.atDefinition ctx p.hash
   let bodyPart = expr ctx p.body
 
   let docComment = formatDocComment p.description
@@ -980,7 +1027,7 @@ let packageFn
   (p: LanguageTools.ProgramTypes.PackageFn.PackageFn)
   : String =
   // TODO: handle `deprecated`
-  let namePart = FQFnName.Package.atDefinition ctx p.id
+  let namePart = FQFnName.Package.atDefinition ctx p.hash
 
   let typeParamPart =
     match p.typeParams with
@@ -1041,7 +1088,7 @@ module PackageOp =
     match op with
     | AddType typ ->
       let name =
-        FQTypeName.Package.atDefinition ctx typ.id
+        FQTypeName.Package.atDefinition ctx typ.hash
 
       let typeParamPart =
         match typ.declaration.typeParams with
@@ -1066,7 +1113,7 @@ module PackageOp =
 
     | AddFn fn ->
       let name =
-        FQFnName.Package.atDefinition ctx fn.id
+        FQFnName.Package.atDefinition ctx fn.hash
 
       let signature = PackageFn.signature ctx fn
 
@@ -1077,7 +1124,7 @@ module PackageOp =
       $"SetFnName → {path}"
 
     | AddValue _value ->
-      let name = FQValueName.Package.atDefinition ctx _value.id
+      let name = FQValueName.Package.atDefinition ctx _value.hash
 
       $"AddValue {name}"
 

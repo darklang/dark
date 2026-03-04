@@ -13,6 +13,7 @@ module VT = LibExecution.ValueType
 module Canvas = LibCloud.Canvas
 module Serialize = LibCloud.Serialize
 module Account = LibCloud.Account
+module PackageLocation = LibPackageManager.PackageLocation
 
 
 let fns : List<BuiltInFn> =
@@ -21,12 +22,12 @@ let fns : List<BuiltInFn> =
       parameters =
         [ Param.make "canvasID" TUuid "The canvas to add the DB to"
           Param.make "dbName" TString "Name of the database"
-          Param.make "typeID" TUuid "ID of the type stored in this DB" ]
+          Param.make "typeHash" TString "Hash of the type stored in this DB" ]
       returnType = TypeReference.result TUInt64 TString
       description = "Creates a new database in the specified canvas"
       fn =
         (function
-        | _, _, _, [ DUuid canvasID; DString dbName; DUuid typeID ] ->
+        | _, _, _, [ DUuid canvasID; DString dbName; DString typeHash ] ->
           uply {
             // Check for existing DB with the same name
             let! existing =
@@ -54,7 +55,8 @@ let fns : List<BuiltInFn> =
                   version = 0
                   typ =
                     PT.TypeReference.TCustomType(
-                      Ok(PT.FQTypeName.Package typeID),
+                      { originalName = []
+                        resolved = Ok(PT.FQTypeName.Package(PT.Hash typeHash)) },
                       []
                     ) }
 
@@ -110,18 +112,13 @@ let fns : List<BuiltInFn> =
                 uply {
                   let! typeName =
                     match db.typ with
-                    | PT.TypeReference.TCustomType(Ok(PT.FQTypeName.Package typeID),
+                    | PT.TypeReference.TCustomType({ resolved = Ok(PT.FQTypeName.Package typeID) },
                                                    _) ->
                       uply {
-                        let! loc = pm.getTypeLocation branchId typeID
-                        match loc with
-                        | Some location ->
-                          let parts =
-                            [ location.owner ]
-                            @ location.modules
-                            @ [ location.name ]
-                          return String.concat "." parts
-                        | None -> return typeID.ToString()
+                        let! locs = pm.getTypeLocations branchId typeID
+                        match locs with
+                        | location :: _ -> return PackageLocation.toFQN location
+                        | [] -> return typeID.ToString()
                       }
                     | _ -> Ply "unknown"
                   return DTuple(DString db.name, DString typeName, [])

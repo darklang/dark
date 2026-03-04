@@ -1,13 +1,15 @@
 /// Propagates package item updates to all dependents by creating new versions
-/// with updated UUID references.
+/// with updated Hash references.
 module LibPackageManager.Propagation
 
 open System.Threading.Tasks
 open FSharp.Control.Tasks
 
 open Prelude
+open LibExecution.ProgramTypes
 
 module PT = LibExecution.ProgramTypes
+open LibSerialization.Hashing
 
 module PMQueries = Queries
 module PMTypes = ProgramTypes
@@ -20,12 +22,13 @@ type PropagationResult =
 /// Item-specific operations for retrieving, transforming, and creating ops
 type private ItemProcessingContext<'T> =
   { itemKind : PT.ItemKind
-    getItem : uuid -> Ply<Option<'T>> // Given a UUID, fetch the full item definition
-    getLocation : uuid -> Ply<Option<PT.PackageLocation>> // Given a UUID, look up the item's PackageLocation
-    transform : Map<uuid, uuid> -> 'T -> 'T // Transforms the item by replacing old UUIDs with new UUIDs based on the mapping
-    withNewId : uuid -> 'T -> 'T // Assigns a new UUID to the item
+    getItem : Hash -> Ply<Option<'T>> // Given a Hash, fetch the full item definition
+    getLocations : Hash -> Ply<List<PT.PackageLocation>> // Given a Hash, look up the item's PackageLocations
+    transform : Map<Hash, Hash> -> 'T -> 'T // Transforms the item by replacing old hashes with new hashes based on the mapping
+    computeHash : 'T -> Hash // Compute hash for the transformed item
+    withNewId : Hash -> 'T -> 'T // Assigns a new Hash to the item
     makeAddOp : 'T -> PT.PackageOp // Creates an Add op for the item
-    makeSetNameOp : uuid * PT.PackageLocation -> PT.PackageOp } // Creates a SetName op for the item
+    makeSetNameOp : Hash * PT.PackageLocation -> PT.PackageOp } // Creates a SetName op for the item
 
 
 let private fnContext
@@ -33,9 +36,10 @@ let private fnContext
   : ItemProcessingContext<PT.PackageFn.PackageFn> =
   { itemKind = PT.ItemKind.Fn
     getItem = PMTypes.Fn.get
-    getLocation = PMTypes.Fn.getLocation branchChain
+    getLocations = PMTypes.Fn.getLocations branchChain
     transform = AstTransformer.transformFn
-    withNewId = fun id fn -> { fn with id = id }
+    computeHash = Hashing.computeFnHash Hashing.Normal
+    withNewId = fun hash fn -> { fn with hash = hash }
     makeAddOp = PT.PackageOp.AddFn
     makeSetNameOp = PT.PackageOp.SetFnName }
 
@@ -45,9 +49,10 @@ let private typeContext
   : ItemProcessingContext<PT.PackageType.PackageType> =
   { itemKind = PT.ItemKind.Type
     getItem = PMTypes.Type.get
-    getLocation = PMTypes.Type.getLocation branchChain
+    getLocations = PMTypes.Type.getLocations branchChain
     transform = AstTransformer.transformType
-    withNewId = fun id typ -> { typ with id = id }
+    computeHash = Hashing.computeTypeHash Hashing.Normal
+    withNewId = fun hash typ -> { typ with hash = hash }
     makeAddOp = PT.PackageOp.AddType
     makeSetNameOp = PT.PackageOp.SetTypeName }
 
@@ -57,255 +62,198 @@ let private valueContext
   : ItemProcessingContext<PT.PackageValue.PackageValue> =
   { itemKind = PT.ItemKind.Value
     getItem = PMTypes.Value.get
-    getLocation = PMTypes.Value.getLocation branchChain
+    getLocations = PMTypes.Value.getLocations branchChain
     transform = AstTransformer.transformValue
-    withNewId = fun id value -> { value with id = id }
+    computeHash = Hashing.computeValueHash Hashing.Normal
+    withNewId = fun hash value -> { value with hash = hash }
     makeAddOp = PT.PackageOp.AddValue
     makeSetNameOp = PT.PackageOp.SetValueName }
 
 
-/// Item info collected during discovery phase
-type private ItemToUpdate = { itemId : uuid; itemKind : PT.ItemKind; newUuid : uuid }
-
-
-/// Creates a new version of an item with transformed UUID references
-// Takes a single item and produces the ops needed to create its new version.
+/// Creates a new version of an item with transformed Hash references.
+/// Computes the real hash from the transformed content.
+/// Returns (repoint, ops, newHash) so the caller can build the mapping incrementally.
 let private processItem<'T>
   (ctx : ItemProcessingContext<'T>)
-  (itemId : uuid)
-  (newUuid : uuid)
-  (mapping : Map<uuid, uuid>)
-  : Task<Result<PT.PropagateRepoint * List<PT.PackageOp>, string>> =
+  (itemHash : Hash)
+  (mapping : Map<Hash, Hash>)
+  : Task<Result<PT.PropagateRepoint * List<PT.PackageOp> * Hash, string>> =
   task {
     let kindName = ctx.itemKind.toString ()
-    let! itemOpt = ctx.getItem itemId
+    let! itemOpt = ctx.getItem itemHash
     match itemOpt with
     | Some item ->
-      // Transform the item: rewrite all UUID references in its body using the mapping, then assign the new UUID
+      // Transform the item: rewrite all Hash references in its body using the mapping
       let transformed = ctx.transform mapping item
-      let newItem = ctx.withNewId newUuid transformed
+      // Compute the real hash from the transformed content
+      let newHash = ctx.computeHash transformed
+      let newItem = ctx.withNewId newHash transformed
 
-      let! locOpt = ctx.getLocation itemId
-      match locOpt with
-      | Some loc ->
-        // create Add and SetName ops
+      let! locs = ctx.getLocations itemHash
+      match locs with
+      | loc :: _ ->
         let addOp = ctx.makeAddOp newItem
-        let setNameOp = ctx.makeSetNameOp (newUuid, loc)
+        let setNameOp = ctx.makeSetNameOp (newHash, loc)
         return
           Ok(
             { location = loc
               itemKind = ctx.itemKind
-              fromUUID = itemId
-              toUUID = newUuid },
-            [ addOp; setNameOp ]
+              fromHash = itemHash
+              toHash = newHash },
+            [ addOp; setNameOp ],
+            newHash
           )
-      | None -> return Error $"Location for {kindName} {itemId} not found"
-    | None -> return Error $"{kindName} {itemId} not found"
+      | [] -> return Error $"Location for {kindName} {itemHash} not found"
+    | None -> return Error $"{kindName} {itemHash} not found"
   }
 
 
 /// Phase 1: Discover all items that need to be updated (transitive dependents)
 let private discoverDependents
   (branchChain : List<PT.BranchId>)
-  (fromSourceUUIDs : List<uuid>)
-  (toSourceUUID : uuid)
+  (fromSourceHashes : List<Hash>)
+  (toSourceHash : Hash)
   : Task<List<PMQueries.PackageDep>> =
   task {
     let rec loop
-      (pending : List<uuid>)
-      (processed : Set<uuid>)
+      (pending : List<Hash>)
+      (processed : Set<Hash>)
       (accumulated : List<PMQueries.PackageDep>)
       =
       task {
-        // filter out any pending UUIDs that are already processed
+        // filter out any pending hashes that are already processed
         let toProcess =
           pending |> List.filter (fun id -> not (Set.contains id processed))
 
         match toProcess with
         | [] -> return accumulated
         | _ ->
-          // Add all toProcess UUIDs to the processed set so we won't visit them again
+          // Add all toProcess hashes to the processed set so we won't visit them again
           let newProcessed =
             toProcess |> List.fold (fun acc id -> Set.add id acc) processed
 
-          // for all these UUIDs, find every item that depends on any of them
+          // for all these hashes, find every item that depends on any of them
           let! batchDependents = PMQueries.getDependentsBatch branchChain toProcess
 
           // Filter the batch results:
           //  - Remove any that are already in the processed set (no cycles)
-          //  - Deduplicate by itemId
-          //  - Convert to PackageDep { itemId, itemKind }
+          //  - Deduplicate by itemHash
+          //  - Convert to PackageDep { itemHash, itemKind }
           let newDeps =
             batchDependents
-            |> List.filter (fun d -> not (Set.contains d.itemId newProcessed))
-            |> List.distinctBy (fun d -> d.itemId)
+            |> List.filter (fun d -> not (Set.contains d.itemHash newProcessed))
+            |> List.distinctBy (fun d -> d.itemHash)
             |> List.map (fun (d : PMQueries.BatchDependent) ->
-              { PMQueries.itemId = d.itemId; PMQueries.itemKind = d.itemKind })
+              { PMQueries.itemHash = d.itemHash; PMQueries.itemKind = d.itemKind })
 
-          let newPending = newDeps |> List.map (fun d -> d.itemId)
+          let newPending = newDeps |> List.map (fun d -> d.itemHash)
           let newAccumulated = accumulated @ newDeps
 
           return! loop newPending newProcessed newAccumulated
       }
 
-    // Start with fromSourceUUIDs as pending, toSourceUUID already processed
+    // Start with fromSourceHashes as pending, toSourceHash already processed
     // (we don't want the source to be included as a dependent)
-    return! loop fromSourceUUIDs (Set.singleton toSourceUUID) []
+    return! loop fromSourceHashes (Set.singleton toSourceHash) []
   }
 
 
 /// Check if source item needs to be updated (for mutual recursion)
 let private sourceNeedsUpdate
   (branchChain : List<PT.BranchId>)
-  (toSourceUUID : uuid)
-  (oldUuidsBeingReplaced : Set<uuid>)
+  (toSourceHash : Hash)
+  (oldHashesBeingReplaced : Set<Hash>)
   : Task<bool> =
   task {
     // "what does the source item reference"
-    let! deps = PMQueries.getDependencies branchChain toSourceUUID
+    let! deps = PMQueries.getDependencies branchChain toSourceHash
     return
-      // If any of those references are in oldUuidsBeingReplaced (i.e., they are dependents that are getting new UUIDs),
+      // If any of those references are in oldHashesBeingReplaced (i.e., they are dependents that are getting new hashes),
       // the source needs an update too.
-      deps |> List.exists (fun dep -> Set.contains dep.itemId oldUuidsBeingReplaced)
+      deps
+      |> List.exists (fun dep -> Set.contains dep.itemHash oldHashesBeingReplaced)
   }
 
 
-/// Phase 2 & 3: Build mapping and create all items
+/// Helper to dispatch processItem based on item kind
+let private processItemByKind
+  (branchChain : List<PT.BranchId>)
+  (itemHash : Hash)
+  (itemKind : PT.ItemKind)
+  (mapping : Map<Hash, Hash>)
+  : Task<Result<PT.PropagateRepoint * List<PT.PackageOp> * Hash, string>> =
+  task {
+    match itemKind with
+    | PT.ItemKind.Fn -> return! processItem (fnContext branchChain) itemHash mapping
+    | PT.ItemKind.Type ->
+      return! processItem (typeContext branchChain) itemHash mapping
+    | PT.ItemKind.Value ->
+      return! processItem (valueContext branchChain) itemHash mapping
+  }
+
+
+/// Phase 2 & 3: Process dependents sequentially, computing real hashes
+/// incrementally. Each item is transformed using the mapping-so-far (which grows
+/// as each item's real hash is computed), ensuring that references to already-
+/// processed dependents use their correct hashes.
 let private createAllItems
   (branchChain : List<PT.BranchId>)
-  (fromSourceUUIDs : List<uuid>)
-  (toSourceUUID : uuid)
+  (fromSourceHashes : List<Hash>)
+  (toSourceHash : Hash)
   (dependents : List<PMQueries.PackageDep>)
   (sourceItemKind : PT.ItemKind)
-  : Task<Result<List<PT.PropagateRepoint> * List<PT.PackageOp> * uuid, string>> =
+  : Task<Result<List<PT.PropagateRepoint> * List<PT.PackageOp> * Hash, string>> =
   task {
     match dependents with
-    | [] -> return Ok([], [], toSourceUUID)
+    | [] -> return Ok([], [], toSourceHash)
     | _ ->
-      // Generate new UUIDs for all dependents
-      let dependentsWithNewIds =
-        dependents
-        |> List.map (fun dep ->
-          { itemId = dep.itemId
-            itemKind = dep.itemKind
-            newUuid = System.Guid.NewGuid() })
+      // Start with source mapping
+      let mutable mapping =
+        fromSourceHashes |> List.map (fun id -> (id, toSourceHash)) |> Map.ofList
 
-      // Collect all old UUIDs that are being replaced (for cycle detection)
-      let oldUuidsBeingReplaced =
-        dependentsWithNewIds |> List.map (fun d -> d.itemId) |> Set.ofList
+      let mutable repoints : List<PT.PropagateRepoint> = []
+      let mutable allOpsRev : List<List<PT.PackageOp>> = []
+      let mutable error : string option = None
 
-      // Check if source needs update (for mutual recursion)
-      let! needsSourceUpdate =
-        sourceNeedsUpdate branchChain toSourceUUID oldUuidsBeingReplaced
+      // Dependents are processed in BFS order from discoverDependents, which
+      // guarantees that all transitive dependencies of item N are processed
+      // before N itself, so the hash mapping is complete when each item is visited.
+      for dep in dependents do
+        if error.IsNone then
+          let! result =
+            processItemByKind branchChain dep.itemHash dep.itemKind mapping
 
-      // Generate UUID for source if needed
-      let sourceNewUuidOpt =
-        if needsSourceUpdate then Some(System.Guid.NewGuid()) else None
+          match result with
+          | Error e -> error <- Some e
+          | Ok(repoint, ops, newHash) ->
+            mapping <- Map.add dep.itemHash newHash mapping
+            repoints <- repoint :: repoints
+            allOpsRev <- ops :: allOpsRev
 
-      // Build complete mapping
-      let baseMapping =
-        fromSourceUUIDs |> List.map (fun id -> (id, toSourceUUID)) |> Map.ofList
+      // Reverse to restore BFS processing order
+      let repoints = List.rev repoints
+      let allOps = allOpsRev |> List.rev |> List.concat
 
-      let dependentMapping =
-        dependentsWithNewIds
-        |> List.map (fun d -> (d.itemId, d.newUuid))
-        |> Map.ofList
+      match error with
+      | Some e -> return Error e
+      | None ->
+        // Check if source needs update (mutual recursion: source references a dependent)
+        let oldHashesBeingReplaced =
+          dependents |> List.map (fun d -> d.itemHash) |> Set.ofList
 
-      // If source is being updated, add mapping from old source to new source
-      let fullMapping =
-        match sourceNewUuidOpt with
-        | Some newSourceUuid ->
-          baseMapping
-          |> Map.fold (fun acc k _ -> Map.add k newSourceUuid acc) dependentMapping
-          |> Map.add toSourceUUID newSourceUuid
-        | None ->
-          baseMapping |> Map.fold (fun acc k v -> Map.add k v acc) dependentMapping
+        let! needsSourceUpdate =
+          sourceNeedsUpdate branchChain toSourceHash oldHashesBeingReplaced
 
-      // Create all dependent items using the complete mapping
-      let! dependentResults =
-        dependentsWithNewIds
-        |> List.map (fun item ->
-          task {
-            match item.itemKind with
-            | PT.ItemKind.Fn ->
-              return!
-                processItem
-                  (fnContext branchChain)
-                  item.itemId
-                  item.newUuid
-                  fullMapping
-            | PT.ItemKind.Type ->
-              return!
-                processItem
-                  (typeContext branchChain)
-                  item.itemId
-                  item.newUuid
-                  fullMapping
-            | PT.ItemKind.Value ->
-              return!
-                processItem
-                  (valueContext branchChain)
-                  item.itemId
-                  item.newUuid
-                  fullMapping
-          })
-        |> Task.flatten
-
-      // Check for errors
-      let errors =
-        dependentResults
-        |> List.choose (fun r ->
-          match r with
-          | Error e -> Some e
-          | Ok _ -> None)
-
-      match errors with
-      | err :: _ -> return Error err
-      | [] ->
-        let dependentRepoints, dependentOps =
-          dependentResults
-          |> List.choose (fun r ->
-            match r with
-            | Ok(rp, ops) -> Some(rp, ops)
-            | Error _ -> None)
-          |> List.unzip
-
-        let flatDependentOps = dependentOps |> List.concat
-
-        // Create source item if needed
-        match sourceNewUuidOpt with
-        | Some newSourceUuid ->
+        if needsSourceUpdate then
           let! sourceResult =
-            match sourceItemKind with
-            | PT.ItemKind.Fn ->
-              processItem
-                (fnContext branchChain)
-                toSourceUUID
-                newSourceUuid
-                fullMapping
-            | PT.ItemKind.Type ->
-              processItem
-                (typeContext branchChain)
-                toSourceUUID
-                newSourceUuid
-                fullMapping
-            | PT.ItemKind.Value ->
-              processItem
-                (valueContext branchChain)
-                toSourceUUID
-                newSourceUuid
-                fullMapping
+            processItemByKind branchChain toSourceHash sourceItemKind mapping
 
           match sourceResult with
           | Error e -> return Error e
-          | Ok(sourceRepoint, sourceOps) ->
-            return
-              Ok(
-                sourceRepoint :: dependentRepoints,
-                flatDependentOps @ sourceOps,
-                newSourceUuid
-              )
-        | None -> return Ok(dependentRepoints, flatDependentOps, toSourceUUID)
+          | Ok(sourceRepoint, sourceOps, newSourceHash) ->
+            return Ok(sourceRepoint :: repoints, allOps @ sourceOps, newSourceHash)
+        else
+          return Ok(repoints, allOps, toSourceHash)
   }
 
 
@@ -316,15 +264,15 @@ let propagate
   (branchId : PT.BranchId)
   (sourceLocation : PT.PackageLocation)
   (sourceItemKind : PT.ItemKind)
-  (fromSourceUUIDs : List<uuid>)
-  (toSourceUUID : uuid)
+  (fromSourceHashes : List<Hash>)
+  (toSourceHash : Hash)
   : Task<Result<Option<PropagationResult * List<PT.PackageOp>>, string>> =
   task {
     // Fetch branch chain once for all queries
     let! branchChain = Branches.getBranchChain branchId
 
     // Phase 1: Discover all items that need updating
-    let! dependents = discoverDependents branchChain fromSourceUUIDs toSourceUUID
+    let! dependents = discoverDependents branchChain fromSourceHashes toSourceHash
 
     match dependents with
     | [] -> return Ok None
@@ -333,14 +281,14 @@ let propagate
       let! result =
         createAllItems
           branchChain
-          fromSourceUUIDs
-          toSourceUUID
+          fromSourceHashes
+          toSourceHash
           dependents
           sourceItemKind
 
       match result with
       | Error err -> return Error err
-      | Ok(repoints, ops, finalToSourceUUID) ->
+      | Ok(repoints, ops, finalToSourceHash) ->
         let propagationId = System.Guid.NewGuid()
 
         let propagateOp =
@@ -348,8 +296,8 @@ let propagate
             propagationId,
             sourceLocation,
             sourceItemKind,
-            fromSourceUUIDs,
-            finalToSourceUUID,
+            fromSourceHashes,
+            finalToSourceHash,
             repoints
           )
 

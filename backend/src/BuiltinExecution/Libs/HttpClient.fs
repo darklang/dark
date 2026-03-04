@@ -11,12 +11,13 @@ open LibExecution
 open LibExecution.RuntimeTypes
 module VT = ValueType
 module RTE = RuntimeError
+module NR = LibExecution.RuntimeTypes.NameResolution
 
 type Method = HttpMethod
 
-let responseOKType = FQTypeName.fqPackage PackageIDs.Type.Stdlib.HttpClient.response
+let responseOKType = FQTypeName.fqPackage PackageRefs.Type.Stdlib.HttpClient.response
 let responseErrorType =
-  FQTypeName.fqPackage PackageIDs.Type.Stdlib.HttpClient.requestError
+  FQTypeName.fqPackage PackageRefs.Type.Stdlib.HttpClient.requestError
 
 module Headers =
   type Header = string * string
@@ -39,7 +40,7 @@ module BadHeader =
       match err with
       | EmptyKey -> "EmptyKey", []
       | InvalidContentType -> "InvalidContentType", []
-    let typeName = FQTypeName.fqPackage PackageIDs.Type.Stdlib.HttpClient.badHeader
+    let typeName = FQTypeName.fqPackage PackageRefs.Type.Stdlib.HttpClient.badHeader
     DEnum(typeName, typeName, [], caseName, fields)
 
 module BadUrl =
@@ -58,7 +59,7 @@ module BadUrl =
       | InvalidRequest -> "InvalidRequest", []
 
     let typeName =
-      FQTypeName.fqPackage PackageIDs.Type.Stdlib.HttpClient.badUrlDetails
+      FQTypeName.fqPackage PackageRefs.Type.Stdlib.HttpClient.badUrlDetails
     DEnum(typeName, typeName, [], caseName, fields)
 
 module RequestError =
@@ -81,7 +82,7 @@ module RequestError =
       | BadMethod -> "BadMethod", []
 
     let typeName =
-      FQTypeName.fqPackage PackageIDs.Type.Stdlib.HttpClient.requestError
+      FQTypeName.fqPackage PackageRefs.Type.Stdlib.HttpClient.requestError
     DEnum(typeName, typeName, [], caseName, fields)
 
 
@@ -392,8 +393,8 @@ let fns (config : Configuration) : List<BuiltInFn> =
           Param.make "body" (TList TUInt8) "" ]
       returnType =
         TypeReference.result
-          (TCustomType(Ok responseOKType, []))
-          (TCustomType(Ok responseErrorType, []))
+          (TCustomType(NR.ok responseOKType, []))
+          (TCustomType(NR.ok responseErrorType, []))
       description =
         "Make blocking HTTP call to <param uri>. Returns a <type Result> where
       the response is wrapped in {{ Ok }} if a response was successfully
@@ -425,7 +426,7 @@ let fns (config : Configuration) : List<BuiltInFn> =
                   | notAPair ->
                     return
                       RTE.Applications.FnParameterNotExpectedType(
-                        FQFnName.Package PackageIDs.Fn.Stdlib.HttpClient.request,
+                        FQFnName.fqPackage PackageRefs.Fn.Stdlib.HttpClient.request,
                         2,
                         "headers",
                         VT.list (VT.tuple VT.string VT.string []),
@@ -469,7 +470,8 @@ let fns (config : Configuration) : List<BuiltInFn> =
                       |> Dval.list (KTTuple(VT.string, VT.string, []))
 
                     let typ =
-                      FQTypeName.fqPackage PackageIDs.Type.Stdlib.HttpClient.response
+                      FQTypeName.fqPackage
+                        PackageRefs.Type.Stdlib.HttpClient.response
 
                     let fields =
                       [ ("statusCode", DInt64(int64 response.statusCode))

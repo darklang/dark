@@ -225,8 +225,12 @@ module RuntimeError =
             ES.FullValue unmatchedValue
             ES.String " in match expression" ]
 
-    | ParseTimeNameResolution err ->
-      [ES.String (nameResolutionError err)]
+    | ParseTimeNameResolution (originalName, err) ->
+      let nameStr = Stdlib.String.join originalName "."
+
+      match err with
+      | NotFound -> [ES.String (nameStr ++ " not found")]
+      | InvalidName -> [ES.String (nameStr ++ " is not a valid name")]
 
     | TypeNotFound name ->
       [ ES.String "Type "

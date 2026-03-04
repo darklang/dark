@@ -6,8 +6,9 @@ open LibExecution.Builtin.Shortcuts
 
 module VT = LibExecution.ValueType
 module Dval = LibExecution.Dval
-module PackageIDs = LibExecution.PackageIDs
+module PackageRefs = LibExecution.PackageRefs
 module RTE = RuntimeError
+module NR = LibExecution.RuntimeTypes.NameResolution
 
 
 module ParseError =
@@ -21,7 +22,7 @@ module ParseError =
       | BadFormat -> "BadFormat", []
       | OutOfRange -> "OutOfRange", []
 
-    let typeName = FQTypeName.fqPackage PackageIDs.Type.Stdlib.int8ParseError
+    let typeName = FQTypeName.fqPackage PackageRefs.Type.Stdlib.int8ParseError
     DEnum(typeName, typeName, [], caseName, fields)
 
 
@@ -338,11 +339,11 @@ let fns : List<BuiltInFn> =
       typeParams = []
       parameters = [ Param.make "s" TString "" ]
       returnType =
-        let errorType = FQTypeName.fqPackage PackageIDs.Type.Stdlib.int8ParseError
-        TypeReference.result TInt8 (TCustomType(Ok errorType, []))
+        let errorType = FQTypeName.fqPackage PackageRefs.Type.Stdlib.int8ParseError
+        TypeReference.result TInt8 (TCustomType(NR.ok errorType, []))
       description = "Returns the <type Int8> value of a <type String>"
       fn =
-        let typeName = FQTypeName.fqPackage PackageIDs.Type.Stdlib.int8ParseError
+        let typeName = FQTypeName.fqPackage PackageRefs.Type.Stdlib.int8ParseError
         let resultOk = Dval.resultOk KTInt8 (KTCustomType(typeName, []))
         let resultError = Dval.resultError KTInt8 (KTCustomType(typeName, []))
         (function

@@ -1,8 +1,5 @@
 module BuiltinPM.Libs.Scripts
 
-open System.Threading.Tasks
-open FSharp.Control.Tasks
-
 open Prelude
 open LibExecution.RuntimeTypes
 
@@ -10,13 +7,14 @@ module VT = LibExecution.ValueType
 module Dval = LibExecution.Dval
 module Builtin = LibExecution.Builtin
 module Scripts = LibPackageManager.Scripts
-module PackageIDs = LibExecution.PackageIDs
+module PackageRefs = LibExecution.PackageRefs
+module NR = LibExecution.RuntimeTypes.NameResolution
 
 open Builtin.Shortcuts
 
 
-let scriptTypeName = FQTypeName.fqPackage PackageIDs.Type.Cli.script
-let scriptType = TCustomType(Ok scriptTypeName, [])
+let scriptTypeName = FQTypeName.fqPackage PackageRefs.Type.Cli.script
+let scriptType = TCustomType(NR.ok scriptTypeName, [])
 
 
 /// TODO: Consider migrating scripts away from a dedicated SQLite table to just

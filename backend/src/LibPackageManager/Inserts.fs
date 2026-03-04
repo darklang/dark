@@ -4,40 +4,29 @@ open System.Threading.Tasks
 open FSharp.Control.Tasks
 
 open Prelude
+open LibExecution.ProgramTypes
 
 open Fumble
 open LibDB.Db
 
 module PT = LibExecution.ProgramTypes
-module BinarySerialization = LibBinarySerialization.BinarySerialization
+module BS = LibSerialization.Binary.Serialization
+open LibSerialization.Hashing
 
 
-/// Compute a content-addressed ID for a PackageOp by hashing its serialized content
-///
-/// TODO this is really hacky.
-/// honestly we should
-/// - make hashing more legit.
-/// - rebrand LibBinarySerialization as LibSerialization
-/// - migrate any remaining hacky JSON serialization things there
-///   (if LibExecution needs them, maybe ExecutionState needs to/from json fns to be part of that context)
-/// - put all sorts of Hashers there -
+/// Compute a content-addressed ID for a PackageOp.
+/// Returns a UUID derived from the Hash (first 16 bytes) for DB compatibility.
+/// TODO: consider whether package_ops.id should store the full hash instead of a truncated UUID.
 let computeOpHash (op : PT.PackageOp) : System.Guid =
-  use memoryStream = new System.IO.MemoryStream()
-  use binaryWriter = new System.IO.BinaryWriter(memoryStream)
-
-  // Serialize just the op content (without an ID)
-  LibBinarySerialization.Serializers.PT.PackageOp.write binaryWriter op
-
-  let opBytes = memoryStream.ToArray()
-  let hashBytes = System.Security.Cryptography.SHA256.HashData(opBytes)
-
-  // Take first 16 bytes to make a UUID
+  let (Hash h) = Hashing.computeOpHash op
+  // Convert hex string back to bytes, take first 16 for UUID
+  let hashBytes = System.Convert.FromHexString(h)
   System.Guid(hashBytes[0..15])
 
 
 /// Insert PackageOps into the package_ops table and apply them to projection tables.
 /// branchId = branch context
-/// commitId = None means WIP (commit_id = NULL), Some id means committed
+/// commitHash = None means WIP (commit_hash = NULL), Some id means committed
 /// Returns the count of ops actually inserted (duplicates are skipped via INSERT OR IGNORE)
 ///
 /// Uses a two-phase approach for consistency:
@@ -48,7 +37,7 @@ let computeOpHash (op : PT.PackageOp) : System.Guid =
 /// This ensures that if step 2 fails, we can identify unapplied ops and retry/rollback.
 let insertAndApplyOps
   (branchId : PT.BranchId)
-  (commitId : Option<System.Guid>)
+  (commitHash : Option<string>)
   (ops : List<PT.PackageOp>)
   : Task<int64> =
   task {
@@ -70,7 +59,7 @@ let insertAndApplyOps
         ops
         |> List.map (fun op ->
           let opId = computeOpHash op
-          let opBlob = BinarySerialization.PT.PackageOp.serialize opId op
+          let opBlob = BS.PT.PackageOp.serialize opId op
           (opId, op, opBlob, batchPropagationId))
 
       let insertStatements =
@@ -78,16 +67,21 @@ let insertAndApplyOps
         |> List.map (fun (opId, _op, opBlob, propagationId) ->
           let sql =
             """
-            INSERT OR IGNORE INTO package_ops (id, op_blob, branch_id, applied, commit_id, propagation_id)
-            VALUES (@id, @op_blob, @branch_id, @applied, @commit_id, @propagation_id)
+            INSERT OR IGNORE INTO package_ops (id, op_blob, branch_id, applied, commit_hash, propagation_id)
+            VALUES (@id, @op_blob, @branch_id, @applied, @commit_hash, @propagation_id)
             """
+
+          let commitHashParam =
+            match commitHash with
+            | Some s -> Sql.string s
+            | None -> Sql.dbnull
 
           let parameters =
             [ "id", Sql.uuid opId
               "op_blob", Sql.bytes opBlob
               "branch_id", Sql.uuid branchId
               "applied", Sql.bool false // Insert as unapplied
-              "commit_id", Sql.uuidOrNone commitId
+              "commit_hash", commitHashParam
               "propagation_id",
               (match propagationId with
                | Some id -> Sql.uuid id
@@ -110,7 +104,7 @@ let insertAndApplyOps
       let insertedOpIds =
         insertedOpsWithIds |> List.map (fun (opId, _, _, _) -> opId)
 
-      do! PackageOpPlayback.applyOps branchId commitId opsToApply
+      do! PackageOpPlayback.applyOps branchId commitHash opsToApply
 
       // Mark ops as applied (non-critical - ops are already applied)
       if not (List.isEmpty insertedOpIds) then
@@ -133,37 +127,52 @@ let insertAndApplyOps
   }
 
 
-/// Create a new commit and insert ops with that commit_id
-/// Returns the commit ID
+/// Create a new commit and insert ops with that commit_hash
+/// Returns the commit Hash
 let insertAndApplyOpsWithCommit
   (branchId : PT.BranchId)
   (message : string)
   (ops : List<PT.PackageOp>)
-  : Task<System.Guid> =
+  : Task<Hash> =
   task {
-    let commitId = System.Guid.NewGuid()
+    // Get parent commit hash
+    let! parentHash =
+      Sql.query
+        """
+        SELECT hash FROM commits
+        WHERE branch_id = @branch_id
+        ORDER BY created_at DESC
+        LIMIT 1
+        """
+      |> Sql.parameters [ "branch_id", Sql.uuid branchId ]
+      |> Sql.executeRowOptionAsync (fun read -> Hash(read.string "hash"))
+
+    // Compute content-addressed commit hash
+    let opHashes = ops |> List.map Hashing.computeOpHash
+    let commitHash = Hashing.computeCommitHash parentHash opHashes
+    let (Hash commitHashStr) = commitHash
 
     // Create the commit record
     do!
       Sql.query
         """
-        INSERT INTO commits (id, message, branch_id, created_at)
-        VALUES (@id, @message, @branch_id, datetime('now'))
+        INSERT INTO commits (hash, message, branch_id, created_at)
+        VALUES (@hash, @message, @branch_id, datetime('now'))
         """
       |> Sql.parameters
-        [ "id", Sql.uuid commitId
+        [ "hash", Sql.string commitHashStr
           "message", Sql.string message
           "branch_id", Sql.uuid branchId ]
       |> Sql.executeStatementAsync
 
-    // Insert ops with the commit_id
-    let! _ = insertAndApplyOps branchId (Some commitId) ops
+    // Insert ops with the commit_hash
+    let! _ = insertAndApplyOps branchId (Some commitHashStr) ops
 
-    return commitId
+    return commitHash
   }
 
 
-/// Insert ops as WIP (commit_id = NULL)
+/// Insert ops as WIP (commit_hash = NULL)
 /// Returns count of inserted ops
 let insertAndApplyOpsAsWip
   (branchId : PT.BranchId)
@@ -172,25 +181,52 @@ let insertAndApplyOpsAsWip
   insertAndApplyOps branchId None ops
 
 
-/// Commit all WIP ops on a branch by creating a new commit and assigning commit_id
-/// Returns the commit ID on success
+/// Commit all WIP ops on a branch by creating a new commit and assigning commit_hash.
+/// Commit hash is content-addressed: hash(parentHash + sorted opHashes).
+/// Returns the commit Hash on success.
 let commitWipOps
   (branchId : PT.BranchId)
   (message : string)
-  : Task<Result<System.Guid, string>> =
+  : Task<Result<Hash, string>> =
   task {
     try
-      // Check if there are any WIP ops on this branch
-      let! wipCount =
+      // Get WIP ops with their hashes
+      let! wipOps =
         Sql.query
-          "SELECT COUNT(*) as cnt FROM package_ops WHERE branch_id = @branch_id AND commit_id IS NULL"
+          """
+          SELECT id, op_blob
+          FROM package_ops
+          WHERE branch_id = @branch_id AND commit_hash IS NULL
+          ORDER BY created_at ASC
+          """
         |> Sql.parameters [ "branch_id", Sql.uuid branchId ]
-        |> Sql.executeAsync (fun read -> read.int64 "cnt")
+        |> Sql.executeAsync (fun read ->
+          let opId = read.uuid "id"
+          let opBlob = read.bytes "op_blob"
+          let op = BS.PT.PackageOp.deserialize opId opBlob
+          (opId, op))
 
-      match wipCount with
-      | [ 0L ] -> return Error "Nothing to commit"
-      | [ _ ] ->
-        let commitId = System.Guid.NewGuid()
+      if List.isEmpty wipOps then
+        return Error "Nothing to commit"
+      else
+        // Get parent commit hash (latest commit on this branch)
+        let! parentHash =
+          Sql.query
+            """
+            SELECT hash FROM commits
+            WHERE branch_id = @branch_id
+            ORDER BY created_at DESC
+            LIMIT 1
+            """
+          |> Sql.parameters [ "branch_id", Sql.uuid branchId ]
+          |> Sql.executeRowOptionAsync (fun read -> Hash(read.string "hash"))
+
+        // Compute op hashes
+        let opHashes = wipOps |> List.map (fun (_, op) -> Hashing.computeOpHash op)
+
+        // Compute content-addressed commit hash
+        let commitHash = Hashing.computeCommitHash parentHash opHashes
+        let (Hash commitHashStr) = commitHash
 
         // Execute all three operations atomically:
         // 1. Create commit record
@@ -198,61 +234,62 @@ let commitWipOps
         // 3. Assign WIP locations to this commit
         let statements =
           [ ("""
-             INSERT INTO commits (id, message, branch_id, created_at)
-             VALUES (@id, @message, @branch_id, datetime('now'))
+             INSERT INTO commits (hash, message, branch_id, created_at)
+             VALUES (@hash, @message, @branch_id, datetime('now'))
              """,
-             [ [ "id", Sql.uuid commitId
+             [ [ "hash", Sql.string commitHashStr
                  "message", Sql.string message
                  "branch_id", Sql.uuid branchId ] ])
 
             ("""
              UPDATE package_ops
-             SET commit_id = @commit_id
-             WHERE branch_id = @branch_id AND commit_id IS NULL
+             SET commit_hash = @commit_hash
+             WHERE branch_id = @branch_id AND commit_hash IS NULL
              """,
-             [ [ "commit_id", Sql.uuid commitId; "branch_id", Sql.uuid branchId ] ])
+             [ [ "commit_hash", Sql.string commitHashStr
+                 "branch_id", Sql.uuid branchId ] ])
 
             ("""
              UPDATE locations
-             SET commit_id = @commit_id
-             WHERE branch_id = @branch_id AND commit_id IS NULL
+             SET commit_hash = @commit_hash
+             WHERE branch_id = @branch_id AND commit_hash IS NULL
              """,
-             [ [ "commit_id", Sql.uuid commitId; "branch_id", Sql.uuid branchId ] ]) ]
+             [ [ "commit_hash", Sql.string commitHashStr
+                 "branch_id", Sql.uuid branchId ] ]) ]
 
         let _ = Sql.executeTransactionSync statements
 
-        return Ok commitId
-      | _ -> return Error "Unexpected query result"
+        return Ok commitHash
     with ex ->
       return Error ex.Message
   }
 
 
-/// Find the committed UUID at a location, checking the current branch first,
+/// Find the committed Hash at a location, checking the current branch first,
 /// then falling back to ancestor branches.
-/// Returns Ok(uuid, locationIdOpt) where locationIdOpt is Some for same-branch
+/// Returns Ok(hash, locationIdOpt) where locationIdOpt is Some for same-branch
 /// committed locations (that need un-deprecating) or None for ancestor locations
 /// (which are already active on the parent).
-let findCommittedUUID
+let findCommittedHash
   (branchId : PT.BranchId)
   (owner : string)
   (modules : string)
   (name : string)
   (itemType : string)
-  : Task<Result<uuid * Option<uuid>, string>> =
+  : Task<Result<Hash * Option<uuid>, string>> =
   task {
     // First: look for deprecated committed location on current branch
     let! committedLocations =
       Sql.query
         """
-        SELECT location_id, item_id
+        SELECT location_id, item_hash
         FROM locations
         WHERE owner = @owner
           AND modules = @modules
           AND name = @name
           AND item_type = @item_type
           AND branch_id = @branch_id
-          AND commit_id IS NOT NULL
+          AND commit_hash IS NOT NULL
           AND deprecated_at IS NOT NULL
         ORDER BY deprecated_at DESC
         LIMIT 1
@@ -264,10 +301,10 @@ let findCommittedUUID
           "item_type", Sql.string itemType
           "branch_id", Sql.uuid branchId ]
       |> Sql.executeAsync (fun read ->
-        (read.uuid "location_id", read.uuid "item_id"))
+        (read.uuid "location_id", Hash(read.string "item_hash")))
 
     match committedLocations with
-    | (locationId, itemId) :: _ -> return Ok(itemId, Some locationId)
+    | (locationId, itemHash) :: _ -> return Ok(itemHash, Some locationId)
     | [] ->
       // Fall back to ancestor branches for an active committed location.
       // The parent's location was never deprecated by applySetName
@@ -287,7 +324,7 @@ let findCommittedUUID
         let! ancestorLocations =
           Sql.query
             $"""
-            SELECT item_id
+            SELECT item_hash
             FROM locations
             WHERE owner = @owner
               AND modules = @modules
@@ -304,10 +341,10 @@ let findCommittedUUID
               "item_type", Sql.string itemType ]
             @ branchParams
           )
-          |> Sql.executeAsync (fun read -> read.uuid "item_id")
+          |> Sql.executeAsync (fun read -> Hash(read.string "item_hash"))
 
         match ancestorLocations with
-        | itemId :: _ -> return Ok(itemId, None)
+        | itemHash :: _ -> return Ok(itemHash, None)
         | [] -> return Error "No committed version found to restore"
   }
 
@@ -321,7 +358,7 @@ let discardWipOps (branchId : PT.BranchId) : Task<Result<int64, string>> =
       let! wipOps =
         Sql.query
           """
-          SELECT id FROM package_ops WHERE branch_id = @branch_id AND commit_id IS NULL
+          SELECT id FROM package_ops WHERE branch_id = @branch_id AND commit_hash IS NULL
           """
         |> Sql.parameters [ "branch_id", Sql.uuid branchId ]
         |> Sql.executeAsync (fun read -> read.uuid "id")
@@ -350,10 +387,10 @@ let discardWipOps (branchId : PT.BranchId) : Task<Result<int64, string>> =
                 AND committed_loc.name = wip_loc.name
                 AND committed_loc.item_type = wip_loc.item_type
                 AND committed_loc.branch_id = wip_loc.branch_id
-                AND committed_loc.commit_id IS NOT NULL
+                AND committed_loc.commit_hash IS NOT NULL
                 AND committed_loc.deprecated_at IS NOT NULL
               WHERE wip_loc.branch_id = @branch_id
-                AND wip_loc.commit_id IS NULL
+                AND wip_loc.commit_hash IS NULL
                 -- Only restore if there's no other active committed location at this path
                 AND NOT EXISTS (
                   SELECT 1 FROM locations active
@@ -362,7 +399,7 @@ let discardWipOps (branchId : PT.BranchId) : Task<Result<int64, string>> =
                     AND active.name = wip_loc.name
                     AND active.item_type = wip_loc.item_type
                     AND active.branch_id = wip_loc.branch_id
-                    AND active.commit_id IS NOT NULL
+                    AND active.commit_hash IS NOT NULL
                     AND active.deprecated_at IS NULL
                 )
                 -- Pick the most recently deprecated committed location
@@ -374,7 +411,7 @@ let discardWipOps (branchId : PT.BranchId) : Task<Result<int64, string>> =
                     AND c2.name = wip_loc.name
                     AND c2.item_type = wip_loc.item_type
                     AND c2.branch_id = wip_loc.branch_id
-                    AND c2.commit_id IS NOT NULL
+                    AND c2.commit_hash IS NOT NULL
                     AND c2.deprecated_at IS NOT NULL
                 )
             )
@@ -385,14 +422,14 @@ let discardWipOps (branchId : PT.BranchId) : Task<Result<int64, string>> =
         // Delete WIP locations
         do!
           Sql.query
-            "DELETE FROM locations WHERE branch_id = @branch_id AND commit_id IS NULL"
+            "DELETE FROM locations WHERE branch_id = @branch_id AND commit_hash IS NULL"
           |> Sql.parameters [ "branch_id", Sql.uuid branchId ]
           |> Sql.executeStatementAsync
 
         // Delete WIP ops
         do!
           Sql.query
-            "DELETE FROM package_ops WHERE branch_id = @branch_id AND commit_id IS NULL"
+            "DELETE FROM package_ops WHERE branch_id = @branch_id AND commit_hash IS NULL"
           |> Sql.parameters [ "branch_id", Sql.uuid branchId ]
           |> Sql.executeStatementAsync
 

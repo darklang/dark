@@ -7,7 +7,8 @@ open Prelude
 
 open LibExecution.RuntimeTypes
 module Builtin = LibExecution.Builtin
-module PackageIDs = LibExecution.PackageIDs
+module PackageRefs = LibExecution.PackageRefs
+module NR = LibExecution.RuntimeTypes.NameResolution
 
 open Builtin.Shortcuts
 
@@ -16,8 +17,8 @@ let fns : List<BuiltInFn> =
       typeParams = []
       parameters = [ Param.make "unit" TUnit "" ]
       returnType =
-        let typeName = FQTypeName.fqPackage PackageIDs.Type.Stdlib.Cli.Stdin.keyRead
-        TCustomType(Ok typeName, [])
+        let typeName = FQTypeName.fqPackage PackageRefs.Type.Stdlib.Cli.Stdin.keyRead
+        TCustomType(NR.ok typeName, [])
       description = "Reads a single line from the standard input."
       fn =
         (function
@@ -34,7 +35,7 @@ let fns : List<BuiltInFn> =
 
           let modifiers =
             let typeName =
-              FQTypeName.fqPackage PackageIDs.Type.Stdlib.Cli.Stdin.modifiers
+              FQTypeName.fqPackage PackageRefs.Type.Stdlib.Cli.Stdin.modifiers
             let fields =
               [ "alt", DBool altHeld
                 "shift", DBool shiftHeld
@@ -192,7 +193,7 @@ let fns : List<BuiltInFn> =
             | _ -> "None"
 
           let key =
-            let typeName = FQTypeName.fqPackage PackageIDs.Type.Stdlib.Cli.Stdin.key
+            let typeName = FQTypeName.fqPackage PackageRefs.Type.Stdlib.Cli.Stdin.key
             DEnum(typeName, typeName, [], keyCaseName, [])
 
           // Get character representation based on keyboard layout
@@ -206,7 +207,7 @@ let fns : List<BuiltInFn> =
 
           let keyRead =
             let typeName =
-              FQTypeName.fqPackage PackageIDs.Type.Stdlib.Cli.Stdin.keyRead
+              FQTypeName.fqPackage PackageRefs.Type.Stdlib.Cli.Stdin.keyRead
             DRecord(
               typeName,
               typeName,

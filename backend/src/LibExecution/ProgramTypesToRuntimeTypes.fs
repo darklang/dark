@@ -8,9 +8,12 @@ module RT = RuntimeTypes
 module VT = ValueType
 module PT = ProgramTypes
 
+module Hash =
+  let toRT (PT.Hash h) : RT.Hash = RT.Hash h
+
 module FQTypeName =
   module Package =
-    let toRT (p : PT.FQTypeName.Package) : RT.FQTypeName.Package = p
+    let toRT (p : PT.FQTypeName.Package) : RT.FQTypeName.Package = Hash.toRT p
 
   let toRT (fqtn : PT.FQTypeName.FQTypeName) : RT.FQTypeName.FQTypeName =
     match fqtn with
@@ -23,7 +26,7 @@ module FQValueName =
       { name = c.name; version = c.version }
 
   module Package =
-    let toRT (c : PT.FQValueName.Package) : RT.FQValueName.Package = c
+    let toRT (p : PT.FQValueName.Package) : RT.FQValueName.Package = Hash.toRT p
 
   let toRT (name : PT.FQValueName.FQValueName) : RT.FQValueName.FQValueName =
     match name with
@@ -37,7 +40,7 @@ module FQFnName =
       { name = s.name; version = s.version }
 
   module Package =
-    let toRT (p : PT.FQFnName.Package) : RT.FQFnName.Package = p
+    let toRT (p : PT.FQFnName.Package) : RT.FQFnName.Package = Hash.toRT p
 
   let toRT (fqfn : PT.FQFnName.FQFnName) : RT.FQFnName.FQFnName =
     match fqfn with
@@ -48,15 +51,16 @@ module FQFnName =
 module NameResolutionError =
   let toRT (e : PT.NameResolutionError) : RT.NameResolutionError =
     match e with
-    | PT.NameResolutionError.NotFound names -> RT.NameResolutionError.NotFound names
-    | PT.NameResolutionError.InvalidName names ->
-      RT.NameResolutionError.InvalidName names
+    | PT.NameResolutionError.NotFound -> RT.NameResolutionError.NotFound
+    | PT.NameResolutionError.InvalidName -> RT.NameResolutionError.InvalidName
 
 module NameResolution =
   let toRT (f : 'a -> 'b) (nr : PT.NameResolution<'a>) : RT.NameResolution<'b> =
-    match nr with
-    | Ok x -> Ok(f x)
-    | Error e -> Error(NameResolutionError.toRT e)
+    { originalName = nr.originalName
+      resolved =
+        match nr.resolved with
+        | Ok x -> Ok(f x)
+        | Error e -> Error(NameResolutionError.toRT e) }
 
 
 module TypeReference =
@@ -133,7 +137,7 @@ module TypeReference =
       )
     | PT.TDict typ -> RT.ValueType.Known(RT.KTDict(toValueType typ))
     | PT.TCustomType(typeName, typeArgs) ->
-      match typeName with
+      match typeName.resolved with
       | Ok name ->
         RT.ValueType.Known(
           RT.KTCustomType(FQTypeName.toRT name, List.map toValueType typeArgs)
@@ -720,20 +724,20 @@ module Expr =
 
 
     // values
-    | PT.EValue(_, Ok name) ->
+    | PT.EValue(_, { resolved = Ok name }) ->
       { registerCount = rc + 1
         instructions = [ RT.LoadValue(rc, FQValueName.toRT name) ]
         resultIn = rc }
 
-    | PT.EValue(_, Error nre) ->
+    | PT.EValue(_, { originalName = names; resolved = Error nre }) ->
       // CLEANUP improve (see notes for EFnName)
       { registerCount = rc
-        instructions = [ RT.RaiseNRE(NameResolutionError.toRT nre) ]
+        instructions = [ RT.RaiseNRE(names, NameResolutionError.toRT nre) ]
         resultIn = rc }
 
 
     // functions
-    | PT.EFnName(_, Ok name) ->
+    | PT.EFnName(_, { resolved = Ok name }) ->
       let namedFn : RT.ApplicableNamedFn =
         { name = FQFnName.toRT name
           typeSymbolTable = Map.empty
@@ -746,10 +750,10 @@ module Expr =
         instructions = [ RT.LoadVal(rc, applicable) ]
         resultIn = rc }
 
-    | PT.EFnName(_, Error nre) ->
+    | PT.EFnName(_, { originalName = names; resolved = Error nre }) ->
       // CLEANUP make it ok to _reference_ a bad name, so long as we don't try to `apply` it.
       { registerCount = rc
-        instructions = [ RT.RaiseNRE(NameResolutionError.toRT nre) ]
+        instructions = [ RT.RaiseNRE(names, NameResolutionError.toRT nre) ]
         resultIn = rc }
 
 
@@ -884,13 +888,16 @@ module Expr =
 
 
     // -- Records --
-    | PT.ERecord(_id, Error nre, _typeArgs, _fields) ->
+    | PT.ERecord(_id,
+                 { originalName = names; resolved = Error nre },
+                 _typeArgs,
+                 _fields) ->
       let returnReg = 0 // TODO - not sure what to do here
       { registerCount = rc
-        instructions = [ RT.RaiseNRE(NameResolutionError.toRT nre) ]
+        instructions = [ RT.RaiseNRE(names, NameResolutionError.toRT nre) ]
         resultIn = returnReg }
 
-    | PT.ERecord(_id, Ok typeName, typeArgs, fields) ->
+    | PT.ERecord(_id, { resolved = Ok typeName }, typeArgs, fields) ->
       let recordReg, rc = rc, rc + 1
 
       // CLEANUP: complain if there are no fields
@@ -951,13 +958,17 @@ module Expr =
 
 
     // -- Enums --
-    | PT.EEnum(_id, Error nre, _caseName, _typeArgs, _fields) ->
+    | PT.EEnum(_id,
+               { originalName = names; resolved = Error nre },
+               _caseName,
+               _typeArgs,
+               _fields) ->
       let returnReg = 0 // CLEANUP this is just to fill the field, but meh
       { registerCount = rc
-        instructions = [ RT.RaiseNRE(NameResolutionError.toRT nre) ]
+        instructions = [ RT.RaiseNRE(names, NameResolutionError.toRT nre) ]
         resultIn = returnReg }
 
-    | PT.EEnum(_id, Ok typeName, typeArgs, caseName, fields) ->
+    | PT.EEnum(_id, { resolved = Ok typeName }, typeArgs, caseName, fields) ->
       let enumReg, rc = rc, rc + 1
 
       let (rcAfterFields, instrs, fields) =
@@ -1074,7 +1085,7 @@ module TypeDeclaration =
 // --
 module PackageType =
   let toRT (t : PT.PackageType.PackageType) : RT.PackageType.PackageType =
-    { id = t.id; declaration = TypeDeclaration.toRT t.declaration }
+    { hash = Hash.toRT t.hash; declaration = TypeDeclaration.toRT t.declaration }
 
 module PackageValue =
   // TODO: do a proper eval (Execution.execute)
@@ -1128,7 +1139,7 @@ module PackageValue =
       RT.DDict(RT.ValueType.Unknown, evalEntries)
     | PT.EEnum(_, typeName, typeArgs, caseName, fields) ->
       let resolvedTypeName =
-        match typeName with
+        match typeName.resolved with
         | Ok name -> FQTypeName.toRT name
         | Error _ ->
           Exception.raiseInternal
@@ -1142,12 +1153,16 @@ module PackageValue =
         | [] ->
           // Only infer for well-known generic types when no type args provided
           match resolvedTypeName with
-          | RT.FQTypeName.Package id when id = PackageIDs.Type.Stdlib.option ->
+          | RT.FQTypeName.Package(RT.Hash hash) when
+            hash = PackageRefs.Type.Stdlib.option
+            ->
             match caseName, fieldValues with
             | "Some", [ fieldValue ] -> [ RT.Dval.toValueType fieldValue ]
             | "None", [] -> [ RT.ValueType.Unknown ]
             | _ -> []
-          | RT.FQTypeName.Package id when id = PackageIDs.Type.Stdlib.result ->
+          | RT.FQTypeName.Package(RT.Hash hash) when
+            hash = PackageRefs.Type.Stdlib.result
+            ->
             match caseName, fieldValues with
             | "Ok", [ okValue ] ->
               [ RT.Dval.toValueType okValue; RT.ValueType.Unknown ]
@@ -1166,7 +1181,7 @@ module PackageValue =
       )
     | PT.ERecord(_, typeName, typeArgs, fields) ->
       let resolvedTypeName =
-        match typeName with
+        match typeName.resolved with
         | Ok name -> FQTypeName.toRT name
         | Error _ ->
           Exception.raiseInternal
@@ -1178,7 +1193,7 @@ module PackageValue =
         |> Map.ofList
       let convertedTypeArgs = List.map TypeReference.toValueType typeArgs
       RT.DRecord(resolvedTypeName, resolvedTypeName, convertedTypeArgs, fieldValues)
-    | PT.EValue(_, Ok(PT.FQValueName.Builtin builtin)) ->
+    | PT.EValue(_, { resolved = Ok(PT.FQValueName.Builtin builtin) }) ->
       let rtBuiltin = FQValueName.Builtin.toRT builtin
       match Map.find rtBuiltin builtinValues with
       | Some v -> v.body
@@ -1195,7 +1210,7 @@ module PackageValue =
     (c : PT.PackageValue.PackageValue)
     : RT.PackageValue.PackageValue =
     let body = evalConstantExpr builtinValues c.body
-    { id = c.id; body = body }
+    { hash = Hash.toRT c.hash; body = body }
 
 module PackageFn =
   module Parameter =
@@ -1203,7 +1218,7 @@ module PackageFn =
       { name = p.name; typ = TypeReference.toRT p.typ }
 
   let toRT (f : PT.PackageFn.PackageFn) : RT.PackageFn.PackageFn =
-    { id = f.id
+    { hash = Hash.toRT f.hash
       body =
         let (rcAfterParams, symbols) : (int * Map<string, int>) =
           f.parameters
@@ -1212,7 +1227,7 @@ module PackageFn =
             (fun (rc, symbols) p -> (rc + 1, Map.add p.name rc symbols))
             (0, Map.empty)
 
-        let fnName = PT.FQFnName.Package f.id
+        let fnName = PT.FQFnName.Package f.hash
         Expr.toRT symbols rcAfterParams (Some fnName) f.body
       typeParams = f.typeParams
       parameters = f.parameters |> NEList.map Parameter.toRT
@@ -1224,11 +1239,14 @@ module PackageManager =
     (builtinValues : Map<RT.FQValueName.Builtin, RT.BuiltInValue>)
     (pm : PT.PackageManager)
     : RT.PackageManager =
-    { getType = fun id -> pm.getType id |> Ply.map (Option.map PackageType.toRT)
+    let toPT (RT.Hash h) : PT.Hash = PT.Hash h
+    { getType =
+        fun id -> pm.getType (toPT id) |> Ply.map (Option.map PackageType.toRT)
       getValue =
         fun id ->
-          pm.getValue id |> Ply.map (Option.map (PackageValue.toRT builtinValues))
-      getFn = fun id -> pm.getFn id |> Ply.map (Option.map PackageFn.toRT)
+          pm.getValue (toPT id)
+          |> Ply.map (Option.map (PackageValue.toRT builtinValues))
+      getFn = fun id -> pm.getFn (toPT id) |> Ply.map (Option.map PackageFn.toRT)
 
       init = pm.init }
 

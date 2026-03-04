@@ -4,14 +4,14 @@ let nameResolutionError
   (nre: LanguageTools.RuntimeTypes.NameResolutionError)
   : String =
   match nre with
-  | NotFound names -> (Stdlib.String.join names ".") ++ " not found"
-  | InvalidName names -> (Stdlib.String.join names ".") ++ " is not a valid name"
+  | NotFound -> "not found"
+  | InvalidName -> "invalid name"
 
 let nameResolution<'a>
   (nr: LanguageTools.RuntimeTypes.NameResolution<'a>)
   (f: 'a -> String)
   : String =
-  match nr with
+  match nr.resolved with
   | Ok a -> f a
   | Error e -> nameResolutionError e
 
@@ -32,15 +32,38 @@ let packageName
   | "Tests" -> $"{modulesPart}{name}"
   | _ -> $"{owner}.{modulesPart}{name}"
 
+/// Given PM locations for a hash, resolve to best display name.
+/// Uses pickLocation with context to choose among multiple locations.
+let resolvePackageHash
+  (ctx: LanguageTools.PackageManager.PickContext)
+  (locations: List<LanguageTools.ProgramTypes.PackageLocation>)
+  (hash: LanguageTools.RuntimeTypes.Hash)
+  : String =
+  match Darklang.LanguageTools.PackageManager.pickLocation ctx locations with
+  | Some l -> packageName l.owner l.modules l.name
+  | None -> Darklang.LanguageTools.RuntimeTypes.hashToString hash
+
+/// Like resolvePackageHash but prefers originalName when ambiguous (multiple locations).
+let resolvePackageHashWithOriginalName
+  (ctx: LanguageTools.PackageManager.PickContext)
+  (locations: List<LanguageTools.ProgramTypes.PackageLocation>)
+  (originalName: List<String>)
+  (hash: LanguageTools.RuntimeTypes.Hash)
+  : String =
+  match locations with
+  | [ single ] -> packageName single.owner single.modules single.name
+  | _ ->
+    match originalName with
+    | _ :: _ -> Stdlib.String.join originalName "."
+    | [] -> resolvePackageHash ctx locations hash
+
 
 module FQTypeName =
   let package
         (branchId: Uuid)
-        (id: LanguageTools.RuntimeTypes.FQTypeName.Package)
+        (hash: LanguageTools.RuntimeTypes.FQTypeName.Package)
     : String =
-    match Builtin.pmGetLocationByType branchId id with
-    | Some l -> packageName l.owner l.modules l.name
-    | None -> Stdlib.Uuid.toString id
+    resolvePackageHash LanguageTools.PackageManager.PickContext.empty (Builtin.pmGetLocationsByType branchId hash) hash
 
 // TODO rename to fqtypeName?
 let typeName
@@ -65,11 +88,9 @@ module FQValueName =
 
   let package
         (branchId: Uuid)
-        (id: LanguageTools.RuntimeTypes.FQValueName.Package)
+        (hash: LanguageTools.RuntimeTypes.FQValueName.Package)
     : String =
-    match Builtin.pmGetLocationByValue branchId id with
-    | Some l -> packageName l.owner l.modules l.name
-    | None -> Stdlib.Uuid.toString id
+    resolvePackageHash LanguageTools.PackageManager.PickContext.empty (Builtin.pmGetLocationsByValue branchId hash) hash
 
 // TODO rename to fqvalueName?
 let valueName
@@ -95,11 +116,9 @@ module FQFnName =
 
   let package
         (branchId: Uuid)
-        (id: LanguageTools.RuntimeTypes.FQFnName.Package)
+        (hash: LanguageTools.RuntimeTypes.FQFnName.Package)
     : String =
-    match Builtin.pmGetLocationByFn branchId id with
-    | Some l -> packageName l.owner l.modules l.name
-    | None -> Stdlib.Uuid.toString id
+    resolvePackageHash LanguageTools.PackageManager.PickContext.empty (Builtin.pmGetLocationsByFn branchId hash) hash
 
 
 // TODO rename to fqfnName?
@@ -162,8 +181,12 @@ let typeReference
         |> fun parts -> $"<{parts}>"
 
     let typeNamePart =
-      match typ with
-      | Ok name -> typeName branchId name
+      match typ.resolved with
+      | Ok name ->
+        match name with
+        | Package hash ->
+          let locations = Builtin.pmGetLocationsByType branchId hash
+          resolvePackageHashWithOriginalName LanguageTools.PackageManager.PickContext.empty locations typ.originalName hash
       | Error e -> nameResolutionError e
 
     $"{typeNamePart}{argsPart}"

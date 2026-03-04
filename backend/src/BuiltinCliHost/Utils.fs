@@ -8,8 +8,7 @@ open Prelude
 module PT = LibExecution.ProgramTypes
 module VT = LibExecution.ValueType
 module PT2DT = LibExecution.ProgramTypesToDarkTypes
-module PackageIDs = LibExecution.PackageIDs
-module DvalDecoder = LibExecution.DvalDecoder
+module PackageRefs = LibExecution.PackageRefs
 
 open LibExecution.RuntimeTypes
 
@@ -28,17 +27,17 @@ module CliScript =
 
   let typeName =
     FQTypeName.fqPackage
-      PackageIDs.Type.LanguageTools.Parser.CliScript.pTCliScriptModule
+      PackageRefs.Type.LanguageTools.Parser.CliScript.pTCliScriptModule
 
   let packageType =
     FQTypeName.fqPackage
-      PackageIDs.Type.LanguageTools.ProgramTypes.PackageType.packageType
+      PackageRefs.Type.LanguageTools.ProgramTypes.PackageType.packageType
   let packageValue =
     FQTypeName.fqPackage
-      PackageIDs.Type.LanguageTools.ProgramTypes.PackageValue.packageValue
+      PackageRefs.Type.LanguageTools.ProgramTypes.PackageValue.packageValue
   let packageFn =
     FQTypeName.fqPackage
-      PackageIDs.Type.LanguageTools.ProgramTypes.PackageFn.packageFn
+      PackageRefs.Type.LanguageTools.ProgramTypes.PackageFn.packageFn
 
   let submoduleToDT (m : Definitions) : Dval =
     let fields =

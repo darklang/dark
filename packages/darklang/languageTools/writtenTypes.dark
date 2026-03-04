@@ -4,6 +4,10 @@ module Darklang.LanguageTools.WrittenTypes
 type Range = Parser.Range
 // <aliases>
 
+/// A name that failed to resolve, with its source location and error details.
+type UnresolvedName =
+  (Parser.Range * List<String> * ProgramTypes.NameResolutionError)
+
 // Identifiers
 type ModuleIdentifier = { range: Range; name: String }
 

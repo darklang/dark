@@ -6,21 +6,22 @@ open LibExecution.Builtin.Shortcuts
 
 module VT = LibExecution.ValueType
 module Dval = LibExecution.Dval
-module PackageIDs = LibExecution.PackageIDs
+module PackageRefs = LibExecution.PackageRefs
 module RT2DT = LibExecution.RuntimeTypesToDarkTypes
+module NR = LibExecution.RuntimeTypes.NameResolution
 
 
-let builtinValue = FQTypeName.fqPackage PackageIDs.Type.LanguageTools.builtinValue
+let builtinValue = FQTypeName.fqPackage PackageRefs.Type.LanguageTools.builtinValue
 
 let builtinFnParam =
-  FQTypeName.fqPackage PackageIDs.Type.LanguageTools.builtinFnParam
-let builtinFn = FQTypeName.fqPackage PackageIDs.Type.LanguageTools.builtinFn
+  FQTypeName.fqPackage PackageRefs.Type.LanguageTools.builtinFnParam
+let builtinFn = FQTypeName.fqPackage PackageRefs.Type.LanguageTools.builtinFn
 
 let fns : List<BuiltInFn> =
   [ { name = fn "languageToolsAllBuiltinValues" 0
       typeParams = []
       parameters = [ Param.make "unit" TUnit "" ]
-      returnType = TCustomType(Ok builtinValue, []) |> TList
+      returnType = TCustomType(NR.ok builtinValue, []) |> TList
       description =
         "Returns a list of the Builtin values (usually not to be accessed directly)."
       fn =
@@ -47,7 +48,7 @@ let fns : List<BuiltInFn> =
     { name = fn "languageToolsAllBuiltinFns" 0
       typeParams = []
       parameters = [ Param.make "unit" TUnit "" ]
-      returnType = TCustomType(Ok builtinFn, []) |> TList
+      returnType = TCustomType(NR.ok builtinFn, []) |> TList
       description =
         "Returns a list of the Builtin functions (usually not to be accessed directly)."
       fn =

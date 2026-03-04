@@ -4,7 +4,7 @@ open Prelude
 
 open LibExecution.RuntimeTypes
 open LibExecution.Builtin.Shortcuts
-module PackageIDs = LibExecution.PackageIDs
+module PackageRefs = LibExecution.PackageRefs
 module Dval = LibExecution.Dval
 module ValueType = LibExecution.ValueType
 module Exe = LibExecution.Execution
@@ -193,28 +193,28 @@ let fns : List<BuiltInFn> =
           match dval with
 
           // Success: extract `Some` out of an Option
-          | DEnum(FQTypeName.Package id, _, _, "Some", [ value ]) when
-            id = PackageIDs.Type.Stdlib.option
+          | DEnum(FQTypeName.Package(Hash id), _, _, "Some", [ value ]) when
+            id = PackageRefs.Type.Stdlib.option
             ->
             Ply value
 
           // Success: extract `Ok` out of a Result
-          | DEnum(FQTypeName.Package id, _, _, "Ok", [ value ]) when
-            id = PackageIDs.Type.Stdlib.result
+          | DEnum(FQTypeName.Package(Hash id), _, _, "Ok", [ value ]) when
+            id = PackageRefs.Type.Stdlib.result
             ->
             Ply value
 
           // Error: expected Some, got None
-          | DEnum(FQTypeName.Package id, _, _, "None", []) when
-            id = PackageIDs.Type.Stdlib.option
+          | DEnum(FQTypeName.Package(Hash id), _, _, "None", []) when
+            id = PackageRefs.Type.Stdlib.option
             ->
             RuntimeError.Unwraps.GotNone
             |> RuntimeError.Unwrap
             |> raiseRTE vm.threadID
 
           // Error: expected Ok, got Error
-          | DEnum(FQTypeName.Package id, _, _, "Error", [ value ]) when
-            id = PackageIDs.Type.Stdlib.result
+          | DEnum(FQTypeName.Package(Hash id), _, _, "Error", [ value ]) when
+            id = PackageRefs.Type.Stdlib.result
             ->
             RuntimeError.Unwraps.GotError value
             |> RuntimeError.Unwrap

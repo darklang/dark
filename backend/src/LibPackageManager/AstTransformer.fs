@@ -2,46 +2,47 @@
 module LibPackageManager.AstTransformer
 
 open Prelude
+open LibExecution.ProgramTypes
 
 module PT = LibExecution.ProgramTypes
 
 
-type UuidMapping = Map<uuid, uuid>
+type HashMapping = Map<Hash, Hash>
 
-let private replaceUuid (mapping : UuidMapping) (id : uuid) : uuid =
-  mapping |> Map.tryFind id |> Option.defaultValue id
+let private replaceHash (mapping : HashMapping) (hash : Hash) : Hash =
+  mapping |> Map.tryFind hash |> Option.defaultValue hash
 
 let private transformNameResolution
-  (mapping : UuidMapping)
+  (mapping : HashMapping)
   (nr : PT.NameResolution<'a>)
-  (transform : uuid -> 'a) // rebuild the value from a new UUID
-  (getPackageId : 'a -> Option<uuid>) // extracts the UUID from a resolved name
+  (transform : Hash -> 'a) // rebuild the value from a new Hash
+  (getPackageId : 'a -> Option<Hash>) // extracts the Hash from a resolved name
   : PT.NameResolution<'a> =
-  match nr with
+  match nr.resolved with
   | Ok resolved ->
     match getPackageId resolved with
-    | Some id ->
-      let newId = replaceUuid mapping id
-      if newId = id then nr else Ok(transform newId)
+    | Some hash ->
+      let newHash = replaceHash mapping hash
+      if newHash = hash then nr else { nr with resolved = Ok(transform newHash) }
     | None -> nr
   | Error _ -> nr
 
-let private getFnPackageId (fn : PT.FQFnName.FQFnName) : Option<uuid> =
+let private getFnPackageHash (fn : PT.FQFnName.FQFnName) : Option<Hash> =
   match fn with
-  | PT.FQFnName.Package id -> Some id
+  | PT.FQFnName.Package hash -> Some hash
   | PT.FQFnName.Builtin _ -> None
 
-let private getTypePackageId (typ : PT.FQTypeName.FQTypeName) : Option<uuid> =
+let private getTypePackageHash (typ : PT.FQTypeName.FQTypeName) : Option<Hash> =
   match typ with
-  | PT.FQTypeName.Package id -> Some id
+  | PT.FQTypeName.Package hash -> Some hash
 
-let private getValuePackageId (value : PT.FQValueName.FQValueName) : Option<uuid> =
+let private getValuePackageHash (value : PT.FQValueName.FQValueName) : Option<Hash> =
   match value with
-  | PT.FQValueName.Package id -> Some id
+  | PT.FQValueName.Package hash -> Some hash
   | PT.FQValueName.Builtin _ -> None
 
 let rec private transformTypeRef
-  (mapping : UuidMapping)
+  (mapping : HashMapping)
   (typeRef : PT.TypeReference)
   : PT.TypeReference =
   /// CLEANUP introduce `let r = ...`
@@ -78,7 +79,7 @@ let rec private transformTypeRef
 
   | PT.TCustomType(nr, typeArgs) ->
     PT.TCustomType(
-      transformNameResolution mapping nr PT.FQTypeName.Package getTypePackageId,
+      transformNameResolution mapping nr PT.FQTypeName.Package getTypePackageHash,
       typeArgs |> List.map (transformTypeRef mapping)
     )
 
@@ -91,9 +92,9 @@ let rec private transformTypeRef
 /// RenamedTo/ReplacedBy hold a UUID pointing to another package item.
 /// When that item gets a new UUID during propagation, we must rewrite the reference.
 let private transformDeprecation
-  (mapping : UuidMapping)
-  (transform : uuid -> 'a)
-  (getPackageId : 'a -> Option<uuid>)
+  (mapping : HashMapping)
+  (transform : Hash -> 'a)
+  (getPackageId : 'a -> Option<Hash>)
   (dep : PT.Deprecation<'a>)
   : PT.Deprecation<'a> =
   match dep with
@@ -101,15 +102,15 @@ let private transformDeprecation
   | PT.DeprecatedBecause reason -> PT.DeprecatedBecause reason
   | PT.RenamedTo name ->
     match getPackageId name with
-    | Some id -> PT.RenamedTo(transform (replaceUuid mapping id))
+    | Some id -> PT.RenamedTo(transform (replaceHash mapping id))
     | None -> dep
   | PT.ReplacedBy name ->
     match getPackageId name with
-    | Some id -> PT.ReplacedBy(transform (replaceUuid mapping id))
+    | Some id -> PT.ReplacedBy(transform (replaceHash mapping id))
     | None -> dep
 
 let rec private transformStringSegment
-  (mapping : UuidMapping)
+  (mapping : HashMapping)
   (segment : PT.StringSegment)
   : PT.StringSegment =
   match segment with
@@ -117,7 +118,7 @@ let rec private transformStringSegment
   | PT.StringInterpolation expr -> PT.StringInterpolation(transformExpr mapping expr)
 
 and private transformMatchCase
-  (mapping : UuidMapping)
+  (mapping : HashMapping)
   (case : PT.MatchCase)
   : PT.MatchCase =
   { pat = case.pat // Patterns don't contain UUID references
@@ -125,7 +126,7 @@ and private transformMatchCase
     rhs = transformExpr mapping case.rhs }
 
 and private transformPipeExpr
-  (mapping : UuidMapping)
+  (mapping : HashMapping)
   (pipeExpr : PT.PipeExpr)
   : PT.PipeExpr =
   match pipeExpr with
@@ -138,7 +139,7 @@ and private transformPipeExpr
   | PT.EPipeFnCall(id, nr, typeArgs, args) ->
     PT.EPipeFnCall(
       id,
-      transformNameResolution mapping nr PT.FQFnName.Package getFnPackageId,
+      transformNameResolution mapping nr PT.FQFnName.Package getFnPackageHash,
       typeArgs |> List.map (transformTypeRef mapping),
       args |> List.map (transformExpr mapping)
     )
@@ -146,7 +147,7 @@ and private transformPipeExpr
   | PT.EPipeEnum(id, nr, caseName, fields) ->
     PT.EPipeEnum(
       id,
-      transformNameResolution mapping nr PT.FQTypeName.Package getTypePackageId,
+      transformNameResolution mapping nr PT.FQTypeName.Package getTypePackageHash,
       caseName,
       fields |> List.map (transformExpr mapping)
     )
@@ -154,7 +155,7 @@ and private transformPipeExpr
   | PT.EPipeVariable(id, varName, args) ->
     PT.EPipeVariable(id, varName, args |> List.map (transformExpr mapping))
 
-and private transformExpr (mapping : UuidMapping) (expr : PT.Expr) : PT.Expr =
+and private transformExpr (mapping : HashMapping) (expr : PT.Expr) : PT.Expr =
   match expr with
   | PT.EUnit _
   | PT.EBool _
@@ -226,7 +227,7 @@ and private transformExpr (mapping : UuidMapping) (expr : PT.Expr) : PT.Expr =
   | PT.EFnName(id, nr) ->
     PT.EFnName(
       id,
-      transformNameResolution mapping nr PT.FQFnName.Package getFnPackageId
+      transformNameResolution mapping nr PT.FQFnName.Package getFnPackageHash
     )
 
   | PT.ELambda(id, pats, body) -> PT.ELambda(id, pats, transformExpr mapping body)
@@ -237,7 +238,7 @@ and private transformExpr (mapping : UuidMapping) (expr : PT.Expr) : PT.Expr =
   | PT.ERecord(id, nr, typeArgs, fields) ->
     PT.ERecord(
       id,
-      transformNameResolution mapping nr PT.FQTypeName.Package getTypePackageId,
+      transformNameResolution mapping nr PT.FQTypeName.Package getTypePackageHash,
       typeArgs |> List.map (transformTypeRef mapping),
       fields |> List.map (fun (name, expr) -> (name, transformExpr mapping expr))
     )
@@ -255,7 +256,7 @@ and private transformExpr (mapping : UuidMapping) (expr : PT.Expr) : PT.Expr =
   | PT.EEnum(id, nr, typeArgs, caseName, fields) ->
     PT.EEnum(
       id,
-      transformNameResolution mapping nr PT.FQTypeName.Package getTypePackageId,
+      transformNameResolution mapping nr PT.FQTypeName.Package getTypePackageHash,
       typeArgs |> List.map (transformTypeRef mapping),
       caseName,
       fields |> List.map (transformExpr mapping)
@@ -264,14 +265,14 @@ and private transformExpr (mapping : UuidMapping) (expr : PT.Expr) : PT.Expr =
   | PT.EValue(id, nr) ->
     PT.EValue(
       id,
-      transformNameResolution mapping nr PT.FQValueName.Package getValuePackageId
+      transformNameResolution mapping nr PT.FQValueName.Package getValuePackageHash
     )
 
   | PT.EStatement(id, first, next) ->
     PT.EStatement(id, transformExpr mapping first, transformExpr mapping next)
 
 let transformFn
-  (mapping : UuidMapping)
+  (mapping : HashMapping)
   (fn : PT.PackageFn.PackageFn)
   : PT.PackageFn.PackageFn =
   { fn with
@@ -281,10 +282,14 @@ let transformFn
         |> NEList.map (fun p -> { p with typ = transformTypeRef mapping p.typ })
       returnType = transformTypeRef mapping fn.returnType
       deprecated =
-        transformDeprecation mapping PT.FQFnName.Package getFnPackageId fn.deprecated }
+        transformDeprecation
+          mapping
+          PT.FQFnName.Package
+          getFnPackageHash
+          fn.deprecated }
 
 let transformValue
-  (mapping : UuidMapping)
+  (mapping : HashMapping)
   (value : PT.PackageValue.PackageValue)
   : PT.PackageValue.PackageValue =
   { value with
@@ -293,11 +298,11 @@ let transformValue
         transformDeprecation
           mapping
           PT.FQValueName.Package
-          getValuePackageId
+          getValuePackageHash
           value.deprecated }
 
 let private transformTypeDefinition
-  (mapping : UuidMapping)
+  (mapping : HashMapping)
   (def : PT.TypeDeclaration.Definition)
   : PT.TypeDeclaration.Definition =
   match def with
@@ -320,7 +325,7 @@ let private transformTypeDefinition
     )
 
 let transformType
-  (mapping : UuidMapping)
+  (mapping : HashMapping)
   (typ : PT.PackageType.PackageType)
   : PT.PackageType.PackageType =
   { typ with
@@ -331,5 +336,5 @@ let transformType
         transformDeprecation
           mapping
           PT.FQTypeName.Package
-          getTypePackageId
+          getTypePackageHash
           typ.deprecated }

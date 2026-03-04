@@ -8,7 +8,8 @@ open LibExecution.Builtin.Shortcuts
 
 module VT = LibExecution.ValueType
 module Dval = LibExecution.Dval
-module PackageIDs = LibExecution.PackageIDs
+module PackageRefs = LibExecution.PackageRefs
+module NR = LibExecution.RuntimeTypes.NameResolution
 
 
 module Json =
@@ -20,8 +21,8 @@ module Json =
     | Array of List<Json>
     | Object of List<string * Json>
 
-  let typeName = FQTypeName.fqPackage PackageIDs.Type.Stdlib.AltJson.json
-  let typeRef = TCustomType(Ok typeName, [])
+  let typeName = FQTypeName.fqPackage PackageRefs.Type.Stdlib.AltJson.json
+  let typeRef = TCustomType(NR.ok typeName, [])
   let knownType = KTCustomType(typeName, [])
 
   let rec fromDT (dv : Dval) : Json =
@@ -67,8 +68,8 @@ module Json =
 
 
 module ParseError =
-  let typeName = FQTypeName.fqPackage PackageIDs.Type.Stdlib.AltJson.parseError
-  let typeRef = TCustomType(Ok typeName, [])
+  let typeName = FQTypeName.fqPackage PackageRefs.Type.Stdlib.AltJson.parseError
+  let typeRef = TCustomType(NR.ok typeName, [])
   let knownType = KTCustomType(typeName, [])
 
   type ParseError = | NotJson

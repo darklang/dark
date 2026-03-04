@@ -10,28 +10,31 @@ module Dval = LibExecution.Dval
 module VT = LibExecution.ValueType
 module PT = LibExecution.ProgramTypes
 module PT2DT = LibExecution.ProgramTypesToDarkTypes
+module NR = LibExecution.RuntimeTypes.NameResolution
 module PMPT = LibPackageManager.ProgramTypes
 module Branches = LibPackageManager.Branches
 
 
-let tupleVT = VT.tuple VT.uuid VT.string []
+let hashVT = VT.known PT2DT.Hash.knownType
+let tupleVT = VT.tuple hashVT VT.string []
 
-/// Try to get location for an item ID, checking all item types (fn, type, value)
+/// Try to get location for an item hash, checking all item types (fn, type, value)
 let private getLocationAny
   (branchChain : List<PT.BranchId>)
-  (id : uuid)
+  (hash : PT.Hash)
   : Ply<Option<PT.PackageLocation>> =
   uply {
     // Try fn first (most common)
-    match! PMPT.Fn.getLocation branchChain id with
-    | Some loc -> return Some loc
-    | None ->
+    match! PMPT.Fn.getLocations branchChain hash with
+    | loc :: _ -> return Some loc
+    | [] ->
       // Try type
-      match! PMPT.Type.getLocation branchChain id with
-      | Some loc -> return Some loc
-      | None ->
+      match! PMPT.Type.getLocations branchChain hash with
+      | loc :: _ -> return Some loc
+      | [] ->
         // Try value
-        return! PMPT.Value.getLocation branchChain id
+        let! locs = PMPT.Value.getLocations branchChain hash
+        return List.tryHead locs
   }
 
 
@@ -40,22 +43,30 @@ let fns : List<BuiltInFn> =
       typeParams = []
       parameters =
         [ Param.make "branchId" TUuid "Branch context for scoping"
-          Param.make "targetId" TUuid "The UUID to find dependents for" ]
-      returnType = TList(TTuple(TUuid, TString, []))
+          Param.make
+            "target"
+            (TCustomType(NR.ok PT2DT.Hash.typeName, []))
+            "The hash to find dependents for" ]
+      returnType =
+        TList(TTuple(TCustomType(NR.ok PT2DT.Hash.typeName, []), TString, []))
       description =
-        "Returns items that reference the given UUID (reverse dependencies), scoped to the branch chain."
+        "Returns items that reference the given hash (reverse dependencies), scoped to the branch chain."
       fn =
         (function
-        | _, _, _, [ DUuid branchId; DUuid targetId ] ->
+        | _, _, _, [ DUuid branchId; targetDval ] ->
           uply {
+            let target = PT2DT.Hash.fromDT targetDval
             let! branchChain = Branches.getBranchChain branchId
-            let! results =
-              LibPackageManager.Queries.getDependents branchChain targetId
+            let! results = LibPackageManager.Queries.getDependents branchChain target
 
             let dvals =
               results
               |> List.map (fun ref ->
-                DTuple(DUuid ref.itemId, DString(ref.itemKind.toString ()), []))
+                DTuple(
+                  PT2DT.Hash.toDT ref.itemHash,
+                  DString(ref.itemKind.toString ()),
+                  []
+                ))
             return DList(tupleVT, dvals)
           }
         | _ -> incorrectArgs ())
@@ -68,21 +79,30 @@ let fns : List<BuiltInFn> =
       typeParams = []
       parameters =
         [ Param.make "branchId" TUuid "Branch context for scoping"
-          Param.make "sourceId" TUuid "The UUID to find dependencies for" ]
-      returnType = TList(TTuple(TUuid, TString, []))
+          Param.make
+            "source"
+            (TCustomType(NR.ok PT2DT.Hash.typeName, []))
+            "The hash to find dependencies for" ]
+      returnType =
+        TList(TTuple(TCustomType(NR.ok PT2DT.Hash.typeName, []), TString, []))
       description =
-        "Returns all UUIDs that the given item references (forward dependencies), scoped to the branch chain."
+        "Returns all hashes that the given item references (forward dependencies), scoped to the branch chain."
       fn =
         (function
-        | _, _, _, [ DUuid branchId; DUuid sourceId ] ->
+        | _, _, _, [ DUuid branchId; sourceDval ] ->
           uply {
+            let source = PT2DT.Hash.fromDT sourceDval
             let! branchChain = Branches.getBranchChain branchId
             let! results =
-              LibPackageManager.Queries.getDependencies branchChain sourceId
+              LibPackageManager.Queries.getDependencies branchChain source
             let dvals =
               results
               |> List.map (fun ref ->
-                DTuple(DUuid ref.itemId, DString(ref.itemKind.toString ()), []))
+                DTuple(
+                  PT2DT.Hash.toDT ref.itemHash,
+                  DString(ref.itemKind.toString ()),
+                  []
+                ))
             return DList(tupleVT, dvals)
           }
         | _ -> incorrectArgs ())
@@ -95,33 +115,38 @@ let fns : List<BuiltInFn> =
       typeParams = []
       parameters =
         [ Param.make "branchId" TUuid "Branch context for scoping"
-          Param.make "targetIds" (TList TUuid) "List of UUIDs to find dependents for" ]
-      returnType = TList(TTuple(TUuid, TUuid, [ TString ]))
+          Param.make
+            "targets"
+            (TList(TCustomType(NR.ok PT2DT.Hash.typeName, [])))
+            "List of hashes to find dependents for" ]
+      returnType =
+        TList(
+          TTuple(
+            TCustomType(NR.ok PT2DT.Hash.typeName, []),
+            TCustomType(NR.ok PT2DT.Hash.typeName, []),
+            [ TString ]
+          )
+        )
       description =
-        "Batch lookup of dependents, scoped to the branch chain. Returns (dependsOnId, itemId, kind) tuples."
+        "Batch lookup of dependents, scoped to the branch chain. Returns (dependsOnHash, itemHash, kind) tuples."
       fn =
         (function
-        | _, _, _, [ DUuid branchId; DList(_, targetIds) ] ->
+        | _, _, _, [ DUuid branchId; DList(_, targets) ] ->
           uply {
             let! branchChain = Branches.getBranchChain branchId
-            let ids =
-              targetIds
-              |> List.choose (fun dval ->
-                match dval with
-                | DUuid id -> Some id
-                | _ -> None)
+            let ids = targets |> List.map PT2DT.Hash.fromDT
 
             let! results =
               LibPackageManager.Queries.getDependentsBatch branchChain ids
 
-            let resultVT = VT.tuple VT.uuid VT.uuid [ VT.string ]
+            let resultVT = VT.tuple hashVT hashVT [ VT.string ]
 
             let dvals =
               results
               |> List.map (fun dep ->
                 DTuple(
-                  DUuid dep.dependsOnId,
-                  DUuid dep.itemId,
+                  PT2DT.Hash.toDT dep.dependsOnHash,
+                  PT2DT.Hash.toDT dep.itemHash,
                   [ DString(dep.itemKind.toString ()) ]
                 ))
 
@@ -137,30 +162,34 @@ let fns : List<BuiltInFn> =
       typeParams = []
       parameters =
         [ Param.make "branchId" TUuid "Branch ID for location lookup"
-          Param.make "itemIds" (TList TUuid) "List of item UUIDs to resolve" ]
+          Param.make
+            "itemHashes"
+            (TList(TCustomType(NR.ok PT2DT.Hash.typeName, [])))
+            "List of item hashes to resolve" ]
       returnType =
-        TList(TTuple(TUuid, TCustomType(Ok PT2DT.PackageLocation.typeName, []), []))
+        TList(
+          TTuple(
+            TCustomType(NR.ok PT2DT.Hash.typeName, []),
+            TCustomType(NR.ok PT2DT.PackageLocation.typeName, []),
+            []
+          )
+        )
       description =
-        "Resolve UUIDs to PackageLocations. Returns (itemId, location) tuples."
+        "Resolve hashes to PackageLocations. Returns (itemHash, location) tuples."
       fn =
         (function
-        | _, _, _, [ DUuid branchId; DList(_, itemIds) ] ->
+        | _, _, _, [ DUuid branchId; DList(_, itemHashes) ] ->
           uply {
-            let ids =
-              itemIds
-              |> List.choose (fun item ->
-                match item with
-                | DUuid id -> Some id
-                | _ -> None)
+            let hashes = itemHashes |> List.map PT2DT.Hash.fromDT
 
             let! branchChain = LibPackageManager.Branches.getBranchChain branchId
 
             let! results =
-              ids
-              |> List.map (fun id ->
+              hashes
+              |> List.map (fun hash ->
                 uply {
-                  match! getLocationAny branchChain id with
-                  | Some loc -> return Some(id, loc)
+                  match! getLocationAny branchChain hash with
+                  | Some loc -> return Some(hash, loc)
                   | None -> return None
                 })
               |> Ply.List.flatten
@@ -168,12 +197,12 @@ let fns : List<BuiltInFn> =
 
             let dvals =
               results
-              |> List.map (fun (id, loc) ->
-                DTuple(DUuid id, PT2DT.PackageLocation.toDT loc, []))
+              |> List.map (fun (hash, loc) ->
+                DTuple(PT2DT.Hash.toDT hash, PT2DT.PackageLocation.toDT loc, []))
 
             return
               DList(
-                VT.tuple VT.uuid (VT.known PT2DT.PackageLocation.knownType) [],
+                VT.tuple hashVT (VT.known PT2DT.PackageLocation.knownType) [],
                 dvals
               )
           }

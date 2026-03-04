@@ -5,13 +5,19 @@ module Darklang.LanguageTools.RuntimeTypes
 type Option = Stdlib.Option.Option
 // </aliases>
 
+type Hash = | Hash of String
+
+let hashToString (hash: Hash) : String =
+  match hash with
+  | Hash h -> h
+
 module FQTypeName =
-  type Package = Uuid
+  type Package = Hash
   type FQTypeName = Package of Package
 
 module FQValueName =
   type Builtin = { name: String; version: Int32 }
-  type Package = Uuid
+  type Package = Hash
 
   type FQValueName =
     | Builtin of Builtin
@@ -19,17 +25,19 @@ module FQValueName =
 
 module FQFnName =
   type Builtin = { name: String; version: Int32 }
-  type Package = Uuid
+  type Package = Hash
 
   type FQFnName =
     | Builtin of Builtin
     | Package of Package
 
 type NameResolutionError =
-  | NotFound of List<String>
-  | InvalidName of List<String>
+  | NotFound
+  | InvalidName
 
-type NameResolution<'a> = Stdlib.Result.Result<'a, NameResolutionError>
+type NameResolution<'a> =
+  { originalName: List<String>
+    resolved: Stdlib.Result.Result<'a, NameResolutionError> }
 
 
 type TypeReference =

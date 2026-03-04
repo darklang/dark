@@ -4,12 +4,13 @@ open System.Threading.Tasks
 open FSharp.Control.Tasks
 
 open Prelude
+open LibExecution.ProgramTypes
 
 open Fumble
 open LibDB.Db
 
 module PT = LibExecution.ProgramTypes
-module BinarySerialization = LibBinarySerialization.BinarySerialization
+module BS = LibSerialization.Binary.Serialization
 
 
 /// Build a branch-aware SQL WHERE clause and ORDER BY for name resolution.
@@ -34,7 +35,7 @@ let private buildBranchFilter (branchChain : List<PT.BranchId>) =
       ancestors |> List.mapi (fun i _ -> $"@branch_{i + 1}") |> String.concat ", "
 
     let filter =
-      $"(branch_id = {currentParam} OR (branch_id IN ({ancestorParams}) AND commit_id IS NOT NULL))"
+      $"(branch_id = {currentParam} OR (branch_id IN ({ancestorParams}) AND commit_hash IS NOT NULL))"
 
     // Note: ORDER BY is appended by the caller via buildBranchOrderBy
     (filter, branchParams)
@@ -46,14 +47,14 @@ let private buildBranchOrderBy (branchChain : List<PT.BranchId>) : string =
     |> List.mapi (fun i _ -> $"WHEN @branch_{i} THEN {i}")
     |> String.concat " "
 
-  $"CASE branch_id {caseClauses} END, CASE WHEN commit_id IS NULL THEN 0 ELSE 1 END, created_at DESC"
+  $"CASE branch_id {caseClauses} END, CASE WHEN commit_hash IS NULL THEN 0 ELSE 1 END, created_at DESC"
 
 
 let private findItem
   (itemType : string)
   (branchChain : List<PT.BranchId>)
   (location : PT.PackageLocation)
-  : Ply<Option<uuid>> =
+  : Ply<Option<Hash>> =
   uply {
     let modulesStr = String.concat "." location.modules
     let (branchFilter, branchParams) = buildBranchFilter branchChain
@@ -62,7 +63,7 @@ let private findItem
     return!
       Sql.query
         $"""
-        SELECT item_id
+        SELECT item_hash
         FROM locations
         WHERE owner = @owner
           AND modules = @modules
@@ -79,33 +80,36 @@ let private findItem
           "name", Sql.string location.name ]
         @ branchParams
       )
-      |> Sql.executeRowOptionAsync (fun read -> read.uuid "item_id")
+      |> Sql.executeRowOptionAsync (fun read -> Hash(read.string "item_hash"))
   }
 
 let private getItem<'a>
   (table : string)
-  (deserialize : uuid -> byte[] -> 'a)
-  (id : uuid)
+  (lookupColumn : string)
+  (deserialize : Hash -> byte[] -> 'a)
+  (hash : Hash)
   : Ply<Option<'a>> =
   uply {
+    let (Hash hashStr) = hash
     return!
       Sql.query
         $"""
         SELECT pt_def
         FROM {table}
-        WHERE id = @id
+        WHERE {lookupColumn} = @hash
         """
-      |> Sql.parameters [ "id", Sql.uuid id ]
+      |> Sql.parameters [ "hash", Sql.string hashStr ]
       |> Sql.executeRowOptionAsync (fun read -> read.bytes "pt_def")
-      |> Task.map (Option.map (deserialize id))
+      |> Task.map (Option.map (deserialize hash))
   }
 
-let private getItemLocation
+let private getItemLocations
   (itemType : string)
   (branchChain : List<PT.BranchId>)
-  (id : uuid)
-  : Ply<Option<PT.PackageLocation>> =
+  (hash : Hash)
+  : Ply<List<PT.PackageLocation>> =
   uply {
+    let (Hash hashStr) = hash
     let (branchFilter, branchParams) = buildBranchFilter branchChain
     let orderBy = buildBranchOrderBy branchChain
 
@@ -114,15 +118,14 @@ let private getItemLocation
         $"""
         SELECT owner, modules, name
         FROM locations
-        WHERE item_id = @item_id
+        WHERE item_hash = @item_hash
           AND item_type = '{itemType}'
           AND deprecated_at IS NULL
           AND {branchFilter}
         ORDER BY {orderBy}
-        LIMIT 1
         """
-      |> Sql.parameters ([ "item_id", Sql.uuid id ] @ branchParams)
-      |> Sql.executeRowOptionAsync (fun read ->
+      |> Sql.parameters ([ "item_hash", Sql.string hashStr ] @ branchParams)
+      |> Sql.executeAsync (fun read ->
         let modulesStr = read.string "modules"
         { owner = read.string "owner"
           modules = modulesStr.Split('.') |> Array.toList
@@ -132,18 +135,18 @@ let private getItemLocation
 
 module Type =
   let find = findItem "type"
-  let get = getItem "package_types" BinarySerialization.PT.PackageType.deserialize
-  let getLocation = getItemLocation "type"
+  let get = getItem "package_types" "hash" BS.PT.PackageType.deserialize
+  let getLocations = getItemLocations "type"
 
 module Value =
   let find = findItem "value"
-  let get = getItem "package_values" BinarySerialization.PT.PackageValue.deserialize
-  let getLocation = getItemLocation "value"
+  let get = getItem "package_values" "hash" BS.PT.PackageValue.deserialize
+  let getLocations = getItemLocations "value"
 
 module Fn =
   let find = findItem "fn"
-  let get = getItem "package_functions" BinarySerialization.PT.PackageFn.deserialize
-  let getLocation = getItemLocation "fn"
+  let get = getItem "package_functions" "hash" BS.PT.PackageFn.deserialize
+  let getLocations = getItemLocations "fn"
 
 
 let search
@@ -216,7 +219,12 @@ let search
         else
           owner :: moduleParts)
 
-    let makeEntityQuery (itemType : string) (contentTable : string) deserializeFn =
+    let makeEntityQuery
+      (itemType : string)
+      (contentTable : string)
+      (joinColumn : string)
+      deserializeFn
+      =
       let nameCondition =
         if query.exactMatch then
           "l.name = @searchText"
@@ -238,9 +246,9 @@ let search
           | PT.Search.SearchDepth.AllDescendants ->
             "((l.modules = @modules) OR (l.owner || '.' || l.modules = @fqname) OR (l.modules LIKE @modules || '.%') OR (l.owner || '.' || l.modules LIKE @fqname || '.%'))"
 
-      $"SELECT c.id, c.pt_def, l.owner, l.modules, l.name\n"
+      $"SELECT c.{joinColumn} as lookup_id, c.pt_def, l.owner, l.modules, l.name\n"
       + $"FROM locations l\n"
-      + $"JOIN {contentTable} c ON l.item_id = c.id\n"
+      + $"JOIN {contentTable} c ON l.item_hash = c.{joinColumn}\n"
       + "WHERE l.deprecated_at IS NULL\n"
       + $"  AND l.item_type = '{itemType}'\n"
       + $"  AND ({locationCondition})\n"
@@ -254,12 +262,12 @@ let search
         @ branchParams
       )
       |> Sql.executeAsync (fun read ->
-        let id = read.uuid "id"
+        let hash = Hash(read.string "lookup_id")
         let definition = read.bytes "pt_def"
         let owner = read.string "owner"
         let modulesStr = read.string "modules"
         let name = read.string "name"
-        let entity = deserializeFn id definition
+        let entity = deserializeFn hash definition
         let location : PT.PackageLocation =
           { owner = owner
             modules = modulesStr.Split('.') |> Array.toList
@@ -271,10 +279,7 @@ let search
 
     let! types =
       if isEntityRequested PT.Search.EntityType.Type then
-        makeEntityQuery
-          "type"
-          "package_types"
-          BinarySerialization.PT.PackageType.deserialize
+        makeEntityQuery "type" "package_types" "hash" BS.PT.PackageType.deserialize
       else
         Task.FromResult<List<PT.LocatedItem<PT.PackageType.PackageType>>> []
 
@@ -283,16 +288,14 @@ let search
         makeEntityQuery
           "value"
           "package_values"
-          BinarySerialization.PT.PackageValue.deserialize
+          "hash"
+          BS.PT.PackageValue.deserialize
       else
         Task.FromResult<List<PT.LocatedItem<PT.PackageValue.PackageValue>>> []
 
     let! fns =
       if isEntityRequested PT.Search.EntityType.Fn then
-        makeEntityQuery
-          "fn"
-          "package_functions"
-          BinarySerialization.PT.PackageFn.deserialize
+        makeEntityQuery "fn" "package_functions" "hash" BS.PT.PackageFn.deserialize
       else
         Task.FromResult<List<PT.LocatedItem<PT.PackageFn.PackageFn>>> []
 

@@ -1,34 +1,55 @@
 module BuiltinPM.Libs.PackageOps
 
-open System.Threading.Tasks
-open FSharp.Control.Tasks
-
 open Prelude
 open LibExecution.RuntimeTypes
 
 module PT = LibExecution.ProgramTypes
 module PT2DT = LibExecution.ProgramTypesToDarkTypes
 module Builtin = LibExecution.Builtin
-module PackageIDs = LibExecution.PackageIDs
+module PackageRefs = LibExecution.PackageRefs
 module Dval = LibExecution.Dval
 module VT = LibExecution.ValueType
+module NR = LibExecution.RuntimeTypes.NameResolution
 
 open Builtin.Shortcuts
 
 
 let packageOpTypeName =
-  FQTypeName.fqPackage PackageIDs.Type.LanguageTools.ProgramTypes.packageOp
+  FQTypeName.fqPackage PackageRefs.Type.LanguageTools.ProgramTypes.packageOp
 
 let packageOpKT = KTCustomType(packageOpTypeName, [])
 
 
 // TODO: review/reconsider the accessibility of these fns
-let fns : List<BuiltInFn> =
-  [ { name = fn "scmAddOps" 0
+let fns (pm : PT.PackageManager) : List<BuiltInFn> =
+  [ { name = fn "pmStabilizeHashes" 0
+      typeParams = []
+      parameters =
+        [ Param.make "ops" (TList(TCustomType(NR.ok packageOpTypeName, []))) "" ]
+      returnType = TList(TCustomType(NR.ok packageOpTypeName, []))
+      description =
+        "Compute real content-addressed hashes for package ops (SCC-aware)."
+      fn =
+        (function
+        | _, _, _, [ DList(_vt, ops) ] ->
+          uply {
+            let ptOps = ops |> List.choose PT2DT.PackageOp.fromDT
+            let stabilized =
+              LibPackageManager.HashStabilization.computeRealHashes ptOps
+            return
+              Dval.list packageOpKT (stabilized |> List.map PT2DT.PackageOp.toDT)
+          }
+        | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Pure
+      deprecated = NotDeprecated }
+
+
+    { name = fn "scmAddOps" 0
       typeParams = []
       parameters =
         [ Param.make "branchId" TUuid "Branch to add ops to"
-          Param.make "ops" (TList(TCustomType(Ok packageOpTypeName, []))) "" ]
+          Param.make "ops" (TList(TCustomType(NR.ok packageOpTypeName, []))) "" ]
       returnType = TypeReference.result TInt64 TString
       description =
         "Add package ops to the database as WIP (uncommitted) on the given branch.
@@ -47,6 +68,10 @@ let fns : List<BuiltInFn> =
               let! insertedCount =
                 LibPackageManager.Inserts.insertAndApplyOpsAsWip branchId ops
 
+              // Auto-refresh existing WIP items: re-resolve names and
+              // recompute SCC-aware hashes now that new items exist
+              let! _refreshed = LibPackageManager.WipRefresh.refresh pm branchId
+
               return resultOk (Dval.int64 insertedCount)
             with ex ->
               return resultError (Dval.string ex.Message)
@@ -60,7 +85,7 @@ let fns : List<BuiltInFn> =
     { name = fn "scmGetRecentOps" 0
       typeParams = []
       parameters = [ Param.make "limit" TInt64 "" ]
-      returnType = TList(TCustomType(Ok packageOpTypeName, []))
+      returnType = TList(TCustomType(NR.ok packageOpTypeName, []))
       description = "Get recent package ops from the database."
       fn =
         function
@@ -78,7 +103,7 @@ let fns : List<BuiltInFn> =
     { name = fn "scmGetWipOps" 0
       typeParams = []
       parameters = [ Param.make "branchId" TUuid "Branch ID" ]
-      returnType = TList(TCustomType(Ok packageOpTypeName, []))
+      returnType = TList(TCustomType(NR.ok packageOpTypeName, []))
       description = "Get all WIP (uncommitted) package ops on a branch."
       fn =
         function
@@ -123,19 +148,21 @@ let fns : List<BuiltInFn> =
       parameters =
         [ Param.make "branchId" TUuid "Branch ID"
           Param.make "message" TString "Commit message" ]
-      returnType = TypeReference.result TUuid TString
+      returnType = TypeReference.result TString TString
       description =
         "Commit all WIP ops on a branch with the given message.
-        Returns the commit ID on success, or an error message on failure."
+        Returns the commit hash on success, or an error message on failure."
       fn =
-        let resultOk = Dval.resultOk KTUuid KTString
-        let resultError = Dval.resultError KTUuid KTString
+        let resultOk = Dval.resultOk KTString KTString
+        let resultError = Dval.resultError KTString KTString
         (function
         | _, _, _, [ DUuid branchId; DString message ] ->
           uply {
             let! result = LibPackageManager.Inserts.commitWipOps branchId message
             match result with
-            | Ok commitId -> return resultOk (Dval.uuid commitId)
+            | Ok commitHash ->
+              let (PT.Hash h) = commitHash
+              return resultOk (Dval.string h)
             | Error msg -> return resultError (Dval.string msg)
           }
         | _ -> incorrectArgs ())
@@ -173,7 +200,7 @@ let fns : List<BuiltInFn> =
       parameters =
         [ Param.make "branchId" TUuid "Branch ID"
           Param.make "limit" TInt64 "Maximum commits to return" ]
-      returnType = TList(TCustomType(Ok PT2DT.Commit.typeName, []))
+      returnType = TList(TCustomType(NR.ok PT2DT.Commit.typeName, []))
       description = "Get commit log for a branch ordered by date descending."
       fn =
         function
@@ -196,7 +223,7 @@ let fns : List<BuiltInFn> =
       parameters =
         [ Param.make "branchId" TUuid "Branch ID"
           Param.make "limit" TInt64 "Maximum commits to return" ]
-      returnType = TList(TCustomType(Ok PT2DT.Commit.typeName, []))
+      returnType = TList(TCustomType(NR.ok PT2DT.Commit.typeName, []))
       description =
         "Get commit log across the entire branch chain (current + ancestors), ordered by date descending."
       fn =
@@ -218,14 +245,14 @@ let fns : List<BuiltInFn> =
 
     { name = fn "scmGetCommitOps" 0
       typeParams = []
-      parameters = [ Param.make "commitId" TUuid "Commit ID" ]
-      returnType = TList(TCustomType(Ok packageOpTypeName, []))
+      parameters = [ Param.make "commitHash" TString "Commit hash" ]
+      returnType = TList(TCustomType(NR.ok packageOpTypeName, []))
       description = "Get ops for a specific commit."
       fn =
         function
-        | _, _, _, [ DUuid commitId ] ->
+        | _, _, _, [ DString commitHash ] ->
           uply {
-            let! ops = LibPackageManager.Queries.getCommitOps commitId
+            let! ops = LibPackageManager.Queries.getCommitOps (PT.Hash commitHash)
             return Dval.list packageOpKT (ops |> List.map PT2DT.PackageOp.toDT)
           }
         | _ -> incorrectArgs ()
@@ -234,4 +261,5 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated } ]
 
 
-let builtins : Builtins = LibExecution.Builtin.make [] fns
+let builtins (pm : PT.PackageManager) : Builtins =
+  LibExecution.Builtin.make [] (fns pm)

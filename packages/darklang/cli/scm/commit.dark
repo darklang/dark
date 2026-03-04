@@ -51,8 +51,8 @@ let execute (state: AppState) (args: List<String>) : AppState =
 
       if proceed then
         match SCM.PackageOps.commit branchId message with
-        | Ok commitId ->
-          let shortId = Stdlib.String.first (Stdlib.Uuid.toString commitId) 8L
+        | Ok commitHash ->
+          let shortId = Stdlib.String.first commitHash 8L
           Stdlib.printLine (Colors.success $"Created commit {shortId}")
           state
         | Error e ->

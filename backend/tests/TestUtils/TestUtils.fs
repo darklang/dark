@@ -19,13 +19,13 @@ module AT = LibExecution.AnalysisTypes
 module PT2RT = LibExecution.ProgramTypesToRuntimeTypes
 module RT2DT = LibExecution.RuntimeTypesToDarkTypes
 module D = LibExecution.DvalDecoder
-module PackageIDs = LibExecution.PackageIDs
+module PackageRefs = LibExecution.PackageRefs
 module Exe = LibExecution.Execution
 
 module Account = LibCloud.Account
 module Canvas = LibCloud.Canvas
 
-module PackageIDs = LibExecution.PackageIDs
+module PackageRefs = LibExecution.PackageRefs
 module C2DT = LibExecution.CommonToDarkTypes
 module PT2DT = LibExecution.ProgramTypesToDarkTypes
 
@@ -88,7 +88,10 @@ let testPackageFn
   (returnType : PT.TypeReference)
   (body : PT.Expr)
   : PT.PackageFn.PackageFn =
-  { id = System.Guid.NewGuid()
+  let uniqueHash =
+    System.Guid.NewGuid().ToString("N") + System.Guid.NewGuid().ToString("N")
+    |> PT.Hash
+  { hash = uniqueHash
     body = body
     description = ""
     typeParams = typeParams
@@ -977,6 +980,15 @@ module Expect =
       //     branches
       //     branches'
 
+      | EPipe(_, lhs, parts), EPipe(_, lhs', parts') ->
+        eq ("lhs" :: path) lhs lhs'
+        check path (List.length parts) (List.length parts')
+        List.iteri2
+          (fun i l r ->
+            pipeExprEqualityBaseFn checkIDs (string i :: path) l r errorFn)
+          parts
+          parts'
+
       // exhaustiveness check
       | EUnit _, _
       | EInt8 _, _
@@ -1009,7 +1021,7 @@ module Expect =
       | EEnum _, _
       | ELambda _, _
       | EInfix _, _
-      | EPipe _, _ // TODO: make case above
+      | EPipe _, _
       | EMatch _, _
       | EStatement _, _
       | ESelf _, _ -> check path actual expected
@@ -1169,7 +1181,7 @@ let naughtyStrings : List<string * string> =
 
 
 let interestingDvals : List<string * RT.Dval * RT.TypeReference> =
-  let uuid = System.Guid.Parse "dca045b1-e2af-41d8-ad1b-35261b25a426"
+  let hash = Hash "dca045b1e2af41d8ad1b35261b25a426dca045b1e2af41d8ad1b35261b25a426"
 
   [ ("float", DFloat 7.2, TFloat)
     ("float2", DFloat -7.2, TFloat)
@@ -1200,60 +1212,63 @@ let interestingDvals : List<string * RT.Dval * RT.TypeReference> =
 
     ("record",
      DRecord(
-       FQTypeName.Package uuid,
-       FQTypeName.Package uuid,
+       FQTypeName.Package hash,
+       FQTypeName.Package hash,
        [],
        Map.ofList
          [ "url", DString "https://darklang.com"
            "headers", Dval.list (KTTuple(VT.string, VT.string, [])) []
            "body", Dval.list KTUInt8 [] ]
      ),
-     TCustomType(Ok(FQTypeName.Package uuid), []))
+     TCustomType(NameResolution.ok (FQTypeName.Package hash), []))
 
     ("enum",
      DEnum(
-       FQTypeName.Package PackageIDs.Type.Stdlib.AltJson.json,
-       FQTypeName.Package PackageIDs.Type.Stdlib.AltJson.json,
+       FQTypeName.fqPackage PackageRefs.Type.Stdlib.AltJson.json,
+       FQTypeName.fqPackage PackageRefs.Type.Stdlib.AltJson.json,
        [],
        "String",
        [ DString "test" ]
      ),
-     TCustomType(Ok(FQTypeName.Package PackageIDs.Type.Stdlib.AltJson.json), []))
+     TCustomType(
+       NameResolution.ok (FQTypeName.fqPackage PackageRefs.Type.Stdlib.AltJson.json),
+       []
+     ))
 
     // TODO: extract what's useful in here, and create smaller tests for each
     ("record2",
      DRecord(
-       FQTypeName.Package uuid,
-       FQTypeName.Package uuid,
+       FQTypeName.Package hash,
+       FQTypeName.Package hash,
        [ VT.unknown; VT.bool ],
        Map.ofList [ ("type", DString "weird"); ("value", DUnit) ]
      ),
-     TCustomType(Ok(FQTypeName.Package uuid), []))
+     TCustomType(NameResolution.ok (FQTypeName.Package hash), []))
     ("record3",
      DRecord(
-       FQTypeName.Package uuid,
-       FQTypeName.Package uuid,
+       FQTypeName.Package hash,
+       FQTypeName.Package hash,
        [],
        Map.ofList [ ("type", DString "weird"); ("value", DString "x") ]
      ),
-     TCustomType(Ok(FQTypeName.Package uuid), []))
+     TCustomType(NameResolution.ok (FQTypeName.Package hash), []))
     // More Json.NET tests
     ("record4",
      DRecord(
-       FQTypeName.Package uuid,
-       FQTypeName.Package uuid,
-       [ VT.bool; VT.char; (VT.customType (FQTypeName.Package uuid)) [] ],
+       FQTypeName.Package hash,
+       FQTypeName.Package hash,
+       [ VT.bool; VT.char; (VT.customType (FQTypeName.Package hash)) [] ],
        Map.ofList [ "foo\\\\bar", Dval.int64 5 ]
      ),
-     TCustomType(Ok(FQTypeName.Package uuid), []))
+     TCustomType(NameResolution.ok (FQTypeName.Package hash), []))
     ("record5",
      DRecord(
-       FQTypeName.Package uuid,
-       FQTypeName.Package uuid,
+       FQTypeName.Package hash,
+       FQTypeName.Package hash,
        [],
        Map.ofList [ "$type", Dval.int64 5 ]
      ),
-     TCustomType(Ok(FQTypeName.Package uuid), []))
+     TCustomType(NameResolution.ok (FQTypeName.Package hash), []))
     ("dict", DDict(VT.unknown, Map [ "foo", Dval.int64 5 ]), TDict TInt64)
     ("dict3",
      DDict(VT.unknown, Map [ ("type", DString "weird"); ("value", DString "x") ]),
@@ -1489,7 +1504,7 @@ let unwrapExecutionResult
     | Error(rte, callStack) ->
       let errorMessageFn =
         RT.FQFnName.fqPackage
-          PackageIDs.Fn.PrettyPrinter.RuntimeTypes.RuntimeError.toString
+          PackageRefs.Fn.PrettyPrinter.RuntimeTypes.RuntimeError.toString
 
       let rteDval = RT2DT.RuntimeError.toDT rte
 
@@ -1504,7 +1519,13 @@ let unwrapExecutionResult
 
       match rteMessage with
       | Ok(RT.DString msg) -> return RT.DString(msg + "\n" + cs)
-      | _ -> return RT.DString(string rteMessage)
+      | Ok dval ->
+        return RT.DString($"Error (pretty-printed as non-string): {dval}\n{cs}")
+      | Error(rte2, _) ->
+        return
+          RT.DString(
+            $"Error (pretty-printer also failed): {rte}\nPretty-printer error: {rte2}\n{cs}"
+          )
   }
 
 let parsePTExpr (code : string) : Task<PT.Expr> =
@@ -1513,8 +1534,7 @@ let parsePTExpr (code : string) : Task<PT.Expr> =
       let canvasID = System.Guid.NewGuid()
       executionStateFor pmPT canvasID false false Map.empty
 
-    let name =
-      RT.FQFnName.FQFnName.Package PackageIDs.Fn.LanguageTools.Parser.parsePTExpr
+    let name = RT.FQFnName.fqPackage PackageRefs.Fn.LanguageTools.Parser.parsePTExpr
 
     let args = NEList.singleton (RT.DString code)
     let! execResult = LibExecution.Execution.executeFunction state name [] args

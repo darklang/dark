@@ -16,7 +16,7 @@ type Stats = { types : int64; values : int64; fns : int64 }
 let get () : Ply<Stats> =
   uply {
     let countQuery table =
-      Sql.query $"SELECT COUNT(DISTINCT id) as count FROM {table}"
+      Sql.query $"SELECT COUNT(DISTINCT hash) as count FROM {table}"
       |> Sql.executeRowAsync (fun read -> read.int64 "count")
 
     let! typesCount = countQuery "package_types"

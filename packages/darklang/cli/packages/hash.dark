@@ -1,0 +1,55 @@
+module Darklang.Cli.Packages.Hash
+
+let formatHash (hash: LanguageTools.ProgramTypes.Hash) (long: Bool) : String =
+  if long then Darklang.LanguageTools.ProgramTypes.hashToString hash
+  else Darklang.LanguageTools.ProgramTypes.hashToShort hash
+
+let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
+  let long =
+    Stdlib.List.any args (fun a -> a == "--long" || a == "--full")
+
+  let filteredArgs =
+    args |> Stdlib.List.filter (fun a -> a != "--long" && a != "--full")
+
+  match filteredArgs with
+  | [] ->
+    Stdlib.printLine "Usage: hash <location>"
+    state
+  | locationStr :: _ ->
+    match Location.parseRelativeTo state.packageData.currentLocation locationStr with
+    | Error e ->
+      Stdlib.printLine (Colors.error e)
+      state
+    | Ok location ->
+      let branchId = state.currentBranchId
+
+      match LanguageTools.PackageManager.findAny branchId location with
+      | Some ((hash, kind)) ->
+        let kindStr =
+          match kind with
+          | Type -> "type"
+          | Fn -> "fn"
+          | Value -> "value"
+
+        Stdlib.printLine $"{kindStr} {formatHash hash long}"
+        state
+      | None ->
+        Stdlib.printLine (Colors.error "Not found at this location")
+        state
+
+let help (state: Cli.AppState) : Cli.AppState =
+  [ "Usage: hash [--long] <location>"
+    "Show the hash of a package type, function, or value."
+    "By default shows a short (8-char) hash; use --long or --full for the full hash."
+    ""
+    "Examples:"
+    "  hash MyType          -- short hash of type at current location"
+    "  hash --long MyType   -- full hash"
+    "  hash Module.myFn     -- hash of fn in submodule"
+    "  hash /Owner.M.x      -- hash at absolute path" ]
+  |> Stdlib.printLines
+
+  state
+
+let complete (state: Cli.AppState) (args: List<String>) : List<Completion.CompletionItem> =
+  []

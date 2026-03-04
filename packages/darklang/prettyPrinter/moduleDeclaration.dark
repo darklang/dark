@@ -72,7 +72,10 @@ module ModuleDeclaration =
     (ms: List<Module>)
     (t: LanguageTools.ProgramTypes.PackageType.PackageType)
     : List<Module> =
-    match Builtin.pmGetLocationByType branchId t.id with
+    match Darklang.LanguageTools.PackageManager.pickLocation Darklang.LanguageTools.PackageManager.PickContext.empty (Builtin.pmGetLocationsByType branchId t.hash) with
+    | Some location ->
+      let fullPath = Stdlib.List.push location.modules location.owner
+      withTypeHelper ms t fullPath
     | None ->
       [ Module
           { name = "type with unknown location"
@@ -81,9 +84,6 @@ module ModuleDeclaration =
             values = []
             exprs = []
             submodules = [] } ]
-    | Some location ->
-      let fullPath = Stdlib.List.push location.modules location.owner
-      withTypeHelper ms t fullPath
 
 
   let withFnHelper
@@ -149,7 +149,10 @@ module ModuleDeclaration =
     (ms: List<Module>)
     (f: LanguageTools.ProgramTypes.PackageFn.PackageFn)
     : List<Module> =
-    match Builtin.pmGetLocationByFn branchId f.id with
+    match Darklang.LanguageTools.PackageManager.pickLocation Darklang.LanguageTools.PackageManager.PickContext.empty (Builtin.pmGetLocationsByFn branchId f.hash) with
+    | Some location ->
+      let fullPath = Stdlib.List.push location.modules location.owner
+      withFnHelper ms f fullPath
     | None ->
       [ Module
           { name = "fn with unknown location"
@@ -158,9 +161,6 @@ module ModuleDeclaration =
             values = []
             exprs = []
             submodules = [] } ]
-    | Some location ->
-      let fullPath = Stdlib.List.push location.modules location.owner
-      withFnHelper ms f fullPath
 
   let withValueHelper
     (ms: List<Module>)
@@ -225,7 +225,10 @@ module ModuleDeclaration =
     (ms: List<Module>)
     (v: LanguageTools.ProgramTypes.PackageValue.PackageValue)
     : List<Module> =
-    match Builtin.pmGetLocationByValue branchId v.id with
+    match Darklang.LanguageTools.PackageManager.pickLocation Darklang.LanguageTools.PackageManager.PickContext.empty (Builtin.pmGetLocationsByValue branchId v.hash) with
+    | Some location ->
+      let fullPath = Stdlib.List.push location.modules location.owner
+      withValueHelper ms v fullPath
     | None ->
       [ Module
           { name = "value with unknown location"
@@ -234,9 +237,6 @@ module ModuleDeclaration =
             values = [ v ]
             exprs = []
             submodules = [] } ]
-    | Some location ->
-      let fullPath = Stdlib.List.push location.modules location.owner
-      withValueHelper ms v fullPath
 
 
   let withExpr

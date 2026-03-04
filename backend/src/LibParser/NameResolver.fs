@@ -2,6 +2,7 @@
 module LibParser.NameResolver
 
 open Prelude
+open LibExecution.ProgramTypes
 
 module FS2WT = FSharpToWrittenTypes
 module WT = WrittenTypes
@@ -32,51 +33,23 @@ let throwIfRelevant
   (onMissing : OnMissing)
   (currentModule : List<string>)
   (given : NEList<string>)
-  (result : PT.NameResolution<'a>)
+  (nr : PT.NameResolution<'a>)
   : PT.NameResolution<'a> =
-  result
-  |> Result.mapError (fun err ->
-    match onMissing with
-    | OnMissing.ThrowError ->
-      Exception.raiseInternal
-        "Unresolved name when not allowed"
-        [ "error", err; "given", given; "currentModule", currentModule ]
-    | OnMissing.Allow -> err)
+  { nr with
+      resolved =
+        nr.resolved
+        |> Result.mapError (fun err ->
+          match onMissing with
+          | OnMissing.ThrowError ->
+            Exception.raiseInternal
+              "Unresolved name when not allowed"
+              [ "error", err; "given", given; "currentModule", currentModule ]
+          | OnMissing.Allow -> err) }
 
 
-type GenericName = { modules : List<string>; name : string; version : int }
+type GenericName = LibPackageManager.NameLookup.GenericName
 
-/// If we're 'given' the name `Option.Option`
-/// and we're parsing in `Darklang.Stdlib`,
-///
-/// We should look for the thing in the following places:
-/// - Darklang.Stdlib.Option.Option
-/// - Darklang.Option.Option
-/// - Option.Option
-/// , in that order (most specific first).
-///
-/// TODO?: accept an Option<string> of the _owner_ as well.
-/// I think that'll be useful in many contexts to help resolve names...
-let namesToTry
-  (currentModule : List<string>)
-  (given : GenericName)
-  : List<GenericName> =
-  let rec loop (modulesToPrepend : List<string>) : List<GenericName> =
-    match List.splitLast modulesToPrepend with
-    | None -> [ given ]
-
-    | Some(allButLast, _last) ->
-      let newNameToTry = { given with modules = modulesToPrepend @ given.modules }
-      newNameToTry :: loop allButLast
-
-  // handle explicit Stdlib.etc shortcut
-  let addl =
-    match given.modules with
-    | "Stdlib" :: _ -> [ { given with modules = "Darklang" :: given.modules } ]
-    // TODO: additional shortcuts for Option and Result, at least?
-    | _ -> []
-
-  (loop currentModule) @ addl
+let namesToTry = LibPackageManager.NameLookup.namesToTry
 
 
 /// Generic name resolution that handles the common pattern across Type/Value/Fn resolution
@@ -87,19 +60,22 @@ let resolveGenericName<'FQName, 'Builtin when 'Builtin : comparison>
   (currentModule : List<string>)
   (given : NEList<string>)
   (parseName : string -> Result<string * int, string>)
-  (findInPM : (PT.BranchId * PT.PackageLocation) -> Ply<Option<System.Guid>>)
-  (makePackageFQName : System.Guid -> 'FQName)
+  (findInPM : (PT.BranchId * PT.PackageLocation) -> Ply<Option<Hash>>)
+  (makePackageFQName : Hash -> 'FQName)
   (makeBuiltinFQName : string * int -> 'FQName)
   (builtinToRT : string * int -> 'Builtin)
   : Ply<PT.NameResolution<'FQName>> =
   uply {
-    let notFoundError = Error(NRE.NotFound(NEList.toList given))
+    let originalName = NEList.toList given
+    let notFoundError = Error NRE.NotFound
     let (modules, name) = NEList.splitLast given
 
     match parseName name with
-    | Error _ -> return Error(NRE.InvalidName(NEList.toList given))
+    | Error _ ->
+      return { originalName = originalName; resolved = Error NRE.InvalidName }
     | Ok(name, version) ->
-      let genericName = { modules = modules; name = name; version = version }
+      let genericName : GenericName =
+        { modules = modules; name = name; version = version }
 
       let tryResolve (nameToTry : GenericName) : Ply<Result<'FQName, unit>> =
         uply {
@@ -138,7 +114,12 @@ let resolveGenericName<'FQName, 'Builtin when 'Builtin : comparison>
           notFoundError
           (namesToTry currentModule genericName)
 
-      return throwIfRelevant onMissing currentModule given result
+      return
+        throwIfRelevant
+          onMissing
+          currentModule
+          given
+          { originalName = originalName; resolved = result }
   }
 
 
@@ -182,7 +163,11 @@ let resolveValueName
   : Ply<PT.NameResolution<PT.FQValueName.FQValueName>> =
   match name with
   | WT.KnownBuiltin(name, version) ->
-    Ok(PT.FQValueName.fqBuiltIn name version) |> Ply
+    Ply(
+      { originalName = [ name ]
+        resolved = Ok(PT.FQValueName.fqBuiltIn name version) }
+      : PT.NameResolution<_>
+    )
   | WT.Unresolved given ->
     resolveGenericName
       (Some builtins)
@@ -204,7 +189,11 @@ let resolveFnName
   (name : WT.Name)
   : Ply<PT.NameResolution<PT.FQFnName.FQFnName>> =
   match name with
-  | WT.KnownBuiltin(n, v) -> Ok(PT.FQFnName.fqBuiltIn n v) |> Ply
+  | WT.KnownBuiltin(n, v) ->
+    Ply(
+      { originalName = [ n ]; resolved = Ok(PT.FQFnName.fqBuiltIn n v) }
+      : PT.NameResolution<_>
+    )
   | WT.Unresolved given ->
     resolveGenericName
       (Some builtinFns)

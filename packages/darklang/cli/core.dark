@@ -171,6 +171,7 @@ module Registry =
       ("let", "Create a new value (alias for val)", [], Packages.Value.execute, Packages.Value.help, Packages.Value.complete)
       ("fn", "Create a new function", [ "function" ], Packages.Fn.execute, Packages.Fn.help, Packages.Fn.complete)
       ("type", "Create a new type", [], Packages.Type.execute, Packages.Type.help, Packages.Type.complete)
+      ("hash", "Show hash of a package item", [], Packages.Hash.execute, Packages.Hash.help, Packages.Hash.complete)
       // SCM commands
       ("status", "Show uncommitted changes", [ "wip"; "changes" ], SCM.Status.execute, SCM.Status.help, SCM.Status.complete)
       ("log", "Show commit history", [ "history"; "commits" ], SCM.Log.execute, SCM.Log.help, SCM.Log.complete)
@@ -252,7 +253,7 @@ module Registry =
 
   // Command groups organized by category (shared between compact and detailed views)
   let commandGroups () : List<(String * List<String>)> =
-    [ ("Packages", [ "nav"; "ls"; "view"; "tree"; "back"; "search"; "deps"; "val"; "let"; "fn"; "type"; "db" ])
+    [ ("Packages", [ "nav"; "ls"; "view"; "tree"; "back"; "search"; "deps"; "val"; "let"; "fn"; "type"; "hash"; "db" ])
       ("SCM", [ "status"; "log"; "commit"; "discard"; "show"; "branch"; "rebase"; "merge" ])
       ("Execution", [ "run"; "eval"; "scripts" ])
       ("Installation", [ "install"; "update"; "uninstall"; "version" ])
@@ -595,6 +596,7 @@ let runInteractiveLoop (state: AppState) : Int64 =
     | CompletionPicker pickerState ->
       // Display the completion picker
       if state.needsFullRedraw then CompletionPicker.display pickerState
+
 
     // Render status bar at bottom of terminal
     StatusBar.render state

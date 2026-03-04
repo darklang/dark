@@ -31,7 +31,7 @@ let dictFromMap (typ : KnownType) (entries : Map<string, Dval>) : Dval =
   DDict(VT.known typ, entries)
 
 
-let optionType = FQTypeName.fqPackage PackageIDs.Type.Stdlib.option
+let optionType = FQTypeName.fqPackage PackageRefs.Type.Stdlib.option
 
 let optionSome (innerType : KnownType) (dv : Dval) : Dval =
   DEnum(optionType, optionType, [ VT.known innerType ], "Some", [ dv ])
@@ -46,7 +46,7 @@ let option (innerType : KnownType) (dv : Option<Dval>) : Dval =
 
 
 
-let resultType = FQTypeName.fqPackage PackageIDs.Type.Stdlib.result
+let resultType = FQTypeName.fqPackage PackageRefs.Type.Stdlib.result
 
 
 let resultOk (okType : KnownType) (errorType : KnownType) (dvOk : Dval) : Dval =

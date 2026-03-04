@@ -4,12 +4,13 @@ open System.Threading.Tasks
 open FSharp.Control.Tasks
 
 open Prelude
+open LibExecution.ProgramTypes
 
 open Fumble
 open LibDB.Db
 
 module PT = LibExecution.ProgramTypes
-module BinarySerialization = LibBinarySerialization.BinarySerialization
+module BS = LibSerialization.Binary.Serialization
 
 
 /// Get recent package ops from the database
@@ -27,7 +28,7 @@ let getRecentOps (limit : int64) : Task<List<PT.PackageOp>> =
       |> Sql.executeAsync (fun read ->
         let opId = read.uuid "id"
         let opBlob = read.bytes "op_blob"
-        BinarySerialization.PT.PackageOp.deserialize opId opBlob)
+        BS.PT.PackageOp.deserialize opId opBlob)
   }
 
 
@@ -41,7 +42,7 @@ let getAllOpsSince
     return!
       Sql.query
         """
-        SELECT id, op_blob, commit_id
+        SELECT id, op_blob, commit_hash
         FROM package_ops
         WHERE datetime(created_at) > datetime(@since)
         ORDER BY created_at ASC
@@ -50,22 +51,22 @@ let getAllOpsSince
       |> Sql.executeAsync (fun read ->
         let opId = read.uuid "id"
         let opBlob = read.bytes "op_blob"
-        let isWip = (read.uuidOrNone "commit_id").IsNone
-        let op = BinarySerialization.PT.PackageOp.deserialize opId opBlob
+        let isWip = (read.uuidOrNone "commit_hash").IsNone
+        let op = BS.PT.PackageOp.deserialize opId opBlob
         (op, isWip))
   }
 
 
 /// A dependency relationship between package items.
-/// For dependents: itemId is the item that has the dependency.
-/// For dependencies: itemId is what the item depends on.
-type PackageDep = { itemId : uuid; itemKind : PT.ItemKind }
+/// For dependents: itemHash is the item that has the dependency.
+/// For dependencies: itemHash is what the item depends on.
+type PackageDep = { itemHash : Hash; itemKind : PT.ItemKind }
 
 
-/// Get items that depend on the given UUID (reverse dependencies / "what uses this?")
+/// Get items that depend on the given Hash (reverse dependencies / "what uses this?")
 let getDependents
   (branchChain : List<PT.BranchId>)
-  (dependsOnId : uuid)
+  (dependsOnHash : Hash)
   : Task<List<PackageDep>> =
   task {
     if List.isEmpty branchChain then
@@ -76,28 +77,32 @@ let getDependents
       let branchInClause =
         branchChain |> List.mapi (fun i _ -> $"@b_{i}") |> String.concat ", "
 
+      let (Hash dependsOnHash) = dependsOnHash
+
       return!
         Sql.query
           $"""
-          SELECT DISTINCT pd.item_id, l.item_type
+          SELECT DISTINCT pd.item_hash, l.item_type
           FROM package_dependencies pd
-          INNER JOIN locations l ON pd.item_id = l.item_id
-          WHERE pd.depends_on_id = @depends_on_id
+          INNER JOIN locations l ON pd.item_hash = l.item_hash
+          WHERE pd.depends_on_hash = @depends_on_hash
             AND l.deprecated_at IS NULL
             AND l.branch_id IN ({branchInClause})
-          ORDER BY pd.item_id
+          ORDER BY pd.item_hash
           """
-        |> Sql.parameters ([ "depends_on_id", Sql.uuid dependsOnId ] @ branchParams)
+        |> Sql.parameters (
+          [ "depends_on_hash", Sql.string dependsOnHash ] @ branchParams
+        )
         |> Sql.executeAsync (fun read ->
-          { itemId = read.uuid "item_id"
+          { itemHash = Hash(read.string "item_hash")
             itemKind = read.string "item_type" |> PT.ItemKind.fromString })
   }
 
 
-/// Get UUIDs that the given item depends on (forward dependencies / "what does this use?" / uses)
+/// Get Hashes that the given item depends on (forward dependencies / "what does this use?" / uses)
 let getDependencies
   (branchChain : List<PT.BranchId>)
-  (itemId : uuid)
+  (itemHash : Hash)
   : Task<List<PackageDep>> =
   task {
     if List.isEmpty branchChain then
@@ -108,44 +113,48 @@ let getDependencies
       let branchInClause =
         branchChain |> List.mapi (fun i _ -> $"@b_{i}") |> String.concat ", "
 
+      let (Hash itemHashStr) = itemHash
+
       return!
         Sql.query
           $"""
-          SELECT DISTINCT pd.depends_on_id, l.item_type
+          SELECT DISTINCT pd.depends_on_hash, l.item_type
           FROM package_dependencies pd
-          INNER JOIN locations l ON pd.depends_on_id = l.item_id
-          WHERE pd.item_id = @item_id
+          INNER JOIN locations l ON pd.depends_on_hash = l.item_hash
+          WHERE pd.item_hash = @item_hash
             AND l.deprecated_at IS NULL
             AND l.branch_id IN ({branchInClause})
-          ORDER BY pd.depends_on_id
+          ORDER BY pd.depends_on_hash
           """
-        |> Sql.parameters ([ "item_id", Sql.uuid itemId ] @ branchParams)
+        |> Sql.parameters ([ "item_hash", Sql.string itemHashStr ] @ branchParams)
         |> Sql.executeAsync (fun read ->
-          { itemId = read.uuid "depends_on_id"
+          { itemHash = Hash(read.string "depends_on_hash")
             itemKind = read.string "item_type" |> PT.ItemKind.fromString })
   }
 
 
 /// Batch result including the dependency target that was queried
 type BatchDependent =
-  { dependsOnId : uuid // The item that was queried (what is being depended on)
-    itemId : uuid // The item that has the dependency
+  { dependsOnHash : Hash // The item that was queried (what is being depended on)
+    itemHash : Hash // The item that has the dependency
     itemKind : PT.ItemKind }
 
 /// Batch lookup of dependents for a chunk of dependency IDs
 let private getDependentsBatchChunk
   (branchChain : List<PT.BranchId>)
-  (dependsOnIds : List<uuid>)
+  (dependsOnHashes : List<Hash>)
   : Task<List<BatchDependent>> =
   task {
-    if List.isEmpty dependsOnIds || List.isEmpty branchChain then
+    if List.isEmpty dependsOnHashes || List.isEmpty branchChain then
       return []
     else
       // Build parameterized IN clauses
-      let depParams = dependsOnIds |> List.mapi (fun i id -> $"dep_{i}", Sql.uuid id)
+      let depParams =
+        dependsOnHashes
+        |> List.mapi (fun i (Hash idStr) -> $"dep_{i}", Sql.string idStr)
 
       let inClause =
-        dependsOnIds |> List.mapi (fun i _ -> $"@dep_{i}") |> String.concat ", "
+        dependsOnHashes |> List.mapi (fun i _ -> $"@dep_{i}") |> String.concat ", "
 
       let branchParams = branchChain |> List.mapi (fun i id -> $"b_{i}", Sql.uuid id)
 
@@ -154,21 +163,21 @@ let private getDependentsBatchChunk
 
       let sql =
         $"""
-          SELECT DISTINCT pd.depends_on_id, pd.item_id, l.item_type
+          SELECT DISTINCT pd.depends_on_hash, pd.item_hash, l.item_type
           FROM package_dependencies pd
-          INNER JOIN locations l ON pd.item_id = l.item_id
-          WHERE pd.depends_on_id IN ({inClause})
+          INNER JOIN locations l ON pd.item_hash = l.item_hash
+          WHERE pd.depends_on_hash IN ({inClause})
             AND l.deprecated_at IS NULL
             AND l.branch_id IN ({branchInClause})
-          ORDER BY pd.depends_on_id, pd.item_id
+          ORDER BY pd.depends_on_hash, pd.item_hash
           """
 
       return!
         Sql.query sql
         |> Sql.parameters (depParams @ branchParams)
         |> Sql.executeAsync (fun read ->
-          { dependsOnId = read.uuid "depends_on_id"
-            itemId = read.uuid "item_id"
+          { dependsOnHash = Hash(read.string "depends_on_hash")
+            itemHash = Hash(read.string "item_hash")
             itemKind = read.string "item_type" |> PT.ItemKind.fromString })
   }
 
@@ -177,15 +186,15 @@ let private getDependentsBatchChunk
 /// Chunks requests to avoid SQLite expression tree depth limits.
 let getDependentsBatch
   (branchChain : List<PT.BranchId>)
-  (dependsOnIds : List<uuid>)
+  (dependsOnHashes : List<Hash>)
   : Task<List<BatchDependent>> =
   task {
-    if List.isEmpty dependsOnIds then
+    if List.isEmpty dependsOnHashes then
       return []
     else
       // SQLite has a limit on expression tree depth (~1000)
       // Chunk into batches of 100 to stay well under the limit
-      let chunks = dependsOnIds |> List.chunkBySize 100
+      let chunks = dependsOnHashes |> List.chunkBySize 100
 
       let! results =
         chunks |> List.map (getDependentsBatchChunk branchChain) |> Task.flatten
@@ -198,7 +207,7 @@ let getDependentsBatch
 // SCM Queries (branch-scoped)
 // ===========================================
 
-/// Get all WIP ops on a branch (commit_id IS NULL)
+/// Get all WIP ops on a branch (commit_hash IS NULL)
 let getWipOps (branchId : PT.BranchId) : Task<List<PT.PackageOp>> =
   task {
     return!
@@ -206,14 +215,14 @@ let getWipOps (branchId : PT.BranchId) : Task<List<PT.PackageOp>> =
         """
         SELECT id, op_blob
         FROM package_ops
-        WHERE branch_id = @branch_id AND commit_id IS NULL
+        WHERE branch_id = @branch_id AND commit_hash IS NULL
         ORDER BY created_at ASC
         """
       |> Sql.parameters [ "branch_id", Sql.uuid branchId ]
       |> Sql.executeAsync (fun read ->
         let opId = read.uuid "id"
         let opBlob = read.bytes "op_blob"
-        BinarySerialization.PT.PackageOp.deserialize opId opBlob)
+        BS.PT.PackageOp.deserialize opId opBlob)
   }
 
 
@@ -274,8 +283,8 @@ let getCommits (branchId : PT.BranchId) (limit : int64) : Task<List<PT.Commit>> 
     return!
       Sql.query
         """
-        SELECT c.id, c.message, c.created_at,
-               (SELECT COUNT(*) FROM package_ops WHERE commit_id = c.id) as op_count,
+        SELECT c.hash, c.message, c.created_at,
+               (SELECT COUNT(*) FROM package_ops WHERE commit_hash = c.hash) as op_count,
                c.branch_id,
                b.name as branch_name
         FROM commits c
@@ -286,7 +295,7 @@ let getCommits (branchId : PT.BranchId) (limit : int64) : Task<List<PT.Commit>> 
         """
       |> Sql.parameters [ "branch_id", Sql.uuid branchId; "limit", Sql.int64 limit ]
       |> Sql.executeAsync (fun read ->
-        { id = read.uuid "id"
+        { hash = Hash(read.string "hash")
           message = read.string "message"
           createdAt = read.instant "created_at"
           opCount = read.int64 "op_count"
@@ -314,8 +323,8 @@ let getCommitsForBranchChain
       return!
         Sql.query
           $"""
-          SELECT c.id, c.message, c.created_at,
-                 (SELECT COUNT(*) FROM package_ops WHERE commit_id = c.id) as op_count,
+          SELECT c.hash, c.message, c.created_at,
+                 (SELECT COUNT(*) FROM package_ops WHERE commit_hash = c.hash) as op_count,
                  c.branch_id,
                  b.name as branch_name
           FROM commits c
@@ -326,7 +335,7 @@ let getCommitsForBranchChain
           """
         |> Sql.parameters (branchParams @ [ "limit", Sql.int64 limit ])
         |> Sql.executeAsync (fun read ->
-          { id = read.uuid "id"
+          { hash = Hash(read.string "hash")
             message = read.string "message"
             createdAt = read.instant "created_at"
             opCount = read.int64 "op_count"
@@ -336,21 +345,22 @@ let getCommitsForBranchChain
 
 
 /// Get ops for a specific commit
-let getCommitOps (commitId : uuid) : Task<List<PT.PackageOp>> =
+let getCommitOps (commitHash : Hash) : Task<List<PT.PackageOp>> =
   task {
+    let (Hash commitHashStr) = commitHash
     return!
       Sql.query
         """
         SELECT id, op_blob
         FROM package_ops
-        WHERE commit_id = @commit_id
+        WHERE commit_hash = @commit_hash
         ORDER BY created_at ASC
         """
-      |> Sql.parameters [ "commit_id", Sql.uuid commitId ]
+      |> Sql.parameters [ "commit_hash", Sql.string commitHashStr ]
       |> Sql.executeAsync (fun read ->
         let opId = read.uuid "id"
         let opBlob = read.bytes "op_blob"
-        BinarySerialization.PT.PackageOp.deserialize opId opBlob)
+        BS.PT.PackageOp.deserialize opId opBlob)
   }
 
 
@@ -358,19 +368,19 @@ let getCommitOps (commitId : uuid) : Task<List<PT.PackageOp>> =
 // Propagation Queries
 // ===========================================
 
-/// Gets all UUIDs that have ever been at a location across the branch chain.
-/// Returns all distinct item_ids (active or deprecated) at this location.
-/// Callers should filter out the "current" UUID to get only previous versions.
+/// Gets all Hashes that have ever been at a location across the branch chain.
+/// Returns all distinct item_hashs (active or deprecated) at this location.
+/// Callers should filter out the "current" hash to get only previous versions.
 ///
 /// This is chain-aware so that the first update on a branch correctly finds the
-/// parent's active version as a "previous" UUID (enabling propagation).
-let getAllPreviousUUIDs
+/// parent's active version as a "previous" hash (enabling propagation).
+let getAllPreviousHashes
   (branchChain : List<PT.BranchId>)
   (owner : string)
   (modules : string)
   (name : string)
   (itemType : string)
-  : Task<List<uuid>> =
+  : Task<List<Hash>> =
   task {
     if List.isEmpty branchChain then
       return []
@@ -383,14 +393,14 @@ let getAllPreviousUUIDs
       return!
         Sql.query
           $"""
-          SELECT item_id
+          SELECT item_hash
           FROM locations
           WHERE owner = @owner
             AND modules = @modules
             AND name = @name
             AND item_type = @item_type
             AND branch_id IN ({branchInClause})
-          GROUP BY item_id
+          GROUP BY item_hash
           ORDER BY MAX(CASE WHEN deprecated_at IS NULL THEN '9999-12-31' ELSE deprecated_at END) DESC
           """
         |> Sql.parameters (
@@ -400,5 +410,5 @@ let getAllPreviousUUIDs
             "item_type", Sql.string itemType ]
           @ branchParams
         )
-        |> Sql.executeAsync (fun read -> read.uuid "item_id")
+        |> Sql.executeAsync (fun read -> Hash(read.string "item_hash"))
   }

@@ -10,8 +10,9 @@ module DarkDateTime = LibExecution.DarkDateTime
 module VT = LibExecution.ValueType
 module Dval = LibExecution.Dval
 module TypeChecker = LibExecution.TypeChecker
-module PackageIDs = LibExecution.PackageIDs
+module PackageRefs = LibExecution.PackageRefs
 module RTE = RuntimeError
+module NR = LibExecution.RuntimeTypes.NameResolution
 
 
 // parsing
@@ -64,7 +65,7 @@ module JsonPath =
       | Field of string
 
     let typeName =
-      FQTypeName.fqPackage PackageIDs.Type.Stdlib.Json.ParseError.JsonPath.part
+      FQTypeName.fqPackage PackageRefs.Type.Stdlib.Json.ParseError.JsonPath.part
 
     let toDT (part : Part) : Dval =
       let (caseName, fields) =
@@ -156,7 +157,7 @@ let rec serialize (threadID : ThreadID) (w : Utf8JsonWriter) (dv : Dval) : unit 
 module ParseError =
   module RT2DT = LibExecution.RuntimeTypesToDarkTypes
   let typeName =
-    FQTypeName.fqPackage PackageIDs.Type.Stdlib.Json.ParseError.parseError
+    FQTypeName.fqPackage PackageRefs.Type.Stdlib.Json.ParseError.parseError
 
   type ParseError =
     /// The json string can't be parsed as the given type.
@@ -509,7 +510,7 @@ let parse
       |> Ply.List.flatten
       |> Ply.map (TypeChecker.DvalCreator.dict threadID VT.unknownTODO)
 
-    | TCustomType(Ok typeName, typeArgs), jsonValueKind ->
+    | TCustomType({ resolved = Ok typeName }, typeArgs), jsonValueKind ->
       uply {
         let! typeArgsVT =
           typeArgs |> Ply.List.mapSequentially (TypeReference.toVT types tst)
@@ -735,7 +736,7 @@ let fns : List<BuiltInFn> =
       returnType =
         TypeReference.result
           (TVariable "a")
-          (TCustomType(Ok ParseError.typeName, []))
+          (TCustomType(NR.ok ParseError.typeName, []))
       description =
         "Parses a JSON string <param json> as a Dark value, matching the type <typeParam a>"
       fn =

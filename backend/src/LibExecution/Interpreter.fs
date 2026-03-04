@@ -184,7 +184,7 @@ let execute (exeState : ExecutionState) (vm : VMState) : Ply<Dval> =
                   { instructions = List.toArray fn.body.instructions
                     resultReg = fn.body.resultIn }
                 vm.packageFnInstrCache <-
-                  Map.add fn.id instrData vm.packageFnInstrCache
+                  Map.add fn.hash instrData vm.packageFnInstrCache
                 return instrData
 
               | None -> return raiseRTE (RTE.FnNotFound(FQFnName.Package fn))
@@ -732,10 +732,10 @@ let execute (exeState : ExecutionState) (vm : VMState) : Ply<Dval> =
                         allArgs |> List.iteri (fun i arg -> r[i] <- arg)
                         r
                       typeSymbolTable = frameTst
-                      executionPoint = Function(FQFnName.Package fn.id) }
+                      executionPoint = Function(FQFnName.Package fn.hash) }
                     |> Some
 
-        | RaiseNRE nre -> raiseRTE (RTE.ParseTimeNameResolution nre)
+        | RaiseNRE(names, nre) -> raiseRTE (RTE.ParseTimeNameResolution(names, nre))
 
         // CLEANUP: consider renaming this to something like "RequireExprToReturnUnit"
         | CheckIfFirstExprIsUnit reg ->

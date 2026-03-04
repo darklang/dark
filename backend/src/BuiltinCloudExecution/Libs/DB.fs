@@ -14,7 +14,6 @@ module PT = LibExecution.ProgramTypes
 module UserDB = LibCloud.UserDB
 module Db = LibDB.Db
 module RTQueryCompiler = LibExecution.RTQueryCompiler
-module PackageIDs = LibExecution.PackageIDs
 
 let tvar v = TVariable v
 

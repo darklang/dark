@@ -10,7 +10,7 @@ module PT = LibExecution.ProgramTypes
 module PTParser = LibExecution.ProgramTypesParser
 module RT = LibExecution.RuntimeTypes
 module PT2RT = LibExecution.ProgramTypesToRuntimeTypes
-module PackageIDs = LibExecution.PackageIDs
+module PackageRefs = LibExecution.PackageRefs
 module NR = LibParser.NameResolver
 
 let id = 0UL // since we're ignoring IDs, just use the same one everywhere
@@ -100,28 +100,30 @@ let exprRTs =
           PT.EInt64(id, 8L)
         ))
 
-      // // Now let's test some more complex expressions
-      // // CLEANUP the reference to Stdlib.List.map only exists
-      // // in PackageIDs to support this test. Fix that.
-      // t
-      //   "pipe without expr"
-      //   "(let x = 5L\nx |> Darklang.Stdlib.List.map 5L)"
-      //   (PT.ELet(
-      //     id,
-      //     PT.LPVariable(id, "x"),
-      //     PT.EInt64(id, 5L),
-      //     PT.EPipe(
-      //       id,
-      //       PT.EVariable(id, "x"),
-      //       [ PT.EPipeFnCall(
-      //           id,
-      //           Ok(PT.FQFnName.fqPackage PackageIDs.Fn.Stdlib.List.map),
-      //           [],
-      //           [ PT.EInt64(id, 5L) ]
-      //         ) ]
-      //     )
-      //   ))
-      ]
+      // Now let's test some more complex expressions
+      t
+        "pipe without expr"
+        "(let x = 5L\nx |> Darklang.Stdlib.List.map 5L)"
+        (PT.ELet(
+          id,
+          PT.LPVariable(id, "x"),
+          PT.EInt64(id, 5L),
+          PT.EPipe(
+            id,
+            PT.EVariable(id, "x"),
+            [ PT.EPipeFnCall(
+                id,
+                { originalName = [ "Darklang"; "Stdlib"; "List"; "map" ]
+                  resolved =
+                    Ok(
+                      PT.FQFnName.fqPackage
+                        "39840eb85e41c0a11dd9e18d9225ac3850b50a881af27caac0a10b0e58c3a485"
+                    ) },
+                [],
+                [ PT.EInt64(id, 5L) ]
+              ) ]
+          )
+        )) ]
 
 
 let tests = testList "LibParser" [ exprRTs ]

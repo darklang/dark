@@ -79,34 +79,18 @@ let createTypeInline
             writtenType
 
         // Check for unresolved names
-        if (Stdlib.List.isEmpty unresolvedNames) |> Stdlib.Bool.not then
-          Stdlib.printLine (Colors.error "Error: Unresolved references")
-          Stdlib.printLine ""
-
-          unresolvedNames
-          |> Stdlib.List.iter (fun (range, err) ->
-            let lineNum = (range.start.row + 1L) |> Stdlib.Int64.toString
-            let colNum = range.start.column |> Stdlib.Int64.toString
-            match err with
-            | NotFound names ->
-              let nameStr = Stdlib.String.join names "."
-              Stdlib.printLine $"  - Not found: {nameStr} (line {lineNum}, column {colNum})"
-            | InvalidName names ->
-              let nameStr = Stdlib.String.join names "."
-              Stdlib.printLine $"  - Invalid name: {nameStr} (line {lineNum}, column {colNum})")
-
-          Stdlib.printLine ""
+        if Errors.reportUnresolvedNames unresolvedNames then
           state
         // no unresolved names - keep going
         else
           // Check if this is an update (has previous versions)
-          let previousUUIDs = Propagate.getAllPreviousUUIDs state.currentBranchId location LanguageTools.ProgramTypes.ItemKind.Type
-          let isUpdate = (Stdlib.List.isEmpty previousUUIDs) |> Stdlib.Bool.not
+          let previousHashes = Propagate.getAllPreviousHashes state.currentBranchId location LanguageTools.ProgramTypes.ItemKind.Type
+          let isUpdate = (Stdlib.List.isEmpty previousHashes) |> Stdlib.Bool.not
 
           // Create ops: AddType and SetTypeName
           let ops =
             [ LanguageTools.ProgramTypes.PackageOp.AddType packageType
-              LanguageTools.ProgramTypes.PackageOp.SetTypeName (packageType.id, location) ]
+              LanguageTools.ProgramTypes.PackageOp.SetTypeName (packageType.hash, location) ]
 
           // Add ops as WIP (use 'scm commit' to commit)
           match SCM.PackageOps.add state.currentBranchId ops with
@@ -119,7 +103,7 @@ let createTypeInline
             Stdlib.printLine (Colors.success $"✓ {action} type: {fullPath}")
 
             // Auto-propagate if this is an update
-            Propagate.autoPropagateAfterUpdate state.currentBranchId location packageType.id LanguageTools.ProgramTypes.ItemKind.Type
+            Propagate.autoPropagateAfterUpdate state.currentBranchId location packageType.hash LanguageTools.ProgramTypes.ItemKind.Type
 
             Stdlib.printLine ""
             state

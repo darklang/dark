@@ -46,6 +46,7 @@ let main (args : string array) : int =
 
         // package manager
         Tests.Propagation.tests
+        Tests.Hashing.tests
 
         (*
         TODO backfill the following tests we neglected to write during a big refactor:

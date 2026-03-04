@@ -2,6 +2,4 @@
 (Builtin.pmFindValuesByValueType Darklang.LanguageTools.RuntimeTypes.ValueType.Unknown) = []
 
 // pmEvaluateValue returns None for unknown value
-(Stdlib.Uuid.parse_v0 "00000000-0000-0000-0000-000000000000")
-|> Builtin.unwrap
-|> Builtin.pmEvaluateValue = Stdlib.Option.Option.None
+(Builtin.pmEvaluateValue (Darklang.LanguageTools.ProgramTypes.Hash.Hash "0000000000000000000000000000000000000000000000000000000000000000")) = Stdlib.Option.Option.None

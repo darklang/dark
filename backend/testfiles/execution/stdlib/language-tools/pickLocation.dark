@@ -1,0 +1,190 @@
+// Tests for PackageManager.pickLocation and countMatchingPrefix
+
+// --- helpers ---
+let loc
+  (owner: String)
+  (modules: List<String>)
+  (name: String)
+  : Darklang.LanguageTools.ProgramTypes.PackageLocation =
+  Darklang.LanguageTools.ProgramTypes.PackageLocation
+    { owner = owner; modules = modules; name = name }
+
+let ctx
+  (currentModule: List<String>)
+  : Darklang.LanguageTools.PackageManager.PickContext =
+  Darklang.LanguageTools.PackageManager.PickContext
+    { currentModule = currentModule }
+
+let pick
+  (ctx: Darklang.LanguageTools.PackageManager.PickContext)
+  (locations: List<Darklang.LanguageTools.ProgramTypes.PackageLocation>)
+  : Stdlib.Option.Option<Darklang.LanguageTools.ProgramTypes.PackageLocation> =
+  Darklang.LanguageTools.PackageManager.pickLocation ctx locations
+
+let emptyCtx () : Darklang.LanguageTools.PackageManager.PickContext =
+  Darklang.LanguageTools.PackageManager.PickContext.empty
+
+
+// ========================================
+// countMatchingPrefix
+// ========================================
+
+Darklang.LanguageTools.PackageManager.countMatchingPrefix [] [] = 0L
+Darklang.LanguageTools.PackageManager.countMatchingPrefix ["A"] [] = 0L
+Darklang.LanguageTools.PackageManager.countMatchingPrefix [] ["A"] = 0L
+Darklang.LanguageTools.PackageManager.countMatchingPrefix ["A"] ["A"] = 1L
+Darklang.LanguageTools.PackageManager.countMatchingPrefix ["A"; "B"] ["A"; "B"] = 2L
+Darklang.LanguageTools.PackageManager.countMatchingPrefix ["A"; "B"; "C"] ["A"; "B"; "C"] = 3L
+Darklang.LanguageTools.PackageManager.countMatchingPrefix ["A"; "B"] ["A"; "X"] = 1L
+Darklang.LanguageTools.PackageManager.countMatchingPrefix ["X"; "B"] ["A"; "B"] = 0L
+Darklang.LanguageTools.PackageManager.countMatchingPrefix ["A"; "B"; "C"] ["A"; "B"] = 2L
+Darklang.LanguageTools.PackageManager.countMatchingPrefix ["A"; "B"] ["A"; "B"; "C"] = 2L
+
+
+// ========================================
+// pickLocation: empty list → None
+// ========================================
+
+(pick (emptyCtx ()) []) = Stdlib.Option.Option.None
+
+
+// ========================================
+// pickLocation: single location → always returns it
+// ========================================
+
+(pick (emptyCtx ()) [ loc "Darklang" ["Stdlib"; "List"] "map" ])
+  = Stdlib.Option.Option.Some (loc "Darklang" ["Stdlib"; "List"] "map")
+
+
+// ========================================
+// pickLocation: no context → prefer shorter path
+// ========================================
+
+// Person (owner=Darklang, modules=[]) vs Person2 (modules=[UserDefinedAliases])
+// Person is shorter, wins with empty context.
+(pick (emptyCtx ())
+  [ loc "Darklang" [] "Person"
+    loc "Darklang" ["UserDefinedAliases"] "Person2" ])
+  = Stdlib.Option.Option.Some (loc "Darklang" [] "Person")
+
+// Reversed input order — shorter still wins
+(pick (emptyCtx ())
+  [ loc "Darklang" ["UserDefinedAliases"] "Person2"
+    loc "Darklang" [] "Person" ])
+  = Stdlib.Option.Option.Some (loc "Darklang" [] "Person")
+
+
+// ========================================
+// pickLocation: context matches one location → prefer it
+// ========================================
+
+// We're in Darklang.Stdlib.List — Stdlib.List.map has better prefix match than SomeOther.map
+(pick (ctx ["Darklang"; "Stdlib"; "List"])
+  [ loc "Darklang" ["Stdlib"; "List"] "map"
+    loc "Darklang" ["SomeOther"] "map" ])
+  = Stdlib.Option.Option.Some (loc "Darklang" ["Stdlib"; "List"] "map")
+
+// Reversed — context match still wins
+(pick (ctx ["Darklang"; "Stdlib"; "List"])
+  [ loc "Darklang" ["SomeOther"] "map"
+    loc "Darklang" ["Stdlib"; "List"] "map" ])
+  = Stdlib.Option.Option.Some (loc "Darklang" ["Stdlib"; "List"] "map")
+
+
+// ========================================
+// pickLocation: partial prefix match beats no match
+// ========================================
+
+// We're in Darklang.Stdlib.Json. Stdlib.List.map shares 2-segment prefix (Darklang.Stdlib).
+// SomeOther.map shares only 1 (Darklang). Stdlib.List.map wins.
+(pick (ctx ["Darklang"; "Stdlib"; "Json"])
+  [ loc "Darklang" ["SomeOther"] "map"
+    loc "Darklang" ["Stdlib"; "List"] "map" ])
+  = Stdlib.Option.Option.Some (loc "Darklang" ["Stdlib"; "List"] "map")
+
+
+// ========================================
+// pickLocation: equal prefix match → shorter path wins
+// ========================================
+
+// Both share "Darklang.Stdlib" prefix (2 segments). Shorter one wins.
+(pick (ctx ["Darklang"; "Stdlib"])
+  [ loc "Darklang" ["Stdlib"; "List"; "Internal"] "helper"
+    loc "Darklang" ["Stdlib"; "List"] "helper" ])
+  = Stdlib.Option.Option.Some (loc "Darklang" ["Stdlib"; "List"] "helper")
+
+
+// ========================================
+// pickLocation: equal prefix and equal length → first one wins (stable ordering)
+// ========================================
+
+(pick (emptyCtx ())
+  [ loc "Darklang" ["Stdlib"] "foo"
+    loc "Darklang" ["AltLib"] "foo" ])
+  = Stdlib.Option.Option.Some (loc "Darklang" ["Stdlib"] "foo")
+
+(pick (emptyCtx ())
+  [ loc "Darklang" ["AltLib"] "foo"
+    loc "Darklang" ["Stdlib"] "foo" ])
+  = Stdlib.Option.Option.Some (loc "Darklang" ["AltLib"] "foo")
+
+
+// ========================================
+// pickLocation: context wins over shorter path
+// ========================================
+
+// We're in Darklang.UserDefinedAliases. Person2 matches 2 segments.
+// Person matches only 1 (Darklang). Context wins despite Person being shorter.
+(pick (ctx ["Darklang"; "UserDefinedAliases"])
+  [ loc "Darklang" [] "Person"
+    loc "Darklang" ["UserDefinedAliases"] "Person2" ])
+  = Stdlib.Option.Option.Some (loc "Darklang" ["UserDefinedAliases"] "Person2")
+
+
+// ========================================
+// pickLocation: deeper context match beats shallow match
+// ========================================
+
+// We're in Darklang.Stdlib.List. Stdlib.List.map matches 3 segments.
+// Stdlib.map matches only 2. Deeper match wins.
+(pick (ctx ["Darklang"; "Stdlib"; "List"])
+  [ loc "Darklang" ["Stdlib"] "map"
+    loc "Darklang" ["Stdlib"; "List"] "map" ])
+  = Stdlib.Option.Option.Some (loc "Darklang" ["Stdlib"; "List"] "map")
+
+
+// ========================================
+// pickLocation: different owners
+// ========================================
+
+// We're in Stachu.MyLib — Stachu.MyLib.helper matches 2 segments.
+// Darklang.Stdlib.helper matches 0. Context wins.
+(pick (ctx ["Stachu"; "MyLib"])
+  [ loc "Darklang" ["Stdlib"] "helper"
+    loc "Stachu" ["MyLib"] "helper" ])
+  = Stdlib.Option.Option.Some (loc "Stachu" ["MyLib"] "helper")
+
+// No context, both paths length 2 — first one wins (stable)
+(pick (emptyCtx ())
+  [ loc "Darklang" ["Stdlib"] "helper"
+    loc "Stachu" ["MyLib"] "helper" ])
+  = Stdlib.Option.Option.Some (loc "Darklang" ["Stdlib"] "helper")
+
+
+// ========================================
+// pickLocation: three candidates with context
+// ========================================
+
+// Three locations, context matches the deepest one best
+(pick (ctx ["Darklang"; "Stdlib"; "List"])
+  [ loc "Darklang" [] "flatten"
+    loc "Darklang" ["Stdlib"] "flatten"
+    loc "Darklang" ["Stdlib"; "List"] "flatten" ])
+  = Stdlib.Option.Option.Some (loc "Darklang" ["Stdlib"; "List"] "flatten")
+
+// Same three, empty context — shortest path wins
+(pick (emptyCtx ())
+  [ loc "Darklang" [] "flatten"
+    loc "Darklang" ["Stdlib"] "flatten"
+    loc "Darklang" ["Stdlib"; "List"] "flatten" ])
+  = Stdlib.Option.Option.Some (loc "Darklang" [] "flatten")

@@ -12,13 +12,14 @@ open LibExecution.Builtin.Shortcuts
 
 module PT = LibExecution.ProgramTypes
 module RT = LibExecution.RuntimeTypes
+module NR = LibExecution.RuntimeTypes.NameResolution
 module VT = LibExecution.ValueType
 module Dval = LibExecution.Dval
 module PT2RT = LibExecution.ProgramTypesToRuntimeTypes
 module RT2DT = LibExecution.RuntimeTypesToDarkTypes
 module PT2DT = LibExecution.ProgramTypesToDarkTypes
 module Exe = LibExecution.Execution
-module PackageIDs = LibExecution.PackageIDs
+module PackageRefs = LibExecution.PackageRefs
 module Json = BuiltinExecution.Libs.Json
 module C2DT = LibExecution.CommonToDarkTypes
 module D = LibExecution.DvalDecoder
@@ -68,7 +69,7 @@ let parseCliScript
         [ DString owner; DString scriptName; DString scriptName; DString code ]
 
     let parseForCliFnName =
-      FQFnName.Package PackageIDs.Fn.LanguageTools.Parser.CliScript.parseForCli
+      FQFnName.fqPackage PackageRefs.Fn.LanguageTools.Parser.CliScript.parseForCli
 
     let! execResult = Exe.executeFunction exeState parseForCliFnName [] args
 
@@ -101,8 +102,8 @@ let parseCliScript
 
 
 module ExecutionError =
-  let fqTypeName = FQTypeName.fqPackage PackageIDs.Type.Cli.executionError
-  let typeRef = TCustomType(Ok fqTypeName, [])
+  let fqTypeName = FQTypeName.fqPackage PackageRefs.Type.Cli.executionError
+  let typeRef = TCustomType(NR.ok fqTypeName, [])
 
 
 let pmRT = LibPackageManager.PackageManager.rt

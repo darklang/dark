@@ -9,28 +9,39 @@ module D = DvalDecoder
 module C2DT = LibExecution.CommonToDarkTypes
 
 
-let ownerField m = m |> D.field "owner" |> D.string
-let modulesField m = m |> D.field "modules" |> D.list D.string
-let nameField m = m |> D.field "name" |> D.string
-let versionField m = m |> D.field "version" |> D.int32
 
+module Hash =
+  let typeName =
+    FQTypeName.fqPackage PackageRefs.Type.LanguageTools.RuntimeTypes.hash
+  let knownType = KTCustomType(typeName, [])
+
+  let toDT (RuntimeTypes.Hash h) : Dval =
+    DEnum(typeName, typeName, [], "Hash", [ DString h ])
+
+  let fromDT (d : Dval) : RuntimeTypes.Hash =
+    match d with
+    | DEnum(_, _, [], "Hash", [ DString h ]) -> RuntimeTypes.Hash h
+    | _ -> Exception.raiseInternal "Invalid RT Hash" []
+
+let hashTypeName = Hash.typeName
 
 module FQTypeName =
   let typeName =
-    FQTypeName.Package
-      PackageIDs.Type.LanguageTools.RuntimeTypes.FQTypeName.fqTypeName
+    FQTypeName.fqPackage
+      PackageRefs.Type.LanguageTools.RuntimeTypes.FQTypeName.fqTypeName
   let knownType = KTCustomType(typeName, [])
 
   module Package =
     let typeName =
-      FQTypeName.Package
-        PackageIDs.Type.LanguageTools.RuntimeTypes.FQTypeName.package
+      FQTypeName.fqPackage
+        PackageRefs.Type.LanguageTools.RuntimeTypes.FQTypeName.package
 
-    let toDT (u : FQTypeName.Package) : Dval = DUuid u
+    let toDT (Hash h : FQTypeName.Package) : Dval =
+      DEnum(hashTypeName, hashTypeName, [], "Hash", [ DString h ])
 
     let fromDT (d : Dval) : FQTypeName.Package =
       match d with
-      | DUuid u -> u
+      | DEnum(_, _, [], "Hash", [ DString h ]) -> Hash h
       | _ -> Exception.raiseInternal "Invalid FQTypeName.Package" []
 
 
@@ -48,30 +59,31 @@ module FQTypeName =
 
 module FQValueName =
   let typeName =
-    FQTypeName.Package
-      PackageIDs.Type.LanguageTools.RuntimeTypes.FQValueName.fqValueName
+    FQTypeName.fqPackage
+      PackageRefs.Type.LanguageTools.RuntimeTypes.FQValueName.fqValueName
   let knownType = KTCustomType(typeName, [])
 
   module Builtin =
     let toDT (u : FQValueName.Builtin) : Dval =
       let fields = [ "name", DString u.name; "version", DInt32 u.version ]
       let typeName =
-        FQTypeName.Package
-          PackageIDs.Type.LanguageTools.RuntimeTypes.FQValueName.builtin
+        FQTypeName.fqPackage
+          PackageRefs.Type.LanguageTools.RuntimeTypes.FQValueName.builtin
       DRecord(typeName, typeName, [], Map fields)
 
     let fromDT (d : Dval) : FQValueName.Builtin =
       match d with
       | DRecord(_, _, _, fields) ->
-        { name = nameField fields; version = versionField fields }
+        { name = C2DT.nameField fields; version = C2DT.versionField fields }
       | _ -> Exception.raiseInternal "Invalid FQValueName.Builtin" []
 
   module Package =
-    let toDT (u : FQValueName.Package) : Dval = DUuid u
+    let toDT (Hash h : FQValueName.Package) : Dval =
+      DEnum(hashTypeName, hashTypeName, [], "Hash", [ DString h ])
 
     let fromDT (d : Dval) : FQValueName.Package =
       match d with
-      | DUuid id -> id
+      | DEnum(_, _, [], "Hash", [ DString h ]) -> Hash h
       | _ -> Exception.raiseInternal "Invalid FQValueName.Package" []
 
   let toDT (u : FQValueName.FQValueName) : Dval =
@@ -90,12 +102,14 @@ module FQValueName =
 
 module FQFnName =
   let typeName =
-    FQTypeName.Package PackageIDs.Type.LanguageTools.RuntimeTypes.FQFnName.fqFnName
+    FQTypeName.fqPackage
+      PackageRefs.Type.LanguageTools.RuntimeTypes.FQFnName.fqFnName
   let knownType = KTCustomType(typeName, [])
 
   module Builtin =
     let typeName =
-      FQTypeName.Package PackageIDs.Type.LanguageTools.RuntimeTypes.FQFnName.builtin
+      FQTypeName.fqPackage
+        PackageRefs.Type.LanguageTools.RuntimeTypes.FQFnName.builtin
 
     let toDT (u : FQFnName.Builtin) : Dval =
       let fields = [ "name", DString u.name; "version", DInt32 u.version ]
@@ -104,15 +118,16 @@ module FQFnName =
     let fromDT (d : Dval) : FQFnName.Builtin =
       match d with
       | DRecord(_, _, _, fields) ->
-        { name = nameField fields; version = versionField fields }
+        { name = C2DT.nameField fields; version = C2DT.versionField fields }
       | _ -> Exception.raiseInternal "Invalid FQFnName.Builtin" []
 
   module Package =
-    let toDT (u : FQFnName.Package) : Dval = DUuid u
+    let toDT (Hash h : FQFnName.Package) : Dval =
+      DEnum(hashTypeName, hashTypeName, [], "Hash", [ DString h ])
 
     let fromDT (d : Dval) : FQFnName.Package =
       match d with
-      | DUuid u -> u
+      | DEnum(_, _, [], "Hash", [ DString h ]) -> Hash h
       | _ -> Exception.raiseInternal "Invalid FQFnName.Package" []
 
 
@@ -133,44 +148,64 @@ module FQFnName =
 
 module NameResolutionError =
   let typeName =
-    FQTypeName.Package PackageIDs.Type.LanguageTools.RuntimeTypes.nameResolutionError
+    FQTypeName.fqPackage
+      PackageRefs.Type.LanguageTools.RuntimeTypes.nameResolutionError
 
   let toDT (nre : NameResolutionError) : Dval =
     let (caseName, fields) =
       match nre with
-      | NotFound names -> "NotFound", [ DList(VT.string, List.map DString names) ]
-      | InvalidName names ->
-        "InvalidName", [ DList(VT.string, List.map DString names) ]
+      | NotFound -> "NotFound", []
+      | InvalidName -> "InvalidName", []
 
     DEnum(typeName, typeName, [], caseName, fields)
 
   let fromDT (d : Dval) : NameResolutionError =
     match d with
-    | DEnum(_, _, [], "NotFound", [ names ]) -> names |> D.list D.string |> NotFound
-    | DEnum(_, _, [], "InvalidName", [ names ]) ->
-      names |> D.list D.string |> InvalidName
+    | DEnum(_, _, [], "NotFound", []) -> NotFound
+    | DEnum(_, _, [], "InvalidName", []) -> InvalidName
     | _ -> Exception.raiseInternal "Invalid NameResolutionError" []
 
 
 module NameResolution =
   let typeName =
-    FQTypeName.Package PackageIDs.Type.LanguageTools.RuntimeTypes.nameResolution
+    FQTypeName.fqPackage PackageRefs.Type.LanguageTools.RuntimeTypes.nameResolution
 
   let toDT
     (nameValueType : KnownType)
     (f : 'p -> Dval)
-    (result : NameResolution<'p>)
+    (nr : NameResolution<'p>)
     : Dval =
-    let errType = KTCustomType(typeName, [])
-    C2DT.Result.toDT nameValueType errType result f NameResolutionError.toDT
+    let originalName = DList(VT.string, List.map DString nr.originalName)
+    let resolved =
+      C2DT.Result.toDT
+        nameValueType
+        (KTCustomType(NameResolutionError.typeName, []))
+        nr.resolved
+        f
+        NameResolutionError.toDT
+    DRecord(
+      typeName,
+      typeName,
+      [],
+      Map [ "originalName", originalName; "resolved", resolved ]
+    )
 
   let fromDT (f : Dval -> 'a) (d : Dval) : NameResolution<'a> =
-    C2DT.Result.fromDT f d NameResolutionError.fromDT
+    match d with
+    | DRecord(_, _, _, fields) ->
+      let originalName = fields |> D.field "originalName" |> D.list D.string
+      let resolved =
+        C2DT.Result.fromDT
+          f
+          (fields |> D.field "resolved")
+          NameResolutionError.fromDT
+      { originalName = originalName; resolved = resolved }
+    | _ -> Exception.raiseInternal "Invalid NameResolution" []
 
 
 module TypeReference =
   let typeName =
-    FQTypeName.Package PackageIDs.Type.LanguageTools.RuntimeTypes.typeReference
+    FQTypeName.fqPackage PackageRefs.Type.LanguageTools.RuntimeTypes.typeReference
   let knownType = KTCustomType(typeName, [])
 
   let rec toDT (t : TypeReference) : Dval =
@@ -264,7 +299,7 @@ module TypeReference =
 
 module LetPattern =
   let typeName =
-    FQTypeName.Package PackageIDs.Type.LanguageTools.RuntimeTypes.letPattern
+    FQTypeName.fqPackage PackageRefs.Type.LanguageTools.RuntimeTypes.letPattern
   let knownType = KTCustomType(typeName, [])
 
   let rec toDT (p : LetPattern) : Dval =
@@ -289,7 +324,7 @@ module LetPattern =
 
 module MatchPattern =
   let typeName =
-    FQTypeName.Package PackageIDs.Type.LanguageTools.RuntimeTypes.matchPattern
+    FQTypeName.fqPackage PackageRefs.Type.LanguageTools.RuntimeTypes.matchPattern
   let knownType = KTCustomType(typeName, [])
 
   let rec toDT (p : MatchPattern) : Dval =
@@ -370,7 +405,7 @@ module MatchPattern =
 
 module StringSegment =
   let typeName =
-    FQTypeName.Package PackageIDs.Type.LanguageTools.RuntimeTypes.stringSegment
+    FQTypeName.fqPackage PackageRefs.Type.LanguageTools.RuntimeTypes.stringSegment
   let knownType = KTCustomType(typeName, [])
 
   let toDT (regToDT : Register -> Dval) (s : StringSegment) : Dval =
@@ -383,13 +418,13 @@ module StringSegment =
   let fromDT (regFromDT : Dval -> Register) (d : Dval) : StringSegment =
     match d with
     | DEnum(_, _, [], "Text", [ DString text ]) -> Text text
-    | DEnum(_, _, [], "Interpolation", [ reg ]) -> Interpolated(regFromDT reg)
+    | DEnum(_, _, [], "Interpolated", [ reg ]) -> Interpolated(regFromDT reg)
     | _ -> Exception.raiseInternal "Invalid StringSegment" []
 
 
 module KnownType =
   let typeName =
-    FQTypeName.Package PackageIDs.Type.LanguageTools.RuntimeTypes.knownType
+    FQTypeName.fqPackage PackageRefs.Type.LanguageTools.RuntimeTypes.knownType
 
   let toDT (kt : KnownType) : Dval =
     let (caseName, fields) =
@@ -484,7 +519,7 @@ module KnownType =
 
 module ValueType =
   let typeName =
-    FQTypeName.Package PackageIDs.Type.LanguageTools.RuntimeTypes.valueType
+    FQTypeName.fqPackage PackageRefs.Type.LanguageTools.RuntimeTypes.valueType
   let knownType = KTCustomType(typeName, [])
 
   let toDT (vt : ValueType) : Dval =
@@ -506,7 +541,8 @@ module ValueType =
 module ApplicableNamedFn =
   let toDT (namedFn : ApplicableNamedFn) : Dval =
     let typeName =
-      FQTypeName.Package PackageIDs.Type.LanguageTools.RuntimeTypes.applicableNamedFn
+      FQTypeName.fqPackage
+        PackageRefs.Type.LanguageTools.RuntimeTypes.applicableNamedFn
 
     let fields =
       [ "name", FQFnName.toDT namedFn.name
@@ -533,7 +569,8 @@ module ApplicableNamedFn =
 module ApplicableLambda =
   let toDT (lambda : ApplicableLambda) : Dval =
     let typeName =
-      FQTypeName.Package PackageIDs.Type.LanguageTools.RuntimeTypes.applicableLambda
+      FQTypeName.fqPackage
+        PackageRefs.Type.LanguageTools.RuntimeTypes.applicableLambda
 
     let fields =
       [ ("exprId", DUInt64 lambda.exprId)
@@ -571,7 +608,7 @@ module ApplicableLambda =
 module Applicable =
   let toDT (applicable : Applicable) : Dval =
     let typeName =
-      FQTypeName.Package PackageIDs.Type.LanguageTools.RuntimeTypes.applicable
+      FQTypeName.fqPackage PackageRefs.Type.LanguageTools.RuntimeTypes.applicable
 
     let (caseName, fields) =
       match applicable with
@@ -592,7 +629,8 @@ module Applicable =
 
 
 module Dval =
-  let typeName = FQTypeName.Package PackageIDs.Type.LanguageTools.RuntimeTypes.dval
+  let typeName =
+    FQTypeName.fqPackage PackageRefs.Type.LanguageTools.RuntimeTypes.dval
   let knownType = KTCustomType(typeName, [])
 
   let rec toDT (dv : Dval) : Dval =
@@ -720,7 +758,7 @@ module RuntimeError =
     let toDT (e : RuntimeError.Bools.Error) : Dval =
       let typeName =
         FQTypeName.fqPackage
-          PackageIDs.Type.LanguageTools.RuntimeTypes.RuntimeError.Bools.error
+          PackageRefs.Type.LanguageTools.RuntimeTypes.RuntimeError.Bools.error
 
       let (caseName, fields) =
         match e with
@@ -759,7 +797,7 @@ module RuntimeError =
     let toDT (e : RuntimeError.Ints.Error) : Dval =
       let typeName =
         FQTypeName.fqPackage
-          PackageIDs.Type.LanguageTools.RuntimeTypes.RuntimeError.Ints.error
+          PackageRefs.Type.LanguageTools.RuntimeTypes.RuntimeError.Ints.error
 
       let (caseName, fields) =
         match e with
@@ -785,7 +823,7 @@ module RuntimeError =
     let toDT (e : RuntimeError.Strings.Error) : Dval =
       let typeName =
         FQTypeName.fqPackage
-          PackageIDs.Type.LanguageTools.RuntimeTypes.RuntimeError.Strings.error
+          PackageRefs.Type.LanguageTools.RuntimeTypes.RuntimeError.Strings.error
 
       let (caseName, fields) =
         match e with
@@ -807,7 +845,7 @@ module RuntimeError =
     let toDT (e : RuntimeError.Lists.Error) : Dval =
       let typeName =
         FQTypeName.fqPackage
-          PackageIDs.Type.LanguageTools.RuntimeTypes.RuntimeError.Lists.error
+          PackageRefs.Type.LanguageTools.RuntimeTypes.RuntimeError.Lists.error
 
       let (caseName, fields) =
         match e with
@@ -842,7 +880,7 @@ module RuntimeError =
     let toDT (e : RuntimeError.Dicts.Error) : Dval =
       let typeName =
         FQTypeName.fqPackage
-          PackageIDs.Type.LanguageTools.RuntimeTypes.RuntimeError.Dicts.error
+          PackageRefs.Type.LanguageTools.RuntimeTypes.RuntimeError.Dicts.error
 
       let (caseName, fields) =
         match e with
@@ -881,7 +919,7 @@ module RuntimeError =
     let toDT (e : RuntimeError.Lets.Error) : Dval =
       let typeName =
         FQTypeName.fqPackage
-          PackageIDs.Type.LanguageTools.RuntimeTypes.RuntimeError.Lets.error
+          PackageRefs.Type.LanguageTools.RuntimeTypes.RuntimeError.Lets.error
 
       let (caseName, fields) =
         match e with
@@ -903,7 +941,7 @@ module RuntimeError =
     let toDT (e : RuntimeError.Matches.Error) : Dval =
       let typeName =
         FQTypeName.fqPackage
-          PackageIDs.Type.LanguageTools.RuntimeTypes.RuntimeError.Matches.error
+          PackageRefs.Type.LanguageTools.RuntimeTypes.RuntimeError.Matches.error
 
       let (caseName, fields) =
         match e with
@@ -922,7 +960,7 @@ module RuntimeError =
     let toDT (e : RuntimeError.Records.Error) : Dval =
       let typeName =
         FQTypeName.fqPackage
-          PackageIDs.Type.LanguageTools.RuntimeTypes.RuntimeError.Records.error
+          PackageRefs.Type.LanguageTools.RuntimeTypes.RuntimeError.Records.error
 
       let (caseName, fields) =
         match e with
@@ -1026,7 +1064,7 @@ module RuntimeError =
     let toDT (e : RuntimeError.Enums.Error) : Dval =
       let typeName =
         FQTypeName.fqPackage
-          PackageIDs.Type.LanguageTools.RuntimeTypes.RuntimeError.Enums.error
+          PackageRefs.Type.LanguageTools.RuntimeTypes.RuntimeError.Enums.error
 
       let (caseName, fields) =
         match e with
@@ -1091,7 +1129,7 @@ module RuntimeError =
     let toDT (e : RuntimeError.Applications.Error) : Dval =
       let typeName =
         FQTypeName.fqPackage
-          PackageIDs.Type.LanguageTools.RuntimeTypes.RuntimeError.Applications.error
+          PackageRefs.Type.LanguageTools.RuntimeTypes.RuntimeError.Applications.error
 
       let (caseName, fields) =
         match e with
@@ -1205,7 +1243,7 @@ module RuntimeError =
     let toDT (e : RuntimeError.Statements.Error) : Dval =
       let typeName =
         FQTypeName.fqPackage
-          PackageIDs.Type.LanguageTools.RuntimeTypes.RuntimeError.Statements.error
+          PackageRefs.Type.LanguageTools.RuntimeTypes.RuntimeError.Statements.error
 
       let (caseName, fields) =
         match e with
@@ -1238,7 +1276,7 @@ module RuntimeError =
     let toDT (e : RuntimeError.Unwraps.Error) : Dval =
       let typeName =
         FQTypeName.fqPackage
-          PackageIDs.Type.LanguageTools.RuntimeTypes.RuntimeError.Unwraps.error
+          PackageRefs.Type.LanguageTools.RuntimeTypes.RuntimeError.Unwraps.error
 
       let (caseName, fields) =
         match e with
@@ -1266,7 +1304,7 @@ module RuntimeError =
     let toDT (e : RuntimeError.Jsons.Error) : Dval =
       let typeName =
         FQTypeName.fqPackage
-          PackageIDs.Type.LanguageTools.RuntimeTypes.RuntimeError.Jsons.error
+          PackageRefs.Type.LanguageTools.RuntimeTypes.RuntimeError.Jsons.error
 
       let (caseName, fields) =
         match e with
@@ -1289,7 +1327,7 @@ module RuntimeError =
     let toDT (e : RuntimeError.CLIs.Error) : Dval =
       let typeName =
         FQTypeName.fqPackage
-          PackageIDs.Type.LanguageTools.RuntimeTypes.RuntimeError.CLIs.error
+          PackageRefs.Type.LanguageTools.RuntimeTypes.RuntimeError.CLIs.error
 
       let (caseName, fields) =
         match e with
@@ -1311,7 +1349,7 @@ module RuntimeError =
   let toDT (e : RuntimeError.Error) : Dval =
     let typeName =
       FQTypeName.fqPackage
-        PackageIDs.Type.LanguageTools.RuntimeTypes.RuntimeError.error
+        PackageRefs.Type.LanguageTools.RuntimeTypes.RuntimeError.error
 
     let (caseName, fields) =
       match e with
@@ -1330,8 +1368,9 @@ module RuntimeError =
         "IfConditionNotBool",
         [ Dval.toDT actualValue; ValueType.toDT actualValueType ]
       | RuntimeError.Match e -> "Match", [ Matches.toDT e ]
-      | RuntimeError.ParseTimeNameResolution e ->
-        "ParseTimeNameResolution", [ NameResolutionError.toDT e ]
+      | RuntimeError.ParseTimeNameResolution(names, e) ->
+        "ParseTimeNameResolution",
+        [ DList(VT.string, names |> List.map DString); NameResolutionError.toDT e ]
       | RuntimeError.TypeNotFound name -> "TypeNotFound", [ FQTypeName.toDT name ]
       | RuntimeError.ValueNotFound name -> "ValueNotFound", [ FQValueName.toDT name ]
       | RuntimeError.FnNotFound name -> "FnNotFound", [ FQFnName.toDT name ]
@@ -1378,8 +1417,18 @@ module RuntimeError =
         ValueType.fromDT actualValueType
       )
     | DEnum(_, _, [], "Match", [ e ]) -> RuntimeError.Match(Matches.fromDT e)
-    | DEnum(_, _, [], "ParseTimeNameResolution", [ e ]) ->
-      RuntimeError.ParseTimeNameResolution(NameResolutionError.fromDT e)
+    | DEnum(_, _, [], "ParseTimeNameResolution", [ names; e ]) ->
+      let namesList =
+        match names with
+        | DList(_, items) ->
+          items
+          |> List.map (fun d ->
+            match d with
+            | DString s -> s
+            | _ ->
+              Exception.raiseInternal "Invalid name in ParseTimeNameResolution" [])
+        | _ -> Exception.raiseInternal "Invalid names in ParseTimeNameResolution" []
+      RuntimeError.ParseTimeNameResolution(namesList, NameResolutionError.fromDT e)
     | DEnum(_, _, [], "TypeNotFound", [ name ]) ->
       RuntimeError.TypeNotFound(FQTypeName.fromDT name)
     | DEnum(_, _, [], "ValueNotFound", [ name ]) ->

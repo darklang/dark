@@ -14,7 +14,7 @@ module VT = LibExecution.ValueType
 module PT = LibExecution.ProgramTypes
 module Dval = LibExecution.Dval
 module PT2RT = LibExecution.ProgramTypesToRuntimeTypes
-module PackageIDs = LibExecution.PackageIDs
+module PackageRefs = LibExecution.PackageRefs
 
 open Fumble
 open LibDB.Db

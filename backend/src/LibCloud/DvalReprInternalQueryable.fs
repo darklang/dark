@@ -247,7 +247,7 @@ let parseJsonV0
       |> Ply.map (TypeChecker.DvalCreator.dict threadID VT.unknownTODO)
 
 
-    | TCustomType(Ok typeName, typeArgs), valueKind ->
+    | TCustomType({ resolved = Ok typeName }, typeArgs), valueKind ->
       uply {
         match! Types.find types typeName with
         | None ->
