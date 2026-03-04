@@ -394,7 +394,8 @@ def get_ignored_files():
         "*.md",
         "*.sw",
         "*/.#"
-        "*~" ]
+        "*~",
+        "backend/src/LibExecution/package-ref-hashes.txt" ]
 
   all_ignores = gitignores + ignores
   return pathspec.GitIgnoreSpec.from_lines(all_ignores)

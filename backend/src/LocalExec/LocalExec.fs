@@ -204,6 +204,9 @@ module HandleCommand =
         let shortHash = commitHashStr[..6]
         print $"Created init commit {shortHash}"
 
+        // Write current hashes to data file for PackageRefs auto-refresh
+        do! PackageRefsGenerator.generate ()
+
         // Reload dark-packages and dark-editor canvases after package reload
         print "Reloading dark-packages canvas..."
         let! _ = reloadCanvas "dark-packages"
