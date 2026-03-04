@@ -3,7 +3,7 @@ module Darklang.SCM.PackageOps
 
 /// A commit on a branch
 type Commit =
-  { hash: String
+  { hash: LanguageTools.ProgramTypes.Hash
     message: String
     createdAt: DateTime
     opCount: Int64

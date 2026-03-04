@@ -5,7 +5,7 @@ type Branch =
   { id: Uuid
     name: String
     parentBranchId: Stdlib.Option.Option<Uuid>
-    baseCommitHash: Stdlib.Option.Option<String>
+    baseCommitHash: Stdlib.Option.Option<LanguageTools.ProgramTypes.Hash>
     createdAt: DateTime
     mergedAt: Stdlib.Option.Option<DateTime> }
 

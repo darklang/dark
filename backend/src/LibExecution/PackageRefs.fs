@@ -538,7 +538,7 @@ module Type =
     module Branch =
       let private p addl = p ("Branch" :: addl)
       let branch =
-        "c0591dbfe3e3e85a30ed1d8d7a37609d6bde3fd395ab9ac2fb1db18a9c017316"
+        "ad2679cd3151647838eb8b1295a8d4ce38b50335a240bdb533389abad4c24c01"
         |> p [] "Branch"
 
     module Merge =
@@ -550,7 +550,7 @@ module Type =
     module PackageOps =
       let private p addl = p ("PackageOps" :: addl)
       let commit =
-        "4db1546d4553ff70bed6fad7512002e76d0490203eb0db039693837a20632300"
+        "b8ddbb62baba9216aa3783be7116671524ee3cd2ab65bf1073f3674f1540760c"
         |> p [] "Commit"
 
 
@@ -638,7 +638,7 @@ module Fn =
 
   module Cli =
     let executeCliCommand =
-      "7598e6d2239c1871b1c099ca5d886973841ec7406510e386a2bc24ce73f13c0d"
+      "a3ffddad51cf7e773994220dd26657019c603712ff12e45740c63df369cb94a2"
       |> p [ "Cli" ] "executeCliCommand"
 
   module Internal =

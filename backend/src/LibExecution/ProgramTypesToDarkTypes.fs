@@ -196,7 +196,7 @@ module NameResolution =
     DRecord(
       typeName,
       typeName,
-      [],
+      [ VT.known nameValueType ],
       Map [ "originalName", originalName; "resolved", resolved ]
     )
 
@@ -1376,10 +1376,14 @@ module LocatedItem =
   let knownType (entityKT : KnownType) =
     KTCustomType(typeName, [ VT.known entityKT ])
 
-  let toDT (entityToDT : 'T -> Dval) (i : PT.LocatedItem<'T>) : Dval =
+  let toDT
+    (entityKT : KnownType)
+    (entityToDT : 'T -> Dval)
+    (i : PT.LocatedItem<'T>)
+    : Dval =
     let fields =
       [ "entity", entityToDT i.entity; "location", PackageLocation.toDT i.location ]
-    DRecord(typeName, typeName, [], Map fields)
+    DRecord(typeName, typeName, [ VT.known entityKT ], Map fields)
 
   let fromDT (entityFromDT : Dval -> 'T) (d : Dval) : PT.LocatedItem<'T> =
     match d with
@@ -1469,6 +1473,9 @@ module Search =
         PackageRefs.Type.LanguageTools.ProgramTypes.Search.searchResults
 
     let toDT (sr : PT.Search.SearchResults) : Dval =
+      let typeKT = KTCustomType(PackageType.typeName, [])
+      let valueKT = KTCustomType(PackageValue.typeName, [])
+      let fnKT = KTCustomType(PackageFn.typeName, [])
       let fields =
         [ "submodules",
           sr.submodules
@@ -1477,20 +1484,16 @@ module Search =
           |> Dval.list (KTList VT.string)
           "types",
           sr.types
-          |> List.map (LocatedItem.toDT PackageType.toDT)
-          |> Dval.list (
-            LocatedItem.knownType (KTCustomType(PackageType.typeName, []))
-          )
+          |> List.map (LocatedItem.toDT typeKT PackageType.toDT)
+          |> Dval.list (LocatedItem.knownType typeKT)
           "values",
           sr.values
-          |> List.map (LocatedItem.toDT PackageValue.toDT)
-          |> Dval.list (
-            LocatedItem.knownType (KTCustomType(PackageValue.typeName, []))
-          )
+          |> List.map (LocatedItem.toDT valueKT PackageValue.toDT)
+          |> Dval.list (LocatedItem.knownType valueKT)
           "fns",
           sr.fns
-          |> List.map (LocatedItem.toDT PackageFn.toDT)
-          |> Dval.list (LocatedItem.knownType (KTCustomType(PackageFn.typeName, []))) ]
+          |> List.map (LocatedItem.toDT fnKT PackageFn.toDT)
+          |> Dval.list (LocatedItem.knownType fnKT) ]
       DRecord(typeName, typeName, [], Map fields)
 
     let fromDT (d : Dval) : PT.Search.SearchResults =
@@ -1746,7 +1749,7 @@ module Branch =
         "name", DString b.name
         "parentBranchId", b.parentBranchId |> Option.map DUuid |> Dval.option KTUuid
         "baseCommitHash",
-        b.baseCommitHash |> Option.map Hash.toDT |> Dval.option KTString
+        b.baseCommitHash |> Option.map Hash.toDT |> Dval.option Hash.knownType
         "createdAt", DDateTime(DarkDateTime.fromInstant b.createdAt)
         "mergedAt",
         b.mergedAt

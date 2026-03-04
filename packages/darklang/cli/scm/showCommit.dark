@@ -19,10 +19,10 @@ let execute (state: AppState) (args: List<String>) : AppState =
         let matching =
           commits
           |> Stdlib.List.filter (fun c ->
-            Stdlib.String.startsWith c.hash commitHashStr)
+            Stdlib.String.startsWith (LanguageTools.ProgramTypes.hashToString c.hash) commitHashStr)
 
         match matching with
-        | [ c ] -> c.hash
+        | [ c ] -> LanguageTools.ProgramTypes.hashToString c.hash
         | [] ->
           Stdlib.printLine (Cli.Colors.error "No matching commit found.")
           commitHashStr
