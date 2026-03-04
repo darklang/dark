@@ -157,7 +157,8 @@ let computeRealHashes (ops : List<PT.PackageOp>) : List<PT.PackageOp> =
     match remaining with
     | PT.PackageOp.AddType t :: PT.PackageOp.SetTypeName(oldHash, loc) :: rest ->
       let newHash =
-        Map.tryFind (PackageLocation.toFQN loc) fqnHashMap |> Option.defaultValue oldHash
+        Map.tryFind (PackageLocation.toFQN loc) fqnHashMap
+        |> Option.defaultValue oldHash
       let transformed = { AT.transformType oldToNewHash t with hash = newHash }
       processOps
         rest
@@ -166,7 +167,8 @@ let computeRealHashes (ops : List<PT.PackageOp>) : List<PT.PackageOp> =
          :: acc)
     | PT.PackageOp.AddFn f :: PT.PackageOp.SetFnName(oldHash, loc) :: rest ->
       let newHash =
-        Map.tryFind (PackageLocation.toFQN loc) fqnHashMap |> Option.defaultValue oldHash
+        Map.tryFind (PackageLocation.toFQN loc) fqnHashMap
+        |> Option.defaultValue oldHash
       let transformed = { AT.transformFn oldToNewHash f with hash = newHash }
       processOps
         rest
@@ -175,7 +177,8 @@ let computeRealHashes (ops : List<PT.PackageOp>) : List<PT.PackageOp> =
          :: acc)
     | PT.PackageOp.AddValue v :: PT.PackageOp.SetValueName(oldHash, loc) :: rest ->
       let newHash =
-        Map.tryFind (PackageLocation.toFQN loc) fqnHashMap |> Option.defaultValue oldHash
+        Map.tryFind (PackageLocation.toFQN loc) fqnHashMap
+        |> Option.defaultValue oldHash
       let transformed = { AT.transformValue oldToNewHash v with hash = newHash }
       processOps
         rest
