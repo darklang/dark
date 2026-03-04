@@ -9,8 +9,8 @@
  |> Stdlib.List.map (fun _f -> 1)
  |> Stdlib.List.length) = 348L
 
-// Just to show off, let's increase the size of the list
-//   (CLEANUP include this -- it's just a bit slow right now.)
+// Heavier variant of the stack-overflow regression check.
+// This is slower, but intentionally kept to protect against perf/stack regressions.
 ((Stdlib.List.repeat_v0 3480L 1L)
  |> Builtin.unwrap
  |> Stdlib.List.map (fun _f -> 1)

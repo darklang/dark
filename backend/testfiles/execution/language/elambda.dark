@@ -68,10 +68,8 @@
  let transformer = fun ((str1), str2) -> str1 ++ str2
  Stdlib.List.map_v0 sing transformer) = [ "12"; "34" ]
 
-// TODO:
-// There is weird parser behavior for nested tuples with more than one member.
-// We will need to check the case with a new parser like the Treesitter.
-//
+// Nested tuple lambda destructuring regression test.
+// Keep this coverage in place to catch parser/lowering regressions.
 (let triplets = [ ((1L, "one"), true); ((2L,"two"), false) ]
 
  let transformer =
@@ -100,7 +98,7 @@ Stdlib.Dict.map_v0
     (Dict { key2 = "key2val22"; key1 = "key1val12" })
 
 
-// CLEANUP include this once we've switched over to the new parser.
+// Regression check: applying a function directly from a record field.
 module LambdaInRecordField =
   type RecordWithFn = { fn: Int64 -> Int64 }
 

@@ -514,8 +514,8 @@ module TokenizeExpression =
 
 
 
-  // TODO bring this back - an RTE pops up when trying to access a .range field, somewhere in impl
-  // (seems to be in both of these tests, so probably relevant to _record_ stuff, not field access)
+  // Record/record-update tokenization regression coverage.
+  // A previous .range-related RTE in this area makes this worth keeping explicit.
   ("MyRecord {fieldOne = 1L; fieldTwo = 2L} " |> tokenize) =
     [ (TokenType.TypeName, (0L, 0L),  (0L, 8L))
       (TokenType.Symbol,   (0L, 9L),  (0L, 10L))
