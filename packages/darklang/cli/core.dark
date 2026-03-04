@@ -426,7 +426,8 @@ module Commands =
 let handleKeyInput (state: AppState) (key: Stdlib.Cli.Stdin.Key.Key) (modifiers: Stdlib.Cli.Stdin.Modifiers.Modifiers) (keyChar: Stdlib.Option.Option<String>) : AppState =
   // Ctrl+C exits from any page
   if modifiers.ctrl && key == Stdlib.Cli.Stdin.Key.Key.C then
-    Stdlib.printLine ""
+    // Clear the current prompt line so it doesn't linger after exit
+    Stdlib.print (Colors.carriageReturn ++ Colors.clearLine)
     { state with isExiting = true }
   else
 
@@ -567,8 +568,10 @@ module Update =
 
 let runInteractiveLoop (state: AppState) : Int64 =
   if state.isExiting then
-    // Clear status bar before exiting
+    // Clear status bar and prompt line before exiting
     StatusBar.clear ()
+    // Move to column 1, clear entire line, then newline for clean shell prompt
+    Stdlib.print (Colors.moveCursorToColumn 1L ++ "\u001b[2K" ++ "\n")
     0L
   else
     // Display current page
@@ -664,6 +667,9 @@ let executeCliCommand (args: List<String>) : Int64 =
   match remainingArgs with
   // If someone runs `dark` without args, start the interactive loop
   | [] ->
+    // Clear screen so leftover output from a previous session doesn't show through
+    Stdlib.print Terminal.Display.clearScreen
+
     // Initialize status bar (sets up scroll region to reserve bottom line)
     StatusBar.init ()
 
