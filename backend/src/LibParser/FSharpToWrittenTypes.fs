@@ -564,6 +564,29 @@ module Expr =
             || List.any (fun p -> letPatternContainsMatchPattern p candidate) theRest
           | _ -> false
 
+      let rec tryLetPatternFromSynPat (pat : SynPat) : Option<WT.LetPattern> =
+        match pat with
+        | SynPat.Paren(subPat, _) -> tryLetPatternFromSynPat subPat
+        | SynPat.Wild _ -> Some(WT.LPVariable(gid (), "_"))
+        | SynPat.Named(SynIdent(name, _), _, _, _) ->
+          Some(WT.LPVariable(gid (), name.idText))
+        | SynPat.Const(SynConst.Unit, _) -> Some(WT.LPUnit(gid ()))
+        | SynPat.Tuple(_, first :: second :: theRest, _, _) ->
+          let converted =
+            [ first; second ] @ theRest |> List.map tryLetPatternFromSynPat
+          if converted |> List.all Option.isSome then
+            let converted =
+              converted
+              |> List.map (fun p ->
+                p |> Exception.unwrapOptionInternal "missing tuple pat item" [])
+            match converted with
+            | first :: second :: theRest ->
+              Some(WT.LPTuple(gid (), first, second, theRest))
+            | _ -> None
+          else
+            None
+        | _ -> None
+
       let desugaredTupleLambda : Option<WT.Expr> =
         // F# can lower tuple-pattern lambdas by introducing a generated identifier
         // and matching on it inside the lambda body. We normalize this when the
@@ -600,11 +623,14 @@ module Expr =
           | SynPat.Named(SynIdent(lastArg, _), _, _, _) when
             lastArg.idText = matchedArg.idText
             ->
-            let rewrittenPats =
-              (leadingPats |> List.map LetPattern.fromSynPat)
-              @ [ LetPattern.fromSynPat generatedPat ]
-              |> NEList.ofListUnsafe "Empty lambda args" []
-            Some(WT.ELambda(id, rewrittenPats, c rhs))
+            match tryLetPatternFromSynPat generatedPat with
+            | Some generatedLetPat ->
+              let rewrittenPats =
+                (leadingPats |> List.map LetPattern.fromSynPat)
+                @ [ generatedLetPat ]
+                |> NEList.ofListUnsafe "Empty lambda args" []
+              Some(WT.ELambda(id, rewrittenPats, c rhs))
+            | None -> None
           // Example:
           //   fun ((a,b), c) -> match _arg1 with | (a,b) -> rhs
           // keeps lambda args but unwraps body to:
