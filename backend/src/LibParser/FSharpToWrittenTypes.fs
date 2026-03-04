@@ -540,7 +540,8 @@ module Expr =
         (matchPat : WT.MatchPattern)
         : bool =
         match letPat, matchPat with
-        | WT.LPVariable(_, letName), WT.MPVariable(_, matchName) -> letName = matchName
+        | WT.LPVariable(_, letName), WT.MPVariable(_, matchName) ->
+          letName = matchName
         | WT.LPUnit _, WT.MPUnit _ -> true
         | WT.LPTuple(_, l1, l2, lRest), WT.MPTuple(_, m1, m2, mRest) ->
           List.length lRest = List.length mRest
@@ -582,9 +583,7 @@ module Expr =
                         SynExpr.Ident matchedArg,
                         [ SynMatchClause(generatedPat, None, rhs, _, _, _) ],
                         _,
-                        _) when
-          not (List.isEmpty synPats)
-          ->
+                        _) when not (List.isEmpty synPats) ->
           let leadingPats, trailingPat =
             match List.rev synPats with
             | trailing :: reversedLeading -> (List.rev reversedLeading, trailing)
@@ -598,7 +597,9 @@ module Expr =
           //   fun x _arg1 -> match _arg1 with | (a,b) -> rhs
           // becomes:
           //   fun x (a,b) -> rhs
-          | SynPat.Named(SynIdent(lastArg, _), _, _, _) when lastArg.idText = matchedArg.idText ->
+          | SynPat.Named(SynIdent(lastArg, _), _, _, _) when
+            lastArg.idText = matchedArg.idText
+            ->
             let rewrittenPats =
               (leadingPats |> List.map LetPattern.fromSynPat)
               @ [ LetPattern.fromSynPat generatedPat ]

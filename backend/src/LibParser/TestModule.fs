@@ -81,8 +81,7 @@ let parseTest (ast : SynExpr) : WTTest =
                   _,
                   SynExpr.LongIdent(_, SynLongIdent([ ident ], _, _), _, _),
                   lhs,
-                  _) when ident.idText = "op_Equality" ->
-      lhs
+                  _) when ident.idText = "op_Equality" -> lhs
     | _ -> expr
 
   match ast with
@@ -102,13 +101,15 @@ let parseTest (ast : SynExpr) : WTTest =
         SynExpr.Const(SynConst.String(errorMessage, _, _), _) when
         marker.idText = "error"
         ->
-        convert (unwrapEqualityLhs actualExpr), WTExpectedError(String.normalize errorMessage)
+        convert (unwrapEqualityLhs actualExpr),
+        WTExpectedError(String.normalize errorMessage)
       // `x = sqlerror="msg"` is parsed as `(x = sqlerror) = "msg"`
       | SynExpr.App(_, _, actualExpr, SynExpr.Ident marker, _),
         SynExpr.Const(SynConst.String(errorMessage, _, _), _) when
         marker.idText = "sqlerror"
         ->
-        convert (unwrapEqualityLhs actualExpr), WTExpectedSqlError(String.normalize errorMessage)
+        convert (unwrapEqualityLhs actualExpr),
+        WTExpectedSqlError(String.normalize errorMessage)
       // Also support direct shape where RHS parses as `error "msg"`
       | _,
         SynExpr.App(_,

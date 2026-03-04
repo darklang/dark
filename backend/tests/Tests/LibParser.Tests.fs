@@ -105,7 +105,7 @@ let exprRTs =
         "fun ((a, b), c) -> a"
         (PT.ELambda(
           id,
-          NEList.singleton(
+          NEList.singleton (
             PT.LPTuple(
               id,
               PT.LPTuple(id, PT.LPVariable(id, "a"), PT.LPVariable(id, "b"), []),
