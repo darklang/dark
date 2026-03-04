@@ -133,7 +133,7 @@ ESelfTests.sumUpTo 10L = 55L
 
 
 ShadowingTest.factorialWithShadowing 5L = ("shadowed", 120L)
-ShadowingTest.factorialWithShadowingError 5L = Builtin.testDerrorMessage """Expected something we could apply to, such as a lambda or function, but got a String ("shadowed")"""
+ShadowingTest.factorialWithShadowingError 5L = error="""Expected something we could apply to, such as a lambda or function, but got a String ("shadowed")"""
 ShadowingTest.incrementWithShadowing 3L 1L = 6L
 
 ShadowingTest.matchWithShadowing 0L = 0L

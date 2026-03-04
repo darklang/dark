@@ -422,41 +422,14 @@ let getDBNamesForCompletion (state: Cli.AppState) : List<String> =
       name)
 
 
-let completeDBName
-  (state: Cli.AppState)
-  (partial: String)
-  : List<Cli.Completion.CompletionItem> =
-  (getDBNamesForCompletion state)
-  |> Stdlib.List.filter (fun name -> Stdlib.String.startsWith name partial)
-  |> Stdlib.List.map Cli.Completion.simple
-
-
 let complete
   (state: Cli.AppState)
   (args: List<String>)
   : List<Cli.Completion.CompletionItem> =
-  let subcommands = [ "list"; "view"; "get"; "set"; "delete"; "drop"; "query"; "help" ]
-
   match args with
   | [] ->
-    subcommands |> Stdlib.List.map Cli.Completion.simple
-
-  | [ partial ] ->
-    subcommands
-    |> Stdlib.List.filter (fun cmd -> Stdlib.String.startsWith cmd partial)
+    [ "list"; "view"; "get"; "set"; "delete"; "drop"; "query"; "help" ]
     |> Stdlib.List.map Cli.Completion.simple
-
-  | [ "view" ] -> completeDBName state ""
-  | [ "view"; partial ] -> completeDBName state partial
-  | [ "get" ] -> completeDBName state ""
-  | [ "get"; partial ] -> completeDBName state partial
-  | [ "set" ] -> completeDBName state ""
-  | [ "set"; partial ] -> completeDBName state partial
-  | [ "delete" ] -> completeDBName state ""
-  | [ "delete"; partial ] -> completeDBName state partial
-  | [ "drop" ] -> completeDBName state ""
-  | [ "drop"; partial ] -> completeDBName state partial
-  | [ "query" ] -> completeDBName state ""
-  | [ "query"; partial ] -> completeDBName state partial
-
+  | [ "view" ] | [ "get" ] | [ "set" ] | [ "delete" ] | [ "drop" ] | [ "query" ] ->
+    (getDBNamesForCompletion state) |> Stdlib.List.map Cli.Completion.simple
   | _ -> []

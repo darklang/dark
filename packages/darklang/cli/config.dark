@@ -81,23 +81,16 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
 
 
 let complete (_state: Cli.AppState) (args: List<String>) : List<Cli.Completion.CompletionItem> =
+  let configKeys =
+    [ "sync.default_instance"
+      "sync.interval_seconds"
+      "sync.auto_start" ]
+
   match args with
   | [] ->
-    ["get"; "set"; "list"]
-    |> Stdlib.List.map Cli.Completion.simple
-
-  | ["get"] ->
-    [ "sync.default_instance"
-      "sync.interval_seconds"
-      "sync.auto_start" ]
-    |> Stdlib.List.map Cli.Completion.simple
-
-  | ["set"] ->
-    [ "sync.default_instance"
-      "sync.interval_seconds"
-      "sync.auto_start" ]
-    |> Stdlib.List.map Cli.Completion.simple
-
+    ["get"; "set"; "list"] |> Stdlib.List.map Cli.Completion.simple
+  | ["get"] | ["set"] ->
+    configKeys |> Stdlib.List.map Cli.Completion.simple
   | _ -> []
 
 

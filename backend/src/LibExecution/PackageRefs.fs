@@ -638,7 +638,7 @@ module Fn =
 
   module Cli =
     let executeCliCommand =
-      "a3ffddad51cf7e773994220dd26657019c603712ff12e45740c63df369cb94a2"
+      "4618a4eb46a3ccf3e59b384d7ec4b3e025068531dce43c1713fa7b9d09b91382"
       |> p [ "Cli" ] "executeCliCommand"
 
   module Internal =

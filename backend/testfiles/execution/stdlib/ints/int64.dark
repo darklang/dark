@@ -39,8 +39,7 @@ Stdlib.Int64.remainder_v0 20L 8L = Stdlib.Result.Result.Ok 4L
 Stdlib.Int64.remainder_v0 -20L 8L = Stdlib.Result.Result.Ok -4L
 Stdlib.Int64.remainder_v0 -20L -8L = Stdlib.Result.Result.Ok -4L
 Stdlib.Int64.remainder_v0 -15L 6L = Stdlib.Result.Result.Ok -3L
-Stdlib.Int64.remainder_v0 5L 0L = Builtin.testDerrorMessage "Cannot divide by 0"
-
+Stdlib.Int64.remainder_v0 5L 0L = error="Cannot divide by 0"
 (Stdlib.List.map_v0
   (Stdlib.List.range_v0 -5L 5L)
   (fun v -> Stdlib.Int64.remainder_v0 v -4L)
@@ -76,17 +75,14 @@ Stdlib.Int64.mod_v0 -1L 2L = 1L
 Stdlib.Int64.mod_v0 -754L 53L = 41L
 Stdlib.Int64.mod_v0 9999999999998L 3L = 2L
 
-Stdlib.Int64.mod_v0 5L 0L = Builtin.testDerrorMessage "Cannot evaluate modulus against 0"
-
-Stdlib.Int64.mod_v0 5L -5L = Builtin.testDerrorMessage "Cannot evaluate modulus against a negative number"
-
+Stdlib.Int64.mod_v0 5L 0L = error="Cannot evaluate modulus against 0"
+Stdlib.Int64.mod_v0 5L -5L = error="Cannot evaluate modulus against a negative number"
 Stdlib.List.map_v0 (Stdlib.List.range_v0 -5L 5L) (fun v ->
  Stdlib.Int64.mod_v0 v 4L) = [ 3L; 0L; 1L; 2L; 3L; 0L; 1L; 2L; 3L; 0L; 1L ]
 
 15L % 5L = 0L
-5L % 0L = Builtin.testDerrorMessage "Cannot evaluate modulus against 0"
-5L % -5L = Builtin.testDerrorMessage "Cannot evaluate modulus against a negative number"
-
+5L % 0L = error="Cannot evaluate modulus against 0"
+5L % -5L = error="Cannot evaluate modulus against a negative number"
 Stdlib.List.map_v0 (Stdlib.List.range_v0 -5L 5L) (fun v -> v % 4L) =
   [ 3L; 0L; 1L; 2L; 3L; 0L; 1L; 2L; 3L; 0L; 1L ]
 
@@ -96,12 +92,11 @@ Stdlib.Int64.power_v0 0L 0L = 1L
 Stdlib.Int64.power_v0 1L 0L = 1L
 Stdlib.Int64.power_v0 1000L 0L = 1L
 Stdlib.Int64.power_v0 -8L 5L = -32768L
-Stdlib.Int64.power_v0 200L 20L = Builtin.testDerrorMessage "Encountered out-of-range value for type of Int"
+Stdlib.Int64.power_v0 200L 20L = error="Encountered out-of-range value for type of Int"
 Stdlib.Int64.power_v0 200L 7L = 12800000000000000L
 Stdlib.Int64.power_v0 1L 2147483649L = 1L
 Stdlib.Int64.power_v0 -1L 2147483649L = -1L
-Stdlib.Int64.power_v0 2L -3L = Builtin.testDerrorMessage "Cannot raise integer to a negative exponent"
-
+Stdlib.Int64.power_v0 2L -3L = error="Cannot raise integer to a negative exponent"
 5L ^ 2L = 25L
 -8L ^ 5L = -32768L
 50L ^ 2L = 2500L
@@ -191,7 +186,7 @@ Stdlib.Int64.subtract_v0 -55L -55L = 0L
 Stdlib.Int64.multiply_v0 8L 8L = 64L
 Stdlib.Int64.multiply_v0 5145L 5145L = 26471025L
 
-// 1L * 1.0 = Builtin.testDerrorMessage
+// 1L * 1.0 = error=
 //   "int64Multiply's 2nd argument (`b`) should be an Int64. However, a Float (1.0) was passed instead.
 
 // Expected: (b: Int64)
@@ -203,8 +198,7 @@ Stdlib.Int64.divide_v0 17L 3L = 5L
 Stdlib.Int64.divide_v0 -8L 5L = -1L
 Stdlib.Int64.divide_v0 0L 1L = 0L
 
-Stdlib.Int64.divide_v0 1L 0L = Builtin.testDerrorMessage "Cannot divide by 0"
-
+Stdlib.Int64.divide_v0 1L 0L = error="Cannot divide by 0"
 (Stdlib.List.range_v0 1L 5L)
 |> Stdlib.List.map_v0 (fun x -> Stdlib.Int64.random 1L 2L)
 |> Stdlib.List.map_v0 (fun x -> (x >= 1L) && (x <= 2L)) = [ true; true; true; true; true ]

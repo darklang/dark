@@ -18,7 +18,7 @@
 // module DarkInternal =
 //   (let _ = Builtin.testSetExpectedExceptionCount 1L
 //    Builtin.darkInternalInfraSchedulingRuleList ()) =
-//      (Builtin.testDerrorMessage "Unknown error")
+//      (error="Unknown error")
 
 
 let stringFn (key: String) : String = key ++ " appended string"
@@ -85,52 +85,32 @@ strFn (X.B "str") = X.B "str"
 
 
 module InvalidFnCalls =
-  (functionWhichDoesntExist 6L) =
-    (Builtin.testDerrorMessage "There is no variable named: functionWhichDoesntExist")
+  (functionWhichDoesntExist 6L) = error="There is no variable named: functionWhichDoesntExist"
 
 
   // errors around type args
-  fnWithTypeArgAndOneParam 1L =
-    Builtin.testDerrorMessage
-      "fnWithTypeArgAndOneParam expects 1 type argument, but got 0 type arguments"
-
-  fnWithTypeArgAndOneParam<Int64, String> 1L = Builtin.testDerrorMessage
-    "fnWithTypeArgAndOneParam expects 1 type argument, but got 2 type arguments"
-
-
+  fnWithTypeArgAndOneParam 1L = error="fnWithTypeArgAndOneParam expects 1 type argument, but got 0 type arguments"
+  fnWithTypeArgAndOneParam<Int64, String> 1L = error="fnWithTypeArgAndOneParam expects 1 type argument, but got 2 type arguments"
   // errors around args
-  stringFn "str1" "str2" =
-    Builtin.testDerrorMessage
-      "stringFn expects 1 argument, but got 2 arguments"
+  stringFn "str1" "str2" = error="stringFn expects 1 argument, but got 2 arguments"
+  stringFn 5L = error="stringFn's 1st parameter `key` expects String, but got Int64 (5)"
 
-  stringFn 5L =
-    (Builtin.testDerrorMessage "stringFn's 1st parameter `key` expects String, but got Int64 (5)")
-
-  fnWithTypeArgAndOneParam<Int64> "str2" =
-    Builtin.testDerrorMessage "fnWithTypeArgAndOneParam's 1st parameter `arg` expects Int64, but got String (\"str2\")"
-
-
+  fnWithTypeArgAndOneParam<Int64> "str2" = error="fnWithTypeArgAndOneParam's 1st parameter `arg` expects Int64, but got String (\"str2\")"
   // errors around return value
-  (shouldReturnStringButDoesNot ()) =
-    (Builtin.testDerrorMessage "shouldReturnStringButDoesNot's return value expects String, but got Int64 (5)")
+  (shouldReturnStringButDoesNot ()) = error="shouldReturnStringButDoesNot's return value expects String, but got Int64 (5)"
 
   // TODO fix this weird edge case (interpreter work)
   // fnWithTypedReturn<String> () =
-  //   Builtin.testDerrorMessage "fnWithTypedReturn's return value should be a String. However, an Int64 (5) was returned instead."
+  // = error="fnWithTypedReturn's return value should be a String. However, an Int64 (5) was returned instead."
 
 
   // errors around type args take priority over ones about args
-  fnWithTypeArgAndOneParam<Int64, String> 1L "str" =
-    Builtin.testDerrorMessage
-      "fnWithTypeArgAndOneParam expects 1 type argument, but got 2 type arguments"
-
-
+  fnWithTypeArgAndOneParam<Int64, String> 1L "str" = error="fnWithTypeArgAndOneParam expects 1 type argument, but got 2 type arguments"
   // misc errors
-  derrorFn "msg" = Builtin.testDerrorMessage "Uncaught exception: msg"
-
+  derrorFn "msg" = error="Uncaught exception: msg"
   // (let _ = Builtin.testSetExpectedExceptionCount 1L
   //  throwsException ()) =
-  //   Builtin.testDerrorMessage "Unknown error"
+  // = error="Unknown error"
 
 
 // this is making sure that generic type args aren't "carried" into incorrect contexts

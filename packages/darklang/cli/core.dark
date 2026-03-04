@@ -367,12 +367,46 @@ module Registry =
       // Completing command arguments
       let handler = findCommand parsed.commandName
       let completeFunc = handler.complete
-      completeFunc state parsed.args
+
+      // Split args into completed args and partial (last arg)
+      // parseInput appends "" for trailing space, so this always works:
+      //   "branch switch " → args=["switch",""], completedArgs=["switch"], partial=""
+      //   "branch sw"      → args=["sw"],        completedArgs=[],         partial="sw"
+      //   "branch "        → args=[],             completedArgs=[],         partial=""
+      let (completedArgs, partial) =
+        match Stdlib.List.last parsed.args with
+        | Some lastArg -> (Stdlib.List.dropLast parsed.args, lastArg)
+        | None -> ([], "")
+
+      // Get all completions for the current position
+      let completions = completeFunc state completedArgs
+
+      if Stdlib.String.isEmpty partial then
+        completions
+      else
+        // Filter by what the user has typed so far
+        let filtered =
+          completions
+          |> Stdlib.List.filter (fun item ->
+            Stdlib.String.startsWith item.value partial)
+
+        // If centralized filtering found nothing, try direct call as fallback
+        // (supports commands with smart matching like path traversal)
+        match filtered with
+        | _ :: _ -> filtered
+        | [] -> completeFunc state parsed.args
 
   let getCompletionHint (state: AppState) (input: String) : String =
-    let parsed = Completion.parseInput input
     let completions = getCompletions state input
-    let partial = Completion.getPartialCompletion parsed
+    let parsed = Completion.parseInput input
+
+    let partial =
+      if parsed.isCompletingCommand then
+        parsed.commandName
+      else
+        match Stdlib.List.last parsed.args with
+        | Some lastArg -> lastArg
+        | None -> ""
 
     let completionValues = completions |> Stdlib.List.map (fun item -> item.value)
     Completion.getHintFromCompletions partial completionValues

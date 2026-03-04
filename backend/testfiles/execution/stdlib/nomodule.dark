@@ -298,27 +298,21 @@ module Equals =
   (MyDB == MyDB) = true
 
   module TypeErrors =
-    (5.7 != 6L) = Builtin.testDerrorMessage "Cannot perform equality check on Float and Int64"
-    (5.7 != 5L) = Builtin.testDerrorMessage "Cannot perform equality check on Float and Int64"
+    (5.7 != 6L) = error="Cannot perform equality check on Float and Int64"
+    (5.7 != 5L) = error="Cannot perform equality check on Float and Int64"
+    (5us == 5s) = error="Cannot perform equality check on UInt16 and Int16"
+    (5y == 5l) = error="Cannot perform equality check on Int8 and Int32"
+    (5L == 5l) = error="Cannot perform equality check on Int64 and Int32"
+    (5us != 6s) = error="Cannot perform equality check on UInt16 and Int16"
+    (Builtin.testRuntimeError "test" != Builtin.testRuntimeError "different msg") = error="Uncaught exception: test"
 
-    (5us == 5s) = Builtin.testDerrorMessage "Cannot perform equality check on UInt16 and Int16"
-    (5y == 5l) = Builtin.testDerrorMessage "Cannot perform equality check on Int8 and Int32"
-    (5L == 5l) = Builtin.testDerrorMessage "Cannot perform equality check on Int64 and Int32"
-    (5us != 6s) = Builtin.testDerrorMessage "Cannot perform equality check on UInt16 and Int16"
+    (() != Stdlib.Option.Option.None) = error="Cannot perform equality check on Unit and Darklang.Stdlib.Option.Option<_>"
 
-    (Builtin.testRuntimeError "test" != Builtin.testRuntimeError "different msg") =
-     (Builtin.testDerrorMessage "Uncaught exception: test")
-
-    (() != Stdlib.Option.Option.None) =
-      (Builtin.testDerrorMessage "Cannot perform equality check on Unit and Darklang.Stdlib.Option.Option<_>")
-
-    (() != false) = Builtin.testDerrorMessage "Cannot perform equality check on Unit and Bool"
-    (() != 0) = Builtin.testDerrorMessage "Cannot perform equality check on Unit and Int32"
-    (() != 0.0) = Builtin.testDerrorMessage "Cannot perform equality check on Unit and Float"
-
+    (() != false) = error="Cannot perform equality check on Unit and Bool"
+    (() != 0) = error="Cannot perform equality check on Unit and Int32"
+    (() != 0.0) = error="Cannot perform equality check on Unit and Float"
     // CLEANUP follow up here when DB references are fully resolved at parse-time
-    //(MyDB != 5L) = Builtin.testDerrorMessage "Cannot perform equality check on TODO and TODO"
-
+    //(MyDB != 5L) = error="Cannot perform equality check on TODO and TODO"
   // Other ways to call it
   Stdlib.equals_v0 1Q 1Q = true
   (==) 1Q 1Q = true
@@ -425,8 +419,7 @@ module Unwrap =
   ((Stdlib.Option.Option.Some 5L) |> Builtin.unwrap) = 5L
   ((Stdlib.Result.Result.Ok true) |> Builtin.unwrap) = true
 
-  ((Stdlib.Option.Option.None) |> Builtin.unwrap) = Builtin.testDerrorMessage "Cannot unwrap None"
-  ((Stdlib.Result.Result.Error 5L) |> Builtin.unwrap) = Builtin.testDerrorMessage "Cannot unwrap Error: 5"
-
-  (true |> Builtin.unwrap) = Builtin.testDerrorMessage "Can only unwrap Options and Results, yet got true"
-  (Builtin.unwrap 1 2) = Builtin.testDerrorMessage "Builtin.unwrap expects 1 argument, but got 2 arguments"
+  ((Stdlib.Option.Option.None) |> Builtin.unwrap) = error="Cannot unwrap None"
+  ((Stdlib.Result.Result.Error 5L) |> Builtin.unwrap) = error="Cannot unwrap Error: 5"
+  (true |> Builtin.unwrap) = error="Can only unwrap Options and Results, yet got true"
+  (Builtin.unwrap 1 2) = error="Builtin.unwrap expects 1 argument, but got 2 arguments"
