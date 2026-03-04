@@ -51,6 +51,41 @@ type Response =
     body: List<UInt8> }
 
 
+// STREAMING TYPES
+
+/// A chunk of data received during streaming
+type StreamChunk =
+  /// Data bytes received
+  | Data of List<UInt8>
+  /// Stream completed successfully
+  | Done
+  /// An error occurred during streaming
+  | Error of String
+
+/// Response from a streaming HTTP request (headers only, body streamed via callback)
+type StreamingResponse =
+  { statusCode: Int64
+    headers: List<(String * String)> }
+
+
+// SSE (Server-Sent Events) TYPES
+
+/// A parsed SSE event
+type SSEEvent =
+  { data: String
+    eventType: String
+    id: String }
+
+/// A chunk from an SSE stream
+type SSEChunk =
+  /// A parsed SSE event
+  | Event of SSEEvent
+  /// Stream completed successfully
+  | Done
+  /// An error occurred during streaming
+  | Error of String
+
+
 /// Make blocking HTTP call to <param uri>. Returns a <type Result> where
 /// the response is wrapped in {{ Ok }} if a response was successfully
 /// received and parsed, and is wrapped in {{ Error }} otherwise
@@ -61,6 +96,42 @@ let request
   (body: List<UInt8>)
   : Stdlib.Result.Result<Response, RequestError> =
   Builtin.httpClientRequest method uri headers body
+
+
+/// Make streaming HTTP call to <param uri>. Delivers raw bytes as they arrive.
+/// Calls <param onChunk> for each chunk of raw byte data received.
+/// Returns a <type Result> with status code and headers when complete,
+/// or an error if the request failed.
+/// Return false from <param onChunk> to stop streaming early.
+///
+/// For SSE (Server-Sent Events) streams (e.g. OpenAI, LLM APIs), use
+/// requestSSE instead, which handles SSE protocol parsing automatically.
+let requestStreaming
+  (method: String)
+  (uri: String)
+  (headers: List<(String * String)>)
+  (body: List<UInt8>)
+  (onChunk: StreamChunk -> Bool)
+  : Stdlib.Result.Result<StreamingResponse, RequestError> =
+  Builtin.httpClientRequestStreaming method uri headers body onChunk
+
+
+/// Make SSE (Server-Sent Events) streaming HTTP call to <param uri>.
+/// Parses the SSE protocol and calls <param onEvent> for each parsed event.
+/// Returns a <type Result> with status code and headers when complete,
+/// or an error if the request failed.
+/// Return false from <param onEvent> to stop streaming early.
+///
+/// This is ideal for streaming LLM responses (OpenAI, Anthropic, etc.)
+/// where the server sends events in the SSE format.
+let requestSSE
+  (method: String)
+  (uri: String)
+  (headers: List<(String * String)>)
+  (body: List<UInt8>)
+  (onEvent: SSEChunk -> Bool)
+  : Stdlib.Result.Result<StreamingResponse, RequestError> =
+  Builtin.httpClientRequestSSE method uri headers body onEvent
 
 
 let get

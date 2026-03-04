@@ -111,6 +111,69 @@ let executeToplevel
   : Task<RT.ExecutionResult> =
   execute exeState (Some tlid, instrs)
 
+/// Execute an applicable (lambda or named fn) with given args,
+/// preserving the lambda instruction cache from the source VM.
+/// Use this when calling a Darklang callback from within a builtin.
+let executeApplicable
+  (exeState : RT.ExecutionState)
+  (sourceVM : RT.VMState)
+  (applicable : RT.Applicable)
+  (args : NEList<RT.Dval>)
+  : Task<RT.ExecutionResult> =
+  let resultReg, rc = 0, 1
+
+  let fnInstr, fnReg, rc =
+    let dval = RT.DApplicable applicable
+    RT.LoadVal(rc, dval), rc, rc + 1
+
+  let argInstrs, argRegs, rc =
+    args
+    |> NEList.fold
+      (fun (instrs, argRegs, rc) arg ->
+        instrs @ [ RT.LoadVal(rc, arg) ], argRegs @ [ rc ], rc + 1)
+      ([], [], rc)
+
+  let applyInstr =
+    RT.Apply(resultReg, fnReg, [], argRegs |> NEList.ofListUnsafe "" [])
+
+  let instrs : RT.Instructions =
+    { registerCount = rc
+      instructions = [ fnInstr ] @ argInstrs @ [ applyInstr ]
+      resultIn = 0 }
+
+  task {
+    let vm = RT.VMState.create (None, instrs)
+    // Copy the lambda cache, and also re-key all entries under Source
+    // so that nested lambdas (e.g. match arms inside a callback) are
+    // findable from the new VM's root frame.
+    let reKeyed =
+      sourceVM.lambdaInstrCache
+      |> Map.fold
+        (fun acc ((_ep, exprId) : RT.ExecutionPoint * id) (v : RT.LambdaImpl) ->
+          acc |> Map.add (RT.Source, exprId) v)
+        sourceVM.lambdaInstrCache
+    vm.lambdaInstrCache <- reKeyed
+    vm.packageFnInstrCache <- sourceVM.packageFnInstrCache
+    try
+      try
+        let! result = Interpreter.execute exeState vm
+        return Ok result
+      with
+      | RT.RuntimeErrorException(_threadID, rte) ->
+        let callStack = callStackFromVM vm
+        return Error(rte, callStack)
+      | ex ->
+        let metadata : Metadata =
+          Exception.toMetadata ex |> List.map (fun (k, v) -> k, string v)
+        do! exeState.reportException exeState vm metadata ex
+        let metadata = metadata |> List.map (fun (k, v) -> k, RT.DString(string v))
+        let callStack = callStackFromVM vm
+        return Error(RTE.UncaughtException(ex.Message, metadata), callStack)
+    finally
+      exeState.test.postTestExecutionHook exeState.test
+  }
+
+
 let executeFunction
   (exeState : RT.ExecutionState)
   (name : RT.FQFnName.FQFnName)
