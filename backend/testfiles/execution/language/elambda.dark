@@ -72,17 +72,17 @@
 // There is weird parser behavior for nested tuples with more than one member.
 // We will need to check the case with a new parser like the Treesitter.
 //
-// (let triplets = [ ((1, "one"), true); ((2,"two"), false) ]
+(let triplets = [ ((1L, "one"), true); ((2L,"two"), false) ]
 
-//  let transformer =
-//    fun ((num, str), flag) ->
-//      if flag then
-//        $"{Stdlib.Int64.toString num}:{str}:TRUE"
-//      else
-//        $"{Stdlib.Int64.toString num}:{str}:FALSE"
+ let transformer =
+   fun ((num, str), flag) ->
+     if flag then
+       $"{Stdlib.Int64.toString num}:{str}:TRUE"
+     else
+       $"{Stdlib.Int64.toString num}:{str}:FALSE"
 
-//  Stdlib.List.map_v0 triplets transformer) =
-//   [ "1:one:TRUE"; "2:two:FALSE" ]
+ Stdlib.List.map_v0 triplets transformer) =
+  [ "1:one:TRUE"; "2:two:FALSE" ]
 
 (let triplets = [ (1L, "one", true); (2L, "two", false) ]
  let transformer = fun (num, str) -> $"{Stdlib.Int64.toString num}:{str}"

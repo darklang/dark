@@ -100,6 +100,43 @@ let exprRTs =
           PT.EInt64(id, 8L)
         ))
 
+      t
+        "lambda with nested tuple arg"
+        "fun ((a, b), c) -> a"
+        (PT.ELambda(
+          id,
+          NEList.singleton(
+            PT.LPTuple(
+              id,
+              PT.LPTuple(id, PT.LPVariable(id, "a"), PT.LPVariable(id, "b"), []),
+              PT.LPVariable(id, "c"),
+              []
+            )
+          ),
+          PT.EVariable(id, "a")
+        ))
+
+      t
+        "lambda with mixed arg and nested tuple arg"
+        "fun x ((a, b), c) -> (x, a, b, c)"
+        (PT.ELambda(
+          id,
+          NEList.doubleton
+            (PT.LPVariable(id, "x"))
+            (PT.LPTuple(
+              id,
+              PT.LPTuple(id, PT.LPVariable(id, "a"), PT.LPVariable(id, "b"), []),
+              PT.LPVariable(id, "c"),
+              []
+            )),
+          PT.ETuple(
+            id,
+            PT.EVariable(id, "x"),
+            PT.EVariable(id, "a"),
+            [ PT.EVariable(id, "b"); PT.EVariable(id, "c") ]
+          )
+        ))
+
       // Now let's test some more complex expressions
       t
         "pipe without expr"
@@ -124,6 +161,5 @@ let exprRTs =
               ) ]
           )
         )) ]
-
 
 let tests = testList "LibParser" [ exprRTs ]

@@ -356,7 +356,6 @@ module Expr =
           [ "expr", other ]
           (Some e.Range)
 
-
     let id = gid ()
 
     match ast with
@@ -530,13 +529,91 @@ module Expr =
           false
         | _ -> true
 
-      let pats =
-        pats
-        |> List.filter skipEmptyVars
+      let synPats = pats |> List.filter skipEmptyVars
+      let parsedPats =
+        synPats
         |> List.map LetPattern.fromSynPat
         |> NEList.ofListUnsafe "Empty lambda args" []
 
-      WT.ELambda(id, pats, c body)
+      let rec letPatternMatchesMatchPattern
+        (letPat : WT.LetPattern)
+        (matchPat : WT.MatchPattern)
+        : bool =
+        match letPat, matchPat with
+        | WT.LPVariable(_, letName), WT.MPVariable(_, matchName) -> letName = matchName
+        | WT.LPUnit _, WT.MPUnit _ -> true
+        | WT.LPTuple(_, l1, l2, lRest), WT.MPTuple(_, m1, m2, mRest) ->
+          List.length lRest = List.length mRest
+          && letPatternMatchesMatchPattern l1 m1
+          && letPatternMatchesMatchPattern l2 m2
+          && List.forall2 letPatternMatchesMatchPattern lRest mRest
+        | _ -> false
+
+      let rec letPatternContainsMatchPattern
+        (container : WT.LetPattern)
+        (candidate : WT.MatchPattern)
+        : bool =
+        if letPatternMatchesMatchPattern container candidate then
+          true
+        else
+          match container with
+          | WT.LPTuple(_, first, second, theRest) ->
+            letPatternContainsMatchPattern first candidate
+            || letPatternContainsMatchPattern second candidate
+            || List.any (fun p -> letPatternContainsMatchPattern p candidate) theRest
+          | _ -> false
+
+      let desugaredTupleLambda : Option<WT.Expr> =
+        // F# can lower tuple-pattern lambdas by introducing a generated identifier
+        // and matching on it inside the lambda body. We normalize this when the
+        // shape is exactly:
+        //
+        //   fun _arg0 -> match _arg0 with | <pat> -> <rhs>
+        //
+        // We support two structural variants:
+        // 1) Trailing lambda arg is a variable equal to <generatedArg>; replace
+        //    that trailing arg with <pat>.
+        // 2) Trailing lambda arg already contains the tuple structure represented
+        //    by <pat>; keep args as-is and drop the redundant wrapper, using <rhs>.
+        //
+        // Any other shape falls through to normal expression parsing.
+        match body with
+        | SynExpr.Match(_,
+                        SynExpr.Ident matchedArg,
+                        [ SynMatchClause(generatedPat, None, rhs, _, _, _) ],
+                        _,
+                        _) when
+          not (List.isEmpty synPats)
+          ->
+          let leadingPats, trailingPat =
+            match List.rev synPats with
+            | trailing :: reversedLeading -> (List.rev reversedLeading, trailing)
+            | [] -> Exception.raiseInternal "missing lambda pattern" []
+
+          let trailingLetPat = LetPattern.fromSynPat trailingPat
+          let generatedMatchPat = MatchPattern.fromSynPat generatedPat
+
+          match trailingPat with
+          // Example:
+          //   fun x _arg1 -> match _arg1 with | (a,b) -> rhs
+          // becomes:
+          //   fun x (a,b) -> rhs
+          | SynPat.Named(SynIdent(lastArg, _), _, _, _) when lastArg.idText = matchedArg.idText ->
+            let rewrittenPats =
+              (leadingPats |> List.map LetPattern.fromSynPat)
+              @ [ LetPattern.fromSynPat generatedPat ]
+              |> NEList.ofListUnsafe "Empty lambda args" []
+            Some(WT.ELambda(id, rewrittenPats, c rhs))
+          // Example:
+          //   fun ((a,b), c) -> match _arg1 with | (a,b) -> rhs
+          // keeps lambda args but unwraps body to:
+          //   fun ((a,b), c) -> rhs
+          | _ when letPatternContainsMatchPattern trailingLetPat generatedMatchPat ->
+            Some(WT.ELambda(id, parsedPats, c rhs))
+          | _ -> None
+        | _ -> None
+
+      Option.defaultValue (WT.ELambda(id, parsedPats, c body)) desugaredTupleLambda
 
 
 
