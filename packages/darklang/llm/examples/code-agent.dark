@@ -1,0 +1,58 @@
+/// Code Agent
+/// A simple coding assistant with file tools
+/// Run with: ./scripts/run-cli eval 'Darklang.LLM.Examples.CodeAgent.run "List the files in packages/darklang/llm"'
+module Darklang.LLM.Examples.CodeAgent
+
+
+let systemPrompt =
+  "You are a coding assistant. You can read, write, list, and search files.
+Use the tools to help the user with their coding tasks.
+Be concise and helpful."
+
+
+/// Code agent with all file tools
+let agent =
+  (Darklang.LLM.Agent.create ())
+  |> Darklang.LLM.Agent.withSystemPrompt systemPrompt
+  |> Darklang.LLM.Agent.withFileTools
+  |> Darklang.LLM.Agent.withMaxTokens 2000L
+  |> Darklang.LLM.Agent.withMaxTurns 10L
+  |> Darklang.LLM.Agent.withTemperature 0.2
+
+
+/// Run the code agent
+let run (task: String) : String =
+  match Darklang.LLM.Agent.run agent task with
+  | Ok result -> result.response
+  | Error e -> $"Error: {e}"
+
+
+/// Run with detailed output (shows tool calls)
+let runVerbose (task: String) : String =
+  match Darklang.LLM.Agent.run agent task with
+  | Ok result ->
+    let tools =
+      if Stdlib.List.isEmpty result.toolCalls then ""
+      else
+        let names = Stdlib.List.map result.toolCalls (fun tc -> tc.name)
+        $"\n\n(Tools used: {Stdlib.String.join names ", "})"
+    result.response ++ tools
+  | Error e -> $"Error: {e}"
+
+
+// QUICK TASKS
+
+/// List files in a directory
+let ls (path: String) : String = run $"List the files in {path}"
+
+/// Read a file
+let cat (path: String) : String = run $"Read the file {path} and show its contents"
+
+/// Search for text in files
+let grep (pattern: String) (path: String) : String = run $"Search for '{pattern}' in {path}"
+
+/// Explain a file
+let explain (path: String) : String = run $"Read {path} and explain what it does"
+
+/// Review a file for issues
+let review (path: String) : String = run $"Read {path} and review it for bugs or improvements"

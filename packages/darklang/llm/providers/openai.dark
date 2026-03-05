@@ -1,0 +1,615 @@
+/// OpenAI-Compatible Provider
+/// Adapts OpenAI-compatible APIs (OpenAI, Ollama, vLLM, Azure, etc.)
+/// to the generic LLM provider interface.
+///
+/// This provider works with any endpoint that implements the
+/// OpenAI Chat Completions API format.
+module Darklang.LLM.Providers.OpenAI
+
+type Json = Stdlib.AltJson.Json
+type Provider = Darklang.LLM.Provider.Provider
+type Request = Darklang.LLM.Provider.Request
+type Response = Darklang.LLM.Provider.Response
+type ProviderError = Darklang.LLM.Provider.ProviderError
+
+
+// CONFIGURATION
+
+type Config =
+  { /// API key (optional for local models like Ollama)
+    apiKey: Stdlib.Option.Option<String>
+    /// API endpoint URL
+    baseUrl: String
+    /// Provider identifier
+    providerId: String
+    /// Human-readable name
+    providerName: String
+    /// Max context tokens
+    maxContextTokens: Int64 }
+
+
+/// OpenAI API configuration
+/// Returns Error if OPENAI_API_KEY environment variable is not set
+let openaiConfig () : Stdlib.Result.Result<Config, String> =
+  match Internal.ApiKeys.fromEnv "OPENAI_API_KEY" "OpenAI" with
+  | Ok apiKey ->
+    Stdlib.Result.Result.Ok(
+      Config
+        { apiKey = Stdlib.Option.Option.Some apiKey
+          baseUrl = "https://api.openai.com/v1/chat/completions"
+          providerId = "openai"
+          providerName = "OpenAI"
+          maxContextTokens = 128000L })
+  | Error e -> Stdlib.Result.Result.Error e
+
+
+/// Azure OpenAI configuration
+/// Returns Error if AZURE_OPENAI_API_KEY environment variable is not set
+let azureConfig
+  (endpoint: String)
+  (deploymentName: String)
+  (apiVersion: String)
+  : Stdlib.Result.Result<Config, String> =
+  match Internal.ApiKeys.fromEnv "AZURE_OPENAI_API_KEY" "Azure OpenAI" with
+  | Ok apiKey ->
+    Stdlib.Result.Result.Ok(
+      Config
+        { apiKey = Stdlib.Option.Option.Some apiKey
+          baseUrl = endpoint ++ "/openai/deployments/" ++ deploymentName ++ "/chat/completions?api-version=" ++ apiVersion
+          providerId = "azure"
+          providerName = "Azure OpenAI"
+          maxContextTokens = 128000L })
+  | Error e -> Stdlib.Result.Result.Error e
+
+
+/// Custom OpenAI-compatible endpoint (no API key required)
+let customConfig (baseUrl: String) (name: String) (maxTokens: Int64) : Config =
+  Config
+    { apiKey = Stdlib.Option.Option.None
+      baseUrl = baseUrl
+      providerId = "custom"
+      providerName = name
+      maxContextTokens = maxTokens }
+
+
+
+
+// REQUEST TRANSFORMATION
+// Convert generic Request to OpenAI format
+
+/// Convert a generic ToolParameter to OpenAI property format
+let parameterToProperty (param: Provider.ToolParameter) : (String * Json) =
+  let baseProp =
+    [ ("type", Json.String param.paramType)
+      ("description", Json.String param.description) ]
+
+  let withEnum =
+    match param.enumValues with
+    | Some values ->
+      let enumJson = Stdlib.List.map values (fun v -> Json.String v)
+      Stdlib.List.append baseProp [ ("enum", Json.Array enumJson) ]
+    | None -> baseProp
+
+  (param.name, Json.Object withEnum)
+
+
+/// Convert a generic ToolSchema to OpenAI function format
+let toolSchemaToJson (tool: Provider.ToolSchema) : Json =
+  let properties =
+    tool.parameters
+    |> Stdlib.List.map parameterToProperty
+
+  let required =
+    tool.parameters
+    |> Stdlib.List.filter (fun p -> p.required)
+    |> Stdlib.List.map (fun p -> Json.String p.name)
+
+  let parameters =
+    Json.Object
+      [ ("type", Json.String "object")
+        ("properties", Json.Object properties)
+        ("required", Json.Array required) ]
+
+  Json.Object
+    [ ("type", Json.String "function")
+      ("function",
+       Json.Object
+         [ ("name", Json.String tool.name)
+           ("description", Json.String tool.description)
+           ("parameters", parameters) ]) ]
+
+
+/// Convert an image source to OpenAI image_url format
+let imageSourceToOpenAI (source: Provider.ImageSource) : Json =
+  let url =
+    match source with
+    | Base64(mediaType, data) -> "data:" ++ mediaType ++ ";base64," ++ data
+    | Url u -> u
+
+  Json.Object
+    [ ("type", Json.String "image_url")
+      ("image_url",
+       Json.Object
+         [ ("url", Json.String url)
+           ("detail", Json.String "auto") ]) ]
+
+/// Convert a single message to OpenAI JSON format (handles images)
+let messageToOpenAI (msg: Provider.Message) : List<Json> =
+  let hasToolResults =
+    Stdlib.List.any msg.contentBlocks (fun block ->
+      match block with
+      | ToolResult(_, _, _) -> true
+      | _ -> false)
+
+  let hasToolUses =
+    Stdlib.List.any msg.contentBlocks (fun block ->
+      match block with
+      | ToolUse(_, _, _) -> true
+      | _ -> false)
+
+  let isSimpleText =
+    match msg.contentBlocks with
+    | [ Text _ ] | [] -> true
+    | _ ->
+      Stdlib.List.all msg.contentBlocks (fun block ->
+        match block with
+        | Text _ | ToolResult(_, _, _) -> true
+        | _ -> false)
+
+  // Handle tool result messages specially - convert to role "tool"
+  if hasToolResults then
+    Stdlib.List.filterMap msg.contentBlocks (fun block ->
+      match block with
+      | ToolResult(toolCallId, content, _isError) ->
+        Stdlib.Option.Option.Some(
+          Json.Object
+            [ ("role", Json.String "tool")
+              ("tool_call_id", Json.String toolCallId)
+              ("content", Json.String content) ])
+      | _ -> Stdlib.Option.Option.None)
+  // Handle assistant messages with tool calls
+  else if hasToolUses then
+    let toolCalls =
+      Stdlib.List.filterMap msg.contentBlocks (fun block ->
+        match block with
+        | ToolUse(id, name, arguments) ->
+          Stdlib.Option.Option.Some(
+            Json.Object
+              [ ("id", Json.String id)
+                ("type", Json.String "function")
+                ("function",
+                 Json.Object
+                   [ ("name", Json.String name)
+                     ("arguments", Json.String(Stdlib.AltJson.format arguments)) ]) ])
+        | _ -> Stdlib.Option.Option.None)
+
+    let content =
+      if msg.content == "" then
+        Json.Null
+      else
+        Json.String msg.content
+
+    [ Json.Object
+        [ ("role", Json.String "assistant")
+          ("content", content)
+          ("tool_calls", Json.Array toolCalls) ] ]
+  else if isSimpleText then
+    // Simple text message
+    [ Json.Object
+        [ ("role", Json.String(Provider.Role.toString msg.role))
+          ("content", Json.String msg.content) ] ]
+  else
+    // Rich content with images
+    let contentArray =
+      Stdlib.List.filterMap msg.contentBlocks (fun block ->
+        match block with
+        | Text t ->
+          Stdlib.Option.Option.Some(
+            Json.Object
+              [ ("type", Json.String "text")
+                ("text", Json.String t) ])
+        | Image source ->
+          Stdlib.Option.Option.Some(imageSourceToOpenAI source)
+        | _ -> Stdlib.Option.Option.None)
+
+    [ Json.Object
+        [ ("role", Json.String(Provider.Role.toString msg.role))
+          ("content", Json.Array contentArray) ] ]
+
+/// Convert generic messages to OpenAI format (supports images and tool results)
+let messagesToOpenAI (req: Request) : List<Json> =
+  // Add system message first if present
+  let systemMessages =
+    match req.systemPrompt with
+    | Some s ->
+      [ Json.Object
+          [ ("role", Json.String "system")
+            ("content", Json.String s) ] ]
+    | None -> []
+
+  // Convert user/assistant messages (may return multiple messages for tool results)
+  let userMessages =
+    req.messages
+    |> Stdlib.List.map messageToOpenAI
+    |> Stdlib.List.flatten
+
+  Stdlib.List.append systemMessages userMessages
+
+
+
+// RESPONSE TRANSFORMATION
+// Convert OpenAI response to generic Response
+
+/// Parse OpenAI finish_reason to generic StopReason
+let parseFinishReason (reason: String) : Provider.StopReason =
+  match reason with
+  | "stop" -> Provider.StopReason.EndTurn
+  | "tool_calls" -> Provider.StopReason.ToolUse
+  | "length" -> Provider.StopReason.MaxTokens
+  | "content_filter" -> Provider.StopReason.ContentFiltered
+  | other -> Provider.StopReason.Error other
+
+
+/// Extract tool calls from OpenAI message
+let extractToolCalls (messageFields: List<(String * Json)>) : List<Provider.ToolCall> =
+  match Stdlib.AltJson.Helpers.getValue "tool_calls" messageFields with
+  | Some (Array toolCalls) ->
+    Stdlib.List.filterMap toolCalls (fun tc ->
+      match tc with
+      | Object tcFields ->
+        let id = Stdlib.AltJson.Helpers.getString "id" tcFields
+
+        let functionFields =
+          Stdlib.AltJson.Helpers.getObject "function" tcFields
+
+        let name = Stdlib.AltJson.Helpers.getString "name" functionFields
+
+        let arguments =
+          match Stdlib.AltJson.Helpers.getString "arguments" functionFields with
+          | Some argsStr ->
+            match Stdlib.AltJson.parse argsStr with
+            | Ok j -> Stdlib.Option.Option.Some j
+            | Error _ -> Stdlib.Option.Option.Some(Json.Object [])
+          | None -> Stdlib.Option.Option.Some(Json.Object [])
+
+        match (id, name, arguments) with
+        | (Some i, Some n, Some args) ->
+          Stdlib.Option.Option.Some(
+            Provider.ToolCall { id = i; name = n; arguments = args })
+        | _ -> Stdlib.Option.Option.None
+      | _ -> Stdlib.Option.Option.None)
+  | _ -> []
+
+
+/// Extract usage from OpenAI response
+/// OpenAI supports prompt caching with up to 75% discount for GPT-4.1 models
+/// Cached tokens are returned under prompt_tokens_details.cached_tokens
+let extractUsage (fields: List<(String * Json)>) : Provider.Usage =
+  let usageFields = Stdlib.AltJson.Helpers.getObject "usage" fields
+  let promptTokens = Stdlib.AltJson.Helpers.getInt "prompt_tokens" usageFields
+  let completionTokens = Stdlib.AltJson.Helpers.getInt "completion_tokens" usageFields
+
+  // Extract cached tokens from prompt_tokens_details if present
+  let promptDetails = Stdlib.AltJson.Helpers.getObject "prompt_tokens_details" usageFields
+  let cachedTokens = Stdlib.AltJson.Helpers.getInt "cached_tokens" promptDetails
+
+  Provider.Usage
+    { inputTokens = promptTokens
+      outputTokens = completionTokens
+      cacheCreationTokens = 0L  // OpenAI doesn't track cache creation separately
+      cacheReadTokens = cachedTokens }
+
+
+
+
+// HTTP REQUEST
+
+/// Build HTTP headers for OpenAI-compatible API requests
+let buildHeaders (config: Config) : List<(String * String)> =
+  let baseHeaders = [ ("Content-Type", "application/json") ]
+  match config.apiKey with
+  | Some key ->
+    // OpenAI uses Bearer token, Azure uses api-key header
+    if Stdlib.String.contains config.baseUrl "azure" then
+      Stdlib.List.append baseHeaders [ ("api-key", key) ]
+    else
+      Stdlib.List.append baseHeaders [ ("Authorization", "Bearer " ++ key) ]
+  | None -> baseHeaders
+
+
+
+
+// TOOL RESULT FORMATTING
+
+/// Format tool results for OpenAI's expected format
+/// OpenAI expects tool results as SEPARATE messages with role "tool"
+let formatToolResults
+  (results: List<Provider.ToolResult>)
+  : List<Provider.Message> =
+  // OpenAI requires each tool result as a separate message with role "tool"
+  // We use the contentBlocks to store the ToolResult, which will be
+  // converted to role "tool" when building the request
+  Stdlib.List.map results (fun r ->
+    Provider.Message
+      { role = Provider.Role.User // Will be converted to "tool"
+        content = r.content
+        contentBlocks =
+          [ Provider.ContentBlock.ToolResult(r.toolCallId, r.content, r.isError) ] })
+
+
+
+// EXTENDED REQUEST SUPPORT (LIMITED)
+// OpenAI doesn't support web search, web fetch, or thinking
+// but we provide basic support for tool choice
+
+/// Convert ToolChoice to OpenAI tool_choice JSON
+let toolChoiceToJson
+  (choice: Provider.ToolChoice)
+  : Json =
+  match choice with
+  | Auto -> Json.String "auto"
+  | Any -> Json.String "required"
+  | Specific name ->
+    Json.Object
+      [ ("type", Json.String "function")
+        ("function", Json.Object [ ("name", Json.String name) ]) ]
+  | None -> Json.String "none"
+
+/// Convert ResponseFormat to OpenAI JSON
+let responseFormatToJson (format: Provider.ResponseFormat) : Json =
+  match format with
+  | Text -> Json.Object [ ("type", Json.String "text") ]
+  | JsonObject -> Json.Object [ ("type", Json.String "json_object") ]
+  | JsonSchema schema ->
+    Json.Object
+      [ ("type", Json.String "json_schema")
+        ("json_schema", schema) ]
+
+
+/// Build request with extended options (full OpenAI support)
+let buildExtendedRequest
+  (req: Request)
+  (ext: Provider.RequestExtensions)
+  : Json =
+  let messages = messagesToOpenAI req
+
+  let tools =
+    if Stdlib.List.isEmpty req.tools then
+      []
+    else
+      Stdlib.List.map req.tools toolSchemaToJson
+
+  let baseFields =
+    [ ("model", Json.String req.model)
+      ("max_tokens", Json.Number (Stdlib.Int64.toFloat req.maxTokens))
+      ("messages", Json.Array messages) ]
+
+  // Add tools if present, with parallel_tool_calls control
+  let withTools =
+    if Stdlib.List.isEmpty tools then
+      baseFields
+    else
+      let toolFields = [ ("tools", Json.Array tools) ]
+      // Add parallel_tool_calls: false if disableParallelToolUse is true
+      let toolFieldsWithParallel =
+        if ext.disableParallelToolUse then
+          Stdlib.List.append toolFields [ ("parallel_tool_calls", Json.Bool false) ]
+        else
+          toolFields
+      Stdlib.List.append baseFields toolFieldsWithParallel
+
+  // Add tool choice if present
+  let withToolChoice =
+    match ext.toolChoice with
+    | Some choice ->
+      let choiceJson = toolChoiceToJson choice
+      Stdlib.List.append withTools [ ("tool_choice", choiceJson) ]
+    | None -> withTools
+
+  // Add temperature if present
+  let withTemp =
+    match req.temperature with
+    | Some t -> Stdlib.List.append withToolChoice [ ("temperature", Json.Number t) ]
+    | None -> withToolChoice
+
+  // Add response format if present
+  let withFormat =
+    match ext.responseFormat with
+    | Some format ->
+      Stdlib.List.append withTemp [ ("response_format", responseFormatToJson format) ]
+    | None -> withTemp
+
+  // Add seed if present
+  let withSeed =
+    match ext.seed with
+    | Some s -> Stdlib.List.append withFormat [ ("seed", Json.Number (Stdlib.Int64.toFloat s)) ]
+    | None -> withFormat
+
+  // Add presence penalty if present
+  let withPresence =
+    match ext.presencePenalty with
+    | Some p -> Stdlib.List.append withSeed [ ("presence_penalty", Json.Number p) ]
+    | None -> withSeed
+
+  // Add frequency penalty if present
+  let withFrequency =
+    match ext.frequencyPenalty with
+    | Some p -> Stdlib.List.append withPresence [ ("frequency_penalty", Json.Number p) ]
+    | None -> withPresence
+
+  // Add top_p if present
+  let withTopP =
+    match ext.topP with
+    | Some p -> Stdlib.List.append withFrequency [ ("top_p", Json.Number p) ]
+    | None -> withFrequency
+
+  Json.Object withTopP
+
+
+/// Parse response to extended format (with OpenAI-specific systemFingerprint)
+let parseExtendedResponse (json: Json) : Stdlib.Result.Result<Provider.ResponseExtended, ProviderError> =
+  match json with
+  | Object fields ->
+    // Get system fingerprint (OpenAI-specific)
+    let systemFingerprint = Stdlib.AltJson.Helpers.getString "system_fingerprint" fields
+
+    // Get first choice
+    let choices = Stdlib.AltJson.Helpers.getArray "choices" fields
+
+    match Stdlib.List.head choices with
+    | Some (Object choiceFields) ->
+      // Get finish reason
+      let finishReason =
+        match Stdlib.AltJson.Helpers.getString "finish_reason" choiceFields with
+        | Some r -> parseFinishReason r
+        | None -> Provider.StopReason.EndTurn
+
+      // Get message
+      let messageFields = Stdlib.AltJson.Helpers.getObject "message" choiceFields
+
+      // Get content (may be null for tool calls)
+      let content =
+        Stdlib.Option.withDefault
+          (Stdlib.AltJson.Helpers.getString "content" messageFields)
+          ""
+
+      // Get tool calls
+      let toolCalls = extractToolCalls messageFields
+
+      // Get usage
+      let usage = extractUsage fields
+
+      Stdlib.Result.Result.Ok(
+        Provider.ResponseExtended
+          { content = content
+            stopReason = finishReason
+            toolCalls = toolCalls
+            usage = usage
+            raw = json
+            // OpenAI doesn't support these Anthropic features
+            thinking = Stdlib.Option.Option.None
+            webSearchResults = []
+            citations = []
+            // OpenAI-specific
+            systemFingerprint = systemFingerprint })
+
+    | _ ->
+      Stdlib.Result.Result.Error(
+        Provider.ProviderError.InvalidRequestError "No choices in response")
+
+  | _ ->
+    Stdlib.Result.Result.Error(
+      Provider.ProviderError.InvalidRequestError "Invalid JSON response")
+
+
+/// Send extended request to OpenAI-compatible API
+let sendExtendedRequest
+  (config: Config)
+  (req: Request)
+  (ext: Provider.RequestExtensions)
+  : Stdlib.Result.Result<Provider.ResponseExtended, ProviderError> =
+  let requestJson = buildExtendedRequest req ext
+  let body = Stdlib.AltJson.format requestJson
+  let headers = buildHeaders config
+
+  let httpResult =
+    Stdlib.HttpClient.post config.baseUrl headers (Stdlib.String.toBytes body)
+
+  match httpResult with
+  | Error e ->
+    Stdlib.Result.Result.Error(
+      Provider.ProviderError.NetworkError(
+        Stdlib.HttpClient.toString e))
+
+  | Ok response ->
+    let bodyStr = Stdlib.String.fromBytesWithReplacement response.body
+
+    Internal.HttpErrors.handleResponse
+      response.statusCode
+      bodyStr
+      (fun body ->
+        match Stdlib.AltJson.parse body with
+        | Ok json -> parseExtendedResponse json
+        | Error e ->
+          Stdlib.Result.Result.Error(
+            Provider.ProviderError.InvalidRequestError e))
+
+
+
+// PROVIDER FACTORIES
+
+/// Internal helper to build a provider from config
+let buildProvider (config: Config) (supportsImages: Bool) : Provider =
+  Provider.Provider
+    { id = config.providerId
+      name = config.providerName
+      send = (fun req ->
+        (sendExtendedRequest config req Provider.emptyExtensions)
+        |> Stdlib.Result.map (fun ext ->
+          Provider.Response
+            { content = ext.content
+              stopReason = ext.stopReason
+              toolCalls = ext.toolCalls
+              usage = ext.usage
+              raw = ext.raw }))
+      sendExtended = (fun req ext -> sendExtendedRequest config req ext)
+      formatToolResults = formatToolResults
+      capabilities =
+        Provider.Capabilities
+          { supportsTools = true
+            supportsStreaming = false
+            supportsSystemPrompt = true
+            supportsImages = supportsImages
+            maxContextTokens = config.maxContextTokens } }
+
+
+/// Create an OpenAI provider with default configuration
+/// Returns Error if OPENAI_API_KEY environment variable is not set
+let create () : Stdlib.Result.Result<Provider, String> =
+  match openaiConfig () with
+  | Ok config -> Stdlib.Result.Result.Ok(buildProvider config true)
+  | Error e -> Stdlib.Result.Result.Error e
+
+
+
+/// Create an OpenAI provider with custom API key
+/// Returns Error if the API key is empty
+let createWithKey (apiKey: String) : Stdlib.Result.Result<Provider, String> =
+  match Internal.ApiKeys.validate apiKey with
+  | Ok _ ->
+    let config =
+      { (customConfig "https://api.openai.com/v1/chat/completions" "OpenAI" 128000L) with
+          apiKey = Stdlib.Option.Option.Some apiKey
+          providerId = "openai" }
+    Stdlib.Result.Result.Ok(buildProvider config true)
+  | Error e -> Stdlib.Result.Result.Error e
+
+
+/// Create an OpenAI-compatible provider with custom config
+/// Used by other providers (Ollama, Azure, etc.) that use OpenAI's API format
+/// Note: Does not validate API key since some providers (like Ollama) don't require one
+let createWithConfig (config: Config) : Provider =
+  buildProvider config false
+
+
+/// Create a custom OpenAI-compatible provider (no API key required)
+let createCustom (baseUrl: String) (name: String) (maxTokens: Int64) : Provider =
+  let config = customConfig baseUrl name maxTokens
+  buildProvider config false
+
+
+/// Create a custom OpenAI-compatible provider with API key
+/// Returns Error if the API key is empty
+let createCustomWithKey
+  (baseUrl: String)
+  (name: String)
+  (apiKey: String)
+  (maxTokens: Int64)
+  : Stdlib.Result.Result<Provider, String> =
+  match Internal.ApiKeys.validate apiKey with
+  | Ok _ ->
+    let config =
+      { (customConfig baseUrl name maxTokens) with
+          apiKey = Stdlib.Option.Option.Some apiKey }
+    Stdlib.Result.Result.Ok(buildProvider config false)
+  | Error e -> Stdlib.Result.Result.Error e

@@ -1,0 +1,121 @@
+/// LLM Agent Basics
+/// Simple examples showing zero-config usage and model selection
+/// Run with: ./scripts/run-cli eval 'Darklang.LLM.Examples.Basics.ask "What is 2+2?"'
+module Darklang.LLM.Examples.Basics
+
+
+// ZERO-CONFIG USAGE
+
+/// Ask a simple question - uses default provider (Anthropic Sonnet)
+let ask (question: String) : String =
+  match Agent.ask question with
+  | Ok response -> response
+  | Error e -> $"Error: {e}"
+
+
+/// Ask with a specific model
+let askWith (modelName: String) (question: String) : String =
+  let model =
+    match modelName with
+    | "haiku" -> Models.Anthropic.haiku45
+    | "sonnet" -> Models.Anthropic.sonnet45
+    | "opus" -> Models.Anthropic.opus46
+    | "gpt4o" -> Models.OpenAI.gpt4o
+    | "gpt4o-mini" -> Models.OpenAI.gpt4oMini
+    | _ -> Models.Anthropic.sonnet45
+
+  match Agent.askWith model question with
+  | Ok response -> response
+  | Error e -> $"Error: {e}"
+
+
+
+// HELPER
+
+/// Create an agent with a given model and token limit, then chat
+let chatWithModel
+  (model: Models.Model)
+  (maxTokens: Int64)
+  (question: String)
+  : String =
+  let agent =
+    (Agent.create ())
+    |> Agent.withModel model
+    |> Agent.withMaxTokens maxTokens
+
+  match Agent.chat agent question with
+  | Ok response -> response
+  | Error e -> $"Error: {e}"
+
+
+// PROVIDER SWITCHING
+
+/// Use Anthropic Claude
+let withAnthropic (question: String) : String =
+  chatWithModel Models.Anthropic.sonnet45 4096L question
+
+/// Use OpenAI GPT
+let withOpenAI (question: String) : String =
+  chatWithModel Models.OpenAI.gpt4o 4096L question
+
+/// Use local Ollama
+let withOllama (question: String) : String =
+  chatWithModel Models.Local.llama3 4096L question
+
+
+// MODEL TIERS (Fast vs Balanced vs Smart)
+
+/// Use fast model (Haiku) - good for simple tasks
+let fast (question: String) : String =
+  chatWithModel Models.Anthropic.haiku45 500L question
+
+/// Use balanced model (Sonnet) - good for most tasks
+let balanced (question: String) : String =
+  chatWithModel Models.Anthropic.sonnet45 2000L question
+
+/// Use smart model (Opus) - good for complex reasoning
+let smart (question: String) : String =
+  chatWithModel Models.Anthropic.opus46 4000L question
+
+
+
+// COMMON CONFIGURATIONS
+
+/// Quick summarization
+let summarize (text: String) : String =
+  let agent =
+    (Agent.create ())
+    |> Agent.withModel Models.Anthropic.haiku45
+    |> Agent.withSystemPrompt "Summarize the following text in 2-3 sentences."
+    |> Agent.withMaxTokens 200L
+    |> Agent.withTemperature 0.3
+
+  match Agent.chat agent text with
+  | Ok response -> response
+  | Error e -> $"Error: {e}"
+
+
+/// Creative writing
+let creative (prompt: String) : String =
+  let agent =
+    (Agent.create ())
+    |> Agent.withSystemPrompt "You are a creative writer. Be imaginative and expressive."
+    |> Agent.withMaxTokens 1000L
+    |> Agent.withTemperature 0.9
+
+  match Agent.chat agent prompt with
+  | Ok response -> response
+  | Error e -> $"Error: {e}"
+
+
+/// Precise factual response
+let factual (question: String) : String =
+  let agent =
+    (Agent.create ())
+    |> Agent.withSystemPrompt "Provide accurate, factual information. Be concise and precise."
+    |> Agent.withMaxTokens 500L
+    |> Agent.withTemperature 0.1
+
+  match Agent.chat agent question with
+  | Ok response -> response
+  | Error e -> $"Error: {e}"

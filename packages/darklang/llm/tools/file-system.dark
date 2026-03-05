@@ -1,0 +1,304 @@
+/// File System Tools for LLM Agents
+/// Provides read, write, list, and search tools with path safety.
+module Darklang.LLM.Tools.FileSystem
+
+type Json = Stdlib.AltJson.Json
+type Tool = Darklang.LLM.Internal.AgentLoop.Tool
+type ToolOutput = Darklang.LLM.Internal.AgentLoop.ToolOutput
+
+
+// PATH SAFETY
+
+let unsafePathError : String =
+  "Unsafe path: only relative paths within the current working directory are allowed"
+
+let isUnsafePath (path: String) : Bool =
+  let segments = Stdlib.String.split path "/"
+  let hasTraversal = Stdlib.List.any segments (fun segment -> segment == "..")
+
+  Stdlib.String.startsWith path "/" ||
+  Stdlib.String.contains path "\n" ||
+  Stdlib.String.contains path "\r" ||
+  hasTraversal
+
+let resolveSafePath (path: String) : Stdlib.Result.Result<String, String> =
+  if path == "" then
+    Stdlib.Result.Result.Error "path required"
+  else if isUnsafePath path then
+    Stdlib.Result.Result.Error unsafePathError
+  else
+    let currentDir = Builtin.directoryCurrent ()
+    let normalized =
+      if path == "." then
+        ""
+      else if Stdlib.String.startsWith path "./" then
+        Stdlib.String.dropFirst path 2L
+      else
+        path
+
+    let fullPath =
+      if normalized == "" then
+        currentDir
+      else
+        $"{currentDir}/{normalized}"
+
+    Stdlib.Result.Result.Ok fullPath
+
+
+
+// DIRECTORY LISTING
+
+let formatDirectoryEntries (entries: List<String>) : String =
+  let lines =
+    Stdlib.List.map entries (fun entryPath ->
+      let pathParts = Stdlib.String.split entryPath "/"
+      let name =
+        match Stdlib.List.last pathParts with
+        | Some n -> n
+        | None -> entryPath
+
+      if Builtin.fileIsDirectory entryPath then
+        name ++ "/"
+      else
+        name)
+
+  if Stdlib.List.isEmpty lines then
+    "(empty directory)"
+  else
+    Stdlib.String.join lines "\n"
+
+
+
+// FILE SEARCH
+
+type SearchState =
+  { filesScanned: Int64
+    matches: List<String>
+    hitResultLimit: Bool
+    hitFileLimit: Bool }
+
+let maxSearchResults : Int64 = 50L
+let maxSearchFiles : Int64 = 200L
+
+let filePathToDisplayPath (fullPath: String) : String =
+  let cwd = Builtin.directoryCurrent ()
+  let cwdPrefix = cwd ++ "/"
+  if Stdlib.String.startsWith fullPath cwdPrefix then
+    Stdlib.String.dropFirst fullPath (Stdlib.String.length cwdPrefix)
+  else if fullPath == cwd then
+    "."
+  else
+    fullPath
+
+let searchFileForPattern
+  (fullPath: String)
+  (pattern: String)
+  (state: SearchState)
+  : SearchState =
+  if state.hitResultLimit || state.hitFileLimit then
+    state
+  else
+    let nextState = { state with filesScanned = state.filesScanned + 1L }
+    if nextState.filesScanned > maxSearchFiles then
+      { nextState with hitFileLimit = true }
+    else
+      match Builtin.fileRead fullPath with
+      | Error _ -> nextState
+      | Ok bytes ->
+        let content = Stdlib.String.fromBytesWithReplacement bytes
+        let displayPath = filePathToDisplayPath fullPath
+        let lines = Stdlib.String.split content "\n"
+
+        let (_, finalState) =
+          lines
+          |> Stdlib.List.fold (1L, nextState) (fun (lineNumber, currentState) line ->
+            if currentState.hitResultLimit then
+              (lineNumber + 1L, currentState)
+            else if Stdlib.String.contains line pattern then
+              let matchText = $"{displayPath}:{Stdlib.Int64.toString lineNumber}: {line}"
+              let updatedMatches = Stdlib.List.append currentState.matches [ matchText ]
+              let reachedLimit = (Stdlib.List.length updatedMatches) >= maxSearchResults
+              let updatedState =
+                { currentState with
+                    matches = updatedMatches
+                    hitResultLimit = reachedLimit }
+              (lineNumber + 1L, updatedState)
+            else
+              (lineNumber + 1L, currentState))
+
+        finalState
+
+let searchPathsForPattern
+  (pendingPaths: List<String>)
+  (pattern: String)
+  (state: SearchState)
+  : SearchState =
+  if state.hitResultLimit || state.hitFileLimit then
+    state
+  else
+    match pendingPaths with
+    | [] -> state
+    | path :: remaining ->
+      if Builtin.fileIsDirectory path then
+        let children = Builtin.directoryList path
+        let nextPending = Stdlib.List.append children remaining
+        searchPathsForPattern nextPending pattern state
+      else
+        let nextState = searchFileForPattern path pattern state
+        searchPathsForPattern remaining pattern nextState
+
+let renderSearchResult (state: SearchState) : String =
+  if Stdlib.List.isEmpty state.matches then
+    "No matches found"
+  else
+    let baseText = Stdlib.String.join state.matches "\n"
+    if state.hitResultLimit then
+      baseText ++ "\n\n(Stopped after 50 matches)"
+    else if state.hitFileLimit then
+      baseText ++ "\n\n(Stopped after scanning 200 files)"
+    else
+      baseText
+
+
+
+// TOOL HANDLERS
+
+let handleRead (input: Json) : Stdlib.Result.Result<ToolOutput, String> =
+  match input with
+  | Object fields ->
+    match Stdlib.AltJson.Helpers.getString "path" fields with
+    | Some path ->
+      match resolveSafePath path with
+      | Error e -> Stdlib.Result.Result.Error e
+      | Ok fullPath ->
+        match Builtin.fileRead fullPath with
+        | Ok bytes ->
+          let content = Stdlib.String.fromBytesWithReplacement bytes
+          Stdlib.Result.Result.Ok(ToolOutput.Text content)
+        | Error e -> Stdlib.Result.Result.Error e
+    | None -> Stdlib.Result.Result.Error "path required"
+  | _ -> Stdlib.Result.Result.Error "invalid input"
+
+
+let handleWrite (input: Json) : Stdlib.Result.Result<ToolOutput, String> =
+  match input with
+  | Object fields ->
+    match (Stdlib.AltJson.Helpers.getString "path" fields,
+           Stdlib.AltJson.Helpers.getString "content" fields) with
+    | (Some path, Some content) ->
+      match resolveSafePath path with
+      | Error e -> Stdlib.Result.Result.Error e
+      | Ok fullPath ->
+        match Builtin.fileWrite (Stdlib.String.toBytes content) fullPath with
+        | Ok _ -> Stdlib.Result.Result.Ok(ToolOutput.Text $"Wrote to {path}")
+        | Error e -> Stdlib.Result.Result.Error e
+    | _ -> Stdlib.Result.Result.Error "path and content required"
+  | _ -> Stdlib.Result.Result.Error "invalid input"
+
+
+let handleList (input: Json) : Stdlib.Result.Result<ToolOutput, String> =
+  let path =
+    match input with
+    | Object fields ->
+      match Stdlib.AltJson.Helpers.getString "path" fields with
+      | Some p -> p
+      | None -> "."
+    | _ -> "."
+  match resolveSafePath path with
+  | Error e -> Stdlib.Result.Result.Error e
+  | Ok fullPath ->
+    if Stdlib.Bool.not (Builtin.fileIsDirectory fullPath) then
+      Stdlib.Result.Result.Error $"Not a directory: {path}"
+    else
+      let entries = Builtin.directoryList fullPath
+      Stdlib.Result.Result.Ok(ToolOutput.Text (formatDirectoryEntries entries))
+
+
+let handleSearch (input: Json) : Stdlib.Result.Result<ToolOutput, String> =
+  match input with
+  | Object fields ->
+    match Stdlib.AltJson.Helpers.getString "pattern" fields with
+    | Some pattern ->
+      if pattern == "" then
+        Stdlib.Result.Result.Error "pattern required"
+      else
+        let path =
+          match Stdlib.AltJson.Helpers.getString "path" fields with
+          | Some p -> p
+          | None -> "."
+
+        match resolveSafePath path with
+        | Error e -> Stdlib.Result.Result.Error e
+        | Ok fullPath ->
+          let initialState =
+            SearchState
+              { filesScanned = 0L
+                matches = []
+                hitResultLimit = false
+                hitFileLimit = false }
+
+          let finalState =
+            if Builtin.fileIsDirectory fullPath then
+              searchPathsForPattern [ fullPath ] pattern initialState
+            else
+              searchFileForPattern fullPath pattern initialState
+
+          Stdlib.Result.Result.Ok(ToolOutput.Text (renderSearchResult finalState))
+    | None -> Stdlib.Result.Result.Error "pattern required"
+  | _ -> Stdlib.Result.Result.Error "invalid input"
+
+
+
+// TOOLS
+
+/// Tool for reading file contents
+let readTool : Tool =
+  Internal.AgentLoop.Tool
+    { schema =
+        Provider.ToolSchema
+          { name = "read_file"
+            description = "Read the contents of a file"
+            parameters = [ Provider.stringParam "path" "Path to the file" ] }
+      handler = handleRead }
+
+
+/// Tool for writing file contents
+let writeTool : Tool =
+  Internal.AgentLoop.Tool
+    { schema =
+        Provider.ToolSchema
+          { name = "write_file"
+            description = "Write content to a file"
+            parameters =
+              [ Provider.stringParam "path" "Path to the file"
+                Provider.stringParam "content" "Content to write" ] }
+      handler = handleWrite }
+
+
+/// Tool for listing directory contents
+let listTool : Tool =
+  Internal.AgentLoop.Tool
+    { schema =
+        Provider.ToolSchema
+          { name = "list_directory"
+            description = "List files in a directory"
+            parameters = [ Provider.optionalStringParam "path" "Directory path (default: current)" ] }
+      handler = handleList }
+
+
+/// Tool for searching file contents
+let searchTool : Tool =
+  Internal.AgentLoop.Tool
+    { schema =
+        Provider.ToolSchema
+          { name = "search_files"
+            description = "Search for text in files"
+            parameters =
+              [ Provider.stringParam "pattern" "Text pattern to search for"
+                Provider.optionalStringParam "path" "Directory to search (default: current)" ] }
+      handler = handleSearch }
+
+
+/// All file system tools
+let all : List<Tool> =
+  [ readTool; writeTool; listTool; searchTool ]

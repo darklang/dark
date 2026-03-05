@@ -1,0 +1,51 @@
+/// Explainer Agent
+/// Explains complex concepts clearly using extended thinking
+/// Run with: ./scripts/run-cli eval 'Darklang.LLM.Examples.Explainer.explain "recursion"'
+module Darklang.LLM.Examples.Explainer
+
+
+let systemPrompt =
+  "You are an Expert Explainer. Break down complex concepts clearly.
+Format: ## Concept → ### Core Idea → ### How It Works → ### Example → ### Key Takeaways"
+
+
+/// Create an explainer agent with extended thinking
+let thinkingAgent =
+  (Darklang.LLM.Agent.create ())
+  |> Darklang.LLM.Agent.withSystemPrompt systemPrompt
+  |> Darklang.LLM.Agent.withThinking 2000L
+  |> Darklang.LLM.Agent.withMaxTokens 4000L
+
+
+/// Create a basic explainer without extended thinking (faster)
+let basicAgent =
+  (Darklang.LLM.Agent.create ())
+  |> Darklang.LLM.Agent.withSystemPrompt systemPrompt
+  |> Darklang.LLM.Agent.withMaxTokens 1500L
+  |> Darklang.LLM.Agent.withTemperature 0.4
+
+
+/// Explain a concept with extended thinking
+let explain (concept: String) : String =
+  match Darklang.LLM.Agent.run thinkingAgent $"Explain: {concept}" with
+  | Ok result -> result.response
+  | Error e -> $"Error: {e}"
+
+
+/// Explain a concept without extended thinking (faster)
+let explainBasic (concept: String) : String =
+  match Darklang.LLM.Agent.run basicAgent $"Explain: {concept}" with
+  | Ok result -> result.response
+  | Error e -> $"Error: {e}"
+
+
+/// Explain with reasoning visible
+let explainShowReasoning (concept: String) : String =
+  match Darklang.LLM.Agent.run thinkingAgent $"Explain: {concept}" with
+  | Ok result ->
+    let thinking =
+      match result.thinking with
+      | Some t -> $"## Reasoning\n\n{t}\n\n---\n\n"
+      | None -> ""
+    thinking ++ result.response
+  | Error e -> $"Error: {e}"

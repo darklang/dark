@@ -183,6 +183,7 @@ module Registry =
       ("merge", "Merge current branch into parent", [], SCM.Merge.execute, SCM.Merge.help, SCM.Merge.complete)
       ("builtins", "List all builtin functions", [], Builtins.execute, Builtins.help, Builtins.complete)
       ("find-values", "Find values of a given type", [], Commands.FindValues.execute, Commands.FindValues.help, Commands.FindValues.complete)
+      ("agent", "AI assistant workflows (ask/code/review/fix/diff)", [ "ai" ], Commands.Agent.execute, Commands.Agent.help, Commands.Agent.complete)
       ("http-server", "Start an HTTP server", [], Commands.HttpServer.execute, Commands.HttpServer.help, Commands.HttpServer.complete)
       ("docs", "Browse in-CLI documentation", [ "doc"; "man" ], Commands.Docs.execute, Commands.Docs.help, Commands.Docs.complete)
       ("undo", "Undo WIP changes to a fn/type/value", [], Packages.Undo.execute, Packages.Undo.help, Packages.Undo.complete)
@@ -240,16 +241,16 @@ module Registry =
   let executeCommandHelp (name: String) (state: AppState) : AppState =
     let handler = findCommand name
     let help = handler.help
-    let resultState = help state
+    let _ = help state
 
     // Automatically append alias information if aliases exist
     match handler.aliases with
-    | [] -> resultState
+    | [] -> state
     | aliases ->
       let aliasText = Stdlib.String.join aliases ", "
       Stdlib.printLine ""
       Stdlib.printLine $"Aliases: {aliasText}"
-      resultState
+      state
 
   // Command groups organized by category (shared between compact and detailed views)
   let commandGroups () : List<(String * List<String>)> =
@@ -257,6 +258,7 @@ module Registry =
       ("SCM", [ "status"; "log"; "commit"; "discard"; "show"; "branch"; "rebase"; "merge" ])
       ("Execution", [ "run"; "eval"; "scripts" ])
       ("Installation", [ "install"; "update"; "uninstall"; "version" ])
+      ("AI", [ "agent" ])
       ("Utilities", [ "clear"; "help"; "docs"; "quit"; "builtins" ]) ]
 
   // Helper function to format a group of commands with details
@@ -619,7 +621,7 @@ let runInteractiveLoop (state: AppState) : Int64 =
 
 /// Extract --branch <name> from args, returning (branchId, remainingArgs).
 /// If --branch is not specified, defaults to main.
-let private parseBranchFlag (args: List<String>) : (Uuid * List<String>) =
+let parseBranchFlag (args: List<String>) : (Uuid * List<String>) =
   // Walk the list looking for "--branch" followed by a name
   let indexed = Stdlib.List.indexedMap args (fun i a -> (i, a))
 
@@ -675,9 +677,7 @@ let executeCliCommand (args: List<String>) : Int64 =
 
     Stdlib.printLine (View.formatWelcome ())
     runInteractiveLoop initialState
-  // Otherwise, just execute command, print result, and exit
-  | _ ->
-    let command = remainingArgs |> Stdlib.String.join " "
-    let finalState = Update.processInput initialState command
+  // Otherwise, execute command directly (shell already split args correctly)
+  | commandName :: commandArgs ->
+    let _ = Registry.executeCommand commandName initialState commandArgs
     0L
-

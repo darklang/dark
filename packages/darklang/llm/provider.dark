@@ -1,0 +1,616 @@
+/// LLM Provider Abstraction Layer
+/// Provider-agnostic interface for language models.
+///
+/// This module defines the core abstractions that allow agents to work with
+/// any LLM provider (Anthropic, OpenAI, Ollama, etc.) through a unified interface.
+module Darklang.LLM.Provider
+
+type Json = Stdlib.AltJson.Json
+
+
+// MESSAGE TYPES
+// Provider-agnostic message representation
+
+/// Message role in a conversation
+type Role =
+  | User
+  | Assistant
+  | System
+
+module Role =
+  let toString (role: Role) : String =
+    match role with
+    | User -> "user"
+    | Assistant -> "assistant"
+    | System -> "system"
+
+  let parse (s: String) : Stdlib.Option.Option<Role> =
+    match s with
+    | "user" -> Stdlib.Option.Option.Some Role.User
+    | "assistant" -> Stdlib.Option.Option.Some Role.Assistant
+    | "system" -> Stdlib.Option.Option.Some Role.System
+    | _ -> Stdlib.Option.Option.None
+
+
+
+// MESSAGE CONTENT TYPES
+// Support for text, images, and tool results in messages
+
+/// Image source - either base64 encoded or URL
+type ImageSource =
+  | Base64 of mediaType: String * data: String
+  | Url of String
+
+/// A content block in a message
+type ContentBlock =
+  | Text of String
+  | Image of ImageSource
+  | ToolResult of toolUseId: String * content: String * isError: Bool
+  | ToolUse of id: String * name: String * arguments: Json
+
+/// A message in a conversation (supports text-only or mixed content)
+type Message =
+  { role: Role
+    /// Simple text content (for backwards compatibility)
+    content: String
+    /// Rich content blocks (for images, tool results, etc.)
+    contentBlocks: List<ContentBlock> }
+
+/// Create a text message with a given role
+let textMessage (role: Role) (content: String) : Message =
+  Message
+    { role = role
+      content = content
+      contentBlocks = [ ContentBlock.Text content ] }
+
+/// Create a user message with text
+let userMessage (content: String) : Message =
+  textMessage Role.User content
+
+/// Create an assistant message with text
+let assistantMessage (content: String) : Message =
+  textMessage Role.Assistant content
+
+/// Create a system message
+let systemMessage (content: String) : Message =
+  textMessage Role.System content
+
+/// Create a user message with an image from URL
+let imageUrlMessage (url: String) (text: String) : Message =
+  Message
+    { role = Role.User
+      content = text
+      contentBlocks =
+        [ ContentBlock.Image(ImageSource.Url url)
+          ContentBlock.Text text ] }
+
+/// Create a user message with an image from base64 data
+let imageBase64Message (mediaType: String) (data: String) (text: String) : Message =
+  Message
+    { role = Role.User
+      content = text
+      contentBlocks =
+        [ ContentBlock.Image(ImageSource.Base64(mediaType, data))
+          ContentBlock.Text text ] }
+
+/// Create a user message with multiple content blocks
+let richMessage (blocks: List<ContentBlock>) : Message =
+  let textContent =
+    blocks
+    |> Stdlib.List.filterMap (fun block ->
+      match block with
+      | Text t -> Stdlib.Option.Option.Some t
+      | _ -> Stdlib.Option.Option.None)
+    |> Stdlib.String.join " "
+
+  Message { role = Role.User; content = textContent; contentBlocks = blocks }
+
+/// Create a tool result message (for OpenAI compatibility - role "tool")
+let toolMessage (toolCallId: String) (content: String) (isError: Bool) : Message =
+  Message
+    { role = Role.User // Will be converted to "tool" role by OpenAI provider
+      content = content
+      contentBlocks = [ ContentBlock.ToolResult(toolCallId, content, isError) ] }
+
+/// Create an assistant message with tool uses
+/// This is needed because Anthropic requires tool_use blocks in the assistant message
+/// when followed by tool_result blocks
+let assistantMessageWithToolUses (content: String) (toolCalls: List<ToolCall>) : Message =
+  let textBlock =
+    if content == "" then
+      []
+    else
+      [ ContentBlock.Text content ]
+
+  let toolUseBlocks =
+    Stdlib.List.map toolCalls (fun tc ->
+      ContentBlock.ToolUse(tc.id, tc.name, tc.arguments))
+
+  Message
+    { role = Role.Assistant
+      content = content
+      contentBlocks = Stdlib.List.append textBlock toolUseBlocks }
+
+
+
+// TOOL DEFINITIONS
+// Provider-agnostic tool schema
+
+/// A parameter for a tool
+type ToolParameter =
+  { name: String
+    paramType: String // "string", "number", "boolean", "integer", "array", "object"
+    description: String
+    required: Bool
+    enumValues: Stdlib.Option.Option<List<String>> }
+
+/// Create a tool parameter
+let makeParam
+  (name: String)
+  (paramType: String)
+  (description: String)
+  (required: Bool)
+  (enumValues: Stdlib.Option.Option<List<String>>)
+  : ToolParameter =
+  ToolParameter
+    { name = name
+      paramType = paramType
+      description = description
+      required = required
+      enumValues = enumValues }
+
+/// Create a required string parameter
+let stringParam (name: String) (description: String) : ToolParameter =
+  makeParam name "string" description true Stdlib.Option.Option.None
+
+/// Create an optional string parameter
+let optionalStringParam (name: String) (description: String) : ToolParameter =
+  makeParam name "string" description false Stdlib.Option.Option.None
+
+/// Create a required enum parameter
+let enumParam (name: String) (description: String) (values: List<String>) : ToolParameter =
+  makeParam name "string" description true (Stdlib.Option.Option.Some values)
+
+/// Create a required integer parameter
+let intParam (name: String) (description: String) : ToolParameter =
+  makeParam name "integer" description true Stdlib.Option.Option.None
+
+/// Create a required boolean parameter
+let boolParam (name: String) (description: String) : ToolParameter =
+  makeParam name "boolean" description true Stdlib.Option.Option.None
+
+
+/// Schema definition for a tool
+type ToolSchema =
+  { name: String
+    description: String
+    parameters: List<ToolParameter> }
+
+
+/// A tool call requested by the model
+type ToolCall =
+  { id: String
+    name: String
+    arguments: Json }
+
+
+/// Result of executing a tool
+type ToolResult =
+  { toolCallId: String
+    content: String
+    isError: Bool }
+
+/// Create a successful tool result
+let toolSuccess (toolCallId: String) (content: String) : ToolResult =
+  ToolResult { toolCallId = toolCallId; content = content; isError = false }
+
+/// Create an error tool result
+let toolError (toolCallId: String) (error: String) : ToolResult =
+  ToolResult { toolCallId = toolCallId; content = error; isError = true }
+
+
+// REQUEST/RESPONSE TYPES
+// Provider-agnostic request and response structures
+
+/// Request to send to an LLM provider
+type Request =
+  { model: String
+    messages: List<Message>
+    systemPrompt: Stdlib.Option.Option<String>
+    tools: List<ToolSchema>
+    maxTokens: Int64
+    temperature: Stdlib.Option.Option<Float>
+    stopSequences: List<String> }
+
+/// Create a new request with defaults
+let createRequest (model: String) : Request =
+  Request
+    { model = model
+      messages = []
+      systemPrompt = Stdlib.Option.Option.None
+      tools = []
+      maxTokens = 4096L
+      temperature = Stdlib.Option.Option.None
+      stopSequences = [] }
+
+/// Add messages to a request
+let withMessages (req: Request) (messages: List<Message>) : Request =
+  { req with messages = messages }
+
+/// Add a system prompt to a request
+let withSystemPrompt (req: Request) (prompt: String) : Request =
+  { req with systemPrompt = Stdlib.Option.Option.Some prompt }
+
+/// Add tools to a request
+let withTools (req: Request) (tools: List<ToolSchema>) : Request =
+  { req with tools = tools }
+
+/// Set max tokens for a request
+let withMaxTokens (req: Request) (tokens: Int64) : Request =
+  { req with maxTokens = tokens }
+
+/// Set temperature for a request
+let withTemperature (req: Request) (temp: Float) : Request =
+  { req with temperature = Stdlib.Option.Option.Some temp }
+
+
+/// Why the model stopped generating
+type StopReason =
+  | EndTurn // Model finished naturally
+  | ToolUse // Model wants to call tools
+  | MaxTokens // Hit token limit
+  | StopSequence // Hit a stop sequence
+  | ContentFiltered // Safety filter triggered
+  | Error of String // Provider error
+
+module StopReason =
+  let toString (r: StopReason) : String =
+    match r with
+    | EndTurn -> "end_turn"
+    | ToolUse -> "tool_use"
+    | MaxTokens -> "max_tokens"
+    | StopSequence -> "stop_sequence"
+    | ContentFiltered -> "content_filtered"
+    | Error msg -> "error: " ++ msg
+
+  /// Check if this is a terminal state (no more turns needed)
+  let isTerminal (r: StopReason) : Bool =
+    match r with
+    | ToolUse -> false
+    | _ -> true
+
+  /// Check if this indicates successful completion
+  let isSuccess (r: StopReason) : Bool =
+    match r with
+    | EndTurn -> true
+    | StopSequence -> true
+    | _ -> false
+
+
+/// Token usage information
+type Usage =
+  { inputTokens: Int64
+    outputTokens: Int64
+    /// Tokens used to create prompt cache (Anthropic)
+    cacheCreationTokens: Int64
+    /// Tokens read from prompt cache (Anthropic)
+    cacheReadTokens: Int64 }
+
+let emptyUsage : Usage =
+  Usage
+    { inputTokens = 0L
+      outputTokens = 0L
+      cacheCreationTokens = 0L
+      cacheReadTokens = 0L }
+
+let addUsage (a: Usage) (b: Usage) : Usage =
+  Usage
+    { inputTokens = a.inputTokens + b.inputTokens
+      outputTokens = a.outputTokens + b.outputTokens
+      cacheCreationTokens = a.cacheCreationTokens + b.cacheCreationTokens
+      cacheReadTokens = a.cacheReadTokens + b.cacheReadTokens }
+
+
+/// Response from an LLM provider
+type Response =
+  { content: String
+    stopReason: StopReason
+    toolCalls: List<ToolCall>
+    usage: Usage
+    raw: Json }
+
+
+
+// PROVIDER ERROR TYPES
+
+/// Errors that can occur when calling an LLM provider
+type ProviderError =
+  | AuthenticationError of String
+  | RateLimitError of String
+  | InvalidRequestError of String
+  | ServerError of String
+  | NetworkError of String
+  | ContentFilterError of String
+  | Unknown of String
+
+module ProviderError =
+  let toString (e: ProviderError) : String =
+    match e with
+    | AuthenticationError msg -> "Authentication error: " ++ msg
+    | RateLimitError msg -> "Rate limit exceeded: " ++ msg
+    | InvalidRequestError msg -> "Invalid request: " ++ msg
+    | ServerError msg -> "Server error: " ++ msg
+    | NetworkError msg -> "Network error: " ++ msg
+    | ContentFilterError msg -> "Content filtered: " ++ msg
+    | Unknown msg -> "Unknown error: " ++ msg
+
+  /// Check if the error is retryable
+  let isRetryable (e: ProviderError) : Bool =
+    match e with
+    | NetworkError _ -> true
+    | RateLimitError _ -> true
+    | ServerError _ -> true
+    | _ -> false
+
+
+
+// PROVIDER CAPABILITIES
+
+/// What features a provider supports
+type Capabilities =
+  { supportsTools: Bool
+    supportsStreaming: Bool
+    supportsSystemPrompt: Bool
+    supportsImages: Bool
+    maxContextTokens: Int64 }
+
+
+// PROVIDER INTERFACE
+
+/// The core provider interface that all LLM providers implement
+type Provider =
+  { /// Unique identifier for this provider
+    id: String
+
+    /// Human-readable name
+    name: String
+
+    /// Send a request and get a response
+    send: Request -> Stdlib.Result.Result<Response, ProviderError>
+
+    /// Send a request with extended options (for provider-specific features)
+    sendExtended: Request -> RequestExtensions -> Stdlib.Result.Result<ResponseExtended, ProviderError>
+
+    /// Format tool results for the next request
+    /// Returns a list of messages (OpenAI needs separate messages per tool result)
+    formatToolResults: List<ToolResult> -> List<Message>
+
+    /// Provider capabilities
+    capabilities: Capabilities }
+
+
+
+// RETRY LOGIC
+// Automatic retry for transient errors
+
+/// Configuration for retry behavior
+/// NOTE: Retries happen immediately (no backoff delay).
+/// When a sleep builtin is available, delay fields can be added.
+type RetryConfig =
+  { maxRetries: Int64 }
+
+/// Default retry configuration (3 retries, no delay)
+let defaultRetryConfig : RetryConfig =
+  RetryConfig { maxRetries = 3L }
+
+/// Retry state for tracking attempts
+type RetryState<'a> =
+  { attempt: Int64
+    lastError: Stdlib.Option.Option<ProviderError>
+    result: Stdlib.Option.Option<Stdlib.Result.Result<'a, ProviderError>>
+    isDone: Bool }
+
+/// Execute one retry attempt
+let doRetryAttempt
+  (config: RetryConfig)
+  (sendFn: Unit -> Stdlib.Result.Result<'a, ProviderError>)
+  (state: RetryState<'a>)
+  : RetryState<'a> =
+  if state.isDone then
+    state
+  else if state.attempt >= config.maxRetries then
+    let err =
+      match state.lastError with
+      | Some e -> e
+      | None -> ProviderError.Unknown "Max retries with no error"
+    { state with
+        result = Stdlib.Option.Option.Some(Stdlib.Result.Result.Error err)
+        isDone = true }
+  else
+    match sendFn () with
+    | Ok result ->
+      { state with
+          result = Stdlib.Option.Option.Some(Stdlib.Result.Result.Ok result)
+          isDone = true }
+    | Error e ->
+      if ProviderError.isRetryable e then
+        { state with
+            attempt = state.attempt + 1L
+            lastError = Stdlib.Option.Option.Some e }
+      else
+        { state with
+            lastError = Stdlib.Option.Option.Some e
+            result = Stdlib.Option.Option.Some(Stdlib.Result.Result.Error e)
+            isDone = true }
+
+/// Run the retry loop
+let runRetryLoop
+  (config: RetryConfig)
+  (sendFn: Unit -> Stdlib.Result.Result<'a, ProviderError>)
+  (state: RetryState<'a>)
+  : Stdlib.Result.Result<'a, ProviderError> =
+  let newState = doRetryAttempt config sendFn state
+
+  if newState.isDone then
+    match newState.result with
+    | Some r -> r
+    | None -> Stdlib.Result.Result.Error(ProviderError.Unknown "Retry loop ended without result")
+  else
+    runRetryLoop config sendFn newState
+
+/// Retry a request for transient errors (no backoff delay)
+let retry
+  (config: RetryConfig)
+  (sendFn: Unit -> Stdlib.Result.Result<'a, ProviderError>)
+  : Stdlib.Result.Result<'a, ProviderError> =
+  let initialState =
+    RetryState
+      { attempt = 0L
+        lastError = Stdlib.Option.Option.None
+        result = Stdlib.Option.Option.None
+        isDone = false }
+  runRetryLoop config sendFn initialState
+
+/// Retry a request using default configuration
+let retryRequest
+  (sendFn: Unit -> Stdlib.Result.Result<'a, ProviderError>)
+  : Stdlib.Result.Result<'a, ProviderError> =
+  retry defaultRetryConfig sendFn
+
+
+
+// EXTENDED REQUEST OPTIONS
+// Provider-specific features that can be enabled
+
+/// Tool choice behavior
+type ToolChoice =
+  | Auto // Let the model decide
+  | Any // Force the model to use a tool
+  | Specific of String // Force a specific tool
+  | None // Disable tools for this request
+
+/// Thinking configuration
+type ThinkingConfig =
+  | Disabled
+  | Enabled of budgetTokens: Int64
+  | Adaptive // Let the model decide (Anthropic Opus 4.6+)
+
+/// Web search configuration
+type WebSearchConfig =
+  { maxUses: Stdlib.Option.Option<Int64>
+    allowedDomains: Stdlib.Option.Option<List<String>>
+    blockedDomains: Stdlib.Option.Option<List<String>> }
+
+let defaultWebSearch : WebSearchConfig =
+  WebSearchConfig
+    { maxUses = Stdlib.Option.Option.None
+      allowedDomains = Stdlib.Option.Option.None
+      blockedDomains = Stdlib.Option.Option.None }
+
+/// Web fetch configuration
+type WebFetchConfig =
+  { maxUses: Stdlib.Option.Option<Int64>
+    allowedDomains: Stdlib.Option.Option<List<String>>
+    blockedDomains: Stdlib.Option.Option<List<String>>
+    enableCitations: Bool }
+
+let defaultWebFetch : WebFetchConfig =
+  WebFetchConfig
+    { maxUses = Stdlib.Option.Option.None
+      allowedDomains = Stdlib.Option.Option.None
+      blockedDomains = Stdlib.Option.Option.None
+      enableCitations = false }
+
+/// Response format for structured outputs (OpenAI)
+type ResponseFormat =
+  | Text
+  | JsonObject
+  | JsonSchema of schema: Json
+
+/// Extended request options for provider-specific features
+type RequestExtensions =
+  { /// Tool choice behavior
+    toolChoice: Stdlib.Option.Option<ToolChoice>
+    /// Extended thinking (Anthropic)
+    thinking: Stdlib.Option.Option<ThinkingConfig>
+    /// Web search server tool (Anthropic)
+    webSearch: Stdlib.Option.Option<WebSearchConfig>
+    /// Web fetch server tool (Anthropic)
+    webFetch: Stdlib.Option.Option<WebFetchConfig>
+    /// Disable parallel tool use
+    disableParallelToolUse: Bool
+    /// Enable extended context window (1M tokens for Claude 4.6 models)
+    extendedContext: Bool
+    /// Response format for structured outputs (OpenAI)
+    responseFormat: Stdlib.Option.Option<ResponseFormat>
+    /// Seed for reproducible outputs (OpenAI)
+    seed: Stdlib.Option.Option<Int64>
+    /// Presence penalty -2.0 to 2.0 (OpenAI)
+    presencePenalty: Stdlib.Option.Option<Float>
+    /// Frequency penalty -2.0 to 2.0 (OpenAI)
+    frequencyPenalty: Stdlib.Option.Option<Float>
+    /// Top-p nucleus sampling 0.0 to 1.0 (OpenAI)
+    topP: Stdlib.Option.Option<Float> }
+
+let emptyExtensions : RequestExtensions =
+  RequestExtensions
+    { toolChoice = Stdlib.Option.Option.None
+      thinking = Stdlib.Option.Option.None
+      webSearch = Stdlib.Option.Option.None
+      webFetch = Stdlib.Option.Option.None
+      disableParallelToolUse = false
+      extendedContext = false
+      responseFormat = Stdlib.Option.Option.None
+      seed = Stdlib.Option.Option.None
+      presencePenalty = Stdlib.Option.Option.None
+      frequencyPenalty = Stdlib.Option.Option.None
+      topP = Stdlib.Option.Option.None }
+
+
+
+// EXTENDED RESPONSE DATA
+// Provider-specific data that may be returned
+
+/// A web search result
+type WebSearchResult =
+  { url: String
+    title: String
+    pageAge: Stdlib.Option.Option<String> }
+
+/// A citation from the response
+type Citation =
+  { citationType: String
+    url: Stdlib.Option.Option<String>
+    title: Stdlib.Option.Option<String>
+    citedText: Stdlib.Option.Option<String>
+    startIndex: Stdlib.Option.Option<Int64>
+    endIndex: Stdlib.Option.Option<Int64> }
+
+/// Extended response with provider-specific data
+type ResponseExtended =
+  { /// Base response data
+    content: String
+    stopReason: StopReason
+    toolCalls: List<ToolCall>
+    usage: Usage
+    raw: Json
+    /// Extended data
+    thinking: Stdlib.Option.Option<String>
+    webSearchResults: List<WebSearchResult>
+    citations: List<Citation>
+    /// System fingerprint for reproducibility (OpenAI)
+    systemFingerprint: Stdlib.Option.Option<String> }
+
+
+
+// PROVIDER LOOKUP
+
+/// Get the provider for a model based on its providerId
+/// Returns Error if required API keys are not set or provider is unknown
+let forModel (model: Darklang.LLM.Models.Model) : Stdlib.Result.Result<Provider, String> =
+  match model.providerId with
+  | "anthropic" -> Darklang.LLM.Providers.Anthropic.create ()
+  | "openai" -> Darklang.LLM.Providers.OpenAI.create ()
+  | "ollama" -> Stdlib.Result.Result.Ok(Darklang.LLM.Providers.Ollama.create ())
+  | "local" -> Stdlib.Result.Result.Ok(Darklang.LLM.Providers.Ollama.create ())
+  | other -> Stdlib.Result.Result.Error $"Unknown provider: {other}"

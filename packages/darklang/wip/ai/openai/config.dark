@@ -1,0 +1,10 @@
+/// OpenAI API Configuration
+/// WIP: Direct API bindings that are experimental and may become outdated.
+/// For most use cases, prefer `Darklang.LLM.Agent`.
+module Darklang.WIP.AI.OpenAI.Config
+
+let baseUrl : String = "https://api.openai.com/v1"
+
+let getHeaders (apiKey: String) : List<(String * String)> =
+  [ ("Authorization", "Bearer " ++ apiKey)
+    ("Content-Type", "application/json") ]

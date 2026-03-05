@@ -1,0 +1,447 @@
+module Darklang.Cli.Commands.Agent
+
+// TYPES & OPTIONS
+type WriteMode =
+  | Allowed       // --yes: no prompts
+  | Confirm       // default: prompt per write command
+  | Denied        // read-only mode
+
+type AgentOptions =
+  { writeMode: WriteMode
+    provider: Stdlib.Option.Option<String>
+    model: Stdlib.Option.Option<String>
+    args: List<String> }
+
+let defaultOptions =
+  AgentOptions
+    { writeMode = WriteMode.Confirm
+      provider = Stdlib.Option.Option.None
+      model = Stdlib.Option.Option.None
+      args = [] }
+
+let parseOptions (args: List<String>) (options: AgentOptions) : AgentOptions =
+  match args with
+  | [] -> options
+  | "--yes" :: rest -> parseOptions rest { options with writeMode = WriteMode.Allowed }
+  | "-y" :: rest -> parseOptions rest { options with writeMode = WriteMode.Allowed }
+  | "--provider" :: provider :: rest ->
+    parseOptions rest { options with provider = Stdlib.Option.Option.Some provider }
+  | "--provider" :: [] -> options
+  | "--model" :: model :: rest ->
+    parseOptions rest { options with model = Stdlib.Option.Option.Some model }
+  | "--model" :: [] -> options
+  | arg :: rest ->
+    parseOptions rest { options with args = Stdlib.List.append options.args [ arg ] }
+
+
+
+// CONFIGURATION: PROVIDERS
+let validProviders : List<String> = [ "anthropic"; "openai"; "local" ]
+
+let resolveProvider (requested: Stdlib.Option.Option<String>) : String =
+  match requested with
+  | Some p -> p
+  | None ->
+    match (Stdlib.Env.get "ANTHROPIC_API_KEY", Stdlib.Env.get "OPENAI_API_KEY") with
+    | (Some _, _) -> "anthropic"
+    | (None, Some _) -> "openai"
+    | _ -> "local"
+
+let providerDisplayName (provider: String) : String =
+  match provider with
+  | "anthropic" -> "Anthropic"
+  | "openai" -> "OpenAI"
+  | "local" -> "Local (Ollama)"
+  | _ -> provider
+
+
+
+// CONFIGURATION: MODELS
+let defaultModelForProvider (provider: String) : Darklang.LLM.Models.Model =
+  match provider with
+  | "anthropic" -> Darklang.LLM.Models.Anthropic.sonnet45
+  | "openai" -> Darklang.LLM.Models.OpenAI.gpt4o
+  | "local" -> Darklang.LLM.Models.Local.llama3
+  | _ -> Darklang.LLM.Models.Anthropic.sonnet45
+
+let lookupModelAlias (modelName: String) : Stdlib.Option.Option<Darklang.LLM.Models.Model> =
+  match Stdlib.String.toLowercase modelName with
+  // Anthropic
+  | "opus" | "opus46" | "claude-opus-4-6" -> Stdlib.Option.Option.Some Darklang.LLM.Models.Anthropic.opus46
+  | "sonnet" | "sonnet46" | "claude-sonnet-4-6" -> Stdlib.Option.Option.Some Darklang.LLM.Models.Anthropic.sonnet46
+  | "opus45" | "claude-opus-4-5" -> Stdlib.Option.Option.Some Darklang.LLM.Models.Anthropic.opus45
+  | "sonnet45" | "claude-sonnet-4-5" -> Stdlib.Option.Option.Some Darklang.LLM.Models.Anthropic.sonnet45
+  | "haiku" | "haiku45" | "claude-haiku-4-5" -> Stdlib.Option.Option.Some Darklang.LLM.Models.Anthropic.haiku45
+  // OpenAI
+  | "gpt4o" | "gpt-4o" -> Stdlib.Option.Option.Some Darklang.LLM.Models.OpenAI.gpt4o
+  | "gpt4o-mini" | "gpt-4o-mini" | "mini" -> Stdlib.Option.Option.Some Darklang.LLM.Models.OpenAI.gpt4oMini
+  // Local
+  | "llama" | "llama3" -> Stdlib.Option.Option.Some Darklang.LLM.Models.Local.llama3
+  | "llama3-70b" | "llama70b" -> Stdlib.Option.Option.Some Darklang.LLM.Models.Local.llama3_70b
+  | _ -> Stdlib.Option.Option.None
+
+
+
+// CONFIGURATION: PROMPTS
+let systemPrompt : String =
+  """You are a Darklang CLI assistant with a `cli` tool. Darklang is a live programming environment—code lives in a persistent package tree, not files.
+
+## Workflow
+  fn <name>      - Create function (use full path: Darklang.Module.myFn)
+  run <fn>       - Test it
+  status         - See uncommitted changes
+  commit <msg>   - Save to SCM
+
+## Exploration
+  tree           - Package structure
+  search <term>  - Find anything
+  view <name>    - Inspect code
+  deps <name>    - See dependencies
+
+## Critical Syntax
+- Whitespace-sensitive (like Python)
+- No nested function definitions
+- Lists use semicolons: [1L; 2L; 3L]
+- String concat: ++ (not +)
+- Pipe needs parens for complex LHS: (expr) |> fn
+
+## Names
+Full paths required: Darklang.Module.functionName
+Inside function body, use short names for recursion.
+
+## Help
+  help / help <cmd>    - Command reference
+  docs syntax          - Language syntax
+  docs errors          - Common fixes
+
+Branch context is handled automatically—don't pass --branch.
+
+Be concise. Run commands to verify. If stuck, use `docs` or `help`."""
+
+let toolDescriptionReadOnly : String =
+  "Run a Darklang CLI command (read-only). Explore: tree, search, view, deps, nav, ls, back. Test: run, eval. Info: status, log, help, docs, builtins, find-values, scripts, clear."
+
+let toolDescriptionWriteEnabled : String =
+  "Run a Darklang CLI command. Create: fn, type, val (use full paths). Test: run, eval. SCM: status, commit, discard, branch, rebase, merge. Explore: tree, search, view, deps, help, docs."
+
+
+
+// CLI TOOL (what the agent calls)
+let readOnlyCommands : List<String> =
+  [ "run"; "eval"; "nav"; "ls"; "back"; "search"; "view"; "status"; "tree"
+    "deps"; "builtins"; "find-values"; "scripts"; "log"; "clear"; "help"; "docs" ]
+
+let writeCommands : List<String> =
+  [ "fn"; "val"; "type"; "commit"; "discard"; "branch"; "rebase"; "merge" ]
+
+let hasUnsafeChars (input: String) : Bool =
+  Stdlib.String.contains input ";" || Stdlib.String.contains input "|" ||
+  Stdlib.String.contains input "&" || Stdlib.String.contains input "\n" ||
+  Stdlib.String.contains input "$" || Stdlib.String.contains input "`"
+
+let findCliExecutable : Stdlib.Option.Option<String> =
+  if Builtin.fileExists "./scripts/run-cli" then Stdlib.Option.Option.Some "./scripts/run-cli"
+  else if Stdlib.Cli.Unix.isCommandAvailable "dark" then Stdlib.Option.Option.Some "dark"
+  else Stdlib.Option.Option.None
+
+let confirmCommand (cmd: String) : Bool =
+  Stdlib.print (Colors.warning $"Allow: {cmd}? (y/n): ")
+  let response = Stdlib.String.trim (Builtin.stdinReadLine ())
+  response == "y" || response == "Y"
+
+let runCliCommand
+  (branchArg: String)
+  (writeMode: WriteMode)
+  (rawCmd: String)
+  : Stdlib.Result.Result<Darklang.LLM.Agent.ToolOutput, String> =
+  let cmd = Stdlib.String.trim rawCmd
+
+  if Stdlib.String.isEmpty cmd then
+    Stdlib.Result.Result.Error "command required"
+  else if hasUnsafeChars cmd then
+    Stdlib.Result.Result.Error "unsafe characters in command"
+  else if Stdlib.String.contains cmd "--branch" then
+    Stdlib.Result.Result.Error "Do not pass --branch; agent manages branch context automatically"
+  else
+
+  let parts = cmd |> Stdlib.String.split " " |> Stdlib.List.filter (fun s -> s != "")
+
+  match parts with
+  | [] -> Stdlib.Result.Result.Error "command required"
+  | commandName :: _ ->
+    let isWriteCommand = Stdlib.List.member_v0 writeCommands commandName
+    let writesAllowed = writeMode != WriteMode.Denied
+
+    let allCommands = Stdlib.List.append readOnlyCommands writeCommands
+    let commandExists = Stdlib.List.member_v0 allCommands commandName
+
+    // Check confirmation for write commands
+    let userRejected =
+      if isWriteCommand && writeMode == WriteMode.Confirm then
+        Stdlib.Bool.not (confirmCommand cmd)
+      else
+        false
+
+    if Stdlib.Bool.not commandExists then
+      Stdlib.Result.Result.Error ("unknown command: " ++ commandName)
+    else if isWriteCommand && (Stdlib.Bool.not writesAllowed) then
+      Stdlib.Result.Result.Error "write commands not allowed in read-only mode"
+    else if userRejected then
+      Stdlib.Result.Result.Error "command rejected by user"
+    else
+      match findCliExecutable with
+      | Some exe ->
+        let fullCmd = exe ++ " " ++ branchArg ++ " " ++ cmd
+        Stdlib.printLine (Colors.dimText ("[agent] cli> " ++ cmd))
+        let result = Stdlib.Cli.execute fullCmd
+
+        match result.exitCode with
+        | 0L ->
+          let output = if result.stdout == "" then "(no output)" else result.stdout
+          if Stdlib.String.startsWith (Stdlib.String.trim output) "Error:" then
+            Stdlib.Result.Result.Error (Stdlib.String.trim output)
+          else
+            let preview = if (Stdlib.String.length output) > 100L then (Stdlib.String.slice output 0L 100L) ++ "..." else output
+            Stdlib.printLine (Colors.dimText ("  -> " ++ preview))
+            Stdlib.Result.Result.Ok (Darklang.LLM.Agent.ToolOutput.text output)
+        | exitCode ->
+          let details = if result.stderr != "" then result.stderr else if result.stdout != "" then result.stdout else "no output"
+          let errorMsg = "CLI command failed (exit " ++ (Stdlib.Int64.toString exitCode) ++ "): " ++ (Stdlib.String.trim details)
+          Stdlib.printLine (Colors.error ("  -> " ++ errorMsg))
+          Stdlib.Result.Result.Error errorMsg
+      | None -> Stdlib.Result.Result.Error "Could not find CLI executable"
+
+
+/// Creates the tool the LLM calls to execute CLI commands
+let makeCliTool (branchName: String) (writeMode: WriteMode) : Darklang.LLM.Agent.Tool =
+  let writesEnabled = writeMode != WriteMode.Denied
+  let description = if writesEnabled then toolDescriptionWriteEnabled else toolDescriptionReadOnly
+  let branchArg = "--branch " ++ branchName
+  Darklang.LLM.Agent.makeTool "cli" description
+    [ Darklang.LLM.Provider.stringParam "command" "CLI command to run" ]
+    (fun input ->
+      match input with
+      | Object fields ->
+        match Stdlib.AltJson.Helpers.getString "command" fields with
+        | Some cmd -> runCliCommand branchArg writeMode cmd
+        | None -> Stdlib.Result.Result.Error "command required"
+      | _ -> Stdlib.Result.Result.Error "invalid input")
+
+
+
+// AGENT SETUP
+let currentBranchName (state: Cli.AppState) : String =
+  match SCM.Branch.get state.currentBranchId with
+  | Some b -> b.name
+  | None -> "main"
+
+let createAgent (model: Darklang.LLM.Models.Model) (branchName: String) (writeMode: WriteMode) : Darklang.LLM.Agent.Agent =
+  (Darklang.LLM.Agent.create ())
+  |> Darklang.LLM.Agent.withSystemPrompt systemPrompt
+  |> Darklang.LLM.Agent.withMaxTokens 4000L
+  |> Darklang.LLM.Agent.withMaxTurns 20L
+  |> Darklang.LLM.Agent.withTemperature 0.2
+  |> Darklang.LLM.Agent.withModel model
+  |> Darklang.LLM.Agent.withTool (makeCliTool branchName writeMode)
+
+let printAgentInfo (provider: String) (requestedProvider: Stdlib.Option.Option<String>) (model: Darklang.LLM.Models.Model) (branchName: String) : Unit =
+  let providerName = providerDisplayName provider
+  let providerLine =
+    match requestedProvider with
+    | Some _ -> $"[agent] provider: {providerName}"
+    | None -> $"[agent] provider: {providerName} (auto-detected)"
+  Stdlib.printLine (Colors.dimText providerLine)
+  Stdlib.printLine (Colors.dimText $"[agent] model: {model.name}")
+  Stdlib.printLine (Colors.dimText $"[agent] branch: {branchName}")
+
+let printResult (result: Stdlib.Result.Result<Darklang.LLM.Agent.AgentResult, String>) : Unit =
+  match result with
+  | Ok response ->
+    if Stdlib.Bool.not (Stdlib.List.isEmpty response.toolCalls) then
+      Stdlib.printLine ""
+      Stdlib.printLine (Colors.info "Actions:")
+      Stdlib.List.iter response.toolCalls (fun tc ->
+        let status = if tc.isError then Colors.error "error" else Colors.success "ok"
+        Stdlib.printLine $"  - {tc.name} [{status}]")
+    Stdlib.printLine ""
+    Stdlib.printLine response.response
+  | Error e ->
+    Stdlib.printLine (Colors.error e)
+    if Stdlib.String.contains e "API key" then
+      Stdlib.printLine (Colors.dimText "Tip: set ANTHROPIC_API_KEY or OPENAI_API_KEY, or run with --provider local")
+
+let resolveModel (provider: String) (requestedModel: Stdlib.Option.Option<String>) : Darklang.LLM.Models.Model =
+  match requestedModel with
+  | Some name ->
+    match lookupModelAlias name with
+    | Some m -> m
+    | None ->
+      Stdlib.printLine (Colors.warning $"Unknown model '{name}', using default for {provider}")
+      defaultModelForProvider provider
+  | None -> defaultModelForProvider provider
+
+
+let writeModeLabel (mode: WriteMode) : String =
+  match mode with
+  | Allowed -> Colors.warning "write-enabled (auto)"
+  | Confirm -> Colors.warning "write-enabled (confirm)"
+  | Denied -> Colors.dimText "read-only"
+
+
+
+// EXECUTION
+let runAgent (state: Cli.AppState) (provider: String) (requestedProvider: Stdlib.Option.Option<String>) (requestedModel: Stdlib.Option.Option<String>) (task: String) (writeMode: WriteMode) : Unit =
+  let model = resolveModel provider requestedModel
+  let branchName = currentBranchName state
+  let agent = createAgent model branchName writeMode
+  printAgentInfo provider requestedProvider model branchName
+  let modeLabel = writeModeLabel writeMode
+  Stdlib.printLine (Colors.dimText $"[agent] mode: {modeLabel}")
+  printResult (Darklang.LLM.Agent.run agent task)
+
+let runInteractiveLoop
+  (agent: Darklang.LLM.Agent.Agent)
+  (history: List<Darklang.LLM.Provider.Message>)
+  : Unit =
+  Stdlib.print (Colors.dimText "you> ")
+  let input = Stdlib.String.trim (Builtin.stdinReadLine ())
+
+  if Stdlib.String.isEmpty input then
+    runInteractiveLoop agent history
+  else if input == "exit" || input == "quit" || input == ":q" then
+    ()
+  else
+    Stdlib.print (Colors.dimText "[agent] thinking...")
+    match Darklang.LLM.Agent.runWithHistory agent history input with
+    | Ok response ->
+      Stdlib.print (Colors.carriageReturn ++ Colors.clearLine)
+      Stdlib.printLine ""
+      Stdlib.printLine (Colors.info "agent> ")
+      Stdlib.printLine response.response
+      // Use full message history including tool calls/results for context continuity
+      let _ = runInteractiveLoop agent response.messages
+      ()
+    | Error e ->
+      Stdlib.printLine (Colors.carriageReturn ++ Colors.clearLine ++ Colors.error e)
+      runInteractiveLoop agent history
+
+let runInteractive (state: Cli.AppState) (provider: String) (requestedProvider: Stdlib.Option.Option<String>) (requestedModel: Stdlib.Option.Option<String>) (writeMode: WriteMode) : Unit =
+  let model = resolveModel provider requestedModel
+  let branchName = currentBranchName state
+  let agent = createAgent model branchName writeMode
+  printAgentInfo provider requestedProvider model branchName
+  let modeLabel = writeModeLabel writeMode
+  Stdlib.printLine (Colors.dimText $"[agent] mode: {modeLabel}")
+  Stdlib.printLine (Colors.dimText "[agent] interactive mode. Type ':q' to exit.")
+  runInteractiveLoop agent []
+
+
+
+// SUBCOMMANDS
+let reviewTaskPrompt (itemName: String) : String =
+  $"Review `{itemName}` in the Darklang package tree. Use `view {itemName}` to inspect the code, `deps {itemName}` for dependencies. Check for type errors, logic bugs, missing edge cases. If unsure about syntax, run `docs syntax`."
+
+let fixTaskPrompt (itemName: String) : String =
+  $"Fix an issue in `{itemName}`. Use `view {itemName}` to inspect, `docs syntax` if unsure about syntax, `fn` to update (use full path), `run {itemName}` to test, `status` to verify."
+
+let executeAsk (state: Cli.AppState) (provider: String) (options: AgentOptions) : Unit =
+  let task = Stdlib.String.join options.args " "
+  if Stdlib.String.isEmpty (Stdlib.String.trim task) then
+    runInteractive state provider options.provider options.model options.writeMode
+  else
+    runAgent state provider options.provider options.model task WriteMode.Denied
+
+let executeCode (state: Cli.AppState) (provider: String) (options: AgentOptions) : Unit =
+  let task = Stdlib.String.join options.args " "
+  if Stdlib.String.isEmpty (Stdlib.String.trim task) then
+    Stdlib.printLine (Colors.error "Usage: agent code <task> [--yes|-y]")
+  else
+    runAgent state provider options.provider options.model task options.writeMode
+
+let executeReview (state: Cli.AppState) (provider: String) (options: AgentOptions) : Unit =
+  match options.args with
+  | [ itemName ] -> runAgent state provider options.provider options.model (reviewTaskPrompt itemName) WriteMode.Denied
+  | _ -> Stdlib.printLine (Colors.error "Usage: agent review <item>")
+
+let executeFix (state: Cli.AppState) (provider: String) (options: AgentOptions) : Unit =
+  match options.args with
+  | [ itemName ] -> runAgent state provider options.provider options.model (fixTaskPrompt itemName) options.writeMode
+  | _ -> Stdlib.printLine (Colors.error "Usage: agent fix <item> [--yes|-y]")
+
+type Subcommand = { name: String; description: String; usage: String; execute: Cli.AppState -> String -> AgentOptions -> Unit }
+
+let subcommands : List<Subcommand> =
+  [ Subcommand { name = "ask"; description = "Read-only assistant (or interactive if no task)"; usage = "agent ask [task]"; execute = executeAsk }
+    Subcommand { name = "code"; description = "Write-enabled assistant (confirms each write)"; usage = "agent code <task> [--yes]"; execute = executeCode }
+    Subcommand { name = "review"; description = "Read-only review for a package item"; usage = "agent review <item>"; execute = executeReview }
+    Subcommand { name = "fix"; description = "Fix a package item (confirms each write)"; usage = "agent fix <item> [--yes]"; execute = executeFix } ]
+
+
+
+// ENTRY POINTS
+let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
+  let options = parseOptions args defaultOptions
+  let provider = resolveProvider options.provider
+
+  if Stdlib.Bool.not (Stdlib.List.member_v0 validProviders provider) then
+    Stdlib.printLine (Colors.error $"Unknown provider: {provider}. Use: anthropic, openai, local")
+    state
+  else
+    match options.args with
+    | [] -> runInteractive state provider options.provider options.model options.writeMode; state
+    | "--help" :: _ | "-h" :: _ -> help state
+    | subName :: rest ->
+      match Stdlib.List.findFirst subcommands (fun s -> s.name == subName) with
+      | Some sub ->
+        let subOptions = parseOptions rest { options with args = [] }
+        sub.execute state provider subOptions
+        state
+      | None ->
+        let nameList = Stdlib.List.map subcommands (fun s -> s.name)
+        let names = Stdlib.String.join nameList "|"
+        Stdlib.printLine (Colors.error $"Unknown subcommand. Use: agent {names}")
+        state
+
+let help (state: Cli.AppState) : Cli.AppState =
+  let lines =
+    Stdlib.List.map subcommands (fun s ->
+      let padded =
+        match Stdlib.String.padEnd s.usage " " 40L with
+        | Ok p -> p
+        | Error _ -> s.usage
+      $"  {padded} - {s.description}")
+
+  let header =
+    [ "Usage: dark [--branch <name>] agent [--provider <provider>] [--model <model>]"
+      "       agent <subcommand> [args...]"
+      ""
+      "Subcommands:" ]
+
+  let footer =
+    [ ""
+      "Flags:"
+      "  --provider <anthropic|openai|local>  - Select model provider"
+      "  --model <model>                      - Select model (opus, sonnet, haiku, gpt4o, mini, llama)"
+      "  --yes, -y                            - Allow all writes without prompting"
+      ""
+      "Examples:"
+      "  agent                                - Interactive mode"
+      "  dark --branch feature agent ask ...  - Operate on branch 'feature'"
+      "  agent --model opus ask explain this  - Use Claude Opus"
+      "  agent code add validation            - Prompts before each write"
+      "  agent code add validation --yes      - Allow all writes"
+      "  agent review Darklang.Cli.Core.execute"
+      "  agent fix Darklang.Cli.SCM.Status.render --yes" ]
+
+  let all = Stdlib.List.append (Stdlib.List.append header lines) footer
+  Stdlib.printLines all
+  state
+
+let complete (_state: Cli.AppState) (args: List<String>) : List<Cli.Completion.CompletionItem> =
+  match args with
+  | [] ->
+    Stdlib.List.map subcommands (fun s -> Cli.Completion.withDescription s.name s.description)
+  | [ partial ] ->
+    let filtered = Stdlib.List.filter subcommands (fun s -> Stdlib.String.startsWith s.name partial)
+    Stdlib.List.map filtered (fun s -> Cli.Completion.withDescription s.name s.description)
+  | _ -> []

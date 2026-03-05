@@ -1,0 +1,115 @@
+/// JSON Extractor
+/// Extract structured data from text using OpenAI's JSON mode
+/// Run with: ./scripts/run-cli eval 'Darklang.LLM.Examples.JsonExtractor.extractContact "..."'
+module Darklang.LLM.Examples.JsonExtractor
+
+/// Shared config: GPT-4o-mini with JSON mode at temperature 0.0
+let jsonExtractorAgent (systemPrompt: String) (maxTokens: Int64) : Agent.Agent =
+  (Agent.create ())
+  |> Agent.withSystemPrompt systemPrompt
+  |> Agent.useGPT4oMini
+  |> Agent.withJsonMode
+  |> Agent.withTemperature 0.0
+  |> Agent.withMaxTokens maxTokens
+
+
+// CONTACT EXTRACTION
+
+let contactPrompt =
+  "Extract contact info as JSON: {name, email, phone, company, title, address}. Use null for missing fields."
+
+
+let contactAgent = jsonExtractorAgent contactPrompt 500L
+
+
+/// Run an extraction agent with a prompt prefix
+let runExtraction (agent: Agent.Agent) (prefix: String) (text: String) : String =
+  match Agent.run agent $"{prefix}:\n\n{text}" with
+  | Ok result -> result.response
+  | Error e -> $"{{\"error\": \"{e}\"}}"
+
+
+/// Extract contact information from text
+let extractContact (text: String) : String =
+  runExtraction contactAgent "Extract contact info from" text
+
+
+/// Parsed contact info
+type ContactInfo =
+  { name: Stdlib.Option.Option<String>
+    email: Stdlib.Option.Option<String>
+    phone: Stdlib.Option.Option<String>
+    company: Stdlib.Option.Option<String>
+    title: Stdlib.Option.Option<String>
+    address: Stdlib.Option.Option<String> }
+
+
+let extractContactParsed (text: String) : Stdlib.Result.Result<ContactInfo, String> =
+  match Stdlib.AltJson.parse (extractContact text) with
+  | Error e -> Stdlib.Result.Result.Error e
+  | Ok (Object fields) ->
+    Stdlib.Result.Result.Ok(
+      ContactInfo
+        { name = Stdlib.AltJson.Helpers.getString "name" fields
+          email = Stdlib.AltJson.Helpers.getString "email" fields
+          phone = Stdlib.AltJson.Helpers.getString "phone" fields
+          company = Stdlib.AltJson.Helpers.getString "company" fields
+          title = Stdlib.AltJson.Helpers.getString "title" fields
+          address = Stdlib.AltJson.Helpers.getString "address" fields })
+  | Ok _ -> Stdlib.Result.Result.Error "Expected JSON object"
+
+
+
+// EVENT EXTRACTION
+
+let eventPrompt =
+  "Extract event info as JSON: {title, date (YYYY-MM-DD), time (HH:MM), location, description, attendees:[]}."
+
+
+let eventAgent = jsonExtractorAgent eventPrompt 500L
+
+
+/// Extract event information from text
+let extractEvent (text: String) : String =
+  runExtraction eventAgent "Extract event info from" text
+
+
+
+// ENTITY EXTRACTION
+
+let entityPrompt =
+  "Extract named entities as JSON: {people:[], organizations:[], locations:[], dates:[], amounts:[]}."
+
+
+let entityAgent = jsonExtractorAgent entityPrompt 1000L
+
+
+/// Extract named entities from text
+let extractEntities (text: String) : String =
+  runExtraction entityAgent "Extract entities from" text
+
+
+
+// SENTIMENT ANALYSIS
+
+let sentimentPrompt =
+  "Analyze sentiment as JSON: {overall_sentiment, confidence (0-1), emotions:[], key_phrases:[], summary}."
+
+
+let sentimentAgent = jsonExtractorAgent sentimentPrompt 500L
+
+
+/// Analyze sentiment of text
+let analyzeSentiment (text: String) : String =
+  runExtraction sentimentAgent "Analyze sentiment" text
+
+
+
+// GENERIC EXTRACTION
+
+/// Extract data using a custom schema description (uses GPT-4o for complex schemas)
+let extractWithSchema (schemaDescription: String) (text: String) : String =
+  let agent =
+    (jsonExtractorAgent $"Extract data as JSON matching: {schemaDescription}" 2000L)
+    |> Agent.useGPT4o
+  runExtraction agent "Extract from" text

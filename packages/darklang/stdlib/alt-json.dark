@@ -22,3 +22,222 @@ let format (j: Json) : String = Builtin.altJsonFormat j
 
 let parse (jsonString: String) : Result.Result<Json, ParseError.ParseError> =
   Builtin.altJsonParse jsonString
+
+
+// ---------------------------------------------------------------------------
+// HELPERS
+// Utilities for parsing JSON objects from API responses
+// ---------------------------------------------------------------------------
+
+module Helpers =
+
+  /// Get a string value from a JSON object's fields
+  let getString
+    (key: String)
+    (fields: List<(String * Json)>)
+    : Option.Option<String> =
+    let found = List.findFirst fields (fun (k, _) -> k == key)
+
+    match found with
+    | Some pair ->
+      match Tuple2.second pair with
+      | String s -> Option.Option.Some s
+      | _ -> Option.Option.None
+    | None -> Option.Option.None
+
+
+  /// Get a boolean value from a JSON object's fields
+  let getBool
+    (key: String)
+    (fields: List<(String * Json)>)
+    : Option.Option<Bool> =
+    let found = List.findFirst fields (fun (k, _) -> k == key)
+
+    match found with
+    | Some pair ->
+      match Tuple2.second pair with
+      | Bool b -> Option.Option.Some b
+      | _ -> Option.Option.None
+    | None -> Option.Option.None
+
+
+  /// Get a raw JSON value from a JSON object's fields
+  let getValue
+    (key: String)
+    (fields: List<(String * Json)>)
+    : Option.Option<Json> =
+    let found = List.findFirst fields (fun (k, _) -> k == key)
+
+    match found with
+    | Some pair -> Option.Option.Some(Tuple2.second pair)
+    | None -> Option.Option.None
+
+
+  /// Get an integer value from a JSON object's fields (returns 0 if not found)
+  let getInt (key: String) (fields: List<(String * Json)>) : Int64 =
+    let found = List.findFirst fields (fun (k, _) -> k == key)
+
+    match found with
+    | Some pair ->
+      match Tuple2.second pair with
+      | Number n -> Float.truncate n
+      | _ -> 0L
+    | None -> 0L
+
+
+  /// Get an optional integer value from a JSON object's fields
+  let getIntOption
+    (key: String)
+    (fields: List<(String * Json)>)
+    : Option.Option<Int64> =
+    let found = List.findFirst fields (fun (k, _) -> k == key)
+
+    match found with
+    | Some pair ->
+      match Tuple2.second pair with
+      | Number n -> Option.Option.Some(Float.truncate n)
+      | _ -> Option.Option.None
+    | None -> Option.Option.None
+
+
+  /// Get a float number value from a JSON object's fields
+  let getNumber
+    (key: String)
+    (fields: List<(String * Json)>)
+    : Option.Option<Float> =
+    let found = List.findFirst fields (fun (k, _) -> k == key)
+
+    match found with
+    | Some pair ->
+      match Tuple2.second pair with
+      | Number n -> Option.Option.Some n
+      | _ -> Option.Option.None
+    | None -> Option.Option.None
+
+
+  /// Get an array value from a JSON object's fields (returns [] if not found)
+  let getArray (key: String) (fields: List<(String * Json)>) : List<Json> =
+    let found = List.findFirst fields (fun (k, _) -> k == key)
+
+    match found with
+    | Some pair ->
+      match Tuple2.second pair with
+      | Array items -> items
+      | _ -> []
+    | None -> []
+
+
+  /// Get a nested object's fields from a JSON object (returns [] if not found)
+  let getObject
+    (key: String)
+    (fields: List<(String * Json)>)
+    : List<(String * Json)> =
+    let found = List.findFirst fields (fun (k, _) -> k == key)
+
+    match found with
+    | Some pair ->
+      match Tuple2.second pair with
+      | Object nestedFields -> nestedFields
+      | _ -> []
+    | None -> []
+
+
+// ---------------------------------------------------------------------------
+// BUILDER
+// Utilities for building JSON objects with optional fields.
+// Fields-first parameter order for pipe-friendly usage.
+// ---------------------------------------------------------------------------
+
+module Builder =
+  type Fields = List<(String * Json)>
+
+  /// Start with an empty JSON object
+  let empty : Fields = []
+
+  /// Add a required string field
+  let addString (fields: Fields) (key: String) (value: String) : Fields =
+    List.append fields [ (key, Json.String value) ]
+
+  /// Add a required number field
+  let addNumber (fields: Fields) (key: String) (value: Float) : Fields =
+    List.append fields [ (key, Json.Number value) ]
+
+  /// Add a required int field (converts to float for JSON)
+  let addInt (fields: Fields) (key: String) (value: Int64) : Fields =
+    List.append fields [ (key, Json.Number (Int64.toFloat value)) ]
+
+  /// Add a required bool field
+  let addBool (fields: Fields) (key: String) (value: Bool) : Fields =
+    List.append fields [ (key, Json.Bool value) ]
+
+  /// Add a required JSON value field
+  let addJson (fields: Fields) (key: String) (value: Json) : Fields =
+    List.append fields [ (key, value) ]
+
+  /// Add a required array field
+  let addArray (fields: Fields) (key: String) (value: List<Json>) : Fields =
+    List.append fields [ (key, Json.Array value) ]
+
+  /// Add an optional string field (only adds if Some)
+  let addOptionalString
+    (fields: Fields)
+    (key: String)
+    (value: Option.Option<String>)
+    : Fields =
+    match value with
+    | Some v -> List.append fields [ (key, Json.String v) ]
+    | None -> fields
+
+  /// Add an optional number field (only adds if Some)
+  let addOptionalNumber
+    (fields: Fields)
+    (key: String)
+    (value: Option.Option<Float>)
+    : Fields =
+    match value with
+    | Some v -> List.append fields [ (key, Json.Number v) ]
+    | None -> fields
+
+  /// Add an optional int field (only adds if Some)
+  let addOptionalInt
+    (fields: Fields)
+    (key: String)
+    (value: Option.Option<Int64>)
+    : Fields =
+    match value with
+    | Some v -> List.append fields [ (key, Json.Number (Int64.toFloat v)) ]
+    | None -> fields
+
+  /// Add an optional bool field (only adds if Some)
+  let addOptionalBool
+    (fields: Fields)
+    (key: String)
+    (value: Option.Option<Bool>)
+    : Fields =
+    match value with
+    | Some v -> List.append fields [ (key, Json.Bool v) ]
+    | None -> fields
+
+  /// Add an optional JSON value field (only adds if Some)
+  let addOptionalJson
+    (fields: Fields)
+    (key: String)
+    (value: Option.Option<Json>)
+    : Fields =
+    match value with
+    | Some v -> List.append fields [ (key, v) ]
+    | None -> fields
+
+  /// Add an optional array field (only adds if Some)
+  let addOptionalArray
+    (fields: Fields)
+    (key: String)
+    (value: Option.Option<List<Json>>)
+    : Fields =
+    match value with
+    | Some v -> List.append fields [ (key, Json.Array v) ]
+    | None -> fields
+
+  /// Convert fields to a JSON object
+  let toJson (fields: Fields) : Json =
+    Json.Object fields

@@ -1,0 +1,96 @@
+/// Multi-Model Comparison
+/// Compare responses from different models side by side
+/// Run with: ./scripts/run-cli eval 'Darklang.LLM.Examples.MultiModel.compare "What is 1+1?"'
+module Darklang.LLM.Examples.MultiModel
+
+
+/// Result from a single model
+type ModelResponse =
+  { model: String
+    response: String
+    inputTokens: Int64
+    outputTokens: Int64 }
+
+
+/// Ask a single model and get response with stats
+let askModel
+  (model: Models.Model)
+  (prompt: String)
+  : Stdlib.Result.Result<ModelResponse, String> =
+  let agent =
+    (Agent.create ())
+    |> Agent.withModel model
+    |> Agent.withMaxTokens 500L
+
+  match Agent.run agent prompt with
+  | Ok result ->
+    Stdlib.Result.Result.Ok(
+      ModelResponse
+        { model = model.id
+          response = result.response
+          inputTokens = result.usage.inputTokens
+          outputTokens = result.usage.outputTokens })
+  | Error e -> Stdlib.Result.Result.Error e
+
+
+/// Format a model result for display
+let formatResult (name: String) (result: Stdlib.Result.Result<ModelResponse, String>) : String =
+  match result with
+  | Ok r -> $"## {name} ({r.model})\n{r.response}\n\n*Tokens: {Stdlib.Int64.toString r.inputTokens} in / {Stdlib.Int64.toString r.outputTokens} out*"
+  | Error e -> $"## {name}\nError: {e}"
+
+
+/// Compare a list of named models
+let compareModels (models: List<(String * Models.Model)>) (prompt: String) : String =
+  models
+  |> Stdlib.List.map (fun (name, model) -> formatResult name (askModel model prompt))
+  |> Stdlib.String.join "\n\n---\n\n"
+
+
+/// Compare Haiku vs Sonnet responses
+let compare (prompt: String) : String =
+  compareModels
+    [ ("Haiku", Models.Anthropic.haiku45)
+      ("Sonnet", Models.Anthropic.sonnet45) ]
+    prompt
+
+
+/// Compare all three Anthropic models
+let compareAll (prompt: String) : String =
+  compareModels
+    [ ("Haiku", Models.Anthropic.haiku45)
+      ("Sonnet", Models.Anthropic.sonnet45)
+      ("Opus", Models.Anthropic.opus46) ]
+    prompt
+
+
+/// Ask a specific model by name
+let ask (modelName: String) (prompt: String) : String =
+  let model =
+    match modelName with
+    | "haiku" -> Models.Anthropic.haiku45
+    | "sonnet" -> Models.Anthropic.sonnet45
+    | "opus" -> Models.Anthropic.opus46
+    | "gpt4o" -> Models.OpenAI.gpt4o
+    | "gpt4o-mini" -> Models.OpenAI.gpt4oMini
+    | _ -> Models.Anthropic.sonnet45
+
+  match askModel model prompt with
+  | Ok r -> r.response
+  | Error e -> $"Error: {e}"
+
+
+/// Compare across providers (Anthropic vs OpenAI)
+let compareProviders (prompt: String) : String =
+  compareModels
+    [ ("Anthropic Sonnet", Models.Anthropic.sonnet45)
+      ("OpenAI GPT-4o", Models.OpenAI.gpt4o) ]
+    prompt
+
+
+/// Compare fast models across providers
+let compareFast (prompt: String) : String =
+  compareModels
+    [ ("Anthropic Haiku", Models.Anthropic.haiku45)
+      ("OpenAI GPT-4o Mini", Models.OpenAI.gpt4oMini) ]
+    prompt

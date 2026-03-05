@@ -1,0 +1,175 @@
+/// LLM Model Registry
+/// Pre-defined models with typed access for autocomplete and compile-time safety.
+///
+/// Usage:
+///   Models.Anthropic.sonnet45  // Claude Sonnet 4.5
+///   Models.OpenAI.gpt4o        // GPT-4o
+///   Models.Local.llama3        // Local Ollama model
+module Darklang.LLM.Models
+
+
+// MODEL DEFINITION
+
+/// A model configuration with provider information
+type Model =
+  { /// Model identifier to send to the API (e.g., "claude-sonnet-4-5-20250929")
+    id: String
+
+    /// Human-readable name (e.g., "Claude Sonnet 4.5")
+    name: String
+
+    /// Provider identifier (e.g., "anthropic", "openai", "ollama")
+    providerId: String
+
+    /// Maximum context window in tokens
+    contextTokens: Int64
+
+    /// Maximum output tokens
+    outputTokens: Int64 }
+
+
+// ANTHROPIC MODELS
+// Current Claude models from https://platform.claude.com/docs/en/about-claude/models
+
+let anthropicModel (id: String) (name: String) (outputTokens: Int64) : Model =
+  Model
+    { id = id
+      name = name
+      providerId = "anthropic"
+      contextTokens = 200000L
+      outputTokens = outputTokens }
+
+module Anthropic =
+  // Claude 4.6 (newest, most capable - February 2026)
+  let opus46 = anthropicModel "claude-opus-4-6" "Claude Opus 4.6" 128000L
+  let sonnet46 = anthropicModel "claude-sonnet-4-6" "Claude Sonnet 4.6" 64000L
+
+  // Claude 4.5 family
+  let opus45 = anthropicModel "claude-opus-4-5-20251101" "Claude Opus 4.5" 64000L
+  let sonnet45 = anthropicModel "claude-sonnet-4-5-20250929" "Claude Sonnet 4.5" 64000L
+  let haiku45 = anthropicModel "claude-haiku-4-5-20251001" "Claude Haiku 4.5" 64000L
+
+  // Claude 4 family
+  let sonnet4 = anthropicModel "claude-sonnet-4-20250514" "Claude Sonnet 4" 64000L
+  let opus4 = anthropicModel "claude-opus-4-20250514" "Claude Opus 4" 32000L
+
+  // Claude 3.7
+  let sonnet37 = anthropicModel "claude-3-7-sonnet-20250219" "Claude Sonnet 3.7" 64000L
+
+  // Claude 3 (legacy)
+  let haiku3 = anthropicModel "claude-3-haiku-20240307" "Claude Haiku 3" 4096L
+
+  /// Balanced: good balance of speed/quality (Sonnet 4.6 - latest)
+  let balanced = sonnet46
+
+  /// Fast: optimized for speed and cost
+  let fast = haiku45
+
+  /// Smart: most capable for complex reasoning
+  let smart = opus46
+
+
+// OPENAI MODELS
+// Current OpenAI models from https://platform.openai.com/docs/models
+
+let openaiModel (id: String) (name: String) (contextTokens: Int64) (outputTokens: Int64) : Model =
+  Model
+    { id = id
+      name = name
+      providerId = "openai"
+      contextTokens = contextTokens
+      outputTokens = outputTokens }
+
+module OpenAI =
+  // GPT-4o family
+  let gpt4o = openaiModel "gpt-4o" "GPT-4o" 128000L 16384L
+  let gpt4oMini = openaiModel "gpt-4o-mini" "GPT-4o Mini" 128000L 16384L
+
+  // O-series (reasoning models)
+  let o1 = openaiModel "o1" "O1" 200000L 100000L
+  let o1Mini = openaiModel "o1-mini" "O1 Mini" 128000L 65536L
+  let o3Mini = openaiModel "o3-mini" "O3 Mini" 200000L 100000L
+
+  // GPT-4 Turbo
+  let gpt4Turbo = openaiModel "gpt-4-turbo" "GPT-4 Turbo" 128000L 4096L
+
+  /// Balanced: good balance of speed/quality
+  let balanced = gpt4o
+
+  /// Fast: optimized for speed and cost
+  let fast = gpt4oMini
+
+  /// Smart: most capable for complex reasoning
+  let smart = o1
+
+
+// LOCAL MODELS (Ollama)
+// Common models available through Ollama
+
+let ollamaModel (id: String) (name: String) (contextTokens: Int64) (outputTokens: Int64) : Model =
+  Model
+    { id = id
+      name = name
+      providerId = "ollama"
+      contextTokens = contextTokens
+      outputTokens = outputTokens }
+
+module Local =
+  let llama3 = ollamaModel "llama3" "Llama 3 8B" 8192L 4096L
+  let llama3_70b = ollamaModel "llama3:70b" "Llama 3 70B" 8192L 4096L
+  let llama31 = ollamaModel "llama3.1" "Llama 3.1 8B" 128000L 4096L
+  let llama32 = ollamaModel "llama3.2" "Llama 3.2 3B" 128000L 4096L
+  let codellama = ollamaModel "codellama" "Code Llama" 16384L 4096L
+  let mistral = ollamaModel "mistral" "Mistral 7B" 32768L 4096L
+  let mixtral = ollamaModel "mixtral" "Mixtral 8x7B" 32768L 4096L
+  let qwen25 = ollamaModel "qwen2.5" "Qwen 2.5" 128000L 8192L
+  let deepseekCoder = ollamaModel "deepseek-coder" "DeepSeek Coder" 16384L 4096L
+
+  /// Balanced local model
+  let balanced = llama3
+
+
+// CUSTOM MODEL FACTORY
+
+/// Create a custom model for any OpenAI-compatible endpoint
+let custom
+  (providerId: String)
+  (modelId: String)
+  (contextTokens: Int64)
+  : Model =
+  Model
+    { id = modelId
+      name = "Custom: " ++ modelId
+      providerId = providerId
+      contextTokens = contextTokens
+      outputTokens = contextTokens / 4L }
+
+
+// ENVIRONMENT-BASED MODEL SELECTION
+
+/// Get the balanced model based on environment variable
+/// Set DARKLANG_LLM_PROVIDER to "openai", "ollama", or "anthropic" (default)
+let balanced : Model =
+  match Stdlib.Env.get "DARKLANG_LLM_PROVIDER" with
+  | Some "openai" -> OpenAI.balanced
+  | Some "ollama" -> Local.balanced
+  | Some "local" -> Local.balanced
+  | _ -> Anthropic.balanced
+
+
+/// Get the fast model based on environment variable
+let fast : Model =
+  match Stdlib.Env.get "DARKLANG_LLM_PROVIDER" with
+  | Some "openai" -> OpenAI.fast
+  | Some "ollama" -> Local.balanced
+  | Some "local" -> Local.balanced
+  | _ -> Anthropic.fast
+
+
+/// Get the smart model based on environment variable
+let smart : Model =
+  match Stdlib.Env.get "DARKLANG_LLM_PROVIDER" with
+  | Some "openai" -> OpenAI.smart
+  | Some "ollama" -> Local.llama3_70b
+  | Some "local" -> Local.llama3_70b
+  | _ -> Anthropic.smart

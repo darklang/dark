@@ -1,0 +1,39 @@
+/// News Digest Agent
+/// Fetches and summarizes news on topics using web search
+/// Run with: ./scripts/run-cli eval 'Darklang.LLM.Examples.NewsDigest.news "AI"'
+module Darklang.LLM.Examples.NewsDigest
+
+
+let systemPrompt =
+  "You are a News Digest Agent. Research current news and summarize concisely.
+Format: ## [Topic] News → 3 headlines with 1-sentence summaries → ### Takeaways"
+
+
+/// News digest agent with web search
+let agent =
+  (Darklang.LLM.Agent.create ())
+  |> Darklang.LLM.Agent.withSystemPrompt systemPrompt
+  |> Darklang.LLM.Agent.withWebSearch
+  |> Darklang.LLM.Agent.withMaxTokens 1000L
+  |> Darklang.LLM.Agent.withMaxTurns 2L
+  |> Darklang.LLM.Agent.withTemperature 0.2
+
+
+/// Get a news digest for a topic
+let getDigest (topic: String) : String =
+  match Darklang.LLM.Agent.run agent $"Get me a news digest on: {topic}" with
+  | Ok result -> result.response
+  | Error e -> $"Error: {e}"
+
+
+/// Get a formatted news digest with sources
+let news (topic: String) : String =
+  match Darklang.LLM.Agent.run agent $"Get me a news digest on: {topic}" with
+  | Ok result ->
+    let sources =
+      if Stdlib.List.isEmpty result.webSearchResults then ""
+      else
+        let srcList = Stdlib.List.map result.webSearchResults (fun s -> $"- {s.title}: {s.url}")
+        "\n\n## Sources\n" ++ (Stdlib.String.join srcList "\n")
+    result.response ++ sources
+  | Error e -> $"Error: {e}"

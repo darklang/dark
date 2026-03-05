@@ -1,0 +1,32 @@
+/// Shared HTTP Error Handling
+/// Maps HTTP status codes to provider-agnostic error types.
+///
+/// This module provides consistent error handling across all LLM providers.
+module Darklang.LLM.Internal.HttpErrors
+
+type ProviderError = Darklang.LLM.Provider.ProviderError
+
+
+/// Map an HTTP status code to a ProviderError
+/// This provides consistent error semantics across all providers.
+let mapStatusToError (statusCode: Int64) (body: String) : ProviderError =
+  match statusCode with
+  | 400L -> ProviderError.InvalidRequestError body
+  | 401L -> ProviderError.AuthenticationError "Invalid API key"
+  | 403L -> ProviderError.AuthenticationError "Access forbidden"
+  | 404L -> ProviderError.InvalidRequestError "Resource not found"
+  | 429L -> ProviderError.RateLimitError "Rate limit exceeded"
+  | code when code >= 500L && code < 600L -> ProviderError.ServerError body
+  | code -> ProviderError.Unknown("HTTP " ++ Stdlib.Int64.toString code ++ ": " ++ body)
+
+
+/// Handle an HTTP response, returning Ok for success or mapped error
+let handleResponse
+  (statusCode: Int64)
+  (body: String)
+  (parseSuccess: String -> Stdlib.Result.Result<'a, ProviderError>)
+  : Stdlib.Result.Result<'a, ProviderError> =
+  if statusCode >= 200L && statusCode < 300L then
+    parseSuccess body
+  else
+    Stdlib.Result.Result.Error(mapStatusToError statusCode body)

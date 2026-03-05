@@ -1,0 +1,43 @@
+/// URL Reader Agent
+/// Fetches and summarizes web pages using web fetch
+/// Run with: ./scripts/run-cli eval 'Darklang.LLM.Examples.UrlReader.summarize "https://example.com"'
+module Darklang.LLM.Examples.UrlReader
+
+
+let systemPrompt =
+  "You are a URL Reader Agent. Fetch and summarize web pages.
+Format: ## Summary → **Title:** → **Type:** → ### Key Points → ### Details"
+
+
+/// Base agent configuration shared by all URL reader variants
+let baseAgent =
+  (Agent.create ())
+  |> Agent.withSystemPrompt systemPrompt
+  |> Agent.withMaxTokens 1500L
+  |> Agent.withMaxTurns 2L
+  |> Agent.withTemperature 0.2
+
+/// URL reader agent
+let agent = baseAgent |> Agent.withWebFetch
+
+/// Agent with citations enabled
+let citationAgent = baseAgent |> Agent.withWebFetchCitations
+
+
+/// Summarize a URL
+let summarize (url: String) : String =
+  match Agent.run agent $"Fetch and summarize: {url}" with
+  | Ok result -> result.response
+  | Error e -> $"Error: {e}"
+
+
+/// Ask a question about a URL's content
+let ask (url: String) (question: String) : String =
+  match Agent.run agent $"Fetch {url} and answer: {question}" with
+  | Ok result -> result.response
+  | Error e -> $"Error: {e}"
+
+
+/// Summarize with citations
+let summarizeWithCitations (url: String) : Stdlib.Result.Result<Agent.AgentResult, String> =
+  Agent.run citationAgent $"Fetch and summarize, citing sources: {url}"

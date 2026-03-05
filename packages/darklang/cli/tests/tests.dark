@@ -51,12 +51,12 @@ let testVersionCommand (): TestResult =
 
 let testStatusCommand (): TestResult =
   let output = runWithCommand ["status"]
-  if Stdlib.String.contains output "Darklang CLI" &&
-      Stdlib.String.contains output "Location:" &&
-      Stdlib.String.contains output "Mode:" then
+  if Stdlib.String.contains output "On branch" &&
+      (Stdlib.String.contains output "No uncommitted changes." ||
+       Stdlib.String.contains output "Uncommitted changes:") then
     TestResult.Pass
   else
-    TestResult.Fail "Expected status output with CLI info, Location, and Mode"
+    TestResult.Fail "Expected status output with branch and uncommitted change summary"
 
 
 let testRunBoolAnd (): TestResult =

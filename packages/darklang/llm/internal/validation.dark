@@ -1,0 +1,24 @@
+/// Input Validation
+/// Validates LLM request parameters to catch errors early.
+module Darklang.LLM.Internal.Validation
+
+
+/// Clamp an Int64 value between min and max (inclusive)
+let clamp (value: Int64) (min: Int64) (max: Int64) : Int64 =
+  if value < min then min
+  else if value > max then max
+  else value
+
+/// Validate max tokens is within reasonable bounds
+let validateMaxTokens (tokens: Int64) (maxAllowed: Int64) : Int64 =
+  clamp tokens 1L maxAllowed
+
+/// Validate max turns is reasonable
+let validateMaxTurns (turns: Int64) : Int64 =
+  clamp turns 1L 100L
+
+/// Validate temperature with a custom max (provider-specific)
+let validateTemperature (temp: Float) (maxTemp: Float) : Float =
+  if Stdlib.Float.lessThan temp 0.0 then 0.0
+  else if Stdlib.Float.greaterThan temp maxTemp then maxTemp
+  else temp
