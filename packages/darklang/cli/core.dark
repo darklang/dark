@@ -4,6 +4,7 @@ type Page =
   | MainPrompt
   | InteractiveNav of Packages.NavInteractive.State
   | CompletionPicker of CompletionPicker.State
+  | Outliner of Stachu.TreeExperiment.State
 
 type AppState =
   { isExiting: Bool
@@ -185,7 +186,8 @@ module Registry =
       ("http-server", "Start an HTTP server", [], Commands.HttpServer.execute, Commands.HttpServer.help, Commands.HttpServer.complete)
       ("docs", "Browse in-CLI documentation", [ "doc"; "man" ], Commands.Docs.execute, Commands.Docs.help, Commands.Docs.complete)
       ("undo", "Undo WIP changes to a fn/type/value", [], Packages.Undo.execute, Packages.Undo.help, Packages.Undo.complete)
-      ("db", "Manage databases", [], Packages.DB.execute, Packages.DB.help, Packages.DB.complete) ]
+      ("db", "Manage databases", [], Packages.DB.execute, Packages.DB.help, Packages.DB.complete)
+      ("outliner", "Interactive tree outliner", [ "tree-exp" ], Stachu.TreeExperiment.App.execute, Stachu.TreeExperiment.App.help, Stachu.TreeExperiment.App.complete) ]
     |> Stdlib.List.map(
       // CLEANUP nitpicky: swap help and complete
       fun (name, desc, aliases, execute, help, complete) ->
@@ -546,6 +548,9 @@ let handleKeyInput (state: AppState) (key: Stdlib.Cli.Stdin.Key.Key) (modifiers:
           currentPage = Page.MainPrompt
           needsFullRedraw = true }
 
+  | Outliner treeState ->
+    Stachu.TreeExperiment.App.handleKey state treeState key modifiers keyChar
+
 
 module Update =
   let updateAppState (state: AppState) (msg: Msg) : AppState =
@@ -606,6 +611,8 @@ let runInteractiveLoop (state: AppState) : Int64 =
       // Display the completion picker
       if state.needsFullRedraw then CompletionPicker.display pickerState
 
+    | Outliner treeState ->
+      Stachu.TreeExperiment.Render.display treeState
 
     // Render status bar at bottom of terminal
     StatusBar.render state

@@ -1,0 +1,559 @@
+module Stachu.TreeExperiment
+
+type Node =
+  { id: Int64
+    text: String
+    children: List<Node>
+    collapsed: Bool }
+
+type Mode =
+  | Navigate
+  | Editing of editText: String * editCursor: Int64
+
+type State =
+  { root: List<Node>
+    cursor: Int64
+    nextId: Int64
+    mode: Mode }
+
+
+/// Find the index of the first element matching a predicate.
+let findFirstIndex (list: List<'a>) (fn: 'a -> Bool) : Stdlib.Option.Option<Int64> =
+  list
+  |> Stdlib.List.indexedMap (fun i item -> (i, item))
+  |> Stdlib.List.findFirst (fun pair ->
+    let (_i, item) = pair
+    fn item)
+  |> Stdlib.Option.map (fun pair ->
+    let (i, _item) = pair
+    i)
+
+
+/// Flatten the tree into a list of (node, depth) pairs, skipping children of collapsed nodes.
+let rec flattenVisibleHelper (items: List<Node>) (depth: Int64) : List<(Node * Int64)> =
+  items
+  |> Stdlib.List.fold [] (fun acc node ->
+    let self = [(node, depth)]
+    let childItems =
+      if node.collapsed then
+        []
+      else
+        flattenVisibleHelper node.children (depth + 1L)
+    Stdlib.List.append acc (Stdlib.List.append self childItems))
+
+let flattenVisible (nodes: List<Node>) : List<(Node * Int64)> =
+  flattenVisibleHelper nodes 0L
+
+
+/// Get the node at the given cursor position in the flattened visible list.
+let getNodeAtCursor (state: State) : Stdlib.Option.Option<(Node * Int64)> =
+  let flat = flattenVisible state.root
+  Stdlib.List.getAt flat state.cursor
+
+
+/// Find and update a node by id anywhere in the tree.
+let rec findAndUpdate (nodes: List<Node>) (id: Int64) (updater: Node -> Node) : List<Node> =
+  nodes
+  |> Stdlib.List.map (fun node ->
+    if node.id == id then
+      updater node
+    else
+      { node with children = findAndUpdate node.children id updater })
+
+
+/// Update a node by id in the state's root.
+let updateNode (state: State) (id: Int64) (updater: Node -> Node) : State =
+  { state with root = findAndUpdate state.root id updater }
+
+
+/// Toggle collapse/expand for the node at cursor.
+let toggleCollapse (state: State) : State =
+  match getNodeAtCursor state with
+  | Some ((node, _depth)) ->
+    if Stdlib.List.isEmpty node.children then
+      state
+    else
+      updateNode state node.id (fun n -> { n with collapsed = Stdlib.Bool.not n.collapsed })
+  | None -> state
+
+
+/// Create a new node with the given text, using the state's nextId.
+let newNode (state: State) (text: String) : (Node * State) =
+  let node =
+    Node
+      { id = state.nextId
+        text = text
+        children = []
+        collapsed = false }
+  (node, { state with nextId = state.nextId + 1L })
+
+
+/// Helper: insert newItem after targetId in a tree.
+let rec insertAfterInTree (nodes: List<Node>) (targetId: Int64) (newItem: Node) : List<Node> =
+  nodes
+  |> Stdlib.List.fold [] (fun acc node ->
+    if node.id == targetId then
+      Stdlib.List.append acc [node; newItem]
+    else
+      let updatedNode = { node with children = insertAfterInTree node.children targetId newItem }
+      Stdlib.List.append acc [updatedNode])
+
+
+/// Insert a new sibling after the node at cursor.
+let insertAfter (state: State) : State =
+  match getNodeAtCursor state with
+  | None ->
+    let (node, newState) = newNode state ""
+    { newState with
+        root = [node]
+        cursor = 0L
+        mode = Mode.Editing ("", 0L) }
+  | Some ((cursorNode, _depth)) ->
+    let (newItem, newState) = newNode state ""
+    let newRoot = insertAfterInTree newState.root cursorNode.id newItem
+    let flat = flattenVisible newRoot
+    let newIndex =
+      flat
+      |> findFirstIndex (fun pair ->
+        let (n, _d) = pair
+        n.id == newItem.id)
+      |> Stdlib.Option.withDefault state.cursor
+    { newState with
+        root = newRoot
+        cursor = newIndex
+        mode = Mode.Editing ("", 0L) }
+
+
+/// Helper: remove a node by id from the tree.
+let rec removeFromTree (nodes: List<Node>) (targetId: Int64) : List<Node> =
+  nodes
+  |> Stdlib.List.filterMap (fun node ->
+    if node.id == targetId then
+      Stdlib.Option.Option.None
+    else
+      Stdlib.Option.Option.Some ({ node with children = removeFromTree node.children targetId }))
+
+
+/// Delete the node at cursor (only if it's empty and has no children).
+let deleteNode (state: State) : State =
+  match getNodeAtCursor state with
+  | None -> state
+  | Some ((cursorNode, _depth)) ->
+    if cursorNode.text != "" || (Stdlib.Bool.not (Stdlib.List.isEmpty cursorNode.children)) then
+      state
+    else
+      let newRoot = removeFromTree state.root cursorNode.id
+      let flat = flattenVisible newRoot
+      let maxIndex = Stdlib.Int64.max 0L ((Stdlib.List.length flat) - 1L)
+      let newCursor =
+        if state.cursor > maxIndex then maxIndex
+        else state.cursor
+      { state with
+          root = newRoot
+          cursor = newCursor }
+
+
+/// Helper: find cursor node index for recomputing cursor after tree mutation.
+let findCursorIndex (root: List<Node>) (nodeId: Int64) (fallback: Int64) : Int64 =
+  let flat = flattenVisible root
+  flat
+  |> findFirstIndex (fun pair ->
+    let (n, _d) = pair
+    n.id == nodeId)
+  |> Stdlib.Option.withDefault fallback
+
+
+/// Helper: try to indent a node in a list of siblings (make it last child of prev sibling).
+let rec tryIndentInList (nodes: List<Node>) (targetId: Int64) (targetNode: Node) : Stdlib.Option.Option<List<Node>> =
+  let indexInList =
+    nodes
+    |> findFirstIndex (fun n -> n.id == targetId)
+  match indexInList with
+  | Some idx ->
+    if idx == 0L then
+      Stdlib.Option.Option.None
+    else
+      let prevSibling =
+        (Stdlib.List.getAt nodes (idx - 1L))
+        |> Stdlib.Option.withDefault targetNode
+      let withoutCurrent = Stdlib.List.filter nodes (fun n -> n.id != targetId)
+      let updatedList =
+        withoutCurrent
+        |> Stdlib.List.map (fun n ->
+          if n.id == prevSibling.id then
+            { n with
+                children = Stdlib.List.append n.children [targetNode]
+                collapsed = false }
+          else
+            n)
+      Stdlib.Option.Option.Some (updatedList)
+  | None ->
+    let result =
+      nodes
+      |> Stdlib.List.map (fun node ->
+        match tryIndentInList node.children targetId targetNode with
+        | Some newChildren -> (true, { node with children = newChildren })
+        | None -> (false, node))
+    let anyChanged = Stdlib.List.any result (fun pair ->
+      let (changed, _n) = pair
+      changed)
+    if anyChanged then
+      Stdlib.Option.Option.Some (Stdlib.List.map result (fun pair ->
+        let (_changed, n) = pair
+        n))
+    else
+      Stdlib.Option.Option.None
+
+
+/// Indent: make current node the last child of its previous sibling.
+let indentNode (state: State) : State =
+  match getNodeAtCursor state with
+  | None -> state
+  | Some ((cursorNode, _depth)) ->
+    match tryIndentInList state.root cursorNode.id cursorNode with
+    | Some newRoot ->
+      { state with root = newRoot; cursor = findCursorIndex newRoot cursorNode.id state.cursor }
+    | None -> state
+
+
+/// Helper: try to outdent a node (move from parent's children to parent's sibling level).
+let rec tryOutdentInList (nodes: List<Node>) (targetId: Int64) : Stdlib.Option.Option<List<Node>> =
+  let parentIndex =
+    nodes
+    |> findFirstIndex (fun n ->
+      Stdlib.List.any n.children (fun c -> c.id == targetId))
+  match parentIndex with
+  | Some pIdx ->
+    let parent =
+      (Stdlib.List.getAt nodes pIdx)
+      |> Stdlib.Option.withDefault (Node { id = 0L; text = ""; children = []; collapsed = false })
+    let targetNode =
+      parent.children
+      |> Stdlib.List.findFirst (fun c -> c.id == targetId)
+      |> Stdlib.Option.withDefault (Node { id = 0L; text = ""; children = []; collapsed = false })
+    let newParentChildren = Stdlib.List.filter parent.children (fun c -> c.id != targetId)
+    let updatedParent = { parent with children = newParentChildren }
+    let beforeParent = Stdlib.List.take nodes pIdx
+    let afterParent = Stdlib.List.drop nodes (pIdx + 1L)
+    Stdlib.Option.Option.Some
+      (Stdlib.List.append
+        (Stdlib.List.append beforeParent [updatedParent; targetNode])
+        afterParent)
+  | None ->
+    let result =
+      nodes
+      |> Stdlib.List.map (fun node ->
+        match tryOutdentInList node.children targetId with
+        | Some newChildren -> (true, { node with children = newChildren })
+        | None -> (false, node))
+    let anyChanged = Stdlib.List.any result (fun pair ->
+      let (changed, _n) = pair
+      changed)
+    if anyChanged then
+      Stdlib.Option.Option.Some (Stdlib.List.map result (fun pair ->
+        let (_changed, n) = pair
+        n))
+    else
+      Stdlib.Option.Option.None
+
+
+/// Outdent: move current node to parent's level (insert after parent).
+let outdentNode (state: State) : State =
+  match getNodeAtCursor state with
+  | None -> state
+  | Some ((cursorNode, depth)) ->
+    if depth == 0L then
+      state
+    else
+      match tryOutdentInList state.root cursorNode.id with
+      | Some newRoot ->
+        { state with root = newRoot; cursor = findCursorIndex newRoot cursorNode.id state.cursor }
+      | None -> state
+
+
+/// Helper: try to swap a node with its previous sibling.
+let rec tryMoveUpInList (nodes: List<Node>) (targetId: Int64) (targetNode: Node) : Stdlib.Option.Option<List<Node>> =
+  let indexInList =
+    nodes
+    |> findFirstIndex (fun n -> n.id == targetId)
+  match indexInList with
+  | Some idx ->
+    if idx == 0L then
+      Stdlib.Option.Option.None
+    else
+      let prev =
+        (Stdlib.List.getAt nodes (idx - 1L))
+        |> Stdlib.Option.withDefault targetNode
+      let newList =
+        nodes
+        |> Stdlib.List.indexedMap (fun i n ->
+          if i == (idx - 1L) then targetNode
+          else if i == idx then prev
+          else n)
+      Stdlib.Option.Option.Some (newList)
+  | None ->
+    let result =
+      nodes
+      |> Stdlib.List.map (fun node ->
+        match tryMoveUpInList node.children targetId targetNode with
+        | Some newChildren -> (true, { node with children = newChildren })
+        | None -> (false, node))
+    let anyChanged = Stdlib.List.any result (fun pair ->
+      let (changed, _n) = pair
+      changed)
+    if anyChanged then
+      Stdlib.Option.Option.Some (Stdlib.List.map result (fun pair ->
+        let (_changed, n) = pair
+        n))
+    else
+      Stdlib.Option.Option.None
+
+
+/// Move the node at cursor up among its siblings.
+let moveNodeUp (state: State) : State =
+  match getNodeAtCursor state with
+  | None -> state
+  | Some ((cursorNode, _depth)) ->
+    match tryMoveUpInList state.root cursorNode.id cursorNode with
+    | Some newRoot ->
+      { state with root = newRoot; cursor = findCursorIndex newRoot cursorNode.id state.cursor }
+    | None -> state
+
+
+/// Helper: try to swap a node with its next sibling.
+let rec tryMoveDownInList (nodes: List<Node>) (targetId: Int64) (targetNode: Node) : Stdlib.Option.Option<List<Node>> =
+  let indexInList =
+    nodes
+    |> findFirstIndex (fun n -> n.id == targetId)
+  match indexInList with
+  | Some idx ->
+    if idx >= ((Stdlib.List.length nodes) - 1L) then
+      Stdlib.Option.Option.None
+    else
+      let next =
+        (Stdlib.List.getAt nodes (idx + 1L))
+        |> Stdlib.Option.withDefault targetNode
+      let newList =
+        nodes
+        |> Stdlib.List.indexedMap (fun i n ->
+          if i == idx then next
+          else if i == (idx + 1L) then targetNode
+          else n)
+      Stdlib.Option.Option.Some (newList)
+  | None ->
+    let result =
+      nodes
+      |> Stdlib.List.map (fun node ->
+        match tryMoveDownInList node.children targetId targetNode with
+        | Some newChildren -> (true, { node with children = newChildren })
+        | None -> (false, node))
+    let anyChanged = Stdlib.List.any result (fun pair ->
+      let (changed, _n) = pair
+      changed)
+    if anyChanged then
+      Stdlib.Option.Option.Some (Stdlib.List.map result (fun pair ->
+        let (_changed, n) = pair
+        n))
+    else
+      Stdlib.Option.Option.None
+
+
+/// Move the node at cursor down among its siblings.
+let moveNodeDown (state: State) : State =
+  match getNodeAtCursor state with
+  | None -> state
+  | Some ((cursorNode, _depth)) ->
+    match tryMoveDownInList state.root cursorNode.id cursorNode with
+    | Some newRoot ->
+      { state with root = newRoot; cursor = findCursorIndex newRoot cursorNode.id state.cursor }
+    | None -> state
+
+
+/// Move cursor up in the flattened visible list.
+let moveCursorUp (state: State) : State =
+  if state.cursor > 0L then
+    { state with cursor = state.cursor - 1L }
+  else
+    state
+
+/// Move cursor down in the flattened visible list.
+let moveCursorDown (state: State) : State =
+  let flat = flattenVisible state.root
+  let maxIndex = (Stdlib.List.length flat) - 1L
+  if state.cursor < maxIndex then
+    { state with cursor = state.cursor + 1L }
+  else
+    state
+
+
+/// Enter edit mode for the node at cursor.
+let enterEditMode (state: State) : State =
+  match getNodeAtCursor state with
+  | Some ((node, _depth)) ->
+    let textLen = Stdlib.String.length node.text
+    { state with mode = Mode.Editing (node.text, textLen) }
+  | None -> state
+
+
+/// Finish editing: save the edited text back to the node and return to navigate mode.
+let finishEditing (state: State) : State =
+  match state.mode with
+  | Navigate -> state
+  | Editing (editText, _editCursor) ->
+    match getNodeAtCursor state with
+    | Some ((node, _depth)) ->
+      let newState = updateNode state node.id (fun n -> { n with text = editText })
+      { newState with mode = Mode.Navigate }
+    | None ->
+      { state with mode = Mode.Navigate }
+
+
+/// Insert a character at the edit cursor position.
+let editInsertChar (state: State) (ch: String) : State =
+  match state.mode with
+  | Navigate -> state
+  | Editing (editText, editCursor) ->
+    let before = Stdlib.String.slice editText 0L editCursor
+    let after = Stdlib.String.dropFirst editText editCursor
+    let newText = before ++ ch ++ after
+    { state with mode = Mode.Editing (newText, editCursor + 1L) }
+
+
+/// Delete the character before the edit cursor.
+let editBackspace (state: State) : State =
+  match state.mode with
+  | Navigate -> state
+  | Editing (editText, editCursor) ->
+    if editCursor == 0L then
+      state
+    else
+      let before = Stdlib.String.slice editText 0L (editCursor - 1L)
+      let after = Stdlib.String.dropFirst editText editCursor
+      let newText = before ++ after
+      { state with mode = Mode.Editing (newText, editCursor - 1L) }
+
+
+/// Move the edit cursor left.
+let editMoveLeft (state: State) : State =
+  match state.mode with
+  | Navigate -> state
+  | Editing (editText, editCursor) ->
+    if editCursor > 0L then
+      { state with mode = Mode.Editing (editText, editCursor - 1L) }
+    else
+      state
+
+
+/// Move the edit cursor right.
+let editMoveRight (state: State) : State =
+  match state.mode with
+  | Navigate -> state
+  | Editing (editText, editCursor) ->
+    let textLen = Stdlib.String.length editText
+    if editCursor < textLen then
+      { state with mode = Mode.Editing (editText, editCursor + 1L) }
+    else
+      state
+
+
+/// Check if mode is editing.
+let isEditing (mode: Mode) : Bool =
+  match mode with
+  | Editing (_, _) -> true
+  | Navigate -> false
+
+/// Get the mode display label for the UI.
+let modeText (mode: Mode) : String =
+  match mode with
+  | Navigate -> " NAVIGATE "
+  | Editing (_, _) -> " EDIT "
+
+/// Get the ANSI color codes for the mode indicator.
+let modeColor (mode: Mode) : String =
+  match mode with
+  | Navigate -> Darklang.Cli.Colors.grayBg ++ Darklang.Cli.Colors.white
+  | Editing (_, _) -> Darklang.Cli.Colors.greenBg ++ Darklang.Cli.Colors.black
+
+/// Get the help bar text for the current mode.
+let modeHelpText (mode: Mode) : String =
+  match mode with
+  | Navigate ->
+    "Up/Down: move | Enter: edit | o: new | Tab/Shift+Tab: indent/outdent | Space: collapse | Ctrl+Up/Down: reorder | Esc: exit"
+  | Editing (_, _) ->
+    "Type to edit | Left/Right: move cursor | Enter/Esc: finish editing"
+
+/// Get display text for a node, showing edit cursor when in edit mode.
+let nodeDisplayText (mode: Mode) (isSelected: Bool) (nodeText: String) : String =
+  match mode with
+  | Editing (editText, editCursor) ->
+    if isSelected then
+      let before = Stdlib.String.slice editText 0L editCursor
+      let cursorChar =
+        if editCursor < (Stdlib.String.length editText) then
+          Stdlib.String.slice editText editCursor (editCursor + 1L)
+        else
+          " "
+      let cursorDisplay = Darklang.Cli.Colors.colorize "\u001b[7m" cursorChar
+      let afterCursor =
+        if editCursor < (Stdlib.String.length editText) then
+          Stdlib.String.dropFirst editText (editCursor + 1L)
+        else
+          ""
+      before ++ cursorDisplay ++ afterCursor
+    else
+      nodeText
+  | Navigate -> nodeText
+
+
+/// Create the initial state with some example items.
+let initState () : State =
+  State
+    { root =
+        [ Node
+            { id = 1L
+              text = "Welcome to Outliner"
+              collapsed = false
+              children =
+                [ Node
+                    { id = 2L
+                      text = "Use arrow keys to navigate"
+                      children = []
+                      collapsed = false }
+                  Node
+                    { id = 3L
+                      text = "Press Enter to edit an item"
+                      children = []
+                      collapsed = false }
+                  Node
+                    { id = 4L
+                      text = "Press Tab to indent"
+                      children = []
+                      collapsed = false } ] }
+          Node
+            { id = 5L
+              text = "Features"
+              collapsed = false
+              children =
+                [ Node
+                    { id = 6L
+                      text = "Collapse/expand with Space"
+                      children = []
+                      collapsed = false }
+                  Node
+                    { id = 7L
+                      text = "Add new items with 'o'"
+                      children = []
+                      collapsed = false }
+                  Node
+                    { id = 8L
+                      text = "Move items with Ctrl+Up/Down"
+                      children = []
+                      collapsed = false } ] }
+          Node
+            { id = 9L
+              text = "Press Escape to exit"
+              children = []
+              collapsed = false } ]
+      cursor = 0L
+      nextId = 10L
+      mode = Mode.Navigate }
