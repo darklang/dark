@@ -1,25 +1,22 @@
 module Stachu.Outliner.App
 
-/// Wrap outliner state into a generic SubApp.
-/// The CLI hosts this without knowing anything about outliner internals.
-let makeApp (state: Stachu.Outliner.State) : Darklang.Cli.SubApp =
+/// Wrap Main state into a generic SubApp for the CLI host.
+let makeSubApp (state: Main.State) : Darklang.Cli.SubApp =
   Darklang.Cli.SubApp
     { onKey = fun key modifiers keyChar ->
-        let result = Stachu.Outliner.Keys.handleKey state key modifiers keyChar
-        match result with
-        | Continue s -> (Darklang.Cli.SubAppAction.Continue, makeApp s)
-        | Save s -> (Darklang.Cli.SubAppAction.Save, makeApp s)
-        | Exit s -> (Darklang.Cli.SubAppAction.Exit, makeApp s)
-      onDisplay = fun () -> Stachu.Outliner.Render.display state
-      onSave = fun () -> Stachu.Outliner.Persistence.save state }
+        match Main.handleKey state key modifiers keyChar with
+        | Continue s -> (Darklang.Cli.SubAppAction.Continue, makeSubApp s)
+        | Save s -> (Darklang.Cli.SubAppAction.Save, makeSubApp s)
+        | Exit s -> (Darklang.Cli.SubAppAction.Exit, makeSubApp s)
+      onDisplay = fun () -> Main.render state
+      onSave = fun () -> Main.Persistence.save state }
 
 
 /// CLI command: enter the outliner.
 let execute (cliState: Darklang.Cli.AppState) (_args: List<String>) : Darklang.Cli.AppState =
   Stdlib.print "\u001b[?1049h"
-  let outlinerState = Stachu.Outliner.Persistence.load ()
-  let outlinerState = Stachu.Outliner.enterDocPicker outlinerState
-  let app = makeApp outlinerState
+  let state = Main.Persistence.load ()
+  let app = makeSubApp state
   { cliState with
       currentPage = Darklang.Cli.Page.SubApp app
       needsFullRedraw = true }
