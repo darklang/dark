@@ -42,3 +42,17 @@ let isDirectoryAtPath (dirPath: String) (fileName: String) : Bool =
       $"{currentDir}/{dirPath}"
   let fullPath = $"{normalizedDirPath}/{fileName}"
   Builtin.fileIsDirectory fullPath
+
+
+/// Write content to a file, creating any missing parent directories.
+let writeFile (path: String) (content: List<UInt8>) : Result.Result<Unit, String> =
+  let parts = Stdlib.String.split path "/"
+  let parentDir =
+    (Stdlib.List.dropLast parts)
+    |> Stdlib.String.join "/"
+  let _ =
+    if parentDir != "" then
+      Stdlib.Cli.Unix.ensureDirectoryExists parentDir
+    else
+      Stdlib.Result.Result.Ok ()
+  Builtin.fileWrite content path

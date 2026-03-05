@@ -1,0 +1,277 @@
+module Stachu.Outliner.Render
+
+/// Render a title with edit cursor for renaming.
+let renderEditableTitle (editText: String) (editCursor: Int64) : String =
+  let before = Stdlib.String.slice editText 0L editCursor
+  let cursorChar =
+    if editCursor < (Stdlib.String.length editText) then
+      Stdlib.String.slice editText editCursor (editCursor + 1L)
+    else
+      " "
+  let cursorDisplay = Darklang.Cli.Colors.colorize "\u001b[7m" cursorChar
+  let afterCursor =
+    if editCursor < (Stdlib.String.length editText) then
+      Stdlib.String.dropFirst editText (editCursor + 1L)
+    else
+      ""
+  before ++ cursorDisplay ++ afterCursor
+
+
+/// Render the document picker view.
+let displayDocPicker (state: Stachu.Outliner.State) (selectedIndex: Int64) : Unit =
+  let termWidth = Darklang.Cli.Terminal.getWidth ()
+
+  let renameInfo =
+    match state.mode with
+    | DocRenaming (rIdx, rText, rCursor) ->
+      Stdlib.Option.Option.Some ((rIdx, rText, rCursor))
+    | _ -> Stdlib.Option.Option.None
+
+  // Clear screen and position at top
+  Stdlib.print "\u001b[?25l\u001b[2J\u001b[H"
+
+  // Title
+  let titleText = " Outliner "
+  let title = Darklang.Cli.Colors.colorize (Darklang.Cli.Colors.purpleBg ++ Darklang.Cli.Colors.white ++ Darklang.Cli.Colors.bold) titleText
+  let renaming =
+    match state.mode with
+    | DocRenaming (_, _, _) ->
+      let indicator = Darklang.Cli.Colors.colorize (Darklang.Cli.Colors.greenBg ++ Darklang.Cli.Colors.black) " RENAME "
+      " " ++ indicator
+    | _ -> ""
+  Stdlib.printLine (title ++ renaming)
+  Stdlib.printLine ""
+
+  // Document list
+  state.documents
+  |> Stdlib.List.indexedMap (fun idx doc ->
+    let isSelected = idx == selectedIndex
+    let nodeCount = Stdlib.List.length doc.outline.rootChildren
+    let countStr = Stdlib.Int64.toString nodeCount
+
+    let titleDisplay =
+      match renameInfo with
+      | Some ((rIdx, rText, rCursor)) ->
+        if rIdx == idx then
+          renderEditableTitle rText rCursor
+        else
+          doc.title
+      | None -> doc.title
+
+    let prefix =
+      if isSelected then ">" else " "
+
+    let line = $"  {prefix} {titleDisplay}  ({countStr} items)"
+    if isSelected then
+      Stdlib.printLine (Darklang.Cli.Colors.colorize Darklang.Cli.Colors.selection line)
+    else
+      Stdlib.printLine line)
+
+  // Help bar at bottom
+  Stdlib.printLine ""
+  let helpText = Stachu.Outliner.modeHelpText state.mode
+  let helpLen = Stdlib.String.length helpText
+  let helpPadding =
+    if termWidth > helpLen then
+      Stdlib.String.repeat " " (termWidth - helpLen)
+    else
+      ""
+  Stdlib.print (Darklang.Cli.Colors.colorize (Darklang.Cli.Colors.grayBg ++ Darklang.Cli.Colors.white) (helpText ++ helpPadding))
+
+  Stdlib.print "\u001b[?25h"
+
+
+/// Render the tree outliner view.
+let displayTree (state: Stachu.Outliner.State) : Unit =
+  let doc = Stachu.Outliner.activeDoc state
+  let flat = Stachu.Outliner.flattenVisible doc.outline
+  let totalItems = Stdlib.List.length flat
+
+  let viewportHeight = Darklang.Cli.Terminal.getViewportHeight 4L
+  let termWidth = Darklang.Cli.Terminal.getWidth ()
+
+  let scrollOffset =
+    if state.cursor < 0L then
+      0L
+    else if state.cursor >= viewportHeight then
+      Darklang.Cli.Terminal.clampScrollOffset
+        (state.cursor - viewportHeight + 1L)
+        totalItems
+        viewportHeight
+    else
+      0L
+
+  // Clear screen and position at top
+  Stdlib.print "\u001b[?25l\u001b[2J\u001b[H"
+
+  // Title: show document title
+  let titleText = $" {doc.title} "
+  let title = Darklang.Cli.Colors.colorize (Darklang.Cli.Colors.purpleBg ++ Darklang.Cli.Colors.white ++ Darklang.Cli.Colors.bold) titleText
+  let modeText = Stachu.Outliner.modeText state.mode
+  let modeColor = Stachu.Outliner.modeColor state.mode
+  let modeIndicator = Darklang.Cli.Colors.colorize modeColor modeText
+  let docCountText =
+    let count = Stdlib.List.length state.documents
+    if count > 1L then
+      let countStr = Stdlib.Int64.toString count
+      Darklang.Cli.Colors.colorize Darklang.Cli.Colors.dim $" ({countStr} docs)"
+    else
+      ""
+  Stdlib.printLine (title ++ " " ++ modeIndicator ++ docCountText)
+  Stdlib.printLine ""
+
+  // Visible items
+  let visibleItems =
+    flat
+    |> Stdlib.List.drop scrollOffset
+    |> Stdlib.List.take viewportHeight
+
+  visibleItems
+  |> Stdlib.List.indexedMap (fun relIdx vn ->
+    let absoluteIdx = scrollOffset + relIdx
+    let isSelected = absoluteIdx == state.cursor
+
+    // Indentation (2 spaces per level)
+    let indent = Stdlib.String.repeat "  " vn.depth
+
+    // Bullet style
+    let bullet =
+      if vn.isCollapsed && vn.hasChildren then
+        Darklang.Cli.Colors.colorize Darklang.Cli.Colors.yellow ">"
+      else if vn.hasChildren then
+        Darklang.Cli.Colors.colorize Darklang.Cli.Colors.dim "-"
+      else
+        Darklang.Cli.Colors.colorize Darklang.Cli.Colors.dim "*"
+
+    // Text content
+    let displayText = Stachu.Outliner.nodeDisplayText state.mode isSelected vn.text
+
+    // Collapse indicator
+    let collapseHint =
+      if vn.isCollapsed && vn.childCount > 0L then
+        let countStr = Stdlib.Int64.toString vn.childCount
+        Darklang.Cli.Colors.colorize Darklang.Cli.Colors.dim $" ({countStr} hidden)"
+      else
+        ""
+
+    // Selection highlight
+    let line = $"{indent}{bullet} {displayText}{collapseHint}"
+    if isSelected then
+      if Stachu.Outliner.isEditing state.mode then
+        Stdlib.printLine (Darklang.Cli.Colors.colorize Darklang.Cli.Colors.green line)
+      else
+        Stdlib.printLine (Darklang.Cli.Colors.colorize Darklang.Cli.Colors.selection line)
+    else
+      Stdlib.printLine line)
+
+  // Pad remaining viewport lines
+  let renderedCount = Stdlib.List.length visibleItems
+  let padLines = viewportHeight - renderedCount
+  if padLines > 0L then
+    (Stdlib.List.range 1L padLines)
+    |> Stdlib.List.iter (fun _i -> Stdlib.printLine "")
+
+  // Help bar at bottom
+  let helpText = Stachu.Outliner.modeHelpText state.mode
+
+  Stdlib.printLine ""
+  let helpLen = Stdlib.String.length helpText
+  let helpPadding =
+    if termWidth > helpLen then
+      Stdlib.String.repeat " " (termWidth - helpLen)
+    else
+      ""
+  Stdlib.print (Darklang.Cli.Colors.colorize (Darklang.Cli.Colors.grayBg ++ Darklang.Cli.Colors.white) (helpText ++ helpPadding))
+
+  Stdlib.print "\u001b[?25h"
+
+
+/// Render the export format picker.
+let displayExportPicker (state: Stachu.Outliner.State) (selectedIndex: Int64) : Unit =
+  let termWidth = Darklang.Cli.Terminal.getWidth ()
+  let doc = Stachu.Outliner.activeDoc state
+
+  Stdlib.print "\u001b[?25l\u001b[2J\u001b[H"
+
+  let titleText = $" Export: {doc.title} "
+  let title = Darklang.Cli.Colors.colorize (Darklang.Cli.Colors.purpleBg ++ Darklang.Cli.Colors.white ++ Darklang.Cli.Colors.bold) titleText
+  let modeText = Stachu.Outliner.modeText state.mode
+  let modeColor = Stachu.Outliner.modeColor state.mode
+  let modeIndicator = Darklang.Cli.Colors.colorize modeColor modeText
+  Stdlib.printLine (title ++ " " ++ modeIndicator)
+  Stdlib.printLine ""
+
+  Stachu.Outliner.exportFormats
+  |> Stdlib.List.indexedMap (fun idx pair ->
+    let (name, ext) = pair
+    let isSelected = idx == selectedIndex
+    let line = $"  {name}  ({ext})"
+    if isSelected then
+      Stdlib.printLine (Darklang.Cli.Colors.colorize Darklang.Cli.Colors.selection line)
+    else
+      Stdlib.printLine line)
+
+  Stdlib.printLine ""
+  let helpText = Stachu.Outliner.modeHelpText state.mode
+  let helpLen = Stdlib.String.length helpText
+  let helpPadding =
+    if termWidth > helpLen then
+      Stdlib.String.repeat " " (termWidth - helpLen)
+    else
+      ""
+  Stdlib.print (Darklang.Cli.Colors.colorize (Darklang.Cli.Colors.grayBg ++ Darklang.Cli.Colors.white) (helpText ++ helpPadding))
+
+  Stdlib.print "\u001b[?25h"
+
+
+/// Render the export path editing view.
+let displayExportPath (state: Stachu.Outliner.State) (ext: String) (path: String) (cursor: Int64) : Unit =
+  let termWidth = Darklang.Cli.Terminal.getWidth ()
+  let doc = Stachu.Outliner.activeDoc state
+
+  Stdlib.print "\u001b[?25l\u001b[2J\u001b[H"
+
+  let titleText = $" Export: {doc.title} "
+  let title = Darklang.Cli.Colors.colorize (Darklang.Cli.Colors.purpleBg ++ Darklang.Cli.Colors.white ++ Darklang.Cli.Colors.bold) titleText
+  let modeText = Stachu.Outliner.modeText state.mode
+  let modeColor = Stachu.Outliner.modeColor state.mode
+  let modeIndicator = Darklang.Cli.Colors.colorize modeColor modeText
+  Stdlib.printLine (title ++ " " ++ modeIndicator)
+  Stdlib.printLine ""
+
+  let formatName =
+    if ext == ".opml" then "OPML"
+    else "Markdown"
+  Stdlib.printLine $"  Format: {formatName}"
+  Stdlib.printLine ""
+
+  let label = Darklang.Cli.Colors.colorize Darklang.Cli.Colors.dim "  Path: "
+  let pathDisplay = renderEditableTitle path cursor
+  Stdlib.printLine (label ++ pathDisplay)
+
+  Stdlib.printLine ""
+  let helpText = Stachu.Outliner.modeHelpText state.mode
+  let helpLen = Stdlib.String.length helpText
+  let helpPadding =
+    if termWidth > helpLen then
+      Stdlib.String.repeat " " (termWidth - helpLen)
+    else
+      ""
+  Stdlib.print (Darklang.Cli.Colors.colorize (Darklang.Cli.Colors.grayBg ++ Darklang.Cli.Colors.white) (helpText ++ helpPadding))
+
+  Stdlib.print "\u001b[?25h"
+
+
+/// Main display dispatcher.
+let display (state: Stachu.Outliner.State) : Unit =
+  match state.mode with
+  | DocPicker selectedIndex ->
+    displayDocPicker state selectedIndex
+  | DocRenaming (selectedIndex, _, _) ->
+    displayDocPicker state selectedIndex
+  | ExportPicker selectedIndex ->
+    displayExportPicker state selectedIndex
+  | ExportPath (ext, path, cursor) ->
+    displayExportPath state ext path cursor
+  | _ ->
+    displayTree state

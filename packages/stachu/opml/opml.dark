@@ -1,0 +1,39 @@
+module Stachu.Opml
+
+type Node =
+  { text: String
+    children: List<Node> }
+
+let escapeXml (text: String) : String =
+  text
+  |> Stdlib.String.replaceAll "&" "&amp;"
+  |> Stdlib.String.replaceAll "<" "&lt;"
+  |> Stdlib.String.replaceAll ">" "&gt;"
+  |> Stdlib.String.replaceAll "\"" "&quot;"
+
+let nodesToOpml (nodes: List<Node>) (depth: Int64) : List<String> =
+  nodes
+  |> Stdlib.List.fold [] (fun acc node ->
+    let indent = Stdlib.String.repeat "  " (depth + 2L)
+    let escaped = escapeXml node.text
+    if Stdlib.List.isEmpty node.children then
+      Stdlib.List.append acc [$"{indent}<outline text=\"{escaped}\"/>"]
+    else
+      let childLines = nodesToOpml node.children (depth + 1L)
+      let open_ = $"{indent}<outline text=\"{escaped}\">"
+      let close = $"{indent}</outline>"
+      Stdlib.List.append acc (Stdlib.List.append (Stdlib.List.append [open_] childLines) [close]))
+
+let export (title: String) (nodes: List<Node>) : String =
+  let header =
+    [ "<?xml version=\"1.0\" encoding=\"UTF-8\"?>"
+      "<opml version=\"2.0\">"
+      "  <head>"
+      $"    <title>{title}</title>"
+      "  </head>"
+      "  <body>" ]
+  let body = nodesToOpml nodes 0L
+  let footer =
+    [ "  </body>"
+      "</opml>" ]
+  Stdlib.String.join (Stdlib.List.append (Stdlib.List.append header body) footer) "\n"

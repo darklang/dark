@@ -1,0 +1,709 @@
+module Stachu.Outliner
+
+
+// --- Types ---
+
+type NodeContent =
+  { text: String }
+
+type TreeStructure =
+  { children: List<Int64>
+    collapsed: Bool }
+
+type Outline =
+  { nodes: Dict<NodeContent>
+    structure: Dict<TreeStructure>
+    rootChildren: List<Int64>
+    nextId: Int64 }
+
+type VisibleNode =
+  { id: Int64
+    text: String
+    depth: Int64
+    hasChildren: Bool
+    childCount: Int64
+    isCollapsed: Bool }
+
+type Document =
+  { id: Int64
+    title: String
+    outline: Outline }
+
+type Mode =
+  | Navigate
+  | Editing of editText: String * editCursor: Int64
+  | DocPicker of Int64
+  | DocRenaming of selectedIndex: Int64 * editText: String * editCursor: Int64
+  | ExportPicker of Int64
+  | ExportPath of ext: String * path: String * cursor: Int64
+
+type State =
+  { documents: List<Document>
+    activeDocId: Int64
+    cursor: Int64
+    mode: Mode
+    nextDocId: Int64 }
+
+type KeyResult =
+  | Continue of State
+  | Save of State
+  | Exit of State
+
+type PersistedData =
+  { documents: List<Document>
+    activeDocId: Int64
+    nextDocId: Int64 }
+
+
+// --- Outline helpers ---
+
+let k (id: Int64) : String =
+  Stdlib.Int64.toString id
+
+let emptyOutline () : Outline =
+  Outline
+    { nodes = Stdlib.Dict.empty
+      structure = Stdlib.Dict.empty
+      rootChildren = []
+      nextId = 1L }
+
+let getNodeText (outline: Outline) (id: Int64) : String =
+  match Stdlib.Dict.get outline.nodes (k id) with
+  | Some nc -> nc.text
+  | None -> ""
+
+let getStructure (outline: Outline) (id: Int64) : TreeStructure =
+  match Stdlib.Dict.get outline.structure (k id) with
+  | Some s -> s
+  | None -> TreeStructure { children = []; collapsed = false }
+
+let addNode (outline: Outline) (id: Int64) (text: String) : Outline =
+  let key = k id
+  let nc = NodeContent { text = text }
+  let ts = TreeStructure { children = []; collapsed = false }
+  { outline with
+      nodes = Stdlib.Dict.setOverridingDuplicates outline.nodes key nc
+      structure = Stdlib.Dict.setOverridingDuplicates outline.structure key ts }
+
+let setNodeText (outline: Outline) (id: Int64) (text: String) : Outline =
+  let key = k id
+  let nc = NodeContent { text = text }
+  { outline with nodes = Stdlib.Dict.setOverridingDuplicates outline.nodes key nc }
+
+let removeNodeData (outline: Outline) (id: Int64) : Outline =
+  let key = k id
+  { outline with
+      nodes = Stdlib.Dict.remove outline.nodes key
+      structure = Stdlib.Dict.remove outline.structure key }
+
+let setCollapsed (outline: Outline) (id: Int64) (collapsed: Bool) : Outline =
+  let key = k id
+  match Stdlib.Dict.get outline.structure key with
+  | Some s ->
+    let updated = { s with collapsed = collapsed }
+    { outline with structure = Stdlib.Dict.setOverridingDuplicates outline.structure key updated }
+  | None -> outline
+
+let getChildren (outline: Outline) (parentId: Stdlib.Option.Option<Int64>) : List<Int64> =
+  match parentId with
+  | None -> outline.rootChildren
+  | Some pid ->
+    let s = getStructure outline pid
+    s.children
+
+let setChildren (outline: Outline) (parentId: Stdlib.Option.Option<Int64>) (newChildren: List<Int64>) : Outline =
+  match parentId with
+  | None -> { outline with rootChildren = newChildren }
+  | Some pid ->
+    let key = k pid
+    let s = getStructure outline pid
+    let updated = { s with children = newChildren }
+    { outline with structure = Stdlib.Dict.setOverridingDuplicates outline.structure key updated }
+
+let findParentId (outline: Outline) (targetId: Int64) : Stdlib.Option.Option<Int64> =
+  if Stdlib.List.any outline.rootChildren (fun id -> id == targetId) then
+    Stdlib.Option.Option.None
+  else
+    (Stdlib.Dict.toList outline.structure)
+    |> Stdlib.List.findFirst (fun pair ->
+      let (_key, s) = pair
+      Stdlib.List.any s.children (fun id -> id == targetId))
+    |> Stdlib.Option.map (fun pair ->
+      let (key, _s) = pair
+      match Stdlib.Int64.parse key with
+      | Ok id -> id
+      | Error _ -> 0L)
+
+
+// --- List helpers ---
+
+let insertIdAfter (ids: List<Int64>) (afterId: Int64) (newId: Int64) : List<Int64> =
+  ids
+  |> Stdlib.List.fold [] (fun acc id ->
+    if id == afterId then
+      Stdlib.List.append acc [id; newId]
+    else
+      Stdlib.List.append acc [id])
+
+let swapAt (ids: List<Int64>) (i: Int64) (j: Int64) : List<Int64> =
+  let iVal =
+    (Stdlib.List.getAt ids i) |> Stdlib.Option.withDefault 0L
+  let jVal =
+    (Stdlib.List.getAt ids j) |> Stdlib.Option.withDefault 0L
+  ids
+  |> Stdlib.List.indexedMap (fun idx id ->
+    if idx == i then jVal
+    else if idx == j then iVal
+    else id)
+
+
+// --- Flatten ---
+
+let rec flattenVisibleHelper (outline: Outline) (ids: List<Int64>) (depth: Int64) : List<VisibleNode> =
+  ids
+  |> Stdlib.List.fold [] (fun acc id ->
+    let text = getNodeText outline id
+    let s = getStructure outline id
+    let hasChildren = Stdlib.Bool.not (Stdlib.List.isEmpty s.children)
+    let vn =
+      VisibleNode
+        { id = id
+          text = text
+          depth = depth
+          hasChildren = hasChildren
+          childCount = Stdlib.List.length s.children
+          isCollapsed = s.collapsed }
+    let childNodes =
+      if s.collapsed then
+        []
+      else
+        flattenVisibleHelper outline s.children (depth + 1L)
+    Stdlib.List.append acc (Stdlib.List.append [vn] childNodes))
+
+let flattenVisible (outline: Outline) : List<VisibleNode> =
+  flattenVisibleHelper outline outline.rootChildren 0L
+
+
+// --- State helpers ---
+
+let activeDoc (state: State) : Document =
+  let fallback = Document { id = 0L; title = "Untitled"; outline = emptyOutline () }
+  state.documents
+  |> Stdlib.List.findFirst (fun d -> d.id == state.activeDocId)
+  |> Stdlib.Option.withDefault fallback
+
+let updateActiveDoc (state: State) (updater: Document -> Document) : State =
+  { state with
+      documents =
+        Stdlib.List.map state.documents (fun d ->
+          if d.id == state.activeDocId then updater d
+          else d) }
+
+let activeOutline (state: State) : Outline =
+  (activeDoc state).outline
+
+let updateActiveOutline (state: State) (outline: Outline) : State =
+  updateActiveDoc state (fun doc -> { doc with outline = outline })
+
+let getVisibleNodeAtCursor (state: State) : Stdlib.Option.Option<VisibleNode> =
+  let flat = flattenVisible (activeOutline state)
+  Stdlib.List.getAt flat state.cursor
+
+let findCursorIndex (outline: Outline) (nodeId: Int64) (fallback: Int64) : Int64 =
+  let flat = flattenVisible outline
+  flat
+  |> Stdlib.List.findFirstIndex (fun vn -> vn.id == nodeId)
+  |> Stdlib.Option.withDefault fallback
+
+
+// --- Tree operations ---
+
+let toggleCollapse (state: State) : State =
+  match getVisibleNodeAtCursor state with
+  | Some vn ->
+    if Stdlib.Bool.not vn.hasChildren then
+      state
+    else
+      let outline = activeOutline state
+      let newOutline = setCollapsed outline vn.id (Stdlib.Bool.not vn.isCollapsed)
+      updateActiveOutline state newOutline
+  | None -> state
+
+
+let insertAfter (state: State) : State =
+  let outline = activeOutline state
+  let id = outline.nextId
+  match getVisibleNodeAtCursor state with
+  | None ->
+    let o1 = addNode outline id ""
+    let o2 = { o1 with rootChildren = [id]; nextId = id + 1L }
+    let newState = updateActiveOutline state o2
+    { newState with
+        cursor = 0L
+        mode = Mode.Editing ("", 0L) }
+  | Some vn ->
+    let o1 = addNode outline id ""
+    let parentId = findParentId o1 vn.id
+    let siblings = getChildren o1 parentId
+    let newSiblings = insertIdAfter siblings vn.id id
+    let o2 = setChildren o1 parentId newSiblings
+    let o3 = { o2 with nextId = id + 1L }
+    let newState = updateActiveOutline state o3
+    let newCursor = findCursorIndex o3 id state.cursor
+    { newState with
+        cursor = newCursor
+        mode = Mode.Editing ("", 0L) }
+
+
+let deleteNode (state: State) : State =
+  match getVisibleNodeAtCursor state with
+  | None -> state
+  | Some vn ->
+    let outline = activeOutline state
+    let nodeChildren = getChildren outline (Stdlib.Option.Option.Some vn.id)
+    if vn.text != "" || (Stdlib.Bool.not (Stdlib.List.isEmpty nodeChildren)) then
+      state
+    else
+      let parentId = findParentId outline vn.id
+      let siblings = getChildren outline parentId
+      let newSiblings = Stdlib.List.filter siblings (fun id -> id != vn.id)
+      let o1 = setChildren outline parentId newSiblings
+      let o2 = removeNodeData o1 vn.id
+      let flat = flattenVisible o2
+      let maxIdx = Stdlib.Int64.max 0L ((Stdlib.List.length flat) - 1L)
+      let newCursor =
+        if state.cursor > maxIdx then maxIdx
+        else state.cursor
+      let newState = updateActiveOutline state o2
+      { newState with cursor = newCursor }
+
+
+let indentNode (state: State) : State =
+  match getVisibleNodeAtCursor state with
+  | None -> state
+  | Some vn ->
+    let outline = activeOutline state
+    let parentId = findParentId outline vn.id
+    let siblings = getChildren outline parentId
+    let idx = Stdlib.List.findFirstIndex siblings (fun id -> id == vn.id)
+    match idx with
+    | None -> state
+    | Some i ->
+      if i == 0L then
+        state
+      else
+        match Stdlib.List.getAt siblings (i - 1L) with
+        | None -> state
+        | Some prevSibId ->
+          let newSiblings = Stdlib.List.filter siblings (fun id -> id != vn.id)
+          let o1 = setChildren outline parentId newSiblings
+          let prevChildren = getChildren o1 (Stdlib.Option.Option.Some prevSibId)
+          let o2 = setChildren o1 (Stdlib.Option.Option.Some prevSibId) (Stdlib.List.append prevChildren [vn.id])
+          let o3 = setCollapsed o2 prevSibId false
+          let newState = updateActiveOutline state o3
+          { newState with cursor = findCursorIndex o3 vn.id state.cursor }
+
+
+let outdentNode (state: State) : State =
+  match getVisibleNodeAtCursor state with
+  | None -> state
+  | Some vn ->
+    if vn.depth == 0L then
+      state
+    else
+      let outline = activeOutline state
+      let parentId = findParentId outline vn.id
+      match parentId with
+      | None -> state
+      | Some pid ->
+        let grandparentId = findParentId outline pid
+        let parentChildren = getChildren outline (Stdlib.Option.Option.Some pid)
+        let newParentChildren = Stdlib.List.filter parentChildren (fun id -> id != vn.id)
+        let o1 = setChildren outline (Stdlib.Option.Option.Some pid) newParentChildren
+        let gpChildren = getChildren o1 grandparentId
+        let newGpChildren = insertIdAfter gpChildren pid vn.id
+        let o2 = setChildren o1 grandparentId newGpChildren
+        let newState = updateActiveOutline state o2
+        { newState with cursor = findCursorIndex o2 vn.id state.cursor }
+
+
+let moveNodeUp (state: State) : State =
+  match getVisibleNodeAtCursor state with
+  | None -> state
+  | Some vn ->
+    let outline = activeOutline state
+    let parentId = findParentId outline vn.id
+    let siblings = getChildren outline parentId
+    let idx = Stdlib.List.findFirstIndex siblings (fun id -> id == vn.id)
+    match idx with
+    | None -> state
+    | Some i ->
+      if i == 0L then
+        state
+      else
+        let swapped = swapAt siblings (i - 1L) i
+        let o1 = setChildren outline parentId swapped
+        let newState = updateActiveOutline state o1
+        { newState with cursor = findCursorIndex o1 vn.id state.cursor }
+
+
+let moveNodeDown (state: State) : State =
+  match getVisibleNodeAtCursor state with
+  | None -> state
+  | Some vn ->
+    let outline = activeOutline state
+    let parentId = findParentId outline vn.id
+    let siblings = getChildren outline parentId
+    let idx = Stdlib.List.findFirstIndex siblings (fun id -> id == vn.id)
+    match idx with
+    | None -> state
+    | Some i ->
+      if i >= ((Stdlib.List.length siblings) - 1L) then
+        state
+      else
+        let swapped = swapAt siblings i (i + 1L)
+        let o1 = setChildren outline parentId swapped
+        let newState = updateActiveOutline state o1
+        { newState with cursor = findCursorIndex o1 vn.id state.cursor }
+
+
+let moveCursorUp (state: State) : State =
+  if state.cursor > 0L then
+    { state with cursor = state.cursor - 1L }
+  else
+    state
+
+let moveCursorDown (state: State) : State =
+  let flat = flattenVisible (activeOutline state)
+  let maxIndex = (Stdlib.List.length flat) - 1L
+  if state.cursor < maxIndex then
+    { state with cursor = state.cursor + 1L }
+  else
+    state
+
+
+// --- Edit mode ---
+
+let enterEditMode (state: State) : State =
+  match getVisibleNodeAtCursor state with
+  | Some vn ->
+    let textLen = Stdlib.String.length vn.text
+    { state with mode = Mode.Editing (vn.text, textLen) }
+  | None -> state
+
+
+let finishEditing (state: State) : State =
+  match state.mode with
+  | Editing (editText, _editCursor) ->
+    match getVisibleNodeAtCursor state with
+    | Some vn ->
+      let outline = activeOutline state
+      let newOutline = setNodeText outline vn.id editText
+      let newState = updateActiveOutline state newOutline
+      { newState with mode = Mode.Navigate }
+    | None ->
+      { state with mode = Mode.Navigate }
+  | _ -> state
+
+
+let editInsertChar (state: State) (ch: String) : State =
+  match state.mode with
+  | Editing (editText, editCursor) ->
+    let before = Stdlib.String.slice editText 0L editCursor
+    let after = Stdlib.String.dropFirst editText editCursor
+    let newText = before ++ ch ++ after
+    { state with mode = Mode.Editing (newText, editCursor + 1L) }
+  | _ -> state
+
+
+let editBackspace (state: State) : State =
+  match state.mode with
+  | Editing (editText, editCursor) ->
+    if editCursor == 0L then
+      state
+    else
+      let before = Stdlib.String.slice editText 0L (editCursor - 1L)
+      let after = Stdlib.String.dropFirst editText editCursor
+      let newText = before ++ after
+      { state with mode = Mode.Editing (newText, editCursor - 1L) }
+  | _ -> state
+
+
+let editMoveLeft (state: State) : State =
+  match state.mode with
+  | Editing (editText, editCursor) ->
+    if editCursor > 0L then
+      { state with mode = Mode.Editing (editText, editCursor - 1L) }
+    else
+      state
+  | _ -> state
+
+
+let editMoveRight (state: State) : State =
+  match state.mode with
+  | Editing (editText, editCursor) ->
+    let textLen = Stdlib.String.length editText
+    if editCursor < textLen then
+      { state with mode = Mode.Editing (editText, editCursor + 1L) }
+    else
+      state
+  | _ -> state
+
+
+// --- Mode display helpers ---
+
+let isEditing (mode: Mode) : Bool =
+  match mode with
+  | Editing (_, _) -> true
+  | _ -> false
+
+let modeText (mode: Mode) : String =
+  match mode with
+  | Navigate -> " NAVIGATE "
+  | Editing (_, _) -> " EDIT "
+  | DocPicker _ -> " DOCUMENTS "
+  | DocRenaming (_, _, _) -> " RENAME "
+  | ExportPicker _ -> " EXPORT "
+  | ExportPath (_, _, _) -> " EXPORT "
+
+let modeColor (mode: Mode) : String =
+  match mode with
+  | Navigate -> Darklang.Cli.Colors.grayBg ++ Darklang.Cli.Colors.white
+  | Editing (_, _) -> Darklang.Cli.Colors.greenBg ++ Darklang.Cli.Colors.black
+  | DocPicker _ -> Darklang.Cli.Colors.purpleBg ++ Darklang.Cli.Colors.white
+  | DocRenaming (_, _, _) -> Darklang.Cli.Colors.greenBg ++ Darklang.Cli.Colors.black
+  | ExportPicker _ -> Darklang.Cli.Colors.purpleBg ++ Darklang.Cli.Colors.white
+  | ExportPath (_, _, _) -> Darklang.Cli.Colors.greenBg ++ Darklang.Cli.Colors.black
+
+let exportFormats : List<(String * String)> =
+  [ ("Markdown", ".md")
+    ("OPML", ".opml") ]
+
+let defaultExportPath (title: String) (ext: String) : String =
+  let safeTitle =
+    title
+    |> Stdlib.String.replaceAll " " "-"
+    |> Stdlib.String.toLowercase
+  let cwd = Builtin.directoryCurrent ()
+  $"{cwd}/{safeTitle}{ext}"
+
+let modeHelpText (mode: Mode) : String =
+  match mode with
+  | Navigate ->
+    "Up/Down: move | Enter: edit | o: new | Tab/S-Tab: indent | Space: collapse | C-Up/Down: reorder | e: export | Esc: back"
+  | Editing (_, _) ->
+    "Type to edit | Left/Right: move cursor | Enter/Esc: finish editing"
+  | DocPicker _ ->
+    "Up/Down: select | Enter: open | n: new | d: delete | r: rename | e: export | Esc: exit"
+  | DocRenaming (_, _, _) ->
+    "Type to rename | Enter/Esc: finish"
+  | ExportPicker _ ->
+    "Up/Down: select | Enter: choose | Esc: cancel"
+  | ExportPath (_, _, _) ->
+    "Edit path | Enter: export | Esc: cancel"
+
+let nodeDisplayText (mode: Mode) (isSelected: Bool) (nodeText: String) : String =
+  match mode with
+  | Editing (editText, editCursor) ->
+    if isSelected then
+      let before = Stdlib.String.slice editText 0L editCursor
+      let cursorChar =
+        if editCursor < (Stdlib.String.length editText) then
+          Stdlib.String.slice editText editCursor (editCursor + 1L)
+        else
+          " "
+      let cursorDisplay = Darklang.Cli.Colors.colorize "\u001b[7m" cursorChar
+      let afterCursor =
+        if editCursor < (Stdlib.String.length editText) then
+          Stdlib.String.dropFirst editText (editCursor + 1L)
+        else
+          ""
+      before ++ cursorDisplay ++ afterCursor
+    else
+      nodeText
+  | _ -> nodeText
+
+
+// --- Document operations ---
+
+let enterDocPicker (state: State) : State =
+  { state with mode = Mode.DocPicker 0L }
+
+let exitDocPicker (state: State) : State =
+  { state with mode = Mode.Navigate }
+
+let switchToDocument (state: State) (docId: Int64) : State =
+  { state with
+      activeDocId = docId
+      cursor = 0L
+      mode = Mode.Navigate }
+
+let createDocument (state: State) (title: String) : State =
+  let newDoc =
+    Document
+      { id = state.nextDocId
+        title = title
+        outline = emptyOutline () }
+  { state with
+      documents = Stdlib.List.append state.documents [newDoc]
+      activeDocId = state.nextDocId
+      cursor = 0L
+      nextDocId = state.nextDocId + 1L
+      mode = Mode.Navigate }
+
+let deleteDocument (state: State) (docId: Int64) : State =
+  let docCount = Stdlib.List.length state.documents
+  if docCount <= 1L then
+    state
+  else
+    let remaining = Stdlib.List.filter state.documents (fun d -> d.id != docId)
+    let newActiveId =
+      if state.activeDocId == docId then
+        (Stdlib.List.head remaining)
+        |> Stdlib.Option.map (fun d -> d.id)
+        |> Stdlib.Option.withDefault state.activeDocId
+      else
+        state.activeDocId
+    { state with
+        documents = remaining
+        activeDocId = newActiveId
+        cursor = 0L
+        mode = Mode.DocPicker 0L }
+
+let renameDocument (state: State) (docId: Int64) (newTitle: String) : State =
+  { state with
+      documents =
+        Stdlib.List.map state.documents (fun d ->
+          if d.id == docId then { d with title = newTitle }
+          else d) }
+
+
+// --- Persistence ---
+
+module Persistence =
+  let dataFilePath () : String =
+    match Stdlib.Cli.Unix.getHomeDirectory () with
+    | Ok home -> $"{home}/.darklang/outliner.json"
+    | Error _ -> "rundir/outliner.json"
+
+  let ensureDataDir () : Unit =
+    match Stdlib.Cli.Unix.getHomeDirectory () with
+    | Ok home ->
+      let _ = Stdlib.Cli.Unix.ensureDirectoryExists $"{home}/.darklang"
+      ()
+    | Error _ -> ()
+
+  let save (state: State) : Unit =
+    ensureDataDir ()
+    let data =
+      PersistedData
+        { documents = state.documents
+          activeDocId = state.activeDocId
+          nextDocId = state.nextDocId }
+    let json = Builtin.jsonSerialize<PersistedData> data
+    let jsonBytes = Stdlib.String.toBytes json
+    let _ = Builtin.fileWrite jsonBytes (dataFilePath ())
+    ()
+
+  let load () : State =
+    let filePath = dataFilePath ()
+    match Builtin.fileExists filePath with
+    | true ->
+      match Builtin.fileRead filePath with
+      | Ok bytes ->
+        let contents = Stdlib.String.fromBytesWithReplacement bytes
+        match Builtin.jsonParse<PersistedData> contents with
+        | Ok data ->
+          State
+            { documents = data.documents
+              activeDocId = data.activeDocId
+              cursor = 0L
+              mode = Mode.Navigate
+              nextDocId = data.nextDocId }
+        | Error _ -> defaultState ()
+      | Error _ -> defaultState ()
+    | false -> defaultState ()
+
+
+// --- Outline builder helper ---
+
+let buildOutline
+  (nodeList: List<(Int64 * String)>)
+  (childMap: List<(Int64 * List<Int64>)>)
+  (roots: List<Int64>)
+  (nextId: Int64)
+  : Outline =
+  let nodeEntries =
+    nodeList
+    |> Stdlib.List.map (fun pair ->
+      let (id, text) = pair
+      (k id, NodeContent { text = text }))
+  let nodes = Stdlib.Dict.fromListOverwritingDuplicates nodeEntries
+  let structEntries =
+    nodeList
+    |> Stdlib.List.map (fun pair ->
+      let (id, _text) = pair
+      let children =
+        childMap
+        |> Stdlib.List.findFirst (fun cm ->
+          let (cmId, _cids) = cm
+          cmId == id)
+        |> Stdlib.Option.map (fun cm ->
+          let (_cmId, cids) = cm
+          cids)
+        |> Stdlib.Option.withDefault []
+      (k id, TreeStructure { children = children; collapsed = false }))
+  let structure = Stdlib.Dict.fromListOverwritingDuplicates structEntries
+  Outline
+    { nodes = nodes
+      structure = structure
+      rootChildren = roots
+      nextId = nextId }
+
+
+// --- Default state ---
+
+let defaultState () : State =
+  let notesOutline =
+    buildOutline
+      [ (1L, "Welcome to Outliner")
+        (2L, "Use arrow keys to navigate")
+        (3L, "Press Enter to edit an item")
+        (4L, "Press Tab to indent")
+        (5L, "Features")
+        (6L, "Collapse/expand with Space")
+        (7L, "Add new items with 'o'")
+        (8L, "Move items with Ctrl+Up/Down")
+        (9L, "Press / for document picker") ]
+      [ (1L, [2L; 3L; 4L])
+        (5L, [6L; 7L; 8L]) ]
+      [1L; 5L; 9L]
+      10L
+  let tasksOutline =
+    buildOutline
+      [ (1L, "Today")
+        (2L, "Try out the outliner")
+        (3L, "Add your own items")
+        (4L, "Later")
+        (5L, "Organize your thoughts")
+        (6L, "Set up a project outline") ]
+      [ (1L, [2L; 3L])
+        (4L, [5L; 6L]) ]
+      [1L; 4L]
+      7L
+  let doc1 =
+    Document
+      { id = 1L
+        title = "My Notes"
+        outline = notesOutline }
+  let doc2 =
+    Document
+      { id = 2L
+        title = "Tasks"
+        outline = tasksOutline }
+  State
+    { documents = [doc1; doc2]
+      activeDocId = 1L
+      cursor = 0L
+      nextDocId = 3L
+      mode = Mode.Navigate }
