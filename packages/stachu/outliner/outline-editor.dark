@@ -1,0 +1,348 @@
+module Stachu.Outliner.OutlineEditor
+
+type State =
+  { outline: Stachu.Outliner.Outline
+    cursor: Int64
+    editing: Stdlib.Option.Option<TextEditor.State> }
+
+type Result =
+  | Continue of State
+  | Save of State
+  | Back of State
+
+let fromOutline (outline: Stachu.Outliner.Outline) : State =
+  State { outline = outline; cursor = 0L; editing = Stdlib.Option.Option.None }
+
+
+// --- Helpers ---
+
+let getVisibleNodeAtCursor (state: State) : Stdlib.Option.Option<Stachu.Outliner.VisibleNode> =
+  let flat = Stachu.Outliner.flattenVisible state.outline
+  Stdlib.List.getAt flat state.cursor
+
+let findCursorIndex (outline: Stachu.Outliner.Outline) (nodeId: Int64) (fallback: Int64) : Int64 =
+  let flat = Stachu.Outliner.flattenVisible outline
+  flat
+  |> Stdlib.List.findFirstIndex (fun vn -> vn.id == nodeId)
+  |> Stdlib.Option.withDefault fallback
+
+
+// --- Tree operations ---
+
+let toggleCollapse (state: State) : State =
+  match getVisibleNodeAtCursor state with
+  | Some vn ->
+    if Stdlib.Bool.not vn.hasChildren then
+      state
+    else
+      let newOutline = Stachu.Outliner.setCollapsed state.outline vn.id (Stdlib.Bool.not vn.isCollapsed)
+      { state with outline = newOutline }
+  | None -> state
+
+let insertAfter (state: State) : State =
+  let outline = state.outline
+  let id = outline.nextId
+  match getVisibleNodeAtCursor state with
+  | None ->
+    let o1 = Stachu.Outliner.addNode outline id ""
+    let o2 = { o1 with rootChildren = [id]; nextId = id + 1L }
+    { state with
+        outline = o2
+        cursor = 0L
+        editing = Stdlib.Option.Option.Some (TextEditor.empty) }
+  | Some vn ->
+    let o1 = Stachu.Outliner.addNode outline id ""
+    let parentId = Stachu.Outliner.findParentId o1 vn.id
+    let siblings = Stachu.Outliner.getChildren o1 parentId
+    let newSiblings = Stachu.Outliner.insertIdAfter siblings vn.id id
+    let o2 = Stachu.Outliner.setChildren o1 parentId newSiblings
+    let o3 = { o2 with nextId = id + 1L }
+    let newCursor = findCursorIndex o3 id state.cursor
+    { state with
+        outline = o3
+        cursor = newCursor
+        editing = Stdlib.Option.Option.Some (TextEditor.empty) }
+
+let deleteNode (state: State) : State =
+  match getVisibleNodeAtCursor state with
+  | None -> state
+  | Some vn ->
+    let outline = state.outline
+    let nodeChildren = Stachu.Outliner.getChildren outline (Stdlib.Option.Option.Some vn.id)
+    if vn.text != "" || (Stdlib.Bool.not (Stdlib.List.isEmpty nodeChildren)) then
+      state
+    else
+      let parentId = Stachu.Outliner.findParentId outline vn.id
+      let siblings = Stachu.Outliner.getChildren outline parentId
+      let newSiblings = Stdlib.List.filter siblings (fun id -> id != vn.id)
+      let o1 = Stachu.Outliner.setChildren outline parentId newSiblings
+      let o2 = Stachu.Outliner.removeNodeData o1 vn.id
+      let flat = Stachu.Outliner.flattenVisible o2
+      let maxIdx = Stdlib.Int64.max 0L ((Stdlib.List.length flat) - 1L)
+      let newCursor =
+        if state.cursor > maxIdx then maxIdx
+        else state.cursor
+      { state with outline = o2; cursor = newCursor }
+
+let indentNode (state: State) : State =
+  match getVisibleNodeAtCursor state with
+  | None -> state
+  | Some vn ->
+    let outline = state.outline
+    let parentId = Stachu.Outliner.findParentId outline vn.id
+    let siblings = Stachu.Outliner.getChildren outline parentId
+    let idx = Stdlib.List.findFirstIndex siblings (fun id -> id == vn.id)
+    match idx with
+    | None -> state
+    | Some i ->
+      if i == 0L then
+        state
+      else
+        match Stdlib.List.getAt siblings (i - 1L) with
+        | None -> state
+        | Some prevSibId ->
+          let newSiblings = Stdlib.List.filter siblings (fun id -> id != vn.id)
+          let o1 = Stachu.Outliner.setChildren outline parentId newSiblings
+          let prevChildren = Stachu.Outliner.getChildren o1 (Stdlib.Option.Option.Some prevSibId)
+          let o2 = Stachu.Outliner.setChildren o1 (Stdlib.Option.Option.Some prevSibId) (Stdlib.List.append prevChildren [vn.id])
+          let o3 = Stachu.Outliner.setCollapsed o2 prevSibId false
+          { state with outline = o3; cursor = findCursorIndex o3 vn.id state.cursor }
+
+let outdentNode (state: State) : State =
+  match getVisibleNodeAtCursor state with
+  | None -> state
+  | Some vn ->
+    if vn.depth == 0L then
+      state
+    else
+      let outline = state.outline
+      let parentId = Stachu.Outliner.findParentId outline vn.id
+      match parentId with
+      | None -> state
+      | Some pid ->
+        let grandparentId = Stachu.Outliner.findParentId outline pid
+        let parentChildren = Stachu.Outliner.getChildren outline (Stdlib.Option.Option.Some pid)
+        let newParentChildren = Stdlib.List.filter parentChildren (fun id -> id != vn.id)
+        let o1 = Stachu.Outliner.setChildren outline (Stdlib.Option.Option.Some pid) newParentChildren
+        let gpChildren = Stachu.Outliner.getChildren o1 grandparentId
+        let newGpChildren = Stachu.Outliner.insertIdAfter gpChildren pid vn.id
+        let o2 = Stachu.Outliner.setChildren o1 grandparentId newGpChildren
+        { state with outline = o2; cursor = findCursorIndex o2 vn.id state.cursor }
+
+let moveNodeUp (state: State) : State =
+  match getVisibleNodeAtCursor state with
+  | None -> state
+  | Some vn ->
+    let outline = state.outline
+    let parentId = Stachu.Outliner.findParentId outline vn.id
+    let siblings = Stachu.Outliner.getChildren outline parentId
+    let idx = Stdlib.List.findFirstIndex siblings (fun id -> id == vn.id)
+    match idx with
+    | None -> state
+    | Some i ->
+      if i == 0L then
+        state
+      else
+        let swapped = Stachu.Outliner.swapAt siblings (i - 1L) i
+        let o1 = Stachu.Outliner.setChildren outline parentId swapped
+        { state with outline = o1; cursor = findCursorIndex o1 vn.id state.cursor }
+
+let moveNodeDown (state: State) : State =
+  match getVisibleNodeAtCursor state with
+  | None -> state
+  | Some vn ->
+    let outline = state.outline
+    let parentId = Stachu.Outliner.findParentId outline vn.id
+    let siblings = Stachu.Outliner.getChildren outline parentId
+    let idx = Stdlib.List.findFirstIndex siblings (fun id -> id == vn.id)
+    match idx with
+    | None -> state
+    | Some i ->
+      if i >= ((Stdlib.List.length siblings) - 1L) then
+        state
+      else
+        let swapped = Stachu.Outliner.swapAt siblings i (i + 1L)
+        let o1 = Stachu.Outliner.setChildren outline parentId swapped
+        { state with outline = o1; cursor = findCursorIndex o1 vn.id state.cursor }
+
+let moveCursorUp (state: State) : State =
+  if state.cursor > 0L then
+    { state with cursor = state.cursor - 1L }
+  else
+    state
+
+let moveCursorDown (state: State) : State =
+  let flat = Stachu.Outliner.flattenVisible state.outline
+  let maxIndex = (Stdlib.List.length flat) - 1L
+  if state.cursor < maxIndex then
+    { state with cursor = state.cursor + 1L }
+  else
+    state
+
+let enterEditMode (state: State) : State =
+  match getVisibleNodeAtCursor state with
+  | Some vn ->
+    { state with editing = Stdlib.Option.Option.Some (TextEditor.fromText vn.text) }
+  | None -> state
+
+let commitEdit (state: State) (text: String) : State =
+  match getVisibleNodeAtCursor state with
+  | Some vn ->
+    let newOutline = Stachu.Outliner.setNodeText state.outline vn.id text
+    { state with outline = newOutline; editing = Stdlib.Option.Option.None }
+  | None ->
+    { state with editing = Stdlib.Option.Option.None }
+
+
+// --- Key handling ---
+
+let handleNavigateKey
+  (state: State)
+  (key: Stdlib.Cli.Stdin.Key.Key)
+  (modifiers: Stdlib.Cli.Stdin.Modifiers.Modifiers)
+  (keyChar: Stdlib.Option.Option<String>)
+  : Result =
+  match key with
+  | Escape -> Result.Back state
+  | UpArrow ->
+    let newState =
+      if modifiers.ctrl then moveNodeUp state
+      else moveCursorUp state
+    Result.Save newState
+  | DownArrow ->
+    let newState =
+      if modifiers.ctrl then moveNodeDown state
+      else moveCursorDown state
+    Result.Save newState
+  | Enter -> Result.Continue (enterEditMode state)
+  | Tab ->
+    let newState =
+      if modifiers.shift then outdentNode state
+      else indentNode state
+    Result.Save newState
+  | Spacebar -> Result.Save (toggleCollapse state)
+  | Backspace -> Result.Save (deleteNode state)
+  | Delete -> Result.Save (deleteNode state)
+  | _ ->
+    match keyChar with
+    | Some "o" -> Result.Save (insertAfter state)
+    | _ -> Result.Continue state
+
+let handleKey
+  (state: State)
+  (key: Stdlib.Cli.Stdin.Key.Key)
+  (modifiers: Stdlib.Cli.Stdin.Modifiers.Modifiers)
+  (keyChar: Stdlib.Option.Option<String>)
+  : Result =
+  match state.editing with
+  | Some editorState ->
+    match TextEditor.handleKey editorState key modifiers keyChar with
+    | Editing newEditorState ->
+      Result.Continue ({ state with editing = Stdlib.Option.Option.Some newEditorState })
+    | Finished text ->
+      Result.Save (commitEdit state text)
+    | Cancelled ->
+      Result.Continue ({ state with editing = Stdlib.Option.Option.None })
+  | None ->
+    handleNavigateKey state key modifiers keyChar
+
+
+// --- Rendering ---
+
+let render (state: State) (title: String) : Unit =
+  let flat = Stachu.Outliner.flattenVisible state.outline
+  let totalItems = Stdlib.List.length flat
+  let viewportHeight = Darklang.Cli.Terminal.getViewportHeight 4L
+  let termWidth = Darklang.Cli.Terminal.getWidth ()
+
+  let scrollOffset =
+    if state.cursor < 0L then
+      0L
+    else if state.cursor >= viewportHeight then
+      Darklang.Cli.Terminal.clampScrollOffset
+        (state.cursor - viewportHeight + 1L)
+        totalItems
+        viewportHeight
+    else
+      0L
+
+  Stdlib.print "\u001b[?25l\u001b[2J\u001b[H"
+
+  // Title bar
+  let titleText = $" {title} "
+  let titleBar = Darklang.Cli.Colors.colorize (Darklang.Cli.Colors.purpleBg ++ Darklang.Cli.Colors.white ++ Darklang.Cli.Colors.bold) titleText
+  let isEditing =
+    match state.editing with
+    | Some _ -> true
+    | None -> false
+  let modeText =
+    if isEditing then " EDIT "
+    else " NAVIGATE "
+  let modeColor =
+    if isEditing then Darklang.Cli.Colors.greenBg ++ Darklang.Cli.Colors.black
+    else Darklang.Cli.Colors.grayBg ++ Darklang.Cli.Colors.white
+  let modeIndicator = Darklang.Cli.Colors.colorize modeColor modeText
+  Stdlib.printLine (titleBar ++ " " ++ modeIndicator)
+  Stdlib.printLine ""
+
+  // Visible items
+  let visibleItems =
+    flat
+    |> Stdlib.List.drop scrollOffset
+    |> Stdlib.List.take viewportHeight
+
+  visibleItems
+  |> Stdlib.List.indexedMap (fun relIdx vn -> (relIdx, vn))
+  |> Stdlib.List.iter (fun pair ->
+    let (relIdx, vn) = pair
+    let absoluteIdx = scrollOffset + relIdx
+    let isSelected = absoluteIdx == state.cursor
+    let indent = Stdlib.String.repeat "  " vn.depth
+    let bullet =
+      if vn.isCollapsed && vn.hasChildren then
+        Darklang.Cli.Colors.colorize Darklang.Cli.Colors.yellow ">"
+      else if vn.hasChildren then
+        Darklang.Cli.Colors.colorize Darklang.Cli.Colors.dim "-"
+      else
+        Darklang.Cli.Colors.colorize Darklang.Cli.Colors.dim "*"
+    let displayText =
+      match state.editing with
+      | Some edState ->
+        if isSelected then TextEditor.renderInline edState
+        else vn.text
+      | None -> vn.text
+    let collapseHint =
+      if vn.isCollapsed && vn.childCount > 0L then
+        let countStr = Stdlib.Int64.toString vn.childCount
+        Darklang.Cli.Colors.colorize Darklang.Cli.Colors.dim $" ({countStr} hidden)"
+      else
+        ""
+    let line = $"{indent}{bullet} {displayText}{collapseHint}"
+    if isSelected then
+      if isEditing then
+        Stdlib.printLine (Darklang.Cli.Colors.colorize Darklang.Cli.Colors.green line)
+      else
+        Stdlib.printLine (Darklang.Cli.Colors.colorize Darklang.Cli.Colors.selection line)
+    else
+      Stdlib.printLine line)
+
+  // Pad remaining viewport
+  let renderedCount = Stdlib.List.length visibleItems
+  let padLines = viewportHeight - renderedCount
+  if padLines > 0L then
+    (Stdlib.List.range 1L padLines)
+    |> Stdlib.List.iter (fun _i -> Stdlib.printLine "")
+
+  // Help bar
+  let helpText =
+    if isEditing then "Type to edit | Left/Right: move cursor | Enter/Esc: finish editing"
+    else "Up/Down: move | Enter: edit | o: new | Tab/S-Tab: indent | Space: collapse | C-Up/Down: reorder | Esc: back"
+  Stdlib.printLine ""
+  let helpLen = Stdlib.String.length helpText
+  let helpPadding =
+    if termWidth > helpLen then
+      Stdlib.String.repeat " " (termWidth - helpLen)
+    else
+      ""
+  Stdlib.print (Darklang.Cli.Colors.colorize (Darklang.Cli.Colors.grayBg ++ Darklang.Cli.Colors.white) (helpText ++ helpPadding))
+  Stdlib.print "\u001b[?25h"

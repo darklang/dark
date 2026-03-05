@@ -1,0 +1,56 @@
+module Stachu.Outliner.ListPicker
+
+type State<'item> =
+  { items: List<'item>
+    selected: Int64
+    label: 'item -> String }
+
+type Result<'item> =
+  | Browsing of State<'item>
+  | Selected of 'item
+  | Cancelled
+
+let make (items: List<'item>) (label: 'item -> String) : State<'item> =
+  State { items = items; selected = 0L; label = label }
+
+let handleKey
+  (state: State<'item>)
+  (key: Stdlib.Cli.Stdin.Key.Key)
+  (_modifiers: Stdlib.Cli.Stdin.Modifiers.Modifiers)
+  (_keyChar: Stdlib.Option.Option<String>)
+  : Result<'item> =
+  let itemCount = Stdlib.List.length state.items
+  match key with
+  | Escape -> Result.Cancelled
+  | UpArrow ->
+    let newIdx =
+      if state.selected > 0L then state.selected - 1L
+      else state.selected
+    Result.Browsing ({ state with selected = newIdx })
+  | DownArrow ->
+    let maxIdx = itemCount - 1L
+    let newIdx =
+      if state.selected < maxIdx then state.selected + 1L
+      else state.selected
+    Result.Browsing ({ state with selected = newIdx })
+  | Enter ->
+    match Stdlib.List.getAt state.items state.selected with
+    | Some item -> Result.Selected item
+    | None -> Result.Cancelled
+  | _ -> Result.Browsing state
+
+/// Render the list with selection highlighting. Prints directly.
+let render (state: State<'item>) : Unit =
+  state.items
+  |> Stdlib.List.indexedMap (fun idx item ->
+    (idx, item))
+  |> Stdlib.List.iter (fun pair ->
+    let (idx, item) = pair
+    let isSelected = idx == state.selected
+    let text = state.label item
+    let prefix = if isSelected then ">" else " "
+    let line = $"  {prefix} {text}"
+    if isSelected then
+      Stdlib.printLine (Darklang.Cli.Colors.colorize Darklang.Cli.Colors.selection line)
+    else
+      Stdlib.printLine line)

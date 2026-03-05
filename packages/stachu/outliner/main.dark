@@ -1,0 +1,394 @@
+module Stachu.Outliner.Main
+
+type Screen =
+  | DocPicker of ListPicker.State<Stachu.Outliner.Document>
+  | DocRenaming of docId: Int64 * ListPicker.State<Stachu.Outliner.Document> * TextEditor.State
+  | Editor of OutlineEditor.State
+  | ExportPicker of ListPicker.State<(String * String)>
+  | ExportPath of ext: String * TextEditor.State
+
+type State =
+  { documents: List<Stachu.Outliner.Document>
+    activeDocId: Int64
+    nextDocId: Int64
+    screen: Screen }
+
+type KeyResult =
+  | Continue of State
+  | Save of State
+  | Exit of State
+
+
+// --- Document helpers ---
+
+let activeDoc (state: State) : Stachu.Outliner.Document =
+  let fallback =
+    Stachu.Outliner.Document
+      { id = 0L; title = "Untitled"; outline = Stachu.Outliner.emptyOutline () }
+  state.documents
+  |> Stdlib.List.findFirst (fun d -> d.id == state.activeDocId)
+  |> Stdlib.Option.withDefault fallback
+
+let updateDoc (state: State) (docId: Int64) (updater: Stachu.Outliner.Document -> Stachu.Outliner.Document) : State =
+  { state with
+      documents =
+        Stdlib.List.map state.documents (fun d ->
+          if d.id == docId then updater d
+          else d) }
+
+let createDocument (state: State) (title: String) : State =
+  let newDoc =
+    Stachu.Outliner.Document
+      { id = state.nextDocId
+        title = title
+        outline = Stachu.Outliner.emptyOutline () }
+  let newState =
+    { state with
+        documents = Stdlib.List.append state.documents [newDoc]
+        activeDocId = state.nextDocId
+        nextDocId = state.nextDocId + 1L }
+  let editor = OutlineEditor.fromOutline newDoc.outline
+  { newState with screen = Screen.Editor editor }
+
+let deleteDocument (state: State) (docId: Int64) : State =
+  let docCount = Stdlib.List.length state.documents
+  if docCount <= 1L then
+    state
+  else
+    let remaining = Stdlib.List.filter state.documents (fun d -> d.id != docId)
+    let newActiveId =
+      if state.activeDocId == docId then
+        (Stdlib.List.head remaining)
+        |> Stdlib.Option.map (fun d -> d.id)
+        |> Stdlib.Option.withDefault state.activeDocId
+      else
+        state.activeDocId
+    let newState =
+      { state with
+          documents = remaining
+          activeDocId = newActiveId }
+    { newState with screen = Screen.DocPicker (makeDocPicker newState) }
+
+let renameDocument (state: State) (docId: Int64) (newTitle: String) : State =
+  updateDoc state docId (fun d -> { d with title = newTitle })
+
+
+// --- Pickers ---
+
+let makeDocPicker (state: State) : ListPicker.State<Stachu.Outliner.Document> =
+  ListPicker.make state.documents (fun doc ->
+    let nodeCount = Stdlib.List.length doc.outline.rootChildren
+    $"{doc.title}  ({Stdlib.Int64.toString nodeCount} items)")
+
+let exportFormats : List<(String * String)> =
+  [ ("Markdown", ".md")
+    ("OPML", ".opml") ]
+
+let makeExportPicker () : ListPicker.State<(String * String)> =
+  ListPicker.make exportFormats (fun pair ->
+    let (name, ext) = pair
+    $"{name}  ({ext})")
+
+let defaultExportPath (title: String) (ext: String) : String =
+  let safeTitle =
+    title
+    |> Stdlib.String.replaceAll " " "-"
+    |> Stdlib.String.toLowercase
+  let cwd = Builtin.directoryCurrent ()
+  $"{cwd}/{safeTitle}{ext}"
+
+
+// --- Key handling ---
+
+let handleDocPickerKey
+  (state: State)
+  (picker: ListPicker.State<Stachu.Outliner.Document>)
+  (key: Stdlib.Cli.Stdin.Key.Key)
+  (modifiers: Stdlib.Cli.Stdin.Modifiers.Modifiers)
+  (keyChar: Stdlib.Option.Option<String>)
+  : KeyResult =
+  match keyChar with
+  | Some "n" -> KeyResult.Save (createDocument state "Untitled")
+  | Some "d" ->
+    match Stdlib.List.getAt picker.items picker.selected with
+    | Some doc -> KeyResult.Save (deleteDocument state doc.id)
+    | None -> KeyResult.Continue state
+  | Some "r" ->
+    match Stdlib.List.getAt picker.items picker.selected with
+    | Some doc ->
+      let te = TextEditor.fromText doc.title
+      KeyResult.Continue ({ state with screen = Screen.DocRenaming (doc.id, picker, te) })
+    | None -> KeyResult.Continue state
+  | Some "e" ->
+    match Stdlib.List.getAt picker.items picker.selected with
+    | Some doc ->
+      KeyResult.Continue
+        ({ state with
+            activeDocId = doc.id
+            screen = Screen.ExportPicker (makeExportPicker ()) })
+    | None -> KeyResult.Continue state
+  | _ ->
+    match ListPicker.handleKey picker key modifiers keyChar with
+    | Browsing newPicker ->
+      KeyResult.Continue ({ state with screen = Screen.DocPicker newPicker })
+    | Selected doc ->
+      let editor = OutlineEditor.fromOutline doc.outline
+      KeyResult.Save ({ state with activeDocId = doc.id; screen = Screen.Editor editor })
+    | Cancelled ->
+      KeyResult.Exit state
+
+let handleKey
+  (state: State)
+  (key: Stdlib.Cli.Stdin.Key.Key)
+  (modifiers: Stdlib.Cli.Stdin.Modifiers.Modifiers)
+  (keyChar: Stdlib.Option.Option<String>)
+  : KeyResult =
+  match state.screen with
+  | DocPicker picker ->
+    handleDocPickerKey state picker key modifiers keyChar
+
+  | DocRenaming (docId, picker, te) ->
+    match TextEditor.handleKey te key modifiers keyChar with
+    | Editing newTE ->
+      KeyResult.Continue ({ state with screen = Screen.DocRenaming (docId, picker, newTE) })
+    | Finished newTitle ->
+      let newState = renameDocument state docId newTitle
+      KeyResult.Save ({ newState with screen = Screen.DocPicker (makeDocPicker newState) })
+    | Cancelled ->
+      KeyResult.Continue ({ state with screen = Screen.DocPicker picker })
+
+  | Editor editor ->
+    // Intercept compositor-level keys only when not editing a node
+    let isEditingNode =
+      match editor.editing with
+      | Some _ -> true
+      | None -> false
+    if (Stdlib.Bool.not isEditingNode) && keyChar == (Stdlib.Option.Option.Some "/") then
+      KeyResult.Continue ({ state with screen = Screen.DocPicker (makeDocPicker state) })
+    else if (Stdlib.Bool.not isEditingNode) && keyChar == (Stdlib.Option.Option.Some "e") then
+      KeyResult.Continue ({ state with screen = Screen.ExportPicker (makeExportPicker ()) })
+    else
+      match OutlineEditor.handleKey editor key modifiers keyChar with
+      | Continue newEditor ->
+        KeyResult.Continue ({ state with screen = Screen.Editor newEditor })
+      | Save newEditor ->
+        let newState = updateDoc state state.activeDocId (fun d -> { d with outline = newEditor.outline })
+        KeyResult.Save ({ newState with screen = Screen.Editor newEditor })
+      | Back _ ->
+        KeyResult.Continue ({ state with screen = Screen.DocPicker (makeDocPicker state) })
+
+  | ExportPicker picker ->
+    match ListPicker.handleKey picker key modifiers keyChar with
+    | Browsing newPicker ->
+      KeyResult.Continue ({ state with screen = Screen.ExportPicker newPicker })
+    | Selected pair ->
+      let (_name, ext) = pair
+      let doc = activeDoc state
+      let path = defaultExportPath doc.title ext
+      let te = TextEditor.fromText path
+      KeyResult.Continue ({ state with screen = Screen.ExportPath (ext, te) })
+    | Cancelled ->
+      KeyResult.Continue ({ state with screen = Screen.Editor (OutlineEditor.fromOutline (activeDoc state).outline) })
+
+  | ExportPath (ext, te) ->
+    match TextEditor.handleKey te key modifiers keyChar with
+    | Editing newTE ->
+      KeyResult.Continue ({ state with screen = Screen.ExportPath (ext, newTE) })
+    | Finished path ->
+      let doc = activeDoc state
+      let content =
+        if ext == ".opml" then Stachu.Outliner.Export.toOpml doc
+        else Stachu.Outliner.Export.toMarkdown doc
+      let _ = Stdlib.Cli.FileSystem.writeFile path (Stdlib.String.toBytes content)
+      KeyResult.Continue ({ state with screen = Screen.Editor (OutlineEditor.fromOutline doc.outline) })
+    | Cancelled ->
+      KeyResult.Continue ({ state with screen = Screen.Editor (OutlineEditor.fromOutline (activeDoc state).outline) })
+
+
+// --- Rendering ---
+
+let renderChrome (titleText: String) (modeText: String) (modeColor: String) (helpText: String) (renderBody: Unit -> Unit) : Unit =
+  let termWidth = Darklang.Cli.Terminal.getWidth ()
+  Stdlib.print "\u001b[?25l\u001b[2J\u001b[H"
+  let title = Darklang.Cli.Colors.colorize (Darklang.Cli.Colors.purpleBg ++ Darklang.Cli.Colors.white ++ Darklang.Cli.Colors.bold) $" {titleText} "
+  let modeIndicator = Darklang.Cli.Colors.colorize modeColor modeText
+  Stdlib.printLine (title ++ " " ++ modeIndicator)
+  Stdlib.printLine ""
+  renderBody ()
+  // Position help bar near the bottom (1 line above the CLI status bar)
+  let termHeight = Darklang.Cli.Terminal.getHeight ()
+  let helpRow = termHeight - 1L
+  Stdlib.print $"\u001b[{Stdlib.Int64.toString helpRow};1H"
+  let helpLen = Stdlib.String.length helpText
+  let helpPadding =
+    if termWidth > helpLen then Stdlib.String.repeat " " (termWidth - helpLen)
+    else ""
+  Stdlib.print (Darklang.Cli.Colors.colorize (Darklang.Cli.Colors.grayBg ++ Darklang.Cli.Colors.white) (helpText ++ helpPadding))
+  Stdlib.print "\u001b[?25h"
+
+let render (state: State) : Unit =
+  match state.screen with
+  | DocPicker picker ->
+    renderChrome
+      "Outliner"
+      " DOCUMENTS "
+      (Darklang.Cli.Colors.purpleBg ++ Darklang.Cli.Colors.white)
+      "Up/Down: select | Enter: open | n: new | d: delete | r: rename | e: export | Esc: exit"
+      (fun () -> ListPicker.render picker)
+
+  | DocRenaming (_docId, picker, te) ->
+    let renameIndicator = Darklang.Cli.Colors.colorize (Darklang.Cli.Colors.greenBg ++ Darklang.Cli.Colors.black) " RENAME "
+    renderChrome
+      "Outliner"
+      (" DOCUMENTS " ++ " " ++ renameIndicator)
+      (Darklang.Cli.Colors.purpleBg ++ Darklang.Cli.Colors.white)
+      "Type to rename | Enter/Esc: finish"
+      (fun () ->
+        picker.items
+        |> Stdlib.List.indexedMap (fun idx item -> (idx, item))
+        |> Stdlib.List.iter (fun pair ->
+          let (idx, item) = pair
+          let isSelected = idx == picker.selected
+          let displayText =
+            match Stdlib.List.getAt picker.items idx with
+            | Some doc ->
+              if doc.id == _docId then TextEditor.renderInline te
+              else picker.label item
+            | None -> picker.label item
+          let prefix = if isSelected then ">" else " "
+          let line = $"  {prefix} {displayText}"
+          if isSelected then
+            Stdlib.printLine (Darklang.Cli.Colors.colorize Darklang.Cli.Colors.selection line)
+          else
+            Stdlib.printLine line))
+
+  | Editor editor ->
+    let doc = activeDoc state
+    OutlineEditor.render editor doc.title
+
+  | ExportPicker picker ->
+    let doc = activeDoc state
+    renderChrome
+      $"Export: {doc.title}"
+      " EXPORT "
+      (Darklang.Cli.Colors.purpleBg ++ Darklang.Cli.Colors.white)
+      "Up/Down: select | Enter: choose | Esc: cancel"
+      (fun () -> ListPicker.render picker)
+
+  | ExportPath (ext, te) ->
+    let doc = activeDoc state
+    let formatName =
+      if ext == ".opml" then "OPML" else "Markdown"
+    renderChrome
+      $"Export: {doc.title}"
+      " EXPORT "
+      (Darklang.Cli.Colors.greenBg ++ Darklang.Cli.Colors.black)
+      "Edit path | Enter: export | Esc: cancel"
+      (fun () ->
+        let label = Darklang.Cli.Colors.colorize Darklang.Cli.Colors.dim "  Path: "
+        Stdlib.printLine $"  Format: {formatName}"
+        Stdlib.printLine ""
+        Stdlib.printLine (label ++ (TextEditor.renderInline te)))
+
+
+// --- Persistence ---
+
+module Persistence =
+  let dataFilePath () : String =
+    match Stdlib.Cli.Unix.getHomeDirectory () with
+    | Ok home -> $"{home}/.darklang/outliner.json"
+    | Error _ -> "rundir/outliner.json"
+
+  let ensureDataDir () : Unit =
+    match Stdlib.Cli.Unix.getHomeDirectory () with
+    | Ok home ->
+      let _ = Stdlib.Cli.Unix.ensureDirectoryExists $"{home}/.darklang"
+      ()
+    | Error _ -> ()
+
+  let save (state: State) : Unit =
+    ensureDataDir ()
+    let data =
+      Stachu.Outliner.PersistedData
+        { documents = state.documents
+          activeDocId = state.activeDocId
+          nextDocId = state.nextDocId }
+    let json = Builtin.jsonSerialize<Stachu.Outliner.PersistedData> data
+    let jsonBytes = Stdlib.String.toBytes json
+    let _ = Builtin.fileWrite jsonBytes (dataFilePath ())
+    ()
+
+  let load () : State =
+    let filePath = dataFilePath ()
+    match Builtin.fileExists filePath with
+    | true ->
+      match Builtin.fileRead filePath with
+      | Ok bytes ->
+        let contents = Stdlib.String.fromBytesWithReplacement bytes
+        match Builtin.jsonParse<Stachu.Outliner.PersistedData> contents with
+        | Ok data ->
+          let docs = data.documents
+          let picker =
+            ListPicker.make docs (fun doc ->
+              let nodeCount = Stdlib.List.length doc.outline.rootChildren
+              $"{doc.title}  ({Stdlib.Int64.toString nodeCount} items)")
+          State
+            { documents = docs
+              activeDocId = data.activeDocId
+              nextDocId = data.nextDocId
+              screen = Screen.DocPicker picker }
+        | Error _ -> defaultState ()
+      | Error _ -> defaultState ()
+    | false -> defaultState ()
+
+
+// --- Default state ---
+
+let defaultState () : State =
+  let notesOutline =
+    Stachu.Outliner.buildOutline
+      [ (1L, "Welcome to Outliner")
+        (2L, "Use arrow keys to navigate")
+        (3L, "Press Enter to edit an item")
+        (4L, "Press Tab to indent")
+        (5L, "Features")
+        (6L, "Collapse/expand with Space")
+        (7L, "Add new items with 'o'")
+        (8L, "Move items with Ctrl+Up/Down")
+        (9L, "Press / for document picker") ]
+      [ (1L, [2L; 3L; 4L])
+        (5L, [6L; 7L; 8L]) ]
+      [1L; 5L; 9L]
+      10L
+  let tasksOutline =
+    Stachu.Outliner.buildOutline
+      [ (1L, "Today")
+        (2L, "Try out the outliner")
+        (3L, "Add your own items")
+        (4L, "Later")
+        (5L, "Organize your thoughts")
+        (6L, "Set up a project outline") ]
+      [ (1L, [2L; 3L])
+        (4L, [5L; 6L]) ]
+      [1L; 4L]
+      7L
+  let doc1 =
+    Stachu.Outliner.Document
+      { id = 1L
+        title = "My Notes"
+        outline = notesOutline }
+  let doc2 =
+    Stachu.Outliner.Document
+      { id = 2L
+        title = "Tasks"
+        outline = tasksOutline }
+  let docs = [doc1; doc2]
+  let picker =
+    ListPicker.make docs (fun doc ->
+      let nodeCount = Stdlib.List.length doc.outline.rootChildren
+      $"{doc.title}  ({Stdlib.Int64.toString nodeCount} items)")
+  State
+    { documents = docs
+      activeDocId = 1L
+      nextDocId = 3L
+      screen = Screen.DocPicker picker }

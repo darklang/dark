@@ -15,18 +15,22 @@ type TestSummary =
 
 // --- Helpers ---
 
-let makeState (outline: Stachu.Outliner.Outline) : Stachu.Outliner.State =
+let makeEditor (outline: Stachu.Outliner.Outline) : OutlineEditor.State =
+  OutlineEditor.fromOutline outline
+
+let makeMainState (outline: Stachu.Outliner.Outline) : Main.State =
   let doc =
     Stachu.Outliner.Document
       { id = 1L
         title = "Test Doc"
         outline = outline }
-  Stachu.Outliner.State
-    { documents = [doc]
+  let docs = [doc]
+  let picker = ListPicker.make docs (fun d -> d.title)
+  Main.State
+    { documents = docs
       activeDocId = 1L
-      cursor = 0L
-      mode = Stachu.Outliner.Mode.Navigate
-      nextDocId = 2L }
+      nextDocId = 2L
+      screen = Main.Screen.Editor (makeEditor outline) }
 
 let assertEq (label: String) (actual: String) (expected: String) : TestResult =
   if actual == expected then
@@ -41,18 +45,7 @@ let assertInt (label: String) (actual: Int64) (expected: Int64) : TestResult =
     TestResult.Fail $"{label}: expected {Stdlib.Int64.toString expected}, got {Stdlib.Int64.toString actual}"
 
 
-// --- Tests ---
-
-let testDefaultStateHasTwoDocs () : TestResult =
-  let state = Stachu.Outliner.defaultState ()
-  assertInt "doc count" (Stdlib.List.length state.documents) 2L
-
-
-let testActiveDocReturnsCorrectDoc () : TestResult =
-  let state = Stachu.Outliner.defaultState ()
-  let doc = Stachu.Outliner.activeDoc state
-  assertEq "title" doc.title "My Notes"
-
+// --- Outline tests ---
 
 let testFlattenVisibleCountsAllNodes () : TestResult =
   let outline =
@@ -64,7 +57,6 @@ let testFlattenVisibleCountsAllNodes () : TestResult =
   let flat = Stachu.Outliner.flattenVisible outline
   assertInt "visible count" (Stdlib.List.length flat) 4L
 
-
 let testFlattenVisibleRespectsCollapse () : TestResult =
   let outline =
     Stachu.Outliner.buildOutline
@@ -75,352 +67,6 @@ let testFlattenVisibleRespectsCollapse () : TestResult =
   let collapsed = Stachu.Outliner.setCollapsed outline 1L true
   let flat = Stachu.Outliner.flattenVisible collapsed
   assertInt "visible count" (Stdlib.List.length flat) 2L
-
-
-let testInsertAfterAddsNode () : TestResult =
-  let outline =
-    Stachu.Outliner.buildOutline
-      [(1L, "First")]
-      []
-      [1L]
-      2L
-  let state = makeState outline
-  let newState = Stachu.Outliner.insertAfter state
-  let doc = Stachu.Outliner.activeDoc newState
-  let flat = Stachu.Outliner.flattenVisible doc.outline
-  assertInt "visible count" (Stdlib.List.length flat) 2L
-
-
-let testInsertAfterEmptyTree () : TestResult =
-  let outline = Stachu.Outliner.emptyOutline ()
-  let state = makeState outline
-  let newState = Stachu.Outliner.insertAfter state
-  let doc = Stachu.Outliner.activeDoc newState
-  assertInt "root count" (Stdlib.List.length doc.outline.rootChildren) 1L
-
-
-let testDeleteEmptyNode () : TestResult =
-  let outline =
-    Stachu.Outliner.buildOutline
-      [(1L, ""); (2L, "Keep")]
-      []
-      [1L; 2L]
-      3L
-  let state = makeState outline
-  let newState = Stachu.Outliner.deleteNode state
-  let doc = Stachu.Outliner.activeDoc newState
-  assertInt "root count" (Stdlib.List.length doc.outline.rootChildren) 1L
-
-
-let testDeleteNonEmptyNodeDoesNothing () : TestResult =
-  let outline =
-    Stachu.Outliner.buildOutline
-      [(1L, "Has text")]
-      []
-      [1L]
-      2L
-  let state = makeState outline
-  let newState = Stachu.Outliner.deleteNode state
-  let doc = Stachu.Outliner.activeDoc newState
-  assertInt "root count" (Stdlib.List.length doc.outline.rootChildren) 1L
-
-
-let testToggleCollapse () : TestResult =
-  let outline =
-    Stachu.Outliner.buildOutline
-      [(1L, "Parent"); (2L, "Child")]
-      [(1L, [2L])]
-      [1L]
-      3L
-  let state = makeState outline
-  let newState = Stachu.Outliner.toggleCollapse state
-  let doc = Stachu.Outliner.activeDoc newState
-  let s = Stachu.Outliner.getStructure doc.outline 1L
-  if s.collapsed then
-    TestResult.Pass
-  else
-    TestResult.Fail "Expected node to be collapsed"
-
-
-let testToggleCollapseLeafDoesNothing () : TestResult =
-  let outline =
-    Stachu.Outliner.buildOutline
-      [(1L, "Leaf")]
-      []
-      [1L]
-      2L
-  let state = makeState outline
-  let newState = Stachu.Outliner.toggleCollapse state
-  let doc = Stachu.Outliner.activeDoc newState
-  let s = Stachu.Outliner.getStructure doc.outline 1L
-  if s.collapsed then
-    TestResult.Fail "Leaf should not be collapsible"
-  else
-    TestResult.Pass
-
-
-let testIndentNode () : TestResult =
-  let outline =
-    Stachu.Outliner.buildOutline
-      [(1L, "First"); (2L, "Second")]
-      []
-      [1L; 2L]
-      3L
-  let state = { (makeState outline) with cursor = 1L }
-  let newState = Stachu.Outliner.indentNode state
-  let doc = Stachu.Outliner.activeDoc newState
-  let rootCount = Stdlib.List.length doc.outline.rootChildren
-  if rootCount == 1L then
-    let s = Stachu.Outliner.getStructure doc.outline 1L
-    assertInt "child count" (Stdlib.List.length s.children) 1L
-  else
-    TestResult.Fail $"Expected 1 root after indent, got {Stdlib.Int64.toString rootCount}"
-
-
-let testOutdentNode () : TestResult =
-  let outline =
-    Stachu.Outliner.buildOutline
-      [(1L, "Parent"); (2L, "Child")]
-      [(1L, [2L])]
-      [1L]
-      3L
-  let state = { (makeState outline) with cursor = 1L }
-  let newState = Stachu.Outliner.outdentNode state
-  let doc = Stachu.Outliner.activeDoc newState
-  assertInt "root count" (Stdlib.List.length doc.outline.rootChildren) 2L
-
-
-let testMoveNodeUp () : TestResult =
-  let outline =
-    Stachu.Outliner.buildOutline
-      [(1L, "First"); (2L, "Second")]
-      []
-      [1L; 2L]
-      3L
-  let state = { (makeState outline) with cursor = 1L }
-  let newState = Stachu.Outliner.moveNodeUp state
-  let doc = Stachu.Outliner.activeDoc newState
-  match Stdlib.List.head doc.outline.rootChildren with
-  | Some firstId ->
-    let text = Stachu.Outliner.getNodeText doc.outline firstId
-    assertEq "first node" text "Second"
-  | None -> TestResult.Fail "No root nodes"
-
-
-let testMoveNodeDown () : TestResult =
-  let outline =
-    Stachu.Outliner.buildOutline
-      [(1L, "First"); (2L, "Second")]
-      []
-      [1L; 2L]
-      3L
-  let state = makeState outline
-  let newState = Stachu.Outliner.moveNodeDown state
-  let doc = Stachu.Outliner.activeDoc newState
-  match Stdlib.List.head doc.outline.rootChildren with
-  | Some firstId ->
-    let text = Stachu.Outliner.getNodeText doc.outline firstId
-    assertEq "first node" text "Second"
-  | None -> TestResult.Fail "No root nodes"
-
-
-let testMoveCursorUpDown () : TestResult =
-  let outline =
-    Stachu.Outliner.buildOutline
-      [(1L, "A"); (2L, "B"); (3L, "C")]
-      []
-      [1L; 2L; 3L]
-      4L
-  let state = makeState outline
-  let down1 = Stachu.Outliner.moveCursorDown state
-  let down2 = Stachu.Outliner.moveCursorDown down1
-  let up1 = Stachu.Outliner.moveCursorUp down2
-  if down1.cursor == 1L && down2.cursor == 2L && up1.cursor == 1L then
-    TestResult.Pass
-  else
-    TestResult.Fail $"Cursor movement: d1={Stdlib.Int64.toString down1.cursor} d2={Stdlib.Int64.toString down2.cursor} u1={Stdlib.Int64.toString up1.cursor}"
-
-
-let testMoveCursorBounds () : TestResult =
-  let outline =
-    Stachu.Outliner.buildOutline
-      [(1L, "Only")]
-      []
-      [1L]
-      2L
-  let state = makeState outline
-  let upFromZero = Stachu.Outliner.moveCursorUp state
-  let downFromMax = Stachu.Outliner.moveCursorDown state
-  if upFromZero.cursor == 0L && downFromMax.cursor == 0L then
-    TestResult.Pass
-  else
-    TestResult.Fail "Cursor should not move past bounds"
-
-
-let testEditMode () : TestResult =
-  let outline =
-    Stachu.Outliner.buildOutline
-      [(1L, "Hello")]
-      []
-      [1L]
-      2L
-  let state = makeState outline
-  let editing = Stachu.Outliner.enterEditMode state
-  match editing.mode with
-  | Editing (text, cursor) ->
-    if text == "Hello" && cursor == 5L then
-      let withChar = Stachu.Outliner.editInsertChar editing "!"
-      match withChar.mode with
-      | Editing (newText, _newCursor) ->
-        assertEq "after insert" newText "Hello!"
-      | _ -> TestResult.Fail "Expected editing mode after insert"
-    else
-      TestResult.Fail $"Expected 'Hello' at cursor 5"
-  | _ -> TestResult.Fail "Expected editing mode"
-
-
-let testEditBackspace () : TestResult =
-  let outline =
-    Stachu.Outliner.buildOutline
-      [(1L, "AB")]
-      []
-      [1L]
-      2L
-  let state = makeState outline
-  let editing = Stachu.Outliner.enterEditMode state
-  let afterBs = Stachu.Outliner.editBackspace editing
-  match afterBs.mode with
-  | Editing (text, _cursor) ->
-    assertEq "after backspace" text "A"
-  | _ -> TestResult.Fail "Expected editing mode"
-
-
-let testFinishEditing () : TestResult =
-  let outline =
-    Stachu.Outliner.buildOutline
-      [(1L, "Old")]
-      []
-      [1L]
-      2L
-  let state = makeState outline
-  let editing = Stachu.Outliner.enterEditMode state
-  let typed =
-    editing
-    |> Stachu.Outliner.editBackspace
-    |> Stachu.Outliner.editBackspace
-    |> Stachu.Outliner.editBackspace
-  let withNew =
-    typed
-    |> Stachu.Outliner.editInsertChar "N"
-    |> Stachu.Outliner.editInsertChar "e"
-    |> Stachu.Outliner.editInsertChar "w"
-  let finished = Stachu.Outliner.finishEditing withNew
-  let doc = Stachu.Outliner.activeDoc finished
-  let text = Stachu.Outliner.getNodeText doc.outline 1L
-  assertEq "node text" text "New"
-
-
-let testCreateDocument () : TestResult =
-  let state = Stachu.Outliner.defaultState ()
-  let newState = Stachu.Outliner.createDocument state "Third Doc"
-  let count = Stdlib.List.length newState.documents
-  if count == 3L && newState.activeDocId == state.nextDocId then
-    let doc = Stachu.Outliner.activeDoc newState
-    assertEq "doc title" doc.title "Third Doc"
-  else
-    TestResult.Fail $"Expected 3 docs, got {Stdlib.Int64.toString count}"
-
-
-let testDeleteDocument () : TestResult =
-  let state = Stachu.Outliner.defaultState ()
-  let withThree = Stachu.Outliner.createDocument state "Third"
-  let thirdDocId = withThree.activeDocId
-  let afterDelete = Stachu.Outliner.deleteDocument withThree thirdDocId
-  assertInt "doc count" (Stdlib.List.length afterDelete.documents) 2L
-
-
-let testDeleteOnlyDocDoesNothing () : TestResult =
-  let outline =
-    Stachu.Outliner.buildOutline [(1L, "X")] [] [1L] 2L
-  let state = makeState outline
-  let afterDelete = Stachu.Outliner.deleteDocument state 1L
-  assertInt "doc count" (Stdlib.List.length afterDelete.documents) 1L
-
-
-let testRenameDocument () : TestResult =
-  let state = Stachu.Outliner.defaultState ()
-  let doc = Stachu.Outliner.activeDoc state
-  let renamed = Stachu.Outliner.renameDocument state doc.id "New Title"
-  let renamedDoc = Stachu.Outliner.activeDoc renamed
-  assertEq "title" renamedDoc.title "New Title"
-
-
-let testSwitchDocument () : TestResult =
-  let state = Stachu.Outliner.defaultState ()
-  let withThree = Stachu.Outliner.createDocument state "Third"
-  let switched = Stachu.Outliner.switchToDocument withThree 1L
-  if switched.activeDocId == 1L && switched.cursor == 0L then
-    TestResult.Pass
-  else
-    TestResult.Fail "Switch should set activeDocId and reset cursor"
-
-
-let testDocPickerMode () : TestResult =
-  let state = Stachu.Outliner.defaultState ()
-  let inPicker = Stachu.Outliner.enterDocPicker state
-  match inPicker.mode with
-  | DocPicker idx ->
-    if idx == 0L then
-      let exited = Stachu.Outliner.exitDocPicker inPicker
-      match exited.mode with
-      | Navigate -> TestResult.Pass
-      | _ -> TestResult.Fail "Expected Navigate after exit"
-    else
-      TestResult.Fail $"Expected index 0, got {Stdlib.Int64.toString idx}"
-  | _ -> TestResult.Fail "Expected DocPicker mode"
-
-
-let testExportMarkdown () : TestResult =
-  let outline =
-    Stachu.Outliner.buildOutline
-      [(1L, "Root"); (2L, "Child")]
-      [(1L, [2L])]
-      [1L]
-      3L
-  let doc =
-    Stachu.Outliner.Document { id = 1L; title = "Test"; outline = outline }
-  let md = Stachu.Outliner.Export.toMarkdown doc
-  if Stdlib.String.contains md "# Test" && Stdlib.String.contains md "- Root" && Stdlib.String.contains md "  - Child" then
-    TestResult.Pass
-  else
-    TestResult.Fail $"Unexpected markdown:\n{md}"
-
-
-let testExportOpml () : TestResult =
-  let outline =
-    Stachu.Outliner.buildOutline
-      [(1L, "Root"); (2L, "Child")]
-      [(1L, [2L])]
-      [1L]
-      3L
-  let doc =
-    Stachu.Outliner.Document { id = 1L; title = "Test"; outline = outline }
-  let opml = Stachu.Outliner.Export.toOpml doc
-  if Stdlib.String.contains opml "<opml" && Stdlib.String.contains opml "<title>Test</title>" && Stdlib.String.contains opml "text=\"Root\"" && Stdlib.String.contains opml "text=\"Child\"" then
-    TestResult.Pass
-  else
-    TestResult.Fail $"Unexpected OPML:\n{opml}"
-
-
-let testImportMarkdown () : TestResult =
-  let md = "# My Doc\n- Alpha\n  - Beta\n- Gamma"
-  let doc = Stachu.Outliner.Markdown.import md
-  if doc.title == "My Doc" then
-    let flat = Stachu.Outliner.flattenVisible doc.outline
-    assertInt "visible count" (Stdlib.List.length flat) 3L
-  else
-    TestResult.Fail $"Expected title 'My Doc', got '{doc.title}'"
-
 
 let testBuildOutline () : TestResult =
   let outline =
@@ -440,7 +86,6 @@ let testBuildOutline () : TestResult =
     | None -> TestResult.Fail "No visible nodes"
   else
     TestResult.Fail $"Expected 3 visible, got {Stdlib.Int64.toString (Stdlib.List.length flat)}"
-
 
 let testFindParentId () : TestResult =
   let outline =
@@ -462,15 +107,308 @@ let testFindParentId () : TestResult =
   | None -> TestResult.Fail "Child should have a parent"
 
 
+// --- OutlineEditor tests ---
+
+let testInsertAfterAddsNode () : TestResult =
+  let outline =
+    Stachu.Outliner.buildOutline
+      [(1L, "First")]
+      []
+      [1L]
+      2L
+  let editor = makeEditor outline
+  let newEditor = OutlineEditor.insertAfter editor
+  let flat = Stachu.Outliner.flattenVisible newEditor.outline
+  assertInt "visible count" (Stdlib.List.length flat) 2L
+
+let testInsertAfterEmptyTree () : TestResult =
+  let outline = Stachu.Outliner.emptyOutline ()
+  let editor = makeEditor outline
+  let newEditor = OutlineEditor.insertAfter editor
+  assertInt "root count" (Stdlib.List.length newEditor.outline.rootChildren) 1L
+
+let testDeleteEmptyNode () : TestResult =
+  let outline =
+    Stachu.Outliner.buildOutline
+      [(1L, ""); (2L, "Keep")]
+      []
+      [1L; 2L]
+      3L
+  let editor = makeEditor outline
+  let newEditor = OutlineEditor.deleteNode editor
+  assertInt "root count" (Stdlib.List.length newEditor.outline.rootChildren) 1L
+
+let testDeleteNonEmptyNodeDoesNothing () : TestResult =
+  let outline =
+    Stachu.Outliner.buildOutline
+      [(1L, "Has text")]
+      []
+      [1L]
+      2L
+  let editor = makeEditor outline
+  let newEditor = OutlineEditor.deleteNode editor
+  assertInt "root count" (Stdlib.List.length newEditor.outline.rootChildren) 1L
+
+let testToggleCollapse () : TestResult =
+  let outline =
+    Stachu.Outliner.buildOutline
+      [(1L, "Parent"); (2L, "Child")]
+      [(1L, [2L])]
+      [1L]
+      3L
+  let editor = makeEditor outline
+  let newEditor = OutlineEditor.toggleCollapse editor
+  let s = Stachu.Outliner.getStructure newEditor.outline 1L
+  if s.collapsed then TestResult.Pass
+  else TestResult.Fail "Expected node to be collapsed"
+
+let testToggleCollapseLeafDoesNothing () : TestResult =
+  let outline =
+    Stachu.Outliner.buildOutline
+      [(1L, "Leaf")]
+      []
+      [1L]
+      2L
+  let editor = makeEditor outline
+  let newEditor = OutlineEditor.toggleCollapse editor
+  let s = Stachu.Outliner.getStructure newEditor.outline 1L
+  if s.collapsed then TestResult.Fail "Leaf should not be collapsible"
+  else TestResult.Pass
+
+let testIndentNode () : TestResult =
+  let outline =
+    Stachu.Outliner.buildOutline
+      [(1L, "First"); (2L, "Second")]
+      []
+      [1L; 2L]
+      3L
+  let editor = { (makeEditor outline) with cursor = 1L }
+  let newEditor = OutlineEditor.indentNode editor
+  let rootCount = Stdlib.List.length newEditor.outline.rootChildren
+  if rootCount == 1L then
+    let s = Stachu.Outliner.getStructure newEditor.outline 1L
+    assertInt "child count" (Stdlib.List.length s.children) 1L
+  else
+    TestResult.Fail $"Expected 1 root after indent, got {Stdlib.Int64.toString rootCount}"
+
+let testOutdentNode () : TestResult =
+  let outline =
+    Stachu.Outliner.buildOutline
+      [(1L, "Parent"); (2L, "Child")]
+      [(1L, [2L])]
+      [1L]
+      3L
+  let editor = { (makeEditor outline) with cursor = 1L }
+  let newEditor = OutlineEditor.outdentNode editor
+  assertInt "root count" (Stdlib.List.length newEditor.outline.rootChildren) 2L
+
+let testMoveNodeUp () : TestResult =
+  let outline =
+    Stachu.Outliner.buildOutline
+      [(1L, "First"); (2L, "Second")]
+      []
+      [1L; 2L]
+      3L
+  let editor = { (makeEditor outline) with cursor = 1L }
+  let newEditor = OutlineEditor.moveNodeUp editor
+  match Stdlib.List.head newEditor.outline.rootChildren with
+  | Some firstId ->
+    let text = Stachu.Outliner.getNodeText newEditor.outline firstId
+    assertEq "first node" text "Second"
+  | None -> TestResult.Fail "No root nodes"
+
+let testMoveNodeDown () : TestResult =
+  let outline =
+    Stachu.Outliner.buildOutline
+      [(1L, "First"); (2L, "Second")]
+      []
+      [1L; 2L]
+      3L
+  let editor = makeEditor outline
+  let newEditor = OutlineEditor.moveNodeDown editor
+  match Stdlib.List.head newEditor.outline.rootChildren with
+  | Some firstId ->
+    let text = Stachu.Outliner.getNodeText newEditor.outline firstId
+    assertEq "first node" text "Second"
+  | None -> TestResult.Fail "No root nodes"
+
+let testMoveCursorUpDown () : TestResult =
+  let outline =
+    Stachu.Outliner.buildOutline
+      [(1L, "A"); (2L, "B"); (3L, "C")]
+      []
+      [1L; 2L; 3L]
+      4L
+  let editor = makeEditor outline
+  let down1 = OutlineEditor.moveCursorDown editor
+  let down2 = OutlineEditor.moveCursorDown down1
+  let up1 = OutlineEditor.moveCursorUp down2
+  if down1.cursor == 1L && down2.cursor == 2L && up1.cursor == 1L then
+    TestResult.Pass
+  else
+    TestResult.Fail $"Cursor movement: d1={Stdlib.Int64.toString down1.cursor} d2={Stdlib.Int64.toString down2.cursor} u1={Stdlib.Int64.toString up1.cursor}"
+
+let testMoveCursorBounds () : TestResult =
+  let outline =
+    Stachu.Outliner.buildOutline
+      [(1L, "Only")]
+      []
+      [1L]
+      2L
+  let editor = makeEditor outline
+  let upFromZero = OutlineEditor.moveCursorUp editor
+  let downFromMax = OutlineEditor.moveCursorDown editor
+  if upFromZero.cursor == 0L && downFromMax.cursor == 0L then
+    TestResult.Pass
+  else
+    TestResult.Fail "Cursor should not move past bounds"
+
+
+// --- TextEditor tests ---
+
+let testTextEditorInsert () : TestResult =
+  let te = TextEditor.fromText "Hello"
+  match TextEditor.handleKey te (Stdlib.Cli.Stdin.Key.Key.Other) (Stdlib.Cli.Stdin.Modifiers.Modifiers { shift = false; ctrl = false; alt = false; meta = false }) (Stdlib.Option.Option.Some "!") with
+  | Editing newTe -> assertEq "after insert" newTe.text "Hello!"
+  | _ -> TestResult.Fail "Expected Editing result"
+
+let testTextEditorBackspace () : TestResult =
+  let te = TextEditor.fromText "AB"
+  match TextEditor.handleKey te (Stdlib.Cli.Stdin.Key.Key.Backspace) (Stdlib.Cli.Stdin.Modifiers.Modifiers { shift = false; ctrl = false; alt = false; meta = false }) (Stdlib.Option.Option.None) with
+  | Editing newTe -> assertEq "after backspace" newTe.text "A"
+  | _ -> TestResult.Fail "Expected Editing result"
+
+let testTextEditorFinish () : TestResult =
+  let te = TextEditor.fromText "Done"
+  match TextEditor.handleKey te (Stdlib.Cli.Stdin.Key.Key.Enter) (Stdlib.Cli.Stdin.Modifiers.Modifiers { shift = false; ctrl = false; alt = false; meta = false }) (Stdlib.Option.Option.None) with
+  | Finished text -> assertEq "finished text" text "Done"
+  | _ -> TestResult.Fail "Expected Finished result"
+
+let testTextEditorCancel () : TestResult =
+  let te = TextEditor.fromText "Nope"
+  match TextEditor.handleKey te (Stdlib.Cli.Stdin.Key.Key.Escape) (Stdlib.Cli.Stdin.Modifiers.Modifiers { shift = false; ctrl = false; alt = false; meta = false }) (Stdlib.Option.Option.None) with
+  | Cancelled -> TestResult.Pass
+  | _ -> TestResult.Fail "Expected Cancelled result"
+
+
+// --- OutlineEditor edit integration ---
+
+let testEditMode () : TestResult =
+  let outline =
+    Stachu.Outliner.buildOutline
+      [(1L, "Hello")]
+      []
+      [1L]
+      2L
+  let editor = makeEditor outline
+  let editing = OutlineEditor.enterEditMode editor
+  match editing.editing with
+  | Some te ->
+    if te.text == "Hello" && te.cursor == 5L then TestResult.Pass
+    else TestResult.Fail $"Expected 'Hello' at cursor 5"
+  | None -> TestResult.Fail "Expected editing state"
+
+let testFinishEditing () : TestResult =
+  let outline =
+    Stachu.Outliner.buildOutline
+      [(1L, "Old")]
+      []
+      [1L]
+      2L
+  let editor = makeEditor outline
+  let editing = OutlineEditor.enterEditMode editor
+  let committed = OutlineEditor.commitEdit editing "New"
+  let text = Stachu.Outliner.getNodeText committed.outline 1L
+  assertEq "node text" text "New"
+
+
+// --- Main/compositor tests ---
+
+let testDefaultStateHasTwoDocs () : TestResult =
+  let state = Main.defaultState ()
+  assertInt "doc count" (Stdlib.List.length state.documents) 2L
+
+let testActiveDocReturnsCorrectDoc () : TestResult =
+  let state = Main.defaultState ()
+  let doc = Main.activeDoc state
+  assertEq "title" doc.title "My Notes"
+
+let testCreateDocument () : TestResult =
+  let state = Main.defaultState ()
+  let newState = Main.createDocument state "Third Doc"
+  let count = Stdlib.List.length newState.documents
+  if count == 3L && newState.activeDocId == state.nextDocId then
+    let doc = Main.activeDoc newState
+    assertEq "doc title" doc.title "Third Doc"
+  else
+    TestResult.Fail $"Expected 3 docs, got {Stdlib.Int64.toString count}"
+
+let testDeleteDocument () : TestResult =
+  let state = Main.defaultState ()
+  let newState = Main.createDocument state "Third"
+  let thirdDocId = newState.activeDocId
+  let afterDelete = Main.deleteDocument newState thirdDocId
+  assertInt "doc count" (Stdlib.List.length afterDelete.documents) 2L
+
+let testDeleteOnlyDocDoesNothing () : TestResult =
+  let state = makeMainState (Stachu.Outliner.buildOutline [(1L, "X")] [] [1L] 2L)
+  let afterDelete = Main.deleteDocument state 1L
+  assertInt "doc count" (Stdlib.List.length afterDelete.documents) 1L
+
+let testRenameDocument () : TestResult =
+  let state = Main.defaultState ()
+  let doc = Main.activeDoc state
+  let renamed = Main.renameDocument state doc.id "New Title"
+  let renamedDoc = Main.activeDoc renamed
+  assertEq "title" renamedDoc.title "New Title"
+
+let testExportMarkdown () : TestResult =
+  let outline =
+    Stachu.Outliner.buildOutline
+      [(1L, "Root"); (2L, "Child")]
+      [(1L, [2L])]
+      [1L]
+      3L
+  let doc =
+    Stachu.Outliner.Document { id = 1L; title = "Test"; outline = outline }
+  let md = Stachu.Outliner.Export.toMarkdown doc
+  if Stdlib.String.contains md "# Test" && Stdlib.String.contains md "- Root" && Stdlib.String.contains md "  - Child" then
+    TestResult.Pass
+  else
+    TestResult.Fail $"Unexpected markdown:\n{md}"
+
+let testExportOpml () : TestResult =
+  let outline =
+    Stachu.Outliner.buildOutline
+      [(1L, "Root"); (2L, "Child")]
+      [(1L, [2L])]
+      [1L]
+      3L
+  let doc =
+    Stachu.Outliner.Document { id = 1L; title = "Test"; outline = outline }
+  let opml = Stachu.Outliner.Export.toOpml doc
+  if Stdlib.String.contains opml "<opml" && Stdlib.String.contains opml "<title>Test</title>" && Stdlib.String.contains opml "text=\"Root\"" && Stdlib.String.contains opml "text=\"Child\"" then
+    TestResult.Pass
+  else
+    TestResult.Fail $"Unexpected OPML:\n{opml}"
+
+let testImportMarkdown () : TestResult =
+  let md = "# My Doc\n- Alpha\n  - Beta\n- Gamma"
+  let doc = Stachu.Outliner.Markdown.import md
+  if doc.title == "My Doc" then
+    let flat = Stachu.Outliner.flattenVisible doc.outline
+    assertInt "visible count" (Stdlib.List.length flat) 3L
+  else
+    TestResult.Fail $"Expected title 'My Doc', got '{doc.title}'"
+
+
 // --- Test runner ---
 
 let allTests () : List<(String * TestFunction)> =
-  [ ("Default state has two docs", fun () -> testDefaultStateHasTwoDocs ())
-    ("Active doc returns correct doc", fun () -> testActiveDocReturnsCorrectDoc ())
+  [ ("Flatten visible counts all nodes", fun () -> testFlattenVisibleCountsAllNodes ())
+    ("Flatten visible respects collapse", fun () -> testFlattenVisibleRespectsCollapse ())
     ("Build outline", fun () -> testBuildOutline ())
     ("Find parent id", fun () -> testFindParentId ())
-    ("Flatten visible counts all nodes", fun () -> testFlattenVisibleCountsAllNodes ())
-    ("Flatten visible respects collapse", fun () -> testFlattenVisibleRespectsCollapse ())
     ("Insert after adds node", fun () -> testInsertAfterAddsNode ())
     ("Insert after empty tree", fun () -> testInsertAfterEmptyTree ())
     ("Delete empty node", fun () -> testDeleteEmptyNode ())
@@ -483,15 +421,18 @@ let allTests () : List<(String * TestFunction)> =
     ("Move node down", fun () -> testMoveNodeDown ())
     ("Cursor up/down", fun () -> testMoveCursorUpDown ())
     ("Cursor bounds", fun () -> testMoveCursorBounds ())
+    ("TextEditor insert", fun () -> testTextEditorInsert ())
+    ("TextEditor backspace", fun () -> testTextEditorBackspace ())
+    ("TextEditor finish", fun () -> testTextEditorFinish ())
+    ("TextEditor cancel", fun () -> testTextEditorCancel ())
     ("Edit mode", fun () -> testEditMode ())
-    ("Edit backspace", fun () -> testEditBackspace ())
     ("Finish editing", fun () -> testFinishEditing ())
+    ("Default state has two docs", fun () -> testDefaultStateHasTwoDocs ())
+    ("Active doc returns correct doc", fun () -> testActiveDocReturnsCorrectDoc ())
     ("Create document", fun () -> testCreateDocument ())
     ("Delete document", fun () -> testDeleteDocument ())
     ("Delete only doc no-op", fun () -> testDeleteOnlyDocDoesNothing ())
     ("Rename document", fun () -> testRenameDocument ())
-    ("Switch document", fun () -> testSwitchDocument ())
-    ("DocPicker mode", fun () -> testDocPickerMode ())
     ("Export markdown", fun () -> testExportMarkdown ())
     ("Export OPML", fun () -> testExportOpml ())
     ("Import markdown", fun () -> testImportMarkdown ()) ]
