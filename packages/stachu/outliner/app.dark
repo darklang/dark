@@ -1,0 +1,65 @@
+module Stachu.Outliner.App
+
+/// Wrap outliner state into a generic SubApp.
+/// The CLI hosts this without knowing anything about outliner internals.
+let makeApp (state: Stachu.Outliner.State) : Darklang.Cli.SubApp =
+  Darklang.Cli.SubApp
+    { onKey = fun key modifiers keyChar ->
+        let result = Stachu.Outliner.Keys.handleKey state key modifiers keyChar
+        match result with
+        | Continue s -> (Darklang.Cli.SubAppAction.Continue, makeApp s)
+        | Save s -> (Darklang.Cli.SubAppAction.Save, makeApp s)
+        | Exit s -> (Darklang.Cli.SubAppAction.Exit, makeApp s)
+      onDisplay = fun () -> Stachu.Outliner.Render.display state
+      onSave = fun () -> Stachu.Outliner.Persistence.save state }
+
+
+/// CLI command: enter the outliner.
+let execute (cliState: Darklang.Cli.AppState) (_args: List<String>) : Darklang.Cli.AppState =
+  Stdlib.print "\u001b[?1049h"
+  let outlinerState = Stachu.Outliner.Persistence.load ()
+  let outlinerState = Stachu.Outliner.enterDocPicker outlinerState
+  let app = makeApp outlinerState
+  { cliState with
+      currentPage = Darklang.Cli.Page.SubApp app
+      needsFullRedraw = true }
+
+
+/// CLI help text.
+let help (_state: Darklang.Cli.AppState) : Darklang.Cli.AppState =
+  [ "Usage: outliner"
+    "Interactive tree outliner with multi-document support."
+    ""
+    "Navigate mode:"
+    "  Up/Down      Move between items"
+    "  Enter        Edit selected item"
+    "  Tab          Indent (make child of previous sibling)"
+    "  Shift+Tab    Outdent (move to parent's level)"
+    "  o            New sibling below"
+    "  Space        Toggle collapse/expand"
+    "  Ctrl+Up      Move item up among siblings"
+    "  Ctrl+Down    Move item down among siblings"
+    "  Backspace    Delete empty item"
+    "  e            Export current document"
+    "  Escape       Back to document picker"
+    ""
+    "Document picker:"
+    "  Up/Down      Select document"
+    "  Enter        Open selected document"
+    "  n            Create new document"
+    "  d            Delete selected document"
+    "  r            Rename selected document"
+    "  Escape       Exit to main CLI"
+    ""
+    "Edit mode:"
+    "  Type         Insert characters"
+    "  Left/Right   Move cursor"
+    "  Backspace    Delete before cursor"
+    "  Enter/Esc    Finish editing"
+  ] |> Stdlib.printLines
+  _state
+
+
+/// Tab completion (no arguments).
+let complete (_state: Darklang.Cli.AppState) (_args: List<String>) : List<Darklang.Cli.Completion.CompletionItem> =
+  []
