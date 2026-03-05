@@ -1,0 +1,200 @@
+module Stachu.Outliner
+
+
+// --- Types ---
+
+type NodeContent =
+  { text: String }
+
+type TreeStructure =
+  { children: List<Int64>
+    collapsed: Bool }
+
+type Outline =
+  { nodes: Dict<NodeContent>
+    structure: Dict<TreeStructure>
+    rootChildren: List<Int64>
+    nextId: Int64 }
+
+type VisibleNode =
+  { id: Int64
+    text: String
+    depth: Int64
+    hasChildren: Bool
+    childCount: Int64
+    isCollapsed: Bool }
+
+type Document =
+  { id: Int64
+    title: String
+    outline: Outline }
+
+type PersistedData =
+  { documents: List<Document>
+    activeDocId: Int64
+    nextDocId: Int64 }
+
+
+// --- Outline helpers ---
+
+let k (id: Int64) : String =
+  Stdlib.Int64.toString id
+
+let emptyOutline () : Outline =
+  Outline
+    { nodes = Stdlib.Dict.empty
+      structure = Stdlib.Dict.empty
+      rootChildren = []
+      nextId = 1L }
+
+let getNodeText (outline: Outline) (id: Int64) : String =
+  match Stdlib.Dict.get outline.nodes (k id) with
+  | Some nc -> nc.text
+  | None -> ""
+
+let getStructure (outline: Outline) (id: Int64) : TreeStructure =
+  match Stdlib.Dict.get outline.structure (k id) with
+  | Some s -> s
+  | None -> TreeStructure { children = []; collapsed = false }
+
+let addNode (outline: Outline) (id: Int64) (text: String) : Outline =
+  let key = k id
+  let nc = NodeContent { text = text }
+  let ts = TreeStructure { children = []; collapsed = false }
+  { outline with
+      nodes = Stdlib.Dict.setOverridingDuplicates outline.nodes key nc
+      structure = Stdlib.Dict.setOverridingDuplicates outline.structure key ts }
+
+let setNodeText (outline: Outline) (id: Int64) (text: String) : Outline =
+  let key = k id
+  let nc = NodeContent { text = text }
+  { outline with nodes = Stdlib.Dict.setOverridingDuplicates outline.nodes key nc }
+
+let removeNodeData (outline: Outline) (id: Int64) : Outline =
+  let key = k id
+  { outline with
+      nodes = Stdlib.Dict.remove outline.nodes key
+      structure = Stdlib.Dict.remove outline.structure key }
+
+let setCollapsed (outline: Outline) (id: Int64) (collapsed: Bool) : Outline =
+  let key = k id
+  match Stdlib.Dict.get outline.structure key with
+  | Some s ->
+    let updated = { s with collapsed = collapsed }
+    { outline with structure = Stdlib.Dict.setOverridingDuplicates outline.structure key updated }
+  | None -> outline
+
+let getChildren (outline: Outline) (parentId: Stdlib.Option.Option<Int64>) : List<Int64> =
+  match parentId with
+  | None -> outline.rootChildren
+  | Some pid ->
+    let s = getStructure outline pid
+    s.children
+
+let setChildren (outline: Outline) (parentId: Stdlib.Option.Option<Int64>) (newChildren: List<Int64>) : Outline =
+  match parentId with
+  | None -> { outline with rootChildren = newChildren }
+  | Some pid ->
+    let key = k pid
+    let s = getStructure outline pid
+    let updated = { s with children = newChildren }
+    { outline with structure = Stdlib.Dict.setOverridingDuplicates outline.structure key updated }
+
+let findParentId (outline: Outline) (targetId: Int64) : Stdlib.Option.Option<Int64> =
+  if Stdlib.List.any outline.rootChildren (fun id -> id == targetId) then
+    Stdlib.Option.Option.None
+  else
+    (Stdlib.Dict.toList outline.structure)
+    |> Stdlib.List.findFirst (fun pair ->
+      let (_key, s) = pair
+      Stdlib.List.any s.children (fun id -> id == targetId))
+    |> Stdlib.Option.map (fun pair ->
+      let (key, _s) = pair
+      match Stdlib.Int64.parse key with
+      | Ok id -> id
+      | Error _ -> 0L)
+
+
+// --- List helpers ---
+
+let insertIdAfter (ids: List<Int64>) (afterId: Int64) (newId: Int64) : List<Int64> =
+  ids
+  |> Stdlib.List.fold [] (fun acc id ->
+    if id == afterId then
+      Stdlib.List.append acc [id; newId]
+    else
+      Stdlib.List.append acc [id])
+
+let swapAt (ids: List<Int64>) (i: Int64) (j: Int64) : List<Int64> =
+  let iVal =
+    (Stdlib.List.getAt ids i) |> Stdlib.Option.withDefault 0L
+  let jVal =
+    (Stdlib.List.getAt ids j) |> Stdlib.Option.withDefault 0L
+  ids
+  |> Stdlib.List.indexedMap (fun idx id ->
+    if idx == i then jVal
+    else if idx == j then iVal
+    else id)
+
+
+// --- Flatten ---
+
+let rec flattenVisibleHelper (outline: Outline) (ids: List<Int64>) (depth: Int64) : List<VisibleNode> =
+  ids
+  |> Stdlib.List.fold [] (fun acc id ->
+    let text = getNodeText outline id
+    let s = getStructure outline id
+    let hasChildren = Stdlib.Bool.not (Stdlib.List.isEmpty s.children)
+    let vn =
+      VisibleNode
+        { id = id
+          text = text
+          depth = depth
+          hasChildren = hasChildren
+          childCount = Stdlib.List.length s.children
+          isCollapsed = s.collapsed }
+    let childNodes =
+      if s.collapsed then
+        []
+      else
+        flattenVisibleHelper outline s.children (depth + 1L)
+    Stdlib.List.append acc (Stdlib.List.append [vn] childNodes))
+
+let flattenVisible (outline: Outline) : List<VisibleNode> =
+  flattenVisibleHelper outline outline.rootChildren 0L
+
+
+// --- Outline builder ---
+
+let buildOutline
+  (nodeList: List<(Int64 * String)>)
+  (childMap: List<(Int64 * List<Int64>)>)
+  (roots: List<Int64>)
+  (nextId: Int64)
+  : Outline =
+  let nodeEntries =
+    nodeList
+    |> Stdlib.List.map (fun pair ->
+      let (id, text) = pair
+      (k id, NodeContent { text = text }))
+  let nodes = Stdlib.Dict.fromListOverwritingDuplicates nodeEntries
+  let structEntries =
+    nodeList
+    |> Stdlib.List.map (fun pair ->
+      let (id, _text) = pair
+      let children =
+        childMap
+        |> Stdlib.List.findFirst (fun cm ->
+          let (cmId, _cids) = cm
+          cmId == id)
+        |> Stdlib.Option.map (fun cm ->
+          let (_cmId, cids) = cm
+          cids)
+        |> Stdlib.Option.withDefault []
+      (k id, TreeStructure { children = children; collapsed = false }))
+  let structure = Stdlib.Dict.fromListOverwritingDuplicates structEntries
+  Outline
+    { nodes = nodes
+      structure = structure
+      rootChildren = roots
+      nextId = nextId }

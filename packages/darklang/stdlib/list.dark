@@ -74,6 +74,19 @@ let findFirst (list: List<'a>) (fn: 'a -> Bool) : Option.Option<'a> =
       findFirst tail fn
 
 
+/// Returns the index of the first element in <param list> for which <param fn>
+/// returns true. Returns {{None}} if no such element exists.
+let findFirstIndex (list: List<'a>) (fn: 'a -> Bool) : Option.Option<Int64> =
+  list
+  |> indexedMap (fun i item -> (i, item))
+  |> findFirst (fun pair ->
+    let (_i, item) = pair
+    fn item)
+  |> Stdlib.Option.map (fun pair ->
+    let (i, _item) = pair
+    i)
+
+
 /// Returns {{true}} if <param value> is in the list
 let ``member`` (list: List<'a>) (value: 'a) : Bool =
   Option.isSome (findFirst list (fun elem -> elem == value))

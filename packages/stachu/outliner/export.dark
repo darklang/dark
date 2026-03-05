@@ -1,0 +1,17 @@
+module Stachu.Outliner.Export
+
+/// Convert an outline's nodes to generic Opml.Node tree for OPML export.
+let toOpmlNodes (outline: Outline) (ids: List<Int64>) : List<Opml.Node> =
+  ids
+  |> Stdlib.List.map (fun id ->
+    let text = getNodeText outline id
+    let s = getStructure outline id
+    let children = toOpmlNodes outline s.children
+    Opml.Node { text = text; children = children })
+
+let toOpml (doc: Document) : String =
+  let nodes = toOpmlNodes doc.outline doc.outline.rootChildren
+  Opml.export doc.title nodes
+
+let toMarkdown (doc: Document) : String =
+  Markdown.export doc
