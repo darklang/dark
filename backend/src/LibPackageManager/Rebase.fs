@@ -145,5 +145,14 @@ let rebase (branchId : PT.BranchId) : Task<Result<string, List<RebaseConflict>>>
                 [ "id", Sql.uuid branchId; "base_commit_hash", baseCommitHashParam ]
               |> Sql.executeStatementAsync
 
+            // Emit RebaseBranch BranchOp
+            match parentLatest with
+            | Some newBase ->
+              do!
+                BranchOpPlayback.insertOnly (
+                  PT.BranchOp.RebaseBranch(branchId, newBase)
+                )
+            | None -> ()
+
             return Ok "Rebased successfully"
   }

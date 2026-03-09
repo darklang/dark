@@ -173,12 +173,12 @@ let execute (state: AppState) (args: List<String>) : AppState =
       Stdlib.printLine (Colors.error $"Branch '{oldName}' not found.")
       state
 
-  | [ "delete"; name ] ->
+  | [ "delete"; name ] | [ "archive"; name ] ->
     match SCM.Branch.getByName name with
     | Some b ->
-      match SCM.Branch.delete b.id with
+      match SCM.Branch.archive b.id with
       | Ok _ ->
-        Stdlib.printLine (Colors.success $"Deleted branch '{name}'")
+        Stdlib.printLine (Colors.success $"Archived branch '{name}'")
         if b.id == state.currentBranchId then
           let mainId = SCM.Branch.mainBranchId
           Stdlib.printLine "Switched to main."
@@ -186,23 +186,23 @@ let execute (state: AppState) (args: List<String>) : AppState =
         else
           state
       | Error e ->
-        Stdlib.printLine (Colors.error $"Delete failed: {e}")
+        Stdlib.printLine (Colors.error $"Archive failed: {e}")
         state
     | None ->
       Stdlib.printLine (Colors.error $"Branch '{name}' not found.")
       state
 
   | _ ->
-    Stdlib.printLine "Usage: branch [list|create|switch|rename|delete] [args]"
+    Stdlib.printLine "Usage: branch [list|create|switch|rename|archive] [args]"
     state
 
 
 let complete (_state: AppState) (args: List<String>) : List<Completion.CompletionItem> =
   match args with
   | [] ->
-    [ "list"; "create"; "switch"; "rename"; "delete" ]
+    [ "list"; "create"; "switch"; "rename"; "archive" ]
     |> Stdlib.List.map Completion.simple
-  | [ "switch" ] | [ "delete" ] ->
+  | [ "switch" ] | [ "archive" ] | [ "delete" ] ->
     let branches = SCM.Branch.list ()
     Stdlib.List.map branches (fun b -> Completion.simple b.name)
   | _ -> []
@@ -217,7 +217,8 @@ let help (_state: AppState) : Unit =
     "  create <name>           Create branch from current, switch to it"
     "  switch <name>           Switch to existing branch"
     "  rename <old> <new>      Rename a branch"
-    "  delete <name>           Delete a branch"
+    "  archive <name>          Archive a branch (soft delete)"
+    "  delete <name>           Archive a branch (alias for archive)"
     ""
     "Note: branch context does not persist between CLI invocations."
     "In interactive mode, 'branch switch' works for the session."
