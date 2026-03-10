@@ -1,0 +1,220 @@
+module Darklang.SCM.UnresolvedCheck
+
+/// Collects unresolved name reference strings from WIP package ops.
+/// Used at commit time to reject items that still have unresolved references.
+
+
+let collectUnresolved
+  (nr: LanguageTools.ProgramTypes.NameResolution<'a>)
+  : List<String> =
+  match nr.resolved with
+  | Ok _ -> []
+  | Error _ -> [Stdlib.String.join nr.originalName "."]
+
+
+let collectMap (items: List<'a>) (fn: 'a -> List<String>) : List<String> =
+  items |> Stdlib.List.map fn |> Stdlib.List.flatten
+
+
+let checkTypeRef (tr: LanguageTools.ProgramTypes.TypeReference) : List<String> =
+  match tr with
+  | TList inner -> checkTypeRef inner
+  | TDict inner -> checkTypeRef inner
+  | TDB inner -> checkTypeRef inner
+  | TTuple(first, second, rest) ->
+    Stdlib.List.flatten
+      [ checkTypeRef first
+        checkTypeRef second
+        collectMap rest (fun t -> checkTypeRef t) ]
+  | TCustomType(nr, typeArgs) ->
+    Stdlib.List.flatten
+      [ collectUnresolved nr
+        collectMap typeArgs (fun t -> checkTypeRef t) ]
+  | TFn(args, ret) ->
+    Stdlib.List.append
+      (collectMap args (fun t -> checkTypeRef t))
+      (checkTypeRef ret)
+  | _ -> []
+
+
+let checkStringSegment
+  (seg: LanguageTools.ProgramTypes.StringSegment)
+  : List<String> =
+  match seg with
+  | StringText _ -> []
+  | StringInterpolation expr -> checkExpr expr
+
+
+let checkMatchCase
+  (mc: LanguageTools.ProgramTypes.MatchCase)
+  : List<String> =
+  let whenResults =
+    match mc.whenCondition with
+    | Some e -> checkExpr e
+    | None -> []
+
+  Stdlib.List.append whenResults (checkExpr mc.rhs)
+
+
+let checkPipeExpr
+  (pe: LanguageTools.ProgramTypes.PipeExpr)
+  : List<String> =
+  match pe with
+  | EPipeLambda(_, _, body) -> checkExpr body
+  | EPipeInfix(_, _, rhs) -> checkExpr rhs
+  | EPipeFnCall(_, nr, typeArgs, args) ->
+    Stdlib.List.flatten
+      [ collectUnresolved nr
+        collectMap typeArgs (fun t -> checkTypeRef t)
+        collectMap args (fun e -> checkExpr e) ]
+  | EPipeEnum(_, nr, _, fields) ->
+    Stdlib.List.flatten
+      [ collectUnresolved nr
+        collectMap fields (fun e -> checkExpr e) ]
+  | EPipeVariable(_, _, args) ->
+    collectMap args (fun e -> checkExpr e)
+
+
+let checkExpr (expr: LanguageTools.ProgramTypes.Expr) : List<String> =
+  match expr with
+  | EString(_, segments) ->
+    collectMap segments (fun s -> checkStringSegment s)
+  | EList(_, items) ->
+    collectMap items (fun e -> checkExpr e)
+  | EDict(_, pairs) ->
+    collectMap pairs (fun (_, e) -> checkExpr e)
+  | ETuple(_, first, second, rest) ->
+    Stdlib.List.flatten
+      [ checkExpr first
+        checkExpr second
+        collectMap rest (fun e -> checkExpr e) ]
+  | ERecord(_, nr, typeArgs, fields) ->
+    Stdlib.List.flatten
+      [ collectUnresolved nr
+        collectMap typeArgs (fun t -> checkTypeRef t)
+        collectMap fields (fun (_, e) -> checkExpr e) ]
+  | EEnum(_, nr, typeArgs, _, fields) ->
+    Stdlib.List.flatten
+      [ collectUnresolved nr
+        collectMap typeArgs (fun t -> checkTypeRef t)
+        collectMap fields (fun e -> checkExpr e) ]
+  | ELet(_, _, value, body) ->
+    Stdlib.List.append (checkExpr value) (checkExpr body)
+  | EIf(_, cond, thenExpr, elseExpr) ->
+    Stdlib.List.flatten
+      [ checkExpr cond
+        checkExpr thenExpr
+        (match elseExpr with
+         | Some e -> checkExpr e
+         | None -> []) ]
+  | EMatch(_, arg, cases) ->
+    Stdlib.List.append
+      (checkExpr arg)
+      (collectMap cases (fun c -> checkMatchCase c))
+  | EPipe(_, lhs, parts) ->
+    Stdlib.List.append
+      (checkExpr lhs)
+      (collectMap parts (fun p -> checkPipeExpr p))
+  | EInfix(_, _, lhs, rhs) ->
+    Stdlib.List.append (checkExpr lhs) (checkExpr rhs)
+  | ELambda(_, _, body) -> checkExpr body
+  | EApply(_, fnExpr, typeArgs, args) ->
+    Stdlib.List.flatten
+      [ checkExpr fnExpr
+        collectMap typeArgs (fun t -> checkTypeRef t)
+        collectMap args (fun e -> checkExpr e) ]
+  | EFnName(_, nr) -> collectUnresolved nr
+  | EValue(_, nr) -> collectUnresolved nr
+  | ERecordFieldAccess(_, record, _) -> checkExpr record
+  | ERecordUpdate(_, record, updates) ->
+    Stdlib.List.append
+      (checkExpr record)
+      (collectMap updates (fun (_, e) -> checkExpr e))
+  | EStatement(_, first, next) ->
+    Stdlib.List.append (checkExpr first) (checkExpr next)
+  | _ -> []
+
+
+let checkTypeDefinition
+  (def: LanguageTools.ProgramTypes.TypeDeclaration.Definition)
+  : List<String> =
+  match def with
+  | Alias typeRef -> checkTypeRef typeRef
+  | Record fields ->
+    collectMap fields (fun f -> checkTypeRef f.typ)
+  | Enum cases ->
+    collectMap cases (fun c ->
+      collectMap c.fields (fun f -> checkTypeRef f.typ))
+
+
+let typeUnresolvedNames
+  (t: LanguageTools.ProgramTypes.PackageType.PackageType)
+  : List<String> =
+  checkTypeDefinition t.declaration.definition
+
+
+let fnUnresolvedNames
+  (f: LanguageTools.ProgramTypes.PackageFn.PackageFn)
+  : List<String> =
+  Stdlib.List.flatten
+    [ checkExpr f.body
+      collectMap f.parameters (fun p -> checkTypeRef p.typ)
+      checkTypeRef f.returnType ]
+
+
+let valueUnresolvedNames
+  (v: LanguageTools.ProgramTypes.PackageValue.PackageValue)
+  : List<String> =
+  checkExpr v.body
+
+
+type UnresolvedItem =
+  { label: String
+    names: List<String> }
+
+/// Collect unresolved references grouped by the item that contains them.
+let findUnresolvedInOps
+  (ops: List<LanguageTools.ProgramTypes.PackageOp>)
+  : List<UnresolvedItem> =
+  let (results, _pendingKind, _pendingNames) =
+    Stdlib.List.fold ops ([], Stdlib.Option.Option.None, []) (fun (results, pendingKind, pendingNames) op ->
+      match op with
+      | AddType t ->
+        let names = typeUnresolvedNames t
+
+        if Stdlib.List.isEmpty names then
+          (results, Stdlib.Option.Option.None, [])
+        else
+          (results, Stdlib.Option.Option.Some "type", names)
+      | AddFn f ->
+        let names = fnUnresolvedNames f
+
+        if Stdlib.List.isEmpty names then
+          (results, Stdlib.Option.Option.None, [])
+        else
+          (results, Stdlib.Option.Option.Some "fn", names)
+      | AddValue v ->
+        let names = valueUnresolvedNames v
+
+        if Stdlib.List.isEmpty names then
+          (results, Stdlib.Option.Option.None, [])
+        else
+          (results, Stdlib.Option.Option.Some "value", names)
+      | SetTypeName(_, loc)
+      | SetFnName(_, loc)
+      | SetValueName(_, loc) ->
+        match pendingKind with
+        | Some kind ->
+          let itemName =
+            PrettyPrinter.ProgramTypes.PackageLocation.packageLocation loc
+
+          let item =
+            UnresolvedItem
+              { label = $"{kind} {itemName}"
+                names = Stdlib.List.unique pendingNames }
+
+          (Stdlib.List.append results [item], Stdlib.Option.Option.None, [])
+        | None -> (results, Stdlib.Option.Option.None, [])
+      | _ -> (results, pendingKind, pendingNames))
+
+  results
