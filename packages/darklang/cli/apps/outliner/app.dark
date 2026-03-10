@@ -1,4 +1,4 @@
-module Stachu.Outliner.App
+module Darklang.Cli.Apps.Outliner.App
 
 /// Wrap Main state into a generic SubApp for the CLI host.
 let makeSubApp (state: Main.State) : Darklang.Cli.SubApp =

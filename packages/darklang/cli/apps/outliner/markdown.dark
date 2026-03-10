@@ -1,22 +1,22 @@
-module Stachu.Outliner.Markdown
+module Darklang.Cli.Apps.Outliner.Markdown
 
-let exportHelper (outline: Stachu.Outliner.Outline) (ids: List<Int64>) (depth: Int64) : List<String> =
+let exportHelper (outline: Darklang.Cli.Apps.Outliner.Outline) (ids: List<Int64>) (depth: Int64) : List<String> =
   ids
   |> Stdlib.List.fold [] (fun acc id ->
-    let text = Stachu.Outliner.getNodeText outline id
-    let s = Stachu.Outliner.getStructure outline id
+    let text = Darklang.Cli.Apps.Outliner.getNodeText outline id
+    let s = Darklang.Cli.Apps.Outliner.getStructure outline id
     let indent = Stdlib.String.repeat "  " depth
     let line = $"{indent}- {text}"
     let childLines =
       exportHelper outline s.children (depth + 1L)
     Stdlib.List.append acc (Stdlib.List.append [line] childLines))
 
-let export (doc: Stachu.Outliner.Document) : String =
+let export (doc: Darklang.Cli.Apps.Outliner.Document) : String =
   let header = $"# {doc.title}"
   let lines = exportHelper doc.outline doc.outline.rootChildren 0L
   Stdlib.String.join (Stdlib.List.append [header; ""] lines) "\n"
 
-let import (markdown: String) : Stachu.Outliner.Document =
+let import (markdown: String) : Darklang.Cli.Apps.Outliner.Document =
   let lines = Stdlib.String.split markdown "\n"
   let title =
     match Stdlib.List.head lines with
@@ -40,7 +40,7 @@ let import (markdown: String) : Stachu.Outliner.Document =
       Stdlib.Bool.not (Stdlib.String.isEmpty (Stdlib.String.trim line)))
   let result =
     nonEmptyLines
-    |> Stdlib.List.fold (Stachu.Outliner.emptyOutline (), [], 0L) (fun acc line ->
+    |> Stdlib.List.fold (Darklang.Cli.Apps.Outliner.emptyOutline (), [], 0L) (fun acc line ->
       let (outline, stack, _count) = acc
       let trimmed = Stdlib.String.trim line
       let text =
@@ -52,7 +52,7 @@ let import (markdown: String) : Stachu.Outliner.Document =
         (Stdlib.String.length line) - (Stdlib.String.length (Stdlib.String.trimStart line))
       let depth = Stdlib.Int64.divide indentChars 2L
       let id = outline.nextId
-      let o1 = Stachu.Outliner.addNode outline id text
+      let o1 = Darklang.Cli.Apps.Outliner.addNode outline id text
       let newStack =
         stack
         |> Stdlib.List.filter (fun pair ->
@@ -68,13 +68,13 @@ let import (markdown: String) : Stachu.Outliner.Document =
         | None ->
           { o1 with rootChildren = Stdlib.List.append o1.rootChildren [id] }
         | Some pid ->
-          let children = Stachu.Outliner.getChildren o1 (Stdlib.Option.Option.Some pid)
-          Stachu.Outliner.setChildren o1 (Stdlib.Option.Option.Some pid) (Stdlib.List.append children [id])
+          let children = Darklang.Cli.Apps.Outliner.getChildren o1 (Stdlib.Option.Option.Some pid)
+          Darklang.Cli.Apps.Outliner.setChildren o1 (Stdlib.Option.Option.Some pid) (Stdlib.List.append children [id])
       let o3 = { o2 with nextId = id + 1L }
       let updatedStack = Stdlib.List.append newStack [(depth, id)]
       (o3, updatedStack, 0L))
   let (finalOutline, _stack, _count) = result
-  Stachu.Outliner.Document
+  Darklang.Cli.Apps.Outliner.Document
     { id = 0L
       title = title
       outline = finalOutline }

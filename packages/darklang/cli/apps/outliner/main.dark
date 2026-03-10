@@ -1,14 +1,14 @@
-module Stachu.Outliner.Main
+module Darklang.Cli.Apps.Outliner.Main
 
 type Screen =
-  | DocPicker of ListPicker.State<Stachu.Outliner.Document>
-  | DocRenaming of docId: Int64 * ListPicker.State<Stachu.Outliner.Document> * TextEditor.State
+  | DocPicker of ListPicker.State<Darklang.Cli.Apps.Outliner.Document>
+  | DocRenaming of docId: Int64 * ListPicker.State<Darklang.Cli.Apps.Outliner.Document> * TextEditor.State
   | Editor of OutlineEditor.State
   | ExportPicker of ListPicker.State<(String * String)>
   | ExportPath of ext: String * TextEditor.State
 
 type State =
-  { documents: List<Stachu.Outliner.Document>
+  { documents: List<Darklang.Cli.Apps.Outliner.Document>
     activeDocId: Int64
     nextDocId: Int64
     screen: Screen }
@@ -21,15 +21,15 @@ type KeyResult =
 
 // --- Document helpers ---
 
-let activeDoc (state: State) : Stachu.Outliner.Document =
+let activeDoc (state: State) : Darklang.Cli.Apps.Outliner.Document =
   let fallback =
-    Stachu.Outliner.Document
-      { id = 0L; title = "Untitled"; outline = Stachu.Outliner.emptyOutline () }
+    Darklang.Cli.Apps.Outliner.Document
+      { id = 0L; title = "Untitled"; outline = Darklang.Cli.Apps.Outliner.emptyOutline () }
   state.documents
   |> Stdlib.List.findFirst (fun d -> d.id == state.activeDocId)
   |> Stdlib.Option.withDefault fallback
 
-let updateDoc (state: State) (docId: Int64) (updater: Stachu.Outliner.Document -> Stachu.Outliner.Document) : State =
+let updateDoc (state: State) (docId: Int64) (updater: Darklang.Cli.Apps.Outliner.Document -> Darklang.Cli.Apps.Outliner.Document) : State =
   { state with
       documents =
         Stdlib.List.map state.documents (fun d ->
@@ -38,10 +38,10 @@ let updateDoc (state: State) (docId: Int64) (updater: Stachu.Outliner.Document -
 
 let createDocument (state: State) (title: String) : State =
   let newDoc =
-    Stachu.Outliner.Document
+    Darklang.Cli.Apps.Outliner.Document
       { id = state.nextDocId
         title = title
-        outline = Stachu.Outliner.emptyOutline () }
+        outline = Darklang.Cli.Apps.Outliner.emptyOutline () }
   let newState =
     { state with
         documents = Stdlib.List.append state.documents [newDoc]
@@ -75,7 +75,7 @@ let renameDocument (state: State) (docId: Int64) (newTitle: String) : State =
 
 // --- Pickers ---
 
-let makeDocPicker (state: State) : ListPicker.State<Stachu.Outliner.Document> =
+let makeDocPicker (state: State) : ListPicker.State<Darklang.Cli.Apps.Outliner.Document> =
   ListPicker.make state.documents (fun doc ->
     let nodeCount = Stdlib.List.length doc.outline.rootChildren
     $"{doc.title}  ({Stdlib.Int64.toString nodeCount} items)")
@@ -102,7 +102,7 @@ let defaultExportPath (title: String) (ext: String) : String =
 
 let handleDocPickerKey
   (state: State)
-  (picker: ListPicker.State<Stachu.Outliner.Document>)
+  (picker: ListPicker.State<Darklang.Cli.Apps.Outliner.Document>)
   (key: Stdlib.Cli.Stdin.Key.Key)
   (modifiers: Stdlib.Cli.Stdin.Modifiers.Modifiers)
   (keyChar: Stdlib.Option.Option<String>)
@@ -197,8 +197,8 @@ let handleKey
     | Finished path ->
       let doc = activeDoc state
       let content =
-        if ext == ".opml" then Stachu.Outliner.Export.toOpml doc
-        else Stachu.Outliner.Export.toMarkdown doc
+        if ext == ".opml" then Export.toOpml doc
+        else Export.toMarkdown doc
       let _ = Stdlib.Cli.FileSystem.writeFile path (Stdlib.String.toBytes content)
       KeyResult.Continue ({ state with screen = Screen.Editor (OutlineEditor.fromOutline doc.outline) })
     | Cancelled ->
@@ -207,23 +207,35 @@ let handleKey
 
 // --- Rendering ---
 
-let renderChrome (titleText: String) (modeText: String) (modeColor: String) (helpText: String) (renderBody: Unit -> Unit) : Unit =
-  let termWidth = Darklang.Cli.Terminal.getWidth ()
-  Stdlib.print "\u001b[?25l\u001b[2J\u001b[H"
+let renderTitleBar (titleText: String) (modeText: String) (modeColor: String) (region: Darklang.Cli.UI.Layout.Region) : Unit =
   let title = Darklang.Cli.Colors.colorize (Darklang.Cli.Colors.purpleBg ++ Darklang.Cli.Colors.white ++ Darklang.Cli.Colors.bold) $" {titleText} "
   let modeIndicator = Darklang.Cli.Colors.colorize modeColor modeText
-  Stdlib.printLine (title ++ " " ++ modeIndicator)
-  Stdlib.printLine ""
-  renderBody ()
-  // Position help bar near the bottom (1 line above the CLI status bar)
-  let termHeight = Darklang.Cli.Terminal.getHeight ()
-  let helpRow = termHeight - 1L
-  Stdlib.print $"\u001b[{Stdlib.Int64.toString helpRow};1H"
+  Darklang.Cli.UI.Layout.printAt region 0L 0L (title ++ " " ++ modeIndicator)
+
+let renderHelpBar (helpText: String) (region: Darklang.Cli.UI.Layout.Region) : Unit =
   let helpLen = Stdlib.String.length helpText
   let helpPadding =
-    if termWidth > helpLen then Stdlib.String.repeat " " (termWidth - helpLen)
+    if region.cols > helpLen then Stdlib.String.repeat " " (region.cols - helpLen)
     else ""
-  Stdlib.print (Darklang.Cli.Colors.colorize (Darklang.Cli.Colors.grayBg ++ Darklang.Cli.Colors.white) (helpText ++ helpPadding))
+  let styled = Darklang.Cli.Colors.colorize (Darklang.Cli.Colors.grayBg ++ Darklang.Cli.Colors.white) (helpText ++ helpPadding)
+  Darklang.Cli.UI.Layout.printAt region 0L 0L styled
+
+let renderChrome (titleText: String) (modeText: String) (modeColor: String) (helpText: String) (renderBody: Darklang.Cli.UI.Layout.Region -> Unit) : Unit =
+  let termHeight = Darklang.Cli.Terminal.getHeight ()
+  let termWidth = Darklang.Cli.Terminal.getWidth ()
+  Stdlib.print "\u001b[?25l\u001b[2J\u001b[H"
+
+  let screen =
+    Darklang.Cli.UI.Layout.Region { top = 1L; left = 1L; rows = termHeight - 1L; cols = termWidth }
+
+  let titleComp =
+    Darklang.Cli.UI.Layout.fixedSize 2L (fun region -> renderTitleBar titleText modeText modeColor region)
+  let bodyComp =
+    Darklang.Cli.UI.Layout.greedy renderBody
+  let helpComp =
+    Darklang.Cli.UI.Layout.fixedSize 1L (fun region -> renderHelpBar helpText region)
+  let components = [titleComp; bodyComp; helpComp]
+  Darklang.Cli.UI.Layout.vstack screen components
   Stdlib.print "\u001b[?25h"
 
 let render (state: State) : Unit =
@@ -234,7 +246,7 @@ let render (state: State) : Unit =
       " DOCUMENTS "
       (Darklang.Cli.Colors.purpleBg ++ Darklang.Cli.Colors.white)
       "Up/Down: select | Enter: open | n: new | d: delete | r: rename | e: export | Esc: exit"
-      (fun () -> ListPicker.render picker)
+      (fun region -> ListPicker.renderInRegion picker region)
 
   | DocRenaming (_docId, picker, te) ->
     let renameIndicator = Darklang.Cli.Colors.colorize (Darklang.Cli.Colors.greenBg ++ Darklang.Cli.Colors.black) " RENAME "
@@ -243,7 +255,7 @@ let render (state: State) : Unit =
       (" DOCUMENTS " ++ " " ++ renameIndicator)
       (Darklang.Cli.Colors.purpleBg ++ Darklang.Cli.Colors.white)
       "Type to rename | Enter/Esc: finish"
-      (fun () ->
+      (fun region ->
         picker.items
         |> Stdlib.List.indexedMap (fun idx item -> (idx, item))
         |> Stdlib.List.iter (fun pair ->
@@ -257,10 +269,12 @@ let render (state: State) : Unit =
             | None -> picker.label item
           let prefix = if isSelected then ">" else " "
           let line = $"  {prefix} {displayText}"
-          if isSelected then
-            Stdlib.printLine (Darklang.Cli.Colors.colorize Darklang.Cli.Colors.selection line)
-          else
-            Stdlib.printLine line))
+          let styled =
+            if isSelected then
+              Darklang.Cli.Colors.colorize Darklang.Cli.Colors.selection line
+            else
+              line
+          Darklang.Cli.UI.Layout.printAt region idx 0L styled))
 
   | Editor editor ->
     let doc = activeDoc state
@@ -273,7 +287,7 @@ let render (state: State) : Unit =
       " EXPORT "
       (Darklang.Cli.Colors.purpleBg ++ Darklang.Cli.Colors.white)
       "Up/Down: select | Enter: choose | Esc: cancel"
-      (fun () -> ListPicker.render picker)
+      (fun region -> ListPicker.renderInRegion picker region)
 
   | ExportPath (ext, te) ->
     let doc = activeDoc state
@@ -284,11 +298,10 @@ let render (state: State) : Unit =
       " EXPORT "
       (Darklang.Cli.Colors.greenBg ++ Darklang.Cli.Colors.black)
       "Edit path | Enter: export | Esc: cancel"
-      (fun () ->
+      (fun region ->
         let label = Darklang.Cli.Colors.colorize Darklang.Cli.Colors.dim "  Path: "
-        Stdlib.printLine $"  Format: {formatName}"
-        Stdlib.printLine ""
-        Stdlib.printLine (label ++ (TextEditor.renderInline te)))
+        Darklang.Cli.UI.Layout.printAt region 0L 0L $"  Format: {formatName}"
+        Darklang.Cli.UI.Layout.printAt region 2L 0L (label ++ (TextEditor.renderInline te)))
 
 
 // --- Persistence ---
@@ -309,11 +322,11 @@ module Persistence =
   let save (state: State) : Unit =
     ensureDataDir ()
     let data =
-      Stachu.Outliner.PersistedData
+      Darklang.Cli.Apps.Outliner.PersistedData
         { documents = state.documents
           activeDocId = state.activeDocId
           nextDocId = state.nextDocId }
-    let json = Builtin.jsonSerialize<Stachu.Outliner.PersistedData> data
+    let json = Builtin.jsonSerialize<Darklang.Cli.Apps.Outliner.PersistedData> data
     let jsonBytes = Stdlib.String.toBytes json
     let _ = Builtin.fileWrite jsonBytes (dataFilePath ())
     ()
@@ -325,7 +338,7 @@ module Persistence =
       match Builtin.fileRead filePath with
       | Ok bytes ->
         let contents = Stdlib.String.fromBytesWithReplacement bytes
-        match Builtin.jsonParse<Stachu.Outliner.PersistedData> contents with
+        match Builtin.jsonParse<Darklang.Cli.Apps.Outliner.PersistedData> contents with
         | Ok data ->
           let docs = data.documents
           let picker =
@@ -346,7 +359,7 @@ module Persistence =
 
 let defaultState () : State =
   let notesOutline =
-    Stachu.Outliner.buildOutline
+    Darklang.Cli.Apps.Outliner.buildOutline
       [ (1L, "Welcome to Outliner")
         (2L, "Use arrow keys to navigate")
         (3L, "Press Enter to edit an item")
@@ -361,7 +374,7 @@ let defaultState () : State =
       [1L; 5L; 9L]
       10L
   let tasksOutline =
-    Stachu.Outliner.buildOutline
+    Darklang.Cli.Apps.Outliner.buildOutline
       [ (1L, "Today")
         (2L, "Try out the outliner")
         (3L, "Add your own items")
@@ -373,12 +386,12 @@ let defaultState () : State =
       [1L; 4L]
       7L
   let doc1 =
-    Stachu.Outliner.Document
+    Darklang.Cli.Apps.Outliner.Document
       { id = 1L
         title = "My Notes"
         outline = notesOutline }
   let doc2 =
-    Stachu.Outliner.Document
+    Darklang.Cli.Apps.Outliner.Document
       { id = 2L
         title = "Tasks"
         outline = tasksOutline }

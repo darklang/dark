@@ -1,4 +1,4 @@
-module Stachu.Opml
+module Darklang.Opml
 
 type Node =
   { text: String

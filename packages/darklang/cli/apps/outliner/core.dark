@@ -1,4 +1,4 @@
-module Stachu.Outliner
+module Darklang.Cli.Apps.Outliner
 
 
 // --- Types ---
