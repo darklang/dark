@@ -34,7 +34,24 @@ let checkTypeRef (tr: LanguageTools.ProgramTypes.TypeReference) : List<String> =
     Stdlib.List.append
       (collectMap args (fun t -> checkTypeRef t))
       (checkTypeRef ret)
-  | _ -> []
+  | TUnit
+  | TBool
+  | TInt8
+  | TUInt8
+  | TInt16
+  | TUInt16
+  | TInt32
+  | TUInt32
+  | TInt64
+  | TUInt64
+  | TInt128
+  | TUInt128
+  | TFloat
+  | TChar
+  | TString
+  | TUuid
+  | TDateTime
+  | TVariable _ -> []
 
 
 let checkStringSegment
@@ -132,7 +149,23 @@ let checkExpr (expr: LanguageTools.ProgramTypes.Expr) : List<String> =
       (collectMap updates (fun (_, e) -> checkExpr e))
   | EStatement(_, first, next) ->
     Stdlib.List.append (checkExpr first) (checkExpr next)
-  | _ -> []
+  | EUnit _
+  | EBool _
+  | EInt8 _
+  | EUInt8 _
+  | EInt16 _
+  | EUInt16 _
+  | EInt32 _
+  | EUInt32 _
+  | EInt64 _
+  | EUInt64 _
+  | EInt128 _
+  | EUInt128 _
+  | EFloat _
+  | EChar _
+  | EVariable _
+  | EArg _
+  | ESelf _ -> []
 
 
 let checkTypeDefinition
@@ -172,49 +205,59 @@ type UnresolvedItem =
   { label: String
     names: List<String> }
 
-/// Collect unresolved references grouped by the item that contains them.
+/// Collect unresolved references grouped by the item that contains them
+/// (each UnresolvedItem identifies a specific type/fn/value and its unresolved names).
+///
+/// e.g. if type Darklang.Foo.MyType references an unresolved name "B",
+/// returns [UnresolvedItem { label: "type Darklang.Foo.MyType", names: ["B"] }].
 let findUnresolvedInOps
   (ops: List<LanguageTools.ProgramTypes.PackageOp>)
   : List<UnresolvedItem> =
-  let (results, _pendingKind, _pendingNames) =
-    Stdlib.List.fold ops ([], Stdlib.Option.Option.None, []) (fun (results, pendingKind, pendingNames) op ->
+  let (results, _pending) =
+    Stdlib.List.fold ops ([], Stdlib.Dict.empty) (fun (results, pending) op ->
       match op with
       | AddType t ->
         let names = typeUnresolvedNames t
 
         if Stdlib.List.isEmpty names then
-          (results, Stdlib.Option.Option.None, [])
+          (results, pending)
         else
-          (results, Stdlib.Option.Option.Some "type", names)
+          let key = LanguageTools.ProgramTypes.hashToString t.hash
+          (results, Stdlib.Dict.set pending key ("type", names))
       | AddFn f ->
         let names = fnUnresolvedNames f
 
         if Stdlib.List.isEmpty names then
-          (results, Stdlib.Option.Option.None, [])
+          (results, pending)
         else
-          (results, Stdlib.Option.Option.Some "fn", names)
+          let key = LanguageTools.ProgramTypes.hashToString f.hash
+          (results, Stdlib.Dict.set pending key ("fn", names))
       | AddValue v ->
         let names = valueUnresolvedNames v
 
         if Stdlib.List.isEmpty names then
-          (results, Stdlib.Option.Option.None, [])
+          (results, pending)
         else
-          (results, Stdlib.Option.Option.Some "value", names)
-      | SetTypeName(_, loc)
-      | SetFnName(_, loc)
-      | SetValueName(_, loc) ->
-        match pendingKind with
-        | Some kind ->
+          let key = LanguageTools.ProgramTypes.hashToString v.hash
+          (results, Stdlib.Dict.set pending key ("value", names))
+      | SetTypeName(hash, loc)
+      | SetFnName(hash, loc)
+      | SetValueName(hash, loc) ->
+        let key = LanguageTools.ProgramTypes.hashToString hash
+
+        match Stdlib.Dict.get pending key with
+        | Some((kind, names)) ->
           let itemName =
             PrettyPrinter.ProgramTypes.PackageLocation.packageLocation loc
 
           let item =
             UnresolvedItem
               { label = $"{kind} {itemName}"
-                names = Stdlib.List.unique pendingNames }
+                names = Stdlib.List.unique names }
 
-          (Stdlib.List.append results [item], Stdlib.Option.Option.None, [])
-        | None -> (results, Stdlib.Option.Option.None, [])
-      | _ -> (results, pendingKind, pendingNames))
+          (Stdlib.List.append results [item], Stdlib.Dict.remove pending key)
+        | None -> (results, pending)
+      | PropagateUpdate _
+      | RevertPropagation _ -> (results, pending))
 
   results
