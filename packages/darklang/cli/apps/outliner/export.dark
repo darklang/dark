@@ -1,0 +1,17 @@
+module Darklang.Cli.Apps.Outliner.Export
+
+/// Convert an outline's nodes to generic Opml.Node tree for OPML export.
+let toOpmlNodes (outline: Darklang.Cli.Apps.Outliner.Outline) (ids: List<Int64>) : List<Darklang.Opml.Node> =
+  ids
+  |> Stdlib.List.map (fun id ->
+    let text = Darklang.Cli.Apps.Outliner.getNodeText outline id
+    let s = Darklang.Cli.Apps.Outliner.getStructure outline id
+    let children = toOpmlNodes outline s.children
+    Darklang.Opml.Node { text = text; children = children })
+
+let toOpml (doc: Darklang.Cli.Apps.Outliner.Document) : String =
+  let nodes = toOpmlNodes doc.outline doc.outline.rootChildren
+  Darklang.Opml.export doc.title nodes
+
+let toMarkdown (doc: Darklang.Cli.Apps.Outliner.Document) : String =
+  Markdown.export doc

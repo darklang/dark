@@ -1,0 +1,132 @@
+module Darklang.Cli.UI.Layout
+
+
+// --- Types ---
+
+/// What a component wants.
+type SizeRequest =
+  { minRows: Int64
+    minCols: Int64
+    preferredRows: Int64
+    preferredCols: Int64 }
+
+/// What a component gets.
+type Region =
+  { top: Int64
+    left: Int64
+    rows: Int64
+    cols: Int64 }
+
+/// A renderable component that can negotiate its size.
+type Component =
+  { sizeRequest: Unit -> SizeRequest
+    render: Region -> Unit }
+
+
+// --- Rendering primitives ---
+
+/// Move cursor to a position and print a string, truncated to fit the region.
+let printAt (region: Region) (row: Int64) (col: Int64) (text: String) : Unit =
+  if row >= 0L && row < region.rows then
+    let absRow = region.top + row
+    let absCol = region.left + col
+    let maxLen = Stdlib.Int64.max 0L (region.cols - col)
+    let truncated =
+      if (Stdlib.String.length text) > maxLen then
+        Stdlib.String.slice text 0L maxLen
+      else
+        text
+    Stdlib.print (Darklang.Cli.Colors.moveCursorTo absRow absCol)
+    Stdlib.print truncated
+  else
+    ()
+
+/// Fill a row with a repeated character, within the region.
+let fillRow (region: Region) (row: Int64) (ch: String) : Unit =
+  let line = Stdlib.String.repeat ch region.cols
+  printAt region row 0L line
+
+/// Fill the entire region with spaces (clear it).
+let clearRegion (region: Region) : Unit =
+  (Stdlib.List.range 0L (region.rows - 1L))
+  |> Stdlib.List.iter (fun row -> fillRow region row " ")
+
+
+// --- Layout negotiation ---
+
+/// Distribute `totalRows` among components based on their size requests.
+/// Each gets at least min, then remaining space is split toward preferred.
+let distributeRows (totalRows: Int64) (requests: List<SizeRequest>) : List<Int64> =
+  let count = Stdlib.List.length requests
+  if count == 0L then
+    []
+  else
+    // First pass: give everyone their minimum
+    let mins = Stdlib.List.map requests (fun r -> r.minRows)
+    let totalMin = Stdlib.List.fold mins 0L (fun acc n -> acc + n)
+    let remaining = Stdlib.Int64.max 0L (totalRows - totalMin)
+    // Second pass: distribute remaining toward preferred, proportionally
+    let wants =
+      Stdlib.List.map requests (fun r ->
+        Stdlib.Int64.max 0L (r.preferredRows - r.minRows))
+    let totalWant = Stdlib.List.fold wants 0L (fun acc n -> acc + n)
+    if totalWant == 0L then
+      mins
+    else
+      // Give each component its min + share of remaining proportional to want
+      (Stdlib.List.map2 mins wants (fun minR want ->
+        let share =
+          if totalWant > 0L then
+            Stdlib.Int64.divide (want * remaining) totalWant
+          else
+            0L
+        minR + share))
+      |> Stdlib.Option.withDefault mins
+
+
+// --- Layout combinators ---
+
+/// Stack components vertically within a region.
+/// Negotiates row distribution based on size requests.
+let vstack (region: Region) (components: List<Component>) : Unit =
+  let requests = Stdlib.List.map components (fun c -> c.sizeRequest ())
+  let rowAllocs = distributeRows region.rows requests
+  // Assign regions and render
+  let pairs =
+    (Stdlib.List.map2 components rowAllocs (fun c rows ->
+      (c, rows)))
+    |> Stdlib.Option.withDefault []
+  let _finalTop =
+    pairs
+    |> Stdlib.List.fold region.top (fun currentTop pair ->
+      let (c, rows) = pair
+      let childRegion =
+        Region
+          { top = currentTop
+            left = region.left
+            rows = rows
+            cols = region.cols }
+      c.render childRegion
+      currentTop + rows)
+  ()
+
+/// A fixed-height component: always requests exactly N rows.
+let fixedSize (n: Int64) (renderFn: Region -> Unit) : Component =
+  Component
+    { sizeRequest = fun () ->
+        SizeRequest { minRows = n; minCols = 0L; preferredRows = n; preferredCols = 0L }
+      render = renderFn }
+
+/// A flexible component: needs at least `min` rows, prefers `preferred`.
+let flex (min: Int64) (preferred: Int64) (renderFn: Region -> Unit) : Component =
+  Component
+    { sizeRequest = fun () ->
+        SizeRequest { minRows = min; minCols = 0L; preferredRows = preferred; preferredCols = 0L }
+      render = renderFn }
+
+/// A greedy component: wants all available space, min 1 row.
+let greedy (renderFn: Region -> Unit) : Component =
+  Component
+    { sizeRequest = fun () ->
+        SizeRequest { minRows = 1L; minCols = 0L; preferredRows = 999L; preferredCols = 0L }
+      render = renderFn }

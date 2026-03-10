@@ -1,4 +1,4 @@
-module Stachu.Outliner.ListPicker
+module Darklang.Cli.Apps.Outliner.ListPicker
 
 type State<'item> =
   { items: List<'item>
@@ -39,18 +39,31 @@ let handleKey
     | None -> Result.Cancelled
   | _ -> Result.Browsing state
 
-/// Render the list with selection highlighting. Prints directly.
-let render (state: State<'item>) : Unit =
+/// Render the list into a layout region.
+let renderInRegion (state: State<'item>) (region: Darklang.Cli.UI.Layout.Region) : Unit =
+  let itemCount = Stdlib.List.length state.items
+  let scrollOffset =
+    if state.selected >= region.rows then
+      Darklang.Cli.Terminal.clampScrollOffset
+        (state.selected - region.rows + 1L)
+        itemCount
+        region.rows
+    else
+      0L
   state.items
-  |> Stdlib.List.indexedMap (fun idx item ->
-    (idx, item))
+  |> Stdlib.List.indexedMap (fun idx item -> (idx, item))
+  |> Stdlib.List.drop scrollOffset
+  |> Stdlib.List.take region.rows
   |> Stdlib.List.iter (fun pair ->
     let (idx, item) = pair
+    let row = idx - scrollOffset
     let isSelected = idx == state.selected
     let text = state.label item
     let prefix = if isSelected then ">" else " "
     let line = $"  {prefix} {text}"
-    if isSelected then
-      Stdlib.printLine (Darklang.Cli.Colors.colorize Darklang.Cli.Colors.selection line)
-    else
-      Stdlib.printLine line)
+    let styled =
+      if isSelected then
+        Darklang.Cli.Colors.colorize Darklang.Cli.Colors.selection line
+      else
+        line
+    Darklang.Cli.UI.Layout.printAt region row 0L styled)

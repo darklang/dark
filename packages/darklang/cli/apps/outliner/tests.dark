@@ -1,4 +1,4 @@
-module Stachu.Outliner.Tests
+module Darklang.Cli.Apps.Outliner.Tests
 
 type TestResult =
   | Pass
@@ -15,12 +15,12 @@ type TestSummary =
 
 // --- Helpers ---
 
-let makeEditor (outline: Stachu.Outliner.Outline) : OutlineEditor.State =
+let makeEditor (outline: Darklang.Cli.Apps.Outliner.Outline) : OutlineEditor.State =
   OutlineEditor.fromOutline outline
 
-let makeMainState (outline: Stachu.Outliner.Outline) : Main.State =
+let makeMainState (outline: Darklang.Cli.Apps.Outliner.Outline) : Main.State =
   let doc =
-    Stachu.Outliner.Document
+    Darklang.Cli.Apps.Outliner.Document
       { id = 1L
         title = "Test Doc"
         outline = outline }
@@ -49,33 +49,33 @@ let assertInt (label: String) (actual: Int64) (expected: Int64) : TestResult =
 
 let testFlattenVisibleCountsAllNodes () : TestResult =
   let outline =
-    Stachu.Outliner.buildOutline
+    Darklang.Cli.Apps.Outliner.buildOutline
       [(1L, "A"); (2L, "B"); (3L, "C"); (4L, "D")]
       [(1L, [2L; 3L])]
       [1L; 4L]
       5L
-  let flat = Stachu.Outliner.flattenVisible outline
+  let flat = Darklang.Cli.Apps.Outliner.flattenVisible outline
   assertInt "visible count" (Stdlib.List.length flat) 4L
 
 let testFlattenVisibleRespectsCollapse () : TestResult =
   let outline =
-    Stachu.Outliner.buildOutline
+    Darklang.Cli.Apps.Outliner.buildOutline
       [(1L, "A"); (2L, "B"); (3L, "C"); (4L, "D")]
       [(1L, [2L; 3L])]
       [1L; 4L]
       5L
-  let collapsed = Stachu.Outliner.setCollapsed outline 1L true
-  let flat = Stachu.Outliner.flattenVisible collapsed
+  let collapsed = Darklang.Cli.Apps.Outliner.setCollapsed outline 1L true
+  let flat = Darklang.Cli.Apps.Outliner.flattenVisible collapsed
   assertInt "visible count" (Stdlib.List.length flat) 2L
 
 let testBuildOutline () : TestResult =
   let outline =
-    Stachu.Outliner.buildOutline
+    Darklang.Cli.Apps.Outliner.buildOutline
       [(1L, "A"); (2L, "B"); (3L, "C")]
       [(1L, [2L; 3L])]
       [1L]
       4L
-  let flat = Stachu.Outliner.flattenVisible outline
+  let flat = Darklang.Cli.Apps.Outliner.flattenVisible outline
   if Stdlib.List.length flat == 3L then
     match Stdlib.List.head flat with
     | Some vn ->
@@ -89,13 +89,13 @@ let testBuildOutline () : TestResult =
 
 let testFindParentId () : TestResult =
   let outline =
-    Stachu.Outliner.buildOutline
+    Darklang.Cli.Apps.Outliner.buildOutline
       [(1L, "Parent"); (2L, "Child"); (3L, "Root2")]
       [(1L, [2L])]
       [1L; 3L]
       4L
-  let childParent = Stachu.Outliner.findParentId outline 2L
-  let rootParent = Stachu.Outliner.findParentId outline 1L
+  let childParent = Darklang.Cli.Apps.Outliner.findParentId outline 2L
+  let rootParent = Darklang.Cli.Apps.Outliner.findParentId outline 1L
   match childParent with
   | Some pid ->
     if pid == 1L then
@@ -111,25 +111,25 @@ let testFindParentId () : TestResult =
 
 let testInsertAfterAddsNode () : TestResult =
   let outline =
-    Stachu.Outliner.buildOutline
+    Darklang.Cli.Apps.Outliner.buildOutline
       [(1L, "First")]
       []
       [1L]
       2L
   let editor = makeEditor outline
   let newEditor = OutlineEditor.insertAfter editor
-  let flat = Stachu.Outliner.flattenVisible newEditor.outline
+  let flat = Darklang.Cli.Apps.Outliner.flattenVisible newEditor.outline
   assertInt "visible count" (Stdlib.List.length flat) 2L
 
 let testInsertAfterEmptyTree () : TestResult =
-  let outline = Stachu.Outliner.emptyOutline ()
+  let outline = Darklang.Cli.Apps.Outliner.emptyOutline ()
   let editor = makeEditor outline
   let newEditor = OutlineEditor.insertAfter editor
   assertInt "root count" (Stdlib.List.length newEditor.outline.rootChildren) 1L
 
 let testDeleteEmptyNode () : TestResult =
   let outline =
-    Stachu.Outliner.buildOutline
+    Darklang.Cli.Apps.Outliner.buildOutline
       [(1L, ""); (2L, "Keep")]
       []
       [1L; 2L]
@@ -140,7 +140,7 @@ let testDeleteEmptyNode () : TestResult =
 
 let testDeleteNonEmptyNodeDoesNothing () : TestResult =
   let outline =
-    Stachu.Outliner.buildOutline
+    Darklang.Cli.Apps.Outliner.buildOutline
       [(1L, "Has text")]
       []
       [1L]
@@ -151,33 +151,33 @@ let testDeleteNonEmptyNodeDoesNothing () : TestResult =
 
 let testToggleCollapse () : TestResult =
   let outline =
-    Stachu.Outliner.buildOutline
+    Darklang.Cli.Apps.Outliner.buildOutline
       [(1L, "Parent"); (2L, "Child")]
       [(1L, [2L])]
       [1L]
       3L
   let editor = makeEditor outline
   let newEditor = OutlineEditor.toggleCollapse editor
-  let s = Stachu.Outliner.getStructure newEditor.outline 1L
+  let s = Darklang.Cli.Apps.Outliner.getStructure newEditor.outline 1L
   if s.collapsed then TestResult.Pass
   else TestResult.Fail "Expected node to be collapsed"
 
 let testToggleCollapseLeafDoesNothing () : TestResult =
   let outline =
-    Stachu.Outliner.buildOutline
+    Darklang.Cli.Apps.Outliner.buildOutline
       [(1L, "Leaf")]
       []
       [1L]
       2L
   let editor = makeEditor outline
   let newEditor = OutlineEditor.toggleCollapse editor
-  let s = Stachu.Outliner.getStructure newEditor.outline 1L
+  let s = Darklang.Cli.Apps.Outliner.getStructure newEditor.outline 1L
   if s.collapsed then TestResult.Fail "Leaf should not be collapsible"
   else TestResult.Pass
 
 let testIndentNode () : TestResult =
   let outline =
-    Stachu.Outliner.buildOutline
+    Darklang.Cli.Apps.Outliner.buildOutline
       [(1L, "First"); (2L, "Second")]
       []
       [1L; 2L]
@@ -186,14 +186,14 @@ let testIndentNode () : TestResult =
   let newEditor = OutlineEditor.indentNode editor
   let rootCount = Stdlib.List.length newEditor.outline.rootChildren
   if rootCount == 1L then
-    let s = Stachu.Outliner.getStructure newEditor.outline 1L
+    let s = Darklang.Cli.Apps.Outliner.getStructure newEditor.outline 1L
     assertInt "child count" (Stdlib.List.length s.children) 1L
   else
     TestResult.Fail $"Expected 1 root after indent, got {Stdlib.Int64.toString rootCount}"
 
 let testOutdentNode () : TestResult =
   let outline =
-    Stachu.Outliner.buildOutline
+    Darklang.Cli.Apps.Outliner.buildOutline
       [(1L, "Parent"); (2L, "Child")]
       [(1L, [2L])]
       [1L]
@@ -204,7 +204,7 @@ let testOutdentNode () : TestResult =
 
 let testMoveNodeUp () : TestResult =
   let outline =
-    Stachu.Outliner.buildOutline
+    Darklang.Cli.Apps.Outliner.buildOutline
       [(1L, "First"); (2L, "Second")]
       []
       [1L; 2L]
@@ -213,13 +213,13 @@ let testMoveNodeUp () : TestResult =
   let newEditor = OutlineEditor.moveNodeUp editor
   match Stdlib.List.head newEditor.outline.rootChildren with
   | Some firstId ->
-    let text = Stachu.Outliner.getNodeText newEditor.outline firstId
+    let text = Darklang.Cli.Apps.Outliner.getNodeText newEditor.outline firstId
     assertEq "first node" text "Second"
   | None -> TestResult.Fail "No root nodes"
 
 let testMoveNodeDown () : TestResult =
   let outline =
-    Stachu.Outliner.buildOutline
+    Darklang.Cli.Apps.Outliner.buildOutline
       [(1L, "First"); (2L, "Second")]
       []
       [1L; 2L]
@@ -228,13 +228,13 @@ let testMoveNodeDown () : TestResult =
   let newEditor = OutlineEditor.moveNodeDown editor
   match Stdlib.List.head newEditor.outline.rootChildren with
   | Some firstId ->
-    let text = Stachu.Outliner.getNodeText newEditor.outline firstId
+    let text = Darklang.Cli.Apps.Outliner.getNodeText newEditor.outline firstId
     assertEq "first node" text "Second"
   | None -> TestResult.Fail "No root nodes"
 
 let testMoveCursorUpDown () : TestResult =
   let outline =
-    Stachu.Outliner.buildOutline
+    Darklang.Cli.Apps.Outliner.buildOutline
       [(1L, "A"); (2L, "B"); (3L, "C")]
       []
       [1L; 2L; 3L]
@@ -250,7 +250,7 @@ let testMoveCursorUpDown () : TestResult =
 
 let testMoveCursorBounds () : TestResult =
   let outline =
-    Stachu.Outliner.buildOutline
+    Darklang.Cli.Apps.Outliner.buildOutline
       [(1L, "Only")]
       []
       [1L]
@@ -295,7 +295,7 @@ let testTextEditorCancel () : TestResult =
 
 let testEditMode () : TestResult =
   let outline =
-    Stachu.Outliner.buildOutline
+    Darklang.Cli.Apps.Outliner.buildOutline
       [(1L, "Hello")]
       []
       [1L]
@@ -310,7 +310,7 @@ let testEditMode () : TestResult =
 
 let testFinishEditing () : TestResult =
   let outline =
-    Stachu.Outliner.buildOutline
+    Darklang.Cli.Apps.Outliner.buildOutline
       [(1L, "Old")]
       []
       [1L]
@@ -318,7 +318,7 @@ let testFinishEditing () : TestResult =
   let editor = makeEditor outline
   let editing = OutlineEditor.enterEditMode editor
   let committed = OutlineEditor.commitEdit editing "New"
-  let text = Stachu.Outliner.getNodeText committed.outline 1L
+  let text = Darklang.Cli.Apps.Outliner.getNodeText committed.outline 1L
   assertEq "node text" text "New"
 
 
@@ -351,7 +351,7 @@ let testDeleteDocument () : TestResult =
   assertInt "doc count" (Stdlib.List.length afterDelete.documents) 2L
 
 let testDeleteOnlyDocDoesNothing () : TestResult =
-  let state = makeMainState (Stachu.Outliner.buildOutline [(1L, "X")] [] [1L] 2L)
+  let state = makeMainState (Darklang.Cli.Apps.Outliner.buildOutline [(1L, "X")] [] [1L] 2L)
   let afterDelete = Main.deleteDocument state 1L
   assertInt "doc count" (Stdlib.List.length afterDelete.documents) 1L
 
@@ -364,14 +364,14 @@ let testRenameDocument () : TestResult =
 
 let testExportMarkdown () : TestResult =
   let outline =
-    Stachu.Outliner.buildOutline
+    Darklang.Cli.Apps.Outliner.buildOutline
       [(1L, "Root"); (2L, "Child")]
       [(1L, [2L])]
       [1L]
       3L
   let doc =
-    Stachu.Outliner.Document { id = 1L; title = "Test"; outline = outline }
-  let md = Stachu.Outliner.Export.toMarkdown doc
+    Darklang.Cli.Apps.Outliner.Document { id = 1L; title = "Test"; outline = outline }
+  let md = Export.toMarkdown doc
   if Stdlib.String.contains md "# Test" && Stdlib.String.contains md "- Root" && Stdlib.String.contains md "  - Child" then
     TestResult.Pass
   else
@@ -379,14 +379,14 @@ let testExportMarkdown () : TestResult =
 
 let testExportOpml () : TestResult =
   let outline =
-    Stachu.Outliner.buildOutline
+    Darklang.Cli.Apps.Outliner.buildOutline
       [(1L, "Root"); (2L, "Child")]
       [(1L, [2L])]
       [1L]
       3L
   let doc =
-    Stachu.Outliner.Document { id = 1L; title = "Test"; outline = outline }
-  let opml = Stachu.Outliner.Export.toOpml doc
+    Darklang.Cli.Apps.Outliner.Document { id = 1L; title = "Test"; outline = outline }
+  let opml = Export.toOpml doc
   if Stdlib.String.contains opml "<opml" && Stdlib.String.contains opml "<title>Test</title>" && Stdlib.String.contains opml "text=\"Root\"" && Stdlib.String.contains opml "text=\"Child\"" then
     TestResult.Pass
   else
@@ -394,9 +394,9 @@ let testExportOpml () : TestResult =
 
 let testImportMarkdown () : TestResult =
   let md = "# My Doc\n- Alpha\n  - Beta\n- Gamma"
-  let doc = Stachu.Outliner.Markdown.import md
+  let doc = Markdown.import md
   if doc.title == "My Doc" then
-    let flat = Stachu.Outliner.flattenVisible doc.outline
+    let flat = Darklang.Cli.Apps.Outliner.flattenVisible doc.outline
     assertInt "visible count" (Stdlib.List.length flat) 3L
   else
     TestResult.Fail $"Expected title 'My Doc', got '{doc.title}'"
