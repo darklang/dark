@@ -102,7 +102,8 @@ let createValueInline
             Stdlib.printLine (Colors.success $"✓ {action} value: {fullPath}")
 
             // Auto-propagate if this is an update
-            Propagate.autoPropagateAfterUpdate state.currentBranchId location packageValue.hash LanguageTools.ProgramTypes.ItemKind.Value
+            if isUpdate then
+              Propagate.autoPropagateAfterUpdate state.currentBranchId location packageValue.hash LanguageTools.ProgramTypes.ItemKind.Value
 
             Stdlib.printLine ""
             state

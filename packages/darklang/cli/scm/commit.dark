@@ -52,14 +52,33 @@ let execute (state: AppState) (args: List<String>) : AppState =
       if proceed then
         match state.accountID with
         | Some accountId ->
-          match SCM.PackageOps.commit accountId branchId message with
-          | Ok commitHash ->
-            let shortId = Stdlib.String.first commitHash 8L
-            Stdlib.printLine (Colors.success $"Created commit {shortId}")
+          // Check for unresolved references before committing
+          let ops = SCM.PackageOps.getWip branchId
+          let unresolvedItems = SCM.UnresolvedCheck.findUnresolvedInOps ops
+
+          if (Stdlib.List.isEmpty unresolvedItems) |> Stdlib.Bool.not then
+            Stdlib.printLine
+              (Colors.error "Cannot commit: unresolved references found:")
+
+            unresolvedItems
+            |> Stdlib.List.iter (fun item ->
+              Stdlib.printLine (Colors.error $"  {item.label}:")
+
+              item.names
+              |> Stdlib.List.iter (fun name ->
+                Stdlib.printLine (Colors.error $"    - {name}")))
+
+            Stdlib.printLine ""
             state
-          | Error e ->
-            Stdlib.printLine (Colors.error $"Commit failed: {e}")
-            state
+          else
+            match SCM.PackageOps.commit accountId branchId message with
+            | Ok commitHash ->
+              let shortId = Stdlib.String.first commitHash 8L
+              Stdlib.printLine (Colors.success $"Created commit {shortId}")
+              state
+            | Error e ->
+              Stdlib.printLine (Colors.error $"Commit failed: {e}")
+              state
         | None ->
           Stdlib.printLine (Colors.error "No account set. Set DARK_ACCOUNT environment variable.")
           state

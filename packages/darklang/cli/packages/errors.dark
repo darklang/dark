@@ -1,31 +1,57 @@
 module Darklang.Cli.Packages.Errors
 
 
-/// Prints unresolved name errors and returns true if there were any errors.
-/// Used by fn.dark, type.dark, and value.dark after name resolution.
+/// Checks for invalid names (hard errors) and unresolved names (warnings).
+/// Returns true if there are invalid names (which block creation).
+/// Unresolved names are allowed in WIP — they'll be resolved by WipRefresh
+/// when the missing items are added, and rejected at commit time if still unresolved.
 let reportUnresolvedNames
   (unresolvedNames:
     List<LanguageTools.Parser.Range
       * List<String>
       * LanguageTools.ProgramTypes.NameResolutionError>)
   : Bool =
-  if (Stdlib.List.isEmpty unresolvedNames) |> Stdlib.Bool.not then
-    Stdlib.printLine (Colors.error "Error: Unresolved references")
-    Stdlib.printLine ""
-
+  let invalidNames =
     unresolvedNames
-    |> Stdlib.List.iter (fun (range, originalName, err) ->
+    |> Stdlib.List.filter (fun (_, _, err) ->
+      match err with
+      | InvalidName -> true
+      | NotFound -> false)
+
+  let notFoundNames =
+    unresolvedNames
+    |> Stdlib.List.filter (fun (_, _, err) ->
+      match err with
+      | NotFound -> true
+      | InvalidName -> false)
+
+  // Print warnings for unresolved names (will be fixed by WipRefresh)
+  if (Stdlib.List.isEmpty notFoundNames) |> Stdlib.Bool.not then
+    Stdlib.printLine (Colors.warning "Warning: Unresolved references (will resolve when dependencies are added)")
+
+    notFoundNames
+    |> Stdlib.List.iter (fun (range, originalName, _err) ->
       let lineNum = (range.start.row + 1L) |> Stdlib.Int64.toString
       let colNum = range.start.column |> Stdlib.Int64.toString
       let nameStr = Stdlib.String.join originalName "."
 
-      match err with
-      | NotFound ->
-        Stdlib.printLine
-          $"  - Not found: {nameStr} (line {lineNum}, column {colNum})"
-      | InvalidName ->
-        Stdlib.printLine
-          $"  - Invalid name: {nameStr} (line {lineNum}, column {colNum})")
+      Stdlib.printLine
+        (Colors.warning $"  - Not found: {nameStr} (line {lineNum}, column {colNum})"))
+
+    Stdlib.printLine ""
+
+  // Print errors for invalid names (these block creation)
+  if (Stdlib.List.isEmpty invalidNames) |> Stdlib.Bool.not then
+    Stdlib.printLine (Colors.error "Error: Invalid names")
+
+    invalidNames
+    |> Stdlib.List.iter (fun (range, originalName, _err) ->
+      let lineNum = (range.start.row + 1L) |> Stdlib.Int64.toString
+      let colNum = range.start.column |> Stdlib.Int64.toString
+      let nameStr = Stdlib.String.join originalName "."
+
+      Stdlib.printLine
+        (Colors.error $"  - Invalid name: {nameStr} (line {lineNum}, column {colNum})"))
 
     Stdlib.printLine ""
     true
