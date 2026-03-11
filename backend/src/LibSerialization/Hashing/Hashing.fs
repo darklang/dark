@@ -68,6 +68,12 @@ module Hashing =
       LibSerialization.Binary.Serializers.PT.PackageOp.write w op)
 
 
+  /// Hash a BranchOp (reuse existing BranchOp.write — ops have no metadata to skip)
+  let computeBranchOpHash (op : PT.BranchOp) : Hash =
+    hashWithWriter (fun w ->
+      LibSerialization.Binary.Serializers.PT.BranchOp.write w op)
+
+
   /// Hash a commit: hash(parentHash + sorted(opHashes) + accountId)
   let computeCommitHash
     (parentHash : Hash option)

@@ -20,9 +20,14 @@ let create (name: String) (parentBranchId: Uuid) : Branch =
   Builtin.scmBranchCreate name parentBranchId
 
 
-/// List all active (non-merged) branches
+/// List all active (non-merged, non-archived) branches
 let list () : List<Branch> =
   Builtin.scmBranchList_v0 ()
+
+
+/// List all branches including archived and merged
+let listAll () : List<Branch> =
+  Builtin.scmBranchListAll_v0 ()
 
 
 /// Get a branch by ID
@@ -40,6 +45,16 @@ let rename (id: Uuid) (newName: String) : Stdlib.Result.Result<Unit, String> =
   Builtin.scmBranchRename id newName
 
 
-/// Delete a branch (must have no active children)
+/// Archive a branch (soft delete)
+let archive (id: Uuid) : Stdlib.Result.Result<Unit, String> =
+  Builtin.scmBranchArchive_v0 id
+
+
+/// Unarchive a branch
+let unarchive (id: Uuid) : Stdlib.Result.Result<Unit, String> =
+  Builtin.scmBranchUnarchive_v0 id
+
+
+/// Delete a branch (archives it)
 let delete (id: Uuid) : Stdlib.Result.Result<Unit, String> =
   Builtin.scmBranchDelete id

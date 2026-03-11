@@ -55,6 +55,12 @@ let create (name : string) (parentBranchId : PT.BranchId) : Task<PT.Branch> =
           "base_commit_hash", baseCommitHashParam ]
       |> Sql.executeStatementAsync
 
+    // Emit BranchOp
+    do!
+      BranchOpPlayback.insertOnly (
+        PT.BranchOp.CreateBranch(id, name, Some parentBranchId, baseCommitHash)
+      )
+
     return
       { id = id
         name = name
@@ -100,7 +106,20 @@ let list () : Task<List<PT.Branch>> =
         """
         SELECT id, name, parent_branch_id, base_commit_hash, created_at, merged_at
         FROM branches
-        WHERE merged_at IS NULL
+        WHERE merged_at IS NULL AND archived_at IS NULL
+        ORDER BY created_at ASC
+        """
+      |> Sql.executeAsync readBranch
+  }
+
+
+let listAll () : Task<List<PT.Branch>> =
+  task {
+    return!
+      Sql.query
+        """
+        SELECT id, name, parent_branch_id, base_commit_hash, created_at, merged_at
+        FROM branches
         ORDER BY created_at ASC
         """
       |> Sql.executeAsync readBranch
@@ -123,58 +142,54 @@ let rename (id : PT.BranchId) (newName : string) : Task<Result<unit, string>> =
   }
 
 
-let delete (id : PT.BranchId) : Task<Result<unit, string>> =
+/// Archive a branch (soft delete). Sets archived_at, emits ArchiveBranch BranchOp.
+let archive (id : PT.BranchId) : Task<Result<unit, string>> =
   task {
     if id = PT.mainBranchId then
-      return Error "Cannot delete main branch"
+      return Error "Cannot archive main branch"
     else
-      // Check for children
+      // Check for active children
       let! childCount =
         Sql.query
           """
           SELECT COUNT(*) as cnt FROM branches
-          WHERE parent_branch_id = @id AND merged_at IS NULL
+          WHERE parent_branch_id = @id AND merged_at IS NULL AND archived_at IS NULL
           """
         |> Sql.parameters [ "id", Sql.uuid id ]
         |> Sql.executeRowAsync (fun read -> read.int64 "cnt")
 
       if childCount > 0L then
-        return Error "Cannot delete branch with active children"
+        return Error "Cannot archive branch with active children"
       else
-        // Check for dependent data that would cause FK constraint failure
-        let! commitCount =
-          Sql.query "SELECT COUNT(*) as cnt FROM commits WHERE branch_id = @id"
-          |> Sql.parameters [ "id", Sql.uuid id ]
-          |> Sql.executeRowAsync (fun read -> read.int64 "cnt")
-
-        let! uncommittedOpCount =
+        do!
           Sql.query
-            "SELECT COUNT(*) as cnt FROM package_ops WHERE branch_id = @id AND commit_hash IS NULL"
+            "UPDATE branches SET archived_at = datetime('now') WHERE id = @id"
           |> Sql.parameters [ "id", Sql.uuid id ]
-          |> Sql.executeRowAsync (fun read -> read.int64 "cnt")
+          |> Sql.executeStatementAsync
 
-        let! locationCount =
-          Sql.query "SELECT COUNT(*) as cnt FROM locations WHERE branch_id = @id"
-          |> Sql.parameters [ "id", Sql.uuid id ]
-          |> Sql.executeRowAsync (fun read -> read.int64 "cnt")
+        // Emit BranchOp
+        do! BranchOpPlayback.insertOnly (PT.BranchOp.ArchiveBranch id)
 
-        if commitCount > 0L || uncommittedOpCount > 0L || locationCount > 0L then
-          let parts =
-            [ if commitCount > 0L then $"{commitCount} commit(s)"
-              if uncommittedOpCount > 0L then
-                $"{uncommittedOpCount} uncommitted change(s)"
-              if locationCount > 0L then $"{locationCount} package location(s)" ]
-          let details = String.concat ", " parts
-          return
-            Error
-              $"Cannot delete branch: it contains {details}. Merge the branch first."
-        else
-          do!
-            Sql.query "DELETE FROM branches WHERE id = @id"
-            |> Sql.parameters [ "id", Sql.uuid id ]
-            |> Sql.executeStatementAsync
-          return Ok()
+        return Ok()
   }
+
+
+/// Unarchive a branch (clear archived_at)
+let unarchive (id : PT.BranchId) : Task<Result<unit, string>> =
+  task {
+    try
+      do!
+        Sql.query "UPDATE branches SET archived_at = NULL WHERE id = @id"
+        |> Sql.parameters [ "id", Sql.uuid id ]
+        |> Sql.executeStatementAsync
+      return Ok()
+    with ex ->
+      return Error ex.Message
+  }
+
+
+/// Delete a branch — kept for backward compatibility, now calls archive
+let delete (id : PT.BranchId) : Task<Result<unit, string>> = archive id
 
 
 let setMerged (id : PT.BranchId) : Task<unit> =

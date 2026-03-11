@@ -160,5 +160,8 @@ let merge (branchId : PT.BranchId) : Task<Result<unit, PT.MergeError>> =
         // Mark branch as merged
         do! Branches.setMerged branchId
 
+        // Emit MergeBranch BranchOp
+        do! BranchOpPlayback.insertOnly (PT.BranchOp.MergeBranch(branchId, parentId))
+
         return Ok()
   }

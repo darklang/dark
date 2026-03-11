@@ -23,6 +23,7 @@
     <Compile Include="Caching.fs" />
     <Compile Include="Purge.fs" />
     <Compile Include="DependencyExtractor.fs" />
+    <Compile Include="BranchOpPlayback.fs" />
     <Compile Include="Branches.fs" />
     <Compile Include="AstTransformer.fs" />
     <Compile Include="HashStabilization.fs" />

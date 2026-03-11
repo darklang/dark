@@ -33,10 +33,20 @@ let purge () : Task<unit> =
         "package_functions"
         "package_ops"
         "package_dependencies"
-        "commits" ]
+        "commits"
+        "branch_ops" ]
       |> List.filter tableExists
       |> List.map (fun table -> ($"DELETE FROM {table}", [ [] ]))
 
-    if not (List.isEmpty tablesToPurge) then
-      tablesToPurge |> Sql.executeTransactionSync |> ignore<List<int>>
+    // Also delete non-main branches
+    let branchPurge =
+      if tableExists "branches" then
+        [ ("DELETE FROM branches WHERE id != '89282547-e4e6-4986-bcb6-db74bc6a8c0f'",
+           [ [] ]) ]
+      else
+        []
+
+    let allPurge = tablesToPurge @ branchPurge
+    if not (List.isEmpty allPurge) then
+      allPurge |> Sql.executeTransactionSync |> ignore<List<int>>
   }

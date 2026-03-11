@@ -170,6 +170,12 @@ let insertAndApplyOpsWithCommit
     // Insert ops with the commit_hash
     let! _ = insertAndApplyOps branchId (Some commitHashStr) ops
 
+    // Emit CreateCommit BranchOp
+    do!
+      BranchOpPlayback.insertOnly (
+        PT.BranchOp.CreateCommit(commitHash, message, branchId, opHashes)
+      )
+
     return commitHash
   }
 
@@ -262,6 +268,13 @@ let commitWipOps
                  "branch_id", Sql.uuid branchId ] ]) ]
 
         let _ = Sql.executeTransactionSync statements
+
+        // Emit CreateCommit BranchOp
+        let opHashes = wipOps |> List.map (fun (_, op) -> Hashing.computeOpHash op)
+        do!
+          BranchOpPlayback.insertOnly (
+            PT.BranchOp.CreateCommit(commitHash, message, branchId, opHashes)
+          )
 
         return Ok commitHash
     with ex ->
