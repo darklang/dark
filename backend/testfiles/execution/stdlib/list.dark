@@ -115,6 +115,14 @@ Stdlib.List.findFirst [ 1L; 2L; 3L; 1L; 4L ] (fun x -> x > 1L) = Stdlib.Option.O
 Stdlib.List.findFirst [ 0L; 5L; -6L; -10L ] (fun x -> x < 0L) = Stdlib.Option.Option.Some -6L
 Stdlib.List.findFirst [ 1L; -33L; 3L; -2L; 12L ] (fun x -> (x < 0L && x % 2L == 0L)) = Stdlib.Option.Option.Some -2L
 
+module FindFirstIndex =
+  Stdlib.List.findFirstIndex [1L; 2L; 3L] (fun x -> x == 2L) = Stdlib.Option.Option.Some 1L
+  Stdlib.List.findFirstIndex [1L; 2L; 3L] (fun x -> x > 5L) = Stdlib.Option.Option.None
+  Stdlib.List.findFirstIndex [] (fun _x -> true) = Stdlib.Option.Option.None
+  Stdlib.List.findFirstIndex [10L; 20L; 30L; 20L] (fun x -> x == 20L) = Stdlib.Option.Option.Some 1L
+  Stdlib.List.findFirstIndex ["a"; "b"; "c"] (fun x -> x == "c") = Stdlib.Option.Option.Some 2L
+  Stdlib.List.findFirstIndex [1L; 2L; 3L] (fun x -> x == 1L) = Stdlib.Option.Option.Some 0L
+
 module Flatten =
   Stdlib.List.flatten_v0 [ [ 1L ]; [ 2L ]; [ 3L ] ] = [ 1L; 2L; 3L ]
 

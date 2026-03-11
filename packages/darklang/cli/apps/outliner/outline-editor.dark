@@ -1,0 +1,358 @@
+module Darklang.Cli.Apps.Outliner.OutlineEditor
+
+type State =
+  { outline: Darklang.Cli.Apps.Outliner.Outline
+    cursor: Int64
+    editing: Stdlib.Option.Option<TextEditor.State> }
+
+type Result =
+  | Continue of State
+  | Save of State
+  | Back of State
+
+let fromOutline (outline: Darklang.Cli.Apps.Outliner.Outline) : State =
+  State { outline = outline; cursor = 0L; editing = Stdlib.Option.Option.None }
+
+
+// --- Helpers ---
+
+let getVisibleNodeAtCursor (state: State) : Stdlib.Option.Option<Darklang.Cli.Apps.Outliner.VisibleNode> =
+  let flat = Darklang.Cli.Apps.Outliner.flattenVisible state.outline
+  Stdlib.List.getAt flat state.cursor
+
+let findCursorIndex (outline: Darklang.Cli.Apps.Outliner.Outline) (nodeId: Int64) (fallback: Int64) : Int64 =
+  let flat = Darklang.Cli.Apps.Outliner.flattenVisible outline
+  flat
+  |> Stdlib.List.findFirstIndex (fun vn -> vn.id == nodeId)
+  |> Stdlib.Option.withDefault fallback
+
+
+// --- Tree operations ---
+
+let toggleCollapse (state: State) : State =
+  match getVisibleNodeAtCursor state with
+  | Some vn ->
+    if Stdlib.Bool.not vn.hasChildren then
+      state
+    else
+      let newOutline = Darklang.Cli.Apps.Outliner.setCollapsed state.outline vn.id (Stdlib.Bool.not vn.isCollapsed)
+      { state with outline = newOutline }
+  | None -> state
+
+let insertAfter (state: State) : State =
+  let outline = state.outline
+  let id = outline.nextId
+  match getVisibleNodeAtCursor state with
+  | None ->
+    let o1 = Darklang.Cli.Apps.Outliner.addNode outline id ""
+    let o2 = { o1 with rootChildren = [id]; nextId = id + 1L }
+    { state with
+        outline = o2
+        cursor = 0L
+        editing = Stdlib.Option.Option.Some (TextEditor.empty) }
+  | Some vn ->
+    let o1 = Darklang.Cli.Apps.Outliner.addNode outline id ""
+    let parentId = Darklang.Cli.Apps.Outliner.findParentId o1 vn.id
+    let siblings = Darklang.Cli.Apps.Outliner.getChildren o1 parentId
+    let newSiblings = Darklang.Cli.Apps.Outliner.insertIdAfter siblings vn.id id
+    let o2 = Darklang.Cli.Apps.Outliner.setChildren o1 parentId newSiblings
+    let o3 = { o2 with nextId = id + 1L }
+    let newCursor = findCursorIndex o3 id state.cursor
+    { state with
+        outline = o3
+        cursor = newCursor
+        editing = Stdlib.Option.Option.Some (TextEditor.empty) }
+
+let deleteNode (state: State) : State =
+  match getVisibleNodeAtCursor state with
+  | None -> state
+  | Some vn ->
+    let outline = state.outline
+    let nodeChildren = Darklang.Cli.Apps.Outliner.getChildren outline (Stdlib.Option.Option.Some vn.id)
+    if vn.text != "" || (Stdlib.Bool.not (Stdlib.List.isEmpty nodeChildren)) then
+      state
+    else
+      let parentId = Darklang.Cli.Apps.Outliner.findParentId outline vn.id
+      let siblings = Darklang.Cli.Apps.Outliner.getChildren outline parentId
+      let newSiblings = Stdlib.List.filter siblings (fun id -> id != vn.id)
+      let o1 = Darklang.Cli.Apps.Outliner.setChildren outline parentId newSiblings
+      let o2 = Darklang.Cli.Apps.Outliner.removeNodeData o1 vn.id
+      let flat = Darklang.Cli.Apps.Outliner.flattenVisible o2
+      let maxIdx = Stdlib.Int64.max 0L ((Stdlib.List.length flat) - 1L)
+      let newCursor =
+        if state.cursor > maxIdx then maxIdx
+        else state.cursor
+      { state with outline = o2; cursor = newCursor }
+
+let indentNode (state: State) : State =
+  match getVisibleNodeAtCursor state with
+  | None -> state
+  | Some vn ->
+    let outline = state.outline
+    let parentId = Darklang.Cli.Apps.Outliner.findParentId outline vn.id
+    let siblings = Darklang.Cli.Apps.Outliner.getChildren outline parentId
+    let idx = Stdlib.List.findFirstIndex siblings (fun id -> id == vn.id)
+    match idx with
+    | None -> state
+    | Some i ->
+      if i == 0L then
+        state
+      else
+        match Stdlib.List.getAt siblings (i - 1L) with
+        | None -> state
+        | Some prevSibId ->
+          let newSiblings = Stdlib.List.filter siblings (fun id -> id != vn.id)
+          let o1 = Darklang.Cli.Apps.Outliner.setChildren outline parentId newSiblings
+          let prevChildren = Darklang.Cli.Apps.Outliner.getChildren o1 (Stdlib.Option.Option.Some prevSibId)
+          let o2 = Darklang.Cli.Apps.Outliner.setChildren o1 (Stdlib.Option.Option.Some prevSibId) (Stdlib.List.append prevChildren [vn.id])
+          let o3 = Darklang.Cli.Apps.Outliner.setCollapsed o2 prevSibId false
+          { state with outline = o3; cursor = findCursorIndex o3 vn.id state.cursor }
+
+let outdentNode (state: State) : State =
+  match getVisibleNodeAtCursor state with
+  | None -> state
+  | Some vn ->
+    if vn.depth == 0L then
+      state
+    else
+      let outline = state.outline
+      let parentId = Darklang.Cli.Apps.Outliner.findParentId outline vn.id
+      match parentId with
+      | None -> state
+      | Some pid ->
+        let grandparentId = Darklang.Cli.Apps.Outliner.findParentId outline pid
+        let parentChildren = Darklang.Cli.Apps.Outliner.getChildren outline (Stdlib.Option.Option.Some pid)
+        let newParentChildren = Stdlib.List.filter parentChildren (fun id -> id != vn.id)
+        let o1 = Darklang.Cli.Apps.Outliner.setChildren outline (Stdlib.Option.Option.Some pid) newParentChildren
+        let gpChildren = Darklang.Cli.Apps.Outliner.getChildren o1 grandparentId
+        let newGpChildren = Darklang.Cli.Apps.Outliner.insertIdAfter gpChildren pid vn.id
+        let o2 = Darklang.Cli.Apps.Outliner.setChildren o1 grandparentId newGpChildren
+        { state with outline = o2; cursor = findCursorIndex o2 vn.id state.cursor }
+
+let moveNodeUp (state: State) : State =
+  match getVisibleNodeAtCursor state with
+  | None -> state
+  | Some vn ->
+    let outline = state.outline
+    let parentId = Darklang.Cli.Apps.Outliner.findParentId outline vn.id
+    let siblings = Darklang.Cli.Apps.Outliner.getChildren outline parentId
+    let idx = Stdlib.List.findFirstIndex siblings (fun id -> id == vn.id)
+    match idx with
+    | None -> state
+    | Some i ->
+      if i == 0L then
+        state
+      else
+        let swapped = Darklang.Cli.Apps.Outliner.swapAt siblings (i - 1L) i
+        let o1 = Darklang.Cli.Apps.Outliner.setChildren outline parentId swapped
+        { state with outline = o1; cursor = findCursorIndex o1 vn.id state.cursor }
+
+let moveNodeDown (state: State) : State =
+  match getVisibleNodeAtCursor state with
+  | None -> state
+  | Some vn ->
+    let outline = state.outline
+    let parentId = Darklang.Cli.Apps.Outliner.findParentId outline vn.id
+    let siblings = Darklang.Cli.Apps.Outliner.getChildren outline parentId
+    let idx = Stdlib.List.findFirstIndex siblings (fun id -> id == vn.id)
+    match idx with
+    | None -> state
+    | Some i ->
+      if i >= ((Stdlib.List.length siblings) - 1L) then
+        state
+      else
+        let swapped = Darklang.Cli.Apps.Outliner.swapAt siblings i (i + 1L)
+        let o1 = Darklang.Cli.Apps.Outliner.setChildren outline parentId swapped
+        { state with outline = o1; cursor = findCursorIndex o1 vn.id state.cursor }
+
+let moveCursorUp (state: State) : State =
+  if state.cursor > 0L then
+    { state with cursor = state.cursor - 1L }
+  else
+    state
+
+let moveCursorDown (state: State) : State =
+  let flat = Darklang.Cli.Apps.Outliner.flattenVisible state.outline
+  let maxIndex = (Stdlib.List.length flat) - 1L
+  if state.cursor < maxIndex then
+    { state with cursor = state.cursor + 1L }
+  else
+    state
+
+let enterEditMode (state: State) : State =
+  match getVisibleNodeAtCursor state with
+  | Some vn ->
+    { state with editing = Stdlib.Option.Option.Some (TextEditor.fromText vn.text) }
+  | None -> state
+
+let commitEdit (state: State) (text: String) : State =
+  match getVisibleNodeAtCursor state with
+  | Some vn ->
+    let newOutline = Darklang.Cli.Apps.Outliner.setNodeText state.outline vn.id text
+    { state with outline = newOutline; editing = Stdlib.Option.Option.None }
+  | None ->
+    { state with editing = Stdlib.Option.Option.None }
+
+
+// --- Key handling ---
+
+let handleNavigateKey
+  (state: State)
+  (key: Stdlib.Cli.Stdin.Key.Key)
+  (modifiers: Stdlib.Cli.Stdin.Modifiers.Modifiers)
+  (keyChar: Stdlib.Option.Option<String>)
+  : Result =
+  match key with
+  | Escape -> Result.Back state
+  | UpArrow ->
+    let newState =
+      if modifiers.ctrl then moveNodeUp state
+      else moveCursorUp state
+    Result.Save newState
+  | DownArrow ->
+    let newState =
+      if modifiers.ctrl then moveNodeDown state
+      else moveCursorDown state
+    Result.Save newState
+  | Enter -> Result.Continue (enterEditMode state)
+  | Tab ->
+    let newState =
+      if modifiers.shift then outdentNode state
+      else indentNode state
+    Result.Save newState
+  | Spacebar -> Result.Save (toggleCollapse state)
+  | Backspace -> Result.Save (deleteNode state)
+  | Delete -> Result.Save (deleteNode state)
+  | _ ->
+    match keyChar with
+    | Some "o" -> Result.Save (insertAfter state)
+    | _ -> Result.Continue state
+
+let handleKey
+  (state: State)
+  (key: Stdlib.Cli.Stdin.Key.Key)
+  (modifiers: Stdlib.Cli.Stdin.Modifiers.Modifiers)
+  (keyChar: Stdlib.Option.Option<String>)
+  : Result =
+  match state.editing with
+  | Some editorState ->
+    match TextEditor.handleKey editorState key modifiers keyChar with
+    | Editing newEditorState ->
+      Result.Continue ({ state with editing = Stdlib.Option.Option.Some newEditorState })
+    | Finished text ->
+      Result.Save (commitEdit state text)
+    | Cancelled ->
+      Result.Continue ({ state with editing = Stdlib.Option.Option.None })
+  | None ->
+    handleNavigateKey state key modifiers keyChar
+
+
+// --- Rendering ---
+
+/// Render the tree body into a layout region.
+let renderBody (state: State) (region: Darklang.Cli.UI.Layout.Region) : Unit =
+  let flat = Darklang.Cli.Apps.Outliner.flattenVisible state.outline
+  let totalItems = Stdlib.List.length flat
+  let isEditing =
+    match state.editing with
+    | Some _ -> true
+    | None -> false
+
+  let scrollOffset =
+    if state.cursor < 0L then
+      0L
+    else if state.cursor >= region.rows then
+      Darklang.Cli.Terminal.clampScrollOffset
+        (state.cursor - region.rows + 1L)
+        totalItems
+        region.rows
+    else
+      0L
+
+  let visibleItems =
+    flat
+    |> Stdlib.List.drop scrollOffset
+    |> Stdlib.List.take region.rows
+
+  visibleItems
+  |> Stdlib.List.indexedMap (fun relIdx vn -> (relIdx, vn))
+  |> Stdlib.List.iter (fun pair ->
+    let (relIdx, vn) = pair
+    let absoluteIdx = scrollOffset + relIdx
+    let isSelected = absoluteIdx == state.cursor
+    let indent = Stdlib.String.repeat "  " vn.depth
+    let bullet =
+      if vn.isCollapsed && vn.hasChildren then
+        Darklang.Cli.Colors.colorize Darklang.Cli.Colors.yellow ">"
+      else if vn.hasChildren then
+        Darklang.Cli.Colors.colorize Darklang.Cli.Colors.dim "-"
+      else
+        Darklang.Cli.Colors.colorize Darklang.Cli.Colors.dim "*"
+    let displayText =
+      match state.editing with
+      | Some edState ->
+        if isSelected then TextEditor.renderInline edState
+        else vn.text
+      | None -> vn.text
+    let collapseHint =
+      if vn.isCollapsed && vn.childCount > 0L then
+        let countStr = Stdlib.Int64.toString vn.childCount
+        Darklang.Cli.Colors.colorize Darklang.Cli.Colors.dim $" ({countStr} hidden)"
+      else
+        ""
+    let line = $"{indent}{bullet} {displayText}{collapseHint}"
+    let styled =
+      if isSelected then
+        if isEditing then
+          Darklang.Cli.Colors.colorize Darklang.Cli.Colors.green line
+        else
+          Darklang.Cli.Colors.colorize Darklang.Cli.Colors.selection line
+      else
+        line
+    Darklang.Cli.UI.Layout.printAt region relIdx 0L styled)
+
+let renderTitleBar (title: String) (isEditing: Bool) (region: Darklang.Cli.UI.Layout.Region) : Unit =
+  let titleText = Darklang.Cli.Colors.colorize (Darklang.Cli.Colors.purpleBg ++ Darklang.Cli.Colors.white ++ Darklang.Cli.Colors.bold) $" {title} "
+  let modeText =
+    if isEditing then " EDIT " else " NAVIGATE "
+  let modeColor =
+    if isEditing then Darklang.Cli.Colors.greenBg ++ Darklang.Cli.Colors.black
+    else Darklang.Cli.Colors.grayBg ++ Darklang.Cli.Colors.white
+  let modeIndicator = Darklang.Cli.Colors.colorize modeColor modeText
+  Darklang.Cli.UI.Layout.printAt region 0L 0L (titleText ++ " " ++ modeIndicator)
+
+let renderHelpBar (helpText: String) (region: Darklang.Cli.UI.Layout.Region) : Unit =
+  let helpLen = Stdlib.String.length helpText
+  let helpPadding =
+    if region.cols > helpLen then Stdlib.String.repeat " " (region.cols - helpLen)
+    else ""
+  let styled = Darklang.Cli.Colors.colorize (Darklang.Cli.Colors.grayBg ++ Darklang.Cli.Colors.white) (helpText ++ helpPadding)
+  Darklang.Cli.UI.Layout.printAt region 0L 0L styled
+
+let render (state: State) (title: String) : Unit =
+  let termHeight = Darklang.Cli.Terminal.getHeight ()
+  let termWidth = Darklang.Cli.Terminal.getWidth ()
+
+  Stdlib.print "\u001b[?25l\u001b[2J\u001b[H"
+
+  let screen =
+    Darklang.Cli.UI.Layout.Region { top = 1L; left = 1L; rows = termHeight - 1L; cols = termWidth }
+
+  let isEditing =
+    match state.editing with
+    | Some _ -> true
+    | None -> false
+
+  let helpText =
+    if isEditing then "Type to edit | Left/Right: move cursor | Enter/Esc: finish editing"
+    else "Up/Down: move | Enter: edit | o: new | Tab/S-Tab: indent | Space: collapse | C-Up/Down: reorder | Esc: back"
+
+  let titleComp =
+    Darklang.Cli.UI.Layout.fixedSize 2L (fun region -> renderTitleBar title isEditing region)
+  let bodyComp =
+    Darklang.Cli.UI.Layout.greedy (fun region -> renderBody state region)
+  let helpComp =
+    Darklang.Cli.UI.Layout.fixedSize 1L (fun region -> renderHelpBar helpText region)
+  let components = [titleComp; bodyComp; helpComp]
+  Darklang.Cli.UI.Layout.vstack screen components
+  Stdlib.print "\u001b[?25h"

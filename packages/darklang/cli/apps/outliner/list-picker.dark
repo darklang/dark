@@ -1,0 +1,69 @@
+module Darklang.Cli.Apps.Outliner.ListPicker
+
+type State<'item> =
+  { items: List<'item>
+    selected: Int64
+    label: 'item -> String }
+
+type Result<'item> =
+  | Browsing of State<'item>
+  | Selected of 'item
+  | Cancelled
+
+let make (items: List<'item>) (label: 'item -> String) : State<'item> =
+  State { items = items; selected = 0L; label = label }
+
+let handleKey
+  (state: State<'item>)
+  (key: Stdlib.Cli.Stdin.Key.Key)
+  (_modifiers: Stdlib.Cli.Stdin.Modifiers.Modifiers)
+  (_keyChar: Stdlib.Option.Option<String>)
+  : Result<'item> =
+  let itemCount = Stdlib.List.length state.items
+  match key with
+  | Escape -> Result.Cancelled
+  | UpArrow ->
+    let newIdx =
+      if state.selected > 0L then state.selected - 1L
+      else state.selected
+    Result.Browsing ({ state with selected = newIdx })
+  | DownArrow ->
+    let maxIdx = itemCount - 1L
+    let newIdx =
+      if state.selected < maxIdx then state.selected + 1L
+      else state.selected
+    Result.Browsing ({ state with selected = newIdx })
+  | Enter ->
+    match Stdlib.List.getAt state.items state.selected with
+    | Some item -> Result.Selected item
+    | None -> Result.Cancelled
+  | _ -> Result.Browsing state
+
+/// Render the list into a layout region.
+let renderInRegion (state: State<'item>) (region: Darklang.Cli.UI.Layout.Region) : Unit =
+  let itemCount = Stdlib.List.length state.items
+  let scrollOffset =
+    if state.selected >= region.rows then
+      Darklang.Cli.Terminal.clampScrollOffset
+        (state.selected - region.rows + 1L)
+        itemCount
+        region.rows
+    else
+      0L
+  state.items
+  |> Stdlib.List.indexedMap (fun idx item -> (idx, item))
+  |> Stdlib.List.drop scrollOffset
+  |> Stdlib.List.take region.rows
+  |> Stdlib.List.iter (fun pair ->
+    let (idx, item) = pair
+    let row = idx - scrollOffset
+    let isSelected = idx == state.selected
+    let text = state.label item
+    let prefix = if isSelected then ">" else " "
+    let line = $"  {prefix} {text}"
+    let styled =
+      if isSelected then
+        Darklang.Cli.Colors.colorize Darklang.Cli.Colors.selection line
+      else
+        line
+    Darklang.Cli.UI.Layout.printAt region row 0L styled)

@@ -1,9 +1,20 @@
 module Darklang.Cli
 
+type SubAppAction =
+  | Continue
+  | Save
+  | Exit
+
+type SubApp =
+  { onKey: Stdlib.Cli.Stdin.Key.Key -> Stdlib.Cli.Stdin.Modifiers.Modifiers -> Stdlib.Option.Option<String> -> (SubAppAction * SubApp)
+    onDisplay: Unit -> Unit
+    onSave: Unit -> Unit }
+
 type Page =
   | MainPrompt
   | InteractiveNav of Packages.NavInteractive.State
   | CompletionPicker of CompletionPicker.State
+  | SubApp of SubApp
 
 type AppState =
   { isExiting: Bool
@@ -185,7 +196,8 @@ module Registry =
       ("http-server", "Start an HTTP server", [], Commands.HttpServer.execute, Commands.HttpServer.help, Commands.HttpServer.complete)
       ("docs", "Browse in-CLI documentation", [ "doc"; "man" ], Commands.Docs.execute, Commands.Docs.help, Commands.Docs.complete)
       ("undo", "Undo WIP changes to a fn/type/value", [], Packages.Undo.execute, Packages.Undo.help, Packages.Undo.complete)
-      ("db", "Manage databases", [], Packages.DB.execute, Packages.DB.help, Packages.DB.complete) ]
+      ("db", "Manage databases", [], Packages.DB.execute, Packages.DB.help, Packages.DB.complete)
+      ("outliner", "Interactive tree outliner", [ "tree-exp" ], Darklang.Cli.Apps.Outliner.App.execute, Darklang.Cli.Apps.Outliner.App.help, Darklang.Cli.Apps.Outliner.App.complete) ]
     |> Stdlib.List.map(
       // CLEANUP nitpicky: swap help and complete
       fun (name, desc, aliases, execute, help, complete) ->
@@ -546,6 +558,25 @@ let handleKeyInput (state: AppState) (key: Stdlib.Cli.Stdin.Key.Key) (modifiers:
           currentPage = Page.MainPrompt
           needsFullRedraw = true }
 
+  | SubApp app ->
+    let (action, newApp) = app.onKey key modifiers keyChar
+    match action with
+    | Continue ->
+      { state with
+          currentPage = Page.SubApp newApp
+          needsFullRedraw = true }
+    | Save ->
+      newApp.onSave ()
+      { state with
+          currentPage = Page.SubApp newApp
+          needsFullRedraw = true }
+    | Exit ->
+      newApp.onSave ()
+      Stdlib.print "\u001b[?1049l"
+      { state with
+          currentPage = Page.MainPrompt
+          needsFullRedraw = true }
+
 
 module Update =
   let updateAppState (state: AppState) (msg: Msg) : AppState =
@@ -606,6 +637,8 @@ let runInteractiveLoop (state: AppState) : Int64 =
       // Display the completion picker
       if state.needsFullRedraw then CompletionPicker.display pickerState
 
+    | SubApp app ->
+      app.onDisplay ()
 
     // Render status bar at bottom of terminal
     StatusBar.render state

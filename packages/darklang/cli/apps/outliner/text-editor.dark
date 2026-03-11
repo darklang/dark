@@ -1,0 +1,67 @@
+module Darklang.Cli.Apps.Outliner.TextEditor
+
+type State =
+  { text: String
+    cursor: Int64 }
+
+type Result =
+  | Editing of State
+  | Finished of String
+  | Cancelled
+
+let empty : State =
+  State { text = ""; cursor = 0L }
+
+let fromText (text: String) : State =
+  State { text = text; cursor = Stdlib.String.length text }
+
+let handleKey
+  (state: State)
+  (key: Stdlib.Cli.Stdin.Key.Key)
+  (_modifiers: Stdlib.Cli.Stdin.Modifiers.Modifiers)
+  (keyChar: Stdlib.Option.Option<String>)
+  : Result =
+  match key with
+  | Enter -> Result.Finished state.text
+  | Escape -> Result.Cancelled
+  | Backspace ->
+    if state.cursor == 0L then
+      Result.Editing state
+    else
+      let before = Stdlib.String.slice state.text 0L (state.cursor - 1L)
+      let after = Stdlib.String.dropFirst state.text state.cursor
+      Result.Editing (State { text = before ++ after; cursor = state.cursor - 1L })
+  | LeftArrow ->
+    if state.cursor > 0L then
+      Result.Editing ({ state with cursor = state.cursor - 1L })
+    else
+      Result.Editing state
+  | RightArrow ->
+    let textLen = Stdlib.String.length state.text
+    if state.cursor < textLen then
+      Result.Editing ({ state with cursor = state.cursor + 1L })
+    else
+      Result.Editing state
+  | _ ->
+    match keyChar with
+    | Some ch ->
+      let before = Stdlib.String.slice state.text 0L state.cursor
+      let after = Stdlib.String.dropFirst state.text state.cursor
+      Result.Editing (State { text = before ++ ch ++ after; cursor = state.cursor + 1L })
+    | None -> Result.Editing state
+
+/// Render text with a visible cursor. Returns a styled string, does not print.
+let renderInline (state: State) : String =
+  let before = Stdlib.String.slice state.text 0L state.cursor
+  let cursorChar =
+    if state.cursor < (Stdlib.String.length state.text) then
+      Stdlib.String.slice state.text state.cursor (state.cursor + 1L)
+    else
+      " "
+  let cursorDisplay = Darklang.Cli.Colors.colorize "\u001b[7m" cursorChar
+  let afterCursor =
+    if state.cursor < (Stdlib.String.length state.text) then
+      Stdlib.String.dropFirst state.text (state.cursor + 1L)
+    else
+      ""
+  before ++ cursorDisplay ++ afterCursor
