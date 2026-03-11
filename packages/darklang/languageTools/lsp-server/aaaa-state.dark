@@ -13,6 +13,12 @@ type LspState =
 
     shouldShutdown: Bool
 
+    /// The account ID of the current user (for commit attribution)
+    accountID: Stdlib.Option.Option<Uuid>
+
+    /// The account name of the current user
+    accountName: String
+
     /// Which branch we're working on
     currentBranchId: Uuid
 

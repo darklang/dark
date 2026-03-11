@@ -30,15 +30,13 @@ let commandOptions () : List<String> =
   Stdlib.List.append allNames allAliases
 
 let initState () : AppState =
-  let (accountName, accountID) =
-    match Builtin.environmentGet "DARK_ACCOUNT" with
-    | Some name ->
-      match Builtin.darkInternalUserGetByName name with
-      | Some id -> (name, Stdlib.Option.Option.Some id)
-      | None ->
-        Stdlib.printLine $"Warning: account '{name}' not found. DB commands will not work."
-        (name, Stdlib.Option.Option.None)
-    | None -> ("", Stdlib.Option.Option.None)
+  let (accountName, accountID) = SCM.Account.resolve ()
+
+  match accountID with
+  | Some _ -> ()
+  | None ->
+    if accountName != "" then
+      Stdlib.printLine $"Warning: account '{accountName}' not found. DB commands will not work."
 
   AppState
     { isExiting = false

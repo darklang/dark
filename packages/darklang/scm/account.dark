@@ -1,0 +1,12 @@
+module Darklang.SCM.Account
+
+// CLEANUP replace DARK_ACCOUNT env var with proper login
+/// Resolve the current user's account from the DARK_ACCOUNT env var.
+/// Returns (name, accountId option).
+let resolve () : (String * Stdlib.Option.Option<Uuid>) =
+  match Builtin.environmentGet "DARK_ACCOUNT" with
+  | Some name ->
+    match Builtin.darkInternalUserGetByName name with
+    | Some id -> (name, Stdlib.Option.Option.Some id)
+    | None -> (name, Stdlib.Option.Option.None)
+  | None -> ("", Stdlib.Option.Option.None)

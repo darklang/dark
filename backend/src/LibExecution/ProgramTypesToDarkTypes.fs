@@ -1785,6 +1785,8 @@ module Commit =
         "message", DString c.message
         "createdAt", DDateTime(DarkDateTime.fromInstant c.createdAt)
         "opCount", DInt64 c.opCount
+        "committerId", DUuid c.committerId
+        "committerName", DString c.committerName
         "branchId", DUuid c.branchId
         "branchName", DString c.branchName ]
       |> Map.ofList

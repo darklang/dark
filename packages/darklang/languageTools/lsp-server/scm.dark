@@ -40,6 +40,8 @@ let handleGetCommitsRequest
           ("message", Stdlib.AltJson.Json.String c.message)
           ("createdAt", Stdlib.AltJson.Json.String (Stdlib.DateTime.toString_v0 c.createdAt))
           ("opCount", Stdlib.AltJson.Json.String (Stdlib.Int64.toString c.opCount))
+          ("committerId", Stdlib.AltJson.Json.String (Stdlib.Uuid.toString c.committerId))
+          ("committerName", Stdlib.AltJson.Json.String c.committerName)
           ("branchId", Stdlib.AltJson.Json.String (Stdlib.Uuid.toString c.branchId))
           ("branchName", Stdlib.AltJson.Json.String c.branchName) ])
 
@@ -81,40 +83,54 @@ let handleCommitRequest
   (requestId: JsonRPC.RequestID)
   (message: String)
   : LspState =
-  match SCM.PackageOps.commit state.currentBranchId message with
-  | Ok commitHash ->
-    let responseJson =
-      Stdlib.AltJson.Json.Object
-        [ ("success", Stdlib.AltJson.Json.Bool true)
-          ("commitHash", Stdlib.AltJson.Json.String commitHash) ]
-
-    let response =
-      (JsonRPC.Response.Ok.make (Stdlib.Option.Option.Some requestId) responseJson)
-      |> Stdlib.AltJson.format
-
-    logAndSendToClient response
-
-    // Notify SCM views to refresh
-    let scmNotification =
-      (JsonRPC.Request.makeNotificationString
-        "dark/scm/changed"
-        Stdlib.Option.Option.None)
-
-    logAndSendToClient scmNotification
-
-    state
-
-  | Error msg ->
+  match state.accountID with
+  | None ->
     let responseJson =
       (JsonRPC.Response.Error.make
         (Stdlib.Option.Option.Some requestId)
         JsonRPC.Response.Error.KnownErrorCodes.invalidRequest
-        msg
+        "No account set. Set DARK_ACCOUNT environment variable."
         Stdlib.Option.Option.None)
       |> Stdlib.AltJson.format
 
     logAndSendToClient responseJson
     state
+
+  | Some accountId ->
+    match SCM.PackageOps.commit accountId state.currentBranchId message with
+    | Ok commitHash ->
+      let responseJson =
+        Stdlib.AltJson.Json.Object
+          [ ("success", Stdlib.AltJson.Json.Bool true)
+            ("commitHash", Stdlib.AltJson.Json.String commitHash) ]
+
+      let response =
+        (JsonRPC.Response.Ok.make (Stdlib.Option.Option.Some requestId) responseJson)
+        |> Stdlib.AltJson.format
+
+      logAndSendToClient response
+
+      // Notify SCM views to refresh
+      let scmNotification =
+        (JsonRPC.Request.makeNotificationString
+          "dark/scm/changed"
+          Stdlib.Option.Option.None)
+
+      logAndSendToClient scmNotification
+
+      state
+
+    | Error msg ->
+      let responseJson =
+        (JsonRPC.Response.Error.make
+          (Stdlib.Option.Option.Some requestId)
+          JsonRPC.Response.Error.KnownErrorCodes.invalidRequest
+          msg
+          Stdlib.Option.Option.None)
+        |> Stdlib.AltJson.format
+
+      logAndSendToClient responseJson
+      state
 
 
 /// Handle dark/scm/discard request - discards all WIP changes

@@ -285,10 +285,13 @@ let getCommits (branchId : PT.BranchId) (limit : int64) : Task<List<PT.Commit>> 
         """
         SELECT c.hash, c.message, c.created_at,
                (SELECT COUNT(*) FROM package_ops WHERE commit_hash = c.hash) as op_count,
+               c.account_id,
+               a.name as committer_name,
                c.branch_id,
                b.name as branch_name
         FROM commits c
         JOIN branches b ON c.branch_id = b.id
+        JOIN accounts_v0 a ON c.account_id = a.id
         WHERE c.branch_id = @branch_id
         ORDER BY c.created_at DESC
         LIMIT @limit
@@ -299,6 +302,8 @@ let getCommits (branchId : PT.BranchId) (limit : int64) : Task<List<PT.Commit>> 
           message = read.string "message"
           createdAt = read.instant "created_at"
           opCount = read.int64 "op_count"
+          committerId = read.uuid "account_id"
+          committerName = read.string "committer_name"
           branchId = read.uuid "branch_id"
           branchName = read.string "branch_name" })
   }
@@ -325,10 +330,13 @@ let getCommitsForBranchChain
           $"""
           SELECT c.hash, c.message, c.created_at,
                  (SELECT COUNT(*) FROM package_ops WHERE commit_hash = c.hash) as op_count,
+                 c.account_id,
+                 a.name as committer_name,
                  c.branch_id,
                  b.name as branch_name
           FROM commits c
           JOIN branches b ON c.branch_id = b.id
+          JOIN accounts_v0 a ON c.account_id = a.id
           WHERE c.branch_id IN ({inClause})
           ORDER BY c.created_at DESC
           LIMIT @limit
@@ -339,6 +347,8 @@ let getCommitsForBranchChain
             message = read.string "message"
             createdAt = read.instant "created_at"
             opCount = read.int64 "op_count"
+            committerId = read.uuid "account_id"
+            committerName = read.string "committer_name"
             branchId = read.uuid "branch_id"
             branchName = read.string "branch_name" })
   }

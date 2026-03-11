@@ -66,6 +66,8 @@ type Commit =
     message : string
     createdAt : NodaTime.Instant
     opCount : int64
+    committerId : UserID
+    committerName : string
     branchId : BranchId
     branchName : string }
 
