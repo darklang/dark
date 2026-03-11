@@ -108,8 +108,12 @@ let loadFromDisk
         let dbs = canvas.dbs |> List.map PT.Toplevel.TLDB
 
         // Insert+apply canvas types, values, and fns as PackageOps (committed)
+        // Darklang system account: 00000000-0000-0000-0000-000000000001
+        let darklangAccountId =
+          System.Guid.Parse "00000000-0000-0000-0000-000000000001"
         let! _ =
           LibPackageManager.Inserts.insertAndApplyOpsWithCommit
+            darklangAccountId
             PT.mainBranchId
             $"Init: canvas {domain}"
             canvas.ops

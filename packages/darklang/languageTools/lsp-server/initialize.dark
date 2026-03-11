@@ -52,8 +52,12 @@ let handleInitializeRequest
   logAndSendToClient initializeResponse
 
 
+  let (lspAccountName, lspAccountID) = SCM.Account.resolve ()
+
   LspState
     { initialized = true
       shouldShutdown = false
+      accountID = lspAccountID
+      accountName = lspAccountName
       currentBranchId = SCM.Branch.mainBranchId
       documentsInScope = Dict { } }

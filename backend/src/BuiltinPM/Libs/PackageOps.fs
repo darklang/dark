@@ -146,7 +146,8 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
     { name = fn "scmCommit" 0
       typeParams = []
       parameters =
-        [ Param.make "branchId" TUuid "Branch ID"
+        [ Param.make "accountId" TUuid "Committer account ID"
+          Param.make "branchId" TUuid "Branch ID"
           Param.make "message" TString "Commit message" ]
       returnType = TypeReference.result TString TString
       description =
@@ -156,9 +157,10 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
         let resultOk = Dval.resultOk KTString KTString
         let resultError = Dval.resultError KTString KTString
         (function
-        | _, _, _, [ DUuid branchId; DString message ] ->
+        | _, _, _, [ DUuid accountId; DUuid branchId; DString message ] ->
           uply {
-            let! result = LibPackageManager.Inserts.commitWipOps branchId message
+            let! result =
+              LibPackageManager.Inserts.commitWipOps accountId branchId message
             match result with
             | Ok commitHash ->
               let (PT.Hash h) = commitHash

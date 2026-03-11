@@ -130,6 +130,7 @@ let insertAndApplyOps
 /// Create a new commit and insert ops with that commit_hash
 /// Returns the commit Hash
 let insertAndApplyOpsWithCommit
+  (accountId : UserID)
   (branchId : PT.BranchId)
   (message : string)
   (ops : List<PT.PackageOp>)
@@ -149,19 +150,20 @@ let insertAndApplyOpsWithCommit
 
     // Compute content-addressed commit hash
     let opHashes = ops |> List.map Hashing.computeOpHash
-    let commitHash = Hashing.computeCommitHash parentHash opHashes
+    let commitHash = Hashing.computeCommitHash parentHash opHashes accountId
     let (Hash commitHashStr) = commitHash
 
     // Create the commit record
     do!
       Sql.query
         """
-        INSERT INTO commits (hash, message, branch_id, created_at)
-        VALUES (@hash, @message, @branch_id, datetime('now'))
+        INSERT INTO commits (hash, message, account_id, branch_id, created_at)
+        VALUES (@hash, @message, @account_id, @branch_id, datetime('now'))
         """
       |> Sql.parameters
         [ "hash", Sql.string commitHashStr
           "message", Sql.string message
+          "account_id", Sql.uuid accountId
           "branch_id", Sql.uuid branchId ]
       |> Sql.executeStatementAsync
 
@@ -182,9 +184,10 @@ let insertAndApplyOpsAsWip
 
 
 /// Commit all WIP ops on a branch by creating a new commit and assigning commit_hash.
-/// Commit hash is content-addressed: hash(parentHash + sorted opHashes).
+/// Commit hash is content-addressed: hash(parentHash + sorted opHashes + accountId).
 /// Returns the commit Hash on success.
 let commitWipOps
+  (accountId : UserID)
   (branchId : PT.BranchId)
   (message : string)
   : Task<Result<Hash, string>> =
@@ -224,8 +227,8 @@ let commitWipOps
         // Compute op hashes
         let opHashes = wipOps |> List.map (fun (_, op) -> Hashing.computeOpHash op)
 
-        // Compute content-addressed commit hash
-        let commitHash = Hashing.computeCommitHash parentHash opHashes
+        // Compute content-addressed commit hash (includes accountId for integrity)
+        let commitHash = Hashing.computeCommitHash parentHash opHashes accountId
         let (Hash commitHashStr) = commitHash
 
         // Execute all three operations atomically:
@@ -234,11 +237,12 @@ let commitWipOps
         // 3. Assign WIP locations to this commit
         let statements =
           [ ("""
-             INSERT INTO commits (hash, message, branch_id, created_at)
-             VALUES (@hash, @message, @branch_id, datetime('now'))
+             INSERT INTO commits (hash, message, account_id, branch_id, created_at)
+             VALUES (@hash, @message, @account_id, @branch_id, datetime('now'))
              """,
              [ [ "hash", Sql.string commitHashStr
                  "message", Sql.string message
+                 "account_id", Sql.uuid accountId
                  "branch_id", Sql.uuid branchId ] ])
 
             ("""

@@ -335,7 +335,8 @@ let private findValue (branchId : PT.BranchId) (location : PT.PackageLocation) =
 
 let private commitAll (branchId : PT.BranchId) (msg : string) =
   task {
-    let! result = Inserts.commitWipOps branchId msg
+    let darklangAccountId = System.Guid.Parse "00000000-0000-0000-0000-000000000001"
+    let! result = Inserts.commitWipOps darklangAccountId branchId msg
     match result with
     | Ok commitHash -> return commitHash
     | Error e -> return failtest $"commit failed: {e}"

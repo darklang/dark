@@ -29,10 +29,10 @@ let execute (state: AppState) (args: List<String>) : AppState =
       let isAncestor = commitBranchId != currentBranchIdStr && commitBranchId != ""
 
       if isAncestor then
-        Stdlib.printLine $"{Cli.Colors.dim}{id}  {createdAt}  ({opCount} ops)  [{c.branchName}]{Cli.Colors.reset}"
+        Stdlib.printLine $"{Cli.Colors.dim}{id}  {createdAt}  ({opCount} ops)  [{c.branchName}]  by {c.committerName}{Cli.Colors.reset}"
         Stdlib.printLine $"{Cli.Colors.dim}    {c.message}{Cli.Colors.reset}"
       else
-        Stdlib.printLine $"{Cli.Colors.cyan}{id}{Cli.Colors.reset}  {createdAt}  ({opCount} ops)"
+        Stdlib.printLine $"{Cli.Colors.cyan}{id}{Cli.Colors.reset}  {createdAt}  ({opCount} ops)  by {c.committerName}"
         Stdlib.printLine $"    {c.message}"
 
       Stdlib.printLine "")

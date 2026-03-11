@@ -50,13 +50,18 @@ let execute (state: AppState) (args: List<String>) : AppState =
           (response == "y") || (response == "Y")
 
       if proceed then
-        match SCM.PackageOps.commit branchId message with
-        | Ok commitHash ->
-          let shortId = Stdlib.String.first commitHash 8L
-          Stdlib.printLine (Colors.success $"Created commit {shortId}")
-          state
-        | Error e ->
-          Stdlib.printLine (Colors.error $"Commit failed: {e}")
+        match state.accountID with
+        | Some accountId ->
+          match SCM.PackageOps.commit accountId branchId message with
+          | Ok commitHash ->
+            let shortId = Stdlib.String.first commitHash 8L
+            Stdlib.printLine (Colors.success $"Created commit {shortId}")
+            state
+          | Error e ->
+            Stdlib.printLine (Colors.error $"Commit failed: {e}")
+            state
+        | None ->
+          Stdlib.printLine (Colors.error "No account set. Set DARK_ACCOUNT environment variable.")
           state
       else
         Stdlib.printLine "Commit cancelled."
