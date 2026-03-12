@@ -52,8 +52,9 @@ let testBranchOpsEmitted =
     let fn1 = makeFn (eVar "x")
     let ops = [ PT.PackageOp.AddFn fn1; PT.PackageOp.SetFnName(fn1.hash, loc "bo1") ]
     let! (_insertCount : int64) = Inserts.insertAndApplyOpsAsWip branch.id ops
+    let testAccountId = System.Guid.Parse "00000000-0000-0000-0000-000000000001"
     let! (commitResult : Result<PT.Hash, string>) =
-      Inserts.commitWipOps branch.id "test commit"
+      Inserts.commitWipOps testAccountId branch.id "test commit"
     Expect.isOk commitResult "commit should succeed"
     let! opCountAfterCommit = countRows "branch_ops"
     Expect.isGreaterThan
@@ -97,7 +98,8 @@ let testBranchOpsSerialization =
           PT.Hash "commit1",
           "msg",
           PT.mainBranchId,
-          [ PT.Hash "op1"; PT.Hash "op2" ]
+          [ PT.Hash "op1"; PT.Hash "op2" ],
+          System.Guid.Parse "00000000-0000-0000-0000-000000000001"
         )
         PT.BranchOp.RebaseBranch(System.Guid.NewGuid(), PT.Hash "newbase")
         PT.BranchOp.MergeBranch(System.Guid.NewGuid(), PT.mainBranchId)

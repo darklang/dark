@@ -37,27 +37,8 @@ let create (name : string) (parentBranchId : PT.BranchId) : Task<PT.Branch> =
       |> Sql.parameters [ "parent_id", Sql.uuid parentBranchId ]
       |> Sql.executeRowOptionAsync (fun read -> Hash(read.string "hash"))
 
-    let baseCommitHashParam =
-      match baseCommitHash with
-      | Some(Hash h) -> Sql.string h
-      | None -> Sql.dbnull
-
     do!
-      Sql.query
-        """
-        INSERT INTO branches (id, name, parent_branch_id, base_commit_hash, created_at)
-        VALUES (@id, @name, @parent_id, @base_commit_hash, datetime('now'))
-        """
-      |> Sql.parameters
-        [ "id", Sql.uuid id
-          "name", Sql.string name
-          "parent_id", Sql.uuid parentBranchId
-          "base_commit_hash", baseCommitHashParam ]
-      |> Sql.executeStatementAsync
-
-    // Emit BranchOp
-    do!
-      BranchOpPlayback.insertOnly (
+      BranchOpPlayback.insertAndApply (
         PT.BranchOp.CreateBranch(id, name, Some parentBranchId, baseCommitHash)
       )
 
@@ -161,14 +142,7 @@ let archive (id : PT.BranchId) : Task<Result<unit, string>> =
       if childCount > 0L then
         return Error "Cannot archive branch with active children"
       else
-        do!
-          Sql.query
-            "UPDATE branches SET archived_at = datetime('now') WHERE id = @id"
-          |> Sql.parameters [ "id", Sql.uuid id ]
-          |> Sql.executeStatementAsync
-
-        // Emit BranchOp
-        do! BranchOpPlayback.insertOnly (PT.BranchOp.ArchiveBranch id)
+        do! BranchOpPlayback.insertAndApply (PT.BranchOp.ArchiveBranch id)
 
         return Ok()
   }

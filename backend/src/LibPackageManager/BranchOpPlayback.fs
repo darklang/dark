@@ -14,7 +14,9 @@ module BS = LibSerialization.Binary.Serialization
 open LibSerialization.Hashing
 
 
-/// Apply a BranchOp to the branches/commits tables
+/// Apply a BranchOp to the branches/commits tables.
+/// This is the single source of truth for what each op does —
+/// mutation sites call insertAndApply, and replay calls applyOp directly.
 let applyOp (op : PT.BranchOp) : Task<unit> =
   task {
     match op with
@@ -42,17 +44,18 @@ let applyOp (op : PT.BranchOp) : Task<unit> =
             "base_commit_hash", baseCommitHashParam ]
         |> Sql.executeStatementAsync
 
-    | PT.BranchOp.CreateCommit(commitHash, message, branchId, _opHashes) ->
+    | PT.BranchOp.CreateCommit(commitHash, message, branchId, _opHashes, accountId) ->
       let (Hash commitHashStr) = commitHash
       do!
         Sql.query
           """
-          INSERT OR IGNORE INTO commits (hash, message, branch_id, created_at)
-          VALUES (@hash, @message, @branch_id, datetime('now'))
+          INSERT OR IGNORE INTO commits (hash, message, account_id, branch_id, created_at)
+          VALUES (@hash, @message, @account_id, @branch_id, datetime('now'))
           """
         |> Sql.parameters
           [ "hash", Sql.string commitHashStr
             "message", Sql.string message
+            "account_id", Sql.uuid accountId
             "branch_id", Sql.uuid branchId ]
         |> Sql.executeStatementAsync
 
@@ -68,6 +71,43 @@ let applyOp (op : PT.BranchOp) : Task<unit> =
         |> Sql.executeStatementAsync
 
     | PT.BranchOp.MergeBranch(branchId, intoBranchId) ->
+      // Deprecate parent locations at paths that the branch is overwriting
+      let! branchLocations =
+        Sql.query
+          """
+          SELECT owner, modules, name, item_type
+          FROM locations
+          WHERE branch_id = @branch_id
+            AND deprecated_at IS NULL
+          """
+        |> Sql.parameters [ "branch_id", Sql.uuid branchId ]
+        |> Sql.executeAsync (fun read ->
+          (read.string "owner",
+           read.string "modules",
+           read.string "name",
+           read.string "item_type"))
+
+      for (owner, modules, name, itemType) in branchLocations do
+        do!
+          Sql.query
+            """
+            UPDATE locations
+            SET deprecated_at = datetime('now')
+            WHERE branch_id = @parent_id
+              AND owner = @owner
+              AND modules = @modules
+              AND name = @name
+              AND item_type = @item_type
+              AND deprecated_at IS NULL
+            """
+          |> Sql.parameters
+            [ "parent_id", Sql.uuid intoBranchId
+              "owner", Sql.string owner
+              "modules", Sql.string modules
+              "name", Sql.string name
+              "item_type", Sql.string itemType ]
+          |> Sql.executeStatementAsync
+
       // Move commits, ops, locations to parent
       do!
         Sql.query
@@ -138,23 +178,4 @@ let insertAndApply (op : PT.BranchOp) : Task<unit> =
         System.Console.Error.WriteLine(
           $"Warning: Failed to mark BranchOp {hashStr} as applied: {ex.Message}"
         )
-  }
-
-
-/// Insert and apply a BranchOp, recording it but not re-applying the side effects
-/// (for cases where the mutation was already done, we just need the op logged).
-let insertOnly (op : PT.BranchOp) : Task<unit> =
-  task {
-    let opHash = Hashing.computeBranchOpHash op
-    let (Hash hashStr) = opHash
-    let opBlob = BS.PT.BranchOp.serialize hashStr op
-
-    do!
-      Sql.query
-        """
-        INSERT OR IGNORE INTO branch_ops (id, op_blob, applied, created_at)
-        VALUES (@id, @op_blob, 1, datetime('now'))
-        """
-      |> Sql.parameters [ "id", Sql.string hashStr; "op_blob", Sql.bytes opBlob ]
-      |> Sql.executeStatementAsync
   }

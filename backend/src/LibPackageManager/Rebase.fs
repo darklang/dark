@@ -128,28 +128,11 @@ let rebase (branchId : PT.BranchId) : Task<Result<string, List<RebaseConflict>>>
           if not (List.isEmpty conflicts) then
             return Error conflicts
           else
-            // Update base_commit_hash
-            let baseCommitHashParam =
-              match parentLatest with
-              | Some(Hash h) -> Sql.string h
-              | None -> Sql.dbnull
-
-            do!
-              Sql.query
-                """
-                UPDATE branches
-                SET base_commit_hash = @base_commit_hash
-                WHERE id = @id
-                """
-              |> Sql.parameters
-                [ "id", Sql.uuid branchId; "base_commit_hash", baseCommitHashParam ]
-              |> Sql.executeStatementAsync
-
-            // Emit RebaseBranch BranchOp
+            // Record and apply the rebase
             match parentLatest with
             | Some newBase ->
               do!
-                BranchOpPlayback.insertOnly (
+                BranchOpPlayback.insertAndApply (
                   PT.BranchOp.RebaseBranch(branchId, newBase)
                 )
             | None -> ()

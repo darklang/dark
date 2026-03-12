@@ -182,7 +182,7 @@ module HandleCommand =
       // Record CreateBranch op for main (the migration creates the row,
       // but we need the BranchOp so the DB can be rebuilt from ops alone)
       do!
-        LibPackageManager.BranchOpPlayback.insertOnly (
+        LibPackageManager.BranchOpPlayback.insertAndApply (
           PT.BranchOp.CreateBranch(PT.mainBranchId, "main", None, None)
         )
 

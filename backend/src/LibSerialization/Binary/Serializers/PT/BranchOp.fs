@@ -18,12 +18,13 @@ let write (w : BinaryWriter) (op : BranchOp) : unit =
     String.write w name
     Option.write w Guid.write parentBranchId
     Option.write w Hash.write baseCommitHash
-  | BranchOp.CreateCommit(commitHash, message, branchId, opHashes) ->
+  | BranchOp.CreateCommit(commitHash, message, branchId, opHashes, accountId) ->
     w.Write(1uy)
     Hash.write w commitHash
     String.write w message
     Guid.write w branchId
     List.write w Hash.write opHashes
+    Guid.write w accountId
   | BranchOp.RebaseBranch(branchId, newBaseCommitHash) ->
     w.Write(2uy)
     Guid.write w branchId
@@ -49,7 +50,8 @@ let read (r : BinaryReader) : BranchOp =
     let message = String.read r
     let branchId = Guid.read r
     let opHashes = List.read r Hash.read
-    BranchOp.CreateCommit(commitHash, message, branchId, opHashes)
+    let accountId = Guid.read r
+    BranchOp.CreateCommit(commitHash, message, branchId, opHashes, accountId)
   | 2uy ->
     let branchId = Guid.read r
     let newBaseCommitHash = Hash.read r
