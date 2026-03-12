@@ -13,7 +13,7 @@ module Builtin = LibExecution.Builtin
 open Builtin.Shortcuts
 
 
-let fns : List<BuiltInFn> =
+let fns () : List<BuiltInFn> =
   [ { name = fn "environmentGet" 0
       typeParams = []
       parameters = [ Param.make "varName" TString "" ]
@@ -74,4 +74,4 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated } ]
 
 
-let builtins : Builtins = Builtin.make [] fns
+let builtins () : Builtins = Builtin.make [] (fns ())

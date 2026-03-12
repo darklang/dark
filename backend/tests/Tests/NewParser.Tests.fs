@@ -34,11 +34,12 @@ let t
   (allowUnresolved : bool)
   =
   let parseFnName =
-    RT.FQFnName.fqPackage
-      PackageRefs.Fn.LanguageTools.Parser.parsePTSourceFileWithOps
+    RT.FQFnName.fqPackage (
+      PackageRefs.Fn.LanguageTools.Parser.parsePTSourceFileWithOps ()
+    )
 
   let prettyPrintFnName =
-    RT.FQFnName.fqPackage PackageRefs.Fn.PrettyPrinter.ProgramTypes.sourceFile
+    RT.FQFnName.fqPackage (PackageRefs.Fn.PrettyPrinter.ProgramTypes.sourceFile ())
 
   testTask name {
     // First phase: parse with base PM to get PackageOps
@@ -57,7 +58,7 @@ let t
 
     match parseDval with
     | RT.DEnum(tn, _, _, "Ok", [ RT.DTuple(sourceFile, opsList, []) ]) when
-      tn = Dval.resultType
+      tn = Dval.resultType ()
       ->
       // Extract PackageOps from the Dval list
       let packageOps =
@@ -85,7 +86,7 @@ let t
             "Didn't round-trip as expected"
       | _ -> return failtest $"Unexpected pretty print result: {resultDval}"
 
-    | RT.DEnum(tn, _, _, "Error", [ RT.DString errMsg ]) when tn = Dval.resultType ->
+    | RT.DEnum(tn, _, _, "Error", [ RT.DString errMsg ]) when tn = Dval.resultType () ->
       return failtest $"Parse error: {errMsg}"
     | _ -> return failtest $"Unexpected parse result format: {parseDval}"
   }

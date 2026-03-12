@@ -34,7 +34,9 @@ module StreamChunk =
 
   let toDT (chunk : StreamChunk) : Dval =
     let typeName =
-      FQTypeName.fqPackage PackageRefs.Type.Stdlib.StreamingHttpClient.streamChunk
+      FQTypeName.fqPackage (
+        PackageRefs.Type.Stdlib.StreamingHttpClient.streamChunk ()
+      )
     let (caseName, fields) =
       match chunk with
       | Data bytes -> "Data", [ Dval.byteArrayToDvalList bytes ]
@@ -53,12 +55,14 @@ module SSEChunk =
 
   let toDT (chunk : SSEChunk) : Dval =
     let typeName =
-      FQTypeName.fqPackage PackageRefs.Type.Stdlib.StreamingHttpClient.sseChunk
+      FQTypeName.fqPackage (PackageRefs.Type.Stdlib.StreamingHttpClient.sseChunk ())
     let (caseName, fields) =
       match chunk with
       | Event evt ->
         let evtTypeName =
-          FQTypeName.fqPackage PackageRefs.Type.Stdlib.StreamingHttpClient.sseEvent
+          FQTypeName.fqPackage (
+            PackageRefs.Type.Stdlib.StreamingHttpClient.sseEvent ()
+          )
         let evtDval =
           DRecord(
             evtTypeName,
@@ -404,10 +408,11 @@ let private streamingRequestHandler
       -> Task<StreamingResult>)
   =
   let streamingResponseType =
-    FQTypeName.fqPackage
-      PackageRefs.Type.Stdlib.StreamingHttpClient.streamingResponse
+    FQTypeName.fqPackage (
+      PackageRefs.Type.Stdlib.StreamingHttpClient.streamingResponse ()
+    )
   let responseTypeOK = KTCustomType(streamingResponseType, [])
-  let responseTypeErr = KTCustomType(HC.responseErrorType, [])
+  let responseTypeErr = KTCustomType(HC.responseErrorType (), [])
   let resultOk = Dval.resultOk responseTypeOK responseTypeErr
   let resultError = Dval.resultError responseTypeOK responseTypeErr
   (function
@@ -545,8 +550,9 @@ let fns (config : HC.Configuration) : List<BuiltInFn> =
               NEList.singleton (
                 TCustomType(
                   NR.ok (
-                    FQTypeName.fqPackage
-                      PackageRefs.Type.Stdlib.StreamingHttpClient.streamChunk
+                    FQTypeName.fqPackage (
+                      PackageRefs.Type.Stdlib.StreamingHttpClient.streamChunk ()
+                    )
                   ),
                   []
                 )
@@ -559,12 +565,13 @@ let fns (config : HC.Configuration) : List<BuiltInFn> =
         TypeReference.result
           (TCustomType(
             NR.ok (
-              FQTypeName.fqPackage
-                PackageRefs.Type.Stdlib.StreamingHttpClient.streamingResponse
+              FQTypeName.fqPackage (
+                PackageRefs.Type.Stdlib.StreamingHttpClient.streamingResponse ()
+              )
             ),
             []
           ))
-          (TCustomType(NR.ok HC.responseErrorType, []))
+          (TCustomType(NR.ok (HC.responseErrorType ()), []))
       description =
         "Make streaming HTTP call to <param uri>. Delivers raw bytes as they arrive.
         Calls <param onChunk> for each chunk of data received. Returns a <type Result>
@@ -574,7 +581,7 @@ let fns (config : HC.Configuration) : List<BuiltInFn> =
         streamingRequestHandler
           config
           httpClient
-          PackageRefs.Fn.Stdlib.StreamingHttpClient.requestStreaming
+          (PackageRefs.Fn.Stdlib.StreamingHttpClient.requestStreaming ())
           StreamChunk.toDT
           makeStreamingRequest
       sqlSpec = NotQueryable
@@ -596,8 +603,9 @@ let fns (config : HC.Configuration) : List<BuiltInFn> =
               NEList.singleton (
                 TCustomType(
                   NR.ok (
-                    FQTypeName.fqPackage
-                      PackageRefs.Type.Stdlib.StreamingHttpClient.sseChunk
+                    FQTypeName.fqPackage (
+                      PackageRefs.Type.Stdlib.StreamingHttpClient.sseChunk ()
+                    )
                   ),
                   []
                 )
@@ -610,12 +618,13 @@ let fns (config : HC.Configuration) : List<BuiltInFn> =
         TypeReference.result
           (TCustomType(
             NR.ok (
-              FQTypeName.fqPackage
-                PackageRefs.Type.Stdlib.StreamingHttpClient.streamingResponse
+              FQTypeName.fqPackage (
+                PackageRefs.Type.Stdlib.StreamingHttpClient.streamingResponse ()
+              )
             ),
             []
           ))
-          (TCustomType(NR.ok HC.responseErrorType, []))
+          (TCustomType(NR.ok (HC.responseErrorType ()), []))
       description =
         "Make SSE (Server-Sent Events) streaming HTTP call to <param uri>.
         Parses the SSE protocol and calls <param onEvent> for each parsed event.
@@ -625,7 +634,7 @@ let fns (config : HC.Configuration) : List<BuiltInFn> =
         streamingRequestHandler
           config
           httpClient
-          PackageRefs.Fn.Stdlib.StreamingHttpClient.requestSSE
+          (PackageRefs.Fn.Stdlib.StreamingHttpClient.requestSSE ())
           SSEChunk.toDT
           makeSSERequest
       sqlSpec = NotQueryable

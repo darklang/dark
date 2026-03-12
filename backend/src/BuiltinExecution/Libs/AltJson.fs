@@ -21,7 +21,7 @@ module Json =
     | Array of List<Json>
     | Object of List<string * Json>
 
-  let typeName = FQTypeName.fqPackage PackageRefs.Type.Stdlib.AltJson.json
+  let typeName = FQTypeName.fqPackage (PackageRefs.Type.Stdlib.AltJson.json ())
   let typeRef = TCustomType(NR.ok typeName, [])
   let knownType = KTCustomType(typeName, [])
 
@@ -68,7 +68,7 @@ module Json =
 
 
 module ParseError =
-  let typeName = FQTypeName.fqPackage PackageRefs.Type.Stdlib.AltJson.parseError
+  let typeName = FQTypeName.fqPackage (PackageRefs.Type.Stdlib.AltJson.parseError ())
   let typeRef = TCustomType(NR.ok typeName, [])
   let knownType = KTCustomType(typeName, [])
 
@@ -177,7 +177,7 @@ module Serialize =
       w.WriteEndObject() // }
 
 
-let fns : List<BuiltInFn> =
+let fns () : List<BuiltInFn> =
   [ { name = fn "altJsonFormat" 0
       typeParams = []
       parameters = [ Param.make "json" Json.typeRef "" ]
@@ -214,4 +214,4 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated } ]
 
 
-let builtins = LibExecution.Builtin.make [] fns
+let builtins () = LibExecution.Builtin.make [] (fns ())

@@ -16,11 +16,11 @@ module ParseError =
       match e with
       | BadFormat -> "BadFormat", []
 
-    let typeName = FQTypeName.fqPackage PackageRefs.Type.Stdlib.uuidParseError
+    let typeName = FQTypeName.fqPackage (PackageRefs.Type.Stdlib.uuidParseError ())
     DEnum(typeName, typeName, [], caseName, fields)
 
 
-let fns : List<BuiltInFn> =
+let fns () : List<BuiltInFn> =
   [ { name = fn "uuidGenerate" 0
       typeParams = []
       parameters = [ Param.make "unit" TUnit "" ]
@@ -47,13 +47,14 @@ let fns : List<BuiltInFn> =
           (TCustomType(
             { originalName = []
               resolved =
-                Ok(FQTypeName.fqPackage PackageRefs.Type.Stdlib.uuidParseError) },
+                Ok(FQTypeName.fqPackage (PackageRefs.Type.Stdlib.uuidParseError ())) },
             []
           ))
       description =
         "Parse a <type Uuid> of form {{XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX}}"
       fn =
-        let typeName = FQTypeName.fqPackage PackageRefs.Type.Stdlib.uuidParseError
+        let typeName =
+          FQTypeName.fqPackage (PackageRefs.Type.Stdlib.uuidParseError ())
         let resultOk = Dval.resultOk KTUuid (KTCustomType(typeName, []))
         let resultError = Dval.resultError KTUuid (KTCustomType(typeName, []))
         (function
@@ -82,4 +83,4 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated } ]
 
 
-let builtins = LibExecution.Builtin.make [] fns
+let builtins () = LibExecution.Builtin.make [] (fns ())

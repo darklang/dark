@@ -15,7 +15,7 @@ module VT = LibExecution.ValueType
 module Dval = LibExecution.Dval
 
 
-let fns : List<BuiltInFn> =
+let fns () : List<BuiltInFn> =
   [ { name = fn "cryptoSha256" 0
       typeParams = []
       parameters = [ Param.make "data" (TList TUInt8) "" ]
@@ -109,4 +109,4 @@ let fns : List<BuiltInFn> =
       previewable = ImpurePreviewable
       deprecated = NotDeprecated } ]
 
-let builtins = LibExecution.Builtin.make [] fns
+let builtins () = LibExecution.Builtin.make [] (fns ())

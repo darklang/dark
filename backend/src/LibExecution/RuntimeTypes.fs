@@ -1485,14 +1485,14 @@ module TypeReference =
   let result (t1 : TypeReference) (t2 : TypeReference) : TypeReference =
     TCustomType(
       { originalName = []
-        resolved = Ok(FQTypeName.fqPackage PackageRefs.Type.Stdlib.result) },
+        resolved = Ok(FQTypeName.fqPackage (PackageRefs.Type.Stdlib.result ())) },
       [ t1; t2 ]
     )
 
   let option (t : TypeReference) : TypeReference =
     TCustomType(
       { originalName = []
-        resolved = Ok(FQTypeName.fqPackage PackageRefs.Type.Stdlib.option) },
+        resolved = Ok(FQTypeName.fqPackage (PackageRefs.Type.Stdlib.option ())) },
       [ t ]
     )
 

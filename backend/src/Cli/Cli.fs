@@ -66,8 +66,8 @@ let builtins : RT.Builtins =
   // User scripts get branch-specific context via cliParseAndExecuteScript.
   LibExecution.Builtin.combine
     [ BuiltinCliHost.Libs.Cli.builtinsToUse ()
-      BuiltinCliHost.Builtin.builtins
-      BuiltinCli.builtins ]
+      BuiltinCliHost.Builtin.builtins ()
+      BuiltinCli.builtins () ]
     []
 
 
@@ -115,7 +115,7 @@ let execute
   : Task<RT.ExecutionResult> =
   task {
     let state = state packageManager
-    let fnName = RT.FQFnName.fqPackage PackageRefs.Fn.Cli.executeCliCommand
+    let fnName = RT.FQFnName.fqPackage (PackageRefs.Fn.Cli.executeCliCommand ())
     let args =
       args |> List.map RT.DString |> Dval.list RT.KTString |> NEList.singleton
     let! result = Exe.executeFunction state fnName [] args

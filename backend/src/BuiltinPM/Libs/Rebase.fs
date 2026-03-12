@@ -14,7 +14,7 @@ module VT = LibExecution.ValueType
 open Builtin.Shortcuts
 
 
-let fns : List<BuiltInFn> =
+let fns () : List<BuiltInFn> =
   [ { name = fn "scmRebase" 0
       typeParams = []
       parameters = [ Param.make "branchId" TUuid "Branch to rebase" ]
@@ -66,4 +66,4 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated } ]
 
 
-let builtins : Builtins = LibExecution.Builtin.make [] fns
+let builtins () : Builtins = LibExecution.Builtin.make [] (fns ())

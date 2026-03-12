@@ -172,7 +172,7 @@ module HandleCommand =
   let reloadPackages () : Ply<Result<unit, string>> =
     uply {
       // Load packages from disk, ensuring all parse well
-      let! ops = LoadPackagesFromDisk.load Builtins.all
+      let! ops = LoadPackagesFromDisk.load (Builtins.all ())
 
       // CLEANUP consider checking for duplicates (helps prevent a class of issues)
 
@@ -199,8 +199,13 @@ module HandleCommand =
           "Init: packages loaded from disk"
           ops
 
+      // Generate hash file BEFORE evaluating values, so that PackageRefs
+      // lookups resolve correctly during value evaluation.
+      do! PackageRefsGenerator.generate ()
+      LibExecution.PackageRefs.reloadHashes ()
+
       // Evaluate all values now that all definitions are in the DB
-      let! evalResult = evaluateAllValues Builtins.all PM.rt
+      let! evalResult = evaluateAllValues (Builtins.all ()) PM.rt
       match evalResult with
       | Error errors ->
         for e in errors do
@@ -214,9 +219,6 @@ module HandleCommand =
         let (Hash commitHashStr) = commitHash
         let shortHash = commitHashStr[..6]
         print $"Created init commit {shortHash}"
-
-        // Write current hashes to data file for PackageRefs auto-refresh
-        do! PackageRefsGenerator.generate ()
 
         // Reload dark-packages and dark-editor canvases after package reload
         print "Reloading dark-packages canvas..."

@@ -26,18 +26,22 @@ module CliScript =
       exprs : List<PT.Expr> }
 
   let typeName =
-    FQTypeName.fqPackage
-      PackageRefs.Type.LanguageTools.Parser.CliScript.pTCliScriptModule
+    FQTypeName.fqPackage (
+      PackageRefs.Type.LanguageTools.Parser.CliScript.pTCliScriptModule ()
+    )
 
   let packageType =
-    FQTypeName.fqPackage
-      PackageRefs.Type.LanguageTools.ProgramTypes.PackageType.packageType
+    FQTypeName.fqPackage (
+      PackageRefs.Type.LanguageTools.ProgramTypes.PackageType.packageType ()
+    )
   let packageValue =
-    FQTypeName.fqPackage
-      PackageRefs.Type.LanguageTools.ProgramTypes.PackageValue.packageValue
+    FQTypeName.fqPackage (
+      PackageRefs.Type.LanguageTools.ProgramTypes.PackageValue.packageValue ()
+    )
   let packageFn =
-    FQTypeName.fqPackage
-      PackageRefs.Type.LanguageTools.ProgramTypes.PackageFn.packageFn
+    FQTypeName.fqPackage (
+      PackageRefs.Type.LanguageTools.ProgramTypes.PackageFn.packageFn ()
+    )
 
   let submoduleToDT (m : Definitions) : Dval =
     let fields =

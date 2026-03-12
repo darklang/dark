@@ -17,11 +17,11 @@ module ParseError =
       match e with
       | BadFormat -> "BadFormat", []
 
-    let typeName = FQTypeName.fqPackage PackageRefs.Type.Stdlib.floatParseError
+    let typeName = FQTypeName.fqPackage (PackageRefs.Type.Stdlib.floatParseError ())
     DEnum(typeName, typeName, [], caseName, fields)
 
 
-let fns : List<BuiltInFn> =
+let fns () : List<BuiltInFn> =
   [ { name = fn "floatCeiling" 0
       typeParams = []
       parameters = [ Param.make "a" TFloat "" ]
@@ -284,13 +284,14 @@ let fns : List<BuiltInFn> =
           (TCustomType(
             { originalName = []
               resolved =
-                Ok(FQTypeName.fqPackage PackageRefs.Type.Stdlib.floatParseError) },
+                Ok(FQTypeName.fqPackage (PackageRefs.Type.Stdlib.floatParseError ())) },
             []
           ))
       description =
         "Returns the <type Float> value wrapped in a {{Result}} of the <type String>"
       fn =
-        let typeName = FQTypeName.fqPackage PackageRefs.Type.Stdlib.floatParseError
+        let typeName =
+          FQTypeName.fqPackage (PackageRefs.Type.Stdlib.floatParseError ())
         let resultOk = Dval.resultOk KTFloat (KTCustomType(typeName, []))
         let resultError = Dval.resultError KTFloat (KTCustomType(typeName, []))
         (function
@@ -344,4 +345,4 @@ let fns : List<BuiltInFn> =
       previewable = Pure
       deprecated = NotDeprecated } ]
 
-let builtins = LibExecution.Builtin.make [] fns
+let builtins () = LibExecution.Builtin.make [] (fns ())

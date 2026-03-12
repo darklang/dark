@@ -14,15 +14,15 @@ module PackageRefs = LibExecution.PackageRefs.Type.LanguageTools.Parser
 module NR = LibExecution.RuntimeTypes.NameResolution
 
 
-let pointTypeName = FQTypeName.fqPackage PackageRefs.point
-let rangeTypeName = FQTypeName.fqPackage PackageRefs.range
-let parsedNodeTypeName = FQTypeName.fqPackage PackageRefs.parsedNode
+let pointTypeName () = FQTypeName.fqPackage (PackageRefs.point ())
+let rangeTypeName () = FQTypeName.fqPackage (PackageRefs.range ())
+let parsedNodeTypeName () = FQTypeName.fqPackage (PackageRefs.parsedNode ())
 
-let fns : List<BuiltInFn> =
+let fns () : List<BuiltInFn> =
   [ { name = fn "parserParseToSimplifiedTree" 0
       typeParams = []
       parameters = [ Param.make "sourceCode" TString "" ]
-      returnType = TCustomType(NR.ok parsedNodeTypeName, [])
+      returnType = TCustomType(NR.ok (parsedNodeTypeName ()), [])
       description = "Parses some Darklang code"
       fn =
         (function
@@ -48,14 +48,14 @@ let fns : List<BuiltInFn> =
               let mapPoint (point : Point) =
                 let fields =
                   [ "row", DInt64 point.row; "column", DInt64 point.column ]
-                DRecord(pointTypeName, pointTypeName, [], Map fields)
+                DRecord(pointTypeName (), pointTypeName (), [], Map fields)
 
               let startPos = cursor.Current.StartPosition
               let endPos = cursor.Current.EndPosition
 
               let range =
                 let fields = [ "start", mapPoint startPos; "end_", mapPoint endPos ]
-                DRecord(rangeTypeName, rangeTypeName, [], Map fields)
+                DRecord(rangeTypeName (), rangeTypeName (), [], Map fields)
 
               let startCharIndex = byteIndexToCharIndex startPos.column sourceCode
               let endCharIndex = byteIndexToCharIndex endPos.column sourceCode
@@ -89,9 +89,10 @@ let fns : List<BuiltInFn> =
                 ("typ", DString cursor.Current.Kind)
                 ("text", DString sourceText)
                 ("range", range)
-                ("children", DList(VT.customType parsedNodeTypeName [], children)) ]
+                ("children",
+                 DList(VT.customType (parsedNodeTypeName ()) [], children)) ]
 
-            DRecord(parsedNodeTypeName, parsedNodeTypeName, [], Map fields)
+            DRecord(parsedNodeTypeName (), parsedNodeTypeName (), [], Map fields)
 
 
           let parser = new Parser(Language = DarklangLanguage.create ())
@@ -106,4 +107,4 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated } ]
 
 
-let builtins = LibExecution.Builtin.make [] fns
+let builtins () = LibExecution.Builtin.make [] (fns ())

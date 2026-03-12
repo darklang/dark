@@ -31,13 +31,13 @@ let dictFromMap (typ : KnownType) (entries : Map<string, Dval>) : Dval =
   DDict(VT.known typ, entries)
 
 
-let optionType = FQTypeName.fqPackage PackageRefs.Type.Stdlib.option
+let optionType () = FQTypeName.fqPackage (PackageRefs.Type.Stdlib.option ())
 
 let optionSome (innerType : KnownType) (dv : Dval) : Dval =
-  DEnum(optionType, optionType, [ VT.known innerType ], "Some", [ dv ])
+  DEnum(optionType (), optionType (), [ VT.known innerType ], "Some", [ dv ])
 
 let optionNone (innerType : KnownType) : Dval =
-  DEnum(optionType, optionType, [ VT.known innerType ], "None", [])
+  DEnum(optionType (), optionType (), [ VT.known innerType ], "None", [])
 
 let option (innerType : KnownType) (dv : Option<Dval>) : Dval =
   match dv with
@@ -46,13 +46,13 @@ let option (innerType : KnownType) (dv : Option<Dval>) : Dval =
 
 
 
-let resultType = FQTypeName.fqPackage PackageRefs.Type.Stdlib.result
+let resultType () = FQTypeName.fqPackage (PackageRefs.Type.Stdlib.result ())
 
 
 let resultOk (okType : KnownType) (errorType : KnownType) (dvOk : Dval) : Dval =
   DEnum(
-    resultType,
-    resultType,
+    resultType (),
+    resultType (),
     [ ValueType.Known okType; ValueType.Known errorType ],
     "Ok",
     [ dvOk ]
@@ -65,8 +65,8 @@ let resultError
   : Dval =
 
   DEnum(
-    resultType,
-    resultType,
+    resultType (),
+    resultType (),
     [ ValueType.Known okType; ValueType.Known errorType ],
     "Error",
     [ dvError ]

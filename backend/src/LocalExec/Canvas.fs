@@ -94,7 +94,7 @@ let loadFromDisk
           LibParser.Canvas.parse
             ownerName
             canvasName
-            Builtins.accessibleByCanvas
+            (Builtins.accessibleByCanvas ())
             pm
             NR.OnMissing.ThrowError
             fileName

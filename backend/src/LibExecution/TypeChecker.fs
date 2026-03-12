@@ -380,10 +380,10 @@ module DvalCreator =
         |> raiseRTE threadID
 
   let optionNone (innerType : ValueType) : Dval =
-    DEnum(Dval.optionType, Dval.optionType, [ innerType ], "None", [])
+    DEnum(Dval.optionType (), Dval.optionType (), [ innerType ], "None", [])
 
   let optionSome (threadID : ThreadID) (expected : ValueType) (dv : Dval) : Dval =
-    let typeName = Dval.optionType
+    let typeName = Dval.optionType ()
 
     let vt = Dval.toValueType dv
 
@@ -406,14 +406,13 @@ module DvalCreator =
 
 
   module Result =
-    let typeName = Dval.resultType
-
     let ok
       (threadID : ThreadID)
       (okType : ValueType)
       (errorType : ValueType)
       (dvOk : Dval)
       : Dval =
+      let typeName = Dval.resultType ()
       let dvalType = Dval.toValueType dvOk
       match VT.merge okType dvalType with
       | Ok typ -> DEnum(typeName, typeName, [ typ; errorType ], "Ok", [ dvOk ])
@@ -434,6 +433,7 @@ module DvalCreator =
       (errorType : ValueType)
       (dvError : Dval)
       : Dval =
+      let typeName = Dval.resultType ()
       let dvalType = Dval.toValueType dvError
       match VT.merge errorType dvalType with
       | Ok typ -> DEnum(typeName, typeName, [ okType; typ ], "Error", [ dvError ])

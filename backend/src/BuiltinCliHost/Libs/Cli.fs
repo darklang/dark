@@ -69,7 +69,9 @@ let parseCliScript
         [ DString owner; DString scriptName; DString scriptName; DString code ]
 
     let parseForCliFnName =
-      FQFnName.fqPackage PackageRefs.Fn.LanguageTools.Parser.CliScript.parseForCli
+      FQFnName.fqPackage (
+        PackageRefs.Fn.LanguageTools.Parser.CliScript.parseForCli ()
+      )
 
     let! execResult = Exe.executeFunction exeState parseForCliFnName [] args
 
@@ -102,7 +104,7 @@ let parseCliScript
 
 
 module ExecutionError =
-  let fqTypeName = FQTypeName.fqPackage PackageRefs.Type.Cli.executionError
+  let fqTypeName = FQTypeName.fqPackage (PackageRefs.Type.Cli.executionError ())
   let typeRef = TCustomType(NR.ok fqTypeName, [])
 
 
@@ -113,10 +115,10 @@ let builtinsToUse () : RT.Builtins =
   LibExecution.Builtin.combine
     [ BuiltinExecution.Builtin.builtins
         BuiltinExecution.Libs.HttpClient.defaultConfig
-      BuiltinCli.Builtin.builtins
+      BuiltinCli.Builtin.builtins ()
       BuiltinPM.Builtin.builtins ptPM
-      BuiltinHttpServer.Builtin.builtins
-      BuiltinCloudExecution.Builtin.builtins ]
+      BuiltinHttpServer.Builtin.builtins ()
+      BuiltinCloudExecution.Builtin.builtins () ]
     []
 
 
@@ -204,7 +206,7 @@ let createBranchState (parentState : RT.ExecutionState) (branchId : System.Guid)
     program
 
 
-let fns : List<BuiltInFn> =
+let fns () : List<BuiltInFn> =
   [ { name = fn "cliParseAndExecuteScript" 0
       typeParams = []
       parameters =
@@ -317,4 +319,4 @@ let fns : List<BuiltInFn> =
 
     ]
 
-let builtins = LibExecution.Builtin.make [] fns
+let builtins () = LibExecution.Builtin.make [] (fns ())

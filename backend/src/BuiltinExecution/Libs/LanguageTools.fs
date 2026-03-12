@@ -11,17 +11,18 @@ module RT2DT = LibExecution.RuntimeTypesToDarkTypes
 module NR = LibExecution.RuntimeTypes.NameResolution
 
 
-let builtinValue = FQTypeName.fqPackage PackageRefs.Type.LanguageTools.builtinValue
+let builtinValue () =
+  FQTypeName.fqPackage (PackageRefs.Type.LanguageTools.builtinValue ())
 
-let builtinFnParam =
-  FQTypeName.fqPackage PackageRefs.Type.LanguageTools.builtinFnParam
-let builtinFn = FQTypeName.fqPackage PackageRefs.Type.LanguageTools.builtinFn
+let builtinFnParam () =
+  FQTypeName.fqPackage (PackageRefs.Type.LanguageTools.builtinFnParam ())
+let builtinFn () = FQTypeName.fqPackage (PackageRefs.Type.LanguageTools.builtinFn ())
 
-let fns : List<BuiltInFn> =
+let fns () : List<BuiltInFn> =
   [ { name = fn "languageToolsAllBuiltinValues" 0
       typeParams = []
       parameters = [ Param.make "unit" TUnit "" ]
-      returnType = TCustomType(NR.ok builtinValue, []) |> TList
+      returnType = TCustomType(NR.ok (builtinValue ()), []) |> TList
       description =
         "Returns a list of the Builtin values (usually not to be accessed directly)."
       fn =
@@ -36,9 +37,9 @@ let fns : List<BuiltInFn> =
                   "description", DString data.description
                   "returnType", RT2DT.TypeReference.toDT data.typ ]
 
-              DRecord(builtinValue, builtinValue, [], Map fields))
+              DRecord(builtinValue (), builtinValue (), [], Map fields))
 
-          DList(VT.customType builtinValue [], vals) |> Ply
+          DList(VT.customType (builtinValue ()) [], vals) |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
@@ -48,7 +49,7 @@ let fns : List<BuiltInFn> =
     { name = fn "languageToolsAllBuiltinFns" 0
       typeParams = []
       parameters = [ Param.make "unit" TUnit "" ]
-      returnType = TCustomType(NR.ok builtinFn, []) |> TList
+      returnType = TCustomType(NR.ok (builtinFn ()), []) |> TList
       description =
         "Returns a list of the Builtin functions (usually not to be accessed directly)."
       fn =
@@ -64,8 +65,8 @@ let fns : List<BuiltInFn> =
                   let fields =
                     [ "name", DString p.name
                       "type", RT2DT.TypeReference.toDT p.typ ]
-                  DRecord(builtinFnParam, builtinFnParam, [], Map fields))
-                |> Dval.list (KTCustomType(builtinFnParam, []))
+                  DRecord(builtinFnParam (), builtinFnParam (), [], Map fields))
+                |> Dval.list (KTCustomType(builtinFnParam (), []))
 
               let fields =
                 [ "name", RT2DT.FQFnName.Builtin.toDT name
@@ -73,13 +74,13 @@ let fns : List<BuiltInFn> =
                   "parameters", parameters
                   "returnType", RT2DT.TypeReference.toDT data.returnType ]
 
-              DRecord(builtinFn, builtinFn, [], Map fields))
+              DRecord(builtinFn (), builtinFn (), [], Map fields))
 
-          DList(VT.customType builtinFn [], fns) |> Ply
+          DList(VT.customType (builtinFn ()) [], fns) |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
       deprecated = NotDeprecated } ]
 
 
-let builtins = LibExecution.Builtin.make [] fns
+let builtins () = LibExecution.Builtin.make [] (fns ())

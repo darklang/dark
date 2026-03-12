@@ -30,14 +30,14 @@ let internalFn (f : BuiltInFnSig) : BuiltInFnSig =
     })
 
 
-let builtins : Builtins =
+let builtins () : Builtins =
   let builtins =
     Builtin.combine
-      [ Libs.Canvases.builtins
-        Libs.DBs.builtins
-        Libs.Domains.builtins
-        Libs.Infra.builtins
-        Libs.Users.builtins ]
+      [ Libs.Canvases.builtins ()
+        Libs.DBs.builtins ()
+        Libs.Domains.builtins ()
+        Libs.Infra.builtins ()
+        Libs.Users.builtins () ]
       fnRenames
 
   { builtins with

@@ -10,7 +10,7 @@ module Dval = LibExecution.Dval
 let varA = TVariable "a"
 
 
-let fns : List<BuiltInFn> =
+let fns () : List<BuiltInFn> =
   [ { name = fn "mathCos" 0
       typeParams = []
       parameters = [ Param.make "angleInRadians" TFloat "" ]
@@ -203,4 +203,4 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated } ]
 
 
-let builtins = LibExecution.Builtin.make [] fns
+let builtins () = LibExecution.Builtin.make [] (fns ())

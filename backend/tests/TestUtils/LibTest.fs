@@ -43,7 +43,7 @@ let values : List<BuiltInValue> =
       body = DFloat(System.Double.NegativeInfinity)
       deprecated = NotDeprecated } ]
 
-let fns : List<BuiltInFn> =
+let fns () : List<BuiltInFn> =
   [ { name = fn "testRuntimeError" 0
       typeParams = []
       parameters = [ Param.make "errorString" TString "" ]
@@ -199,4 +199,4 @@ let fns : List<BuiltInFn> =
       previewable = Pure
       deprecated = NotDeprecated } ]
 
-let builtins = LibExecution.Builtin.make values fns
+let builtins () = LibExecution.Builtin.make values (fns ())

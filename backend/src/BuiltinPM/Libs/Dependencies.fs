@@ -15,7 +15,7 @@ module PMPT = LibPackageManager.ProgramTypes
 module Branches = LibPackageManager.Branches
 
 
-let hashVT = VT.known PT2DT.Hash.knownType
+let hashVT = VT.known (PT2DT.Hash.knownType ())
 let tupleVT = VT.tuple hashVT VT.string []
 
 /// Try to get location for an item hash, checking all item types (fn, type, value)
@@ -38,17 +38,17 @@ let private getLocationAny
   }
 
 
-let fns : List<BuiltInFn> =
+let fns () : List<BuiltInFn> =
   [ { name = fn "depsGetDependents" 0
       typeParams = []
       parameters =
         [ Param.make "branchId" TUuid "Branch context for scoping"
           Param.make
             "target"
-            (TCustomType(NR.ok PT2DT.Hash.typeName, []))
+            (TCustomType(NR.ok (PT2DT.Hash.typeName ()), []))
             "The hash to find dependents for" ]
       returnType =
-        TList(TTuple(TCustomType(NR.ok PT2DT.Hash.typeName, []), TString, []))
+        TList(TTuple(TCustomType(NR.ok (PT2DT.Hash.typeName ()), []), TString, []))
       description =
         "Returns items that reference the given hash (reverse dependencies), scoped to the branch chain."
       fn =
@@ -81,10 +81,10 @@ let fns : List<BuiltInFn> =
         [ Param.make "branchId" TUuid "Branch context for scoping"
           Param.make
             "source"
-            (TCustomType(NR.ok PT2DT.Hash.typeName, []))
+            (TCustomType(NR.ok (PT2DT.Hash.typeName ()), []))
             "The hash to find dependencies for" ]
       returnType =
-        TList(TTuple(TCustomType(NR.ok PT2DT.Hash.typeName, []), TString, []))
+        TList(TTuple(TCustomType(NR.ok (PT2DT.Hash.typeName ()), []), TString, []))
       description =
         "Returns all hashes that the given item references (forward dependencies), scoped to the branch chain."
       fn =
@@ -117,13 +117,13 @@ let fns : List<BuiltInFn> =
         [ Param.make "branchId" TUuid "Branch context for scoping"
           Param.make
             "targets"
-            (TList(TCustomType(NR.ok PT2DT.Hash.typeName, [])))
+            (TList(TCustomType(NR.ok (PT2DT.Hash.typeName ()), [])))
             "List of hashes to find dependents for" ]
       returnType =
         TList(
           TTuple(
-            TCustomType(NR.ok PT2DT.Hash.typeName, []),
-            TCustomType(NR.ok PT2DT.Hash.typeName, []),
+            TCustomType(NR.ok (PT2DT.Hash.typeName ()), []),
+            TCustomType(NR.ok (PT2DT.Hash.typeName ()), []),
             [ TString ]
           )
         )
@@ -164,13 +164,13 @@ let fns : List<BuiltInFn> =
         [ Param.make "branchId" TUuid "Branch ID for location lookup"
           Param.make
             "itemHashes"
-            (TList(TCustomType(NR.ok PT2DT.Hash.typeName, [])))
+            (TList(TCustomType(NR.ok (PT2DT.Hash.typeName ()), [])))
             "List of item hashes to resolve" ]
       returnType =
         TList(
           TTuple(
-            TCustomType(NR.ok PT2DT.Hash.typeName, []),
-            TCustomType(NR.ok PT2DT.PackageLocation.typeName, []),
+            TCustomType(NR.ok (PT2DT.Hash.typeName ()), []),
+            TCustomType(NR.ok (PT2DT.PackageLocation.typeName ()), []),
             []
           )
         )
@@ -202,7 +202,7 @@ let fns : List<BuiltInFn> =
 
             return
               DList(
-                VT.tuple hashVT (VT.known PT2DT.PackageLocation.knownType) [],
+                VT.tuple hashVT (VT.known (PT2DT.PackageLocation.knownType ())) [],
                 dvals
               )
           }
@@ -212,4 +212,4 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated } ]
 
 
-let builtins = LibExecution.Builtin.make [] fns
+let builtins () = LibExecution.Builtin.make [] (fns ())

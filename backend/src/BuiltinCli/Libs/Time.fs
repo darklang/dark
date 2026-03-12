@@ -10,7 +10,7 @@ open LibExecution.RuntimeTypes
 module Builtin = LibExecution.Builtin
 open Builtin.Shortcuts
 
-let fns : List<BuiltInFn> =
+let fns () : List<BuiltInFn> =
   [ { name = fn "timeSleep" 0
       typeParams = []
       parameters = [ Param.make "delayInMs" TFloat "The delay in milliseconds" ]
@@ -30,4 +30,4 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated } ]
 
 
-let builtins : Builtins = Builtin.make [] fns
+let builtins () : Builtins = Builtin.make [] (fns ())

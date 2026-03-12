@@ -20,7 +20,7 @@ let lowercaseHeaderKeys (headers : List<string * string>) : List<string * string
   headers |> List.map (fun (k, v) -> (String.toLowercase k, v))
 
 module Request =
-  let typ = RT.FQTypeName.fqPackage PackageRefs.Type.Stdlib.Http.request
+  let typ = RT.FQTypeName.fqPackage (PackageRefs.Type.Stdlib.Http.request ())
 
   let fromRequest
     (uri : string)
@@ -114,7 +114,7 @@ module Response =
     task {
       match result with
       | RT.DRecord(RT.FQTypeName.Package hash, _, [], fields) ->
-        if hash = RT.Hash PackageRefs.Type.Stdlib.Http.response then
+        if hash = RT.Hash(PackageRefs.Type.Stdlib.Http.response ()) then
           return parseHttpResponseFields fields
         else
           return! wrongTypeResponse state result

@@ -20,7 +20,7 @@ open System.Runtime.InteropServices
 
 
 let executionOutcomeTypeName =
-  FQTypeName.fqPackage PackageRefs.Type.Stdlib.Cli.executionOutcome
+  FQTypeName.fqPackage (PackageRefs.Type.Stdlib.Cli.executionOutcome ())
 
 // Process management for interactive processes
 type ProcessInfo =
@@ -139,7 +139,7 @@ module OS =
     | OSX
     | Windows
 
-  let osTypeName = FQTypeName.fqPackage PackageRefs.Type.Stdlib.Cli.OS.os
+  let osTypeName = FQTypeName.fqPackage (PackageRefs.Type.Stdlib.Cli.OS.os ())
 
   let toDT (os : OS) : Dval =
     let (caseName, fields) =
@@ -150,7 +150,7 @@ module OS =
 
     DEnum(osTypeName, osTypeName, [], caseName, fields)
 
-let fns : List<BuiltInFn> =
+let fns () : List<BuiltInFn> =
   [ { name = fn "cliExecute" 0
       description = "Runs a process; return exitCode, stdout, and stderr"
       typeParams = []
@@ -269,7 +269,7 @@ let fns : List<BuiltInFn> =
           Param.make "input" TString "The input to send (empty string to just read)" ]
       returnType =
         let typeName =
-          FQTypeName.fqPackage PackageRefs.Type.Stdlib.Cli.executionOutcome
+          FQTypeName.fqPackage (PackageRefs.Type.Stdlib.Cli.executionOutcome ())
         TCustomType(NR.ok typeName, [])
       fn =
         function
@@ -373,7 +373,7 @@ let fns : List<BuiltInFn> =
       parameters = [ Param.make "processId" TInt64 "The process handle ID" ]
       returnType =
         let typeName =
-          FQTypeName.fqPackage PackageRefs.Type.Stdlib.Cli.executionOutcome
+          FQTypeName.fqPackage (PackageRefs.Type.Stdlib.Cli.executionOutcome ())
         TCustomType(NR.ok typeName, [])
       fn =
         function
@@ -422,4 +422,4 @@ let fns : List<BuiltInFn> =
 
     ]
 
-let builtins : Builtins = Builtin.make [] fns
+let builtins () : Builtins = Builtin.make [] (fns ())

@@ -11,7 +11,7 @@ module Dval = LibExecution.Dval
 module Builtin = LibExecution.Builtin
 open Builtin.Shortcuts
 
-let fns : List<BuiltInFn> =
+let fns () : List<BuiltInFn> =
   [ { name = fn "processSpawnBackground" 0
       typeParams = []
       parameters =
@@ -128,4 +128,4 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated } ]
 
 
-let builtins : Builtins = Builtin.make [] fns
+let builtins () : Builtins = Builtin.make [] (fns ())

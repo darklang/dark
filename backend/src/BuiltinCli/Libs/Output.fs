@@ -12,7 +12,7 @@ module Builtin = LibExecution.Builtin
 open Builtin.Shortcuts
 
 
-let fns : List<BuiltInFn> =
+let fns () : List<BuiltInFn> =
   [ { name = fn "printLine" 0
       typeParams = []
       parameters = [ Param.make "value" TString "The value to be printed." ]
@@ -65,4 +65,4 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated } ]
 
 
-let builtins = LibExecution.Builtin.make [] fns
+let builtins () = LibExecution.Builtin.make [] (fns ())

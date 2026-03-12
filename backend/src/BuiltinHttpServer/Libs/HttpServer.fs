@@ -52,7 +52,7 @@ let private executeNamedFn
   }
 
 
-let fns : List<BuiltInFn> =
+let fns () : List<BuiltInFn> =
   [ { name = fn "httpServerServe" 0
       typeParams = []
       parameters =
@@ -141,4 +141,4 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated } ]
 
 
-let builtins = LibExecution.Builtin.make [] fns
+let builtins () = LibExecution.Builtin.make [] (fns ())

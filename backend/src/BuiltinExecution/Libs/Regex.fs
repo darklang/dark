@@ -10,7 +10,7 @@ module VT = LibExecution.ValueType
 module Dval = LibExecution.Dval
 
 
-let fns : List<BuiltInFn> =
+let fns () : List<BuiltInFn> =
   [ { name = fn "regexIsMatch" 0
       typeParams = []
       parameters =
@@ -187,4 +187,4 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated } ]
 
 
-let builtins = LibExecution.Builtin.make [] fns
+let builtins () = LibExecution.Builtin.make [] (fns ())

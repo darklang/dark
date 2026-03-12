@@ -11,7 +11,7 @@ module Dval = LibExecution.Dval
 module UserDB = LibCloud.UserDB
 
 
-let fns : List<BuiltInFn> =
+let fns () : List<BuiltInFn> =
   [ { name = fn "darkInternalCanvasDBList" 0
       typeParams = []
       parameters = [ Param.make "canvasID" TUuid "" ]
@@ -47,4 +47,4 @@ let fns : List<BuiltInFn> =
       previewable = Impure
       deprecated = NotDeprecated } ]
 
-let builtins = LibExecution.Builtin.make [] fns
+let builtins () = LibExecution.Builtin.make [] (fns ())
