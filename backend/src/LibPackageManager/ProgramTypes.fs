@@ -188,11 +188,10 @@ let search
           let directChildPattern = currentModule + ".%"
           match query.searchDepth with
           | PT.Search.SearchDepth.OnlyDirectDescendants ->
-            ("""((modules LIKE @directChildPattern AND modules NOT LIKE @nestedPattern AND modules LIKE '%' || @searchText || '%')
-                  OR (owner || '.' || modules LIKE @directChildPattern AND owner || '.' || modules NOT LIKE @nestedPattern AND owner || '.' || modules LIKE '%' || @searchText || '%'))""",
+            ("""((modules LIKE @directChildPattern AND modules LIKE '%' || @searchText || '%')
+                  OR (owner || '.' || modules LIKE @directChildPattern AND owner || '.' || modules LIKE '%' || @searchText || '%'))""",
              [ "currentModule", Sql.string currentModule
                "directChildPattern", Sql.string directChildPattern
-               "nestedPattern", Sql.string (currentModule + ".%.%")
                "searchText", Sql.string query.text ])
           | PT.Search.SearchDepth.AllDescendants ->
             ("""((modules LIKE @directChildPattern AND modules LIKE '%' || @searchText || '%')
