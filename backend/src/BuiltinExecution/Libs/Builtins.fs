@@ -13,7 +13,7 @@ module NR = LibExecution.RuntimeTypes.NameResolution
 /// Converters from F# builtin types to Dark types
 module ToDarkTypes =
   module Purity =
-    let typeName = FQTypeName.fqPackage PackageRefs.Type.Builtins.purity
+    let typeName = FQTypeName.fqPackage (PackageRefs.Type.Builtins.purity ())
 
     let toDT (p : Previewable) : Dval =
       let caseName =
@@ -24,7 +24,7 @@ module ToDarkTypes =
       DEnum(typeName, typeName, [], caseName, [])
 
   module ParamInfo =
-    let typeName = FQTypeName.fqPackage PackageRefs.Type.Builtins.paramInfo
+    let typeName = FQTypeName.fqPackage (PackageRefs.Type.Builtins.paramInfo ())
 
     let toDT (param : BuiltInParam) : Dval =
       let fields =
@@ -35,7 +35,7 @@ module ToDarkTypes =
       DRecord(typeName, typeName, [], fields)
 
   module FunctionInfo =
-    let typeName = FQTypeName.fqPackage PackageRefs.Type.Builtins.functionInfo
+    let typeName = FQTypeName.fqPackage (PackageRefs.Type.Builtins.functionInfo ())
 
     let toDT (fn : BuiltInFn) : Dval =
       let params' =
@@ -53,7 +53,7 @@ module ToDarkTypes =
       DRecord(typeName, typeName, [], fields)
 
 
-let fns : List<BuiltInFn> =
+let fns () : List<BuiltInFn> =
   [ { name = fn "getBuiltins" 0
       typeParams = []
       parameters = [ Param.make "unit" TUnit "" ]
@@ -84,4 +84,4 @@ let fns : List<BuiltInFn> =
       previewable = Pure
       deprecated = NotDeprecated } ]
 
-let builtins = LibExecution.Builtin.make [] fns
+let builtins () = LibExecution.Builtin.make [] (fns ())

@@ -22,11 +22,11 @@ module ParseError =
       | BadFormat -> "BadFormat", []
       | OutOfRange -> "OutOfRange", []
 
-    let typeName = FQTypeName.fqPackage PackageRefs.Type.Stdlib.int8ParseError
+    let typeName = FQTypeName.fqPackage (PackageRefs.Type.Stdlib.int8ParseError ())
     DEnum(typeName, typeName, [], caseName, fields)
 
 
-let fns : List<BuiltInFn> =
+let fns () : List<BuiltInFn> =
   [ { name = fn "int8Mod" 0
       typeParams = []
       parameters = [ Param.make "a" TInt8 ""; Param.make "b" TInt8 "" ]
@@ -339,11 +339,13 @@ let fns : List<BuiltInFn> =
       typeParams = []
       parameters = [ Param.make "s" TString "" ]
       returnType =
-        let errorType = FQTypeName.fqPackage PackageRefs.Type.Stdlib.int8ParseError
+        let errorType =
+          FQTypeName.fqPackage (PackageRefs.Type.Stdlib.int8ParseError ())
         TypeReference.result TInt8 (TCustomType(NR.ok errorType, []))
       description = "Returns the <type Int8> value of a <type String>"
       fn =
-        let typeName = FQTypeName.fqPackage PackageRefs.Type.Stdlib.int8ParseError
+        let typeName =
+          FQTypeName.fqPackage (PackageRefs.Type.Stdlib.int8ParseError ())
         let resultOk = Dval.resultOk KTInt8 (KTCustomType(typeName, []))
         let resultError = Dval.resultError KTInt8 (KTCustomType(typeName, []))
         (function
@@ -531,4 +533,4 @@ let fns : List<BuiltInFn> =
       previewable = Pure
       deprecated = NotDeprecated } ]
 
-let builtins = LibExecution.Builtin.make [] fns
+let builtins () = LibExecution.Builtin.make [] (fns ())

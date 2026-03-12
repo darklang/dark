@@ -13,7 +13,7 @@ module Dval = LibExecution.Dval
 let varA = TVariable "a"
 let varB = TVariable "b"
 
-let fns : List<BuiltInFn> =
+let fns () : List<BuiltInFn> =
   [ { name = fn "x509PemCertificatePublicKey" 0
       typeParams = []
       parameters = [ Param.make "pemCert" TString "" ]
@@ -56,4 +56,4 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated } ]
 
 
-let builtins = LibExecution.Builtin.make [] fns
+let builtins () = LibExecution.Builtin.make [] (fns ())

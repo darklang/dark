@@ -12,9 +12,9 @@ module NR = LibExecution.RuntimeTypes.NameResolution
 open Builtin.Shortcuts
 
 
-let private branchType = TCustomType(NR.ok PT2DT.Branch.typeName, [])
+let private branchType = TCustomType(NR.ok (PT2DT.Branch.typeName ()), [])
 
-let fns : List<BuiltInFn> =
+let fns () : List<BuiltInFn> =
   [ { name = fn "scmBranchCreate" 0
       typeParams = []
       parameters =
@@ -46,7 +46,9 @@ let fns : List<BuiltInFn> =
           uply {
             let! branches = LibPackageManager.Branches.list ()
             return
-              branches |> List.map PT2DT.Branch.toDT |> D.list PT2DT.Branch.knownType
+              branches
+              |> List.map PT2DT.Branch.toDT
+              |> D.list (PT2DT.Branch.knownType ())
           }
         | _ -> incorrectArgs ()
       sqlSpec = NotQueryable
@@ -65,7 +67,9 @@ let fns : List<BuiltInFn> =
           uply {
             let! branches = LibPackageManager.Branches.listAll ()
             return
-              branches |> List.map PT2DT.Branch.toDT |> D.list PT2DT.Branch.knownType
+              branches
+              |> List.map PT2DT.Branch.toDT
+              |> D.list (PT2DT.Branch.knownType ())
           }
         | _ -> incorrectArgs ()
       sqlSpec = NotQueryable
@@ -86,7 +90,7 @@ let fns : List<BuiltInFn> =
             return
               branchOpt
               |> Option.map PT2DT.Branch.toDT
-              |> D.option PT2DT.Branch.knownType
+              |> D.option (PT2DT.Branch.knownType ())
           }
         | _ -> incorrectArgs ()
       sqlSpec = NotQueryable
@@ -107,7 +111,7 @@ let fns : List<BuiltInFn> =
             return
               branchOpt
               |> Option.map PT2DT.Branch.toDT
-              |> D.option PT2DT.Branch.knownType
+              |> D.option (PT2DT.Branch.knownType ())
           }
         | _ -> incorrectArgs ()
       sqlSpec = NotQueryable
@@ -205,7 +209,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated } ]
 
 
-let values : List<BuiltInValue> =
+let values () : List<BuiltInValue> =
   [ { name = value "scmMainBranchId" 0
       typ = TUuid
       description = "The well-known main branch UUID."
@@ -213,4 +217,4 @@ let values : List<BuiltInValue> =
       body = DUuid PT.mainBranchId } ]
 
 
-let builtins : Builtins = LibExecution.Builtin.make values fns
+let builtins () : Builtins = LibExecution.Builtin.make (values ()) (fns ())

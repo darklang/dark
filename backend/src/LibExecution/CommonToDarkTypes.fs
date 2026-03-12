@@ -22,12 +22,12 @@ module Option =
   let fromDT (f : Dval -> 'a) (d : Dval) : Option<'a> =
     match d with
     | DEnum(FQTypeName.Package(Hash hash), _, _, "Some", [ value ]) when
-      hash = PackageRefs.Type.Stdlib.option
+      hash = PackageRefs.Type.Stdlib.option ()
       ->
       Some(f value)
 
     | DEnum(FQTypeName.Package(Hash hash), _, _, "None", []) when
-      hash = PackageRefs.Type.Stdlib.option
+      hash = PackageRefs.Type.Stdlib.option ()
       ->
       None
 
@@ -49,10 +49,10 @@ module Result =
 
   let fromDT (f : Dval -> 'a) (d : Dval) (errToDTFn : Dval -> 'b) : Result<'a, 'b> =
     match d with
-    | DEnum(tn, _, _typeArgsDEnumTODO, "Ok", [ v ]) when tn = Dval.resultType ->
+    | DEnum(tn, _, _typeArgsDEnumTODO, "Ok", [ v ]) when tn = Dval.resultType () ->
       Ok(f v)
 
-    | DEnum(tn, _, _typeArgsDEnumTODO, "Error", [ v ]) when tn = Dval.resultType ->
+    | DEnum(tn, _, _typeArgsDEnumTODO, "Error", [ v ]) when tn = Dval.resultType () ->
       Error(errToDTFn v)
 
     | _ -> Exception.raiseInternal "Invalid Result" []

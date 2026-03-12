@@ -9,7 +9,7 @@ module Dval = LibExecution.Dval
 module PackageRefs = LibExecution.PackageRefs
 
 
-let fns : List<BuiltInFn> =
+let fns () : List<BuiltInFn> =
   [ { name = fn "darkInternalInfraGetAndLogTableSizes" 0
       typeParams = []
       parameters = [ Param.make "unit" TUnit "" ]
@@ -18,7 +18,9 @@ let fns : List<BuiltInFn> =
           TCustomType(
             { originalName = []
               resolved =
-                Ok(FQTypeName.fqPackage PackageRefs.Type.Internal.Infra.tableSize) },
+                Ok(
+                  FQTypeName.fqPackage (PackageRefs.Type.Internal.Infra.tableSize ())
+                ) },
             []
           )
         )
@@ -31,7 +33,7 @@ let fns : List<BuiltInFn> =
             let! tableStats = LibDB.Db.tableStats ()
 
             let typeName =
-              FQTypeName.fqPackage PackageRefs.Type.Internal.Infra.tableSize
+              FQTypeName.fqPackage (PackageRefs.Type.Internal.Infra.tableSize ())
 
             return
               tableStats
@@ -64,4 +66,4 @@ let fns : List<BuiltInFn> =
       previewable = Impure
       deprecated = NotDeprecated } ]
 
-let builtins = LibExecution.Builtin.make [] fns
+let builtins () = LibExecution.Builtin.make [] (fns ())

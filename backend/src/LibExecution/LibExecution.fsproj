@@ -12,6 +12,10 @@
   <ItemGroup>
     <None Include="paket.references" />
   </ItemGroup>
+  <!-- Create empty package-ref-hashes.txt if missing (fresh clone / CI before reload-packages) -->
+  <Target Name="EnsurePackageRefHashes" BeforeTargets="PrepareForBuild">
+    <Touch Files="package-ref-hashes.txt" AlwaysCreate="true" Condition="!Exists('package-ref-hashes.txt')" />
+  </Target>
   <ItemGroup>
     <EmbeddedResource Include="package-ref-hashes.txt" />
   </ItemGroup>

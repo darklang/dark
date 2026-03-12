@@ -13,16 +13,18 @@ module NR = LibExecution.RuntimeTypes.NameResolution
 open Builtin.Shortcuts
 
 
-let fns : List<BuiltInFn> =
+let fns () : List<BuiltInFn> =
   [ { name = fn "scmMerge" 0
       typeParams = []
       parameters = [ Param.make "branchId" TUuid "Branch to merge into parent" ]
       returnType =
-        TypeReference.result TUnit (TCustomType(NR.ok PT2DT.MergeError.typeName, []))
+        TypeReference.result
+          TUnit
+          (TCustomType(NR.ok (PT2DT.MergeError.typeName ()), []))
       description = "Merge branch into its parent. Must be rebased with no WIP."
       fn =
-        let resultOk = Dval.resultOk KTUnit PT2DT.MergeError.knownType
-        let resultError = Dval.resultError KTUnit PT2DT.MergeError.knownType
+        let resultOk = Dval.resultOk KTUnit (PT2DT.MergeError.knownType ())
+        let resultError = Dval.resultError KTUnit (PT2DT.MergeError.knownType ())
         (function
         | _, _, _, [ DUuid branchId ] ->
           uply {
@@ -41,11 +43,13 @@ let fns : List<BuiltInFn> =
       typeParams = []
       parameters = [ Param.make "branchId" TUuid "Branch to check" ]
       returnType =
-        TypeReference.result TUnit (TCustomType(NR.ok PT2DT.MergeError.typeName, []))
+        TypeReference.result
+          TUnit
+          (TCustomType(NR.ok (PT2DT.MergeError.typeName ()), []))
       description = "Check if a branch can be merged."
       fn =
-        let resultOk = Dval.resultOk KTUnit PT2DT.MergeError.knownType
-        let resultError = Dval.resultError KTUnit PT2DT.MergeError.knownType
+        let resultOk = Dval.resultOk KTUnit (PT2DT.MergeError.knownType ())
+        let resultError = Dval.resultError KTUnit (PT2DT.MergeError.knownType ())
         (function
         | _, _, _, [ DUuid branchId ] ->
           uply {
@@ -60,4 +64,4 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated } ]
 
 
-let builtins : Builtins = LibExecution.Builtin.make [] fns
+let builtins () : Builtins = LibExecution.Builtin.make [] (fns ())

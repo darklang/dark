@@ -8,7 +8,7 @@ module VT = LibExecution.ValueType
 module Dval = LibExecution.Dval
 
 
-let fns : List<BuiltInFn> =
+let fns () : List<BuiltInFn> =
   [ { name = fn "reflect" 0
       typeParams = []
       parameters = [ Param.make "dv" (TVariable "a") "" ]
@@ -17,8 +17,9 @@ let fns : List<BuiltInFn> =
           { originalName = []
             resolved =
               Ok(
-                FQTypeName.fqPackage
-                  LibExecution.PackageRefs.Type.LanguageTools.RuntimeTypes.dval
+                FQTypeName.fqPackage (
+                  LibExecution.PackageRefs.Type.LanguageTools.RuntimeTypes.dval ()
+                )
               ) },
           []
         )
@@ -32,4 +33,4 @@ let fns : List<BuiltInFn> =
       previewable = Pure
       deprecated = NotDeprecated } ]
 
-let builtins = LibExecution.Builtin.make [] fns
+let builtins () = LibExecution.Builtin.make [] (fns ())

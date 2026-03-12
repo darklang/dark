@@ -141,7 +141,7 @@ let rec equals (a : Dval) (b : Dval) : bool =
 let varA = TVariable "a"
 let varB = TVariable "b"
 
-let fns : List<BuiltInFn> =
+let fns () : List<BuiltInFn> =
   [ { name = fn "equals" 0
       typeParams = []
       parameters = [ Param.make "a" varA ""; Param.make "b" varB "" ]
@@ -194,19 +194,19 @@ let fns : List<BuiltInFn> =
 
           // Success: extract `Some` out of an Option
           | DEnum(FQTypeName.Package(Hash id), _, _, "Some", [ value ]) when
-            id = PackageRefs.Type.Stdlib.option
+            id = PackageRefs.Type.Stdlib.option ()
             ->
             Ply value
 
           // Success: extract `Ok` out of a Result
           | DEnum(FQTypeName.Package(Hash id), _, _, "Ok", [ value ]) when
-            id = PackageRefs.Type.Stdlib.result
+            id = PackageRefs.Type.Stdlib.result ()
             ->
             Ply value
 
           // Error: expected Some, got None
           | DEnum(FQTypeName.Package(Hash id), _, _, "None", []) when
-            id = PackageRefs.Type.Stdlib.option
+            id = PackageRefs.Type.Stdlib.option ()
             ->
             RuntimeError.Unwraps.GotNone
             |> RuntimeError.Unwrap
@@ -214,7 +214,7 @@ let fns : List<BuiltInFn> =
 
           // Error: expected Ok, got Error
           | DEnum(FQTypeName.Package(Hash id), _, _, "Error", [ value ]) when
-            id = PackageRefs.Type.Stdlib.result
+            id = PackageRefs.Type.Stdlib.result ()
             ->
             RuntimeError.Unwraps.GotError value
             |> RuntimeError.Unwrap
@@ -277,4 +277,4 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated } ]
 
 
-let builtins = LibExecution.Builtin.make [] fns
+let builtins () = LibExecution.Builtin.make [] (fns ())

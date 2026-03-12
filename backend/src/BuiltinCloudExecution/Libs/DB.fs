@@ -125,7 +125,7 @@ let compileQueryLambda
 //       e
 //     LibCloud.SqlCompiler.error "An error occurred while querying the Datastore"
 
-let fns : List<BuiltInFn> =
+let fns () : List<BuiltInFn> =
   [ { name = fn "dbSet" 0
       typeParams = []
       parameters = [ valParam "a"; keyParam; tableParam "a" ]
@@ -507,4 +507,4 @@ let fns : List<BuiltInFn> =
       previewable = Impure
       deprecated = NotDeprecated } ]
 
-let builtins = Builtin.make [] fns
+let builtins () = Builtin.make [] (fns ())

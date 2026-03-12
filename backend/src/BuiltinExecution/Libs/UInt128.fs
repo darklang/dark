@@ -21,11 +21,12 @@ module ParseError =
       | BadFormat -> "BadFormat", []
       | OutOfRange -> "OutOfRange", []
 
-    let typeName = FQTypeName.fqPackage PackageRefs.Type.Stdlib.uint128ParseError
+    let typeName =
+      FQTypeName.fqPackage (PackageRefs.Type.Stdlib.uint128ParseError ())
     DEnum(typeName, typeName, [], caseName, fields)
 
 
-let fns : List<BuiltInFn> =
+let fns () : List<BuiltInFn> =
   [ { name = fn "uint128Mod" 0
       typeParams = []
       parameters = [ Param.make "a" TUInt128 ""; Param.make "b" TUInt128 "" ]
@@ -244,12 +245,15 @@ let fns : List<BuiltInFn> =
           (TCustomType(
             { originalName = []
               resolved =
-                Ok(FQTypeName.fqPackage PackageRefs.Type.Stdlib.uint128ParseError) },
+                Ok(
+                  FQTypeName.fqPackage (PackageRefs.Type.Stdlib.uint128ParseError ())
+                ) },
             []
           ))
       description = "Returns the <type UInt128> value of a <type String>"
       fn =
-        let typeName = FQTypeName.fqPackage PackageRefs.Type.Stdlib.uint128ParseError
+        let typeName =
+          FQTypeName.fqPackage (PackageRefs.Type.Stdlib.uint128ParseError ())
         let resultOk = Dval.resultOk KTUInt128 (KTCustomType(typeName, []))
         let resultError = Dval.resultError KTUInt128 (KTCustomType(typeName, []))
         (function
@@ -322,4 +326,4 @@ let fns : List<BuiltInFn> =
       previewable = Pure
       deprecated = NotDeprecated } ]
 
-let builtins = LibExecution.Builtin.make [] fns
+let builtins () = LibExecution.Builtin.make [] (fns ())

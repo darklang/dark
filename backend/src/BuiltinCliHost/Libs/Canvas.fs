@@ -16,7 +16,7 @@ module Account = LibCloud.Account
 module PackageLocation = LibPackageManager.PackageLocation
 
 
-let fns : List<BuiltInFn> =
+let fns () : List<BuiltInFn> =
   [ { name = fn "darkInternalCanvasDBCreate" 0
       typeParams = []
       parameters =
@@ -208,4 +208,4 @@ let fns : List<BuiltInFn> =
     ]
 
 
-let builtins = LibExecution.Builtin.make [] fns
+let builtins () = LibExecution.Builtin.make [] (fns ())

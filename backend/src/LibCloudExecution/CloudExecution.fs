@@ -27,9 +27,9 @@ let builtins : RT.Builtins =
   LibExecution.Builtin.combine
     [ BuiltinExecution.Builtin.builtins HttpClient.configuration
       BuiltinPM.Builtin.builtins pmPT
-      BuiltinHttpServer.Builtin.builtins
-      BuiltinCloudExecution.Builtin.builtins
-      BuiltinDarkInternal.Builtin.builtins ]
+      BuiltinHttpServer.Builtin.builtins ()
+      BuiltinCloudExecution.Builtin.builtins ()
+      BuiltinDarkInternal.Builtin.builtins () ]
     []
 
 
@@ -136,7 +136,8 @@ let executeHandler
     let callStackString = Exe.callStackString state
 
     let error (msg : string) : RT.Dval =
-      let typeName = RT.FQTypeName.fqPackage PackageRefs.Type.Stdlib.Http.response
+      let typeName =
+        RT.FQTypeName.fqPackage (PackageRefs.Type.Stdlib.Http.response ())
 
       let fields =
         [ ("statusCode", RT.DInt64 500)

@@ -1154,14 +1154,14 @@ module PackageValue =
           // Only infer for well-known generic types when no type args provided
           match resolvedTypeName with
           | RT.FQTypeName.Package(RT.Hash hash) when
-            hash = PackageRefs.Type.Stdlib.option
+            hash = PackageRefs.Type.Stdlib.option ()
             ->
             match caseName, fieldValues with
             | "Some", [ fieldValue ] -> [ RT.Dval.toValueType fieldValue ]
             | "None", [] -> [ RT.ValueType.Unknown ]
             | _ -> []
           | RT.FQTypeName.Package(RT.Hash hash) when
-            hash = PackageRefs.Type.Stdlib.result
+            hash = PackageRefs.Type.Stdlib.result ()
             ->
             match caseName, fieldValues with
             | "Ok", [ okValue ] ->

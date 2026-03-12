@@ -13,8 +13,8 @@ module NR = LibExecution.RuntimeTypes.NameResolution
 open Builtin.Shortcuts
 
 
-let scriptTypeName = FQTypeName.fqPackage PackageRefs.Type.Cli.script
-let scriptType = TCustomType(NR.ok scriptTypeName, [])
+let scriptTypeName () = FQTypeName.fqPackage (PackageRefs.Type.Cli.script ())
+let scriptType () = TCustomType(NR.ok (scriptTypeName ()), [])
 
 
 /// TODO: Consider migrating scripts away from a dedicated SQLite table to just
@@ -24,11 +24,11 @@ let scriptType = TCustomType(NR.ok scriptTypeName, [])
 ///
 /// A similar argument could soon be made for Tests, HttpHandlers, Docs,
 /// and other sorts of 'TopLevels' that we respect.
-let fns : List<BuiltInFn> =
+let fns () : List<BuiltInFn> =
   [ { name = fn "pmScriptsList" 0
       typeParams = []
       parameters = [ Param.make "unit" TUnit "" ]
-      returnType = TList scriptType
+      returnType = TList(scriptType ())
       description = "List all stored scripts"
       fn =
         function
@@ -38,7 +38,7 @@ let fns : List<BuiltInFn> =
             return
               scripts
               |> List.map Scripts.toDT
-              |> Dval.list (KTCustomType(scriptTypeName, []))
+              |> Dval.list (KTCustomType(scriptTypeName (), []))
           }
         | _ -> incorrectArgs ()
       sqlSpec = NotQueryable
@@ -49,7 +49,7 @@ let fns : List<BuiltInFn> =
     { name = fn "pmScriptsGet" 0
       typeParams = []
       parameters = [ Param.make "name" TString "" ]
-      returnType = TypeReference.option scriptType
+      returnType = TypeReference.option (scriptType ())
       description = "Get a script by name"
       fn =
         function
@@ -59,7 +59,7 @@ let fns : List<BuiltInFn> =
             return
               scriptOpt
               |> Option.map Scripts.toDT
-              |> Dval.option (KTCustomType(scriptTypeName, []))
+              |> Dval.option (KTCustomType(scriptTypeName (), []))
           }
         | _ -> incorrectArgs ()
       sqlSpec = NotQueryable
@@ -70,7 +70,7 @@ let fns : List<BuiltInFn> =
     { name = fn "pmScriptsAdd" 0
       typeParams = []
       parameters = [ Param.make "name" TString ""; Param.make "text" TString "" ]
-      returnType = TypeReference.result scriptType TString
+      returnType = TypeReference.result (scriptType ()) TString
       description = "Add a new script"
       fn =
         function
@@ -81,7 +81,7 @@ let fns : List<BuiltInFn> =
               result
               |> Result.map Scripts.toDT
               |> Result.mapError DString
-              |> Dval.result (KTCustomType(scriptTypeName, [])) KTString
+              |> Dval.result (KTCustomType(scriptTypeName (), [])) KTString
           }
         | _ -> incorrectArgs ()
       sqlSpec = NotQueryable
@@ -132,4 +132,4 @@ let fns : List<BuiltInFn> =
       previewable = Impure
       deprecated = NotDeprecated } ]
 
-let builtins = Builtin.make [] fns
+let builtins () = Builtin.make [] (fns ())

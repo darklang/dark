@@ -28,7 +28,7 @@ let ISO8601DateParser (s : string) : Result<DarkDateTime.T, unit> =
   | _ -> Error()
 
 
-let fns : List<BuiltInFn> =
+let fns () : List<BuiltInFn> =
   [ { name = fn "dateTimeParse" 0
       typeParams = []
       parameters = [ Param.make "s" TString "" ]
@@ -400,4 +400,4 @@ let fns : List<BuiltInFn> =
       previewable = Pure
       deprecated = NotDeprecated } ]
 
-let builtins = LibExecution.Builtin.make [] fns
+let builtins () = LibExecution.Builtin.make [] (fns ())

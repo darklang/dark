@@ -15,7 +15,7 @@ open Builtin.Shortcuts
 
 
 let packageOpTypeName =
-  FQTypeName.fqPackage PackageRefs.Type.LanguageTools.ProgramTypes.packageOp
+  FQTypeName.fqPackage (PackageRefs.Type.LanguageTools.ProgramTypes.packageOp ())
 
 let packageOpKT = KTCustomType(packageOpTypeName, [])
 
@@ -202,7 +202,7 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
       parameters =
         [ Param.make "branchId" TUuid "Branch ID"
           Param.make "limit" TInt64 "Maximum commits to return" ]
-      returnType = TList(TCustomType(NR.ok PT2DT.Commit.typeName, []))
+      returnType = TList(TCustomType(NR.ok (PT2DT.Commit.typeName ()), []))
       description = "Get commit log for a branch ordered by date descending."
       fn =
         function
@@ -211,7 +211,7 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
             let! commits = LibPackageManager.Queries.getCommits branchId limit
             return
               Dval.list
-                PT2DT.Commit.knownType
+                (PT2DT.Commit.knownType ())
                 (commits |> List.map PT2DT.Commit.toDT)
           }
         | _ -> incorrectArgs ()
@@ -225,7 +225,7 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
       parameters =
         [ Param.make "branchId" TUuid "Branch ID"
           Param.make "limit" TInt64 "Maximum commits to return" ]
-      returnType = TList(TCustomType(NR.ok PT2DT.Commit.typeName, []))
+      returnType = TList(TCustomType(NR.ok (PT2DT.Commit.typeName ()), []))
       description =
         "Get commit log across the entire branch chain (current + ancestors), ordered by date descending."
       fn =
@@ -236,7 +236,7 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
               LibPackageManager.Queries.getCommitsForBranchChain branchId limit
             return
               Dval.list
-                PT2DT.Commit.knownType
+                (PT2DT.Commit.knownType ())
                 (commits |> List.map PT2DT.Commit.toDT)
           }
         | _ -> incorrectArgs ()

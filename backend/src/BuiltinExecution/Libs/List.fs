@@ -271,7 +271,7 @@ let varB = TVariable "b"
 let varC = TVariable "c"
 
 
-let fns : List<BuiltInFn> =
+let fns () : List<BuiltInFn> =
   [ { name = fn "listLength" 0
       typeParams = []
       parameters = [ Param.make "list" (TList varA) "" ]
@@ -379,4 +379,4 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated } ]
 
 
-let builtins = LibExecution.Builtin.make [] fns
+let builtins () = LibExecution.Builtin.make [] (fns ())

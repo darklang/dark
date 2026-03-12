@@ -21,12 +21,12 @@ module ParseError =
       | BadFormat -> "BadFormat", []
       | OutOfRange -> "OutOfRange", []
 
-    let typeName = FQTypeName.fqPackage PackageRefs.Type.Stdlib.int16ParseError
+    let typeName = FQTypeName.fqPackage (PackageRefs.Type.Stdlib.int16ParseError ())
     DEnum(typeName, typeName, [], caseName, fields)
 
 
 
-let fns : List<BuiltInFn> =
+let fns () : List<BuiltInFn> =
   [ { name = fn "int16Mod" 0
       typeParams = []
       parameters = [ Param.make "a" TInt16 ""; Param.make "b" TInt16 "" ]
@@ -329,11 +329,13 @@ let fns : List<BuiltInFn> =
       typeParams = []
       parameters = [ Param.make "s" TString "" ]
       returnType =
-        let errorType = FQTypeName.fqPackage PackageRefs.Type.Stdlib.int16ParseError
+        let errorType =
+          FQTypeName.fqPackage (PackageRefs.Type.Stdlib.int16ParseError ())
         TypeReference.result TInt16 (TCustomType(NR.ok errorType, []))
       description = "Returns the <type Int16> value of a <type String>"
       fn =
-        let typeName = FQTypeName.fqPackage PackageRefs.Type.Stdlib.int16ParseError
+        let typeName =
+          FQTypeName.fqPackage (PackageRefs.Type.Stdlib.int16ParseError ())
         let resultOk = Dval.resultOk KTInt16 (KTCustomType(typeName, []))
         let resultError = Dval.resultError KTInt16 (KTCustomType(typeName, []))
         (function
@@ -517,4 +519,4 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated } ]
 
 
-let builtins = LibExecution.Builtin.make [] fns
+let builtins () = LibExecution.Builtin.make [] (fns ())

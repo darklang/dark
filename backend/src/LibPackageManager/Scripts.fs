@@ -15,14 +15,14 @@ module DvalDecoder = LibExecution.DvalDecoder
 type Script = { id : System.Guid; name : string; text : string }
 
 // Serialization to/from Dval
-let scriptTypeName = RT.FQTypeName.fqPackage PackageRefs.Type.Cli.script
+let scriptTypeName () = RT.FQTypeName.fqPackage (PackageRefs.Type.Cli.script ())
 
 let toDT (script : Script) : RT.Dval =
   let fields =
     [ ("id", RT.DString(string script.id))
       ("name", RT.DString script.name)
       ("text", RT.DString script.text) ]
-  RT.DRecord(scriptTypeName, scriptTypeName, [], Map.ofList fields)
+  RT.DRecord(scriptTypeName (), scriptTypeName (), [], Map.ofList fields)
 
 let fromDT (d : RT.Dval) : Script =
   match d with

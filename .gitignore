@@ -12,6 +12,7 @@ config/local
 rundir/
 
 # F# / dotnet
+backend/src/LibExecution/package-ref-hashes.txt
 backend/packages/
 backend/paket-files/
 backend/.paket/

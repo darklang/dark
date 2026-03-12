@@ -57,8 +57,9 @@ let runtimeErrorMessage
   uply {
     let actual = RT2DT.RuntimeError.toDT allegedRTE
     let errorMessageFn =
-      RT.FQFnName.fqPackage
-        PackageRefs.Fn.PrettyPrinter.RuntimeTypes.RuntimeError.toErrorMessage
+      RT.FQFnName.fqPackage (
+        PackageRefs.Fn.PrettyPrinter.RuntimeTypes.RuntimeError.toErrorMessage ()
+      )
 
     let! _csString = Exe.callStackString state callStack
 
@@ -66,8 +67,9 @@ let runtimeErrorMessage
       let expected =
         RT.TCustomType(
           RT.NameResolution.ok (
-            RT.FQTypeName.fqPackage
-              PackageRefs.Type.LanguageTools.RuntimeTypes.RuntimeError.error
+            RT.FQTypeName.fqPackage (
+              PackageRefs.Type.LanguageTools.RuntimeTypes.RuntimeError.error ()
+            )
           ),
           []
         )

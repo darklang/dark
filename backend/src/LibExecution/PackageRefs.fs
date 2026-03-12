@@ -4,37 +4,39 @@
 /// e.g. in order to return an `Option` from a Builtin, we need to know the hash of
 /// the `Option` package type when constructing the `DEnum` value.
 ///
-/// Hashes are loaded at runtime from `package-ref-hashes.txt`, which lives in the
-/// source tree alongside this file and is auto-updated by `reload-packages`.
-/// Hash changes show up as diffs in that file rather than in this F# source.
+/// Hashes are loaded lazily from `package-ref-hashes.txt` on first access.
+/// The file lives in the source tree alongside this file and is auto-updated by
+/// `reload-packages`. It is NOT tracked in git — an MSBuild target creates an
+/// empty file if missing (fresh clone / CI before reload-packages).
+///
+/// All bindings are `unit -> string` functions (via partial application of `p`)
+/// so that module initialization does not trigger file loading. This allows code
+/// that depends on this module (e.g. migrations) to load without the hash file
+/// being populated yet. Call sites use `PackageRefs.Type.Stdlib.option ()`.
 module LibExecution.PackageRefs
 
 open Prelude
 
-/// Hashes loaded from `package-ref-hashes.txt`.
-/// Local dev: reads the source-tree file directly (picks up reload-packages changes
-/// without a rebuild). Release: falls back to the embedded resource in the DLL.
-/// Keys are "type/{modules}.{name}" or "fn/{modules}.{name}".
-let private hashes : Map<string, string> =
-  let parseLines (lines : string seq) =
-    lines
-    |> Seq.choose (fun line ->
-      let line = line.Trim()
-      if line = "" then
-        None
-      else
-        match line.Split('|') with
-        | [| fqn; hash |] -> Some(fqn, hash)
-        | _ -> None)
-    |> Map.ofSeq
+let private parseLines (lines : string seq) =
+  lines
+  |> Seq.choose (fun line ->
+    let line = line.Trim()
+    if line = "" then
+      None
+    else
+      match line.Split('|') with
+      | [| fqn; hash |] -> Some(fqn, hash)
+      | _ -> None)
+  |> Map.ofSeq
 
+let private loadHashes () : Map<string, string> =
   let sourceTreePath =
     System.IO.Path.Combine(__SOURCE_DIRECTORY__, "package-ref-hashes.txt")
     |> System.IO.Path.GetFullPath
-
   try
     if System.IO.File.Exists(sourceTreePath) then
-      System.IO.File.ReadAllLines(sourceTreePath) |> parseLines
+      let content = System.IO.File.ReadAllLines(sourceTreePath)
+      if content.Length = 0 then Map.empty else content |> parseLines
     else
       // Release binary: source tree not available, use embedded resource
       use stream =
@@ -45,30 +47,49 @@ let private hashes : Map<string, string> =
         use reader = new System.IO.StreamReader(stream)
         reader.ReadToEnd().Split('\n') |> parseLines
       else
-        Exception.raiseInternal
-          "PackageRefs: package-ref-hashes.txt not found"
-          [ "triedPath", sourceTreePath ]
+        Map.empty
   with
   | :? Exception.InternalException -> reraise ()
-  | ex ->
-    Exception.raiseInternal
-      "PackageRefs: failed to load package-ref-hashes.txt"
-      [ "path", sourceTreePath; "message", ex.Message ]
+  | _ -> Map.empty
+
+/// Mutable hash cache. Loaded on first access, can be reloaded after
+/// the hash file is regenerated (e.g. during reload-packages in CI).
+let mutable private hashCache : Map<string, string> option = None
+
+let private getHashes () : Map<string, string> =
+  match hashCache with
+  | Some h -> h
+  | None ->
+    let h = loadHashes ()
+    hashCache <- Some h
+    h
+
+/// Force-reload hashes from disk. Call after PackageRefsGenerator writes
+/// the hash file so that subsequent PackageRefs calls get real values.
+let reloadHashes () : unit = hashCache <- Some(loadHashes ())
 
 
 module Type =
   /// All type refs registered by `p`. Used by PackageRefsGenerator.
   let mutable _lookup : Map<string list * string, string> = Map []
 
-  let private p modules name : string =
-    let fqn = $"""type/{String.concat "." modules}.{name}"""
-    let hash =
-      hashes
-      |> Map.tryFind fqn
-      |> Option.defaultWith (fun () ->
-        Exception.raiseInternal "PackageRefs: type hash not found" [ "fqn", fqn ])
-    _lookup <- _lookup |> Map.add (modules, name) hash
-    hash
+  /// Registers the FQN in `_lookup` at module init (for PackageRefsGenerator),
+  /// but defers the actual hash lookup until the returned function is called.
+  /// Returns "" if the hash file is empty (CI before reload-packages).
+  let private p modules name : (unit -> string) =
+    _lookup <- _lookup |> Map.add (modules, name) ""
+    fun () ->
+      let fqn = $"""type/{String.concat "." modules}.{name}"""
+      let h = getHashes ()
+      match Map.tryFind fqn h with
+      | Some hash ->
+        _lookup <- _lookup |> Map.add (modules, name) hash
+        hash
+      | None ->
+        if Map.isEmpty h then
+          "" // Hash file not yet populated (CI before reload-packages)
+        else
+          Exception.raiseInternal "PackageRefs: type hash not found" [ "fqn", fqn ]
 
   module Stdlib =
     let private p addl = p ("Stdlib" :: addl)
@@ -181,7 +202,6 @@ module Type =
       let typeReference = p [] "TypeReference"
       let letPattern = p [] "LetPattern"
       let matchPattern = p [] "MatchPattern"
-      let stringSegment = p [] "StringSegment"
       let dval = p [] "Dval"
       let knownType = p [] "KnownType"
       let valueType = p [] "ValueType"
@@ -343,15 +363,23 @@ module Fn =
   /// All fn refs registered by `p`. Used by PackageRefsGenerator.
   let mutable _lookup : Map<string list * string, string> = Map []
 
-  let private p modules name : string =
-    let fqn = $"""fn/{String.concat "." modules}.{name}"""
-    let hash =
-      hashes
-      |> Map.tryFind fqn
-      |> Option.defaultWith (fun () ->
-        Exception.raiseInternal "PackageRefs: fn hash not found" [ "fqn", fqn ])
-    _lookup <- _lookup |> Map.add (modules, name) hash
-    hash
+  /// Registers the FQN in `_lookup` at module init (for PackageRefsGenerator),
+  /// but defers the actual hash lookup until the returned function is called.
+  /// Returns "" if the hash file is empty (CI before reload-packages).
+  let private p modules name : (unit -> string) =
+    _lookup <- _lookup |> Map.add (modules, name) ""
+    fun () ->
+      let fqn = $"""fn/{String.concat "." modules}.{name}"""
+      let h = getHashes ()
+      match Map.tryFind fqn h with
+      | Some hash ->
+        _lookup <- _lookup |> Map.add (modules, name) hash
+        hash
+      | None ->
+        if Map.isEmpty h then
+          "" // Hash file not yet populated (CI before reload-packages)
+        else
+          Exception.raiseInternal "PackageRefs: fn hash not found" [ "fqn", fqn ]
 
   module Stdlib =
     let private p addl = p ("Stdlib" :: addl)

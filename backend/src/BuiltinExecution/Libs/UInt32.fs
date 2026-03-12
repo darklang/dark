@@ -22,12 +22,12 @@ module ParseError =
       | BadFormat -> "BadFormat", []
       | OutOfRange -> "OutOfRange", []
 
-    let typeName = FQTypeName.fqPackage PackageRefs.Type.Stdlib.uint32ParseError
+    let typeName = FQTypeName.fqPackage (PackageRefs.Type.Stdlib.uint32ParseError ())
     DEnum(typeName, typeName, [], caseName, fields)
 
 
 
-let fns : List<BuiltInFn> =
+let fns () : List<BuiltInFn> =
   [ { name = fn "uint32Mod" 0
       typeParams = []
       parameters = [ Param.make "a" TUInt32 ""; Param.make "b" TUInt32 "" ]
@@ -289,11 +289,13 @@ let fns : List<BuiltInFn> =
       typeParams = []
       parameters = [ Param.make "s" TString "" ]
       returnType =
-        let errorType = FQTypeName.fqPackage PackageRefs.Type.Stdlib.uint32ParseError
+        let errorType =
+          FQTypeName.fqPackage (PackageRefs.Type.Stdlib.uint32ParseError ())
         TypeReference.result TUInt32 (TCustomType(NR.ok errorType, []))
       description = "Returns the <type UInt32> value of a <type String>"
       fn =
-        let typeName = FQTypeName.fqPackage PackageRefs.Type.Stdlib.uint32ParseError
+        let typeName =
+          FQTypeName.fqPackage (PackageRefs.Type.Stdlib.uint32ParseError ())
         let resultOk = Dval.resultOk KTUInt32 (KTCustomType(typeName, []))
         let resultError = Dval.resultError KTUInt32 (KTCustomType(typeName, []))
         (function
@@ -484,4 +486,4 @@ let fns : List<BuiltInFn> =
       previewable = Pure
       deprecated = NotDeprecated } ]
 
-let builtins = LibExecution.Builtin.make [] fns
+let builtins () = LibExecution.Builtin.make [] (fns ())

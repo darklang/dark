@@ -114,13 +114,13 @@ let builtins
   (pm : PT.PackageManager)
   : RT.Builtins =
   LibExecution.Builtin.combine
-    [ LibTest.builtins
+    [ LibTest.builtins ()
       BuiltinExecution.Builtin.builtins httpConfig
       BuiltinPM.Builtin.builtins pm
-      BuiltinHttpServer.Builtin.builtins
-      BuiltinCloudExecution.Builtin.builtins
-      BuiltinDarkInternal.Builtin.builtins
-      BuiltinCli.Builtin.builtins ]
+      BuiltinHttpServer.Builtin.builtins ()
+      BuiltinCloudExecution.Builtin.builtins ()
+      BuiltinDarkInternal.Builtin.builtins ()
+      BuiltinCli.Builtin.builtins () ]
     []
 
 let cloudBuiltIns (pm : PT.PackageManager) =
@@ -1224,14 +1224,16 @@ let interestingDvals : List<string * RT.Dval * RT.TypeReference> =
 
     ("enum",
      DEnum(
-       FQTypeName.fqPackage PackageRefs.Type.Stdlib.AltJson.json,
-       FQTypeName.fqPackage PackageRefs.Type.Stdlib.AltJson.json,
+       FQTypeName.fqPackage (PackageRefs.Type.Stdlib.AltJson.json ()),
+       FQTypeName.fqPackage (PackageRefs.Type.Stdlib.AltJson.json ()),
        [],
        "String",
        [ DString "test" ]
      ),
      TCustomType(
-       NameResolution.ok (FQTypeName.fqPackage PackageRefs.Type.Stdlib.AltJson.json),
+       NameResolution.ok (
+         FQTypeName.fqPackage (PackageRefs.Type.Stdlib.AltJson.json ())
+       ),
        []
      ))
 
@@ -1389,8 +1391,8 @@ let interestingDvals : List<string * RT.Dval * RT.TypeReference> =
      DTuple(
        Dval.int64 1,
        DEnum(
-         Dval.resultType,
-         Dval.resultType,
+         Dval.resultType (),
+         Dval.resultType (),
          [ VT.unknown; VT.string ],
          "Error",
          [ DString "error" ]
@@ -1503,8 +1505,9 @@ let unwrapExecutionResult
     | Ok dval -> return dval
     | Error(rte, callStack) ->
       let errorMessageFn =
-        RT.FQFnName.fqPackage
-          PackageRefs.Fn.PrettyPrinter.RuntimeTypes.RuntimeError.toString
+        RT.FQFnName.fqPackage (
+          PackageRefs.Fn.PrettyPrinter.RuntimeTypes.RuntimeError.toString ()
+        )
 
       let rteDval = RT2DT.RuntimeError.toDT rte
 
@@ -1534,7 +1537,8 @@ let parsePTExpr (code : string) : Task<PT.Expr> =
       let canvasID = System.Guid.NewGuid()
       executionStateFor pmPT canvasID false false Map.empty
 
-    let name = RT.FQFnName.fqPackage PackageRefs.Fn.LanguageTools.Parser.parsePTExpr
+    let name =
+      RT.FQFnName.fqPackage (PackageRefs.Fn.LanguageTools.Parser.parsePTExpr ())
 
     let args = NEList.singleton (RT.DString code)
     let! execResult = LibExecution.Execution.executeFunction state name [] args

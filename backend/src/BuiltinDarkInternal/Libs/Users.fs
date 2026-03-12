@@ -10,7 +10,7 @@ open LibExecution.Builtin.Shortcuts
 module Dval = LibExecution.Dval
 
 
-let fns : List<BuiltInFn> =
+let fns () : List<BuiltInFn> =
   [ { name = fn "darkInternalUserCreate" 0
       typeParams = []
       parameters = [ Param.make "name" TString "The name for the new user" ]
@@ -33,4 +33,4 @@ let fns : List<BuiltInFn> =
       previewable = Impure
       deprecated = NotDeprecated } ]
 
-let builtins = LibExecution.Builtin.make [] fns
+let builtins () = LibExecution.Builtin.make [] (fns ())
