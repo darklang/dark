@@ -6,7 +6,8 @@ open System.IO
 open System.Reflection
 open System.Runtime.InteropServices
 
-let baseTempPath = Path.Combine(Path.GetTempPath(), "darklang")
+let baseTempPath =
+  Path.Combine(Path.GetTempPath(), $"darklang-{Environment.UserName}")
 
 let resourceExtensionForOS =
   if RuntimeInformation.IsOSPlatform(OSPlatform.Windows) then ".dll"
