@@ -39,12 +39,31 @@ let fns : List<BuiltInFn> =
       typeParams = []
       parameters = [ Param.make "unit" TUnit "" ]
       returnType = TList branchType
-      description = "List all active (non-merged) branches."
+      description = "List all active (non-merged, non-archived) branches."
       fn =
         function
         | _, _, _, [ DUnit ] ->
           uply {
             let! branches = LibPackageManager.Branches.list ()
+            return
+              branches |> List.map PT2DT.Branch.toDT |> D.list PT2DT.Branch.knownType
+          }
+        | _ -> incorrectArgs ()
+      sqlSpec = NotQueryable
+      previewable = Impure
+      deprecated = NotDeprecated }
+
+
+    { name = fn "scmBranchListAll" 0
+      typeParams = []
+      parameters = [ Param.make "unit" TUnit "" ]
+      returnType = TList branchType
+      description = "List all branches including archived and merged."
+      fn =
+        function
+        | _, _, _, [ DUnit ] ->
+          uply {
+            let! branches = LibPackageManager.Branches.listAll ()
             return
               branches |> List.map PT2DT.Branch.toDT |> D.list PT2DT.Branch.knownType
           }
@@ -124,12 +143,56 @@ let fns : List<BuiltInFn> =
       typeParams = []
       parameters = [ Param.make "id" TUuid "Branch ID" ]
       returnType = TypeReference.result TUnit TString
-      description = "Delete a branch (must have no active children)."
+      description = "Archive a branch (soft delete)."
       fn =
         function
         | _, _, _, [ DUuid id ] ->
           uply {
-            let! result = LibPackageManager.Branches.delete id
+            let! result = LibPackageManager.Branches.archive id
+            return
+              result
+              |> Result.map (fun () -> DUnit)
+              |> Result.mapError DString
+              |> D.result KTUnit KTString
+          }
+        | _ -> incorrectArgs ()
+      sqlSpec = NotQueryable
+      previewable = Impure
+      deprecated = NotDeprecated }
+
+
+    { name = fn "scmBranchArchive" 0
+      typeParams = []
+      parameters = [ Param.make "id" TUuid "Branch ID" ]
+      returnType = TypeReference.result TUnit TString
+      description = "Archive a branch (soft delete)."
+      fn =
+        function
+        | _, _, _, [ DUuid id ] ->
+          uply {
+            let! result = LibPackageManager.Branches.archive id
+            return
+              result
+              |> Result.map (fun () -> DUnit)
+              |> Result.mapError DString
+              |> D.result KTUnit KTString
+          }
+        | _ -> incorrectArgs ()
+      sqlSpec = NotQueryable
+      previewable = Impure
+      deprecated = NotDeprecated }
+
+
+    { name = fn "scmBranchUnarchive" 0
+      typeParams = []
+      parameters = [ Param.make "id" TUuid "Branch ID" ]
+      returnType = TypeReference.result TUnit TString
+      description = "Unarchive a branch."
+      fn =
+        function
+        | _, _, _, [ DUuid id ] ->
+          uply {
+            let! result = LibPackageManager.Branches.unarchive id
             return
               result
               |> Result.map (fun () -> DUnit)

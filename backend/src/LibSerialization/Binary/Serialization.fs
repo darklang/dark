@@ -120,6 +120,10 @@ module PT =
     let serialize id value = makeSerializer PT.PackageOp.write id value
     let deserialize id data = makeDeserializer PT.PackageOp.read id data
 
+  module BranchOp =
+    let serialize = PT.BranchOp.serialize
+    let deserialize = PT.BranchOp.deserialize
+
   module Toplevel =
     let serialize id value = makeSerializer PT.Toplevel.write id value
     let deserialize id data = makeDeserializer PT.Toplevel.read id data

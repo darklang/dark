@@ -72,6 +72,28 @@ type Commit =
     branchName : string }
 
 
+/// Operations on branches/commits, logged as immutable ops for sync
+type BranchOp =
+  | CreateBranch of
+    branchId : BranchId *
+    name : string *
+    parentBranchId : BranchId option *
+    baseCommitHash : Hash option
+
+  | CreateCommit of
+    commitHash : Hash *
+    message : string *
+    branchId : BranchId *
+    opHashes : List<Hash> *
+    accountId : UserID
+
+  | RebaseBranch of branchId : BranchId * newBaseCommitHash : Hash
+
+  | MergeBranch of branchId : BranchId * intoBranchId : BranchId
+
+  | ArchiveBranch of branchId : BranchId
+
+
 /// Fully-Qualified Type Name
 ///
 /// Used to reference a type defined in a Package or by a User

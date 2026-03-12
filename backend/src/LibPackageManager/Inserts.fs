@@ -153,19 +153,11 @@ let insertAndApplyOpsWithCommit
     let commitHash = Hashing.computeCommitHash parentHash opHashes accountId
     let (Hash commitHashStr) = commitHash
 
-    // Create the commit record
+    // Record and apply the commit
     do!
-      Sql.query
-        """
-        INSERT INTO commits (hash, message, account_id, branch_id, created_at)
-        VALUES (@hash, @message, @account_id, @branch_id, datetime('now'))
-        """
-      |> Sql.parameters
-        [ "hash", Sql.string commitHashStr
-          "message", Sql.string message
-          "account_id", Sql.uuid accountId
-          "branch_id", Sql.uuid branchId ]
-      |> Sql.executeStatementAsync
+      BranchOpPlayback.insertAndApply (
+        PT.BranchOp.CreateCommit(commitHash, message, branchId, opHashes, accountId)
+      )
 
     // Insert ops with the commit_hash
     let! _ = insertAndApplyOps branchId (Some commitHashStr) ops
@@ -231,21 +223,21 @@ let commitWipOps
         let commitHash = Hashing.computeCommitHash parentHash opHashes accountId
         let (Hash commitHashStr) = commitHash
 
-        // Execute all three operations atomically:
-        // 1. Create commit record
-        // 2. Assign WIP ops to this commit
-        // 3. Assign WIP locations to this commit
+        // Record and apply the commit
+        do!
+          BranchOpPlayback.insertAndApply (
+            PT.BranchOp.CreateCommit(
+              commitHash,
+              message,
+              branchId,
+              opHashes,
+              accountId
+            )
+          )
+
+        // Assign WIP ops and locations to this commit
         let statements =
           [ ("""
-             INSERT INTO commits (hash, message, account_id, branch_id, created_at)
-             VALUES (@hash, @message, @account_id, @branch_id, datetime('now'))
-             """,
-             [ [ "hash", Sql.string commitHashStr
-                 "message", Sql.string message
-                 "account_id", Sql.uuid accountId
-                 "branch_id", Sql.uuid branchId ] ])
-
-            ("""
              UPDATE package_ops
              SET commit_hash = @commit_hash
              WHERE branch_id = @branch_id AND commit_hash IS NULL

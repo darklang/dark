@@ -179,6 +179,13 @@ module HandleCommand =
       print "Purging ..."
       do! LibPackageManager.Purge.purge ()
 
+      // Record CreateBranch op for main (the migration creates the row,
+      // but we need the BranchOp so the DB can be rebuilt from ops alone)
+      do!
+        LibPackageManager.BranchOpPlayback.insertAndApply (
+          PT.BranchOp.CreateBranch(PT.mainBranchId, "main", None, None)
+        )
+
       print "Filling ..."
       // Create an "init" commit with all packages from disk
       // Note: values are stored with NULL rt_dval at this point
