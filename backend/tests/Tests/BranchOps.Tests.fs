@@ -159,4 +159,6 @@ let testBranchOpsDeserialization =
 let tests =
   testList
     "BranchOps"
-    [ testBranchOpsEmitted; testBranchOpsSerialization; testBranchOpsDeserialization ]
+    [ testBranchOpsEmitted
+      testBranchOpsSerialization
+      testBranchOpsDeserialization ]

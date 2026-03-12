@@ -227,7 +227,11 @@ let commitWipOps
         do!
           BranchOpPlayback.insertAndApply (
             PT.BranchOp.CreateCommit(
-              commitHash, message, branchId, opHashes, accountId
+              commitHash,
+              message,
+              branchId,
+              opHashes,
+              accountId
             )
           )
 
