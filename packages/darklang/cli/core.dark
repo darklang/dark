@@ -24,7 +24,9 @@ type AppState =
     currentPage: Page
     currentBranchId: Uuid
     accountID: Stdlib.Option.Option<Uuid>
-    accountName: String }
+    accountName: String
+    /// How many terminal rows the prompt used last frame
+    previousRenderedRows: Int64 }
 
 let locationStr (state: AppState) : String =
   Packages.formatLocation state.packageData.currentLocation
@@ -57,7 +59,8 @@ let initState () : AppState =
       currentPage = Page.MainPrompt
       currentBranchId = SCM.Branch.mainBranchId
       accountID = accountID
-      accountName = accountName }
+      accountName = accountName
+      previousRenderedRows = 0L }
 
 type Msg =
   | ProcessInput of String
@@ -605,30 +608,52 @@ let runInteractiveLoop (state: AppState) : Int64 =
     Stdlib.print (Colors.moveCursorToColumn 1L ++ "\u001b[2K" ++ "\n")
     0L
   else
+    // TODO: handle terminal resize and Unicode display width
+    // Compute prompt output and line metrics once
+    let location = locationStr state
+    let inputStartColumn =
+      Prompt.Display.calculateInputStartColumn location
+    let hint = Registry.getCompletionHint state state.prompt.text
+    let promptOutput =
+      Prompt.Display.formatPromptWithInput location state.prompt.text hint
+    let terminalWidth = Terminal.getWidth ()
+    // Visual length (0-based char count; inputStartColumn is 1-based so subtract 1)
+    let visualLength =
+      (inputStartColumn - 1L) + (Stdlib.String.length state.prompt.text) + (Stdlib.String.length hint)
+    let renderedRows =
+      if visualLength <= terminalWidth then 1L
+      else (Stdlib.Int64.divide (visualLength - 1L) terminalWidth) + 1L
+
     // Display current page
     match state.currentPage with
     | MainPrompt ->
-      let inputStartColumn =
-        Prompt.Display.calculateInputStartColumn (locationStr state)
+      Stdlib.print "\u001b[?25l" // Hide cursor
 
-      if state.needsFullRedraw then
-        // Redraw entire prompt line (used after commands that change state)
-        let promptText = View.formatPromptWithInput state
-        Stdlib.print promptText
-      else
-        // Update only the input portion (used during typing)
-        Stdlib.print "\u001b[?25l" // Hide cursor during redraw
-        Stdlib.print (Colors.moveCursorToColumn inputStartColumn)
-        Stdlib.print Colors.clearLine
-        Stdlib.print state.prompt.text
-        let hint = Registry.getCompletionHint state state.prompt.text
-        if Stdlib.Bool.not (Stdlib.String.isEmpty hint) then
-          Stdlib.print (Colors.hint hint)
-        Stdlib.print "\u001b[?25h" // Show cursor again
+      // Move up to prompt start if previous render occupied multiple rows
+      // Skip on full redraw — cursor is already positioned after command output
+      if Stdlib.Bool.not state.needsFullRedraw then
+        if state.previousRenderedRows > 1L then
+          Stdlib.print (Colors.moveCursorUp (state.previousRenderedRows - 1L))
+
+      Stdlib.print Colors.carriageReturn
+      Stdlib.print promptOutput
+      Stdlib.print "\u001b[J" // Clear any leftover rows
 
       // Position cursor at correct location within user input
-      let cursorColumn = inputStartColumn + state.prompt.cursorPosition
-      Stdlib.print (Colors.moveCursorToColumn cursorColumn)
+      let absoluteCursorPos = (inputStartColumn - 1L) + state.prompt.cursorPosition
+      if renderedRows > 1L then
+        let cursorRow = Stdlib.Int64.divide absoluteCursorPos terminalWidth
+        let cursorCol = (absoluteCursorPos % terminalWidth) + 1L
+        let textEndRow = renderedRows - 1L
+        let rowDiff = textEndRow - cursorRow
+        if rowDiff > 0L then
+          Stdlib.print (Colors.moveCursorUp rowDiff)
+        Stdlib.print (Colors.moveCursorToColumn cursorCol)
+      else
+        Stdlib.print (Colors.moveCursorToColumn (absoluteCursorPos + 1L))
+
+      Stdlib.print "\u001b[?25h" // Show cursor
+
     | InteractiveNav navState ->
       // Always display in interactive nav mode - it manages its own screen clearing
       Packages.NavInteractive.display navState
@@ -647,7 +672,7 @@ let runInteractiveLoop (state: AppState) : Int64 =
     let keyInput = Stdlib.Cli.Stdin.readKey ()
     let keyPressedMsg = Msg.KeyPressed (keyInput.key, keyInput.modifiers, Stdlib.Option.Option.Some keyInput.keyChar)
     let newState = Update.updateAppState state keyPressedMsg
-    runInteractiveLoop newState
+    runInteractiveLoop { newState with previousRenderedRows = renderedRows }
 
 
 /// Extract --branch <name> from args, returning (branchId, remainingArgs).
