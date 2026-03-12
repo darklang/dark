@@ -49,6 +49,7 @@ let builtins (httpConfig : Libs.HttpClient.Configuration) : Builtins =
       Libs.AltJson.builtins
 
       Libs.HttpClient.builtins httpConfig
+      Libs.StreamingHttpClient.builtins httpConfig
 
       Libs.LanguageTools.builtins
       Libs.Parser.builtins
