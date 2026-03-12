@@ -99,6 +99,9 @@ module Type =
       let badUrlDetails = p [] "BadUrlDetails"
       let requestError = p [] "RequestError"
       let response = p [] "Response"
+
+    module StreamingHttpClient =
+      let private p addl = p ("StreamingHttpClient" :: addl)
       let streamChunk = p [] "StreamChunk"
       let sseEvent = p [] "SSEEvent"
       let sseChunk = p [] "SSEChunk"
@@ -355,8 +358,10 @@ module Fn =
 
     module HttpClient =
       let request = p [ "HttpClient" ] "request"
-      let requestStreaming = p [ "HttpClient" ] "requestStreaming"
-      let requestSSE = p [ "HttpClient" ] "requestSSE"
+
+    module StreamingHttpClient =
+      let requestStreaming = p [ "StreamingHttpClient" ] "requestStreaming"
+      let requestSSE = p [ "StreamingHttpClient" ] "requestSSE"
 
   module LanguageTools =
     let private p addl = p ("LanguageTools" :: addl)

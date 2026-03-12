@@ -425,6 +425,7 @@ let testsFromFiles version =
 // ---------------
 module StreamingCallbackTests =
   module HC = BuiltinExecution.Libs.HttpClient
+  module SHC = BuiltinExecution.Libs.StreamingHttpClient
 
   let httpConfig : HC.Configuration = { HC.defaultConfig with timeoutInMs = 5000 }
 
@@ -457,11 +458,11 @@ module StreamingCallbackTests =
   /// Collect all StreamChunks, always continuing
   let collectStreamChunks
     (url : string)
-    : Task<HC.StreamingResult * ResizeArray<HC.StreamChunk.StreamChunk>> =
+    : Task<SHC.StreamingResult * ResizeArray<SHC.StreamChunk.StreamChunk>> =
     task {
       let chunks = ResizeArray()
       let! result =
-        HC.makeStreamingRequest httpConfig httpClient (getRequest url) (fun chunk ->
+        SHC.makeStreamingRequest httpConfig httpClient (getRequest url) (fun chunk ->
           task {
             chunks.Add(chunk)
             return true
@@ -472,11 +473,11 @@ module StreamingCallbackTests =
   /// Collect all SSEChunks, always continuing
   let collectSSEChunks
     (url : string)
-    : Task<HC.StreamingResult * ResizeArray<HC.SSEChunk.SSEChunk>> =
+    : Task<SHC.StreamingResult * ResizeArray<SHC.SSEChunk.SSEChunk>> =
     task {
       let chunks = ResizeArray()
       let! result =
-        HC.makeSSERequest httpConfig httpClient (getRequest url) (fun chunk ->
+        SHC.makeSSERequest httpConfig httpClient (getRequest url) (fun chunk ->
           task {
             chunks.Add(chunk)
             return true
@@ -485,27 +486,27 @@ module StreamingCallbackTests =
     }
 
   /// Extract SSEEvent values from a list of SSEChunks
-  let sseEvents (chunks : ResizeArray<HC.SSEChunk.SSEChunk>) : HC.SSEEvent list =
+  let sseEvents (chunks : ResizeArray<SHC.SSEChunk.SSEChunk>) : SHC.SSEEvent list =
     chunks
     |> Seq.choose (function
-      | HC.SSEChunk.Event evt -> Some evt
+      | SHC.SSEChunk.Event evt -> Some evt
       | _ -> None)
     |> Seq.toList
 
-  let expectOk (result : HC.StreamingResult) : unit =
+  let expectOk (result : SHC.StreamingResult) : unit =
     match result with
     | Ok _ -> ()
     | Error e -> failtest $"expected Ok, got Error: {e}"
 
   let expectLastChunkIsStreamDone
-    (chunks : ResizeArray<HC.StreamChunk.StreamChunk>)
+    (chunks : ResizeArray<SHC.StreamChunk.StreamChunk>)
     =
     Expect.isGreaterThan chunks.Count 0 "expected at least one chunk"
-    Expect.equal (Seq.last chunks) HC.StreamChunk.Done "last chunk is Done"
+    Expect.equal (Seq.last chunks) SHC.StreamChunk.Done "last chunk is Done"
 
-  let expectLastChunkIsSSEDone (chunks : ResizeArray<HC.SSEChunk.SSEChunk>) =
+  let expectLastChunkIsSSEDone (chunks : ResizeArray<SHC.SSEChunk.SSEChunk>) =
     Expect.isGreaterThan chunks.Count 0 "expected at least one chunk"
-    Expect.equal (Seq.last chunks) HC.SSEChunk.Done "last chunk is Done"
+    Expect.equal (Seq.last chunks) SHC.SSEChunk.Done "last chunk is Done"
 
 
   // --- Raw streaming tests ---
@@ -521,7 +522,7 @@ module StreamingCallbackTests =
           let allBytes =
             chunks
             |> Seq.choose (function
-              | HC.StreamChunk.Data bytes -> Some bytes
+              | SHC.StreamChunk.Data bytes -> Some bytes
               | _ -> None)
             |> Seq.collect Array.toSeq
             |> Seq.toArray
@@ -531,11 +532,11 @@ module StreamingCallbackTests =
 
         testTask "Done is delivered even with empty body" {
           let url = registerTestCase "stream-unit-done" 200 "text/plain" ""
-          let! (result, chunks : ResizeArray<HC.StreamChunk.StreamChunk>) =
+          let! (result, chunks : ResizeArray<SHC.StreamChunk.StreamChunk>) =
             collectStreamChunks url
           expectOk result
           Expect.equal chunks.Count 1 "only Done chunk for empty body"
-          Expect.equal chunks[0] HC.StreamChunk.Done "the single chunk is Done"
+          Expect.equal chunks[0] SHC.StreamChunk.Done "the single chunk is Done"
         }
 
         testTask "early stop prevents further Data chunks" {
@@ -544,7 +545,7 @@ module StreamingCallbackTests =
             registerTestCase "stream-unit-early-stop" 200 "text/plain" largeBody
           let chunks = ResizeArray()
           let! result =
-            HC.makeStreamingRequest
+            SHC.makeStreamingRequest
               httpConfig
               httpClient
               (getRequest url)
@@ -552,7 +553,7 @@ module StreamingCallbackTests =
                 task {
                   chunks.Add(chunk)
                   match chunk with
-                  | HC.StreamChunk.Data _ -> return false
+                  | SHC.StreamChunk.Data _ -> return false
                   | _ -> return true
                 })
           expectOk result
@@ -560,7 +561,7 @@ module StreamingCallbackTests =
           let dataCount =
             chunks
             |> Seq.filter (function
-              | HC.StreamChunk.Data _ -> true
+              | SHC.StreamChunk.Data _ -> true
               | _ -> false)
             |> Seq.length
           Expect.equal dataCount 1 "only one Data chunk after early stop"
@@ -626,11 +627,11 @@ module StreamingCallbackTests =
             registerTestCase "sse-unit-early-stop" 200 "text/event-stream" body
           let chunks = ResizeArray()
           let! result =
-            HC.makeSSERequest httpConfig httpClient (getRequest url) (fun chunk ->
+            SHC.makeSSERequest httpConfig httpClient (getRequest url) (fun chunk ->
               task {
                 chunks.Add(chunk)
                 match chunk with
-                | HC.SSEChunk.Event _ -> return false
+                | SHC.SSEChunk.Event _ -> return false
                 | _ -> return true
               })
           expectOk result
@@ -638,7 +639,7 @@ module StreamingCallbackTests =
           let eventCount =
             chunks
             |> Seq.filter (function
-              | HC.SSEChunk.Event _ -> true
+              | SHC.SSEChunk.Event _ -> true
               | _ -> false)
             |> Seq.length
           Expect.equal eventCount 1 "only one event after early stop"
