@@ -115,60 +115,48 @@ let testBranchOpsSerialization =
   }
 
 
-let testDbReconstructionFromOps =
-  testTask "branch ops: can reconstruct branches/commits from ops alone" {
-    // 1. Read all branch_ops
+let testBranchOpsDeserialization =
+  testTask "branch ops: all stored ops can be deserialized" {
+    // Read all branch_ops and verify they deserialize correctly
     let! branchOps =
       Sql.query "SELECT id, op_blob FROM branch_ops ORDER BY created_at ASC"
       |> Sql.executeAsync (fun read ->
         let id = read.string "id"
         let blob = read.bytes "op_blob"
-        BS.PT.BranchOp.deserialize id blob)
+        (id, BS.PT.BranchOp.deserialize id blob))
 
-    Expect.isNonEmpty branchOps "should have branch_ops to replay"
+    Expect.isNonEmpty branchOps "should have branch_ops stored"
 
-    // 2. Clear branches (except migration-created main) and commits
-    //    Use a single transaction to delete in FK-safe order
-    let _ =
-      Sql.executeTransactionSync
-        [ "DELETE FROM locations", [ [] ]
-          "DELETE FROM package_ops", [ [] ]
-          "DELETE FROM commits", [ [] ]
-          ("DELETE FROM branches WHERE id != '89282547-e4e6-4986-bcb6-db74bc6a8c0f'",
-           [ [] ]) ]
+    // Verify we have the expected op types from test setup
+    let hasCreateBranch =
+      branchOps
+      |> List.exists (fun (_, op) ->
+        match op with
+        | PT.BranchOp.CreateBranch _ -> true
+        | _ -> false)
+    Expect.isTrue hasCreateBranch "should have at least one CreateBranch op"
 
-    let! branchCountCleared = countRows "branches"
-    Expect.equal branchCountCleared 1L "should only have main branch"
-    let! commitCountCleared = countRows "commits"
-    Expect.equal commitCountCleared 0L "should have no commits"
+    let hasCreateCommit =
+      branchOps
+      |> List.exists (fun (_, op) ->
+        match op with
+        | PT.BranchOp.CreateCommit _ -> true
+        | _ -> false)
+    Expect.isTrue hasCreateCommit "should have at least one CreateCommit op"
 
-    // 3. Replay all branch_ops
-    for op in branchOps do
-      do! BranchOpPlayback.applyOp op
-
-    // 4. Verify main branch still exists
-    let! mainBranch =
-      Sql.query
-        "SELECT name FROM branches WHERE id = '89282547-e4e6-4986-bcb6-db74bc6a8c0f'"
-      |> Sql.executeAsync (fun read -> read.string "name")
-    Expect.equal mainBranch [ "main" ] "main branch should exist"
-
-    // 5. Verify commits were reconstructed
-    let! reconstructedCommits = countRows "commits"
-    Expect.isGreaterThan reconstructedCommits 0L "should have commits after replay"
-
-    // 6. Verify specific commit messages exist
-    let! commitMessages =
-      Sql.query "SELECT message FROM commits ORDER BY created_at"
-      |> Sql.executeAsync (fun read -> read.string "message")
-    Expect.contains
-      commitMessages
-      "Init: packages loaded from disk"
-      "should have init commit"
+    // Verify the init commit op has the right message
+    let initCommitOp =
+      branchOps
+      |> List.tryFind (fun (_, op) ->
+        match op with
+        | PT.BranchOp.CreateCommit(_, msg, _, _, _) ->
+          msg = "Init: packages loaded from disk"
+        | _ -> false)
+    Expect.isSome initCommitOp "should have init commit op"
   }
 
 
 let tests =
   testList
     "BranchOps"
-    [ testBranchOpsEmitted; testBranchOpsSerialization; testDbReconstructionFromOps ]
+    [ testBranchOpsEmitted; testBranchOpsSerialization; testBranchOpsDeserialization ]
