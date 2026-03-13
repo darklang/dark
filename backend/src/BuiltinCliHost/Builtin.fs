@@ -12,4 +12,6 @@ let fnRenames : Builtin.FnRenames =
   []
 
 let builtins () =
-  Builtin.combine [ Libs.Cli.builtins (); Libs.Canvas.builtins () ] fnRenames
+  Builtin.combine
+    [ Libs.Cli.builtins (); Libs.Canvas.builtins (); Libs.Traces.builtins () ]
+    fnRenames

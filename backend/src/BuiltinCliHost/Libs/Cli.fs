@@ -14,6 +14,7 @@ module PT = LibExecution.ProgramTypes
 module RT = LibExecution.RuntimeTypes
 module NR = LibExecution.RuntimeTypes.NameResolution
 module VT = LibExecution.ValueType
+module AT = LibExecution.AnalysisTypes
 module Dval = LibExecution.Dval
 module PT2RT = LibExecution.ProgramTypesToRuntimeTypes
 module RT2DT = LibExecution.RuntimeTypesToDarkTypes
@@ -25,6 +26,7 @@ module C2DT = LibExecution.CommonToDarkTypes
 module D = LibExecution.DvalDecoder
 module Utils = BuiltinCliHost.Utils
 module Canvas = LibCloud.Canvas
+module Tracing = LibCloud.Tracing
 
 
 // Load canvas ID and DBs for an account
@@ -43,6 +45,17 @@ let loadCanvasAndDBs
         return (Some canvasID, program.dbs)
       | [] -> return (None, Map.empty)
   }
+
+
+type CliTraceSource =
+  | RunScript of filename : string * code : string
+  | EvalExpression of expression : string
+
+module CliTraceSource =
+  let toTraceParams (source : CliTraceSource) =
+    match source with
+    | RunScript(filename, code) -> ($"run {filename}", "code", RT.DString code)
+    | EvalExpression expr -> ("eval", "expression", RT.DString expr)
 
 
 // Create exception error from exn
@@ -129,10 +142,13 @@ let execute
   (_args : List<Dval>) // CLEANUP update to List<String>, and extract in builtin
   (canvasID : Option<CanvasID>)
   (dbs : Map<string, RT.DB.T>)
+  (traceSource : CliTraceSource)
   : Ply<RT.ExecutionResult> =
   uply {
+    let resolvedCanvasID = canvasID |> Option.defaultValue (System.Guid.NewGuid())
+
     let (program : Program) =
-      { canvasID = canvasID |> Option.defaultValue (System.Guid.NewGuid())
+      { canvasID = resolvedCanvasID
         internalFnsAllowed = false
         secrets = []
         dbs = dbs }
@@ -159,13 +175,16 @@ let execute
     // (no need for RT.PM.withExtras to exist, I think)
     let pm = pmRT |> PackageManager.withExtras types values fns
 
-    let tracing = Exe.noTracing
+    let (traceDesc, inputName, inputValue) = CliTraceSource.toTraceParams traceSource
+    let traceID = AT.TraceID.create ()
+    let tracer =
+      Tracing.createCliTracer resolvedCanvasID traceID traceDesc inputName inputValue
 
     let state =
       Exe.createState
         builtins
         pm
-        tracing
+        tracer.executionTracing
         parentState.reportException
         parentState.notify
         branchId
@@ -181,7 +200,10 @@ let execute
       let exprInsrts = exprs |> List.map (PT2RT.Expr.toRT Map.empty 0 None)
       let results = exprInsrts |> List.map (Exe.executeExpr state)
       match List.tryLast results with
-      | Some lastResult -> return! lastResult
+      | Some lastResult ->
+        let! result = lastResult
+        tracer.storeTraceResults ()
+        return result
       | None ->
         return
           Exception.raiseInternal
@@ -243,7 +265,16 @@ let fns () : List<BuiltInFn> =
 
               match parsedScript with
               | Ok mod' ->
-                match! execute exeState branchId mod' scriptArgs canvasID dbs with
+                match!
+                  execute
+                    exeState
+                    branchId
+                    mod'
+                    scriptArgs
+                    canvasID
+                    dbs
+                    (RunScript(filename, code))
+                with
                 | Ok(DInt64 i) -> return resultOk (DInt64 i)
                 | Ok result ->
                   return
@@ -296,7 +327,16 @@ let fns () : List<BuiltInFn> =
 
               match parsedScript with
               | Ok mod' ->
-                match! execute exeState branchId mod' [] canvasID dbs with
+                match!
+                  execute
+                    exeState
+                    branchId
+                    mod'
+                    []
+                    canvasID
+                    dbs
+                    (EvalExpression expression)
+                with
                 | Ok result ->
                   match result with
                   | DString s -> return resultOk (DString s)
