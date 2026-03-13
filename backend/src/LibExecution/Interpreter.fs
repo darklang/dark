@@ -138,6 +138,9 @@ let execute (exeState : ExecutionState) (vm : VMState) : Ply<Dval> =
   uply {
     let raiseRTE rte = raiseRTE vm.threadID rte
 
+    // Track args for package fn calls so we can trace them at frame return
+    let pendingCallArgs = System.Collections.Generic.Dictionary<uuid, Dval list>()
+
     let mutable finalResult : Dval option = None
 
     while Map.containsKey vm.currentFrameID vm.callFrames do
@@ -667,6 +670,16 @@ let execute (exeState : ExecutionState) (vm : VMState) : Ply<Dval> =
                         ()
                       | Error rte -> raiseRTE rte
 
+                      // Trace builtin function call
+                      let source : Tracing.Source =
+                        (currentFrame.executionPoint, None)
+                      let fnRecord : Tracing.FunctionRecord =
+                        (source, FQFnName.Builtin fn.name)
+                      exeState.tracing.storeFnResult
+                        fnRecord
+                        (NEList.ofListUnsafe "" [] allArgs)
+                        result
+
                       return result
                   }
 
@@ -723,8 +736,11 @@ let execute (exeState : ExecutionState) (vm : VMState) : Ply<Dval> =
                   // can resolve type variables passed in the call
                   let frameTst =
                     Map.mergeFavoringRight currentFrame.typeSymbolTable newlyBound
+                  let newFrameId = guuid ()
+                  // Store args for tracing at frame return
+                  pendingCallArgs[newFrameId] <- allArgs
                   frameToPush <-
-                    { id = guuid ()
+                    { id = newFrameId
                       parent = Some(vm.currentFrameID, putResultIn, counter + 1)
                       programCounter = 0
                       registers =
@@ -819,6 +835,26 @@ let execute (exeState : ExecutionState) (vm : VMState) : Ply<Dval> =
           vm.currentFrameID <- parentID
 
           let parentFrame = Map.findUnsafe parentID vm.callFrames
+
+          // Trace package function call at frame return.
+          // Use the parent's executionPoint as the source so the tracer
+          // knows *who called* this function (Source = user code, Function = nested).
+          // Always clean up pendingCallArgs regardless of whether we trace.
+          match currentFrame.executionPoint with
+          | Function fnName ->
+            match pendingCallArgs.TryGetValue(currentFrame.id) with
+            | true, args ->
+              pendingCallArgs.Remove(currentFrame.id) |> ignore<bool>
+              let source : Tracing.Source = (parentFrame.executionPoint, None)
+              let fnRecord : Tracing.FunctionRecord = (source, fnName)
+              exeState.tracing.storeFnResult
+                fnRecord
+                (NEList.ofListUnsafe "" [] args)
+                resultOfFrame
+            | _ -> ()
+          | _ ->
+            // Lambda or Source frame — just clean up if anything was stashed
+            pendingCallArgs.Remove(currentFrame.id) |> ignore<bool>
           parentFrame.registers[regOfParentToPutResultInto] <- resultOfFrame
           parentFrame.programCounter <- pcOfParent
 

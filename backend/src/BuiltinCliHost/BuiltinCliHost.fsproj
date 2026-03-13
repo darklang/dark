@@ -11,6 +11,7 @@
     <None Include="paket.references" />
     <Compile Include="Utils.fs" />
     <Compile Include="Libs/Canvas.fs" />
+    <Compile Include="Libs/Traces.fs" />
     <Compile Include="Libs/Cli.fs" />
     <Compile Include="Builtin.fs" />
   </ItemGroup>
