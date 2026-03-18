@@ -1,0 +1,219 @@
+/// Traces command - list and view execution traces
+module Darklang.Cli.Commands.Traces
+
+
+type InputVar =
+  { name: String
+    value: LanguageTools.RuntimeTypes.Dval }
+
+type FnCall =
+  { fnName: String
+    args: List<LanguageTools.RuntimeTypes.Dval>
+    result: LanguageTools.RuntimeTypes.Dval }
+
+type TraceData =
+  { traceId: String
+    handler: String
+    timestamp: String
+    inputs: List<InputVar>
+    functionCalls: List<FnCall> }
+
+
+let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
+  match args with
+  | [] ->
+    help state
+    state
+
+  | [ "list" ] -> executeList state 20L
+  | [ "list"; limitStr ] ->
+    match Stdlib.Int64.parse limitStr with
+    | Ok limit -> executeList state limit
+    | Error _ ->
+      Stdlib.printLine (Colors.error $"Invalid limit: {limitStr}")
+      state
+
+  | [ "list"; "--fn"; fnName ] ->
+    executeListByFn state fnName 20L
+  | [ "list"; "--fn"; fnName; limitStr ] ->
+    match Stdlib.Int64.parse limitStr with
+    | Ok limit -> executeListByFn state fnName limit
+    | Error _ ->
+      Stdlib.printLine (Colors.error $"Invalid limit: {limitStr}")
+      state
+
+  | [ "view"; traceID ] ->
+    executeView state traceID
+
+  | [ "replay"; traceID ] ->
+    executeReplay state traceID
+
+  | [ "clear" ] ->
+    executeClear state
+
+  | _ ->
+    help state
+    state
+
+
+let executeList (state: Cli.AppState) (limit: Int64) : Cli.AppState =
+  let rows = Builtin.cliTracesList limit
+
+  match rows with
+  | [] ->
+    Stdlib.printLine "No traces found."
+    state
+  | _ ->
+    Stdlib.printLine $"Recent traces (last {Stdlib.Int64.toString limit}):"
+    Stdlib.printLine ""
+    printTraceRows rows
+    Stdlib.printLine ""
+    Stdlib.printLine "Use 'traces view <trace-id>' to see details."
+    state
+
+
+let executeListByFn (state: Cli.AppState) (fnName: String) (limit: Int64) : Cli.AppState =
+  let rows = Builtin.cliTracesListByFn fnName limit
+
+  match rows with
+  | [] ->
+    Stdlib.printLine $"No traces found calling '{fnName}'."
+    state
+  | _ ->
+    Stdlib.printLine $"Traces calling '{fnName}' (last {Stdlib.Int64.toString limit}):"
+    Stdlib.printLine ""
+    printTraceRows rows
+    Stdlib.printLine ""
+    Stdlib.printLine "Use 'traces view <trace-id>' to see details."
+    state
+
+
+let printTraceRows (rows: List<List<String>>) : Unit =
+  Stdlib.List.iter rows (fun row ->
+    match row with
+    | [ traceId; handlerDesc; timestamp ] ->
+      Stdlib.printLine $"  {timestamp}  {traceId}  {handlerDesc}"
+    | _ ->
+      Stdlib.printLine "  (malformed trace row)")
+
+
+let formatInputs (branchId: Uuid) (inputs: List<InputVar>) : String =
+  match inputs with
+  | [] -> "  (none)"
+  | _ ->
+    inputs
+    |> Stdlib.List.map (fun input ->
+      let repr = PrettyPrinter.RuntimeTypes.dval branchId input.value
+      $"  {input.name} = {repr}")
+    |> Stdlib.String.join "\n"
+
+
+let formatFnCalls (branchId: Uuid) (fnCalls: List<FnCall>) : String =
+  match fnCalls with
+  | [] -> "  (none)"
+  | _ ->
+    fnCalls
+    |> Stdlib.List.map (fun call ->
+      let resultRepr = PrettyPrinter.RuntimeTypes.dval branchId call.result
+
+      match call.args with
+      | [] -> $"  {call.fnName} → {resultRepr}"
+      | _ ->
+        let argsRepr =
+          call.args
+          |> Stdlib.List.map (fun arg ->
+            PrettyPrinter.RuntimeTypes.dval branchId arg)
+          |> Stdlib.String.join ", "
+        $"  {call.fnName}({argsRepr}) → {resultRepr}")
+    |> Stdlib.String.join "\n"
+
+
+let executeView (state: Cli.AppState) (traceID: String) : Cli.AppState =
+  let result = Builtin.cliTracesView traceID
+
+  match result with
+  | None ->
+    Stdlib.printLine (Colors.error $"Trace not found: {traceID}")
+    state
+  | Some trace ->
+    let input = formatInputs state.currentBranchId trace.inputs
+    let fnCalls = formatFnCalls state.currentBranchId trace.functionCalls
+    [ $"Trace: {trace.traceId}"
+      $"Handler: {trace.handler}"
+      $"Time: {trace.timestamp}"
+      ""
+      "Input:"
+      input
+      ""
+      "Function calls:"
+      fnCalls ]
+    |> Stdlib.printLines
+    state
+
+
+let executeReplay (state: Cli.AppState) (traceID: String) : Cli.AppState =
+  let input = Builtin.cliTracesGetInput traceID
+
+  match input with
+  | None ->
+    Stdlib.printLine (Colors.error $"Trace not found or has no replayable input: {traceID}")
+    state
+  | Some code ->
+    Stdlib.printLine $"Replaying trace {traceID}..."
+    Stdlib.printLine ""
+    let result = Builtin.cliEvaluateExpression state.accountID state.currentBranchId code
+    match result with
+    | Ok output ->
+      Stdlib.printLine output
+      Stdlib.printLine ""
+      Stdlib.printLine "Replay complete. A new trace was created for this execution."
+      state
+    | Error err ->
+      Stdlib.printLine (Colors.error $"Replay failed: {Cli.ExecutionError.toString err}")
+      state
+
+
+let executeClear (state: Cli.AppState) : Cli.AppState =
+  let count = Builtin.cliTracesClear ()
+  match count with
+  | 0L ->
+    Stdlib.printLine "No traces to clear."
+    state
+  | _ ->
+    Stdlib.printLine $"Cleared {Stdlib.Int64.toString count} trace(s)."
+    state
+
+
+let complete (_state: Cli.AppState) (args: List<String>) : List<Completion.CompletionItem> =
+  match args with
+  | [] ->
+    [ Completion.simple "list"
+      Completion.simple "view"
+      Completion.simple "replay"
+      Completion.simple "clear" ]
+  | [ "list" ] ->
+    [ Completion.simple "--fn" ]
+  | _ -> []
+
+
+let help (_state: Cli.AppState) : Unit =
+  [ "Usage: traces <subcommand>"
+    ""
+    "Subcommands:"
+    "  list [limit]              List recent traces (default limit: 20)"
+    "  list --fn <name> [limit]  List traces that called a specific function"
+    "  view <trace-id>           View details of a specific trace"
+    "  replay <trace-id>         Re-execute a trace's code with current definitions"
+    "  clear                     Delete all stored traces"
+    ""
+    "Traces are recorded when code executes via eval, run, or HTTP handlers."
+    "Each trace captures inputs, function calls with arguments, and results."
+    ""
+    "Examples:"
+    "  traces list                          - Show last 20 traces"
+    "  traces list 50                       - Show last 50 traces"
+    "  traces list --fn List.map            - Find traces that called List.map"
+    "  traces view <trace-id>               - View trace details with args"
+    "  traces replay <trace-id>             - Re-run with current code"
+    "  traces clear                         - Delete all traces" ]
+  |> Stdlib.printLines

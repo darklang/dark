@@ -331,6 +331,12 @@ module Type =
     let executionError = p [ "Cli"; "ExecutionError" ] "ExecutionError"
     let script = p [ "Cli"; "Scripts" ] "Script"
 
+    module Commands =
+      module Traces =
+        let inputVar = p [ "Cli"; "Commands"; "Traces" ] "InputVar"
+        let fnCall = p [ "Cli"; "Commands"; "Traces" ] "FnCall"
+        let traceData = p [ "Cli"; "Commands"; "Traces" ] "TraceData"
+
   module DarkPackages =
     let stats = p [ "DarkPackages" ] "Stats"
 
