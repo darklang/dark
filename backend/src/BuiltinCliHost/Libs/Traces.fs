@@ -10,106 +10,74 @@ open Fumble
 open LibDB.Db
 
 module Dval = LibExecution.Dval
-module VT = LibExecution.ValueType
-module Exe = LibExecution.Execution
 module DvalReprInternalRoundtrippable = LibExecution.DvalReprInternalRoundtrippable
+module RT2DT = LibExecution.RuntimeTypesToDarkTypes
+module TracesRefs = LibExecution.PackageRefs.Type.Cli.Commands.Traces
+
+let dvalTypeName () =
+  FQTypeName.fqPackage (
+    LibExecution.PackageRefs.Type.LanguageTools.RuntimeTypes.dval ()
+  )
+let inputVarTypeName () = FQTypeName.fqPackage (TracesRefs.inputVar ())
+let fnCallTypeName () = FQTypeName.fqPackage (TracesRefs.fnCall ())
+let traceDataTypeName () = FQTypeName.fqPackage (TracesRefs.traceData ())
 
 
-/// Parse the stored input_data JSON and format each input var with dvalToRepr
-let formatInputData
-  (exeState : ExecutionState)
-  (inputDataJson : string)
-  : Ply<string> =
-  uply {
-    try
-      use doc = JsonDocument.Parse(inputDataJson)
-      let items = doc.RootElement.EnumerateArray() |> Seq.toList
-
-      let! parts =
-        items
-        |> Ply.List.mapSequentially (fun item ->
-          uply {
-            let name = item.GetProperty("name").GetString()
-            let valueJson = item.GetProperty("value").GetRawText()
-            try
-              let dval = DvalReprInternalRoundtrippable.parseJsonV0 valueJson
-              let! repr = Exe.dvalToRepr exeState dval
-              return $"  {name} = {repr}"
-            with ex ->
-              print $"[traces] Failed to format input {name}: {ex.Message}"
-              return $"  {name} = <unparseable>"
-          })
-
-      return parts |> String.concat "\n"
-    with ex ->
-      print $"[traces] Failed to parse input_data JSON: {ex.Message}"
-      return $"  {inputDataJson}"
-  }
+/// Parse the stored input_data JSON and return list of InputVar records
+let private parseInputData (inputDataJson : string) : Dval =
+  let typeName = inputVarTypeName ()
+  try
+    use doc = JsonDocument.Parse(inputDataJson)
+    doc.RootElement.EnumerateArray()
+    |> Seq.toList
+    |> List.map (fun item ->
+      let name = item.GetProperty("name").GetString()
+      let value =
+        item.GetProperty("value").GetRawText()
+        |> DvalReprInternalRoundtrippable.parseJsonV0
+        |> RT2DT.Dval.toDT
+      let fields = Map [ "name", DString name; "value", value ]
+      DRecord(typeName, typeName, [], fields))
+    |> Dval.list (KTCustomType(typeName, []))
+  with ex ->
+    print $"[traces] Failed to parse input_data JSON: {ex.Message}"
+    Dval.list (KTCustomType(typeName, [])) []
 
 
-/// Parse the stored function_results JSON and format each call with dvalToRepr
-let formatFnCalls
-  (exeState : ExecutionState)
-  (fnResultsJson : string)
-  : Ply<string> =
-  uply {
-    try
-      use doc = JsonDocument.Parse(fnResultsJson)
-      let items = doc.RootElement.EnumerateArray() |> Seq.toList
-
-      if items.IsEmpty then
-        return "  (none)"
-      else
-        let! parts =
-          items
-          |> Ply.List.mapSequentially (fun item ->
-            uply {
-              let fnName = item.GetProperty("fn").GetString()
-              let resultJson = item.GetProperty("result").GetRawText()
-              try
-                let resultDval =
-                  DvalReprInternalRoundtrippable.parseJsonV0 resultJson
-
-                // Format args if present
-                let! argsRepr =
-                  uply {
-                    match item.TryGetProperty("args") with
-                    | true, argsEl ->
-                      let! parts =
-                        argsEl.EnumerateArray()
-                        |> Seq.toList
-                        |> Ply.List.mapSequentially (fun argEl ->
-                          uply {
-                            try
-                              let argDval =
-                                DvalReprInternalRoundtrippable.parseJsonV0 (
-                                  argEl.GetRawText()
-                                )
-                              return! Exe.dvalToRepr exeState argDval
-                            with ex ->
-                              print
-                                $"[traces] Failed to format arg for {fnName}: {ex.Message}"
-                              return "<unparseable>"
-                          })
-                      return parts |> String.concat ", "
-                    | _ -> return ""
-                  }
-
-                let! resultRepr = Exe.dvalToRepr exeState resultDval
-                if argsRepr = "" then
-                  return $"  {fnName} → {resultRepr}"
-                else
-                  return $"  {fnName}({argsRepr}) → {resultRepr}"
-              with ex ->
-                print $"[traces] Failed to format fn call {fnName}: {ex.Message}"
-                return $"  {fnName} → <unparseable>"
-            })
-
-        return parts |> String.concat "\n"
-    with ex ->
-      print $"[traces] Failed to parse function_results JSON: {ex.Message}"
-      return $"  {fnResultsJson}"
-  }
+/// Parse the stored function_results JSON and return list of FnCall records
+let private parseFnCalls (fnResultsJson : string) : Dval =
+  let typeName = fnCallTypeName ()
+  let dvalKT = KTCustomType(dvalTypeName (), [])
+  try
+    use doc = JsonDocument.Parse(fnResultsJson)
+    doc.RootElement.EnumerateArray()
+    |> Seq.toList
+    |> List.map (fun item ->
+      let fnName = item.GetProperty("fn").GetString()
+      let result =
+        item.GetProperty("result").GetRawText()
+        |> DvalReprInternalRoundtrippable.parseJsonV0
+        |> RT2DT.Dval.toDT
+      let args =
+        match item.TryGetProperty("args") with
+        | true, argsEl ->
+          argsEl.EnumerateArray()
+          |> Seq.toList
+          |> List.map (fun argEl ->
+            argEl.GetRawText()
+            |> DvalReprInternalRoundtrippable.parseJsonV0
+            |> RT2DT.Dval.toDT)
+        | _ -> []
+      let fields =
+        Map
+          [ "fnName", DString fnName
+            "args", Dval.list dvalKT args
+            "result", result ]
+      DRecord(typeName, typeName, [], fields))
+    |> Dval.list (KTCustomType(typeName, []))
+  with ex ->
+    print $"[traces] Failed to parse function_results JSON: {ex.Message}"
+    Dval.list (KTCustomType(typeName, [])) []
 
 
 let fns () : List<BuiltInFn> =
@@ -149,11 +117,12 @@ let fns () : List<BuiltInFn> =
     { name = fn "cliTracesView" 0
       typeParams = []
       parameters = [ Param.make "traceID" TString "The trace ID to view" ]
-      returnType = TypeReference.option (TDict TString)
-      description = "View trace details by trace ID, with pretty-printed values"
+      returnType = TypeReference.option (TVariable "a")
+      description =
+        "View trace details by trace ID. Returns a TraceData record with structured inputs and function calls."
       fn =
         (function
-        | exeState, _, _, [ DString traceID ] ->
+        | _, _, _, [ DString traceID ] ->
           uply {
             let! row =
               Sql.query
@@ -168,21 +137,20 @@ let fns () : List<BuiltInFn> =
                  read.string "input_data",
                  read.string "function_results"))
 
+            let typeName = traceDataTypeName ()
             match row with
-            | None -> return Dval.optionNone (KTDict(ValueType.Known KTString))
             | Some(traceId, handlerDesc, timestamp, inputDataJson, fnResultsJson) ->
-              let! inputFormatted = formatInputData exeState inputDataJson
-              let! fnCallsFormatted = formatFnCalls exeState fnResultsJson
-
+              let fields =
+                Map
+                  [ "traceId", DString traceId
+                    "handler", DString handlerDesc
+                    "timestamp", DString timestamp
+                    "inputs", parseInputData inputDataJson
+                    "functionCalls", parseFnCalls fnResultsJson ]
               return
-                [ "traceId", DString traceId
-                  "handler", DString handlerDesc
-                  "timestamp", DString timestamp
-                  "input", DString inputFormatted
-                  "functionCalls", DString fnCallsFormatted ]
-                |> Map.ofList
-                |> fun m -> DDict(ValueType.Known KTString, m)
-                |> Dval.optionSome (KTDict(ValueType.Known KTString))
+                DRecord(typeName, typeName, [], fields)
+                |> Dval.optionSome (KTCustomType(typeName, []))
+            | None -> return Dval.optionNone (KTCustomType(typeName, []))
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable

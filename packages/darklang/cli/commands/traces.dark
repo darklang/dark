@@ -2,6 +2,23 @@
 module Darklang.Cli.Commands.Traces
 
 
+type InputVar =
+  { name: String
+    value: LanguageTools.RuntimeTypes.Dval }
+
+type FnCall =
+  { fnName: String
+    args: List<LanguageTools.RuntimeTypes.Dval>
+    result: LanguageTools.RuntimeTypes.Dval }
+
+type TraceData =
+  { traceId: String
+    handler: String
+    timestamp: String
+    inputs: List<InputVar>
+    functionCalls: List<FnCall> }
+
+
 let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
   match args with
   | [] ->
@@ -80,6 +97,37 @@ let printTraceRows (rows: List<List<String>>) : Unit =
       Stdlib.printLine "  (malformed trace row)")
 
 
+let formatInputs (branchId: Uuid) (inputs: List<InputVar>) : String =
+  match inputs with
+  | [] -> "  (none)"
+  | _ ->
+    inputs
+    |> Stdlib.List.map (fun input ->
+      let repr = PrettyPrinter.RuntimeTypes.dval branchId input.value
+      $"  {input.name} = {repr}")
+    |> Stdlib.String.join "\n"
+
+
+let formatFnCalls (branchId: Uuid) (fnCalls: List<FnCall>) : String =
+  match fnCalls with
+  | [] -> "  (none)"
+  | _ ->
+    fnCalls
+    |> Stdlib.List.map (fun call ->
+      let resultRepr = PrettyPrinter.RuntimeTypes.dval branchId call.result
+
+      match call.args with
+      | [] -> $"  {call.fnName} → {resultRepr}"
+      | _ ->
+        let argsRepr =
+          call.args
+          |> Stdlib.List.map (fun arg ->
+            PrettyPrinter.RuntimeTypes.dval branchId arg)
+          |> Stdlib.String.join ", "
+        $"  {call.fnName}({argsRepr}) → {resultRepr}")
+    |> Stdlib.String.join "\n"
+
+
 let executeView (state: Cli.AppState) (traceID: String) : Cli.AppState =
   let result = Builtin.cliTracesView traceID
 
@@ -88,20 +136,17 @@ let executeView (state: Cli.AppState) (traceID: String) : Cli.AppState =
     Stdlib.printLine (Colors.error $"Trace not found: {traceID}")
     state
   | Some trace ->
-    let traceId = (Stdlib.Dict.get trace "traceId") |> Builtin.unwrap
-    let handler = (Stdlib.Dict.get trace "handler") |> Builtin.unwrap
-    let timestamp = (Stdlib.Dict.get trace "timestamp") |> Builtin.unwrap
-    let input = (Stdlib.Dict.get trace "input") |> Builtin.unwrap
-    let functionCalls = (Stdlib.Dict.get trace "functionCalls") |> Builtin.unwrap
-    [ $"Trace: {traceId}"
-      $"Handler: {handler}"
-      $"Time: {timestamp}"
+    let input = formatInputs state.currentBranchId trace.inputs
+    let fnCalls = formatFnCalls state.currentBranchId trace.functionCalls
+    [ $"Trace: {trace.traceId}"
+      $"Handler: {trace.handler}"
+      $"Time: {trace.timestamp}"
       ""
       "Input:"
       input
       ""
       "Function calls:"
-      functionCalls ]
+      fnCalls ]
     |> Stdlib.printLines
     state
 
