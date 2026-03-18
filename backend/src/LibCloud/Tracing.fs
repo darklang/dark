@@ -148,7 +148,7 @@ let fnNameToSimpleString (name : RT.FQFnName.FQFnName) : string =
 
 /// Stored function call record for trace data.
 /// We keep the raw FQFnName and resolve to a human-readable string at
-/// serialization time, avoiding synchronous DB lookups on the hot path.
+/// storage time, avoiding synchronous DB lookups on the hot path.
 type StoredFnCall =
   { fnName : RT.FQFnName.FQFnName
     argsHash : string
@@ -160,38 +160,12 @@ module TraceStorage =
   open LibDB.Db
   open System.Text.Json
 
-  let private serializeFnCalls (fnCalls : List<StoredFnCall>) : string =
+  let private serializeArgsList (argsJson : List<string>) : string =
     use stream = new System.IO.MemoryStream()
     use writer = new Utf8JsonWriter(stream)
     writer.WriteStartArray()
-    for fc in fnCalls do
-      writer.WriteStartObject()
-      writer.WriteString("fn", fnNameToSimpleString fc.fnName)
-      writer.WriteString("hash", fc.argsHash)
-      writer.WritePropertyName("args")
-      writer.WriteStartArray()
-      for argJson in fc.argsJson do
-        writer.WriteRawValue(argJson)
-      writer.WriteEndArray()
-      writer.WritePropertyName("result")
-      writer.WriteRawValue(fc.resultJson)
-      writer.WriteEndObject()
-    writer.WriteEndArray()
-    writer.Flush()
-    System.Text.Encoding.UTF8.GetString(stream.ToArray())
-
-  let private serializeInputData
-    (inputVarName : string)
-    (inputJson : string)
-    : string =
-    use stream = new System.IO.MemoryStream()
-    use writer = new Utf8JsonWriter(stream)
-    writer.WriteStartArray()
-    writer.WriteStartObject()
-    writer.WriteString("name", inputVarName)
-    writer.WritePropertyName("value")
-    writer.WriteRawValue(inputJson)
-    writer.WriteEndObject()
+    for argJson in argsJson do
+      writer.WriteRawValue(argJson)
     writer.WriteEndArray()
     writer.Flush()
     System.Text.Encoding.UTF8.GetString(stream.ToArray())
@@ -205,24 +179,51 @@ module TraceStorage =
     (inputJson : string)
     (fnCalls : List<StoredFnCall>)
     : unit =
-    let fnCallsJson = serializeFnCalls fnCalls
-    let inputDataJson = serializeInputData inputVarName inputJson
+    let traceIdStr = string traceID
     let timestamp = NodaTime.Instant.now().ToString()
 
-    Sql.query
-      "INSERT OR REPLACE INTO traces_v0
-        (id, trace_id, canvas_id, root_tlid, callgraph_tlids, handler_desc, input_data, function_results, timestamp)
-       VALUES
-        (@id, @id, @canvasId, @rootTlid, '', @handlerDesc, @inputData, @fnResults, @timestamp)"
-    |> Sql.parameters
-      [ "id", Sql.string (string traceID)
-        "canvasId", Sql.string (string canvasID)
-        "rootTlid", Sql.int64 (int64 rootTLID)
-        "handlerDesc", Sql.string handlerDesc
-        "inputData", Sql.string inputDataJson
-        "fnResults", Sql.string fnCallsJson
-        "timestamp", Sql.string timestamp ]
-    |> Sql.executeStatementSync
+    let statements =
+      [ // Main trace row
+        "INSERT OR REPLACE INTO traces_v0
+          (id, trace_id, canvas_id, root_tlid, callgraph_tlids, handler_desc, timestamp)
+         VALUES
+          (@id, @id, @canvasId, @rootTlid, '', @handlerDesc, @timestamp)",
+        [ [ "id", Sql.string traceIdStr
+            "canvasId", Sql.string (string canvasID)
+            "rootTlid", Sql.int64 (int64 rootTLID)
+            "handlerDesc", Sql.string handlerDesc
+            "timestamp", Sql.string timestamp ] ]
+
+        // Input
+        "INSERT INTO trace_inputs_v0 (trace_id, name, value_json)
+         VALUES (@traceId, @name, @valueJson)",
+        [ [ "traceId", Sql.string traceIdStr
+            "name", Sql.string inputVarName
+            "valueJson", Sql.string inputJson ] ]
+
+        // Function results (one param set per call)
+        "INSERT INTO trace_fn_results_v0 (trace_id, fn_name, args_hash, hash_version, result_json)
+         VALUES (@traceId, @fnName, @argsHash, @hashVersion, @resultJson)",
+        fnCalls
+        |> List.map (fun fc ->
+          [ "traceId", Sql.string traceIdStr
+            "fnName", Sql.string (fnNameToSimpleString fc.fnName)
+            "argsHash", Sql.string fc.argsHash
+            "hashVersion", Sql.int DvalReprInternalHash.currentHashVersion
+            "resultJson", Sql.string fc.resultJson ])
+
+        // Function arguments (one param set per call)
+        "INSERT INTO trace_fn_arguments_v0 (trace_id, fn_name, args_hash, args_json)
+         VALUES (@traceId, @fnName, @argsHash, @argsJson)",
+        fnCalls
+        |> List.map (fun fc ->
+          [ "traceId", Sql.string traceIdStr
+            "fnName", Sql.string (fnNameToSimpleString fc.fnName)
+            "argsHash", Sql.string fc.argsHash
+            "argsJson", Sql.string (serializeArgsList fc.argsJson) ]) ]
+
+    let _ = Sql.executeTransactionSync statements
+    ()
 
 
 /// Shared storeFnResult callback that only records top-level calls (from user code).

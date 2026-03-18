@@ -23,61 +23,69 @@ let fnCallTypeName () = FQTypeName.fqPackage (TracesRefs.fnCall ())
 let traceDataTypeName () = FQTypeName.fqPackage (TracesRefs.traceData ())
 
 
-/// Parse the stored input_data JSON and return list of InputVar records
-let private parseInputData (inputDataJson : string) : Dval =
+let private parseDvalJson (json : string) : Dval =
+  json |> DvalReprInternalRoundtrippable.parseJsonV0 |> RT2DT.Dval.toDT
+
+let private parseArgsJson (argsJson : string) : List<Dval> =
+  use doc = JsonDocument.Parse(argsJson)
+  doc.RootElement.EnumerateArray()
+  |> Seq.toList
+  |> List.map (fun el -> el.GetRawText() |> parseDvalJson)
+
+/// Load inputs for a trace from the trace_inputs_v0 table
+let private loadInputs (traceId : string) : Ply<Dval> =
   let typeName = inputVarTypeName ()
-  try
-    use doc = JsonDocument.Parse(inputDataJson)
-    doc.RootElement.EnumerateArray()
-    |> Seq.toList
-    |> List.map (fun item ->
-      let name = item.GetProperty("name").GetString()
-      let value =
-        item.GetProperty("value").GetRawText()
-        |> DvalReprInternalRoundtrippable.parseJsonV0
-        |> RT2DT.Dval.toDT
-      let fields = Map [ "name", DString name; "value", value ]
-      DRecord(typeName, typeName, [], fields))
-    |> Dval.list (KTCustomType(typeName, []))
-  with ex ->
-    print $"[traces] Failed to parse input_data JSON: {ex.Message}"
-    Dval.list (KTCustomType(typeName, [])) []
+  uply {
+    let! rows =
+      Sql.query
+        "SELECT name, value_json FROM trace_inputs_v0 WHERE trace_id = @traceId"
+      |> Sql.parameters [ "traceId", Sql.string traceId ]
+      |> Sql.executeAsync (fun read ->
+        (read.string "name", read.string "value_json"))
 
+    return
+      rows
+      |> List.map (fun (name, valueJson) ->
+        let fields = Map [ "name", DString name; "value", parseDvalJson valueJson ]
+        DRecord(typeName, typeName, [], fields))
+      |> Dval.list (KTCustomType(typeName, []))
+  }
 
-/// Parse the stored function_results JSON and return list of FnCall records
-let private parseFnCalls (fnResultsJson : string) : Dval =
+/// Load function calls for a trace by joining results and arguments tables
+let private loadFnCalls (traceId : string) : Ply<Dval> =
   let typeName = fnCallTypeName ()
   let dvalKT = KTCustomType(dvalTypeName (), [])
-  try
-    use doc = JsonDocument.Parse(fnResultsJson)
-    doc.RootElement.EnumerateArray()
-    |> Seq.toList
-    |> List.map (fun item ->
-      let fnName = item.GetProperty("fn").GetString()
-      let result =
-        item.GetProperty("result").GetRawText()
-        |> DvalReprInternalRoundtrippable.parseJsonV0
-        |> RT2DT.Dval.toDT
-      let args =
-        match item.TryGetProperty("args") with
-        | true, argsEl ->
-          argsEl.EnumerateArray()
-          |> Seq.toList
-          |> List.map (fun argEl ->
-            argEl.GetRawText()
-            |> DvalReprInternalRoundtrippable.parseJsonV0
-            |> RT2DT.Dval.toDT)
-        | _ -> []
-      let fields =
-        Map
-          [ "fnName", DString fnName
-            "args", Dval.list dvalKT args
-            "result", result ]
-      DRecord(typeName, typeName, [], fields))
-    |> Dval.list (KTCustomType(typeName, []))
-  with ex ->
-    print $"[traces] Failed to parse function_results JSON: {ex.Message}"
-    Dval.list (KTCustomType(typeName, [])) []
+  uply {
+    let! rows =
+      Sql.query
+        "SELECT r.fn_name, a.args_json, r.result_json
+         FROM trace_fn_results_v0 r
+         LEFT JOIN trace_fn_arguments_v0 a
+           ON r.trace_id = a.trace_id
+           AND r.fn_name = a.fn_name
+           AND r.args_hash = a.args_hash
+         WHERE r.trace_id = @traceId"
+      |> Sql.parameters [ "traceId", Sql.string traceId ]
+      |> Sql.executeAsync (fun read ->
+        (read.string "fn_name",
+         read.stringOrNone "args_json",
+         read.string "result_json"))
+
+    return
+      rows
+      |> List.map (fun (fnName, argsJson, resultJson) ->
+        let args =
+          match argsJson with
+          | Some json -> parseArgsJson json
+          | None -> []
+        let fields =
+          Map
+            [ "fnName", DString fnName
+              "args", Dval.list dvalKT args
+              "result", parseDvalJson resultJson ]
+        DRecord(typeName, typeName, [], fields))
+      |> Dval.list (KTCustomType(typeName, []))
+  }
 
 
 let fns () : List<BuiltInFn> =
@@ -126,27 +134,27 @@ let fns () : List<BuiltInFn> =
           uply {
             let! row =
               Sql.query
-                "SELECT trace_id, handler_desc, timestamp, input_data, function_results
+                "SELECT trace_id, handler_desc, timestamp
                  FROM traces_v0
                  WHERE trace_id = @traceId"
               |> Sql.parameters [ "traceId", Sql.string traceID ]
               |> Sql.executeRowOptionAsync (fun read ->
                 (read.string "trace_id",
                  read.string "handler_desc",
-                 read.string "timestamp",
-                 read.string "input_data",
-                 read.string "function_results"))
+                 read.string "timestamp"))
 
             let typeName = traceDataTypeName ()
             match row with
-            | Some(traceId, handlerDesc, timestamp, inputDataJson, fnResultsJson) ->
+            | Some(traceId, handlerDesc, timestamp) ->
+              let! inputs = loadInputs traceId
+              let! fnCalls = loadFnCalls traceId
               let fields =
                 Map
                   [ "traceId", DString traceId
                     "handler", DString handlerDesc
                     "timestamp", DString timestamp
-                    "inputs", parseInputData inputDataJson
-                    "functionCalls", parseFnCalls fnResultsJson ]
+                    "inputs", inputs
+                    "functionCalls", fnCalls ]
               return
                 DRecord(typeName, typeName, [], fields)
                 |> Dval.optionSome (KTCustomType(typeName, []))
@@ -172,10 +180,11 @@ let fns () : List<BuiltInFn> =
             let pattern = $"%%{fnName}%%"
             let! rows =
               Sql.query
-                "SELECT trace_id, handler_desc, timestamp
-                 FROM traces_v0
-                 WHERE function_results LIKE @pattern
-                 ORDER BY rowid DESC
+                "SELECT DISTINCT t.trace_id, t.handler_desc, t.timestamp
+                 FROM traces_v0 t
+                 JOIN trace_fn_results_v0 r ON t.trace_id = r.trace_id
+                 WHERE r.fn_name LIKE @pattern
+                 ORDER BY t.rowid DESC
                  LIMIT @limit"
               |> Sql.parameters
                 [ "pattern", Sql.string pattern; "limit", Sql.int64 limit ]
@@ -206,23 +215,19 @@ let fns () : List<BuiltInFn> =
         | _, _, _, [ DString traceID ] ->
           uply {
             let! row =
-              Sql.query "SELECT input_data FROM traces_v0 WHERE trace_id = @traceId"
+              Sql.query
+                "SELECT value_json FROM trace_inputs_v0
+                 WHERE trace_id = @traceId LIMIT 1"
               |> Sql.parameters [ "traceId", Sql.string traceID ]
-              |> Sql.executeRowOptionAsync (fun read -> read.string "input_data")
+              |> Sql.executeRowOptionAsync (fun read -> read.string "value_json")
 
             match row with
             | None -> return Dval.optionNone KTString
-            | Some inputDataJson ->
+            | Some valueJson ->
               try
-                use doc = JsonDocument.Parse(inputDataJson)
-                let items = doc.RootElement.EnumerateArray() |> Seq.toList
-                match items with
-                | item :: _ ->
-                  let valueJson = item.GetProperty("value").GetRawText()
-                  let dval = DvalReprInternalRoundtrippable.parseJsonV0 valueJson
-                  match dval with
-                  | DString code -> return Dval.optionSome KTString (DString code)
-                  | _ -> return Dval.optionNone KTString
+                let dval = DvalReprInternalRoundtrippable.parseJsonV0 valueJson
+                match dval with
+                | DString code -> return Dval.optionSome KTString (DString code)
                 | _ -> return Dval.optionNone KTString
               with ex ->
                 print $"[traces] Failed to parse input for replay: {ex.Message}"
@@ -246,6 +251,13 @@ let fns () : List<BuiltInFn> =
             let! count =
               Sql.query "SELECT COUNT(*) as c FROM traces_v0"
               |> Sql.executeRowAsync (fun read -> read.int64 "c")
+            do! Sql.query "DELETE FROM trace_inputs_v0" |> Sql.executeStatementAsync
+            do!
+              Sql.query "DELETE FROM trace_fn_results_v0"
+              |> Sql.executeStatementAsync
+            do!
+              Sql.query "DELETE FROM trace_fn_arguments_v0"
+              |> Sql.executeStatementAsync
             do! Sql.query "DELETE FROM traces_v0" |> Sql.executeStatementAsync
             return DInt64 count
           }
