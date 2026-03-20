@@ -1,0 +1,56 @@
+module Darklang.Cli.Apps.Review
+
+type PackageItem =
+  { name: String
+    kind: String
+    action: String
+    modulePath: String }
+
+type BranchReviewItem =
+  { branchId: Uuid
+    branchName: String
+    itemCount: Int64
+    modules: List<String> }
+
+type BranchListState =
+  { items: List<BranchReviewItem>
+    selected: Int64 }
+
+type DetailItem =
+  | ModuleHeader of String
+  | ItemEntry of PackageItem
+
+type DetailState =
+  { branchName: String
+    branchId: Uuid
+    flatItems: List<DetailItem>
+    selected: Int64 }
+
+type DiffState =
+  { itemName: String
+    diffLines: List<Stdlib.Diff.DiffLine>
+    scrollOffset: Int64
+    returnTo: DetailState }
+
+type Screen =
+  | BranchList of BranchListState
+  | Detail of DetailState
+  | DiffView of DiffState
+
+type AppModel =
+  { screen: Screen
+    branchId: Uuid
+    showAll: Bool }
+
+type KeyResult =
+  | Continue of AppModel
+  | Exit of AppModel
+
+// ── Navigation helpers ──
+
+let moveUp (selected: Int64) : Int64 =
+  if selected > 0L then selected - 1L else selected
+
+let moveDown (selected: Int64) (itemCount: Int64) : Int64 =
+  let maxIdx = itemCount - 1L
+  if selected < maxIdx then selected + 1L else selected
