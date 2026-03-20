@@ -19,7 +19,7 @@ open Builtin.Shortcuts
 open System.Runtime.InteropServices
 
 
-let executionOutcomeTypeName =
+let executionOutcomeTypeName () =
   FQTypeName.fqPackage (PackageRefs.Type.Stdlib.Cli.executionOutcome ())
 
 // Process management for interactive processes
@@ -77,7 +77,7 @@ let createExecutionOutcome
   (stdout : string)
   (stderr : string)
   : Dval =
-  let typeName = executionOutcomeTypeName
+  let typeName = executionOutcomeTypeName ()
   let fields =
     [ "exitCode", DInt64 exitCode
       "stdout", DString stdout
@@ -139,7 +139,7 @@ module OS =
     | OSX
     | Windows
 
-  let osTypeName = FQTypeName.fqPackage (PackageRefs.Type.Stdlib.Cli.OS.os ())
+  let osTypeName () = FQTypeName.fqPackage (PackageRefs.Type.Stdlib.Cli.OS.os ())
 
   let toDT (os : OS) : Dval =
     let (caseName, fields) =
@@ -148,14 +148,14 @@ module OS =
       | OSX -> "MacOS", []
       | Windows -> "Windows", []
 
-    DEnum(osTypeName, osTypeName, [], caseName, fields)
+    DEnum(osTypeName (), osTypeName (), [], caseName, fields)
 
 let fns () : List<BuiltInFn> =
   [ { name = fn "cliExecute" 0
       description = "Runs a process; return exitCode, stdout, and stderr"
       typeParams = []
       parameters = [ Param.make "command" TString "The command to execute" ]
-      returnType = TCustomType(NR.ok executionOutcomeTypeName, [])
+      returnType = TCustomType(NR.ok (executionOutcomeTypeName ()), [])
       fn =
         function
         | _, _, _, [ DString command ] ->
@@ -193,11 +193,11 @@ let fns () : List<BuiltInFn> =
       typeParams = []
       parameters = [ Param.make "unit" TUnit "" ]
       returnType =
-        TypeReference.result (TCustomType(NR.ok OS.osTypeName, [])) TString
+        TypeReference.result (TCustomType(NR.ok (OS.osTypeName ()), [])) TString
       fn =
         function
         | _, _, _, [ DUnit ] ->
-          let osTypeRef = KTCustomType(OS.osTypeName, [])
+          let osTypeRef = KTCustomType(OS.osTypeName (), [])
           let resultOk = Dval.resultOk osTypeRef KTString
           let resultError = Dval.resultError osTypeRef KTString
 

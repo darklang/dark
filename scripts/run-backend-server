@@ -77,6 +77,16 @@ done
 echo "Done waiting for builds to be ready"
 
 
+# If data.db is missing or empty, copy from seed.db
+DB_PATH="${DARK_CONFIG_RUNDIR}/${DARK_CONFIG_DB_NAME:-data.db}"
+SEED_PATH="${DARK_CONFIG_RUNDIR}/seed.db"
+if [[ ! -f "$DB_PATH" ]] || [[ $(stat -c%s "$DB_PATH" 2>/dev/null || echo 0) -lt 1000000 ]]; then
+  if [[ -f "$SEED_PATH" ]]; then
+    echo "Copying seed.db as data.db"
+    cp "$SEED_PATH" "$DB_PATH"
+  fi
+fi
+
 announce "Running migrations" "${MIGRATIONS_LOG}"
 "${LOCALEXEC_EXE}" migrations run > "${MIGRATIONS_LOG}" 2>&1
 

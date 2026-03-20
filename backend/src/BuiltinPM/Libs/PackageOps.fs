@@ -14,10 +14,10 @@ module NR = LibExecution.RuntimeTypes.NameResolution
 open Builtin.Shortcuts
 
 
-let packageOpTypeName =
+let packageOpTypeName () =
   FQTypeName.fqPackage (PackageRefs.Type.LanguageTools.ProgramTypes.packageOp ())
 
-let packageOpKT = KTCustomType(packageOpTypeName, [])
+let packageOpKT () = KTCustomType(packageOpTypeName (), [])
 
 
 // TODO: review/reconsider the accessibility of these fns
@@ -25,8 +25,8 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
   [ { name = fn "pmStabilizeHashes" 0
       typeParams = []
       parameters =
-        [ Param.make "ops" (TList(TCustomType(NR.ok packageOpTypeName, []))) "" ]
-      returnType = TList(TCustomType(NR.ok packageOpTypeName, []))
+        [ Param.make "ops" (TList(TCustomType(NR.ok (packageOpTypeName ()), []))) "" ]
+      returnType = TList(TCustomType(NR.ok (packageOpTypeName ()), []))
       description =
         "Compute real content-addressed hashes for package ops (SCC-aware)."
       fn =
@@ -37,7 +37,9 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
             let stabilized =
               LibPackageManager.HashStabilization.computeRealHashes ptOps
             return
-              Dval.list packageOpKT (stabilized |> List.map PT2DT.PackageOp.toDT)
+              Dval.list
+                (packageOpKT ())
+                (stabilized |> List.map PT2DT.PackageOp.toDT)
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
@@ -49,7 +51,7 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
       typeParams = []
       parameters =
         [ Param.make "branchId" TUuid "Branch to add ops to"
-          Param.make "ops" (TList(TCustomType(NR.ok packageOpTypeName, []))) "" ]
+          Param.make "ops" (TList(TCustomType(NR.ok (packageOpTypeName ()), []))) "" ]
       returnType = TypeReference.result TInt64 TString
       description =
         "Add package ops to the database as WIP (uncommitted) on the given branch.
@@ -85,14 +87,14 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
     { name = fn "scmGetRecentOps" 0
       typeParams = []
       parameters = [ Param.make "limit" TInt64 "" ]
-      returnType = TList(TCustomType(NR.ok packageOpTypeName, []))
+      returnType = TList(TCustomType(NR.ok (packageOpTypeName ()), []))
       description = "Get recent package ops from the database."
       fn =
         function
         | _, _, _, [ DInt64 limit ] ->
           uply {
             let! ops = LibPackageManager.Queries.getRecentOps limit
-            return Dval.list packageOpKT (ops |> List.map PT2DT.PackageOp.toDT)
+            return Dval.list (packageOpKT ()) (ops |> List.map PT2DT.PackageOp.toDT)
           }
         | _ -> incorrectArgs ()
       sqlSpec = NotQueryable
@@ -103,14 +105,14 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
     { name = fn "scmGetWipOps" 0
       typeParams = []
       parameters = [ Param.make "branchId" TUuid "Branch ID" ]
-      returnType = TList(TCustomType(NR.ok packageOpTypeName, []))
+      returnType = TList(TCustomType(NR.ok (packageOpTypeName ()), []))
       description = "Get all WIP (uncommitted) package ops on a branch."
       fn =
         function
         | _, _, _, [ DUuid branchId ] ->
           uply {
             let! ops = LibPackageManager.Queries.getWipOps branchId
-            return Dval.list packageOpKT (ops |> List.map PT2DT.PackageOp.toDT)
+            return Dval.list (packageOpKT ()) (ops |> List.map PT2DT.PackageOp.toDT)
           }
         | _ -> incorrectArgs ()
       sqlSpec = NotQueryable
@@ -248,14 +250,14 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
     { name = fn "scmGetCommitOps" 0
       typeParams = []
       parameters = [ Param.make "commitHash" TString "Commit hash" ]
-      returnType = TList(TCustomType(NR.ok packageOpTypeName, []))
+      returnType = TList(TCustomType(NR.ok (packageOpTypeName ()), []))
       description = "Get ops for a specific commit."
       fn =
         function
         | _, _, _, [ DString commitHash ] ->
           uply {
             let! ops = LibPackageManager.Queries.getCommitOps (PT.Hash commitHash)
-            return Dval.list packageOpKT (ops |> List.map PT2DT.PackageOp.toDT)
+            return Dval.list (packageOpKT ()) (ops |> List.map PT2DT.PackageOp.toDT)
           }
         | _ -> incorrectArgs ()
       sqlSpec = NotQueryable

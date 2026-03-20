@@ -21,9 +21,9 @@ module Json =
     | Array of List<Json>
     | Object of List<string * Json>
 
-  let typeName = FQTypeName.fqPackage (PackageRefs.Type.Stdlib.AltJson.json ())
-  let typeRef = TCustomType(NR.ok typeName, [])
-  let knownType = KTCustomType(typeName, [])
+  let typeName () = FQTypeName.fqPackage (PackageRefs.Type.Stdlib.AltJson.json ())
+  let typeRef () = TCustomType(NR.ok (typeName ()), [])
+  let knownType () = KTCustomType(typeName (), [])
 
   let rec fromDT (dv : Dval) : Json =
     match dv with
@@ -47,6 +47,7 @@ module Json =
 
 
   let rec toDT (token : Json) : Dval =
+    let typeName = typeName ()
     let (caseName, fields) =
       match token with
       | Null -> "Null", []
@@ -68,15 +69,17 @@ module Json =
 
 
 module ParseError =
-  let typeName = FQTypeName.fqPackage (PackageRefs.Type.Stdlib.AltJson.parseError ())
-  let typeRef = TCustomType(NR.ok typeName, [])
-  let knownType = KTCustomType(typeName, [])
+  let typeName () =
+    FQTypeName.fqPackage (PackageRefs.Type.Stdlib.AltJson.parseError ())
+  let typeRef () = TCustomType(NR.ok (typeName ()), [])
+  let knownType () = KTCustomType(typeName (), [])
 
   type ParseError = | NotJson
 
   exception JsonException of ParseError
 
   let toDT (e : ParseError) : Dval =
+    let typeName = typeName ()
     let (caseName, fields) =
       match e with
       | NotJson -> "NotJson", []
@@ -180,7 +183,7 @@ module Serialize =
 let fns () : List<BuiltInFn> =
   [ { name = fn "altJsonFormat" 0
       typeParams = []
-      parameters = [ Param.make "json" Json.typeRef "" ]
+      parameters = [ Param.make "json" (Json.typeRef ()) "" ]
       returnType = TString
       description = "Formats a JSON value as a JSON string."
       fn =
@@ -198,10 +201,10 @@ let fns () : List<BuiltInFn> =
     { name = fn "altJsonParse" 0
       typeParams = []
       parameters = [ Param.make "jsonString" TString "" ]
-      returnType = TypeReference.result Json.typeRef ParseError.typeRef
+      returnType = TypeReference.result (Json.typeRef ()) (ParseError.typeRef ())
       description = "Tries to parse a string <param jsonString> as Json"
       fn =
-        let result = Dval.result Json.knownType ParseError.knownType
+        let result = Dval.result (Json.knownType ()) (ParseError.knownType ())
 
         (function
         | _, _, [], [ DString jsonString ] ->

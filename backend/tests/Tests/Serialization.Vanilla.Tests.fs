@@ -62,7 +62,7 @@ module PersistedSerializations =
         // ------------------
         v<LibExecution.DvalReprInternalRoundtrippable.FormatV0.Dval>
           "complete"
-          (V.RuntimeTypes.dval
+          (V.RuntimeTypes.dval ()
            |> LibExecution.DvalReprInternalRoundtrippable.FormatV0.fromRT)
 
         v<LibExecution.ProgramTypes.PackageType.PackageType>
@@ -95,9 +95,9 @@ module PersistedSerializations =
 
         v<LibExecution.AnalysisTypes.TraceData>
           "testTraceData"
-          { input = [ "var", V.RuntimeTypes.dval ]
+          { input = [ "var", V.RuntimeTypes.dval () ]
             functionResults =
-              [ ("fnName", 777777837205UL, "hash", 0, V.RuntimeTypes.dval) ] } ]
+              [ ("fnName", 777777837205UL, "hash", 0, V.RuntimeTypes.dval ()) ] } ]
 
 
   let generateTestFiles () =

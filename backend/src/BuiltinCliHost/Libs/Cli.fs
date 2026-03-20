@@ -117,8 +117,8 @@ let parseCliScript
 
 
 module ExecutionError =
-  let fqTypeName = FQTypeName.fqPackage (PackageRefs.Type.Cli.executionError ())
-  let typeRef = TCustomType(NR.ok fqTypeName, [])
+  let fqTypeName () = FQTypeName.fqPackage (PackageRefs.Type.Cli.executionError ())
+  let typeRef () = TCustomType(NR.ok (fqTypeName ()), [])
 
 
 let pmRT = LibPackageManager.PackageManager.rt
@@ -237,11 +237,11 @@ let fns () : List<BuiltInFn> =
           Param.make "filename" TString ""
           Param.make "code" TString ""
           Param.make "args" (TList TString) "" ]
-      returnType = TypeReference.result TInt64 ExecutionError.typeRef
+      returnType = TypeReference.result TInt64 (ExecutionError.typeRef ())
       description =
         "Parses Dark code as a script, and and executes it, returning an exit code"
       fn =
-        let errType = KTCustomType(ExecutionError.fqTypeName, [])
+        let errType = KTCustomType(ExecutionError.fqTypeName (), [])
         let resultOk = Dval.resultOk KTInt64 errType
         let resultError = Dval.resultError KTInt64 errType
         (function
@@ -302,10 +302,10 @@ let fns () : List<BuiltInFn> =
         [ Param.make "accountID" (TypeReference.option TUuid) ""
           Param.make "branchId" TUuid ""
           Param.make "expression" TString "" ]
-      returnType = TypeReference.result TString ExecutionError.typeRef
+      returnType = TypeReference.result TString (ExecutionError.typeRef ())
       description = "Evaluates a Dark expression and returns the result as a String"
       fn =
-        let errType = KTCustomType(ExecutionError.fqTypeName, [])
+        let errType = KTCustomType(ExecutionError.fqTypeName (), [])
         let resultOk = Dval.resultOk KTString errType
         let resultError = Dval.resultError KTString errType
         (function

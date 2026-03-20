@@ -124,7 +124,7 @@ module RT =
         let deserialized =
           dval |> BS.RT.Dval.serialize "dval" |> BS.RT.Dval.deserialize "dval"
         dvalEquals dval deserialized)
-      (List.map (fun x -> x, true) Values.RuntimeTypes.dvals)
+      (List.map (fun x -> x, true) (Values.RuntimeTypes.dvals ()))
 
   let instructionsTests =
     Roundtripping.testRoundtripMany

@@ -1180,7 +1180,7 @@ let naughtyStrings : List<string * string> =
     i <> 139 && not (String.startsWith "#" str))
 
 
-let interestingDvals : List<string * RT.Dval * RT.TypeReference> =
+let interestingDvals () : List<string * RT.Dval * RT.TypeReference> =
   let hash = Hash "dca045b1e2af41d8ad1b35261b25a426dca045b1e2af41d8ad1b35261b25a426"
 
   [ ("float", DFloat 7.2, TFloat)
@@ -1401,13 +1401,13 @@ let interestingDvals : List<string * RT.Dval * RT.TypeReference> =
      ),
      TTuple(TInt64, TypeReference.result TInt64 TString, [])) ]
 
-let sampleDvals : List<string * (Dval * TypeReference)> =
+let sampleDvals () : List<string * (Dval * TypeReference)> =
   List.concat
     [ List.map (fun (k, v) -> k, DInt64 v, TInt64) interestingInts
       List.map (fun (k, v) -> k, DFloat v, TFloat) interestingFloats
       List.map (fun (k, v) -> k, DString v, TString) interestingStrings
       List.map (fun (k, v) -> k, DString v, TString) naughtyStrings
-      interestingDvals ]
+      interestingDvals () ]
   |> List.map (fun (k, v, t) -> k, (v, t))
 
 // Utilties shared among tests
