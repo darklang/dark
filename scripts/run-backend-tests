@@ -56,16 +56,21 @@ cd backend && \
   "${LOCALEXEC}" migrations run > "$LOGS/test-migrations.log" 2>&1
 cd ..
 
-# Reload packages
+# Copy seed as the test database (the test exe auto-grows on startup)
+SEED_PATH="${DARK_CONFIG_RUNDIR}/seed.db"
+if [[ -f "$SEED_PATH" ]]; then
+  echo "Copying seed.db as test database"
+  cp "$SEED_PATH" "$DB_PATH"
+else
+  echo "ERROR: No seed.db found at $SEED_PATH"
+  echo "Run: ./scripts/run-cli export-seed /home/dark/app/rundir/seed.db"
+  echo "Or:  ./scripts/fetch-seed"
+  exit 1
+fi
 
 if [[ -v CI ]]; then
-  echo "Running backend server"
-  ./scripts/run-backend-server $PUBLISHED_FLAG
-  echo "Reloading packages"
-  ./scripts/build/reload-packages $PUBLISHED_FLAG
-else
-  echo "Reloading packages"
-  ./scripts/build/reload-packages --test $PUBLISHED_FLAG
+  echo "Starting backend server"
+  ./scripts/run-backend-server --restart=no $PUBLISHED_FLAG
 fi
 
 JUNIT_FILE="${DARK_CONFIG_RUNDIR}/test_results/backend.xml"

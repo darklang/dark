@@ -64,29 +64,29 @@ let private hasEmbeddedResource (resourceName : string) : bool =
   assembly.GetManifestResourceNames() |> Array.contains resourceName
 
 let extract () : unit =
-  if hasEmbeddedResource "data.db" then
+  // Release builds embed seed.db
+  if hasEmbeddedResource "seed.db" then
     let darklangDir = getDarklangDirectory ()
 
     Environment.SetEnvironmentVariable("DARK_CONFIG_RUNDIR", darklangDir)
 
     let dbPath = Path.Combine(darklangDir, "data.db")
 
-    // Only extract if data.db doesn't exist yet
+    // Only extract if data.db doesn't exist yet.
+    // The seed is extracted as data.db — the grow step in Cli.fs
+    // will apply the unapplied ops to build projection tables.
     if not (File.Exists(dbPath)) then
       printfn $"Setting up Darklang CLI data directory at {darklangDir}"
 
-      // Create directory if needed
       if not (Directory.Exists(darklangDir)) then
         Directory.CreateDirectory(darklangDir) |> ignore
 
-      // Extract database
-      extractResource "data.db" dbPath
+      // Extract seed as data.db (it has full schema, just empty projections)
+      extractResource "seed.db" dbPath
 
-      // Extract README
       let readmePath = Path.Combine(darklangDir, "README.md")
       extractResource "README.md" readmePath
 
-      // Create logs directory
       let logsDir = Path.Combine(darklangDir, "logs")
       Directory.CreateDirectory(logsDir) |> ignore
 

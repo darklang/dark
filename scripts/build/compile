@@ -241,7 +241,7 @@ class Should:
     self.backend_quick_build = False
     self.backend_full_build = False
     self.backend_test = False
-    self.reload_all_packages = False
+    # self.reload_all_packages removed — packages come from seed.db
     self.circleci_validate = False
     self.run_migrations = False
     self.reload_backend_server = False
@@ -278,14 +278,12 @@ def execute(should):
     if not backend_full_build(): success = False
     should.backend_test |= success
     should.reload_backend_server |= success
-    should.reload_all_packages |= success
     should.run_migrations |= success
 
   if should.backend_quick_build:
     if not backend_quick_build(): success = False
     should.backend_test |= success
     should.reload_backend_server |= success
-    should.reload_all_packages |= success
     should.run_migrations |= success
 
   if should.reload_backend_server:
@@ -294,10 +292,6 @@ def execute(should):
 
   if should.run_migrations:
     if not run_migrations(): success = False
-    should.reload_all_packages |= success
-
-  if should.reload_all_packages:
-    if not reload_all_packages(): success = False
 
   if should.backend_test:
     if not backend_test(): success = False
@@ -345,12 +339,12 @@ def mark(should, f):
     should.backend_test = True
 
   elif f.startswith("packages/") and f.endswith(".dark"):
-    should.reload_all_packages = True
-    # refresh the server as the packages migh have been cached
-    should.reload_backend_server = True
+    # Packages come from seed.db, not .dark files
+    print("ignoring .dark file (packages come from seed): " + f, end='')
 
   elif f.startswith("canvases/") and f.endswith(".dark"):
-    should.reload_all_packages = True
+    # Canvas .dark files still need reload
+    should.reload_backend_server = True
 
   elif f.startswith("backend/migrations/"):
     should.run_migrations = True

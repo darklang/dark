@@ -30,6 +30,15 @@ let main (args : string array) : int =
 
     initSerializers ()
 
+    // Grow the DB from seed if needed. Builtins are deferred (constructed after
+    // hashes are generated) because builtin construction triggers hash lookups.
+    (LibPackageManager.Seed.growIfNeeded
+      (fun () -> TestUtils.TestUtils.localBuiltIns TestUtils.TestUtils.pmPT)
+      TestUtils.TestUtils.pmRT
+      (fun msg -> System.Console.Error.WriteLine msg))
+      .Result
+    |> ignore<bool>
+
     let tests =
       [ // core
         Tests.Prelude.tests

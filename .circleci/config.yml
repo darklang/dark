@@ -172,7 +172,7 @@ jobs:
       - run: shasum backend/paket.lock backend/global.json <(date +"%U%Y") > ../checksum
       - restore_cache:
           keys:
-            - v5-backend-{{ checksum "../checksum" }}
+            - v6-backend-{{ checksum "../checksum" }}
             # Fails often enough that it's better not to have a fallback
       - show-large-files-and-directories
       # For tests
@@ -180,16 +180,10 @@ jobs:
       - run: ./scripts/build/_dotnet-wrapper paket restore
       # DebugType=None and DebugSymbol=false tells dotnet not to copy .pdb files to publish/
 
-      # Setup database for tests that need it
+      # Fetch seed and set up database
       - run:
-          name: Build LocalExec for migrations (debug mode fine)
-          command: ./scripts/build/_dotnet-wrapper build src/LocalExec/LocalExec.fsproj
-      - run:
-          name: Run migrations to create database
-          command: scripts/run-local-exec migrations run
-      - run:
-          name: Load packages into database
-          command: scripts/build/reload-packages
+          name: Fetch seed.db from R2
+          command: scripts/fetch-seed
 
       - run: ./scripts/build/_dotnet-wrapper publish -c Release fsdark.sln /p:DebugType=None /p:DebugSymbols=false
 
@@ -232,24 +226,17 @@ jobs:
       - run: shasum backend/paket.lock backend/global.json <(date +"%U%Y") > ../checksum
       - restore_cache:
           keys:
-            - v4-cli-{{ checksum "../checksum" }}
+            - v5-cli-{{ checksum "../checksum" }}
             # Fails often enough that it's better not to have a fallback
       - show-large-files-and-directories
       # For tests
       - run: ./scripts/build/_dotnet-wrapper tool restore
       - run: ./scripts/build/_dotnet-wrapper paket restore
 
-      # The CLI embeds the Sqlite data.db,
-      # so we need to get a copy ready first.
+      # The CLI embeds seed.db — fetch it from R2
       - run:
-          name: Build LocalExec for migrations (debug mode fine)
-          command: ./scripts/build/_dotnet-wrapper build src/LocalExec/LocalExec.fsproj
-      - run:
-          name: Run migrations to create database
-          command: scripts/run-local-exec migrations run
-      - run:
-          name: Load packages into database
-          command: scripts/build/reload-packages
+          name: Fetch seed.db from R2
+          command: scripts/fetch-seed
 
       - assert-clean-worktree
       - run:
@@ -270,7 +257,7 @@ jobs:
             - /home/dark/.nuget
             - tree-sitter-darklang/node_modules
             - tree-sitter-darklang/build
-          key: v4-cli-{{ checksum "../checksum" }}
+          key: v5-cli-{{ checksum "../checksum" }}
       - store_artifacts: { path: rundir }
       - store_artifacts: { path: clis }
       - store_test_results: { path: rundir/test_results }

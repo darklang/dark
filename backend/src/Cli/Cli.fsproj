@@ -70,19 +70,19 @@
     <Compile Include="Cli.fs" />
   </ItemGroup>
   <ItemGroup Condition="'$(Configuration)' == 'Release'">
-    <!-- Only embed resources in Release mode -->
-    <EmbeddedResource Include="../../../rundir/data.db">
-      <LogicalName>data.db</LogicalName>
+    <!-- Embed the seed (small, ops-only DB) instead of the full data.db -->
+    <EmbeddedResource Include="../../../rundir/seed.db">
+      <LogicalName>seed.db</LogicalName>
     </EmbeddedResource>
     <EmbeddedResource Include="README-to-embed.md">
       <LogicalName>README.md</LogicalName>
     </EmbeddedResource>
   </ItemGroup>
 
-  <!-- Fail the build if the database doesn't exist in Release mode -->
-  <Target Name="CheckDatabaseExists" BeforeTargets="PrepareForBuild">
-    <Error Condition="'$(Configuration)' == 'Release' And !Exists('../../../rundir/data.db')"
-           Text="Database file (rundir/data.db) not found. The database must be created before building the CLI in Release mode. Run migrations first." />
+  <!-- Fail the build if the seed doesn't exist in Release mode -->
+  <Target Name="CheckSeedExists" BeforeTargets="PrepareForBuild">
+    <Error Condition="'$(Configuration)' == 'Release' And !Exists('../../../rundir/seed.db')"
+           Text="Seed file (rundir/seed.db) not found. Export a seed before building the CLI in Release mode." />
   </Target>
   <Import Project="..\..\.paket\Paket.Restore.targets" />
 </Project>

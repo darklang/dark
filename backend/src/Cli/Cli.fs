@@ -130,7 +130,18 @@ let main (args : string[]) =
     EmbeddedResources.extract ()
     initSerializers ()
 
+    // Grow the database: apply any unapplied ops and evaluate values.
+    // This handles first-run from an embedded seed (all ops unapplied)
+    // and incremental updates (new ops fetched from a seed).
+    // On a warm DB with nothing to do, this is a single fast SELECT COUNT.
     let cliPackageManager = LibPackageManager.PackageManager.rt
+    (LibPackageManager.Seed.growIfNeeded
+      (fun () -> builtins)
+      cliPackageManager
+      (fun msg -> System.Console.Error.WriteLine msg))
+      .Result
+    |> ignore<bool>
+
     cliPackageManager.init.Result
 
     let result = execute cliPackageManager (Array.toList args)
