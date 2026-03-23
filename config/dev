@@ -39,6 +39,10 @@ DARK_CONFIG_TRACE_SAMPLING_RULE_DEFAULT=sample-all
 # Package manager
 DARK_CONFIG_PACKAGE_MANAGER_BASE_URL=http://dark-packages.dlio.localhost:11001
 
+# Package source: "disk" (reload from .dark files) or "seed" (fetch from R2)
+# Default: disk (set to "seed" to use the seed-based flow)
+DARK_CONFIG_PACKAGES_SOURCE=disk
+
 ######################################
 # XXX: Changes won't take effect until you restart script/builder
 # or rebuild the vscode dev container

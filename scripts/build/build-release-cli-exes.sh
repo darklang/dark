@@ -44,9 +44,9 @@ export GIT_COMMIT="$sha"
 mkdir -p clis
 rm -rf clis/.darklang
 
-# Force WAL checkpoint on seed.db to ensure all data is committed before embedding
-echo "Forcing WAL checkpoint on seed.db before embedding..."
-sqlite3 rundir/seed.db "PRAGMA wal_checkpoint(TRUNCATE);" || echo "WAL checkpoint completed (or no WAL file exists)"
+# Force WAL checkpoint to ensure all data is committed to main DB before embedding
+echo "Forcing WAL checkpoint to commit all data before embedding database..."
+sqlite3 rundir/data.db "PRAGMA wal_checkpoint(TRUNCATE);" || echo "WAL checkpoint completed (or no WAL file exists)"
 
 # All supported runtimes - must match:
 # - backend/src/LibTreeSitter/LibTreeSitter.fsproj

@@ -180,10 +180,16 @@ jobs:
       - run: ./scripts/build/_dotnet-wrapper paket restore
       # DebugType=None and DebugSymbol=false tells dotnet not to copy .pdb files to publish/
 
-      # Fetch seed and set up database
+      # Setup database for tests
       - run:
-          name: Fetch seed.db from R2
-          command: scripts/fetch-seed
+          name: Build LocalExec for migrations (debug mode fine)
+          command: ./scripts/build/_dotnet-wrapper build src/LocalExec/LocalExec.fsproj
+      - run:
+          name: Run migrations to create database
+          command: scripts/run-local-exec migrations run
+      - run:
+          name: Load packages into database
+          command: scripts/build/reload-packages
 
       - run: ./scripts/build/_dotnet-wrapper publish -c Release fsdark.sln /p:DebugType=None /p:DebugSymbols=false
 
@@ -233,10 +239,16 @@ jobs:
       - run: ./scripts/build/_dotnet-wrapper tool restore
       - run: ./scripts/build/_dotnet-wrapper paket restore
 
-      # The CLI embeds seed.db — fetch it from R2
+      # The CLI embeds data.db
       - run:
-          name: Fetch seed.db from R2
-          command: scripts/fetch-seed
+          name: Build LocalExec for migrations (debug mode fine)
+          command: ./scripts/build/_dotnet-wrapper build src/LocalExec/LocalExec.fsproj
+      - run:
+          name: Run migrations to create database
+          command: scripts/run-local-exec migrations run
+      - run:
+          name: Load packages into database
+          command: scripts/build/reload-packages
 
       - assert-clean-worktree
       - run:
