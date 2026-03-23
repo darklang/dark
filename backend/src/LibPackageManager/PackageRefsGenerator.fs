@@ -100,11 +100,13 @@ let generate () : Ply<unit> =
 
     let lines = merged |> List.map (fun (key, hash) -> $"{key}|{hash}")
 
-    // Write the source-tree file
-    System.IO.File.WriteAllLines(sourceTreePath, lines |> Array.ofList)
-
-    let totalWritten = List.length lines
-    print $"  Wrote {totalWritten} package ref hashes to {sourceTreePath}"
+    // Write the source-tree file (skip if the directory doesn't exist,
+    // e.g. on installed CLIs where the source tree isn't available)
+    let dir = System.IO.Path.GetDirectoryName(sourceTreePath)
+    if System.IO.Directory.Exists(dir) then
+      System.IO.File.WriteAllLines(sourceTreePath, lines |> Array.ofList)
+      let totalWritten = List.length lines
+      print $"  Wrote {totalWritten} package ref hashes to {sourceTreePath}"
 
     // Report any items referenced but not found anywhere
     let foundKeys = merged |> List.map fst |> Set.ofList
