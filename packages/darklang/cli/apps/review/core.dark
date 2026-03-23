@@ -3,14 +3,14 @@ module Darklang.Cli.Apps.Review
 type PackageItem =
   { name: String
     kind: String
-    action: String
-    modulePath: String }
+    modulePath: String
+    propagatedCount: Int64 }
 
 type BranchReviewItem =
   { branchId: Uuid
     branchName: String
-    itemCount: Int64
-    modules: List<String> }
+    wipCount: Int64
+    committedCount: Int64 }
 
 type BranchListState =
   { items: List<BranchReviewItem>

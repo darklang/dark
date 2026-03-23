@@ -33,7 +33,7 @@ let getRecent (limit: Int64) : List<LanguageTools.ProgramTypes.PackageOp> =
 
 /// Get all WIP (uncommitted) ops on a branch
 let getWip (branchId: Uuid) : List<LanguageTools.ProgramTypes.PackageOp> =
-  Builtin.scmGetWipOps_v0 branchId
+  Builtin.scmGetWipOps branchId
 
 
 /// Summary of WIP (uncommitted) changes on a branch
@@ -52,7 +52,7 @@ let getCount (d: Dict<Int64>) (key: String) : Int64 =
 
 /// Get summary of WIP ops on a branch (counts by type)
 let getWipSummary (branchId: Uuid) : WipSummary =
-  let d = Builtin.scmGetWipSummary_v0 branchId
+  let d = Builtin.scmGetWipSummary branchId
 
   WipSummary
     { types = getCount d "types"
@@ -60,6 +60,18 @@ let getWipSummary (branchId: Uuid) : WipSummary =
       fns = getCount d "fns"
       renames = getCount d "renames"
       total = getCount d "total" }
+
+/// Fast count of WIP ops on a branch (no deserialization)
+let getWipOpCount (branchId: Uuid) : Int64 =
+  Builtin.scmGetWipOpCount branchId
+
+/// Fast count of commits on a branch (no deserialization)
+let getCommitCount (branchId: Uuid) : Int64 =
+  Builtin.scmGetCommitCount branchId
+
+/// Get WIP items on a branch (excludes auto-propagated ops)
+let getWipItems (branchId: Uuid) : List<Dict<String>> =
+  Builtin.scmGetWipItems branchId
 
 
 /// Commit all WIP ops on a branch with the given message
@@ -75,7 +87,7 @@ let commit
 /// Discard all WIP ops on a branch
 /// Returns the count of discarded ops on success, or an error message on failure
 let discard (branchId: Uuid) : Stdlib.Result.Result<Int64, String> =
-  Builtin.scmDiscard_v0 branchId
+  Builtin.scmDiscard branchId
 
 
 /// Get commit log for a branch ordered by date descending

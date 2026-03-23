@@ -277,6 +277,104 @@ let getWipSummary (branchId : PT.BranchId) : Task<WipSummary> =
   }
 
 
+// CLEANUP: getWipItems, getWipOpCount, and getCommitCount exist as F# builtins
+// purely for performance — they avoid sending large op lists to the Dark runtime.
+// When Dark execution is fast enough, replace these with Dark implementations that
+// use the existing getWipOps/getCommits builtins directly.
+
+/// A WIP item on a branch (excludes auto-propagated ops)
+type WipItem =
+  { name : string; kind : string; modulePath : string; propagatedCount : int64 }
+
+let private locationToModulePath (loc : PT.PackageLocation) : string =
+  match loc.modules with
+  | [] -> loc.owner
+  | modules ->
+    let modStr = String.concat "." modules
+    $"{loc.owner}.{modStr}"
+
+/// Get direct (non-propagated) WIP items on a branch.
+/// Performs deserialization in F# and returns only the filtered results.
+let getWipItems (branchId : PT.BranchId) : Task<List<WipItem>> =
+  task {
+    let! ops = getWipOps branchId
+
+    // Collect propagated names from PropagateUpdate/RevertPropagation repoints
+    let propagatedNames =
+      ops
+      |> List.collect (function
+        | PT.PackageOp.PropagateUpdate(_, _, _, _, _, repoints) ->
+          repoints |> List.map (fun rp -> PackageLocation.toFQN rp.location)
+        | PT.PackageOp.RevertPropagation(_, _, _, _, _, repoints) ->
+          repoints |> List.map (fun rp -> PackageLocation.toFQN rp.location)
+        | _ -> [])
+      |> Set.ofList
+
+    // Count propagated repoints per source
+    let propCounts : Map<string, int64> =
+      ops
+      |> List.choose (function
+        | PT.PackageOp.PropagateUpdate(_, sloc, _, _, _, repoints) ->
+          let name = PackageLocation.toFQN sloc
+          let count = int64 repoints.Length
+          Some(name, count)
+        | _ -> None)
+      |> List.fold
+        (fun (acc : Map<string, int64>) (name, count) ->
+          let existing = Map.tryFind name acc |> Option.defaultValue 0L
+          Map.add name (existing + count) acc)
+        Map.empty
+
+    // Extract SetName ops, filter out propagated, deduplicate
+    let items =
+      ops
+      |> List.choose (function
+        | PT.PackageOp.SetTypeName(_, loc) -> Some("Type", loc)
+        | PT.PackageOp.SetFnName(_, loc) -> Some("Fn", loc)
+        | PT.PackageOp.SetValueName(_, loc) -> Some("Value", loc)
+        | _ -> None)
+      |> List.map (fun (kind, loc) ->
+        let name = PackageLocation.toFQN loc
+        let modPath = locationToModulePath loc
+        let pCount = Map.tryFind name propCounts |> Option.defaultValue 0L
+        { name = name; kind = kind; modulePath = modPath; propagatedCount = pCount })
+      |> List.filter (fun item -> not (Set.contains item.name propagatedNames))
+      |> List.distinctBy (fun item -> item.name)
+
+    return items
+  }
+
+
+/// Fast count of WIP ops on a branch (no deserialization)
+let getWipOpCount (branchId : PT.BranchId) : Task<int64> =
+  task {
+    return!
+      Sql.query
+        """
+        SELECT COUNT(*)
+        FROM package_ops
+        WHERE branch_id = @branch_id AND commit_hash IS NULL
+        """
+      |> Sql.parameters [ "branch_id", Sql.uuid branchId ]
+      |> Sql.executeRowAsync (fun read -> read.int64 0)
+  }
+
+
+/// Fast count of commits on a branch (no deserialization)
+let getCommitCount (branchId : PT.BranchId) : Task<int64> =
+  task {
+    return!
+      Sql.query
+        """
+        SELECT COUNT(*)
+        FROM commits
+        WHERE branch_id = @branch_id
+        """
+      |> Sql.parameters [ "branch_id", Sql.uuid branchId ]
+      |> Sql.executeRowAsync (fun read -> read.int64 0)
+  }
+
+
 /// Get commits on a branch ordered by date descending
 let getCommits (branchId : PT.BranchId) (limit : int64) : Task<List<PT.Commit>> =
   task {
