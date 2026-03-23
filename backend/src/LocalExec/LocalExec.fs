@@ -21,129 +21,7 @@ module PM = LibPackageManager.PackageManager
 open Utils
 
 
-/// Evaluate all package values that have NULL rt_dval.
-/// Called after initial package load when all definitions are in the DB.
-///
-/// Uses multi-pass evaluation: values may depend on other values, so we evaluate
-/// in rounds. Each pass evaluates all remaining NULL values; failures are retried
-/// in the next pass (once their dependencies have been evaluated). Stops when all
-/// values are evaluated or a pass makes no progress.
-let evaluateAllValues
-  (builtins : RT.Builtins)
-  (pm : RT.PackageManager)
-  : Ply<Result<unit, string list>> =
-  uply {
-    // Create execution state for evaluation
-    let program : RT.Program =
-      { canvasID = System.Guid.NewGuid()
-        internalFnsAllowed = false
-        dbs = Map.empty
-        secrets = [] }
-
-    let notify _ _ _ _ = uply { return () }
-    let sendException _ _ _ _ = uply { return () }
-
-    let exeState =
-      Execution.createState
-        builtins
-        pm
-        Execution.noTracing
-        sendException
-        notify
-        PT.mainBranchId
-        program
-
-    let maxPasses = 10
-    let mutable pass = 0
-    let mutable keepGoing = true
-    let mutable lastErrors : string list = []
-
-    while keepGoing do
-      pass <- pass + 1
-
-      // Re-query each pass to pick up only values still needing evaluation
-      let! unevaluatedValues =
-        Sql.query
-          """
-          SELECT pv.hash, pv.pt_def, l.owner, l.modules, l.name
-          FROM package_values pv
-          LEFT JOIN locations l ON l.item_hash = pv.hash AND l.deprecated_at IS NULL
-          WHERE pv.rt_dval IS NULL
-          """
-        |> Sql.executeAsync (fun read ->
-          let hash = Hash(read.string "hash")
-          let ptDef = read.bytes "pt_def"
-          let owner = read.stringOrNone "owner" |> Option.defaultValue "?"
-          let modules = read.stringOrNone "modules" |> Option.defaultValue ""
-          let name = read.stringOrNone "name" |> Option.defaultValue "?"
-          let fullName =
-            if modules = "" then $"{owner}.{name}" else $"{owner}.{modules}.{name}"
-          (hash, ptDef, fullName))
-
-      if List.isEmpty unevaluatedValues then
-        keepGoing <- false
-        lastErrors <- []
-      else if pass > maxPasses then
-        keepGoing <- false
-        lastErrors <-
-          [ $"Gave up after {maxPasses} passes with {List.length unevaluatedValues} values remaining" ]
-      else
-        let errors = ResizeArray<string>()
-        let mutable successCount = 0
-
-        for (valueHash, ptDefBytes, fullName) in unevaluatedValues do
-          try
-            let ptValue = BS.PT.PackageValue.deserialize valueHash ptDefBytes
-            let instrs = PT2RT.Expr.toRT Map.empty 0 None ptValue.body
-            let! result = Execution.executeExpr exeState instrs
-
-            match result with
-            | Error(rte, _callStack) ->
-              let! errorResult = Execution.runtimeErrorToString exeState rte
-              let errorMsg =
-                match errorResult with
-                | Ok(RT.DString s) -> s
-                | Ok other -> $"{other}"
-                | Error(rte2, _) -> $"(could not stringify error: {rte2})"
-              errors.Add(
-                $"Value {valueHash} ({fullName}): evaluation failed - {errorMsg}"
-              )
-            | Ok dval ->
-              let rtHash = PT2RT.Hash.toRT valueHash
-              let rtValue : RT.PackageValue.PackageValue =
-                { hash = rtHash; body = dval }
-              let (Hash defHash) = valueHash
-              let rtDvalBytes = BS.RT.PackageValue.serialize rtHash rtValue
-              let valueType = RT.Dval.toValueType dval
-              let valueTypeBytes = BS.RT.ValueType.serialize valueType
-
-              do!
-                Sql.query
-                  """
-                  UPDATE package_values
-                  SET rt_dval = @rt_dval, value_type = @value_type
-                  WHERE hash = @hash
-                  """
-                |> Sql.parameters
-                  [ "hash", Sql.string defHash
-                    "rt_dval", Sql.bytes rtDvalBytes
-                    "value_type", Sql.bytes valueTypeBytes ]
-                |> Sql.executeStatementAsync
-
-              successCount <- successCount + 1
-          with ex ->
-            errors.Add($"Value {valueHash} ({fullName}): exception - {ex.Message}")
-
-        if successCount = 0 then
-          // No progress — remaining failures are real errors
-          keepGoing <- false
-          lastErrors <- errors |> List.ofSeq
-        else
-          print
-            $"  Value evaluation pass {pass}: {successCount} succeeded, {errors.Count} to retry"
-
-    if List.isEmpty lastErrors then return Ok() else return Error lastErrors
-  }
+let evaluateAllValues = LibPackageManager.Seed.evaluateAllValues
 
 
 module HandleCommand =
@@ -201,7 +79,7 @@ module HandleCommand =
 
       // Generate hash file BEFORE evaluating values, so that PackageRefs
       // lookups resolve correctly during value evaluation.
-      do! PackageRefsGenerator.generate ()
+      do! LibPackageManager.PackageRefsGenerator.generate ()
       LibExecution.PackageRefs.reloadHashes ()
 
       // Evaluate all values now that all definitions are in the DB
@@ -237,6 +115,17 @@ module HandleCommand =
         return Ok()
       with ex ->
         return Error $"Migration failed: {ex.Message}"
+    }
+
+  let exportSeed (outputPath : string) : Ply<Result<unit, string>> =
+    uply {
+      try
+        do! LibPackageManager.Seed.export outputPath
+        let size = System.IO.FileInfo(outputPath).Length / 1024L / 1024L
+        print $"Seed exported to {outputPath} ({size} MB)"
+        return Ok()
+      with ex ->
+        return Error $"Export failed: {ex.Message}"
     }
 
   let listMigrations () : Ply<Result<unit, string>> =
@@ -302,6 +191,11 @@ let main (args : string[]) : int =
     | [ "migrations"; "list" ] ->
       handleCommand "listing available migrations" (HandleCommand.listMigrations ())
 
+    | [ "export-seed"; outputPath ] ->
+      handleCommand
+        $"Exporting seed to {outputPath}"
+        (HandleCommand.exportSeed outputPath)
+
     | _ ->
       print "Invalid arguments"
       print "Available commands:"
@@ -309,6 +203,7 @@ let main (args : string[]) : int =
       print "  reload-canvases"
       print "  migrations run"
       print "  migrations list"
+      print "  export-seed <output-path>"
       NonBlockingConsole.wait ()
       1
   with e ->

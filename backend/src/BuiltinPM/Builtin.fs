@@ -20,5 +20,6 @@ let builtins (pm : PT.PackageManager) : Builtins =
       Libs.Rebase.builtins ()
       Libs.Merge.builtins ()
       Libs.Scripts.builtins ()
-      Libs.Dependencies.builtins () ]
+      Libs.Dependencies.builtins ()
+      Libs.Seed.builtins ]
     fnRenames

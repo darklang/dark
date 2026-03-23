@@ -1,0 +1,14 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+SEED_URL="https://pub-d5f652ca1b90456f85840a19eafcb700.r2.dev/darklang-seeds/seeds/seed.db"
+RUNDIR="${DARK_CONFIG_RUNDIR:-rundir}"
+
+echo "Fetching latest seed from R2..."
+curl -L -o "${RUNDIR}/seed.db" "$SEED_URL"
+
+# Copy as data.db so CLI/tests can grow from it
+cp "${RUNDIR}/seed.db" "${RUNDIR}/data.db"
+
+SIZE=$(du -h "${RUNDIR}/data.db" | cut -f1)
+echo "Seed downloaded and installed as data.db ($SIZE)"

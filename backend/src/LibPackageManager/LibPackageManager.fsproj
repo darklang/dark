@@ -41,6 +41,8 @@
     <Compile Include="RuntimeTypes.fs" />
     <Compile Include="PackageManager.fs" />
     <Compile Include="Scripts.fs" />
+    <Compile Include="PackageRefsGenerator.fs" />
+    <Compile Include="Seed.fs" />
   </ItemGroup>
   <Import Project="..\..\.paket\Paket.Restore.targets" />
 </Project>

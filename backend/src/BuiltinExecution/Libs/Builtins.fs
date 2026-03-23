@@ -13,9 +13,10 @@ module NR = LibExecution.RuntimeTypes.NameResolution
 /// Converters from F# builtin types to Dark types
 module ToDarkTypes =
   module Purity =
-    let typeName = FQTypeName.fqPackage (PackageRefs.Type.Builtins.purity ())
+    let typeName () = FQTypeName.fqPackage (PackageRefs.Type.Builtins.purity ())
 
     let toDT (p : Previewable) : Dval =
+      let typeName = typeName ()
       let caseName =
         match p with
         | Pure -> "Pure"
@@ -24,9 +25,10 @@ module ToDarkTypes =
       DEnum(typeName, typeName, [], caseName, [])
 
   module ParamInfo =
-    let typeName = FQTypeName.fqPackage (PackageRefs.Type.Builtins.paramInfo ())
+    let typeName () = FQTypeName.fqPackage (PackageRefs.Type.Builtins.paramInfo ())
 
     let toDT (param : BuiltInParam) : Dval =
+      let typeName = typeName ()
       let fields =
         [ ("name", DString param.name)
           ("typ", RT2DT.TypeReference.toDT param.typ)
@@ -35,13 +37,15 @@ module ToDarkTypes =
       DRecord(typeName, typeName, [], fields)
 
   module FunctionInfo =
-    let typeName = FQTypeName.fqPackage (PackageRefs.Type.Builtins.functionInfo ())
+    let typeName () =
+      FQTypeName.fqPackage (PackageRefs.Type.Builtins.functionInfo ())
 
     let toDT (fn : BuiltInFn) : Dval =
+      let typeName = typeName ()
       let params' =
         fn.parameters
         |> List.map ParamInfo.toDT
-        |> Dval.list (KTCustomType(ParamInfo.typeName, []))
+        |> Dval.list (KTCustomType(ParamInfo.typeName (), []))
       let fields =
         [ ("name", DString fn.name.name)
           ("version", DInt64(int64 fn.name.version))
@@ -57,7 +61,8 @@ let fns () : List<BuiltInFn> =
   [ { name = fn "getBuiltins" 0
       typeParams = []
       parameters = [ Param.make "unit" TUnit "" ]
-      returnType = TList(TCustomType(NR.ok ToDarkTypes.FunctionInfo.typeName, []))
+      returnType =
+        TList(TCustomType(NR.ok (ToDarkTypes.FunctionInfo.typeName ()), []))
       description = "Returns a list of all builtin functions with their metadata"
       fn =
         (function
@@ -75,7 +80,7 @@ let fns () : List<BuiltInFn> =
             let builtins =
               fns
               |> List.map ToDarkTypes.FunctionInfo.toDT
-              |> Dval.list (KTCustomType(ToDarkTypes.FunctionInfo.typeName, []))
+              |> Dval.list (KTCustomType(ToDarkTypes.FunctionInfo.typeName (), []))
 
             return builtins
           }

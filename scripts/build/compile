@@ -273,19 +273,23 @@ def execute(should):
     should.backend_full_build |= success
 
   # backend
+  packages_from_seed = os.getenv("DARK_CONFIG_PACKAGES_SOURCE") == "seed"
+
   if should.backend_full_build:
     should.backend_quick_build = False  # no need to do both
     if not backend_full_build(): success = False
     should.backend_test |= success
     should.reload_backend_server |= success
-    should.reload_all_packages |= success
+    if not packages_from_seed:
+      should.reload_all_packages |= success
     should.run_migrations |= success
 
   if should.backend_quick_build:
     if not backend_quick_build(): success = False
     should.backend_test |= success
     should.reload_backend_server |= success
-    should.reload_all_packages |= success
+    if not packages_from_seed:
+      should.reload_all_packages |= success
     should.run_migrations |= success
 
   if should.reload_backend_server:
@@ -294,7 +298,8 @@ def execute(should):
 
   if should.run_migrations:
     if not run_migrations(): success = False
-    should.reload_all_packages |= success
+    if not packages_from_seed:
+      should.reload_all_packages |= success
 
   if should.reload_all_packages:
     if not reload_all_packages(): success = False
@@ -345,9 +350,11 @@ def mark(should, f):
     should.backend_test = True
 
   elif f.startswith("packages/") and f.endswith(".dark"):
-    should.reload_all_packages = True
-    # refresh the server as the packages migh have been cached
-    should.reload_backend_server = True
+    if os.getenv("DARK_CONFIG_PACKAGES_SOURCE") == "seed":
+      print("ignoring .dark file (packages come from seed): " + f, end='')
+    else:
+      should.reload_all_packages = True
+      should.reload_backend_server = True
 
   elif f.startswith("canvases/") and f.endswith(".dark"):
     should.reload_all_packages = True

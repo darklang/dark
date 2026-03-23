@@ -105,13 +105,13 @@ module RuntimeTypes =
 
       known (RT.KnownType.KTDB ktUnit) ]
 
-  let dvals : List<RT.Dval> =
+  let dvals () : List<RT.Dval> =
     // TODO: is this exhaustive? I haven't checked.
-    sampleDvals |> List.map (fun (_, (dv, _)) -> dv)
+    sampleDvals () |> List.map (fun (_, (dv, _)) -> dv)
 
-  let dval : RT.Dval =
+  let dval () : RT.Dval =
     let typeName = RT.FQTypeName.Package hashRT
-    sampleDvals
+    sampleDvals ()
     |> List.map (fun (name, (dv, _)) -> name, dv)
     |> fun fields -> RT.DRecord(typeName, typeName, [], Map fields)
 

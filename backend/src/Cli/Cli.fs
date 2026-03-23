@@ -130,7 +130,25 @@ let main (args : string[]) =
     EmbeddedResources.extract ()
     initSerializers ()
 
+    // If data.db is missing but seed.db exists, copy seed as data.db
+    let dbPath = LibConfig.Config.dbPath
+    let seedPath = System.IO.Path.Combine(LibConfig.Config.runDir, "seed.db")
+    if not (System.IO.File.Exists dbPath) && System.IO.File.Exists seedPath then
+      System.Console.Error.WriteLine "Copying seed.db as data.db"
+      System.IO.File.Copy(seedPath, dbPath)
+
+    // Grow the database: apply any unapplied ops and evaluate values.
+    // This handles first-run from an embedded seed (all ops unapplied)
+    // and incremental updates (new ops fetched from a seed).
+    // On a warm DB with nothing to do, this is a single fast SELECT COUNT.
     let cliPackageManager = LibPackageManager.PackageManager.rt
+    (LibPackageManager.Seed.growIfNeeded
+      (fun () -> builtins)
+      cliPackageManager
+      (fun msg -> System.Console.Error.WriteLine msg))
+      .Result
+    |> ignore<bool>
+
     cliPackageManager.init.Result
 
     let result = execute cliPackageManager (Array.toList args)

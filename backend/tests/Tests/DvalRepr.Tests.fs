@@ -155,7 +155,7 @@ module ToHashableRepr =
 
 let allRoundtrips =
   let dvs (filter : RT.Dval -> bool) : List<string * (RT.Dval * RT.TypeReference)> =
-    List.filter (fun (_, (dv, _)) -> filter dv) sampleDvals
+    List.filter (fun (_, (dv, _)) -> filter dv) (sampleDvals ())
 
   testList
     "roundtrips"

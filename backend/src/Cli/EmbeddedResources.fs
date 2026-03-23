@@ -71,22 +71,20 @@ let extract () : unit =
 
     let dbPath = Path.Combine(darklangDir, "data.db")
 
-    // Only extract if data.db doesn't exist yet
+    // Only extract if data.db doesn't exist yet.
+    // If the embedded DB is a seed, the grow step in Cli.fs
+    // will apply unapplied ops to build projection tables.
     if not (File.Exists(dbPath)) then
       printfn $"Setting up Darklang CLI data directory at {darklangDir}"
 
-      // Create directory if needed
       if not (Directory.Exists(darklangDir)) then
         Directory.CreateDirectory(darklangDir) |> ignore
 
-      // Extract database
       extractResource "data.db" dbPath
 
-      // Extract README
       let readmePath = Path.Combine(darklangDir, "README.md")
       extractResource "README.md" readmePath
 
-      // Create logs directory
       let logsDir = Path.Combine(darklangDir, "logs")
       Directory.CreateDirectory(logsDir) |> ignore
 

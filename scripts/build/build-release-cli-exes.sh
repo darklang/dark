@@ -44,9 +44,13 @@ export GIT_COMMIT="$sha"
 mkdir -p clis
 rm -rf clis/.darklang
 
-# Force WAL checkpoint to ensure all data is committed to main DB before embedding
-echo "Forcing WAL checkpoint to commit all data before embedding database..."
-sqlite3 rundir/data.db "PRAGMA wal_checkpoint(TRUNCATE);" || echo "WAL checkpoint completed (or no WAL file exists)"
+# Export a seed (smaller DB) and use it as the embedded data.db for smaller exes.
+# The seed has full schema but no derived data — the grow step rebuilds on first run.
+echo "Exporting seed for embedding..."
+sqlite3 rundir/data.db "PRAGMA wal_checkpoint(TRUNCATE);" || true
+scripts/run-local-exec export-seed rundir/seed.db
+cp rundir/seed.db rundir/data.db
+echo "Replaced data.db with seed ($(du -h rundir/data.db | cut -f1))"
 
 # All supported runtimes - must match:
 # - backend/src/LibTreeSitter/LibTreeSitter.fsproj

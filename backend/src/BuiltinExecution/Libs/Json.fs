@@ -64,10 +64,11 @@ module JsonPath =
       | Index of int
       | Field of string
 
-    let typeName =
+    let typeName () =
       FQTypeName.fqPackage (PackageRefs.Type.Stdlib.Json.ParseError.JsonPath.part ())
 
     let toDT (part : Part) : Dval =
+      let typeName = typeName ()
       let (caseName, fields) =
         match part with
         | Root -> "Root", []
@@ -79,7 +80,7 @@ module JsonPath =
   type JsonPath = List<Part.Part>
 
   let toDT (path : JsonPath) : Dval =
-    let partType = VT.customType Part.typeName []
+    let partType = VT.customType (Part.typeName ()) []
     path |> List.map Part.toDT |> (fun parts -> DList(partType, parts))
 
 
@@ -156,7 +157,7 @@ let rec serialize (threadID : ThreadID) (w : Utf8JsonWriter) (dv : Dval) : unit 
 
 module ParseError =
   module RT2DT = LibExecution.RuntimeTypesToDarkTypes
-  let typeName =
+  let typeName () =
     FQTypeName.fqPackage (PackageRefs.Type.Stdlib.Json.ParseError.parseError ())
 
   type ParseError =
@@ -211,6 +212,7 @@ module ParseError =
       | RecordDuplicateField(fieldName, errorPath) ->
         "RecordDuplicateField", [ DString fieldName; JsonPath.toDT errorPath ]
 
+    let typeName = typeName ()
     DEnum(typeName, typeName, [], caseName, fields)
 
 let raiseError (e : ParseError.ParseError) : 'a = raise (ParseError.JsonException e)
@@ -736,7 +738,7 @@ let fns () : List<BuiltInFn> =
       returnType =
         TypeReference.result
           (TVariable "a")
-          (TCustomType(NR.ok ParseError.typeName, []))
+          (TCustomType(NR.ok (ParseError.typeName ()), []))
       description =
         "Parses a JSON string <param json> as a Dark value, matching the type <typeParam a>"
       fn =
@@ -745,7 +747,7 @@ let fns () : List<BuiltInFn> =
           let threadID = vm.threadID
 
           let okType = VT.unknownTODO // "a"
-          let errType = KTCustomType(ParseError.typeName, []) |> VT.known
+          let errType = KTCustomType(ParseError.typeName (), []) |> VT.known
           let resultOk = TypeChecker.DvalCreator.Result.ok threadID okType errType
           let resultError =
             TypeChecker.DvalCreator.Result.error threadID okType errType
