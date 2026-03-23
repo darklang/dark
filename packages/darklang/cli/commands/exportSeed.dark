@@ -15,13 +15,14 @@ let execute (state: AppState) (args: List<String>): AppState =
     state
 
 let help (state: AppState): AppState =
-  Stdlib.printLine "Export a minimal seed.db from the current database."
-  Stdlib.printLine ""
-  Stdlib.printLine "Usage: export-seed <output-path>"
-  Stdlib.printLine ""
-  Stdlib.printLine "The seed contains only source-of-truth tables (ops, branches, commits),"
-  Stdlib.printLine "excluding derived data (locations, types, values, functions)."
-  Stdlib.printLine "Archived branches are excluded."
+  [ "Export a minimal seed.db from the current database."
+    ""
+    "Usage: export-seed <output-path>"
+    ""
+    "The seed contains only source-of-truth tables (ops, branches, commits),"
+    "excluding derived data (locations, types, values, functions)."
+    "Archived branches are excluded." ]
+  |> Stdlib.printLines
   state
 
 let complete (state: AppState) (args: List<String>): List<Completion.CompletionItem> =

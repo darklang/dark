@@ -180,7 +180,7 @@ jobs:
       - run: ./scripts/build/_dotnet-wrapper paket restore
       # DebugType=None and DebugSymbol=false tells dotnet not to copy .pdb files to publish/
 
-      # Setup database for tests
+      # Setup database for tests that need it
       - run:
           name: Build LocalExec for migrations (debug mode fine)
           command: ./scripts/build/_dotnet-wrapper build src/LocalExec/LocalExec.fsproj
@@ -239,7 +239,8 @@ jobs:
       - run: ./scripts/build/_dotnet-wrapper tool restore
       - run: ./scripts/build/_dotnet-wrapper paket restore
 
-      # The CLI embeds data.db
+      # The CLI embeds the Sqlite data.db,
+      # so we need to get a copy ready first.
       - run:
           name: Build LocalExec for migrations (debug mode fine)
           command: ./scripts/build/_dotnet-wrapper build src/LocalExec/LocalExec.fsproj

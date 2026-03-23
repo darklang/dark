@@ -117,6 +117,17 @@ module HandleCommand =
         return Error $"Migration failed: {ex.Message}"
     }
 
+  let exportSeed (outputPath : string) : Ply<Result<unit, string>> =
+    uply {
+      try
+        do! LibPackageManager.Seed.export outputPath
+        let size = System.IO.FileInfo(outputPath).Length / 1024L / 1024L
+        print $"Seed exported to {outputPath} ({size} MB)"
+        return Ok()
+      with ex ->
+        return Error $"Export failed: {ex.Message}"
+    }
+
   let listMigrations () : Ply<Result<unit, string>> =
     uply {
       try
@@ -180,6 +191,11 @@ let main (args : string[]) : int =
     | [ "migrations"; "list" ] ->
       handleCommand "listing available migrations" (HandleCommand.listMigrations ())
 
+    | [ "export-seed"; outputPath ] ->
+      handleCommand
+        $"Exporting seed to {outputPath}"
+        (HandleCommand.exportSeed outputPath)
+
     | _ ->
       print "Invalid arguments"
       print "Available commands:"
@@ -187,6 +203,7 @@ let main (args : string[]) : int =
       print "  reload-canvases"
       print "  migrations run"
       print "  migrations list"
+      print "  export-seed <output-path>"
       NonBlockingConsole.wait ()
       1
   with e ->
