@@ -145,6 +145,71 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
+    // CLEANUP: these three builtins are performance workarounds — see Queries.fs
+    { name = fn "scmGetWipItems" 0
+      typeParams = []
+      parameters = [ Param.make "branchId" TUuid "Branch ID" ]
+      returnType = TList(TDict TString)
+      description =
+        "Get WIP items on a branch (excludes auto-propagated ops). Returns list of dicts with name, kind, modulePath, propagatedCount."
+      fn =
+        function
+        | _, _, _, [ DUuid branchId ] ->
+          uply {
+            let! items = LibPackageManager.Queries.getWipItems branchId
+            return
+              items
+              |> List.map (fun item ->
+                Dval.dict
+                  KTString
+                  [ "name", DString item.name
+                    "kind", DString item.kind
+                    "modulePath", DString item.modulePath
+                    "propagatedCount", DString(string item.propagatedCount) ])
+              |> Dval.list (KTDict(ValueType.Known KTString))
+          }
+        | _ -> incorrectArgs ()
+      sqlSpec = NotQueryable
+      previewable = Impure
+      deprecated = NotDeprecated }
+
+
+    { name = fn "scmGetWipOpCount" 0
+      typeParams = []
+      parameters = [ Param.make "branchId" TUuid "Branch ID" ]
+      returnType = TInt64
+      description = "Get count of WIP ops on a branch (fast, no deserialization)."
+      fn =
+        function
+        | _, _, _, [ DUuid branchId ] ->
+          uply {
+            let! count = LibPackageManager.Queries.getWipOpCount branchId
+            return Dval.int64 count
+          }
+        | _ -> incorrectArgs ()
+      sqlSpec = NotQueryable
+      previewable = Impure
+      deprecated = NotDeprecated }
+
+
+    { name = fn "scmGetCommitCount" 0
+      typeParams = []
+      parameters = [ Param.make "branchId" TUuid "Branch ID" ]
+      returnType = TInt64
+      description = "Get count of commits on a branch (fast, no deserialization)."
+      fn =
+        function
+        | _, _, _, [ DUuid branchId ] ->
+          uply {
+            let! count = LibPackageManager.Queries.getCommitCount branchId
+            return Dval.int64 count
+          }
+        | _ -> incorrectArgs ()
+      sqlSpec = NotQueryable
+      previewable = Impure
+      deprecated = NotDeprecated }
+
+
     { name = fn "scmCommit" 0
       typeParams = []
       parameters =

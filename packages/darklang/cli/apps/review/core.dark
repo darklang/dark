@@ -1,0 +1,104 @@
+module Darklang.Cli.Apps.Review
+
+type PackageItem =
+  { name: String
+    kind: String
+    modulePath: String
+    propagatedCount: Int64 }
+
+type BranchReviewItem =
+  { branchId: Uuid
+    branchName: String
+    wipCount: Int64
+    committedCount: Int64 }
+
+type BranchListState =
+  { items: List<BranchReviewItem>
+    selected: Int64 }
+
+type DetailItem =
+  | ModuleHeader of String
+  | ItemEntry of PackageItem
+
+type DetailState =
+  { branchName: String
+    branchId: Uuid
+    flatItems: List<DetailItem>
+    selected: Int64 }
+
+type CommitEntry =
+  { hash: String
+    fullHash: String
+    message: String
+    date: String
+    opCount: Int64 }
+
+type CommitListState =
+  { branchName: String
+    branchId: Uuid
+    commits: List<CommitEntry>
+    selected: Int64
+    returnTo: DetailState }
+
+type DiffReturnTo =
+  | ReturnToDetail of DetailState
+  | ReturnToCommits of CommitListState
+
+type DiffState =
+  { itemName: String
+    diffLines: List<Stdlib.Diff.DiffLine>
+    scrollOffset: Int64
+    returnTo: DiffReturnTo }
+
+type Screen =
+  | BranchList of BranchListState
+  | Detail of DetailState
+  | DiffView of DiffState
+  | CommitList of CommitListState
+
+type AppModel =
+  { screen: Screen
+    branchId: Uuid
+    showAll: Bool }
+
+type KeyResult =
+  | Continue of AppModel
+  | Exit of AppModel
+
+// ── Navigation helpers ──
+
+let moveUp (selected: Int64) : Int64 =
+  if selected > 0L then selected - 1L else selected
+
+let moveDown (selected: Int64) (itemCount: Int64) : Int64 =
+  let maxIdx = itemCount - 1L
+  if selected < maxIdx then selected + 1L else selected
+
+/// Move up, skipping empty spacer items
+let moveUpSkipping (selected: Int64) (items: List<DetailItem>) : Int64 =
+  let candidate = moveUp selected
+  match Stdlib.List.getAt items candidate with
+  | Some flatItem ->
+    match flatItem with
+    | ModuleHeader modPath ->
+      if Stdlib.String.isEmpty modPath then moveUp candidate
+      else candidate
+    | ItemEntry _pkg -> candidate
+  | None -> candidate
+
+/// Move down, skipping empty spacer items
+let moveDownSkipping (selected: Int64) (items: List<DetailItem>) : Int64 =
+  let itemCount = Stdlib.List.length items
+  let candidate = moveDown selected itemCount
+  match Stdlib.List.getAt items candidate with
+  | Some flatItem ->
+    match flatItem with
+    | ModuleHeader modPath ->
+      if Stdlib.String.isEmpty modPath then moveDown candidate itemCount
+      else candidate
+    | ItemEntry _pkg -> candidate
+  | None -> candidate
+
+let computeScrollOffset (selected: Int64) (visibleCount: Int64) : Int64 =
+  if selected >= visibleCount then selected - visibleCount + 1L
+  else 0L

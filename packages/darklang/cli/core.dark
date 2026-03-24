@@ -201,7 +201,9 @@ module Registry =
       ("undo", "Undo WIP changes to a fn/type/value", [], Packages.Undo.execute, Packages.Undo.help, Packages.Undo.complete)
       ("db", "Manage databases", [], Packages.DB.execute, Packages.DB.help, Packages.DB.complete)
       ("outliner", "Interactive tree outliner", [ "tree-exp" ], Darklang.Cli.Apps.Outliner.App.execute, Darklang.Cli.Apps.Outliner.App.help, Darklang.Cli.Apps.Outliner.App.complete)
-      ("export-seed", "Export minimal seed.db from current database", [], Commands.ExportSeed.execute, Commands.ExportSeed.help, Commands.ExportSeed.complete) ]
+      ("export-seed", "Export minimal seed.db from current database", [], Commands.ExportSeed.execute, Commands.ExportSeed.help, Commands.ExportSeed.complete)
+      ("traces", "List and view execution traces", [ "trace" ], Commands.Traces.execute, Commands.Traces.help, Commands.Traces.complete)
+      ("review", "Review branch changesets", [], Darklang.Cli.Apps.Review.App.execute, Darklang.Cli.Apps.Review.App.help, Darklang.Cli.Apps.Review.App.complete) ]
     |> Stdlib.List.map(
       // CLEANUP nitpicky: swap help and complete
       fun (name, desc, aliases, execute, help, complete) ->
@@ -269,7 +271,7 @@ module Registry =
   // Command groups organized by category (shared between compact and detailed views)
   let commandGroups () : List<(String * List<String>)> =
     [ ("Packages", [ "nav"; "ls"; "view"; "tree"; "back"; "search"; "deps"; "val"; "let"; "fn"; "type"; "hash"; "db" ])
-      ("SCM", [ "status"; "log"; "commit"; "discard"; "show"; "branch"; "rebase"; "merge" ])
+      ("SCM", [ "status"; "log"; "commit"; "discard"; "show"; "branch"; "rebase"; "merge"; "review" ])
       ("Execution", [ "run"; "eval"; "scripts" ])
       ("Installation", [ "install"; "update"; "uninstall"; "version" ])
       ("AI", [ "agent" ])

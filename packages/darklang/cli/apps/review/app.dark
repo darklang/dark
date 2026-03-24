@@ -1,0 +1,614 @@
+module Darklang.Cli.Apps.Review.App
+
+// ── Helpers ──
+
+let locationToModulePath (loc: LanguageTools.ProgramTypes.PackageLocation) : String =
+  match loc.modules with
+  | [] -> loc.owner
+  | modules -> loc.owner ++ "." ++ (Stdlib.String.join modules ".")
+
+let getParentBranchId (branchId: Uuid) : Stdlib.Option.Option<Uuid> =
+  match SCM.Branch.get branchId with
+  | Some branch -> branch.parentBranchId
+  | None -> Stdlib.Option.Option.None
+
+
+/// Extract (kind, hash, loc) tuples from SetName ops in a list of ops
+let extractSetOps
+  (ops: List<LanguageTools.ProgramTypes.PackageOp>)
+  : List<(String * LanguageTools.ProgramTypes.Hash * LanguageTools.ProgramTypes.PackageLocation)> =
+  Stdlib.List.filterMap ops (fun op ->
+    match op with
+    | SetTypeName (hash, loc) -> Stdlib.Option.Option.Some (("Type", hash, loc))
+    | SetFnName (hash, loc) -> Stdlib.Option.Option.Some (("Fn", hash, loc))
+    | SetValueName (hash, loc) -> Stdlib.Option.Option.Some (("Value", hash, loc))
+    | AddType _typ -> Stdlib.Option.Option.None
+    | AddFn _fn -> Stdlib.Option.Option.None
+    | AddValue _val -> Stdlib.Option.Option.None
+    | PropagateUpdate (_pid, _sloc, _kind, _from, _to, _reps) -> Stdlib.Option.Option.None
+    | RevertPropagation (_rid, _pids, _sloc, _kind, _hash, _reps) -> Stdlib.Option.Option.None)
+
+// ── Data loading ──
+
+let loadWipItems (branchId: Uuid) : List<PackageItem> =
+  let items = SCM.PackageOps.getWipItems branchId
+  Stdlib.List.map items (fun d ->
+    let name = Builtin.unwrap (Stdlib.Dict.get d "name")
+    let kind = Builtin.unwrap (Stdlib.Dict.get d "kind")
+    let modulePath = Builtin.unwrap (Stdlib.Dict.get d "modulePath")
+    let pCountStr = Builtin.unwrap (Stdlib.Dict.get d "propagatedCount")
+    let pCount = Builtin.unwrap (Stdlib.Int64.parse pCountStr)
+    PackageItem { name = name; kind = kind; modulePath = modulePath; propagatedCount = pCount })
+
+let groupByModule (items: List<PackageItem>) : List<(String * List<PackageItem>)> =
+  let modulePaths =
+    items
+    |> Stdlib.List.map (fun item -> item.modulePath)
+    |> Stdlib.List.unique
+    |> Stdlib.List.sort
+  modulePaths
+  |> Stdlib.List.map (fun modPath ->
+    let moduleItems = items |> Stdlib.List.filter (fun item -> item.modulePath == modPath)
+    (modPath, moduleItems))
+
+let loadBranchList () : List<BranchReviewItem> =
+  let branches = SCM.Branch.list ()
+  let items =
+    branches
+    |> Stdlib.List.filterMap (fun b ->
+      let wipOpCount = SCM.PackageOps.getWipOpCount b.id
+      let committedCount = SCM.PackageOps.getCommitCount b.id
+      if wipOpCount == 0L && committedCount == 0L then
+        Stdlib.Option.Option.None
+      else
+        Stdlib.Option.Option.Some
+          (BranchReviewItem
+            { branchId = b.id
+              branchName = b.name
+              wipCount = wipOpCount
+              committedCount = committedCount }))
+  // Sort: branches with WIP first, then committed-only
+  let (withWip, committedOnly) = Stdlib.List.partition items (fun item -> item.wipCount > 0L)
+  Stdlib.List.append withWip committedOnly
+
+let flattenGroups (groups: List<(String * List<PackageItem>)>) : List<DetailItem> =
+  groups
+  |> Stdlib.List.indexedMap (fun idx group ->
+    let (modPath, items) = group
+    let spacer = if idx > 0L then [ DetailItem.ModuleHeader "" ] else []
+    let header = [ DetailItem.ModuleHeader modPath ]
+    let entries = Stdlib.List.map items (fun item -> DetailItem.ItemEntry item)
+    Stdlib.List.append spacer (Stdlib.List.append header entries))
+  |> Stdlib.List.flatten
+
+let buildDetailState (item: BranchReviewItem) : DetailState =
+  let flatItems =
+    if item.wipCount == 0L then []
+    else
+      let items = loadWipItems item.branchId
+      flattenGroups (groupByModule items)
+  DetailState
+    { branchName = item.branchName
+      branchId = item.branchId
+      flatItems = flatItems
+      selected = 0L }
+
+// ── Diff building ──
+
+let prettyPrintFromPM (branchId: Uuid) (itemName: String) (kind: String) : String =
+  let loc = LanguageTools.ProgramTypes.parsePackageLocation itemName
+  let modulePath = Stdlib.List.append [loc.owner] loc.modules
+  let results = Darklang.Cli.Packages.Query.searchExactMatch branchId modulePath loc.name
+  let ctx =
+    PrettyPrinter.ProgramTypes.Context
+      { branchId = branchId
+        currentModule = Stdlib.Option.Option.None
+        currentFunction = Stdlib.Option.Option.None }
+  match kind with
+  | "Fn" ->
+    match results.fns with
+    | item :: _ -> PrettyPrinter.ProgramTypes.packageFn ctx item.entity
+    | [] -> "(not found)"
+  | "Type" ->
+    match results.types with
+    | item :: _ -> PrettyPrinter.ProgramTypes.packageType ctx item.entity
+    | [] -> "(not found)"
+  | "Value" ->
+    match results.values with
+    | item :: _ -> PrettyPrinter.ProgramTypes.packageValue ctx item.entity
+    | [] -> "(not found)"
+  | _ -> "(unknown kind)"
+
+let prettyPrintFromOps
+  (ops: List<LanguageTools.ProgramTypes.PackageOp>)
+  (branchId: Uuid)
+  (itemName: String)
+  (kind: String)
+  : String =
+  let ctx =
+    PrettyPrinter.ProgramTypes.Context
+      { branchId = branchId
+        currentModule = Stdlib.Option.Option.None
+        currentFunction = Stdlib.Option.Option.None }
+  let targetHash =
+    (extractSetOps ops)
+    |> Stdlib.List.filterMap (fun entry ->
+      let (k, hash, loc) = entry
+      if k == kind && (PrettyPrinter.ProgramTypes.PackageLocation.packageLocation loc) == itemName then
+        Stdlib.Option.Option.Some hash
+      else Stdlib.Option.Option.None)
+    |> Stdlib.List.last
+  match targetHash with
+  | Some hash ->
+    let found =
+      ops
+      |> Stdlib.List.filterMap (fun op ->
+        match op with
+        | AddFn fn ->
+          if kind == "Fn" && fn.hash == hash then
+            Stdlib.Option.Option.Some (PrettyPrinter.ProgramTypes.packageFn ctx fn)
+          else Stdlib.Option.Option.None
+        | AddType typ ->
+          if kind == "Type" && typ.hash == hash then
+            Stdlib.Option.Option.Some (PrettyPrinter.ProgramTypes.packageType ctx typ)
+          else Stdlib.Option.Option.None
+        | AddValue v ->
+          if kind == "Value" && v.hash == hash then
+            Stdlib.Option.Option.Some (PrettyPrinter.ProgramTypes.packageValue ctx v)
+          else Stdlib.Option.Option.None
+        | SetTypeName (_id, _loc) -> Stdlib.Option.Option.None
+        | SetFnName (_id, _loc) -> Stdlib.Option.Option.None
+        | SetValueName (_id, _loc) -> Stdlib.Option.Option.None
+        | PropagateUpdate (_pid, _sloc, _kind, _from, _to, _reps) -> Stdlib.Option.Option.None
+        | RevertPropagation (_rid, _pids, _sloc, _kind, _h, _reps) -> Stdlib.Option.Option.None)
+    match found with
+    | text :: _ -> text
+    | [] -> "(content not found)"
+  | None -> "(hash not found)"
+
+let allAddedLines (text: String) : List<Stdlib.Diff.DiffLine> =
+  let lines = Stdlib.String.split text "\n"
+  Stdlib.List.map lines (fun line -> Stdlib.Diff.DiffLine.Added line)
+
+let diffForItem
+  (ops: List<LanguageTools.ProgramTypes.PackageOp>)
+  (branchId: Uuid)
+  (parentId: Stdlib.Option.Option<Uuid>)
+  (pkg: PackageItem)
+  : List<Stdlib.Diff.DiffLine> =
+  let newText = prettyPrintFromOps ops branchId pkg.name pkg.kind
+  match parentId with
+  | Some pid ->
+    let oldText = prettyPrintFromPM pid pkg.name pkg.kind
+    if oldText == "(not found)" then
+      allAddedLines newText
+    else
+      Stdlib.Diff.lines oldText newText
+  | None -> allAddedLines newText
+
+/// Build diff lines for multiple items, grouped by module with separators
+let diffForItems
+  (ops: List<LanguageTools.ProgramTypes.PackageOp>)
+  (branchId: Uuid)
+  (parentId: Stdlib.Option.Option<Uuid>)
+  (items: List<PackageItem>)
+  : List<Stdlib.Diff.DiffLine> =
+  Stdlib.List.fold items [] (fun acc pkg ->
+    let separator =
+      if Stdlib.List.isEmpty acc then []
+      else [Stdlib.Diff.DiffLine.Same ""; Stdlib.Diff.DiffLine.Same "---"]
+    let itemDiff = diffForItem ops branchId parentId pkg
+    Stdlib.List.append (Stdlib.List.append acc separator) itemDiff)
+
+let buildDiffState (detail: DetailState) (pkg: PackageItem) : DiffState =
+  let ops = SCM.PackageOps.getWip detail.branchId
+  let parentId = getParentBranchId detail.branchId
+  DiffState
+    { itemName = pkg.name
+      diffLines = diffForItem ops detail.branchId parentId pkg
+      scrollOffset = 0L
+      returnTo = DiffReturnTo.ReturnToDetail detail }
+
+let buildModuleDiffState (detail: DetailState) (modPath: String) : DiffState =
+  let ops = SCM.PackageOps.getWip detail.branchId
+  let parentId = getParentBranchId detail.branchId
+  let moduleItems =
+    detail.flatItems
+    |> Stdlib.List.filterMap (fun flatItem ->
+      match flatItem with
+      | ItemEntry pkg ->
+        if pkg.modulePath == modPath then Stdlib.Option.Option.Some pkg
+        else Stdlib.Option.Option.None
+      | ModuleHeader _m -> Stdlib.Option.Option.None)
+  DiffState
+    { itemName = modPath
+      diffLines = diffForItems ops detail.branchId parentId moduleItems
+      scrollOffset = 0L
+      returnTo = DiffReturnTo.ReturnToDetail detail }
+
+let buildCommitList (detail: DetailState) : CommitListState =
+  let commits = SCM.PackageOps.getCommits detail.branchId 20L
+  let entries =
+    Stdlib.List.map commits (fun c ->
+      let shortHash = LanguageTools.ProgramTypes.hashToShort c.hash
+      let fullHash = LanguageTools.ProgramTypes.hashToString c.hash
+      let date = Stdlib.DateTime.toString c.createdAt
+      CommitEntry
+        { hash = shortHash
+          fullHash = fullHash
+          message = c.message
+          date = date
+          opCount = c.opCount })
+  CommitListState
+    { branchName = detail.branchName
+      branchId = detail.branchId
+      commits = entries
+      selected = 0L
+      returnTo = detail }
+
+/// Build diff view for a commit's ops, grouped by module
+let buildCommitDiffState (commitList: CommitListState) (entry: CommitEntry) : DiffState =
+  // Skip loading ops for very large commits
+  if entry.opCount > 200L then
+    let msg = $"Commit has {Stdlib.Int64.toString entry.opCount} ops — too large to display inline."
+    DiffState
+      { itemName = entry.hash ++ " " ++ entry.message
+        diffLines = [Stdlib.Diff.DiffLine.Same msg]
+        scrollOffset = 0L
+        returnTo = DiffReturnTo.ReturnToCommits commitList }
+  else
+  let ops = SCM.PackageOps.getCommitOps entry.fullHash
+  let parentId = getParentBranchId commitList.branchId
+  let setOps = extractSetOps ops
+  let items =
+    setOps
+    |> Stdlib.List.map (fun setEntry ->
+      let (kind, _hash, loc) = setEntry
+      PackageItem
+        { name = PrettyPrinter.ProgramTypes.PackageLocation.packageLocation loc
+          kind = kind
+          modulePath = locationToModulePath loc
+          propagatedCount = 0L })
+  let groups = groupByModule items
+  let itemLines =
+    Stdlib.List.fold groups [] (fun acc group ->
+      let (modPath, moduleItems) = group
+      let moduleHeader = Stdlib.Diff.DiffLine.Same modPath
+      let moduleDiff =
+        Stdlib.List.fold moduleItems [] (fun mAcc pkg ->
+          let opsText = prettyPrintFromOps ops commitList.branchId pkg.name pkg.kind
+          let newText =
+            if opsText == "(content not found)" || opsText == "(hash not found)" then
+              prettyPrintFromPM commitList.branchId pkg.name pkg.kind
+            else
+              opsText
+          let itemDiff =
+            match parentId with
+            | Some pid ->
+              let oldText = prettyPrintFromPM pid pkg.name pkg.kind
+              if oldText == "(not found)" then allAddedLines newText
+              else Stdlib.Diff.lines oldText newText
+            | None -> allAddedLines newText
+          let sep =
+            if Stdlib.List.isEmpty mAcc then []
+            else [Stdlib.Diff.DiffLine.Same ""; Stdlib.Diff.DiffLine.Same "---"]
+          Stdlib.List.append mAcc (Stdlib.List.append sep itemDiff))
+      let separator =
+        if Stdlib.List.isEmpty acc then []
+        else [Stdlib.Diff.DiffLine.Same ""]
+      Stdlib.List.append acc (Stdlib.List.append separator (Stdlib.List.append [moduleHeader] moduleDiff)))
+  DiffState
+    { itemName = entry.hash ++ " " ++ entry.message
+      diffLines = itemLines
+      scrollOffset = 0L
+      returnTo = DiffReturnTo.ReturnToCommits commitList }
+
+// ── Key handling ──
+
+let openDiff (state: AppModel) (detail: DetailState) : KeyResult =
+  match Stdlib.List.getAt detail.flatItems detail.selected with
+  | Some flatItem ->
+    match flatItem with
+    | ItemEntry pkg ->
+      KeyResult.Continue ({ state with screen = Screen.DiffView (buildDiffState detail pkg) })
+    | ModuleHeader modPath ->
+      if Stdlib.String.isEmpty modPath then KeyResult.Continue state
+      else KeyResult.Continue ({ state with screen = Screen.DiffView (buildModuleDiffState detail modPath) })
+  | None -> KeyResult.Continue state
+
+let openCommitDiff (state: AppModel) (commitList: CommitListState) : KeyResult =
+  match Stdlib.List.getAt commitList.commits commitList.selected with
+  | Some entry ->
+    KeyResult.Continue ({ state with screen = Screen.DiffView (buildCommitDiffState commitList entry) })
+  | None -> KeyResult.Continue state
+
+let handleBranchListKey (state: AppModel) (branchList: BranchListState) (key: Stdlib.Cli.Stdin.Key.Key) (keyChar: Stdlib.Option.Option<String>) : KeyResult =
+  let itemCount = Stdlib.List.length branchList.items
+  match keyChar with
+  | Some "r" ->
+    let newBranchList = BranchListState { items = loadBranchList (); selected = 0L }
+    KeyResult.Continue ({ state with screen = Screen.BranchList newBranchList })
+  | _ ->
+    match key with
+    | Escape | LeftArrow -> KeyResult.Exit state
+    | UpArrow ->
+      KeyResult.Continue ({ state with screen = Screen.BranchList ({ branchList with selected = moveUp branchList.selected }) })
+    | DownArrow ->
+      KeyResult.Continue ({ state with screen = Screen.BranchList ({ branchList with selected = moveDown branchList.selected itemCount }) })
+    | Enter | RightArrow ->
+      match Stdlib.List.getAt branchList.items branchList.selected with
+      | Some item -> KeyResult.Continue ({ state with screen = Screen.Detail (buildDetailState item) })
+      | None -> KeyResult.Continue state
+    | _ -> KeyResult.Continue state
+
+let handleDetailKey (state: AppModel) (detail: DetailState) (key: Stdlib.Cli.Stdin.Key.Key) (keyChar: Stdlib.Option.Option<String>) : KeyResult =
+  match keyChar with
+  | Some "c" ->
+    KeyResult.Continue ({ state with screen = Screen.CommitList (buildCommitList detail) })
+  | _ ->
+    match key with
+    | Escape | LeftArrow ->
+      if state.showAll then
+        KeyResult.Continue ({ state with screen = Screen.BranchList (BranchListState { items = loadBranchList (); selected = 0L }) })
+      else KeyResult.Exit state
+    | UpArrow ->
+      KeyResult.Continue ({ state with screen = Screen.Detail ({ detail with selected = moveUpSkipping detail.selected detail.flatItems }) })
+    | DownArrow ->
+      KeyResult.Continue ({ state with screen = Screen.Detail ({ detail with selected = moveDownSkipping detail.selected detail.flatItems }) })
+    | Enter | RightArrow -> openDiff state detail
+    | _ -> KeyResult.Continue state
+
+let goBackFromDiff (state: AppModel) (diffState: DiffState) : KeyResult =
+  match diffState.returnTo with
+  | ReturnToDetail detail ->
+    KeyResult.Continue ({ state with screen = Screen.Detail detail })
+  | ReturnToCommits commitList ->
+    KeyResult.Continue ({ state with screen = Screen.CommitList commitList })
+
+let handleDiffKey (state: AppModel) (diffState: DiffState) (key: Stdlib.Cli.Stdin.Key.Key) : KeyResult =
+  match key with
+  | Escape | LeftArrow -> goBackFromDiff state diffState
+  | UpArrow ->
+    KeyResult.Continue ({ state with screen = Screen.DiffView ({ diffState with scrollOffset = moveUp diffState.scrollOffset }) })
+  | DownArrow ->
+    let lineCount = Stdlib.List.length diffState.diffLines
+    KeyResult.Continue ({ state with screen = Screen.DiffView ({ diffState with scrollOffset = moveDown diffState.scrollOffset lineCount }) })
+  | _ -> KeyResult.Continue state
+
+let handleCommitListKey (state: AppModel) (commitList: CommitListState) (key: Stdlib.Cli.Stdin.Key.Key) : KeyResult =
+  let itemCount = Stdlib.List.length commitList.commits
+  match key with
+  | Escape | LeftArrow -> KeyResult.Continue ({ state with screen = Screen.Detail commitList.returnTo })
+  | UpArrow ->
+    KeyResult.Continue ({ state with screen = Screen.CommitList ({ commitList with selected = moveUp commitList.selected }) })
+  | DownArrow ->
+    KeyResult.Continue ({ state with screen = Screen.CommitList ({ commitList with selected = moveDown commitList.selected itemCount }) })
+  | Enter | RightArrow -> openCommitDiff state commitList
+  | _ -> KeyResult.Continue state
+
+let handleKey (state: AppModel) (key: Stdlib.Cli.Stdin.Key.Key) (_modifiers: Stdlib.Cli.Stdin.Modifiers.Modifiers) (keyChar: Stdlib.Option.Option<String>) : KeyResult =
+  match state.screen with
+  | BranchList branchList -> handleBranchListKey state branchList key keyChar
+  | Detail detail -> handleDetailKey state detail key keyChar
+  | CommitList commitList -> handleCommitListKey state commitList key
+  | DiffView diffState -> handleDiffKey state diffState key
+
+// ── Rendering ──
+
+let kindLabel (kind: String) : String =
+  match kind with
+  | "Type" -> Darklang.Cli.Colors.colorize Darklang.Cli.Colors.blue "type"
+  | "Fn" -> Darklang.Cli.Colors.colorize "\x1b[38;5;141m" "fn"
+  | "Value" -> Darklang.Cli.Colors.colorize "\x1b[38;5;208m" "val"
+  | other -> Darklang.Cli.Colors.colorize Darklang.Cli.Colors.dim other
+
+let printLine (region: Darklang.Cli.UI.Layout.Region) (row: Int64) (text: String) : Unit =
+  Darklang.Cli.UI.Layout.printAt region row 0L (text ++ "\u001b[K")
+
+let clearRows (region: Darklang.Cli.UI.Layout.Region) (startRow: Int64) : Unit =
+  let rows = Stdlib.List.range startRow (region.rows - 1L)
+  Stdlib.List.iter rows (fun row -> Darklang.Cli.UI.Layout.printAt region row 0L "\u001b[K")
+
+let renderScrollableList
+  (region: Darklang.Cli.UI.Layout.Region)
+  (items: List<'a>)
+  (selected: Int64)
+  (startRow: Int64)
+  (rowsPerItem: Int64)
+  (renderItem: Darklang.Cli.UI.Layout.Region -> Int64 -> 'a -> Bool -> Unit)
+  : Unit =
+  let itemCount = Stdlib.List.length items
+  let listRows = region.rows - startRow
+  let visibleCount = Stdlib.Int64.divide listRows rowsPerItem
+  let scrollOffset = computeScrollOffset selected visibleCount
+  items
+  |> Stdlib.List.indexedMap (fun idx item -> (idx, item))
+  |> Stdlib.List.drop scrollOffset
+  |> Stdlib.List.take visibleCount
+  |> Stdlib.List.iter (fun pair ->
+    let (idx, item) = pair
+    let itemRow = ((idx - scrollOffset) * rowsPerItem) + startRow
+    let isSelected = idx == selected
+    renderItem region itemRow item isSelected)
+  let renderedRows = ((Stdlib.Int64.min itemCount visibleCount) * rowsPerItem) + startRow
+  clearRows region renderedRows
+
+let renderTitleBar (region: Darklang.Cli.UI.Layout.Region) (modeText: String) : Unit =
+  let title = Darklang.Cli.Colors.colorize (Darklang.Cli.Colors.bold ++ Darklang.Cli.Colors.magenta) "Review changes"
+  let mode = Darklang.Cli.Colors.colorize Darklang.Cli.Colors.dim modeText
+  printLine region 0L ($"  {title} {mode}")
+
+let renderHelpBar (region: Darklang.Cli.UI.Layout.Region) (helpText: String) : Unit =
+  printLine region 0L (Darklang.Cli.Colors.colorize Darklang.Cli.Colors.dim helpText)
+
+let renderBranchListBody (branchList: BranchListState) (region: Darklang.Cli.UI.Layout.Region) : Unit =
+  let itemCount = Stdlib.List.length branchList.items
+  printLine region 0L $"  {Darklang.Cli.Colors.bold}branches to review{Darklang.Cli.Colors.reset}"
+  if itemCount == 0L then
+    printLine region 2L (Darklang.Cli.Colors.colorize Darklang.Cli.Colors.dim "  No branches with changes to review.")
+    clearRows region 3L
+  else
+  let dim = Darklang.Cli.Colors.dim ++ Darklang.Cli.Colors.brightBlack
+  let hBar = Stdlib.String.repeat "─" (Stdlib.Int64.max 0L (region.cols - 5L))
+  renderScrollableList region branchList.items branchList.selected 2L 4L (fun r cardRow item isSelected ->
+    let borderColor = if isSelected then Darklang.Cli.Colors.cyan else dim
+    let bar = Darklang.Cli.Colors.colorize borderColor "│"
+    let marker = if isSelected then Darklang.Cli.Colors.colorize Darklang.Cli.Colors.cyan " > " else "   "
+    let nameColor = if isSelected then Darklang.Cli.Colors.bold ++ Darklang.Cli.Colors.cyan else Darklang.Cli.Colors.white
+    let nameText = Darklang.Cli.Colors.colorize nameColor item.branchName
+    let textDim = if isSelected then "" else Darklang.Cli.Colors.dim
+    let wipText =
+      if item.wipCount > 0L then
+        Darklang.Cli.Colors.colorize (textDim ++ "\x1b[38;5;213m") ($"{Stdlib.Int64.toString item.wipCount} Pending")
+      else
+        ""
+    let committedText =
+      if item.committedCount > 0L then
+        let commitWord = if item.committedCount == 1L then "Commit" else "Commits"
+        Darklang.Cli.Colors.colorize (textDim ++ "\x1b[38;5;141m") ($"{Stdlib.Int64.toString item.committedCount} {commitWord}")
+      else
+        ""
+    let countText =
+      [wipText; committedText]
+      |> Stdlib.List.filter (fun s -> Stdlib.Bool.not (Stdlib.String.isEmpty s))
+      |> Stdlib.String.join "  "
+    printLine r cardRow (Darklang.Cli.Colors.colorize borderColor ("   ╭" ++ hBar))
+    printLine r (cardRow + 1L) $"{marker}{bar} {nameText}  {countText}"
+    printLine r (cardRow + 2L) $"   {bar}"
+    printLine r (cardRow + 3L) (Darklang.Cli.Colors.colorize borderColor ("   ╰" ++ hBar)))
+
+let renderDetailBody (detail: DetailState) (region: Darklang.Cli.UI.Layout.Region) : Unit =
+  printLine region 0L $"  {Darklang.Cli.Colors.dim}review >{Darklang.Cli.Colors.reset} {Darklang.Cli.Colors.cyan}{detail.branchName}{Darklang.Cli.Colors.reset}"
+  let itemCount = Stdlib.List.length detail.flatItems
+  if itemCount == 0L then
+    printLine region 2L (Darklang.Cli.Colors.colorize Darklang.Cli.Colors.dim "  No changes on this branch.")
+    clearRows region 3L
+  else
+  renderScrollableList region detail.flatItems detail.selected 2L 1L (fun r row item isSelected ->
+    let styled =
+      match item with
+      | ModuleHeader modPath ->
+        let prefix = if isSelected then " > " else "   "
+        $"{prefix}{Darklang.Cli.Colors.bold}{Darklang.Cli.Colors.magenta}{modPath}{Darklang.Cli.Colors.reset}"
+      | ItemEntry pkg ->
+        let prefix = if isSelected then "  > " else "    "
+        let propText =
+          if pkg.propagatedCount > 0L then
+            Darklang.Cli.Colors.colorize Darklang.Cli.Colors.dim ($"  ({Stdlib.Int64.toString pkg.propagatedCount} propagated)")
+          else
+            ""
+        $"{prefix}{kindLabel pkg.kind} {pkg.name}{propText}"
+    printLine r row styled)
+
+let renderDiffBody (diffState: DiffState) (region: Darklang.Cli.UI.Layout.Region) : Unit =
+  let branchName =
+    match diffState.returnTo with
+    | ReturnToDetail detail -> detail.branchName
+    | ReturnToCommits commitList -> commitList.branchName
+  printLine region 0L $"  {Darklang.Cli.Colors.dim}review > {branchName} >{Darklang.Cli.Colors.reset} {Darklang.Cli.Colors.cyan}{diffState.itemName}{Darklang.Cli.Colors.reset}"
+  let listRows = region.rows - 2L
+  let lineCount = Stdlib.List.length diffState.diffLines
+  diffState.diffLines
+  |> Stdlib.List.indexedMap (fun idx line -> (idx, line))
+  |> Stdlib.List.drop diffState.scrollOffset
+  |> Stdlib.List.take listRows
+  |> Stdlib.List.iter (fun pair ->
+    let (idx, diffLine) = pair
+    let row = (idx - diffState.scrollOffset) + 2L
+    let styled =
+      match diffLine with
+      | Added text -> Darklang.Cli.Colors.colorize Darklang.Cli.Colors.green ("  + " ++ text)
+      | Removed text -> Darklang.Cli.Colors.colorize Darklang.Cli.Colors.red ("  - " ++ text)
+      | Same text -> "    " ++ text
+    printLine region row styled)
+  clearRows region ((Stdlib.Int64.min lineCount listRows) + 2L)
+
+let renderCommitListBody (commitList: CommitListState) (region: Darklang.Cli.UI.Layout.Region) : Unit =
+  printLine region 0L $"  {Darklang.Cli.Colors.dim}review > {commitList.branchName} >{Darklang.Cli.Colors.reset} {Darklang.Cli.Colors.bold}commits{Darklang.Cli.Colors.reset}"
+  let itemCount = Stdlib.List.length commitList.commits
+  if itemCount == 0L then
+    printLine region 2L (Darklang.Cli.Colors.colorize Darklang.Cli.Colors.dim "  No commits on this branch.")
+    clearRows region 3L
+  else
+  renderScrollableList region commitList.commits commitList.selected 2L 1L (fun r row entry isSelected ->
+    let prefix = if isSelected then " > " else "   "
+    let hashText = Darklang.Cli.Colors.colorize Darklang.Cli.Colors.yellow entry.hash
+    let opsText = Darklang.Cli.Colors.colorize Darklang.Cli.Colors.dim ($"{Stdlib.Int64.toString entry.opCount} ops")
+    let dateText = Darklang.Cli.Colors.colorize Darklang.Cli.Colors.dim entry.date
+    printLine r row $"{prefix}{hashText} {entry.message}  {opsText}  {dateText}")
+
+let render (state: AppModel) : Unit =
+  let termHeight = Darklang.Cli.Terminal.getHeight ()
+  let termWidth = Darklang.Cli.Terminal.getWidth ()
+  Stdlib.print "\u001b[?25l\u001b[2J\u001b[H"
+  let screen =
+    Darklang.Cli.UI.Layout.Region { top = 1L; left = 1L; rows = termHeight - 1L; cols = termWidth }
+  let (mode, bodyFn, helpText) =
+    match state.screen with
+    | BranchList branchList ->
+      ("", (fun r -> renderBranchListBody branchList r), "Up/Down: navigate | Right/Enter: open | r: refresh | Left/Esc: exit")
+    | Detail detail ->
+      (" Pending ", (fun r -> renderDetailBody detail r), "Up/Down: navigate | Right/Enter: diff | c: commits | Left/Esc: back")
+    | DiffView diffState ->
+      (" DIFF ", (fun r -> renderDiffBody diffState r), "Up/Down: scroll | Left/Esc: back")
+    | CommitList commitList ->
+      (" COMMITS ", (fun r -> renderCommitListBody commitList r), "Up/Down: navigate | Right/Enter: view | Left/Esc: back")
+  let titleComp = Darklang.Cli.UI.Layout.fixedSize 2L (fun r -> renderTitleBar r mode)
+  let bodyComp = Darklang.Cli.UI.Layout.greedy bodyFn
+  let helpComp = Darklang.Cli.UI.Layout.fixedSize 1L (fun r -> renderHelpBar r helpText)
+  Darklang.Cli.UI.Layout.vstack screen [ titleComp; bodyComp; helpComp ]
+  Stdlib.print "\u001b[?25h"
+
+// ── SubApp wrapper ──
+
+let makeSubApp (state: AppModel) : Darklang.Cli.SubApp =
+  Darklang.Cli.SubApp
+    { onKey = fun key modifiers keyChar ->
+        match handleKey state key modifiers keyChar with
+        | Continue s -> (Darklang.Cli.SubAppAction.Continue, makeSubApp s)
+        | Exit s -> (Darklang.Cli.SubAppAction.Exit, makeSubApp s)
+      onDisplay = fun () -> render state
+      onSave = fun () -> () }
+
+let buildDetailForBranch (branchId: Uuid) : Screen =
+  let branchName =
+    match SCM.Branch.get branchId with
+    | Some b -> b.name
+    | None -> "unknown"
+  let wipCount = SCM.PackageOps.getWipOpCount branchId
+  let item =
+    BranchReviewItem
+      { branchId = branchId
+        branchName = branchName
+        wipCount = wipCount
+        committedCount = 0L }
+  Screen.Detail (buildDetailState item)
+
+let execute (cliState: Darklang.Cli.AppState) (args: List<String>) : Darklang.Cli.AppState =
+  Stdlib.print "\u001b[?1049h"
+  let branchId = cliState.currentBranchId
+  let showAll = Stdlib.List.member_v0 args "--all"
+  let screen =
+    if showAll then
+      Screen.BranchList (BranchListState { items = loadBranchList (); selected = 0L })
+    else
+      buildDetailForBranch branchId
+  let app = makeSubApp (AppModel { screen = screen; branchId = branchId; showAll = showAll })
+  { cliState with currentPage = Darklang.Cli.Page.SubApp app; needsFullRedraw = true }
+
+let help (_state: Darklang.Cli.AppState) : Darklang.Cli.AppState =
+  [ "Usage: review [--all]"
+    "Review changes on the current branch."
+    ""
+    "Flags:"
+    "  --all        Show all branches to review"
+    ""
+    "Detail view: Up/Down navigate | Right/Enter diff | c commits | Left/Esc back"
+    "Diff view:   Up/Down scroll | Left/Esc back"
+    "Commits:     Up/Down navigate | Right/Enter view | Left/Esc back"
+    "Branch list: Up/Down navigate | Right/Enter open | r refresh | Left/Esc exit" ]
+  |> Stdlib.printLines
+  _state
+
+let complete (_state: Darklang.Cli.AppState) (_args: List<String>) : List<Darklang.Cli.Completion.CompletionItem> =
+  [Darklang.Cli.Completion.CompletionItem { display = "--all"; value = "--all" }]
