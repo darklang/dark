@@ -100,6 +100,10 @@ let generate () : Ply<unit> =
 
     let lines = merged |> List.map (fun (key, hash) -> $"{key}|{hash}")
 
+    // Always set the in-memory cache so PackageRefs lookups work
+    let hashMap = merged |> Map.ofList
+    PackageRefs.setHashes hashMap
+
     // Write the source-tree file (skip if the directory doesn't exist,
     // e.g. on installed CLIs where the source tree isn't available)
     let dir = System.IO.Path.GetDirectoryName(sourceTreePath)
