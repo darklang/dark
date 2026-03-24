@@ -2,9 +2,6 @@ module Darklang.Cli.Apps.Review.App
 
 // ── Helpers ──
 
-let locationToPath (loc: LanguageTools.ProgramTypes.PackageLocation) : String =
-  PrettyPrinter.ProgramTypes.PackageLocation.packageLocation loc
-
 let locationToModulePath (loc: LanguageTools.ProgramTypes.PackageLocation) : String =
   match loc.modules with
   | [] -> loc.owner
@@ -16,16 +13,20 @@ let getParentBranchId (branchId: Uuid) : Stdlib.Option.Option<Uuid> =
   | None -> Stdlib.Option.Option.None
 
 
-/// Extract (kind, loc) tuples from SetName ops in a list of ops
+/// Extract (kind, hash, loc) tuples from SetName ops in a list of ops
 let extractSetOps
   (ops: List<LanguageTools.ProgramTypes.PackageOp>)
-  : List<(String * LanguageTools.ProgramTypes.PackageLocation)> =
+  : List<(String * LanguageTools.ProgramTypes.Hash * LanguageTools.ProgramTypes.PackageLocation)> =
   Stdlib.List.filterMap ops (fun op ->
     match op with
-    | SetTypeName (_id, loc) -> Stdlib.Option.Option.Some (("Type", loc))
-    | SetFnName (_id, loc) -> Stdlib.Option.Option.Some (("Fn", loc))
-    | SetValueName (_id, loc) -> Stdlib.Option.Option.Some (("Value", loc))
-    | _ -> Stdlib.Option.Option.None)
+    | SetTypeName (hash, loc) -> Stdlib.Option.Option.Some (("Type", hash, loc))
+    | SetFnName (hash, loc) -> Stdlib.Option.Option.Some (("Fn", hash, loc))
+    | SetValueName (hash, loc) -> Stdlib.Option.Option.Some (("Value", hash, loc))
+    | AddType _typ -> Stdlib.Option.Option.None
+    | AddFn _fn -> Stdlib.Option.Option.None
+    | AddValue _val -> Stdlib.Option.Option.None
+    | PropagateUpdate (_pid, _sloc, _kind, _from, _to, _reps) -> Stdlib.Option.Option.None
+    | RevertPropagation (_rid, _pids, _sloc, _kind, _hash, _reps) -> Stdlib.Option.Option.None)
 
 // ── Data loading ──
 
@@ -67,8 +68,7 @@ let loadBranchList () : List<BranchReviewItem> =
               wipCount = wipOpCount
               committedCount = committedCount }))
   // Sort: branches with WIP first, then committed-only
-  let withWip = Stdlib.List.filter items (fun item -> item.wipCount > 0L)
-  let committedOnly = Stdlib.List.filter items (fun item -> item.wipCount == 0L)
+  let (withWip, committedOnly) = Stdlib.List.partition items (fun item -> item.wipCount > 0L)
   Stdlib.List.append withWip committedOnly
 
 let flattenGroups (groups: List<(String * List<PackageItem>)>) : List<DetailItem> =
@@ -82,12 +82,15 @@ let flattenGroups (groups: List<(String * List<PackageItem>)>) : List<DetailItem
   |> Stdlib.List.flatten
 
 let buildDetailState (item: BranchReviewItem) : DetailState =
-  let items = loadWipItems item.branchId
-  let groups = groupByModule items
+  let flatItems =
+    if item.wipCount == 0L then []
+    else
+      let items = loadWipItems item.branchId
+      flattenGroups (groupByModule items)
   DetailState
     { branchName = item.branchName
       branchId = item.branchId
-      flatItems = flattenGroups groups
+      flatItems = flatItems
       selected = 0L }
 
 // ── Diff building ──
@@ -128,20 +131,11 @@ let prettyPrintFromOps
         currentModule = Stdlib.Option.Option.None
         currentFunction = Stdlib.Option.Option.None }
   let targetHash =
-    ops
-    |> Stdlib.List.filterMap (fun op ->
-      match op with
-      | SetFnName (hash, loc) -> Stdlib.Option.Option.Some (("Fn", hash, locationToPath loc))
-      | SetTypeName (hash, loc) -> Stdlib.Option.Option.Some (("Type", hash, locationToPath loc))
-      | SetValueName (hash, loc) -> Stdlib.Option.Option.Some (("Value", hash, locationToPath loc))
-      | AddType _typ -> Stdlib.Option.Option.None
-      | AddFn _fn -> Stdlib.Option.Option.None
-      | AddValue _val -> Stdlib.Option.Option.None
-      | PropagateUpdate (_pid, _sloc, _kind, _from, _to, _reps) -> Stdlib.Option.Option.None
-      | RevertPropagation (_rid, _pids, _sloc, _kind, _hash, _reps) -> Stdlib.Option.Option.None)
+    (extractSetOps ops)
     |> Stdlib.List.filterMap (fun entry ->
-      let (k, hash, path) = entry
-      if k == kind && path == itemName then Stdlib.Option.Option.Some hash
+      let (k, hash, loc) = entry
+      if k == kind && (PrettyPrinter.ProgramTypes.PackageLocation.packageLocation loc) == itemName then
+        Stdlib.Option.Option.Some hash
       else Stdlib.Option.Option.None)
     |> Stdlib.List.last
   match targetHash with
@@ -151,15 +145,15 @@ let prettyPrintFromOps
       |> Stdlib.List.filterMap (fun op ->
         match op with
         | AddFn fn ->
-          if (kind == "Fn") && (fn.hash == hash) then
+          if kind == "Fn" && fn.hash == hash then
             Stdlib.Option.Option.Some (PrettyPrinter.ProgramTypes.packageFn ctx fn)
           else Stdlib.Option.Option.None
         | AddType typ ->
-          if (kind == "Type") && (typ.hash == hash) then
+          if kind == "Type" && typ.hash == hash then
             Stdlib.Option.Option.Some (PrettyPrinter.ProgramTypes.packageType ctx typ)
           else Stdlib.Option.Option.None
         | AddValue v ->
-          if (kind == "Value") && (v.hash == hash) then
+          if kind == "Value" && v.hash == hash then
             Stdlib.Option.Option.Some (PrettyPrinter.ProgramTypes.packageValue ctx v)
           else Stdlib.Option.Option.None
         | SetTypeName (_id, _loc) -> Stdlib.Option.Option.None
@@ -264,13 +258,14 @@ let buildCommitDiffState (commitList: CommitListState) (entry: CommitEntry) : Di
         returnTo = DiffReturnTo.ReturnToCommits commitList }
   else
   let ops = SCM.PackageOps.getCommitOps entry.fullHash
+  let parentId = getParentBranchId commitList.branchId
   let setOps = extractSetOps ops
   let items =
     setOps
     |> Stdlib.List.map (fun setEntry ->
-      let (kind, loc) = setEntry
+      let (kind, _hash, loc) = setEntry
       PackageItem
-        { name = locationToPath loc
+        { name = PrettyPrinter.ProgramTypes.PackageLocation.packageLocation loc
           kind = kind
           modulePath = locationToModulePath loc
           propagatedCount = 0L })
@@ -279,24 +274,29 @@ let buildCommitDiffState (commitList: CommitListState) (entry: CommitEntry) : Di
     Stdlib.List.fold groups [] (fun acc group ->
       let (modPath, moduleItems) = group
       let moduleHeader = Stdlib.Diff.DiffLine.Same modPath
-      let moduleLines =
+      let moduleDiff =
         Stdlib.List.fold moduleItems [] (fun mAcc pkg ->
           let opsText = prettyPrintFromOps ops commitList.branchId pkg.name pkg.kind
-          let text =
+          let newText =
             if opsText == "(content not found)" || opsText == "(hash not found)" then
               prettyPrintFromPM commitList.branchId pkg.name pkg.kind
             else
               opsText
-          let textLines = Stdlib.String.split text "\n"
-          let codeLines = Stdlib.List.map textLines (fun line -> Stdlib.Diff.DiffLine.Added line)
+          let itemDiff =
+            match parentId with
+            | Some pid ->
+              let oldText = prettyPrintFromPM pid pkg.name pkg.kind
+              if oldText == "(not found)" then allAddedLines newText
+              else Stdlib.Diff.lines oldText newText
+            | None -> allAddedLines newText
           let sep =
             if Stdlib.List.isEmpty mAcc then []
-            else [Stdlib.Diff.DiffLine.Same ""]
-          Stdlib.List.append mAcc (Stdlib.List.append sep codeLines))
+            else [Stdlib.Diff.DiffLine.Same ""; Stdlib.Diff.DiffLine.Same "---"]
+          Stdlib.List.append mAcc (Stdlib.List.append sep itemDiff))
       let separator =
         if Stdlib.List.isEmpty acc then []
         else [Stdlib.Diff.DiffLine.Same ""]
-      Stdlib.List.append acc (Stdlib.List.append separator (Stdlib.List.append [moduleHeader] moduleLines)))
+      Stdlib.List.append acc (Stdlib.List.append separator (Stdlib.List.append [moduleHeader] moduleDiff)))
   DiffState
     { itemName = entry.hash ++ " " ++ entry.message
       diffLines = itemLines
@@ -575,18 +575,14 @@ let buildDetailForBranch (branchId: Uuid) : Screen =
     match SCM.Branch.get branchId with
     | Some b -> b.name
     | None -> "unknown"
-  let wipOpCount = SCM.PackageOps.getWipOpCount branchId
-  let flatItems =
-    if wipOpCount == 0L then []
-    else
-      let items = loadWipItems branchId
-      flattenGroups (groupByModule items)
-  Screen.Detail
-    (DetailState
-      { branchName = branchName
-        branchId = branchId
-        flatItems = flatItems
-        selected = 0L })
+  let wipCount = SCM.PackageOps.getWipOpCount branchId
+  let item =
+    BranchReviewItem
+      { branchId = branchId
+        branchName = branchName
+        wipCount = wipCount
+        committedCount = 0L }
+  Screen.Detail (buildDetailState item)
 
 let execute (cliState: Darklang.Cli.AppState) (args: List<String>) : Darklang.Cli.AppState =
   Stdlib.print "\u001b[?1049h"
