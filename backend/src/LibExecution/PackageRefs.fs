@@ -68,6 +68,10 @@ let private getHashes () : Map<string, string> =
 /// the hash file so that subsequent PackageRefs calls get real values.
 let reloadHashes () : unit = hashCache <- Some(loadHashes ())
 
+/// Set hashes directly from a map (for installed CLIs where the
+/// source tree isn't available to write/read the hashes file).
+let setHashes (hashes : Map<string, string>) : unit = hashCache <- Some hashes
+
 
 module Type =
   /// All type refs registered by `p`. Used by PackageRefsGenerator.
