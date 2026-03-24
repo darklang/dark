@@ -130,6 +130,7 @@ let main (args : string[]) =
     EmbeddedResources.extract ()
     initSerializers ()
 
+
     // If data.db is missing but seed.db exists, copy seed as data.db
     let dbPath = LibConfig.Config.dbPath
     let seedPath = System.IO.Path.Combine(LibConfig.Config.runDir, "seed.db")
@@ -148,7 +149,6 @@ let main (args : string[]) =
       (fun msg -> System.Console.Error.WriteLine msg))
       .Result
     |> ignore<bool>
-
     cliPackageManager.init.Result
 
     let result = execute cliPackageManager (Array.toList args)

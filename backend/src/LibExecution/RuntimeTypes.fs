@@ -1239,10 +1239,14 @@ module Tracing =
 
   /// Set of callbacks used to trace the interpreter, and other context needed to run code
   type Tracing =
-    { traceDval : TraceDval
+    {
+      traceDval : TraceDval
       traceExecutionPoint : TraceExecutionPoint
       loadFnResult : LoadFnResult
-      storeFnResult : StoreFnResult }
+      storeFnResult : StoreFnResult
+      /// When true, skip tracing bookkeeping (pendingCallArgs, storeFnResult)
+      skipTracing : bool
+    }
 
 
 // -- The VM --
@@ -1279,13 +1283,14 @@ type InstrData =
 type VMState =
   { mutable threadID : uuid
 
-    mutable callFrames : Map<uuid, CallFrame>
+    callFrames : System.Collections.Generic.Dictionary<uuid, CallFrame>
     mutable currentFrameID : uuid
 
     // The inst data for each fn/lambda/etc. is stored here, so that
     // it doesn't have to be copied into each CallFrame.
     rootInstrData : Option<tlid> * InstrData
     mutable lambdaInstrCache : Map<ExecutionPoint * id, LambdaImpl>
+    mutable lambdaInstrDataCache : Map<ExecutionPoint * id, InstrData>
     mutable packageFnInstrCache : Map<FQFnName.Package, InstrData> }
 
   static member create(instrs : Option<tlid> * Instructions) : VMState =
@@ -1303,13 +1308,17 @@ type VMState =
 
     { threadID = System.Guid.NewGuid()
       currentFrameID = rootCallFrameID
-      callFrames = Map [ rootCallFrameID, rootCallFrame ]
+      callFrames =
+        let d = System.Collections.Generic.Dictionary()
+        d[rootCallFrameID] <- rootCallFrame
+        d
       rootInstrData =
         let instrs =
           { instructions = List.toArray instrs.instructions
             resultReg = instrs.resultIn }
         (tlid, instrs)
       lambdaInstrCache = Map.empty
+      lambdaInstrDataCache = Map.empty
       packageFnInstrCache = Map.empty }
 
   static member createWithoutTLID(instrs : Instructions) : VMState =

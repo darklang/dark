@@ -7,6 +7,7 @@ module RTE = RuntimeError
 module VT = ValueType
 
 
+
 let rec checkAndExtractLetPattern
   (pat : LetPattern)
   (dv : Dval)
@@ -143,8 +144,8 @@ let execute (exeState : ExecutionState) (vm : VMState) : Ply<Dval> =
 
     let mutable finalResult : Dval option = None
 
-    while Map.containsKey vm.currentFrameID vm.callFrames do
-      let currentFrame = Map.findUnsafe vm.currentFrameID vm.callFrames
+    while vm.callFrames.ContainsKey vm.currentFrameID do
+      let currentFrame = vm.callFrames[vm.currentFrameID]
 
       let mutable counter = currentFrame.programCounter
       let registers = currentFrame.registers
@@ -155,21 +156,28 @@ let execute (exeState : ExecutionState) (vm : VMState) : Ply<Dval> =
         | Source -> Ply(snd vm.rootInstrData)
 
         | Lambda(parentContext, lambdaID) ->
-          let lambda =
-            (match Map.tryFind (parentContext, lambdaID) vm.lambdaInstrCache with
-             | Some l -> l
-             | None ->
-               match Map.tryFind (Source, lambdaID) vm.lambdaInstrCache with
+          let cacheKey = (parentContext, lambdaID)
+          match Map.tryFind cacheKey vm.lambdaInstrDataCache with
+          | Some cached -> Ply cached
+          | None ->
+            let lambda =
+              (match Map.tryFind cacheKey vm.lambdaInstrCache with
                | Some l -> l
                | None ->
-                 Exception.raiseInternal
-                   "lambda not found"
-                   [ "lambdaID", lambdaID; "parentContext", parentContext ])
-            |> _.instructions
+                 match Map.tryFind (Source, lambdaID) vm.lambdaInstrCache with
+                 | Some l -> l
+                 | None ->
+                   Exception.raiseInternal
+                     "lambda not found"
+                     [ "lambdaID", lambdaID; "parentContext", parentContext ])
+              |> _.instructions
 
-          { instructions = List.toArray lambda.instructions
-            resultReg = lambda.resultIn }
-          |> Ply
+            let instrData =
+              { instructions = List.toArray lambda.instructions
+                resultReg = lambda.resultIn }
+            vm.lambdaInstrDataCache <-
+              Map.add cacheKey instrData vm.lambdaInstrDataCache
+            Ply instrData
 
         | Function(FQFnName.Builtin _) ->
           // we should error in some better way (CLEANUP)
@@ -244,13 +252,20 @@ let execute (exeState : ExecutionState) (vm : VMState) : Ply<Dval> =
         // == Working with Variables ==
         | CheckLetPatternAndExtractVars(valueReg, pat) ->
           let dv = registers[valueReg]
-          let doesMatch, registersToAssign = checkAndExtractLetPattern pat dv
-
-          if doesMatch then
-            registersToAssign
-            |> List.iter (fun (reg, value) -> registers[reg] <- value)
-          else
-            raiseRTE (RTE.Let(RTE.Lets.PatternDoesNotMatch(dv, pat)))
+          // Fast path for the common single-variable let binding
+          match pat with
+          | LPVariable extractTo -> registers[extractTo] <- dv
+          | LPUnit ->
+            match dv with
+            | DUnit -> ()
+            | _ -> raiseRTE (RTE.Let(RTE.Lets.PatternDoesNotMatch(dv, pat)))
+          | _ ->
+            let doesMatch, registersToAssign = checkAndExtractLetPattern pat dv
+            if doesMatch then
+              registersToAssign
+              |> List.iter (fun (reg, value) -> registers[reg] <- value)
+            else
+              raiseRTE (RTE.Let(RTE.Lets.PatternDoesNotMatch(dv, pat)))
 
 
         // TODO References to DBs and Secrets should be resolved at parse-time
@@ -306,14 +321,17 @@ let execute (exeState : ExecutionState) (vm : VMState) : Ply<Dval> =
 
         // -- Match --
         | CheckMatchPatternAndExtractVars(valueReg, pat, failJump) ->
-          let doesMatch, registersToAssign =
-            checkAndExtractMatchPattern pat registers[valueReg]
-
-          if doesMatch then
-            registersToAssign
-            |> List.iter (fun (reg, value) -> registers[reg] <- value)
-          else
-            counter <- counter + failJump
+          // Fast path for common single-variable match
+          match pat with
+          | MPVariable reg -> registers[reg] <- registers[valueReg]
+          | _ ->
+            let doesMatch, registersToAssign =
+              checkAndExtractMatchPattern pat registers[valueReg]
+            if doesMatch then
+              registersToAssign
+              |> List.iter (fun (reg, value) -> registers[reg] <- value)
+            else
+              counter <- counter + failJump
 
         | MatchUnmatched(valueReg) ->
           let unmatchedValue = registers[valueReg]
@@ -366,7 +384,6 @@ let execute (exeState : ExecutionState) (vm : VMState) : Ply<Dval> =
         | CloneRecordWithUpdates(targetReg, originalRecordReg, fieldUpdates) ->
           let originalRecord = registers[originalRecordReg]
 
-          // CLEANUP maybe some of this logic should be in the typechecker
           match originalRecord with
           | DRecord(sourceTypeName, resolvedTypeName, typeArgs, originalFields) ->
             let fieldUpdates =
@@ -504,7 +521,10 @@ let execute (exeState : ExecutionState) (vm : VMState) : Ply<Dval> =
                 | None ->
                   Exception.raiseInternal "lambda not found" [ "exprId", exprId ]
 
-            let allArgs = appLambda.argsSoFar @ newArgDvals
+            let allArgs =
+              match appLambda.argsSoFar with
+              | [] -> newArgDvals
+              | prev -> prev @ newArgDvals
 
             let argCount = List.length allArgs
             let paramCount = NEList.length foundLambda.patterns
@@ -538,10 +558,14 @@ let execute (exeState : ExecutionState) (vm : VMState) : Ply<Dval> =
 
                     r
                   typeSymbolTable =
-                    // CLEANUP is this right? (I think yes...)
-                    Map.mergeFavoringRight
-                      appLambda.typeSymbolTable
+                    if Map.isEmpty appLambda.typeSymbolTable then
                       currentFrame.typeSymbolTable
+                    else if Map.isEmpty currentFrame.typeSymbolTable then
+                      appLambda.typeSymbolTable
+                    else
+                      Map.mergeFavoringRight
+                        appLambda.typeSymbolTable
+                        currentFrame.typeSymbolTable
                   executionPoint = Lambda(currentFrame.executionPoint, exprId) }
 
               frameToPush <- Some newFrame
@@ -572,9 +596,14 @@ let execute (exeState : ExecutionState) (vm : VMState) : Ply<Dval> =
               TypeChecker.checkFnParam exeState.types applicable.name
 
             let mutable tst =
-              Map.mergeFavoringRight
+              if Map.isEmpty applicable.typeSymbolTable then
                 currentFrame.typeSymbolTable
+              else if Map.isEmpty currentFrame.typeSymbolTable then
                 applicable.typeSymbolTable
+              else
+                Map.mergeFavoringRight
+                  currentFrame.typeSymbolTable
+                  applicable.typeSymbolTable
 
             let typeCheckParams pairs =
               pairs
@@ -626,7 +655,10 @@ let execute (exeState : ExecutionState) (vm : VMState) : Ply<Dval> =
                     newArgDvals
                   |> typeCheckParams
 
-                let allArgs = applicable.argsSoFar @ newArgDvals
+                let allArgs =
+                  match applicable.argsSoFar with
+                  | [] -> newArgDvals
+                  | prev -> prev @ newArgDvals
 
                 let paramCount, argCount =
                   (List.length fn.parameters, List.length allArgs)
@@ -652,8 +684,6 @@ let execute (exeState : ExecutionState) (vm : VMState) : Ply<Dval> =
                         typeArgs |> List.map (TypeReference.resolveTypeVariables tst)
                       let! result = fn.fn (exeState, vm, resolvedTypeArgs, allArgs)
 
-                      // now: type-check result against the return type
-                      //let tst = currentFrame.typeSymbolTable
                       let expectedReturnType = fn.returnType
                       match!
                         TypeChecker.checkFnResult
@@ -663,22 +693,19 @@ let execute (exeState : ExecutionState) (vm : VMState) : Ply<Dval> =
                           expectedReturnType
                           result
                       with
-                      | Ok _updatedTst ->
-                        //currentFrame.typeSymbolTable <- updatedTst
-                        // CLEANUP is this^ or something like it worthwhile?
-                        // I think so, but let's wait until some relevant bug comes up...
-                        ()
+                      | Ok _ -> ()
                       | Error rte -> raiseRTE rte
 
                       // Trace builtin function call
-                      let source : Tracing.Source =
-                        (currentFrame.executionPoint, None)
-                      let fnRecord : Tracing.FunctionRecord =
-                        (source, FQFnName.Builtin fn.name)
-                      exeState.tracing.storeFnResult
-                        fnRecord
-                        (NEList.ofListUnsafe "" [] allArgs)
-                        result
+                      if not exeState.tracing.skipTracing then
+                        let source : Tracing.Source =
+                          (currentFrame.executionPoint, None)
+                        let fnRecord : Tracing.FunctionRecord =
+                          (source, FQFnName.Builtin fn.name)
+                        exeState.tracing.storeFnResult
+                          fnRecord
+                          (NEList.ofListUnsafe "" [] allArgs)
+                          result
 
                       return result
                   }
@@ -689,22 +716,27 @@ let execute (exeState : ExecutionState) (vm : VMState) : Ply<Dval> =
               match! exeState.fns.package pkg with
               | None -> return RTE.FnNotFound(FQFnName.Package pkg) |> raiseRTE
               | Some fn ->
-                // Process type args
-                // - there should be right #,
-                // - we should update _some_ TST with new info
-                let typeParamCount, typeArgCount =
-                  (List.length fn.typeParams, List.length typeArgs)
-                if typeArgCount <> typeParamCount then
-                  return handleWrongTypeArgCount typeParamCount typeArgCount
+                // Process type args — fast path for common case of no type args
+                let! newlyBound =
+                  match typeArgs, fn.typeParams with
+                  | [], [] -> Ply Map.empty
+                  | _ ->
+                    uply {
+                      let typeParamCount, typeArgCount =
+                        (List.length fn.typeParams, List.length typeArgs)
+                      if typeArgCount <> typeParamCount then
+                        return handleWrongTypeArgCount typeParamCount typeArgCount
 
-                let! typeArgsVT =
-                  typeArgs
-                  |> Ply.List.mapSequentially (TypeReference.toVT exeState.types tst)
-                // Bind the type params to their resolved type args
-                let newlyBound = List.zip fn.typeParams typeArgsVT |> Map
-                tst <- Map.mergeFavoringRight tst newlyBound
+                      let! typeArgsVT =
+                        typeArgs
+                        |> Ply.List.mapSequentially (
+                          TypeReference.toVT exeState.types tst
+                        )
+                      let bound = List.zip fn.typeParams typeArgsVT |> Map
+                      tst <- Map.mergeFavoringRight tst bound
+                      return bound
+                    }
 
-                // type-check new arguments against the corresponding parameters
                 do!
                   List.zipUntilEitherEnds
                     (fn.parameters
@@ -714,7 +746,10 @@ let execute (exeState : ExecutionState) (vm : VMState) : Ply<Dval> =
                     newArgDvals
                   |> typeCheckParams
 
-                let allArgs = applicable.argsSoFar @ newArgDvals
+                let allArgs =
+                  match applicable.argsSoFar with
+                  | [] -> newArgDvals
+                  | prev -> prev @ newArgDvals
 
                 let paramCount, argCount =
                   (NEList.length fn.parameters, List.length allArgs)
@@ -731,14 +766,14 @@ let execute (exeState : ExecutionState) (vm : VMState) : Ply<Dval> =
                     |> DApplicable
                 else
                   // push a new frame to execute the function
-                  // , and the interpreter will evaluate it shortly
-                  // Use frame TST with type args bound so the function body
-                  // can resolve type variables passed in the call
                   let frameTst =
-                    Map.mergeFavoringRight currentFrame.typeSymbolTable newlyBound
+                    if Map.isEmpty newlyBound then
+                      currentFrame.typeSymbolTable
+                    else
+                      Map.mergeFavoringRight currentFrame.typeSymbolTable newlyBound
                   let newFrameId = guuid ()
-                  // Store args for tracing at frame return
-                  pendingCallArgs[newFrameId] <- allArgs
+                  if not exeState.tracing.skipTracing then
+                    pendingCallArgs[newFrameId] <- allArgs
                   frameToPush <-
                     { id = newFrameId
                       parent = Some(vm.currentFrameID, putResultIn, counter + 1)
@@ -774,7 +809,7 @@ let execute (exeState : ExecutionState) (vm : VMState) : Ply<Dval> =
       match frameToPush with
       | Some newFrame ->
         // Something in this eval just pushed a frame -- don't do the "normal" processing
-        vm.callFrames <- Map.add newFrame.id newFrame vm.callFrames
+        vm.callFrames[newFrame.id] <- newFrame
         vm.currentFrameID <- newFrame.id
 
       | None ->
@@ -829,37 +864,32 @@ let execute (exeState : ExecutionState) (vm : VMState) : Ply<Dval> =
                 |> RuntimeError.Apply
                 |> raiseRTE
 
-          // TODO think about if/when we should actually do this.
-          //vm.callFrames <- Map.remove vm.currentFrameID vm.callFrames
+          vm.callFrames.Remove(vm.currentFrameID) |> ignore<bool>
 
           vm.currentFrameID <- parentID
 
-          let parentFrame = Map.findUnsafe parentID vm.callFrames
+          let parentFrame = vm.callFrames[parentID]
 
           // Trace package function call at frame return.
-          // Use the parent's executionPoint as the source so the tracer
-          // knows *who called* this function (Source = user code, Function = nested).
-          // Always clean up pendingCallArgs regardless of whether we trace.
-          match currentFrame.executionPoint with
-          | Function fnName ->
-            match pendingCallArgs.TryGetValue(currentFrame.id) with
-            | true, args ->
-              pendingCallArgs.Remove(currentFrame.id) |> ignore<bool>
-              let source : Tracing.Source = (parentFrame.executionPoint, None)
-              let fnRecord : Tracing.FunctionRecord = (source, fnName)
-              exeState.tracing.storeFnResult
-                fnRecord
-                (NEList.ofListUnsafe "" [] args)
-                resultOfFrame
-            | _ -> ()
-          | _ ->
-            // Lambda or Source frame — just clean up if anything was stashed
-            pendingCallArgs.Remove(currentFrame.id) |> ignore<bool>
+          if not exeState.tracing.skipTracing then
+            match currentFrame.executionPoint with
+            | Function fnName ->
+              match pendingCallArgs.TryGetValue(currentFrame.id) with
+              | true, args ->
+                pendingCallArgs.Remove(currentFrame.id) |> ignore<bool>
+                let source : Tracing.Source = (parentFrame.executionPoint, None)
+                let fnRecord : Tracing.FunctionRecord = (source, fnName)
+                exeState.tracing.storeFnResult
+                  fnRecord
+                  (NEList.ofListUnsafe "" [] args)
+                  resultOfFrame
+              | _ -> ()
+            | _ -> pendingCallArgs.Remove(currentFrame.id) |> ignore<bool>
           parentFrame.registers[regOfParentToPutResultInto] <- resultOfFrame
           parentFrame.programCounter <- pcOfParent
 
         | None ->
-          vm.callFrames <- Map.remove vm.currentFrameID vm.callFrames
+          vm.callFrames.Remove(vm.currentFrameID) |> ignore<bool>
           finalResult <- Some resultOfFrame
 
 
