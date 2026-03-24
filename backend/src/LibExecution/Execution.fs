@@ -14,7 +14,8 @@ let noTracing : RT.Tracing.Tracing =
   { traceDval = fun _ _ -> ()
     traceExecutionPoint = fun _ -> ()
     loadFnResult = fun _ _ -> None
-    storeFnResult = fun _ _ _ -> () }
+    storeFnResult = fun _ _ _ -> ()
+    skipTracing = true }
 
 let noTestContext : RT.TestContext =
   { sideEffectCount = 0
@@ -50,12 +51,12 @@ let rec callStackForFrame
   (frameID : uuid)
   (soFar : RT.CallStack)
   : RT.CallStack =
-  match vm.callFrames |> Map.find frameID with
-  | None ->
+  match vm.callFrames.TryGetValue frameID with
+  | false, _ ->
     Exception.raiseInternal
       "Execution.callStackForFrame -- Couldn't find frame in callFrames"
       [ "frameID", string frameID ]
-  | Some frame ->
+  | true, frame ->
     match frame.parent with
     | None -> soFar
     | Some(parentFrameID, _, _) ->

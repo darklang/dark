@@ -285,7 +285,9 @@ let createSqliteTracer
   { enabled = true
     results = results
     executionTracing =
-      { Exe.noTracing with storeFnResult = makeStoreFnResult fnCalls }
+      { Exe.noTracing with
+          storeFnResult = makeStoreFnResult fnCalls
+          skipTracing = false }
     storeTraceInput =
       fun desc varname input ->
         let (kind, path, modifier) = desc
@@ -317,7 +319,9 @@ let createCliTracer
   { enabled = true
     results = results
     executionTracing =
-      { Exe.noTracing with storeFnResult = makeStoreFnResult fnCalls }
+      { Exe.noTracing with
+          storeFnResult = makeStoreFnResult fnCalls
+          skipTracing = false }
     storeTraceInput = fun _ _ _ -> ()
     storeTraceResults =
       fun () ->

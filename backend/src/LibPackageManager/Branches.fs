@@ -181,17 +181,29 @@ let setMerged (id : PT.BranchId) : Task<unit> =
 /// Returns [current; parent; grandparent; ...; main]
 /// Used by name resolution queries to walk the branch chain.
 /// Uses a recursive CTE to fetch the entire chain in a single query.
+/// Cached per branchId since the chain doesn't change during a CLI execution.
+let private branchChainCache =
+  System.Collections.Concurrent.ConcurrentDictionary<PT.BranchId, List<PT.BranchId>>()
+
 let getBranchChain (id : PT.BranchId) : Task<List<PT.BranchId>> =
-  Sql.query
-    """
-    WITH RECURSIVE chain(id) AS (
-      SELECT @id
-      UNION ALL
-      SELECT b.parent_branch_id
-      FROM branches b JOIN chain c ON b.id = c.id
-      WHERE b.parent_branch_id IS NOT NULL
-    )
-    SELECT id FROM chain
-    """
-  |> Sql.parameters [ "id", Sql.uuid id ]
-  |> Sql.executeAsync (fun read -> read.uuid "id")
+  match branchChainCache.TryGetValue id with
+  | true, cached -> System.Threading.Tasks.Task.FromResult cached
+  | false, _ ->
+    task {
+      let! chain =
+        Sql.query
+          """
+          WITH RECURSIVE chain(id) AS (
+            SELECT @id
+            UNION ALL
+            SELECT b.parent_branch_id
+            FROM branches b JOIN chain c ON b.id = c.id
+            WHERE b.parent_branch_id IS NOT NULL
+          )
+          SELECT id FROM chain
+          """
+        |> Sql.parameters [ "id", Sql.uuid id ]
+        |> Sql.executeAsync (fun read -> read.uuid "id")
+      branchChainCache.TryAdd(id, chain) |> ignore<bool>
+      return chain
+    }
