@@ -33,7 +33,7 @@ module DateParsing =
   p "2018-09-24T17:48:00" = Stdlib.Result.Result.Error "Invalid date format"
   p "2018-09-24T18:09:24+0200" = Stdlib.Result.Result.Error "Invalid date format"
   p "1999-03-22T05:06:07+01:00" = Stdlib.Result.Result.Error "Invalid date format"
-  p "1999-03-22T05:06:07.000Z" = Stdlib.Result.Result.Error "Invalid date format"
+  p "1999-03-22T05:06:07.000Z" = Stdlib.Result.Result.Ok "1999-03-22T05:06:07Z"
   p "2006-06-09T10:20:30.040" = Stdlib.Result.Result.Error "Invalid date format"
   p "2006-06-09T10:20:30.040+02:00" = Stdlib.Result.Result.Error "Invalid date format"
   p "20061204T1020Z" = Stdlib.Result.Result.Error "Invalid date format"
@@ -249,3 +249,82 @@ module Difference =
   s "2020-11-14T14:51:06Z" "2020-11-26T04:37:46Z" = -1000000L
   s "1921-01-01T12:00:00Z" "2021-01-01T12:00:00Z" = -3155760000L
   s "2021-01-01T12:00:00Z" "1921-01-01T12:00:00Z" = 3155760000L
+
+
+module MillisecondParsing =
+  // Fractional seconds are now accepted
+  p "2019-07-28T22:42:36.123Z" = Stdlib.Result.Result.Ok "2019-07-28T22:42:36.123Z"
+  p "2019-07-28T22:42:36.000Z" = Stdlib.Result.Result.Ok "2019-07-28T22:42:36Z"
+  p "2019-07-28T22:42:36.001Z" = Stdlib.Result.Result.Ok "2019-07-28T22:42:36.001Z"
+  p "2019-07-28T22:42:36.999Z" = Stdlib.Result.Result.Ok "2019-07-28T22:42:36.999Z"
+
+  // Original format still works
+  p "2019-07-28T22:42:36Z" = Stdlib.Result.Result.Ok "2019-07-28T22:42:36Z"
+
+  // Fractional seconds with wrong digit count still rejected
+  p "2019-07-28T22:42:36.1Z" = Stdlib.Result.Result.Error "Invalid date format"
+  p "2019-07-28T22:42:36.12Z" = Stdlib.Result.Result.Error "Invalid date format"
+  p "2019-07-28T22:42:36.1234Z" = Stdlib.Result.Result.Error "Invalid date format"
+
+
+module MillisecondConversion =
+  Stdlib.DateTime.toMilliseconds (d "2019-07-28T22:42:36Z") = 1564353756000L
+  Stdlib.DateTime.toMilliseconds (d "1970-01-01T00:00:00Z") = 0L
+
+  1564353756000L
+  |> Stdlib.DateTime.fromMilliseconds
+  |> Stdlib.DateTime.toMilliseconds = 1564353756000L
+
+  1564353756123L
+  |> Stdlib.DateTime.fromMilliseconds
+  |> Stdlib.DateTime.toMilliseconds = 1564353756123L
+
+  1564353756123L
+  |> Stdlib.DateTime.fromMilliseconds
+  |> Stdlib.DateTime.toString_v0 = "2019-07-28T22:42:36.123Z"
+
+  // Round-trip: ms -> DateTime -> ms
+  0L |> Stdlib.DateTime.fromMilliseconds |> Stdlib.DateTime.toMilliseconds = 0L
+  -1000L |> Stdlib.DateTime.fromMilliseconds |> Stdlib.DateTime.toMilliseconds = -1000L
+
+
+module MillisecondField =
+  let dMs (datestr: String) : DateTime =
+    (Stdlib.DateTime.parse datestr) |> Builtin.unwrap
+
+  Stdlib.DateTime.millisecond (dMs "2019-07-28T22:42:36.456Z") = 456L
+  Stdlib.DateTime.millisecond (dMs "2019-07-28T22:42:36.000Z") = 0L
+  Stdlib.DateTime.millisecond (d "2019-07-28T22:42:36Z") = 0L
+  Stdlib.DateTime.millisecond (dMs "2019-07-28T22:42:36.001Z") = 1L
+  Stdlib.DateTime.millisecond (dMs "2019-07-28T22:42:36.999Z") = 999L
+
+
+module AddMilliseconds =
+  let ams (d1: String) (ms: Int64) : DateTime =
+    Stdlib.DateTime.addMilliseconds (d d1) ms
+
+  ams "2020-11-26T04:37:46Z" 0L = (d "2020-11-26T04:37:46Z")
+  (ams "2020-11-26T04:37:46Z" 500L) |> Stdlib.DateTime.millisecond = 500L
+  ams "2020-11-26T04:37:46Z" 1000L = (d "2020-11-26T04:37:47Z")
+  (ams "2020-11-26T04:37:46Z" 1500L) |> Stdlib.DateTime.toString_v0 = "2020-11-26T04:37:47.500Z"
+  (ams "2020-11-26T04:37:46Z" -500L) |> Stdlib.DateTime.toString_v0 = "2020-11-26T04:37:45.500Z"
+
+
+module SubtractMilliseconds =
+  let sms (d1: String) (ms: Int64) : DateTime =
+    Stdlib.DateTime.subtractMilliseconds (d d1) ms
+
+  sms "2020-11-26T04:37:46Z" 0L = (d "2020-11-26T04:37:46Z")
+  (sms "2020-11-26T04:37:46Z" 500L) |> Stdlib.DateTime.millisecond = 500L
+  sms "2020-11-26T04:37:46Z" 1000L = (d "2020-11-26T04:37:45Z")
+  (sms "2020-11-26T04:37:46Z" -500L) |> Stdlib.DateTime.toString_v0 = "2020-11-26T04:37:46.500Z"
+
+
+module DifferenceMs =
+  let sMs (d1: String) (d2: String) : Int64 =
+    Stdlib.DateTime.subtractMs (d d1) (d d2)
+
+  sMs "2020-11-26T04:37:46Z" "2020-11-26T04:37:46Z" = 0L
+  sMs "2020-11-26T04:37:46Z" "2020-11-26T04:37:45Z" = 1000L
+  sMs "2020-11-26T04:37:46Z" "2020-11-26T04:37:56Z" = -10000L
+  sMs "2021-01-01T00:00:00Z" "2020-01-01T00:00:00Z" = 31622400000L

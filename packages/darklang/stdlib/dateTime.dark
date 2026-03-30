@@ -104,3 +104,33 @@ let atStartOfDay (date: DateTime) : DateTime =
 /// Returns the difference of the two dates, in seconds
 let subtract (d1: DateTime) (d2: DateTime) : Int64 =
   Builtin.dateTimeSubtract d1 d2
+
+
+/// Converts <param date> to an <type Int64> representing milliseconds since the Unix epoch
+let toMilliseconds (date: DateTime) : Int64 =
+  Builtin.dateTimeToMilliseconds date
+
+
+/// Converts an <type Int64> representing milliseconds since the Unix epoch into a <type DateTime>
+let fromMilliseconds (milliseconds: Int64) : DateTime =
+  Builtin.dateTimeFromMilliseconds milliseconds
+
+
+/// Returns a <type DateTime> <param milliseconds> milliseconds after <param d>
+let addMilliseconds (d: DateTime) (milliseconds: Int64) : DateTime =
+  Builtin.dateTimeAddMilliseconds d milliseconds
+
+
+/// Returns a <type DateTime> <param milliseconds> milliseconds before <param d>
+let subtractMilliseconds (d: DateTime) (milliseconds: Int64) : DateTime =
+  Builtin.dateTimeSubtractMilliseconds d milliseconds
+
+
+/// Returns the millisecond portion of <param date> as an <type Int64> between {{0}} and {{999}}
+let millisecond (date: DateTime) : Int64 =
+  Builtin.dateTimeMillisecond date
+
+
+/// Returns the difference of the two dates, in milliseconds
+let subtractMs (d1: DateTime) (d2: DateTime) : Int64 =
+  Builtin.dateTimeSubtractMs d1 d2

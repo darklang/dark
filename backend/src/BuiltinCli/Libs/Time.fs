@@ -27,6 +27,25 @@ let fns () : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Impure
+      deprecated = NotDeprecated }
+
+    { name = fn "timeNowMs" 0
+      typeParams = []
+      parameters = [ Param.make "unit" TUnit "" ]
+      returnType = TInt64
+      description =
+        "Returns a monotonic timestamp in milliseconds. Useful for measuring "
+        + "elapsed time between two calls (subtract start from end). The absolute "
+        + "value has no defined epoch — only differences are meaningful."
+      fn =
+        (function
+        | _, _, _, [ DUnit ] ->
+          let ts = System.Diagnostics.Stopwatch.GetTimestamp()
+          let ms = ts * 1000L / System.Diagnostics.Stopwatch.Frequency
+          DInt64 ms |> Ply
+        | _ -> incorrectArgs ())
+      sqlSpec = NotYetImplemented
+      previewable = Impure
       deprecated = NotDeprecated } ]
 
 
