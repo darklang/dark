@@ -521,6 +521,48 @@ let fns () : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
+      deprecated = NotDeprecated }
+
+
+    { name = fn "int64BitwiseAnd" 0
+      typeParams = []
+      parameters = [ Param.make "a" TInt64 ""; Param.make "b" TInt64 "" ]
+      returnType = TInt64
+      description = "Bitwise AND on two <type Int64> values"
+      fn =
+        (function
+        | _, _, _, [ DInt64 a; DInt64 b ] -> Ply(DInt64(a &&& b))
+        | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Pure
+      deprecated = NotDeprecated }
+
+
+    { name = fn "int64BitwiseOr" 0
+      typeParams = []
+      parameters = [ Param.make "a" TInt64 ""; Param.make "b" TInt64 "" ]
+      returnType = TInt64
+      description = "Bitwise OR on two <type Int64> values"
+      fn =
+        (function
+        | _, _, _, [ DInt64 a; DInt64 b ] -> Ply(DInt64(a ||| b))
+        | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Pure
+      deprecated = NotDeprecated }
+
+
+    { name = fn "int64BitwiseXor" 0
+      typeParams = []
+      parameters = [ Param.make "a" TInt64 ""; Param.make "b" TInt64 "" ]
+      returnType = TInt64
+      description = "Bitwise XOR on two <type Int64> values"
+      fn =
+        (function
+        | _, _, _, [ DInt64 a; DInt64 b ] -> Ply(DInt64(a ^^^ b))
+        | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Pure
       deprecated = NotDeprecated } ]
 
 

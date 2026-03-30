@@ -1,0 +1,68 @@
+module Darklang.Stdlib.Cli.Color
+
+// ANSI escape code helpers for colored terminal output.
+// Note: nesting (e.g. `bold (red "hi")`) resets all styles at the inner
+// boundary. Apply multiple styles by combining codes, not by nesting calls.
+
+let esc (code: String) (text: String) : String =
+  $"\u001b[{code}m{text}\u001b[0m"
+
+
+// -- Colors --
+
+/// Red text
+let red (text: String) : String = esc "31" text
+
+/// Green text
+let green (text: String) : String = esc "32" text
+
+/// Yellow text
+let yellow (text: String) : String = esc "33" text
+
+/// Blue text
+let blue (text: String) : String = esc "34" text
+
+/// Magenta text
+let magenta (text: String) : String = esc "35" text
+
+/// Cyan text
+let cyan (text: String) : String = esc "36" text
+
+/// White text
+let white (text: String) : String = esc "37" text
+
+/// Gray text
+let gray (text: String) : String = esc "90" text
+
+
+// -- Styles --
+
+/// Bold text
+let bold (text: String) : String = esc "1" text
+
+/// Dim text
+let dim (text: String) : String = esc "2" text
+
+/// Italic text
+let italic (text: String) : String = esc "3" text
+
+/// Underlined text
+let underline (text: String) : String = esc "4" text
+
+/// Strikethrough text
+let strikethrough (text: String) : String = esc "9" text
+
+
+// -- Background colors --
+
+/// Red background
+let bgRed (text: String) : String = esc "41" text
+
+/// Green background
+let bgGreen (text: String) : String = esc "42" text
+
+/// Yellow background
+let bgYellow (text: String) : String = esc "43" text
+
+/// Blue background
+let bgBlue (text: String) : String = esc "44" text

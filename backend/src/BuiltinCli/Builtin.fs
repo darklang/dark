@@ -17,5 +17,6 @@ let builtins () =
       Libs.Process.builtins ()
       Libs.Stdin.builtins ()
       Libs.Time.builtins ()
-      Libs.Terminal.builtins () ]
+      Libs.Terminal.builtins ()
+      Libs.Posix.builtins () ]
     fnRenames

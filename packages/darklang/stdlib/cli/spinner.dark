@@ -1,0 +1,12 @@
+module Darklang.Stdlib.Cli.Spinner
+
+
+/// Run a function with a status message.
+/// Shows the message, runs the function, then shows "done".
+/// Note: not a real spinner — prints a static message. A real spinner
+/// would need background threads, which Dark doesn't support yet.
+let run (message: String) (fn: Unit -> 'a) : 'a =
+  Builtin.print ($"{message}... ")
+  let result = fn ()
+  Builtin.printLine (Color.green "done")
+  result

@@ -16,3 +16,183 @@ let communicate (handle: ProcessHandle) (input: String) : Stdlib.Cli.ExecutionOu
 /// Terminate a process and get final output
 let terminate (handle: ProcessHandle) : Stdlib.Cli.ExecutionOutcome =
   Builtin.cliTerminateProcess handle
+
+
+// ─── Posix-based process execution (no bash, no shell) ───
+
+/// Result of running a process
+type Output =
+  { exitCode: Int64
+    stdout: String
+    stderr: String }
+
+
+/// Escape a string for safe use inside single quotes in a shell command.
+/// Replaces ' with '\'' (end quote, escaped quote, start quote).
+let shellQuote (s: String) : String =
+  let escaped = Stdlib.String.replaceAll s "'" "'\\''"
+  $"'{escaped}'"
+
+
+/// Run a program with arguments and capture its output.
+/// No bash, no shell — spawns the process directly.
+let run (program: String) (args: List<String>) : Result.Result<Output, Posix.Error> =
+  (Builtin.posixSpawnAndWait program args)
+  |> Stdlib.Result.map (fun result ->
+    Output
+      { exitCode = Stdlib.Tuple3.first result
+        stdout = Stdlib.Tuple3.second result
+        stderr = Stdlib.Tuple3.third result })
+
+
+/// Run a program and return stdout as text, or stderr as error.
+/// Returns String errors because it mixes spawn failures with command failures.
+let exec (program: String) (args: List<String>) : Result.Result<String, String> =
+  (run program args)
+  |> Stdlib.Result.mapError (fun e -> e.message)
+  |> Stdlib.Result.andThen (fun output ->
+    if output.exitCode == 0L then
+      Stdlib.Result.Result.Ok(Stdlib.String.trimEnd output.stdout)
+    else
+      let err = Stdlib.String.trimEnd output.stderr
+
+      if err == "" then
+        Stdlib.Result.Result.Error
+          $"Command failed with exit code {Stdlib.Int64.toString output.exitCode}"
+      else
+        Stdlib.Result.Result.Error err)
+
+
+/// Kill a process by PID.
+let kill (pid: Int64) : Result.Result<Unit, Posix.Error> =
+  Posix.kill pid Posix.sigterm
+
+
+/// Force-kill a process by PID.
+let forceKill (pid: Int64) : Result.Result<Unit, Posix.Error> =
+  Posix.kill pid Posix.sigkill
+
+
+/// Run a program in a specific directory.
+// Note: uses sh -c because posixSpawnAndWait doesn't support a cwd parameter.
+// Ideally this would pass cwd directly to the child process (like Python's
+// subprocess.run(cwd=...)) without involving a shell.
+let runIn
+  (directory: String)
+  (program: String)
+  (args: List<String>)
+  : Result.Result<Output, Posix.Error> =
+  let quotedArgs =
+    args |> Stdlib.List.map (fun a -> shellQuote a) |> Stdlib.String.join " "
+
+  run
+    "/bin/sh"
+    [ "-c"
+      $"cd {shellQuote directory} && {shellQuote program} {quotedArgs}" ]
+
+
+/// Run a program silently, discarding output. Returns exit code only.
+let runSilent
+  (program: String)
+  (args: List<String>)
+  : Result.Result<Int64, Posix.Error> =
+  (run program args)
+  |> Stdlib.Result.map (fun output -> output.exitCode)
+
+
+/// Run a program with environment variables set.
+/// Uses /usr/bin/env to avoid shell interpretation.
+/// Env var names must not contain '=' or spaces.
+/// Returns String errors because it mixes spawn failures with validation errors.
+let runWithEnv
+  (program: String)
+  (args: List<String>)
+  (env: List<(String * String)>)
+  : Result.Result<Output, String> =
+  let invalid =
+    env
+    |> Stdlib.List.filter (fun pair ->
+      let (k, _v) = pair
+      (Stdlib.String.contains k "=") || (Stdlib.String.contains k " "))
+
+  if (Stdlib.List.length invalid) > 0L then
+    let badName =
+      (Stdlib.List.head invalid)
+      |> Builtin.unwrap
+      |> Stdlib.Tuple2.first
+
+    Stdlib.Result.Result.Error
+      $"Invalid env var name: '{badName}' (must not contain '=' or spaces)"
+  else
+    let envArgs =
+      env
+      |> Stdlib.List.map (fun pair ->
+        let (k, v) = pair
+        $"{k}={v}")
+
+    (run
+      "/usr/bin/env"
+      (Stdlib.List.append envArgs (Stdlib.List.append [ program ] args)))
+    |> Stdlib.Result.mapError (fun e -> e.message)
+
+
+/// Run a program with a timeout in milliseconds.
+/// Returns Error if the command times out.
+/// Returns String errors because it mixes spawn failures with validation/timeout errors.
+let runWithTimeout
+  (timeoutMs: Int64)
+  (program: String)
+  (args: List<String>)
+  : Result.Result<Output, String> =
+  if timeoutMs <= 0L then
+    Stdlib.Result.Result.Error "timeoutMs must be positive"
+  else
+
+  (Builtin.posixSpawnAndWaitWithTimeout program args timeoutMs)
+  |> Stdlib.Result.mapError (fun e -> e.message)
+  |> Stdlib.Result.map (fun result ->
+    Output
+      { exitCode = Stdlib.Tuple3.first result
+        stdout = Stdlib.Tuple3.second result
+        stderr = Stdlib.Tuple3.third result })
+
+
+/// Pipe the output of one command into another via shell.
+let pipe
+  (program1: String)
+  (args1: List<String>)
+  (program2: String)
+  (args2: List<String>)
+  : Result.Result<Output, Posix.Error> =
+  let quotedArgs1 =
+    args1 |> Stdlib.List.map (fun a -> shellQuote a) |> Stdlib.String.join " "
+
+  let quotedArgs2 =
+    args2 |> Stdlib.List.map (fun a -> shellQuote a) |> Stdlib.String.join " "
+
+  run
+    "/bin/sh"
+    [ "-c"
+      $"{shellQuote program1} {quotedArgs1} | {shellQuote program2} {quotedArgs2}" ]
+
+
+/// Run a pipeline of raw shell commands connected by pipes.
+/// UNSAFE: commands are passed directly to the shell with NO escaping.
+/// Caller is responsible for sanitizing all inputs.
+let shellPipeline (commands: List<String>) : Result.Result<Output, Posix.Error> =
+  let cmd = Stdlib.String.join commands " | "
+  run "/bin/sh" [ "-c"; cmd ]
+
+
+/// Check if a process is running.
+let isRunning (pid: Int64) : Bool =
+  Posix.isProcessRunning pid
+
+
+/// Wait for a process to finish by polling.
+let waitFor (pid: Int64) : Unit =
+  if Posix.isProcessRunning pid then
+    let _ = Posix.sleep 100.0
+    waitFor pid
+  else
+    ()

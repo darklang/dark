@@ -1,0 +1,351 @@
+module Darklang.Stdlib.Cli.File
+
+
+/// Delete a file.
+let delete (path: String) : Result.Result<Unit, Posix.Error> =
+  Posix.unlink path
+
+
+/// Check if a file or directory exists at the given path.
+let exists (path: String) : Bool =
+  match Posix.stat path with
+  | Ok _ -> true
+  | Error _ -> false
+
+
+/// Get the size of a file in bytes.
+let size (path: String) : Result.Result<Int64, Posix.Error> =
+  match Posix.stat path with
+  | Ok result -> Stdlib.Result.Result.Ok(Stdlib.Tuple3.second result)
+  | Error e -> Stdlib.Result.Result.Error e
+
+
+/// Get the last modification time as Unix epoch seconds.
+let getModifiedTime (path: String) : Result.Result<Int64, Posix.Error> =
+  match Posix.stat path with
+  | Ok result -> Stdlib.Result.Result.Ok(Stdlib.Tuple3.third result)
+  | Error e -> Stdlib.Result.Result.Error e
+
+
+/// Copy a file from src to dst, preserving permissions.
+let copy (src: String) (dst: String) : Result.Result<Unit, Posix.Error> =
+  (Posix.stat src)
+  |> Stdlib.Result.andThen (fun srcStat ->
+    let srcMode = Stdlib.Int64.bitwiseAnd (Stdlib.Tuple3.first srcStat) 511L
+
+    match Posix.openFile src (Posix.OpenFlags.rdonly ()) 0L with
+    | Ok srcFd ->
+      let readResult = Posix.fdReadAll srcFd []
+      let _ = Builtin.posixFdClose srcFd
+
+      match readResult with
+      | Ok bytes ->
+        let flags =
+          Stdlib.Int64.bitwiseOr
+            (Stdlib.Int64.bitwiseOr
+              (Posix.OpenFlags.wronly ())
+              (Posix.OpenFlags.creat ()))
+            (Posix.OpenFlags.trunc ())
+
+        match Posix.openFile dst flags srcMode with
+        | Ok dstFd ->
+          let writeResult = Builtin.posixFdWrite dstFd bytes
+          let _ = Builtin.posixFdClose dstFd
+
+          match writeResult with
+          | Ok _ -> Stdlib.Result.Result.Ok()
+          | Error e -> Stdlib.Result.Result.Error e
+        | Error e -> Stdlib.Result.Result.Error e
+      | Error e -> Stdlib.Result.Result.Error e
+    | Error e -> Stdlib.Result.Result.Error e)
+
+
+/// Move or rename a file.
+let move (src: String) (dst: String) : Result.Result<Unit, Posix.Error> =
+  Posix.rename src dst
+
+
+/// Read the entire contents of a file as bytes.
+let readBytes (path: String) : Result.Result<List<UInt8>, Posix.Error> =
+  match Posix.openFile path (Posix.OpenFlags.rdonly ()) 0L with
+  | Ok fd ->
+    let result = Posix.fdReadAll fd []
+
+    let _ = Builtin.posixFdClose fd
+    result
+  | Error e -> Stdlib.Result.Result.Error e
+
+
+/// Read the entire contents of a file as a string.
+let readText (path: String) : Result.Result<String, Posix.Error> =
+  match Posix.openFile path (Posix.OpenFlags.rdonly ()) 0L with
+  | Ok fd ->
+    let result = Posix.fdReadAll fd []
+
+    let _ = Builtin.posixFdClose fd
+
+    match result with
+    | Ok bytes ->
+      match Stdlib.String.fromBytes bytes with
+      | Some s -> Stdlib.Result.Result.Ok s
+      | None ->
+        Stdlib.Result.Result.Error
+          (Posix.Error { errno = -1L; message = "File contents are not valid UTF-8" })
+    | Error e -> Stdlib.Result.Result.Error e
+  | Error e -> Stdlib.Result.Result.Error e
+
+
+/// Read the entire contents of a file as a list of lines.
+let readLines (path: String) : Result.Result<List<String>, Posix.Error> =
+  (readText path)
+  |> Stdlib.Result.map (fun text -> Stdlib.String.splitOnNewline text)
+
+
+/// Write text to a file, creating it if it doesn't exist or overwriting if it does.
+let writeText (path: String) (content: String) : Result.Result<Unit, Posix.Error> =
+  let flags =
+    Stdlib.Int64.bitwiseOr
+      (Stdlib.Int64.bitwiseOr
+        (Posix.OpenFlags.wronly ())
+        (Posix.OpenFlags.creat ()))
+      (Posix.OpenFlags.trunc ())
+
+  match Posix.openFile path flags Posix.Modes.defaultFile with
+  | Ok fd ->
+    let bytes = Stdlib.String.toBytes content
+    let result = Builtin.posixFdWrite fd bytes
+
+    let _ = Builtin.posixFdClose fd
+
+    match result with
+    | Ok _ -> Stdlib.Result.Result.Ok()
+    | Error e -> Stdlib.Result.Result.Error e
+  | Error e -> Stdlib.Result.Result.Error e
+
+
+/// Append text to a file, creating it if it doesn't exist.
+let appendText (path: String) (content: String) : Result.Result<Unit, Posix.Error> =
+  let flags =
+    Stdlib.Int64.bitwiseOr
+      (Stdlib.Int64.bitwiseOr
+        (Posix.OpenFlags.wronly ())
+        (Posix.OpenFlags.creat ()))
+      (Posix.OpenFlags.append ())
+
+  match Posix.openFile path flags Posix.Modes.defaultFile with
+  | Ok fd ->
+    let bytes = Stdlib.String.toBytes content
+    let result = Builtin.posixFdWrite fd bytes
+
+    let _ = Builtin.posixFdClose fd
+
+    match result with
+    | Ok _ -> Stdlib.Result.Result.Ok()
+    | Error e -> Stdlib.Result.Result.Error e
+  | Error e -> Stdlib.Result.Result.Error e
+
+
+/// Create a file if it doesn't exist, or update its modification time if it does.
+let touch (path: String) : Result.Result<Unit, Posix.Error> =
+  if exists path then
+    Posix.utimesNow path
+  else
+    let flags =
+      Stdlib.Int64.bitwiseOr
+        (Posix.OpenFlags.wronly ())
+        (Posix.OpenFlags.creat ())
+
+    match Posix.openFile path flags Posix.Modes.defaultFile with
+    | Ok fd ->
+      let _ = Builtin.posixFdClose fd
+      Stdlib.Result.Result.Ok()
+    | Error e -> Stdlib.Result.Result.Error e
+
+
+/// Set file permissions (e.g. 493 for 0755).
+let setPermissions (path: String) (mode: Int64) : Result.Result<Unit, Posix.Error> =
+  Posix.chmod path mode
+
+
+/// Create a temporary file. Returns the path.
+let createTemp () : Result.Result<String, Posix.Error> =
+  let prefix =
+    match Env.get "TMPDIR" with
+    | Some t -> $"{t}/dark-tmp-"
+    | None -> "/tmp/dark-tmp-"
+
+  (Posix.mkstemp prefix)
+  |> Stdlib.Result.map (fun result ->
+    let _ = Builtin.posixFdClose (Stdlib.Tuple2.first result)
+    Stdlib.Tuple2.second result)
+
+
+/// Create a symbolic link pointing to target.
+let createSymlink
+  (target: String)
+  (linkpath: String)
+  : Result.Result<Unit, Posix.Error> =
+  Posix.symlink target linkpath
+
+
+/// Read the target of a symbolic link.
+let readSymlink (path: String) : Result.Result<String, Posix.Error> =
+  Posix.readlink path
+
+
+/// Check if two files have identical contents (byte comparison).
+let areIdentical (path1: String) (path2: String) : Result.Result<Bool, Posix.Error> =
+  (readBytes path1)
+  |> Stdlib.Result.andThen (fun bytes1 ->
+    (readBytes path2)
+    |> Stdlib.Result.map (fun bytes2 -> bytes1 == bytes2))
+
+
+/// Read a file, apply a transformation function, and write it back.
+let transform
+  (path: String)
+  (fn: String -> String)
+  : Result.Result<Unit, Posix.Error> =
+  (readText path)
+  |> Stdlib.Result.andThen (fun content -> writeText path (fn content))
+
+
+/// Get the owner username of a file.
+let getOwner (path: String) : Result.Result<String, Posix.Error> =
+  Posix.fileOwner path
+
+
+/// Create a temporary file, pass its path to a function, then delete it.
+let withTemp (fn: String -> 'a) : Result.Result<'a, Posix.Error> =
+  (createTemp ())
+  |> Stdlib.Result.map (fun tmpPath ->
+    let result = fn tmpPath
+
+    match delete tmpPath with
+    | Ok _ -> ()
+    | Error e -> Log.warn $"withTemp: failed to clean up {tmpPath}: {e.message}"
+
+    result)
+
+
+/// Write content atomically: writes to a temp file in the same directory, then renames.
+let writeAtomic (path: String) (content: String) : Result.Result<Unit, Posix.Error> =
+  let dir = Path.parent path
+  let prefix = $"{dir}/.tmp-"
+
+  (Posix.mkstemp prefix)
+  |> Stdlib.Result.andThen (fun result ->
+    let fd = Stdlib.Tuple2.first result
+    let tmpPath = Stdlib.Tuple2.second result
+    let bytes = Stdlib.String.toBytes content
+    let writeResult = Builtin.posixFdWrite fd bytes
+    let _ = Builtin.posixFdClose fd
+
+    match writeResult with
+    | Ok _ -> Posix.rename tmpPath path
+    | Error e ->
+      let _ = Posix.unlink tmpPath
+      Stdlib.Result.Result.Error e)
+
+
+/// Run a function while holding an exclusive lock on a file.
+let withLock (path: String) (fn: Unit -> 'a) : Result.Result<'a, Posix.Error> =
+  let flags =
+    Stdlib.Int64.bitwiseOr
+      (Posix.OpenFlags.wronly ())
+      (Posix.OpenFlags.creat ())
+
+  match Posix.openFile path flags Posix.Modes.defaultFile with
+  | Ok fd ->
+    match Posix.flock fd true with
+    | Ok _ ->
+      let result = fn ()
+      let _ = Posix.flock fd false
+      let _ = Builtin.posixFdClose fd
+      Stdlib.Result.Result.Ok result
+    | Error e ->
+      let _ = Builtin.posixFdClose fd
+      Stdlib.Result.Result.Error e
+  | Error e -> Stdlib.Result.Result.Error e
+
+
+/// Recursively match path segments against pattern segments.
+/// Pattern segments may include "**" which matches zero or more path segments.
+/// Other pattern segments are matched with fnmatch (pathMode=true).
+let globMatchSegments
+  (patternSegs: List<String>)
+  (pathSegs: List<String>)
+  : Bool =
+  match patternSegs with
+  | [] ->
+    match pathSegs with
+    | [] -> true
+    | _ -> false
+  | patHead :: patTail ->
+    if patHead == "**" then
+      // ** matches zero or more path segments.
+      // Try consuming 0 segments (match rest of pattern against current path),
+      // or skip one path segment and try again with ** still in the pattern.
+      (globMatchSegments patTail pathSegs)
+      || (match pathSegs with
+          | [] -> false
+          | _ :: pathTail -> globMatchSegments patternSegs pathTail)
+    else
+      match pathSegs with
+      | [] -> false
+      | pathHead :: pathTail ->
+        (Posix.fnmatch patHead pathHead true)
+        && (globMatchSegments patTail pathTail)
+
+
+/// Find files matching a glob pattern under a base directory.
+/// Supports *, ?, and character classes.
+/// Use ** to match zero or more directories (e.g. "**/*.ts", "src/**/test/**/*.ts").
+let glob (basePath: String) (pattern: String) : Result.Result<List<String>, Posix.Error> =
+  let cleanBase = Path.stripTrailing basePath
+  let patternSegs = Stdlib.String.split pattern "/"
+
+  (Dir.walk cleanBase)
+  |> Stdlib.Result.map (fun allPaths ->
+    allPaths
+    |> Stdlib.List.filter (fun fullPath ->
+      let rel = Stdlib.String.dropFirst fullPath ((Stdlib.String.length cleanBase) + 1L)
+      let pathSegs = Stdlib.String.split rel "/"
+      globMatchSegments patternSegs pathSegs))
+
+
+/// Watch a file for changes by polling its modification time.
+/// Calls the callback each time the file changes. Stops when shouldStop returns true.
+/// Returns Error if the file becomes inaccessible.
+let watchLoop
+  (path: String)
+  (intervalMs: Float)
+  (lastMtime: Int64)
+  (shouldStop: Unit -> Bool)
+  (fn: Unit -> Unit)
+  : Result.Result<Unit, Posix.Error> =
+  if shouldStop () then
+    Stdlib.Result.Result.Ok()
+  else
+    let _ = Posix.sleep intervalMs
+
+    match getModifiedTime path with
+    | Ok newMtime ->
+      if newMtime != lastMtime then fn ()
+      else ()
+      watchLoop path intervalMs newMtime shouldStop fn
+    | Error e -> Stdlib.Result.Result.Error e
+
+
+/// Watch a file for changes by polling its modification time.
+/// Calls the callback each time the file changes. Stops when shouldStop returns true.
+/// Returns Error if the file becomes inaccessible.
+let watch
+  (path: String)
+  (intervalMs: Float)
+  (shouldStop: Unit -> Bool)
+  (fn: Unit -> Unit)
+  : Result.Result<Unit, Posix.Error> =
+  match getModifiedTime path with
+  | Ok mtime -> watchLoop path intervalMs mtime shouldStop fn
+  | Error e -> Stdlib.Result.Result.Error e

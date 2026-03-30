@@ -1,0 +1,45 @@
+module Darklang.Stdlib.Cli.Sys
+
+
+/// Get the current user's login name.
+/// Checks $LOGNAME, then $USER, then falls back to the passwd database.
+let currentUser () : Stdlib.Option.Option<String> =
+  match Env.get "LOGNAME" with
+  | Some u -> Stdlib.Option.Option.Some u
+  | None ->
+    match Env.get "USER" with
+    | Some u -> Stdlib.Option.Option.Some u
+    | None -> Builtin.posixGetCurrentUserName ()
+
+
+/// Get the system hostname.
+let hostname () : Result.Result<String, Posix.Error> =
+  (Builtin.posixUname ())
+  |> Stdlib.Result.map (fun result -> Stdlib.Tuple3.second result)
+
+
+/// Get the operating system name (e.g. "Linux", "Darwin").
+let os () : Result.Result<String, Posix.Error> =
+  (Builtin.posixUname ())
+  |> Stdlib.Result.map (fun result -> Stdlib.Tuple3.first result)
+
+
+/// Get the CPU architecture (e.g. "x86_64", "aarch64").
+let arch () : Result.Result<String, Posix.Error> =
+  (Builtin.posixUname ())
+  |> Stdlib.Result.map (fun result -> Stdlib.Tuple3.third result)
+
+
+/// Get the number of available CPUs.
+let cpuCount () : Int64 =
+  Builtin.posixCpuCount ()
+
+
+/// Get the current process ID.
+let currentPid () : Int64 =
+  Builtin.posixGetpid ()
+
+
+/// Check if the current user is root (uid 0).
+let isRoot () : Bool =
+  (Builtin.posixGetuid ()) == 0L

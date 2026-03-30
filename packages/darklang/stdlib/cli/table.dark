@@ -1,0 +1,68 @@
+module Darklang.Stdlib.Cli.Table
+
+
+/// Print a formatted table with headers and rows.
+/// columns: list of column header strings
+/// rows: list of rows, each row is a list of cell strings
+let print (columns: List<String>) (rows: List<List<String>>) : Unit =
+  // Calculate column widths (max of header and all cell values)
+  let colWidths =
+    columns
+    |> Stdlib.List.indexedMap (fun i header ->
+      let headerLen = Stdlib.String.length header
+
+      let maxCellLen =
+        rows
+        |> Stdlib.List.fold 0L (fun mx row ->
+          match Stdlib.List.getAt row i with
+          | Some cell -> Stdlib.Int64.max mx (Stdlib.String.length cell)
+          | None -> mx)
+
+      Stdlib.Int64.max headerLen maxCellLen)
+
+  // Pad a string to a given width with spaces
+  let pad = (fun s width ->
+    let padding = width - (Stdlib.String.length s)
+
+    if padding <= 0L then s
+    else s ++ (Stdlib.String.repeat " " padding))
+
+  // Print header row
+  let headerLine =
+    columns
+    |> Stdlib.List.indexedMap (fun i header ->
+      match Stdlib.List.getAt colWidths i with
+      | Some w -> pad header w
+      | None -> header)
+    |> Stdlib.String.join "  "
+
+  Builtin.printLine (Color.bold headerLine)
+
+  // Print separator
+  let sepLine =
+    colWidths
+    |> Stdlib.List.map (fun w -> Stdlib.String.repeat "-" w)
+    |> Stdlib.String.join "  "
+
+  Builtin.printLine sepLine
+
+  // Print data rows
+  let _ =
+    rows
+    |> Stdlib.List.map (fun row ->
+      let line =
+        columns
+        |> Stdlib.List.indexedMap (fun i _ ->
+          let cell =
+            match Stdlib.List.getAt row i with
+            | Some c -> c
+            | None -> ""
+
+          match Stdlib.List.getAt colWidths i with
+          | Some w -> pad cell w
+          | None -> cell)
+        |> Stdlib.String.join "  "
+
+      Builtin.printLine line)
+
+  ()

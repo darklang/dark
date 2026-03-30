@@ -317,3 +317,25 @@ Stdlib.Int64.fromUInt128_v0 0Z = Stdlib.Option.Option.Some 0L
 Stdlib.Int64.fromUInt128_v0 1Z = Stdlib.Option.Option.Some 1L
 Stdlib.Int64.fromUInt128_v0 9223372036854775807Z = Stdlib.Option.Option.Some 9223372036854775807L
 Stdlib.Int64.fromUInt128_v0 18446744073709551615Z = Stdlib.Option.Option.None
+
+Stdlib.Int64.bitwiseAnd 12L 10L = 8L
+Stdlib.Int64.bitwiseAnd 0L 0L = 0L
+Stdlib.Int64.bitwiseAnd (-1L) 0L = 0L
+Stdlib.Int64.bitwiseAnd 9223372036854775807L 9223372036854775807L = 9223372036854775807L
+Stdlib.Int64.bitwiseAnd (-9223372036854775808L) (-1L) = -9223372036854775808L
+Stdlib.Int64.bitwiseAnd 9223372036854775807L (-9223372036854775808L) = 0L
+Stdlib.Int64.bitwiseAnd (-1L) (-1L) = -1L
+
+Stdlib.Int64.bitwiseOr 12L 10L = 14L
+Stdlib.Int64.bitwiseOr 0L 0L = 0L
+Stdlib.Int64.bitwiseOr (-1L) 0L = -1L
+Stdlib.Int64.bitwiseOr 9223372036854775807L 0L = 9223372036854775807L
+Stdlib.Int64.bitwiseOr (-9223372036854775808L) 0L = -9223372036854775808L
+Stdlib.Int64.bitwiseOr 9223372036854775807L (-9223372036854775808L) = -1L
+
+Stdlib.Int64.bitwiseXor 12L 10L = 6L
+Stdlib.Int64.bitwiseXor 0L 0L = 0L
+Stdlib.Int64.bitwiseXor (-1L) (-1L) = 0L
+Stdlib.Int64.bitwiseXor 9223372036854775807L (-1L) = -9223372036854775808L
+Stdlib.Int64.bitwiseXor (-9223372036854775808L) (-1L) = 9223372036854775807L
+Stdlib.Int64.bitwiseXor 9223372036854775807L 9223372036854775807L = 0L

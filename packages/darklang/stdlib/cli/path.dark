@@ -1,0 +1,175 @@
+module Darklang.Stdlib.Cli.Path
+
+
+/// Strip trailing slashes from a path (preserving root "/").
+let stripTrailing (path: String) : String =
+  if (Stdlib.String.length path) > 1L && (Stdlib.String.endsWith path "/") then
+    stripTrailing (Stdlib.String.dropLast path 1L)
+  else path
+
+
+/// Join path segments with "/".
+/// If a segment is absolute, all previous segments are discarded
+/// (matches Python's os.path.join and bash behavior).
+let join (parts: List<String>) : String =
+  parts
+  |> Stdlib.List.fold "" (fun acc part ->
+    if part == "" then acc
+    else if Stdlib.String.startsWith part "/" then part
+    else if acc == "" then part
+    else
+      let cleanAcc = stripTrailing acc
+
+      $"{cleanAcc}/{part}")
+
+
+/// Get the parent directory of a path.
+/// "/home/user/file.txt" -> "/home/user"
+/// "a/b/c" -> "a/b"
+/// "file.txt" -> "."
+/// "/" -> "/"
+let parent (path: String) : String =
+  let p = stripTrailing path
+
+  match Stdlib.String.lastIndexOf p "/" with
+  | Some 0L -> "/"
+  | Some i -> Stdlib.String.slice p 0L i
+  | None -> "."
+
+
+/// Get the file name from a path (the last component).
+/// "/home/user/file.txt" -> "file.txt"
+/// "a/b/c" -> "c"
+/// "a/b/" -> "b"
+let basename (path: String) : String =
+  let p = stripTrailing path
+
+  match Stdlib.String.lastIndexOf p "/" with
+  | Some i -> Stdlib.String.dropFirst p (i + 1L)
+  | None -> p
+
+
+/// Get the file extension including the dot.
+/// "photo.jpg" -> Some ".jpg"
+/// "archive.tar.gz" -> Some ".gz"
+/// ".bashrc" -> None
+/// "Makefile" -> None
+let extension (path: String) : Stdlib.Option.Option<String> =
+  let name = basename path
+
+  match Stdlib.String.lastIndexOf name "." with
+  | Some 0L -> Stdlib.Option.Option.None
+  | Some i -> Stdlib.Option.Option.Some(Stdlib.String.dropFirst name i)
+  | None -> Stdlib.Option.Option.None
+
+
+/// Replace the extension of a path.
+/// (withExtension "file.txt" ".md") -> "file.md"
+/// (withExtension "file" ".md") -> "file.md"
+let withExtension (path: String) (ext: String) : String =
+  let dir = parent path
+  let name = basename path
+
+  let stem =
+    match Stdlib.String.lastIndexOf name "." with
+    | Some 0L -> name
+    | Some i -> Stdlib.String.slice name 0L i
+    | None -> name
+
+  let newName = $"{stem}{ext}"
+
+  if dir == "." then newName
+  else Path.join [ dir; newName ]
+
+
+/// Check if a path is absolute (starts with /).
+let isAbsolute (path: String) : Bool =
+  Stdlib.String.startsWith path "/"
+
+
+/// Normalize a path by resolving "." and ".." components.
+/// "/home/../lib/./foo" -> "/lib/foo"
+/// "" -> "."
+let normalize (path: String) : String =
+  let isAbs = isAbsolute path
+  let parts = Stdlib.String.split path "/"
+
+  let resolved =
+    parts
+    |> Stdlib.List.filter (fun p -> p != "" && p != ".")
+    |> Stdlib.List.fold [] (fun acc part ->
+      if part == ".." then
+        match Stdlib.List.last acc with
+        | Some prev ->
+          if prev == ".." then Stdlib.List.append acc [ ".." ]
+          else Stdlib.List.dropLast acc
+        | None ->
+          if isAbs then []
+          else [ ".." ]
+      else
+        Stdlib.List.append acc [ part ])
+
+  let joined = Stdlib.String.join resolved "/"
+
+  if isAbs then $"/{joined}"
+  else if joined == "" then "."
+  else joined
+
+
+/// Resolve a relative path to an absolute path using the current directory.
+let resolve (path: String) : Result.Result<String, Posix.Error> =
+  if isAbsolute path then
+    Stdlib.Result.Result.Ok(normalize path)
+  else
+    (Posix.getCwd ())
+    |> Stdlib.Result.map (fun cwd -> normalize (join [ cwd; path ]))
+
+
+/// Resolve a potentially relative path to an absolute normalized path.
+let resolveToAbsolute (p: String) : Result.Result<String, Posix.Error> =
+  resolve p
+
+
+/// Compute a relative path from one path to another.
+/// Relative paths are resolved against cwd first (like Python's os.path.relpath).
+/// (relativeTo "/home/user" "/home/lib") -> Ok "../lib"
+/// (relativeTo "/home" "/home") -> Ok "."
+let relativeTo
+  (fromPath: String)
+  (toPath: String)
+  : Result.Result<String, Posix.Error> =
+  (resolveToAbsolute fromPath)
+  |> Stdlib.Result.andThen (fun absFrom ->
+    (resolveToAbsolute toPath)
+    |> Stdlib.Result.map (fun absTo ->
+      let fromParts =
+        (Stdlib.String.split absFrom "/")
+        |> Stdlib.List.filter (fun p -> p != "")
+
+      let toParts =
+        (Stdlib.String.split absTo "/")
+        |> Stdlib.List.filter (fun p -> p != "")
+
+      // Find common prefix length
+      let commonLen =
+        fromParts
+        |> Stdlib.List.indexedMap (fun i part ->
+          match Stdlib.List.getAt toParts i with
+          | Some p -> p == part
+          | None -> false)
+        |> Stdlib.List.takeWhile (fun x -> x)
+        |> Stdlib.List.length
+
+      let upCount = (Stdlib.List.length fromParts) - commonLen
+
+      let ups =
+        match Stdlib.List.repeat upCount ".." with
+        | Ok l -> l
+        | Error _ -> []
+
+      let tail = Stdlib.List.drop toParts commonLen
+
+      let parts = Stdlib.List.append ups tail
+
+      if Stdlib.List.length parts == 0L then "."
+      else Stdlib.String.join parts "/"))

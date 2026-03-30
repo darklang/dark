@@ -1,0 +1,175 @@
+module Darklang.Stdlib.Cli.Dir
+
+
+/// Create a directory. Returns Error if it already exists.
+let create (path: String) : Result.Result<Unit, Posix.Error> =
+  Posix.mkdir path Posix.Modes.defaultDir
+
+
+/// Create a directory and all missing parents (like mkdir -p).
+let createRecursive (path: String) : Result.Result<Unit, Posix.Error> =
+  Posix.mkdirRecursive path
+
+
+/// Get the current working directory.
+let current () : Result.Result<String, Posix.Error> =
+  Posix.getCwd ()
+
+
+/// Change the current working directory.
+let setCurrent (path: String) : Result.Result<Unit, Posix.Error> =
+  Posix.chdir path
+
+
+/// List entries in a directory (filenames only).
+let list (path: String) : Result.Result<List<String>, Posix.Error> =
+  Posix.listDir path
+
+
+/// List entries as full paths.
+let listFullPaths (path: String) : Result.Result<List<String>, Posix.Error> =
+  let cleanPath = Path.stripTrailing path
+
+  (Posix.listDir cleanPath)
+  |> Stdlib.Result.map (fun entries ->
+    entries |> Stdlib.List.map (fun name -> Path.join [ cleanPath; name ]))
+
+
+/// Remove an empty directory.
+let delete (path: String) : Result.Result<Unit, Posix.Error> =
+  Posix.rmdir path
+
+
+/// Get the user's home directory, or None if not available.
+let home () : Stdlib.Option.Option<String> =
+  Env.home ()
+
+
+/// List all files recursively under a directory (full paths).
+/// Does not follow symlinks — symlinks are included as entries but not recursed into.
+let listRecursive (path: String) : Result.Result<List<String>, Posix.Error> =
+  match Posix.listDir path with
+  | Ok entries ->
+    let result =
+      entries
+      |> Stdlib.List.fold (Stdlib.Result.Result.Ok []) (fun acc name ->
+        match acc with
+        | Ok collected ->
+          let fullPath = Path.join [ path; name ]
+
+          match Posix.isSymlink fullPath with
+          | Error e -> Stdlib.Result.Result.Error e
+          | Ok true ->
+            Stdlib.Result.Result.Ok(Stdlib.List.push collected fullPath)
+          | Ok false ->
+            if Posix.isDirectory fullPath then
+              match listRecursive fullPath with
+              | Ok subEntries ->
+                Stdlib.Result.Result.Ok(Stdlib.List.append subEntries collected)
+              | Error e -> Stdlib.Result.Result.Error e
+            else
+              Stdlib.Result.Result.Ok(Stdlib.List.push collected fullPath)
+        | Error e -> Stdlib.Result.Result.Error e)
+
+    result |> Stdlib.Result.map (fun items -> Stdlib.List.reverse items)
+  | Error e -> Stdlib.Result.Result.Error e
+
+
+/// Create a temporary directory (like mktemp -d). Returns the path.
+let createTemp () : Result.Result<String, Posix.Error> =
+  let base_ =
+    match Env.get "TMPDIR" with
+    | Some t -> t
+    | None -> "/tmp"
+
+  Posix.mkdtemp $"{base_}/dark-tmp-"
+
+
+/// Remove a directory and everything inside it (like rm -rf).
+/// Symlinks are removed (unlinked) without following them.
+let deleteRecursive (path: String) : Result.Result<Unit, Posix.Error> =
+  match Posix.listDir path with
+  | Ok entries ->
+    // Delete each entry — recurse into subdirs, unlink files and symlinks
+    let deleteEntries =
+      entries
+      |> Stdlib.List.fold (Stdlib.Result.Result.Ok()) (fun acc name ->
+        match acc with
+        | Ok _ ->
+          let fullPath = Path.join [ path; name ]
+
+          match Posix.isSymlink fullPath with
+          | Error e -> Stdlib.Result.Result.Error e
+          | Ok true -> Posix.unlink fullPath
+          | Ok false ->
+            if Posix.isDirectory fullPath then
+              deleteRecursive fullPath
+            else
+              Posix.unlink fullPath
+        | Error e -> Stdlib.Result.Result.Error e)
+
+    match deleteEntries with
+    | Ok _ -> Posix.rmdir path
+    | Error e -> Stdlib.Result.Result.Error e
+  | Error e -> Stdlib.Result.Result.Error e
+
+
+/// Walk a directory tree, returning all entries (files and directories) as full paths.
+/// Does not follow symlinks — symlinks are included as entries but not recursed into.
+let walk (path: String) : Result.Result<List<String>, Posix.Error> =
+  match Posix.listDir path with
+  | Ok entries ->
+    let result =
+      entries
+      |> Stdlib.List.fold (Stdlib.Result.Result.Ok []) (fun acc name ->
+        match acc with
+        | Ok collected ->
+          let fullPath = Path.join [ path; name ]
+
+          match Posix.isSymlink fullPath with
+          | Error e -> Stdlib.Result.Result.Error e
+          | Ok true ->
+            Stdlib.Result.Result.Ok(Stdlib.List.push collected fullPath)
+          | Ok false ->
+            if Posix.isDirectory fullPath then
+              match walk fullPath with
+              | Ok subEntries ->
+                Stdlib.Result.Result.Ok(
+                  Stdlib.List.append
+                    subEntries
+                    (Stdlib.List.push collected fullPath))
+              | Error e -> Stdlib.Result.Result.Error e
+            else
+              Stdlib.Result.Result.Ok(Stdlib.List.push collected fullPath)
+        | Error e -> Stdlib.Result.Result.Error e)
+
+    result |> Stdlib.Result.map (fun items -> Stdlib.List.reverse items)
+  | Error e -> Stdlib.Result.Result.Error e
+
+
+/// Get the total size of a directory and its contents in bytes.
+let size (path: String) : Result.Result<Int64, Posix.Error> =
+  match listRecursive path with
+  | Ok files ->
+    files
+    |> Stdlib.List.fold (Stdlib.Result.Result.Ok 0L) (fun acc filePath ->
+      match acc with
+      | Ok total ->
+        match Cli.File.size filePath with
+        | Ok fileSize -> Stdlib.Result.Result.Ok(total + fileSize)
+        | Error e -> Stdlib.Result.Result.Error e
+      | Error e -> Stdlib.Result.Result.Error e)
+  | Error e -> Stdlib.Result.Result.Error e
+
+
+/// Create a temporary directory, run a function with it, then clean up.
+let withTemp (fn: String -> 'a) : Result.Result<'a, Posix.Error> =
+  (createTemp ())
+  |> Stdlib.Result.map (fun tmpDir ->
+    let result = fn tmpDir
+
+    match deleteRecursive tmpDir with
+    | Ok _ -> ()
+    | Error e -> Log.warn $"withTemp: failed to clean up {tmpDir}: {e.message}"
+
+    result)
