@@ -326,7 +326,11 @@ type NodaTime.Instant with
 
   member this.toIsoString() : string =
     let dt = this.ToDateTimeUtc()
-    dt.ToString("s", System.Globalization.CultureInfo.InvariantCulture) + "Z"
+
+    if dt.Millisecond <> 0 then
+      dt.ToString("yyyy-MM-ddTHH:mm:ss.fffZ")
+    else
+      dt.ToString("s", System.Globalization.CultureInfo.InvariantCulture) + "Z"
 
   // Returns a new datetime with truncated
   member this.truncate() : NodaTime.Instant =
@@ -337,12 +341,16 @@ type NodaTime.Instant with
 
 
   static member ofIsoString(str : string) : NodaTime.Instant =
+    let formats = [| "yyyy-MM-ddTHH:mm:ssZ"; "yyyy-MM-ddTHH:mm:ss.fffZ" |]
+
     let dt =
       System.DateTime.ParseExact(
         str,
-        "yyyy-MM-ddTHH:mm:ssZ",
-        System.Globalization.CultureInfo.InvariantCulture
+        formats,
+        System.Globalization.CultureInfo.InvariantCulture,
+        System.Globalization.DateTimeStyles.None
       )
+
     let utcDateTime = System.DateTime(dt.Ticks, System.DateTimeKind.Utc)
     NodaTime.Instant.FromDateTimeUtc utcDateTime
   static member ofUtcInstant

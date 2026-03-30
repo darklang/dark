@@ -11,6 +11,8 @@ module DarkDateTime = LibExecution.DarkDateTime
 
 
 let ISO8601Format = "yyyy-MM-ddTHH:mm:ssZ"
+let ISO8601FormatWithMs = "yyyy-MM-ddTHH:mm:ss.fffZ"
+let ISO8601Formats = [| ISO8601Format; ISO8601FormatWithMs |]
 
 let ISO8601DateParser (s : string) : Result<DarkDateTime.T, unit> =
   let culture = System.Globalization.CultureInfo.InvariantCulture
@@ -22,7 +24,7 @@ let ISO8601DateParser (s : string) : Result<DarkDateTime.T, unit> =
   | date when date.Contains("GMT") -> Error()
   | date when date.EndsWith('z') -> Error()
   | date when
-    System.DateTime.TryParseExact(date, ISO8601Format, culture, styles, &result)
+    System.DateTime.TryParseExact(date, ISO8601Formats, culture, styles, &result)
     ->
     Ok(DarkDateTime.fromDateTime (result.ToUniversalTime()))
   | _ -> Error()
@@ -56,14 +58,22 @@ let fns () : List<BuiltInFn> =
       parameters = [ Param.make "date" TDateTime "" ]
       returnType = TString
       description =
-        "Stringify <param date> to the ISO 8601 format {{YYYY-MM-DD'T'hh:mm:ss'Z'}}"
+        "Stringify <param date> to the ISO 8601 format {{YYYY-MM-DD'T'hh:mm:ss'Z'}} "
+        + "or {{YYYY-MM-DD'T'hh:mm:ss.fff'Z'}} when milliseconds are non-zero"
       fn =
         (function
         | _, _, _, [ DDateTime d ] ->
           let dt = DarkDateTime.toDateTimeUtc d
-          dt.ToString("s", System.Globalization.CultureInfo.InvariantCulture) + "Z"
-          |> DString
-          |> Ply
+          let hasMs = dt.Millisecond <> 0
+
+          let str =
+            if hasMs then
+              dt.ToString("yyyy-MM-ddTHH:mm:ss.fffZ")
+            else
+              dt.ToString("s", System.Globalization.CultureInfo.InvariantCulture)
+              + "Z"
+
+          str |> DString |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure
@@ -397,6 +407,109 @@ let fns () : List<BuiltInFn> =
           diff.TotalSeconds |> System.Math.Round |> int64 |> DInt64 |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
+      previewable = Pure
+      deprecated = NotDeprecated }
+
+
+    { name = fn "dateTimeToMilliseconds" 0
+      typeParams = []
+      parameters = [ Param.make "date" TDateTime "" ]
+      returnType = TInt64
+      description =
+        "Converts <param date> to an <type Int64> representing milliseconds since the Unix epoch"
+      fn =
+        (function
+        | _, _, _, [ DDateTime d ] ->
+          (DarkDateTime.toInstant d).ToUnixTimeMilliseconds() |> DInt64 |> Ply
+        | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Pure
+      deprecated = NotDeprecated }
+
+
+    { name = fn "dateTimeFromMilliseconds" 0
+      typeParams = []
+      parameters = [ Param.make "milliseconds" TInt64 "" ]
+      returnType = TDateTime
+      description =
+        "Converts an <type Int64> representing milliseconds since the Unix epoch into a <type DateTime>"
+      fn =
+        (function
+        | _, _, _, [ DInt64 ms ] ->
+          ms
+          |> Instant.FromUnixTimeMilliseconds
+          |> DarkDateTime.fromInstant
+          |> DDateTime
+          |> Ply
+        | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Pure
+      deprecated = NotDeprecated }
+
+
+    { name = fn "dateTimeAddMilliseconds" 0
+      typeParams = []
+      parameters =
+        [ Param.make "d" TDateTime ""; Param.make "milliseconds" TInt64 "" ]
+      returnType = TDateTime
+      description =
+        "Returns a <type DateTime> <param milliseconds> milliseconds after <param d>"
+      fn =
+        (function
+        | _, _, _, [ DDateTime d; DInt64 ms ] ->
+          d + (NodaTime.Period.FromMilliseconds ms) |> DDateTime |> Ply
+        | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Pure
+      deprecated = NotDeprecated }
+
+
+    { name = fn "dateTimeSubtractMilliseconds" 0
+      typeParams = []
+      parameters =
+        [ Param.make "d" TDateTime ""; Param.make "milliseconds" TInt64 "" ]
+      returnType = TDateTime
+      description =
+        "Returns a <type DateTime> <param milliseconds> milliseconds before <param d>"
+      fn =
+        (function
+        | _, _, _, [ DDateTime d; DInt64 ms ] ->
+          d - (NodaTime.Period.FromMilliseconds ms) |> DDateTime |> Ply
+        | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Pure
+      deprecated = NotDeprecated }
+
+
+    { name = fn "dateTimeMillisecond" 0
+      typeParams = []
+      parameters = [ Param.make "date" TDateTime "" ]
+      returnType = TInt64
+      description =
+        "Returns the millisecond portion of <param date> as an <type Int64> between {{0}} and {{999}}"
+      fn =
+        (function
+        | _, _, _, [ DDateTime d ] -> d.Millisecond |> int64 |> Dval.int64 |> Ply
+        | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Pure
+      deprecated = NotDeprecated }
+
+
+    { name = fn "dateTimeSubtractMs" 0
+      typeParams = []
+      parameters = [ Param.make "end" TDateTime ""; Param.make "start" TDateTime "" ]
+      returnType = TInt64
+      description = "Returns the difference of the two dates, in milliseconds"
+      fn =
+        (function
+        | _, _, _, [ DDateTime endDate; DDateTime startDate ] ->
+          let diff =
+            (DarkDateTime.toInstant endDate) - (DarkDateTime.toInstant startDate)
+
+          diff.TotalMilliseconds |> System.Math.Round |> int64 |> DInt64 |> Ply
+        | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
       previewable = Pure
       deprecated = NotDeprecated } ]
 
