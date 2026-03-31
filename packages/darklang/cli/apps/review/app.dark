@@ -119,12 +119,13 @@ let prettyPrintFromPM (branchId: Uuid) (itemName: String) (kind: String) : Strin
     | [] -> "(not found)"
   | _ -> "(unknown kind)"
 
+
 let prettyPrintFromOps
   (ops: List<LanguageTools.ProgramTypes.PackageOp>)
   (branchId: Uuid)
   (itemName: String)
   (kind: String)
-  : String =
+  : Stdlib.Option.Option<String> =
   let ctx =
     PrettyPrinter.ProgramTypes.Context
       { branchId = branchId
@@ -140,35 +141,38 @@ let prettyPrintFromOps
     |> Stdlib.List.last
   match targetHash with
   | Some hash ->
-    let found =
-      ops
-      |> Stdlib.List.filterMap (fun op ->
-        match op with
-        | AddFn fn ->
-          if kind == "Fn" && fn.hash == hash then
-            Stdlib.Option.Option.Some (PrettyPrinter.ProgramTypes.packageFn ctx fn)
-          else Stdlib.Option.Option.None
-        | AddType typ ->
-          if kind == "Type" && typ.hash == hash then
-            Stdlib.Option.Option.Some (PrettyPrinter.ProgramTypes.packageType ctx typ)
-          else Stdlib.Option.Option.None
-        | AddValue v ->
-          if kind == "Value" && v.hash == hash then
-            Stdlib.Option.Option.Some (PrettyPrinter.ProgramTypes.packageValue ctx v)
-          else Stdlib.Option.Option.None
-        | SetTypeName (_id, _loc) -> Stdlib.Option.Option.None
-        | SetFnName (_id, _loc) -> Stdlib.Option.Option.None
-        | SetValueName (_id, _loc) -> Stdlib.Option.Option.None
-        | PropagateUpdate (_pid, _sloc, _kind, _from, _to, _reps) -> Stdlib.Option.Option.None
-        | RevertPropagation (_rid, _pids, _sloc, _kind, _h, _reps) -> Stdlib.Option.Option.None)
-    match found with
-    | text :: _ -> text
-    | [] -> "(content not found)"
-  | None -> "(hash not found)"
+    ops
+    |> Stdlib.List.filterMap (fun op ->
+      match op with
+      | AddFn fn ->
+        if kind == "Fn" && fn.hash == hash then
+          Stdlib.Option.Option.Some (PrettyPrinter.ProgramTypes.packageFn ctx fn)
+        else Stdlib.Option.Option.None
+      | AddType typ ->
+        if kind == "Type" && typ.hash == hash then
+          Stdlib.Option.Option.Some (PrettyPrinter.ProgramTypes.packageType ctx typ)
+        else Stdlib.Option.Option.None
+      | AddValue v ->
+        if kind == "Value" && v.hash == hash then
+          Stdlib.Option.Option.Some (PrettyPrinter.ProgramTypes.packageValue ctx v)
+        else Stdlib.Option.Option.None
+      | _ -> Stdlib.Option.Option.None)
+    |> Stdlib.List.head
+  | None -> Stdlib.Option.Option.None
 
 let allAddedLines (text: String) : List<Stdlib.Diff.DiffLine> =
   let lines = Stdlib.String.split text "\n"
   Stdlib.List.map lines (fun line -> Stdlib.Diff.DiffLine.Added line)
+
+let prettyPrint
+  (ops: List<LanguageTools.ProgramTypes.PackageOp>)
+  (branchId: Uuid)
+  (itemName: String)
+  (kind: String)
+  : String =
+  match prettyPrintFromOps ops branchId itemName kind with
+  | Some text -> text
+  | None -> prettyPrintFromPM branchId itemName kind
 
 let diffForItem
   (ops: List<LanguageTools.ProgramTypes.PackageOp>)
@@ -176,7 +180,7 @@ let diffForItem
   (parentId: Stdlib.Option.Option<Uuid>)
   (pkg: PackageItem)
   : List<Stdlib.Diff.DiffLine> =
-  let newText = prettyPrintFromOps ops branchId pkg.name pkg.kind
+  let newText = prettyPrint ops branchId pkg.name pkg.kind
   match parentId with
   | Some pid ->
     let oldText = prettyPrintFromPM pid pkg.name pkg.kind
@@ -274,25 +278,7 @@ let buildCommitDiffState (commitList: CommitListState) (entry: CommitEntry) : Di
     Stdlib.List.fold groups [] (fun acc group ->
       let (modPath, moduleItems) = group
       let moduleHeader = Stdlib.Diff.DiffLine.Same modPath
-      let moduleDiff =
-        Stdlib.List.fold moduleItems [] (fun mAcc pkg ->
-          let opsText = prettyPrintFromOps ops commitList.branchId pkg.name pkg.kind
-          let newText =
-            if opsText == "(content not found)" || opsText == "(hash not found)" then
-              prettyPrintFromPM commitList.branchId pkg.name pkg.kind
-            else
-              opsText
-          let itemDiff =
-            match parentId with
-            | Some pid ->
-              let oldText = prettyPrintFromPM pid pkg.name pkg.kind
-              if oldText == "(not found)" then allAddedLines newText
-              else Stdlib.Diff.lines oldText newText
-            | None -> allAddedLines newText
-          let sep =
-            if Stdlib.List.isEmpty mAcc then []
-            else [Stdlib.Diff.DiffLine.Same ""; Stdlib.Diff.DiffLine.Same "---"]
-          Stdlib.List.append mAcc (Stdlib.List.append sep itemDiff))
+      let moduleDiff = diffForItems ops commitList.branchId parentId moduleItems
       let separator =
         if Stdlib.List.isEmpty acc then []
         else [Stdlib.Diff.DiffLine.Same ""]
@@ -398,8 +384,8 @@ let handleKey (state: AppModel) (key: Stdlib.Cli.Stdin.Key.Key) (_modifiers: Std
 let kindLabel (kind: String) : String =
   match kind with
   | "Type" -> Darklang.Cli.Colors.colorize Darklang.Cli.Colors.blue "type"
-  | "Fn" -> Darklang.Cli.Colors.colorize "\x1b[38;5;141m" "fn"
-  | "Value" -> Darklang.Cli.Colors.colorize "\x1b[38;5;208m" "val"
+  | "Fn" -> Darklang.Cli.Colors.colorize Darklang.Cli.Colors.purple "fn"
+  | "Value" -> Darklang.Cli.Colors.colorize Darklang.Cli.Colors.orange "val"
   | other -> Darklang.Cli.Colors.colorize Darklang.Cli.Colors.dim other
 
 let printLine (region: Darklang.Cli.UI.Layout.Region) (row: Int64) (text: String) : Unit =
@@ -457,21 +443,7 @@ let renderBranchListBody (branchList: BranchListState) (region: Darklang.Cli.UI.
     let nameColor = if isSelected then Darklang.Cli.Colors.bold ++ Darklang.Cli.Colors.cyan else Darklang.Cli.Colors.white
     let nameText = Darklang.Cli.Colors.colorize nameColor item.branchName
     let textDim = if isSelected then "" else Darklang.Cli.Colors.dim
-    let wipText =
-      if item.wipCount > 0L then
-        Darklang.Cli.Colors.colorize (textDim ++ "\x1b[38;5;213m") ($"{Stdlib.Int64.toString item.wipCount} Pending")
-      else
-        ""
-    let committedText =
-      if item.committedCount > 0L then
-        let commitWord = if item.committedCount == 1L then "Commit" else "Commits"
-        Darklang.Cli.Colors.colorize (textDim ++ "\x1b[38;5;141m") ($"{Stdlib.Int64.toString item.committedCount} {commitWord}")
-      else
-        ""
-    let countText =
-      [wipText; committedText]
-      |> Stdlib.List.filter (fun s -> Stdlib.Bool.not (Stdlib.String.isEmpty s))
-      |> Stdlib.String.join "  "
+    let countText = formatBranchCounts item.wipCount item.committedCount textDim
     printLine r cardRow (Darklang.Cli.Colors.colorize borderColor ("   ╭" ++ hBar))
     printLine r (cardRow + 1L) $"{marker}{bar} {nameText}  {countText}"
     printLine r (cardRow + 2L) $"   {bar}"
@@ -584,17 +556,106 @@ let buildDetailForBranch (branchId: Uuid) : Screen =
         committedCount = 0L }
   Screen.Detail (buildDetailState item)
 
+
+/// Format wip/committed counts for a branch review item
+let formatBranchCounts (wipCount: Int64) (committedCount: Int64) (colorPrefix: String) : String =
+  let wipText =
+    if wipCount > 0L then
+      Darklang.Cli.Colors.colorize (colorPrefix ++ Darklang.Cli.Colors.pink) $"{Stdlib.Int64.toString wipCount} pending"
+    else ""
+  let committedText =
+    if committedCount > 0L then
+      let word = if committedCount == 1L then "commit" else "commits"
+      Darklang.Cli.Colors.colorize (colorPrefix ++ Darklang.Cli.Colors.purple) $"{Stdlib.Int64.toString committedCount} {word}"
+    else ""
+  [wipText; committedText]
+  |> Stdlib.List.filter (fun s -> s != "")
+  |> Stdlib.String.join "  "
+
+// ── Non-interactive output ──
+
+let printDiffLine (diffLine: Stdlib.Diff.DiffLine) : Unit =
+  match diffLine with
+  | Added text -> Stdlib.printLine (Darklang.Cli.Colors.colorize Darklang.Cli.Colors.green $"+ {text}")
+  | Removed text -> Stdlib.printLine (Darklang.Cli.Colors.colorize Darklang.Cli.Colors.red $"- {text}")
+  | Same text -> Stdlib.printLine $"  {text}"
+
+let printWipItems (branchId: Uuid) : Unit =
+  let wipItems = loadWipItems branchId
+  if Stdlib.List.isEmpty wipItems then
+    Stdlib.printLine (Darklang.Cli.Colors.dimText "No uncommitted changes.")
+  else
+    Stdlib.printLine ""
+    Stdlib.printLine (Darklang.Cli.Colors.boldText "Uncommitted changes:")
+    let groups = groupByModule wipItems
+    let ops = SCM.PackageOps.getWip branchId
+    let parentId = getParentBranchId branchId
+    Stdlib.List.iter groups (fun group ->
+      let (modPath, items) = group
+      Stdlib.printLine ""
+      Stdlib.printLine $"  {Darklang.Cli.Colors.bold}{Darklang.Cli.Colors.magenta}{modPath}{Darklang.Cli.Colors.reset}"
+      Stdlib.List.iter items (fun pkg ->
+        let propText =
+          if pkg.propagatedCount > 0L then
+            Darklang.Cli.Colors.dimText $" ({Stdlib.Int64.toString pkg.propagatedCount} propagated)"
+          else ""
+        Stdlib.printLine $"    {kindLabel pkg.kind} {pkg.name}{propText}")
+      let diffLines = diffForItems ops branchId parentId items
+      if diffLines != [] then
+        Stdlib.printLine ""
+        Stdlib.List.iter diffLines (fun line -> printDiffLine line))
+
+let printRecentCommits (branchId: Uuid) : Unit =
+  let commits = SCM.PackageOps.getCommits branchId 10L
+  if commits != [] then
+    Stdlib.printLine ""
+    Stdlib.printLine (Darklang.Cli.Colors.boldText "Recent commits:")
+    Stdlib.List.iter commits (fun c ->
+      let shortHash = LanguageTools.ProgramTypes.hashToShort c.hash
+      let date = Stdlib.DateTime.toString c.createdAt
+      let hashText = Darklang.Cli.Colors.colorize Darklang.Cli.Colors.yellow shortHash
+      let opsText = Darklang.Cli.Colors.dimText $"({Stdlib.Int64.toString c.opCount} ops)"
+      let dateText = Darklang.Cli.Colors.dimText date
+      Stdlib.printLine $"  {hashText}  {c.message}  {opsText}  {dateText}")
+
+let printBranchDetail (branchId: Uuid) : Unit =
+  let branchName =
+    match SCM.Branch.get branchId with
+    | Some b -> b.name
+    | None -> "unknown"
+  Stdlib.printLine $"Branch: {Darklang.Cli.Colors.cyan}{branchName}{Darklang.Cli.Colors.reset}"
+  printWipItems branchId
+  printRecentCommits branchId
+
+let printAllBranches () : Unit =
+  let items = loadBranchList ()
+  if Stdlib.List.isEmpty items then
+    Stdlib.printLine (Darklang.Cli.Colors.dimText "No branches with changes to review.")
+  else
+    Stdlib.printLine (Darklang.Cli.Colors.boldText "Branches with changes:")
+    Stdlib.List.iter items (fun item ->
+      let counts = formatBranchCounts item.wipCount item.committedCount ""
+      let nameText = Darklang.Cli.Colors.colorize (Darklang.Cli.Colors.bold ++ Darklang.Cli.Colors.cyan) item.branchName
+      Stdlib.printLine $"  {nameText}  {counts}")
+
+
 let execute (cliState: Darklang.Cli.AppState) (args: List<String>) : Darklang.Cli.AppState =
-  Stdlib.print "\u001b[?1049h"
   let branchId = cliState.currentBranchId
   let showAll = Stdlib.List.member_v0 args "--all"
-  let screen =
-    if showAll then
-      Screen.BranchList (BranchListState { items = loadBranchList (); selected = 0L })
-    else
-      buildDetailForBranch branchId
-  let app = makeSubApp (AppModel { screen = screen; branchId = branchId; showAll = showAll })
-  { cliState with currentPage = Darklang.Cli.Page.SubApp app; needsFullRedraw = true }
+
+  if cliState.nonInteractive then
+    if showAll then printAllBranches ()
+    else printBranchDetail branchId
+    cliState
+  else
+    Stdlib.print "\u001b[?1049h"
+    let screen =
+      if showAll then
+        Screen.BranchList (BranchListState { items = loadBranchList (); selected = 0L })
+      else
+        buildDetailForBranch branchId
+    let app = makeSubApp (AppModel { screen = screen; branchId = branchId; showAll = showAll })
+    { cliState with currentPage = Darklang.Cli.Page.SubApp app; needsFullRedraw = true }
 
 let help (_state: Darklang.Cli.AppState) : Darklang.Cli.AppState =
   [ "Usage: review [--all]"

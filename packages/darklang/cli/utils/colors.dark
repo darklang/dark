@@ -50,6 +50,11 @@ let bgMagenta = "\u001b[45m"
 let bgCyan = "\u001b[46m"
 let bgWhite = "\u001b[47m"
 
+// Extended 256-colors (foreground)
+let pink = "\x1b[38;5;213m"
+let purple = "\x1b[38;5;141m"
+let orange = "\x1b[38;5;208m"
+
 // Background colors
 let grayBg = "\x1b[48;5;236m"
 let purpleBg = "\x1b[48;5;61m"
