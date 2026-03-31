@@ -376,7 +376,8 @@ let fns () : List<BuiltInFn> =
       description = "Bitwise NOT on a <type UInt128> value"
       fn =
         (function
-        | _, _, _, [ DUInt128 a ] -> Ply(DUInt128(System.UInt128.op_OnesComplement(a)))
+        | _, _, _, [ DUInt128 a ] ->
+          Ply(DUInt128(System.UInt128.op_OnesComplement (a)))
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure
