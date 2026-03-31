@@ -191,3 +191,31 @@ Stdlib.Int128.fromInt64_v0 -9223372036854775808L = -9223372036854775808Q
 Stdlib.Int128.fromUInt64_v0 0UL = 0Q
 Stdlib.Int128.fromUInt64_v0 1UL = 1Q
 Stdlib.Int128.fromUInt64_v0 18446744073709551615UL = 18446744073709551615Q
+
+Stdlib.Int128.bitwiseAnd 12Q 10Q = 8Q
+Stdlib.Int128.bitwiseAnd 0Q 0Q = 0Q
+Stdlib.Int128.bitwiseAnd (-1Q) 0Q = 0Q
+Stdlib.Int128.bitwiseAnd (-1Q) (-1Q) = -1Q
+
+Stdlib.Int128.bitwiseOr 12Q 10Q = 14Q
+Stdlib.Int128.bitwiseOr 0Q 0Q = 0Q
+Stdlib.Int128.bitwiseOr (-1Q) 0Q = -1Q
+
+Stdlib.Int128.bitwiseXor 12Q 10Q = 6Q
+Stdlib.Int128.bitwiseXor 0Q 0Q = 0Q
+Stdlib.Int128.bitwiseXor (-1Q) (-1Q) = 0Q
+
+Stdlib.Int128.bitwiseNot 0Q = -1Q
+Stdlib.Int128.bitwiseNot (-1Q) = 0Q
+Stdlib.Int128.bitwiseNot 1Q = -2Q
+
+Stdlib.Int128.shiftLeft 1Q 2Q = 4Q
+Stdlib.Int128.shiftLeft 0Q 5Q = 0Q
+Stdlib.Int128.shiftLeft 1Q 0Q = 1Q
+Stdlib.Int128.shiftLeft 5Q 3Q = 40Q
+
+Stdlib.Int128.shiftRight 8Q 2Q = 2Q
+Stdlib.Int128.shiftRight 0Q 5Q = 0Q
+Stdlib.Int128.shiftRight 1Q 0Q = 1Q
+Stdlib.Int128.shiftRight (-1Q) 1Q = -1Q
+Stdlib.Int128.shiftRight 40Q 3Q = 5Q

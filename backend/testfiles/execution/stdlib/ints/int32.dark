@@ -244,3 +244,44 @@ Stdlib.Int32.fromUInt128_v0 0Z = Stdlib.Option.Option.Some 0l
 Stdlib.Int32.fromUInt128_v0 1Z = Stdlib.Option.Option.Some 1l
 Stdlib.Int32.fromUInt128_v0 2147483647Z = Stdlib.Option.Option.Some 2147483647l
 Stdlib.Int32.fromUInt128_v0 2147483648Z = Stdlib.Option.Option.None
+
+Stdlib.Int32.bitwiseAnd 12l 10l = 8l
+Stdlib.Int32.bitwiseAnd 0l 0l = 0l
+Stdlib.Int32.bitwiseAnd (-1l) 0l = 0l
+Stdlib.Int32.bitwiseAnd 2147483647l 2147483647l = 2147483647l
+Stdlib.Int32.bitwiseAnd (-2147483648l) (-1l) = -2147483648l
+Stdlib.Int32.bitwiseAnd 2147483647l (-2147483648l) = 0l
+Stdlib.Int32.bitwiseAnd (-1l) (-1l) = -1l
+
+Stdlib.Int32.bitwiseOr 12l 10l = 14l
+Stdlib.Int32.bitwiseOr 0l 0l = 0l
+Stdlib.Int32.bitwiseOr (-1l) 0l = -1l
+Stdlib.Int32.bitwiseOr 2147483647l 0l = 2147483647l
+Stdlib.Int32.bitwiseOr (-2147483648l) 0l = -2147483648l
+Stdlib.Int32.bitwiseOr 2147483647l (-2147483648l) = -1l
+
+Stdlib.Int32.bitwiseXor 12l 10l = 6l
+Stdlib.Int32.bitwiseXor 0l 0l = 0l
+Stdlib.Int32.bitwiseXor (-1l) (-1l) = 0l
+Stdlib.Int32.bitwiseXor 2147483647l (-1l) = -2147483648l
+Stdlib.Int32.bitwiseXor (-2147483648l) (-1l) = 2147483647l
+Stdlib.Int32.bitwiseXor 2147483647l 2147483647l = 0l
+
+Stdlib.Int32.bitwiseNot 0l = -1l
+Stdlib.Int32.bitwiseNot (-1l) = 0l
+Stdlib.Int32.bitwiseNot 2147483647l = -2147483648l
+Stdlib.Int32.bitwiseNot (-2147483648l) = 2147483647l
+Stdlib.Int32.bitwiseNot 1l = -2l
+
+Stdlib.Int32.shiftLeft 1l 2l = 4l
+Stdlib.Int32.shiftLeft 0l 5l = 0l
+Stdlib.Int32.shiftLeft 1l 0l = 1l
+Stdlib.Int32.shiftLeft 1l 30l = 1073741824l
+Stdlib.Int32.shiftLeft 5l 3l = 40l
+
+Stdlib.Int32.shiftRight 8l 2l = 2l
+Stdlib.Int32.shiftRight 0l 5l = 0l
+Stdlib.Int32.shiftRight 1l 0l = 1l
+Stdlib.Int32.shiftRight 1073741824l 30l = 1l
+Stdlib.Int32.shiftRight (-1l) 1l = -1l
+Stdlib.Int32.shiftRight 40l 3l = 5l

@@ -183,3 +183,15 @@ let bitwiseOr (a: Int64) (b: Int64) : Int64 = Builtin.int64BitwiseOr a b
 
 /// Bitwise XOR on two <type Int64> values
 let bitwiseXor (a: Int64) (b: Int64) : Int64 = Builtin.int64BitwiseXor a b
+
+
+/// Bitwise NOT on an <type Int64> value
+let bitwiseNot (a: Int64) : Int64 = Builtin.int64BitwiseNot a
+
+
+/// Bitwise left shift of an <type Int64> value
+let shiftLeft (a: Int64) (b: Int64) : Int64 = Builtin.int64ShiftLeft a b
+
+
+/// Bitwise right shift of an <type Int64> value
+let shiftRight (a: Int64) (b: Int64) : Int64 = Builtin.int64ShiftRight a b

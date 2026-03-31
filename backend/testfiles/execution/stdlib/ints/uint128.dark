@@ -115,3 +115,30 @@ Stdlib.UInt128.fromUInt32_v0 4294967295ul = 4294967295Z
 Stdlib.UInt128.fromUInt64_v0 0UL = 0Z
 Stdlib.UInt128.fromUInt64_v0 1UL = 1Z
 Stdlib.UInt128.fromUInt64_v0 18446744073709551615UL = 18446744073709551615Z
+
+Stdlib.UInt128.bitwiseAnd 12Z 10Z = 8Z
+Stdlib.UInt128.bitwiseAnd 0Z 0Z = 0Z
+Stdlib.UInt128.bitwiseAnd 255Z 0Z = 0Z
+Stdlib.UInt128.bitwiseAnd 255Z 255Z = 255Z
+
+Stdlib.UInt128.bitwiseOr 12Z 10Z = 14Z
+Stdlib.UInt128.bitwiseOr 0Z 0Z = 0Z
+Stdlib.UInt128.bitwiseOr 255Z 0Z = 255Z
+
+Stdlib.UInt128.bitwiseXor 12Z 10Z = 6Z
+Stdlib.UInt128.bitwiseXor 0Z 0Z = 0Z
+Stdlib.UInt128.bitwiseXor 255Z 255Z = 0Z
+
+Stdlib.UInt128.bitwiseNot 0Z = 340282366920938463463374607431768211455Z
+Stdlib.UInt128.bitwiseNot 340282366920938463463374607431768211455Z = 0Z
+Stdlib.UInt128.bitwiseNot 1Z = 340282366920938463463374607431768211454Z
+
+Stdlib.UInt128.shiftLeft 1Z 2Z = 4Z
+Stdlib.UInt128.shiftLeft 0Z 5Z = 0Z
+Stdlib.UInt128.shiftLeft 1Z 0Z = 1Z
+Stdlib.UInt128.shiftLeft 5Z 3Z = 40Z
+
+Stdlib.UInt128.shiftRight 8Z 2Z = 2Z
+Stdlib.UInt128.shiftRight 0Z 5Z = 0Z
+Stdlib.UInt128.shiftRight 1Z 0Z = 1Z
+Stdlib.UInt128.shiftRight 40Z 3Z = 5Z

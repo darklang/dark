@@ -434,6 +434,90 @@ let fns () : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
+      deprecated = NotDeprecated }
+
+
+    { name = fn "int128BitwiseAnd" 0
+      typeParams = []
+      parameters = [ Param.make "a" TInt128 ""; Param.make "b" TInt128 "" ]
+      returnType = TInt128
+      description = "Bitwise AND on two <type Int128> values"
+      fn =
+        (function
+        | _, _, _, [ DInt128 a; DInt128 b ] -> Ply(DInt128(a &&& b))
+        | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Pure
+      deprecated = NotDeprecated }
+
+
+    { name = fn "int128BitwiseOr" 0
+      typeParams = []
+      parameters = [ Param.make "a" TInt128 ""; Param.make "b" TInt128 "" ]
+      returnType = TInt128
+      description = "Bitwise OR on two <type Int128> values"
+      fn =
+        (function
+        | _, _, _, [ DInt128 a; DInt128 b ] -> Ply(DInt128(a ||| b))
+        | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Pure
+      deprecated = NotDeprecated }
+
+
+    { name = fn "int128BitwiseXor" 0
+      typeParams = []
+      parameters = [ Param.make "a" TInt128 ""; Param.make "b" TInt128 "" ]
+      returnType = TInt128
+      description = "Bitwise XOR on two <type Int128> values"
+      fn =
+        (function
+        | _, _, _, [ DInt128 a; DInt128 b ] -> Ply(DInt128(a ^^^ b))
+        | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Pure
+      deprecated = NotDeprecated }
+
+
+    { name = fn "int128BitwiseNot" 0
+      typeParams = []
+      parameters = [ Param.make "a" TInt128 "" ]
+      returnType = TInt128
+      description = "Bitwise NOT on an <type Int128> value"
+      fn =
+        (function
+        | _, _, _, [ DInt128 a ] -> Ply(DInt128(System.Int128.op_OnesComplement(a)))
+        | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Pure
+      deprecated = NotDeprecated }
+
+
+    { name = fn "int128ShiftLeft" 0
+      typeParams = []
+      parameters = [ Param.make "a" TInt128 ""; Param.make "b" TInt128 "" ]
+      returnType = TInt128
+      description = "Bitwise left shift of an <type Int128> value"
+      fn =
+        (function
+        | _, _, _, [ DInt128 a; DInt128 b ] -> Ply(DInt128(a <<< int b))
+        | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Pure
+      deprecated = NotDeprecated }
+
+
+    { name = fn "int128ShiftRight" 0
+      typeParams = []
+      parameters = [ Param.make "a" TInt128 ""; Param.make "b" TInt128 "" ]
+      returnType = TInt128
+      description = "Bitwise right shift of an <type Int128> value"
+      fn =
+        (function
+        | _, _, _, [ DInt128 a; DInt128 b ] -> Ply(DInt128(a >>> int b))
+        | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Pure
       deprecated = NotDeprecated } ]
 
 

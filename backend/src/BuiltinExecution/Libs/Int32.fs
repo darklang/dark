@@ -489,6 +489,90 @@ let fns () : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
+      deprecated = NotDeprecated }
+
+
+    { name = fn "int32BitwiseAnd" 0
+      typeParams = []
+      parameters = [ Param.make "a" TInt32 ""; Param.make "b" TInt32 "" ]
+      returnType = TInt32
+      description = "Bitwise AND on two <type Int32> values"
+      fn =
+        (function
+        | _, _, _, [ DInt32 a; DInt32 b ] -> Ply(DInt32(a &&& b))
+        | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Pure
+      deprecated = NotDeprecated }
+
+
+    { name = fn "int32BitwiseOr" 0
+      typeParams = []
+      parameters = [ Param.make "a" TInt32 ""; Param.make "b" TInt32 "" ]
+      returnType = TInt32
+      description = "Bitwise OR on two <type Int32> values"
+      fn =
+        (function
+        | _, _, _, [ DInt32 a; DInt32 b ] -> Ply(DInt32(a ||| b))
+        | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Pure
+      deprecated = NotDeprecated }
+
+
+    { name = fn "int32BitwiseXor" 0
+      typeParams = []
+      parameters = [ Param.make "a" TInt32 ""; Param.make "b" TInt32 "" ]
+      returnType = TInt32
+      description = "Bitwise XOR on two <type Int32> values"
+      fn =
+        (function
+        | _, _, _, [ DInt32 a; DInt32 b ] -> Ply(DInt32(a ^^^ b))
+        | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Pure
+      deprecated = NotDeprecated }
+
+
+    { name = fn "int32BitwiseNot" 0
+      typeParams = []
+      parameters = [ Param.make "a" TInt32 "" ]
+      returnType = TInt32
+      description = "Bitwise NOT on an <type Int32> value"
+      fn =
+        (function
+        | _, _, _, [ DInt32 a ] -> Ply(DInt32(~~~a))
+        | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Pure
+      deprecated = NotDeprecated }
+
+
+    { name = fn "int32ShiftLeft" 0
+      typeParams = []
+      parameters = [ Param.make "a" TInt32 ""; Param.make "b" TInt32 "" ]
+      returnType = TInt32
+      description = "Bitwise left shift of an <type Int32> value"
+      fn =
+        (function
+        | _, _, _, [ DInt32 a; DInt32 b ] -> Ply(DInt32(a <<< int b))
+        | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Pure
+      deprecated = NotDeprecated }
+
+
+    { name = fn "int32ShiftRight" 0
+      typeParams = []
+      parameters = [ Param.make "a" TInt32 ""; Param.make "b" TInt32 "" ]
+      returnType = TInt32
+      description = "Bitwise right shift of an <type Int32> value"
+      fn =
+        (function
+        | _, _, _, [ DInt32 a; DInt32 b ] -> Ply(DInt32(a >>> int b))
+        | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Pure
       deprecated = NotDeprecated } ]
 
 let builtins () = LibExecution.Builtin.make [] (fns ())

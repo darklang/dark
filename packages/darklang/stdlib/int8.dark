@@ -192,3 +192,27 @@ let fromInt128 (i: Int128) : Stdlib.Option.Option<Int8> =
 /// Converts a <type UInt128> to an <type Int8>. Returns {{None}} if the value is greater than 127.
 let fromUInt128 (i: UInt128) : Stdlib.Option.Option<Int8> =
   Builtin.int8FromUInt128 i
+
+
+/// Bitwise AND on two <type Int8> values
+let bitwiseAnd (a: Int8) (b: Int8) : Int8 = Builtin.int8BitwiseAnd a b
+
+
+/// Bitwise OR on two <type Int8> values
+let bitwiseOr (a: Int8) (b: Int8) : Int8 = Builtin.int8BitwiseOr a b
+
+
+/// Bitwise XOR on two <type Int8> values
+let bitwiseXor (a: Int8) (b: Int8) : Int8 = Builtin.int8BitwiseXor a b
+
+
+/// Bitwise NOT on an <type Int8> value
+let bitwiseNot (a: Int8) : Int8 = Builtin.int8BitwiseNot a
+
+
+/// Bitwise left shift of an <type Int8> value
+let shiftLeft (a: Int8) (b: Int8) : Int8 = Builtin.int8ShiftLeft a b
+
+
+/// Bitwise right shift of an <type Int8> value
+let shiftRight (a: Int8) (b: Int8) : Int8 = Builtin.int8ShiftRight a b

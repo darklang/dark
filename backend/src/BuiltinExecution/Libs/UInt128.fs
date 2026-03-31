@@ -324,6 +324,90 @@ let fns () : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
+      deprecated = NotDeprecated }
+
+
+    { name = fn "uint128BitwiseAnd" 0
+      typeParams = []
+      parameters = [ Param.make "a" TUInt128 ""; Param.make "b" TUInt128 "" ]
+      returnType = TUInt128
+      description = "Bitwise AND on two <type UInt128> values"
+      fn =
+        (function
+        | _, _, _, [ DUInt128 a; DUInt128 b ] -> Ply(DUInt128(a &&& b))
+        | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Pure
+      deprecated = NotDeprecated }
+
+
+    { name = fn "uint128BitwiseOr" 0
+      typeParams = []
+      parameters = [ Param.make "a" TUInt128 ""; Param.make "b" TUInt128 "" ]
+      returnType = TUInt128
+      description = "Bitwise OR on two <type UInt128> values"
+      fn =
+        (function
+        | _, _, _, [ DUInt128 a; DUInt128 b ] -> Ply(DUInt128(a ||| b))
+        | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Pure
+      deprecated = NotDeprecated }
+
+
+    { name = fn "uint128BitwiseXor" 0
+      typeParams = []
+      parameters = [ Param.make "a" TUInt128 ""; Param.make "b" TUInt128 "" ]
+      returnType = TUInt128
+      description = "Bitwise XOR on two <type UInt128> values"
+      fn =
+        (function
+        | _, _, _, [ DUInt128 a; DUInt128 b ] -> Ply(DUInt128(a ^^^ b))
+        | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Pure
+      deprecated = NotDeprecated }
+
+
+    { name = fn "uint128BitwiseNot" 0
+      typeParams = []
+      parameters = [ Param.make "a" TUInt128 "" ]
+      returnType = TUInt128
+      description = "Bitwise NOT on a <type UInt128> value"
+      fn =
+        (function
+        | _, _, _, [ DUInt128 a ] -> Ply(DUInt128(System.UInt128.op_OnesComplement(a)))
+        | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Pure
+      deprecated = NotDeprecated }
+
+
+    { name = fn "uint128ShiftLeft" 0
+      typeParams = []
+      parameters = [ Param.make "a" TUInt128 ""; Param.make "b" TUInt128 "" ]
+      returnType = TUInt128
+      description = "Bitwise left shift of a <type UInt128> value"
+      fn =
+        (function
+        | _, _, _, [ DUInt128 a; DUInt128 b ] -> Ply(DUInt128(a <<< int b))
+        | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Pure
+      deprecated = NotDeprecated }
+
+
+    { name = fn "uint128ShiftRight" 0
+      typeParams = []
+      parameters = [ Param.make "a" TUInt128 ""; Param.make "b" TUInt128 "" ]
+      returnType = TUInt128
+      description = "Bitwise right shift of a <type UInt128> value"
+      fn =
+        (function
+        | _, _, _, [ DUInt128 a; DUInt128 b ] -> Ply(DUInt128(a >>> int b))
+        | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Pure
       deprecated = NotDeprecated } ]
 
 let builtins () = LibExecution.Builtin.make [] (fns ())

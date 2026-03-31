@@ -474,6 +474,90 @@ let fns () : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
+      deprecated = NotDeprecated }
+
+
+    { name = fn "uint8BitwiseAnd" 0
+      typeParams = []
+      parameters = [ Param.make "a" TUInt8 ""; Param.make "b" TUInt8 "" ]
+      returnType = TUInt8
+      description = "Bitwise AND on two <type UInt8> values"
+      fn =
+        (function
+        | _, _, _, [ DUInt8 a; DUInt8 b ] -> Ply(DUInt8(a &&& b))
+        | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Pure
+      deprecated = NotDeprecated }
+
+
+    { name = fn "uint8BitwiseOr" 0
+      typeParams = []
+      parameters = [ Param.make "a" TUInt8 ""; Param.make "b" TUInt8 "" ]
+      returnType = TUInt8
+      description = "Bitwise OR on two <type UInt8> values"
+      fn =
+        (function
+        | _, _, _, [ DUInt8 a; DUInt8 b ] -> Ply(DUInt8(a ||| b))
+        | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Pure
+      deprecated = NotDeprecated }
+
+
+    { name = fn "uint8BitwiseXor" 0
+      typeParams = []
+      parameters = [ Param.make "a" TUInt8 ""; Param.make "b" TUInt8 "" ]
+      returnType = TUInt8
+      description = "Bitwise XOR on two <type UInt8> values"
+      fn =
+        (function
+        | _, _, _, [ DUInt8 a; DUInt8 b ] -> Ply(DUInt8(a ^^^ b))
+        | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Pure
+      deprecated = NotDeprecated }
+
+
+    { name = fn "uint8BitwiseNot" 0
+      typeParams = []
+      parameters = [ Param.make "a" TUInt8 "" ]
+      returnType = TUInt8
+      description = "Bitwise NOT on a <type UInt8> value"
+      fn =
+        (function
+        | _, _, _, [ DUInt8 a ] -> Ply(DUInt8(~~~a))
+        | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Pure
+      deprecated = NotDeprecated }
+
+
+    { name = fn "uint8ShiftLeft" 0
+      typeParams = []
+      parameters = [ Param.make "a" TUInt8 ""; Param.make "b" TUInt8 "" ]
+      returnType = TUInt8
+      description = "Bitwise left shift of a <type UInt8> value"
+      fn =
+        (function
+        | _, _, _, [ DUInt8 a; DUInt8 b ] -> Ply(DUInt8(a <<< int b))
+        | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Pure
+      deprecated = NotDeprecated }
+
+
+    { name = fn "uint8ShiftRight" 0
+      typeParams = []
+      parameters = [ Param.make "a" TUInt8 ""; Param.make "b" TUInt8 "" ]
+      returnType = TUInt8
+      description = "Bitwise right shift of a <type UInt8> value"
+      fn =
+        (function
+        | _, _, _, [ DUInt8 a; DUInt8 b ] -> Ply(DUInt8(a >>> int b))
+        | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Pure
       deprecated = NotDeprecated } ]
 
 

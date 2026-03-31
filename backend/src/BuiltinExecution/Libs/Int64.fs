@@ -563,6 +563,48 @@ let fns () : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure
+      deprecated = NotDeprecated }
+
+
+    { name = fn "int64BitwiseNot" 0
+      typeParams = []
+      parameters = [ Param.make "a" TInt64 "" ]
+      returnType = TInt64
+      description = "Bitwise NOT on an <type Int64> value"
+      fn =
+        (function
+        | _, _, _, [ DInt64 a ] -> Ply(DInt64(~~~a))
+        | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Pure
+      deprecated = NotDeprecated }
+
+
+    { name = fn "int64ShiftLeft" 0
+      typeParams = []
+      parameters = [ Param.make "a" TInt64 ""; Param.make "b" TInt64 "" ]
+      returnType = TInt64
+      description = "Bitwise left shift of an <type Int64> value"
+      fn =
+        (function
+        | _, _, _, [ DInt64 a; DInt64 b ] -> Ply(DInt64(a <<< int b))
+        | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Pure
+      deprecated = NotDeprecated }
+
+
+    { name = fn "int64ShiftRight" 0
+      typeParams = []
+      parameters = [ Param.make "a" TInt64 ""; Param.make "b" TInt64 "" ]
+      returnType = TInt64
+      description = "Bitwise right shift of an <type Int64> value"
+      fn =
+        (function
+        | _, _, _, [ DInt64 a; DInt64 b ] -> Ply(DInt64(a >>> int b))
+        | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Pure
       deprecated = NotDeprecated } ]
 
 

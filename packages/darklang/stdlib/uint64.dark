@@ -160,3 +160,27 @@ let fromInt128 (i: Int128) : Stdlib.Option.Option<UInt64> =
 /// Converts a <type UInt128> to an <type UInt64>. Returns {{None}} if the value is greater than 18446744073709551615
 let fromUInt128 (i: UInt128) : Stdlib.Option.Option<UInt64> =
   Builtin.uint64FromUInt128 i
+
+
+/// Bitwise AND on two <type UInt64> values
+let bitwiseAnd (a: UInt64) (b: UInt64) : UInt64 = Builtin.uint64BitwiseAnd a b
+
+
+/// Bitwise OR on two <type UInt64> values
+let bitwiseOr (a: UInt64) (b: UInt64) : UInt64 = Builtin.uint64BitwiseOr a b
+
+
+/// Bitwise XOR on two <type UInt64> values
+let bitwiseXor (a: UInt64) (b: UInt64) : UInt64 = Builtin.uint64BitwiseXor a b
+
+
+/// Bitwise NOT on a <type UInt64> value
+let bitwiseNot (a: UInt64) : UInt64 = Builtin.uint64BitwiseNot a
+
+
+/// Bitwise left shift of a <type UInt64> value
+let shiftLeft (a: UInt64) (b: UInt64) : UInt64 = Builtin.uint64ShiftLeft a b
+
+
+/// Bitwise right shift of a <type UInt64> value
+let shiftRight (a: UInt64) (b: UInt64) : UInt64 = Builtin.uint64ShiftRight a b

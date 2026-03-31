@@ -474,6 +474,90 @@ let fns () : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
+      deprecated = NotDeprecated }
+
+
+    { name = fn "uint64BitwiseAnd" 0
+      typeParams = []
+      parameters = [ Param.make "a" TUInt64 ""; Param.make "b" TUInt64 "" ]
+      returnType = TUInt64
+      description = "Bitwise AND on two <type UInt64> values"
+      fn =
+        (function
+        | _, _, _, [ DUInt64 a; DUInt64 b ] -> Ply(DUInt64(a &&& b))
+        | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Pure
+      deprecated = NotDeprecated }
+
+
+    { name = fn "uint64BitwiseOr" 0
+      typeParams = []
+      parameters = [ Param.make "a" TUInt64 ""; Param.make "b" TUInt64 "" ]
+      returnType = TUInt64
+      description = "Bitwise OR on two <type UInt64> values"
+      fn =
+        (function
+        | _, _, _, [ DUInt64 a; DUInt64 b ] -> Ply(DUInt64(a ||| b))
+        | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Pure
+      deprecated = NotDeprecated }
+
+
+    { name = fn "uint64BitwiseXor" 0
+      typeParams = []
+      parameters = [ Param.make "a" TUInt64 ""; Param.make "b" TUInt64 "" ]
+      returnType = TUInt64
+      description = "Bitwise XOR on two <type UInt64> values"
+      fn =
+        (function
+        | _, _, _, [ DUInt64 a; DUInt64 b ] -> Ply(DUInt64(a ^^^ b))
+        | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Pure
+      deprecated = NotDeprecated }
+
+
+    { name = fn "uint64BitwiseNot" 0
+      typeParams = []
+      parameters = [ Param.make "a" TUInt64 "" ]
+      returnType = TUInt64
+      description = "Bitwise NOT on a <type UInt64> value"
+      fn =
+        (function
+        | _, _, _, [ DUInt64 a ] -> Ply(DUInt64(~~~a))
+        | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Pure
+      deprecated = NotDeprecated }
+
+
+    { name = fn "uint64ShiftLeft" 0
+      typeParams = []
+      parameters = [ Param.make "a" TUInt64 ""; Param.make "b" TUInt64 "" ]
+      returnType = TUInt64
+      description = "Bitwise left shift of a <type UInt64> value"
+      fn =
+        (function
+        | _, _, _, [ DUInt64 a; DUInt64 b ] -> Ply(DUInt64(a <<< int b))
+        | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Pure
+      deprecated = NotDeprecated }
+
+
+    { name = fn "uint64ShiftRight" 0
+      typeParams = []
+      parameters = [ Param.make "a" TUInt64 ""; Param.make "b" TUInt64 "" ]
+      returnType = TUInt64
+      description = "Bitwise right shift of a <type UInt64> value"
+      fn =
+        (function
+        | _, _, _, [ DUInt64 a; DUInt64 b ] -> Ply(DUInt64(a >>> int b))
+        | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Pure
       deprecated = NotDeprecated } ]
 
 

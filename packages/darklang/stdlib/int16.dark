@@ -194,3 +194,27 @@ let fromInt128 (i: Int128) : Stdlib.Option.Option<Int16> =
 /// Converts a <type UInt128> to an <type Int16>. Returns {{None}} if the value is greater than 32767.
 let fromUInt128 (i: UInt128) : Stdlib.Option.Option<Int16> =
   Builtin.int16FromUInt128 i
+
+
+/// Bitwise AND on two <type Int16> values
+let bitwiseAnd (a: Int16) (b: Int16) : Int16 = Builtin.int16BitwiseAnd a b
+
+
+/// Bitwise OR on two <type Int16> values
+let bitwiseOr (a: Int16) (b: Int16) : Int16 = Builtin.int16BitwiseOr a b
+
+
+/// Bitwise XOR on two <type Int16> values
+let bitwiseXor (a: Int16) (b: Int16) : Int16 = Builtin.int16BitwiseXor a b
+
+
+/// Bitwise NOT on an <type Int16> value
+let bitwiseNot (a: Int16) : Int16 = Builtin.int16BitwiseNot a
+
+
+/// Bitwise left shift of an <type Int16> value
+let shiftLeft (a: Int16) (b: Int16) : Int16 = Builtin.int16ShiftLeft a b
+
+
+/// Bitwise right shift of an <type Int16> value
+let shiftRight (a: Int16) (b: Int16) : Int16 = Builtin.int16ShiftRight a b

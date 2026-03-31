@@ -339,3 +339,22 @@ Stdlib.Int64.bitwiseXor (-1L) (-1L) = 0L
 Stdlib.Int64.bitwiseXor 9223372036854775807L (-1L) = -9223372036854775808L
 Stdlib.Int64.bitwiseXor (-9223372036854775808L) (-1L) = 9223372036854775807L
 Stdlib.Int64.bitwiseXor 9223372036854775807L 9223372036854775807L = 0L
+
+Stdlib.Int64.bitwiseNot 0L = -1L
+Stdlib.Int64.bitwiseNot (-1L) = 0L
+Stdlib.Int64.bitwiseNot 9223372036854775807L = -9223372036854775808L
+Stdlib.Int64.bitwiseNot (-9223372036854775808L) = 9223372036854775807L
+Stdlib.Int64.bitwiseNot 1L = -2L
+
+Stdlib.Int64.shiftLeft 1L 2L = 4L
+Stdlib.Int64.shiftLeft 0L 5L = 0L
+Stdlib.Int64.shiftLeft 1L 0L = 1L
+Stdlib.Int64.shiftLeft 1L 62L = 4611686018427387904L
+Stdlib.Int64.shiftLeft 5L 3L = 40L
+
+Stdlib.Int64.shiftRight 8L 2L = 2L
+Stdlib.Int64.shiftRight 0L 5L = 0L
+Stdlib.Int64.shiftRight 1L 0L = 1L
+Stdlib.Int64.shiftRight 4611686018427387904L 62L = 1L
+Stdlib.Int64.shiftRight (-1L) 1L = -1L
+Stdlib.Int64.shiftRight 40L 3L = 5L

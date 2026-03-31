@@ -531,6 +531,90 @@ let fns () : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
+      deprecated = NotDeprecated }
+
+
+    { name = fn "int8BitwiseAnd" 0
+      typeParams = []
+      parameters = [ Param.make "a" TInt8 ""; Param.make "b" TInt8 "" ]
+      returnType = TInt8
+      description = "Bitwise AND on two <type Int8> values"
+      fn =
+        (function
+        | _, _, _, [ DInt8 a; DInt8 b ] -> Ply(DInt8(a &&& b))
+        | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Pure
+      deprecated = NotDeprecated }
+
+
+    { name = fn "int8BitwiseOr" 0
+      typeParams = []
+      parameters = [ Param.make "a" TInt8 ""; Param.make "b" TInt8 "" ]
+      returnType = TInt8
+      description = "Bitwise OR on two <type Int8> values"
+      fn =
+        (function
+        | _, _, _, [ DInt8 a; DInt8 b ] -> Ply(DInt8(a ||| b))
+        | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Pure
+      deprecated = NotDeprecated }
+
+
+    { name = fn "int8BitwiseXor" 0
+      typeParams = []
+      parameters = [ Param.make "a" TInt8 ""; Param.make "b" TInt8 "" ]
+      returnType = TInt8
+      description = "Bitwise XOR on two <type Int8> values"
+      fn =
+        (function
+        | _, _, _, [ DInt8 a; DInt8 b ] -> Ply(DInt8(a ^^^ b))
+        | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Pure
+      deprecated = NotDeprecated }
+
+
+    { name = fn "int8BitwiseNot" 0
+      typeParams = []
+      parameters = [ Param.make "a" TInt8 "" ]
+      returnType = TInt8
+      description = "Bitwise NOT on an <type Int8> value"
+      fn =
+        (function
+        | _, _, _, [ DInt8 a ] -> Ply(DInt8(~~~a))
+        | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Pure
+      deprecated = NotDeprecated }
+
+
+    { name = fn "int8ShiftLeft" 0
+      typeParams = []
+      parameters = [ Param.make "a" TInt8 ""; Param.make "b" TInt8 "" ]
+      returnType = TInt8
+      description = "Bitwise left shift of an <type Int8> value"
+      fn =
+        (function
+        | _, _, _, [ DInt8 a; DInt8 b ] -> Ply(DInt8(a <<< int b))
+        | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Pure
+      deprecated = NotDeprecated }
+
+
+    { name = fn "int8ShiftRight" 0
+      typeParams = []
+      parameters = [ Param.make "a" TInt8 ""; Param.make "b" TInt8 "" ]
+      returnType = TInt8
+      description = "Bitwise right shift of an <type Int8> value"
+      fn =
+        (function
+        | _, _, _, [ DInt8 a; DInt8 b ] -> Ply(DInt8(a >>> int b))
+        | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Pure
       deprecated = NotDeprecated } ]
 
 let builtins () = LibExecution.Builtin.make [] (fns ())
