@@ -421,6 +421,7 @@ and executeInstruction
       =
       match p with
       | RT.LPVariable extractTo -> st.withReg (extractTo, srcVal)
+      | RT.LPWildcard -> st
       | RT.LPUnit -> st
       | RT.LPTuple(first, second, rest) ->
         // For tuples, extract elements if srcVal is a literal tuple
@@ -559,7 +560,9 @@ let compileLambda
   let lambdaParamReg =
     match lambdaImpl.patterns.head with
     | RT.LPVariable reg -> reg
-    | _ -> 0 // Default to 0 if not a simple variable pattern
+    | RT.LPWildcard -> 0
+    | RT.LPUnit -> 0
+    | RT.LPTuple _ -> 0
 
   let initialState =
     // Start with DBRow in the lambda parameter register
