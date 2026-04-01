@@ -11,9 +11,6 @@ TARGET_COMMITISH="main"
 NAME="cli-pre-release"
 BODY="Pre-release of darklang executable"
 
-# Regex pattern to match release tags (e.g. v0.0.1)
-release_tag_pattern="^v[0-9]+\.[0-9]+\.[0-9]+$"
-
 # Function to delete a release by ID
 delete_release() {
   release_id=$1
@@ -119,56 +116,4 @@ else
     echo "All executables uploaded successfully"
 fi
 
-# Delete old releases
-
-## List all releases
-list_releases_response=$(curl -s -L \
-  -X GET \
-  -H "Authorization: Bearer $TOKEN" \
-  -H "Accept: application/vnd.github+json" \
-  -H "X-GitHub-Api-Version: 2022-11-28" \
-  "https://api.github.com/repos/$OWNER/$REPO/releases")
-
-## Extract release IDs
-release_ids=$(echo $list_releases_response | jq -r '.[].id')
-
-## Extract the new release ID
-new_release_id=$(echo $response | jq -r '.id')
-
-## Loop through all release IDs and delete them, except the new release
-for release_id in $release_ids; do
-  if [ "$release_id" != "$new_release_id" ]; then
-    # Fetch the tag name associated with the release
-    tag_name=$(curl -s -L \
-        -X GET \
-        -H "Authorization: Bearer $TOKEN" \
-        -H "Accept: application/vnd.github+json" \
-        -H "X-GitHub-Api-Version: 2022-11-28" \
-        "https://api.github.com/repos/$OWNER/$REPO/releases/$release_id" | jq -r '.tag_name')
-
-    # Check if tag name is valid
-    if [ -n "$tag_name" ] && [ "$tag_name" != "null" ] && [[ $tag_name =~ $release_tag_pattern ]]; then
-      delete_release "$release_id"
-
-      # Check if the release was successfully deleted
-      release_exists=$(curl -s -L \
-          -X GET \
-          -H "Authorization: Bearer $TOKEN" \
-          -H "Accept: application/vnd.github+json" \
-          -H "X-GitHub-Api-Version: 2022-11-28" \
-          "https://api.github.com/repos/$OWNER/$REPO/releases/$release_id" | jq -r '.id')
-
-      if [ "$release_exists" = "null" ]; then
-        delete_tag "$tag_name"
-      else
-        echo "Failed to delete release: $release_id, skipping tag deletion"
-        exit 1
-      fi
-    else
-      echo "Failed to fetch tag name for release: $release_id, skipping release deletion"
-      exit 1
-    fi
-  fi
-done
-
-echo "Old releases deleted"
+echo "Done - new release published (old releases preserved)"
