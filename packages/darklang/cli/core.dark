@@ -26,7 +26,9 @@ type AppState =
     accountID: Stdlib.Option.Option<Uuid>
     accountName: String
     /// How many terminal rows the prompt used last frame
-    previousRenderedRows: Int64 }
+    previousRenderedRows: Int64
+    /// True when invoked from the command line (not the interactive REPL)
+    nonInteractive: Bool }
 
 let locationStr (state: AppState) : String =
   Packages.formatLocation state.packageData.currentLocation
@@ -60,7 +62,8 @@ let initState () : AppState =
       currentBranchId = SCM.Branch.mainBranchId
       accountID = accountID
       accountName = accountName
-      previousRenderedRows = 0L }
+      previousRenderedRows = 0L
+      nonInteractive = false }
 
 type Msg =
   | ProcessInput of String
@@ -738,5 +741,6 @@ let executeCliCommand (args: List<String>) : Int64 =
     runInteractiveLoop initialState
   // Otherwise, execute command directly (shell already split args correctly)
   | commandName :: commandArgs ->
-    let _ = Registry.executeCommand commandName initialState commandArgs
+    let nonInteractiveState = { initialState with nonInteractive = true }
+    let _ = Registry.executeCommand commandName nonInteractiveState commandArgs
     0L

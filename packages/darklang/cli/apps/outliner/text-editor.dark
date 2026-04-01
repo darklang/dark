@@ -58,7 +58,7 @@ let renderInline (state: State) : String =
       Stdlib.String.slice state.text state.cursor (state.cursor + 1L)
     else
       " "
-  let cursorDisplay = Darklang.Cli.Colors.colorize "\u001b[7m" cursorChar
+  let cursorDisplay = Darklang.Cli.Colors.colorize Darklang.Cli.Colors.reverse cursorChar
   let afterCursor =
     if state.cursor < (Stdlib.String.length state.text) then
       Stdlib.String.dropFirst state.text (state.cursor + 1L)
