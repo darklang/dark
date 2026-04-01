@@ -1,4 +1,4 @@
-module Darklang.Stdlib.Cli.Progress
+module Darklang.Stdlib.Cli.UI.Progress
 
 
 /// Print a progress bar.

@@ -16,14 +16,14 @@ let exists (path: String) : Bool =
 /// Get the size of a file in bytes.
 let size (path: String) : Result.Result<Int64, Posix.Error> =
   match Posix.stat path with
-  | Ok result -> Stdlib.Result.Result.Ok(Stdlib.Tuple3.second result)
+  | Ok result -> Stdlib.Result.Result.Ok result.size
   | Error e -> Stdlib.Result.Result.Error e
 
 
 /// Get the last modification time as Unix epoch seconds.
 let getModifiedTime (path: String) : Result.Result<Int64, Posix.Error> =
   match Posix.stat path with
-  | Ok result -> Stdlib.Result.Result.Ok(Stdlib.Tuple3.third result)
+  | Ok result -> Stdlib.Result.Result.Ok result.mtimeSec
   | Error e -> Stdlib.Result.Result.Error e
 
 
@@ -31,7 +31,7 @@ let getModifiedTime (path: String) : Result.Result<Int64, Posix.Error> =
 let copy (src: String) (dst: String) : Result.Result<Unit, Posix.Error> =
   (Posix.stat src)
   |> Stdlib.Result.andThen (fun srcStat ->
-    let srcMode = Stdlib.Int64.bitwiseAnd (Stdlib.Tuple3.first srcStat) 511L
+    let srcMode = Stdlib.Int64.bitwiseAnd srcStat.mode 511L
 
     match Posix.openFile src (Posix.OpenFlags.rdonly ()) 0L with
     | Ok srcFd ->

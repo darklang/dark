@@ -1,4 +1,4 @@
-module Darklang.Stdlib.Cli.Spinner
+module Darklang.Stdlib.Cli.UI.Spinner
 
 
 /// Run a function with a status message.

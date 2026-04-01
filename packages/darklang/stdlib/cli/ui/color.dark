@@ -1,4 +1,4 @@
-module Darklang.Stdlib.Cli.Color
+module Darklang.Stdlib.Cli.UI.Color
 
 // ANSI escape code helpers for colored terminal output.
 // Note: nesting (e.g. `bold (red "hi")`) resets all styles at the inner

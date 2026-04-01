@@ -1,4 +1,4 @@
-module Darklang.Stdlib.Cli.Retry
+module Darklang.Stdlib.Retry
 
 
 let withBackoffLoop
@@ -13,7 +13,7 @@ let withBackoffLoop
     if attempt >= maxAttempts then
       Stdlib.Result.Result.Error e
     else
-      let _ = Posix.sleep delayMs
+      let _ = Cli.Posix.sleep delayMs
       withBackoffLoop maxAttempts (attempt + 1L) (Stdlib.Float.multiply delayMs 2.0) fn
 
 
@@ -39,7 +39,7 @@ let withFixedDelayLoop
     if attempt >= maxAttempts then
       Stdlib.Result.Result.Error e
     else
-      let _ = Posix.sleep delayMs
+      let _ = Cli.Posix.sleep delayMs
       withFixedDelayLoop maxAttempts (attempt + 1L) delayMs fn
 
 

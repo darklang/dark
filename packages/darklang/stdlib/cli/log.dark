@@ -5,20 +5,20 @@ module Darklang.Stdlib.Cli.Log
 
 /// Log an info message (green prefix)
 let info (msg: String) : Unit =
-  Builtin.printLine ($"{Color.green "[INFO]"} {msg}")
+  Builtin.printLine ($"{UI.Color.green "[INFO]"} {msg}")
 
 /// Log a warning message (yellow prefix)
 let warn (msg: String) : Unit =
-  Builtin.printLine ($"{Color.yellow "[WARN]"} {msg}")
+  Builtin.printLine ($"{UI.Color.yellow "[WARN]"} {msg}")
 
 /// Log an error message (red prefix)
 let error (msg: String) : Unit =
-  Builtin.printLine ($"{Color.red "[ERROR]"} {msg}")
+  Builtin.printLine ($"{UI.Color.red "[ERROR]"} {msg}")
 
 /// Log a debug message (gray prefix)
 let debug (msg: String) : Unit =
-  Builtin.printLine ($"{Color.gray "[DEBUG]"} {msg}")
+  Builtin.printLine ($"{UI.Color.gray "[DEBUG]"} {msg}")
 
 /// Log a success message (green prefix with checkmark)
 let success (msg: String) : Unit =
-  Builtin.printLine ($"{Color.green "[OK]"} {msg}")
+  Builtin.printLine ($"{UI.Color.green "[OK]"} {msg}")

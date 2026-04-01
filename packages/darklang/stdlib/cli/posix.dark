@@ -8,6 +8,12 @@ type Error =
   { errno: Int64
     message: String }
 
+/// Result of a stat() call.
+type StatResult =
+  { mode: Int64
+    size: Int64
+    mtimeSec: Int64 }
+
 /// Standard permission modes
 module Modes =
   /// 0755 — owner rwx, group rx, others rx
@@ -42,9 +48,14 @@ let fdReadAll (fd: Int64) (acc: List<UInt8>) : Result.Result<List<UInt8>, Error>
       fdReadAll fd (Stdlib.List.append acc chunk))
 
 
-/// Stat a file. Returns (mode, size, mtimeSec).
-let stat (path: String) : Result.Result<(Int64 * Int64 * Int64), Error> =
-  Builtin.posixStat path
+/// Stat a file. Returns mode, size, and modification time.
+let stat (path: String) : Result.Result<StatResult, Error> =
+  (Builtin.posixStat path)
+  |> Stdlib.Result.map (fun result ->
+    StatResult
+      { mode = Stdlib.Tuple3.first result
+        size = Stdlib.Tuple3.second result
+        mtimeSec = Stdlib.Tuple3.third result })
 
 /// Get the current working directory
 let getCwd () : Result.Result<String, Error> =
@@ -177,8 +188,7 @@ let sleep (delayMs: Float) : Unit =
 let isDirectory (path: String) : Bool =
   match stat path with
   | Ok result ->
-    let mode = Stdlib.Tuple3.first result
-    (Stdlib.Int64.bitwiseAnd mode StatMode.ifmt) == StatMode.ifdir
+    (Stdlib.Int64.bitwiseAnd result.mode StatMode.ifmt) == StatMode.ifdir
   | Error _ -> false
 
 
