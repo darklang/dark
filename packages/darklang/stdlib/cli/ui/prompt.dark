@@ -1,0 +1,38 @@
+module Darklang.Stdlib.Cli.UI.Prompt
+
+
+/// Ask the user for text input.
+let ask (question: String) : String =
+  Builtin.print ($"{question} ")
+  Builtin.stdinReadLine ()
+
+
+/// Ask the user a yes/no question. Returns true for yes.
+let confirm (question: String) : Bool =
+  Builtin.print ($"{question} [y/N] ")
+  let answer = Stdlib.String.toLowercase (Builtin.stdinReadLine ())
+  answer == "y" || answer == "yes"
+
+
+/// Ask the user to select from a list of choices. Returns the chosen item.
+let select (question: String) (choices: List<String>) : String =
+  Builtin.printLine question
+
+  let _ =
+    choices
+    |> Stdlib.List.indexedMap (fun i choice ->
+      Builtin.printLine ($"  {Color.bold (Stdlib.Int64.toString (i + 1L))}. {choice}"))
+
+  Builtin.print "Enter number: "
+  let input = Builtin.stdinReadLine ()
+
+  match Stdlib.Int64.parse input with
+  | Ok n ->
+    match Stdlib.List.getAt choices (n - 1L) with
+    | Some choice -> choice
+    | None ->
+      Builtin.printLine (Color.red "Invalid selection")
+      select question choices
+  | Error _e ->
+    Builtin.printLine (Color.red "Please enter a number")
+    select question choices

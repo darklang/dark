@@ -195,3 +195,32 @@ Stdlib.UInt16.fromUInt128_v0 0Z = Stdlib.Option.Option.Some 0us
 Stdlib.UInt16.fromUInt128_v0 1Z = Stdlib.Option.Option.Some 1us
 Stdlib.UInt16.fromUInt128_v0 65535Z = Stdlib.Option.Option.Some 65535us
 Stdlib.UInt16.fromUInt128_v0 65536Z = Stdlib.Option.Option.None
+
+Stdlib.UInt16.bitwiseAnd 12us 10us = 8us
+Stdlib.UInt16.bitwiseAnd 0us 0us = 0us
+Stdlib.UInt16.bitwiseAnd 65535us 0us = 0us
+Stdlib.UInt16.bitwiseAnd 65535us 65535us = 65535us
+
+Stdlib.UInt16.bitwiseOr 12us 10us = 14us
+Stdlib.UInt16.bitwiseOr 0us 0us = 0us
+Stdlib.UInt16.bitwiseOr 65535us 0us = 65535us
+
+Stdlib.UInt16.bitwiseXor 12us 10us = 6us
+Stdlib.UInt16.bitwiseXor 0us 0us = 0us
+Stdlib.UInt16.bitwiseXor 65535us 65535us = 0us
+
+Stdlib.UInt16.bitwiseNot 0us = 65535us
+Stdlib.UInt16.bitwiseNot 65535us = 0us
+Stdlib.UInt16.bitwiseNot 1us = 65534us
+
+Stdlib.UInt16.shiftLeft 1us 2us = 4us
+Stdlib.UInt16.shiftLeft 0us 5us = 0us
+Stdlib.UInt16.shiftLeft 1us 0us = 1us
+Stdlib.UInt16.shiftLeft 1us 15us = 32768us
+Stdlib.UInt16.shiftLeft 5us 3us = 40us
+
+Stdlib.UInt16.shiftRight 8us 2us = 2us
+Stdlib.UInt16.shiftRight 0us 5us = 0us
+Stdlib.UInt16.shiftRight 1us 0us = 1us
+Stdlib.UInt16.shiftRight 32768us 15us = 1us
+Stdlib.UInt16.shiftRight 40us 3us = 5us

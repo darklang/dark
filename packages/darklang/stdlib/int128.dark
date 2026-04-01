@@ -157,3 +157,27 @@ let fromInt64 (i: Int64) : Int128 = Builtin.int128FromInt64 i
 
 /// Converts a <type UInt64> to an <type Int128>.
 let fromUInt64 (i: UInt64) : Int128 = Builtin.int128FromUInt64 i
+
+
+/// Bitwise AND on two <type Int128> values
+let bitwiseAnd (a: Int128) (b: Int128) : Int128 = Builtin.int128BitwiseAnd a b
+
+
+/// Bitwise OR on two <type Int128> values
+let bitwiseOr (a: Int128) (b: Int128) : Int128 = Builtin.int128BitwiseOr a b
+
+
+/// Bitwise XOR on two <type Int128> values
+let bitwiseXor (a: Int128) (b: Int128) : Int128 = Builtin.int128BitwiseXor a b
+
+
+/// Bitwise NOT on an <type Int128> value
+let bitwiseNot (a: Int128) : Int128 = Builtin.int128BitwiseNot a
+
+
+/// Bitwise left shift of an <type Int128> value
+let shiftLeft (a: Int128) (b: Int128) : Int128 = Builtin.int128ShiftLeft a b
+
+
+/// Bitwise right shift of an <type Int128> value
+let shiftRight (a: Int128) (b: Int128) : Int128 = Builtin.int128ShiftRight a b

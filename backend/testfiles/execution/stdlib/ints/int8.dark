@@ -251,3 +251,44 @@ Stdlib.Int8.fromUInt128_v0 1Z = Stdlib.Option.Option.Some 1y
 Stdlib.Int8.fromUInt128_v0 127Z = Stdlib.Option.Option.Some 127y
 Stdlib.Int8.fromUInt128_v0 128Z = Stdlib.Option.Option.None
 Stdlib.Int8.fromUInt128_v0 255Z = Stdlib.Option.Option.None
+
+Stdlib.Int8.bitwiseAnd 12y 10y = 8y
+Stdlib.Int8.bitwiseAnd 0y 0y = 0y
+Stdlib.Int8.bitwiseAnd (-1y) 0y = 0y
+Stdlib.Int8.bitwiseAnd 127y 127y = 127y
+Stdlib.Int8.bitwiseAnd (-128y) (-1y) = -128y
+Stdlib.Int8.bitwiseAnd 127y (-128y) = 0y
+Stdlib.Int8.bitwiseAnd (-1y) (-1y) = -1y
+
+Stdlib.Int8.bitwiseOr 12y 10y = 14y
+Stdlib.Int8.bitwiseOr 0y 0y = 0y
+Stdlib.Int8.bitwiseOr (-1y) 0y = -1y
+Stdlib.Int8.bitwiseOr 127y 0y = 127y
+Stdlib.Int8.bitwiseOr (-128y) 0y = -128y
+Stdlib.Int8.bitwiseOr 127y (-128y) = -1y
+
+Stdlib.Int8.bitwiseXor 12y 10y = 6y
+Stdlib.Int8.bitwiseXor 0y 0y = 0y
+Stdlib.Int8.bitwiseXor (-1y) (-1y) = 0y
+Stdlib.Int8.bitwiseXor 127y (-1y) = -128y
+Stdlib.Int8.bitwiseXor (-128y) (-1y) = 127y
+Stdlib.Int8.bitwiseXor 127y 127y = 0y
+
+Stdlib.Int8.bitwiseNot 0y = -1y
+Stdlib.Int8.bitwiseNot (-1y) = 0y
+Stdlib.Int8.bitwiseNot 127y = -128y
+Stdlib.Int8.bitwiseNot (-128y) = 127y
+Stdlib.Int8.bitwiseNot 1y = -2y
+
+Stdlib.Int8.shiftLeft 1y 2y = 4y
+Stdlib.Int8.shiftLeft 0y 5y = 0y
+Stdlib.Int8.shiftLeft 1y 0y = 1y
+Stdlib.Int8.shiftLeft 1y 6y = 64y
+Stdlib.Int8.shiftLeft 5y 3y = 40y
+
+Stdlib.Int8.shiftRight 8y 2y = 2y
+Stdlib.Int8.shiftRight 0y 5y = 0y
+Stdlib.Int8.shiftRight 1y 0y = 1y
+Stdlib.Int8.shiftRight 64y 6y = 1y
+Stdlib.Int8.shiftRight (-1y) 1y = -1y
+Stdlib.Int8.shiftRight 40y 3y = 5y

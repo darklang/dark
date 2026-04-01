@@ -516,6 +516,90 @@ let fns () : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
+      deprecated = NotDeprecated }
+
+
+    { name = fn "int16BitwiseAnd" 0
+      typeParams = []
+      parameters = [ Param.make "a" TInt16 ""; Param.make "b" TInt16 "" ]
+      returnType = TInt16
+      description = "Bitwise AND on two <type Int16> values"
+      fn =
+        (function
+        | _, _, _, [ DInt16 a; DInt16 b ] -> Ply(DInt16(a &&& b))
+        | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Pure
+      deprecated = NotDeprecated }
+
+
+    { name = fn "int16BitwiseOr" 0
+      typeParams = []
+      parameters = [ Param.make "a" TInt16 ""; Param.make "b" TInt16 "" ]
+      returnType = TInt16
+      description = "Bitwise OR on two <type Int16> values"
+      fn =
+        (function
+        | _, _, _, [ DInt16 a; DInt16 b ] -> Ply(DInt16(a ||| b))
+        | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Pure
+      deprecated = NotDeprecated }
+
+
+    { name = fn "int16BitwiseXor" 0
+      typeParams = []
+      parameters = [ Param.make "a" TInt16 ""; Param.make "b" TInt16 "" ]
+      returnType = TInt16
+      description = "Bitwise XOR on two <type Int16> values"
+      fn =
+        (function
+        | _, _, _, [ DInt16 a; DInt16 b ] -> Ply(DInt16(a ^^^ b))
+        | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Pure
+      deprecated = NotDeprecated }
+
+
+    { name = fn "int16BitwiseNot" 0
+      typeParams = []
+      parameters = [ Param.make "a" TInt16 "" ]
+      returnType = TInt16
+      description = "Bitwise NOT on an <type Int16> value"
+      fn =
+        (function
+        | _, _, _, [ DInt16 a ] -> Ply(DInt16(~~~a))
+        | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Pure
+      deprecated = NotDeprecated }
+
+
+    { name = fn "int16ShiftLeft" 0
+      typeParams = []
+      parameters = [ Param.make "a" TInt16 ""; Param.make "b" TInt16 "" ]
+      returnType = TInt16
+      description = "Bitwise left shift of an <type Int16> value"
+      fn =
+        (function
+        | _, _, _, [ DInt16 a; DInt16 b ] -> Ply(DInt16(a <<< int b))
+        | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Pure
+      deprecated = NotDeprecated }
+
+
+    { name = fn "int16ShiftRight" 0
+      typeParams = []
+      parameters = [ Param.make "a" TInt16 ""; Param.make "b" TInt16 "" ]
+      returnType = TInt16
+      description = "Bitwise right shift of an <type Int16> value"
+      fn =
+        (function
+        | _, _, _, [ DInt16 a; DInt16 b ] -> Ply(DInt16(a >>> int b))
+        | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Pure
       deprecated = NotDeprecated } ]
 
 

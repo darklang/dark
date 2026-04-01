@@ -195,3 +195,32 @@ Stdlib.UInt8.fromUInt128_v0 0Z = Stdlib.Option.Option.Some 0uy
 Stdlib.UInt8.fromUInt128_v0 1Z = Stdlib.Option.Option.Some 1uy
 Stdlib.UInt8.fromUInt128_v0 255Z = Stdlib.Option.Option.Some 255uy
 Stdlib.UInt8.fromUInt128_v0 256Z = Stdlib.Option.Option.None
+
+Stdlib.UInt8.bitwiseAnd 12uy 10uy = 8uy
+Stdlib.UInt8.bitwiseAnd 0uy 0uy = 0uy
+Stdlib.UInt8.bitwiseAnd 255uy 0uy = 0uy
+Stdlib.UInt8.bitwiseAnd 255uy 255uy = 255uy
+
+Stdlib.UInt8.bitwiseOr 12uy 10uy = 14uy
+Stdlib.UInt8.bitwiseOr 0uy 0uy = 0uy
+Stdlib.UInt8.bitwiseOr 255uy 0uy = 255uy
+
+Stdlib.UInt8.bitwiseXor 12uy 10uy = 6uy
+Stdlib.UInt8.bitwiseXor 0uy 0uy = 0uy
+Stdlib.UInt8.bitwiseXor 255uy 255uy = 0uy
+
+Stdlib.UInt8.bitwiseNot 0uy = 255uy
+Stdlib.UInt8.bitwiseNot 255uy = 0uy
+Stdlib.UInt8.bitwiseNot 1uy = 254uy
+
+Stdlib.UInt8.shiftLeft 1uy 2uy = 4uy
+Stdlib.UInt8.shiftLeft 0uy 5uy = 0uy
+Stdlib.UInt8.shiftLeft 1uy 0uy = 1uy
+Stdlib.UInt8.shiftLeft 1uy 7uy = 128uy
+Stdlib.UInt8.shiftLeft 5uy 3uy = 40uy
+
+Stdlib.UInt8.shiftRight 8uy 2uy = 2uy
+Stdlib.UInt8.shiftRight 0uy 5uy = 0uy
+Stdlib.UInt8.shiftRight 1uy 0uy = 1uy
+Stdlib.UInt8.shiftRight 128uy 7uy = 1uy
+Stdlib.UInt8.shiftRight 40uy 3uy = 5uy

@@ -1,0 +1,28 @@
+module Darklang.Stdlib.Cli.UI.Progress
+
+
+/// Print a progress bar.
+/// current: current progress value
+/// total: total value
+/// label: text to show after the bar
+let bar (current: Int64) (total: Int64) (label: String) : Unit =
+  let width = 30L
+
+  let filled =
+    if total == 0L then 0L
+    else Stdlib.Int64.divide (current * width) total
+
+  let empty = width - filled
+
+  let filledStr = Stdlib.String.repeat "#" filled
+  let emptyStr = Stdlib.String.repeat "-" empty
+
+  let pct =
+    if total == 0L then 0L
+    else Stdlib.Int64.divide (current * 100L) total
+
+  Builtin.print
+    $"\r[{filledStr}{emptyStr}] {Stdlib.Int64.toString pct}% {label}"
+
+  if current >= total then Builtin.printLine ""
+  else ()

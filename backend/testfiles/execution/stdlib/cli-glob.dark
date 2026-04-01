@@ -1,0 +1,40 @@
+// File.globMatchSegments — basic matching
+Stdlib.Cli.File.globMatchSegments ["*.ts"] ["foo.ts"] = true
+Stdlib.Cli.File.globMatchSegments ["*.ts"] ["foo.js"] = false
+Stdlib.Cli.File.globMatchSegments ["src"; "*.ts"] ["src"; "foo.ts"] = true
+Stdlib.Cli.File.globMatchSegments ["src"; "*.ts"] ["lib"; "foo.ts"] = false
+
+// File.globMatchSegments — single ** segment
+Stdlib.Cli.File.globMatchSegments ["**"; "*.ts"] ["foo.ts"] = true
+Stdlib.Cli.File.globMatchSegments ["**"; "*.ts"] ["src"; "foo.ts"] = true
+Stdlib.Cli.File.globMatchSegments ["**"; "*.ts"] ["a"; "b"; "c"; "foo.ts"] = true
+Stdlib.Cli.File.globMatchSegments ["**"; "*.ts"] ["foo.js"] = false
+Stdlib.Cli.File.globMatchSegments ["src"; "**"; "*.ts"] ["src"; "foo.ts"] = true
+Stdlib.Cli.File.globMatchSegments ["src"; "**"; "*.ts"] ["src"; "a"; "foo.ts"] = true
+Stdlib.Cli.File.globMatchSegments ["src"; "**"; "*.ts"] ["src"; "a"; "b"; "foo.ts"] = true
+Stdlib.Cli.File.globMatchSegments ["src"; "**"; "*.ts"] ["lib"; "foo.ts"] = false
+
+// File.globMatchSegments — multiple ** segments
+Stdlib.Cli.File.globMatchSegments ["src"; "**"; "test"; "**"; "*.ts"] ["src"; "test"; "foo.ts"] = true
+Stdlib.Cli.File.globMatchSegments ["src"; "**"; "test"; "**"; "*.ts"] ["src"; "a"; "test"; "foo.ts"] = true
+Stdlib.Cli.File.globMatchSegments ["src"; "**"; "test"; "**"; "*.ts"] ["src"; "a"; "test"; "b"; "foo.ts"] = true
+Stdlib.Cli.File.globMatchSegments ["src"; "**"; "test"; "**"; "*.ts"] ["src"; "a"; "b"; "test"; "c"; "d"; "foo.ts"] = true
+Stdlib.Cli.File.globMatchSegments ["src"; "**"; "test"; "**"; "*.ts"] ["src"; "a"; "test"; "b"; "foo.js"] = false
+Stdlib.Cli.File.globMatchSegments ["src"; "**"; "test"; "**"; "*.ts"] ["lib"; "test"; "foo.ts"] = false
+
+// File.globMatchSegments — trailing **
+Stdlib.Cli.File.globMatchSegments ["src"; "**"] ["src"] = true
+Stdlib.Cli.File.globMatchSegments ["src"; "**"] ["src"; "a"] = true
+Stdlib.Cli.File.globMatchSegments ["src"; "**"] ["src"; "a"; "b"; "c"] = true
+
+// File.globMatchSegments — ** matches zero segments
+Stdlib.Cli.File.globMatchSegments ["**"; "test"; "**"; "*.ts"] ["test"; "foo.ts"] = true
+
+// File.globMatchSegments — empty pattern/path
+Stdlib.Cli.File.globMatchSegments [] [] = true
+Stdlib.Cli.File.globMatchSegments ["a"] [] = false
+Stdlib.Cli.File.globMatchSegments [] ["a"] = false
+
+// File.globMatchSegments — ? wildcard
+Stdlib.Cli.File.globMatchSegments ["?.ts"] ["a.ts"] = true
+Stdlib.Cli.File.globMatchSegments ["?.ts"] ["ab.ts"] = false

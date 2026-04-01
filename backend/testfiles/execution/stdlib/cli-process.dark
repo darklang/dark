@@ -1,0 +1,12 @@
+// Process.shellQuote
+Stdlib.Cli.Process.shellQuote "hello" = "'hello'"
+Stdlib.Cli.Process.shellQuote "hello world" = "'hello world'"
+Stdlib.Cli.Process.shellQuote "" = "''"
+Stdlib.Cli.Process.shellQuote "it's" = "'it'\\''s'"
+Stdlib.Cli.Process.shellQuote "a'b'c" = "'a'\\''b'\\''c'"
+Stdlib.Cli.Process.shellQuote "no-special" = "'no-special'"
+Stdlib.Cli.Process.shellQuote "has spaces" = "'has spaces'"
+Stdlib.Cli.Process.shellQuote "semi;colon" = "'semi;colon'"
+Stdlib.Cli.Process.shellQuote "pipe|char" = "'pipe|char'"
+Stdlib.Cli.Process.shellQuote "$(dangerous)" = "'$(dangerous)'"
+Stdlib.Cli.Process.shellQuote "`backtick`" = "'`backtick`'"

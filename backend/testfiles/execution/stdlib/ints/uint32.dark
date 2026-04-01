@@ -191,3 +191,32 @@ Stdlib.UInt32.fromUInt128_v0 0Z = Stdlib.Option.Option.Some 0ul
 Stdlib.UInt32.fromUInt128_v0 1Z = Stdlib.Option.Option.Some 1ul
 Stdlib.UInt32.fromUInt128_v0 4294967295Z = Stdlib.Option.Option.Some 4294967295ul
 Stdlib.UInt32.fromUInt128_v0 4294967296Z = Stdlib.Option.Option.None
+
+Stdlib.UInt32.bitwiseAnd 12ul 10ul = 8ul
+Stdlib.UInt32.bitwiseAnd 0ul 0ul = 0ul
+Stdlib.UInt32.bitwiseAnd 4294967295ul 0ul = 0ul
+Stdlib.UInt32.bitwiseAnd 4294967295ul 4294967295ul = 4294967295ul
+
+Stdlib.UInt32.bitwiseOr 12ul 10ul = 14ul
+Stdlib.UInt32.bitwiseOr 0ul 0ul = 0ul
+Stdlib.UInt32.bitwiseOr 4294967295ul 0ul = 4294967295ul
+
+Stdlib.UInt32.bitwiseXor 12ul 10ul = 6ul
+Stdlib.UInt32.bitwiseXor 0ul 0ul = 0ul
+Stdlib.UInt32.bitwiseXor 4294967295ul 4294967295ul = 0ul
+
+Stdlib.UInt32.bitwiseNot 0ul = 4294967295ul
+Stdlib.UInt32.bitwiseNot 4294967295ul = 0ul
+Stdlib.UInt32.bitwiseNot 1ul = 4294967294ul
+
+Stdlib.UInt32.shiftLeft 1ul 2ul = 4ul
+Stdlib.UInt32.shiftLeft 0ul 5ul = 0ul
+Stdlib.UInt32.shiftLeft 1ul 0ul = 1ul
+Stdlib.UInt32.shiftLeft 1ul 31ul = 2147483648ul
+Stdlib.UInt32.shiftLeft 5ul 3ul = 40ul
+
+Stdlib.UInt32.shiftRight 8ul 2ul = 2ul
+Stdlib.UInt32.shiftRight 0ul 5ul = 0ul
+Stdlib.UInt32.shiftRight 1ul 0ul = 1ul
+Stdlib.UInt32.shiftRight 2147483648ul 31ul = 1ul
+Stdlib.UInt32.shiftRight 40ul 3ul = 5ul

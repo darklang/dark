@@ -1,0 +1,238 @@
+/// Posix wrappers for filesystem, process, and system operations.
+/// Linux (x86_64, aarch64) and macOS only. Will not work on Windows.
+module Darklang.Stdlib.Cli.Posix
+
+
+/// Structured error from posix operations, carrying the errno code.
+type Error =
+  { errno: Int64
+    message: String }
+
+/// Result of a stat() call.
+type StatResult =
+  { mode: Int64
+    size: Int64
+    mtimeSec: Int64 }
+
+/// Standard permission modes
+module Modes =
+  /// 0755 — owner rwx, group rx, others rx
+  let defaultDir = 493L
+
+  /// 0644 — owner rw, group r, others r
+  let defaultFile = 420L
+
+
+// -- Open flags ---------------------------------------------------
+module OpenFlags =
+  let rdonly () : Int64 = Builtin.posixFlagRdonly ()
+  let wronly () : Int64 = Builtin.posixFlagWronly ()
+  let rdwr () : Int64 = Builtin.posixFlagRdwr ()
+  let creat () : Int64 = Builtin.posixFlagCreat ()
+  let trunc () : Int64 = Builtin.posixFlagTrunc ()
+  let append () : Int64 = Builtin.posixFlagAppend ()
+
+
+/// Open a file. Returns a file descriptor.
+let openFile (path: String) (flags: Int64) (mode: Int64) : Result.Result<Int64, Error> =
+  Builtin.posixOpen path flags mode
+
+/// Read all bytes from a file descriptor until EOF.
+/// Accumulates chunks and returns the full contents.
+let fdReadAll (fd: Int64) (acc: List<UInt8>) : Result.Result<List<UInt8>, Error> =
+  (Builtin.posixFdRead fd 4096L)
+   |> Stdlib.Result.andThen (fun chunk ->
+    if Stdlib.List.length chunk == 0L then
+      Stdlib.Result.Result.Ok acc
+    else
+      fdReadAll fd (Stdlib.List.append acc chunk))
+
+
+/// Stat a file. Returns mode, size, and modification time.
+let stat (path: String) : Result.Result<StatResult, Error> =
+  (Builtin.posixStat path)
+  |> Stdlib.Result.map (fun result ->
+    StatResult
+      { mode = Stdlib.Tuple3.first result
+        size = Stdlib.Tuple3.second result
+        mtimeSec = Stdlib.Tuple3.third result })
+
+/// Get the current working directory
+let getCwd () : Result.Result<String, Error> =
+  Builtin.posixGetcwd ()
+
+/// Change the current working directory
+let chdir (path: String) : Result.Result<Unit, Error> =
+  Builtin.posixChdir path
+
+/// Set an environment variable
+let setenv (name: String) (value: String) : Result.Result<Unit, Error> =
+  Builtin.posixSetenv name value
+
+/// Remove an environment variable
+let unsetenv (name: String) : Result.Result<Unit, Error> =
+  Builtin.posixUnsetenv name
+
+/// Create a single directory
+let mkdir (path: String) (mode: Int64) : Result.Result<Unit, Error> =
+  Builtin.posixMkdir path mode
+
+/// Remove an empty directory
+let rmdir (path: String) : Result.Result<Unit, Error> =
+  Builtin.posixRmdir path
+
+/// Remove a file
+let unlink (path: String) : Result.Result<Unit, Error> =
+  Builtin.posixUnlink path
+
+/// Rename/move a file or directory
+let rename (oldpath: String) (newpath: String) : Result.Result<Unit, Error> =
+  Builtin.posixRename oldpath newpath
+
+/// Change file permissions
+let chmod (path: String) (mode: Int64) : Result.Result<Unit, Error> =
+  Builtin.posixChmod path mode
+
+/// Update atime and mtime to now.
+let utimesNow (path: String) : Result.Result<Unit, Error> =
+  Builtin.posixUtimesNow path
+
+/// Create a symbolic link
+let symlink (target: String) (linkpath: String) : Result.Result<Unit, Error> =
+  Builtin.posixSymlink target linkpath
+
+/// Read the target of a symbolic link
+let readlink (path: String) : Result.Result<String, Error> =
+  Builtin.posixReadlink path
+
+/// Check if a path is a symbolic link.
+/// Uses readlink — returns Ok true/false, or Error on permission/other failures.
+/// readlink returns EINVAL when the target is not a symlink.
+let isSymlink (path: String) : Result.Result<Bool, Error> =
+  match Builtin.posixReadlink path with
+  | Ok _ -> Stdlib.Result.Result.Ok true
+  | Error e ->
+    if e.errno == Errno.einval then
+      Stdlib.Result.Result.Ok false
+    else
+      Stdlib.Result.Result.Error e
+
+
+/// Create a unique temporary file. Returns (fd, path).
+let mkstemp (prefix: String) : Result.Result<(Int64 * String), Error> =
+  Builtin.posixMkstemp prefix
+
+/// Create a unique temporary directory. Returns the path.
+let mkdtemp (prefix: String) : Result.Result<String, Error> =
+  Builtin.posixMkdtemp prefix
+
+/// Match a string against a glob pattern.
+/// If pathMode is true, * does not match /
+let fnmatch (pattern: String) (str: String) (pathMode: Bool) : Bool =
+  Builtin.posixFnmatch pattern str pathMode
+
+
+/// Lock a file descriptor (exclusive). Use false to unlock.
+let flock (fd: Int64) (exclusive: Bool) : Result.Result<Unit, Error> =
+  Builtin.posixFlock fd exclusive
+
+/// Get the owner username of a file.
+let fileOwner (path: String) : Result.Result<String, Error> =
+  Builtin.posixFileOwner path
+
+/// List entries in a directory (filenames only, no "." or "..")
+let listDir (path: String) : Result.Result<List<String>, Error> =
+  Builtin.posixListDir path
+
+/// Get an environment variable
+let getenv (name: String) : Stdlib.Option.Option<String> =
+  Builtin.posixGetenv name
+
+
+/// Send a signal to a process
+let kill (pid: Int64) (signal: Int64) : Result.Result<Unit, Error> =
+  Builtin.posixKill pid signal
+
+let sigterm = 15L
+let sigkill = 9L
+let sigint = 2L
+
+/// Common errno values (Linux/macOS)
+module Errno =
+  /// Invalid argument
+  let einval = 22L
+
+  /// No such process
+  let esrch = 3L
+
+  /// Operation not permitted
+  let eperm = 1L
+
+
+/// Stat file-type mask and constants
+module StatMode =
+  /// S_IFMT — bitmask for the file type fields
+  let ifmt = 61440L
+
+  /// S_IFDIR — directory
+  let ifdir = 16384L
+
+
+/// Sleep for the given number of milliseconds.
+let sleep (delayMs: Float) : Unit =
+  Builtin.timeSleep delayMs
+
+
+/// Check if a path is a directory via stat().
+/// Returns false if the path doesn't exist or is not a directory.
+let isDirectory (path: String) : Bool =
+  match stat path with
+  | Ok result ->
+    (Stdlib.Int64.bitwiseAnd result.mode StatMode.ifmt) == StatMode.ifdir
+  | Error _ -> false
+
+
+/// Check if a process is running via kill(pid, 0).
+/// Signal 0 checks process existence without sending a signal.
+let isProcessRunning (pid: Int64) : Bool =
+  match kill pid 0L with
+  | Ok _ -> true
+  | Error e ->
+    // EPERM means the process exists but we lack permission to signal it
+    if e.errno == Errno.eperm then true
+    else false
+
+
+/// Create a directory and all missing parents (like mkdir -p)
+/// This is pure Dark — it splits the path and calls mkdir for each piece.
+let mkdirRecursive (path: String) : Result.Result<Unit, Error> =
+  let parts = Stdlib.String.split path "/"
+
+  // Build up paths incrementally: ["a"] -> ["a", "a/b"] -> ["a", "a/b", "a/b/c"]
+  let isAbsolute = Stdlib.String.startsWith path "/"
+
+  let paths =
+    parts
+    |> Stdlib.List.filter (fun p -> p != "")
+    |> Stdlib.List.fold [] (fun acc part ->
+      let prefix =
+        match Stdlib.List.last acc with
+        | Some prev -> $"{prev}/{part}"
+        | None ->
+          if isAbsolute then $"/{part}"
+          else part
+      Stdlib.List.append acc [ prefix ])
+
+  // Create each directory. If mkdir fails but the directory exists, continue.
+  paths
+  |> Stdlib.List.fold (Stdlib.Result.Result.Ok()) (fun acc dir ->
+    match acc with
+    | Ok _ ->
+      match mkdir dir Modes.defaultDir with
+      | Ok _ -> Stdlib.Result.Result.Ok()
+      | Error e ->
+        if isDirectory dir then
+          Stdlib.Result.Result.Ok()
+        else
+          Stdlib.Result.Result.Error e
+    | Error e -> Stdlib.Result.Result.Error e)

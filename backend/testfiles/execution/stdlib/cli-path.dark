@@ -1,0 +1,56 @@
+// Path.basename
+Stdlib.Cli.Path.basename "/home/user/file.txt" = "file.txt"
+Stdlib.Cli.Path.basename "a/b/c" = "c"
+Stdlib.Cli.Path.basename "file.txt" = "file.txt"
+Stdlib.Cli.Path.basename "/" = ""
+Stdlib.Cli.Path.basename "/home/" = "home"
+
+// Path.parent
+Stdlib.Cli.Path.parent "/home/user/file.txt" = "/home/user"
+Stdlib.Cli.Path.parent "a/b/c" = "a/b"
+Stdlib.Cli.Path.parent "file.txt" = "."
+Stdlib.Cli.Path.parent "/" = "/"
+Stdlib.Cli.Path.parent "/home" = "/"
+Stdlib.Cli.Path.parent "a/b/" = "a"
+
+// Path.extension
+Stdlib.Cli.Path.extension "photo.jpg" = Stdlib.Option.Option.Some ".jpg"
+Stdlib.Cli.Path.extension "archive.tar.gz" = Stdlib.Option.Option.Some ".gz"
+Stdlib.Cli.Path.extension "Makefile" = Stdlib.Option.Option.None
+Stdlib.Cli.Path.extension ".hidden" = Stdlib.Option.Option.None
+
+// Path.withExtension
+Stdlib.Cli.Path.withExtension "file.txt" ".md" = "file.md"
+Stdlib.Cli.Path.withExtension "file" ".md" = "file.md"
+Stdlib.Cli.Path.withExtension "/home/user/file.txt" ".md" = "/home/user/file.md"
+
+// Path.isAbsolute
+Stdlib.Cli.Path.isAbsolute "/home/user" = true
+Stdlib.Cli.Path.isAbsolute "home/user" = false
+Stdlib.Cli.Path.isAbsolute "/" = true
+Stdlib.Cli.Path.isAbsolute "" = false
+
+// Path.join
+Stdlib.Cli.Path.join ["home"; "user"; "file.txt"] = "home/user/file.txt"
+Stdlib.Cli.Path.join ["/home"; "user"] = "/home/user"
+Stdlib.Cli.Path.join [] = ""
+Stdlib.Cli.Path.join [""; "a"; ""; "b"] = "a/b"
+Stdlib.Cli.Path.join ["a"; "/b"; "c"] = "/b/c"
+Stdlib.Cli.Path.join ["a/"; "b"] = "a/b"
+
+// Path.normalize
+Stdlib.Cli.Path.normalize "/home/../lib/./foo" = "/lib/foo"
+Stdlib.Cli.Path.normalize "/a/b/c/../d" = "/a/b/d"
+Stdlib.Cli.Path.normalize "a/b/../c" = "a/c"
+Stdlib.Cli.Path.normalize "." = "."
+Stdlib.Cli.Path.normalize "/." = "/"
+Stdlib.Cli.Path.normalize "../a" = "../a"
+Stdlib.Cli.Path.normalize "../../a/b" = "../../a/b"
+
+// Path.relativeTo
+Stdlib.Cli.Path.relativeTo "/home/user" "/home/lib" = Stdlib.Result.Result.Ok "../lib"
+Stdlib.Cli.Path.relativeTo "/a/b/c" "/a/b/c" = Stdlib.Result.Result.Ok "."
+Stdlib.Cli.Path.relativeTo "/a/b" "/a/b/c/d" = Stdlib.Result.Result.Ok "c/d"
+Stdlib.Cli.Path.relativeTo "/a/b/c/d" "/a/b" = Stdlib.Result.Result.Ok "../.."
+// Path.resolve — absolute paths returned as-is (normalized)
+Stdlib.Cli.Path.resolve "/home/../tmp" = Stdlib.Result.Result.Ok "/tmp"

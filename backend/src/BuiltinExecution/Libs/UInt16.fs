@@ -488,6 +488,90 @@ let fns () : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
+      deprecated = NotDeprecated }
+
+
+    { name = fn "uint16BitwiseAnd" 0
+      typeParams = []
+      parameters = [ Param.make "a" TUInt16 ""; Param.make "b" TUInt16 "" ]
+      returnType = TUInt16
+      description = "Bitwise AND on two <type UInt16> values"
+      fn =
+        (function
+        | _, _, _, [ DUInt16 a; DUInt16 b ] -> Ply(DUInt16(a &&& b))
+        | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Pure
+      deprecated = NotDeprecated }
+
+
+    { name = fn "uint16BitwiseOr" 0
+      typeParams = []
+      parameters = [ Param.make "a" TUInt16 ""; Param.make "b" TUInt16 "" ]
+      returnType = TUInt16
+      description = "Bitwise OR on two <type UInt16> values"
+      fn =
+        (function
+        | _, _, _, [ DUInt16 a; DUInt16 b ] -> Ply(DUInt16(a ||| b))
+        | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Pure
+      deprecated = NotDeprecated }
+
+
+    { name = fn "uint16BitwiseXor" 0
+      typeParams = []
+      parameters = [ Param.make "a" TUInt16 ""; Param.make "b" TUInt16 "" ]
+      returnType = TUInt16
+      description = "Bitwise XOR on two <type UInt16> values"
+      fn =
+        (function
+        | _, _, _, [ DUInt16 a; DUInt16 b ] -> Ply(DUInt16(a ^^^ b))
+        | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Pure
+      deprecated = NotDeprecated }
+
+
+    { name = fn "uint16BitwiseNot" 0
+      typeParams = []
+      parameters = [ Param.make "a" TUInt16 "" ]
+      returnType = TUInt16
+      description = "Bitwise NOT on a <type UInt16> value"
+      fn =
+        (function
+        | _, _, _, [ DUInt16 a ] -> Ply(DUInt16(~~~a))
+        | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Pure
+      deprecated = NotDeprecated }
+
+
+    { name = fn "uint16ShiftLeft" 0
+      typeParams = []
+      parameters = [ Param.make "a" TUInt16 ""; Param.make "b" TUInt16 "" ]
+      returnType = TUInt16
+      description = "Bitwise left shift of a <type UInt16> value"
+      fn =
+        (function
+        | _, _, _, [ DUInt16 a; DUInt16 b ] -> Ply(DUInt16(a <<< int b))
+        | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Pure
+      deprecated = NotDeprecated }
+
+
+    { name = fn "uint16ShiftRight" 0
+      typeParams = []
+      parameters = [ Param.make "a" TUInt16 ""; Param.make "b" TUInt16 "" ]
+      returnType = TUInt16
+      description = "Bitwise right shift of a <type UInt16> value"
+      fn =
+        (function
+        | _, _, _, [ DUInt16 a; DUInt16 b ] -> Ply(DUInt16(a >>> int b))
+        | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Pure
       deprecated = NotDeprecated } ]
 
 let builtins () = LibExecution.Builtin.make [] (fns ())

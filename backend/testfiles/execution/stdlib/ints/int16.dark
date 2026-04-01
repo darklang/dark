@@ -219,3 +219,44 @@ Stdlib.Int16.fromUInt128_v0 0Z = Stdlib.Option.Option.Some 0s
 Stdlib.Int16.fromUInt128_v0 1Z = Stdlib.Option.Option.Some 1s
 Stdlib.Int16.fromUInt128_v0 32767Z = Stdlib.Option.Option.Some 32767s
 Stdlib.Int16.fromUInt128_v0 32768Z = Stdlib.Option.Option.None
+
+Stdlib.Int16.bitwiseAnd 12s 10s = 8s
+Stdlib.Int16.bitwiseAnd 0s 0s = 0s
+Stdlib.Int16.bitwiseAnd (-1s) 0s = 0s
+Stdlib.Int16.bitwiseAnd 32767s 32767s = 32767s
+Stdlib.Int16.bitwiseAnd (-32768s) (-1s) = -32768s
+Stdlib.Int16.bitwiseAnd 32767s (-32768s) = 0s
+Stdlib.Int16.bitwiseAnd (-1s) (-1s) = -1s
+
+Stdlib.Int16.bitwiseOr 12s 10s = 14s
+Stdlib.Int16.bitwiseOr 0s 0s = 0s
+Stdlib.Int16.bitwiseOr (-1s) 0s = -1s
+Stdlib.Int16.bitwiseOr 32767s 0s = 32767s
+Stdlib.Int16.bitwiseOr (-32768s) 0s = -32768s
+Stdlib.Int16.bitwiseOr 32767s (-32768s) = -1s
+
+Stdlib.Int16.bitwiseXor 12s 10s = 6s
+Stdlib.Int16.bitwiseXor 0s 0s = 0s
+Stdlib.Int16.bitwiseXor (-1s) (-1s) = 0s
+Stdlib.Int16.bitwiseXor 32767s (-1s) = -32768s
+Stdlib.Int16.bitwiseXor (-32768s) (-1s) = 32767s
+Stdlib.Int16.bitwiseXor 32767s 32767s = 0s
+
+Stdlib.Int16.bitwiseNot 0s = -1s
+Stdlib.Int16.bitwiseNot (-1s) = 0s
+Stdlib.Int16.bitwiseNot 32767s = -32768s
+Stdlib.Int16.bitwiseNot (-32768s) = 32767s
+Stdlib.Int16.bitwiseNot 1s = -2s
+
+Stdlib.Int16.shiftLeft 1s 2s = 4s
+Stdlib.Int16.shiftLeft 0s 5s = 0s
+Stdlib.Int16.shiftLeft 1s 0s = 1s
+Stdlib.Int16.shiftLeft 1s 14s = 16384s
+Stdlib.Int16.shiftLeft 5s 3s = 40s
+
+Stdlib.Int16.shiftRight 8s 2s = 2s
+Stdlib.Int16.shiftRight 0s 5s = 0s
+Stdlib.Int16.shiftRight 1s 0s = 1s
+Stdlib.Int16.shiftRight 16384s 14s = 1s
+Stdlib.Int16.shiftRight (-1s) 1s = -1s
+Stdlib.Int16.shiftRight 40s 3s = 5s
