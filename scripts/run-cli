@@ -25,9 +25,9 @@ CLI_LOG="$LOGS/cli.log"
 PACKAGES_LOG="$LOGS/packages-canvas.log"
 
 if [[ "$PUBLISHED" == "true" ]]; then
-  EXE="backend/Build/out/Cli/Release/net8.0/linux-x64/publish/Cli"
+  EXE="backend/Build/out/Cli/Release/net10.0/linux-x64/publish/Cli"
 else
-  EXE="backend/Build/out/Cli/Debug/net8.0/Cli"
+  EXE="backend/Build/out/Cli/Debug/net10.0/Cli"
 fi
 
 # if it hasn't been compiled yet, wait for it

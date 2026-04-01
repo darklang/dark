@@ -448,7 +448,7 @@ module Expr =
     | SynExpr.ArrayOrListComputed(_, (SynExpr.Sequential _ as seq), _) ->
       let rec seqAsList expr : List<SynExpr> =
         match expr with
-        | SynExpr.Sequential(_, _, expr1, expr2, _) -> expr1 :: seqAsList expr2
+        | SynExpr.Sequential(_, _, expr1, expr2, _, _) -> expr1 :: seqAsList expr2
         | _ -> [ expr ]
       WT.EList(id, seq |> seqAsList |> List.map c)
 
@@ -651,6 +651,8 @@ module Expr =
     // `let` bindings
     | SynExpr.LetOrUse(_,
                        _,
+                       _,
+                       _,
                        [ SynBinding(_, _, _, _, _, _, _, pat, _, rhs, _, _, _) ],
                        body,
                        _,
@@ -688,7 +690,7 @@ module Expr =
 
 
     // Sequential code: (a; b) -> let _ = a in b
-    | SynExpr.Sequential(_, _, a, b, _) ->
+    | SynExpr.Sequential(_, _, a, b, _, _) ->
       WT.ELet(id, WT.LPWildcard(gid ()), c a, c b)
 
 
@@ -760,8 +762,11 @@ module Expr =
           fields
           |> List.map (fun field ->
             match field with
-            | SynExprRecordField((SynLongIdent([ name ], _, _), _), _, Some expr, _) ->
-              (nameOrBlank name.idText, c expr)
+            | SynExprRecordField((SynLongIdent([ name ], _, _), _),
+                                 _,
+                                 Some expr,
+                                 _,
+                                 _) -> (nameOrBlank name.idText, c expr)
             | f ->
               raiseParserError
                 "Record field could not be parsed (either a name with more than 1 part, or no RHS expr)"
@@ -782,7 +787,7 @@ module Expr =
           [ "baseRecord", baseRecord ]
         |> NEList.map (fun field ->
           match field with
-          | SynExprRecordField((SynLongIdent([ name ], _, _), _), _, Some expr, _) ->
+          | SynExprRecordField((SynLongIdent([ name ], _, _), _), _, Some expr, _, _) ->
             (nameOrBlank name.idText, c expr)
           | f ->
             raiseParserError

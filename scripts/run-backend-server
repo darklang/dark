@@ -40,9 +40,9 @@ MIGRATIONS_LOG="$LOGS/migrations.log"
 function exe_path() {
   local service="$1"
   if [[ "$PUBLISHED" == "true" ]]; then
-    echo "backend/Build/out/${service}/Release/net8.0/linux-x64/publish/${service}"
+    echo "backend/Build/out/${service}/Release/net10.0/linux-x64/publish/${service}"
   else
-    echo "backend/Build/out/${service}/Debug/net8.0/${service}"
+    echo "backend/Build/out/${service}/Debug/net10.0/${service}"
   fi
 }
 
