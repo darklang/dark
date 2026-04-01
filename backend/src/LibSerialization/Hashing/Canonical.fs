@@ -185,6 +185,7 @@ let writeLetPattern (w : BinaryWriter) (pattern : PT.LetPattern) =
     writeLetPattern w first
     writeLetPattern w second
     Common.List.write w writeLetPattern rest
+  | PT.LPWildcard _id -> w.Write 3uy
 
 
 let writeMatchPattern (w : BinaryWriter) (pattern : PT.MatchPattern) =

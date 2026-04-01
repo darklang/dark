@@ -96,44 +96,54 @@ let export (outputPath : string) : Task<unit> =
 /// Returns the count of ops applied.
 let applyUnappliedOps () : Task<int64> =
   task {
-    let! unappliedOps =
-      Sql.query
-        """
+    // Fast check: are there any unapplied ops? Avoids loading blobs when count is 0.
+    let! count =
+      Sql.query "SELECT COUNT(*) as n FROM package_ops WHERE applied = 0"
+      |> Sql.executeRowAsync (fun read -> read.int64 "n")
+
+    if count = 0L then
+      return 0L
+    else
+
+      let! unappliedOps =
+        Sql.query
+          """
         SELECT id, op_blob, branch_id, commit_hash
         FROM package_ops
         WHERE applied = 0
         ORDER BY created_at ASC
         """
-      |> Sql.executeAsync (fun read ->
-        let opId = read.uuid "id"
-        let opBlob = read.bytes "op_blob"
-        let branchId : PT.BranchId = read.uuid "branch_id"
-        let commitHash = read.stringOrNone "commit_hash"
-        let op = BS.PT.PackageOp.deserialize opId opBlob
-        (opId, op, branchId, commitHash))
+        |> Sql.executeAsync (fun read ->
+          let opId = read.uuid "id"
+          let opBlob = read.bytes "op_blob"
+          let branchId : PT.BranchId = read.uuid "branch_id"
+          let commitHash = read.stringOrNone "commit_hash"
+          let op = BS.PT.PackageOp.deserialize opId opBlob
+          (opId, op, branchId, commitHash))
 
-    if List.isEmpty unappliedOps then
-      return 0L
-    else
-      let groups =
-        unappliedOps
-        |> List.groupBy (fun (_, _, branchId, commitHash) -> (branchId, commitHash))
-        |> Map.toList
+      if List.isEmpty unappliedOps then
+        return 0L
+      else
+        let groups =
+          unappliedOps
+          |> List.groupBy (fun (_, _, branchId, commitHash) ->
+            (branchId, commitHash))
+          |> Map.toList
 
-      for ((branchId, commitHash), ops) in groups do
-        let opsOnly = ops |> List.map (fun (_, op, _, _) -> op)
-        do! PackageOpPlayback.applyOps branchId commitHash opsOnly
+        for ((branchId, commitHash), ops) in groups do
+          let opsOnly = ops |> List.map (fun (_, op, _, _) -> op)
+          do! PackageOpPlayback.applyOps branchId commitHash opsOnly
 
-      let opIds = unappliedOps |> List.map (fun (opId, _, _, _) -> opId)
-      let updateStatements =
-        opIds
-        |> List.map (fun opId ->
-          let sql = "UPDATE package_ops SET applied = 1 WHERE id = @id"
-          let parameters = [ "applied", Sql.bool true; "id", Sql.uuid opId ]
-          (sql, [ parameters ]))
-      let _ = Sql.executeTransactionSync updateStatements
+        let opIds = unappliedOps |> List.map (fun (opId, _, _, _) -> opId)
+        let updateStatements =
+          opIds
+          |> List.map (fun opId ->
+            let sql = "UPDATE package_ops SET applied = 1 WHERE id = @id"
+            let parameters = [ "applied", Sql.bool true; "id", Sql.uuid opId ]
+            (sql, [ parameters ]))
+        let _ = Sql.executeTransactionSync updateStatements
 
-      return int64 (List.length unappliedOps)
+        return int64 (List.length unappliedOps)
   }
 
 
@@ -263,13 +273,24 @@ let growIfNeeded
   (log : string -> unit)
   : Task<bool> =
   task {
-    let! appliedCount = applyUnappliedOps ()
+    use _span = Telemetry.span "seed.growIfNeeded" []
+    let! appliedCount =
+      Telemetry.timeTask "seed.applyOps" [] (fun () -> applyUnappliedOps ())
     if appliedCount > 0L then
       log $"Growing package DB from ops ({appliedCount} ops to apply)..."
-      do! PackageRefsGenerator.generate ()
-      LibExecution.PackageRefs.reloadHashes ()
-      let! _evalResult = evaluateAllValues (getBuiltins ()) pm
-      do! Sql.query "PRAGMA wal_checkpoint(TRUNCATE);" |> Sql.executeStatementAsync
+      Telemetry.event "seed.applyOps.count" [ ("count", string appliedCount) ]
+      do!
+        Telemetry.timeTask "seed.generateRefs" [] (fun () ->
+          task {
+            do! PackageRefsGenerator.generate ()
+            LibExecution.PackageRefs.reloadHashes ()
+          })
+      let! _evalResult =
+        Telemetry.timeTask "seed.evaluateValues" [] (fun () ->
+          evaluateAllValues (getBuiltins ()) pm)
+      do!
+        Telemetry.timeTask "seed.walCheckpoint" [] (fun () ->
+          Sql.query "PRAGMA wal_checkpoint(TRUNCATE);" |> Sql.executeStatementAsync)
       log "Package DB ready"
       return true
     else

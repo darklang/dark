@@ -1,0 +1,70 @@
+module Darklang.Cli.Telemetry
+
+/// Simple file-based telemetry for measuring interactive loop performance.
+/// Writes JSON-lines to a log file. Each line is one timing event.
+///
+/// Usage:
+///   let t0 = Telemetry.now ()
+///   // ... do work ...
+///   Telemetry.log "render" t0
+///
+///   // Or for spans with extra context:
+///   Telemetry.logWithContext "completionHint" t0 [("input", promptText)]
+
+let logFilePath: String =
+  (Builtin.cliGetLogDir ()) ++ "/telemetry.jsonl"
+
+/// Returns monotonic millisecond timestamp (only differences are meaningful)
+let now () : Int64 = Builtin.timeNowMs ()
+
+/// Compute elapsed ms between a start timestamp and now
+let elapsedMs (startMs: Int64) : Int64 =
+  (now ()) - startMs
+
+/// Write a single telemetry event line to the log file.
+/// Format: {"event":"<label>","ms":<elapsed>,"wall":"<ISO8601>","ctx":{...}}
+let logWithContext
+  (label: String)
+  (startMs: Int64)
+  (context: List<(String * String)>)
+  : Unit =
+  let elapsed = elapsedMs startMs
+
+  let ctxPairs =
+    context
+    |> Stdlib.List.map (fun (k, v) ->
+      // Escape any quotes in values for safety
+      let escaped = Stdlib.String.replaceAll v "\"" "\\\""
+      $"\"{k}\":\"{escaped}\"")
+
+  let ctxJson =
+    match ctxPairs with
+    | [] -> "{}"
+    | pairs -> "{" ++ (Stdlib.String.join pairs ",") ++ "}"
+
+  let wall = Stdlib.DateTime.toString (Stdlib.DateTime.now ())
+  let line = $"{{\"event\":\"{label}\",\"ms\":{Stdlib.Int64.toString elapsed},\"wall\":\"{wall}\",\"ctx\":{ctxJson}}}"
+
+  let _ = Builtin.fileAppendText logFilePath (line ++ "\n")
+  ()
+
+/// Shorthand: log a timing event with no extra context
+let log (label: String) (startMs: Int64) : Unit =
+  logWithContext label startMs []
+
+/// Log a raw message (not a timing span) — useful for one-off markers
+let logMessage (label: String) (message: String) : Unit =
+  let wall = Stdlib.DateTime.toString (Stdlib.DateTime.now ())
+  let escaped = Stdlib.String.replaceAll message "\"" "\\\""
+  let line = $"{{\"event\":\"{label}\",\"msg\":\"{escaped}\",\"wall\":\"{wall}\"}}"
+
+  let _ = Builtin.fileAppendText logFilePath (line ++ "\n")
+  ()
+
+/// Log the start of a session so we can separate runs in the log
+let logSessionStart () : Unit =
+  let wall = Stdlib.DateTime.toString (Stdlib.DateTime.now ())
+  let line = $"{{\"event\":\"session_start\",\"wall\":\"{wall}\"}}"
+
+  let _ = Builtin.fileAppendText logFilePath (line ++ "\n")
+  ()

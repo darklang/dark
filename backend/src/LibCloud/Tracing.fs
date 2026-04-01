@@ -316,16 +316,28 @@ let createCliTracer
   let results = TraceResults.empty ()
   let fnCalls = System.Collections.Generic.List<StoredFnCall>()
 
+  // Skip per-fn-call tracing: makeStoreFnResult uses reflection-based JSON
+  // (DvalReprInternalRoundtrippable) which is stripped by the .NET trimmer in
+  // release/AOT builds. Top-level trace input uses DvalReprDeveloper (string
+  // repr, no reflection) as a trim-safe fallback.
+  // TODO: use binary serialization or Darklang-native JSON for full trace support.
   { enabled = true
     results = results
     executionTracing =
       { Exe.noTracing with
+#if DEBUG
           storeFnResult = makeStoreFnResult fnCalls
+#endif
           skipTracing = false }
     storeTraceInput = fun _ _ _ -> ()
     storeTraceResults =
       fun () ->
+#if DEBUG
         let inputJson = DvalReprInternalRoundtrippable.toJsonV0 inputDval
+#else
+        ignore<RT.Dval> inputDval
+        let inputJson = "(release: trace serialization unavailable)"
+#endif
         storeTrace canvasID 0UL traceID description inputVarName inputJson fnCalls }
 
 

@@ -136,11 +136,9 @@ let rec checkAndExtractMatchPattern
 
 
 
-let execute (exeState : ExecutionState) (vm : VMState) : Ply<Dval> =
+let rec private executeInner (exeState : ExecutionState) (vm : VMState) : Ply<Dval> =
   uply {
     let raiseRTE rte = raiseRTE vm.threadID rte
-
-    // Track args for package fn calls so we can trace them at frame return
     let pendingCallArgs = System.Collections.Generic.Dictionary<uuid, Dval list>()
 
     let mutable finalResult : Dval option = None
@@ -206,6 +204,8 @@ let execute (exeState : ExecutionState) (vm : VMState) : Ply<Dval> =
       let mutable frameToPush = None
 
       while counter < instrData.instructions.Length && frameToPush = None do
+        if vm.stats.enabled then
+          vm.stats.instructionCount <- vm.stats.instructionCount + 1L
 
         let inst = instrData.instructions[counter]
         match inst with
@@ -569,6 +569,8 @@ let execute (exeState : ExecutionState) (vm : VMState) : Ply<Dval> =
                         currentFrame.typeSymbolTable
                   executionPoint = Lambda(currentFrame.executionPoint, exprId) }
 
+              if vm.stats.enabled then
+                vm.stats.framePushCount <- vm.stats.framePushCount + 1L
               frameToPush <- Some newFrame
 
             else if argCount > paramCount then
@@ -683,7 +685,20 @@ let execute (exeState : ExecutionState) (vm : VMState) : Ply<Dval> =
                       // Builtin.jsonParse<'a>, the 'a needs to resolve to Int64.
                       let resolvedTypeArgs =
                         typeArgs |> List.map (TypeReference.resolveTypeVariables tst)
+                      let sw =
+                        if vm.stats.enabled then
+                          vm.stats.builtinCallCount <- vm.stats.builtinCallCount + 1L
+                          if vm.stats.detailedTiming then
+                            System.Diagnostics.Stopwatch.GetTimestamp()
+                          else
+                            0L
+                        else
+                          0L
                       let! result = fn.fn (exeState, vm, resolvedTypeArgs, allArgs)
+                      if vm.stats.enabled && vm.stats.detailedTiming then
+                        let elapsed =
+                          System.Diagnostics.Stopwatch.GetTimestamp() - sw
+                        vm.stats.recordBuiltin (fn.name.name, elapsed)
 
                       let expectedReturnType = fn.returnType
                       match!
@@ -775,6 +790,12 @@ let execute (exeState : ExecutionState) (vm : VMState) : Ply<Dval> =
                   let newFrameId = guuid ()
                   if not exeState.tracing.skipTracing then
                     pendingCallArgs[newFrameId] <- allArgs
+                  if vm.stats.enabled then
+                    vm.stats.packageCallCount <- vm.stats.packageCallCount + 1L
+                    vm.stats.framePushCount <- vm.stats.framePushCount + 1L
+                    if vm.stats.detailedTiming then
+                      vm.stats.framePushTimestamps[newFrameId] <-
+                        System.Diagnostics.Stopwatch.GetTimestamp()
                   frameToPush <-
                     { id = newFrameId
                       parent = Some(vm.currentFrameID, putResultIn, counter + 1)
@@ -865,6 +886,18 @@ let execute (exeState : ExecutionState) (vm : VMState) : Ply<Dval> =
                 |> RuntimeError.Apply
                 |> raiseRTE
 
+          // Record per-package-fn timing on frame return
+          if vm.stats.enabled && vm.stats.detailedTiming then
+            match vm.stats.framePushTimestamps.TryGetValue(vm.currentFrameID) with
+            | true, pushTs ->
+              let elapsed = System.Diagnostics.Stopwatch.GetTimestamp() - pushTs
+              match currentFrame.executionPoint with
+              | Function(FQFnName.Package(Hash h)) ->
+                vm.stats.recordPackageFn (h, elapsed)
+              | _ -> ()
+              vm.stats.framePushTimestamps.Remove(vm.currentFrameID) |> ignore<bool>
+            | false, _ -> ()
+
           vm.callFrames.Remove(vm.currentFrameID) |> ignore<bool>
 
           vm.currentFrameID <- parentID
@@ -899,3 +932,6 @@ let execute (exeState : ExecutionState) (vm : VMState) : Ply<Dval> =
     | Some dv -> return dv
     | None -> return Exception.raiseInternal "No finalResult found" []
   }
+
+and execute (exeState : ExecutionState) (vm : VMState) : Ply<Dval> =
+  executeInner exeState vm
