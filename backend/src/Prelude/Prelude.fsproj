@@ -30,6 +30,7 @@
     <Compile Include="NonBlockingConsole.fs" />
     <Compile Include="Prelude.fs" />
     <Compile Include="Json.fs" />
+    <Compile Include="Telemetry.fs" />
   </ItemGroup>
   <Import Project="..\..\.paket\Paket.Restore.targets" />
 </Project>

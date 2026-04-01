@@ -74,6 +74,13 @@ so Darklang.* names need full qualification or Stdlib.* shortcut:
 Impl: backend/src/LibParser/NameResolver.fs (F#)
       packages/darklang/languageTools/nameResolver.dark (Dark)
 
+## Interactive CLI Testing
+The interactive CLI (run-cli with no args) needs a real TTY.
+Use `expect` via run-in-docker for automated interactive testing:
+  ./scripts/run-in-docker expect scripts/testing/test-interactive.expect
+Telemetry data lands in rundir/logs/telemetry.jsonl.
+Full guide: `docs interactive-testing`
+
 ## Debug
   Builtin.debug "label" value   # prints DEBUG: label: <repr> to stdout
   eval <expr>                   # test small pieces (uses tree-sitter parser, not F# parser)

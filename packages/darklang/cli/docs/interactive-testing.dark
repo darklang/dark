@@ -1,0 +1,82 @@
+module Darklang.Cli.Docs.InteractiveTesting
+
+let content () : String =
+  """# Interactive CLI Testing & Telemetry
+
+## The Problem
+The CLI interactive mode uses Console.ReadKey() which needs a real TTY.
+You can't pipe stdin — it crashes with "Cannot read keys when console
+input has been redirected."
+
+## Solution: expect via run-in-docker
+The devcontainer has `expect` installed. It spawns the CLI with a
+pseudo-TTY and sends keystrokes programmatically.
+
+### Quick one-off test
+  ./scripts/run-in-docker expect -c '
+    spawn ./scripts/run-cli
+    sleep 3
+    send "help\r"
+    sleep 3
+    send "quit\r"
+    sleep 2
+    expect eof
+  '
+
+### Reusable expect script
+  ./scripts/run-in-docker expect scripts/testing/test-interactive.expect
+
+Customize sleeps and sends for different scenarios.
+
+### Writing expect scripts
+  #!/usr/bin/expect -f
+  set timeout 30
+  spawn ./scripts/run-cli
+  sleep 3                  # Wait for startup + package load
+  send "tree\r"            # Command + Enter
+  sleep 5
+  send "\t"                # Tab completion
+  sleep 1
+  send "quit\r"
+  sleep 2
+  expect eof
+
+Key points:
+  - sleep 3 after spawn (CLI needs time to load packages)
+  - send "\r" for Enter, send "\t" for Tab
+  - send "x" sends individual characters (CLI reads one at a time)
+  - sleep 0.5 between chars for realistic typing speed
+  - Runs inside devcontainer via run-in-docker
+
+## Telemetry
+When packages/darklang/cli/telemetry.dark is loaded, the interactive
+loop writes JSON-lines to rundir/logs/telemetry.jsonl:
+
+  {"event":"completionHint","ms":126,"ctx":{"inputLen":"0"}}
+  {"event":"render","ms":33,"ctx":{"page":"MainPrompt"}}
+  {"event":"preInput","ms":169,"ctx":{}}
+  {"event":"readKey","ms":2014,"ctx":{"char":"h"}}
+
+### Events per loop iteration
+  completionHint   getCompletionHint (ghosted suggestion text)
+  render           Page display (MainPrompt, InteractiveNav, etc.)
+  preInput         Total work before blocking on keystroke
+  readKey          Time waiting for user input (idle time)
+  update           updateAppState after keystroke
+  loopWork         Total non-idle work (preInput + update)
+  commandExec      Command execution (on Enter)
+  tabComplete      Tab completion lookup
+  session_start    Session marker
+
+### Analyzing telemetry
+  # preInput times (the "lag" the user feels):
+  jq -r 'select(.event=="preInput") | .ms' rundir/logs/telemetry.jsonl
+
+  # Average completionHint time:
+  jq -r 'select(.event=="completionHint") | .ms' \
+    rundir/logs/telemetry.jsonl | awk '{s+=$1;n++} END{print s/n"ms"}'
+
+## Testing across modes
+  1. Debug:   ./scripts/run-in-docker expect scripts/testing/test-interactive.expect
+  2. Release: Build with build-release-cli-exes.sh, run binary directly
+  3. Remote:  Copy release binary to rM2/etc, run there"""

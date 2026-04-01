@@ -135,12 +135,10 @@ let rec checkAndExtractMatchPattern
 
 
 
-let execute (exeState : ExecutionState) (vm : VMState) : Ply<Dval> =
+let rec private executeInner (exeState : ExecutionState) (vm : VMState) : Ply<Dval> =
   uply {
     let raiseRTE rte = raiseRTE vm.threadID rte
-
-    // Track args for package fn calls so we can trace them at frame return
-    let pendingCallArgs = System.Collections.Generic.Dictionary<uuid, Dval list>()
+    let pendingCallArgs = vm.pendingCallArgs
 
     let mutable finalResult : Dval option = None
 
@@ -205,6 +203,7 @@ let execute (exeState : ExecutionState) (vm : VMState) : Ply<Dval> =
       let mutable frameToPush = None
 
       while counter < instrData.instructions.Length && frameToPush = None do
+        vm.stats.instructionCount <- vm.stats.instructionCount + 1L
 
         let inst = instrData.instructions[counter]
         match inst with
@@ -568,6 +567,7 @@ let execute (exeState : ExecutionState) (vm : VMState) : Ply<Dval> =
                         currentFrame.typeSymbolTable
                   executionPoint = Lambda(currentFrame.executionPoint, exprId) }
 
+              vm.stats.framePushCount <- vm.stats.framePushCount + 1L
               frameToPush <- Some newFrame
 
             else if argCount > paramCount then
@@ -682,7 +682,17 @@ let execute (exeState : ExecutionState) (vm : VMState) : Ply<Dval> =
                       // Builtin.jsonParse<'a>, the 'a needs to resolve to Int64.
                       let resolvedTypeArgs =
                         typeArgs |> List.map (TypeReference.resolveTypeVariables tst)
+                      vm.stats.builtinCallCount <- vm.stats.builtinCallCount + 1L
+                      let sw =
+                        if vm.stats.detailedTiming then
+                          System.Diagnostics.Stopwatch.GetTimestamp()
+                        else
+                          0L
                       let! result = fn.fn (exeState, vm, resolvedTypeArgs, allArgs)
+                      if vm.stats.detailedTiming then
+                        let elapsed =
+                          System.Diagnostics.Stopwatch.GetTimestamp() - sw
+                        vm.stats.recordBuiltin (fn.name.name, elapsed)
 
                       let expectedReturnType = fn.returnType
                       match!
@@ -774,6 +784,11 @@ let execute (exeState : ExecutionState) (vm : VMState) : Ply<Dval> =
                   let newFrameId = guuid ()
                   if not exeState.tracing.skipTracing then
                     pendingCallArgs[newFrameId] <- allArgs
+                  vm.stats.packageCallCount <- vm.stats.packageCallCount + 1L
+                  vm.stats.framePushCount <- vm.stats.framePushCount + 1L
+                  if vm.stats.detailedTiming then
+                    vm.stats.framePushTimestamps[newFrameId] <-
+                      System.Diagnostics.Stopwatch.GetTimestamp()
                   frameToPush <-
                     { id = newFrameId
                       parent = Some(vm.currentFrameID, putResultIn, counter + 1)
@@ -864,6 +879,18 @@ let execute (exeState : ExecutionState) (vm : VMState) : Ply<Dval> =
                 |> RuntimeError.Apply
                 |> raiseRTE
 
+          // Record per-package-fn timing on frame return
+          if vm.stats.detailedTiming then
+            match vm.stats.framePushTimestamps.TryGetValue(vm.currentFrameID) with
+            | true, pushTs ->
+              let elapsed = System.Diagnostics.Stopwatch.GetTimestamp() - pushTs
+              match currentFrame.executionPoint with
+              | Function(FQFnName.Package(Hash h)) ->
+                vm.stats.recordPackageFn (h, elapsed)
+              | _ -> ()
+              vm.stats.framePushTimestamps.Remove(vm.currentFrameID) |> ignore<bool>
+            | false, _ -> ()
+
           vm.callFrames.Remove(vm.currentFrameID) |> ignore<bool>
 
           vm.currentFrameID <- parentID
@@ -898,3 +925,167 @@ let execute (exeState : ExecutionState) (vm : VMState) : Ply<Dval> =
     | Some dv -> return dv
     | None -> return Exception.raiseInternal "No finalResult found" []
   }
+
+and execute (exeState : ExecutionState) (vm : VMState) : Ply<Dval> =
+  executeInner exeState vm
+
+
+/// Invoke a Dark lambda with arguments by pushing a frame onto the existing VM
+/// and calling executeInner. The lambda frame has parent=None so executeInner
+/// returns when it completes. Shares all caches and pendingCallArgs.
+and private invokeLambda
+  (exeState : ExecutionState)
+  (vm : VMState)
+  (callerExecutionPoint : ExecutionPoint)
+  (appLambda : ApplicableLambda)
+  (args : List<Dval>)
+  : Ply<Dval> =
+  let exprId = appLambda.exprId
+
+  let foundLambda =
+    let cacheKey = (callerExecutionPoint, exprId)
+
+    match Map.tryFind cacheKey vm.lambdaInstrCache with
+    | Some lambda -> lambda
+    | None ->
+      match Map.tryFind (Source, exprId) vm.lambdaInstrCache with
+      | Some lambda -> lambda
+      | None ->
+        vm.lambdaInstrCache
+        |> Map.toList
+        |> List.tryFind (fun ((_, eid), _) -> eid = exprId)
+        |> Option.map snd
+        |> Option.defaultWith (fun () ->
+          Exception.raiseInternal
+            "lambda not found in invokeLambda"
+            [ "exprId", exprId; "callerEP", callerExecutionPoint ])
+
+  let frameID = guuid ()
+  let frame : CallFrame =
+    { id = frameID
+      executionPoint = Lambda(callerExecutionPoint, exprId)
+      programCounter = 0
+      registers =
+        let r = Array.zeroCreate foundLambda.instructions.registerCount
+
+        List.zip (NEList.toList foundLambda.patterns) args
+        |> List.iter (fun (pat, arg) ->
+          let doesMatch, registersToAssign = checkAndExtractLetPattern pat arg
+
+          if doesMatch then
+            registersToAssign |> List.iter (fun (reg, value) -> r[reg] <- value)
+          else
+            raiseRTE vm.threadID (RTE.Let(RTE.Lets.PatternDoesNotMatch(arg, pat))))
+
+        appLambda.closedRegisters |> List.iter (fun (reg, value) -> r[reg] <- value)
+
+        r
+      typeSymbolTable = appLambda.typeSymbolTable
+      parent = None }
+
+  let savedFrameID = vm.currentFrameID
+  vm.callFrames[frameID] <- frame
+  vm.currentFrameID <- frameID
+
+  uply {
+    let! result = executeInner exeState vm
+    vm.currentFrameID <- savedFrameID
+    return result
+  }
+
+
+/// Apply a Dval (expected to be DApplicable) to arguments.
+/// Handles both lambdas and named functions.
+/// Pushes frames onto the existing VM and calls executeInner, sharing
+/// all caches and pendingCallArgs to minimize per-call overhead.
+and applyFnVal
+  (exeState : ExecutionState)
+  (vm : VMState)
+  (fnVal : Dval)
+  (args : List<Dval>)
+  : Ply<Dval> =
+  let callerEP =
+    match vm.callFrames.TryGetValue(vm.currentFrameID) with
+    | true, frame -> frame.executionPoint
+    | false, _ -> Source
+
+  match fnVal with
+  | DApplicable(AppLambda appLambda) ->
+    let allArgs = appLambda.argsSoFar @ args
+
+    let foundLambda =
+      let key = (callerEP, appLambda.exprId)
+
+      match Map.tryFind key vm.lambdaInstrCache with
+      | Some lambda -> lambda
+      | None ->
+        match Map.tryFind (Source, appLambda.exprId) vm.lambdaInstrCache with
+        | Some lambda -> lambda
+        | None ->
+          vm.lambdaInstrCache
+          |> Map.toList
+          |> List.tryFind (fun ((_, eid), _) -> eid = appLambda.exprId)
+          |> Option.map snd
+          |> Option.defaultWith (fun () ->
+            Exception.raiseInternal
+              "lambda not found in applyFnVal"
+              [ "exprId", appLambda.exprId; "callerEP", callerEP ])
+
+    let paramCount = NEList.length foundLambda.patterns
+    let argCount = List.length allArgs
+
+    if argCount < paramCount then
+      Ply({ appLambda with argsSoFar = allArgs } |> AppLambda |> DApplicable)
+    else if argCount > paramCount then
+      raiseRTE
+        vm.threadID
+        (RTE.Applications.TooManyArgsForLambda(
+          appLambda.exprId,
+          paramCount,
+          argCount
+         )
+         |> RTE.Apply)
+    else
+      invokeLambda exeState vm callerEP { appLambda with argsSoFar = [] } allArgs
+
+  | DApplicable(AppNamedFn namedFn) ->
+    let allArgs = namedFn.argsSoFar @ args
+
+    match namedFn.name with
+    | FQFnName.Builtin builtin ->
+      match Map.find builtin exeState.fns.builtIn with
+      | Some fn -> fn.fn (exeState, vm, [], allArgs)
+      | None ->
+        Exception.raiseInternal
+          "applyFnVal: builtin fn not found"
+          [ "name", builtin ]
+    | FQFnName.Package pkg ->
+      uply {
+        match! exeState.fns.package pkg with
+        | Some fn ->
+          let savedFrameID = vm.currentFrameID
+          let frameID = guuid ()
+          let frame : CallFrame =
+            { id = frameID
+              executionPoint = Function(FQFnName.Package fn.hash)
+              programCounter = 0
+              registers =
+                let r = Array.zeroCreate fn.body.registerCount
+                allArgs |> List.iteri (fun i arg -> r[i] <- arg)
+                r
+              typeSymbolTable = namedFn.typeSymbolTable
+              parent = None }
+
+          vm.callFrames[frameID] <- frame
+          vm.currentFrameID <- frameID
+
+          let! result = executeInner exeState vm
+          vm.currentFrameID <- savedFrameID
+          return result
+        | None ->
+          return
+            Exception.raiseInternal
+              "applyFnVal: package fn not found"
+              [ "hash", pkg ]
+      }
+  | _ -> Exception.raiseInternal "applyFnVal: expected applicable" [ "got", fnVal ]

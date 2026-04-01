@@ -1280,8 +1280,80 @@ type InstrData =
     resultReg : Register
   }
 
+/// Lightweight interpreter performance counters.
+/// Incremented during execution, read/reset via builtins.
+/// Per-builtin timing uses a dictionary keyed by name; overhead is ~1 Stopwatch
+/// call per builtin invocation, only when detailedTiming is true.
+type InterpreterStats =
+  {
+    mutable instructionCount : int64
+    mutable builtinCallCount : int64
+    mutable packageCallCount : int64
+    mutable framePushCount : int64
+    mutable packageFnLoadCount : int64
+
+    /// When true, per-builtin cumulative timing is collected
+    mutable detailedTiming : bool
+    /// Cumulative microseconds per builtin name
+    builtinTiming : System.Collections.Generic.Dictionary<string, int64>
+    /// Call count per builtin name
+    builtinCounts : System.Collections.Generic.Dictionary<string, int64>
+    /// Cumulative microseconds per package fn hash
+    packageFnTiming : System.Collections.Generic.Dictionary<string, int64>
+    /// Call count per package fn hash
+    packageFnCounts : System.Collections.Generic.Dictionary<string, int64>
+    /// Timestamp when each frame was pushed (for measuring total fn time)
+    framePushTimestamps : System.Collections.Generic.Dictionary<uuid, int64>
+  }
+
+  static member create() =
+    { instructionCount = 0L
+      builtinCallCount = 0L
+      packageCallCount = 0L
+      framePushCount = 0L
+      packageFnLoadCount = 0L
+      detailedTiming = false
+      builtinTiming = System.Collections.Generic.Dictionary()
+      builtinCounts = System.Collections.Generic.Dictionary()
+      packageFnTiming = System.Collections.Generic.Dictionary()
+      packageFnCounts = System.Collections.Generic.Dictionary()
+      framePushTimestamps = System.Collections.Generic.Dictionary() }
+
+  member this.reset() =
+    this.instructionCount <- 0L
+    this.builtinCallCount <- 0L
+    this.packageCallCount <- 0L
+    this.framePushCount <- 0L
+    this.packageFnLoadCount <- 0L
+    this.builtinTiming.Clear()
+    this.builtinCounts.Clear()
+    this.packageFnTiming.Clear()
+    this.packageFnCounts.Clear()
+    this.framePushTimestamps.Clear()
+
+  member private this.addTiming
+    (timingDict : System.Collections.Generic.Dictionary<string, int64>)
+    (countDict : System.Collections.Generic.Dictionary<string, int64>)
+    (name : string)
+    (elapsedTicks : int64)
+    =
+    let usec = elapsedTicks * 1000000L / System.Diagnostics.Stopwatch.Frequency
+    match timingDict.TryGetValue(name) with
+    | true, v -> timingDict[name] <- v + usec
+    | false, _ -> timingDict[name] <- usec
+    match countDict.TryGetValue(name) with
+    | true, v -> countDict[name] <- v + 1L
+    | false, _ -> countDict[name] <- 1L
+
+  member this.recordBuiltin(name : string, elapsedTicks : int64) =
+    this.addTiming this.builtinTiming this.builtinCounts name elapsedTicks
+
+  member this.recordPackageFn(hash : string, elapsedTicks : int64) =
+    this.addTiming this.packageFnTiming this.packageFnCounts hash elapsedTicks
+
 type VMState =
-  { mutable threadID : uuid
+  {
+    mutable threadID : uuid
 
     callFrames : System.Collections.Generic.Dictionary<uuid, CallFrame>
     mutable currentFrameID : uuid
@@ -1291,7 +1363,15 @@ type VMState =
     rootInstrData : Option<tlid> * InstrData
     mutable lambdaInstrCache : Map<ExecutionPoint * id, LambdaImpl>
     mutable lambdaInstrDataCache : Map<ExecutionPoint * id, InstrData>
-    mutable packageFnInstrCache : Map<FQFnName.Package, InstrData> }
+    mutable packageFnInstrCache : Map<FQFnName.Package, InstrData>
+
+    /// Performance counters — incremented during execution
+    stats : InterpreterStats
+
+    /// Shared across recursive executeInner calls to avoid per-call allocation.
+    /// Only used for tracing — safe to share since tracing is sequential.
+    pendingCallArgs : System.Collections.Generic.Dictionary<uuid, Dval list>
+  }
 
   static member create(instrs : Option<tlid> * Instructions) : VMState =
     let tlid, instrs = instrs
@@ -1319,7 +1399,9 @@ type VMState =
         (tlid, instrs)
       lambdaInstrCache = Map.empty
       lambdaInstrDataCache = Map.empty
-      packageFnInstrCache = Map.empty }
+      packageFnInstrCache = Map.empty
+      stats = InterpreterStats.create ()
+      pendingCallArgs = System.Collections.Generic.Dictionary() }
 
   static member createWithoutTLID(instrs : Instructions) : VMState =
     VMState.create (None, instrs)

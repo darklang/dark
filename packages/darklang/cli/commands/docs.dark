@@ -146,6 +146,14 @@ module Topics =
           aliases = [ "git"; "vcs"; "commits" ]
           context = "cli"
           content = Docs.SCM.content
+          subtopics = [] }
+
+      DocTopic
+        { name = "interactive-testing"
+          description = "Interactive CLI testing & telemetry"
+          aliases = [ "testing"; "telemetry"; "expect"; "perf" ]
+          context = "internal"
+          content = Docs.InteractiveTesting.content
           subtopics = [] } ]
 
   let findTopic (name: String) : Stdlib.Option.Option<DocTopic> =

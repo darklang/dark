@@ -26,7 +26,13 @@ type AppState =
     accountID: Stdlib.Option.Option<Uuid>
     accountName: String
     /// How many terminal rows the prompt used last frame
-    previousRenderedRows: Int64 }
+    previousRenderedRows: Int64
+    /// Cached completion hint — skip recompute when prompt text unchanged
+    cachedHintInput: String
+    cachedHintValue: String
+    /// Cached command list and option strings — built once at startup
+    allCommandsCache: List<Registry.CommandHandler>
+    commandOptionsCache: List<String> }
 
 let locationStr (state: AppState) : String =
   Packages.formatLocation state.packageData.currentLocation
@@ -60,7 +66,11 @@ let initState () : AppState =
       currentBranchId = SCM.Branch.mainBranchId
       accountID = accountID
       accountName = accountName
-      previousRenderedRows = 0L }
+      previousRenderedRows = 0L
+      cachedHintInput = ""
+      cachedHintValue = ""
+      allCommandsCache = Registry.allCommands ()
+      commandOptionsCache = commandOptions () }
 
 type Msg =
   | ProcessInput of String
@@ -217,8 +227,7 @@ module Registry =
       )
 
 
-  let findCommand (name: String) : CommandHandler =
-    let commands = allCommands ()
+  let findCommandIn (commands: List<CommandHandler>) (name: String) : CommandHandler =
 
     let allMatches = // CLEANUP use a Set?
       let nameMatches =
@@ -250,12 +259,19 @@ module Registry =
           complete = fun _state _args -> [] }
 
   let executeCommand (name: String) (state: AppState) (args: List<String>) : AppState =
-    let handler = findCommand name
-    let ex = handler.execute
-    ex state args
+    let handler = findCommandIn state.allCommandsCache name
+
+    let hasHelpFlag =
+      (Stdlib.List.member_v0 args "--help") || (Stdlib.List.member_v0 args "-h")
+
+    if hasHelpFlag then
+      executeCommandHelp name state
+    else
+      let ex = handler.execute
+      ex state args
 
   let executeCommandHelp (name: String) (state: AppState) : AppState =
-    let handler = findCommand name
+    let handler = findCommandIn state.allCommandsCache name
     let help = handler.help
     let _ = help state
 
@@ -370,7 +386,7 @@ module Registry =
       // Completing command name
       let partial = Completion.getPartialCompletion parsed
 
-      let options = commandOptions ()
+      let options = state.commandOptionsCache
 
       let filtered =
         if Stdlib.String.isEmpty partial then
@@ -381,7 +397,7 @@ module Registry =
       filtered |> Stdlib.List.map Completion.simple
     else
       // Completing command arguments
-      let handler = findCommand parsed.commandName
+      let handler = findCommandIn state.allCommandsCache parsed.commandName
       let completeFunc = handler.complete
 
       // Split args into completed args and partial (last arg)
@@ -463,7 +479,9 @@ let handleKeyInput (state: AppState) (key: Stdlib.Cli.Stdin.Key.Key) (modifiers:
       else
         Stdlib.printLine ""
         let commandToExecute = Stdlib.String.trim state.prompt.text
+        let tCmd = Telemetry.now ()
         let newState = Commands.parseAndExecute state commandToExecute
+        Telemetry.logWithContext "commandExec" tCmd [("cmd", commandToExecute)]
         let clearedPrompt = Prompt.Editing.clear newState.prompt
         let promptWithHistory = Prompt.History.addCommand clearedPrompt commandToExecute
         { newState with
@@ -482,7 +500,9 @@ let handleKeyInput (state: AppState) (key: Stdlib.Cli.Stdin.Key.Key) (modifiers:
 
     | Tab ->
       // Handle tab completion
+      let tTab = Telemetry.now ()
       let completions = Registry.getCompletions state state.prompt.text
+      Telemetry.logWithContext "tabComplete" tTab [("resultCount", Stdlib.Int64.toString (Stdlib.List.length completions)); ("input", state.prompt.text)]
 
       // CLEANUP: When there are multiple completions with a common prefix (e.g. "filter" and "filterMap"),
       // Tab should complete up to the common part ("filter") rather than just showing options
@@ -611,12 +631,24 @@ let runInteractiveLoop (state: AppState) : Int64 =
     Stdlib.print (Colors.moveCursorToColumn 1L ++ "\u001b[2K" ++ "\n")
     0L
   else
+    let tLoopStart = Telemetry.now ()
+    let _ = Builtin.interpreterStatsReset ()
+
     // TODO: handle terminal resize and Unicode display width
     // Compute prompt output and line metrics once
     let location = locationStr state
+
+    let tHint = Telemetry.now ()
     let inputStartColumn =
       Prompt.Display.calculateInputStartColumn location
-    let hint = Registry.getCompletionHint state state.prompt.text
+    let hintCached = state.cachedHintInput == state.prompt.text
+    let hint =
+      if hintCached then
+        state.cachedHintValue
+      else
+        Registry.getCompletionHint state state.prompt.text
+    Telemetry.logWithContext "completionHint" tHint [("inputLen", Stdlib.Int64.toString (Stdlib.String.length state.prompt.text)); ("cached", Stdlib.Bool.toString hintCached)]
+
     let promptOutput =
       Prompt.Display.formatPromptWithInput location state.prompt.text hint
     let terminalWidth = Terminal.getWidth ()
@@ -628,6 +660,8 @@ let runInteractiveLoop (state: AppState) : Int64 =
       else (Stdlib.Int64.divide (visualLength - 1L) terminalWidth) + 1L
 
     // Display current page
+    let tRender = Telemetry.now ()
+
     match state.currentPage with
     | MainPrompt ->
       Stdlib.print "\u001b[?25l" // Hide cursor
@@ -671,11 +705,34 @@ let runInteractiveLoop (state: AppState) : Int64 =
     // Render status bar at bottom of terminal
     StatusBar.render state
 
+    let pageName =
+      match state.currentPage with
+      | MainPrompt -> "MainPrompt"
+      | InteractiveNav _ -> "InteractiveNav"
+      | CompletionPicker _ -> "CompletionPicker"
+      | SubApp _ -> "SubApp"
+    Telemetry.logWithContext "render" tRender [("page", pageName); ("fullRedraw", Stdlib.Bool.toString state.needsFullRedraw)]
+
+    // Log total pre-input work (everything before blocking on readKey)
+    Telemetry.log "preInput" tLoopStart
+
     // Read keystroke input
+    let tReadKey = Telemetry.now ()
     let keyInput = Stdlib.Cli.Stdin.readKey ()
+    Telemetry.logWithContext "readKey" tReadKey [("char", keyInput.keyChar)]
+
+    // Process the key
+    let tUpdate = Telemetry.now ()
     let keyPressedMsg = Msg.KeyPressed (keyInput.key, keyInput.modifiers, Stdlib.Option.Option.Some keyInput.keyChar)
     let newState = Update.updateAppState state keyPressedMsg
-    runInteractiveLoop { newState with previousRenderedRows = renderedRows }
+    Telemetry.logWithContext "update" tUpdate [("char", keyInput.keyChar)]
+
+    // Log full loop iteration (excluding readKey idle time) with interpreter stats
+    let loopWorkMs = (Telemetry.elapsedMs tLoopStart) - (Telemetry.elapsedMs tReadKey)
+    let interpStats = Builtin.interpreterStatsGet ()
+    Telemetry.logWithContext "loopWork" tLoopStart [("workMs", Stdlib.Int64.toString loopWorkMs); ("interp", interpStats)]
+
+    runInteractiveLoop { newState with previousRenderedRows = renderedRows; cachedHintInput = state.prompt.text; cachedHintValue = hint }
 
 
 /// Extract --branch <name> from args, returning (branchId, remainingArgs).
@@ -728,6 +785,8 @@ let executeCliCommand (args: List<String>) : Int64 =
   match remainingArgs with
   // If someone runs `dark` without args, start the interactive loop
   | [] ->
+    Telemetry.logSessionStart ()
+
     // Clear screen so leftover output from a previous session doesn't show through
     Stdlib.print Terminal.Display.clearScreen
 

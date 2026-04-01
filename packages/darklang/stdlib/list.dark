@@ -128,11 +128,7 @@ let range (lowest: Int64) (highest: Int64) : List<Int64> =
 
 /// Folds <param list> into a single value, by repeatedly applying <param fn> to any two pairs.
 let fold (list: List<'a>) (init: 'b) (fn: 'b -> 'a -> 'b) : 'b =
-  match list with
-  | [] -> init
-  | head :: tail ->
-    let init = fn init head
-    fold tail init fn
+  Builtin.listFold list init fn
 
 
 /// Returns a single list containing the values of every list directly in <paramlist>
@@ -317,9 +313,7 @@ let any (list: List<'a>) (fn: 'a -> Bool) : Bool =
 // Preserves the order of values that were not dropped. Consider <fn
 // filterMap> if you also want to transform the values.
 let filter (list: List<'a>) (f: 'a -> Bool) : List<'a> =
-  (fold list [] (fun acc elem ->
-    if (f elem) then push acc elem else acc))
-  |> reverse
+  Builtin.listFilter list f
 
 
 // Calls <param fn> on every <var val> in <param list>, returning a list that
@@ -394,8 +388,7 @@ let takeWhile (list: List<'a>) (fn: 'a -> Bool) : List<'a> =
 // results of those calls.
 // Consider <fn filterMap> if you also want to drop some of the values.
 let map (list: List<'a>) (fn: 'a -> 'b) : List<'b> =
-  (fold list [] (fun acc elem -> push acc (fn elem)))
-  |> reverse
+  Builtin.listMap list fn
 
 
 /// Calls <fn fn> on every <var val> and its <var index> in <param list>,

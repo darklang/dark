@@ -154,7 +154,7 @@ let exprRTs =
                   resolved =
                     Ok(
                       PT.FQFnName.fqPackage
-                        "39840eb85e41c0a11dd9e18d9225ac3850b50a881af27caac0a10b0e58c3a485"
+                        "742fb2b1dfcfbe68c923e470a44b2eaa0544b729c2d64f7e8f3e9779ab27c8f5"
                     ) },
                 [],
                 [ PT.EInt64(id, 5L) ]

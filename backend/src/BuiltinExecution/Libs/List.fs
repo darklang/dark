@@ -376,6 +376,108 @@ let fns () : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Impure
+      deprecated = NotDeprecated }
+
+
+    { name = fn "listMap" 0
+      typeParams = []
+      parameters =
+        [ Param.make "list" (TList varA) ""
+          Param.makeWithArgs "fn" (TFn(NEList.singleton varA, varB)) "" [ "val" ] ]
+      returnType = TList varB
+      description =
+        "Calls <param fn> on every element in <param list>, returning a list of the results."
+      fn =
+        (function
+        | exeState, vm, _, [ DList(_, list); (DApplicable _) as fnVal ] ->
+          uply {
+            let results = System.Collections.Generic.List(list.Length)
+
+            for item in list do
+              let! result = Interpreter.applyFnVal exeState vm fnVal [ item ]
+              results.Add(result)
+
+            let resultVT =
+              results
+              |> Seq.tryHead
+              |> Option.map Dval.toValueType
+              |> Option.defaultValue VT.unknownTODO
+
+            return DList(resultVT, Seq.toList results)
+          }
+        | _ -> incorrectArgs ())
+      sqlSpec = NotYetImplemented
+      previewable = Pure
+      deprecated = NotDeprecated }
+
+
+    { name = fn "listFilter" 0
+      typeParams = []
+      parameters =
+        [ Param.make "list" (TList varA) ""
+          Param.makeWithArgs "fn" (TFn(NEList.singleton varA, TBool)) "" [ "val" ] ]
+      returnType = TList varA
+      description =
+        "Calls <param fn> on every element in <param list>, returning only those
+         elements for which <param fn> returns {{true}}."
+      fn =
+        (function
+        | exeState, vm, _, [ DList(vt, list); (DApplicable _) as fnVal ] ->
+          uply {
+            let results = System.Collections.Generic.List()
+
+            for item in list do
+              let! result = Interpreter.applyFnVal exeState vm fnVal [ item ]
+
+              match result with
+              | DBool true -> results.Add(item)
+              | DBool false -> ()
+              | other ->
+                RuntimeError.Bools.ConditionRequiresBool(
+                  Dval.toValueType other,
+                  other
+                )
+                |> RuntimeError.Bool
+                |> raiseRTE vm.threadID
+
+            return DList(vt, Seq.toList results)
+          }
+        | _ -> incorrectArgs ())
+      sqlSpec = NotYetImplemented
+      previewable = Pure
+      deprecated = NotDeprecated }
+
+
+    { name = fn "listFold" 0
+      typeParams = []
+      parameters =
+        [ Param.make "list" (TList varA) ""
+          Param.make "init" varB ""
+          Param.makeWithArgs
+            "fn"
+            (TFn(NEList.doubleton varB varA, varB))
+            ""
+            [ "acc"; "val" ] ]
+      returnType = varB
+      description =
+        "Folds <param list> into a single value, by repeatedly applying <param fn>
+         to the accumulated value and each element."
+      fn =
+        (function
+        | exeState, vm, _, [ DList(_, list); init; (DApplicable _) as fnVal ] ->
+          uply {
+            let mutable acc = init
+
+            for item in list do
+              let! result = Interpreter.applyFnVal exeState vm fnVal [ acc; item ]
+
+              acc <- result
+
+            return acc
+          }
+        | _ -> incorrectArgs ())
+      sqlSpec = NotYetImplemented
+      previewable = Pure
       deprecated = NotDeprecated } ]
 
 
