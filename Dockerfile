@@ -219,7 +219,7 @@ ENV NUGET_XMLDOC_MODE=skip \
     # Enable correct mode for dotnet watch (only mode supported in a container)
     DOTNET_USE_POLLING_FILE_WATCHER=true
 
-RUN /home/dark/install-dotnet10 \
+RUN /home/dark/install-dotnet \
   --version=10.0.102 \
   --arm64-sha256=1254141153d29b5b926e0e7b0b172a25f9c096b8ed6a182f54062c5e0b41384b30e10e2bf1ebe86ed0f58f4ff762203acd83bcf23fefb59c07af45332d794700 \
   --amd64-sha256=7adf40e8e5547970391cfbe474c3874c6918ce3575ac398f376c78502134e1c8a2fa3da9aca281fdaeda81671f56c851ebe9e74c5b57c5a298bd45deba63565d

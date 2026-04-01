@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Script to install dotnet 8
+# Script to install dotnet
 
 set -e
 
