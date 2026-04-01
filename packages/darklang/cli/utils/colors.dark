@@ -6,6 +6,7 @@ let bold = "\u001b[1m"
 let dim = "\u001b[2m"
 let italic = "\u001b[3m"
 let underline = "\u001b[4m"
+let reverse = "\u001b[7m"
 
 // Cursor and line control
 let clearLine = "\u001b[K"

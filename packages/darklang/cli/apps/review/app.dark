@@ -381,6 +381,21 @@ let handleKey (state: AppModel) (key: Stdlib.Cli.Stdin.Key.Key) (_modifiers: Std
 
 // ── Rendering ──
 
+/// Format wip/committed counts for a branch review item
+let formatBranchCounts (wipCount: Int64) (committedCount: Int64) (colorPrefix: String) : String =
+  let wipText =
+    if wipCount > 0L then
+      Darklang.Cli.Colors.colorize (colorPrefix ++ Darklang.Cli.Colors.pink) $"{Stdlib.Int64.toString wipCount} pending"
+    else ""
+  let committedText =
+    if committedCount > 0L then
+      let word = if committedCount == 1L then "commit" else "commits"
+      Darklang.Cli.Colors.colorize (colorPrefix ++ Darklang.Cli.Colors.purple) $"{Stdlib.Int64.toString committedCount} {word}"
+    else ""
+  [wipText; committedText]
+  |> Stdlib.List.filter (fun s -> s != "")
+  |> Stdlib.String.join "  "
+
 let kindLabel (kind: String) : String =
   match kind with
   | "Type" -> Darklang.Cli.Colors.colorize Darklang.Cli.Colors.blue "type"
@@ -556,21 +571,6 @@ let buildDetailForBranch (branchId: Uuid) : Screen =
         committedCount = 0L }
   Screen.Detail (buildDetailState item)
 
-
-/// Format wip/committed counts for a branch review item
-let formatBranchCounts (wipCount: Int64) (committedCount: Int64) (colorPrefix: String) : String =
-  let wipText =
-    if wipCount > 0L then
-      Darklang.Cli.Colors.colorize (colorPrefix ++ Darklang.Cli.Colors.pink) $"{Stdlib.Int64.toString wipCount} pending"
-    else ""
-  let committedText =
-    if committedCount > 0L then
-      let word = if committedCount == 1L then "commit" else "commits"
-      Darklang.Cli.Colors.colorize (colorPrefix ++ Darklang.Cli.Colors.purple) $"{Stdlib.Int64.toString committedCount} {word}"
-    else ""
-  [wipText; committedText]
-  |> Stdlib.List.filter (fun s -> s != "")
-  |> Stdlib.String.join "  "
 
 // ── Non-interactive output ──
 
