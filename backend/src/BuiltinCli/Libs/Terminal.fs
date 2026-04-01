@@ -8,6 +8,80 @@ open LibExecution.RuntimeTypes
 open LibExecution.Builtin.Shortcuts
 
 
+// Cache terminal dimensions — refreshed at most every 500ms
+let mutable private cachedWidth : int64 = 0L
+let mutable private cachedHeight : int64 = 0L
+let mutable private lastDimensionCheck : int64 = 0L
+let private dimensionCacheMs = 500L
+
+let private shouldRefreshDimensions () =
+  let now =
+    System.Diagnostics.Stopwatch.GetTimestamp() * 1000L
+    / System.Diagnostics.Stopwatch.Frequency
+  if now - lastDimensionCheck > dimensionCacheMs then
+    lastDimensionCheck <- now
+    true
+  else
+    false
+
+let private isUnix () =
+  System.Runtime.InteropServices.RuntimeInformation.IsOSPlatform(
+    System.Runtime.InteropServices.OSPlatform.Linux
+  )
+  || System.Runtime.InteropServices.RuntimeInformation.IsOSPlatform(
+    System.Runtime.InteropServices.OSPlatform.OSX
+  )
+
+/// Try to get a terminal dimension via tput, falling back to the given default.
+let private tputDimension (tputArg : string) (fallback : int) : int =
+  try
+    let p = new System.Diagnostics.Process()
+    p.StartInfo.FileName <- "/bin/sh"
+    p.StartInfo.Arguments <- $"-c \"tput {tputArg} 2>/dev/null || echo {fallback}\""
+    p.StartInfo.UseShellExecute <- false
+    p.StartInfo.RedirectStandardOutput <- true
+    p.StartInfo.CreateNoWindow <- true
+    if p.Start() then
+      let output = p.StandardOutput.ReadToEnd().Trim()
+      p.WaitForExit()
+      match System.Int32.TryParse(output) with
+      | true, v when v > 0 -> v
+      | _ -> fallback
+    else
+      fallback
+  with _ ->
+    fallback
+
+/// Get a terminal dimension with caching: check env var, then Console, then tput.
+let private getDimension
+  (envVar : string)
+  (consoleFn : unit -> int)
+  (tputArg : string)
+  (defaultVal : int)
+  (cached : byref<int64>)
+  : int64 =
+  if not (shouldRefreshDimensions ()) && cached > 0L then
+    cached
+  else
+    let result =
+      try
+        match System.Environment.GetEnvironmentVariable(envVar) with
+        | null ->
+          let consoleVal = consoleFn ()
+          if consoleVal = defaultVal && isUnix () then
+            tputDimension tputArg defaultVal |> int64
+          else
+            int64 consoleVal
+        | envVal ->
+          match System.Int32.TryParse(envVal) with
+          | true, v when v > 0 -> int64 v
+          | _ -> int64 defaultVal
+      with _ ->
+        int64 defaultVal
+    cached <- result
+    result
+
+
 let fns () : List<BuiltInFn> =
   [ { name = fn "cliGetTerminalHeight" 0
       typeParams = []
@@ -17,56 +91,15 @@ let fns () : List<BuiltInFn> =
       fn =
         (function
         | _, _, [], [ DUnit ] ->
-          uply {
-            try
-              // First try environment variable (most reliable across different terminals)
-              match System.Environment.GetEnvironmentVariable("LINES") with
-              | null ->
-                // Try Console.WindowHeight
-                let height = System.Console.WindowHeight
-
-                // If we get exactly 24, it might be a default value
-                // Let's try alternative methods
-                if height = 24 then
-                  // On Unix systems, try tput command
-                  if
-                    System.Runtime.InteropServices.RuntimeInformation.IsOSPlatform(
-                      System.Runtime.InteropServices.OSPlatform.Linux
-                    )
-                    || System.Runtime.InteropServices.RuntimeInformation.IsOSPlatform(
-                      System.Runtime.InteropServices.OSPlatform.OSX
-                    )
-                  then
-                    try
-                      let p = new System.Diagnostics.Process()
-                      p.StartInfo.FileName <- "/bin/sh"
-                      p.StartInfo.Arguments <-
-                        "-c \"tput lines 2>/dev/null || echo 24\""
-                      p.StartInfo.UseShellExecute <- false
-                      p.StartInfo.RedirectStandardOutput <- true
-                      p.StartInfo.CreateNoWindow <- true
-                      if p.Start() then
-                        let output = p.StandardOutput.ReadToEnd().Trim()
-                        p.WaitForExit()
-                        match System.Int32.TryParse(output) with
-                        | true, h when h > 0 -> return DInt64(int64 h)
-                        | _ -> return DInt64(int64 height)
-                      else
-                        return DInt64(int64 height)
-                    with _ ->
-                      return DInt64(int64 height)
-                  else
-                    return DInt64(int64 height)
-                else
-                  return DInt64(int64 height)
-              | lines ->
-                match System.Int32.TryParse(lines) with
-                | true, h when h > 0 -> return DInt64(int64 h)
-                | _ -> return DInt64 24L
-            with _ ->
-              // Fallback if unable to detect terminal size
-              return DInt64 24L
-          }
+          DInt64(
+            getDimension
+              "LINES"
+              (fun () -> System.Console.WindowHeight)
+              "lines"
+              24
+              &cachedHeight
+          )
+          |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
@@ -81,56 +114,29 @@ let fns () : List<BuiltInFn> =
       fn =
         (function
         | _, _, [], [ DUnit ] ->
-          uply {
-            try
-              // First try environment variable (most reliable across different terminals)
-              match System.Environment.GetEnvironmentVariable("COLUMNS") with
-              | null ->
-                // Try Console.WindowWidth
-                let width = System.Console.WindowWidth
+          DInt64(
+            getDimension
+              "COLUMNS"
+              (fun () -> System.Console.WindowWidth)
+              "cols"
+              80
+              &cachedWidth
+          )
+          |> Ply
+        | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Impure
+      deprecated = NotDeprecated }
 
-                // If we get exactly 80, it might be a default value
-                // Let's try alternative methods
-                if width = 80 then
-                  // On Unix systems, try tput command
-                  if
-                    System.Runtime.InteropServices.RuntimeInformation.IsOSPlatform(
-                      System.Runtime.InteropServices.OSPlatform.Linux
-                    )
-                    || System.Runtime.InteropServices.RuntimeInformation.IsOSPlatform(
-                      System.Runtime.InteropServices.OSPlatform.OSX
-                    )
-                  then
-                    try
-                      let p = new System.Diagnostics.Process()
-                      p.StartInfo.FileName <- "/bin/sh"
-                      p.StartInfo.Arguments <-
-                        "-c \"tput cols 2>/dev/null || echo 80\""
-                      p.StartInfo.UseShellExecute <- false
-                      p.StartInfo.RedirectStandardOutput <- true
-                      p.StartInfo.CreateNoWindow <- true
-                      if p.Start() then
-                        let output = p.StandardOutput.ReadToEnd().Trim()
-                        p.WaitForExit()
-                        match System.Int32.TryParse(output) with
-                        | true, w when w > 0 -> return DInt64(int64 w)
-                        | _ -> return DInt64(int64 width)
-                      else
-                        return DInt64(int64 width)
-                    with _ ->
-                      return DInt64(int64 width)
-                  else
-                    return DInt64(int64 width)
-                else
-                  return DInt64(int64 width)
-              | columns ->
-                match System.Int32.TryParse(columns) with
-                | true, w when w > 0 -> return DInt64(int64 w)
-                | _ -> return DInt64 80L
-            with _ ->
-              // Fallback if unable to detect terminal size
-              return DInt64 80L
-          }
+
+    { name = fn "cliGetLogDir" 0
+      typeParams = []
+      parameters = [ Param.make "unit" TUnit "" ]
+      returnType = TString
+      description = "Returns the absolute path to the CLI log directory"
+      fn =
+        (function
+        | _, _, [], [ DUnit ] -> DString(LibConfig.Config.logDir) |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure

@@ -28,7 +28,18 @@ type AppState =
     /// How many terminal rows the prompt used last frame
     previousRenderedRows: Int64
     /// True when invoked from the command line (not the interactive REPL)
-    nonInteractive: Bool }
+    nonInteractive: Bool
+    /// Cached completion hint — skip recompute when prompt text unchanged
+    cachedHintInput: String
+    cachedHintValue: String
+    /// Cached command list and option strings — built once at startup
+    allCommandsCache: List<Registry.CommandHandler>
+    commandOptionsCache: List<String>
+    /// Cached status bar string — skip re-render when branch unchanged
+    cachedStatusBar: String
+    cachedStatusBarBranch: Uuid
+    /// When true, write telemetry to rundir/logs/telemetry.jsonl
+    telemetryEnabled: Bool }
 
 let locationStr (state: AppState) : String =
   Packages.formatLocation state.packageData.currentLocation
@@ -63,7 +74,14 @@ let initState () : AppState =
       accountID = accountID
       accountName = accountName
       previousRenderedRows = 0L
-      nonInteractive = false }
+      nonInteractive = false
+      cachedHintInput = ""
+      cachedHintValue = ""
+      allCommandsCache = Registry.allCommands ()
+      commandOptionsCache = commandOptions ()
+      cachedStatusBar = ""
+      cachedStatusBarBranch = Builtin.unwrap (Stdlib.Uuid.parse_v0 "00000000-0000-0000-0000-000000000000")
+      telemetryEnabled = (Builtin.environmentGet "DARK_TELEMETRY") == Stdlib.Option.Option.Some "1" }
 
 type Msg =
   | ProcessInput of String
@@ -106,14 +124,11 @@ module StatusBar =
     // Set scroll region to all rows except the last one
     Stdlib.print (Colors.setScrollRegion 1L (terminalHeight - 1L))
 
-  /// Render the status bar at the bottom of the terminal
-  let render (state: AppState) : Unit =
-    let terminalHeight = Terminal.getHeight ()
+  /// Build the status bar string for the given state
+  let build (state: AppState) : String =
     let terminalWidth = Terminal.getWidth ()
 
     let leftText = " Darklang "
-
-    // Use Darklang brand colors (purple/magenta)
     let leftPart =
       Colors.colorize (Colors.purpleBg ++ Colors.white ++ Colors.bold) leftText
 
@@ -121,7 +136,6 @@ module StatusBar =
     let branchPart =
       Colors.colorize (Colors.grayBg ++ Colors.white) branchText
 
-    // Calculate padding
     let leftLen = Stdlib.String.length leftText + Stdlib.String.length branchText
     let paddingLen = terminalWidth - leftLen
 
@@ -131,9 +145,11 @@ module StatusBar =
       else
         ""
 
-    let statusLine = leftPart ++ branchPart ++ padding
+    leftPart ++ branchPart ++ padding
 
-    // Save cursor, move to bottom, render, restore cursor
+  /// Render the status bar at the bottom of the terminal
+  let render (statusLine: String) : Unit =
+    let terminalHeight = Terminal.getHeight ()
     Stdlib.print
       (Colors.saveCursor
        ++ Colors.moveCursorTo terminalHeight 1L
@@ -220,8 +236,7 @@ module Registry =
       )
 
 
-  let findCommand (name: String) : CommandHandler =
-    let commands = allCommands ()
+  let findCommandIn (commands: List<CommandHandler>) (name: String) : CommandHandler =
 
     let allMatches = // CLEANUP use a Set?
       let nameMatches =
@@ -253,12 +268,19 @@ module Registry =
           complete = fun _state _args -> [] }
 
   let executeCommand (name: String) (state: AppState) (args: List<String>) : AppState =
-    let handler = findCommand name
-    let ex = handler.execute
-    ex state args
+    let handler = findCommandIn state.allCommandsCache name
+
+    let hasHelpFlag =
+      (Stdlib.List.member_v0 args "--help") || (Stdlib.List.member_v0 args "-h")
+
+    if hasHelpFlag then
+      executeCommandHelp name state
+    else
+      let ex = handler.execute
+      ex state args
 
   let executeCommandHelp (name: String) (state: AppState) : AppState =
-    let handler = findCommand name
+    let handler = findCommandIn state.allCommandsCache name
     let help = handler.help
     let _ = help state
 
@@ -373,7 +395,7 @@ module Registry =
       // Completing command name
       let partial = Completion.getPartialCompletion parsed
 
-      let options = commandOptions ()
+      let options = state.commandOptionsCache
 
       let filtered =
         if Stdlib.String.isEmpty partial then
@@ -384,7 +406,7 @@ module Registry =
       filtered |> Stdlib.List.map Completion.simple
     else
       // Completing command arguments
-      let handler = findCommand parsed.commandName
+      let handler = findCommandIn state.allCommandsCache parsed.commandName
       let completeFunc = handler.complete
 
       // Split args into completed args and partial (last arg)
@@ -466,7 +488,9 @@ let handleKeyInput (state: AppState) (key: Stdlib.Cli.Stdin.Key.Key) (modifiers:
       else
         Stdlib.printLine ""
         let commandToExecute = Stdlib.String.trim state.prompt.text
+        let tCmd = Telemetry.now ()
         let newState = Commands.parseAndExecute state commandToExecute
+        Telemetry.logWithContext "commandExec" tCmd [("cmd", commandToExecute)]
         let clearedPrompt = Prompt.Editing.clear newState.prompt
         let promptWithHistory = Prompt.History.addCommand clearedPrompt commandToExecute
         { newState with
@@ -485,7 +509,9 @@ let handleKeyInput (state: AppState) (key: Stdlib.Cli.Stdin.Key.Key) (modifiers:
 
     | Tab ->
       // Handle tab completion
+      let tTab = Telemetry.now ()
       let completions = Registry.getCompletions state state.prompt.text
+      Telemetry.logWithContext "tabComplete" tTab [("resultCount", Stdlib.Int64.toString (Stdlib.List.length completions)); ("input", state.prompt.text)]
 
       // CLEANUP: When there are multiple completions with a common prefix (e.g. "filter" and "filterMap"),
       // Tab should complete up to the common part ("filter") rather than just showing options
@@ -614,12 +640,26 @@ let runInteractiveLoop (state: AppState) : Int64 =
     Stdlib.print (Colors.moveCursorToColumn 1L ++ "\u001b[2K" ++ "\n")
     0L
   else
+    let tLoopStart = if state.telemetryEnabled then Telemetry.now () else 0L
+    if state.telemetryEnabled then
+      let _ = Builtin.interpreterStatsReset ()
+      ()
+
     // TODO: handle terminal resize and Unicode display width
-    // Compute prompt output and line metrics once
     let location = locationStr state
+
+    let tHint = if state.telemetryEnabled then Telemetry.now () else 0L
     let inputStartColumn =
       Prompt.Display.calculateInputStartColumn location
-    let hint = Registry.getCompletionHint state state.prompt.text
+    let hintCached = state.cachedHintInput == state.prompt.text
+    let hint =
+      if hintCached then
+        state.cachedHintValue
+      else
+        Registry.getCompletionHint state state.prompt.text
+    if state.telemetryEnabled then
+      Telemetry.logWithContext "completionHint" tHint [("inputLen", Stdlib.Int64.toString (Stdlib.String.length state.prompt.text)); ("cached", Stdlib.Bool.toString hintCached)]
+
     let promptOutput =
       Prompt.Display.formatPromptWithInput location state.prompt.text hint
     let terminalWidth = Terminal.getWidth ()
@@ -631,6 +671,8 @@ let runInteractiveLoop (state: AppState) : Int64 =
       else (Stdlib.Int64.divide (visualLength - 1L) terminalWidth) + 1L
 
     // Display current page
+    let tRender = if state.telemetryEnabled then Telemetry.now () else 0L
+
     match state.currentPage with
     | MainPrompt ->
       Stdlib.print "\u001b[?25l" // Hide cursor
@@ -671,14 +713,41 @@ let runInteractiveLoop (state: AppState) : Int64 =
     | SubApp app ->
       app.onDisplay ()
 
-    // Render status bar at bottom of terminal
-    StatusBar.render state
+    // Render status bar — cache and skip when branch unchanged
+    let statusBar =
+      if state.cachedStatusBarBranch == state.currentBranchId && state.cachedStatusBar != "" then
+        state.cachedStatusBar
+      else
+        StatusBar.build state
+    StatusBar.render statusBar
+
+    if state.telemetryEnabled then
+      let pageName =
+        match state.currentPage with
+        | MainPrompt -> "MainPrompt"
+        | InteractiveNav _ -> "InteractiveNav"
+        | CompletionPicker _ -> "CompletionPicker"
+        | SubApp _ -> "SubApp"
+      Telemetry.logWithContext "render" tRender [("page", pageName); ("fullRedraw", Stdlib.Bool.toString state.needsFullRedraw)]
+      Telemetry.log "preInput" tLoopStart
 
     // Read keystroke input
+    let tReadKey = if state.telemetryEnabled then Telemetry.now () else 0L
     let keyInput = Stdlib.Cli.Stdin.readKey ()
+
+    // Process the key
     let keyPressedMsg = Msg.KeyPressed (keyInput.key, keyInput.modifiers, Stdlib.Option.Option.Some keyInput.keyChar)
     let newState = Update.updateAppState state keyPressedMsg
-    runInteractiveLoop { newState with previousRenderedRows = renderedRows }
+
+    if state.telemetryEnabled then
+      Telemetry.logWithContext "readKey" tReadKey [("char", keyInput.keyChar)]
+      let tUpdate = Telemetry.now ()
+      Telemetry.logWithContext "update" tUpdate [("char", keyInput.keyChar)]
+      let loopWorkMs = (Telemetry.elapsedMs tLoopStart) - (Telemetry.elapsedMs tReadKey)
+      let interpStats = Builtin.interpreterStatsGet ()
+      Telemetry.logWithContext "loopWork" tLoopStart [("workMs", Stdlib.Int64.toString loopWorkMs); ("interp", interpStats)]
+
+    runInteractiveLoop { newState with previousRenderedRows = renderedRows; cachedHintInput = state.prompt.text; cachedHintValue = hint; cachedStatusBar = statusBar; cachedStatusBarBranch = state.currentBranchId }
 
 
 /// Extract --branch <name> from args, returning (branchId, remainingArgs).
@@ -731,6 +800,11 @@ let executeCliCommand (args: List<String>) : Int64 =
   match remainingArgs with
   // If someone runs `dark` without args, start the interactive loop
   | [] ->
+    if initialState.telemetryEnabled then
+      Telemetry.logSessionStart ()
+      let _ = Builtin.interpreterStatsReset ()
+      ()
+
     // Clear screen so leftover output from a previous session doesn't show through
     Stdlib.print Terminal.Display.clearScreen
 

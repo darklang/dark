@@ -1,0 +1,31 @@
+#!/usr/bin/expect -f
+set timeout 30
+
+spawn ./scripts/run-cli
+sleep 3
+
+# Type "help" and Enter
+send "h"
+sleep 0.5
+send "e"
+sleep 0.5
+send "l"
+sleep 0.5
+send "p"
+sleep 0.5
+send "\r"
+sleep 3
+
+# Type "quit" and Enter
+send "q"
+sleep 0.5
+send "u"
+sleep 0.5
+send "i"
+sleep 0.5
+send "t"
+sleep 0.5
+send "\r"
+sleep 2
+
+expect eof

@@ -127,9 +127,16 @@ let initSerializers () = ()
 [<EntryPoint>]
 let main (args : string[]) =
   try
+    // Extract embedded resources FIRST — this sets DARK_CONFIG_RUNDIR
+    // which LibConfig.Config needs to resolve paths correctly.
     EmbeddedResources.extract ()
     initSerializers ()
 
+    // Now safe to access LibConfig paths
+    let telemetryPath =
+      System.IO.Path.Combine(LibConfig.Config.logDir, "telemetry.jsonl")
+    Telemetry.init telemetryPath
+    use _totalSpan = Telemetry.span "cli.total" []
 
     // If data.db is missing but seed.db exists, copy seed as data.db
     let dbPath = LibConfig.Config.dbPath
@@ -139,20 +146,24 @@ let main (args : string[]) =
       System.IO.File.Copy(seedPath, dbPath)
 
     // Grow the database: apply any unapplied ops and evaluate values.
-    // This handles first-run from an embedded seed (all ops unapplied)
-    // and incremental updates (new ops fetched from a seed).
-    // On a warm DB with nothing to do, this is a single fast SELECT COUNT.
-    let cliPackageManager = LibPackageManager.PackageManager.rt
-    (LibPackageManager.Seed.growIfNeeded
-      (fun () -> builtins)
-      cliPackageManager
-      (fun msg -> System.Console.Error.WriteLine msg))
-      .Result
-    |> ignore<bool>
-    cliPackageManager.init.Result
+    let cliPackageManager =
+      Telemetry.time "cli.createPM" [] (fun () ->
+        LibPackageManager.PackageManager.rt)
 
-    let result = execute cliPackageManager (Array.toList args)
-    let result = result.Result
+    Telemetry.time "cli.growIfNeeded" [] (fun () ->
+      (LibPackageManager.Seed.growIfNeeded
+        (fun () -> builtins)
+        cliPackageManager
+        (fun msg -> System.Console.Error.WriteLine msg))
+        .Result
+      |> ignore<bool>)
+
+    Telemetry.time "cli.pmInit" [] (fun () -> cliPackageManager.init.Result)
+
+    let result =
+      Telemetry.time "cli.execute" [] (fun () ->
+        let result = execute cliPackageManager (Array.toList args)
+        result.Result)
 
     NonBlockingConsole.wait ()
 
