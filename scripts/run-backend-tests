@@ -29,11 +29,11 @@ done
 killall -9 Tests || true
 
 if [[ "$PUBLISHED" == "true" ]]; then
-  EXE=Build/out/Tests/Release/net8.0/linux-x64/Tests
-  LOCALEXEC=Build/out/LocalExec/Release/net8.0/linux-x64/LocalExec
+  EXE=Build/out/Tests/Release/net10.0/linux-x64/Tests
+  LOCALEXEC=Build/out/LocalExec/Release/net10.0/linux-x64/LocalExec
 else
-  EXE=Build/out/Tests/Debug/net8.0/Tests
-  LOCALEXEC=Build/out/LocalExec/Debug/net8.0/LocalExec
+  EXE=Build/out/Tests/Debug/net10.0/Tests
+  LOCALEXEC=Build/out/LocalExec/Debug/net10.0/LocalExec
 fi
 
 

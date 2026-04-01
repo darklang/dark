@@ -3,16 +3,18 @@
   "isRoot": true,
   "tools": {
     "paket": {
-      "version": "9.0.2",
+      "version": "10.3.1",
       "commands": [
         "paket"
-      ]
+      ],
+      "rollForward": false
     },
     "dotnet-trace": {
       "version": "9.0.553101",
       "commands": [
         "dotnet-trace"
-      ]
+      ],
+      "rollForward": false
     }
   }
 }

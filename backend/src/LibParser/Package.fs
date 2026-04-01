@@ -115,7 +115,6 @@ let parse
                           _,
                           _,
                           _,
-                          _,
                           [ SynModuleOrNamespace(longId,
                                                  _,
                                                  kind,

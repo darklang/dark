@@ -107,12 +107,12 @@ build_for_runtime() {
   echo "Moving to $target"
 
   if [[ $rt == win-* ]]; then
-    mv -f "backend/Build/out/Cli/Release/net8.0/$rt/publish/Cli.exe" "$target.exe"
+    mv -f "backend/Build/out/Cli/Release/net10.0/$rt/publish/Cli.exe" "$target.exe"
     if [[ "$GZIP_OUTPUT" == "true" ]]; then
       gzip -f "$target.exe"
     fi
   else
-    mv -f "backend/Build/out/Cli/Release/net8.0/$rt/publish/Cli" "$target"
+    mv -f "backend/Build/out/Cli/Release/net10.0/$rt/publish/Cli" "$target"
     if [[ "$GZIP_OUTPUT" == "true" ]]; then
       gzip -f "$target"
     fi

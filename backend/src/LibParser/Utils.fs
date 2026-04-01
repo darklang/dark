@@ -48,7 +48,6 @@ let singleExprFromImplFile (parsedAsFSharp : ParsedImplFileInput) : SynExpr =
                         _,
                         _,
                         _,
-                        _,
                         [ SynModuleOrNamespace(_,
                                                _,
                                                _,

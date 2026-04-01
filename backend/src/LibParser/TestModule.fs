@@ -230,7 +230,6 @@ let parseFile
                           _,
                           _,
                           _,
-                          _,
                           [ SynModuleOrNamespace(_, _, _, decls, _, _, _, _, _) ],
                           _,
                           _,
