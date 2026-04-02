@@ -85,6 +85,8 @@ Rules:
 ## Critical Syntax
 - Whitespace-sensitive (like Python)
 - NO nested function definitions
+- NO binding modules to variables (`let c = Darklang.Cli.Colors` is invalid —
+  modules are not first-class values. Use the full path each time.)
 - Pipe needs parens: (complex expr) |> fn
 - Lists: [1L; 2L; 3L] (semicolons)
 - String concat: ++ (not @)

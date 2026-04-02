@@ -1,0 +1,24 @@
+module Darklang.Cli.Apps.Views
+
+/// A registered view that can be browsed and rendered from the CLI.
+type ViewEntry =
+  { name: String
+    description: String
+    render: Unit -> Unit }
+
+/// All available views. Add new views here.
+let allViews () : List<ViewEntry> =
+  [ ViewEntry
+      { name = "AI Chats"
+        description = "Monitor AI coding threads — status, cost, tokens"
+        render = fun () -> AiChats.render () }
+    ViewEntry
+      { name = "Package Stats"
+        description = "Package tree statistics — counts by kind and owner"
+        render = fun () -> PackageStats.render () }
+    ViewEntry
+      { name = "UI Components"
+        description = "Visual showcase of CLI UI components"
+        render = fun () ->
+          let _ = Darklang.CLI.UI.Demo.run ()
+          () } ]

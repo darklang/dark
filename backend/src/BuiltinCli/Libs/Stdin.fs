@@ -12,6 +12,16 @@ module NR = LibExecution.RuntimeTypes.NameResolution
 
 open Builtin.Shortcuts
 
+/// Drain any buffered input characters that arrived in a burst
+/// (e.g. mouse wheel scroll generates many escape sequences at once).
+/// Returns the last ConsoleKeyInfo from the burst, or the original if no
+/// extra input was buffered.
+let private drainInputBurst (initial : ConsoleKeyInfo) : ConsoleKeyInfo =
+  let mutable last = initial
+  while Console.KeyAvailable do
+    last <- Console.ReadKey true
+  last
+
 let fns () : List<BuiltInFn> =
   [ { name = fn "stdinReadKey" 0
       typeParams = []
@@ -26,7 +36,7 @@ let fns () : List<BuiltInFn> =
         | _, _, _, [ DUnit ] ->
           // Treat Ctrl+C as input so the Dark code can handle it gracefully
           Console.TreatControlCAsInput <- true
-          let readKey = Console.ReadKey true
+          let readKey = Console.ReadKey true |> drainInputBurst
           Console.TreatControlCAsInput <- false
 
           let altHeld =

@@ -222,7 +222,8 @@ module Registry =
       ("outliner", "Interactive tree outliner", [ "tree-exp" ], Darklang.Cli.Apps.Outliner.App.execute, Darklang.Cli.Apps.Outliner.App.help, Darklang.Cli.Apps.Outliner.App.complete)
       ("export-seed", "Export minimal seed.db from current database", [], Commands.ExportSeed.execute, Commands.ExportSeed.help, Commands.ExportSeed.complete)
       ("traces", "List and view execution traces", [ "trace" ], Commands.Traces.execute, Commands.Traces.help, Commands.Traces.complete)
-      ("review", "Review branch changesets", [], Darklang.Cli.Apps.Review.App.execute, Darklang.Cli.Apps.Review.App.help, Darklang.Cli.Apps.Review.App.complete) ]
+      ("review", "Review branch changesets", [], Darklang.Cli.Apps.Review.App.execute, Darklang.Cli.Apps.Review.App.help, Darklang.Cli.Apps.Review.App.complete)
+      ("views", "Browse and preview CLI views", [], Darklang.Cli.Apps.Views.App.execute, Darklang.Cli.Apps.Views.App.help, Darklang.Cli.Apps.Views.App.complete) ]
     |> Stdlib.List.map(
       // CLEANUP nitpicky: swap help and complete
       fun (name, desc, aliases, execute, help, complete) ->
@@ -300,7 +301,7 @@ module Registry =
       ("Execution", [ "run"; "eval"; "scripts" ])
       ("Installation", [ "install"; "update"; "uninstall"; "version" ])
       ("AI", [ "agent" ])
-      ("Utilities", [ "clear"; "help"; "docs"; "quit"; "builtins"; "export-seed" ]) ]
+      ("Utilities", [ "clear"; "help"; "docs"; "quit"; "builtins"; "export-seed"; "views" ]) ]
 
   // Helper function to format a group of commands with details
   let formatCommandGroup (groupName: String) (commandNames: List<String>) (commands: List<CommandHandler>) : String =
