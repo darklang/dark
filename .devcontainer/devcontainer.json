@@ -39,9 +39,9 @@
   // as we see in script/builder
   /////////////////////////////////////////////////
 
-  // Ports are loaded in the build process
   // Ports: 10011-10030 are test servers, 11001-11002 are BwdServer
-  "forwardPorts": [10011, 10012, 10030, 11001, 11002],
+  // 9090-9099 are for ad-hoc http-server demos
+  "forwardPorts": [10011, 10012, 10030, 11001, 11002, 9090, 9091, 9092, 9093, 9094, 9095, 9096, 9097, 9098, 9099],
 
   "containerEnv": {
     "IN_DEV_CONTAINER": "true"

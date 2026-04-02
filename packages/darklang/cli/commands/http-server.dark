@@ -2,10 +2,29 @@ module Darklang.Cli.Commands.HttpServer
 
 // Run an HTTP server
 
+// TODO: dynamically resolve router by name instead of hardcoding.
+//
+// Approaches tried:
+// 1. pmFindValue + pmEvaluateValue: finds the value and evaluates it, but
+//    lambda Dvals don't carry their instruction cache (LambdaImpl), so calling
+//    them from a different execution context (e.g. ASP.NET request handler)
+//    fails with "lambda not found" (exprId missing from VM's lambdaInstrCache).
+// 2. cliEvaluateExpression to build "Stdlib.HttpServer.serve {port}L {name}":
+//    same underlying issue — the function resolves as AppNamedFn inside the
+//    eval VM, but httpServerServe's ASP.NET handler runs in a separate context
+//    where the instruction caches from the eval VM aren't available.
+//
+// The fix likely requires either:
+// - Making the httpServerServe builtin propagate the VM's instruction cache
+//   to the ASP.NET request handler thread
+// - Or adding a builtin that resolves+calls a package fn by name in a single
+//   execution context (avoiding the cross-context lambda problem)
+// See also: PR #5582 (reflection support), PR #5546 (original json-canvas)
+
 let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
   match args with
   | [] ->
-    [ "Usage: http-server <port> [router-path]"
+    [ "Usage: http-server <port> <router-path>"
       ""
       "Examples:"
       "  http-server 8080"
@@ -28,7 +47,6 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
         "" ]
       |> Stdlib.printLines
 
-      // Use the test router by default
       Stdlib.HttpServer.serve port DemoData.HttpServerTest.router
 
       state
@@ -41,15 +59,13 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
     | Ok port ->
       let portStr_ = Stdlib.Int64.toString port
 
-      [ $"Starting HTTP server on port {portStr_}..."
-        $"Using router: {routerPath}"
+      [ $"Using router: {routerPath}"
         ""
         Colors.success $"Listening on http://localhost:{portStr_}"
         "Press Ctrl+C to stop"
         "" ]
       |> Stdlib.printLines
 
-      // Known routers - Darklang doesn't support dynamic function lookup at runtime
       match routerPath with
       | "Darklang.Canvas.DarkPackages.router" ->
         Stdlib.HttpServer.serve port Darklang.Canvas.DarkPackages.router
@@ -57,16 +73,20 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
       | "Darklang.DemoData.HttpServerTest.router" ->
         Stdlib.HttpServer.serve port DemoData.HttpServerTest.router
         state
+      | "Stachu.JsonCanvas.Server.router" ->
+        Stdlib.HttpServer.serve port Stachu.JsonCanvas.Server.router
+        state
       | _ ->
         [ Colors.error $"Unknown router: {routerPath}"
           "Known routers:"
           "  - Darklang.Canvas.DarkPackages.router"
-          "  - Darklang.DemoData.HttpServerTest.router" ]
+          "  - Darklang.DemoData.HttpServerTest.router"
+          "  - Stachu.JsonCanvas.Server.router" ]
         |> Stdlib.printLines
         state
 
   | _ ->
-    Stdlib.printLine "Usage: http-server <port> [router-path]"
+    Stdlib.printLine "Usage: http-server <port> <router-path>"
     state
 
 
@@ -77,11 +97,11 @@ let help (state: Cli.AppState) : Cli.AppState =
     ""
     "Arguments:"
     "  port         Port to listen on (e.g., 8080)"
-    "  router-path  Optional path to router function (e.g., Darklang.Canvas.DarkPackages.router)"
+    "  router-path  Dotted path to a router function"
     ""
     "Examples:"
     "  http-server 8080"
-    "  http-server 8080 Darklang.Canvas.DarkPackages.router" ]
+    "  http-server 8080 Stachu.JsonCanvas.Server.router" ]
   |> Stdlib.printLines
 
   state
