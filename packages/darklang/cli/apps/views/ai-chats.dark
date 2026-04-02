@@ -1,0 +1,199 @@
+module Darklang.Cli.Apps.Views.AiChats
+
+/// Demo data: an AI coding thread
+type Thread =
+  { id: Int64
+    status: String
+    topic: String
+    branch: String
+    cost: String
+    tokens: String
+    time: String
+    detail: String }
+
+let demoThreads () : List<Thread> =
+  [ Thread
+      { id = 1L
+        status = "running"
+        topic = "Add binary serialization for sync"
+        branch = "ai/sync"
+        cost = "$4.82"
+        tokens = "128k"
+        time = "12m"
+        detail = "Currently editing packages/darklang/sync/serialize.dark  •  14 files changed" }
+    Thread
+      { id = 2L
+        status = "review"
+        topic = "Refactor HTTP handler error paths"
+        branch = "ai/errs"
+        cost = "$2.17"
+        tokens = "64k"
+        time = "8m"
+        detail = "⚠ Awaiting your review: 3 questions about error propagation strategy" }
+    Thread
+      { id = 3L
+        status = "running"
+        topic = "Write tests for package manager"
+        branch = "ai/test"
+        cost = "$1.53"
+        tokens = "41k"
+        time = "5m"
+        detail = "Running test suite (pass: 12, fail: 2, pending: 6)  •  4 files changed" }
+    Thread
+      { id = 4L
+        status = "review"
+        topic = "Design new DB migration system"
+        branch = "ai/db"
+        cost = "$6.31"
+        tokens = "187k"
+        time = "22m"
+        detail = "⚠ Awaiting your review: proposed 2 migration approaches, needs decision" }
+    Thread
+      { id = 5L
+        status = "running"
+        topic = "Fix canvas rendering perf regression"
+        branch = "ai/perf"
+        cost = "$0.89"
+        tokens = "22k"
+        time = "3m"
+        detail = "Profiling render loop, found bottleneck in tree diff  •  1 file changed" }
+    Thread
+      { id = 6L
+        status = "done"
+        topic = "Update stdlib List docs"
+        branch = "ai/docs"
+        cost = "$0.34"
+        tokens = "9k"
+        time = "1m"
+        detail = "Completed. PR #5601 ready to merge  •  8 files changed" } ]
+
+
+let statusBadge (status: String) : String =
+  match status with
+  | "running" -> Darklang.Cli.Colors.colorize (Darklang.Cli.Colors.bgGreen ++ Darklang.Cli.Colors.black ++ Darklang.Cli.Colors.bold) " RUNNING "
+  | "review" -> Darklang.Cli.Colors.colorize (Darklang.Cli.Colors.bgYellow ++ Darklang.Cli.Colors.black ++ Darklang.Cli.Colors.bold) " REVIEW  "
+  | "blocked" -> Darklang.Cli.Colors.colorize (Darklang.Cli.Colors.bgRed ++ Darklang.Cli.Colors.white ++ Darklang.Cli.Colors.bold) " BLOCKED "
+  | "done" -> Darklang.Cli.Colors.colorize (Darklang.Cli.Colors.bgBlue ++ Darklang.Cli.Colors.white ++ Darklang.Cli.Colors.bold) " DONE    "
+  | "paused" -> Darklang.Cli.Colors.colorize (Darklang.Cli.Colors.grayBg ++ Darklang.Cli.Colors.white ++ Darklang.Cli.Colors.bold) " PAUSED  "
+  | "error" -> Darklang.Cli.Colors.colorize (Darklang.Cli.Colors.bgRed ++ Darklang.Cli.Colors.white ++ Darklang.Cli.Colors.bold) " ERROR   "
+  | _ -> Darklang.Cli.Colors.dimText status
+
+let hr () : String =
+  let cols = Darklang.Cli.Terminal.getWidth ()
+  Darklang.Cli.Colors.dimText (Stdlib.String.repeat "─" cols)
+
+let thinHr () : String =
+  let cols = Darklang.Cli.Terminal.getWidth ()
+  Darklang.Cli.Colors.dimText (Stdlib.String.repeat "╌" cols)
+
+let padRight (s: String) (width: Int64) : String =
+  let len = Stdlib.String.length s
+  if len >= width then
+    Stdlib.String.slice s 0L width
+  else
+    s ++ (Stdlib.String.repeat " " (width - len))
+
+let renderThread (thread: Thread) : Unit =
+  let idStr = Darklang.Cli.Colors.colorize (Darklang.Cli.Colors.bold ++ Darklang.Cli.Colors.cyan) ("#" ++ Stdlib.Int64.toString thread.id)
+  let badge = statusBadge thread.status
+  let topicStr =
+    if thread.status == "done" then
+      Darklang.Cli.Colors.colorize (Darklang.Cli.Colors.bold ++ Darklang.Cli.Colors.dim) (padRight thread.topic 40L)
+    else
+      Darklang.Cli.Colors.boldText (padRight thread.topic 40L)
+  let branchStr = Darklang.Cli.Colors.dimText (padRight thread.branch 10L)
+  let costColor =
+    match thread.status with
+    | "running" -> Darklang.Cli.Colors.green
+    | "review" -> Darklang.Cli.Colors.yellow
+    | _ -> Darklang.Cli.Colors.dim
+  let costStr = Darklang.Cli.Colors.colorize costColor (padRight thread.cost 10L)
+  let tokensStr = Darklang.Cli.Colors.dimText (padRight thread.tokens 10L)
+  let timeStr = Darklang.Cli.Colors.dimText (padRight thread.time 8L)
+
+  Stdlib.printLine ("  " ++ idStr ++ "    " ++ badge ++ "  " ++ topicStr ++ "  " ++ branchStr ++ "  " ++ costStr ++ "  " ++ tokensStr ++ "  " ++ timeStr)
+
+  let detailColor =
+    match thread.status with
+    | "review" -> Darklang.Cli.Colors.yellow
+    | _ -> Darklang.Cli.Colors.dim
+  Stdlib.printLine (Darklang.Cli.Colors.colorize detailColor ("       ╰─ " ++ thread.detail))
+
+
+let render () : Unit =
+  let threads = demoThreads ()
+
+  let runningCount =
+    threads
+    |> Stdlib.List.filter (fun t -> t.status == "running")
+    |> Stdlib.List.length
+
+  let reviewCount =
+    threads
+    |> Stdlib.List.filter (fun t -> t.status == "review")
+    |> Stdlib.List.length
+
+  let threadCount = Stdlib.List.length threads
+
+  // Header
+  Stdlib.printLine ""
+  Stdlib.printLine
+    ("  "
+     ++ Darklang.Cli.Colors.boldText "dark ai chats"
+     ++ "  "
+     ++ Darklang.Cli.Colors.dimText ("—  " ++ Stdlib.Int64.toString threadCount ++ " threads  •  " ++ Stdlib.Int64.toString runningCount ++ " running  •  " ++ Stdlib.Int64.toString reviewCount ++ " awaiting review"))
+  Stdlib.printLine ""
+  Stdlib.printLine (hr ())
+
+  // Column headers
+  let headerLine =
+    "  "
+    ++ Darklang.Cli.Colors.colorize (Darklang.Cli.Colors.bold ++ Darklang.Cli.Colors.dim) (padRight "ID" 4L)
+    ++ "    "
+    ++ Darklang.Cli.Colors.colorize (Darklang.Cli.Colors.bold ++ Darklang.Cli.Colors.dim) (padRight "STATUS" 10L)
+    ++ "  "
+    ++ Darklang.Cli.Colors.colorize (Darklang.Cli.Colors.bold ++ Darklang.Cli.Colors.dim) (padRight "TOPIC" 40L)
+    ++ "  "
+    ++ Darklang.Cli.Colors.colorize (Darklang.Cli.Colors.bold ++ Darklang.Cli.Colors.dim) (padRight "BRANCH" 10L)
+    ++ "  "
+    ++ Darklang.Cli.Colors.colorize (Darklang.Cli.Colors.bold ++ Darklang.Cli.Colors.dim) (padRight "COST" 10L)
+    ++ "  "
+    ++ Darklang.Cli.Colors.colorize (Darklang.Cli.Colors.bold ++ Darklang.Cli.Colors.dim) (padRight "TOKENS" 10L)
+    ++ "  "
+    ++ Darklang.Cli.Colors.colorize (Darklang.Cli.Colors.bold ++ Darklang.Cli.Colors.dim) (padRight "TIME" 8L)
+  Stdlib.printLine headerLine
+  Stdlib.printLine (hr ())
+
+  // Threads
+  threads
+  |> Stdlib.List.iter (fun thread ->
+    renderThread thread
+    Stdlib.printLine (thinHr ()))
+
+  Stdlib.printLine (hr ())
+
+  // Summary
+  Stdlib.printLine ""
+  Stdlib.printLine
+    ("  "
+     ++ Darklang.Cli.Colors.boldText "Session totals"
+     ++ "  "
+     ++ Darklang.Cli.Colors.dimText "│"
+     ++ "  Cost: " ++ Darklang.Cli.Colors.boldText "$16.06"
+     ++ "  " ++ Darklang.Cli.Colors.dimText "│"
+     ++ "  Tokens: " ++ Darklang.Cli.Colors.boldText "451k"
+     ++ "  " ++ Darklang.Cli.Colors.dimText "│"
+     ++ "  Uptime: " ++ Darklang.Cli.Colors.boldText "51m"
+     ++ "  " ++ Darklang.Cli.Colors.dimText "│"
+     ++ "  Files changed: " ++ Darklang.Cli.Colors.boldText "31")
+  Stdlib.printLine ""
+
+  // Keyboard hints
+  Stdlib.printLine
+    ("  "
+     ++ Darklang.Cli.Colors.dimText "[enter]" ++ " open thread   "
+     ++ Darklang.Cli.Colors.dimText "[r]" ++ " review flagged   "
+     ++ Darklang.Cli.Colors.dimText "[n]" ++ " new thread   "
+     ++ Darklang.Cli.Colors.dimText "[k]" ++ " kill thread   "
+     ++ Darklang.Cli.Colors.dimText "[q]" ++ " quit")
+  Stdlib.printLine ""

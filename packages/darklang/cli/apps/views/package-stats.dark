@@ -1,0 +1,126 @@
+module Darklang.Cli.Apps.Views.PackageStats
+
+/// Demo data for package statistics
+type ModuleStats =
+  { name: String
+    fnCount: Int64
+    typeCount: Int64
+    valueCount: Int64
+    submodules: Int64 }
+
+let demoStats () : List<ModuleStats> =
+  [ ModuleStats { name = "Darklang.Stdlib"; fnCount = 247L; typeCount = 42L; valueCount = 18L; submodules = 23L }
+    ModuleStats { name = "Darklang.Cli"; fnCount = 89L; typeCount = 31L; valueCount = 12L; submodules = 15L }
+    ModuleStats { name = "Darklang.LanguageTools"; fnCount = 156L; typeCount = 67L; valueCount = 8L; submodules = 19L }
+    ModuleStats { name = "Darklang.SCM"; fnCount = 43L; typeCount = 14L; valueCount = 5L; submodules = 7L }
+    ModuleStats { name = "Darklang.PrettyPrinter"; fnCount = 38L; typeCount = 9L; valueCount = 3L; submodules = 4L }
+    ModuleStats { name = "Darklang.LLM"; fnCount = 22L; typeCount = 11L; valueCount = 6L; submodules = 3L }
+    ModuleStats { name = "Darklang.Test"; fnCount = 34L; typeCount = 8L; valueCount = 2L; submodules = 5L } ]
+
+
+let padRight (s: String) (width: Int64) : String =
+  let len = Stdlib.String.length s
+  if len >= width then
+    Stdlib.String.slice s 0L width
+  else
+    s ++ (Stdlib.String.repeat " " (width - len))
+
+let padLeft (s: String) (width: Int64) : String =
+  let len = Stdlib.String.length s
+  if len >= width then
+    Stdlib.String.slice s 0L width
+  else
+    (Stdlib.String.repeat " " (width - len)) ++ s
+
+let bar (value: Int64) (maxVal: Int64) (width: Int64) (color: String) : String =
+  let barLen =
+    if maxVal == 0L then 0L
+    else Stdlib.Int64.divide (value * width) maxVal
+  let filled = Stdlib.String.repeat "█" barLen
+  let empty = Stdlib.String.repeat "░" (width - barLen)
+  (Darklang.Cli.Colors.colorize color filled) ++ (Darklang.Cli.Colors.dimText empty)
+
+
+let render () : Unit =
+  let stats = demoStats ()
+
+  let totalFns = Stdlib.List.fold stats 0L (fun acc s -> acc + s.fnCount)
+  let totalTypes = Stdlib.List.fold stats 0L (fun acc s -> acc + s.typeCount)
+  let totalValues = Stdlib.List.fold stats 0L (fun acc s -> acc + s.valueCount)
+  let totalModules = Stdlib.List.fold stats 0L (fun acc s -> acc + s.submodules)
+
+  // Header
+  Stdlib.printLine ""
+  Stdlib.printLine
+    ("  "
+     ++ Darklang.Cli.Colors.boldText "Package Statistics"
+     ++ "  "
+     ++ Darklang.Cli.Colors.dimText ("—  " ++ Stdlib.Int64.toString (Stdlib.List.length stats) ++ " top-level modules"))
+  Stdlib.printLine ""
+
+  // Summary cards
+  let summaryLine =
+    "  "
+    ++ Darklang.Cli.Colors.colorize (Darklang.Cli.Colors.bgGreen ++ Darklang.Cli.Colors.black ++ Darklang.Cli.Colors.bold) (" " ++ Stdlib.Int64.toString totalFns ++ " fns ")
+    ++ "  "
+    ++ Darklang.Cli.Colors.colorize (Darklang.Cli.Colors.bgBlue ++ Darklang.Cli.Colors.white ++ Darklang.Cli.Colors.bold) (" " ++ Stdlib.Int64.toString totalTypes ++ " types ")
+    ++ "  "
+    ++ Darklang.Cli.Colors.colorize (Darklang.Cli.Colors.bgMagenta ++ Darklang.Cli.Colors.white ++ Darklang.Cli.Colors.bold) (" " ++ Stdlib.Int64.toString totalValues ++ " values ")
+    ++ "  "
+    ++ Darklang.Cli.Colors.colorize (Darklang.Cli.Colors.grayBg ++ Darklang.Cli.Colors.white ++ Darklang.Cli.Colors.bold) (" " ++ Stdlib.Int64.toString totalModules ++ " modules ")
+  Stdlib.printLine summaryLine
+  Stdlib.printLine ""
+
+  // Table header
+  let termCols = Darklang.Cli.Terminal.getWidth ()
+  Stdlib.printLine (Darklang.Cli.Colors.dimText (Stdlib.String.repeat "─" termCols))
+
+  let boldDim = Darklang.Cli.Colors.bold ++ Darklang.Cli.Colors.dim
+  let headerLine =
+    "  "
+    ++ Darklang.Cli.Colors.colorize boldDim (padRight "MODULE" 30L)
+    ++ "  "
+    ++ Darklang.Cli.Colors.colorize boldDim (padLeft "FNS" 6L)
+    ++ "  "
+    ++ Darklang.Cli.Colors.colorize boldDim (padLeft "TYPES" 6L)
+    ++ "  "
+    ++ Darklang.Cli.Colors.colorize boldDim (padLeft "VALS" 6L)
+    ++ "  "
+    ++ Darklang.Cli.Colors.colorize boldDim (padLeft "MODS" 6L)
+    ++ "  "
+    ++ Darklang.Cli.Colors.colorize boldDim "FUNCTIONS"
+  Stdlib.printLine headerLine
+  Stdlib.printLine (Darklang.Cli.Colors.dimText (Stdlib.String.repeat "─" termCols))
+
+  let maxFns =
+    stats
+    |> Stdlib.List.map (fun s -> s.fnCount)
+    |> Stdlib.List.fold 0L (fun acc n -> if n > acc then n else acc)
+
+  // Rows
+  stats
+  |> Stdlib.List.iter (fun s ->
+    let total = s.fnCount + s.typeCount + s.valueCount
+    let nameStr =
+      if total > 100L then
+        Darklang.Cli.Colors.boldText (padRight s.name 30L)
+      else
+        padRight s.name 30L
+    let fnStr = Darklang.Cli.Colors.colorize Darklang.Cli.Colors.green (padLeft (Stdlib.Int64.toString s.fnCount) 6L)
+    let typeStr = Darklang.Cli.Colors.colorize Darklang.Cli.Colors.blue (padLeft (Stdlib.Int64.toString s.typeCount) 6L)
+    let valStr = Darklang.Cli.Colors.colorize Darklang.Cli.Colors.magenta (padLeft (Stdlib.Int64.toString s.valueCount) 6L)
+    let modStr = Darklang.Cli.Colors.dimText (padLeft (Stdlib.Int64.toString s.submodules) 6L)
+    let barStr = bar s.fnCount maxFns 20L Darklang.Cli.Colors.green
+
+    Stdlib.printLine ("  " ++ nameStr ++ "  " ++ fnStr ++ "  " ++ typeStr ++ "  " ++ valStr ++ "  " ++ modStr ++ "  " ++ barStr))
+
+  Stdlib.printLine (Darklang.Cli.Colors.dimText (Stdlib.String.repeat "─" termCols))
+  Stdlib.printLine ""
+
+  // Footer
+  Stdlib.printLine
+    ("  "
+     ++ Darklang.Cli.Colors.dimText "[q]" ++ " quit   "
+     ++ Darklang.Cli.Colors.dimText "[s]" ++ " sort by column   "
+     ++ Darklang.Cli.Colors.dimText "[/]" ++ " filter")
+  Stdlib.printLine ""

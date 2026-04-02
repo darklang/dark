@@ -1,0 +1,209 @@
+module Darklang.Cli.Apps.Views.App
+
+type Screen =
+  | ViewList of selected: Int64
+  | ViewDisplay of viewIndex: Int64
+
+type State =
+  { screen: Screen
+    views: List<ViewEntry> }
+
+
+// ── Rendering ──
+
+let renderViewList (state: State) (selected: Int64) : Unit =
+  let termWidth = Darklang.Cli.Terminal.getWidth ()
+
+  // Build entire output as a single string to avoid flicker
+  let header =
+    "\n"
+    ++ "  "
+    ++ Darklang.Cli.Colors.boldText "Views"
+    ++ "  "
+    ++ Darklang.Cli.Colors.dimText ("—  " ++ Stdlib.Int64.toString (Stdlib.List.length state.views) ++ " available")
+    ++ "\n\n"
+    ++ Darklang.Cli.Colors.dimText (Stdlib.String.repeat "─" termWidth)
+    ++ "\n\n"
+
+  let viewLines =
+    state.views
+    |> Stdlib.List.indexedMap (fun idx view -> (idx, view))
+    |> Stdlib.List.map (fun pair ->
+      let (idx, view) = pair
+      let isSelected = idx == selected
+      let pointer =
+        if isSelected then
+          Darklang.Cli.Colors.colorize (Darklang.Cli.Colors.bold ++ Darklang.Cli.Colors.cyan) "▸ "
+        else
+          "  "
+      let nameStr =
+        if isSelected then
+          Darklang.Cli.Colors.colorize (Darklang.Cli.Colors.bold ++ Darklang.Cli.Colors.cyan) view.name
+        else
+          Darklang.Cli.Colors.boldText view.name
+      let descStr = Darklang.Cli.Colors.dimText ("  " ++ view.description)
+
+      "  " ++ pointer ++ nameStr ++ "\n" ++ "      " ++ descStr ++ "\n")
+    |> Stdlib.String.join "\n"
+
+  let footer =
+    "\n"
+    ++ Darklang.Cli.Colors.dimText (Stdlib.String.repeat "─" termWidth)
+    ++ "\n\n"
+    ++ "  "
+    ++ Darklang.Cli.Colors.dimText "↑↓"
+    ++ " navigate   "
+    ++ Darklang.Cli.Colors.dimText "enter"
+    ++ " open view   "
+    ++ Darklang.Cli.Colors.dimText "esc"
+    ++ " exit"
+    ++ "\n"
+
+  // Single atomic write: hide cursor, clear, content, show cursor
+  Stdlib.print ("\u001b[?25l" ++ Darklang.Cli.Terminal.Display.clearScreen ++ header ++ viewLines ++ footer ++ "\u001b[?25h")
+
+
+let renderViewDisplay (state: State) (viewIndex: Int64) : Unit =
+  // Hide cursor + clear in one shot, then render view
+  Stdlib.print ("\u001b[?25l" ++ Darklang.Cli.Terminal.Display.clearScreen)
+
+  match Stdlib.List.getAt state.views viewIndex with
+  | Some view -> view.render ()
+  | None ->
+    Stdlib.printLine (Darklang.Cli.Colors.error "View not found")
+
+  // Back hint at bottom
+  Stdlib.printLine ""
+  Stdlib.printLine ("  " ++ Darklang.Cli.Colors.dimText "[esc] back to views list")
+  Stdlib.printLine ""
+  Stdlib.print "\u001b[?25h"
+
+
+let renderState (state: State) : Unit =
+  match state.screen with
+  | ViewList selected -> renderViewList state selected
+  | ViewDisplay viewIndex -> renderViewDisplay state viewIndex
+
+
+// ── Key handling ──
+
+type Action =
+  | Continue of State
+  | Exit of State
+
+let handleKey
+  (state: State)
+  (key: Stdlib.Cli.Stdin.Key.Key)
+  (_modifiers: Stdlib.Cli.Stdin.Modifiers.Modifiers)
+  (_keyChar: Stdlib.Option.Option<String>)
+  : Action =
+  match state.screen with
+  | ViewList selected ->
+    let viewCount = Stdlib.List.length state.views
+    match key with
+    | Escape -> Action.Exit state
+    | UpArrow ->
+      let newIdx = if selected > 0L then selected - 1L else selected
+      Action.Continue ({ state with screen = Screen.ViewList newIdx })
+    | DownArrow ->
+      let maxIdx = viewCount - 1L
+      let newIdx = if selected < maxIdx then selected + 1L else selected
+      Action.Continue ({ state with screen = Screen.ViewList newIdx })
+    | Enter ->
+      Action.Continue ({ state with screen = Screen.ViewDisplay selected })
+    | _ -> Action.Continue state
+
+  | ViewDisplay _viewIndex ->
+    match key with
+    | Escape -> Action.Continue ({ state with screen = Screen.ViewList 0L })
+    | _ -> Action.Continue state
+
+
+// ── SubApp adapter ──
+
+let rec makeSubApp (state: State) : Darklang.Cli.SubApp =
+  Darklang.Cli.SubApp
+    { onKey = fun key modifiers keyChar ->
+        match handleKey state key modifiers keyChar with
+        | Continue s -> (Darklang.Cli.SubAppAction.Continue, makeSubApp s)
+        | Exit s -> (Darklang.Cli.SubAppAction.Exit, makeSubApp s)
+      onDisplay = fun () -> renderState state
+      onSave = fun () -> () }
+
+
+// ── CLI command entry points ──
+
+let execute (cliState: Darklang.Cli.AppState) (args: List<String>) : Darklang.Cli.AppState =
+  let views = allViews ()
+
+  match args with
+  // Non-interactive: `views list` prints available views
+  | ["list"] ->
+    Stdlib.printLine (Darklang.Cli.Colors.boldText "Available views:")
+    Stdlib.printLine ""
+    views
+    |> Stdlib.List.iter (fun view ->
+      let slug = Stdlib.String.toLowercase (Stdlib.String.replaceAll view.name " " "-")
+      Stdlib.printLine ("  " ++ Darklang.Cli.Colors.boldText slug ++ "  " ++ Darklang.Cli.Colors.dimText view.description))
+    Stdlib.printLine ""
+    cliState
+
+  // Non-interactive: `views <name>` renders a specific view directly
+  | [viewName] ->
+    let slug = Stdlib.String.toLowercase viewName
+    let found =
+      views
+      |> Stdlib.List.findFirst (fun view ->
+        let viewSlug = Stdlib.String.toLowercase (Stdlib.String.replaceAll view.name " " "-")
+        viewSlug == slug)
+    match found with
+    | Some view ->
+      view.render ()
+      cliState
+    | None ->
+      Stdlib.printLine (Darklang.Cli.Colors.error ("Unknown view: " ++ viewName))
+      Stdlib.printLine "Use 'views list' to see available views."
+      cliState
+
+  // Interactive: `views` opens the browser
+  | _ ->
+    Stdlib.print "\u001b[?1049h"
+    match views with
+    | [] ->
+      Stdlib.print "\u001b[?1049l"
+      Stdlib.printLine (Darklang.Cli.Colors.dimText "No views available.")
+      cliState
+    | _ ->
+      let state = State { screen = Screen.ViewList 0L; views = views }
+      let app = makeSubApp state
+      { cliState with
+          currentPage = Darklang.Cli.Page.SubApp app
+          needsFullRedraw = true }
+
+
+let help (_state: Darklang.Cli.AppState) : Darklang.Cli.AppState =
+  [ "Usage: views [name|list]"
+    "Browse and preview available CLI views."
+    ""
+    "Views are interactive terminal dashboards and displays."
+    "Each view renders with demo data for quick previewing."
+    ""
+    "  views           Open interactive view browser"
+    "  views list      List available views"
+    "  views <name>    Render a specific view (e.g. views ai-chats)"
+    ""
+    "Interactive navigation:"
+    "  Up/Down    Select a view"
+    "  Enter      Open the selected view"
+    "  Escape     Back to list / exit"
+  ] |> Stdlib.printLines
+  _state
+
+
+let complete (_state: Darklang.Cli.AppState) (_args: List<String>) : List<Darklang.Cli.Completion.CompletionItem> =
+  let views = allViews ()
+  views
+  |> Stdlib.List.map (fun view ->
+    Darklang.Cli.Completion.CompletionItem
+      { value = Stdlib.String.toLowercase (Stdlib.String.replaceAll view.name " " "-")
+        display = Stdlib.String.toLowercase (Stdlib.String.replaceAll view.name " " "-") })
