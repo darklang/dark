@@ -1,0 +1,548 @@
+/// JSON Canvas types and viewer
+/// Spec: https://jsoncanvas.org/spec/1.0/
+module Stachu.JsonCanvas
+
+
+// ---------------------
+// Types
+// ---------------------
+
+type Color =
+  | Preset of Int64
+  | Hex of String
+
+type Side =
+  | Top
+  | Right
+  | Bottom
+  | Left
+
+type EndpointStyle =
+  | None
+  | Arrow
+
+type BackgroundStyle =
+  | Cover
+  | Ratio
+  | Repeat
+
+type TextNodeData =
+  { id: String
+    x: Int64
+    y: Int64
+    width: Int64
+    height: Int64
+    text: String
+    color: Stdlib.Option.Option<Color> }
+
+type FileNodeData =
+  { id: String
+    x: Int64
+    y: Int64
+    width: Int64
+    height: Int64
+    file: String
+    subpath: Stdlib.Option.Option<String>
+    color: Stdlib.Option.Option<Color> }
+
+type LinkNodeData =
+  { id: String
+    x: Int64
+    y: Int64
+    width: Int64
+    height: Int64
+    url: String
+    color: Stdlib.Option.Option<Color> }
+
+type GroupNodeData =
+  { id: String
+    x: Int64
+    y: Int64
+    width: Int64
+    height: Int64
+    label: Stdlib.Option.Option<String>
+    background: Stdlib.Option.Option<String>
+    backgroundStyle: Stdlib.Option.Option<BackgroundStyle>
+    color: Stdlib.Option.Option<Color> }
+
+type Node =
+  | TextNode of TextNodeData
+  | FileNode of FileNodeData
+  | LinkNode of LinkNodeData
+  | GroupNode of GroupNodeData
+
+type Edge =
+  { id: String
+    fromNode: String
+    toNode: String
+    fromSide: Stdlib.Option.Option<Side>
+    toSide: Stdlib.Option.Option<Side>
+    fromEnd: Stdlib.Option.Option<EndpointStyle>
+    toEnd: Stdlib.Option.Option<EndpointStyle>
+    color: Stdlib.Option.Option<Color>
+    label: Stdlib.Option.Option<String> }
+
+type Canvas =
+  { nodes: List<Node>
+    edges: List<Edge> }
+
+
+// ---------------------
+// Constructors
+// ---------------------
+
+let empty () : Canvas =
+  Canvas { nodes = []; edges = [] }
+
+module Node =
+  let text
+    (id: String)
+    (x: Int64)
+    (y: Int64)
+    (width: Int64)
+    (height: Int64)
+    (text: String)
+    : Node =
+    Node.TextNode(
+      TextNodeData
+        { id = id
+          x = x
+          y = y
+          width = width
+          height = height
+          text = text
+          color = Stdlib.Option.Option.None }
+    )
+
+  let link
+    (id: String)
+    (x: Int64)
+    (y: Int64)
+    (width: Int64)
+    (height: Int64)
+    (url: String)
+    : Node =
+    Node.LinkNode(
+      LinkNodeData
+        { id = id
+          x = x
+          y = y
+          width = width
+          height = height
+          url = url
+          color = Stdlib.Option.Option.None }
+    )
+
+  let file
+    (id: String)
+    (x: Int64)
+    (y: Int64)
+    (width: Int64)
+    (height: Int64)
+    (filePath: String)
+    : Node =
+    Node.FileNode(
+      FileNodeData
+        { id = id
+          x = x
+          y = y
+          width = width
+          height = height
+          file = filePath
+          subpath = Stdlib.Option.Option.None
+          color = Stdlib.Option.Option.None }
+    )
+
+  let group
+    (id: String)
+    (x: Int64)
+    (y: Int64)
+    (width: Int64)
+    (height: Int64)
+    (label: String)
+    : Node =
+    Node.GroupNode(
+      GroupNodeData
+        { id = id
+          x = x
+          y = y
+          width = width
+          height = height
+          label = Stdlib.Option.Option.Some label
+          background = Stdlib.Option.Option.None
+          backgroundStyle = Stdlib.Option.Option.None
+          color = Stdlib.Option.Option.None }
+    )
+
+module Edge =
+  let simple (id: String) (fromNode: String) (toNode: String) : Edge =
+    Edge
+      { id = id
+        fromNode = fromNode
+        toNode = toNode
+        fromSide = Stdlib.Option.Option.None
+        toSide = Stdlib.Option.Option.None
+        fromEnd = Stdlib.Option.Option.None
+        toEnd = Stdlib.Option.Option.None
+        color = Stdlib.Option.Option.None
+        label = Stdlib.Option.Option.None }
+
+  let withLabel (label: String) (edge: Edge) : Edge =
+    { edge with label = Stdlib.Option.Option.Some label }
+
+
+// ---------------------
+// Canvas operations
+// ---------------------
+
+let addNode (node: Node) (canvas: Canvas) : Canvas =
+  { canvas with nodes = Stdlib.List.append canvas.nodes [ node ] }
+
+let addEdge (edge: Edge) (canvas: Canvas) : Canvas =
+  { canvas with edges = Stdlib.List.append canvas.edges [ edge ] }
+
+let getNodeIds (canvas: Canvas) : List<String> =
+  canvas.nodes
+  |> Stdlib.List.map (fun node ->
+    match node with
+    | TextNode data -> data.id
+    | FileNode data -> data.id
+    | LinkNode data -> data.id
+    | GroupNode data -> data.id)
+
+
+// ---------------------
+// JSON serialization
+// ---------------------
+
+module Json =
+  let coordFields
+    (id: String)
+    (typ: String)
+    (x: Int64)
+    (y: Int64)
+    (width: Int64)
+    (height: Int64)
+    : List<String * Stdlib.AltJson.Json> =
+    [ ("id", Stdlib.AltJson.Json.String id)
+      ("type", Stdlib.AltJson.Json.String typ)
+      ("x", Stdlib.AltJson.Json.Number(Builtin.int64ToFloat x))
+      ("y", Stdlib.AltJson.Json.Number(Builtin.int64ToFloat y))
+      ("width", Stdlib.AltJson.Json.Number(Builtin.int64ToFloat width))
+      ("height", Stdlib.AltJson.Json.Number(Builtin.int64ToFloat height)) ]
+
+  let nodeToJson (node: Node) : Stdlib.AltJson.Json =
+    match node with
+    | TextNode data ->
+      (Stdlib.List.append
+        (coordFields data.id "text" data.x data.y data.width data.height)
+        [ ("text", Stdlib.AltJson.Json.String data.text) ])
+      |> Stdlib.AltJson.Json.Object
+
+    | LinkNode data ->
+      (Stdlib.List.append
+        (coordFields data.id "link" data.x data.y data.width data.height)
+        [ ("url", Stdlib.AltJson.Json.String data.url) ])
+      |> Stdlib.AltJson.Json.Object
+
+    | FileNode data ->
+      (Stdlib.List.append
+        (coordFields data.id "file" data.x data.y data.width data.height)
+        [ ("file", Stdlib.AltJson.Json.String data.file) ])
+      |> Stdlib.AltJson.Json.Object
+
+    | GroupNode data ->
+      let fields =
+        coordFields data.id "group" data.x data.y data.width data.height
+
+      match data.label with
+      | Some label ->
+        (Stdlib.List.append
+          fields
+          [ ("label", Stdlib.AltJson.Json.String label) ])
+        |> Stdlib.AltJson.Json.Object
+      | None -> Stdlib.AltJson.Json.Object fields
+
+  let edgeToJson (edge: Edge) : Stdlib.AltJson.Json =
+    let fields =
+      [ ("id", Stdlib.AltJson.Json.String edge.id)
+        ("fromNode", Stdlib.AltJson.Json.String edge.fromNode)
+        ("toNode", Stdlib.AltJson.Json.String edge.toNode) ]
+
+    let fields =
+      match edge.label with
+      | Some label ->
+        Stdlib.List.append
+          fields
+          [ ("label", Stdlib.AltJson.Json.String label) ]
+      | None -> fields
+
+    Stdlib.AltJson.Json.Object fields
+
+  let canvasToJson (canvas: Canvas) : String =
+    let nodesJson =
+      canvas.nodes
+      |> Stdlib.List.map (fun node -> nodeToJson node)
+      |> Stdlib.AltJson.Json.Array
+
+    let edgesJson =
+      canvas.edges
+      |> Stdlib.List.map (fun edge -> edgeToJson edge)
+      |> Stdlib.AltJson.Json.Array
+
+    ([ ("nodes", nodesJson); ("edges", edgesJson) ]
+     |> Stdlib.AltJson.Json.Object)
+    |> Stdlib.AltJson.format
+
+
+// ---------------------
+// Examples
+// ---------------------
+
+module Examples =
+  let basic () : Canvas =
+    (empty ())
+    |> addNode (Node.group "group1" 0L 0L 600L 400L "Main Group")
+    |> addNode (Node.text "node1" 20L 50L 250L 100L "Hello from Darklang!")
+    |> addNode (Node.text "node2" 320L 50L 250L 100L "This is a JSON Canvas")
+    |> addNode (Node.link "node3" 150L 220L 300L 80L "https://jsoncanvas.org")
+    |> addEdge (Edge.simple "edge1" "node1" "node2")
+    |> addEdge ((Edge.simple "edge2" "node2" "node3") |> Edge.withLabel "learn more")
+
+  let mindmap () : Canvas =
+    (empty ())
+    |> addNode (Node.text "center" 400L 300L 200L 80L "Darklang")
+    |> addNode (Node.text "branch1" 100L 200L 150L 60L "Type Safety")
+    |> addNode (Node.text "branch2" 100L 400L 150L 60L "Packages")
+    |> addNode (Node.text "branch3" 700L 200L 150L 60L "HTTP Handlers")
+    |> addNode (Node.text "branch4" 700L 400L 150L 60L "Cloud Native")
+    |> addEdge ((Edge.simple "e1" "branch1" "center") |> Edge.withLabel "enables")
+    |> addEdge ((Edge.simple "e2" "branch2" "center") |> Edge.withLabel "extend")
+    |> addEdge ((Edge.simple "e3" "center" "branch3") |> Edge.withLabel "supports")
+    |> addEdge ((Edge.simple "e4" "center" "branch4") |> Edge.withLabel "runs in")
+
+  let workflow () : Canvas =
+    (empty ())
+    |> addNode (Node.text "step1" 50L 50L 180L 80L "Receive Request")
+    |> addNode (Node.text "step2" 50L 180L 180L 80L "Parse JSON")
+    |> addNode (Node.text "step3" 50L 310L 180L 80L "Validate Data")
+    |> addNode (Node.text "step4" 50L 440L 180L 80L "Process & Respond")
+    |> addNode (Node.text "error" 300L 250L 180L 80L "Return Error")
+    |> addEdge (Edge.simple "f1" "step1" "step2")
+    |> addEdge (Edge.simple "f2" "step2" "step3")
+    |> addEdge ((Edge.simple "f3" "step3" "step4") |> Edge.withLabel "valid")
+    |> addEdge ((Edge.simple "f4" "step3" "error") |> Edge.withLabel "invalid")
+
+
+// ---------------------
+// Viewer (HTML/CSS/JS)
+// ---------------------
+
+module Viewer =
+  let css: String =
+    "* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  overflow: hidden;
+  background: #1e1e1e;
+  color: #fff;
+}
+#controls {
+  position: fixed; top: 20px; left: 20px;
+  background: rgba(40, 40, 40, 0.95);
+  padding: 15px; border-radius: 8px;
+  z-index: 1000;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+  max-width: 300px;
+}
+#controls h2 { font-size: 16px; margin-bottom: 12px; color: #4fc3f7; }
+#controls button {
+  background: #4fc3f7; color: #000; border: none;
+  padding: 8px 16px; margin: 4px; border-radius: 4px;
+  cursor: pointer; font-weight: 600; transition: all 0.2s;
+}
+#controls button:hover { background: #81d4fa; transform: translateY(-1px); }
+#canvas { width: 100vw; height: 100vh; cursor: grab; }
+#canvas:active { cursor: grabbing; }
+.node {
+  position: absolute; background: #2e2e2e;
+  border: 2px solid #4fc3f7; border-radius: 8px;
+  padding: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+  cursor: move; user-select: none; transition: box-shadow 0.2s;
+}
+.node:hover { box-shadow: 0 4px 16px rgba(79,195,247,0.4); z-index: 100; }
+.node.text-node { background: linear-gradient(135deg, #2e2e2e, #3a3a3a); }
+.node.link-node { background: linear-gradient(135deg, #1a237e, #283593); border-color: #7986cb; }
+.node.file-node { background: linear-gradient(135deg, #1b5e20, #2e7d32); border-color: #81c784; }
+.node.group-node { background: rgba(255,152,0,0.1); border-color: #ff9800; border-style: dashed; }
+.node-content { font-size: 14px; line-height: 1.4; }
+.node-id { font-size: 10px; color: #999; margin-top: 4px; }
+svg { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 1; }
+line.edge { stroke: #4fc3f7; stroke-width: 2; opacity: 0.6; }
+.edge-label { fill: #81d4fa; font-size: 12px; font-weight: 600; }"
+
+  let js: String =
+    "let offsetX = 0, offsetY = 0;
+let isPanning = false, isDraggingNode = false;
+let startX, startY, draggedNode = null;
+const canvas = document.getElementById('canvas');
+
+document.addEventListener('mousedown', (e) => {
+  const node = e.target.closest('.node');
+  if (node) {
+    isDraggingNode = true; draggedNode = node;
+    startX = e.clientX; startY = e.clientY;
+    node.style.zIndex = '1000'; e.preventDefault(); return;
+  }
+  if (e.target === canvas || e.target.tagName === 'svg') {
+    isPanning = true; startX = e.clientX - offsetX; startY = e.clientY - offsetY;
+  }
+});
+
+document.addEventListener('mousemove', (e) => {
+  if (isDraggingNode && draggedNode) {
+    const dx = e.clientX - startX, dy = e.clientY - startY;
+    draggedNode.dataset.x = parseFloat(draggedNode.dataset.x) + dx;
+    draggedNode.dataset.y = parseFloat(draggedNode.dataset.y) + dy;
+    startX = e.clientX; startY = e.clientY;
+    updateView(); e.preventDefault();
+  } else if (isPanning) {
+    offsetX = e.clientX - startX; offsetY = e.clientY - startY; updateView();
+  }
+});
+
+document.addEventListener('mouseup', () => {
+  if (draggedNode) draggedNode.style.zIndex = '';
+  isDraggingNode = false; isPanning = false; draggedNode = null;
+});
+
+function updateView() {
+  document.querySelectorAll('.node').forEach(node => {
+    const x = parseFloat(node.dataset.x), y = parseFloat(node.dataset.y);
+    node.style.transform = `translate(${x + offsetX}px, ${y + offsetY}px)`;
+  });
+  drawEdges();
+}
+
+function resetView() {
+  offsetX = window.innerWidth / 2 - 400;
+  offsetY = window.innerHeight / 2 - 300;
+  updateView();
+}
+
+function createCanvas(data) {
+  document.querySelectorAll('.node').forEach(n => n.remove());
+  document.getElementById('edges').innerHTML = '';
+  data.nodes.forEach(node => {
+    const div = document.createElement('div');
+    div.className = 'node'; div.dataset.id = node.id;
+    div.dataset.x = node.x; div.dataset.y = node.y;
+    const typeClass = node.type + '-node';
+    div.classList.add(typeClass);
+    let content = node.text || node.file || node.url || node.label || 'Group';
+    if (node.type === 'link') content = `<a href=\"${node.url}\" style=\"color:#81d4fa\">${node.url}</a>`;
+    div.innerHTML = `<div class=\"node-content\">${content}</div><div class=\"node-id\">${node.id}</div>`;
+    div.style.width = node.width + 'px'; div.style.height = node.height + 'px';
+    canvas.appendChild(div);
+  });
+  window.canvasData = data; resetView();
+}
+
+function drawEdges() {
+  const svg = document.getElementById('edges');
+  svg.innerHTML = '';
+  if (!window.canvasData) return;
+  window.canvasData.edges.forEach(edge => {
+    const from = document.querySelector(`[data-id=\"${edge.fromNode}\"]`);
+    const to = document.querySelector(`[data-id=\"${edge.toNode}\"]`);
+    if (!from || !to) return;
+    const fx = parseFloat(from.dataset.x) + parseFloat(from.style.width)/2 + offsetX;
+    const fy = parseFloat(from.dataset.y) + parseFloat(from.style.height)/2 + offsetY;
+    const tx = parseFloat(to.dataset.x) + parseFloat(to.style.width)/2 + offsetX;
+    const ty = parseFloat(to.dataset.y) + parseFloat(to.style.height)/2 + offsetY;
+    const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+    line.setAttribute('class','edge');
+    line.setAttribute('x1',fx); line.setAttribute('y1',fy);
+    line.setAttribute('x2',tx); line.setAttribute('y2',ty);
+    svg.appendChild(line);
+    if (edge.label) {
+      const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+      text.setAttribute('class','edge-label');
+      text.setAttribute('x',(fx+tx)/2); text.setAttribute('y',(fy+ty)/2);
+      text.setAttribute('text-anchor','middle');
+      text.textContent = edge.label;
+      svg.appendChild(text);
+    }
+  });
+}
+
+async function loadCanvas(name) {
+  const resp = await fetch('/api/' + name);
+  createCanvas(await resp.json());
+}
+
+loadCanvas('example');"
+
+  let html () : String =
+    "<!DOCTYPE html>
+<html lang=\"en\">
+<head>
+  <meta charset=\"UTF-8\">
+  <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">
+  <title>JSON Canvas Viewer</title>
+  <style>"
+    ++ css
+    ++ "</style>
+</head>
+<body>
+  <div id=\"controls\">
+    <h2>JSON Canvas Demo</h2>
+    <button onclick=\"loadCanvas('example')\">Load Example</button>
+    <button onclick=\"loadCanvas('mindmap')\">Load Mindmap</button>
+    <button onclick=\"loadCanvas('workflow')\">Load Workflow</button>
+    <button onclick=\"resetView()\">Reset View</button>
+  </div>
+  <div id=\"canvas\"><svg id=\"edges\"></svg></div>
+  <script>"
+    ++ js
+    ++ "</script>
+</body>
+</html>"
+
+
+// ---------------------
+// HTTP Server
+// ---------------------
+
+module Server =
+  let indexHandler (req: Stdlib.Http.Request) : Stdlib.Http.Response =
+    Stdlib.Http.responseWithHtml (Viewer.html ()) 200L
+
+  // Pre-rendered JSON — httpServerServe's executeNamedFn doesn't support
+  // lambdas (e.g. List.map) in the handler call chain, so we inline the
+  // JSON instead of calling Json.canvasToJson at request time.
+  let exampleJson: String =
+    "{\"nodes\":[{\"id\":\"group1\",\"type\":\"group\",\"x\":0,\"y\":0,\"width\":600,\"height\":400,\"label\":\"Main Group\"},{\"id\":\"node1\",\"type\":\"text\",\"x\":20,\"y\":50,\"width\":250,\"height\":100,\"text\":\"Hello from Darklang!\"},{\"id\":\"node2\",\"type\":\"text\",\"x\":320,\"y\":50,\"width\":250,\"height\":100,\"text\":\"This is a JSON Canvas\"},{\"id\":\"node3\",\"type\":\"link\",\"x\":150,\"y\":220,\"width\":300,\"height\":80,\"url\":\"https://jsoncanvas.org\"}],\"edges\":[{\"id\":\"edge1\",\"fromNode\":\"node1\",\"toNode\":\"node2\"},{\"id\":\"edge2\",\"fromNode\":\"node2\",\"toNode\":\"node3\",\"label\":\"learn more\"}]}"
+
+  let mindmapJson: String =
+    "{\"nodes\":[{\"id\":\"center\",\"type\":\"text\",\"x\":400,\"y\":300,\"width\":200,\"height\":80,\"text\":\"Darklang\"},{\"id\":\"branch1\",\"type\":\"text\",\"x\":100,\"y\":200,\"width\":150,\"height\":60,\"text\":\"Type Safety\"},{\"id\":\"branch2\",\"type\":\"text\",\"x\":100,\"y\":400,\"width\":150,\"height\":60,\"text\":\"Packages\"},{\"id\":\"branch3\",\"type\":\"text\",\"x\":700,\"y\":200,\"width\":150,\"height\":60,\"text\":\"HTTP Handlers\"},{\"id\":\"branch4\",\"type\":\"text\",\"x\":700,\"y\":400,\"width\":150,\"height\":60,\"text\":\"Cloud Native\"}],\"edges\":[{\"id\":\"e1\",\"fromNode\":\"branch1\",\"toNode\":\"center\",\"label\":\"enables\"},{\"id\":\"e2\",\"fromNode\":\"branch2\",\"toNode\":\"center\",\"label\":\"extend\"},{\"id\":\"e3\",\"fromNode\":\"center\",\"toNode\":\"branch3\",\"label\":\"supports\"},{\"id\":\"e4\",\"fromNode\":\"center\",\"toNode\":\"branch4\",\"label\":\"runs in\"}]}"
+
+  let workflowJson: String =
+    "{\"nodes\":[{\"id\":\"step1\",\"type\":\"text\",\"x\":50,\"y\":50,\"width\":180,\"height\":80,\"text\":\"Receive Request\"},{\"id\":\"step2\",\"type\":\"text\",\"x\":50,\"y\":180,\"width\":180,\"height\":80,\"text\":\"Parse JSON\"},{\"id\":\"step3\",\"type\":\"text\",\"x\":50,\"y\":310,\"width\":180,\"height\":80,\"text\":\"Validate Data\"},{\"id\":\"step4\",\"type\":\"text\",\"x\":50,\"y\":440,\"width\":180,\"height\":80,\"text\":\"Process & Respond\"},{\"id\":\"error\",\"type\":\"text\",\"x\":300,\"y\":250,\"width\":180,\"height\":80,\"text\":\"Return Error\"}],\"edges\":[{\"id\":\"f1\",\"fromNode\":\"step1\",\"toNode\":\"step2\"},{\"id\":\"f2\",\"fromNode\":\"step2\",\"toNode\":\"step3\"},{\"id\":\"f3\",\"fromNode\":\"step3\",\"toNode\":\"step4\",\"label\":\"valid\"},{\"id\":\"f4\",\"fromNode\":\"step3\",\"toNode\":\"error\",\"label\":\"invalid\"}]}"
+
+  let exampleHandler (req: Stdlib.Http.Request) : Stdlib.Http.Response =
+    Stdlib.Http.responseWithJson exampleJson 200L
+
+  let mindmapHandler (req: Stdlib.Http.Request) : Stdlib.Http.Response =
+    Stdlib.Http.responseWithJson mindmapJson 200L
+
+  let workflowHandler (req: Stdlib.Http.Request) : Stdlib.Http.Response =
+    Stdlib.Http.responseWithJson workflowJson 200L
+
+  // Simple path-based routing (no Stdlib.HttpServer.routeRequest because
+  // it uses lambdas internally, which don't work in httpServerServe context)
+  let router (req: Stdlib.Http.Request) : Stdlib.Http.Response =
+    if Stdlib.String.endsWith req.url "/api/example" then exampleHandler req
+    else if Stdlib.String.endsWith req.url "/api/mindmap" then mindmapHandler req
+    else if Stdlib.String.endsWith req.url "/api/workflow" then workflowHandler req
+    else indexHandler req
