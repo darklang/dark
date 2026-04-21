@@ -9,7 +9,9 @@ open LibDB.Db
 
 module Dval = LibExecution.Dval
 module PT = LibExecution.ProgramTypes
+module PT2DT = LibExecution.ProgramTypesToDarkTypes
 module VT = LibExecution.ValueType
+module NR = LibExecution.RuntimeTypes.NameResolution
 module Canvas = LibCloud.Canvas
 module Serialize = LibCloud.Serialize
 module Account = LibCloud.Account
@@ -22,12 +24,16 @@ let fns () : List<BuiltInFn> =
       parameters =
         [ Param.make "canvasID" TUuid "The canvas to add the DB to"
           Param.make "dbName" TString "Name of the database"
-          Param.make "typeHash" TString "Hash of the type stored in this DB" ]
+          Param.make
+            "typeHash"
+            (TCustomType(NR.ok (PT2DT.Hash.typeName ()), []))
+            "Hash of the type stored in this DB" ]
       returnType = TypeReference.result TUInt64 TString
       description = "Creates a new database in the specified canvas"
       fn =
         (function
-        | _, _, _, [ DUuid canvasID; DString dbName; DString typeHash ] ->
+        | _, _, _, [ DUuid canvasID; DString dbName; typeHashDval ] ->
+          let typeHash = PT2DT.Hash.fromDT typeHashDval
           uply {
             // Check for existing DB with the same name
             let! existing =
@@ -56,7 +62,7 @@ let fns () : List<BuiltInFn> =
                   typ =
                     PT.TypeReference.TCustomType(
                       { originalName = []
-                        resolved = Ok(PT.FQTypeName.Package(PT.Hash typeHash)) },
+                        resolved = Ok(PT.FQTypeName.Package typeHash) },
                       []
                     ) }
 
