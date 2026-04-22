@@ -879,9 +879,8 @@ module RuntimeError =
     | ValueNotFound of name : FQValueName.FQValueName
 
     /// Raised when calling a package fn whose hash is currently marked
-    /// `Harmful` by a `Deprecate` op. Overridable by constructing
-    /// `ExecutionState` with `deprecations.allowHarmful = true`, or passing
-    /// `--allow-harmful` to `run`/`eval`.
+    /// `Harmful` by a `Deprecate` op. Overridable via `ExecutionState.allowHarmful`
+    /// (e.g. `run --allow-harmful`, `eval --allow-harmful`).
     | DeprecatedItemHalted of target : FQFnName.Package
 
     | WrongNumberOfTypeArgsForType of
@@ -1530,9 +1529,7 @@ and Functions =
   {
     builtIn : Map<FQFnName.Builtin, BuiltInFn>
     package : FQFnName.Package -> Ply<Option<PackageFn.PackageFn>>
-    /// Branch-baked proxy for `PackageManager.isHarmful`. The PM is the
-    /// semantic home; this closure just has the ExecutionState's branchId
-    /// pre-applied so the interpreter's call site stays terse.
+    /// `PackageManager.isHarmful` with the state's branchId pre-applied.
     isHarmful : FQFnName.Package -> Ply<bool>
   }
 

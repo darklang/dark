@@ -46,7 +46,6 @@ let createState
     fns =
       { builtIn = builtins.fns
         package = pm.getFn
-        // Pre-apply branchId so the interpreter's hook site is terse.
         isHarmful = fun pkg -> pm.isHarmful branchId pkg }
 
     allowHarmful = false }

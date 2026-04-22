@@ -82,8 +82,6 @@ let createState
         printException "[exception]" metadata exn
       }
 
-    // Cloud handlers are user-facing — never auto-allow harmful items;
-    // the default `allowHarmful = false` from `createState` is correct.
     return
       Exe.createState
         builtins

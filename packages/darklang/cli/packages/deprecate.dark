@@ -1,11 +1,10 @@
 module Darklang.Cli.Packages.Deprecate
 
-// `deprecate` marks a fn/type/value as deprecated. See
-// thinking/deprecation-redesign.md for the full design.
+// `deprecate` marks a fn/type/value as deprecated.
 //
 // TODO (v1.5): interactive kind picker when stdin is a TTY and --kind is
-//   missing (reuse CompletionPicker; see design-doc "Interactive form").
-// TODO (v1.5): `--json` output for agents — shape sketched in the design doc.
+//   missing (reuse CompletionPicker).
+// TODO (v1.5): `--json` output for agents.
 
 
 type ParsedArgs =

@@ -1,8 +1,28 @@
 module Darklang.Cli.Packages.View
 
 
+/// Resolve a replacement Reference to a human-readable location name for the
+/// current branch, falling back to a short hash if no location is bound.
+let resolveReplacementName
+  (branchId: Uuid)
+  (ref: LanguageTools.ProgramTypes.Reference)
+  : String =
+  let ctx = PrettyPrinter.ProgramTypes.Context.forBranch branchId
+  let locs =
+    match ref with
+    | RefPackageFn h -> Builtin.pmGetLocationsByFn branchId h
+    | RefPackageType h -> Builtin.pmGetLocationsByType branchId h
+    | RefPackageValue h -> Builtin.pmGetLocationsByValue branchId h
+  match Darklang.LanguageTools.PackageManager.pickLocation
+          (PrettyPrinter.ProgramTypes.Context.toPickContext ctx)
+          locs with
+  | Some loc ->
+    PrettyPrinter.ProgramTypes.PackageLocation.packageLocation loc
+  | None ->
+    $"<hash:{LanguageTools.ProgramTypes.hashToShort ref.hash}>"
+
+
 /// Print a deprecation header for an item, if any.
-/// For `superseded-by`, resolves the replacement hash to a human name.
 let printDeprecationHeaderFor
   (branchId: Uuid)
   (hash: LanguageTools.ProgramTypes.Hash)
@@ -11,32 +31,17 @@ let printDeprecationHeaderFor
   match Builtin.pmGetCurrentDeprecation branchId hash itemKind with
   | None -> ()
   | Some tuple ->
-    let (kindTag, message) = tuple
+    let (kind, message) = tuple
     let (header, replacementLine) =
-      if Stdlib.String.startsWith kindTag "superseded-by:" then
-        // kindTag is "superseded-by:<hex hash>"; resolve to a location name if we can.
-        let replHashStr = Stdlib.String.dropFirst kindTag 14L
-        let replHash = LanguageTools.ProgramTypes.Hash.Hash replHashStr
-        let ctx = PrettyPrinter.ProgramTypes.Context.forBranch branchId
-        // Try each kind of locations query; one will succeed for a real item.
-        let locs =
-          match itemKind with
-          | Fn -> Builtin.pmGetLocationsByFn branchId replHash
-          | Type -> Builtin.pmGetLocationsByType branchId replHash
-          | Value -> Builtin.pmGetLocationsByValue branchId replHash
-        let replName =
-          match Darklang.LanguageTools.PackageManager.pickLocation
-                  (PrettyPrinter.ProgramTypes.Context.toPickContext ctx)
-                  locs with
-          | Some loc ->
-            PrettyPrinter.ProgramTypes.PackageLocation.packageLocation loc
-          | None -> $"<hash:{LanguageTools.ProgramTypes.hashToShort replHash}>"
+      match kind with
+      | SupersededBy ref ->
+        let replName = resolveReplacementName branchId ref
         ( "DEPRECATED (superseded)"
         , Stdlib.Option.Option.Some $"   → use {replName} instead" )
-      else if kindTag == "harmful" then
+      | Harmful ->
         ( "DEPRECATED (HARMFUL — runtime will halt)"
         , Stdlib.Option.Option.None )
-      else
+      | Obsolete ->
         ( "DEPRECATED (obsolete)"
         , Stdlib.Option.Option.None )
     Stdlib.printLine (Colors.warning $"⚠ {header}")

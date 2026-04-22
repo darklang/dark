@@ -670,7 +670,7 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
 
     // Deprecated hashes with no live caller — the set ls/tree/search should
     // hide by default. "Live caller" means a non-deprecated item that
-    // references this one. See thinking/deprecation-redesign.md visibility rule.
+    // references this one.
     { name = fn "pmGetHiddenDeprecatedHashes" 0
       typeParams = []
       parameters = [ Param.make "branchId" TUuid "Branch context" ]
@@ -697,9 +697,9 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
 
 
     // Current deprecation state for a package item on a branch chain.
-    // Returns None if the item isn't currently deprecated (or was explicitly
-    // un-deprecated on the branch). Returns Some (kindTag, message) where
-    // kindTag is one of "superseded-by:<hash>", "harmful", or "obsolete".
+    // None = not deprecated on this chain (or explicitly un-deprecated by a
+    // child branch). Some (kind, message) returns the Dark-side
+    // DeprecationKind enum so callers can format it however they want.
     { name = fn "pmGetCurrentDeprecation" 0
       typeParams = []
       parameters =
@@ -709,10 +709,17 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
             "itemKind"
             (TCustomType(NR.ok (PT2DT.ItemKind.typeName ()), []))
             "fn, type, or value" ]
-      returnType = TypeReference.option (TTuple(TString, TString, []))
+      returnType =
+        TypeReference.option (
+          TTuple(
+            TCustomType(NR.ok (PT2DT.DeprecationKind.typeName ()), []),
+            TString,
+            []
+          )
+        )
       description =
         "Current deprecation state for an item on the branch chain. "
-        + "None = not deprecated. Some ((kindTag, message)) otherwise."
+        + "None = not deprecated. Some ((kind, message)) otherwise."
       fn =
         (function
         | _, _, _, [ DUuid branchId; hashDval; itemKindDval ] ->
@@ -725,21 +732,19 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
                 branchChain
                 hash
                 itemKind
-            let tupleKT = KTTuple(VT.known KTString, VT.known KTString, [])
+            let tupleKT =
+              KTTuple(
+                VT.known (PT2DT.DeprecationKind.knownType ()),
+                VT.known KTString,
+                []
+              )
             match result with
             | None -> return Dval.optionNone tupleKT
             | Some(kind, message) ->
-              let kindTag =
-                match kind with
-                | PT.Harmful -> "harmful"
-                | PT.Obsolete -> "obsolete"
-                | PT.SupersededBy ref ->
-                  let (PT.Hash h) = ref.hash
-                  $"superseded-by:{h}"
               return
                 Dval.optionSome
                   tupleKT
-                  (DTuple(DString kindTag, DString message, []))
+                  (DTuple(PT2DT.DeprecationKind.toDT kind, DString message, []))
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable

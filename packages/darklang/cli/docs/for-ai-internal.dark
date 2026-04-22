@@ -39,6 +39,13 @@ to catch failures early without waiting for the full run.
 ## Style
   `///` for doc comments on types/DU cases/fns (both F# and Dark); `//` for inline notes.
 
+## Stringify in Dark, not F#
+Builtins should return structured Dark values (enums, records) — not pre-
+rendered strings or string tags. Dark-side code formats for display. Don't
+build strings like "superseded-by:<hash>" in F# for a Dark caller to parse;
+return the DeprecationKind enum directly. The only valid F#-side stringify
+is when the value genuinely has no Dark-side type (very rare).
+
 ## Adding CLI Command (Darklang)
   1. packages/darklang/cli/commands/<name>.dark
   2. Implement: execute, help, complete

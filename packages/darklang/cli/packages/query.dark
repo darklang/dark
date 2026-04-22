@@ -54,7 +54,7 @@ let getDirectSubmodules (results: LanguageTools.ProgramTypes.Search.SearchResult
   |> Stdlib.List.sort
 
 
-/// Deprecation filters for `ls`/`tree`/`search`. See thinking/deprecation-redesign.md.
+/// Deprecation filters for `ls`/`tree`/`search`.
 ///
 /// Default (includeDeprecated = false):
 ///   * Items whose hash is in "hidden" (deprecated AND no live caller) are dropped.

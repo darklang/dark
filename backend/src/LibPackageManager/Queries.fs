@@ -674,12 +674,12 @@ let getHiddenDeprecatedHashes (branchChain : List<PT.BranchId>) : Task<Set<Hash>
 
 
 /// Load the set of package fn hashes currently marked `Harmful` on a
-/// branch chain. Used by ExecutionState to populate the runtime-gating
-/// snapshot (see thinking/deprecation-redesign.md + RT.DeprecationPolicy).
+/// branch chain. Backs `PackageManager.isHarmful` via a per-branch cache,
+/// which the interpreter consults before each package-fn call.
 ///
 /// Logic mirrors `getAllPreviousHashes`:
 /// - scope to branch chain
-/// - latest non-superseded row wins (idx `unlisted_at IS NULL`)
+/// - latest non-superseded row wins (`unlisted_at IS NULL`)
 /// - state = 'deprecated' with a Harmful annotation
 let getHarmfulFnHashes (branchChain : List<PT.BranchId>) : Task<Set<Hash>> =
   task {

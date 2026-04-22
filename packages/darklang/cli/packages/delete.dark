@@ -1,8 +1,7 @@
 module Darklang.Cli.Packages.Delete
 
 // `delete` is sugar for `deprecate --kind obsolete`, with one extra guardrail:
-// it requires `--force` when the target has live dependents. See
-// thinking/deprecation-redesign.md.
+// it requires `--force` when the target has live dependents.
 //
 // TODO (v1.5): `--json` output for agents, matching `deprecate`.
 

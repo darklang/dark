@@ -387,9 +387,6 @@ module TypeDeclaration =
 
 
 // Package space
-//
-// Deprecation is no longer a field on package items — it's tracked by
-// Deprecate/Undeprecate ops (see thinking/deprecation-redesign.md).
 module PackageType =
   type PackageType =
     { hash: FQTypeName.Package

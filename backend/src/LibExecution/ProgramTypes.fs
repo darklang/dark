@@ -607,9 +607,6 @@ type PackageLocation =
     name : string }
 
 module PackageType =
-  // Deprecation is no longer a field on package items — it's an author-initiated
-  // annotation tracked by Deprecate/Undeprecate ops in the `deprecations` table.
-  // See thinking/deprecation-redesign.md.
   type PackageType =
     { hash : FQTypeName.Package
       declaration : TypeDeclaration.T
