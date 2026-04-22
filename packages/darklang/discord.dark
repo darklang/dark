@@ -1,0 +1,264 @@
+module Darklang.Discord
+
+
+/// A field within a Discord embed.
+type EmbedField =
+  { name: String
+    value: String
+    /// If Some true, the field renders side-by-side with adjacent inline fields.
+    isInline: Stdlib.Option.Option<Bool> }
+
+
+type EmbedFooter =
+  { text: String
+    iconUrl: Stdlib.Option.Option<String> }
+
+
+type EmbedAuthor =
+  { name: String
+    url: Stdlib.Option.Option<String>
+    iconUrl: Stdlib.Option.Option<String> }
+
+
+/// A rich embed - the colored card with title/fields/etc.
+type Embed =
+  { title: Stdlib.Option.Option<String>
+    description: Stdlib.Option.Option<String>
+    url: Stdlib.Option.Option<String>
+    /// ISO8601 timestamp string, e.g. from Stdlib.DateTime.toString.
+    timestamp: Stdlib.Option.Option<String>
+    /// Sidebar color as a decimal RGB integer, e.g. 0xFF0000 = 16711680 = red.
+    color: Stdlib.Option.Option<Int64>
+    footer: Stdlib.Option.Option<EmbedFooter>
+    imageUrl: Stdlib.Option.Option<String>
+    thumbnailUrl: Stdlib.Option.Option<String>
+    author: Stdlib.Option.Option<EmbedAuthor>
+    fields: List<EmbedField> }
+
+
+/// Controls who can be mentioned by a message. When the message body
+/// (or an embed) is built from external/user input, prefer SuppressAll
+/// to prevent payload-driven @everyone pings.
+type AllowedMentions =
+  /// {{ "parse": [] }} - no mentions are honored at all.
+  | SuppressAll
+  /// Allow only the listed user/role IDs (snowflakes as strings).
+  /// `everyone` controls whether @everyone / @here also fire.
+  | AllowSpecific of
+    users: List<String> *
+    roles: List<String> *
+    everyone: Bool
+
+
+/// A message to post to a Discord webhook.
+/// At least one of `content` or `embeds` must be present (Discord rejects
+/// empty messages). The other fields override the default identity
+/// configured on the webhook itself.
+type Message =
+  { content: Stdlib.Option.Option<String>
+    username: Stdlib.Option.Option<String>
+    avatarUrl: Stdlib.Option.Option<String>
+    tts: Stdlib.Option.Option<Bool>
+    embeds: List<Embed>
+    allowedMentions: Stdlib.Option.Option<AllowedMentions> }
+
+
+type Error =
+  /// The HTTP request itself failed (DNS, network, malformed URL, ...).
+  | RequestFailed of Stdlib.HttpClient.RequestError
+  /// Discord returned a non-2xx response.
+  /// Common cases: 401 invalid token, 404 unknown webhook, 429 rate limited.
+  | DiscordError of statusCode: Int64 * body: String
+
+
+let toString (e: Error) : String =
+  match e with
+  | RequestFailed re ->
+    "HTTP request failed: " ++ Stdlib.HttpClient.toString re
+  | DiscordError(code, body) ->
+    $"Discord returned {Stdlib.Int64.toString code}: {body}"
+
+
+/// Build a minimal message with just text content.
+let message (content: String) : Message =
+  Message
+    { content = Stdlib.Option.Option.Some content
+      username = Stdlib.Option.Option.None
+      avatarUrl = Stdlib.Option.Option.None
+      tts = Stdlib.Option.Option.None
+      embeds = []
+      allowedMentions = Stdlib.Option.Option.None }
+
+
+/// Build a message containing a single embed and no text content.
+let embed (e: Embed) : Message =
+  Message
+    { content = Stdlib.Option.Option.None
+      username = Stdlib.Option.Option.None
+      avatarUrl = Stdlib.Option.Option.None
+      tts = Stdlib.Option.Option.None
+      embeds = [ e ]
+      allowedMentions = Stdlib.Option.Option.None }
+
+
+/// Build a minimal embed with just a title and description.
+let textEmbed (title: String) (description: String) : Embed =
+  Embed
+    { title = Stdlib.Option.Option.Some title
+      description = Stdlib.Option.Option.Some description
+      url = Stdlib.Option.Option.None
+      timestamp = Stdlib.Option.Option.None
+      color = Stdlib.Option.Option.None
+      footer = Stdlib.Option.Option.None
+      imageUrl = Stdlib.Option.Option.None
+      thumbnailUrl = Stdlib.Option.Option.None
+      author = Stdlib.Option.Option.None
+      fields = [] }
+
+
+/// Construct an embed field that renders on its own line.
+let field (name: String) (value: String) : EmbedField =
+  EmbedField
+    { name = name
+      value = value
+      isInline = Stdlib.Option.Option.None }
+
+
+/// Construct an embed field that renders side-by-side with adjacent
+/// inline fields (Discord packs up to 3 per row).
+let inlineField (name: String) (value: String) : EmbedField =
+  EmbedField
+    { name = name
+      value = value
+      isInline = Stdlib.Option.Option.Some true }
+
+
+let embedFieldToJson (f: EmbedField) : Stdlib.AltJson.Json =
+  Stdlib.AltJson.Builder.empty
+  |> Stdlib.AltJson.Builder.addString "name" f.name
+  |> Stdlib.AltJson.Builder.addString "value" f.value
+  |> Stdlib.AltJson.Builder.addOptionalBool "inline" f.isInline
+  |> Stdlib.AltJson.Builder.toJson
+
+
+let embedFooterToJson (f: EmbedFooter) : Stdlib.AltJson.Json =
+  Stdlib.AltJson.Builder.empty
+  |> Stdlib.AltJson.Builder.addString "text" f.text
+  |> Stdlib.AltJson.Builder.addOptionalString "icon_url" f.iconUrl
+  |> Stdlib.AltJson.Builder.toJson
+
+
+let embedAuthorToJson (a: EmbedAuthor) : Stdlib.AltJson.Json =
+  Stdlib.AltJson.Builder.empty
+  |> Stdlib.AltJson.Builder.addString "name" a.name
+  |> Stdlib.AltJson.Builder.addOptionalString "url" a.url
+  |> Stdlib.AltJson.Builder.addOptionalString "icon_url" a.iconUrl
+  |> Stdlib.AltJson.Builder.toJson
+
+
+let urlObjectJson (url: String) : Stdlib.AltJson.Json =
+  Stdlib.AltJson.Json.Object [ ("url", Stdlib.AltJson.Json.String url) ]
+
+
+let embedToJson (e: Embed) : Stdlib.AltJson.Json =
+  let footerJson = Stdlib.Option.map e.footer embedFooterToJson
+  let imageJson = Stdlib.Option.map e.imageUrl urlObjectJson
+  let thumbnailJson = Stdlib.Option.map e.thumbnailUrl urlObjectJson
+  let authorJson = Stdlib.Option.map e.author embedAuthorToJson
+
+  let fieldsOpt =
+    if Stdlib.List.isEmpty e.fields then
+      Stdlib.Option.Option.None
+    else
+      Stdlib.Option.Option.Some(Stdlib.List.map e.fields embedFieldToJson)
+
+  Stdlib.AltJson.Builder.empty
+  |> Stdlib.AltJson.Builder.addOptionalString "title" e.title
+  |> Stdlib.AltJson.Builder.addOptionalString "description" e.description
+  |> Stdlib.AltJson.Builder.addOptionalString "url" e.url
+  |> Stdlib.AltJson.Builder.addOptionalString "timestamp" e.timestamp
+  |> Stdlib.AltJson.Builder.addOptionalInt "color" e.color
+  |> Stdlib.AltJson.Builder.addOptionalJson "footer" footerJson
+  |> Stdlib.AltJson.Builder.addOptionalJson "image" imageJson
+  |> Stdlib.AltJson.Builder.addOptionalJson "thumbnail" thumbnailJson
+  |> Stdlib.AltJson.Builder.addOptionalJson "author" authorJson
+  |> Stdlib.AltJson.Builder.addOptionalArray "fields" fieldsOpt
+  |> Stdlib.AltJson.Builder.toJson
+
+
+let allowedMentionsToJson (am: AllowedMentions) : Stdlib.AltJson.Json =
+  match am with
+  | SuppressAll ->
+    Stdlib.AltJson.Json.Object
+      [ ("parse", Stdlib.AltJson.Json.Array []) ]
+  | AllowSpecific(users, roles, everyone) ->
+    let parseList =
+      if everyone then
+        [ Stdlib.AltJson.Json.String "everyone" ]
+      else
+        []
+
+    let toStringJson = (fun s -> Stdlib.AltJson.Json.String s)
+
+    Stdlib.AltJson.Json.Object
+      [ ("parse", Stdlib.AltJson.Json.Array parseList)
+        ("users",
+         Stdlib.AltJson.Json.Array(Stdlib.List.map users toStringJson))
+        ("roles",
+         Stdlib.AltJson.Json.Array(Stdlib.List.map roles toStringJson)) ]
+
+
+let buildBody (msg: Message) : List<UInt8> =
+  let embedsOpt =
+    if Stdlib.List.isEmpty msg.embeds then
+      Stdlib.Option.Option.None
+    else
+      Stdlib.Option.Option.Some(Stdlib.List.map msg.embeds embedToJson)
+
+  let allowedMentionsJson =
+    Stdlib.Option.map msg.allowedMentions allowedMentionsToJson
+
+  Stdlib.AltJson.Builder.empty
+  |> Stdlib.AltJson.Builder.addOptionalString "content" msg.content
+  |> Stdlib.AltJson.Builder.addOptionalString "username" msg.username
+  |> Stdlib.AltJson.Builder.addOptionalString "avatar_url" msg.avatarUrl
+  |> Stdlib.AltJson.Builder.addOptionalBool "tts" msg.tts
+  |> Stdlib.AltJson.Builder.addOptionalArray "embeds" embedsOpt
+  |> Stdlib.AltJson.Builder.addOptionalJson "allowed_mentions" allowedMentionsJson
+  |> Stdlib.AltJson.Builder.toJson
+  |> Stdlib.AltJson.format
+  |> Stdlib.String.toBytes
+
+
+/// POST <param msg> to the Discord webhook at <param webhookUrl>.
+/// Returns {{ Ok () }} on a 2xx response, or an <type Error> describing
+/// what went wrong.
+let post
+  (webhookUrl: String)
+  (msg: Message)
+  : Stdlib.Result.Result<Unit, Error> =
+  let body = buildBody msg
+  let headers = [ Stdlib.HttpClient.ContentType.json ]
+
+  match Stdlib.HttpClient.post webhookUrl headers body with
+  | Ok response ->
+    if response.statusCode >= 200L && response.statusCode < 300L then
+      Stdlib.Result.Result.Ok()
+    else
+      let bodyStr =
+        match Stdlib.String.fromBytes response.body with
+        | Some s -> s
+        | None -> ""
+
+      Stdlib.Result.Result.Error(
+        Error.DiscordError(response.statusCode, bodyStr)
+      )
+  | Error e -> Stdlib.Result.Result.Error(Error.RequestFailed e)
+
+
+/// Convenience: POST a plain text message to a Discord webhook URL.
+let postMessage
+  (webhookUrl: String)
+  (content: String)
+  : Stdlib.Result.Result<Unit, Error> =
+  post webhookUrl (message content)
