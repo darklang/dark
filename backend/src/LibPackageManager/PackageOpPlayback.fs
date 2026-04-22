@@ -179,12 +179,12 @@ let private applySetName
     let mutable statements =
       [ ("""
          UPDATE locations
-         SET deprecated_at = datetime('now')
+         SET unlisted_at = datetime('now')
          WHERE owner = @owner
            AND modules = @modules
            AND name = @name
            AND item_type = @item_type
-           AND deprecated_at IS NULL
+           AND unlisted_at IS NULL
            AND branch_id = @branch_id
          """,
          [ [ "owner", Sql.string location.owner
@@ -203,10 +203,10 @@ let private applySetName
         statements
         @ [ ("""
              UPDATE locations
-             SET deprecated_at = datetime('now')
+             SET unlisted_at = datetime('now')
              WHERE item_hash = @item_hash
                AND branch_id = @branch_id
-               AND deprecated_at IS NULL
+               AND unlisted_at IS NULL
              """,
              [ [ "item_hash", Sql.string itemHashStr
                  "branch_id", Sql.uuid branchId ] ]) ]
@@ -232,6 +232,118 @@ let private applySetName
   }
 
 
+/// Serialize a DeprecationKind + message for the annotation_blob column.
+/// Keeps the on-disk representation close to the binary op serializer so one
+/// reader can surface both op-log history and current projected state.
+let private serializeAnnotation
+  (kind : PT.DeprecationKind)
+  (message : string)
+  : byte array =
+  use ms = new System.IO.MemoryStream()
+  use w = new System.IO.BinaryWriter(ms)
+  LibSerialization.Binary.Serializers.PT.PackageOp.DeprecationKind.write w kind
+  LibSerialization.Binary.Serializers.Common.String.write w message
+  ms.ToArray()
+
+
+/// Apply a Deprecate op to the deprecations projection table.
+/// Supersedes any prior un-superseded row for (branch, item_hash, item_kind).
+let private applyDeprecate
+  (branchId : PT.BranchId)
+  (commitHash : Option<string>)
+  (target : PT.Reference)
+  (kind : PT.DeprecationKind)
+  (message : string)
+  : Task<unit> =
+  task {
+    let (Hash itemHashStr) = target.hash
+    let itemKindStr = target.kind.toString ()
+    let deprecationId = System.Guid.NewGuid()
+    let blob = serializeAnnotation kind message
+
+    let commitHashParam =
+      match commitHash with
+      | Some s -> Sql.string s
+      | None -> Sql.dbnull
+
+    let statements =
+      [ ("""
+         UPDATE deprecations
+         SET unlisted_at = datetime('now')
+         WHERE branch_id = @branch_id
+           AND item_hash = @item_hash
+           AND item_kind = @item_kind
+           AND unlisted_at IS NULL
+         """,
+         [ [ "branch_id", Sql.uuid branchId
+             "item_hash", Sql.string itemHashStr
+             "item_kind", Sql.string itemKindStr ] ])
+        ("""
+         INSERT INTO deprecations
+           (deprecation_id, branch_id, commit_hash, item_hash, item_kind, state, annotation_blob)
+         VALUES
+           (@deprecation_id, @branch_id, @commit_hash, @item_hash, @item_kind, 'deprecated', @blob)
+         """,
+         [ [ "deprecation_id", Sql.uuid deprecationId
+             "branch_id", Sql.uuid branchId
+             "commit_hash", commitHashParam
+             "item_hash", Sql.string itemHashStr
+             "item_kind", Sql.string itemKindStr
+             "blob", Sql.bytes blob ] ]) ]
+
+    let _ = Sql.executeTransactionSync statements
+    ()
+  }
+
+
+/// Apply an Undeprecate op to the deprecations projection table.
+/// Records an `undeprecated`-state row that supersedes any prior row for the
+/// same (branch, item_hash, item_kind). This is how child branches override
+/// ancestor-branch deprecations.
+let private applyUndeprecate
+  (branchId : PT.BranchId)
+  (commitHash : Option<string>)
+  (target : PT.Reference)
+  : Task<unit> =
+  task {
+    let (Hash itemHashStr) = target.hash
+    let itemKindStr = target.kind.toString ()
+    let deprecationId = System.Guid.NewGuid()
+
+    let commitHashParam =
+      match commitHash with
+      | Some s -> Sql.string s
+      | None -> Sql.dbnull
+
+    let statements =
+      [ ("""
+         UPDATE deprecations
+         SET unlisted_at = datetime('now')
+         WHERE branch_id = @branch_id
+           AND item_hash = @item_hash
+           AND item_kind = @item_kind
+           AND unlisted_at IS NULL
+         """,
+         [ [ "branch_id", Sql.uuid branchId
+             "item_hash", Sql.string itemHashStr
+             "item_kind", Sql.string itemKindStr ] ])
+        ("""
+         INSERT INTO deprecations
+           (deprecation_id, branch_id, commit_hash, item_hash, item_kind, state, annotation_blob)
+         VALUES
+           (@deprecation_id, @branch_id, @commit_hash, @item_hash, @item_kind, 'undeprecated', NULL)
+         """,
+         [ [ "deprecation_id", Sql.uuid deprecationId
+             "branch_id", Sql.uuid branchId
+             "commit_hash", commitHashParam
+             "item_hash", Sql.string itemHashStr
+             "item_kind", Sql.string itemKindStr ] ]) ]
+
+    let _ = Sql.executeTransactionSync statements
+    ()
+  }
+
+
 /// Apply a single PackageOp to the projection tables
 /// branchId = branch context, commitHash = None means WIP, Some id means committed
 /// addedHashes = hashes of items added by Add* ops earlier in this batch
@@ -247,83 +359,81 @@ let private applyOp
     | PT.PackageOp.AddType typ -> do! applyAddType typ
     | PT.PackageOp.AddValue value -> do! applyAddValue value
     | PT.PackageOp.AddFn fn -> do! applyAddFn fn
-    | PT.PackageOp.SetTypeName(hash, loc) ->
-      let isRename = not (Set.contains hash addedHashes)
-      do! applySetName branchId commitHash isRename hash loc PT.ItemKind.Type
-    | PT.PackageOp.SetValueName(hash, loc) ->
-      let isRename = not (Set.contains hash addedHashes)
-      do! applySetName branchId commitHash isRename hash loc PT.ItemKind.Value
-    | PT.PackageOp.SetFnName(hash, loc) ->
-      let isRename = not (Set.contains hash addedHashes)
-      do! applySetName branchId commitHash isRename hash loc PT.ItemKind.Fn
+    | PT.PackageOp.SetName(loc, target) ->
+      let isRename = not (Set.contains target.hash addedHashes)
+      do! applySetName branchId commitHash isRename target.hash loc target.kind
+    | PT.PackageOp.Deprecate(target, kind, message) ->
+      do! applyDeprecate branchId commitHash target kind message
+    | PT.PackageOp.Undeprecate target ->
+      do! applyUndeprecate branchId commitHash target
     | PT.PackageOp.PropagateUpdate _ ->
-      // Location changes are already handled by the individual SetFnName/SetTypeName/
-      // SetValueName ops that accompany this op in the propagation batch.
-      // Applying them here too would create duplicate location entries.
+      // Location changes are already handled by the individual SetName ops that
+      // accompany this op in the propagation batch. Applying them here too would
+      // create duplicate location entries.
       ()
     | PT.PackageOp.RevertPropagation(_,
                                      _,
                                      sourceLocation,
-                                     sourceItemKind,
-                                     restoredSourceHash,
+                                     restoredSourceRef,
                                      revertedRepoints) ->
       // Build all SQL statements for atomic execution
       let mutable statements = []
+      let sourceItemKind = restoredSourceRef.kind
 
-      // For each reverted repoint: deprecate toHash, un-deprecate fromHash
+      // For each reverted repoint: unlist toRef, un-unlist fromRef
       // Skip repoints for the source item — those are handled by the dedicated
       // source-handling block below (avoids redundant double-toggle in mutual recursion)
       let dependentRepoints =
         revertedRepoints
         |> List.filter (fun r ->
-          r.location <> sourceLocation || r.itemKind <> sourceItemKind)
+          r.location <> sourceLocation || r.toRef.kind <> sourceItemKind)
 
       for repoint in dependentRepoints do
-        let (Hash toHashStr) = repoint.toHash
-        let (Hash fromHashStr) = repoint.fromHash
+        let (Hash toHashStr) = repoint.toRef.hash
+        let (Hash fromHashStr) = repoint.fromRef.hash
         statements <-
           statements
           @ [ ("""
                UPDATE locations
-               SET deprecated_at = datetime('now')
+               SET unlisted_at = datetime('now')
                WHERE item_hash = @item_hash
                  AND branch_id = @branch_id
-                 AND deprecated_at IS NULL
+                 AND unlisted_at IS NULL
                """,
                [ [ "item_hash", Sql.string toHashStr
                    "branch_id", Sql.uuid branchId ] ])
 
               ("""
                UPDATE locations
-               SET deprecated_at = NULL
+               SET unlisted_at = NULL
                WHERE location_id = (
                  SELECT location_id FROM locations
                  WHERE item_hash = @item_hash
                    AND branch_id = @branch_id
-                   AND deprecated_at IS NOT NULL
-                 ORDER BY deprecated_at DESC
+                   AND unlisted_at IS NOT NULL
+                 ORDER BY unlisted_at DESC
                  LIMIT 1
                )
                """,
                [ [ "item_hash", Sql.string fromHashStr
                    "branch_id", Sql.uuid branchId ] ]) ]
 
-      // Undo source: deprecate WIP location, un-deprecate committed location
+      // Undo source: unlist WIP location, un-unlist committed location
       let modulesStr = String.concat "." sourceLocation.modules
       let itemTypeStr = sourceItemKind.toString ()
-      let (Hash restoredSourceHashStr) = restoredSourceHash
+      let (Hash restoredSourceHashStr) = restoredSourceRef.hash
 
       statements <-
         statements
         @ [ ("""
              UPDATE locations
-             SET deprecated_at = datetime('now')
+             SET unlisted_at = datetime('now')
              WHERE owner = @owner
                AND modules = @modules
                AND name = @name
                AND item_type = @item_type
                AND branch_id = @branch_id
-               AND deprecated_at IS NULL
+               AND unlisted_at IS NULL
                AND commit_hash IS NULL
              """,
              [ [ "owner", Sql.string sourceLocation.owner
@@ -334,13 +444,13 @@ let private applyOp
 
             ("""
              UPDATE locations
-             SET deprecated_at = NULL
+             SET unlisted_at = NULL
              WHERE location_id = (
                SELECT location_id FROM locations
                WHERE item_hash = @item_hash
                  AND branch_id = @branch_id
-                 AND deprecated_at IS NOT NULL
-               ORDER BY deprecated_at DESC
+                 AND unlisted_at IS NOT NULL
+               ORDER BY unlisted_at DESC
                LIMIT 1
              )
              """,

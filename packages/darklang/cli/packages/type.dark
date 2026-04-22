@@ -87,10 +87,10 @@ let createTypeInline
           let previousHashes = Propagate.getAllPreviousHashes state.currentBranchId location LanguageTools.ProgramTypes.ItemKind.Type
           let isUpdate = (Stdlib.List.isEmpty previousHashes) |> Stdlib.Bool.not
 
-          // Create ops: AddType and SetTypeName
+          // Create ops: AddType and SetName
           let ops =
             [ LanguageTools.ProgramTypes.PackageOp.AddType packageType
-              LanguageTools.ProgramTypes.PackageOp.SetTypeName (packageType.hash, location) ]
+              LanguageTools.ProgramTypes.PackageOp.SetName (location, LanguageTools.ProgramTypes.Reference.PackageType packageType.hash) ]
 
           // Add ops as WIP (use 'scm commit' to commit)
           match SCM.PackageOps.add state.currentBranchId ops with

@@ -58,7 +58,7 @@ let handleGetRootNodesRequest
   (requestID: JsonRPC.RequestID)
   : LspState =
   // TODO perf: this is kinda nuts - we search ALL packages just to extract unique owners
-  // should have a dedicated SQL query like `SELECT DISTINCT owner FROM locations WHERE deprecated_at IS NULL`
+  // should have a dedicated SQL query like `SELECT DISTINCT owner FROM locations WHERE unlisted_at IS NULL`
   // Search for all packages to get unique owners
   let searchQuery =
     ProgramTypes.Search.SearchQuery

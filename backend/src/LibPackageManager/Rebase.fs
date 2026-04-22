@@ -32,7 +32,7 @@ let private getLocationPathsModifiedSince
           FROM locations
           WHERE branch_id = @branch_id
             AND commit_hash IS NOT NULL
-            AND deprecated_at IS NULL
+            AND unlisted_at IS NULL
           """
         |> Sql.parameters [ "branch_id", Sql.uuid branchId ]
         |> Sql.executeAsync (fun read ->
@@ -50,7 +50,7 @@ let private getLocationPathsModifiedSince
           JOIN commits c ON l.commit_hash = c.hash
           WHERE l.branch_id = @branch_id
             AND l.commit_hash IS NOT NULL
-            AND l.deprecated_at IS NULL
+            AND l.unlisted_at IS NULL
             AND c.created_at > (SELECT created_at FROM commits WHERE hash = @since_commit_hash)
           """
         |> Sql.parameters

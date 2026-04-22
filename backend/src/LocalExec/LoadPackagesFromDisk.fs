@@ -93,12 +93,8 @@ let load (builtins : RT.Builtins) : Ply<List<PT.PackageOp>> =
         let itemLocs =
           newOps
           |> List.choose (function
-            | PT.PackageOp.SetTypeName(hash, loc) ->
-              Some(hash, "type", PackageLocation.toFQN loc)
-            | PT.PackageOp.SetFnName(hash, loc) ->
-              Some(hash, "fn", PackageLocation.toFQN loc)
-            | PT.PackageOp.SetValueName(hash, loc) ->
-              Some(hash, "value", PackageLocation.toFQN loc)
+            | PT.PackageOp.SetName(loc, target) ->
+              Some(target.hash, target.kind.toString (), PackageLocation.toFQN loc)
             | _ -> None)
         let changes =
           List.zip prevHashes newHashes

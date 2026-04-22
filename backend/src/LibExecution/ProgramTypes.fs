@@ -607,27 +607,15 @@ type PackageLocation =
     name : string }
 
 module PackageType =
-  // CLEANUP most of the time, the deprecation status isn't a useful thing in F# land.
-  // We can (largely) migrate the Deprecation (action) of something, and trim this down to what matters: just the declaration
-  // (similarly, the description)
-  // (and the hash is sort of an artifact of the declaration)
-  // The deprecation is useful for _builtins_ in the cases of PackageValue and PackageFn,
-  // but we don't need to manage it as part of _package_ stuff -- right?
-  // OK but what do we do about /// comments?
-  // really this just begs a series of questions about the PackageManager...
   type PackageType =
     { hash : FQTypeName.Package
       declaration : TypeDeclaration.T
-      description : string
-      deprecated : Deprecation<FQTypeName.FQTypeName> }
+      description : string }
 
 
 module PackageValue =
   type PackageValue =
-    { hash : FQValueName.Package
-      description : string
-      deprecated : Deprecation<FQValueName.FQValueName>
-      body : Expr }
+    { hash : FQValueName.Package; description : string; body : Expr }
 
 
 module PackageFn =
@@ -639,8 +627,7 @@ module PackageFn =
       typeParams : List<string>
       parameters : NEList<Parameter>
       returnType : TypeReference
-      description : string
-      deprecated : Deprecation<FQFnName.FQFnName> }
+      description : string }
 
 
 /// Operations on packages
@@ -650,40 +637,61 @@ type PackageOp =
   | AddValue of value : PackageValue.PackageValue
   | AddFn of fn : PackageFn.PackageFn
 
-  // Location operations - bind names to content
-  | SetTypeName of hash : FQTypeName.Package * location : PackageLocation
-  | SetValueName of hash : FQValueName.Package * location : PackageLocation
-  | SetFnName of hash : FQFnName.Package * location : PackageLocation
+  // Location operations - bind a name to a piece of content.
+  // Content is identified by a Reference (hash + kind); the location is a
+  // branch-scoped FQ path.
+  | SetName of location : PackageLocation * target : Reference
 
+  // Deprecation: author-initiated annotation on a specific content hash.
+  //
+  // Future: implicit deprecations as Constraints.
+  //
+  // Some SCM events raise an implicit deprecation signal — e.g. a
+  // propagation leaves an item with no inbound refs, or a newly-bound fn
+  // shadows an existing one with an identical signature. Surface these as
+  // Constraints alongside merge and propagation conflicts, routed through
+  // the same `status` / `review` / LSP flow the other conflict types use.
+  //
+  // Auto-resolution defaults to "ignore": the item stays live, no op is
+  // emitted, the signal is informational. The Constraint stays visible to
+  // the author, who can then pick from:
+  //   (a) commit the auto-ignore ("reviewed, intentional") — records the
+  //       acknowledgement so the signal doesn't re-fire on every future op,
+  //   (b) emit an explicit resolution: a Deprecate op (usually Obsolete
+  //       with a message, or SupersededBy pointing at the new item), a
+  //       SetName rebinding, or an Unbind.
+  //
+  // The point is a prompt-for-committed-resolution loop that parallels
+  // merge-conflict resolution — system surfaces what it noticed, author
+  // commits their intent, op log carries both.
+  | Deprecate of target : Reference * kind : DeprecationKind * message : string
 
-  // Propagation: when a definition is updated, propagate the change to all dependents
+  // Clear any prior deprecation on a target.
+  // TODO: merge-into-main needs a permission axis once ACLs land (a branch
+  //   shouldn't silently un-Harmful on merge).
+  | Undeprecate of target : Reference
+
+  // Propagation: when a definition is updated, propagate the change to all dependents.
+  // Item kind lives on the Reference; fromRefs and toRef always share a kind.
   | PropagateUpdate of
     propagationId : uuid *
     sourceLocation : PackageLocation *
-    sourceItemKind : ItemKind *
-    fromSourceHashes : List<Hash> *
-    toSourceHash : Hash *
+    fromRefs : List<Reference> *
+    toRef : Reference *
     repoints : List<PropagateRepoint>
 
-  // Revert a propagation: restore previous versions atomically
+  // Revert a propagation: restore previous versions atomically.
   | RevertPropagation of
     revertId : uuid *
     revertedPropagationIds : List<uuid> *
     sourceLocation : PackageLocation *
-    sourceItemKind : ItemKind *
-    restoredSourceHash : Hash *
+    restoredSourceRef : Reference *
     revertedRepoints : List<PropagateRepoint>
 
 //   | MoveItem of item: uuid * from : Location * to_: Location
 //   // we can punt this for now, I think
 //   //| MoveModule of from: Location * to_: Location // hmm what about the _timing_ of this?
 //   // maybe this isn't supported, and we instead need _many_ moveItem
-
-//   // TODO: support a _reason_ for deprecation
-//   // , and an optional pointer to some sort of replacement
-//   | DeprecateFn of hash: FQFnName.Package
-//   | DeprecateValue of hash: FQValueName.Package
-//   | DeprecateType of hash: FQTypeName.Package
 
 
 // prob belongs in LibMatter
@@ -717,9 +725,60 @@ and ItemKind =
     | Type -> "type"
     | Value -> "value"
 
-// A single repoint operation within a PropagateUpdate
+
+/// A reference to a specific package item by content hash.
+/// Collapses the pervasive (Hash * ItemKind) pairs into one shape, and leaves
+/// room for future kinds (RefBuiltin, RefExternal, ...).
+and Reference =
+  | PackageType of Hash
+  | PackageValue of Hash
+  | PackageFn of Hash
+
+  /// Extract the ItemKind (display helper).
+  member this.kind : ItemKind =
+    match this with
+    | PackageType _ -> ItemKind.Type
+    | PackageValue _ -> ItemKind.Value
+    | PackageFn _ -> ItemKind.Fn
+
+  /// Extract the content Hash.
+  member this.hash : Hash =
+    match this with
+    | PackageType h
+    | PackageValue h
+    | PackageFn h -> h
+
+  /// Build a Reference from a hash + item kind (common SQL-boundary need).
+  static member fromHashAndKind(h : Hash, k : ItemKind) : Reference =
+    match k with
+    | ItemKind.Type -> PackageType h
+    | ItemKind.Value -> PackageValue h
+    | ItemKind.Fn -> PackageFn h
+
+
+/// Why a package item has been deprecated. Author-supplied metadata on the
+/// Deprecate op; consumers (LSP, CLI, runtime) decide how loud to be.
+/// TODO: `Harmful` is the only kind SCM can't already express via rebinding;
+///   if usage confirms `SupersededBy`/`Obsolete` overlap, fold into one.
+and DeprecationKind =
+  /// A different item (different hash) should be used instead.
+  | SupersededBy of replacement : Reference
+
+  /// Actively dangerous (security, correctness, data loss).
+  /// Runtime halts on invocation by default; `--allow-harmful` overrides.
+  /// Nothing currently prevents a Type from being marked Harmful, which
+  /// seems silly — maybe address somehow, probably ignore. (A value can
+  /// legitimately be Harmful if it holds a secret accidentally.)
+  | Harmful
+
+  /// Don't use this anymore (catch-all; no halt, no replacement pointer).
+  | Obsolete
+
+
+// A single repoint operation within a PropagateUpdate.
+// `fromRef`/`toRef` carry both the hash and the item kind.
 and PropagateRepoint =
-  { location : PackageLocation; itemKind : ItemKind; fromHash : Hash; toHash : Hash }
+  { location : PackageLocation; fromRef : Reference; toRef : Reference }
 
 
 /// A package entity paired with its location

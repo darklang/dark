@@ -89,26 +89,6 @@ let rec private transformTypeRef
       transformTypeRef mapping ret
     )
 
-/// RenamedTo/ReplacedBy hold a UUID pointing to another package item.
-/// When that item gets a new UUID during propagation, we must rewrite the reference.
-let private transformDeprecation
-  (mapping : HashMapping)
-  (transform : Hash -> 'a)
-  (getPackageId : 'a -> Option<Hash>)
-  (dep : PT.Deprecation<'a>)
-  : PT.Deprecation<'a> =
-  match dep with
-  | PT.NotDeprecated -> PT.NotDeprecated
-  | PT.DeprecatedBecause reason -> PT.DeprecatedBecause reason
-  | PT.RenamedTo name ->
-    match getPackageId name with
-    | Some id -> PT.RenamedTo(transform (replaceHash mapping id))
-    | None -> dep
-  | PT.ReplacedBy name ->
-    match getPackageId name with
-    | Some id -> PT.ReplacedBy(transform (replaceHash mapping id))
-    | None -> dep
-
 let rec private transformStringSegment
   (mapping : HashMapping)
   (segment : PT.StringSegment)
@@ -280,26 +260,13 @@ let transformFn
       parameters =
         fn.parameters
         |> NEList.map (fun p -> { p with typ = transformTypeRef mapping p.typ })
-      returnType = transformTypeRef mapping fn.returnType
-      deprecated =
-        transformDeprecation
-          mapping
-          PT.FQFnName.Package
-          getFnPackageHash
-          fn.deprecated }
+      returnType = transformTypeRef mapping fn.returnType }
 
 let transformValue
   (mapping : HashMapping)
   (value : PT.PackageValue.PackageValue)
   : PT.PackageValue.PackageValue =
-  { value with
-      body = transformExpr mapping value.body
-      deprecated =
-        transformDeprecation
-          mapping
-          PT.FQValueName.Package
-          getValuePackageHash
-          value.deprecated }
+  { value with body = transformExpr mapping value.body }
 
 let private transformTypeDefinition
   (mapping : HashMapping)
@@ -331,10 +298,4 @@ let transformType
   { typ with
       declaration =
         { typ.declaration with
-            definition = transformTypeDefinition mapping typ.declaration.definition }
-      deprecated =
-        transformDeprecation
-          mapping
-          PT.FQTypeName.Package
-          getTypePackageHash
-          typ.deprecated }
+            definition = transformTypeDefinition mapping typ.declaration.definition } }

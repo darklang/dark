@@ -12,11 +12,41 @@ module PMPT = ProgramTypes
 module PMRT = RuntimeTypes
 
 
+// Per-branch cache of Harmful fn hashes (as underlying hex strings —
+// PT.Hash and RT.Hash are distinct CLR types; storing strings avoids
+// threading either wrapper through the cache layer).
+//
+// First call per branch loads the Set from the `deprecations` table;
+// subsequent calls are O(1) lookups. Long-lived processes that mutate
+// deprecation state on a branch (LSP, cloud) should invalidate by
+// evicting the branch's entry — not implemented yet; short-lived CLIs
+// rebuild the PM per invocation so they don't care.
+let private harmfulCache =
+  System.Collections.Concurrent.ConcurrentDictionary<PT.BranchId, Set<string>>()
+
+let private loadHarmfulForBranch (branchId : PT.BranchId) : Set<string> =
+  match harmfulCache.TryGetValue branchId with
+  | true, cached -> cached
+  | false, _ ->
+    let branchChain =
+      Branches.getBranchChain branchId |> Async.AwaitTask |> Async.RunSynchronously
+    let harmful =
+      Queries.getHarmfulFnHashes branchChain
+      |> Async.AwaitTask
+      |> Async.RunSynchronously
+      |> Set.map (fun (PT.Hash h) -> h)
+    harmfulCache[branchId] <- harmful
+    harmful
+
+
 // TODO: bring back eager loading
 let rt : RT.PackageManager =
   { getType = withCache PMRT.Type.get
     getFn = withCache PMRT.Fn.get
     getValue = withCache PMRT.Value.get
+
+    isHarmful =
+      fun branchId (RT.Hash h) -> Ply(Set.contains h (loadHarmfulForBranch branchId))
 
     init =
       uply {
@@ -80,41 +110,46 @@ let createInMemory (ops : List<PT.PackageOp>) : PT.PackageManager =
 
   for op in ops do
     match op with
-    | PT.PackageOp.SetTypeName(hash, loc) -> typeLocations.Add(loc, hash)
-    | PT.PackageOp.SetValueName(hash, loc) -> valueLocations.Add(loc, hash)
-    | PT.PackageOp.SetFnName(hash, loc) -> fnLocations.Add(loc, hash)
+    | PT.PackageOp.SetName(loc, target) ->
+      match target with
+      | PT.PackageType h -> typeLocations.Add(loc, h)
+      | PT.PackageValue h -> valueLocations.Add(loc, h)
+      | PT.PackageFn h -> fnLocations.Add(loc, h)
     | PT.PackageOp.AddType _
     | PT.PackageOp.AddValue _
     | PT.PackageOp.AddFn _ -> ()
 
-    // After propagation, dependents have new hashes.
-    // For each repoint, update the location to point to toHash (the new version)
-    | PT.PackageOp.PropagateUpdate(_, _, _, _, _, repoints) ->
-      for repoint in repoints do
-        match repoint.itemKind with
-        | PT.ItemKind.Type -> typeLocations.Add(repoint.location, repoint.toHash)
-        | PT.ItemKind.Value -> valueLocations.Add(repoint.location, repoint.toHash)
-        | PT.ItemKind.Fn -> fnLocations.Add(repoint.location, repoint.toHash)
+    // Deprecations don't affect in-memory location maps.
+    | PT.PackageOp.Deprecate _
+    | PT.PackageOp.Undeprecate _ -> ()
 
-    // For each repoint, point the location back to fromHash (the old version).
+    // After propagation, dependents have new hashes.
+    // For each repoint, update the location to point to toRef (the new version)
+    | PT.PackageOp.PropagateUpdate(_, _, _, _, repoints) ->
+      for repoint in repoints do
+        match repoint.toRef with
+        | PT.PackageType h -> typeLocations.Add(repoint.location, h)
+        | PT.PackageValue h -> valueLocations.Add(repoint.location, h)
+        | PT.PackageFn h -> fnLocations.Add(repoint.location, h)
+
+    // For each repoint, point the location back to fromRef (the old version).
     // Then also restore the source item's location to its pre-propagation hash
     | PT.PackageOp.RevertPropagation(_,
                                      _,
                                      sourceLocation,
-                                     sourceItemKind,
-                                     restoredSourceHash,
+                                     restoredSourceRef,
                                      revertedRepoints) ->
-      // Reverse the repoints: locations go back to fromHash
+      // Reverse the repoints: locations go back to fromRef
       for repoint in revertedRepoints do
-        match repoint.itemKind with
-        | PT.ItemKind.Type -> typeLocations.Add(repoint.location, repoint.fromHash)
-        | PT.ItemKind.Value -> valueLocations.Add(repoint.location, repoint.fromHash)
-        | PT.ItemKind.Fn -> fnLocations.Add(repoint.location, repoint.fromHash)
+        match repoint.fromRef with
+        | PT.PackageType h -> typeLocations.Add(repoint.location, h)
+        | PT.PackageValue h -> valueLocations.Add(repoint.location, h)
+        | PT.PackageFn h -> fnLocations.Add(repoint.location, h)
       // Restore source location to committed hash
-      match sourceItemKind with
-      | PT.ItemKind.Type -> typeLocations.Add(sourceLocation, restoredSourceHash)
-      | PT.ItemKind.Value -> valueLocations.Add(sourceLocation, restoredSourceHash)
-      | PT.ItemKind.Fn -> fnLocations.Add(sourceLocation, restoredSourceHash)
+      match restoredSourceRef with
+      | PT.PackageType h -> typeLocations.Add(sourceLocation, h)
+      | PT.PackageValue h -> valueLocations.Add(sourceLocation, h)
+      | PT.PackageFn h -> fnLocations.Add(sourceLocation, h)
 
   // Convert to immutable maps for efficient lookup.
   // All items (types, fns, values) are keyed by their hash.
@@ -126,7 +161,7 @@ let createInMemory (ops : List<PT.PackageOp>) : PT.PackageManager =
     for op in ops do
       match op with
       | PT.PackageOp.AddType t -> pendingType <- Some t
-      | PT.PackageOp.SetTypeName(hash, _loc) ->
+      | PT.PackageOp.SetName(_, PT.PackageType hash) ->
         match pendingType with
         | Some t ->
           map <- Map.add hash { t with hash = hash } map
@@ -141,7 +176,7 @@ let createInMemory (ops : List<PT.PackageOp>) : PT.PackageManager =
     for op in ops do
       match op with
       | PT.PackageOp.AddFn f -> pendingFn <- Some f
-      | PT.PackageOp.SetFnName(hash, _loc) ->
+      | PT.PackageOp.SetName(_, PT.PackageFn hash) ->
         match pendingFn with
         | Some f ->
           map <- Map.add hash { f with hash = hash } map
@@ -156,7 +191,7 @@ let createInMemory (ops : List<PT.PackageOp>) : PT.PackageManager =
     for op in ops do
       match op with
       | PT.PackageOp.AddValue v -> pendingValue <- Some v
-      | PT.PackageOp.SetValueName(hash, _loc) ->
+      | PT.PackageOp.SetName(_, PT.PackageValue hash) ->
         match pendingValue with
         | Some v ->
           map <- Map.add hash { v with hash = hash } map

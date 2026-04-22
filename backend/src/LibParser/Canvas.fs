@@ -248,7 +248,7 @@ let toPT
           let hash = Hashing.computeTypeHash Hashing.Normal ptType
           return
             [ PT.PackageOp.AddType ptType
-              PT.PackageOp.SetTypeName(hash, location) ]
+              PT.PackageOp.SetName(location, PT.PackageType hash) ]
         })
       |> Ply.map List.flatten
 
@@ -264,9 +264,9 @@ let toPT
               name = wtValue.name.name }
           return
             [ PT.PackageOp.AddValue ptValue
-              PT.PackageOp.SetValueName(
-                Hashing.computeValueHash Hashing.Normal ptValue,
-                location
+              PT.PackageOp.SetName(
+                location,
+                PT.PackageValue(Hashing.computeValueHash Hashing.Normal ptValue)
               ) ]
         })
       |> Ply.map List.flatten
@@ -281,7 +281,9 @@ let toPT
               modules = wtFn.name.modules
               name = wtFn.name.name }
           let hash = Hashing.computeFnHash Hashing.Normal ptFn
-          return [ PT.PackageOp.AddFn ptFn; PT.PackageOp.SetFnName(hash, location) ]
+          return
+            [ PT.PackageOp.AddFn ptFn
+              PT.PackageOp.SetName(location, PT.PackageFn hash) ]
         })
       |> Ply.map List.flatten
 

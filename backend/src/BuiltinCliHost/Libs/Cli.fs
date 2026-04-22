@@ -189,6 +189,10 @@ let execute
         parentState.notify
         branchId
         program
+    // Inherit the parent's allowHarmful toggle so `run --allow-harmful`
+    // cascades into script execution. The Harmful-hash snapshot is scoped
+    // to `branchId` via `pm.isHarmful` (the PM caches per branch).
+    let state = { state with allowHarmful = parentState.allowHarmful }
 
     match mod'.exprs with
     | [] ->
@@ -211,21 +215,31 @@ let execute
             []
   }
 
-/// Create a branch-specific execution state for parsing
-let createBranchState (parentState : RT.ExecutionState) (branchId : System.Guid) =
+/// Create a branch-specific execution state for parsing.
+///
+/// `allowHarmful` is passed in rather than inherited from `parentState` so
+/// callers can turn on the escape hatch per-invocation (e.g. when Dark-side
+/// `run --allow-harmful` reaches `cliParseAndExecuteScript`).
+let createBranchState
+  (parentState : RT.ExecutionState)
+  (branchId : System.Guid)
+  (allowHarmful : bool)
+  =
   let program : Program =
     { canvasID = System.Guid.NewGuid()
       internalFnsAllowed = false
       secrets = []
       dbs = Map.empty }
-  Exe.createState
-    (builtinsToUse ())
-    pmRT
-    Exe.noTracing
-    parentState.reportException
-    parentState.notify
-    branchId
-    program
+  let state =
+    Exe.createState
+      (builtinsToUse ())
+      pmRT
+      Exe.noTracing
+      parentState.reportException
+      parentState.notify
+      branchId
+      program
+  { state with allowHarmful = allowHarmful }
 
 
 let fns () : List<BuiltInFn> =
@@ -236,7 +250,11 @@ let fns () : List<BuiltInFn> =
           Param.make "branchId" TUuid ""
           Param.make "filename" TString ""
           Param.make "code" TString ""
-          Param.make "args" (TList TString) "" ]
+          Param.make "args" (TList TString) ""
+          Param.make
+            "allowHarmful"
+            TBool
+            "Opt out of Harmful-deprecation halting (see docs/deprecation)" ]
       returnType = TypeReference.result TInt64 (ExecutionError.typeRef ())
       description =
         "Parses Dark code as a script, and and executes it, returning an exit code"
@@ -252,11 +270,12 @@ let fns () : List<BuiltInFn> =
             DUuid branchId
             DString filename
             DString code
-            DList(_vtTODO, scriptArgs) ] ->
+            DList(_vtTODO, scriptArgs)
+            DBool allowHarmful ] ->
           uply {
             let accountID = C2DT.Option.fromDT D.uuid accountIDDval
             // Use branch-specific state for parsing so name resolution uses the right branch
-            let branchState = createBranchState exeState branchId
+            let branchState = createBranchState exeState branchId allowHarmful
             let! parsedScript =
               parseCliScript branchState branchId "CliScript" filename code
 
@@ -301,7 +320,11 @@ let fns () : List<BuiltInFn> =
       parameters =
         [ Param.make "accountID" (TypeReference.option TUuid) ""
           Param.make "branchId" TUuid ""
-          Param.make "expression" TString "" ]
+          Param.make "expression" TString ""
+          Param.make
+            "allowHarmful"
+            TBool
+            "Opt out of Harmful-deprecation halting (see docs/deprecation)" ]
       returnType = TypeReference.result TString (ExecutionError.typeRef ())
       description = "Evaluates a Dark expression and returns the result as a String"
       fn =
@@ -309,11 +332,14 @@ let fns () : List<BuiltInFn> =
         let resultOk = Dval.resultOk KTString errType
         let resultError = Dval.resultError KTString errType
         (function
-        | exeState, _, [], [ accountIDDval; DUuid branchId; DString expression ] ->
+        | exeState,
+          _,
+          [],
+          [ accountIDDval; DUuid branchId; DString expression; DBool allowHarmful ] ->
           uply {
             let accountID = C2DT.Option.fromDT D.uuid accountIDDval
             // Use branch-specific state for parsing so name resolution uses the right branch
-            let branchState = createBranchState exeState branchId
+            let branchState = createBranchState exeState branchId allowHarmful
             let! parsedScript =
               parseCliScript
                 branchState

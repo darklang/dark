@@ -160,6 +160,10 @@ type Error =
   | FnNotFound of name: FQFnName.FQFnName
   | ValNotFound of name: FQValueName.FQValueName
 
+  /// Invoked a package fn whose content hash is marked `Harmful` via a
+  /// Deprecate op. Override with --allow-harmful on run/eval.
+  | DeprecatedItemHalted of target: FQFnName.Package
+
   | WrongNumberOfTypeArgsForType of fn: FQTypeName.FQTypeName * expected: Int64 * actual: Int64
 
   | Record of Records.Error

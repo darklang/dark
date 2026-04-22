@@ -117,6 +117,8 @@ let displayTableOfContents (): Unit =
 let execute (state: AppState) (args: List<String>): AppState =
   // Check for --toc flag
   let showToc = Stdlib.List.any args (fun arg -> arg == "--toc")
+  let includeDeprecated =
+    Stdlib.List.member_v0 args "--include-deprecated"
 
   if showToc then
     displayTableOfContents ()
@@ -148,22 +150,30 @@ let execute (state: AppState) (args: List<String>): AppState =
         | Error _ -> state.packageData.currentLocation
       | _ -> state.packageData.currentLocation
 
+    // Load deprecation sets once for the whole tree render.
+    let depSets = Query.loadDeprecationSets branchId
+
     // Display tree
     let locationStr = Packages.formatLocation startLocation
     Stdlib.printLine $"Package tree from {locationStr}:"
     Stdlib.printLine ""
-    displayTree branchId startLocation maxDepth 0L ""
+    displayTree branchId startLocation maxDepth 0L "" depSets includeDeprecated
 
     state
 
 
-// Display tree recursively from a given location
+// Display tree recursively from a given location.
+//
+// `depSets` lets us mark deprecated rows with ⚠ and (unless includeDeprecated)
+// hide items whose hash is in the "hidden" set per the visibility rule.
 let displayTree
   (branchId: Uuid)
   (location: PackageLocation)
   (remainingDepth: Int64)
   (currentDepth: Int64)
   (prefix: String)
+  (depSets: Query.DeprecationSets)
+  (includeDeprecated: Bool)
   : Unit =
   if remainingDepth <= 0L then
     ()
@@ -175,24 +185,41 @@ let displayTree
       | Value v -> Stdlib.List.append [v.owner] v.modules
       | Function f -> Stdlib.List.append [f.owner] f.modules
 
-    // Get all entities in this module
-    let results = Query.allDirectDescendants branchId modulePath
+    // Get all entities, then apply deprecation visibility.
+    let rawResults = Query.allDirectDescendants branchId modulePath
+    let results = Query.filterDeprecated rawResults depSets includeDeprecated
 
     // Get submodules
     let currentPathLength = Stdlib.List.length modulePath
     let submoduleNames = Query.getDirectSubmodules results currentPathLength
 
-    // Get entity names
-    let functionNames = results.fns |> Stdlib.List.map (fun f -> f.location.name) |> Stdlib.List.sort
-    let typeNames = results.types |> Stdlib.List.map (fun t -> t.location.name) |> Stdlib.List.sort
-    let valueNames = results.values |> Stdlib.List.map (fun v -> v.location.name) |> Stdlib.List.sort
+    // Entity names paired with their hash, so we can mark deprecated rows.
+    let fnEntries =
+      results.fns |> Stdlib.List.map (fun f -> (f.location.name, f.entity.hash))
+    let typeEntries =
+      results.types |> Stdlib.List.map (fun t -> (t.location.name, t.entity.hash))
+    let valueEntries =
+      results.values |> Stdlib.List.map (fun v -> (v.location.name, v.entity.hash))
 
-    // Combine all entities with their types in proper order: modules, types, values, functions
+    // Combine all entities with their types in proper order: modules, types, values, functions.
+    // Modules have no hash, use an empty-string placeholder.
     let allEntities =
-      let moduleEntities = submoduleNames |> Stdlib.List.map (fun name -> (name, EntityType.Module)) |> Stdlib.List.sortBy (fun (name, _) -> name)
-      let typeEntities = typeNames |> Stdlib.List.map (fun name -> (name, EntityType.Type)) |> Stdlib.List.sortBy (fun (name, _) -> name)
-      let valueEntities = valueNames |> Stdlib.List.map (fun name -> (name, EntityType.Value)) |> Stdlib.List.sortBy (fun (name, _) -> name)
-      let functionEntities = functionNames |> Stdlib.List.map (fun name -> (name, EntityType.Function)) |> Stdlib.List.sortBy (fun (name, _) -> name)
+      let moduleEntities =
+        submoduleNames
+        |> Stdlib.List.map (fun name -> (name, EntityType.Module, LanguageTools.ProgramTypes.Hash.Hash ""))
+        |> Stdlib.List.sortBy (fun (name, _, _) -> name)
+      let typeEntities =
+        typeEntries
+        |> Stdlib.List.map (fun (name, hash) -> (name, EntityType.Type, hash))
+        |> Stdlib.List.sortBy (fun (name, _, _) -> name)
+      let valueEntities =
+        valueEntries
+        |> Stdlib.List.map (fun (name, hash) -> (name, EntityType.Value, hash))
+        |> Stdlib.List.sortBy (fun (name, _, _) -> name)
+      let functionEntities =
+        fnEntries
+        |> Stdlib.List.map (fun (name, hash) -> (name, EntityType.Function, hash))
+        |> Stdlib.List.sortBy (fun (name, _, _) -> name)
 
       moduleEntities
       |> Stdlib.List.append typeEntities
@@ -202,21 +229,32 @@ let displayTree
     // Display entities with appropriate icons
     let entitiesCount = Stdlib.List.length allEntities
     allEntities
-    |> Stdlib.List.indexedMap (fun index (name, entityType) ->
+    |> Stdlib.List.indexedMap (fun index entry ->
+      let (name, entityType, hash) = entry
       let isLast = index == (entitiesCount - 1L)
       let treeBranch = if isLast then "└── " else "├── "
       let fullPrefix = prefix ++ treeBranch
 
       let icon = Display.getIcon entityType ++ " "
+      let mark =
+        if entityType == EntityType.Module then ""
+        else Query.deprecationMarker depSets hash
 
-      Stdlib.printLine $"{fullPrefix}{icon}{name}"
+      Stdlib.printLine $"{fullPrefix}{icon}{name}{mark}"
 
       // Recursively display submodules
       if entityType == EntityType.Module && remainingDepth > 1L then
         let newPrefix = prefix ++ (if isLast then "    " else "│   ")
         let newModulePath = Stdlib.List.append modulePath [name]
         let newLocation = PackageLocation.Module newModulePath
-        displayTree branchId newLocation (remainingDepth - 1L) (currentDepth + 1L) newPrefix
+        displayTree
+          branchId
+          newLocation
+          (remainingDepth - 1L)
+          (currentDepth + 1L)
+          newPrefix
+          depSets
+          includeDeprecated
     )
     |> Stdlib.List.iter (fun _ -> ())
 
@@ -235,14 +273,17 @@ let complete (state: AppState) (args: List<String>) : List<Completion.Completion
 
 
 let help (state: AppState): Unit =
-  [ "Usage: tree [path] [--depth=N] [--toc]"
+  [ "Usage: tree [path] [--depth=N] [--toc] [--include-deprecated]"
     "       packages [path] [--depth=N] [--toc]"
     ""
     "Display package hierarchy in tree format."
+    "Deprecated items with no live callers are hidden by default."
+    "Pass --include-deprecated to show them; visible deprecations are marked ⚠."
     ""
     "Options:"
-    "  --depth=N       Set maximum depth (1-10, default: 2)"
-    "  --toc           Show table of contents overview"
+    "  --depth=N              Set maximum depth (1-10, default: 2)"
+    "  --toc                  Show table of contents overview"
+    "  --include-deprecated   Include items deprecated with no live callers"
     ""
     "Examples:"
     "  tree                         - Show tree with icons, depth 2"

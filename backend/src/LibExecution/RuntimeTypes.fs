@@ -878,6 +878,11 @@ module RuntimeError =
     | FnNotFound of name : FQFnName.FQFnName
     | ValueNotFound of name : FQValueName.FQValueName
 
+    /// Raised when calling a package fn whose hash is currently marked
+    /// `Harmful` by a `Deprecate` op. Overridable via `ExecutionState.allowHarmful`
+    /// (e.g. `run --allow-harmful`, `eval --allow-harmful`).
+    | DeprecatedItemHalted of target : FQFnName.Package
+
     | WrongNumberOfTypeArgsForType of
       fn : FQTypeName.FQTypeName *
       expected : int64 *
@@ -1090,16 +1095,25 @@ module PackageFn =
 /// not yet in the Cloud PM.
 /// (though, we'll likely demand deps. in the PM before committing something upstream...)
 type PackageManager =
-  { getType : FQTypeName.Package -> Ply<Option<PackageType.PackageType>>
+  {
+    getType : FQTypeName.Package -> Ply<Option<PackageType.PackageType>>
     getValue : FQValueName.Package -> Ply<Option<PackageValue.PackageValue>>
     getFn : FQFnName.Package -> Ply<Option<PackageFn.PackageFn>>
 
-    init : Ply<unit> }
+    /// Is this package fn hash marked Harmful on the given branch chain?
+    /// Branch-scoped because deprecation state flows through branches; the
+    /// other PM lookups are content-addressed and need no branch.
+    /// Only fns participate — see DeprecationKind.Harmful for why.
+    isHarmful : BranchId -> FQFnName.Package -> Ply<bool>
+
+    init : Ply<unit>
+  }
 
   static member empty =
     { getType = (fun _ -> Ply None)
       getFn = (fun _ -> Ply None)
       getValue = (fun _ -> Ply None)
+      isHarmful = (fun _ _ -> Ply false)
 
       init = uply { return () } }
 
@@ -1130,6 +1144,7 @@ type PackageManager =
           match Map.tryFind id fnMap with
           | Some f -> Some f |> Ply
           | None -> pm.getFn id
+      isHarmful = pm.isHarmful
       init = pm.init }
 
 
@@ -1494,6 +1509,13 @@ and ExecutionState =
     types : Types
     fns : Functions
     values : Values
+
+    /// Escape hatch for `Harmful`-marked fns: when true, the interpreter
+    /// still sees `fns.isHarmful` return true, but proceeds anyway (and
+    /// can still `notify` for observability). Tests, sandboxes, security
+    /// research set this; `run --allow-harmful` / `eval --allow-harmful`
+    /// toggle it for one-offs.
+    allowHarmful : bool
   }
 
 
@@ -1504,8 +1526,12 @@ and Values =
     package : FQValueName.Package -> Ply<Option<PackageValue.PackageValue>> }
 
 and Functions =
-  { builtIn : Map<FQFnName.Builtin, BuiltInFn>
-    package : FQFnName.Package -> Ply<Option<PackageFn.PackageFn>> }
+  {
+    builtIn : Map<FQFnName.Builtin, BuiltInFn>
+    package : FQFnName.Package -> Ply<Option<PackageFn.PackageFn>>
+    /// `PackageManager.isHarmful` with the state's branchId pre-applied.
+    isHarmful : FQFnName.Package -> Ply<bool>
+  }
 
 
 

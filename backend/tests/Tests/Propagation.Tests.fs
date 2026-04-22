@@ -38,7 +38,8 @@ let private addFnAt
     let! _ =
       Inserts.insertAndApplyOpsAsWip
         branchId
-        [ PT.PackageOp.AddFn fn; PT.PackageOp.SetFnName(fn.hash, location) ]
+        [ PT.PackageOp.AddFn fn
+          PT.PackageOp.SetName(location, PT.PackageFn fn.hash) ]
     ()
   }
 
@@ -95,13 +96,8 @@ let testPropagateOps =
 
     match propOps with
     | [ PT.PackageOp.AddFn newCallerFn
-        PT.PackageOp.SetFnName(nameId, nameLoc)
-        PT.PackageOp.PropagateUpdate(_propId,
-                                     srcLoc,
-                                     _srcKind,
-                                     fromHashes,
-                                     toHash,
-                                     reps) ] ->
+        PT.PackageOp.SetName(nameLoc, PT.PackageFn nameId)
+        PT.PackageOp.PropagateUpdate(_propId, srcLoc, fromRefs, toRef, reps) ] ->
 
       Expect.notEqual baseFnV2.hash baseFnV1.hash "base v2 gets a fresh hash"
       Expect.equal
@@ -109,10 +105,10 @@ let testPropagateOps =
         (loc "base")
         "the propagation was triggered by a change to base"
       Expect.equal
-        fromHashes
+        (fromRefs |> List.map _.hash)
         [ baseFnV1.hash ]
         "the old versions list contains base v1"
-      Expect.equal toHash baseFnV2.hash "the new version is base v2"
+      Expect.equal toRef.hash baseFnV2.hash "the new version is base v2"
 
       Expect.notEqual newCallerFn.hash callerFn.hash "new caller gets a fresh hash"
       Expect.equal nameId newCallerFn.hash "the name is assigned to the new caller"
@@ -126,8 +122,11 @@ let testPropagateOps =
         repoint.location
         (loc "caller")
         "the repoint targets the caller location"
-      Expect.equal repoint.fromHash callerFn.hash "the old caller was replaced"
-      Expect.equal repoint.toHash newCallerFn.hash "the new caller took its place"
+      Expect.equal repoint.fromRef.hash callerFn.hash "the old caller was replaced"
+      Expect.equal
+        repoint.toRef.hash
+        newCallerFn.hash
+        "the new caller took its place"
 
     | _ -> failtest $"unexpected ops: {propOps}"
 
@@ -163,9 +162,11 @@ let testTransitiveOps =
     Expect.hasLength propOps 5 "5 ops"
 
     match propOps |> List.last |> Option.get with
-    | PT.PackageOp.PropagateUpdate(_, _, _, _, _, reps) ->
+    | PT.PackageOp.PropagateUpdate(_, _, _, _, reps) ->
       let fromHashes =
-        reps |> List.map (fun (r : PT.PropagateRepoint) -> r.fromHash) |> Set.ofList
+        reps
+        |> List.map (fun (r : PT.PropagateRepoint) -> r.fromRef.hash)
+        |> Set.ofList
       Expect.contains fromHashes fnB.hash "B repointed"
       Expect.contains fromHashes fnC.hash "C repointed"
     | op -> failtest $"expected PropagateUpdate, got {op}"
@@ -242,15 +243,17 @@ let testCallersOnDifferentVersions =
 
     // both callers get repointed, even though they referenced different versions
     match propOps |> List.last |> Option.get with
-    | PT.PackageOp.PropagateUpdate(_, _, _, fromSourceHashes, _, reps) ->
+    | PT.PackageOp.PropagateUpdate(_, _, fromRefs, _, reps) ->
       // Verify fromSourceHashes stores ALL previous hashes
-      let fromSourceSet = Set.ofList fromSourceHashes
-      Expect.contains fromSourceSet baseV1.hash "fromSourceHashes should contain v1"
-      Expect.contains fromSourceSet baseV2.hash "fromSourceHashes should contain v2"
-      Expect.hasLength fromSourceHashes 2 "exactly two previous hashes stored"
+      let fromSourceSet = fromRefs |> List.map _.hash |> Set.ofList
+      Expect.contains fromSourceSet baseV1.hash "fromRefs should contain v1"
+      Expect.contains fromSourceSet baseV2.hash "fromRefs should contain v2"
+      Expect.hasLength fromRefs 2 "exactly two previous hashes stored"
 
       let repointFromHashes =
-        reps |> List.map (fun (r : PT.PropagateRepoint) -> r.fromHash) |> Set.ofList
+        reps
+        |> List.map (fun (r : PT.PropagateRepoint) -> r.fromRef.hash)
+        |> Set.ofList
       Expect.contains
         repointFromHashes
         caller1.hash
@@ -275,14 +278,10 @@ let private makeType
   : PT.PackageType.PackageType =
   { hash = uniqueHash ()
     declaration = { typeParams = []; definition = definition }
-    description = ""
-    deprecated = PT.NotDeprecated }
+    description = "" }
 
 let private makeValue (body : PT.Expr) : PT.PackageValue.PackageValue =
-  { hash = uniqueHash ()
-    body = body
-    description = ""
-    deprecated = PT.NotDeprecated }
+  { hash = uniqueHash (); body = body; description = "" }
 
 let private addTypeAt
   (branchId : PT.BranchId)
@@ -293,7 +292,8 @@ let private addTypeAt
     let! _ =
       Inserts.insertAndApplyOpsAsWip
         branchId
-        [ PT.PackageOp.AddType typ; PT.PackageOp.SetTypeName(typ.hash, location) ]
+        [ PT.PackageOp.AddType typ
+          PT.PackageOp.SetName(location, PT.PackageType typ.hash) ]
     ()
   }
 
@@ -307,7 +307,7 @@ let private addValueAt
       Inserts.insertAndApplyOpsAsWip
         branchId
         [ PT.PackageOp.AddValue value
-          PT.PackageOp.SetValueName(value.hash, location) ]
+          PT.PackageOp.SetName(location, PT.PackageValue value.hash) ]
     ()
   }
 
@@ -406,7 +406,7 @@ let testMutualRecursion =
         |> List.find (fun (r : PT.PropagateRepoint) -> r.location = loc "mrA")
         |> Option.get
       Expect.notEqual
-        sourceRepoint.toHash
+        sourceRepoint.toRef.hash
         fnA3.hash
         "source gets a new hash for mutual recursion"
 
@@ -523,8 +523,7 @@ let testRevertPropagationOp =
         revertId,
         [ propResult.propagationId ],
         loc "rpBase",
-        PT.ItemKind.Fn,
-        fnBase.hash, // restore to committed base v1
+        PT.PackageFn fnBase.hash, // restore to committed base v1
         propResult.repoints // revert all repoints
       )
 
@@ -612,7 +611,7 @@ let testRevertPropagationMultipleUpdates =
       | _ ->
         let first = List.head callerRepoints |> Option.get
         let last = List.last callerRepoints |> Option.get
-        [ { first with PT.PropagateRepoint.toHash = last.toHash } ]
+        [ { first with PT.PropagateRepoint.toRef = last.toRef } ]
 
     // Create RevertPropagation with consolidated repoints
     let revertId = System.Guid.NewGuid()
@@ -621,8 +620,7 @@ let testRevertPropagationMultipleUpdates =
         revertId,
         [ propResult1.propagationId; propResult2.propagationId ],
         loc "rmBase",
-        PT.ItemKind.Fn,
-        fnBase.hash,
+        PT.PackageFn fnBase.hash,
         consolidated
       )
 
@@ -699,8 +697,7 @@ let testIncrementalUndoRestoresWipLocation =
         System.Guid.NewGuid(),
         [ propResult2.propagationId ],
         loc "iwBase",
-        PT.ItemKind.Fn,
-        fnBaseV2.hash, // restore to WIP v2, not committed
+        PT.PackageFn fnBaseV2.hash, // restore to WIP v2, not committed
         [ callerRepoint2 ]
       )
 
@@ -779,8 +776,7 @@ let testIncrementalUndoFullWalkthrough =
         System.Guid.NewGuid(),
         [ propResult2.propagationId ],
         loc "ifBase",
-        PT.ItemKind.Fn,
-        fnBaseV2.hash,
+        PT.PackageFn fnBaseV2.hash,
         [ callerRepoint2 ]
       )
     let! _ = Inserts.insertAndApplyOpsAsWip branchId [ revertOp1 ]
@@ -805,8 +801,7 @@ let testIncrementalUndoFullWalkthrough =
         System.Guid.NewGuid(),
         [ propResult1.propagationId ],
         loc "ifBase",
-        PT.ItemKind.Fn,
-        fnBase.hash, // committed hash
+        PT.PackageFn fnBase.hash, // committed hash
         [ callerRepoint1 ]
       )
     let! _ = Inserts.insertAndApplyOpsAsWip branchId [ revertOp2 ]
@@ -853,8 +848,7 @@ let testUndoThenRedo =
         System.Guid.NewGuid(),
         [],
         loc "urBase",
-        PT.ItemKind.Fn,
-        fnBaseV2.hash,
+        PT.PackageFn fnBaseV2.hash,
         []
       )
     let! _ = Inserts.insertAndApplyOpsAsWip branchId [ revertOp1 ]
@@ -876,8 +870,7 @@ let testUndoThenRedo =
         System.Guid.NewGuid(),
         [],
         loc "urBase",
-        PT.ItemKind.Fn,
-        fnBaseV2.hash,
+        PT.PackageFn fnBaseV2.hash,
         []
       )
     let! _ = Inserts.insertAndApplyOpsAsWip branchId [ revertOp2 ]
@@ -894,8 +887,7 @@ let testUndoThenRedo =
         System.Guid.NewGuid(),
         [],
         loc "urBase",
-        PT.ItemKind.Fn,
-        fnBase.hash,
+        PT.PackageFn fnBase.hash,
         []
       )
     let! _ = Inserts.insertAndApplyOpsAsWip branchId [ revertOp3 ]
@@ -952,8 +944,7 @@ let testMultiCycleUndoRedo =
         System.Guid.NewGuid(),
         [ propResult1.propagationId ],
         loc "mcBase",
-        PT.ItemKind.Fn,
-        fnBase.hash,
+        PT.PackageFn fnBase.hash,
         [ callerRepoint1 ]
       )
     let! _ = Inserts.insertAndApplyOpsAsWip branchId [ revertOp1 ]
@@ -993,8 +984,7 @@ let testMultiCycleUndoRedo =
         System.Guid.NewGuid(),
         [ propResult2.propagationId ],
         loc "mcBase",
-        PT.ItemKind.Fn,
-        fnBase.hash,
+        PT.PackageFn fnBase.hash,
         [ callerRepoint2 ]
       )
     let! _ = Inserts.insertAndApplyOpsAsWip branchId [ revertOp2 ]
@@ -1088,8 +1078,7 @@ let testUndoThenRedoWithDependents =
         System.Guid.NewGuid(),
         [ propResult2.propagationId ],
         loc "urdBase",
-        PT.ItemKind.Fn,
-        fnBaseV2.hash,
+        PT.PackageFn fnBaseV2.hash,
         [ callerRepoint2 ]
       )
     let! _ = Inserts.insertAndApplyOpsAsWip branchId [ revertOp1 ]
@@ -1129,8 +1118,7 @@ let testUndoThenRedoWithDependents =
         System.Guid.NewGuid(),
         [ propResult3.propagationId ],
         loc "urdBase",
-        PT.ItemKind.Fn,
-        fnBaseV2.hash, // restore to v2, not v3
+        PT.PackageFn fnBaseV2.hash, // restore to v2, not v3
         [ callerRepoint3 ]
       )
     let! _ = Inserts.insertAndApplyOpsAsWip branchId [ revertOp2 ]
@@ -1157,8 +1145,7 @@ let testUndoThenRedoWithDependents =
         System.Guid.NewGuid(),
         [ propResult1.propagationId ],
         loc "urdBase",
-        PT.ItemKind.Fn,
-        fnBase.hash,
+        PT.PackageFn fnBase.hash,
         [ callerRepoint1 ]
       )
     let! _ = Inserts.insertAndApplyOpsAsWip branchId [ revertOp3 ]
@@ -1340,8 +1327,7 @@ let testDiamondUndoPropagation =
         revertId,
         [ propResult.propagationId ],
         loc "diaA",
-        PT.ItemKind.Fn,
-        fnA.hash,
+        PT.PackageFn fnA.hash,
         propResult.repoints
       )
     let! _ = Inserts.insertAndApplyOpsAsWip branchId [ revertOp ]
@@ -1396,10 +1382,12 @@ let testDeepTransitiveChain =
       "9 ops: 4 pairs of (AddFn+SetFnName) + PropagateUpdate"
 
     match propOps |> List.last |> Option.get with
-    | PT.PackageOp.PropagateUpdate(_, _, _, _, _, reps) ->
+    | PT.PackageOp.PropagateUpdate(_, _, _, _, reps) ->
       Expect.hasLength reps 4 "4 repoints (B, C, D, E)"
       let fromHashes =
-        reps |> List.map (fun (r : PT.PropagateRepoint) -> r.fromHash) |> Set.ofList
+        reps
+        |> List.map (fun (r : PT.PropagateRepoint) -> r.fromRef.hash)
+        |> Set.ofList
       Expect.contains fromHashes fnB.hash "B repointed"
       Expect.contains fromHashes fnC.hash "C repointed"
       Expect.contains fromHashes fnD.hash "D repointed"
@@ -1477,7 +1465,7 @@ let testRenameFn =
     let! _ =
       Inserts.insertAndApplyOpsAsWip
         branchId
-        [ PT.PackageOp.SetFnName(fn.hash, loc "rnFnNew") ]
+        [ PT.PackageOp.SetName(loc "rnFnNew", PT.PackageFn fn.hash) ]
 
     let! atNew = findFn branchId (loc "rnFnNew")
     Expect.equal atNew (Some fn.hash) "fn should be at new location"
@@ -1507,7 +1495,7 @@ let testRenameType =
     let! _ =
       Inserts.insertAndApplyOpsAsWip
         branchId
-        [ PT.PackageOp.SetTypeName(typ.hash, loc "rnTypeNew") ]
+        [ PT.PackageOp.SetName(loc "rnTypeNew", PT.PackageType typ.hash) ]
 
     let! atNew = findType branchId (loc "rnTypeNew")
     Expect.equal atNew (Some typ.hash) "type should be at new location"
@@ -1530,7 +1518,7 @@ let testRenameValue =
     let! _ =
       Inserts.insertAndApplyOpsAsWip
         branchId
-        [ PT.PackageOp.SetValueName(value.hash, loc "rnValNew") ]
+        [ PT.PackageOp.SetName(loc "rnValNew", PT.PackageValue value.hash) ]
 
     let! atNew = findValue branchId (loc "rnValNew")
     Expect.equal atNew (Some value.hash) "value should be at new location"
@@ -1558,7 +1546,7 @@ let testRenameFnWithDependent =
     let! _ =
       Inserts.insertAndApplyOpsAsWip
         branchId
-        [ PT.PackageOp.SetFnName(fnA.hash, loc "renBase2") ]
+        [ PT.PackageOp.SetName(loc "renBase2", PT.PackageFn fnA.hash) ]
 
     // A is at new location
     let! atNew = findFn branchId (loc "renBase2")
@@ -1595,7 +1583,7 @@ let testRenameThenUpdateWithPropagation =
     let! _ =
       Inserts.insertAndApplyOpsAsWip
         branchId
-        [ PT.PackageOp.SetFnName(fnA.hash, loc "rtpBase2") ]
+        [ PT.PackageOp.SetName(loc "rtpBase2", PT.PackageFn fnA.hash) ]
 
     // Update A at new location (new hash A2)
     let fnA2 =
@@ -1632,7 +1620,7 @@ let testRenameToOccupiedLocation =
     let! _ =
       Inserts.insertAndApplyOpsAsWip
         branchId
-        [ PT.PackageOp.SetFnName(fnA.hash, loc "rdSlot2") ]
+        [ PT.PackageOp.SetName(loc "rdSlot2", PT.PackageFn fnA.hash) ]
 
     // A should be at rdSlot2
     let! atSlot2 = findFn branchId (loc "rdSlot2")
@@ -1727,8 +1715,7 @@ let testSelfRecursionUndo =
         System.Guid.NewGuid(),
         [ propResult.propagationId ],
         loc "srBase",
-        PT.ItemKind.Fn,
-        fnF1.hash,
+        PT.PackageFn fnF1.hash,
         propResult.repoints
       )
     let! _ = Inserts.insertAndApplyOpsAsWip branchId [ revertOp ]
@@ -1799,8 +1786,7 @@ let testMutualRecursionUndo =
         System.Guid.NewGuid(),
         [ propResult.propagationId ],
         loc "muA",
-        PT.ItemKind.Fn,
-        committedAId,
+        PT.PackageFn committedAId,
         propResult.repoints
       )
     let! _ = Inserts.insertAndApplyOpsAsWip branchId [ revertOp ]

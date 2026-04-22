@@ -1108,10 +1108,6 @@ module PackageOp =
 
       $"AddType {name}{typeParamPart} ({kindPart})"
 
-    | SetTypeName (id, loc) ->
-      let path = PackageLocation.packageLocation loc
-      $"SetTypeName → {path}"
-
     | AddFn fn ->
       let name =
         FQFnName.Package.atDefinition ctx fn.hash
@@ -1120,15 +1116,34 @@ module PackageOp =
 
       $"AddFn {name}: {signature}"
 
-    | SetFnName (id, loc) ->
-      let path = PackageLocation.packageLocation loc
-      $"SetFnName → {path}"
-
     | AddValue _value ->
       let name = FQValueName.Package.atDefinition ctx _value.hash
 
       $"AddValue {name}"
 
-    | SetValueName (id, loc) ->
+    | SetName (loc, target) ->
       let path = PackageLocation.packageLocation loc
-      $"SetValueName → {path}"
+      let kind =
+        match target with
+        | PackageType _ -> "Type"
+        | PackageValue _ -> "Value"
+        | PackageFn _ -> "Fn"
+      $"SetName {kind} → {path}"
+
+    | Deprecate (target, kind, message) ->
+      let kindStr =
+        match kind with
+        | SupersededBy _ -> "superseded-by"
+        | Harmful -> "harmful"
+        | Obsolete -> "obsolete"
+      $"Deprecate ({kindStr})"
+
+    | Undeprecate _target -> "Undeprecate"
+
+    | PropagateUpdate (_propId, _sloc, _fromRefs, _toRef, repoints) ->
+      let count = (Stdlib.List.length repoints) |> Stdlib.Int64.toString
+      $"PropagateUpdate ({count} repoint(s))"
+
+    | RevertPropagation (_revertId, _propIds, _sloc, _restoredRef, repoints) ->
+      let count = (Stdlib.List.length repoints) |> Stdlib.Int64.toString
+      $"RevertPropagation ({count} repoint(s))"

@@ -183,19 +183,19 @@ let parse
           for (wtType, ptType) in List.zip modul.types types do
             yield PT.PackageOp.AddType ptType
             let loc = WT2PT.PackageType.Name.toLocation wtType.name
-            yield PT.PackageOp.SetTypeName(nameBasedHash loc, loc)
+            yield PT.PackageOp.SetName(loc, PT.PackageType(nameBasedHash loc))
 
           // Add all values and their locations
           for (wtValue, ptValue) in List.zip modul.values values do
             yield PT.PackageOp.AddValue ptValue
             let loc = WT2PT.PackageValue.Name.toLocation wtValue.name
-            yield PT.PackageOp.SetValueName(nameBasedHash loc, loc)
+            yield PT.PackageOp.SetName(loc, PT.PackageValue(nameBasedHash loc))
 
           // Add all functions and their locations
           for (wtFn, ptFn) in List.zip modul.fns fns do
             yield PT.PackageOp.AddFn ptFn
             let loc = WT2PT.PackageFn.Name.toLocation wtFn.name
-            yield PT.PackageOp.SetFnName(nameBasedHash loc, loc) ]
+            yield PT.PackageOp.SetName(loc, PT.PackageFn(nameBasedHash loc)) ]
 
       return ops
 

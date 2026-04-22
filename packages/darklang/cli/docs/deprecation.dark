@@ -1,0 +1,80 @@
+module Darklang.Cli.Docs.Deprecation
+
+let content () : String =
+  """# Deprecation
+
+Author-initiated annotations that a fn/type/value shouldn't be used anymore.
+Deprecations target content hashes, not names, so a pure rename of the same
+hash is not a deprecation (name changes go through `SetName`); a rewrite with
+a replacement is.
+
+## Three kinds
+
+  superseded-by    Use a different item (different hash) instead.
+                   Requires --replacement.
+  harmful          Actively dangerous (security, correctness, data loss).
+                   Runtime halts on invocation unless --allow-harmful is set.
+  obsolete         Don't use this anymore (catch-all; no halt, no replacement).
+
+## Commands
+
+  deprecate <fn|type|value> <name-or-hash> --kind <k> [options]
+  delete    <fn|type|value> <name-or-hash> [options]
+  undo      <fn|type|value> <name>           # reverses a WIP deprecate
+
+`delete` is sugar for `deprecate --kind obsolete`, but it requires --force
+when the target has live dependents. Prefer `deprecate --kind superseded-by`
+or `deprecate --kind harmful` when a replacement or runtime-halt is wanted.
+
+## Options
+
+  --kind <k>                    superseded-by, harmful, or obsolete
+  --replacement <name-or-hash>  Required for --kind superseded-by
+  -m, --message <text>          Free-form reason; shown in view/search/LSP
+  --yes, -y                     Skip confirmation prompt
+  --dry-run                     Print what would happen; emit no ops
+  --force                       (delete only) proceed despite live dependents
+
+## Runtime behaviour
+
+Invoking a `harmful`-marked item raises `RuntimeError.DeprecatedItemHalted`.
+Tests, sandboxes, and security research can opt out:
+
+  run --allow-harmful fn <target> [args...]
+  eval --allow-harmful <expr>
+
+`obsolete` and `superseded-by` do not halt. They surface in `view`/`ls`/LSP.
+
+## Examples
+
+  # Replace one fn with another
+  deprecate fn Darklang.Stdlib.List.oldMap \\
+    --kind superseded-by --replacement Darklang.Stdlib.List.map_ \\
+    -m "rewrite for perf" --yes
+
+  # Mark something actively dangerous
+  deprecate fn Darklang.Stdlib.Crypto.brokenHash \\
+    --kind harmful -m "CVE-2026-XXXX" --yes
+
+  # Take off the shelf (catch-all)
+  delete fn Darklang.Legacy.oldThing -m "no longer maintained" --yes
+
+  # Revert a WIP deprecate
+  undo fn Darklang.Stdlib.List.oldMap --yes
+
+## Visibility in package tree
+
+By default, deprecated items are hidden from `ls` / `tree` / `search` unless
+a non-deprecated item still references them. Pass `--include-deprecated` to
+see them anyway. `view` always shows the deprecation header when present.
+
+## Notes
+
+  * Deprecation targets a specific content hash. If you update `Foo.bar` to a
+    new hash later, the deprecation doesn't follow — the new hash is its own
+    thing. Re-deprecate the new hash if you want.
+  * Branch-chain visibility: deprecating on a child branch extends the parent;
+    a child can un-deprecate what the parent deprecated.
+  * `delete` refuses without `--force` if live dependents exist. Use plain
+    `deprecate` to give them time to migrate.
+"""

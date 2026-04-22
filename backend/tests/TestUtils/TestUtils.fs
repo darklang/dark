@@ -95,7 +95,6 @@ let testPackageFn
     body = body
     description = ""
     typeParams = typeParams
-    deprecated = PT.NotDeprecated
     parameters =
       NEList.map
         (fun p -> { name = p; typ = PT.TVariable "b"; description = "test" })

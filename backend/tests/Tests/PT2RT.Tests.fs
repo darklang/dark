@@ -1631,8 +1631,7 @@ module PackageFn =
           typeParams = typeParams
           parameters = params' |> NEList.ofListUnsafe "" []
           returnType = returnType
-          description = "TODO"
-          deprecated = PT.NotDeprecated }
+          description = "TODO" }
 
       let actual = PT2RT.PackageFn.toRT fn |> _.body
       let actual = (actual.registerCount, actual.instructions, actual.resultIn)

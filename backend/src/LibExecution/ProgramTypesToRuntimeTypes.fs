@@ -1250,6 +1250,10 @@ module PackageManager =
           |> Ply.map (Option.map (PackageValue.toRT builtinValues))
       getFn = fun id -> pm.getFn (toPT id) |> Ply.map (Option.map PackageFn.toRT)
 
+      // PT PackageManager doesn't surface deprecation state; transient
+      // wrappers (tests, in-memory flows) have no branch chain anyway.
+      isHarmful = fun _ _ -> Ply false
+
       init = pm.init }
 
 

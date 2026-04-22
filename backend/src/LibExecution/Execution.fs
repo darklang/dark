@@ -43,7 +43,12 @@ let createState
 
     types = { package = pm.getType }
     values = { builtIn = builtins.values; package = pm.getValue }
-    fns = { builtIn = builtins.fns; package = pm.getFn } }
+    fns =
+      { builtIn = builtins.fns
+        package = pm.getFn
+        isHarmful = fun pkg -> pm.isHarmful branchId pkg }
+
+    allowHarmful = false }
 
 
 let rec callStackForFrame

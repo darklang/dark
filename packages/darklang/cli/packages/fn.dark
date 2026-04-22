@@ -85,10 +85,10 @@ let createFnInline
           let previousHashes = Propagate.getAllPreviousHashes state.currentBranchId location LanguageTools.ProgramTypes.ItemKind.Fn
           let isUpdate = (Stdlib.List.isEmpty previousHashes) |> Stdlib.Bool.not
 
-          // Create ops: AddFn and SetFnName
+          // Create ops: AddFn and SetName
           let ops =
             [ LanguageTools.ProgramTypes.PackageOp.AddFn packageFn
-              LanguageTools.ProgramTypes.PackageOp.SetFnName (packageFn.hash, location) ]
+              LanguageTools.ProgramTypes.PackageOp.SetName (location, LanguageTools.ProgramTypes.Reference.PackageFn packageFn.hash) ]
 
           // Add ops as WIP (use 'scm commit' to commit)
           match SCM.PackageOps.add state.currentBranchId ops with

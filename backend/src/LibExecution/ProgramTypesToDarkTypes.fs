@@ -1230,9 +1230,7 @@ module PackageType =
     let fields =
       [ "hash", Hash.toDT p.hash
         "declaration", TypeDeclaration.toDT p.declaration
-        "description", DString p.description
-        "deprecated",
-        Deprecation.toDT (FQTypeName.knownType ()) FQTypeName.toDT p.deprecated ]
+        "description", DString p.description ]
     DRecord(typeName (), typeName (), [], Map fields)
 
 
@@ -1241,9 +1239,7 @@ module PackageType =
     | DRecord(_, _, _, fields) ->
       { hash = fields |> D.field "hash" |> Hash.fromDT
         declaration = fields |> D.field "declaration" |> TypeDeclaration.fromDT
-        description = fields |> D.field "description" |> D.string
-        deprecated =
-          fields |> D.field "deprecated" |> Deprecation.fromDT FQTypeName.fromDT }
+        description = fields |> D.field "description" |> D.string }
     | _ -> Exception.raiseInternal "Invalid PackageType" []
 
 
@@ -1257,9 +1253,7 @@ module PackageValue =
     let fields =
       [ "hash", Hash.toDT p.hash
         "body", Expr.toDT p.body
-        "description", DString p.description
-        "deprecated",
-        Deprecation.toDT (FQValueName.knownType ()) FQValueName.toDT p.deprecated ]
+        "description", DString p.description ]
     DRecord(typeName (), typeName (), [], Map fields)
 
   let fromDT (d : Dval) : PT.PackageValue.PackageValue =
@@ -1267,9 +1261,7 @@ module PackageValue =
     | DRecord(_, _, _, fields) ->
       { hash = fields |> D.field "hash" |> Hash.fromDT
         body = fields |> D.field "body" |> Expr.fromDT
-        description = fields |> D.field "description" |> D.string
-        deprecated =
-          fields |> D.field "deprecated" |> Deprecation.fromDT FQValueName.fromDT }
+        description = fields |> D.field "description" |> D.string }
     | _ -> Exception.raiseInternal "Invalid PackageValue" []
 
 
@@ -1315,9 +1307,7 @@ module PackageFn =
            p.parameters |> NEList.toList |> List.map Parameter.toDT
          ))
         ("returnType", TypeReference.toDT p.returnType)
-        ("description", DString p.description)
-        ("deprecated",
-         Deprecation.toDT (FQFnName.knownType ()) FQFnName.toDT p.deprecated) ]
+        ("description", DString p.description) ]
 
     DRecord(typeName (), typeName (), [], Map fields)
 
@@ -1334,9 +1324,7 @@ module PackageFn =
           |> D.list Parameter.fromDT
           |> NEList.ofListUnsafe "PackageFn.fromDT" []
         returnType = fields |> D.field "returnType" |> TypeReference.fromDT
-        description = fields |> D.field "description" |> D.string
-        deprecated =
-          fields |> D.field "deprecated" |> Deprecation.fromDT FQFnName.fromDT }
+        description = fields |> D.field "description" |> D.string }
     | _ -> Exception.raiseInternal "Invalid PackageFn" []
 
 
@@ -1384,6 +1372,51 @@ module ItemKind =
     | _ -> Exception.raiseInternal "Invalid ItemKind" []
 
 
+module Reference =
+  let typeName () =
+    FQTypeName.fqPackage (PackageRefs.Type.LanguageTools.ProgramTypes.reference ())
+  let knownType () = KTCustomType(typeName (), [])
+
+  let toDT (r : PT.Reference) : Dval =
+    let (caseName, fields) =
+      match r with
+      | PT.PackageType h -> "PackageType", [ Hash.toDT h ]
+      | PT.PackageValue h -> "PackageValue", [ Hash.toDT h ]
+      | PT.PackageFn h -> "PackageFn", [ Hash.toDT h ]
+    DEnum(typeName (), typeName (), [], caseName, fields)
+
+  let fromDT (d : Dval) : PT.Reference =
+    match d with
+    | DEnum(_, _, [], "PackageType", [ h ]) -> PT.PackageType(Hash.fromDT h)
+    | DEnum(_, _, [], "PackageValue", [ h ]) -> PT.PackageValue(Hash.fromDT h)
+    | DEnum(_, _, [], "PackageFn", [ h ]) -> PT.PackageFn(Hash.fromDT h)
+    | _ -> Exception.raiseInternal "Invalid Reference" []
+
+
+module DeprecationKind =
+  let typeName () =
+    FQTypeName.fqPackage (
+      PackageRefs.Type.LanguageTools.ProgramTypes.deprecationKind ()
+    )
+  let knownType () = KTCustomType(typeName (), [])
+
+  let toDT (k : PT.DeprecationKind) : Dval =
+    let (caseName, fields) =
+      match k with
+      | PT.SupersededBy ref -> "SupersededBy", [ Reference.toDT ref ]
+      | PT.Harmful -> "Harmful", []
+      | PT.Obsolete -> "Obsolete", []
+    DEnum(typeName (), typeName (), [], caseName, fields)
+
+  let fromDT (d : Dval) : PT.DeprecationKind =
+    match d with
+    | DEnum(_, _, [], "SupersededBy", [ ref ]) ->
+      PT.SupersededBy(Reference.fromDT ref)
+    | DEnum(_, _, [], "Harmful", []) -> PT.Harmful
+    | DEnum(_, _, [], "Obsolete", []) -> PT.Obsolete
+    | _ -> Exception.raiseInternal "Invalid DeprecationKind" []
+
+
 module PropagateRepoint =
   let typeName () =
     FQTypeName.fqPackage (
@@ -1394,18 +1427,16 @@ module PropagateRepoint =
   let toDT (r : PT.PropagateRepoint) : Dval =
     let fields =
       [ "location", PackageLocation.toDT r.location
-        "itemKind", ItemKind.toDT r.itemKind
-        "fromHash", Hash.toDT r.fromHash
-        "toHash", Hash.toDT r.toHash ]
+        "fromRef", Reference.toDT r.fromRef
+        "toRef", Reference.toDT r.toRef ]
     DRecord(typeName (), typeName (), [], Map fields)
 
   let fromDT (d : Dval) : PT.PropagateRepoint =
     match d with
     | DRecord(_, _, _, fields) ->
       { location = fields |> D.field "location" |> PackageLocation.fromDT
-        itemKind = fields |> D.field "itemKind" |> ItemKind.fromDT
-        fromHash = fields |> D.field "fromHash" |> Hash.fromDT
-        toHash = fields |> D.field "toHash" |> Hash.fromDT }
+        fromRef = fields |> D.field "fromRef" |> Reference.fromDT
+        toRef = fields |> D.field "toRef" |> Reference.fromDT }
     | _ -> Exception.raiseInternal "Invalid PropagateRepoint" []
 
 
@@ -1566,24 +1597,22 @@ module PackageOp =
       | PT.PackageOp.AddType t -> "AddType", [ PackageType.toDT t ]
       | PT.PackageOp.AddValue v -> "AddValue", [ PackageValue.toDT v ]
       | PT.PackageOp.AddFn f -> "AddFn", [ PackageFn.toDT f ]
-      | PT.PackageOp.SetTypeName(hash, loc) ->
-        "SetTypeName", [ Hash.toDT hash; PackageLocation.toDT loc ]
-      | PT.PackageOp.SetValueName(hash, loc) ->
-        "SetValueName", [ Hash.toDT hash; PackageLocation.toDT loc ]
-      | PT.PackageOp.SetFnName(hash, loc) ->
-        "SetFnName", [ Hash.toDT hash; PackageLocation.toDT loc ]
+      | PT.PackageOp.SetName(loc, target) ->
+        "SetName", [ PackageLocation.toDT loc; Reference.toDT target ]
+      | PT.PackageOp.Deprecate(target, kind, message) ->
+        "Deprecate",
+        [ Reference.toDT target; DeprecationKind.toDT kind; DString message ]
+      | PT.PackageOp.Undeprecate target -> "Undeprecate", [ Reference.toDT target ]
       | PT.PackageOp.PropagateUpdate(propagationId,
                                      sourceLocation,
-                                     sourceItemKind,
-                                     fromSourceHashes,
-                                     toSourceHash,
+                                     fromRefs,
+                                     toRef,
                                      repoints) ->
         "PropagateUpdate",
         [ DUuid propagationId
           PackageLocation.toDT sourceLocation
-          ItemKind.toDT sourceItemKind
-          DList(VT.known (Hash.knownType ()), List.map Hash.toDT fromSourceHashes)
-          Hash.toDT toSourceHash
+          DList(VT.known (Reference.knownType ()), List.map Reference.toDT fromRefs)
+          Reference.toDT toRef
           DList(
             VT.known (PropagateRepoint.knownType ()),
             List.map PropagateRepoint.toDT repoints
@@ -1591,15 +1620,13 @@ module PackageOp =
       | PT.PackageOp.RevertPropagation(revertId,
                                        revertedPropagationIds,
                                        sourceLocation,
-                                       sourceItemKind,
-                                       restoredSourceHash,
+                                       restoredSourceRef,
                                        revertedRepoints) ->
         "RevertPropagation",
         [ DUuid revertId
           DList(VT.uuid, List.map DUuid revertedPropagationIds)
           PackageLocation.toDT sourceLocation
-          ItemKind.toDT sourceItemKind
-          Hash.toDT restoredSourceHash
+          Reference.toDT restoredSourceRef
           DList(
             VT.known (PropagateRepoint.knownType ()),
             List.map PropagateRepoint.toDT revertedRepoints
@@ -1613,29 +1640,33 @@ module PackageOp =
     | DEnum(_, _, [], "AddValue", [ v ]) ->
       Some(PT.PackageOp.AddValue(PackageValue.fromDT v))
     | DEnum(_, _, [], "AddFn", [ f ]) -> Some(PT.PackageOp.AddFn(PackageFn.fromDT f))
-    | DEnum(_, _, [], "SetTypeName", [ hash; loc ]) ->
-      Some(PT.PackageOp.SetTypeName(Hash.fromDT hash, PackageLocation.fromDT loc))
-    | DEnum(_, _, [], "SetValueName", [ hash; loc ]) ->
-      Some(PT.PackageOp.SetValueName(Hash.fromDT hash, PackageLocation.fromDT loc))
-    | DEnum(_, _, [], "SetFnName", [ hash; loc ]) ->
-      Some(PT.PackageOp.SetFnName(Hash.fromDT hash, PackageLocation.fromDT loc))
+    | DEnum(_, _, [], "SetName", [ loc; target ]) ->
+      Some(PT.PackageOp.SetName(PackageLocation.fromDT loc, Reference.fromDT target))
+    | DEnum(_, _, [], "Deprecate", [ target; kind; DString message ]) ->
+      Some(
+        PT.PackageOp.Deprecate(
+          Reference.fromDT target,
+          DeprecationKind.fromDT kind,
+          message
+        )
+      )
+    | DEnum(_, _, [], "Undeprecate", [ target ]) ->
+      Some(PT.PackageOp.Undeprecate(Reference.fromDT target))
     | DEnum(_,
             _,
             [],
             "PropagateUpdate",
             [ DUuid propagationId
               sourceLocation
-              sourceItemKind
-              DList(_, fromSourceHashes)
-              toSourceHash
+              DList(_, fromRefs)
+              toRef
               DList(_, repoints) ]) ->
       Some(
         PT.PackageOp.PropagateUpdate(
           propagationId,
           PackageLocation.fromDT sourceLocation,
-          ItemKind.fromDT sourceItemKind,
-          List.map Hash.fromDT fromSourceHashes,
-          Hash.fromDT toSourceHash,
+          List.map Reference.fromDT fromRefs,
+          Reference.fromDT toRef,
           List.map PropagateRepoint.fromDT repoints
         )
       )
@@ -1646,16 +1677,14 @@ module PackageOp =
             [ DUuid revertId
               DList(_, revertedPropagationIds)
               sourceLocation
-              sourceItemKind
-              restoredSourceHash
+              restoredSourceRef
               DList(_, revertedRepoints) ]) ->
       Some(
         PT.PackageOp.RevertPropagation(
           revertId,
           List.map D.uuid revertedPropagationIds,
           PackageLocation.fromDT sourceLocation,
-          ItemKind.fromDT sourceItemKind,
-          Hash.fromDT restoredSourceHash,
+          Reference.fromDT restoredSourceRef,
           List.map PropagateRepoint.fromDT revertedRepoints
         )
       )

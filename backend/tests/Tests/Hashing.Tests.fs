@@ -21,11 +21,10 @@ let private makeType
   : PT.PackageType.PackageType =
   { hash = PT.Hash ""
     declaration = { typeParams = []; definition = def }
-    description = ""
-    deprecated = PT.NotDeprecated }
+    description = "" }
 
 let private makeValue (body : PT.Expr) : PT.PackageValue.PackageValue =
-  { hash = PT.Hash ""; body = body; description = ""; deprecated = PT.NotDeprecated }
+  { hash = PT.Hash ""; body = body; description = "" }
 
 
 // ── Tests ────────────────────────────────────────────────────────────────

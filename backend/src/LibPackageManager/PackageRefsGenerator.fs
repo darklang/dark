@@ -54,7 +54,7 @@ let generate () : Ply<unit> =
         SELECT item_type, modules, name, item_hash
         FROM locations
         WHERE owner = 'Darklang'
-          AND deprecated_at IS NULL
+          AND unlisted_at IS NULL
         """
       |> Sql.executeAsync (fun read ->
         let itemType = read.string "item_type"

@@ -1399,6 +1399,8 @@ module RuntimeError =
       | RuntimeError.TypeNotFound name -> "TypeNotFound", [ FQTypeName.toDT name ]
       | RuntimeError.ValueNotFound name -> "ValueNotFound", [ FQValueName.toDT name ]
       | RuntimeError.FnNotFound name -> "FnNotFound", [ FQFnName.toDT name ]
+      | RuntimeError.DeprecatedItemHalted target ->
+        "DeprecatedItemHalted", [ Hash.toDT target ]
       | RuntimeError.WrongNumberOfTypeArgsForType(fn, expected, actual) ->
         "WrongNumberOfTypeArgsForType",
         [ FQTypeName.toDT fn; DInt64 expected; DInt64 actual ]
@@ -1460,6 +1462,8 @@ module RuntimeError =
       RuntimeError.ValueNotFound(FQValueName.fromDT name)
     | DEnum(_, _, [], "FnNotFound", [ name ]) ->
       RuntimeError.FnNotFound(FQFnName.fromDT name)
+    | DEnum(_, _, [], "DeprecatedItemHalted", [ target ]) ->
+      RuntimeError.DeprecatedItemHalted(Hash.fromDT target)
     | DEnum(_, _, [], "WrongNumberOfTypeArgsForType", [ fn; expected; actual ]) ->
       RuntimeError.WrongNumberOfTypeArgsForType(
         FQTypeName.fromDT fn,

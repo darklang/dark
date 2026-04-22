@@ -28,6 +28,10 @@ let execute (state: AppState) (args: List<String>) : AppState =
     if summary.fns > 0L then
       Stdlib.printLine $"  {Builtin.int64ToString summary.fns} function(s)"
 
+    if summary.deprecations > 0L then
+      Stdlib.printLine
+        $"  {Builtin.int64ToString summary.deprecations} deprecation(s)"
+
     [ ""
       "Use 'commit \"message\"' to commit these changes."
       "Use 'discard' to discard these changes." ]

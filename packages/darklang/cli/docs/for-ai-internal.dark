@@ -26,15 +26,33 @@ Auto-rebuilds on save. Watch logs:
   ./scripts/run-backend-tests
   ./scripts/run-backend-tests --filter-test-list "list"   # run a group of tests (e.g. a file)
   ./scripts/run-backend-tests --filter-test-case "any_v0"  # run a specific test
-  (both filters are a bit finnicky; scripts auto-enter container if needed)
+  (both filters are a bit finnicky)
 IMPORTANT: Never run multiple instances of run-backend-tests in parallel.
 Tests take a few minutes to run. Output is logged to
 rundir/logs/fsharp-tests.log -- poll that file for "errored in"
 to catch failures early without waiting for the full run.
 
+## Don't reach for `docker exec`
+Every `./scripts/*` entrypoint auto-enters the devcontainer via
+scripts/devcontainer/_assert-in-container when run from the host. Running
+them directly from the host (e.g. `./scripts/run-backend-tests`) is the
+right call; wrapping them in `docker exec -u dark -w /home/dark/app <cid> ...`
+is never needed and just hardcodes container IDs that change across
+rebuilds.
+
 ## Adding Builtin (F#)
   backend/src/BuiltinExecution/Libs/<module>.fs
   Add to `fns` list, save, wait for rebuild
+
+## Style
+  `///` for doc comments on types/DU cases/fns (both F# and Dark); `//` for inline notes.
+
+## Stringify in Dark, not F#
+Builtins should return structured Dark values (enums, records) — not pre-
+rendered strings or string tags. Dark-side code formats for display. Don't
+build strings like "superseded-by:<hash>" in F# for a Dark caller to parse;
+return the DeprecationKind enum directly. The only valid F#-side stringify
+is when the value genuinely has no Dark-side type (very rare).
 
 ## Adding CLI Command (Darklang)
   1. packages/darklang/cli/commands/<name>.dark
@@ -63,6 +81,12 @@ When something goes wrong, check these logs:
   packages-canvas.log  # .dark file loading from disk
   build-server.log     # F# build issues, high-level errors
   migrations.log       # migration issues (if recently changed)
+
+## PackageRefs stale-hash (bootstrap gotcha)
+backend/src/LibExecution/package-ref-hashes.txt (not in git). Empty = tolerated;
+non-empty with missing key = "PackageRefs: X hash not found" crash at startup.
+Fix after adding a new ref: `> backend/src/LibExecution/package-ref-hashes.txt &&
+./scripts/build/reload-packages`
 
 ## Name Resolution (see also: `docs for-ai`)
 Test files (backend/testfiles/) are parsed with owner "Tests",
@@ -93,6 +117,39 @@ Workaround: avoid lambdas in handler call chains, or pre-compute results.
 ## Debug
   Builtin.debug "label" value   # prints DEBUG: label: <repr> to stdout
   eval <expr>                   # test small pieces (uses tree-sitter parser, not F# parser)
+
+## Enum case construction across modules
+To construct an enum case from outside its defining module, you must name
+the DU type (not just the module). Shortest working form:
+  Module.TypeName.CaseName arg
+Examples from ProgramTypes:
+  OK:  ProgramTypes.Reference.PackageFn hash
+  OK:  ProgramTypes.PackageOp.AddType t
+  BAD: ProgramTypes.PackageFn hash        (lookup: NotFound)
+Exception to the rule: `| Case ... ->` in a match is resolved by the
+matched value's type, so bare `PackageFn h` is fine in a match arm.
+
+## Cross-module pipes
+Dark parses pipes greedily; `Stdlib.List.length xs |> Stdlib.Int64.toString`
+raises "Pipe: LongIdent". Wrap the left side in parens:
+  (Stdlib.List.length xs) |> Stdlib.Int64.toString
+
+## No nested functions (incl. no nested let rec)
+Dark rejects nested `let` (and `let rec`) that define functions. Move
+helpers to module scope instead. The common idiom is a top-level
+`let rec fooLoop acc xs = ...` that `let foo xs = fooLoop empty xs` wraps.
+Parser error reads: "Unsupported let or use expr pat type / pat: LongIdent".
+
+## Record update doesn't take a type-tag
+`{ state with field = v }` is correct. `MyType { state with field = v }`
+looks like F# but parses as a function-application in Dark and fails
+with the same "Unsupported let or use expr pat type" error.
+
+## Keep this file honest
+If a future agent learns something that cost 30+ minutes of debugging
+and isn't documented here (or in `docs for-ai`), add a short entry in
+the same style before moving on. Small contributions compound — over
+time these docs save every subsequent agent the same pain.
 
 ## External Resources
   ~/vaults/Darklang Dev    # team notes

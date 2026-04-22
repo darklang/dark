@@ -86,7 +86,7 @@ let getDependents
           FROM package_dependencies pd
           INNER JOIN locations l ON pd.item_hash = l.item_hash
           WHERE pd.depends_on_hash = @depends_on_hash
-            AND l.deprecated_at IS NULL
+            AND l.unlisted_at IS NULL
             AND l.branch_id IN ({branchInClause})
           ORDER BY pd.item_hash
           """
@@ -122,7 +122,7 @@ let getDependencies
           FROM package_dependencies pd
           INNER JOIN locations l ON pd.depends_on_hash = l.item_hash
           WHERE pd.item_hash = @item_hash
-            AND l.deprecated_at IS NULL
+            AND l.unlisted_at IS NULL
             AND l.branch_id IN ({branchInClause})
           ORDER BY pd.depends_on_hash
           """
@@ -167,7 +167,7 @@ let private getDependentsBatchChunk
           FROM package_dependencies pd
           INNER JOIN locations l ON pd.item_hash = l.item_hash
           WHERE pd.depends_on_hash IN ({inClause})
-            AND l.deprecated_at IS NULL
+            AND l.unlisted_at IS NULL
             AND l.branch_id IN ({branchInClause})
           ORDER BY pd.depends_on_hash, pd.item_hash
           """
@@ -228,7 +228,12 @@ let getWipOps (branchId : PT.BranchId) : Task<List<PT.PackageOp>> =
 
 /// Summary of WIP changes
 type WipSummary =
-  { types : int64; values : int64; fns : int64; renames : int64; total : int64 }
+  { types : int64
+    values : int64
+    fns : int64
+    renames : int64
+    deprecations : int64
+    total : int64 }
 
 
 /// Get summary of WIP ops by type on a branch
@@ -263,9 +268,17 @@ let getWipSummary (branchId : PT.BranchId) : Task<WipSummary> =
     let renames =
       ops
       |> List.filter (function
-        | PT.PackageOp.SetTypeName _
-        | PT.PackageOp.SetValueName _
-        | PT.PackageOp.SetFnName _ -> true
+        | PT.PackageOp.SetName _ -> true
+        | _ -> false)
+      |> List.length
+      |> int64
+
+    // Deprecate and Undeprecate both count here — they're author intent changes.
+    let deprecations =
+      ops
+      |> List.filter (function
+        | PT.PackageOp.Deprecate _
+        | PT.PackageOp.Undeprecate _ -> true
         | _ -> false)
       |> List.length
       |> int64
@@ -273,7 +286,12 @@ let getWipSummary (branchId : PT.BranchId) : Task<WipSummary> =
     let total = ops |> List.length |> int64
 
     return
-      { types = types; values = values; fns = fns; renames = renames; total = total }
+      { types = types
+        values = values
+        fns = fns
+        renames = renames
+        deprecations = deprecations
+        total = total }
   }
 
 
@@ -303,9 +321,9 @@ let getWipItems (branchId : PT.BranchId) : Task<List<WipItem>> =
     let propagatedNames =
       ops
       |> List.collect (function
-        | PT.PackageOp.PropagateUpdate(_, _, _, _, _, repoints) ->
+        | PT.PackageOp.PropagateUpdate(_, _, _, _, repoints) ->
           repoints |> List.map (fun rp -> PackageLocation.toFQN rp.location)
-        | PT.PackageOp.RevertPropagation(_, _, _, _, _, repoints) ->
+        | PT.PackageOp.RevertPropagation(_, _, _, _, repoints) ->
           repoints |> List.map (fun rp -> PackageLocation.toFQN rp.location)
         | _ -> [])
       |> Set.ofList
@@ -314,7 +332,7 @@ let getWipItems (branchId : PT.BranchId) : Task<List<WipItem>> =
     let propCounts : Map<string, int64> =
       ops
       |> List.choose (function
-        | PT.PackageOp.PropagateUpdate(_, sloc, _, _, _, repoints) ->
+        | PT.PackageOp.PropagateUpdate(_, sloc, _, _, repoints) ->
           let name = PackageLocation.toFQN sloc
           let count = int64 repoints.Length
           Some(name, count)
@@ -326,12 +344,16 @@ let getWipItems (branchId : PT.BranchId) : Task<List<WipItem>> =
         Map.empty
 
     // Extract SetName ops, filter out propagated, deduplicate
+    let kindDisplayName (k : PT.ItemKind) : string =
+      match k with
+      | PT.ItemKind.Type -> "Type"
+      | PT.ItemKind.Fn -> "Fn"
+      | PT.ItemKind.Value -> "Value"
+
     let items =
       ops
       |> List.choose (function
-        | PT.PackageOp.SetTypeName(_, loc) -> Some("Type", loc)
-        | PT.PackageOp.SetFnName(_, loc) -> Some("Fn", loc)
-        | PT.PackageOp.SetValueName(_, loc) -> Some("Value", loc)
+        | PT.PackageOp.SetName(loc, target) -> Some(kindDisplayName target.kind, loc)
         | _ -> None)
       |> List.map (fun (kind, loc) ->
         let name = PackageLocation.toFQN loc
@@ -509,7 +531,7 @@ let getAllPreviousHashes
             AND item_type = @item_type
             AND branch_id IN ({branchInClause})
           GROUP BY item_hash
-          ORDER BY MAX(CASE WHEN deprecated_at IS NULL THEN '9999-12-31' ELSE deprecated_at END) DESC
+          ORDER BY MAX(CASE WHEN unlisted_at IS NULL THEN '9999-12-31' ELSE unlisted_at END) DESC
           """
         |> Sql.parameters (
           [ "owner", Sql.string owner
@@ -519,4 +541,192 @@ let getAllPreviousHashes
           @ branchParams
         )
         |> Sql.executeAsync (fun read -> Hash(read.string "item_hash"))
+  }
+
+
+/// Current deprecation state for a single item on a branch chain.
+/// None → not deprecated on this chain (or explicitly undeprecated by child).
+/// Some (kind, message) → annotation from the latest non-superseded row.
+let getCurrentDeprecation
+  (branchChain : List<PT.BranchId>)
+  (itemHash : Hash)
+  (itemKind : PT.ItemKind)
+  : Task<Option<PT.DeprecationKind * string>> =
+  task {
+    if List.isEmpty branchChain then
+      return None
+    else
+      let (Hash itemHashStr) = itemHash
+      let itemKindStr = itemKind.toString ()
+      let branchParams = branchChain |> List.mapi (fun i id -> $"b_{i}", Sql.uuid id)
+      let branchInClause =
+        branchChain |> List.mapi (fun i _ -> $"@b_{i}") |> String.concat ", "
+
+      let! row =
+        Sql.query
+          $"""
+          SELECT state, annotation_blob
+          FROM deprecations
+          WHERE item_hash = @item_hash
+            AND item_kind = @item_kind
+            AND unlisted_at IS NULL
+            AND branch_id IN ({branchInClause})
+          ORDER BY created_at DESC
+          LIMIT 1
+          """
+        |> Sql.parameters (
+          [ "item_hash", Sql.string itemHashStr
+            "item_kind", Sql.string itemKindStr ]
+          @ branchParams
+        )
+        |> Sql.executeRowOptionAsync (fun read ->
+          (read.string "state", read.bytesOrNone "annotation_blob"))
+
+      match row with
+      | Some("deprecated", Some blob) ->
+        try
+          use ms = new System.IO.MemoryStream(blob)
+          use r = new System.IO.BinaryReader(ms)
+          let kind =
+            LibSerialization.Binary.Serializers.PT.PackageOp.DeprecationKind.read r
+          let message = LibSerialization.Binary.Serializers.Common.String.read r
+          return Some(kind, message)
+        with _ ->
+          return None
+      | _ -> return None
+  }
+
+
+/// Deprecation info for `ls`/`tree`/`search`: the full deprecated-hash set
+/// plus the subset that should be hidden by default (deprecated AND has no
+/// live direct caller — "live" = not itself deprecated).
+///
+/// Direct only: we don't walk the dep graph transitively; if A is live and
+/// calls B (deprecated) which calls C (deprecated), C is hidden (its only
+/// caller is deprecated B), B is shown (A is live).
+///
+/// Returns both in a single DB round-trip pair so callers don't issue the
+/// deprecated-hash query twice.
+type DeprecationSets = { allDeprecated : Set<Hash>; hidden : Set<Hash> }
+
+let getDeprecationSets (branchChain : List<PT.BranchId>) : Task<DeprecationSets> =
+  task {
+    if List.isEmpty branchChain then
+      return { allDeprecated = Set.empty; hidden = Set.empty }
+    else
+      let branchParams = branchChain |> List.mapi (fun i id -> $"b_{i}", Sql.uuid id)
+      let branchInClause =
+        branchChain |> List.mapi (fun i _ -> $"@b_{i}") |> String.concat ", "
+
+      let! rows =
+        Sql.query
+          $"""
+          SELECT DISTINCT item_hash
+          FROM deprecations
+          WHERE unlisted_at IS NULL
+            AND state = 'deprecated'
+            AND branch_id IN ({branchInClause})
+          """
+        |> Sql.parameters branchParams
+        |> Sql.executeAsync (fun read -> read.string "item_hash")
+
+      let deprecatedStrs = Set.ofList rows
+      if Set.isEmpty deprecatedStrs then
+        return { allDeprecated = Set.empty; hidden = Set.empty }
+      else
+        let hashList = Set.toList deprecatedStrs
+        let hashParams = hashList |> List.mapi (fun i h -> $"h_{i}", Sql.string h)
+        let hashInClause =
+          hashList |> List.mapi (fun i _ -> $"@h_{i}") |> String.concat ", "
+
+        // (target, caller) pairs — "target" is deprecated by construction.
+        // Caller is live iff it's not itself in deprecatedStrs.
+        // `package_dependencies` is global (hash-keyed, not branch-scoped),
+        // so the reverse-dep walk isn't branch-scoped — only deprecation is.
+        let! edges =
+          Sql.query
+            $"""
+            SELECT depends_on_hash AS target, item_hash AS caller
+            FROM package_dependencies
+            WHERE depends_on_hash IN ({hashInClause})
+            """
+          |> Sql.parameters hashParams
+          |> Sql.executeAsync (fun read ->
+            (read.string "target", read.string "caller"))
+
+        let hasLiveCaller =
+          edges
+          |> List.filter (fun (_, caller) ->
+            not (Set.contains caller deprecatedStrs))
+          |> List.map fst
+          |> Set.ofList
+
+        let allDeprecated = deprecatedStrs |> Set.map Hash
+        let hidden =
+          deprecatedStrs
+          |> Set.filter (fun h -> not (Set.contains h hasLiveCaller))
+          |> Set.map Hash
+        return { allDeprecated = allDeprecated; hidden = hidden }
+  }
+
+
+/// Load the set of package fn hashes currently marked `Harmful` on a
+/// branch chain. Backs `PackageManager.isHarmful` via a per-branch cache,
+/// which the interpreter consults before each package-fn call.
+///
+/// Logic mirrors `getAllPreviousHashes`:
+/// - scope to branch chain
+/// - latest non-superseded row wins (`unlisted_at IS NULL`)
+/// - state = 'deprecated' with a Harmful annotation
+let getHarmfulFnHashes (branchChain : List<PT.BranchId>) : Task<Set<Hash>> =
+  task {
+    if List.isEmpty branchChain then
+      return Set.empty
+    else
+      let branchParams = branchChain |> List.mapi (fun i id -> $"b_{i}", Sql.uuid id)
+
+      let branchInClause =
+        branchChain |> List.mapi (fun i _ -> $"@b_{i}") |> String.concat ", "
+
+      // Read latest non-superseded deprecation per (item_hash, item_kind)
+      // filtered to fns. We read the annotation_blob and let F# decide if
+      // it's Harmful; keeps the SQL schema simple.
+      let! rows =
+        Sql.query
+          $"""
+          SELECT item_hash, state, annotation_blob
+          FROM deprecations
+          WHERE item_kind = 'fn'
+            AND unlisted_at IS NULL
+            AND branch_id IN ({branchInClause})
+          """
+        |> Sql.parameters branchParams
+        |> Sql.executeAsync (fun read ->
+          (read.string "item_hash",
+           read.string "state",
+           read.bytesOrNone "annotation_blob"))
+
+      let isHarmful (blob : byte array) : bool =
+        try
+          use ms = new System.IO.MemoryStream(blob)
+          use r = new System.IO.BinaryReader(ms)
+          let kind =
+            LibSerialization.Binary.Serializers.PT.PackageOp.DeprecationKind.read r
+          match kind with
+          | PT.Harmful -> true
+          | PT.SupersededBy _
+          | PT.Obsolete -> false
+        with _ ->
+          // Malformed blob: fail closed (don't halt). Logging the issue
+          // is left to the caller if they care.
+          false
+
+      let harmfulHashes =
+        rows
+        |> List.choose (fun (hashStr, state, blobOpt) ->
+          match state, blobOpt with
+          | "deprecated", Some blob when isHarmful blob -> Some(Hash hashStr)
+          | _ -> None)
+
+      return Set.ofList harmfulHashes
   }

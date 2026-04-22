@@ -19,14 +19,16 @@ let extractSetOps
   : List<(String * LanguageTools.ProgramTypes.Hash * LanguageTools.ProgramTypes.PackageLocation)> =
   Stdlib.List.filterMap ops (fun op ->
     match op with
-    | SetTypeName (hash, loc) -> Stdlib.Option.Option.Some (("Type", hash, loc))
-    | SetFnName (hash, loc) -> Stdlib.Option.Option.Some (("Fn", hash, loc))
-    | SetValueName (hash, loc) -> Stdlib.Option.Option.Some (("Value", hash, loc))
+    | SetName (loc, PackageType hash) -> Stdlib.Option.Option.Some (("Type", hash, loc))
+    | SetName (loc, PackageFn hash) -> Stdlib.Option.Option.Some (("Fn", hash, loc))
+    | SetName (loc, PackageValue hash) -> Stdlib.Option.Option.Some (("Value", hash, loc))
     | AddType _typ -> Stdlib.Option.Option.None
     | AddFn _fn -> Stdlib.Option.Option.None
     | AddValue _val -> Stdlib.Option.Option.None
-    | PropagateUpdate (_pid, _sloc, _kind, _from, _to, _reps) -> Stdlib.Option.Option.None
-    | RevertPropagation (_rid, _pids, _sloc, _kind, _hash, _reps) -> Stdlib.Option.Option.None)
+    | Deprecate (_target, _kind, _msg) -> Stdlib.Option.Option.None
+    | Undeprecate _target -> Stdlib.Option.Option.None
+    | PropagateUpdate (_pid, _sloc, _from, _to, _reps) -> Stdlib.Option.Option.None
+    | RevertPropagation (_rid, _pids, _sloc, _restoredRef, _reps) -> Stdlib.Option.Option.None)
 
 // ── Data loading ──
 

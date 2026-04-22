@@ -85,14 +85,9 @@ let write (w : BinaryWriter) (t : PackageType.PackageType) : unit =
   Hash.write w t.hash
   TypeDeclaration.write w t.declaration
   String.write w t.description
-  Deprecation.write w FQTypeName.write t.deprecated
 
 let read (r : BinaryReader) : PackageType.PackageType =
   let hash = Hash.read r
   let declaration = TypeDeclaration.read r
   let description = String.read r
-  let deprecated = Deprecation.read r FQTypeName.read
-  { hash = hash
-    declaration = declaration
-    description = description
-    deprecated = deprecated }
+  { hash = hash; declaration = declaration; description = description }

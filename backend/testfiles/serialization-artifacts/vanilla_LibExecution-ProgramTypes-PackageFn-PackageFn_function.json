@@ -1881,8 +1881,5 @@
       ]
     ]
   },
-  "description": "test",
-  "deprecated": {
-    "NotDeprecated": []
-  }
+  "description": "test"
 }

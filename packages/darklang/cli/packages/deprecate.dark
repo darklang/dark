@@ -1,0 +1,270 @@
+module Darklang.Cli.Packages.Deprecate
+
+// `deprecate` marks a fn/type/value as deprecated.
+//
+// TODO (v1.5): interactive kind picker when stdin is a TTY and --kind is
+//   missing (reuse CompletionPicker).
+// TODO (v1.5): `--json` output for agents.
+
+
+type ParsedArgs =
+  { itemType: Stdlib.Option.Option<String>
+    target: Stdlib.Option.Option<String>
+    kind: Stdlib.Option.Option<String>
+    replacement: Stdlib.Option.Option<String>
+    message: String
+    autoConfirm: Bool
+    dryRun: Bool }
+
+
+let emptyArgs: ParsedArgs =
+  ParsedArgs
+    { itemType = Stdlib.Option.Option.None
+      target = Stdlib.Option.Option.None
+      kind = Stdlib.Option.Option.None
+      replacement = Stdlib.Option.Option.None
+      message = ""
+      autoConfirm = false
+      dryRun = false }
+
+
+let rec parseArgsLoop
+  (acc: ParsedArgs)
+  (remaining: List<String>)
+  : ParsedArgs =
+  match remaining with
+  | [] -> acc
+  | "--yes" :: rest
+  | "-y" :: rest -> parseArgsLoop ({ acc with autoConfirm = true }) rest
+  | "--dry-run" :: rest -> parseArgsLoop ({ acc with dryRun = true }) rest
+  | "--kind" :: v :: rest ->
+    parseArgsLoop ({ acc with kind = Stdlib.Option.Option.Some v }) rest
+  | "--replacement" :: v :: rest ->
+    parseArgsLoop
+      ({ acc with replacement = Stdlib.Option.Option.Some v })
+      rest
+  | "-m" :: v :: rest
+  | "--message" :: v :: rest ->
+    parseArgsLoop ({ acc with message = v }) rest
+  | positional :: rest ->
+    match acc.itemType with
+    | None ->
+      parseArgsLoop
+        ({ acc with itemType = Stdlib.Option.Option.Some positional })
+        rest
+    | Some _ ->
+      match acc.target with
+      | None ->
+        parseArgsLoop
+          ({ acc with target = Stdlib.Option.Option.Some positional })
+          rest
+      | Some _ -> parseArgsLoop acc rest
+
+
+/// Parse `--key value` / `--flag` style args into a ParsedArgs.
+/// Positional args fill itemType, then target.
+let parseArgs (args: List<String>) : ParsedArgs =
+  parseArgsLoop emptyArgs args
+
+
+/// Build a Reference by resolving a location string (FQN).
+/// Returns None if the name can't be resolved on the current branch.
+/// TODO: the design doc also promises hash-prefix resolution (e.g.
+///       `deprecate fn ab12cd34`); not implemented yet. Add when the first
+///       caller needs it.
+let resolveTarget
+  (branchId: Uuid)
+  (currentLocation: Packages.PackageLocation)
+  (itemKind: LanguageTools.ProgramTypes.ItemKind)
+  (target: String)
+  : Stdlib.Option.Option<LanguageTools.ProgramTypes.Reference> =
+  match Location.parseRelativeTo currentLocation target with
+  | Ok location ->
+    match itemKind with
+    | Fn ->
+      match Builtin.pmFindFn branchId location with
+      | Some h ->
+        Stdlib.Option.Option.Some (LanguageTools.ProgramTypes.Reference.PackageFn h)
+      | None -> Stdlib.Option.Option.None
+    | Type ->
+      match Builtin.pmFindType branchId location with
+      | Some h ->
+        Stdlib.Option.Option.Some
+          (LanguageTools.ProgramTypes.Reference.PackageType h)
+      | None -> Stdlib.Option.Option.None
+    | Value ->
+      match Builtin.pmFindValue branchId location with
+      | Some h ->
+        Stdlib.Option.Option.Some
+          (LanguageTools.ProgramTypes.Reference.PackageValue h)
+      | None -> Stdlib.Option.Option.None
+  | Error _ -> Stdlib.Option.Option.None
+
+
+let parseKind
+  (itemKind: LanguageTools.ProgramTypes.ItemKind)
+  (kindStr: String)
+  (replacementRef:
+    Stdlib.Option.Option<LanguageTools.ProgramTypes.Reference>)
+  : Stdlib.Result.Result<LanguageTools.ProgramTypes.DeprecationKind, String> =
+  match kindStr with
+  | "superseded-by" ->
+    match replacementRef with
+    | Some r ->
+      Stdlib.Result.Result.Ok
+        (LanguageTools.ProgramTypes.DeprecationKind.SupersededBy r)
+    | None ->
+      Stdlib.Result.Result.Error
+        "--kind superseded-by requires --replacement <location-or-hash>"
+  | "harmful" -> Stdlib.Result.Result.Ok LanguageTools.ProgramTypes.DeprecationKind.Harmful
+  | "obsolete" -> Stdlib.Result.Result.Ok LanguageTools.ProgramTypes.DeprecationKind.Obsolete
+  | other ->
+    Stdlib.Result.Result.Error
+      $"Unknown kind '{other}'. Expected: superseded-by, harmful, obsolete"
+
+
+let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
+  let parsed = parseArgs args
+  let branchId = state.currentBranchId
+
+  match (parsed.itemType, parsed.target, parsed.kind) with
+  | (None, _, _) ->
+    help state
+
+  | (Some _, None, _) ->
+    Stdlib.printLine (Colors.error "Error: Missing target (location or hash)")
+    state
+
+  | (_, _, None) ->
+    Stdlib.printLine
+      (Colors.error
+        "Error: Missing --kind. Use: superseded-by, harmful, or obsolete")
+    state
+
+  | (Some itemTypeStr, Some target, Some kindStr) ->
+    match Propagate.itemKindFromString itemTypeStr with
+    | None ->
+      Stdlib.printLine (Colors.error $"Error: Invalid item type '{itemTypeStr}'")
+      Stdlib.printLine "Must be one of: fn, type, value"
+      state
+    | Some itemKind ->
+      let currentLoc = state.packageData.currentLocation
+      match resolveTarget branchId currentLoc itemKind target with
+      | None ->
+        Stdlib.printLine (Colors.error $"Could not resolve {itemTypeStr} {target}")
+        state
+      | Some targetRef ->
+        // --replacement has three outcomes we care about:
+        //   - absent: None (only valid for non-superseded-by kinds)
+        //   - given and resolves: Some ref
+        //   - given and doesn't resolve: error out here, don't let parseKind
+        //     report "missing" (which would be misleading)
+        let replacementResult =
+          match parsed.replacement with
+          | None -> Stdlib.Result.Result.Ok Stdlib.Option.Option.None
+          | Some r ->
+            match resolveTarget branchId currentLoc itemKind r with
+            | Some ref ->
+              Stdlib.Result.Result.Ok (Stdlib.Option.Option.Some ref)
+            | None ->
+              Stdlib.Result.Result.Error
+                $"Could not resolve --replacement {itemTypeStr} {r}"
+
+        match replacementResult with
+        | Error msg ->
+          Stdlib.printLine (Colors.error msg)
+          state
+        | Ok replacementRef ->
+
+        match parseKind itemKind kindStr replacementRef with
+        | Error msg ->
+          Stdlib.printLine (Colors.error msg)
+          state
+        | Ok deprecationKind ->
+          let fullPath =
+            match Location.parseRelativeTo currentLoc target with
+            | Ok l -> PrettyPrinter.ProgramTypes.PackageLocation.packageLocation l
+            | Error _ -> target
+
+          Stdlib.printLine $"  Will deprecate {itemTypeStr} {fullPath}"
+          Stdlib.printLine $"    kind: {kindStr}"
+          if parsed.message != "" then
+            Stdlib.printLine $"    message: {parsed.message}"
+          match replacementRef with
+          | Some _ ->
+            match parsed.replacement with
+            | Some r -> Stdlib.printLine $"    replacement: {r}"
+            | None -> ()
+          | None -> ()
+
+          if parsed.dryRun then
+            Stdlib.printLine "(dry-run, no op emitted)"
+            state
+          else
+            let proceed =
+              if parsed.autoConfirm then
+                true
+              else
+                Stdlib.printLine ""
+                Stdlib.print (Colors.warning "Proceed? (y/n): ")
+                let response = Builtin.stdinReadLine ()
+                (response == "y") || (response == "Y")
+
+            if proceed then
+              let op =
+                LanguageTools.ProgramTypes.PackageOp.Deprecate
+                  (targetRef, deprecationKind, parsed.message)
+              match SCM.PackageOps.add branchId [ op ] with
+              | Ok _ ->
+                Stdlib.printLine
+                  (Colors.success $"Deprecated {itemTypeStr} {fullPath}")
+                state
+              | Error e ->
+                Stdlib.printLine (Colors.error $"Deprecation failed: {e}")
+                state
+            else
+              Stdlib.printLine "Deprecation cancelled."
+              state
+
+
+let help (state: Cli.AppState) : Cli.AppState =
+  [ "Mark a function, type, or value as deprecated."
+    ""
+    "Usage: deprecate <fn|type|value> <name-or-hash> --kind <k> [options]"
+    ""
+    "Kinds:"
+    "  superseded-by   new item exists — use that instead (requires --replacement)"
+    "  harmful         actively dangerous — runtime halts unless --allow-harmful"
+    "  obsolete        don't use this anymore (catch-all)"
+    ""
+    "Options:"
+    "  --kind <k>                    One of the three kinds above"
+    "  --replacement <name-or-hash>  Replacement item (required for superseded-by)"
+    "  -m, --message <text>          Free-form reason; tooling surfaces it"
+    "  --yes, -y                     Skip confirmation prompt"
+    "  --dry-run                     Print what would happen; emit no ops"
+    ""
+    "Examples:"
+    "  deprecate fn Darklang.Stdlib.List.oldMap \\"
+    "    --kind superseded-by --replacement Darklang.Stdlib.List.map_ \\"
+    "    -m 'rewrite for perf' --yes"
+    ""
+    "  deprecate fn Darklang.Stdlib.Crypto.brokenHash \\"
+    "    --kind harmful -m 'CVE-2026-XXXX' --yes"
+    ""
+    "  deprecate fn Darklang.Legacy.oldThing --kind obsolete --yes"
+    ""
+    "Related:"
+    "  delete — sugar for `deprecate --kind obsolete` with --force gate"
+    "  undo   — reverse a WIP deprecate on the current branch" ]
+  |> Stdlib.printLines
+  state
+
+
+let complete
+  (_state: Cli.AppState)
+  (args: List<String>)
+  : List<Cli.Completion.CompletionItem> =
+  match args with
+  | [] -> ["fn"; "type"; "value"] |> Stdlib.List.map Cli.Completion.simple
+  | _ -> []

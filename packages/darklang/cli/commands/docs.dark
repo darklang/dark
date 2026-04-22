@@ -149,6 +149,14 @@ module Topics =
           subtopics = [] }
 
       DocTopic
+        { name = "deprecation"
+          description = "Mark package items as deprecated / obsolete / harmful"
+          aliases = [ "deprecate"; "delete" ]
+          context = "cli"
+          content = Docs.Deprecation.content
+          subtopics = [] }
+
+      DocTopic
         { name = "interactive-testing"
           description = "Interactive CLI testing & telemetry"
           aliases = [ "testing"; "telemetry"; "expect"; "perf" ]

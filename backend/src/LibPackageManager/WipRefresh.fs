@@ -28,28 +28,31 @@ let private reResolveAllItems
     let rec processOps (remaining : List<PT.PackageOp>) =
       task {
         match remaining with
-        | PT.PackageOp.AddType t :: PT.PackageOp.SetTypeName(hash, loc) :: rest ->
+        | PT.PackageOp.AddType t :: PT.PackageOp.SetName(loc,
+                                                         (PT.PackageType _ as target)) :: rest ->
           let! reResolved =
             DR.reResolveType pm branchId loc.owner loc.modules t |> Ply.toTask
 
           result.Add(PT.PackageOp.AddType reResolved)
-          result.Add(PT.PackageOp.SetTypeName(hash, loc))
+          result.Add(PT.PackageOp.SetName(loc, target))
           do! processOps rest
 
-        | PT.PackageOp.AddFn f :: PT.PackageOp.SetFnName(hash, loc) :: rest ->
+        | PT.PackageOp.AddFn f :: PT.PackageOp.SetName(loc,
+                                                       (PT.PackageFn _ as target)) :: rest ->
           let! reResolved =
             DR.reResolveFn pm branchId loc.owner loc.modules f |> Ply.toTask
 
           result.Add(PT.PackageOp.AddFn reResolved)
-          result.Add(PT.PackageOp.SetFnName(hash, loc))
+          result.Add(PT.PackageOp.SetName(loc, target))
           do! processOps rest
 
-        | PT.PackageOp.AddValue v :: PT.PackageOp.SetValueName(hash, loc) :: rest ->
+        | PT.PackageOp.AddValue v :: PT.PackageOp.SetName(loc,
+                                                          (PT.PackageValue _ as target)) :: rest ->
           let! reResolved =
             DR.reResolveValue pm branchId loc.owner loc.modules v |> Ply.toTask
 
           result.Add(PT.PackageOp.AddValue reResolved)
-          result.Add(PT.PackageOp.SetValueName(hash, loc))
+          result.Add(PT.PackageOp.SetName(loc, target))
           do! processOps rest
 
         | op :: rest ->

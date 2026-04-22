@@ -614,13 +614,15 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
             | Ok restoredHash ->
               let revertId = System.Guid.NewGuid()
 
+              let restoredSourceRef =
+                PT.Reference.fromHashAndKind (restoredHash, sourceItemKind)
+
               let revertOp =
                 PT.PackageOp.RevertPropagation(
                   revertId,
                   propagationIds,
                   sourceLocation,
-                  sourceItemKind,
-                  restoredHash,
+                  restoredSourceRef,
                   repoints
                 )
 
@@ -633,6 +635,97 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
               let resultTuple =
                 DTuple(DUuid revertId, PT2DT.Hash.toDT restoredHash, [])
               return Dval.resultOk tupleKT KTString resultTuple
+          }
+        | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Impure
+      deprecated = NotDeprecated }
+
+
+    // Deprecation info used by ls/tree/search in a single DB round-trip:
+    // (allDeprecatedHashes, hiddenHashes). Hidden = deprecated AND has no
+    // live direct caller (a caller is "live" iff it's not itself deprecated).
+    { name = fn "pmGetDeprecationSets" 0
+      typeParams = []
+      parameters = [ Param.make "branchId" TUuid "Branch context" ]
+      returnType =
+        TTuple(
+          TList(TCustomType(NR.ok (PT2DT.Hash.typeName ()), [])),
+          TList(TCustomType(NR.ok (PT2DT.Hash.typeName ()), [])),
+          []
+        )
+      description =
+        "Tuple (allDeprecated, hidden) of package hashes for the branch. "
+        + "hidden ⊆ allDeprecated — deprecated items with no live direct caller."
+      fn =
+        (function
+        | _, _, _, [ DUuid branchId ] ->
+          uply {
+            let! branchChain = Branches.getBranchChain branchId
+            let! sets = LibPackageManager.Queries.getDeprecationSets branchChain
+            let hashListDval (hashes : Set<PT.Hash>) =
+              hashes
+              |> Set.toList
+              |> List.map PT2DT.Hash.toDT
+              |> Dval.list (PT2DT.Hash.knownType ())
+            return
+              DTuple(hashListDval sets.allDeprecated, hashListDval sets.hidden, [])
+          }
+        | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Impure
+      deprecated = NotDeprecated }
+
+
+    // Current deprecation state for a package item on a branch chain.
+    // None = not deprecated on this chain (or explicitly un-deprecated by a
+    // child branch). Some (kind, message) returns the Dark-side
+    // DeprecationKind enum so callers can format it however they want.
+    { name = fn "pmGetCurrentDeprecation" 0
+      typeParams = []
+      parameters =
+        [ Param.make "branchId" TUuid "Branch context"
+          Param.make "itemHash" (TCustomType(NR.ok (PT2DT.Hash.typeName ()), [])) ""
+          Param.make
+            "itemKind"
+            (TCustomType(NR.ok (PT2DT.ItemKind.typeName ()), []))
+            "fn, type, or value" ]
+      returnType =
+        TypeReference.option (
+          TTuple(
+            TCustomType(NR.ok (PT2DT.DeprecationKind.typeName ()), []),
+            TString,
+            []
+          )
+        )
+      description =
+        "Current deprecation state for an item on the branch chain. "
+        + "None = not deprecated. Some ((kind, message)) otherwise."
+      fn =
+        (function
+        | _, _, _, [ DUuid branchId; hashDval; itemKindDval ] ->
+          uply {
+            let hash = PT2DT.Hash.fromDT hashDval
+            let itemKind = PT2DT.ItemKind.fromDT itemKindDval
+            let! branchChain = Branches.getBranchChain branchId
+            let! result =
+              LibPackageManager.Queries.getCurrentDeprecation
+                branchChain
+                hash
+                itemKind
+            let tupleKT =
+              KTTuple(
+                VT.known (PT2DT.DeprecationKind.knownType ()),
+                VT.known KTString,
+                []
+              )
+            match result with
+            | None -> return Dval.optionNone tupleKT
+            | Some(kind, message) ->
+              return
+                Dval.optionSome
+                  tupleKT
+                  (DTuple(PT2DT.DeprecationKind.toDT kind, DString message, []))
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable

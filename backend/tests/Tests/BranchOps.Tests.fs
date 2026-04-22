@@ -50,7 +50,9 @@ let testBranchOpsEmitted =
 
     // Add a fn as WIP then commit — should emit CreateCommit
     let fn1 = makeFn (eVar "x")
-    let ops = [ PT.PackageOp.AddFn fn1; PT.PackageOp.SetFnName(fn1.hash, loc "bo1") ]
+    let ops =
+      [ PT.PackageOp.AddFn fn1
+        PT.PackageOp.SetName(loc "bo1", PT.PackageFn fn1.hash) ]
     let! (_insertCount : int64) = Inserts.insertAndApplyOpsAsWip branch.id ops
     let testAccountId = System.Guid.Parse "00000000-0000-0000-0000-000000000001"
     let! (commitResult : Result<PT.Hash, string>) =

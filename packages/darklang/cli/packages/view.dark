@@ -1,5 +1,58 @@
 module Darklang.Cli.Packages.View
 
+
+/// Resolve a replacement Reference to a human-readable location name for the
+/// current branch, falling back to a short hash if no location is bound.
+let resolveReplacementName
+  (branchId: Uuid)
+  (ref: LanguageTools.ProgramTypes.Reference)
+  : String =
+  let ctx = PrettyPrinter.ProgramTypes.Context.forBranch branchId
+  let locs =
+    match ref with
+    | PackageFn h -> Builtin.pmGetLocationsByFn branchId h
+    | PackageType h -> Builtin.pmGetLocationsByType branchId h
+    | PackageValue h -> Builtin.pmGetLocationsByValue branchId h
+  match Darklang.LanguageTools.PackageManager.pickLocation
+          (PrettyPrinter.ProgramTypes.Context.toPickContext ctx)
+          locs with
+  | Some loc ->
+    PrettyPrinter.ProgramTypes.PackageLocation.packageLocation loc
+  | None ->
+    $"<hash:{LanguageTools.ProgramTypes.hashToShort ref.hash}>"
+
+
+/// Print a deprecation header for an item, if any.
+let printDeprecationHeaderFor
+  (branchId: Uuid)
+  (hash: LanguageTools.ProgramTypes.Hash)
+  (itemKind: LanguageTools.ProgramTypes.ItemKind)
+  : Unit =
+  match Builtin.pmGetCurrentDeprecation branchId hash itemKind with
+  | None -> ()
+  | Some tuple ->
+    let (kind, message) = tuple
+    let (header, replacementLine) =
+      match kind with
+      | SupersededBy ref ->
+        let replName = resolveReplacementName branchId ref
+        ( "DEPRECATED (superseded)"
+        , Stdlib.Option.Option.Some $"   → use {replName} instead" )
+      | Harmful ->
+        ( "DEPRECATED (HARMFUL — runtime will halt)"
+        , Stdlib.Option.Option.None )
+      | Obsolete ->
+        ( "DEPRECATED (obsolete)"
+        , Stdlib.Option.Option.None )
+    Stdlib.printLine (Colors.warning $"⚠ {header}")
+    match replacementLine with
+    | Some line -> Stdlib.printLine (Colors.hint line)
+    | None -> ()
+    if message != "" then
+      Stdlib.printLine (Colors.dimText $"   {message}")
+    Stdlib.printLine ""
+
+
 let viewEntity (branchId: Uuid) (location: PackageLocation) : Unit =
   match location with
   | Module path ->
@@ -57,6 +110,10 @@ let viewEntity (branchId: Uuid) (location: PackageLocation) : Unit =
       let locationStr = Packages.formatLocation location
       Stdlib.printLine $"Type '{locationStr}' not found."
     | item :: _ ->
+      printDeprecationHeaderFor
+        branchId
+        item.entity.hash
+        LanguageTools.ProgramTypes.ItemKind.Type
       let ctx =
         PrettyPrinter.ProgramTypes.Context
           { branchId = branchId
@@ -77,6 +134,10 @@ let viewEntity (branchId: Uuid) (location: PackageLocation) : Unit =
       let locationStr = Packages.formatLocation location
       Stdlib.printLine $"Function '{locationStr}' not found."
     | item :: _ ->
+      printDeprecationHeaderFor
+        branchId
+        item.entity.hash
+        LanguageTools.ProgramTypes.ItemKind.Fn
       let ctx =
         PrettyPrinter.ProgramTypes.Context
           { branchId = branchId
@@ -97,6 +158,10 @@ let viewEntity (branchId: Uuid) (location: PackageLocation) : Unit =
       let locationStr = Packages.formatLocation location
       Stdlib.printLine $"Value '{locationStr}' not found."
     | item :: _ ->
+      printDeprecationHeaderFor
+        branchId
+        item.entity.hash
+        LanguageTools.ProgramTypes.ItemKind.Value
       let ctx =
         PrettyPrinter.ProgramTypes.Context
           { branchId = branchId
