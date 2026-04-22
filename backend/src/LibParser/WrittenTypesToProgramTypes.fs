@@ -826,9 +826,7 @@ module PackageType =
       let! declaration =
         TypeDeclaration.toPT pm onMissing currentModule pt.declaration
       return
-        { hash = Hash ""
-          description = pt.description
-          declaration = declaration }
+        { hash = Hash ""; description = pt.description; declaration = declaration }
     }
 
 module PackageValue =
@@ -853,10 +851,7 @@ module PackageValue =
           argMap = Map.empty
           localBindings = Set.empty }
       let! body = Expr.toPT builtins pm onMissing currentModule context c.body
-      return
-        { hash = Hash ""
-          description = c.description
-          body = body }
+      return { hash = Hash ""; description = c.description; body = body }
     }
 
 

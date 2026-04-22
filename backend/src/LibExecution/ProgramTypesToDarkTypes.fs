@@ -1601,9 +1601,7 @@ module PackageOp =
         "SetName", [ PackageLocation.toDT loc; Reference.toDT target ]
       | PT.PackageOp.Deprecate(target, kind, message) ->
         "Deprecate",
-        [ Reference.toDT target
-          DeprecationKind.toDT kind
-          DString message ]
+        [ Reference.toDT target; DeprecationKind.toDT kind; DString message ]
       | PT.PackageOp.Undeprecate target -> "Undeprecate", [ Reference.toDT target ]
       | PT.PackageOp.PropagateUpdate(propagationId,
                                      sourceLocation,
@@ -1643,9 +1641,7 @@ module PackageOp =
       Some(PT.PackageOp.AddValue(PackageValue.fromDT v))
     | DEnum(_, _, [], "AddFn", [ f ]) -> Some(PT.PackageOp.AddFn(PackageFn.fromDT f))
     | DEnum(_, _, [], "SetName", [ loc; target ]) ->
-      Some(
-        PT.PackageOp.SetName(PackageLocation.fromDT loc, Reference.fromDT target)
-      )
+      Some(PT.PackageOp.SetName(PackageLocation.fromDT loc, Reference.fromDT target))
     | DEnum(_, _, [], "Deprecate", [ target; kind; DString message ]) ->
       Some(
         PT.PackageOp.Deprecate(

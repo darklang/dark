@@ -22,7 +22,7 @@ module Expr =
       let actual = PT2RT.Expr.toRT Map.empty 0 None expr
       let actual = (actual.registerCount, actual.instructions, actual.resultIn)
       return Expect.equal actual expected ""
-                  }
+    }
 
   module Basic =
     let one = t "1" E.Basic.one (1, [ RT.LoadVal(0, RT.DInt64 1L) ], 0)
@@ -1631,13 +1631,12 @@ module PackageFn =
           typeParams = typeParams
           parameters = params' |> NEList.ofListUnsafe "" []
           returnType = returnType
-          description = "TODO"
-        }
+          description = "TODO" }
 
       let actual = PT2RT.PackageFn.toRT fn |> _.body
       let actual = (actual.registerCount, actual.instructions, actual.resultIn)
       return Expect.equal actual expected ""
-                  }
+    }
 
   module Basic =
     let returnSecondParam =

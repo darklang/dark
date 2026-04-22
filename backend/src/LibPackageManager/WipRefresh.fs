@@ -28,9 +28,8 @@ let private reResolveAllItems
     let rec processOps (remaining : List<PT.PackageOp>) =
       task {
         match remaining with
-        | PT.PackageOp.AddType t
-          :: PT.PackageOp.SetName(loc, (PT.RefPackageType _ as target))
-          :: rest ->
+        | PT.PackageOp.AddType t :: PT.PackageOp.SetName(loc,
+                                                         (PT.RefPackageType _ as target)) :: rest ->
           let! reResolved =
             DR.reResolveType pm branchId loc.owner loc.modules t |> Ply.toTask
 
@@ -38,9 +37,8 @@ let private reResolveAllItems
           result.Add(PT.PackageOp.SetName(loc, target))
           do! processOps rest
 
-        | PT.PackageOp.AddFn f
-          :: PT.PackageOp.SetName(loc, (PT.RefPackageFn _ as target))
-          :: rest ->
+        | PT.PackageOp.AddFn f :: PT.PackageOp.SetName(loc,
+                                                       (PT.RefPackageFn _ as target)) :: rest ->
           let! reResolved =
             DR.reResolveFn pm branchId loc.owner loc.modules f |> Ply.toTask
 
@@ -48,9 +46,8 @@ let private reResolveAllItems
           result.Add(PT.PackageOp.SetName(loc, target))
           do! processOps rest
 
-        | PT.PackageOp.AddValue v
-          :: PT.PackageOp.SetName(loc, (PT.RefPackageValue _ as target))
-          :: rest ->
+        | PT.PackageOp.AddValue v :: PT.PackageOp.SetName(loc,
+                                                          (PT.RefPackageValue _ as target)) :: rest ->
           let! reResolved =
             DR.reResolveValue pm branchId loc.owner loc.modules v |> Ply.toTask
 

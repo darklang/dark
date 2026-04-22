@@ -704,10 +704,7 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
       typeParams = []
       parameters =
         [ Param.make "branchId" TUuid "Branch context"
-          Param.make
-            "itemHash"
-            (TCustomType(NR.ok (PT2DT.Hash.typeName ()), []))
-            ""
+          Param.make "itemHash" (TCustomType(NR.ok (PT2DT.Hash.typeName ()), [])) ""
           Param.make
             "itemKind"
             (TCustomType(NR.ok (PT2DT.ItemKind.typeName ()), []))
@@ -730,8 +727,7 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
                 itemKind
             let tupleKT = KTTuple(VT.known KTString, VT.known KTString, [])
             match result with
-            | None ->
-              return Dval.optionNone tupleKT
+            | None -> return Dval.optionNone tupleKT
             | Some(kind, message) ->
               let kindTag =
                 match kind with

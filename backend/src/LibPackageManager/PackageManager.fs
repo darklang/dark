@@ -29,9 +29,7 @@ let private loadHarmfulForBranch (branchId : PT.BranchId) : Set<string> =
   | true, cached -> cached
   | false, _ ->
     let branchChain =
-      Branches.getBranchChain branchId
-      |> Async.AwaitTask
-      |> Async.RunSynchronously
+      Branches.getBranchChain branchId |> Async.AwaitTask |> Async.RunSynchronously
     let harmful =
       Queries.getHarmfulFnHashes branchChain
       |> Async.AwaitTask
@@ -48,8 +46,7 @@ let rt : RT.PackageManager =
     getValue = withCache PMRT.Value.get
 
     isHarmful =
-      fun branchId (RT.Hash h) ->
-        Ply(Set.contains h (loadHarmfulForBranch branchId))
+      fun branchId (RT.Hash h) -> Ply(Set.contains h (loadHarmfulForBranch branchId))
 
     init =
       uply {

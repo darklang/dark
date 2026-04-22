@@ -599,9 +599,7 @@ let getCurrentDeprecation
 
 /// All currently-deprecated item hashes on a branch chain (any kind — Harmful,
 /// Obsolete, or SupersededBy). Used to decorate list/tree/search output.
-let getDeprecatedHashes
-  (branchChain : List<PT.BranchId>)
-  : Task<Set<Hash>> =
+let getDeprecatedHashes (branchChain : List<PT.BranchId>) : Task<Set<Hash>> =
   task {
     if List.isEmpty branchChain then
       return Set.empty
@@ -634,9 +632,7 @@ let getDeprecatedHashes
 ///
 /// `package_dependencies` is global (keyed on hashes, not branches), so the
 /// reverse-dep walk isn't branch-scoped — only the deprecation status is.
-let getHiddenDeprecatedHashes
-  (branchChain : List<PT.BranchId>)
-  : Task<Set<Hash>> =
+let getHiddenDeprecatedHashes (branchChain : List<PT.BranchId>) : Task<Set<Hash>> =
   task {
     let! deprecated = getDeprecatedHashes branchChain
     if Set.isEmpty deprecated then
@@ -685,9 +681,7 @@ let getHiddenDeprecatedHashes
 /// - scope to branch chain
 /// - latest non-superseded row wins (idx `unlisted_at IS NULL`)
 /// - state = 'deprecated' with a Harmful annotation
-let getHarmfulFnHashes
-  (branchChain : List<PT.BranchId>)
-  : Task<Set<Hash>> =
+let getHarmfulFnHashes (branchChain : List<PT.BranchId>) : Task<Set<Hash>> =
   task {
     if List.isEmpty branchChain then
       return Set.empty

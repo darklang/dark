@@ -89,7 +89,7 @@ let t
     | RT.DEnum(tn, _, _, "Error", [ RT.DString errMsg ]) when tn = Dval.resultType () ->
       return failtest $"Parse error: {errMsg}"
     | _ -> return failtest $"Unexpected parse result format: {parseDval}"
-                }
+  }
 
 
 let person : (PT.PackageType.PackageType * PT.PackageLocation) =

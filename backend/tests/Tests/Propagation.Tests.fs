@@ -38,22 +38,23 @@ let private addFnAt
     let! _ =
       Inserts.insertAndApplyOpsAsWip
         branchId
-        [ PT.PackageOp.AddFn fn; PT.PackageOp.SetName(location, PT.RefPackageFn fn.hash) ]
+        [ PT.PackageOp.AddFn fn
+          PT.PackageOp.SetName(location, PT.RefPackageFn fn.hash) ]
     ()
-       }
+  }
 
 let private setupBranch (name : string) : Task<PT.BranchId> =
   task {
     let! branch = Branches.create name PT.mainBranchId
     return branch.id
-       }
+  }
 
 let private discardAndDeleteBranch (branchId : PT.BranchId) : Task<unit> =
   task {
     let! _ = Inserts.discardWipOps branchId
     let! _ = Branches.delete branchId
     ()
-       }
+  }
 
 let private propagateOrFail
   (branchId : PT.BranchId)
@@ -68,7 +69,7 @@ let private propagateOrFail
     | Ok(Some(r, ops)) -> return (r, ops)
     | Ok None -> return failtest "expected dependents, got None"
     | Error e -> return failtest $"propagate failed: {e}"
-       }
+  }
 
 
 // ── Tests ────────────────────────────────────────────────────────────────
@@ -96,11 +97,7 @@ let testPropagateOps =
     match propOps with
     | [ PT.PackageOp.AddFn newCallerFn
         PT.PackageOp.SetName(nameLoc, PT.RefPackageFn nameId)
-        PT.PackageOp.PropagateUpdate(_propId,
-                                     srcLoc,
-                                     fromRefs,
-                                     toRef,
-                                     reps) ] ->
+        PT.PackageOp.PropagateUpdate(_propId, srcLoc, fromRefs, toRef, reps) ] ->
 
       Expect.notEqual baseFnV2.hash baseFnV1.hash "base v2 gets a fresh hash"
       Expect.equal
@@ -126,12 +123,15 @@ let testPropagateOps =
         (loc "caller")
         "the repoint targets the caller location"
       Expect.equal repoint.fromRef.hash callerFn.hash "the old caller was replaced"
-      Expect.equal repoint.toRef.hash newCallerFn.hash "the new caller took its place"
+      Expect.equal
+        repoint.toRef.hash
+        newCallerFn.hash
+        "the new caller took its place"
 
     | _ -> failtest $"unexpected ops: {propOps}"
 
     do! discardAndDeleteBranch branchId
-                                                                     }
+  }
 
 
 let testTransitiveOps =
@@ -164,13 +164,15 @@ let testTransitiveOps =
     match propOps |> List.last |> Option.get with
     | PT.PackageOp.PropagateUpdate(_, _, _, _, reps) ->
       let fromHashes =
-        reps |> List.map (fun (r : PT.PropagateRepoint) -> r.fromRef.hash) |> Set.ofList
+        reps
+        |> List.map (fun (r : PT.PropagateRepoint) -> r.fromRef.hash)
+        |> Set.ofList
       Expect.contains fromHashes fnB.hash "B repointed"
       Expect.contains fromHashes fnC.hash "C repointed"
     | op -> failtest $"expected PropagateUpdate, got {op}"
 
     do! discardAndDeleteBranch branchId
-                                                               }
+  }
 
 
 let testNoDependents =
@@ -199,7 +201,7 @@ let testNoDependents =
     | _ -> failtest "expected Ok None"
 
     do! discardAndDeleteBranch branchId
-                                                   }
+  }
 
 
 let testCallersOnDifferentVersions =
@@ -249,7 +251,9 @@ let testCallersOnDifferentVersions =
       Expect.hasLength fromRefs 2 "exactly two previous hashes stored"
 
       let repointFromHashes =
-        reps |> List.map (fun (r : PT.PropagateRepoint) -> r.fromRef.hash) |> Set.ofList
+        reps
+        |> List.map (fun (r : PT.PropagateRepoint) -> r.fromRef.hash)
+        |> Set.ofList
       Expect.contains
         repointFromHashes
         caller1.hash
@@ -261,7 +265,7 @@ let testCallersOnDifferentVersions =
     | op -> failtest $"expected PropagateUpdate, got {op}"
 
     do! discardAndDeleteBranch branchId
-                                                             }
+  }
 
 
 /// Generate a unique 64-hex-char hash (matching SHA-256 format).
@@ -274,14 +278,10 @@ let private makeType
   : PT.PackageType.PackageType =
   { hash = uniqueHash ()
     declaration = { typeParams = []; definition = definition }
-    description = ""
-  }
+    description = "" }
 
 let private makeValue (body : PT.Expr) : PT.PackageValue.PackageValue =
-  { hash = uniqueHash ()
-    body = body
-    description = ""
-  }
+  { hash = uniqueHash (); body = body; description = "" }
 
 let private addTypeAt
   (branchId : PT.BranchId)
@@ -292,9 +292,10 @@ let private addTypeAt
     let! _ =
       Inserts.insertAndApplyOpsAsWip
         branchId
-        [ PT.PackageOp.AddType typ; PT.PackageOp.SetName(location, PT.RefPackageType typ.hash) ]
+        [ PT.PackageOp.AddType typ
+          PT.PackageOp.SetName(location, PT.RefPackageType typ.hash) ]
     ()
-       }
+  }
 
 let private addValueAt
   (branchId : PT.BranchId)
@@ -308,7 +309,7 @@ let private addValueAt
         [ PT.PackageOp.AddValue value
           PT.PackageOp.SetName(location, PT.RefPackageValue value.hash) ]
     ()
-       }
+  }
 
 
 let private findFn (branchId : PT.BranchId) (location : PT.PackageLocation) =
@@ -316,21 +317,21 @@ let private findFn (branchId : PT.BranchId) (location : PT.PackageLocation) =
     let! chain = Branches.getBranchChain branchId
     let! result = LibPackageManager.ProgramTypes.Fn.find chain location
     return result
-       }
+  }
 
 let private findType (branchId : PT.BranchId) (location : PT.PackageLocation) =
   task {
     let! chain = Branches.getBranchChain branchId
     let! result = LibPackageManager.ProgramTypes.Type.find chain location
     return result
-       }
+  }
 
 let private findValue (branchId : PT.BranchId) (location : PT.PackageLocation) =
   task {
     let! chain = Branches.getBranchChain branchId
     let! result = LibPackageManager.ProgramTypes.Value.find chain location
     return result
-       }
+  }
 
 let private commitAll (branchId : PT.BranchId) (msg : string) =
   task {
@@ -339,7 +340,7 @@ let private commitAll (branchId : PT.BranchId) (msg : string) =
     match result with
     | Ok commitHash -> return commitHash
     | Error e -> return failtest $"commit failed: {e}"
-       }
+  }
 
 
 
@@ -422,7 +423,7 @@ let testMutualRecursion =
     | Error e -> failtest $"propagation failed: {e}"
 
     do! discardAndDeleteBranch branchId
-                                                                            }
+  }
 
 
 let testBranchIsolation =
@@ -480,7 +481,7 @@ let testBranchIsolation =
 
     do! discardAndDeleteBranch branchA
     do! discardAndDeleteBranch branchB
-                                                                               }
+  }
 
 
 let testRevertPropagationOp =
@@ -543,7 +544,7 @@ let testRevertPropagationOp =
       "base should be restored to committed v1"
 
     do! discardAndDeleteBranch branchId
-                                                                                   }
+  }
 
 
 let testRevertPropagationMultipleUpdates =
@@ -640,7 +641,7 @@ let testRevertPropagationMultipleUpdates =
       "base should be restored to committed v1"
 
     do! discardAndDeleteBranch branchId
-                                                                                  }
+  }
 
 
 let testIncrementalUndoRestoresWipLocation =
@@ -717,7 +718,7 @@ let testIncrementalUndoRestoresWipLocation =
       "caller should be restored to WIP callerV2"
 
     do! discardAndDeleteBranch branchId
-                                                                                     }
+  }
 
 
 let testIncrementalUndoFullWalkthrough =
@@ -818,7 +819,7 @@ let testIncrementalUndoFullWalkthrough =
       "after second undo: caller at committed"
 
     do! discardAndDeleteBranch branchId
-                                                                                     }
+  }
 
 
 let testUndoThenRedo =
@@ -895,7 +896,7 @@ let testUndoThenRedo =
     Expect.equal baseAfterUndo3 (Some fnBase.hash) "after undo v2: base at committed"
 
     do! discardAndDeleteBranch branchId
-                                                                        }
+  }
 
 
 let testMultiCycleUndoRedo =
@@ -1017,7 +1018,7 @@ let testMultiCycleUndoRedo =
       "cycle 3 update: caller repointed again"
 
     do! discardAndDeleteBranch branchId
-                                                                                 }
+  }
 
 
 let testUndoThenRedoWithDependents =
@@ -1158,7 +1159,7 @@ let testUndoThenRedoWithDependents =
       "after undo v2: caller at committed"
 
     do! discardAndDeleteBranch branchId
-                                                                                    }
+  }
 
 
 let testTypePropagation =
@@ -1223,7 +1224,7 @@ let testTypePropagation =
     | Error e -> failtest $"propagation failed: {e}"
 
     do! discardAndDeleteBranch branchId
-                                                                            }
+  }
 
 
 let testValuePropagation =
@@ -1262,7 +1263,7 @@ let testValuePropagation =
     | Error e -> failtest $"propagation failed: {e}"
 
     do! discardAndDeleteBranch branchId
-                                                                              }
+  }
 
 
 let testDiamondUndoPropagation =
@@ -1342,7 +1343,7 @@ let testDiamondUndoPropagation =
     Expect.equal restoredD (Some committedDId) "D should be at committed"
 
     do! discardAndDeleteBranch branchId
-                                                                                   }
+  }
 
 
 let testDeepTransitiveChain =
@@ -1384,7 +1385,9 @@ let testDeepTransitiveChain =
     | PT.PackageOp.PropagateUpdate(_, _, _, _, reps) ->
       Expect.hasLength reps 4 "4 repoints (B, C, D, E)"
       let fromHashes =
-        reps |> List.map (fun (r : PT.PropagateRepoint) -> r.fromRef.hash) |> Set.ofList
+        reps
+        |> List.map (fun (r : PT.PropagateRepoint) -> r.fromRef.hash)
+        |> Set.ofList
       Expect.contains fromHashes fnB.hash "B repointed"
       Expect.contains fromHashes fnC.hash "C repointed"
       Expect.contains fromHashes fnD.hash "D repointed"
@@ -1392,7 +1395,7 @@ let testDeepTransitiveChain =
     | op -> failtest $"expected PropagateUpdate, got {op}"
 
     do! discardAndDeleteBranch branchId
-                                                                            }
+  }
 
 
 let testDiscardAfterPropagate =
@@ -1448,7 +1451,7 @@ let testDiscardAfterPropagate =
       "caller should be at committed after discard"
 
     do! discardAndDeleteBranch branchId
-                                                                  }
+  }
 
 
 let testRenameFn =
@@ -1471,7 +1474,7 @@ let testRenameFn =
     Expect.equal atOld None "fn should not be at old location"
 
     do! discardAndDeleteBranch branchId
-                                                            }
+  }
 
 
 let testRenameType =
@@ -1501,7 +1504,7 @@ let testRenameType =
     Expect.equal atOld None "type should not be at old location"
 
     do! discardAndDeleteBranch branchId
-                                                                }
+  }
 
 
 let testRenameValue =
@@ -1524,7 +1527,7 @@ let testRenameValue =
     Expect.equal atOld None "value should not be at old location"
 
     do! discardAndDeleteBranch branchId
-                                                                  }
+  }
 
 
 let testRenameFnWithDependent =
@@ -1560,7 +1563,7 @@ let testRenameFnWithDependent =
       "B should still be at renCaller with same hash"
 
     do! discardAndDeleteBranch branchId
-                                                                                  }
+  }
 
 
 let testRenameThenUpdateWithPropagation =
@@ -1598,7 +1601,7 @@ let testRenameThenUpdateWithPropagation =
     Expect.notEqual callerNewId fnB.hash "B should be repointed after propagation"
 
     do! discardAndDeleteBranch branchId
-                                                                   }
+  }
 
 
 let testRenameToOccupiedLocation =
@@ -1628,7 +1631,7 @@ let testRenameToOccupiedLocation =
     Expect.equal atSlot1 None "rdSlot1 should be empty"
 
     do! discardAndDeleteBranch branchId
-                                                                  }
+  }
 
 
 let testSelfRecursionPropagation =
@@ -1672,7 +1675,7 @@ let testSelfRecursionPropagation =
     | Error e -> failtest $"propagation failed: {e}"
 
     do! discardAndDeleteBranch branchId
-                                                                                   }
+  }
 
 
 let testSelfRecursionUndo =
@@ -1726,7 +1729,7 @@ let testSelfRecursionUndo =
     Expect.equal baseAfterUndo (Some fnF1.hash) "base should be restored"
 
     do! discardAndDeleteBranch branchId
-                                                                      }
+  }
 
 
 let testMutualRecursionUndo =
@@ -1796,7 +1799,7 @@ let testMutualRecursionUndo =
     Expect.equal bAfterUndo (Some committedBId) "B should be restored to committed"
 
     do! discardAndDeleteBranch branchId
-                                                                             }
+  }
 
 
 let tests =

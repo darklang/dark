@@ -1096,7 +1096,8 @@ module PackageFn =
 /// not yet in the Cloud PM.
 /// (though, we'll likely demand deps. in the PM before committing something upstream...)
 type PackageManager =
-  { getType : FQTypeName.Package -> Ply<Option<PackageType.PackageType>>
+  {
+    getType : FQTypeName.Package -> Ply<Option<PackageType.PackageType>>
     getValue : FQValueName.Package -> Ply<Option<PackageValue.PackageValue>>
     getFn : FQFnName.Package -> Ply<Option<PackageFn.PackageFn>>
 
@@ -1106,7 +1107,8 @@ type PackageManager =
     /// Only fns participate — see DeprecationKind.Harmful for why.
     isHarmful : BranchId -> FQFnName.Package -> Ply<bool>
 
-    init : Ply<unit> }
+    init : Ply<unit>
+  }
 
   static member empty =
     { getType = (fun _ -> Ply None)
@@ -1525,12 +1527,14 @@ and Values =
     package : FQValueName.Package -> Ply<Option<PackageValue.PackageValue>> }
 
 and Functions =
-  { builtIn : Map<FQFnName.Builtin, BuiltInFn>
+  {
+    builtIn : Map<FQFnName.Builtin, BuiltInFn>
     package : FQFnName.Package -> Ply<Option<PackageFn.PackageFn>>
     /// Branch-baked proxy for `PackageManager.isHarmful`. The PM is the
     /// semantic home; this closure just has the ExecutionState's branchId
     /// pre-applied so the interpreter's call site stays terse.
-    isHarmful : FQFnName.Package -> Ply<bool> }
+    isHarmful : FQFnName.Package -> Ply<bool>
+  }
 
 
 

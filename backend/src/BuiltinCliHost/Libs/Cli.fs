@@ -335,10 +335,7 @@ let fns () : List<BuiltInFn> =
         | exeState,
           _,
           [],
-          [ accountIDDval
-            DUuid branchId
-            DString expression
-            DBool allowHarmful ] ->
+          [ accountIDDval; DUuid branchId; DString expression; DBool allowHarmful ] ->
           uply {
             let accountID = C2DT.Option.fromDT D.uuid accountIDDval
             // Use branch-specific state for parsing so name resolution uses the right branch

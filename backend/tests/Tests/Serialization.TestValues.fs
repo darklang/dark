@@ -742,10 +742,7 @@ module ProgramTypes =
   let packageTypes = [ packageType ]
 
   let packageValue : PT.PackageValue.PackageValue =
-    { hash = Hash ""
-      body = constValue
-      description = "test"
-    }
+    { hash = Hash ""; body = constValue; description = "test" }
 
   let packageValues = [ packageValue ]
 
