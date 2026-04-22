@@ -1125,9 +1125,9 @@ module PackageOp =
       let path = PackageLocation.packageLocation loc
       let kind =
         match target with
-        | RefPackageType _ -> "Type"
-        | RefPackageValue _ -> "Value"
-        | RefPackageFn _ -> "Fn"
+        | PackageType _ -> "Type"
+        | PackageValue _ -> "Value"
+        | PackageFn _ -> "Fn"
       $"SetName {kind} → {path}"
 
     | Deprecate (target, kind, message) ->

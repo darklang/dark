@@ -89,12 +89,6 @@ let rec private transformTypeRef
       transformTypeRef mapping ret
     )
 
-// Deprecation used to be a field on package items, so propagation needed to
-// rewrite its RenamedTo/ReplacedBy hash pointers. Now that deprecation is its
-// own op family, this helper is no longer needed for package items.
-// (Builtins still carry inline Deprecation<'name>, but builtins don't participate
-// in hash-rewriting propagation.)
-
 let rec private transformStringSegment
   (mapping : HashMapping)
   (segment : PT.StringSegment)

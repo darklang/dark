@@ -261,7 +261,7 @@ let toPT
             [ PT.PackageOp.AddType ptType
               PT.PackageOp.SetName(
                 WT2PT.PackageType.Name.toLocation wtType.name,
-                PT.RefPackageType hash
+                PT.PackageType hash
               ) ]
         })
       |> Ply.map List.flatten
@@ -276,7 +276,7 @@ let toPT
             [ PT.PackageOp.AddValue ptValue
               PT.PackageOp.SetName(
                 WT2PT.PackageValue.Name.toLocation wtValue.name,
-                PT.RefPackageValue(Hashing.computeValueHash Hashing.Normal ptValue)
+                PT.PackageValue(Hashing.computeValueHash Hashing.Normal ptValue)
               ) ]
         })
       |> Ply.map List.flatten
@@ -291,7 +291,7 @@ let toPT
             [ PT.PackageOp.AddFn ptFn
               PT.PackageOp.SetName(
                 WT2PT.PackageFn.Name.toLocation wtFn.name,
-                PT.RefPackageFn hash
+                PT.PackageFn hash
               ) ]
         })
       |> Ply.map List.flatten

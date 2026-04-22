@@ -642,53 +642,34 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    // All currently-deprecated item hashes on a branch chain.
-    // Used by ls/tree/search to mark deprecated rows with an icon.
-    { name = fn "pmGetDeprecatedHashes" 0
+    // Deprecation info used by ls/tree/search in a single DB round-trip:
+    // (allDeprecatedHashes, hiddenHashes). Hidden = deprecated AND has no
+    // live direct caller (a caller is "live" iff it's not itself deprecated).
+    { name = fn "pmGetDeprecationSets" 0
       typeParams = []
       parameters = [ Param.make "branchId" TUuid "Branch context" ]
-      returnType = TList(TCustomType(NR.ok (PT2DT.Hash.typeName ()), []))
+      returnType =
+        TTuple(
+          TList(TCustomType(NR.ok (PT2DT.Hash.typeName ()), [])),
+          TList(TCustomType(NR.ok (PT2DT.Hash.typeName ()), [])),
+          []
+        )
       description =
-        "Currently-deprecated item hashes on the branch chain (any kind)."
+        "Tuple (allDeprecated, hidden) of package hashes for the branch. "
+        + "hidden ⊆ allDeprecated — deprecated items with no live direct caller."
       fn =
         (function
         | _, _, _, [ DUuid branchId ] ->
           uply {
             let! branchChain = Branches.getBranchChain branchId
-            let! hashes = LibPackageManager.Queries.getDeprecatedHashes branchChain
-            return
+            let! sets = LibPackageManager.Queries.getDeprecationSets branchChain
+            let hashListDval (hashes : Set<PT.Hash>) =
               hashes
               |> Set.toList
               |> List.map PT2DT.Hash.toDT
               |> Dval.list (PT2DT.Hash.knownType ())
-          }
-        | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
-      previewable = Impure
-      deprecated = NotDeprecated }
-
-
-    // Deprecated hashes with no live caller — the set ls/tree/search should
-    // hide by default. "Live caller" means a non-deprecated item that
-    // references this one.
-    { name = fn "pmGetHiddenDeprecatedHashes" 0
-      typeParams = []
-      parameters = [ Param.make "branchId" TUuid "Branch context" ]
-      returnType = TList(TCustomType(NR.ok (PT2DT.Hash.typeName ()), []))
-      description =
-        "Deprecated hashes with no live direct caller (hidden by default in ls/tree/search)."
-      fn =
-        (function
-        | _, _, _, [ DUuid branchId ] ->
-          uply {
-            let! branchChain = Branches.getBranchChain branchId
-            let! hashes =
-              LibPackageManager.Queries.getHiddenDeprecatedHashes branchChain
             return
-              hashes
-              |> Set.toList
-              |> List.map PT2DT.Hash.toDT
-              |> Dval.list (PT2DT.Hash.knownType ())
+              DTuple(hashListDval sets.allDeprecated, hashListDval sets.hidden, [])
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable

@@ -19,9 +19,9 @@ let extractSetOps
   : List<(String * LanguageTools.ProgramTypes.Hash * LanguageTools.ProgramTypes.PackageLocation)> =
   Stdlib.List.filterMap ops (fun op ->
     match op with
-    | SetName (loc, RefPackageType hash) -> Stdlib.Option.Option.Some (("Type", hash, loc))
-    | SetName (loc, RefPackageFn hash) -> Stdlib.Option.Option.Some (("Fn", hash, loc))
-    | SetName (loc, RefPackageValue hash) -> Stdlib.Option.Option.Some (("Value", hash, loc))
+    | SetName (loc, PackageType hash) -> Stdlib.Option.Option.Some (("Type", hash, loc))
+    | SetName (loc, PackageFn hash) -> Stdlib.Option.Option.Some (("Fn", hash, loc))
+    | SetName (loc, PackageValue hash) -> Stdlib.Option.Option.Some (("Value", hash, loc))
     | AddType _typ -> Stdlib.Option.Option.None
     | AddFn _fn -> Stdlib.Option.Option.None
     | AddValue _val -> Stdlib.Option.Option.None

@@ -41,7 +41,7 @@ let private fnContext
     computeHash = Hashing.computeFnHash Hashing.Normal
     withNewId = fun hash fn -> { fn with hash = hash }
     makeAddOp = PT.PackageOp.AddFn
-    makeRef = PT.RefPackageFn }
+    makeRef = PT.PackageFn }
 
 
 let private typeContext
@@ -54,7 +54,7 @@ let private typeContext
     computeHash = Hashing.computeTypeHash Hashing.Normal
     withNewId = fun hash typ -> { typ with hash = hash }
     makeAddOp = PT.PackageOp.AddType
-    makeRef = PT.RefPackageType }
+    makeRef = PT.PackageType }
 
 
 let private valueContext
@@ -67,7 +67,7 @@ let private valueContext
     computeHash = Hashing.computeValueHash Hashing.Normal
     withNewId = fun hash value -> { value with hash = hash }
     makeAddOp = PT.PackageOp.AddValue
-    makeRef = PT.RefPackageValue }
+    makeRef = PT.PackageValue }
 
 
 /// Creates a new version of an item with transformed Hash references.

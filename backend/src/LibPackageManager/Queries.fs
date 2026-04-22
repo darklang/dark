@@ -597,12 +597,22 @@ let getCurrentDeprecation
   }
 
 
-/// All currently-deprecated item hashes on a branch chain (any kind — Harmful,
-/// Obsolete, or SupersededBy). Used to decorate list/tree/search output.
-let getDeprecatedHashes (branchChain : List<PT.BranchId>) : Task<Set<Hash>> =
+/// Deprecation info for `ls`/`tree`/`search`: the full deprecated-hash set
+/// plus the subset that should be hidden by default (deprecated AND has no
+/// live direct caller — "live" = not itself deprecated).
+///
+/// Direct only: we don't walk the dep graph transitively; if A is live and
+/// calls B (deprecated) which calls C (deprecated), C is hidden (its only
+/// caller is deprecated B), B is shown (A is live).
+///
+/// Returns both in a single DB round-trip pair so callers don't issue the
+/// deprecated-hash query twice.
+type DeprecationSets = { allDeprecated : Set<Hash>; hidden : Set<Hash> }
+
+let getDeprecationSets (branchChain : List<PT.BranchId>) : Task<DeprecationSets> =
   task {
     if List.isEmpty branchChain then
-      return Set.empty
+      return { allDeprecated = Set.empty; hidden = Set.empty }
     else
       let branchParams = branchChain |> List.mapi (fun i id -> $"b_{i}", Sql.uuid id)
       let branchInClause =
@@ -618,58 +628,45 @@ let getDeprecatedHashes (branchChain : List<PT.BranchId>) : Task<Set<Hash>> =
             AND branch_id IN ({branchInClause})
           """
         |> Sql.parameters branchParams
-        |> Sql.executeAsync (fun read -> Hash(read.string "item_hash"))
+        |> Sql.executeAsync (fun read -> read.string "item_hash")
 
-      return Set.ofList rows
-  }
+      let deprecatedStrs = Set.ofList rows
+      if Set.isEmpty deprecatedStrs then
+        return { allDeprecated = Set.empty; hidden = Set.empty }
+      else
+        let hashList = Set.toList deprecatedStrs
+        let hashParams = hashList |> List.mapi (fun i h -> $"h_{i}", Sql.string h)
+        let hashInClause =
+          hashList |> List.mapi (fun i _ -> $"@h_{i}") |> String.concat ", "
 
+        // (target, caller) pairs — "target" is deprecated by construction.
+        // Caller is live iff it's not itself in deprecatedStrs.
+        // `package_dependencies` is global (hash-keyed, not branch-scoped),
+        // so the reverse-dep walk isn't branch-scoped — only deprecation is.
+        let! edges =
+          Sql.query
+            $"""
+            SELECT depends_on_hash AS target, item_hash AS caller
+            FROM package_dependencies
+            WHERE depends_on_hash IN ({hashInClause})
+            """
+          |> Sql.parameters hashParams
+          |> Sql.executeAsync (fun read ->
+            (read.string "target", read.string "caller"))
 
-/// Deprecated hashes with no live direct caller — i.e. the set that `ls`/`tree`/
-/// `search` should hide by default. A "live" caller is one whose hash is NOT
-/// itself in the deprecated set. Direct only — we don't walk the dep graph
-/// transitively; if A is live and calls B (deprecated) which calls C (deprecated),
-/// C is hidden (its only caller is deprecated B), B is shown (A is live).
-///
-/// `package_dependencies` is global (keyed on hashes, not branches), so the
-/// reverse-dep walk isn't branch-scoped — only the deprecation status is.
-let getHiddenDeprecatedHashes (branchChain : List<PT.BranchId>) : Task<Set<Hash>> =
-  task {
-    let! deprecated = getDeprecatedHashes branchChain
-    if Set.isEmpty deprecated then
-      return Set.empty
-    else
-      let deprecatedStrs = deprecated |> Set.map (fun (Hash h) -> h)
-      let hashList = deprecatedStrs |> Set.toList
-      let hashParams = hashList |> List.mapi (fun i h -> $"h_{i}", Sql.string h)
-      let hashInClause =
-        hashList |> List.mapi (fun i _ -> $"@h_{i}") |> String.concat ", "
+        let hasLiveCaller =
+          edges
+          |> List.filter (fun (_, caller) ->
+            not (Set.contains caller deprecatedStrs))
+          |> List.map fst
+          |> Set.ofList
 
-      // Find inbound refs for each deprecated hash, plus whether the caller
-      // itself is deprecated. We just return (target, caller) pairs and let
-      // F# decide; keeps the SQL simple.
-      let! edges =
-        Sql.query
-          $"""
-          SELECT depends_on_hash AS target, item_hash AS caller
-          FROM package_dependencies
-          WHERE depends_on_hash IN ({hashInClause})
-          """
-        |> Sql.parameters hashParams
-        |> Sql.executeAsync (fun read ->
-          (read.string "target", read.string "caller"))
-
-      // Targets that have at least one live (non-deprecated) caller:
-      let hasLiveCaller =
-        edges
-        |> List.filter (fun (_, caller) -> not (Set.contains caller deprecatedStrs))
-        |> List.map fst
-        |> Set.ofList
-
-      // Hidden = deprecated AND no live caller.
-      return
-        deprecatedStrs
-        |> Set.filter (fun h -> not (Set.contains h hasLiveCaller))
-        |> Set.map Hash
+        let allDeprecated = deprecatedStrs |> Set.map Hash
+        let hidden =
+          deprecatedStrs
+          |> Set.filter (fun h -> not (Set.contains h hasLiveCaller))
+          |> Set.map Hash
+        return { allDeprecated = allDeprecated; hidden = hidden }
   }
 
 

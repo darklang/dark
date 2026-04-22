@@ -90,7 +90,7 @@ let createTypeInline
           // Create ops: AddType and SetName
           let ops =
             [ LanguageTools.ProgramTypes.PackageOp.AddType packageType
-              LanguageTools.ProgramTypes.PackageOp.SetName (location, LanguageTools.ProgramTypes.Reference.RefPackageType packageType.hash) ]
+              LanguageTools.ProgramTypes.PackageOp.SetName (location, LanguageTools.ProgramTypes.Reference.PackageType packageType.hash) ]
 
           // Add ops as WIP (use 'scm commit' to commit)
           match SCM.PackageOps.add state.currentBranchId ops with

@@ -730,30 +730,30 @@ and ItemKind =
 /// Collapses the pervasive (Hash * ItemKind) pairs into one shape, and leaves
 /// room for future kinds (RefBuiltin, RefExternal, ...).
 and Reference =
-  | RefPackageType of Hash
-  | RefPackageValue of Hash
-  | RefPackageFn of Hash
+  | PackageType of Hash
+  | PackageValue of Hash
+  | PackageFn of Hash
 
   /// Extract the ItemKind (display helper).
   member this.kind : ItemKind =
     match this with
-    | RefPackageType _ -> ItemKind.Type
-    | RefPackageValue _ -> ItemKind.Value
-    | RefPackageFn _ -> ItemKind.Fn
+    | PackageType _ -> ItemKind.Type
+    | PackageValue _ -> ItemKind.Value
+    | PackageFn _ -> ItemKind.Fn
 
   /// Extract the content Hash.
   member this.hash : Hash =
     match this with
-    | RefPackageType h
-    | RefPackageValue h
-    | RefPackageFn h -> h
+    | PackageType h
+    | PackageValue h
+    | PackageFn h -> h
 
   /// Build a Reference from a hash + item kind (common SQL-boundary need).
   static member fromHashAndKind(h : Hash, k : ItemKind) : Reference =
     match k with
-    | ItemKind.Type -> RefPackageType h
-    | ItemKind.Value -> RefPackageValue h
-    | ItemKind.Fn -> RefPackageFn h
+    | ItemKind.Type -> PackageType h
+    | ItemKind.Value -> PackageValue h
+    | ItemKind.Fn -> PackageFn h
 
 
 /// Why a package item has been deprecated. Author-supplied metadata on the

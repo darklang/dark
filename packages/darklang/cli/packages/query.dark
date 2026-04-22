@@ -80,11 +80,11 @@ let private hashListToDict
     Stdlib.Dict.setOverridingDuplicates acc key true)
 
 
-/// Build the deprecation sets for a branch. Two DB hits; cache per invocation
-/// by calling once at the entry point of ls/tree/search.
+/// Build the deprecation sets for a branch. One builtin call (two DB queries
+/// sharing work on the backend); cache per invocation by calling once at the
+/// entry point of ls/tree/search.
 let loadDeprecationSets (branchId: Uuid) : DeprecationSets =
-  let all = Builtin.pmGetDeprecatedHashes branchId
-  let hidden = Builtin.pmGetHiddenDeprecatedHashes branchId
+  let (all, hidden) = Builtin.pmGetDeprecationSets branchId
   DeprecationSets
     { allDeprecated = hashListToDict all
       hidden = hashListToDict hidden }

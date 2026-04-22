@@ -112,9 +112,9 @@ let createInMemory (ops : List<PT.PackageOp>) : PT.PackageManager =
     match op with
     | PT.PackageOp.SetName(loc, target) ->
       match target with
-      | PT.RefPackageType h -> typeLocations.Add(loc, h)
-      | PT.RefPackageValue h -> valueLocations.Add(loc, h)
-      | PT.RefPackageFn h -> fnLocations.Add(loc, h)
+      | PT.PackageType h -> typeLocations.Add(loc, h)
+      | PT.PackageValue h -> valueLocations.Add(loc, h)
+      | PT.PackageFn h -> fnLocations.Add(loc, h)
     | PT.PackageOp.AddType _
     | PT.PackageOp.AddValue _
     | PT.PackageOp.AddFn _ -> ()
@@ -128,9 +128,9 @@ let createInMemory (ops : List<PT.PackageOp>) : PT.PackageManager =
     | PT.PackageOp.PropagateUpdate(_, _, _, _, repoints) ->
       for repoint in repoints do
         match repoint.toRef with
-        | PT.RefPackageType h -> typeLocations.Add(repoint.location, h)
-        | PT.RefPackageValue h -> valueLocations.Add(repoint.location, h)
-        | PT.RefPackageFn h -> fnLocations.Add(repoint.location, h)
+        | PT.PackageType h -> typeLocations.Add(repoint.location, h)
+        | PT.PackageValue h -> valueLocations.Add(repoint.location, h)
+        | PT.PackageFn h -> fnLocations.Add(repoint.location, h)
 
     // For each repoint, point the location back to fromRef (the old version).
     // Then also restore the source item's location to its pre-propagation hash
@@ -142,14 +142,14 @@ let createInMemory (ops : List<PT.PackageOp>) : PT.PackageManager =
       // Reverse the repoints: locations go back to fromRef
       for repoint in revertedRepoints do
         match repoint.fromRef with
-        | PT.RefPackageType h -> typeLocations.Add(repoint.location, h)
-        | PT.RefPackageValue h -> valueLocations.Add(repoint.location, h)
-        | PT.RefPackageFn h -> fnLocations.Add(repoint.location, h)
+        | PT.PackageType h -> typeLocations.Add(repoint.location, h)
+        | PT.PackageValue h -> valueLocations.Add(repoint.location, h)
+        | PT.PackageFn h -> fnLocations.Add(repoint.location, h)
       // Restore source location to committed hash
       match restoredSourceRef with
-      | PT.RefPackageType h -> typeLocations.Add(sourceLocation, h)
-      | PT.RefPackageValue h -> valueLocations.Add(sourceLocation, h)
-      | PT.RefPackageFn h -> fnLocations.Add(sourceLocation, h)
+      | PT.PackageType h -> typeLocations.Add(sourceLocation, h)
+      | PT.PackageValue h -> valueLocations.Add(sourceLocation, h)
+      | PT.PackageFn h -> fnLocations.Add(sourceLocation, h)
 
   // Convert to immutable maps for efficient lookup.
   // All items (types, fns, values) are keyed by their hash.
@@ -161,7 +161,7 @@ let createInMemory (ops : List<PT.PackageOp>) : PT.PackageManager =
     for op in ops do
       match op with
       | PT.PackageOp.AddType t -> pendingType <- Some t
-      | PT.PackageOp.SetName(_, PT.RefPackageType hash) ->
+      | PT.PackageOp.SetName(_, PT.PackageType hash) ->
         match pendingType with
         | Some t ->
           map <- Map.add hash { t with hash = hash } map
@@ -176,7 +176,7 @@ let createInMemory (ops : List<PT.PackageOp>) : PT.PackageManager =
     for op in ops do
       match op with
       | PT.PackageOp.AddFn f -> pendingFn <- Some f
-      | PT.PackageOp.SetName(_, PT.RefPackageFn hash) ->
+      | PT.PackageOp.SetName(_, PT.PackageFn hash) ->
         match pendingFn with
         | Some f ->
           map <- Map.add hash { f with hash = hash } map
@@ -191,7 +191,7 @@ let createInMemory (ops : List<PT.PackageOp>) : PT.PackageManager =
     for op in ops do
       match op with
       | PT.PackageOp.AddValue v -> pendingValue <- Some v
-      | PT.PackageOp.SetName(_, PT.RefPackageValue hash) ->
+      | PT.PackageOp.SetName(_, PT.PackageValue hash) ->
         match pendingValue with
         | Some v ->
           map <- Map.add hash { v with hash = hash } map

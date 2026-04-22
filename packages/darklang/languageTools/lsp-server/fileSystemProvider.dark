@@ -366,7 +366,7 @@ module WriteFile =
                     typeDecl
 
                 [ LanguageTools.ProgramTypes.PackageOp.AddType packageType
-                  LanguageTools.ProgramTypes.PackageOp.SetName (typeLocation, ProgramTypes.Reference.RefPackageType packageType.id) ]
+                  LanguageTools.ProgramTypes.PackageOp.SetName (typeLocation, ProgramTypes.Reference.PackageType packageType.id) ]
             | Error _ -> [])
           |> Stdlib.List.flatten
 
@@ -407,7 +407,7 @@ module WriteFile =
                     fnDecl
 
                 [ LanguageTools.ProgramTypes.PackageOp.AddFn packageFn
-                  LanguageTools.ProgramTypes.PackageOp.SetName (fnLocation, ProgramTypes.Reference.RefPackageFn packageFn.id) ]
+                  LanguageTools.ProgramTypes.PackageOp.SetName (fnLocation, ProgramTypes.Reference.PackageFn packageFn.id) ]
             | Error _ -> [])
           |> Stdlib.List.flatten
 
@@ -448,7 +448,7 @@ module WriteFile =
                     valDecl
 
                 [ LanguageTools.ProgramTypes.PackageOp.AddValue packageValue
-                  LanguageTools.ProgramTypes.PackageOp.SetName (valLocation, ProgramTypes.Reference.RefPackageValue packageValue.id) ]
+                  LanguageTools.ProgramTypes.PackageOp.SetName (valLocation, ProgramTypes.Reference.PackageValue packageValue.id) ]
             | Error _ -> [])
           |> Stdlib.List.flatten
 

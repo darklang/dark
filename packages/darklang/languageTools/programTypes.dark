@@ -425,28 +425,28 @@ type ItemKind =
 /// Collapses (Hash * ItemKind) pairs into one shape; leaves room for future
 /// growth (RefBuiltin, RefExternal, ...).
 type Reference =
-  | RefPackageType of Hash
-  | RefPackageValue of Hash
-  | RefPackageFn of Hash
+  | PackageType of Hash
+  | PackageValue of Hash
+  | PackageFn of Hash
 
 module Reference =
   let hash (r: Reference) : Hash =
     match r with
-    | RefPackageType h -> h
-    | RefPackageValue h -> h
-    | RefPackageFn h -> h
+    | PackageType h -> h
+    | PackageValue h -> h
+    | PackageFn h -> h
 
   let kind (r: Reference) : ItemKind =
     match r with
-    | RefPackageType _ -> ItemKind.Type
-    | RefPackageValue _ -> ItemKind.Value
-    | RefPackageFn _ -> ItemKind.Fn
+    | PackageType _ -> ItemKind.Type
+    | PackageValue _ -> ItemKind.Value
+    | PackageFn _ -> ItemKind.Fn
 
   let fromHashAndKind (h: Hash) (k: ItemKind) : Reference =
     match k with
-    | Type -> RefPackageType h
-    | Value -> RefPackageValue h
-    | Fn -> RefPackageFn h
+    | Type -> PackageType h
+    | Value -> PackageValue h
+    | Fn -> PackageFn h
 
 /// Why a package item has been deprecated. Author-supplied metadata on the
 /// Deprecate op; consumers decide how loud to be.
@@ -630,21 +630,21 @@ module PackageManager =
       ops
       |> Stdlib.List.filterMap (fun op ->
         match op with
-        | SetName (loc, RefPackageType hash) -> Stdlib.Option.Option.Some((loc, hash))
+        | SetName (loc, PackageType hash) -> Stdlib.Option.Option.Some((loc, hash))
         | _ -> Stdlib.Option.Option.None)
 
     let valueLocationMap =
       ops
       |> Stdlib.List.filterMap (fun op ->
         match op with
-        | SetName (loc, RefPackageValue hash) -> Stdlib.Option.Option.Some((loc, hash))
+        | SetName (loc, PackageValue hash) -> Stdlib.Option.Option.Some((loc, hash))
         | _ -> Stdlib.Option.Option.None)
 
     let fnLocationMap =
       ops
       |> Stdlib.List.filterMap (fun op ->
         match op with
-        | SetName (loc, RefPackageFn hash) -> Stdlib.Option.Option.Some((loc, hash))
+        | SetName (loc, PackageFn hash) -> Stdlib.Option.Option.Some((loc, hash))
         | _ -> Stdlib.Option.Option.None)
 
     // Create PackageManager that looks up in ops first, then falls back to basePM

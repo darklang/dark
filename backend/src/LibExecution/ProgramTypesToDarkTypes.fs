@@ -1380,16 +1380,16 @@ module Reference =
   let toDT (r : PT.Reference) : Dval =
     let (caseName, fields) =
       match r with
-      | PT.RefPackageType h -> "RefPackageType", [ Hash.toDT h ]
-      | PT.RefPackageValue h -> "RefPackageValue", [ Hash.toDT h ]
-      | PT.RefPackageFn h -> "RefPackageFn", [ Hash.toDT h ]
+      | PT.PackageType h -> "PackageType", [ Hash.toDT h ]
+      | PT.PackageValue h -> "PackageValue", [ Hash.toDT h ]
+      | PT.PackageFn h -> "PackageFn", [ Hash.toDT h ]
     DEnum(typeName (), typeName (), [], caseName, fields)
 
   let fromDT (d : Dval) : PT.Reference =
     match d with
-    | DEnum(_, _, [], "RefPackageType", [ h ]) -> PT.RefPackageType(Hash.fromDT h)
-    | DEnum(_, _, [], "RefPackageValue", [ h ]) -> PT.RefPackageValue(Hash.fromDT h)
-    | DEnum(_, _, [], "RefPackageFn", [ h ]) -> PT.RefPackageFn(Hash.fromDT h)
+    | DEnum(_, _, [], "PackageType", [ h ]) -> PT.PackageType(Hash.fromDT h)
+    | DEnum(_, _, [], "PackageValue", [ h ]) -> PT.PackageValue(Hash.fromDT h)
+    | DEnum(_, _, [], "PackageFn", [ h ]) -> PT.PackageFn(Hash.fromDT h)
     | _ -> Exception.raiseInternal "Invalid Reference" []
 
 

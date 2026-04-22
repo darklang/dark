@@ -50,11 +50,6 @@ let private getValuePackageHash (value : PT.FQValueName.FQValueName) : Option<Ha
   | PT.FQValueName.Builtin _ -> None
 
 
-// Deprecation dependencies used to be extracted here (RenamedTo/ReplacedBy
-// pointed at other package items). Deprecation is now an op family, so the
-// deprecations table tracks those references separately.
-
-
 /// Extract dependencies from a TypeReference
 let rec private extractFromTypeRef (typeRef : PT.TypeReference) : List<Dependency> =
   match typeRef with

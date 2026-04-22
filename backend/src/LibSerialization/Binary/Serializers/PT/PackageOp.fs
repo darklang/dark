@@ -15,21 +15,21 @@ open LibSerialization.Binary.Serializers.PT.Common
 module Reference =
   let write (w : BinaryWriter) (r : Reference) : unit =
     match r with
-    | RefPackageType h ->
+    | PackageType h ->
       w.Write(0uy)
       Hash.write w h
-    | RefPackageValue h ->
+    | PackageValue h ->
       w.Write(1uy)
       Hash.write w h
-    | RefPackageFn h ->
+    | PackageFn h ->
       w.Write(2uy)
       Hash.write w h
 
   let read (r : BinaryReader) : Reference =
     match r.ReadByte() with
-    | 0uy -> RefPackageType(Hash.read r)
-    | 1uy -> RefPackageValue(Hash.read r)
-    | 2uy -> RefPackageFn(Hash.read r)
+    | 0uy -> PackageType(Hash.read r)
+    | 1uy -> PackageValue(Hash.read r)
+    | 2uy -> PackageFn(Hash.read r)
     | b -> raiseFormatError $"Invalid Reference tag: {b}"
 
 

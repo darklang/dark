@@ -84,19 +84,19 @@ let resolveTarget
     | Fn ->
       match Builtin.pmFindFn branchId location with
       | Some h ->
-        Stdlib.Option.Option.Some (LanguageTools.ProgramTypes.Reference.RefPackageFn h)
+        Stdlib.Option.Option.Some (LanguageTools.ProgramTypes.Reference.PackageFn h)
       | None -> Stdlib.Option.Option.None
     | Type ->
       match Builtin.pmFindType branchId location with
       | Some h ->
         Stdlib.Option.Option.Some
-          (LanguageTools.ProgramTypes.Reference.RefPackageType h)
+          (LanguageTools.ProgramTypes.Reference.PackageType h)
       | None -> Stdlib.Option.Option.None
     | Value ->
       match Builtin.pmFindValue branchId location with
       | Some h ->
         Stdlib.Option.Option.Some
-          (LanguageTools.ProgramTypes.Reference.RefPackageValue h)
+          (LanguageTools.ProgramTypes.Reference.PackageValue h)
       | None -> Stdlib.Option.Option.None
   | Error _ -> Stdlib.Option.Option.None
 

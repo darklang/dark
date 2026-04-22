@@ -26,11 +26,19 @@ Auto-rebuilds on save. Watch logs:
   ./scripts/run-backend-tests
   ./scripts/run-backend-tests --filter-test-list "list"   # run a group of tests (e.g. a file)
   ./scripts/run-backend-tests --filter-test-case "any_v0"  # run a specific test
-  (both filters are a bit finnicky; scripts auto-enter container if needed)
+  (both filters are a bit finnicky)
 IMPORTANT: Never run multiple instances of run-backend-tests in parallel.
 Tests take a few minutes to run. Output is logged to
 rundir/logs/fsharp-tests.log -- poll that file for "errored in"
 to catch failures early without waiting for the full run.
+
+## Don't reach for `docker exec`
+Every `./scripts/*` entrypoint auto-enters the devcontainer via
+scripts/devcontainer/_assert-in-container when run from the host. Running
+them directly from the host (e.g. `./scripts/run-backend-tests`) is the
+right call; wrapping them in `docker exec -u dark -w /home/dark/app <cid> ...`
+is never needed and just hardcodes container IDs that change across
+rebuilds.
 
 ## Adding Builtin (F#)
   backend/src/BuiltinExecution/Libs/<module>.fs
@@ -115,11 +123,11 @@ To construct an enum case from outside its defining module, you must name
 the DU type (not just the module). Shortest working form:
   Module.TypeName.CaseName arg
 Examples from ProgramTypes:
-  OK:  ProgramTypes.Reference.RefPackageFn hash
+  OK:  ProgramTypes.Reference.PackageFn hash
   OK:  ProgramTypes.PackageOp.AddType t
-  BAD: ProgramTypes.RefPackageFn hash        (lookup: NotFound)
+  BAD: ProgramTypes.PackageFn hash        (lookup: NotFound)
 Exception to the rule: `| Case ... ->` in a match is resolved by the
-matched value's type, so bare `RefPackageFn h` is fine in a match arm.
+matched value's type, so bare `PackageFn h` is fine in a match arm.
 
 ## Cross-module pipes
 Dark parses pipes greedily; `Stdlib.List.length xs |> Stdlib.Int64.toString`

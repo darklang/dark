@@ -10,9 +10,9 @@ let resolveReplacementName
   let ctx = PrettyPrinter.ProgramTypes.Context.forBranch branchId
   let locs =
     match ref with
-    | RefPackageFn h -> Builtin.pmGetLocationsByFn branchId h
-    | RefPackageType h -> Builtin.pmGetLocationsByType branchId h
-    | RefPackageValue h -> Builtin.pmGetLocationsByValue branchId h
+    | PackageFn h -> Builtin.pmGetLocationsByFn branchId h
+    | PackageType h -> Builtin.pmGetLocationsByType branchId h
+    | PackageValue h -> Builtin.pmGetLocationsByValue branchId h
   match Darklang.LanguageTools.PackageManager.pickLocation
           (PrettyPrinter.ProgramTypes.Context.toPickContext ctx)
           locs with
