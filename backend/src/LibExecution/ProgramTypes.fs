@@ -648,10 +648,32 @@ type PackageOp =
   | SetName of location : PackageLocation * target : Reference
 
   // Deprecation: author-initiated annotation on a specific content hash.
-  // See thinking/deprecation-redesign.md for the shape + semantics.
+  //
+  // Future: implicit deprecations as Constraints.
+  //
+  // Some SCM events raise an implicit deprecation signal — e.g. a
+  // propagation leaves an item with no inbound refs, or a newly-bound fn
+  // shadows an existing one with an identical signature. Surface these as
+  // Constraints alongside merge and propagation conflicts, routed through
+  // the same `status` / `review` / LSP flow the other conflict types use.
+  //
+  // Auto-resolution defaults to "ignore": the item stays live, no op is
+  // emitted, the signal is informational. The Constraint stays visible to
+  // the author, who can then pick from:
+  //   (a) commit the auto-ignore ("reviewed, intentional") — records the
+  //       acknowledgement so the signal doesn't re-fire on every future op,
+  //   (b) emit an explicit resolution: a Deprecate op (usually Obsolete
+  //       with a message, or SupersededBy pointing at the new item), a
+  //       SetName rebinding, or an Unbind.
+  //
+  // The point is a prompt-for-committed-resolution loop that parallels
+  // merge-conflict resolution — system surfaces what it noticed, author
+  // commits their intent, op log carries both.
   | Deprecate of target : Reference * kind : DeprecationKind * message : string
 
   // Clear any prior deprecation on a target.
+  // TODO: merge-into-main needs a permission axis once ACLs land (a branch
+  //   shouldn't silently un-Harmful on merge).
   | Undeprecate of target : Reference
 
   // Propagation: when a definition is updated, propagate the change to all dependents.
@@ -741,12 +763,17 @@ and Reference =
 
 /// Why a package item has been deprecated. Author-supplied metadata on the
 /// Deprecate op; consumers (LSP, CLI, runtime) decide how loud to be.
+/// TODO: `Harmful` is the only kind SCM can't already express via rebinding;
+///   if usage confirms `SupersededBy`/`Obsolete` overlap, fold into one.
 and DeprecationKind =
   /// A different item (different hash) should be used instead.
   | SupersededBy of replacement : Reference
 
   /// Actively dangerous (security, correctness, data loss).
   /// Runtime halts on invocation by default; `--allow-harmful` overrides.
+  /// Nothing currently prevents a Type from being marked Harmful, which
+  /// seems silly — maybe address somehow, probably ignore. (A value can
+  /// legitimately be Harmful if it holds a secret accidentally.)
   | Harmful
 
   /// Don't use this anymore (catch-all; no halt, no replacement pointer).
