@@ -19,7 +19,7 @@ module PM =
       { hash = PT.Hash hash
         declaration = { typeParams = []; definition = definition }
         description = "TODO"
-        deprecated = PT.NotDeprecated }
+      }
 
     module Records =
       let make id fields =
@@ -673,7 +673,6 @@ let pm : PT.PackageManager =
     let value : PT.PackageValue.PackageValue =
       { hash = PT.Hash Expressions.Values.Package.MySpecialNumber.hash
         description = "TODO"
-        deprecated = PT.NotDeprecated
         body = PT.EInt64(gid (), 17L) }
     [ value ] |> List.map (fun v -> v.hash, v) |> Map.ofList
 
@@ -688,7 +687,7 @@ let pm : PT.PackageManager =
         returnType = PT.TVariable "x"
         body = eVar "x"
         description = "TODO"
-        deprecated = PT.NotDeprecated }
+      }
 
     let outer : PT.PackageFn.PackageFn =
       { hash = PT.Hash Expressions.Fns.Package.Outer.hash
@@ -707,7 +706,7 @@ let pm : PT.PackageManager =
               [ eStr [ strText "hi" ]; eBool true ])
             (eVar "x")
         description = "TODO"
-        deprecated = PT.NotDeprecated }
+      }
 
     let myAdd : PT.PackageFn.PackageFn =
       { hash = PT.Hash Expressions.Fns.Package.MyAdd.hash
@@ -719,7 +718,7 @@ let pm : PT.PackageManager =
         returnType = PT.TInt64
         body = eApply (eBuiltinFn "int64Add" 0) [] [ eVar "a"; eVar "b" ]
         description = "TODO"
-        deprecated = PT.NotDeprecated }
+      }
 
     let fact : PT.PackageFn.PackageFn =
       { hash = PT.Hash Expressions.Fns.Package.Fact.hash
@@ -743,7 +742,7 @@ let pm : PT.PackageManager =
             ))
 
         description = "TODO"
-        deprecated = PT.NotDeprecated }
+      }
 
     // let addUpTO (n : Int64) : Int64 =
     //   if n <= 0 then 0
@@ -775,7 +774,7 @@ let pm : PT.PackageManager =
                         [ eVar "n"; eInt64 1L ] ]) ]
             ))
         description = "TODO"
-        deprecated = PT.NotDeprecated }
+      }
 
     let myFnThatTakesALambda : PT.PackageFn.PackageFn =
       { hash = PT.Hash Expressions.Fns.Package.MyFnThatTakesALambda.hash
@@ -790,7 +789,7 @@ let pm : PT.PackageManager =
         returnType = PT.TInt64
         body = eApply (eVar "fn") [] [ eVar "x" ]
         description = "TODO"
-        deprecated = PT.NotDeprecated }
+      }
 
     let myFnThatReturnsUnit : PT.PackageFn.PackageFn =
       { hash = PT.Hash Expressions.Fns.Package.MyFnThatReturnsUnit.hash
@@ -800,7 +799,7 @@ let pm : PT.PackageManager =
         returnType = PT.TUnit
         body = eUnit ()
         description = "TODO"
-        deprecated = PT.NotDeprecated }
+      }
 
     [ inner
       outer

@@ -186,7 +186,7 @@ let evaluateAllValues
           """
           SELECT pv.hash, pv.pt_def, l.owner, l.modules, l.name
           FROM package_values pv
-          LEFT JOIN locations l ON l.item_hash = pv.hash AND l.deprecated_at IS NULL
+          LEFT JOIN locations l ON l.item_hash = pv.hash AND l.unlisted_at IS NULL
           WHERE pv.rt_dval IS NULL
           """
         |> Sql.executeAsync (fun read ->

@@ -86,10 +86,10 @@ let createValueInline
           let previousHashes = Propagate.getAllPreviousHashes state.currentBranchId location LanguageTools.ProgramTypes.ItemKind.Value
           let isUpdate = (Stdlib.List.isEmpty previousHashes) |> Stdlib.Bool.not
 
-          // Create ops: AddValue and SetValueName
+          // Create ops: AddValue and SetName
           let ops =
             [ LanguageTools.ProgramTypes.PackageOp.AddValue packageValue
-              LanguageTools.ProgramTypes.PackageOp.SetValueName (packageValue.hash, location) ]
+              LanguageTools.ProgramTypes.PackageOp.SetName (location, LanguageTools.ProgramTypes.Reference.RefPackageValue packageValue.hash) ]
 
           // Add ops as WIP (use 'scm commit' to commit)
           match SCM.PackageOps.add state.currentBranchId ops with

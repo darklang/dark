@@ -387,19 +387,20 @@ module TypeDeclaration =
 
 
 // Package space
+//
+// Deprecation is no longer a field on package items — it's tracked by
+// Deprecate/Undeprecate ops (see thinking/deprecation-redesign.md).
 module PackageType =
   type PackageType =
     { hash: FQTypeName.Package
       declaration: TypeDeclaration.TypeDeclaration
-      description: String
-      deprecated: Deprecation<FQTypeName.FQTypeName> }
+      description: String }
 
 module PackageValue =
   type PackageValue =
     { hash: FQValueName.Package
       body: Expr
-      description: String
-      deprecated: Deprecation<FQValueName.FQValueName> }
+      description: String }
 
 module PackageFn =
   type Parameter =
@@ -413,15 +414,7 @@ module PackageFn =
       typeParams: List<String>
       parameters: List<Parameter>
       returnType: TypeReference
-
-      // TODO these don't belong in this -- shouldn't relate to the 'structural definition'
-      // maybe Comments are just special Values that we respect
-      // type Comment = { What; Text }
-      //
-      //being deprecated is outside of the shape, basically.
-      // it's like... computed. like cyclomatic complexity or hash or whatever
-      description: String
-      deprecated: Deprecation<FQFnName.FQFnName>}
+      description: String }
 
 
 
@@ -431,36 +424,73 @@ type ItemKind =
   | Type
   | Value
 
+/// A reference to a specific package item by content hash.
+/// Collapses (Hash * ItemKind) pairs into one shape; leaves room for future
+/// growth (RefBuiltin, RefExternal, ...).
+type Reference =
+  | RefPackageType of Hash
+  | RefPackageValue of Hash
+  | RefPackageFn of Hash
+
+module Reference =
+  let hash (r: Reference) : Hash =
+    match r with
+    | RefPackageType h -> h
+    | RefPackageValue h -> h
+    | RefPackageFn h -> h
+
+  let kind (r: Reference) : ItemKind =
+    match r with
+    | RefPackageType _ -> ItemKind.Type
+    | RefPackageValue _ -> ItemKind.Value
+    | RefPackageFn _ -> ItemKind.Fn
+
+  let fromHashAndKind (h: Hash) (k: ItemKind) : Reference =
+    match k with
+    | Type -> RefPackageType h
+    | Value -> RefPackageValue h
+    | Fn -> RefPackageFn h
+
+/// Why a package item has been deprecated. Author-supplied metadata on the
+/// Deprecate op; consumers decide how loud to be.
+type DeprecationKind =
+  /// A different item (different hash) should be used instead.
+  | SupersededBy of replacement: Reference
+  /// Actively dangerous — runtime halts on invocation by default.
+  | Harmful
+  /// Don't use this anymore (catch-all).
+  | Obsolete
+
 /// A single repoint operation within a PropagateUpdate
 type PropagateRepoint =
   { location: PackageLocation
-    itemKind: ItemKind
-    fromHash: Hash
-    toHash: Hash }
+    fromRef: Reference
+    toRef: Reference }
 
 
 type PackageOp =
   | AddType of PackageType.PackageType
   | AddValue of PackageValue.PackageValue
   | AddFn of PackageFn.PackageFn
-  | SetTypeName of FQTypeName.Package * PackageLocation
-  | SetValueName of FQValueName.Package * PackageLocation
-  | SetFnName of FQFnName.Package * PackageLocation
+  // Bind a name (location) to a piece of content (target).
+  | SetName of location: PackageLocation * target: Reference
+  // Author-initiated deprecation annotation on a specific hash.
+  | Deprecate of target: Reference * kind: DeprecationKind * message: String
+  // Clear any prior deprecation on a target.
+  | Undeprecate of target: Reference
   // Propagation: when a definition is updated, propagate the change to all dependents
   | PropagateUpdate of
       propagationId: Uuid *
       sourceLocation: PackageLocation *
-      sourceItemKind: ItemKind *
-      fromSourceHashes: List<Hash> *
-      toSourceHash: Hash *
+      fromRefs: List<Reference> *
+      toRef: Reference *
       repoints: List<PropagateRepoint>
   // Revert a propagation: restore previous versions atomically
   | RevertPropagation of
       revertId: Uuid *
       revertedPropagationIds: List<Uuid> *
       sourceLocation: PackageLocation *
-      sourceItemKind: ItemKind *
-      restoredSourceHash: Hash *
+      restoredSourceRef: Reference *
       revertedRepoints: List<PropagateRepoint>
 
 
@@ -603,21 +633,21 @@ module PackageManager =
       ops
       |> Stdlib.List.filterMap (fun op ->
         match op with
-        | SetTypeName (hash, loc) -> Stdlib.Option.Option.Some((loc, hash))
+        | SetName (loc, RefPackageType hash) -> Stdlib.Option.Option.Some((loc, hash))
         | _ -> Stdlib.Option.Option.None)
 
     let valueLocationMap =
       ops
       |> Stdlib.List.filterMap (fun op ->
         match op with
-        | SetValueName (hash, loc) -> Stdlib.Option.Option.Some((loc, hash))
+        | SetName (loc, RefPackageValue hash) -> Stdlib.Option.Option.Some((loc, hash))
         | _ -> Stdlib.Option.Option.None)
 
     let fnLocationMap =
       ops
       |> Stdlib.List.filterMap (fun op ->
         match op with
-        | SetFnName (hash, loc) -> Stdlib.Option.Option.Some((loc, hash))
+        | SetName (loc, RefPackageFn hash) -> Stdlib.Option.Option.Some((loc, hash))
         | _ -> Stdlib.Option.Option.None)
 
     // Create PackageManager that looks up in ops first, then falls back to basePM

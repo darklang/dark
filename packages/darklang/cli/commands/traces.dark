@@ -161,7 +161,7 @@ let executeReplay (state: Cli.AppState) (traceID: String) : Cli.AppState =
   | Some code ->
     Stdlib.printLine $"Replaying trace {traceID}..."
     Stdlib.printLine ""
-    let result = Builtin.cliEvaluateExpression state.accountID state.currentBranchId code
+    let result =  Builtin.cliEvaluateExpression state.accountID state.currentBranchId code false
     match result with
     | Ok output ->
       Stdlib.printLine output

@@ -50,22 +50,9 @@ let private getValuePackageHash (value : PT.FQValueName.FQValueName) : Option<Ha
   | PT.FQValueName.Builtin _ -> None
 
 
-/// Extract dependencies from a Deprecation field
-let private extractFromDeprecation
-  (getPackageHash : 'a -> Option<Hash>)
-  (dep : PT.Deprecation<'a>)
-  : List<Dependency> =
-  match dep with
-  | PT.NotDeprecated -> []
-  | PT.DeprecatedBecause _ -> []
-  | PT.RenamedTo name ->
-    match getPackageHash name with
-    | Some hash -> [ hash ]
-    | None -> []
-  | PT.ReplacedBy name ->
-    match getPackageHash name with
-    | Some hash -> [ hash ]
-    | None -> []
+// Deprecation dependencies used to be extracted here (RenamedTo/ReplacedBy
+// pointed at other package items). Deprecation is now an op family, so the
+// deprecations table tracks those references separately.
 
 
 /// Extract dependencies from a TypeReference
@@ -284,17 +271,13 @@ let extractFromFn (fn : PT.PackageFn.PackageFn) : List<Dependency> =
       fn.parameters
       |> NEList.toList
       |> List.collect (fun p -> extractFromTypeRef p.typ)
-      extractFromTypeRef fn.returnType
-      extractFromDeprecation getFnPackageHash fn.deprecated ]
+      extractFromTypeRef fn.returnType ]
   |> List.distinct
 
 
 /// Extract all references from a value definition
 let extractFromValue (value : PT.PackageValue.PackageValue) : List<Dependency> =
-  List.concat
-    [ extractFromExpr value.body
-      extractFromDeprecation getValuePackageHash value.deprecated ]
-  |> List.distinct
+  extractFromExpr value.body |> List.distinct
 
 
 /// Extract all references from a type definition
@@ -314,7 +297,4 @@ let extractFromType (typ : PT.PackageType.PackageType) : List<Dependency> =
       |> List.collect (fun c ->
         c.fields |> List.collect (fun f -> extractFromTypeRef f.typ))
 
-  List.concat
-    [ extractFromDefinition typ.declaration.definition
-      extractFromDeprecation getTypePackageHash typ.deprecated ]
-  |> List.distinct
+  extractFromDefinition typ.declaration.definition |> List.distinct

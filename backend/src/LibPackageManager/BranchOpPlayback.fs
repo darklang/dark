@@ -78,7 +78,7 @@ let applyOp (op : PT.BranchOp) : Task<unit> =
           SELECT owner, modules, name, item_type
           FROM locations
           WHERE branch_id = @branch_id
-            AND deprecated_at IS NULL
+            AND unlisted_at IS NULL
           """
         |> Sql.parameters [ "branch_id", Sql.uuid branchId ]
         |> Sql.executeAsync (fun read ->
@@ -92,13 +92,13 @@ let applyOp (op : PT.BranchOp) : Task<unit> =
           Sql.query
             """
             UPDATE locations
-            SET deprecated_at = datetime('now')
+            SET unlisted_at = datetime('now')
             WHERE branch_id = @parent_id
               AND owner = @owner
               AND modules = @modules
               AND name = @name
               AND item_type = @item_type
-              AND deprecated_at IS NULL
+              AND unlisted_at IS NULL
             """
           |> Sql.parameters
             [ "parent_id", Sql.uuid intoBranchId
@@ -127,7 +127,7 @@ let applyOp (op : PT.BranchOp) : Task<unit> =
         Sql.query
           """
           UPDATE locations SET branch_id = @parent_id
-          WHERE branch_id = @branch_id AND deprecated_at IS NULL
+          WHERE branch_id = @branch_id AND unlisted_at IS NULL
           """
         |> Sql.parameters
           [ "parent_id", Sql.uuid intoBranchId; "branch_id", Sql.uuid branchId ]

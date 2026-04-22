@@ -129,7 +129,7 @@ let toPT
 
       let ops =
         [ ProgramTypes.PackageOp.AddType pt
-          ProgramTypes.PackageOp.SetTypeName(pt.hash, location) ]
+          ProgramTypes.PackageOp.SetName(location, ProgramTypes.Reference.RefPackageType pt.hash) ]
 
       (pt, ops, unresolvedNames))
 
@@ -151,7 +151,7 @@ let toPT
 
       let ops =
         [ ProgramTypes.PackageOp.AddValue pv
-          ProgramTypes.PackageOp.SetValueName(pv.hash, location) ]
+          ProgramTypes.PackageOp.SetName(location, ProgramTypes.Reference.RefPackageValue pv.hash) ]
 
       (pv, ops, unresolvedNames))
 
@@ -173,7 +173,7 @@ let toPT
 
       let ops =
         [ ProgramTypes.PackageOp.AddFn pf
-          ProgramTypes.PackageOp.SetFnName(pf.hash, location) ]
+          ProgramTypes.PackageOp.SetName(location, ProgramTypes.Reference.RefPackageFn pf.hash) ]
 
       (pf, ops, unresolvedNames))
 

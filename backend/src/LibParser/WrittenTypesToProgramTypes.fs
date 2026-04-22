@@ -828,8 +828,7 @@ module PackageType =
       return
         { hash = Hash ""
           description = pt.description
-          declaration = declaration
-          deprecated = PT.NotDeprecated }
+          declaration = declaration }
     }
 
 module PackageValue =
@@ -857,7 +856,6 @@ module PackageValue =
       return
         { hash = Hash ""
           description = c.description
-          deprecated = PT.NotDeprecated
           body = body }
     }
 
@@ -912,7 +910,6 @@ module PackageFn =
           parameters = parameters
           returnType = returnType
           description = fn.description
-          deprecated = PT.NotDeprecated
           body = body
           typeParams = fn.typeParams }
     }

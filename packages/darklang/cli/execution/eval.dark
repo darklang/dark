@@ -3,13 +3,24 @@ module Darklang.Cli.Eval
 
 
 let execute (state: AppState) (args: List<String>) : AppState =
+  let allowHarmful =
+    Stdlib.List.member_v0 args "--allow-harmful"
+  let args =
+    args |> Stdlib.List.filter (fun a -> a != "--allow-harmful")
+
   match args with
   | [] ->
     help state
     state
   | _ ->
     let expr = Stdlib.String.join args " "
-    match Builtin.cliEvaluateExpression state.accountID state.currentBranchId expr with
+    match
+      Builtin.cliEvaluateExpression
+        state.accountID
+        state.currentBranchId
+        expr
+        allowHarmful
+    with
     | Ok result ->
       Stdlib.printLine result
       state

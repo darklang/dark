@@ -245,6 +245,10 @@ module RuntimeError =
         ES.FunctionName name
         ES.String " couldn't be found" ]
 
+    | DeprecatedItemHalted _target ->
+      [ ES.String "Refusing to run a function marked Harmful. "
+        ES.String "Pass --allow-harmful to run/eval if you really meant to." ]
+
     | Record err ->
       match err with
       // -- Creation --

@@ -10,47 +10,40 @@ module AT = LibPackageManager.AstTransformer
 module PackageLocation = LibPackageManager.PackageLocation
 
 
-/// Replace Set*Name placeholder IDs with the hashes from the previous iteration.
-/// After parsing, Set*Name ops have placeholder IDs (PackageRefs IDs for types/fns,
-/// name hashes for values). But the items' AST references point to the PREVIOUS
-/// iteration's computed hashes (from the PM). This function remaps Set*Name IDs
-/// to match, so the dependency graph in computeRealHashes is correctly connected.
+/// Replace SetName placeholder hashes with the hashes from the previous iteration.
+/// After parsing, SetName ops have placeholder Reference hashes. But the items'
+/// AST references point to the PREVIOUS iteration's computed hashes (from the PM).
+/// This function remaps SetName hashes to match, so the dependency graph in
+/// computeRealHashes is correctly connected.
 let remapSetNames
   (newOps : List<PT.PackageOp>)
   (prevOps : List<PT.PackageOp>)
   : List<PT.PackageOp> =
-  // Build location → hash mapping from previous ops
+  // Build (kind, location) → hash mapping from previous ops
   let prevHashes =
     prevOps
     |> List.choose (function
-      | PT.PackageOp.SetTypeName(h, loc) -> Some(("type", loc), h)
-      | PT.PackageOp.SetFnName(h, loc) -> Some(("fn", loc), h)
-      | PT.PackageOp.SetValueName(h, loc) -> Some(("value", loc), h)
+      | PT.PackageOp.SetName(loc, target) ->
+        Some((target.kind.toString (), loc), target.hash)
       | _ -> None)
     |> Map.ofList
 
   newOps
   |> List.map (function
-    | PT.PackageOp.SetTypeName(_, loc) ->
+    | PT.PackageOp.SetName(loc, target) ->
       let hash =
-        prevHashes |> Map.tryFind ("type", loc) |> Option.defaultValue (Hash "")
-      PT.PackageOp.SetTypeName(hash, loc)
-    | PT.PackageOp.SetFnName(_, loc) ->
-      let hash =
-        prevHashes |> Map.tryFind ("fn", loc) |> Option.defaultValue (Hash "")
-      PT.PackageOp.SetFnName(hash, loc)
-    | PT.PackageOp.SetValueName(_, loc) ->
-      let hash =
-        prevHashes |> Map.tryFind ("value", loc) |> Option.defaultValue (Hash "")
-      PT.PackageOp.SetValueName(hash, loc)
+        prevHashes
+        |> Map.tryFind (target.kind.toString (), loc)
+        |> Option.defaultValue (Hash "")
+      PT.PackageOp.SetName(loc, PT.Reference.fromHashAndKind (hash, target.kind))
     | other -> other)
 
 
 /// Post-process parsed ops to compute real hashes using SCC-aware hashing.
-/// Expects Set*Name IDs to match the Hash references in items' ASTs
+/// Expects SetName hashes to match the Hash references in items' ASTs
 /// (either placeholder IDs on first pass, or previous hashes via remapSetNames).
 let computeRealHashes (ops : List<PT.PackageOp>) : List<PT.PackageOp> =
-  // Extract items paired with their Set*Name IDs and FQNs
+  // Extract items paired with their SetName hashes and FQNs
   let mutable pendingType : Option<PT.PackageType.PackageType> = None
   let mutable pendingFn : Option<PT.PackageFn.PackageFn> = None
   let mutable pendingValue : Option<PT.PackageValue.PackageValue> = None
@@ -62,21 +55,21 @@ let computeRealHashes (ops : List<PT.PackageOp>) : List<PT.PackageOp> =
   for op in ops do
     match op with
     | PT.PackageOp.AddType t -> pendingType <- Some t
-    | PT.PackageOp.SetTypeName(hash, loc) ->
+    | PT.PackageOp.SetName(loc, PT.RefPackageType hash) ->
       match pendingType with
       | Some t ->
         types.Add((hash, t, PackageLocation.toFQN loc))
         pendingType <- None
       | None -> ()
     | PT.PackageOp.AddFn f -> pendingFn <- Some f
-    | PT.PackageOp.SetFnName(hash, loc) ->
+    | PT.PackageOp.SetName(loc, PT.RefPackageFn hash) ->
       match pendingFn with
       | Some f ->
         fns.Add((hash, f, PackageLocation.toFQN loc))
         pendingFn <- None
       | None -> ()
     | PT.PackageOp.AddValue v -> pendingValue <- Some v
-    | PT.PackageOp.SetValueName(hash, loc) ->
+    | PT.PackageOp.SetName(loc, PT.RefPackageValue hash) ->
       match pendingValue with
       | Some v ->
         values.Add((hash, v, PackageLocation.toFQN loc))
@@ -145,44 +138,48 @@ let computeRealHashes (ops : List<PT.PackageOp>) : List<PT.PackageOp> =
     addMappings values
     result
 
-  // Update ops: replace Set*Name IDs with computed hashes,
+  // Update ops: replace SetName hashes with computed hashes,
   // and transform Add* content ASTs to use new hashes.
   // Also set the hash field on Add* items so applyAdd* uses the correct
   // (SCC-aware) hash rather than recomputing in Normal mode.
   //
-  // Process ops pairwise: Add* is always followed by Set*Name.
-  // We compute FQN from the location to look up the real hash in fqnHashMap,
-  // then set it on both the Add* item and the Set*Name op.
+  // Process ops pairwise: Add* is always followed by SetName.
   let rec processOps (remaining : List<PT.PackageOp>) (acc : List<PT.PackageOp>) =
     match remaining with
-    | PT.PackageOp.AddType t :: PT.PackageOp.SetTypeName(oldHash, loc) :: rest ->
+    | PT.PackageOp.AddType t
+      :: PT.PackageOp.SetName(loc, PT.RefPackageType oldHash)
+      :: rest ->
       let newHash =
         Map.tryFind (PackageLocation.toFQN loc) fqnHashMap
         |> Option.defaultValue oldHash
       let transformed = { AT.transformType oldToNewHash t with hash = newHash }
       processOps
         rest
-        (PT.PackageOp.SetTypeName(newHash, loc)
+        (PT.PackageOp.SetName(loc, PT.RefPackageType newHash)
          :: PT.PackageOp.AddType transformed
          :: acc)
-    | PT.PackageOp.AddFn f :: PT.PackageOp.SetFnName(oldHash, loc) :: rest ->
+    | PT.PackageOp.AddFn f
+      :: PT.PackageOp.SetName(loc, PT.RefPackageFn oldHash)
+      :: rest ->
       let newHash =
         Map.tryFind (PackageLocation.toFQN loc) fqnHashMap
         |> Option.defaultValue oldHash
       let transformed = { AT.transformFn oldToNewHash f with hash = newHash }
       processOps
         rest
-        (PT.PackageOp.SetFnName(newHash, loc)
+        (PT.PackageOp.SetName(loc, PT.RefPackageFn newHash)
          :: PT.PackageOp.AddFn transformed
          :: acc)
-    | PT.PackageOp.AddValue v :: PT.PackageOp.SetValueName(oldHash, loc) :: rest ->
+    | PT.PackageOp.AddValue v
+      :: PT.PackageOp.SetName(loc, PT.RefPackageValue oldHash)
+      :: rest ->
       let newHash =
         Map.tryFind (PackageLocation.toFQN loc) fqnHashMap
         |> Option.defaultValue oldHash
       let transformed = { AT.transformValue oldToNewHash v with hash = newHash }
       processOps
         rest
-        (PT.PackageOp.SetValueName(newHash, loc)
+        (PT.PackageOp.SetName(loc, PT.RefPackageValue newHash)
          :: PT.PackageOp.AddValue transformed
          :: acc)
     | op :: rest -> processOps rest (op :: acc)
@@ -191,11 +188,9 @@ let computeRealHashes (ops : List<PT.PackageOp>) : List<PT.PackageOp> =
   processOps ops []
 
 
-/// Extract all hashes from Set*Name ops (for convergence checking).
+/// Extract all hashes from SetName ops (for convergence checking).
 let extractAllHashes (ops : List<PT.PackageOp>) : List<Hash> =
   ops
   |> List.choose (function
-    | PT.PackageOp.SetTypeName(hash, _) -> Some hash
-    | PT.PackageOp.SetFnName(hash, _) -> Some hash
-    | PT.PackageOp.SetValueName(hash, _) -> Some hash
+    | PT.PackageOp.SetName(_, target) -> Some target.hash
     | _ -> None)

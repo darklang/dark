@@ -878,6 +878,12 @@ module RuntimeError =
     | FnNotFound of name : FQFnName.FQFnName
     | ValueNotFound of name : FQValueName.FQValueName
 
+    /// Raised when calling a package fn whose hash is currently marked
+    /// `Harmful` by a `Deprecate` op. Overridable by constructing
+    /// `ExecutionState` with `deprecations.allowHarmful = true`, or passing
+    /// `--allow-harmful` to `run`/`eval`.
+    | DeprecatedItemHalted of target : FQFnName.Package
+
     | WrongNumberOfTypeArgsForType of
       fn : FQTypeName.FQTypeName *
       expected : int64 *
@@ -1494,7 +1500,31 @@ and ExecutionState =
     types : Types
     fns : Functions
     values : Values
+
+    /// Runtime policy for items the author has marked `Harmful` via a
+    /// Deprecate op. See thinking/deprecation-redesign.md.
+    deprecations : DeprecationPolicy
   }
+
+
+/// Runtime-facing view of the `deprecations` table.
+///
+/// `isHarmful` is wired at ExecutionState construction — LibPackageManager
+/// owns the actual SQL snapshot and exposes a lookup fn. The reference impl
+/// eager-loads a Set once per ExecutionState and closures an O(1) lookup,
+/// so the hot path stays fast; long-lived processes (LSP, HTTP) can swap
+/// in a variant that refreshes on branch-switch or op-log watch.
+///
+/// Only package fns can be `Harmful`; values and types aren't invoked in a
+/// way where halting makes sense.
+and DeprecationPolicy =
+  { isHarmful : FQFnName.Package -> Ply<bool>
+
+    /// Escape hatch. When true, `isHarmful` may still return true, but the
+    /// interpreter proceeds anyway (and can still `notify` for observability).
+    /// Tests, sandboxes, security research set this; `run --allow-harmful`
+    /// and `eval --allow-harmful` toggle it for one-offs.
+    allowHarmful : bool }
 
 
 and Types = { package : FQTypeName.Package -> Ply<Option<PackageType.PackageType>> }

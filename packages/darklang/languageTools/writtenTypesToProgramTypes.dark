@@ -1209,7 +1209,7 @@ module TypeDeclaration =
       { hash = ProgramTypes.Hash.Hash ""
         description = d.description
         declaration = declaration
-        deprecated = ProgramTypes.Deprecation.NotDeprecated },
+      },
       unresolvedNames)
 
 
@@ -1226,7 +1226,7 @@ module ValueDeclaration =
       { hash = ProgramTypes.Hash.Hash ""
         body = body
         description = d.description
-        deprecated = ProgramTypes.Deprecation.NotDeprecated },
+      },
       unresolvedNames)
 
 
@@ -1296,7 +1296,6 @@ module FunctionDeclaration =
         parameters = params
         returnType = rtyp
         description = fn.description
-        deprecated = ProgramTypes.Deprecation.NotDeprecated
         body = body },
       unresolvedNames)
 
@@ -1327,7 +1326,7 @@ let moduleDeclarationWithOpsHelper
 
         let ops =
           [ ProgramTypes.PackageOp.AddType pt
-            ProgramTypes.PackageOp.SetTypeName(pt.hash, location) ]
+            ProgramTypes.PackageOp.SetName(location, ProgramTypes.Reference.RefPackageType pt.hash) ]
 
         Stdlib.Option.Option.Some((pt, ops, unresolvedNames))
       | _ -> Stdlib.Option.Option.None)
@@ -1357,7 +1356,7 @@ let moduleDeclarationWithOpsHelper
 
         let ops =
           [ ProgramTypes.PackageOp.AddValue pv
-            ProgramTypes.PackageOp.SetValueName(pv.hash, location) ]
+            ProgramTypes.PackageOp.SetName(location, ProgramTypes.Reference.RefPackageValue pv.hash) ]
 
         Stdlib.Option.Option.Some((pv, ops, unresolvedNames))
       | _ -> Stdlib.Option.Option.None)
@@ -1387,7 +1386,7 @@ let moduleDeclarationWithOpsHelper
 
         let ops =
           [ ProgramTypes.PackageOp.AddFn pf
-            ProgramTypes.PackageOp.SetFnName(pf.hash, location) ]
+            ProgramTypes.PackageOp.SetName(location, ProgramTypes.Reference.RefPackageFn pf.hash) ]
 
         Stdlib.Option.Option.Some((pf, ops, unresolvedNames))
       | _ -> Stdlib.Option.Option.None)
@@ -1492,7 +1491,7 @@ let declarationsToPT
 
     let ops =
       [ ProgramTypes.PackageOp.AddType t
-        ProgramTypes.PackageOp.SetTypeName(t.hash, location) ]
+        ProgramTypes.PackageOp.SetName(location, ProgramTypes.Reference.RefPackageType t.hash) ]
 
     (ProgramTypes.SourceFile.Declaration.Type t, ops, unresolvedNames)
 
@@ -1510,7 +1509,7 @@ let declarationsToPT
 
     let ops =
       [ ProgramTypes.PackageOp.AddValue v
-        ProgramTypes.PackageOp.SetValueName(v.hash, location) ]
+        ProgramTypes.PackageOp.SetName(location, ProgramTypes.Reference.RefPackageValue v.hash) ]
 
     (ProgramTypes.SourceFile.Declaration.Value v, ops, unresolvedNames)
 
@@ -1529,7 +1528,7 @@ let declarationsToPT
 
     let ops =
       [ ProgramTypes.PackageOp.AddFn f
-        ProgramTypes.PackageOp.SetFnName(f.hash, location) ]
+        ProgramTypes.PackageOp.SetName(location, ProgramTypes.Reference.RefPackageFn f.hash) ]
 
     (ProgramTypes.SourceFile.Declaration.Function f, ops, unresolvedNames)
 

@@ -53,7 +53,7 @@ let initializeCanvasForOwner (name : string) : Task<CanvasID * string> =
     let domain = nameToTestDomain name
     let! canvasID = Canvas.create None domain
     return (canvasID, domain)
-  }
+       }
 
 let initializeTestCanvas' (name : string) : Task<CanvasID * string> =
   initializeCanvasForOwner name
@@ -62,7 +62,7 @@ let initializeTestCanvas (name : string) : Task<CanvasID> =
   task {
     let! (canvasID, _domain) = initializeTestCanvas' name
     return canvasID
-  }
+       }
 
 
 let testHttpRouteHandler
@@ -95,7 +95,6 @@ let testPackageFn
     body = body
     description = ""
     typeParams = typeParams
-    deprecated = PT.NotDeprecated
     parameters =
       NEList.map
         (fun p -> { name = p; typ = PT.TVariable "b"; description = "test" })
@@ -187,7 +186,7 @@ let executionStateFor
           if not (isNull inner) then do! exceptionReporter state vm [] inner
           state.test.exceptionReports <-
             (message, stackTrace, metadata) :: state.test.exceptionReports
-        }
+             }
 
     // For now, lets not track notifications, as often our tests explicitly trigger
     // things that notify, while Exceptions have historically been unexpected errors
@@ -208,7 +207,7 @@ let executionStateFor
         program
     let state = { state with test = testContext }
     return state
-  }
+       }
 
 // /// Saves and reloads the canvas for the Toplevels
 // let canvasForTLs (canvasID : CanvasID) (tls : List<PT.Toplevel.T>) : Task<Canvas.T> =
@@ -1531,7 +1530,7 @@ let unwrapExecutionResult
           RT.DString(
             $"Error (pretty-printer also failed): {rte}\nPretty-printer error: {rte2}\n{cs}"
           )
-  }
+       }
 
 let parsePTExpr (code : string) : Task<PT.Expr> =
   uply {
@@ -1552,5 +1551,5 @@ let parsePTExpr (code : string) : Task<PT.Expr> =
       | Error _ ->
         return Exception.raiseInternal "Error converting Dval to PT.Expr" []
     | _ -> return Exception.raiseInternal "Error executing parsePTExpr function" []
-  }
+       }
   |> Ply.toTask

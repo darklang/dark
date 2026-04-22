@@ -69,7 +69,7 @@ let private findItem
           AND modules = @modules
           AND name = @name
           AND item_type = '{itemType}'
-          AND deprecated_at IS NULL
+          AND unlisted_at IS NULL
           AND {branchFilter}
         ORDER BY {orderBy}
         LIMIT 1
@@ -120,7 +120,7 @@ let private getItemLocations
         FROM locations
         WHERE item_hash = @item_hash
           AND item_type = '{itemType}'
-          AND deprecated_at IS NULL
+          AND unlisted_at IS NULL
           AND {branchFilter}
         ORDER BY {orderBy}
         """
@@ -203,7 +203,7 @@ let search
       $"""
       SELECT DISTINCT owner, modules
       FROM locations l
-      WHERE l.deprecated_at IS NULL
+      WHERE l.unlisted_at IS NULL
         AND {submoduleCondition}
         AND {branchFilter}
       """
@@ -248,7 +248,7 @@ let search
       $"SELECT c.{joinColumn} as lookup_id, c.pt_def, l.owner, l.modules, l.name\n"
       + $"FROM locations l\n"
       + $"JOIN {contentTable} c ON l.item_hash = c.{joinColumn}\n"
-      + "WHERE l.deprecated_at IS NULL\n"
+      + "WHERE l.unlisted_at IS NULL\n"
       + $"  AND l.item_type = '{itemType}'\n"
       + $"  AND ({locationCondition})\n"
       + $"  AND {nameCondition}\n"

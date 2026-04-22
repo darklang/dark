@@ -729,6 +729,12 @@ let rec private executeInner (exeState : ExecutionState) (vm : VMState) : Ply<Dv
                 registers[putResultIn] <- result
 
             | FQFnName.Package pkg ->
+              // Harmful-deprecation runtime halt.
+              // Checked before even fetching the fn so the error is surfaced
+              // whether or not the fn definition is still available.
+              let! isHarmful = exeState.deprecations.isHarmful pkg
+              if isHarmful && not exeState.deprecations.allowHarmful then
+                return RTE.DeprecatedItemHalted pkg |> raiseRTE
               match! exeState.fns.package pkg with
               | None -> return RTE.FnNotFound(FQFnName.Package pkg) |> raiseRTE
               | Some fn ->

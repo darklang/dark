@@ -22,10 +22,10 @@ let private makeType
   { hash = PT.Hash ""
     declaration = { typeParams = []; definition = def }
     description = ""
-    deprecated = PT.NotDeprecated }
+  }
 
 let private makeValue (body : PT.Expr) : PT.PackageValue.PackageValue =
-  { hash = PT.Hash ""; body = body; description = ""; deprecated = PT.NotDeprecated }
+  { hash = PT.Hash ""; body = body; description = "" }
 
 
 // ── Tests ────────────────────────────────────────────────────────────────
@@ -46,7 +46,7 @@ let tests =
             let h1 = Hashing.computeTypeHash Hashing.Normal typ
             let h2 = Hashing.computeTypeHash Hashing.Normal typ
             Expect.equal h1 h2 "same type should hash identically"
-          }
+                                                                     }
 
           test "different content gives different hash" {
             let typ1 =
@@ -64,7 +64,7 @@ let tests =
             let h1 = Hashing.computeTypeHash Hashing.Normal typ1
             let h2 = Hashing.computeTypeHash Hashing.Normal typ2
             Expect.notEqual h1 h2 "different types should hash differently"
-          }
+                                                        }
 
           test "description does not affect hash" {
             let def =
@@ -86,7 +86,7 @@ let tests =
             let h1 = Hashing.computeFnHash Hashing.Normal fn
             let h2 = Hashing.computeFnHash Hashing.Normal fn
             Expect.equal h1 h2 "same fn should hash identically"
-          }
+                                                                   }
 
           test "different body gives different hash" {
             let fn1 = makeFn (eInt64 42)
@@ -94,7 +94,7 @@ let tests =
             let h1 = Hashing.computeFnHash Hashing.Normal fn1
             let h2 = Hashing.computeFnHash Hashing.Normal fn2
             Expect.notEqual h1 h2 "different bodies should hash differently"
-          }
+                                                     }
 
           test "AST node IDs do not affect hash" {
             let fn1 = makeFn (PT.EInt64(1UL, 42))
@@ -123,7 +123,7 @@ let tests =
             let hash = Hashing.computeOpHash op
             let (PT.Hash h) = hash
             Expect.isTrue (h.Length = 64) "should be 64 hex chars (SHA-256)"
-          }
+                              }
 
           test "determinism" {
             let fn = makeFn (eInt64 1)
@@ -151,7 +151,7 @@ let tests =
                 [ opHash1; opHash2 ]
                 (System.Guid.Parse "00000000-0000-0000-0000-000000000001")
             Expect.equal h1 h2 "same inputs should give same commit hash"
-          }
+                             }
 
           test "op order independence (sorted internally)" {
             let opHash1 = PT.Hash "aabb"
@@ -168,7 +168,7 @@ let tests =
                 [ opHash2; opHash1 ]
                 (System.Guid.Parse "00000000-0000-0000-0000-000000000001")
             Expect.equal h1 h2 "op order should not matter"
-          }
+                                                           }
 
           test "different parent gives different hash" {
             let ops = [ PT.Hash "aabb" ]
@@ -183,7 +183,7 @@ let tests =
                 ops
                 (System.Guid.Parse "00000000-0000-0000-0000-000000000001")
             Expect.notEqual h1 h2 "different parent should give different hash"
-          }
+                                                       }
 
           test "empty commit (no ops, just parent)" {
             let parent = Some(PT.Hash "0011")
@@ -208,7 +208,7 @@ let tests =
             Expect.equal (List.length sccs) 1 "should have 1 SCC"
             Expect.equal sccs[0].head 1 "single node"
             Expect.equal sccs[0].tail [] "no tail"
-          }
+                                       }
 
           test "linear chain (no cycles)" {
             // A -> B -> C
@@ -219,7 +219,7 @@ let tests =
               | _ -> []
             let sccs = Hashing.findSCCs [ 1; 2; 3 ] edges
             Expect.equal (List.length sccs) 3 "3 separate SCCs"
-          }
+                                          }
 
           test "cycle A->B->C->A gives one SCC" {
             let edges =
@@ -233,7 +233,7 @@ let tests =
             let scc = sccs[0]
             let members = Set.ofList (scc.head :: scc.tail)
             Expect.equal members (Set.ofList [ 1; 2; 3 ]) "all three in SCC"
-          }
+                                                }
 
           test "two separate cycles" {
             // A<->B, C<->D
@@ -258,7 +258,7 @@ let tests =
               (PackageLocation.toFQN loc)
               (PackageLocation.toFQN loc)
               "FQN should be deterministic"
-          }
+                                              }
 
           test "different locations give different FQNs" {
             let loc1 : PT.PackageLocation =
@@ -269,7 +269,7 @@ let tests =
               (PackageLocation.toFQN loc1)
               (PackageLocation.toFQN loc2)
               "different names should differ"
-          }
+                                                         }
 
           test "FQN format matches expected pattern" {
             let loc : PT.PackageLocation =
@@ -278,7 +278,7 @@ let tests =
               (PackageLocation.toFQN loc)
               "Darklang.Stdlib.List.map"
               "FQN should be owner.modules.name"
-          }
+                                                     }
 
           test "FQN-based SHA-256 produces valid hash" {
             let loc : PT.PackageLocation =
@@ -329,7 +329,7 @@ let tests =
               (Map.find "Test.A" hashes1)
               (Map.find "Test.B" hashes1)
               "different items in SCC should have different hashes"
-          }
+                                                                }
 
 
           test "3-node cycle A->B->C->A gets stable hashes" {
@@ -371,7 +371,7 @@ let tests =
             Expect.notEqual hashA hashB "A and B should have different hashes"
             Expect.notEqual hashB hashC "B and C should have different hashes"
             Expect.notEqual hashA hashC "A and C should have different hashes"
-          }
+                                                            }
 
 
           test "3-node cycle is order-independent" {
@@ -422,7 +422,7 @@ let tests =
               (Map.find "Test.C" hashes1)
               (Map.find "Test.C" hashes2)
               "C hash should be same regardless of declaration order"
-          }
+                                                   }
 
 
           test "self-recursive type does not infinite loop and gets stable hash" {
@@ -466,7 +466,7 @@ let tests =
             // Should produce a valid hash
             let (PT.Hash h) = Map.findUnsafe "Test.T" hashes1
             Expect.isTrue (h.Length = 64) "should be 64 hex chars (SHA-256)"
-          }
+                                                                                 }
 
 
           test "mixed cycle: type and fn that mutually depend on each other" {

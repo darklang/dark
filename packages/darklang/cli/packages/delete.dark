@@ -1,0 +1,186 @@
+module Darklang.Cli.Packages.Delete
+
+// `delete` is sugar for `deprecate --kind obsolete`, with one extra guardrail:
+// it requires `--force` when the target has live dependents. See
+// thinking/deprecation-redesign.md.
+//
+// TODO (v1.5): `--json` output for agents, matching `deprecate`.
+
+
+type ParsedArgs =
+  { itemType: Stdlib.Option.Option<String>
+    target: Stdlib.Option.Option<String>
+    replacement: Stdlib.Option.Option<String>
+    message: String
+    autoConfirm: Bool
+    force: Bool
+    dryRun: Bool }
+
+
+let emptyArgs: ParsedArgs =
+  ParsedArgs
+    { itemType = Stdlib.Option.Option.None
+      target = Stdlib.Option.Option.None
+      replacement = Stdlib.Option.Option.None
+      message = ""
+      autoConfirm = false
+      force = false
+      dryRun = false }
+
+
+let rec parseArgsLoop (acc: ParsedArgs) (remaining: List<String>) : ParsedArgs =
+  match remaining with
+  | [] -> acc
+  | "--yes" :: rest
+  | "-y" :: rest -> parseArgsLoop ({ acc with autoConfirm = true }) rest
+  | "--force" :: rest -> parseArgsLoop ({ acc with force = true }) rest
+  | "--dry-run" :: rest -> parseArgsLoop ({ acc with dryRun = true }) rest
+  | "--replacement" :: v :: rest ->
+    parseArgsLoop
+      ({ acc with replacement = Stdlib.Option.Option.Some v })
+      rest
+  | "-m" :: v :: rest
+  | "--message" :: v :: rest ->
+    parseArgsLoop ({ acc with message = v }) rest
+  | positional :: rest ->
+    match acc.itemType with
+    | None ->
+      parseArgsLoop
+        ({ acc with itemType = Stdlib.Option.Option.Some positional })
+        rest
+    | Some _ ->
+      match acc.target with
+      | None ->
+        parseArgsLoop
+          ({ acc with target = Stdlib.Option.Option.Some positional })
+          rest
+      | Some _ -> parseArgsLoop acc rest
+
+
+let parseArgs (args: List<String>) : ParsedArgs =
+  parseArgsLoop emptyArgs args
+
+
+let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
+  let parsed = parseArgs args
+  let branchId = state.currentBranchId
+
+  match (parsed.itemType, parsed.target) with
+  | (None, _) -> help state
+  | (Some _, None) ->
+    Stdlib.printLine (Colors.error "Error: Missing target (location or hash)")
+    state
+  | (Some itemTypeStr, Some target) ->
+    match Propagate.itemKindFromString itemTypeStr with
+    | None ->
+      Stdlib.printLine (Colors.error $"Error: Invalid item type '{itemTypeStr}'")
+      state
+    | Some itemKind ->
+      let currentLoc = state.packageData.currentLocation
+      match Deprecate.resolveTarget branchId currentLoc itemKind target with
+      | None ->
+        Stdlib.printLine (Colors.error $"Could not resolve {itemTypeStr} {target}")
+        state
+      | Some targetRef ->
+        // Check dependents. `delete` requires --force when LIVE dependents
+        // exist — deprecated-only callers don't block, since they're on the
+        // way out too.
+        let deps =
+          Builtin.depsGetDependents
+            branchId
+            (LanguageTools.ProgramTypes.Reference.hash targetRef)
+        let depSets = Query.loadDeprecationSets branchId
+        let liveDeps =
+          deps
+          |> Stdlib.List.filter (fun entry ->
+            let (depHash, _depKind) = entry
+            Stdlib.Bool.not (Query.isDeprecated depSets depHash))
+        let depCount = Stdlib.List.length liveDeps
+
+        if depCount > 0L && Stdlib.Bool.not parsed.force then
+          Stdlib.printLine
+            (Colors.error
+              $"{Stdlib.Int64.toString depCount} live dependent(s) still reference this item.")
+          Stdlib.printLine
+            "Use `deprecate` to give them time to migrate, or pass `--force`."
+          state
+        else
+          let replacementRef =
+            match parsed.replacement with
+            | Some r -> Deprecate.resolveTarget branchId currentLoc itemKind r
+            | None -> Stdlib.Option.Option.None
+
+          let fullPath =
+            match Location.parseRelativeTo currentLoc target with
+            | Ok l -> PrettyPrinter.ProgramTypes.PackageLocation.packageLocation l
+            | Error _ -> target
+
+          Stdlib.printLine $"  Will delete (mark obsolete) {itemTypeStr} {fullPath}"
+          if depCount > 0L then
+            Stdlib.printLine
+              (Colors.warning
+                $"  {Stdlib.Int64.toString depCount} dependent(s) will break")
+          if parsed.message != "" then
+            Stdlib.printLine $"    message: {parsed.message}"
+
+          if parsed.dryRun then
+            Stdlib.printLine "(dry-run, no op emitted)"
+            state
+          else
+            let proceed =
+              if parsed.autoConfirm then
+                true
+              else
+                Stdlib.printLine ""
+                Stdlib.print (Colors.warning "Proceed? (y/n): ")
+                let response = Builtin.stdinReadLine ()
+                (response == "y") || (response == "Y")
+
+            if proceed then
+              let kind = LanguageTools.ProgramTypes.DeprecationKind.Obsolete
+              let op =
+                LanguageTools.ProgramTypes.PackageOp.Deprecate
+                  (targetRef, kind, parsed.message)
+              match SCM.PackageOps.add branchId [ op ] with
+              | Ok _ ->
+                Stdlib.printLine (Colors.success $"Deleted {itemTypeStr} {fullPath}")
+                state
+              | Error e ->
+                Stdlib.printLine (Colors.error $"Delete failed: {e}")
+                state
+            else
+              Stdlib.printLine "Delete cancelled."
+              state
+
+
+let help (state: Cli.AppState) : Cli.AppState =
+  [ "Take a fn/type/value off the shelf (sugar for deprecate --kind obsolete)."
+    ""
+    "Usage: delete <fn|type|value> <name-or-hash> [options]"
+    ""
+    "Refuses without --force when the target has live dependents."
+    ""
+    "Options:"
+    "  -m, --message <text>          Free-form reason; tooling surfaces it"
+    "  --replacement <name-or-hash>  Optional replacement pointer"
+    "  --force                       Proceed even if live dependents exist"
+    "  --yes, -y                     Skip confirmation prompt"
+    "  --dry-run                     Print what would happen; emit no ops"
+    ""
+    "Examples:"
+    "  delete fn Darklang.Legacy.oldThing -m 'no longer maintained' --yes"
+    "  delete fn Darklang.Debug.trace --force --yes"
+    ""
+    "Prefer `deprecate --kind superseded-by` or `deprecate --kind harmful` when"
+    "an item has a proper replacement or should runtime-halt, respectively." ]
+  |> Stdlib.printLines
+  state
+
+
+let complete
+  (_state: Cli.AppState)
+  (args: List<String>)
+  : List<Cli.Completion.CompletionItem> =
+  match args with
+  | [] -> ["fn"; "type"; "value"] |> Stdlib.List.map Cli.Completion.simple
+  | _ -> []

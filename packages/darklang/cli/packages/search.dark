@@ -62,6 +62,11 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
         else
           LanguageTools.ProgramTypes.Search.SearchDepth.AllDescendants
 
+      let includeDeprecated =
+        flags
+        |> Stdlib.List.findFirst (fun f -> f == "--include-deprecated")
+        |> Stdlib.Option.isSome
+
       // Get current module path from state
       let currentModule =
         match state.packageData.currentLocation with
@@ -80,8 +85,10 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
             entityTypes = entityTypes
             exactMatch = exactMatch }
 
-      // Execute search
-      let results = LanguageTools.PackageManager.Search.search state.currentBranchId query
+      // Execute search, then apply deprecation visibility filter
+      let rawResults = LanguageTools.PackageManager.Search.search state.currentBranchId query
+      let depSets = Query.loadDeprecationSets state.currentBranchId
+      let results = Query.filterDeprecated rawResults depSets includeDeprecated
 
       // Display results
       // Only count submodules when no entity type filter is specified
@@ -122,7 +129,8 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
               [ [ item.location.owner ]; item.location.modules; [ item.location.name ] ]
               |> Stdlib.List.flatten
               |> Stdlib.String.join "."
-            Stdlib.printLine $"  {fullPath}")
+            let mark = Query.deprecationMarker depSets item.entity.hash
+            Stdlib.printLine $"  {fullPath}{mark}")
           Stdlib.printLine ""
 
         // Display values
@@ -134,7 +142,8 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
               [ [ item.location.owner ]; item.location.modules; [ item.location.name ] ]
               |> Stdlib.List.flatten
               |> Stdlib.String.join "."
-            Stdlib.printLine $"  {fullPath}")
+            let mark = Query.deprecationMarker depSets item.entity.hash
+            Stdlib.printLine $"  {fullPath}{mark}")
           Stdlib.printLine ""
 
         // Display functions
@@ -146,7 +155,8 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
               [ [ item.location.owner ]; item.location.modules; [ item.location.name ] ]
               |> Stdlib.List.flatten
               |> Stdlib.String.join "."
-            Stdlib.printLine $"  {fullPath}")
+            let mark = Query.deprecationMarker depSets item.entity.hash
+            Stdlib.printLine $"  {fullPath}{mark}")
           Stdlib.printLine ""
 
       state
@@ -162,11 +172,12 @@ let help (state: Cli.AppState) : Cli.AppState =
     "With query: Execute search and display results"
     ""
     "Options:"
-    "  --type       Search only types"
-    "  --fn         Search only functions"
-    "  --val        Search only values"
-    "  --exact      Require exact match (default: fuzzy)"
-    "  --shallow    Search only direct descendants (default: all descendants)"
+    "  --type                 Search only types"
+    "  --fn                   Search only functions"
+    "  --val                  Search only values"
+    "  --exact                Require exact match (default: fuzzy)"
+    "  --shallow              Search only direct descendants (default: all descendants)"
+    "  --include-deprecated   Include items deprecated with no live callers"
     ""
     "Examples:"
     "  search                      # Launch interactive search mode"
@@ -191,7 +202,7 @@ let complete (_state: Cli.AppState) (args: List<String>) : List<Cli.Completion.C
   match Stdlib.List.last args with
   | Some lastArg ->
     if Stdlib.String.startsWith lastArg "--" then
-      ["--type"; "--fn"; "--val"; "--exact"; "--shallow"]
+      ["--type"; "--fn"; "--val"; "--exact"; "--shallow"; "--include-deprecated"]
       |> Stdlib.List.filter (fun flag -> Stdlib.String.startsWith flag lastArg)
       |> Stdlib.List.map Cli.Completion.simple
     else

@@ -719,8 +719,7 @@ module ProgramTypes =
         NEList.singleton
           { name = "param"; typ = typeReference; description = "desc" }
       returnType = typeReference
-      description = "test"
-      deprecated = NotDeprecated }
+      description = "test" }
 
   let packageFns = [ packageFn ]
 
@@ -738,8 +737,7 @@ module ProgramTypes =
                     description = "" } ]
             ) }
 
-      description = "test"
-      deprecated = NotDeprecated }
+      description = "test" }
 
   let packageTypes = [ packageType ]
 
@@ -747,7 +745,7 @@ module ProgramTypes =
     { hash = Hash ""
       body = constValue
       description = "test"
-      deprecated = PT.NotDeprecated }
+    }
 
   let packageValues = [ packageValue ]
 

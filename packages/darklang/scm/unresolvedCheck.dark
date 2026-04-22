@@ -240,9 +240,9 @@ let findUnresolvedInOps
         else
           let key = LanguageTools.ProgramTypes.hashToString v.hash
           (results, Stdlib.Dict.set pending key ("value", names))
-      | SetTypeName(hash, loc)
-      | SetFnName(hash, loc)
-      | SetValueName(hash, loc) ->
+      | SetName(loc, RefPackageType hash)
+      | SetName(loc, RefPackageFn hash)
+      | SetName(loc, RefPackageValue hash) ->
         let key = LanguageTools.ProgramTypes.hashToString hash
 
         match Stdlib.Dict.get pending key with

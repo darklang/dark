@@ -23,26 +23,47 @@ let completeFunctionName (searchText: String) : List<Completion.CompletionItem> 
 
 // Run command - execute functions or scripts
 let execute (state: AppState) (args: List<String>) : AppState =
+  let allowHarmful =
+    Stdlib.List.member_v0 args "--allow-harmful"
+  let args =
+    args |> Stdlib.List.filter (fun a -> a != "--allow-harmful")
+
   match args with
   | [] ->
     help state
     state
   | thingToRun :: args ->
     if Stdlib.String.startsWith thingToRun "@" then
-      executeFunction state (Stdlib.String.dropFirst thingToRun 1L) args
+      executeFunction
+        state
+        (Stdlib.String.dropFirst thingToRun 1L)
+        args
+        allowHarmful
     else
-      executeScript state thingToRun args
+      executeScript state thingToRun args allowHarmful
 
 
 // Execute a script file
-let executeScript (state: AppState) (scriptPath: String) (args: List<String>) : AppState =
+let executeScript
+  (state: AppState)
+  (scriptPath: String)
+  (args: List<String>)
+  (allowHarmful: Bool)
+  : AppState =
   match Builtin.fileRead scriptPath with
   | Error e ->
     Stdlib.printLine $"File error: {e}"
     state
   | Ok script ->
     let scriptSourceCode = Stdlib.String.fromBytesWithReplacement script
-    let result = Builtin.cliParseAndExecuteScript state.accountID state.currentBranchId scriptPath scriptSourceCode args
+    let result =
+      Builtin.cliParseAndExecuteScript
+        state.accountID
+        state.currentBranchId
+        scriptPath
+        scriptSourceCode
+        args
+        allowHarmful
 
     match result with
     | Ok exitCode ->
@@ -58,10 +79,21 @@ let executeScript (state: AppState) (scriptPath: String) (args: List<String>) : 
 
 
 // Execute a function by name with arguments
-let executeFunction (state: AppState) (fnName: String) (args: List<String>) : AppState =
+let executeFunction
+  (state: AppState)
+  (fnName: String)
+  (args: List<String>)
+  (allowHarmful: Bool)
+  : AppState =
   let fullExpr = $"{fnName} {Stdlib.String.join args " "}"
 
-  match Builtin.cliEvaluateExpression state.accountID state.currentBranchId fullExpr with
+  match
+    Builtin.cliEvaluateExpression
+      state.accountID
+      state.currentBranchId
+      fullExpr
+      allowHarmful
+  with
   | Ok result ->
     Stdlib.printLine result
     state

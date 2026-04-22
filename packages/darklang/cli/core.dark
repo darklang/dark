@@ -218,6 +218,8 @@ module Registry =
       ("http-server", "Start an HTTP server", [], Commands.HttpServer.execute, Commands.HttpServer.help, Commands.HttpServer.complete)
       ("docs", "Browse in-CLI documentation", [ "doc"; "man" ], Commands.Docs.execute, Commands.Docs.help, Commands.Docs.complete)
       ("undo", "Undo WIP changes to a fn/type/value", [], Packages.Undo.execute, Packages.Undo.help, Packages.Undo.complete)
+      ("deprecate", "Mark a fn/type/value as deprecated", [], Packages.Deprecate.execute, Packages.Deprecate.help, Packages.Deprecate.complete)
+      ("delete", "Take a fn/type/value off the shelf (sugar for deprecate --kind obsolete)", [], Packages.Delete.execute, Packages.Delete.help, Packages.Delete.complete)
       ("db", "Manage databases", [], Packages.DB.execute, Packages.DB.help, Packages.DB.complete)
       ("outliner", "Interactive tree outliner", [ "tree-exp" ], Darklang.Cli.Apps.Outliner.App.execute, Darklang.Cli.Apps.Outliner.App.help, Darklang.Cli.Apps.Outliner.App.complete)
       ("export-seed", "Export minimal seed.db from current database", [], Commands.ExportSeed.execute, Commands.ExportSeed.help, Commands.ExportSeed.complete)
@@ -296,7 +298,7 @@ module Registry =
 
   // Command groups organized by category (shared between compact and detailed views)
   let commandGroups () : List<(String * List<String>)> =
-    [ ("Packages", [ "nav"; "ls"; "view"; "tree"; "back"; "search"; "deps"; "val"; "let"; "fn"; "type"; "hash"; "db" ])
+    [ ("Packages", [ "nav"; "ls"; "view"; "tree"; "back"; "search"; "deps"; "val"; "let"; "fn"; "type"; "hash"; "db"; "deprecate"; "delete" ])
       ("SCM", [ "status"; "log"; "commit"; "discard"; "show"; "branch"; "rebase"; "merge"; "review" ])
       ("Execution", [ "run"; "eval"; "scripts" ])
       ("Installation", [ "install"; "update"; "uninstall"; "version" ])

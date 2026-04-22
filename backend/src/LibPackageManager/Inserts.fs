@@ -51,8 +51,8 @@ let insertAndApplyOps
         ops
         |> List.tryPick (fun op ->
           match op with
-          | PT.PackageOp.PropagateUpdate(pid, _, _, _, _, _) -> Some pid
-          | PT.PackageOp.RevertPropagation(rid, _, _, _, _, _) -> Some rid
+          | PT.PackageOp.PropagateUpdate(pid, _, _, _, _) -> Some pid
+          | PT.PackageOp.RevertPropagation(rid, _, _, _, _) -> Some rid
           | _ -> None)
 
       let opsWithIds =
@@ -235,7 +235,7 @@ let commitWipOps
             )
           )
 
-        // Assign WIP ops and locations to this commit
+        // Assign WIP ops, locations, and deprecations to this commit
         let statements =
           [ ("""
              UPDATE package_ops
@@ -247,6 +247,14 @@ let commitWipOps
 
             ("""
              UPDATE locations
+             SET commit_hash = @commit_hash
+             WHERE branch_id = @branch_id AND commit_hash IS NULL
+             """,
+             [ [ "commit_hash", Sql.string commitHashStr
+                 "branch_id", Sql.uuid branchId ] ])
+
+            ("""
+             UPDATE deprecations
              SET commit_hash = @commit_hash
              WHERE branch_id = @branch_id AND commit_hash IS NULL
              """,
@@ -286,8 +294,8 @@ let findCommittedHash
           AND item_type = @item_type
           AND branch_id = @branch_id
           AND commit_hash IS NOT NULL
-          AND deprecated_at IS NOT NULL
-        ORDER BY deprecated_at DESC
+          AND unlisted_at IS NOT NULL
+        ORDER BY unlisted_at DESC
         LIMIT 1
         """
       |> Sql.parameters
@@ -327,7 +335,7 @@ let findCommittedHash
               AND name = @name
               AND item_type = @item_type
               AND branch_id IN ({branchInClause})
-              AND deprecated_at IS NULL
+              AND unlisted_at IS NULL
             LIMIT 1
             """
           |> Sql.parameters (
@@ -372,7 +380,7 @@ let discardWipOps (branchId : PT.BranchId) : Task<Result<int64, string>> =
           Sql.query
             """
             UPDATE locations
-            SET deprecated_at = NULL
+            SET unlisted_at = NULL
             WHERE location_id IN (
               SELECT committed_loc.location_id
               FROM locations wip_loc
@@ -384,7 +392,7 @@ let discardWipOps (branchId : PT.BranchId) : Task<Result<int64, string>> =
                 AND committed_loc.item_type = wip_loc.item_type
                 AND committed_loc.branch_id = wip_loc.branch_id
                 AND committed_loc.commit_hash IS NOT NULL
-                AND committed_loc.deprecated_at IS NOT NULL
+                AND committed_loc.unlisted_at IS NOT NULL
               WHERE wip_loc.branch_id = @branch_id
                 AND wip_loc.commit_hash IS NULL
                 -- Only restore if there's no other active committed location at this path
@@ -396,11 +404,11 @@ let discardWipOps (branchId : PT.BranchId) : Task<Result<int64, string>> =
                     AND active.item_type = wip_loc.item_type
                     AND active.branch_id = wip_loc.branch_id
                     AND active.commit_hash IS NOT NULL
-                    AND active.deprecated_at IS NULL
+                    AND active.unlisted_at IS NULL
                 )
                 -- Pick the most recently deprecated committed location
-                AND committed_loc.deprecated_at = (
-                  SELECT MAX(c2.deprecated_at)
+                AND committed_loc.unlisted_at = (
+                  SELECT MAX(c2.unlisted_at)
                   FROM locations c2
                   WHERE c2.owner = wip_loc.owner
                     AND c2.modules = wip_loc.modules
@@ -408,7 +416,7 @@ let discardWipOps (branchId : PT.BranchId) : Task<Result<int64, string>> =
                     AND c2.item_type = wip_loc.item_type
                     AND c2.branch_id = wip_loc.branch_id
                     AND c2.commit_hash IS NOT NULL
-                    AND c2.deprecated_at IS NOT NULL
+                    AND c2.unlisted_at IS NOT NULL
                 )
             )
             """
@@ -419,6 +427,15 @@ let discardWipOps (branchId : PT.BranchId) : Task<Result<int64, string>> =
         do!
           Sql.query
             "DELETE FROM locations WHERE branch_id = @branch_id AND commit_hash IS NULL"
+          |> Sql.parameters [ "branch_id", Sql.uuid branchId ]
+          |> Sql.executeStatementAsync
+
+        // Delete WIP deprecations. Their supersession set `unlisted_at` on
+        // prior rows; we don't restore those here — the op log is the source
+        // of truth, so a re-run via `commit` + reload would rebuild state.
+        do!
+          Sql.query
+            "DELETE FROM deprecations WHERE branch_id = @branch_id AND commit_hash IS NULL"
           |> Sql.parameters [ "branch_id", Sql.uuid branchId ]
           |> Sql.executeStatementAsync
 

@@ -46,6 +46,14 @@ Inside the body, use short names (e.g., `fib` for recursion).
   log               # history
   discard           # undo uncommitted changes
 
+## Deprecation (mark items as unused / dangerous / obsolete)
+  deprecate <fn|type|value> <name> --kind <k> [options]
+    kinds: superseded-by (requires --replacement), harmful, obsolete
+  delete <fn|type|value> <name> [--force]     # sugar for --kind obsolete
+  undo <fn|type|value> <name>                 # reverse a WIP deprecate
+  run --allow-harmful <fn>                    # opt out of harmful halt
+  (see: docs deprecation)
+
 ## Branches (use --branch flag!)
 Branch context does NOT persist between CLI invocations.
 Always pass --branch when working on non-main branches:

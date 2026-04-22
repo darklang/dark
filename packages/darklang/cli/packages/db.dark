@@ -170,7 +170,7 @@ let viewDB (state: Cli.AppState) (dbName: String) : Cli.AppState =
       ++ nl ++ "  " ++ rowExpr ++ ")"
       ++ nl ++ "|> Stdlib.String.join \"<<<ROW>>>\""
 
-    match Builtin.cliEvaluateExpression state.accountID state.currentBranchId expr with
+    match  Builtin.cliEvaluateExpression state.accountID state.currentBranchId expr false with
     | Ok result ->
       Stdlib.printLine ""
 
@@ -238,7 +238,7 @@ let getDBValue
   : Cli.AppState =
   let expr = $"Stdlib.DB.get \"{key}\" {dbName}"
 
-  match Builtin.cliEvaluateExpression state.accountID state.currentBranchId expr with
+  match  Builtin.cliEvaluateExpression state.accountID state.currentBranchId expr false with
   | Ok result ->
     Stdlib.printLine result
     state
@@ -266,7 +266,7 @@ let setDBValue
     let expr =
       $"Stdlib.DB.set ({typeName} {valueExpr}) \"{key}\" {dbName}"
 
-    match Builtin.cliEvaluateExpression state.accountID state.currentBranchId expr with
+    match  Builtin.cliEvaluateExpression state.accountID state.currentBranchId expr false with
     | Ok _ ->
       Stdlib.printLine (Colors.success $"Set {key} in {dbName}")
       state
@@ -287,7 +287,7 @@ let deleteDBValue
   : Cli.AppState =
   let expr = $"Stdlib.DB.delete \"{key}\" {dbName}"
 
-  match Builtin.cliEvaluateExpression state.accountID state.currentBranchId expr with
+  match  Builtin.cliEvaluateExpression state.accountID state.currentBranchId expr false with
   | Ok _ ->
     Stdlib.printLine (Colors.success $"Deleted {key} from {dbName}")
     state
@@ -308,7 +308,7 @@ let queryDB
   : Cli.AppState =
   let expr = $"Stdlib.DB.query {dbName} ({filterExpr})"
 
-  match Builtin.cliEvaluateExpression state.accountID state.currentBranchId expr with
+  match  Builtin.cliEvaluateExpression state.accountID state.currentBranchId expr false with
   | Ok result ->
     Stdlib.printLine result
     state

@@ -15,17 +15,16 @@ let buildVersionStack
   : List<LanguageTools.ProgramTypes.Hash> =
   wipOps
   |> Stdlib.List.fold [] (fun stack op ->
-    match (op, itemKind) with
-    | (SetFnName (id, loc), Fn)
-    | (SetTypeName (id, loc), Type)
-    | (SetValueName (id, loc), Value) ->
-      if loc == location then
-        Stdlib.List.append stack [id]
+    match op with
+    | SetName (loc, target) ->
+      if loc == location && LanguageTools.ProgramTypes.Reference.kind target == itemKind then
+        Stdlib.List.append stack [LanguageTools.ProgramTypes.Reference.hash target]
       else
         stack
-    | (RevertPropagation (_, _, srcLoc, srcItemKind, restoredHash, _), _) ->
-      if srcLoc == location && srcItemKind == itemKind then
+    | RevertPropagation (_, _, srcLoc, restoredRef, _) ->
+      if srcLoc == location && LanguageTools.ProgramTypes.Reference.kind restoredRef == itemKind then
         // Pop back to restoredHash: keep entries up to and including it
+        let restoredHash = LanguageTools.ProgramTypes.Reference.hash restoredRef
         if Stdlib.List.member_v0 stack restoredHash then
           let before = Stdlib.List.takeWhile stack (fun id -> id != restoredHash)
           Stdlib.List.append before [restoredHash]
@@ -83,8 +82,8 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
             wipOps
             |> Stdlib.List.filterMap (fun op ->
               match op with
-              | PropagateUpdate (propId, srcLoc, _, _, toHash, repoints) ->
-                if srcLoc == location && toHash == currentHash then
+              | PropagateUpdate (propId, srcLoc, _, toRef, repoints) ->
+                if srcLoc == location && LanguageTools.ProgramTypes.Reference.hash toRef == currentHash then
                   let pair = (propId, repoints)
                   Stdlib.Option.Option.Some pair
                 else
@@ -110,7 +109,7 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
             wipOps
             |> Stdlib.List.filterMap (fun op ->
               match op with
-              | RevertPropagation (_, revertedIds, _, _, _, _) ->
+              | RevertPropagation (_, revertedIds, _, _, _) ->
                 Stdlib.Option.Option.Some revertedIds
               | _ -> Stdlib.Option.Option.None)
             |> Stdlib.List.flatten
@@ -119,7 +118,7 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
             wipOps
             |> Stdlib.List.filterMap (fun op ->
               match op with
-              | PropagateUpdate (propId, srcLoc, _, _, _, repoints) ->
+              | PropagateUpdate (propId, srcLoc, _, _, repoints) ->
                 if srcLoc != location &&
                     Stdlib.Bool.not (Stdlib.List.member_v0 revertedPropagationIds propId) then
                   Stdlib.Option.Option.Some
@@ -140,14 +139,14 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
             |> Stdlib.List.filter (fun r ->
               Stdlib.List.member_v0 otherRepointLocations r.location)
 
-          // Resolve names before undo (locations get deprecated by undo)
+          // Resolve names before undo (locations get unlisted by undo)
           let repointNamesDict =
             match myRepoints with
             | [] -> Stdlib.Dict.empty
             | _ ->
               let ids =
                 myRepoints
-                |> Stdlib.List.map (fun r -> r.toHash)
+                |> Stdlib.List.map (fun r -> LanguageTools.ProgramTypes.Reference.hash r.toRef)
                 |> Stdlib.List.unique
               Deps.resolveNames branchId ids
 
@@ -163,8 +162,8 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
 
               myRepoints
               |> Stdlib.List.iter (fun r ->
-                let name = Deps.getName repointNamesDict r.toHash
-                let kindStr = Propagate.itemKindToString r.itemKind
+                let name = Deps.getName repointNamesDict (LanguageTools.ProgramTypes.Reference.hash r.toRef)
+                let kindStr = Propagate.itemKindToString (LanguageTools.ProgramTypes.Reference.kind r.toRef)
                 Stdlib.printLine $"    [{kindStr}] {name}")
 
               if autoConfirm then
@@ -187,8 +186,8 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
 
               revertable
               |> Stdlib.List.iter (fun r ->
-                let name = Deps.getName repointNamesDict r.toHash
-                let kindStr = Propagate.itemKindToString r.itemKind
+                let name = Deps.getName repointNamesDict (LanguageTools.ProgramTypes.Reference.hash r.toRef)
+                let kindStr = Propagate.itemKindToString (LanguageTools.ProgramTypes.Reference.kind r.toRef)
                 Stdlib.printLine $"  Reverted [{kindStr}] {name}")
 
               let itemTypeStr = Propagate.itemKindToString itemKind

@@ -247,13 +247,13 @@ let autoPropagateAfterUpdate
         let count = Stdlib.List.length repoints
         Stdlib.printLine $"  Propagated to {Stdlib.Int64.toString count} dependents:"
 
-        let ids = repoints |> Stdlib.List.map (fun r -> r.toHash) |> Stdlib.List.unique
+        let ids = repoints |> Stdlib.List.map (fun r -> LanguageTools.ProgramTypes.Reference.hash r.toRef) |> Stdlib.List.unique
         let namesDict = Deps.resolveNames branchId ids
 
         repoints
         |> Stdlib.List.iter (fun repoint ->
-          let name = Deps.getName namesDict repoint.toHash
-          let kindStr = itemKindToString repoint.itemKind
+          let name = Deps.getName namesDict (LanguageTools.ProgramTypes.Reference.hash repoint.toRef)
+          let kindStr = itemKindToString (LanguageTools.ProgramTypes.Reference.kind repoint.toRef)
           Stdlib.printLine $"    [{kindStr}] {name}")
 
         if signatureChanged then
@@ -263,8 +263,8 @@ let autoPropagateAfterUpdate
 
           repoints
           |> Stdlib.List.iter (fun repoint ->
-            let name = Deps.getName namesDict repoint.toHash
-            let kindStr = itemKindToString repoint.itemKind
+            let name = Deps.getName namesDict (LanguageTools.ProgramTypes.Reference.hash repoint.toRef)
+            let kindStr = itemKindToString (LanguageTools.ProgramTypes.Reference.kind repoint.toRef)
             Stdlib.printLine (Colors.hint $"    view {kindStr} {name}"))
 
     | Error errMsg ->

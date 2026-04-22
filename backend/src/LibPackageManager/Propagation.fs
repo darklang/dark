@@ -28,7 +28,7 @@ type private ItemProcessingContext<'T> =
     computeHash : 'T -> Hash // Compute hash for the transformed item
     withNewId : Hash -> 'T -> 'T // Assigns a new Hash to the item
     makeAddOp : 'T -> PT.PackageOp // Creates an Add op for the item
-    makeSetNameOp : Hash * PT.PackageLocation -> PT.PackageOp } // Creates a SetName op for the item
+    makeRef : Hash -> PT.Reference } // Build a Reference of this kind from a hash
 
 
 let private fnContext
@@ -41,7 +41,7 @@ let private fnContext
     computeHash = Hashing.computeFnHash Hashing.Normal
     withNewId = fun hash fn -> { fn with hash = hash }
     makeAddOp = PT.PackageOp.AddFn
-    makeSetNameOp = PT.PackageOp.SetFnName }
+    makeRef = PT.RefPackageFn }
 
 
 let private typeContext
@@ -54,7 +54,7 @@ let private typeContext
     computeHash = Hashing.computeTypeHash Hashing.Normal
     withNewId = fun hash typ -> { typ with hash = hash }
     makeAddOp = PT.PackageOp.AddType
-    makeSetNameOp = PT.PackageOp.SetTypeName }
+    makeRef = PT.RefPackageType }
 
 
 let private valueContext
@@ -67,7 +67,7 @@ let private valueContext
     computeHash = Hashing.computeValueHash Hashing.Normal
     withNewId = fun hash value -> { value with hash = hash }
     makeAddOp = PT.PackageOp.AddValue
-    makeSetNameOp = PT.PackageOp.SetValueName }
+    makeRef = PT.RefPackageValue }
 
 
 /// Creates a new version of an item with transformed Hash references.
@@ -93,13 +93,12 @@ let private processItem<'T>
       match locs with
       | loc :: _ ->
         let addOp = ctx.makeAddOp newItem
-        let setNameOp = ctx.makeSetNameOp (newHash, loc)
+        let setNameOp = PT.PackageOp.SetName(loc, ctx.makeRef newHash)
         return
           Ok(
             { location = loc
-              itemKind = ctx.itemKind
-              fromHash = itemHash
-              toHash = newHash },
+              fromRef = ctx.makeRef itemHash
+              toRef = ctx.makeRef newHash },
             [ addOp; setNameOp ],
             newHash
           )
@@ -291,13 +290,14 @@ let propagate
       | Ok(repoints, ops, finalToSourceHash) ->
         let propagationId = System.Guid.NewGuid()
 
+        let mkRef h = PT.Reference.fromHashAndKind (h, sourceItemKind)
+
         let propagateOp =
           PT.PackageOp.PropagateUpdate(
             propagationId,
             sourceLocation,
-            sourceItemKind,
-            fromSourceHashes,
-            finalToSourceHash,
+            fromSourceHashes |> List.map mkRef,
+            mkRef finalToSourceHash,
             repoints
           )
 

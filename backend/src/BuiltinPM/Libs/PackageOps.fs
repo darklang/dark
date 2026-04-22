@@ -137,6 +137,7 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
                   "values", Dval.int64 summary.values
                   "fns", Dval.int64 summary.fns
                   "renames", Dval.int64 summary.renames
+                  "deprecations", Dval.int64 summary.deprecations
                   "total", Dval.int64 summary.total ]
           }
         | _ -> incorrectArgs ()

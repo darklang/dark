@@ -2,7 +2,11 @@
 // CLEANUP could the impl here just be a `... --depth=1 --plain` call of 'tree'?
 module Darklang.Cli.Packages.Listing
 
-let listModule (branchId: Uuid) (location: PackageLocation) : Unit =
+let listModule
+  (branchId: Uuid)
+  (location: PackageLocation)
+  (includeDeprecated: Bool)
+  : Unit =
   let modulePath =
     match location with
     | Module path -> path
@@ -10,8 +14,10 @@ let listModule (branchId: Uuid) (location: PackageLocation) : Unit =
     | Value v -> Stdlib.List.append [v.owner] v.modules
     | Function f -> Stdlib.List.append [f.owner] f.modules
 
-  // Search for contents at this location
-  let results = Query.allDirectDescendants branchId modulePath
+  // Search for contents at this location, then apply deprecation visibility.
+  let rawResults = Query.allDirectDescendants branchId modulePath
+  let depSets = Query.loadDeprecationSets branchId
+  let results = Query.filterDeprecated rawResults depSets includeDeprecated
 
   // Display module path
   let locationStr = Packages.formatLocation location
@@ -33,30 +39,40 @@ let listModule (branchId: Uuid) (location: PackageLocation) : Unit =
   if Stdlib.Bool.not (Stdlib.List.isEmpty results.types) then
     Stdlib.printLine (Display.getSectionHeader "type")
     results.types
-    |> Stdlib.List.iter (fun t -> Stdlib.printLine $"  {t.location.name}")
+    |> Stdlib.List.iter (fun t ->
+      let mark = Query.deprecationMarker depSets t.entity.hash
+      Stdlib.printLine $"  {t.location.name}{mark}")
     Stdlib.printLine ""
 
   // Display values
   if Stdlib.Bool.not (Stdlib.List.isEmpty results.values) then
     Stdlib.printLine (Display.getSectionHeader "value")
     results.values
-    |> Stdlib.List.iter (fun v -> Stdlib.printLine $"  {v.location.name}")
+    |> Stdlib.List.iter (fun v ->
+      let mark = Query.deprecationMarker depSets v.entity.hash
+      Stdlib.printLine $"  {v.location.name}{mark}")
     Stdlib.printLine ""
 
   // Display functions
   if Stdlib.Bool.not (Stdlib.List.isEmpty results.fns) then
     Stdlib.printLine (Display.getSectionHeader "function")
     results.fns
-    |> Stdlib.List.iter (fun fn -> Stdlib.printLine $"  {fn.location.name}")
+    |> Stdlib.List.iter (fun fn ->
+      let mark = Query.deprecationMarker depSets fn.entity.hash
+      Stdlib.printLine $"  {fn.location.name}{mark}")
     Stdlib.printLine ""
 
 
 let execute (state: AppState) (args: List<String>) : AppState =
   let branchId = state.currentBranchId
-  match args with
+  let includeDeprecated =
+    Stdlib.List.member_v0 args "--include-deprecated"
+  let positional =
+    args |> Stdlib.List.filter (fun a -> a != "--include-deprecated")
+  match positional with
   | [] ->
     // No args - list current location
-    listModule branchId state.packageData.currentLocation
+    listModule branchId state.packageData.currentLocation includeDeprecated
     state
   | [pathArg] ->
     // Navigate to the path and list
@@ -67,7 +83,7 @@ let execute (state: AppState) (args: List<String>) : AppState =
     | Ok newLocation ->
       match newLocation with
       | Module _ ->
-        listModule branchId newLocation
+        listModule branchId newLocation includeDeprecated
         state
       | Type _ | Value _ | Function _ ->
         let locationStr = Packages.formatLocation newLocation
@@ -93,16 +109,18 @@ let complete (state: AppState) (args: List<String>) : List<Completion.Completion
 
 let help (_state: AppState) : Unit =
   [
-    "Usage: ls [path]"
+    "Usage: ls [path] [--include-deprecated]"
     "List contents of the current location or specified path with icons."
     ""
     "Shows modules, types, values, and functions grouped by category."
+    "Deprecated items with no live callers are hidden by default; pass"
+    "--include-deprecated to show them. Visible deprecated items are marked ⚠."
     ""
     "Examples:"
-    "  ls                - List current location"
-    "  ls /              - List root packages"
-    "  ls Darklang       - List Darklang package contents"
-    "  ls ..             - List parent directory"
+    "  ls                         - List current location"
+    "  ls /                       - List root packages"
+    "  ls Darklang                - List Darklang package contents"
+    "  ls .. --include-deprecated - Include deprecated items"
     ""
     "See also: `tree` for multi-level view, `view` for detailed view"
   ] |> Stdlib.printLines

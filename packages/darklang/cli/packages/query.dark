@@ -52,3 +52,88 @@ let getDirectSubmodules (results: LanguageTools.ProgramTypes.Search.SearchResult
   )
   |> Stdlib.List.unique
   |> Stdlib.List.sort
+
+
+/// Deprecation filters for `ls`/`tree`/`search`. See thinking/deprecation-redesign.md.
+///
+/// Default (includeDeprecated = false):
+///   * Items whose hash is in "hidden" (deprecated AND no live caller) are dropped.
+///   * Items whose hash is in "deprecated but shown" are returned with their
+///     location marked; the UI can render an icon.
+///
+/// With `--include-deprecated`: nothing is filtered out.
+///
+/// Sets are kept as Dicts keyed by the underlying hex string (there's no
+/// Stdlib.Set yet), giving O(1) lookup. The unit value is unused.
+type DeprecationSets =
+  { allDeprecated: Dict<Bool>
+    hidden: Dict<Bool> }
+
+
+/// Build a Dict<Bool> keyed by each hash's underlying hex string.
+let private hashListToDict
+  (hashes: List<LanguageTools.ProgramTypes.Hash>)
+  : Dict<Bool> =
+  hashes
+  |> Stdlib.List.fold Stdlib.Dict.empty (fun acc hash ->
+    let key = LanguageTools.ProgramTypes.hashToString hash
+    Stdlib.Dict.setOverridingDuplicates acc key true)
+
+
+/// Build the deprecation sets for a branch. Two DB hits; cache per invocation
+/// by calling once at the entry point of ls/tree/search.
+let loadDeprecationSets (branchId: Uuid) : DeprecationSets =
+  let all = Builtin.pmGetDeprecatedHashes branchId
+  let hidden = Builtin.pmGetHiddenDeprecatedHashes branchId
+  DeprecationSets
+    { allDeprecated = hashListToDict all
+      hidden = hashListToDict hidden }
+
+
+let private memberOf
+  (d: Dict<Bool>)
+  (hash: LanguageTools.ProgramTypes.Hash)
+  : Bool =
+  Stdlib.Dict.member_v0 d (LanguageTools.ProgramTypes.hashToString hash)
+
+
+/// Whether an item hash should be hidden by default visibility.
+let isHidden
+  (sets: DeprecationSets)
+  (hash: LanguageTools.ProgramTypes.Hash)
+  : Bool =
+  memberOf sets.hidden hash
+
+
+/// Whether an item hash is flagged as deprecated at all (shown-with-icon or hidden).
+let isDeprecated
+  (sets: DeprecationSets)
+  (hash: LanguageTools.ProgramTypes.Hash)
+  : Bool =
+  memberOf sets.allDeprecated hash
+
+
+/// Filter SearchResults by the default visibility rule. Pass `includeDeprecated = true`
+/// to return results untouched.
+let filterDeprecated
+  (results: LanguageTools.ProgramTypes.Search.SearchResults)
+  (sets: DeprecationSets)
+  (includeDeprecated: Bool)
+  : LanguageTools.ProgramTypes.Search.SearchResults =
+  if includeDeprecated then
+    results
+  else
+    LanguageTools.ProgramTypes.Search.SearchResults
+      { submodules = results.submodules
+        types = results.types |> Stdlib.List.filter (fun i -> Stdlib.Bool.not (isHidden sets i.entity.hash))
+        values = results.values |> Stdlib.List.filter (fun i -> Stdlib.Bool.not (isHidden sets i.entity.hash))
+        fns = results.fns |> Stdlib.List.filter (fun i -> Stdlib.Bool.not (isHidden sets i.entity.hash)) }
+
+
+/// Deprecation marker rendered after an item name when it's shown despite
+/// being deprecated. Kept short to avoid cluttering lists.
+let deprecationMarker
+  (sets: DeprecationSets)
+  (hash: LanguageTools.ProgramTypes.Hash)
+  : String =
+  if isDeprecated sets hash then " ⚠" else ""

@@ -30,7 +30,6 @@ let write (w : BinaryWriter) (p : PackageFn.PackageFn) : unit =
   NEList.write Parameter.write w p.parameters
   TypeReference.write w p.returnType
   String.write w p.description
-  Deprecation.write w FQFnName.write p.deprecated
 
 let read (r : BinaryReader) : PackageFn.PackageFn =
   let hash = Hash.read r
@@ -39,11 +38,9 @@ let read (r : BinaryReader) : PackageFn.PackageFn =
   let parameters = NEList.read Parameter.read r
   let returnType = TypeReference.read r
   let description = String.read r
-  let deprecated = Deprecation.read r FQFnName.read
   { hash = hash
     body = body
     typeParams = typeParams
     parameters = parameters
     returnType = returnType
-    description = description
-    deprecated = deprecated }
+    description = description }
