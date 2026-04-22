@@ -24,15 +24,6 @@ let noTestContext : RT.TestContext =
     expectedExceptionCount = 0
     postTestExecutionHook = fun _ -> () }
 
-/// Default DeprecationPolicy: nothing is harmful, halt disabled.
-/// Useful for tests and short-lived contexts that don't (yet) wire up the
-/// real snapshot. Callers that care (CLI, long-running servers) override
-/// this by passing `?deprecations = Some policy` to `createState`.
-let emptyDeprecationPolicy : RT.DeprecationPolicy =
-  { isHarmful = (fun _ -> Ply false)
-    allowHarmful = false }
-
-
 let createState
   (builtins : RT.Builtins)
   (pm : RT.PackageManager)
@@ -52,9 +43,13 @@ let createState
 
     types = { package = pm.getType }
     values = { builtIn = builtins.values; package = pm.getValue }
-    fns = { builtIn = builtins.fns; package = pm.getFn }
+    fns =
+      { builtIn = builtins.fns
+        package = pm.getFn
+        // Pre-apply branchId so the interpreter's hook site is terse.
+        isHarmful = fun pkg -> pm.isHarmful branchId pkg }
 
-    deprecations = emptyDeprecationPolicy }
+    allowHarmful = false }
 
 
 let rec callStackForFrame

@@ -12,46 +12,50 @@ module PMPT = ProgramTypes
 module PMRT = RuntimeTypes
 
 
+// Per-branch cache of Harmful fn hashes (as underlying hex strings —
+// PT.Hash and RT.Hash are distinct CLR types; storing strings avoids
+// threading either wrapper through the cache layer).
+//
+// First call per branch loads the Set from the `deprecations` table;
+// subsequent calls are O(1) lookups. Long-lived processes that mutate
+// deprecation state on a branch (LSP, cloud) should invalidate by
+// evicting the branch's entry — not implemented yet; short-lived CLIs
+// rebuild the PM per invocation so they don't care.
+let private harmfulCache =
+  System.Collections.Concurrent.ConcurrentDictionary<PT.BranchId, Set<string>>()
+
+let private loadHarmfulForBranch (branchId : PT.BranchId) : Set<string> =
+  match harmfulCache.TryGetValue branchId with
+  | true, cached -> cached
+  | false, _ ->
+    let branchChain =
+      Branches.getBranchChain branchId
+      |> Async.AwaitTask
+      |> Async.RunSynchronously
+    let harmful =
+      Queries.getHarmfulFnHashes branchChain
+      |> Async.AwaitTask
+      |> Async.RunSynchronously
+      |> Set.map (fun (PT.Hash h) -> h)
+    harmfulCache[branchId] <- harmful
+    harmful
+
+
 // TODO: bring back eager loading
 let rt : RT.PackageManager =
   { getType = withCache PMRT.Type.get
     getFn = withCache PMRT.Fn.get
     getValue = withCache PMRT.Value.get
 
+    isHarmful =
+      fun branchId (RT.Hash h) ->
+        Ply(Set.contains h (loadHarmfulForBranch branchId))
+
     init =
       uply {
         //eagerLoad
         return ()
       } }
-
-
-/// Build a `DeprecationPolicy` from the deprecations table for the given
-/// branch. Eager-loads the current Harmful fn set once; `isHarmful` is O(1)
-/// Set lookup thereafter. Callers that want to invoke `Harmful`-marked items
-/// anyway (tests, `--allow-harmful`) override `allowHarmful` on the result.
-///
-/// The load happens synchronously to keep `createState` callers unchanged —
-/// the branch chain lookup is already a synchronous helper in this project.
-///
-/// Note: PT and RT have distinct `Hash` types (same shape, different CLR types).
-/// The stored snapshot is kept as the underlying string to avoid needing
-/// either side to import the other's wrapper.
-let deprecationPolicyFor
-  (branchId : PT.BranchId)
-  (allowHarmful : bool)
-  : RT.DeprecationPolicy =
-  let branchChain =
-    Branches.getBranchChain branchId
-    |> Async.AwaitTask
-    |> Async.RunSynchronously
-  let harmful : Set<string> =
-    Queries.getHarmfulFnHashes branchChain
-    |> Async.AwaitTask
-    |> Async.RunSynchronously
-    |> Set.map (fun (PT.Hash h) -> h)
-  { isHarmful =
-      fun (RT.Hash h) -> Ply(Set.contains h harmful)
-    allowHarmful = allowHarmful }
 
 
 /// Create a PT PackageManager.

@@ -97,20 +97,18 @@ let state (packageManager : RT.PackageManager) =
     =
     uply { printException "Internal error" metadata exn }
 
-  let state =
-    Exe.createState
-      builtins
-      packageManager
-      Exe.noTracing
-      sendException
-      notify
-      PT.mainBranchId
-      program
-  { state with
-      deprecations =
-        LibPackageManager.PackageManager.deprecationPolicyFor
-          PT.mainBranchId
-          false }
+  // Harmful-fn lookup + branch-baked `fns.isHarmful` closure come from the
+  // PackageManager via `createState`; default `allowHarmful = false` is
+  // correct for the CLI's long-running session state. One-off overrides
+  // (`run --allow-harmful`, `eval --allow-harmful`) toggle it per call.
+  Exe.createState
+    builtins
+    packageManager
+    Exe.noTracing
+    sendException
+    notify
+    PT.mainBranchId
+    program
 
 
 

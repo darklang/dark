@@ -82,7 +82,9 @@ let createState
         printException "[exception]" metadata exn
       }
 
-    let state =
+    // Cloud handlers are user-facing — never auto-allow harmful items;
+    // the default `allowHarmful = false` from `createState` is correct.
+    return
       Exe.createState
         builtins
         pmRT
@@ -91,13 +93,6 @@ let createState
         notify
         PT.mainBranchId
         program
-    // Cloud handlers are user-facing — never auto-allow harmful items.
-    return
-      { state with
-          deprecations =
-            LibPackageManager.PackageManager.deprecationPolicyFor
-              PT.mainBranchId
-              false }
   }
 
 type ExecutionReason =

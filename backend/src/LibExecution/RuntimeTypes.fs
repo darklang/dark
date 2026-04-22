@@ -1100,12 +1100,19 @@ type PackageManager =
     getValue : FQValueName.Package -> Ply<Option<PackageValue.PackageValue>>
     getFn : FQFnName.Package -> Ply<Option<PackageFn.PackageFn>>
 
+    /// Is this package fn hash marked Harmful on the given branch chain?
+    /// Branch-scoped because deprecation state flows through branches; the
+    /// other PM lookups are content-addressed and need no branch.
+    /// Only fns participate — see DeprecationKind.Harmful for why.
+    isHarmful : BranchId -> FQFnName.Package -> Ply<bool>
+
     init : Ply<unit> }
 
   static member empty =
     { getType = (fun _ -> Ply None)
       getFn = (fun _ -> Ply None)
       getValue = (fun _ -> Ply None)
+      isHarmful = (fun _ _ -> Ply false)
 
       init = uply { return () } }
 
@@ -1136,6 +1143,7 @@ type PackageManager =
           match Map.tryFind id fnMap with
           | Some f -> Some f |> Ply
           | None -> pm.getFn id
+      isHarmful = pm.isHarmful
       init = pm.init }
 
 
@@ -1501,30 +1509,13 @@ and ExecutionState =
     fns : Functions
     values : Values
 
-    /// Runtime policy for items the author has marked `Harmful` via a
-    /// Deprecate op. See thinking/deprecation-redesign.md.
-    deprecations : DeprecationPolicy
+    /// Escape hatch for `Harmful`-marked fns: when true, the interpreter
+    /// still sees `fns.isHarmful` return true, but proceeds anyway (and
+    /// can still `notify` for observability). Tests, sandboxes, security
+    /// research set this; `run --allow-harmful` / `eval --allow-harmful`
+    /// toggle it for one-offs.
+    allowHarmful : bool
   }
-
-
-/// Runtime-facing view of the `deprecations` table.
-///
-/// `isHarmful` is wired at ExecutionState construction — LibPackageManager
-/// owns the actual SQL snapshot and exposes a lookup fn. The reference impl
-/// eager-loads a Set once per ExecutionState and closures an O(1) lookup,
-/// so the hot path stays fast; long-lived processes (LSP, HTTP) can swap
-/// in a variant that refreshes on branch-switch or op-log watch.
-///
-/// Only package fns can be `Harmful`; values and types aren't invoked in a
-/// way where halting makes sense.
-and DeprecationPolicy =
-  { isHarmful : FQFnName.Package -> Ply<bool>
-
-    /// Escape hatch. When true, `isHarmful` may still return true, but the
-    /// interpreter proceeds anyway (and can still `notify` for observability).
-    /// Tests, sandboxes, security research set this; `run --allow-harmful`
-    /// and `eval --allow-harmful` toggle it for one-offs.
-    allowHarmful : bool }
 
 
 and Types = { package : FQTypeName.Package -> Ply<Option<PackageType.PackageType>> }
@@ -1535,7 +1526,11 @@ and Values =
 
 and Functions =
   { builtIn : Map<FQFnName.Builtin, BuiltInFn>
-    package : FQFnName.Package -> Ply<Option<PackageFn.PackageFn>> }
+    package : FQFnName.Package -> Ply<Option<PackageFn.PackageFn>>
+    /// Branch-baked proxy for `PackageManager.isHarmful`. The PM is the
+    /// semantic home; this closure just has the ExecutionState's branchId
+    /// pre-applied so the interpreter's call site stays terse.
+    isHarmful : FQFnName.Package -> Ply<bool> }
 
 
 

@@ -189,14 +189,10 @@ let execute
         parentState.notify
         branchId
         program
-    // Inherit the parent's allowHarmful toggle so `run --allow-harmful` cascades
-    // into script execution; the harmful-hash set is reloaded for this branch.
-    let state =
-      { state with
-          deprecations =
-            LibPackageManager.PackageManager.deprecationPolicyFor
-              branchId
-              parentState.deprecations.allowHarmful }
+    // Inherit the parent's allowHarmful toggle so `run --allow-harmful`
+    // cascades into script execution. The Harmful-hash snapshot is scoped
+    // to `branchId` via `pm.isHarmful` (the PM caches per branch).
+    let state = { state with allowHarmful = parentState.allowHarmful }
 
     match mod'.exprs with
     | [] ->
@@ -243,9 +239,7 @@ let createBranchState
       parentState.notify
       branchId
       program
-  { state with
-      deprecations =
-        LibPackageManager.PackageManager.deprecationPolicyFor branchId allowHarmful }
+  { state with allowHarmful = allowHarmful }
 
 
 let fns () : List<BuiltInFn> =
