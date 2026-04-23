@@ -65,6 +65,8 @@ module FormatV0 =
 
         | KTDateTime
 
+        | KTBlob
+
         | KTTuple of ValueType * ValueType * List<ValueType>
         | KTList of ValueType
         | KTDict of ValueType
@@ -94,6 +96,7 @@ module FormatV0 =
         | KTString -> RT.KTString
         | KTUuid -> RT.KTUuid
         | KTDateTime -> RT.KTDateTime
+        | KTBlob -> RT.KTBlob
 
         | KTList vt -> RT.KTList(ValueType.toRT vt)
         | KTTuple(vt1, vt2, vts) ->
@@ -131,6 +134,7 @@ module FormatV0 =
         | RT.KTString -> KTString
         | RT.KTUuid -> KTUuid
         | RT.KTDateTime -> KTDateTime
+        | RT.KTBlob -> KTBlob
 
         | RT.KTList vt -> KTList(ValueType.fromRT vt)
         | RT.KTTuple(vt1, vt2, vts) ->

@@ -168,6 +168,7 @@ let writeTypeReference
     writeTypeReference mode w first
     writeTypeReference mode w second
     Common.List.write w (writeTypeReference mode) rest
+  | PT.TBlob -> w.Write 24uy
 
 
 // =====================

@@ -139,6 +139,9 @@ type KnownType =
   | KTUuid
   | KTDateTime
 
+  /// Immutable byte sequence — see thinking/blobs-and-streams/00-design.md
+  | KTBlob
+
   /// `let empty =    []` // KTList Unknown
   /// `let intList = [1]` // KTList (ValueType.Known KTInt64)
   | KTList of ValueType
@@ -211,6 +214,7 @@ type TypeReference =
   | TString
   | TUuid
   | TDateTime
+  | TBlob
   | TTuple of TypeReference * TypeReference * List<TypeReference>
   | TList of TypeReference
   | TDict of TypeReference // CLEANUP add key type
@@ -246,7 +250,8 @@ type TypeReference =
       | TChar
       | TString
       | TUuid
-      | TDateTime -> true
+      | TDateTime
+      | TBlob -> true
 
       | TTuple(t1, t2, ts) ->
         isConcrete t1 && isConcrete t2 && List.forall isConcrete ts
@@ -1580,7 +1585,8 @@ module Types =
     | TChar
     | TString
     | TUuid
-    | TDateTime -> typ
+    | TDateTime
+    | TBlob -> typ
 
     | TTuple(t1, t2, rest) -> TTuple(r t1, r t2, List.map r rest)
     | TList t -> TList(r t)
@@ -1659,6 +1665,7 @@ module TypeReference =
       | TString -> return ValueType.Known KTString
       | TUuid -> return ValueType.Known KTUuid
       | TDateTime -> return ValueType.Known KTDateTime
+      | TBlob -> return ValueType.Known KTBlob
 
       | TTuple(first, second, theRest) ->
         let! first = r first
@@ -1718,6 +1725,7 @@ module TypeReference =
     | KTString -> TString
     | KTUuid -> TUuid
     | KTDateTime -> TDateTime
+    | KTBlob -> TBlob
     | KTList inner -> TList(fromVT inner)
     | KTDict inner -> TDict(fromVT inner)
     | KTTuple(first, second, rest) ->
@@ -1752,7 +1760,8 @@ module TypeReference =
     | TChar
     | TString
     | TUuid
-    | TDateTime -> typ
+    | TDateTime
+    | TBlob -> typ
 
     | TVariable name ->
       match Map.get name tst with

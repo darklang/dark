@@ -68,6 +68,7 @@ and writeKnownType (w : BinaryWriter) (kt : KnownType) =
   | KTDict vt ->
     w.Write 22uy
     writeValueType w vt
+  | KTBlob -> w.Write 23uy
 
 and writeApplicableImpl (w : BinaryWriter) (app : Applicable) =
   match app with
@@ -231,6 +232,7 @@ and readKnownType (r : BinaryReader) : KnownType =
     let typeArgs = List.read r readValueType
     KTCustomType(fqTypeName, typeArgs)
   | 22uy -> KTDict(readValueType r)
+  | 23uy -> KTBlob
   | b -> raiseFormatError $"Invalid KnownType tag: {b}"
 
 and readApplicableImpl (r : BinaryReader) : Applicable =

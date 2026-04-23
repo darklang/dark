@@ -61,6 +61,8 @@ let rec unifyValueType
     | TUuid, ValueType.Known KTUuid -> return Ok tst
     | TDateTime, ValueType.Known KTDateTime -> return Ok tst
 
+    | TBlob, ValueType.Known KTBlob -> return Ok tst
+
     | TList innerT, ValueType.Known(KTList innerV) ->
       return! r tst (TypeCheckPathPart.ListType :: pathSoFar) innerT innerV
 

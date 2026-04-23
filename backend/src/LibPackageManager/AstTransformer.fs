@@ -64,6 +64,7 @@ let rec private transformTypeRef
   | PT.TString
   | PT.TUuid
   | PT.TDateTime
+  | PT.TBlob
   | PT.TVariable _ -> typeRef
 
   | PT.TList inner -> PT.TList(transformTypeRef mapping inner)

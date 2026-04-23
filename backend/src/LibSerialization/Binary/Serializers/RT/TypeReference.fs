@@ -54,6 +54,7 @@ let rec write (w : BinaryWriter) (t : TypeReference) : unit =
   | TDB inner ->
     w.Write 23uy
     write w inner
+  | TBlob -> w.Write 24uy
 
 let rec read (r : BinaryReader) : TypeReference =
   match r.ReadByte() with
@@ -91,4 +92,5 @@ let rec read (r : BinaryReader) : TypeReference =
     TCustomType(typeName, typeArgs)
   | 22uy -> TVariable(String.read r)
   | 23uy -> TDB(read r)
+  | 24uy -> TBlob
   | b -> raiseFormatError $"Invalid TypeReference tag: {b}"

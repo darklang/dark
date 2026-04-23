@@ -70,6 +70,7 @@ let rec private extractFromTypeRef (typeRef : PT.TypeReference) : List<Dependenc
   | PT.TString
   | PT.TUuid
   | PT.TDateTime
+  | PT.TBlob
   | PT.TVariable _ -> []
 
   | PT.TList inner -> extractFromTypeRef inner

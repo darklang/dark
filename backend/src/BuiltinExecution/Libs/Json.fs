@@ -669,6 +669,7 @@ let parse
     // Explicitly not supported
     | TVariable _, _
     | TFn _, _
+    | TBlob, _
     | TDB _, _ -> (RTE.Jsons.UnsupportedType typ) |> RTE.Json |> raiseRTE threadID
 
 

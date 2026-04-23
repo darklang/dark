@@ -241,6 +241,7 @@ module TypeReference =
       | TString -> "TString", []
       | TDateTime -> "TDateTime", []
       | TUuid -> "TUuid", []
+      | TBlob -> "TBlob", []
 
       | TList inner -> "TList", [ toDT inner ]
 
@@ -287,6 +288,7 @@ module TypeReference =
     | DEnum(_, _, [], "TString", []) -> TString
     | DEnum(_, _, [], "TDateTime", []) -> TDateTime
     | DEnum(_, _, [], "TUuid", []) -> TUuid
+    | DEnum(_, _, [], "TBlob", []) -> TBlob
 
     | DEnum(_, _, [], "TTuple", [ first; second; DList(_vtTODO, theRest) ]) ->
       TTuple(fromDT first, fromDT second, List.map fromDT theRest)
@@ -449,6 +451,7 @@ module KnownType =
       | KTString -> "KTString", []
       | KTUuid -> "KTUuid", []
       | KTDateTime -> "KTDateTime", []
+      | KTBlob -> "KTBlob", []
 
       | KTTuple(first, second, theRest) ->
         "KTTuple",
@@ -495,6 +498,7 @@ module KnownType =
     | DEnum(_, _, [], "KTString", []) -> KTString
     | DEnum(_, _, [], "KTUuid", []) -> KTUuid
     | DEnum(_, _, [], "KTDateTime", []) -> KTDateTime
+    | DEnum(_, _, [], "KTBlob", []) -> KTBlob
 
     | DEnum(_, _, [], "KTTuple", [ first; second; DList(_vtTODO, theRest) ]) ->
       KTTuple(
