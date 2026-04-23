@@ -82,7 +82,7 @@ a time), `[x]` done, `[!]` blocked.
 See [10-phase-0.md](./10-phase-0.md).
 
 - [x] 0.1 add baseline-measurement harness
-- [ ] 0.2 record fileRead memory/allocation profile
+- [x] 0.2 record fileRead memory/allocation profile
 - [ ] 0.3 record http body allocation profile
 - [ ] 0.4 record streaming-http chunk behaviour
 - [ ] 0.5 record bytesHexEncode cost on large input
@@ -144,6 +144,7 @@ Append one line per chunk completion. Format:
 
 <!-- agent appends below -->
 2026-04-23 21:40  0.1  harness skeleton + helpers; self-test passes and writes rundir/measurements/phase-0/harness.txt
+2026-04-23 21:48  0.2  fileRead profile: 10MB → 890MB alloc / 1.1GB RSS / 10M+1 dval nodes; 38MB anecdote row inline (skipped in-process to avoid OOM)
 
 ## Blockers
 
