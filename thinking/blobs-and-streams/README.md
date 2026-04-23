@@ -81,7 +81,7 @@ a time), `[x]` done, `[!]` blocked.
 
 See [10-phase-0.md](./10-phase-0.md).
 
-- [ ] 0.1 add baseline-measurement harness
+- [x] 0.1 add baseline-measurement harness
 - [ ] 0.2 record fileRead memory/allocation profile
 - [ ] 0.3 record http body allocation profile
 - [ ] 0.4 record streaming-http chunk behaviour
@@ -143,6 +143,7 @@ Append one line per chunk completion. Format:
 `YYYY-MM-DD HH:MM  <chunk-id>  <short note>`.
 
 <!-- agent appends below -->
+2026-04-23 21:40  0.1  harness skeleton + helpers; self-test passes and writes rundir/measurements/phase-0/harness.txt
 
 ## Blockers
 

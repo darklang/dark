@@ -61,6 +61,10 @@
     <Compile Include="Serialization.Vanilla.Tests.fs" />
     <Compile Include="Serialization.DarkTypes.Tests.fs" />
 
+    <!-- measurement harness (phase 0) /-->
+    <Compile Include="Measurement.Helpers.fs" />
+    <Compile Include="Measurement.fs" />
+
     <Compile Include="Tests.fs" />
   </ItemGroup>
   <Import Project="..\..\.paket\Paket.Restore.targets" />
