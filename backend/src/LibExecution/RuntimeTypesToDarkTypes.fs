@@ -698,6 +698,10 @@ module Dval =
 
       | DDB name -> "DDB", [ DString name ]
 
+      | DBlob(Ephemeral id) -> "DBlobEphemeral", [ DUuid id ]
+      | DBlob(Persistent(hash, length)) ->
+        "DBlobPersistent", [ DString hash; DInt64 length ]
+
     DEnum(typeName (), typeName (), [], caseName, fields)
 
 
@@ -759,6 +763,10 @@ module Dval =
       DApplicable(Applicable.fromDT applicable)
 
     | DEnum(_, _, [], "DDB", [ DString name ]) -> DDB name
+
+    | DEnum(_, _, [], "DBlobEphemeral", [ DUuid id ]) -> DBlob(Ephemeral id)
+    | DEnum(_, _, [], "DBlobPersistent", [ DString hash; DInt64 length ]) ->
+      DBlob(Persistent(hash, length))
 
     | _ -> Exception.raiseInternal "Invalid Dval" []
 

@@ -613,6 +613,19 @@ and [<NoComparison>] Dval =
   // References
   | DDB of name : string
 
+  /// Immutable byte sequence — see thinking/blobs-and-streams/00-design.md.
+  /// The Dval holds a small reference (UUID or hash); the bytes live
+  /// in the per-ExecutionState ephemeral store or in `package_blobs`.
+  | DBlob of BlobRef
+
+
+/// Where the bytes of a DBlob actually live. Ephemeral refs resolve
+/// via [ExecutionState.blobStore]; persistent refs resolve via the
+/// package manager's `blobs` lookup (added in chunk 1.5).
+and BlobRef =
+  | Ephemeral of uuid
+  | Persistent of hash : string * length : int64
+
 
 and DvalTask = Ply<Dval>
 
@@ -1066,6 +1079,8 @@ module Dval =
 
     // CLEANUP follow up when DDB has a typeReference
     | DDB _ -> ValueType.Unknown
+
+    | DBlob _ -> ValueType.Known KTBlob
 
 
 
@@ -1530,6 +1545,14 @@ and ExecutionState =
     /// research set this; `run --allow-harmful` / `eval --allow-harmful`
     /// toggle it for one-offs.
     allowHarmful : bool
+
+    /// Per-execution ephemeral byte-store for `DBlob(Ephemeral _)`
+    /// references. Populated by IO builtins (fileRead, HttpClient.body,
+    /// etc.). Bytes live until the ExecutionState is discarded; long-
+    /// running VMs (http-server) will need the scope-based lifetime in
+    /// chunk L.1. See thinking/blobs-and-streams/00-design.md.
+    blobStore :
+      System.Collections.Concurrent.ConcurrentDictionary<System.Guid, byte[]>
   }
 
 

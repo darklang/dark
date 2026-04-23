@@ -79,7 +79,10 @@ let main (args : string array) : int =
         Tests.LibExecution.tests.Force()
 
         // measurement harness (phase 0)
-        Tests.Measurement.tests ]
+        Tests.Measurement.tests
+
+        // blob (phase 1)
+        Tests.Blob.tests ]
 
     let cancelationTokenSource = new System.Threading.CancellationTokenSource()
     let bwdServerTestsTask = Tests.BwdServer.init cancelationTokenSource.Token

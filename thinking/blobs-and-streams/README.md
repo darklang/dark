@@ -93,7 +93,7 @@ See [10-phase-0.md](./10-phase-0.md).
 See [20-phase-1.md](./20-phase-1.md).
 
 - [x] 1.1 wire TBlob and KTBlob through PT/RT/ValueType
-- [ ] 1.2 add DBlob with BlobRef ephemeral/persistent variants
+- [x] 1.2 add DBlob with BlobRef ephemeral/persistent variants
 - [ ] 1.3 add binary serializers for TBlob/KTBlob/DBlob
 - [ ] 1.4 add PT↔Dark and RT↔Dark bridges for blob types
 - [ ] 1.5 add package_blobs migration and PM blobs lookup
@@ -150,6 +150,7 @@ Append one line per chunk completion. Format:
 2026-04-23 22:40  0.5  hex encode 1MB: list construction dominates (295MB vs 41MB encode step); also noted the O(n²) list[i] pattern in Bytes.fs:25 which 1.7 will retire. First attempt used the builtin's exact loop and hung on list-index iteration; switched to List.iter to measure representation cost fairly.
 2026-04-23 22:46  0.6  baseline.md written: tables per scenario + phase-1 targets. sqlite data.db floor: 33mb. phase 0 complete.
 2026-04-23 23:06  1.1  TBlob and KTBlob wired across 18 files (exhaustive-match fallout: PT2RT, PT↔Dark, RT↔Dark, TypeChecker, ValueType, binary serializers, hashing, cloud reprs, pm dependency/ast/resolver, json). 776 binary-serialization tests + 73 pt2rt tests + 5 measurement tests pass. TBlob/KTBlob present but inert; no DBlob yet.
+2026-04-23 23:32  1.2  DBlob of BlobRef + BlobRef DU (Ephemeral | Persistent); blobStore ConcurrentDictionary on ExecutionState; Dval.newEphemeralBlob + readBlobBytes helpers; equality/compareDval/binary-serializer/roundtrippable/queryable/json/typeutils coverage. 3 new blob tests pass; 776 bin-ser tests stay green.
 
 ## Blockers
 

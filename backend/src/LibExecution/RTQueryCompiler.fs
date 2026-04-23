@@ -632,6 +632,7 @@ let compileLambda
         | RT.DEnum _ -> "Enum"
         | RT.DApplicable _ -> "Function"
         | RT.DDB _ -> "DB"
+        | RT.DBlob _ -> "Blob"
       Error $"Incorrect type, expected Bool, but got {typeName}"
     | DBRow -> Error "Cannot use the entire row as a boolean result"
     | Unknown reason -> Error $"Cannot compile to SQL: {reason}"

@@ -211,6 +211,8 @@ module FormatV0 =
       fields : List<Dval>
     | DLambda // See docs/dblock-serialization.md
     | DDB of string
+    | DBlobPersistent of hash : string * length : int64
+    | DBlobEphemeral of id : System.Guid
 
 
   let rec toRT (dv : Dval) : RT.Dval =
@@ -275,6 +277,9 @@ module FormatV0 =
 
     | DDB name -> RT.DDB name
 
+    | DBlobPersistent(hash, length) -> RT.DBlob(RT.Persistent(hash, length))
+    | DBlobEphemeral id -> RT.DBlob(RT.Ephemeral id)
+
 
 
   let rec fromRT (dv : RT.Dval) : Dval =
@@ -329,6 +334,9 @@ module FormatV0 =
 
     | RT.DDB name -> DDB name
 
+    | RT.DBlob(RT.Persistent(hash, length)) -> DBlobPersistent(hash, length)
+    | RT.DBlob(RT.Ephemeral id) -> DBlobEphemeral id
+
 
 let toJsonV0 (dv : RT.Dval) : string =
   dv |> FormatV0.fromRT |> Json.Vanilla.serialize
@@ -366,7 +374,8 @@ module Test =
     | RT.DChar _
     | RT.DString _
     | RT.DUuid _
-    | RT.DDateTime _ -> true
+    | RT.DDateTime _
+    | RT.DBlob _ -> true
 
     | RT.DTuple(v1, v2, rest) -> List.all isRoundtrippableDval (v1 :: v2 :: rest)
 

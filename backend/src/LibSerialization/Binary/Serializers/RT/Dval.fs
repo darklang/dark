@@ -182,9 +182,17 @@ and writeDvalImpl (w : BinaryWriter) (dval : Dval) =
   | DDB value ->
     w.Write 23uy
     String.write w value
-
-
-// Read functions
+  | DBlob(Persistent(hash, length)) ->
+    w.Write 24uy
+    String.write w hash
+    w.Write length
+  | DBlob(Ephemeral id) ->
+    // TODO chunk 1.6: promote to persistent before writing. Until then,
+    // serializing an ephemeral blob is a hard error (raised here rather
+    // than silently writing a dangling handle that won't resolve across
+    // VM boundaries).
+    raiseFormatError
+      $"Cannot serialize ephemeral blob {id} — promotion path lands in chunk 1.6"
 let rec readDval : BinaryReader -> Dval = fun r -> readDvalImpl r
 
 and readValueType : BinaryReader -> ValueType = fun r -> readValueTypeImpl r
@@ -315,6 +323,10 @@ and readDvalImpl (r : BinaryReader) : Dval =
     DEnum(sourceTypeName, runtimeTypeName, typeArgs, caseName, fields)
   | 22uy -> DApplicable(readApplicable r)
   | 23uy -> DDB(String.read r)
+  | 24uy ->
+    let hash = String.read r
+    let length = r.ReadInt64()
+    DBlob(Persistent(hash, length))
   | b -> raiseFormatError $"Invalid Dval tag: {b}"
 
 

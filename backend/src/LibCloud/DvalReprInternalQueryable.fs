@@ -151,6 +151,26 @@ let rec private toJsonV0
             |> Ply.List.iterSequentially (fun fieldVal -> writeDval fieldVal)))
 
 
+    // Blobs serialize as a hash-reference JSON envelope; bytes stay
+    // in package_blobs (design note: thinking/blobs-and-streams/00-design.md).
+    // Ephemeral blobs are not yet supported here — promotion lands in
+    // chunk 1.6.
+    | DBlob(Persistent(hash, length)) ->
+      do!
+        w.writeObject (fun () ->
+          uply {
+            w.WritePropertyName "type"
+            w.WriteStringValue "blob"
+            w.WritePropertyName "hash"
+            w.WriteStringValue hash
+            w.WritePropertyName "length"
+            w.WriteNumberValue length
+          })
+    | DBlob(Ephemeral _) ->
+      Exception.raiseInternal
+        "Ephemeral blobs in queryable JSON need promotion (chunk 1.6)"
+        [ "value", dv ]
+
     // Not supported
     | DApplicable _
     | DDB _ -> Exception.raiseInternal "Not supported in queryable" [ "value", dv ]
@@ -390,7 +410,9 @@ module Test =
     | DChar _
     | DString _
     | DDateTime _
-    | DUuid _ -> true
+    | DUuid _
+    | DBlob(Persistent _) -> true
+    | DBlob(Ephemeral _) -> false // ephemeral needs promotion (chunk 1.6)
 
     // VTTODO these should probably just check the valueType, not any internal data
     | DTuple(d1, d2, rest) -> List.all isQueryableDval (d1 :: d2 :: rest)

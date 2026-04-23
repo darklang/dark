@@ -82,6 +82,36 @@ let result
   | Error dv -> resultError okType errorType dv
 
 
+/// Mint a fresh ephemeral blob: register the bytes in the exeState's
+/// blob store and return a DBlob that references them. Caller retains
+/// no direct handle on the byte[] past this point.
+let newEphemeralBlob (exeState : ExecutionState) (bytes : byte[]) : Dval =
+  let id = System.Guid.NewGuid()
+  exeState.blobStore[id] <- bytes
+  DBlob(Ephemeral id)
+
+
+/// Resolve a BlobRef to its bytes. Ephemerals read from the VM store;
+/// persistent refs hit package_blobs (added in chunk 1.5 — raises
+/// until then).
+let readBlobBytes (exeState : ExecutionState) (ref : BlobRef) : Ply.Ply<byte[]> =
+  uply {
+    match ref with
+    | Ephemeral id ->
+      match exeState.blobStore.TryGetValue id with
+      | true, bytes -> return bytes
+      | false, _ ->
+        return
+          Exception.raiseInternal "Ephemeral blob not found in store" [ "id", id ]
+    | Persistent(hash, _length) ->
+      // TODO chunk 1.5: plumb the package manager through and read from package_blobs.
+      return
+        Exception.raiseInternal
+          "Persistent blob reads not yet implemented (chunk 1.5)"
+          [ "hash", hash ]
+  }
+
+
 let byteArrayToDvalList (bytes : byte[]) : Dval =
   bytes
   |> Array.toList

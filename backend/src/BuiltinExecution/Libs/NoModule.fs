@@ -109,6 +109,14 @@ let rec equals (a : Dval) (b : Dval) : bool =
 
   | DDB a, DDB b -> a = b
 
+  | DBlob a, DBlob b ->
+    // Blob equality: hash compare for persistent refs; trivial UUID
+    // compare for ephemeral (full semantics land in chunk L.4).
+    match a, b with
+    | Persistent(h1, l1), Persistent(h2, l2) -> h1 = h2 && l1 = l2
+    | Ephemeral id1, Ephemeral id2 -> id1 = id2
+    | _ -> false
+
   // exhaustiveness check
   | DUnit, _
   | DBool _, _
@@ -133,7 +141,8 @@ let rec equals (a : Dval) (b : Dval) : bool =
   | DRecord _, _
   | DEnum _, _
   | DApplicable _, _
-  | DDB _, _ ->
+  | DDB _, _
+  | DBlob _, _ ->
     // type errors; should be caught above by the caller
     false
 

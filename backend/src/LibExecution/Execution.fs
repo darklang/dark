@@ -51,7 +51,10 @@ let createState
         package = pm.getFn
         isHarmful = fun pkg -> pm.isHarmful branchId pkg }
 
-    allowHarmful = false }
+    allowHarmful = false
+
+    blobStore =
+      new System.Collections.Concurrent.ConcurrentDictionary<System.Guid, byte[]>() }
 
 
 let rec callStackForFrame

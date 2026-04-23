@@ -65,6 +65,9 @@
     <Compile Include="Measurement.Helpers.fs" />
     <Compile Include="Measurement.fs" />
 
+    <!-- blob (phase 1) /-->
+    <Compile Include="Blob.Tests.fs" />
+
     <Compile Include="Tests.fs" />
   </ItemGroup>
   <Import Project="..\..\.paket\Paket.Restore.targets" />
