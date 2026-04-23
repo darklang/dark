@@ -1205,6 +1205,16 @@ let interestingDvals () : List<string * RT.Dval * RT.TypeReference> =
     ("false", DBool false, TBool)
     ("unit", DUnit, TUnit)
     ("datastore", DDB "Visitors", TDB TInt64)
+    // Ephemeral blobs are intentionally excluded here — their serializer
+    // path raises until chunk 1.6's promotion lands.
+    ("blob_persistent",
+     DBlob(
+       Persistent(
+         "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+         1024L
+       )
+     ),
+     TBlob)
     ("string", DString "incredibly this was broken", TString)
     // Json.NET has a habit of converting things automatically based on the type in the string
     ("date string", DString "2018-09-14T00:31:41Z", TString)

@@ -18,6 +18,7 @@ module RT = LibExecution.RuntimeTypes
 module Dval = LibExecution.Dval
 module Exe = LibExecution.Execution
 module PT = LibExecution.ProgramTypes
+module BS = LibSerialization.Binary.Serialization
 
 
 /// Minimal ExecutionState suitable for exercising blob helpers
@@ -98,7 +99,78 @@ let missingEphemeralRaises =
   }
 
 
+let persistentBlobBinaryRoundtrip =
+  test "DBlob(Persistent _) roundtrips through the binary serializer" {
+    let original =
+      RT.DBlob(
+        RT.Persistent(
+          "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          1024L
+        )
+      )
+    let bytes = BS.RT.Dval.serialize "dval" original
+    let restored = BS.RT.Dval.deserialize "dval" bytes
+    Expect.equal restored original "Persistent ref survives binary roundtrip"
+  }
+
+
+let ephemeralBlobBinaryRaises =
+  test "DBlob(Ephemeral _) serialization raises until chunk 1.6 lands" {
+    let dv = RT.DBlob(RT.Ephemeral(System.Guid.NewGuid()))
+    Expect.throws
+      (fun () -> BS.RT.Dval.serialize "dval" dv |> ignore<byte[]>)
+      "ephemeral blob must raise on serialize (pending promotion in chunk 1.6)"
+  }
+
+
+let tblobBinaryRoundtrip =
+  test "TBlob roundtrips through PT and RT binary type-reference serializers" {
+    // PT side
+    let ptBytes =
+      let s = new System.IO.MemoryStream()
+      let w = new System.IO.BinaryWriter(s)
+      LibSerialization.Binary.Serializers.PT.TypeReference.write w PT.TBlob
+      s.ToArray()
+    let ptRestored =
+      let r = new System.IO.BinaryReader(new System.IO.MemoryStream(ptBytes))
+      LibSerialization.Binary.Serializers.PT.TypeReference.read r
+    Expect.equal ptRestored PT.TBlob "PT.TBlob roundtrips"
+
+    // RT side
+    let rtBytes =
+      let s = new System.IO.MemoryStream()
+      let w = new System.IO.BinaryWriter(s)
+      LibSerialization.Binary.Serializers.RT.TypeReference.write w RT.TBlob
+      s.ToArray()
+    let rtRestored =
+      let r = new System.IO.BinaryReader(new System.IO.MemoryStream(rtBytes))
+      LibSerialization.Binary.Serializers.RT.TypeReference.read r
+    Expect.equal rtRestored RT.TBlob "RT.TBlob roundtrips"
+  }
+
+
+let ktblobBinaryRoundtrip =
+  test "KTBlob roundtrips through the RT ValueType binary serializer" {
+    let original = RT.ValueType.Known RT.KTBlob
+    let bytes =
+      let s = new System.IO.MemoryStream()
+      let w = new System.IO.BinaryWriter(s)
+      LibSerialization.Binary.Serializers.RT.ValueType.write w original
+      s.ToArray()
+    let restored =
+      let r = new System.IO.BinaryReader(new System.IO.MemoryStream(bytes))
+      LibSerialization.Binary.Serializers.RT.ValueType.read r
+    Expect.equal restored original "KTBlob ValueType roundtrips"
+  }
+
+
 let tests =
   testList
     "blob"
-    [ ephemeralRoundtrip; twoEphemeralsAreDistinct; missingEphemeralRaises ]
+    [ ephemeralRoundtrip
+      twoEphemeralsAreDistinct
+      missingEphemeralRaises
+      persistentBlobBinaryRoundtrip
+      ephemeralBlobBinaryRaises
+      tblobBinaryRoundtrip
+      ktblobBinaryRoundtrip ]

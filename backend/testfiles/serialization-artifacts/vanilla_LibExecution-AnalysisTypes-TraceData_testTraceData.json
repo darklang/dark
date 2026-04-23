@@ -54,6 +54,16 @@
                 "\uFDFD\uFDFD\uFDFD\uFDFD\uFDFD\uFDFD\uFDFD\uFDFD\uFDFD\uFDFD\uFDFD\uFDFD\uFDFD\uFDFD\uFDFD\uFDFD"
               ]
             },
+            "blob_persistent": {
+              "DBlob": [
+                {
+                  "Persistent": [
+                    "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+                    1024
+                  ]
+                }
+              ]
+            },
             "bytes": {
               "DList": [
                 {
@@ -8105,6 +8115,16 @@
             "arabic": {
               "DString": [
                 "\uFDFD\uFDFD\uFDFD\uFDFD\uFDFD\uFDFD\uFDFD\uFDFD\uFDFD\uFDFD\uFDFD\uFDFD\uFDFD\uFDFD\uFDFD\uFDFD"
+              ]
+            },
+            "blob_persistent": {
+              "DBlob": [
+                {
+                  "Persistent": [
+                    "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+                    1024
+                  ]
+                }
               ]
             },
             "bytes": {

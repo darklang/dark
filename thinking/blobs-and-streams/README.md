@@ -94,7 +94,7 @@ See [20-phase-1.md](./20-phase-1.md).
 
 - [x] 1.1 wire TBlob and KTBlob through PT/RT/ValueType
 - [x] 1.2 add DBlob with BlobRef ephemeral/persistent variants
-- [ ] 1.3 add binary serializers for TBlob/KTBlob/DBlob
+- [x] 1.3 add binary serializers for TBlob/KTBlob/DBlob
 - [ ] 1.4 add PT↔Dark and RT↔Dark bridges for blob types
 - [ ] 1.5 add package_blobs migration and PM blobs lookup
 - [ ] 1.6 implement ephemeral→persistent promotion on serialize
@@ -151,6 +151,7 @@ Append one line per chunk completion. Format:
 2026-04-23 22:46  0.6  baseline.md written: tables per scenario + phase-1 targets. sqlite data.db floor: 33mb. phase 0 complete.
 2026-04-23 23:06  1.1  TBlob and KTBlob wired across 18 files (exhaustive-match fallout: PT2RT, PT↔Dark, RT↔Dark, TypeChecker, ValueType, binary serializers, hashing, cloud reprs, pm dependency/ast/resolver, json). 776 binary-serialization tests + 73 pt2rt tests + 5 measurement tests pass. TBlob/KTBlob present but inert; no DBlob yet.
 2026-04-23 23:32  1.2  DBlob of BlobRef + BlobRef DU (Ephemeral | Persistent); blobStore ConcurrentDictionary on ExecutionState; Dval.newEphemeralBlob + readBlobBytes helpers; equality/compareDval/binary-serializer/roundtrippable/queryable/json/typeutils coverage. 3 new blob tests pass; 776 bin-ser tests stay green.
+2026-04-23 23:46  1.3  binary serializer tags 24/23/24 (PT.TBlob / RT.KTBlob / RT.DBlob) already present from 1.1/1.2 exhaustive-match fallout. Formal roundtrip coverage: 4 new Blob.Tests (persistent roundtrip, ephemeral-raises, TBlob PT+RT, KTBlob) + DBlob(Persistent) + TBlob + KTBlob added to shared test-values fixtures. 7 blob / 777 bin-ser / 12 vanilla-ser all green.
 
 ## Blockers
 
