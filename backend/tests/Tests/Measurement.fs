@@ -276,7 +276,78 @@ let streamingHttpProfile =
   }
 
 
+/// Scenario 4 — bytesHexEncode cost on 1 MB input.
+///
+/// Replicates the inline body of `Builtin.bytesHexEncode` (see
+/// backend/src/BuiltinExecution/Libs/Bytes.fs) so we can measure the
+/// hex-encode step in isolation from the list-construction cost
+/// measured by scenario 1. Post-Phase-1 this becomes a Blob → String
+/// walk and should drop by ~2 orders of magnitude.
+let hexEncodeProfile =
+  test "bytesHexEncode 1mb input" {
+    resetOutput "hex.txt"
+    appendRow
+      "hex.txt"
+      "size_bytes,list_construct_alloc,hex_encode_alloc,hex_encode_ms,total_ms,note"
+
+    let size = 1_000_000
+    let raw = Array.zeroCreate<byte> size
+    System.Random(0).NextBytes(raw)
+
+    let row =
+      try
+        // Cost of turning the byte array into the DList(DUInt8) shape
+        // the builtin currently pattern-matches on.
+        let listDval, listSample = measure (fun () -> Dval.byteArrayToDvalList raw)
+
+        // Cost of the hex-encode loop on top. Mirrors the F# body in
+        // BuiltinExecution/Libs/Bytes.fs:20-34.
+        // NOTE: the current builtin (Bytes.fs:25) uses `bytes[i]` which
+        // is O(i) on F# List, making the whole encode O(n²) — a latent
+        // bug nobody hit at small sizes. We use [List.iter] to measure
+        // the *representation* cost (one DUInt8 unbox per element +
+        // two StringBuilder.Append), which is the fair comparison for
+        // post-Phase-1's O(n) Blob → String walk.
+        let hexResult, hexSample =
+          measure (fun () ->
+            match listDval with
+            | LibExecution.RuntimeTypes.DList(_, bytes) ->
+              let hexUppercaseLookup = "0123456789ABCDEF"
+              let buf = new System.Text.StringBuilder(bytes.Length * 2)
+              bytes
+              |> List.iter (fun dv ->
+                match dv with
+                | LibExecution.RuntimeTypes.DUInt8 b ->
+                  let b = int b
+                  buf
+                    .Append(hexUppercaseLookup[((b >>> 4) &&& 0xF)])
+                    .Append(hexUppercaseLookup[(b &&& 0xF)])
+                  |> ignore<System.Text.StringBuilder>
+                | _ -> Exception.raiseInternal "expected DUInt8" [])
+              buf.ToString()
+            | _ -> Exception.raiseInternal "expected DList" [])
+
+        let totalMs = listSample.elapsedMs + hexSample.elapsedMs
+        let expectedLen = size * 2
+        if hexResult.Length <> expectedLen then
+          $"{size},-1,-1,-1,-1,err:unexpected hex length {hexResult.Length}"
+        else
+          $"{size},{listSample.allocatedBytesDelta},{hexSample.allocatedBytesDelta},{hexSample.elapsedMs},{totalMs},ok"
+      with
+      | :? System.OutOfMemoryException -> $"{size},-1,-1,-1,-1,oom"
+      | e ->
+        let msg = e.Message.Replace(",", ";").Replace("\n", " ")
+        $"{size},-1,-1,-1,-1,err:{msg}"
+
+    appendRow "hex.txt" row
+  }
+
+
 let tests =
   testList
     "measurement"
-    [ harnessSelfTest; fileReadProfile; httpBodyProfile; streamingHttpProfile ]
+    [ harnessSelfTest
+      fileReadProfile
+      httpBodyProfile
+      streamingHttpProfile
+      hexEncodeProfile ]
