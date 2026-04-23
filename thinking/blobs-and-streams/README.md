@@ -86,7 +86,7 @@ See [10-phase-0.md](./10-phase-0.md).
 - [x] 0.3 record http body allocation profile
 - [x] 0.4 record streaming-http chunk behaviour
 - [x] 0.5 record bytesHexEncode cost on large input
-- [ ] 0.6 snapshot sqlite size and write results to baseline.md
+- [x] 0.6 snapshot sqlite size and write results to baseline.md
 
 ### Phase 1 — Blob
 
@@ -148,6 +148,7 @@ Append one line per chunk completion. Format:
 2026-04-23 21:54  0.3  http body profile via fake HttpMessageHandler: 10MB body → 1.6GB alloc / 2GB RSS / 10M+1 dval nodes (~60% extra over fileRead)
 2026-04-23 22:02  0.4  streaming profile: 100 x 100KB producer chunks over 10s → 1300 consumer reads / 2.89GB total alloc / 175ms time-to-first / 13s time-to-last; also added resetOutput helper so reruns start clean
 2026-04-23 22:40  0.5  hex encode 1MB: list construction dominates (295MB vs 41MB encode step); also noted the O(n²) list[i] pattern in Bytes.fs:25 which 1.7 will retire. First attempt used the builtin's exact loop and hung on list-index iteration; switched to List.iter to measure representation cost fairly.
+2026-04-23 22:46  0.6  baseline.md written: tables per scenario + phase-1 targets. sqlite data.db floor: 33mb. phase 0 complete.
 
 ## Blockers
 
