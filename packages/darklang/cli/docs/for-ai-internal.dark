@@ -109,10 +109,6 @@ Full guide: `docs interactive-testing`
   http-server <port> <router>   # serve a Darklang router function
 Use ports 9090-9099 for demos (forwarded from devcontainer to host).
 Kill anything already on the port if needed.
-Known limitation: httpServerServe runs handlers in a fresh execution
-context without lambda instruction caches, so handlers that use
-lambdas (List.map, routeRequest, etc.) will fail at runtime.
-Workaround: avoid lambdas in handler call chains, or pre-compute results.
 
 ## Debug
   Builtin.debug "label" value   # prints DEBUG: label: <repr> to stdout
