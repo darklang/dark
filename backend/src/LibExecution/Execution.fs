@@ -38,6 +38,9 @@ let createState
     reportException = reportException
     notify = notify
 
+    lambdaInstrCache = System.Collections.Concurrent.ConcurrentDictionary()
+    packageFnInstrCache = System.Collections.Concurrent.ConcurrentDictionary()
+
     branchId = branchId
     program = program
 
@@ -117,12 +120,12 @@ let executeToplevel
   : Task<RT.ExecutionResult> =
   execute exeState (Some tlid, instrs)
 
-/// Execute an applicable (lambda or named fn) with given args,
-/// preserving the lambda instruction cache from the source VM.
+/// Execute an applicable (lambda or named fn) with given args in a fresh VM.
+/// Lambda + package fn instruction caches live on `exeState`, so lambdas
+/// created in the caller's VM remain findable here.
 /// Use this when calling a Darklang callback from within a builtin.
 let executeApplicable
   (exeState : RT.ExecutionState)
-  (sourceVM : RT.VMState)
   (applicable : RT.Applicable)
   (args : NEList<RT.Dval>)
   : Task<RT.ExecutionResult> =
@@ -149,17 +152,6 @@ let executeApplicable
 
   task {
     let vm = RT.VMState.create (None, instrs)
-    // Copy the lambda cache, and also re-key all entries under Source
-    // so that nested lambdas (e.g. match arms inside a callback) are
-    // findable from the new VM's root frame.
-    let reKeyed =
-      sourceVM.lambdaInstrCache
-      |> Map.fold
-        (fun acc ((_ep, exprId) : RT.ExecutionPoint * id) (v : RT.LambdaImpl) ->
-          acc |> Map.add (RT.Source, exprId) v)
-        sourceVM.lambdaInstrCache
-    vm.lambdaInstrCache <- reKeyed
-    vm.packageFnInstrCache <- sourceVM.packageFnInstrCache
     try
       try
         let! result = Interpreter.execute exeState vm

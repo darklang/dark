@@ -476,7 +476,6 @@ let private streamingRequestHandler
                 let! result =
                   Exe.executeApplicable
                     exeState
-                    vm
                     callbackApplicable
                     (NEList.singleton chunkDval)
                 match result with

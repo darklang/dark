@@ -155,27 +155,22 @@ let rec private executeInner (exeState : ExecutionState) (vm : VMState) : Ply<Dv
         | Source -> Ply(snd vm.rootInstrData)
 
         | Lambda(parentContext, lambdaID) ->
-          let cacheKey = (parentContext, lambdaID)
-          match Map.tryFind cacheKey vm.lambdaInstrDataCache with
+          match Map.tryFind lambdaID vm.lambdaInstrDataCache with
           | Some cached -> Ply cached
           | None ->
             let lambda =
-              (match Map.tryFind cacheKey vm.lambdaInstrCache with
-               | Some l -> l
-               | None ->
-                 match Map.tryFind (Source, lambdaID) vm.lambdaInstrCache with
-                 | Some l -> l
-                 | None ->
-                   Exception.raiseInternal
-                     "lambda not found"
-                     [ "lambdaID", lambdaID; "parentContext", parentContext ])
-              |> _.instructions
+              match exeState.lambdaInstrCache.TryGetValue lambdaID with
+              | true, l -> l.instructions
+              | false, _ ->
+                Exception.raiseInternal
+                  "lambda not found"
+                  [ "lambdaID", lambdaID; "parentContext", parentContext ]
 
             let instrData =
               { instructions = List.toArray lambda.instructions
                 resultReg = lambda.resultIn }
             vm.lambdaInstrDataCache <-
-              Map.add cacheKey instrData vm.lambdaInstrDataCache
+              Map.add lambdaID instrData vm.lambdaInstrDataCache
             Ply instrData
 
         | Function(FQFnName.Builtin _) ->
@@ -185,16 +180,15 @@ let rec private executeInner (exeState : ExecutionState) (vm : VMState) : Ply<Dv
 
         | Function(FQFnName.Package fn) ->
           uply {
-            match Map.find fn vm.packageFnInstrCache with
-            | Some fn -> return fn
-            | None ->
+            match exeState.packageFnInstrCache.TryGetValue fn with
+            | true, cached -> return cached
+            | false, _ ->
               match! exeState.fns.package fn with
               | Some fn ->
                 let instrData =
                   { instructions = List.toArray fn.body.instructions
                     resultReg = fn.body.resultIn }
-                vm.packageFnInstrCache <-
-                  Map.add fn.hash instrData vm.packageFnInstrCache
+                exeState.packageFnInstrCache[fn.hash] <- instrData
                 return instrData
 
               | None -> return raiseRTE (RTE.FnNotFound(FQFnName.Package fn))
@@ -468,11 +462,7 @@ let rec private executeInner (exeState : ExecutionState) (vm : VMState) : Ply<Dv
 
 
         | CreateLambda(lambdaReg, impl) ->
-          vm.lambdaInstrCache <-
-            vm.lambdaInstrCache
-            |> Map.add (currentFrame.executionPoint, impl.exprId) impl
-            // CLEANUP why do we need this? ask Ocean for a reminder. I really feel like we shouldn't.
-            |> Map.add (Source, impl.exprId) impl
+          exeState.lambdaInstrCache[impl.exprId] <- impl
 
           registers[lambdaReg] <-
             { exprId = impl.exprId
@@ -512,15 +502,10 @@ let rec private executeInner (exeState : ExecutionState) (vm : VMState) : Ply<Dv
           | AppLambda appLambda ->
             let exprId = appLambda.exprId
             let foundLambda =
-              match
-                Map.tryFind (currentFrame.executionPoint, exprId) vm.lambdaInstrCache
-              with
-              | Some lambda -> lambda
-              | None ->
-                match Map.tryFind (Source, exprId) vm.lambdaInstrCache with
-                | Some lambda -> lambda
-                | None ->
-                  Exception.raiseInternal "lambda not found" [ "exprId", exprId ]
+              match exeState.lambdaInstrCache.TryGetValue exprId with
+              | true, lambda -> lambda
+              | false, _ ->
+                Exception.raiseInternal "lambda not found" [ "exprId", exprId ]
 
             let allArgs =
               match appLambda.argsSoFar with

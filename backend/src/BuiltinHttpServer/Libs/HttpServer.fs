@@ -31,19 +31,16 @@ module Execution = LibExecution.Execution
 module Http = LibHttpMiddleware.Http
 
 
-/// Execute a named function with the given argument
-let private executeNamedFn
+/// Execute a handler (named fn or lambda) against the given request. Lambdas
+/// registered anywhere under this `exeState` (including the caller VM) are
+/// findable here since `lambdaInstrCache` lives on `exeState`.
+let private executeHandler
   (exeState : ExecutionState)
-  (namedFn : ApplicableNamedFn)
+  (handler : Applicable)
   (arg : Dval)
   : Task<Dval> =
   task {
-    let! result =
-      Execution.executeFunction
-        exeState
-        namedFn.name
-        namedFn.typeArgs
-        (NEList.singleton arg)
+    let! result = Execution.executeApplicable exeState handler (NEList.singleton arg)
     match result with
     | Ok dval -> return dval
     | Error(rte, _callStack) ->
@@ -67,7 +64,7 @@ let fns () : List<BuiltInFn> =
       description = "Start an HTTP server. Calls handler for each request."
       fn =
         (function
-        | exeState, _, _, [ DInt64 port; DApplicable(AppNamedFn handlerFn) ] ->
+        | exeState, _, _, [ DInt64 port; DApplicable handler ] ->
           uply {
             let builder = WebApplication.CreateBuilder()
             builder.WebHost.UseUrls($"http://*:{port}") |> ignore<IWebHostBuilder>
@@ -100,7 +97,7 @@ let fns () : List<BuiltInFn> =
                       Http.Request.fromRequest url reqHeaders reqBody
 
                     // Call the Darklang code
-                    let! result = executeNamedFn exeState handlerFn requestDval
+                    let! result = executeHandler exeState handler requestDval
 
                     // Convert result to HTTP response
                     let! response = Http.Response.toHttpResponse exeState result

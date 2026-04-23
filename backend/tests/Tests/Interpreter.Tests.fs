@@ -16,7 +16,7 @@ let tCheckVM
   name
   ptExpr
   expectedInsts
-  (extraVmStateAssertions : RT.VMState -> unit)
+  (extraAssertions : RT.ExecutionState -> RT.VMState -> unit)
   =
   testTask name {
     let vmState =
@@ -28,11 +28,10 @@ let tCheckVM
     let! actual = LibExecution.Interpreter.execute exeState vmState |> Ply.toTask
     Expect.equal actual expectedInsts ""
 
-    extraVmStateAssertions vmState
+    extraAssertions exeState vmState
   }
 
-let t name ptExpr expectedInsts =
-  tCheckVM name ptExpr expectedInsts (ignore<RT.VMState>)
+let t name ptExpr expectedInsts = tCheckVM name ptExpr expectedInsts (fun _ _ -> ())
 
 
 
@@ -443,8 +442,8 @@ module Lambdas =
               argsSoFar = []
               typeSymbolTable = Map.empty }
         ))
-        (fun vm ->
-          Expect.isFalse (Map.isEmpty vm.lambdaInstrCache) "no lambdas in VMState")
+        (fun exeState _vm ->
+          Expect.isFalse exeState.lambdaInstrCache.IsEmpty "no lambdas registered")
 
     let applied = t "(fn x -> x) 1" E.Lambdas.Identity.applied (RT.DInt64 1L)
 
@@ -462,8 +461,8 @@ module Lambdas =
               argsSoFar = []
               typeSymbolTable = Map.empty }
         ))
-        (fun vm ->
-          Expect.isFalse (Map.isEmpty vm.lambdaInstrCache) "no lambdas in VMState")
+        (fun exeState _vm ->
+          Expect.isFalse exeState.lambdaInstrCache.IsEmpty "no lambdas registered")
 
     let partiallyApplied =
       t
@@ -495,8 +494,8 @@ module Lambdas =
               argsSoFar = []
               typeSymbolTable = Map.empty }
         ))
-        (fun vm ->
-          Expect.isFalse (Map.isEmpty vm.lambdaInstrCache) "no lambdas in VMState")
+        (fun exeState _vm ->
+          Expect.isFalse exeState.lambdaInstrCache.IsEmpty "no lambdas registered")
 
     let applied =
       t "(fn (x, y) -> x + y) (1, 2)" E.Lambdas.AddTuple.applied (RT.DInt64 3L)
@@ -517,8 +516,8 @@ module Lambdas =
               argsSoFar = []
               typeSymbolTable = Map.empty }
         ))
-        (fun vm ->
-          Expect.isFalse (Map.isEmpty vm.lambdaInstrCache) "no lambdas in VMState")
+        (fun exeState _vm ->
+          Expect.isFalse exeState.lambdaInstrCache.IsEmpty "no lambdas registered")
 
     let applied =
       t
