@@ -11,7 +11,6 @@ module PT = LibExecution.ProgramTypes
 module RT = LibExecution.RuntimeTypes
 module AT = LibExecution.AnalysisTypes
 module Exe = LibExecution.Execution
-module DvalReprInternalHash = LibExecution.DvalReprInternalHash
 module DvalReprInternalRoundtrippable = LibExecution.DvalReprInternalRoundtrippable
 
 /// Tracing can go overboard, so use a per-handler feature flag to control it. If
@@ -146,12 +145,37 @@ let fnNameToSimpleString (name : RT.FQFnName.FQFnName) : string =
   | RT.FQFnName.Package(RT.Hash h) -> FnNameCache.resolve h
 
 
+/// Classify an ExecutionPoint into the kind of context it represents and
+/// the pretty-name of its containing fn (empty for Source). We store kind
+/// and fn-name as separate columns so the viewer filters on typed facts
+/// rather than parsing a composite string.
+///   Source            -> "source", ""
+///   Function f        -> "fn_body", "<f's pretty-name>"
+///   Lambda parent     -> "lambda_body", <pretty-name of the nearest non-lambda ancestor> — nested lambdas
+///                        collapse to their containing fn.
+let rec classifyCaller (ep : RT.ExecutionPoint) : string * string =
+  match ep with
+  | RT.Source -> "source", ""
+  | RT.Function name -> "fn_body", fnNameToSimpleString name
+  | RT.Lambda(parent, _) ->
+    let (_, containingFn) = classifyCaller parent
+    "lambda_body", containingFn
+
+
+let fnKindOf (name : RT.FQFnName.FQFnName) : string =
+  match name with
+  | RT.FQFnName.Builtin _ -> "builtin"
+  | RT.FQFnName.Package _ -> "package"
+
+
 /// Stored function call record for trace data.
 /// We keep the raw FQFnName and resolve to a human-readable string at
 /// storage time, avoiding synchronous DB lookups on the hot path.
 type StoredFnCall =
-  { fnName : RT.FQFnName.FQFnName
-    argsHash : string
+  { callerKind : string
+    caller : string
+    fnKind : string
+    fnName : RT.FQFnName.FQFnName
     argsJson : List<string>
     resultJson : string }
 
@@ -182,9 +206,14 @@ module TraceStorage =
     let traceIdStr = string traceID
     let timestamp = NodaTime.Instant.now().ToString()
 
-    let statements =
-      [ // Main trace row
-        "INSERT OR REPLACE INTO traces_v0
+    let traceIdParam = [ "traceId", Sql.string traceIdStr ]
+
+    // DELETE-before-INSERT gives the child tables the same retry-safety
+    // `INSERT OR REPLACE` gives traces_v0: if `store` runs twice for the
+    // same trace_id, each run starts from a clean slate instead of
+    // silently accumulating duplicates. All in one transaction.
+    let baseStatements =
+      [ "INSERT OR REPLACE INTO traces_v0
           (id, trace_id, canvas_id, root_tlid, callgraph_tlids, handler_desc, timestamp)
          VALUES
           (@id, @id, @canvasId, @rootTlid, '', @handlerDesc, @timestamp)",
@@ -194,58 +223,64 @@ module TraceStorage =
             "handlerDesc", Sql.string handlerDesc
             "timestamp", Sql.string timestamp ] ]
 
-        // Input
+        "DELETE FROM trace_inputs_v0 WHERE trace_id = @traceId", [ traceIdParam ]
+
         "INSERT INTO trace_inputs_v0 (trace_id, name, value_json)
          VALUES (@traceId, @name, @valueJson)",
         [ [ "traceId", Sql.string traceIdStr
             "name", Sql.string inputVarName
             "valueJson", Sql.string inputJson ] ]
 
-        // Function results (one param set per call)
-        "INSERT INTO trace_fn_results_v0 (trace_id, fn_name, args_hash, hash_version, result_json)
-         VALUES (@traceId, @fnName, @argsHash, @hashVersion, @resultJson)",
-        fnCalls
-        |> List.map (fun fc ->
-          [ "traceId", Sql.string traceIdStr
-            "fnName", Sql.string (fnNameToSimpleString fc.fnName)
-            "argsHash", Sql.string fc.argsHash
-            "hashVersion", Sql.int DvalReprInternalHash.currentHashVersion
-            "resultJson", Sql.string fc.resultJson ])
+        "DELETE FROM trace_fn_calls_v0 WHERE trace_id = @traceId", [ traceIdParam ] ]
 
-        // Function arguments (one param set per call)
-        "INSERT INTO trace_fn_arguments_v0 (trace_id, fn_name, args_hash, args_json)
-         VALUES (@traceId, @fnName, @argsHash, @argsJson)",
-        fnCalls
-        |> List.map (fun fc ->
-          [ "traceId", Sql.string traceIdStr
-            "fnName", Sql.string (fnNameToSimpleString fc.fnName)
-            "argsHash", Sql.string fc.argsHash
-            "argsJson", Sql.string (serializeArgsList fc.argsJson) ]) ]
+    // Execution order on read comes from rowid, assigned monotonically by
+    // SQLite as we INSERT in order here. Skip the INSERT (not the DELETE)
+    // when there are no calls: fumble rejects a prepared statement with
+    // zero parameter sets (hit when a trace errors out before any fn call
+    // is recorded).
+    let fnCallStatement =
+      match fnCalls with
+      | [] -> []
+      | _ ->
+        [ "INSERT INTO trace_fn_calls_v0
+            (trace_id, caller_kind, caller, fn_kind, fn_name,
+             args_json, result_json)
+           VALUES
+            (@traceId, @callerKind, @caller, @fnKind, @fnName,
+             @argsJson, @resultJson)",
+          fnCalls
+          |> List.map (fun fc ->
+            [ "traceId", Sql.string traceIdStr
+              "callerKind", Sql.string fc.callerKind
+              "caller", Sql.string fc.caller
+              "fnKind", Sql.string fc.fnKind
+              "fnName", Sql.string (fnNameToSimpleString fc.fnName)
+              "argsJson", Sql.string (serializeArgsList fc.argsJson)
+              "resultJson", Sql.string fc.resultJson ]) ]
 
-    let _ = Sql.executeTransactionSync statements
+    let _ = Sql.executeTransactionSync (baseStatements @ fnCallStatement)
     ()
 
 
-/// Shared storeFnResult callback that only records top-level calls (from user code).
-/// Internal stdlib-calls-stdlib chains are skipped by checking the execution point.
+/// Shared storeFnResult callback. Records every function call emitted by the
+/// interpreter, classifying the caller and callee as typed kinds so the
+/// viewer can filter on facts rather than string heuristics.
 let private makeStoreFnResult
   (fnCalls : System.Collections.Generic.List<StoredFnCall>)
   : RT.Tracing.StoreFnResult =
   fun ((ep, _), name) args result ->
-    match ep with
-    | RT.Source ->
-      let hash =
-        args |> DvalReprInternalHash.hash DvalReprInternalHash.currentHashVersion
-      let argsJson =
-        args |> NEList.toList |> List.map DvalReprInternalRoundtrippable.toJsonV0
-      let resultJson = DvalReprInternalRoundtrippable.toJsonV0 result
-      fnCalls.Add(
-        { fnName = name
-          argsHash = hash
-          argsJson = argsJson
-          resultJson = resultJson }
-      )
-    | _ -> ()
+    let argsJson =
+      args |> NEList.toList |> List.map DvalReprInternalRoundtrippable.toJsonV0
+    let resultJson = DvalReprInternalRoundtrippable.toJsonV0 result
+    let (callerKind, caller) = classifyCaller ep
+    fnCalls.Add(
+      { callerKind = callerKind
+        caller = caller
+        fnKind = fnKindOf name
+        fnName = name
+        argsJson = argsJson
+        resultJson = resultJson }
+    )
 
 
 /// Shared helper: store a trace to SQLite with error handling

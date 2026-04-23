@@ -7,9 +7,23 @@ type InputVar =
     value: LanguageTools.RuntimeTypes.Dval }
 
 type FnCall =
-  { fnName: String
+  { callerKind: String  // "source" | "fn_body" | "lambda_body"
+    caller: String      // pretty-name of the containing fn (empty for source)
+    fnKind: String      // "builtin" | "package"
+    fnName: String
     args: List<LanguageTools.RuntimeTypes.Dval>
     result: LanguageTools.RuntimeTypes.Dval }
+
+
+/// User-configurable filters for `traces view`. Defaults hide both kinds of
+/// plumbing noise; flags let the user widen the view when needed.
+type FilterConfig =
+  { hideStdlibInternals: Bool
+    hideBuiltins: Bool }
+
+
+let defaultFilterConfig () : FilterConfig =
+  FilterConfig { hideStdlibInternals = true; hideBuiltins = true }
 
 type TraceData =
   { traceId: String
@@ -17,6 +31,36 @@ type TraceData =
     timestamp: String
     inputs: List<InputVar>
     functionCalls: List<FnCall> }
+
+
+/// Parse filter flags that follow `traces view <id>`. Unknown flags
+/// return Error so typos surface immediately rather than silently
+/// reverting to defaults.
+let parseFilterArgs
+  (args: List<String>)
+  (cfg: FilterConfig)
+  : Stdlib.Result.Result<FilterConfig, String> =
+  Stdlib.List.fold args (Stdlib.Result.Result.Ok cfg) (fun acc arg ->
+    match acc with
+    | Error _ -> acc
+    | Ok cfg ->
+      match arg with
+      | "--raw" ->
+        let updated = { cfg with hideStdlibInternals = false; hideBuiltins = false }
+        Stdlib.Result.Result.Ok updated
+      | "--hide-stdlib-internals" ->
+        let updated = { cfg with hideStdlibInternals = true }
+        Stdlib.Result.Result.Ok updated
+      | "--show-stdlib-internals" ->
+        let updated = { cfg with hideStdlibInternals = false }
+        Stdlib.Result.Result.Ok updated
+      | "--hide-builtins" ->
+        let updated = { cfg with hideBuiltins = true }
+        Stdlib.Result.Result.Ok updated
+      | "--show-builtins" ->
+        let updated = { cfg with hideBuiltins = false }
+        Stdlib.Result.Result.Ok updated
+      | _ -> Stdlib.Result.Result.Error $"Unknown flag: {arg}")
 
 
 let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
@@ -42,8 +86,12 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
       Stdlib.printLine (Colors.error $"Invalid limit: {limitStr}")
       state
 
-  | [ "view"; traceID ] ->
-    executeView state traceID
+  | "view" :: traceID :: flagArgs ->
+    match parseFilterArgs flagArgs (defaultFilterConfig ()) with
+    | Ok config -> executeView state traceID config
+    | Error err ->
+      Stdlib.printLine (Colors.error err)
+      state
 
   | [ "replay"; traceID ] ->
     executeReplay state traceID
@@ -56,36 +104,39 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
     state
 
 
-let executeList (state: Cli.AppState) (limit: Int64) : Cli.AppState =
-  let rows = Builtin.cliTracesList limit
-
+/// Render the output of a list-style traces command. Extracted so
+/// `executeList` and `executeListByFn` share the empty-vs-populated
+/// branch — they only differ in the header line and the empty message.
+let printTraceListResult
+  (state: Cli.AppState)
+  (rows: List<List<String>>)
+  (header: String)
+  (emptyMsg: String)
+  : Cli.AppState =
   match rows with
   | [] ->
-    Stdlib.printLine "No traces found."
+    Stdlib.printLine emptyMsg
     state
   | _ ->
-    Stdlib.printLine $"Recent traces (last {Stdlib.Int64.toString limit}):"
+    Stdlib.printLine header
     Stdlib.printLine ""
     printTraceRows rows
     Stdlib.printLine ""
     Stdlib.printLine "Use 'traces view <trace-id>' to see details."
     state
+
+
+let executeList (state: Cli.AppState) (limit: Int64) : Cli.AppState =
+  let rows = Builtin.cliTracesList limit
+  let header = $"Recent traces (last {Stdlib.Int64.toString limit}):"
+  printTraceListResult state rows header "No traces found."
 
 
 let executeListByFn (state: Cli.AppState) (fnName: String) (limit: Int64) : Cli.AppState =
   let rows = Builtin.cliTracesListByFn fnName limit
-
-  match rows with
-  | [] ->
-    Stdlib.printLine $"No traces found calling '{fnName}'."
-    state
-  | _ ->
-    Stdlib.printLine $"Traces calling '{fnName}' (last {Stdlib.Int64.toString limit}):"
-    Stdlib.printLine ""
-    printTraceRows rows
-    Stdlib.printLine ""
-    Stdlib.printLine "Use 'traces view <trace-id>' to see details."
-    state
+  let header = $"Traces calling '{fnName}' (last {Stdlib.Int64.toString limit}):"
+  let emptyMsg = $"No traces found calling '{fnName}'."
+  printTraceListResult state rows header emptyMsg
 
 
 let printTraceRows (rows: List<List<String>>) : Unit =
@@ -97,38 +148,184 @@ let printTraceRows (rows: List<List<String>>) : Unit =
       Stdlib.printLine "  (malformed trace row)")
 
 
+/// Shift continuation lines of a multi-line string right by `prefix`,
+/// so that when the caller emits `<prefix><label> = <text>`, the body's
+/// second and later lines line up under the first instead of starting
+/// at column 0. Only the lines AFTER the first are prefixed — the first
+/// line follows whatever the caller wrote before it.
+let indentContinuation (prefix: String) (text: String) : String =
+  text |> Stdlib.String.replaceAll "\n" $"\n{prefix}"
+
+
 let formatInputs (branchId: Uuid) (inputs: List<InputVar>) : String =
   match inputs with
   | [] -> "  (none)"
   | _ ->
     inputs
     |> Stdlib.List.map (fun input ->
-      let repr = PrettyPrinter.RuntimeTypes.dval branchId input.value
+      let rendered = PrettyPrinter.RuntimeTypes.dval branchId input.value
+      let repr = indentContinuation "  " rendered
       $"  {input.name} = {repr}")
     |> Stdlib.String.join "\n"
 
 
-let formatFnCalls (branchId: Uuid) (fnCalls: List<FnCall>) : String =
+/// Decide whether a recorded row should be hidden from the trace view.
+/// All decisions use typed fields (fnKind/callerKind) — no string-pattern
+/// inference.
+///
+///   - hideBuiltins: a builtin called from a fn body is a wrapper dispatch
+///     (e.g. Stdlib.Int64.multiply → int64Multiply). Calls from lambda
+///     bodies are always shown since the operator-compiled `*` inside a
+///     user lambda looks the same.
+///   - hideStdlibInternals: a stdlib fn called from another stdlib fn's
+///     body is implementation plumbing (e.g. List.map → List.fold → push).
+let isHiddenCall (call: FnCall) (config: FilterConfig) : Bool =
+  let calledFromFnBody = call.callerKind == "fn_body"
+
+  let isBuiltinWrapper =
+    config.hideBuiltins && call.fnKind == "builtin" && calledFromFnBody
+
+  let isStdlibInternal =
+    config.hideStdlibInternals
+    && Stdlib.String.startsWith call.fnName "Darklang.Stdlib."
+    && calledFromFnBody
+    && Stdlib.String.startsWith call.caller "Darklang.Stdlib."
+
+  isBuiltinWrapper || isStdlibInternal
+
+
+/// A node in the reconstructed call tree.
+/// `visible = false` means this row is filtered noise (stdlib internals,
+/// builtin wrappers). Filtered nodes stay in the tree so their children are
+/// still attached at the right structural level, but render transparently:
+/// the children bubble up one depth, as if the filtered node were erased.
+type CallNode =
+  { call: FnCall
+    visible: Bool
+    children: List<CallNode> }
+
+
+/// Pop contiguous top-of-stack nodes whose caller equals `parentName`.
+/// These are the children of the call currently being processed.
+/// Returns (children in execution order, remaining stack).
+///
+/// The stack is newest-first (head = most-recently-pushed = latest-executed),
+/// so after isolating the matching prefix we reverse it to recover
+/// oldest-first = execution order.
+let popAsChildren
+  (stack: List<CallNode>)
+  (parentName: String)
+  : (List<CallNode> * List<CallNode>) =
+  let isChild = (fun n -> n.call.caller == parentName)
+  let matching = Stdlib.List.takeWhile stack isChild
+  let remaining = Stdlib.List.dropWhile stack isChild
+  (Stdlib.List.reverse matching, remaining)
+
+
+/// Fold the flat (execution-order) call list into a forest of CallNode trees.
+/// The trace stream is strict post-order DFS: for any call C, C's direct
+/// children occupy a contiguous prefix of the working stack when C is
+/// processed. We peel that prefix off using popAsChildren, then push C.
+/// Filtered rows stay in the tree marked invisible so their children keep
+/// a parent for tree-matching; the render step elides them and promotes
+/// their children up.
+let buildCallForest
+  (calls: List<FnCall>)
+  (config: FilterConfig)
+  : List<CallNode> =
+  let stack =
+    Stdlib.List.fold calls [] (fun stack call ->
+      let (children, remaining) = popAsChildren stack call.fnName
+      let visible = Stdlib.Bool.not (isHiddenCall call config)
+      let node =
+        CallNode
+          { call = call
+            visible = visible
+            children = children }
+      Stdlib.List.push remaining node)
+  // Stack stores roots most-recently-pushed first; roots in execution order
+  // means earliest root first, so reverse.
+  Stdlib.List.reverse stack
+
+
+/// Trace rows need one line per call so indentation can show the call
+/// tree. PrettyPrinter.dval breaks lists/records across lines for
+/// readability (e.g. "[\n  1, 2, 3\n]"), which shatters that structure.
+/// Flatten it by splitting on newlines, stripping each line's leading
+/// indent, and rejoining with a single space — robust to any indent
+/// depth (the old replace-"\n  " approach only handled 2-space indents
+/// and left stray spaces at deeper levels).
+///
+/// Caveat: a DString whose contents contain a literal '\n' is printed
+/// unescaped by the pretty printer, so its newline gets collapsed here
+/// too. That is a pretty-printer limitation, not something this helper
+/// can tell apart from structural breaks.
+let flattenDval (branchId: Uuid) (dv: LanguageTools.RuntimeTypes.Dval) : String =
+  let rendered = PrettyPrinter.RuntimeTypes.dval branchId dv
+  let lines = Stdlib.String.splitOnNewline rendered
+  let trimmed = Stdlib.List.map lines (fun line -> Stdlib.String.trimStart line)
+  Stdlib.String.join trimmed " "
+
+
+let renderFnCall
+  (branchId: Uuid)
+  (call: FnCall)
+  (depth: Int64)
+  : String =
+  let indent = Stdlib.String.repeat "  " (depth + 1L)
+  let resultRepr = flattenDval branchId call.result
+  match call.args with
+  | [] -> $"{indent}{call.fnName} → {resultRepr}"
+  | _ ->
+    let argsRepr =
+      call.args
+      |> Stdlib.List.map (fun arg -> flattenDval branchId arg)
+      |> Stdlib.String.join ", "
+    $"{indent}{call.fnName}({argsRepr}) → {resultRepr}"
+
+
+/// Pre-order render. Visible nodes emit themselves and then their children
+/// at depth+1. Invisible (filtered) nodes emit nothing for themselves but
+/// still render their children at the SAME depth — the filtered node is
+/// transparent in the output, its children inherit its place.
+let renderCallNode
+  (branchId: Uuid)
+  (node: CallNode)
+  (depth: Int64)
+  : List<String> =
+  if node.visible then
+    let selfLine = renderFnCall branchId node.call depth
+    let childLines =
+      node.children
+      |> Stdlib.List.map (fun child -> renderCallNode branchId child (depth + 1L))
+      |> Stdlib.List.flatten
+    Stdlib.List.push childLines selfLine
+  else
+    node.children
+    |> Stdlib.List.map (fun child -> renderCallNode branchId child depth)
+    |> Stdlib.List.flatten
+
+
+let formatFnCalls
+  (branchId: Uuid)
+  (fnCalls: List<FnCall>)
+  (config: FilterConfig)
+  : String =
   match fnCalls with
   | [] -> "  (none)"
   | _ ->
-    fnCalls
-    |> Stdlib.List.map (fun call ->
-      let resultRepr = PrettyPrinter.RuntimeTypes.dval branchId call.result
-
-      match call.args with
-      | [] -> $"  {call.fnName} → {resultRepr}"
-      | _ ->
-        let argsRepr =
-          call.args
-          |> Stdlib.List.map (fun arg ->
-            PrettyPrinter.RuntimeTypes.dval branchId arg)
-          |> Stdlib.String.join ", "
-        $"  {call.fnName}({argsRepr}) → {resultRepr}")
+    let forest = buildCallForest fnCalls config
+    forest
+    |> Stdlib.List.map (fun root -> renderCallNode branchId root 0L)
+    |> Stdlib.List.flatten
     |> Stdlib.String.join "\n"
 
 
-let executeView (state: Cli.AppState) (traceID: String) : Cli.AppState =
+let executeView
+  (state: Cli.AppState)
+  (traceID: String)
+  (config: FilterConfig)
+  : Cli.AppState =
   let result = Builtin.cliTracesView traceID
 
   match result with
@@ -137,7 +334,8 @@ let executeView (state: Cli.AppState) (traceID: String) : Cli.AppState =
     state
   | Some trace ->
     let input = formatInputs state.currentBranchId trace.inputs
-    let fnCalls = formatFnCalls state.currentBranchId trace.functionCalls
+    let fnCalls =
+      formatFnCalls state.currentBranchId trace.functionCalls config
     [ $"Trace: {trace.traceId}"
       $"Handler: {trace.handler}"
       $"Time: {trace.timestamp}"
@@ -151,26 +349,41 @@ let executeView (state: Cli.AppState) (traceID: String) : Cli.AppState =
     state
 
 
+/// Replay executes a trace's stored input as code. It only works for
+/// traces whose input is a DString (eval/run traces) — HTTP handler
+/// traces have structured request payloads that aren't replayable as
+/// source code.
+///
+/// We check existence first via cliTracesView so we can tell the user
+/// whether the trace is missing vs. exists-but-not-replayable. The two
+/// failure modes deserve different error messages; the old code
+/// conflated them.
 let executeReplay (state: Cli.AppState) (traceID: String) : Cli.AppState =
-  let input = Builtin.cliTracesGetInput traceID
-
-  match input with
+  match Builtin.cliTracesView traceID with
   | None ->
-    Stdlib.printLine (Colors.error $"Trace not found or has no replayable input: {traceID}")
+    Stdlib.printLine (Colors.error $"Trace not found: {traceID}")
     state
-  | Some code ->
-    Stdlib.printLine $"Replaying trace {traceID}..."
-    Stdlib.printLine ""
-    let result =  Builtin.cliEvaluateExpression state.accountID state.currentBranchId code false
-    match result with
-    | Ok output ->
-      Stdlib.printLine output
+  | Some _ ->
+    match Builtin.cliTracesGetInput traceID with
+    | None ->
+      Stdlib.printLine
+        (Colors.error
+          $"Trace {traceID} has no replayable input (only eval/run traces can be replayed).")
+      state
+    | Some code ->
+      Stdlib.printLine $"Replaying trace {traceID}..."
       Stdlib.printLine ""
-      Stdlib.printLine "Replay complete. A new trace was created for this execution."
-      state
-    | Error err ->
-      Stdlib.printLine (Colors.error $"Replay failed: {Cli.ExecutionError.toString err}")
-      state
+      let result =
+        Builtin.cliEvaluateExpression state.accountID state.currentBranchId code false
+      match result with
+      | Ok output ->
+        Stdlib.printLine output
+        Stdlib.printLine ""
+        Stdlib.printLine "Replay complete. A new trace was created for this execution."
+        state
+      | Error err ->
+        Stdlib.printLine (Colors.error $"Replay failed: {Cli.ExecutionError.toString err}")
+        state
 
 
 let executeClear (state: Cli.AppState) : Cli.AppState =
@@ -184,6 +397,14 @@ let executeClear (state: Cli.AppState) : Cli.AppState =
     state
 
 
+let viewFlagCompletions () : List<Completion.CompletionItem> =
+  [ Completion.simple "--raw"
+    Completion.simple "--show-stdlib-internals"
+    Completion.simple "--hide-stdlib-internals"
+    Completion.simple "--show-builtins"
+    Completion.simple "--hide-builtins" ]
+
+
 let complete (_state: Cli.AppState) (args: List<String>) : List<Completion.CompletionItem> =
   match args with
   | [] ->
@@ -193,6 +414,10 @@ let complete (_state: Cli.AppState) (args: List<String>) : List<Completion.Compl
       Completion.simple "clear" ]
   | [ "list" ] ->
     [ Completion.simple "--fn" ]
+  | "view" :: _ :: _ ->
+    // After `traces view <id>`, suggest view flags. Matches whether the
+    // user has typed zero, one, or many flags already.
+    viewFlagCompletions ()
   | _ -> []
 
 
@@ -200,11 +425,18 @@ let help (_state: Cli.AppState) : Unit =
   [ "Usage: traces <subcommand>"
     ""
     "Subcommands:"
-    "  list [limit]              List recent traces (default limit: 20)"
-    "  list --fn <name> [limit]  List traces that called a specific function"
-    "  view <trace-id>           View details of a specific trace"
-    "  replay <trace-id>         Re-execute a trace's code with current definitions"
-    "  clear                     Delete all stored traces"
+    "  list [limit]                        List recent traces (default 20)"
+    "  list --fn <name> [limit]            List traces calling <name>"
+    "  view <trace-id> [view-flags]        View trace details"
+    "  replay <trace-id>                   Re-execute a trace with current code"
+    "  clear                               Delete all stored traces"
+    ""
+    "View flags (filter which calls are shown; defaults hide plumbing):"
+    "  --raw                      Disable all hiding, show every call"
+    "  --show-stdlib-internals    Include stdlib fn→stdlib fn dispatch"
+    "  --show-builtins            Include builtin wrapper rows"
+    "  --hide-stdlib-internals    (default) Hide stdlib-internal dispatch"
+    "  --hide-builtins            (default) Hide builtin wrappers"
     ""
     "Traces are recorded when code executes via eval, run, or HTTP handlers."
     "Each trace captures inputs, function calls with arguments, and results."
@@ -214,6 +446,7 @@ let help (_state: Cli.AppState) : Unit =
     "  traces list 50                       - Show last 50 traces"
     "  traces list --fn List.map            - Find traces that called List.map"
     "  traces view <trace-id>               - View trace details with args"
+    "  traces view <trace-id> --raw         - Show everything"
     "  traces replay <trace-id>             - Re-run with current code"
     "  traces clear                         - Delete all traces" ]
   |> Stdlib.printLines
