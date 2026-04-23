@@ -70,30 +70,22 @@ let resolveLoadValues
   }
 
 
-/// Look up a lambda from the VM cache by its exprId
-let lookupLambdaImpl (vm : VMState) (exprId : id) : LambdaImpl =
-  match
-    Map.tryFind
-      (vm.callFrames[vm.currentFrameID].executionPoint, exprId)
-      vm.lambdaInstrCache
-  with
-  | Some impl -> impl
-  | None ->
-    match Map.tryFind (Source, exprId) vm.lambdaInstrCache with
-    | Some impl -> impl
-    | None ->
-      Exception.raiseInternal "Lambda not found in cache" [ "exprId", exprId ]
+/// Look up a lambda from the execution cache by its exprId
+let lookupLambdaImpl (exeState : ExecutionState) (exprId : id) : LambdaImpl =
+  match exeState.lambdaInstrCache.TryGetValue exprId with
+  | true, impl -> impl
+  | false, _ ->
+    Exception.raiseInternal "Lambda not found in cache" [ "exprId", exprId ]
 
 
 /// Compile a lambda to SQL for use in DB queries
 /// Raises RuntimeErrorException on error
 let compileQueryLambda
   (exeState : ExecutionState)
-  (vm : VMState)
   (appLambda : ApplicableLambda)
   : Ply.Ply<LibExecution.RTQueryCompiler.CompiledQuery> =
   uply {
-    let lambdaImpl = lookupLambdaImpl vm appLambda.exprId
+    let lambdaImpl = lookupLambdaImpl exeState appLambda.exprId
     let! resolvedValues = resolveLoadValues exeState lambdaImpl
 
     match
@@ -411,7 +403,7 @@ let fns () : List<BuiltInFn> =
         | exeState, vm, _, [ DDB dbname; DApplicable(AppLambda appLambda) ] ->
           uply {
             let db = exeState.program.dbs[dbname]
-            let! compiled = compileQueryLambda exeState vm appLambda
+            let! compiled = compileQueryLambda exeState appLambda
             return!
               UserDB.executeCompiledQuery
                 exeState
@@ -438,7 +430,7 @@ let fns () : List<BuiltInFn> =
         | exeState, vm, _, [ DDB dbname; DApplicable(AppLambda appLambda) ] ->
           uply {
             let db = exeState.program.dbs[dbname]
-            let! compiled = compileQueryLambda exeState vm appLambda
+            let! compiled = compileQueryLambda exeState appLambda
             return!
               UserDB.executeCompiledQuery
                 exeState
@@ -465,7 +457,7 @@ let fns () : List<BuiltInFn> =
         | exeState, vm, _, [ DDB dbname; DApplicable(AppLambda appLambda) ] ->
           uply {
             let db = exeState.program.dbs[dbname]
-            let! compiled = compileQueryLambda exeState vm appLambda
+            let! compiled = compileQueryLambda exeState appLambda
             return!
               UserDB.executeCompiledQuery
                 exeState
@@ -492,7 +484,7 @@ let fns () : List<BuiltInFn> =
         | exeState, vm, _, [ DDB dbname; DApplicable(AppLambda appLambda) ] ->
           uply {
             let db = exeState.program.dbs[dbname]
-            let! compiled = compileQueryLambda exeState vm appLambda
+            let! compiled = compileQueryLambda exeState appLambda
             return!
               UserDB.executeCompiledQuery
                 exeState

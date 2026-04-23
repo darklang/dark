@@ -1379,9 +1379,8 @@ type VMState =
     // The inst data for each fn/lambda/etc. is stored here, so that
     // it doesn't have to be copied into each CallFrame.
     rootInstrData : Option<tlid> * InstrData
-    mutable lambdaInstrCache : Map<ExecutionPoint * id, LambdaImpl>
-    mutable lambdaInstrDataCache : Map<ExecutionPoint * id, InstrData>
-    mutable packageFnInstrCache : Map<FQFnName.Package, InstrData>
+    /// Per-VM memoization of InstrData derived from `exeState.lambdaInstrCache`.
+    mutable lambdaInstrDataCache : Map<id, InstrData>
 
     /// Performance counters — incremented during execution
     stats : InterpreterStats
@@ -1411,9 +1410,7 @@ type VMState =
           { instructions = List.toArray instrs.instructions
             resultReg = instrs.resultIn }
         (tlid, instrs)
-      lambdaInstrCache = Map.empty
       lambdaInstrDataCache = Map.empty
-      packageFnInstrCache = Map.empty
       stats = InterpreterStats.create () }
 
   static member createWithoutTLID(instrs : Instructions) : VMState =
@@ -1491,6 +1488,18 @@ and ExecutionState =
   { // -- Set consistently across a runtime --
     tracing : Tracing.Tracing
     test : TestContext
+
+    /// Lambda instructions registered by `CreateLambda`, looked up on `Apply`.
+    /// Shared across every VM spawned under this execution so that lambdas
+    /// created in one VM (e.g. an `eval` expression) remain findable when
+    /// invoked from another (e.g. an httpServerServe request handler VM).
+    lambdaInstrCache :
+      System.Collections.Concurrent.ConcurrentDictionary<id, LambdaImpl>
+
+    /// Memoization of `InstrData` derived from package function bodies.
+    /// Shared across VMs for the same reason as `lambdaInstrCache`.
+    packageFnInstrCache :
+      System.Collections.Concurrent.ConcurrentDictionary<FQFnName.Package, InstrData>
 
     /// Called to report exceptions
     reportException : ExceptionReporter

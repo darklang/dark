@@ -517,7 +517,6 @@ module Expressions =
 
 
 
-  // TODO: test nested lambdas
   module Lambdas =
     module Identity =
       let id = gid ()
@@ -574,6 +573,24 @@ module Expressions =
           (lpVar "addFifteen")
           unapplied
           (eApply (eVar "addFifteen") [] [ eInt64 25 ])
+
+    ///```fsharp
+    /// (fun x -> fun y -> x + y) 3 4
+    /// ```
+    /// Exercises an inner lambda defined inside another lambda — the inner
+    /// body's `CreateLambda` runs inside the outer's call frame.
+    module Nested =
+      let outerId = gid ()
+      let innerId = gid ()
+      let unapplied =
+        eLambda
+          outerId
+          [ lpVar "x" ]
+          (eLambda
+            innerId
+            [ lpVar "y" ]
+            (eApply (eBuiltinFn "int64Add" 0) [] [ eVar "x"; eVar "y" ]))
+      let fullyApplied = eApply (eApply unapplied [] [ eInt64 3 ]) [] [ eInt64 4 ]
 
 
   module Fns =

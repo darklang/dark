@@ -16,7 +16,7 @@ let tCheckVM
   name
   ptExpr
   expectedInsts
-  (extraVmStateAssertions : RT.VMState -> unit)
+  (extraAssertions : RT.ExecutionState -> RT.VMState -> unit)
   =
   testTask name {
     let vmState =
@@ -28,11 +28,10 @@ let tCheckVM
     let! actual = LibExecution.Interpreter.execute exeState vmState |> Ply.toTask
     Expect.equal actual expectedInsts ""
 
-    extraVmStateAssertions vmState
+    extraAssertions exeState vmState
   }
 
-let t name ptExpr expectedInsts =
-  tCheckVM name ptExpr expectedInsts (ignore<RT.VMState>)
+let t name ptExpr expectedInsts = tCheckVM name ptExpr expectedInsts (fun _ _ -> ())
 
 
 
@@ -443,8 +442,8 @@ module Lambdas =
               argsSoFar = []
               typeSymbolTable = Map.empty }
         ))
-        (fun vm ->
-          Expect.isFalse (Map.isEmpty vm.lambdaInstrCache) "no lambdas in VMState")
+        (fun exeState _vm ->
+          Expect.isFalse exeState.lambdaInstrCache.IsEmpty "no lambdas registered")
 
     let applied = t "(fn x -> x) 1" E.Lambdas.Identity.applied (RT.DInt64 1L)
 
@@ -462,8 +461,8 @@ module Lambdas =
               argsSoFar = []
               typeSymbolTable = Map.empty }
         ))
-        (fun vm ->
-          Expect.isFalse (Map.isEmpty vm.lambdaInstrCache) "no lambdas in VMState")
+        (fun exeState _vm ->
+          Expect.isFalse exeState.lambdaInstrCache.IsEmpty "no lambdas registered")
 
     let partiallyApplied =
       t
@@ -495,8 +494,8 @@ module Lambdas =
               argsSoFar = []
               typeSymbolTable = Map.empty }
         ))
-        (fun vm ->
-          Expect.isFalse (Map.isEmpty vm.lambdaInstrCache) "no lambdas in VMState")
+        (fun exeState _vm ->
+          Expect.isFalse exeState.lambdaInstrCache.IsEmpty "no lambdas registered")
 
     let applied =
       t "(fn (x, y) -> x + y) (1, 2)" E.Lambdas.AddTuple.applied (RT.DInt64 3L)
@@ -517,8 +516,8 @@ module Lambdas =
               argsSoFar = []
               typeSymbolTable = Map.empty }
         ))
-        (fun vm ->
-          Expect.isFalse (Map.isEmpty vm.lambdaInstrCache) "no lambdas in VMState")
+        (fun exeState _vm ->
+          Expect.isFalse exeState.lambdaInstrCache.IsEmpty "no lambdas registered")
 
     let applied =
       t
@@ -528,10 +527,58 @@ module Lambdas =
 
     let tests = testList "AddToClosedVars" [ unapplied; applied ]
 
+  module Nested =
+    let fullyApplied =
+      t "(fn x -> fn y -> x + y) 3 4" E.Lambdas.Nested.fullyApplied (RT.DInt64 7L)
+
+    let tests = testList "Nested" [ fullyApplied ]
+
+  /// Two VMs, one `ExecutionState`. VM-A (built here) runs `fn x -> x` and
+  /// registers the lambda in `exeState.lambdaInstrCache`. `executeApplicable`
+  /// internally spins up VM-B to invoke the `DApplicable`; VM-B must find
+  /// the lambda in the shared exeState cache, not its own empty one.
+  /// Regression guard for moving `lambdaInstrCache` off VMState.
+  let crossVM =
+    testTask "cross-VM lambda invocation" {
+      let! exeState =
+        executionStateFor TestValues.pm (System.Guid.NewGuid()) false false Map.empty
+
+      // VM-A: evaluate `fn x -> x`, producing a DApplicable whose instructions
+      // live in exeState.lambdaInstrCache after this call.
+      let vmA =
+        E.Lambdas.Identity.unapplied
+        |> PT2RT.Expr.toRT Map.empty 0 None
+        |> RT.VMState.createWithoutTLID
+      let! lambdaDval = LibExecution.Interpreter.execute exeState vmA |> Ply.toTask
+
+      let applicable =
+        match lambdaDval with
+        | RT.DApplicable app -> app
+        | other -> failtestf "expected DApplicable from VM-A, got %A" other
+
+      // VM-B lives inside executeApplicable — a fresh VMState is created there
+      // to run the Apply. If lambdaInstrCache were still per-VM, VM-B's cache
+      // would be empty and this call would raise "lambda not found".
+      let! result =
+        LibExecution.Execution.executeApplicable
+          exeState
+          applicable
+          (NEList.singleton (RT.DInt64 42L))
+
+      match result with
+      | Ok dval -> Expect.equal dval (RT.DInt64 42L) "identity lambda across VMs"
+      | Error(rte, _) -> failtestf "executeApplicable errored: %A" rte
+    }
+
   let tests =
     testList
       "Lambdas"
-      [ Identity.tests; Add.tests; AddTuple.tests; AddToClosedVars.tests ]
+      [ Identity.tests
+        Add.tests
+        AddTuple.tests
+        AddToClosedVars.tests
+        Nested.tests
+        crossVM ]
 
 
 module Fns =
