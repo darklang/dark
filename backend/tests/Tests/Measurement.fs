@@ -57,6 +57,7 @@ let fileReadProfile =
     let tempDir = System.IO.Path.Combine(System.IO.Path.GetTempPath(), "dark-phase0")
     System.IO.Directory.CreateDirectory(tempDir) |> ignore<System.IO.DirectoryInfo>
 
+    resetOutput "fileRead.txt"
     // Write the row header first so the file is legible even if a
     // later case crashes the runner.
     appendRow
@@ -110,6 +111,7 @@ let fileReadProfile =
 /// the simulation so the baseline reader isn't misled.
 let httpBodyProfile =
   test "httpclient body memory profile" {
+    resetOutput "httpBody.txt"
     appendRow
       "httpBody.txt"
       "size_bytes,alloc_bytes,peak_ws_bytes,elapsed_ms,dval_nodes,note"
@@ -151,5 +153,130 @@ let httpBodyProfile =
   }
 
 
+/// Stream that yields [chunkCount] chunks of [chunkSize] bytes each,
+/// sleeping [delayMs] between chunks. Simulates a slow chunked HTTP
+/// response body for scenario 3. Content is zero-filled — we're
+/// measuring allocation, not entropy.
+type private SlowChunkedStream(chunkSize : int, chunkCount : int, delayMs : int) =
+  inherit System.IO.Stream()
+
+  let mutable bufferRemaining = 0
+  let mutable chunksEmitted = 0
+  let buffer = Array.zeroCreate<byte> chunkSize
+
+  override _.CanRead = true
+  override _.CanSeek = false
+  override _.CanWrite = false
+  override _.Length = int64 (chunkSize * chunkCount)
+  override _.Position
+    with get () = 0L
+    and set _ = raise (System.NotSupportedException())
+  override _.Flush() = ()
+  override _.Seek(_, _) = raise (System.NotSupportedException())
+  override _.SetLength(_) = raise (System.NotSupportedException())
+  override _.Write(_, _, _) = raise (System.NotSupportedException())
+
+  override _.Read(dest, offset, count) =
+    if bufferRemaining = 0 && chunksEmitted < chunkCount then
+      System.Threading.Thread.Sleep(delayMs)
+      bufferRemaining <- chunkSize
+      chunksEmitted <- chunksEmitted + 1
+    if bufferRemaining = 0 then
+      0
+    else
+      let bytes = min count bufferRemaining
+      System.Array.Copy(buffer, 0, dest, offset, bytes)
+      bufferRemaining <- bufferRemaining - bytes
+      bytes
+
+
+/// Scenario 3 — streaming-http chunk behaviour.
+///
+/// Drives a slow chunked response through the same
+/// `ReadAsStreamAsync -> 8KB-buffer ReadAsync loop` path that
+/// `StreamingHttpClient.fs` uses today, and converts each read into a
+/// `Dval.byteArrayToDvalList` (what the streaming builtin surfaces as
+/// `StreamChunk.Data`). Records time-to-first-chunk, time-to-last,
+/// and total allocation from which we derive per-chunk average.
+let streamingHttpProfile =
+  test "streaming-http chunk behaviour" {
+    resetOutput "streaming.txt"
+    appendRow
+      "streaming.txt"
+      "chunks,chunk_bytes,delay_ms,total_alloc,time_to_first_ms,time_to_last_ms,per_chunk_alloc,note"
+
+    // scenario spec: 100 × 100KB chunks, 100ms apart.
+    let chunkSize = 100_000
+    let chunkCount = 100
+    let delayMs = 100
+
+    let handler =
+      { new System.Net.Http.HttpMessageHandler() with
+          member _.SendAsync(_req, _ct) =
+            let resp =
+              new System.Net.Http.HttpResponseMessage(System.Net.HttpStatusCode.OK)
+            let stream =
+              new SlowChunkedStream(chunkSize, chunkCount, delayMs)
+              :> System.IO.Stream
+            resp.Content <- new System.Net.Http.StreamContent(stream)
+            System.Threading.Tasks.Task.FromResult(resp) }
+
+    use client = new System.Net.Http.HttpClient(handler)
+
+    let row =
+      try
+        System.GC.Collect()
+        System.GC.WaitForPendingFinalizers()
+        System.GC.Collect()
+        let beforeAlloc = System.GC.GetTotalAllocatedBytes(precise = false)
+        let sw = System.Diagnostics.Stopwatch.StartNew()
+
+        let resp =
+          client
+            .GetAsync(
+              "http://fake.local/stream",
+              System.Net.Http.HttpCompletionOption.ResponseHeadersRead
+            )
+            .GetAwaiter()
+            .GetResult()
+
+        use responseStream =
+          resp.Content.ReadAsStreamAsync().GetAwaiter().GetResult()
+
+        // 8KB read buffer matches StreamingHttpClient.fs:266.
+        let buffer = Array.zeroCreate<byte> 8192
+        let mutable firstChunkMs = -1L
+        let mutable chunksSeen = 0
+
+        let rec pump () =
+          let bytesRead = responseStream.Read(buffer, 0, buffer.Length)
+          if bytesRead > 0 then
+            if firstChunkMs < 0L then firstChunkMs <- sw.ElapsedMilliseconds
+            let bytes = Array.sub buffer 0 bytesRead
+            // mirror what StreamingHttpClient does per-chunk: wrap in
+            // a DList(DUInt8). This is the measured cost.
+            let _dval = Dval.byteArrayToDvalList bytes
+            chunksSeen <- chunksSeen + 1
+            pump ()
+
+        pump ()
+
+        let lastMs = sw.ElapsedMilliseconds
+        let afterAlloc = System.GC.GetTotalAllocatedBytes(precise = false)
+        let totalAlloc = afterAlloc - beforeAlloc
+        let perChunk = if chunksSeen > 0 then totalAlloc / int64 chunksSeen else 0L
+        $"{chunksSeen},{chunkSize},{delayMs},{totalAlloc},{firstChunkMs},{lastMs},{perChunk},ok"
+      with
+      | :? System.OutOfMemoryException -> "0,0,0,-1,-1,-1,-1,oom"
+      | e ->
+        let msg = e.Message.Replace(",", ";").Replace("\n", " ")
+        $"0,0,0,-1,-1,-1,-1,err:{msg}"
+
+    appendRow "streaming.txt" row
+  }
+
+
 let tests =
-  testList "measurement" [ harnessSelfTest; fileReadProfile; httpBodyProfile ]
+  testList
+    "measurement"
+    [ harnessSelfTest; fileReadProfile; httpBodyProfile; streamingHttpProfile ]

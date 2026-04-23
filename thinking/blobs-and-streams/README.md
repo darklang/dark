@@ -84,7 +84,7 @@ See [10-phase-0.md](./10-phase-0.md).
 - [x] 0.1 add baseline-measurement harness
 - [x] 0.2 record fileRead memory/allocation profile
 - [x] 0.3 record http body allocation profile
-- [ ] 0.4 record streaming-http chunk behaviour
+- [x] 0.4 record streaming-http chunk behaviour
 - [ ] 0.5 record bytesHexEncode cost on large input
 - [ ] 0.6 snapshot sqlite size and write results to baseline.md
 
@@ -146,6 +146,7 @@ Append one line per chunk completion. Format:
 2026-04-23 21:40  0.1  harness skeleton + helpers; self-test passes and writes rundir/measurements/phase-0/harness.txt
 2026-04-23 21:48  0.2  fileRead profile: 10MB → 890MB alloc / 1.1GB RSS / 10M+1 dval nodes; 38MB anecdote row inline (skipped in-process to avoid OOM)
 2026-04-23 21:54  0.3  http body profile via fake HttpMessageHandler: 10MB body → 1.6GB alloc / 2GB RSS / 10M+1 dval nodes (~60% extra over fileRead)
+2026-04-23 22:02  0.4  streaming profile: 100 x 100KB producer chunks over 10s → 1300 consumer reads / 2.89GB total alloc / 175ms time-to-first / 13s time-to-last; also added resetOutput helper so reruns start clean
 
 ## Blockers
 

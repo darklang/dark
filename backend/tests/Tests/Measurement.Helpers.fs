@@ -94,3 +94,12 @@ let appendRow (filename : string) (row : string) : unit =
   ensureOutputDir ()
   let path = System.IO.Path.Combine(outputDir, filename)
   System.IO.File.AppendAllText(path, row + "\n")
+
+
+/// Truncate an output file (if any) so a fresh scenario run starts
+/// clean. Call once at the top of each scenario before the first
+/// [appendRow].
+let resetOutput (filename : string) : unit =
+  ensureOutputDir ()
+  let path = System.IO.Path.Combine(outputDir, filename)
+  if System.IO.File.Exists(path) then System.IO.File.Delete(path)
