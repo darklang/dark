@@ -100,4 +100,56 @@ let fileReadProfile =
   }
 
 
-let tests = testList "measurement" [ harnessSelfTest; fileReadProfile ]
+/// Scenario 2 — HttpClient response-body memory profile.
+///
+/// Exercises the `HttpResponseMessage -> ReadAsByteArrayAsync ->
+/// byteArrayToDvalList` path that today's `HttpClient.request`
+/// builtin drives into. We use an in-process fake
+/// `HttpMessageHandler` so there is no real socket; the dominant
+/// cost — list boxing — shows up identically. The note column flags
+/// the simulation so the baseline reader isn't misled.
+let httpBodyProfile =
+  test "httpclient body memory profile" {
+    appendRow
+      "httpBody.txt"
+      "size_bytes,alloc_bytes,peak_ws_bytes,elapsed_ms,dval_nodes,note"
+
+    let sizes = [ 100_000; 1_000_000; 10_000_000 ]
+
+    for size in sizes do
+      let payload = Array.zeroCreate<byte> size
+      System.Random(0).NextBytes(payload)
+
+      let handler =
+        { new System.Net.Http.HttpMessageHandler() with
+            member _.SendAsync(_req, _ct) =
+              let resp =
+                new System.Net.Http.HttpResponseMessage(System.Net.HttpStatusCode.OK)
+              resp.Content <- new System.Net.Http.ByteArrayContent(payload)
+              System.Threading.Tasks.Task.FromResult(resp) }
+
+      use client = new System.Net.Http.HttpClient(handler)
+
+      let row =
+        try
+          let dval, sample =
+            measure (fun () ->
+              let resp =
+                client.GetAsync("http://fake.local/body").GetAwaiter().GetResult()
+              let bytes =
+                resp.Content.ReadAsByteArrayAsync().GetAwaiter().GetResult()
+              Dval.byteArrayToDvalList bytes)
+          let nodes = countDvalNodes dval
+          $"{size},{sample.allocatedBytesDelta},{sample.peakWorkingSet},{sample.elapsedMs},{nodes},simulated-handler"
+        with
+        | :? System.OutOfMemoryException -> $"{size},-1,-1,-1,-1,oom"
+        | e ->
+          let msg = e.Message.Replace(",", ";").Replace("\n", " ")
+          $"{size},-1,-1,-1,-1,err:{msg}"
+
+      appendRow "httpBody.txt" row
+  }
+
+
+let tests =
+  testList "measurement" [ harnessSelfTest; fileReadProfile; httpBodyProfile ]
