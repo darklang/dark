@@ -19,6 +19,8 @@ module Dval = LibExecution.Dval
 module Exe = LibExecution.Execution
 module PT = LibExecution.ProgramTypes
 module BS = LibSerialization.Binary.Serialization
+module PT2DT = LibExecution.ProgramTypesToDarkTypes
+module RT2DT = LibExecution.RuntimeTypesToDarkTypes
 
 
 /// Minimal ExecutionState suitable for exercising blob helpers
@@ -164,6 +166,56 @@ let ktblobBinaryRoundtrip =
   }
 
 
+let tblobPtDarkBridge =
+  test "PT.TBlob roundtrips through the Dark-side bridge" {
+    let restored = PT2DT.TypeReference.fromDT (PT2DT.TypeReference.toDT PT.TBlob)
+    Expect.equal restored PT.TBlob "PT.TBlob survives pt↔dark roundtrip"
+  }
+
+
+let tblobRtDarkBridge =
+  test "RT.TBlob roundtrips through the Dark-side bridge" {
+    let restored = RT2DT.TypeReference.fromDT (RT2DT.TypeReference.toDT RT.TBlob)
+    Expect.equal restored RT.TBlob "RT.TBlob survives rt↔dark roundtrip"
+  }
+
+
+let ktblobRtDarkBridge =
+  test "RT.KTBlob roundtrips through the Dark-side ValueType bridge" {
+    let original = RT.ValueType.Known RT.KTBlob
+    let restored = RT2DT.ValueType.fromDT (RT2DT.ValueType.toDT original)
+    Expect.equal restored original "KTBlob survives rt↔dark roundtrip"
+  }
+
+
+let dblobPersistentDarkBridge =
+  test "DBlob(Persistent _) roundtrips through the rt↔dark dval bridge" {
+    let original =
+      RT.DBlob(
+        RT.Persistent(
+          "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          4096L
+        )
+      )
+    let restored = RT2DT.Dval.fromDT (RT2DT.Dval.toDT original)
+    Expect.equal restored original "DBlob(Persistent) survives dval bridge"
+  }
+
+
+let dblobEphemeralDarkBridge =
+  // Chunk 1.4 note: the design doc suggests the ephemeral branch of
+  // the rt↔dark dval bridge should eventually force promotion (1.6),
+  // but LSP/reflection needs to render ephemeral blobs too. Current
+  // encoding preserves both variants distinctly; this roundtrip
+  // verifies that ephemeral survives the bridge without promotion.
+  test "DBlob(Ephemeral _) survives rt↔dark dval bridge without promotion" {
+    let id = System.Guid.NewGuid()
+    let original = RT.DBlob(RT.Ephemeral id)
+    let restored = RT2DT.Dval.fromDT (RT2DT.Dval.toDT original)
+    Expect.equal restored original "DBlob(Ephemeral) survives dval bridge"
+  }
+
+
 let tests =
   testList
     "blob"
@@ -173,4 +225,9 @@ let tests =
       persistentBlobBinaryRoundtrip
       ephemeralBlobBinaryRaises
       tblobBinaryRoundtrip
-      ktblobBinaryRoundtrip ]
+      ktblobBinaryRoundtrip
+      tblobPtDarkBridge
+      tblobRtDarkBridge
+      ktblobRtDarkBridge
+      dblobPersistentDarkBridge
+      dblobEphemeralDarkBridge ]
