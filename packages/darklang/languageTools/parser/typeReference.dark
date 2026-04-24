@@ -139,6 +139,29 @@ let parseBuiltIn
 
           | _ -> createUnparseableError node
 
+        | "stream_type_reference" ->
+          let streamKeyword = findField firstChild "keyword_type_constructor"
+          let openBracketNode = findField firstChild "symbol_open_angle"
+
+          let typeParamNode =
+            findAndParseRequired firstChild "typ_param" TypeReference.parse
+
+          let closeBracketNode = findField firstChild "symbol_close_angle"
+
+          match
+            streamKeyword, openBracketNode, typeParamNode, closeBracketNode
+          with
+          | Ok streamKeyword, Ok openBracket, Ok typeParam, Ok closeBracket ->
+            (TBuiltin.TStream(
+              firstChild.range,
+              streamKeyword.range,
+              openBracket.range,
+              typeParam,
+              closeBracket.range)
+            ) |> builtin
+
+          | _ -> createUnparseableError node
+
         | "fn_type_reference" ->
           let returnTypeNode =
             match firstChild.children |> Stdlib.List.last with

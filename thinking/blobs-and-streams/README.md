@@ -111,7 +111,7 @@ See [20-phase-1.md](./20-phase-1.md).
 
 See [30-phase-2.md](./30-phase-2.md).
 
-- [ ] 2.1 wire TStream of TypeReference through PT/RT/ValueType
+- [x] 2.1 wire TStream of TypeReference through PT/RT/ValueType
 - [ ] 2.2 add DStream with StreamImpl; FromIO only
 - [ ] 2.3 add binary serializer — DStream raises on write
 - [ ] 2.4 add PT↔Dark and RT↔Dark bridges (stream renders elided)
@@ -163,6 +163,7 @@ Append one line per chunk completion. Format:
 2026-04-24 02:02  1.12  Blob.Tests expanded 19 → 24. New: fileRead memory bound (10MB file → <30MB alloc vs baseline ~2GB), User-DB queryable JSON roundtrip (envelope + parse path, needed to round out DvalReprInternalQueryable.parseJsonV0 for TBlob), User-DB queryable ephemeral raises, roundtrippable-json persistent + ephemeral roundtrips. All 24 green.
 2026-04-24 02:09  1.13  bytes.dark tests expanded 15 → 26. 1.7 already added 11 Builtin.bytes* tests; 1.13 adds 11 Stdlib.Bytes.* wrapper tests exercising the Dark-side module surface added in 1.10 (length/fromString/toString, hex round, base64 round, concat, slice, toList/fromList).
 2026-04-24 02:17  1.14  phase-1-results.md written. Three new measurement scenarios parallel the phase-0 ones via the Blob path (fileRead / httpBody / hex) and write to rundir/measurements/phase-1/. Headline wins: fileRead 10MB 1.96GB→31.5MB (62×), fileRead 38MB OOM→40.7MB/136ms (bug fixed), httpBody 10MB 1.82GB→36.9MB (49×), hex 1MB total 336MB/1.05s→14.6MB/45ms (23×/23×). Phase 1 done. Streaming still on the old code path — Phase 2 replaces it.
+2026-04-24 02:34  2.1  TStream of TypeReference + KTStream of ValueType wired through PT/RT/ValueType + all the 1.1-style exhaustive-match cascades (PT2RT, typechecker, PT↔Dark, RT↔Dark, binary serializers, canonical hashing, cloud reprs, pm walkers, json, LibParser WrittenTypes). Tree-sitter grammar adds `stream_type_reference` parallel to `list_type_reference`; Dark-side parser + pretty-printer + semantic tokens + LSP hover + dark-side PT/RT DUs all updated. `let s: Stream<UInt8> = ...` parses end-to-end. TStream inert (no DStream yet — 2.2). 5602 LibExecution tests green (was 5591, the extra 11 are chunk 1.13's Stdlib.Bytes.* tests).
 
 ## Blockers
 

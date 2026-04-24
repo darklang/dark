@@ -242,6 +242,7 @@ module TypeReference =
       | TDateTime -> "TDateTime", []
       | TUuid -> "TUuid", []
       | TBlob -> "TBlob", []
+      | TStream inner -> "TStream", [ toDT inner ]
 
       | TList inner -> "TList", [ toDT inner ]
 
@@ -289,6 +290,7 @@ module TypeReference =
     | DEnum(_, _, [], "TDateTime", []) -> TDateTime
     | DEnum(_, _, [], "TUuid", []) -> TUuid
     | DEnum(_, _, [], "TBlob", []) -> TBlob
+    | DEnum(_, _, [], "TStream", [ inner ]) -> TStream(fromDT inner)
 
     | DEnum(_, _, [], "TTuple", [ first; second; DList(_vtTODO, theRest) ]) ->
       TTuple(fromDT first, fromDT second, List.map fromDT theRest)
@@ -452,6 +454,7 @@ module KnownType =
       | KTUuid -> "KTUuid", []
       | KTDateTime -> "KTDateTime", []
       | KTBlob -> "KTBlob", []
+      | KTStream inner -> "KTStream", [ ValueType.toDT inner ]
 
       | KTTuple(first, second, theRest) ->
         "KTTuple",
@@ -499,6 +502,7 @@ module KnownType =
     | DEnum(_, _, [], "KTUuid", []) -> KTUuid
     | DEnum(_, _, [], "KTDateTime", []) -> KTDateTime
     | DEnum(_, _, [], "KTBlob", []) -> KTBlob
+    | DEnum(_, _, [], "KTStream", [ inner ]) -> KTStream(ValueType.fromDT inner)
 
     | DEnum(_, _, [], "KTTuple", [ first; second; DList(_vtTODO, theRest) ]) ->
       KTTuple(

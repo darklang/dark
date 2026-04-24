@@ -59,6 +59,9 @@ and writeKnownType (w : BinaryWriter) (kt : KnownType) : unit =
     w.Write 22uy
     write w vt
   | KTBlob -> w.Write 23uy
+  | KTStream vt ->
+    w.Write 24uy
+    write w vt
 
 let rec read (r : BinaryReader) : ValueType =
   match r.ReadByte() with
@@ -102,4 +105,5 @@ and readKnownType (r : BinaryReader) : KnownType =
     KTCustomType(typeName, typeArgs)
   | 22uy -> KTDict(read r)
   | 23uy -> KTBlob
+  | 24uy -> KTStream(read r)
   | b -> raiseFormatError $"Invalid KnownType tag: {b}"

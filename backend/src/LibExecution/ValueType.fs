@@ -31,6 +31,7 @@ let string = known KTString
 let dateTime = known KTDateTime
 let uuid = known KTUuid
 let blob = known KTBlob
+let stream (inner : ValueType) : ValueType = known (KTStream inner)
 
 let list (inner : ValueType) : ValueType = known (KTList inner)
 let dict (inner : ValueType) : ValueType = known (KTDict inner)
@@ -72,6 +73,7 @@ let rec private mergeKnownTypes
   | KTUuid, KTUuid -> KTUuid |> Ok
   | KTDateTime, KTDateTime -> KTDateTime |> Ok
   | KTBlob, KTBlob -> KTBlob |> Ok
+  | KTStream left, KTStream right -> r left right |> Result.map KTStream
 
   | KTList left, KTList right -> r left right |> Result.map KTList
   | KTDict left, KTDict right -> r left right |> Result.map KTDict

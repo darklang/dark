@@ -5742,6 +5742,10 @@
         },
         {
           "type": "SYMBOL",
+          "name": "stream_type_reference"
+        },
+        {
+          "type": "SYMBOL",
           "name": "tuple_type_reference"
         },
         {
@@ -5773,6 +5777,58 @@
             "content": {
               "type": "STRING",
               "value": "List"
+            },
+            "named": true,
+            "value": "keyword"
+          }
+        },
+        {
+          "type": "FIELD",
+          "name": "symbol_open_angle",
+          "content": {
+            "type": "ALIAS",
+            "content": {
+              "type": "STRING",
+              "value": "<"
+            },
+            "named": true,
+            "value": "symbol"
+          }
+        },
+        {
+          "type": "FIELD",
+          "name": "typ_param",
+          "content": {
+            "type": "SYMBOL",
+            "name": "type_reference"
+          }
+        },
+        {
+          "type": "FIELD",
+          "name": "symbol_close_angle",
+          "content": {
+            "type": "ALIAS",
+            "content": {
+              "type": "STRING",
+              "value": ">"
+            },
+            "named": true,
+            "value": "symbol"
+          }
+        }
+      ]
+    },
+    "stream_type_reference": {
+      "type": "SEQ",
+      "members": [
+        {
+          "type": "FIELD",
+          "name": "keyword_type_constructor",
+          "content": {
+            "type": "ALIAS",
+            "content": {
+              "type": "STRING",
+              "value": "Stream"
             },
             "named": true,
             "value": "keyword"

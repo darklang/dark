@@ -367,6 +367,7 @@ let parseJsonV0
       Exception.raiseInternal
         "Blob value must be a JSON object envelope"
         [ "json", j ]
+    | TStream _, _ -> Exception.raiseInternal "Stream values are not persistable" []
 
     // Exhaustiveness checking
     | TUnit, _

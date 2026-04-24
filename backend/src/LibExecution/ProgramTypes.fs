@@ -329,6 +329,10 @@ type TypeReference =
   /// table (persistent).
   | TBlob
 
+  /// Lazy, single-consumer, non-persistable sequence of values of
+  /// the given element type. See thinking/blobs-and-streams/30-phase-2.md.
+  | TStream of TypeReference
+
   | TList of TypeReference
   | TTuple of TypeReference * TypeReference * List<TypeReference>
   | TDict of TypeReference

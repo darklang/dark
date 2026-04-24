@@ -91,6 +91,8 @@ module TypeReference =
 
     | PT.TBlob -> RT.TBlob
 
+    | PT.TStream inner -> RT.TStream(toRT inner)
+
     | PT.TList inner -> RT.TList(toRT inner)
     | PT.TTuple(first, second, theRest) ->
       RT.TTuple(toRT first, toRT second, theRest |> List.map toRT)
@@ -129,6 +131,7 @@ module TypeReference =
     | PT.TDateTime -> RT.ValueType.Known RT.KTDateTime
     | PT.TUuid -> RT.ValueType.Known RT.KTUuid
     | PT.TBlob -> RT.ValueType.Known RT.KTBlob
+    | PT.TStream inner -> RT.ValueType.Known(RT.KTStream(toValueType inner))
     | PT.TList inner -> RT.ValueType.Known(RT.KTList(toValueType inner))
     | PT.TTuple(first, second, theRest) ->
       RT.ValueType.Known(

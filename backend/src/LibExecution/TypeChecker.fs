@@ -63,6 +63,9 @@ let rec unifyValueType
 
     | TBlob, ValueType.Known KTBlob -> return Ok tst
 
+    | TStream innerT, ValueType.Known(KTStream innerV) ->
+      return! r tst (TypeCheckPathPart.ListType :: pathSoFar) innerT innerV
+
     | TList innerT, ValueType.Known(KTList innerV) ->
       return! r tst (TypeCheckPathPart.ListType :: pathSoFar) innerT innerV
 

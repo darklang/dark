@@ -168,6 +168,11 @@ module TypeReference =
       | TUuid _range -> (ProgramTypes.TypeReference.TUuid, [])
       | TBlob _range -> (ProgramTypes.TypeReference.TBlob, [])
 
+      | TStream(_range, _, _, typ, _) ->
+        let (typ, unresolvedNames) = TypeReference.toPT ctx typ
+
+        (ProgramTypes.TypeReference.TStream(typ), unresolvedNames)
+
       | TList(_range, _, _, typ, _) ->
         let (typ, unresolvedNames) =
           TypeReference.toPT ctx typ

@@ -72,6 +72,13 @@ module TypeReference =
     | TUuid of Range
     | TBlob of Range
 
+    | TStream of
+      Range *
+      keywordStream: Range *
+      openBracket: Range *
+      typ: TypeReference.TypeReference *
+      closeBracket: Range
+
     | TList of
       Range *
       keywordList: Range *

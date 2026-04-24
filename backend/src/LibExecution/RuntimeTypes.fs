@@ -142,6 +142,10 @@ type KnownType =
   /// Immutable byte sequence — see thinking/blobs-and-streams/00-design.md
   | KTBlob
 
+  /// Lazy value sequence parameterised over element type.
+  /// See thinking/blobs-and-streams/30-phase-2.md.
+  | KTStream of ValueType
+
   /// `let empty =    []` // KTList Unknown
   /// `let intList = [1]` // KTList (ValueType.Known KTInt64)
   | KTList of ValueType
@@ -215,6 +219,7 @@ type TypeReference =
   | TUuid
   | TDateTime
   | TBlob
+  | TStream of TypeReference
   | TTuple of TypeReference * TypeReference * List<TypeReference>
   | TList of TypeReference
   | TDict of TypeReference // CLEANUP add key type
@@ -252,6 +257,8 @@ type TypeReference =
       | TUuid
       | TDateTime
       | TBlob -> true
+
+      | TStream t -> isConcrete t
 
       | TTuple(t1, t2, ts) ->
         isConcrete t1 && isConcrete t2 && List.forall isConcrete ts
@@ -1633,6 +1640,7 @@ module Types =
     | TDateTime
     | TBlob -> typ
 
+    | TStream t -> TStream(r t)
     | TTuple(t1, t2, rest) -> TTuple(r t1, r t2, List.map r rest)
     | TList t -> TList(r t)
     | TDict t -> TDict(r t)
@@ -1712,6 +1720,10 @@ module TypeReference =
       | TDateTime -> return ValueType.Known KTDateTime
       | TBlob -> return ValueType.Known KTBlob
 
+      | TStream inner ->
+        let! inner = r inner
+        return ValueType.Known(KTStream inner)
+
       | TTuple(first, second, theRest) ->
         let! first = r first
         let! second = r second
@@ -1771,6 +1783,7 @@ module TypeReference =
     | KTUuid -> TUuid
     | KTDateTime -> TDateTime
     | KTBlob -> TBlob
+    | KTStream inner -> TStream(fromVT inner)
     | KTList inner -> TList(fromVT inner)
     | KTDict inner -> TDict(fromVT inner)
     | KTTuple(first, second, rest) ->
@@ -1815,6 +1828,7 @@ module TypeReference =
       | None -> typ // Keep as TVariable if not resolved
 
     | TList inner -> TList(r inner)
+    | TStream inner -> TStream(r inner)
     | TDict inner -> TDict(r inner)
     | TTuple(first, second, rest) -> TTuple(r first, r second, List.map r rest)
     | TCustomType(typeName, typeArgs) -> TCustomType(typeName, List.map r typeArgs)

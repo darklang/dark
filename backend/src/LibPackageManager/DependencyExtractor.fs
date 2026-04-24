@@ -73,6 +73,8 @@ let rec private extractFromTypeRef (typeRef : PT.TypeReference) : List<Dependenc
   | PT.TBlob
   | PT.TVariable _ -> []
 
+  | PT.TStream inner -> extractFromTypeRef inner
+
   | PT.TList inner -> extractFromTypeRef inner
   | PT.TDict inner -> extractFromTypeRef inner
   | PT.TDB inner -> extractFromTypeRef inner

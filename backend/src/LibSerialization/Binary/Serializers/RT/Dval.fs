@@ -69,6 +69,9 @@ and writeKnownType (w : BinaryWriter) (kt : KnownType) =
     w.Write 22uy
     writeValueType w vt
   | KTBlob -> w.Write 23uy
+  | KTStream vt ->
+    w.Write 24uy
+    writeValueType w vt
 
 and writeApplicableImpl (w : BinaryWriter) (app : Applicable) =
   match app with
@@ -241,6 +244,7 @@ and readKnownType (r : BinaryReader) : KnownType =
     KTCustomType(fqTypeName, typeArgs)
   | 22uy -> KTDict(readValueType r)
   | 23uy -> KTBlob
+  | 24uy -> KTStream(readValueType r)
   | b -> raiseFormatError $"Invalid KnownType tag: {b}"
 
 and readApplicableImpl (r : BinaryReader) : Applicable =

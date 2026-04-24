@@ -192,6 +192,10 @@ let rec private reResolveTypeRef
     | PT.TBlob
     | PT.TVariable _ -> return typeRef
 
+    | PT.TStream inner ->
+      let! inner = reResolveTypeRef branchId contextModules pm inner
+      return PT.TStream inner
+
     | PT.TList inner ->
       let! inner = reResolveTypeRef branchId contextModules pm inner
       return PT.TList inner

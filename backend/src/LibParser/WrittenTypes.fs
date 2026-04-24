@@ -132,6 +132,7 @@ type TypeReference =
   | TDateTime
   | TUuid
   | TBlob
+  | TStream of TypeReference
 
   | TList of TypeReference
   | TTuple of TypeReference * TypeReference * List<TypeReference>

@@ -346,6 +346,8 @@ let typeReference
   | TUuid -> "Uuid"
   | TBlob -> "Blob"
 
+  | TStream inner -> $"Stream<{typeReference ctx inner}>"
+
   | TList inner ->
     $"List<{typeReference ctx inner}>"
 

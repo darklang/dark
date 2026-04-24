@@ -162,6 +162,8 @@ let typeReference
 
   | TBlob -> "Blob"
 
+  | TStream inner -> $"Stream<{typeReference branchId inner}>"
+
   | TTuple(first, second, theRest) ->
     (Stdlib.List.append [ first; second ] theRest)
     |> Stdlib.List.map (fun item -> typeReference branchId item)
@@ -237,6 +239,8 @@ let knownType
   | KTUuid -> "Uuid"
 
   | KTBlob -> "Blob"
+
+  | KTStream inner -> $"Stream<{valueType branchId inner}>"
 
   | KTTuple(t1, t2, trest) ->
     (Stdlib.List.append [ t1; t2 ] trest)

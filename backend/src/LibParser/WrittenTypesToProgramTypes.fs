@@ -72,6 +72,8 @@ module TypeReference =
       | WT.TUuid -> return PT.TUuid
       | WT.TBlob -> return PT.TBlob
 
+      | WT.TStream typ -> return! toPT typ |> Ply.map PT.TStream
+
       | WT.TList typ -> return! toPT typ |> Ply.map PT.TList
 
       | WT.TTuple(firstType, secondType, otherTypes) ->
