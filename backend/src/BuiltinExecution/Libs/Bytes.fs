@@ -296,6 +296,6 @@ let fns () : List<BuiltInFn> =
       previewable = Pure
       deprecated =
         DeprecatedBecause
-          "Use bytesToHex on a Blob instead. bytesHexEncode takes List<UInt8> which the runtime materialises one Dval per byte — prohibitively expensive past ~1 MB (see thinking/blobs-and-streams/baseline.md)." } ]
+          "Use bytesToHex on a Blob instead. bytesHexEncode takes List<UInt8>, which the runtime materialises as one Dval per byte — prohibitively expensive past ~1 MB." } ]
 
 let builtins () = LibExecution.Builtin.make [] (fns ())

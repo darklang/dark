@@ -76,11 +76,11 @@ let fns () : List<BuiltInFn> =
               Func<HttpContext, Task>(fun ctx ->
                 task {
                   // Push a fresh blob-scope per request so ephemeral
-                  // blobs minted by the handler (and by any toHttpResponse
-                  // materialisation) are reclaimed once the response
-                  // is sent. Without this, a long-lived http-server
-                  // VM leaks blobStore entries across requests. See
-                  // thinking/blobs-and-streams/40-later.md (L.1).
+                  // blobs minted by the handler (and by any
+                  // toHttpResponse materialisation) are reclaimed
+                  // once the response is sent. Without this, a
+                  // long-lived http-server VM leaks blobStore entries
+                  // across requests.
                   LibExecution.Dval.pushBlobScope exeState
                   try
                     try

@@ -110,12 +110,14 @@ let rec equals (a : Dval) (b : Dval) : bool =
   | DDB a, DDB b -> a = b
 
   | DBlob a, DBlob b ->
-    // Blob equality: hash-compare ephemeral pairs. We'd ideally
-    // dereference via the ExecutionState's blobStore + pm.getBlob,
-    // but NoModule.equals doesn't thread state. Punt: persistent
-    // pairs compare hashes; ephemeral pairs compare UUIDs (identical
-    // handle = identical bytes trivially). Mixed pairs are unequal.
-    // The more-general byte-wise equality lands as a builtin in L.4.
+    // Blob equality is hash-based, but NoModule.equals doesn't thread
+    // state and so can't dereference ephemeral UUIDs to their bytes.
+    // The `=` builtin wrapper promotes both sides via `promoteBlobs`
+    // before calling us, so by the time we get here ephemerals have
+    // been hashed and turned into Persistent refs — same-bytes pairs
+    // collapse to the same hash and compare equal under the simple
+    // rules below. Direct callers (eg. List.sort comparator) that
+    // skip promotion get handle-wise equality on ephemerals.
     match a, b with
     | Persistent(h1, l1), Persistent(h2, l2) -> h1 = h2 && l1 = l2
     | Ephemeral id1, Ephemeral id2 -> id1 = id2

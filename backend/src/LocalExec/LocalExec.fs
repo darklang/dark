@@ -139,8 +139,7 @@ module HandleCommand =
     }
 
   /// Scan `package_values.rt_dval` for referenced blob hashes and
-  /// delete any `package_blobs` rows that aren't referenced. See
-  /// thinking/blobs-and-streams/40-later.md (L.3).
+  /// delete any `package_blobs` rows that aren't referenced.
   let sweepBlobs () : Ply<Result<unit, string>> =
     uply {
       try

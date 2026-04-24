@@ -93,7 +93,6 @@ module DvalComparator =
     | DBlob a, DBlob b ->
       // Blobs don't have a natural ordering — compare by hash for
       // persistent refs, UUID for ephemeral, to keep sort stable.
-      // (Full semantics land in chunk L.4.)
       match a, b with
       | Persistent(h1, _), Persistent(h2, _) -> order h1 h2
       | Ephemeral id1, Ephemeral id2 -> order id1 id2

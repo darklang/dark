@@ -89,8 +89,7 @@ let result
 /// If a blob-scope is active (see [pushBlobScope]), the new UUID is
 /// recorded in the top scope so [popBlobScope] can reclaim the bytes
 /// when the scope exits. Runs without an active scope (CLI, tests)
-/// simply leak into the ExecutionState for its full lifetime — same
-/// behaviour as before chunk L.1.
+/// leave the bytes in the ExecutionState for its full lifetime.
 let newEphemeralBlob (exeState : ExecutionState) (bytes : byte[]) : Dval =
   let id = System.Guid.NewGuid()
   exeState.blobStore[id] <- bytes
@@ -212,7 +211,6 @@ let wrapStreamImpl (impl : StreamImpl) : Dval =
 /// (HttpResponseMessage, FileStream, etc.). Use [newStreamChunked]
 /// for byte streams that can efficiently yield a whole chunk per
 /// pull (IO-backed producers like HttpClient.stream).
-/// See thinking/blobs-and-streams/30-phase-2.md.
 let newStream
   (elemType : ValueType)
   (next : unit -> Ply.Ply<Option<Dval>>)
@@ -224,14 +222,12 @@ let newStream
 /// Mint a DStream<UInt8> that can be drained bulk-wise via
 /// [readStreamChunk]. The `nextChunk` callback fills up to `maxBytes`
 /// into a fresh byte[] and returns it (or None on exhaustion).
-/// Consumers that want full-chunk bytes — `streamToBlob`, the SSE
-/// byte accumulator — bypass per-byte Ply/Dval boxing by calling
+/// Consumers that want full-chunk bytes — `streamToBlob`, SSE byte
+/// accumulators — bypass per-byte Ply/Dval boxing by calling
 /// `readStreamChunk` instead of `readStreamNext`. The `next` path
 /// stays available so `streamNext` returns one DUInt8 at a time as
 /// before — the implementation synthesises single-byte pulls from
 /// the chunk buffer.
-///
-/// See thinking/blobs-and-streams/40-later.md L.7.
 let newStreamChunked
   (elemType : ValueType)
   (nextChunk : int -> Ply.Ply<Option<byte[]>>)
@@ -267,10 +263,10 @@ let newStreamChunked
 
 
 /// Pull one element through a [StreamImpl]. Separate from
-/// [readStreamNext] so the recursion can walk transform nodes without
-/// re-entering the root's monitor lock — nested transforms share the
-/// wrapping DStream's lock, per the design note in
-/// thinking/blobs-and-streams/30-phase-2.md.
+/// [readStreamNext] so the recursion can walk transform nodes
+/// (Mapped/Filtered/Take/Concat) without re-entering the root's
+/// disposed flag — nested transforms share the wrapping DStream's
+/// lifecycle.
 let rec private pullStreamImpl (impl : StreamImpl) : Ply.Ply<Option<Dval>> =
   uply {
     match impl with
@@ -375,9 +371,9 @@ let readStreamNext (dv : Dval) : Ply.Ply<Option<Dval>> =
 /// that walk transform nodes (Mapped/Filtered/Take/Concat) where a
 /// chunk semantic isn't well-defined.
 ///
-/// Used by `streamToBlob` and the SSE byte accumulator to amortise
-/// the Ply-continuation cost across whole chunks rather than paying
-/// it per byte. See thinking/blobs-and-streams/40-later.md L.7.
+/// Used by `streamToBlob` and SSE byte accumulators to amortise the
+/// Ply-continuation cost across whole chunks rather than paying it
+/// per byte.
 let readStreamChunk (maxBytes : int) (dv : Dval) : Ply.Ply<Option<byte[]>> =
   uply {
     match dv with
@@ -425,7 +421,7 @@ let readStreamChunk (maxBytes : int) (dv : Dval) : Ply.Ply<Option<byte[]>> =
 
 
 /// SHA-256 hex digest of the given bytes — content-addressing for
-/// blob promotion. See thinking/blobs-and-streams/00-design.md.
+/// blob promotion.
 let sha256Hex (bytes : byte[]) : string =
   use sha = System.Security.Cryptography.SHA256.Create()
   let digest = sha.ComputeHash(bytes)
@@ -443,7 +439,7 @@ let sha256Hex (bytes : byte[]) : string =
 /// (binary, JSON) still raise on ephemeral — promote first, serialize
 /// second.
 ///
-/// TODO chunk L.1: trace capture path should also call this.
+/// TODO: trace capture path should also call this.
 let promoteBlobs
   (exeState : ExecutionState)
   (insert : string -> byte[] -> Ply.Ply<unit>)
@@ -527,19 +523,13 @@ let promoteBlobs
 /// Can this Dval be stored as the evaluated body of a package value?
 ///
 /// The persist path in `Seed.fs` runs each package value's body and
-/// writes the resulting Dval as `package_values.rt_dval` bytes. That
-/// serialization raises on a handful of live-runtime-only shapes —
-/// we'd rather report "cannot store this kind of value in a val"
-/// up front than surface a deep-stack serialize exception.
+/// writes the resulting Dval as `package_values.rt_dval` bytes. The
+/// binary serializer raises on exactly two shapes — we'd rather
+/// report "cannot store this kind of value in a val" up front than
+/// surface a deep-stack serialize exception.
 ///
-/// Not persistable:
+/// Rejected:
 /// - `DStream` — the pull fn is a closure bound to this exeState.
-/// - `DApplicable` — lambdas carry closed-over registers; named fns
-///   persist in principle, but we conservatively reject both until
-///   the Expr-side serialisation story is firmed up. CLEANUP: allow
-///   `AppNamedFn` once its `typeSymbolTable` serialises cleanly.
-/// - `DDB` — an in-process handle to a User DB; meaningless outside
-///   the owning canvas.
 /// - `DBlob(Ephemeral _)` — the raw bytes live in exeState.blobStore;
 ///   promote to `Persistent` first. Most call paths already promote
 ///   (see `promoteBlobs`); this branch is a safety net.
@@ -573,9 +563,9 @@ let rec isPersistable (dv : Dval) : bool =
   | DDateTime _
   | DUuid _
   // DApplicable and DDB serialize successfully — lambdas store their
-  // instruction stream, DB handles store as a string identifier. The
-  // L.2 spec flagged both as suspect but the existing serializers
-  // already cover them (demo handlers + canvas-local DBs rely on it).
+  // instruction stream, DB handles store as a string identifier.
+  // Demo handlers persist lambdas as vals; canvas-local DBs rely on
+  // the DDB path.
   | DApplicable _
   | DDB _
   | DBlob(Persistent _) -> true

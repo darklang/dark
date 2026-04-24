@@ -323,14 +323,13 @@ type TypeReference =
   | TUuid
   | TDateTime
 
-  /// Immutable byte sequence. See thinking/blobs-and-streams/00-design.md.
-  /// At runtime, represented as a reference to bytes held either
-  /// in-process (ephemeral) or in the content-addressed `package_blobs`
-  /// table (persistent).
+  /// Immutable byte sequence. At runtime, represented as a reference
+  /// to bytes held either in-process (ephemeral) or in the
+  /// content-addressed `package_blobs` table (persistent).
   | TBlob
 
   /// Lazy, single-consumer, non-persistable sequence of values of
-  /// the given element type. See thinking/blobs-and-streams/30-phase-2.md.
+  /// the given element type.
   | TStream of TypeReference
 
   | TList of TypeReference

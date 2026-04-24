@@ -228,10 +228,10 @@ let evaluateAllValues
                 $"Value {valueHash} ({fullName}): evaluation failed - {errorMsg}"
               )
             | Ok dval ->
-              // L.2 guard: reject non-persistable evaluated values up
-              // front (streams, lambdas, DBs, ephemeral blobs) so the
-              // user sees a clear reason rather than a deep-stack
-              // binary-serialize raise. See `Dval.isPersistable`.
+              // Reject non-persistable evaluated values up front
+              // (streams and ephemeral blobs) so the user sees a
+              // clear reason rather than a deep-stack binary-
+              // serialize raise. See `Dval.isPersistable`.
               if not (LibExecution.Dval.isPersistable dval) then
                 let reason =
                   LibExecution.Dval.nonPersistableReason dval

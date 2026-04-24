@@ -1,16 +1,15 @@
-/// Stream builtins — see thinking/blobs-and-streams/30-phase-2.md.
+/// Stream builtins. Surfaces the lazy, single-consumer `DStream`
+/// abstraction from `LibExecution.RuntimeTypes` to user code:
+/// `fromList`, `next`, `toList`, `toBlob`, `close`, and the transforms
+/// `map` / `filter` / `take` / `concat`.
 ///
-/// Chunk 2.5: consumption-only API (`next`, `toList`, `toBlob`,
-/// `close`) plus a `fromList` constructor for tests. Chunk 2.7 adds
-/// lazy transforms (`map` / `filter` / `take` / `concat`) over the
-/// `Mapped`/`Filtered`/`Take`/`Concat` StreamImpl nodes from 2.6.
-///
-/// CLEANUP revisit: considered alternatives we did not take.
-/// - Channels (Go-style with separate reader/writer ends and buffering):
-///   adds synchronization semantics Dark does not have elsewhere. Skip
-///   for v1; revisit if fan-in/fan-out becomes a real use case.
-/// - Actor-mailbox (Erlang-style, with a scheduler): out of scope;
-///   Dark has no scheduler story.
+/// Alternatives considered but not taken:
+/// - Channels (Go-style with separate reader/writer ends and
+///   buffering) would add synchronization semantics Dark does not
+///   have elsewhere; revisit if fan-in/fan-out becomes a real use
+///   case.
+/// - Actor-mailbox (Erlang-style, with a scheduler) is out of scope
+///   given Dark has no scheduler story.
 module BuiltinExecution.Libs.Stream
 
 open System.Threading.Tasks
@@ -148,12 +147,12 @@ let fns () : List<BuiltInFn> =
         (function
         | state, _, _, [ s ] ->
           uply {
-            // L.7: drain via `readStreamChunk` so IO-backed byte
-            // streams (HttpClient.stream) hand back a whole buffer
-            // per pull instead of boxing one DUInt8 per byte. Falls
-            // back to byte-wise pulls for streams without a
-            // `nextChunk` (Mapped/Filtered/Take/Concat transforms,
-            // in-memory fromList streams).
+            // Drain via `readStreamChunk` so IO-backed byte streams
+            // (HttpClient.stream) hand back a whole buffer per pull
+            // instead of boxing one DUInt8 per byte. Falls back to
+            // byte-wise pulls for streams without a `nextChunk`
+            // (Mapped/Filtered/Take/Concat transforms, in-memory
+            // fromList streams).
             use collected = new System.IO.MemoryStream()
             let mutable keepGoing = true
             while keepGoing do
@@ -198,8 +197,8 @@ let fns () : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    // Chunk 2.7 — lazy transforms. Each wraps the 2.6 StreamImpl
-    // constructors. The source DStream's impl is extracted and placed
+    // Lazy transforms. Each wraps the corresponding StreamImpl
+    // constructor. The source DStream's impl is extracted and placed
     // inside a new transform node under a fresh DStream — callers
     // should not pull from the original DStream afterwards (single-
     // consumer semantics; the shared impl underneath is unaware of

@@ -1,9 +1,9 @@
-/// Tests for the Blob Dval — see thinking/blobs-and-streams/.
+/// Tests for the Blob Dval.
 ///
-/// This file grows across Phase 1 chunks. Chunk 1.2 covers the
-/// ephemeral-blob byte-store on ExecutionState; later chunks extend it
-/// with serialization roundtrips, promotion, and memory-bound
-/// assertions.
+/// Covers the ephemeral-blob byte-store on ExecutionState,
+/// serialization roundtrips, promotion, memory-bound assertions,
+/// scope-based lifetime, the val-persistability guard, the orphan
+/// sweeper, and the blob-equality semantics.
 module Tests.Blob
 
 open Expecto
@@ -123,11 +123,11 @@ let persistentBlobBinaryRoundtrip =
 
 
 let ephemeralBlobBinaryRaises =
-  test "DBlob(Ephemeral _) serialization raises until chunk 1.6 lands" {
+  test "DBlob(Ephemeral _) serialization raises; promote to persistent first" {
     let dv = RT.DBlob(RT.Ephemeral(System.Guid.NewGuid()))
     Expect.throws
       (fun () -> BS.RT.Dval.serialize "dval" dv |> ignore<byte[]>)
-      "ephemeral blob must raise on serialize (pending promotion in chunk 1.6)"
+      "ephemeral blob must raise on serialize — promote via `Dval.promoteBlobs` first"
   }
 
 
@@ -209,11 +209,11 @@ let dblobPersistentDarkBridge =
 
 
 let dblobEphemeralDarkBridge =
-  // Chunk 1.4 note: the design doc suggests the ephemeral branch of
-  // the rt↔dark dval bridge should eventually force promotion (1.6),
-  // but LSP/reflection needs to render ephemeral blobs too. Current
-  // encoding preserves both variants distinctly; this roundtrip
-  // verifies that ephemeral survives the bridge without promotion.
+  // The ephemeral branch of the rt↔dark dval bridge could force
+  // promotion, but LSP/reflection needs to render ephemeral blobs
+  // without a promotion side effect. The current encoding preserves
+  // both variants distinctly; this roundtrip verifies that ephemeral
+  // survives the bridge without promotion.
   test "DBlob(Ephemeral _) survives rt↔dark dval bridge without promotion" {
     let id = System.Guid.NewGuid()
     let original = RT.DBlob(RT.Ephemeral id)
@@ -456,7 +456,7 @@ let roundtrippableJsonEphemeralRoundtrip =
 
 
 // ——————————————————————————————————————————————————————————
-// L.1 — scope-based ephemeral-blob lifetime
+// Scope-based ephemeral-blob lifetime
 // ——————————————————————————————————————————————————————————
 
 
@@ -567,7 +567,7 @@ let promotedBlobsSurviveScopePop =
 
 
 // ——————————————————————————————————————————————————————————
-// L.2 — val persistability guard (Dval.isPersistable)
+// Val-persistability guard (Dval.isPersistable)
 // ——————————————————————————————————————————————————————————
 // Rejects shapes that can't round-trip through `package_values.rt_dval`:
 // DStream, DApplicable, DDB, DBlob(Ephemeral _). The Seed.fs evaluator
@@ -627,12 +627,12 @@ let persistableAcceptsApplicableAndDDB =
 
 
 // ——————————————————————————————————————————————————————————
-// L.3 — orphan package_blobs sweeper
+// Orphan package_blobs sweeper
 // ——————————————————————————————————————————————————————————
 
 
 // ——————————————————————————————————————————————————————————
-// L.4 — blob equality: hash-compare across ephemeral / persistent
+// Blob equality — hash-compare across ephemeral / persistent
 // ——————————————————————————————————————————————————————————
 // The `=` builtin (NoModule.equals) promotes both sides via
 // `Dval.promoteBlobs` before structural compare. That turns every
@@ -640,7 +640,7 @@ let persistableAcceptsApplicableAndDDB =
 // with the same bytes always collapse to the same hash, so
 // byte-wise equality falls out without a separate code path.
 //
-// These tests lock in the four cases from the L.4 design note:
+// These tests lock in the four cases:
 //   - Ephemeral vs Ephemeral, same UUID (trivially equal)
 //   - Ephemeral vs Ephemeral, different UUID but same bytes
 //   - Ephemeral vs Persistent, same bytes
@@ -760,8 +760,7 @@ let sweepDeletesOrphansButKeepsReferenced =
 
       // Plant a reference to `refHash` via a package_value row whose
       // rt_dval contains a DBlob(Persistent refHash, _).
-      let referencingDval =
-        RT.DBlob(RT.Persistent(refHash, int64 refBytes.Length))
+      let referencingDval = RT.DBlob(RT.Persistent(refHash, int64 refBytes.Length))
       let pv : RT.PackageValue.PackageValue =
         { hash = fakeHash; body = referencingDval }
       let rtDvalBytes = BS.RT.PackageValue.serialize fakeHash pv

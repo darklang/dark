@@ -190,16 +190,16 @@ and writeDvalImpl (w : BinaryWriter) (dval : Dval) =
     String.write w hash
     w.Write length
   | DBlob(Ephemeral id) ->
-    // TODO chunk 1.6: promote to persistent before writing. Until then,
-    // serializing an ephemeral blob is a hard error (raised here rather
-    // than silently writing a dangling handle that won't resolve across
-    // VM boundaries).
+    // Ephemeral blobs aren't serialisable — the bytes live in the
+    // producing VM's blob store and won't resolve across VM
+    // boundaries. Callers must promote to Persistent first (see
+    // `Dval.promoteBlobs`); we raise here rather than silently
+    // write a dangling handle.
     raiseFormatError
-      $"Cannot serialize ephemeral blob {id} — promotion path lands in chunk 1.6"
+      $"Cannot serialize ephemeral blob {id} — promote to persistent first"
   | DStream _ ->
     // Streams are not persistable by design — lifetime is bounded by
     // the VM that produced them. Caller should drain to Blob first.
-    // See thinking/blobs-and-streams/30-phase-2.md.
     raiseFormatError "Cannot serialize DStream — drain to a Blob first"
 let rec readDval : BinaryReader -> Dval = fun r -> readDvalImpl r
 

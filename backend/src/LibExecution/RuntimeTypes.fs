@@ -139,11 +139,10 @@ type KnownType =
   | KTUuid
   | KTDateTime
 
-  /// Immutable byte sequence — see thinking/blobs-and-streams/00-design.md
+  /// Immutable byte sequence.
   | KTBlob
 
   /// Lazy value sequence parameterised over element type.
-  /// See thinking/blobs-and-streams/30-phase-2.md.
   | KTStream of ValueType
 
   /// `let empty =    []` // KTList Unknown
@@ -620,38 +619,41 @@ and [<NoComparison>] Dval =
   // References
   | DDB of name : string
 
-  /// Immutable byte sequence — see thinking/blobs-and-streams/00-design.md.
-  /// The Dval holds a small reference (UUID or hash); the bytes live
-  /// in the per-ExecutionState ephemeral store or in `package_blobs`.
+  /// Immutable byte sequence. The Dval holds a small reference (UUID
+  /// or hash); the bytes live in the per-ExecutionState ephemeral
+  /// store or in `package_blobs`.
   | DBlob of BlobRef
 
-  /// Lazy, single-consumer, non-persistable sequence — see
-  /// thinking/blobs-and-streams/30-phase-2.md. The inner [StreamImpl]
-  /// is the lazy tree (FromIO + future Mapped/Filtered/…). The
-  /// `disposed` flag + `lockObj` live alongside for single-consumer
-  /// enforcement; proper disposal lands in chunk 2.11.
+  /// Lazy, single-consumer, non-persistable sequence. The inner
+  /// [StreamImpl] is the lazy tree (FromIO plus Mapped / Filtered /
+  /// Take / Concat transforms). The `disposed` flag + `lockObj` live
+  /// alongside for lifecycle management — `disposed` short-circuits
+  /// subsequent pulls once the stream drains, `lockObj` doubles as
+  /// the GC finalizer target so abandoned streams still release
+  /// their IO source.
   | DStream of StreamImpl * disposed : bool ref * lockObj : obj
 
 
 /// Where the bytes of a DBlob actually live. Ephemeral refs resolve
 /// via [ExecutionState.blobStore]; persistent refs resolve via the
-/// package manager's `blobs` lookup (added in chunk 1.5).
+/// package manager's `blobs` lookup.
 and BlobRef =
   | Ephemeral of uuid
   | Persistent of hash : string * length : int64
 
 
-/// Lazy sequence producer. Chunk 2.2 starts with only [FromIO]; chunk
-/// 2.6 adds Mapped/Filtered/Take/Concat as transformation nodes that
-/// wrap other StreamImpls. Each transform is pull-driven: it does no
-/// work until the enclosing [DStream] is drained via `readStreamNext`.
+/// Lazy sequence producer. [FromIO] is the leaf — a pull-based
+/// producer. Mapped / Filtered / Take / Concat wrap other StreamImpls
+/// as transformation nodes; each is pull-driven and does no work
+/// until the enclosing [DStream] is drained via `readStreamNext` or
+/// `readStreamChunk`.
 ///
 /// Mapped/Filtered hold pre-bound `Dval -> Ply<...>` closures rather
 /// than the raw [Applicable]. The builtin wrapper (Stream.map etc.)
 /// closes over `exeState`/`vmState` when constructing the closure, so
-/// the drain path in Dval.fs stays decoupled from Execution — which
-/// keeps the layering clean (Dval.fs can't call Exe.executeApplicable
-/// directly; it sits earlier in the dependency chain).
+/// the drain path in Dval.fs stays decoupled from Execution — Dval.fs
+/// can't call Exe.executeApplicable directly since it sits earlier in
+/// the dependency chain.
 ///
 /// Take tracks both the original `n` (for introspection/printing) and
 /// a mutable `remaining` counter that decrements on each pull.
@@ -661,28 +663,28 @@ and BlobRef =
 ///
 /// Has a custom `Equals` that always returns false — `FromIO`'s pull
 /// fn is a closure, so there's no sensible structural-equality story,
-/// and we don't want propagating `NoEquality` up into Dval/CallFrame.
+/// and we don't want `NoEquality` propagating up into Dval/CallFrame.
 /// Callers that need "same stream" semantics must compare by reference
 /// via the wrapping DStream's `lockObj`. Most callers shouldn't compare
 /// streams at all.
 and [<CustomEquality; NoComparison>] StreamImpl =
-  /// Lazy pull producer. `next` yields the next element or None on
-  /// exhaustion. `disposer`, when present, is invoked exactly once
-  /// when the wrapping DStream is disposed — either via `streamClose`
-  /// or when drain-to-end trips the `disposed` flag. Used by IO-backed
-  /// sources (HttpClient.stream, file reads) to release the underlying
-  /// HttpResponseMessage / FileStream / etc.
+  /// Lazy pull producer.
   ///
-  /// GC-based finalization is a separate concern (chunk 2.11). Until
-  /// that lands, abandoned streams leak their disposer until the
-  /// process exits; `streamClose` is the escape valve.
+  /// `next` yields the next element or None on exhaustion. `disposer`,
+  /// when present, is invoked exactly once when the wrapping DStream
+  /// is disposed — either via `streamClose`, when drain-to-end trips
+  /// the `disposed` flag, or when the `StreamFinalizer` GCs the
+  /// unreachable DStream. Used by IO-backed sources (HttpClient.stream,
+  /// file reads) to release the underlying HttpResponseMessage /
+  /// FileStream / etc.
+  ///
   /// Optional `nextChunk` lets byte-stream producers avoid per-byte
   /// Ply/Dval boxing. `nextChunk maxBytes` fills up to `maxBytes` into
   /// a fresh byte[] and returns it (or None on exhaustion). Consumers
   /// that want bulk bytes (`streamToBlob`, SSE-byte accumulator) take
   /// this path; byte-by-byte `next` stays authoritative for element-
   /// wise pulls (`streamNext` on `Stream<UInt8>`). Non-byte streams
-  /// leave this `None`. See thinking/blobs-and-streams/40-later.md L.7.
+  /// leave this `None`.
   | FromIO of
     next : (unit -> Ply<Option<Dval>>) *
     elemType : ValueType *
@@ -1208,7 +1210,7 @@ type PackageManager =
     getFn : FQFnName.Package -> Ply<Option<PackageFn.PackageFn>>
 
     /// Content-addressed blob bytes by SHA-256 hash. Returns [None]
-    /// for missing hashes. See thinking/blobs-and-streams/00-design.md.
+    /// for missing hashes.
     getBlob : string -> Ply<Option<byte[]>>
 
     /// Insert bytes into `package_blobs` keyed by SHA-256 hash. Uses
@@ -1651,7 +1653,6 @@ and ExecutionState =
     /// references. Populated by IO builtins (fileRead, HttpClient.body,
     /// etc.). Bytes live until the ExecutionState is discarded or
     /// until the enclosing blob-scope pops (see [blobScopes] below).
-    /// See thinking/blobs-and-streams/00-design.md.
     blobStore :
       System.Collections.Concurrent.ConcurrentDictionary<System.Guid, byte[]>
 

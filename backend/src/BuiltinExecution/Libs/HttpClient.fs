@@ -390,7 +390,7 @@ open LibExecution.Builtin.Shortcuts
 /// disposed when the consumer is done.
 ///
 /// Used by the `HttpClient.stream` builtin to surface a lazy
-/// `Stream<UInt8>` body to Dark. See thinking/blobs-and-streams/30-phase-2.md.
+/// `Stream<UInt8>` body to Dark.
 let openStreamingRequest
   (config : Configuration)
   (httpClient : HttpClient)
@@ -619,18 +619,21 @@ let fns (config : Configuration) : List<BuiltInFn> =
 
 
     // ——————————————————————————————————————————————————————————
-    // Streaming — see thinking/blobs-and-streams/30-phase-2.md chunk 2.8.
+    // Streaming HTTP.
     //
-    // Body is not buffered into a byte[]; instead the response's
-    // readable Stream is wrapped in a FromIO. Each `next` pull reads
-    // out of an 8 KB buffer (refilled on demand), keeping per-pull
-    // allocation at roughly one boxed DUInt8 rather than a full body.
+    // The body is not buffered into a byte[]; instead the response's
+    // readable Stream is wrapped in a chunked DStream. Bulk consumers
+    // (`streamToBlob`) pull whole buffers via `nextChunk`; byte-wise
+    // consumers (`streamNext`) see one `DUInt8` at a time synthesised
+    // from the same buffer — no boxing until a byte-wise consumer
+    // actually asks for bytes.
     //
     // The disposer tears down the HttpResponseMessage + response
     // stream when the consumer drains to EOF or calls
-    // Builtin.streamClose. Abandoning a stream mid-drain currently
-    // leaks the response until process exit; a GC-backed finalizer
-    // arrives with chunk 2.11.
+    // `Builtin.streamClose`. Abandoning a stream mid-drain falls back
+    // to the GC-triggered finalizer on `Dval.StreamFinalizer`, which
+    // runs the same disposer chain when the DStream becomes
+    // unreachable.
     // ——————————————————————————————————————————————————————————
     { name = fn "httpClientStream" 0
       typeParams = []
@@ -701,11 +704,11 @@ let fns (config : Configuration) : List<BuiltInFn> =
               | Ok(response, respHeaders) ->
                 let! responseStream = response.Content.ReadAsStreamAsync()
 
-                // L.7: hand back a whole chunk per pull when the
-                // consumer wants bytes in bulk. `streamToBlob` and
-                // the SSE byte accumulator route through
+                // Hand back a whole chunk per pull when the consumer
+                // wants bytes in bulk. `streamToBlob` and the SSE
+                // byte accumulator route through
                 // `Dval.readStreamChunk`, which uses this callback
-                // directly — no per-byte DUInt8 boxing on the hot
+                // directly — no per-byte `DUInt8` boxing on the hot
                 // path. `Dval.newStreamChunked` synthesises a
                 // byte-wise `next` from the same source so
                 // `streamNext` semantics are preserved.

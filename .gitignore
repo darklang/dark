@@ -50,3 +50,6 @@ clis/
 
 .mono
 .fake
+
+# Thinking docs — scratch planning/execution notes, not part of any PR.
+thinking/

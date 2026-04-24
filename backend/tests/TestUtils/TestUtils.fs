@@ -1208,8 +1208,8 @@ let interestingDvals () : List<string * RT.Dval * RT.TypeReference> =
     ("false", DBool false, TBool)
     ("unit", DUnit, TUnit)
     ("datastore", DDB "Visitors", TDB TInt64)
-    // Ephemeral blobs are intentionally excluded here — their serializer
-    // path raises until chunk 1.6's promotion lands.
+    // Ephemeral blobs are intentionally excluded here — the Dval
+    // binary serializer raises on them; promote to Persistent first.
     ("blob_persistent",
      DBlob(
        Persistent(

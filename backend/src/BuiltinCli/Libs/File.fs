@@ -17,7 +17,7 @@ let fns () : List<BuiltInFn> =
       parameters = [ Param.make "path" TString "" ]
       returnType = TypeReference.result TBlob TString
       description =
-        "Reads the contents of a file at <param path> asynchronously into an ephemeral Blob, wrapped in a Result. Post-chunk-1.8: O(1) allocation per read instead of O(n) boxed DUInt8 cells (see thinking/blobs-and-streams/baseline.md)."
+        "Reads the contents of a file at <param path> asynchronously into an ephemeral Blob, wrapped in a Result."
       fn =
         let resultOk = Dval.resultOk KTBlob KTString
         let resultError = Dval.resultError KTBlob KTString

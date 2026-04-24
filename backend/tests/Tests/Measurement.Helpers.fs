@@ -101,8 +101,8 @@ let measure<'a> (f : unit -> 'a) : 'a * Sample =
 
 
 /// Append a one-line record to the named output file. One file per
-/// scenario; each chunk's scenario will add rows. Human-readable; raw
-/// numbers get consolidated into baseline.md in chunk 0.6.
+/// scenario; scenarios append rows over time. Human-readable format
+/// so row-by-row diffs stay legible.
 let appendRow (filename : string) (row : string) : unit =
   ensureOutputDir ()
   let path = System.IO.Path.Combine(outputDir, filename)

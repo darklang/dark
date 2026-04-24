@@ -1,8 +1,8 @@
-/// Tests for the Stream Dval — see thinking/blobs-and-streams/.
+/// Tests for the Stream Dval.
 ///
-/// Chunk 2.2: pull-only FromIO streams. Later chunks add transforms
-/// (Mapped/Filtered/Take/Concat), drain helpers (toList/toBlob), and
-/// disposal.
+/// Covers pull-only FromIO streams, transform nodes
+/// (Mapped/Filtered/Take/Concat), drain helpers (toList/toBlob),
+/// disposal, and the chunked bulk-drain fast path.
 module Tests.Stream
 
 open Expecto
@@ -23,7 +23,7 @@ module RT2DT = LibExecution.RuntimeTypesToDarkTypes
 
 /// Build a stream backed by an in-memory list. Each `next` call pulls
 /// the head off a mutable ref cell. Simple scaffolding for the pull
-/// semantics; real IO-backed streams arrive in chunk 2.8 (HttpClient).
+/// semantics; real IO-backed streams live in HttpClient.stream.
 let private streamOfList
   (items : List<RT.Dval>)
   (elemType : RT.ValueType)
@@ -215,7 +215,7 @@ let dstreamDarkBridgeElides =
 
 
 // ——————————————————————————————————————————————————————————
-// Chunk 2.6 — lazy transforms (Mapped, Filtered, Take, Concat)
+// Lazy transforms — Mapped, Filtered, Take, Concat
 // ——————————————————————————————————————————————————————————
 
 /// Build a raw StreamImpl-over-a-list without wrapping in DStream.
@@ -447,7 +447,7 @@ let toValueTypeWalksTransforms =
 
 
 // ——————————————————————————————————————————————————————————
-// Chunk 2.11 — disposal via GC finalizer
+// Disposal via the GC-backed StreamFinalizer
 // ——————————————————————————————————————————————————————————
 // The StreamFinalizer on each DStream's lockObj runs the disposer
 // chain when the DStream becomes unreachable. Explicit streamClose
@@ -539,7 +539,7 @@ let gcFinalizesMidDrainStream =
 
 
 // ——————————————————————————————————————————————————————————
-// L.7 — chunked bulk-drain fast path
+// Chunked bulk-drain fast path
 // ——————————————————————————————————————————————————————————
 // newStreamChunked hands back whole buffers per pull; readStreamChunk
 // picks up those buffers directly instead of going byte-by-byte.

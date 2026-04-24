@@ -78,7 +78,6 @@ module Fn =
 
 
 /// Content-addressed blob storage — bytes keyed by SHA-256 hash.
-/// See thinking/blobs-and-streams/00-design.md.
 module Blob =
   /// Look up bytes by hash. Returns [None] when the row doesn't exist.
   let get (hash : string) : Ply<Option<byte[]>> =
@@ -159,8 +158,7 @@ module Blob =
   ///
   /// Intentionally narrow: only scans `package_values`. Other tables
   /// that might later hold Dvals (User DB rows, `trace_data`) will
-  /// need their own reference-collection pass — see
-  /// `thinking/blobs-and-streams/40-later.md` L.3.
+  /// need their own reference-collection pass.
   ///
   /// Idempotent: re-running after a clean sweep deletes nothing. Safe
   /// to run while the system is live — worst-case race is a concurrent
@@ -170,7 +168,7 @@ module Blob =
   /// For a canvas with N package values and M blobs, cost is O(N+M)
   /// deserialise passes plus one DELETE per orphan. Good enough for
   /// CLI-triggered sweeps at current scale; a reverse-index table
-  /// (L.3's original approach) arrives when the DB grows past it.
+  /// is the natural next step when the DB grows past it.
   let sweepOrphans () : Ply<int64> =
     uply {
       // Pull every materialised rt_dval — deserialise and collect

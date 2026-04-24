@@ -458,12 +458,12 @@ module MockHelpers =
 
 
 // ————————————————————————————————————————————————————————————
-// Tests for the DStream-returning `HttpClient.stream` builtin
-// (chunk 2.8). The mock-server infrastructure at the top of this
-// file is reused so we exercise the real Kestrel path end-to-end.
-// The tests call `openStreamingRequest` + construct a FromIO
-// directly to avoid standing up a full ExecutionState — the DStream
-// drain path is the whole point of the test.
+// Tests for the DStream-returning `HttpClient.stream` builtin. The
+// mock-server infrastructure at the top of this file is reused so
+// we exercise the real Kestrel path end-to-end. The tests call
+// `openStreamingRequest` + construct a FromIO directly to avoid
+// standing up a full ExecutionState — the DStream drain path is
+// the whole point of the test.
 // ————————————————————————————————————————————————————————————
 module StreamDvalTests =
   module HC = BuiltinExecution.Libs.HttpClient

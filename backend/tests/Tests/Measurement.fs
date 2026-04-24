@@ -1,12 +1,11 @@
-/// Phase 0 — baseline measurement harness.
-///
-/// See thinking/blobs-and-streams/10-phase-0.md. Each chunk (0.2–0.5)
-/// will add one or more scenarios here. Results go to per-scenario
-/// files under rundir/measurements/phase-0/ and get consolidated into
-/// thinking/blobs-and-streams/baseline.md by chunk 0.6.
+/// Memory/allocation measurement harness for the Blob and Stream
+/// code paths. Results land under rundir/measurements/{phase-0,phase-1,phase-2}/
+/// — the three per-phase subdirs capture the baseline List<UInt8>
+/// path, the DBlob path, and the DStream path, so regressions show
+/// up as row-level allocation growth between runs.
 ///
 /// Run with:
-///   ./scripts/run-backend-tests --filter-test-list Measurement
+///   ./scripts/run-backend-tests --filter-test-list measurement
 module Tests.Measurement
 
 open Expecto
@@ -190,16 +189,16 @@ type private SlowChunkedStream(chunkSize : int, chunkCount : int, delayMs : int)
       bytes
 
 
-/// Scenario 3 — streaming-http chunk behaviour.
+/// Streaming-http chunk behaviour — baseline.
 ///
-/// Drives a slow chunked response through the same
-/// `ReadAsStreamAsync -> 8KB-buffer ReadAsync loop` path that the
-/// now-retired `StreamingHttpClient.fs` used (chunk 2.9), and
-/// converts each read into a `Dval.byteArrayToDvalList` — the shape
-/// the old callback builtin surfaced as `StreamChunk.Data`. Kept as
-/// the phase-0 baseline so phase-2 comparisons stay honest: records
-/// time-to-first-chunk, time-to-last, total allocation, and per-chunk
-/// allocation derived from those.
+/// Drives a slow chunked response through a
+/// `ReadAsStreamAsync -> 8KB-buffer ReadAsync` loop and converts
+/// each read into a `Dval.byteArrayToDvalList`. That's the shape
+/// the retired callback-based streaming builtin surfaced to Dark;
+/// we keep this scenario as the baseline so measurements against
+/// the new DStream path stay honest. Records time-to-first-chunk,
+/// time-to-last, total allocation, and per-chunk allocation
+/// derived from those.
 let streamingHttpProfile =
   test "streaming-http chunk behaviour" {
     resetOutput "streaming.txt"

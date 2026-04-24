@@ -152,9 +152,8 @@ let rec private toJsonV0
 
 
     // Blobs serialize as a hash-reference JSON envelope; bytes stay
-    // in package_blobs (design note: thinking/blobs-and-streams/00-design.md).
-    // Ephemeral blobs are not yet supported here — promotion lands in
-    // chunk 1.6.
+    // in package_blobs. Ephemeral blobs aren't supported here —
+    // promote to Persistent first (`Dval.promoteBlobs`).
     | DBlob(Persistent(hash, length)) ->
       do!
         w.writeObject (fun () ->
@@ -168,7 +167,7 @@ let rec private toJsonV0
           })
     | DBlob(Ephemeral _) ->
       Exception.raiseInternal
-        "Ephemeral blobs in queryable JSON need promotion (chunk 1.6)"
+        "Ephemeral blobs must be promoted before queryable-JSON write"
         [ "value", dv ]
 
     | DStream _ ->
@@ -425,7 +424,7 @@ module Test =
     | DDateTime _
     | DUuid _
     | DBlob(Persistent _) -> true
-    | DBlob(Ephemeral _) -> false // ephemeral needs promotion (chunk 1.6)
+    | DBlob(Ephemeral _) -> false // promote ephemerals before a queryable write
 
     // VTTODO these should probably just check the valueType, not any internal data
     | DTuple(d1, d2, rest) -> List.all isQueryableDval (d1 :: d2 :: rest)
