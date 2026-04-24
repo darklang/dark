@@ -350,14 +350,13 @@ let fns () : List<BuiltInFn> =
     { name = fn "stringToBytes" 0
       typeParams = []
       parameters = [ Param.make "str" TString "" ]
-      returnType = TList TUInt8
-      description =
-        "Converts the given unicode string to a UTF8-encoded byte sequence."
+      returnType = TBlob
+      description = "Converts the given unicode string to a UTF8-encoded Blob."
       fn =
         (function
-        | _, _, _, [ DString str ] ->
+        | state, _, _, [ DString str ] ->
           let theBytes = System.Text.Encoding.UTF8.GetBytes str
-          Ply(Dval.byteArrayToDvalList theBytes)
+          Dval.newEphemeralBlob state theBytes |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -366,16 +365,35 @@ let fns () : List<BuiltInFn> =
 
     { name = fn "stringFromBytesWithReplacement" 0
       typeParams = []
-      parameters = [ Param.make "bytes" (TList TUInt8) "" ]
+      parameters = [ Param.make "bytes" TBlob "" ]
       returnType = TString
       description =
-        "Converts the UTF8-encoded byte sequence into a string. Errors will be ignored by replacing invalid characters"
+        "Converts the UTF8-encoded Blob into a string. Errors will be ignored by replacing invalid characters"
       fn =
         (function
-        | _, _, _, [ DList(_vt, bytes) ] ->
-          let bytes = Dval.dlistToByteArray bytes
-          let str = System.Text.Encoding.UTF8.GetString bytes
-          Ply(DString str)
+        | state, _, _, [ DBlob ref ] ->
+          uply {
+            let! bytes =
+              match ref with
+              | Ephemeral id ->
+                let mutable bs : byte[] = null
+                if state.blobStore.TryGetValue(id, &bs) then
+                  Ply bs
+                else
+                  Exception.raiseInternal "ephemeral blob not found" [ "id", id ]
+              | Persistent(hash, _) ->
+                uply {
+                  let! got = state.blobs.get hash
+                  match got with
+                  | Some bs -> return bs
+                  | None ->
+                    return
+                      Exception.raiseInternal
+                        "persistent blob missing in package_blobs"
+                        [ "hash", hash ]
+                }
+            return DString(System.Text.Encoding.UTF8.GetString bytes)
+          }
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure

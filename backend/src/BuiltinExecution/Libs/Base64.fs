@@ -11,23 +11,44 @@ module VT = LibExecution.ValueType
 module Dval = LibExecution.Dval
 
 
+/// Dereference a DBlob to its bytes. Same pattern as in Crypto.fs —
+/// ephemerals via blobStore, persistents via state.blobs.get.
+let private readBlob (state : ExecutionState) (ref : BlobRef) : Ply<byte[]> =
+  uply {
+    match ref with
+    | Ephemeral id ->
+      let mutable bs : byte[] = null
+      if state.blobStore.TryGetValue(id, &bs) then
+        return bs
+      else
+        return Exception.raiseInternal "ephemeral blob not found" [ "id", id ]
+    | Persistent(hash, _) ->
+      let! got = state.blobs.get hash
+      match got with
+      | Some bs -> return bs
+      | None ->
+        return
+          Exception.raiseInternal
+            "persistent blob missing in package_blobs"
+            [ "hash", hash ]
+  }
+
+
 let fns () : List<BuiltInFn> =
   [ { name = fn "base64Decode" 0
       typeParams = []
       parameters = [ Param.make "s" TString "" ]
-      returnType = TypeReference.result (TList TUInt8) TString
+      returnType = TypeReference.result TBlob TString
       description =
         "Base64 decodes a string. Works with both the URL-safe and standard Base64
          alphabets defined in [RFC 4648](https://www.rfc-editor.org/rfc/rfc4648.html)
          sections [4](https://www.rfc-editor.org/rfc/rfc4648.html#section-4) and
          [5](https://www.rfc-editor.org/rfc/rfc4648.html#section-5)."
       fn =
-        let resultOk r =
-          Dval.resultOk (KTList(ValueType.Known KTUInt8)) KTString r |> Ply
-        let resultError r =
-          Dval.resultError (KTList(ValueType.Known KTUInt8)) KTString r |> Ply
+        let resultOk r = Dval.resultOk KTBlob KTString r |> Ply
+        let resultError r = Dval.resultError KTBlob KTString r |> Ply
         (function
-        | _, _, _, [ DString s ] ->
+        | state, _, _, [ DString s ] ->
           let base64FromUrlEncoded (str : string) : string =
             let initial = str.Replace('-', '+').Replace('_', '/')
             let length = initial.Length
@@ -37,21 +58,17 @@ let fns () : List<BuiltInFn> =
             else initial
 
           if s = "" then
-            // This seems like we should allow it
-            DList(VT.uint8, []) |> resultOk
+            resultOk (Dval.newEphemeralBlob state [||])
           elif Regex.IsMatch(s, @"\s") then
             // dotnet ignores whitespace but we don't allow it
-            "Not a valid base64 string" |> DString |> resultError
+            resultError (DString "Not a valid base64 string")
           else
             try
-              s
-              |> base64FromUrlEncoded
-              |> System.Convert.FromBase64String
-              |> Dval.byteArrayToDvalList
-              |> resultOk
-
-            with e ->
-              resultError (DString("Not a valid base64 string"))
+              let bytes =
+                s |> base64FromUrlEncoded |> System.Convert.FromBase64String
+              resultOk (Dval.newEphemeralBlob state bytes)
+            with _ ->
+              resultError (DString "Not a valid base64 string")
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -60,7 +77,7 @@ let fns () : List<BuiltInFn> =
 
     { name = fn "base64Encode" 0
       typeParams = []
-      parameters = [ Param.make "bytes" (TList TUInt8) "" ]
+      parameters = [ Param.make "bytes" TBlob "" ]
       returnType = TString
       description =
         "Base64 encodes <param bytes> with {{=}} padding. Uses the standard
@@ -68,9 +85,11 @@ let fns () : List<BuiltInFn> =
          section [4](https://www.rfc-editor.org/rfc/rfc4648.html#section-4)."
       fn =
         (function
-        | _, _, _, [ DList(_vt, bytes) ] ->
-          let bytes = Dval.dlistToByteArray bytes
-          System.Convert.ToBase64String(bytes) |> DString |> Ply
+        | state, _, _, [ DBlob ref ] ->
+          uply {
+            let! bytes = readBlob state ref
+            return DString(System.Convert.ToBase64String(bytes))
+          }
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -79,7 +98,7 @@ let fns () : List<BuiltInFn> =
 
     { name = fn "base64UrlEncode" 0
       typeParams = []
-      parameters = [ Param.make "bytes" (TList TUInt8) "" ]
+      parameters = [ Param.make "bytes" TBlob "" ]
       returnType = TString
       description =
         "Base64URL encodes <param bytes> with {{=}} padding. Uses URL-safe encoding
@@ -87,12 +106,17 @@ let fns () : List<BuiltInFn> =
          section [5](https://www.rfc-editor.org/rfc/rfc4648.html#section-5)."
       fn =
         (function
-        | _, _, _, [ DList(_vt, bytes) ] ->
-          let bytes = Dval.dlistToByteArray bytes
-          // Differs from Base64.encodeToUrlSafe as this version has padding
-          System.Convert.ToBase64String(bytes).Replace('+', '-').Replace('/', '_')
-          |> DString
-          |> Ply
+        | state, _, _, [ DBlob ref ] ->
+          uply {
+            let! bytes = readBlob state ref
+            // Differs from Base64.encodeToUrlSafe as this version has padding
+            let encoded =
+              System.Convert
+                .ToBase64String(bytes)
+                .Replace('+', '-')
+                .Replace('/', '_')
+            return DString encoded
+          }
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure

@@ -1,23 +1,42 @@
 module Darklang.Stdlib.Crypto
 
+// Chunk 1.9: Builtin.crypto* now speak Blob. Dark-side wrappers keep
+// their `List<UInt8>` shape temporarily — 1.10/1.11 migrates them to
+// `Blob` (the Dark-side surface type name) after the parser learns
+// the new primitive. Until then we bridge via bytesFromList/bytesToList.
 
 /// Computes the SHA-256 digest of the given <param data>
-let sha256 (data: List<UInt8>) : List<UInt8> = Builtin.cryptoSha256 data
+let sha256 (data: List<UInt8>) : List<UInt8> =
+  let blob = Builtin.bytesFromList data
+  let digest = Builtin.cryptoSha256 blob
+  Builtin.bytesToList digest
 
 
 /// Computes the SHA-384 digest of the given <param data>
-let sha384 (data: List<UInt8>) : List<UInt8> = Builtin.cryptoSha384 data
+let sha384 (data: List<UInt8>) : List<UInt8> =
+  let blob = Builtin.bytesFromList data
+  let digest = Builtin.cryptoSha384 blob
+  Builtin.bytesToList digest
 
 
 /// Computes the md5 digest of the given <param data>. NOTE: There are multiple security problems with md5, see https://en.wikipedia.org/wiki/MD5#Security
-let md5 (data: List<UInt8>) : List<UInt8> = Builtin.cryptoMd5 data
+let md5 (data: List<UInt8>) : List<UInt8> =
+  let blob = Builtin.bytesFromList data
+  let digest = Builtin.cryptoMd5 blob
+  Builtin.bytesToList digest
 
 
 /// Computes the SHA-256 HMAC (hash-based message authentication code) digest of the given <param key> and <param data>.
 let sha256hmac (key: List<UInt8>) (data: List<UInt8>) : List<UInt8> =
-  Builtin.cryptoSha256hmac key data
+  let keyBlob = Builtin.bytesFromList key
+  let dataBlob = Builtin.bytesFromList data
+  let digest = Builtin.cryptoSha256hmac keyBlob dataBlob
+  Builtin.bytesToList digest
 
 
 /// Computes the SHA1-HMAC (hash-based message authentication code) digest of the given <param key> and <param data>.
 let sha1hmac (key: List<UInt8>) (data: List<UInt8>) : List<UInt8> =
-  Builtin.cryptoSha1hmac key data
+  let keyBlob = Builtin.bytesFromList key
+  let dataBlob = Builtin.bytesFromList data
+  let digest = Builtin.cryptoSha1hmac keyBlob dataBlob
+  Builtin.bytesToList digest
