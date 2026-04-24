@@ -1,10 +1,9 @@
 /// Stream builtins — see thinking/blobs-and-streams/30-phase-2.md.
 ///
 /// Chunk 2.5: consumption-only API (`next`, `toList`, `toBlob`,
-/// `close`) plus a `fromList` constructor for tests. Lazy
-/// transformations (`map` / `filter` / `take` / `concat`) arrive in
-/// chunks 2.6 + 2.7, once StreamImpl grows `Mapped`/`Filtered`/
-/// `Take`/`Concat` constructors.
+/// `close`) plus a `fromList` constructor for tests. Chunk 2.7 adds
+/// lazy transforms (`map` / `filter` / `take` / `concat`) over the
+/// `Mapped`/`Filtered`/`Take`/`Concat` StreamImpl nodes from 2.6.
 ///
 /// CLEANUP revisit: considered alternatives we did not take.
 /// - Channels (Go-style with separate reader/writer ends and buffering):
@@ -14,6 +13,9 @@
 ///   Dark has no scheduler story.
 module BuiltinExecution.Libs.Stream
 
+open System.Threading.Tasks
+open FSharp.Control.Tasks
+
 open Prelude
 
 open LibExecution.RuntimeTypes
@@ -21,6 +23,7 @@ open LibExecution.Builtin.Shortcuts
 
 module VT = LibExecution.ValueType
 module Dval = LibExecution.Dval
+module Exe = LibExecution.Execution
 
 
 let varA = TVariable "a"
@@ -194,6 +197,130 @@ let fns () : List<BuiltInFn> =
           finally
             System.Threading.Monitor.Exit(lockObj)
           DUnit |> Ply
+        | _ -> incorrectArgs ())
+      sqlSpec = NotYetImplemented
+      previewable = Impure
+      deprecated = NotDeprecated }
+
+
+    // Chunk 2.7 — lazy transforms. Each wraps the 2.6 StreamImpl
+    // constructors. The source DStream's impl is extracted and placed
+    // inside a new transform node under a fresh DStream — callers
+    // should not pull from the original DStream afterwards (single-
+    // consumer semantics; the shared impl underneath is unaware of
+    // which wrapper is pulling).
+    { name = fn "streamMap" 0
+      typeParams = [ "a"; "b" ]
+      parameters =
+        [ Param.make "stream" (TStream varA) ""
+          Param.makeWithArgs
+            "fn"
+            (TFn(NEList.singleton varA, TVariable "b"))
+            "Transforms each element of <param stream> by applying <param fn>."
+            [ "elem" ] ]
+      returnType = TStream(TVariable "b")
+      description =
+        "Returns a new stream whose elements are <param fn> applied to each
+         element of <param stream>. Lazy — <param fn> runs only when the
+         returned stream is drained."
+      fn =
+        (function
+        | state, vm, [ _; outputType ], [ DStream(src, _, _); DApplicable app ] ->
+          let elemType = elemValueType outputType
+          let apply (dv : Dval) : Ply<Dval> =
+            uply {
+              let! result = Exe.executeApplicable state app (NEList.singleton dv)
+              match result with
+              | Ok v -> return v
+              | Error(rte, _cs) -> return raiseRTE vm.threadID rte
+            }
+          DStream(Mapped(src, apply, elemType), ref false, obj ()) |> Ply
+        | _ -> incorrectArgs ())
+      sqlSpec = NotYetImplemented
+      previewable = Impure
+      deprecated = NotDeprecated }
+
+
+    { name = fn "streamFilter" 0
+      typeParams = [ "a" ]
+      parameters =
+        [ Param.make "stream" (TStream varA) ""
+          Param.makeWithArgs
+            "pred"
+            (TFn(NEList.singleton varA, TBool))
+            "Predicate — returns true to keep an element, false to skip it."
+            [ "elem" ] ]
+      returnType = TStream varA
+      description =
+        "Returns a new stream that yields only the elements of <param stream>
+         for which <param pred> returns true. Lazy — <param pred> runs as the
+         result is drained, skipping rejected elements without buffering."
+      fn =
+        (function
+        | state, vm, _, [ DStream(src, _, _); DApplicable app ] ->
+          let pred (dv : Dval) : Ply<bool> =
+            uply {
+              let! result = Exe.executeApplicable state app (NEList.singleton dv)
+              match result with
+              | Ok(DBool b) -> return b
+              | Ok other ->
+                return
+                  Exception.raiseInternal
+                    "stream filter predicate returned non-Bool"
+                    [ "got", other ]
+              | Error(rte, _cs) -> return raiseRTE vm.threadID rte
+            }
+          DStream(Filtered(src, pred), ref false, obj ()) |> Ply
+        | _ -> incorrectArgs ())
+      sqlSpec = NotYetImplemented
+      previewable = Impure
+      deprecated = NotDeprecated }
+
+
+    { name = fn "streamTake" 0
+      typeParams = [ "a" ]
+      parameters =
+        [ Param.make "stream" (TStream varA) ""
+          Param.make "n" TInt64 "Maximum number of elements to yield." ]
+      returnType = TStream varA
+      description =
+        "Returns a new stream that yields at most the first <param n> elements
+         of <param stream>. If the source has fewer elements, yields them all.
+         Terminates early without pulling the source past the limit."
+      fn =
+        (function
+        | _, _, _, [ DStream(src, _, _); DInt64 n ] ->
+          // Clamp negative n to 0 — pullStreamImpl treats remaining<=0
+          // as done, so a negative here becomes an empty stream.
+          let clamped = max 0L n
+          DStream(Take(src, clamped, ref clamped), ref false, obj ()) |> Ply
+        | _ -> incorrectArgs ())
+      sqlSpec = NotYetImplemented
+      previewable = Impure
+      deprecated = NotDeprecated }
+
+
+    { name = fn "streamConcat" 0
+      typeParams = [ "a" ]
+      parameters =
+        [ Param.make "streams" (TList(TStream varA)) "Streams to concatenate." ]
+      returnType = TStream varA
+      description =
+        "Returns a new stream that drains <param streams> in list order,
+         advancing to the next sub-stream when the current one is exhausted."
+      fn =
+        (function
+        | _, _, _, [ DList(_, items) ] ->
+          let impls =
+            items
+            |> List.map (fun dv ->
+              match dv with
+              | DStream(impl, _, _) -> impl
+              | other ->
+                Exception.raiseInternal
+                  "streamConcat: expected List<Stream>"
+                  [ "got", other ])
+          DStream(Concat(ref impls), ref false, obj ()) |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Impure
