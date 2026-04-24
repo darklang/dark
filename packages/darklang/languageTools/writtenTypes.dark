@@ -70,6 +70,7 @@ module TypeReference =
     | TString of Range
     | TDateTime of Range
     | TUuid of Range
+    | TBlob of Range
 
     | TList of
       Range *

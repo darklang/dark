@@ -160,6 +160,8 @@ let typeReference
 
   | TDateTime -> "DateTime"
 
+  | TBlob -> "Blob"
+
   | TTuple(first, second, theRest) ->
     (Stdlib.List.append [ first; second ] theRest)
     |> Stdlib.List.map (fun item -> typeReference branchId item)
@@ -233,6 +235,8 @@ let knownType
 
   | KTDateTime -> "DateTime"
   | KTUuid -> "Uuid"
+
+  | KTBlob -> "Blob"
 
   | KTTuple(t1, t2, trest) ->
     (Stdlib.List.append [ t1; t2 ] trest)

@@ -30,6 +30,7 @@ let parseBuiltIn
     | "String" -> (TBuiltin.TString node.range) |> builtin
     | "DateTime" -> (TBuiltin.TDateTime node.range) |> builtin
     | "Uuid" -> (TBuiltin.TUuid node.range) |> builtin
+    | "Blob" -> (TBuiltin.TBlob node.range) |> builtin
 
     | _ ->
       match node.children |> Stdlib.List.head with

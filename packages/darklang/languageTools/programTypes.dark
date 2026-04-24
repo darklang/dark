@@ -54,6 +54,7 @@ type TypeReference =
   | TString
   | TDateTime
   | TUuid
+  | TBlob
 
   | TList of TypeReference
   | TTuple of TypeReference * TypeReference * List<TypeReference>

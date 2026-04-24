@@ -344,6 +344,7 @@ let typeReference
   | TString -> "String"
   | TDateTime -> "DateTime"
   | TUuid -> "Uuid"
+  | TBlob -> "Blob"
 
   | TList inner ->
     $"List<{typeReference ctx inner}>"

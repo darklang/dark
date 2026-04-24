@@ -1000,6 +1000,7 @@ module.exports = grammar({
         /String/,
         /DateTime/,
         /Uuid/,
+        /Blob/,
         $.list_type_reference,
         $.tuple_type_reference,
         $.dict_type_reference,

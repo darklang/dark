@@ -5733,6 +5733,10 @@
           "value": "Uuid"
         },
         {
+          "type": "PATTERN",
+          "value": "Blob"
+        },
+        {
           "type": "SYMBOL",
           "name": "list_type_reference"
         },

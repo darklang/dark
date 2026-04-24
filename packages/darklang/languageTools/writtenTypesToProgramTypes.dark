@@ -166,6 +166,7 @@ module TypeReference =
       | TString _range -> (ProgramTypes.TypeReference.TString, [])
       | TDateTime _range -> (ProgramTypes.TypeReference.TDateTime, [])
       | TUuid _range -> (ProgramTypes.TypeReference.TUuid, [])
+      | TBlob _range -> (ProgramTypes.TypeReference.TBlob, [])
 
       | TList(_range, _, _, typ, _) ->
         let (typ, unresolvedNames) =
