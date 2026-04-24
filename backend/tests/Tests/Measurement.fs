@@ -44,8 +44,8 @@ let harnessSelfTest =
 /// Mirrors what [BuiltinCli.Libs.File.fileRead] does today:
 /// [System.IO.File.ReadAllBytesAsync] followed by
 /// [Dval.byteArrayToDvalList]. The second step is where the boxed
-/// `DList(DUInt8)` representation blows up — post-Phase-1 this row
-/// should drop to a single `DBlob` allocation.
+/// `DList(DUInt8)` representation blows up — the Blob path drops
+/// this row to a single `DBlob` allocation.
 ///
 /// Writes one row per file-size target. Each row includes allocation
 /// delta, peak working set, wall time, and the Dval node count
@@ -285,8 +285,8 @@ let streamingHttpProfile =
 /// Replicates the inline body of `Builtin.bytesHexEncode` (see
 /// backend/src/BuiltinExecution/Libs/Bytes.fs) so we can measure the
 /// hex-encode step in isolation from the list-construction cost
-/// measured by scenario 1. Post-Phase-1 this becomes a Blob → String
-/// walk and should drop by ~2 orders of magnitude.
+/// measured by scenario 1. On the Blob path this becomes a
+/// Blob-to-String walk and drops by ~2 orders of magnitude.
 let hexEncodeProfile =
   test "bytesHexEncode 1mb input" {
     resetOutput "hex.txt"
@@ -310,8 +310,8 @@ let hexEncodeProfile =
         // is O(i) on F# List, making the whole encode O(n²) — a latent
         // bug nobody hit at small sizes. We use [List.iter] to measure
         // the *representation* cost (one DUInt8 unbox per element +
-        // two StringBuilder.Append), which is the fair comparison for
-        // post-Phase-1's O(n) Blob → String walk.
+        // two StringBuilder.Append), which is the fair comparison
+        // for the Blob path's O(n) Blob-to-String walk.
         let hexResult, hexSample =
           measure (fun () ->
             match listDval with

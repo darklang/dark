@@ -1,19 +1,5 @@
 module Darklang.Stdlib.Crypto
 
-// Public signatures use Blob — the builtins already take/return
-// Blob so these wrappers are one-line pass-throughs. Callers
-// constructing an input from a string:
-//
-//   Stdlib.Crypto.sha256 (Builtin.bytesFromString "hi")
-//
-// ...from a byte list:
-//
-//   Stdlib.Crypto.sha256 (Builtin.bytesFromList [ 0x01uy; 0x02uy ])
-//
-// ...and rendering the digest as hex:
-//
-//   Stdlib.Bytes.toHex (Stdlib.Crypto.sha256 ...)
-
 
 /// Computes the SHA-256 digest of the given <param data>
 let sha256 (data: Blob) : Blob = Builtin.cryptoSha256 data

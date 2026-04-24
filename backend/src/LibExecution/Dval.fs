@@ -123,28 +123,25 @@ let popBlobScope (exeState : ExecutionState) : unit =
 
 
 /// Resolve a BlobRef to its bytes. Ephemerals read from the VM store;
-/// persistent refs hit package_blobs via the PM.
-let readBlobBytes
-  (exeState : ExecutionState)
-  (pm : PackageManager)
-  (ref : BlobRef)
-  : Ply.Ply<byte[]> =
+/// persistent refs hit package_blobs via the ExecutionState's blob
+/// accessor. Shared by every builtin that dereferences a DBlob.
+let readBlobBytes (state : ExecutionState) (ref : BlobRef) : Ply.Ply<byte[]> =
   uply {
     match ref with
     | Ephemeral id ->
-      match exeState.blobStore.TryGetValue id with
-      | true, bytes -> return bytes
-      | false, _ ->
-        return
-          Exception.raiseInternal "Ephemeral blob not found in store" [ "id", id ]
+      let mutable bs : byte[] = null
+      if state.blobStore.TryGetValue(id, &bs) then
+        return bs
+      else
+        return Exception.raiseInternal "ephemeral blob not found" [ "id", id ]
     | Persistent(hash, _length) ->
-      let! bytes = pm.getBlob hash
-      match bytes with
-      | Some b -> return b
+      let! got = state.blobs.get hash
+      match got with
+      | Some bs -> return bs
       | None ->
         return
           Exception.raiseInternal
-            "Persistent blob not found in package_blobs"
+            "persistent blob missing in package_blobs"
             [ "hash", hash ]
   }
 

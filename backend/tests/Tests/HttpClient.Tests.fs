@@ -556,7 +556,7 @@ module StreamDvalTests =
         }
 
         testTask "large body drains cleanly across buffer refills" {
-          // 8 KB buffer * 3.5 → forces multiple refills.
+          // 8 KB buffer * 3.5 -> forces multiple refills.
           let body = String.replicate 28000 "x"
           let url =
             MockHelpers.registerTestCase "stream-dval-large" 200 "text/plain" body

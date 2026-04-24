@@ -4,11 +4,11 @@ module Darklang.Stdlib.Cli.Fish
 /// Read the content of config.fish file
 let readFishConfig () : Result.Result<String, String> =
   (Builtin.fileRead "$HOME/.config/fish/config.fish")
-  |> Result.map (fun content -> Builtin.stringFromBytesWithReplacement content)
+  |> Result.map Stdlib.String.fromBlobWithReplacement
 
 /// Overwrite what's in the config.fish file
 let overwriteFishConfig (content: String) : Result.Result<Unit, String> =
-  (Builtin.fileWrite (Builtin.stringToBytes content) "$HOME/.config/fish/config.fish")
+  (Builtin.fileWrite (Stdlib.String.toBlob content) "$HOME/.config/fish/config.fish")
   |> Result.map (fun _ -> ())
 
 

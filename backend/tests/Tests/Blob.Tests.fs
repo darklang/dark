@@ -175,14 +175,14 @@ let ktblobBinaryRoundtrip =
 let tblobPtDarkBridge =
   test "PT.TBlob roundtrips through the Dark-side bridge" {
     let restored = PT2DT.TypeReference.fromDT (PT2DT.TypeReference.toDT PT.TBlob)
-    Expect.equal restored PT.TBlob "PT.TBlob survives pt↔dark roundtrip"
+    Expect.equal restored PT.TBlob "PT.TBlob survives pt<->dark roundtrip"
   }
 
 
 let tblobRtDarkBridge =
   test "RT.TBlob roundtrips through the Dark-side bridge" {
     let restored = RT2DT.TypeReference.fromDT (RT2DT.TypeReference.toDT RT.TBlob)
-    Expect.equal restored RT.TBlob "RT.TBlob survives rt↔dark roundtrip"
+    Expect.equal restored RT.TBlob "RT.TBlob survives rt<->dark roundtrip"
   }
 
 
@@ -190,12 +190,12 @@ let ktblobRtDarkBridge =
   test "RT.KTBlob roundtrips through the Dark-side ValueType bridge" {
     let original = RT.ValueType.Known RT.KTBlob
     let restored = RT2DT.ValueType.fromDT (RT2DT.ValueType.toDT original)
-    Expect.equal restored original "KTBlob survives rt↔dark roundtrip"
+    Expect.equal restored original "KTBlob survives rt<->dark roundtrip"
   }
 
 
 let dblobPersistentDarkBridge =
-  test "DBlob(Persistent _) roundtrips through the rt↔dark dval bridge" {
+  test "DBlob(Persistent _) roundtrips through the rt<->dark dval bridge" {
     let original =
       RT.DBlob(
         RT.Persistent(
@@ -209,12 +209,12 @@ let dblobPersistentDarkBridge =
 
 
 let dblobEphemeralDarkBridge =
-  // The ephemeral branch of the rt↔dark dval bridge could force
+  // The ephemeral branch of the rt<->dark dval bridge could force
   // promotion, but LSP/reflection needs to render ephemeral blobs
   // without a promotion side effect. The current encoding preserves
   // both variants distinctly; this roundtrip verifies that ephemeral
   // survives the bridge without promotion.
-  test "DBlob(Ephemeral _) survives rt↔dark dval bridge without promotion" {
+  test "DBlob(Ephemeral _) survives rt<->dark dval bridge without promotion" {
     let id = System.Guid.NewGuid()
     let original = RT.DBlob(RT.Ephemeral id)
     let restored = RT2DT.Dval.fromDT (RT2DT.Dval.toDT original)
@@ -257,7 +257,7 @@ let packageBlobMissingHashReturnsNone =
 
 
 let promotePersistsAndSwaps =
-  testTask "promoteBlobs: ephemeral → persistent + row in package_blobs" {
+  testTask "promoteBlobs: ephemeral -> persistent + row in package_blobs" {
     let state = freshState ()
     let payload =
       // unique bytes per run so the row is new (content-addressed)
@@ -373,7 +373,7 @@ let fileReadMemoryBound =
     let delta = after - before
 
     // The historical List<UInt8> path allocated ~200× the file size
-    // (10 MB → ~2 GB). The Blob path should drop by ~100×. Bound is
+    // (10 MB -> ~2 GB). The Blob path should drop by ~100×. Bound is
     // generous — anything remotely resembling a list-boxing
     // regression hits orders of magnitude over this.
     Expect.isLessThan
@@ -812,7 +812,7 @@ let sweepDeletesOrphansButKeepsReferenced =
 
 let persistableRejectsNestedBadShapes =
   test "isPersistable: a bad leaf anywhere in a container poisons the whole" {
-    // List containing an ephemeral blob → not persistable.
+    // List containing an ephemeral blob -> not persistable.
     let list =
       RT.DList(
         RT.ValueType.Known RT.KTBlob,

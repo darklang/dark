@@ -10,31 +10,6 @@ module VT = LibExecution.ValueType
 module Dval = LibExecution.Dval
 
 
-/// Read the bytes of a DBlob, dereferencing ephemeral/persistent refs
-/// via the ExecutionState's blob accessor. All Blob→X builtins funnel
-/// through here.
-let private readBlob (exeState : ExecutionState) (ref : BlobRef) : Ply<byte[]> =
-  uply {
-    match ref with
-    | Ephemeral id ->
-      let mutable bs : byte[] = null
-      if exeState.blobStore.TryGetValue(id, &bs) then
-        return bs
-      else
-        return
-          Exception.raiseInternal "ephemeral blob not found in store" [ "id", id ]
-    | Persistent(hash, _length) ->
-      let! got = exeState.blobs.get hash
-      match got with
-      | Some bs -> return bs
-      | None ->
-        return
-          Exception.raiseInternal
-            "persistent blob not found in package_blobs"
-            [ "hash", hash ]
-  }
-
-
 let fns () : List<BuiltInFn> =
   [
 
@@ -47,7 +22,7 @@ let fns () : List<BuiltInFn> =
         (function
         | state, _, _, [ DBlob ref ] ->
           uply {
-            let! bs = readBlob state ref
+            let! bs = Dval.readBlobBytes state ref
             return DInt64(int64 bs.Length)
           }
         | _ -> incorrectArgs ())
@@ -84,7 +59,7 @@ let fns () : List<BuiltInFn> =
         (function
         | state, _, _, [ DBlob ref ] ->
           uply {
-            let! bs = readBlob state ref
+            let! bs = Dval.readBlobBytes state ref
             try
               let s = (new System.Text.UTF8Encoding(false, true)).GetString(bs)
               return ok (DString s)
@@ -108,7 +83,7 @@ let fns () : List<BuiltInFn> =
         (function
         | state, _, _, [ DBlob ref ] ->
           uply {
-            let! bs = readBlob state ref
+            let! bs = Dval.readBlobBytes state ref
             return DString(System.Convert.ToHexString(bs))
           }
         | _ -> incorrectArgs ())
@@ -149,7 +124,7 @@ let fns () : List<BuiltInFn> =
         (function
         | state, _, _, [ DBlob ref ] ->
           uply {
-            let! bs = readBlob state ref
+            let! bs = Dval.readBlobBytes state ref
             return DString(System.Convert.ToBase64String(bs))
           }
         | _ -> incorrectArgs ())
@@ -202,7 +177,7 @@ let fns () : List<BuiltInFn> =
             for item in items do
               match item with
               | DBlob ref ->
-                let! bs = readBlob state ref
+                let! bs = Dval.readBlobBytes state ref
                 collected.Write(bs, 0, bs.Length)
               | _ ->
                 return
@@ -230,7 +205,7 @@ let fns () : List<BuiltInFn> =
         (function
         | state, _, _, [ DBlob ref; DInt64 startL; DInt64 lenL ] ->
           uply {
-            let! bs = readBlob state ref
+            let! bs = Dval.readBlobBytes state ref
             let len64 = int64 bs.Length
             let safeStart = max 0L (min startL len64)
             let safeLen = max 0L (min lenL (len64 - safeStart))
@@ -255,7 +230,7 @@ let fns () : List<BuiltInFn> =
         (function
         | state, _, _, [ DBlob ref ] ->
           uply {
-            let! bs = readBlob state ref
+            let! bs = Dval.readBlobBytes state ref
             return Dval.byteArrayToDvalList bs
           }
         | _ -> incorrectArgs ())

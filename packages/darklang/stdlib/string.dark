@@ -344,6 +344,16 @@ let fromBytes (bytes: List<UInt8>) : Option.Option<String> =
   Builtin.stringFromBytes bytes
 
 
+/// Converts the given unicode string to a UTF8-encoded Blob.
+let toBlob (str: String) : Blob = Builtin.stringToBytes str
+
+
+/// Converts a UTF8-encoded Blob into a string. Invalid sequences are
+/// replaced.
+let fromBlobWithReplacement (blob: Blob) : String =
+  Builtin.stringFromBytesWithReplacement blob
+
+
 /// Checks if <param subject> starts with <param prefix>
 let startsWith (subject: String) (prefix: String) : Bool =
   String.slice_v0 subject 0L (String.length prefix) == prefix

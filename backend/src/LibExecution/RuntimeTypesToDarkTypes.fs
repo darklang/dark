@@ -706,11 +706,11 @@ module Dval =
       | DBlob(Persistent(hash, length)) ->
         "DBlobPersistent", [ DString hash; DInt64 length ]
 
-      // Streams render as an elided tag for LSP/reflection only — they
+      // Streams render as a stub tag for LSP/reflection only — they
       // can't round-trip (no live pull fn on the other side). The
       // [impl.elemType] member walks transform nodes (Mapped/Filtered/
       // Take/Concat) to report the emitted element type.
-      | DStream(impl, _, _) -> "DStreamElided", [ ValueType.toDT impl.elemType ]
+      | DStream(impl, _, _) -> "DStreamStub", [ ValueType.toDT impl.elemType ]
 
     DEnum(typeName (), typeName (), [], caseName, fields)
 
@@ -778,9 +778,9 @@ module Dval =
     | DEnum(_, _, [], "DBlobPersistent", [ DString hash; DInt64 length ]) ->
       DBlob(Persistent(hash, length))
 
-    | DEnum(_, _, [], "DStreamElided", [ _elemType ]) ->
+    | DEnum(_, _, [], "DStreamStub", [ _elemType ]) ->
       Exception.raiseInternal
-        "Cannot rebuild a DStream from DStreamElided — streams don't round-trip through the dark-type bridge"
+        "Cannot rebuild a DStream from DStreamStub — streams don't round-trip through the dark-type bridge"
         []
 
     | _ -> Exception.raiseInternal "Invalid Dval" []

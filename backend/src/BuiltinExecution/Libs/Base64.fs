@@ -11,29 +11,6 @@ module VT = LibExecution.ValueType
 module Dval = LibExecution.Dval
 
 
-/// Dereference a DBlob to its bytes. Same pattern as in Crypto.fs —
-/// ephemerals via blobStore, persistents via state.blobs.get.
-let private readBlob (state : ExecutionState) (ref : BlobRef) : Ply<byte[]> =
-  uply {
-    match ref with
-    | Ephemeral id ->
-      let mutable bs : byte[] = null
-      if state.blobStore.TryGetValue(id, &bs) then
-        return bs
-      else
-        return Exception.raiseInternal "ephemeral blob not found" [ "id", id ]
-    | Persistent(hash, _) ->
-      let! got = state.blobs.get hash
-      match got with
-      | Some bs -> return bs
-      | None ->
-        return
-          Exception.raiseInternal
-            "persistent blob missing in package_blobs"
-            [ "hash", hash ]
-  }
-
-
 let fns () : List<BuiltInFn> =
   [ { name = fn "base64Decode" 0
       typeParams = []
@@ -87,7 +64,7 @@ let fns () : List<BuiltInFn> =
         (function
         | state, _, _, [ DBlob ref ] ->
           uply {
-            let! bytes = readBlob state ref
+            let! bytes = Dval.readBlobBytes state ref
             return DString(System.Convert.ToBase64String(bytes))
           }
         | _ -> incorrectArgs ())
@@ -108,7 +85,7 @@ let fns () : List<BuiltInFn> =
         (function
         | state, _, _, [ DBlob ref ] ->
           uply {
-            let! bytes = readBlob state ref
+            let! bytes = Dval.readBlobBytes state ref
             // Differs from Base64.encodeToUrlSafe as this version has padding
             let encoded =
               System.Convert

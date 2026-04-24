@@ -8,6 +8,40 @@ let builtin
   : Stdlib.Result.Result<TBuiltin, WrittenTypes.Unparseable> =
   Stdlib.Result.Result.Ok b
 
+/// Shared parse for single-type-parameter generic builtins
+/// (List<T>, Stream<T>, ...). Pulls the keyword, angle brackets, and
+/// inner parsed type off [firstChild], then hands them to [mkType] to
+/// produce the specific constructor.
+let parseSingleTypeParamBuiltin
+  (node: ParsedNode)
+  (firstChild: ParsedNode)
+  (mkType:
+    Range
+      -> Range
+      -> Range
+      -> WrittenTypes.TypeReference.TypeReference
+      -> Range
+      -> TBuiltin)
+  : Stdlib.Result.Result<TBuiltin, WrittenTypes.Unparseable> =
+  let keyword = findField firstChild "keyword_type_constructor"
+  let openBracket = findField firstChild "symbol_open_angle"
+  let typeParam =
+    findAndParseRequired firstChild "typ_param" TypeReference.parse
+  let closeBracket = findField firstChild "symbol_close_angle"
+
+  match keyword, openBracket, typeParam, closeBracket with
+  | Ok kw, Ok openBracket, Ok tp, Ok closeBracket ->
+    (mkType
+      firstChild.range
+      kw.range
+      openBracket.range
+      tp
+      closeBracket.range)
+    |> builtin
+
+  | _ -> createUnparseableError node
+
+
 let parseBuiltIn
   (node: ParsedNode)
   : Stdlib.Result.Result<WrittenTypes.TypeReference.Builtin, WrittenTypes.Unparseable> =
@@ -117,50 +151,12 @@ let parseBuiltIn
           | _ -> createUnparseableError node
 
         | "list_type_reference" ->
-          let listKeyword = findField firstChild "keyword_type_constructor"
-          let openBracketNode = findField firstChild "symbol_open_angle"
-
-          let typeParamNode =
-            findAndParseRequired firstChild "typ_param" TypeReference.parse
-
-          let closeBracketNode = findField firstChild "symbol_close_angle"
-
-          match
-            listKeyword, openBracketNode, typeParamNode, closeBracketNode
-          with
-          | Ok listKeyword, Ok openBracket, Ok typeParam, Ok closeBracket ->
-            (TBuiltin.TList(
-              firstChild.range,
-              listKeyword.range,
-              openBracket.range,
-              typeParam,
-              closeBracket.range)
-            ) |> builtin
-
-          | _ -> createUnparseableError node
+          parseSingleTypeParamBuiltin node firstChild (fun range kw openB tp closeB ->
+            TBuiltin.TList(range, kw, openB, tp, closeB))
 
         | "stream_type_reference" ->
-          let streamKeyword = findField firstChild "keyword_type_constructor"
-          let openBracketNode = findField firstChild "symbol_open_angle"
-
-          let typeParamNode =
-            findAndParseRequired firstChild "typ_param" TypeReference.parse
-
-          let closeBracketNode = findField firstChild "symbol_close_angle"
-
-          match
-            streamKeyword, openBracketNode, typeParamNode, closeBracketNode
-          with
-          | Ok streamKeyword, Ok openBracket, Ok typeParam, Ok closeBracket ->
-            (TBuiltin.TStream(
-              firstChild.range,
-              streamKeyword.range,
-              openBracket.range,
-              typeParam,
-              closeBracket.range)
-            ) |> builtin
-
-          | _ -> createUnparseableError node
+          parseSingleTypeParamBuiltin node firstChild (fun range kw openB tp closeB ->
+            TBuiltin.TStream(range, kw, openB, tp, closeB))
 
         | "fn_type_reference" ->
           let returnTypeNode =
