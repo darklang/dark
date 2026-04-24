@@ -136,6 +136,7 @@ if the work above is done and time remains.
 - [ ] L.3 orphan package_blobs sweeper
 - [ ] L.4 blob equality semantics (hash-compare after promotion)
 - [ ] L.5 sub-blob slicing (share bytes, BEAM-style) if profiles show need
+- [ ] L.6 retype Stdlib.Crypto/Base64/String public signatures to Blob (1.10 follow-on — migrate ~90 .dark test cases in big.dark / base64.dark / crypto.dark / bytes.dark / http.dark / string.dark that currently assume List<UInt8> semantics, then drop the bytesFromList/bytesToList bridges from the stdlib wrappers)
 
 ## Progress log
 

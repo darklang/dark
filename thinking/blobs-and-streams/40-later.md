@@ -151,3 +151,45 @@ Files:
 **Skip unless** phase-1 or phase-2 results show slice-copy is hot.
 
 **Commit:** `blob: sub-blob slicing with shared parent bytes`
+
+## L.6 — retype Stdlib.Crypto / Base64 / String to Blob
+
+**Context.** Chunk 1.10 migrated the Builtins (Crypto/Base64/String)
+to take and return `Blob`, but kept the Dark-side Stdlib wrappers on
+`List<UInt8>` with internal `bytesFromList`/`bytesToList` bridges.
+The reason: the .dark test corpus assumes byte-list semantics and
+would take ~90 edits to migrate. Deferred rather than bundled.
+
+**What it involves.**
+
+Call sites to update, grouped by test file:
+
+- `backend/testfiles/execution/language/big.dark` — uses
+  `Stdlib.Bytes.hexEncode_v0`, `Stdlib.List.length` on a byte list,
+  `Stdlib.Base64.urlEncode_v0`.
+- `backend/testfiles/execution/stdlib/base64.dark` — ~40 tests
+  comparing `Result.Ok (Stdlib.String.toBytes "...")`.
+- `backend/testfiles/execution/stdlib/crypto.dark` — ~9 tests nesting
+  `Stdlib.Bytes.hexEncode_v0 (Stdlib.Crypto.sha256_v0 (...))`.
+- `backend/testfiles/execution/stdlib/bytes.dark` — 4 legacy
+  `hexEncode_v0` tests on top of the 22 new-API tests from 1.7/1.13.
+- `backend/testfiles/execution/stdlib/http.dark` — body assembly.
+- `backend/testfiles/execution/stdlib/string.dark` — bytes bridges.
+
+Strategy:
+1. Retype each wrapper signature in `packages/darklang/stdlib/*.dark`
+   from `List<UInt8>` → `Blob`.
+2. Update the corresponding .dark tests. Many will reduce to using
+   `Stdlib.Bytes.fromString` / `toHex` / `toString` directly instead
+   of the bridged chain through `toBytes_v0`.
+3. Keep `Stdlib.Bytes.hexEncode_v0` on the `List<UInt8>` shape (old
+   API) for one release cycle, marked `DeprecatedBecause`.
+4. Rerun `./scripts/run-backend-tests`. Expected LOC delta: ~150
+   lines of test churn, ~30 of wrapper cleanup.
+
+**Why it's deferred.** Phase 1's goal was "fix the OOM"; that's done.
+Public-API churn in stdlib wrappers is a tidy-up that can ship on its
+own cadence, doesn't block Phase 2, and has its own test-matrix
+concerns (each migrated test file is independently verifiable).
+
+**Commit:** `blob: retype stdlib crypto/base64/string public signatures to blob`
