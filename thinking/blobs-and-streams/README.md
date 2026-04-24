@@ -104,7 +104,7 @@ See [20-phase-1.md](./20-phase-1.md).
 - [x] 1.10 update Dark-side stdlib/bytes.dark + dependents
 - [x] 1.11 update tree-sitter grammar and Dark-side parser/pretty-printer
 - [x] 1.12 add F# roundtrip + promotion + memory tests
-- [ ] 1.13 add .dark bytes tests
+- [x] 1.13 add .dark bytes tests
 - [ ] 1.14 capture before/after diff into phase-1-results.md
 
 ### Phase 2 — Stream
@@ -161,6 +161,7 @@ Append one line per chunk completion. Format:
 2026-04-24 01:18  1.11  Pulled ahead of 1.10 because 1.10 depends on Blob being parseable. tree-sitter grammar + src/parser.c regenerated; WrittenTypes/ProgramTypes/RuntimeTypes Builtin DUs gain TBlob/KTBlob; parser/typeReference.dark, writtenTypesToProgramTypes, semanticTokens, hoverInformation, and both pretty-printers all get the new case. `let x: Blob = Builtin.bytesFromString "hi"` now parses end-to-end. 5591 LibExecution tests green. Dval printer styling for DBlob (<blob ephemeral ...> / <blob sha256:...>) deferred — the existing Dval printer is a TODO elsewhere; catch-all renders fine.
 2026-04-24 01:46  1.10  partial. LibParser (F#) WrittenTypes + FSharpToWrittenTypes + WrittenTypesToProgramTypes gained TBlob so `.dark` files parse Blob. bytes.dark got the full new Blob-based surface; cli/file.dark readBytes returns Blob; cli/fileSystem.dark writeFile takes Blob; cli/zsh|bash|fish use Builtin.stringToBytes/FromBytes directly for Blob-shaped IO. **Public signatures of Stdlib.Crypto/Base64/String (List<UInt8>) preserved** via internal bytesFromList/bytesToList bridges because migrating the .dark test corpus to Blob is a bigger separate pass. NoModule.equals/notEquals now promoteBlobs-normalize both args (no-op insert) so two ephemerals with same bytes compare equal. 5591 LibExecution tests green.
 2026-04-24 02:02  1.12  Blob.Tests expanded 19 → 24. New: fileRead memory bound (10MB file → <30MB alloc vs baseline ~2GB), User-DB queryable JSON roundtrip (envelope + parse path, needed to round out DvalReprInternalQueryable.parseJsonV0 for TBlob), User-DB queryable ephemeral raises, roundtrippable-json persistent + ephemeral roundtrips. All 24 green.
+2026-04-24 02:09  1.13  bytes.dark tests expanded 15 → 26. 1.7 already added 11 Builtin.bytes* tests; 1.13 adds 11 Stdlib.Bytes.* wrapper tests exercising the Dark-side module surface added in 1.10 (length/fromString/toString, hex round, base64 round, concat, slice, toList/fromList).
 
 ## Blockers
 

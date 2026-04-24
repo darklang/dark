@@ -57,3 +57,57 @@ Builtin.bytesToList (Builtin.bytesFromString "abc") = [ 97uy; 98uy; 99uy ]
 
 // fromList escape hatch: length 3
 Builtin.bytesLength (Builtin.bytesFromList [ 97uy; 98uy; 99uy ]) = 3L
+
+
+// --- Stdlib.Bytes.* wrapper API (chunk 1.13) ---
+// Exercises the Dark-side module surface added in 1.10. Same
+// semantics as the Builtin.* cases above, but drives the public
+// stdlib module so any wrapper-layer regressions (eg. chunk 1.7 →
+// 1.10 name changes) show up here.
+
+Stdlib.Bytes.length (Stdlib.Bytes.fromString "hi") = 2L
+Stdlib.Bytes.length (Stdlib.Bytes.fromString "") = 0L
+
+// fromString / toString roundtrip
+(match Stdlib.Bytes.toString (Stdlib.Bytes.fromString "hello") with
+ | Ok s -> s
+ | Error e -> e) = "hello"
+
+// hex roundtrip via wrapper
+(match Stdlib.Bytes.fromHex "48656c6c6f" with
+ | Ok b ->
+   (match Stdlib.Bytes.toString b with
+    | Ok s -> s
+    | Error e -> e)
+ | Error e -> e) = "Hello"
+
+Stdlib.Bytes.toHex (Stdlib.Bytes.fromString "Hi") = "4869"
+
+// base64 roundtrip via wrapper
+Stdlib.Bytes.toBase64 (Stdlib.Bytes.fromString "hello") = "aGVsbG8="
+
+(match Stdlib.Bytes.fromBase64 "aGVsbG8=" with
+ | Ok b ->
+   (match Stdlib.Bytes.toString b with
+    | Ok s -> s
+    | Error e -> e)
+ | Error e -> e) = "hello"
+
+// concat via wrapper
+(match Stdlib.Bytes.toString
+        (Stdlib.Bytes.concat
+          [ Stdlib.Bytes.fromString "foo"
+            Stdlib.Bytes.fromString "-"
+            Stdlib.Bytes.fromString "bar" ]) with
+ | Ok s -> s
+ | Error _ -> "err") = "foo-bar"
+
+// slice via wrapper (three middle bytes of "abcdef" = "cde")
+(match Stdlib.Bytes.toString
+        (Stdlib.Bytes.slice (Stdlib.Bytes.fromString "abcdef") 2L 3L) with
+ | Ok s -> s
+ | Error _ -> "err") = "cde"
+
+// toList/fromList escape hatches
+Stdlib.Bytes.toList (Stdlib.Bytes.fromString "abc") = [ 97uy; 98uy; 99uy ]
+Stdlib.Bytes.length (Stdlib.Bytes.fromList [ 97uy; 98uy; 99uy ]) = 3L
