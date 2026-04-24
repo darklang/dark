@@ -111,3 +111,10 @@ Stdlib.Bytes.toBase64 (Stdlib.Bytes.fromString "hello") = "aGVsbG8="
 // toList/fromList escape hatches
 Stdlib.Bytes.toList (Stdlib.Bytes.fromString "abc") = [ 97uy; 98uy; 99uy ]
 Stdlib.Bytes.length (Stdlib.Bytes.fromList [ 97uy; 98uy; 99uy ]) = 3L
+
+// L.4 — blob equality uses byte content, not handle identity.
+// Two ephemerals produced independently compare equal when their
+// bytes match (the `==` builtin promotes both sides through
+// `promoteBlobs` so hash-compare falls out of structural equality).
+((Stdlib.Bytes.fromString "hi") == (Stdlib.Bytes.fromString "hi")) = true
+((Stdlib.Bytes.fromString "hi") == (Stdlib.Bytes.fromString "bye")) = false

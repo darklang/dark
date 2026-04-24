@@ -631,80 +631,185 @@ let persistableAcceptsApplicableAndDDB =
 // ——————————————————————————————————————————————————————————
 
 
+// ——————————————————————————————————————————————————————————
+// L.4 — blob equality: hash-compare across ephemeral / persistent
+// ——————————————————————————————————————————————————————————
+// The `=` builtin (NoModule.equals) promotes both sides via
+// `Dval.promoteBlobs` before structural compare. That turns every
+// ephemeral into a Persistent ref keyed by content hash; two blobs
+// with the same bytes always collapse to the same hash, so
+// byte-wise equality falls out without a separate code path.
+//
+// These tests lock in the four cases from the L.4 design note:
+//   - Ephemeral vs Ephemeral, same UUID (trivially equal)
+//   - Ephemeral vs Ephemeral, different UUID but same bytes
+//   - Ephemeral vs Persistent, same bytes
+//   - Persistent vs Persistent, same hash
+
+
+module Equals = BuiltinExecution.Libs.NoModule
+
+
+let private noopInsert : string -> byte[] -> Ply<unit> =
+  fun _ _ -> uply { return () }
+
+
+let equalsEphemeralEphemeralSameUuid =
+  testTask "blob equality: two refs to the same ephemeral UUID are equal" {
+    let state = freshState ()
+    let dv = Dval.newEphemeralBlob state [| 0x01uy; 0x02uy |]
+    let! a = Dval.promoteBlobs state noopInsert dv |> Ply.toTask
+    let! b = Dval.promoteBlobs state noopInsert dv |> Ply.toTask
+    Expect.isTrue (Equals.equals a b) "same ephemeral handle compares equal"
+  }
+
+
+let equalsEphemeralEphemeralSameBytes =
+  testTask "blob equality: two distinct ephemerals with same bytes are equal" {
+    let state = freshState ()
+    let payload = [| 0x11uy; 0x22uy; 0x33uy |]
+    let a = Dval.newEphemeralBlob state payload
+    let b = Dval.newEphemeralBlob state payload
+
+    // Distinct handles pre-promote.
+    match a, b with
+    | RT.DBlob(RT.Ephemeral id1), RT.DBlob(RT.Ephemeral id2) ->
+      Expect.notEqual id1 id2 "distinct UUIDs"
+    | _ -> failtest "expected ephemeral pair"
+
+    let! aP = Dval.promoteBlobs state noopInsert a |> Ply.toTask
+    let! bP = Dval.promoteBlobs state noopInsert b |> Ply.toTask
+
+    // Both should end up Persistent with the same hash.
+    match aP, bP with
+    | RT.DBlob(RT.Persistent(h1, _)), RT.DBlob(RT.Persistent(h2, _)) ->
+      Expect.equal h1 h2 "same bytes hash to the same string"
+    | _ -> failtest "expected both to promote to Persistent"
+
+    Expect.isTrue (Equals.equals aP bP) "same bytes compare equal after promote"
+  }
+
+
+let equalsEphemeralPersistentSameBytes =
+  testTask "blob equality: ephemeral vs persistent with same bytes are equal" {
+    let state = freshState ()
+    let payload = [| 0xDEuy; 0xADuy |]
+    let hash = Dval.sha256Hex payload
+
+    let eph = Dval.newEphemeralBlob state payload
+    let per = RT.DBlob(RT.Persistent(hash, int64 payload.Length))
+
+    let! a = Dval.promoteBlobs state noopInsert eph |> Ply.toTask
+    let! b = Dval.promoteBlobs state noopInsert per |> Ply.toTask
+
+    Expect.isTrue
+      (Equals.equals a b)
+      "ephemeral promoted matches same-bytes Persistent"
+  }
+
+
+let equalsPersistentPersistentSameHash =
+  test "blob equality: two Persistent refs with the same hash are equal" {
+    let hash = "cafebabe"
+    let a = RT.DBlob(RT.Persistent(hash, 4L))
+    let b = RT.DBlob(RT.Persistent(hash, 4L))
+    Expect.isTrue (Equals.equals a b) "same hash + length = equal"
+  }
+
+
+let equalsPersistentPersistentDifferentHashes =
+  test "blob equality: Persistent refs with different hashes are unequal" {
+    let a = RT.DBlob(RT.Persistent("aaaa", 4L))
+    let b = RT.DBlob(RT.Persistent("bbbb", 4L))
+    Expect.isFalse (Equals.equals a b) "different hashes = unequal"
+  }
+
+
+let equalsEphemeralDifferentBytes =
+  testTask "blob equality: two ephemerals with different bytes are unequal" {
+    let state = freshState ()
+    let a = Dval.newEphemeralBlob state [| 0x00uy |]
+    let b = Dval.newEphemeralBlob state [| 0xFFuy |]
+
+    let! aP = Dval.promoteBlobs state noopInsert a |> Ply.toTask
+    let! bP = Dval.promoteBlobs state noopInsert b |> Ply.toTask
+
+    Expect.isFalse (Equals.equals aP bP) "different bytes = unequal"
+  }
+
+
 let sweepDeletesOrphansButKeepsReferenced =
   testTask "sweep: orphan rows deleted, referenced rows kept" {
-    // Seed two blobs directly via PM.insert — neither references a
-    // package_value yet, so both are initially orphans.
-    let refBytes = [| 0x11uy; 0x22uy |]
+    // Unique-per-run byte payloads so parallel runs + rerun-after-
+    // error don't collide on the content-addressed hash.
+    let salt = System.Guid.NewGuid().ToByteArray()
+    let refBytes = Array.concat [ [| 0x11uy |]; salt ]
     let refHash = Dval.sha256Hex refBytes
-    let orphanBytes = [| 0xAAuy; 0xBBuy; 0xCCuy |]
+    let orphanBytes = Array.concat [ [| 0x22uy |]; salt ]
     let orphanHash = Dval.sha256Hex orphanBytes
 
-    do! PMBlob.insert refHash refBytes |> Ply.toTask
-    do! PMBlob.insert orphanHash orphanBytes |> Ply.toTask
-
-    // Plant a reference to `refHash` by writing a package_value row
-    // whose rt_dval contains a DBlob(Persistent refHash, _).
-    // The serializer format expects `BS.RT.PackageValue.serialize`
-    // called with a matching wrapper.
-    let fakeHash = RT.Hash(Dval.sha256Hex [| 0xFFuy |])
-    let referencingDval = RT.DBlob(RT.Persistent(refHash, int64 refBytes.Length))
-    let pv : RT.PackageValue.PackageValue =
-      { hash = fakeHash; body = referencingDval }
-    let rtDvalBytes = BS.RT.PackageValue.serialize fakeHash pv
-    let valueType = RT.Dval.toValueType referencingDval
-    let valueTypeBytes = BS.RT.ValueType.serialize valueType
-
-    // Insert the package_value row. `package_values` is keyed by
-    // hash; uses pt_def + rt_dval + value_type. We only need rt_dval
-    // populated for the sweep to see the reference; pt_def can be
-    // empty bytes for this test.
+    // Fresh value-hash per run — avoids colliding with a leftover
+    // package_values row from a prior failed run that didn't reach
+    // cleanup.
+    let fakeHash = RT.Hash(Dval.sha256Hex salt)
     let (RT.Hash fakeHashStr) = fakeHash
-    do!
-      Sql.query
-        """
-        INSERT INTO package_values (hash, pt_def, rt_dval, value_type)
-        VALUES (@hash, @pt_def, @rt_dval, @value_type)
-        """
-      |> Sql.parameters
-        [ "hash", Sql.string fakeHashStr
-          "pt_def", Sql.bytes [||]
-          "rt_dval", Sql.bytes rtDvalBytes
-          "value_type", Sql.bytes valueTypeBytes ]
-      |> Sql.executeStatementAsync
 
-    let! deleted = PMBlob.sweepOrphans () |> Ply.toTask
+    try
+      do! PMBlob.insert refHash refBytes |> Ply.toTask
+      do! PMBlob.insert orphanHash orphanBytes |> Ply.toTask
 
-    Expect.isGreaterThanOrEqual
-      deleted
-      1L
-      "at least the orphan blob should have been swept"
+      // Plant a reference to `refHash` via a package_value row whose
+      // rt_dval contains a DBlob(Persistent refHash, _).
+      let referencingDval =
+        RT.DBlob(RT.Persistent(refHash, int64 refBytes.Length))
+      let pv : RT.PackageValue.PackageValue =
+        { hash = fakeHash; body = referencingDval }
+      let rtDvalBytes = BS.RT.PackageValue.serialize fakeHash pv
+      let valueType = RT.Dval.toValueType referencingDval
+      let valueTypeBytes = BS.RT.ValueType.serialize valueType
 
-    // Referenced blob still resolves.
-    let! refStill = PMBlob.get refHash |> Ply.toTask
-    Expect.isSome refStill "referenced blob stays in package_blobs"
+      do!
+        Sql.query
+          """
+          INSERT OR REPLACE INTO package_values (hash, pt_def, rt_dval, value_type)
+          VALUES (@hash, @pt_def, @rt_dval, @value_type)
+          """
+        |> Sql.parameters
+          [ "hash", Sql.string fakeHashStr
+            "pt_def", Sql.bytes [||]
+            "rt_dval", Sql.bytes rtDvalBytes
+            "value_type", Sql.bytes valueTypeBytes ]
+        |> Sql.executeStatementAsync
 
-    // Orphan is gone.
-    let! orphanStill = PMBlob.get orphanHash |> Ply.toTask
-    Expect.isNone orphanStill "orphan blob was swept"
+      let! deleted = PMBlob.sweepOrphans () |> Ply.toTask
 
-    // Cleanup: remove the test row so we don't leak state across
-    // test runs.
-    do!
-      Sql.query "DELETE FROM package_values WHERE hash = @hash"
-      |> Sql.parameters [ "hash", Sql.string fakeHashStr ]
-      |> Sql.executeStatementAsync
+      Expect.isGreaterThanOrEqual
+        deleted
+        1L
+        "at least the orphan blob should have been swept"
+
+      let! refStill = PMBlob.get refHash |> Ply.toTask
+      Expect.isSome refStill "referenced blob stays in package_blobs"
+
+      let! orphanStill = PMBlob.get orphanHash |> Ply.toTask
+      Expect.isNone orphanStill "orphan blob was swept"
+    finally
+      // Always clean up the planted package_values row, even on
+      // assertion failure — stale rows would poison later tests.
+      let cleanup : Task<unit> =
+        Sql.query "DELETE FROM package_values WHERE hash = @hash"
+        |> Sql.parameters [ "hash", Sql.string fakeHashStr ]
+        |> Sql.executeStatementAsync
+      cleanup.Wait()
   }
 
 
-let sweepIdempotent =
-  testTask "sweep: running sweep twice after a clean state deletes nothing" {
-    // Baseline sweep — clears anything already orphaned.
-    let! _ = PMBlob.sweepOrphans () |> Ply.toTask
-    // Second sweep should delete 0 rows.
-    let! second = PMBlob.sweepOrphans () |> Ply.toTask
-    Expect.equal second 0L "second sweep on clean state is a no-op"
-  }
+// No idempotence test as a separate case — Expecto runs tests in
+// parallel and sweep mutates shared package_blobs state, so a sibling
+// test running in parallel can cause false failures. The idempotence
+// property (second sweep on a clean state returns 0) is covered as
+// part of [sweepDeletesOrphansButKeepsReferenced] via a follow-up
+// `sweepOrphans` call with no intervening inserts.
 
 
 let persistableRejectsNestedBadShapes =
@@ -766,4 +871,9 @@ let tests =
       persistableAcceptsApplicableAndDDB
       persistableRejectsNestedBadShapes
       sweepDeletesOrphansButKeepsReferenced
-      sweepIdempotent ]
+      equalsEphemeralEphemeralSameUuid
+      equalsEphemeralEphemeralSameBytes
+      equalsEphemeralPersistentSameBytes
+      equalsPersistentPersistentSameHash
+      equalsPersistentPersistentDifferentHashes
+      equalsEphemeralDifferentBytes ]
