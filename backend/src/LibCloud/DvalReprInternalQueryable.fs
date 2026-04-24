@@ -356,10 +356,17 @@ let parseJsonV0
     | TFn _, _ -> Exception.raiseInternal "Fn values not supported" []
     | TDB _, _ -> Exception.raiseInternal "DB values not supported" []
     | TVariable _, _ -> Exception.raiseInternal "Variables not supported yet" []
+    | TBlob, JsonValueKind.Object ->
+      // Blob values live in package_blobs; the User DB row holds a
+      // {"type":"blob","hash":"...","length":N} envelope. Mirror the
+      // writer in toJsonV0.
+      let hash = j.GetProperty("hash").GetString()
+      let length = j.GetProperty("length").GetInt64()
+      DBlob(Persistent(hash, length)) |> Ply
     | TBlob, _ ->
-      // Blob values in User DB rows are handled via their hash reference
-      // in Phase 1 chunk 1.6 — not supported until then.
-      Exception.raiseInternal "Blob values not yet supported in User DB" []
+      Exception.raiseInternal
+        "Blob value must be a JSON object envelope"
+        [ "json", j ]
 
     // Exhaustiveness checking
     | TUnit, _

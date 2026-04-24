@@ -22,6 +22,8 @@ module BS = LibSerialization.Binary.Serialization
 module PT2DT = LibExecution.ProgramTypesToDarkTypes
 module RT2DT = LibExecution.RuntimeTypesToDarkTypes
 module PMBlob = LibPackageManager.RuntimeTypes.Blob
+module RoundtrippableJson = LibExecution.DvalReprInternalRoundtrippable
+module QueryableJson = LibExecution.DvalReprInternalQueryable
 
 
 /// Minimal ExecutionState suitable for exercising blob helpers
@@ -339,6 +341,117 @@ let promotedBlobResolvesViaReadBlobBytes =
   }
 
 
+let fileReadMemoryBound =
+  testTask "fileRead allocation stays within 3x file size for a 10mb blob" {
+    // Mirrors phase-0's fileRead scenario but with the new Blob-returning
+    // builtin. Should allocate ~file-size bytes plus a little overhead
+    // (the byte[] itself plus a single DBlob Dval + a UUID) instead of
+    // N boxed DUInt8 cells.
+    let path =
+      System.IO.Path.Combine(System.IO.Path.GetTempPath(), "blob-memory-10mb.bin")
+    if not (System.IO.File.Exists(path)) then
+      let buf = Array.zeroCreate<byte> 10_000_000
+      System.Random(0).NextBytes(buf)
+      System.IO.File.WriteAllBytes(path, buf)
+
+    // Build state first so its allocations don't contaminate the delta.
+    let state = freshState ()
+
+    System.GC.Collect()
+    System.GC.WaitForPendingFinalizers()
+    System.GC.Collect()
+    let before = System.GC.GetTotalAllocatedBytes(precise = false)
+
+    // Directly exercise the same code path Builtin.fileRead drives into:
+    // ReadAllBytes + newEphemeralBlob.
+    let! bytes = System.IO.File.ReadAllBytesAsync path
+    let _dv = Dval.newEphemeralBlob state bytes
+
+    let after = System.GC.GetTotalAllocatedBytes(precise = false)
+    let delta = after - before
+
+    // Phase 0 baseline: 10MB fileRead cost ~2GB alloc. The new blob
+    // path should drop by ~100x. Bound is generous — anything remotely
+    // resembling a list-boxing regression hits orders of magnitude over
+    // this.
+    Expect.isLessThan
+      delta
+      30_000_000L
+      $"fileRead for 10MB allocated {delta} bytes — a list-boxing regression may have crept in"
+  }
+
+
+let queryableJsonRoundtrip =
+  testTask "User-DB queryable JSON roundtrips a persistent blob dval" {
+    let types = { RT.Types.empty with package = pmRT.getType }
+    let threadID = System.Guid.NewGuid()
+
+    let original =
+      RT.DBlob(
+        RT.Persistent(
+          "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          2048L
+        )
+      )
+
+    let! json = QueryableJson.toJsonStringV0 types threadID original |> Ply.toTask
+
+    // Envelope shape: {"type":"blob","hash":"...","length":N}
+    Expect.stringContains json "\"type\":\"blob\"" "has blob envelope tag"
+    Expect.stringContains
+      json
+      "\"hash\":\"e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855\""
+      "has the content hash"
+
+    let! restored =
+      QueryableJson.parseJsonV0 types threadID Map.empty RT.TBlob json |> Ply.toTask
+    Expect.equal restored original "persistent blob survives queryable JSON"
+  }
+
+
+let queryableJsonEphemeralRaises =
+  testTask "User-DB queryable JSON raises on ephemeral blob (promotion needed)" {
+    let state = freshState ()
+    let types = { RT.Types.empty with package = pmRT.getType }
+    let threadID = System.Guid.NewGuid()
+
+    let ephemeral = Dval.newEphemeralBlob state [| 1uy; 2uy; 3uy |]
+
+    let mutable raised = false
+    try
+      let! _ = QueryableJson.toJsonStringV0 types threadID ephemeral |> Ply.toTask
+      ()
+    with _ ->
+      raised <- true
+
+    Expect.isTrue
+      raised
+      "ephemeral blob in queryable JSON should raise (promote first)"
+  }
+
+
+let roundtrippableJsonPersistentRoundtrip =
+  test "rt_dval roundtrippable JSON preserves DBlob(Persistent _)" {
+    let original = RT.DBlob(RT.Persistent("deadbeef" + String.replicate 56 "a", 99L))
+    let json = RoundtrippableJson.toJsonV0 original
+    let restored = RoundtrippableJson.parseJsonV0 json
+    Expect.equal restored original "persistent blob survives rt_dval JSON"
+  }
+
+
+let roundtrippableJsonEphemeralRoundtrip =
+  test "rt_dval roundtrippable JSON preserves DBlob(Ephemeral _)" {
+    let id = System.Guid.NewGuid()
+    let original = RT.DBlob(RT.Ephemeral id)
+    let json = RoundtrippableJson.toJsonV0 original
+    let restored = RoundtrippableJson.parseJsonV0 json
+    Expect.equal
+      restored
+      original
+      "ephemeral blob survives rt_dval JSON as its own case"
+  }
+
+
 let tests =
   testList
     "blob"
@@ -360,4 +473,9 @@ let tests =
       promotePersistsAndSwaps
       promoteThenSerializeRoundtrips
       promoteSameBytesTwiceDedups
-      promotedBlobResolvesViaReadBlobBytes ]
+      promotedBlobResolvesViaReadBlobBytes
+      fileReadMemoryBound
+      queryableJsonRoundtrip
+      queryableJsonEphemeralRaises
+      roundtrippableJsonPersistentRoundtrip
+      roundtrippableJsonEphemeralRoundtrip ]
