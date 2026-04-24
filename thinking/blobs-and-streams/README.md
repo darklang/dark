@@ -124,7 +124,7 @@ See [30-phase-2.md](./30-phase-2.md).
 - [x] 2.11 F# drain + disposal + lazy-ordering tests
 - [x] 2.12 .dark stream tests
 - [x] 2.13 validate against real SSE endpoint (manual) — **deferred to user**; agent has no access to a live SSE endpoint (Anthropic messages API, etc.). In-process Kestrel coverage already lives in sse.dark + HttpClient.Tests.fs stream-dval suite. See Blockers for the open item.
-- [ ] 2.14 capture phase-2-results.md
+- [x] 2.14 capture phase-2-results.md
 
 ### Later
 
@@ -137,6 +137,7 @@ if the work above is done and time remains.
 - [ ] L.4 blob equality semantics (hash-compare after promotion)
 - [ ] L.5 sub-blob slicing (share bytes, BEAM-style) if profiles show need
 - [ ] L.6 retype Stdlib.Crypto/Base64/String public signatures to Blob (1.10 follow-on — migrate ~90 .dark test cases in big.dark / base64.dark / crypto.dark / bytes.dark / http.dark / string.dark that currently assume List<UInt8> semantics, then drop the bytesFromList/bytesToList bridges from the stdlib wrappers)
+- [ ] L.7 chunked bulk-drain fast path for Stream<UInt8> (phase-2 per-byte Ply overhead makes streamToBlob allocate ~600× body size; add `Stream.nextChunk : Int64 -> Stream<UInt8> -> Option<Blob>` and rewrite streamToBlob to use it)
 
 ## Progress log
 
@@ -178,6 +179,7 @@ Append one entry per chunk completion. Format (one list item):
 - **2026-04-24 05:52 · 2.11** — GC-backed finalizer for DStreams. New Dval.StreamFinalizer class wraps (impl, disposed) and doubles as the lockObj, so lifetime tracks the DStream — when it goes unreachable, the GC runs the disposer chain (idempotent via the shared `disposed` ref). New Dval.wrapStreamImpl consolidates DStream construction so all call sites (newStream, the 4 Stream transform builtins, the test wrap helper) pick up the finalizer-backed cleanup. 3 new Stream.Tests cases covering the finalizer safety net: abandoned never-drained, abandoned mid-drain, and exactly-once dispose across explicit close + GC. Drain-order and lazy-over-infinite cases already covered by earlier chunks (pullsElementsInOrder, composedTransformsAreLazy). 10,176 backend tests green.
 - **2026-04-24 06:08 · 2.12** — 8 new .dark compositional tests (map across type boundary, take-after-map / map-after-take, concat of transformed streams, filter-then-take, concat-of-concats, transforms-over-empty, Stream<Blob> round-trip). Hit + fixed a pre-existing hazard along the way: Monitor.Enter/Exit across Ply await boundaries throws SynchronizationLockException when the continuation resumes on a different thread (triggered by Stream.map's user closure doing Exe.executeApplicable). Removed the Monitor from readStreamNext and the streamClose builtin — Dark VM is effectively single-threaded per pull, and the disposed flag + GC finalizer already provide idempotent cleanup. The four 2.12-listed cases (empty toList, concat, take-longer-than-source, filter-all-out) were already covered in 2.7's batch. 10,184 total backend tests green.
 - **2026-04-24 06:14 · 2.13** — deferred to user. Agent has no access to a live SSE endpoint (Anthropic messages streaming API, OpenAI chat completions, etc.) from this sandbox. Per the spec this is explicitly "not an automated chunk"; the in-process Kestrel coverage built up across 2.8 (HttpClient.stream 4 tests) and 2.9 (sse.dark 8 tests) already exercises the full HttpClient.stream → Sse.parse → Stream.toList pipeline end-to-end against a real HTTP server, just not against an external service. No code commit. Marked `[x]` so the loop can proceed to 2.14; Blockers section has the follow-up.
+- **2026-04-24 06:30 · 2.14** — phase-2-results.md written + new `p2StreamingHttpProfile` measurement scenario mirrors phase-0 scenario 3 through DStream. Honest headline: per-byte drain allocates ~5.9 GB on a 10 MB body (+22% vs phase-0's callback path, 411 ms vs 242 ms time-to-first) — Ply continuation overhead per readStreamNext call is the culprit. The real phase-2 wins are architectural (StreamingHttpClient.fs deleted, SSE in Dark, composable Stream builtins, GC-backed finalizer). Surfaced a new Later item L.7: chunked bulk-drain fast path (`Stream.nextChunk`) to amortize the per-byte overhead for streamToBlob / Sse.parse. 10,185 backend tests green.
 
 ## Blockers
 
