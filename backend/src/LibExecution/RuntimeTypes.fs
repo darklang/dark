@@ -1667,6 +1667,23 @@ and ExecutionState =
     /// Blobs promoted to `Persistent` before a scope pops remain
     /// resolvable via `package_blobs` — we only drop the in-memory
     /// byte-store entry, never the content-addressed row.
+    ///
+    /// Known limits not addressed here:
+    ///   - Within a single scope, ephemeral bytes accumulate until
+    ///     pop. A handler that pulls many large files or HTTP bodies
+    ///     can still balloon one request's footprint; no per-scope
+    ///     byte budget or backpressure enforces a ceiling.
+    ///   - No explicit eviction for ephemerals that outlive their
+    ///     usefulness within a scope (e.g. a byte[] built, read once,
+    ///     then logically dead): they sit in `blobStore` until the
+    ///     scope pops.
+    ///   - `package_blobs` orphan reclaim runs via the `pm-sweep-blobs`
+    ///     CLI command, which scans `package_values.rt_dval` only —
+    ///     `trace_data` and User DB rows don't hold blob refs today,
+    ///     but any new referencing table needs wiring into the sweep.
+    ///   - No reverse-index table (`package_blob_refs`) — the sweep
+    ///     is O(N+M). Fine at current scale; revisit at higher
+    ///     package counts.
     blobScopes :
       System.Collections.Generic.Stack<System.Collections.Generic.HashSet<System.Guid>>
   }
