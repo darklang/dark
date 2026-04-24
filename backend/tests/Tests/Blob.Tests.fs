@@ -57,7 +57,7 @@ let ephemeralRoundtrip =
       | RT.DBlob ref -> ref
       | _ -> failtest "unreachable"
 
-    let! bytes = Dval.readBlobBytes state ref |> Ply.toTask
+    let! bytes = Dval.readBlobBytes state pmRT ref |> Ply.toTask
     Expect.equal bytes payload "roundtripped bytes match original"
   }
 
@@ -79,8 +79,8 @@ let twoEphemeralsAreDistinct =
       Expect.notEqual id1 id2 "each mint gets a fresh uuid"
     | _ -> failtest "expected Ephemeral for both"
 
-    let! b1 = Dval.readBlobBytes state ref1 |> Ply.toTask
-    let! b2 = Dval.readBlobBytes state ref2 |> Ply.toTask
+    let! b1 = Dval.readBlobBytes state pmRT ref1 |> Ply.toTask
+    let! b2 = Dval.readBlobBytes state pmRT ref2 |> Ply.toTask
     Expect.equal b1 [| 7uy; 7uy; 7uy |] "first blob reads its bytes"
     Expect.equal b2 [| 7uy; 7uy; 7uy |] "second blob reads its bytes"
   }
@@ -93,7 +93,7 @@ let missingEphemeralRaises =
 
     let mutable raised = false
     try
-      let! _ = Dval.readBlobBytes state bogusRef |> Ply.toTask
+      let! _ = Dval.readBlobBytes state pmRT bogusRef |> Ply.toTask
       ()
     with _ ->
       raised <- true
@@ -251,6 +251,94 @@ let packageBlobMissingHashReturnsNone =
   }
 
 
+let promotePersistsAndSwaps =
+  testTask "promoteBlobs: ephemeral → persistent + row in package_blobs" {
+    let state = freshState ()
+    let payload =
+      // unique bytes per run so the row is new (content-addressed)
+      System.Text.Encoding.UTF8.GetBytes(
+        $"promote-test-{System.Guid.NewGuid()}-bytes-to-hash"
+      )
+
+    let ephemeral = Dval.newEphemeralBlob state payload
+
+    let! promoted = Dval.promoteBlobs state PMBlob.insert ephemeral |> Ply.toTask
+
+    let expectedHash = Dval.sha256Hex payload
+
+    match promoted with
+    | RT.DBlob(RT.Persistent(h, n)) ->
+      Expect.equal h expectedHash "hash matches SHA-256 of bytes"
+      Expect.equal n (int64 payload.Length) "length matches"
+    | _ -> failtest $"expected Persistent, got {promoted}"
+
+    let! row = PMBlob.get expectedHash |> Ply.toTask
+    Expect.equal row (Some payload) "package_blobs row exists with our bytes"
+  }
+
+
+let promoteThenSerializeRoundtrips =
+  testTask "promoteBlobs then binary serialize roundtrips cleanly" {
+    let state = freshState ()
+    let payload =
+      System.Text.Encoding.UTF8.GetBytes(
+        $"promote-serialize-{System.Guid.NewGuid()}"
+      )
+    let ephemeral = Dval.newEphemeralBlob state payload
+    let! promoted = Dval.promoteBlobs state PMBlob.insert ephemeral |> Ply.toTask
+    let bytes = BS.RT.Dval.serialize "dval" promoted
+    let restored = BS.RT.Dval.deserialize "dval" bytes
+    Expect.equal
+      restored
+      promoted
+      "post-promotion binary roundtrip preserves Persistent ref"
+  }
+
+
+let promoteSameBytesTwiceDedups =
+  testTask "promoteBlobs: two ephemerals with identical bytes hit package_blobs once" {
+    let state = freshState ()
+    let payload =
+      System.Text.Encoding.UTF8.GetBytes(
+        $"dedup-test-{System.Guid.NewGuid()}-same-bytes-twice"
+      )
+
+    let eph1 = Dval.newEphemeralBlob state payload
+    let eph2 = Dval.newEphemeralBlob state payload
+
+    let! p1 = Dval.promoteBlobs state PMBlob.insert eph1 |> Ply.toTask
+    let! p2 = Dval.promoteBlobs state PMBlob.insert eph2 |> Ply.toTask
+
+    // Same bytes -> same hash -> same DBlob Persistent ref.
+    Expect.equal p1 p2 "two promotions of identical bytes share the hash"
+
+    // And the bytes still resolve (INSERT OR IGNORE didn't clobber the row).
+    let hash = Dval.sha256Hex payload
+    let! row = PMBlob.get hash |> Ply.toTask
+    Expect.equal row (Some payload) "row still contains original bytes"
+  }
+
+
+let promotedBlobResolvesViaReadBlobBytes =
+  testTask "readBlobBytes on a promoted blob reads from package_blobs" {
+    let state = freshState ()
+    let payload =
+      System.Text.Encoding.UTF8.GetBytes(
+        $"resolve-test-{System.Guid.NewGuid()}-after-promote"
+      )
+    let ephemeral = Dval.newEphemeralBlob state payload
+    let! promoted = Dval.promoteBlobs state PMBlob.insert ephemeral |> Ply.toTask
+
+    let ref =
+      match promoted with
+      | RT.DBlob r -> r
+      | _ -> failtest "expected DBlob"
+
+    let! bytes = Dval.readBlobBytes state pmRT ref |> Ply.toTask
+    Expect.equal bytes payload "persistent blob resolves back to its bytes"
+  }
+
+
 let tests =
   testList
     "blob"
@@ -268,4 +356,8 @@ let tests =
       dblobEphemeralDarkBridge
       packageBlobInsertLookup
       packageBlobDedupesOnSameHash
-      packageBlobMissingHashReturnsNone ]
+      packageBlobMissingHashReturnsNone
+      promotePersistsAndSwaps
+      promoteThenSerializeRoundtrips
+      promoteSameBytesTwiceDedups
+      promotedBlobResolvesViaReadBlobBytes ]

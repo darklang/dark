@@ -97,7 +97,7 @@ See [20-phase-1.md](./20-phase-1.md).
 - [x] 1.3 add binary serializers for TBlob/KTBlob/DBlob
 - [x] 1.4 add PT↔Dark and RT↔Dark bridges for blob types
 - [x] 1.5 add package_blobs migration and PM blobs lookup
-- [ ] 1.6 implement ephemeral→persistent promotion on serialize
+- [x] 1.6 implement ephemeral→persistent promotion on serialize
 - [ ] 1.7 expand Bytes builtin module to full API
 - [ ] 1.8 migrate fileRead/fileWrite to Blob
 - [ ] 1.9 migrate Crypto and Base64 to Blob
@@ -154,6 +154,7 @@ Append one line per chunk completion. Format:
 2026-04-23 23:46  1.3  binary serializer tags 24/23/24 (PT.TBlob / RT.KTBlob / RT.DBlob) already present from 1.1/1.2 exhaustive-match fallout. Formal roundtrip coverage: 4 new Blob.Tests (persistent roundtrip, ephemeral-raises, TBlob PT+RT, KTBlob) + DBlob(Persistent) + TBlob + KTBlob added to shared test-values fixtures. 7 blob / 777 bin-ser / 12 vanilla-ser all green.
 2026-04-23 23:58  1.4  pt↔dark and rt↔dark bridges for TBlob/KTBlob/DBlob were already added in 1.1/1.2 as exhaustive-match fallout (DBlobEphemeral + DBlobPersistent kept distinct so LSP can render ephemerals; differs from the plan's "raise until 1.6"). 5 new bridge roundtrip tests; 12 blob / 819 darktypes / 777 bin-ser all green.
 2026-04-24 00:12  1.5  new package_blobs migration (20260424); LibPackageManager.RuntimeTypes.Blob module with get+insert (INSERT OR IGNORE dedup); RT.PackageManager gains getBlob field; PT→RT wrapper stubs it. 3 new PM tests + 15 blob total all green.
+2026-04-24 00:25  1.6  Dval.promoteBlobs walks tree, hashes ephemeral bytes via SHA-256, inserts into package_blobs, swaps ref; Dval.sha256Hex helper; readBlobBytes now consults PM for Persistent refs. Shadowing gotcha: Dval.int64 builder masked the primitive; used System.Convert.ToInt64 to disambiguate. 4 new promotion tests (persists+swaps, roundtrip after promote, same-bytes-dedup, readBlobBytes on promoted). 19 blob / 777 bin-ser green.
 
 ## Blockers
 

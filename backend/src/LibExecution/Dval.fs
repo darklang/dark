@@ -92,9 +92,12 @@ let newEphemeralBlob (exeState : ExecutionState) (bytes : byte[]) : Dval =
 
 
 /// Resolve a BlobRef to its bytes. Ephemerals read from the VM store;
-/// persistent refs hit package_blobs (added in chunk 1.5 — raises
-/// until then).
-let readBlobBytes (exeState : ExecutionState) (ref : BlobRef) : Ply.Ply<byte[]> =
+/// persistent refs hit package_blobs via the PM.
+let readBlobBytes
+  (exeState : ExecutionState)
+  (pm : PackageManager)
+  (ref : BlobRef)
+  : Ply.Ply<byte[]> =
   uply {
     match ref with
     | Ephemeral id ->
@@ -104,11 +107,113 @@ let readBlobBytes (exeState : ExecutionState) (ref : BlobRef) : Ply.Ply<byte[]> 
         return
           Exception.raiseInternal "Ephemeral blob not found in store" [ "id", id ]
     | Persistent(hash, _length) ->
-      // TODO chunk 1.5: plumb the package manager through and read from package_blobs.
-      return
-        Exception.raiseInternal
-          "Persistent blob reads not yet implemented (chunk 1.5)"
-          [ "hash", hash ]
+      let! bytes = pm.getBlob hash
+      match bytes with
+      | Some b -> return b
+      | None ->
+        return
+          Exception.raiseInternal
+            "Persistent blob not found in package_blobs"
+            [ "hash", hash ]
+  }
+
+
+/// SHA-256 hex digest of the given bytes — content-addressing for
+/// blob promotion. See thinking/blobs-and-streams/00-design.md.
+let sha256Hex (bytes : byte[]) : string =
+  use sha = System.Security.Cryptography.SHA256.Create()
+  let digest = sha.ComputeHash(bytes)
+  System.Convert.ToHexStringLower(digest)
+
+
+/// Promote any ephemeral blobs reachable from [dv] to persistent:
+/// hash the bytes (SHA-256), write them to the content-addressed
+/// store via [insert], and swap the ref. Idempotent by design — the
+/// insert path uses `INSERT OR IGNORE`, so promoting the same bytes
+/// twice writes to `package_blobs` once.
+///
+/// Called before serializing a Dval through any persistence boundary
+/// (val commit, User DB write, trace capture). Plain `DBlob` writers
+/// (binary, JSON) still raise on ephemeral — promote first, serialize
+/// second.
+///
+/// TODO chunk L.1: trace capture path should also call this.
+let promoteBlobs
+  (exeState : ExecutionState)
+  (insert : string -> byte[] -> Ply.Ply<unit>)
+  (dv : Dval)
+  : Ply.Ply<Dval> =
+  uply {
+    let rec go (dv : Dval) : Ply.Ply<Dval> =
+      uply {
+        match dv with
+        | DBlob(Ephemeral id) ->
+          let mutable bs : byte[] = null
+          if exeState.blobStore.TryGetValue(id, &bs) then
+            let h = sha256Hex bs
+            // NB: Dval.int64 is a Dval-builder in this module, so we
+            // fully-qualify the int64 primitive conversion here.
+            let n : int64 = System.Convert.ToInt64 bs.Length
+            do! insert h bs
+            return DBlob(Persistent(h, n))
+          else
+            return
+              Exception.raiseInternal
+                "Ephemeral blob not found in store during promotion"
+                [ "id", id ]
+        | DBlob(Persistent _)
+        | DUnit
+        | DBool _
+        | DInt8 _
+        | DUInt8 _
+        | DInt16 _
+        | DUInt16 _
+        | DInt32 _
+        | DUInt32 _
+        | DInt64 _
+        | DUInt64 _
+        | DInt128 _
+        | DUInt128 _
+        | DFloat _
+        | DChar _
+        | DString _
+        | DDateTime _
+        | DUuid _
+        | DApplicable _
+        | DDB _ -> return dv
+        | DList(vt, items) ->
+          let! items' = items |> Ply.List.mapSequentially go
+          return DList(vt, items')
+        | DDict(vt, entries) ->
+          let! entries' =
+            entries
+            |> Map.toList
+            |> Ply.List.mapSequentially (fun (k, v) ->
+              uply {
+                let! v' = go v
+                return (k, v')
+              })
+          return DDict(vt, Map.ofList entries')
+        | DTuple(a, b, rest) ->
+          let! a' = go a
+          let! b' = go b
+          let! rest' = rest |> Ply.List.mapSequentially go
+          return DTuple(a', b', rest')
+        | DRecord(src, rt, typeArgs, fields) ->
+          let! fields' =
+            fields
+            |> Map.toList
+            |> Ply.List.mapSequentially (fun (k, v) ->
+              uply {
+                let! v' = go v
+                return (k, v')
+              })
+          return DRecord(src, rt, typeArgs, Map.ofList fields')
+        | DEnum(src, rt, typeArgs, caseName, fields) ->
+          let! fields' = fields |> Ply.List.mapSequentially go
+          return DEnum(src, rt, typeArgs, caseName, fields')
+      }
+    return! go dv
   }
 
 
