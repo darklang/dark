@@ -17,6 +17,8 @@ module Dval = LibExecution.Dval
 module VT = LibExecution.ValueType
 module BS = LibSerialization.Binary.Serialization
 module PT = LibExecution.ProgramTypes
+module PT2DT = LibExecution.ProgramTypesToDarkTypes
+module RT2DT = LibExecution.RuntimeTypesToDarkTypes
 
 
 /// Build a stream backed by an in-memory list. Each `next` call pulls
@@ -148,6 +150,47 @@ let ktstreamBinaryRoundtrip =
   }
 
 
+let tstreamPtDarkBridge =
+  test "PT.TStream roundtrips through the Dark-side bridge" {
+    let original = PT.TStream PT.TUInt8
+    let restored = PT2DT.TypeReference.fromDT (PT2DT.TypeReference.toDT original)
+    Expect.equal restored original "PT.TStream<UInt8> survives pt↔dark"
+  }
+
+
+let tstreamRtDarkBridge =
+  test "RT.TStream roundtrips through the Dark-side bridge" {
+    let original = RT.TStream RT.TBlob
+    let restored = RT2DT.TypeReference.fromDT (RT2DT.TypeReference.toDT original)
+    Expect.equal restored original "RT.TStream<Blob> survives rt↔dark"
+  }
+
+
+let ktstreamRtDarkBridge =
+  test "RT.KTStream roundtrips through the Dark-side ValueType bridge" {
+    let original = RT.ValueType.Known(RT.KTStream VT.string)
+    let restored = RT2DT.ValueType.fromDT (RT2DT.ValueType.toDT original)
+    Expect.equal restored original "KTStream<String> survives rt↔dark"
+  }
+
+
+let dstreamDarkBridgeElides =
+  // DStream can't round-trip through the Dark-side bridge — the pull fn
+  // is a closure, and the elided form is strictly for LSP/reflection.
+  test "DStream rt↔dark bridge elides to DStreamElided; fromDT raises" {
+    let s = streamOfList [ RT.DInt64 1L ] VT.int64
+    let dt = RT2DT.Dval.toDT s
+    // Expected shape: DEnum case "DStreamElided" carrying the element VT.
+    match dt with
+    | RT.DEnum(_, _, [], "DStreamElided", [ _ ]) -> ()
+    | _ -> failtest $"expected DStreamElided case, got {dt}"
+
+    Expect.throws
+      (fun () -> RT2DT.Dval.fromDT dt |> ignore<RT.Dval>)
+      "fromDT should raise on DStreamElided (no pull fn to rebuild from)"
+  }
+
+
 let tests =
   testList
     "stream"
@@ -158,4 +201,8 @@ let tests =
       dstreamBinarySerializeRaises
       tstreamPtBinaryRoundtrip
       tstreamRtBinaryRoundtrip
-      ktstreamBinaryRoundtrip ]
+      ktstreamBinaryRoundtrip
+      tstreamPtDarkBridge
+      tstreamRtDarkBridge
+      ktstreamRtDarkBridge
+      dstreamDarkBridgeElides ]
