@@ -146,8 +146,11 @@ let rec equals (a : Dval) (b : Dval) : bool =
   | DEnum _, _
   | DApplicable _, _
   | DDB _, _
-  | DBlob _, _ ->
-    // type errors; should be caught above by the caller
+  | DBlob _, _
+  | DStream _, _ ->
+    // type errors; should be caught above by the caller. Streams
+    // deliberately never compare equal — single-consumer semantics
+    // mean equality would force a drain.
     false
 
 

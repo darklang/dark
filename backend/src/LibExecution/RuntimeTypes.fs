@@ -625,6 +625,13 @@ and [<NoComparison>] Dval =
   /// in the per-ExecutionState ephemeral store or in `package_blobs`.
   | DBlob of BlobRef
 
+  /// Lazy, single-consumer, non-persistable sequence — see
+  /// thinking/blobs-and-streams/30-phase-2.md. The inner [StreamImpl]
+  /// is the lazy tree (FromIO + future Mapped/Filtered/…). The
+  /// `disposed` flag + `lockObj` live alongside for single-consumer
+  /// enforcement; proper disposal lands in chunk 2.11.
+  | DStream of StreamImpl * disposed : bool ref * lockObj : obj
+
 
 /// Where the bytes of a DBlob actually live. Ephemeral refs resolve
 /// via [ExecutionState.blobStore]; persistent refs resolve via the
@@ -632,6 +639,23 @@ and [<NoComparison>] Dval =
 and BlobRef =
   | Ephemeral of uuid
   | Persistent of hash : string * length : int64
+
+
+/// Lazy sequence producer. Chunk 2.2 starts with only [FromIO]; chunks
+/// 2.6+ add Mapped/Filtered/Take/Concat as transformation nodes that
+/// wrap other StreamImpls.
+///
+/// Has a custom `Equals` that always returns false — `FromIO`'s pull
+/// fn is a closure, so there's no sensible structural-equality story,
+/// and we don't want propagating `NoEquality` up into Dval/CallFrame.
+/// Callers that need "same stream" semantics must compare by reference
+/// via the wrapping DStream's `lockObj`. Most callers shouldn't compare
+/// streams at all.
+and [<CustomEquality; NoComparison>] StreamImpl =
+  | FromIO of next : (unit -> Ply<Option<Dval>>) * elemType : ValueType
+
+  override this.Equals(_other : obj) : bool = false
+  override this.GetHashCode() : int = 0
 
 
 and DvalTask = Ply<Dval>
@@ -1088,6 +1112,8 @@ module Dval =
     | DDB _ -> ValueType.Unknown
 
     | DBlob _ -> ValueType.Known KTBlob
+
+    | DStream(FromIO(_, elemType), _, _) -> ValueType.Known(KTStream elemType)
 
 
 

@@ -35,7 +35,8 @@ let rec countDvalNodes (dv : RT.Dval) : int =
   | RT.DUuid _
   | RT.DApplicable _
   | RT.DDB _
-  | RT.DBlob _ -> 1
+  | RT.DBlob _
+  | RT.DStream _ -> 1
   | RT.DList(_, items) -> 1 + List.sumBy countDvalNodes items
   | RT.DTuple(a, b, rest) ->
     1 + countDvalNodes a + countDvalNodes b + List.sumBy countDvalNodes rest

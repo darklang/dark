@@ -153,7 +153,8 @@ let rec serialize (threadID : ThreadID) (w : Utf8JsonWriter) (dv : Dval) : unit 
   // Not supported
   | DDB _
   | DApplicable _
-  | DBlob _ -> (RTE.Jsons.CannotSerializeValue dv) |> RTE.Json |> raiseRTE threadID
+  | DBlob _
+  | DStream _ -> (RTE.Jsons.CannotSerializeValue dv) |> RTE.Json |> raiseRTE threadID
 
 module ParseError =
   module RT2DT = LibExecution.RuntimeTypesToDarkTypes

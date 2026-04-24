@@ -112,7 +112,7 @@ See [20-phase-1.md](./20-phase-1.md).
 See [30-phase-2.md](./30-phase-2.md).
 
 - [x] 2.1 wire TStream of TypeReference through PT/RT/ValueType
-- [ ] 2.2 add DStream with StreamImpl; FromIO only
+- [x] 2.2 add DStream with StreamImpl; FromIO only
 - [ ] 2.3 add binary serializer — DStream raises on write
 - [ ] 2.4 add PT↔Dark and RT↔Dark bridges (stream renders elided)
 - [ ] 2.5 Stream builtins: next, toList, toBlob (no transforms yet)
@@ -165,6 +165,7 @@ Append one line per chunk completion. Format:
 2026-04-24 02:09  1.13  bytes.dark tests expanded 15 → 26. 1.7 already added 11 Builtin.bytes* tests; 1.13 adds 11 Stdlib.Bytes.* wrapper tests exercising the Dark-side module surface added in 1.10 (length/fromString/toString, hex round, base64 round, concat, slice, toList/fromList).
 2026-04-24 02:17  1.14  phase-1-results.md written. Three new measurement scenarios parallel the phase-0 ones via the Blob path (fileRead / httpBody / hex) and write to rundir/measurements/phase-1/. Headline wins: fileRead 10MB 1.96GB→31.5MB (62×), fileRead 38MB OOM→40.7MB/136ms (bug fixed), httpBody 10MB 1.82GB→36.9MB (49×), hex 1MB total 336MB/1.05s→14.6MB/45ms (23×/23×). Phase 1 done. Streaming still on the old code path — Phase 2 replaces it.
 2026-04-24 02:34  2.1  TStream of TypeReference + KTStream of ValueType wired through PT/RT/ValueType + all the 1.1-style exhaustive-match cascades (PT2RT, typechecker, PT↔Dark, RT↔Dark, binary serializers, canonical hashing, cloud reprs, pm walkers, json, LibParser WrittenTypes). Tree-sitter grammar adds `stream_type_reference` parallel to `list_type_reference`; Dark-side parser + pretty-printer + semantic tokens + LSP hover + dark-side PT/RT DUs all updated. `let s: Stream<UInt8> = ...` parses end-to-end. TStream inert (no DStream yet — 2.2). 5602 LibExecution tests green (was 5591, the extra 11 are chunk 1.13's Stdlib.Bytes.* tests).
+2026-04-24 02:54  2.2  DStream of (StreamImpl * bool ref * obj) + StreamImpl.FromIO(next, elemType) on RuntimeTypes. Dval.newStream + readStreamNext helpers with Monitor-based single-consumer enforcement. StreamImpl gets [<CustomEquality; NoComparison>] with Equals = false — pull-fn closure can't structural-equal, and NoEquality cascades into CallFrame via Dval array. Binary + roundtrippable + queryable all raise on DStream (non-persistable). rt↔dark bridge renders "DStreamElided" for LSP. 4 new Stream.Tests (pull order / stay-drained / empty / toValueType). 5606 LibExecution tests green.
 
 ## Blockers
 

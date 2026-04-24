@@ -217,6 +217,9 @@ module FormatV0 =
     | DDB of string
     | DBlobPersistent of hash : string * length : int64
     | DBlobEphemeral of id : System.Guid
+    // DStream is not persistable — this tag is a sentinel that exists
+    // only so the exhaustiveness check holds; `toRT` raises on it.
+    | DStreamSentinel
 
 
   let rec toRT (dv : Dval) : RT.Dval =
@@ -283,6 +286,10 @@ module FormatV0 =
 
     | DBlobPersistent(hash, length) -> RT.DBlob(RT.Persistent(hash, length))
     | DBlobEphemeral id -> RT.DBlob(RT.Ephemeral id)
+    | DStreamSentinel ->
+      Exception.raiseInternal
+        "DStream is not persistable — can't deserialize a sentinel to a live stream"
+        []
 
 
 
@@ -340,6 +347,11 @@ module FormatV0 =
 
     | RT.DBlob(RT.Persistent(hash, length)) -> DBlobPersistent(hash, length)
     | RT.DBlob(RT.Ephemeral id) -> DBlobEphemeral id
+    | RT.DStream _ ->
+      // Streams aren't persistable. Serializers that route through
+      // fromRT are for rt_dval storage — we refuse rather than silently
+      // produce a sentinel that can't round-trip back.
+      Exception.raiseInternal "Cannot persist a DStream" []
 
 
 let toJsonV0 (dv : RT.Dval) : string =
@@ -380,6 +392,8 @@ module Test =
     | RT.DUuid _
     | RT.DDateTime _
     | RT.DBlob _ -> true
+
+    | RT.DStream _ -> false
 
     | RT.DTuple(v1, v2, rest) -> List.all isRoundtrippableDval (v1 :: v2 :: rest)
 

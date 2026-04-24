@@ -196,6 +196,11 @@ and writeDvalImpl (w : BinaryWriter) (dval : Dval) =
     // VM boundaries).
     raiseFormatError
       $"Cannot serialize ephemeral blob {id} — promotion path lands in chunk 1.6"
+  | DStream _ ->
+    // Streams are not persistable by design — lifetime is bounded by
+    // the VM that produced them. Caller should drain to Blob first.
+    // See thinking/blobs-and-streams/30-phase-2.md.
+    raiseFormatError "Cannot serialize DStream — drain to a Blob first"
 let rec readDval : BinaryReader -> Dval = fun r -> readDvalImpl r
 
 and readValueType : BinaryReader -> ValueType = fun r -> readValueTypeImpl r

@@ -171,6 +171,11 @@ let rec private toJsonV0
         "Ephemeral blobs in queryable JSON need promotion (chunk 1.6)"
         [ "value", dv ]
 
+    | DStream _ ->
+      Exception.raiseInternal
+        "DStream is not persistable — drain to a Blob before storing"
+        [ "value", dv ]
+
     // Not supported
     | DApplicable _
     | DDB _ -> Exception.raiseInternal "Not supported in queryable" [ "value", dv ]
@@ -434,4 +439,5 @@ module Test =
 
     // Maybe never support
     | DApplicable _
-    | DDB _ -> false
+    | DDB _
+    | DStream _ -> false

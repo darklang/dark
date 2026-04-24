@@ -118,6 +118,46 @@ let readBlobBytes
   }
 
 
+/// Mint a fresh DStream from a pull function. Single-consumer by
+/// construction — the disposed flag and lock guard concurrent `next`
+/// calls. See thinking/blobs-and-streams/30-phase-2.md.
+let newStream (elemType : ValueType) (next : unit -> Ply.Ply<Option<Dval>>) : Dval =
+  DStream(FromIO(next, elemType), ref false, obj ())
+
+
+/// Pull the next element from a stream. Returns [None] when the
+/// stream is exhausted; subsequent calls after exhaustion return
+/// [None] (single-consumer — once drained, stays drained).
+///
+/// Thread-safe via the stream's monitor lock; concurrent callers
+/// serialize. Chunk 2.6 adds Mapped/Filtered/Take/Concat walking.
+let readStreamNext (dv : Dval) : Ply.Ply<Option<Dval>> =
+  uply {
+    match dv with
+    | DStream(impl, disposed, lockObj) ->
+      // Monitor ensures single-consumer semantics.
+      let taken = System.Threading.Monitor.TryEnter(lockObj, 0)
+      if not taken then
+        return
+          Exception.raiseInternal "stream: concurrent consumers not supported" []
+      try
+        if disposed.Value then
+          return None
+        else
+          match impl with
+          | FromIO(next, _elemType) ->
+            let! result = next ()
+            match result with
+            | Some _ -> return result
+            | None ->
+              disposed.Value <- true
+              return None
+      finally
+        System.Threading.Monitor.Exit(lockObj)
+    | _ -> return Exception.raiseInternal "readStreamNext: expected DStream" []
+  }
+
+
 /// SHA-256 hex digest of the given bytes — content-addressing for
 /// blob promotion. See thinking/blobs-and-streams/00-design.md.
 let sha256Hex (bytes : byte[]) : string =
@@ -180,7 +220,8 @@ let promoteBlobs
         | DDateTime _
         | DUuid _
         | DApplicable _
-        | DDB _ -> return dv
+        | DDB _
+        | DStream _ -> return dv
         | DList(vt, items) ->
           let! items' = items |> Ply.List.mapSequentially go
           return DList(vt, items')

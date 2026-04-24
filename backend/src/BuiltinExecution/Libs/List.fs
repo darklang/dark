@@ -125,7 +125,8 @@ module DvalComparator =
     | DEnum _, _
     | DApplicable _, _
     | DDB _, _
-    | DBlob _, _ ->
+    | DBlob _, _
+    | DStream _, _ ->
       // TODO: Feels like this should hook into typechecker and ValueTypes somehow
       RuntimeError.Error.EqualityCheckOnIncompatibleTypes(
         Dval.toValueType dv1,
