@@ -343,6 +343,173 @@ let hexEncodeProfile =
   }
 
 
+// ===== Phase 1 rerun scenarios =====
+//
+// Measure the new Blob path so we can diff against the phase-0 baseline.
+// Writes to rundir/measurements/phase-1/*.txt. Scenario 3 (streaming)
+// stays on the old code path until Phase 2.
+
+module P1 = Tests.MeasurementHelpers
+
+
+/// Minimal ExecutionState for exercising Dval.newEphemeralBlob. Mirrors
+/// what Blob.Tests.freshState does; inlined here to avoid a test-file
+/// cross-ref.
+let private freshState () : LibExecution.RuntimeTypes.ExecutionState =
+  let builtins = TestUtils.TestUtils.localBuiltIns TestUtils.TestUtils.pmPT
+  LibExecution.Execution.createState
+    builtins
+    TestUtils.TestUtils.pmRT
+    LibExecution.Execution.noTracing
+    (fun _ _ _ _ -> uply { return () })
+    (fun _ _ _ _ -> uply { return () })
+    LibExecution.ProgramTypes.mainBranchId
+    { canvasID = System.Guid.NewGuid()
+      internalFnsAllowed = false
+      dbs = Map.empty
+      secrets = [] }
+
+
+/// Phase 1, Scenario 1 — fileRead via DBlob.
+///
+/// Mirrors scenario 1 but emits a `DBlob(Ephemeral _)` instead of a
+/// `DList(DUInt8)`. Allocation should drop from ~200×file-size to
+/// ~1×file-size plus a few tens of bytes of Dval overhead.
+let p1FileReadProfile =
+  test "phase-1: fileRead via DBlob" {
+    let tempDir = System.IO.Path.Combine(System.IO.Path.GetTempPath(), "dark-phase0")
+    System.IO.Directory.CreateDirectory(tempDir) |> ignore<System.IO.DirectoryInfo>
+
+    P1.resetPhaseOutput "phase-1" "fileRead.txt"
+    P1.appendPhaseRow
+      "phase-1"
+      "fileRead.txt"
+      "size_bytes,alloc_bytes,peak_ws_bytes,elapsed_ms,dval_nodes,note"
+
+    let sizes = [ 1_024; 100_000; 1_000_000; 10_000_000; 38_000_000 ]
+
+    let state = freshState ()
+    let rng = System.Random(0)
+
+    for size in sizes do
+      let path = System.IO.Path.Combine(tempDir, $"measure-{size}.bin")
+      if not (System.IO.File.Exists(path)) then
+        let buf = Array.zeroCreate<byte> size
+        rng.NextBytes(buf)
+        System.IO.File.WriteAllBytes(path, buf)
+
+      let row =
+        try
+          let dval, sample =
+            P1.measure (fun () ->
+              let bytes = System.IO.File.ReadAllBytes(path)
+              LibExecution.Dval.newEphemeralBlob state bytes)
+          let nodes = P1.countDvalNodes dval
+          $"{size},{sample.allocatedBytesDelta},{sample.peakWorkingSet},{sample.elapsedMs},{nodes},ok"
+        with
+        | :? System.OutOfMemoryException -> $"{size},-1,-1,-1,-1,oom"
+        | e ->
+          let msg = e.Message.Replace(",", ";").Replace("\n", " ")
+          $"{size},-1,-1,-1,-1,err:{msg}"
+
+      P1.appendPhaseRow "phase-1" "fileRead.txt" row
+  }
+
+
+/// Phase 1, Scenario 2 — HttpClient body via DBlob.
+let p1HttpBodyProfile =
+  test "phase-1: httpclient body via DBlob" {
+    P1.resetPhaseOutput "phase-1" "httpBody.txt"
+    P1.appendPhaseRow
+      "phase-1"
+      "httpBody.txt"
+      "size_bytes,alloc_bytes,peak_ws_bytes,elapsed_ms,dval_nodes,note"
+
+    let sizes = [ 100_000; 1_000_000; 10_000_000 ]
+    let state = freshState ()
+
+    for size in sizes do
+      let payload = Array.zeroCreate<byte> size
+      System.Random(0).NextBytes(payload)
+
+      let handler =
+        { new System.Net.Http.HttpMessageHandler() with
+            member _.SendAsync(_req, _ct) =
+              let resp =
+                new System.Net.Http.HttpResponseMessage(System.Net.HttpStatusCode.OK)
+              resp.Content <- new System.Net.Http.ByteArrayContent(payload)
+              System.Threading.Tasks.Task.FromResult(resp) }
+
+      use client = new System.Net.Http.HttpClient(handler)
+
+      let row =
+        try
+          let dval, sample =
+            P1.measure (fun () ->
+              let resp =
+                client.GetAsync("http://fake.local/body").GetAwaiter().GetResult()
+              let bytes =
+                resp.Content.ReadAsByteArrayAsync().GetAwaiter().GetResult()
+              LibExecution.Dval.newEphemeralBlob state bytes)
+          let nodes = P1.countDvalNodes dval
+          $"{size},{sample.allocatedBytesDelta},{sample.peakWorkingSet},{sample.elapsedMs},{nodes},simulated-handler"
+        with
+        | :? System.OutOfMemoryException -> $"{size},-1,-1,-1,-1,oom"
+        | e ->
+          let msg = e.Message.Replace(",", ";").Replace("\n", " ")
+          $"{size},-1,-1,-1,-1,err:{msg}"
+
+      P1.appendPhaseRow "phase-1" "httpBody.txt" row
+  }
+
+
+/// Phase 1, Scenario 4 — hex encode via the Blob path.
+///
+/// Replaces list construction + O(n) hex loop with `newEphemeralBlob +
+/// System.Convert.ToHexString`. The latter is O(n) over a contiguous
+/// byte[] — should drop allocation and time by >10x.
+let p1HexEncodeProfile =
+  test "phase-1: hex encode 1mb via Blob" {
+    P1.resetPhaseOutput "phase-1" "hex.txt"
+    P1.appendPhaseRow
+      "phase-1"
+      "hex.txt"
+      "size_bytes,blob_alloc,hex_encode_alloc,hex_encode_ms,total_ms,note"
+
+    let size = 1_000_000
+    let raw = Array.zeroCreate<byte> size
+    System.Random(0).NextBytes(raw)
+
+    let state = freshState ()
+
+    let row =
+      try
+        let blobDv, blobSample =
+          P1.measure (fun () -> LibExecution.Dval.newEphemeralBlob state raw)
+
+        let _hex, hexSample =
+          P1.measure (fun () ->
+            match blobDv with
+            | LibExecution.RuntimeTypes.DBlob(LibExecution.RuntimeTypes.Ephemeral id) ->
+              let mutable bs : byte[] = null
+              if state.blobStore.TryGetValue(id, &bs) then
+                System.Convert.ToHexString(bs)
+              else
+                Exception.raiseInternal "blob not in store" [ "id", id ]
+            | _ -> Exception.raiseInternal "expected DBlob" [])
+
+        let totalMs = blobSample.elapsedMs + hexSample.elapsedMs
+        $"{size},{blobSample.allocatedBytesDelta},{hexSample.allocatedBytesDelta},{hexSample.elapsedMs},{totalMs},ok"
+      with
+      | :? System.OutOfMemoryException -> $"{size},-1,-1,-1,-1,oom"
+      | e ->
+        let msg = e.Message.Replace(",", ";").Replace("\n", " ")
+        $"{size},-1,-1,-1,-1,err:{msg}"
+
+    P1.appendPhaseRow "phase-1" "hex.txt" row
+  }
+
+
 let tests =
   testList
     "measurement"
@@ -350,4 +517,7 @@ let tests =
       fileReadProfile
       httpBodyProfile
       streamingHttpProfile
-      hexEncodeProfile ]
+      hexEncodeProfile
+      p1FileReadProfile
+      p1HttpBodyProfile
+      p1HexEncodeProfile ]

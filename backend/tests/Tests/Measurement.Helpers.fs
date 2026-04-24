@@ -46,13 +46,24 @@ let rec countDvalNodes (dv : RT.Dval) : int =
 
 
 /// Directory measurements write to. Callers: ensure it exists via
-/// [ensureOutputDir].
+/// [ensureOutputDir]. Legacy alias — phase-0 measurements still write
+/// here; phase-1 uses [phaseDir "phase-1"].
 let outputDir : string =
   System.IO.Path.Combine(LibConfig.Config.runDir, "measurements", "phase-0")
 
 
+/// Per-phase output directory under `rundir/measurements/<phase>/`.
+let phaseDir (phase : string) : string =
+  System.IO.Path.Combine(LibConfig.Config.runDir, "measurements", phase)
+
+
 let ensureOutputDir () : unit =
   System.IO.Directory.CreateDirectory(outputDir)
+  |> ignore<System.IO.DirectoryInfo>
+
+
+let ensurePhaseDir (phase : string) : unit =
+  System.IO.Directory.CreateDirectory(phaseDir phase)
   |> ignore<System.IO.DirectoryInfo>
 
 
@@ -103,4 +114,19 @@ let appendRow (filename : string) (row : string) : unit =
 let resetOutput (filename : string) : unit =
   ensureOutputDir ()
   let path = System.IO.Path.Combine(outputDir, filename)
+  if System.IO.File.Exists(path) then System.IO.File.Delete(path)
+
+
+/// Phase-scoped version of [appendRow] — writes to
+/// `rundir/measurements/<phase>/<filename>`.
+let appendPhaseRow (phase : string) (filename : string) (row : string) : unit =
+  ensurePhaseDir phase
+  let path = System.IO.Path.Combine(phaseDir phase, filename)
+  System.IO.File.AppendAllText(path, row + "\n")
+
+
+/// Phase-scoped version of [resetOutput].
+let resetPhaseOutput (phase : string) (filename : string) : unit =
+  ensurePhaseDir phase
+  let path = System.IO.Path.Combine(phaseDir phase, filename)
   if System.IO.File.Exists(path) then System.IO.File.Delete(path)

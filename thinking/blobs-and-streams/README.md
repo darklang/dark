@@ -105,7 +105,7 @@ See [20-phase-1.md](./20-phase-1.md).
 - [x] 1.11 update tree-sitter grammar and Dark-side parser/pretty-printer
 - [x] 1.12 add F# roundtrip + promotion + memory tests
 - [x] 1.13 add .dark bytes tests
-- [ ] 1.14 capture before/after diff into phase-1-results.md
+- [x] 1.14 capture before/after diff into phase-1-results.md
 
 ### Phase 2 — Stream
 
@@ -162,6 +162,7 @@ Append one line per chunk completion. Format:
 2026-04-24 01:46  1.10  partial. LibParser (F#) WrittenTypes + FSharpToWrittenTypes + WrittenTypesToProgramTypes gained TBlob so `.dark` files parse Blob. bytes.dark got the full new Blob-based surface; cli/file.dark readBytes returns Blob; cli/fileSystem.dark writeFile takes Blob; cli/zsh|bash|fish use Builtin.stringToBytes/FromBytes directly for Blob-shaped IO. **Public signatures of Stdlib.Crypto/Base64/String (List<UInt8>) preserved** via internal bytesFromList/bytesToList bridges because migrating the .dark test corpus to Blob is a bigger separate pass. NoModule.equals/notEquals now promoteBlobs-normalize both args (no-op insert) so two ephemerals with same bytes compare equal. 5591 LibExecution tests green.
 2026-04-24 02:02  1.12  Blob.Tests expanded 19 → 24. New: fileRead memory bound (10MB file → <30MB alloc vs baseline ~2GB), User-DB queryable JSON roundtrip (envelope + parse path, needed to round out DvalReprInternalQueryable.parseJsonV0 for TBlob), User-DB queryable ephemeral raises, roundtrippable-json persistent + ephemeral roundtrips. All 24 green.
 2026-04-24 02:09  1.13  bytes.dark tests expanded 15 → 26. 1.7 already added 11 Builtin.bytes* tests; 1.13 adds 11 Stdlib.Bytes.* wrapper tests exercising the Dark-side module surface added in 1.10 (length/fromString/toString, hex round, base64 round, concat, slice, toList/fromList).
+2026-04-24 02:17  1.14  phase-1-results.md written. Three new measurement scenarios parallel the phase-0 ones via the Blob path (fileRead / httpBody / hex) and write to rundir/measurements/phase-1/. Headline wins: fileRead 10MB 1.96GB→31.5MB (62×), fileRead 38MB OOM→40.7MB/136ms (bug fixed), httpBody 10MB 1.82GB→36.9MB (49×), hex 1MB total 336MB/1.05s→14.6MB/45ms (23×/23×). Phase 1 done. Streaming still on the old code path — Phase 2 replaces it.
 
 ## Blockers
 
