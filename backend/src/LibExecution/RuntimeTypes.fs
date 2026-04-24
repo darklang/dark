@@ -1641,11 +1641,25 @@ and ExecutionState =
 
     /// Per-execution ephemeral byte-store for `DBlob(Ephemeral _)`
     /// references. Populated by IO builtins (fileRead, HttpClient.body,
-    /// etc.). Bytes live until the ExecutionState is discarded; long-
-    /// running VMs (http-server) will need the scope-based lifetime in
-    /// chunk L.1. See thinking/blobs-and-streams/00-design.md.
+    /// etc.). Bytes live until the ExecutionState is discarded or
+    /// until the enclosing blob-scope pops (see [blobScopes] below).
+    /// See thinking/blobs-and-streams/00-design.md.
     blobStore :
       System.Collections.Concurrent.ConcurrentDictionary<System.Guid, byte[]>
+
+    /// Stack of blob-scopes. Each scope tracks the set of ephemeral
+    /// blob UUIDs minted inside it so they can be dropped from
+    /// [blobStore] when the scope pops. Long-lived VMs (http-server)
+    /// push a fresh scope per handler invocation so blob bytes are
+    /// reclaimed promptly rather than accumulating for the life of
+    /// the VM. CLI runs typically don't push a scope — blobs live
+    /// for the length of the process, which is fine.
+    ///
+    /// Blobs promoted to `Persistent` before a scope pops remain
+    /// resolvable via `package_blobs` — we only drop the in-memory
+    /// byte-store entry, never the content-addressed row.
+    blobScopes :
+      System.Collections.Generic.Stack<System.Collections.Generic.HashSet<System.Guid>>
   }
 
 

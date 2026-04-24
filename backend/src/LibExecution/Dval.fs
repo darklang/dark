@@ -85,10 +85,42 @@ let result
 /// Mint a fresh ephemeral blob: register the bytes in the exeState's
 /// blob store and return a DBlob that references them. Caller retains
 /// no direct handle on the byte[] past this point.
+///
+/// If a blob-scope is active (see [pushBlobScope]), the new UUID is
+/// recorded in the top scope so [popBlobScope] can reclaim the bytes
+/// when the scope exits. Runs without an active scope (CLI, tests)
+/// simply leak into the ExecutionState for its full lifetime — same
+/// behaviour as before chunk L.1.
 let newEphemeralBlob (exeState : ExecutionState) (bytes : byte[]) : Dval =
   let id = System.Guid.NewGuid()
   exeState.blobStore[id] <- bytes
+  if exeState.blobScopes.Count > 0 then
+    exeState.blobScopes.Peek().Add(id) |> ignore<bool>
   DBlob(Ephemeral id)
+
+
+/// Push a fresh, empty blob-scope onto the stack. Each subsequent
+/// [newEphemeralBlob] records its UUID in this scope until it's
+/// popped. Used by long-lived VMs (http-server) around per-handler
+/// work so ephemeral blobs don't accumulate across requests.
+let pushBlobScope (exeState : ExecutionState) : unit =
+  exeState.blobScopes.Push(System.Collections.Generic.HashSet<System.Guid>())
+
+
+/// Pop the top blob-scope: drop every UUID it tracked from
+/// [blobStore]. Safe to call without a push (no-op on empty stack).
+/// Caller should wrap `pushBlobScope` / `popBlobScope` in a
+/// `try/finally` so failures don't leak blob bytes.
+///
+/// Blobs promoted to `Persistent` inside this scope are unaffected —
+/// promotion writes to `package_blobs` (a separate durable table)
+/// and the DBlob reference swaps to `Persistent`. We only drop the
+/// in-memory ephemeral byte cache.
+let popBlobScope (exeState : ExecutionState) : unit =
+  if exeState.blobScopes.Count > 0 then
+    let scope = exeState.blobScopes.Pop()
+    for id in scope do
+      exeState.blobStore.TryRemove(id) |> ignore<bool * byte[]>
 
 
 /// Resolve a BlobRef to its bytes. Ephemerals read from the VM store;

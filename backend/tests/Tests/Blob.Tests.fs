@@ -452,6 +452,117 @@ let roundtrippableJsonEphemeralRoundtrip =
   }
 
 
+// ——————————————————————————————————————————————————————————
+// L.1 — scope-based ephemeral-blob lifetime
+// ——————————————————————————————————————————————————————————
+
+
+let pushPopReclaimsScopedBlobs =
+  test "scope: popBlobScope drops blobs created inside the scope" {
+    let state = freshState ()
+
+    // Before any scope: plain ephemeral, leaks for the VM's life.
+    let pre = Dval.newEphemeralBlob state [| 0xAAuy |]
+    let preId =
+      match pre with
+      | RT.DBlob(RT.Ephemeral id) -> id
+      | _ -> failtest "expected ephemeral"
+
+    // Enter a scope; create two more blobs.
+    Dval.pushBlobScope state
+    let a = Dval.newEphemeralBlob state [| 0x01uy; 0x02uy |]
+    let b = Dval.newEphemeralBlob state [| 0x03uy |]
+    let aId, bId =
+      match a, b with
+      | RT.DBlob(RT.Ephemeral x), RT.DBlob(RT.Ephemeral y) -> x, y
+      | _ -> failtest "expected ephemeral"
+
+    Expect.isTrue (state.blobStore.ContainsKey aId) "a is in store pre-pop"
+    Expect.isTrue (state.blobStore.ContainsKey bId) "b is in store pre-pop"
+
+    Dval.popBlobScope state
+
+    Expect.isFalse (state.blobStore.ContainsKey aId) "a dropped on pop"
+    Expect.isFalse (state.blobStore.ContainsKey bId) "b dropped on pop"
+    Expect.isTrue
+      (state.blobStore.ContainsKey preId)
+      "pre-scope blob survives the pop"
+  }
+
+
+let scopeNestsLikeAStack =
+  test "scope: nested scopes each clean up only their own blobs" {
+    let state = freshState ()
+
+    Dval.pushBlobScope state
+    let outer = Dval.newEphemeralBlob state [| 0x10uy |]
+    let outerId =
+      match outer with
+      | RT.DBlob(RT.Ephemeral id) -> id
+      | _ -> failtest "outer"
+
+    Dval.pushBlobScope state
+    let inner = Dval.newEphemeralBlob state [| 0x20uy |]
+    let innerId =
+      match inner with
+      | RT.DBlob(RT.Ephemeral id) -> id
+      | _ -> failtest "inner"
+
+    // Pop the inner scope — outer blob still tracked by outer scope.
+    Dval.popBlobScope state
+    Expect.isFalse
+      (state.blobStore.ContainsKey innerId)
+      "inner blob dropped on inner pop"
+    Expect.isTrue
+      (state.blobStore.ContainsKey outerId)
+      "outer blob survives inner pop"
+
+    Dval.popBlobScope state
+    Expect.isFalse
+      (state.blobStore.ContainsKey outerId)
+      "outer blob drops on outer pop"
+  }
+
+
+let popWithoutPushIsNoOp =
+  test "scope: popBlobScope on an empty stack is a no-op" {
+    let state = freshState ()
+    // Should not throw.
+    Dval.popBlobScope state
+    Dval.popBlobScope state
+    Expect.equal state.blobScopes.Count 0 "stack still empty"
+  }
+
+
+let promotedBlobsSurviveScopePop =
+  testTask "scope: a blob promoted inside the scope stays resolvable via PM" {
+    let state = freshState ()
+    let payload = [| 0xDEuy; 0xADuy; 0xBEuy; 0xEFuy |]
+
+    Dval.pushBlobScope state
+    let eph = Dval.newEphemeralBlob state payload
+
+    // Promote inside the scope — writes to package_blobs and returns
+    // a Persistent ref with the content hash.
+    let! promoted = Dval.promoteBlobs state pmRT.insertBlob eph |> Ply.toTask
+
+    let hash =
+      match promoted with
+      | RT.DBlob(RT.Persistent(h, _)) -> h
+      | _ -> failtest "expected Persistent after promotion"
+
+    Dval.popBlobScope state
+
+    // Ephemeral bytes gone from the in-memory store, but persistent
+    // bytes remain in package_blobs. readBlobBytes on the persistent
+    // ref resolves through PM.getBlob.
+    let! bytes =
+      Dval.readBlobBytes state pmRT (RT.Persistent(hash, int64 payload.Length))
+      |> Ply.toTask
+    Expect.equal bytes payload "persistent bytes survive the pop"
+  }
+
+
 let tests =
   testList
     "blob"
@@ -478,4 +589,8 @@ let tests =
       queryableJsonRoundtrip
       queryableJsonEphemeralRaises
       roundtrippableJsonPersistentRoundtrip
-      roundtrippableJsonEphemeralRoundtrip ]
+      roundtrippableJsonEphemeralRoundtrip
+      pushPopReclaimsScopedBlobs
+      scopeNestsLikeAStack
+      popWithoutPushIsNoOp
+      promotedBlobsSurviveScopePop ]
