@@ -1253,6 +1253,11 @@ module PackageManager =
           |> Ply.map (Option.map (PackageValue.toRT builtinValues))
       getFn = fun id -> pm.getFn (toPT id) |> Ply.map (Option.map PackageFn.toRT)
 
+      // PT PackageManager has no blob channel — it's purely location-
+      // based name resolution. Transient wrappers return None; the
+      // real blob lookup comes from the canonical RT PM.
+      getBlob = fun _ -> Ply None
+
       // PT PackageManager doesn't surface deprecation state; transient
       // wrappers (tests, in-memory flows) have no branch chain anyway.
       isHarmful = fun _ _ -> Ply false

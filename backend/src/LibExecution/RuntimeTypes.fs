@@ -1120,6 +1120,10 @@ type PackageManager =
     getValue : FQValueName.Package -> Ply<Option<PackageValue.PackageValue>>
     getFn : FQFnName.Package -> Ply<Option<PackageFn.PackageFn>>
 
+    /// Content-addressed blob bytes by SHA-256 hash. Returns [None]
+    /// for missing hashes. See thinking/blobs-and-streams/00-design.md.
+    getBlob : string -> Ply<Option<byte[]>>
+
     /// Is this package fn hash marked Harmful on the given branch chain?
     /// Branch-scoped because deprecation state flows through branches; the
     /// other PM lookups are content-addressed and need no branch.
@@ -1133,6 +1137,7 @@ type PackageManager =
     { getType = (fun _ -> Ply None)
       getFn = (fun _ -> Ply None)
       getValue = (fun _ -> Ply None)
+      getBlob = (fun _ -> Ply None)
       isHarmful = (fun _ _ -> Ply false)
 
       init = uply { return () } }
@@ -1164,6 +1169,7 @@ type PackageManager =
           match Map.tryFind id fnMap with
           | Some f -> Some f |> Ply
           | None -> pm.getFn id
+      getBlob = pm.getBlob
       isHarmful = pm.isHarmful
       init = pm.init }
 

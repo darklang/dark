@@ -21,6 +21,7 @@ module PT = LibExecution.ProgramTypes
 module BS = LibSerialization.Binary.Serialization
 module PT2DT = LibExecution.ProgramTypesToDarkTypes
 module RT2DT = LibExecution.RuntimeTypesToDarkTypes
+module PMBlob = LibPackageManager.RuntimeTypes.Blob
 
 
 /// Minimal ExecutionState suitable for exercising blob helpers
@@ -216,6 +217,40 @@ let dblobEphemeralDarkBridge =
   }
 
 
+let packageBlobInsertLookup =
+  testTask "package_blobs: insert then get returns the same bytes" {
+    let bytes = [| 10uy; 20uy; 30uy; 40uy; 50uy |]
+    // Unique hash per test so runs don't collide with prior rows
+    let hash =
+      $"test-insert-lookup-{System.Guid.NewGuid()}-e3b0c44298fc1c149afbf4c8996fb924"
+    do! PMBlob.insert hash bytes |> Ply.toTask
+    let! got = PMBlob.get hash |> Ply.toTask
+    Expect.equal got (Some bytes) "get returns bytes for a freshly-inserted hash"
+  }
+
+
+let packageBlobDedupesOnSameHash =
+  testTask "package_blobs: second insert under same hash is a no-op" {
+    let bytes = [| 1uy; 1uy; 2uy; 3uy; 5uy; 8uy |]
+    let hash =
+      $"test-dedup-{System.Guid.NewGuid()}-e3b0c44298fc1c149afbf4c8996fb9242"
+    do! PMBlob.insert hash bytes |> Ply.toTask
+    // Second insert with same hash but different bytes MUST be ignored
+    // (content-addressing invariant: hash determines content).
+    do! PMBlob.insert hash [| 99uy; 99uy |] |> Ply.toTask
+    let! got = PMBlob.get hash |> Ply.toTask
+    Expect.equal got (Some bytes) "INSERT OR IGNORE preserves the original bytes"
+  }
+
+
+let packageBlobMissingHashReturnsNone =
+  testTask "package_blobs: get on a missing hash returns None" {
+    let hash = $"nonexistent-{System.Guid.NewGuid()}-hash-that-was-never-inserted"
+    let! got = PMBlob.get hash |> Ply.toTask
+    Expect.equal got None "missing hash yields None"
+  }
+
+
 let tests =
   testList
     "blob"
@@ -230,4 +265,7 @@ let tests =
       tblobRtDarkBridge
       ktblobRtDarkBridge
       dblobPersistentDarkBridge
-      dblobEphemeralDarkBridge ]
+      dblobEphemeralDarkBridge
+      packageBlobInsertLookup
+      packageBlobDedupesOnSameHash
+      packageBlobMissingHashReturnsNone ]

@@ -75,3 +75,40 @@ module Fn =
         |> Sql.executeRowOptionAsync (fun read -> read.bytes "rt_instrs")
         |> Task.map (Option.map (BS.RT.PackageFn.deserialize hash))
     }
+
+
+/// Content-addressed blob storage — bytes keyed by SHA-256 hash.
+/// See thinking/blobs-and-streams/00-design.md.
+module Blob =
+  /// Look up bytes by hash. Returns [None] when the row doesn't exist.
+  let get (hash : string) : Ply<Option<byte[]>> =
+    uply {
+      return!
+        Sql.query
+          """
+          SELECT bytes
+          FROM package_blobs
+          WHERE hash = @hash
+          """
+        |> Sql.parameters [ "hash", Sql.string hash ]
+        |> Sql.executeRowOptionAsync (fun read -> read.bytes "bytes")
+    }
+
+  /// Insert bytes under [hash]. If the row already exists (same hash
+  /// = same content, by content-addressing invariant), this is a no-op
+  /// — `INSERT OR IGNORE` handles dedup.
+  let insert (hash : string) (bytes : byte[]) : Ply<unit> =
+    uply {
+      let! _ =
+        Sql.query
+          """
+          INSERT OR IGNORE INTO package_blobs (hash, length, bytes)
+          VALUES (@hash, @length, @bytes)
+          """
+        |> Sql.parameters
+          [ "hash", Sql.string hash
+            "length", Sql.int64 (int64 bytes.Length)
+            "bytes", Sql.bytes bytes ]
+        |> Sql.executeNonQueryAsync
+      return ()
+    }

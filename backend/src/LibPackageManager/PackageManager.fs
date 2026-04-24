@@ -44,6 +44,7 @@ let rt : RT.PackageManager =
   { getType = withCache PMRT.Type.get
     getFn = withCache PMRT.Fn.get
     getValue = withCache PMRT.Value.get
+    getBlob = PMRT.Blob.get
 
     isHarmful =
       fun branchId (RT.Hash h) -> Ply(Set.contains h (loadHarmfulForBranch branchId))
