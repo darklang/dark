@@ -641,9 +641,23 @@ and BlobRef =
   | Persistent of hash : string * length : int64
 
 
-/// Lazy sequence producer. Chunk 2.2 starts with only [FromIO]; chunks
-/// 2.6+ add Mapped/Filtered/Take/Concat as transformation nodes that
-/// wrap other StreamImpls.
+/// Lazy sequence producer. Chunk 2.2 starts with only [FromIO]; chunk
+/// 2.6 adds Mapped/Filtered/Take/Concat as transformation nodes that
+/// wrap other StreamImpls. Each transform is pull-driven: it does no
+/// work until the enclosing [DStream] is drained via `readStreamNext`.
+///
+/// Mapped/Filtered hold pre-bound `Dval -> Ply<...>` closures rather
+/// than the raw [Applicable]. The builtin wrapper (Stream.map etc.)
+/// closes over `exeState`/`vmState` when constructing the closure, so
+/// the drain path in Dval.fs stays decoupled from Execution — which
+/// keeps the layering clean (Dval.fs can't call Exe.executeApplicable
+/// directly; it sits earlier in the dependency chain).
+///
+/// Take tracks both the original `n` (for introspection/printing) and
+/// a mutable `remaining` counter that decrements on each pull.
+///
+/// Concat's `streams` list is a mutable ref — drain pops exhausted
+/// heads so subsequent pulls skip over them without re-entering.
 ///
 /// Has a custom `Equals` that always returns false — `FromIO`'s pull
 /// fn is a closure, so there's no sensible structural-equality story,
@@ -653,9 +667,28 @@ and BlobRef =
 /// streams at all.
 and [<CustomEquality; NoComparison>] StreamImpl =
   | FromIO of next : (unit -> Ply<Option<Dval>>) * elemType : ValueType
+  | Mapped of src : StreamImpl * fn : (Dval -> Ply<Dval>) * elemType : ValueType
+  | Filtered of src : StreamImpl * pred : (Dval -> Ply<bool>)
+  | Take of src : StreamImpl * n : int64 * remaining : int64 ref
+  | Concat of streams : StreamImpl list ref
 
   override this.Equals(_other : obj) : bool = false
   override this.GetHashCode() : int = 0
+
+  /// The element type emitted by this stream. Walks the tree for
+  /// transforms that inherit from their source (Filtered, Take,
+  /// Concat) and reports the head element type for Mapped. Concat
+  /// over an empty list has no known element type.
+  member this.elemType : ValueType =
+    match this with
+    | FromIO(_, t) -> t
+    | Mapped(_, _, t) -> t
+    | Filtered(src, _) -> src.elemType
+    | Take(src, _, _) -> src.elemType
+    | Concat streams ->
+      match streams.Value with
+      | [] -> ValueType.Unknown
+      | first :: _ -> first.elemType
 
 
 and DvalTask = Ply<Dval>
@@ -1113,7 +1146,7 @@ module Dval =
 
     | DBlob _ -> ValueType.Known KTBlob
 
-    | DStream(FromIO(_, elemType), _, _) -> ValueType.Known(KTStream elemType)
+    | DStream(impl, _, _) -> ValueType.Known(KTStream impl.elemType)
 
 
 

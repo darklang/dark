@@ -125,12 +125,84 @@ let newStream (elemType : ValueType) (next : unit -> Ply.Ply<Option<Dval>>) : Dv
   DStream(FromIO(next, elemType), ref false, obj ())
 
 
+/// Pull one element through a [StreamImpl]. Separate from
+/// [readStreamNext] so the recursion can walk transform nodes without
+/// re-entering the root's monitor lock — nested transforms share the
+/// wrapping DStream's lock, per the design note in
+/// thinking/blobs-and-streams/30-phase-2.md.
+let rec private pullStreamImpl (impl : StreamImpl) : Ply.Ply<Option<Dval>> =
+  uply {
+    match impl with
+    | FromIO(next, _elemType) -> return! next ()
+
+    | Mapped(src, fn, _elemType) ->
+      let! upstream = pullStreamImpl src
+      match upstream with
+      | None -> return None
+      | Some v ->
+        let! mapped = fn v
+        return Some mapped
+
+    | Filtered(src, pred) ->
+      // Pull from source until the predicate accepts or the source
+      // runs dry. Written as a mutable loop rather than tail recursion
+      // so a long rejection run doesn't blow the Ply chain.
+      let mutable result : Option<Dval> = None
+      let mutable keepGoing = true
+      while keepGoing do
+        let! upstream = pullStreamImpl src
+        match upstream with
+        | None -> keepGoing <- false
+        | Some v ->
+          let! matches = pred v
+          if matches then
+            result <- Some v
+            keepGoing <- false
+      return result
+
+    | Take(src, _n, remaining) ->
+      if remaining.Value <= 0L then
+        return None
+      else
+        let! upstream = pullStreamImpl src
+        match upstream with
+        | Some _ ->
+          remaining.Value <- remaining.Value - 1L
+          return upstream
+        | None ->
+          // Source dried up before the limit; clamp so future pulls
+          // stay at zero and short-circuit without touching source.
+          remaining.Value <- 0L
+          return None
+
+    | Concat streams ->
+      // Pull from the head stream; when it's exhausted, drop it and
+      // try the next. Mutating the ref means future pulls don't
+      // re-enter a drained stream (which would call `None ()` on a
+      // disposed IO source in pathological cases).
+      let mutable result : Option<Dval> = None
+      let mutable keepGoing = true
+      while keepGoing do
+        match streams.Value with
+        | [] -> keepGoing <- false
+        | head :: tail ->
+          let! pulled = pullStreamImpl head
+          match pulled with
+          | Some _ ->
+            result <- pulled
+            keepGoing <- false
+          | None -> streams.Value <- tail
+      return result
+  }
+
+
 /// Pull the next element from a stream. Returns [None] when the
 /// stream is exhausted; subsequent calls after exhaustion return
 /// [None] (single-consumer — once drained, stays drained).
 ///
 /// Thread-safe via the stream's monitor lock; concurrent callers
-/// serialize. Chunk 2.6 adds Mapped/Filtered/Take/Concat walking.
+/// serialize. The walk through Mapped/Filtered/Take/Concat nodes
+/// happens in [pullStreamImpl].
 let readStreamNext (dv : Dval) : Ply.Ply<Option<Dval>> =
   uply {
     match dv with
@@ -144,14 +216,12 @@ let readStreamNext (dv : Dval) : Ply.Ply<Option<Dval>> =
         if disposed.Value then
           return None
         else
-          match impl with
-          | FromIO(next, _elemType) ->
-            let! result = next ()
-            match result with
-            | Some _ -> return result
-            | None ->
-              disposed.Value <- true
-              return None
+          let! result = pullStreamImpl impl
+          match result with
+          | Some _ -> return result
+          | None ->
+            disposed.Value <- true
+            return None
       finally
         System.Threading.Monitor.Exit(lockObj)
     | _ -> return Exception.raiseInternal "readStreamNext: expected DStream" []

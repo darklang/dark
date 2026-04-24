@@ -707,9 +707,10 @@ module Dval =
         "DBlobPersistent", [ DString hash; DInt64 length ]
 
       // Streams render as an elided tag for LSP/reflection only — they
-      // can't round-trip (no live pull fn on the other side).
-      | DStream(FromIO(_, elemType), _, _) ->
-        "DStreamElided", [ ValueType.toDT elemType ]
+      // can't round-trip (no live pull fn on the other side). The
+      // [impl.elemType] member walks transform nodes (Mapped/Filtered/
+      // Take/Concat) to report the emitted element type.
+      | DStream(impl, _, _) -> "DStreamElided", [ ValueType.toDT impl.elemType ]
 
     DEnum(typeName (), typeName (), [], caseName, fields)
 
