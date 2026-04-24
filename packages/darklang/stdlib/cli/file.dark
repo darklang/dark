@@ -65,8 +65,8 @@ let move (src: String) (dst: String) : Result.Result<Unit, Posix.Error> =
   Posix.rename src dst
 
 
-/// Read the entire contents of a file as bytes.
-let readBytes (path: String) : Result.Result<List<UInt8>, Posix.Error> =
+/// Read the entire contents of a file as a Blob.
+let readBytes (path: String) : Result.Result<Blob, Posix.Error> =
   match Posix.openFile path (Posix.OpenFlags.rdonly ()) 0L with
   | Ok fd ->
     let result = Posix.fdReadAll fd []
@@ -85,12 +85,12 @@ let readText (path: String) : Result.Result<String, Posix.Error> =
     let _ = Builtin.posixFdClose fd
 
     match result with
-    | Ok bytes ->
-      match Stdlib.String.fromBytes bytes with
-      | Some s -> Stdlib.Result.Result.Ok s
-      | None ->
+    | Ok blob ->
+      match Stdlib.Bytes.toString blob with
+      | Ok s -> Stdlib.Result.Result.Ok s
+      | Error msg ->
         Stdlib.Result.Result.Error
-          (Posix.Error { errno = -1L; message = "File contents are not valid UTF-8" })
+          (Posix.Error { errno = -1L; message = $"File contents not valid UTF-8: {msg}" })
     | Error e -> Stdlib.Result.Result.Error e
   | Error e -> Stdlib.Result.Result.Error e
 

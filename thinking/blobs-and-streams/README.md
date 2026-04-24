@@ -101,7 +101,7 @@ See [20-phase-1.md](./20-phase-1.md).
 - [x] 1.7 expand Bytes builtin module to full API
 - [x] 1.8 migrate fileRead/fileWrite to Blob
 - [x] 1.9 migrate Crypto and Base64 to Blob
-- [ ] 1.10 update Dark-side stdlib/bytes.dark + dependents
+- [x] 1.10 update Dark-side stdlib/bytes.dark + dependents
 - [x] 1.11 update tree-sitter grammar and Dark-side parser/pretty-printer
 - [ ] 1.12 add F# roundtrip + promotion + memory tests
 - [ ] 1.13 add .dark bytes tests
@@ -159,6 +159,7 @@ Append one line per chunk completion. Format:
 2026-04-24 00:52  1.8  fileRead returns Result<Blob, String>; fileWrite takes Blob. posixFdRead/posixFdWrite mirror. Old List<UInt8> shape gone. cli/file.tests rewritten to drive new API. Also bumped cloud/internal.dark table count 22 → 23 (1.5 added package_blobs). All 5591 LibExecution tests green. Dark-side stdlib wrappers calling fileWrite with List<UInt8> are still wrong but tolerated at parse time — 1.10 migrates them.
 2026-04-24 01:07  1.9  Crypto + Base64 + stringToBytes/stringFromBytesWithReplacement migrated to Blob. Dark-side wrappers (crypto.dark, base64.dark, string.dark) keep their List<UInt8> public shape via let-bridged bytesFromList/bytesToList — parser doesn't know about Blob yet (1.11 adds). Parser-trip gotcha: `a |> b |> c) |> d` parses as "Pipe: App", use let-binding chain instead. 9 crypto + 41 base64 + 5591 total LibExecution tests green.
 2026-04-24 01:18  1.11  Pulled ahead of 1.10 because 1.10 depends on Blob being parseable. tree-sitter grammar + src/parser.c regenerated; WrittenTypes/ProgramTypes/RuntimeTypes Builtin DUs gain TBlob/KTBlob; parser/typeReference.dark, writtenTypesToProgramTypes, semanticTokens, hoverInformation, and both pretty-printers all get the new case. `let x: Blob = Builtin.bytesFromString "hi"` now parses end-to-end. 5591 LibExecution tests green. Dval printer styling for DBlob (<blob ephemeral ...> / <blob sha256:...>) deferred — the existing Dval printer is a TODO elsewhere; catch-all renders fine.
+2026-04-24 01:46  1.10  partial. LibParser (F#) WrittenTypes + FSharpToWrittenTypes + WrittenTypesToProgramTypes gained TBlob so `.dark` files parse Blob. bytes.dark got the full new Blob-based surface; cli/file.dark readBytes returns Blob; cli/fileSystem.dark writeFile takes Blob; cli/zsh|bash|fish use Builtin.stringToBytes/FromBytes directly for Blob-shaped IO. **Public signatures of Stdlib.Crypto/Base64/String (List<UInt8>) preserved** via internal bytesFromList/bytesToList bridges because migrating the .dark test corpus to Blob is a bigger separate pass. NoModule.equals/notEquals now promoteBlobs-normalize both args (no-op insert) so two ephemerals with same bytes compare equal. 5591 LibExecution tests green.
 
 ## Blockers
 

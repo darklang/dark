@@ -1,9 +1,10 @@
 module Darklang.Stdlib.Crypto
 
-// Chunk 1.9: Builtin.crypto* now speak Blob. Dark-side wrappers keep
-// their `List<UInt8>` shape temporarily — 1.10/1.11 migrates them to
-// `Blob` (the Dark-side surface type name) after the parser learns
-// the new primitive. Until then we bridge via bytesFromList/bytesToList.
+// Chunk 1.10 note: Builtin.crypto* take/return Blob. Dark-side public
+// signatures keep List<UInt8> for now — 1.10's retype was rolled back
+// because the execution .dark test corpus still expects the old shape.
+// The signature migration is tracked as follow-on work. Internally we
+// bridge via bytesFromList/bytesToList.
 
 /// Computes the SHA-256 digest of the given <param data>
 let sha256 (data: List<UInt8>) : List<UInt8> =

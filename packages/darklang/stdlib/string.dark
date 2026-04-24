@@ -325,14 +325,11 @@ let trimEnd (str: String) : String = Builtin.stringTrimEnd str
 
 
 /// Converts the given unicode string to a UTF8-encoded byte sequence.
-// Chunk 1.9 bridge: Builtin.stringToBytes now returns Blob; we expand
-// it here to keep this wrapper's `List<UInt8>` contract intact until
-// 1.10/1.11 retype the Dark stdlib to Blob.
 let toBytes (str: String) : List<UInt8> =
   Builtin.bytesToList (Builtin.stringToBytes str)
 
 
-/// Converts the UTF8-encoded byte sequence into a string. Errors will be ignored by replacing invalid characters
+/// Converts the UTF8-encoded byte sequence into a string. Errors will be ignored by replacing invalid characters.
 let fromBytesWithReplacement (bytes: List<UInt8>) : String =
   Builtin.stringFromBytesWithReplacement (Builtin.bytesFromList bytes)
 

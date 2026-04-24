@@ -110,8 +110,12 @@ let rec equals (a : Dval) (b : Dval) : bool =
   | DDB a, DDB b -> a = b
 
   | DBlob a, DBlob b ->
-    // Blob equality: hash compare for persistent refs; trivial UUID
-    // compare for ephemeral (full semantics land in chunk L.4).
+    // Blob equality: hash-compare ephemeral pairs. We'd ideally
+    // dereference via the ExecutionState's blobStore + pm.getBlob,
+    // but NoModule.equals doesn't thread state. Punt: persistent
+    // pairs compare hashes; ephemeral pairs compare UUIDs (identical
+    // handle = identical bytes trivially). Mixed pairs are unequal.
+    // The more-general byte-wise equality lands as a builtin in L.4.
     match a, b with
     | Persistent(h1, l1), Persistent(h2, l2) -> h1 = h2 && l1 = l2
     | Ephemeral id1, Ephemeral id2 -> id1 = id2
@@ -158,12 +162,22 @@ let fns () : List<BuiltInFn> =
       description = "Returns true if the two value are equal"
       fn =
         (function
-        | _, vm, _, [ a; b ] ->
+        | state, vm, _, [ a; b ] ->
           let (vtA, vtB) = (Dval.toValueType a, Dval.toValueType b)
           match ValueType.merge vtA vtB with
           | Error _ ->
             RTE.EqualityCheckOnIncompatibleTypes(vtA, vtB) |> raiseRTE vm.threadID
-          | Ok _ -> equals a b |> DBool |> Ply
+          | Ok _ ->
+            // Normalize ephemeral blobs to their hash-keyed form so
+            // that two ephemerals with the same bytes compare equal.
+            // Uses promoteBlobs with a no-op insert — we only need
+            // the hash, not the persistence side effect.
+            uply {
+              let noopInsert _ _ = uply { return () }
+              let! a = Dval.promoteBlobs state noopInsert a
+              let! b = Dval.promoteBlobs state noopInsert b
+              return equals a b |> DBool
+            }
         | _ -> incorrectArgs ())
       sqlSpec = SqlBinOp "="
       previewable = Pure
@@ -177,12 +191,18 @@ let fns () : List<BuiltInFn> =
       description = "Returns true if the two value are not equal"
       fn =
         (function
-        | _, vm, _, [ a; b ] ->
+        | state, vm, _, [ a; b ] ->
           let (vtA, vtB) = (Dval.toValueType a, Dval.toValueType b)
           match ValueType.merge vtA vtB with
           | Error _ ->
             RTE.EqualityCheckOnIncompatibleTypes(vtA, vtB) |> raiseRTE vm.threadID
-          | Ok _ -> equals a b |> not |> DBool |> Ply
+          | Ok _ ->
+            uply {
+              let noopInsert _ _ = uply { return () }
+              let! a = Dval.promoteBlobs state noopInsert a
+              let! b = Dval.promoteBlobs state noopInsert b
+              return equals a b |> not |> DBool
+            }
         | _ -> incorrectArgs ())
       sqlSpec = SqlBinOp "<>"
       previewable = Pure

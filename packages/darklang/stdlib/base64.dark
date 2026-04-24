@@ -1,7 +1,8 @@
 module Darklang.Stdlib.Base64
 
-// Chunk 1.9 bridge: wrappers still speak List<UInt8> here; underlying
-// Builtin.base64* take/return Blob. 1.10/1.11 retype to Blob.
+// Chunk 1.10 note: Builtin.base64* take/return Blob. Dark-side public
+// signatures keep List<UInt8> for now (signature migration is
+// follow-on work tracked post-phase-1).
 
 /// Base64 decodes a string. Works with both the URL-safe and standard Base64
 /// alphabets defined in [RFC 4648](https://www.rfc-editor.org/rfc/rfc4648.html)

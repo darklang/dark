@@ -70,6 +70,7 @@ module TypeReference =
       | WT.TString -> return PT.TString
       | WT.TDateTime -> return PT.TDateTime
       | WT.TUuid -> return PT.TUuid
+      | WT.TBlob -> return PT.TBlob
 
       | WT.TList typ -> return! toPT typ |> Ply.map PT.TList
 

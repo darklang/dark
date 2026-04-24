@@ -70,6 +70,7 @@ module TypeReference =
     | [], "Float", [] -> WT.TFloat
     | [], "DateTime", [] -> WT.TDateTime
     | [], "Uuid", [] -> WT.TUuid
+    | [], "Blob", [] -> WT.TBlob
     | [], "Unit", [] -> WT.TUnit
 
     // with type args

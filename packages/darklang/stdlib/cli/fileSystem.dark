@@ -45,7 +45,7 @@ let isDirectoryAtPath (dirPath: String) (fileName: String) : Bool =
 
 
 /// Write content to a file, creating any missing parent directories.
-let writeFile (path: String) (content: List<UInt8>) : Result.Result<Unit, String> =
+let writeFile (path: String) (content: Blob) : Result.Result<Unit, String> =
   let parentDir = Path.parent path
 
   let mkdirResult =
