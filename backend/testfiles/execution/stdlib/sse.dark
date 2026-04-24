@@ -1,6 +1,5 @@
-// Server-Sent Events parser — chunk 2.9. Exercises Stdlib.Sse.parse
-// over in-memory Stream<UInt8> bodies (no HTTP needed — the mock
-// Kestrel SSE tests from the old StreamingHttpClient are gone).
+// Server-Sent Events parser. Exercises Stdlib.Sse.parse over
+// in-memory Stream<UInt8> bodies; no HTTP needed.
 
 // Helper tests build byte streams from strings via bytesFromString +
 // bytesToList + streamFromList; the parse result is drained back to

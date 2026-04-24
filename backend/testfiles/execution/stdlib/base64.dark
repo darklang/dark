@@ -1,5 +1,5 @@
-// Stdlib.Base64 — L.6 migrated tests. decode returns Result<Blob, String>;
-// encode/urlEncode take Blob.
+// Stdlib.Base64 — decode returns Result<Blob, String>;
+// encode / urlEncode take Blob.
 
 // TODO: try decoding values with incorrect padding
 

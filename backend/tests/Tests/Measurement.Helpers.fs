@@ -1,4 +1,4 @@
-/// Helpers for the Phase 0 measurement harness.
+/// Helpers for the memory/allocation measurement harness.
 ///
 /// Walks a Dval tree and counts allocated nodes. Used to expose the
 /// boxed-list overhead of today's `List<UInt8>` representation — every
@@ -46,9 +46,10 @@ let rec countDvalNodes (dv : RT.Dval) : int =
   | RT.DEnum(_, _, _, _, fields) -> 1 + List.sumBy countDvalNodes fields
 
 
-/// Directory measurements write to. Callers: ensure it exists via
-/// [ensureOutputDir]. Legacy alias — phase-0 measurements still write
-/// here; phase-1 uses [phaseDir "phase-1"].
+/// Default directory measurements write to. Baseline (List<UInt8>)
+/// scenarios land here; the Blob and DStream rerun scenarios use
+/// [phaseDir "phase-1"] / [phaseDir "phase-2"] so diffs across code
+/// paths stay legible.
 let outputDir : string =
   System.IO.Path.Combine(LibConfig.Config.runDir, "measurements", "phase-0")
 

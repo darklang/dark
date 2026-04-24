@@ -61,14 +61,9 @@
     <Compile Include="Serialization.Vanilla.Tests.fs" />
     <Compile Include="Serialization.DarkTypes.Tests.fs" />
 
-    <!-- measurement harness (phase 0) /-->
     <Compile Include="Measurement.Helpers.fs" />
     <Compile Include="Measurement.fs" />
-
-    <!-- blob (phase 1) /-->
     <Compile Include="Blob.Tests.fs" />
-
-    <!-- stream (phase 2) /-->
     <Compile Include="Stream.Tests.fs" />
 
     <Compile Include="Tests.fs" />

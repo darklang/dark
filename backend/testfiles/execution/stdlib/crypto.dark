@@ -1,5 +1,5 @@
-// Stdlib.Crypto — L.6 migrated tests. All hashes take and return Blob;
-// use `Builtin.bytesFromString` to build an input from a string and
+// Stdlib.Crypto — all hashes take and return Blob. Use
+// `Builtin.bytesFromString` to build an input from a string and
 // `Stdlib.Bytes.toHex` to render the digest.
 
 Stdlib.Bytes.toHex

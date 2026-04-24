@@ -78,13 +78,8 @@ let main (args : string array) : int =
         // cross-cutting
         Tests.LibExecution.tests.Force()
 
-        // measurement harness (phase 0)
         Tests.Measurement.tests
-
-        // blob (phase 1)
         Tests.Blob.tests
-
-        // stream (phase 2)
         Tests.Stream.tests ]
 
     let cancelationTokenSource = new System.Threading.CancellationTokenSource()

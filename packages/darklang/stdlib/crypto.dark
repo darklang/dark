@@ -1,8 +1,7 @@
 module Darklang.Stdlib.Crypto
 
-// L.6 (2026-04-24): public signatures use Blob. The List<UInt8>
-// bridges from 1.10 are gone — the builtins already take/return Blob
-// so the wrappers collapse to a one-line pass-through. Callers
+// Public signatures use Blob — the builtins already take/return
+// Blob so these wrappers are one-line pass-throughs. Callers
 // constructing an input from a string:
 //
 //   Stdlib.Crypto.sha256 (Builtin.bytesFromString "hi")

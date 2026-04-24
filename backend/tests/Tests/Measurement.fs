@@ -64,8 +64,8 @@ let fileReadProfile =
       "size_bytes,alloc_bytes,peak_ws_bytes,elapsed_ms,dval_nodes,note"
 
     // 38_000_000 omitted: would allocate ~50 GB and risk OOM-killing
-    // the test runner. The observation is recorded as an explicit row
-    // below, sourced from thinking/bug-fileread-oom.md.
+    // the test runner. The observation is recorded as an explicit
+    // anecdote row below.
     let sizes = [ 1_024; 100_000; 1_000_000; 10_000_000 ]
 
     let rng = System.Random(0)
@@ -96,7 +96,7 @@ let fileReadProfile =
     // Explicit anecdotal row for the OOM repro; not measured here.
     appendRow
       "fileRead.txt"
-      "38000000,-1,-1,-1,-1,anecdote:bug-fileread-oom.md reports ~49GB RSS then OOM-kill"
+      "38000000,-1,-1,-1,-1,anecdote:~49GB RSS then OOM-kill (historical repro)"
   }
 
 
@@ -255,9 +255,10 @@ let streamingHttpProfile =
           if bytesRead > 0 then
             if firstChunkMs < 0L then firstChunkMs <- sw.ElapsedMilliseconds
             let bytes = Array.sub buffer 0 bytesRead
-            // Mirrors what the old StreamingHttpClient did per-chunk:
-            // wrap in a DList(DUInt8). This is the measured cost —
-            // the phase-1/2 Blob + DStream path avoids it entirely.
+            // Mirrors what the retired callback-based streaming
+            // builtin did per-chunk: wrap in a DList(DUInt8). This
+            // is the measured cost — the current Blob + DStream path
+            // avoids it entirely.
             let _dval = Dval.byteArrayToDvalList bytes
             chunksSeen <- chunksSeen + 1
             pump ()
@@ -346,11 +347,12 @@ let hexEncodeProfile =
   }
 
 
-// ===== Phase 1 rerun scenarios =====
+// ===== Blob-path rerun scenarios (phase-1 subdir) =====
 //
-// Measure the new Blob path so we can diff against the phase-0 baseline.
-// Writes to rundir/measurements/phase-1/*.txt. Scenario 3 (streaming)
-// stays on the old code path until Phase 2.
+// Re-measure fileRead / httpBody / hex-encode through the new Blob
+// path so numbers diff against the List<UInt8> baseline above.
+// Writes to rundir/measurements/phase-1/*.txt. The streaming scenario
+// lives below with its own directory.
 
 module P1 = Tests.MeasurementHelpers
 
@@ -373,11 +375,10 @@ let private freshState () : LibExecution.RuntimeTypes.ExecutionState =
       secrets = [] }
 
 
-/// Phase 1, Scenario 1 — fileRead via DBlob.
-///
-/// Mirrors scenario 1 but emits a `DBlob(Ephemeral _)` instead of a
-/// `DList(DUInt8)`. Allocation should drop from ~200×file-size to
-/// ~1×file-size plus a few tens of bytes of Dval overhead.
+/// fileRead via DBlob. Mirrors the baseline fileRead scenario but
+/// emits a `DBlob(Ephemeral _)` instead of a `DList(DUInt8)`.
+/// Allocation should drop from ~200×file-size to ~1×file-size plus
+/// a few tens of bytes of Dval overhead.
 let p1FileReadProfile =
   test "phase-1: fileRead via DBlob" {
     let tempDir = System.IO.Path.Combine(System.IO.Path.GetTempPath(), "dark-phase0")
@@ -419,7 +420,7 @@ let p1FileReadProfile =
   }
 
 
-/// Phase 1, Scenario 2 — HttpClient body via DBlob.
+/// HttpClient body via DBlob.
 let p1HttpBodyProfile =
   test "phase-1: httpclient body via DBlob" {
     P1.resetPhaseOutput "phase-1" "httpBody.txt"
@@ -466,7 +467,7 @@ let p1HttpBodyProfile =
   }
 
 
-/// Phase 1, Scenario 4 — hex encode via the Blob path.
+/// hex encode 1 MB via the Blob path.
 ///
 /// Replaces list construction + O(n) hex loop with `newEphemeralBlob +
 /// System.Convert.ToHexString`. The latter is O(n) over a contiguous
@@ -513,18 +514,18 @@ let p1HexEncodeProfile =
   }
 
 
-// ===== Phase 2 rerun scenario =====
+// ===== DStream streaming rerun scenario (phase-2 subdir) =====
 //
-// Re-runs the phase-0 streaming scenario (scenario 3) through the new
-// DStream path. Each pull reads one byte out of an 8 KB buffer that
-// refills on demand from the response stream; per-pull allocation is
-// ~one boxed DUInt8 rather than a full DList. Writes to
+// Re-runs the baseline streaming scenario through the DStream path.
+// Each pull reads one byte out of an 8 KB buffer that refills on
+// demand from the response stream; per-pull allocation is ~one boxed
+// DUInt8 rather than a full DList. Writes to
 // rundir/measurements/phase-2/streaming.txt.
 
 
-/// Phase 2, Scenario 3 — streaming HTTP body via DStream.
+/// Streaming HTTP body via DStream.
 ///
-/// Mirrors [streamingHttpProfile] (the phase-0 baseline) but drains
+/// Mirrors [streamingHttpProfile] (the List<UInt8> baseline) but drains
 /// the response through `Dval.readStreamNext` on a FromIO-wrapped
 /// byte source — same shape the new `HttpClient.stream` builtin
 /// surfaces. Records chunk-boundary allocations so we can confirm

@@ -1,8 +1,8 @@
 module Darklang.Stdlib.Base64
 
-// L.6 (2026-04-24): public signatures use Blob. Callers with a byte
-// list can bridge via `Builtin.bytesFromList`; callers with a string
-// should reach for `Builtin.bytesFromString` directly.
+// Public signatures use Blob. Callers with a byte list can bridge
+// via `Builtin.bytesFromList`; callers with a string should reach
+// for `Builtin.bytesFromString` directly.
 
 
 /// Base64 decodes a string. Works with both the URL-safe and standard Base64

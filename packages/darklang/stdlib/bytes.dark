@@ -1,7 +1,6 @@
 module Darklang.Stdlib.Bytes
 
-// See thinking/blobs-and-streams/ for the Blob design. These are
-// thin wrappers over the Bytes builtins — Dark-side callers should
+// Thin wrappers over the Bytes builtins — Dark-side callers should
 // prefer this module to Builtin.bytes* directly.
 
 

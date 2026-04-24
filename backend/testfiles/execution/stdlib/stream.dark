@@ -1,5 +1,5 @@
-// Stream builtins — chunks 2.5 (consumption) + 2.7 (map/filter/take/concat).
-// Chunk 2.6 added the StreamImpl variants the transforms wrap.
+// Stream builtins — consumption (next/toList/toBlob/close) and
+// transforms (map/filter/take/concat).
 
 // fromList -> toList roundtrips
 (let s = Builtin.streamFromList<Int64> [ 1L; 2L; 3L ]
@@ -34,7 +34,7 @@
  Builtin.streamNext<Int64> s) = Stdlib.Option.Option.None
 
 
-// --- chunk 2.7 transforms ---
+// --- transforms ---
 
 // map doubles every element
 (let s = Builtin.streamFromList<Int64> [ 1L; 2L; 3L ]
@@ -94,7 +94,7 @@
  Builtin.streamToList<Int64> taken) = [ 3L; 5L; 7L ]
 
 
-// --- chunk 2.12 extra compositional coverage ---
+// --- extra compositional coverage ---
 
 // map can change the element type
 (let s = Builtin.streamFromList<Int64> [ 1L; 2L; 3L ]

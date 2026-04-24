@@ -346,10 +346,9 @@ let promotedBlobResolvesViaReadBlobBytes =
 
 let fileReadMemoryBound =
   testTask "fileRead allocation stays within 3x file size for a 10mb blob" {
-    // Mirrors phase-0's fileRead scenario but with the new Blob-returning
-    // builtin. Should allocate ~file-size bytes plus a little overhead
-    // (the byte[] itself plus a single DBlob Dval + a UUID) instead of
-    // N boxed DUInt8 cells.
+    // Should allocate ~file-size bytes plus a little overhead (the
+    // byte[] itself plus a single DBlob Dval + a UUID) — not the
+    // N-boxed-DUInt8-per-byte shape the old List<UInt8> path used.
     let path =
       System.IO.Path.Combine(System.IO.Path.GetTempPath(), "blob-memory-10mb.bin")
     if not (System.IO.File.Exists(path)) then
@@ -373,10 +372,10 @@ let fileReadMemoryBound =
     let after = System.GC.GetTotalAllocatedBytes(precise = false)
     let delta = after - before
 
-    // Phase 0 baseline: 10MB fileRead cost ~2GB alloc. The new blob
-    // path should drop by ~100x. Bound is generous — anything remotely
-    // resembling a list-boxing regression hits orders of magnitude over
-    // this.
+    // The historical List<UInt8> path allocated ~200× the file size
+    // (10 MB → ~2 GB). The Blob path should drop by ~100×. Bound is
+    // generous — anything remotely resembling a list-boxing
+    // regression hits orders of magnitude over this.
     Expect.isLessThan
       delta
       30_000_000L

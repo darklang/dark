@@ -10,7 +10,7 @@ Stdlib.Bytes.hexEncode_v0 (
 ) = "646C6B6A6B64333239383233333333333333333333666A6669646A73667564736468737D7B7C7C217C217C217C212124255E265E26EFB7BDEFB7BDEFB7BDEFB7BDEFB7BDEFB7BDEFB7BDEFB7BDEFB7BDEFB7BDEFB7BDEFB7BDEFB7BDEFB7BDEFB7BDEFB7BD"
 
 
-// --- New Blob-based Bytes API (chunk 1.7) ---
+// --- Blob-based Bytes builtins ---
 
 // length
 Builtin.bytesLength (Builtin.bytesFromString "hi") = 2L
@@ -59,11 +59,10 @@ Builtin.bytesToList (Builtin.bytesFromString "abc") = [ 97uy; 98uy; 99uy ]
 Builtin.bytesLength (Builtin.bytesFromList [ 97uy; 98uy; 99uy ]) = 3L
 
 
-// --- Stdlib.Bytes.* wrapper API (chunk 1.13) ---
-// Exercises the Dark-side module surface added in 1.10. Same
-// semantics as the Builtin.* cases above, but drives the public
-// stdlib module so any wrapper-layer regressions (eg. chunk 1.7 →
-// 1.10 name changes) show up here.
+// --- Stdlib.Bytes.* wrapper API ---
+// Exercises the Dark-side module surface. Same semantics as the
+// Builtin.* cases above, but drives the public stdlib module so
+// wrapper-layer regressions show up here.
 
 Stdlib.Bytes.length (Stdlib.Bytes.fromString "hi") = 2L
 Stdlib.Bytes.length (Stdlib.Bytes.fromString "") = 0L
@@ -112,9 +111,9 @@ Stdlib.Bytes.toBase64 (Stdlib.Bytes.fromString "hello") = "aGVsbG8="
 Stdlib.Bytes.toList (Stdlib.Bytes.fromString "abc") = [ 97uy; 98uy; 99uy ]
 Stdlib.Bytes.length (Stdlib.Bytes.fromList [ 97uy; 98uy; 99uy ]) = 3L
 
-// L.4 — blob equality uses byte content, not handle identity.
-// Two ephemerals produced independently compare equal when their
-// bytes match (the `==` builtin promotes both sides through
-// `promoteBlobs` so hash-compare falls out of structural equality).
+// Blob equality uses byte content, not handle identity. Two
+// ephemerals produced independently compare equal when their bytes
+// match — the `==` builtin promotes both sides through
+// `promoteBlobs` so hash-compare falls out of structural equality.
 ((Stdlib.Bytes.fromString "hi") == (Stdlib.Bytes.fromString "hi")) = true
 ((Stdlib.Bytes.fromString "hi") == (Stdlib.Bytes.fromString "bye")) = false

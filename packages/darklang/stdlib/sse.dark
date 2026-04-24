@@ -1,23 +1,19 @@
 module Darklang.Stdlib.Sse
 
-// Server-Sent Events parsing over a Stream<UInt8>.
-//
-// Replaces the old F#-based `StreamingHttpClient.requestSSE` callback
-// API (deleted in chunk 2.9). Consumers compose with the standard
-// Stream builtins:
+// Server-Sent Events parsing over a Stream<UInt8>. Consumers
+// compose with the standard Stream builtins:
 //
 //     Builtin.httpClientStream "GET" url headers
 //     |> Stdlib.Result.map (fun r -> Stdlib.Sse.parse r.body)
 //
-// Current limitation: the implementation drains the byte stream into
-// a Blob before parsing (phase-2 chunk 2.9). That preserves the API
-// shape — the return is a real Stream<Event> — but events aren't
-// emitted incrementally. A streaming parser will land once the stream
-// module grows an `unfold`-style primitive (see phase-2 open TODOs).
+// Current limitation: the implementation drains the byte stream
+// into a Blob before parsing. That preserves the API shape — the
+// return is a real Stream<Event> — but events aren't emitted
+// incrementally. A streaming parser can land once the stream module
+// grows an `unfold`-style primitive.
 
 
-/// A parsed Server-Sent Event. Mirrors the old
-/// `Stdlib.StreamingHttpClient.SSEEvent` shape so migration is mostly
+/// A parsed Server-Sent Event. Mirrors the old SSE event shape so
 /// a rename.
 type Event =
   { data: String
