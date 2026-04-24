@@ -25,6 +25,9 @@ module PMBlob = LibPackageManager.RuntimeTypes.Blob
 module RoundtrippableJson = LibExecution.DvalReprInternalRoundtrippable
 module QueryableJson = LibExecution.DvalReprInternalQueryable
 
+open Fumble
+open LibDB.Db
+
 
 /// Minimal ExecutionState suitable for exercising blob helpers
 /// without needing a full test canvas.
@@ -623,6 +626,87 @@ let persistableAcceptsApplicableAndDDB =
   }
 
 
+// ——————————————————————————————————————————————————————————
+// L.3 — orphan package_blobs sweeper
+// ——————————————————————————————————————————————————————————
+
+
+let sweepDeletesOrphansButKeepsReferenced =
+  testTask "sweep: orphan rows deleted, referenced rows kept" {
+    // Seed two blobs directly via PM.insert — neither references a
+    // package_value yet, so both are initially orphans.
+    let refBytes = [| 0x11uy; 0x22uy |]
+    let refHash = Dval.sha256Hex refBytes
+    let orphanBytes = [| 0xAAuy; 0xBBuy; 0xCCuy |]
+    let orphanHash = Dval.sha256Hex orphanBytes
+
+    do! PMBlob.insert refHash refBytes |> Ply.toTask
+    do! PMBlob.insert orphanHash orphanBytes |> Ply.toTask
+
+    // Plant a reference to `refHash` by writing a package_value row
+    // whose rt_dval contains a DBlob(Persistent refHash, _).
+    // The serializer format expects `BS.RT.PackageValue.serialize`
+    // called with a matching wrapper.
+    let fakeHash = RT.Hash(Dval.sha256Hex [| 0xFFuy |])
+    let referencingDval = RT.DBlob(RT.Persistent(refHash, int64 refBytes.Length))
+    let pv : RT.PackageValue.PackageValue =
+      { hash = fakeHash; body = referencingDval }
+    let rtDvalBytes = BS.RT.PackageValue.serialize fakeHash pv
+    let valueType = RT.Dval.toValueType referencingDval
+    let valueTypeBytes = BS.RT.ValueType.serialize valueType
+
+    // Insert the package_value row. `package_values` is keyed by
+    // hash; uses pt_def + rt_dval + value_type. We only need rt_dval
+    // populated for the sweep to see the reference; pt_def can be
+    // empty bytes for this test.
+    let (RT.Hash fakeHashStr) = fakeHash
+    do!
+      Sql.query
+        """
+        INSERT INTO package_values (hash, pt_def, rt_dval, value_type)
+        VALUES (@hash, @pt_def, @rt_dval, @value_type)
+        """
+      |> Sql.parameters
+        [ "hash", Sql.string fakeHashStr
+          "pt_def", Sql.bytes [||]
+          "rt_dval", Sql.bytes rtDvalBytes
+          "value_type", Sql.bytes valueTypeBytes ]
+      |> Sql.executeStatementAsync
+
+    let! deleted = PMBlob.sweepOrphans () |> Ply.toTask
+
+    Expect.isGreaterThanOrEqual
+      deleted
+      1L
+      "at least the orphan blob should have been swept"
+
+    // Referenced blob still resolves.
+    let! refStill = PMBlob.get refHash |> Ply.toTask
+    Expect.isSome refStill "referenced blob stays in package_blobs"
+
+    // Orphan is gone.
+    let! orphanStill = PMBlob.get orphanHash |> Ply.toTask
+    Expect.isNone orphanStill "orphan blob was swept"
+
+    // Cleanup: remove the test row so we don't leak state across
+    // test runs.
+    do!
+      Sql.query "DELETE FROM package_values WHERE hash = @hash"
+      |> Sql.parameters [ "hash", Sql.string fakeHashStr ]
+      |> Sql.executeStatementAsync
+  }
+
+
+let sweepIdempotent =
+  testTask "sweep: running sweep twice after a clean state deletes nothing" {
+    // Baseline sweep — clears anything already orphaned.
+    let! _ = PMBlob.sweepOrphans () |> Ply.toTask
+    // Second sweep should delete 0 rows.
+    let! second = PMBlob.sweepOrphans () |> Ply.toTask
+    Expect.equal second 0L "second sweep on clean state is a no-op"
+  }
+
+
 let persistableRejectsNestedBadShapes =
   test "isPersistable: a bad leaf anywhere in a container poisons the whole" {
     // List containing an ephemeral blob → not persistable.
@@ -680,4 +764,6 @@ let tests =
       persistableRejectsEphemeralBlob
       persistableRejectsStream
       persistableAcceptsApplicableAndDDB
-      persistableRejectsNestedBadShapes ]
+      persistableRejectsNestedBadShapes
+      sweepDeletesOrphansButKeepsReferenced
+      sweepIdempotent ]
