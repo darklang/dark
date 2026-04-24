@@ -1,12 +1,10 @@
 module WriteReadRoundtrip =
   let testContents () : String = "Test conrents"
 
-  // fileRead/fileWrite take and return Blob; this test drives the
-  // builtins directly rather than going through the Stdlib.Cli.File
-  // wrappers.
-  (let filename = (Builtin.File.createTemp ()) |> Builtin.unwrap
-   let blob = Builtin.blobFromString (testContents ())
-   do (Builtin.fileWrite blob filename) |> Builtin.unwrap
+  (let filename = (Stdlib.Cli.File.createTemp ()) |> Builtin.unwrap
+   let blob = Stdlib.Blob.fromString (testContents ())
+   do (Stdlib.Cli.FileSystem.writeFile filename blob) |> Builtin.unwrap
 
-   let readBack = Builtin.fileRead filename |> Builtin.unwrap
-   Builtin.blobToString readBack) = Stdlib.Result.Result.Ok(testContents ())
+   let readBack =
+     Stdlib.Cli.FileSystem.readFile filename |> Builtin.unwrap
+   Stdlib.Blob.toString readBack) = Stdlib.Result.Result.Ok(testContents ())

@@ -46,7 +46,7 @@ let createState
 
     types = { package = pm.getType }
     values = { builtIn = builtins.values; package = pm.getValue }
-    blobs = { get = pm.getBlob; insert = pm.insertBlob }
+    blobs = { get = pm.getBlob; persist = pm.persistBlob }
     fns =
       { builtIn = builtins.fns
         package = pm.getFn

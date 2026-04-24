@@ -707,10 +707,11 @@ module Dval =
         "DBlobPersistent", [ DString hash; DInt64 length ]
 
       // Streams render as a stub tag for LSP/reflection only — they
-      // can't round-trip (no live pull fn on the other side). The
-      // [impl.elemType] member walks transform nodes (Mapped/Filtered/
+      // can't round-trip (no live pull fn on the other side).
+      // [StreamImpl.elemType] walks transform nodes (Mapped/Filtered/
       // Take/Concat) to report the emitted element type.
-      | DStream(impl, _, _) -> "DStreamStub", [ ValueType.toDT impl.elemType ]
+      | DStream(impl, _, _) ->
+        "DStreamStub", [ ValueType.toDT (StreamImpl.elemType impl) ]
 
     DEnum(typeName (), typeName (), [], caseName, fields)
 

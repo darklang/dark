@@ -6,6 +6,8 @@
 ///   (referring back to PT by index or something)
 module LibExecution.RuntimeTypes
 
+open System.Collections.Generic
+
 open Prelude
 
 
@@ -344,6 +346,14 @@ type StringSegment =
   | Interpolated of Register
 
 
+/// Where the bytes of a DBlob actually live. Ephemeral refs resolve
+/// via [ExecutionState.blobStore]; persistent refs resolve via the
+/// package manager's `blobs` lookup.
+type BlobRef =
+  | Ephemeral of uuid
+  | Persistent of hash : string * length : int64
+
+
 type Instruction =
   // == Simple register operations ==
   /// Push a value into a register
@@ -634,14 +644,6 @@ and [<NoComparison>] Dval =
   | DStream of StreamImpl * disposed : bool ref * lockObj : obj
 
 
-/// Where the bytes of a DBlob actually live. Ephemeral refs resolve
-/// via [ExecutionState.blobStore]; persistent refs resolve via the
-/// package manager's `blobs` lookup.
-and BlobRef =
-  | Ephemeral of uuid
-  | Persistent of hash : string * length : int64
-
-
 /// Lazy sequence producer. [FromIO] is the leaf — a pull-based
 /// producer. Mapped / Filtered / Take / Concat wrap other StreamImpls
 /// as transformation nodes; each is pull-driven and does no work
@@ -698,21 +700,6 @@ and [<CustomEquality; NoComparison>] StreamImpl =
   override this.Equals(_other : obj) : bool = false
   override this.GetHashCode() : int = 0
 
-  /// The element type emitted by this stream. Walks the tree for
-  /// transforms that inherit from their source (Filtered, Take,
-  /// Concat) and reports the head element type for Mapped. Concat
-  /// over an empty list has no known element type.
-  member this.elemType : ValueType =
-    match this with
-    | FromIO(_, t, _, _) -> t
-    | Mapped(_, _, t) -> t
-    | Filtered(src, _) -> src.elemType
-    | Take(src, _, _) -> src.elemType
-    | Concat streams ->
-      match streams.Value with
-      | [] -> ValueType.Unknown
-      | first :: _ -> first.elemType
-
 
 and DvalTask = Ply<Dval>
 
@@ -743,6 +730,22 @@ and BuiltInParam =
     assert_ "makeWithArgs not called on TFn" [ "name", name ] (typ.isFn ())
     { name = name; typ = typ; description = description; blockArgs = blockArgs }
 
+
+module StreamImpl =
+  /// The element type emitted by this stream. Walks the tree for
+  /// transforms that inherit from their source (Filtered, Take,
+  /// Concat) and reports the head element type for Mapped. Concat
+  /// over an empty list has no known element type.
+  let rec elemType (impl : StreamImpl) : ValueType =
+    match impl with
+    | FromIO(_, t, _, _) -> t
+    | Mapped(_, _, t) -> t
+    | Filtered(src, _) -> elemType src
+    | Take(src, _, _) -> elemType src
+    | Concat streams ->
+      match streams.Value with
+      | [] -> ValueType.Unknown
+      | first :: _ -> elemType first
 
 
 module RuntimeError =
@@ -1169,7 +1172,7 @@ module Dval =
 
     | DBlob _ -> ValueType.Known KTBlob
 
-    | DStream(impl, _, _) -> ValueType.Known(KTStream impl.elemType)
+    | DStream(impl, _, _) -> ValueType.Known(KTStream(StreamImpl.elemType impl))
 
 
 
@@ -1216,7 +1219,7 @@ type PackageManager =
     /// Insert bytes into `package_blobs` keyed by SHA-256 hash. Uses
     /// INSERT OR IGNORE — same hash = same content (content-addressing
     /// invariant), so a second insert is a cheap no-op.
-    insertBlob : string -> byte[] -> Ply<unit>
+    persistBlob : string -> byte[] -> Ply<unit>
 
     /// Is this package fn hash marked Harmful on the given branch chain?
     /// Branch-scoped because deprecation state flows through branches; the
@@ -1232,7 +1235,7 @@ type PackageManager =
       getFn = (fun _ -> Ply None)
       getValue = (fun _ -> Ply None)
       getBlob = (fun _ -> Ply None)
-      insertBlob = (fun _ _ -> uply { return () })
+      persistBlob = (fun _ _ -> uply { return () })
       isHarmful = (fun _ _ -> Ply false)
 
       init = uply { return () } }
@@ -1265,7 +1268,7 @@ type PackageManager =
           | Some f -> Some f |> Ply
           | None -> pm.getFn id
       getBlob = pm.getBlob
-      insertBlob = pm.insertBlob
+      persistBlob = pm.persistBlob
       isHarmful = pm.isHarmful
       init = pm.init }
 
@@ -1434,15 +1437,15 @@ type InterpreterStats =
     /// When true, per-builtin cumulative timing is collected (requires enabled)
     mutable detailedTiming : bool
     /// Cumulative microseconds per builtin name
-    builtinTiming : System.Collections.Generic.Dictionary<string, int64>
+    builtinTiming : Dictionary<string, int64>
     /// Call count per builtin name
-    builtinCounts : System.Collections.Generic.Dictionary<string, int64>
+    builtinCounts : Dictionary<string, int64>
     /// Cumulative microseconds per package fn hash
-    packageFnTiming : System.Collections.Generic.Dictionary<string, int64>
+    packageFnTiming : Dictionary<string, int64>
     /// Call count per package fn hash
-    packageFnCounts : System.Collections.Generic.Dictionary<string, int64>
+    packageFnCounts : Dictionary<string, int64>
     /// Timestamp when each frame was pushed (for measuring total fn time)
-    framePushTimestamps : System.Collections.Generic.Dictionary<uuid, int64>
+    framePushTimestamps : Dictionary<uuid, int64>
   }
 
   static member create() =
@@ -1453,11 +1456,11 @@ type InterpreterStats =
       framePushCount = 0L
       packageFnLoadCount = 0L
       detailedTiming = false
-      builtinTiming = System.Collections.Generic.Dictionary()
-      builtinCounts = System.Collections.Generic.Dictionary()
-      packageFnTiming = System.Collections.Generic.Dictionary()
-      packageFnCounts = System.Collections.Generic.Dictionary()
-      framePushTimestamps = System.Collections.Generic.Dictionary() }
+      builtinTiming = Dictionary()
+      builtinCounts = Dictionary()
+      packageFnTiming = Dictionary()
+      packageFnCounts = Dictionary()
+      framePushTimestamps = Dictionary() }
 
   member this.reset() =
     this.instructionCount <- 0L
@@ -1472,8 +1475,8 @@ type InterpreterStats =
     this.framePushTimestamps.Clear()
 
   member private this.addTiming
-    (timingDict : System.Collections.Generic.Dictionary<string, int64>)
-    (countDict : System.Collections.Generic.Dictionary<string, int64>)
+    (timingDict : Dictionary<string, int64>)
+    (countDict : Dictionary<string, int64>)
     (name : string)
     (elapsedTicks : int64)
     =
@@ -1495,7 +1498,7 @@ type VMState =
   {
     mutable threadID : uuid
 
-    callFrames : System.Collections.Generic.Dictionary<uuid, CallFrame>
+    callFrames : Dictionary<uuid, CallFrame>
     mutable currentFrameID : uuid
 
     // The inst data for each fn/lambda/etc. is stored here, so that
@@ -1524,7 +1527,7 @@ type VMState =
     { threadID = System.Guid.NewGuid()
       currentFrameID = rootCallFrameID
       callFrames =
-        let d = System.Collections.Generic.Dictionary()
+        let d = Dictionary()
         d[rootCallFrameID] <- rootCallFrame
         d
       rootInstrData =
@@ -1684,8 +1687,7 @@ and ExecutionState =
     ///   - No reverse-index table (`package_blob_refs`) — the sweep
     ///     is O(N+M). Fine at current scale; revisit at higher
     ///     package counts.
-    blobScopes :
-      System.Collections.Generic.Stack<System.Collections.Generic.HashSet<System.Guid>>
+    blobScopes : Stack<HashSet<System.Guid>>
   }
 
 
@@ -1697,11 +1699,11 @@ and Values =
 
 /// Blob-byte access wired onto the ExecutionState. `get` resolves a
 /// content-addressed hash to bytes (or None if the hash is missing);
-/// `insert` writes bytes to `package_blobs` via INSERT OR IGNORE.
+/// `persist` writes bytes to `package_blobs` via INSERT OR IGNORE.
 /// Needed inside builtins that manipulate blobs — eg.
-/// `Bytes.toHex : Blob -> String` has to dereference its arg.
+/// `Blob.toHex : Blob -> String` has to dereference its arg.
 and Blobs =
-  { get : string -> Ply<Option<byte[]>>; insert : string -> byte[] -> Ply<unit> }
+  { get : string -> Ply<Option<byte[]>>; persist : string -> byte[] -> Ply<unit> }
 
 and Functions =
   {

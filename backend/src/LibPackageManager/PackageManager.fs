@@ -45,7 +45,7 @@ let rt : RT.PackageManager =
     getFn = withCache PMRT.Fn.get
     getValue = withCache PMRT.Value.get
     getBlob = PMRT.Blob.get
-    insertBlob = PMRT.Blob.insert
+    persistBlob = PMRT.Blob.insert
 
     isHarmful =
       fun branchId (RT.Hash h) -> Ply(Set.contains h (loadHarmfulForBranch branchId))
