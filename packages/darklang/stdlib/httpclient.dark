@@ -152,3 +152,197 @@ module ContentType =
 
   /// A header <type (String*String))> with {{'content-type'}} set for html requests
   let html = ("content-type", "text/html; charset=utf-8")
+
+
+module Sse =
+  // Server-Sent Events parsing over a Stream<UInt8>. Consumers
+  // compose with the standard Stream builtins:
+  //
+  //     HttpClient.stream "GET" url headers
+  //     |> Stdlib.Result.map (fun r -> HttpClient.Sse.parse r.body)
+  //
+  // Implemented as a true streaming parser via `Builtin.streamUnfold`:
+  // one `Event` is emitted as soon as its terminating blank line
+  // arrives on the wire, rather than buffering the entire response.
+
+
+  /// A parsed Server-Sent Event.
+  type Event =
+    { data: String
+      eventType: String
+      id: String }
+
+
+  /// Intermediate state threaded through parsing. `lastId` persists
+  /// across events per the SSE spec; `currentLines` holds the field
+  /// lines for the block we're currently assembling; `currentLine`
+  /// is the byte buffer for the line we're currently reading.
+  type ParseState =
+    { lastId: String
+      currentLines: List<String>
+      currentLine: List<UInt8> }
+
+
+  /// Split a `field: value` line into its two parts. Per the SSE
+  /// spec: if there's no colon, the whole line is the field with an
+  /// empty value; the leading space after the colon (if any) is
+  /// stripped.
+  let splitField (line: String) : (String * String) =
+    match Stdlib.String.indexOf line ":" with
+    | None -> (line, "")
+    | Some idx ->
+      let field = Stdlib.String.slice line 0L idx
+      let afterColon =
+        Stdlib.String.slice line (idx + 1L) (Stdlib.String.length line)
+
+      let value =
+        if Stdlib.String.startsWith afterColon " " then
+          Stdlib.String.dropFirst afterColon 1L
+        else
+          afterColon
+
+      (field, value)
+
+
+  /// Fold one SSE line into an accumulating block. `data: value`
+  /// appends (with newline between multiple), `event: …` sets the
+  /// event type, `id: …` sets the id, `:` comment lines are skipped,
+  /// unknown fields are ignored.
+  let applyLine
+    (data: String)
+    (eventType: String)
+    (id: String)
+    (hasData: Bool)
+    (line: String)
+    : (String * String * String * Bool) =
+    if Stdlib.String.isEmpty line then
+      (data, eventType, id, hasData)
+    else if Stdlib.String.startsWith line ":" then
+      (data, eventType, id, hasData)
+    else
+      let (field, value) = splitField line
+
+      if field == "data" then
+        let newData =
+          if hasData then
+            data ++ "\n" ++ value
+          else
+            value
+
+        (newData, eventType, id, true)
+      else if field == "event" then
+        (data, value, id, hasData)
+      else if field == "id" then
+        (data, eventType, value, hasData)
+      else
+        (data, eventType, id, hasData)
+
+
+  /// Build an Event from the accumulated lines of one block, if any
+  /// `data:` field was seen. `lastId` is the id the block inherits
+  /// when no `id:` field appears.
+  let tryEmitBlock
+    (lines: List<String>)
+    (lastId: String)
+    : Stdlib.Option.Option<Event> =
+    let (data, eventType, id, hasData) =
+      Stdlib.List.fold lines (("", "", lastId, false)) (fun acc line ->
+        let (d, e, i, h) = acc
+        applyLine d e i h line)
+
+    if hasData then
+      Stdlib.Option.Option.Some(Event { data = data; eventType = eventType; id = id })
+    else
+      Stdlib.Option.Option.None
+
+
+  /// Pull bytes from the underlying stream until a complete event
+  /// terminator (blank line) arrives, then emit. Returns None once
+  /// the stream is exhausted and no buffered data remains.
+  let rec pullNextEvent
+    (bytes: Stream<UInt8>)
+    (state: ParseState)
+    : Stdlib.Option.Option<(Event * ParseState)> =
+    match Builtin.streamNext<UInt8> bytes with
+    | None ->
+      // End of stream. Flush any buffered lines as a final event
+      // (SSE spec: a trailing blank line is optional).
+      let pending =
+        if Stdlib.List.isEmpty state.currentLine then
+          state.currentLines
+        else
+          let tailLine =
+            match
+              Builtin.bytesToString (Builtin.bytesFromList state.currentLine)
+            with
+            | Ok s -> s
+            | Error _ -> ""
+
+          Stdlib.List.append state.currentLines [ tailLine ]
+
+      if Stdlib.List.isEmpty pending then
+        Stdlib.Option.Option.None
+      else
+        match tryEmitBlock pending state.lastId with
+        | Some event ->
+          let nextState =
+            ParseState
+              { lastId = event.id; currentLines = []; currentLine = [] }
+
+          Stdlib.Option.Option.Some((event, nextState))
+        | None -> Stdlib.Option.Option.None
+
+    | Some b ->
+      // 10uy = '\n'. End of a line.
+      if b == 10uy then
+        let line =
+          match
+            Builtin.bytesToString (Builtin.bytesFromList state.currentLine)
+          with
+          | Ok s -> s
+          | Error _ -> ""
+
+        if Stdlib.String.isEmpty line then
+          // Blank line terminates the block. Try to emit an Event.
+          match tryEmitBlock state.currentLines state.lastId with
+          | Some event ->
+            let nextState =
+              ParseState
+                { lastId = event.id; currentLines = []; currentLine = [] }
+
+            Stdlib.Option.Option.Some((event, nextState))
+          | None ->
+            // Block had no data; reset and keep reading.
+            let nextState =
+              ParseState
+                { lastId = state.lastId
+                  currentLines = []
+                  currentLine = [] }
+
+            pullNextEvent bytes nextState
+        else
+          // Regular line; append and keep reading.
+          let nextState =
+            ParseState
+              { lastId = state.lastId
+                currentLines = Stdlib.List.append state.currentLines [ line ]
+                currentLine = [] }
+
+          pullNextEvent bytes nextState
+      else
+        let nextState =
+          ParseState
+            { lastId = state.lastId
+              currentLines = state.currentLines
+              currentLine = Stdlib.List.append state.currentLine [ b ] }
+
+        pullNextEvent bytes nextState
+
+
+  /// Parse an SSE byte stream into a stream of Events. Lazy: events
+  /// flow to the consumer as their terminating blank lines arrive,
+  /// so a slow LLM response surfaces tokens as they're produced.
+  let parse (bytes: Stream<UInt8>) : Stream<Event> =
+    let initial = ParseState { lastId = ""; currentLines = []; currentLine = [] }
+    Builtin.streamUnfold<ParseState, Event> initial (fun state ->
+      pullNextEvent bytes state)

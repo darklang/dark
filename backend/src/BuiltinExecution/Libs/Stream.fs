@@ -92,6 +92,59 @@ let fns () : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
+    { name = fn "streamUnfold" 0
+      typeParams = [ "s"; "a" ]
+      parameters =
+        [ Param.make "initial" (TVariable "s") "Initial state."
+          Param.makeWithArgs
+            "step"
+            (TFn(
+              NEList.singleton (TVariable "s"),
+              TypeReference.option (TTuple(TVariable "a", TVariable "s", []))
+            ))
+            "Called with the current state; returns Some of a (next element, next
+             state) pair to emit another element, or None to end the stream."
+            [ "state" ] ]
+      returnType = TStream(TVariable "a")
+      description =
+        "Constructs a stream from a seed state and a step function. The step is
+         called once per pull — return Some of a (value, nextState) tuple to
+         yield an element, or None to end the stream. Useful for writing custom
+         lazy producers in Dark: file line readers, paginated API iterators,
+         protocol parsers like SSE, etc."
+      fn =
+        (function
+        | state, vm, [ _; outputType ], [ initialState; DApplicable app ] ->
+          uply {
+            let! elemType = resolveElemVT state outputType
+            let currentState = ref initialState
+            let next () : Ply<Option<Dval>> =
+              uply {
+                let! result =
+                  Exe.executeApplicable
+                    state
+                    app
+                    (NEList.singleton currentState.Value)
+                match result with
+                | Ok(DEnum(_, _, _, "Some", [ DTuple(elem, newState, []) ])) ->
+                  currentState.Value <- newState
+                  return Some elem
+                | Ok(DEnum(_, _, _, "None", _)) -> return None
+                | Ok other ->
+                  return
+                    Exception.raiseInternal
+                      "streamUnfold step must return Option<(a, s)>"
+                      [ "got", other ]
+                | Error(rte, _cs) -> return raiseRTE vm.threadID rte
+              }
+            return Dval.newStream elemType next None
+          }
+        | _ -> incorrectArgs ())
+      sqlSpec = NotYetImplemented
+      previewable = Impure
+      deprecated = NotDeprecated }
+
+
     { name = fn "streamNext" 0
       typeParams = [ "a" ]
       parameters = [ Param.make "stream" (TStream varA) "" ]
