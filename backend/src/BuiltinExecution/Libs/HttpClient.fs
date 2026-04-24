@@ -701,28 +701,27 @@ let fns (config : Configuration) : List<BuiltInFn> =
               | Ok(response, respHeaders) ->
                 let! responseStream = response.Content.ReadAsStreamAsync()
 
-                // 8 KB buffer; refill from the network when drained.
-                // Per-pull: one DUInt8 allocation + the byte read.
-                let buffer = Array.zeroCreate<byte> 8192
-                let mutable bufferLen = 0
-                let mutable bufferPos = 0
-
-                let next () : Ply<Option<Dval>> =
+                // L.7: hand back a whole chunk per pull when the
+                // consumer wants bytes in bulk. `streamToBlob` and
+                // the SSE byte accumulator route through
+                // `Dval.readStreamChunk`, which uses this callback
+                // directly — no per-byte DUInt8 boxing on the hot
+                // path. `Dval.newStreamChunked` synthesises a
+                // byte-wise `next` from the same source so
+                // `streamNext` semantics are preserved.
+                let nextChunk (maxBytes : int) : Ply<Option<byte[]>> =
                   uply {
-                    if bufferPos >= bufferLen then
-                      let! n = responseStream.ReadAsync(buffer, 0, buffer.Length)
-                      if n = 0 then
-                        return None
-                      else
-                        bufferLen <- n
-                        bufferPos <- 0
-                        let b = buffer[bufferPos]
-                        bufferPos <- bufferPos + 1
-                        return Some(DUInt8 b)
+                    let cap = max 1 maxBytes
+                    let buf = Array.zeroCreate<byte> cap
+                    let! n = responseStream.ReadAsync(buf, 0, cap)
+                    if n = 0 then
+                      return None
+                    elif n = cap then
+                      return Some buf
                     else
-                      let b = buffer[bufferPos]
-                      bufferPos <- bufferPos + 1
-                      return Some(DUInt8 b)
+                      let trimmed = Array.zeroCreate<byte> n
+                      System.Array.Copy(buf, 0, trimmed, 0, n)
+                      return Some trimmed
                   }
 
                 // Released on drain-to-EOF or streamClose. Ordered
@@ -733,7 +732,7 @@ let fns (config : Configuration) : List<BuiltInFn> =
                   responseStream.Dispose()
                   response.Dispose()
 
-                let body = Dval.newStream VT.uint8 next (Some disposer)
+                let body = Dval.newStreamChunked VT.uint8 nextChunk (Some disposer)
 
                 let headersDval =
                   respHeaders

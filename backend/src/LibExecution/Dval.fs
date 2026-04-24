@@ -157,12 +157,12 @@ let readBlobBytes
 /// on .NET HttpResponseMessage is a no-op if already disposed).
 let rec disposeStreamImpl (impl : StreamImpl) : unit =
   match impl with
-  | FromIO(_, _, Some d) ->
+  | FromIO(_, _, Some d, _) ->
     try
       d ()
     with _ ->
       ()
-  | FromIO(_, _, None) -> ()
+  | FromIO(_, _, None, _) -> ()
   | Mapped(src, _, _) -> disposeStreamImpl src
   | Filtered(src, _) -> disposeStreamImpl src
   | Take(src, _, _) -> disposeStreamImpl src
@@ -209,14 +209,61 @@ let wrapStreamImpl (impl : StreamImpl) : Dval =
 /// when `Some`, is called once when the stream is drained to
 /// completion, `streamClose`d, or finalized by the GC — used by
 /// IO-backed producers to release the underlying source
-/// (HttpResponseMessage, FileStream, etc.). See
-/// thinking/blobs-and-streams/30-phase-2.md.
+/// (HttpResponseMessage, FileStream, etc.). Use [newStreamChunked]
+/// for byte streams that can efficiently yield a whole chunk per
+/// pull (IO-backed producers like HttpClient.stream).
+/// See thinking/blobs-and-streams/30-phase-2.md.
 let newStream
   (elemType : ValueType)
   (next : unit -> Ply.Ply<Option<Dval>>)
   (disposer : (unit -> unit) option)
   : Dval =
-  wrapStreamImpl (FromIO(next, elemType, disposer))
+  wrapStreamImpl (FromIO(next, elemType, disposer, None))
+
+
+/// Mint a DStream<UInt8> that can be drained bulk-wise via
+/// [readStreamChunk]. The `nextChunk` callback fills up to `maxBytes`
+/// into a fresh byte[] and returns it (or None on exhaustion).
+/// Consumers that want full-chunk bytes — `streamToBlob`, the SSE
+/// byte accumulator — bypass per-byte Ply/Dval boxing by calling
+/// `readStreamChunk` instead of `readStreamNext`. The `next` path
+/// stays available so `streamNext` returns one DUInt8 at a time as
+/// before — the implementation synthesises single-byte pulls from
+/// the chunk buffer.
+///
+/// See thinking/blobs-and-streams/40-later.md L.7.
+let newStreamChunked
+  (elemType : ValueType)
+  (nextChunk : int -> Ply.Ply<Option<byte[]>>)
+  (disposer : (unit -> unit) option)
+  : Dval =
+  // Maintain a small carry buffer so single-byte `next` pulls can
+  // be served from the chunks that `nextChunk` returned.
+  let carry = ref [||]
+  let carryPos = ref 0
+  let next () : Ply.Ply<Option<Dval>> =
+    uply {
+      if carryPos.Value >= carry.Value.Length then
+        // Refill from the underlying chunked producer. 8 KB mirrors
+        // the socket-read buffer size we use across the codebase.
+        let! chunk = nextChunk 8192
+        match chunk with
+        | None -> return None
+        | Some buf ->
+          carry.Value <- buf
+          carryPos.Value <- 0
+          if buf.Length = 0 then
+            return None
+          else
+            let b = buf[0]
+            carryPos.Value <- 1
+            return Some(DUInt8 b)
+      else
+        let b = carry.Value[carryPos.Value]
+        carryPos.Value <- carryPos.Value + 1
+        return Some(DUInt8 b)
+    }
+  wrapStreamImpl (FromIO(next, elemType, disposer, Some nextChunk))
 
 
 /// Pull one element through a [StreamImpl]. Separate from
@@ -227,7 +274,7 @@ let newStream
 let rec private pullStreamImpl (impl : StreamImpl) : Ply.Ply<Option<Dval>> =
   uply {
     match impl with
-    | FromIO(next, _elemType, _disposer) -> return! next ()
+    | FromIO(next, _elemType, _disposer, _nextChunk) -> return! next ()
 
     | Mapped(src, fn, _elemType) ->
       let! upstream = pullStreamImpl src
@@ -318,6 +365,62 @@ let readStreamNext (dv : Dval) : Ply.Ply<Option<Dval>> =
           disposeStreamImpl impl
           return None
     | _ -> return Exception.raiseInternal "readStreamNext: expected DStream" []
+  }
+
+
+/// Pull up to `maxBytes` bytes from a byte stream as one chunk.
+/// Returns [None] when exhausted; subsequent calls stay [None].
+/// Prefers a FromIO's own `nextChunk` when present; falls back to
+/// byte-wise pulls for streams that were built via [newStream] or
+/// that walk transform nodes (Mapped/Filtered/Take/Concat) where a
+/// chunk semantic isn't well-defined.
+///
+/// Used by `streamToBlob` and the SSE byte accumulator to amortise
+/// the Ply-continuation cost across whole chunks rather than paying
+/// it per byte. See thinking/blobs-and-streams/40-later.md L.7.
+let readStreamChunk (maxBytes : int) (dv : Dval) : Ply.Ply<Option<byte[]>> =
+  uply {
+    match dv with
+    | DStream(impl, disposed, _) ->
+      if disposed.Value then
+        return None
+      else
+        match impl with
+        | FromIO(_, _, _, Some nextChunk) ->
+          let! chunk = nextChunk maxBytes
+          match chunk with
+          | Some buf when buf.Length > 0 -> return Some buf
+          | _ ->
+            disposed.Value <- true
+            disposeStreamImpl impl
+            return None
+        | _ ->
+          // Fallback: pull byte-by-byte. Only pays off vs per-byte
+          // `readStreamNext` if the caller really wants bulk bytes —
+          // transform chains lose the chunk optimisation but still
+          // drain correctly.
+          use collected = new System.IO.MemoryStream()
+          let mutable keepGoing = true
+          let mutable bytesSoFar = 0
+          while keepGoing && bytesSoFar < maxBytes do
+            let! pulled = pullStreamImpl impl
+            match pulled with
+            | Some(DUInt8 b) ->
+              collected.WriteByte b
+              bytesSoFar <- bytesSoFar + 1
+            | Some _ ->
+              return
+                Exception.raiseInternal
+                  "readStreamChunk: expected Stream<UInt8> element"
+                  []
+            | None -> keepGoing <- false
+          if bytesSoFar = 0 then
+            disposed.Value <- true
+            disposeStreamImpl impl
+            return None
+          else
+            return Some(collected.ToArray())
+    | _ -> return Exception.raiseInternal "readStreamChunk: expected DStream" []
   }
 
 

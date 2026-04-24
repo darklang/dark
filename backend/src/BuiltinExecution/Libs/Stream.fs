@@ -148,22 +148,18 @@ let fns () : List<BuiltInFn> =
         (function
         | state, _, _, [ s ] ->
           uply {
-            // CLEANUP sub-blob slicing (chunk L.5): we copy each byte
-            // into a MemoryStream. Could share the source buffer on
-            // promotion if profiles ever show this as hot. For now the
-            // single contiguous byte[] matches Blob's storage model and
-            // avoids a per-chunk Dval per byte.
+            // L.7: drain via `readStreamChunk` so IO-backed byte
+            // streams (HttpClient.stream) hand back a whole buffer
+            // per pull instead of boxing one DUInt8 per byte. Falls
+            // back to byte-wise pulls for streams without a
+            // `nextChunk` (Mapped/Filtered/Take/Concat transforms,
+            // in-memory fromList streams).
             use collected = new System.IO.MemoryStream()
             let mutable keepGoing = true
             while keepGoing do
-              let! result = Dval.readStreamNext s
-              match result with
-              | Some(DUInt8 b) -> collected.WriteByte b
-              | Some other ->
-                return
-                  Exception.raiseInternal
-                    "streamToBlob: expected Stream<UInt8> element"
-                    [ "got", other ]
+              let! chunk = Dval.readStreamChunk (64 * 1024) s
+              match chunk with
+              | Some buf -> collected.Write(buf, 0, buf.Length)
               | None -> keepGoing <- false
             return Dval.newEphemeralBlob state (collected.ToArray())
           }

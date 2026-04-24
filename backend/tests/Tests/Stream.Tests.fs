@@ -233,7 +233,7 @@ let private streamImplOfList
         return Some head
       | [] -> return None
     }
-  RT.FromIO(next, elemType, None)
+  RT.FromIO(next, elemType, None, None)
 
 
 /// Wrap a StreamImpl in a fresh DStream with its own lock/disposed +
@@ -332,7 +332,7 @@ let takeOverInfiniteSourceTerminates =
         counter.Value <- counter.Value + 1L
         return Some(RT.DInt64 counter.Value)
       }
-    let src = RT.FromIO(next, VT.int64, None)
+    let src = RT.FromIO(next, VT.int64, None, None)
     let s = wrap (RT.Take(src, 3L, ref 3L))
 
     let! a = Dval.readStreamNext s |> Ply.toTask
@@ -396,7 +396,7 @@ let composedTransformsAreLazy =
         counter.Value <- counter.Value + 1L
         return Some(RT.DInt64 counter.Value)
       }
-    let src = RT.FromIO(next, VT.int64, None)
+    let src = RT.FromIO(next, VT.int64, None, None)
     let isEven (dv : RT.Dval) : Ply<bool> =
       uply {
         match dv with
@@ -538,6 +538,95 @@ let gcFinalizesMidDrainStream =
   }
 
 
+// ——————————————————————————————————————————————————————————
+// L.7 — chunked bulk-drain fast path
+// ——————————————————————————————————————————————————————————
+// newStreamChunked hands back whole buffers per pull; readStreamChunk
+// picks up those buffers directly instead of going byte-by-byte.
+// Per-byte `readStreamNext` still works against the same source (via
+// newStreamChunked's synthesised `next`) so existing callers don't
+// notice the change.
+
+
+let chunkedDrainMatchesByteDrain =
+  testTask
+    "chunked drain: readStreamChunk returns the same bytes readStreamNext would" {
+    // Producer hands back one 8-byte chunk, then None.
+    let chunks =
+      ref [ [| 0x01uy; 0x02uy; 0x03uy; 0x04uy; 0x05uy; 0x06uy; 0x07uy; 0x08uy |] ]
+    let nextChunk (_ : int) : Ply<Option<byte[]>> =
+      uply {
+        match chunks.Value with
+        | head :: tail ->
+          chunks.Value <- tail
+          return Some head
+        | [] -> return None
+      }
+    let s = Dval.newStreamChunked VT.uint8 nextChunk None
+
+    let! first = Dval.readStreamChunk 4096 s |> Ply.toTask
+    let! second = Dval.readStreamChunk 4096 s |> Ply.toTask
+
+    match first with
+    | Some buf ->
+      Expect.equal
+        buf
+        [| 0x01uy; 0x02uy; 0x03uy; 0x04uy; 0x05uy; 0x06uy; 0x07uy; 0x08uy |]
+        "first chunk comes through intact"
+    | None -> failtest "expected first chunk"
+    Expect.equal second None "second call returns None on exhaustion"
+  }
+
+
+let chunkedDrainAlsoServesByteNext =
+  testTask "chunked drain: readStreamNext works on a chunked stream too" {
+    let chunks = ref [ [| 0x10uy; 0x20uy |] ]
+    let nextChunk (_ : int) : Ply<Option<byte[]>> =
+      uply {
+        match chunks.Value with
+        | head :: tail ->
+          chunks.Value <- tail
+          return Some head
+        | [] -> return None
+      }
+    let s = Dval.newStreamChunked VT.uint8 nextChunk None
+
+    let! a = Dval.readStreamNext s |> Ply.toTask
+    let! b = Dval.readStreamNext s |> Ply.toTask
+    let! c = Dval.readStreamNext s |> Ply.toTask
+
+    Expect.equal a (Some(RT.DUInt8 0x10uy)) "first byte"
+    Expect.equal b (Some(RT.DUInt8 0x20uy)) "second byte"
+    Expect.equal c None "exhausted"
+  }
+
+
+let chunkedDrainFallsBackToByteWise =
+  testTask
+    "chunked drain: readStreamChunk on a non-chunked stream falls back to byte pulls" {
+    let remaining = ref [ RT.DUInt8 0xAAuy; RT.DUInt8 0xBBuy; RT.DUInt8 0xCCuy ]
+    let next () : Ply<Option<RT.Dval>> =
+      uply {
+        match remaining.Value with
+        | head :: tail ->
+          remaining.Value <- tail
+          return Some head
+        | [] -> return None
+      }
+    // newStream (not newStreamChunked) — no nextChunk callback, so
+    // readStreamChunk should fall back to per-byte accumulation.
+    let s = Dval.newStream VT.uint8 next None
+
+    let! chunk = Dval.readStreamChunk 4096 s |> Ply.toTask
+    match chunk with
+    | Some buf -> Expect.equal buf [| 0xAAuy; 0xBBuy; 0xCCuy |] "all bytes collected"
+    | None -> failtest "expected a chunk"
+
+    let! after = Dval.readStreamChunk 4096 s |> Ply.toTask
+    Expect.equal after None "exhausted"
+  }
+
+
 let gcSkipsFinalizerAfterStreamClose =
   test "stream: finalizer doesn't re-fire disposer when close already ran" {
     // Assert the disposer runs exactly once across explicit close +
@@ -604,4 +693,7 @@ let tests =
       toValueTypeWalksTransforms
       gcFinalizesAbandonedStream
       gcFinalizesMidDrainStream
-      gcSkipsFinalizerAfterStreamClose ]
+      gcSkipsFinalizerAfterStreamClose
+      chunkedDrainMatchesByteDrain
+      chunkedDrainAlsoServesByteNext
+      chunkedDrainFallsBackToByteWise ]

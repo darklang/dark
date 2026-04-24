@@ -676,10 +676,18 @@ and [<CustomEquality; NoComparison>] StreamImpl =
   /// GC-based finalization is a separate concern (chunk 2.11). Until
   /// that lands, abandoned streams leak their disposer until the
   /// process exits; `streamClose` is the escape valve.
+  /// Optional `nextChunk` lets byte-stream producers avoid per-byte
+  /// Ply/Dval boxing. `nextChunk maxBytes` fills up to `maxBytes` into
+  /// a fresh byte[] and returns it (or None on exhaustion). Consumers
+  /// that want bulk bytes (`streamToBlob`, SSE-byte accumulator) take
+  /// this path; byte-by-byte `next` stays authoritative for element-
+  /// wise pulls (`streamNext` on `Stream<UInt8>`). Non-byte streams
+  /// leave this `None`. See thinking/blobs-and-streams/40-later.md L.7.
   | FromIO of
     next : (unit -> Ply<Option<Dval>>) *
     elemType : ValueType *
-    disposer : (unit -> unit) option
+    disposer : (unit -> unit) option *
+    nextChunk : (int -> Ply<Option<byte[]>>) option
   | Mapped of src : StreamImpl * fn : (Dval -> Ply<Dval>) * elemType : ValueType
   | Filtered of src : StreamImpl * pred : (Dval -> Ply<bool>)
   | Take of src : StreamImpl * n : int64 * remaining : int64 ref
@@ -694,7 +702,7 @@ and [<CustomEquality; NoComparison>] StreamImpl =
   /// over an empty list has no known element type.
   member this.elemType : ValueType =
     match this with
-    | FromIO(_, t, _) -> t
+    | FromIO(_, t, _, _) -> t
     | Mapped(_, _, t) -> t
     | Filtered(src, _) -> src.elemType
     | Take(src, _, _) -> src.elemType
