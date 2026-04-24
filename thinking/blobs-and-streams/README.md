@@ -116,7 +116,7 @@ See [30-phase-2.md](./30-phase-2.md).
 - [x] 2.3 add binary serializer — DStream raises on write
 - [x] 2.4 add PT↔Dark and RT↔Dark bridges (stream renders elided)
 - [x] 2.5 Stream builtins: next, toList, toBlob (no transforms yet)
-- [ ] 2.6 lazy transforms: Mapped, Filtered, Take, Concat
+- [x] 2.6 lazy transforms: Mapped, Filtered, Take, Concat
 - [ ] 2.7 Stream builtin map/filter/take/concat
 - [ ] 2.8 HttpClient.stream returns DStream
 - [ ] 2.9 delete StreamingHttpClient.fs; rebuild SSE as Dark-side
@@ -169,6 +169,7 @@ Append one line per chunk completion. Format:
 2026-04-24 03:04  2.3  formal binary-serializer coverage. Tags 25/24/DStream-raises all landed in 2.1/2.2 as exhaustive-match fallout; 1.3-style tests added: DStream.serialize raises, TStream PT/RT binary roundtrip, KTStream ValueType binary roundtrip. 8 Stream.Tests total, all green.
 2026-04-24 03:14  2.4  formal dark-bridge coverage. Bridges landed in 2.1 for types and 2.2 for DStreamElided; tests assert PT.TStream<UInt8> + RT.TStream<Blob> + KTStream<String> roundtrip, DStream→DStreamElided renders then fromDT raises (can't rebuild pull fn). 12 Stream.Tests total (23 matching "stream" filter incl. other suites), all green.
 2026-04-24 03:43  2.5  new Libs/Stream.fs: streamFromList, streamNext, streamToList, streamToBlob, streamClose. Registered in Builtin.fs + fsproj. Inline elemValueType helper covers primitive RT.TypeReference leaves (avoids the async TypeReference.toVT path for the builtin-side common case). Switched DvalReprInternalRoundtrippable.fromRT DStream case from raise to DStreamSentinel — trace/rt_dval capture walks all intermediate dvals, and raising there aborted any eval that touched a stream. Dark-side stdlib/stream.tests drives the full API (fromList→toList roundtrip, empty drain, next semantics, toBlob, close idempotence). 13 Stream.Tests + 6 .dark lines; 5608 LibExecution tests green.
+2026-04-24 04:10  2.6  StreamImpl gains Mapped/Filtered/Take/Concat. Deviation from spec: Mapped/Filtered store pre-bound `Dval -> Ply<...>` closures rather than raw Applicable, because Dval.fs sits earlier in the dep chain than Execution.fs and can't call Exe.executeApplicable — the builtin wrapper (2.7) will close over exeState when constructing the closure. Added StreamImpl.elemType member (walks transforms), split drain into pullStreamImpl + readStreamNext (lock/disposal stays on the root). 8 new Stream.Tests: mapped double, filtered evens + all-rejected, Take at-cap + infinite-source (source advanced exactly 3 times) + longer-than-source, Concat across 3 sub-streams (incl. an empty middle), composed map∘filter∘take lazy termination, toValueType walks through Mapped. 21 Stream.Tests / 5608 LibExecution green; 10,158 full backend tests green.
 
 ## Blockers
 
