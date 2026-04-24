@@ -51,6 +51,16 @@ type Response =
     body: List<UInt8> }
 
 
+/// A streaming HTTP response. Headers arrive immediately; `body` is a
+/// lazy `Stream<UInt8>` that pulls bytes as they arrive on the wire.
+/// The underlying HTTP response is released when the stream is
+/// drained to completion or `Builtin.streamClose`d.
+type StreamResponse =
+  { statusCode: Int64
+    headers: List<(String * String)>
+    body: Stream<UInt8> }
+
+
 /// Make blocking HTTP call to <param uri>. Returns a <type Result> where
 /// the response is wrapped in {{ Ok }} if a response was successfully
 /// received and parsed, and is wrapped in {{ Error }} otherwise
@@ -96,6 +106,21 @@ let delete (uri: String) : Stdlib.Result.Result<Response, RequestError> =
 
 let head (uri: String) : Stdlib.Result.Result<Response, RequestError> =
   request "HEAD" uri [] []
+
+
+/// Make a streaming HTTP call to <param uri>. The response's body is
+/// a lazy `Stream<UInt8>` — bytes arrive as the server writes them.
+/// Drain with `Builtin.streamToList`, `Builtin.streamToBlob`, or
+/// compose with `Builtin.streamMap` / `Builtin.streamFilter` etc.
+///
+/// The underlying socket is released when the body stream drains to
+/// completion or is explicitly closed with `Builtin.streamClose`.
+let stream
+  (method: String)
+  (uri: String)
+  (headers: List<(String * String)>)
+  : Stdlib.Result.Result<StreamResponse, RequestError> =
+  Builtin.httpClientStream method uri headers
 
 
 /// Returns a header <type (String*String))> with {{'authorization'}} created using HTTP basic auth

@@ -666,7 +666,20 @@ and BlobRef =
 /// via the wrapping DStream's `lockObj`. Most callers shouldn't compare
 /// streams at all.
 and [<CustomEquality; NoComparison>] StreamImpl =
-  | FromIO of next : (unit -> Ply<Option<Dval>>) * elemType : ValueType
+  /// Lazy pull producer. `next` yields the next element or None on
+  /// exhaustion. `disposer`, when present, is invoked exactly once
+  /// when the wrapping DStream is disposed — either via `streamClose`
+  /// or when drain-to-end trips the `disposed` flag. Used by IO-backed
+  /// sources (HttpClient.stream, file reads) to release the underlying
+  /// HttpResponseMessage / FileStream / etc.
+  ///
+  /// GC-based finalization is a separate concern (chunk 2.11). Until
+  /// that lands, abandoned streams leak their disposer until the
+  /// process exits; `streamClose` is the escape valve.
+  | FromIO of
+    next : (unit -> Ply<Option<Dval>>) *
+    elemType : ValueType *
+    disposer : (unit -> unit) option
   | Mapped of src : StreamImpl * fn : (Dval -> Ply<Dval>) * elemType : ValueType
   | Filtered of src : StreamImpl * pred : (Dval -> Ply<bool>)
   | Take of src : StreamImpl * n : int64 * remaining : int64 ref
@@ -681,7 +694,7 @@ and [<CustomEquality; NoComparison>] StreamImpl =
   /// over an empty list has no known element type.
   member this.elemType : ValueType =
     match this with
-    | FromIO(_, t) -> t
+    | FromIO(_, t, _) -> t
     | Mapped(_, _, t) -> t
     | Filtered(src, _) -> src.elemType
     | Take(src, _, _) -> src.elemType

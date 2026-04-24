@@ -120,9 +120,35 @@ let readBlobBytes
 
 /// Mint a fresh DStream from a pull function. Single-consumer by
 /// construction — the disposed flag and lock guard concurrent `next`
-/// calls. See thinking/blobs-and-streams/30-phase-2.md.
-let newStream (elemType : ValueType) (next : unit -> Ply.Ply<Option<Dval>>) : Dval =
-  DStream(FromIO(next, elemType), ref false, obj ())
+/// calls. [disposer], when `Some`, is called once when the stream is
+/// drained to completion or `streamClose`d — used by IO-backed
+/// producers to release the underlying source (HttpResponseMessage,
+/// FileStream, etc.). See thinking/blobs-and-streams/30-phase-2.md.
+let newStream
+  (elemType : ValueType)
+  (next : unit -> Ply.Ply<Option<Dval>>)
+  (disposer : (unit -> unit) option)
+  : Dval =
+  DStream(FromIO(next, elemType, disposer), ref false, obj ())
+
+
+/// Walk a StreamImpl tree invoking any IO-source disposers. Wrapped
+/// in try/with so a misbehaving disposer doesn't take the whole
+/// runtime down — best-effort cleanup. Safe to call multiple times:
+/// the disposers themselves must be idempotent (e.g. `response.Dispose()`
+/// on .NET HttpResponseMessage is a no-op if already disposed).
+let rec disposeStreamImpl (impl : StreamImpl) : unit =
+  match impl with
+  | FromIO(_, _, Some d) ->
+    try
+      d ()
+    with _ ->
+      ()
+  | FromIO(_, _, None) -> ()
+  | Mapped(src, _, _) -> disposeStreamImpl src
+  | Filtered(src, _) -> disposeStreamImpl src
+  | Take(src, _, _) -> disposeStreamImpl src
+  | Concat streams -> streams.Value |> List.iter disposeStreamImpl
 
 
 /// Pull one element through a [StreamImpl]. Separate from
@@ -133,7 +159,7 @@ let newStream (elemType : ValueType) (next : unit -> Ply.Ply<Option<Dval>>) : Dv
 let rec private pullStreamImpl (impl : StreamImpl) : Ply.Ply<Option<Dval>> =
   uply {
     match impl with
-    | FromIO(next, _elemType) -> return! next ()
+    | FromIO(next, _elemType, _disposer) -> return! next ()
 
     | Mapped(src, fn, _elemType) ->
       let! upstream = pullStreamImpl src
@@ -202,7 +228,9 @@ let rec private pullStreamImpl (impl : StreamImpl) : Ply.Ply<Option<Dval>> =
 ///
 /// Thread-safe via the stream's monitor lock; concurrent callers
 /// serialize. The walk through Mapped/Filtered/Take/Concat nodes
-/// happens in [pullStreamImpl].
+/// happens in [pullStreamImpl]. On exhaustion, any IO-source
+/// disposers attached to FromIO nodes are invoked (HttpResponseMessage,
+/// FileStream, etc.).
 let readStreamNext (dv : Dval) : Ply.Ply<Option<Dval>> =
   uply {
     match dv with
@@ -221,6 +249,7 @@ let readStreamNext (dv : Dval) : Ply.Ply<Option<Dval>> =
           | Some _ -> return result
           | None ->
             disposed.Value <- true
+            disposeStreamImpl impl
             return None
       finally
         System.Threading.Monitor.Exit(lockObj)

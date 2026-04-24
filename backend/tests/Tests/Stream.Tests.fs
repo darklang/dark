@@ -37,7 +37,7 @@ let private streamOfList
         return Some head
       | [] -> return None
     }
-  Dval.newStream elemType next
+  Dval.newStream elemType next None
 
 
 let pullsElementsInOrder =
@@ -244,7 +244,7 @@ let private streamImplOfList
         return Some head
       | [] -> return None
     }
-  RT.FromIO(next, elemType)
+  RT.FromIO(next, elemType, None)
 
 
 /// Wrap a StreamImpl in a fresh DStream with its own lock/disposed.
@@ -343,7 +343,7 @@ let takeOverInfiniteSourceTerminates =
         counter.Value <- counter.Value + 1L
         return Some(RT.DInt64 counter.Value)
       }
-    let src = RT.FromIO(next, VT.int64)
+    let src = RT.FromIO(next, VT.int64, None)
     let s = wrap (RT.Take(src, 3L, ref 3L))
 
     let! a = Dval.readStreamNext s |> Ply.toTask
@@ -407,7 +407,7 @@ let composedTransformsAreLazy =
         counter.Value <- counter.Value + 1L
         return Some(RT.DInt64 counter.Value)
       }
-    let src = RT.FromIO(next, VT.int64)
+    let src = RT.FromIO(next, VT.int64, None)
     let isEven (dv : RT.Dval) : Ply<bool> =
       uply {
         match dv with

@@ -124,6 +124,7 @@ module Type =
       let badUrlDetails = p [] "BadUrlDetails"
       let requestError = p [] "RequestError"
       let response = p [] "Response"
+      let streamResponse = p [] "StreamResponse"
 
     module StreamingHttpClient =
       let private p addl = p ("StreamingHttpClient" :: addl)
@@ -402,6 +403,7 @@ module Fn =
 
     module HttpClient =
       let request = p [ "HttpClient" ] "request"
+      let stream = p [ "HttpClient" ] "stream"
 
     module StreamingHttpClient =
       let requestStreaming = p [ "StreamingHttpClient" ] "requestStreaming"

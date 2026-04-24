@@ -702,8 +702,179 @@ module StreamingCallbackTests =
   let tests = testList "streaming callbacks" [ rawStreamingTests; sseStreamingTests ]
 
 
+// ————————————————————————————————————————————————————————————
+// Tests for the DStream-returning `HttpClient.stream` builtin
+// (chunk 2.8). The mock-server infrastructure at the top of this
+// file is reused so we exercise the real Kestrel path end-to-end.
+// The tests call `openStreamingRequest` + construct a FromIO
+// directly to avoid standing up a full ExecutionState — the DStream
+// drain path is the whole point of the test.
+// ————————————————————————————————————————————————————————————
+module StreamDvalTests =
+  module HC = BuiltinExecution.Libs.HttpClient
+  module Dval = LibExecution.Dval
+  module RT = LibExecution.RuntimeTypes
+  module VT = LibExecution.ValueType
+
+  let httpConfig : HC.Configuration = { HC.defaultConfig with timeoutInMs = 5000 }
+  let httpClient = HC.BaseClient.create httpConfig
+
+  let private getRequest (url : string) : HC.Request =
+    { url = url; method = System.Net.Http.HttpMethod.Get; headers = []; body = [||] }
+
+  /// Build a DStream wrapping an open HttpResponseMessage's body —
+  /// same closure shape as the builtin. Returns the DStream and a
+  /// ref<bool> that flips when the disposer runs, so tests can
+  /// assert cleanup.
+  let private buildBodyStream
+    (response : System.Net.Http.HttpResponseMessage)
+    : Task<RT.Dval * bool ref> =
+    task {
+      let! responseStream = response.Content.ReadAsStreamAsync()
+      let buffer = Array.zeroCreate<byte> 8192
+      let mutable bufferLen = 0
+      let mutable bufferPos = 0
+      let next () : Ply<Option<RT.Dval>> =
+        uply {
+          if bufferPos >= bufferLen then
+            let! n = responseStream.ReadAsync(buffer, 0, buffer.Length)
+            if n = 0 then
+              return None
+            else
+              bufferLen <- n
+              bufferPos <- 0
+              let b = buffer[bufferPos]
+              bufferPos <- bufferPos + 1
+              return Some(RT.DUInt8 b)
+          else
+            let b = buffer[bufferPos]
+            bufferPos <- bufferPos + 1
+            return Some(RT.DUInt8 b)
+        }
+      let disposerRan = ref false
+      let disposer () =
+        disposerRan.Value <- true
+        responseStream.Dispose()
+        response.Dispose()
+      return Dval.newStream VT.uint8 next (Some disposer), disposerRan
+    }
+
+
+  let drainToBytes (s : RT.Dval) : Task<byte[]> =
+    task {
+      use ms = new System.IO.MemoryStream()
+      let mutable keepGoing = true
+      while keepGoing do
+        let! pulled = Dval.readStreamNext s |> Ply.toTask
+        match pulled with
+        | Some(RT.DUInt8 b) -> ms.WriteByte b
+        | Some _ -> Exception.raiseInternal "expected DUInt8" []
+        | None -> keepGoing <- false
+      return ms.ToArray()
+    }
+
+
+  let tests =
+    testList
+      "HttpClient.stream (DStream)"
+      [ testTask "drain preserves every byte; response length matches" {
+          let body = "hello streams"
+          let url =
+            StreamingCallbackTests.registerTestCase
+              "stream-dval-basic"
+              200
+              "text/plain"
+              body
+          let! setup = HC.openStreamingRequest httpConfig httpClient (getRequest url)
+          match setup with
+          | Error e -> failtest $"expected Ok, got Error: {e}"
+          | Ok(response, _headers) ->
+            let! (s, (disposerRan : bool ref)) = buildBodyStream response
+            let! (bytes : byte[]) = drainToBytes s
+            Expect.equal
+              (UTF8.ofBytesUnsafe bytes)
+              body
+              "drained bytes round-trip through the stream"
+            Expect.equal
+              bytes.Length
+              (UTF8.toBytes body).Length
+              "drained length matches source"
+            Expect.isTrue
+              disposerRan.Value
+              "drain-to-EOF runs the disposer (frees the response)"
+        }
+
+        testTask "large body drains cleanly across buffer refills" {
+          // 8 KB buffer * 3.5 → forces multiple refills.
+          let body = String.replicate 28000 "x"
+          let url =
+            StreamingCallbackTests.registerTestCase
+              "stream-dval-large"
+              200
+              "text/plain"
+              body
+          let! setup = HC.openStreamingRequest httpConfig httpClient (getRequest url)
+          match setup with
+          | Error e -> failtest $"expected Ok, got Error: {e}"
+          | Ok(response, _headers) ->
+            let! (s, _) = buildBodyStream response
+            let! (bytes : byte[]) = drainToBytes s
+            Expect.equal
+              bytes.Length
+              body.Length
+              "all 28k bytes pulled through multiple buffer refills"
+        }
+
+        testTask "empty body drains to zero bytes; disposer still runs" {
+          let url =
+            StreamingCallbackTests.registerTestCase
+              "stream-dval-empty"
+              200
+              "text/plain"
+              ""
+          let! setup = HC.openStreamingRequest httpConfig httpClient (getRequest url)
+          match setup with
+          | Error e -> failtest $"expected Ok, got Error: {e}"
+          | Ok(response, _headers) ->
+            let! (s, (disposerRan : bool ref)) = buildBodyStream response
+            let! (bytes : byte[]) = drainToBytes s
+            Expect.equal bytes.Length 0 "empty body = zero bytes"
+            Expect.isTrue disposerRan.Value "disposer runs even on empty drain"
+        }
+
+        testTask "streamClose before drain disposes the response" {
+          let body = "unused"
+          let url =
+            StreamingCallbackTests.registerTestCase
+              "stream-dval-close"
+              200
+              "text/plain"
+              body
+          let! setup = HC.openStreamingRequest httpConfig httpClient (getRequest url)
+          match setup with
+          | Error e -> failtest $"expected Ok, got Error: {e}"
+          | Ok(response, _headers) ->
+            let! (s, (disposerRan : bool ref)) = buildBodyStream response
+            // Replicate streamClose's lock+flip+dispose-chain.
+            match s with
+            | RT.DStream(impl, disposed, lockObj) ->
+              System.Threading.Monitor.Enter(lockObj)
+              try
+                disposed.Value <- true
+                Dval.disposeStreamImpl impl
+              finally
+                System.Threading.Monitor.Exit(lockObj)
+            | _ -> failtest "expected DStream"
+            Expect.isTrue disposerRan.Value "disposer runs on explicit close"
+            // Subsequent pulls yield None.
+            let! after = Dval.readStreamNext s |> Ply.toTask
+            Expect.equal after None "closed stream yields None"
+        } ]
+
+
 let tests =
   [ versions |> List.map (fun v -> testList v (testsFromFiles v))
-    [ StreamingCallbackTests.tests ] ]
+    [ StreamingCallbackTests.tests ]
+    [ StreamDvalTests.tests ] ]
   |> List.concat
   |> testList "HttpClient"

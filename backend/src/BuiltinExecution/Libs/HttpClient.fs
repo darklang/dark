@@ -384,6 +384,122 @@ let headersType = TList(TTuple(TString, TString, []))
 open LibExecution.Builtin.Shortcuts
 
 
+/// Open a streaming request. Unlike [makeRequest], the body isn't
+/// copied into a byte[] — the caller gets back the live
+/// HttpResponseMessage plus its readable stream, which must be
+/// disposed when the consumer is done.
+///
+/// Used by the `HttpClient.stream` builtin to surface a lazy
+/// `Stream<UInt8>` body to Dark. See thinking/blobs-and-streams/30-phase-2.md.
+let openStreamingRequest
+  (config : Configuration)
+  (httpClient : HttpClient)
+  (httpRequest : Request)
+  : Task<Result<HttpResponseMessage * Headers.T, RequestError.RequestError>> =
+  // Deliberately skips [config.telemetryInitialize] — its signature
+  // is specialised to the buffered `RequestResult`. Inline telemetry
+  // calls here cover the same tags.
+  task {
+    config.telemetryAddTag "request.url" httpRequest.url
+    config.telemetryAddTag "request.method" httpRequest.method
+    config.telemetryAddTag "request.streaming" true
+    try
+      let uri = System.Uri(httpRequest.url, System.UriKind.Absolute)
+      let host = uri.Host.Trim().ToLower()
+      if not (config.allowedHost host) then
+        return Error(RequestError.BadUrl BadUrl.BadUrlDetails.InvalidHost)
+      else if not (config.allowedHeaders httpRequest.headers) then
+        return Error(RequestError.BadUrl BadUrl.BadUrlDetails.InvalidRequest)
+      else if not (config.allowedScheme uri.Scheme) then
+        return Error(RequestError.BadUrl BadUrl.BadUrlDetails.UnsupportedProtocol)
+      else
+        let reqUri =
+          System.UriBuilder(
+            Scheme = uri.Scheme,
+            Host = uri.Host,
+            Port = uri.Port,
+            Path = uri.AbsolutePath,
+            Query = uri.Query
+          )
+          |> string
+
+        let req =
+          new HttpRequestMessage(
+            httpRequest.method,
+            reqUri,
+            Content = new ByteArrayContent(httpRequest.body),
+            Version = System.Net.HttpVersion.Version30,
+            VersionPolicy = HttpVersionPolicy.RequestVersionOrLower
+          )
+
+        let headerResults =
+          httpRequest.headers
+          |> List.map (fun (k, v) ->
+            if String.equalsCaseInsensitive k "content-type" then
+              try
+                req.Content.Headers.ContentType <-
+                  Headers.MediaTypeHeaderValue.Parse(v)
+                Ok()
+              with :? System.FormatException ->
+                Error BadHeader.InvalidContentType
+            else
+              let added = req.Headers.TryAddWithoutValidation(k, v)
+              if not added then req.Content.Headers.Add(k, v)
+              Ok())
+
+        match Result.collect headerResults with
+        | Ok _ ->
+          let source =
+            new System.Threading.CancellationTokenSource(config.timeoutInMs)
+          // Deliberately no `use!` — the response must outlive this
+          // function; the caller (or the FromIO disposer) owns it.
+          let! response =
+            httpClient.SendAsync(
+              req,
+              HttpCompletionOption.ResponseHeadersRead,
+              source.Token
+            )
+
+          config.telemetryAddTag "response.status_code" response.StatusCode
+
+          let headersForAspNetResponse
+            (response : HttpResponseMessage)
+            : List<string * string> =
+            let fromAspNetHeaders
+              (headers : Headers.HttpHeaders)
+              : List<string * string> =
+              headers
+              |> Seq.map Tuple2.fromKeyValuePair
+              |> Seq.map (fun (k, v) -> (k, v |> Seq.toList |> String.concat ","))
+              |> Seq.toList
+            fromAspNetHeaders response.Headers
+            @ fromAspNetHeaders response.Content.Headers
+
+          let headers =
+            response
+            |> headersForAspNetResponse
+            |> List.map (fun (k, v) -> (String.toLowercase k, String.toLowercase v))
+
+          return Ok(response, headers)
+
+        | Error e -> return Error(RequestError.RequestError.BadHeader e)
+    with
+    | :? TaskCanceledException -> return Error RequestError.Timeout
+    | :? System.ArgumentException as e when
+      e.Message = "Only 'http' and 'https' schemes are allowed. (Parameter 'value')"
+      ->
+      return Error(RequestError.BadUrl BadUrl.BadUrlDetails.UnsupportedProtocol)
+    | :? System.UriFormatException ->
+      return Error(RequestError.BadUrl BadUrl.BadUrlDetails.InvalidUri)
+    | :? IOException -> return Error(RequestError.NetworkError)
+    | :? HttpRequestException -> return Error(RequestError.NetworkError)
+  }
+
+
+let streamResponseType () =
+  FQTypeName.fqPackage (PackageRefs.Type.Stdlib.HttpClient.streamResponse ())
+
+
 let fns (config : Configuration) : List<BuiltInFn> =
   let httpClient = BaseClient.create config
   [ { name = fn "httpClientRequest" 0
@@ -495,6 +611,154 @@ let fns (config : Configuration) : List<BuiltInFn> =
             match result with
             | Ok result -> return result
             | Error err -> return resultError (RequestError.toDT err)
+          }
+        | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Impure
+      deprecated = NotDeprecated }
+
+
+    // ——————————————————————————————————————————————————————————
+    // Streaming — see thinking/blobs-and-streams/30-phase-2.md chunk 2.8.
+    //
+    // Body is not buffered into a byte[]; instead the response's
+    // readable Stream is wrapped in a FromIO. Each `next` pull reads
+    // out of an 8 KB buffer (refilled on demand), keeping per-pull
+    // allocation at roughly one boxed DUInt8 rather than a full body.
+    //
+    // The disposer tears down the HttpResponseMessage + response
+    // stream when the consumer drains to EOF or calls
+    // Builtin.streamClose. Abandoning a stream mid-drain currently
+    // leaks the response until process exit; a GC-backed finalizer
+    // arrives with chunk 2.11.
+    // ——————————————————————————————————————————————————————————
+    { name = fn "httpClientStream" 0
+      typeParams = []
+      parameters =
+        [ Param.make "method" TString ""
+          Param.make "uri" TString ""
+          Param.make "headers" headersType "" ]
+      returnType =
+        TypeReference.result
+          (TCustomType(NR.ok (streamResponseType ()), []))
+          (TCustomType(NR.ok (responseErrorType ()), []))
+      description =
+        "Make a streaming HTTP call to <param uri>. Returns a <type StreamResponse>
+      whose `body` is a lazy <type Stream> that yields bytes as they arrive.
+      Drain with `Builtin.streamToList`/`streamToBlob`, or compose with
+      `streamMap`/`streamFilter`/etc. The underlying HTTP response is released
+      when the stream is drained to completion or `Builtin.streamClose`d."
+      fn =
+        let streamTypeOk = KTCustomType(streamResponseType (), [])
+        let streamTypeErr = KTCustomType(responseErrorType (), [])
+        let resultOk = Dval.resultOk streamTypeOk streamTypeErr
+        let resultError = Dval.resultError streamTypeOk streamTypeErr
+        (function
+        | _, vm, _, [ DString method; DString uri; DList(_, reqHeaders) ] ->
+          uply {
+            let! (reqHeaders : Result<List<string * string>, BadHeader.BadHeader>) =
+              reqHeaders
+              |> Ply.List.mapSequentially (fun item ->
+                uply {
+                  match item with
+                  | DTuple(DString k, DString v, []) ->
+                    let k = String.trim k
+                    if k = "" then
+                      return Error BadHeader.EmptyKey
+                    else
+                      return Ok((k, v))
+                  | notAPair ->
+                    return
+                      RTE.Applications.FnParameterNotExpectedType(
+                        FQFnName.fqPackage (
+                          PackageRefs.Fn.Stdlib.HttpClient.stream ()
+                        ),
+                        2,
+                        "headers",
+                        VT.list (VT.tuple VT.string VT.string []),
+                        Dval.toValueType notAPair,
+                        notAPair
+                      )
+                      |> RTE.Apply
+                      |> raiseRTE vm.threadID
+                })
+              |> Ply.map Result.collect
+
+            let method =
+              try
+                Some(HttpMethod method)
+              with _ ->
+                None
+
+            match reqHeaders, method with
+            | Ok reqHeaders, Some method ->
+              let request : Request =
+                { url = uri; method = method; headers = reqHeaders; body = [||] }
+
+              let! setup = openStreamingRequest config httpClient request
+              match setup with
+              | Error err -> return resultError (RequestError.toDT err)
+              | Ok(response, respHeaders) ->
+                let! responseStream = response.Content.ReadAsStreamAsync()
+
+                // 8 KB buffer; refill from the network when drained.
+                // Per-pull: one DUInt8 allocation + the byte read.
+                let buffer = Array.zeroCreate<byte> 8192
+                let mutable bufferLen = 0
+                let mutable bufferPos = 0
+
+                let next () : Ply<Option<Dval>> =
+                  uply {
+                    if bufferPos >= bufferLen then
+                      let! n = responseStream.ReadAsync(buffer, 0, buffer.Length)
+                      if n = 0 then
+                        return None
+                      else
+                        bufferLen <- n
+                        bufferPos <- 0
+                        let b = buffer[bufferPos]
+                        bufferPos <- bufferPos + 1
+                        return Some(DUInt8 b)
+                    else
+                      let b = buffer[bufferPos]
+                      bufferPos <- bufferPos + 1
+                      return Some(DUInt8 b)
+                  }
+
+                // Released on drain-to-EOF or streamClose. Ordered
+                // response first so the stream is closed before the
+                // message — Dispose chains naturally either way, but
+                // this mirrors idiomatic .NET cleanup.
+                let disposer () =
+                  responseStream.Dispose()
+                  response.Dispose()
+
+                let body = Dval.newStream VT.uint8 next (Some disposer)
+
+                let headersDval =
+                  respHeaders
+                  |> List.map (fun (k, v) ->
+                    DTuple(
+                      DString(String.toLowercase k),
+                      DString(String.toLowercase v),
+                      []
+                    ))
+                  |> Dval.list (KTTuple(VT.string, VT.string, []))
+
+                let typ = streamResponseType ()
+                let fields =
+                  [ ("statusCode", DInt64(int64 response.StatusCode))
+                    ("headers", headersDval)
+                    ("body", body) ]
+                return DRecord(typ, typ, [], Map fields) |> resultOk
+
+            | Error reqHeadersErr, _ ->
+              return
+                resultError (
+                  RequestError.toDT (RequestError.BadHeader reqHeadersErr)
+                )
+            | _, None ->
+              return resultError (RequestError.toDT RequestError.BadMethod)
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable

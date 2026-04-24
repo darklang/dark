@@ -91,7 +91,7 @@ let fns () : List<BuiltInFn> =
             match elemVT with
             | ValueType.Unknown -> elemValueType elemType
             | known -> known
-          Dval.newStream inferredElem nextFn |> Ply
+          Dval.newStream inferredElem nextFn None |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -188,12 +188,16 @@ let fns () : List<BuiltInFn> =
          an IO source promptly."
       fn =
         (function
-        | _, _, _, [ DStream(_, disposed, lockObj) ] ->
+        | _, _, _, [ DStream(impl, disposed, lockObj) ] ->
           // Acquire the lock to avoid racing a mid-flight `next`; set
-          // the flag so subsequent pulls return None immediately.
+          // the flag so subsequent pulls return None immediately. Run
+          // the disposer chain on the first close so IO sources
+          // (HTTP response, file handle, …) are released promptly.
           System.Threading.Monitor.Enter(lockObj)
           try
-            disposed.Value <- true
+            if not disposed.Value then
+              disposed.Value <- true
+              Dval.disposeStreamImpl impl
           finally
             System.Threading.Monitor.Exit(lockObj)
           DUnit |> Ply
