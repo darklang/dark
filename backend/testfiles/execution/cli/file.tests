@@ -1,8 +1,12 @@
-module Write =
+module WriteReadRoundtrip =
   let testContents () : String = "Test conrents"
 
+  // chunk 1.8: fileRead/fileWrite now speak Blob. Dark-side stdlib
+  // wrappers (Stdlib.Cli.File.write etc.) land in 1.10; this test
+  // drives the builtins directly.
   (let filename = (Builtin.File.createTemp ()) |> Builtin.unwrap
-   do (testContents ()) |> Stdlib.String.toBytes |> (Builtin.File.write filename)
-   Builtin.fileRead filename) = Stdlib.Result.Result.Ok(
-    (testContents ()) |> Stdlib.String.toBytes
-  )
+   let blob = Builtin.bytesFromString (testContents ())
+   do (Builtin.fileWrite blob filename) |> Builtin.unwrap
+
+   let readBack = Builtin.fileRead filename |> Builtin.unwrap
+   Builtin.bytesToString readBack) = Stdlib.Result.Result.Ok(testContents ())

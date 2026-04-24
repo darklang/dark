@@ -15,14 +15,14 @@ let fns () : List<BuiltInFn> =
   [ { name = fn "fileRead" 0
       typeParams = []
       parameters = [ Param.make "path" TString "" ]
-      returnType = TypeReference.result (TList TUInt8) TString
+      returnType = TypeReference.result TBlob TString
       description =
-        "Reads the contents of a file specified by <param path> asynchronously and returns its contents as a list of uint8 wrapped in a Result"
+        "Reads the contents of a file at <param path> asynchronously into an ephemeral Blob, wrapped in a Result. Post-chunk-1.8: O(1) allocation per read instead of O(n) boxed DUInt8 cells (see thinking/blobs-and-streams/baseline.md)."
       fn =
-        let resultOk = Dval.resultOk (KTList(ValueType.Known KTUInt8)) KTString
-        let resultError = Dval.resultError (KTList(ValueType.Known KTUInt8)) KTString
+        let resultOk = Dval.resultOk KTBlob KTString
+        let resultError = Dval.resultError KTBlob KTString
         (function
-        | _, _, _, [ DString path ] ->
+        | state, _, _, [ DString path ] ->
           uply {
             try
               let path =
@@ -32,7 +32,7 @@ let fns () : List<BuiltInFn> =
                 )
 
               let! contents = System.IO.File.ReadAllBytesAsync path
-              return resultOk (Dval.byteArrayToDvalList contents)
+              return resultOk (Dval.newEphemeralBlob state contents)
             with e ->
               return resultError (DString($"Error reading file: {e.Message}"))
           }
@@ -44,16 +44,15 @@ let fns () : List<BuiltInFn> =
 
     { name = fn "fileWrite" 0
       typeParams = []
-      parameters =
-        [ Param.make "contents" (TList TUInt8) ""; Param.make "path" TString "" ]
+      parameters = [ Param.make "contents" TBlob ""; Param.make "path" TString "" ]
       returnType = TypeReference.result TUnit TString
       description =
-        "Writes the specified byte array <param contents> to the file specified by <param path> asynchronously"
+        "Writes <param contents> to the file at <param path> asynchronously."
       fn =
         let resultOk = Dval.resultOk KTUnit KTString
         let resultError = Dval.resultError KTUnit KTString
         (function
-        | _, _, _, [ DList(_, contents); DString path ] ->
+        | state, _, _, [ DBlob ref; DString path ] ->
           uply {
             try
               let path =
@@ -62,11 +61,27 @@ let fns () : List<BuiltInFn> =
                   System.Environment.GetEnvironmentVariable "HOME"
                 )
 
-              do!
-                System.IO.File.WriteAllBytesAsync(
-                  path,
-                  Dval.dlistToByteArray contents
-                )
+              let! bytes =
+                match ref with
+                | Ephemeral id ->
+                  let mutable bs : byte[] = null
+                  if state.blobStore.TryGetValue(id, &bs) then
+                    Ply bs
+                  else
+                    Exception.raiseInternal "ephemeral blob not found" [ "id", id ]
+                | Persistent(hash, _) ->
+                  uply {
+                    let! got = state.blobs.get hash
+                    match got with
+                    | Some bs -> return bs
+                    | None ->
+                      return
+                        Exception.raiseInternal
+                          "persistent blob missing in package_blobs"
+                          [ "hash", hash ]
+                  }
+
+              do! System.IO.File.WriteAllBytesAsync(path, bytes)
               return resultOk DUnit
             with e ->
               return resultError (DString($"Error writing file: {e.Message}"))

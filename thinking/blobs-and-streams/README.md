@@ -99,7 +99,7 @@ See [20-phase-1.md](./20-phase-1.md).
 - [x] 1.5 add package_blobs migration and PM blobs lookup
 - [x] 1.6 implement ephemeral→persistent promotion on serialize
 - [x] 1.7 expand Bytes builtin module to full API
-- [ ] 1.8 migrate fileRead/fileWrite to Blob
+- [x] 1.8 migrate fileRead/fileWrite to Blob
 - [ ] 1.9 migrate Crypto and Base64 to Blob
 - [ ] 1.10 update Dark-side stdlib/bytes.dark + dependents
 - [ ] 1.11 update tree-sitter grammar and Dark-side parser/pretty-printer
@@ -156,6 +156,7 @@ Append one line per chunk completion. Format:
 2026-04-24 00:12  1.5  new package_blobs migration (20260424); LibPackageManager.RuntimeTypes.Blob module with get+insert (INSERT OR IGNORE dedup); RT.PackageManager gains getBlob field; PT→RT wrapper stubs it. 3 new PM tests + 15 blob total all green.
 2026-04-24 00:25  1.6  Dval.promoteBlobs walks tree, hashes ephemeral bytes via SHA-256, inserts into package_blobs, swaps ref; Dval.sha256Hex helper; readBlobBytes now consults PM for Persistent refs. Shadowing gotcha: Dval.int64 builder masked the primitive; used System.Convert.ToInt64 to disambiguate. 4 new promotion tests (persists+swaps, roundtrip after promote, same-bytes-dedup, readBlobBytes on promoted). 19 blob / 777 bin-ser green.
 2026-04-24 00:38  1.7  full Bytes builtin API: length, fromString, toString, toHex, fromHex, toBase64, fromBase64, concat, slice, toList, fromList. Old bytesHexEncode kept but DeprecatedBecause O(n²) on List<UInt8>. Added Blobs sub-record to ExecutionState (+ insertBlob on RT.PackageManager) so builtins can read/write via state.blobs. 11 new .dark tests in bytes.dark; 15 bytes tests green. TBlob now usable from Dark.
+2026-04-24 00:52  1.8  fileRead returns Result<Blob, String>; fileWrite takes Blob. posixFdRead/posixFdWrite mirror. Old List<UInt8> shape gone. cli/file.tests rewritten to drive new API. Also bumped cloud/internal.dark table count 22 → 23 (1.5 added package_blobs). All 5591 LibExecution tests green. Dark-side stdlib wrappers calling fileWrite with List<UInt8> are still wrong but tolerated at parse time — 1.10 migrates them.
 
 ## Blockers
 
