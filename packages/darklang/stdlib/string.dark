@@ -110,14 +110,17 @@ let fromChar (c: Char) : String = Char.toString c
 /// {{-}} and {{_}} instead of {{+}} and {{/}}, as defined in
 /// [RFC 4648 section 5](https://www.rfc-editor.org/rfc/rfc4648.html#section-5)
 let base64UrlEncode (s: String) : String =
-  let encoded = s |> String.toBytes |> Base64.urlEncode
+  // L.6: Base64.urlEncode takes Blob now.
+  let encoded = s |> Builtin.bytesFromString |> Base64.urlEncode
 
   String.replaceAll encoded "=" ""
 
 /// Base64 encodes a string. Uses {{-}} and {{_}} instead of {{+}} and {{/}}, as defined in
 /// [RFC 4648 section 4](https://www.rfc-editor.org/rfc/rfc4648.html#section-4) with padding.
 let base64Encode (s: String) : String =
-  s |> String.toBytes |> Base64.encode
+  // L.6: Base64.encode takes Blob now; go through bytesFromString
+  // instead of String.toBytes (still List<UInt8>).
+  s |> Builtin.bytesFromString |> Base64.encode
 
 
 /// Base64 decodes a string. The returned value is wrapped in {{Result}}.
@@ -127,18 +130,20 @@ let base64Encode (s: String) : String =
 /// [4](https://www.rfc-editor.org/rfc/rfc4648.html#section-4) and
 /// [5](https://www.rfc-editor.org/rfc/rfc4648.html#section-5).
 let base64Decode (s: String) : Result.Result<String, String> =
+  // L.6: Base64.decode returns Blob; convert via bytesToString.
   match Base64.decode s with
-  | Ok bytes ->
-    match String.fromBytes bytes with
-    | Some str -> Result.Result.Ok str
-    | None -> Result.Result.Error "Invalid UTF-8 string"
+  | Ok blob ->
+    match Builtin.bytesToString blob with
+    | Ok str -> Result.Result.Ok str
+    | Error _ -> Result.Result.Error "Invalid UTF-8 string"
   | Error err -> Result.Result.Error err
 
 
 /// Take a string and hash it to a cryptographically-secure digest.
 /// Don't rely on either the size or the algorithm.
 let digest (s: String) : String =
-  let sha384Hash = Crypto.sha384_v0 (String.toBytes_v0 s)
+  // L.6: Crypto.sha384 and Base64.urlEncode both take/return Blob now.
+  let sha384Hash = Crypto.sha384 (Builtin.bytesFromString s)
 
   sha384Hash |> Base64.urlEncode
 

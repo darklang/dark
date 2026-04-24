@@ -1,8 +1,9 @@
 module BigTestCase =
   (let str = "a string to be used as the test case"
-   let bytes = Stdlib.String.toBytes_v0 str
-   let base64Encode = Stdlib.Base64.urlEncode_v0 bytes
-   let hexEncode = Stdlib.Bytes.hexEncode_v0 bytes
+   let bytes = Stdlib.String.toBytes str  // List<UInt8> — Http still uses this shape
+   let blob = Builtin.bytesFromString str  // Blob — L.6 Base64 path
+   let base64Encode = Stdlib.Base64.urlEncode blob
+   let hexEncode = Stdlib.Bytes.hexEncode bytes  // deprecated List-based API kept for now
    let sl = Stdlib.String.length str
    let bl = Stdlib.List.length bytes
    let t = true
