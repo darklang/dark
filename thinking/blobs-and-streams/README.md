@@ -132,7 +132,7 @@ See [40-later.md](./40-later.md). Not in the core loop — pick up only
 if the work above is done and time remains.
 
 - [x] L.1 scope-based ephemeral-blob lifetime on ExecutionState
-- [ ] L.2 Dval.isPersistable guard in Inserts.fs
+- [x] L.2 Dval.isPersistable guard in Inserts.fs
 - [ ] L.3 orphan package_blobs sweeper
 - [ ] L.4 blob equality semantics (hash-compare after promotion)
 - [ ] L.5 sub-blob slicing (share bytes, BEAM-style) if profiles show need
@@ -181,6 +181,7 @@ Append one entry per chunk completion. Format (one list item):
 - **2026-04-24 06:14 · 2.13** — deferred to user. Agent has no access to a live SSE endpoint (Anthropic messages streaming API, OpenAI chat completions, etc.) from this sandbox. Per the spec this is explicitly "not an automated chunk"; the in-process Kestrel coverage built up across 2.8 (HttpClient.stream 4 tests) and 2.9 (sse.dark 8 tests) already exercises the full HttpClient.stream → Sse.parse → Stream.toList pipeline end-to-end against a real HTTP server, just not against an external service. No code commit. Marked `[x]` so the loop can proceed to 2.14; Blockers section has the follow-up.
 - **2026-04-24 06:30 · 2.14** — phase-2-results.md written + new `p2StreamingHttpProfile` measurement scenario mirrors phase-0 scenario 3 through DStream. Honest headline: per-byte drain allocates ~5.9 GB on a 10 MB body (+22% vs phase-0's callback path, 411 ms vs 242 ms time-to-first) — Ply continuation overhead per readStreamNext call is the culprit. The real phase-2 wins are architectural (StreamingHttpClient.fs deleted, SSE in Dark, composable Stream builtins, GC-backed finalizer). Surfaced a new Later item L.7: chunked bulk-drain fast path (`Stream.nextChunk`) to amortize the per-byte overhead for streamToBlob / Sse.parse. 10,185 backend tests green.
 - **2026-04-24 11:50 · L.1** — ExecutionState gains `blobScopes : Stack<HashSet<Guid>>`; new `Dval.pushBlobScope` / `popBlobScope` helpers; `newEphemeralBlob` registers new UUIDs into the top scope. HttpServer wraps each request with push/pop under try/finally so ephemeral bytes drop once the response is written — long-lived http-server VMs no longer accumulate blobStore entries across requests. CLI/tests don't push a scope so pre-L.1 behaviour is preserved. Promoted-to-persistent blobs survive scope pop because content-addressed bytes live in package_blobs, not the in-memory ephemeral cache. 4 new Blob.Tests (push/pop reclaims, nested scopes, empty-pop no-op, promoted survives pop). 28 blob / 10,189 total tests green.
+- **2026-04-24 12:17 · L.2** — new `Dval.isPersistable` + `nonPersistableReason` predicates; Seed.fs's package-value evaluator checks before calling BS.RT.PackageValue.serialize so non-persistable values log a clean "cannot store in val — <reason>" error rather than surfacing a deep-stack format-error raise. Narrower than the original L.2 sketch: only DStream and DBlob(Ephemeral _) are rejected. The spec suggested also rejecting DApplicable and DDB, but in practice lambdas serialize (demo handlers store them as vals — their instruction streams are binary-serializable) and DB handles serialize as canvas-local string identifiers. The existing Dval binary serializer raises only on DStream and DBlob(Ephemeral _), so the guard matches that. 5 new Blob.Tests cases. 10,194 total backend tests green.
 
 ## Blockers
 
