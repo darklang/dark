@@ -228,19 +228,19 @@ module TraceStorage =
     ()
 
 
-/// Shared storeFnResult callback that only records top-level calls (from user code).
-/// Internal stdlib-calls-stdlib chains are skipped by checking the execution point.
+/// Shared storeFnResult callback. Records every fn call the interpreter
+/// emits — including stdlib-calls-stdlib chains and calls made from inside
+/// lambda and fn bodies. Caller context is recovered later from the
+/// ExecutionPoint; for now the viewer just renders them as a flat list in
+/// execution order (see `ORDER BY rowid` in the reader).
 let private makeStoreFnResult
   (fnCalls : System.Collections.Generic.List<StoredFnCall>)
   : RT.Tracing.StoreFnResult =
-  fun ((ep, _), name) args result ->
-    match ep with
-    | RT.Source ->
-      let argsJson =
-        args |> NEList.toList |> List.map DvalReprInternalRoundtrippable.toJsonV0
-      let resultJson = DvalReprInternalRoundtrippable.toJsonV0 result
-      fnCalls.Add({ fnName = name; argsJson = argsJson; resultJson = resultJson })
-    | _ -> ()
+  fun ((_ep, _), name) args result ->
+    let argsJson =
+      args |> NEList.toList |> List.map DvalReprInternalRoundtrippable.toJsonV0
+    let resultJson = DvalReprInternalRoundtrippable.toJsonV0 result
+    fnCalls.Add({ fnName = name; argsJson = argsJson; resultJson = resultJson })
 
 
 /// Shared helper: store a trace to SQLite with error handling
