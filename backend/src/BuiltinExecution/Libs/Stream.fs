@@ -230,13 +230,12 @@ let fns () : List<BuiltInFn> =
             let! elemType = resolveElemVT state outputType
             let apply (dv : Dval) : Ply<Dval> =
               uply {
-                let! result =
-                  Exe.executeApplicable state app (NEList.singleton dv)
+                let! result = Exe.executeApplicable state app (NEList.singleton dv)
                 match result with
                 | Ok v -> return v
                 | Error(rte, _cs) -> return raiseRTE vm.threadID rte
               }
-            return DStream(Mapped(src, apply, elemType), ref false, obj ())
+            return Dval.wrapStreamImpl (Mapped(src, apply, elemType))
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
@@ -273,7 +272,7 @@ let fns () : List<BuiltInFn> =
                     [ "got", other ]
               | Error(rte, _cs) -> return raiseRTE vm.threadID rte
             }
-          DStream(Filtered(src, pred), ref false, obj ()) |> Ply
+          Dval.wrapStreamImpl (Filtered(src, pred)) |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Impure
@@ -296,7 +295,7 @@ let fns () : List<BuiltInFn> =
           // Clamp negative n to 0 — pullStreamImpl treats remaining<=0
           // as done, so a negative here becomes an empty stream.
           let clamped = max 0L n
-          DStream(Take(src, clamped, ref clamped), ref false, obj ()) |> Ply
+          Dval.wrapStreamImpl (Take(src, clamped, ref clamped)) |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Impure
@@ -323,7 +322,7 @@ let fns () : List<BuiltInFn> =
                 Exception.raiseInternal
                   "streamConcat: expected List<Stream>"
                   [ "got", other ])
-          DStream(Concat(ref impls), ref false, obj ()) |> Ply
+          Dval.wrapStreamImpl (Concat(ref impls)) |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Impure

@@ -118,20 +118,6 @@ let readBlobBytes
   }
 
 
-/// Mint a fresh DStream from a pull function. Single-consumer by
-/// construction — the disposed flag and lock guard concurrent `next`
-/// calls. [disposer], when `Some`, is called once when the stream is
-/// drained to completion or `streamClose`d — used by IO-backed
-/// producers to release the underlying source (HttpResponseMessage,
-/// FileStream, etc.). See thinking/blobs-and-streams/30-phase-2.md.
-let newStream
-  (elemType : ValueType)
-  (next : unit -> Ply.Ply<Option<Dval>>)
-  (disposer : (unit -> unit) option)
-  : Dval =
-  DStream(FromIO(next, elemType, disposer), ref false, obj ())
-
-
 /// Walk a StreamImpl tree invoking any IO-source disposers. Wrapped
 /// in try/with so a misbehaving disposer doesn't take the whole
 /// runtime down — best-effort cleanup. Safe to call multiple times:
@@ -149,6 +135,56 @@ let rec disposeStreamImpl (impl : StreamImpl) : unit =
   | Filtered(src, _) -> disposeStreamImpl src
   | Take(src, _, _) -> disposeStreamImpl src
   | Concat streams -> streams.Value |> List.iter disposeStreamImpl
+
+
+/// GC-triggered cleanup for DStreams that callers never explicitly
+/// drain or close. Doubles as the DStream's lockObj so the lifetime
+/// tracks the DStream itself — the GC can only finalize this object
+/// when the DStream holding it is unreachable. On finalize, runs the
+/// full [disposeStreamImpl] chain once (guarded by the shared
+/// `disposed` ref, so no double-fire if streamClose/drain-to-EOF
+/// already ran).
+///
+/// Swallows disposer exceptions — finalizers that throw crash the
+/// process, and we'd rather leak on the pathological case than take
+/// down everything.
+type StreamFinalizer(impl : StreamImpl, disposed : bool ref) =
+  override this.Finalize() =
+    try
+      if not disposed.Value then
+        disposed.Value <- true
+        disposeStreamImpl impl
+    with _ ->
+      ()
+
+
+/// Wrap a [StreamImpl] in a fresh DStream with its own disposed flag
+/// and a GC-backed finalizer. Single-consumer by construction — the
+/// monitor on `lockObj` guards concurrent `next` calls. When the
+/// DStream becomes unreachable, the GC finalizes the StreamFinalizer
+/// (which is also the lockObj) and the disposer chain runs once.
+///
+/// Used by `newStream` and by the Stream transform builtins
+/// (streamMap/streamFilter/streamTake/streamConcat) when they wrap
+/// a source's impl into a new DStream.
+let wrapStreamImpl (impl : StreamImpl) : Dval =
+  let disposed = ref false
+  DStream(impl, disposed, StreamFinalizer(impl, disposed) :> obj)
+
+
+/// Mint a fresh DStream from a pull function. Convenience wrapper
+/// over [wrapStreamImpl] for the common FromIO case. [disposer],
+/// when `Some`, is called once when the stream is drained to
+/// completion, `streamClose`d, or finalized by the GC — used by
+/// IO-backed producers to release the underlying source
+/// (HttpResponseMessage, FileStream, etc.). See
+/// thinking/blobs-and-streams/30-phase-2.md.
+let newStream
+  (elemType : ValueType)
+  (next : unit -> Ply.Ply<Option<Dval>>)
+  (disposer : (unit -> unit) option)
+  : Dval =
+  wrapStreamImpl (FromIO(next, elemType, disposer))
 
 
 /// Pull one element through a [StreamImpl]. Separate from

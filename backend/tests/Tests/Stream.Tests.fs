@@ -247,9 +247,9 @@ let private streamImplOfList
   RT.FromIO(next, elemType, None)
 
 
-/// Wrap a StreamImpl in a fresh DStream with its own lock/disposed.
-let private wrap (impl : RT.StreamImpl) : RT.Dval =
-  RT.DStream(impl, ref false, obj ())
+/// Wrap a StreamImpl in a fresh DStream with its own lock/disposed +
+/// GC-backed finalizer (via Dval.wrapStreamImpl).
+let private wrap (impl : RT.StreamImpl) : RT.Dval = Dval.wrapStreamImpl impl
 
 
 let mappedTransformsElements =
@@ -457,6 +457,141 @@ let toValueTypeWalksTransforms =
   }
 
 
+// ——————————————————————————————————————————————————————————
+// Chunk 2.11 — disposal via GC finalizer
+// ——————————————————————————————————————————————————————————
+// The StreamFinalizer on each DStream's lockObj runs the disposer
+// chain when the DStream becomes unreachable. Explicit streamClose
+// and drain-to-EOF cover the normal paths; GC-driven finalization is
+// the safety net for abandoned streams (IO sources still get
+// released even if the user never drains them).
+//
+// Tests force `GC.Collect` + `WaitForPendingFinalizers` twice to
+// flush pending finalizers. They use a WeakReference on the Dval so
+// the strong ref doesn't pin it in the test's stack frame.
+
+
+let gcFinalizesAbandonedStream =
+  test "stream: GC finalizer runs disposer for a never-drained stream" {
+    let disposerRan = ref false
+    // Inner function so the strong ref to dv stays scoped here and
+    // can be released on return.
+    let makeWeakRef () : System.WeakReference<RT.Dval> =
+      let remaining = ref [ RT.DInt64 1L; RT.DInt64 2L ]
+      let next () : Ply<Option<RT.Dval>> =
+        uply {
+          match remaining.Value with
+          | head :: tail ->
+            remaining.Value <- tail
+            return Some head
+          | [] -> return None
+        }
+      let disposer () = disposerRan.Value <- true
+      let dv = Dval.newStream VT.int64 next (Some disposer)
+      System.WeakReference<RT.Dval>(dv)
+
+    let weakRef = makeWeakRef ()
+
+    System.GC.Collect()
+    System.GC.WaitForPendingFinalizers()
+    System.GC.Collect()
+    System.GC.WaitForPendingFinalizers()
+
+    let mutable dv : RT.Dval = Unchecked.defaultof<_>
+    Expect.isFalse
+      (weakRef.TryGetTarget(&dv))
+      "DStream should be collectible after its strong ref is dropped"
+    Expect.isTrue
+      disposerRan.Value
+      "finalizer runs the disposer for a never-drained stream"
+  }
+
+
+let gcFinalizesMidDrainStream =
+  test "stream: GC finalizer runs disposer after partial drain, never-closed" {
+    let disposerRan = ref false
+    let makeWeakRef () : System.WeakReference<RT.Dval> =
+      let remaining = ref [ RT.DInt64 1L; RT.DInt64 2L; RT.DInt64 3L ]
+      let next () : Ply<Option<RT.Dval>> =
+        uply {
+          match remaining.Value with
+          | head :: tail ->
+            remaining.Value <- tail
+            return Some head
+          | [] -> return None
+        }
+      let disposer () = disposerRan.Value <- true
+      let dv = Dval.newStream VT.int64 next (Some disposer)
+
+      // Pull 2 of 3 elements, then return the weak ref (dropping
+      // the strong ref on function exit).
+      let pulled1 = (Dval.readStreamNext dv |> Ply.toTask).Result
+      let pulled2 = (Dval.readStreamNext dv |> Ply.toTask).Result
+      Expect.equal pulled1 (Some(RT.DInt64 1L)) "first pull"
+      Expect.equal pulled2 (Some(RT.DInt64 2L)) "second pull"
+
+      System.WeakReference<RT.Dval>(dv)
+
+    let weakRef = makeWeakRef ()
+
+    System.GC.Collect()
+    System.GC.WaitForPendingFinalizers()
+    System.GC.Collect()
+    System.GC.WaitForPendingFinalizers()
+
+    let mutable dv : RT.Dval = Unchecked.defaultof<_>
+    Expect.isFalse
+      (weakRef.TryGetTarget(&dv))
+      "DStream should be collectible after mid-drain drop"
+    Expect.isTrue
+      disposerRan.Value
+      "finalizer runs disposer even when the stream was partially drained"
+  }
+
+
+let gcSkipsFinalizerAfterStreamClose =
+  test "stream: finalizer doesn't re-fire disposer when close already ran" {
+    // Assert the disposer runs exactly once across explicit close +
+    // GC finalize.
+    let disposeCount = ref 0
+    let makeWeakRef () : System.WeakReference<RT.Dval> =
+      let next () : Ply<Option<RT.Dval>> = uply { return None }
+      let disposer () = disposeCount.Value <- disposeCount.Value + 1
+      let dv = Dval.newStream VT.int64 next (Some disposer)
+
+      // Replicate the streamClose builtin: lock, flip disposed,
+      // walk the impl chain.
+      match dv with
+      | RT.DStream(impl, disposed, lockObj) ->
+        System.Threading.Monitor.Enter(lockObj)
+        try
+          disposed.Value <- true
+          Dval.disposeStreamImpl impl
+        finally
+          System.Threading.Monitor.Exit(lockObj)
+      | _ -> failtest "expected DStream"
+
+      Expect.equal disposeCount.Value 1 "close ran disposer once"
+      System.WeakReference<RT.Dval>(dv)
+
+    let weakRef = makeWeakRef ()
+
+    System.GC.Collect()
+    System.GC.WaitForPendingFinalizers()
+    System.GC.Collect()
+    System.GC.WaitForPendingFinalizers()
+
+    let mutable dv : RT.Dval = Unchecked.defaultof<_>
+    // If the WeakRef still resolves, that's fine — we only care
+    // about dispose-count staying at 1.
+    weakRef.TryGetTarget(&dv) |> ignore<bool>
+    Expect.equal
+      disposeCount.Value
+      1
+      "finalizer short-circuited because disposed was already true"
+  }
+
+
 let tests =
   testList
     "stream"
@@ -481,4 +616,7 @@ let tests =
       takeLongerThanSource
       concatSpansMultipleStreams
       composedTransformsAreLazy
-      toValueTypeWalksTransforms ]
+      toValueTypeWalksTransforms
+      gcFinalizesAbandonedStream
+      gcFinalizesMidDrainStream
+      gcSkipsFinalizerAfterStreamClose ]
