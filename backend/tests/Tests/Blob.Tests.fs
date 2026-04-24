@@ -563,6 +563,88 @@ let promotedBlobsSurviveScopePop =
   }
 
 
+// ——————————————————————————————————————————————————————————
+// L.2 — val persistability guard (Dval.isPersistable)
+// ——————————————————————————————————————————————————————————
+// Rejects shapes that can't round-trip through `package_values.rt_dval`:
+// DStream, DApplicable, DDB, DBlob(Ephemeral _). The Seed.fs evaluator
+// hits this before calling BS.RT.PackageValue.serialize so users get
+// a clear reason string instead of a deep-stack serialize raise.
+
+
+let persistableAcceptsPlainShapes =
+  test "isPersistable: primitives and persistent blobs OK" {
+    let cases : RT.Dval list =
+      [ RT.DUnit
+        RT.DBool true
+        RT.DInt64 42L
+        RT.DString "hi"
+        RT.DUuid(System.Guid.NewGuid())
+        RT.DBlob(RT.Persistent("deadbeef", 4L))
+        RT.DList(RT.ValueType.Known RT.KTInt64, [ RT.DInt64 1L; RT.DInt64 2L ])
+        RT.DTuple(RT.DInt64 1L, RT.DString "a", [])
+        RT.DDict(RT.ValueType.Known RT.KTInt64, Map.ofList [ ("k", RT.DInt64 42L) ]) ]
+    for dv in cases do
+      Expect.isTrue (Dval.isPersistable dv) $"expected isPersistable=true for {dv}"
+  }
+
+
+let persistableRejectsEphemeralBlob =
+  test "isPersistable: ephemeral blob is not persistable (must promote)" {
+    let dv = RT.DBlob(RT.Ephemeral(System.Guid.NewGuid()))
+    Expect.isFalse (Dval.isPersistable dv) "ephemeral blob rejected"
+    match Dval.nonPersistableReason dv with
+    | Some reason ->
+      Expect.stringContains reason "ephemeral blob" "reason names the shape"
+    | None -> failtest "expected a reason"
+  }
+
+
+let persistableRejectsStream =
+  test "isPersistable: DStream is not persistable" {
+    let next () : Ply<Option<RT.Dval>> = uply { return None }
+    let dv = Dval.newStream LibExecution.ValueType.int64 next None
+    Expect.isFalse (Dval.isPersistable dv) "stream rejected"
+    match Dval.nonPersistableReason dv with
+    | Some reason -> Expect.stringContains reason "stream" "reason names stream"
+    | None -> failtest "expected a reason"
+  }
+
+
+let persistableAcceptsApplicableAndDDB =
+  test "isPersistable: DApplicable + DDB serialize successfully, accept both" {
+    // Demo handlers rely on DApplicable persisting; canvas-local DBs
+    // persist as string handles. Both the binary serializer and the
+    // existing package-values table handle them.
+    let dv = RT.DDB "users"
+    Expect.isTrue
+      (Dval.isPersistable dv)
+      "DDB serialises via the existing binary path"
+  }
+
+
+let persistableRejectsNestedBadShapes =
+  test "isPersistable: a bad leaf anywhere in a container poisons the whole" {
+    // List containing an ephemeral blob → not persistable.
+    let list =
+      RT.DList(
+        RT.ValueType.Known RT.KTBlob,
+        [ RT.DBlob(RT.Persistent("x", 1L))
+          RT.DBlob(RT.Ephemeral(System.Guid.NewGuid())) ]
+      )
+    Expect.isFalse (Dval.isPersistable list) "list with ephemeral blob rejected"
+
+    // Record with a stream field.
+    let next () : Ply<Option<RT.Dval>> = uply { return None }
+    let streamDv = Dval.newStream LibExecution.ValueType.int64 next None
+    let rec_ =
+      let typeName =
+        RT.FQTypeName.fqPackage (LibExecution.PackageRefs.Type.Stdlib.option ())
+      RT.DRecord(typeName, typeName, [], Map.ofList [ ("body", streamDv) ])
+    Expect.isFalse (Dval.isPersistable rec_) "record with a stream field rejected"
+  }
+
+
 let tests =
   testList
     "blob"
@@ -593,4 +675,9 @@ let tests =
       pushPopReclaimsScopedBlobs
       scopeNestsLikeAStack
       popWithoutPushIsNoOp
-      promotedBlobsSurviveScopePop ]
+      promotedBlobsSurviveScopePop
+      persistableAcceptsPlainShapes
+      persistableRejectsEphemeralBlob
+      persistableRejectsStream
+      persistableAcceptsApplicableAndDDB
+      persistableRejectsNestedBadShapes ]
