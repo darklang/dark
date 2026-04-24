@@ -184,18 +184,17 @@ let fns () : List<BuiltInFn> =
          an IO source promptly."
       fn =
         (function
-        | _, _, _, [ DStream(impl, disposed, lockObj) ] ->
-          // Acquire the lock to avoid racing a mid-flight `next`; set
-          // the flag so subsequent pulls return None immediately. Run
-          // the disposer chain on the first close so IO sources
-          // (HTTP response, file handle, …) are released promptly.
-          System.Threading.Monitor.Enter(lockObj)
-          try
-            if not disposed.Value then
-              disposed.Value <- true
-              Dval.disposeStreamImpl impl
-          finally
-            System.Threading.Monitor.Exit(lockObj)
+        | _, _, _, [ DStream(impl, disposed, _lockObj) ] ->
+          // Flip disposed and run the disposer chain on the first
+          // close so IO sources (HTTP response, file handle, ...) are
+          // released promptly. No Monitor: the Dark VM is single-
+          // threaded per pull, and concurrent streamClose+readStream
+          // races would fight Ply's thread-hopping continuations
+          // (Monitor.Exit throws across threads). Idempotent via the
+          // disposed flag.
+          if not disposed.Value then
+            disposed.Value <- true
+            Dval.disposeStreamImpl impl
           DUnit |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented

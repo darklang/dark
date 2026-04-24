@@ -262,33 +262,29 @@ let rec private pullStreamImpl (impl : StreamImpl) : Ply.Ply<Option<Dval>> =
 /// stream is exhausted; subsequent calls after exhaustion return
 /// [None] (single-consumer — once drained, stays drained).
 ///
-/// Thread-safe via the stream's monitor lock; concurrent callers
-/// serialize. The walk through Mapped/Filtered/Take/Concat nodes
-/// happens in [pullStreamImpl]. On exhaustion, any IO-source
-/// disposers attached to FromIO nodes are invoked (HttpResponseMessage,
-/// FileStream, etc.).
+/// No thread-affine lock: `pullStreamImpl` awaits inside `fn v` /
+/// `pred v` (via `Exe.executeApplicable`) and Ply continuations can
+/// resume on a different thread, which makes `Monitor.Exit` throw
+/// `SynchronizationLockException`. We rely on the single-threaded
+/// Dark VM model for ordering instead — concurrent consumers of the
+/// same stream have undefined output but never crash. The walk
+/// through Mapped/Filtered/Take/Concat nodes happens in
+/// [pullStreamImpl]; on exhaustion, any IO-source disposers attached
+/// to FromIO nodes are invoked.
 let readStreamNext (dv : Dval) : Ply.Ply<Option<Dval>> =
   uply {
     match dv with
-    | DStream(impl, disposed, lockObj) ->
-      // Monitor ensures single-consumer semantics.
-      let taken = System.Threading.Monitor.TryEnter(lockObj, 0)
-      if not taken then
-        return
-          Exception.raiseInternal "stream: concurrent consumers not supported" []
-      try
-        if disposed.Value then
+    | DStream(impl, disposed, _lockObj) ->
+      if disposed.Value then
+        return None
+      else
+        let! result = pullStreamImpl impl
+        match result with
+        | Some _ -> return result
+        | None ->
+          disposed.Value <- true
+          disposeStreamImpl impl
           return None
-        else
-          let! result = pullStreamImpl impl
-          match result with
-          | Some _ -> return result
-          | None ->
-            disposed.Value <- true
-            disposeStreamImpl impl
-            return None
-      finally
-        System.Threading.Monitor.Exit(lockObj)
     | _ -> return Exception.raiseInternal "readStreamNext: expected DStream" []
   }
 

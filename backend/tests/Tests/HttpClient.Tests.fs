@@ -594,15 +594,11 @@ module StreamDvalTests =
           | Error e -> failtest $"expected Ok, got Error: {e}"
           | Ok(response, _headers) ->
             let! (s, (disposerRan : bool ref)) = buildBodyStream response
-            // Replicate streamClose's lock+flip+dispose-chain.
+            // Replicate streamClose: flip disposed, walk impl chain.
             match s with
-            | RT.DStream(impl, disposed, lockObj) ->
-              System.Threading.Monitor.Enter(lockObj)
-              try
-                disposed.Value <- true
-                Dval.disposeStreamImpl impl
-              finally
-                System.Threading.Monitor.Exit(lockObj)
+            | RT.DStream(impl, disposed, _) ->
+              disposed.Value <- true
+              Dval.disposeStreamImpl impl
             | _ -> failtest "expected DStream"
             Expect.isTrue disposerRan.Value "disposer runs on explicit close"
             // Subsequent pulls yield None.

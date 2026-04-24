@@ -178,29 +178,18 @@ let streamCloseMarksDisposed =
   testTask "Stream.close flips disposed; subsequent next returns None" {
     let s = streamOfList [ RT.DInt64 42L ] VT.int64
 
-    // Replicate what the Stream.close builtin does: grab the lock,
-    // flip the flag.
+    // Replicate what the Stream.close builtin does: flip the flag.
     match s with
-    | RT.DStream(_, disposed, lockObj) ->
-      System.Threading.Monitor.Enter(lockObj)
-      try
-        disposed.Value <- true
-      finally
-        System.Threading.Monitor.Exit(lockObj)
+    | RT.DStream(_, disposed, _) -> disposed.Value <- true
     | _ -> failtest "expected DStream"
 
     let! after = Dval.readStreamNext s |> Ply.toTask
     Expect.equal after None "closed stream yields None on next"
 
-    // Idempotent — calling close a second time (repeat the same block)
+    // Idempotent — calling close a second time (repeat the same flip)
     // should not throw.
     match s with
-    | RT.DStream(_, disposed, lockObj) ->
-      System.Threading.Monitor.Enter(lockObj)
-      try
-        disposed.Value <- true
-      finally
-        System.Threading.Monitor.Exit(lockObj)
+    | RT.DStream(_, disposed, _) -> disposed.Value <- true
     | _ -> failtest "unreachable"
 
     let! stillNone = Dval.readStreamNext s |> Ply.toTask
@@ -559,16 +548,12 @@ let gcSkipsFinalizerAfterStreamClose =
       let disposer () = disposeCount.Value <- disposeCount.Value + 1
       let dv = Dval.newStream VT.int64 next (Some disposer)
 
-      // Replicate the streamClose builtin: lock, flip disposed,
-      // walk the impl chain.
+      // Replicate the streamClose builtin: flip disposed, walk the
+      // impl chain.
       match dv with
-      | RT.DStream(impl, disposed, lockObj) ->
-        System.Threading.Monitor.Enter(lockObj)
-        try
-          disposed.Value <- true
-          Dval.disposeStreamImpl impl
-        finally
-          System.Threading.Monitor.Exit(lockObj)
+      | RT.DStream(impl, disposed, _) ->
+        disposed.Value <- true
+        Dval.disposeStreamImpl impl
       | _ -> failtest "expected DStream"
 
       Expect.equal disposeCount.Value 1 "close ran disposer once"

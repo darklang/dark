@@ -92,3 +92,60 @@
  let mapped = Builtin.streamMap<Int64, Int64> filtered (fun n -> n + 1L)
  let taken = Builtin.streamTake<Int64> mapped 3L
  Builtin.streamToList<Int64> taken) = [ 3L; 5L; 7L ]
+
+
+// --- chunk 2.12 extra compositional coverage ---
+
+// map can change the element type
+(let s = Builtin.streamFromList<Int64> [ 1L; 2L; 3L ]
+ let mapped =
+   Builtin.streamMap<Int64, String> s (fun n -> Builtin.int64ToString n)
+ Builtin.streamToList<String> mapped) = [ "1"; "2"; "3" ]
+
+// take after map — the take limit applies to the mapped output
+(let s = Builtin.streamFromList<Int64> [ 1L; 2L; 3L; 4L; 5L ]
+ let mapped = Builtin.streamMap<Int64, Int64> s (fun n -> n * 10L)
+ let taken = Builtin.streamTake<Int64> mapped 2L
+ Builtin.streamToList<Int64> taken) = [ 10L; 20L ]
+
+// map after take — map only applies to elements that survive the take
+(let s = Builtin.streamFromList<Int64> [ 1L; 2L; 3L; 4L; 5L ]
+ let taken = Builtin.streamTake<Int64> s 3L
+ let mapped = Builtin.streamMap<Int64, Int64> taken (fun n -> n * n)
+ Builtin.streamToList<Int64> mapped) = [ 1L; 4L; 9L ]
+
+// concat of already-transformed streams
+(let a = Builtin.streamFromList<Int64> [ 1L; 2L ]
+ let b = Builtin.streamFromList<Int64> [ 3L; 4L ]
+ let aDoubled = Builtin.streamMap<Int64, Int64> a (fun n -> n * 2L)
+ let bNegated = Builtin.streamMap<Int64, Int64> b (fun n -> 0L - n)
+ let joined = Builtin.streamConcat<Int64> [ aDoubled; bNegated ]
+ Builtin.streamToList<Int64> joined) = [ 2L; 4L; -3L; -4L ]
+
+// filter then take: early-terminate once Take is satisfied
+(let s = Builtin.streamFromList<Int64> [ 1L; 2L; 3L; 4L; 5L; 6L; 7L; 8L ]
+ let evens = Builtin.streamFilter<Int64> s (fun n -> n % 2L == 0L)
+ let firstTwo = Builtin.streamTake<Int64> evens 2L
+ Builtin.streamToList<Int64> firstTwo) = [ 2L; 4L ]
+
+// concat of concats flattens correctly
+(let a = Builtin.streamFromList<Int64> [ 1L ]
+ let b = Builtin.streamFromList<Int64> [ 2L ]
+ let c = Builtin.streamFromList<Int64> [ 3L ]
+ let ab = Builtin.streamConcat<Int64> [ a; b ]
+ let full = Builtin.streamConcat<Int64> [ ab; c ]
+ Builtin.streamToList<Int64> full) = [ 1L; 2L; 3L ]
+
+// map/filter/take over an empty source yields empty
+(let s = Builtin.streamFromList<Int64> []
+ let mapped = Builtin.streamMap<Int64, Int64> s (fun n -> n + 1L)
+ let filtered = Builtin.streamFilter<Int64> mapped (fun n -> n > 0L)
+ let taken = Builtin.streamTake<Int64> filtered 5L
+ Builtin.streamToList<Int64> taken) = []
+
+// Stream<Blob> round-trips via fromList/toList
+(let b1 = Builtin.bytesFromString "hi"
+ let b2 = Builtin.bytesFromString "there"
+ let s = Builtin.streamFromList<Blob> [ b1; b2 ]
+ let result = Builtin.streamToList<Blob> s
+ Stdlib.List.length result) = 2L
