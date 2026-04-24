@@ -51,33 +51,27 @@ let private loadInputs (traceId : string) : Ply<Dval> =
       |> Dval.list (KTCustomType(typeName, []))
   }
 
-/// Load function calls for a trace by joining results and arguments tables
+/// Load function calls for a trace, ordered by rowid. SQLite assigns rowids
+/// monotonically as the writer INSERTs rows in execution order within a
+/// single transaction, so `ORDER BY rowid` recovers execution order.
 let private loadFnCalls (traceId : string) : Ply<Dval> =
   let typeName = fnCallTypeName ()
   let dvalKT = KTCustomType(dvalTypeName (), [])
   uply {
     let! rows =
       Sql.query
-        "SELECT r.fn_name, a.args_json, r.result_json
-         FROM trace_fn_results_v0 r
-         LEFT JOIN trace_fn_arguments_v0 a
-           ON r.trace_id = a.trace_id
-           AND r.fn_name = a.fn_name
-           AND r.args_hash = a.args_hash
-         WHERE r.trace_id = @traceId"
+        "SELECT fn_name, args_json, result_json
+         FROM trace_fn_calls
+         WHERE trace_id = @traceId
+         ORDER BY rowid"
       |> Sql.parameters [ "traceId", Sql.string traceId ]
       |> Sql.executeAsync (fun read ->
-        (read.string "fn_name",
-         read.stringOrNone "args_json",
-         read.string "result_json"))
+        (read.string "fn_name", read.string "args_json", read.string "result_json"))
 
     return
       rows
       |> List.map (fun (fnName, argsJson, resultJson) ->
-        let args =
-          match argsJson with
-          | Some json -> parseArgsJson json
-          | None -> []
+        let args = parseArgsJson argsJson
         let fields =
           Map
             [ "fnName", DString fnName
@@ -182,8 +176,8 @@ let fns () : List<BuiltInFn> =
               Sql.query
                 "SELECT DISTINCT t.trace_id, t.handler_desc, t.timestamp
                  FROM traces_v0 t
-                 JOIN trace_fn_results_v0 r ON t.trace_id = r.trace_id
-                 WHERE r.fn_name LIKE @pattern
+                 JOIN trace_fn_calls c ON t.trace_id = c.trace_id
+                 WHERE c.fn_name LIKE @pattern
                  ORDER BY t.rowid DESC
                  LIMIT @limit"
               |> Sql.parameters
@@ -252,12 +246,7 @@ let fns () : List<BuiltInFn> =
               Sql.query "SELECT COUNT(*) as c FROM traces_v0"
               |> Sql.executeRowAsync (fun read -> read.int64 "c")
             do! Sql.query "DELETE FROM trace_inputs_v0" |> Sql.executeStatementAsync
-            do!
-              Sql.query "DELETE FROM trace_fn_results_v0"
-              |> Sql.executeStatementAsync
-            do!
-              Sql.query "DELETE FROM trace_fn_arguments_v0"
-              |> Sql.executeStatementAsync
+            do! Sql.query "DELETE FROM trace_fn_calls" |> Sql.executeStatementAsync
             do! Sql.query "DELETE FROM traces_v0" |> Sql.executeStatementAsync
             return DInt64 count
           }

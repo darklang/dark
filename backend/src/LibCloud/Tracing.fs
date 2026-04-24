@@ -11,7 +11,6 @@ module PT = LibExecution.ProgramTypes
 module RT = LibExecution.RuntimeTypes
 module AT = LibExecution.AnalysisTypes
 module Exe = LibExecution.Execution
-module DvalReprInternalHash = LibExecution.DvalReprInternalHash
 module DvalReprInternalRoundtrippable = LibExecution.DvalReprInternalRoundtrippable
 
 /// Tracing can go overboard, so use a per-handler feature flag to control it. If
@@ -150,10 +149,7 @@ let fnNameToSimpleString (name : RT.FQFnName.FQFnName) : string =
 /// We keep the raw FQFnName and resolve to a human-readable string at
 /// storage time, avoiding synchronous DB lookups on the hot path.
 type StoredFnCall =
-  { fnName : RT.FQFnName.FQFnName
-    argsHash : string
-    argsJson : List<string>
-    resultJson : string }
+  { fnName : RT.FQFnName.FQFnName; argsJson : List<string>; resultJson : string }
 
 /// Store trace data to SQLite
 module TraceStorage =
@@ -182,9 +178,14 @@ module TraceStorage =
     let traceIdStr = string traceID
     let timestamp = NodaTime.Instant.now().ToString()
 
-    let statements =
-      [ // Main trace row
-        "INSERT OR REPLACE INTO traces_v0
+    let traceIdParam = [ "traceId", Sql.string traceIdStr ]
+
+    // DELETE-before-INSERT gives the child tables the same retry-safety
+    // `INSERT OR REPLACE` gives traces_v0: if `store` runs twice for the
+    // same trace_id, each run starts from a clean slate instead of
+    // silently accumulating duplicates. All in one transaction.
+    let baseStatements =
+      [ "INSERT OR REPLACE INTO traces_v0
           (id, trace_id, canvas_id, root_tlid, callgraph_tlids, handler_desc, timestamp)
          VALUES
           (@id, @id, @canvasId, @rootTlid, '', @handlerDesc, @timestamp)",
@@ -194,33 +195,34 @@ module TraceStorage =
             "handlerDesc", Sql.string handlerDesc
             "timestamp", Sql.string timestamp ] ]
 
-        // Input
+        "DELETE FROM trace_inputs_v0 WHERE trace_id = @traceId", [ traceIdParam ]
+
         "INSERT INTO trace_inputs_v0 (trace_id, name, value_json)
          VALUES (@traceId, @name, @valueJson)",
         [ [ "traceId", Sql.string traceIdStr
             "name", Sql.string inputVarName
             "valueJson", Sql.string inputJson ] ]
 
-        // Function results (one param set per call)
-        "INSERT INTO trace_fn_results_v0 (trace_id, fn_name, args_hash, hash_version, result_json)
-         VALUES (@traceId, @fnName, @argsHash, @hashVersion, @resultJson)",
-        fnCalls
-        |> List.map (fun fc ->
-          [ "traceId", Sql.string traceIdStr
-            "fnName", Sql.string (fnNameToSimpleString fc.fnName)
-            "argsHash", Sql.string fc.argsHash
-            "hashVersion", Sql.int DvalReprInternalHash.currentHashVersion
-            "resultJson", Sql.string fc.resultJson ])
+        "DELETE FROM trace_fn_calls WHERE trace_id = @traceId", [ traceIdParam ] ]
 
-        // Function arguments (one param set per call)
-        "INSERT INTO trace_fn_arguments_v0 (trace_id, fn_name, args_hash, args_json)
-         VALUES (@traceId, @fnName, @argsHash, @argsJson)",
-        fnCalls
-        |> List.map (fun fc ->
-          [ "traceId", Sql.string traceIdStr
-            "fnName", Sql.string (fnNameToSimpleString fc.fnName)
-            "argsHash", Sql.string fc.argsHash
-            "argsJson", Sql.string (serializeArgsList fc.argsJson) ]) ]
+    // Skip the fn_calls INSERT when there are no calls: fumble rejects a
+    // prepared statement with zero parameter sets (hit when a trace errors
+    // out before any fn call is recorded). The DELETE above still runs.
+    let statements =
+      match fnCalls with
+      | [] -> baseStatements
+      | _ ->
+        baseStatements
+        @ [ "INSERT INTO trace_fn_calls
+              (trace_id, fn_name, args_json, result_json)
+             VALUES
+              (@traceId, @fnName, @argsJson, @resultJson)",
+            fnCalls
+            |> List.map (fun fc ->
+              [ "traceId", Sql.string traceIdStr
+                "fnName", Sql.string (fnNameToSimpleString fc.fnName)
+                "argsJson", Sql.string (serializeArgsList fc.argsJson)
+                "resultJson", Sql.string fc.resultJson ]) ]
 
     let _ = Sql.executeTransactionSync statements
     ()
@@ -234,17 +236,10 @@ let private makeStoreFnResult
   fun ((ep, _), name) args result ->
     match ep with
     | RT.Source ->
-      let hash =
-        args |> DvalReprInternalHash.hash DvalReprInternalHash.currentHashVersion
       let argsJson =
         args |> NEList.toList |> List.map DvalReprInternalRoundtrippable.toJsonV0
       let resultJson = DvalReprInternalRoundtrippable.toJsonV0 result
-      fnCalls.Add(
-        { fnName = name
-          argsHash = hash
-          argsJson = argsJson
-          resultJson = resultJson }
-      )
+      fnCalls.Add({ fnName = name; argsJson = argsJson; resultJson = resultJson })
     | _ -> ()
 
 
