@@ -193,3 +193,54 @@ own cadence, doesn't block Phase 2, and has its own test-matrix
 concerns (each migrated test file is independently verifiable).
 
 **Commit:** `blob: retype stdlib crypto/base64/string public signatures to blob`
+
+## L.7 — chunked bulk-drain fast path for Stream<UInt8>
+
+**Problem (surfaced by phase-2 measurement).** `streamToBlob` and
+`Sse.parse`'s byte accumulator both drain byte-by-byte through
+`readStreamNext`. Each pull is a full Ply continuation — a 10 MB body
+allocates ~5.9 GB of transient continuation state, vs ~4.8 GB for the
+phase-0 callback path. Steady-state RSS stays bounded, but allocation
+churn is high enough to show up in GC time and make `streamToBlob`
+measurably worse than the retired callback API for bulk drains.
+
+**Approach.** Add a chunked pull primitive that bypasses per-byte
+boxing:
+
+```fsharp
+// New on StreamImpl / FromIO
+| FromIO of
+  next : (unit -> Ply<Option<Dval>>) *
+  elemType : ValueType *
+  disposer : (unit -> unit) option *
+  nextChunk : (int -> Ply<Option<byte[]>>) option  // new, for byte streams
+```
+
+New builtin:
+- `Stream.nextChunk : Int64 -> Stream<UInt8> -> Option<Blob>` —
+  reads up to `N` bytes as one chunk, returning `None` on exhaustion.
+- Updated `streamToBlob` calls `nextChunk 8192` in a loop; no per-byte
+  DUInt8 boxing.
+- Non-byte streams fall back to per-element `readStreamNext`.
+
+Wire the `nextChunk` case in `HttpClient.stream` so it reads directly
+into the response buffer.
+
+Files:
+- `backend/src/LibExecution/RuntimeTypes.fs`: extend `FromIO`.
+- `backend/src/LibExecution/Dval.fs`: `pullStreamImpl` routes to
+  `nextChunk` when present and the caller wants bulk bytes.
+- `backend/src/BuiltinExecution/Libs/Stream.fs`: new `streamNextChunk`
+  + rewrite `streamToBlob`.
+- `backend/src/BuiltinExecution/Libs/HttpClient.fs`: populate
+  `nextChunk` with direct `ReadAsync` into the 8 KB buffer.
+
+**Done when:** the phase-2 streaming measurement drops per-refill
+allocation to near zero (just the buffer + the enclosing Blob cell);
+`streamToBlob` on a 10 MB response allocates < 200 MB total.
+
+**Tests:**
+- F#: `Stream.Tests.fs` chunked-drain matches byte-drain output.
+- F#: updated `p2StreamingHttpProfile` asserts new allocation target.
+
+**Commit:** `stream: chunked bulk-drain fast path for Stream<UInt8>`

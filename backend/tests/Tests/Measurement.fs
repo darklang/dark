@@ -514,6 +514,130 @@ let p1HexEncodeProfile =
   }
 
 
+// ===== Phase 2 rerun scenario =====
+//
+// Re-runs the phase-0 streaming scenario (scenario 3) through the new
+// DStream path. Each pull reads one byte out of an 8 KB buffer that
+// refills on demand from the response stream; per-pull allocation is
+// ~one boxed DUInt8 rather than a full DList. Writes to
+// rundir/measurements/phase-2/streaming.txt.
+
+
+/// Phase 2, Scenario 3 — streaming HTTP body via DStream.
+///
+/// Mirrors [streamingHttpProfile] (the phase-0 baseline) but drains
+/// the response through `Dval.readStreamNext` on a FromIO-wrapped
+/// byte source — same shape the new `HttpClient.stream` builtin
+/// surfaces. Records chunk-boundary allocations so we can confirm
+/// per-chunk cost is ~zero (the allocation is dominated by per-byte
+/// DUInt8 boxing, not by any per-chunk buffering Dval).
+let p2StreamingHttpProfile =
+  test "phase-2: streaming-http via DStream" {
+    P1.resetPhaseOutput "phase-2" "streaming.txt"
+    P1.appendPhaseRow
+      "phase-2"
+      "streaming.txt"
+      "chunks,chunk_bytes,delay_ms,total_alloc,time_to_first_ms,time_to_last_ms,per_chunk_alloc,note"
+
+    let chunkSize = 100_000
+    let chunkCount = 100
+    let delayMs = 100
+
+    let handler =
+      { new System.Net.Http.HttpMessageHandler() with
+          member _.SendAsync(_req, _ct) =
+            let resp =
+              new System.Net.Http.HttpResponseMessage(System.Net.HttpStatusCode.OK)
+            let stream =
+              new SlowChunkedStream(chunkSize, chunkCount, delayMs)
+              :> System.IO.Stream
+            resp.Content <- new System.Net.Http.StreamContent(stream)
+            System.Threading.Tasks.Task.FromResult(resp) }
+
+    use client = new System.Net.Http.HttpClient(handler)
+
+    let row =
+      try
+        System.GC.Collect()
+        System.GC.WaitForPendingFinalizers()
+        System.GC.Collect()
+        let beforeAlloc = System.GC.GetTotalAllocatedBytes(precise = false)
+        let sw = System.Diagnostics.Stopwatch.StartNew()
+
+        let resp =
+          client
+            .GetAsync(
+              "http://fake.local/stream",
+              System.Net.Http.HttpCompletionOption.ResponseHeadersRead
+            )
+            .GetAwaiter()
+            .GetResult()
+
+        let responseStream =
+          resp.Content.ReadAsStreamAsync().GetAwaiter().GetResult()
+
+        // Same buffered-pull closure shape as the HttpClient.stream
+        // builtin, so this row really reflects that path's cost.
+        let buffer = Array.zeroCreate<byte> 8192
+        let mutable bufferLen = 0
+        let mutable bufferPos = 0
+        let next () : Ply<Option<LibExecution.RuntimeTypes.Dval>> =
+          uply {
+            if bufferPos >= bufferLen then
+              let! n =
+                responseStream.ReadAsync(buffer, 0, buffer.Length)
+                |> Async.AwaitTask
+                |> Async.StartImmediateAsTask
+              if n = 0 then
+                return None
+              else
+                bufferLen <- n
+                bufferPos <- 0
+                let b = buffer[bufferPos]
+                bufferPos <- bufferPos + 1
+                return Some(LibExecution.RuntimeTypes.DUInt8 b)
+            else
+              let b = buffer[bufferPos]
+              bufferPos <- bufferPos + 1
+              return Some(LibExecution.RuntimeTypes.DUInt8 b)
+          }
+
+        let disposer () = resp.Dispose()
+        let stream = Dval.newStream LibExecution.ValueType.uint8 next (Some disposer)
+
+        // Count "chunks" the same way the phase-0 baseline does — each
+        // time the 8 KB buffer refills is one chunk boundary.
+        let mutable firstChunkMs = -1L
+        let mutable chunksSeen = 0
+        let mutable lastBufferLen = 0
+        let mutable keepGoing = true
+
+        while keepGoing do
+          let pulled = (Dval.readStreamNext stream |> Ply.toTask).Result
+          match pulled with
+          | None -> keepGoing <- false
+          | Some _ ->
+            if firstChunkMs < 0L then firstChunkMs <- sw.ElapsedMilliseconds
+            // Detect refill by observing bufferLen changes.
+            if bufferLen <> lastBufferLen || bufferPos = 1 then
+              chunksSeen <- chunksSeen + 1
+              lastBufferLen <- bufferLen
+
+        let lastMs = sw.ElapsedMilliseconds
+        let afterAlloc = System.GC.GetTotalAllocatedBytes(precise = false)
+        let totalAlloc = afterAlloc - beforeAlloc
+        let perChunk = if chunksSeen > 0 then totalAlloc / int64 chunksSeen else 0L
+        $"{chunksSeen},{chunkSize},{delayMs},{totalAlloc},{firstChunkMs},{lastMs},{perChunk},ok"
+      with
+      | :? System.OutOfMemoryException -> "0,0,0,-1,-1,-1,-1,oom"
+      | e ->
+        let msg = e.Message.Replace(",", ";").Replace("\n", " ")
+        $"0,0,0,-1,-1,-1,-1,err:{msg}"
+
+    P1.appendPhaseRow "phase-2" "streaming.txt" row
+  }
+
+
 let tests =
   testList
     "measurement"
@@ -524,4 +648,5 @@ let tests =
       hexEncodeProfile
       p1FileReadProfile
       p1HttpBodyProfile
-      p1HexEncodeProfile ]
+      p1HexEncodeProfile
+      p2StreamingHttpProfile ]
