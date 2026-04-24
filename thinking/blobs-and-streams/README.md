@@ -98,7 +98,7 @@ See [20-phase-1.md](./20-phase-1.md).
 - [x] 1.4 add PT↔Dark and RT↔Dark bridges for blob types
 - [x] 1.5 add package_blobs migration and PM blobs lookup
 - [x] 1.6 implement ephemeral→persistent promotion on serialize
-- [ ] 1.7 expand Bytes builtin module to full API
+- [x] 1.7 expand Bytes builtin module to full API
 - [ ] 1.8 migrate fileRead/fileWrite to Blob
 - [ ] 1.9 migrate Crypto and Base64 to Blob
 - [ ] 1.10 update Dark-side stdlib/bytes.dark + dependents
@@ -155,6 +155,7 @@ Append one line per chunk completion. Format:
 2026-04-23 23:58  1.4  pt↔dark and rt↔dark bridges for TBlob/KTBlob/DBlob were already added in 1.1/1.2 as exhaustive-match fallout (DBlobEphemeral + DBlobPersistent kept distinct so LSP can render ephemerals; differs from the plan's "raise until 1.6"). 5 new bridge roundtrip tests; 12 blob / 819 darktypes / 777 bin-ser all green.
 2026-04-24 00:12  1.5  new package_blobs migration (20260424); LibPackageManager.RuntimeTypes.Blob module with get+insert (INSERT OR IGNORE dedup); RT.PackageManager gains getBlob field; PT→RT wrapper stubs it. 3 new PM tests + 15 blob total all green.
 2026-04-24 00:25  1.6  Dval.promoteBlobs walks tree, hashes ephemeral bytes via SHA-256, inserts into package_blobs, swaps ref; Dval.sha256Hex helper; readBlobBytes now consults PM for Persistent refs. Shadowing gotcha: Dval.int64 builder masked the primitive; used System.Convert.ToInt64 to disambiguate. 4 new promotion tests (persists+swaps, roundtrip after promote, same-bytes-dedup, readBlobBytes on promoted). 19 blob / 777 bin-ser green.
+2026-04-24 00:38  1.7  full Bytes builtin API: length, fromString, toString, toHex, fromHex, toBase64, fromBase64, concat, slice, toList, fromList. Old bytesHexEncode kept but DeprecatedBecause O(n²) on List<UInt8>. Added Blobs sub-record to ExecutionState (+ insertBlob on RT.PackageManager) so builtins can read/write via state.blobs. 11 new .dark tests in bytes.dark; 15 bytes tests green. TBlob now usable from Dark.
 
 ## Blockers
 

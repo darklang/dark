@@ -1124,6 +1124,11 @@ type PackageManager =
     /// for missing hashes. See thinking/blobs-and-streams/00-design.md.
     getBlob : string -> Ply<Option<byte[]>>
 
+    /// Insert bytes into `package_blobs` keyed by SHA-256 hash. Uses
+    /// INSERT OR IGNORE — same hash = same content (content-addressing
+    /// invariant), so a second insert is a cheap no-op.
+    insertBlob : string -> byte[] -> Ply<unit>
+
     /// Is this package fn hash marked Harmful on the given branch chain?
     /// Branch-scoped because deprecation state flows through branches; the
     /// other PM lookups are content-addressed and need no branch.
@@ -1138,6 +1143,7 @@ type PackageManager =
       getFn = (fun _ -> Ply None)
       getValue = (fun _ -> Ply None)
       getBlob = (fun _ -> Ply None)
+      insertBlob = (fun _ _ -> uply { return () })
       isHarmful = (fun _ _ -> Ply false)
 
       init = uply { return () } }
@@ -1170,6 +1176,7 @@ type PackageManager =
           | Some f -> Some f |> Ply
           | None -> pm.getFn id
       getBlob = pm.getBlob
+      insertBlob = pm.insertBlob
       isHarmful = pm.isHarmful
       init = pm.init }
 
@@ -1544,6 +1551,7 @@ and ExecutionState =
     types : Types
     fns : Functions
     values : Values
+    blobs : Blobs
 
     /// Escape hatch for `Harmful`-marked fns: when true, the interpreter
     /// still sees `fns.isHarmful` return true, but proceeds anyway (and
@@ -1567,6 +1575,14 @@ and Types = { package : FQTypeName.Package -> Ply<Option<PackageType.PackageType
 and Values =
   { builtIn : Map<FQValueName.Builtin, BuiltInValue>
     package : FQValueName.Package -> Ply<Option<PackageValue.PackageValue>> }
+
+/// Blob-byte access wired onto the ExecutionState. `get` resolves a
+/// content-addressed hash to bytes (or None if the hash is missing);
+/// `insert` writes bytes to `package_blobs` via INSERT OR IGNORE.
+/// Needed inside builtins that manipulate blobs — eg.
+/// `Bytes.toHex : Blob -> String` has to dereference its arg.
+and Blobs =
+  { get : string -> Ply<Option<byte[]>>; insert : string -> byte[] -> Ply<unit> }
 
 and Functions =
   {

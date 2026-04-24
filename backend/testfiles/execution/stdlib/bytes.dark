@@ -8,3 +8,52 @@ Stdlib.Bytes.hexEncode_v0 (
   Stdlib.String.toBytes_v0
     "dlkjkd329823333333333fjfidjsfudsdhs}{||!|!|!|!!$%^&^&﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽"
 ) = "646C6B6A6B64333239383233333333333333333333666A6669646A73667564736468737D7B7C7C217C217C217C212124255E265E26EFB7BDEFB7BDEFB7BDEFB7BDEFB7BDEFB7BDEFB7BDEFB7BDEFB7BDEFB7BDEFB7BDEFB7BDEFB7BDEFB7BDEFB7BDEFB7BD"
+
+
+// --- New Blob-based Bytes API (chunk 1.7) ---
+
+// length
+Builtin.bytesLength (Builtin.bytesFromString "hi") = 2L
+Builtin.bytesLength (Builtin.bytesFromString "") = 0L
+
+// fromString / toString roundtrip
+(match Builtin.bytesToString (Builtin.bytesFromString "hello") with
+ | Ok s -> s
+ | Error e -> e) = "hello"
+
+// fromHex returns Result<Blob,String>; length of decoded deadbeef = 4 bytes
+(match Builtin.bytesFromHex "deadbeef" with
+ | Ok b -> Builtin.bytesLength b
+ | Error _ -> -1L) = 4L
+
+// toHex roundtrip (uppercase output)
+Builtin.bytesToHex (Builtin.bytesFromString "ok") = "6F6B"
+
+// base64 roundtrip
+(match Builtin.bytesFromBase64 "aGVsbG8=" with
+ | Ok b ->
+   (match Builtin.bytesToString b with
+    | Ok s -> s
+    | Error e -> e)
+ | Error e -> e) = "hello"
+
+Builtin.bytesToBase64 (Builtin.bytesFromString "hello") = "aGVsbG8="
+
+// concat
+(match Builtin.bytesToString
+        (Builtin.bytesConcat
+          [ Builtin.bytesFromString "foo"; Builtin.bytesFromString "bar" ]) with
+ | Ok s -> s
+ | Error _ -> "err") = "foobar"
+
+// slice (middle three bytes of "abcdef" = "cde")
+(match Builtin.bytesToString
+        (Builtin.bytesSlice (Builtin.bytesFromString "abcdef") 2L 3L) with
+ | Ok s -> s
+ | Error _ -> "err") = "cde"
+
+// toList escape hatch: first three bytes of "abc" = [97, 98, 99]
+Builtin.bytesToList (Builtin.bytesFromString "abc") = [ 97uy; 98uy; 99uy ]
+
+// fromList escape hatch: length 3
+Builtin.bytesLength (Builtin.bytesFromList [ 97uy; 98uy; 99uy ]) = 3L
