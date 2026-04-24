@@ -62,7 +62,7 @@ let ephemeralRoundtrip =
       | RT.DBlob ref -> ref
       | _ -> failtest "unreachable"
 
-    let! bytes = Dval.readBlobBytes state pmRT ref |> Ply.toTask
+    let! bytes = Dval.readBlobBytes state ref |> Ply.toTask
     Expect.equal bytes payload "roundtripped bytes match original"
   }
 
@@ -84,8 +84,8 @@ let twoEphemeralsAreDistinct =
       Expect.notEqual id1 id2 "each mint gets a fresh uuid"
     | _ -> failtest "expected Ephemeral for both"
 
-    let! b1 = Dval.readBlobBytes state pmRT ref1 |> Ply.toTask
-    let! b2 = Dval.readBlobBytes state pmRT ref2 |> Ply.toTask
+    let! b1 = Dval.readBlobBytes state ref1 |> Ply.toTask
+    let! b2 = Dval.readBlobBytes state ref2 |> Ply.toTask
     Expect.equal b1 [| 7uy; 7uy; 7uy |] "first blob reads its bytes"
     Expect.equal b2 [| 7uy; 7uy; 7uy |] "second blob reads its bytes"
   }
@@ -98,7 +98,7 @@ let missingEphemeralRaises =
 
     let mutable raised = false
     try
-      let! _ = Dval.readBlobBytes state pmRT bogusRef |> Ply.toTask
+      let! _ = Dval.readBlobBytes state bogusRef |> Ply.toTask
       ()
     with _ ->
       raised <- true
@@ -339,7 +339,7 @@ let promotedBlobResolvesViaReadBlobBytes =
       | RT.DBlob r -> r
       | _ -> failtest "expected DBlob"
 
-    let! bytes = Dval.readBlobBytes state pmRT ref |> Ply.toTask
+    let! bytes = Dval.readBlobBytes state ref |> Ply.toTask
     Expect.equal bytes payload "persistent blob resolves back to its bytes"
   }
 
@@ -559,7 +559,7 @@ let promotedBlobsSurviveScopePop =
     // bytes remain in package_blobs. readBlobBytes on the persistent
     // ref resolves through PM.getBlob.
     let! bytes =
-      Dval.readBlobBytes state pmRT (RT.Persistent(hash, int64 payload.Length))
+      Dval.readBlobBytes state (RT.Persistent(hash, int64 payload.Length))
       |> Ply.toTask
     Expect.equal bytes payload "persistent bytes survive the pop"
   }

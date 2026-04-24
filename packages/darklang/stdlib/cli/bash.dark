@@ -13,7 +13,7 @@ let applyBashConfigChanges () : Result.Result<Unit, String> =
 
 /// Write content to .bashrc file
 let overwriteBashrc (content: String) : Result.Result<Unit, String> =
-  (Builtin.fileWrite (Builtin.stringToBytes content) "$HOME/.bashrc")
+  (Builtin.fileWrite (Stdlib.String.toBlob content) "$HOME/.bashrc")
   |> Result.map (fun _ -> ())
 
 

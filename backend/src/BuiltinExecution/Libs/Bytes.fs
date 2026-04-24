@@ -13,7 +13,7 @@ module Dval = LibExecution.Dval
 let fns () : List<BuiltInFn> =
   [
 
-    { name = fn "bytesLength" 0
+    { name = fn "blobLength" 0
       typeParams = []
       parameters = [ Param.make "blob" TBlob "" ]
       returnType = TInt64
@@ -31,7 +31,7 @@ let fns () : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "bytesFromString" 0
+    { name = fn "blobFromString" 0
       typeParams = []
       parameters = [ Param.make "s" TString "" ]
       returnType = TBlob
@@ -47,7 +47,7 @@ let fns () : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "bytesToString" 0
+    { name = fn "blobToString" 0
       typeParams = []
       parameters = [ Param.make "blob" TBlob "" ]
       returnType = TypeReference.result TString TString
@@ -72,7 +72,7 @@ let fns () : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "bytesToHex" 0
+    { name = fn "blobToHex" 0
       typeParams = []
       parameters = [ Param.make "blob" TBlob "" ]
       returnType = TString
@@ -92,7 +92,7 @@ let fns () : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "bytesFromHex" 0
+    { name = fn "blobFromHex" 0
       typeParams = []
       parameters = [ Param.make "s" TString "" ]
       returnType = TypeReference.result TBlob TString
@@ -114,7 +114,7 @@ let fns () : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "bytesToBase64" 0
+    { name = fn "blobToBase64" 0
       typeParams = []
       parameters = [ Param.make "blob" TBlob "" ]
       returnType = TString
@@ -133,7 +133,7 @@ let fns () : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "bytesFromBase64" 0
+    { name = fn "blobFromBase64" 0
       typeParams = []
       parameters = [ Param.make "s" TString "" ]
       returnType = TypeReference.result TBlob TString
@@ -163,7 +163,7 @@ let fns () : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "bytesConcat" 0
+    { name = fn "blobConcat" 0
       typeParams = []
       parameters = [ Param.make "blobs" (TList TBlob) "" ]
       returnType = TBlob
@@ -182,7 +182,7 @@ let fns () : List<BuiltInFn> =
               | _ ->
                 return
                   Exception.raiseInternal
-                    "bytesConcat: expected DBlob"
+                    "blobConcat: expected DBlob"
                     [ "item", item ]
             return Dval.newEphemeralBlob state (collected.ToArray())
           }
@@ -192,7 +192,7 @@ let fns () : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "bytesSlice" 0
+    { name = fn "blobSlice" 0
       typeParams = []
       parameters =
         [ Param.make "blob" TBlob ""
@@ -220,12 +220,12 @@ let fns () : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "bytesToList" 0
+    { name = fn "blobToBytes" 0
       typeParams = []
       parameters = [ Param.make "blob" TBlob "" ]
       returnType = TList TUInt8
       description =
-        "Expands <param blob> to a List<UInt8>. Escape hatch for code that hasn't migrated yet — prefer the Bytes module for new code."
+        "Expands <param blob> to a List<UInt8>. Escape hatch for code that hasn't migrated yet — prefer the Blob module for new code."
       fn =
         (function
         | state, _, _, [ DBlob ref ] ->
@@ -239,7 +239,7 @@ let fns () : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "bytesFromList" 0
+    { name = fn "blobFromBytes" 0
       typeParams = []
       parameters = [ Param.make "bytes" (TList TUInt8) "" ]
       returnType = TBlob
@@ -271,6 +271,6 @@ let fns () : List<BuiltInFn> =
       previewable = Pure
       deprecated =
         DeprecatedBecause
-          "Use bytesToHex on a Blob instead. bytesHexEncode takes List<UInt8>, which the runtime materialises as one Dval per byte — prohibitively expensive past ~1 MB." } ]
+          "Use blobToHex on a Blob instead. bytesHexEncode takes List<UInt8>, which the runtime materialises as one Dval per byte — prohibitively expensive past ~1 MB." } ]
 
 let builtins () = LibExecution.Builtin.make [] (fns ())

@@ -347,7 +347,7 @@ let fns () : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "stringToBytes" 0
+    { name = fn "stringToBlob" 0
       typeParams = []
       parameters = [ Param.make "str" TString "" ]
       returnType = TBlob
@@ -363,12 +363,12 @@ let fns () : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "stringFromBytesWithReplacement" 0
+    { name = fn "stringFromBlobWithReplacement" 0
       typeParams = []
-      parameters = [ Param.make "bytes" TBlob "" ]
+      parameters = [ Param.make "blob" TBlob "" ]
       returnType = TString
       description =
-        "Converts the UTF8-encoded Blob into a string. Errors will be ignored by replacing invalid characters"
+        "Converts the UTF8-encoded <param blob> into a string. Invalid sequences are replaced."
       fn =
         (function
         | state, _, _, [ DBlob ref ] ->

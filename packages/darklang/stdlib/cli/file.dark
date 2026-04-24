@@ -86,7 +86,7 @@ let readText (path: String) : Result.Result<String, Posix.Error> =
 
     match result with
     | Ok blob ->
-      match Stdlib.Bytes.toString blob with
+      match Stdlib.Blob.toString blob with
       | Ok s -> Stdlib.Result.Result.Ok s
       | Error msg ->
         Stdlib.Result.Result.Error

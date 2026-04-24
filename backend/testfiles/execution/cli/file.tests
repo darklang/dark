@@ -5,8 +5,8 @@ module WriteReadRoundtrip =
   // builtins directly rather than going through the Stdlib.Cli.File
   // wrappers.
   (let filename = (Builtin.File.createTemp ()) |> Builtin.unwrap
-   let blob = Builtin.bytesFromString (testContents ())
+   let blob = Builtin.blobFromString (testContents ())
    do (Builtin.fileWrite blob filename) |> Builtin.unwrap
 
    let readBack = Builtin.fileRead filename |> Builtin.unwrap
-   Builtin.bytesToString readBack) = Stdlib.Result.Result.Ok(testContents ())
+   Builtin.blobToString readBack) = Stdlib.Result.Result.Ok(testContents ())

@@ -1,14 +1,14 @@
 // Server-Sent Events parser. Exercises Stdlib.HttpClient.Sse.parse over
 // in-memory Stream<UInt8> bodies; no HTTP needed.
 
-// Helper tests build byte streams from strings via bytesFromString +
+// Helper tests build byte streams from strings via blobFromString +
 // bytesToList + streamFromList; the parse result is drained back to
 // List<Event> for structural comparison.
 
 
 // single event with just a data field
 (let source = "data: hello\n\n"
- let bytes = Builtin.bytesToList (Builtin.bytesFromString source)
+ let bytes = Builtin.blobToBytes (Builtin.blobFromString source)
  let stream = Builtin.streamFromList<UInt8> bytes
  Builtin.streamToList<Stdlib.HttpClient.Sse.Event>
    (Stdlib.HttpClient.Sse.parse stream)) = [ Stdlib.HttpClient.Sse.Event
@@ -18,7 +18,7 @@
 
 
 // empty body yields no events
-(let bytes = Builtin.bytesToList (Builtin.bytesFromString "")
+(let bytes = Builtin.blobToBytes (Builtin.blobFromString "")
  let stream = Builtin.streamFromList<UInt8> bytes
  Builtin.streamToList<Stdlib.HttpClient.Sse.Event>
    (Stdlib.HttpClient.Sse.parse stream)) = []
@@ -26,7 +26,7 @@
 
 // multiple events separated by blank lines
 (let source = "data: first\n\ndata: second\n\ndata: third\n\n"
- let bytes = Builtin.bytesToList (Builtin.bytesFromString source)
+ let bytes = Builtin.blobToBytes (Builtin.blobFromString source)
  let stream = Builtin.streamFromList<UInt8> bytes
  Builtin.streamToList<Stdlib.HttpClient.Sse.Event>
    (Stdlib.HttpClient.Sse.parse stream)) = [ Stdlib.HttpClient.Sse.Event
@@ -45,7 +45,7 @@
 
 // event type and id are parsed
 (let source = "event: update\nid: 42\ndata: payload\n\n"
- let bytes = Builtin.bytesToList (Builtin.bytesFromString source)
+ let bytes = Builtin.blobToBytes (Builtin.blobFromString source)
  let stream = Builtin.streamFromList<UInt8> bytes
  Builtin.streamToList<Stdlib.HttpClient.Sse.Event>
    (Stdlib.HttpClient.Sse.parse stream)) = [ Stdlib.HttpClient.Sse.Event
@@ -56,7 +56,7 @@
 
 // id persists across events per the SSE spec
 (let source = "id: 42\ndata: one\n\ndata: two\n\n"
- let bytes = Builtin.bytesToList (Builtin.bytesFromString source)
+ let bytes = Builtin.blobToBytes (Builtin.blobFromString source)
  let stream = Builtin.streamFromList<UInt8> bytes
  Builtin.streamToList<Stdlib.HttpClient.Sse.Event>
    (Stdlib.HttpClient.Sse.parse stream)) = [ Stdlib.HttpClient.Sse.Event
@@ -71,7 +71,7 @@
 
 // comment lines (starting with `:`) are ignored
 (let source = ": this is a comment\ndata: hello\n\n: another comment\ndata: world\n\n"
- let bytes = Builtin.bytesToList (Builtin.bytesFromString source)
+ let bytes = Builtin.blobToBytes (Builtin.blobFromString source)
  let stream = Builtin.streamFromList<UInt8> bytes
  Builtin.streamToList<Stdlib.HttpClient.Sse.Event>
    (Stdlib.HttpClient.Sse.parse stream)) = [ Stdlib.HttpClient.Sse.Event
@@ -86,7 +86,7 @@
 
 // multi-line `data:` fields are joined with a newline
 (let source = "data: line one\ndata: line two\n\n"
- let bytes = Builtin.bytesToList (Builtin.bytesFromString source)
+ let bytes = Builtin.blobToBytes (Builtin.blobFromString source)
  let stream = Builtin.streamFromList<UInt8> bytes
  Builtin.streamToList<Stdlib.HttpClient.Sse.Event>
    (Stdlib.HttpClient.Sse.parse stream)) = [ Stdlib.HttpClient.Sse.Event
@@ -97,7 +97,7 @@
 
 // blocks without a data field are not dispatched (spec: empty data = skip)
 (let source = "event: ping\n\ndata: real\n\n"
- let bytes = Builtin.bytesToList (Builtin.bytesFromString source)
+ let bytes = Builtin.blobToBytes (Builtin.blobFromString source)
  let stream = Builtin.streamFromList<UInt8> bytes
  Builtin.streamToList<Stdlib.HttpClient.Sse.Event>
    (Stdlib.HttpClient.Sse.parse stream)) = [ Stdlib.HttpClient.Sse.Event

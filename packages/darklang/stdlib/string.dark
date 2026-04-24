@@ -110,18 +110,16 @@ let fromChar (c: Char) : String = Char.toString c
 /// {{-}} and {{_}} instead of {{+}} and {{/}}, as defined in
 /// [RFC 4648 section 5](https://www.rfc-editor.org/rfc/rfc4648.html#section-5)
 let base64UrlEncode (s: String) : String =
-  // Base64.urlEncode takes Blob, hence the bytesFromString bridge.
-  let encoded = s |> Builtin.bytesFromString |> Base64.urlEncode
+  let encoded = s |> Builtin.blobFromString |> Base64.urlEncode
 
   String.replaceAll encoded "=" ""
 
 /// Base64 encodes a string. Uses {{-}} and {{_}} instead of {{+}} and {{/}}, as defined in
 /// [RFC 4648 section 4](https://www.rfc-editor.org/rfc/rfc4648.html#section-4) with padding.
 let base64Encode (s: String) : String =
-  // Base64.encode takes Blob; we go through bytesFromString rather
-  // than String.toBytes (which still returns List<UInt8> for Http
-  // compatibility).
-  s |> Builtin.bytesFromString |> Base64.encode
+  // String.toBytes returns List<UInt8> for Http compatibility;
+  // Base64.encode takes Blob, so we go through blobFromString.
+  s |> Builtin.blobFromString |> Base64.encode
 
 
 /// Base64 decodes a string. The returned value is wrapped in {{Result}}.
@@ -131,10 +129,9 @@ let base64Encode (s: String) : String =
 /// [4](https://www.rfc-editor.org/rfc/rfc4648.html#section-4) and
 /// [5](https://www.rfc-editor.org/rfc/rfc4648.html#section-5).
 let base64Decode (s: String) : Result.Result<String, String> =
-  // Base64.decode hands back Blob; convert via bytesToString.
   match Base64.decode s with
   | Ok blob ->
-    match Builtin.bytesToString blob with
+    match Builtin.blobToString blob with
     | Ok str -> Result.Result.Ok str
     | Error _ -> Result.Result.Error "Invalid UTF-8 string"
   | Error err -> Result.Result.Error err
@@ -143,7 +140,7 @@ let base64Decode (s: String) : Result.Result<String, String> =
 /// Take a string and hash it to a cryptographically-secure digest.
 /// Don't rely on either the size or the algorithm.
 let digest (s: String) : String =
-  let sha384Hash = Crypto.sha384 (Builtin.bytesFromString s)
+  let sha384Hash = Crypto.sha384 (Builtin.blobFromString s)
 
   sha384Hash |> Base64.urlEncode
 
@@ -331,12 +328,12 @@ let trimEnd (str: String) : String = Builtin.stringTrimEnd str
 
 /// Converts the given unicode string to a UTF8-encoded byte sequence.
 let toBytes (str: String) : List<UInt8> =
-  Builtin.bytesToList (Builtin.stringToBytes str)
+  Builtin.blobToBytes (Builtin.stringToBlob str)
 
 
 /// Converts the UTF8-encoded byte sequence into a string. Errors will be ignored by replacing invalid characters.
 let fromBytesWithReplacement (bytes: List<UInt8>) : String =
-  Builtin.stringFromBytesWithReplacement (Builtin.bytesFromList bytes)
+  Builtin.stringFromBlobWithReplacement (Builtin.blobFromBytes bytes)
 
 
 /// Converts the UTF8-encoded byte sequence into a string
@@ -345,13 +342,13 @@ let fromBytes (bytes: List<UInt8>) : Option.Option<String> =
 
 
 /// Converts the given unicode string to a UTF8-encoded Blob.
-let toBlob (str: String) : Blob = Builtin.stringToBytes str
+let toBlob (str: String) : Blob = Builtin.stringToBlob str
 
 
 /// Converts a UTF8-encoded Blob into a string. Invalid sequences are
 /// replaced.
 let fromBlobWithReplacement (blob: Blob) : String =
-  Builtin.stringFromBytesWithReplacement blob
+  Builtin.stringFromBlobWithReplacement blob
 
 
 /// Checks if <param subject> starts with <param prefix>

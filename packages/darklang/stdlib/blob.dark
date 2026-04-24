@@ -1,64 +1,61 @@
-module Darklang.Stdlib.Bytes
-
-// Thin wrappers over the Bytes builtins — Dark-side callers should
-// prefer this module to Builtin.bytes* directly.
+module Darklang.Stdlib.Blob
 
 
 /// Returns the length of <param blob> in bytes.
-let length (blob: Blob) : Int64 = Builtin.bytesLength blob
+let length (blob: Blob) : Int64 = Builtin.blobLength blob
 
 
 /// Concatenates a list of Blobs into a single Blob.
-let concat (blobs: List<Blob>) : Blob = Builtin.bytesConcat blobs
+let concat (blobs: List<Blob>) : Blob = Builtin.blobConcat blobs
 
 
 /// Copies <param length> bytes starting at <param start> into a new
 /// Blob. Out-of-range slices are clamped.
 let slice (blob: Blob) (start: Int64) (length: Int64) : Blob =
-  Builtin.bytesSlice blob start length
+  Builtin.blobSlice blob start length
 
 
 /// Hex (Base16) encodes <param blob> using an uppercase alphabet.
 /// Complies with RFC 4648 section 8.
-let toHex (blob: Blob) : String = Builtin.bytesToHex blob
+let toHex (blob: Blob) : String = Builtin.blobToHex blob
 
 
 /// Parses <param s> as an uppercase or lowercase hex string into a Blob.
 let fromHex (s: String) : Stdlib.Result.Result<Blob, String> =
-  Builtin.bytesFromHex s
+  Builtin.blobFromHex s
 
 
 /// Base64 encodes <param blob> with standard alphabet + {{=}} padding.
-let toBase64 (blob: Blob) : String = Builtin.bytesToBase64 blob
+let toBase64 (blob: Blob) : String = Builtin.blobToBase64 blob
 
 
 /// Parses <param s> as a Base64 string (standard or URL-safe alphabet;
 /// padding optional) into a Blob.
 let fromBase64 (s: String) : Stdlib.Result.Result<Blob, String> =
-  Builtin.bytesFromBase64 s
+  Builtin.blobFromBase64 s
 
 
 /// Decodes <param blob> as UTF-8. Returns Error with a message if the
 /// bytes aren't valid UTF-8.
 let toString (blob: Blob) : Stdlib.Result.Result<String, String> =
-  Builtin.bytesToString blob
+  Builtin.blobToString blob
 
 
 /// Encodes <param s> as UTF-8 bytes in a Blob.
-let fromString (s: String) : Blob = Builtin.bytesFromString s
+let fromString (s: String) : Blob = Builtin.blobFromString s
 
 
-/// Escape hatch: expand a Blob into a List<UInt8>. Prefer the Bytes
+/// Escape hatch: expand a Blob into a List<UInt8>. Prefer the Blob
 /// module over this for new code.
-let toList (blob: Blob) : List<UInt8> = Builtin.bytesToList blob
+let toList (blob: Blob) : List<UInt8> = Builtin.blobToBytes blob
 
 
 /// Escape hatch: collect a List<UInt8> into a Blob.
-let fromList (bytes: List<UInt8>) : Blob = Builtin.bytesFromList bytes
+let fromList (bytes: List<UInt8>) : Blob = Builtin.blobFromBytes bytes
 
 
 // --- Legacy v0 wrapper -------------------------------------------------
-// Preserved for existing callers (crypto tests etc.). Prefer Bytes.toHex
+// Preserved for existing callers (crypto tests etc.). Prefer Blob.toHex
 // on a Blob — see Builtin.bytesHexEncode's DeprecatedBecause note.
 
 /// Hex (Base16) encodes <param bytes> using an uppercase alphabet.

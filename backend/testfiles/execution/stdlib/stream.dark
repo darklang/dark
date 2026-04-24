@@ -25,7 +25,7 @@
 // toBlob drains a Stream<UInt8> into a Blob
 (let s = Builtin.streamFromList<UInt8> [ 104uy; 105uy ]
  let b = Builtin.streamToBlob s
- Builtin.bytesToString b) = Stdlib.Result.Result.Ok "hi"
+ Builtin.blobToString b) = Stdlib.Result.Result.Ok "hi"
 
 // close is idempotent; subsequent next returns None
 (let s = Builtin.streamFromList<Int64> [ 1L; 2L ]
@@ -144,8 +144,8 @@
  Builtin.streamToList<Int64> taken) = []
 
 // Stream<Blob> round-trips via fromList/toList
-(let b1 = Builtin.bytesFromString "hi"
- let b2 = Builtin.bytesFromString "there"
+(let b1 = Builtin.blobFromString "hi"
+ let b2 = Builtin.blobFromString "there"
  let s = Builtin.streamFromList<Blob> [ b1; b2 ]
  let result = Builtin.streamToList<Blob> s
  Stdlib.List.length result) = 2L

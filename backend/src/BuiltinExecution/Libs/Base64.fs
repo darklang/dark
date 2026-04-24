@@ -54,10 +54,10 @@ let fns () : List<BuiltInFn> =
 
     { name = fn "base64Encode" 0
       typeParams = []
-      parameters = [ Param.make "bytes" TBlob "" ]
+      parameters = [ Param.make "blob" TBlob "" ]
       returnType = TString
       description =
-        "Base64 encodes <param bytes> with {{=}} padding. Uses the standard
+        "Base64 encodes <param blob> with {{=}} padding. Uses the standard
          alphabet defined in [RFC 4648](https://www.rfc-editor.org/rfc/rfc4648.html)
          section [4](https://www.rfc-editor.org/rfc/rfc4648.html#section-4)."
       fn =
@@ -75,10 +75,10 @@ let fns () : List<BuiltInFn> =
 
     { name = fn "base64UrlEncode" 0
       typeParams = []
-      parameters = [ Param.make "bytes" TBlob "" ]
+      parameters = [ Param.make "blob" TBlob "" ]
       returnType = TString
       description =
-        "Base64URL encodes <param bytes> with {{=}} padding. Uses URL-safe encoding
+        "Base64URL encodes <param blob> with {{=}} padding. Uses URL-safe encoding
          with {{-}} and {{_}} instead of {{+}} and {{/}}, as defined in RFC 4648
          section [5](https://www.rfc-editor.org/rfc/rfc4648.html#section-5)."
       fn =

@@ -45,10 +45,10 @@ let fdReadAll
   : Result.Result<Blob, Error> =
   (Builtin.posixFdRead fd 4096L)
   |> Stdlib.Result.andThen (fun chunk ->
-    let chunkBytes = Stdlib.Bytes.toList chunk
+    let chunkBytes = Stdlib.Blob.toList chunk
 
     if Stdlib.List.length chunkBytes == 0L then
-      Stdlib.Result.Result.Ok(Stdlib.Bytes.fromList acc)
+      Stdlib.Result.Result.Ok(Stdlib.Blob.fromList acc)
     else
       fdReadAll fd (Stdlib.List.append acc chunkBytes))
 
