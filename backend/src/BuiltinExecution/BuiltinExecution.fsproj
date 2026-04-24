@@ -48,7 +48,6 @@
     <Compile Include="Libs/AltJson.fs" />
 
     <Compile Include="Libs/HttpClient.fs" />
-    <Compile Include="Libs/StreamingHttpClient.fs" />
 
     <Compile Include="Libs/LanguageTools.fs" />
     <Compile Include="Libs/Parser.fs" />

@@ -29,40 +29,32 @@ module Exe = LibExecution.Execution
 let varA = TVariable "a"
 
 
-/// Synchronously turn a RT.TypeReference leaf into a ValueType for
-/// builtin-side handling. TStream's element type tends to be a
-/// concrete primitive here (e.g. TInt64, TUInt8), so we avoid the
-/// async `TypeReference.toVT` and just cover the common shapes.
-/// Unknown/complex types fall back to [ValueType.Unknown].
-let rec private elemValueType (t : TypeReference) : ValueType =
-  match t with
-  | TUnit -> VT.unit
-  | TBool -> VT.bool
-  | TInt8 -> VT.int8
-  | TUInt8 -> VT.uint8
-  | TInt16 -> VT.int16
-  | TUInt16 -> VT.uint16
-  | TInt32 -> VT.int32
-  | TUInt32 -> VT.uint32
-  | TInt64 -> VT.int64
-  | TUInt64 -> VT.uint64
-  | TInt128 -> VT.int128
-  | TUInt128 -> VT.uint128
-  | TFloat -> VT.float
-  | TChar -> VT.char
-  | TString -> VT.string
-  | TUuid -> VT.uuid
-  | TDateTime -> VT.dateTime
-  | TBlob -> VT.blob
-  | TList inner -> VT.list (elemValueType inner)
-  | TStream inner -> VT.stream (elemValueType inner)
-  | _ -> VT.unknown
+/// Resolve the declared element TypeReference to a concrete
+/// ValueType using the program's type table. This handles primitives
+/// as well as custom types — the earlier sync-only version fell back
+/// to Unknown for anything non-leaf, which broke `streamToList<T>`
+/// when T was a package type (empty-result case got KTUnit tagged,
+/// diverging from the return annotation).
+let private resolveElemVT
+  (state : ExecutionState)
+  (t : TypeReference)
+  : Ply<ValueType> =
+  LibExecution.RuntimeTypes.TypeReference.toVT state.types Map.empty t
 
 
-let private elemKnownType (t : TypeReference) : KnownType =
-  match elemValueType t with
-  | ValueType.Known kt -> kt
-  | ValueType.Unknown -> KTUnit
+/// Fallback-aware KnownType helper for callsites that need a
+/// KnownType directly (Dval.list, Dval.option). Unknown -> KTUnit,
+/// matching prior behaviour.
+let private resolveElemKT
+  (state : ExecutionState)
+  (t : TypeReference)
+  : Ply<KnownType> =
+  uply {
+    let! vt = resolveElemVT state t
+    match vt with
+    | ValueType.Known kt -> return kt
+    | ValueType.Unknown -> return KTUnit
+  }
 
 
 let fns () : List<BuiltInFn> =
@@ -74,24 +66,27 @@ let fns () : List<BuiltInFn> =
         "Constructs a stream that yields the given list's items in order, then Done."
       fn =
         (function
-        | _, _, [ elemType ], [ DList(elemVT, items) ] ->
-          let remaining = ref items
-          let nextFn () : Ply<Option<Dval>> =
-            uply {
-              match remaining.Value with
-              | head :: tail ->
-                remaining.Value <- tail
-                return Some head
-              | [] -> return None
-            }
-          // Prefer the runtime ValueType of the list elements; fall
-          // back to the declared type parameter when the list was
-          // empty (ValueType.Unknown).
-          let inferredElem =
-            match elemVT with
-            | ValueType.Unknown -> elemValueType elemType
-            | known -> known
-          Dval.newStream inferredElem nextFn None |> Ply
+        | state, _, [ elemType ], [ DList(elemVT, items) ] ->
+          uply {
+            let remaining = ref items
+            let nextFn () : Ply<Option<Dval>> =
+              uply {
+                match remaining.Value with
+                | head :: tail ->
+                  remaining.Value <- tail
+                  return Some head
+                | [] -> return None
+              }
+            // Prefer the runtime ValueType of the list elements; fall
+            // back to the declared type parameter when the list was
+            // empty (ValueType.Unknown). Goes through the full type
+            // table so custom types resolve correctly.
+            let! inferredElem =
+              match elemVT with
+              | ValueType.Unknown -> resolveElemVT state elemType
+              | known -> Ply known
+            return Dval.newStream inferredElem nextFn None
+          }
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -106,10 +101,11 @@ let fns () : List<BuiltInFn> =
         "Pulls the next element from <param stream>. Returns None when the stream is exhausted. Mutates the stream — subsequent calls after exhaustion keep returning None."
       fn =
         (function
-        | _, _, [ elemType ], [ s ] ->
+        | state, _, [ elemType ], [ s ] ->
           uply {
             let! nextResult = Dval.readStreamNext s
-            return Dval.option (elemKnownType elemType) nextResult
+            let! elemKT = resolveElemKT state elemType
+            return Dval.option elemKT nextResult
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
@@ -124,9 +120,9 @@ let fns () : List<BuiltInFn> =
       description = "Drains <param stream> into a List, consuming it entirely."
       fn =
         (function
-        | _, _, [ elemType ], [ s ] ->
+        | state, _, [ elemType ], [ s ] ->
           uply {
-            let elemKT = elemKnownType elemType
+            let! elemKT = resolveElemKT state elemType
             let collected = ResizeArray<Dval>()
             let mutable keepGoing = true
             while keepGoing do
@@ -230,15 +226,18 @@ let fns () : List<BuiltInFn> =
       fn =
         (function
         | state, vm, [ _; outputType ], [ DStream(src, _, _); DApplicable app ] ->
-          let elemType = elemValueType outputType
-          let apply (dv : Dval) : Ply<Dval> =
-            uply {
-              let! result = Exe.executeApplicable state app (NEList.singleton dv)
-              match result with
-              | Ok v -> return v
-              | Error(rte, _cs) -> return raiseRTE vm.threadID rte
-            }
-          DStream(Mapped(src, apply, elemType), ref false, obj ()) |> Ply
+          uply {
+            let! elemType = resolveElemVT state outputType
+            let apply (dv : Dval) : Ply<Dval> =
+              uply {
+                let! result =
+                  Exe.executeApplicable state app (NEList.singleton dv)
+                match result with
+                | Ok v -> return v
+                | Error(rte, _cs) -> return raiseRTE vm.threadID rte
+              }
+            return DStream(Mapped(src, apply, elemType), ref false, obj ())
+          }
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Impure

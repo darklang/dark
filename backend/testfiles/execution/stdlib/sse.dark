@@ -1,0 +1,98 @@
+// Server-Sent Events parser — chunk 2.9. Exercises Stdlib.Sse.parse
+// over in-memory Stream<UInt8> bodies (no HTTP needed — the mock
+// Kestrel SSE tests from the old StreamingHttpClient are gone).
+
+// Helper tests build byte streams from strings via bytesFromString +
+// bytesToList + streamFromList; the parse result is drained back to
+// List<Event> for structural comparison.
+
+
+// single event with just a data field
+(let source = "data: hello\n\n"
+ let bytes = Builtin.bytesToList (Builtin.bytesFromString source)
+ let stream = Builtin.streamFromList<UInt8> bytes
+ Builtin.streamToList<Stdlib.Sse.Event> (Stdlib.Sse.parse stream)) = [ Stdlib.Sse.Event
+                                                                        { data = "hello"
+                                                                          eventType = ""
+                                                                          id = "" } ]
+
+// empty body yields no events
+(let bytes = Builtin.bytesToList (Builtin.bytesFromString "")
+ let stream = Builtin.streamFromList<UInt8> bytes
+ Builtin.streamToList<Stdlib.Sse.Event> (Stdlib.Sse.parse stream)) = []
+
+
+// multiple events separated by blank lines
+(let source = "data: first\n\ndata: second\n\ndata: third\n\n"
+ let bytes = Builtin.bytesToList (Builtin.bytesFromString source)
+ let stream = Builtin.streamFromList<UInt8> bytes
+ Builtin.streamToList<Stdlib.Sse.Event> (Stdlib.Sse.parse stream)) = [ Stdlib.Sse.Event
+                                                                        { data = "first"
+                                                                          eventType = ""
+                                                                          id = "" }
+                                                                       Stdlib.Sse.Event
+                                                                         { data = "second"
+                                                                           eventType = ""
+                                                                           id = "" }
+                                                                       Stdlib.Sse.Event
+                                                                         { data = "third"
+                                                                           eventType = ""
+                                                                           id = "" } ]
+
+
+// event type and id are parsed
+(let source = "event: update\nid: 42\ndata: payload\n\n"
+ let bytes = Builtin.bytesToList (Builtin.bytesFromString source)
+ let stream = Builtin.streamFromList<UInt8> bytes
+ Builtin.streamToList<Stdlib.Sse.Event> (Stdlib.Sse.parse stream)) = [ Stdlib.Sse.Event
+                                                                        { data = "payload"
+                                                                          eventType = "update"
+                                                                          id = "42" } ]
+
+
+// id persists across events per the SSE spec
+(let source = "id: 42\ndata: one\n\ndata: two\n\n"
+ let bytes = Builtin.bytesToList (Builtin.bytesFromString source)
+ let stream = Builtin.streamFromList<UInt8> bytes
+ Builtin.streamToList<Stdlib.Sse.Event> (Stdlib.Sse.parse stream)) = [ Stdlib.Sse.Event
+                                                                        { data = "one"
+                                                                          eventType = ""
+                                                                          id = "42" }
+                                                                       Stdlib.Sse.Event
+                                                                         { data = "two"
+                                                                           eventType = ""
+                                                                           id = "42" } ]
+
+
+// comment lines (starting with `:`) are ignored
+(let source = ": this is a comment\ndata: hello\n\n: another comment\ndata: world\n\n"
+ let bytes = Builtin.bytesToList (Builtin.bytesFromString source)
+ let stream = Builtin.streamFromList<UInt8> bytes
+ Builtin.streamToList<Stdlib.Sse.Event> (Stdlib.Sse.parse stream)) = [ Stdlib.Sse.Event
+                                                                        { data = "hello"
+                                                                          eventType = ""
+                                                                          id = "" }
+                                                                       Stdlib.Sse.Event
+                                                                         { data = "world"
+                                                                           eventType = ""
+                                                                           id = "" } ]
+
+
+// multi-line `data:` fields are joined with a newline
+(let source = "data: line one\ndata: line two\n\n"
+ let bytes = Builtin.bytesToList (Builtin.bytesFromString source)
+ let stream = Builtin.streamFromList<UInt8> bytes
+ Builtin.streamToList<Stdlib.Sse.Event> (Stdlib.Sse.parse stream)) = [ Stdlib.Sse.Event
+                                                                        { data = "line one\nline two"
+                                                                          eventType = ""
+                                                                          id = "" } ]
+
+
+// blocks without a data field are not dispatched (spec: empty data = skip)
+(let source = "event: ping\n\ndata: real\n\n"
+ let bytes = Builtin.bytesToList (Builtin.bytesFromString source)
+ let stream = Builtin.streamFromList<UInt8> bytes
+ Builtin.streamToList<Stdlib.Sse.Event> (Stdlib.Sse.parse stream)) = [ Stdlib.Sse.Event
+                                                                        { data = "real"
+                                                                          eventType = ""
+                                                                          id = "" } ]

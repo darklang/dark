@@ -193,11 +193,13 @@ type private SlowChunkedStream(chunkSize : int, chunkCount : int, delayMs : int)
 /// Scenario 3 — streaming-http chunk behaviour.
 ///
 /// Drives a slow chunked response through the same
-/// `ReadAsStreamAsync -> 8KB-buffer ReadAsync loop` path that
-/// `StreamingHttpClient.fs` uses today, and converts each read into a
-/// `Dval.byteArrayToDvalList` (what the streaming builtin surfaces as
-/// `StreamChunk.Data`). Records time-to-first-chunk, time-to-last,
-/// and total allocation from which we derive per-chunk average.
+/// `ReadAsStreamAsync -> 8KB-buffer ReadAsync loop` path that the
+/// now-retired `StreamingHttpClient.fs` used (chunk 2.9), and
+/// converts each read into a `Dval.byteArrayToDvalList` — the shape
+/// the old callback builtin surfaced as `StreamChunk.Data`. Kept as
+/// the phase-0 baseline so phase-2 comparisons stay honest: records
+/// time-to-first-chunk, time-to-last, total allocation, and per-chunk
+/// allocation derived from those.
 let streamingHttpProfile =
   test "streaming-http chunk behaviour" {
     resetOutput "streaming.txt"
@@ -243,7 +245,8 @@ let streamingHttpProfile =
         use responseStream =
           resp.Content.ReadAsStreamAsync().GetAwaiter().GetResult()
 
-        // 8KB read buffer matches StreamingHttpClient.fs:266.
+        // 8 KB read buffer — matches the old StreamingHttpClient and
+        // the new HttpClient.stream builtin.
         let buffer = Array.zeroCreate<byte> 8192
         let mutable firstChunkMs = -1L
         let mutable chunksSeen = 0
@@ -253,8 +256,9 @@ let streamingHttpProfile =
           if bytesRead > 0 then
             if firstChunkMs < 0L then firstChunkMs <- sw.ElapsedMilliseconds
             let bytes = Array.sub buffer 0 bytesRead
-            // mirror what StreamingHttpClient does per-chunk: wrap in
-            // a DList(DUInt8). This is the measured cost.
+            // Mirrors what the old StreamingHttpClient did per-chunk:
+            // wrap in a DList(DUInt8). This is the measured cost —
+            // the phase-1/2 Blob + DStream path avoids it entirely.
             let _dval = Dval.byteArrayToDvalList bytes
             chunksSeen <- chunksSeen + 1
             pump ()
