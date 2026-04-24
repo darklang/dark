@@ -115,7 +115,7 @@ See [30-phase-2.md](./30-phase-2.md).
 - [x] 2.2 add DStream with StreamImpl; FromIO only
 - [x] 2.3 add binary serializer — DStream raises on write
 - [x] 2.4 add PT↔Dark and RT↔Dark bridges (stream renders elided)
-- [ ] 2.5 Stream builtins: next, toList, toBlob (no transforms yet)
+- [x] 2.5 Stream builtins: next, toList, toBlob (no transforms yet)
 - [ ] 2.6 lazy transforms: Mapped, Filtered, Take, Concat
 - [ ] 2.7 Stream builtin map/filter/take/concat
 - [ ] 2.8 HttpClient.stream returns DStream
@@ -168,6 +168,7 @@ Append one line per chunk completion. Format:
 2026-04-24 02:54  2.2  DStream of (StreamImpl * bool ref * obj) + StreamImpl.FromIO(next, elemType) on RuntimeTypes. Dval.newStream + readStreamNext helpers with Monitor-based single-consumer enforcement. StreamImpl gets [<CustomEquality; NoComparison>] with Equals = false — pull-fn closure can't structural-equal, and NoEquality cascades into CallFrame via Dval array. Binary + roundtrippable + queryable all raise on DStream (non-persistable). rt↔dark bridge renders "DStreamElided" for LSP. 4 new Stream.Tests (pull order / stay-drained / empty / toValueType). 5606 LibExecution tests green.
 2026-04-24 03:04  2.3  formal binary-serializer coverage. Tags 25/24/DStream-raises all landed in 2.1/2.2 as exhaustive-match fallout; 1.3-style tests added: DStream.serialize raises, TStream PT/RT binary roundtrip, KTStream ValueType binary roundtrip. 8 Stream.Tests total, all green.
 2026-04-24 03:14  2.4  formal dark-bridge coverage. Bridges landed in 2.1 for types and 2.2 for DStreamElided; tests assert PT.TStream<UInt8> + RT.TStream<Blob> + KTStream<String> roundtrip, DStream→DStreamElided renders then fromDT raises (can't rebuild pull fn). 12 Stream.Tests total (23 matching "stream" filter incl. other suites), all green.
+2026-04-24 03:43  2.5  new Libs/Stream.fs: streamFromList, streamNext, streamToList, streamToBlob, streamClose. Registered in Builtin.fs + fsproj. Inline elemValueType helper covers primitive RT.TypeReference leaves (avoids the async TypeReference.toVT path for the builtin-side common case). Switched DvalReprInternalRoundtrippable.fromRT DStream case from raise to DStreamSentinel — trace/rt_dval capture walks all intermediate dvals, and raising there aborted any eval that touched a stream. Dark-side stdlib/stream.tests drives the full API (fromList→toList roundtrip, empty drain, next semantics, toBlob, close idempotence). 13 Stream.Tests + 6 .dark lines; 5608 LibExecution tests green.
 
 ## Blockers
 

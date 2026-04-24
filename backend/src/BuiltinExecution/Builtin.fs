@@ -32,6 +32,7 @@ let builtins (httpConfig : Libs.HttpClient.Configuration) : Builtins =
       Libs.Math.builtins ()
 
       Libs.Bytes.builtins ()
+      Libs.Stream.builtins ()
 
       Libs.Char.builtins ()
       Libs.String.builtins ()

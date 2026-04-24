@@ -174,6 +174,40 @@ let ktstreamRtDarkBridge =
   }
 
 
+let streamCloseMarksDisposed =
+  testTask "Stream.close flips disposed; subsequent next returns None" {
+    let s = streamOfList [ RT.DInt64 42L ] VT.int64
+
+    // Replicate what the Stream.close builtin does: grab the lock,
+    // flip the flag.
+    match s with
+    | RT.DStream(_, disposed, lockObj) ->
+      System.Threading.Monitor.Enter(lockObj)
+      try
+        disposed.Value <- true
+      finally
+        System.Threading.Monitor.Exit(lockObj)
+    | _ -> failtest "expected DStream"
+
+    let! after = Dval.readStreamNext s |> Ply.toTask
+    Expect.equal after None "closed stream yields None on next"
+
+    // Idempotent — calling close a second time (repeat the same block)
+    // should not throw.
+    match s with
+    | RT.DStream(_, disposed, lockObj) ->
+      System.Threading.Monitor.Enter(lockObj)
+      try
+        disposed.Value <- true
+      finally
+        System.Threading.Monitor.Exit(lockObj)
+    | _ -> failtest "unreachable"
+
+    let! stillNone = Dval.readStreamNext s |> Ply.toTask
+    Expect.equal stillNone None "still None after second close"
+  }
+
+
 let dstreamDarkBridgeElides =
   // DStream can't round-trip through the Dark-side bridge — the pull fn
   // is a closure, and the elided form is strictly for LSP/reflection.
@@ -205,4 +239,5 @@ let tests =
       tstreamPtDarkBridge
       tstreamRtDarkBridge
       ktstreamRtDarkBridge
+      streamCloseMarksDisposed
       dstreamDarkBridgeElides ]

@@ -348,10 +348,13 @@ module FormatV0 =
     | RT.DBlob(RT.Persistent(hash, length)) -> DBlobPersistent(hash, length)
     | RT.DBlob(RT.Ephemeral id) -> DBlobEphemeral id
     | RT.DStream _ ->
-      // Streams aren't persistable. Serializers that route through
-      // fromRT are for rt_dval storage — we refuse rather than silently
-      // produce a sentinel that can't round-trip back.
-      Exception.raiseInternal "Cannot persist a DStream" []
+      // Streams aren't persistable by design. For the rt_dval column
+      // that's strictly a no-op target (a stream can't live past its
+      // VM anyway), so we emit a sentinel that round-trips to an error
+      // on read-back rather than raising at capture time. This lets
+      // the trace pipeline (which captures every intermediate dval)
+      // pass a stream through without aborting the eval.
+      DStreamSentinel
 
 
 let toJsonV0 (dv : RT.Dval) : string =

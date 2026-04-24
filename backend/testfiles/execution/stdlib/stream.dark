@@ -1,0 +1,34 @@
+// Stream builtins — chunk 2.5. Consumption API only; transforms
+// (map/filter/take/concat) arrive in 2.6+.
+
+// fromList -> toList roundtrips
+(let s = Builtin.streamFromList<Int64> [ 1L; 2L; 3L ]
+ Builtin.streamToList<Int64> s) = [ 1L; 2L; 3L ]
+
+// empty stream drains to empty list
+(let s = Builtin.streamFromList<Int64> []
+ Builtin.streamToList<Int64> s) = []
+
+// next on an empty stream returns None
+(let s = Builtin.streamFromList<Int64> []
+ Builtin.streamNext<Int64> s) = Stdlib.Option.Option.None
+
+// next pulls head, leaves rest
+(let s = Builtin.streamFromList<Int64> [ 7L; 8L ]
+ let first = Builtin.streamNext<Int64> s
+ let second = Builtin.streamNext<Int64> s
+ let third = Builtin.streamNext<Int64> s
+ [ first; second; third ]) = [ Stdlib.Option.Option.Some 7L
+                               Stdlib.Option.Option.Some 8L
+                               Stdlib.Option.Option.None ]
+
+// toBlob drains a Stream<UInt8> into a Blob
+(let s = Builtin.streamFromList<UInt8> [ 104uy; 105uy ]
+ let b = Builtin.streamToBlob s
+ Builtin.bytesToString b) = Stdlib.Result.Result.Ok "hi"
+
+// close is idempotent; subsequent next returns None
+(let s = Builtin.streamFromList<Int64> [ 1L; 2L ]
+ let _ = Builtin.streamClose<Int64> s
+ let _ = Builtin.streamClose<Int64> s
+ Builtin.streamNext<Int64> s) = Stdlib.Option.Option.None
