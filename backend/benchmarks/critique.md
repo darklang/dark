@@ -29,13 +29,15 @@ The numbers (`results/latest.json`) are good in absolute terms — fileRead
 
 ## Blob — design observations
 
-1. **`emptyBlobHash` short-circuit in `Dval.readBlobBytes` is a
-   workaround.** We hard-code SHA-256 of `[||]` to avoid needing a
-   `package_blobs` row for `Stdlib.Blob.empty`. Works for one constant.
-   The next time someone wants a small constant Blob (a 4-byte magic
-   number, an embedded asset), they'll hit the same wall. Proper fix:
-   seed common blobs into `package_blobs` at migration time, or extend
-   BuiltInValue to carry `byte[]` directly. 🔧
+1. **`emptyBlobHash` short-circuit in `Dval.readBlobBytes` stays.**
+   Tried removing it after seeding the empty blob into `package_blobs`
+   via migration; the migration runs and the row is there, but
+   Microsoft.Data.Sqlite/Fumble's `read.bytes` on a zero-length BLOB
+   column returns None (not Some [||]). So the seed alone isn't
+   enough — `readBlobBytes` keeps the special case. The migration
+   still seeds the row so the orphan sweeper doesn't treat the empty
+   blob as garbage. Future blob constants > 0 bytes wouldn't hit the
+   library quirk; this is genuinely empty-only. ⚠️
 
 2. **Equality walks + hashes via `promoteBlobs+noopInsert`.** Already
    passes a no-op insert, so no DB writes — earlier-draft wording was
@@ -51,10 +53,11 @@ The numbers (`results/latest.json`) are good in absolute terms — fileRead
    large files in a single request can balloon. We documented this in
    `RuntimeTypes.fs:1668` — but documentation isn't a fix. ⚠️
 
-4. **`promoteBlobs` walks the full Dval tree on every save.** Most
-   dvals can't contain blobs (primitives, strings, etc). Could
-   short-circuit at the type level. Probably not hot, but it's
-   potentially wasted work. 🔧
+4. **`promoteBlobs` rebuilds container Dvals.** Already short-circuits
+   primitives (returns the same Dval for DString/DInt/etc). The cost
+   is the `Map.toList`/`Map.ofList` round-trip on Dicts/Records — even
+   when no child changed. Could be cheaper with a "did anything change"
+   short-circuit. Probably not hot. 🔧
 
 5. **`pm-sweep-blobs` only scans `package_values.rt_dval`.** Doesn't
    touch `trace_data` or User DB rows. The original L.3 spec called out
