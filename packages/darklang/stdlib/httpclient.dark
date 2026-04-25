@@ -48,7 +48,7 @@ let toString (e: RequestError) : String =
 type Response =
   { statusCode: Int64
     headers: List<(String * String)>
-    body: List<UInt8> }
+    body: Blob }
 
 
 /// A streaming HTTP response. Headers arrive immediately; `body` is a
@@ -68,7 +68,7 @@ let request
   (method: String)
   (uri: String)
   (headers: List<(String * String)>)
-  (body: List<UInt8>)
+  (body: Blob)
   : Stdlib.Result.Result<Response, RequestError> =
   Builtin.httpClientRequest method uri headers body
 
@@ -77,13 +77,13 @@ let get
   (uri: String)
   (headers: List<(String * String)>)
   : Stdlib.Result.Result<Response, RequestError> =
-  request "GET" uri headers []
+  request "GET" uri headers Stdlib.Blob.empty
 
 
 let post
   (uri: String)
   (headers: List<(String * String)>)
-  (body: List<UInt8>)
+  (body: Blob)
   : Stdlib.Result.Result<Response, RequestError> =
   request "POST" uri headers body
 
@@ -91,21 +91,21 @@ let post
 let put
   (uri: String)
   (headers: List<(String * String)>)
-  (body: List<UInt8>)
+  (body: Blob)
   : Stdlib.Result.Result<Response, RequestError> =
   request "PUT" uri headers body
 
 
 let options (uri: String) : Stdlib.Result.Result<Response, RequestError> =
-  request "OPTIONS" uri [] []
+  request "OPTIONS" uri [] Stdlib.Blob.empty
 
 
 let delete (uri: String) : Stdlib.Result.Result<Response, RequestError> =
-  request "DELETE" uri [] []
+  request "DELETE" uri [] Stdlib.Blob.empty
 
 
 let head (uri: String) : Stdlib.Result.Result<Response, RequestError> =
-  request "HEAD" uri [] []
+  request "HEAD" uri [] Stdlib.Blob.empty
 
 
 /// Make a streaming HTTP call to <param uri>. The response's body is

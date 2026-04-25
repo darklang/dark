@@ -273,4 +273,12 @@ let fns () : List<BuiltInFn> =
         DeprecatedBecause
           "Use blobToHex on a Blob instead. bytesHexEncode takes List<UInt8>, which the runtime materialises as one Dval per byte — prohibitively expensive past ~1 MB." } ]
 
-let builtins () = LibExecution.Builtin.make [] (fns ())
+let values () : List<BuiltInValue> =
+  [ { name = LibExecution.Builtin.Shortcuts.value "blobEmpty" 0
+      typ = TBlob
+      description = "The empty Blob (zero bytes)."
+      deprecated = NotDeprecated
+      body = DBlob(Persistent(Dval.emptyBlobHash, 0L)) } ]
+
+
+let builtins () = LibExecution.Builtin.make (values ()) (fns ())

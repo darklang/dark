@@ -228,10 +228,12 @@ let evaluateAllValues
                 $"Value {valueHash} ({fullName}): evaluation failed - {errorMsg}"
               )
             | Ok dval ->
-              // Reject non-persistable evaluated values up front
-              // (streams and ephemeral blobs) so the user sees a
-              // clear reason rather than a deep-stack binary-
-              // serialize raise. See `Dval.isPersistable`.
+              // Promote any ephemeral blobs inside the value to
+              // persistent so we can serialize. Streams remain
+              // non-persistable and trip the [isPersistable] guard
+              // below with a clear error.
+              let! dval = LibExecution.Dval.promoteBlobs exeState pm.persistBlob dval
+
               if not (LibExecution.Dval.isPersistable dval) then
                 let reason =
                   LibExecution.Dval.nonPersistableReason dval

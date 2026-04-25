@@ -6,9 +6,14 @@
 ///   (referring back to PT by index or something)
 module LibExecution.RuntimeTypes
 
-open System.Collections.Generic
-
 open Prelude
+
+// Aliases for the .NET mutable collection types used across the runtime
+// state. We can't `open System.Collections.Generic` because it shadows
+// F#'s native `list` with `System.Collections.Generic.List`.
+type Dictionary<'k, 'v> = System.Collections.Generic.Dictionary<'k, 'v>
+type HashSet<'a> = System.Collections.Generic.HashSet<'a>
+type Stack<'a> = System.Collections.Generic.Stack<'a>
 
 
 type BranchId = uuid

@@ -546,7 +546,7 @@ let promotedBlobsSurviveScopePop =
 
     // Promote inside the scope — writes to package_blobs and returns
     // a Persistent ref with the content hash.
-    let! promoted = Dval.promoteBlobs state pmRT.insertBlob eph |> Ply.toTask
+    let! promoted = Dval.promoteBlobs state pmRT.persistBlob eph |> Ply.toTask
 
     let hash =
       match promoted with

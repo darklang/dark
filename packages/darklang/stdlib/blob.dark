@@ -1,6 +1,10 @@
 module Darklang.Stdlib.Blob
 
 
+/// The empty Blob.
+let empty = Builtin.blobEmpty
+
+
 /// Returns the length of <param blob> in bytes.
 let length (blob: Blob) : Int64 = Builtin.blobLength blob
 

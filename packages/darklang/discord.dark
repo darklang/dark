@@ -208,7 +208,7 @@ let allowedMentionsToJson (am: AllowedMentions) : Stdlib.AltJson.Json =
          Stdlib.AltJson.Json.Array(Stdlib.List.map roles toStringJson)) ]
 
 
-let buildBody (msg: Message) : List<UInt8> =
+let buildBody (msg: Message) : Blob =
   let embedsOpt =
     if Stdlib.List.isEmpty msg.embeds then
       Stdlib.Option.Option.None
@@ -227,7 +227,7 @@ let buildBody (msg: Message) : List<UInt8> =
   |> Stdlib.AltJson.Builder.addOptionalJson "allowed_mentions" allowedMentionsJson
   |> Stdlib.AltJson.Builder.toJson
   |> Stdlib.AltJson.format
-  |> Stdlib.String.toBytes
+  |> Stdlib.String.toBlob
 
 
 /// POST <param msg> to the Discord webhook at <param webhookUrl>.
@@ -246,7 +246,7 @@ let post
       Stdlib.Result.Result.Ok()
     else
       let bodyStr =
-        match Stdlib.String.fromBytes response.body with
+        match Stdlib.String.fromBlob response.body with
         | Some s -> s
         | None -> ""
 

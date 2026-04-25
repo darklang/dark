@@ -12,7 +12,7 @@ Content-Length: LENGTH
 Hello back
 
 [test]
-(let response = (Darklang.Stdlib.HttpClient.request "delete" "http://URL" [] [] |> Builtin.unwrap)
+(let response = (Darklang.Stdlib.HttpClient.request "delete" "http://URL" [] Stdlib.Blob.empty |> Builtin.unwrap)
  let respHeaders = (response.headers |> Darklang.Stdlib.List.filter (fun h -> (Darklang.Stdlib.Tuple2.first h) != "date"))
  {response with headers = respHeaders}) ==
    Darklang.Stdlib.HttpClient.Response
@@ -22,5 +22,5 @@ Hello back
           ("content-length", "LENGTH")
           ("content-type", "text/plain; charset=utf-8")
         ]
-      body = ("Hello back" |> Darklang.Stdlib.String.toBytes) }
+      body = ("Hello back" |> Darklang.Stdlib.String.toBlob) }
 

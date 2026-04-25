@@ -122,6 +122,13 @@ let popBlobScope (exeState : ExecutionState) : unit =
       exeState.blobStore.TryRemove(id) |> ignore<bool * byte[]>
 
 
+/// SHA-256 of zero bytes. The well-known canonical hash backing
+/// [Builtin.blobEmpty]; short-circuited in [readBlobBytes] so the empty
+/// blob doesn't need a `package_blobs` row.
+let emptyBlobHash =
+  "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+
+
 /// Resolve a BlobRef to its bytes. Ephemerals read from the VM store;
 /// persistent refs hit package_blobs via the ExecutionState's blob
 /// accessor. Shared by every builtin that dereferences a DBlob.
@@ -134,6 +141,7 @@ let readBlobBytes (state : ExecutionState) (ref : BlobRef) : Ply.Ply<byte[]> =
         return bs
       else
         return Exception.raiseInternal "ephemeral blob not found" [ "id", id ]
+    | Persistent(hash, _length) when hash = emptyBlobHash -> return [||]
     | Persistent(hash, _length) ->
       let! got = state.blobs.get hash
       match got with

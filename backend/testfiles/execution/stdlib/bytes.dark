@@ -65,7 +65,7 @@ Builtin.blobLength (Builtin.blobFromBytes [ 97uy; 98uy; 99uy ]) = 3L
 // wrapper-layer regressions show up here.
 
 Stdlib.Blob.length (Stdlib.Blob.fromString "hi") = 2L
-Stdlib.Blob.length (Stdlib.Blob.fromString "") = 0L
+Stdlib.Blob.length Stdlib.Blob.empty = 0L
 
 // fromString / toString roundtrip
 (match Stdlib.Blob.toString (Stdlib.Blob.fromString "hello") with

@@ -238,6 +238,21 @@ let makeTest versionName filename =
         let instrs = test.expected |> PT2RT.Expr.toRT Map.empty 0 None
         Exe.executeExpr exeState instrs
 
+      // Promote ephemeral blobs on both sides so two independently-built
+      // Blobs with identical bytes (different UUIDs) compare equal.
+      let noopInsert _ _ = uply { return () }
+      let promoteIfOk r =
+        task {
+          match r with
+          | Ok dv ->
+            let! p =
+              LibExecution.Dval.promoteBlobs exeState noopInsert dv |> Ply.toTask
+            return Ok p
+          | Error _ -> return r
+        }
+      let! actual = promoteIfOk actual
+      let! expected = promoteIfOk expected
+
       match actual, expected with
       | Ok actual, Ok expected ->
         return Expect.RT.equalDval actual expected $"Responses don't match"

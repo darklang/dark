@@ -55,7 +55,7 @@ let executeScript
     Stdlib.printLine $"File error: {e}"
     state
   | Ok script ->
-    let scriptSourceCode = Stdlib.String.fromBytesWithReplacement script
+    let scriptSourceCode = Stdlib.String.fromBlobWithReplacement script
     let result =
       Builtin.cliParseAndExecuteScript
         state.accountID

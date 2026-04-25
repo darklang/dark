@@ -351,6 +351,11 @@ let fromBlobWithReplacement (blob: Blob) : String =
   Builtin.stringFromBlobWithReplacement blob
 
 
+/// Converts a UTF8-encoded Blob into a string. Returns None if the
+/// bytes aren't valid UTF-8.
+let fromBlob (blob: Blob) : Option.Option<String> = Builtin.stringFromBlob blob
+
+
 /// Checks if <param subject> starts with <param prefix>
 let startsWith (subject: String) (prefix: String) : Bool =
   String.slice_v0 subject 0L (String.length prefix) == prefix

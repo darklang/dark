@@ -508,7 +508,7 @@ let fns (config : Configuration) : List<BuiltInFn> =
         [ Param.make "method" TString ""
           Param.make "uri" TString ""
           Param.make "headers" headersType ""
-          Param.make "body" (TList TUInt8) "" ]
+          Param.make "body" TBlob "" ]
       returnType =
         TypeReference.result
           (TCustomType(NR.ok (responseOKType ()), []))
@@ -523,11 +523,12 @@ let fns (config : Configuration) : List<BuiltInFn> =
         let resultOk = Dval.resultOk responseTypeOK responseTypeErr
         let resultError = Dval.resultError responseTypeOK responseTypeErr
         (function
-        | _,
+        | state,
           vm,
           _,
-          [ DString method; DString uri; DList(_, reqHeaders); DList(_, reqBody) ] ->
+          [ DString method; DString uri; DList(_, reqHeaders); DBlob bodyRef ] ->
           uply {
+            let! reqBodyBytes = Dval.readBlobBytes state bodyRef
             let! (reqHeaders : Result<List<string * string>, BadHeader.BadHeader>) =
               reqHeaders
               |> Ply.List.mapSequentially (fun item ->
@@ -573,7 +574,7 @@ let fns (config : Configuration) : List<BuiltInFn> =
                     { url = uri
                       method = method
                       headers = reqHeaders
-                      body = Dval.dlistToByteArray reqBody }
+                      body = reqBodyBytes }
 
                   let! response = makeRequest config httpClient request
 
@@ -597,7 +598,7 @@ let fns (config : Configuration) : List<BuiltInFn> =
                     let fields =
                       [ ("statusCode", DInt64(int64 response.statusCode))
                         ("headers", responseHeaders)
-                        ("body", Dval.byteArrayToDvalList response.body) ]
+                        ("body", Dval.newEphemeralBlob state response.body) ]
 
                     return Ok(DRecord(typ, typ, [], Map fields) |> resultOk)
 

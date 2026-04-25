@@ -15,7 +15,7 @@ Some-Header:
 "Hello back"
 
 [test]
-(let response = (Darklang.Stdlib.HttpClient.request "get" "http://URL" [] []) |> Builtin.unwrap
+(let response = (Darklang.Stdlib.HttpClient.request "get" "http://URL" [] Stdlib.Blob.empty) |> Builtin.unwrap
  let respHeaders = response.headers |> Darklang.Stdlib.List.filter (fun h -> Darklang.Stdlib.Tuple2.first h != "date")
  {response with headers = respHeaders}) =
    Darklang.Stdlib.HttpClient.Response
