@@ -37,11 +37,14 @@ The numbers (`results/latest.json`) are good in absolute terms — fileRead
    seed common blobs into `package_blobs` at migration time, or extend
    BuiltInValue to carry `byte[]` directly. 🔧
 
-2. **Equality forces promotion.** `NoModule.equals` calls `promoteBlobs`
-   on both sides before comparing. That writes to `package_blobs` for
-   every `==` over ephemeral Blobs. A handler doing `if blob1 == blob2`
-   on two 10MB ephemerals does two 10MB DB writes per comparison. Should
-   hash-and-compare without persisting. ⚠️
+2. **Equality walks + hashes via `promoteBlobs+noopInsert`.** Already
+   passes a no-op insert, so no DB writes — earlier-draft wording was
+   wrong on that. But it does rebuild Dval subtrees containing blobs
+   (each promoted ref is a fresh Dval), and the SHA-256 over each
+   ephemeral happens unconditionally. A dedicated `equalsHashing`
+   that walks both trees in parallel, hashes on demand (memoised per
+   UUID), and avoids the rebuild allocation would be faster for
+   tight-loop comparisons. Not on fire today. 🔧
 
 3. **`blobStore` has no size cap.** Within one scope (one HTTP request),
    ephemerals accumulate until `popBlobScope`. A handler that loads many

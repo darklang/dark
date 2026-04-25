@@ -12,6 +12,7 @@ open Prelude
 
 module RT = LibExecution.RuntimeTypes
 module Dval = LibExecution.Dval
+module VT = LibExecution.ValueType
 
 
 type Sample = { allocBytes : int64; peakWorkingSet : int64; elapsedMs : int64 }
@@ -174,6 +175,172 @@ let private hexEncodeScenario (state : RT.ExecutionState) : List<Result> =
       note = "ok" } ]
 
 
+/// Base64 encode a blob via the builtin code path.
+let private base64Scenario (state : RT.ExecutionState) : List<Result> =
+  let size = 1_000_000
+  let raw = Array.zeroCreate<byte> size
+  System.Random(0).NextBytes(raw)
+
+  let _, sample =
+    measure (fun () ->
+      let _ = Dval.newEphemeralBlob state raw
+      System.Convert.ToBase64String(raw))
+
+  [ { scenario = "base64Encode"
+      inputBytes = int64 size
+      allocBytes = sample.allocBytes
+      elapsedMs = sample.elapsedMs
+      dvalNodes = 1
+      note = "ok" } ]
+
+
+/// Many small ephemeral blobs in one scope, each with distinct bytes.
+/// Stresses the ConcurrentDictionary/GUID-gen/Dval-wrapper hot path
+/// that the fileRead bench amortises away. inputBytes = sum of all
+/// blob sizes.
+let private manyBlobsScenario (state : RT.ExecutionState) : List<Result> =
+  let scenarios = [ 100, 1_024; 1_000, 1_024; 10_000, 256 ]
+  let rng = System.Random(1)
+
+  scenarios
+  |> List.map (fun (count, perBlobBytes) ->
+    // Pre-allocate distinct payloads outside the measure so the
+    // measurement only captures the blob-creation hot path itself.
+    let payloads =
+      Array.init count (fun _ ->
+        let p = Array.zeroCreate<byte> perBlobBytes
+        rng.NextBytes(p)
+        p)
+
+    let _, sample =
+      measure (fun () ->
+        for i in 0 .. count - 1 do
+          ignore<RT.Dval> (Dval.newEphemeralBlob state payloads[i]))
+
+    let totalBytes = int64 (count * perBlobBytes)
+    { scenario = $"manyBlobs/{count}x{perBlobBytes}B"
+      inputBytes = totalBytes
+      allocBytes = sample.allocBytes
+      elapsedMs = sample.elapsedMs
+      dvalNodes = count
+      note = "intra-scope; per-blob overhead amortised over count" })
+
+
+/// Equality over two independently-built ephemeral blobs with the
+/// same bytes. Exercises promoteBlobs+noopInsert+sha256 path.
+/// inputBytes is the size of a single side; alloc reflects the work
+/// done on both sides combined.
+let private blobEqualityScenario (state : RT.ExecutionState) : List<Result> =
+  let sizes = [ 100_000; 1_000_000; 10_000_000 ]
+
+  sizes
+  |> List.map (fun size ->
+    let payload = Array.zeroCreate<byte> size
+    System.Random(0).NextBytes(payload)
+
+    let blobA = Dval.newEphemeralBlob state payload
+    let blobB = Dval.newEphemeralBlob state payload
+
+    let noopInsert _ _ = uply { return () }
+
+    let _, sample =
+      measure (fun () ->
+        let resultPly =
+          uply {
+            let! a = Dval.promoteBlobs state noopInsert blobA
+            let! b = Dval.promoteBlobs state noopInsert blobB
+            return BuiltinExecution.Libs.NoModule.equals a b
+          }
+        resultPly |> Ply.toTask |> _.Result)
+
+    { scenario = "blobEqualityEphemeral"
+      inputBytes = int64 size
+      allocBytes = sample.allocBytes
+      elapsedMs = sample.elapsedMs
+      dvalNodes = 1
+      note = "promote+hash both sides" })
+
+
+/// Drain a Stream<UInt8> into a Blob via streamToBlob's chunked path.
+/// This is the scenario the L.7 chunked-drain optimization addresses.
+/// inputBytes = the byte stream length.
+let private streamToBlobScenario (state : RT.ExecutionState) : List<Result> =
+  let sizes = [ 100_000; 1_000_000; 10_000_000 ]
+
+  sizes
+  |> List.map (fun size ->
+    let payload = Array.zeroCreate<byte> size
+    System.Random(0).NextBytes(payload)
+
+    let _, sample =
+      measure (fun () ->
+        // Build a chunked-source Stream that yields the payload as one
+        // chunk, then drain via readStreamChunk in 64KB increments —
+        // mirrors what `streamToBlob` does today.
+        let mutable yielded = false
+        let nextChunk (_max : int) : Ply<Option<byte[]>> =
+          uply {
+            if yielded then
+              return None
+            else
+              yielded <- true
+              return Some payload
+          }
+        let stream = Dval.newStreamChunked VT.uint8 nextChunk None
+        let collected = new System.IO.MemoryStream()
+        let rec drain () : Ply<unit> =
+          uply {
+            let! chunk = Dval.readStreamChunk 65536 stream
+            match chunk with
+            | Some bs ->
+              collected.Write(bs, 0, bs.Length)
+              return! drain ()
+            | None -> return ()
+          }
+        drain () |> Ply.toTask |> _.Wait()
+        let bytes = collected.ToArray()
+        ignore<RT.Dval> (Dval.newEphemeralBlob state bytes))
+
+    { scenario = "streamToBlob"
+      inputBytes = int64 size
+      allocBytes = sample.allocBytes
+      elapsedMs = sample.elapsedMs
+      dvalNodes = 1
+      note = "chunked-drain" })
+
+
+/// Multipart-style body construction: build a Blob by concatenating
+/// many text and binary parts via Stdlib.Blob.concat. Mirrors the
+/// openai/audio.dark MultipartRequest pattern. inputBytes is the
+/// total of all parts.
+let private multipartScenario (state : RT.ExecutionState) : List<Result> =
+  let configs = [ 10, 1_024; 100, 10_240; 50, 100_000 ]
+
+  configs
+  |> List.map (fun (parts, perPartBytes) ->
+    let part = Array.zeroCreate<byte> perPartBytes
+    System.Random(0).NextBytes(part)
+
+    let _, sample =
+      measure (fun () ->
+        // Build a List<Blob> of parts; concat via MemoryStream (the
+        // shape Blob.concat ultimately uses on the F# side).
+        use buf = new System.IO.MemoryStream()
+        for _ in 1..parts do
+          // Each "part" mints an ephemeral.
+          let _ = Dval.newEphemeralBlob state part
+          buf.Write(part, 0, part.Length)
+        ignore<RT.Dval> (Dval.newEphemeralBlob state (buf.ToArray())))
+
+    let total = int64 (parts * perPartBytes)
+    { scenario = $"multipart/{parts}x{perPartBytes}B"
+      inputBytes = total
+      allocBytes = sample.allocBytes
+      elapsedMs = sample.elapsedMs
+      dvalNodes = parts + 1
+      note = "concat" })
+
+
 /// Captures run identity for the JSON output.
 let private gitCommit () : string =
   try
@@ -199,7 +366,12 @@ let runAll () : Ply<Result<unit, string>> =
     let results =
       [ yield! fileReadScenario state
         yield! httpBodyScenario state
-        yield! hexEncodeScenario state ]
+        yield! hexEncodeScenario state
+        yield! base64Scenario state
+        yield! manyBlobsScenario state
+        yield! blobEqualityScenario state
+        yield! streamToBlobScenario state
+        yield! multipartScenario state ]
 
     let commit = gitCommit ()
     let timestamp = System.DateTime.UtcNow.ToString("yyyy-MM-ddTHH:mm:ssZ")
@@ -237,17 +409,20 @@ let runAll () : Ply<Result<unit, string>> =
     )
 
     print $"\nWrote {results.Length} results to {outDir}/latest.json"
-    print "scenario        input bytes      overhead"
-    print "--------        -----------      --------"
+    print "scenario                       input bytes    alloc bytes  overhead   ms"
+    print "--------                       -----------    -----------  --------  ---"
     for r in results do
       let overhead =
         if r.inputBytes <= 0L then
-          "—"
+          "-"
         else
           $"{(float r.allocBytes) / (float r.inputBytes):F2}x"
-      let scenarioPad = r.scenario.PadRight(15)
+      let scenarioPad = r.scenario.PadRight(30)
       let inputPad = (string r.inputBytes).PadLeft(11)
-      print $"{scenarioPad} {inputPad}      {overhead}"
+      let allocPad = (string r.allocBytes).PadLeft(11)
+      let overheadPad = overhead.PadLeft(8)
+      let msPad = (string r.elapsedMs).PadLeft(4)
+      print $"{scenarioPad} {inputPad}    {allocPad}  {overheadPad} {msPad}"
 
     return Ok()
   }
