@@ -61,8 +61,6 @@
     <Compile Include="Serialization.Vanilla.Tests.fs" />
     <Compile Include="Serialization.DarkTypes.Tests.fs" />
 
-    <Compile Include="Measurement.Helpers.fs" />
-    <Compile Include="Measurement.fs" />
     <Compile Include="Blob.Tests.fs" />
     <Compile Include="Stream.Tests.fs" />
 

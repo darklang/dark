@@ -214,6 +214,11 @@ let main (args : string[]) : int =
         "sweeping orphan package_blobs rows"
         (HandleCommand.sweepBlobs ())
 
+    | [ "bench" ] ->
+      handleCommand
+        "running allocation/timing benchmarks"
+        (LocalExec.Benchmarks.runAll ())
+
     | _ ->
       print "Invalid arguments"
       print "Available commands:"
@@ -223,6 +228,7 @@ let main (args : string[]) : int =
       print "  migrations list"
       print "  export-seed <output-path>"
       print "  pm-sweep-blobs"
+      print "  bench"
       NonBlockingConsole.wait ()
       1
   with e ->

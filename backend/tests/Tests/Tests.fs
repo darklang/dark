@@ -78,7 +78,6 @@ let main (args : string array) : int =
         // cross-cutting
         Tests.LibExecution.tests.Force()
 
-        Tests.Measurement.tests
         Tests.Blob.tests
         Tests.Stream.tests ]
 

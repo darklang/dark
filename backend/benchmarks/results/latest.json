@@ -1,0 +1,15 @@
+{
+  "timestamp": "2026-04-25T04:41:35Z",
+  "commit": "b8e4b3775c2cf461833d98ab2d289cf93fd420ba",
+  "results": [
+    { "scenario": "fileRead", "inputBytes": 1024, "allocBytes": 88376, "elapsedMs": 1, "dvalNodes": 1, "note": "ok" },
+    { "scenario": "fileRead", "inputBytes": 100000, "allocBytes": 179304, "elapsedMs": 0, "dvalNodes": 1, "note": "ok" },
+    { "scenario": "fileRead", "inputBytes": 1000000, "allocBytes": 1074040, "elapsedMs": 1, "dvalNodes": 1, "note": "ok" },
+    { "scenario": "fileRead", "inputBytes": 10000000, "allocBytes": 10077576, "elapsedMs": 5, "dvalNodes": 1, "note": "ok" },
+    { "scenario": "fileRead", "inputBytes": 38000000, "allocBytes": 38077576, "elapsedMs": 19, "dvalNodes": 1, "note": "ok" },
+    { "scenario": "httpBody", "inputBytes": 100000, "allocBytes": 338808, "elapsedMs": 5, "dvalNodes": 1, "note": "simulated-handler" },
+    { "scenario": "httpBody", "inputBytes": 1000000, "allocBytes": 2077856, "elapsedMs": 0, "dvalNodes": 1, "note": "simulated-handler" },
+    { "scenario": "httpBody", "inputBytes": 10000000, "allocBytes": 20073592, "elapsedMs": 10, "dvalNodes": 1, "note": "simulated-handler" },
+    { "scenario": "hexEncode", "inputBytes": 1000000, "allocBytes": 4070112, "elapsedMs": 5, "dvalNodes": 1, "note": "ok" }
+  ]
+}
