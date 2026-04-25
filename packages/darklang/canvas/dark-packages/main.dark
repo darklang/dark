@@ -58,7 +58,7 @@ let statsFn (req: Stdlib.Http.Request) : Stdlib.Http.Response =
 - types: {stats.types |> Builtin.int64ToString}
 - fns: {stats.fns |> Builtin.int64ToString}
 - values: {stats.values |> Builtin.int64ToString}"
-    |> Stdlib.String.toBytes
+    |> Stdlib.String.toBlob
   Stdlib.Http.response body 200L
 
 let statsHandler: Stdlib.HttpServer.Handler =

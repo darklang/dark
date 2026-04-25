@@ -102,7 +102,7 @@ let fns () : List<BuiltInFn> =
                       // Build request Dval
                       let url = ctx.Request.GetDisplayUrl()
                       let requestDval =
-                        Http.Request.fromRequest url reqHeaders reqBody
+                        Http.Request.fromRequest exeState url reqHeaders reqBody
 
                       // Call the Darklang code
                       let! result = executeHandler exeState handler requestDval

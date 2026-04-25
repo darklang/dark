@@ -4,7 +4,7 @@ module Darklang.Stdlib.Http
 type Request =
   { url: String
     headers: List<String * String>
-    body: List<UInt8> }
+    body: Blob }
 
 module Request =
   let queryParams (req: Stdlib.Http.Request) : List<String * String> =
@@ -43,11 +43,11 @@ module Request =
 type Response =
   { statusCode: Int64
     headers: List<String * String>
-    body: List<UInt8> }
+    body: Blob }
 
 /// Returns a <type Response> that can be returned from an HTTP handler to
 /// respond with HTTP status <param code> and <param response> body.
-let response (body: List<UInt8>) (statusCode: Int64) : Stdlib.Http.Response =
+let response (body: Blob) (statusCode: Int64) : Stdlib.Http.Response =
   Stdlib.Http.Response
     { statusCode = statusCode
       headers = []
@@ -57,7 +57,7 @@ let response (body: List<UInt8>) (statusCode: Int64) : Stdlib.Http.Response =
 /// respond with HTTP status <param code>, <param response> body and
 /// <param headers>.
 let responseWithHeaders
-  (body: List<UInt8>)
+  (body: Blob)
   (headers: List<String * String>)
   (statusCode: Int64)
   : Stdlib.Http.Response =
@@ -68,7 +68,7 @@ let responseWithHeaders
 
 /// Returns a <type Response> that can be returned from an HTTP handler to
 /// respond with HTTP status 200 and <param response> body.
-let success (body: List<UInt8>) : Stdlib.Http.Response =
+let success (body: Blob) : Stdlib.Http.Response =
   Stdlib.Http.Response
     { statusCode = 200L
       headers = []
@@ -84,7 +84,7 @@ let responseWithHtml
   Stdlib.Http.Response
     { statusCode = statusCode
       headers = [ ("Content-Type", "text/html; charset=utf-8") ]
-      body = body |> Stdlib.String.toBytes }
+      body = body |> Stdlib.String.toBlob }
 
 
 /// Returns a <type Response> that can be returned from an HTTP handler to
@@ -97,7 +97,7 @@ let responseWithText
   Stdlib.Http.Response
     { statusCode = statusCode
       headers = [ ("Content-Type", "text/plain; charset=utf-8") ]
-      body = Stdlib.String.toBytes text }
+      body = Stdlib.String.toBlob text }
 
 /// Returns a <type Response> that can be returned from an HTTP handler to
 /// respond with HTTP status 200, <param response> body, with the
@@ -109,7 +109,7 @@ let responseWithJson
   Stdlib.Http.Response
     { statusCode = statusCode
       headers = [ ("Content-Type", "application/json") ]
-      body = Stdlib.String.toBytes json }
+      body = Stdlib.String.toBlob json }
 
 /// Returns a <type Response> that can be returned from an HTTP handler to
 /// respond with {{302}} status code and redirect to <param url>.
@@ -117,7 +117,7 @@ let redirectTo (url: String) : Stdlib.Http.Response =
   Stdlib.Http.Response
     { statusCode = 302L
       headers = [ ("Location", url) ]
-      body = [] }
+      body = Stdlib.Blob.empty }
 
 /// Returns a <type Response> that can be returned from an HTTP handler to
 /// respond with {{400}} status code and <param response> body.
@@ -125,7 +125,7 @@ let badRequest (error: String) : Stdlib.Http.Response =
   Stdlib.Http.Response
     { statusCode = 400L
       headers = []
-      body = Stdlib.String.toBytes error }
+      body = Stdlib.String.toBlob error }
 
 /// Returns a <type Response> that can be returned from an HTTP handler to
 /// respond with {{404}} status code.
@@ -133,7 +133,7 @@ let notFound () : Stdlib.Http.Response =
   Stdlib.Http.Response
     { statusCode = 404L
       headers = []
-      body = [] }
+      body = Stdlib.Blob.empty }
 
 /// Returns a <type Response> that can be returned from an HTTP handler to
 /// respond with {{401}} status code.
@@ -141,7 +141,7 @@ let unauthorized () : Stdlib.Http.Response =
   Stdlib.Http.Response
     { statusCode = 401L
       headers = []
-      body = [] }
+      body = Stdlib.Blob.empty }
 
 /// Returns a <type Response> that can be returned from an HTTP handler to
 /// respond with {{403}} status code.
@@ -149,7 +149,7 @@ let forbidden () : Stdlib.Http.Response =
   Stdlib.Http.Response
     { statusCode = 403L
       headers = []
-      body = [] }
+      body = Stdlib.Blob.empty }
 
 type Cookie =
   { expires: DateTime

@@ -94,9 +94,14 @@ let createState
   }
 
 type ExecutionReason =
-  /// The first time a trace is executed. This means more data should be stored and
-  /// more users notified.
-  | InitialExecution of PT.Handler.HandlerDesc * varname : string * RT.Dval
+  /// The first time a trace is executed. This means more data should be
+  /// stored and more users notified. The Dval builder receives the
+  /// freshly-minted [ExecutionState] so any ephemeral resources it
+  /// allocates (Blob refs, etc.) land in the right VM's stores.
+  | InitialExecution of
+    PT.Handler.HandlerDesc *
+    varname : string *
+    buildInputVar : (RT.ExecutionState -> RT.Dval)
 
   /// A reexecution is a trace that already exists, being amended with new values
   | ReExecution
@@ -108,23 +113,32 @@ type ExecutionReason =
 ///   - initialize traces
 /// - or ReExecution, which will
 ///   - update existing traces
+///
+/// `buildInputVars` is given the freshly-minted ExecutionState so input
+/// Dvals that need to mint ephemeral blobs (e.g. an HTTP request body)
+/// land in the right VM. For ReExecution this is called with no input
+/// vars to recompute; the trace pipeline reads them from prior data.
 let executeHandler
   (h : PT.Handler.T)
   (program : RT.Program)
   (traceID : AT.TraceID.T)
-  (inputVars : Map<string, RT.Dval>)
+  (buildInputVars : RT.ExecutionState -> Map<string, RT.Dval>)
   (reason : ExecutionReason)
   : Task<RT.Dval * RT.ExecutionState * Tracing.TraceResults.T> =
   task {
     let tracing = Tracing.create program.canvasID h.tlid traceID
 
-    // Store the inputs of the trace (i.e. the arguments to the handler)
-    match reason with
-    | InitialExecution(desc, varname, inputVar) ->
-      tracing.storeTraceInput desc varname inputVar
-    | ReExecution -> ()
-
     let! state = createState traceID program tracing.executionTracing
+
+    // Build the input vars now that state exists, then store the trace
+    // input. Any ephemeral blobs in the inputs (HTTP request body) get
+    // minted into this state's blobStore.
+    let inputVars = buildInputVars state
+
+    match reason with
+    | InitialExecution(desc, varname, buildInputVar) ->
+      tracing.storeTraceInput desc varname (buildInputVar state)
+    | ReExecution -> ()
 
     // TODO we shouldn't PT2RT here -- we should fetch from the PM instead
 
@@ -142,7 +156,7 @@ let executeHandler
       let fields =
         [ ("statusCode", RT.DInt64 500)
           ("headers", [] |> Dval.list (RT.KTTuple(VT.string, VT.string, [])))
-          ("body", msg |> UTF8.toBytes |> Dval.byteArrayToDvalList) ]
+          ("body", Dval.newEphemeralBlob state (UTF8.toBytes msg)) ]
 
       RT.DRecord(typeName, typeName, [], Map fields)
 

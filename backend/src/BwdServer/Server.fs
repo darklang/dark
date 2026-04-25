@@ -288,8 +288,10 @@ let runDarkHandler (ctx : HttpContext) : Task<HttpContext> =
 
         match routeVars with
         | Some routeVars ->
-          let request = LibHttpMiddleware.Request.fromRequest url reqHeaders reqBody
-          let inputVars = routeVars |> Map |> Map.add "request" request
+          let buildRequest (state : RT.ExecutionState) : RT.Dval =
+            LibHttpMiddleware.Request.fromRequest state url reqHeaders reqBody
+          let buildInputVars (state : RT.ExecutionState) =
+            routeVars |> Map |> Map.add "request" (buildRequest state)
 
           let! canvas = Canvas.toProgram canvas
           let! (result, exeState, _) =
@@ -297,8 +299,8 @@ let runDarkHandler (ctx : HttpContext) : Task<HttpContext> =
               handler
               canvas
               traceID
-              inputVars
-              (CloudExe.InitialExecution(desc, "request", request))
+              buildInputVars
+              (CloudExe.InitialExecution(desc, "request", buildRequest))
 
           let! result = LibHttpMiddleware.Response.toHttpResponse exeState result
 
