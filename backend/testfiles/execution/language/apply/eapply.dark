@@ -88,8 +88,9 @@ module InvalidFnCalls =
   (functionWhichDoesntExist 6L) = error="There is no variable named: functionWhichDoesntExist"
 
 
-  // errors around type args
-  fnWithTypeArgAndOneParam 1L = error="fnWithTypeArgAndOneParam expects 1 type argument, but got 0 type arguments"
+  // errors around type args. Calling with 0 type args is allowed —
+  // inference fills `'a` in from the actual arg's ValueType.
+  fnWithTypeArgAndOneParam 1L = 1L
   fnWithTypeArgAndOneParam<Int64, String> 1L = error="fnWithTypeArgAndOneParam expects 1 type argument, but got 2 type arguments"
   // errors around args
   stringFn "str1" "str2" = error="stringFn expects 1 argument, but got 2 arguments"

@@ -878,6 +878,35 @@ module PackageFn =
         return { name = p.name; typ = typ; description = p.description }
       }
 
+  /// Walk a PT TypeReference collecting all TVariable names.
+  /// Used to discover a fn's "implicit" type parameters from its
+  /// declared param/return types — wrappers like
+  ///   `let f (x: List<'a>) : Stream<'a> = ...`
+  /// don't always declare `<'a>` explicitly, but we still need
+  /// `'a` registered as a typeParam so callers can pass an
+  /// explicit type arg when arg inference can't fill it in
+  /// (e.g. empty-literal arguments).
+  let rec private collectTVars
+    (acc : List<string>)
+    (tr : PT.TypeReference)
+    : List<string> =
+    match tr with
+    | PT.TVariable name when not (List.contains name acc) -> acc @ [ name ]
+    | PT.TVariable _ -> acc
+    | PT.TList inner
+    | PT.TStream inner
+    | PT.TDict inner
+    | PT.TDB inner -> collectTVars acc inner
+    | PT.TTuple(a, b, rest) ->
+      let acc = collectTVars acc a
+      let acc = collectTVars acc b
+      rest |> List.fold collectTVars acc
+    | PT.TCustomType(_, args) -> args |> List.fold collectTVars acc
+    | PT.TFn(args, ret) ->
+      let acc = NEList.toList args |> List.fold collectTVars acc
+      collectTVars acc ret
+    | _ -> acc
+
   let toPT
     (builtins : RT.Builtins)
     (pm : PT.PackageManager)
@@ -903,13 +932,27 @@ module PackageFn =
           localBindings = Set.empty }
       let! body = Expr.toPT builtins pm onMissing currentModule context fn.body
 
+      // Auto-discover any TVariables in param/return types that
+      // weren't declared explicitly. Explicit typeParams stay first
+      // (callers passing positional type args expect that order);
+      // discovered names append in first-seen order.
+      let explicitTypeParams = fn.typeParams
+      let implicitTypeParams =
+        let fromParams =
+          parameters
+          |> NEList.toList
+          |> List.fold (fun acc p -> collectTVars acc p.typ) []
+        let withReturn = collectTVars fromParams returnType
+        withReturn |> List.filter (fun n -> not (List.contains n explicitTypeParams))
+      let allTypeParams = explicitTypeParams @ implicitTypeParams
+
       return
         { hash = Hash ""
           parameters = parameters
           returnType = returnType
           description = fn.description
           body = body
-          typeParams = fn.typeParams }
+          typeParams = allTypeParams }
     }
 
 

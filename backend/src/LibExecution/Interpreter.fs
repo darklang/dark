@@ -7,6 +7,129 @@ module RTE = RuntimeError
 module VT = ValueType
 
 
+/// Collect every TVariable name reachable inside [tr]. Used to find
+/// a fn's "implicit" type parameters — the free type-vars in its
+/// param/return types — so we can shadow inherited TST bindings
+/// of the same name when entering the fn's frame. Without shadowing,
+/// an outer fn's `'a := KTString` would leak into a nested fn's
+/// param of type `value: 'a` and force the nested arg to be a
+/// String even when the nested fn's own `'a` was meant to be
+/// something else.
+let rec private collectTVars (acc : Set<string>) (tr : TypeReference) : Set<string> =
+  match tr with
+  | TVariable name -> Set.add name acc
+  | TList inner
+  | TStream inner
+  | TDict inner
+  | TDB inner -> collectTVars acc inner
+  | TTuple(a, b, rest) ->
+    let acc = collectTVars acc a
+    let acc = collectTVars acc b
+    rest |> List.fold collectTVars acc
+  | TCustomType(_, args) -> args |> List.fold collectTVars acc
+  | TFn(args, ret) ->
+    let acc = NEList.toList args |> List.fold collectTVars acc
+    collectTVars acc ret
+  | _ -> acc
+
+
+/// True iff the ValueType has no Unknown anywhere in its tree.
+/// Empty-literal lists like `[]` are typed `Known (KTList Unknown)`;
+/// binding a TVariable to that kind of half-Unknown shape would lock
+/// in an over-tight constraint that downstream callers (which pass
+/// concretely-typed values) would fail. We only infer from
+/// fully-known shapes for that reason.
+let rec private isFullyKnown (vt : ValueType) : bool =
+  match vt with
+  | ValueType.Unknown -> false
+  | ValueType.Known kt ->
+    match kt with
+    | KTUnit
+    | KTBool
+    | KTInt8
+    | KTUInt8
+    | KTInt16
+    | KTUInt16
+    | KTInt32
+    | KTUInt32
+    | KTInt64
+    | KTUInt64
+    | KTInt128
+    | KTUInt128
+    | KTFloat
+    | KTChar
+    | KTString
+    | KTUuid
+    | KTDateTime
+    | KTBlob
+    | KTDB _ -> true
+    | KTList inner
+    | KTStream inner
+    | KTDict inner -> isFullyKnown inner
+    | KTTuple(a, b, rest) ->
+      isFullyKnown a && isFullyKnown b && List.forall isFullyKnown rest
+    | KTCustomType(_, args) -> List.forall isFullyKnown args
+    | KTFn(args, ret) ->
+      NEList.toList args |> List.forall isFullyKnown && isFullyKnown ret
+
+
+/// TODO richer error messages around type-variable resolution. When a
+/// `FnParameterNotExpectedType` fires after inference has bound some
+/// TVariables, the error currently shows the *resolved* expected type
+/// (e.g. "expects List<(String * Int64)>") which is more accurate than
+/// before but loses the fact that `Int64` came from inference and was
+/// reasoned-back-from a sibling argument. A "(inferred from arg N's
+/// VT)" annotation would help users understand why the type check
+/// fired the way it did. Touches RuntimeError formatting and the
+/// type-checker's binding trail. Not on fire today.
+/// Walk a TypeReference and a ValueType in lockstep, collecting
+/// `TVariable name -> VT` bindings. Used at function-call sites to
+/// infer type-variable values from actual arguments — so a wrapper
+/// of the shape `let f (x: List<'a>) : Stream<'a> = ...` works when
+/// called as `f [1L; 2L]` without the caller passing explicit type
+/// args. Inference is conservative:
+///   - TVariable binds only when the corresponding ValueType is
+///     fully Known (no Unknown anywhere). Half-Unknown shapes
+///     (e.g. `Known (KTList Unknown)` from an empty literal `[]`)
+///     would lock in an over-tight constraint for downstream calls.
+///   - Pre-existing bindings in `acc` win — explicit type args from
+///     the call site stay authoritative.
+///   - On any shape mismatch (different head, mismatched arity), we
+///     return `acc` unchanged and let typeCheckParams report the
+///     real error.
+let rec private inferTVarsFromArg
+  (acc : Map<string, ValueType>)
+  (tr : TypeReference)
+  (vt : ValueType)
+  : Map<string, ValueType> =
+  match tr, vt with
+  | TVariable name, vt when isFullyKnown vt && not (Map.containsKey name acc) ->
+    Map.add name vt acc
+  | TVariable _, _ -> acc
+
+  | TList tr', ValueType.Known(KTList vt') -> inferTVarsFromArg acc tr' vt'
+  | TStream tr', ValueType.Known(KTStream vt') -> inferTVarsFromArg acc tr' vt'
+  | TDict tr', ValueType.Known(KTDict vt') -> inferTVarsFromArg acc tr' vt'
+
+  | TTuple(a, b, rest), ValueType.Known(KTTuple(a', b', rest')) ->
+    let acc = inferTVarsFromArg acc a a'
+    let acc = inferTVarsFromArg acc b b'
+    if List.length rest = List.length rest' then
+      List.zip rest rest'
+      |> List.fold (fun acc (tr, vt) -> inferTVarsFromArg acc tr vt) acc
+    else
+      acc
+
+  | TCustomType({ resolved = Ok _ }, typeArgs),
+    ValueType.Known(KTCustomType(_, vtArgs)) ->
+    if List.length typeArgs = List.length vtArgs then
+      List.zip typeArgs vtArgs
+      |> List.fold (fun acc (tr, vt) -> inferTVarsFromArg acc tr vt) acc
+    else
+      acc
+
+  | _, _ -> acc
+
 
 let rec checkAndExtractLetPattern
   (pat : LetPattern)
@@ -619,20 +742,66 @@ let rec private executeInner (exeState : ExecutionState) (vm : VMState) : Ply<Dv
               match Map.find builtin exeState.fns.builtIn with
               | None -> return RTE.FnNotFound(FQFnName.Builtin builtin) |> raiseRTE
               | Some fn ->
-                // Process type args
-                // - there should be right #,
-                // - we should update _some_ TST with new info
+                // Step 1: resolve typeArgs against the OUTER tst so the
+                // wrapper-pass-through pattern works (a wrapper body
+                // calling Builtin.x<'a> needs `'a` resolved against the
+                // wrapper's tst, not the post-shadow one).
                 let typeParamCount, typeArgCount =
                   (List.length fn.typeParams, List.length typeArgs)
                 if typeArgCount <> typeParamCount then
                   return handleWrongTypeArgCount typeParamCount typeArgCount
-
-                let! typeArgsVT =
+                let! resolvedTypeArgsVT =
                   typeArgs
                   |> Ply.List.mapSequentially (TypeReference.toVT exeState.types tst)
+
+                // Step 2: shadow this fn's free type-vars from the
+                // inherited TST. Mirrors the package-fn path; without
+                // shadowing, an outer fn's `'a := X` would silently
+                // constrain a builtin's unrelated `'a` (e.g. `==` with
+                // `'a` polluted to a tuple type from a parent
+                // List<(...)> context).
+                let implicitTypeParams =
+                  let withParams =
+                    fn.parameters
+                    |> List.fold (fun acc p -> collectTVars acc p.typ) Set.empty
+                  collectTVars withParams fn.returnType
                 tst <-
-                  let newlyBound = List.zip fn.typeParams typeArgsVT |> Map
-                  Map.mergeFavoringRight tst newlyBound
+                  implicitTypeParams
+                  |> Set.fold (fun m name -> Map.remove name m) tst
+
+                // Step 3: bind the (already-resolved) explicit type args.
+                // If the caller omitted type args, leave the typeParams
+                // unbound for inference to fill in.
+                let explicitlyBound =
+                  if List.isEmpty resolvedTypeArgsVT then
+                    Map.empty
+                  else
+                    List.zip fn.typeParams resolvedTypeArgsVT |> Map
+                tst <- Map.mergeFavoringRight tst explicitlyBound
+
+                let allArgs =
+                  match applicable.argsSoFar with
+                  | [] -> newArgDvals
+                  | prev -> prev @ newArgDvals
+
+                let paramCount, argCount =
+                  (List.length fn.parameters, List.length allArgs)
+
+                // Infer type-variable bindings from arg ValueTypes for any
+                // TVariables in the param types not bound by explicit type
+                // args. Same rule as the package-fn path.
+                if argCount > 0 then
+                  let paramTypes = fn.parameters |> List.map (fun p -> p.typ)
+                  let pairs =
+                    List.zipUntilEitherEnds paramTypes allArgs
+                    |> List.map (fun (tr, dv) -> tr, Dval.toValueType dv)
+                  let inferredBound =
+                    pairs
+                    |> List.fold
+                      (fun acc (tr, vt) -> inferTVarsFromArg acc tr vt)
+                      explicitlyBound
+                  if not (Map.isEmpty inferredBound) then
+                    tst <- Map.mergeFavoringRight tst inferredBound
 
                 // type-check new arguments against the corresponding parameters
                 do!
@@ -642,14 +811,6 @@ let rec private executeInner (exeState : ExecutionState) (vm : VMState) : Ply<Dv
                      |> List.skip (List.length applicable.argsSoFar))
                     newArgDvals
                   |> typeCheckParams
-
-                let allArgs =
-                  match applicable.argsSoFar with
-                  | [] -> newArgDvals
-                  | prev -> prev @ newArgDvals
-
-                let paramCount, argCount =
-                  (List.length fn.parameters, List.length allArgs)
 
                 let! result =
                   uply {
@@ -723,47 +884,90 @@ let rec private executeInner (exeState : ExecutionState) (vm : VMState) : Ply<Dv
               match! exeState.fns.package pkg with
               | None -> return RTE.FnNotFound(FQFnName.Package pkg) |> raiseRTE
               | Some fn ->
-                // TODO infer type-variable bindings from arg ValueTypes.
-                // A wrapper of the shape
-                //   let fromList (items: List<'a>) : Stream<'a> =
-                //     Builtin.streamFromList<'a> items
-                // registers with `typeParams = []` because the parser only
-                // picks up explicit `<'a>` declarations. At call time
-                // there are no type args to bind, so `'a` stays unresolved
-                // in the TST. When the wrapper body executes
-                // `Builtin.streamFromList<'a>`, `TypeReference.toVT` on
-                // `TVariable "a"` returns Unknown — which the Stream.fs
-                // helpers map to `KTUnit`. The wrapper's result tag is
-                // wrong; tests doing strict value.Type comparison fail.
-                //
-                // Fix: walk `fn.parameters`'s declared types in lockstep
-                // with `allArgs` ValueTypes, collecting `TVariable name -> VT`
-                // bindings. Merge into `tst` before pushing the new frame.
-                // Existing `resolveTypeVariables` machinery already handles
-                // the lookup side. See `backend/testfiles/execution/stdlib/stream.dark`
-                // for the test-side workaround currently in place.
-                //
-                // Process type args — fast path for common case of no type args
-                let! newlyBound =
+                // Step 1: resolve any explicit typeArgs against the
+                // OUTER tst — they may reference outer-scope TVariables
+                // (e.g. a wrapper's body calling Builtin.x<'a> uses the
+                // wrapper's `'a`). Type-arg count is required to either
+                // match exactly OR be zero (inference fills the rest in
+                // step 4 below).
+                let! resolvedExplicitTypeArgsVT =
                   match typeArgs, fn.typeParams with
-                  | [], [] -> Ply Map.empty
+                  | [], _ -> Ply [] // OK to omit type args entirely
                   | _ ->
                     uply {
                       let typeParamCount, typeArgCount =
                         (List.length fn.typeParams, List.length typeArgs)
                       if typeArgCount <> typeParamCount then
                         return handleWrongTypeArgCount typeParamCount typeArgCount
-
-                      let! typeArgsVT =
+                      return!
                         typeArgs
                         |> Ply.List.mapSequentially (
                           TypeReference.toVT exeState.types tst
                         )
-                      let bound = List.zip fn.typeParams typeArgsVT |> Map
-                      tst <- Map.mergeFavoringRight tst bound
-                      return bound
                     }
 
+                // Step 2: shadow this fn's free type-vars in the inherited
+                // TST. Each fn's TVariables are scoped to that fn; without
+                // shadowing, an outer fn's `'a := X` would silently
+                // constrain a nested fn's unrelated `'a`.
+                let implicitTypeParams =
+                  let withParams =
+                    fn.parameters
+                    |> NEList.toList
+                    |> List.fold (fun acc p -> collectTVars acc p.typ) Set.empty
+                  collectTVars withParams fn.returnType
+                tst <-
+                  implicitTypeParams
+                  |> Set.fold (fun m name -> Map.remove name m) tst
+
+                // Step 3: bind the (already-resolved) explicit type args
+                // into the freshly-shadowed tst. Explicit args win over
+                // inferred bindings filled in below. If the caller
+                // omitted type args, leave the typeParams unbound for
+                // inference.
+                let explicitlyBound =
+                  if List.isEmpty resolvedExplicitTypeArgsVT then
+                    Map.empty
+                  else
+                    List.zip fn.typeParams resolvedExplicitTypeArgsVT |> Map
+                if not (Map.isEmpty explicitlyBound) then
+                  tst <- Map.mergeFavoringRight tst explicitlyBound
+
+                // Step 3: pre-compute allArgs so we can run inference
+                // BEFORE typeCheckParams. Otherwise the type check runs
+                // against a TST that doesn't yet know `'a := whatever`.
+                let allArgs =
+                  match applicable.argsSoFar with
+                  | [] -> newArgDvals
+                  | prev -> prev @ newArgDvals
+
+                let paramCount, argCount =
+                  (NEList.length fn.parameters, List.length allArgs)
+
+                // Step 4: infer type-variable bindings from arg ValueTypes
+                // for any TVariables in the param types not bound by
+                // explicit type args. Lets wrappers of the shape
+                //   let f (x: List<'a>) : Stream<'a> = Builtin.fromList<'a> x
+                // work without callers passing explicit type args. See
+                // [inferTVarsFromArg] for the unification rules.
+                let inferredBound =
+                  if argCount = 0 then
+                    explicitlyBound
+                  else
+                    let paramTypes =
+                      fn.parameters |> NEList.toList |> List.map (fun p -> p.typ)
+                    let pairs =
+                      List.zipUntilEitherEnds paramTypes allArgs
+                      |> List.map (fun (tr, dv) -> tr, Dval.toValueType dv)
+                    pairs
+                    |> List.fold
+                      (fun acc (tr, vt) -> inferTVarsFromArg acc tr vt)
+                      explicitlyBound
+                let newlyBound = inferredBound
+                if not (Map.isEmpty newlyBound) then
+                  tst <- Map.mergeFavoringRight tst newlyBound
+
+                // Step 5: now type-check params against the fully-resolved tst.
                 do!
                   List.zipUntilEitherEnds
                     (fn.parameters
@@ -772,14 +976,6 @@ let rec private executeInner (exeState : ExecutionState) (vm : VMState) : Ply<Dv
                      |> List.skip (List.length applicable.argsSoFar))
                     newArgDvals
                   |> typeCheckParams
-
-                let allArgs =
-                  match applicable.argsSoFar with
-                  | [] -> newArgDvals
-                  | prev -> prev @ newArgDvals
-
-                let paramCount, argCount =
-                  (NEList.length fn.parameters, List.length allArgs)
 
                 if argCount > paramCount then
                   return handleTooManyArgs paramCount argCount
@@ -792,12 +988,17 @@ let rec private executeInner (exeState : ExecutionState) (vm : VMState) : Ply<Dv
                     |> AppNamedFn
                     |> DApplicable
                 else
-                  // push a new frame to execute the function
+                  // push a new frame to execute the function. Inherit the
+                  // outer frame's TST but shadow this fn's own free
+                  // type-vars first, so the inner fn's `'a` is local to
+                  // this call and not the outer's.
                   let frameTst =
-                    if Map.isEmpty newlyBound then
-                      currentFrame.typeSymbolTable
-                    else
-                      Map.mergeFavoringRight currentFrame.typeSymbolTable newlyBound
+                    let stripped =
+                      implicitTypeParams
+                      |> Set.fold
+                        (fun m name -> Map.remove name m)
+                        currentFrame.typeSymbolTable
+                    Map.mergeFavoringRight stripped newlyBound
                   let newFrameId = guuid ()
                   if not exeState.tracing.skipTracing then
                     pendingCallArgs[newFrameId] <- allArgs

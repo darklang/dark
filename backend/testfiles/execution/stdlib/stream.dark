@@ -1,167 +1,148 @@
-// Stream builtins — consumption (next/toList/toBlob/close) and
-// transforms (map/filter/take/concat).
-//
-// These tests call `Builtin.streamX<T>` directly rather than the
-// `Stdlib.Stream.X` wrappers (which exist; see stdlib/stream.dark).
-// They will be migrated to the wrappers once the open type-system
-// bug is fixed: a wrapper of the shape
-//   let fromList (items: List<'a>) : Stream<'a> = Builtin.streamFromList<'a> items
-// registers with `typeParams = []` (the parser only picks up explicit
-// `<'a>` declarations). At call time `'a` is never bound in the TST,
-// so the inner `Builtin.streamFromList<'a>` resolves `'a` to Unknown,
-// which `Stream.fs` maps to `KTUnit`. Result: a wrapper-built
-// `Stream<Int64>` reads back as `List<KTUnit>` and fails the test
-// runner's strict value.Type comparison against the expected literal
-// `List<Int64>`. User code at the CLI works correctly because
-// `==` doesn't check value-type tags strictly. Fix is in
-// `LibExecution/Interpreter.fs` — see the TODO at the package-fn
-// invocation site.
+// Stream — consumption (next/toList/toBlob/close) and transforms
+// (map/filter/take/concat).
 
 // fromList -> toList roundtrips
-(let s = Builtin.streamFromList<Int64> [ 1L; 2L; 3L ]
- Builtin.streamToList<Int64> s) = [ 1L; 2L; 3L ]
+(let s = Stdlib.Stream.fromList [ 1L; 2L; 3L ]
+ Stdlib.Stream.toList s) = [ 1L; 2L; 3L ]
 
 // empty stream drains to empty list
-(let s = Builtin.streamFromList<Int64> []
- Builtin.streamToList<Int64> s) = []
+(let s = Stdlib.Stream.fromList<Int64> []
+ Stdlib.Stream.toList s) = []
 
 // next on an empty stream returns None
-(let s = Builtin.streamFromList<Int64> []
- Builtin.streamNext<Int64> s) = Stdlib.Option.Option.None
+(let s = Stdlib.Stream.fromList<Int64> []
+ Stdlib.Stream.next s) = Stdlib.Option.Option.None
 
 // next pulls head, leaves rest
-(let s = Builtin.streamFromList<Int64> [ 7L; 8L ]
- let first = Builtin.streamNext<Int64> s
- let second = Builtin.streamNext<Int64> s
- let third = Builtin.streamNext<Int64> s
+(let s = Stdlib.Stream.fromList [ 7L; 8L ]
+ let first = Stdlib.Stream.next s
+ let second = Stdlib.Stream.next s
+ let third = Stdlib.Stream.next s
  [ first; second; third ]) = [ Stdlib.Option.Option.Some 7L
                                Stdlib.Option.Option.Some 8L
                                Stdlib.Option.Option.None ]
 
 // toBlob drains a Stream<UInt8> into a Blob
-(let s = Builtin.streamFromList<UInt8> [ 104uy; 105uy ]
- let b = Builtin.streamToBlob s
+(let s = Stdlib.Stream.fromList [ 104uy; 105uy ]
+ let b = Stdlib.Stream.toBlob s
  Stdlib.Blob.toString b) = Stdlib.Result.Result.Ok "hi"
 
 // close is idempotent; subsequent next returns None
-(let s = Builtin.streamFromList<Int64> [ 1L; 2L ]
- let _ = Builtin.streamClose<Int64> s
- let _ = Builtin.streamClose<Int64> s
- Builtin.streamNext<Int64> s) = Stdlib.Option.Option.None
+(let s = Stdlib.Stream.fromList [ 1L; 2L ]
+ let _ = Stdlib.Stream.close s
+ let _ = Stdlib.Stream.close s
+ Stdlib.Stream.next s) = Stdlib.Option.Option.None
 
 
 // --- transforms ---
 
 // map doubles every element
-(let s = Builtin.streamFromList<Int64> [ 1L; 2L; 3L ]
- let mapped = Builtin.streamMap<Int64, Int64> s (fun n -> n * 2L)
- Builtin.streamToList<Int64> mapped) = [ 2L; 4L; 6L ]
+(let s = Stdlib.Stream.fromList [ 1L; 2L; 3L ]
+ let mapped = Stdlib.Stream.map s (fun n -> n * 2L)
+ Stdlib.Stream.toList mapped) = [ 2L; 4L; 6L ]
 
 // filter keeps only matching elements
-(let s = Builtin.streamFromList<Int64> [ 1L; 2L; 3L; 4L ]
- let evens = Builtin.streamFilter<Int64> s (fun n -> n % 2L == 0L)
- Builtin.streamToList<Int64> evens) = [ 2L; 4L ]
+(let s = Stdlib.Stream.fromList [ 1L; 2L; 3L; 4L ]
+ let evens = Stdlib.Stream.filter s (fun n -> n % 2L == 0L)
+ Stdlib.Stream.toList evens) = [ 2L; 4L ]
 
 // filter rejecting everything yields empty
-(let s = Builtin.streamFromList<Int64> [ 1L; 3L; 5L ]
- let none = Builtin.streamFilter<Int64> s (fun n -> n % 2L == 0L)
- Builtin.streamToList<Int64> none) = []
+(let s = Stdlib.Stream.fromList [ 1L; 3L; 5L ]
+ let none = Stdlib.Stream.filter s (fun n -> n % 2L == 0L)
+ Stdlib.Stream.toList none) = []
 
 // take caps at n
-(let s = Builtin.streamFromList<Int64> [ 10L; 20L; 30L; 40L ]
- let first2 = Builtin.streamTake<Int64> s 2L
- Builtin.streamToList<Int64> first2) = [ 10L; 20L ]
+(let s = Stdlib.Stream.fromList [ 10L; 20L; 30L; 40L ]
+ let first2 = Stdlib.Stream.take s 2L
+ Stdlib.Stream.toList first2) = [ 10L; 20L ]
 
 // take more than available returns all available
-(let s = Builtin.streamFromList<Int64> [ 7L; 8L ]
- let wide = Builtin.streamTake<Int64> s 10L
- Builtin.streamToList<Int64> wide) = [ 7L; 8L ]
+(let s = Stdlib.Stream.fromList [ 7L; 8L ]
+ let wide = Stdlib.Stream.take s 10L
+ Stdlib.Stream.toList wide) = [ 7L; 8L ]
 
 // take 0 returns empty without pulling
-(let s = Builtin.streamFromList<Int64> [ 1L; 2L ]
- let none = Builtin.streamTake<Int64> s 0L
- Builtin.streamToList<Int64> none) = []
+(let s = Stdlib.Stream.fromList [ 1L; 2L ]
+ let none = Stdlib.Stream.take s 0L
+ Stdlib.Stream.toList none) = []
 
 // concat drains streams in list order
-(let a = Builtin.streamFromList<Int64> [ 1L; 2L ]
- let b = Builtin.streamFromList<Int64> [ 3L; 4L ]
- let joined = Builtin.streamConcat<Int64> [ a; b ]
- Builtin.streamToList<Int64> joined) = [ 1L; 2L; 3L; 4L ]
+(let a = Stdlib.Stream.fromList [ 1L; 2L ]
+ let b = Stdlib.Stream.fromList [ 3L; 4L ]
+ let joined = Stdlib.Stream.concat [ a; b ]
+ Stdlib.Stream.toList joined) = [ 1L; 2L; 3L; 4L ]
 
 // concat over an empty list yields empty
-(let joined = Builtin.streamConcat<Int64> []
- Builtin.streamToList<Int64> joined) = []
+(let joined = Stdlib.Stream.concat<Int64> []
+ Stdlib.Stream.toList joined) = []
 
 // concat skips an empty sub-stream in the middle
-(let a = Builtin.streamFromList<Int64> [ 1L ]
- let empty = Builtin.streamFromList<Int64> []
- let b = Builtin.streamFromList<Int64> [ 2L ]
- let joined = Builtin.streamConcat<Int64> [ a; empty; b ]
- Builtin.streamToList<Int64> joined) = [ 1L; 2L ]
+(let a = Stdlib.Stream.fromList [ 1L ]
+ let empty = Stdlib.Stream.fromList<Int64> []
+ let b = Stdlib.Stream.fromList [ 2L ]
+ let joined = Stdlib.Stream.concat [ a; empty; b ]
+ Stdlib.Stream.toList joined) = [ 1L; 2L ]
 
 // the spec done-when: filter evens, map +1, take 3, toList
 // [1..10] -> evens [2,4,6,8,10] -> +1 [3,5,7,9,11] -> take 3 [3,5,7]
-(let s =
-   Builtin.streamFromList<Int64>
-     [ 1L; 2L; 3L; 4L; 5L; 6L; 7L; 8L; 9L; 10L ]
- let filtered = Builtin.streamFilter<Int64> s (fun n -> n % 2L == 0L)
- let mapped = Builtin.streamMap<Int64, Int64> filtered (fun n -> n + 1L)
- let taken = Builtin.streamTake<Int64> mapped 3L
- Builtin.streamToList<Int64> taken) = [ 3L; 5L; 7L ]
+(let s = Stdlib.Stream.fromList [ 1L; 2L; 3L; 4L; 5L; 6L; 7L; 8L; 9L; 10L ]
+ let filtered = Stdlib.Stream.filter s (fun n -> n % 2L == 0L)
+ let mapped = Stdlib.Stream.map filtered (fun n -> n + 1L)
+ let taken = Stdlib.Stream.take mapped 3L
+ Stdlib.Stream.toList taken) = [ 3L; 5L; 7L ]
 
 
 // --- extra compositional coverage ---
 
 // map can change the element type
-(let s = Builtin.streamFromList<Int64> [ 1L; 2L; 3L ]
- let mapped =
-   Builtin.streamMap<Int64, String> s (fun n -> Builtin.int64ToString n)
- Builtin.streamToList<String> mapped) = [ "1"; "2"; "3" ]
+(let s = Stdlib.Stream.fromList [ 1L; 2L; 3L ]
+ let mapped = Stdlib.Stream.map s (fun n -> Stdlib.Int64.toString n)
+ Stdlib.Stream.toList mapped) = [ "1"; "2"; "3" ]
 
 // take after map — the take limit applies to the mapped output
-(let s = Builtin.streamFromList<Int64> [ 1L; 2L; 3L; 4L; 5L ]
- let mapped = Builtin.streamMap<Int64, Int64> s (fun n -> n * 10L)
- let taken = Builtin.streamTake<Int64> mapped 2L
- Builtin.streamToList<Int64> taken) = [ 10L; 20L ]
+(let s = Stdlib.Stream.fromList [ 1L; 2L; 3L; 4L; 5L ]
+ let mapped = Stdlib.Stream.map s (fun n -> n * 10L)
+ let taken = Stdlib.Stream.take mapped 2L
+ Stdlib.Stream.toList taken) = [ 10L; 20L ]
 
 // map after take — map only applies to elements that survive the take
-(let s = Builtin.streamFromList<Int64> [ 1L; 2L; 3L; 4L; 5L ]
- let taken = Builtin.streamTake<Int64> s 3L
- let mapped = Builtin.streamMap<Int64, Int64> taken (fun n -> n * n)
- Builtin.streamToList<Int64> mapped) = [ 1L; 4L; 9L ]
+(let s = Stdlib.Stream.fromList [ 1L; 2L; 3L; 4L; 5L ]
+ let taken = Stdlib.Stream.take s 3L
+ let mapped = Stdlib.Stream.map taken (fun n -> n * n)
+ Stdlib.Stream.toList mapped) = [ 1L; 4L; 9L ]
 
 // concat of already-transformed streams
-(let a = Builtin.streamFromList<Int64> [ 1L; 2L ]
- let b = Builtin.streamFromList<Int64> [ 3L; 4L ]
- let aDoubled = Builtin.streamMap<Int64, Int64> a (fun n -> n * 2L)
- let bNegated = Builtin.streamMap<Int64, Int64> b (fun n -> 0L - n)
- let joined = Builtin.streamConcat<Int64> [ aDoubled; bNegated ]
- Builtin.streamToList<Int64> joined) = [ 2L; 4L; -3L; -4L ]
+(let a = Stdlib.Stream.fromList [ 1L; 2L ]
+ let b = Stdlib.Stream.fromList [ 3L; 4L ]
+ let aDoubled = Stdlib.Stream.map a (fun n -> n * 2L)
+ let bNegated = Stdlib.Stream.map b (fun n -> 0L - n)
+ let joined = Stdlib.Stream.concat [ aDoubled; bNegated ]
+ Stdlib.Stream.toList joined) = [ 2L; 4L; -3L; -4L ]
 
 // filter then take: early-terminate once Take is satisfied
-(let s = Builtin.streamFromList<Int64> [ 1L; 2L; 3L; 4L; 5L; 6L; 7L; 8L ]
- let evens = Builtin.streamFilter<Int64> s (fun n -> n % 2L == 0L)
- let firstTwo = Builtin.streamTake<Int64> evens 2L
- Builtin.streamToList<Int64> firstTwo) = [ 2L; 4L ]
+(let s = Stdlib.Stream.fromList [ 1L; 2L; 3L; 4L; 5L; 6L; 7L; 8L ]
+ let evens = Stdlib.Stream.filter s (fun n -> n % 2L == 0L)
+ let firstTwo = Stdlib.Stream.take evens 2L
+ Stdlib.Stream.toList firstTwo) = [ 2L; 4L ]
 
 // concat of concats flattens correctly
-(let a = Builtin.streamFromList<Int64> [ 1L ]
- let b = Builtin.streamFromList<Int64> [ 2L ]
- let c = Builtin.streamFromList<Int64> [ 3L ]
- let ab = Builtin.streamConcat<Int64> [ a; b ]
- let full = Builtin.streamConcat<Int64> [ ab; c ]
- Builtin.streamToList<Int64> full) = [ 1L; 2L; 3L ]
+(let a = Stdlib.Stream.fromList [ 1L ]
+ let b = Stdlib.Stream.fromList [ 2L ]
+ let c = Stdlib.Stream.fromList [ 3L ]
+ let ab = Stdlib.Stream.concat [ a; b ]
+ let full = Stdlib.Stream.concat [ ab; c ]
+ Stdlib.Stream.toList full) = [ 1L; 2L; 3L ]
 
 // map/filter/take over an empty source yields empty
-(let s = Builtin.streamFromList<Int64> []
- let mapped = Builtin.streamMap<Int64, Int64> s (fun n -> n + 1L)
- let filtered = Builtin.streamFilter<Int64> mapped (fun n -> n > 0L)
- let taken = Builtin.streamTake<Int64> filtered 5L
- Builtin.streamToList<Int64> taken) = []
+(let s = Stdlib.Stream.fromList<Int64> []
+ let mapped = Stdlib.Stream.map s (fun n -> n + 1L)
+ let filtered = Stdlib.Stream.filter mapped (fun n -> n > 0L)
+ let taken = Stdlib.Stream.take filtered 5L
+ Stdlib.Stream.toList taken) = []
 
 // Stream<Blob> round-trips via fromList/toList
 (let b1 = Stdlib.Blob.fromString "hi"
  let b2 = Stdlib.Blob.fromString "there"
- let s = Builtin.streamFromList<Blob> [ b1; b2 ]
- let result = Builtin.streamToList<Blob> s
+ let s = Stdlib.Stream.fromList [ b1; b2 ]
+ let result = Stdlib.Stream.toList s
  Stdlib.List.length result) = 2L

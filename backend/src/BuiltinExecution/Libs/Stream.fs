@@ -174,7 +174,6 @@ let fns () : List<BuiltInFn> =
         (function
         | state, _, [ elemType ], [ s ] ->
           uply {
-            let! elemKT = resolveElemKT state elemType
             let collected = ResizeArray<Dval>()
             let mutable keepGoing = true
             while keepGoing do
@@ -182,7 +181,16 @@ let fns () : List<BuiltInFn> =
               match result with
               | Some item -> collected.Add item
               | None -> keepGoing <- false
-            return Dval.list elemKT (List.ofSeq collected)
+            // Prefer the first drained element's actual ValueType — it
+            // captures the lambda's real return type even when the
+            // wrapper couldn't tell us via a `'b` bind. Fall back to
+            // the declared type-arg for empty results.
+            let! elemVT =
+              if collected.Count > 0 then
+                Ply(Dval.toValueType collected[0])
+              else
+                resolveElemVT state elemType
+            return DList(elemVT, List.ofSeq collected)
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
