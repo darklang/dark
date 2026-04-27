@@ -1,0 +1,126 @@
+module Darklang.Cli.Commands.StdlibOverview
+
+// AI-oriented orientation view of Darklang.Stdlib: a per-top-level-module
+// table of fn/type counts, plus drill-in instructions. Intended as the cheap
+// (~few-hundred-token) starting point for an agent before it calls the much
+// heavier `docs signatures <module>` for any module it actually needs.
+
+// Module-path bucket. Items at `Darklang.Stdlib.printLine` (no submodule) go
+// to the "(root)" bucket and are listed separately. Anything deeper rolls up
+// to its top-level submodule (so `Cli.Posix.exec` is counted under `Cli`).
+let private topLevelBucket
+  (loc: LanguageTools.ProgramTypes.PackageLocation)
+  : String =
+  match loc.modules with
+  | [ _ ] -> "(root)"
+  | _ :: top :: _ -> top
+  | [] -> "(root)"
+
+
+let private bumpCount (acc: Dict<Int64>) (key: String) : Dict<Int64> =
+  let existing =
+    match Stdlib.Dict.get acc key with
+    | Some n -> n
+    | None -> 0L
+  Stdlib.Dict.setOverridingDuplicates acc key (existing + 1L)
+
+
+let private pluralise (n: Int64) (word: String) : String =
+  let nStr = Stdlib.Int64.toString n
+  if n == 1L then $"{nStr} {word}"
+  else $"{nStr} {word}s"
+
+
+let private formatModuleLine
+  (name: String)
+  (fns: Int64)
+  (types: Int64)
+  : String =
+  let fnsPart = pluralise fns "fn"
+  let typesPart =
+    if types == 0L then ""
+    else $", {pluralise types "type"}"
+  // Right-pad name to 18 chars for column alignment without bringing in a
+  // table library. 18 covers the longest stdlib top-level (HttpClient, etc.).
+  let padded =
+    let len = Stdlib.String.length name
+    if len >= 18L then name ++ "  "
+    else name ++ (Stdlib.String.repeat " " (20L - len))
+  $"  {padded}{fnsPart}{typesPart}"
+
+
+let execute (state: Cli.AppState) (_args: List<String>) : Cli.AppState =
+  let branchId = state.currentBranchId
+  let rootPath = ["Darklang"; "Stdlib"]
+
+  let query =
+    LanguageTools.ProgramTypes.Search.SearchQuery
+      { currentModule = rootPath
+        text = ""
+        searchDepth = LanguageTools.ProgramTypes.Search.SearchDepth.AllDescendants
+        entityTypes = []
+        exactMatch = false }
+
+  let raw = LanguageTools.PackageManager.Search.search branchId query
+  let depSets = Cli.Packages.Query.loadDeprecationSets branchId
+  let results = Cli.Packages.Query.filterDeprecated raw depSets false
+
+  let fnCounts =
+    results.fns
+    |> Stdlib.List.fold Stdlib.Dict.empty (fun acc item ->
+      bumpCount acc (topLevelBucket item.location))
+
+  let typeCounts =
+    results.types
+    |> Stdlib.List.fold Stdlib.Dict.empty (fun acc item ->
+      bumpCount acc (topLevelBucket item.location))
+
+  let allTops =
+    (Stdlib.List.append (Stdlib.Dict.keys fnCounts) (Stdlib.Dict.keys typeCounts))
+    |> Stdlib.List.unique
+    |> Stdlib.List.filter (fun k -> k != "(root)")
+    |> Stdlib.List.sort
+
+  let lines =
+    allTops
+    |> Stdlib.List.map (fun top ->
+      let f = match Stdlib.Dict.get fnCounts top with | Some n -> n | None -> 0L
+      let t = match Stdlib.Dict.get typeCounts top with | Some n -> n | None -> 0L
+      formatModuleLine top f t)
+
+  let totalFns =
+    (Stdlib.Dict.values fnCounts)
+    |> Stdlib.List.fold 0L (fun a b -> a + b)
+
+  let totalTypes =
+    (Stdlib.Dict.values typeCounts)
+    |> Stdlib.List.fold 0L (fun a b -> a + b)
+
+  let topCount = Stdlib.List.length allTops
+
+  let rootFns =
+    results.fns
+    |> Stdlib.List.filter (fun item ->
+      (topLevelBucket item.location) == "(root)")
+    |> Stdlib.List.sortBy (fun item -> item.location.name)
+    |> Stdlib.List.map (fun item -> item.location.name)
+
+  Stdlib.printLine $"# Stdlib ({Stdlib.Int64.toString totalFns} fns, {Stdlib.Int64.toString totalTypes} types across {Stdlib.Int64.toString topCount} top-level modules)"
+  Stdlib.printLine ""
+  Stdlib.printLine "## Modules"
+  lines |> Stdlib.List.iter (fun l -> Stdlib.printLine l)
+  Stdlib.printLine ""
+
+  if Stdlib.Bool.not (Stdlib.List.isEmpty rootFns) then
+    Stdlib.printLine $"## Root-level fns"
+    Stdlib.printLine ("  " ++ (Stdlib.String.join rootFns ", "))
+    Stdlib.printLine ""
+
+  Stdlib.printLine "## Drill in"
+  Stdlib.printLine "  docs signatures <module>          full signatures for one module"
+  Stdlib.printLine "  docs signatures <module> --types  also include type definitions"
+  Stdlib.printLine "  docs signatures <name-fragment>   fuzzy filter across stdlib"
+  Stdlib.printLine "  view <name>                       full source + docs for one item"
+  Stdlib.printLine (Colors.dimText "  docs signatures --all             full firehose (heavy; prefer scoped calls)")
+
+  state

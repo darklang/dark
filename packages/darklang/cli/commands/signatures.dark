@@ -149,34 +149,41 @@ let private renderModule
   $"{header}\n{body}"
 
 
-// Returns (rootModulePath, includeTypes, includeDeprecated, filterText)
+// Returns (rootModulePath, includeTypes, includeDeprecated, filterText, all)
 let private parseArgsLoop
   (remaining: List<String>)
   (root: List<String>)
   (types: Bool)
   (dep: Bool)
   (filter: Stdlib.Option.Option<String>)
-  : (List<String> * Bool * Bool * Stdlib.Option.Option<String>) =
+  (all: Bool)
+  : (List<String> * Bool * Bool * Stdlib.Option.Option<String> * Bool) =
   match remaining with
-  | [] -> (root, types, dep, filter)
-  | "--types" :: rest -> parseArgsLoop rest root true dep filter
-  | "--include-deprecated" :: rest -> parseArgsLoop rest root types true filter
+  | [] -> (root, types, dep, filter, all)
+  | "--types" :: rest -> parseArgsLoop rest root true dep filter all
+  | "--include-deprecated" :: rest -> parseArgsLoop rest root types true filter all
+  | "--all" :: rest -> parseArgsLoop rest root types dep filter true
   | "--module" :: path :: rest ->
-    parseArgsLoop rest (Stdlib.String.split path ".") types dep filter
+    parseArgsLoop rest (Stdlib.String.split path ".") types dep filter all
   | arg :: rest ->
     match filter with
-    | None -> parseArgsLoop rest root types dep (Stdlib.Option.Option.Some arg)
-    | Some _ -> parseArgsLoop rest root types dep filter
+    | None -> parseArgsLoop rest root types dep (Stdlib.Option.Option.Some arg) all
+    | Some _ -> parseArgsLoop rest root types dep filter all
 
 
 let private parseArgs
   (args: List<String>)
-  : (List<String> * Bool * Bool * Stdlib.Option.Option<String>) =
-  parseArgsLoop args ["Darklang"; "Stdlib"] false false Stdlib.Option.Option.None
+  : (List<String> * Bool * Bool * Stdlib.Option.Option<String> * Bool) =
+  parseArgsLoop args ["Darklang"; "Stdlib"] false false Stdlib.Option.Option.None false
 
 
-let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
-  let (rootPath, includeTypes, includeDeprecated, filterText) = parseArgs args
+let private executeFiltered
+  (state: Cli.AppState)
+  (rootPath: List<String>)
+  (includeTypes: Bool)
+  (includeDeprecated: Bool)
+  (filterText: Stdlib.Option.Option<String>)
+  : Cli.AppState =
   let rootName = Stdlib.String.join rootPath "."
   let branchId = state.currentBranchId
 
@@ -262,23 +269,48 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
   state
 
 
+let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
+  let (rootPath, includeTypes, includeDeprecated, filterText, all) = parseArgs args
+
+  // No scope, no filter, no --all: redirect to the cheap overview rather
+  // than dumping every stdlib signature by default.
+  let isDefaultRoot =
+    match rootPath with
+    | [ "Darklang"; "Stdlib" ] -> true
+    | _ -> false
+
+  let isUnscoped =
+    isDefaultRoot
+    && (Stdlib.Option.isNone filterText)
+    && (Stdlib.Bool.not all)
+
+  if isUnscoped then
+    StdlibOverview.execute state args
+  else
+    executeFiltered state rootPath includeTypes includeDeprecated filterText
+
+
 let help (state: Cli.AppState) : Cli.AppState =
-  [ "Usage: signatures [filter] [--types] [--module <path>] [--include-deprecated]"
+  [ "Usage: docs signatures [filter|module] [--types] [--module <path>] [--all] [--include-deprecated]"
     ""
-    "Token-tight dump of all functions in a module subtree, with full signatures."
-    "Default scope: Darklang.Stdlib. Designed for AI agents needing a complete API map."
+    "Token-tight dump of stdlib functions with full type signatures."
+    "Designed for AI agents needing an API map for a specific module or task."
+    ""
+    "Without args, prints the cheap module overview (same as `docs stdlib`)."
     ""
     "Options:"
     "  filter                 Substring match on names/modules (fuzzy)"
     "  --types                Also emit type definitions (Option, Result, ...)"
-    "  --module <path>        Scope to a different module (e.g. Darklang.Stdlib.Http)"
+    "  --module <path>        Scope to a specific module (e.g. Darklang.Stdlib.Http)"
+    "  --all                  Dump every stdlib fn at once (heavy)"
     "  --include-deprecated   Include deprecated items hidden by default"
     ""
     "Examples:"
-    "  signatures                                # all stdlib fns"
-    "  signatures --types                        # stdlib fns + type defs"
-    "  signatures list                           # filter to 'list'"
-    "  signatures --module Darklang.Stdlib.Http  # scope to Http"
+    "  docs signatures                                # cheap overview"
+    "  docs signatures uuid                           # filter to 'uuid'"
+    "  docs signatures --module Darklang.Stdlib.Http  # one module"
+    "  docs signatures --module Darklang.Stdlib.Option --types"
+    "  docs signatures --all                          # everything (heavy)"
     ""
     "Output: per-module sections, one signature per line."
     "Use `view <name>` to see source code and docs for a single item." ]

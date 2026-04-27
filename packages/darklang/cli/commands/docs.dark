@@ -102,9 +102,9 @@ module Topics =
 
       DocTopic
         { name = "stdlib"
-          description = "Standard library overview"
+          description = "Live: Stdlib module overview (counts + drill-in hints)"
           aliases = [ "lib" ]
-          context = "general"
+          context = "cli"
           content = Docs.Stdlib.content
           subtopics = [] }
 
@@ -164,14 +164,13 @@ module Topics =
           content = Docs.InteractiveTesting.content
           subtopics = [] }
 
-      // `signatures` is a *live* topic: rendered by querying the package DB at
-      // call time instead of from a static doc string. The dispatcher in
-      // `execute` recognises the name and delegates to Commands.Signatures,
-      // forwarding any extra args (filter, --types, --module, ...). The dummy
-      // `content` is only used if someone bypasses the dispatcher.
+      // `signatures` is a *live* topic: rendered by querying the package DB
+      // at call time. `dispatchLive` in `execute` recognises the name and
+      // delegates to Commands.Signatures, forwarding any extra args. The
+      // dummy `content` only fires if dispatch is somehow bypassed.
       DocTopic
         { name = "signatures"
-          description = "Live: stdlib fns + signatures, AI-oriented (run `docs signatures`)"
+          description = "Live: stdlib fns + signatures (drill-in for `docs stdlib`)"
           aliases = [ "sigs"; "api" ]
           context = "cli"
           content = fun () -> "Run `docs signatures` to render. See `docs signatures --help`."
@@ -241,6 +240,8 @@ let private dispatchLive
   | "signatures" -> Stdlib.Option.Option.Some (Commands.Signatures.execute state rest)
   | "sigs" -> Stdlib.Option.Option.Some (Commands.Signatures.execute state rest)
   | "api" -> Stdlib.Option.Option.Some (Commands.Signatures.execute state rest)
+  | "stdlib" -> Stdlib.Option.Option.Some (Commands.StdlibOverview.execute state rest)
+  | "lib" -> Stdlib.Option.Option.Some (Commands.StdlibOverview.execute state rest)
   | _ -> Stdlib.Option.Option.None
 
 
