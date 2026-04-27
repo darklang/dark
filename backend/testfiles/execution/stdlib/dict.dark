@@ -49,8 +49,8 @@ module FromListOverwritingDuplicates =
   Stdlib.Dict.fromListOverwritingDuplicates_v0 [ Builtin.testRuntimeError "err" ] = error="Uncaught exception: err"
   // CLEANUP improve the error message to:
   //   In Dict.fromListOverwritingDuplicates's 1st argument (`entries`), the nested value `entries[1]` should be a (String, 'b). However, an Int64 (2) was passed instead.
-  Stdlib.Dict.fromListOverwritingDuplicates_v0 [ (1L, 2L) ] = error="Darklang.Stdlib.Dict.fromListOverwritingDuplicates's 1st parameter `entries` expects List<(String * _)>, but got List<(Int64 * Int64)> ([\n  (1, 2)\n])"
-  Stdlib.Dict.fromListOverwritingDuplicates_v0 [ 1L ] = error="Darklang.Stdlib.Dict.fromListOverwritingDuplicates's 1st parameter `entries` expects List<(String * _)>, but got List<Int64> ([\n  1\n])"
+  Stdlib.Dict.fromListOverwritingDuplicates_v0 [ (1L, 2L) ] = error="Darklang.Stdlib.Dict.fromListOverwritingDuplicates's 1st parameter `entries` expects List<(String * _)>, but got List<(Int64 * Int64)> ([(1, 2)])"
+  Stdlib.Dict.fromListOverwritingDuplicates_v0 [ 1L ] = error="Darklang.Stdlib.Dict.fromListOverwritingDuplicates's 1st parameter `entries` expects List<(String * _)>, but got List<Int64> ([1])"
 module FromList =
   Stdlib.Dict.fromList_v0 [] = Stdlib.Option.Option.Some(Dict { })
 
@@ -66,7 +66,7 @@ module FromList =
   Stdlib.Dict.fromList_v0 [ Builtin.testRuntimeError "err" ] = error="Uncaught exception: err"
   // CLEANUP improve the error message to
   //  "In Dict.fromList's 1st argument (`entries`), the nested value `entries[0][0]` should be a String. However, an Int64 (1) was passed instead.\n\nExpected: String\nActual: an Int64: 1"
-  Stdlib.Dict.fromList_v0 [ (1L, 1L) ] = error="Darklang.Stdlib.Dict.fromList's 1st parameter `entries` expects List<(String * _)>, but got List<(Int64 * Int64)> ([\n  (1, 1)\n])"
+  Stdlib.Dict.fromList_v0 [ (1L, 1L) ] = error="Darklang.Stdlib.Dict.fromList's 1st parameter `entries` expects List<(String * _)>, but got List<(Int64 * Int64)> ([(1, 1)])"
 module Get =
   Stdlib.Dict.get (Dict { key1 = "val1" }) "key1" = Stdlib.Option.Option.Some "val1"
 

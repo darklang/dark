@@ -12,12 +12,14 @@ open LibDB.Db
 module Dval = LibExecution.Dval
 module DvalReprInternalRoundtrippable = LibExecution.DvalReprInternalRoundtrippable
 module RT2DT = LibExecution.RuntimeTypesToDarkTypes
+module NR = LibExecution.RuntimeTypes.NameResolution
 module TracesRefs = LibExecution.PackageRefs.Type.Cli.Commands.Traces
 
 let dvalTypeName () =
   FQTypeName.fqPackage (
     LibExecution.PackageRefs.Type.LanguageTools.RuntimeTypes.dval ()
   )
+let traceSummaryTypeName () = FQTypeName.fqPackage (TracesRefs.traceSummary ())
 let inputVarTypeName () = FQTypeName.fqPackage (TracesRefs.inputVar ())
 let fnCallTypeName () = FQTypeName.fqPackage (TracesRefs.fnCall ())
 let traceDataTypeName () = FQTypeName.fqPackage (TracesRefs.traceData ())
@@ -32,59 +34,62 @@ let private parseArgsJson (argsJson : string) : List<Dval> =
   |> Seq.toList
   |> List.map (fun el -> el.GetRawText() |> parseDvalJson)
 
-/// Load inputs for a trace from the trace_inputs_v0 table
-let private loadInputs (traceId : string) : Ply<Dval> =
-  let typeName = inputVarTypeName ()
-  uply {
-    let! rows =
-      Sql.query
-        "SELECT name, value_json FROM trace_inputs_v0 WHERE trace_id = @traceId"
-      |> Sql.parameters [ "traceId", Sql.string traceId ]
-      |> Sql.executeAsync (fun read ->
-        (read.string "name", read.string "value_json"))
 
-    return
-      rows
-      |> List.map (fun (name, valueJson) ->
-        let fields = Map [ "name", DString name; "value", parseDvalJson valueJson ]
-        DRecord(typeName, typeName, [], fields))
-      |> Dval.list (KTCustomType(typeName, []))
-  }
-
-/// Load function calls for a trace by joining results and arguments tables
+/// Load call events for a trace, ordered by rowid (= execution order).
+/// Args/result are stored as JSON inline; parse them per row. The display
+/// name was resolved at write time and lives in fn_hash, so reads are a
+/// flat SELECT — lambdas have NULL fn_hash and render as "(lambda)".
 let private loadFnCalls (traceId : string) : Ply<Dval> =
   let typeName = fnCallTypeName ()
   let dvalKT = KTCustomType(dvalTypeName (), [])
   uply {
-    let! rows =
+    let! events =
       Sql.query
-        "SELECT r.fn_name, a.args_json, r.result_json
-         FROM trace_fn_results_v0 r
-         LEFT JOIN trace_fn_arguments_v0 a
-           ON r.trace_id = a.trace_id
-           AND r.fn_name = a.fn_name
-           AND r.args_hash = a.args_hash
-         WHERE r.trace_id = @traceId"
+        "SELECT call_id, parent_call_id, kind, fn_hash, lambda_expr_id,
+                args_json, result_json
+         FROM trace_fn_calls
+         WHERE trace_id = @traceId
+         ORDER BY rowid"
       |> Sql.parameters [ "traceId", Sql.string traceId ]
       |> Sql.executeAsync (fun read ->
-        (read.string "fn_name",
-         read.stringOrNone "args_json",
-         read.string "result_json"))
+        {| callId = read.string "call_id"
+           parentCallId = read.stringOrNone "parent_call_id"
+           kind = read.string "kind"
+           fnHash = read.stringOrNone "fn_hash"
+           lambdaExprId = read.stringOrNone "lambda_expr_id"
+           argsJson = read.string "args_json"
+           resultJson = read.string "result_json" |})
 
-    return
-      rows
-      |> List.map (fun (fnName, argsJson, resultJson) ->
-        let args =
-          match argsJson with
-          | Some json -> parseArgsJson json
-          | None -> []
+    let enriched =
+      events
+      |> List.map (fun ev ->
+        let displayName =
+          match ev.kind, ev.fnHash with
+          | "lambda", _ -> "(lambda)"
+          | _, Some name -> name
+          | _, None -> "(unknown)"
+        let args = parseArgsJson ev.argsJson
+        let result = parseDvalJson ev.resultJson
+        let parentCallIdDval =
+          match ev.parentCallId with
+          | Some p -> Dval.optionSome KTString (DString p)
+          | None -> Dval.optionNone KTString
+        let lambdaExprIdDval =
+          match ev.lambdaExprId with
+          | Some i -> Dval.optionSome KTString (DString i)
+          | None -> Dval.optionNone KTString
         let fields =
           Map
-            [ "fnName", DString fnName
+            [ "callId", DString ev.callId
+              "parentCallId", parentCallIdDval
+              "kind", DString ev.kind
+              "fnName", DString displayName
+              "lambdaExprId", lambdaExprIdDval
               "args", Dval.list dvalKT args
-              "result", parseDvalJson resultJson ]
+              "result", result ]
         DRecord(typeName, typeName, [], fields))
-      |> Dval.list (KTCustomType(typeName, []))
+
+    return enriched |> Dval.list (KTCustomType(typeName, []))
   }
 
 
@@ -92,29 +97,35 @@ let fns () : List<BuiltInFn> =
   [ { name = fn "cliTracesList" 0
       typeParams = []
       parameters = [ Param.make "limit" TInt64 "Max number of traces to return" ]
-      returnType = TList(TList TString)
+      returnType = TList(TVariable "a")
       description = "List recent traces"
       fn =
         (function
         | _, _, _, [ DInt64 limit ] ->
           uply {
+            let typeName = traceSummaryTypeName ()
             let! rows =
               Sql.query
-                "SELECT trace_id, handler_desc, timestamp
-                 FROM traces_v0
+                "SELECT id, handler_desc, timestamp
+                 FROM traces
                  ORDER BY rowid DESC
                  LIMIT @limit"
               |> Sql.parameters [ "limit", Sql.int64 limit ]
               |> Sql.executeAsync (fun read ->
-                [ read.string "trace_id"
-                  read.string "handler_desc"
-                  read.string "timestamp" ])
+                {| id = read.string "id"
+                   handler = read.string "handler_desc"
+                   timestamp = read.string "timestamp" |})
 
             return
               rows
-              |> List.map (fun fields ->
-                fields |> List.map DString |> Dval.list KTString)
-              |> Dval.list (KTList(ValueType.Known KTString))
+              |> List.map (fun r ->
+                let fields =
+                  Map
+                    [ "traceId", DString r.id
+                      "handler", DString r.handler
+                      "timestamp", DString r.timestamp ]
+                DRecord(typeName, typeName, [], fields))
+              |> Dval.list (KTCustomType(typeName, []))
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
@@ -132,27 +143,37 @@ let fns () : List<BuiltInFn> =
         (function
         | _, _, _, [ DString traceID ] ->
           uply {
+            // One SELECT covers metadata + input — both live on the trace row.
             let! row =
               Sql.query
-                "SELECT trace_id, handler_desc, timestamp
-                 FROM traces_v0
-                 WHERE trace_id = @traceId"
+                "SELECT id, handler_desc, timestamp, input_name, input_value_json
+                 FROM traces
+                 WHERE id = @traceId"
               |> Sql.parameters [ "traceId", Sql.string traceID ]
               |> Sql.executeRowOptionAsync (fun read ->
-                (read.string "trace_id",
-                 read.string "handler_desc",
-                 read.string "timestamp"))
+                {| id = read.string "id"
+                   handlerDesc = read.string "handler_desc"
+                   timestamp = read.string "timestamp"
+                   inputName = read.string "input_name"
+                   inputValueJson = read.string "input_value_json" |})
 
             let typeName = traceDataTypeName ()
             match row with
-            | Some(traceId, handlerDesc, timestamp) ->
-              let! inputs = loadInputs traceId
-              let! fnCalls = loadFnCalls traceId
+            | Some r ->
+              let! fnCalls = loadFnCalls r.id
+              let inputVarType = inputVarTypeName ()
+              let inputFields =
+                Map
+                  [ "name", DString r.inputName
+                    "value", parseDvalJson r.inputValueJson ]
+              let inputs =
+                [ DRecord(inputVarType, inputVarType, [], inputFields) ]
+                |> Dval.list (KTCustomType(inputVarType, []))
               let fields =
                 Map
-                  [ "traceId", DString traceId
-                    "handler", DString handlerDesc
-                    "timestamp", DString timestamp
+                  [ "traceId", DString r.id
+                    "handler", DString r.handlerDesc
+                    "timestamp", DString r.timestamp
                     "inputs", inputs
                     "functionCalls", fnCalls ]
               return
@@ -171,33 +192,41 @@ let fns () : List<BuiltInFn> =
       parameters =
         [ Param.make "fnName" TString "Function name to search for"
           Param.make "limit" TInt64 "Max number of traces to return" ]
-      returnType = TList(TList TString)
+      returnType = TList(TVariable "a")
       description = "List traces that called a specific function"
       fn =
         (function
         | _, _, _, [ DString fnName; DInt64 limit ] ->
           uply {
+            // Both builtins and package fns store their display name in
+            // fn_hash (resolved at write time), so one LIKE matches either.
+            let typeName = traceSummaryTypeName ()
             let pattern = $"%%{fnName}%%"
             let! rows =
               Sql.query
-                "SELECT DISTINCT t.trace_id, t.handler_desc, t.timestamp
-                 FROM traces_v0 t
-                 JOIN trace_fn_results_v0 r ON t.trace_id = r.trace_id
-                 WHERE r.fn_name LIKE @pattern
+                "SELECT DISTINCT t.id, t.handler_desc, t.timestamp
+                 FROM traces t
+                 JOIN trace_fn_calls c ON t.id = c.trace_id
+                 WHERE c.fn_hash LIKE @pattern
                  ORDER BY t.rowid DESC
                  LIMIT @limit"
               |> Sql.parameters
                 [ "pattern", Sql.string pattern; "limit", Sql.int64 limit ]
               |> Sql.executeAsync (fun read ->
-                [ read.string "trace_id"
-                  read.string "handler_desc"
-                  read.string "timestamp" ])
+                {| id = read.string "id"
+                   handler = read.string "handler_desc"
+                   timestamp = read.string "timestamp" |})
 
             return
               rows
-              |> List.map (fun fields ->
-                fields |> List.map DString |> Dval.list KTString)
-              |> Dval.list (KTList(ValueType.Known KTString))
+              |> List.map (fun r ->
+                let fields =
+                  Map
+                    [ "traceId", DString r.id
+                      "handler", DString r.handler
+                      "timestamp", DString r.timestamp ]
+                DRecord(typeName, typeName, [], fields))
+              |> Dval.list (KTCustomType(typeName, []))
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
@@ -215,11 +244,10 @@ let fns () : List<BuiltInFn> =
         | _, _, _, [ DString traceID ] ->
           uply {
             let! row =
-              Sql.query
-                "SELECT value_json FROM trace_inputs_v0
-                 WHERE trace_id = @traceId LIMIT 1"
+              Sql.query "SELECT input_value_json FROM traces WHERE id = @traceId"
               |> Sql.parameters [ "traceId", Sql.string traceID ]
-              |> Sql.executeRowOptionAsync (fun read -> read.string "value_json")
+              |> Sql.executeRowOptionAsync (fun read ->
+                read.string "input_value_json")
 
             match row with
             | None -> return Dval.optionNone KTString
@@ -249,16 +277,10 @@ let fns () : List<BuiltInFn> =
         | _, _, _, [ DUnit ] ->
           uply {
             let! count =
-              Sql.query "SELECT COUNT(*) as c FROM traces_v0"
+              Sql.query "SELECT COUNT(*) as c FROM traces"
               |> Sql.executeRowAsync (fun read -> read.int64 "c")
-            do! Sql.query "DELETE FROM trace_inputs_v0" |> Sql.executeStatementAsync
-            do!
-              Sql.query "DELETE FROM trace_fn_results_v0"
-              |> Sql.executeStatementAsync
-            do!
-              Sql.query "DELETE FROM trace_fn_arguments_v0"
-              |> Sql.executeStatementAsync
-            do! Sql.query "DELETE FROM traces_v0" |> Sql.executeStatementAsync
+            do! Sql.query "DELETE FROM trace_fn_calls" |> Sql.executeStatementAsync
+            do! Sql.query "DELETE FROM traces" |> Sql.executeStatementAsync
             return DInt64 count
           }
         | _ -> incorrectArgs ())

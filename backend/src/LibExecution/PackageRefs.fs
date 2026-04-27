@@ -343,6 +343,7 @@ module Type =
 
     module Commands =
       module Traces =
+        let traceSummary = p [ "Cli"; "Commands"; "Traces" ] "TraceSummary"
         let inputVar = p [ "Cli"; "Commands"; "Traces" ] "InputVar"
         let fnCall = p [ "Cli"; "Commands"; "Traces" ] "FnCall"
         let traceData = p [ "Cli"; "Commands"; "Traces" ] "TraceData"

@@ -1245,21 +1245,34 @@ module Tracing =
 
   type TraceDval = id -> Dval -> unit
 
-  type TraceExecutionPoint = ExecutionPoint -> unit
-
   type LoadFnResult =
     FunctionRecord -> NEList<Dval> -> Option<Dval * NodaTime.Instant>
 
   type StoreFnResult = FunctionRecord -> NEList<Dval> -> Dval -> unit
 
+  /// Fired when a new call frame is pushed (Function or Lambda).
+  /// Carries the frame's uuid, the executionPoint of the new frame, and
+  /// the args bound into it. The uuid lets the tracer associate this entry
+  /// with the matching exit (storeFnResult for fns, storeLambdaResult for
+  /// lambdas).
+  type StoreFrameEntry = uuid -> ExecutionPoint -> List<Dval> -> unit
+
+  /// Fired when a Lambda call frame returns. Function frames return via
+  /// storeFnResult, which already includes args + result. Lambdas don't
+  /// fire storeFnResult, so this is the corresponding exit hook for them.
+  type StoreLambdaResult = uuid -> Dval -> unit
+
   /// Set of callbacks used to trace the interpreter, and other context needed to run code
   type Tracing =
     {
       traceDval : TraceDval
-      traceExecutionPoint : TraceExecutionPoint
       loadFnResult : LoadFnResult
       storeFnResult : StoreFnResult
-      /// When true, skip tracing bookkeeping (pendingCallArgs, storeFnResult)
+      storeFrameEntry : StoreFrameEntry
+      storeLambdaResult : StoreLambdaResult
+      /// When true, the interpreter skips firing all tracer hooks
+      /// (storeFrameEntry, storeFnResult, storeLambdaResult) and the
+      /// associated pendingCallArgs bookkeeping.
       skipTracing : bool
     }
 
