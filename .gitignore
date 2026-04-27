@@ -53,3 +53,6 @@ clis/
 
 # Thinking docs — scratch planning/execution notes, not part of any PR.
 thinking/
+
+# Claude Code session lock (per-process, regenerated each session).
+.claude/scheduled_tasks.lock

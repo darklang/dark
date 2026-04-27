@@ -19,9 +19,15 @@ You don't write scripts - you build a persistent package tree.
 
 ## First Commands
   tree              # see package structure
-  builtins          # list builtins
+  signatures        # full stdlib API w/ signatures (call this BEFORE writing code!)
+  builtins          # list F# builtins (lower-level than stdlib)
   search <term>     # find anything
-  view <name>       # inspect entity
+  view <name>       # inspect entity (full source + docs)
+
+`signatures` is the canonical API map for AI agents. Call it once at the start
+of a task to learn what `Stdlib.*` provides; scope with `signatures <filter>`
+or `signatures --module Darklang.Stdlib.X` for a specific module. Add `--types`
+when you also need the type definitions (Option, Result, ParseError, ...).
 
 ## Creating Code (use these, not eval!)
   fn <name>         # create function - MAIN WAY TO WRITE CODE
