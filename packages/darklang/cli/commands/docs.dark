@@ -162,6 +162,19 @@ module Topics =
           aliases = [ "testing"; "telemetry"; "expect"; "perf" ]
           context = "internal"
           content = Docs.InteractiveTesting.content
+          subtopics = [] }
+
+      // `signatures` is a *live* topic: rendered by querying the package DB at
+      // call time instead of from a static doc string. The dispatcher in
+      // `execute` recognises the name and delegates to Commands.Signatures,
+      // forwarding any extra args (filter, --types, --module, ...). The dummy
+      // `content` is only used if someone bypasses the dispatcher.
+      DocTopic
+        { name = "signatures"
+          description = "Live: stdlib fns + signatures, AI-oriented (run `docs signatures`)"
+          aliases = [ "sigs"; "api" ]
+          context = "cli"
+          content = fun () -> "Run `docs signatures` to render. See `docs signatures --help`."
           subtopics = [] } ]
 
   let findTopic (name: String) : Stdlib.Option.Option<DocTopic> =
@@ -216,38 +229,41 @@ module Topics =
     |> Stdlib.String.join "\n"
 
 
+// Topics that don't render from static text — they delegate to a live command
+// with access to AppState. Returns Some new-state if `name` is a live topic.
+let private dispatchLive
+  (state: Cli.AppState)
+  (name: String)
+  (rest: List<String>)
+  : Stdlib.Option.Option<Cli.AppState> =
+  let lower = Stdlib.String.toLowercase name
+  match lower with
+  | "signatures" -> Stdlib.Option.Option.Some (Commands.Signatures.execute state rest)
+  | "sigs" -> Stdlib.Option.Option.Some (Commands.Signatures.execute state rest)
+  | "api" -> Stdlib.Option.Option.Some (Commands.Signatures.execute state rest)
+  | _ -> Stdlib.Option.Option.None
+
+
 let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
   match args with
   | [] ->
     Stdlib.printLine (Topics.formatTopicList ())
     state
 
-  | [ topicName ] ->
-    match Topics.findTopic topicName with
-    | Some topic ->
-      let contentFn = topic.content
-      Stdlib.printLine (contentFn ())
-      state
+  | topicName :: rest ->
+    match dispatchLive state topicName rest with
+    | Some newState -> newState
     | None ->
-      Stdlib.printLine (Colors.error $"Unknown topic: {topicName}")
-      Stdlib.printLine ""
-      Stdlib.printLine (Topics.formatTopicList ())
-      state
-
-  | [ topicName; _subtopic ] ->
-    // TODO: subtopic support
-    match Topics.findTopic topicName with
-    | Some topic ->
-      let contentFn = topic.content
-      Stdlib.printLine (contentFn ())
-      state
-    | None ->
-      Stdlib.printLine (Colors.error $"Unknown topic: {topicName}")
-      state
-
-  | _ ->
-    Stdlib.printLine "Usage: docs [topic] [subtopic]"
-    state
+      match Topics.findTopic topicName with
+      | Some topic ->
+        let contentFn = topic.content
+        Stdlib.printLine (contentFn ())
+        state
+      | None ->
+        Stdlib.printLine (Colors.error $"Unknown topic: {topicName}")
+        Stdlib.printLine ""
+        Stdlib.printLine (Topics.formatTopicList ())
+        state
 
 
 let help (state: Cli.AppState) : Cli.AppState =

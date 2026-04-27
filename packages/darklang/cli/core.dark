@@ -213,7 +213,6 @@ module Registry =
       ("rebase", "Rebase current branch onto parent", [], SCM.Rebase.execute, SCM.Rebase.help, SCM.Rebase.complete)
       ("merge", "Merge current branch into parent", [], SCM.Merge.execute, SCM.Merge.help, SCM.Merge.complete)
       ("builtins", "List all builtin functions", [], Builtins.execute, Builtins.help, Builtins.complete)
-      ("signatures", "Compact dump of all stdlib fns + signatures (AI-oriented)", [ "sigs"; "api" ], Commands.Signatures.execute, Commands.Signatures.help, Commands.Signatures.complete)
       ("find-values", "Find values of a given type", [], Commands.FindValues.execute, Commands.FindValues.help, Commands.FindValues.complete)
       ("agent", "AI assistant workflows (ask/code/review/fix/diff)", [ "ai" ], Commands.Agent.execute, Commands.Agent.help, Commands.Agent.complete)
       ("http-server", "Start an HTTP server", [], Commands.HttpServer.execute, Commands.HttpServer.help, Commands.HttpServer.complete)
@@ -304,7 +303,7 @@ module Registry =
       ("Execution", [ "run"; "eval"; "scripts" ])
       ("Installation", [ "install"; "update"; "uninstall"; "version" ])
       ("AI", [ "agent" ])
-      ("Utilities", [ "clear"; "help"; "docs"; "quit"; "builtins"; "signatures"; "export-seed"; "views" ]) ]
+      ("Utilities", [ "clear"; "help"; "docs"; "quit"; "builtins"; "export-seed"; "views" ]) ]
 
   // Helper function to format a group of commands with details
   let formatCommandGroup (groupName: String) (commandNames: List<String>) (commands: List<CommandHandler>) : String =
