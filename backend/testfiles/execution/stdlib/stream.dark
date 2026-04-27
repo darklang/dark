@@ -1,5 +1,15 @@
 // Stream builtins — consumption (next/toList/toBlob/close) and
 // transforms (map/filter/take/concat).
+//
+// These tests call `Builtin.streamX<T>` directly rather than the
+// `Stdlib.Stream.X` wrappers (which exist; see stdlib/stream.dark).
+// Reason: the test runner does strict ValueType comparison, and
+// generic-wrapper substitution doesn't propagate `'a` through to the
+// result's KT tag — so a wrapper-built `Stream<Int64>` reads back as
+// `List<Unknown>` and fails the `value.Type` check against the
+// expected literal `List<Int64>`. User code should prefer the
+// wrappers; tests need the explicit-type-arg path until that
+// limitation is fixed in the type checker.
 
 // fromList -> toList roundtrips
 (let s = Builtin.streamFromList<Int64> [ 1L; 2L; 3L ]
@@ -25,7 +35,7 @@
 // toBlob drains a Stream<UInt8> into a Blob
 (let s = Builtin.streamFromList<UInt8> [ 104uy; 105uy ]
  let b = Builtin.streamToBlob s
- Builtin.blobToString b) = Stdlib.Result.Result.Ok "hi"
+ Stdlib.Blob.toString b) = Stdlib.Result.Result.Ok "hi"
 
 // close is idempotent; subsequent next returns None
 (let s = Builtin.streamFromList<Int64> [ 1L; 2L ]
@@ -144,8 +154,8 @@
  Builtin.streamToList<Int64> taken) = []
 
 // Stream<Blob> round-trips via fromList/toList
-(let b1 = Builtin.blobFromString "hi"
- let b2 = Builtin.blobFromString "there"
+(let b1 = Stdlib.Blob.fromString "hi"
+ let b2 = Stdlib.Blob.fromString "there"
  let s = Builtin.streamFromList<Blob> [ b1; b2 ]
  let result = Builtin.streamToList<Blob> s
  Stdlib.List.length result) = 2L

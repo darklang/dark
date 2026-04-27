@@ -8,9 +8,9 @@
 
 // single event with just a data field
 (let source = "data: hello\n\n"
- let bytes = Builtin.blobToBytes (Builtin.blobFromString source)
- let stream = Builtin.streamFromList<UInt8> bytes
- Builtin.streamToList<Stdlib.HttpClient.Sse.Event>
+ let bytes = Stdlib.Blob.toList (Stdlib.Blob.fromString source)
+ let stream = Stdlib.Stream.fromList bytes
+ Stdlib.Stream.toList
    (Stdlib.HttpClient.Sse.parse stream)) = [ Stdlib.HttpClient.Sse.Event
                                                { data = "hello"
                                                  eventType = ""
@@ -18,17 +18,17 @@
 
 
 // empty body yields no events
-(let bytes = Builtin.blobToBytes (Builtin.blobFromString "")
- let stream = Builtin.streamFromList<UInt8> bytes
- Builtin.streamToList<Stdlib.HttpClient.Sse.Event>
+(let bytes = Stdlib.Blob.toList (Stdlib.Blob.fromString "")
+ let stream = Stdlib.Stream.fromList bytes
+ Stdlib.Stream.toList
    (Stdlib.HttpClient.Sse.parse stream)) = []
 
 
 // multiple events separated by blank lines
 (let source = "data: first\n\ndata: second\n\ndata: third\n\n"
- let bytes = Builtin.blobToBytes (Builtin.blobFromString source)
- let stream = Builtin.streamFromList<UInt8> bytes
- Builtin.streamToList<Stdlib.HttpClient.Sse.Event>
+ let bytes = Stdlib.Blob.toList (Stdlib.Blob.fromString source)
+ let stream = Stdlib.Stream.fromList bytes
+ Stdlib.Stream.toList
    (Stdlib.HttpClient.Sse.parse stream)) = [ Stdlib.HttpClient.Sse.Event
                                                { data = "first"
                                                  eventType = ""
@@ -45,9 +45,9 @@
 
 // event type and id are parsed
 (let source = "event: update\nid: 42\ndata: payload\n\n"
- let bytes = Builtin.blobToBytes (Builtin.blobFromString source)
- let stream = Builtin.streamFromList<UInt8> bytes
- Builtin.streamToList<Stdlib.HttpClient.Sse.Event>
+ let bytes = Stdlib.Blob.toList (Stdlib.Blob.fromString source)
+ let stream = Stdlib.Stream.fromList bytes
+ Stdlib.Stream.toList
    (Stdlib.HttpClient.Sse.parse stream)) = [ Stdlib.HttpClient.Sse.Event
                                                { data = "payload"
                                                  eventType = "update"
@@ -56,9 +56,9 @@
 
 // id persists across events per the SSE spec
 (let source = "id: 42\ndata: one\n\ndata: two\n\n"
- let bytes = Builtin.blobToBytes (Builtin.blobFromString source)
- let stream = Builtin.streamFromList<UInt8> bytes
- Builtin.streamToList<Stdlib.HttpClient.Sse.Event>
+ let bytes = Stdlib.Blob.toList (Stdlib.Blob.fromString source)
+ let stream = Stdlib.Stream.fromList bytes
+ Stdlib.Stream.toList
    (Stdlib.HttpClient.Sse.parse stream)) = [ Stdlib.HttpClient.Sse.Event
                                                { data = "one"
                                                  eventType = ""
@@ -71,9 +71,9 @@
 
 // comment lines (starting with `:`) are ignored
 (let source = ": this is a comment\ndata: hello\n\n: another comment\ndata: world\n\n"
- let bytes = Builtin.blobToBytes (Builtin.blobFromString source)
- let stream = Builtin.streamFromList<UInt8> bytes
- Builtin.streamToList<Stdlib.HttpClient.Sse.Event>
+ let bytes = Stdlib.Blob.toList (Stdlib.Blob.fromString source)
+ let stream = Stdlib.Stream.fromList bytes
+ Stdlib.Stream.toList
    (Stdlib.HttpClient.Sse.parse stream)) = [ Stdlib.HttpClient.Sse.Event
                                                { data = "hello"
                                                  eventType = ""
@@ -86,9 +86,9 @@
 
 // multi-line `data:` fields are joined with a newline
 (let source = "data: line one\ndata: line two\n\n"
- let bytes = Builtin.blobToBytes (Builtin.blobFromString source)
- let stream = Builtin.streamFromList<UInt8> bytes
- Builtin.streamToList<Stdlib.HttpClient.Sse.Event>
+ let bytes = Stdlib.Blob.toList (Stdlib.Blob.fromString source)
+ let stream = Stdlib.Stream.fromList bytes
+ Stdlib.Stream.toList
    (Stdlib.HttpClient.Sse.parse stream)) = [ Stdlib.HttpClient.Sse.Event
                                                { data = "line one\nline two"
                                                  eventType = ""
@@ -97,9 +97,9 @@
 
 // blocks without a data field are not dispatched (spec: empty data = skip)
 (let source = "event: ping\n\ndata: real\n\n"
- let bytes = Builtin.blobToBytes (Builtin.blobFromString source)
- let stream = Builtin.streamFromList<UInt8> bytes
- Builtin.streamToList<Stdlib.HttpClient.Sse.Event>
+ let bytes = Stdlib.Blob.toList (Stdlib.Blob.fromString source)
+ let stream = Stdlib.Stream.fromList bytes
+ Stdlib.Stream.toList
    (Stdlib.HttpClient.Sse.parse stream)) = [ Stdlib.HttpClient.Sse.Event
                                                { data = "real"
                                                  eventType = ""

@@ -249,10 +249,6 @@ let typeReferences =
       []
       false
     t "uuid alias" "type MyUuid = Uuid" "type MyUuid =\n  Uuid" [] [] [] false
-
-    // Blob and Stream — introduced in phases 1 and 2. These roundtrip
-    // tests guard the tree-sitter grammar entries (blob / stream_type_reference)
-    // and the Dark-side parser/printer coverage for TBlob / TStream.
     t "blob alias" "type MyBlob = Blob" "type MyBlob =\n  Blob" [] [] [] false
     t
       "stream of primitive alias"

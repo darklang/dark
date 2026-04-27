@@ -189,9 +189,9 @@ let handleWrite (input: Json) : Stdlib.Result.Result<ToolOutput, String> =
       match resolveSafePath path with
       | Error e -> Stdlib.Result.Result.Error e
       | Ok fullPath ->
-        match Builtin.fileWrite (Stdlib.String.toBlob content) fullPath with
+        match Stdlib.Cli.File.writeText fullPath content with
         | Ok _ -> Stdlib.Result.Result.Ok(ToolOutput.Text $"Wrote to {path}")
-        | Error e -> Stdlib.Result.Result.Error e
+        | Error e -> Stdlib.Result.Result.Error $"{e}"
     | _ -> Stdlib.Result.Result.Error "path and content required"
   | _ -> Stdlib.Result.Result.Error "invalid input"
 

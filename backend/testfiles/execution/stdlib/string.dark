@@ -55,41 +55,41 @@ module ToBytes =
 
 module FromBytesWithReplacement =
   Stdlib.String.fromBytesWithReplacement_v0 (
-    Builtin.blobToBytes (
+    Stdlib.Blob.toList (
     (Stdlib.Base64.decode_v0 "w6I") |> Builtin.unwrap
   )) = "â"
 
   Stdlib.String.fromBytesWithReplacement_v0 (
-    Builtin.blobToBytes (
+    Stdlib.Blob.toList (
     (Stdlib.Base64.decode_v0 "aGVsbG8g8J+YgA==") |> Builtin.unwrap
   )) = "hello 😀"
 
   Stdlib.String.fromBytesWithReplacement_v0 (
-    Builtin.blobToBytes (
+    Stdlib.Blob.toList (
     (Stdlib.Base64.decode_v0 "ww==") |> Builtin.unwrap
   )) = "�"
 
   Stdlib.String.fromBytesWithReplacement_v0 (
-    Builtin.blobToBytes (
+    Stdlib.Blob.toList (
     (Stdlib.Base64.decode_v0 "7aCA") |> Builtin.unwrap
   )) = "���"
 
   Stdlib.String.fromBytesWithReplacement_v0 (
-    Builtin.blobToBytes (
+    Stdlib.Blob.toList (
     (Stdlib.Base64.decode_v0 "aMM=") |> Builtin.unwrap
   )) = "h�"
 
 
 module FromBytes =
-  Stdlib.String.fromBytes_v0 (Builtin.blobToBytes ((Stdlib.Base64.decode_v0 "w6I") |> Builtin.unwrap)) = Stdlib.Option.Option.Some "â"
+  Stdlib.String.fromBytes_v0 (Stdlib.Blob.toList ((Stdlib.Base64.decode_v0 "w6I") |> Builtin.unwrap)) = Stdlib.Option.Option.Some "â"
 
-  Stdlib.String.fromBytes_v0 (Builtin.blobToBytes ((Stdlib.Base64.decode_v0 "aGVsbG8g8J+YgA==") |> Builtin.unwrap)) = Stdlib.Option.Option.Some "hello 😀"
+  Stdlib.String.fromBytes_v0 (Stdlib.Blob.toList ((Stdlib.Base64.decode_v0 "aGVsbG8g8J+YgA==") |> Builtin.unwrap)) = Stdlib.Option.Option.Some "hello 😀"
 
-  Stdlib.String.fromBytes_v0 (Builtin.blobToBytes ((Stdlib.Base64.decode_v0 "ww==") |> Builtin.unwrap)) = Stdlib.Option.Option.None
+  Stdlib.String.fromBytes_v0 (Stdlib.Blob.toList ((Stdlib.Base64.decode_v0 "ww==") |> Builtin.unwrap)) = Stdlib.Option.Option.None
 
-  Stdlib.String.fromBytes_v0 (Builtin.blobToBytes ((Stdlib.Base64.decode_v0 "7aCA") |> Builtin.unwrap)) = Stdlib.Option.Option.None
+  Stdlib.String.fromBytes_v0 (Stdlib.Blob.toList ((Stdlib.Base64.decode_v0 "7aCA") |> Builtin.unwrap)) = Stdlib.Option.Option.None
 
-  Stdlib.String.fromBytes_v0 (Builtin.blobToBytes ((Stdlib.Base64.decode_v0 "aMM=") |> Builtin.unwrap)) = Stdlib.Option.Option.None
+  Stdlib.String.fromBytes_v0 (Stdlib.Blob.toList ((Stdlib.Base64.decode_v0 "aMM=") |> Builtin.unwrap)) = Stdlib.Option.Option.None
 
 
 module StartsWith =

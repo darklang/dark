@@ -1,8 +1,4 @@
 // hex round of various UTF-8 strings (Arabic / emoji / long mixed).
-// Older incarnations of these tests went through the deprecated
-// List<UInt8>-shaped `Stdlib.Blob.hexEncode`; that path is gone, the
-// coverage moved to the modern `Stdlib.Blob.fromString → Blob.toHex`
-// shape.
 Stdlib.Blob.toHex (Stdlib.Blob.fromString "اختبار النص") = "D8A7D8AED8AAD8A8D8A7D8B120D8A7D984D986D8B5"
 
 Stdlib.Blob.toHex (Stdlib.Blob.fromString "👱👱🏻👱🏼👱🏽👱🏾👱🏿") = "F09F91B1F09F91B1F09F8FBBF09F91B1F09F8FBCF09F91B1F09F8FBDF09F91B1F09F8FBEF09F91B1F09F8FBF"
@@ -13,67 +9,20 @@ Stdlib.Blob.toHex (
 ) = "646C6B6A6B64333239383233333333333333333333666A6669646A73667564736468737D7B7C7C217C217C217C212124255E265E26EFB7BDEFB7BDEFB7BDEFB7BDEFB7BDEFB7BDEFB7BDEFB7BDEFB7BDEFB7BDEFB7BDEFB7BDEFB7BDEFB7BDEFB7BDEFB7BD"
 
 
-// --- Blob-based Bytes builtins ---
-
 // length
-Builtin.blobLength (Builtin.blobFromString "hi") = 2L
-Builtin.blobLength (Builtin.blobFromString "") = 0L
-
-// fromString / toString roundtrip
-(match Builtin.blobToString (Builtin.blobFromString "hello") with
- | Ok s -> s
- | Error e -> e) = "hello"
-
-// fromHex returns Result<Blob,String>; length of decoded deadbeef = 4 bytes
-(match Builtin.blobFromHex "deadbeef" with
- | Ok b -> Builtin.blobLength b
- | Error _ -> -1L) = 4L
-
-// toHex roundtrip (uppercase output)
-Builtin.blobToHex (Builtin.blobFromString "ok") = "6F6B"
-
-// base64 roundtrip
-(match Builtin.blobFromBase64 "aGVsbG8=" with
- | Ok b ->
-   (match Builtin.blobToString b with
-    | Ok s -> s
-    | Error e -> e)
- | Error e -> e) = "hello"
-
-Builtin.blobToBase64 (Builtin.blobFromString "hello") = "aGVsbG8="
-
-// concat
-(match Builtin.blobToString
-        (Builtin.blobConcat
-          [ Builtin.blobFromString "foo"; Builtin.blobFromString "bar" ]) with
- | Ok s -> s
- | Error _ -> "err") = "foobar"
-
-// slice (middle three bytes of "abcdef" = "cde")
-(match Builtin.blobToString
-        (Builtin.blobSlice (Builtin.blobFromString "abcdef") 2L 3L) with
- | Ok s -> s
- | Error _ -> "err") = "cde"
-
-// toList escape hatch: first three bytes of "abc" = [97, 98, 99]
-Builtin.blobToBytes (Builtin.blobFromString "abc") = [ 97uy; 98uy; 99uy ]
-
-// fromList escape hatch: length 3
-Builtin.blobLength (Builtin.blobFromBytes [ 97uy; 98uy; 99uy ]) = 3L
-
-
-// --- Stdlib.Blob.* wrapper API ---
-// Exercises the Dark-side module surface. Same semantics as the
-// Builtin.* cases above, but drives the public stdlib module so
-// wrapper-layer regressions show up here.
-
 Stdlib.Blob.length (Stdlib.Blob.fromString "hi") = 2L
+Stdlib.Blob.length (Stdlib.Blob.fromString "") = 0L
 Stdlib.Blob.length Stdlib.Blob.empty = 0L
 
 // fromString / toString roundtrip
 (match Stdlib.Blob.toString (Stdlib.Blob.fromString "hello") with
  | Ok s -> s
  | Error e -> e) = "hello"
+
+// fromHex returns Result<Blob,String>; length of decoded deadbeef = 4 bytes
+(match Stdlib.Blob.fromHex "deadbeef" with
+ | Ok b -> Stdlib.Blob.length b
+ | Error _ -> -1L) = 4L
 
 // hex roundtrip via wrapper
 (match Stdlib.Blob.fromHex "48656c6c6f" with
@@ -83,11 +32,11 @@ Stdlib.Blob.length Stdlib.Blob.empty = 0L
     | Error e -> e)
  | Error e -> e) = "Hello"
 
+// toHex roundtrip (uppercase output)
+Stdlib.Blob.toHex (Stdlib.Blob.fromString "ok") = "6F6B"
 Stdlib.Blob.toHex (Stdlib.Blob.fromString "Hi") = "4869"
 
-// base64 roundtrip via wrapper
-Stdlib.Blob.toBase64 (Stdlib.Blob.fromString "hello") = "aGVsbG8="
-
+// base64 roundtrip
 (match Stdlib.Blob.fromBase64 "aGVsbG8=" with
  | Ok b ->
    (match Stdlib.Blob.toString b with
@@ -95,7 +44,9 @@ Stdlib.Blob.toBase64 (Stdlib.Blob.fromString "hello") = "aGVsbG8="
     | Error e -> e)
  | Error e -> e) = "hello"
 
-// concat via wrapper
+Stdlib.Blob.toBase64 (Stdlib.Blob.fromString "hello") = "aGVsbG8="
+
+// concat
 (match Stdlib.Blob.toString
         (Stdlib.Blob.concat
           [ Stdlib.Blob.fromString "foo"
@@ -104,7 +55,7 @@ Stdlib.Blob.toBase64 (Stdlib.Blob.fromString "hello") = "aGVsbG8="
  | Ok s -> s
  | Error _ -> "err") = "foo-bar"
 
-// slice via wrapper (three middle bytes of "abcdef" = "cde")
+// slice (middle three bytes of "abcdef" = "cde")
 (match Stdlib.Blob.toString
         (Stdlib.Blob.slice (Stdlib.Blob.fromString "abcdef") 2L 3L) with
  | Ok s -> s

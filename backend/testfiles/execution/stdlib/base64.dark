@@ -4,12 +4,12 @@
 // TODO: try decoding values with incorrect padding
 
 // Base64.decode
-Stdlib.Base64.decode "" = Stdlib.Result.Result.Ok(Builtin.blobFromString "")
+Stdlib.Base64.decode "" = Stdlib.Result.Result.Ok(Stdlib.Blob.fromString "")
 Stdlib.Base64.decode "garbage text" = Stdlib.Result.Result.Error "Not a valid base64 string"
-Stdlib.Base64.decode "Kw" = Stdlib.Result.Result.Ok(Builtin.blobFromString "+")
-Stdlib.Base64.decode "yLo" = Stdlib.Result.Result.Ok(Builtin.blobFromString "Ⱥ")
-Stdlib.Base64.decode "xbzDs8WCdw" = Stdlib.Result.Result.Ok(Builtin.blobFromString "żółw")
-Stdlib.Base64.decode "LyotKygmQDk4NTIx" = Stdlib.Result.Result.Ok(Builtin.blobFromString "/*-+(&@98521")
+Stdlib.Base64.decode "Kw" = Stdlib.Result.Result.Ok(Stdlib.Blob.fromString "+")
+Stdlib.Base64.decode "yLo" = Stdlib.Result.Result.Ok(Stdlib.Blob.fromString "Ⱥ")
+Stdlib.Base64.decode "xbzDs8WCdw" = Stdlib.Result.Result.Ok(Stdlib.Blob.fromString "żółw")
+Stdlib.Base64.decode "LyotKygmQDk4NTIx" = Stdlib.Result.Result.Ok(Stdlib.Blob.fromString "/*-+(&@98521")
 
 // some failures
 Stdlib.Base64.decode "illegal-chars&@:" = Stdlib.Result.Result.Error "Not a valid base64 string"
@@ -17,50 +17,50 @@ Stdlib.Base64.decode "x" = Stdlib.Result.Result.Error "Not a valid base64 string
 
 // empty case
 // Test cases from the spec with padding added
-Stdlib.Base64.decode "Zg" = Stdlib.Result.Result.Ok(Builtin.blobFromString "f")
-Stdlib.Base64.decode "Zg==" = Stdlib.Result.Result.Ok(Builtin.blobFromString "f")
-Stdlib.Base64.decode "Zm8" = Stdlib.Result.Result.Ok(Builtin.blobFromString "fo")
-Stdlib.Base64.decode "Zm8=" = Stdlib.Result.Result.Ok(Builtin.blobFromString "fo")
-Stdlib.Base64.decode "Zm9v" = Stdlib.Result.Result.Ok(Builtin.blobFromString "foo")
-Stdlib.Base64.decode "Zm9vYg" = Stdlib.Result.Result.Ok(Builtin.blobFromString "foob")
-Stdlib.Base64.decode "Zm9vYg==" = Stdlib.Result.Result.Ok(Builtin.blobFromString "foob")
-Stdlib.Base64.decode "Zm9vYmE" = Stdlib.Result.Result.Ok(Builtin.blobFromString "fooba")
-Stdlib.Base64.decode "Zm9vYmE=" = Stdlib.Result.Result.Ok(Builtin.blobFromString "fooba")
-Stdlib.Base64.decode "Zm9vYmFy" = Stdlib.Result.Result.Ok(Builtin.blobFromString "foobar")
+Stdlib.Base64.decode "Zg" = Stdlib.Result.Result.Ok(Stdlib.Blob.fromString "f")
+Stdlib.Base64.decode "Zg==" = Stdlib.Result.Result.Ok(Stdlib.Blob.fromString "f")
+Stdlib.Base64.decode "Zm8" = Stdlib.Result.Result.Ok(Stdlib.Blob.fromString "fo")
+Stdlib.Base64.decode "Zm8=" = Stdlib.Result.Result.Ok(Stdlib.Blob.fromString "fo")
+Stdlib.Base64.decode "Zm9v" = Stdlib.Result.Result.Ok(Stdlib.Blob.fromString "foo")
+Stdlib.Base64.decode "Zm9vYg" = Stdlib.Result.Result.Ok(Stdlib.Blob.fromString "foob")
+Stdlib.Base64.decode "Zm9vYg==" = Stdlib.Result.Result.Ok(Stdlib.Blob.fromString "foob")
+Stdlib.Base64.decode "Zm9vYmE" = Stdlib.Result.Result.Ok(Stdlib.Blob.fromString "fooba")
+Stdlib.Base64.decode "Zm9vYmE=" = Stdlib.Result.Result.Ok(Stdlib.Blob.fromString "fooba")
+Stdlib.Base64.decode "Zm9vYmFy" = Stdlib.Result.Result.Ok(Stdlib.Blob.fromString "foobar")
 
 // "Impossible cases" from apache
 // https://commons.apache.org/proper/commons-codec/xref-test/org/apache/commons/codec/binary/Base64Test.html
-Stdlib.Base64.decode "ZE==" = Stdlib.Result.Result.Ok(Builtin.blobFromString "d")
-Stdlib.Base64.decode "ZmC=" = Stdlib.Result.Result.Ok(Builtin.blobFromString "f`")
-Stdlib.Base64.decode "Zm9vYE==" = Stdlib.Result.Result.Ok(Builtin.blobFromString "foo`")
-Stdlib.Base64.decode "Zm9vYmC=" = Stdlib.Result.Result.Ok(Builtin.blobFromString "foob`")
+Stdlib.Base64.decode "ZE==" = Stdlib.Result.Result.Ok(Stdlib.Blob.fromString "d")
+Stdlib.Base64.decode "ZmC=" = Stdlib.Result.Result.Ok(Stdlib.Blob.fromString "f`")
+Stdlib.Base64.decode "Zm9vYE==" = Stdlib.Result.Result.Ok(Stdlib.Blob.fromString "foo`")
+Stdlib.Base64.decode "Zm9vYmC=" = Stdlib.Result.Result.Ok(Stdlib.Blob.fromString "foob`")
 
 // longer tests
-Stdlib.Base64.decode "ZnJvbT0wNi8wNy8yMDEzIHF1ZXJ5PSLOms6xzrvPjs-CIM6_z4HOr8-DzrHPhM61Ig" = Darklang.Stdlib.Result.Result.Ok(Builtin.blobFromString "from=06/07/2013 query=\"Καλώς ορίσατε\"")
-Stdlib.Base64.decode "8J-RsfCfkbHwn4-78J-RsfCfj7zwn5Gx8J-PvfCfkbHwn4--8J-RsfCfj78" = Darklang.Stdlib.Result.Result.Ok(Builtin.blobFromString "👱👱🏻👱🏼👱🏽👱🏾👱🏿")
+Stdlib.Base64.decode "ZnJvbT0wNi8wNy8yMDEzIHF1ZXJ5PSLOms6xzrvPjs-CIM6_z4HOr8-DzrHPhM61Ig" = Darklang.Stdlib.Result.Result.Ok(Stdlib.Blob.fromString "from=06/07/2013 query=\"Καλώς ορίσατε\"")
+Stdlib.Base64.decode "8J-RsfCfkbHwn4-78J-RsfCfj7zwn5Gx8J-PvfCfkbHwn4--8J-RsfCfj78" = Darklang.Stdlib.Result.Result.Ok(Stdlib.Blob.fromString "👱👱🏻👱🏼👱🏽👱🏾👱🏿")
 
 // These produce strings of bytes which are technically legal it seems
-Stdlib.Base64.decode "-p" = Stdlib.Result.Result.Ok(Builtin.blobFromBytes [ 250uy ])
-Stdlib.Base64.decode "lI" = Stdlib.Result.Result.Ok(Builtin.blobFromBytes [ 148uy ])
-Stdlib.Base64.decode "5Sk" = Stdlib.Result.Result.Ok(Builtin.blobFromBytes [ 229uy; 41uy ])
-Stdlib.Base64.decode "AA" = Stdlib.Result.Result.Ok(Builtin.blobFromBytes [ 0uy ])
-Stdlib.Base64.decode "_w" = Stdlib.Result.Result.Ok(Builtin.blobFromBytes [ 255uy ])
+Stdlib.Base64.decode "-p" = Stdlib.Result.Result.Ok(Stdlib.Blob.fromList [ 250uy ])
+Stdlib.Base64.decode "lI" = Stdlib.Result.Result.Ok(Stdlib.Blob.fromList [ 148uy ])
+Stdlib.Base64.decode "5Sk" = Stdlib.Result.Result.Ok(Stdlib.Blob.fromList [ 229uy; 41uy ])
+Stdlib.Base64.decode "AA" = Stdlib.Result.Result.Ok(Stdlib.Blob.fromList [ 0uy ])
+Stdlib.Base64.decode "_w" = Stdlib.Result.Result.Ok(Stdlib.Blob.fromList [ 255uy ])
 
 
 // Base64.encode
-Stdlib.Base64.encode (Builtin.blobFromString "abcdef") = "YWJjZGVm"
-Stdlib.Base64.encode (Builtin.blobFromString "Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇") = "WsykzZTNp8yRzJPDpM2WzK3MiMyHbM2uzJLNq8enzJfNmsyab8yZzJTNrsyHzZDMhw=="
-Stdlib.Base64.encode (Builtin.blobFromString "اختبار النص") = "2KfYrtiq2KjYp9ixINin2YTZhti1"
-Stdlib.Base64.encode (Builtin.blobFromString "﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽") = "77e977e977e977e977e977e977e977e977e977e977e977e977e977e977e977e9"
-Stdlib.Base64.encode (Builtin.blobFromString "👱👱🏻👱🏼👱🏽👱🏾👱🏿") = "8J+RsfCfkbHwn4+78J+RsfCfj7zwn5Gx8J+PvfCfkbHwn4++8J+RsfCfj78="
-Stdlib.Base64.encode (Builtin.blobFromString "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️🇵🇷") = "8J+RqOKAjeKdpO+4j+KAjfCfkovigI3wn5Go8J+RqeKAjfCfkanigI3wn5Gn4oCN8J+RpvCfj7PvuI/igI3imqfvuI/wn4e18J+Htw=="
+Stdlib.Base64.encode (Stdlib.Blob.fromString "abcdef") = "YWJjZGVm"
+Stdlib.Base64.encode (Stdlib.Blob.fromString "Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇") = "WsykzZTNp8yRzJPDpM2WzK3MiMyHbM2uzJLNq8enzJfNmsyab8yZzJTNrsyHzZDMhw=="
+Stdlib.Base64.encode (Stdlib.Blob.fromString "اختبار النص") = "2KfYrtiq2KjYp9ixINin2YTZhti1"
+Stdlib.Base64.encode (Stdlib.Blob.fromString "﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽") = "77e977e977e977e977e977e977e977e977e977e977e977e977e977e977e977e9"
+Stdlib.Base64.encode (Stdlib.Blob.fromString "👱👱🏻👱🏼👱🏽👱🏾👱🏿") = "8J+RsfCfkbHwn4+78J+RsfCfj7zwn5Gx8J+PvfCfkbHwn4++8J+RsfCfj78="
+Stdlib.Base64.encode (Stdlib.Blob.fromString "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️🇵🇷") = "8J+RqOKAjeKdpO+4j+KAjfCfkovigI3wn5Go8J+RqeKAjfCfkanigI3wn5Gn4oCN8J+RpvCfj7PvuI/igI3imqfvuI/wn4e18J+Htw=="
 
 
-Stdlib.Base64.urlEncode (Builtin.blobFromString "abcdef") = "YWJjZGVm"
-Stdlib.Base64.urlEncode (Builtin.blobFromString "Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇") = "WsykzZTNp8yRzJPDpM2WzK3MiMyHbM2uzJLNq8enzJfNmsyab8yZzJTNrsyHzZDMhw=="
-Stdlib.Base64.urlEncode (Builtin.blobFromString "اختبار النص") = "2KfYrtiq2KjYp9ixINin2YTZhti1"
-Stdlib.Base64.urlEncode (Builtin.blobFromString "﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽") = "77e977e977e977e977e977e977e977e977e977e977e977e977e977e977e977e9"
-Stdlib.Base64.urlEncode (Builtin.blobFromString "👱👱🏻👱🏼👱🏽👱🏾👱🏿") = "8J-RsfCfkbHwn4-78J-RsfCfj7zwn5Gx8J-PvfCfkbHwn4--8J-RsfCfj78="
+Stdlib.Base64.urlEncode (Stdlib.Blob.fromString "abcdef") = "YWJjZGVm"
+Stdlib.Base64.urlEncode (Stdlib.Blob.fromString "Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇") = "WsykzZTNp8yRzJPDpM2WzK3MiMyHbM2uzJLNq8enzJfNmsyab8yZzJTNrsyHzZDMhw=="
+Stdlib.Base64.urlEncode (Stdlib.Blob.fromString "اختبار النص") = "2KfYrtiq2KjYp9ixINin2YTZhti1"
+Stdlib.Base64.urlEncode (Stdlib.Blob.fromString "﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽") = "77e977e977e977e977e977e977e977e977e977e977e977e977e977e977e977e9"
+Stdlib.Base64.urlEncode (Stdlib.Blob.fromString "👱👱🏻👱🏼👱🏽👱🏾👱🏿") = "8J-RsfCfkbHwn4-78J-RsfCfj7zwn5Gx8J-PvfCfkbHwn4--8J-RsfCfj78="
 
-Stdlib.Base64.urlEncode (Builtin.blobFromString "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️🇵🇷") =
+Stdlib.Base64.urlEncode (Stdlib.Blob.fromString "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️🇵🇷") =
   "8J-RqOKAjeKdpO-4j-KAjfCfkovigI3wn5Go8J-RqeKAjfCfkanigI3wn5Gn4oCN8J-RpvCfj7PvuI_igI3imqfvuI_wn4e18J-Htw=="
