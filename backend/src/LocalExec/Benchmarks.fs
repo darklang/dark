@@ -1,8 +1,21 @@
 /// Allocation/timing benchmarks for the Blob and Stream code paths.
 ///
-/// Run via `./scripts/run-local-exec bench`. Writes a JSON snapshot to
-/// `backend/benchmarks/results/latest.json` (and appends to history.jsonl).
-/// View via `backend/benchmarks/viewer.html`.
+/// Three subcommands:
+///   `bench`                          — run all scenarios, write
+///                                      `benchmarks/results/latest.json`,
+///                                      append to history.jsonl.
+///   `bench-promote [--name <label>]` — copy `latest.json` to
+///                                      `benchmarks/results/<label>.json`
+///                                      (label defaults to today's
+///                                      date). The committed historic
+///                                      record. Tracked in git.
+///   `bench-render`                   — read `latest.json` plus the
+///                                      committed historic snapshots,
+///                                      regenerate `benchmarks/results.md`.
+///
+/// Local hacking: drop a snapshot in
+/// `benchmarks/results/local-*.json` (gitignored) to keep it out of
+/// the tracked record.
 module LocalExec.Benchmarks
 
 open System.Threading.Tasks
@@ -70,6 +83,16 @@ let private jsonEscape (s : string) : string =
 
 let private serializeResult (r : Result) : string =
   $"""    {{ "scenario": "{jsonEscape r.scenario}", "inputBytes": {r.inputBytes}, "allocBytes": {r.allocBytes}, "elapsedMs": {r.elapsedMs}, "dvalNodes": {r.dvalNodes}, "note": "{jsonEscape r.note}" }}"""
+
+
+/// runDir = `<repo>/rundir`; benchmarks live under `<repo>/benchmarks/results`.
+let private resultsDir () : string =
+  System.IO.Path.Combine(LibConfig.Config.runDir, "..", "benchmarks", "results")
+  |> System.IO.Path.GetFullPath
+
+
+let private latestPath () : string =
+  System.IO.Path.Combine(resultsDir (), "latest.json")
 
 
 /// Make a fresh ExecutionState for measurement runs. Uses the empty
@@ -388,16 +411,7 @@ let runAll () : Ply<Result<unit, string>> =
 }}
 """
 
-    // runDir = `<repo>/rundir`; the results live under `<repo>/backend/benchmarks/results`.
-    let outDir =
-      System.IO.Path.Combine(
-        LibConfig.Config.runDir,
-        "..",
-        "backend",
-        "benchmarks",
-        "results"
-      )
-      |> System.IO.Path.GetFullPath
+    let outDir = resultsDir ()
     System.IO.Directory.CreateDirectory(outDir) |> ignore<System.IO.DirectoryInfo>
 
     System.IO.File.WriteAllText(System.IO.Path.Combine(outDir, "latest.json"), json)
@@ -425,4 +439,161 @@ let runAll () : Ply<Result<unit, string>> =
       print $"{scenarioPad} {inputPad}    {allocPad}  {overheadPad} {msPad}"
 
     return Ok()
+  }
+
+
+/// Copy `latest.json` to `<name>.json` so it becomes a tracked snapshot.
+/// `name` defaults to today's date (YYYY-MM-DD). Idempotent — overwrites
+/// an existing same-named snapshot.
+let promote (name : string option) : Ply<Result<unit, string>> =
+  uply {
+    let latest = latestPath ()
+    if not (System.IO.File.Exists(latest)) then
+      return Error $"No latest.json at {latest} — run `bench` before promoting."
+    else
+      let label =
+        match name with
+        | Some n -> n
+        | None -> System.DateTime.UtcNow.ToString("yyyy-MM-dd")
+      let target = System.IO.Path.Combine(resultsDir (), $"{label}.json")
+      System.IO.File.Copy(latest, target, overwrite = true)
+      print $"Promoted latest.json to {target}"
+      return Ok()
+  }
+
+
+/// Read the JSON snapshot at `path` and return (timestamp, commit, results).
+/// Best-effort: returns `None` if anything's malformed.
+let private readSnapshot (path : string) : Option<string * string * List<Result>> =
+  try
+    let text = System.IO.File.ReadAllText(path)
+    use doc = System.Text.Json.JsonDocument.Parse(text)
+    let root = doc.RootElement
+    let timestamp = root.GetProperty("timestamp").GetString()
+    let commit = root.GetProperty("commit").GetString()
+    let results =
+      root.GetProperty("results").EnumerateArray()
+      |> Seq.map (fun el ->
+        { scenario = el.GetProperty("scenario").GetString()
+          inputBytes = el.GetProperty("inputBytes").GetInt64()
+          allocBytes = el.GetProperty("allocBytes").GetInt64()
+          elapsedMs = el.GetProperty("elapsedMs").GetInt64()
+          dvalNodes = el.GetProperty("dvalNodes").GetInt32()
+          note = el.GetProperty("note").GetString() })
+      |> Seq.toList
+    Some(timestamp, commit, results)
+  with _ ->
+    None
+
+
+let private formatBytes (n : int64) : string =
+  System.String.Format(
+    System.Globalization.CultureInfo.InvariantCulture,
+    "{0:N0}",
+    n
+  )
+
+
+let private overheadStr (alloc : int64) (input : int64) : string =
+  if input <= 0L then "-" else $"{(float alloc) / (float input):F2}x"
+
+
+/// Render the markdown table block for one snapshot, grouped by scenario.
+let private renderSnapshotBody (results : List<Result>) : System.Text.StringBuilder =
+  let sb = System.Text.StringBuilder()
+  // Stable grouping by scenario family (prefix before '/'), preserving
+  // the input order for both the family list and the rows within.
+  let grouped =
+    results
+    |> List.fold
+      (fun acc r ->
+        let group = r.scenario.Split('/')[0]
+        match acc |> List.tryFindIndex (fun (g, _) -> g = group) with
+        | Some i ->
+          acc
+          |> List.mapi (fun j (g, rs) -> if j = i then (g, rs @ [ r ]) else (g, rs))
+        | None -> acc @ [ (group, [ r ]) ])
+      []
+  for (group, rows) in grouped do
+    sb.AppendLine($"### {group}") |> ignore<System.Text.StringBuilder>
+    sb.AppendLine() |> ignore<System.Text.StringBuilder>
+    sb.AppendLine(
+      "| scenario | input bytes | alloc bytes | overhead | ms | dval nodes |"
+    )
+    |> ignore<System.Text.StringBuilder>
+    sb.AppendLine(
+      "| -------- | ----------: | ----------: | -------: | -: | ---------: |"
+    )
+    |> ignore<System.Text.StringBuilder>
+    for r in rows do
+      sb.AppendLine(
+        $"| {r.scenario} | {formatBytes r.inputBytes} | {formatBytes r.allocBytes} | {overheadStr r.allocBytes r.inputBytes} | {r.elapsedMs} | {r.dvalNodes} |"
+      )
+      |> ignore<System.Text.StringBuilder>
+    sb.AppendLine() |> ignore<System.Text.StringBuilder>
+  sb
+
+
+/// Read every committed snapshot in `benchmarks/results/` (latest.json
+/// plus all `*.json` not matching `local-*`) and write
+/// `benchmarks/results.md`. Latest is rendered in full; tracked
+/// historic snapshots get a one-line entry with their commit + date.
+let render () : Ply<Result<unit, string>> =
+  uply {
+    let dir = resultsDir ()
+    if not (System.IO.Directory.Exists(dir)) then
+      return Error $"No results dir at {dir} — run `bench` before rendering."
+    else
+      let latest = latestPath ()
+      match readSnapshot latest with
+      | None -> return Error $"Couldn't read {latest}"
+      | Some(latestTs, latestCommit, latestResults) ->
+        let sb = System.Text.StringBuilder()
+        sb.AppendLine("# Benchmark results") |> ignore<System.Text.StringBuilder>
+        sb.AppendLine() |> ignore<System.Text.StringBuilder>
+        sb.AppendLine(
+          "Generated by `./scripts/run-local-exec bench-render`. Don't edit by hand."
+        )
+        |> ignore<System.Text.StringBuilder>
+        sb.AppendLine() |> ignore<System.Text.StringBuilder>
+        sb.AppendLine($"## Latest — {latestTs} @ `{latestCommit.Substring(0, 7)}`")
+        |> ignore<System.Text.StringBuilder>
+        sb.AppendLine() |> ignore<System.Text.StringBuilder>
+        sb.Append(renderSnapshotBody latestResults)
+        |> ignore<System.Text.StringBuilder>
+
+        // Tracked snapshots: every *.json that isn't latest.json or
+        // local-*.
+        let trackedFiles =
+          System.IO.Directory.GetFiles(dir, "*.json")
+          |> Array.filter (fun p ->
+            let name = System.IO.Path.GetFileName(p)
+            name <> "latest.json" && not (name.StartsWith("local-")))
+          |> Array.sortDescending
+
+        if trackedFiles.Length > 0 then
+          sb.AppendLine("## Tracked historic snapshots")
+          |> ignore<System.Text.StringBuilder>
+          sb.AppendLine() |> ignore<System.Text.StringBuilder>
+          sb.AppendLine("| label | timestamp | commit |")
+          |> ignore<System.Text.StringBuilder>
+          sb.AppendLine("| ----- | --------- | ------ |")
+          |> ignore<System.Text.StringBuilder>
+          for path in trackedFiles do
+            let label = System.IO.Path.GetFileNameWithoutExtension(path)
+            match readSnapshot path with
+            | Some(ts, commit, _) ->
+              sb.AppendLine($"| `{label}` | {ts} | `{commit.Substring(0, 7)}` |")
+              |> ignore<System.Text.StringBuilder>
+            | None ->
+              sb.AppendLine($"| `{label}` | (unreadable) | - |")
+              |> ignore<System.Text.StringBuilder>
+          sb.AppendLine() |> ignore<System.Text.StringBuilder>
+
+        let outPath =
+          System.IO.Path.Combine(dir, "..", "results.md")
+          |> System.IO.Path.GetFullPath
+        System.IO.File.WriteAllText(outPath, sb.ToString())
+        print $"Wrote {outPath}"
+        return Ok()
   }

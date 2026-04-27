@@ -1,2 +1,0 @@
-# Per-run history file. Append-only locally; latest.json is what's tracked.
-results/history.jsonl

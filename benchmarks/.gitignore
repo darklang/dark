@@ -1,0 +1,7 @@
+# Per-run history file. Append-only locally; latest.json + named
+# snapshots are what's tracked.
+results/history.jsonl
+
+# Local-only experiments. Promote (`bench-promote --name <label>`) to
+# turn a local run into a tracked snapshot.
+results/local-*.json
