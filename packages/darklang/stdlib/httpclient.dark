@@ -177,6 +177,13 @@ module Sse =
   /// across events per the SSE spec; `currentLines` holds the field
   /// lines for the block we're currently assembling; `currentLine`
   /// is the byte buffer for the line we're currently reading.
+  ///
+  /// TODO `currentLine` stays `List<UInt8>` (not `Blob`) because it's
+  /// accessed byte-by-byte during the parse — one append per byte and
+  /// frequent fold-over-bytes for the line scan. Blob.concat would
+  /// reallocate the whole buffer on every append. Worth revisiting if
+  /// anyone profiles the SSE parser; could become Blob with an
+  /// internal append-segments representation.
   type ParseState =
     { lastId: String
       currentLines: List<String>

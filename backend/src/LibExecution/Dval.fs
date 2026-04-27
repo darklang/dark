@@ -356,6 +356,23 @@ let rec private pullStreamImpl (impl : StreamImpl) : Ply.Ply<Option<Dval>> =
 /// through Mapped/Filtered/Take/Concat nodes happens in
 /// [pullStreamImpl]; on exhaustion, any IO-source disposers attached
 /// to FromIO nodes are invoked.
+///
+/// TODO LATENT BUG: the single-consumer invariant is unenforced.
+/// `disposed` only short-circuits AFTER drain; two callers entering
+/// `readStreamNext` concurrently on the same DStream interleave
+/// silently. Cheap fix: a semaphore-with-permit-1 + raise on contention.
+/// Proper fix: a Ply-aware lock that survives continuation awaits —
+/// that's a Ply-internals refactor. Nothing in the codebase shares a
+/// DStream across consumers today, but the type system doesn't prevent
+/// it.
+///
+/// TODO per-element Ply continuation cost: every `next` allocates a
+/// state machine. A 1000-element pipeline with three transforms is
+/// ~3000 allocations. The chunked `nextChunk` fast path covers byte
+/// streams; element-wise streams pay full cost. Real fix is replacing
+/// Ply with something cheaper — either a custom `Future<'a>` struct or
+/// a CPS interpreter with a fiber scheduler. Multi-week effort, not
+/// part of any blob/stream chunk.
 let readStreamNext (dv : Dval) : Ply.Ply<Option<Dval>> =
   uply {
     match dv with
@@ -449,7 +466,20 @@ let sha256Hex (bytes : byte[]) : string =
 /// (binary, JSON) still raise on ephemeral — promote first, serialize
 /// second.
 ///
-/// TODO: trace capture path should also call this.
+/// TODO LATENT BUG: `Tracing.fs` (storeTraceInput / storeFnResult) does
+/// NOT call this before serializing through DvalReprInternalRoundtrippable.
+/// A captured trace holding a `DBlob(Ephemeral _)` deserialises in a
+/// fresh VM with the UUID intact but no bytes in that VM's blobStore,
+/// so the next `readBlobBytes` raises "ephemeral blob not found".
+/// Fix: thread a `promoteForCapture : Dval -> Ply<Dval>` through the
+/// Tracing.T record (Tracing.create populates it from the active
+/// ExecutionState), wrap each storeXXX in promote-then-serialize.
+/// Needs care because Tracing.T is also used in non-blob test contexts.
+///
+/// CLEANUP rebuilds container Dvals (Map.toList → walk children →
+/// Map.ofList) even when no descendant blob promoted. Alloc-cheap in
+/// practice (~75KB regardless of input size), but a "did anything
+/// change" short-circuit would skip the round-trip in the common case.
 let promoteBlobs
   (exeState : ExecutionState)
   (insert : string -> byte[] -> Ply.Ply<unit>)

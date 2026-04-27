@@ -354,6 +354,13 @@ type StringSegment =
 /// Where the bytes of a DBlob actually live. Ephemeral refs resolve
 /// via [ExecutionState.blobStore]; persistent refs resolve via the
 /// package manager's `blobs` lookup.
+///
+/// TODO BEAM-style sub-blob sharing: add
+///   `| Subblob of parent: BlobRef * offset: int64 * length: int64`
+/// so `Bytes.slice` returns a view rather than copying. `readBlobBytes`
+/// would walk to the root; promotion would promote just the slice
+/// (default) or the parent. Skip until a profile shows slice-copy is
+/// hot — neither phase-1 nor phase-2 measurements flagged it.
 type BlobRef =
   | Ephemeral of uuid
   | Persistent of hash : string * length : int64
@@ -662,11 +669,24 @@ and [<NoComparison>] Dval =
 /// can't call Exe.executeApplicable directly since it sits earlier in
 /// the dependency chain.
 ///
+/// TODO Mapped/Filtered closures hold a reference to the originating
+/// `ExecutionState`. If a Stream ever outlives its execution (long-lived
+/// debug pause, returned-from-handler-and-stashed), the closure pins
+/// stale state. Today this can't manifest — DStream isn't persistable
+/// (`isPersistable` rejects, binary-serialise raises), so a stream
+/// returned from a handler dies with its VM. Fix when it becomes a
+/// real path: pass `state` as a parameter to `next`/`nextChunk` rather
+/// than capturing it.
+///
 /// Take tracks both the original `n` (for introspection/printing) and
 /// a mutable `remaining` counter that decrements on each pull.
 ///
 /// Concat's `streams` list is a mutable ref — drain pops exhausted
 /// heads so subsequent pulls skip over them without re-entering.
+/// TODO this is unsafe under shared access — two callers pulling from
+/// the same Concat impl would see torn views. Today the single-consumer
+/// invariant prevents that, but the type system doesn't enforce it.
+/// Fold this into the broader single-consumer enforcement work below.
 ///
 /// Has a custom `Equals` that always returns false — `FromIO`'s pull
 /// fn is a closure, so there's no sensible structural-equality story,
@@ -692,6 +712,13 @@ and [<CustomEquality; NoComparison>] StreamImpl =
   /// this path; byte-by-byte `next` stays authoritative for element-
   /// wise pulls (`streamNext` on `Stream<UInt8>`). Non-byte streams
   /// leave this `None`.
+  ///
+  /// TODO no backpressure: a producer faster than its consumer fills
+  /// memory. Today HTTP is network-bounded and in-process producers
+  /// (`streamFromList` over a huge list, `streamUnfold` with no
+  /// termination) are the only unbounded paths. Becomes load-bearing
+  /// if anyone adds a "buffer N elements ahead" or "merge multiple
+  /// streams" combinator.
   | FromIO of
     next : (unit -> Ply<Option<Dval>>) *
     elemType : ValueType *
@@ -741,6 +768,12 @@ module StreamImpl =
   /// transforms that inherit from their source (Filtered, Take,
   /// Concat) and reports the head element type for Mapped. Concat
   /// over an empty list has no known element type.
+  ///
+  /// CLEANUP this walks the full transform tree on every call. Hot
+  /// for type-checking `streamMap` results and `toValueType` on
+  /// long pipelines. Cheap fix: cache at construction (the type is
+  /// invariant once the StreamImpl is built — Concat's head doesn't
+  /// change once frozen at construction). 🔧
   let rec elemType (impl : StreamImpl) : ValueType =
     match impl with
     | FromIO(_, t, _, _) -> t
@@ -1681,6 +1714,9 @@ and ExecutionState =
     ///     pop. A handler that pulls many large files or HTTP bodies
     ///     can still balloon one request's footprint; no per-scope
     ///     byte budget or backpressure enforces a ceiling.
+    ///     TODO config-driven byte-budget on `newEphemeralBlob`, raise
+    ///     on overflow. Eviction breaks identity once a UUID is gone,
+    ///     so raise-on-overflow is the only safe option.
     ///   - No explicit eviction for ephemerals that outlive their
     ///     usefulness within a scope (e.g. a byte[] built, read once,
     ///     then logically dead): they sit in `blobStore` until the
@@ -1689,6 +1725,9 @@ and ExecutionState =
     ///     CLI command, which scans `package_values.rt_dval` only —
     ///     `trace_data` and User DB rows don't hold blob refs today,
     ///     but any new referencing table needs wiring into the sweep.
+    ///     TODO turn the sweep into "scan a list of (table, column)
+    ///     pairs" defined alongside the schema so new blob-holding
+    ///     columns register themselves.
     ///   - No reverse-index table (`package_blob_refs`) — the sweep
     ///     is O(N+M). Fine at current scale; revisit at higher
     ///     package counts.

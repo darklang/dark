@@ -192,6 +192,10 @@ let fns () : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
+    // TODO copy-free slicing via a `Subblob` BlobRef variant (see
+    // RuntimeTypes.fs:BlobRef). Today's slice always allocates a
+    // fresh byte[]; fine at current sizes, wasteful for 100MB chunked
+    // processing. Reopen when a profile flags slice-copy as hot.
     { name = fn "blobSlice" 0
       typeParams = []
       parameters =
@@ -273,6 +277,17 @@ let fns () : List<BuiltInFn> =
         DeprecatedBecause
           "Use blobToHex on a Blob instead. bytesHexEncode takes List<UInt8>, which the runtime materialises as one Dval per byte — prohibitively expensive past ~1 MB." } ]
 
+// TODO `blobEmpty` is the only BuiltInValue we ship. The pattern is
+// general — `intMaxInt64`, `uuidNil`, etc. could all live here — but
+// today it's a sample size of one, so the surrounding machinery isn't
+// well-exercised. Add a second use case before relying on it for
+// anything load-bearing.
+//
+// TODO general "Builtin bytes constant" pattern: a `seeds : List<byte[]>`
+// field on Builtins, with LocalExec-startup hashing + INSERT OR IGNORE
+// into `package_blobs`. Lets `Builtin.someBlobConstant` ship bytes from
+// F# source without per-constant plumbing. Worth doing once we have
+// a second non-empty blob constant to motivate it.
 let values () : List<BuiltInValue> =
   [ { name = LibExecution.Builtin.Shortcuts.value "blobEmpty" 0
       typ = TBlob

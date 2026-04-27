@@ -326,6 +326,11 @@ let trimStart (str: String) : String = Builtin.stringTrimStart str
 let trimEnd (str: String) : String = Builtin.stringTrimEnd str
 
 
+// TODO retype these three to Blob (drop the List<UInt8> bridges) once
+// the Http server, CLI file ops, and the LSP logger no longer require
+// the byte-list shape. Prefer `Stdlib.String.toBlob` / the Blob-based
+// stringFromBlob{,WithReplacement} for new code.
+
 /// Converts the given unicode string to a UTF8-encoded byte sequence.
 let toBytes (str: String) : List<UInt8> =
   Builtin.blobToBytes (Builtin.stringToBlob str)

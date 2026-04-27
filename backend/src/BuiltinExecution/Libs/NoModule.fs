@@ -177,6 +177,14 @@ let fns () : List<BuiltInFn> =
             // that two ephemerals with the same bytes compare equal.
             // Uses promoteBlobs with a no-op insert — we only need
             // the hash, not the persistence side effect.
+            //
+            // CLEANUP this rebuilds Dval subtrees containing blobs
+            // (each promoted ref is a fresh Dval), and SHA-256s every
+            // ephemeral on both sides unconditionally. A dedicated
+            // `equalsHashing` that walked both trees in parallel,
+            // hashed on demand (memoised per UUID), and skipped the
+            // rebuild allocation would be faster for tight-loop
+            // comparisons. Not on fire today.
             uply {
               let noopInsert _ _ = uply { return () }
               let! a = Dval.promoteBlobs state noopInsert a

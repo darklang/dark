@@ -710,6 +710,11 @@ module Dval =
       // can't round-trip (no live pull fn on the other side).
       // [StreamImpl.elemType] walks transform nodes (Mapped/Filtered/
       // Take/Concat) to report the emitted element type.
+      // TODO this is a one-way bridge — `fromDT` raises on DStreamStub.
+      // Any user code that introspects a Dval and rebuilds it (custom
+      // pretty-printer, trace viewer) silently breaks for streams. The
+      // asymmetry isn't documented in the public API. Document it or
+      // add a "rehydrate as a no-op stub stream" path.
       | DStream(impl, _, _) ->
         "DStreamStub", [ ValueType.toDT (StreamImpl.elemType impl) ]
 

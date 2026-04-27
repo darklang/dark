@@ -1,5 +1,11 @@
 module Darklang.Stdlib.Blob
 
+// TODO no Blob literal syntax — embedding small binary data in source
+// today requires `Blob.fromHex "..."` or `Blob.fromString "..."`. A
+// `b"\x00\x01..."` form would be the natural fix, plus tree-sitter
+// grammar + F# parser pass + runtime literal handling. Cross-cutting
+// language change.
+
 
 /// The empty Blob.
 ///
