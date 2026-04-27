@@ -1,4 +1,4 @@
-module BuiltinExecution.Libs.Bytes
+module BuiltinExecution.Libs.Blob
 
 open System.Text
 
@@ -257,25 +257,7 @@ let fns () : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
-      deprecated = NotDeprecated }
-
-
-    { name = fn "bytesHexEncode" 0
-      typeParams = []
-      parameters = [ Param.make "bytes" (TList TUInt8) "" ]
-      returnType = TString
-      description = "Hex (Base16) encodes <param bytes> using an uppercase alphabet."
-      fn =
-        (function
-        | _, _, _, [ DList(_, items) ] ->
-          let bs = Dval.dlistToByteArray items
-          System.Convert.ToHexString(bs) |> DString |> Ply
-        | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplemented
-      previewable = Pure
-      deprecated =
-        DeprecatedBecause
-          "Use blobToHex on a Blob instead. bytesHexEncode takes List<UInt8>, which the runtime materialises as one Dval per byte — prohibitively expensive past ~1 MB." } ]
+      deprecated = NotDeprecated } ]
 
 // TODO `blobEmpty` is the only BuiltInValue we ship. The pattern is
 // general — `intMaxInt64`, `uuidNil`, etc. could all live here — but

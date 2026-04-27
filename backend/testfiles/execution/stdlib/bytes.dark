@@ -1,11 +1,14 @@
-Stdlib.Blob.hexEncode_v0 (Stdlib.String.toBytes_v0 "123qwc") = "313233717763"
+// hex round of various UTF-8 strings (Arabic / emoji / long mixed).
+// Older incarnations of these tests went through the deprecated
+// List<UInt8>-shaped `Stdlib.Blob.hexEncode`; that path is gone, the
+// coverage moved to the modern `Stdlib.Blob.fromString → Blob.toHex`
+// shape.
+Stdlib.Blob.toHex (Stdlib.Blob.fromString "اختبار النص") = "D8A7D8AED8AAD8A8D8A7D8B120D8A7D984D986D8B5"
 
-Stdlib.Blob.hexEncode_v0 (Stdlib.String.toBytes_v0 "اختبار النص") = "D8A7D8AED8AAD8A8D8A7D8B120D8A7D984D986D8B5"
+Stdlib.Blob.toHex (Stdlib.Blob.fromString "👱👱🏻👱🏼👱🏽👱🏾👱🏿") = "F09F91B1F09F91B1F09F8FBBF09F91B1F09F8FBCF09F91B1F09F8FBDF09F91B1F09F8FBEF09F91B1F09F8FBF"
 
-Stdlib.Blob.hexEncode_v0 (Stdlib.String.toBytes_v0 "👱👱🏻👱🏼👱🏽👱🏾👱🏿") = "F09F91B1F09F91B1F09F8FBBF09F91B1F09F8FBCF09F91B1F09F8FBDF09F91B1F09F8FBEF09F91B1F09F8FBF"
-
-Stdlib.Blob.hexEncode_v0 (
-  Stdlib.String.toBytes_v0
+Stdlib.Blob.toHex (
+  Stdlib.Blob.fromString
     "dlkjkd329823333333333fjfidjsfudsdhs}{||!|!|!|!!$%^&^&﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽"
 ) = "646C6B6A6B64333239383233333333333333333333666A6669646A73667564736468737D7B7C7C217C217C217C212124255E265E26EFB7BDEFB7BDEFB7BDEFB7BDEFB7BDEFB7BDEFB7BDEFB7BDEFB7BDEFB7BDEFB7BDEFB7BDEFB7BDEFB7BDEFB7BDEFB7BD"
 

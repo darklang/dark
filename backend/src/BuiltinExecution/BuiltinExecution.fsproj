@@ -29,7 +29,7 @@
 
     <Compile Include="Libs/Math.fs" />
 
-    <Compile Include="Libs/Bytes.fs" />
+    <Compile Include="Libs/Blob.fs" />
     <Compile Include="Libs/Stream.fs" />
 
     <Compile Include="Libs/Char.fs" />
