@@ -61,26 +61,7 @@ let fns () : List<BuiltInFn> =
                   System.Environment.GetEnvironmentVariable "HOME"
                 )
 
-              let! bytes =
-                match ref with
-                | Ephemeral id ->
-                  let mutable bs : byte[] = null
-                  if state.blobStore.TryGetValue(id, &bs) then
-                    Ply bs
-                  else
-                    Exception.raiseInternal "ephemeral blob not found" [ "id", id ]
-                | Persistent(hash, _) ->
-                  uply {
-                    let! got = state.blobs.get hash
-                    match got with
-                    | Some bs -> return bs
-                    | None ->
-                      return
-                        Exception.raiseInternal
-                          "persistent blob missing in package_blobs"
-                          [ "hash", hash ]
-                  }
-
+              let! bytes = Dval.readBlobBytes state ref
               do! System.IO.File.WriteAllBytesAsync(path, bytes)
               return resultOk DUnit
             with e ->
