@@ -723,6 +723,26 @@ let rec private executeInner (exeState : ExecutionState) (vm : VMState) : Ply<Dv
               match! exeState.fns.package pkg with
               | None -> return RTE.FnNotFound(FQFnName.Package pkg) |> raiseRTE
               | Some fn ->
+                // TODO infer type-variable bindings from arg ValueTypes.
+                // A wrapper of the shape
+                //   let fromList (items: List<'a>) : Stream<'a> =
+                //     Builtin.streamFromList<'a> items
+                // registers with `typeParams = []` because the parser only
+                // picks up explicit `<'a>` declarations. At call time
+                // there are no type args to bind, so `'a` stays unresolved
+                // in the TST. When the wrapper body executes
+                // `Builtin.streamFromList<'a>`, `TypeReference.toVT` on
+                // `TVariable "a"` returns Unknown — which the Stream.fs
+                // helpers map to `KTUnit`. The wrapper's result tag is
+                // wrong; tests doing strict value.Type comparison fail.
+                //
+                // Fix: walk `fn.parameters`'s declared types in lockstep
+                // with `allArgs` ValueTypes, collecting `TVariable name -> VT`
+                // bindings. Merge into `tst` before pushing the new frame.
+                // Existing `resolveTypeVariables` machinery already handles
+                // the lookup side. See `backend/testfiles/execution/stdlib/stream.dark`
+                // for the test-side workaround currently in place.
+                //
                 // Process type args — fast path for common case of no type args
                 let! newlyBound =
                   match typeArgs, fn.typeParams with

@@ -3,13 +3,19 @@
 //
 // These tests call `Builtin.streamX<T>` directly rather than the
 // `Stdlib.Stream.X` wrappers (which exist; see stdlib/stream.dark).
-// Reason: the test runner does strict ValueType comparison, and
-// generic-wrapper substitution doesn't propagate `'a` through to the
-// result's KT tag — so a wrapper-built `Stream<Int64>` reads back as
-// `List<Unknown>` and fails the `value.Type` check against the
-// expected literal `List<Int64>`. User code should prefer the
-// wrappers; tests need the explicit-type-arg path until that
-// limitation is fixed in the type checker.
+// They will be migrated to the wrappers once the open type-system
+// bug is fixed: a wrapper of the shape
+//   let fromList (items: List<'a>) : Stream<'a> = Builtin.streamFromList<'a> items
+// registers with `typeParams = []` (the parser only picks up explicit
+// `<'a>` declarations). At call time `'a` is never bound in the TST,
+// so the inner `Builtin.streamFromList<'a>` resolves `'a` to Unknown,
+// which `Stream.fs` maps to `KTUnit`. Result: a wrapper-built
+// `Stream<Int64>` reads back as `List<KTUnit>` and fails the test
+// runner's strict value.Type comparison against the expected literal
+// `List<Int64>`. User code at the CLI works correctly because
+// `==` doesn't check value-type tags strictly. Fix is in
+// `LibExecution/Interpreter.fs` — see the TODO at the package-fn
+// invocation site.
 
 // fromList -> toList roundtrips
 (let s = Builtin.streamFromList<Int64> [ 1L; 2L; 3L ]
