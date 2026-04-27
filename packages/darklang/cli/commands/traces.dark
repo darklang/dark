@@ -2,12 +2,21 @@
 module Darklang.Cli.Commands.Traces
 
 
+type TraceSummary =
+  { traceId: String
+    handler: String
+    timestamp: String }
+
 type InputVar =
   { name: String
     value: LanguageTools.RuntimeTypes.Dval }
 
 type FnCall =
-  { fnName: String
+  { callId: String
+    parentCallId: Stdlib.Option.Option<String>
+    kind: String  // "function" | "lambda" | "builtin"
+    fnName: String
+    lambdaExprId: Stdlib.Option.Option<String>
     args: List<LanguageTools.RuntimeTypes.Dval>
     result: LanguageTools.RuntimeTypes.Dval }
 
@@ -88,13 +97,9 @@ let executeListByFn (state: Cli.AppState) (fnName: String) (limit: Int64) : Cli.
     state
 
 
-let printTraceRows (rows: List<List<String>>) : Unit =
+let printTraceRows (rows: List<TraceSummary>) : Unit =
   Stdlib.List.iter rows (fun row ->
-    match row with
-    | [ traceId; handlerDesc; timestamp ] ->
-      Stdlib.printLine $"  {timestamp}  {traceId}  {handlerDesc}"
-    | _ ->
-      Stdlib.printLine "  (malformed trace row)")
+    Stdlib.printLine $"  {row.timestamp}  {row.traceId}  {row.handler}")
 
 
 let formatInputs (branchId: Uuid) (inputs: List<InputVar>) : String =
@@ -103,28 +108,81 @@ let formatInputs (branchId: Uuid) (inputs: List<InputVar>) : String =
   | _ ->
     inputs
     |> Stdlib.List.map (fun input ->
-      let repr = PrettyPrinter.RuntimeTypes.dval branchId input.value
+      let repr = compactDval branchId input.value
       $"  {input.name} = {repr}")
     |> Stdlib.String.join "\n"
+
+
+/// Render a dval as a single-line string for the trace viewer.
+/// PrettyPrinter is compact-when-short already, but values > 80 chars
+/// break across lines, which destroys our tree indentation. Strategy:
+/// pretty-print, split on newlines, trim each line, rejoin. We don't
+/// normalize comma spacing because that would corrupt commas inside
+/// string contents.
+let compactDval (branchId: Uuid) (dv: LanguageTools.RuntimeTypes.Dval) : String =
+  let pretty = PrettyPrinter.RuntimeTypes.dval branchId dv
+  pretty
+  |> Stdlib.String.split "\n"
+  |> Stdlib.List.map (fun s -> Stdlib.String.trim s)
+  |> Stdlib.String.join ""
+
+
+/// Render one call and (recursively) its children. Lifted out of
+/// formatFnCalls because Darklang doesn't allow nested let-recs.
+let renderCall
+  (branchId: Uuid)
+  (childrenMap: Dict<List<FnCall>>)
+  (call: FnCall)
+  (depth: Int64)
+  : List<String> =
+  let indent = Stdlib.String.repeat "  " (depth + 1L)
+  let resultRepr = compactDval branchId call.result
+  let header =
+    match call.args with
+    | [] -> $"{indent}{call.fnName} → {resultRepr}"
+    | _ ->
+      let argsRepr =
+        call.args
+        |> Stdlib.List.map (fun arg -> compactDval branchId arg)
+        |> Stdlib.String.join ", "
+      $"{indent}{call.fnName}({argsRepr}) → {resultRepr}"
+  let children =
+    match Stdlib.Dict.get childrenMap call.callId with
+    | Some xs -> xs
+    | None -> []
+  let childrenRendered =
+    children
+    |> Stdlib.List.map (fun c -> renderCall branchId childrenMap c (depth + 1L))
+    |> Stdlib.List.flatten
+  Stdlib.List.append [ header ] childrenRendered
 
 
 let formatFnCalls (branchId: Uuid) (fnCalls: List<FnCall>) : String =
   match fnCalls with
   | [] -> "  (none)"
   | _ ->
-    fnCalls
-    |> Stdlib.List.map (fun call ->
-      let resultRepr = PrettyPrinter.RuntimeTypes.dval branchId call.result
+    // Build (roots, parent_call_id -> children) by folding the flat list.
+    // Roots are events whose parentCallId is None (top-level user calls).
+    let buildResult =
+      fnCalls
+      |> Stdlib.List.fold
+        ([], Stdlib.Dict.empty)
+        (fun acc call ->
+          let (roots, dict) = acc
+          match call.parentCallId with
+          | None -> (Stdlib.List.append roots [ call ], dict)
+          | Some pid ->
+            let existing =
+              match Stdlib.Dict.get dict pid with
+              | Some xs -> xs
+              | None -> []
+            let updated = Stdlib.List.append existing [ call ]
+            (roots, Stdlib.Dict.setOverridingDuplicates dict pid updated))
+    let (roots, childrenMap) = buildResult
 
-      match call.args with
-      | [] -> $"  {call.fnName} → {resultRepr}"
-      | _ ->
-        let argsRepr =
-          call.args
-          |> Stdlib.List.map (fun arg ->
-            PrettyPrinter.RuntimeTypes.dval branchId arg)
-          |> Stdlib.String.join ", "
-        $"  {call.fnName}({argsRepr}) → {resultRepr}")
+    roots
+    |> Stdlib.List.map (fun r -> renderCall branchId childrenMap r 0L)
+    |> Stdlib.List.flatten
     |> Stdlib.String.join "\n"
 
 

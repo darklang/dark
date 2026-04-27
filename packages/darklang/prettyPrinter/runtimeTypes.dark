@@ -408,12 +408,15 @@ module Dval =
       if Stdlib.List.isEmpty l then
         $"{valueTypeName} []"
       else
-        let elems =
-          Stdlib.String.join
-            (Stdlib.List.map l (fun item -> withIndent branchId indent item))
-            ", "
+        let parts =
+          Stdlib.List.map l (fun item -> withIndent branchId indent item)
+        let short = Stdlib.String.join parts ", "
 
-        $"[{inl}{elems}{nl}]"
+        if Stdlib.String.length short <= 80L then
+          $"[{short}]"
+        else
+          let long = Stdlib.String.join parts $",{inl}"
+          $"[{inl}{long}{nl}]"
 
 
     | DDict(_, d) ->
@@ -427,8 +430,13 @@ module Dval =
             let (key, value) = pair
             $"{key}: {withIndent branchId indent value}")
 
-        let elems = Stdlib.String.join strs $",{inl}"
-        "{" ++ inl ++ elems ++ nl ++ "}"
+        let short = Stdlib.String.join strs ", "
+
+        if Stdlib.String.length short <= 80L then
+          "{ " ++ short ++ " }"
+        else
+          let long = Stdlib.String.join strs $",{inl}"
+          "{" ++ inl ++ long ++ nl ++ "}"
 
 
     | DEnum(_, typeName, typeArgs, caseName, fields) ->
@@ -474,7 +482,6 @@ module Dval =
           let (key, value) = pair
           $"{key}: {withIndent branchId indent value}")
 
-      let elems = Stdlib.String.join strs $",{inl}"
       let typeStr = RuntimeTypes.typeName branchId typeName
 
       let typeArgsPart =
@@ -486,7 +493,13 @@ module Dval =
           |> Stdlib.String.join ", "
           |> fun betweenBrackets -> "<" + betweenBrackets + ">"
 
-      typeStr ++ typeArgsPart ++ " {" ++ inl ++ elems ++ nl ++ "}"
+      let short = Stdlib.String.join strs ", "
+
+      if Stdlib.String.length short <= 80L then
+        typeStr ++ typeArgsPart ++ " { " ++ short ++ " }"
+      else
+        let long = Stdlib.String.join strs $",{inl}"
+        typeStr ++ typeArgsPart ++ " {" ++ inl ++ long ++ nl ++ "}"
 
 
     | DApplicable(AppNamedFn namedFn) ->

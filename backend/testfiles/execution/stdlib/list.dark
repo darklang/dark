@@ -126,8 +126,8 @@ module FindFirstIndex =
 module Flatten =
   Stdlib.List.flatten_v0 [ [ 1L ]; [ 2L ]; [ 3L ] ] = [ 1L; 2L; 3L ]
 
-  Stdlib.List.flatten_v0 [ 1; 2; 3 ] = error="Darklang.Stdlib.List.flatten's 1st parameter `list` expects List<List<_>>, but got List<Int32> ([\n  1, 2, 3\n])"
-  Stdlib.List.flatten_v0 [ [ 1L ]; [ [ 2L; 3L ] ] ] = error="Cannot add a List<List<Int64>> ([\n  [\n    2, 3\n  ]\n]) to a list of List<Int64>. Failed at index 1."
+  Stdlib.List.flatten_v0 [ 1; 2; 3 ] = error="Darklang.Stdlib.List.flatten's 1st parameter `list` expects List<List<_>>, but got List<Int32> ([1, 2, 3])"
+  Stdlib.List.flatten_v0 [ [ 1L ]; [ [ 2L; 3L ] ] ] = error="Cannot add a List<List<Int64>> ([[2, 3]]) to a list of List<Int64>. Failed at index 1."
   Stdlib.List.flatten_v0 [ [ [] ] ] = [ [] ]
   Stdlib.List.flatten_v0 [ [] ] = []
   Stdlib.List.flatten_v0 [] = []
@@ -171,7 +171,7 @@ module Interleave =
   Stdlib.List.interleave_v0 [] [ 4L; 5L; 6L ] = [ 4L; 5L; 6L ]
   Stdlib.List.interleave_v0 [] [] = []
 
-  Stdlib.List.interleave_v0 [ "a"; "b"; "c" ] [ 0L ] = error="Darklang.Stdlib.List.interleave's 2nd parameter `lB` expects List<String>, but got List<Int64> ([\n  0\n])"
+  Stdlib.List.interleave_v0 [ "a"; "b"; "c" ] [ 0L ] = error="Darklang.Stdlib.List.interleave's 2nd parameter `lB` expects List<String>, but got List<Int64> ([0])"
 module Interpose =
   Stdlib.List.interpose_v0 [ 1L; 2L; 3L ] 5L = [ 1L; 5L; 2L; 5L; 3L ]
   Stdlib.List.interpose_v0 [ 1L ] 5L = [ 1L ]

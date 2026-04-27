@@ -379,7 +379,7 @@ module FromList =
 
   Stdlib.String.fromList [ c "👩‍👩‍👧‍👦"; c "🏳️‍⚧️‍️"; c "👱🏾"; c "Z̤͔ͧ̑̓" ] = "👩‍👩‍👧‍👦🏳️‍⚧️‍️👱🏾Z̤͔ͧ̑̓"
 
-  Stdlib.String.fromList [ "a" ] = error="Darklang.Stdlib.String.fromList's 1st parameter `lst` expects List<Char>, but got List<String> ([\n  \"a\"\n])"
+  Stdlib.String.fromList [ "a" ] = error="Darklang.Stdlib.String.fromList's 1st parameter `lst` expects List<Char>, but got List<String> ([\"a\"])"
 module ToList =
   Stdlib.String.toList "" = []
   Stdlib.String.toList "ab" = [ 'a'; 'b' ]

@@ -12,9 +12,10 @@ module Dval = LibExecution.Dval
 
 let noTracing : RT.Tracing.Tracing =
   { traceDval = fun _ _ -> ()
-    traceExecutionPoint = fun _ -> ()
     loadFnResult = fun _ _ -> None
     storeFnResult = fun _ _ _ -> ()
+    storeFrameEntry = fun _ _ _ -> ()
+    storeLambdaResult = fun _ _ -> ()
     skipTracing = true }
 
 let noTestContext : RT.TestContext =
@@ -396,15 +397,6 @@ let callStackString
 
 
 
-
-// /// Return a function to trace TLIDs (add it to state via
-// /// state.tracing.traceExecutionPoint), and a mutable set which updates when the
-// /// traceFn is used
-// /// TRACINGTODO
-// let traceTLIDs () : HashSet.HashSet<tlid> * RT.TraceExecutionPoint =
-//   let touchedTLIDs = HashSet.empty ()
-//   let traceExecutionPoint tlid : unit = HashSet.add tlid touchedTLIDs
-//   (touchedTLIDs, traceExecutionPoint)
 
 /// Return a function to trace Dvals (add it to state via
 /// state.tracing.traceDval), and a mutable dictionary which updates when the
