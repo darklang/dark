@@ -287,6 +287,24 @@ let fns () : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
+      deprecated = NotDeprecated }
+
+
+    { name = fn "stdinReadAll" 0
+      typeParams = []
+      parameters = [ Param.make "unit" TUnit "" ]
+      returnType = TString
+      description =
+        "Reads all available input from standard input until EOF.
+        Blocks if stdin is an interactive TTY with no EOF signal."
+      fn =
+        (function
+        | _, _, _, [ DUnit ] ->
+          let input = System.Console.In.ReadToEnd()
+          Ply(DString input)
+        | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Impure
       deprecated = NotDeprecated } ]
 
 
