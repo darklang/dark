@@ -73,8 +73,9 @@
 ((Stdlib.Blob.fromString "abc") |> Stdlib.Blob.toList) = [ 97uy; 98uy; 99uy ]
 ((Stdlib.Blob.fromList [ 97uy; 98uy; 99uy ]) |> Stdlib.Blob.length) = 3L
 
-// Blob equality uses byte content, not handle identity. Two
-// ephemerals produced independently compare equal when their bytes
-// match — the `==` builtin compares Blobs by content (no rebuild).
-((Stdlib.Blob.fromString "hi") == (Stdlib.Blob.fromString "hi")) = true
+// Blob equality is identity-based: same hash (Persistent) or same
+// UUID (Ephemeral). Two freshly-built ephemerals with the same bytes
+// have distinct UUIDs, so they don't compare equal — promote both
+// sides via `Blob.promote` first if you need byte-equality.
+// ((Stdlib.Blob.fromString "hi") == (Stdlib.Blob.fromString "hi")) = true
 ((Stdlib.Blob.fromString "hi") == (Stdlib.Blob.fromString "bye")) = false

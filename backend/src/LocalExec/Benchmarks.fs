@@ -244,35 +244,6 @@ let private manyBlobsScenario (state : RT.ExecutionState) : List<Result> =
       note = "intra-scope; per-blob overhead amortised over count" })
 
 
-/// Equality over two independently-built ephemeral blobs with the
-/// same bytes. Exercises promoteBlobs+noopInsert+sha256 path.
-/// inputBytes is the size of a single side; alloc reflects the work
-/// done on both sides combined.
-let private blobEqualityScenario (state : RT.ExecutionState) : List<Result> =
-  let sizes = [ 100_000; 1_000_000; 10_000_000 ]
-
-  sizes
-  |> List.map (fun size ->
-    let payload = Array.zeroCreate<byte> size
-    System.Random(0).NextBytes(payload)
-
-    let blobA = Blob.newEphemeral state payload
-    let blobB = Blob.newEphemeral state payload
-
-    let _, sample =
-      measure (fun () ->
-        let resultPly =
-          uply { return! BuiltinExecution.Libs.NoModule.equals state blobA blobB }
-        resultPly |> Ply.toTask |> _.Result)
-
-    { scenario = "blobEqualityEphemeral"
-      inputBytes = int64 size
-      allocBytes = sample.allocBytes
-      elapsedMs = sample.elapsedMs
-      dvalNodes = 1
-      note = "promote+hash both sides" })
-
-
 /// Drain a Stream<UInt8> into a Blob via streamToBlob's chunked
 /// path — the bulk path that pulls 64 KB buffers instead of boxing
 /// one DUInt8 per byte. inputBytes = the byte stream length.
@@ -381,7 +352,6 @@ let runAll () : Ply<Result<unit, string>> =
         yield! hexEncodeScenario state
         yield! base64Scenario state
         yield! manyBlobsScenario state
-        yield! blobEqualityScenario state
         yield! streamToBlobScenario state
         yield! multipartScenario state ]
 

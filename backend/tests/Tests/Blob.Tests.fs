@@ -618,68 +618,61 @@ let sweepDeletesOrphansButKeepsReferenced =
 
 
 // ─────────────────────────────────────────────────────────────────────
-// Blob equality — hash-compare across ephemeral / persistent
+// Blob equality — identity-based across ephemeral / persistent
 // ─────────────────────────────────────────────────────────────────────
-// `NoModule.equals` is state-aware now: same-handle → cheap; same-hash
-// Persistents → cheap; everything else dereferences and byte-compares.
-// No promotion side effect, no Dval-tree rebuild.
+// `NoModule.equals` is sync and identity-based for blobs: same-hash
+// (Persistent) or same-UUID (Ephemeral) compare equal; mixed cases —
+// distinct ephemerals with the same bytes, or ephemeral vs persistent
+// — return false. Callers that want byte-equality across ephemerals
+// promote both sides first.
 
 let equalsEphemeralEphemeralSameUuid =
-  testTask "blob equality: two refs to the same ephemeral UUID are equal" {
+  test "blob equality: two refs to the same ephemeral UUID are equal" {
     let state = freshState ()
     let dv = Blob.newEphemeral state [| 0x01uy; 0x02uy |]
-    let! result = Equals.equals state dv dv |> Ply.toTask
-    Expect.isTrue result "same ephemeral handle compares equal"
+    Expect.isTrue (Equals.equals dv dv) "same ephemeral handle compares equal"
   }
 
-let equalsEphemeralEphemeralSameBytes =
-  testTask "blob equality: two distinct ephemerals with same bytes are equal" {
+let equalsEphemeralEphemeralSameBytesIsFalse =
+  test "blob equality: two distinct ephemerals with same bytes are unequal" {
     let state = freshState ()
     let payload = [| 0x11uy; 0x22uy; 0x33uy |]
     let a = Blob.newEphemeral state payload
     let b = Blob.newEphemeral state payload
     Expect.notEqual (ephemeralId a) (ephemeralId b) "distinct UUIDs"
-    let! result = Equals.equals state a b |> Ply.toTask
-    Expect.isTrue result "same bytes compare equal under byte-compare"
+    Expect.isFalse (Equals.equals a b) "ephemeral identity is by UUID, not by bytes"
   }
 
-let equalsEphemeralPersistentSameBytes =
-  testTask "blob equality: ephemeral vs persistent with same bytes are equal" {
+let equalsEphemeralPersistentSameBytesIsFalse =
+  test "blob equality: ephemeral vs persistent with same bytes are unequal" {
     let state = freshState ()
     let payload = [| 0xDEuy; 0xADuy |]
     let eph = Blob.newEphemeral state payload
     let per = RT.DBlob(RT.Persistent(Blob.sha256Hex payload, int64 payload.Length))
-    // Persistent's hash is sha256(payload); ephemeral's bytes match.
-    // To make the persistent's bytes resolvable, seed the row.
-    do! PMBlob.insert (Blob.sha256Hex payload) payload |> Ply.toTask
-    let! result = Equals.equals state eph per |> Ply.toTask
-    Expect.isTrue result "same bytes match across ephemeral/persistent"
+    Expect.isFalse
+      (Equals.equals eph per)
+      "ephemeral and persistent never compare equal — promote first if needed"
   }
 
 let equalsPersistentPersistentSameHash =
-  testTask "blob equality: two Persistent refs with the same hash are equal" {
-    let state = freshState ()
+  test "blob equality: two Persistent refs with the same hash are equal" {
     let dv = RT.DBlob(RT.Persistent("cafebabe", 4L))
-    let! result = Equals.equals state dv dv |> Ply.toTask
-    Expect.isTrue result "same hash + length = equal"
+    Expect.isTrue (Equals.equals dv dv) "same hash + length = equal"
   }
 
 let equalsPersistentPersistentDifferentHashes =
-  testTask "blob equality: Persistent refs with different hashes are unequal" {
-    let state = freshState ()
+  test "blob equality: Persistent refs with different hashes are unequal" {
     let a = RT.DBlob(RT.Persistent("aaaa", 4L))
     let b = RT.DBlob(RT.Persistent("bbbb", 4L))
-    let! result = Equals.equals state a b |> Ply.toTask
-    Expect.isFalse result "different hashes = unequal"
+    Expect.isFalse (Equals.equals a b) "different hashes = unequal"
   }
 
 let equalsEphemeralDifferentBytes =
-  testTask "blob equality: two ephemerals with different bytes are unequal" {
+  test "blob equality: two ephemerals with different bytes are unequal" {
     let state = freshState ()
     let a = Blob.newEphemeral state [| 0x00uy |]
     let b = Blob.newEphemeral state [| 0xFFuy |]
-    let! result = Equals.equals state a b |> Ply.toTask
-    Expect.isFalse result "different bytes = unequal"
+    Expect.isFalse (Equals.equals a b) "distinct UUIDs = unequal"
   }
 
 
@@ -721,8 +714,8 @@ let tests =
       persistableRejectsNestedBadShapes
       sweepDeletesOrphansButKeepsReferenced
       equalsEphemeralEphemeralSameUuid
-      equalsEphemeralEphemeralSameBytes
-      equalsEphemeralPersistentSameBytes
+      equalsEphemeralEphemeralSameBytesIsFalse
+      equalsEphemeralPersistentSameBytesIsFalse
       equalsPersistentPersistentSameHash
       equalsPersistentPersistentDifferentHashes
       equalsEphemeralDifferentBytes ]
