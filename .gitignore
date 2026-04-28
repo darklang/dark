@@ -51,8 +51,8 @@ clis/
 .mono
 .fake
 
-# Thinking docs — scratch planning/execution notes, not part of any PR.
-thinking/
+# Scratch planning/execution notes, not part of any PR.
+scratch/
 
 # Claude Code session lock (per-process, regenerated each session).
 .claude/scheduled_tasks.lock

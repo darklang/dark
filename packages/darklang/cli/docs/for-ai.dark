@@ -19,19 +19,11 @@ You don't write scripts - you build a persistent package tree.
 
 ## First Commands
   tree              # see package structure
-  docs stdlib       # cheap module overview (start here for a stdlib task)
-  docs signatures <module>   # signatures for one module (drill-in)
+  docs stdlib       # list top-level Stdlib modules
+  docs signatures <module>   # signatures for one module
   builtins          # list F# builtins (lower-level than stdlib)
   search <term>     # find anything
   view <name>       # inspect entity (full source + docs)
-
-Orientation flow for an AI agent:
-  1. `docs stdlib` — lists every top-level Stdlib module with fn/type counts.
-     Use it to pick which modules are relevant to the task.
-  2. `docs signatures <module>` — full signatures for one module. Add `--types`
-     to include type definitions. Combine modules as needed.
-  3. `docs signatures <fragment>` — fuzzy filter across all of stdlib.
-  4. `docs signatures --all` — every signature at once. Heavy; prefer scoped.
 
 ## Creating Code (use these, not eval!)
   fn <name>         # create function - MAIN WAY TO WRITE CODE

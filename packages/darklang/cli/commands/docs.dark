@@ -230,7 +230,7 @@ module Topics =
 
 // Topics that don't render from static text — they delegate to a live command
 // with access to AppState. Returns Some new-state if `name` is a live topic.
-let private dispatchLive
+let dispatchLive
   (state: Cli.AppState)
   (name: String)
   (rest: List<String>)

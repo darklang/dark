@@ -3,12 +3,19 @@ module Darklang.Cli.Commands.Signatures
 // Compact dump of package functions + type signatures, AI-oriented.
 // Designed to give an agent a single token-tight snapshot of an API surface.
 // Default scope is `Darklang.Stdlib`.
+//
+// CLEANUP this command should fold into a more general `tree` / `view`
+// flag rather than living on its own. The "format-tightly, scope-by-module,
+// optional types, optional filter" shape is just a rendering of a package
+// subtree — `tree --signatures [<filter>]` or `view <module> --signatures`
+// would cover the same surface without the separate dispatch entry.
+
 
 // Pretty-printer context: prefer collapsing to `Darklang.Stdlib` so that types
 // like `Darklang.Stdlib.Option.Option` render as `Option.Option` everywhere,
 // regardless of which sub-module we scoped the listing to. For non-Stdlib
 // roots, fall back to the root itself.
-let private rootContext (branchId: Uuid) (modulePath: List<String>) : PrettyPrinter.ProgramTypes.Context =
+let rootContext (branchId: Uuid) (modulePath: List<String>) : PrettyPrinter.ProgramTypes.Context =
   let cur =
     match modulePath with
     | "Darklang" :: "Stdlib" :: _ -> "Darklang.Stdlib"
@@ -19,7 +26,7 @@ let private rootContext (branchId: Uuid) (modulePath: List<String>) : PrettyPrin
       currentFunction = Stdlib.Option.Option.None }
 
 
-let private formatFn
+let formatFn
   (ctx: PrettyPrinter.ProgramTypes.Context)
   (name: String)
   (fn: LanguageTools.ProgramTypes.PackageFn.PackageFn)
@@ -56,7 +63,7 @@ let private formatFn
   $"{name}{typeParams} {params}: {ret}"
 
 
-let private formatType
+let formatType
   (ctx: PrettyPrinter.ProgramTypes.Context)
   (name: String)
   (typ: LanguageTools.ProgramTypes.PackageType.PackageType)
@@ -101,11 +108,11 @@ let private formatType
   $"type {name}{typeParams} = {body}"
 
 
-let private moduleKey (loc: LanguageTools.ProgramTypes.PackageLocation) : String =
+let moduleKey (loc: LanguageTools.ProgramTypes.PackageLocation) : String =
   (Stdlib.List.append [loc.owner] loc.modules) |> Stdlib.String.join "."
 
 
-let private groupByModule
+let groupByModule
   (items: List<LanguageTools.ProgramTypes.LocatedItem<'a>>)
   : Dict<List<LanguageTools.ProgramTypes.LocatedItem<'a>>> =
   items
@@ -118,7 +125,7 @@ let private groupByModule
     Stdlib.Dict.setOverridingDuplicates acc key (Stdlib.List.append existing [item]))
 
 
-let private trimRoot (root: String) (key: String) : String =
+let trimRoot (root: String) (key: String) : String =
   let prefix = root ++ "."
   if key == root then "(root)"
   else if Stdlib.String.startsWith key prefix then
@@ -126,7 +133,7 @@ let private trimRoot (root: String) (key: String) : String =
   else key
 
 
-let private renderModule
+let renderModule
   (ctx: PrettyPrinter.ProgramTypes.Context)
   (rootName: String)
   (modKey: String)
@@ -150,7 +157,7 @@ let private renderModule
 
 
 // Returns (rootModulePath, includeTypes, includeDeprecated, filterText, all)
-let private parseArgsLoop
+let parseArgsLoop
   (remaining: List<String>)
   (root: List<String>)
   (types: Bool)
@@ -171,13 +178,13 @@ let private parseArgsLoop
     | Some _ -> parseArgsLoop rest root types dep filter all
 
 
-let private parseArgs
+let parseArgs
   (args: List<String>)
   : (List<String> * Bool * Bool * Stdlib.Option.Option<String> * Bool) =
   parseArgsLoop args ["Darklang"; "Stdlib"] false false Stdlib.Option.Option.None false
 
 
-let private executeFiltered
+let executeFiltered
   (state: Cli.AppState)
   (rootPath: List<String>)
   (includeTypes: Bool)
