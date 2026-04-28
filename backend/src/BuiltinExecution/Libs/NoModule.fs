@@ -32,6 +32,8 @@ module RTE = RuntimeError
 /// cross-handle equality would require draining, which violates
 /// single-consumer semantics.
 let rec equals (a : Dval) (b : Dval) : bool =
+  let r = equals
+
   match a, b with
   | DUnit, DUnit -> true
 
@@ -60,13 +62,10 @@ let rec equals (a : Dval) (b : Dval) : bool =
   | DList(typA, a), DList(typB, b) ->
     Result.isOk (ValueType.merge typA typB)
     && a.Length = b.Length
-    && List.forall2 equals a b
+    && List.forall2 r a b
 
   | DTuple(a1, a2, a3), DTuple(b1, b2, b3) ->
-    a3.Length = b3.Length
-    && equals a1 b1
-    && equals a2 b2
-    && List.forall2 equals a3 b3
+    a3.Length = b3.Length && r a1 b1 && r a2 b2 && List.forall2 r a3 b3
 
   | DDict(typeA, a), DDict(typeB, b) ->
     Result.isOk (ValueType.merge typeA typeB)
@@ -75,7 +74,7 @@ let rec equals (a : Dval) (b : Dval) : bool =
         |> Map.toSeq
         |> Seq.forall (fun (k, va) ->
           match Map.find k b with
-          | Some vb -> equals va vb
+          | Some vb -> r va vb
           | None -> false))
 
   | DRecord(_, typeNameA, typeArgsA, fieldsA),
@@ -91,7 +90,7 @@ let rec equals (a : Dval) (b : Dval) : bool =
         |> Map.toSeq
         |> Seq.forall (fun (k, va) ->
           match Map.find k fieldsB with
-          | Some vb -> equals va vb
+          | Some vb -> r va vb
           | None -> false))
 
   | DEnum(_, typeNameA, typeArgsA, caseNameA, fieldsA),
@@ -104,7 +103,7 @@ let rec equals (a : Dval) (b : Dval) : bool =
       typeArgsB
     && caseNameA = caseNameB
     && fieldsA.Length = fieldsB.Length
-    && List.forall2 equals fieldsA fieldsB
+    && List.forall2 r fieldsA fieldsB
 
   | DApplicable a, DApplicable b ->
     match a, b with
