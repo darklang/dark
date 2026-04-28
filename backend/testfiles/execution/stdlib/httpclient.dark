@@ -54,21 +54,21 @@ let errUnsupportedProtocol = Stdlib.Result.Result.Error(Stdlib.HttpClient.Reques
 
 
 // type errors for bad `method` are OK
-Stdlib.HttpClient.request "" "https://darklang.com" [] [] = errBadMethod
-Stdlib.HttpClient.request " get " "https://darklang.com" [] [] = errBadMethod
-Stdlib.HttpClient.request "🇵🇷" "https://darklang.com" [] [] = errBadMethod
+Stdlib.HttpClient.request "" "https://darklang.com" [] Stdlib.Blob.empty = errBadMethod
+Stdlib.HttpClient.request " get " "https://darklang.com" [] Stdlib.Blob.empty = errBadMethod
+Stdlib.HttpClient.request "🇵🇷" "https://darklang.com" [] Stdlib.Blob.empty = errBadMethod
 
 // unsupported protocols
-Stdlib.HttpClient.request "get" "ftp://darklang.com" [] [] = errUnsupportedProtocol
-Stdlib.HttpClient.request "put" "file:///etc/passwd" [] [] = errUnsupportedProtocol
-Stdlib.HttpClient.request "put" "/just-a-path" [] [] = errUnsupportedProtocol
+Stdlib.HttpClient.request "get" "ftp://darklang.com" [] Stdlib.Blob.empty = errUnsupportedProtocol
+Stdlib.HttpClient.request "put" "file:///etc/passwd" [] Stdlib.Blob.empty = errUnsupportedProtocol
+Stdlib.HttpClient.request "put" "/just-a-path" [] Stdlib.Blob.empty = errUnsupportedProtocol
 
 // totally bogus URLs
-Stdlib.HttpClient.request "get" "" [] [] = Stdlib.Result.Result.Error(Stdlib.HttpClient.RequestError.BadUrl(Stdlib.HttpClient.BadUrlDetails.InvalidUri))
-Stdlib.HttpClient.request "post" "{ ] nonsense ^#( :" [] [] = Stdlib.Result.Result.Error(Stdlib.HttpClient.RequestError.BadUrl(Stdlib.HttpClient.BadUrlDetails.InvalidUri))
+Stdlib.HttpClient.request "get" "" [] Stdlib.Blob.empty = Stdlib.Result.Result.Error(Stdlib.HttpClient.RequestError.BadUrl(Stdlib.HttpClient.BadUrlDetails.InvalidUri))
+Stdlib.HttpClient.request "post" "{ ] nonsense ^#( :" [] Stdlib.Blob.empty = Stdlib.Result.Result.Error(Stdlib.HttpClient.RequestError.BadUrl(Stdlib.HttpClient.BadUrlDetails.InvalidUri))
 
 // URLs we can't actually communicate with
-Stdlib.HttpClient.request "get" "http://google.com:79" [] [] = Stdlib.Result.Result.Error(Stdlib.HttpClient.RequestError.Timeout)
+Stdlib.HttpClient.request "get" "http://google.com:79" [] Stdlib.Blob.empty = Stdlib.Result.Result.Error(Stdlib.HttpClient.RequestError.Timeout)
 
 
 // Check for banned urls in the host name

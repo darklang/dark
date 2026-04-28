@@ -160,6 +160,10 @@ let typeReference
 
   | TDateTime -> "DateTime"
 
+  | TBlob -> "Blob"
+
+  | TStream inner -> $"Stream<{typeReference branchId inner}>"
+
   | TTuple(first, second, theRest) ->
     (Stdlib.List.append [ first; second ] theRest)
     |> Stdlib.List.map (fun item -> typeReference branchId item)
@@ -233,6 +237,10 @@ let knownType
 
   | KTDateTime -> "DateTime"
   | KTUuid -> "Uuid"
+
+  | KTBlob -> "Blob"
+
+  | KTStream inner -> $"Stream<{valueType branchId inner}>"
 
   | KTTuple(t1, t2, trest) ->
     (Stdlib.List.append [ t1; t2 ] trest)
@@ -430,6 +438,13 @@ module Dval =
         let elems = Stdlib.String.join strs $",{inl}"
         "{" ++ inl ++ elems ++ nl ++ "}"
 
+
+    // DStream comes through the RT<->Dark bridge as a DEnum-shaped
+    // stub (no live pull fn exists in the Dark mirror of Dval). Render
+    // it with a short marker instead of the raw enum spelling. A
+    // richer `<stream of UInt8: fresh | partial | done>` form would
+    // need runtime state the bridge doesn't carry.
+    | DEnum(_, _, [], "DStreamStub", _) -> "<stream: stub>"
 
     | DEnum(_, typeName, typeArgs, caseName, fields) ->
       let typeArgsPart =

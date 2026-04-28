@@ -24,6 +24,7 @@ module PT = LibExecution.ProgramTypes
 module RT = LibExecution.RuntimeTypes
 module PT2RT = LibExecution.ProgramTypesToRuntimeTypes
 module Execution = LibExecution.Execution
+module Blob = LibExecution.Blob
 module BS = LibSerialization.Binary.Serialization
 
 
@@ -228,28 +229,42 @@ let evaluateAllValues
                 $"Value {valueHash} ({fullName}): evaluation failed - {errorMsg}"
               )
             | Ok dval ->
-              let rtHash = PT2RT.Hash.toRT valueHash
-              let rtValue : RT.PackageValue.PackageValue =
-                { hash = rtHash; body = dval }
-              let (Hash defHash) = valueHash
-              let rtDvalBytes = BS.RT.PackageValue.serialize rtHash rtValue
-              let valueType = RT.Dval.toValueType dval
-              let valueTypeBytes = BS.RT.ValueType.serialize valueType
+              // Promote any ephemeral blobs inside the value to
+              // persistent so we can serialize. Streams remain
+              // non-persistable and trip the [isPersistable] guard
+              // below with a clear error.
+              let! dval = LibExecution.Blob.promote exeState pm.persistBlob dval
 
-              do!
-                Sql.query
-                  """
-                  UPDATE package_values
-                  SET rt_dval = @rt_dval, value_type = @value_type
-                  WHERE hash = @hash
-                  """
-                |> Sql.parameters
-                  [ "hash", Sql.string defHash
-                    "rt_dval", Sql.bytes rtDvalBytes
-                    "value_type", Sql.bytes valueTypeBytes ]
-                |> Sql.executeStatementAsync
+              if not (LibExecution.Dval.isPersistable dval) then
+                let reason =
+                  LibExecution.Dval.nonPersistableReason dval
+                  |> Option.defaultValue "value is not persistable"
+                errors.Add(
+                  $"Value {valueHash} ({fullName}): cannot store in val — {reason}"
+                )
+              else
+                let rtHash = PT2RT.Hash.toRT valueHash
+                let rtValue : RT.PackageValue.PackageValue =
+                  { hash = rtHash; body = dval }
+                let (Hash defHash) = valueHash
+                let rtDvalBytes = BS.RT.PackageValue.serialize rtHash rtValue
+                let valueType = RT.Dval.toValueType dval
+                let valueTypeBytes = BS.RT.ValueType.serialize valueType
 
-              successCount <- successCount + 1
+                do!
+                  Sql.query
+                    """
+                    UPDATE package_values
+                    SET rt_dval = @rt_dval, value_type = @value_type
+                    WHERE hash = @hash
+                    """
+                  |> Sql.parameters
+                    [ "hash", Sql.string defHash
+                      "rt_dval", Sql.bytes rtDvalBytes
+                      "value_type", Sql.bytes valueTypeBytes ]
+                  |> Sql.executeStatementAsync
+
+                successCount <- successCount + 1
           with ex ->
             errors.Add($"Value {valueHash} ({fullName}): exception - {ex.Message}")
 

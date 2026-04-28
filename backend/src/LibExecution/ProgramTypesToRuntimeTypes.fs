@@ -89,6 +89,10 @@ module TypeReference =
     | PT.TDateTime -> RT.TDateTime
     | PT.TUuid -> RT.TUuid
 
+    | PT.TBlob -> RT.TBlob
+
+    | PT.TStream inner -> RT.TStream(toRT inner)
+
     | PT.TList inner -> RT.TList(toRT inner)
     | PT.TTuple(first, second, theRest) ->
       RT.TTuple(toRT first, toRT second, theRest |> List.map toRT)
@@ -126,6 +130,8 @@ module TypeReference =
     | PT.TString -> RT.ValueType.Known RT.KTString
     | PT.TDateTime -> RT.ValueType.Known RT.KTDateTime
     | PT.TUuid -> RT.ValueType.Known RT.KTUuid
+    | PT.TBlob -> RT.ValueType.Known RT.KTBlob
+    | PT.TStream inner -> RT.ValueType.Known(RT.KTStream(toValueType inner))
     | PT.TList inner -> RT.ValueType.Known(RT.KTList(toValueType inner))
     | PT.TTuple(first, second, theRest) ->
       RT.ValueType.Known(
@@ -1249,6 +1255,12 @@ module PackageManager =
           pm.getValue (toPT id)
           |> Ply.map (Option.map (PackageValue.toRT builtinValues))
       getFn = fun id -> pm.getFn (toPT id) |> Ply.map (Option.map PackageFn.toRT)
+
+      // PT PackageManager has no blob channel — it's purely location-
+      // based name resolution. Transient wrappers return None; the
+      // real blob lookup comes from the canonical RT PM.
+      getBlob = fun _ -> Ply None
+      persistBlob = fun _ _ -> uply { return () }
 
       // PT PackageManager doesn't surface deprecation state; transient
       // wrappers (tests, in-memory flows) have no branch chain anyway.

@@ -14,7 +14,7 @@ let sendNotification (message: String) (title: String) : String =
         "&message=" ++ message ++
         (if title == "" then "" else "&title=" ++ title)
 
-      let body = Darklang.Stdlib.String.toBytes formData
+      let body = Darklang.Stdlib.String.toBlob formData
 
       (match Darklang.Stdlib.HttpClient.post url headers body with
       | Ok response ->

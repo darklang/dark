@@ -25,4 +25,4 @@ Hello back
           ("content-type", "text/plain; charset=utf-8")
           ("Server", "Kestrel")
         ]
-      body = "Hello back" |> Darklang.Stdlib.String.toBytes}
+      body = "Hello back" |> Darklang.Stdlib.String.toBlob}

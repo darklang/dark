@@ -138,6 +138,19 @@ module HandleCommand =
         return Error $"Failed to list migrations: {ex.Message}"
     }
 
+  /// Scan `package_values.rt_dval` for referenced blob hashes and
+  /// delete any `package_blobs` rows that aren't referenced.
+  let sweepBlobs () : Ply<Result<unit, string>> =
+    uply {
+      try
+        print "Sweeping orphan package_blobs..."
+        let! deleted = LibPackageManager.RuntimeTypes.Blob.sweepOrphans ()
+        print $"Deleted {deleted} orphan blob row(s)"
+        return Ok()
+      with ex ->
+        return Error $"Sweep failed: {ex.Message}"
+    }
+
 let initSerializers () =
   Json.Vanilla.allow<List<LibExecution.ProgramTypes.PackageFn.PackageFn>>
     "Parse packageFn list"
@@ -196,6 +209,21 @@ let main (args : string[]) : int =
         $"Exporting seed to {outputPath}"
         (HandleCommand.exportSeed outputPath)
 
+    | [ "pm-sweep-blobs" ] ->
+      handleCommand
+        "sweeping orphan package_blobs rows"
+        (HandleCommand.sweepBlobs ())
+
+    | [ "bench" ] ->
+      handleCommand
+        "running allocation/timing benchmarks"
+        (LocalExec.Benchmarks.runAll ())
+
+    | [ "bench-render" ] ->
+      handleCommand
+        "rendering benchmarks/results.md from history.jsonl"
+        (LocalExec.Benchmarks.render ())
+
     | _ ->
       print "Invalid arguments"
       print "Available commands:"
@@ -204,6 +232,9 @@ let main (args : string[]) : int =
       print "  migrations run"
       print "  migrations list"
       print "  export-seed <output-path>"
+      print "  pm-sweep-blobs"
+      print "  bench"
+      print "  bench-render"
       NonBlockingConsole.wait ()
       1
   with e ->

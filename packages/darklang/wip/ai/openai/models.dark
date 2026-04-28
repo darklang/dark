@@ -40,7 +40,7 @@ let list
 
     match Stdlib.HttpClient.get url headers with
     | Ok response ->
-      let bodyStr = Stdlib.String.fromBytesWithReplacement response.body
+      let bodyStr = Stdlib.String.fromBlobWithReplacement response.body
 
       match response.statusCode with
       | code when code >= 200L && code < 300L ->
@@ -81,7 +81,7 @@ let get
 
     match Stdlib.HttpClient.get url headers with
     | Ok response ->
-      let bodyStr = Stdlib.String.fromBytesWithReplacement response.body
+      let bodyStr = Stdlib.String.fromBlobWithReplacement response.body
 
       match response.statusCode with
       | code when code >= 200L && code < 300L ->
@@ -116,7 +116,7 @@ let delete
 
     match Stdlib.HttpClient.delete url headers with
     | Ok response ->
-      let bodyStr = Stdlib.String.fromBytesWithReplacement response.body
+      let bodyStr = Stdlib.String.fromBlobWithReplacement response.body
 
       match response.statusCode with
       | code when code >= 200L && code < 300L ->

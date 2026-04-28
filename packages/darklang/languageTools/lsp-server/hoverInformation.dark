@@ -327,7 +327,9 @@ let collectBuiltinTypeHoverInfoAtPos
   | TString r -> createBuiltinTypeInfoIfInRange ctx r "String" position
   | TDateTime r -> createBuiltinTypeInfoIfInRange ctx r "DateTime" position
   | TUuid r -> createBuiltinTypeInfoIfInRange ctx r "Uuid" position
+  | TBlob r -> createBuiltinTypeInfoIfInRange ctx r "Blob" position
 
+  | TStream(r, keywordRange, _, typ, _)
   | TList(r, keywordRange, _, typ, _) ->
     // check if position is within the List range
     if CursorPosition.isLineNumberInRange position r then

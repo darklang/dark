@@ -65,6 +65,10 @@ module FormatV0 =
 
         | KTDateTime
 
+        | KTBlob
+
+        | KTStream of ValueType
+
         | KTTuple of ValueType * ValueType * List<ValueType>
         | KTList of ValueType
         | KTDict of ValueType
@@ -94,6 +98,8 @@ module FormatV0 =
         | KTString -> RT.KTString
         | KTUuid -> RT.KTUuid
         | KTDateTime -> RT.KTDateTime
+        | KTBlob -> RT.KTBlob
+        | KTStream vt -> RT.KTStream(ValueType.toRT vt)
 
         | KTList vt -> RT.KTList(ValueType.toRT vt)
         | KTTuple(vt1, vt2, vts) ->
@@ -131,6 +137,8 @@ module FormatV0 =
         | RT.KTString -> KTString
         | RT.KTUuid -> KTUuid
         | RT.KTDateTime -> KTDateTime
+        | RT.KTBlob -> KTBlob
+        | RT.KTStream vt -> KTStream(ValueType.fromRT vt)
 
         | RT.KTList vt -> KTList(ValueType.fromRT vt)
         | RT.KTTuple(vt1, vt2, vts) ->
@@ -207,6 +215,11 @@ module FormatV0 =
       fields : List<Dval>
     | DLambda // See docs/dblock-serialization.md
     | DDB of string
+    | DBlobPersistent of hash : string * length : int64
+    | DBlobEphemeral of id : System.Guid
+    // DStream is not persistable — this tag is a stub that exists only
+    // so the exhaustiveness check holds; `toRT` raises on it.
+    | DStreamStub
 
 
   let rec toRT (dv : Dval) : RT.Dval =
@@ -271,6 +284,13 @@ module FormatV0 =
 
     | DDB name -> RT.DDB name
 
+    | DBlobPersistent(hash, length) -> RT.DBlob(RT.Persistent(hash, length))
+    | DBlobEphemeral id -> RT.DBlob(RT.Ephemeral id)
+    | DStreamStub ->
+      Exception.raiseInternal
+        "DStream is not persistable — can't deserialize a stub to a live stream"
+        []
+
 
 
   let rec fromRT (dv : RT.Dval) : Dval =
@@ -325,6 +345,17 @@ module FormatV0 =
 
     | RT.DDB name -> DDB name
 
+    | RT.DBlob(RT.Persistent(hash, length)) -> DBlobPersistent(hash, length)
+    | RT.DBlob(RT.Ephemeral id) -> DBlobEphemeral id
+    | RT.DStream _ ->
+      // Streams aren't persistable by design. For the rt_dval column
+      // that's strictly a no-op target (a stream can't live past its
+      // VM anyway), so we emit a stub that round-trips to an error on
+      // read-back rather than raising at capture time. This lets the
+      // trace pipeline (which captures every intermediate dval) pass
+      // a stream through without aborting the eval.
+      DStreamStub
+
 
 let toJsonV0 (dv : RT.Dval) : string =
   dv |> FormatV0.fromRT |> Json.Vanilla.serialize
@@ -362,7 +393,10 @@ module Test =
     | RT.DChar _
     | RT.DString _
     | RT.DUuid _
-    | RT.DDateTime _ -> true
+    | RT.DDateTime _
+    | RT.DBlob _ -> true
+
+    | RT.DStream _ -> false
 
     | RT.DTuple(v1, v2, rest) -> List.all isRoundtrippableDval (v1 :: v2 :: rest)
 

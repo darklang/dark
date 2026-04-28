@@ -295,7 +295,7 @@ let handleBatchResponse
   : Stdlib.Result.Result<MessageBatch, Response.ApiError> =
   match response with
   | Ok r ->
-    let bodyStr = Stdlib.String.fromBytesWithReplacement r.body
+    let bodyStr = Stdlib.String.fromBlobWithReplacement r.body
 
     if r.statusCode == 200L || r.statusCode == 201L then
       match Stdlib.AltJson.parse bodyStr with
@@ -315,7 +315,7 @@ let handleListResponse
   : Stdlib.Result.Result<BatchListResponse, Response.ApiError> =
   match response with
   | Ok r ->
-    let bodyStr = Stdlib.String.fromBytesWithReplacement r.body
+    let bodyStr = Stdlib.String.fromBlobWithReplacement r.body
 
     if r.statusCode == 200L then
       match Stdlib.AltJson.parse bodyStr with
@@ -347,7 +347,7 @@ let createBatch
   let headers = Models.getHeaders apiKey
 
   let response =
-    Stdlib.HttpClient.post batchEndpoint headers (Stdlib.String.toBytes reqBody)
+    Stdlib.HttpClient.post batchEndpoint headers (Stdlib.String.toBlob reqBody)
 
   handleBatchResponse response
 
@@ -420,7 +420,7 @@ let getBatchResults
 
   match response with
   | Ok r ->
-    let bodyStr = Stdlib.String.fromBytesWithReplacement r.body
+    let bodyStr = Stdlib.String.fromBlobWithReplacement r.body
 
     if r.statusCode == 200L then
       // Results are in JSONL format (newline-delimited JSON)
@@ -453,7 +453,7 @@ let getBatchResultsFromUrl
 
   match response with
   | Ok r ->
-    let bodyStr = Stdlib.String.fromBytesWithReplacement r.body
+    let bodyStr = Stdlib.String.fromBlobWithReplacement r.body
 
     if r.statusCode == 200L then
       // Results are in JSONL format (newline-delimited JSON)

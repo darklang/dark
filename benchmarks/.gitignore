@@ -1,0 +1,4 @@
+# Just-the-latest run + per-machine experiments. The tracked record
+# is `results/history.jsonl` — appended to on every `bench` run.
+results/latest.json
+results/local-*.json

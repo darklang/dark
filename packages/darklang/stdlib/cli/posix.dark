@@ -38,14 +38,17 @@ let openFile (path: String) (flags: Int64) (mode: Int64) : Result.Result<Int64, 
   Builtin.posixOpen path flags mode
 
 /// Read all bytes from a file descriptor until EOF.
-/// Accumulates chunks and returns the full contents.
-let fdReadAll (fd: Int64) (acc: List<UInt8>) : Result.Result<List<UInt8>, Error> =
+/// Accumulates chunks (as Blobs) and concats once at EOF.
+let fdReadAll
+  (fd: Int64)
+  (acc: List<Blob>)
+  : Result.Result<Blob, Error> =
   (Builtin.posixFdRead fd 4096L)
-   |> Stdlib.Result.andThen (fun chunk ->
-    if Stdlib.List.length chunk == 0L then
-      Stdlib.Result.Result.Ok acc
+  |> Stdlib.Result.andThen (fun chunk ->
+    if Stdlib.Blob.length chunk == 0L then
+      Stdlib.Result.Result.Ok(Stdlib.Blob.concat acc)
     else
-      fdReadAll fd (Stdlib.List.append acc chunk))
+      fdReadAll fd (Stdlib.List.append acc [ chunk ]))
 
 
 /// Stat a file. Returns mode, size, and modification time.

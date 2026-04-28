@@ -1,5 +1,5 @@
 [http-handler POST /]
-request.body |> Darklang.Stdlib.List.length
+request.body |> Darklang.Stdlib.Blob.length
 
 [request]
 POST / HTTP/1.1
@@ -25,5 +25,5 @@ HTTP handlers should return results in the form:
   Darklang.Stdlib.Http.Response {
     statusCode : Int64
     headers : List<String*String>
-    body : Bytes
+    body : Blob
   }

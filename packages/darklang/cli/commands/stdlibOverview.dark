@@ -1,0 +1,55 @@
+module Darklang.Cli.Commands.StdlibOverview
+
+// Stub: lists the top-level Stdlib modules. Intended as an orientation
+// entry point, but in its current form it's not telling the user
+// (human or AI) much that `tree Darklang.Stdlib` doesn't already.
+//
+// CLEANUP make this actually useful before keeping it. Candidates:
+//   - per-module 1-line description (manually curated, lives near each
+//     stdlib module's source)
+//   - "what's commonly imported from this module" / hot-fn hints
+//   - a token budget so the AI agent can pick a depth
+// Until that's in, the right call is probably to delete this and fold
+// the entry point into `tree --signatures-summary` or similar.
+
+let topLevelBucket
+  (loc: LanguageTools.ProgramTypes.PackageLocation)
+  : String =
+  match loc.modules with
+  | [ _ ] -> "(root)"
+  | _ :: top :: _ -> top
+  | [] -> "(root)"
+
+
+let execute (state: Cli.AppState) (_args: List<String>) : Cli.AppState =
+  let branchId = state.currentBranchId
+  let rootPath = [ "Darklang"; "Stdlib" ]
+
+  let query =
+    LanguageTools.ProgramTypes.Search.SearchQuery
+      { currentModule = rootPath
+        text = ""
+        searchDepth = LanguageTools.ProgramTypes.Search.SearchDepth.AllDescendants
+        entityTypes = []
+        exactMatch = false }
+
+  let raw = LanguageTools.PackageManager.Search.search branchId query
+  let depSets = Cli.Packages.Query.loadDeprecationSets branchId
+  let results = Cli.Packages.Query.filterDeprecated raw depSets false
+
+  let topLevels =
+    (Stdlib.List.append
+      (results.fns |> Stdlib.List.map (fun i -> topLevelBucket i.location))
+      (results.types |> Stdlib.List.map (fun i -> topLevelBucket i.location)))
+    |> Stdlib.List.unique
+    |> Stdlib.List.filter (fun k -> k != "(root)")
+    |> Stdlib.List.sort
+
+  Stdlib.printLine "# Darklang.Stdlib top-level modules"
+  Stdlib.printLine ""
+  topLevels |> Stdlib.List.iter (fun m -> Stdlib.printLine $"  {m}")
+  Stdlib.printLine ""
+  Stdlib.printLine "Use `docs signatures <module>` for full signatures of one,"
+  Stdlib.printLine "or `view <name>` for source + docs of a single item."
+
+  state

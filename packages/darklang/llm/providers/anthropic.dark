@@ -630,7 +630,7 @@ let sendExtendedRequest
       Stdlib.List.append baseHeaders [ ("anthropic-beta", betaValue) ]
 
   let httpResult =
-    Stdlib.HttpClient.post config.baseUrl headers (Stdlib.String.toBytes body)
+    Stdlib.HttpClient.post config.baseUrl headers (Stdlib.String.toBlob body)
 
   match httpResult with
   | Error e ->
@@ -639,7 +639,7 @@ let sendExtendedRequest
         Stdlib.HttpClient.toString e))
 
   | Ok response ->
-    let bodyStr = Stdlib.String.fromBytesWithReplacement response.body
+    let bodyStr = Stdlib.String.fromBlobWithReplacement response.body
 
     Internal.HttpErrors.handleResponse
       response.statusCode

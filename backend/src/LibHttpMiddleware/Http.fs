@@ -14,6 +14,7 @@ module Exe = LibExecution.Execution
 module RT = LibExecution.RuntimeTypes
 module VT = LibExecution.ValueType
 module PackageRefs = LibExecution.PackageRefs
+module Blob = LibExecution.Blob
 
 
 let lowercaseHeaderKeys (headers : List<string * string>) : List<string * string> =
@@ -23,6 +24,7 @@ module Request =
   let typ = RT.FQTypeName.fqPackage (PackageRefs.Type.Stdlib.Http.request ())
 
   let fromRequest
+    (state : RT.ExecutionState)
     (uri : string)
     (headers : List<string * string>)
     (body : byte array)
@@ -36,7 +38,7 @@ module Request =
       |> Dval.list headerType
 
     let fields =
-      [ "body", Dval.byteArrayToDvalList body
+      [ "body", Blob.newEphemeral state body
         "headers", headers
         "url", RT.DString uri ]
     RT.DRecord(typ, typ, [], Map fields)
@@ -48,40 +50,50 @@ module Response =
 
   /// Parse fields from a Darklang Http.Response record into an HttpResponse.
   /// Extracted from the task CE to avoid FS3511 (non-statically-compilable state machine).
-  let parseHttpResponseFields (fields : Map<string, RT.Dval>) : HttpResponse =
-    let code = Map.get "statusCode" fields
-    let headers = Map.get "headers" fields
-    let body = Map.get "body" fields
+  let parseHttpResponseFields
+    (state : RT.ExecutionState)
+    (fields : Map<string, RT.Dval>)
+    : Ply<HttpResponse> =
+    uply {
+      let code = Map.get "statusCode" fields
+      let headers = Map.get "headers" fields
+      let body = Map.get "body" fields
 
-    match code, headers, body with
-    | Some(RT.DInt64 code), Some(RT.DList(_, headers)), Some(RT.DList(_, body)) ->
-      let headers =
-        headers
-        |> List.fold
-          (fun acc v ->
-            match acc, v with
-            | Ok acc, RT.DTuple(RT.DString k, RT.DString v, []) -> Ok((k, v) :: acc)
-            // Deliberately don't include the header value in the error message as we show it to users
-            | Ok _, _ -> Error $"Header must be a string"
-            | Error _, _ -> acc)
-          (Ok [])
+      match code, headers, body with
+      | Some(RT.DInt64 code), Some(RT.DList(_, headers)), Some(RT.DBlob bodyRef) ->
+        let headers =
+          headers
+          |> List.fold
+            (fun acc v ->
+              match acc, v with
+              | Ok acc, RT.DTuple(RT.DString k, RT.DString v, []) ->
+                Ok((k, v) :: acc)
+              // Deliberately don't include the header value in the error message as we show it to users
+              | Ok _, _ -> Error $"Header must be a string"
+              | Error _, _ -> acc)
+            (Ok [])
 
-      match headers with
-      | Ok headers ->
-        { statusCode = int code
-          headers = lowercaseHeaderKeys headers
-          body = body |> Dval.dlistToByteArray }
-      | Error msg ->
-        { statusCode = 500
-          headers = [ "Content-Type", "text/plain; charset=utf-8" ]
-          body = UTF8.toBytes msg }
+        match headers with
+        | Ok headers ->
+          let! body = Blob.readBytes state bodyRef
+          return
+            { statusCode = int code
+              headers = lowercaseHeaderKeys headers
+              body = body }
+        | Error msg ->
+          return
+            { statusCode = 500
+              headers = [ "Content-Type", "text/plain; charset=utf-8" ]
+              body = UTF8.toBytes msg }
 
-    | _incorrectFieldTypes ->
-      { statusCode = 500
-        headers = [ "Content-Type", "text/plain; charset=utf-8" ]
-        body =
-          UTF8.toBytes
-            "Application error: expected a Http.Response, but its fields were the wrong type" }
+      | _incorrectFieldTypes ->
+        return
+          { statusCode = 500
+            headers = [ "Content-Type", "text/plain; charset=utf-8" ]
+            body =
+              UTF8.toBytes
+                "Application error: expected a Http.Response, but its fields were the wrong type" }
+    }
 
   let private wrongTypeResponse
     (state : RT.ExecutionState)
@@ -99,7 +111,7 @@ module Response =
           "  Darklang.Stdlib.Http.Response {"
           "    statusCode : Int64"
           "    headers : List<String*String>"
-          "    body : Bytes"
+          "    body : Blob"
           "  }" ]
       return
         { statusCode = 500
@@ -115,7 +127,7 @@ module Response =
       match result with
       | RT.DRecord(RT.FQTypeName.Package hash, _, [], fields) ->
         if hash = RT.Hash(PackageRefs.Type.Stdlib.Http.response ()) then
-          return parseHttpResponseFields fields
+          return! parseHttpResponseFields state fields |> Ply.toTask
         else
           return! wrongTypeResponse state result
 

@@ -1,10 +1,80 @@
-Stdlib.Bytes.hexEncode_v0 (Stdlib.String.toBytes_v0 "123qwc") = "313233717763"
+// hex round of various UTF-8 strings (Arabic / emoji / long mixed).
+((Stdlib.Blob.fromString "اختبار النص") |> Stdlib.Blob.toHex)
+  = "D8A7D8AED8AAD8A8D8A7D8B120D8A7D984D986D8B5"
 
-Stdlib.Bytes.hexEncode_v0 (Stdlib.String.toBytes_v0 "اختبار النص") = "D8A7D8AED8AAD8A8D8A7D8B120D8A7D984D986D8B5"
+((Stdlib.Blob.fromString "👱👱🏻👱🏼👱🏽👱🏾👱🏿") |> Stdlib.Blob.toHex)
+  = "F09F91B1F09F91B1F09F8FBBF09F91B1F09F8FBCF09F91B1F09F8FBDF09F91B1F09F8FBEF09F91B1F09F8FBF"
 
-Stdlib.Bytes.hexEncode_v0 (Stdlib.String.toBytes_v0 "👱👱🏻👱🏼👱🏽👱🏾👱🏿") = "F09F91B1F09F91B1F09F8FBBF09F91B1F09F8FBCF09F91B1F09F8FBDF09F91B1F09F8FBEF09F91B1F09F8FBF"
+((Stdlib.Blob.fromString
+   "dlkjkd329823333333333fjfidjsfudsdhs}{||!|!|!|!!$%^&^&﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽")
+ |> Stdlib.Blob.toHex)
+  = "646C6B6A6B64333239383233333333333333333333666A6669646A73667564736468737D7B7C7C217C217C217C212124255E265E26EFB7BDEFB7BDEFB7BDEFB7BDEFB7BDEFB7BDEFB7BDEFB7BDEFB7BDEFB7BDEFB7BDEFB7BDEFB7BDEFB7BDEFB7BDEFB7BD"
 
-Stdlib.Bytes.hexEncode_v0 (
-  Stdlib.String.toBytes_v0
-    "dlkjkd329823333333333fjfidjsfudsdhs}{||!|!|!|!!$%^&^&﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽"
-) = "646C6B6A6B64333239383233333333333333333333666A6669646A73667564736468737D7B7C7C217C217C217C212124255E265E26EFB7BDEFB7BDEFB7BDEFB7BDEFB7BDEFB7BDEFB7BDEFB7BDEFB7BDEFB7BDEFB7BDEFB7BDEFB7BDEFB7BDEFB7BDEFB7BD"
+
+// length
+((Stdlib.Blob.fromString "hi") |> Stdlib.Blob.length) = 2L
+((Stdlib.Blob.fromString "") |> Stdlib.Blob.length) = 0L
+(Stdlib.Blob.empty |> Stdlib.Blob.length) = 0L
+
+// fromString / toString roundtrip
+(match (Stdlib.Blob.fromString "hello") |> Stdlib.Blob.toString with
+ | Ok s -> s
+ | Error e -> e)
+  = "hello"
+
+// fromHex returns Result<Blob,String>; length of decoded deadbeef = 4 bytes
+(match Stdlib.Blob.fromHex "deadbeef" with
+ | Ok b -> Stdlib.Blob.length b
+ | Error _ -> -1L)
+  = 4L
+
+// hex roundtrip via wrapper
+(match Stdlib.Blob.fromHex "48656c6c6f" with
+ | Ok b ->
+   (match Stdlib.Blob.toString b with
+    | Ok s -> s
+    | Error e -> e)
+ | Error e -> e)
+  = "Hello"
+
+// toHex roundtrip (uppercase output)
+((Stdlib.Blob.fromString "ok") |> Stdlib.Blob.toHex) = "6F6B"
+((Stdlib.Blob.fromString "Hi") |> Stdlib.Blob.toHex) = "4869"
+
+// base64 roundtrip
+(match Stdlib.Blob.fromBase64 "aGVsbG8=" with
+ | Ok b ->
+   (match Stdlib.Blob.toString b with
+    | Ok s -> s
+    | Error e -> e)
+ | Error e -> e)
+  = "hello"
+
+((Stdlib.Blob.fromString "hello") |> Stdlib.Blob.toBase64) = "aGVsbG8="
+
+// concat
+(match [ Stdlib.Blob.fromString "foo"
+         Stdlib.Blob.fromString "-"
+         Stdlib.Blob.fromString "bar" ]
+       |> Stdlib.Blob.concat
+       |> Stdlib.Blob.toString with
+ | Ok s -> s
+ | Error _ -> "err")
+  = "foo-bar"
+
+// slice (middle three bytes of "abcdef" = "cde")
+(match (Stdlib.Blob.slice (Stdlib.Blob.fromString "abcdef") 2L 3L)
+       |> Stdlib.Blob.toString with
+ | Ok s -> s
+ | Error _ -> "err")
+  = "cde"
+
+// toList/fromList escape hatches
+((Stdlib.Blob.fromString "abc") |> Stdlib.Blob.toList) = [ 97uy; 98uy; 99uy ]
+((Stdlib.Blob.fromList [ 97uy; 98uy; 99uy ]) |> Stdlib.Blob.length) = 3L
+
+// Blob equality uses byte content, not handle identity. Two
+// ephemerals produced independently compare equal when their bytes
+// match — the `==` builtin compares Blobs by content (no rebuild).
+((Stdlib.Blob.fromString "hi") == (Stdlib.Blob.fromString "hi")) = true
+((Stdlib.Blob.fromString "hi") == (Stdlib.Blob.fromString "bye")) = false

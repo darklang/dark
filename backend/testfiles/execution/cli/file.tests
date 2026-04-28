@@ -1,8 +1,10 @@
-module Write =
+module WriteReadRoundtrip =
   let testContents () : String = "Test conrents"
 
-  (let filename = (Builtin.File.createTemp ()) |> Builtin.unwrap
-   do (testContents ()) |> Stdlib.String.toBytes |> (Builtin.File.write filename)
-   Builtin.fileRead filename) = Stdlib.Result.Result.Ok(
-    (testContents ()) |> Stdlib.String.toBytes
-  )
+  (let filename = (Stdlib.Cli.File.createTemp ()) |> Builtin.unwrap
+   let blob = Stdlib.Blob.fromString (testContents ())
+   do (Stdlib.Cli.FileSystem.writeFile filename blob) |> Builtin.unwrap
+
+   let readBack =
+     Stdlib.Cli.FileSystem.readFile filename |> Builtin.unwrap
+   Stdlib.Blob.toString readBack) = Stdlib.Result.Result.Ok(testContents ())

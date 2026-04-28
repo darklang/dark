@@ -29,7 +29,8 @@
 
     <Compile Include="Libs/Math.fs" />
 
-    <Compile Include="Libs/Bytes.fs" />
+    <Compile Include="Libs/Blob.fs" />
+    <Compile Include="Libs/Stream.fs" />
 
     <Compile Include="Libs/Char.fs" />
     <Compile Include="Libs/String.fs" />
@@ -47,7 +48,6 @@
     <Compile Include="Libs/AltJson.fs" />
 
     <Compile Include="Libs/HttpClient.fs" />
-    <Compile Include="Libs/StreamingHttpClient.fs" />
 
     <Compile Include="Libs/LanguageTools.fs" />
     <Compile Include="Libs/Parser.fs" />

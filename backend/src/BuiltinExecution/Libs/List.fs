@@ -90,6 +90,15 @@ module DvalComparator =
 
     | DDB name1, DDB name2 -> order name1 name2
 
+    | DBlob a, DBlob b ->
+      // Blobs don't have a natural ordering — compare by hash for
+      // persistent refs, UUID for ephemeral, to keep sort stable.
+      match a, b with
+      | Persistent(h1, _), Persistent(h2, _) -> order h1 h2
+      | Ephemeral id1, Ephemeral id2 -> order id1 id2
+      | Persistent _, Ephemeral _ -> Less
+      | Ephemeral _, Persistent _ -> Greater
+
     // exhaustiveness check
     | DUnit, _
     | DBool _, _
@@ -114,7 +123,9 @@ module DvalComparator =
     | DRecord _, _
     | DEnum _, _
     | DApplicable _, _
-    | DDB _, _ ->
+    | DDB _, _
+    | DBlob _, _
+    | DStream _, _ ->
       // TODO: Feels like this should hook into typechecker and ValueTypes somehow
       RuntimeError.Error.EqualityCheckOnIncompatibleTypes(
         Dval.toValueType dv1,

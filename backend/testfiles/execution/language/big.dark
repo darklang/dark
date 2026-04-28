@@ -1,10 +1,10 @@
 module BigTestCase =
   (let str = "a string to be used as the test case"
-   let bytes = Stdlib.String.toBytes_v0 str
-   let base64Encode = Stdlib.Base64.urlEncode_v0 bytes
-   let hexEncode = Stdlib.Bytes.hexEncode_v0 bytes
+   let blob = Stdlib.Blob.fromString str
+   let base64Encode = Stdlib.Base64.urlEncode blob
+   let hexEncode = Stdlib.Blob.toHex blob
    let sl = Stdlib.String.length str
-   let bl = Stdlib.List.length bytes
+   let bl = Stdlib.Blob.length blob
    let t = true
    let f = false
 

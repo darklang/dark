@@ -323,6 +323,15 @@ type TypeReference =
   | TUuid
   | TDateTime
 
+  /// Immutable byte sequence. At runtime, represented as a reference
+  /// to bytes held either in-process (ephemeral) or in the
+  /// content-addressed `package_blobs` table (persistent).
+  | TBlob
+
+  /// Lazy, single-consumer, non-persistable sequence of values of
+  /// the given element type.
+  | TStream of TypeReference
+
   | TList of TypeReference
   | TTuple of TypeReference * TypeReference * List<TypeReference>
   | TDict of TypeReference

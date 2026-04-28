@@ -31,7 +31,8 @@ let builtins (httpConfig : Libs.HttpClient.Configuration) : Builtins =
 
       Libs.Math.builtins ()
 
-      Libs.Bytes.builtins ()
+      Libs.Blob.builtins ()
+      Libs.Stream.builtins ()
 
       Libs.Char.builtins ()
       Libs.String.builtins ()
@@ -49,7 +50,6 @@ let builtins (httpConfig : Libs.HttpClient.Configuration) : Builtins =
       Libs.AltJson.builtins ()
 
       Libs.HttpClient.builtins httpConfig
-      Libs.StreamingHttpClient.builtins httpConfig
 
       Libs.LanguageTools.builtins ()
       Libs.Parser.builtins ()

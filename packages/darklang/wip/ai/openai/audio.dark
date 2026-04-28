@@ -28,7 +28,7 @@ module Transport =
     : Stdlib.Result.Result<Stdlib.HttpClient.Response, String> =
     let url = Config.baseUrl ++ path
     let headers = withContentType "application/json" (authHeaders apiKey)
-    let body = Stdlib.String.toBytes (Stdlib.AltJson.format json)
+    let body = Stdlib.String.toBlob (Stdlib.AltJson.format json)
 
     match Stdlib.HttpClient.post url headers body with
     | Ok response -> Stdlib.Result.Result.Ok response
@@ -38,7 +38,7 @@ module Transport =
     (apiKey: String)
     (path: String)
     (contentType: String)
-    (body: List<UInt8>)
+    (body: Blob)
     : Stdlib.Result.Result<Stdlib.HttpClient.Response, String> =
     let url = Config.baseUrl ++ path
     let headers = withContentType contentType (authHeaders apiKey)
@@ -75,14 +75,14 @@ module Transport =
     | 401L -> Stdlib.Option.Option.Some "Authentication failed: Invalid API key"
     | 429L -> Stdlib.Option.Option.Some "Rate limit exceeded"
     | _ ->
-      let bodyStr = Stdlib.String.fromBytesWithReplacement response.body
+      let bodyStr = Stdlib.String.fromBlobWithReplacement response.body
       Stdlib.Option.Option.Some("API error: " ++ bodyStr)
 
 
 module Shared =
   type MultipartRequest =
     { contentType: String
-      body: List<UInt8> }
+      body: Blob }
 
   let appendStringField
     (fields: List<(String * Json)>)
@@ -115,7 +115,7 @@ module Shared =
     (boundary: String)
     (name: String)
     (value: String)
-    : List<UInt8> =
+    : Blob =
     let header =
       "--"
       ++ boundary
@@ -126,15 +126,15 @@ module Shared =
       ++ value
       ++ "\r\n"
 
-    Stdlib.String.toBytes header
+    Stdlib.String.toBlob header
 
   let filePart
     (boundary: String)
     (name: String)
     (fileName: String)
     (contentType: String)
-    (fileBytes: List<UInt8>)
-    : List<UInt8> =
+    (fileBytes: Blob)
+    : Blob =
     let header =
       "--"
       ++ boundary
@@ -148,9 +148,10 @@ module Shared =
       ++ contentType
       ++ "\r\n\r\n"
 
-    Stdlib.List.append
-      (Stdlib.String.toBytes header)
-      (Stdlib.List.append fileBytes (Stdlib.String.toBytes "\r\n"))
+    Stdlib.Blob.concat
+      [ Stdlib.String.toBlob header
+        fileBytes
+        Stdlib.String.toBlob "\r\n" ]
 
   let guessMimeType (fileName: String) : String =
     if Stdlib.String.endsWith fileName ".wav" then
@@ -178,27 +179,30 @@ module Shared =
     | Ok fileBytes ->
       let boundary = "darklang-openai-audio-boundary"
 
-      let withTextFields =
-        Stdlib.List.fold textFields [] (fun acc field ->
+      let textPartBlobs =
+        Stdlib.List.map textFields (fun field ->
           let name = Stdlib.Tuple2.first field
           let value = Stdlib.Tuple2.second field
-          Stdlib.List.append acc (textPart boundary name value))
+          textPart boundary name value)
 
-      let withArrayFields =
-        Stdlib.List.fold arrayFields withTextFields (fun acc pair ->
+      let arrayPartBlobs =
+        Stdlib.List.fold arrayFields [] (fun acc pair ->
           let key = Stdlib.Tuple2.first pair
           let values = Stdlib.Tuple2.second pair
 
           Stdlib.List.fold values acc (fun acc2 value ->
-            Stdlib.List.append acc2 (textPart boundary key value)))
+            Stdlib.List.append acc2 [ textPart boundary key value ]))
 
-      let withFilePart =
-        Stdlib.List.append
-          withArrayFields
-          (filePart boundary fileFieldName fileName (guessMimeType fileName) fileBytes)
+      let filePartBlob =
+        filePart boundary fileFieldName fileName (guessMimeType fileName) fileBytes
 
-      let closing = Stdlib.String.toBytes("--" ++ boundary ++ "--\r\n")
-      let body = Stdlib.List.append withFilePart closing
+      let closing = Stdlib.String.toBlob ("--" ++ boundary ++ "--\r\n")
+
+      let body =
+        Stdlib.Blob.concat
+          (Stdlib.List.append
+            textPartBlobs
+            (Stdlib.List.append arrayPartBlobs [ filePartBlob; closing ]))
 
       Stdlib.Result.Result.Ok(
         MultipartRequest
@@ -633,7 +637,7 @@ module Transcriptions =
           match Transport.mapStatusError response with
           | Some e -> Stdlib.Result.Result.Error e
           | None ->
-            let bodyStr = Stdlib.String.fromBytesWithReplacement response.body
+            let bodyStr = Stdlib.String.fromBlobWithReplacement response.body
             parseResponse bodyStr opts.responseFormat
 
   let transcribe
@@ -810,7 +814,7 @@ module Translations =
           match Transport.mapStatusError response with
           | Some e -> Stdlib.Result.Result.Error e
           | None ->
-            let bodyStr = Stdlib.String.fromBytesWithReplacement response.body
+            let bodyStr = Stdlib.String.fromBlobWithReplacement response.body
             parseResponse bodyStr opts.responseFormat
 
   let translate
@@ -922,7 +926,7 @@ module Speech =
   let sendWithOptions
     (apiKey: String)
     (opts: Options)
-    : Stdlib.Result.Result<List<UInt8>, String> =
+    : Stdlib.Result.Result<Blob, String> =
     if apiKey == "" then
       Stdlib.Result.Result.Error "API key cannot be empty"
     else
@@ -938,14 +942,14 @@ module Speech =
   let textToSpeech
     (apiKey: String)
     (text: String)
-    : Stdlib.Result.Result<List<UInt8>, String> =
+    : Stdlib.Result.Result<Blob, String> =
     sendWithOptions apiKey (defaultOptions text)
 
   let textToSpeechWithVoice
     (apiKey: String)
     (voice: String)
     (text: String)
-    : Stdlib.Result.Result<List<UInt8>, String> =
+    : Stdlib.Result.Result<Blob, String> =
     let opts = withVoice (defaultOptions text) voice
     sendWithOptions apiKey opts
 
@@ -954,7 +958,7 @@ module Speech =
     (voice: String)
     (instructions: String)
     (text: String)
-    : Stdlib.Result.Result<List<UInt8>, String> =
+    : Stdlib.Result.Result<Blob, String> =
     let withVoice_ = withVoice (gptTtsOptions text) voice
     let opts = withInstructions withVoice_ instructions
 
@@ -1037,7 +1041,7 @@ module Voices =
           match Transport.mapStatusError response with
           | Some e -> Stdlib.Result.Result.Error e
           | None ->
-            let bodyStr = Stdlib.String.fromBytesWithReplacement response.body
+            let bodyStr = Stdlib.String.fromBlobWithReplacement response.body
 
             match Stdlib.AltJson.parse bodyStr with
             | Ok (Object fields) -> parseVoice fields
@@ -1108,7 +1112,7 @@ module VoiceConsents =
           match Transport.mapStatusError response with
           | Some e -> Stdlib.Result.Result.Error e
           | None ->
-            let bodyStr = Stdlib.String.fromBytesWithReplacement response.body
+            let bodyStr = Stdlib.String.fromBlobWithReplacement response.body
 
             match Stdlib.AltJson.parse bodyStr with
             | Ok (Object fields) ->
@@ -1129,7 +1133,7 @@ module VoiceConsents =
         match Transport.mapStatusError response with
         | Some e -> Stdlib.Result.Result.Error e
         | None ->
-          let bodyStr = Stdlib.String.fromBytesWithReplacement response.body
+          let bodyStr = Stdlib.String.fromBlobWithReplacement response.body
 
           match Stdlib.AltJson.parse bodyStr with
           | Ok (Object fields) ->
@@ -1157,7 +1161,7 @@ module VoiceConsents =
         match Transport.mapStatusError response with
         | Some e -> Stdlib.Result.Result.Error e
         | None ->
-          let bodyStr = Stdlib.String.fromBytesWithReplacement response.body
+          let bodyStr = Stdlib.String.fromBlobWithReplacement response.body
 
           match Stdlib.AltJson.parse bodyStr with
           | Ok (Object fields) ->
@@ -1179,7 +1183,7 @@ module VoiceConsents =
         match Transport.mapStatusError response with
         | Some e -> Stdlib.Result.Result.Error e
         | None ->
-          let bodyStr = Stdlib.String.fromBytesWithReplacement response.body
+          let bodyStr = Stdlib.String.fromBlobWithReplacement response.body
 
           match Stdlib.AltJson.parse bodyStr with
           | Ok (Object fields) ->

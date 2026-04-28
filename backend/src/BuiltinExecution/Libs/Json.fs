@@ -152,8 +152,9 @@ let rec serialize (threadID : ThreadID) (w : Utf8JsonWriter) (dv : Dval) : unit 
 
   // Not supported
   | DDB _
-  | DApplicable _ ->
-    (RTE.Jsons.CannotSerializeValue dv) |> RTE.Json |> raiseRTE threadID
+  | DApplicable _
+  | DBlob _
+  | DStream _ -> (RTE.Jsons.CannotSerializeValue dv) |> RTE.Json |> raiseRTE threadID
 
 module ParseError =
   module RT2DT = LibExecution.RuntimeTypesToDarkTypes
@@ -669,6 +670,8 @@ let parse
     // Explicitly not supported
     | TVariable _, _
     | TFn _, _
+    | TBlob, _
+    | TStream _, _
     | TDB _, _ -> (RTE.Jsons.UnsupportedType typ) |> RTE.Json |> raiseRTE threadID
 
 

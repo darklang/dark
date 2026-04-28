@@ -124,13 +124,7 @@ module Type =
       let badUrlDetails = p [] "BadUrlDetails"
       let requestError = p [] "RequestError"
       let response = p [] "Response"
-
-    module StreamingHttpClient =
-      let private p addl = p ("StreamingHttpClient" :: addl)
-      let streamChunk = p [] "StreamChunk"
-      let sseEvent = p [] "SSEEvent"
-      let sseChunk = p [] "SSEChunk"
-      let streamingResponse = p [] "StreamingResponse"
+      let streamResponse = p [] "StreamResponse"
 
     module Json =
       module ParseError =
@@ -402,10 +396,7 @@ module Fn =
 
     module HttpClient =
       let request = p [ "HttpClient" ] "request"
-
-    module StreamingHttpClient =
-      let requestStreaming = p [ "StreamingHttpClient" ] "requestStreaming"
-      let requestSSE = p [ "StreamingHttpClient" ] "requestSSE"
+      let stream = p [ "HttpClient" ] "stream"
 
   module LanguageTools =
     let private p addl = p ("LanguageTools" :: addl)

@@ -378,7 +378,9 @@ module Expect =
     | DDateTime _
     | DUuid _
     | DApplicable _
-    | DDB _ -> true
+    | DDB _
+    | DBlob _
+    | DStream _ -> true
 
     | DChar str -> str.IsNormalized() && String.lengthInEgcs str = 1
     | DString str -> str.IsNormalized()
@@ -665,7 +667,9 @@ module Expect =
       | DRecord _, _
       | DEnum _, _
       | DApplicable _, _
-      | DDB _, _ -> check path actual expected
+      | DDB _, _
+      | DBlob _, _
+      | DStream _, _ -> check path actual expected
 
 
     let dvalEquality (left : Dval) (right : Dval) : bool =
@@ -1097,7 +1101,9 @@ let visitDval (f : Dval -> 'a) (dv : Dval) : List<'a> =
     | DUuid _
     | DDateTime _
     | DApplicable _
-    | DDB _ -> f dv
+    | DDB _
+    | DBlob _
+    | DStream _ -> f dv
     f dv
   visit dv
   state
@@ -1202,6 +1208,16 @@ let interestingDvals () : List<string * RT.Dval * RT.TypeReference> =
     ("false", DBool false, TBool)
     ("unit", DUnit, TUnit)
     ("datastore", DDB "Visitors", TDB TInt64)
+    // Ephemeral blobs are intentionally excluded here — the Dval
+    // binary serializer raises on them; promote to Persistent first.
+    ("blob_persistent",
+     DBlob(
+       Persistent(
+         "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+         1024L
+       )
+     ),
+     TBlob)
     ("string", DString "incredibly this was broken", TString)
     // Json.NET has a habit of converting things automatically based on the type in the string
     ("date string", DString "2018-09-14T00:31:41Z", TString)

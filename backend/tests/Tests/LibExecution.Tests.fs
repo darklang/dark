@@ -190,6 +190,31 @@ let t
       if System.Environment.GetEnvironmentVariable "DEBUG" <> null then
         debuGList "results" (Dictionary.toList results |> List.sortBy fst)
 
+      // Promote any ephemeral blobs to content-addressed Persistent
+      // refs so two expressions that construct the same bytes via
+      // different `newEphemeralBlob` calls compare equal under the
+      // test framework's structural `dvalEquality`. The no-op insert
+      // means we don't persist to `package_blobs` — we only need the
+      // hash to dedupe UUID identity.
+      let noopInsert _ _ = uply { return () }
+      let promoteIfOk (r : RT.ExecutionResult) : Task<RT.ExecutionResult> =
+        task {
+          match r with
+          | Ok dv ->
+            let! promoted =
+              LibExecution.Blob.promote state noopInsert dv |> Ply.toTask
+            return Ok promoted
+          | Error _ -> return r
+        }
+      let! actual = promoteIfOk actual
+      let! expectedValueResult =
+        task {
+          match expectedValueResult with
+          | Some r ->
+            let! p = promoteIfOk r
+            return Some p
+          | None -> return None
+        }
       let actual = Result.map normalizeDvalResult actual
       let expectedValueResult =
         expectedValueResult |> Option.map (Result.map normalizeDvalResult)

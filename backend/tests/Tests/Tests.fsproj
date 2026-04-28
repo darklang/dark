@@ -61,6 +61,9 @@
     <Compile Include="Serialization.Vanilla.Tests.fs" />
     <Compile Include="Serialization.DarkTypes.Tests.fs" />
 
+    <Compile Include="Blob.Tests.fs" />
+    <Compile Include="Stream.Tests.fs" />
+
     <Compile Include="Tests.fs" />
   </ItemGroup>
   <Import Project="..\..\.paket\Paket.Restore.targets" />

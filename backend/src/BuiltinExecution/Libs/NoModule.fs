@@ -6,140 +6,238 @@ open LibExecution.RuntimeTypes
 open LibExecution.Builtin.Shortcuts
 module PackageRefs = LibExecution.PackageRefs
 module Dval = LibExecution.Dval
+module Blob = LibExecution.Blob
 module ValueType = LibExecution.ValueType
 module Exe = LibExecution.Execution
 module RTE = RuntimeError
 
 
-/// Note that type errors should be handled by the caller,
-/// by using `Dval.toValueType`, attempting to merge the types,
-/// and raising an RTE if the merge fails.
-/// Any type mis-matches found in this fn will just return `false`.
-let rec equals (a : Dval) (b : Dval) : bool =
-  let r = equals
+/// State-aware structural equality. Walks two Dvals in parallel and
+/// returns true iff every reachable leaf compares equal. Type errors
+/// (callers passing structurally-incompatible Dvals) return false
+/// rather than raising — the caller's responsibility to type-check
+/// up front via VT.merge.
+///
+/// Blobs are compared by content, not handle: same-hash Persistents
+/// are cheap; cross-handle ephemerals (and ephemeral-vs-persistent)
+/// dereference and byte-compare. No `Blob.promote` side effect, no
+/// Dval-tree rebuild — both of which the previous implementation did
+/// on the wrapper side.
+///
+/// Streams compare by reference identity on their `lockObj`. Same
+/// handle → true (preserves reflexivity). Different handles → false;
+/// cross-handle equality would require draining, which violates
+/// single-consumer semantics. (Conservative pick — raising "cannot
+/// compare streams" is also defensible; revisit if anyone relies on
+/// the always-false behaviour.)
+let rec equals (state : ExecutionState) (a : Dval) (b : Dval) : Ply.Ply<bool> =
+  let r = equals state
 
-  match a, b with
-  | DUnit, DUnit -> true
-
-  | DBool a, DBool b -> a = b
-
-  | DInt8 a, DInt8 b -> a = b
-  | DUInt8 a, DUInt8 b -> a = b
-  | DInt16 a, DInt16 b -> a = b
-  | DUInt16 a, DUInt16 b -> a = b
-  | DInt32 a, DInt32 b -> a = b
-  | DUInt32 a, DUInt32 b -> a = b
-  | DInt64 a, DInt64 b -> a = b
-  | DUInt64 a, DUInt64 b -> a = b
-  | DInt128 a, DInt128 b -> a = b
-  | DUInt128 a, DUInt128 b -> a = b
-
-  | DFloat a, DFloat b -> a = b
-
-  | DChar a, DChar b -> a = b
-  | DString a, DString b -> a = b
-
-  | DDateTime a, DDateTime b -> a = b
-
-  | DUuid a, DUuid b -> a = b
-
-  | DList(typA, a), DList(typB, b) ->
-    Result.isOk (ValueType.merge typA typB)
-    && a.Length = b.Length
-    && List.forall2 r a b
-
-  | DTuple(a1, a2, a3), DTuple(b1, b2, b3) ->
-    if a3.Length <> b3.Length then
-      false
-    else
-      r a1 b1 && r a2 b2 && List.forall2 r a3 b3
-
-  | DDict(typeA, a), DDict(typeB, b) ->
-    Result.isOk (ValueType.merge typeA typeB)
-    && Map.count a = Map.count b
-    && Map.forall
-      (fun k v -> Map.find k b |> Option.map (r v) |> Option.defaultValue false)
-      a
-
-  | DRecord(_, typeNameA, typeArgsA, fieldsA),
-    DRecord(_, typeNameB, typeArgsB, fieldsB) ->
-    // same _resolved_ type name
-    typeNameA = typeNameB
-    // same type args (at least _mergeable_ -- ignores Unknowns)
-    && typeArgsA.Length = typeArgsB.Length
-    && List.forall2
-      (fun typeArgA typeArgB -> Result.isOk (ValueType.merge typeArgA typeArgB))
-      typeArgsA
-      typeArgsB
-    // same fields
-    && Map.count fieldsA = Map.count fieldsB
-    && Map.forall
-      (fun k v ->
-        Map.find k fieldsB |> Option.map (r v) |> Option.defaultValue false)
-      fieldsA
-
-  | DEnum(_, typeNameA, typeArgsA, caseNameA, fieldsA),
-    DEnum(_, typeNameB, typeArgsB, caseNameB, fieldsB) ->
-    // same _resolved_ type name
-    typeNameA = typeNameB
-    // same type args (at least _mergeable_ -- ignores Unknowns)
-    && typeArgsA.Length = typeArgsB.Length
-    && List.forall2
-      (fun typeArgA typeArgB -> Result.isOk (ValueType.merge typeArgA typeArgB))
-      typeArgsA
-      typeArgsB
-    // same case name
-    && caseNameA = caseNameB
-    // same fields
-    && fieldsA.Length = fieldsB.Length
-    && List.forall2 r fieldsA fieldsB
-
-
-  | DApplicable a, DApplicable b ->
+  uply {
     match a, b with
-    | AppLambda a, AppLambda b ->
-      // CLEANUP this is very incomplete,
-      // but/because fully checking for equality of LambdaImpls may require some heavy refactoring.
-      a.exprId = b.exprId
+    | DUnit, DUnit -> return true
 
-    | AppNamedFn a, AppNamedFn b -> a = b
+    | DBool a, DBool b -> return a = b
 
-    | AppLambda _, _
-    | AppNamedFn _, _ -> false
+    | DInt8 a, DInt8 b -> return a = b
+    | DUInt8 a, DUInt8 b -> return a = b
+    | DInt16 a, DInt16 b -> return a = b
+    | DUInt16 a, DUInt16 b -> return a = b
+    | DInt32 a, DInt32 b -> return a = b
+    | DUInt32 a, DUInt32 b -> return a = b
+    | DInt64 a, DInt64 b -> return a = b
+    | DUInt64 a, DUInt64 b -> return a = b
+    | DInt128 a, DInt128 b -> return a = b
+    | DUInt128 a, DUInt128 b -> return a = b
 
-  | DDB a, DDB b -> a = b
+    | DFloat a, DFloat b -> return a = b
 
-  // exhaustiveness check
-  | DUnit, _
-  | DBool _, _
-  | DInt8 _, _
-  | DUInt8 _, _
-  | DInt16 _, _
-  | DUInt16 _, _
-  | DInt32 _, _
-  | DUInt32 _, _
-  | DInt64 _, _
-  | DUInt64 _, _
-  | DInt128 _, _
-  | DUInt128 _, _
-  | DFloat _, _
-  | DChar _, _
-  | DString _, _
-  | DDateTime _, _
-  | DUuid _, _
-  | DList _, _
-  | DTuple _, _
-  | DDict _, _
-  | DRecord _, _
-  | DEnum _, _
-  | DApplicable _, _
-  | DDB _, _ ->
-    // type errors; should be caught above by the caller
-    false
+    | DChar a, DChar b -> return a = b
+    | DString a, DString b -> return a = b
+
+    | DDateTime a, DDateTime b -> return a = b
+
+    | DUuid a, DUuid b -> return a = b
+
+    | DList(typA, a), DList(typB, b) ->
+      if Result.isError (ValueType.merge typA typB) || a.Length <> b.Length then
+        return false
+      else
+        let mutable allEqual = true
+        let mutable i = 0
+        while allEqual && i < a.Length do
+          let! eq = r a[i] b[i]
+          if not eq then allEqual <- false
+          i <- i + 1
+        return allEqual
+
+    | DTuple(a1, a2, a3), DTuple(b1, b2, b3) ->
+      if a3.Length <> b3.Length then
+        return false
+      else
+        let! e1 = r a1 b1
+        if not e1 then
+          return false
+        else
+          let! e2 = r a2 b2
+          if not e2 then
+            return false
+          else
+            let mutable allEqual = true
+            let mutable i = 0
+            while allEqual && i < a3.Length do
+              let! eq = r a3[i] b3[i]
+              if not eq then allEqual <- false
+              i <- i + 1
+            return allEqual
+
+    | DDict(typeA, a), DDict(typeB, b) ->
+      if
+        Result.isError (ValueType.merge typeA typeB) || Map.count a <> Map.count b
+      then
+        return false
+      else
+        let mutable allEqual = true
+        let entries = Map.toList a
+        let mutable i = 0
+        while allEqual && i < entries.Length do
+          let (k, va) = entries[i]
+          match Map.find k b with
+          | None -> allEqual <- false
+          | Some vb ->
+            let! eq = r va vb
+            if not eq then allEqual <- false
+          i <- i + 1
+        return allEqual
+
+    | DRecord(_, typeNameA, typeArgsA, fieldsA),
+      DRecord(_, typeNameB, typeArgsB, fieldsB) ->
+      if
+        typeNameA <> typeNameB
+        || typeArgsA.Length <> typeArgsB.Length
+        || not (
+          List.forall2
+            (fun ta tb -> Result.isOk (ValueType.merge ta tb))
+            typeArgsA
+            typeArgsB
+        )
+        || Map.count fieldsA <> Map.count fieldsB
+      then
+        return false
+      else
+        let mutable allEqual = true
+        let entries = Map.toList fieldsA
+        let mutable i = 0
+        while allEqual && i < entries.Length do
+          let (k, va) = entries[i]
+          match Map.find k fieldsB with
+          | None -> allEqual <- false
+          | Some vb ->
+            let! eq = r va vb
+            if not eq then allEqual <- false
+          i <- i + 1
+        return allEqual
+
+    | DEnum(_, typeNameA, typeArgsA, caseNameA, fieldsA),
+      DEnum(_, typeNameB, typeArgsB, caseNameB, fieldsB) ->
+      if
+        typeNameA <> typeNameB
+        || typeArgsA.Length <> typeArgsB.Length
+        || not (
+          List.forall2
+            (fun ta tb -> Result.isOk (ValueType.merge ta tb))
+            typeArgsA
+            typeArgsB
+        )
+        || caseNameA <> caseNameB
+        || fieldsA.Length <> fieldsB.Length
+      then
+        return false
+      else
+        let mutable allEqual = true
+        let mutable i = 0
+        while allEqual && i < fieldsA.Length do
+          let! eq = r fieldsA[i] fieldsB[i]
+          if not eq then allEqual <- false
+          i <- i + 1
+        return allEqual
+
+    | DApplicable a, DApplicable b ->
+      match a, b with
+      // CLEANUP exprId is a partial check — fully checking LambdaImpl
+      // equality needs lambda-internal-state work. Today this is
+      // "same-source-position lambdas compare equal."
+      | AppLambda a, AppLambda b -> return a.exprId = b.exprId
+      | AppNamedFn a, AppNamedFn b -> return a = b
+      | _ -> return false
+
+    | DDB a, DDB b -> return a = b
+
+    | DBlob refA, DBlob refB ->
+      // Cheap hash-compare for two Persistents; same-uuid for same-handle
+      // ephemerals; otherwise dereference and byte-compare.
+      match refA, refB with
+      | Persistent(h1, l1), Persistent(h2, l2) -> return h1 = h2 && l1 = l2
+      | Ephemeral id1, Ephemeral id2 when id1 = id2 -> return true
+      | _ ->
+        let! bytesA = Blob.readBytes state refA
+        let! bytesB = Blob.readBytes state refB
+        return bytesA = bytesB
+
+    | DStream(_, _, lockA), DStream(_, _, lockB) ->
+      // Reference equality on lockObj — same-handle preserves
+      // reflexivity. Cross-handle compare without consuming the streams
+      // is fundamentally impossible under the single-consumer rule.
+      return System.Object.ReferenceEquals(lockA, lockB)
+
+    // exhaustiveness — type mismatches return false; caller VT-merges
+    // up front to convert to a clean RTE.
+    | DUnit, _
+    | DBool _, _
+    | DInt8 _, _
+    | DUInt8 _, _
+    | DInt16 _, _
+    | DUInt16 _, _
+    | DInt32 _, _
+    | DUInt32 _, _
+    | DInt64 _, _
+    | DUInt64 _, _
+    | DInt128 _, _
+    | DUInt128 _, _
+    | DFloat _, _
+    | DChar _, _
+    | DString _, _
+    | DDateTime _, _
+    | DUuid _, _
+    | DList _, _
+    | DTuple _, _
+    | DDict _, _
+    | DRecord _, _
+    | DEnum _, _
+    | DApplicable _, _
+    | DDB _, _
+    | DBlob _, _
+    | DStream _, _ -> return false
+  }
 
 
 let varA = TVariable "a"
 let varB = TVariable "b"
+
+
+/// Shared body for `equals` / `notEquals` builtins — VT-merge type
+/// check + structural compare.
+let private equalsBuiltinImpl
+  (state : ExecutionState)
+  (vm : VMState)
+  (a : Dval)
+  (b : Dval)
+  : Ply.Ply<bool> =
+  let (vtA, vtB) = (Dval.toValueType a, Dval.toValueType b)
+  match ValueType.merge vtA vtB with
+  | Error _ -> RTE.EqualityCheckOnIncompatibleTypes(vtA, vtB) |> raiseRTE vm.threadID
+  | Ok _ -> equals state a b
+
 
 let fns () : List<BuiltInFn> =
   [ { name = fn "equals" 0
@@ -149,12 +247,11 @@ let fns () : List<BuiltInFn> =
       description = "Returns true if the two value are equal"
       fn =
         (function
-        | _, vm, _, [ a; b ] ->
-          let (vtA, vtB) = (Dval.toValueType a, Dval.toValueType b)
-          match ValueType.merge vtA vtB with
-          | Error _ ->
-            RTE.EqualityCheckOnIncompatibleTypes(vtA, vtB) |> raiseRTE vm.threadID
-          | Ok _ -> equals a b |> DBool |> Ply
+        | state, vm, _, [ a; b ] ->
+          uply {
+            let! result = equalsBuiltinImpl state vm a b
+            return DBool result
+          }
         | _ -> incorrectArgs ())
       sqlSpec = SqlBinOp "="
       previewable = Pure
@@ -168,12 +265,11 @@ let fns () : List<BuiltInFn> =
       description = "Returns true if the two value are not equal"
       fn =
         (function
-        | _, vm, _, [ a; b ] ->
-          let (vtA, vtB) = (Dval.toValueType a, Dval.toValueType b)
-          match ValueType.merge vtA vtB with
-          | Error _ ->
-            RTE.EqualityCheckOnIncompatibleTypes(vtA, vtB) |> raiseRTE vm.threadID
-          | Ok _ -> equals a b |> not |> DBool |> Ply
+        | state, vm, _, [ a; b ] ->
+          uply {
+            let! result = equalsBuiltinImpl state vm a b
+            return DBool(not result)
+          }
         | _ -> incorrectArgs ())
       sqlSpec = SqlBinOp "<>"
       previewable = Pure

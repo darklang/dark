@@ -26,6 +26,7 @@ type ConcurrentDictionary<'a, 'b> =
 open Prelude
 
 module RT = LibExecution.RuntimeTypes
+module Stream = LibExecution.Stream
 module PT = LibExecution.ProgramTypes
 module PT2RT = LibExecution.ProgramTypesToRuntimeTypes
 module RT2DT = LibExecution.RuntimeTypesToDarkTypes
@@ -238,6 +239,20 @@ let makeTest versionName filename =
         let instrs = test.expected |> PT2RT.Expr.toRT Map.empty 0 None
         Exe.executeExpr exeState instrs
 
+      // Promote ephemeral blobs on both sides so two independently-built
+      // Blobs with identical bytes (different UUIDs) compare equal.
+      let noopInsert _ _ = uply { return () }
+      let promoteIfOk r =
+        task {
+          match r with
+          | Ok dv ->
+            let! p = LibExecution.Blob.promote exeState noopInsert dv |> Ply.toTask
+            return Ok p
+          | Error _ -> return r
+        }
+      let! actual = promoteIfOk actual
+      let! expected = promoteIfOk expected
+
       match actual, expected with
       | Ok actual, Ok expected ->
         return Expect.RT.equalDval actual expected $"Responses don't match"
@@ -421,17 +436,18 @@ let testsFromFiles version =
 
 
 // ---------------
-// Test chunk/event content delivered via streaming callbacks
+// Shared mock-server helpers — register a canned response by URL path,
+// then hit `http://{host}/v0/{name}` to retrieve it. Used by both the
+// DStream HTTP tests and the file-driven httpclient.tests corpus.
 // ---------------
-module StreamingCallbackTests =
+module MockHelpers =
   module HC = BuiltinExecution.Libs.HttpClient
-  module SHC = BuiltinExecution.Libs.StreamingHttpClient
 
   let httpConfig : HC.Configuration = { HC.defaultConfig with timeoutInMs = 5000 }
 
   let httpClient = HC.BaseClient.create httpConfig
 
-  /// Register a test case in the mock server and return the URL to hit
+  /// Register a test case in the mock server and return the URL to hit.
   let registerTestCase
     (name : string)
     (responseStatus : int)
@@ -455,255 +471,159 @@ module StreamingCallbackTests =
   let getRequest (url : string) : HC.Request =
     { url = url; method = System.Net.Http.HttpMethod.Get; headers = []; body = [||] }
 
-  /// Collect all StreamChunks, always continuing
-  let collectStreamChunks
-    (url : string)
-    : Task<SHC.StreamingResult * ResizeArray<SHC.StreamChunk.StreamChunk>> =
+
+// ————————————————————————————————————————————————————————————
+// Tests for the DStream-returning `HttpClient.stream` builtin. The
+// mock-server infrastructure at the top of this file is reused so
+// we exercise the real Kestrel path end-to-end. The tests call
+// `openStreamingRequest` + construct a FromIO directly to avoid
+// standing up a full ExecutionState — the DStream drain path is
+// the whole point of the test.
+// ————————————————————————————————————————————————————————————
+module StreamDvalTests =
+  module HC = BuiltinExecution.Libs.HttpClient
+  module Dval = LibExecution.Dval
+  module RT = LibExecution.RuntimeTypes
+  module VT = LibExecution.ValueType
+
+  let httpConfig : HC.Configuration = { HC.defaultConfig with timeoutInMs = 5000 }
+  let httpClient = HC.BaseClient.create httpConfig
+
+  let private getRequest (url : string) : HC.Request =
+    { url = url; method = System.Net.Http.HttpMethod.Get; headers = []; body = [||] }
+
+  /// Build a DStream wrapping an open HttpResponseMessage's body —
+  /// same closure shape as the builtin. Returns the DStream and a
+  /// ref<bool> that flips when the disposer runs, so tests can
+  /// assert cleanup.
+  let private buildBodyStream
+    (response : System.Net.Http.HttpResponseMessage)
+    : Task<RT.Dval * bool ref> =
     task {
-      let chunks = ResizeArray()
-      let! result =
-        SHC.makeStreamingRequest httpConfig httpClient (getRequest url) (fun chunk ->
-          task {
-            chunks.Add(chunk)
-            return true
-          })
-      return result, chunks
+      let! responseStream = response.Content.ReadAsStreamAsync()
+      let buffer = Array.zeroCreate<byte> 8192
+      let mutable bufferLen = 0
+      let mutable bufferPos = 0
+      let next () : Ply<Option<RT.Dval>> =
+        uply {
+          if bufferPos >= bufferLen then
+            let! n = responseStream.ReadAsync(buffer, 0, buffer.Length)
+            if n = 0 then
+              return None
+            else
+              bufferLen <- n
+              bufferPos <- 0
+              let b = buffer[bufferPos]
+              bufferPos <- bufferPos + 1
+              return Some(RT.DUInt8 b)
+          else
+            let b = buffer[bufferPos]
+            bufferPos <- bufferPos + 1
+            return Some(RT.DUInt8 b)
+        }
+      let disposerRan = ref false
+      let disposer () =
+        disposerRan.Value <- true
+        responseStream.Dispose()
+        response.Dispose()
+      return Stream.newFromIO VT.uint8 next (Some disposer), disposerRan
     }
 
-  /// Collect all SSEChunks, always continuing
-  let collectSSEChunks
-    (url : string)
-    : Task<SHC.StreamingResult * ResizeArray<SHC.SSEChunk.SSEChunk>> =
+
+  let drainToBytes (s : RT.Dval) : Task<byte[]> =
     task {
-      let chunks = ResizeArray()
-      let! result =
-        SHC.makeSSERequest httpConfig httpClient (getRequest url) (fun chunk ->
-          task {
-            chunks.Add(chunk)
-            return true
-          })
-      return result, chunks
+      use ms = new System.IO.MemoryStream()
+      let mutable keepGoing = true
+      while keepGoing do
+        let! pulled = Stream.readNext s |> Ply.toTask
+        match pulled with
+        | Some(RT.DUInt8 b) -> ms.WriteByte b
+        | Some _ -> Exception.raiseInternal "expected DUInt8" []
+        | None -> keepGoing <- false
+      return ms.ToArray()
     }
 
-  /// Extract SSEEvent values from a list of SSEChunks
-  let sseEvents (chunks : ResizeArray<SHC.SSEChunk.SSEChunk>) : SHC.SSEEvent list =
-    chunks
-    |> Seq.choose (function
-      | SHC.SSEChunk.Event evt -> Some evt
-      | _ -> None)
-    |> Seq.toList
 
-  let expectOk (result : SHC.StreamingResult) : unit =
-    match result with
-    | Ok _ -> ()
-    | Error e -> failtest $"expected Ok, got Error: {e}"
-
-  let expectLastChunkIsStreamDone
-    (chunks : ResizeArray<SHC.StreamChunk.StreamChunk>)
-    =
-    Expect.isGreaterThan chunks.Count 0 "expected at least one chunk"
-    Expect.equal (Seq.last chunks) SHC.StreamChunk.Done "last chunk is Done"
-
-  let expectLastChunkIsSSEDone (chunks : ResizeArray<SHC.SSEChunk.SSEChunk>) =
-    Expect.isGreaterThan chunks.Count 0 "expected at least one chunk"
-    Expect.equal (Seq.last chunks) SHC.SSEChunk.Done "last chunk is Done"
-
-
-  // --- Raw streaming tests ---
-
-  let rawStreamingTests =
+  let tests =
     testList
-      "raw streaming"
-      [ testTask "delivers Data chunks with correct bytes" {
-          let url = registerTestCase "stream-unit-data" 200 "text/plain" "Hello!"
-          let! result, chunks = collectStreamChunks url
-          expectOk result
-
-          let allBytes =
-            chunks
-            |> Seq.choose (function
-              | SHC.StreamChunk.Data bytes -> Some bytes
-              | _ -> None)
-            |> Seq.collect Array.toSeq
-            |> Seq.toArray
-          Expect.equal allBytes (UTF8.toBytes "Hello!") "data bytes match"
-          expectLastChunkIsStreamDone chunks
-        }
-
-        testTask "Done is delivered even with empty body" {
-          let url = registerTestCase "stream-unit-done" 200 "text/plain" ""
-          let! (result, chunks : ResizeArray<SHC.StreamChunk.StreamChunk>) =
-            collectStreamChunks url
-          expectOk result
-          Expect.equal chunks.Count 1 "only Done chunk for empty body"
-          Expect.equal chunks[0] SHC.StreamChunk.Done "the single chunk is Done"
-        }
-
-        testTask "early stop prevents further Data chunks" {
-          let largeBody = String.replicate 20000 "x"
+      "HttpClient.stream (DStream)"
+      [ testTask "drain preserves every byte; response length matches" {
+          let body = "hello streams"
           let url =
-            registerTestCase "stream-unit-early-stop" 200 "text/plain" largeBody
-          let chunks = ResizeArray()
-          let! result =
-            SHC.makeStreamingRequest
-              httpConfig
-              httpClient
-              (getRequest url)
-              (fun chunk ->
-                task {
-                  chunks.Add(chunk)
-                  match chunk with
-                  | SHC.StreamChunk.Data _ -> return false
-                  | _ -> return true
-                })
-          expectOk result
+            MockHelpers.registerTestCase "stream-dval-basic" 200 "text/plain" body
+          let! setup = HC.openStreamingRequest httpConfig httpClient (getRequest url)
+          match setup with
+          | Error e -> failtest $"expected Ok, got Error: {e}"
+          | Ok(response, _headers) ->
+            let! (s, (disposerRan : bool ref)) = buildBodyStream response
+            let! (bytes : byte[]) = drainToBytes s
+            Expect.equal
+              (UTF8.ofBytesUnsafe bytes)
+              body
+              "drained bytes round-trip through the stream"
+            Expect.equal
+              bytes.Length
+              (UTF8.toBytes body).Length
+              "drained length matches source"
+            Expect.isTrue
+              disposerRan.Value
+              "drain-to-EOF runs the disposer (frees the response)"
+        }
 
-          let dataCount =
-            chunks
-            |> Seq.filter (function
-              | SHC.StreamChunk.Data _ -> true
-              | _ -> false)
-            |> Seq.length
-          Expect.equal dataCount 1 "only one Data chunk after early stop"
-          expectLastChunkIsStreamDone chunks
+        testTask "large body drains cleanly across buffer refills" {
+          // 8 KB buffer * 3.5 -> forces multiple refills.
+          let body = String.replicate 28000 "x"
+          let url =
+            MockHelpers.registerTestCase "stream-dval-large" 200 "text/plain" body
+          let! setup = HC.openStreamingRequest httpConfig httpClient (getRequest url)
+          match setup with
+          | Error e -> failtest $"expected Ok, got Error: {e}"
+          | Ok(response, _headers) ->
+            let! (s, _) = buildBodyStream response
+            let! (bytes : byte[]) = drainToBytes s
+            Expect.equal
+              bytes.Length
+              body.Length
+              "all 28k bytes pulled through multiple buffer refills"
+        }
+
+        testTask "empty body drains to zero bytes; disposer still runs" {
+          let url =
+            MockHelpers.registerTestCase "stream-dval-empty" 200 "text/plain" ""
+          let! setup = HC.openStreamingRequest httpConfig httpClient (getRequest url)
+          match setup with
+          | Error e -> failtest $"expected Ok, got Error: {e}"
+          | Ok(response, _headers) ->
+            let! (s, (disposerRan : bool ref)) = buildBodyStream response
+            let! (bytes : byte[]) = drainToBytes s
+            Expect.equal bytes.Length 0 "empty body = zero bytes"
+            Expect.isTrue disposerRan.Value "disposer runs even on empty drain"
+        }
+
+        testTask "streamClose before drain disposes the response" {
+          let body = "unused"
+          let url =
+            MockHelpers.registerTestCase "stream-dval-close" 200 "text/plain" body
+          let! setup = HC.openStreamingRequest httpConfig httpClient (getRequest url)
+          match setup with
+          | Error e -> failtest $"expected Ok, got Error: {e}"
+          | Ok(response, _headers) ->
+            let! (s, (disposerRan : bool ref)) = buildBodyStream response
+            // Replicate streamClose: flip disposed, walk impl chain.
+            match s with
+            | RT.DStream(impl, disposed, _) ->
+              disposed.Value <- true
+              Stream.disposeImpl impl
+            | _ -> failtest "expected DStream"
+            Expect.isTrue disposerRan.Value "disposer runs on explicit close"
+            // Subsequent pulls yield None.
+            let! after = Stream.readNext s |> Ply.toTask
+            Expect.equal after None "closed stream yields None"
         } ]
-
-
-  // --- SSE streaming tests ---
-
-  let sseStreamingTests =
-    testList
-      "SSE streaming"
-      [ testTask "parses basic SSE events with correct data" {
-          let body = "data: hello\n\ndata: world\n\n"
-          let url = registerTestCase "sse-unit-basic" 200 "text/event-stream" body
-          let! result, chunks = collectSSEChunks url
-          expectOk result
-
-          let events = sseEvents chunks
-          Expect.equal events.Length 2 "two events parsed"
-          Expect.equal events[0].data "hello" "first event data"
-          Expect.equal events[1].data "world" "second event data"
-          expectLastChunkIsSSEDone chunks
-        }
-
-        testTask "parses event type and id fields" {
-          let body =
-            "event: start\nid: 1\ndata: begin\n\nevent: update\nid: 2\ndata: middle\n\n"
-          let url = registerTestCase "sse-unit-fields" 200 "text/event-stream" body
-          let! result, chunks = collectSSEChunks url
-          expectOk result
-
-          let events = sseEvents chunks
-          Expect.equal events.Length 2 "two events"
-          Expect.equal events[0].eventType "start" "first event type"
-          Expect.equal events[0].id "1" "first event id"
-          Expect.equal events[0].data "begin" "first event data"
-          Expect.equal events[1].eventType "update" "second event type"
-          Expect.equal events[1].id "2" "second event id"
-          Expect.equal events[1].data "middle" "second event data"
-          expectLastChunkIsSSEDone chunks
-        }
-
-        testTask "joins multi-line data with newlines" {
-          let body = "data: line one\ndata: line two\ndata: line three\n\n"
-          let url =
-            registerTestCase "sse-unit-multiline" 200 "text/event-stream" body
-          let! result, chunks = collectSSEChunks url
-          expectOk result
-
-          let events = sseEvents chunks
-          Expect.equal events.Length 1 "one event"
-          Expect.equal
-            events[0].data
-            "line one\nline two\nline three"
-            "multi-line data joined with newlines"
-          expectLastChunkIsSSEDone chunks
-        }
-
-        testTask "early stop prevents further events" {
-          let body = "data: first\n\ndata: second\n\ndata: third\n\n"
-          let url =
-            registerTestCase "sse-unit-early-stop" 200 "text/event-stream" body
-          let chunks = ResizeArray()
-          let! result =
-            SHC.makeSSERequest httpConfig httpClient (getRequest url) (fun chunk ->
-              task {
-                chunks.Add(chunk)
-                match chunk with
-                | SHC.SSEChunk.Event _ -> return false
-                | _ -> return true
-              })
-          expectOk result
-
-          let eventCount =
-            chunks
-            |> Seq.filter (function
-              | SHC.SSEChunk.Event _ -> true
-              | _ -> false)
-            |> Seq.length
-          Expect.equal eventCount 1 "only one event after early stop"
-          expectLastChunkIsSSEDone chunks
-        }
-
-        testTask "comments are ignored" {
-          let body =
-            ": this is a comment\ndata: hello\n\n: another comment\ndata: world\n\n"
-          let url = registerTestCase "sse-unit-comments" 200 "text/event-stream" body
-          let! result, chunks = collectSSEChunks url
-          expectOk result
-
-          let events = sseEvents chunks
-          Expect.equal events.Length 2 "comments don't produce events"
-          Expect.equal events[0].data "hello" "first event data"
-          Expect.equal events[1].data "world" "second event data"
-          expectLastChunkIsSSEDone chunks
-        }
-
-        testTask "default event type is message" {
-          let body = "data: hello\n\n"
-          let url =
-            registerTestCase "sse-unit-default-type" 200 "text/event-stream" body
-          let! result, chunks = collectSSEChunks url
-          expectOk result
-
-          let events = sseEvents chunks
-          Expect.equal events[0].eventType "message" "default event type is message"
-          expectLastChunkIsSSEDone chunks
-        }
-
-        testTask "pending event emitted at end of stream without trailing blank line" {
-          let body = "data: no trailing newline"
-          let url =
-            registerTestCase "sse-unit-pending-eof" 200 "text/event-stream" body
-          let! result, chunks = collectSSEChunks url
-          expectOk result
-
-          let events = sseEvents chunks
-          Expect.equal events.Length 1 "pending event emitted at EOF"
-          Expect.equal events[0].data "no trailing newline" "pending event data"
-          expectLastChunkIsSSEDone chunks
-        }
-
-        testTask "id persists across events" {
-          let body = "id: 42\ndata: first\n\ndata: second\n\n"
-          let url =
-            registerTestCase "sse-unit-id-persist" 200 "text/event-stream" body
-          let! result, chunks = collectSSEChunks url
-          expectOk result
-
-          let events = sseEvents chunks
-          Expect.equal events.Length 2 "two events"
-          Expect.equal events[0].id "42" "first event has id"
-          Expect.equal events[1].id "42" "id persists to second event"
-          expectLastChunkIsSSEDone chunks
-        } ]
-
-  let tests = testList "streaming callbacks" [ rawStreamingTests; sseStreamingTests ]
 
 
 let tests =
   [ versions |> List.map (fun v -> testList v (testsFromFiles v))
-    [ StreamingCallbackTests.tests ] ]
+    [ StreamDvalTests.tests ] ]
   |> List.concat
   |> testList "HttpClient"

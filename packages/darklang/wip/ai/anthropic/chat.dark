@@ -363,7 +363,7 @@ let handleResponse
   : Stdlib.Result.Result<Response.Response, Response.ApiError> =
   match response with
   | Ok r ->
-    let bodyStr = Stdlib.String.fromBytesWithReplacement r.body
+    let bodyStr = Stdlib.String.fromBlobWithReplacement r.body
 
     if r.statusCode == 200L then
       match Stdlib.AltJson.parse bodyStr with
@@ -692,7 +692,7 @@ module Request =
     let reqBody = Stdlib.AltJson.format requestJson
     let headers = Models.getHeaders apiKey
     let response =
-      Stdlib.HttpClient.post Models.apiEndpoint headers (Stdlib.String.toBytes reqBody)
+      Stdlib.HttpClient.post Models.apiEndpoint headers (Stdlib.String.toBlob reqBody)
     handleResponse response
 
   /// Send and extract just the text (convenience)
@@ -762,11 +762,11 @@ let countTokens
   let headers = Models.getHeaders apiKey
 
   let response =
-    Stdlib.HttpClient.post Models.tokenCountEndpoint headers (Stdlib.String.toBytes reqBody)
+    Stdlib.HttpClient.post Models.tokenCountEndpoint headers (Stdlib.String.toBlob reqBody)
 
   match response with
   | Ok r ->
-    let bodyStr = Stdlib.String.fromBytesWithReplacement r.body
+    let bodyStr = Stdlib.String.fromBlobWithReplacement r.body
 
     if r.statusCode == 200L then
       match Stdlib.AltJson.parse bodyStr with

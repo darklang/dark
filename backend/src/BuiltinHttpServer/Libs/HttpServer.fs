@@ -28,6 +28,7 @@ open LibExecution.Builtin.Shortcuts
 
 module Dval = LibExecution.Dval
 module Execution = LibExecution.Execution
+module Blob = LibExecution.Blob
 module Http = LibHttpMiddleware.Http
 
 
@@ -75,51 +76,65 @@ let fns () : List<BuiltInFn> =
               "/{**path}",
               Func<HttpContext, Task>(fun ctx ->
                 task {
+                  // Push a fresh blob-scope per request so ephemeral
+                  // blobs minted by the handler (and by any
+                  // toHttpResponse materialisation) are reclaimed
+                  // once the response is sent. Without this, a
+                  // long-lived http-server VM leaks blobStore entries
+                  // across requests.
+                  LibExecution.Blob.pushScope exeState
                   try
-                    // Read request body
-                    let ms = new System.IO.MemoryStream()
-                    do! ctx.Request.Body.CopyToAsync(ms)
-                    let reqBody = ms.ToArray()
+                    try
+                      // Read request body
+                      let ms = new System.IO.MemoryStream()
+                      do! ctx.Request.Body.CopyToAsync(ms)
+                      let reqBody = ms.ToArray()
 
-                    // Get headers, including method as x-http-method
-                    let reqHeaders =
-                      ctx.Request.Headers
-                      |> Seq.collect (fun kvp ->
-                        kvp.Value.ToArray() |> Array.map (fun v -> (kvp.Key, v)))
-                      |> Seq.toList
-                    let reqHeaders =
-                      // CLEANUP should we drop this?
-                      ("x-http-method", ctx.Request.Method) :: reqHeaders
+                      // Get headers, including method as x-http-method
+                      let reqHeaders =
+                        ctx.Request.Headers
+                        |> Seq.collect (fun kvp ->
+                          kvp.Value.ToArray() |> Array.map (fun v -> (kvp.Key, v)))
+                        |> Seq.toList
+                      let reqHeaders =
+                        // CLEANUP should we drop this?
+                        ("x-http-method", ctx.Request.Method) :: reqHeaders
 
-                    // Build request Dval
-                    let url = ctx.Request.GetDisplayUrl()
-                    let requestDval =
-                      Http.Request.fromRequest url reqHeaders reqBody
+                      // Build request Dval
+                      let url = ctx.Request.GetDisplayUrl()
+                      let requestDval =
+                        Http.Request.fromRequest exeState url reqHeaders reqBody
 
-                    // Call the Darklang code
-                    let! result = executeHandler exeState handler requestDval
+                      // Call the Darklang code
+                      let! result = executeHandler exeState handler requestDval
 
-                    // Convert result to HTTP response
-                    let! response = Http.Response.toHttpResponse exeState result
+                      // Convert result to HTTP response
+                      let! response = Http.Response.toHttpResponse exeState result
 
-                    ctx.Response.StatusCode <- response.statusCode
-                    for (key, value) in response.headers do
-                      ctx.Response.Headers[key] <- StringValues(value)
-                    ctx.Response.ContentLength <- int64 response.body.Length
-                    do!
-                      ctx.Response.Body.WriteAsync(
-                        response.body,
-                        0,
-                        response.body.Length
-                      )
+                      ctx.Response.StatusCode <- response.statusCode
+                      for (key, value) in response.headers do
+                        ctx.Response.Headers[key] <- StringValues(value)
+                      ctx.Response.ContentLength <- int64 response.body.Length
+                      do!
+                        ctx.Response.Body.WriteAsync(
+                          response.body,
+                          0,
+                          response.body.Length
+                        )
 
-                  with ex ->
-                    ctx.Response.StatusCode <- 500
-                    let errorBytes =
-                      UTF8.toBytes $"Internal server error: {ex.Message}"
-                    ctx.Response.ContentLength <- int64 errorBytes.Length
-                    do!
-                      ctx.Response.Body.WriteAsync(errorBytes, 0, errorBytes.Length)
+                    with ex ->
+                      ctx.Response.StatusCode <- 500
+                      let errorBytes =
+                        UTF8.toBytes $"Internal server error: {ex.Message}"
+                      ctx.Response.ContentLength <- int64 errorBytes.Length
+                      do!
+                        ctx.Response.Body.WriteAsync(
+                          errorBytes,
+                          0,
+                          errorBytes.Length
+                        )
+                  finally
+                    LibExecution.Blob.popScope exeState
                 })
             )
             |> ignore<IEndpointConventionBuilder>

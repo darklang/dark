@@ -46,12 +46,22 @@ let createState
 
     types = { package = pm.getType }
     values = { builtIn = builtins.values; package = pm.getValue }
+    blobs = { get = pm.getBlob; persist = pm.persistBlob }
     fns =
       { builtIn = builtins.fns
         package = pm.getFn
         isHarmful = fun pkg -> pm.isHarmful branchId pkg }
 
-    allowHarmful = false }
+    allowHarmful = false
+
+    blobStore =
+      new System.Collections.Concurrent.ConcurrentDictionary<System.Guid, byte[]>()
+
+    // No active scope by default. HttpServer (and anything else with a
+    // request/handler lifecycle) pushes one per invocation so ephemeral
+    // blob bytes don't leak across requests.
+    blobScopes =
+      new System.Collections.Generic.Stack<System.Collections.Generic.HashSet<System.Guid>>() }
 
 
 let rec callStackForFrame

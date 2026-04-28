@@ -15,7 +15,7 @@ Here's a body!
 [test]
 // HEAD requests aren't supposed to actually return a body. But it seems like the
 // clients successfully ignore it.
-(let response = (Darklang.Stdlib.HttpClient.request "head" "http://URL" [] [] |> Builtin.unwrap)
+(let response = (Darklang.Stdlib.HttpClient.request "head" "http://URL" [] Stdlib.Blob.empty |> Builtin.unwrap)
  let respHeaders = (response.headers |> Darklang.Stdlib.List.filter (fun h -> (Darklang.Stdlib.Tuple2.first h) != "date"))
  {response with headers = respHeaders}) ==
    Darklang.Stdlib.HttpClient.Response
@@ -25,4 +25,4 @@ Here's a body!
           ("content-length", "15")
           ("content-type", "text/plain; charset=utf-8")
       ]
-      body = [] }
+      body = Darklang.Stdlib.Blob.empty }

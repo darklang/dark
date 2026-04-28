@@ -82,6 +82,85 @@ let result
   | Error dv -> resultError okType errorType dv
 
 
+/// Can this Dval be stored as the evaluated body of a package value?
+///
+/// The persist path in `Seed.fs` runs each package value's body and
+/// writes the resulting Dval as `package_values.rt_dval` bytes. The
+/// binary serializer raises on exactly two shapes — we'd rather
+/// report "cannot store this kind of value in a val" up front than
+/// surface a deep-stack serialize exception.
+///
+/// Rejected:
+/// - `DStream` — the pull fn is a closure bound to this exeState.
+/// - `DBlob(Ephemeral _)` — the raw bytes live in exeState.blobStore;
+///   promote to `Persistent` first. Most call paths already promote
+///   (see `promoteBlobs`); this branch is a safety net.
+///
+/// Walks containers so one bad leaf anywhere in the tree disqualifies
+/// the whole value.
+let rec isPersistable (dv : Dval) : bool =
+  match dv with
+  // These two shapes `raiseFormatError` in the Dval binary serializer
+  // (see LibSerialization/Binary/Serializers/RT/Dval.fs). Catch them
+  // here so the Seed.fs evaluator can report a clean reason instead
+  // of surfacing a deep-stack raise.
+  | DStream _ -> false
+  | DBlob(Ephemeral _) -> false
+
+  | DUnit
+  | DBool _
+  | DInt8 _
+  | DUInt8 _
+  | DInt16 _
+  | DUInt16 _
+  | DInt32 _
+  | DUInt32 _
+  | DInt64 _
+  | DUInt64 _
+  | DInt128 _
+  | DUInt128 _
+  | DFloat _
+  | DChar _
+  | DString _
+  | DDateTime _
+  | DUuid _
+  // DApplicable and DDB serialize successfully — lambdas store their
+  // instruction stream, DB handles store as a string identifier.
+  // Demo handlers persist lambdas as vals; canvas-local DBs rely on
+  // the DDB path.
+  | DApplicable _
+  | DDB _
+  | DBlob(Persistent _) -> true
+
+  | DList(_, items) -> items |> List.forall isPersistable
+  | DTuple(a, b, rest) ->
+    isPersistable a && isPersistable b && List.forall isPersistable rest
+  | DDict(_, entries) -> entries |> Map.values |> Seq.forall isPersistable
+  | DRecord(_, _, _, fields) -> fields |> Map.values |> Seq.forall isPersistable
+  | DEnum(_, _, _, _, fields) -> fields |> List.forall isPersistable
+
+
+/// Human-readable explanation of why [isPersistable] rejected a value.
+/// Returns the first offending shape found — good enough for an error
+/// message pointing the user at the problem.
+let rec nonPersistableReason (dv : Dval) : Option<string> =
+  match dv with
+  | DStream _ ->
+    Some "stream values can't be stored in a `val` — drain to a Blob or List first"
+  | DBlob(Ephemeral _) ->
+    Some
+      "ephemeral blob can't be stored in a `val` — promote to persistent (serialize) first"
+
+  | DList(_, items) -> items |> List.tryPick nonPersistableReason
+  | DTuple(a, b, rest) -> [ a; b ] @ rest |> List.tryPick nonPersistableReason
+  | DDict(_, entries) -> entries |> Map.values |> Seq.tryPick nonPersistableReason
+  | DRecord(_, _, _, fields) ->
+    fields |> Map.values |> Seq.tryPick nonPersistableReason
+  | DEnum(_, _, _, _, fields) -> fields |> List.tryPick nonPersistableReason
+
+  | _ -> None
+
+
 let byteArrayToDvalList (bytes : byte[]) : Dval =
   bytes
   |> Array.toList
