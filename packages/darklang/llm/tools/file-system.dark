@@ -105,7 +105,7 @@ let searchFileForPattern
       match Builtin.fileRead fullPath with
       | Error _ -> nextState
       | Ok bytes ->
-        let content = Stdlib.String.fromBytesWithReplacement bytes
+        let content = Stdlib.String.fromBlobWithReplacement bytes
         let displayPath = filePathToDisplayPath fullPath
         let lines = Stdlib.String.split content "\n"
 
@@ -173,7 +173,7 @@ let handleRead (input: Json) : Stdlib.Result.Result<ToolOutput, String> =
       | Ok fullPath ->
         match Builtin.fileRead fullPath with
         | Ok bytes ->
-          let content = Stdlib.String.fromBytesWithReplacement bytes
+          let content = Stdlib.String.fromBlobWithReplacement bytes
           Stdlib.Result.Result.Ok(ToolOutput.Text content)
         | Error e -> Stdlib.Result.Result.Error e
     | None -> Stdlib.Result.Result.Error "path required"
@@ -189,9 +189,9 @@ let handleWrite (input: Json) : Stdlib.Result.Result<ToolOutput, String> =
       match resolveSafePath path with
       | Error e -> Stdlib.Result.Result.Error e
       | Ok fullPath ->
-        match Builtin.fileWrite (Stdlib.String.toBytes content) fullPath with
+        match Stdlib.Cli.File.writeText fullPath content with
         | Ok _ -> Stdlib.Result.Result.Ok(ToolOutput.Text $"Wrote to {path}")
-        | Error e -> Stdlib.Result.Result.Error e
+        | Error e -> Stdlib.Result.Result.Error $"{e}"
     | _ -> Stdlib.Result.Result.Error "path and content required"
   | _ -> Stdlib.Result.Result.Error "invalid input"
 

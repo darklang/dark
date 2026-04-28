@@ -4,7 +4,7 @@ let body =
   request.headers
   |> Darklang.Stdlib.List.map (fun (k,v) -> "(\"" ++ k ++ "\", \"" ++ v ++ "\")")
   |> Darklang.Stdlib.String.join ",\n"
-  |> Darklang.Stdlib.String.toBytes
+  |> Darklang.Stdlib.String.toBlob
 Darklang.Stdlib.Http.response body 200L)
 
 [request]

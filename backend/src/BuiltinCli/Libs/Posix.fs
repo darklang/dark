@@ -14,6 +14,7 @@ module Dval = LibExecution.Dval
 module Builtin = LibExecution.Builtin
 module PackageRefs = LibExecution.PackageRefs
 module NR = LibExecution.RuntimeTypes.NameResolution
+module Blob = LibExecution.Blob
 open Builtin.Shortcuts
 
 
@@ -909,19 +910,16 @@ let fns () : List<BuiltInFn> =
       parameters =
         [ Param.make "fd" TInt64 "File descriptor to read from"
           Param.make "count" TInt64 "Max bytes to read" ]
-      returnType = TypeReference.result (TList TUInt8) (posixErrorTypeRef ())
-      description = "Reads up to count bytes from a file descriptor."
+      returnType = TypeReference.result TBlob (posixErrorTypeRef ())
+      description =
+        "Reads up to count bytes from a file descriptor into an ephemeral Blob."
       fn =
         (function
-        | _, _, _, [ DInt64 fd; DInt64 count ] ->
-          let resultOk =
-            Dval.resultOk (KTList(ValueType.Known KTUInt8)) (posixErrorKT ())
-          let resultError =
-            Dval.resultError (KTList(ValueType.Known KTUInt8)) (posixErrorKT ())
+        | state, _, _, [ DInt64 fd; DInt64 count ] ->
+          let resultOk = Dval.resultOk KTBlob (posixErrorKT ())
+          let resultError = Dval.resultError KTBlob (posixErrorKT ())
           match Libc.fdRead (int fd) (int count) with
-          | Ok bytes ->
-            let dvals = bytes |> Array.toList |> List.map DUInt8
-            resultOk (DList(ValueType.Known KTUInt8, dvals)) |> Ply
+          | Ok bytes -> resultOk (Blob.newEphemeral state bytes) |> Ply
           | Error e -> resultError (dPosixError e) |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
@@ -933,23 +931,20 @@ let fns () : List<BuiltInFn> =
       typeParams = []
       parameters =
         [ Param.make "fd" TInt64 "File descriptor to write to"
-          Param.make "bytes" (TList TUInt8) "Bytes to write" ]
+          Param.make "blob" TBlob "Bytes to write" ]
       returnType = TypeReference.result TInt64 (posixErrorTypeRef ())
       description = "Writes bytes to a file descriptor. Returns bytes written."
       fn =
         (function
-        | _, _, _, [ DInt64 fd; DList(_, bytes) ] ->
-          let buf =
-            bytes
-            |> List.map (fun b ->
-              match b with
-              | DUInt8 b -> b
-              | _ -> incorrectArgs ())
-            |> List.toArray
-          match Libc.fdWrite (int fd) buf with
-          | Ok n -> Dval.resultOk KTInt64 (posixErrorKT ()) (DInt64(int64 n)) |> Ply
-          | Error e ->
-            Dval.resultError KTInt64 (posixErrorKT ()) (dPosixError e) |> Ply
+        | state, _, _, [ DInt64 fd; DBlob ref ] ->
+          uply {
+            let! bytes = Blob.readBytes state ref
+            match Libc.fdWrite (int fd) bytes with
+            | Ok n ->
+              return Dval.resultOk KTInt64 (posixErrorKT ()) (DInt64(int64 n))
+            | Error e ->
+              return Dval.resultError KTInt64 (posixErrorKT ()) (dPosixError e)
+          }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure

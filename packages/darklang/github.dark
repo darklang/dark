@@ -19,7 +19,7 @@ let fetchString
 
   match Stdlib.HttpClient.get url headers with
   | Ok r ->
-    r.body |> Stdlib.String.fromBytesWithReplacement |> Stdlib.Result.Result.Ok
+    r.body |> Stdlib.String.fromBlobWithReplacement |> Stdlib.Result.Result.Ok
   | Error _e -> Stdlib.Result.Result.Error "Failed to make GitHub API request"
 
 

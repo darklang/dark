@@ -1210,10 +1210,10 @@ let send (apiKey: String) (req: Request) : Stdlib.Result.Result<Response, String
       let headers = Config.getHeaders apiKey
       let url = Config.baseUrl ++ "/chat/completions"
 
-      match Stdlib.HttpClient.post url headers (Stdlib.String.toBytes body) with
+      match Stdlib.HttpClient.post url headers (Stdlib.String.toBlob body) with
       | Error e -> Stdlib.Result.Result.Error("HTTP request failed: " ++ Stdlib.HttpClient.toString e)
       | Ok response ->
-        let bodyStr = Stdlib.String.fromBytesWithReplacement response.body
+        let bodyStr = Stdlib.String.fromBlobWithReplacement response.body
 
         match response.statusCode with
         | code when code >= 200L && code < 300L ->
@@ -1297,7 +1297,7 @@ let list
     match Stdlib.HttpClient.get url headers with
     | Error e -> Stdlib.Result.Result.Error("HTTP request failed: " ++ Stdlib.HttpClient.toString e)
     | Ok response ->
-      let bodyStr = Stdlib.String.fromBytesWithReplacement response.body
+      let bodyStr = Stdlib.String.fromBlobWithReplacement response.body
 
       match response.statusCode with
       | code when code >= 200L && code < 300L ->
@@ -1336,7 +1336,7 @@ let get (apiKey: String) (completionId: String) : Stdlib.Result.Result<Response,
     match Stdlib.HttpClient.get url headers with
     | Error e -> Stdlib.Result.Result.Error("HTTP request failed: " ++ Stdlib.HttpClient.toString e)
     | Ok response ->
-      let bodyStr = Stdlib.String.fromBytesWithReplacement response.body
+      let bodyStr = Stdlib.String.fromBlobWithReplacement response.body
 
       match response.statusCode with
       | code when code >= 200L && code < 300L ->
@@ -1365,10 +1365,10 @@ let update
     let requestJson = Json.Object [ ("metadata", Json.Object metaJson) ]
     let body = Stdlib.AltJson.format requestJson
 
-    match Stdlib.HttpClient.post url headers (Stdlib.String.toBytes body) with
+    match Stdlib.HttpClient.post url headers (Stdlib.String.toBlob body) with
     | Error e -> Stdlib.Result.Result.Error("HTTP request failed: " ++ Stdlib.HttpClient.toString e)
     | Ok response ->
-      let bodyStr = Stdlib.String.fromBytesWithReplacement response.body
+      let bodyStr = Stdlib.String.fromBlobWithReplacement response.body
 
       match response.statusCode with
       | code when code >= 200L && code < 300L ->
@@ -1392,7 +1392,7 @@ let delete (apiKey: String) (completionId: String) : Stdlib.Result.Result<ChatCo
     match Stdlib.HttpClient.delete url headers with
     | Error e -> Stdlib.Result.Result.Error("HTTP request failed: " ++ Stdlib.HttpClient.toString e)
     | Ok response ->
-      let bodyStr = Stdlib.String.fromBytesWithReplacement response.body
+      let bodyStr = Stdlib.String.fromBlobWithReplacement response.body
 
       match response.statusCode with
       | code when code >= 200L && code < 300L ->
@@ -1455,7 +1455,7 @@ let getMessages
     match Stdlib.HttpClient.get url headers with
     | Error e -> Stdlib.Result.Result.Error("HTTP request failed: " ++ Stdlib.HttpClient.toString e)
     | Ok response ->
-      let bodyStr = Stdlib.String.fromBytesWithReplacement response.body
+      let bodyStr = Stdlib.String.fromBlobWithReplacement response.body
 
       match response.statusCode with
       | code when code >= 200L && code < 300L ->

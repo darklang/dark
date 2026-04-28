@@ -199,7 +199,7 @@ let handleKey
       let content =
         if ext == ".opml" then Export.toOpml doc
         else Export.toMarkdown doc
-      let _ = Stdlib.Cli.FileSystem.writeFile path (Stdlib.String.toBytes content)
+      let _ = Stdlib.Cli.FileSystem.writeFile path (Stdlib.String.toBlob content)
       KeyResult.Continue ({ state with screen = Screen.Editor (OutlineEditor.fromOutline doc.outline) })
     | Cancelled ->
       KeyResult.Continue ({ state with screen = Screen.Editor (OutlineEditor.fromOutline (activeDoc state).outline) })
@@ -327,7 +327,7 @@ module Persistence =
           activeDocId = state.activeDocId
           nextDocId = state.nextDocId }
     let json = Builtin.jsonSerialize<Darklang.Cli.Apps.Outliner.PersistedData> data
-    let jsonBytes = Stdlib.String.toBytes json
+    let jsonBytes = Stdlib.String.toBlob json
     let _ = Builtin.fileWrite jsonBytes (dataFilePath ())
     ()
 
@@ -337,7 +337,7 @@ module Persistence =
     | true ->
       match Builtin.fileRead filePath with
       | Ok bytes ->
-        let contents = Stdlib.String.fromBytesWithReplacement bytes
+        let contents = Stdlib.String.fromBlobWithReplacement bytes
         match Builtin.jsonParse<Darklang.Cli.Apps.Outliner.PersistedData> contents with
         | Ok data ->
           let docs = data.documents

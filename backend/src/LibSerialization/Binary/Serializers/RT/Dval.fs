@@ -68,6 +68,10 @@ and writeKnownType (w : BinaryWriter) (kt : KnownType) =
   | KTDict vt ->
     w.Write 22uy
     writeValueType w vt
+  | KTBlob -> w.Write 23uy
+  | KTStream vt ->
+    w.Write 24uy
+    writeValueType w vt
 
 and writeApplicableImpl (w : BinaryWriter) (app : Applicable) =
   match app with
@@ -181,9 +185,22 @@ and writeDvalImpl (w : BinaryWriter) (dval : Dval) =
   | DDB value ->
     w.Write 23uy
     String.write w value
-
-
-// Read functions
+  | DBlob(Persistent(hash, length)) ->
+    w.Write 24uy
+    String.write w hash
+    w.Write length
+  | DBlob(Ephemeral id) ->
+    // Ephemeral blobs aren't serialisable — the bytes live in the
+    // producing VM's blob store and won't resolve across VM
+    // boundaries. Callers must promote to Persistent first (see
+    // `Blob.promote`); we raise here rather than silently
+    // write a dangling handle.
+    raiseFormatError
+      $"Cannot serialize ephemeral blob {id} — promote to persistent first"
+  | DStream _ ->
+    // Streams are not persistable by design — lifetime is bounded by
+    // the VM that produced them. Caller should drain to Blob first.
+    raiseFormatError "Cannot serialize DStream — drain to a Blob first"
 let rec readDval : BinaryReader -> Dval = fun r -> readDvalImpl r
 
 and readValueType : BinaryReader -> ValueType = fun r -> readValueTypeImpl r
@@ -231,6 +248,8 @@ and readKnownType (r : BinaryReader) : KnownType =
     let typeArgs = List.read r readValueType
     KTCustomType(fqTypeName, typeArgs)
   | 22uy -> KTDict(readValueType r)
+  | 23uy -> KTBlob
+  | 24uy -> KTStream(readValueType r)
   | b -> raiseFormatError $"Invalid KnownType tag: {b}"
 
 and readApplicableImpl (r : BinaryReader) : Applicable =
@@ -313,6 +332,10 @@ and readDvalImpl (r : BinaryReader) : Dval =
     DEnum(sourceTypeName, runtimeTypeName, typeArgs, caseName, fields)
   | 22uy -> DApplicable(readApplicable r)
   | 23uy -> DDB(String.read r)
+  | 24uy ->
+    let hash = String.read r
+    let length = r.ReadInt64()
+    DBlob(Persistent(hash, length))
   | b -> raiseFormatError $"Invalid Dval tag: {b}"
 
 

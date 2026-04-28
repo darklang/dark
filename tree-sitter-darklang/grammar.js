@@ -1000,7 +1000,9 @@ module.exports = grammar({
         /String/,
         /DateTime/,
         /Uuid/,
+        /Blob/,
         $.list_type_reference,
+        $.stream_type_reference,
         $.tuple_type_reference,
         $.dict_type_reference,
         $.fn_type_reference,
@@ -1014,6 +1016,16 @@ module.exports = grammar({
     list_type_reference: $ =>
       seq(
         field("keyword_type_constructor", alias("List", $.keyword)),
+        field("symbol_open_angle", alias("<", $.symbol)),
+        field("typ_param", $.type_reference),
+        field("symbol_close_angle", alias(">", $.symbol)),
+      ),
+
+    //
+    // Stream<T>
+    stream_type_reference: $ =>
+      seq(
+        field("keyword_type_constructor", alias("Stream", $.keyword)),
         field("symbol_open_angle", alias("<", $.symbol)),
         field("typ_param", $.type_reference),
         field("symbol_close_angle", alias(">", $.symbol)),

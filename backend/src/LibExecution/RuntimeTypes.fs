@@ -8,6 +8,13 @@ module LibExecution.RuntimeTypes
 
 open Prelude
 
+// Aliases for the .NET mutable collection types used across the runtime
+// state. We can't `open System.Collections.Generic` because it shadows
+// F#'s native `list` with `System.Collections.Generic.List`.
+type Dictionary<'k, 'v> = System.Collections.Generic.Dictionary<'k, 'v>
+type HashSet<'a> = System.Collections.Generic.HashSet<'a>
+type Stack<'a> = System.Collections.Generic.Stack<'a>
+
 
 type BranchId = uuid
 
@@ -139,6 +146,12 @@ type KnownType =
   | KTUuid
   | KTDateTime
 
+  /// Immutable byte sequence.
+  | KTBlob
+
+  /// Lazy value sequence parameterised over element type.
+  | KTStream of ValueType
+
   /// `let empty =    []` // KTList Unknown
   /// `let intList = [1]` // KTList (ValueType.Known KTInt64)
   | KTList of ValueType
@@ -211,6 +224,8 @@ type TypeReference =
   | TString
   | TUuid
   | TDateTime
+  | TBlob
+  | TStream of TypeReference
   | TTuple of TypeReference * TypeReference * List<TypeReference>
   | TList of TypeReference
   | TDict of TypeReference // CLEANUP add key type
@@ -246,7 +261,10 @@ type TypeReference =
       | TChar
       | TString
       | TUuid
-      | TDateTime -> true
+      | TDateTime
+      | TBlob -> true
+
+      | TStream t -> isConcrete t
 
       | TTuple(t1, t2, ts) ->
         isConcrete t1 && isConcrete t2 && List.forall isConcrete ts
@@ -331,6 +349,21 @@ type MatchPattern =
 type StringSegment =
   | Text of string
   | Interpolated of Register
+
+
+/// Where the bytes of a DBlob actually live. Ephemeral refs resolve
+/// via [ExecutionState.blobStore]; persistent refs resolve via the
+/// package manager's `blobs` lookup.
+///
+/// TODO BEAM-style sub-blob sharing: add
+///   `| Subblob of parent: BlobRef * offset: int64 * length: int64`
+/// so `Bytes.slice` returns a view rather than copying. `readBlobBytes`
+/// would walk to the root; promotion would promote just the slice
+/// (default) or the parent. Skip until a profile shows slice-copy is
+/// hot — neither phase-1 nor phase-2 measurements flagged it.
+type BlobRef =
+  | Ephemeral of uuid
+  | Persistent of hash : string * length : int64
 
 
 type Instruction =
@@ -608,6 +641,97 @@ and [<NoComparison>] Dval =
   // References
   | DDB of name : string
 
+  /// Immutable byte sequence. The Dval holds a small reference (UUID
+  /// or hash); the bytes live in the per-ExecutionState ephemeral
+  /// store or in `package_blobs`.
+  | DBlob of BlobRef
+
+  /// Lazy, single-consumer, non-persistable sequence. The inner
+  /// [StreamImpl] is the lazy tree (FromIO plus Mapped / Filtered /
+  /// Take / Concat transforms). The `disposed` flag + `lockObj` live
+  /// alongside for lifecycle management — `disposed` short-circuits
+  /// subsequent pulls once the stream drains, `lockObj` doubles as
+  /// the GC finalizer target so abandoned streams still release
+  /// their IO source.
+  | DStream of StreamImpl * disposed : bool ref * lockObj : obj
+
+
+/// Lazy sequence producer. [FromIO] is the leaf — a pull-based
+/// producer. Mapped / Filtered / Take / Concat wrap other StreamImpls
+/// as transformation nodes; each is pull-driven and does no work
+/// until the enclosing [DStream] is drained via `readStreamNext` or
+/// `readStreamChunk`.
+///
+/// Mapped/Filtered hold pre-bound `Dval -> Ply<...>` closures rather
+/// than the raw [Applicable]. The builtin wrapper (Stream.map etc.)
+/// closes over `exeState`/`vmState` when constructing the closure, so
+/// the drain path in Dval.fs stays decoupled from Execution — Dval.fs
+/// can't call Exe.executeApplicable directly since it sits earlier in
+/// the dependency chain.
+///
+/// TODO Mapped/Filtered closures hold a reference to the originating
+/// `ExecutionState`. If a Stream ever outlives its execution (long-lived
+/// debug pause, returned-from-handler-and-stashed), the closure pins
+/// stale state. Today this can't manifest — DStream isn't persistable
+/// (`isPersistable` rejects, binary-serialise raises), so a stream
+/// returned from a handler dies with its VM. Fix when it becomes a
+/// real path: pass `state` as a parameter to `next`/`nextChunk` rather
+/// than capturing it.
+///
+/// Take tracks both the original `n` (for introspection/printing) and
+/// a mutable `remaining` counter that decrements on each pull.
+///
+/// Concat's `streams` list is a mutable ref — drain pops exhausted
+/// heads so subsequent pulls skip over them without re-entering.
+/// TODO this is unsafe under shared access — two callers pulling from
+/// the same Concat impl would see torn views. Today the single-consumer
+/// invariant prevents that, but the type system doesn't enforce it.
+/// Fold this into the broader single-consumer enforcement work below.
+///
+/// Has a custom `Equals` that always returns false — `FromIO`'s pull
+/// fn is a closure, so there's no sensible structural-equality story,
+/// and we don't want `NoEquality` propagating up into Dval/CallFrame.
+/// Callers that need "same stream" semantics must compare by reference
+/// via the wrapping DStream's `lockObj`. Most callers shouldn't compare
+/// streams at all.
+and [<CustomEquality; NoComparison>] StreamImpl =
+  /// Lazy pull producer.
+  ///
+  /// `next` yields the next element or None on exhaustion. `disposer`,
+  /// when present, is invoked exactly once when the wrapping DStream
+  /// is disposed — either via `streamClose`, when drain-to-end trips
+  /// the `disposed` flag, or when the `StreamFinalizer` GCs the
+  /// unreachable DStream. Used by IO-backed sources (HttpClient.stream,
+  /// file reads) to release the underlying HttpResponseMessage /
+  /// FileStream / etc.
+  ///
+  /// Optional `nextChunk` lets byte-stream producers avoid per-byte
+  /// Ply/Dval boxing. `nextChunk maxBytes` fills up to `maxBytes` into
+  /// a fresh byte[] and returns it (or None on exhaustion). Consumers
+  /// that want bulk bytes (`streamToBlob`, SSE-byte accumulator) take
+  /// this path; byte-by-byte `next` stays authoritative for element-
+  /// wise pulls (`streamNext` on `Stream<UInt8>`). Non-byte streams
+  /// leave this `None`.
+  ///
+  /// TODO no backpressure: a producer faster than its consumer fills
+  /// memory. Today HTTP is network-bounded and in-process producers
+  /// (`streamFromList` over a huge list, `streamUnfold` with no
+  /// termination) are the only unbounded paths. Becomes load-bearing
+  /// if anyone adds a "buffer N elements ahead" or "merge multiple
+  /// streams" combinator.
+  | FromIO of
+    next : (unit -> Ply<Option<Dval>>) *
+    elemType : ValueType *
+    disposer : (unit -> unit) option *
+    nextChunk : (int -> Ply<Option<byte[]>>) option
+  | Mapped of src : StreamImpl * fn : (Dval -> Ply<Dval>) * elemType : ValueType
+  | Filtered of src : StreamImpl * pred : (Dval -> Ply<bool>)
+  | Take of src : StreamImpl * n : int64 * remaining : int64 ref
+  | Concat of streams : StreamImpl list ref
+
+  override this.Equals(_other : obj) : bool = false
+  override this.GetHashCode() : int = 0
+
 
 and DvalTask = Ply<Dval>
 
@@ -638,6 +762,28 @@ and BuiltInParam =
     assert_ "makeWithArgs not called on TFn" [ "name", name ] (typ.isFn ())
     { name = name; typ = typ; description = description; blockArgs = blockArgs }
 
+
+module StreamImpl =
+  /// The element type emitted by this stream. Walks the tree for
+  /// transforms that inherit from their source (Filtered, Take,
+  /// Concat) and reports the head element type for Mapped. Concat
+  /// over an empty list has no known element type.
+  ///
+  /// CLEANUP this walks the full transform tree on every call. Hot
+  /// for type-checking `streamMap` results and `toValueType` on
+  /// long pipelines. Cheap fix: cache at construction (the type is
+  /// invariant once the StreamImpl is built — Concat's head doesn't
+  /// change once frozen at construction). 🔧
+  let rec elemType (impl : StreamImpl) : ValueType =
+    match impl with
+    | FromIO(_, t, _, _) -> t
+    | Mapped(_, _, t) -> t
+    | Filtered(src, _) -> elemType src
+    | Take(src, _, _) -> elemType src
+    | Concat streams ->
+      match streams.Value with
+      | [] -> ValueType.Unknown
+      | first :: _ -> elemType first
 
 
 module RuntimeError =
@@ -1062,6 +1208,10 @@ module Dval =
     // CLEANUP follow up when DDB has a typeReference
     | DDB _ -> ValueType.Unknown
 
+    | DBlob _ -> ValueType.Known KTBlob
+
+    | DStream(impl, _, _) -> ValueType.Known(KTStream(StreamImpl.elemType impl))
+
 
 
 
@@ -1100,6 +1250,15 @@ type PackageManager =
     getValue : FQValueName.Package -> Ply<Option<PackageValue.PackageValue>>
     getFn : FQFnName.Package -> Ply<Option<PackageFn.PackageFn>>
 
+    /// Content-addressed blob bytes by SHA-256 hash. Returns [None]
+    /// for missing hashes.
+    getBlob : string -> Ply<Option<byte[]>>
+
+    /// Insert bytes into `package_blobs` keyed by SHA-256 hash. Uses
+    /// INSERT OR IGNORE — same hash = same content (content-addressing
+    /// invariant), so a second insert is a cheap no-op.
+    persistBlob : string -> byte[] -> Ply<unit>
+
     /// Is this package fn hash marked Harmful on the given branch chain?
     /// Branch-scoped because deprecation state flows through branches; the
     /// other PM lookups are content-addressed and need no branch.
@@ -1113,6 +1272,8 @@ type PackageManager =
     { getType = (fun _ -> Ply None)
       getFn = (fun _ -> Ply None)
       getValue = (fun _ -> Ply None)
+      getBlob = (fun _ -> Ply None)
+      persistBlob = (fun _ _ -> uply { return () })
       isHarmful = (fun _ _ -> Ply false)
 
       init = uply { return () } }
@@ -1144,6 +1305,8 @@ type PackageManager =
           match Map.tryFind id fnMap with
           | Some f -> Some f |> Ply
           | None -> pm.getFn id
+      getBlob = pm.getBlob
+      persistBlob = pm.persistBlob
       isHarmful = pm.isHarmful
       init = pm.init }
 
@@ -1312,15 +1475,15 @@ type InterpreterStats =
     /// When true, per-builtin cumulative timing is collected (requires enabled)
     mutable detailedTiming : bool
     /// Cumulative microseconds per builtin name
-    builtinTiming : System.Collections.Generic.Dictionary<string, int64>
+    builtinTiming : Dictionary<string, int64>
     /// Call count per builtin name
-    builtinCounts : System.Collections.Generic.Dictionary<string, int64>
+    builtinCounts : Dictionary<string, int64>
     /// Cumulative microseconds per package fn hash
-    packageFnTiming : System.Collections.Generic.Dictionary<string, int64>
+    packageFnTiming : Dictionary<string, int64>
     /// Call count per package fn hash
-    packageFnCounts : System.Collections.Generic.Dictionary<string, int64>
+    packageFnCounts : Dictionary<string, int64>
     /// Timestamp when each frame was pushed (for measuring total fn time)
-    framePushTimestamps : System.Collections.Generic.Dictionary<uuid, int64>
+    framePushTimestamps : Dictionary<uuid, int64>
   }
 
   static member create() =
@@ -1331,11 +1494,11 @@ type InterpreterStats =
       framePushCount = 0L
       packageFnLoadCount = 0L
       detailedTiming = false
-      builtinTiming = System.Collections.Generic.Dictionary()
-      builtinCounts = System.Collections.Generic.Dictionary()
-      packageFnTiming = System.Collections.Generic.Dictionary()
-      packageFnCounts = System.Collections.Generic.Dictionary()
-      framePushTimestamps = System.Collections.Generic.Dictionary() }
+      builtinTiming = Dictionary()
+      builtinCounts = Dictionary()
+      packageFnTiming = Dictionary()
+      packageFnCounts = Dictionary()
+      framePushTimestamps = Dictionary() }
 
   member this.reset() =
     this.instructionCount <- 0L
@@ -1350,8 +1513,8 @@ type InterpreterStats =
     this.framePushTimestamps.Clear()
 
   member private this.addTiming
-    (timingDict : System.Collections.Generic.Dictionary<string, int64>)
-    (countDict : System.Collections.Generic.Dictionary<string, int64>)
+    (timingDict : Dictionary<string, int64>)
+    (countDict : Dictionary<string, int64>)
     (name : string)
     (elapsedTicks : int64)
     =
@@ -1373,7 +1536,7 @@ type VMState =
   {
     mutable threadID : uuid
 
-    callFrames : System.Collections.Generic.Dictionary<uuid, CallFrame>
+    callFrames : Dictionary<uuid, CallFrame>
     mutable currentFrameID : uuid
 
     // The inst data for each fn/lambda/etc. is stored here, so that
@@ -1402,7 +1565,7 @@ type VMState =
     { threadID = System.Guid.NewGuid()
       currentFrameID = rootCallFrameID
       callFrames =
-        let d = System.Collections.Generic.Dictionary()
+        let d = Dictionary()
         d[rootCallFrameID] <- rootCallFrame
         d
       rootInstrData =
@@ -1518,6 +1681,7 @@ and ExecutionState =
     types : Types
     fns : Functions
     values : Values
+    blobs : Blobs
 
     /// Escape hatch for `Harmful`-marked fns: when true, the interpreter
     /// still sees `fns.isHarmful` return true, but proceeds anyway (and
@@ -1525,6 +1689,49 @@ and ExecutionState =
     /// research set this; `run --allow-harmful` / `eval --allow-harmful`
     /// toggle it for one-offs.
     allowHarmful : bool
+
+    /// Per-execution ephemeral byte-store for `DBlob(Ephemeral _)`
+    /// references. Populated by IO builtins (fileRead, HttpClient.body,
+    /// etc.). Bytes live until the ExecutionState is discarded or
+    /// until the enclosing blob-scope pops (see [blobScopes] below).
+    blobStore :
+      System.Collections.Concurrent.ConcurrentDictionary<System.Guid, byte[]>
+
+    /// Stack of blob-scopes. Each scope tracks the set of ephemeral
+    /// blob UUIDs minted inside it so they can be dropped from
+    /// [blobStore] when the scope pops. Long-lived VMs (http-server)
+    /// push a fresh scope per handler invocation so blob bytes are
+    /// reclaimed promptly rather than accumulating for the life of
+    /// the VM. CLI runs typically don't push a scope — blobs live
+    /// for the length of the process, which is fine.
+    ///
+    /// Blobs promoted to `Persistent` before a scope pops remain
+    /// resolvable via `package_blobs` — we only drop the in-memory
+    /// byte-store entry, never the content-addressed row.
+    ///
+    /// Known limits not addressed here:
+    ///   - Within a single scope, ephemeral bytes accumulate until
+    ///     pop. A handler that pulls many large files or HTTP bodies
+    ///     can still balloon one request's footprint; no per-scope
+    ///     byte budget or backpressure enforces a ceiling.
+    ///     TODO config-driven byte-budget on `newEphemeralBlob`, raise
+    ///     on overflow. Eviction breaks identity once a UUID is gone,
+    ///     so raise-on-overflow is the only safe option.
+    ///   - No explicit eviction for ephemerals that outlive their
+    ///     usefulness within a scope (e.g. a byte[] built, read once,
+    ///     then logically dead): they sit in `blobStore` until the
+    ///     scope pops.
+    ///   - `package_blobs` orphan reclaim runs via the `pm-sweep-blobs`
+    ///     CLI command, which scans `package_values.rt_dval` only —
+    ///     `trace_data` and User DB rows don't hold blob refs today,
+    ///     but any new referencing table needs wiring into the sweep.
+    ///     TODO turn the sweep into "scan a list of (table, column)
+    ///     pairs" defined alongside the schema so new blob-holding
+    ///     columns register themselves.
+    ///   - No reverse-index table (`package_blob_refs`) — the sweep
+    ///     is O(N+M). Fine at current scale; revisit at higher
+    ///     package counts.
+    blobScopes : Stack<HashSet<System.Guid>>
   }
 
 
@@ -1533,6 +1740,14 @@ and Types = { package : FQTypeName.Package -> Ply<Option<PackageType.PackageType
 and Values =
   { builtIn : Map<FQValueName.Builtin, BuiltInValue>
     package : FQValueName.Package -> Ply<Option<PackageValue.PackageValue>> }
+
+/// Blob-byte access wired onto the ExecutionState. `get` resolves a
+/// content-addressed hash to bytes (or None if the hash is missing);
+/// `persist` writes bytes to `package_blobs` via INSERT OR IGNORE.
+/// Needed inside builtins that manipulate blobs — eg.
+/// `Blob.toHex : Blob -> String` has to dereference its arg.
+and Blobs =
+  { get : string -> Ply<Option<byte[]>>; persist : string -> byte[] -> Ply<unit> }
 
 and Functions =
   {
@@ -1580,8 +1795,10 @@ module Types =
     | TChar
     | TString
     | TUuid
-    | TDateTime -> typ
+    | TDateTime
+    | TBlob -> typ
 
+    | TStream t -> TStream(r t)
     | TTuple(t1, t2, rest) -> TTuple(r t1, r t2, List.map r rest)
     | TList t -> TList(r t)
     | TDict t -> TDict(r t)
@@ -1659,6 +1876,11 @@ module TypeReference =
       | TString -> return ValueType.Known KTString
       | TUuid -> return ValueType.Known KTUuid
       | TDateTime -> return ValueType.Known KTDateTime
+      | TBlob -> return ValueType.Known KTBlob
+
+      | TStream inner ->
+        let! inner = r inner
+        return ValueType.Known(KTStream inner)
 
       | TTuple(first, second, theRest) ->
         let! first = r first
@@ -1718,6 +1940,8 @@ module TypeReference =
     | KTString -> TString
     | KTUuid -> TUuid
     | KTDateTime -> TDateTime
+    | KTBlob -> TBlob
+    | KTStream inner -> TStream(fromVT inner)
     | KTList inner -> TList(fromVT inner)
     | KTDict inner -> TDict(fromVT inner)
     | KTTuple(first, second, rest) ->
@@ -1752,7 +1976,8 @@ module TypeReference =
     | TChar
     | TString
     | TUuid
-    | TDateTime -> typ
+    | TDateTime
+    | TBlob -> typ
 
     | TVariable name ->
       match Map.get name tst with
@@ -1761,6 +1986,7 @@ module TypeReference =
       | None -> typ // Keep as TVariable if not resolved
 
     | TList inner -> TList(r inner)
+    | TStream inner -> TStream(r inner)
     | TDict inner -> TDict(r inner)
     | TTuple(first, second, rest) -> TTuple(r first, r second, List.map r rest)
     | TCustomType(typeName, typeArgs) -> TCustomType(typeName, List.map r typeArgs)

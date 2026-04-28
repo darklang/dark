@@ -1,0 +1,148 @@
+// Stream — consumption (next/toList/toBlob/close) and transforms
+// (map/filter/take/concat).
+
+// fromList -> toList roundtrips
+(let s = Stdlib.Stream.fromList [ 1L; 2L; 3L ]
+ Stdlib.Stream.toList s) = [ 1L; 2L; 3L ]
+
+// empty stream drains to empty list
+(let s = Stdlib.Stream.fromList<Int64> []
+ Stdlib.Stream.toList s) = []
+
+// next on an empty stream returns None
+(let s = Stdlib.Stream.fromList<Int64> []
+ Stdlib.Stream.next s) = Stdlib.Option.Option.None
+
+// next pulls head, leaves rest
+(let s = Stdlib.Stream.fromList [ 7L; 8L ]
+ let first = Stdlib.Stream.next s
+ let second = Stdlib.Stream.next s
+ let third = Stdlib.Stream.next s
+ [ first; second; third ]) = [ Stdlib.Option.Option.Some 7L
+                               Stdlib.Option.Option.Some 8L
+                               Stdlib.Option.Option.None ]
+
+// toBlob drains a Stream<UInt8> into a Blob
+(let s = Stdlib.Stream.fromList [ 104uy; 105uy ]
+ let b = Stdlib.Stream.toBlob s
+ Stdlib.Blob.toString b) = Stdlib.Result.Result.Ok "hi"
+
+// close is idempotent; subsequent next returns None
+(let s = Stdlib.Stream.fromList [ 1L; 2L ]
+ let _ = Stdlib.Stream.close s
+ let _ = Stdlib.Stream.close s
+ Stdlib.Stream.next s) = Stdlib.Option.Option.None
+
+
+// --- transforms ---
+
+// map doubles every element
+(let s = Stdlib.Stream.fromList [ 1L; 2L; 3L ]
+ let mapped = Stdlib.Stream.map s (fun n -> n * 2L)
+ Stdlib.Stream.toList mapped) = [ 2L; 4L; 6L ]
+
+// filter keeps only matching elements
+(let s = Stdlib.Stream.fromList [ 1L; 2L; 3L; 4L ]
+ let evens = Stdlib.Stream.filter s (fun n -> n % 2L == 0L)
+ Stdlib.Stream.toList evens) = [ 2L; 4L ]
+
+// filter rejecting everything yields empty
+(let s = Stdlib.Stream.fromList [ 1L; 3L; 5L ]
+ let none = Stdlib.Stream.filter s (fun n -> n % 2L == 0L)
+ Stdlib.Stream.toList none) = []
+
+// take caps at n
+(let s = Stdlib.Stream.fromList [ 10L; 20L; 30L; 40L ]
+ let first2 = Stdlib.Stream.take s 2L
+ Stdlib.Stream.toList first2) = [ 10L; 20L ]
+
+// take more than available returns all available
+(let s = Stdlib.Stream.fromList [ 7L; 8L ]
+ let wide = Stdlib.Stream.take s 10L
+ Stdlib.Stream.toList wide) = [ 7L; 8L ]
+
+// take 0 returns empty without pulling
+(let s = Stdlib.Stream.fromList [ 1L; 2L ]
+ let none = Stdlib.Stream.take s 0L
+ Stdlib.Stream.toList none) = []
+
+// concat drains streams in list order
+(let a = Stdlib.Stream.fromList [ 1L; 2L ]
+ let b = Stdlib.Stream.fromList [ 3L; 4L ]
+ let joined = Stdlib.Stream.concat [ a; b ]
+ Stdlib.Stream.toList joined) = [ 1L; 2L; 3L; 4L ]
+
+// concat over an empty list yields empty
+(let joined = Stdlib.Stream.concat<Int64> []
+ Stdlib.Stream.toList joined) = []
+
+// concat skips an empty sub-stream in the middle
+(let a = Stdlib.Stream.fromList [ 1L ]
+ let empty = Stdlib.Stream.fromList<Int64> []
+ let b = Stdlib.Stream.fromList [ 2L ]
+ let joined = Stdlib.Stream.concat [ a; empty; b ]
+ Stdlib.Stream.toList joined) = [ 1L; 2L ]
+
+// the spec done-when: filter evens, map +1, take 3, toList
+// [1..10] -> evens [2,4,6,8,10] -> +1 [3,5,7,9,11] -> take 3 [3,5,7]
+(let s = Stdlib.Stream.fromList [ 1L; 2L; 3L; 4L; 5L; 6L; 7L; 8L; 9L; 10L ]
+ let filtered = Stdlib.Stream.filter s (fun n -> n % 2L == 0L)
+ let mapped = Stdlib.Stream.map filtered (fun n -> n + 1L)
+ let taken = Stdlib.Stream.take mapped 3L
+ Stdlib.Stream.toList taken) = [ 3L; 5L; 7L ]
+
+
+// --- extra compositional coverage ---
+
+// map can change the element type
+(let s = Stdlib.Stream.fromList [ 1L; 2L; 3L ]
+ let mapped = Stdlib.Stream.map s (fun n -> Stdlib.Int64.toString n)
+ Stdlib.Stream.toList mapped) = [ "1"; "2"; "3" ]
+
+// take after map — the take limit applies to the mapped output
+(let s = Stdlib.Stream.fromList [ 1L; 2L; 3L; 4L; 5L ]
+ let mapped = Stdlib.Stream.map s (fun n -> n * 10L)
+ let taken = Stdlib.Stream.take mapped 2L
+ Stdlib.Stream.toList taken) = [ 10L; 20L ]
+
+// map after take — map only applies to elements that survive the take
+(let s = Stdlib.Stream.fromList [ 1L; 2L; 3L; 4L; 5L ]
+ let taken = Stdlib.Stream.take s 3L
+ let mapped = Stdlib.Stream.map taken (fun n -> n * n)
+ Stdlib.Stream.toList mapped) = [ 1L; 4L; 9L ]
+
+// concat of already-transformed streams
+(let a = Stdlib.Stream.fromList [ 1L; 2L ]
+ let b = Stdlib.Stream.fromList [ 3L; 4L ]
+ let aDoubled = Stdlib.Stream.map a (fun n -> n * 2L)
+ let bNegated = Stdlib.Stream.map b (fun n -> 0L - n)
+ let joined = Stdlib.Stream.concat [ aDoubled; bNegated ]
+ Stdlib.Stream.toList joined) = [ 2L; 4L; -3L; -4L ]
+
+// filter then take: early-terminate once Take is satisfied
+(let s = Stdlib.Stream.fromList [ 1L; 2L; 3L; 4L; 5L; 6L; 7L; 8L ]
+ let evens = Stdlib.Stream.filter s (fun n -> n % 2L == 0L)
+ let firstTwo = Stdlib.Stream.take evens 2L
+ Stdlib.Stream.toList firstTwo) = [ 2L; 4L ]
+
+// concat of concats flattens correctly
+(let a = Stdlib.Stream.fromList [ 1L ]
+ let b = Stdlib.Stream.fromList [ 2L ]
+ let c = Stdlib.Stream.fromList [ 3L ]
+ let ab = Stdlib.Stream.concat [ a; b ]
+ let full = Stdlib.Stream.concat [ ab; c ]
+ Stdlib.Stream.toList full) = [ 1L; 2L; 3L ]
+
+// map/filter/take over an empty source yields empty
+(let s = Stdlib.Stream.fromList<Int64> []
+ let mapped = Stdlib.Stream.map s (fun n -> n + 1L)
+ let filtered = Stdlib.Stream.filter mapped (fun n -> n > 0L)
+ let taken = Stdlib.Stream.take filtered 5L
+ Stdlib.Stream.toList taken) = []
+
+// Stream<Blob> round-trips via fromList/toList
+(let b1 = Stdlib.Blob.fromString "hi"
+ let b2 = Stdlib.Blob.fromString "there"
+ let s = Stdlib.Stream.fromList [ b1; b2 ]
+ let result = Stdlib.Stream.toList s
+ Stdlib.List.length result) = 2L

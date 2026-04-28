@@ -1,3 +1,51 @@
+/// HTTP client builtins.
+///
+/// Two builtins, two API surfaces:
+/// - `httpClientRequest` returns a Response with `body : Blob` —
+///   buffers the whole body up front; the simple/common case.
+/// - `httpClientStream` returns a StreamResponse with
+///   `body : Stream<UInt8>` — lazy/chunked; for large bodies, SSE,
+///   etc.
+///
+/// TODO collapse into a single builtin. The intended end state is:
+///   - `httpClientRequest` is gone from the F# side.
+///   - `httpClientStream` is the only F# builtin, and it takes a
+///     `body : Blob` (currently always sends `[||]`).
+///   - `Stdlib.HttpClient.request` is a Dark-side wrapper: call
+///     `HttpClient.stream`, drain the body via `Stream.toBlob`,
+///     repack into a `Response`. ~5 lines of Dark.
+///
+/// Four gates need to land in this file before the collapse stops
+/// regressing existing callers:
+///   (1) Add `body : Blob` to the stream builtin's parameters and
+///       thread it into `openStreamingRequest`.
+///   (2) Body-read timeout. Today the stream path uses
+///       `HttpCompletionOption.ResponseHeadersRead`, so the cancel
+///       token only fires on header-arrival lag — body reads can
+///       hang indefinitely. The buffered path's whole-request
+///       timeout has to be re-applied to the drain (carry the
+///       CancellationToken through the FromIO closure and pass it
+///       into `responseStream.ReadAsync`).
+///   (3) Drain-time error translation. `makeRequest` catches
+///       IOException at the top and returns `Result.Error
+///       NetworkError`; on the streaming path that exception
+///       happens during `Stream.toBlob` and bubbles up as an
+///       uncaught RuntimeError. Need a `Stream.toBlob`-style
+///       primitive that returns `Result<Blob, NetworkError>` —
+///       either a new builtin or a wrapping helper that catches
+///       inside the FromIO closure.
+///   (4) Telemetry parity. `makeRequest` wraps the whole call in
+///       `telemetryInitialize` (one coherent span) and tags
+///       `request.content_type`, `request.content_length`,
+///       `response.version`. `openStreamingRequest` inlines tags
+///       and only records `response.status_code`. The collapse
+///       wants the streaming span to extend through the drain
+///       (span ends at toBlob completion / streamClose) and to
+///       record the same set of tags on errors.
+///
+/// Until those four are in, the buffered builtin stays. Header /
+/// URL / request-message construction are shared via the helpers
+/// below so the duplication that does remain is small.
 module BuiltinExecution.Libs.HttpClient
 
 open System.IO
@@ -12,6 +60,8 @@ open LibExecution.RuntimeTypes
 module VT = ValueType
 module RTE = RuntimeError
 module NR = LibExecution.RuntimeTypes.NameResolution
+module Blob = LibExecution.Blob
+module Stream = LibExecution.Stream
 
 type Method = HttpMethod
 
@@ -227,6 +277,111 @@ let defaultConfig =
     telemetryAddTag = fun _ _ -> ()
     telemetryAddException = fun _ _ -> () }
 
+
+// ————————————————————————————————————————————————————————————
+// Shared request-prep helpers used by both the buffered and the
+// streaming builtins. Pulled out so that the duplication between
+// the two paths is just the SendAsync call + response handling.
+// ————————————————————————————————————————————————————————————
+
+/// Run the configured allow-lists over `httpRequest` and return the
+/// canonical request URI string. May throw `System.UriFormatException`
+/// or `System.ArgumentException` for malformed URIs — callers catch
+/// at the outer try block.
+let private validateAndBuildUri
+  (config : Configuration)
+  (httpRequest : Request)
+  : Result<string, RequestError.RequestError> =
+  let uri = System.Uri(httpRequest.url, System.UriKind.Absolute)
+  let host = uri.Host.Trim().ToLower()
+  if not (config.allowedHost host) then
+    Error(RequestError.BadUrl BadUrl.BadUrlDetails.InvalidHost)
+  elif not (config.allowedHeaders httpRequest.headers) then
+    Error(RequestError.BadUrl BadUrl.BadUrlDetails.InvalidRequest)
+  elif not (config.allowedScheme uri.Scheme) then
+    Error(RequestError.BadUrl BadUrl.BadUrlDetails.UnsupportedProtocol)
+  else
+    System.UriBuilder(
+      Scheme = uri.Scheme,
+      Host = uri.Host,
+      Port = uri.Port,
+      Path = uri.AbsolutePath,
+      Query = uri.Query
+    )
+    |> string
+    |> Ok
+
+
+/// Build the request message used for both the buffered and the
+/// streaming path. Header version policy is the same in both cases.
+let private buildHttpRequestMessage
+  (method : Method)
+  (reqUri : string)
+  (body : Body)
+  : HttpRequestMessage =
+  new HttpRequestMessage(
+    method,
+    reqUri,
+    Content = new ByteArrayContent(body),
+    // Support both Http 2.0 and 3.0
+    // https://learn.microsoft.com/en-us/dotnet/api/system.net.http.httpversionpolicy?view=net-7.0
+    // TODO: test this (against requestbin or something that allows us
+    // to control the HTTP protocol version)
+    Version = System.Net.HttpVersion.Version30,
+    VersionPolicy = HttpVersionPolicy.RequestVersionOrLower
+  )
+
+
+/// Apply the caller-supplied headers to `req`. Content-Type goes on
+/// `req.Content.Headers`; everything else lives on `req.Headers`
+/// unless .NET rejects it (then we fall back to Content.Headers).
+/// Returns `Error InvalidContentType` if Content-Type can't be
+/// parsed; otherwise `Ok ()`.
+let private applyRequestHeaders
+  (req : HttpRequestMessage)
+  (headers : Headers.T)
+  : Result<unit, BadHeader.BadHeader> =
+  headers
+  |> List.map (fun (k, v) ->
+    // .NET handles "content headers" separately from other headers.
+    // They're put into `req.Content.Headers` rather than `req.Headers`
+    // https://docs.microsoft.com/en-us/dotnet/api/system.net.http.headers.httpcontentheaders?view=net-6.0
+    if String.equalsCaseInsensitive k "content-type" then
+      try
+        req.Content.Headers.ContentType <- Headers.MediaTypeHeaderValue.Parse(v)
+        Ok()
+      with :? System.FormatException ->
+        Error BadHeader.InvalidContentType
+    else
+      let added = req.Headers.TryAddWithoutValidation(k, v)
+      // Headers are split between req.Headers and req.Content.Headers
+      // so just try both.
+      if not added then req.Content.Headers.Add(k, v)
+      Ok())
+  |> Result.collect
+  |> Result.map (fun _ -> ())
+
+
+/// Flatten the response and content header collections into a flat
+/// list, joining repeated values with ',' as ASP.NET surfaces them.
+let private headersForAspNetResponse
+  (response : HttpResponseMessage)
+  : List<string * string> =
+  let fromAspNetHeaders (headers : Headers.HttpHeaders) : List<string * string> =
+    headers
+    |> Seq.map Tuple2.fromKeyValuePair
+    |> Seq.map (fun (k, v) -> (k, v |> Seq.toList |> String.concat ","))
+    |> Seq.toList
+  fromAspNetHeaders response.Headers @ fromAspNetHeaders response.Content.Headers
+
+
+/// Lowercase keys + values across a response-header list. Both the
+/// buffered and streaming paths surface the same flattened shape.
+let private normalizeResponseHeaders
+  (headers : List<string * string>)
+  : List<string * string> =
+  headers |> List.map (fun (k, v) -> (String.toLowercase k, String.toLowercase v))
+
 let makeRequest
   (config : Configuration)
   (httpClient : HttpClient)
@@ -236,65 +391,16 @@ let makeRequest
     task {
       config.telemetryAddTag "request.url" httpRequest.url
       config.telemetryAddTag "request.method" httpRequest.method
-      config.telemetryAddTag "request.method" httpRequest.method
       try
-        let uri = System.Uri(httpRequest.url, System.UriKind.Absolute)
-
-        let host = uri.Host.Trim().ToLower()
-        if not (config.allowedHost host) then
-          return Error(RequestError.BadUrl BadUrl.BadUrlDetails.InvalidHost)
-        else if not (config.allowedHeaders httpRequest.headers) then
-          return Error(RequestError.BadUrl BadUrl.BadUrlDetails.InvalidRequest)
-        else if not (config.allowedScheme uri.Scheme) then
-          return Error(RequestError.BadUrl BadUrl.BadUrlDetails.UnsupportedProtocol)
-        else
-          let reqUri =
-            System.UriBuilder(
-              Scheme = uri.Scheme,
-              Host = uri.Host,
-              Port = uri.Port,
-              Path = uri.AbsolutePath,
-              Query = uri.Query
-            )
-            |> string
-
+        match validateAndBuildUri config httpRequest with
+        | Error e -> return Error e
+        | Ok reqUri ->
           use req =
-            new HttpRequestMessage(
-              httpRequest.method,
-              reqUri,
-              Content = new ByteArrayContent(httpRequest.body),
+            buildHttpRequestMessage httpRequest.method reqUri httpRequest.body
 
-              // Support both Http 2.0 and 3.0
-              // https://learn.microsoft.com/en-us/dotnet/api/system.net.http.httpversionpolicy?view=net-7.0
-              // TODO: test this (against requestbin or something that allows us to control the HTTP protocol version)
-              Version = System.Net.HttpVersion.Version30,
-              VersionPolicy = HttpVersionPolicy.RequestVersionOrLower
-            )
-
-          // headers
-          let headerResults =
-            httpRequest.headers
-            |> List.map (fun (k, v) ->
-              // .NET handles "content headers" separately from other headers.
-              // They're put into `req.Content.Headers` rather than `req.Headers`
-              // https://docs.microsoft.com/en-us/dotnet/api/system.net.http.headers.httpcontentheaders?view=net-6.0
-              if String.equalsCaseInsensitive k "content-type" then
-                try
-                  req.Content.Headers.ContentType <-
-                    Headers.MediaTypeHeaderValue.Parse(v)
-                  Ok()
-                with :? System.FormatException ->
-                  Error BadHeader.InvalidContentType
-              else
-                let added = req.Headers.TryAddWithoutValidation(k, v)
-
-                // Headers are split between req.Headers and req.Content.Headers so just try both
-                if not added then req.Content.Headers.Add(k, v)
-                Ok())
-
-
-          match Result.collect headerResults with
-          | Ok _ ->
+          match applyRequestHeaders req httpRequest.headers with
+          | Error e -> return Error(RequestError.RequestError.BadHeader e)
+          | Ok() ->
             config.telemetryAddTag
               "request.content_type"
               req.Content.Headers.ContentType
@@ -316,33 +422,14 @@ let makeRequest
             do! responseStream.CopyToAsync(memoryStream)
             let respBody = memoryStream.ToArray()
 
-            let headersForAspNetResponse
-              (response : HttpResponseMessage)
-              : List<string * string> =
-              let fromAspNetHeaders
-                (headers : Headers.HttpHeaders)
-                : List<string * string> =
-                headers
-                |> Seq.map Tuple2.fromKeyValuePair
-                |> Seq.map (fun (k, v) -> (k, v |> Seq.toList |> String.concat ","))
-                |> Seq.toList
-              fromAspNetHeaders response.Headers
-              @ fromAspNetHeaders response.Content.Headers
-
-
             let headers =
-              response
-              |> headersForAspNetResponse
-              |> List.map (fun (k, v) ->
-                (String.toLowercase k, String.toLowercase v))
+              response |> headersForAspNetResponse |> normalizeResponseHeaders
 
             return
               { statusCode = int response.StatusCode
                 headers = headers
                 body = respBody }
               |> Ok
-
-          | Error e -> return Error(RequestError.RequestError.BadHeader e)
 
       with
       | :? TaskCanceledException ->
@@ -384,6 +471,68 @@ let headersType = TList(TTuple(TString, TString, []))
 open LibExecution.Builtin.Shortcuts
 
 
+/// Open a streaming request. Unlike [makeRequest], the body isn't
+/// copied into a byte[] — the caller gets back the live
+/// HttpResponseMessage plus its readable stream, which must be
+/// disposed when the consumer is done.
+///
+/// Used by the `HttpClient.stream` builtin to surface a lazy
+/// `Stream<UInt8>` body to Dark.
+let openStreamingRequest
+  (config : Configuration)
+  (httpClient : HttpClient)
+  (httpRequest : Request)
+  : Task<Result<HttpResponseMessage * Headers.T, RequestError.RequestError>> =
+  // Deliberately skips [config.telemetryInitialize] — its signature
+  // is specialised to the buffered `RequestResult`. Inline telemetry
+  // calls here cover the same tags.
+  task {
+    config.telemetryAddTag "request.url" httpRequest.url
+    config.telemetryAddTag "request.method" httpRequest.method
+    config.telemetryAddTag "request.streaming" true
+    try
+      match validateAndBuildUri config httpRequest with
+      | Error e -> return Error e
+      | Ok reqUri ->
+        let req = buildHttpRequestMessage httpRequest.method reqUri httpRequest.body
+
+        match applyRequestHeaders req httpRequest.headers with
+        | Error e -> return Error(RequestError.RequestError.BadHeader e)
+        | Ok() ->
+          let source =
+            new System.Threading.CancellationTokenSource(config.timeoutInMs)
+          // Deliberately no `use!` — the response must outlive this
+          // function; the caller (or the FromIO disposer) owns it.
+          let! response =
+            httpClient.SendAsync(
+              req,
+              HttpCompletionOption.ResponseHeadersRead,
+              source.Token
+            )
+
+          config.telemetryAddTag "response.status_code" response.StatusCode
+
+          let headers =
+            response |> headersForAspNetResponse |> normalizeResponseHeaders
+
+          return Ok(response, headers)
+    with
+    | :? TaskCanceledException -> return Error RequestError.Timeout
+    | :? System.ArgumentException as e when
+      e.Message = "Only 'http' and 'https' schemes are allowed. (Parameter 'value')"
+      ->
+      return Error(RequestError.BadUrl BadUrl.BadUrlDetails.UnsupportedProtocol)
+    | :? System.UriFormatException ->
+      return Error(RequestError.BadUrl BadUrl.BadUrlDetails.InvalidUri)
+    | :? IOException -> return Error(RequestError.NetworkError)
+    | :? HttpRequestException -> return Error(RequestError.NetworkError)
+  }
+
+
+let streamResponseType () =
+  FQTypeName.fqPackage (PackageRefs.Type.Stdlib.HttpClient.streamResponse ())
+
+
 let fns (config : Configuration) : List<BuiltInFn> =
   let httpClient = BaseClient.create config
   [ { name = fn "httpClientRequest" 0
@@ -392,7 +541,7 @@ let fns (config : Configuration) : List<BuiltInFn> =
         [ Param.make "method" TString ""
           Param.make "uri" TString ""
           Param.make "headers" headersType ""
-          Param.make "body" (TList TUInt8) "" ]
+          Param.make "body" TBlob "" ]
       returnType =
         TypeReference.result
           (TCustomType(NR.ok (responseOKType ()), []))
@@ -407,11 +556,12 @@ let fns (config : Configuration) : List<BuiltInFn> =
         let resultOk = Dval.resultOk responseTypeOK responseTypeErr
         let resultError = Dval.resultError responseTypeOK responseTypeErr
         (function
-        | _,
+        | state,
           vm,
           _,
-          [ DString method; DString uri; DList(_, reqHeaders); DList(_, reqBody) ] ->
+          [ DString method; DString uri; DList(_, reqHeaders); DBlob bodyRef ] ->
           uply {
+            let! reqBodyBytes = Blob.readBytes state bodyRef
             let! (reqHeaders : Result<List<string * string>, BadHeader.BadHeader>) =
               reqHeaders
               |> Ply.List.mapSequentially (fun item ->
@@ -457,7 +607,7 @@ let fns (config : Configuration) : List<BuiltInFn> =
                     { url = uri
                       method = method
                       headers = reqHeaders
-                      body = Dval.dlistToByteArray reqBody }
+                      body = reqBodyBytes }
 
                   let! response = makeRequest config httpClient request
 
@@ -481,7 +631,7 @@ let fns (config : Configuration) : List<BuiltInFn> =
                     let fields =
                       [ ("statusCode", DInt64(int64 response.statusCode))
                         ("headers", responseHeaders)
-                        ("body", Dval.byteArrayToDvalList response.body) ]
+                        ("body", Blob.newEphemeral state response.body) ]
 
                     return Ok(DRecord(typ, typ, [], Map fields) |> resultOk)
 
@@ -495,6 +645,156 @@ let fns (config : Configuration) : List<BuiltInFn> =
             match result with
             | Ok result -> return result
             | Error err -> return resultError (RequestError.toDT err)
+          }
+        | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Impure
+      deprecated = NotDeprecated }
+
+
+    // ——————————————————————————————————————————————————————————
+    // Streaming HTTP.
+    //
+    // The body is not buffered into a byte[]; instead the response's
+    // readable Stream is wrapped in a chunked DStream. Bulk consumers
+    // (`streamToBlob`) pull whole buffers via `nextChunk`; byte-wise
+    // consumers (`streamNext`) see one `DUInt8` at a time synthesised
+    // from the same buffer — no boxing until a byte-wise consumer
+    // actually asks for bytes.
+    //
+    // The disposer tears down the HttpResponseMessage + response
+    // stream when the consumer drains to EOF or calls
+    // `Builtin.streamClose`. Abandoning a stream mid-drain falls back
+    // to the GC-triggered finalizer on `Dval.StreamFinalizer`, which
+    // runs the same disposer chain when the DStream becomes
+    // unreachable.
+    // ——————————————————————————————————————————————————————————
+    { name = fn "httpClientStream" 0
+      typeParams = []
+      parameters =
+        [ Param.make "method" TString ""
+          Param.make "uri" TString ""
+          Param.make "headers" headersType "" ]
+      returnType =
+        TypeReference.result
+          (TCustomType(NR.ok (streamResponseType ()), []))
+          (TCustomType(NR.ok (responseErrorType ()), []))
+      description =
+        "Make a streaming HTTP call to <param uri>. Returns a <type StreamResponse>
+      whose `body` is a lazy <type Stream> that yields bytes as they arrive.
+      Drain with `Builtin.streamToList`/`streamToBlob`, or compose with
+      `streamMap`/`streamFilter`/etc. The underlying HTTP response is released
+      when the stream is drained to completion or `Builtin.streamClose`d."
+      fn =
+        let streamTypeOk = KTCustomType(streamResponseType (), [])
+        let streamTypeErr = KTCustomType(responseErrorType (), [])
+        let resultOk = Dval.resultOk streamTypeOk streamTypeErr
+        let resultError = Dval.resultError streamTypeOk streamTypeErr
+        (function
+        | _, vm, _, [ DString method; DString uri; DList(_, reqHeaders) ] ->
+          uply {
+            let! (reqHeaders : Result<List<string * string>, BadHeader.BadHeader>) =
+              reqHeaders
+              |> Ply.List.mapSequentially (fun item ->
+                uply {
+                  match item with
+                  | DTuple(DString k, DString v, []) ->
+                    let k = String.trim k
+                    if k = "" then
+                      return Error BadHeader.EmptyKey
+                    else
+                      return Ok((k, v))
+                  | notAPair ->
+                    return
+                      RTE.Applications.FnParameterNotExpectedType(
+                        FQFnName.fqPackage (
+                          PackageRefs.Fn.Stdlib.HttpClient.stream ()
+                        ),
+                        2,
+                        "headers",
+                        VT.list (VT.tuple VT.string VT.string []),
+                        Dval.toValueType notAPair,
+                        notAPair
+                      )
+                      |> RTE.Apply
+                      |> raiseRTE vm.threadID
+                })
+              |> Ply.map Result.collect
+
+            let method =
+              try
+                Some(HttpMethod method)
+              with _ ->
+                None
+
+            match reqHeaders, method with
+            | Ok reqHeaders, Some method ->
+              let request : Request =
+                { url = uri; method = method; headers = reqHeaders; body = [||] }
+
+              let! setup = openStreamingRequest config httpClient request
+              match setup with
+              | Error err -> return resultError (RequestError.toDT err)
+              | Ok(response, respHeaders) ->
+                let! responseStream = response.Content.ReadAsStreamAsync()
+
+                // Hand back a whole chunk per pull when the consumer
+                // wants bytes in bulk. `streamToBlob` and the SSE
+                // byte accumulator route through
+                // `Stream.readChunk`, which uses this callback
+                // directly — no per-byte `DUInt8` boxing on the hot
+                // path. `Stream.newChunked` synthesises a
+                // byte-wise `next` from the same source so
+                // `streamNext` semantics are preserved.
+                let nextChunk (maxBytes : int) : Ply<Option<byte[]>> =
+                  uply {
+                    let cap = max 1 maxBytes
+                    let buf = Array.zeroCreate<byte> cap
+                    let! n = responseStream.ReadAsync(buf, 0, cap)
+                    if n = 0 then
+                      return None
+                    elif n = cap then
+                      return Some buf
+                    else
+                      let trimmed = Array.zeroCreate<byte> n
+                      System.Array.Copy(buf, 0, trimmed, 0, n)
+                      return Some trimmed
+                  }
+
+                // Released on drain-to-EOF or streamClose. Ordered
+                // response first so the stream is closed before the
+                // message — Dispose chains naturally either way, but
+                // this mirrors idiomatic .NET cleanup.
+                let disposer () =
+                  responseStream.Dispose()
+                  response.Dispose()
+
+                let body = Stream.newChunked VT.uint8 nextChunk (Some disposer)
+
+                let headersDval =
+                  respHeaders
+                  |> List.map (fun (k, v) ->
+                    DTuple(
+                      DString(String.toLowercase k),
+                      DString(String.toLowercase v),
+                      []
+                    ))
+                  |> Dval.list (KTTuple(VT.string, VT.string, []))
+
+                let typ = streamResponseType ()
+                let fields =
+                  [ ("statusCode", DInt64(int64 response.StatusCode))
+                    ("headers", headersDval)
+                    ("body", body) ]
+                return DRecord(typ, typ, [], Map fields) |> resultOk
+
+            | Error reqHeadersErr, _ ->
+              return
+                resultError (
+                  RequestError.toDT (RequestError.BadHeader reqHeadersErr)
+                )
+            | _, None ->
+              return resultError (RequestError.toDT RequestError.BadMethod)
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable

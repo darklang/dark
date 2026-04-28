@@ -1,0 +1,340 @@
+module Darklang.Cli.Commands.Signatures
+
+// Compact dump of package functions + type signatures, AI-oriented.
+// Designed to give an agent a single token-tight snapshot of an API surface.
+// Default scope is `Darklang.Stdlib`.
+//
+// CLEANUP this command should fold into a more general `tree` / `view`
+// flag rather than living on its own. The "format-tightly, scope-by-module,
+// optional types, optional filter" shape is just a rendering of a package
+// subtree — `tree --signatures [<filter>]` or `view <module> --signatures`
+// would cover the same surface without the separate dispatch entry.
+
+
+// Pretty-printer context: prefer collapsing to `Darklang.Stdlib` so that types
+// like `Darklang.Stdlib.Option.Option` render as `Option.Option` everywhere,
+// regardless of which sub-module we scoped the listing to. For non-Stdlib
+// roots, fall back to the root itself.
+let rootContext (branchId: Uuid) (modulePath: List<String>) : PrettyPrinter.ProgramTypes.Context =
+  let cur =
+    match modulePath with
+    | "Darklang" :: "Stdlib" :: _ -> "Darklang.Stdlib"
+    | _ -> Stdlib.String.join modulePath "."
+  PrettyPrinter.ProgramTypes.Context
+    { branchId = branchId
+      currentModule = Stdlib.Option.Option.Some cur
+      currentFunction = Stdlib.Option.Option.None }
+
+
+let formatFn
+  (ctx: PrettyPrinter.ProgramTypes.Context)
+  (name: String)
+  (fn: LanguageTools.ProgramTypes.PackageFn.PackageFn)
+  : String =
+  let typeParams =
+    match fn.typeParams with
+    | [] -> ""
+    | tps ->
+      let parts = tps |> Stdlib.List.map (fun t -> $"'{t}") |> Stdlib.String.join ", "
+      $"<{parts}>"
+
+  // Single Unit param is the Dark convention for a nullary fn; collapse to ().
+  let isUnitOnly =
+    match fn.parameters with
+    | [ p ] ->
+      match p.typ with
+      | TUnit -> true
+      | _ -> false
+    | _ -> false
+
+  let params =
+    if isUnitOnly then "()"
+    else
+      match fn.parameters with
+      | [] -> "()"
+      | _ ->
+        fn.parameters
+        |> Stdlib.List.map (fun p ->
+          let typStr = PrettyPrinter.ProgramTypes.typeReference ctx p.typ
+          $"({p.name}: {typStr})")
+        |> Stdlib.String.join " "
+
+  let ret = PrettyPrinter.ProgramTypes.typeReference ctx fn.returnType
+  $"{name}{typeParams} {params}: {ret}"
+
+
+let formatType
+  (ctx: PrettyPrinter.ProgramTypes.Context)
+  (name: String)
+  (typ: LanguageTools.ProgramTypes.PackageType.PackageType)
+  : String =
+  let typeParams =
+    match typ.declaration.typeParams with
+    | [] -> ""
+    | tps ->
+      let parts = tps |> Stdlib.List.map (fun t -> $"'{t}") |> Stdlib.String.join ", "
+      $"<{parts}>"
+
+  let body =
+    match typ.declaration.definition with
+    | Alias tref ->
+      PrettyPrinter.ProgramTypes.typeReference ctx tref
+
+    | Record fields ->
+      let parts =
+        fields
+        |> Stdlib.List.map (fun f ->
+          $"{f.name}: {PrettyPrinter.ProgramTypes.typeReference ctx f.typ}")
+        |> Stdlib.String.join "; "
+      $"{{ {parts} }}"
+
+    | Enum cases ->
+      cases
+      |> Stdlib.List.map (fun c ->
+        match c.fields with
+        | [] -> c.name
+        | fs ->
+          let fieldStrs =
+            fs
+            |> Stdlib.List.map (fun f ->
+              let t = PrettyPrinter.ProgramTypes.typeReference ctx f.typ
+              match f.label with
+              | Some lbl -> $"{lbl}: {t}"
+              | None -> t)
+            |> Stdlib.String.join " * "
+          $"{c.name} of {fieldStrs}")
+      |> Stdlib.String.join " | "
+
+  $"type {name}{typeParams} = {body}"
+
+
+let moduleKey (loc: LanguageTools.ProgramTypes.PackageLocation) : String =
+  (Stdlib.List.append [loc.owner] loc.modules) |> Stdlib.String.join "."
+
+
+let groupByModule
+  (items: List<LanguageTools.ProgramTypes.LocatedItem<'a>>)
+  : Dict<List<LanguageTools.ProgramTypes.LocatedItem<'a>>> =
+  items
+  |> Stdlib.List.fold Stdlib.Dict.empty (fun acc item ->
+    let key = moduleKey item.location
+    let existing =
+      match Stdlib.Dict.get acc key with
+      | Some xs -> xs
+      | None -> []
+    Stdlib.Dict.setOverridingDuplicates acc key (Stdlib.List.append existing [item]))
+
+
+let trimRoot (root: String) (key: String) : String =
+  let prefix = root ++ "."
+  if key == root then "(root)"
+  else if Stdlib.String.startsWith key prefix then
+    Stdlib.String.dropFirst key (Stdlib.String.length prefix)
+  else key
+
+
+let renderModule
+  (ctx: PrettyPrinter.ProgramTypes.Context)
+  (rootName: String)
+  (modKey: String)
+  (types: List<LanguageTools.ProgramTypes.LocatedItem<LanguageTools.ProgramTypes.PackageType.PackageType>>)
+  (fns: List<LanguageTools.ProgramTypes.LocatedItem<LanguageTools.ProgramTypes.PackageFn.PackageFn>>)
+  : String =
+  let header = $"## {trimRoot rootName modKey}"
+
+  let typeLines =
+    types
+    |> Stdlib.List.sortBy (fun i -> i.location.name)
+    |> Stdlib.List.map (fun i -> formatType ctx i.location.name i.entity)
+
+  let fnLines =
+    fns
+    |> Stdlib.List.sortBy (fun i -> i.location.name)
+    |> Stdlib.List.map (fun i -> formatFn ctx i.location.name i.entity)
+
+  let body = (Stdlib.List.append typeLines fnLines) |> Stdlib.String.join "\n"
+  $"{header}\n{body}"
+
+
+// Returns (rootModulePath, includeTypes, includeDeprecated, filterText, all)
+let parseArgsLoop
+  (remaining: List<String>)
+  (root: List<String>)
+  (types: Bool)
+  (dep: Bool)
+  (filter: Stdlib.Option.Option<String>)
+  (all: Bool)
+  : (List<String> * Bool * Bool * Stdlib.Option.Option<String> * Bool) =
+  match remaining with
+  | [] -> (root, types, dep, filter, all)
+  | "--types" :: rest -> parseArgsLoop rest root true dep filter all
+  | "--include-deprecated" :: rest -> parseArgsLoop rest root types true filter all
+  | "--all" :: rest -> parseArgsLoop rest root types dep filter true
+  | "--module" :: path :: rest ->
+    parseArgsLoop rest (Stdlib.String.split path ".") types dep filter all
+  | arg :: rest ->
+    match filter with
+    | None -> parseArgsLoop rest root types dep (Stdlib.Option.Option.Some arg) all
+    | Some _ -> parseArgsLoop rest root types dep filter all
+
+
+let parseArgs
+  (args: List<String>)
+  : (List<String> * Bool * Bool * Stdlib.Option.Option<String> * Bool) =
+  parseArgsLoop args ["Darklang"; "Stdlib"] false false Stdlib.Option.Option.None false
+
+
+let executeFiltered
+  (state: Cli.AppState)
+  (rootPath: List<String>)
+  (includeTypes: Bool)
+  (includeDeprecated: Bool)
+  (filterText: Stdlib.Option.Option<String>)
+  : Cli.AppState =
+  let rootName = Stdlib.String.join rootPath "."
+  let branchId = state.currentBranchId
+
+  // Always pull the full subtree, then apply our own substring filter against
+  // (module path + name). The search builtin's `text` param is fuzzy and only
+  // matches entity names, so `signatures uuid` would miss `Stdlib.Uuid.generate`.
+  let query =
+    LanguageTools.ProgramTypes.Search.SearchQuery
+      { currentModule = rootPath
+        text = ""
+        searchDepth = LanguageTools.ProgramTypes.Search.SearchDepth.AllDescendants
+        entityTypes = []
+        exactMatch = false }
+
+  let raw = LanguageTools.PackageManager.Search.search branchId query
+  let depSets = Cli.Packages.Query.loadDeprecationSets branchId
+  let unfiltered = Cli.Packages.Query.filterDeprecated raw depSets includeDeprecated
+
+  let results =
+    match filterText with
+    | None -> unfiltered
+    | Some needle ->
+      let lower = Stdlib.String.toLowercase needle
+      let hits =
+        fun loc ->
+          let pathStr = (Stdlib.String.toLowercase (moduleKey loc)) ++ "." ++ (Stdlib.String.toLowercase loc.name)
+          Stdlib.String.contains pathStr lower
+      LanguageTools.ProgramTypes.Search.SearchResults
+        { submodules = unfiltered.submodules
+          types = unfiltered.types |> Stdlib.List.filter (fun i -> hits i.location)
+          values = unfiltered.values |> Stdlib.List.filter (fun i -> hits i.location)
+          fns = unfiltered.fns |> Stdlib.List.filter (fun i -> hits i.location) }
+
+  let fnsBy = groupByModule results.fns
+  let typesBy =
+    if includeTypes then groupByModule results.types
+    else Stdlib.Dict.empty
+
+  let allKeys =
+    (Stdlib.List.append (Stdlib.Dict.keys fnsBy) (Stdlib.Dict.keys typesBy))
+    |> Stdlib.List.unique
+    |> Stdlib.List.sort
+
+  let ctx = rootContext branchId rootPath
+
+  let sections =
+    allKeys
+    |> Stdlib.List.map (fun key ->
+      let ts = match Stdlib.Dict.get typesBy key with | Some v -> v | None -> []
+      let fs = match Stdlib.Dict.get fnsBy key with | Some v -> v | None -> []
+      renderModule ctx rootName key ts fs)
+
+  let totalFns =
+    (Stdlib.Dict.values fnsBy)
+    |> Stdlib.List.map (fun xs -> Stdlib.List.length xs)
+    |> Stdlib.List.fold 0L (fun a b -> a + b)
+
+  let totalTypes =
+    (Stdlib.Dict.values typesBy)
+    |> Stdlib.List.map (fun xs -> Stdlib.List.length xs)
+    |> Stdlib.List.fold 0L (fun a b -> a + b)
+
+  let title =
+    match filterText with
+    | None -> $"# {rootName}"
+    | Some t -> $"# {rootName}  (filter: {t})"
+
+  Stdlib.printLine title
+  Stdlib.printLine ""
+  Stdlib.printLine (Stdlib.String.join sections "\n\n")
+  Stdlib.printLine ""
+
+  let typesNote =
+    if includeTypes then $", {Stdlib.Int64.toString totalTypes} types"
+    else ""
+
+  let summary = $"{Stdlib.Int64.toString totalFns} fns{typesNote} across {Stdlib.Int64.toString (Stdlib.List.length allKeys)} modules"
+  Stdlib.printLine (Colors.hint summary)
+
+  if Stdlib.Bool.not includeTypes then
+    Stdlib.printLine (Colors.hint "Use --types to include type definitions. `view <name>` shows source/docs.")
+
+  state
+
+
+let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
+  let (rootPath, includeTypes, includeDeprecated, filterText, all) = parseArgs args
+
+  // No scope, no filter, no --all: redirect to the cheap overview rather
+  // than dumping every stdlib signature by default.
+  let isDefaultRoot =
+    match rootPath with
+    | [ "Darklang"; "Stdlib" ] -> true
+    | _ -> false
+
+  let isUnscoped =
+    isDefaultRoot
+    && (Stdlib.Option.isNone filterText)
+    && (Stdlib.Bool.not all)
+
+  if isUnscoped then
+    StdlibOverview.execute state args
+  else
+    executeFiltered state rootPath includeTypes includeDeprecated filterText
+
+
+let help (state: Cli.AppState) : Cli.AppState =
+  [ "Usage: docs signatures [filter|module] [--types] [--module <path>] [--all] [--include-deprecated]"
+    ""
+    "Token-tight dump of stdlib functions with full type signatures."
+    "Designed for AI agents needing an API map for a specific module or task."
+    ""
+    "Without args, prints the cheap module overview (same as `docs stdlib`)."
+    ""
+    "Options:"
+    "  filter                 Substring match on names/modules (fuzzy)"
+    "  --types                Also emit type definitions (Option, Result, ...)"
+    "  --module <path>        Scope to a specific module (e.g. Darklang.Stdlib.Http)"
+    "  --all                  Dump every stdlib fn at once (heavy)"
+    "  --include-deprecated   Include deprecated items hidden by default"
+    ""
+    "Examples:"
+    "  docs signatures                                # cheap overview"
+    "  docs signatures uuid                           # filter to 'uuid'"
+    "  docs signatures --module Darklang.Stdlib.Http  # one module"
+    "  docs signatures --module Darklang.Stdlib.Option --types"
+    "  docs signatures --all                          # everything (heavy)"
+    ""
+    "Output: per-module sections, one signature per line."
+    "Use `view <name>` to see source code and docs for a single item." ]
+  |> Stdlib.printLines
+
+  state
+
+
+let complete
+  (_state: Cli.AppState)
+  (args: List<String>)
+  : List<Cli.Completion.CompletionItem> =
+  match Stdlib.List.last args with
+  | Some last ->
+    if Stdlib.String.startsWith last "--" then
+      [ "--types"; "--module"; "--include-deprecated" ]
+      |> Stdlib.List.filter (fun f -> Stdlib.String.startsWith f last)
+      |> Stdlib.List.map Cli.Completion.simple
+    else []
+  | None -> []

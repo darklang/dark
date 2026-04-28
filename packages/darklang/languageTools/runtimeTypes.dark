@@ -58,6 +58,8 @@ type TypeReference =
   | TString
   | TUuid
   | TDateTime
+  | TBlob
+  | TStream of TypeReference
   | TTuple of TypeReference * TypeReference * List<TypeReference>
   | TList of TypeReference
   | TDict of TypeReference
@@ -89,6 +91,8 @@ type KnownType =
   | KTString
   | KTUuid
   | KTDateTime
+  | KTBlob
+  | KTStream of ValueType
   | KTTuple of ValueType * ValueType * List<ValueType>
   | KTList of ValueType
   | KTDict of ValueType

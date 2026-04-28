@@ -12,6 +12,7 @@ module VT = LibExecution.ValueType
 module Dval = LibExecution.Dval
 module TypeChecker = LibExecution.TypeChecker
 module Interpreter = LibExecution.Interpreter
+module Blob = LibExecution.Blob
 
 
 let fns () : List<BuiltInFn> =
@@ -347,35 +348,35 @@ let fns () : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "stringToBytes" 0
+    { name = fn "stringToBlob" 0
       typeParams = []
       parameters = [ Param.make "str" TString "" ]
-      returnType = TList TUInt8
-      description =
-        "Converts the given unicode string to a UTF8-encoded byte sequence."
+      returnType = TBlob
+      description = "Converts the given unicode string to a UTF8-encoded Blob."
       fn =
         (function
-        | _, _, _, [ DString str ] ->
+        | state, _, _, [ DString str ] ->
           let theBytes = System.Text.Encoding.UTF8.GetBytes str
-          Ply(Dval.byteArrayToDvalList theBytes)
+          Blob.newEphemeral state theBytes |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
       deprecated = NotDeprecated }
 
 
-    { name = fn "stringFromBytesWithReplacement" 0
+    { name = fn "stringFromBlobWithReplacement" 0
       typeParams = []
-      parameters = [ Param.make "bytes" (TList TUInt8) "" ]
+      parameters = [ Param.make "blob" TBlob "" ]
       returnType = TString
       description =
-        "Converts the UTF8-encoded byte sequence into a string. Errors will be ignored by replacing invalid characters"
+        "Converts the UTF8-encoded <param blob> into a string. Invalid sequences are replaced."
       fn =
         (function
-        | _, _, _, [ DList(_vt, bytes) ] ->
-          let bytes = Dval.dlistToByteArray bytes
-          let str = System.Text.Encoding.UTF8.GetString bytes
-          Ply(DString str)
+        | state, _, _, [ DBlob ref ] ->
+          uply {
+            let! bytes = Blob.readBytes state ref
+            return DString(System.Text.Encoding.UTF8.GetString bytes)
+          }
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -387,7 +388,7 @@ let fns () : List<BuiltInFn> =
       parameters = [ Param.make "bytes" (TList TUInt8) "" ]
       returnType = TypeReference.option TString
       description =
-        "Converts the UTF8-encoded byte sequence into a string. Errors will be ignored by replacing invalid characters"
+        "Converts the UTF8-encoded byte sequence into a string. Returns None if the bytes aren't valid UTF-8."
       fn =
         (function
         | _, _, _, [ DList(_vt, bytes) ] ->
@@ -397,6 +398,29 @@ let fns () : List<BuiltInFn> =
             Dval.optionSome KTString (DString str) |> Ply
           with _e ->
             Dval.optionNone KTString |> Ply
+        | _ -> incorrectArgs ())
+      sqlSpec = NotYetImplemented
+      previewable = Pure
+      deprecated = NotDeprecated }
+
+
+    { name = fn "stringFromBlob" 0
+      typeParams = []
+      parameters = [ Param.make "blob" TBlob "" ]
+      returnType = TypeReference.option TString
+      description =
+        "Converts the UTF8-encoded <param blob> into a string. Returns None if the bytes aren't valid UTF-8."
+      fn =
+        (function
+        | state, _, _, [ DBlob ref ] ->
+          uply {
+            let! bytes = Blob.readBytes state ref
+            try
+              let str = UTF8Encoding(false, true).GetString bytes
+              return Dval.optionSome KTString (DString str)
+            with _e ->
+              return Dval.optionNone KTString
+          }
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure

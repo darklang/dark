@@ -68,6 +68,8 @@ module RuntimeTypes =
 
       RT.TDB RT.TBool
 
+      RT.TBlob
+
       RT.TVariable "test" ]
 
 
@@ -103,7 +105,8 @@ module RuntimeTypes =
 
       known (RT.KnownType.KTFn(NEList.singleton ktUnit, ktUnit))
 
-      known (RT.KnownType.KTDB ktUnit) ]
+      known (RT.KnownType.KTDB ktUnit)
+      known RT.KnownType.KTBlob ]
 
   let dvals () : List<RT.Dval> =
     // TODO: is this exhaustive? I haven't checked.

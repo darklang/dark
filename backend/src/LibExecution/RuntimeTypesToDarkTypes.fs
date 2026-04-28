@@ -241,6 +241,8 @@ module TypeReference =
       | TString -> "TString", []
       | TDateTime -> "TDateTime", []
       | TUuid -> "TUuid", []
+      | TBlob -> "TBlob", []
+      | TStream inner -> "TStream", [ toDT inner ]
 
       | TList inner -> "TList", [ toDT inner ]
 
@@ -287,6 +289,8 @@ module TypeReference =
     | DEnum(_, _, [], "TString", []) -> TString
     | DEnum(_, _, [], "TDateTime", []) -> TDateTime
     | DEnum(_, _, [], "TUuid", []) -> TUuid
+    | DEnum(_, _, [], "TBlob", []) -> TBlob
+    | DEnum(_, _, [], "TStream", [ inner ]) -> TStream(fromDT inner)
 
     | DEnum(_, _, [], "TTuple", [ first; second; DList(_vtTODO, theRest) ]) ->
       TTuple(fromDT first, fromDT second, List.map fromDT theRest)
@@ -449,6 +453,8 @@ module KnownType =
       | KTString -> "KTString", []
       | KTUuid -> "KTUuid", []
       | KTDateTime -> "KTDateTime", []
+      | KTBlob -> "KTBlob", []
+      | KTStream inner -> "KTStream", [ ValueType.toDT inner ]
 
       | KTTuple(first, second, theRest) ->
         "KTTuple",
@@ -495,6 +501,8 @@ module KnownType =
     | DEnum(_, _, [], "KTString", []) -> KTString
     | DEnum(_, _, [], "KTUuid", []) -> KTUuid
     | DEnum(_, _, [], "KTDateTime", []) -> KTDateTime
+    | DEnum(_, _, [], "KTBlob", []) -> KTBlob
+    | DEnum(_, _, [], "KTStream", [ inner ]) -> KTStream(ValueType.fromDT inner)
 
     | DEnum(_, _, [], "KTTuple", [ first; second; DList(_vtTODO, theRest) ]) ->
       KTTuple(
@@ -694,6 +702,22 @@ module Dval =
 
       | DDB name -> "DDB", [ DString name ]
 
+      | DBlob(Ephemeral id) -> "DBlobEphemeral", [ DUuid id ]
+      | DBlob(Persistent(hash, length)) ->
+        "DBlobPersistent", [ DString hash; DInt64 length ]
+
+      // Streams render as a stub tag for LSP/reflection only — they
+      // can't round-trip (no live pull fn on the other side).
+      // [StreamImpl.elemType] walks transform nodes (Mapped/Filtered/
+      // Take/Concat) to report the emitted element type.
+      // TODO this is a one-way bridge — `fromDT` raises on DStreamStub.
+      // Any user code that introspects a Dval and rebuilds it (custom
+      // pretty-printer, trace viewer) silently breaks for streams. The
+      // asymmetry isn't documented in the public API. Document it or
+      // add a "rehydrate as a no-op stub stream" path.
+      | DStream(impl, _, _) ->
+        "DStreamStub", [ ValueType.toDT (StreamImpl.elemType impl) ]
+
     DEnum(typeName (), typeName (), [], caseName, fields)
 
 
@@ -755,6 +779,15 @@ module Dval =
       DApplicable(Applicable.fromDT applicable)
 
     | DEnum(_, _, [], "DDB", [ DString name ]) -> DDB name
+
+    | DEnum(_, _, [], "DBlobEphemeral", [ DUuid id ]) -> DBlob(Ephemeral id)
+    | DEnum(_, _, [], "DBlobPersistent", [ DString hash; DInt64 length ]) ->
+      DBlob(Persistent(hash, length))
+
+    | DEnum(_, _, [], "DStreamStub", [ _elemType ]) ->
+      Exception.raiseInternal
+        "Cannot rebuild a DStream from DStreamStub — streams don't round-trip through the dark-type bridge"
+        []
 
     | _ -> Exception.raiseInternal "Invalid Dval" []
 

@@ -1,0 +1,61 @@
+module Darklang.Stdlib.Stream
+
+
+/// Builds a Stream that yields the elements of <param items> in order.
+let fromList (items: List<'a>) : Stream<'a> = Builtin.streamFromList<'a> items
+
+
+/// Builds a Stream by repeatedly applying <param step> to <param seed>.
+/// Each call returns either {{Some (element, nextSeed)}} to yield an
+/// element and continue, or {{None}} to terminate.
+let unfold
+  (seed: 's)
+  (step: 's -> Stdlib.Option.Option<('a * 's)>)
+  : Stream<'a> =
+  Builtin.streamUnfold<'a, 's> seed step
+
+
+/// Pulls the next element from <param stream>. Returns {{None}} when
+/// the stream is exhausted; subsequent calls stay {{None}}.
+let next (stream: Stream<'a>) : Stdlib.Option.Option<'a> =
+  Builtin.streamNext<'a> stream
+
+
+/// Drains <param stream> into a List. Forces every element.
+let toList (stream: Stream<'a>) : List<'a> = Builtin.streamToList<'a> stream
+
+
+/// Drains a byte stream into a Blob. Uses the chunked fast path when
+/// the source supports it (e.g. HttpClient.stream).
+let toBlob (stream: Stream<UInt8>) : Blob = Builtin.streamToBlob stream
+
+
+/// Closes <param stream>, releasing any IO resources its source held.
+/// Idempotent. Subsequent pulls return {{None}}.
+let close (stream: Stream<'a>) : Unit = Builtin.streamClose<'a> stream
+
+
+/// Returns a new Stream that yields {{fn x}} for each element {{x}}
+/// pulled from <param stream>. Lazy; <param fn> runs once per element
+/// at drain time.
+let map (stream: Stream<'a>) (fn: 'a -> 'b) : Stream<'b> =
+  Builtin.streamMap<'a, 'b> stream fn
+
+
+/// Returns a new Stream that yields only the elements of <param stream>
+/// for which <param pred> is true. Lazy.
+let filter (stream: Stream<'a>) (pred: 'a -> Bool) : Stream<'a> =
+  Builtin.streamFilter<'a> stream pred
+
+
+/// Returns a new Stream yielding at most <param n> elements from the
+/// front of <param stream>. Lazy; the source advances exactly <param n>
+/// times (or fewer, if the source exhausts first).
+let take (stream: Stream<'a>) (n: Int64) : Stream<'a> =
+  Builtin.streamTake<'a> stream n
+
+
+/// Returns a new Stream that drains each of <param streams> in order,
+/// moving on once each is exhausted. Lazy.
+let concat (streams: List<Stream<'a>>) : Stream<'a> =
+  Builtin.streamConcat<'a> streams

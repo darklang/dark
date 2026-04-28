@@ -8,7 +8,7 @@ let sendNotification (topic: String) (message: String) (title: String) : String 
     else
       [ ("Title", title) ]
 
-  let body = Darklang.Stdlib.String.toBytes message
+  let body = Darklang.Stdlib.String.toBlob message
 
   match Darklang.Stdlib.HttpClient.post url headers body with
   | Ok response ->
