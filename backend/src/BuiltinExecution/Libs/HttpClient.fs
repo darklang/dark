@@ -7,19 +7,45 @@
 ///   `body : Stream<UInt8>` — lazy/chunked; for large bodies, SSE,
 ///   etc.
 ///
-/// CLEANUP: `makeRequest` and `openStreamingRequest` duplicate ~70
-/// lines of URL validation + header collection + HttpRequestMessage
-/// construction. Either:
-///   (a) extract a shared `prepareRequest` helper that returns
-///       `Result<HttpRequestMessage * CancellationToken, RequestError>`
-///       and have both call SendAsync on it (small refactor); or
-///   (b) collapse `httpClientRequest` into a Dark-side wrapper that
-///       calls `httpClientStream` + `Stream.toBlob` and rebuilds the
-///       Response record (removes the duplication entirely; one
-///       extra Stream allocation per non-streaming call).
-/// Path (b) is the bigger reduction but needs care around the
-/// telemetry differences (telemetryInitialize wraps the buffered
-/// path; streaming inlines the tags).
+/// TODO collapse into a single builtin. The intended end state is:
+///   - `httpClientRequest` is gone from the F# side.
+///   - `httpClientStream` is the only F# builtin, and it takes a
+///     `body : Blob` (currently always sends `[||]`).
+///   - `Stdlib.HttpClient.request` is a Dark-side wrapper: call
+///     `HttpClient.stream`, drain the body via `Stream.toBlob`,
+///     repack into a `Response`. ~5 lines of Dark.
+///
+/// Four gates need to land in this file before the collapse stops
+/// regressing existing callers:
+///   (1) Add `body : Blob` to the stream builtin's parameters and
+///       thread it into `openStreamingRequest`.
+///   (2) Body-read timeout. Today the stream path uses
+///       `HttpCompletionOption.ResponseHeadersRead`, so the cancel
+///       token only fires on header-arrival lag — body reads can
+///       hang indefinitely. The buffered path's whole-request
+///       timeout has to be re-applied to the drain (carry the
+///       CancellationToken through the FromIO closure and pass it
+///       into `responseStream.ReadAsync`).
+///   (3) Drain-time error translation. `makeRequest` catches
+///       IOException at the top and returns `Result.Error
+///       NetworkError`; on the streaming path that exception
+///       happens during `Stream.toBlob` and bubbles up as an
+///       uncaught RuntimeError. Need a `Stream.toBlob`-style
+///       primitive that returns `Result<Blob, NetworkError>` —
+///       either a new builtin or a wrapping helper that catches
+///       inside the FromIO closure.
+///   (4) Telemetry parity. `makeRequest` wraps the whole call in
+///       `telemetryInitialize` (one coherent span) and tags
+///       `request.content_type`, `request.content_length`,
+///       `response.version`. `openStreamingRequest` inlines tags
+///       and only records `response.status_code`. The collapse
+///       wants the streaming span to extend through the drain
+///       (span ends at toBlob completion / streamClose) and to
+///       record the same set of tags on errors.
+///
+/// Until those four are in, the buffered builtin stays. Header /
+/// URL / request-message construction are shared via the helpers
+/// below so the duplication that does remain is small.
 module BuiltinExecution.Libs.HttpClient
 
 open System.IO
@@ -251,6 +277,111 @@ let defaultConfig =
     telemetryAddTag = fun _ _ -> ()
     telemetryAddException = fun _ _ -> () }
 
+
+// ————————————————————————————————————————————————————————————
+// Shared request-prep helpers used by both the buffered and the
+// streaming builtins. Pulled out so that the duplication between
+// the two paths is just the SendAsync call + response handling.
+// ————————————————————————————————————————————————————————————
+
+/// Run the configured allow-lists over `httpRequest` and return the
+/// canonical request URI string. May throw `System.UriFormatException`
+/// or `System.ArgumentException` for malformed URIs — callers catch
+/// at the outer try block.
+let private validateAndBuildUri
+  (config : Configuration)
+  (httpRequest : Request)
+  : Result<string, RequestError.RequestError> =
+  let uri = System.Uri(httpRequest.url, System.UriKind.Absolute)
+  let host = uri.Host.Trim().ToLower()
+  if not (config.allowedHost host) then
+    Error(RequestError.BadUrl BadUrl.BadUrlDetails.InvalidHost)
+  elif not (config.allowedHeaders httpRequest.headers) then
+    Error(RequestError.BadUrl BadUrl.BadUrlDetails.InvalidRequest)
+  elif not (config.allowedScheme uri.Scheme) then
+    Error(RequestError.BadUrl BadUrl.BadUrlDetails.UnsupportedProtocol)
+  else
+    System.UriBuilder(
+      Scheme = uri.Scheme,
+      Host = uri.Host,
+      Port = uri.Port,
+      Path = uri.AbsolutePath,
+      Query = uri.Query
+    )
+    |> string
+    |> Ok
+
+
+/// Build the request message used for both the buffered and the
+/// streaming path. Header version policy is the same in both cases.
+let private buildHttpRequestMessage
+  (method : Method)
+  (reqUri : string)
+  (body : Body)
+  : HttpRequestMessage =
+  new HttpRequestMessage(
+    method,
+    reqUri,
+    Content = new ByteArrayContent(body),
+    // Support both Http 2.0 and 3.0
+    // https://learn.microsoft.com/en-us/dotnet/api/system.net.http.httpversionpolicy?view=net-7.0
+    // TODO: test this (against requestbin or something that allows us
+    // to control the HTTP protocol version)
+    Version = System.Net.HttpVersion.Version30,
+    VersionPolicy = HttpVersionPolicy.RequestVersionOrLower
+  )
+
+
+/// Apply the caller-supplied headers to `req`. Content-Type goes on
+/// `req.Content.Headers`; everything else lives on `req.Headers`
+/// unless .NET rejects it (then we fall back to Content.Headers).
+/// Returns `Error InvalidContentType` if Content-Type can't be
+/// parsed; otherwise `Ok ()`.
+let private applyRequestHeaders
+  (req : HttpRequestMessage)
+  (headers : Headers.T)
+  : Result<unit, BadHeader.BadHeader> =
+  headers
+  |> List.map (fun (k, v) ->
+    // .NET handles "content headers" separately from other headers.
+    // They're put into `req.Content.Headers` rather than `req.Headers`
+    // https://docs.microsoft.com/en-us/dotnet/api/system.net.http.headers.httpcontentheaders?view=net-6.0
+    if String.equalsCaseInsensitive k "content-type" then
+      try
+        req.Content.Headers.ContentType <- Headers.MediaTypeHeaderValue.Parse(v)
+        Ok()
+      with :? System.FormatException ->
+        Error BadHeader.InvalidContentType
+    else
+      let added = req.Headers.TryAddWithoutValidation(k, v)
+      // Headers are split between req.Headers and req.Content.Headers
+      // so just try both.
+      if not added then req.Content.Headers.Add(k, v)
+      Ok())
+  |> Result.collect
+  |> Result.map (fun _ -> ())
+
+
+/// Flatten the response and content header collections into a flat
+/// list, joining repeated values with ',' as ASP.NET surfaces them.
+let private headersForAspNetResponse
+  (response : HttpResponseMessage)
+  : List<string * string> =
+  let fromAspNetHeaders (headers : Headers.HttpHeaders) : List<string * string> =
+    headers
+    |> Seq.map Tuple2.fromKeyValuePair
+    |> Seq.map (fun (k, v) -> (k, v |> Seq.toList |> String.concat ","))
+    |> Seq.toList
+  fromAspNetHeaders response.Headers @ fromAspNetHeaders response.Content.Headers
+
+
+/// Lowercase keys + values across a response-header list. Both the
+/// buffered and streaming paths surface the same flattened shape.
+let private normalizeResponseHeaders
+  (headers : List<string * string>)
+  : List<string * string> =
+  headers |> List.map (fun (k, v) -> (String.toLowercase k, String.toLowercase v))
+
 let makeRequest
   (config : Configuration)
   (httpClient : HttpClient)
@@ -260,65 +391,16 @@ let makeRequest
     task {
       config.telemetryAddTag "request.url" httpRequest.url
       config.telemetryAddTag "request.method" httpRequest.method
-      config.telemetryAddTag "request.method" httpRequest.method
       try
-        let uri = System.Uri(httpRequest.url, System.UriKind.Absolute)
-
-        let host = uri.Host.Trim().ToLower()
-        if not (config.allowedHost host) then
-          return Error(RequestError.BadUrl BadUrl.BadUrlDetails.InvalidHost)
-        else if not (config.allowedHeaders httpRequest.headers) then
-          return Error(RequestError.BadUrl BadUrl.BadUrlDetails.InvalidRequest)
-        else if not (config.allowedScheme uri.Scheme) then
-          return Error(RequestError.BadUrl BadUrl.BadUrlDetails.UnsupportedProtocol)
-        else
-          let reqUri =
-            System.UriBuilder(
-              Scheme = uri.Scheme,
-              Host = uri.Host,
-              Port = uri.Port,
-              Path = uri.AbsolutePath,
-              Query = uri.Query
-            )
-            |> string
-
+        match validateAndBuildUri config httpRequest with
+        | Error e -> return Error e
+        | Ok reqUri ->
           use req =
-            new HttpRequestMessage(
-              httpRequest.method,
-              reqUri,
-              Content = new ByteArrayContent(httpRequest.body),
+            buildHttpRequestMessage httpRequest.method reqUri httpRequest.body
 
-              // Support both Http 2.0 and 3.0
-              // https://learn.microsoft.com/en-us/dotnet/api/system.net.http.httpversionpolicy?view=net-7.0
-              // TODO: test this (against requestbin or something that allows us to control the HTTP protocol version)
-              Version = System.Net.HttpVersion.Version30,
-              VersionPolicy = HttpVersionPolicy.RequestVersionOrLower
-            )
-
-          // headers
-          let headerResults =
-            httpRequest.headers
-            |> List.map (fun (k, v) ->
-              // .NET handles "content headers" separately from other headers.
-              // They're put into `req.Content.Headers` rather than `req.Headers`
-              // https://docs.microsoft.com/en-us/dotnet/api/system.net.http.headers.httpcontentheaders?view=net-6.0
-              if String.equalsCaseInsensitive k "content-type" then
-                try
-                  req.Content.Headers.ContentType <-
-                    Headers.MediaTypeHeaderValue.Parse(v)
-                  Ok()
-                with :? System.FormatException ->
-                  Error BadHeader.InvalidContentType
-              else
-                let added = req.Headers.TryAddWithoutValidation(k, v)
-
-                // Headers are split between req.Headers and req.Content.Headers so just try both
-                if not added then req.Content.Headers.Add(k, v)
-                Ok())
-
-
-          match Result.collect headerResults with
-          | Ok _ ->
+          match applyRequestHeaders req httpRequest.headers with
+          | Error e -> return Error(RequestError.RequestError.BadHeader e)
+          | Ok() ->
             config.telemetryAddTag
               "request.content_type"
               req.Content.Headers.ContentType
@@ -340,33 +422,14 @@ let makeRequest
             do! responseStream.CopyToAsync(memoryStream)
             let respBody = memoryStream.ToArray()
 
-            let headersForAspNetResponse
-              (response : HttpResponseMessage)
-              : List<string * string> =
-              let fromAspNetHeaders
-                (headers : Headers.HttpHeaders)
-                : List<string * string> =
-                headers
-                |> Seq.map Tuple2.fromKeyValuePair
-                |> Seq.map (fun (k, v) -> (k, v |> Seq.toList |> String.concat ","))
-                |> Seq.toList
-              fromAspNetHeaders response.Headers
-              @ fromAspNetHeaders response.Content.Headers
-
-
             let headers =
-              response
-              |> headersForAspNetResponse
-              |> List.map (fun (k, v) ->
-                (String.toLowercase k, String.toLowercase v))
+              response |> headersForAspNetResponse |> normalizeResponseHeaders
 
             return
               { statusCode = int response.StatusCode
                 headers = headers
                 body = respBody }
               |> Ok
-
-          | Error e -> return Error(RequestError.RequestError.BadHeader e)
 
       with
       | :? TaskCanceledException ->
@@ -428,51 +491,14 @@ let openStreamingRequest
     config.telemetryAddTag "request.method" httpRequest.method
     config.telemetryAddTag "request.streaming" true
     try
-      let uri = System.Uri(httpRequest.url, System.UriKind.Absolute)
-      let host = uri.Host.Trim().ToLower()
-      if not (config.allowedHost host) then
-        return Error(RequestError.BadUrl BadUrl.BadUrlDetails.InvalidHost)
-      else if not (config.allowedHeaders httpRequest.headers) then
-        return Error(RequestError.BadUrl BadUrl.BadUrlDetails.InvalidRequest)
-      else if not (config.allowedScheme uri.Scheme) then
-        return Error(RequestError.BadUrl BadUrl.BadUrlDetails.UnsupportedProtocol)
-      else
-        let reqUri =
-          System.UriBuilder(
-            Scheme = uri.Scheme,
-            Host = uri.Host,
-            Port = uri.Port,
-            Path = uri.AbsolutePath,
-            Query = uri.Query
-          )
-          |> string
+      match validateAndBuildUri config httpRequest with
+      | Error e -> return Error e
+      | Ok reqUri ->
+        let req = buildHttpRequestMessage httpRequest.method reqUri httpRequest.body
 
-        let req =
-          new HttpRequestMessage(
-            httpRequest.method,
-            reqUri,
-            Content = new ByteArrayContent(httpRequest.body),
-            Version = System.Net.HttpVersion.Version30,
-            VersionPolicy = HttpVersionPolicy.RequestVersionOrLower
-          )
-
-        let headerResults =
-          httpRequest.headers
-          |> List.map (fun (k, v) ->
-            if String.equalsCaseInsensitive k "content-type" then
-              try
-                req.Content.Headers.ContentType <-
-                  Headers.MediaTypeHeaderValue.Parse(v)
-                Ok()
-              with :? System.FormatException ->
-                Error BadHeader.InvalidContentType
-            else
-              let added = req.Headers.TryAddWithoutValidation(k, v)
-              if not added then req.Content.Headers.Add(k, v)
-              Ok())
-
-        match Result.collect headerResults with
-        | Ok _ ->
+        match applyRequestHeaders req httpRequest.headers with
+        | Error e -> return Error(RequestError.RequestError.BadHeader e)
+        | Ok() ->
           let source =
             new System.Threading.CancellationTokenSource(config.timeoutInMs)
           // Deliberately no `use!` — the response must outlive this
@@ -486,27 +512,10 @@ let openStreamingRequest
 
           config.telemetryAddTag "response.status_code" response.StatusCode
 
-          let headersForAspNetResponse
-            (response : HttpResponseMessage)
-            : List<string * string> =
-            let fromAspNetHeaders
-              (headers : Headers.HttpHeaders)
-              : List<string * string> =
-              headers
-              |> Seq.map Tuple2.fromKeyValuePair
-              |> Seq.map (fun (k, v) -> (k, v |> Seq.toList |> String.concat ","))
-              |> Seq.toList
-            fromAspNetHeaders response.Headers
-            @ fromAspNetHeaders response.Content.Headers
-
           let headers =
-            response
-            |> headersForAspNetResponse
-            |> List.map (fun (k, v) -> (String.toLowercase k, String.toLowercase v))
+            response |> headersForAspNetResponse |> normalizeResponseHeaders
 
           return Ok(response, headers)
-
-        | Error e -> return Error(RequestError.RequestError.BadHeader e)
     with
     | :? TaskCanceledException -> return Error RequestError.Timeout
     | :? System.ArgumentException as e when

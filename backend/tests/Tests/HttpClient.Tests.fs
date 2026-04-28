@@ -482,15 +482,8 @@ module MockHelpers =
 // ————————————————————————————————————————————————————————————
 module StreamDvalTests =
   module HC = BuiltinExecution.Libs.HttpClient
-  module Dval = LibExecution.Dval
   module RT = LibExecution.RuntimeTypes
   module VT = LibExecution.ValueType
-
-  let httpConfig : HC.Configuration = { HC.defaultConfig with timeoutInMs = 5000 }
-  let httpClient = HC.BaseClient.create httpConfig
-
-  let private getRequest (url : string) : HC.Request =
-    { url = url; method = System.Net.Http.HttpMethod.Get; headers = []; body = [||] }
 
   /// Build a DStream wrapping an open HttpResponseMessage's body —
   /// same closure shape as the builtin. Returns the DStream and a
@@ -551,7 +544,11 @@ module StreamDvalTests =
           let body = "hello streams"
           let url =
             MockHelpers.registerTestCase "stream-dval-basic" 200 "text/plain" body
-          let! setup = HC.openStreamingRequest httpConfig httpClient (getRequest url)
+          let! setup =
+            HC.openStreamingRequest
+              MockHelpers.httpConfig
+              MockHelpers.httpClient
+              (MockHelpers.getRequest url)
           match setup with
           | Error e -> failtest $"expected Ok, got Error: {e}"
           | Ok(response, _headers) ->
@@ -575,7 +572,11 @@ module StreamDvalTests =
           let body = String.replicate 28000 "x"
           let url =
             MockHelpers.registerTestCase "stream-dval-large" 200 "text/plain" body
-          let! setup = HC.openStreamingRequest httpConfig httpClient (getRequest url)
+          let! setup =
+            HC.openStreamingRequest
+              MockHelpers.httpConfig
+              MockHelpers.httpClient
+              (MockHelpers.getRequest url)
           match setup with
           | Error e -> failtest $"expected Ok, got Error: {e}"
           | Ok(response, _headers) ->
@@ -590,7 +591,11 @@ module StreamDvalTests =
         testTask "empty body drains to zero bytes; disposer still runs" {
           let url =
             MockHelpers.registerTestCase "stream-dval-empty" 200 "text/plain" ""
-          let! setup = HC.openStreamingRequest httpConfig httpClient (getRequest url)
+          let! setup =
+            HC.openStreamingRequest
+              MockHelpers.httpConfig
+              MockHelpers.httpClient
+              (MockHelpers.getRequest url)
           match setup with
           | Error e -> failtest $"expected Ok, got Error: {e}"
           | Ok(response, _headers) ->
@@ -604,7 +609,11 @@ module StreamDvalTests =
           let body = "unused"
           let url =
             MockHelpers.registerTestCase "stream-dval-close" 200 "text/plain" body
-          let! setup = HC.openStreamingRequest httpConfig httpClient (getRequest url)
+          let! setup =
+            HC.openStreamingRequest
+              MockHelpers.httpConfig
+              MockHelpers.httpClient
+              (MockHelpers.getRequest url)
           match setup with
           | Error e -> failtest $"expected Ok, got Error: {e}"
           | Ok(response, _headers) ->
