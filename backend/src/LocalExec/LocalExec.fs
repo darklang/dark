@@ -219,19 +219,9 @@ let main (args : string[]) : int =
         "running allocation/timing benchmarks"
         (LocalExec.Benchmarks.runAll ())
 
-    | [ "bench-promote" ] ->
-      handleCommand
-        "promoting latest.json to a tracked snapshot"
-        (LocalExec.Benchmarks.promote None)
-
-    | [ "bench-promote"; "--name"; label ] ->
-      handleCommand
-        $"promoting latest.json to snapshot '{label}'"
-        (LocalExec.Benchmarks.promote (Some label))
-
     | [ "bench-render" ] ->
       handleCommand
-        "rendering benchmarks/results.md from snapshots"
+        "rendering benchmarks/results.md from history.jsonl"
         (LocalExec.Benchmarks.render ())
 
     | _ ->
@@ -244,7 +234,6 @@ let main (args : string[]) : int =
       print "  export-seed <output-path>"
       print "  pm-sweep-blobs"
       print "  bench"
-      print "  bench-promote [--name <label>]"
       print "  bench-render"
       NonBlockingConsole.wait ()
       1
