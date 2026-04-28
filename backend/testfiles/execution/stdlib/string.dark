@@ -53,10 +53,10 @@ module ToBytes =
   Stdlib.List.length (Stdlib.String.toBytes_v0 "") = 0L
 
 
-// `fromBytes` / `fromBytesWithReplacement` still take List<UInt8> per
-// the L.6 carve-out (the http/CLI/LSP consumers of the List shape
-// weren't worth the cascade), so we bridge from Blob via
-// `Stdlib.Blob.toList`.
+// `Stdlib.String.{fromBytes, fromBytesWithReplacement, toBytes}` still
+// operate on `List<UInt8>` rather than `Blob` — Http, CLI file ops, and
+// the LSP logger all consume the List shape, and migrating them was
+// out of scope. So we bridge from Blob via `Stdlib.Blob.toList` here.
 
 module FromBytesWithReplacement =
   ((Stdlib.Base64.decode_v0 "w6I")

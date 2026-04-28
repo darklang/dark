@@ -273,9 +273,9 @@ let private blobEqualityScenario (state : RT.ExecutionState) : List<Result> =
       note = "promote+hash both sides" })
 
 
-/// Drain a Stream<UInt8> into a Blob via streamToBlob's chunked path.
-/// This is the scenario the L.7 chunked-drain optimization addresses.
-/// inputBytes = the byte stream length.
+/// Drain a Stream<UInt8> into a Blob via streamToBlob's chunked
+/// path — the bulk path that pulls 64 KB buffers instead of boxing
+/// one DUInt8 per byte. inputBytes = the byte stream length.
 let private streamToBlobScenario (state : RT.ExecutionState) : List<Result> =
   let sizes = [ 100_000; 1_000_000; 10_000_000 ]
 
