@@ -166,6 +166,12 @@ module TypeReference =
       | TString _range -> (ProgramTypes.TypeReference.TString, [])
       | TDateTime _range -> (ProgramTypes.TypeReference.TDateTime, [])
       | TUuid _range -> (ProgramTypes.TypeReference.TUuid, [])
+      | TBlob _range -> (ProgramTypes.TypeReference.TBlob, [])
+
+      | TStream(_range, _, _, typ, _) ->
+        let (typ, unresolvedNames) = TypeReference.toPT ctx typ
+
+        (ProgramTypes.TypeReference.TStream(typ), unresolvedNames)
 
       | TList(_range, _, _, typ, _) ->
         let (typ, unresolvedNames) =
@@ -1256,13 +1262,40 @@ module FunctionDeclaration =
             description = "" },
           unresolvedNames)
 
+  /// Walk a PT TypeReference collecting all TVariable names. Used to
+  /// auto-discover a fn's "implicit" type params from its declared
+  /// param/return types — wrappers like
+  ///   `let f (x: List<'a>) : Stream<'a> = ...`
+  /// may not declare `<'a>` explicitly but still need `'a` registered
+  /// as a typeParam for callers that pass an explicit type arg.
+  let rec collectTVarsInTypeRef
+    (acc: List<String>)
+    (tr: ProgramTypes.TypeReference)
+    : List<String> =
+    match tr with
+    | TVariable name ->
+      if Stdlib.List.``member`` acc name then acc else Stdlib.List.append acc [ name ]
+    | TList inner -> collectTVarsInTypeRef acc inner
+    | TStream inner -> collectTVarsInTypeRef acc inner
+    | TDict inner -> collectTVarsInTypeRef acc inner
+    | TDB inner -> collectTVarsInTypeRef acc inner
+    | TTuple (a, b, rest) ->
+      let acc = collectTVarsInTypeRef acc a
+      let acc = collectTVarsInTypeRef acc b
+      rest |> Stdlib.List.fold acc collectTVarsInTypeRef
+    | TCustomType (_, args) -> args |> Stdlib.List.fold acc collectTVarsInTypeRef
+    | TFn (args, ret) ->
+      let acc = args |> Stdlib.List.fold acc collectTVarsInTypeRef
+      collectTVarsInTypeRef acc ret
+    | _ -> acc
+
   let toPackageFnPT
     (ctx: NameResolver.NRContext)
     (fn: WrittenTypes.FnDeclaration.FnDeclaration)
     : (ProgramTypes.PackageFn.PackageFn *
       List<WrittenTypes.UnresolvedName>)
     =
-    let typeParams =
+    let explicitTypeParams =
       fn.typeParams |> Stdlib.List.map (fun p -> p |> Stdlib.Tuple2.second)
 
     let (params, prUnresolvedNames) =
@@ -1273,6 +1306,19 @@ module FunctionDeclaration =
 
     let (rtyp, rtUnresolvedNames) =
       TypeReference.toPT ctx fn.returnType
+
+    // Auto-discover any TVariables in param/return types that weren't
+    // declared explicitly. Explicit typeParams stay first; discovered
+    // names append in first-seen order.
+    let implicitTypeParams =
+      let fromParams =
+        params
+        |> Stdlib.List.fold [] (fun acc p -> collectTVarsInTypeRef acc p.typ)
+      let withReturn = collectTVarsInTypeRef fromParams rtyp
+      withReturn
+      |> Stdlib.List.filter (fun n ->
+        Stdlib.Bool.not (Stdlib.List.``member`` explicitTypeParams n))
+    let typeParams = Stdlib.List.append explicitTypeParams implicitTypeParams
 
     let (body, bdUnresolvedNames) =
       // Build argument mapping from parameter names to indices

@@ -1,7 +1,22 @@
 /// Ways of converting Dvals to/from Sqlite-compatible JSON blobs.
 ///
-/// These are intended to be used exclusively internally.
-/// That is, they should not be used in libraries, BwdServer, HttpClient, etc.
+/// User DB rows are stored as JSON in Sqlite — that's the format
+/// `Stdlib.Db.set` / `Stdlib.Db.get` round-trip through. Most Dvals
+/// have an obvious JSON encoding (strings, numbers, nested
+/// records/lists/dicts).
+///
+/// `DBlob` is the surprising case. We DON'T inline the bytes (defeats
+/// content-addressing and would explode row sizes); instead we store
+/// a small envelope `{"type":"blob","hash":"...","length":N}` and
+/// keep the actual bytes in the `package_blobs` table. Reads
+/// dereference back through the same hash. Ephemerals must be
+/// promoted to Persistent before a write — `Blob.promote` runs at
+/// the persistence boundary.
+///
+/// `DStream` is non-persistable; raises on serialize.
+///
+/// These are intended to be used exclusively internally — should not
+/// be used in libraries, BwdServer, HttpClient, etc.
 module LibExecution.DvalReprInternalQueryable
 
 open System.Text.Json
@@ -150,6 +165,30 @@ let rec private toJsonV0
             fields
             |> Ply.List.iterSequentially (fun fieldVal -> writeDval fieldVal)))
 
+
+    // Blobs serialize as a hash-reference JSON envelope; bytes stay
+    // in package_blobs. Ephemeral blobs aren't supported here —
+    // promote to Persistent first (`Blob.promote`).
+    | DBlob(Persistent(hash, length)) ->
+      do!
+        w.writeObject (fun () ->
+          uply {
+            w.WritePropertyName "type"
+            w.WriteStringValue "blob"
+            w.WritePropertyName "hash"
+            w.WriteStringValue hash
+            w.WritePropertyName "length"
+            w.WriteNumberValue length
+          })
+    | DBlob(Ephemeral _) ->
+      Exception.raiseInternal
+        "Ephemeral blobs must be promoted before queryable-JSON write"
+        [ "value", dv ]
+
+    | DStream _ ->
+      Exception.raiseInternal
+        "DStream is not persistable — drain to a Blob before storing"
+        [ "value", dv ]
 
     // Not supported
     | DApplicable _
@@ -336,6 +375,18 @@ let parseJsonV0
     | TFn _, _ -> Exception.raiseInternal "Fn values not supported" []
     | TDB _, _ -> Exception.raiseInternal "DB values not supported" []
     | TVariable _, _ -> Exception.raiseInternal "Variables not supported yet" []
+    | TBlob, JsonValueKind.Object ->
+      // Blob values live in package_blobs; the User DB row holds a
+      // {"type":"blob","hash":"...","length":N} envelope. Mirror the
+      // writer in toJsonV0.
+      let hash = j.GetProperty("hash").GetString()
+      let length = j.GetProperty("length").GetInt64()
+      DBlob(Persistent(hash, length)) |> Ply
+    | TBlob, _ ->
+      Exception.raiseInternal
+        "Blob value must be a JSON object envelope"
+        [ "json", j ]
+    | TStream _, _ -> Exception.raiseInternal "Stream values are not persistable" []
 
     // Exhaustiveness checking
     | TUnit, _
@@ -386,7 +437,9 @@ module Test =
     | DChar _
     | DString _
     | DDateTime _
-    | DUuid _ -> true
+    | DUuid _
+    | DBlob(Persistent _) -> true
+    | DBlob(Ephemeral _) -> false // promote ephemerals before a queryable write
 
     // VTTODO these should probably just check the valueType, not any internal data
     | DTuple(d1, d2, rest) -> List.all isQueryableDval (d1 :: d2 :: rest)
@@ -400,4 +453,5 @@ module Test =
 
     // Maybe never support
     | DApplicable _
-    | DDB _ -> false
+    | DDB _
+    | DStream _ -> false

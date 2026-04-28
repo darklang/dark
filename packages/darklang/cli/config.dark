@@ -15,7 +15,7 @@ let readConfig () : Dict<String> =
   | true ->
     match Builtin.fileRead (configFilePath ()) with
     | Ok bytes ->
-      let contents = Stdlib.String.fromBytesWithReplacement bytes
+      let contents = Stdlib.String.fromBlobWithReplacement bytes
 
       match Builtin.jsonParse<Dict<String>> contents with
       | Ok config -> config
@@ -29,7 +29,7 @@ let readConfig () : Dict<String> =
 // Write config to disk
 let writeConfig (config: Dict<String>) : Unit =
   let json = Builtin.jsonSerialize<Dict<String>> config
-  let jsonBytes = Stdlib.String.toBytes json
+  let jsonBytes = Stdlib.String.toBlob json
   let _ = Builtin.fileWrite jsonBytes (configFilePath ())
   ()
 

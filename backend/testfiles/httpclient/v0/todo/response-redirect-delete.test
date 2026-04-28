@@ -12,7 +12,7 @@ Location: /v0/response-redirect-destination
 
 
 [test]
-(match Darklang.Stdlib.HttpClient.request "delete" "http://URL" [] [] with
+(match Darklang.Stdlib.HttpClient.request "delete" "http://URL" [] Stdlib.Blob.empty with
  | Ok _ -> "fail"
  | Error response ->
     let respHeaders = response.headers |> Darklang.Stdlib.List.filter (fun h -> Darklang.Stdlib.Tuple2.first h != "date")

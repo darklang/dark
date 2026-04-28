@@ -13,7 +13,7 @@ let helloHandler: Stdlib.HttpServer.Handler =
 
 
 let echoHandlerFn (req: Stdlib.Http.Request) : Stdlib.Http.Response =
-  let bodyText = Stdlib.String.fromBytesWithReplacement req.body
+  let bodyText = Stdlib.String.fromBlobWithReplacement req.body
   Stdlib.Http.responseWithText bodyText 200L
 
 let echoHandler: Stdlib.HttpServer.Handler =

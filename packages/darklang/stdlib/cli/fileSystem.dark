@@ -44,8 +44,13 @@ let isDirectoryAtPath (dirPath: String) (fileName: String) : Bool =
   Posix.isDirectory fullPath
 
 
+/// Read an entire file as a Blob.
+let readFile (path: String) : Result.Result<Blob, String> =
+  Builtin.fileRead path
+
+
 /// Write content to a file, creating any missing parent directories.
-let writeFile (path: String) (content: List<UInt8>) : Result.Result<Unit, String> =
+let writeFile (path: String) (content: Blob) : Result.Result<Unit, String> =
   let parentDir = Path.parent path
 
   let mkdirResult =
