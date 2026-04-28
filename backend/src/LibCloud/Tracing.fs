@@ -1,8 +1,6 @@
 /// Tracing for real execution
 module LibCloud.Tracing
 
-open FSharp.Control.Tasks
-open System.Threading.Tasks
 open Fumble
 
 open Prelude
@@ -11,7 +9,6 @@ module PT = LibExecution.ProgramTypes
 module RT = LibExecution.RuntimeTypes
 module AT = LibExecution.AnalysisTypes
 module Exe = LibExecution.Execution
-module DvalReprInternalHash = LibExecution.DvalReprInternalHash
 module DvalReprInternalRoundtrippable = LibExecution.DvalReprInternalRoundtrippable
 
 /// Tracing can go overboard, so use a per-handler feature flag to control it. If
@@ -103,7 +100,10 @@ type T =
   }
 
 
-/// Resolve package function hashes to human-readable names
+/// Resolve package fn hashes to human-readable names. Cached in-process so
+/// only the first reference to each hash hits the DB; subsequent calls
+/// return the resolved name directly. Falls back to the raw hash if the
+/// fn isn't found (e.g. it was deleted).
 module FnNameCache =
   open LibDB.Db
 
@@ -139,36 +139,138 @@ module FnNameCache =
       | None -> hash
 
 
-let fnNameToSimpleString (name : RT.FQFnName.FQFnName) : string =
+/// Display name written into the fn_hash column. Resolved at write time
+/// (via FnNameCache for package fns) so the reader can render traces with
+/// a flat SELECT — no JOIN against locations needed. The trade-off: the
+/// trace records the name as it was at execution time, so subsequent
+/// renames/deletions don't change historical traces.
+let private fnNameToSimpleString (name : RT.FQFnName.FQFnName) : string =
   match name with
   | RT.FQFnName.Builtin b ->
     if b.version = 0 then b.name else $"{b.name}_v{b.version}"
   | RT.FQFnName.Package(RT.Hash h) -> FnNameCache.resolve h
 
 
-/// Stored function call record for trace data.
-/// We keep the raw FQFnName and resolve to a human-readable string at
-/// storage time, avoiding synchronous DB lookups on the hot path.
-type StoredFnCall =
-  { fnName : RT.FQFnName.FQFnName
-    argsHash : string
-    argsJson : List<string>
-    resultJson : string }
+/// Completed call event ready to emit to trace_fn_calls.
+type CompletedEvent =
+  { callId : string
+    parentCallId : string option
+    kind : string // "function" | "lambda" | "builtin"
+    fnHash : string option // function/builtin only
+    lambdaExprId : id option // lambda only
+    args : List<RT.Dval>
+    result : RT.Dval }
+
+
+/// Partial event held on the writer's stack between storeFrameEntry and
+/// the matching storeFnResult / storeLambdaResult. The kind isn't stored —
+/// the finalizer (storeFnResult vs storeLambdaResult) already knows it.
+type PartialEvent =
+  { callId : string
+    parentCallId : string option
+    fnHash : string option
+    lambdaExprId : id option
+    args : List<RT.Dval> }
+
+
+/// Mutable per-trace tracer state. Captures every event in execution order
+/// and tracks the open call stack so children can find their parent.
+type TracerState =
+  { events : System.Collections.Generic.List<CompletedEvent>
+    stack : System.Collections.Generic.Stack<PartialEvent> }
+
+
+let private newState () : TracerState =
+  { events = System.Collections.Generic.List<CompletedEvent>()
+    stack = System.Collections.Generic.Stack<PartialEvent>() }
+
+
+let private currentParentCallId (state : TracerState) : string option =
+  if state.stack.Count = 0 then None else Some(state.stack.Peek().callId)
+
+
+let private newCallId () : string = string (System.Guid.NewGuid())
+
+
+/// Fired when a Function or Lambda frame is pushed. We assign this call
+/// its own call_id immediately so children entered before this call exits
+/// can record us as their parent_call_id.
+let private makeStoreFrameEntry (state : TracerState) : RT.Tracing.StoreFrameEntry =
+  fun _ ep args ->
+    let fnHash, lambdaExprId =
+      match ep with
+      | RT.Function name -> Some(fnNameToSimpleString name), None
+      | RT.Lambda(_, exprId) -> None, Some exprId
+      | RT.Source ->
+        Exception.raiseInternal
+          "Source ExecutionPoint cannot be pushed as a frame"
+          []
+    let partial =
+      { callId = newCallId ()
+        parentCallId = currentParentCallId state
+        fnHash = fnHash
+        lambdaExprId = lambdaExprId
+        args = args }
+    state.stack.Push(partial)
+
+
+/// Fired for both fn frame returns and synchronous builtin calls. We
+/// dispatch on the FQFnName: builtins emit a synchronous event with the
+/// current top of stack as parent; package fn returns pop the matching
+/// frame entry and finalize with the result.
+let private makeStoreFnResult (state : TracerState) : RT.Tracing.StoreFnResult =
+  fun (_, name) args result ->
+    match name with
+    | RT.FQFnName.Builtin _ ->
+      state.events.Add(
+        { callId = newCallId ()
+          parentCallId = currentParentCallId state
+          kind = "builtin"
+          fnHash = Some(fnNameToSimpleString name)
+          lambdaExprId = None
+          args = NEList.toList args
+          result = result }
+      )
+    | RT.FQFnName.Package _ ->
+      if state.stack.Count > 0 then
+        let partial = state.stack.Pop()
+        state.events.Add(
+          { callId = partial.callId
+            parentCallId = partial.parentCallId
+            kind = "function"
+            fnHash = partial.fnHash
+            lambdaExprId = None
+            args = partial.args
+            result = result }
+        )
+
+
+/// Fired when a Lambda frame returns. Pop the matching entry and finalize.
+let private makeStoreLambdaResult
+  (state : TracerState)
+  : RT.Tracing.StoreLambdaResult =
+  fun _ result ->
+    if state.stack.Count > 0 then
+      let partial = state.stack.Pop()
+      state.events.Add(
+        { callId = partial.callId
+          parentCallId = partial.parentCallId
+          kind = "lambda"
+          fnHash = None
+          lambdaExprId = partial.lambdaExprId
+          args = partial.args
+          result = result }
+      )
+
 
 /// Store trace data to SQLite
 module TraceStorage =
   open LibDB.Db
-  open System.Text.Json
 
-  let private serializeArgsList (argsJson : List<string>) : string =
-    use stream = new System.IO.MemoryStream()
-    use writer = new Utf8JsonWriter(stream)
-    writer.WriteStartArray()
-    for argJson in argsJson do
-      writer.WriteRawValue(argJson)
-    writer.WriteEndArray()
-    writer.Flush()
-    System.Text.Encoding.UTF8.GetString(stream.ToArray())
+  /// Build a JSON array string from a list of pre-serialized JSON elements.
+  /// (Don't double-encode: each element is already valid JSON.)
+  let private jsonArrayOf (elements : List<string>) : string =
+    "[" + String.concat "," elements + "]"
 
   let store
     (canvasID : CanvasID)
@@ -176,76 +278,67 @@ module TraceStorage =
     (traceID : AT.TraceID.T)
     (handlerDesc : string)
     (inputVarName : string)
-    (inputJson : string)
-    (fnCalls : List<StoredFnCall>)
+    (inputDval : RT.Dval)
+    (events : List<CompletedEvent>)
     : unit =
     let traceIdStr = string traceID
     let timestamp = NodaTime.Instant.now().ToString()
+    let traceIdParam = [ "traceId", Sql.string traceIdStr ]
 
-    let statements =
-      [ // Main trace row
-        "INSERT OR REPLACE INTO traces_v0
-          (id, trace_id, canvas_id, root_tlid, callgraph_tlids, handler_desc, timestamp)
+    let inputJson = DvalReprInternalRoundtrippable.toJsonV0 inputDval
+
+    // DELETE-before-INSERT on trace_fn_calls matches INSERT OR REPLACE
+    // on traces, so re-running store for a trace_id replaces rather than
+    // accumulates. Input is stored inline on the trace row.
+    let baseStatements =
+      [ "INSERT OR REPLACE INTO traces
+          (id, canvas_id, root_tlid, handler_desc, timestamp,
+           input_name, input_value_json)
          VALUES
-          (@id, @id, @canvasId, @rootTlid, '', @handlerDesc, @timestamp)",
+          (@id, @canvasId, @rootTlid, @handlerDesc, @timestamp,
+           @inputName, @inputValueJson)",
         [ [ "id", Sql.string traceIdStr
             "canvasId", Sql.string (string canvasID)
             "rootTlid", Sql.int64 (int64 rootTLID)
             "handlerDesc", Sql.string handlerDesc
-            "timestamp", Sql.string timestamp ] ]
+            "timestamp", Sql.string timestamp
+            "inputName", Sql.string inputVarName
+            "inputValueJson", Sql.string inputJson ] ]
 
-        // Input
-        "INSERT INTO trace_inputs_v0 (trace_id, name, value_json)
-         VALUES (@traceId, @name, @valueJson)",
-        [ [ "traceId", Sql.string traceIdStr
-            "name", Sql.string inputVarName
-            "valueJson", Sql.string inputJson ] ]
+        "DELETE FROM trace_fn_calls WHERE trace_id = @traceId", [ traceIdParam ] ]
 
-        // Function results (one param set per call)
-        "INSERT INTO trace_fn_results_v0 (trace_id, fn_name, args_hash, hash_version, result_json)
-         VALUES (@traceId, @fnName, @argsHash, @hashVersion, @resultJson)",
-        fnCalls
-        |> List.map (fun fc ->
-          [ "traceId", Sql.string traceIdStr
-            "fnName", Sql.string (fnNameToSimpleString fc.fnName)
-            "argsHash", Sql.string fc.argsHash
-            "hashVersion", Sql.int DvalReprInternalHash.currentHashVersion
-            "resultJson", Sql.string fc.resultJson ])
+    // Skip the events INSERT when empty: fumble rejects zero-param-row
+    // prepared statements, hit when a trace errors before any call fires.
+    // The DELETE above still runs.
+    let eventStmt =
+      match events with
+      | [] -> []
+      | _ ->
+        [ "INSERT INTO trace_fn_calls
+            (trace_id, call_id, parent_call_id, kind, fn_hash,
+             lambda_expr_id, args_json, result_json)
+           VALUES
+            (@traceId, @callId, @parentCallId, @kind, @fnHash,
+             @lambdaExprId, @argsJson, @resultJson)",
+          events
+          |> List.map (fun ev ->
+            let argsJson =
+              ev.args
+              |> List.map DvalReprInternalRoundtrippable.toJsonV0
+              |> jsonArrayOf
+            let resultJson = DvalReprInternalRoundtrippable.toJsonV0 ev.result
+            [ "traceId", Sql.string traceIdStr
+              "callId", Sql.string ev.callId
+              "parentCallId", Sql.stringOrNone ev.parentCallId
+              "kind", Sql.string ev.kind
+              "fnHash", Sql.stringOrNone ev.fnHash
+              "lambdaExprId",
+              (ev.lambdaExprId |> Option.map string |> Sql.stringOrNone)
+              "argsJson", Sql.string argsJson
+              "resultJson", Sql.string resultJson ]) ]
 
-        // Function arguments (one param set per call)
-        "INSERT INTO trace_fn_arguments_v0 (trace_id, fn_name, args_hash, args_json)
-         VALUES (@traceId, @fnName, @argsHash, @argsJson)",
-        fnCalls
-        |> List.map (fun fc ->
-          [ "traceId", Sql.string traceIdStr
-            "fnName", Sql.string (fnNameToSimpleString fc.fnName)
-            "argsHash", Sql.string fc.argsHash
-            "argsJson", Sql.string (serializeArgsList fc.argsJson) ]) ]
-
-    let _ = Sql.executeTransactionSync statements
+    let _ = Sql.executeTransactionSync (baseStatements @ eventStmt)
     ()
-
-
-/// Shared storeFnResult callback that only records top-level calls (from user code).
-/// Internal stdlib-calls-stdlib chains are skipped by checking the execution point.
-let private makeStoreFnResult
-  (fnCalls : System.Collections.Generic.List<StoredFnCall>)
-  : RT.Tracing.StoreFnResult =
-  fun ((ep, _), name) args result ->
-    match ep with
-    | RT.Source ->
-      let hash =
-        args |> DvalReprInternalHash.hash DvalReprInternalHash.currentHashVersion
-      let argsJson =
-        args |> NEList.toList |> List.map DvalReprInternalRoundtrippable.toJsonV0
-      let resultJson = DvalReprInternalRoundtrippable.toJsonV0 result
-      fnCalls.Add(
-        { fnName = name
-          argsHash = hash
-          argsJson = argsJson
-          resultJson = resultJson }
-      )
-    | _ -> ()
 
 
 /// Shared helper: store a trace to SQLite with error handling
@@ -255,8 +348,8 @@ let private storeTrace
   (traceID : AT.TraceID.T)
   (handlerDesc : string)
   (inputVarName : string)
-  (inputJson : string)
-  (fnCalls : System.Collections.Generic.List<StoredFnCall>)
+  (inputDval : RT.Dval)
+  (state : TracerState)
   : unit =
   try
     TraceStorage.store
@@ -265,8 +358,8 @@ let private storeTrace
       traceID
       handlerDesc
       inputVarName
-      inputJson
-      (Seq.toList fnCalls)
+      inputDval
+      (Seq.toList state.events)
   with ex ->
     print $"[tracing] Failed to store trace: {ex.Message}"
 
@@ -277,23 +370,25 @@ let createSqliteTracer
   (traceID : AT.TraceID.T)
   : T =
   let results = TraceResults.empty ()
-  let fnCalls = System.Collections.Generic.List<StoredFnCall>()
+  let state = newState ()
   let mutable storedInputVarName = ""
-  let mutable storedInputJson = ""
+  let mutable storedInputDval : RT.Dval = RT.DUnit
   let mutable handlerDesc = ""
 
   { enabled = true
     results = results
     executionTracing =
       { Exe.noTracing with
-          storeFnResult = makeStoreFnResult fnCalls
+          storeFrameEntry = makeStoreFrameEntry state
+          storeFnResult = makeStoreFnResult state
+          storeLambdaResult = makeStoreLambdaResult state
           skipTracing = false }
     storeTraceInput =
       fun desc varname input ->
         let (kind, path, modifier) = desc
         handlerDesc <- $"{kind} {path} {modifier}"
         storedInputVarName <- varname
-        storedInputJson <- DvalReprInternalRoundtrippable.toJsonV0 input
+        storedInputDval <- input
     storeTraceResults =
       fun () ->
         storeTrace
@@ -302,43 +397,45 @@ let createSqliteTracer
           traceID
           handlerDesc
           storedInputVarName
-          storedInputJson
-          fnCalls }
+          storedInputDval
+          state }
 
 
 let createCliTracer
-  (canvasID : CanvasID)
-  (traceID : AT.TraceID.T)
-  (description : string)
-  (inputVarName : string)
-  (inputDval : RT.Dval)
+  (_canvasID : CanvasID)
+  (_traceID : AT.TraceID.T)
+  (_description : string)
+  (_inputVarName : string)
+  (_inputDval : RT.Dval)
   : T =
   let results = TraceResults.empty ()
-  let fnCalls = System.Collections.Generic.List<StoredFnCall>()
 
-  // Skip per-fn-call tracing: makeStoreFnResult uses reflection-based JSON
-  // (DvalReprInternalRoundtrippable) which is stripped by the .NET trimmer in
-  // release/AOT builds. Top-level trace input uses DvalReprDeveloper (string
-  // repr, no reflection) as a trim-safe fallback.
-  // TODO: use binary serialization or Darklang-native JSON for full trace support.
+  // The frame/result hooks all use DvalReprInternalRoundtrippable for
+  // JSON encoding, which is reflection-based and stripped by the .NET
+  // trimmer in release/AOT builds. So tracing is dev-only here.
+  // TODO: switch to a trim-safe encoding so CLI traces work in release.
+#if DEBUG
+  let state = newState ()
+#endif
   { enabled = true
     results = results
     executionTracing =
       { Exe.noTracing with
 #if DEBUG
-          storeFnResult = makeStoreFnResult fnCalls
+          storeFrameEntry = makeStoreFrameEntry state
+          storeFnResult = makeStoreFnResult state
+          storeLambdaResult = makeStoreLambdaResult state
 #endif
           skipTracing = false }
     storeTraceInput = fun _ _ _ -> ()
     storeTraceResults =
       fun () ->
 #if DEBUG
-        let inputJson = DvalReprInternalRoundtrippable.toJsonV0 inputDval
+        storeTrace _canvasID 0UL _traceID _description _inputVarName _inputDval state
 #else
-        ignore<RT.Dval> inputDval
-        let inputJson = "(release: trace serialization unavailable)"
+        ()
 #endif
-        storeTrace canvasID 0UL traceID description inputVarName inputJson fnCalls }
+  }
 
 
 let createNonTracer (_canvasID : CanvasID) (_traceID : AT.TraceID.T) : T =

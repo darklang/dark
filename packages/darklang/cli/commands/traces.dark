@@ -2,12 +2,21 @@
 module Darklang.Cli.Commands.Traces
 
 
+type TraceSummary =
+  { traceId: String
+    handler: String
+    timestamp: String }
+
 type InputVar =
   { name: String
     value: LanguageTools.RuntimeTypes.Dval }
 
 type FnCall =
-  { fnName: String
+  { callId: String
+    parentCallId: Stdlib.Option.Option<String>
+    kind: String  // "function" | "lambda" | "builtin"
+    fnName: String
+    lambdaExprId: Stdlib.Option.Option<String>
     args: List<LanguageTools.RuntimeTypes.Dval>
     result: LanguageTools.RuntimeTypes.Dval }
 
@@ -17,6 +26,50 @@ type TraceData =
     timestamp: String
     inputs: List<InputVar>
     functionCalls: List<FnCall> }
+
+
+/// Filters applied when rendering a trace tree. Each filter hides matching
+/// nodes but recurses into their children at the SAME indent level so the
+/// surrounding structure stays intact.
+type ViewOptions =
+  { maxDepth: Stdlib.Option.Option<Int64>
+    hideBuiltins: Bool
+    hideStdlib: Bool
+    filter: Stdlib.Option.Option<String> }
+
+
+let defaultViewOptions: ViewOptions =
+  ViewOptions
+    { maxDepth = Stdlib.Option.Option.None
+      hideBuiltins = false
+      hideStdlib = false
+      filter = Stdlib.Option.Option.None }
+
+
+let rec parseViewOptions
+  (opts: ViewOptions)
+  (args: List<String>)
+  : Stdlib.Result.Result<ViewOptions, String> =
+  match args with
+  | [] -> Stdlib.Result.Result.Ok opts
+  | "--depth" :: n :: rest
+  | "-d" :: n :: rest ->
+    match Stdlib.Int64.parse n with
+    | Ok depth ->
+      parseViewOptions
+        { opts with maxDepth = Stdlib.Option.Option.Some depth }
+        rest
+    | Error _ -> Stdlib.Result.Result.Error $"Invalid depth: {n}"
+  | "--no-builtins" :: rest ->
+    parseViewOptions { opts with hideBuiltins = true } rest
+  | "--no-stdlib" :: rest ->
+    parseViewOptions { opts with hideStdlib = true } rest
+  | "--filter" :: pattern :: rest ->
+    parseViewOptions
+      { opts with filter = Stdlib.Option.Option.Some pattern }
+      rest
+  | unknown :: _ ->
+    Stdlib.Result.Result.Error $"Unknown flag: {unknown}"
 
 
 let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
@@ -42,8 +95,12 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
       Stdlib.printLine (Colors.error $"Invalid limit: {limitStr}")
       state
 
-  | [ "view"; traceID ] ->
-    executeView state traceID
+  | "view" :: traceID :: flagArgs ->
+    match parseViewOptions defaultViewOptions flagArgs with
+    | Ok opts -> executeView state traceID opts
+    | Error msg ->
+      Stdlib.printLine (Colors.error msg)
+      state
 
   | [ "replay"; traceID ] ->
     executeReplay state traceID
@@ -88,13 +145,9 @@ let executeListByFn (state: Cli.AppState) (fnName: String) (limit: Int64) : Cli.
     state
 
 
-let printTraceRows (rows: List<List<String>>) : Unit =
+let printTraceRows (rows: List<TraceSummary>) : Unit =
   Stdlib.List.iter rows (fun row ->
-    match row with
-    | [ traceId; handlerDesc; timestamp ] ->
-      Stdlib.printLine $"  {timestamp}  {traceId}  {handlerDesc}"
-    | _ ->
-      Stdlib.printLine "  (malformed trace row)")
+    Stdlib.printLine $"  {row.timestamp}  {row.traceId}  {row.handler}")
 
 
 let formatInputs (branchId: Uuid) (inputs: List<InputVar>) : String =
@@ -103,32 +156,136 @@ let formatInputs (branchId: Uuid) (inputs: List<InputVar>) : String =
   | _ ->
     inputs
     |> Stdlib.List.map (fun input ->
-      let repr = PrettyPrinter.RuntimeTypes.dval branchId input.value
+      let repr = compactDval branchId input.value
       $"  {input.name} = {repr}")
     |> Stdlib.String.join "\n"
 
 
-let formatFnCalls (branchId: Uuid) (fnCalls: List<FnCall>) : String =
+/// Render a dval as a single-line string for the trace viewer.
+/// PrettyPrinter is compact-when-short already, but values > 80 chars
+/// break across lines, which destroys our tree indentation. Strategy:
+/// pretty-print, split on newlines, trim each line, rejoin. We don't
+/// normalize comma spacing because that would corrupt commas inside
+/// string contents.
+let compactDval (branchId: Uuid) (dv: LanguageTools.RuntimeTypes.Dval) : String =
+  let pretty = PrettyPrinter.RuntimeTypes.dval branchId dv
+  pretty
+  |> Stdlib.String.split "\n"
+  |> Stdlib.List.map (fun s -> Stdlib.String.trim s)
+  |> Stdlib.String.join ""
+
+
+/// Decide whether to render a given call line. Hidden lines still recurse
+/// into children — the children appear at the parent's depth so the
+/// surrounding structure stays intact.
+let isVisible (opts: ViewOptions) (call: FnCall) (ancestorMatched: Bool) : Bool =
+  let stdlibInternal =
+    opts.hideStdlib
+    && Stdlib.String.startsWith call.fnName "Darklang.Stdlib."
+    && call.parentCallId != Stdlib.Option.Option.None
+  let builtinHidden = opts.hideBuiltins && call.kind == "builtin"
+  if stdlibInternal || builtinHidden then
+    false
+  else
+    match opts.filter with
+    | None -> true
+    | Some pat ->
+      ancestorMatched || Stdlib.String.contains call.fnName pat
+
+
+/// Render one call and (recursively) its children. Lifted out of
+/// formatFnCalls because Darklang doesn't allow nested let-recs.
+let renderCall
+  (opts: ViewOptions)
+  (branchId: Uuid)
+  (childrenMap: Dict<List<FnCall>>)
+  (call: FnCall)
+  (depth: Int64)
+  (ancestorMatched: Bool)
+  : List<String> =
+  let depthExceeded =
+    match opts.maxDepth with
+    | Some max -> depth >= max
+    | None -> false
+  if depthExceeded then
+    []
+  else
+    let visible = isVisible opts call ancestorMatched
+    let matchedHere =
+      match opts.filter with
+      | Some pat -> ancestorMatched || Stdlib.String.contains call.fnName pat
+      | None -> true
+    let children =
+      match Stdlib.Dict.get childrenMap call.callId with
+      | Some xs -> xs
+      | None -> []
+    // When this call is hidden we keep child indent at our level so the
+    // tree doesn't develop ghost gaps where the hidden line would have been.
+    let childDepth = if visible then depth + 1L else depth
+    let childrenRendered =
+      children
+      |> Stdlib.List.map (fun c ->
+        renderCall opts branchId childrenMap c childDepth matchedHere)
+      |> Stdlib.List.flatten
+    if visible then
+      let indent = Stdlib.String.repeat "  " (depth + 1L)
+      let resultRepr = compactDval branchId call.result
+      let header =
+        match call.args with
+        | [] -> $"{indent}{call.fnName} → {resultRepr}"
+        | _ ->
+          let argsRepr =
+            call.args
+            |> Stdlib.List.map (fun arg -> compactDval branchId arg)
+            |> Stdlib.String.join ", "
+          $"{indent}{call.fnName}({argsRepr}) → {resultRepr}"
+      Stdlib.List.append [ header ] childrenRendered
+    else
+      childrenRendered
+
+
+let formatFnCalls
+  (opts: ViewOptions)
+  (branchId: Uuid)
+  (fnCalls: List<FnCall>)
+  : String =
   match fnCalls with
   | [] -> "  (none)"
   | _ ->
-    fnCalls
-    |> Stdlib.List.map (fun call ->
-      let resultRepr = PrettyPrinter.RuntimeTypes.dval branchId call.result
+    // Build (roots, parent_call_id -> children) by folding the flat list.
+    // Roots are events whose parentCallId is None (top-level user calls).
+    let buildResult =
+      fnCalls
+      |> Stdlib.List.fold
+        ([], Stdlib.Dict.empty)
+        (fun acc call ->
+          let (roots, dict) = acc
+          match call.parentCallId with
+          | None -> (Stdlib.List.append roots [ call ], dict)
+          | Some pid ->
+            let existing =
+              match Stdlib.Dict.get dict pid with
+              | Some xs -> xs
+              | None -> []
+            let updated = Stdlib.List.append existing [ call ]
+            (roots, Stdlib.Dict.setOverridingDuplicates dict pid updated))
+    let (roots, childrenMap) = buildResult
 
-      match call.args with
-      | [] -> $"  {call.fnName} → {resultRepr}"
-      | _ ->
-        let argsRepr =
-          call.args
-          |> Stdlib.List.map (fun arg ->
-            PrettyPrinter.RuntimeTypes.dval branchId arg)
-          |> Stdlib.String.join ", "
-        $"  {call.fnName}({argsRepr}) → {resultRepr}")
-    |> Stdlib.String.join "\n"
+    let rendered =
+      roots
+      |> Stdlib.List.map (fun r ->
+        renderCall opts branchId childrenMap r 0L false)
+      |> Stdlib.List.flatten
+    match rendered with
+    | [] -> "  (no calls match filter)"
+    | _ -> Stdlib.String.join rendered "\n"
 
 
-let executeView (state: Cli.AppState) (traceID: String) : Cli.AppState =
+let executeView
+  (state: Cli.AppState)
+  (traceID: String)
+  (opts: ViewOptions)
+  : Cli.AppState =
   let result = Builtin.cliTracesView traceID
 
   match result with
@@ -137,7 +294,7 @@ let executeView (state: Cli.AppState) (traceID: String) : Cli.AppState =
     state
   | Some trace ->
     let input = formatInputs state.currentBranchId trace.inputs
-    let fnCalls = formatFnCalls state.currentBranchId trace.functionCalls
+    let fnCalls = formatFnCalls opts state.currentBranchId trace.functionCalls
     [ $"Trace: {trace.traceId}"
       $"Handler: {trace.handler}"
       $"Time: {trace.timestamp}"
@@ -202,9 +359,16 @@ let help (_state: Cli.AppState) : Unit =
     "Subcommands:"
     "  list [limit]              List recent traces (default limit: 20)"
     "  list --fn <name> [limit]  List traces that called a specific function"
-    "  view <trace-id>           View details of a specific trace"
+    "  view <trace-id> [flags]   View details of a specific trace"
     "  replay <trace-id>         Re-execute a trace's code with current definitions"
     "  clear                     Delete all stored traces"
+    ""
+    "View flags (combinable):"
+    "  -d, --depth <n>           Cap tree depth at <n> levels"
+    "  --no-builtins             Hide builtin calls (e.g. int64Multiply)"
+    "  --no-stdlib               Hide stdlib calls below the entry point"
+    "  --filter <pattern>        Show only calls whose name contains <pattern>"
+    "                            (and their descendants)"
     ""
     "Traces are recorded when code executes via eval, run, or HTTP handlers."
     "Each trace captures inputs, function calls with arguments, and results."
@@ -213,7 +377,10 @@ let help (_state: Cli.AppState) : Unit =
     "  traces list                          - Show last 20 traces"
     "  traces list 50                       - Show last 50 traces"
     "  traces list --fn List.map            - Find traces that called List.map"
-    "  traces view <trace-id>               - View trace details with args"
+    "  traces view <trace-id>               - View full trace tree"
+    "  traces view <trace-id> -d 2          - Top two tree levels only"
+    "  traces view <trace-id> --no-stdlib --no-builtins"
+    "  traces view <trace-id> --filter Multiply"
     "  traces replay <trace-id>             - Re-run with current code"
     "  traces clear                         - Delete all traces" ]
   |> Stdlib.printLines

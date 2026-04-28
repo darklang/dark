@@ -122,8 +122,8 @@ let testToDeveloperRepr =
         [ RT.DFloat(-0.0), "-0.0"
           RT.DFloat(infinity), "Infinity"
           RT.DTuple(RT.DInt64 1, RT.DInt64 2, [ RT.DInt64 3 ]), "(1, 2, 3)"
-          RT.DDict(VT.unit, Map [ "", RT.DUnit ]), "{\n  : ()\n}"
-          RT.DList(VT.unit, [ RT.DUnit ]), "[\n  ()\n]" ] ]
+          RT.DDict(VT.unit, Map [ "", RT.DUnit ]), "{ : () }"
+          RT.DList(VT.unit, [ RT.DUnit ]), "[()]" ] ]
 
 module ToHashableRepr =
   open LibExecution.RuntimeTypes

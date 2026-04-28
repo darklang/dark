@@ -679,6 +679,11 @@ let rec private executeInner (exeState : ExecutionState) (vm : VMState) : Ply<Dv
 
               if vm.stats.enabled then
                 vm.stats.framePushCount <- vm.stats.framePushCount + 1L
+              if not exeState.tracing.skipTracing then
+                exeState.tracing.storeFrameEntry
+                  newFrame.id
+                  newFrame.executionPoint
+                  allArgs
               frameToPush <- Some newFrame
 
             else if argCount > paramCount then
@@ -858,7 +863,7 @@ let rec private executeInner (exeState : ExecutionState) (vm : VMState) : Ply<Dv
                       | Ok _ -> ()
                       | Error rte -> raiseRTE rte
 
-                      // Trace builtin function call
+                      // Trace builtin function call.
                       if not exeState.tracing.skipTracing then
                         let source : Tracing.Source =
                           (currentFrame.executionPoint, None)
@@ -1008,6 +1013,9 @@ let rec private executeInner (exeState : ExecutionState) (vm : VMState) : Ply<Dv
                     if vm.stats.detailedTiming then
                       vm.stats.framePushTimestamps[newFrameId] <-
                         System.Diagnostics.Stopwatch.GetTimestamp()
+                  let pkgEp = Function(FQFnName.Package fn.hash)
+                  if not exeState.tracing.skipTracing then
+                    exeState.tracing.storeFrameEntry newFrameId pkgEp allArgs
                   frameToPush <-
                     { id = newFrameId
                       parent = Some(vm.currentFrameID, putResultIn, counter + 1)
@@ -1017,7 +1025,7 @@ let rec private executeInner (exeState : ExecutionState) (vm : VMState) : Ply<Dv
                         allArgs |> List.iteri (fun i arg -> r[i] <- arg)
                         r
                       typeSymbolTable = frameTst
-                      executionPoint = Function(FQFnName.Package fn.hash) }
+                      executionPoint = pkgEp }
                     |> Some
 
         | RaiseNRE(names, nre) -> raiseRTE (RTE.ParseTimeNameResolution(names, nre))
@@ -1117,6 +1125,7 @@ let rec private executeInner (exeState : ExecutionState) (vm : VMState) : Ply<Dv
           let parentFrame = vm.callFrames[parentID]
 
           // Trace package function call at frame return.
+          // Lambda frames fire storeLambdaResult instead.
           if not exeState.tracing.skipTracing then
             match currentFrame.executionPoint with
             | Function fnName ->
@@ -1130,7 +1139,10 @@ let rec private executeInner (exeState : ExecutionState) (vm : VMState) : Ply<Dv
                   (NEList.ofListUnsafe "" [] args)
                   resultOfFrame
               | _ -> ()
-            | _ -> pendingCallArgs.Remove(currentFrame.id) |> ignore<bool>
+            | Lambda _ ->
+              pendingCallArgs.Remove(currentFrame.id) |> ignore<bool>
+              exeState.tracing.storeLambdaResult currentFrame.id resultOfFrame
+            | Source -> pendingCallArgs.Remove(currentFrame.id) |> ignore<bool>
           parentFrame.registers[regOfParentToPutResultInto] <- resultOfFrame
           parentFrame.programCounter <- pcOfParent
 

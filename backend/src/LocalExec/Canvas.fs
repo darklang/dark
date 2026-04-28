@@ -41,7 +41,14 @@ let purgeDataFromInternalSqlTables (id : CanvasID) : Task<unit> =
       |> Sql.parameters [ "id", Sql.uuid id ]
       |> Sql.executeStatementAsync
 
-    do! runStmt "DELETE FROM traces_v0 WHERE canvas_id = @id"
+    // trace_fn_calls has no canvas_id of its own, so we delete via a
+    // subquery on traces — and must do so BEFORE deleting from traces, or
+    // the subquery finds nothing.
+    do!
+      runStmt
+        "DELETE FROM trace_fn_calls WHERE trace_id IN
+         (SELECT id FROM traces WHERE canvas_id = @id)"
+    do! runStmt "DELETE FROM traces WHERE canvas_id = @id"
     do! runStmt "DELETE FROM user_data_v0 WHERE canvas_id = @id"
     do! runStmt "DELETE FROM toplevels_v0 WHERE canvas_id = @id"
     do! runStmt "DELETE FROM canvases_v0 WHERE id = @id"
