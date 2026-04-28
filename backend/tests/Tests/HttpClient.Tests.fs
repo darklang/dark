@@ -26,6 +26,7 @@ type ConcurrentDictionary<'a, 'b> =
 open Prelude
 
 module RT = LibExecution.RuntimeTypes
+module Stream = LibExecution.Stream
 module PT = LibExecution.ProgramTypes
 module PT2RT = LibExecution.ProgramTypesToRuntimeTypes
 module RT2DT = LibExecution.RuntimeTypesToDarkTypes
@@ -245,8 +246,7 @@ let makeTest versionName filename =
         task {
           match r with
           | Ok dv ->
-            let! p =
-              LibExecution.Dval.promoteBlobs exeState noopInsert dv |> Ply.toTask
+            let! p = LibExecution.Blob.promote exeState noopInsert dv |> Ply.toTask
             return Ok p
           | Error _ -> return r
         }
@@ -526,7 +526,7 @@ module StreamDvalTests =
         disposerRan.Value <- true
         responseStream.Dispose()
         response.Dispose()
-      return Dval.newStream VT.uint8 next (Some disposer), disposerRan
+      return Stream.newFromIO VT.uint8 next (Some disposer), disposerRan
     }
 
 
@@ -535,7 +535,7 @@ module StreamDvalTests =
       use ms = new System.IO.MemoryStream()
       let mutable keepGoing = true
       while keepGoing do
-        let! pulled = Dval.readStreamNext s |> Ply.toTask
+        let! pulled = Stream.readNext s |> Ply.toTask
         match pulled with
         | Some(RT.DUInt8 b) -> ms.WriteByte b
         | Some _ -> Exception.raiseInternal "expected DUInt8" []
@@ -613,11 +613,11 @@ module StreamDvalTests =
             match s with
             | RT.DStream(impl, disposed, _) ->
               disposed.Value <- true
-              Dval.disposeStreamImpl impl
+              Stream.disposeImpl impl
             | _ -> failtest "expected DStream"
             Expect.isTrue disposerRan.Value "disposer runs on explicit close"
             // Subsequent pulls yield None.
-            let! after = Dval.readStreamNext s |> Ply.toTask
+            let! after = Stream.readNext s |> Ply.toTask
             Expect.equal after None "closed stream yields None"
         } ]
 

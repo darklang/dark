@@ -28,6 +28,7 @@ open LibExecution.Builtin.Shortcuts
 
 module Dval = LibExecution.Dval
 module Execution = LibExecution.Execution
+module Blob = LibExecution.Blob
 module Http = LibHttpMiddleware.Http
 
 
@@ -81,7 +82,7 @@ let fns () : List<BuiltInFn> =
                   // once the response is sent. Without this, a
                   // long-lived http-server VM leaks blobStore entries
                   // across requests.
-                  LibExecution.Dval.pushBlobScope exeState
+                  LibExecution.Blob.pushScope exeState
                   try
                     try
                       // Read request body
@@ -133,7 +134,7 @@ let fns () : List<BuiltInFn> =
                           errorBytes.Length
                         )
                   finally
-                    LibExecution.Dval.popBlobScope exeState
+                    LibExecution.Blob.popScope exeState
                 })
             )
             |> ignore<IEndpointConventionBuilder>

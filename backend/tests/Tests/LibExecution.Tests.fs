@@ -202,7 +202,7 @@ let t
           match r with
           | Ok dv ->
             let! promoted =
-              LibExecution.Dval.promoteBlobs state noopInsert dv |> Ply.toTask
+              LibExecution.Blob.promote state noopInsert dv |> Ply.toTask
             return Ok promoted
           | Error _ -> return r
         }

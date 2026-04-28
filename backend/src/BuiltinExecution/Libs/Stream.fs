@@ -22,7 +22,9 @@ open LibExecution.Builtin.Shortcuts
 
 module VT = LibExecution.ValueType
 module Dval = LibExecution.Dval
+module Blob = LibExecution.Blob
 module Exe = LibExecution.Execution
+module Stream = LibExecution.Stream
 
 
 let varA = TVariable "a"
@@ -84,7 +86,7 @@ let fns () : List<BuiltInFn> =
               match elemVT with
               | ValueType.Unknown -> resolveElemVT state elemType
               | known -> Ply known
-            return Dval.newStream inferredElem nextFn None
+            return Stream.newFromIO inferredElem nextFn None
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
@@ -137,7 +139,7 @@ let fns () : List<BuiltInFn> =
                       [ "got", other ]
                 | Error(rte, _cs) -> return raiseRTE vm.threadID rte
               }
-            return Dval.newStream elemType next None
+            return Stream.newFromIO elemType next None
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
@@ -155,7 +157,7 @@ let fns () : List<BuiltInFn> =
         (function
         | state, _, [ elemType ], [ s ] ->
           uply {
-            let! nextResult = Dval.readStreamNext s
+            let! nextResult = Stream.readNext s
             let! elemKT = resolveElemKT state elemType
             return Dval.option elemKT nextResult
           }
@@ -177,7 +179,7 @@ let fns () : List<BuiltInFn> =
             let collected = ResizeArray<Dval>()
             let mutable keepGoing = true
             while keepGoing do
-              let! result = Dval.readStreamNext s
+              let! result = Stream.readNext s
               match result with
               | Some item -> collected.Add item
               | None -> keepGoing <- false
@@ -217,11 +219,11 @@ let fns () : List<BuiltInFn> =
             use collected = new System.IO.MemoryStream()
             let mutable keepGoing = true
             while keepGoing do
-              let! chunk = Dval.readStreamChunk (64 * 1024) s
+              let! chunk = Stream.readChunk (64 * 1024) s
               match chunk with
               | Some buf -> collected.Write(buf, 0, buf.Length)
               | None -> keepGoing <- false
-            return Dval.newEphemeralBlob state (collected.ToArray())
+            return Blob.newEphemeral state (collected.ToArray())
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
@@ -250,7 +252,7 @@ let fns () : List<BuiltInFn> =
           // disposed flag.
           if not disposed.Value then
             disposed.Value <- true
-            Dval.disposeStreamImpl impl
+            Stream.disposeImpl impl
           DUnit |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
@@ -290,7 +292,7 @@ let fns () : List<BuiltInFn> =
                 | Ok v -> return v
                 | Error(rte, _cs) -> return raiseRTE vm.threadID rte
               }
-            return Dval.wrapStreamImpl (Mapped(src, apply, elemType))
+            return Stream.wrapImpl (Mapped(src, apply, elemType))
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
@@ -327,7 +329,7 @@ let fns () : List<BuiltInFn> =
                     [ "got", other ]
               | Error(rte, _cs) -> return raiseRTE vm.threadID rte
             }
-          Dval.wrapStreamImpl (Filtered(src, pred)) |> Ply
+          Stream.wrapImpl (Filtered(src, pred)) |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Impure
@@ -350,7 +352,7 @@ let fns () : List<BuiltInFn> =
           // Clamp negative n to 0 — pullStreamImpl treats remaining<=0
           // as done, so a negative here becomes an empty stream.
           let clamped = max 0L n
-          Dval.wrapStreamImpl (Take(src, clamped, ref clamped)) |> Ply
+          Stream.wrapImpl (Take(src, clamped, ref clamped)) |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Impure
@@ -377,7 +379,7 @@ let fns () : List<BuiltInFn> =
                 Exception.raiseInternal
                   "streamConcat: expected List<Stream>"
                   [ "got", other ])
-          Dval.wrapStreamImpl (Concat(ref impls)) |> Ply
+          Stream.wrapImpl (Concat(ref impls)) |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Impure

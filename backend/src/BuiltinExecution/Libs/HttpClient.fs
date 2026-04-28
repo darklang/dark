@@ -1,3 +1,25 @@
+/// HTTP client builtins.
+///
+/// Two builtins, two API surfaces:
+/// - `httpClientRequest` returns a Response with `body : Blob` —
+///   buffers the whole body up front; the simple/common case.
+/// - `httpClientStream` returns a StreamResponse with
+///   `body : Stream<UInt8>` — lazy/chunked; for large bodies, SSE,
+///   etc.
+///
+/// CLEANUP: `makeRequest` and `openStreamingRequest` duplicate ~70
+/// lines of URL validation + header collection + HttpRequestMessage
+/// construction. Either:
+///   (a) extract a shared `prepareRequest` helper that returns
+///       `Result<HttpRequestMessage * CancellationToken, RequestError>`
+///       and have both call SendAsync on it (small refactor); or
+///   (b) collapse `httpClientRequest` into a Dark-side wrapper that
+///       calls `httpClientStream` + `Stream.toBlob` and rebuilds the
+///       Response record (removes the duplication entirely; one
+///       extra Stream allocation per non-streaming call).
+/// Path (b) is the bigger reduction but needs care around the
+/// telemetry differences (telemetryInitialize wraps the buffered
+/// path; streaming inlines the tags).
 module BuiltinExecution.Libs.HttpClient
 
 open System.IO
@@ -12,6 +34,8 @@ open LibExecution.RuntimeTypes
 module VT = ValueType
 module RTE = RuntimeError
 module NR = LibExecution.RuntimeTypes.NameResolution
+module Blob = LibExecution.Blob
+module Stream = LibExecution.Stream
 
 type Method = HttpMethod
 
@@ -528,7 +552,7 @@ let fns (config : Configuration) : List<BuiltInFn> =
           _,
           [ DString method; DString uri; DList(_, reqHeaders); DBlob bodyRef ] ->
           uply {
-            let! reqBodyBytes = Dval.readBlobBytes state bodyRef
+            let! reqBodyBytes = Blob.readBytes state bodyRef
             let! (reqHeaders : Result<List<string * string>, BadHeader.BadHeader>) =
               reqHeaders
               |> Ply.List.mapSequentially (fun item ->
@@ -598,7 +622,7 @@ let fns (config : Configuration) : List<BuiltInFn> =
                     let fields =
                       [ ("statusCode", DInt64(int64 response.statusCode))
                         ("headers", responseHeaders)
-                        ("body", Dval.newEphemeralBlob state response.body) ]
+                        ("body", Blob.newEphemeral state response.body) ]
 
                     return Ok(DRecord(typ, typ, [], Map fields) |> resultOk)
 
@@ -708,9 +732,9 @@ let fns (config : Configuration) : List<BuiltInFn> =
                 // Hand back a whole chunk per pull when the consumer
                 // wants bytes in bulk. `streamToBlob` and the SSE
                 // byte accumulator route through
-                // `Dval.readStreamChunk`, which uses this callback
+                // `Stream.readChunk`, which uses this callback
                 // directly — no per-byte `DUInt8` boxing on the hot
-                // path. `Dval.newStreamChunked` synthesises a
+                // path. `Stream.newChunked` synthesises a
                 // byte-wise `next` from the same source so
                 // `streamNext` semantics are preserved.
                 let nextChunk (maxBytes : int) : Ply<Option<byte[]>> =
@@ -736,7 +760,7 @@ let fns (config : Configuration) : List<BuiltInFn> =
                   responseStream.Dispose()
                   response.Dispose()
 
-                let body = Dval.newStreamChunked VT.uint8 nextChunk (Some disposer)
+                let body = Stream.newChunked VT.uint8 nextChunk (Some disposer)
 
                 let headersDval =
                   respHeaders

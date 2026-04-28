@@ -28,6 +28,8 @@
     <!-- Runtime /-->
     <Compile Include="RuntimeTypes.fs" />
     <Compile Include="ValueType.fs" />
+    <Compile Include="Blob.fs" />
+    <Compile Include="Stream.fs" />
     <Compile Include="Dval.fs" />
     <Compile Include="Builtin.fs" />
     <Compile Include="TypeChecker.fs" />

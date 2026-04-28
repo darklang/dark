@@ -8,16 +8,6 @@ module Darklang.Stdlib.Blob
 
 
 /// The empty Blob.
-///
-/// Note for future maintainers: bare `Builtin.blobEmpty` works
-/// because the F#-side parser reads it as record-field access on a
-/// `Builtin` variable, and `WrittenTypesToProgramTypes.ERecordFieldAccess`
-/// has a fallback that tries value-name resolution first. Wrapping it
-/// in `()` (e.g. `Builtin.blobEmpty ()`) breaks that fallback path.
-/// If the resolution fallback ever gets cleaned up, this val will
-/// silently produce DUnit — replace with whatever new spelling the
-/// parser supports (likely a Blob literal, or a `val` form that
-/// accepts arbitrary expressions).
 let empty = Builtin.blobEmpty
 
 

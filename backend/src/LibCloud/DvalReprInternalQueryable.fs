@@ -1,7 +1,22 @@
 /// Ways of converting Dvals to/from Sqlite-compatible JSON blobs.
 ///
-/// These are intended to be used exclusively internally.
-/// That is, they should not be used in libraries, BwdServer, HttpClient, etc.
+/// User DB rows are stored as JSON in Sqlite — that's the format
+/// `Stdlib.Db.set` / `Stdlib.Db.get` round-trip through. Most Dvals
+/// have an obvious JSON encoding (strings, numbers, nested
+/// records/lists/dicts).
+///
+/// `DBlob` is the surprising case. We DON'T inline the bytes (defeats
+/// content-addressing and would explode row sizes); instead we store
+/// a small envelope `{"type":"blob","hash":"...","length":N}` and
+/// keep the actual bytes in the `package_blobs` table. Reads
+/// dereference back through the same hash. Ephemerals must be
+/// promoted to Persistent before a write — `Blob.promote` runs at
+/// the persistence boundary.
+///
+/// `DStream` is non-persistable; raises on serialize.
+///
+/// These are intended to be used exclusively internally — should not
+/// be used in libraries, BwdServer, HttpClient, etc.
 module LibExecution.DvalReprInternalQueryable
 
 open System.Text.Json
@@ -153,7 +168,7 @@ let rec private toJsonV0
 
     // Blobs serialize as a hash-reference JSON envelope; bytes stay
     // in package_blobs. Ephemeral blobs aren't supported here —
-    // promote to Persistent first (`Dval.promoteBlobs`).
+    // promote to Persistent first (`Blob.promote`).
     | DBlob(Persistent(hash, length)) ->
       do!
         w.writeObject (fun () ->

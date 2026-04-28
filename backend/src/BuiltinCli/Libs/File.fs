@@ -8,6 +8,7 @@ open Prelude
 open LibExecution.RuntimeTypes
 module Dval = LibExecution.Dval
 module Builtin = LibExecution.Builtin
+module Blob = LibExecution.Blob
 open Builtin.Shortcuts
 
 
@@ -32,7 +33,7 @@ let fns () : List<BuiltInFn> =
                 )
 
               let! contents = System.IO.File.ReadAllBytesAsync path
-              return resultOk (Dval.newEphemeralBlob state contents)
+              return resultOk (Blob.newEphemeral state contents)
             with e ->
               return resultError (DString($"Error reading file: {e.Message}"))
           }
@@ -61,7 +62,7 @@ let fns () : List<BuiltInFn> =
                   System.Environment.GetEnvironmentVariable "HOME"
                 )
 
-              let! bytes = Dval.readBlobBytes state ref
+              let! bytes = Blob.readBytes state ref
               do! System.IO.File.WriteAllBytesAsync(path, bytes)
               return resultOk DUnit
             with e ->

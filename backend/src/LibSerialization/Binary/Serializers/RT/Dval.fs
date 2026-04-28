@@ -193,7 +193,7 @@ and writeDvalImpl (w : BinaryWriter) (dval : Dval) =
     // Ephemeral blobs aren't serialisable — the bytes live in the
     // producing VM's blob store and won't resolve across VM
     // boundaries. Callers must promote to Persistent first (see
-    // `Dval.promoteBlobs`); we raise here rather than silently
+    // `Blob.promote`); we raise here rather than silently
     // write a dangling handle.
     raiseFormatError
       $"Cannot serialize ephemeral blob {id} — promote to persistent first"

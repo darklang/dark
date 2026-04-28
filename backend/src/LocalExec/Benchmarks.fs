@@ -1,21 +1,18 @@
 /// Allocation/timing benchmarks for the Blob and Stream code paths.
 ///
-/// Three subcommands:
-///   `bench`                          — run all scenarios, write
-///                                      `benchmarks/results/latest.json`,
-///                                      append to history.jsonl.
-///   `bench-promote [--name <label>]` — copy `latest.json` to
-///                                      `benchmarks/results/<label>.json`
-///                                      (label defaults to today's
-///                                      date). The committed historic
-///                                      record. Tracked in git.
-///   `bench-render`                   — read `latest.json` plus the
-///                                      committed historic snapshots,
-///                                      regenerate `benchmarks/results.md`.
+/// Two subcommands:
+///   `bench`        — run all scenarios; append a snapshot to the
+///                    tracked `benchmarks/results/history.jsonl`.
+///                    Also writes a local-only `results/latest.json`
+///                    (gitignored) for piping into other tools.
+///   `bench-render` — read `history.jsonl` and rewrite
+///                    `benchmarks/results.md`. Latest run is the
+///                    headline; older runs become a per-run table.
 ///
 /// Local hacking: drop a snapshot in
-/// `benchmarks/results/local-*.json` (gitignored) to keep it out of
-/// the tracked record.
+/// `benchmarks/results/local-*.json` (gitignored) if you want a
+/// machine-local file. There's no `bench-promote` — committing a
+/// `bench` run via `history.jsonl` is the promotion mechanism.
 module LocalExec.Benchmarks
 
 open System.Threading.Tasks
@@ -25,6 +22,8 @@ open Prelude
 
 module RT = LibExecution.RuntimeTypes
 module Dval = LibExecution.Dval
+module Blob = LibExecution.Blob
+module Stream = LibExecution.Stream
 module VT = LibExecution.ValueType
 
 
@@ -91,10 +90,6 @@ let private resultsDir () : string =
   |> System.IO.Path.GetFullPath
 
 
-let private latestPath () : string =
-  System.IO.Path.Combine(resultsDir (), "latest.json")
-
-
 /// Make a fresh ExecutionState for measurement runs. Uses the empty
 /// PackageManager (benchmarks don't need the real PM) and no tracing.
 let private freshState () : RT.ExecutionState =
@@ -131,7 +126,7 @@ let private fileReadScenario (state : RT.ExecutionState) : List<Result> =
       let dval, sample =
         measure (fun () ->
           let bytes = System.IO.File.ReadAllBytes(path)
-          Dval.newEphemeralBlob state bytes)
+          Blob.newEphemeral state bytes)
       { scenario = "fileRead"
         inputBytes = int64 size
         allocBytes = sample.allocBytes
@@ -169,7 +164,7 @@ let private httpBodyScenario (state : RT.ExecutionState) : List<Result> =
         let resp =
           client.GetAsync("http://fake.local/body").GetAwaiter().GetResult()
         let bytes = resp.Content.ReadAsByteArrayAsync().GetAwaiter().GetResult()
-        Dval.newEphemeralBlob state bytes)
+        Blob.newEphemeral state bytes)
 
     { scenario = "httpBody"
       inputBytes = int64 size
@@ -187,7 +182,7 @@ let private hexEncodeScenario (state : RT.ExecutionState) : List<Result> =
   let _, sample =
     measure (fun () ->
       // Mirror the Builtin.blobToHex path: mint blob, deref bytes, hex-encode.
-      let _ = Dval.newEphemeralBlob state raw
+      let _ = Blob.newEphemeral state raw
       System.Convert.ToHexString(raw))
 
   [ { scenario = "hexEncode"
@@ -206,7 +201,7 @@ let private base64Scenario (state : RT.ExecutionState) : List<Result> =
 
   let _, sample =
     measure (fun () ->
-      let _ = Dval.newEphemeralBlob state raw
+      let _ = Blob.newEphemeral state raw
       System.Convert.ToBase64String(raw))
 
   [ { scenario = "base64Encode"
@@ -238,7 +233,7 @@ let private manyBlobsScenario (state : RT.ExecutionState) : List<Result> =
     let _, sample =
       measure (fun () ->
         for i in 0 .. count - 1 do
-          ignore<RT.Dval> (Dval.newEphemeralBlob state payloads[i]))
+          ignore<RT.Dval> (Blob.newEphemeral state payloads[i]))
 
     let totalBytes = int64 (count * perBlobBytes)
     { scenario = $"manyBlobs/{count}x{perBlobBytes}B"
@@ -261,19 +256,13 @@ let private blobEqualityScenario (state : RT.ExecutionState) : List<Result> =
     let payload = Array.zeroCreate<byte> size
     System.Random(0).NextBytes(payload)
 
-    let blobA = Dval.newEphemeralBlob state payload
-    let blobB = Dval.newEphemeralBlob state payload
-
-    let noopInsert _ _ = uply { return () }
+    let blobA = Blob.newEphemeral state payload
+    let blobB = Blob.newEphemeral state payload
 
     let _, sample =
       measure (fun () ->
         let resultPly =
-          uply {
-            let! a = Dval.promoteBlobs state noopInsert blobA
-            let! b = Dval.promoteBlobs state noopInsert blobB
-            return BuiltinExecution.Libs.NoModule.equals a b
-          }
+          uply { return! BuiltinExecution.Libs.NoModule.equals state blobA blobB }
         resultPly |> Ply.toTask |> _.Result)
 
     { scenario = "blobEqualityEphemeral"
@@ -309,11 +298,11 @@ let private streamToBlobScenario (state : RT.ExecutionState) : List<Result> =
               yielded <- true
               return Some payload
           }
-        let stream = Dval.newStreamChunked VT.uint8 nextChunk None
+        let stream = Stream.newChunked VT.uint8 nextChunk None
         let collected = new System.IO.MemoryStream()
         let rec drain () : Ply<unit> =
           uply {
-            let! chunk = Dval.readStreamChunk 65536 stream
+            let! chunk = Stream.readChunk 65536 stream
             match chunk with
             | Some bs ->
               collected.Write(bs, 0, bs.Length)
@@ -322,7 +311,7 @@ let private streamToBlobScenario (state : RT.ExecutionState) : List<Result> =
           }
         drain () |> Ply.toTask |> _.Wait()
         let bytes = collected.ToArray()
-        ignore<RT.Dval> (Dval.newEphemeralBlob state bytes))
+        ignore<RT.Dval> (Blob.newEphemeral state bytes))
 
     { scenario = "streamToBlob"
       inputBytes = int64 size
@@ -351,9 +340,9 @@ let private multipartScenario (state : RT.ExecutionState) : List<Result> =
         use buf = new System.IO.MemoryStream()
         for _ in 1..parts do
           // Each "part" mints an ephemeral.
-          let _ = Dval.newEphemeralBlob state part
+          let _ = Blob.newEphemeral state part
           buf.Write(part, 0, part.Length)
-        ignore<RT.Dval> (Dval.newEphemeralBlob state (buf.ToArray())))
+        ignore<RT.Dval> (Blob.newEphemeral state (buf.ToArray())))
 
     let total = int64 (parts * perPartBytes)
     { scenario = $"multipart/{parts}x{perPartBytes}B"
@@ -442,32 +431,13 @@ let runAll () : Ply<Result<unit, string>> =
   }
 
 
-/// Copy `latest.json` to `<name>.json` so it becomes a tracked snapshot.
-/// `name` defaults to today's date (YYYY-MM-DD). Idempotent — overwrites
-/// an existing same-named snapshot.
-let promote (name : string option) : Ply<Result<unit, string>> =
-  uply {
-    let latest = latestPath ()
-    if not (System.IO.File.Exists(latest)) then
-      return Error $"No latest.json at {latest} — run `bench` before promoting."
-    else
-      let label =
-        match name with
-        | Some n -> n
-        | None -> System.DateTime.UtcNow.ToString("yyyy-MM-dd")
-      let target = System.IO.Path.Combine(resultsDir (), $"{label}.json")
-      System.IO.File.Copy(latest, target, overwrite = true)
-      print $"Promoted latest.json to {target}"
-      return Ok()
-  }
-
-
-/// Read the JSON snapshot at `path` and return (timestamp, commit, results).
+/// Parse one JSONL row and return (timestamp, commit, results).
 /// Best-effort: returns `None` if anything's malformed.
-let private readSnapshot (path : string) : Option<string * string * List<Result>> =
+let private readSnapshotJson
+  (json : string)
+  : Option<string * string * List<Result>> =
   try
-    let text = System.IO.File.ReadAllText(path)
-    use doc = System.Text.Json.JsonDocument.Parse(text)
+    use doc = System.Text.Json.JsonDocument.Parse(json)
     let root = doc.RootElement
     let timestamp = root.GetProperty("timestamp").GetString()
     let commit = root.GetProperty("commit").GetString()
@@ -534,19 +504,25 @@ let private renderSnapshotBody (results : List<Result>) : System.Text.StringBuil
   sb
 
 
-/// Read every committed snapshot in `benchmarks/results/` (latest.json
-/// plus all `*.json` not matching `local-*`) and write
-/// `benchmarks/results.md`. Latest is rendered in full; tracked
-/// historic snapshots get a one-line entry with their commit + date.
+/// Read every JSONL row in `history.jsonl` and rewrite
+/// `benchmarks/results.md`. The most recent run becomes the headline
+/// (full per-scenario tables); every prior run gets a one-line entry
+/// in a "Run history" table.
 let render () : Ply<Result<unit, string>> =
   uply {
     let dir = resultsDir ()
-    if not (System.IO.Directory.Exists(dir)) then
-      return Error $"No results dir at {dir} — run `bench` before rendering."
+    let historyPath = System.IO.Path.Combine(dir, "history.jsonl")
+    if not (System.IO.File.Exists(historyPath)) then
+      return Error $"No {historyPath} — run `bench` to record at least one snapshot."
     else
-      let latest = latestPath ()
-      match readSnapshot latest with
-      | None -> return Error $"Couldn't read {latest}"
+      let snapshots =
+        System.IO.File.ReadAllLines(historyPath)
+        |> Array.filter (fun line -> line.Trim() <> "")
+        |> Array.choose readSnapshotJson
+        |> Array.toList
+
+      match List.tryLast snapshots with
+      | None -> return Error $"{historyPath} contained no readable snapshots."
       | Some(latestTs, latestCommit, latestResults) ->
         let sb = System.Text.StringBuilder()
         sb.AppendLine("# Benchmark results") |> ignore<System.Text.StringBuilder>
@@ -562,32 +538,20 @@ let render () : Ply<Result<unit, string>> =
         sb.Append(renderSnapshotBody latestResults)
         |> ignore<System.Text.StringBuilder>
 
-        // Tracked snapshots: every *.json that isn't latest.json or
-        // local-*.
-        let trackedFiles =
-          System.IO.Directory.GetFiles(dir, "*.json")
-          |> Array.filter (fun p ->
-            let name = System.IO.Path.GetFileName(p)
-            name <> "latest.json" && not (name.StartsWith("local-")))
-          |> Array.sortDescending
-
-        if trackedFiles.Length > 0 then
-          sb.AppendLine("## Tracked historic snapshots")
-          |> ignore<System.Text.StringBuilder>
+        let priorRuns = snapshots |> List.take (snapshots.Length - 1)
+        if not priorRuns.IsEmpty then
+          sb.AppendLine("## Run history") |> ignore<System.Text.StringBuilder>
           sb.AppendLine() |> ignore<System.Text.StringBuilder>
-          sb.AppendLine("| label | timestamp | commit |")
+          sb.AppendLine("| timestamp | commit | rows |")
           |> ignore<System.Text.StringBuilder>
-          sb.AppendLine("| ----- | --------- | ------ |")
+          sb.AppendLine("| --------- | ------ | ---: |")
           |> ignore<System.Text.StringBuilder>
-          for path in trackedFiles do
-            let label = System.IO.Path.GetFileNameWithoutExtension(path)
-            match readSnapshot path with
-            | Some(ts, commit, _) ->
-              sb.AppendLine($"| `{label}` | {ts} | `{commit.Substring(0, 7)}` |")
-              |> ignore<System.Text.StringBuilder>
-            | None ->
-              sb.AppendLine($"| `{label}` | (unreadable) | - |")
-              |> ignore<System.Text.StringBuilder>
+          // Newest first.
+          for (ts, commit, results) in List.rev priorRuns do
+            sb.AppendLine(
+              $"| {ts} | `{commit.Substring(0, 7)}` | {results.Length} |"
+            )
+            |> ignore<System.Text.StringBuilder>
           sb.AppendLine() |> ignore<System.Text.StringBuilder>
 
         let outPath =

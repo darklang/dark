@@ -16,6 +16,7 @@ module PT2RT = LibExecution.ProgramTypesToRuntimeTypes
 module AT = LibExecution.AnalysisTypes
 module Exe = LibExecution.Execution
 module PackageRefs = LibExecution.PackageRefs
+module Blob = LibExecution.Blob
 
 open LibCloud
 
@@ -156,7 +157,7 @@ let executeHandler
       let fields =
         [ ("statusCode", RT.DInt64 500)
           ("headers", [] |> Dval.list (RT.KTTuple(VT.string, VT.string, [])))
-          ("body", Dval.newEphemeralBlob state (UTF8.toBytes msg)) ]
+          ("body", Blob.newEphemeral state (UTF8.toBytes msg)) ]
 
       RT.DRecord(typeName, typeName, [], Map fields)
 

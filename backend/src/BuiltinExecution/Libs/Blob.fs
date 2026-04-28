@@ -8,6 +8,7 @@ open LibExecution.Builtin.Shortcuts
 
 module VT = LibExecution.ValueType
 module Dval = LibExecution.Dval
+module Blob = LibExecution.Blob
 
 
 let fns () : List<BuiltInFn> =
@@ -22,7 +23,7 @@ let fns () : List<BuiltInFn> =
         (function
         | state, _, _, [ DBlob ref ] ->
           uply {
-            let! bs = Dval.readBlobBytes state ref
+            let! bs = Blob.readBytes state ref
             return DInt64(int64 bs.Length)
           }
         | _ -> incorrectArgs ())
@@ -40,7 +41,7 @@ let fns () : List<BuiltInFn> =
         (function
         | state, _, _, [ DString s ] ->
           let bs = System.Text.Encoding.UTF8.GetBytes(s)
-          Dval.newEphemeralBlob state bs |> Ply
+          Blob.newEphemeral state bs |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -59,7 +60,7 @@ let fns () : List<BuiltInFn> =
         (function
         | state, _, _, [ DBlob ref ] ->
           uply {
-            let! bs = Dval.readBlobBytes state ref
+            let! bs = Blob.readBytes state ref
             try
               let s = (new System.Text.UTF8Encoding(false, true)).GetString(bs)
               return ok (DString s)
@@ -83,7 +84,7 @@ let fns () : List<BuiltInFn> =
         (function
         | state, _, _, [ DBlob ref ] ->
           uply {
-            let! bs = Dval.readBlobBytes state ref
+            let! bs = Blob.readBytes state ref
             return DString(System.Convert.ToHexString(bs))
           }
         | _ -> incorrectArgs ())
@@ -105,7 +106,7 @@ let fns () : List<BuiltInFn> =
         | state, _, _, [ DString s ] ->
           try
             let bs = System.Convert.FromHexString(s)
-            ok (Dval.newEphemeralBlob state bs) |> Ply
+            ok (Blob.newEphemeral state bs) |> Ply
           with e ->
             err $"Invalid hex string: {e.Message}" |> Ply
         | _ -> incorrectArgs ())
@@ -124,7 +125,7 @@ let fns () : List<BuiltInFn> =
         (function
         | state, _, _, [ DBlob ref ] ->
           uply {
-            let! bs = Dval.readBlobBytes state ref
+            let! bs = Blob.readBytes state ref
             return DString(System.Convert.ToBase64String(bs))
           }
         | _ -> incorrectArgs ())
@@ -154,7 +155,7 @@ let fns () : List<BuiltInFn> =
             | _ -> base0
           try
             let bs = System.Convert.FromBase64String(normalized)
-            ok (Dval.newEphemeralBlob state bs) |> Ply
+            ok (Blob.newEphemeral state bs) |> Ply
           with e ->
             err $"Invalid base64 string: {e.Message}" |> Ply
         | _ -> incorrectArgs ())
@@ -177,14 +178,14 @@ let fns () : List<BuiltInFn> =
             for item in items do
               match item with
               | DBlob ref ->
-                let! bs = Dval.readBlobBytes state ref
+                let! bs = Blob.readBytes state ref
                 collected.Write(bs, 0, bs.Length)
               | _ ->
                 return
                   Exception.raiseInternal
                     "blobConcat: expected DBlob"
                     [ "item", item ]
-            return Dval.newEphemeralBlob state (collected.ToArray())
+            return Blob.newEphemeral state (collected.ToArray())
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
@@ -209,14 +210,14 @@ let fns () : List<BuiltInFn> =
         (function
         | state, _, _, [ DBlob ref; DInt64 startL; DInt64 lenL ] ->
           uply {
-            let! bs = Dval.readBlobBytes state ref
+            let! bs = Blob.readBytes state ref
             let len64 = int64 bs.Length
             let safeStart = max 0L (min startL len64)
             let safeLen = max 0L (min lenL (len64 - safeStart))
             let slice = Array.zeroCreate<byte> (int safeLen)
             if safeLen > 0L then
               System.Array.Copy(bs, int safeStart, slice, 0, int safeLen)
-            return Dval.newEphemeralBlob state slice
+            return Blob.newEphemeral state slice
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
@@ -234,7 +235,7 @@ let fns () : List<BuiltInFn> =
         (function
         | state, _, _, [ DBlob ref ] ->
           uply {
-            let! bs = Dval.readBlobBytes state ref
+            let! bs = Blob.readBytes state ref
             return Dval.byteArrayToDvalList bs
           }
         | _ -> incorrectArgs ())
@@ -253,7 +254,7 @@ let fns () : List<BuiltInFn> =
         (function
         | state, _, _, [ DList(_, items) ] ->
           let bs = Dval.dlistToByteArray items
-          Dval.newEphemeralBlob state bs |> Ply
+          Blob.newEphemeral state bs |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -275,7 +276,7 @@ let values () : List<BuiltInValue> =
       typ = TBlob
       description = "The empty Blob (zero bytes)."
       deprecated = NotDeprecated
-      body = DBlob(Persistent(Dval.emptyBlobHash, 0L)) } ]
+      body = DBlob(Persistent(Blob.emptyHash, 0L)) } ]
 
 
 let builtins () = LibExecution.Builtin.make (values ()) (fns ())

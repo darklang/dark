@@ -24,6 +24,7 @@ module PT = LibExecution.ProgramTypes
 module RT = LibExecution.RuntimeTypes
 module PT2RT = LibExecution.ProgramTypesToRuntimeTypes
 module Execution = LibExecution.Execution
+module Blob = LibExecution.Blob
 module BS = LibSerialization.Binary.Serialization
 
 
@@ -232,7 +233,7 @@ let evaluateAllValues
               // persistent so we can serialize. Streams remain
               // non-persistable and trip the [isPersistable] guard
               // below with a clear error.
-              let! dval = LibExecution.Dval.promoteBlobs exeState pm.persistBlob dval
+              let! dval = LibExecution.Blob.promote exeState pm.persistBlob dval
 
               if not (LibExecution.Dval.isPersistable dval) then
                 let reason =

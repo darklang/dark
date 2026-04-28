@@ -9,6 +9,7 @@ open LibExecution.Builtin.Shortcuts
 
 module VT = LibExecution.ValueType
 module Dval = LibExecution.Dval
+module Blob = LibExecution.Blob
 
 
 let fns () : List<BuiltInFn> =
@@ -35,7 +36,7 @@ let fns () : List<BuiltInFn> =
             else initial
 
           if s = "" then
-            resultOk (Dval.newEphemeralBlob state [||])
+            resultOk (Blob.newEphemeral state [||])
           elif Regex.IsMatch(s, @"\s") then
             // dotnet ignores whitespace but we don't allow it
             resultError (DString "Not a valid base64 string")
@@ -43,7 +44,7 @@ let fns () : List<BuiltInFn> =
             try
               let bytes =
                 s |> base64FromUrlEncoded |> System.Convert.FromBase64String
-              resultOk (Dval.newEphemeralBlob state bytes)
+              resultOk (Blob.newEphemeral state bytes)
             with _ ->
               resultError (DString "Not a valid base64 string")
         | _ -> incorrectArgs ())
@@ -64,7 +65,7 @@ let fns () : List<BuiltInFn> =
         (function
         | state, _, _, [ DBlob ref ] ->
           uply {
-            let! bytes = Dval.readBlobBytes state ref
+            let! bytes = Blob.readBytes state ref
             return DString(System.Convert.ToBase64String(bytes))
           }
         | _ -> incorrectArgs ())
@@ -85,7 +86,7 @@ let fns () : List<BuiltInFn> =
         (function
         | state, _, _, [ DBlob ref ] ->
           uply {
-            let! bytes = Dval.readBlobBytes state ref
+            let! bytes = Blob.readBytes state ref
             // Differs from Base64.encodeToUrlSafe as this version has padding
             let encoded =
               System.Convert

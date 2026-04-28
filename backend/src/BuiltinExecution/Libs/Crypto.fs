@@ -13,6 +13,7 @@ open LibExecution.Builtin.Shortcuts
 
 module VT = LibExecution.ValueType
 module Dval = LibExecution.Dval
+module Blob = LibExecution.Blob
 
 
 let fns () : List<BuiltInFn> =
@@ -25,9 +26,9 @@ let fns () : List<BuiltInFn> =
         (function
         | state, _, _, [ DBlob ref ] ->
           uply {
-            let! data = Dval.readBlobBytes state ref
+            let! data = Blob.readBytes state ref
             let hash = SHA256.HashData(System.ReadOnlySpan(data))
-            return Dval.newEphemeralBlob state hash
+            return Blob.newEphemeral state hash
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
@@ -44,9 +45,9 @@ let fns () : List<BuiltInFn> =
         (function
         | state, _, _, [ DBlob ref ] ->
           uply {
-            let! data = Dval.readBlobBytes state ref
+            let! data = Blob.readBytes state ref
             let hash = SHA384.HashData(System.ReadOnlySpan data)
-            return Dval.newEphemeralBlob state hash
+            return Blob.newEphemeral state hash
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
@@ -64,9 +65,9 @@ let fns () : List<BuiltInFn> =
         (function
         | state, _, _, [ DBlob ref ] ->
           uply {
-            let! data = Dval.readBlobBytes state ref
+            let! data = Blob.readBytes state ref
             let hash = MD5.HashData(System.ReadOnlySpan data)
-            return Dval.newEphemeralBlob state hash
+            return Blob.newEphemeral state hash
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
@@ -84,11 +85,11 @@ let fns () : List<BuiltInFn> =
         (function
         | state, _, _, [ DBlob keyRef; DBlob dataRef ] ->
           uply {
-            let! key = Dval.readBlobBytes state keyRef
-            let! data = Dval.readBlobBytes state dataRef
+            let! key = Blob.readBytes state keyRef
+            let! data = Blob.readBytes state dataRef
             use hmac = new HMACSHA256(key)
             let hash = hmac.ComputeHash(data)
-            return Dval.newEphemeralBlob state hash
+            return Blob.newEphemeral state hash
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
@@ -106,11 +107,11 @@ let fns () : List<BuiltInFn> =
         (function
         | state, _, _, [ DBlob keyRef; DBlob dataRef ] ->
           uply {
-            let! key = Dval.readBlobBytes state keyRef
-            let! data = Dval.readBlobBytes state dataRef
+            let! key = Blob.readBytes state keyRef
+            let! data = Blob.readBytes state dataRef
             use hmac = new HMACSHA1(key)
             let hash = hmac.ComputeHash(data)
-            return Dval.newEphemeralBlob state hash
+            return Blob.newEphemeral state hash
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented

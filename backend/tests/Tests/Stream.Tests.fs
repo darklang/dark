@@ -14,6 +14,8 @@ open Prelude
 
 module RT = LibExecution.RuntimeTypes
 module Dval = LibExecution.Dval
+module Blob = LibExecution.Blob
+module Stream = LibExecution.Stream
 module VT = LibExecution.ValueType
 module BS = LibSerialization.Binary.Serialization
 module PT = LibExecution.ProgramTypes
@@ -45,7 +47,7 @@ let private streamOfList
   (items : List<RT.Dval>)
   (elemType : RT.ValueType)
   : RT.Dval =
-  Dval.newStream elemType (listPullFn items) None
+  Stream.newFromIO elemType (listPullFn items) None
 
 /// Build a raw StreamImpl over a list (no DStream wrapper). Composed
 /// under a transform node + wrap.
@@ -55,10 +57,10 @@ let private streamImplOfList
   : RT.StreamImpl =
   RT.FromIO(listPullFn items, elemType, None, None)
 
-let private wrap (impl : RT.StreamImpl) : RT.Dval = Dval.wrapStreamImpl impl
+let private wrap (impl : RT.StreamImpl) : RT.Dval = Stream.wrapImpl impl
 
 let private pull (s : RT.Dval) : Task<Option<RT.Dval>> =
-  Dval.readStreamNext s |> Ply.toTask
+  Stream.readNext s |> Ply.toTask
 
 /// Drain a stream to a list. Pulls until None.
 let private drain (s : RT.Dval) : Task<List<RT.Dval>> =
@@ -66,7 +68,7 @@ let private drain (s : RT.Dval) : Task<List<RT.Dval>> =
     let acc = ResizeArray<RT.Dval>()
     let mutable keepGoing = true
     while keepGoing do
-      let! r = Dval.readStreamNext s |> Ply.toTask
+      let! r = Stream.readNext s |> Ply.toTask
       match r with
       | Some v -> acc.Add v
       | None -> keepGoing <- false
@@ -389,7 +391,7 @@ let gcFinalizesAbandonedStream =
     let makeWeakRef () : System.WeakReference<RT.Dval> =
       let next = listPullFn [ RT.DInt64 1L; RT.DInt64 2L ]
       let disposer () = disposerRan.Value <- true
-      System.WeakReference<RT.Dval>(Dval.newStream VT.int64 next (Some disposer))
+      System.WeakReference<RT.Dval>(Stream.newFromIO VT.int64 next (Some disposer))
     let weakRef = makeWeakRef ()
     gcCycle ()
     let mutable dv : RT.Dval = Unchecked.defaultof<_>
@@ -405,10 +407,10 @@ let gcFinalizesMidDrainStream =
     let makeWeakRef () : System.WeakReference<RT.Dval> =
       let next = listPullFn [ RT.DInt64 1L; RT.DInt64 2L; RT.DInt64 3L ]
       let disposer () = disposerRan.Value <- true
-      let dv = Dval.newStream VT.int64 next (Some disposer)
+      let dv = Stream.newFromIO VT.int64 next (Some disposer)
       // Pull 2 of 3 elements, then return the weak ref.
-      let pulled1 = (Dval.readStreamNext dv |> Ply.toTask).Result
-      let pulled2 = (Dval.readStreamNext dv |> Ply.toTask).Result
+      let pulled1 = (Stream.readNext dv |> Ply.toTask).Result
+      let pulled2 = (Stream.readNext dv |> Ply.toTask).Result
       Expect.equal pulled1 (Some(RT.DInt64 1L)) "first pull"
       Expect.equal pulled2 (Some(RT.DInt64 2L)) "second pull"
       System.WeakReference<RT.Dval>(dv)
@@ -425,12 +427,12 @@ let gcSkipsFinalizerAfterStreamClose =
     let makeWeakRef () : System.WeakReference<RT.Dval> =
       let next () : Ply<Option<RT.Dval>> = uply { return None }
       let disposer () = disposeCount.Value <- disposeCount.Value + 1
-      let dv = Dval.newStream VT.int64 next (Some disposer)
+      let dv = Stream.newFromIO VT.int64 next (Some disposer)
       // Replicate streamClose: flip disposed, walk impl chain.
       match dv with
       | RT.DStream(impl, disposed, _) ->
         disposed.Value <- true
-        Dval.disposeStreamImpl impl
+        Stream.disposeImpl impl
       | _ -> failtest "expected DStream"
       Expect.equal disposeCount.Value 1 "close ran disposer once"
       System.WeakReference<RT.Dval>(dv)
@@ -468,17 +470,16 @@ let chunkedDrainMatchesByteDrain =
   testTask
     "chunked drain: readStreamChunk returns the same bytes readStreamNext would" {
     let buf = [| 0x01uy; 0x02uy; 0x03uy; 0x04uy; 0x05uy; 0x06uy; 0x07uy; 0x08uy |]
-    let s = Dval.newStreamChunked VT.uint8 (chunkPullFn [ buf ]) None
-    let! first = Dval.readStreamChunk 4096 s |> Ply.toTask
-    let! second = Dval.readStreamChunk 4096 s |> Ply.toTask
+    let s = Stream.newChunked VT.uint8 (chunkPullFn [ buf ]) None
+    let! first = Stream.readChunk 4096 s |> Ply.toTask
+    let! second = Stream.readChunk 4096 s |> Ply.toTask
     Expect.equal first (Some buf) "first chunk comes through intact"
     Expect.equal second None "second call returns None on exhaustion"
   }
 
 let chunkedDrainAlsoServesByteNext =
   testTask "chunked drain: readStreamNext works on a chunked stream too" {
-    let s =
-      Dval.newStreamChunked VT.uint8 (chunkPullFn [ [| 0x10uy; 0x20uy |] ]) None
+    let s = Stream.newChunked VT.uint8 (chunkPullFn [ [| 0x10uy; 0x20uy |] ]) None
     let! a = pull s
     let! b = pull s
     let! c = pull s
@@ -493,13 +494,13 @@ let chunkedDrainFallsBackToByteWise =
     // newStream (no nextChunk callback) — readStreamChunk falls back
     // to per-byte accumulation.
     let s =
-      Dval.newStream
+      Stream.newFromIO
         VT.uint8
         (listPullFn [ RT.DUInt8 0xAAuy; RT.DUInt8 0xBBuy; RT.DUInt8 0xCCuy ])
         None
-    let! chunk = Dval.readStreamChunk 4096 s |> Ply.toTask
+    let! chunk = Stream.readChunk 4096 s |> Ply.toTask
     Expect.equal chunk (Some [| 0xAAuy; 0xBBuy; 0xCCuy |]) "all bytes collected"
-    let! after = Dval.readStreamChunk 4096 s |> Ply.toTask
+    let! after = Stream.readChunk 4096 s |> Ply.toTask
     Expect.equal after None "exhausted"
   }
 

@@ -14,6 +14,7 @@ module Dval = LibExecution.Dval
 module Builtin = LibExecution.Builtin
 module PackageRefs = LibExecution.PackageRefs
 module NR = LibExecution.RuntimeTypes.NameResolution
+module Blob = LibExecution.Blob
 open Builtin.Shortcuts
 
 
@@ -918,7 +919,7 @@ let fns () : List<BuiltInFn> =
           let resultOk = Dval.resultOk KTBlob (posixErrorKT ())
           let resultError = Dval.resultError KTBlob (posixErrorKT ())
           match Libc.fdRead (int fd) (int count) with
-          | Ok bytes -> resultOk (Dval.newEphemeralBlob state bytes) |> Ply
+          | Ok bytes -> resultOk (Blob.newEphemeral state bytes) |> Ply
           | Error e -> resultError (dPosixError e) |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
@@ -937,7 +938,7 @@ let fns () : List<BuiltInFn> =
         (function
         | state, _, _, [ DInt64 fd; DBlob ref ] ->
           uply {
-            let! bytes = Dval.readBlobBytes state ref
+            let! bytes = Blob.readBytes state ref
             match Libc.fdWrite (int fd) bytes with
             | Ok n ->
               return Dval.resultOk KTInt64 (posixErrorKT ()) (DInt64(int64 n))

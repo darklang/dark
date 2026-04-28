@@ -12,6 +12,7 @@ module VT = LibExecution.ValueType
 module Dval = LibExecution.Dval
 module TypeChecker = LibExecution.TypeChecker
 module Interpreter = LibExecution.Interpreter
+module Blob = LibExecution.Blob
 
 
 let fns () : List<BuiltInFn> =
@@ -356,7 +357,7 @@ let fns () : List<BuiltInFn> =
         (function
         | state, _, _, [ DString str ] ->
           let theBytes = System.Text.Encoding.UTF8.GetBytes str
-          Dval.newEphemeralBlob state theBytes |> Ply
+          Blob.newEphemeral state theBytes |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -373,7 +374,7 @@ let fns () : List<BuiltInFn> =
         (function
         | state, _, _, [ DBlob ref ] ->
           uply {
-            let! bytes = Dval.readBlobBytes state ref
+            let! bytes = Blob.readBytes state ref
             return DString(System.Text.Encoding.UTF8.GetString bytes)
           }
         | _ -> incorrectArgs ())
@@ -413,7 +414,7 @@ let fns () : List<BuiltInFn> =
         (function
         | state, _, _, [ DBlob ref ] ->
           uply {
-            let! bytes = Dval.readBlobBytes state ref
+            let! bytes = Blob.readBytes state ref
             try
               let str = UTF8Encoding(false, true).GetString bytes
               return Dval.optionSome KTString (DString str)

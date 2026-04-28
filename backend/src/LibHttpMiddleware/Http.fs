@@ -14,6 +14,7 @@ module Exe = LibExecution.Execution
 module RT = LibExecution.RuntimeTypes
 module VT = LibExecution.ValueType
 module PackageRefs = LibExecution.PackageRefs
+module Blob = LibExecution.Blob
 
 
 let lowercaseHeaderKeys (headers : List<string * string>) : List<string * string> =
@@ -37,7 +38,7 @@ module Request =
       |> Dval.list headerType
 
     let fields =
-      [ "body", Dval.newEphemeralBlob state body
+      [ "body", Blob.newEphemeral state body
         "headers", headers
         "url", RT.DString uri ]
     RT.DRecord(typ, typ, [], Map fields)
@@ -74,7 +75,7 @@ module Response =
 
         match headers with
         | Ok headers ->
-          let! body = Dval.readBlobBytes state bodyRef
+          let! body = Blob.readBytes state bodyRef
           return
             { statusCode = int code
               headers = lowercaseHeaderKeys headers
