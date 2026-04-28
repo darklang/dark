@@ -13,8 +13,13 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
       | "=" :: rest -> rest
       | parts -> parts
 
-    // Join all remaining args as the inline definition
-    let inlineDefinition = Stdlib.String.join cleanedParts " "
+    // Join all remaining args as the inline definition.
+    // Special case: a single "-" arg means "read body from stdin" so callers
+    // can pipe multi-line expressions via heredoc without shell-quoting.
+    let inlineDefinition =
+      match cleanedParts with
+      | [ "-" ] -> Builtin.stdinReadAll ()
+      | parts -> Stdlib.String.join parts " "
 
     if Stdlib.String.isEmpty inlineDefinition then
       // No inline definition provided - show error
@@ -22,11 +27,22 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
         (Colors.error "Error: Inline value expression required")
         ""
         "Usage: val <location> <expression>"
+        "       val <location> -    (read expression from stdin, for multi-line input)"
         ""
         "Examples:"
         "  val x = 42L"
         "  val myString = \"hello\""
         "  val myList = [1L; 2L; 3L]"
+        ""
+        "  # Multi-line expression via stdin (run from shell, not the REPL):"
+        "  ./scripts/run-cli val primes - <<'EOF'"
+        "  ["
+        "    2L"
+        "    3L"
+        "    5L"
+        "    7L"
+        "  ]"
+        "  EOF"
         ""
       ] |> Stdlib.printLines
 
@@ -155,6 +171,16 @@ let help (state: Cli.AppState) : Cli.AppState =
     ""
     "  # Type alias:"
     "  val userId = Uuid.parse \"123e4567-e89b-12d3-a456-426614174000\""
+    ""
+    "  # Multi-line expression via stdin (run from shell, not the REPL — '-' reads stdin):"
+    "  ./scripts/run-cli val primes - <<'EOF'"
+    "  ["
+    "    2L"
+    "    3L"
+    "    5L"
+    "    7L"
+    "  ]"
+    "  EOF"
     ""
     "Location can be relative or absolute:"
     "  val foo = 42L          # Relative to current location"
