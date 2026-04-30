@@ -3,11 +3,17 @@
 /// Starts a server on the given port and defers to Darklang code to
 /// handle the request.
 ///
-/// The F# side only handles:
+/// The F# side handles:
 /// - Starting the HTTP listener
+/// - Reading requests with a body-size limit
+/// - Optional X-Forwarded-Proto → https URL canonicalization (production
+///   behind a TLS-terminating proxy)
 /// - Converting HTTP requests to Darklang Request type
 /// - Calling the Darklang handler function
 /// - Converting Darklang Response back to HTTP
+/// - Optional auto-injection of standard headers (Server, HSTS) when the
+///   handler didn't set them
+/// - SIGINT (Ctrl+C) → drain in-flight + exit
 ///
 /// All routing and handler management lives in Darklang.
 ///
@@ -21,6 +27,7 @@ module BuiltinHttpServer.Libs.HttpServer
 open System
 open System.Net
 open System.IO
+open System.Threading
 open System.Threading.Tasks
 
 open Prelude
@@ -31,6 +38,14 @@ module Dval = LibExecution.Dval
 module Execution = LibExecution.Execution
 module Blob = LibExecution.Blob
 module Http = BuiltinHttpServer.Http
+
+
+/// Default request body cap (30 MB), matching Kestrel's default.
+let private defaultMaxBodyBytes : int64 = 30L * 1024L * 1024L
+
+/// HSTS header value chosen to match the policy BwdServer auto-injected.
+let private hstsHeaderValue =
+  "max-age=31536000; includeSubDomains; preload"
 
 
 /// Execute a handler (named fn or lambda) against the given request. Lambdas
@@ -51,12 +66,34 @@ let private executeHandler
   }
 
 
-/// Read the entire request body into a byte array.
-let private readRequestBody (req : HttpListenerRequest) : Task<byte[]> =
+/// Read the request body up to `maxBytes`. Returns `Error()` when the
+/// declared `Content-Length` already exceeds the cap, OR when the actual
+/// stream grows past it (covers chunked encoding where `Content-Length` is
+/// absent / -1).
+let private readRequestBodyWithLimit
+  (req : HttpListenerRequest)
+  (maxBytes : int64)
+  : Task<Result<byte[], unit>> =
   task {
-    use ms = new MemoryStream()
-    do! req.InputStream.CopyToAsync(ms)
-    return ms.ToArray()
+    if req.ContentLength64 > maxBytes then
+      return Error()
+    else
+      use ms = new MemoryStream()
+      let buffer = Array.zeroCreate 8192
+      let mutable totalRead = 0L
+      let mutable keepReading = true
+      let mutable overLimit = false
+      while keepReading && not overLimit do
+        let! n = req.InputStream.ReadAsync(buffer, 0, buffer.Length)
+        if n = 0 then
+          keepReading <- false
+        else
+          totalRead <- totalRead + int64 n
+          if totalRead > maxBytes then
+            overLimit <- true
+          else
+            do! ms.WriteAsync(buffer, 0, n)
+      if overLimit then return Error() else return Ok(ms.ToArray())
   }
 
 
@@ -77,11 +114,59 @@ let private extractHeaders (req : HttpListenerRequest) : List<string * string> =
   ("x-http-method", req.HttpMethod) :: List.ofSeq headers
 
 
+/// If `X-Forwarded-Proto: https` is present, rewrite the URL's scheme to
+/// `https://` and port to 443. This matches BwdServer's `canonicalizeURL`
+/// behind a TLS-terminating load balancer. Lower-cases the lookup since the
+/// prior request-shape converter lowercases header keys before this.
+let private canonicalizeUrlFromForwardedProto
+  (url : string)
+  (headers : List<string * string>)
+  : string =
+  let isHttps =
+    headers
+    |> List.exists (fun (k, v) ->
+      String.equalsCaseInsensitive k "x-forwarded-proto"
+      && String.equalsCaseInsensitive v "https")
+  if isHttps then
+    try
+      let uri = System.UriBuilder(url)
+      uri.Port <- 443
+      uri.Scheme <- "https"
+      string uri.Uri
+    with _ ->
+      url
+  else
+    url
+
+
+/// Add `Server: darklang` and HSTS to the response headers unless the handler
+/// already set them. Header keys may be lowercased (LibHttpMiddleware lowercases
+/// them on the way out), so we compare case-insensitively.
+let private maybeInjectStandardHeaders
+  (inject : bool)
+  (headers : List<string * string>)
+  : List<string * string> =
+  if not inject then
+    headers
+  else
+    let hasKey name =
+      headers
+      |> List.exists (fun (k, _) -> String.equalsCaseInsensitive k name)
+    let extras =
+      [ if not (hasKey "server") then ("Server", "darklang")
+        if not (hasKey "strict-transport-security") then
+          ("Strict-Transport-Security", hstsHeaderValue) ]
+    headers @ extras
+
+
 /// Process a single request: parse → dispatch → write response. Errors are
 /// caught and returned as 500s so a single bad request can't kill the loop.
 let private handleRequest
   (exeState : ExecutionState)
   (handler : Applicable)
+  (maxBodyBytes : int64)
+  (injectStandardHeaders : bool)
+  (canonicalizeFromForwardedProto : bool)
   (ctx : HttpListenerContext)
   : Task<unit> =
   task {
@@ -92,25 +177,40 @@ let private handleRequest
     LibExecution.Blob.pushScope exeState
     try
       try
-        let! reqBody = readRequestBody ctx.Request
-        let reqHeaders = extractHeaders ctx.Request
-        let url = ctx.Request.Url.ToString()
+        let! bodyResult = readRequestBodyWithLimit ctx.Request maxBodyBytes
+        match bodyResult with
+        | Error() ->
+          ctx.Response.StatusCode <- 413
+          let msg = UTF8.toBytes "413 Payload Too Large"
+          ctx.Response.ContentLength64 <- int64 msg.Length
+          do! ctx.Response.OutputStream.WriteAsync(msg, 0, msg.Length)
+        | Ok reqBody ->
+          let reqHeaders = extractHeaders ctx.Request
+          let rawUrl = ctx.Request.Url.ToString()
+          let url =
+            if canonicalizeFromForwardedProto then
+              canonicalizeUrlFromForwardedProto rawUrl reqHeaders
+            else
+              rawUrl
 
-        let requestDval = Http.Request.fromRequest exeState url reqHeaders reqBody
+          let requestDval = Http.Request.fromRequest exeState url reqHeaders reqBody
 
-        let! result = executeHandler exeState handler requestDval
-        let! response = Http.Response.toHttpResponse exeState result
+          let! result = executeHandler exeState handler requestDval
+          let! response = Http.Response.toHttpResponse exeState result
 
-        ctx.Response.StatusCode <- response.statusCode
-        for (key, value) in response.headers do
-          ctx.Response.Headers.Add(key, value)
-        ctx.Response.ContentLength64 <- int64 response.body.Length
-        do!
-          ctx.Response.OutputStream.WriteAsync(
-            response.body,
-            0,
-            response.body.Length
-          )
+          let respHeaders =
+            maybeInjectStandardHeaders injectStandardHeaders response.headers
+
+          ctx.Response.StatusCode <- response.statusCode
+          for (key, value) in respHeaders do
+            ctx.Response.Headers.Add(key, value)
+          ctx.Response.ContentLength64 <- int64 response.body.Length
+          do!
+            ctx.Response.OutputStream.WriteAsync(
+              response.body,
+              0,
+              response.body.Length
+            )
       with ex ->
         ctx.Response.StatusCode <- 500
         let errorBytes = UTF8.toBytes $"Internal server error: {ex.Message}"
@@ -136,41 +236,106 @@ let fns () : List<BuiltInFn> =
             // CLEANUP real types
             (TFn(NEList.singleton (TVariable "request"), TVariable "response"))
             "Handler function: request -> response"
-            [ "request" ] ]
+            [ "request" ]
+          Param.make
+            "maxBodyBytes"
+            TInt64
+            "Maximum request body size in bytes (over-limit → 413)"
+          Param.make
+            "injectStandardHeaders"
+            TBool
+            "If true, auto-add `Server: darklang` and HSTS to responses unless the handler set them"
+          Param.make
+            "canonicalizeFromForwardedProto"
+            TBool
+            "If true, rewrite request.url to https:// when X-Forwarded-Proto: https is present" ]
       returnType = TUnit
-      description = "Start an HTTP server. Calls handler for each request."
+      description =
+        "Start an HTTP server. Calls handler for each request. Blocks until SIGINT."
       fn =
         (function
-        | exeState, _, _, [ DInt64 port; DApplicable handler ] ->
-          // Outer fn returns DvalTask. The accept loop itself is a Task<unit>,
+        | exeState,
+          _,
+          _,
+          [ DInt64 port
+            DApplicable handler
+            DInt64 maxBodyBytes
+            DBool injectStandardHeaders
+            DBool canonicalizeFromForwardedProto ] ->
+          // Outer fn returns DvalTask. The accept loop is a Task<unit>,
           // run-to-completion blockingly so the builtin doesn't return until
           // the listener is shut down.
           uply {
+            use _serveSpan =
+              Telemetry.span "httpserver.serve" [ "port", string port ]
+
             let listener = new HttpListener()
             listener.Prefixes.Add($"http://*:{port}/")
             listener.Start()
 
+            Telemetry.event
+              "httpserver.listening"
+              [ "port", string port
+                "maxBodyBytes", string maxBodyBytes
+                "injectStandardHeaders", string injectStandardHeaders
+                "canonicalizeFromForwardedProto",
+                string canonicalizeFromForwardedProto ]
             print $"[HttpServer] Listening on port {port}"
+
+            // Graceful shutdown: SIGINT (Ctrl+C) → cancel + listener.Stop().
+            // Already-accepted requests get to drain by virtue of being
+            // fire-and-forget Tasks that we don't actively cancel.
+            let cts = new CancellationTokenSource()
+            let cancelHandler =
+              ConsoleCancelEventHandler(fun _ args ->
+                args.Cancel <- true
+                cts.Cancel()
+                try
+                  listener.Stop()
+                with _ ->
+                  ())
+            Console.CancelKeyPress.AddHandler cancelHandler
 
             let acceptLoop : Task<unit> =
               task {
-                while true do
-                  let! ctx = listener.GetContextAsync()
-                  // Fire-and-forget: errors are caught inside handleRequest;
-                  // anything escaping that try/catch is also swallowed here.
-                  Task.Run(fun () ->
-                    task {
-                      try
-                        do! handleRequest exeState handler ctx
-                      with _ ->
-                        ()
-                    }
-                    :> Task)
-                  |> ignore<Task>
+                while not cts.IsCancellationRequested do
+                  try
+                    let! ctx = listener.GetContextAsync()
+                    // Fire-and-forget: errors are caught inside handleRequest;
+                    // anything escaping that try/catch is also swallowed here.
+                    Task.Run(fun () ->
+                      task {
+                        try
+                          do!
+                            handleRequest
+                              exeState
+                              handler
+                              maxBodyBytes
+                              injectStandardHeaders
+                              canonicalizeFromForwardedProto
+                              ctx
+                        with _ ->
+                          ()
+                      }
+                      :> Task)
+                    |> ignore<Task>
+                  with
+                  // listener.Stop() during GetContextAsync produces these.
+                  // Both are expected on shutdown; treat as normal exit.
+                  | :? HttpListenerException -> ()
+                  | :? ObjectDisposedException -> ()
               }
 
-            // Block forever (matches prior `app.RunAsync().Wait()`).
+            // Block until accept loop exits (cancellation or listener.Stop).
             acceptLoop.Wait()
+
+            Console.CancelKeyPress.RemoveHandler cancelHandler
+            try
+              listener.Close()
+            with _ ->
+              ()
+
+            Telemetry.event "httpserver.shutdown" [ "port", string port ]
 
             return DUnit
           }

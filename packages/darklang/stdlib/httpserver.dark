@@ -188,8 +188,15 @@ let getPathParam (req: Http.Request) (routePattern: String) (paramName: String) 
     | None -> Option.Option.None
 
 
-/// Start an HTTP server with a handler function
-/// The handler receives each request and returns a response
-/// This function blocks forever
+/// Start an HTTP server with a handler function.
+/// The handler receives each request and returns a response.
+/// Blocks until SIGINT (Ctrl+C).
+///
+/// Defaults:
+///   maxBodyBytes = 30 MB (matching Kestrel's default)
+///   injectStandardHeaders = true (auto-add `Server: darklang` and HSTS
+///     unless the handler set them)
+///   canonicalizeFromForwardedProto = true (rewrite request.url to https://
+///     when `X-Forwarded-Proto: https` is present, for proxy-fronted hosts)
 let serve (port: Int64) (handler: Http.Request -> Http.Response) : Unit =
-  Builtin.httpServerServe port handler
+  Builtin.httpServerServe port handler 31457280L true true

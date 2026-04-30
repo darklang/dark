@@ -43,3 +43,9 @@ let handlers: List<Stdlib.HttpServer.Handler> =
 /// This is a named function so it can be passed to the builtin
 let router (req: Stdlib.Http.Request) : Stdlib.Http.Response =
   Stdlib.HttpServer.routeRequest handlers req
+
+
+// Echoes request.url as the response body. Used to verify
+// X-Forwarded-Proto canonicalization in smoke tests.
+let urlEchoHandler (req: Stdlib.Http.Request) : Stdlib.Http.Response =
+  Stdlib.Http.responseWithText req.url 200L
