@@ -4,7 +4,8 @@ let content () : String =
   """# HTTP Server
 
 ## Start
-  http-server 8080 MyApp.router
+  serve MyApp.router --port 8080
+  http-server MyApp.router --port 8080   # alias for serve
 
 ## Router function
   let router (req: Stdlib.HttpServer.Request) : Stdlib.HttpServer.Response =
