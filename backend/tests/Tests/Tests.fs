@@ -72,7 +72,8 @@ let main (args : string array) : int =
         *)
 
         // cloud
-        // Tests.BwdServer.tests — replaced by HttpServer.Tests in phase 7a
+        // Tests.BwdServer.tests — replaced by Tests.HttpServer.tests in phase 7a
+        Tests.HttpServer.tests
         Tests.Canvas.tests
         Tests.Routing.tests
         Tests.BinarySerialization.tests

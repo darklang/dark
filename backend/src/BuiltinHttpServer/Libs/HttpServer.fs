@@ -41,7 +41,7 @@ module Http = BuiltinHttpServer.Http
 
 
 /// Default request body cap (30 MB), matching Kestrel's default.
-let private defaultMaxBodyBytes : int64 = 30L * 1024L * 1024L
+let defaultMaxBodyBytes : int64 = 30L * 1024L * 1024L
 
 /// HSTS header value chosen to match the policy BwdServer auto-injected.
 let private hstsHeaderValue =
@@ -61,7 +61,14 @@ let private executeHandler
     match result with
     | Ok dval -> return dval
     | Error(rte, _callStack) ->
-      let! errorStr = Execution.runtimeErrorToString exeState rte
+      // runtimeErrorToString returns Task<ExecutionResult> (Result-wrapped Dval).
+      // Unwrap so we don't render the F# Result type signature into the body.
+      let! errorStrResult = Execution.runtimeErrorToString exeState rte
+      let errorStr =
+        match errorStrResult with
+        | Ok(DString s) -> s
+        | Ok other -> string other
+        | Error _ -> string rte
       return DString $"Handler error: {errorStr}"
   }
 
@@ -226,6 +233,77 @@ let private handleRequest
   }
 
 
+/// Run the HTTP listener loop until `cancellationToken` fires. Public so
+/// tests can drive a per-test listener with their own CancellationToken.
+/// Starts an HttpListener on `port`, dispatches every request to `handler`
+/// via `handleRequest`, and exits when cancellation is requested. On
+/// cancellation, calls `listener.Stop()` to unblock `GetContextAsync`.
+let runListener
+  (exeState : ExecutionState)
+  (port : int64)
+  (handler : Applicable)
+  (maxBodyBytes : int64)
+  (injectStandardHeaders : bool)
+  (canonicalizeFromForwardedProto : bool)
+  (cancellationToken : CancellationToken)
+  : Task<unit> =
+  task {
+    let listener = new HttpListener()
+    listener.Prefixes.Add($"http://*:{port}/")
+    listener.Start()
+
+    Telemetry.event
+      "httpserver.listening"
+      [ "port", string port
+        "maxBodyBytes", string maxBodyBytes
+        "injectStandardHeaders", string injectStandardHeaders
+        "canonicalizeFromForwardedProto",
+        string canonicalizeFromForwardedProto ]
+
+    // Cancellation → listener.Stop() unblocks any pending GetContextAsync
+    // call by raising HttpListenerException / ObjectDisposedException, which
+    // the loop below catches and treats as normal exit.
+    use _registration =
+      cancellationToken.Register(fun () ->
+        try
+          listener.Stop()
+        with _ ->
+          ())
+
+    while not cancellationToken.IsCancellationRequested do
+      try
+        let! ctx = listener.GetContextAsync()
+        // Fire-and-forget: errors are caught inside handleRequest;
+        // anything escaping that try/catch is also swallowed here.
+        Task.Run(fun () ->
+          task {
+            try
+              do!
+                handleRequest
+                  exeState
+                  handler
+                  maxBodyBytes
+                  injectStandardHeaders
+                  canonicalizeFromForwardedProto
+                  ctx
+            with _ ->
+              ()
+          }
+          :> Task)
+        |> ignore<Task>
+      with
+      | :? HttpListenerException -> ()
+      | :? ObjectDisposedException -> ()
+
+    try
+      listener.Close()
+    with _ ->
+      ()
+
+    Telemetry.event "httpserver.shutdown" [ "port", string port ]
+  }
+
+
 let fns () : List<BuiltInFn> =
   [ { name = fn "httpServerServe" 0
       typeParams = []
@@ -262,80 +340,36 @@ let fns () : List<BuiltInFn> =
             DInt64 maxBodyBytes
             DBool injectStandardHeaders
             DBool canonicalizeFromForwardedProto ] ->
-          // Outer fn returns DvalTask. The accept loop is a Task<unit>,
-          // run-to-completion blockingly so the builtin doesn't return until
-          // the listener is shut down.
           uply {
             use _serveSpan =
               Telemetry.span "httpserver.serve" [ "port", string port ]
 
-            let listener = new HttpListener()
-            listener.Prefixes.Add($"http://*:{port}/")
-            listener.Start()
-
-            Telemetry.event
-              "httpserver.listening"
-              [ "port", string port
-                "maxBodyBytes", string maxBodyBytes
-                "injectStandardHeaders", string injectStandardHeaders
-                "canonicalizeFromForwardedProto",
-                string canonicalizeFromForwardedProto ]
             print $"[HttpServer] Listening on port {port}"
 
-            // Graceful shutdown: SIGINT (Ctrl+C) → cancel + listener.Stop().
-            // Already-accepted requests get to drain by virtue of being
-            // fire-and-forget Tasks that we don't actively cancel.
+            // Graceful shutdown: SIGINT (Ctrl+C) → cancel.
+            // Already-accepted requests drain by virtue of being fire-and-
+            // forget Tasks that we don't actively cancel.
             let cts = new CancellationTokenSource()
             let cancelHandler =
               ConsoleCancelEventHandler(fun _ args ->
                 args.Cancel <- true
-                cts.Cancel()
-                try
-                  listener.Stop()
-                with _ ->
-                  ())
+                cts.Cancel())
             Console.CancelKeyPress.AddHandler cancelHandler
 
-            let acceptLoop : Task<unit> =
-              task {
-                while not cts.IsCancellationRequested do
-                  try
-                    let! ctx = listener.GetContextAsync()
-                    // Fire-and-forget: errors are caught inside handleRequest;
-                    // anything escaping that try/catch is also swallowed here.
-                    Task.Run(fun () ->
-                      task {
-                        try
-                          do!
-                            handleRequest
-                              exeState
-                              handler
-                              maxBodyBytes
-                              injectStandardHeaders
-                              canonicalizeFromForwardedProto
-                              ctx
-                        with _ ->
-                          ()
-                      }
-                      :> Task)
-                    |> ignore<Task>
-                  with
-                  // listener.Stop() during GetContextAsync produces these.
-                  // Both are expected on shutdown; treat as normal exit.
-                  | :? HttpListenerException -> ()
-                  | :? ObjectDisposedException -> ()
-              }
+            let listenerTask =
+              runListener
+                exeState
+                port
+                handler
+                maxBodyBytes
+                injectStandardHeaders
+                canonicalizeFromForwardedProto
+                cts.Token
 
-            // Block until accept loop exits (cancellation or listener.Stop).
-            acceptLoop.Wait()
+            // Block until listener exits (cancellation).
+            listenerTask.Wait()
 
             Console.CancelKeyPress.RemoveHandler cancelHandler
-            try
-              listener.Close()
-            with _ ->
-              ()
-
-            Telemetry.event "httpserver.shutdown" [ "port", string port ]
 
             return DUnit
           }

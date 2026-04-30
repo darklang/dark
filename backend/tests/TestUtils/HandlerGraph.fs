@@ -49,17 +49,34 @@ let private handlerRecordSource (h : RawHandler) : string =
 /// resulting lambda's instruction cache is populated on `exeState`, so it
 /// can be passed directly as the `handler` argument to `httpServerServe`
 /// running on the same `exeState`.
+///
+/// **Single-handler fast path** (all 10 ported fixtures): when there is
+/// exactly one handler, the router is `fun request -> (<body>)` with no
+/// `routeRequest` wrapping. This lets the handler return any Dval — even a
+/// wrong-shape one (e.g. an `Int64` instead of a `Response`) — which the
+/// F# side's `toHttpResponse` then handles via `wrongTypeResponse`. This
+/// matches BwdServer's behavior, where each handler was a top-level fn
+/// without an enforced return type.
+///
+/// **Multi-handler path**: falls back to `Stdlib.HttpServer.routeRequest`
+/// with typed `Handler` records. The type system enforces that each body
+/// returns `Response`, so wrong-shape returns aren't testable here. None
+/// of the current fixtures need this, but it's there for the future.
 let buildRouter
   (exeState : RT.ExecutionState)
   (handlers : List<RawHandler>)
   : Task<RT.Dval> =
   task {
-    let handlerRecords =
-      handlers |> List.map handlerRecordSource |> String.concat "; "
-
-    // The router fn: take a request, dispatch via Stdlib.HttpServer.routeRequest.
     let routerSource =
-      $"""fun request -> Darklang.Stdlib.HttpServer.routeRequest [ {handlerRecords} ] request"""
+      match handlers with
+      | [] -> "fun request -> Darklang.Stdlib.Http.notFound ()"
+      | [ h ] ->
+        // Single-handler: skip routeRequest dispatch entirely so the lambda's
+        // return type stays untyped (Dval) and wrong-shape returns flow through.
+        $"""fun request -> ({h.code})"""
+      | many ->
+        let recs = many |> List.map handlerRecordSource |> String.concat "; "
+        $"""fun request -> Darklang.Stdlib.HttpServer.routeRequest [ {recs} ] request"""
 
     let! ptExpr = TestUtils.parsePTExpr routerSource
     let rtInstrs = PT2RT.Expr.toRT Map.empty 0 None ptExpr
