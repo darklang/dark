@@ -30,7 +30,7 @@ open LibExecution.Builtin.Shortcuts
 module Dval = LibExecution.Dval
 module Execution = LibExecution.Execution
 module Blob = LibExecution.Blob
-module Http = LibHttpMiddleware.Http
+module Http = BuiltinHttpServer.Http
 
 
 /// Execute a handler (named fn or lambda) against the given request. Lambdas
@@ -61,7 +61,7 @@ let private readRequestBody (req : HttpListenerRequest) : Task<byte[]> =
 
 
 /// Flatten HttpListener's NameValueCollection of headers into the (key, value)
-/// list shape that LibHttpMiddleware.Http.Request expects. A single header key
+/// list shape that BuiltinHttpServer.Http.Request expects. A single header key
 /// with multiple values becomes multiple entries (matching the prior ASP.NET
 /// behavior).
 let private extractHeaders (req : HttpListenerRequest) : List<string * string> =
