@@ -43,7 +43,7 @@ module Http = BuiltinHttpServer.Http
 /// Default request body cap (30 MB), matching Kestrel's default.
 let defaultMaxBodyBytes : int64 = 30L * 1024L * 1024L
 
-/// HSTS header value chosen to match the policy BwdServer auto-injected.
+/// HSTS header value matching the historical default for HTTP services.
 let private hstsHeaderValue =
   "max-age=31536000; includeSubDomains; preload"
 
@@ -122,9 +122,9 @@ let private extractHeaders (req : HttpListenerRequest) : List<string * string> =
 
 
 /// If `X-Forwarded-Proto: https` is present, rewrite the URL's scheme to
-/// `https://` and port to 443. This matches BwdServer's `canonicalizeURL`
+/// `https://` and port to 443. Matches the canonicalize-URL convention used
 /// behind a TLS-terminating load balancer. Lower-cases the lookup since the
-/// prior request-shape converter lowercases header keys before this.
+/// request-shape converter lowercases header keys before this.
 let private canonicalizeUrlFromForwardedProto
   (url : string)
   (headers : List<string * string>)

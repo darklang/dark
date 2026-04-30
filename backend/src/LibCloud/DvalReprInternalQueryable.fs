@@ -16,7 +16,7 @@
 /// `DStream` is non-persistable; raises on serialize.
 ///
 /// These are intended to be used exclusively internally — should not
-/// be used in libraries, BwdServer, HttpClient, etc.
+/// be used in libraries, HTTP server / client builtins, etc.
 module LibExecution.DvalReprInternalQueryable
 
 open System.Text.Json

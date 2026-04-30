@@ -1,10 +1,10 @@
 # Dark HTTP server tests
 
-The files in this directory are tests of the HTTP server known as BwdServer,
-which supports Dark users' handlers. A test typically comprises a request and a
-response, and may also include one or more handler.
+The files in this directory are tests of the CLI's `Http.serve` builtin
+(driven by `Stdlib.HttpServer.serve`). A test typically comprises a request
+and a response, and may also include one or more handler.
 
-The implementation of the tests is in `BwdServer.Tests.fs`.
+The implementation of the tests is in `HttpServer.Tests.fs`.
 
 # HTTP handlers
 
@@ -98,7 +98,7 @@ Content-Length: LENGTH
 The response is expected to be perfect down to the byte.
 
 Response headers are normalized, removing the specific values from Date, Expires,
-and some other headers. See BwdServer.Tests.fs for full details.
+and some other headers. See HttpServer.Tests.fs for full details.
 
 # Editing test files
 

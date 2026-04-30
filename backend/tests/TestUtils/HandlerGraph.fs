@@ -5,7 +5,7 @@
 /// The generated router uses `Stdlib.HttpServer.routeRequest` to dispatch
 /// by method+route. Each handler's body is wrapped in `fun request -> <body>`
 /// so handler code can reference `request` directly (matching the `.test`
-/// fixture convention from the BwdServer era).
+/// fixture convention).
 ///
 /// Lives in TestUtils (not in BuiltinHttpServer) because it depends on the
 /// parser pipeline (`TestUtils.parsePTExpr` invokes a Dark-side parser via
@@ -55,8 +55,8 @@ let private handlerRecordSource (h : RawHandler) : string =
 /// `routeRequest` wrapping. This lets the handler return any Dval — even a
 /// wrong-shape one (e.g. an `Int64` instead of a `Response`) — which the
 /// F# side's `toHttpResponse` then handles via `wrongTypeResponse`. This
-/// matches BwdServer's behavior, where each handler was a top-level fn
-/// without an enforced return type.
+/// matches the historical handler model, where each handler was a top-level
+/// fn without an enforced return type.
 ///
 /// **Multi-handler path**: falls back to `Stdlib.HttpServer.routeRequest`
 /// with typed `Handler` records. The type system enforces that each body

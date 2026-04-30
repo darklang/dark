@@ -1,4 +1,4 @@
 # LibCloudExecution
 
-Pulls together the StdLibs and LibExecution and LibCloud to provide the actual
-context we use to execute Dark code in the cloud binaries (BwdServer, etc).
+Pulls together the StdLibs and LibExecution and LibCloud to provide the
+execution context for running Dark code (trace persistence wiring, etc).

@@ -1,8 +1,7 @@
 /// Tests the CLI's `Http.serve` builtin against the fixtures in
-/// `testfiles/httphandler/` (the same byte-exact `.test` files the old
-/// `BwdServer.Tests.fs` used).
+/// `testfiles/httphandler/` (byte-exact `.test` files).
 ///
-/// Differences from the predecessor:
+/// Differences from the predecessor harness:
 /// - No SQL canvas. Per-test handlers are assembled into an in-memory
 ///   router Dval via `TestUtils.HandlerGraph.buildRouter`.
 /// - Per-test HttpListener. A free port is allocated with
@@ -10,7 +9,7 @@
 ///   duration of the test and is stopped via `cts.Cancel()` in teardown.
 /// - `domain` is fixed to `"localhost"` (single-canvas model). Fixtures
 ///   that use `[domain ...]` for multi-canvas dispatch are intrinsically
-///   BwdServer-specific and live in `_disabled-by-cli-model/`.
+///   incompatible with this model and live in `_disabled-by-cli-model/`.
 module Tests.HttpServer
 
 let basePath = "testfiles/httphandler"

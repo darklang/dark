@@ -51,8 +51,6 @@
     <Compile Include="BranchOps.Tests.fs" />
 
     <!-- cloud stuff /-->
-    <!-- BwdServer.Tests disabled — replaced by HttpServer.Tests.fs (phase 7a). -->
-    <!-- <Compile Include="BwdServer.Tests.fs" /> -->
     <Compile Include="HttpServer.Tests.fs" />
     <Compile Include="Canvas.Tests.fs" />
     <Compile Include="DvalRepr.Tests.fs" />

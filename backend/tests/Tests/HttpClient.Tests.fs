@@ -293,10 +293,8 @@ let makeTest versionName filename =
 // This is the webserver that we will be testing against.
 // It records the received request, and returns the test case output.
 //
-// Originally backed by Kestrel + ASP.NET Core; rewritten on
-// System.Net.HttpListener after BwdServer / its `Server` helper module
-// were deleted (they used to provide getHeadersWithoutMergingKeys, getBody,
-// setResponseHeader). Same wire-level behavior.
+// Backed by System.Net.HttpListener (replaced an earlier Kestrel-based
+// scaffold). Same wire-level behavior the existing fixtures assert.
 // ---------------
 open System.Net
 

@@ -1,6 +1,5 @@
-/// For executing code with the appropriate production "Dark cloud" execution,
-/// setting traces, stdlib, etc, appropriately.
-/// Used by cloud services (bwdserver, etc.)
+/// For executing code with the appropriate execution-state wiring
+/// (traces, stdlib, etc).
 module LibCloudExecution.CloudExecution
 
 open FSharp.Control.Tasks

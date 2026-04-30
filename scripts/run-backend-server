@@ -5,7 +5,6 @@ set -euo pipefail
 
 # collect args
 PUBLISHED=false
-RESTART=true
 for i in "$@"
 do
   case "${i}" in
@@ -16,7 +15,8 @@ do
   esac
   case "${i}" in
     --restart=no)
-    RESTART=false
+    # Accepted for compatibility with build pipeline; no-op since
+    # there is no long-running backend server process anymore.
     shift
     ;;
   esac
@@ -46,31 +46,16 @@ function exe_path() {
   fi
 }
 
-BWDSERVER_EXE=$(exe_path "BwdServer")
-BWDSERVER_LOG="$LOGS/bwdserver.log"
 LOCALEXEC_EXE=$(exe_path "LocalExec")
 
 
 # (actual logic starts here)
 
-# If this script was called with `--restart=no`,
-# we should exit early if everything is already running
-if [[ $(pgrep BwdServer -c) -eq 0 ]]; then RESTART=true; fi
-if [[ "${RESTART}" == "false" ]]; then
-  echo "Servers are running and we don't need to restart"
-  exit 0
-fi
-
-# Otherwise, stop the server processes now; we'll start them back up again shortly
-echo "Stopping servers"
-sudo pkill -f "BwdServer" || true
-# Wait for any builds that haven't been yet compiled
+# Wait for any builds that haven't been yet compiled.
 echo "Waiting for builds to be ready"
 for ((i=1;i<=1000;i++));
 do
-  if [[
-     ! -f "${BWDSERVER_EXE}" || \
-     ! -f "${LOCALEXEC_EXE}" ]]; then
+  if [[ ! -f "${LOCALEXEC_EXE}" ]]; then
     sleep 0.01
   fi
 done
@@ -92,7 +77,4 @@ fi
 announce "Running migrations" "${MIGRATIONS_LOG}"
 "${LOCALEXEC_EXE}" migrations run > "${MIGRATIONS_LOG}" 2>&1
 
-announce "Running bwdserver" "${BWDSERVER_LOG}"
-"${BWDSERVER_EXE}" > "${BWDSERVER_LOG}" 2>&1 &
-
-echo "Finished loading servers"
+echo "Finished build prep"
