@@ -10,7 +10,13 @@ open Prelude
 module PT = LibExecution.ProgramTypes
 
 let initSerializers () =
-  BwdServer.Server.initSerializers ()
+  // Universally-serializable types previously registered by
+  // BwdServer.Server.initSerializers (now gone with BwdServer):
+  Json.Vanilla.allow<LibExecution.DvalReprInternalRoundtrippable.FormatV0.Dval>
+    "RoundtrippableSerializationFormatV0.Dval"
+  Json.Vanilla.allow<List<LibExecution.ProgramTypes.Toplevel.T>>
+    "Canvas.loadJsonFromDisk"
+  Json.Vanilla.allow<LibExecution.ProgramTypes.Toplevel.T> "Canvas.loadJsonFromDisk"
 
   // These are serializers used in the tests that are not used in the main program
   Json.Vanilla.allow<Map<string, string>> "tests"
@@ -24,9 +30,7 @@ let initSerializers () =
 let main (args : string array) : int =
   try
     let name = "Tests"
-    LibService.Init.init name
-    (LibCloud.Init.init name).Result
-    (LibCloudExecution.Init.init name).Result
+    printTime $"Initing {name}"
 
     initSerializers ()
 
@@ -51,7 +55,7 @@ let main (args : string array) : int =
         Tests.DvalRepr.tests
         Tests.LibParser.tests
         Tests.NewParser.tests
-        Tests.HttpClient.tests
+        // Tests.HttpClient.tests — disabled with BwdServer; restored in phase 7b
 
         // package manager
         Tests.Propagation.tests
@@ -68,7 +72,7 @@ let main (args : string array) : int =
         *)
 
         // cloud
-        Tests.BwdServer.tests
+        // Tests.BwdServer.tests — replaced by HttpServer.Tests in phase 7a
         Tests.Canvas.tests
         Tests.Routing.tests
         Tests.BinarySerialization.tests
@@ -81,10 +85,6 @@ let main (args : string array) : int =
         Tests.Blob.tests
         Tests.Stream.tests ]
 
-    let cancelationTokenSource = new System.Threading.CancellationTokenSource()
-    let bwdServerTestsTask = Tests.BwdServer.init cancelationTokenSource.Token
-    let httpClientTestsTask = Tests.HttpClient.init cancelationTokenSource.Token
-
     // Generate this so that we can see if the format has changed in a git diff
     BinarySerialization.generateTestFiles ()
     VanillaSerialization.PersistedSerializations.generateTestFiles ()
@@ -95,9 +95,6 @@ let main (args : string array) : int =
       runTestsWithCLIArgs [ Allow_Duplicate_Names ] args (testList "tests" tests)
 
     NonBlockingConsole.wait () // flush stdout
-    cancelationTokenSource.Cancel()
-    bwdServerTestsTask.Wait()
-    httpClientTestsTask.Wait()
     exitCode
   with e ->
     printException "Outer exception" [] e

@@ -133,8 +133,7 @@ let loadFromDisk
 
     do! LibCloud.Canvas.saveTLIDs canvasID tls
 
-    let host = $"http://{domain}:{LibService.Config.bwdServerPort}"
-    print $"Success, saved canvas - endpoints available at {host}"
+    print $"Success, saved canvas {domain}"
 
     return (canvasID, List.map Tuple2.first tls)
   }

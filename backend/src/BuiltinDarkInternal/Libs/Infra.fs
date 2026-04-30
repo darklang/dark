@@ -60,7 +60,7 @@ let fns () : List<BuiltInFn> =
       description = "Returns the git hash of the server's current deploy"
       fn =
         (function
-        | _, _, _, [ DUnit ] -> LibService.Config.buildHash |> DString |> Ply
+        | _, _, _, [ DUnit ] -> LibConfig.Config.buildHash |> DString |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure

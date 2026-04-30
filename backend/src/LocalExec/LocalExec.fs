@@ -165,9 +165,7 @@ let main (args : string[]) : int =
   try
     initSerializers ()
 
-    LibService.Init.init name
-
-    //let _ = (LibCloud.Init.init name).Result
+    printTime $"Initing {name}"
 
     let handleCommand
       (description : string)
@@ -240,6 +238,5 @@ let main (args : string[]) : int =
   with e ->
     // Don't reraise or report as LocalExec is only run interactively
     printException "Exception" [] e
-    LibService.Init.shutdown name
     NonBlockingConsole.wait ()
     1
