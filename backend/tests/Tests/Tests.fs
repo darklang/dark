@@ -55,7 +55,7 @@ let main (args : string array) : int =
         Tests.DvalRepr.tests
         Tests.LibParser.tests
         Tests.NewParser.tests
-        // Tests.HttpClient.tests — disabled with BwdServer; restored in phase 7b
+        Tests.HttpClient.tests
 
         // package manager
         Tests.Propagation.tests
@@ -86,6 +86,9 @@ let main (args : string array) : int =
         Tests.Blob.tests
         Tests.Stream.tests ]
 
+    let cancelationTokenSource = new System.Threading.CancellationTokenSource()
+    let httpClientTestsTask = Tests.HttpClient.init cancelationTokenSource.Token
+
     // Generate this so that we can see if the format has changed in a git diff
     BinarySerialization.generateTestFiles ()
     VanillaSerialization.PersistedSerializations.generateTestFiles ()
@@ -96,6 +99,8 @@ let main (args : string array) : int =
       runTestsWithCLIArgs [ Allow_Duplicate_Names ] args (testList "tests" tests)
 
     NonBlockingConsole.wait () // flush stdout
+    cancelationTokenSource.Cancel()
+    httpClientTestsTask.Wait()
     exitCode
   with e ->
     printException "Outer exception" [] e

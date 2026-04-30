@@ -44,9 +44,7 @@
     <Compile Include="Execution.Tests.fs" />
     <Compile Include="LibParser.Tests.fs" />
     <Compile Include="NewParser.Tests.fs" />
-    <!-- HttpClient.Tests disabled — depends on BwdServer.Server helpers as a mock-origin scaffold.
-         Restored in phase 7b with an HttpListener-based mock-origin. -->
-    <!-- <Compile Include="HttpClient.Tests.fs" /> -->
+    <Compile Include="HttpClient.Tests.fs" />
     <Compile Include="LibExecution.Tests.fs" />
     <Compile Include="Propagation.Tests.fs" />
     <Compile Include="Hashing.Tests.fs" />
