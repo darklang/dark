@@ -26,27 +26,6 @@ let evaluateAllValues = LibPackageManager.Seed.evaluateAllValues
 
 module HandleCommand =
 
-  let reloadCanvas (name : string) : Ply<Result<unit, string>> =
-    uply {
-      print $"Reloading {name} canvas..."
-
-      let! (canvasId, toplevels) =
-        Canvas.loadFromDisk LibPackageManager.PackageManager.pt name
-
-      print $"Loaded canvas {canvasId} with {List.length toplevels} toplevels"
-
-      return Ok()
-    }
-
-  let reloadCanvases () : Ply<Result<unit, string>> =
-    uply {
-      // CLEANUP fetch the list of canvases by 'ls canvases' equiv.
-      // CLEANUP stop tossing the result
-      let! _ = reloadCanvas "dark-packages"
-      let! _ = reloadCanvas "dark-editor"
-      return Ok()
-    }
-
   let reloadPackages () : Ply<Result<unit, string>> =
     uply {
       // Load packages from disk, ensuring all parse well
@@ -97,11 +76,6 @@ module HandleCommand =
         let (Hash commitHashStr) = commitHash
         let shortHash = commitHashStr[..6]
         print $"Created init commit {shortHash}"
-
-        // Reload dark-packages and dark-editor canvases after package reload
-        print "Reloading dark-packages canvas..."
-        let! _ = reloadCanvas "dark-packages"
-        let! _ = reloadCanvas "dark-editor"
 
         return Ok()
     }
@@ -188,12 +162,6 @@ let main (args : string[]) : int =
         "Reload packages from `packages` directory"
         (HandleCommand.reloadPackages ())
 
-    | [ "reload-canvases" ] ->
-      handleCommand
-        "Reload canvases from 'canvases' directory"
-        (HandleCommand.reloadCanvases ())
-
-
     | [ "migrations"; "run" ] ->
       handleCommand
         "deleting database and running all migrations"
@@ -226,7 +194,6 @@ let main (args : string[]) : int =
       print "Invalid arguments"
       print "Available commands:"
       print "  reload-packages"
-      print "  reload-canvases"
       print "  migrations run"
       print "  migrations list"
       print "  export-seed <output-path>"
