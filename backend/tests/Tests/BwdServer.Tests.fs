@@ -461,6 +461,5 @@ open Microsoft.Extensions.Hosting
 let init (token : System.Threading.CancellationToken) : Task =
   // run our own webserver instead of relying on the dev webserver
   let port = TestConfig.bwdServerBackendPort
-  let k8sPort = TestConfig.bwdServerKubernetesPort
   let logger = configureLogging "test-bwdserver"
-  (BwdServer.Server.webserver (Some logger) port k8sPort).RunAsync(token)
+  (BwdServer.Server.webserver (Some logger) port).RunAsync(token)

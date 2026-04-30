@@ -33,7 +33,6 @@ module LibHttpMiddleware = LibHttpMiddleware.Http
 module CloudExe = LibCloudExecution.CloudExecution
 
 module FireAndForget = LibService.FireAndForget
-module Kubernetes = LibService.Kubernetes
 module Logging = LibService.Logging
 
 // HttpHandlerTODO there are still a number of things in this file that were
@@ -323,7 +322,7 @@ let runDarkHandler (ctx : HttpContext) : Task<HttpContext> =
 // ---------------
 // Configure Kestrel/ASP.NET
 // ---------------
-let configureApp (healthCheckPort : int) (app : IApplicationBuilder) =
+let configureApp (app : IApplicationBuilder) =
   let handler (ctx : HttpContext) : Task =
     (task {
       // The traditional methods of using `UseHsts` and `AddHsts` within BwdServer
@@ -353,43 +352,29 @@ let configureApp (healthCheckPort : int) (app : IApplicationBuilder) =
     })
 
   app.UseRouting()
-  // must go after UseRouting
-  |> Kubernetes.configureApp healthCheckPort
   |> Logging.addHttpLogging
   |> fun app -> app.Run(RequestDelegate handler)
-
-
-let configureServices (services : IServiceCollection) : unit =
-  services
-  |> Kubernetes.configureServices [ Canvas.healthCheck ]
-  |> ignore<IServiceCollection>
 
 
 let webserver
   (providedLogger : Option<ILoggingBuilder -> unit>)
   (httpPort : int)
-  (healthCheckPort : int)
   : WebApplication =
-  let hcUrl = Kubernetes.url healthCheckPort
-
   let builder = WebApplication.CreateBuilder()
-  configureServices builder.Services
-  Kubernetes.registerServerTimeout builder.WebHost
 
   builder.WebHost
   |> fun wh -> wh.ConfigureLogging(Logging.defaultLogger providedLogger)
   |> fun wh -> wh.UseKestrel(LibService.Kestrel.configureKestrel)
-  |> fun wh -> wh.UseUrls(hcUrl, $"http://*:{httpPort}")
+  |> fun wh -> wh.UseUrls($"http://*:{httpPort}")
   |> ignore<IWebHostBuilder>
 
   let app = builder.Build()
-  configureApp healthCheckPort app
+  configureApp app
   app
 
 let run () : unit =
   let port = LibService.Config.bwdServerPort
-  let k8sPort = LibService.Config.bwdServerKubernetesPort
-  (webserver None port k8sPort).Run()
+  (webserver None port).Run()
 
 
 let initSerializers () =

@@ -15,7 +15,6 @@
     <Compile Include="Config.fs" />
     <Compile Include="Logging.fs" />
     <Compile Include="FireAndForget.fs" />
-    <Compile Include="Kubernetes.fs" />
     <Compile Include="Kestrel.fs" />
     <Compile Include="HSTS.fs" />
     <Compile Include="Init.fs" />

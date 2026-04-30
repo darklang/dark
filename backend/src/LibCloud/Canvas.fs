@@ -15,7 +15,6 @@ module PT = LibExecution.ProgramTypes
 module PTParser = LibExecution.ProgramTypesParser
 module RT = LibExecution.RuntimeTypes
 module PT2RT = LibExecution.ProgramTypesToRuntimeTypes
-module K8s = LibService.Kubernetes
 
 
 let createWithExactID
@@ -427,19 +426,6 @@ let saveTLIDs
       })
   with e ->
     Exception.reraiseAsPageable "canvas save failed" [ "canvasID", id ] e
-
-
-type HealthCheckResult =
-  Microsoft.Extensions.Diagnostics.HealthChecks.HealthCheckResult
-
-/// Simple healthcheck that just returns healthy (domain checks removed with LaunchDarkly)
-let loadDomainsHealthCheck
-  (_ : System.Threading.CancellationToken)
-  : Task<HealthCheckResult> =
-  task { return HealthCheckResult.Healthy() }
-
-let healthCheck : K8s.HealthCheck =
-  { name = "canvas"; checkFn = loadDomainsHealthCheck; probeTypes = [ K8s.Startup ] }
 
 
 let toProgram (c : T) : Ply<RT.Program> =

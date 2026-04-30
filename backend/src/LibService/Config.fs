@@ -32,7 +32,6 @@ let hostName = getEnv "HOSTNAME" |> Option.defaultValue "none"
 // ports
 // --------------------
 let bwdServerPort = int "DARK_CONFIG_BWDSERVER_BACKEND_PORT"
-let bwdServerKubernetesPort = int "DARK_CONFIG_BWDSERVER_KUBERNETES_PORT"
 
 
 // --------------------
