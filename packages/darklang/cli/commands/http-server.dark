@@ -1,25 +1,14 @@
 module Darklang.Cli.Commands.HttpServer
 
-// Run an HTTP server
-
-// TODO: dynamically resolve router by name instead of hardcoding.
+// Run an HTTP server backed by a Darklang router.
 //
-// Approaches tried:
-// 1. pmFindValue + pmEvaluateValue: finds the value and evaluates it, but
-//    lambda Dvals don't carry their instruction cache (LambdaImpl), so calling
-//    them from a different execution context (e.g. ASP.NET request handler)
-//    fails with "lambda not found" (exprId missing from VM's lambdaInstrCache).
-// 2. cliEvaluateExpression to build "Stdlib.HttpServer.serve {port}L {name}":
-//    same underlying issue — the function resolves as AppNamedFn inside the
-//    eval VM, but httpServerServe's ASP.NET handler runs in a separate context
-//    where the instruction caches from the eval VM aren't available.
-//
-// The fix likely requires either:
-// - Making the httpServerServe builtin propagate the VM's instruction cache
-//   to the ASP.NET request handler thread
-// - Or adding a builtin that resolves+calls a package fn by name in a single
-//   execution context (avoiding the cross-context lambda problem)
-// See also: PR #5582 (reflection support), PR #5546 (original json-canvas)
+// The router path is resolved at runtime via cliEvaluateExpression: the
+// command builds the source string `Stdlib.HttpServer.serve {port}L {path}`
+// and evaluates it in a single VM. That way the lambda-instruction cache
+// (lambdaInstrCache / packageFnInstrCache live on ExecutionState) is
+// populated by the same VM that calls into the httpServerServe builtin —
+// no cross-context lambda lookups, so any package fn or value can be
+// served, not just a hardcoded list.
 
 let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
   match args with
@@ -27,29 +16,18 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
     [ "Usage: http-server <port> <router-path>"
       ""
       "Examples:"
-      "  http-server 8080"
+      "  http-server 8080 Darklang.DemoData.HttpServerTest.router"
       "  http-server 8080 Darklang.Canvas.DarkPackages.router" ]
     |> Stdlib.printLines
 
     state
 
   | [ portStr ] ->
-    match Stdlib.Int64.parse portStr with
-    | Error _ ->
-      Stdlib.printLine (Colors.error $"Invalid port: {portStr}")
-      state
-    | Ok port ->
-      let portStr_ = Stdlib.Int64.toString port
+    Stdlib.printLine
+      (Colors.error
+        "Missing router path. Usage: http-server <port> <router-path>")
 
-      [ ""
-        Colors.success $"Listening on http://localhost:{portStr_}"
-        "Press Ctrl+C to stop"
-        "" ]
-      |> Stdlib.printLines
-
-      Stdlib.HttpServer.serve port DemoData.HttpServerTest.router
-
-      state
+    state
 
   | [ portStr; routerPath ] ->
     match Stdlib.Int64.parse portStr with
@@ -66,23 +44,23 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
         "" ]
       |> Stdlib.printLines
 
-      match routerPath with
-      | "Darklang.Canvas.DarkPackages.router" ->
-        Stdlib.HttpServer.serve port Darklang.Canvas.DarkPackages.router
-        state
-      | "Darklang.DemoData.HttpServerTest.router" ->
-        Stdlib.HttpServer.serve port DemoData.HttpServerTest.router
-        state
-      | "Stachu.JsonCanvas.Server.router" ->
-        Stdlib.HttpServer.serve port Stachu.JsonCanvas.Server.router
-        state
-      | _ ->
-        [ Colors.error $"Unknown router: {routerPath}"
-          "Known routers:"
-          "  - Darklang.Canvas.DarkPackages.router"
-          "  - Darklang.DemoData.HttpServerTest.router"
-          "  - Stachu.JsonCanvas.Server.router" ]
-        |> Stdlib.printLines
+      let expr = $"Stdlib.HttpServer.serve {portStr_}L {routerPath}"
+
+      match
+        Builtin.cliEvaluateExpression
+          state.accountID
+          state.currentBranchId
+          expr
+          false
+       with
+      | Ok _ -> state
+      | Error err ->
+        let prettyError =
+          PrettyPrinter.RuntimeTypes.RuntimeError.toString
+            state.currentBranchId
+            err
+
+        Stdlib.printLine (Colors.error $"Server failed: {prettyError}")
         state
 
   | _ ->
@@ -91,16 +69,16 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
 
 
 let help (state: Cli.AppState) : Cli.AppState =
-  [ "Start an HTTP server."
+  [ "Start an HTTP server backed by a Darklang router."
     ""
-    "Usage: http-server <port> [router-path]"
+    "Usage: http-server <port> <router-path>"
     ""
     "Arguments:"
     "  port         Port to listen on (e.g., 8080)"
-    "  router-path  Dotted path to a router function"
+    "  router-path  Dotted path to a router fn or value (Request -> Response)"
     ""
     "Examples:"
-    "  http-server 8080"
+    "  http-server 8080 Darklang.DemoData.HttpServerTest.router"
     "  http-server 8080 Stachu.JsonCanvas.Server.router" ]
   |> Stdlib.printLines
 
